@@ -728,6 +728,12 @@ void Packetracker::ProcessDataPacket(packet_info info, wireless_network *net) {
         num_crypt++;
     }
 
+    // Flag the client and network as decrypted if we decrypted the packet
+    if (info.decoded) {
+        client->decrypted = 1;
+        net->decrypted = 1;
+    }
+
     if (info.interesting) {
         net->interesting_packets++;
         client->interesting_packets++;
