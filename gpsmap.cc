@@ -54,8 +54,9 @@
 #include "gpsmap_samples.h"
 
 // Kludge old IM
-#ifndef MagickTrue
+#if (MagickLibVersion < 0x600)
 #define MagickTrue 1
+#define MagickFalse 0
 #endif
 
 /* Mapscale / pixelfact is meter / pixel */
