@@ -1,3 +1,5 @@
+Apr 04 2004  devel  Merged patch from Jamie for channel dwelling (multisecond
+                     channel hopping)
 Apr 02 2004  devel  Fixed bug in gpsmap cache that assigned the same id to all
                      points, eating an entire file if any points were filtered.
                     Code cleanup - Fixed several -pedantic warnings in gpsmap

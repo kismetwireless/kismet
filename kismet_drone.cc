@@ -159,6 +159,7 @@ int main(int argc, char *argv[]) {
 
     int channel_hop = -1;
     int channel_velocity = 1;
+    int channel_dwell = 0;
     int channel_split = 0;
 
     // Default channels
@@ -447,6 +448,15 @@ int main(int argc, char *argv[]) {
             }
         }
 
+        if (conf->FetchOpt("channeldwell") != "") {
+            if (sscanf(conf->FetchOpt("channeldwell").c_str(), "%d",
+                       &channel_dwell) != 1) {
+                fprintf(stderr, "FATAL: Illegal config file value for "
+                        "channeldwell.\n");
+                exit(1);
+            }
+        }
+
         // Fetch the vector of default channels
         defaultchannel_vec = conf->FetchOptVec("defaultchannels");
         if (defaultchannel_vec.size() == 0) {
@@ -640,8 +650,12 @@ int main(int argc, char *argv[]) {
     }
 
     // Channel hop if requested
-    if (channel_hop)
-        timetracker.RegisterTimer(SERVER_TIMESLICES_SEC / channel_velocity, NULL, 1, &ChannelHopEvent, NULL);
+    if (channel_hop) {
+        if (channel_dwell)
+            timetracker.RegisterTimer(SERVER_TIMESLICES_SEC * channel_dwell, NULL, 1, &ChannelHopEvent, NULL);
+        else
+            timetracker.RegisterTimer(SERVER_TIMESLICES_SEC / channel_velocity, NULL, 1, &ChannelHopEvent, NULL);
+    }
 
     // Now we can start doing things...
     fprintf(stderr, "Kismet Drone %s.%s.%s (%s)\n",
