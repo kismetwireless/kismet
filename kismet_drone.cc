@@ -102,15 +102,15 @@ int main(int argc, char *argv[]) {
 
     int beacon_stream = 1;
     int phy_stream = 1;
+    map<mac_addr, string> beacon_logged_map;
+    // We don't actually use this but we need it for calls
+    map<mac_addr, wep_key_info *> bssid_wep_map;
 
     // For commandline and file sources
     string named_sources;
     vector<string> source_input_vec;
     int source_from_cmd = 0;
     int enable_from_cmd = 0;
-
-    // We don't actually use this but we need it for calls
-    map<mac_addr, wep_key_info *> bssid_wep_map;
 
     vector<client_ipblock *> legal_ipblock_vec;
 
@@ -564,8 +564,13 @@ int main(int argc, char *argv[]) {
 
                         if ((info.type == packet_management && info.subtype == packet_sub_beacon) &&
                             beacon_stream == 0) {
-                            delete[] packet.data;
-                            continue;
+                            map<mac_addr, string>::iterator blm = beacon_logged_map.find(info.bssid_mac);
+                            if (blm == beacon_logged_map.end()) {
+                                beacon_logged_map[info.bssid_mac] = info.ssid;
+                            } else if (blm->second == info.ssid) {
+                                delete[] packet.data;
+                                continue;
+                            }
                         } else if (info.type == packet_phy && phy_stream == 0) {
                             delete[] packet.data;
                             continue;
