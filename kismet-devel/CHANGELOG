@@ -1,3 +1,4 @@
+Dec 11 2002  2.7.1  Merged more hopper patches from Anders Gustafsson
 Dec 10 2002  2.7.1  Fixed some packet dissection and wep/interesting detection
                      bugs with fuzzy encryption mode
                     Added (broken) WEP decoding.  Right now this is just a 
