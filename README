@@ -857,6 +857,16 @@ Licensed under the GPL
     FIX: Sometimes cards don't come out of monitor mode cleanly.  If it doesn't
      work, you'll need to manually restart your card, sorry.
 
+    PROBLEM: I get 'invalid mode: monitor' or similar errors trying to go 
+     into rfmon with madwifi
+    FIX: First, make sure you have madwifi-cvs.
+         Second, make sure you're running a recent kernel.  You need wireless
+          extensions >= 15.  To be safe, upgrade to the latest stable kernel.
+
+    PROBLEM: I get 'Could not set SSID, I/O error' going into monitor mode on
+     prism54 cards
+    FIX: Update to the latest CVS release of the prism54 driver.
+
 16. Frequently Asked Questions
 
     Q: Where did the name Kismet come from?
@@ -987,9 +997,7 @@ Licensed under the GPL
        fix a number of issues with the orinoco drivers and seem to alleviate
        this problem for most users.
 
-    Q: I get 'invalid mode: monitor' or similar errors trying to go into rfmon
-       with madwifi
-    A: First, make sure you have madwifi-cvs.
-       Second, make sure you're running a recent kernel.  You need wireless
-        extensions >= 15.  To be safe, upgrade to the latest stable kernel.
+    Q: What are the SSIDs full of strange characters, like ^A^B^J^J^K^H?
+    A: WindowsXP leaks bits of memory into the probe requests.  These are legit
+       packets, and thats whats really in them.
 
