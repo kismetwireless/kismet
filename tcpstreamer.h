@@ -39,6 +39,7 @@
 #include <vector>
 
 #include "util.h"
+#include "ringbuf.h"
 #include "packet.h"
 #include "packetstream.h"
 
@@ -101,7 +102,7 @@ protected:
     unsigned int max_clients;
 
     // Clients to be written out to
-    map<int, KisRingBuffer *> droneclients;
+    map<int, RingBuffer *> droneclients;
 
     // Server info
     short int port;

@@ -16,7 +16,12 @@
     Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 */
 
+#include "config.h"
+
 #include "util.h"
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
 
 // We need this to make uclibc happy since they don't even have rintf...
 #ifndef rintf
@@ -138,8 +143,8 @@ int Hex2UChar(unsigned char *in_hex, unsigned char *in_chr) {
 }
 
 vector<string> StrTokenize(string in_str, string in_split) {
-    size_t begin = 0;
-    size_t end = in_str.find(in_split);
+    unsigned int begin = 0;
+    unsigned int end = in_str.find(in_split);
     vector<string> ret;
 
     if (in_str.length() == 0)
@@ -159,7 +164,7 @@ vector<string> StrTokenize(string in_str, string in_split) {
 vector<string> LineWrap(string in_txt, unsigned int in_hdr_len, unsigned int in_maxlen) {
 	vector<string> ret;
 
-	size_t pos, prev_pos, start, hdroffset;
+	unsigned int pos, prev_pos, start, hdroffset;
 	start = hdroffset = 0;
 
 	for (pos = prev_pos = in_txt.find(' ', in_hdr_len); pos != string::npos; pos = in_txt.find(' ', pos + 1)) {
@@ -194,172 +199,12 @@ float Pair2Float(int16_t primary, int64_t mantissa) {
     return (double) primary + ((double) mantissa / 1000000);
 }
 
-#ifdef HAVE_LINUX_WIRELESS
-// Also cribbed from wireless tools
-
-float IWFreq2Float(iwreq *inreq) {
-    return ((float) inreq->u.freq.m) * pow(10,inreq->u.freq.e);
-}
-
-void IWFloat2Freq(double in_val, struct iw_freq *out_freq) {
-    out_freq->e = (short) (floor(log10(in_val)));
-    if(out_freq->e > 8)              
-    {  
-        out_freq->m = ((long) (floor(in_val / pow(10,out_freq->e - 6)))) * 100; 
-        out_freq->e -= 8;
-    }  
-    else 
-    {  
-        out_freq->m = (uint32_t) in_val;            
-        out_freq->e = 0;
-    }  
-}
-#endif
-
-// 80211b frequencies to channels
-int IEEE80211Freq[] = {
-    2412, 2417, 2422, 2427, 2432,
-    2437, 2442, 2447, 2452, 2457,
-    2462, 2467, 2472, 2484,
-    5180, 5200, 5210, 5220, 5240,
-    5250, 5260, 5280, 5290, 5300, 
-    5320, 5745, 5760, 5765, 5785, 
-    5800, 5805, 5825,
-    -1
-};
-
-int IEEE80211Ch[] = {
-    1, 2, 3, 4, 5,
-    6, 7, 8, 9, 10,
-    11, 12, 13, 14,
-    36, 40, 42, 44, 48,
-    50, 52, 56, 58, 60,
-    64, 149, 152, 153, 157,
-    160, 161, 165
-};
-
-int FloatChan2Int(float in_chan) {
-    int mod_chan = (int) rintf(in_chan / 1000000);
-    int x = 0;
-
-    while (IEEE80211Freq[x] != -1) {
-        if (IEEE80211Freq[x] == mod_chan) {
-            return IEEE80211Ch[x];
-        }
-        x++;
-    }
-
-    return 0;
-}
-
-KisRingBuffer::KisRingBuffer(int in_size) {
-    ring_len = in_size;
-    ring_data = new uint8_t[in_size];
-    ring_rptr = ring_data;
-    ring_wptr = ring_data;
-}
-
-KisRingBuffer::~KisRingBuffer() {
-    delete[] ring_data;
-}
-
-int KisRingBuffer::InsertDummy(int in_len) {
-    if (ring_wptr + in_len > ring_data + ring_len) {
-        int tail = (ring_data + ring_len) - ring_wptr;
-        if (ring_data + (in_len - tail) >= ring_rptr)
-            return 0;
-    } else {
-        if ((ring_rptr > ring_wptr) && (ring_wptr + in_len >= ring_rptr))
-            return 0;
-    }
-
-    return 1;
-}
-
-int KisRingBuffer::InsertData(uint8_t *in_data, int in_len) {
-    // Will this hit the end of the ring and go back to the beginning?
-    if ((ring_wptr + in_len) >= (ring_data + ring_len)) {
-        // How much data gets written to the tail of the ring before we
-        // wrap?
-        int tail = (ring_data + ring_len) - ring_wptr;
-
-        // If we're going to wrap, will we overrun the read position?
-        if (ring_data + (in_len - tail) >= ring_rptr)
-            return 0;
-
-        // Copy the data to the end of the loop, move to the beginning
-        memcpy(ring_wptr, in_data, tail);
-        memcpy(ring_data, in_data + tail, in_len - tail);
-        ring_wptr = ring_data + (in_len - tail);
-    } else {
-        // Will we surpass the read pointer?
-        if ((ring_rptr > ring_wptr) && (ring_wptr + in_len >= ring_rptr))
-            return 0;
-
-        // Copy the data to the write pointer
-        memcpy(ring_wptr, in_data, in_len);
-        ring_wptr = ring_wptr + in_len;
-    }
-
-    // printf("debug - inserted %d into ring buffer.\n", in_len);
-
-    return 1;
-}
-
-int KisRingBuffer::FetchLen() {
-    int ret = 0;
-
-    if (ring_wptr < ring_rptr) {
-        ret = (ring_data + ring_len) - ring_rptr;
-    } else {
-        ret = (ring_wptr - ring_rptr);
-    }
-
-    //printf("ring begin %p wptr %p rptr %p lt %d len %d\n",
-           //ring_data, ring_wptr, ring_rptr, ring_wptr < ring_rptr, ret);
-
-    return ret;
-}
-
-void KisRingBuffer::FetchPtr(uint8_t **in_dataptr, int *in_len) {
-    // Has the write pointer looped back?
-    if (ring_wptr < ring_rptr) {
-        // return the read to the end
-        *in_len = (ring_data + ring_len) - ring_rptr;
-    } else {
-        // Return the read to the write
-        *in_len = (ring_wptr - ring_rptr);
-    }
-
-    *in_dataptr = ring_rptr;
-}
-
-void KisRingBuffer::MarkRead(int in_len) {
-    // Will we loop the array?
-    if ((ring_rptr + in_len) >= (ring_data + ring_len)) {
-        // How much comes off the length before we wrap?
-        int tail = (ring_data + ring_len) - ring_rptr;
-
-        // Catch surpassing the write pointer after the loop
-        if (ring_data + (in_len - tail) > ring_wptr)
-            ring_rptr = ring_wptr;
-        else
-            ring_rptr = ring_data + (in_len - tail);
-    } else {
-        ring_rptr += in_len;
-    }
-
-    //printf("debug - marked %d read in ring\n", in_len);
-    
-    return;
-}
-
 vector<int> Str2IntVec(string in_text) {
     vector<string> optlist = StrTokenize(in_text, ",");
     vector<int> ret;
     int ch;
 
-    for (size_t x = 0; x < optlist.size(); x++) {
+    for (unsigned int x = 0; x < optlist.size(); x++) {
         if (sscanf(optlist[x].c_str(), "%d", &ch) != 1) {
             ret.clear();
             break;
@@ -371,9 +216,9 @@ vector<int> Str2IntVec(string in_text) {
     return ret;
 }
 
-int ExecSysCmd(char *in_cmd, char *in_err) {
-    int ret;
+int RunSysCmd(char *in_cmd, char *in_err) {
 
+#if 0
     if ((ret = system(in_cmd)) == -1) {
         snprintf(in_err, STATUS_MAX, "fork() for system() failed.");
         return -1;
@@ -383,7 +228,68 @@ int ExecSysCmd(char *in_cmd, char *in_err) {
         snprintf(in_err, STATUS_MAX, "command '%s' failed.", in_cmd);
         return -1;
     }
+#endif
 
+    pid_t chpid;
+
+    if ((chpid = ExecSysCmd(in_cmd)) < 0) {
+        snprintf(in_err, 1024, "fork() and exec() failed.");
+        return -1;
+    }
+
+    wait4(chpid, NULL, 0, NULL);
+    
     return 0;
 }
+
+pid_t ExecSysCmd(char *in_cmd) {
+    // Slice it into an array to pass to exec
+    vector<string> cmdvec = StrTokenize(in_cmd, " ");
+    char **cmdarg = new (char *)[cmdvec.size() + 1];
+    pid_t retpid;
+    unsigned int x;
+
+    // Convert it to a pointer array
+    for (x = 0; x < cmdvec.size(); x++) 
+        cmdarg[x] = (char *) cmdvec[x].c_str();
+    cmdarg[x] = NULL;
+
+    if ((retpid = fork()) == 0) {
+        // Nuke the file descriptors so that they don't blat on
+        // input or output
+        for (unsigned int x = 0; x < 256; x++)
+            close(x);
+
+        execve(cmdarg[0], cmdarg, NULL);
+        exit(0);
+    }
+
+    delete[] cmdarg;
+    return retpid;
+}
+
+#ifdef SYS_LINUX
+int FetchSysLoadAvg(uint8_t *in_avgmaj, uint8_t *in_avgmin) {
+    FILE *lf;
+    short unsigned int tmaj, tmin;
+
+    if ((lf = fopen("/proc/loadavg", "r")) == NULL) {
+        fclose(lf);
+        return -1;
+    }
+
+    if (fscanf(lf, "%hu.%hu", &tmaj, &tmin) != 2) {
+        fclose(lf);
+        return -1;
+    }
+
+    (*in_avgmaj) = tmaj;
+    (*in_avgmin) = tmin;
+
+    fclose(lf);
+
+    return 1;
+}
+#endif
+
 

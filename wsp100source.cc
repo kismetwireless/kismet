@@ -321,23 +321,34 @@ int monitor_wsp100(const char *in_dev, int initch, char *in_err, void **in_if, v
     // sendor.longhostaddress
     snprintf(cmdline, 2048, "snmpset -v1 -c public %s .1.3.6.1.4.1.14422.1.1.5 a %s",
              wsp100_bits[2].c_str(), wsp100_bits[0].c_str());
-    if (ExecSysCmd(cmdline, in_err) < 0)
+    if (ExecSysCmd(cmdline) < 0) {
+        snprintf(in_err, 1024, "Unable to execute '%s'", cmdline);
         return -1;
+    }
+
     // sensor.channel
     snprintf(cmdline, 2048, "snmpset -v 1 -c public %s .1.3.6.1.4.1.14422.1.3.1 i %d",
              wsp100_bits[2].c_str(), initch);
-    if (ExecSysCmd(cmdline, in_err) < 0)
+    if (ExecSysCmd(cmdline) < 0) {
+        snprintf(in_err, 1024, "Unable to execute '%s'", cmdline);
         return -1;
+    }
+
     // sensor.serverport
     snprintf(cmdline, 2048, "snmpset -v 1 -c public %s .1.3.6.1.4.1.14422.1.4.1 i %s",
              wsp100_bits[2].c_str(), wsp100_bits[1].c_str());
-    if (ExecSysCmd(cmdline, in_err) < 0)
+    if (ExecSysCmd(cmdline) < 0) {
+        snprintf(in_err, 1024, "Unable to execute '%s'", cmdline);
         return -1;
+    }
+
     // sensor.enable
     snprintf(cmdline, 2038, "snmpset -v 1 -c public %s .1.3.6.1.4.1.14422.1.1.4 i 1",
              wsp100_bits[2].c_str());
-    if (ExecSysCmd(cmdline, in_err) < 0)
+    if (ExecSysCmd(cmdline) < 0) {
+        snprintf(in_err, 1024, "Unable to execute '%s'", cmdline);
         return -1;
+    }
 
     return 0;
 }

@@ -1702,23 +1702,34 @@ int monitor_wlanng(const char *in_dev, int initch, char *in_err, void **in_if, v
 
     // Enable the interface
     snprintf(cmdline, 2048, "wlanctl-ng %s lnxreq_ifstate ifstate=enable >/dev/null 2>/dev/null", in_dev);
-    if (ExecSysCmd(cmdline, in_err) < 0)
+    if (ExecSysCmd(cmdline) < 0) {
+        snprintf(in_err, 1024, "Unable to execute '%s'", cmdline);
         return -1;
+    }
 
     // Turn off WEP
-    snprintf(cmdline, 2048, "wlanctl-ng %s dot11req_mibset mibattribute=dot11PrivacyInvoked=false >/dev/null 2>/dev/null", in_dev);
-    if (ExecSysCmd(cmdline, in_err) < 0)
+    snprintf(cmdline, 2048, "wlanctl-ng %s dot11req_mibset "
+             "mibattribute=dot11PrivacyInvoked=false >/dev/null 2>/dev/null", in_dev);
+    if (ExecSysCmd(cmdline) < 0) {
+        snprintf(in_err, 1024, "Unable to execute '%s'", cmdline);
         return -1;
+    }
 
     // Don't exclude packets
-    snprintf(cmdline, 2048, "wlanctl-ng %s dot11req_mibset mibattribute=dot11ExcludeUnencrypted=false >/dev/null 2>/dev/null", in_dev);
-    if (ExecSysCmd(cmdline, in_err) < 0)
+    snprintf(cmdline, 2048, "wlanctl-ng %s dot11req_mibset "
+             "mibattribute=dot11ExcludeUnencrypted=false >/dev/null 2>/dev/null", in_dev);
+    if (ExecSysCmd(cmdline) < 0) {
+        snprintf(in_err, 1024, "Unable to execute '%s'", cmdline);
         return -1;
+    }
 
     // Turn on rfmon on the initial channel
-    snprintf(cmdline, 2048, "wlanctl-ng %s lnxreq_wlansniff channel=%d enable=true prismheader=true >/dev/null 2>/dev/null", in_dev, initch);
-    if (ExecSysCmd(cmdline, in_err) < 0)
+    snprintf(cmdline, 2048, "wlanctl-ng %s lnxreq_wlansniff channel=%d "
+             "enable=true prismheader=true >/dev/null 2>/dev/null", in_dev, initch);
+    if (ExecSysCmd(cmdline) < 0) {
+        snprintf(in_err, 1024, "Unable to execute '%s'", cmdline);
         return -1;
+    }
     
     return 0;
 }
@@ -1742,26 +1753,34 @@ int monitor_wlanng_avs(const char *in_dev, int initch, char *in_err, void **in_i
 
     // Enable the interface
     snprintf(cmdline, 2048, "wlanctl-ng %s lnxreq_ifstate ifstate=enable >/dev/null 2>/dev/null", in_dev);
-    if (ExecSysCmd(cmdline, in_err) < 0)
+    if (ExecSysCmd(cmdline) < 0) {
+        snprintf(in_err, 1024, "Unable to execute '%s'", cmdline);
         return -1;
+    }
 
     // Turn off WEP
     snprintf(cmdline, 2048, "wlanctl-ng %s dot11req_mibset "
              "mibattribute=dot11PrivacyInvoked=false >/dev/null 2>/dev/null", in_dev);
-    if (ExecSysCmd(cmdline, in_err) < 0)
+    if (ExecSysCmd(cmdline) < 0) {
+        snprintf(in_err, 1024, "Unable to execute '%s'", cmdline);
         return -1;
+    }
 
     // Don't exclude packets
     snprintf(cmdline, 2048, "wlanctl-ng %s dot11req_mibset "
              "mibattribute=dot11ExcludeUnencrypted=false >/dev/null 2>/dev/null", in_dev);
-    if (ExecSysCmd(cmdline, in_err) < 0)
+    if (ExecSysCmd(cmdline) < 0) {
+        snprintf(in_err, 1024, "Unable to execute '%s'", cmdline);
         return -1;
+    }
 
     // Turn on rfmon on the initial channel
     snprintf(cmdline, 2048, "wlanctl-ng %s lnxreq_wlansniff channel=%d prismheader=false "
              "wlanheader=true stripfcs=false keepwepflags=false enable=true >/dev/null 2>/dev/null", in_dev, initch);
-    if (ExecSysCmd(cmdline, in_err) < 0)
+    if (ExecSysCmd(cmdline) < 0) {
+        snprintf(in_err, 1024, "Unable to execute '%s'", cmdline);
         return -1;
+    }
     
     return 0;
 }
@@ -1770,8 +1789,10 @@ int monitor_wrt54g(const char *in_dev, int initch, char *in_err, void **in_if, v
     char cmdline[2048];
 
     snprintf(cmdline, 2048, "/usr/sbin/wl monitor 1");
-    if (ExecSysCmd(cmdline, in_err) < 0)
+    if (ExecSysCmd(cmdline) < 0) {
+        snprintf(in_err, 1024, "Unable to execute '%s'", cmdline);
         return -1;
+    }
 
     return 0;
 }
@@ -1793,16 +1814,22 @@ int monitor_openbsd_cisco(const char *in_dev, int initch, char *in_err, void **i
     }
 
     snprintf(cmdline, 2048, "ancontrol -i %s -o 1", in_dev);
-    if (ExecSysCmd(cmdline, in_err) < 0)
+    if (ExecSysCmd(cmdline) < 0) {
+        snprintf(in_err, 1024, "Unable to execute '%s'", cmdline);
         return -1;
+    }
 
     snprintf(cmdline, 2048, "ancontrol -i %s -p 1", in_dev);
-    if (ExecSysCmd(cmdline, in_err) < 0)
+    if (ExecSysCmd(cmdline) < 0) {
+        snprintf(in_err, 1024, "Unable to execute '%s'", cmdline);
         return -1;
+    }
 
     snprintf(cmdline, 2048, "ancontrol -i %s -M 7", in_dev);
-    if (ExecSysCmd(cmdline, in_err) < 0)
+    if (ExecSysCmd(cmdline) < 0) {
+        snprintf(in_err, 1024, "Unable to execute '%s'", cmdline);
         return -1;
+    }
     
     return 0;
 }
@@ -2022,8 +2049,10 @@ int chancontrol_wlanng(const char *in_dev, int in_ch, char *in_err, void *in_ext
     // Turn on rfmon on the initial channel
     snprintf(cmdline, 2048, "wlanctl-ng %s lnxreq_wlansniff channel=%d enable=true "
              "prismheader=true >/dev/null 2>&1", in_dev, in_ch);
-    if (ExecSysCmd(cmdline, in_err) < 0)
+    if (ExecSysCmd(cmdline) < 0) {
+        snprintf(in_err, 1024, "Unable to execute '%s'", cmdline);
         return -1;
+    }
 
     if (in_ext != NULL) {
         PcapSourceWlanng *src = (PcapSourceWlanng *) in_ext;
@@ -2042,8 +2071,10 @@ int chancontrol_wlanng_avs(const char *in_dev, int in_ch, char *in_err, void *in
              "prismheader=false wlanheader=true stripfcs=false keepwepflags=false "
              "enable=true >/dev/null 2>&1", in_dev, in_ch);
 
-    if (ExecSysCmd(cmdline, in_err) < 0)
+    if (ExecSysCmd(cmdline) < 0) {
+        snprintf(in_err, 1024, "Unable to execute '%s'", cmdline);
         return -1;
+    }
 
     if (in_ext != NULL) {
         PcapSourceWlanng *src = (PcapSourceWlanng *) in_ext;

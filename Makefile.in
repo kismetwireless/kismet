@@ -39,7 +39,7 @@ WAV = ${SHARE}/wav/
 DEPEND	= .depend
 
 # Objects
-PSO	= util.o configfile.o speech.o ifcontrol.o packet.o \
+PSO	= util.o ringbuf.o configfile.o speech.o ifcontrol.o iwcontrol.o packet.o \
 		pcapsource.o prism2source.o wtapfilesource.o wsp100source.o \
 		dronesource.o vihasource.o packetsourcetracker.o kis_packsources.o \
 		wtapdump.o wtaplocaldump.o gpsdump.o airsnortdump.o fifodump.o \
@@ -49,8 +49,8 @@ PSO	= util.o configfile.o speech.o ifcontrol.o packet.o \
 		tcpserver.o server_protocols.o server_globals.o kismet_server.o 
 PS	= kismet_server
 
-DRONEO = util.o configfile.o getopt.o ifcontrol.o packet.o tcpstreamer.o \
-		prism2source.o pcapsource.o wtapfilesource.o wsp100source.o \
+DRONEO = util.o ringbuf.o configfile.o getopt.o ifcontrol.o iwcontrol.o packet.o \
+		tcpstreamer.o prism2source.o pcapsource.o wtapfilesource.o wsp100source.o \
 		dronesource.o vihasource.o packetsourcetracker.o kis_packsources.o \
 		timetracker.o gpsd.o server_globals.o kismet_drone.o
 DRONE = kismet_drone

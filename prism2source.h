@@ -22,6 +22,7 @@
 #include "config.h"
 #include "util.h"
 #include "ifcontrol.h"
+#include "iwcontrol.h"
 
 #ifdef HAVE_LINUX_NETLINK
 

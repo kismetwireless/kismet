@@ -30,6 +30,7 @@
 #include "packet.h"
 #include "packetsource.h"
 #include "ifcontrol.h"
+#include "iwcontrol.h"
 
 extern "C" {
 #ifndef HAVE_PCAPPCAP_H

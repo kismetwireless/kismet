@@ -37,20 +37,6 @@
 #include <ctype.h>
 #include <math.h>
 
-#ifdef HAVE_LINUX_WIRELESS
-
-// Because some kernels include ethtool which breaks horribly...
-// The stock ones don't but others seem to
-typedef unsigned char u8;
-typedef unsigned short u16;
-typedef unsigned int u32;
-typedef unsigned long u64;
-
-#include <sys/ioctl.h>
-#include <sys/socket.h>
-#include <linux/wireless.h>
-#endif
-
 #include <string>
 #include <map>
 #include <vector>
@@ -72,38 +58,18 @@ vector<int> Str2IntVec(string in_text);
 void Float2Pair(float in_float, int16_t *primary, int64_t *mantissa);
 float Pair2Float(int16_t primary, int64_t mantissa);
 
-#ifdef HAVE_LINUX_WIRELESS
-// From iwconfig source
-float IWFreq2Float(iwreq *inreq);
-void IWFloat2Freq(double in_val, struct iw_freq *out_freq);
-#endif
-
 // Convert a float frequency to a channel number
 int FloatChan2Int(float in_chan);
 
 // Run a system command and return the error code.  Caller is responsible for security.
-int ExecSysCmd(char *in_cmd, char *in_err);
+// Does not fork out
+int RunSysCmd(char *in_cmd, char *in_err);
 
-class KisRingBuffer {
-public:
-    KisRingBuffer(int in_size);
-    ~KisRingBuffer();
+// Fork and exec a syscmd, return the pid of the new process
+pid_t ExecSysCmd(char *in_cmd);
 
-    // See if an insert would succeed (for multi-stage inserts that must
-    // all succeed
-    int InsertDummy(int in_len);
-    // Add data to the ring buffer
-    int InsertData(uint8_t *in_data, int in_len);
-    // Fetch the length of the longest continual piece of data
-    int FetchLen();
-    // Fetch the longest continual piece of data
-    void FetchPtr(uint8_t **in_dptr, int *in_len);
-    // Flag bytes as read.  Will only flag as many bytes are available
-    void MarkRead(int in_len);
-protected:
-    int ring_len;
-    uint8_t *ring_data;
-    uint8_t *ring_rptr, *ring_wptr;
-};
+#ifdef SYS_LINUX
+int FetchSysLoadAvg(uint8_t *in_avgmaj, uint8_t *in_avgmin);
+#endif
 
 #endif

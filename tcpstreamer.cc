@@ -150,7 +150,7 @@ int TcpStreamer::Poll(fd_set& in_rset, fd_set& in_wset)
 
     // Write queued data from our ring buffers out and kill anything
     // that complains about it
-    uint8_t *dptr = NULL;
+    uint8_t dptr[1024];
     int dlen, ret;
     for (unsigned int x = 0; x <= max_fd; x++) {
         // Soak any data in the read buffer
@@ -171,26 +171,14 @@ int TcpStreamer::Poll(fd_set& in_rset, fd_set& in_wset)
                 if (buf == STREAM_COMMAND_FLUSH) {
                     // Flush this ring buffer, loose all packets queued
                     delete droneclients[x];
-                    droneclients[x] = new KisRingBuffer(RING_LEN);
+                    droneclients[x] = new RingBuffer(RING_LEN);
                 }
             }
         }
 
         if (FD_ISSET(x, &in_wset) && FD_ISSET(x, &client_fds)) {
-            droneclients[x]->FetchPtr(&dptr, &dlen);
+            droneclients[x]->FetchPtr(dptr, 1024, &dlen);
 
-            // debug
-            // printf("got %d from ring: ", dlen);
-            /*
-            int pos;
-            for (pos = 0; pos < dlen && pos < 10; pos++)
-                printf("%02X ", dptr[pos]);
-            printf(" ... ");
-
-            for (pos = kismax(pos, dlen - 10); pos < dlen; pos++)
-                printf("%02X ", dptr[pos]);
-                */
-            
             if ((ret = write(x, dptr, dlen)) <= 0) {
                 if (!silent)
                     fprintf(stderr, "WARNING: Killing client fd %d write error %d: %s\n",
@@ -265,7 +253,7 @@ int TcpStreamer::Accept() {
     FD_SET(new_fd, &client_fds);
 
     // Allocate a ring buffer
-    droneclients[new_fd] = new KisRingBuffer(RING_LEN);
+    droneclients[new_fd] = new RingBuffer(RING_LEN);
 
     WriteVersion(new_fd);
 
