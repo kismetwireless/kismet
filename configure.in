@@ -1,0 +1,1009 @@
+# Process this file with autoconf to produce a configure script.
+AC_INIT
+AC_CONFIG_SRCDIR([kismet.h])
+
+AC_PREREQ(2.57)
+
+# Included pcap directory
+pcapdir="libpcap-0.8.3"
+etherealdir="/usr/src/ethereal-0.9.12"
+AC_SUBST(pcapdir)
+
+# Check for host type
+AC_CANONICAL_HOST
+
+# Checks for programs.
+AC_PROG_CC
+AC_PROG_CXX
+AC_PROG_INSTALL
+AC_PROG_MAKE_SET
+AC_PROG_CPP
+
+# Liberated from ethereal's configure.in
+#
+# Add any platform-specific compiler flags needed.
+#
+AC_MSG_CHECKING(for platform-specific compiler flags)
+if test "x$GCC" = x
+then
+    #
+    # Not GCC - assume it's the vendor's compiler.
+    #
+    case "$host_os" in
+    hpux*)
+        #
+        # HP's ANSI C compiler; flags suggested by Jost Martin.
+        # "-Ae" for ANSI C plus extensions such as "long long".
+        # "+O2", for optimization.  XXX - works with "-g"?
+        #
+        CFLAGS="-Ae +O2 $CFLAGS"
+        AC_MSG_RESULT(HP ANSI C compiler - added -Ae +O2)
+        ;;
+    darwin*)
+        #
+        # It may be called "cc", but it's really a GCC derivative
+        # with a problematic special precompiler and precompiled
+        # headers; turn off the special precompiler, as some
+        # apparently-legal code won't compile with its precompiled
+        # headers.
+        #
+        CFLAGS="-no-cpp-precomp $CFLAGS"
+        AC_MSG_RESULT(Apple GCC - added -no-cpp-precomp)
+		darwin="yes"
+        ;;
+	linux*)
+		AC_MSG_RESULT(none needed)
+		AC_DEFINE(SYS_LINUX, 1, Compiling for Linux OS)
+        linux="yes"
+		;;
+	freebsd*)
+		AC_MSG_RESULT(none needed)
+		AC_DEFINE(SYS_FREEBSD, 1, Compiling for FreeBSD)
+		;;
+	openbsd*)
+		AC_MSG_RESULT(none needed)
+		AC_DEFINE(SYS_OPENBSD, 1, Compiling for OpenBSD)
+		;;
+	cygwin*)
+		AC_MSG_RESULT(none needed)
+		AC_DEFINE(SYS_CYGWIN, 1, Compiling for Cygwin)
+		cygwin="yes"
+		;;
+    *)
+        AC_MSG_RESULT(none needed)
+        ;;
+    esac
+else
+    case "$host_os" in
+    solaris*)
+        # the X11 headers don't automatically include prototype info
+        # and a lot don't include the return type
+        CFLAGS="$CFLAGS -Wno-return-type -DFUNCPROTO=15"
+        AC_MSG_RESULT(GCC on Solaris - added -Wno-return-type -DFUNCPROTO=15)
+        ;;
+    darwin*)
+        #
+        # See comments above about Apple's lovely C compiler.
+        #
+        CFLAGS="-no-cpp-precomp $CFLAGS"
+        AC_MSG_RESULT(Apple GCC - added -no-cpp-precomp)
+		darwin="yes"
+        ;;
+	linux*)
+		AC_MSG_RESULT(none needed)
+		AC_DEFINE(SYS_LINUX, 1, Compiling for Linux OS)
+        linux="yes"
+		;;
+    freebsd*)
+        AC_MSG_RESULT(none needed)
+        AC_DEFINE(SYS_FREEBSD, 1, Compiling for FreeBSD)
+        ;;
+    openbsd*)
+       AC_MSG_RESULT(none needed)
+        AC_DEFINE(SYS_OPENBSD, 1, Compiling for OpenBSD)
+        ;;
+	cygwin*)
+		AC_MSG_RESULT(none needed)
+		AC_DEFINE(SYS_CYGWIN, 1, Compiling for Cygwin)
+		cygwin="yes"
+		;;
+    *)
+        AC_MSG_RESULT(none needed)
+        ;;
+    esac
+fi
+
+CXXFLAGS="$CXXFLAGS $CFLAGS"
+
+AC_CONFIG_SRCDIR([kismet_server.cc])
+AC_CONFIG_HEADER([config.h])
+
+# Config location for code to default to
+CONFFILE_DIR=$sysconfdir
+CONFFILE_DIR=`(
+    test "$prefix" = NONE && prefix=$ac_default_prefix
+    test "$exec_prefix" = NONE && exec_prefix=${prefix}
+    eval echo "$CONFFILE_DIR"
+)`
+AC_DEFINE_UNQUOTED(SYSCONF_LOC, "$CONFFILE_DIR", system config directory)
+
+LOCALSTATE_DIR=$localstatedir
+LOCALSTATE_DIR=`(
+                 test "$prefix" = NONE && prefix=$ac_default_prefix
+                 test "$exec_prefix" = NONE && exec_prefix=${prefix}
+                 eval echo "$LOCALSTATE_DIR"
+                )`
+AC_DEFINE_UNQUOTED(LOCALSTATE_DIR, "$LOCALSTATE_DIR", system state directory)
+
+BIN_DIR=$bindir
+BIN_DIR=`(
+    test "$prefix" = NONE && prefix=$ac_default_prefix
+    test "$exec_prefix" = NONE && exec_prefix=${prefix}
+    eval echo "$BIN_DIR"
+)`
+AC_DEFINE_UNQUOTED(BIN_LOC, "$BIN_DIR", system binary directory)
+
+# Check for endian
+AC_C_BIGENDIAN
+
+# Checks for header files.
+AC_CHECK_HEADERS([errno.h stdlib.h string.h sys/socket.h sys/time.h sys/wait.h unistd.h sys/types.h], 
+	AC_DEFINE(HAVE_SYSHEADERS, 1, System headers are there), 
+	AC_MSG_ERROR(Missing required system header))
+
+AC_CHECK_HEADERS([getopt.h])
+
+# Checks for typedefs, structures, and compiler characteristics.
+AC_C_CONST
+AC_HEADER_TIME
+AC_STRUCT_TM
+
+# Checks for library functions.
+AC_HEADER_STDC
+AC_TYPE_SIGNAL
+AC_FUNC_STAT
+AC_CHECK_FUNCS([gettimeofday memset select socket strcasecmp strftime strstr])
+
+# Do we have getopt_long natively?
+AC_MSG_CHECKING([for system-level getopt_long()])
+AC_LINK_IFELSE([AC_LANG_PROGRAM([[
+		#include <stdio.h>
+		#include <unistd.h>
+		#ifdef HAVE_GETOPT_H
+		#include <getopt.h>
+		#endif
+		]], [[
+		static struct option long_options[] = {   /* options table */
+			   { "null-arg", required_argument, 0, 'n' },
+			   { 0, 0, 0, 0 }
+		};
+
+		int s;
+		int option_index;
+		int argc;
+		char **argv;
+
+		s = getopt_long(argc, argv, "n:", long_options, &option_index);
+
+		]])],[sys_getopt=yes],[sys_getopt=no])
+if test $sys_getopt = "yes"; then
+	AC_MSG_RESULT([yes])
+	AC_DEFINE(HAVE_GETOPT_LONG, 1, system defines getopt_long)
+else
+	AC_MSG_RESULT([no])
+fi
+
+# Look for something to define standard int types
+stdint=yes
+AC_CHECK_HEADER([stdint.h],
+	AC_DEFINE(HAVE_STDINT_H, 1, stdint.h is present) stdint=yes,
+	stdint=no)
+
+if test $stdint = "no"; then
+    inttypes=no
+	AC_CHECK_HEADER([inttypes.h],
+		AC_DEFINE(HAVE_INTTYPES_H, 1, inttypes.h is present) inttypes=yes, 
+		inttypes=no)
+fi
+
+if test $stdint = "no"; then
+	if test $inttypes = "no"; then
+		AC_MSG_RESULT([failed])
+		AC_MSG_ERROR([could not find stdint.h or inttypes.h.])
+	fi
+fi
+
+# How does accept() work on this system?
+AC_MSG_CHECKING([for accept() addrlen type])
+AC_LINK_IFELSE([AC_LANG_PROGRAM([[
+		#include <stdio.h>
+		#include <sys/types.h>
+		#include <sys/socket.h>
+		]], [[
+		int s;
+		struct sockaddr *addr;
+		socklen_t *addrlen;
+
+		accept(s, addr, addrlen);
+		]])],[accept_socklen=yes],[accept_socklen=no])
+if test $accept_socklen = "yes"; then
+	AC_MSG_RESULT([socklen_t])
+	AC_DEFINE(HAVE_SOCKLEN_T, 1, accept() takes type socklen_t for addrlen)
+else
+	AC_MSG_RESULT([int])
+fi
+
+# Do we have large file support?
+AC_SYS_LARGEFILE
+
+AC_MSG_CHECKING([for group 'root'])
+if test "`grep -e ^root: /etc/group`" = ""; then
+	AC_MSG_RESULT([no.  Using 'wheel'])
+	instgrp="wheel"
+else
+	AC_MSG_RESULT([yes])
+	instgrp="root"
+fi
+AC_SUBST(instgrp)
+
+AC_MSG_CHECKING([for group 'man'])
+if test "`grep -e ^man: /etc/group`" = ""; then
+	AC_MSG_RESULT([no.  Using '$instgrp'])
+	mangrp="$instgrp"
+else
+	mangrp="man"
+fi
+AC_SUBST(mangrp)
+
+# Checks for libraries.
+# AC_CHECK_LIB([ibs], [main])
+AC_ARG_ENABLE(curses, [  --disable-curses        disable libcurses interface],,wantecurses=yes)
+buildcurses=no
+if test "$wantecurses" = "yes"; then
+	AC_DEFINE(BUILD_CURSES, 1, Build curses-based UI)
+	buildcurses=yes
+fi
+
+AC_ARG_ENABLE(panel, [  --disable-panel         disable libpanels interface],,wantepanel=yes)
+
+ncurses=no
+wantpanel=no
+if test "$wantecurses" = "yes" -o "$wantepanel" = "yes"; then
+	AC_CHECK_LIB([ncurses], [initscr], 
+		AC_DEFINE(HAVE_LIBNCURSES, 1, NCurses terminal lib) ncurses=yes curseaux="-lncurses", 
+		AC_MSG_WARN(Unable to find libncurses))
+
+	if test "$ncurses" = no; then
+		AC_CHECK_LIB([curses], [initscr],
+			AC_DEFINE(HAVE_LIBNCURSES, 1, NCurses terminal lib) 
+				AC_DEFINE(HAVE_LIBCURSES, 1, Curses terminal lib)
+				curses=yes ncurses=yes curseaux="-lcurses",
+			AC_MSG_ERROR(Unable to find libncurses or libcurses))
+	fi
+
+	if test "$ncurses" = yes -a "$wantepanel" = yes; then
+		AC_CHECK_LIB([panel], [new_panel], 
+			AC_DEFINE(HAVE_LIBPANEL, 1, Panel terminal lib) 
+				AC_DEFINE(BUILD_PANEL, 1, Build panel UI) panel=yes, 
+			AC_MSG_WARN(*** Unable to find libpanel - panel UI will not be built. ***), $curseaux)
+	fi
+
+	if test "$panel" = yes; then
+		CLIBS="$CLIBS -lpanel"
+		if test "$curses" = "yes"; then
+        	AC_CHECK_LIB([curses], [assume_default_colors],
+				AC_DEFINE(HAVE_ASSUME_DEFAULT_COLORS, 1, AssumeDefaultColors present),
+				AC_MSG_WARN(*** Your curses does not have assume_default_colors. ***))
+		else
+        	AC_CHECK_LIB([ncurses], [assume_default_colors],
+				AC_DEFINE(HAVE_ASSUME_DEFAULT_COLORS, 1, AssumeDefaultColors present),
+				AC_MSG_WARN(*** Your curses does not have assume_default_colors. ***))
+		fi
+	fi
+
+	if test "$ncurses" = yes; then
+		if test "$curses" = yes; then
+			CLIBS="$CLIBS -lcurses"
+		else
+			CLIBS="$CLIBS -lncurses"
+		fi
+	fi
+else
+	AC_MSG_WARN(*** Neither ncurses or panel interface will be built. ***)
+fi
+AC_SUBST(CLIBS)
+
+wantgps=yes
+AC_DEFINE(HAVE_GPS, 1, GPS support will be built.)
+#AC_ARG_ENABLE(gps,
+#[  --disable-gps           disable GPS support],
+#	wantgps=no, wantgps=yes)
+#if test "$wantgps" = "no"; then
+#	AC_MSG_WARN(*** GPS support will not be built. ***)
+#else
+#	AC_DEFINE(HAVE_GPS, 1, GPS support will be built.)
+#fi
+
+
+AC_ARG_ENABLE(netlink, [  --disable-netlink       disable linux netlink socket capture],,wantnetlink=yes)
+AC_SUBST(wantnetlink)
+
+if test $wantnetlink = yes; then
+netlink=no
+AC_CHECK_HEADER([linux/netlink.h],
+	[AC_DEFINE(HAVE_LINUX_NETLINK, 1, Linux netlink socket capture present) netlink=yes],
+	[AC_MSG_WARN([*** Missing Linux netlink headers.  wlanng_legacy source will not be built. ***])],
+	[#include <linux/socket.h>])
+else
+	AC_MSG_WARN([*** Compiling without Linux netlink headers.  wlanng_legacy source will not be built. ***])
+fi
+
+AC_ARG_ENABLE(wireless-extension, [  --disable-wireless-extension  Disable linux wireless extensions even if found],,
+              wantwireless=yes)
+AC_SUBST(wantwireless)
+
+if test $wantwireless = yes; then
+wireless=no
+AC_CHECK_HEADER([linux/wireless.h],
+	[wireless=yes],
+	[AC_MSG_WARN([*** Missing Linux Wireless kernel extentions.  Wavelan/generic source will not be built. ***])],
+	[#include <linux/socket.h>])
+else
+	AC_MSG_WARN(*** Compiling without Linux Wireless kernel extentions.  Wavelan/generic source will not be built. ***) 
+fi
+
+if test "$wireless" = "yes"; then
+    # If we're compiling under linux and we need the wireless extentions,
+    # then we should try to look in the current kernel module build dir, too.
+    if test "$linux" = "yes"; then
+        CPPFLAGS="$CPPFLAGS -I/lib/modules/\`uname -r\`/build/include/"   
+    fi
+
+    AC_MSG_CHECKING(that linux/wireless.h is what we expect)
+    AC_LINK_IFELSE([AC_LANG_PROGRAM([[
+        #include <stdio.h>
+		#include <sys/types.h>
+		#include <netinet/in.h>
+        #include <sys/resource.h>
+		#include <linux/wireless.h>
+    ]], [[
+		struct iwreq wrq;
+
+		wrq.u.essid.flags = 0;
+    ]])],[wireless=yes],[wireless=no])
+
+	if test "$wireless" = "no"; then
+		AC_MSG_RESULT(no)
+		AC_MSG_WARN(*** Missing working Linux Wireless kernel extentions.  ***)
+	else
+		AC_MSG_RESULT(yes)
+		AC_DEFINE(HAVE_LINUX_WIRELESS, 1, Linux wireless extentions present)
+		# Check if we have 22+ (SIOCIWFIRSTPRIV) support
+		wireless22=no
+		AC_MSG_CHECKING(that wireless extentions support SIOCIWFIRSTPRIV)
+    	AC_LINK_IFELSE([AC_LANG_PROGRAM([[
+        	#include <stdio.h>
+			#include <sys/types.h>
+			#include <netinet/in.h>
+        	#include <sys/resource.h>
+			#include <linux/wireless.h>
+    	]], [[
+			int x;
+			x = SIOCIWFIRSTPRIV;
+	    ]])],[wireless22=yes],[wireless22=no])
+
+		if test "$wireless22" = "no"; then
+			AC_MSG_RESULT(no)
+			AC_MSG_WARN([*** Your wireless extentions version is old.  This will almost certianly cause problems entering monitor mode and controlling channels. ***]);
+		else
+			AC_MSG_RESULT(yes)
+			AC_DEFINE(HAVE_LINUX_WIRELESS22, 1, [Linux wireless extentions v22 or better present])
+		fi
+
+	fi
+fi
+
+AC_ARG_ENABLE(pcap, [  --disable-pcap          disable libpcap (most sources) capture support],,wantpcap=yes)
+AC_SUBST(wantpcap)
+
+if test $wantpcap = yes; then
+
+syspcap="no"
+AC_ARG_ENABLE(syspcap, [  --enable-syspcap        use system libpcap (not recommended)],syspcap=yes,)
+	if test $syspcap = "yes"; then
+		foundsyspcap=no
+		AC_CHECK_LIB([pcap], [pcap_open_live],
+		    AC_DEFINE(HAVE_LIBPCAP, 1, libpcap packet capture lib) foundsyspcap=yes,
+		    AC_MSG_WARN(Compiling without libpcap support.))
+
+		if test $foundsyspcap = yes; then
+		## if we don't have a pcap.h, do a search for pcap/pcap.h
+		AC_CHECK_HEADER([pcap.h],
+			AC_DEFINE(HAVE_PCAP_H, 1, libpcap header) foundsyspcaph=yes)
+		    if test $foundsyspcaph != yes; then 
+				AC_CHECK_HEADER([pcap/pcap.h], 
+				AC_DEFINE(HAVE_PCAP_H, 1, libpcap header) AC_DEFINE(HAVE_PCAPPCAP_H, 1, pcap/pcap.h),
+				AC_MSG_ERROR([found libpcap but unable to find pcap.h]))
+		    fi
+		# Look for the new PCAP stuff
+		AC_CHECK_LIB([pcap], [pcap_setnonblock],
+		    AC_DEFINE(HAVE_PCAP_NONBLOCK, 1, Nonblocking-capable libpcap),
+		    AC_MSG_WARN(*** You don't appear to have a version of libpcap which supports non-blocking IO.  We'll fake it, but you really should upgrade your libpcap, as it may not support 802.11 capture sources, either. ***))
+
+		pcaplib=""
+		AC_SUBST(pcaplib)
+		pcaplnk="-lpcap"
+		AC_SUBST(pcaplnk)
+		pcap="yes"
+		fi
+	else
+		# Build local pcap
+		export CC
+		export CXX
+		AC_CONFIG_SUBDIRS($pcapdir)
+
+		if test "$darwin" = yes; then
+			pcaplib=""
+			pcaplnk="-L$pcapdir -lpcap"
+		else
+			pcaplib="$pcapdir/libpcap.a"
+			pcaplnk=""
+		fi
+
+		AC_SUBST(pcaplib)
+		AC_SUBST(pcaplnk)
+
+		CPPFLAGS="$CPPFLAGS -I$pcapdir"
+		#CXXFLAGS="$CPPFLAGS -I$pcapdir"
+		AC_DEFINE(HAVE_LIBPCAP, 1, libpcap packet capture lib)
+		pcap=yes
+	fi
+
+
+else
+    AC_MSG_WARN(Compiling without libpcap support.)
+fi
+AC_SUBST(pcap)
+
+AC_MSG_CHECKING(that linux/wireless.h is what we expect)
+AC_LINK_IFELSE([AC_LANG_PROGRAM([[
+    #include <stdio.h>
+    #include <sys/socket.h>
+    #include <net/if.h>
+    #include <net/if_media.h>
+    #include <net80211/ieee80211_ioctl.h>
+    #include <net80211/ieee80211_radiotap.h>
+]], [[
+
+]])],[radiotap=yes],[radiotap=no])
+
+if test "$radiotap" = yes; then
+    AC_DEFINE(HAVE_RADIOTAP, 1, radiotap packet headers)
+fi
+
+AC_ARG_ENABLE(setuid, [  --disable-setuid        disable setuid/privdrop ability (not reccomended)],,suid=yes)
+# evaluate after viha test
+
+if test "$darwin" = yes; then
+	AC_MSG_WARN([*** Enabling Viha by default because we're compiling under OSX ***]);
+	want_viha=yes;
+else
+	want_viha=no;
+fi
+
+AC_ARG_ENABLE(viha, [  --disable-viha          disable MacOSX Viha capture source (OSX only)],want_viha=no,)
+
+if test "$darwin" = no -a "$want_viha" = "yes"; then
+	AC_MSG_WARN([*** Disabling Viha on non-OSX system ***]);
+	want_viha=no;
+fi
+	
+if test $want_viha = "yes"; then
+	AC_CHECK_HEADERS([WiFi/WLPacketSource.h WiFi/WLFrame.h WiFi/IEEE80211Frame.h WiFi/WFException.h], 
+		AC_DEFINE(HAVE_VIHAHEADERS, 1, Viha headers are there) foundviha=yes, 
+		AC_MSG_ERROR(Missing required viha headers.  Did you install the Viha drivers?))
+# Enable the ldflags and cxx flags if we found it...
+	if test $foundviha = "yes"; then
+		LDFLAGS="$LDFLAGS -framework WiFi"
+# Force suid disabled
+        suid="no"        
+        AC_MSG_WARN(*** Disabling setuid capabilities.  Viha must be controlled from the main process which makes setuid-dropping impossible. ***)
+	fi
+fi
+
+# Evaluate suid
+AC_SUBST(suid)
+if test $suid = yes; then
+	AC_MSG_CHECKING(for setuid )
+	AC_MSG_RESULT(yes)
+	AC_DEFINE(HAVE_SUID, 1, setuid capable)
+else
+	AC_MSG_CHECKING(for setuid)
+	AC_MSG_RESULT(no)
+# Yell if we didn't already yell about viha
+    if test "$foundviha" != "yes"; then
+	    AC_MSG_WARN(*** Not installing setuid capabilities.  It is more secure to install Kismet as setuid-capable so it can drop privileges.  Please consult the README file. ***)
+    fi
+fi
+
+wsp100=yes
+AC_ARG_ENABLE(wsp100, [  --disable-wsp100        disable wsp100 remote drone source],,wsp100=no)
+if test "$wsp100" = "yes"; then
+	AC_DEFINE(HAVE_WSP100, 1, wsp100 remote sensor support)
+fi
+
+zaurus=no
+AC_ARG_ENABLE(zaurus, [  --enable-zaurus         enable extra utils for Sharp Zaurus (deprecated)],zaurus=yes,)
+if test "$zaurus" = "yes" -a "$host_cpu" != "arm"; then
+	AC_MSG_WARN(*** Zaurus extentions enabled but not building for an Arm CPU ***)
+fi
+AC_SUBST(zaurus)
+if test "$zaurus" = "yes"; then
+	zbuild="\$(BUZZER)"
+fi
+AC_SUBST(zbuild)
+
+    
+local=no
+AC_ARG_ENABLE(local-dumper, [  --enable-local-dumper   force use of local dump code even if Ethereal is available],
+              local=yes,)
+AC_SUBST(local)
+
+AC_ARG_WITH(ethereal,
+[  --with-ethereal[=DIR]     support ethereal wiretap for replaying logs ]
+  --without-ethereal        disable support for ethereal wiretap],
+[
+    if test $withval = no; then
+        want_ethereal=no
+    elif test $withval = yes; then
+        want_ethereal=yes
+		ethereal_dir=$etherealdir
+    else
+        want_ethereal=yes
+        ethereal_dir=$withval
+    fi
+],[
+    want_ethereal=yes
+    ethereal_dir=$etherealdir
+])
+
+#
+#found_ethereal=no
+#if test $want_ethereal = yes; then
+#	AC_CHECK_FILE($ethereal_dir/Makefile, found_ethereal=yes, found_ethereal=no)
+#fi
+
+#if test $found_ethereal = no -a $want_ethereal = yes; then
+#	want_ethereal=no
+#	AC_MSG_WARN(*** Unable to find configured Ethereal in $ethereal_dir ***)
+#fi
+
+
+libz="no"
+if test $want_ethereal = yes; then
+
+	AC_CHECK_PROG(glib, [glib-config --version], yes, no)
+	
+	if test $glib = no; then
+		AC_MSG_WARN(Could not find glib-config in $PATH.  glib is required to link to wiretap.)
+		want_ethereal=no
+		local=yes
+	    AC_MSG_WARN([*** Wiretap support disabled.  While Kismet will function without wiretap, it will limit the log reading and writing abilities. ***])
+	    AC_DEFINE(USE_LOCAL_DUMP, 1, Use local dumper code)
+	    local=yes
+	else
+
+	AC_MSG_CHECKING(for usable wiretap with 3 arguments in $ethereal_dir/wiretap)
+	save_cppflags="$CPPFLAGS"
+	CPPFLAGS="$CPPFLAGS `glib-config --cflags glib` -I$ethereal_dir/wiretap"
+	#CPPFLAGS="$CPPFLAGS `glib-config --cflags glib` -I$ethereal_dir/wiretap"
+	#save_cxxflags="$CXXFLAGS"
+	#CXXFLAGS="$CXXFLAGS `glib-config --cflags glib` -I$ethereal_dir/wiretap"
+	save_libs="$LIBS"
+	LIBS="$LIBS -lz `glib-config --libs glib` -L$ethereal_dir/wiretap -lwiretap"
+
+    AC_LINK_IFELSE([AC_LANG_PROGRAM([[
+		#include <stdio.h>
+		#include <sys/types.h>
+		#include <sys/time.h>
+		#include "wtap.h"
+		]], [[
+	const char *filename = "autoconf test";
+	int err;
+
+	wtap_open_offline(filename, &err, 0);
+		]])],[wtap_valid=yes],[wtap_valid=no])
+
+    if test "$wtap_valid" = no ; then
+        AC_MSG_RESULT(no);
+	    AC_MSG_CHECKING(for usable wiretap with 4 arguments in $ethereal_dir/wiretap)
+    	AC_LINK_IFELSE([AC_LANG_PROGRAM([[
+        	#include <stdio.h>
+			#include <sys/types.h>
+			#include <netinet/in.h>
+      		#include "wtap.h"
+       	]], [[
+	const char *filename = "autoconf test";
+	int err;
+
+	wtap_open_offline(filename, &err, 0, 0);
+        ]])],[wtap_argquad=yes],[wtap_argquad=no])
+
+		if test "$wtap_argquad" = yes ; then
+            wtap_valid="yes";
+            AC_DEFINE(HAVE_WTAP_ARGQUAD, 1, wiretap functions takesfour parameters)
+		fi
+    fi
+
+    if test "$wtap_valid" = yes ; then
+        AC_MSG_RESULT(yes)
+        AC_DEFINE(HAVE_LIBWIRETAP, 1, Ethereal wiretap library)
+		libz="yes";
+		AC_DEFINE(HAVE_LIBZ, 1, Zlib compression library)
+
+        if test "$wtap_argquad" = no ; then
+    		AC_MSG_CHECKING(for wtap_read parameters (wtap *, int *, int *))
+        	AC_LINK_IFELSE([AC_LANG_PROGRAM([[
+            	#include <stdio.h>
+    			#include <sys/types.h>
+    			#include <netinet/in.h>
+          		#include "wtap.h"
+           	]], [[
+        		int err;
+    			struct wtap *packfile;
+    			long *offset;
+    
+        		wtap_read(packfile, &err, offset);
+            ]])],[wtap_intint=no],[wtap_intint=yes])
+    
+    		if test "$wtap_intint" = yes ; then
+    			AC_MSG_RESULT([struct wtap *, int *, int *])
+                AC_DEFINE(HAVE_WTAPREAD_INTINT, 1, wtap_read takes two int * parameters)
+    		else
+                AC_MSG_RESULT([struct wtap *, int *, long *])
+            fi
+        fi
+
+		if test $local = yes; then
+		    AC_MSG_CHECKING(for forced local-dumper)
+		    AC_MSG_RESULT(yes)
+		    AC_MSG_WARN(*** Forcing local dumper code instead of wiretap dumper.  ***)
+			AC_DEFINE(USE_LOCAL_DUMP, 1, Force local dumper code)
+		else
+		    AC_MSG_CHECKING(for forced local-dumper)
+		    AC_MSG_RESULT(no)
+		fi
+    else
+        AC_MSG_RESULT(no)
+		want_ethereal="no"
+		AC_MSG_WARN([*** No useable wiretap found in $ethereal_dir.  Make sure this directory is correct and that you have configured and compiled Ethereal in this directory.  While Kismet will function without wiretap, it will limit the log reading and writing abilities. ***])
+		CPPFLAGS="$save_cppflags"
+		#CXXFLAGS="$save_cxxflags"
+   		LIBS="$save_libs"
+		AC_DEFINE(USE_LOCAL_DUMP, 1, Use local dumper code)
+    	local=yes
+    fi
+
+	fi
+else
+	AC_MSG_WARN([*** Wiretap support disabled.  While Kismet will function without wiretap, it will limit the log reading and writing abilities. ***])
+	AC_DEFINE(USE_LOCAL_DUMP, 1, Use local dumper code)
+    local=yes
+fi
+
+# gpsmap checks
+
+# Check for expat
+if test "$wantgps" = "yes"; then
+	expatl=no
+	AC_CHECK_LIB([expat], [XML_GetCurrentLineNumber], 
+		AC_DEFINE(HAVE_EXPAT, 1, Expat XML library) expatl=yes,
+		AC_MSG_WARN(*** Missing Expat XML library.  gpsmap will not be built. ***))
+else
+	expatl=no
+fi
+
+# Check for libgmp
+if test "$wantgps" = "yes"; then
+	gmpl=no
+    AC_CHECK_HEADER([gmp.h],
+		AC_DEFINE(HAVE_GMP, 1, GMP math library) gmpl=yes,
+		AC_MSG_WARN(*** Missing GMP math library.  gpsmap will not be built. ***))
+else
+	gmpl=no
+fi
+
+
+magickold=no
+
+# Check for imagemagick
+save_cppflags="$CPPFLAGS"
+save_cxxflags="$CXXFLAGS"
+save_libs="$LIBS"
+save_ldflags="$LDFLAGS"
+AC_CHECK_PROG(wget, [wget --version], yes, no)
+AC_CHECK_PROG(magickconfig, [Magick-config --version], yes, no)
+
+if test "$magickconfig" = "yes"; then
+	magickversion=`Magick-config --version`
+	magickmajor=`echo $magickversion | cut -d '.' -f 1`
+	magickminor=`echo $magickversion | cut -d '.' -f 2`
+	magicktiny=`echo $magickversion | cut -d '.' -f 3`
+
+	if test "$magickmajor" -lt 5; then
+		magickold="yes";
+	elif test "$magickmajor" -eq 5 -a "$magickminor" -lt 4; then
+		magickold="yes";
+	elif test "$magickmajor" -eq 5 -a "$magickminor" -eq 4 -a "$magicktiny" -lt 7; then
+		magickold="yes";
+	fi
+fi
+
+if test $magickold = "yes"; then
+		AC_MSG_WARN(*** Old version of ImageMagick ($magickversion) found.  Please upgrade to 5.4.7 or newer.  gpsmap will not be built. ***)
+elif test $magickconfig = "no"; then
+	AC_MSG_WARN(*** Missing Magick-config (or it is not in the path).  gpsmap will not be built. ***)
+elif test $wget = "no"; then
+	AC_MSG_WARN(*** Missing wget (or it is not in the path).  gpsmap will not be build. ***)
+else
+	#CPPFLAGS="$CPPFLAGS `Magick-config --cppflags` -I`Magick-config --prefix`/include"
+	CPPFLAGS="$CPPFLAGS `Magick-config --cppflags`"
+	CXXFLAGS="$CXXFLAGS `Magick-config --cflags`"
+	#CXXFLAGS="$CXXFLAGS `Magick-config --cflags` -I`Magick-config --prefix`/include"
+	LDFLAGS="$LDFLAGS `Magick-config --ldflags`"
+	LIBS="`Magick-config --libs`"
+	AC_CHECK_HEADER(magick/api.h, magickhdr="yes", magickhdr="no")
+	if test "$magickhdr" = "no"; then
+		oldcppflags2="$CPPFLAGS"
+		CPPFLAGS="$CPPFLAGS -I`Magick-config --prefix`/include";
+		AC_CHECK_HEADER(magick/api.h, magickhdr="yes", magickhdr="no")
+		if test "$magickhdr" = "no"; then
+			CPPFLAGS="$oldcppflags2";
+			AC_MSG_WARN(*** Missing ImageMagick.  gpsmap will not be built. ***)
+		fi
+	fi
+
+	if test "$magickhdr" = "yes"; then
+		AC_CHECK_LIB([Magick], [WriteImage],
+	   		AC_DEFINE(HAVE_IMAGEMAGICK, 1, Imagemagick image library) gpslc="\$(GPSL)",
+			AC_MSG_WARN(*** Missing Imagemagick.  gpsmap will not be built. ***))
+	fi
+fi
+CPPFLAGS="$save_cppflags"
+CXXFLAGS="$save_cxxflags"
+LIBS="$save_libs"
+LDFLAGS="$save_ldflags"
+
+if test "$expatl" = "no"; then
+	if test "$gpslc" != ""; then
+		AC_MSG_WARN(*** Disabling gpsmap because expat was not found. ***)
+		gpslc=""
+	fi
+fi
+
+if test "$gmpl" = "no"; then
+	if test "$gpslc" != ""; then
+		AC_MSG_WARN(*** Disabling gpsmap because GMP was not found. ***)
+		gpslc=""
+	fi
+fi
+
+if test "$gpslc" != ""; then
+	CPPFLAGS="$CPPFLAGS `Magick-config --cppflags`"
+	CXXFLAGS="$CXXFLAGS `Magick-config --cflags`"
+fi
+
+if test "$libz" = "no" -a "$gpslc" != ""; then
+	AC_CHECK_LIB([z], [gzopen],
+        AC_DEFINE(HAVE_LIBZ, 1, Libz compression lib) LIBS="$LIBS -lz" libz="yes",
+        AC_MSG_WARN(Unable to find libz compression))
+fi
+
+AC_CHECK_HEADER(pthread.h,
+	AC_CHECK_LIB([pthread], [pthread_create],
+		AC_DEFINE(HAVE_PTHREAD, 1, pthread threading library) pthr="yes",
+		pthr="no"),
+	pthr="no")
+
+if test "$pthr" = "no"; then
+	AC_MSG_WARN(*** GPSMap will be built without pthread support. ***);
+	threadlib=""
+else
+	threadlib="-lpthread"
+fi
+
+LIBS="$LIBS -lstdc++"
+
+AC_SUBST(threadlib)
+
+# Update the companion to this...
+if test "$gpslc"x != "x"; then
+    gpslco="\$(GPSLO)"
+fi
+AC_SUBST(gpslc)
+AC_SUBST(gpslco)
+
+sharedatadir=$datadir
+sharedatadir=`(
+    test "$prefix" = NONE && prefix=$ac_default_prefix
+    test "$exec_prefix" = NONE && exec_prefix=${prefix}
+    eval echo "$sharedatadir"
+)`
+sharedatadir=${sharedatadir}
+AC_SUBST(sharedatadir)
+
+AC_CONFIG_FILES([Makefile scripts/kismet extra/buzzme/Makefile extra/Makefile conf/kismet.conf conf/kismet_ui.conf])
+AC_OUTPUT
+
+echo
+echo "Configuration complete: "
+echo "         Compiling for: $host_os ($host_cpu)"
+echo "   Installing as group: $instgrp"
+echo "    Man pages owned by: $mangrp"
+echo "       Installing into: $prefix"
+echo -n "        Setuid capable: "
+if test "$suid" = "yes"; then
+	echo "yes"
+else
+	echo "no"
+fi
+echo -n "         Zaurus extras: "
+if test "$zaurus" = "yes"; then
+	echo "yes"
+	if test "$host_cpu" != "arm"; then
+ 		echo "        WARNING:  Not compiling for ARM but zaurus extentions enabled."
+	fi
+else
+	echo "no"
+    if test "$host_cpu" = "arm"; then
+		echo "        WARNING:  Arm CPU but zaurus extentions not enabled."
+    fi
+fi
+
+echo -n "      Terminal Control: "
+if test "$ncurses" = "yes"; then
+	if test "$curses" = "yes"; then
+		echo "curses"
+	else
+		echo "ncurses"
+	fi
+else
+	echo "none"
+fi
+echo -n "      Curses interface: "
+if test "$buildcurses" = "yes"; then
+	echo "yes"
+else
+	echo "no"
+fi
+echo -n "      Panels interface: "
+if test "$panel" = "yes"; then
+	echo "yes"
+else
+	echo "no"
+fi
+echo -n " Linux Netlink capture: "
+if test "$netlink" = "yes"; then
+	echo "yes"
+else
+	echo "no"
+fi
+echo -n "       Linux wireless : "
+if test "$wireless" = "yes"; then
+	echo "yes"
+else
+	echo "no"
+fi
+echo -n " Linux wireless v.22+ : "
+if test "$wireless22" = "yes"; then
+	echo "yes"
+else
+	echo "no"
+fi
+echo -n "          pcap capture: "
+if test "$pcap" = "yes"; then
+	echo "yes"
+	if test "$syspcap" != "yes"; then
+		echo "           pcap source: $pcapdir"
+	else
+		echo "           pcap source: system"
+	fi
+else
+	echo "no"
+fi
+echo -n "        WSP100 capture: "
+if test "$wsp100" = "yes"; then
+	echo "yes";
+else
+	echo "no";
+fi
+echo -n "          Viha capture: "
+if test "$want_viha" = "yes"; then
+	echo "yes";
+else
+	echo "no";
+fi
+echo -n "      Radiotap headers: "
+if test "$radiotap" = "yes"; then
+    echo "yes";
+else
+    echo "no";
+fi
+echo -n " Using local dump code: "
+if test "$local" = "yes"; then
+	echo "yes"
+else
+	echo "no"
+fi
+echo -n "Using ethereal wiretap: "
+if test "$want_ethereal" = "no"; then
+	echo "no"
+else
+	echo "$ethereal_dir"
+fi
+echo -n "   Imagemagick support: "
+if test "$gpslc" = ""; then
+	echo "no"
+else
+	echo "yes ($magickversion)"
+fi
+echo -n "         Expat Library: "
+if test "$expatl" = "no"; then
+	echo "no"
+else
+	echo "yes"
+fi
+echo -n "           GMP Library: "
+if test "$gmpl" = "no"; then
+    echo "no"
+else
+    echo "yes"
+fi
+echo -n "       PThread Support: "
+if test "$pthr" = "no"; then
+	echo "no"
+else
+	echo "yes"
+fi
+echo -n "      libz compression: "
+if test "$libz" = "yes"; then
+	echo "yes"
+else
+	echo "no"
+fi
+
+if test "$wireless" != "yes" -a "$linux" = "yes"; then
+    echo "*** WARNING ***"
+    echo "Linux Wireless Extentions were not found.  This means that they are not"
+    echo "turned on in your kernel or that your kernel source include paths on your"
+    echo "distribution are broken (namely, that linux/wireless.h didn't exist or"
+    echo "was unuseable).  Without wireless extentions, most of the commonly used"
+    echo "packet sources (such as Cisco, Orinoco, Madwifi, Prism54, and others)"
+    echo "WILL NOT BE BUILT."
+    echo "*** WARNING ***"
+fi
+
+if test "`echo $host_os | grep linux`" = ""; then
+	echo
+	echo "Configuration complete.  You are not running a linux-based system,"
+	echo "you will likely need to use 'gmake' instead of 'make'."
+	echo "Run 'gmake dep' to generate dependencies and 'gmake' followed by"
+	echo "'gmake install' to compile and install Kismet"
+	echo "Kismet WILL NOT be installed suid-root by default.  If you wish to install"
+	echo "Kismet as a suid-root utility, READ THE DOCUMENTATION and run "
+	echo "'make suidinstall'."
+	echo "DO NOT INSTALL KISMET AS SUID-ROOT IF YOU HAVE UNTRUSTED USERS ON YOUR SYSTEM."
+else
+	verminor=`uname -r | cut -d '.' -f 2`
+	# Stupid redhat
+	vertiny=`uname -r | cut -d '.' -f 3 | cut -f 1 -d-`
+
+	if test "$verminor" = "4" -a "$vertiny" -lt 16 ; then
+		AC_MSG_WARN(There have been a number of major improvements in the linux-wireless extentions and in the aironet drivers in recent versions.  It is recomended that you run at least kernel version 2.4.16, otherwise you may experience difficulties.)
+	fi
+
+	echo
+	echo "Configuration complete.  Run 'make dep' to generate dependencies"
+	echo "and 'make' followed by 'make install' to compile and install."
+fi
+
