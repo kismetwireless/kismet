@@ -87,6 +87,7 @@ int WtapFileSource::FetchPacket(kis_packet *packet, uint8_t *data, uint8_t *modd
 
     num_packets++;
 
+    usleep(1);
     return(packet->caplen);
 
 }
