@@ -5,6 +5,8 @@ Dec 07 2003  3.1.0  Tweaked prism2 packet mangling to preserve ICV on packets
                     Switched madwifi combo to priv mode 0 to reduce mode
                      switching overhead when changing channels
                     Added 802.11a frequencies to freq2chan conversion
+                    Tweaked hostap monitor mode to be more resilient to 
+                     different hostap versions
 Dec 06 2003  3.1.0  Fixed Makefile looking for monitor/unmonitor scripts
                     Added viha registrant (oops)
                     Added most of the infrastructure for MadWifi support but
