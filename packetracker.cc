@@ -586,8 +586,10 @@ void Packetracker::ProcessPacket(packet_info info) {
                     pnet->type = network_remove;
                     pnet->last_time = time(0);
 
-                    snprintf(status, STATUS_MAX, "Associated probe network \"%s\".",
-                             pnet->bssid.Mac2String().c_str());
+                    snprintf(status, STATUS_MAX, "Associated probe network \"%s\" "
+                             "with \"%s\".",
+                             pnet->bssid.Mac2String().c_str(),
+                             net->bssid.Mac2String().c_str());
                     KisLocalStatus(status);
 
                     num_networks--;
@@ -618,6 +620,33 @@ void Packetracker::ProcessDataPacket(packet_info info, wireless_network *net) {
     wireless_client *client = NULL;
     char status[STATUS_MAX];
 
+    // Try to match up orphan probe networks
+    wireless_network *pnet = NULL;
+
+    if (bssid_map.find(info.dest_mac) != bssid_map.end())
+        pnet = bssid_map[info.dest_mac];
+    else if (bssid_map.find(info.source_mac) != bssid_map.end())
+        pnet = bssid_map[info.source_mac];
+
+    if (pnet != NULL) {
+        if (pnet->type == network_probe) {
+
+            net->llc_packets += pnet->llc_packets;
+            net->data_packets += pnet->data_packets;
+            net->crypt_packets += pnet->crypt_packets;
+            net->interesting_packets += pnet->interesting_packets;
+            pnet->type = network_remove;
+            pnet->last_time = time(0);
+
+            snprintf(status, STATUS_MAX, "Associated probe network \"%s\" with \"%s\".",
+                     pnet->bssid.Mac2String().c_str(),
+                     net->bssid.Mac2String().c_str());
+            KisLocalStatus(status);
+
+            num_networks--;
+        }
+    }
+    
     // Find the client or make one
     if (net->client_map.find(info.source_mac) == net->client_map.end()) {
         client = new wireless_client;
