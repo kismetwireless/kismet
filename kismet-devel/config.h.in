@@ -100,7 +100,7 @@
 /* Define if you have the `strstr' function. */
 #undef HAVE_STRSTR
 
-/* suid-root installation */
+/* setuid capable */
 #undef HAVE_SUID
 
 /* System headers are there */

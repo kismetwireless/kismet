@@ -88,6 +88,9 @@ public:
     // Get the most recently touched n-th networks
     vector<wireless_network *> FetchNthRecent(unsigned int n);
 
+    short int FetchPort() { return port; }
+    char *FetchHost() { return hostname; }
+
     char *FetchError() { return errstr; }
     int FetchNumNetworks() { return num_networks; }
     int FetchNumPackets() { return num_packets; }
