@@ -25,7 +25,7 @@
 
 #ifdef HAVE_LINUX_NETLINK
 
-int Prism2Source::OpenSource(const char *dev) {
+int Prism2Source::OpenSource(const char *dev, card_type ctype) {
     snprintf(type, 64, "Prism/2 (DEPRECATED)");
 
     paused = 0;

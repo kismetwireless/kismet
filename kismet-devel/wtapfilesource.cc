@@ -20,7 +20,7 @@
 
 #ifdef HAVE_LIBWIRETAP
 
-int WtapFileSource::OpenSource(const char *dev) {
+int WtapFileSource::OpenSource(const char *dev, card_type ctype) {
     snprintf(type, 64, "Wtap Save File");
 
     paused = 0;

@@ -730,6 +730,8 @@ int main(int argc,char *argv[]) {
 
     int beacon_log = 1;
 
+    card_type cardtype = card_unspecified;
+
     static struct option long_options[] = {   /* options table */
         { "log-title", required_argument, 0, 't' },
         { "no-logging", no_argument, 0, 'n' },
@@ -907,6 +909,34 @@ int main(int argc,char *argv[]) {
         ip_track = 1;
     }
 
+    // Find out what kind of card we are.
+    if (conf.FetchOpt("cardtype") != "") {
+        const char *sctype = conf.FetchOpt("cardtype").c_str();
+
+        if (!strcasecmp(sctype, "cisco"))
+            cardtype = card_cisco;
+        else if (!strcasecmp(sctype, "cisco_cvs"))
+            cardtype = card_cisco_cvs;
+        else if (!strcasecmp(sctype, "cisco_bsd"))
+            cardtype = card_cisco_bsd;
+        else if (!strcasecmp(sctype, "prism2"))
+            cardtype = card_prism2;
+        else if (!strcasecmp(sctype, "prism2_pcap"))
+            cardtype = card_prism2_pcap;
+        else if (!strcasecmp(sctype, "prism2_bsd"))
+            cardtype = card_prism2_bsd;
+        else if (!strcasecmp(sctype, "prism2_hostap"))
+            cardtype = card_prism2_hostap;
+        else if (!strcasecmp(sctype, "orinoco"))
+            cardtype = card_orinoco;
+        else if (!strcasecmp(sctype, "orinoco_bsd"))
+            cardtype = card_orinoco_bsd;
+        else if (!strcasecmp(sctype, "generic"))
+            cardtype = card_generic;
+        else
+            fprintf(stderr, "WARNING:  Unknown card type '%s'\n", sctype);
+    }
+
     // Open the captype
     if (captype == NULL) {
         if (conf.FetchOpt("captype") == "") {
@@ -998,7 +1028,7 @@ int main(int argc,char *argv[]) {
     }
 
     // Open the packet source
-    if (packsource->OpenSource(capif) < 0) {
+    if (packsource->OpenSource(capif, cardtype) < 0) {
         fprintf(stderr, "FATAL: %s\n", packsource->FetchError());
         exit(1);
     }
