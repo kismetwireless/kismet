@@ -348,7 +348,7 @@ int track_opacity = 100, /* no bounds opacity */ range_opacity = 70, power_opaci
     bounds_opacity = 10;
 int track_width = 3;
 int convert_greyscale = 1, keep_gif = 0, verbose = 0, label_orientation = 7, feather_range = 0,
-    feather_hull = 0, feather_scatter = 0;
+    feather_hull = 0, feather_scatter = 0, color_saturation = 0, map_intensity = 0;
 int cache_disable = 0;
 
 // Offsets for drawing from what we calculated
@@ -562,11 +562,11 @@ int DrawFeatherCircle(int in_width, Image *in_img, int in_xpos, int in_ypos,
             opac = max_opac;
         snprintf(clrstr, 8, "#%02X%02X%02X", opac, opac, opac);
 
-        QueryColorDatabase(clrstr, &alphacolor, &im_exception);
+        QueryColorDatabase(clrstr, &alphacolor, &excep);
         if (im_exception.severity != UndefinedException) {
             fprintf(stderr, "WARNING: QueryColorDatabase failed for %s\n", 
                     clrstr);
-            CatchException(&im_exception);
+            CatchException(&excep);
             return -1;
         }
         alpha_di->fill = alphacolor;
@@ -576,9 +576,10 @@ int DrawFeatherCircle(int in_width, Image *in_img, int in_xpos, int in_ypos,
         alpha_di->primitive = prim;
 
         DrawImage(alpha_img, alpha_di);
-        if (im_exception.severity != UndefinedException) {
+        GetImageException(alpha_img, &excep);
+        if (excep.severity != UndefinedException) {
             fprintf(stderr, "WARNING: DrawImage failed for %s\n", prim);
-            CatchException(&im_exception);
+            CatchException(&excep);
             return -1;
         }
 
@@ -586,10 +587,10 @@ int DrawFeatherCircle(int in_width, Image *in_img, int in_xpos, int in_ypos,
 
     // Draw the center itself
     snprintf(clrstr, 8, "#%02X%02X%02X", max_opac, max_opac, max_opac);
-    QueryColorDatabase(clrstr, &alphacolor, &im_exception);
-    if (im_exception.severity != UndefinedException) {
+    QueryColorDatabase(clrstr, &alphacolor, &excep);
+    if (excep.severity != UndefinedException) {
         fprintf(stderr, "WARNING: QueryColorDatabase failed for %s\n", clrstr);
-        CatchException(&im_exception);
+        CatchException(&excep);
         return -1;
     }
     alpha_di->fill = alphacolor;
@@ -601,9 +602,10 @@ int DrawFeatherCircle(int in_width, Image *in_img, int in_xpos, int in_ypos,
     alpha_di->primitive = prim;
 
     DrawImage(alpha_img, alpha_di);
-    if (im_exception.severity != UndefinedException) {
+    GetImageException(alpha_img, &excep);
+    if (excep.severity != UndefinedException) {
         fprintf(stderr, "WARNING: DrawImage failed for %s\n", prim);
-        CatchException(&im_exception);
+        CatchException(&excep);
         return -1;
     }
 
@@ -615,9 +617,10 @@ int DrawFeatherCircle(int in_width, Image *in_img, int in_xpos, int in_ypos,
     base_di->primitive = prim;
 
     DrawImage(base_img, base_di);
-    if (im_exception.severity != UndefinedException) {
+    GetImageException(base_img, &excep);
+    if (excep.severity != UndefinedException) {
         fprintf(stderr, "WARNING: DrawImage failed for %s\n", prim);
-        CatchException(&im_exception);
+        CatchException(&excep);
         return -1;
     }
 
@@ -1640,7 +1643,8 @@ void DrawNetTracks(Image *in_img, DrawInfo *in_di) { /*FOLD00*/
 
         ExceptionInfo excep;
         GetExceptionInfo(&excep);
-	QueryColorDatabase(color_str, &track_clr, &excep);
+
+        QueryColorDatabase(color_str, &track_clr, &excep);
         if (excep.severity != UndefinedException) {
             CatchException(&excep);
             break;
@@ -2023,7 +2027,8 @@ void DrawNetBoundRects(vector<gps_network *> in_nets, Image *in_img, DrawInfo *i
             snprintf(prim, 1024, "fill-opacity %d%% rectangle %d,%d %d,%d",
                  in_fill, (int) mapx, (int) mapy, (int) endx, (int) endy);
         } else {
-        snprintf(prim, 1024, "stroke black fill-opacity %d%% rectangle %d,%d %d,%d",
+        snprintf(prim, 1024, "stroke black fill black fill-opacity %d%% "
+                 "rectangle %d,%d %d,%d",
                  in_fill, (int) mapx, (int) mapy, (int) endx, (int) endy);
 	}
 
@@ -2774,8 +2779,8 @@ int DrawLegendComposite(vector<gps_network *> in_nets, Image **in_img,
 
     leg_di = CloneDrawInfo(leg_img_info, NULL);
 
-    snprintf(prim, 1024, "stroke black fill-opacity 100%% rectangle 0,%d %d,%d",
-             map_height, map_width, legend_height);
+    snprintf(prim, 1024, "stroke black fill black fill-opacity 100%% "
+             "rectangle 0,%d %d,%d", map_height, map_width, legend_height);
     leg_di->primitive = prim;
     DrawImage(leg_img, leg_di);
     GetImageException(leg_img, &im_exception);
@@ -3329,6 +3334,10 @@ int Usage(char* argv, int ec = 1) {
            "                                  1 is color based on WEP status\n"
            "                                  2 is color based on network channel\n"
            "  -G, --no-greyscale             Don't convert map to greyscale\n"
+           "      --color-saturation <n>     Desaturate colors to n%%\n"
+           "      --map-intensity <[-]n>     Modify map intensity by n%%.\n"
+           "                                  Positive values overlay the map on white\n"
+           "                                  Negative values overlay the map on black.\n"
            "  -M, --metric                   Fetch metric-titled map\n"
            "  -O, --offset <x,y>             Offset drawn features by x,y pixels\n"
            "\nDraw options\n"
@@ -3444,6 +3453,8 @@ int main(int argc, char *argv[]) {
            // From here on down we only have long args
            {"feather-range", no_argument, 0, 2},
            {"feather-scatter", no_argument, 0, 3},
+           {"color-saturation", required_argument, 0, 4},
+           {"map-intensity", required_argument, 0, 5},
            { 0, 0, 0, 0 }
     };
     int option_index;
@@ -3766,6 +3777,21 @@ int main(int argc, char *argv[]) {
         case 3:
             feather_scatter = 1;
             break;
+        case 4:
+            if (sscanf(optarg, "%d", &color_saturation) != 1 || 
+                color_saturation < 0 || color_saturation > 100) {
+                fprintf(stderr, "Invalid color saturation.\n");
+                ShortUsage(exec_name);
+            }
+            convert_greyscale = 0;
+            break;
+        case 5:
+            if (sscanf(optarg, "%d", &map_intensity) != 1 || 
+                map_intensity < -100 || map_intensity > 100) {
+                fprintf(stderr, "Invalid map intensity.\n");
+                ShortUsage(exec_name);
+            }
+            break;
         default:
             ShortUsage(exec_name);
             break;
@@ -3931,6 +3957,7 @@ int main(int argc, char *argv[]) {
     Image *img = NULL;
     ImageInfo *img_info;
     DrawInfo *di;
+    char prim[1024];
 
     InitializeMagick(*argv);
     GetExceptionInfo(&im_exception);
@@ -4039,7 +4066,6 @@ int main(int argc, char *argv[]) {
             exit(1);
         }
 
-        char prim[1024];
         snprintf(prim, 1024, "stroke white fill white fill-opacity 100%% "
                  "rectangle 0,0 %d,%d", map_width, map_height);
         di->primitive = prim;
@@ -4125,6 +4151,131 @@ int main(int argc, char *argv[]) {
         fprintf(stderr, "Converting map to greyscale.\n");
         SetImageType(img, GrayscaleType);
         SetImageType(img, TrueColorType);
+    } else if (color_saturation) {
+        fprintf(stderr, "Desaturating color to %d%%\n", color_saturation);
+        snprintf(prim, 1024, "100,%d,100", color_saturation);
+        ModulateImage(img, prim);
+    }
+
+    // Overlay it if needed
+    if (map_intensity != 0) {
+        fprintf(stderr, "Adjusting map intensity to %d%%\n", map_intensity);
+        // This means making a whole new image and overlaying things
+        unsigned char *pixdata;
+        unsigned char *apixdata;
+        ExceptionInfo excep;
+        GetExceptionInfo(&excep);
+
+        Image *alpha_img = NULL;
+        ImageInfo *alpha_info = CloneImageInfo((ImageInfo *) NULL);
+        DrawInfo *alpha_di = NULL;
+    
+        Image *base_img = NULL;
+        ImageInfo *base_info = CloneImageInfo((ImageInfo *) NULL);
+        DrawInfo *base_di = NULL;
+
+        // Allocate space for both alpha and normal 
+        pixdata = (unsigned char *) malloc(sizeof(unsigned char) *
+                                           map_width * map_height * 4);
+        apixdata = (unsigned char *) malloc(sizeof(unsigned char) *
+                                           map_width * map_height);
+        memset(pixdata, 0, sizeof(unsigned char) * map_width * map_height * 4);
+        memset(apixdata, 0, sizeof(unsigned char) * map_width * map_height);
+
+        // Allocate the RGB+Alpha channel image
+        base_img = ConstituteImage(map_width, map_height, "RGBA", CharPixel,
+                                   pixdata, &excep);
+        if (excep.severity != UndefinedException) {
+            fprintf(stderr, "WARNING: ConstituteImage failed for base\n");
+            CatchException(&excep);
+            return -1;
+        }
+
+        // Allocate an intensity-only image to build the alpha channel into
+        alpha_img = ConstituteImage(map_width, map_height, "I", CharPixel,
+                                    apixdata, &excep);
+        if (excep.severity != UndefinedException) {
+            fprintf(stderr, "WARNING: ConstituteImage failed for alpha channel\n");
+            CatchException(&excep);
+            return -1;
+        }
+
+        base_di = CloneDrawInfo(base_info, NULL);
+        alpha_di = CloneDrawInfo(alpha_info, NULL);
+
+        // Draw the alpha channel
+        char alcolor[8];
+        PixelPacket alphaclr;
+        int alperc = (int) rintf((float) 255 * 
+                                 ((float) abs(map_intensity) / (float) 100));
+
+        snprintf(alcolor, 8, "#%02X%02X%02X", alperc, alperc, alperc);
+
+        QueryColorDatabase(alcolor, &alphaclr, &excep);
+        if (excep.severity != UndefinedException) {
+            fprintf(stderr, "FATAL: QueryColorDatabase failed for %s\n", 
+                    alcolor);
+            CatchException(&excep);
+            exit(1);
+        }
+        alpha_di->fill = alphaclr;
+        alpha_di->stroke = alphaclr;
+
+        snprintf(prim, 1024, "fill-opacity 100%% stroke-opacity 100%% "
+                 "rectangle 0,0 %d,%d", map_width, map_height);
+
+        alpha_di->primitive = prim;
+
+        DrawImage(alpha_img, alpha_di);
+        GetImageException(alpha_img, &excep);
+        if (excep.severity != UndefinedException) {
+            fprintf(stderr, "WARNING: DrawImage failed for %s\n", prim);
+            CatchException(&excep);
+            return -1;
+        }
+
+        // Copy the map over the base image
+        CompositeImage(base_img, OverCompositeOp, img, 0, 0);
+
+        // Blank the map image
+        snprintf(prim, 1024, "stroke %s fill %s fill-opacity 100%% "
+                 "stroke-opacity 100%% rectangle 0,0 %d,%d", 
+                 map_intensity < 0 ? "black" : "white",
+                 map_intensity < 0 ? "black" : "white",
+                 map_width, map_height);
+        di->primitive = prim;
+        DrawImage(img, di);
+        GetImageException(img, &excep);
+        if (excep.severity != UndefinedException) {
+            fprintf(stderr, "WARNING: DrawImage failed for %s\n", prim);
+            CatchException(&excep);
+            return -1;
+        }
+
+        // Composite the alpha and new map images
+        // base is now the map with the new alpha channel
+        CompositeImage(base_img, CopyOpacityCompositeOp, alpha_img, 0, 0);
+
+        // Now we merge that over the filled in original map image
+        CompositeImage(img, OverCompositeOp, base_img, 0, 0);
+
+        // Clean up our garbage
+        alpha_di->text = strdup("");
+        alpha_di->primitive = strdup("");
+
+        DestroyImageInfo(alpha_info);
+        DestroyDrawInfo(alpha_di);
+        DestroyImage(alpha_img);
+
+        base_di->text = strdup("");
+        base_di->primitive = strdup("");
+
+        DestroyImageInfo(base_info);
+        DestroyDrawInfo(base_di);
+        DestroyImage(base_img);
+
+        free(pixdata);
+        free(apixdata);
     }
 
     fprintf(stderr, "Calculating network coordinates and statistics...\n");

@@ -5,6 +5,9 @@ Mar 31 2004  devel  Fixed gpsmap cache error reporting mistake
                     Fixed gpsmap to count actual valid samples instead of all
                      samples in a file when determining if any samples were
                      collected
+                    Added --color-saturation and --map-intensity to gpsmap to
+                     change the greyscale desaturation and overall intensity
+                     of the background map image.
 Mar 30 2004  devel  Tentative support for calculating SNR from signal levels
                      in dBm for Kismet and gpsmap
 Mar 29 2004  devel  Removed size restriction testing for now, let the remote
