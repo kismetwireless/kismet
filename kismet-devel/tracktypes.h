@@ -196,6 +196,10 @@ typedef struct wireless_network {
         alertmap = 0;
         client_disconnects = 0;
         sequence = 0;
+
+#ifdef __TCPCLIENT_H__
+        client = NULL;
+#endif
     }
 
     wireless_network_type type;
@@ -278,6 +282,12 @@ typedef struct wireless_network {
     int client_disconnects;
     // Last sequence value
     int sequence;
+
+#ifdef __TCPCLIENT_H__
+    // If we're included in the client, include a reference to the server connection
+    // that spawned us
+    TcpClient *client;
+#endif
 
 };
 

@@ -279,6 +279,7 @@ int TcpClient::ParseData(char *in_data) {
         } else {
             net = new wireless_network;
             net->bssid = bssid;
+            net->client = this;
             net_map[bssid] = net;
             net_map_vec.push_back(net);
             last_new_network = net;
