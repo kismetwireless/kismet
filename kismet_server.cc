@@ -51,6 +51,7 @@
 
 #include "packetracker.h"
 #include "timetracker.h"
+#include "alertracker.h"
 
 #include "configfile.h"
 #include "speech.h"
@@ -81,6 +82,7 @@ DumpFile *dumpfile, *cryptfile;
 int packnum = 0, localdropnum = 0;
 //Frontend *gui = NULL;
 Packetracker tracker;
+Alertracker alertracker;
 #ifdef HAVE_GPS
 GPSD gps;
 int gpsmode = 0;
@@ -122,6 +124,9 @@ int kismet_ref = -1, network_ref = -1, client_ref = -1, gps_ref = -1, time_ref =
     protocols_ref = -1, status_ref = -1, alert_ref = -1, packet_ref = -1, string_ref = -1,
     ack_ref = -1, wepkey_ref;
 
+// Reference number for our kismet-server alert
+int kissrv_aref = -1;
+
 // A kismet data record for passing to the protocol
 KISMET_data kdata;
 
@@ -154,6 +159,14 @@ map<mac_addr, int> filter_export_dest;
 int filter_export_bssid_invert = -1, filter_export_source_invert = -1,
     filter_export_dest_invert = -1;
 
+// For alert enabling...
+typedef struct _alert_enable {
+    string alert_name;
+    alert_time_unit limit_unit;
+    int limit_rate;
+    int limit_burst;
+};
+
 // Handle writing all the files out and optionally unlinking the empties
 void WriteDatafiles(int in_shutdown) {
     // If we're on our way out make one last write of the network stuff - this
@@ -182,7 +195,8 @@ void WriteDatafiles(int in_shutdown) {
         if (tracker.FetchNumNetworks() != 0) {
             if (tracker.WriteNetworks(netlogfile) == -1) {
                 snprintf(alert, 2048, "WARNING: %s", tracker.FetchError());
-                NetWriteAlert(alert);
+                alertracker.RaiseAlert(kissrv_aref, alert);
+                //NetWriteAlert(alert);
                 if (!silent)
                     fprintf(stderr, "%s\n", alert);
             }
@@ -196,7 +210,8 @@ void WriteDatafiles(int in_shutdown) {
         if (tracker.FetchNumNetworks() != 0) {
             if (tracker.WriteCSVNetworks(csvlogfile) == -1) {
                 snprintf(alert, 2048, "WARNING: %s", tracker.FetchError());
-                NetWriteAlert(alert);
+                alertracker.RaiseAlert(kissrv_aref, alert);
+                //NetWriteAlert(alert);
                 if (!silent)
                     fprintf(stderr, "%s\n", alert);
             }
@@ -210,7 +225,8 @@ void WriteDatafiles(int in_shutdown) {
         if (tracker.FetchNumNetworks() != 0) {
             if (tracker.WriteXMLNetworks(xmllogfile) == -1) {
                 snprintf(alert, 2048, "WARNING: %s", tracker.FetchError());
-                NetWriteAlert(alert);
+                alertracker.RaiseAlert(kissrv_aref, alert);
+                //NetWriteAlert(alert);
                 if (!silent)
                     fprintf(stderr, "%s\n", alert);
             }
@@ -224,7 +240,8 @@ void WriteDatafiles(int in_shutdown) {
         if (tracker.FetchNumCisco() != 0) {
             if (tracker.WriteCisco(ciscologfile) == -1) {
                 snprintf(alert, 2048, "WARNING: %s", tracker.FetchError());
-                NetWriteAlert(alert);
+                alertracker.RaiseAlert(kissrv_aref, alert);
+                //NetWriteAlert(alert);
                 if (!silent)
                     fprintf(stderr, "%s\n", alert);
             }
@@ -624,18 +641,6 @@ void NetWriteInfo() {
             ui_server.SendToAll(client_ref, (void *) &cdata);
         }
 
-        /*
-        for (map<string, cdp_packet>::const_iterator y = tracked[x]->cisco_equip.begin();
-             y != tracked[x]->cisco_equip.end(); ++y) {
-
-            cdp_packet cdp = y->second;
-
-            snprintf(output, 2048, "*CISCO %s %.2000s\n",
-                     tracked[x]->bssid.Mac2String().c_str(), Packetracker::CDP2String(&cdp).c_str());
-
-            ui_server.SendToAll(output);
-            }
-            */
     }
 
 }
@@ -646,31 +651,9 @@ void NetWriteStatus(char *in_status) {
 }
 
 void ProtocolEnableAlert(int in_fd) {
-    for (unsigned int x = 0; x < past_alerts.size(); x++)
-        ui_server.SendToClient(in_fd, alert_ref, (void *) past_alerts[x]);
-}
-
-void NetWriteAlert(char *in_alert) {
-    ALERT_data *adata = new ALERT_data;
-    char tmpstr[128];
-    timeval ts;
-    gettimeofday(&ts, NULL);
-
-    snprintf(tmpstr, 128, "%ld", (long int) ts.tv_sec);
-    adata->sec = tmpstr;
-
-    snprintf(tmpstr, 128, "%ld", (long int) ts.tv_usec);
-    adata->usec = tmpstr;
-
-    adata->text = in_alert;
-
-    past_alerts.push_back(adata);
-    if (past_alerts.size() > max_alerts) {
-        delete past_alerts[0];
-        past_alerts.erase(past_alerts.begin());
-    }
-
-    ui_server.SendToAll(alert_ref, (void *) adata);
+    alertracker.BlitBacklogged(in_fd);
+//    for (unsigned int x = 0; x < past_alerts.size(); x++)
+//        ui_server.SendToClient(in_fd, alert_ref, (void *) past_alerts[x]);
 }
 
 // Called when a client enables the NETWORK protocol, this needs to send all of the
@@ -1014,6 +997,8 @@ int main(int argc,char *argv[]) {
     int enable_from_cmd = 0;
 
     vector<client_ipblock *> legal_ipblock_vec;
+
+    vector<_alert_enable> alert_enable_vec;
 
     static struct option long_options[] = {   /* options table */
         { "log-title", required_argument, 0, 't' },
@@ -1823,6 +1808,75 @@ int main(int argc,char *argv[]) {
             exit(1);
     }
 
+    // Parse the alert enables.  This is ugly, and maybe should belong in the
+    // configfile class with some of the other parsing code.
+    for (unsigned int av = 0; av < conf->FetchOptVec("alert").size(); av++) {
+        string line = conf->FetchOptVec("alert")[av];
+        _alert_enable aven;
+
+        unsigned int av_begin = 0;
+        unsigned int av_end = line.find(",");
+
+        if (av_end == string::npos) {
+            fprintf(stderr, "FATAL:  Invalid alert line: %s\n", line.c_str());
+            exit(1);
+        }
+
+        aven.alert_name = line.substr(av_begin, av_end - av_begin);
+
+        av_begin = av_end + 1;
+        av_end = line.find(",", av_begin);
+
+        // Set the default burst
+        if (av_end == string::npos) {
+            aven.limit_burst = 5;
+            av_end = line.length();
+        }
+
+        string limit = line.substr(av_begin, av_end - av_begin);
+
+        unsigned int slash = limit.find("/");
+        if (slash == string::npos) {
+            aven.limit_unit = sat_minute;
+            if (sscanf(limit.c_str(), "%d", &aven.limit_rate) != 1) {
+                fprintf(stderr, "FATAL:  Invalid alert line: %s\n", line.c_str());
+                exit(1);
+            }
+        } else {
+            if (sscanf(limit.substr(0, slash).c_str(), "%d",
+                       &aven.limit_rate) != 1) {
+                fprintf(stderr, "FATAL:  Invalid alert line: %s\n", line.c_str());
+                exit(1);
+            }
+
+            string unit = limit.substr(slash + 1, limit.length() - slash);
+            if (unit == "sec" || unit == "second")
+                aven.limit_unit = sat_second;
+            else if (unit == "min" || unit == "minute")
+                aven.limit_unit = sat_minute;
+            else if (unit == "hour")
+                aven.limit_unit = sat_hour;
+            else if (unit == "day")
+                aven.limit_unit = sat_day;
+            else {
+                fprintf(stderr, "FATAL:  Invalid time unit in alert line: %s\n", line.c_str());
+                exit(1);
+            }
+        }
+
+        // get the burst rate
+        av_begin = av_end + 1;
+        if (av_begin < line.length()) {
+            if (sscanf(line.substr(av_begin, line.length() - av_begin).c_str(),
+                       "%d", &aven.limit_burst) != 1) {
+                fprintf(stderr, "FATAL:  Invalid burst limit in alert line: %s\n", line.c_str());
+                exit(1);
+            }
+        }
+
+        alert_enable_vec.push_back(aven);
+    }
+
     // handle the config bits
     struct stat fstat;
     if (stat(configdir.c_str(), &fstat) == -1) {
@@ -2284,6 +2338,35 @@ int main(int argc,char *argv[]) {
     wepkey_ref = ui_server.RegisterProtocol("WEPKEY", 0, WEPKEY_fields_text,
                                             &Protocol_WEPKEY, NULL);
 
+    // Register our own alert with no throttling
+    kissrv_aref = alertracker.RegisterAlert("KISMET", sat_day, 0, 0);
+    // Set the backlog
+    alertracker.SetAlertBacklog(max_alerts);
+    // Populate the alert engine
+    alertracker.AddTcpServer(&ui_server);
+    alertracker.AddAlertProtoRef(alert_ref);
+
+    // Tell the packetracker engine where alerts are
+    tracker.AddAlertracker(&alertracker);
+
+    // Register alerts with the packetracker
+    fprintf(stderr, "Registering requested alerts...\n");
+    for (unsigned int alvec = 0; alvec < alert_enable_vec.size(); alvec++) {
+        int ret = tracker.EnableAlert(alert_enable_vec[alvec].alert_name,
+                                      alert_enable_vec[alvec].limit_unit,
+                                      alert_enable_vec[alvec].limit_rate,
+                                      alert_enable_vec[alvec].limit_burst);
+
+        if (ret < 0) {
+            fprintf(stderr, "FATAL:  Could not enable alert tracking: %s\n",
+                    tracker.FetchError());
+            CatchShutdown(-1);
+        } else if (ret == 0) {
+            fprintf(stderr, "%s\n", tracker.FetchError());
+        }
+
+
+    }
 
     // Schedule our routine events that repeat the entire operational period.  We don't
     // care about their ID's since we're never ever going to cancel them.
@@ -2492,7 +2575,8 @@ int main(int argc,char *argv[]) {
                             if (!silent)
                                 fprintf(stderr, "ALERT %s\n", status);
 
-                            NetWriteAlert(status);
+                            // NetWriteAlert(status);
+
                             if (sound == 1)
                                 sound = PlaySound("alert");
 

@@ -33,6 +33,7 @@
 #include "packet.h"
 #include "tracktypes.h"
 #include "manuf.h"
+#include "alertracker.h"
 
 // Extern over to kismet_server.cc to get our first time
 extern time_t start_time;
@@ -59,6 +60,11 @@ public:
 
     // Set up the gps
     void AddGPS(GPSD *in_gps);
+    // Set up the alert handler
+    void AddAlertracker(Alertracker *in_tracker);
+    // Pass in enabled alerts from the config file
+    int EnableAlert(string in_alname, alert_time_unit in_unit,
+                    int in_rate, int in_burstrate);
 
     // Set up filters
     void AddAlertFilters(map<mac_addr, int> *bssid_map, map<mac_addr, int> *source_map,
@@ -67,7 +73,6 @@ public:
     void AddExportFilters(map<mac_addr, int> *bssid_map, map<mac_addr, int> *source_map,
                           map<mac_addr, int> *dest_map, int *bssid_invert,
                           int *source_invert, int *dest_invert);
-
 
     // Set up filtering - removed.  we do this in the server now before processing
     // anything else.
@@ -122,11 +127,10 @@ protected:
     char errstr[1024];
     GPSD *gps;
 
+    Alertracker *alertracker;
+
     int num_networks, num_packets, num_dropped, num_noise,
         num_crypt, num_interesting, num_cisco;
-
-    // List of MAC's to filter
-    //string filter;
 
     // all the networks
     vector<wireless_network *> network_list;
@@ -163,6 +167,12 @@ protected:
     map<mac_addr, int> *filter_export_dest;
     int *filter_export_dest_invert;
     int filter_export;
+
+    // Alert references
+    int netstumbler_aref;
+    int deauthflood_aref;
+    int lucenttest_aref;
+    int wellenreiter_aref;
 
 };
 

@@ -21,15 +21,9 @@
 #include "kismet_server.h"
 #include "packetsignatures.h"
 
-// State shift bits used to tell when we've raised an alert on a given network
-#define RAISED_NETSTUMBLER_ALERT     1
-#define RAISED_DEAUTHFLOOD_ALERT     2
-#define RAISED_LUCENT_ALERT          4
-#define RAISED_WELLENREITER_ALERT    8
-#define RAISED_GSTSEARCH_ALERT       16
-
 Packetracker::Packetracker() {
     gps = NULL;
+    alertracker = NULL;
 
     num_networks = num_packets = num_dropped = num_noise =
         num_crypt = num_interesting = num_cisco = 0;
@@ -43,6 +37,8 @@ Packetracker::Packetracker() {
         filter_export_bssid_invert = filter_export_source_invert = filter_export_dest_invert = NULL;
 
     filter_export = filter_alert = 0;
+
+    netstumbler_aref = deauthflood_aref = lucenttest_aref = wellenreiter_aref = -1;
 
 }
 
@@ -62,6 +58,47 @@ vector<wireless_network *> Packetracker::FetchNetworks() {
     vector<wireless_network *> ret_vec = network_list;
 
     return ret_vec;
+}
+
+void Packetracker::AddAlertracker(Alertracker *in_tracker) {
+    alertracker = in_tracker;
+}
+
+int Packetracker::EnableAlert(string in_alname, alert_time_unit in_unit,
+                              int in_rate, int in_burstrate) {
+    if (alertracker == NULL) {
+        snprintf(errstr, 1024, "No registered alert tracker.");
+        return -1;
+    }
+
+    int ret = -1;
+
+    string lname = StrLower(in_alname);
+    if (lname == "netstumbler") {
+        // register netstumbler alert
+        netstumbler_aref = alertracker->RegisterAlert("NETSTUMBLER", in_unit, in_rate, in_burstrate);
+        ret = netstumbler_aref;
+    } else if (lname == "deauthflood") {
+        // register deauth flood
+        deauthflood_aref = alertracker->RegisterAlert("DEAUTHFLOOD", in_unit, in_rate, in_burstrate);
+        ret = deauthflood_aref;
+    } else if (lname == "lucenttest") {
+        // register lucent test
+        lucenttest_aref = alertracker->RegisterAlert("LUCENTTEST", in_unit, in_rate, in_burstrate);
+        ret = lucenttest_aref;
+    } else if (lname == "wellenreiter") {
+        // register wellenreiter test
+        wellenreiter_aref = alertracker->RegisterAlert("WELLENREITER", in_unit, in_rate, in_burstrate);
+        ret = wellenreiter_aref;
+    } else {
+        snprintf(errstr, 1024, "Unknown alert type %s, not processing.", lname.c_str());
+        return 0;
+    }
+
+    if (ret != -1)
+        snprintf(errstr, 1024, "Alert '%s' already processed, duplicate.", in_alname.c_str());
+
+    return ret;
 }
 
 void Packetracker::AddAlertFilters(map<mac_addr, int> *bssid_map,
@@ -387,11 +424,10 @@ int Packetracker::ProcessPacket(packet_info info, char *in_status) {
             net->client_disconnects++;
 
             if (net->client_disconnects > 10) {
-                if ((net->alertmap & RAISED_DEAUTHFLOOD_ALERT) == 0) {
-                    net->alertmap |= RAISED_DEAUTHFLOOD_ALERT;
-
+                if (alertracker->PotentialAlert(deauthflood_aref) > 0) {
                     snprintf(in_status, STATUS_MAX, "Deauthenticate/Disassociate flood on %s",
                              net->bssid.Mac2String().c_str());
+                    alertracker->RaiseAlert(deauthflood_aref, in_status);
                     return TRACKER_ALERT;
                 }
             }
@@ -755,6 +791,7 @@ int Packetracker::ProcessDataPacket(packet_info info, wireless_network *net, cha
 
         // Only raise an alert when we haven't raised one for this client
         // before.
+        /*
         if ((net->alertmap & RAISED_NETSTUMBLER_ALERT) == 0) {
             net->alertmap |= RAISED_NETSTUMBLER_ALERT;
             char *nsversion;
@@ -778,12 +815,14 @@ int Packetracker::ProcessDataPacket(packet_info info, wireless_network *net, cha
                      nsversion, client->mac.Mac2String().c_str());
 
             ret = TRACKER_ALERT;
-        }
+            }
+            */
 
     } else if (info.proto.type == proto_lucenttest) {
         // Handle lucent test packets
 
         // only raise a status when we ahven't raised one before
+        /*
         if ((net->alertmap & RAISED_LUCENT_ALERT) == 0) {
             net->alertmap |= RAISED_LUCENT_ALERT;
 
@@ -791,10 +830,11 @@ int Packetracker::ProcessDataPacket(packet_info info, wireless_network *net, cha
                      client->mac.Mac2String().c_str());
 
             ret = TRACKER_ALERT;
-        }
+            }
+            */
     } else if (info.proto.type == proto_wellenreiter) {
         // Handle wellenreiter packets
-
+        /*
         if ((net->alertmap & RAISED_WELLENREITER_ALERT) == 0) {
             net->alertmap |= RAISED_WELLENREITER_ALERT;
 
@@ -802,10 +842,11 @@ int Packetracker::ProcessDataPacket(packet_info info, wireless_network *net, cha
                      client->mac.Mac2String().c_str());
 
             ret = TRACKER_ALERT;
-        }
+            }
+            */
     } else if (info.proto.type == proto_gstsearch) {
         // Handle gstsearch exploits
-
+        /*
         if ((net->alertmap & RAISED_GSTSEARCH_ALERT) == 0) {
             net->alertmap |= RAISED_GSTSEARCH_ALERT;
 
@@ -815,7 +856,8 @@ int Packetracker::ProcessDataPacket(packet_info info, wireless_network *net, cha
                      client->mac.Mac2String().c_str());
 
             ret = TRACKER_ALERT;
-        }
+            }
+            */
     }
 
     return ret;

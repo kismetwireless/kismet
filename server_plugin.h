@@ -28,39 +28,4 @@
 
 extern Timetracker timetracker;
 
-enum server_alert_time_unit {
-    sat_second, sat_minute, sat_hour, sat_day
-};
-
-// A registered alert type
-typedef struct server_alert_rec {
-    int ref_index;
-    string header;
-
-    // Units limiting is measured in
-    server_alert_time_unit limit_unit;
-    // Alerts per unit
-    int limit_rate;
-    // Alerts sent before limiting takes hold
-    int limit_burst;
-
-    // How many alerts have been sent burst-mode (decremented once per unit)
-    int burst_sent;
-
-    // List of times we sent an alert... to handle throttling
-    list<struct timeval *> alert_log;
-};
-
-typedef struct server_alert_event {
-    struct timeval ts;
-    string text;
-    int type;
-};
-
-extern vector<ALERT_data *> pending_alerts;
-extern vector<ALERT_data *> past_alerts;
-
-// Queue an alert to be transmitted to the clients or inserted into the fifo stream
-void QueueAlert(const char *in_text);
-
 #endif
