@@ -1,4 +1,5 @@
 Aug 15 2004  devel  Fixed log sync event to not start if logging is disabled
+                    Fixed BSS timestamp alerts to not trigger in adhoc networks
 Aug 14 2004  devel  Fixed util.cc on gcc 3.4
 Aug 13 2004  devel  Fixed error message for channel locking when in autofit 
                      sort

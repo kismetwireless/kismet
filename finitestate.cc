@@ -190,8 +190,9 @@ int BssTimestampAutomata::ProcessPacket(const packet_info *in_info) {
     _bs_fsa_element *elem;
     char atext[1024];
 
+    // Don't track BSS timestamp for non-beacon frames or for adhoc networks
     if (in_info->timestamp == 0 || in_info->type != packet_management || 
-        in_info->subtype != packet_sub_beacon)
+        in_info->subtype != packet_sub_beacon || in_info->distrib == adhoc_distribution)
         return 0;
 
     macmap<BssTimestampAutomata::_bs_fsa_element *>::iterator iter = bss_map.find(in_info->bssid_mac);
