@@ -1,6 +1,8 @@
 Jan 22 2003  3.1.0  Added channel hopping status to CARD field
                     Added '*' to panelfront channel display when source is
                      hopping
+                    Fixed probe and data autogroups from being created for
+                     only a single network (broken by yesterdays fix.)
 Jan 21 2003  3.1.0  Fixed embarassingly stupid bug in panels probe/data
                      autogroup, minor efficiency improvements as well
                     Removed debug printing on corrupt dronesource packets

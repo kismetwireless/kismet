@@ -495,7 +495,7 @@ void PanelFront::UpdateGroups() {
                 
         }
 
-        if (probevec.size() > 0) {
+        if (probevec.size() > 0 && !(probevec.size() == 1 && probe_group == NULL)) {
             if (probe_group == NULL) {
                 probe_group = CreateGroup(0, "autogroup_probe", "Probe Networks");
             }
@@ -515,7 +515,7 @@ void PanelFront::UpdateGroups() {
             }
         }
 
-        if (datavec.size() > 0) {
+        if (datavec.size() > 0 && !(datavec.size() == 1 && data_group == NULL)) {
             if (data_group == NULL) {
                 data_group = CreateGroup(0, "autogroup_data", "Data Networks");
             }
