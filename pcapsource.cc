@@ -680,7 +680,7 @@ int monitor_madwifi_g(const char *in_dev, int initch, char *in_err) {
 }
 
 int monitor_madwifi_comb(const char *in_dev, int initch, char *in_err) {
-    if (Iwconfig_Set_IntPriv(in_dev, "mode", 1, 0, in_err) < 0)
+    if (Iwconfig_Set_IntPriv(in_dev, "mode", 0, 0, in_err) < 0)
         return -1;
 
     // The rest is standard wireless extensions
@@ -899,6 +899,7 @@ int chancontrol_orinoco(const char *in_dev, int in_ch, char *in_err, void *in_ex
 
 // Madwifi needs to change modes accordinly
 int chancontrol_madwifi_ab(const char *in_dev, int in_ch, char *in_err, void *in_ext) {
+    /*
     if (in_ch > 0 && in_ch <= 14) {
         if (Iwconfig_Set_IntPriv(in_dev, "mode", 2, 0, in_err) < 0)
             return -1;
@@ -906,7 +907,7 @@ int chancontrol_madwifi_ab(const char *in_dev, int in_ch, char *in_err, void *in
         if (Iwconfig_Set_IntPriv(in_dev, "mode", 1, 0, in_err) < 0)
             return -1;
     }
-
+    */
     return chancontrol_wext(in_dev, in_ch, in_err, in_ext);
 }
 
