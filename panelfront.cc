@@ -467,6 +467,15 @@ void PanelFront::UpdateGroups() {
     Frontend::UpdateGroups();
 }
 
+void PanelFront::DestroyGroup(display_network *in_group) {
+    // Handle when we destroy the probe group
+    if (in_group == probe_group) {
+        probe_group = NULL;
+    }
+
+    Frontend::DestroyGroup(in_group);
+}
+
 void PanelFront::AddClient(TcpClient *in_client) {
     server_context *new_context = new server_context;
     new_context->client = in_client;

@@ -136,11 +136,11 @@ protected:
 
     // Populate groups with data from the client -- fetch all the networks and put
     // them in the groups they should be in
-    void PopulateGroups(TcpClient *in_client);
+    virtual void PopulateGroups(TcpClient *in_client);
     // Update our groups.  This controls how group aggregate data gets generated.
-    void UpdateGroups();
+    virtual void UpdateGroups();
     // Purge groups (primarily for when client focus changes)
-    void PurgeGroups();
+    virtual void PurgeGroups();
 
     display_network *Frontend::CreateGroup(int in_persistent, string in_tag, string in_name);
     display_network *Frontend::AddToGroup(display_network *core, display_network *merger);
@@ -148,7 +148,7 @@ protected:
     // Group all the tagged networks
     display_network *GroupTagged();
     // Destroy a group
-    void DestroyGroup(display_network *in_group);
+    virtual void DestroyGroup(display_network *in_group);
 
     // Tracking groups is a real pain.  We need to know all our active groups,
     // then we need all the bssid to group names that we have stored, then we need
