@@ -3050,6 +3050,8 @@ fi
 
 CXXFLAGS="$CXXFLAGS $CFLAGS"
 
+LIBS="-lstdc++"
+
 
           ac_config_headers="$ac_config_headers config.h"
 

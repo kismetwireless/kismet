@@ -1,4 +1,5 @@
 Aug 06 2003  3.0.1  Added cardtype initializer, might solve issue on arm
+                    Added link to libstdc++ for compilers that don't link it
 Aug 05 2003  3.0.1  Fixed capchildren failing on open not killing server
                     Fixed min/max gps coord tracking
 Aug 04 2003  3.0.1  Added pcapfile capture source (nearly the same function as
