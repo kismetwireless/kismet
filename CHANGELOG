@@ -1,3 +1,4 @@
+Jul 05 2003  2.9.1  Added fatal condition if channel lists are empty
 Jul 04 2003  2.9.1  Added caching of client IP data
 Jul 03 2003  2.9.1  Totally revamped mac-masking code and manufacturer
                      matching code.

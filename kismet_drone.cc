@@ -514,6 +514,12 @@ int main(int argc, char *argv[]) {
             }
         }
 
+        if (conf->FetchOpt("80211achannels") == "" || conf->FetchOpt("80211bchannels") == "") {
+            fprintf(stderr, "FATAL:  No base channel list (80211achannels or 80211bchannels) in configfile.\n");
+            fprintf(stderr, "        Update your config file (make forceinstall).\n");
+            exit(1);
+        }
+
         // Parse our default channel listing
         channel_def80211a = ParseChannelLine(conf->FetchOpt("80211achannels"));
         channel_def80211b = ParseChannelLine(conf->FetchOpt("80211bchannels"));
