@@ -1,3 +1,6 @@
+Jun 18 2004  devel  Changed string = char * to string = string(char *) since
+                     cygwin seems to have broken constructors for that
+                     (thanks JM)
 Jun 14 2004  devel  Added channel to alert tracking and protocol
 Jun 13 2004  devel  Merged fix from Million to repair delta calculations and
                      fix playing the correct sound for traffic

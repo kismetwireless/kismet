@@ -2082,7 +2082,7 @@ int main(int argc,char *argv[]) {
             break;
         case 't':
             // Logname
-            logname = optarg;
+            logname = string(optarg);
             fprintf(stderr, "Using logname: %s\n", logname.c_str());
             break;
         case 'n':
@@ -2102,7 +2102,7 @@ int main(int argc,char *argv[]) {
             break;
         case 'C':
             // Named sources
-            named_sources = optarg;
+            named_sources = string(optarg);
             fprintf(stderr, "Using specified capture sources: %s\n", 
                     named_sources.c_str());
             break;
@@ -2151,7 +2151,7 @@ int main(int argc,char *argv[]) {
             break;
         case 'a':
             // Allowed
-            allowed_hosts = optarg;
+            allowed_hosts = string(optarg);
             break;
         case 'N':
             // Servername
