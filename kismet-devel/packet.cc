@@ -464,6 +464,8 @@ void GetPacketInfo(const pkthdr *header, const u_char *data,
             ret_packinfo->header_offset = 30;
         }
 
+        ret_packinfo->datasize = header->len - ret_packinfo->header_offset;
+
         // Detect encrypted frames
         if (fc->wep) {
             ret_packinfo->encrypted = 1;

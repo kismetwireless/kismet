@@ -690,6 +690,10 @@ int Packetracker::ProcessDataPacket(packet_info info, wireless_network *net, cha
 
     client->last_time = time(0);
 
+    // Add data to the owning network and to the client
+    net->datasize += info.datasize;
+    client->datasize += info.datasize;
+
     // We modify our client and our network concurrently to save on CPU cycles.
     // Easier to update them in sync than it is to process the map as a list.
     if (info.encrypted) {

@@ -319,13 +319,13 @@ int main(int argc, char *argv[]) {
     time_t last_draw = time(0);
     char status[STATUS_MAX];
 
-    const char *reqgui = NULL;
+    char *reqgui = NULL;
 
     string sndplay;
     const char *festival = NULL;
 
-    const char *columns = NULL;
-    const char *clientcolumns = NULL;
+    char *columns = NULL;
+    char *clientcolumns = NULL;
 
     map<string, string> wav_map;
 
@@ -380,7 +380,7 @@ int main(int argc, char *argv[]) {
             sound = 0;
             break;
         case 'g':
-            reqgui = optarg;
+            reqgui = strdup(optarg);
             break;
         case 'v':
             fprintf(stderr, "Kismet curses %d.%d.%d\n", VERSION_MAJOR, VERSION_MINOR, VERSION_TINY);
@@ -390,10 +390,10 @@ int main(int argc, char *argv[]) {
             fprintf(stderr, "Using server: %s\n", server);
             break;
         case 'c':
-            columns = optarg;
+            columns = strdup(optarg);
             break;
         case 'C':
-            clientcolumns = optarg;
+            clientcolumns = strdup(optarg);
             break;
         case 'r':
             reconnect = 1;
@@ -454,7 +454,7 @@ int main(int argc, char *argv[]) {
             exit(1);
         }
 
-        reqgui = gui_conf->FetchOpt("gui").c_str();
+        reqgui = strdup(gui_conf->FetchOpt("gui").c_str());
     }
 
     if (!strcasecmp(reqgui, "curses")) {
@@ -477,6 +477,7 @@ int main(int argc, char *argv[]) {
         fprintf(stderr, "ERROR:  Unknown GUI type requested ('%s')\n", reqgui);
         exit(1);
     }
+    free(reqgui);
 
     if (columns == NULL) {
         if (gui_conf->FetchOpt("columns") == "") {
@@ -484,7 +485,7 @@ int main(int argc, char *argv[]) {
             exit(1);
         }
 
-        columns = gui_conf->FetchOpt("columns").c_str();
+        columns = strdup(gui_conf->FetchOpt("columns").c_str());
     }
 
     if (clientcolumns == NULL) {
@@ -493,11 +494,11 @@ int main(int argc, char *argv[]) {
             exit(1);
         }
 
-        clientcolumns = gui_conf->FetchOpt("clientcolumns").c_str();
+        clientcolumns = strdup(gui_conf->FetchOpt("clientcolumns").c_str());
     }
 
     if (server == NULL) {
-        server = (char *) gui_conf->FetchOpt("host").c_str();
+        server = strdup(gui_conf->FetchOpt("host").c_str());
     }
 
     if (gui_conf->FetchOpt("sound") == "true" && sound == -1) {
@@ -531,7 +532,7 @@ int main(int argc, char *argv[]) {
     /* Added by Shaw Innes 17/2/02 */
     if (gui_conf->FetchOpt("speech") == "true" && speech == -1) {
         if (gui_conf->FetchOpt("festival") != "") {
-            festival = gui_conf->FetchOpt("festival").c_str();
+            festival = strdup(gui_conf->FetchOpt("festival").c_str());
             speech = 1;
 
             string speechtype = gui_conf->FetchOpt("speech_type");
@@ -713,6 +714,9 @@ int main(int argc, char *argv[]) {
     server_conf = gui_conf = NULL;
 
     gui->AddPrefs(prefs);
+
+    free(columns);
+    free(clientcolumns);
 
     if (ap_manuf_name != NULL) {
         char pathname[1024];

@@ -117,6 +117,8 @@ typedef struct wireless_client {
 #endif
 
         uidata = NULL;
+
+        datasize = 0;
     }
 
     client_type type;
@@ -169,6 +171,9 @@ typedef struct wireless_client {
     // Generic pointer for frontends to use to track things
     void *uidata;
 
+    // Data passed, in bytes
+    long datasize;
+
 };
 
 // A network
@@ -211,6 +216,8 @@ typedef struct wireless_network {
         alertmap = 0;
         client_disconnects = 0;
         sequence = 0;
+
+        datasize = 0;
 
 #ifdef __TCPCLIENT_H__
         tcpclient = NULL;
@@ -312,6 +319,9 @@ typedef struct wireless_network {
 
     // Generic pointer for frontends to use to track things
     void *uidata;
+
+    // Amount of data, in bytes
+    long datasize;
 
 };
 
