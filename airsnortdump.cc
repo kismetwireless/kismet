@@ -46,8 +46,7 @@ int AirsnortDumpFile::CloseDump() {
     return ret;
 }
 
-int AirsnortDumpFile::DumpPacket(const packet_info *in_info, const pkthdr *in_header,
-                                 const u_char *in_data) {
+int AirsnortDumpFile::DumpPacket(const packet_info *in_info, const kis_packet *packet) {
 
     int ret = 1;
 
@@ -58,7 +57,7 @@ int AirsnortDumpFile::DumpPacket(const packet_info *in_info, const pkthdr *in_he
 
             bssid_dumped_map[in_info->bssid_mac] = 1;
 
-            ret = dumper->DumpPacket(in_info, in_header, in_data);
+            ret = dumper->DumpPacket(in_info, packet);
             snprintf(errstr, 1024, "%s", dumper->FetchError());
             return ret;
         }
@@ -68,7 +67,7 @@ int AirsnortDumpFile::DumpPacket(const packet_info *in_info, const pkthdr *in_he
     if (in_info->type == packet_data && in_info->interesting == 1) {
         num_dumped++;
 
-        ret = dumper->DumpPacket(in_info, in_header, in_data);
+        ret = dumper->DumpPacket(in_info, packet);
         snprintf(errstr, 1024, "%s", dumper->FetchError());
         return ret;
     }

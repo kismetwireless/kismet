@@ -46,8 +46,7 @@ int WtapDumpFile::CloseDump() {
     return num_dumped;
 }
 
-int WtapDumpFile::DumpPacket(const packet_info *in_info, const pkthdr *in_header,
-                             const u_char *in_data) {
+int WtapDumpFile::DumpPacket(const packet_info *in_info, const kis_packet *packet) {
 
     if ((in_info->type == packet_management && in_info->subtype == packet_sub_beacon) && beacon_log == 0) {
         map<mac_addr, string>::iterator blm = beacon_logged_map.find(in_info->bssid_mac);
@@ -61,7 +60,7 @@ int WtapDumpFile::DumpPacket(const packet_info *in_info, const pkthdr *in_header
     if (in_info->type == packet_phy && phy_log == 0)
         return 1;
 
-    Common2Wtap(in_header, in_data);
+    Common2Wtap(packet);
 
     wtap_dump(dump_file, &packet_header, NULL, packet_data, &wtap_error);
 
@@ -70,19 +69,19 @@ int WtapDumpFile::DumpPacket(const packet_info *in_info, const pkthdr *in_header
     return 1;
 }
 
-int WtapDumpFile::Common2Wtap(const pkthdr *in_header, const u_char *in_data) {
+int WtapDumpFile::Common2Wtap(const kis_packet *packet) {
     memset(&packet_header, 0, sizeof(wtap_pkthdr));
     memset(packet_data, 0, MAX_PACKET_LEN);
 
-    packet_header.len = in_header->len;
-    packet_header.caplen = in_header->caplen;
-    packet_header.ts = in_header->ts;
+    packet_header.len = packet->caplen;
+    packet_header.caplen = packet->caplen;
+    packet_header.ts = packet->ts;
 
     packet_header.pkt_encap = WTAP_ENCAP_IEEE_802_11;
 
-    memcpy(packet_data, in_data, in_header->caplen);
+    memcpy(packet_data, packet->data, packet->caplen);
 
-    return(in_header->caplen);
+    return(packet->caplen);
 }
 
 #endif

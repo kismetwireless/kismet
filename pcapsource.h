@@ -55,7 +55,7 @@ public:
 
     int FetchDescriptor() { return pcap_fileno(pd); }
 
-    int FetchPacket(pkthdr *in_header, u_char *in_data);
+    int FetchPacket(kis_packet *packet);
 
     static void Callback(u_char *bp, const struct pcap_pkthdr *header,
                          const u_char *in_data);
@@ -64,26 +64,26 @@ protected:
     // Prism 802.11 headers from wlan-ng tacked on to the beginning of a
     // pcap packet... Snagged from the wlan-ng source
     typedef struct {
-        uint32_t did;
-        uint16_t status;
-        uint16_t len;
-        uint32_t data;
+        uint32_t did __attribute__ ((packed));
+        uint16_t status __attribute__ ((packed));
+        uint16_t len __attribute__ ((packed));
+        uint32_t data __attribute__ ((packed));
     } p80211item_uint32_t;
 
     typedef struct {
-        uint32_t msgcode;
-        uint32_t msglen;
-        uint8_t devname[WLAN_DEVNAMELEN_MAX];
-        p80211item_uint32_t hosttime;
-        p80211item_uint32_t mactime;
-        p80211item_uint32_t channel;
-        p80211item_uint32_t rssi;
-        p80211item_uint32_t sq;
-        p80211item_uint32_t signal;
-        p80211item_uint32_t noise;
-        p80211item_uint32_t rate;
-        p80211item_uint32_t istx;
-        p80211item_uint32_t frmlen;
+        uint32_t msgcode __attribute__ ((packed));
+        uint32_t msglen __attribute__ ((packed));
+        uint8_t devname[WLAN_DEVNAMELEN_MAX] __attribute__ ((packed));
+        p80211item_uint32_t hosttime __attribute__ ((packed));
+        p80211item_uint32_t mactime __attribute__ ((packed));
+        p80211item_uint32_t channel __attribute__ ((packed));
+        p80211item_uint32_t rssi __attribute__ ((packed));
+        p80211item_uint32_t sq __attribute__ ((packed));
+        p80211item_uint32_t signal __attribute__ ((packed));
+        p80211item_uint32_t noise __attribute__ ((packed));
+        p80211item_uint32_t rate __attribute__ ((packed));
+        p80211item_uint32_t istx __attribute__ ((packed));
+        p80211item_uint32_t frmlen __attribute__ ((packed));
     } wlan_ng_prism2_header;
 
     // Prism 802.11 headers from the openbsd Hermes drivers, even though they don't return
@@ -100,13 +100,12 @@ protected:
         u_int16_t wi_rsvd1;
     } bsd_80211_header;
 
-    int Pcap2Common(pkthdr *in_header, u_char *in_data);
+    int Pcap2Common(kis_packet *packet);
 
     pcap_t *pd;
 
     // What kind of netlink is it
     int datalink_type;
-
 };
 
 #endif

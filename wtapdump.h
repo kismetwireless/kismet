@@ -38,10 +38,10 @@ public:
 
     int CloseDump();
 
-    int DumpPacket(const packet_info *in_info, const pkthdr *in_header, const u_char *in_data);
+    int DumpPacket(const packet_info *in_info, const kis_packet *packet);
 
 protected:
-    int Common2Wtap(const pkthdr *in_header, const u_char *in_data);
+    int Common2Wtap(const kis_packet *packet);
 
     /*
     char errstr[1024];

@@ -37,8 +37,7 @@ public:
     virtual int CloseDump() = 0;
 
     // Get a packet from the medium
-    virtual int DumpPacket(const packet_info *in_info, const pkthdr *in_header,
-                           const u_char *in_data) = 0;
+    virtual int DumpPacket(const packet_info *in_info, const kis_packet *packet) = 0;
 
     // Do we log beacons?
     void SetBeaconLog(int in_log) { beacon_log = in_log; };

@@ -2409,13 +2409,12 @@ int main(int argc,char *argv[]) {
             }
 
             if (process_packet_source) {
-                pkthdr header;
-                u_char data[MAX_PACKET_LEN];
+                kis_packet packet;
 
                 int len;
 
                 // Capture the packet from whatever device
-                len = psrc->FetchPacket(&header, data);
+                len = psrc->FetchPacket(&packet);
 
                 // Handle a packet
                 if (len > 0) {
@@ -2423,7 +2422,7 @@ int main(int argc,char *argv[]) {
 
                     static packet_info info;
 
-                    GetPacketInfo(&header, data, &packet_sources[src]->packparm, &info,
+                    GetPacketInfo(&packet, &packet_sources[src]->packparm, &info,
                                   &bssid_wep_map, wep_identity);
 
                     last_info = info;
@@ -2528,7 +2527,7 @@ int main(int argc,char *argv[]) {
                         vector<string> strlist;
                         STRING_data sdata;
 
-                        strlist = GetPacketStrings(&info, &header, data);
+                        strlist = GetPacketStrings(&info, &packet);
                         sdata.bssid = info.bssid_mac.Mac2String();
                         sdata.sourcemac = info.source_mac.Mac2String();
 
@@ -2562,14 +2561,18 @@ int main(int argc,char *argv[]) {
                             NetWriteStatus(status);
                         }
 
-                        dumpfile->DumpPacket(&info, &header, data);
+                        dumpfile->DumpPacket(&info, &packet);
                         log_packnum = dumpfile->FetchDumped();
                     }
 
                     if (crypt_log) {
-                        cryptfile->DumpPacket(&info, &header, data);
-
+                        cryptfile->DumpPacket(&info, &packet);
                     }
+
+                    if (packet.data != NULL)
+                        delete[] packet.data;
+                    if (packet.moddata != NULL)
+                        delete[] packet.moddata;
 
                 } else if (len < 0) {
                     // Fail on error

@@ -104,7 +104,7 @@ void PcapSource::Callback(u_char *bp, const struct pcap_pkthdr *header,
     memcpy(callback_data, in_data, header->len);
 }
 
-int PcapSource::FetchPacket(pkthdr *in_header, u_char *in_data) {
+int PcapSource::FetchPacket(kis_packet *packet) {
     int ret;
     //unsigned char *udata = '\0';
 
@@ -116,81 +116,67 @@ int PcapSource::FetchPacket(pkthdr *in_header, u_char *in_data) {
     if (ret == 0)
         return 0;
 
-    if (paused || Pcap2Common(in_header, in_data) == 0) {
+    if (paused || Pcap2Common(packet) == 0) {
         return 0;
     }
 
-    return(in_header->len);
+    return(packet->caplen);
 }
 
-int PcapSource::Pcap2Common(pkthdr *in_header, u_char *in_data) {
+int PcapSource::Pcap2Common(kis_packet *packet) {
+    memset(packet, 0, sizeof(kis_packet));
+
     int callback_offset = 0;
 
-    memset(in_header, 0, sizeof(pkthdr));
-    memset(in_data, 0, MAX_PACKET_LEN);
-
-    in_header->caplen = callback_header.caplen;
-
-    in_header->ts = callback_header.ts;
+    packet->ts = callback_header.ts;
 
     // Get the power from the datalink headers if we can, otherwise use proc/wireless
     if (datalink_type == DLT_PRISM_HEADER) {
-        if (callback_header.caplen - 4 < sizeof(wlan_ng_prism2_header)) {
+        if (callback_header.caplen < sizeof(wlan_ng_prism2_header)) {
             snprintf(errstr, 1024, "pcap Pcap2Common saw undersized capture frame for prism2-header data.");
-            in_header->len = 0;
+            packet->len = 0;
+            packet->caplen = 0;
             return 0;
         }
 
-        if (callback_header.caplen - 4 > MAX_PACKET_LEN)
-            in_header->len = MAX_PACKET_LEN;
-        else
-            in_header->len = callback_header.caplen - 4;
-
         wlan_ng_prism2_header *p2head = (wlan_ng_prism2_header *) callback_data;
 
-        // Adjust our caplen to take into account the prism2 header
-	// and checksum
-        in_header->caplen = p2head->frmlen.data - 4;
+        packet->caplen = min(p2head->frmlen.data, (uint32_t) MAX_PACKET_LEN);
+        packet->len = packet->caplen;
 
         // Set our offset for extracting the actual data
         callback_offset = sizeof(wlan_ng_prism2_header);
-	in_header->len -= callback_offset;
 
-        in_header->quality = p2head->sq.data;
-        in_header->signal = p2head->signal.data;
-        in_header->noise = p2head->noise.data;
+        packet->quality = p2head->sq.data;
+        packet->signal = p2head->signal.data;
+        packet->noise = p2head->noise.data;
 
     } else if (datalink_type == KDLT_BSD802_11) {
         // Process our hacked in BSD type
         if (callback_header.caplen < sizeof(bsd_80211_header)) {
             snprintf(errstr, 1024, "pcap Pcap2Common saw undersized capture frame for bsd-header header.");
-            in_header->len = 0;
+            packet->len = 0;
+            packet->caplen = 0;
             return 0;
         }
 
-        if (callback_header.caplen - sizeof(bsd_80211_header) > MAX_PACKET_LEN)
-            in_header->len = MAX_PACKET_LEN;
-        else
-            in_header->len = callback_header.caplen;
+        packet->caplen = min(callback_header.caplen - sizeof(bsd_80211_header), (uint32_t) MAX_PACKET_LEN);
+        packet->len = packet->caplen;
 
         bsd_80211_header *bsdhead = (bsd_80211_header *) callback_data;
-        in_header->signal = bsdhead->wi_signal;
+        packet->signal = bsdhead->wi_signal;
 
         // No noise level so quality = percentage of max signal level
-        in_header->quality = (in_header->signal * 100) / 256;
+        packet->quality = (packet->signal * 100) / 256;
 
         // Adjust to take out the BSD header
 
         // Set our offset
         callback_offset = sizeof(bsd_80211_header);
-        in_header->len -= callback_offset;
-        in_header->caplen -= callback_offset;
 
     } else {
-        if (callback_header.caplen > MAX_PACKET_LEN)
-            in_header->len = MAX_PACKET_LEN;
-        else
-            in_header->len = callback_header.caplen;
+        packet->caplen = min(callback_header.caplen, (uint32_t) MAX_PACKET_LEN);
+        packet->len = packet->caplen;
 
         // Fill in the connection info from the wireless extentions, if we can
 #ifdef HAVE_LINUX_WIRELESS
@@ -215,29 +201,40 @@ int PcapSource::Pcap2Common(pkthdr *in_header, u_char *in_data) {
 
             fclose(procwireless);
 
-            in_header->quality = qual;
-            in_header->signal = lev;
-            in_header->noise = noise;
+            packet->quality = qual;
+            packet->signal = lev;
+            packet->noise = noise;
         }
 #endif
     }
 
-    if (cardtype == card_cisco_bsd && (callback_offset + in_header->len) > 26) {
-        // The cisco drivers insert 2 bytes
-        memcpy(in_data, &callback_data[callback_offset], 24);
-        memcpy(&in_data[24], &callback_data[callback_offset + 26], in_header->len - 26);
-        in_header->len -= 2;
-        in_header->caplen -= 2;
-    } else if (cardtype == card_prism2_bsd && (callback_offset + in_header->len) > 46) {
-        // The prism2 drivers insert 22 bytes of crap
-        memcpy(in_data, &callback_data[callback_offset], 24);
-        memcpy(&in_data[24], &callback_data[callback_offset + 46], in_header->len - 46);
-        in_header->len -= 22;
-        in_header->caplen -= 22;
+    if (cardtype == card_cisco_bsd && (callback_offset + packet->caplen) > 26) {
+        // The cisco BSD drivers seem to insert 2 bytes of crap
+
+        packet->len -= 2;
+        packet->caplen -= 2;
+
+        packet->data = new uint8_t[packet->caplen];
+
+        memcpy(packet->data, callback_data + callback_offset, 24);
+        memcpy(packet->data + 24, callback_data + callback_offset + 26, packet->caplen - 26);
+    } else if (cardtype == card_prism2_bsd && (callback_offset + packet->caplen) > 46) {
+        // The freebsd prism2 drivers insert 22 bytes of crap
+
+        packet->len -= 22;
+        packet->caplen -= 22;
+
+        packet->data = new uint8_t[packet->caplen];
+
+        memcpy(packet->data, callback_data + callback_offset, 24);
+        memcpy(packet->data + 24, callback_data + callback_offset + 46, packet->caplen - 46);
+
     } else {
         // Otherwise we don't do anything or we don't have enough of a packet to do anything
         // with.
-        memcpy(in_data, &callback_data[callback_offset], in_header->len);
+        packet->data = new uint8_t[packet->caplen];
+
+        memcpy(packet->data, callback_data + callback_offset, packet->caplen);
     }
 
     return 1;

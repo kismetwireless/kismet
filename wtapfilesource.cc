@@ -34,6 +34,11 @@ int WtapFileSource::OpenSource(const char *dev, card_type ctype) {
         return -1;
     }
 
+    if (wtap_file_encap(packfile) != WTAP_ENCAP_IEEE_802_11) {
+        snprintf(errstr, 1024, "Wtap file '%s' not an 802.11 encapsulation.", dev);
+        return -1;
+    }
+
     snprintf(errstr, 1024, "Wtap file source opened %s", dev);
     return 1;
 }
@@ -45,7 +50,7 @@ int WtapFileSource::CloseSource() {
     return 1;
 }
 
-int WtapFileSource::FetchPacket(pkthdr *in_header, u_char *in_data) {
+int WtapFileSource::FetchPacket(kis_packet *packet) {
     int err;
     long int offset;
 
@@ -76,32 +81,28 @@ int WtapFileSource::FetchPacket(pkthdr *in_header, u_char *in_data) {
     if (paused)
         return 0;
 
-    Wtap2Common(in_header, in_data);
+    Wtap2Common(packet);
 
-    return(in_header->len);
+    return(packet->caplen);
 
 }
 
-int WtapFileSource::Wtap2Common(pkthdr *in_header, u_char *in_data) {
+int WtapFileSource::Wtap2Common(kis_packet *packet) {
+    memset(packet, 0, sizeof(kis_packet));
 
-    memset(in_header, 0, sizeof(pkthdr));
-    memset(in_data, 0, MAX_PACKET_LEN);
+    packet->caplen = min(packet_header->caplen, (uint32_t) MAX_PACKET_LEN);
+    packet->len = packet->caplen;
 
-    in_header->caplen = packet_header->caplen;
+    packet->quality = -1;
+    packet->signal = -1;
+    packet->noise = -1;
 
-    if (packet_header->caplen > MAX_PACKET_LEN)
-        in_header->len = MAX_PACKET_LEN;
-    else
-        in_header->len = packet_header->caplen;
+    packet->ts.tv_sec = packet_header->ts.tv_sec;
+    packet->ts.tv_usec = packet_header->ts.tv_usec;
 
-    in_header->quality = -1;
-    in_header->signal = -1;
-    in_header->noise = -1;
+    packet->data = new uint8_t[packet->caplen];
 
-    in_header->ts.tv_sec = packet_header->ts.tv_sec;
-    in_header->ts.tv_usec = packet_header->ts.tv_usec;
-
-    memcpy(in_data, packet_data, in_header->len);
+    memcpy(packet->data, packet_data, packet->caplen);
 
     return 1;
 }

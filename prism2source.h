@@ -53,10 +53,10 @@ public:
 
     int FetchDescriptor() { return fd; }
 
-    int FetchPacket(pkthdr *in_header, u_char *in_data);
+    int FetchPacket(kis_packet *packet);
 
 protected:
-    int Prism2Common(pkthdr *in_header, u_char *in_data);
+    int Prism2Common(kis_packet *packet);
 
     typedef struct {
         uint32_t did __attribute__ ((packed));
@@ -85,7 +85,7 @@ protected:
     int write_sock;
     int fd;
 
-    u_char buffer[MAX_PACKET_LEN];
+    uint8_t buffer[MAX_PACKET_LEN];
 };
 
 #endif
