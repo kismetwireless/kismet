@@ -12,6 +12,7 @@ Dec 10 2002  2.7.1  Fixed some packet dissection and wep/interesting detection
                     Minor fix to kismet_hopper (Anders Gustafsson)
                     Fixed WSP100 capture source flagging all packets as FCS
                      errors.
+                    Fixed signed error w/ datasize on defective WEP packets
 Dec 05 2002  2.7.1  Fixed wsp100 cygwin header
                     Started adding viha support.  VIHA SUPPORT DOES NOT WORK
                      CURRENTLY.
