@@ -477,7 +477,6 @@ void CapSourceText(string in_text, KisRingBuffer *in_buf) {
 
 }
 
-
 // Signal catchers
 void CapSourceSignal(int sig) {
     fprintf(stderr, "FATAL: Capture child got signal %d, dying.\n", sig);
@@ -551,6 +550,7 @@ void CapSourceChild(capturesource *csrc) {
 
     while (1) {
         int max_fd = 0;
+        int txtbuf_delta = 0, pakbuf_delta = 0;
 
         FD_ZERO(&rset);
 
@@ -565,7 +565,7 @@ void CapSourceChild(capturesource *csrc) {
 
             // only look at capsource if we're active, and try to slow us down if we're filling
             // the ring buffer.
-            if (active && csrc->source->FetchDescriptor() != 0 && ringbuf->InsertDummy(MAX_PACKET_LEN / 2)) {
+            if (active && csrc->source->FetchDescriptor() > 0 && ringbuf->InsertDummy(MAX_PACKET_LEN / 2)) {
                 FD_SET(csrc->source->FetchDescriptor(), &rset);
 
                 if (csrc->source->FetchDescriptor() > max_fd)
@@ -579,7 +579,7 @@ void CapSourceChild(capturesource *csrc) {
 
         // Write a text ping if we don't have anything else in the buffer that would be testing the
         // command pipe
-        if (txtringbuf->FetchLen() == 0 && active == 1) {
+        if (txtringbuf->FetchLen() == 0 && active == 1 && diseased == 0) {
             // Send a text ping.  This might be a little much overhead, but I don't want to do another
             // fd just to see if the server is alive
             CapSourceText("", txtringbuf);
@@ -591,7 +591,7 @@ void CapSourceChild(capturesource *csrc) {
 
             txtringbuf->FetchPtr(&dptr, &dlen);
 
-            if ((ret = write(csrc->textpair[1], dptr, dlen)) <= 0) {
+            if ((ret = write(csrc->textpair[1], dptr, dlen)) < 0) {
                 csrc->source->CloseSource();
 
                 if (CapSourceFlushCmdDeath(csrc->servpair[0]) == 1) {
@@ -604,6 +604,7 @@ void CapSourceChild(capturesource *csrc) {
             }
 
             txtringbuf->MarkRead(ret);
+            txtbuf_delta = ret;
         }
 
         // if we're diseased and we delivered all our messages, go to the great bitbucked in the sky
@@ -614,6 +615,8 @@ void CapSourceChild(capturesource *csrc) {
             close(csrc->servpair[0]);
             close(csrc->childpair[1]);
             close(csrc->textpair[1]);
+
+            csrc->source->CloseSource();
 
             exit(1);
         }
@@ -627,7 +630,7 @@ void CapSourceChild(capturesource *csrc) {
 
             ringbuf->FetchPtr(&dptr, &dlen);
 
-            if ((ret = write(csrc->childpair[1], dptr, dlen)) <= 0) {
+            if ((ret = write(csrc->childpair[1], dptr, dlen)) < 0) {
                 csrc->source->CloseSource();
 
                 if (CapSourceFlushCmdDeath(csrc->servpair[0]) == 1) {
@@ -640,12 +643,29 @@ void CapSourceChild(capturesource *csrc) {
             }
 
             ringbuf->MarkRead(ret);
+            pakbuf_delta = ret;
         }
 
+        // Wake up fairly often so we can send a text ping and die if something went wrong
+        // and we didn't otherwise detect it
+        struct timeval tm;
 
-        // Capture drones don't do things regularly, only when told, so we can sit in a
-        // select() forever until something happens
-        if (select(max_fd + 1, &rset, NULL, NULL, NULL) < 0) {
+        // If we have stuff in the text or ring buffers, make select nonblocking.  Otherwise
+        // we can sleep for a second.
+        if (ringbuf->FetchLen() != 0 || txtringbuf->FetchLen() != 0) {
+            tm.tv_sec = 0;
+            // If something has data but didn't get to write anything, block very briefly to
+            // try to let it clear the pipe
+            if (pakbuf_delta == 0 || txtbuf_delta == 0)
+                tm.tv_usec = 100000;
+            else
+                tm.tv_usec = 0;
+        } else {
+            tm.tv_sec = 1;
+            tm.tv_usec = 0;
+        }
+
+        if (select(max_fd + 1, &rset, NULL, NULL, &tm) < 0) {
             csrc->source->CloseSource();
 
             if (CapSourceFlushCmdDeath(csrc->servpair[0]) == 1) {
@@ -661,11 +681,15 @@ void CapSourceChild(capturesource *csrc) {
         if (FD_ISSET(csrc->servpair[0], &rset)) {
             int8_t cmd = 0;
 
-            if (read(csrc->servpair[0], &cmd, 1) < 0) {
+            if ((ret = read(csrc->servpair[0], &cmd, 1)) < 0) {
                 fprintf(stderr, "FATAL:  capture child %d command read() error %d (%s)", mypid, errno, strerror(errno));
                 csrc->source->CloseSource();
                 exit(1);
             }
+
+            // Do nothing if we finished reading
+            if (ret == 0)
+                cmd = CAPCMD_NULL;
 
             if (cmd == CAPCMD_ACTIVATE) {
                 active = 1;
