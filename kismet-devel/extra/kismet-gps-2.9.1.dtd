@@ -13,7 +13,7 @@
 
 <!ELEMENT network-file (#PCDATA)>
 
-<!ELEMENT gps-point>
+<!ELEMENT gps-point (EMPTY)>
 	<!ATTLIST gps-point bssid CDATA "00:00:00:00:00:00"
 			  source CDATA "00:00:00:00:00:00"
               time-sec CDATA "0"

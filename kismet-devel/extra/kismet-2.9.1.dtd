@@ -45,14 +45,14 @@
 	<!ATTLIST ip-address type (none | arp | udp | tcp | dhcp) "none">
 <!ELEMENT ip-range (#PCDATA)>
 <!ELEMENT datasize (#PCDATA)>
-<!ELEMENT wireless-client (client-mac?,client-channel?,client-packets?,client-gps-info?,client-maxrate?,client-maxseenrate?,client-encoding*,client-datasize?,client-ip-address?)>
+<!ELEMENT wireless-client (client-mac?,client-packets?,client-gps-info?,client-maxrate?,client-maxseenrate?,client-encoding*,client-datasize?,client-ip-address?)>
 	<!ATTLIST wireless-client number CDATA "0"
 			  type ( fromds | tods | interds | established | unknown ) "unknown"
 			  wep (true | false ) "false"
 			  first-time CDATA "na"
 			  last-time CDATA "na">
 	<!ELEMENT client-mac (#PCDATA)>
-	<!ELEMENT client-packets (LLC,data,crypt,weak,total)>
+	<!ELEMENT client-packets (client-data,client-crypt,client-weak)>
 		<!ELEMENT client-data (#PCDATA)>
 		<!ELEMENT client-crypt (#PCDATA)>
 		<!ELEMENT client-weak (#PCDATA)>
