@@ -176,6 +176,7 @@ typedef struct linux_ifparm {
     char essid[MAX_SSID_LEN + 1];
     int channel;
     int mode;
+    int privmode;
 };
 #endif
 
@@ -370,6 +371,7 @@ int monitor_madwifi_a(const char *in_dev, int initch, char *in_err, void **in_if
 int monitor_madwifi_b(const char *in_dev, int initch, char *in_err, void **in_if);
 int monitor_madwifi_g(const char *in_dev, int initch, char *in_err, void **in_if);
 int monitor_madwifi_comb(const char *in_dev, int initch, char *in_err, void **in_if);
+int unmonitor_madwifi(const char *in_dev, int initch, char *in_err, void **in_if);
 // prism54 needs to override the error messages it gets setting channels
 int monitor_prism54g(const char *in_dev, int initch, char *in_err, void **in_if);
 int unmonitor_prism54g(const char *in_dev, int initch, char *in_err, void **in_if);
