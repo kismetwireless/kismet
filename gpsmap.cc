@@ -134,6 +134,13 @@ const int power_steps_Radar = 9;
 // Maximum power reported
 const int power_max = 255;
 
+// Label gravity
+char *label_gravity_list[] = {
+    "northwest", "north", "northeast",
+    "west", "center", "east",
+    "southwest", "south", "southeast"
+};
+
 // Tracker internals
 int sample_points;
 
@@ -245,7 +252,7 @@ int draw_track = 0, draw_bounds = 0, draw_range = 0, draw_power = 0,
     draw_hull = 0, draw_scatter = 0, draw_legend = 0, draw_center = 0, draw_label = 0;
 int track_opacity = 100, /* no bounds opacity */ range_opacity = 70, power_opacity = 70,
     hull_opacity = 70, scatter_opacity = 100, legend_opacity = 90, center_opacity = 100, label_opacity = 100;
-int convert_greyscale = 1, keep_gif = 0, verbose = 0;
+int convert_greyscale = 1, keep_gif = 0, verbose = 0, label_orientation = 0;
 
 // Offsets for drawing from what we calculated
 int draw_x_offset = 0, draw_y_offset = 0;
@@ -1531,7 +1538,7 @@ void DrawNetCenterDot(vector<gps_network *> in_nets, Image *in_img, DrawInfo *in
     }
 }
 
-void DrawNetCenterText(vector<gps_network *> in_nets, Image *in_img, DrawInfo *in_di, int in_textmode) {
+void DrawNetCenterText(vector<gps_network *> in_nets, Image *in_img, DrawInfo *in_di) {
     for (unsigned int x = 0; x < in_nets.size(); x++) {
         gps_network *map_iter = in_nets[x];
 
@@ -1564,10 +1571,31 @@ void DrawNetCenterText(vector<gps_network *> in_nets, Image *in_img, DrawInfo *i
         in_di->fill = netclr;
         in_di->stroke = netclr;
 
-        snprintf(prim, 1024, "gravity center fill-opacity 100%% stroke-opacity 100%% text %d,%d \"%s%s\"",
-                 (int) mapx, (int) mapy + 8,
-                 in_textmode & 1 ? map_iter->bssid.c_str() : "",
-                 (in_textmode & 2 && map_iter->wnet != NULL) ? map_iter->wnet->ssid.c_str() : "");
+        char text[1024];
+        text[0] = '\0';
+        int draw = 0;
+
+        if (network_labels.find("bssid") != string::npos) {
+            snprintf(text, 1024, "%s ", map_iter->bssid.c_str());
+            draw = 1;
+        }
+
+        if (network_labels.find("name") != string::npos) {
+            if (map_iter->wnet != NULL) {
+                char text2[1024];
+                snprintf(text2, 1024, "%s%s", text, map_iter->wnet->ssid.c_str());
+                strncpy(text, text2, 1024);
+            }
+            draw = 1;
+        }
+
+        if (draw == 0)
+            break;
+
+        snprintf(prim, 1024, "gravity %s fill-opacity 100%% stroke-opacity 100%% text %d,%d \"%s\"",
+                 label_gravity_list[label_orientation],
+                 (int) mapx, (int) mapy, text);
+
         in_di->primitive = strdup(prim);
         DrawImage(in_img, in_di);
 
@@ -1676,9 +1704,6 @@ int Usage(char* argv, int ec = 1) {
            "  -O, --offset <x,y>             Offset drawn features by x,y pixles\n"
            "\nDraw options\n"
            "  -t, --draw-track               Draw travel track\n"
-           /*
-            "  -T, --draw-track-opacity <o>   Travel track opacity [Default: 100]\n"
-            */
            "  -b, --draw-bounds              Draw network bounding box\n"
            "  -r, --draw-range               Draw estimaged range circles\n"
            "  -R, --draw-range-opacity <o>   Range circle opacity [Default: 70]\n"
@@ -1697,8 +1722,12 @@ int Usage(char* argv, int ec = 1) {
            "  -e, --draw-center              Draw dot at center of network range\n"
            "  -E, --draw-center-opacity <o>  Center dot opacity [Default: 100]\n"
            "  -H, --draw-center-size <s>     Center dot at radius size <s> [Default: 2]\n"
-           "  -l, --draw-lables <list>       Draw network labels, comma-seperated list\n"
-           "                                  (bssid, ssid)\n"
+           "  -l, --draw-labels <list>       Draw network labels, comma-seperated list\n"
+           "                                  (bssid, name)\n"
+           "  -L, --draw-label-orient <o>    Label orientation [Default: 0]\n"
+           "                                  0       1       2\n"
+           "                                  3       4       5\n"
+           "                                  6       7       8\n"
            "  -k, --draw-legend              Draw map legend\n"
            "  -K, --draw-legend-opacity <o>  Legend opacity [Default: 90]\n"
            "  -F, --feature-order <order>    String representing the order map features\n"
@@ -1763,7 +1792,8 @@ int main(int argc, char *argv[]) {
            {"draw-center", no_argument, 0, 'e'},
            {"draw-center-opacity", required_argument, 0, 'E'},
            {"draw-center-size", required_argument, 0, 'H'},
-           {"draw-lables", required_argument, 0, 'l'},	
+           {"draw-labels", required_argument, 0, 'l'},
+           {"draw-label-orient", required_argument, 0, 'L'},
            {"draw-legend", no_argument, 0, 'k'},
            {"draw-legend-opacity", required_argument, 0, 'K'},
            {"feature-order", required_argument, 0, 'F'},
@@ -1786,11 +1816,9 @@ int main(int argc, char *argv[]) {
 
     char *configfile = NULL;
 
-    string label;
-
     while(1) {
         int r = getopt_long(argc, argv,
-                            "hvg:S:o:f:iz:DVc:s:m:d:n:GMO:tbrR:uU:aA:B:pP:q:Q:eE:H:l:kK:F:",
+                            "hvg:S:o:f:iz:DVc:s:m:d:n:GMO:tbrR:uU:aA:B:pP:q:Q:eE:H:l:L:kK:F:",
                             long_options, &option_index);
 
         if (r < 0) break;
@@ -1969,7 +1997,15 @@ int main(int argc, char *argv[]) {
             }
             break;
         case 'l':
-            label = optarg;
+            network_labels = optarg;
+            draw_label = 1;
+            break;
+        case 'L':
+            if (sscanf(optarg, "%d", &label_orientation) != 1 || label_orientation < 0 ||
+                label_orientation > 8) {
+                fprintf(stderr, "Invalid label orientation.\n");
+                Usage(exec_name);
+            }
             break;
         case 'k':
             draw_legend = true;
@@ -2223,7 +2259,7 @@ int main(int argc, char *argv[]) {
 
     if (draw_label) {
         fprintf(stderr, "Labeling networks...\n");
-        DrawNetCenterText(gpsnetvec, img, di, 0);
+        DrawNetCenterText(gpsnetvec, img, di);
     }
 
     WriteImage(img_info, img);
