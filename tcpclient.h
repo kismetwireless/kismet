@@ -137,6 +137,8 @@ public:
 
     void RemoveNetwork(mac_addr in_bssid);
 
+    wireless_network *FetchLastNewNetwork() { return last_new_network; }
+
 protected:
     char errstr[1024];
     char status[STATUS_MAX];
@@ -165,6 +167,7 @@ protected:
 
     map<mac_addr, wireless_network *> net_map;
     vector<wireless_network *> net_map_vec;
+    wireless_network *last_new_network;
 
     int num_networks, num_packets, num_crypt,
         num_interesting, num_noise, num_dropped, packet_rate;

@@ -848,14 +848,16 @@ int main(int argc, char *argv[]) {
                         if (speech == 1) {
                             string text;
 
-                            wireless_network *newnet = kismet_serv.FetchNthRecent(1)[0];
+                            wireless_network *newnet = kismet_serv.FetchLastNewNetwork();
 
-                            if (newnet->wep)
-                                text = ExpandSpeechString(speech_sentence_encrypted, newnet, speech_encoding);
-                            else
-                                text = ExpandSpeechString(speech_sentence_unencrypted, newnet, speech_encoding);
+                            if (newnet != NULL) {
+                                if (newnet->wep)
+                                    text = ExpandSpeechString(speech_sentence_encrypted, newnet, speech_encoding);
+                                else
+                                    text = ExpandSpeechString(speech_sentence_unencrypted, newnet, speech_encoding);
 
-                            speech = SayText(MungeToShell(text).c_str());
+                                speech = SayText(MungeToShell(text).c_str());
+                            }
                         }
                     }
                     num_networks = kismet_serv.FetchNumNetworks();
