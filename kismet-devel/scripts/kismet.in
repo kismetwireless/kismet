@@ -5,7 +5,7 @@ ETC=@sysconfdir@
 
 set -m
 
-gui=`grep -e "^gui=" $ETC/kismet_ui.conf | cut -d= -f2 | tr -d -s [ \t]`
+gui=`grep -e "^gui=" $ETC/kismet_ui.conf | cut -d= -f2 | tr -d " \t"`
 
 if test "$gui" = ""; then
 	echo "No gui specified in $ETC/kismet.conf.  Please specify one!"

@@ -73,7 +73,7 @@ fi
 
 if test "$USEFILE" -eq 0; then
 	echo "Using $CONFIGFILE sources..."
-	`grep -e "^\ *source[0-9]*\ *=" $CONFIGFILE | cut -d= -f2 | tr -d -s [ \t] > $IFFILE`
+	`grep -e "^\ *source[0-9]*\ *=" $CONFIGFILE | cut -d= -f2 | tr -d " \t" > $IFFILE`
 fi
 
 for line in `cat $IFFILE`; do
