@@ -149,6 +149,17 @@ void Frontend::UpdateGroups() {
 
             dnet->virtnet->idle_time = curtime - dnet->virtnet->last_time;
 
+            if (dnet->virtnet->manuf_ref == NULL)
+                dnet->virtnet->manuf_ref = MatchBestManuf(ap_manuf_map, dnet->virtnet->bssid, dnet->virtnet->ssid,
+                                                          dnet->virtnet->channel, dnet->virtnet->wep, dnet->virtnet->cloaked,
+                                                          &dnet->virtnet->manuf_score);
+
+            for (unsigned int clnum = 0; clnum < dnet->virtnet->client_vec.size(); clnum++) {
+                wireless_client *cl = dnet->virtnet->client_vec[clnum];
+                if (cl->manuf_ref == NULL)
+                    cl->manuf_ref = MatchBestManuf(client_manuf_map, cl->mac, "", 0, 0, 0, &cl->manuf_score);
+            }
+
             // Update the group name if it's <no ssid> and the ssid is set or if it's a
             // turbocell network
             /*
@@ -335,14 +346,16 @@ void Frontend::UpdateGroups() {
         if (dnet->virtnet->ssid.length() == 0)
             dnet->virtnet->ssid = NOSSID;
 
-        dnet->virtnet->bssid.bytemask = bssid_matched;
-        MatchBestManuf(client_manuf_map, dnet->virtnet->bssid, dnet->virtnet->ssid,
-                       dnet->virtnet->channel, dnet->virtnet->wep, dnet->virtnet->cloaked,
-                       &dnet->virtnet->manuf_key, &dnet->virtnet->manuf_score);
+        dnet->virtnet->manuf_ref = MatchBestManuf(ap_manuf_map, dnet->virtnet->bssid, dnet->virtnet->ssid,
+                                                  dnet->virtnet->channel, dnet->virtnet->wep, dnet->virtnet->cloaked,
+                                                  &dnet->virtnet->manuf_score);
 
         // convert our map into a vector
         for (map<mac_addr, wireless_client *>::iterator cli = dnet->virtnet->client_map.begin();
              cli != dnet->virtnet->client_map.end(); ++cli) {
+            if (cli->second->manuf_ref == NULL)
+                cli->second->manuf_ref = MatchBestManuf(client_manuf_map, cli->second->mac,
+                                                        "", 0, 0, 0, &cli->second->manuf_score);
             dnet->virtnet->client_vec.push_back(cli->second);
         }
 

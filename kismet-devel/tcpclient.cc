@@ -31,12 +31,12 @@ TcpClient::TcpClient() {
     protocol_default_map["GPS"] = "lat,lon,alt,spd,fix";
     protocol_default_map["NETWORK"] = "bssid,type,ssid,beaconinfo,llcpackets,datapackets,cryptpackets,"
         "weakpackets,channel,wep,firsttime,lasttime,atype,rangeip,gpsfixed,minlat,minlon,minalt,minspd,"
-        "maxlat,maxlon,maxalt,maxspd,octets,cloaked,beaconrate,maxrate,manufkey,manufscore,"
+        "maxlat,maxlon,maxalt,maxspd,octets,cloaked,beaconrate,maxrate,"
         "quality,signal,noise,bestquality,bestsignal,bestnoise,bestlat,bestlon,bestalt,"
         "agglat,agglon,aggalt,aggpoints,datasize,turbocellnid,turbocellmode,turbocellsat,"
         "carrierset,maxseenrate,encodingset,decrypted";
     protocol_default_map["CLIENT"] = "bssid,mac,type,firsttime,lasttime,"
-        "manufkey,manufscore,datapackets,cryptpackets,weakpackets,"
+        "datapackets,cryptpackets,weakpackets,"
         "gpsfixed,minlat,minlon,minalt,minspd,maxlat,maxlon,maxalt,maxspd,"
         "agglat,agglon,aggalt,aggpoints,maxrate,quality,signal,noise,"
         "bestquality,bestsignal,bestnoise,bestlat,bestlon,bestalt,"
@@ -295,7 +295,6 @@ int TcpClient::ParseData(char *in_data) {
 
         char ssid[256], beacon[256];
         short int range[4];
-        char manuf_str[18];
 
         float maxrate;
 
@@ -316,7 +315,7 @@ int TcpClient::ParseData(char *in_data) {
 
         scanned = sscanf(in_data+hdrlen+18, "%d \001%255[^\001]\001 \001%255[^\001]\001 "
                          "%d %d %d %d %d %d %d %d %d %hd.%hd.%hd.%hd "
-                         "%d %f %f %f %f %f %f %f %f %d %d %d %f %17s %d %d %d %d %d %d %d %f %f %f "
+                         "%d %f %f %f %f %f %f %f %f %d %d %d %f %d %d %d %d %d %d %f %f %f "
                          "%lf %lf %lf %ld %ld"
                          "%d %d %d %d %d %d %d",
                          (int *) &net->type, ssid, beacon,
@@ -327,7 +326,6 @@ int TcpClient::ParseData(char *in_data) {
                          &net->max_lat, &net->max_lon, &net->max_alt, &net->max_spd,
                          &net->ipdata.octets, &net->cloaked, &net->beacon,
                          &maxrate,
-                         manuf_str, &net->manuf_score,
                          &net->quality, &net->signal, &net->noise,
                          &net->best_quality, &net->best_signal, &net->best_noise,
                          &net->best_lat, &net->best_lon, &net->best_alt,
@@ -337,7 +335,7 @@ int TcpClient::ParseData(char *in_data) {
                          &net->carrier_set, &net->maxseenrate, &net->encoding_set,
                          &net->decrypted);
 
-        if (scanned < 49) {
+        if (scanned < 47) {
             // fprintf(stderr, "Flubbed network, discarding...\n");
             delete net;
             return 0;
@@ -357,7 +355,6 @@ int TcpClient::ParseData(char *in_data) {
             net->ipdata.range_ip[x] = (uint8_t) range[x];
         }
 
-        net->manuf_key = manuf_str;
         net->maxrate = maxrate;
 
     } else if (!strncmp(header, "*CLIENT", 64)) {
@@ -365,7 +362,6 @@ int TcpClient::ParseData(char *in_data) {
 
         mac_addr cmac;
         char cmac_str[18];
-        char manuf_str[18];
 
         int scanned;
         float maxrate;
@@ -392,13 +388,12 @@ int TcpClient::ParseData(char *in_data) {
             return 0;
         }
 
-        scanned = sscanf(in_data+hdrlen+36, "%d %d %d %17s %d %d %d %d %d "
+        scanned = sscanf(in_data+hdrlen+36, "%d %d %d %d %d %d %d "
                          "%f %f %f %f %f %f %f %f %lf %lf "
                          "%lf %ld %f %d %d %d %d %d %d %d "
                          "%f %f %f %d %hd.%hd.%hd.%hd %ld %d %d %d",
                          (int *) &client->type,
                          (int *) &client->first_time, (int *) &client->last_time,
-                         manuf_str, &client->manuf_score,
                          &client->data_packets, &client->crypt_packets,
                          &client->interesting_packets,
                          &client->gps_fixed, &client->min_lat, &client->min_lon,
@@ -414,7 +409,7 @@ int TcpClient::ParseData(char *in_data) {
                          &client->datasize, &client->maxseenrate, &client->encoding_set,
                          &client->decrypted);
 
-        if (scanned < 40) {
+        if (scanned < 38) {
             if (nclient)
                 delete client;
             return 0;
@@ -423,8 +418,6 @@ int TcpClient::ParseData(char *in_data) {
         bssid = bssid_str;
         client->mac = cmac;
         client->maxrate = maxrate;
-
-        client->manuf_key = manuf_str;
 
         client->tcpclient = this;
 

@@ -176,8 +176,8 @@ protected:
 
     map<string, string> prefs;
 
-    map<mac_addr, manuf *> ap_manuf_map;
-    map<mac_addr, manuf *> client_manuf_map;
+    macmap<vector<manuf *> > ap_manuf_map;
+    macmap<vector<manuf *> > client_manuf_map;
 
     // Has the drawing field been tainted?
     int tainted;

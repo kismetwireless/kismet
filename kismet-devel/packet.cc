@@ -160,7 +160,7 @@ int GetTagOffset(int init_offset, int tagnum, kis_packet *packet,
 
 // Get the info from a packet
 void GetPacketInfo(kis_packet *packet, packet_parm *parm, packet_info *ret_packinfo,
-                   map<mac_addr, wep_key_info *> *bssid_wep_map, unsigned char *identity) {
+                   macmap<wep_key_info *> *bssid_wep_map, unsigned char *identity) {
     // Zero the entire struct
     memset(ret_packinfo, 0, sizeof(packet_info));
 
@@ -1069,14 +1069,14 @@ vector<string> GetPacketStrings(const packet_info *in_info, const kis_packet *pa
 // Decode WEP for the given packet based on the keys in the bssid_wep_map.
 // This is an amalgamation of ethereal, wlan-ng, and others
 void DecryptPacket(kis_packet *packet, packet_info *in_info, 
-                   map<mac_addr, wep_key_info *> *bssid_wep_map, unsigned char *identity) {
+                   macmap<wep_key_info *> *bssid_wep_map, unsigned char *identity) {
 
     // Bail if we don't have enough for the iv+any real data
     if ((int) packet->len - in_info->header_offset <= 8)
         return;
 
     // Bail if we don't have a match
-    map<mac_addr, wep_key_info *>::iterator bwmitr = bssid_wep_map->find(in_info->bssid_mac);
+    macmap<wep_key_info *>::iterator bwmitr = bssid_wep_map->find(in_info->bssid_mac);
     if (bwmitr == bssid_wep_map->end())
         return;
 
@@ -1090,8 +1090,8 @@ void DecryptPacket(kis_packet *packet, packet_info *in_info,
     pwd[2] = packet->data[in_info->header_offset + 2];
 
     // Add the supplied password to the key
-    memcpy(pwd + 3, bwmitr->second->key, 13);
-    int pwdlen = 3 + bwmitr->second->len;
+    memcpy(pwd + 3, (*bwmitr->second)->key, 13);
+    int pwdlen = 3 + (*bwmitr->second)->len;
 
     unsigned char keyblock[256];
     memcpy(keyblock, identity, 256);
@@ -1159,14 +1159,14 @@ void DecryptPacket(kis_packet *packet, packet_info *in_info,
     // length
     if (crcfailure == 1) {
         packet->modified = 0;
-        bwmitr->second->failed++;
+        (*bwmitr->second)->failed++;
     } else {
         packet->modified = 1;
         // Skip the IV and don't count the ICV
         in_info->header_offset += 4;
         packet->len -= 4;
         in_info->decoded = 1;
-        bwmitr->second->decrypted++;
+        (*bwmitr->second)->decrypted++;
     }
 }
 

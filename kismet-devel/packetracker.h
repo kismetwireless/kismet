@@ -55,8 +55,8 @@ public:
                     int in_rate, int in_burstrate);
 
     // Set up filters
-    void AddExportFilters(map<mac_addr, int> *bssid_map, map<mac_addr, int> *source_map,
-                          map<mac_addr, int> *dest_map, int *bssid_invert,
+    void AddExportFilters(macmap<int> *bssid_map, macmap<int> *source_map,
+                          macmap<int> *dest_map, int *bssid_invert,
                           int *source_invert, int *dest_invert);
 
     // Set up filtering - removed.  we do this in the server now before processing
@@ -134,18 +134,18 @@ protected:
     map<mac_addr, mac_addr> probe_map;
 
     // Manufacturer maps
-    map<mac_addr, manuf *> ap_manuf_map;
-    map<mac_addr, manuf *> client_manuf_map;
+    macmap<vector<manuf *> > ap_manuf_map;
+    macmap<vector<manuf *> > client_manuf_map;
 
     // Finite state trackers
     vector<FiniteAutomata *> fsa_vec;
 
     // Filters
-    map<mac_addr, int> *filter_export_bssid;
+    macmap<int> *filter_export_bssid;
     int *filter_export_bssid_invert;
-    map<mac_addr, int> *filter_export_source;
+    macmap<int> *filter_export_source;
     int *filter_export_source_invert;
-    map<mac_addr, int> *filter_export_dest;
+    macmap<int> *filter_export_dest;
     int *filter_export_dest_invert;
     int filter_export;
 

@@ -424,10 +424,16 @@ void Protocol_Network2Data(const wireless_network *net, NETWORK_data *data) {
     snprintf(tmpstr, 128, "%2.1f", net->maxrate);
     data->ndvec.push_back(tmpstr);
 
-    data->ndvec.push_back(net->manuf_key.Mac2String());
+    // Deprecated
+    // data->ndvec.push_back(net->manuf_key.Mac2String());
+    data->ndvec.push_back("00:00:00:00:00:00");
 
+    // Deprecated
+    /*
     snprintf(tmpstr, 128, "%d", net->manuf_score);
     data->ndvec.push_back(tmpstr);
+    */
+    data->ndvec.push_back("0");
 
     snprintf(tmpstr, 128, "%d", net->quality);
     data->ndvec.push_back(tmpstr);
@@ -530,10 +536,16 @@ void Protocol_Client2Data(const wireless_network *net, const wireless_client *cl
     snprintf(tmpstr, 128, "%d", (int) cli->last_time);
     data->cdvec.push_back(tmpstr);
 
-    data->cdvec.push_back(cli->manuf_key.Mac2String());
+    // Deprecated
+    // data->cdvec.push_back(cli->manuf_key.Mac2String());
+    data->cdvec.push_back("00:00:00:00:00:00");
 
+    // deprecated
+    /*
     snprintf(tmpstr, 128, "%d", cli->manuf_score);
     data->cdvec.push_back(tmpstr);
+    */
+    data->cdvec.push_back("0");
 
     snprintf(tmpstr, 128, "%d", cli->data_packets);
     data->cdvec.push_back(tmpstr);

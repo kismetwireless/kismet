@@ -1,3 +1,5 @@
+Jul 03 2003  2.9.1  Totally revamped mac-masking code and manufacturer
+                     matching code.
 Jun 22 2003  2.9.1  Added panels UI display of current channel
                     Added some other paths to kismet_monitor for binaries
                     Fixed prism2_avs capture source
