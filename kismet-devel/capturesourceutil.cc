@@ -20,49 +20,23 @@
 
 #include "configfile.h"
 #include "capturesourceutil.h"
+#include "util.h"
 
 map<string, int> ParseEnableLine(string in_named) {
     map<string, int> retmap;
 
-    unsigned int begin = 0;
-    unsigned int end = in_named.find(",");
-    int done = 0;
+    vector<string> tokens = StrTokenize(in_named, ",");
 
-    while (done == 0) {
-        if (end == string::npos) {
-            end = in_named.length();
-            done = 1;
-        }
-
-        string ensrc = in_named.substr(begin, end-begin);
-        begin = end+1;
-        end = in_named.find(",", begin);
-
-        retmap[StrLower(ensrc)] = 0;
-    }
+    for (unsigned int x = 0; x < tokens.size(); x++)
+        retmap[StrLower(tokens[x])] = 0;
 
     return retmap;
 }
 
 int ParseCardLines(vector<string> *in_lines, vector<capturesource *> *in_sources) {
-    string sourceopt;
-    unsigned int begin, end;
-
     // Now tokenize the sources
     for (unsigned int x = 0; x < in_lines->size(); x++) {
-        sourceopt = (*in_lines)[x];
-
-        begin = 0;
-        end = sourceopt.find(",");
-        vector<string> optlist;
-
-        while (end != string::npos) {
-            string subopt = sourceopt.substr(begin, end-begin);
-            begin = end+1;
-            end = sourceopt.find(",", begin);
-            optlist.push_back(subopt);
-        }
-        optlist.push_back(sourceopt.substr(begin, sourceopt.size() - begin));
+        vector<string> optlist = StrTokenize((*in_lines)[x], ",");
 
         if (optlist.size() < 3) {
             return (-1) * (x + 1);

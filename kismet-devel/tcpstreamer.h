@@ -40,7 +40,7 @@
 
 #include "packet.h"
 #include "packetstream.h"
-#include "server_plugin.h"
+#include "server_globals.h"
 
 #ifndef MAXHOSTNAMELEN
 #define MAXHOSTNAMELEN 64

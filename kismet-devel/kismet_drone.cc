@@ -46,15 +46,13 @@
 
 #include "timetracker.h"
 
-#include "server_plugin.h"
+#include "server_globals.h"
 
 #ifndef exec_name
 char *exec_name;
 #endif
 
 const char *config_base = "kismet_drone.conf";
-
-int silent = 0;
 
 #ifdef HAVE_GPS
     GPSD gps;
@@ -633,26 +631,6 @@ int main(int argc, char *argv[]) {
 
                 // Handle a packet
                 if (len > 0) {
-                    /*
-                     if (beacon_stream == 0 || phy_stream == 0) {
-                        static packet_info info;
-                        GetPacketInfo(&packet, &packet_sources[src]->packparm, &info,
-                                      &bssid_wep_map, NULL);
-
-                        if ((info.type == packet_management && info.subtype == packet_sub_beacon) &&
-                            beacon_stream == 0) {
-                            map<mac_addr, string>::iterator blm = beacon_logged_map.find(info.bssid_mac);
-                            if (blm == beacon_logged_map.end()) {
-                                beacon_logged_map[info.bssid_mac] = info.ssid;
-                            } else if (blm->second == info.ssid) {
-                                delete[] packet.data;
-                                continue;
-                            }
-                            } else
-                        if (info.type == packet_phy && phy_stream == 0)
-                        continue;
-                        }
-                        */
 
 #ifdef HAVE_GPS
                     gps.FetchLoc(&lat, &lon, &alt, &spd, &mode);
