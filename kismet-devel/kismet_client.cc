@@ -703,6 +703,8 @@ int main(int argc, char *argv[]) {
 
     map<string, string> prefs;
 
+    prefs["showintro"] = gui_conf->FetchOpt("showintro");
+    
     prefs["columns"] = columns;
     prefs["clientcolumns"] = clientcolumns;
 
