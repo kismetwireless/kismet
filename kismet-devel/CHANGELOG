@@ -1,4 +1,5 @@
 Jun 22 2003  2.9.1  Added panels UI display of current channel
+                    Added some other paths to kismet_monitor for binaries
 Jun 21 2003  2.9.1  Added tcpclient hooks for cardlist
 Jun 20 2003  2.9.1  Added CARD protocol to report card info to client
                     Minor tweak to how children link to GPS
