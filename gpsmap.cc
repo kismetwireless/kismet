@@ -2552,6 +2552,25 @@ int DrawLegendComposite(vector<gps_network *> in_nets, Image **in_img,
     int text_colwidth = 0;
     // max val of each column
     map<int, int> max_col_map;
+    int wepped_nets = 0, unwepped_nets = 0, default_nets = 0;
+
+    for (map<mac_addr, gps_network *>::iterator dni = drawn_net_map.begin();
+         dni != drawn_net_map.end(); ++dni) {
+        gps_network *map_iter = dni->second;
+
+        if (map_iter->wnet == NULL) {
+            unwepped_nets++;
+            continue;
+        }
+
+        if (map_iter->wnet->manuf_score == manuf_max_score) {
+            default_nets++;
+        } else if (map_iter->wnet->wep) {
+            wepped_nets++;
+        } else {
+            unwepped_nets++;
+        }
+    }
 
     Image *leg_img = NULL;
     DrawInfo *leg_di = NULL;
@@ -2628,14 +2647,20 @@ int DrawLegendComposite(vector<gps_network *> in_nets, Image **in_img,
     if (draw_bounds || draw_range || draw_hull || draw_scatter || draw_center) {
         int curmax_colwidth = 0;
         if (color_coding == COLORCODE_WEP) {
+            snprintf(text, 1024, "WEP Encrypted - %d (%2.2f%%)", wepped_nets,
+                     ((double) wepped_nets / drawn_net_map.size()) * 100);
             curmax_colwidth = kismax(curmax_colwidth, 
-                                     IMStringWidth("WEP Encrypted", leg_img, leg_di) + 
+                                     IMStringWidth(text, leg_img, leg_di) + 
                                      5 + squaredim);
+            snprintf(text, 1024, "Unencrypted - %d (%2.2f%%)", unwepped_nets,
+                     ((double) unwepped_nets / drawn_net_map.size()) * 100);
             curmax_colwidth = kismax(curmax_colwidth, 
-                                     IMStringWidth("Unencrypted", leg_img, leg_di) + 
+                                     IMStringWidth(text, leg_img, leg_di) + 
                                      5 + squaredim);
+            snprintf(text, 1024, "Factory Default - %d (%2.2f%%)", default_nets,
+                     ((double) default_nets / drawn_net_map.size()) * 100);
             curmax_colwidth = kismax(curmax_colwidth, 
-                                     IMStringWidth("Default", leg_img, leg_di) + 5 + 
+                                     IMStringWidth(text, leg_img, leg_di) + 5 + 
                                      squaredim);
             max_col_map[ncolumns] = curmax_colwidth;
             ncolumns++;
@@ -2803,7 +2828,8 @@ int DrawLegendComposite(vector<gps_network *> in_nets, Image **in_img,
             leg_di->fill = textclr;
             leg_di->stroke = textclr;
 
-            snprintf(text, 1024, "WEP Encrypted");
+            snprintf(text, 1024, "WEP Encrypted - %d (%2.2f%%)", wepped_nets,
+                     ((double) wepped_nets / drawn_net_map.size()) * 100);
             tx_height = IMStringHeight(text, leg_img, leg_di);
 
             snprintf(prim, 1024, "text %d,%d \"%s\"",
@@ -2817,7 +2843,8 @@ int DrawLegendComposite(vector<gps_network *> in_nets, Image **in_img,
             }
             cur_rowpos += squaredim + 2;
 
-            snprintf(text, 1024, "Unencrypted");
+            snprintf(text, 1024, "Unencrypted - %d (%2.2f%%)", unwepped_nets,
+                     ((double) unwepped_nets / drawn_net_map.size()) * 100);
             tx_height = IMStringHeight(text, leg_img, leg_di);
 
             snprintf(prim, 1024, "text %d,%d \"%s\"",
@@ -2831,7 +2858,8 @@ int DrawLegendComposite(vector<gps_network *> in_nets, Image **in_img,
             }
             cur_rowpos += squaredim + 2;
 
-            snprintf(text, 1024, "Factory Default");
+            snprintf(text, 1024, "Factory Default - %d (%2.2f%%)", default_nets,
+                     ((double) default_nets / drawn_net_map.size()) * 100);
             tx_height = IMStringHeight(text, leg_img, leg_di);
 
             snprintf(prim, 1024, "text %d,%d \"%s\"",
