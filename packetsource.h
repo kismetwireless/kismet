@@ -26,6 +26,7 @@
 #include "gpsd.h"
 
 // Card type, for some capture sources which require it
+extern char *card_type_str[];
 enum card_type {
     card_unspecified,
     card_cisco,

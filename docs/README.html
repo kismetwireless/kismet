@@ -83,21 +83,29 @@ networks using ar5k cards.
 Detailed information about each of these steps can be found in the appropriate section
 of the documentation.
 <ol>
-<li>Compile and Install Kismet
-<li>Configure kismet.conf and kismet_ui.conf for your card and setup.  Make
-sure to put a valid, non-root user as the 'suiduser' option.  This user
-is the account kismet will run as once it has attached to the capture
-source.
-<li>Run kismet_monitor to enable rfmon mode, optionally with the 
-channel hopper.  kismet_monitor must be run as root because it changes
-the state of the card.
-<li>Run kismet.  Kismet should be run as the user you specified as the 
-'suiduser'.  If kismet is started as root, it will drop privs to this
-user, but the frontend will still run as root.
+<li>Compile Kismet (./configure, make dep, make)
+<li>Install Kismet (make install). By default, Kismet installs without suid-root ability.  This requires
+you to start Kismet as root so that it can enable monitor mode and control channels.  Kismet CAN be 
+installed as suid-root (make suidinstall) which allows you to start it as a normal user, HOWEVER this 
+will allow any user on your system to stop the wireless connection.  Do NOT install Kismet suid-root 
+if you have untrusted users on your system.
+<li>Configure kismet.conf and kismet_ui.conf for your card and setup.  Make sure to put a valid, non-root 
+user as the 'suiduser' option.  This user is the account kismet will run as once it has attached to the capture
+source.  Most users will want to also edit the "logtemplate" field and put an absolute path to a directory 
+that the suiduser has write permission to.
+<li>Run 'kismet' as root (if installed normally) or simply run 'kismet' as any user if you installed it suid-root.  
+Kismet will place the specified cards into rfmonitor mode and begin.
 </ol>
 <br>
 
 <li>UPGRADING<br>
+Upgrading to 2.9-devel and beyond<br>
+Kismet-devel revamps major parts of Kismet.  There is a new alert system, and the hopper and monitor scripts
+have been absorbed into Kismet itself and no longer need to be started seperately.  All users will need to 
+read the documentation for how to install Kismet as a normal or a suid binary, and all users will need to 
+upgrade to the new config files for alerts, hopping, etc to work correctly.
+<br><br>
+
 Upgrading to 2.8<br>
 Kismet 2.8 adds support for several features, which necessitate changing the configure file.
 All users should install Kismet with 'make forceinstall' and reconfigure it accordingly.<br>

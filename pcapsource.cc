@@ -40,16 +40,17 @@ int PcapSource::OpenSource(const char *dev, card_type ctype) {
 
     char unconst_dev[64];
 
-    // Split off the wifiX interface
+    snprintf(unconst_dev, 64, "%s", dev);
+
     if (ctype == card_cisco_cvs) {
+        // Split off the wifiX interface
         vector<string> devbits = StrTokenize(dev, ":");
         if (devbits.size() < 2) {
             snprintf(errstr, 1024, "Misformed cisco_cvs interface '%s', correct form is 'ethX:wifiX'", dev);
             return -1;
         }
+
         snprintf(unconst_dev, 64, "%s", devbits[1].c_str());
-    } else {
-        snprintf(unconst_dev, 64, "%s", dev);
     }
 
     errstr[0] = '\0';
