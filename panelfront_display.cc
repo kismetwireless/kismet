@@ -1089,9 +1089,6 @@ int PanelFront::TextPrinter(void *in_window) {
 
     char *txt = new char[kwin->print_width + 1];
 
-    if (kwin->start + x > kwin->text.size())
-        return 1;
-
     for (x = 0; x + kwin->start < kwin->text.size() &&
          x < (unsigned int) kwin->max_display; x++) {
         snprintf(txt, kwin->print_width + 1, "%s", kwin->text[x+kwin->start].c_str());
