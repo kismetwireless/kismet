@@ -1069,6 +1069,12 @@ void ProcessNetData(int in_printstats) {
         map_iter->avg_alt = avg_alt;
         map_iter->avg_spd = avg_spd;
 
+        if ((map_iter->diagonal_distance * 3.3) > (20 * 5280))
+            printf("WARNING:  Network %s [%s] has range greater than 20 miles, this may be a glitch "
+                   "you want to filter.\n", 
+                   map_iter->wnet == NULL ? "Unknown" : map_iter->wnet->ssid.c_str(),
+                   map_iter->bssid.c_str());
+        
         if (in_printstats)
             printf("Net:     %s [%s]\n"
                    "  Samples : %d\n"
@@ -1163,6 +1169,7 @@ void AssignNetColors() {
 
 double earth_distance(double lat1, double lon1, double lat2, double lon2) { /*FOLD00*/
 
+    /*
     double calcedR1 = calcR(lat1);
     double calcedR2 = calcR(lat2);
 
@@ -1178,6 +1185,15 @@ double earth_distance(double lat1, double lon1, double lat2, double lon2) { /*FO
     
     double calcedR = calcR((double)(lat1+lat2)) / 2;
     double a = acos((x1*x2 + y1*y2 + z1*z2)/square(calcedR));
+    */
+
+     double x1 = calcR(lat1) * cos(rad2deg(lon1)) * sin(rad2deg(90-lat1));
+     double x2 = calcR(lat2) * cos(rad2deg(lon2)) * sin(rad2deg(90-lat2));
+     double y1 = calcR(lat1) * sin(rad2deg(lon1)) * sin(rad2deg(90-lat1));     
+     double y2 = calcR(lat2) * sin(rad2deg(lon2)) * sin(rad2deg(90-lat2));
+     double z1 = calcR(lat1) * cos(rad2deg(90-lat1));
+     double z2 = calcR(lat2) * cos(rad2deg(90-lat2));   
+     double a = acos((x1*x2 + y1*y2 + z1*z2)/pow(calcR((double) (lat1+lat2)/2),2));
     
     return calcR((double) (lat1+lat2) / 2) * a;
 }
@@ -1718,7 +1734,8 @@ void DrawNetBoundRects(vector<gps_network *> in_nets, Image *in_img, DrawInfo *i
         if (map_iter->max_lat == 90)
             continue;
 
-        if (map_iter->diagonal_distance == 0 || map_iter->diagonal_distance > horiz_throttle)
+        if (isnan(map_iter->diagonal_distance) || map_iter->diagonal_distance == 0 || 
+            map_iter->diagonal_distance > horiz_throttle)
             continue;
 
         // Figure x, y of min on our hypothetical map
