@@ -68,6 +68,7 @@ int ParseCardLines(vector<string> *in_lines, vector<capturesource *> *in_sources
         capturesource *newsource = new capturesource;
         newsource->source = NULL;
         newsource->scardtype = optlist[0];
+        newsource->cardtype = card_unspecified;
         newsource->interface = optlist[1];
         newsource->name = optlist[2];
         memset(&newsource->packparm, 0, sizeof(packet_parm));
