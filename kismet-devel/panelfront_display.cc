@@ -268,7 +268,7 @@ int PanelFront::MainNetworkPrinter(void *in_window) {
             PopulateGroups(context_list[x]->client);
     }
     // Two:  Recalculate all our agregate data
-    UpdateGroups();
+    // UpdateGroups();
     // Three: Copy it to our own local vector so we can sort it.
     vector<display_network *> display_vector = group_vec;
 
