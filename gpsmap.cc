@@ -1780,7 +1780,7 @@ int Usage(char* argv, int ec = 1) {
            "                                  2 is color based on network channel\n"
            "  -G, --no-greyscale             Don't convert map to greyscale\n"
            "  -M, --metric                   Fetch metric-titled map\n"
-           "  -O, --offset <x,y>             Offset drawn features by x,y pixles\n"
+           "  -O, --offset <x,y>             Offset drawn features by x,y pixels\n"
            "\nDraw options\n"
            "  -t, --draw-track               Draw travel track\n"
            "  -b, --draw-bounds              Draw network bounding box\n"
