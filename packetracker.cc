@@ -1118,7 +1118,7 @@ void Packetracker::ReadIPMap(FILE *in_file) {
 
     char format[64];
     // stupid sscanf not taking dynamic sizes
-    snprintf(format, 64, "%%%d[^ ] %%d %%d %%d %%d %%d %%d %%d %%d %%d %%d %%d %%d %%d %%d\n",
+    snprintf(format, 64, "%%%d[^ ] %%d %%d %%hd %%hd %%hd %%hd %%hd %%hd %%hd %%hd %%hd %%hd %%hd %%hd\n",
              MAC_STR_LEN);
 
     net_ip_data dat;
@@ -1160,7 +1160,7 @@ void Packetracker::WriteIPMap(FILE *in_file) {
     ftruncate(fileno(in_file), 0);
 
     char format[64];
-    snprintf(format, 64, "%%.%ds %%d %%d %%d %%d %%d %%d %%d %%d %%d %%d %%d %%d %%d %%d\n",
+    snprintf(format, 64, "%%.%ds %%d %%d %%hd %%hd %%hd %%hd %%hd %%hd %%hd %%hd %%hd %%hd %%hd %%hd\n",
             MAC_STR_LEN);
 
     for (map<string, net_ip_data>::iterator x = bssid_ip_map.begin();
