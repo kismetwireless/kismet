@@ -28,12 +28,17 @@
 #include <inttypes.h>
 #endif
 
-#define STREAM_DRONE_VERSION 5
+#define STREAM_DRONE_VERSION 6
+
+#define STREAM_SENTINEL      0xDECAFBAD
 
 #define STREAM_FTYPE_VERSION 1
 #define STREAM_FTYPE_PACKET  2
 
+#define STREAM_COMMAND_FLUSH -1
+
 typedef struct stream_frame_header {
+    uint32_t frame_sentinel __attribute__ ((packed));
     uint8_t frame_type __attribute__ ((packed));
     uint32_t frame_len __attribute__ ((packed));
 };

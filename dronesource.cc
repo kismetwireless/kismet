@@ -76,6 +76,8 @@ int DroneSource::OpenSource(const char *dev, card_type ctype) {
 
     valid = 1;
 
+    resyncs = 0;
+
     return 1;
 }
 
@@ -109,6 +111,11 @@ int DroneSource::FetchPacket(kis_packet *packet, uint8_t *data, uint8_t *moddata
         }
 
         bcount += ret;
+    }
+
+    if (ntohl(fhdr.frame_sentinel) != STREAM_SENTINEL) {
+        snprintf(errstr, 1024, "Failure matching start-of-frame sentinel");
+        return -1;
     }
 
     if (fhdr.frame_type == STREAM_FTYPE_VERSION) {

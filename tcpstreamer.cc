@@ -155,8 +155,8 @@ int TcpStreamer::Poll(fd_set& in_rset, fd_set& in_wset)
     for (unsigned int x = 0; x <= max_fd; x++) {
         // Soak any data in the read buffer
         if (FD_ISSET(x, &in_rset) && FD_ISSET(x, &client_fds)) {
-            char buf[128];
-            ret = read(x, buf, 128);
+            int8_t buf;
+            ret = read(x, &buf, 1);
             if (ret <= 0 && errno != EAGAIN) {
                 if (!silent)
                     fprintf(stderr, "WARNING: Killing client fd %d read error %d: %s\n",
@@ -164,6 +164,14 @@ int TcpStreamer::Poll(fd_set& in_rset, fd_set& in_wset)
 
                 Kill(x);
                 return 0;
+            }
+
+            if (ret == 1) {
+                if (buf == STREAM_COMMAND_FLUSH) {
+                    // Flush this ring buffer, loose all packets queued
+                    delete droneclients[x];
+                    droneclients[x] = new KisRingBuffer(RING_LEN);
+                }
             }
         }
 
@@ -267,6 +275,7 @@ int TcpStreamer::WriteVersion(int in_fd) {
     stream_frame_header hdr;
     stream_version_packet vpkt;
 
+    hdr.frame_sentinel = (uint32_t) htonl(STREAM_SENTINEL);
     hdr.frame_type = STREAM_FTYPE_VERSION;
     hdr.frame_len = (uint32_t) htonl(sizeof(struct stream_version_packet));
 
@@ -322,6 +331,7 @@ int TcpStreamer::WritePacket(const kis_packet *in_packet) {
     stream_packet_header packhdr;
 
     // Our one and only current frame type
+    hdr.frame_sentinel = (uint32_t) htonl(STREAM_SENTINEL);
     hdr.frame_type = STREAM_FTYPE_PACKET;
 
     // Size of the header so we can skip the headers of unknown versions
