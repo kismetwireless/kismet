@@ -323,8 +323,10 @@ int Packetracker::ProcessPacket(packet_info info, char *in_status) {
                     net->ssid = info.ssid;
             }
 
+            int pret = ProcessDataPacket(info, net, in_status);
+
             if (ret != TRACKER_NEW)
-                ret = ProcessDataPacket(info, net, in_status);
+                ret = pret;
             return ret;
         }
 
