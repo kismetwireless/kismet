@@ -1202,7 +1202,7 @@ int MangleDeCryptPacket(const kis_packet *packet, const packet_info *in_info,
     memcpy((void *) outpack->data, (void *) packet->moddata, in_info->header_offset - 4);
     memcpy((void *) &outpack->data[in_info->header_offset - 4],
            (void *) &packet->moddata[in_info->header_offset],
-           outpack->len - in_info->header_offset);
+           outpack->len - (in_info->header_offset - 4));
 
     // Twiddle the frame control bit
     frame_control *fc = (frame_control *) outpack->data;
