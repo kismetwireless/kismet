@@ -93,7 +93,7 @@ typedef unsigned long u64;
 #ifdef HAVE_LIBPCAP
 
 // This is such a bad thing to do...
-#include <pcap-int.h>
+// #include <pcap-int.h>
 
 // Pcap global callback structs
 pcap_pkthdr callback_header;
@@ -127,8 +127,8 @@ int PcapSource::OpenSource() {
     pcap_setnonblock(pd, 1, errstr);
 #elif !defined(SYS_OPENBSD)
     // do something clever  (Thanks to Guy Harris for suggesting this).
-    int save_mode = fcntl(pcap_fileno(pd), F_GETFL, 0);
-    if (fcntl(pcap_fileno(pd), F_SETFL, save_mode | O_NONBLOCK) < 0) {
+    int save_mode = fcntl(pcap_get_selectable_fd(pd), F_GETFL, 0);
+    if (fcntl(pcap_get_selectable_fd(pd), F_SETFL, save_mode | O_NONBLOCK) < 0) {
         snprintf(errstr, 1024, "fcntl failed, errno %d (%s)",
                  errno, strerror(errno));
     }
@@ -212,7 +212,7 @@ int PcapSource::CloseSource() {
 }
 
 int PcapSource::FetchDescriptor() {
-    return pcap_fileno(pd);
+    return pcap_get_selectable_fd(pd);
 }
 
 void PcapSource::Callback(u_char *bp, const struct pcap_pkthdr *header,
@@ -734,9 +734,11 @@ int PcapSourceFile::OpenSource() {
 
 // Nasty hack into pcap priv functions to get the file descriptor.  This
 // most likely is a bad idea.
+#if 0
 int PcapSourceFile::FetchDescriptor() {
     return fileno(pd->sf.rfile);
 }
+#endif
 
 int PcapSourceFile::FetchChannel() {
     return 0;

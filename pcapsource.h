@@ -165,7 +165,7 @@ public:
     PcapSourceFile(string in_name, string in_dev) : PcapSource(in_name, in_dev) { }
     int OpenSource();
     int FetchPacket(kis_packet *packet, uint8_t *data, uint8_t *moddata);
-    int FetchDescriptor();
+    // int FetchDescriptor();
     int FetchChannel();
 };
 
