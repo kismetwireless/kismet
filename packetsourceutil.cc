@@ -653,6 +653,10 @@ void CapSourceChild(capturesource *csrc) {
                 diseased = 1;
             }
 
+            // Don't send len0 stuff
+            if (len == 0)
+                continue;
+
             // Can we fit the sentinel + header + packet?
             if (ringbuf->InsertDummy(sizeof(kis_packet) + packet.len + 4) == 0) {
                 snprintf(txtbuf, 1024, "WARNING:  capture child %d write packet buffer full, dropped packet", mypid);
