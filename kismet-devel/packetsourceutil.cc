@@ -473,7 +473,7 @@ void CapSourceText(string in_text, KisRingBuffer *in_buf) {
     in_buf->InsertData((uint8_t *) &len, 2);
     in_buf->InsertData((uint8_t *) in_text.c_str(), len);
 
-    if (!silent)
+    if (!silent && len > 0)
         fprintf(stderr, "%s\n", in_text.c_str());
 
 }
@@ -488,11 +488,24 @@ void CapSourceSignal(int sig) {
     exit(0);
 }
 
-void CapSourceUserSignal(int sig) {
-    fprintf(stderr, "Capture child %d asked to die (via signal), shutting down.\n",
-           capchild_global_pid);
-    capchild_global_capturesource->source->CloseSource();
-    exit(1);
+// Spin through our commands and see if we were asked to die...
+// return 1 if we were asked to end
+int CapSourceFlushCmdDeath(int cmd_fd) {
+    int ret;
+    int8_t cmd;
+
+    while ((ret = read(cmd_fd, &cmd, 1)) > 0) {
+        if (cmd == CAPCMD_DIE)
+            return 1;
+    }
+
+    if (ret < 0) {
+        fprintf(stderr, "FATAL:  Capture child %d command pipe read() error while flushing for exit.",
+                capchild_global_pid);
+        return -1;
+    }
+
+    return 0;
 }
 
 // Handle doing things as a child
@@ -511,8 +524,7 @@ void CapSourceChild(capturesource *csrc) {
     signal(SIGINT, SIG_IGN);
     signal(SIGTERM, SIG_IGN);
     signal(SIGHUP, SIG_IGN);
-    signal(SIGPIPE, CapSourceSignal);
-    signal(SIGUSR1, CapSourceUserSignal);
+    signal(SIGPIPE, SIG_IGN);
 
     // Make a large ring buffer of packet bits
     KisRingBuffer *ringbuf = new KisRingBuffer(MAX_PACKET_LEN * 50);
@@ -551,6 +563,10 @@ void CapSourceChild(capturesource *csrc) {
             }
         }
 
+        // Send a text ping.  This might be a little much overhead, but I don't want to do another
+        // fd for commands.
+        CapSourceText("", txtringbuf);
+
         uint8_t *dptr;
         int dlen, ret;
 
@@ -561,8 +577,15 @@ void CapSourceChild(capturesource *csrc) {
             txtringbuf->FetchPtr(&dptr, &dlen);
 
             if ((ret = write(csrc->textpair[1], dptr, dlen)) <= 0) {
-                fprintf(stderr, "FATAL:  capture child %d text write error %d (%s)\n", mypid, errno, strerror(errno));
-                exit(1);
+                csrc->source->CloseSource();
+
+                if (CapSourceFlushCmdDeath(csrc->servpair[0]) == 1) {
+                    fprintf(stderr, "Capture child %d asked to die, terminating...\n", mypid);
+                    exit(0);
+                } else {
+                    fprintf(stderr, "FATAL:  capture child %d text write error %d (%s)\n", mypid, errno, strerror(errno));
+                    exit(1);
+                }
             }
 
             txtringbuf->MarkRead(ret);
@@ -590,10 +613,15 @@ void CapSourceChild(capturesource *csrc) {
             ringbuf->FetchPtr(&dptr, &dlen);
 
             if ((ret = write(csrc->childpair[1], dptr, dlen)) <= 0) {
-                snprintf(txtbuf, 1024, "FATAL:  capture child %d packet write error %d (%s)",
-                         mypid, errno, strerror(errno));
-                CapSourceText(txtbuf, txtringbuf);
-                diseased = 1;
+                csrc->source->CloseSource();
+
+                if (CapSourceFlushCmdDeath(csrc->servpair[0]) == 1) {
+                    fprintf(stderr, "Capture child %d asked to die, terminating...\n", mypid);
+                    exit(0);
+                } else {
+                    fprintf(stderr, "FATAL:  capture child %d packet write error %d (%s)\n", mypid, errno, strerror(errno));
+                    exit(1);
+                }
             }
 
             ringbuf->MarkRead(ret);
@@ -603,8 +631,15 @@ void CapSourceChild(capturesource *csrc) {
         // Capture drones don't do things regularly, only when told, so we can sit in a
         // select() forever until something happens
         if (select(max_fd + 1, &rset, NULL, NULL, NULL) < 0) {
-            fprintf(stderr, "FATAL: capture child %d select() error %d (%s)\n", mypid, errno, strerror(errno));
-            exit(1);
+            csrc->source->CloseSource();
+
+            if (CapSourceFlushCmdDeath(csrc->servpair[0]) == 1) {
+                fprintf(stderr, "Capture child %d asked to die, terminating...\n", mypid);
+                exit(0);
+            } else {
+                fprintf(stderr, "FATAL:  capture child %d select() error %d (%s)\n", mypid, errno, strerror(errno));
+                exit(1);
+            }
         }
 
         // Obey commands coming in
@@ -613,6 +648,7 @@ void CapSourceChild(capturesource *csrc) {
 
             if (read(csrc->servpair[0], &cmd, 1) < 0) {
                 fprintf(stderr, "FATAL:  capture child %d command read() error %d (%s)", mypid, errno, strerror(errno));
+                csrc->source->CloseSource();
                 exit(1);
             }
 
@@ -856,6 +892,9 @@ int FetchChildText(int in_fd, string *in_text) {
 
         bcount += ret;
     }
+
+    if (size == 0)
+        return 0;
 
     bcount = 0;
     inbound = new uint8_t[size + 1];

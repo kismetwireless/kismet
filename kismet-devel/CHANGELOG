@@ -5,6 +5,8 @@ Jun 06 2003  2.9.1  Implemented wireless-extention IOCTL fetching of current
                     Tweaked channel change alert tests
                     Added wait4() pausing for client capsources to exit
                     Added signalling to terminate client capsources
+                    Removed broken signalling and added correct child capsource
+                     termination.
 Jun 04 2003  2.9.1  Implemented dronesource buffer resyncs
                     Updated kismet_drone to use new forked packet paths
 Jun 03 2003  2.9.1  Stubbed FetchChannel

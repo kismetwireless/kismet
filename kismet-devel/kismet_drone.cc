@@ -70,6 +70,10 @@ void CatchShutdown(int sig) {
         if (packet_sources[x]->alive) {
             int8_t child_cmd = CAPCMD_DIE;
             write(packet_sources[x]->servpair[1], &child_cmd, 1);
+
+            close(packet_sources[x]->childpair[0]);
+            close(packet_sources[x]->servpair[1]);
+            close(packet_sources[x]->textpair[0]);
         }
 
         if (packet_sources[x]->source != NULL) {
@@ -78,16 +82,16 @@ void CatchShutdown(int sig) {
         }
     }
 
-    // Kill any child sniffers still around
     for (unsigned int x = 0; x < packet_sources.size(); x++) {
         if (packet_sources[x]->alive) {
-            kill(packet_sources[x]->childpid, 9);
+            fprintf(stderr, "Waiting for capture child %d to terminate...\n", packet_sources[x]->childpid);
+            wait4(packet_sources[x]->childpid, NULL, 0, NULL);
         }
+
         delete packet_sources[x];
     }
 
-    fprintf(stderr, "Kismet drone terminating.\n");
-
+    fprintf(stderr, "Kismet drone exiting.\n");
     exit(0);
 }
 
@@ -806,7 +810,7 @@ int main(int argc, char *argv[]) {
             if (FD_ISSET(packet_sources[src]->textpair[0], &rset)) {
                 len = FetchChildText(packet_sources[src]->textpair[0], &chtxt);
 
-                if (chtxt != "") {
+                if (chtxt != "" && len > 0) {
                     if (!silent)
                         fprintf(stderr, "%s\n", chtxt.c_str());
                 }
