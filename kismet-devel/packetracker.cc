@@ -69,6 +69,7 @@ vector<wireless_network *> Packetracker::FetchNetworks() {
     return ret_vec;
 }
 
+
 void Packetracker::AddAlertracker(Alertracker *in_tracker) {
     alertracker = in_tracker;
 }
@@ -197,6 +198,56 @@ wireless_network *Packetracker::MatchNetwork(const packet_info *info) {
         return bsmapitr->second;
 
     return NULL;
+}
+
+wireless_client *Packetracker::CreateClient(const packet_info *info, 
+                                            wireless_network *net) {
+    wireless_client *client = new wireless_client;
+
+    // Add it to the map
+    net->client_map[info->source_mac] = client;
+    // Add it to the vec
+    net->client_vec.push_back(client);
+
+    client->first_time = time(0);
+    client->mac = info->source_mac;
+    client->manuf_ref = MatchBestManuf(client_manuf_map, client->mac, "", 0, 0, 0,
+                                       &client->manuf_score);
+
+    client->metric = net->metric;
+
+    if (info->gps_fix >= 2) {
+        client->gps_fixed = info->gps_fix;
+        client->min_lat = client->max_lat = info->gps_lat;
+        client->min_lon = client->max_lon = info->gps_lon;
+        client->min_alt = client->max_alt = info->gps_alt;
+        client->min_spd = client->max_spd = info->gps_spd;
+
+        client->aggregate_lat = info->gps_lat;
+        client->aggregate_lon = info->gps_lon;
+        client->aggregate_alt = info->gps_alt;
+        client->aggregate_points = 1;
+    }
+
+    // Classify the client.  We'll call no-distrib packets (lucent)
+    // inter-distrib clients since it's not an end-user bridge into the
+    // network, it's a lucent AP talking to another one.
+    if (info->distrib == from_distribution)
+        client->type = client_fromds;
+    else if (info->distrib == to_distribution)
+        client->type = client_tods;
+    else if (info->distrib == inter_distribution)
+        client->type = client_interds;
+    else if (info->distrib == no_distribution)
+        client->type = client_interds;
+
+    if (bssid_ip_map.find(info->source_mac) != bssid_ip_map.end()) {
+        memcpy(&net->ipdata, &bssid_ip_map[info->source_mac], sizeof(net_ip_data));
+    }
+
+    KisLocalNewclient(client, net);
+
+    return client;
 }
 
 void Packetracker::ProcessPacket(packet_info info) {
@@ -589,7 +640,6 @@ void Packetracker::ProcessPacket(packet_info info) {
             if (bssid_map.find(info.dest_mac) != bssid_map.end()) {
                 wireless_network *pnet = bssid_map[info.dest_mac];
                 if (pnet->type == network_probe) {
-
                     net->llc_packets += pnet->llc_packets;
                     net->data_packets += pnet->data_packets;
                     net->crypt_packets += pnet->crypt_packets;
@@ -602,6 +652,8 @@ void Packetracker::ProcessPacket(packet_info info) {
                              pnet->bssid.Mac2String().c_str(),
                              net->bssid.Mac2String().c_str());
                     KisLocalStatus(status);
+
+                    CreateClient(&info, net);
 
                     num_networks--;
                 }
@@ -666,57 +718,15 @@ void Packetracker::ProcessDataPacket(packet_info info, wireless_network *net) {
                      net->bssid.Mac2String().c_str());
             KisLocalStatus(status);
 
+            CreateClient(&info, net);
+
             num_networks--;
         }
     }
     
     // Find the client or make one
     if (net->client_map.find(info.source_mac) == net->client_map.end()) {
-        client = new wireless_client;
-
-        // Add it to the map
-        net->client_map[info.source_mac] = client;
-        // Add it to the vec
-        net->client_vec.push_back(client);
-
-        client->first_time = time(0);
-        client->mac = info.source_mac;
-        client->manuf_ref = MatchBestManuf(client_manuf_map, client->mac, "", 0, 0, 0,
-                                           &client->manuf_score);
-
-        client->metric = net->metric;
-
-        if (info.gps_fix >= 2) {
-            client->gps_fixed = info.gps_fix;
-            client->min_lat = client->max_lat = info.gps_lat;
-            client->min_lon = client->max_lon = info.gps_lon;
-            client->min_alt = client->max_alt = info.gps_alt;
-            client->min_spd = client->max_spd = info.gps_spd;
-
-            client->aggregate_lat = info.gps_lat;
-            client->aggregate_lon = info.gps_lon;
-            client->aggregate_alt = info.gps_alt;
-            client->aggregate_points = 1;
-        }
-
-        // Classify the client.  We'll call no-distrib packets (lucent)
-        // inter-distrib clients since it's not an end-user bridge into the
-        // network, it's a lucent AP talking to another one.
-        if (info.distrib == from_distribution)
-            client->type = client_fromds;
-        else if (info.distrib == to_distribution)
-            client->type = client_tods;
-        else if (info.distrib == inter_distribution)
-            client->type = client_interds;
-        else if (info.distrib == no_distribution)
-            client->type = client_interds;
-
-        if (bssid_ip_map.find(info.source_mac) != bssid_ip_map.end()) {
-            memcpy(&net->ipdata, &bssid_ip_map[info.source_mac], sizeof(net_ip_data));
-        }
-
-        KisLocalNewclient(client, net);
-
+        client = CreateClient(&info, net); 
     } else {
         client = net->client_map[info.source_mac];
 
