@@ -572,19 +572,22 @@ int monitor_cisco_wifix(const char *in_dev, int initch, char *in_err) {
 // Hostap uses iwpriv and iwcontrol settings to control monitor mode
 int monitor_hostap(const char *in_dev, int initch, char *in_err) {
     int ret;
-    
-    // Set the monitor mode iwpriv controls.  Explain more if we fail on monitor.
+    int monret;
+   
+    // Try to use the iwpriv command to set monitor mode.  Some versions of
+    // hostap require this, some don't, so don't fail on the monitor ioctl
+    // if we can't find it, it might get removed in the future.
     if ((ret = Iwconfig_Set_IntPriv(in_dev, "monitor", 3, 0, in_err)) < 0) {
-        if (ret == -2)
-            snprintf(in_err, 1024, "Could not find 'monitor' private ioctl.  This "
-                     "typically means that the drivers have not been patched or the "
-                     "patched drivers are being loaded.  See the troubleshooting "
-                     "section of the README for more information.");
-        return -1;
+        if (ret != -2)
+            return -1;
     }
-    
-    // The rest is standard wireless extensions
-    if (monitor_wext(in_dev, initch, in_err) < 0)
+   
+    // Try to set wext monitor mode.  We're good if one of these succeeds...
+    if ((monret = monitor_wext(in_dev, initch, in_err)) < 0 && ret < 0)
+        return -1;
+
+    // If we didn't set wext mode, set the channel manually
+    if (monret < 0 && chancontrol_wext(in_dev, initch, in_err, NULL) < 0)
         return -1;
 
     return 0;
