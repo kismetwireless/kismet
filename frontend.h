@@ -82,7 +82,7 @@ public:
 
     virtual void AddPrefs(map<string, string> in_prefs) = 0;
 
-    void AddClient(TcpClient *in_client) { client = in_client; }
+    virtual void AddClient(TcpClient *in_client) = 0;
 
     // Handle consistent tick operations
     virtual int Tick() = 0;

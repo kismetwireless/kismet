@@ -48,6 +48,7 @@ class NCurseFront : public Frontend {
 public:
     NCurseFront();
 
+    void AddClient(TcpClient *in_client) { client = in_client; }
     void AddPrefs(map<string, string> in_prefs) { return; }
 
     int ParseArgs(int argc, char *argv[]) { return 0; }
