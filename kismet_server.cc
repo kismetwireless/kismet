@@ -572,18 +572,10 @@ void NetWriteInfo() {
         return;
 
     // Send card info
-#if 0
-    // Rewrite this into packetsourcetracker to hook out a string from the meta
-    // packsources
-
     vector<KisPacketSource *> packet_sources = sourcetracker.FetchSourceVec();
     for (unsigned int src = 0; src < packet_sources.size(); src++) {
-        if (packet_sources[src]->source == NULL)
-            continue;
-
         ui_server.SendToAll(card_ref, (void *) packet_sources[src]);
     }
-#endif
 
     static time_t last_write = time(0);
     static int last_packnum = tracker.FetchNumPackets();

@@ -370,7 +370,6 @@ int PcapSource::BSD2KisPack(kis_packet *packet, uint8_t *data, uint8_t *moddata)
 }
 
 int PcapSource::FetchChannel() {
-    // We don't know anything
     return 0;
 }
 
@@ -401,6 +400,10 @@ int PcapSourceFile::OpenSource() {
 // most likely is a bad idea.
 int PcapSourceFile::FetchDescriptor() {
     return fileno(pd->sf.rfile);
+}
+
+int PcapSourceFile::FetchChannel() {
+    return 0;
 }
 
 int PcapSourceFile::FetchPacket(kis_packet *packet, uint8_t *data, uint8_t *moddata) {
@@ -452,7 +455,8 @@ carrier_type PcapSourceMadwifiG::IEEE80211Carrier() {
 // ----------------------------------------------------------------------------
 // Registrant and control functions outside of the class
 
-KisPacketSource *pcapsource_registrant(string in_name, string in_device, char *in_err) {
+KisPacketSource *pcapsource_registrant(string in_name, string in_device,
+                                       char *in_err) {
     return new PcapSource(in_name, in_device);
 }
 

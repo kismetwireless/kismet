@@ -220,12 +220,14 @@ int IEEE80211bFreq[] = {
 };
 
 int FloatChan2Int(float in_chan) {
-    float mod_chan = in_chan / 1000000;
+    int mod_chan = (int) roundf(in_chan / 1000000);
+    //float mod_chan = in_chan / 1000000;
     if (mod_chan >= 2412 && mod_chan <= 2484) {
         for (int x = 1; x < IEEE80211bFreq[0]; x++)
             if (mod_chan == IEEE80211bFreq[x])
                 return x;
     }
+
     return 0;
 }
 

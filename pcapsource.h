@@ -147,6 +147,7 @@ public:
     int OpenSource();
     int FetchPacket(kis_packet *packet, uint8_t *data, uint8_t *moddata);
     int FetchDescriptor();
+    int FetchChannel();
 };
 
 // Wireless extention pcapsource - use wext to get the channels.  Everything
@@ -160,9 +161,10 @@ public:
 
 // Override madwifi stuff for g-carrier.  A and B can be handled normally,
 // so this just gets used for 'g' and 'ag'
-class PcapSourceMadwifiG : public PcapSource {
+class PcapSourceMadwifiG : public PcapSourceWext {
 public:
-    PcapSourceMadwifiG(string in_name, string in_dev) : PcapSource(in_name, in_dev) { }
+    PcapSourceMadwifiG(string in_name, string in_dev) : 
+        PcapSourceWext(in_name, in_dev) { }
 protected:
     carrier_type IEEE80211Carrier();
 };
@@ -171,9 +173,9 @@ protected:
 
 // ----------------------------------------------------------------------------
 // Registrant and control functions
-
-KisPacketSource *pcapsource_registrant(string in_name, string in_device, 
+KisPacketSource *pcapsource_registrant(string in_name, string in_device,
                                        char *in_err);
+
 KisPacketSource *pcapsource_file_registrant(string in_name, string in_device, 
                                             char *in_err);
 

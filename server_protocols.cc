@@ -17,6 +17,7 @@
 */
 
 #include <stdio.h>
+#include "packetsource.h"
 #include "server_protocols.h"
 
 char *INFO_fields_text[] = {
@@ -845,31 +846,29 @@ int Protocol_WEPKEY(PROTO_PARMS) {
 }
 
 int Protocol_CARD(PROTO_PARMS) {
-#if 0
-    capturesource *csrc = (capturesource *) data;
+    KisPacketSource *csrc = (KisPacketSource *) data;
     char tmp[32];
 
     for (unsigned int x = 0; x < field_vec->size(); x++) {
         switch ((CARD_fields) (*field_vec)[x]) {
         case CARD_interface:
-            out_string += csrc->interface;
+            out_string += csrc->FetchInterface();
             break;
         case CARD_type:
-            snprintf(tmp, 32, "%s", card_type_str[csrc->cardtype]);
-            out_string += tmp;
+            // Fix this in the future...
+            out_string += "na";
             break;
         case CARD_username:
-            snprintf(tmp, 32, "\001%s\001", csrc->name.c_str());
+            snprintf(tmp, 32, "\001%s\001", csrc->FetchName());
             out_string += tmp;
             break;
         case CARD_channel:
-            snprintf(tmp, 32, "%d", csrc->cur_ch);
+            snprintf(tmp, 32, "%d", csrc->FetchChannel());
             out_string += tmp;
             break;
         }
 
         out_string += " ";
     }
-#endif
     return 1;
 }
