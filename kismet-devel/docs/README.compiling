@@ -26,7 +26,7 @@ Before configuration and compilation, you should get the following packages:
   --disable-wireless      disable linux kernel wireless extentions
   --disable-pcap          disable libpcap capture support
   --enable-syspcap        use system libpcap (not reccomended)
-  --disable-suid-root     disable suid-root installtion (not reccomended)
+  --disable-setuid        disable suid capabilities (not reccomended)
   --enable-zaurus         enable some extra stuff (like piezzo buzzer) for 
                           Zaurus
   --enable-local-dumper   force use of local dumper code even if ethereal is 
@@ -41,10 +41,12 @@ Before configuration and compilation, you should get the following packages:
 4. Edit kismet_ui.conf (default install path, /usr/local/etc/kismet_ui.conf)
    to set your interface preferences.
 
-It is reccomended that you install Kismet suid-root.  In general, it is 
-actually more secure to run it in this fashion, because it will drop root privs
-and run as the user you specify immediately after binding to the packet
-source, or before opening a wtapfile source.  After privs are dropped it will
-do packet dissection as a user program, which is much more secure than doing 
-it as root.
+Unless you specify --disable-setuid, Kismet will be installed as suid-root.
+Immediately after binding to the capture source, it will drop root privileges
+and run as the user specified in the config file.  This suid behavior will 
+occur when kismet is run as root or as the user specified in the config file.
+
+It is reccomended that you do NOT disable this capability, as Kismet is 
+handling potentially hostile foreign data and should not have elevated rights
+to the system.
 
