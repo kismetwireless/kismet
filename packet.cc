@@ -657,8 +657,9 @@ void GetProtoInfo(packet_info *in_info, const pkthdr *header,
         // be indicative of being a lucent outdoor router
         ret_protoinfo->type = proto_turbocell;
 
-        // if it IS a turbocell packet, see if we can dissect it any...
-        if (in_info->encrypted == 0) {
+        // if it IS a turbocell packet, see if we can dissect it any...  Make sure its long
+        // enough to have a SSID.
+        if (in_info->encrypted == 0 && header->len > (unsigned int) (in_info->header_offset + LLC_OFFSET + 7)) {
             // Get the modes from the LLC header
             uint8_t turbomode = data[in_info->header_offset + LLC_OFFSET + 6];
             switch (turbomode) {
@@ -689,8 +690,10 @@ void GetProtoInfo(packet_info *in_info, const pkthdr *header,
                 in_info->turbocell_sat = 0;
 
             // Get the SSID
-            u_char *turbossid = &data[in_info->header_offset + LLC_OFFSET + 26];
-            snprintf(in_info->ssid, SSID_SIZE, "%s", turbossid);
+            if (header->len > (unsigned int) (in_info->header_offset + LLC_OFFSET + 26)) {
+                u_char *turbossid = &data[in_info->header_offset + LLC_OFFSET + 26];
+                snprintf(in_info->ssid, SSID_SIZE, "%s", turbossid);
+            }
         }
 
     } else if (memcmp(&data[in_info->header_offset + LLC_OFFSET], NETBIOS_SIGNATURE,
