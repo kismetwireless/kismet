@@ -677,6 +677,11 @@ void CapSourceChild(capturesource *csrc) {
 int SpawnCapSourceChild(capturesource *csrc) {
     pid_t cpid;
 
+    if (csrc->source->FetchDescriptor() < 0) {
+        fprintf(stderr, "FATAL:  Capture source didn't return a valid fd, we don't handle this right now.\n");
+        return -1;
+    }
+
     if (csrc->childpid != 0)
         return 0;
 
