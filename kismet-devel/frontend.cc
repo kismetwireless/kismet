@@ -141,6 +141,12 @@ void Frontend::UpdateGroups() {
         // or if, somehow, we're a subhost
         if (dnet->type == group_host || dnet->type == group_sub) {
             dnet->virtnet = *dnet->networks[0];
+
+            dnet->virtnet.client_vec.clear();
+            for (map<mac_addr, wireless_client *>::iterator cli = dnet->virtnet.client_map.begin();
+                 cli != dnet->virtnet.client_map.end(); ++cli)
+                dnet->virtnet.client_vec.push_back(cli->second);
+
             // Update the group name if it's <no ssid> and the ssid is set
             if (dnet->name == NOSSID && dnet->virtnet.ssid != NOSSID) {
                 dnet->name = dnet->virtnet.ssid;
@@ -193,6 +199,9 @@ void Frontend::UpdateGroups() {
         dnet->virtnet.aggregate_points = 0;
 
         dnet->virtnet.bssid = dnet->networks[0]->bssid;
+
+        dnet->virtnet.client_vec.clear();
+
         unsigned int bssid_matched = MAC_LEN;
 
         for (unsigned int y = 0; y < dnet->networks.size(); y++) {
@@ -354,6 +363,11 @@ void Frontend::UpdateGroups() {
             */
 
         MatchBestManuf(&dnet->virtnet, 0);
+
+        // convert our map into a vector
+        for (map<mac_addr, wireless_client *>::iterator cli = dnet->virtnet.client_map.begin();
+             cli != dnet->virtnet.client_map.end(); ++cli)
+            dnet->virtnet.client_vec.push_back(cli->second);
 
         // Update the group name if it's <no ssid> and the ssid is set
         if (dnet->name == NOSSID && dnet->virtnet.ssid != NOSSID) {

@@ -34,6 +34,7 @@ char *KismetHelpText[] = {
     "   t   Tag (or untag) selected network",
     "   g   Group tagged networks",
     "   u   Ungroup current group",
+    "   c   Show clients in current network",
     "",
     "POPUP WINDOWS",
     "   h   Help (What you're looking at now)",
@@ -64,6 +65,7 @@ char *KismetHelpTextNarrow[] = {
     " t  Tag (or untag) selected",
     " g  Group tagged networks",
     " u  Ungroup current group",
+    " c  Show clients",
     "",
     "POPUP WINDOWS",
     "   h   Help",
@@ -409,6 +411,36 @@ PanelFront::main_columns PanelFront::Token2MainColumn(string in_token) {
 
 }
 
+PanelFront::client_columns PanelFront::Token2ClientColumn(string in_token) {
+    if (in_token == "decay") {
+        return ccol_decay;
+    } else if (in_token == "type") {
+        return ccol_type;
+    } else if (in_token == "mac") {
+        return ccol_mac;
+    } else if (in_token == "manuf") {
+        return ccol_manuf;
+    } else if (in_token == "data") {
+        return ccol_data;
+    } else if (in_token == "crypt") {
+        return ccol_crypt;
+    } else if (in_token == "weak") {
+        return ccol_weak;
+    } else if (in_token == "maxrate") {
+        return ccol_maxrate;
+    } else if (in_token == "ip") {
+        return ccol_ip;
+    } else if (in_token == "signal") {
+        return ccol_signal;
+    } else if (in_token == "quality") {
+        return ccol_quality;
+    } else if (in_token == "noise") {
+        return ccol_noise;
+    }
+
+    return ccol_unknown;
+}
+
 void PanelFront::SetMainColumns(string in_columns) {
     unsigned int begin = 0;
     unsigned int end = in_columns.find(",");
@@ -425,6 +457,24 @@ void PanelFront::SetMainColumns(string in_columns) {
 
     column_vec.push_back(Token2MainColumn(in_columns.substr(begin, in_columns.size())));
 }
+
+void PanelFront::SetClientColumns(string in_columns) {
+    unsigned int begin = 0;
+    unsigned int end = in_columns.find(",");
+
+    client_column_vec.clear();
+
+    while (end < in_columns.size()) {
+        string opt = in_columns.substr(begin, end-begin);
+        begin = end+1;
+        end = in_columns.find(",", begin);
+
+        client_column_vec.push_back(Token2ClientColumn(opt));
+    }
+
+    client_column_vec.push_back(Token2ClientColumn(in_columns.substr(begin, in_columns.size())));
+}
+
 
 int PanelFront::WriteStatus(string status) {
     stat_win->text.push_back(status);
@@ -828,6 +878,7 @@ void PanelFront::AddPrefs(map<string, string> in_prefs) {
     prefs = in_prefs;
 
     SetMainColumns(prefs["columns"]);
+    SetClientColumns(prefs["clientcolumns"]);
 //    SetColumns(prefs["clientcolumns"], &client_column_vec);
 
 #ifdef HAVE_ACPI

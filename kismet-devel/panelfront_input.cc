@@ -130,6 +130,15 @@ int PanelFront::MainInput(void *in_window, int in_chr) {
             WriteStatus("Cannot ungroup in autofit sort mode.");
         }
         break;
+    case 'c':
+    case 'C':
+        if (sortby != sort_auto && last_displayed.size() > 0) {
+            details_network = last_displayed[kwin->selected];
+            SpawnWindow("Client List", &PanelFront::MainClientPrinter, &PanelFront::MainClientInput);
+        } else {
+            WriteStatus("Cannot view clients in autofit sort mode.");
+        }
+        break;
     case 'h':
     case 'H':
         if (kwin->win->_maxx < 64)
@@ -529,5 +538,46 @@ int PanelFront::AlertInput(void *in_window, int in_chr) {
     return 1;
 }
 
+int PanelFront::MainClientInput(void *in_window, int in_chr) {
+    kis_window *kwin = (kis_window *) in_window;
+
+    switch (in_chr) {
+    case 'Q':
+    case 'q':
+        return 0;
+        break;
+    case KEY_UP:
+        if (client_sortby != client_sort_auto) {
+            if (kwin->selected == 0 && kwin->start != 0) {
+                kwin->start--;
+            } else if (kwin->selected > 0) {
+                kwin->selected--;
+            }
+        } else {
+            WriteStatus("Cannot scroll clients in autofit sort mode.");
+        }
+
+        break;
+    case KEY_DOWN:
+        if (client_sortby != client_sort_auto) {
+            if (kwin->start + kwin->selected < last_client_draw_size - 1) {
+                if ((kwin->start + kwin->selected >= kwin->end) &&
+                    (kwin->start + kwin->selected + 1 < last_client_draw_size))
+                    kwin->start++;
+                else
+                    kwin->selected++;
+            }
+
+        } else {
+            WriteStatus("Cannot scroll clients in autofit sort mode.");
+        }
+        break;
+    default:
+        return 1;
+        break;
+    }
+
+    return 1;
+}
 
 #endif

@@ -223,6 +223,115 @@ public:
     }
 };
 
+class ClientSortLastTime {
+public:
+    bool operator() (const wireless_client *x, const wireless_client *y) const {
+        if (x->last_time > y->last_time)
+            return 1;
+        return 0;
+    }
+};
+
+class ClientSortLastTimeLT {
+public:
+    bool operator() (const wireless_client *x, const wireless_client *y) const {
+        if (x->last_time < y->last_time)
+            return 1;
+        return 0;
+    }
+};
+
+
+class ClientSortFirstTime {
+public:
+    bool operator() (const wireless_client *x, const wireless_client *y) const {
+        if (x->first_time > y->first_time)
+            return 1;
+        return 0;
+    }
+};
+
+class ClientSortFirstTimeLT {
+public:
+    bool operator() (const wireless_client *x, const wireless_client *y) const {
+        if (x->first_time < y->first_time)
+            return 1;
+        return 0;
+    }
+
+};
+
+class ClientSortMAC {
+public:
+    bool operator() (const wireless_client *x, const wireless_client *y) const {
+        if (y->mac < x->mac)
+            return 1;
+        return 0;
+    }
+};
+
+class ClientSortMACLT {
+public:
+    bool operator() (const wireless_client *x, const wireless_client *y) const {
+        if (x->mac < y->mac)
+            return 1;
+        return 0;
+    }
+};
+
+class ClientSortWEP {
+public:
+    bool operator() (const wireless_client *x, const wireless_client *y) const {
+        if (x->wep > y->wep)
+            return 1;
+        return 0;
+    }
+};
+
+class ClientSortChannel {
+public:
+    bool operator() (const wireless_client *x, const wireless_client *y) const {
+        if (x->channel < y->channel)
+            return 1;
+        return 0;
+    }
+};
+
+class ClientSortPacketsLT {
+public:
+    bool operator() (const wireless_client *x, const wireless_client *y) const {
+        if (x->data_packets < y->data_packets)
+            return 1;
+        return 0;
+    }
+};
+
+class ClientSortPackets {
+public:
+    bool operator() (const wireless_client *x, const wireless_client *y) const {
+        if (x->data_packets > y->data_packets)
+            return 1;
+        return 0;
+    }
+};
+
+class ClientSortQuality {
+public:
+    bool operator() (const wireless_client *x, const wireless_client *y) const {
+        if (x->quality > y->quality)
+            return 1;
+        return 0;
+    }
+};
+
+class ClientSortSignal {
+public:
+    bool operator() (const wireless_client *x, const wireless_client *y) const {
+        if (x->signal > y->signal)
+            return 1;
+        return 0;
+    }
+};
 
 #endif
 

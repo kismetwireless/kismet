@@ -102,6 +102,7 @@ int Usage(char *argv) {
            "  -s, --server <host:port>     Connect to Kismet host and port\n"
            "  -g, --gui <type>             GUI type to create (curses, panel)\n"
            "  -c, --columns <list>         Columns to display initially (comma seperated)\n"
+           "  -C, --client-columns <list>  Columns to display for client info\n"
            "  -v, --version                Kismet version\n"
            "  -h, --help                   What do you think you're reading?\n");
     exit(1);
@@ -343,6 +344,7 @@ int main(int argc, char *argv[]) {
     const char *festival = NULL;
 
     const char *columns = NULL;
+    const char *clientcolumns = NULL;
 
     map<string, string> wav_map;
 
@@ -362,6 +364,7 @@ int main(int argc, char *argv[]) {
         { "help", no_argument, 0, 'h' },
         { "version", no_argument, 0, 'v' },
         { "columns", required_argument, 0, 'c' },
+        { "client-columns", required_argument, 0, 'C'},
         { 0, 0, 0, 0 }
     };
     int option_index;
@@ -403,6 +406,9 @@ int main(int argc, char *argv[]) {
             break;
         case 'c':
             columns = optarg;
+            break;
+        case 'C':
+            clientcolumns = optarg;
             break;
         default:
             Usage(argv[0]);
@@ -491,6 +497,15 @@ int main(int argc, char *argv[]) {
         }
 
         columns = gui_conf.FetchOpt("columns").c_str();
+    }
+
+    if (clientcolumns == NULL) {
+        if (gui_conf.FetchOpt("clientcolumns") == "") {
+            fprintf(stderr, "FATAL: No client columns in the config file and none given on the command line.\n");
+            exit(1);
+        }
+
+        clientcolumns = gui_conf.FetchOpt("clientcolumns").c_str();
     }
 
     if (server == NULL) {
@@ -652,6 +667,7 @@ int main(int argc, char *argv[]) {
     map<string, string> prefs;
 
     prefs["columns"] = columns;
+    prefs["clientcolumns"] = clientcolumns;
 
     if (gui_conf.FetchOpt("apm") == "true")
         prefs["apm"] = "true";

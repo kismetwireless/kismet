@@ -73,7 +73,7 @@ enum client_type {
     client_unknown,
     client_fromds,
     client_tods,
-    client_interfs,
+    client_interds,
     client_established
 };
 
@@ -87,6 +87,9 @@ typedef struct wireless_client {
 
         manuf_id = 0;
         manuf_score = 0;
+
+        channel = 0;
+        wep = 0;
 
         data_packets = crypt_packets = interesting_packets = 0;
 
@@ -114,6 +117,9 @@ typedef struct wireless_client {
 
     // MAC of client
     mac_addr mac;
+
+    int channel;
+    int wep;
 
     // Manufacturer ID
     int manuf_id;
@@ -260,6 +266,7 @@ typedef struct wireless_network {
     float best_lat, best_lon, best_alt;
 
     map<mac_addr, wireless_client *> client_map;
+    vector<wireless_client *> client_vec;
 
     // State tracking stuff
     // Bitmap of alerts we've raised
