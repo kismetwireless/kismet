@@ -48,7 +48,10 @@ const uint8_t NETSTUMBLER_323_SIGNATURE[] = {0x41, 0x6C, 0x6C};
 // "Flu" again is all we need to match at this offset.
 // This catches "Flurble gronk bloopit, bnip Frundletrune"
 const uint8_t NETSTUMBLER_322_SIGNATURE[] = {0x46, 0x6C, 0x75};
-const uint8_t NETSTUMBER_OFFSET = 12;
+// "   " is the beginning of the .30
+// "          Intentionally blank"
+const uint8_t NETSTUMBLER_330_SIGNATURE[] = {0x20, 0x20, 0x20};
+const uint8_t NETSTUMBLER_OFFSET = 12;
 
 const uint8_t CISCO_SIGNATURE[] = {0x00, 0x00, 0x0C, 0x20, 0x00};
 
