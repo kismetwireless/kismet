@@ -234,11 +234,14 @@ Licensed under the GPL
     5.  Customize colors.  Most components of the Kismet panels UI can be 
         colorized.
 
+    The annoying popup window that opens every time you start the client can
+    be disabled by setting 'showintro' to 'false' in your kismet_ui.conf.
+
     More advanced server configuration:
 
     * IDS alert rates can be controlled via the 'alert' directive, which 
       specifies the alert type, rate per timeframe (ie, 5/min), and the burst
-      limits.
+      limits.  These controls are similar to the iptables limit controls.
 
     * Networks with known WEP keys can be decrypted realtime with the 
       'wepkey' directive, which specifies a BSSID (or bssid mask) and the
@@ -270,6 +273,12 @@ Licensed under the GPL
     * Log tuning.  The types of packets that make it into the logfiles can be
       controlled via the 'noiselog', 'beaconlog', 'phylog, 'mangledatalog',
       and other options.
+
+    * Probe tracking.  By default, Kismet tracks probe requests and responses,
+      and attempts to join a probe request network with the network that 
+      responds to it.  Sometimes this isn't the desired behavior, by setting
+      'trackprobenets' to 'false', probe request networks will always remain
+      separate.
 
 9.  Ncurses/Panels Interface
 
