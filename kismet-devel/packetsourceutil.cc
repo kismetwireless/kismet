@@ -249,6 +249,7 @@ int BindRootSources(vector<capturesource *> *in_capsources, map<string, int> *in
             }
 
             csrc->source->AddTimetracker(in_tracker);
+            csrc->timetracker = in_tracker;
             csrc->source->AddGpstracker(in_gpsd);
             csrc->gps = in_gpsd;
             csrc->gps_enable = 0;
@@ -322,6 +323,7 @@ int BindUserSources(vector<capturesource *> *in_capsources, map<string, int> *in
                 }
 
                 csrc->source->AddTimetracker(in_tracker);
+                csrc->timetracker = in_tracker;
                 csrc->source->AddGpstracker(in_gpsd);
                 csrc->gps = in_gpsd;
                 csrc->gps_enable = 0;
@@ -548,7 +550,6 @@ void CapSourceChild(capturesource *csrc) {
     int diseased = 0;
     int write_dataframe_only = 0;
     pid_t mypid = getpid();
-    Timetracker timetracker;
 
     // Assign globals for signal handler
     capchild_global_pid = mypid;
@@ -619,7 +620,7 @@ void CapSourceChild(capturesource *csrc) {
             exit(1);
         }
 
-        timetracker.Tick();
+        csrc->timetracker->Tick();
 
         // Write out a packet
         if (FD_ISSET(csrc->childpair[0], &wset) && packet_buf.size() > 0) {
@@ -763,7 +764,7 @@ void CapSourceChild(capturesource *csrc) {
                     csrc->gps_enable = 0;
                 } else {
                     csrc->gps_enable = 1;
-                    timetracker.RegisterTimer(SERVER_TIMESLICES_SEC, NULL, 1, &ChildGpsEvent, (void *) csrc);
+                    csrc->timetracker->RegisterTimer(SERVER_TIMESLICES_SEC, NULL, 1, &ChildGpsEvent, (void *) csrc);
                 }
 #endif
             } else if (cmd > 0) {

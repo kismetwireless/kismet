@@ -65,6 +65,7 @@ typedef struct capturesource {
     list<capchild_packhdr *> cmd_buf;
     GPSD *gps;
     int gps_enable;
+    Timetracker *timetracker;
 };
 
 map<string, int> ParseEnableLine(string in_named);
