@@ -2,6 +2,7 @@ Jun 03 2003  2.9.1  Stubbed FetchChannel
                     Fixed include in PanelFront for OSX
                     Added CXX and LD flags for Viha
                     Added detection of system-level nongnu getopt
+                    Removed CXX flags for viha, only need ld
 Jun 01 2003  2.9.1  Increased delay between kismet_server and kismet_client in
                      the main script
 May 31 2003  2.9.1  Integrated channel hopper with kismet_server

@@ -6078,7 +6078,6 @@ done
 
 # Enable the ldflags and cxx flags if we found it...
 	if test $foundviha = "yes"; then
-		CXXFLAGS="$CXXFLAGS -framework WiFi"
 		LDFLAGS="$LDFLAGS -framework WiFi"
 	fi
 fi
