@@ -8,6 +8,9 @@ Dec 09 2003  3.1.0  Fixed prism54g override of channel change failure in
                      controls for orinoco to keep Socket CF cards from getting
                      unhappy.  (Thanks, TZ)
                     Initial merge of Pedro's OpenBSD patches
+                    Modified gpsmap power interpolation to get signal levels
+                     from network sample points instead of tracklog.  This
+                     also enables filtering of interpolation graphs.
 Dec 08 2003  3.1.0  Fixed util.h to include math.h outside of the wext
                      ifdef.
                     Removed mentions of signal quality from the panels client.
