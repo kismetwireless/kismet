@@ -377,7 +377,7 @@ void DrawNetBoundRects(vector<gps_network *> in_nets, Image *in_img, DrawInfo *i
 void DrawLegend(vector<gps_network *> in_nets, Image *in_img, DrawInfo *in_di);
 void DrawNetCenterDot(vector<gps_network *> in_nets, Image *in_img, DrawInfo *in_di);
 int InverseWeight(int in_x, int in_y, int in_fuzz, double in_scale);
-void DrawNetPower(Image *in_img, DrawInfo *in_di);
+void DrawNetPower(vector<gps_network *> in_nets, Image *in_img, DrawInfo *in_di);
 void DrawNetHull(vector<gps_network *> in_nets, Image *in_img, DrawInfo *in_di);
 void DrawNetScatterPlot(vector<gps_network *> in_nets, Image *in_img, DrawInfo *in_di);
 
@@ -864,11 +864,6 @@ int ProcessGPSFile(char *in_fname) {
                     file_points[i]->lat, file_points[i]->lon, file_points[i]->id);
             continue;
         }
-
-        if (file_points[i]->lat == 0) {
-            printf("We let a lat 0.000 get by in %s\n", in_fname);
-        }
-
 
         // All we have to do here is push the points into the network (and make them
         // one if it doesn't exist).  We crunch all the data points in ProcessNetData
@@ -1891,7 +1886,8 @@ void *PowerLine(void *arg) {
 #endif
 }
 
-void DrawNetPower(Image *in_img, DrawInfo *in_di) { /*FOLD00*/
+void DrawNetPower(vector<gps_network *> in_nets, Image *in_img, 
+                  DrawInfo *in_di) {
 //    PixelPacket point_clr;
 #ifdef HAVE_PTHREAD
     pthread_attr_t attr;
@@ -1905,6 +1901,36 @@ void DrawNetPower(Image *in_img, DrawInfo *in_di) { /*FOLD00*/
     power_input_map = new int [map_width * map_height];
     memset(power_input_map, -1, sizeof(int) * (map_width * map_height));
 
+    for (unsigned int x = 0; x < in_nets.size(); x++) {
+        gps_network *map_iter = in_nets[x];
+
+        for (unsigned int y = 0; y < map_iter->points.size(); y++) {
+            // unsigned int curx = track_vec[vec][i].x, cury = track_vec[vec][i].y;
+            double dcurx, dcury;
+
+            calcxy(&dcurx, &dcury, map_iter->points[y]->lat, map_iter->points[y]->lon,
+                   (double) map_scale/PIXELFACT, map_avg_lat, map_avg_lon);
+
+            unsigned int curx = (unsigned int) dcurx, cury = (unsigned int) dcury;
+
+            if (curx >= map_width || cury >= map_height || curx < 0 || cury < 0)
+                continue;
+
+            /*
+            printf("comparing map %d,%d val %d to %d\n", curx, cury,
+                   power_input_map[(map_width * cury) + curx], 
+                   map_iter->points[y]->signal);
+                   */
+
+            if (power_input_map[(map_width * cury) + curx] < 
+                map_iter->points[y]->signal && map_iter->points[y]->signal != 0) {
+                power_input_map[(map_width * cury) + curx] = map_iter->points[y]->signal;
+            }
+        }
+
+    }
+
+#if 0
     // Convert the power data in the tracks into a 2d map
     fprintf(stderr, "Converting track power data to coordinate mesh...\n");
     for (unsigned int vec = 0; vec < track_vec.size(); vec++) {
@@ -1930,6 +1956,7 @@ void DrawNetPower(Image *in_img, DrawInfo *in_di) { /*FOLD00*/
 
         }
     }
+#endif
 
     fprintf(stderr, "Interpolating power into graph points.\n");
 
@@ -3082,7 +3109,7 @@ int main(int argc, char *argv[]) {
                         "processed have power data.  Not doing interpolated graphing.\n");
             } else if (draw_power) {
                 fprintf(stderr, "Drawing network power interpolations...\n");
-                DrawNetPower(img, di);
+                DrawNetPower(gpsnetvec, img, di);
             }
             break;
         case 't':
