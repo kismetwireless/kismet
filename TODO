@@ -32,6 +32,7 @@ X move source parsing into packetsourcetracker
 X move internal registration into packetsourcetracker
   requeue fatal messages on exit
   terminate should flush ring buffers and sockets
+X move tcpserver configuration stuff into the tcpserver class
 
   Packet chain framework
   ieee802.11 dissect as packet chain module
@@ -46,3 +47,5 @@ X move internal registration into packetsourcetracker
   p0f plugin
   kismet -v should list optional component status
   detect windowsprobe networks
+
+  log plugins register logtype via string reference

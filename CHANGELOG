@@ -1,5 +1,7 @@
 Sep 14 2004  devel  Forked to new temporary branch, major updates, see SVN
                      changes
+                    Moved config file parsing into alertracker and tcpserver
+                    Moved more error messages to messagebus
 Sep 08 2004  devel  Fixed earthdistance math w/ info from ESR for network 
                      distance guessing during live capture
 Sep 01 2004  devel  Split up packet.h into endian and macaddr files in prep

@@ -19,6 +19,7 @@
 #include "config.h"
 
 #include "alertracker.h"
+#include "configfile.h"
 #include "kismet_server.h"
 
 char *ALERT_fields_text[] = {
@@ -83,6 +84,18 @@ Alertracker::Alertracker(GlobalRegistry *in_globalreg) {
     globalreg = in_globalreg;
     next_alert_id = 0;
 
+    if (globalreg->kismet_config->FetchOpt("alertbacklog") != "") {
+        int scantmp;
+        if (sscanf(globalreg->kismet_config->FetchOpt("alertbacklog").c_str(), 
+                   "%d", &scantmp) != 1 || scantmp < 0) {
+            globalreg->messagebus->InjectMessage("Illegal value for 'alertbacklog' in config file",
+                                                      MSGFLAG_FATAL);
+            globalreg->fatal_condition = 1;
+            return;
+        }
+        num_backlog = scantmp;
+    }
+    
     // Autoreg the alert protocol
     globalreg->alr_prot_ref = 
         globalreg->kisnetserver->RegisterProtocol("ALERT", 0, ALERT_fields_text, 
@@ -221,7 +234,7 @@ int Alertracker::RaiseAlert(int in_ref,
         arec->alert_log.push_back(ts);
 
     alert_backlog.push_back(adata);
-    if ((int) alert_backlog.size() > globalreg->alert_backlog) {
+    if ((int) alert_backlog.size() > num_backlog) {
         delete alert_backlog[0];
         alert_backlog.erase(alert_backlog.begin());
     }

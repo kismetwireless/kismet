@@ -172,10 +172,6 @@ char gpshost[1024];
 int gpsport = -1;
 #endif
 
-string allowed_hosts;
-int tcpport = -1;
-int tcpmax;
-
 //const char *sndplay = NULL;
 string sndplay;
 
@@ -193,7 +189,6 @@ int mangle_log = 0;
 FILE *manuf_data;
 char *client_manuf_name = NULL, *ap_manuf_name = NULL;
 
-vector<TcpServer::client_ipfilter *> legal_ipblock_vec;
 int datainterval = 0;
 
 string logtemplate;
@@ -908,6 +903,8 @@ int ProcessFilterConf(ConfigFile *conf) {
 // Moved here to make compiling this file take less memory.  Can be broken down more
 // in the future.
 int ProcessBulkConf(ConfigFile *conf) {
+    char errstr[STATUS_MAX];
+
     // Convert the WEP mappings to our real map
     vector<string> raw_wepmap_vec;
     raw_wepmap_vec = conf->FetchOptVec("wepkey");
@@ -916,14 +913,16 @@ int ProcessBulkConf(ConfigFile *conf) {
 
         size_t rwsplit = wepline.find(",");
         if (rwsplit == string::npos) {
-            fprintf(stderr, "FATAL:  Malformed 'wepkey' option in the config file.\n");
+            globalregistry->messagebus->InjectMessage("Malformed 'wepkey' option in the config file",
+                                                      MSGFLAG_FATAL);
             ErrorShutdown();
         }
 
         mac_addr bssid_mac = wepline.substr(0, rwsplit).c_str();
 
         if (bssid_mac.error == 1) {
-            fprintf(stderr, "FATAL:  Malformed 'wepkey' option in the config file.\n");
+            globalregistry->messagebus->InjectMessage("Malformed 'wepkey' option in the config file",
+                                                      MSGFLAG_FATAL);
             ErrorShutdown();
         }
 
@@ -933,9 +932,9 @@ int ProcessBulkConf(ConfigFile *conf) {
         int len = Hex2UChar((unsigned char *) rawkey.c_str(), key);
 
         if (len != 5 && len != 13 && len != 16) {
-            fprintf(stderr, "FATAL:  Invalid key '%s' length %d in a wepkey option "
-                    "in the config file.\n",
-                    rawkey.c_str(), len);
+            snprintf(errstr, STATUS_MAX, "Invalid key '%s' length %d in a wepkey option "
+                    "in the config file.\n", rawkey.c_str(), len);
+            globalregistry->messagebus->InjectMessage(errstr, MSGFLAG_FATAL);
             ErrorShutdown();
         }
 
@@ -949,11 +948,12 @@ int ProcessBulkConf(ConfigFile *conf) {
 
         globalregistry->bssid_wep_map.insert(bssid_mac, keyinfo);
 
-        fprintf(stderr, "Using key %s length %d for BSSID %s\n",
+        snprintf(errstr, STATUS_MAX, "Using key %s length %d for BSSID %s\n",
                 rawkey.c_str(), len, bssid_mac.Mac2String().c_str());
+        globalregistry->messagebus->InjectMessage(errstr, MSGFLAG_INFO);
     }
     if (conf->FetchOpt("allowkeytransmit") == "true") {
-        fprintf(stderr, "Allowing clients to fetch WEP keys.\n");
+        globalregistry->messagebus->InjectMessage("Allowing clients to fetch WEP keys", MSGFLAG_INFO);
         globalregistry->client_wepkey_allowed = 1;
     }
 
@@ -968,7 +968,8 @@ int ProcessBulkConf(ConfigFile *conf) {
     if (conf->FetchOpt("configdir") != "") {
         configdir = conf->ExpandLogPath(conf->FetchOpt("configdir"), "", "", 0, 1);
     } else {
-        fprintf(stderr, "FATAL:  No 'configdir' option in the config file.\n");
+        globalregistry->messagebus->InjectMessage("No 'configdir' option in the config file",
+                                                  MSGFLAG_FATAL);
         ErrorShutdown();
     }
 
@@ -988,8 +989,9 @@ int ProcessBulkConf(ConfigFile *conf) {
 #ifdef HAVE_GPS
     if (conf->FetchOpt("waypoints") == "true") {
         if(conf->FetchOpt("waypointdata") == "") {
-            fprintf(stderr, "WARNING:  Waypoint logging requested but no waypoint data file given.\n"
-                    "Waypoint logging will be disabled.\n");
+            globalregistry->messagebus->InjectMessage("Waypoint logging requeted but no waypoint data file "
+                                                      "given.  Waypoint logging will be disabled.",
+                                                      MSGFLAG_ERROR);
             waypoint = 0;
         } else {
             waypointfile = conf->ExpandLogPath(conf->FetchOpt("waypointdata"), "", "", 0, 1);
@@ -1000,7 +1002,7 @@ int ProcessBulkConf(ConfigFile *conf) {
 #endif
 
     if (conf->FetchOpt("metric") == "true") {
-        fprintf(stderr, "Using metric measurements.\n");
+        globalregistry->messagebus->InjectMessage("Using metric units for distance", MSGFLAG_INFO);
         globalregistry->metric = 1;
     }
 
@@ -1012,7 +1014,9 @@ int ProcessBulkConf(ConfigFile *conf) {
     if (!no_log) {
         if (logname == "") {
             if (conf->FetchOpt("logdefault") == "") {
-                fprintf(stderr, "FATAL:  No default log name in config and no log name provided on the command line.\n");
+                globalregistry->messagebus->InjectMessage("No default log name in config and no "
+                                                          "log name provided on the command line",
+                                                          MSGFLAG_FATAL);
                 ErrorShutdown();
             }
             logname = strdup(conf->FetchOpt("logdefault").c_str());
@@ -1020,7 +1024,8 @@ int ProcessBulkConf(ConfigFile *conf) {
 
         if (logtypes == NULL) {
             if (conf->FetchOpt("logtypes") == "") {
-                fprintf(stderr, "FATAL:  No log types in config and none provided on the command line.\n");
+                globalregistry->messagebus->InjectMessage("No log types in config and none provided on the command line",
+                                                          MSGFLAG_FATAL);
                 ErrorShutdown();
             }
             logtypes = strdup(conf->FetchOpt("logtypes").c_str());
@@ -1036,24 +1041,29 @@ int ProcessBulkConf(ConfigFile *conf) {
             data_log = 1;
 
             if (conf->FetchOpt("logtemplate") == "") {
-                fprintf(stderr, "FATAL:  Logging (network dump) enabled but no logtemplate given in config.\n");
+                globalregistry->messagebus->InjectMessage("Logging (network dump) enabled but no logtemplate in config",
+                                                          MSGFLAG_FATAL);
                 ErrorShutdown();
             }
 
             if (conf->FetchOpt("dumplimit") != "" || limit_logs != 0) {
                 if (limit_logs == 0)
                     if (sscanf(conf->FetchOpt("dumplimit").c_str(), "%d", &limit_logs) != 1) {
-                        fprintf(stderr, "FATAL:  Illegal config file value for dumplimit.\n");
+                        globalregistry->messagebus->InjectMessage("Illegal config file value for dumplimit",
+                                                                  MSGFLAG_FATAL);
                         ErrorShutdown();
                     }
 
-                if (limit_logs != 0)
-                    fprintf(stderr, "Limiting dumpfile to %d packets each.\n",
+                if (limit_logs != 0) {
+                    snprintf(errstr, STATUS_MAX, "Limiting dumpfile to %d packets each.\n",
                             limit_logs);
+                    globalregistry->messagebus->InjectMessage(errstr, MSGFLAG_INFO);
+                }
             }
 
             if (conf->FetchOpt("dumptype") == "" && dumptype == NULL) {
-                fprintf(stderr, "FATAL: Dump file logging requested but no dump type given.\n");
+                globalregistry->messagebus->InjectMessage("Dump file logging requested but no dump type given",
+                                                          MSGFLAG_FATAL);
                 ErrorShutdown();
             }
 
@@ -1063,7 +1073,8 @@ int ProcessBulkConf(ConfigFile *conf) {
             if (!strcasecmp(dumptype, "wiretap")) {
                 dumpfile = new WtapDumpFile;
             } else {
-                fprintf(stderr, "FATAL:  Unknown dump file type '%s'\n", dumptype);
+                snprintf(errstr, STATUS_MAX, "Unknown dump file type '%s'\n", dumptype);
+                globalregistry->messagebus->InjectMessage(errstr, MSGFLAG_FATAL);
                 ErrorShutdown();
             }
         }
@@ -1072,7 +1083,8 @@ int ProcessBulkConf(ConfigFile *conf) {
             net_log = 1;
 
             if (conf->FetchOpt("logtemplate") == "") {
-                fprintf(stderr, "FATAL:  Logging (network list) enabled but no logtemplate given in config.\n");
+                globalregistry->messagebus->InjectMessage("Logging (network list) enabled but no template "
+                                                          "given in config file", MSGFLAG_FATAL);
                 ErrorShutdown();
             }
 
@@ -1082,7 +1094,8 @@ int ProcessBulkConf(ConfigFile *conf) {
             crypt_log = 1;
 
             if (conf->FetchOpt("logtemplate") == "") {
-                fprintf(stderr, "FATAL:  Logging (weak packets) enabled but no logtemplate given in config.\n");
+                globalregistry->messagebus->InjectMessage("Logging (weak packets) enabled but no template "
+                                                          "given in config file", MSGFLAG_FATAL);
                 ErrorShutdown();
             }
 
@@ -1092,7 +1105,8 @@ int ProcessBulkConf(ConfigFile *conf) {
             csv_log = 1;
 
             if (conf->FetchOpt("logtemplate") == "") {
-                fprintf(stderr, "FATAL:  CSV Logging (network list) enabled but no logtemplate given in config.\n");
+                globalregistry->messagebus->InjectMessage("Logging (CSV network list) enabled but no template "
+                                                          "given in config file", MSGFLAG_FATAL);
                 ErrorShutdown();
             }
 
@@ -1102,7 +1116,8 @@ int ProcessBulkConf(ConfigFile *conf) {
             xml_log = 1;
 
             if (conf->FetchOpt("logtemplate") == "") {
-                fprintf(stderr, "FATAL:  XML Logging (network list) enabled but no logtemplate given in config.\n");
+                globalregistry->messagebus->InjectMessage("Logging (XML network list) enabled but no template "
+                                                          "given in config file", MSGFLAG_FATAL);
                 ErrorShutdown();
             }
         }
@@ -1111,7 +1126,8 @@ int ProcessBulkConf(ConfigFile *conf) {
             cisco_log = 1;
 
             if (conf->FetchOpt("logtemplate") == "") {
-                fprintf(stderr, "FATAL: Logging (cisco packets) enabled but no logtemplate given in config.\n");
+                globalregistry->messagebus->InjectMessage("Logging (cisco information) enabled but no template "
+                                                          "given in config file", MSGFLAG_FATAL);
                 ErrorShutdown();
             }
 
@@ -1119,140 +1135,38 @@ int ProcessBulkConf(ConfigFile *conf) {
 
         if (strstr(logtypes, "gps")) {
 #ifdef HAVE_GPS
-            if (gps_log == 0) {
-                fprintf(stderr, "WARNING:  Disabling GPS logging.\n");
-            } else {
+            if (gps_log != 0) {
                 gps_log = 1;
 
                 if (conf->FetchOpt("logtemplate") == "") {
-                    fprintf(stderr, "FATAL:  Logging (gps coordinates) enabled but no logtemplate given in config.\n");
+                    globalregistry->messagebus->InjectMessage("Logging (GPS) enabled but no template "
+                                                              "given in config file", MSGFLAG_FATAL);
                     ErrorShutdown();
                 }
             }
 #else
 
-            fprintf(stderr, "WARNING:  GPS logging requested but GPS support was not included.\n"
-                    "          GPS logging will be disabled.\n");
+            globalregistry->messagebus->InjectMessage("GPS logging but Kismet was compiled without "
+                                                      "GPS support.  GPS logging will be disabled",
+                                                      MSGFLAG_ERROR);
             gps_log = 0;
 #endif
 
         }
 
         if (gps_log == 1 && !net_log) {
-            fprintf(stderr, "WARNING:  Logging (gps coordinates) enabled but XML logging (networks) was not.\n"
-                    "It will be enabled now.\n");
+            globalregistry->messagebus->InjectMessage("Logging (GPS data) was enabled but XML logging was not. "
+                                                      "XML logging is needed by gpsmap to correctly plot networks "
+                                                      "and will be enabled now.", MSGFLAG_ERROR);
             xml_log = 1;
         }
     }
 
     if (conf->FetchOpt("decay") != "") {
         if (sscanf(conf->FetchOpt("decay").c_str(), "%d", &decay) != 1) {
-            fprintf(stderr, "FATAL:  Illegal config file value for decay.\n");
+            globalregistry->messagebus->InjectMessage("Illegal value for 'decay' in config file", MSGFLAG_FATAL);
             ErrorShutdown();
         }
-    }
-
-    if (conf->FetchOpt("alertbacklog") != "") {
-        int scantmp;
-        if (sscanf(conf->FetchOpt("alertbacklog").c_str(), "%d", &scantmp) != 1 ||
-            scantmp < 0) {
-            fprintf(stderr, "FATAL:  Illegal config file value for alert backlog.\n");
-            ErrorShutdown();
-        }
-        globalregistry->alert_backlog = scantmp;
-    }
-
-    if (tcpport == -1) {
-        if (conf->FetchOpt("tcpport") == "") {
-            fprintf(stderr, "FATAL:  No tcp port given to listen for GUI connections.\n");
-            exit(1);
-        } else if (sscanf(conf->FetchOpt("tcpport").c_str(), "%d", &tcpport) != 1) {
-            fprintf(stderr, "FATAL:  Invalid config file value for tcp port.\n");
-            ErrorShutdown();
-        }
-    }
-
-    if (conf->FetchOpt("maxclients") == "") {
-        fprintf(stderr, "FATAL:  No maximum number of clients given.\n");
-        ErrorShutdown();
-    } else if (sscanf(conf->FetchOpt("maxclients").c_str(), "%d", &tcpmax) != 1) {
-        fprintf(stderr, "FATAL:  Invalid config file option for max clients.\n");
-        ErrorShutdown();
-    }
-
-    if (allowed_hosts.length() == 0) {
-        if (conf->FetchOpt("allowedhosts") == "") {
-            fprintf(stderr, "FATAL:  No list of allowed hosts.\n");
-            ErrorShutdown();
-        }
-
-        allowed_hosts = conf->FetchOpt("allowedhosts");
-    }
-
-    vector<string> hostsvec = StrTokenize(allowed_hosts, ",");
-
-    for (size_t hostcomp = 0; hostcomp < hostsvec.size(); hostcomp++) {
-        TcpServer::client_ipfilter *ipb = new TcpServer::client_ipfilter;
-        string hoststr = hostsvec[hostcomp];
-
-        // Find the netmask divider, if one exists
-        size_t masksplit = hoststr.find("/");
-        if (masksplit == string::npos) {
-            // Handle hosts with no netmask - they're treated as single hosts
-            inet_aton("255.255.255.255", &(ipb->mask));
-
-            if (inet_aton(hoststr.c_str(), &(ipb->network)) == 0) {
-                fprintf(stderr, "FATAL:  Illegal IP address '%s' in allowed hosts list.\n",
-                        hoststr.c_str());
-                ErrorShutdown();
-            }
-        } else {
-            // Handle pairs
-            string hosthalf = hoststr.substr(0, masksplit);
-            string maskhalf = hoststr.substr(masksplit + 1, hoststr.length() - (masksplit + 1));
-
-            if (inet_aton(hosthalf.c_str(), &(ipb->network)) == 0) {
-                fprintf(stderr, "FATAL:  Illegal IP address '%s' in allowed hosts list.\n",
-                        hosthalf.c_str());
-                ErrorShutdown();
-            }
-
-            int validmask = 1;
-            if (maskhalf.find(".") == string::npos) {
-                // If we have a single number (ie, /24) calculate it and put it into
-                // the mask.
-                long masklong = strtol(maskhalf.c_str(), (char **) NULL, 10);
-
-                if (masklong < 0 || masklong > 32) {
-                    validmask = 0;
-                } else {
-                    if (masklong == 0)
-                        masklong = 32;
-
-                    ipb->mask.s_addr = htonl((-1 << (32 - masklong)));
-                }
-            } else {
-                // We have a dotted quad mask (ie, 255.255.255.0), convert it
-                if (inet_aton(maskhalf.c_str(), &(ipb->mask)) == 0)
-                    validmask = 0;
-            }
-
-            if (validmask == 0) {
-                fprintf(stderr, "FATAL:  Illegal netmask '%s' in allowed hosts list.\n",
-                        maskhalf.c_str());
-                ErrorShutdown();
-            }
-        }
-
-        // Catch 'network' addresses that aren't network addresses.
-        if ((ipb->network.s_addr & ipb->mask.s_addr) != ipb->network.s_addr) {
-            fprintf(stderr, "FATAL:  Invalid network '%s' in allowed hosts list.\n",
-                    inet_ntoa(ipb->network));
-            ErrorShutdown();
-        }
-
-        // Add it to our vector
-        legal_ipblock_vec.push_back(ipb);
     }
 
     // Process sound stuff
@@ -1804,14 +1718,14 @@ int main(int argc,char *argv[]) {
             break;
         case 'p':
             // Port
-            if (sscanf(optarg, "%d", &tcpport) != 1) {
+            if (sscanf(optarg, "%d", &globalregistry->kistcpport) != 1) {
                 fprintf(stderr, "Invalid port number.\n");
                 Usage(argv[0]);
             }
             break;
         case 'a':
             // Allowed
-            allowed_hosts = string(optarg);
+            globalregistry->kisallowedhosts = string(optarg);
             break;
         case 'N':
             // Servername
@@ -2195,21 +2109,8 @@ int main(int argc,char *argv[]) {
     }
 #endif
 
-    fprintf(stderr, "Listening on port %d.\n", tcpport);
-    for (unsigned int ipvi = 0; ipvi < legal_ipblock_vec.size(); ipvi++) {
-        char *netaddr = strdup(inet_ntoa(legal_ipblock_vec[ipvi]->network));
-        char *maskaddr = strdup(inet_ntoa(legal_ipblock_vec[ipvi]->mask));
-
-        fprintf(stderr, "Allowing connections from %s/%s\n", netaddr, maskaddr);
-
-        free(netaddr);
-        free(maskaddr);
-    }
-
-    // Enabling filtering and bring the server cores active
-    kistcpserver->SetIPFilter(legal_ipblock_vec);
-    
-    if (kistcpserver->Setup(tcpmax, tcpport) < 0 || globalregistry->fatal_condition) {
+    // Set up the 
+    if (kistcpserver->EnableServer() < 0 || globalregistry->fatal_condition) {
         CatchShutdown(-1);
     }
 

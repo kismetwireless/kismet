@@ -63,11 +63,8 @@ public:
     virtual ~TcpServer();
 
     // Set up the TCP socket and listening
-    virtual int Setup(unsigned int in_max_clients, short int in_port);
+    virtual int EnableServer();
 
-    // Add IP filter settings
-    virtual int SetIPFilter(vector<client_ipfilter *> in_filter);
-    
     // Core select loop merge - combine FDs with the master FD list, and
     // handle a strobe across pending FDs
     virtual unsigned int MergeSet(fd_set in_rset, fd_set in_wset, 

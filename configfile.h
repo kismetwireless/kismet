@@ -32,6 +32,7 @@
 #include <map>
 #include <vector>
 
+#include "globalregistry.h"
 #include "macaddr.h"
 #include "alertracker.h"
 

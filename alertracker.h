@@ -110,6 +110,8 @@ protected:
 
     vector<ALERT_data *> alert_backlog;
 
+    int num_backlog;
+
 };
 
 #endif

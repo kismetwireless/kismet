@@ -67,6 +67,12 @@ public:
     vector<string> src_initchannel_vec;
     int source_from_cmd;
 
+    // TCP server stuff that needs to be global so that cmdline args can
+    // override it cleanly
+    int kistcpport;
+    int kistcpmaxcli;
+    string kisallowedhosts;
+    
     unsigned int silent;
     unsigned int metric;
     unsigned int track_probenets;
@@ -124,6 +130,9 @@ public:
 
         start_time = time(0);
         timestamp = start_time;
+
+        kistcpmaxcli = 0;
+        kistcpport = -1;
 
         channel_hop = -1;
         channel_split = 0;
