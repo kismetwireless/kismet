@@ -1206,7 +1206,7 @@ int main(int argc,char *argv[]) {
         // For any unopened soruces...
         if (csrc->source == NULL) {
             if (!strcasecmp(captype, "wtapfile")) {
-#ifdef HAVE_WTAPFILE
+#ifdef HAVE_LIBWIRETAP
                 fprintf(stderr, "Source %d: Loading packets from dump file %s\n",
                        src, csrc->interface.c_str());
 
