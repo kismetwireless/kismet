@@ -1,4 +1,7 @@
 Mar 07 2004  devel  Fixed another bsd compile error
+                    Revamped error reporting to print errors to console even
+                     when silent if there are no clients.  Should force showing
+                     fast-startup errors that got hidden before.
 Mar 04 2004  devel  Fixed undefined function error on BSDs introduced from
                      other error catching
                     Fixed stupid config test copy and paste bug for GMP

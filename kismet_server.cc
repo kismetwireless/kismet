@@ -741,9 +741,9 @@ void NetWriteInfo() {
 
 }
 
-void NetWriteStatus(const char *in_status) {
+int NetWriteStatus(const char *in_status) {
     string str = in_status;
-    ui_server.SendToAll(status_ref, (void *) &str);
+    return(ui_server.SendToAll(status_ref, (void *) &str));
 }
 
 void ProtocolEnableAlert(int in_fd) {
@@ -800,20 +800,17 @@ int GpsEvent(Timetracker::timer_event *evt, void *parm) {
 
                 snprintf(status, STATUS_MAX, "Unable to reconnect to GPSD, trying "
                          "again in %d seconds.", ((gpsd_reconnect_attempt - 1) * 2));
-                if (!silent)
-                    fprintf(stderr, "WARNING: %s\n", status);
 
-                NetWriteStatus(status);
+                if (!silent || NetWriteStatus(status) == 0)
+                    fprintf(stderr, "WARNING: %s\n", status);
 
                 return 1;
             } else {
                 gpsd_reconnect_attempt = 0;
 
                 snprintf(status, STATUS_MAX, "Reopened connection to GPSD");
-                if (!silent)
+                if (!silent || NetWriteStatus(status) == 0)
                     fprintf(stderr, "NOTICE: %s\n", status);
-
-                NetWriteStatus(status);
             }
         } else {
             // Don't process more if we haven't woken up yet
@@ -830,29 +827,25 @@ int GpsEvent(Timetracker::timer_event *evt, void *parm) {
             snprintf(status, STATUS_MAX, "GPS error requesting data: %s",
                      gps->FetchError());
 
-            if (!silent)
+            if (!silent || NetWriteStatus(status) == 0)
                 fprintf(stderr, "WARNING: %s\n", status);
-
-            NetWriteStatus(status);
 
             gpsd_reconnect_attempt = 1;
         }
 
         if (gpsret == 0 && gpsmode != 0) {
-            if (!silent)
+            if (!silent || NetWriteStatus("Lost GPS signal.") == 0)
                 fprintf(stderr, "Lost GPS signal.\n");
             if (sound == 1)
                 sound = PlaySound("gpslost");
 
-            NetWriteStatus("Lost GPS signal.");
             gpsmode = 0;
         } else if (gpsret != 0 && gpsmode == 0) {
-            if (!silent)
+            if (!silent || NetWriteStatus("Aquired GPS signal.") == 0)
                 fprintf(stderr, "Aquired GPS signal.\n");
             if (sound == 1)
                 sound = PlaySound("gpslock");
 
-            NetWriteStatus("Aquired GPS signal.");
             gpsmode = 1;
         }
     }
@@ -878,10 +871,9 @@ int NetWriteEvent(Timetracker::timer_event *evt, void *parm) {
 
 // Handle writing and sync'ing dump files
 int ExportSyncEvent(Timetracker::timer_event *evt, void *parm) {
-    if (!silent)
+    if (!silent || NetWriteStatus("Saving data files.") == 0)
         fprintf(stderr, "Saving data files.\n");
 
-    NetWriteStatus("Saving data files.");
     WriteDatafiles(0);
 
     return 1;
@@ -974,8 +966,7 @@ void handle_command(TcpServer *tcps, client_command *cc) {
 
             snprintf(status, 1024, "WARNING: %d not in channel list for '%s', not "
                      "locking.", chnum, meta->name.c_str());
-            NetWriteStatus(status);
-            if (!silent)
+            if (!silent || NetWriteStatus(status) == 0)
                 fprintf(stderr, "%s\n", status);
 
             return;
@@ -988,8 +979,7 @@ void handle_command(TcpServer *tcps, client_command *cc) {
 
         snprintf(status, 1024, "Locking source '%s' to channel %d",
                  meta->name.c_str(), chnum);
-        NetWriteStatus(status);
-        if (!silent)
+        if (!silent || NetWriteStatus(status) == 0)
             fprintf(stderr, "%s\n", status);
     } else if (cmdword == "CHANHOP") {
         // Lock a metasource to the specified channel
@@ -1027,8 +1017,7 @@ void handle_command(TcpServer *tcps, client_command *cc) {
 
         snprintf(status, 1024, "Allowing source '%s' to hop channels",
                  meta->name.c_str());
-        NetWriteStatus(status);
-        if (!silent)
+        if (!silent || NetWriteStatus(status) == 0)
             fprintf(stderr, "%s\n", status);
 
     } else if (cmdword == "PAUSE") {
@@ -1036,16 +1025,14 @@ void handle_command(TcpServer *tcps, client_command *cc) {
 
         snprintf(status, 1024, "Pausing packet sources per request of client %d", 
                  cc->client_fd);
-        NetWriteStatus(status);
-        if (!silent)
+        if (!silent || NetWriteStatus(status) == 0)
             fprintf(stderr, "%s\n", status);
     } else if (cmdword == "RESUME") {
         sourcetracker.ResumeSources();
 
         snprintf(status, 1024, "Resuming packet sources per request of client %d", 
                  cc->client_fd);
-        NetWriteStatus(status);
-        if (!silent)
+        if (!silent || NetWriteStatus(status) == 0)
             fprintf(stderr, "%s\n", status);
     } else if (cmdword == "LISTWEPKEYS") {
         if (client_wepkey_allowed == 0) {
@@ -1103,8 +1090,7 @@ void handle_command(TcpServer *tcps, client_command *cc) {
 
         snprintf(status, 1024, "Added key %s length %d for BSSID %s",
                  cmdword.c_str(), len, winfo->bssid.Mac2String().c_str());
-        NetWriteStatus(status);
-        if (!silent)
+        if (!silent || NetWriteStatus(status) == 0)
             fprintf(stderr, "%s\n", status);
 
     } else if (cmdword == "DELWEPKEY") {
@@ -1134,8 +1120,7 @@ void handle_command(TcpServer *tcps, client_command *cc) {
 
         snprintf(status, 1024, "Deleted key for BSSID %s", 
                  bssid_mac.Mac2String().c_str());
-        NetWriteStatus(status);
-        if (!silent)
+        if (!silent || NetWriteStatus(status) == 0)
             fprintf(stderr, "%s\n", status);
 
     } else {
@@ -2828,20 +2813,16 @@ int main(int argc,char *argv[]) {
         ret = sourcetracker.Poll(&rset, &wset);
         if (ret < 0) {
             snprintf(status, STATUS_MAX, "FATAL: %s", sourcetracker.FetchError());
-            if (!silent) {
+            if (!silent || NetWriteStatus(status) == 0) {
                 fprintf(stderr, "%s\n", status);
                 fprintf(stderr, "Terminating.\n");
             }
 
-            NetWriteStatus(status);
-
             CatchShutdown(-1);
         } else if (ret > 0) {
-            if (!silent) {
+            if (!silent || NetWriteStatus(sourcetracker.FetchError()) == 0) {
                 fprintf(stderr, "%s\n", sourcetracker.FetchError());
             }
-
-            NetWriteStatus(sourcetracker.FetchError());
         }
       
         // This is ugly, come up with a better way to do it someday
@@ -2912,10 +2893,8 @@ int main(int argc,char *argv[]) {
                         info.corrupt == 0) {
                         if (gpsdump.DumpPacket(&info) < 0) {
                             snprintf(status, STATUS_MAX, "%s", gpsdump.FetchError());
-                            if (!silent)
+                            if (!silent || NetWriteStatus(status) == 0)
                                 fprintf(stderr, "%s\n", status);
-
-                            NetWriteStatus(status);
                         }
                     }
 #endif
@@ -3008,10 +2987,9 @@ int main(int argc,char *argv[]) {
                             snprintf(status, STATUS_MAX, "Opened new packet log file %s",
                                      dumplogfile.c_str());
 
-                            if (!silent)
+                            if (!silent || NetWriteStatus(status) == 0)
                                 fprintf(stderr, "%s\n", status);
 
-                            NetWriteStatus(status);
                         }
 
                         int log_packet = 1;
@@ -3072,12 +3050,10 @@ int main(int argc,char *argv[]) {
                     // Fail on error
                     snprintf(status, STATUS_MAX, "FATAL: %s",
                              packet_sources[src]->FetchError());
-                    if (!silent) {
+                    if (!silent || NetWriteStatus(status) == 0) {
                         fprintf(stderr, "%s\n", status);
                         fprintf(stderr, "Terminating.\n");
                     }
-
-                    NetWriteStatus(status);
 
                     CatchShutdown(-1);
                 }
