@@ -1079,11 +1079,6 @@ Licensed under the GPL
     Q: What about plugins?
     A: Yeah, I know, I'm working on them.
 
-    Q: What happens when I ask a question thats already answered here?
-    A: I'll probably be rude to you and tell you go to go read the docs. 
-       But of course everyone already read the docs all the way to the end,
-       right?
-       
     Q: 'configure' says it can't find libncurses/libcurses
     A: First, did you install ncurses-devel?  Kismet needs the development
         headers.
@@ -1116,4 +1111,17 @@ Licensed under the GPL
 
     Q: How can I merge multiple capture files into one?
     A: Use ``mergecap'' that comes with Ethereal to combine dump files.
+
+    Q: How can I include all the standard known manufacturers in the manuf
+       identification?
+    A: There is a script in the extras/ directory that will convert the 
+       standard OUI list (such as that provided with Ethereal) into the format
+       Kismet uses.  This will make Kismet take a LOT more ram and a moderate
+       increase in CPU to store and search the expanded list.  If your hardware
+       can handle it, by all means, but not reccomended for lowpower systems.
+
+    Q: What happens when I ask a question thats already answered here?
+    A: I'll probably be rude to you and tell you go to go read the docs. 
+       But of course everyone already read the docs all the way to the end,
+       right?  Right?
        
