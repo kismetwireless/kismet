@@ -850,8 +850,8 @@ int GpsEvent(Timetracker::timer_event *evt, void *parm) {
 
             gpsmode = 0;
         } else if (gpsret != 0 && gpsmode == 0) {
-            if (!silent || NetWriteStatus("Aquired GPS signal.") == 0)
-                fprintf(stderr, "Aquired GPS signal.\n");
+            if (!silent || NetWriteStatus("Acquired GPS signal.") == 0)
+                fprintf(stderr, "Acquired GPS signal.\n");
             if (sound == 1)
                 sound = PlaySound("gpslock");
 
