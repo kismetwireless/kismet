@@ -125,6 +125,14 @@ int TcpClient::Connect(short int in_port, char *in_host) {
 
     clientf = fdopen(client_fd, "r");
 
+    // Turn on the protocols in our map, if we have any.  This is for reconnecting
+    // to a server and preserving the requested protocols
+    for (map<string, int>::iterator prot = protocol_map.begin();
+         prot != protocol_map.end(); ++prot) {
+        EnableProtocol(prot->first);
+    }
+
+
     return 1;
 }
 
@@ -596,6 +604,8 @@ void TcpClient::EnableProtocol(string in_protocol) {
 
     Send(data);
 
+    protocol_map[in_protocol] = 1;
+
 }
 
 void TcpClient::RemoveProtocol(string in_protocol) {
@@ -605,5 +615,9 @@ void TcpClient::RemoveProtocol(string in_protocol) {
     snprintf(data, 1024, "!0 REMOVE %s\n", in_protocol.c_str());
 
     Send(data);
+
+    map<string, int>::iterator pritr = protocol_map.find(in_protocol);
+    if (pritr != protocol_map.end())
+        protocol_map.erase(pritr);
 }
 

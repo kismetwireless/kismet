@@ -762,9 +762,9 @@ int main(int argc, char *argv[]) {
 
     gui->InitDisplay(decay, serv_start);
 
-    snprintf(status, STATUS_MAX, "Connected to Kismet server version %d.%d.%d on %s:%d",
+    snprintf(status, STATUS_MAX, "Connected to Kismet server version %d.%d.%d build %s on %s:%d",
              kismet_serv.FetchMajor(), kismet_serv.FetchMinor(), kismet_serv.FetchTiny(),
-             guihost, guiport);
+             kismet_serv.FetchBuild(), guihost, guiport);
     gui->WriteStatus(status);
 
     int num_networks = 0, num_packets = 0, num_noise = 0, num_dropped = 0;
