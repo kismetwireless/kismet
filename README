@@ -84,8 +84,11 @@ Licensed under the GPL
     required, Kismet drops to a designated user so that potentially hostile
     remote data isn't processed as root.
 
-    If channel hopping is enabled, Kismet forks and retains one process as
-    root for changing the channel of the capture sources.
+    When priv dropping is enabled, Kismet forks and leaves a single process
+    as root.  This process is used for channel control and for restoring
+    card settings on exit.  The root process performs no interaction with
+    user input, and only communicates with the base kismet_server via IPC
+    pipes.
 
     For Kismet to have root access, it can be installed two different ways:
     - Normal installation via 'make install' requires Kismet be started as
@@ -94,6 +97,14 @@ Licensed under the GPL
       SUID-ROOT IF YOU HAVE OTHER USERS ON YOUR SYSTEM.  Suid-root installation
       will allow unprivileged users to set the wireless card to rfmon (breaking
       any connections using wireless) and capture data.
+
+    REMEMBER:  Installing Kismet suid-root is NOT SECURE ON MULTIUSER SYSTEMS.
+    Most users of Kismet are likely using single-user laptops or handhelds, 
+    where suidroot is very convienent.  If you have ANY OTHER USERS ON YOUR
+    SYSTEM, suidroot Kismet can be used to shut down the wireless and put
+    files where you don't want to allow them to be put.  If you have other
+    users on your system, install kismet normally and 'su' to root before
+    starting it.
 
 6.  Required Libraries & Utilities
 
@@ -135,7 +146,7 @@ Licensed under the GPL
       remove offending duplicate headers if necessary.
 
     - Ethereal (any): http://www.ethereal.com
-      RQUIRED for wtapfile capture replay
+      REQUIRED for wtapfile capture replay
 
       Ethereal is the premier packet dissector.  The packet dump logs Kismet
       creates can be opened in Ethereal for further examination.  Kismet uses
@@ -147,8 +158,8 @@ Licensed under the GPL
       the libwiretap library.  By default the configure script will look in
       /usr/src/ for this.
 
-      If you do not need to replay compressed dumps, you don't need a compiled
-      copy of Ethereal.
+      If you do not need to replay compressed dumps or dumps with other 
+      encodings (such as Airopeek), you don't need wtapfile.
 
 7.  Compiling
     
@@ -295,6 +306,7 @@ Licensed under the GPL
         * Channel allocation graphs
         * Realtime packet type display
         * Compass-display of network locations
+        * 'Locking' channel hopping to a specific network
 
     Other clients for Kismet are available from the links page on the Kismet
     website.
@@ -474,7 +486,12 @@ Licensed under the GPL
 
     radiotap_freebsd Atheros            FreeBSD     Kernel
                      Prism2
-                    FreeBSD drivers supporting the Radiotap headers
+                    Capture interface:  'athX'
+                    Capture interface:  'wiX'
+                    FreeBSD drivers supporting the Radiotap headers.
+                    As of the time of this writing, supported drivers are
+                     limited to Atheros (madwifi) and Prism2.  Other chipsets
+                     should be supported as radiotap is added to their drivers.
 
     viha            Airport             OSX         viha
                     http://www.dopesquad.net/security/
@@ -558,6 +575,8 @@ Licensed under the GPL
         * Interpolated (weathermap-style) graphing of power and range
         * Labeling of network centers
         * Scatterplot of all detected packets
+        * Legend showing total sample networks, visible networks, colors,
+          power ranges, network center, etc.
 
     'gpsmap --help' lists all of the switches for enabling different map 
     overlays.
@@ -770,9 +789,10 @@ Licensed under the GPL
     PROBLEM: Fatal error about being unable to open the pidfile
     FIX: By default Kismet writes the pid to /var/run/.  If you didn't install
       Kismet as suidroot, you need to start it as root so it can write to this
-      directory and bind interfaces.  If you're using capture sources that
+      directory and bind interfaces.  If you're only using capture sources that
       don't require root, you can change this in kismet.conf to put pidfiles
-      in /tmp (or any other directory).
+      in /tmp (or any other directory).  This isn't reccomended if you use
+      Kismet as root on a system with untrusted users.
 
     PROBLEM: Configure is unable to find libncurses or other libraries, but
      they're installed.
