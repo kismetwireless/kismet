@@ -262,8 +262,8 @@ int TcpStreamer::WritePacket(const kis_packet *in_packet, float in_lat, float in
     // Payload
     packhdr.len = (uint32_t) htonl(in_packet->len);
     packhdr.caplen = (uint32_t) htonl(in_packet->caplen);
-    packhdr.tv_sec = (uint64_t) hton64(in_packet->ts.tv_sec);
-    packhdr.tv_usec = (uint64_t) hton64(in_packet->ts.tv_usec);
+    packhdr.tv_sec = (uint64_t) kis_hton64(in_packet->ts.tv_sec);
+    packhdr.tv_usec = (uint64_t) kis_hton64(in_packet->ts.tv_usec);
     packhdr.quality = (uint16_t) htons(in_packet->quality);
     packhdr.signal = (uint16_t) htons(in_packet->signal);
     packhdr.noise = (uint16_t) htons(in_packet->noise);
