@@ -722,8 +722,17 @@ void CapSourceChild(capturesource *csrc) {
                 csrc->source->Resume();
             } else if (cmd == CAPCMD_GPSENABLE) {
 #ifdef HAVE_GPS
-                csrc->gps_enable = 1;
-                timetracker.RegisterTimer(SERVER_TIMESLICES_SEC, NULL, 1, &ChildGpsEvent, (void *) csrc);
+                // Open the GPS
+                if (csrc->gps->OpenGPSD() < 0) {
+                    snprintf(txtbuf, 1024, "WARNING:  capture child %d gps open failed: %s",
+                             mypid, csrc->gps->FetchError());
+                    packet_buf.push_back(CapSourceText(txtbuf, CAPFLAG_NONE));
+
+                    csrc->gps_enable = 0;
+                } else {
+                    csrc->gps_enable = 1;
+                    timetracker.RegisterTimer(SERVER_TIMESLICES_SEC, NULL, 1, &ChildGpsEvent, (void *) csrc);
+                }
 #endif
             } else if (cmd > 0) {
                 // do a channel set

@@ -1,3 +1,5 @@
+Jul 20 2003  2.9.1  Revamped how GPS is handled, should fix problems of it
+                     losing locks constantly.
 Jul 17 2003  2.9.1  Added full 802.11a channel list to kismet.conf
                     Added frequency to channel translation
                     Added cardtype acx100 for TI 22mbit cards

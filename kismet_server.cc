@@ -757,7 +757,7 @@ int GpsEvent(Timetracker::timer_event *evt, void *parm) {
         int gpsret;
         gpsret = gps->Scan();
         if (gpsret < 0) {
-            snprintf(status, STATUS_MAX, "GPS error fetching data: %s",
+            snprintf(status, STATUS_MAX, "GPS error requesting data: %s",
                      gps->FetchError());
 
             if (!silent)
@@ -1335,12 +1335,8 @@ int main(int argc,char *argv[]) {
         exit(1);
     }
 
-    // Create a GPS object
 #ifdef HAVE_GPS
-    gps = new GPSD;
-
-    // Now lets open the GPS host if specified... I don't like to do this here but we need to to give the
-    // capchildren the gps
+    // Set up the GPS object to give to the children
     if (gpsport == -1 && gps_enable) {
         if (conf->FetchOpt("gps") == "true") {
             if (sscanf(conf->FetchOpt("gpshost").c_str(), "%1024[^:]:%d", gpshost, &gpsport) != 2) {
@@ -1356,18 +1352,7 @@ int main(int argc,char *argv[]) {
     }
 
     if (gps_enable == 1) {
-        // Open the GPS
-        if (gps->OpenGPSD(gpshost, gpsport) < 0) {
-            fprintf(stderr, "%s\n", gps->FetchError());
-
-            gps_enable = 0;
-            gps_log = 0;
-        } else {
-            fprintf(stderr, "Opened GPS connection to %s port %d\n",
-                    gpshost, gpsport);
-
-            gpsmode = gps->FetchMode();
-        }
+        gps = new GPSD(gpshost, gpsport);
     } else {
         gps_log = 0;
     }
@@ -2439,6 +2424,22 @@ int main(int argc,char *argv[]) {
         }
     }
 
+#ifdef HAVE_GPS
+    if (gps_enable) {
+        // Open the GPS
+        if (gps->OpenGPSD() < 0) {
+            fprintf(stderr, "%s\n", gps->FetchError());
+
+            gps_enable = 0;
+            gps_log = 0;
+        } else {
+            fprintf(stderr, "Opened GPS connection to %s port %d\n",
+                    gpshost, gpsport);
+
+            gpsmode = gps->FetchMode();
+        }
+    }
+#endif
 
     fprintf(stderr, "Listening on port %d.\n", tcpport);
     for (unsigned int ipvi = 0; ipvi < legal_ipblock_vec.size(); ipvi++) {

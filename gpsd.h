@@ -48,13 +48,13 @@ const char gpsd_command[] = "PAVM";
 // gpsd GPS capture
 class GPSD {
 public:
-    GPSD(void);
+    GPSD(char *in_host, int in_port);
     ~GPSD(void);
 
     char *FetchError();
 
     // Open gpsd on host, port
-    int OpenGPSD(char *in_host, int in_port);
+    int OpenGPSD();
     // Close it
     int CloseGPSD();
 
@@ -80,6 +80,9 @@ protected:
 
     char data[1024];
 
+    char *host;
+    int port;
+
     struct sockaddr_in localaddr, servaddr;
     struct hostent *h;
   
@@ -89,13 +92,13 @@ protected:
 
 class GPSD {
 public:
-    GPSD(void) { };
+    GPSD(char *, int) { };
     ~GPSD(void) { };
 
     char *FetchError() { return NULL; };
 
     // Open gpsd on host, port
-    int OpenGPSD(char *in_host, int in_port) { return -1; }
+    int OpenGPSD() { return -1; }
     // Close it
     int CloseGPSD() { return 0; }
 
