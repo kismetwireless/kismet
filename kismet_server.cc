@@ -330,6 +330,10 @@ void SoundHandler(int read_sock, const char *player, map<string, string> soundma
 
         select(read_sock + 1, &rset, NULL, &eset, NULL);
 
+        // Die and let the other side detect it
+        if (FD_ISSET(read_sock, &eset))
+            exit(1);
+
         if (FD_ISSET(read_sock, &rset)) {
             int ret;
             ret = read(read_sock, data, 1024);
@@ -399,6 +403,10 @@ void SpeechHandler(int read_sock, const char *player) {
         memset(data, 0, 1024);
 
         select(read_sock + 1, &rset, NULL, &eset, NULL);
+
+        // Die and let the other side detect it
+        if (FD_ISSET(read_sock, &eset))
+            exit(1);
 
         if (FD_ISSET(read_sock, &rset)) {
             int ret;

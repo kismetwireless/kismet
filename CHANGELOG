@@ -1,3 +1,4 @@
+Jul 29 2002  2.5    Handled exception fds in sound and speech
 Jul 28 2002  2.5    Reorganized option parsing on kismet_server to process most
                      of the options after dropping root.
                     Rewrote sound handling to handle massive numbers of sound
