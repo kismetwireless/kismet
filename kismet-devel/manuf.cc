@@ -34,6 +34,7 @@ const uint8_t soho_tag[] = {0x00, 0x80, 0xc6};
 const uint8_t symbol_tag[] = {0x00, 0xa0, 0x0f};
 const uint8_t symbol2_tag[] = {0x00, 0xa0, 0xf8};
 const uint8_t aironet_tag[] = {0x00, 0x40, 0x96};
+const uint8_t aironet2_tag[] = {0x00, 0x08, 0x21};
 const uint8_t agere_tag[] = {0x00, 0x02, 0x2d};
 const uint8_t lucent_tag[] = {0x00, 0x60, 0x1d};
 const uint8_t delta_tag[] = {0x00, 0x30, 0xAB};
@@ -128,6 +129,7 @@ const manuf manuf_list[] = {
     { "Apple Airport", "Apple", apple_tag, 3, "", 0, 0, 0, NULL },
     { "Aironet BRxxxx", "Aironet", aironet_tag, 3, "2", 0, 0, 0, NULL },
     { "Aironet BRxxxx", "Aironet", aironet_tag, 3, "tsunami", 0, 0, 0, NULL },
+    { "Aironet 350", "Cisco", aironet2_tag, 3, "", 0, 0, 0, NULL },
     { "Baystack 650/660", "Baystack", baystack_tag, 3, "Default SSID", 1, 0, 0, NULL },
     { "Belkin F5D6230-3/F5D6020", "Belkin", belkin_tag, 3, "WLAN", 11, 0, 0, &belkin_ip },
     { "BreezeCom", "Breezecom", breezecom_tag, 3, "", 0, 0, 0, NULL },
@@ -178,7 +180,7 @@ const manuf manuf_list[] = {
     { "ZYXEL Prestige 316", "ZYXEL", delta_tag, 3, "Wireless", 6, 0, 0, NULL },
 };
 
-const int manuf_num = 59;
+const int manuf_num = 60;
 const int manuf_max_score = 9;
 
 
