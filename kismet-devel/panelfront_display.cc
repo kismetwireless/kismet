@@ -27,7 +27,7 @@
 
 // This argument list is getting increasingly nasty, hopefully I'll be able to
 // come back and clean all this up
-void PanelFront::NetLine(string *in_str, wireless_network *net, const char *name, int sub,
+void PanelFront::NetLine(kis_window *in_window, string *in_str, wireless_network *net, const char *name, int sub,
                          int group, int expanded, int tagged) {
     char retchr[4096];
     char tmpchr[4096];
@@ -65,7 +65,8 @@ void PanelFront::NetLine(string *in_str, wireless_network *net, const char *name
     }
 
     int pos = 2;
-    for (unsigned int col = 0; col < column_vec.size(); col++) {
+
+    for (unsigned int col = in_window->col_start; col < column_vec.size(); col++) {
         char element[1024];
         int len = 0;
         main_columns colindex = column_vec[col];
@@ -264,6 +265,8 @@ void PanelFront::NetLine(string *in_str, wireless_network *net, const char *name
         strncpy(retchr, tmpchr, 4096);
 
         pos += len + 1;
+
+        in_window->col_end = col;
     }
 
     *in_str = retchr;
@@ -390,7 +393,7 @@ int PanelFront::MainNetworkPrinter(void *in_window) {
     // Print the headers
     int pos = 4;
 
-    for (unsigned int col = 0; col < column_vec.size(); col++) {
+    for (unsigned int col = kwin->col_start; col < column_vec.size(); col++) {
         char title[1024];
         int len = 0;
         main_columns colind = column_vec[col];
@@ -477,8 +480,10 @@ int PanelFront::MainNetworkPrinter(void *in_window) {
             len = -1;
         }
 
-        if (pos + len > kwin->print_width + 2)
+        if (pos + len > kwin->print_width + 2) {
+            kwin->col_end = col - 1;
             break;
+        }
 
         if (color)
             wattrset(kwin->win, color_map["title"].pair);
@@ -558,7 +563,7 @@ int PanelFront::MainNetworkPrinter(void *in_window) {
 
         // Build the netline for the group or single host and tag it for expansion if
         // appropriate for this sort and group
-        NetLine(&netline, net,
+        NetLine(kwin, &netline, net,
                 display_vector[i]->name.length() == 0 ? display_vector[i]->virtnet->ssid.c_str() : display_vector[i]->name.c_str(),
                 0,
                 display_vector[i]->type == group_host ? 0 : 1,
@@ -632,7 +637,7 @@ int PanelFront::MainNetworkPrinter(void *in_window) {
         for (unsigned int y = 0; y < sortsub.size(); y++) {
             net = display_vector[i]->networks[y];
 
-            NetLine(&netline, net, net->ssid.c_str(), 1, 0, 0, 0);
+            NetLine(kwin, &netline, net, net->ssid.c_str(), 1, 0, 0, 0);
 
             if (net->manuf_score == manuf_max_score && color)
                 wattrset(kwin->win, color_map["factory"].pair);
@@ -838,7 +843,7 @@ int PanelFront::MainStatusPrinter(void *in_window) {
     return 1;
 }
 
-void PanelFront::ClientLine(string *in_str, wireless_client *wclient, int print_width) {
+void PanelFront::ClientLine(kis_window *in_window, string *in_str, wireless_client *wclient, int print_width) {
     char retchr[4096];
     char tmpchr[4096];
 
@@ -1136,7 +1141,7 @@ int PanelFront::MainClientPrinter(void *in_window) {
 
         string cliline;
 
-        ClientLine(&cliline, display_vector[i], kwin->print_width);
+        ClientLine(kwin, &cliline, display_vector[i], kwin->print_width);
 
         mvwaddstr(kwin->win, num+voffset, 1, cliline.c_str());
 

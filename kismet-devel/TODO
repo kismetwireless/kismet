@@ -23,15 +23,14 @@ In no particular order:
 	Multiple host= lines for kismet_client
 	multiserver grouping bugger-up
 	fix compass/heading
-	location beacon info (hostAP mod)
 	Alerts as forged packets in pipe
 	gps satellite plot in client
 	VPN detection
 	linkage of seen-on devices to network info
-	horizontal column scrolling in UI
 	do something smarter with RSSI signal levels from AVS headers
 	do something smarter in expat.cc with carriers, encodings, etc
 	AP uptime extraction
 	Restucture core code for less duplication
 	getopt problems on freebsd5
 	denote networks with keys in UI
+	strong authentication/SSL of client/server server/drone

@@ -147,6 +147,10 @@ protected:
         int end;
         // Selected item
         int selected;
+        // Horizontal scrolling
+        int col_start;
+        int col_end;
+        int col_selected;
         // Printable lines for scrolling window
         int max_display;
         // Width of printable area
@@ -298,9 +302,9 @@ protected:
 
     void Details2Vector(wireless_network *in_net);
 
-    void NetLine(string *in_str, wireless_network *net, const char *name, int sub,
+    void NetLine(kis_window *in_window, string *in_str, wireless_network *net, const char *name, int sub,
                  int group, int expanded, int tagged);
-    void ClientLine(string *in_str, wireless_client *wclient, int print_width);
+    void ClientLine(kis_window *in_window, string *in_str, wireless_client *wclient, int print_width);
 
     enum main_columns {
         mcol_unknown = -1,
