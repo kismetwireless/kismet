@@ -3022,7 +3022,7 @@ _ACEOF
 
         ;;
     openbsd*)
-               echo "$as_me:$LINENO: result: none needed" >&5
+       echo "$as_me:$LINENO: result: none needed" >&5
 echo "${ECHO_T}none needed" >&6
 
 cat >>confdefs.h <<\_ACEOF
@@ -3048,8 +3048,6 @@ echo "${ECHO_T}none needed" >&6
 fi
 
 CXXFLAGS="$CXXFLAGS $CFLAGS"
-
-LIBS="-lstdc++"
 
 
           ac_config_headers="$ac_config_headers config.h"
@@ -7517,6 +7515,8 @@ echo "$as_me: WARNING: *** GPSMap will be built without pthread support. ***" >&
 else
 	threadlib="-lpthread"
 fi
+
+LIBS="$LIBS -lstdc++"
 
 
 
