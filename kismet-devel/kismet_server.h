@@ -43,6 +43,7 @@ void ProtocolClientEnable(int in_fd);
 void KisLocalAlert(const char *in_text);
 void KisLocalStatus(const char *in_status);
 void KisLocalNewnet(const wireless_network *in_net);
+void KisLocalNewclient(const wireless_client *in_cli, const wireless_network *in_net);
 
 
 #endif

@@ -543,7 +543,12 @@ void KisLocalNewnet(const wireless_network *in_net) {
     NETWORK_data ndata;
     Protocol_Network2Data(in_net, &ndata);
     ui_server.SendToAll(network_ref, (void *) &ndata);
+}
 
+void KisLocalNewclient(const wireless_client *in_cli, const wireless_network *in_net) {
+    CLIENT_data cdata;
+    Protocol_Client2Data(in_net, in_cli, &cdata);
+    ui_server.SendToAll(client_ref, (void *) &cdata);
 }
 
 void NetWriteInfo() {
