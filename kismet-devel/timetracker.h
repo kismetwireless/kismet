@@ -48,6 +48,18 @@ public:
         void *callback_parm;
     };
 
+    // Sort alerts by alert trigger time
+    class SortTimerEventsTrigger {
+    public:
+        inline bool operator() (const Timetracker::timer_event *x, const Timetracker::timer_event *y) const {
+            if ((x->trigger_tm.tv_sec < y->trigger_tm.tv_sec) ||
+                ((x->trigger_tm.tv_sec == y->trigger_tm.tv_sec) && (x->trigger_tm.tv_usec < y->trigger_tm.tv_usec)))
+                return 1;
+
+            return 0;
+        }
+    };
+
     Timetracker();
     ~Timetracker();
 
@@ -66,6 +78,7 @@ public:
 protected:
     int next_timer_id;
     map<int, timer_event *> timer_map;
+    vector<timer_event *> sorted_timers;
 };
 
 #endif

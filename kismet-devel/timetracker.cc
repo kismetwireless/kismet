@@ -37,28 +37,29 @@ int Timetracker::Tick() {
     // Handle scheduled events
     struct timeval cur_tm;
     gettimeofday(&cur_tm, NULL);
-    for (map<int, timer_event *>::iterator evtitr = timer_map.begin();
-         evtitr != timer_map.end(); ++evtitr) {
-        timer_event *evt = evtitr->second;
+    timer_event *evt;
 
-        if ((evt->trigger_tm.tv_sec < cur_tm.tv_sec) ||
-            (evt->trigger_tm.tv_sec == cur_tm.tv_sec &&
-             evt->trigger_tm.tv_usec < cur_tm.tv_usec)) {
+    for (unsigned int x = 0; x < sorted_timers.size(); x++) {
+        evt = sorted_timers[x];
 
-            // Call the function with the given parameters
-            int ret;
-            ret = (*evt->callback)(evt, evt->callback_parm);
+        if ((cur_tm.tv_sec < evt->trigger_tm.tv_sec) ||
+            ((cur_tm.tv_sec == evt->trigger_tm.tv_sec) && (cur_tm.tv_usec < evt->trigger_tm.tv_usec)))
+            return 1;
 
-            if (ret > 0 && evt->timeslices != -1 && evt->recurring) {
-                evt->schedule_tm.tv_sec = cur_tm.tv_sec;
-                evt->schedule_tm.tv_usec = cur_tm.tv_usec;
-                evt->trigger_tm.tv_sec = evt->schedule_tm.tv_sec + (evt->timeslices / 10);
-                evt->trigger_tm.tv_usec = evt->schedule_tm.tv_usec + (evt->timeslices % 10);
-            } else {
-                delete evt;
-                timer_map.erase(evtitr);
-            }
+        // Call the function with the given parameters
+        int ret;
+        ret = (*evt->callback)(evt, evt->callback_parm);
 
+        if (ret > 0 && evt->timeslices != -1 && evt->recurring) {
+            evt->schedule_tm.tv_sec = cur_tm.tv_sec;
+            evt->schedule_tm.tv_usec = cur_tm.tv_usec;
+            evt->trigger_tm.tv_sec = evt->schedule_tm.tv_sec + (evt->timeslices / 10);
+            evt->trigger_tm.tv_usec = evt->schedule_tm.tv_usec + (evt->timeslices % 10);
+
+            // Resort the list
+            sort(sorted_timers.begin(), sorted_timers.end(), SortTimerEventsTrigger());
+        } else {
+            RemoveTimer(evt->timer_id);
         }
 
     }
@@ -89,6 +90,10 @@ int Timetracker::RegisterTimer(int in_timeslices, struct timeval *in_trigger,
     evt->callback_parm = in_parm;
 
     timer_map[evt->timer_id] = evt;
+    sorted_timers.push_back(evt);
+
+    // Resort the list
+    sort(sorted_timers.begin(), sorted_timers.end(), SortTimerEventsTrigger());
 
     return evt->timer_id;
 }
@@ -99,6 +104,14 @@ int Timetracker::RemoveTimer(int in_timerid) {
     itr = timer_map.find(in_timerid);
 
     if (itr != timer_map.end()) {
+        for (unsigned int x = 0; x < sorted_timers.size(); x++) {
+            if (sorted_timers[x]->timer_id == in_timerid)
+                sorted_timers.erase(sorted_timers.begin() + x);
+        }
+
+        // Resort the list
+        sort(sorted_timers.begin(), sorted_timers.end(), SortTimerEventsTrigger());
+
         delete itr->second;
         timer_map.erase(itr);
         return 1;
