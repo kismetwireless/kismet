@@ -6,6 +6,7 @@ Oct 20 2003  3.1.0  Fixed double-allocation of imagemagick background records
                     Added autogroup_probe to panels client to automatically
                      put all probe networks in their own display group. This
                      makes the display much cleaner.
+                    Increased probenojoin alert counter to 25 to calm it down
 Oct 19 2003  3.1.0  Revamped data sanitizing in gpsmap and expat loaders to 
                      filter junk data effectively
                     Removed debug info and tweaked sensitivity of junk gps
