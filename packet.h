@@ -302,6 +302,11 @@ typedef struct proto_info {
 
     protocol_netbios_type nbtype;
 
+    // Extra versioning/details of the proto type
+    int prototype_extra;
+
+
+
 };
 
 

@@ -466,6 +466,9 @@ void GetProtoInfo(const packet_info *in_info, const pkthdr *header,
         return ret;
         */
 
+    /* Disabled temporarily as it seems to be used by some other things and to force
+     netstumbler version detection.
+
     if (in_info->dest_mac == NETS_MAC) {
         // We look for netstumblers first since we need them to match before the
         // multicast catch-all in the next compare...  Anything sending to this multicast
@@ -473,7 +476,9 @@ void GetProtoInfo(const packet_info *in_info, const pkthdr *header,
         // processing time on the other NS identifiers
         ret_protoinfo->type = proto_netstumbler;
         return;
-    } else if (memcmp(&data[in_info->header_offset], LLC_UI_SIGNATURE,
+        } else */
+
+    if (memcmp(&data[in_info->header_offset], LLC_UI_SIGNATURE,
                       sizeof(LLC_UI_SIGNATURE)) == 0) {
         // Handle all the protocols which fall under the LLC UI 0x3 frame
 
@@ -485,16 +490,19 @@ void GetProtoInfo(const packet_info *in_info, const pkthdr *header,
                        sizeof(NETSTUMBLER_322_SIGNATURE)) == 0) {
                 // Netstumbler 322 says Flurble gronk bloopit, bnip Frundletrune
                 ret_protoinfo->type = proto_netstumbler;
+                ret_protoinfo->prototype_extra = 22;
                 return;
             } else if (memcmp(&data[in_info->header_offset + NETSTUMBLER_OFFSET], NETSTUMBLER_323_SIGNATURE,
                               sizeof(NETSTUMBLER_323_SIGNATURE)) == 0) {
                 // Netstumbler 323 says All your 802.11b are belong to us
                 ret_protoinfo->type = proto_netstumbler;
+                ret_protoinfo->prototype_extra = 23;
                 return;
             } else if (memcmp(&data[in_info->header_offset + NETSTUMBLER_OFFSET], NETSTUMBLER_330_SIGNATURE,
                               sizeof(NETSTUMBLER_330_SIGNATURE)) == 0) {
                 // Netstumbler 330 says           Intentionally left blank
                 ret_protoinfo->type = proto_netstumbler;
+                ret_protoinfo->prototype_extra = 30;
                 return;
             }
         } else if (memcmp(&data[in_info->header_offset + LLC_UI_OFFSET], CISCO_SIGNATURE,
