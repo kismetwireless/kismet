@@ -1811,7 +1811,7 @@ int PanelFront::GpsPrinter(void *in_window) {
     snprintf(output, print_width, "Current:");
     kwin->text.push_back(output);
 
-    snprintf(textfrag, 23, "%.5fx%.5f", lat, lon);
+    snprintf(textfrag, 23, "%.3f x %.3f", lat, lon);
     snprintf(output, print_width, "%-22s%s", textfrag, compass[0]);
     kwin->text.push_back(output);
 
@@ -1831,7 +1831,7 @@ int PanelFront::GpsPrinter(void *in_window) {
     snprintf(output, print_width, "%-22s%s", textfrag, compass[4]);
     kwin->text.push_back(output);
 
-    snprintf(textfrag, 23, "%.5fx%.5f", center_lat, center_lon);
+    snprintf(textfrag, 23, "%.3f x %.3f", center_lat, center_lon);
     snprintf(output, print_width, "%-22s%.2f*", textfrag, difference_angle);
     kwin->text.push_back(output);
 
