@@ -48,8 +48,11 @@ class TcpClient;
 #endif
 
 #define LINKQ_MAX 100
+#define LEVEL_MIN -255
 #define LEVEL_MAX 255
+#define NOISE_MIN -255
 #define NOISE_MAX 255
+#define SNR_MAX   50
 
 #define CLIENT_NOTIFY  2
 #define CLIENT_ALERT   4
