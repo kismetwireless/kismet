@@ -375,6 +375,8 @@ void SpeechHandler(int *fds, const char *player) {
             if (ret < 0)
                 exit(1);
 
+            data[ret] = '\0';
+
             /*
             if ((end = strstr(data, "\n")) == NULL)
                 continue;
@@ -913,9 +915,11 @@ int main(int argc,char *argv[]) {
     memset(channel_graph, 0, sizeof(channel_power) * CHANNEL_MAX);
 
     // If we haven't gotten a command line config option...
+    int freeconf = 0;
     if (configfile == NULL) {
         configfile = (char *) malloc(1024*sizeof(char));
         snprintf(configfile, 1024, "%s/%s", SYSCONF_LOC, config_base);
+        freeconf = 1;
     }
 
     ConfigFile conf;
@@ -926,7 +930,8 @@ int main(int argc,char *argv[]) {
         exit(1);
     }
 
-    free(configfile);
+    if (freeconf)
+        free(configfile);
 
 #ifdef HAVE_SUID
     struct passwd *pwordent;

@@ -250,6 +250,8 @@ void SpeechHandler(int *fds, const char *player) {
             if (ret < 0)
                 exit(1);
 
+            data[ret] = '\0';
+
             /* For some reason we're not getting a newline
              if ((end = strstr(data, "\n")) == NULL)
                 continue;
