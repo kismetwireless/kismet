@@ -2923,7 +2923,7 @@ int main(int argc,char *argv[]) {
                     // try to resync if we're confused
                     int8_t child_cmd = CAPCMD_FLUSH;
                     write(packet_sources[src]->servpair[1], &child_cmd, 1);
-                } else {
+                } else if (len != 0) {
                     // Fail on error
                     /*
                     if (!silent) {
