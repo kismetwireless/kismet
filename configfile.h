@@ -40,7 +40,7 @@ string StrLower(string in_str);
 string StrStrip(string in_str);
 
 int XtoI(char x);
-int Hex2UChar13(unsigned char *in_hex, unsigned char *in_chr);
+int Hex2UChar(unsigned char *in_hex, unsigned char *in_chr);
 
 class ConfigFile {
 public:

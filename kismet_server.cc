@@ -738,9 +738,9 @@ static void handle_command(TcpServer *tcps, client_command *cc) {
         cmdword = cc->cmd.substr(begin, cc->cmd.length() - begin);
 
         unsigned char key[WEPKEY_MAX];
-        int len = Hex2UChar13((unsigned char *) cmdword.c_str(), key);
+        int len = Hex2UChar((unsigned char *) cmdword.c_str(), key);
 
-        if (len != 5 && len != 13) {
+        if (len != 5 && len != 13 && len != 16) {
             out_error += "Invalid ADDWEPKEY key";
             tcps->SendToClient(cc->client_fd, error_ref, (void *) &out_error);
             return;
@@ -1397,9 +1397,9 @@ int main(int argc,char *argv[]) {
         string rawkey = wepline.substr(rwsplit + 1, wepline.length() - (rwsplit + 1));
 
         unsigned char key[WEPKEY_MAX];
-        int len = Hex2UChar13((unsigned char *) rawkey.c_str(), key);
+        int len = Hex2UChar((unsigned char *) rawkey.c_str(), key);
 
-        if (len != 5 && len != 13) {
+        if (len != 5 && len != 13 && len != 16) {
             fprintf(stderr, "FATAL:  Invalid key '%s' length %d in a wepkey option in the config file.\n",
                     rawkey.c_str(), len);
             exit(1);
