@@ -26,6 +26,7 @@
 #define RAISED_DEAUTHFLOOD_ALERT     2
 #define RAISED_LUCENT_ALERT          4
 #define RAISED_WELLENREITER_ALERT    8
+#define RAISED_GSTSEARCH_ALERT       16
 
 Packetracker::Packetracker() {
     gps = NULL;
@@ -816,6 +817,19 @@ int Packetracker::ProcessDataPacket(packet_info info, wireless_network *net, cha
             net->alertmap |= RAISED_WELLENREITER_ALERT;
 
             snprintf(in_status, STATUS_MAX, "Wellenreiter probe detected from %s",
+                     client->mac.Mac2String().c_str());
+
+            ret = TRACKER_NOTICE;
+        }
+    } else if (info.proto.type == proto_gstsearch) {
+        // Handle gstsearch exploits
+
+        if ((net->alertmap & RAISED_GSTSEARCH_ALERT) == 0) {
+            net->alertmap |= RAISED_GSTSEARCH_ALERT;
+
+            snprintf(in_status, STATUS_MAX, "gstsearch AP exploit attempt detected from %hd.%hd.%hd.%hd (%s)",
+                     info.proto.source_ip[0], info.proto.source_ip[1],
+                     info.proto.source_ip[2], info.proto.source_ip[3],
                      client->mac.Mac2String().c_str());
 
             ret = TRACKER_NOTICE;
