@@ -1410,6 +1410,32 @@ int main(int argc,char *argv[]) {
             exit(1);
     }
 
+    // Set the initial channel
+    for (unsigned int x = 0; x < packet_sources.size(); x++) {
+        char msg[1024];
+
+        if (channel_initmap.find(packet_sources[x]->name) == channel_initmap.end())
+            continue;
+
+        int child_cmd = channel_initmap[packet_sources[x]->name];
+        if (write(packet_sources[x]->servpair[1], &child_cmd, 1) < 0) {
+            snprintf(msg, 1024,
+                     "Source %d (%s): Command pipe shut down.", x, packet_sources[x]->name.c_str());
+            packet_sources[x]->alive = 0;
+
+            if (!silent) {
+                fprintf(stderr, "%s\n", msg);
+                fprintf(stderr, "Terminating.\n");
+            }
+
+            CatchShutdown(-1);
+        }
+
+        fprintf(stderr, "Source %d (%s): Setting initial channel %d\n",
+                x, packet_sources[x]->name.c_str(), child_cmd);
+
+    }
+
     // See if we tried to enable something that didn't exist
     if (enable_name_map.size() == 0) {
         fprintf(stderr, "FATAL:  No sources were enabled.  Check your source lines in your config file\n"
