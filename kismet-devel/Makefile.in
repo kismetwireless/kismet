@@ -119,25 +119,17 @@ checkuiconfig:
 		echo "latest version is `grep version= conf/kismet_ui.conf | cut -f 2 -d=`"; \
 	fi
 
+binuserinstall:
+	install -o $(INSTUSR) -g $(INSTGRP) -s -m 755 $(PS) $(BIN)/$(PS); 
+	install -o $(INSTUSR) -g $(INSTGRP) -s -m 755 $(DRONE) $(BIN)/$(DRONE);
+
+binsuidinstall:
+	install -o $(INSTUSR) -g $(INSTGRP) -s -m 4755 $(PS) $(BIN)/$(PS); 
+	install -o $(INSTUSR) -g $(INSTGRP) -s -m 4755 $(DRONE) $(BIN)/$(DRONE);
+	
 commoninstall:
 	mkdir -p $(ETC)
 	mkdir -p $(BIN)
-
-	@if test "$(SUID)" = "yes"; then \
-		install -o $(INSTUSR) -g $(INSTGRP) -m 4755 -s $(PS) $(BIN)/$(PS); \
-		echo install -o $(INSTUSR) -g $(INSTGRP) -m 4755 -s $(PS) $(BIN)/$(PS); \
-	else \
-		install -o $(INSTUSR) -g $(INSTGRP) -s -m 755 $(PS) $(BIN)/$(PS); \
-		echo install -o $(INSTUSR) -g $(INSTGRP) -s -m 755 $(PS) $(BIN)/$(PS); \
-	fi
-
-	@if test "$(SUID)" = "yes"; then \
-		install -o $(INSTUSR) -g $(INSTGRP) -m 4755 -s $(DRONE) $(BIN)/$(DRONE); \
-		echo install -o $(INSTUSR) -g $(INSTGRP) -m 4755 -s $(DRONE) $(BIN)/$(DRONE); \
-	else \
-		install -o $(INSTUSR) -g $(INSTGRP) -s -m 755 $(DRONE) $(BIN)/$(DRONE); \
-		echo install -o $(INSTUSR) -g $(INSTGRP) -s -m 755 $(DRONE) $(BIN)/$(DRONE); \
-	fi
 
 	install -o $(INSTUSR) -g $(INSTGRP) -m 755 scripts/kismet $(BIN)/kismet
 	install -o $(INSTUSR) -g $(INSTGRP) -s -m 755 $(NC) $(BIN)/$(NC)
@@ -177,8 +169,9 @@ commoninstall:
 		rm $(BIN)/kismet_curses; \
 	fi
 
-install: $(PS) $(DRONE) $(HOPPER) $(NC) $(GPSLBUILD) $(ZAURUSBUILD)
+suidinstall: $(PS) $(DRONE) $(HOPPER) $(NC) $(GPSLBUILD) $(ZAURUSBUILD)
 	$(MAKE) -e commoninstall
+	$(MAKE) -e binsuidinstall
 	@if test -f $(ETC)/kismet.conf; then \
 		$(MAKE) -e checkconfig; \
     else \
@@ -204,9 +197,47 @@ install: $(PS) $(DRONE) $(HOPPER) $(NC) $(GPSLBUILD) $(ZAURUSBUILD)
 	@echo "If you have not done so already, read the README file and the FAQ file.  Additional"
 	@echo "documentation is in the docs/ directory.  You MUST edit $(ETC)/kismet.conf and configure"
 	@echo "Kismet for your system, or it will NOT run properly!"
+	@echo
+	@echo "Kismet has been installed SUID ROOT.  This WILL ALLOW NORMAL USERS TO BREAK YOUR WIRELESS"
+	@echo "NETWORK CONNECTION.  IF YOU HAVE ANY UNTRUSTED USERS ON YOUR SYSTEM DO NOT INSTALL KISMET"
+	@echo "AS SUID ROOT."
+
+install: $(PS) $(DRONE) $(HOPPER) $(NC) $(GPSLBUILD) $(ZAURUSBUILD)
+	$(MAKE) -e commoninstall
+	$(MAKE) -e binuserinstall
+	@if test -f $(ETC)/kismet.conf; then \
+		$(MAKE) -e checkconfig; \
+    else \
+		install -o $(INSTUSR) -g $(INSTGRP) -m 644 conf/kismet.conf $(ETC)/kismet.conf;  \
+		echo install -o $(INSTUSR) -g $(INSTGRP) -m 644 conf/kismet.conf $(ETC)/kismet.conf;  \
+		echo "Installed config into $(ETC)/kismet.conf."; \
+	fi
+	@if test -f $(ETC)/kismet_drone.conf; then \
+		$(MAKE) -e checkconfig; \
+    else \
+		install -o $(INSTUSR) -g $(INSTGRP) -m 644 conf/kismet_drone.conf $(ETC)/kismet_drone.conf;  \
+		echo install -o $(INSTUSR) -g $(INSTGRP) -m 644 conf/kismet_drone.conf $(ETC)/kismet_drone.conf;  \
+		echo "Installed drone config into $(ETC)/kismet_drone.conf."; \
+	fi
+	@if test -f $(ETC)/kismet_ui.conf; then \
+		$(MAKE) -e checkuiconfig; \
+	else \
+		install -o $(INSTUSR) -g $(INSTGRP) -m 644 conf/kismet_ui.conf $(ETC)/kismet_ui.conf;  \
+		echo install -o $(INSTUSR) -g $(INSTGRP) -m 644 conf/kismet_ui.conf $(ETC)/kismet_ui.conf;  \
+		echo "Installed UI config into $(ETC)/kismet_ui.conf."; \
+	fi
+	@echo "Installed kismet into $(BIN)/."
+	@echo "If you have not done so already, read the README file and the FAQ file.  Additional"
+	@echo "documentation is in the docs/ directory.  You MUST edit $(ETC)/kismet.conf and configure"
+	@echo "Kismet for your system, or it will NOT run properly!"
+	@echo
+	@echo "Kismet has NOT been installed suid-root.  This means you will need to start it as root."
+	@echo "If you have no untrusted users on your system, it can be installed as suid-root via"
+	@echo "'make suidinstall'.  READ THE DOCUMENTATION BEFORE INSTALLING KISMET AS SUID-ROOT!"
                 
 forceinstall: $(PS)
 	$(MAKE) -e commoninstall
+	$(MAKE) -e binuserinstall
 	install -o $(INSTUSR) -g $(INSTGRP) -m 644 conf/kismet.conf $(ETC)/kismet.conf;  \
 		echo "Installed config into $(ETC)/kismet.conf."; 
 	install -o $(INSTUSR) -g $(INSTGRP) -m 644 conf/kismet_drone.conf $(ETC)/kismet_drone.conf;  \
@@ -217,6 +248,29 @@ forceinstall: $(PS)
 	@echo "If you have not done so already, read the README file and the FAQ file.  Additional"
 	@echo "documentation is in the docs/ directory.  You MUST edit $(ETC)/kismet.conf and configure"
 	@echo "Kismet for your system, or it will NOT run properly!"
+	@echo
+	@echo "Kismet has NOT been installed suid-root.  This means you will need to start it as root."
+	@echo "If you have no untrusted users on your system, it can be installed as suid-root via"
+	@echo "'make suidinstall'.  READ THE DOCUMENTATION BEFORE INSTALLING KISMET AS SUID-ROOT!"
+
+suidforceinstall: $(PS)
+	$(MAKE) -e commoninstall
+	$(MAKE) -e binsuidinstall
+	install -o $(INSTUSR) -g $(INSTGRP) -m 644 conf/kismet.conf $(ETC)/kismet.conf;  \
+		echo "Installed config into $(ETC)/kismet.conf."; 
+	install -o $(INSTUSR) -g $(INSTGRP) -m 644 conf/kismet_drone.conf $(ETC)/kismet_drone.conf;  \
+		echo "Installed drone config into $(ETC)/kismet_drone.conf."; 
+	install -o $(INSTUSR) -g $(INSTGRP) -m 644 conf/kismet_ui.conf $(ETC)/kismet_ui.conf;  \
+		echo "Installed UI config into $(ETC)/kismet_ui.conf."; 
+	@echo "Installed kismet into $(BIN)/."
+	@echo "If you have not done so already, read the README file and the FAQ file.  Additional"
+	@echo "documentation is in the docs/ directory.  You MUST edit $(ETC)/kismet.conf and configure"
+	@echo "Kismet for your system, or it will NOT run properly!"
+	@echo
+	@echo "Kismet has been installed SUID ROOT.  This WILL ALLOW NORMAL USERS TO BREAK YOUR WIRELESS"
+	@echo "NETWORK CONNECTION.  IF YOU HAVE ANY UNTRUSTED USERS ON YOUR SYSTEM DO NOT INSTALL KISMET"
+	@echo "AS SUID ROOT."
+
 
 rpm:
 	@echo "Disabling SUID installation (RPM will handle setting the SUID bit.)"

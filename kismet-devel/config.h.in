@@ -1,5 +1,8 @@
 /* config.h.in.  Generated from configure.in by autoheader.  */
 
+/* system binary directory */
+#undef BIN_LOC
+
 /* Build curses-based UI */
 #undef BUILD_CURSES
 

@@ -3068,6 +3068,18 @@ cat >>confdefs.h <<_ACEOF
 _ACEOF
 
 
+BIN_DIR=$bindir
+BIN_DIR=`(
+    test "$prefix" = NONE && prefix=$ac_default_prefix
+    test "$exec_prefix" = NONE && exec_prefix=${prefix}
+    eval echo "$BIN_DIR"
+)`
+
+cat >>confdefs.h <<_ACEOF
+#define BIN_LOC "$BIN_DIR"
+_ACEOF
+
+
 # Check for endian
 
 echo "$as_me:$LINENO: checking whether byte ordering is bigendian" >&5
@@ -8628,6 +8640,9 @@ if test "`echo $host_os | grep linux`" = ""; then
 	echo "you will likely need to use 'gmake' instead of 'make'."
 	echo "Run 'gmake dep' to generate dependencies and 'gmake' followed by"
 	echo "'gmake install' to compile and install Kismet"
+	echo "Kismet WILL NOT be installed suid-root by default.  If you wish to install"
+	echo "Kismet as a suid-root utility, READ THE DOCUMENTATION and run 'make suidinstall'."
+	echo "DO NOT INSTALL KISMET AS SUID-ROOT IF YOU HAVE UNTRUSTED USERS ON YOUR SYSTEM."
 else
 	verminor=`uname -r | cut -d '.' -f 2`
 	# Stupid redhat

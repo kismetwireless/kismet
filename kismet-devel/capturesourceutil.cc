@@ -22,6 +22,27 @@
 #include "capturesourceutil.h"
 #include "util.h"
 
+char *card_type_str[] = {
+    "unspecified",
+    "cisco",
+    "cisco_cvs",
+    "cisco_bsd",
+    "prism2",
+    "prism2_legacy",
+    "prism2_bsd",
+    "prism2_hostap",
+    "orinoco",
+    "orinoco_bsd",
+    "generic",
+    "wsp100",
+    "wtapfile",
+    "viha",
+    "ar5k",
+    "drone",
+    "prism2_avs"
+};
+
+
 map<string, int> ParseEnableLine(string in_named) {
     map<string, int> retmap;
 
@@ -194,6 +215,17 @@ int BindRootSources(vector<capturesource *> *in_capsources, map<string, int> *in
 
         // Open the packet source and assign the timetracker
         if (csrc->source != NULL) {
+            // Run the monitor helper
+            fprintf(stderr, "Source %d (%s):  Attempting to enter monitor mode.\n", src, csrc->name.c_str());
+            char shellcmd[1024];
+            snprintf(shellcmd, 1024, "%s/kismet_monitor %s %s",
+                     BIN_LOC, csrc->interface.c_str(), card_type_str[csrc->cardtype]);
+            if (system(shellcmd) != 0) {
+                fprintf(stderr, "FATAL:  Source %d (%s): Error executing monitor mode helper %s\n",
+                        src, csrc->name.c_str(), shellcmd);
+                exit(1);
+            }
+
             csrc->source->AddTimetracker(in_tracker);
             csrc->source->AddGpstracker(in_gpsd);
 
@@ -224,6 +256,8 @@ int BindUserSources(vector<capturesource *> *in_capsources, map<string, int> *in
                     continue;
             }
 
+            // We already ran the monitor helper as root...
+
             (*in_enable)[StrLower(csrc->name)] = 1;
 
             if (ctype == card_wtapfile) {
@@ -245,6 +279,17 @@ int BindUserSources(vector<capturesource *> *in_capsources, map<string, int> *in
 
             // Open the packet source and add the timer tracker
             if (csrc->source != NULL) {
+                // Run the monitor helper
+                fprintf(stderr, "Source %d (%s):  Attempting to enter monitor mode.\n", src, csrc->name.c_str());
+                char shellcmd[1024];
+                snprintf(shellcmd, 1024, "%s/kismet_monitor %s %s",
+                         BIN_LOC, csrc->interface.c_str(), card_type_str[csrc->cardtype]);
+                if (system(shellcmd) != 0) {
+                    fprintf(stderr, "FATAL:  Source %d (%s): Error executing monitor mode helper %s\n",
+                            src, csrc->name.c_str(), shellcmd);
+                    exit(1);
+                }
+
                 csrc->source->AddTimetracker(in_tracker);
                 csrc->source->AddGpstracker(in_gpsd);
 

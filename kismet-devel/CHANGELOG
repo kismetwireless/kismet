@@ -1,3 +1,5 @@
+May 22 2003  2.9.1  Absorbed kismet_monitor into kismet_server, changed suid
+                     root behavior.  READ THE DOCS.
 May 21 2003  2.9.1  First major rewrite to the packet path.  kismet_monitor
                      and kismet_hopper are still required.  See blog entry 
                      for more details.

@@ -1718,7 +1718,9 @@ int main(int argc,char *argv[]) {
 
     source_input_vec.clear();
 
-    // Now enable root sources...  BindRoot will terminate if it fails
+    // Now enable root sources...  BindRoot will terminate if it fails.  We need to set our euid
+    // to be root here, we don't care if it fails though.
+    setreuid(0, 0);
 
     BindRootSources(&packet_sources, &enable_name_map,
                     ((source_from_cmd == 0) || (enable_from_cmd == 1)),
