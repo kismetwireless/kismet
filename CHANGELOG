@@ -1,3 +1,6 @@
+Oct 02 2002  2.7    Implemented more secure suid-behavior from reports by
+                     Francois.
+                    Updated configures suid args and documentation
 Sep 29 2002  2.7    Beginnings of multi-server per client support.
                     Fixed packet tracking bug with adhoc networks
                     Updated manuf database and tweaked lucent pair

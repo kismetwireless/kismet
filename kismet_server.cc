@@ -924,7 +924,10 @@ int main(int argc,char *argv[]) {
 #ifdef HAVE_SUID
     struct passwd *pwordent;
     const char *suid_user;
-    uid_t suid_id;
+    uid_t suid_id, real_uid;
+
+    real_uid = getuid();
+
     if (conf.FetchOpt("suiduser") != "") {
         suid_user = conf.FetchOpt("suiduser").c_str();
         if ((pwordent = getpwnam(suid_user)) == NULL) {
@@ -935,10 +938,18 @@ int main(int argc,char *argv[]) {
             suid_id = pwordent->pw_uid;
 
             if (suid_id == 0) {
+                // If we're suiding to root...
                 fprintf(stderr, "FATAL:  Specifying a uid-0 user for the priv drop is pointless.  Recompile\n");
                 fprintf(stderr, "        with --disable-suid if you really want this.\n");
                 exit(1);
+            } else if (suid_id != real_uid && real_uid != 0) {
+                // If we're not running as root (ie, we've suid'd to root)
+                // and if we're not switching to the user that ran us
+                // then we don't like it and we bail.
+                fprintf(stderr, "FATAL:  kismet_server must be started as root or as the suid-target user.\n");
+                exit(1);
             }
+
 
             fprintf(stderr, "NOTICE:  Will drop privs to %s (%d)\n", suid_user, suid_id);
         }

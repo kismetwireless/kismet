@@ -636,7 +636,7 @@ Optional Features:
   --disable-wireless      disable linux kernel wireless extentions
   --disable-pcap          disable libpcap capture support
   --enable-syspcap        use system libpcap (not recomended)
-  --disable-suid-root     disable suid-root installtion (not recomended)
+  --disable-setuid     disable setuid capability (not recomended)
   --enable-zaurus         enable some extra stuff (like piezzo buzzer) for Zaurus
   --enable-local-dumper   force use of local dumper code even if ethereal is present
   --enable-acpi           Use ACPI instead of APM
@@ -4270,17 +4270,17 @@ echo "$as_me: WARNING: Compiling without libpcap support." >&2;}
 fi
 
 suid=yes
-# Check whether --enable-suid-root or --disable-suid-root was given.
-if test "${enable_suid_root+set}" = set; then
-  enableval="$enable_suid_root"
+# Check whether --enable-setuid or --disable-setuid was given.
+if test "${enable_setuid+set}" = set; then
+  enableval="$enable_setuid"
   suid=no
 else
   suid=yes
 fi;
 
 if test $suid = yes; then
-	echo "$as_me:4282: checking for suid-root installation" >&5
-echo $ECHO_N "checking for suid-root installation... $ECHO_C" >&6
+	echo "$as_me:4282: checking for setuid " >&5
+echo $ECHO_N "checking for setuid ... $ECHO_C" >&6
 	echo "$as_me:4284: result: yes" >&5
 echo "${ECHO_T}yes" >&6
 
@@ -4289,12 +4289,12 @@ cat >>confdefs.h <<\EOF
 EOF
 
 else
-	echo "$as_me:4292: checking for suid-root installation" >&5
-echo $ECHO_N "checking for suid-root installation... $ECHO_C" >&6
+	echo "$as_me:4292: checking for setuid" >&5
+echo $ECHO_N "checking for setuid... $ECHO_C" >&6
 	echo "$as_me:4294: result: no" >&5
 echo "${ECHO_T}no" >&6
-	{ echo "$as_me:4296: WARNING: *** Not installing suid-root.  It is more secure to install suid-root than it is to run Kismet as root all the time.  Please consult the README file. ***" >&5
-echo "$as_me: WARNING: *** Not installing suid-root.  It is more secure to install suid-root than it is to run Kismet as root all the time.  Please consult the README file. ***" >&2;}
+	{ echo "$as_me:4296: WARNING: *** Not installing setuid capabilities.  It is more secure to install Kismet as setuid-capable so it can drop privileges.  Please consult the README file. ***" >&5
+echo "$as_me: WARNING: *** Not installing setuid capabilities.  It is more secure to install Kismet as setuid-capable so it can drop privileges.  Please consult the README file. ***" >&2;}
 fi
 
 zaurus=no
@@ -6082,7 +6082,7 @@ echo "         Compiling for: $host_os ($host_cpu)"
 echo "   Installing as group: $instgrp"
 echo "    Man pages owned by: $mangrp"
 echo "       Installing into: $prefix"
-echo -n "  Installing suid-root: "
+echo -n "        Setuid capable: "
 if test "$suid" = "yes"; then
 	echo "yes"
 else
