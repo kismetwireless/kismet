@@ -1720,7 +1720,7 @@ int main(int argc,char *argv[]) {
 
             if (gps_log) {
                 if (gpsdump.OpenDump(gpslogfile.c_str(), xmllogfile.c_str()) < 0) {
-                    fprintf(stderr, "FATAL: %s\n", gpsdump.FetchError());
+                    fprintf(stderr, "FATAL: GPS dump error: %s\n", gpsdump.FetchError());
                     exit(1);
                 }
             }
@@ -1739,7 +1739,7 @@ int main(int argc,char *argv[]) {
 
     if (data_log) {
         if (dumpfile->OpenDump(dumplogfile.c_str()) < 0) {
-            fprintf(stderr, "FATAL: %s\n", dumpfile->FetchError());
+            fprintf(stderr, "FATAL: Dump file error: %s\n", dumpfile->FetchError());
             exit(1);
         }
 

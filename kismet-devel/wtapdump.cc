@@ -31,7 +31,7 @@ int WtapDumpFile::OpenDump(const char *file) {
                                2344, &wtap_error);
 
     if (!dump_file) {
-        snprintf(errstr, 1024, "Unable to open wtap dump file");
+        snprintf(errstr, 1024, "Unable to open wtap dump file: %s", filename);
         return -1;
     }
 
