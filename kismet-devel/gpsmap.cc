@@ -244,8 +244,8 @@ double map_avg_lat, map_avg_lon;
 
 
 // User options and defaults
-unsigned int map_width = 1024;
-unsigned int map_height = 1280;
+unsigned int map_width = 1280;
+unsigned int map_height = 1024;
 
 // Drawing features and opacity
 int draw_track = 0, draw_bounds = 0, draw_range = 0, draw_power = 0,
@@ -2103,7 +2103,7 @@ int main(int argc, char *argv[]) {
         // start up messages
     }
 
-    if ((map_width > 1024 || map_height > 1280) && mapsource == MAPSOURCE_MAPBLAST) {
+    if ((map_width > 1280 || map_height > 1024) && mapsource == MAPSOURCE_MAPBLAST) {
         fprintf(stderr, "WARNING:  Maximum Mapblast image size is 1024x1280.  Adjusting.\n");
         map_width = 1024;
         map_height = 1280;
@@ -2155,7 +2155,8 @@ int main(int argc, char *argv[]) {
             fprintf(stderr, "FATAL: You must provide a scale with the -s option that is from 10 to 16\n");
             exit(0);
         }
-        fetch_scale = terrascales[(user_scale - 10)];
+        map_scale = terrascales[(user_scale - 10)];
+        fetch_scale = user_scale;
     }
 
     // Initialize stuff
