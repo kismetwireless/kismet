@@ -4,6 +4,5 @@ IP map fields allow Kismet to retain a detected IP over multiple network runs.
 
 The file format is:
 
-<BSSID> <type> <octets> <range0> <range1> <range2> <range3> \
-	<mask0> ... <mask3> <gateway0> ... <gateway3>
+<BSSID> <type> <octets> <IP range>
 
