@@ -522,10 +522,6 @@ int ProcessGPSFile(char *in_fname) {
         if (file_points[i]->fix < 2)
             continue;
 
-        // Don't process track data if not needed
-        if (!draw_track && strncmp(file_points[i]->bssid, gps_track_bssid, MAC_STR_LEN) == 0)
-            continue;
-
         double lat, lon, alt, spd;
         int fix;
 
@@ -535,28 +531,31 @@ int ProcessGPSFile(char *in_fname) {
         spd = file_points[i]->spd;
         fix = file_points[i]->fix;
 
-        global_map_avg.avg_lat += lat;
-        global_map_avg.avg_lon += lon;
-        global_map_avg.avg_alt += alt;
-        global_map_avg.avg_spd += spd;
-        global_map_avg.count++;
+        // Only include tracks in the size of the map if we're going to draw them
+        int trackdata = strncmp(file_points[i]->bssid, gps_track_bssid, MAC_STR_LEN);
+        if ((draw_track && trackdata == 0) || trackdata != 0) {
+            global_map_avg.avg_lon += lon;
+            global_map_avg.avg_alt += alt;
+            global_map_avg.avg_spd += spd;
+            global_map_avg.count++;
 
-        if (lat > global_map_avg.max_lat || global_map_avg.max_lat == 0)
-            global_map_avg.max_lat = lat;
-        if (lat < global_map_avg.min_lat || global_map_avg.min_lat == 0)
-            global_map_avg.min_lat = lat;
+            if (lat > global_map_avg.max_lat || global_map_avg.max_lat == 0)
+                global_map_avg.max_lat = lat;
+            if (lat < global_map_avg.min_lat || global_map_avg.min_lat == 0)
+                global_map_avg.min_lat = lat;
 
-        if (lon > global_map_avg.max_lon || global_map_avg.max_lon == 0)
-            global_map_avg.max_lon = lon;
-        if (lon < global_map_avg.min_lon || global_map_avg.min_lon == 0)
-            global_map_avg.min_lon = lon;
+            if (lon > global_map_avg.max_lon || global_map_avg.max_lon == 0)
+                global_map_avg.max_lon = lon;
+            if (lon < global_map_avg.min_lon || global_map_avg.min_lon == 0)
+                global_map_avg.min_lon = lon;
 
-        if (alt > global_map_avg.max_alt || global_map_avg.max_alt == 0)
-            global_map_avg.max_alt = alt;
-        if (alt < global_map_avg.min_alt || global_map_avg.min_alt == 0)
-            global_map_avg.min_alt = alt;
+            if (alt > global_map_avg.max_alt || global_map_avg.max_alt == 0)
+                global_map_avg.max_alt = alt;
+            if (alt < global_map_avg.min_alt || global_map_avg.min_alt == 0)
+                global_map_avg.min_alt = alt;
+        }
 
-        if (strncmp(file_points[i]->bssid, gps_track_bssid, MAC_STR_LEN) == 0) {
+        if (trackdata == 0) {
             track_data tdat;
 
             tdat.x = 0;
