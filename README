@@ -486,14 +486,21 @@ Licensed under the GPL
                     Capture interface:  'ethX'
                     PrismGT 802.11g drivers supporting monitor mode.
 
-    radiotap_freebsd Atheros            FreeBSD     Kernel
-                     Prism2
+    radiotap_fbsd_ab Atheros             FreeBSD     Kernel
+                     Capture interface:  'athX'
+                     FreeBSD dual-band cards with radiotap headers (currently
+                      only Atheros)
+
+    radiotap_fbsd_a Atheros             FreeBSD     Kernel
+                    Capture interface:  'athX'
+                    FreeBSD 802.11a cards (or dual-band on 11a channels only)
+                     with radiotap headers (currently only Atheros)
+
+    radiotap_fbsd_b Atheros             FreeBSD     Kernel
                     Capture interface:  'athX'
                     Capture interface:  'wiX'
-                    FreeBSD drivers supporting the Radiotap headers.
-                    As of the time of this writing, supported drivers are
-                     limited to Atheros (madwifi) and Prism2.  Other chipsets
-                     should be supported as radiotap is added to their drivers.
+                    FreeBSD 802.11b cards (or dual-band on 11b channels only)
+                     with radiotap headers (Currently Atheros or Prism2)
 
     viha            Airport             OSX         viha
                     http://www.dopesquad.net/security/

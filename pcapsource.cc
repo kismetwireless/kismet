@@ -863,18 +863,6 @@ int PcapSourceOpenBSDPrism::FetchChannel() {
 #endif
 
 #ifdef HAVE_RADIOTAP
-int PcapSourceRadiotap::FetchChannel() {
-#ifdef SYS_FREEBSD
-    FreeBSD bsd(interface.c_str());
-    int c;
-    return bsd.get80211(IEEE80211_IOC_CHANNEL, c, 0, NULL) ? c : -1;
-#elif __linux__
-	// use wireless extensions - implement this in the future -drag
-#else
-#error	"No support for your operating system"
-#endif
-}
-
 int PcapSourceRadiotap::OpenSource() {
     // XXX this is a hack to avoid duplicating code
     int s = PcapSource::OpenSource();
@@ -1817,16 +1805,16 @@ const char *FreeBSD::geterror() const {
 }
 
 void FreeBSD::perror(const char *fmt, ...) {
-#if 0
+	char *cp;
+
+	snprintf(errstr, sizeof(errstr), "%s: ", ifname.c_str());
+	cp = strchr(errstr, '\0');
 	va_list ap;
 	va_start(ap, fmt);
-	vsnprintf(errstr, sizeof(errstr), fmt, ap);
+	vsnprintf(cp, sizeof(errstr) - (cp - errstr), fmt, ap);
 	va_end(ap);
-	char *cp = strchr(errstr, '\0');
-	vsnprintf(cp, sizeof(errstr) - (cp - errstr), ": %s", strerror(errno));
-#else
-	snprintf(errstr, sizeof(errstr), "%s: %s", fmt, strerror(errno));
-#endif
+	cp = strchr(cp, '\0');
+	snprintf(cp, sizeof(errstr) - (cp - errstr), ": %s", strerror(errno));
 }
 
 void FreeBSD::seterror(const char *fmt, ...) {
@@ -1847,6 +1835,29 @@ bool FreeBSD::checksocket() {
     return true;
 }
 
+bool FreeBSD::getmediaopt(int& options, int& mode) {
+    struct ifmediareq ifmr;
+
+    if (!checksocket())
+        return false;
+
+    memset(&ifmr, 0, sizeof(ifmr));
+    strncpy(ifmr.ifm_name, ifname.c_str(), sizeof(ifmr.ifm_name));
+
+    /*
+     * We must go through the motions of reading all
+     * supported media because we need to know both
+     * the current media type and the top-level type.
+     */
+    if (ioctl(s, SIOCGIFMEDIA, (caddr_t)&ifmr) < 0) {
+        perror("cannot get ifmedia");
+        return false;
+    }
+    options = IFM_OPTIONS(ifmr.ifm_current);
+    mode = IFM_MODE(ifmr.ifm_current);
+    return true;
+}
+
 bool FreeBSD::setmediaopt(int options, int mode) {
     struct ifmediareq ifmr;
     struct ifreq ifr;
@@ -1864,7 +1875,7 @@ bool FreeBSD::setmediaopt(int options, int mode) {
      * the current media type and the top-level type.
      */
     if (ioctl(s, SIOCGIFMEDIA, (caddr_t)&ifmr) < 0) {
-        perror("%s: cannot get ifmedia", ifname.c_str());
+        perror("cannot get ifmedia");
         return false;
     }
     if (ifmr.ifm_count == 0) {
@@ -1878,7 +1889,7 @@ bool FreeBSD::setmediaopt(int options, int mode) {
     }
     ifmr.ifm_ulist = mwords;
     if (ioctl(s, SIOCGIFMEDIA, (caddr_t)&ifmr) < 0) {
-        perror("%s: cannot get ifmedia", ifname.c_str());
+        perror("cannot get ifmedia");
         return false;
     }
     delete mwords;
@@ -1889,7 +1900,7 @@ bool FreeBSD::setmediaopt(int options, int mode) {
     ifr.ifr_media = (ifr.ifr_media &~ IFM_MMASK) | IFM_MAKEMODE(mode);
 
     if (ioctl(s, SIOCSIFMEDIA, (caddr_t)&ifr) < 0) {
-        perror("%s: cannot set ifmedia", ifname.c_str());
+        perror("cannot set ifmedia");
         return false;
     }
     return true;
@@ -1906,7 +1917,7 @@ bool FreeBSD::get80211(int type, int& val, int len, u_int8_t *data) {
     ireq.i_len = len;
     ireq.i_data = data;
     if (ioctl(s, SIOCG80211, &ireq) < 0) {
-        perror("%s: SIOCG80211 ioctl failed", ifname.c_str());
+        perror("SIOCG80211 ioctl failed");
         return false;
     }
     val = ireq.i_val;
@@ -1924,11 +1935,7 @@ bool FreeBSD::set80211(int type, int val, int len, u_int8_t *data) {
     ireq.i_val = val;
     ireq.i_len = len;
     ireq.i_data = data;
-    if (ioctl(s, SIOCS80211, &ireq) < 0) {
-	perror("%s: SIOCS80211 ioctl failed", ifname.c_str());
-	return false;
-    }
-    return true;
+    return (ioctl(s, SIOCS80211, &ireq) >= 0);
 }
 
 bool FreeBSD::getifflags(int& flags) {
@@ -1939,31 +1946,25 @@ bool FreeBSD::getifflags(int& flags) {
 
     strncpy(ifr.ifr_name, ifname.c_str(), sizeof (ifr.ifr_name));
     if (ioctl(s, SIOCGIFFLAGS, (caddr_t)&ifr) < 0) {
-        perror("%s: SIOCGIFFLAGS ioctl failed", ifname.c_str());
+        perror("SIOCGIFFLAGS ioctl failed");
         return false;
     }
     flags = (ifr.ifr_flags & 0xffff) | (ifr.ifr_flagshigh << 16);
     return true;
 }
 
-bool FreeBSD::setifflags(int value) {
+bool FreeBSD::setifflags(int flags) {
     struct ifreq ifr;
-    int flags;
 
-    if (!getifflags(flags))
+    if (!checksocket())
         return false;
 
-    if (value < 0) {
-        value = -value;
-        flags &= ~value;
-    } else
-        flags |= value;
     memset(&ifr, 0, sizeof(ifr));
     strncpy(ifr.ifr_name, ifname.c_str(), sizeof (ifr.ifr_name));
     ifr.ifr_flags = flags & 0xffff;
     ifr.ifr_flagshigh = flags >> 16;
     if (ioctl(s, SIOCSIFFLAGS, (caddr_t)&ifr) < 0) {
-        perror("%s: SIOCSIFFLAGS ioctl failed", ifname.c_str());
+        perror("SIOCSIFFLAGS ioctl failed");
         return false;
     }
     return true;
@@ -1971,48 +1972,67 @@ bool FreeBSD::setifflags(int value) {
 
 bool FreeBSD::monitor_enable(int initch) {
     /*
+     * Collect current state.
+     */
+    (void) getmediaopt(prev_options, prev_mode);
+    (void) get80211(IEEE80211_IOC_CHANNEL, prev_chan, 0, NULL);
+    (void) getifflags(prev_flags);
+    /*
      * Enter monitor mode, set the specified channel,
      * enable promiscuous reception, and force the
      * interface up since otherwise bpf won't work.
      */
     if (!setmediaopt(IFM_IEEE80211_MONITOR, IFM_AUTO))
         return false;
-    if (!set80211(IEEE80211_IOC_CHANNEL, initch, 0, NULL))
+    if (!set80211(IEEE80211_IOC_CHANNEL, initch, 0, NULL)) {
+	perror("failed to set channel %u", initch);
+	(void) setmediaopt(prev_options, prev_mode);
         return false;
-    if (!setifflags(IFF_PPROMISC | IFF_UP))
+    }
+    if (!setifflags(prev_flags | IFF_PPROMISC | IFF_UP)) {
+	(void) set80211(IEEE80211_IOC_CHANNEL, prev_chan, 0, NULL);
+	(void) setmediaopt(prev_options, prev_mode);
         return false;
+    }
     return true;
 }
 
 bool FreeBSD::monitor_reset(int initch) {
-    (void) setifflags(-IFF_PPROMISC);
+    (void) setifflags(prev_flags);
     /* NB: reset the current channel before switching modes */
-    (void) set80211(IEEE80211_IOC_CHANNEL, initch, 0, NULL);
-    /* XXX restore previous options/operating mode */
-    (void) setmediaopt(0, IFM_AUTO);
+    (void) set80211(IEEE80211_IOC_CHANNEL, prev_chan, 0, NULL);
+    (void) setmediaopt(prev_options, prev_mode);
     return true;
 }
 
 bool FreeBSD::chancontrol(int in_ch) {
-    return set80211(IEEE80211_IOC_CHANNEL, in_ch, 0, NULL);
+    if (!set80211(IEEE80211_IOC_CHANNEL, in_ch, 0, NULL)) {
+	perror("failed to set channel %u", in_ch);
+	return false;
+    } else
+	return true;
 }
 
 int monitor_freebsd(const char *in_dev, int initch, char *in_err, void **in_if) {
-    FreeBSD bsd(in_dev);
-    if (!bsd.monitor_enable(initch)) {
-        strcpy(in_err, bsd.geterror());
+    FreeBSD *bsd = new FreeBSD(in_dev);
+    if (!bsd->monitor_enable(initch)) {
+        strcpy(in_err, bsd->geterror());
+	delete bsd;
         return -1;
     } else {
+	*(FreeBSD **)in_if = bsd;
         return 0;
     }
 }
 
 int unmonitor_freebsd(const char *in_dev, int initch, char *in_err, void **in_if) {
-    FreeBSD bsd(in_dev);
-    if (!bsd.monitor_reset(initch)) {
-	strcpy(in_err, bsd.geterror());
+    FreeBSD *bsd = *(FreeBSD **)in_if;
+    if (!bsd->monitor_reset(initch)) {
+	strcpy(in_err, bsd->geterror());
+	delete bsd;
 	return -1;
     } else {
+	delete bsd;
 	return 0;
     }
 }
