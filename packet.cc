@@ -223,6 +223,16 @@ void GetPacketInfo(kis_packet *packet, packet_parm *parm, packet_info *ret_packi
 
     int tag_offset = 0;
 
+    // Assign the direction this packet is going in
+    if (fc->to_ds == 0 && fc->from_ds == 0)
+        ret_packinfo->distrib = adhoc_distribution;
+    else if (fc->to_ds == 0 && fc->from_ds == 1)
+        ret_packinfo->distrib = from_distribution;
+    else if (fc->to_ds == 1 && fc->from_ds == 0)
+        ret_packinfo->distrib = to_distribution;
+    else if (fc->to_ds == 1 && fc->from_ds == 1)
+        ret_packinfo->distrib = inter_distribution;
+
     if (fc->type == 0) {
         ret_packinfo->type = packet_management;
 
@@ -241,16 +251,6 @@ void GetPacketInfo(kis_packet *packet, packet_parm *parm, packet_info *ret_packi
             if (fixparm->ess == 0 && fixparm->ibss == 1)
                 ret_packinfo->distrib = adhoc_distribution;
         }
-
-        // Assign the direction this packet is going in
-        if ((fc->to_ds == 0 && fc->from_ds == 0) || ret_packinfo->distrib == adhoc_distribution)
-            ret_packinfo->distrib = adhoc_distribution;
-        else if (fc->to_ds == 0 && fc->from_ds == 1)
-            ret_packinfo->distrib = from_distribution;
-        else if (fc->to_ds == 1 && fc->from_ds == 0)
-            ret_packinfo->distrib = to_distribution;
-        else if (fc->to_ds == 1 && fc->from_ds == 1)
-            ret_packinfo->distrib = inter_distribution;
 
         map<int, int> tag_cache_map;
 
