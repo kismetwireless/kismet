@@ -1,3 +1,5 @@
+Apr 29 2003  2.9.1  First iteration of stateful packet inspection added - 
+                     detection of probe-only clients who never join a network
 Apr 24 2003  2.9.1  Tweaked cisco_cvs monitor scripts
 Apr 22 2003  2.9.1  Fixed datasize counting (non-wepped packets weren't)
 Apr 21 2003  2.9.1  Added 'comment' field to the netxml and gpsxml files
