@@ -29,7 +29,6 @@ In no particular order:
 	do something smarter with RSSI signal levels from AVS headers
 	do something smarter in expat.cc with carriers, encodings, etc
 	AP uptime extraction
-	getopt problems on freebsd5
 	denote networks with keys in UI
 	strong authentication/SSL of client/server server/drone
 	acpi/apm reporting via server protocol
