@@ -273,7 +273,7 @@ int KisRingBuffer::InsertDummy(int in_len) {
 
 int KisRingBuffer::InsertData(uint8_t *in_data, int in_len) {
     // Will this hit the end of the ring and go back to the beginning?
-    if ((ring_wptr + in_len) > (ring_data + ring_len)) {
+    if ((ring_wptr + in_len) >= (ring_data + ring_len)) {
         // How much data gets written to the tail of the ring before we
         // wrap?
         int tail = (ring_data + ring_len) - ring_wptr;
@@ -296,6 +296,8 @@ int KisRingBuffer::InsertData(uint8_t *in_data, int in_len) {
         ring_wptr = ring_wptr + in_len;
     }
 
+    // printf("debug - inserted %d into ring buffer.\n", in_len);
+
     return 1;
 }
 
@@ -308,8 +310,8 @@ int KisRingBuffer::FetchLen() {
         ret = (ring_wptr - ring_rptr);
     }
 
-    printf("ring begin %p wptr %p rptr %p lt %d len %d\n",
-           ring_data, ring_wptr, ring_rptr, ring_wptr < ring_rptr, ret);
+    //printf("ring begin %p wptr %p rptr %p lt %d len %d\n",
+           //ring_data, ring_wptr, ring_rptr, ring_wptr < ring_rptr, ret);
 
     return ret;
 }
@@ -342,6 +344,8 @@ void KisRingBuffer::MarkRead(int in_len) {
         ring_rptr += in_len;
     }
 
+    //printf("debug - marked %d read in ring\n", in_len);
+    
     return;
 }
 

@@ -1,6 +1,8 @@
 Dec 09 2003  3.1.0  Fixed prism54g override of channel change failure in
                      entering monitor mode.
                     Added more useful error messages to kismet_server
+                    Finally fixed kismet_drone and removed debugging info.
+                     Should be stable for normal use.
 Dec 08 2003  3.1.0  Fixed util.h to include math.h outside of the wext
                      ifdef.
                     Removed mentions of signal quality from the panels client.
