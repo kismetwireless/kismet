@@ -112,10 +112,34 @@ string Packetracker::Net2String(wireless_network *in_net) {
     return ret;
 }
 
-string Packetracker::Client2String(wireless_client *client) {
+string Packetracker::Client2String(wireless_network *net, wireless_client *client) {
     string ret;
     char output[2048];
 
+    snprintf(output, 2048,
+             "%s %s %d %d %d %d %d %d %d %d %d "
+             "%f %f %f %f %f %f %f %f %A %A "
+             "%A %ld %2.1f %d %d %d %d %d %d %d "
+             "%f %f %f %d %d.%d.%d.%d",
+             net->bssid.c_str(),
+             client->mac.c_str(),
+             client->type,
+             (int) client->first_time, (int) client->last_time,
+             client->manuf_id, client->manuf_score,
+             client->data_packets, client->crypt_packets, client->interesting_packets,
+             client->gps_fixed, client->min_lat, client->min_lon, client->min_alt, client->min_spd,
+             client->max_lat, client->max_lon, client->max_alt, client->max_spd,
+             client->aggregate_lat, client->aggregate_lon, client->aggregate_alt,
+             client->aggregate_points,
+             client->maxrate, client->metric,
+             client->quality, client->signal, client->noise,
+             client->best_quality, client->best_signal, client->best_noise,
+             client->best_lat, client->best_lon, client->best_alt,
+             client->ipdata.atype,
+             client->ipdata.ip[0], client->ipdata.ip[1],
+             client->ipdata.ip[2], client->ipdata.ip[3]);
+
+    ret = output;
 
     return ret;
 }
@@ -501,11 +525,13 @@ int Packetracker::ProcessDataPacket(packet_info info, wireless_network *net, cha
     int fix = 0;
 
     // Handle lucent outdoor routers
-    if (net->type == network_data && info.proto.type == proto_lor) {
-        net->cloaked = 1;
-        net->ssid = "Lucent Outdoor Router";
-        net->type = network_lor;
-    }
+    if (net->type == network_data &&
+        (info.type == packet_data || info.type == packet_adhoc_data))
+        if (info.proto.type == proto_lor) {
+            net->cloaked = 1;
+            net->ssid = "Lucent Outdoor Router";
+            net->type = network_lor;
+        }
 
     string smac = Mac2String(info.source_mac, ':');
 
@@ -608,6 +634,11 @@ int Packetracker::ProcessDataPacket(packet_info info, wireless_network *net, cha
         net->noise = info.noise;
         if ((info.noise < net->best_noise && info.noise != 0) || net->best_noise == 0)
             net->best_noise = info.noise;
+    }
+
+    if (info.type == packet_probe_req) {
+        if (info.maxrate > client->maxrate)
+            client->maxrate = info.maxrate;
     }
 
     client->last_time = time(0);

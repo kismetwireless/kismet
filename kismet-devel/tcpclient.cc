@@ -323,7 +323,59 @@ int TcpClient::ParseData(char *in_data) {
         // fprintf(stderr, "dealing with net %s\n", ssid);
         // fprintf(stderr, "Set net %s\n", net_map[net.bssid].ssid.c_str());
 
+    } else if (!strncmp(header, "*CLIENT", 64)) {
+        short int ip[4];
+        char bssid[18];
+        char mac[18];
+        int scanned;
+        float maxrate;
+        wireless_client *client = new wireless_client;
 
+        scanned = sscanf(in_data+hdrlen, "%17s %17s %d %d %d %d %d %d %d %d %d "
+                         "%f %f %f %f %f %f %f %f %lA %lA "
+                         "%lA %ld %f %d %d %d %d %d %d %d "
+                         "%f %f %f %d %hd.%hd.%hd.%hd",
+                         bssid, mac, (int *) &client->type,
+                         (int *) &client->first_time, (int *) &client->last_time,
+                         (int *) &client->manuf_id, &client->manuf_score,
+                         &client->data_packets, &client->crypt_packets,
+                         &client->interesting_packets,
+                         &client->gps_fixed, &client->min_lat, &client->min_lon,
+                         &client->min_alt, &client->min_spd,
+                         &client->max_lat, &client->max_lon, &client->max_alt,
+                         &client->max_spd, &client->aggregate_lat, &client->aggregate_lon,
+                         &client->aggregate_alt, &client->aggregate_points,
+                         &maxrate, &client->metric,
+                         &client->quality, &client->signal, &client->noise,
+                         &client->best_quality, &client->best_signal, &client->best_noise,
+                         &client->best_lat, &client->best_lon, &client->best_alt,
+                         (int *) &client->ipdata.atype, &ip[0], &ip[1], &ip[2], &ip[3]);
+
+        if (scanned < 38)
+            return 0;
+
+        client->mac = bssid;
+        client->maxrate = maxrate;
+
+        // Alignment issues on some platforms make this necessary
+        unsigned int rawmac0, rawmac1, rawmac2, rawmac3, rawmac4, rawmac5;
+
+        sscanf(mac, "%02X:%02X:%02X:%02X:%02X:%02X",
+               &rawmac0, &rawmac1, &rawmac2,
+               &rawmac3, &rawmac4, &rawmac5);
+
+        client->raw_mac[0] = rawmac0;
+        client->raw_mac[1] = rawmac1;
+        client->raw_mac[2] = rawmac2;
+        client->raw_mac[3] = rawmac3;
+        client->raw_mac[4] = rawmac4;
+        client->raw_mac[5] = rawmac5;
+
+        for (unsigned int x = 0; x < 4; x++)
+            client->ipdata.ip[x] = ip[x];
+
+        if (net_map.find(bssid) != net_map.end())
+            net_map[bssid].client_map[mac] = client;
 
     } else if (!strncmp(header, "*REMOVE", 64)) {
 

@@ -213,6 +213,9 @@ string PanelFront::NetLine(wireless_network *net, const char *name, int sub,
         } else if (column_vec[col] == "noise") {
             snprintf(element, 4, "%3d", net->noise);
             len = 3;
+        } else if (column_vec[col] == "clients") {
+            snprintf(element, 5, "%4d", net->client_map.size());
+            len = 4;
         }
 
         if (pos + len > print_width)
@@ -434,6 +437,9 @@ int PanelFront::MainNetworkPrinter(void *in_window) {
         } else if (column_vec[col] == "noise") {
             snprintf(title, 1024, "Nse");
             len = 3;
+        } else if (column_vec[col] == "clients") {
+            snprintf(title, 1024, "Clnt");
+            len = 4;
         } else {
             len = -1;
         }
