@@ -1,3 +1,5 @@
+Jun 25 2004  devel  Removed net/bpf.h since it isn't needed and isn't present
+                     in some systems
 Jun 18 2004  devel  Changed string = char * to string = string(char *) since
                      cygwin seems to have broken constructors for that
                      (thanks JM)

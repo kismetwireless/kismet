@@ -34,7 +34,7 @@
 extern "C" {
 #ifndef HAVE_PCAPPCAP_H
 #include <pcap.h>
-#include <net/bpf.h>
+//#include <net/bpf.h>
 #else
 #include <pcap/pcap.h>
 #include <pcap/net/bpf.h>
