@@ -861,6 +861,21 @@ Licensed under the GPL
     Details:          Many firmware versions from different manufacturers
                       have a fatal error when they receive a probe response
                       with a 0-length SSID tagged parameter.
+
+    Alert name:       BSSTIMESTAMP
+    Alert type:       Trend
+    Alert on:         Invalid BSS timestamps indicative of an access point 
+                      being spoofed.
+    Alert message:    "Out-of-sequence timestamp on $bssid got $timestamp 
+                      expected $timestamp - this could indicate AP spoofing"
+    Tool-specific:    No
+    Details:          The BSS timestamp send with beacons and some probe frames
+                      cannot be spoofed with standard firmware or drivers even
+                      when forging raw frames.  A BSS mismatch is likely an
+                      indication of an attempt to spoof the SSID and BSSID of 
+                      an access point.
+                      This alert contains flap-detection to minimise false
+                      positives caused by random bogons and AP recycling.
     
 15. Troubleshooting
     

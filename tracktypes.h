@@ -285,6 +285,8 @@ typedef struct wireless_network {
 
         dupeiv_packets = 0;
 
+        bss_timestamp = 0;
+
     }
 
     wireless_network_type type;
@@ -395,6 +397,8 @@ typedef struct wireless_network {
     // number of duplicate IV counts
     int dupeiv_packets;
 
+    // BSS timestamp
+    uint64_t bss_timestamp;
 };
 
 
