@@ -176,6 +176,8 @@ int main(int argc, char *argv[]) {
 
     vector<client_ipblock *> legal_ipblock_vec;
 
+    int microsleep = 0;
+
     static struct option long_options[] = {   /* options table */
         { "config-file", required_argument, 0, 'f' },
         { "capture-source", required_argument, 0, 'c' },
@@ -189,6 +191,7 @@ int main(int argc, char *argv[]) {
         { "initial-channel", required_argument, 0, 'I' },
         { "force-channel-hop", no_argument, 0, 'x' },
         { "force-no-channel-hop", no_argument, 0, 'X' },
+        { "microsleep", required_argument, 0, 'M' },
         { 0, 0, 0, 0 }
     };
     int option_index;
@@ -200,10 +203,17 @@ int main(int argc, char *argv[]) {
     signal(SIGPIPE, SIG_IGN);
 
     while(1) {
-        int r = getopt_long(argc, argv, "f:c:C:p:a:N:hvsI:xX",
+        int r = getopt_long(argc, argv, "f:c:C:p:a:N:hvsI:xXM:",
                             long_options, &option_index);
         if (r < 0) break;
         switch(r) {
+        case 'M':
+            // Microsleep
+            if (sscanf(optarg, "%d", &microsleep) != 1) {
+                fprintf(stderr, "Invalid microsleep\n");
+                Usage(argv[0]);
+            }
+            break;
         case 's':
             // Silent
             silent = 1;
@@ -743,6 +753,9 @@ int main(int argc, char *argv[]) {
         }
 
         timetracker.Tick();
+
+        if (microsleep != 0)
+            usleep(microsleep);
 
     }
 

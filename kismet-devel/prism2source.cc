@@ -130,6 +130,7 @@ int Prism2Source::FetchPacket(kis_packet *packet, uint8_t *data, uint8_t *moddat
 
     num_packets++;
 
+    snprintf(packet->sourcename, 32, "%s", name.c_str());
     packet->parm = parameters;
 
     return(packet->caplen);

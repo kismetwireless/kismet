@@ -170,6 +170,9 @@ void GetPacketInfo(kis_packet *packet, packet_info *ret_packinfo,
         return;
     }
 
+    // Copy the name into the packinfo
+    memcpy(ret_packinfo->sourcename, packet->sourcename, 32);
+    
     frame_control *fc = (frame_control *) packet->data;
 
     uint16_t duration = 0;

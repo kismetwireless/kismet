@@ -109,6 +109,9 @@ int VihaSource::FetchPacket(kis_packet *packet, uint8_t *data, uint8_t *moddata)
     pthread_mutex_unlock(&capture_lock);
     pthread_cond_broadcast(&capture_wait);
 
+    snprintf(packet->sourcename, 32, "%s", name.c_str());
+    packet->parm = parameters;
+
     return bytes;
 }
 
