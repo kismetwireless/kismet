@@ -513,6 +513,19 @@ Licensed under the GPL
                      sources are only available if Kismet was compiled with
                      libwiretap support.
 
+    Chipsets known to NOT WORK:
+     Intel Centrino     - The only way to use these cards in Linux wraps the
+                          windows drivers into a Linux interface.  There is no
+                          rfmon support.
+     Broadcom           - Like Centrino, windows drivers only.
+     Airport Extreme    - Really a Broadcom, see above.
+     Atmel              - The USB firmware has no rfmon feature.  The pcmcia
+                          firmware -may-, but the drivers don't support it.
+     Realtek            - Cards seem to be primarily software-driven, no
+                          support in the drivers.
+     HermesII           - Proxim successor to the Orinoco/HermesI.  No support
+                          yet in the drivers, may be available in the future.
+
 12. Graphical Network Mapping
 
     Kismet provides a tool for drawing networks overlaid on downloaded maps
@@ -758,6 +771,11 @@ Licensed under the GPL
     FIX: Set your TERM environment variable to something libcurses has support
      for.  'vt100' is usually a good choice.
 
+    PROBLEM: My GPS hardware claims to have a signal lock, but Kismet shows a
+     fix of 0 and does not log any GPS inforation.
+    FIX: Some GPS units have invalid NMEA streams which gpsd doesn't understand
+     correctly.  Set the "gpsmodelock" option to "true" in kismet.conf
+
 16. Frequently Asked Questions
 
     Q: Where did the name Kismet come from?
@@ -800,4 +818,13 @@ Licensed under the GPL
        (people can see you're running NetStumbler), it can't decloak hidden
        networks, and it can't record data.
 
-    
+    Q: Will Kismet work with Linuxant or NDISwrapper drivers?
+    A: No.  These wrappers use the Windows drivers, which don't support rfmon.
+       Until there are native drivers with rfmon support, Kismet won't work 
+       with these cards.
+
+    Q: What can I do to get you to support card 'xyz'?
+    A: Kismet support of a card is largely dependant on available drivers with
+       rfmon support.  I'll be happy to get in touch with driver authors about
+       support.
+       
