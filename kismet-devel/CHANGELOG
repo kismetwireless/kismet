@@ -1,3 +1,6 @@
+Nov 15 2002  2.7.1  Fixed kismet_monitor calling kismet_hopper for new sources
+                    Fixed broke probe_req handling caused by the new packet
+                     categorizer.
 Nov 13 2002  2.7.1  Fixed packetracker incorrect handling of interdistribution
                      data packets.
                     Added kismet_hopper support for the wsp100

@@ -183,27 +183,30 @@ void GetPacketInfo(const pkthdr *header, const u_char *data,
     int tag_offset = 0;
 
     if (fc->type == 0) {
-        // First byte of offsets
-        ret_packinfo->header_offset = 24;
-
-        if (header->len < 36) {
-            ret_packinfo->type = packet_noise;
-            return;
-        }
-        fixed_parameters *fixparm = (fixed_parameters *) &msgbuf[24];
-
         ret_packinfo->type = packet_management;
 
-        ret_packinfo->wep = fixparm->wep;
-        ret_packinfo->ess = fixparm->ess;
+        // Short handling of probe reqs since they don't have a fixed parameters
+        // field
+        fixed_parameters *fixparm;
+        if (fc->subtype == 4) {
+            ret_packinfo->header_offset = 24;
+            fixparm = NULL;
+        } else {
+            ret_packinfo->header_offset = 36;
+            fixparm = (fixed_parameters *) &msgbuf[24];
+            ret_packinfo->wep = fixparm->wep;
+            ret_packinfo->ess = fixparm->ess;
+        }
 
         map<int, int> tag_cache_map;
 
         // Extract various tags from the packet
-        if ((tag_offset = GetTagOffset(36, 0, header, data, &tag_cache_map)) > 0) {
+        if ((tag_offset = GetTagOffset(ret_packinfo->header_offset, 0, header, data, &tag_cache_map)) > 0) {
             temp = (msgbuf[tag_offset] & 0xFF) + 1;
             // Protect against malicious packets
-            if (temp <= 32 && tag_offset + 1 + temp < (int) header->len) {
+            if (temp == 0) {
+                // do nothing for 0-length ssid's
+            } else if (temp <= 32 && (tag_offset + 1 + temp) < (int) header->len) {
                 snprintf(ret_packinfo->ssid, temp, "%s", &msgbuf[tag_offset+1]);
                 // Munge it down to printable characters... SSID's can be anything
                 // but if we can't print them it's not going to be very useful
@@ -215,7 +218,7 @@ void GetPacketInfo(const pkthdr *header, const u_char *data,
         }
 
         // Extract the supported rates
-        if ((tag_offset = GetTagOffset(36, 1, header, data, &tag_cache_map)) > 0) {
+        if ((tag_offset = GetTagOffset(ret_packinfo->header_offset, 1, header, data, &tag_cache_map)) > 0) {
             for (int x = 0; x < msgbuf[tag_offset]; x++) {
                 if (ret_packinfo->maxrate < (msgbuf[tag_offset+1+x] & 0x7F) * 0.5)
                     ret_packinfo->maxrate = (msgbuf[tag_offset+1+x] & 0x7F) * 0.5;
@@ -223,7 +226,7 @@ void GetPacketInfo(const pkthdr *header, const u_char *data,
         }
 
         // Find the offset of flag 3 and get the channel
-        if ((tag_offset = GetTagOffset(36, 3, header, data, &tag_cache_map)) > 0) {
+        if ((tag_offset = GetTagOffset(ret_packinfo->header_offset, 3, header, data, &tag_cache_map)) > 0) {
             // Extract the channel from the next byte (GetTagOffset returns
             // us on the size byte)
             temp = msgbuf[tag_offset+1];
@@ -231,7 +234,7 @@ void GetPacketInfo(const pkthdr *header, const u_char *data,
         }
 
         // Extract the CISCO beacon info
-        if ((tag_offset = GetTagOffset(36, 133, header, data, &tag_cache_map)) > 0) {
+        if ((tag_offset = GetTagOffset(ret_packinfo->header_offset, 133, header, data, &tag_cache_map)) > 0) {
             if ((unsigned) tag_offset + 11 < header->len) {
                 snprintf(ret_packinfo->beacon_info, BEACON_INFO_LEN, "%s", &msgbuf[tag_offset+11]);
                 MungeToPrintable(ret_packinfo->beacon_info, BEACON_INFO_LEN);
@@ -304,9 +307,6 @@ void GetPacketInfo(const pkthdr *header, const u_char *data,
                 ret_packinfo->bssid_mac = ret_packinfo->source_mac;
                 ret_packinfo->distrib = adhoc_distribution;
             }
-
-            // First byte of offsets
-            ret_packinfo->header_offset = 24;
 
         } else if (fc->subtype == 8) {
             ret_packinfo->subtype = packet_sub_beacon;
