@@ -729,10 +729,12 @@ void AssignNetColors() {
         } else if (color_coding == COLORCODE_CHANNEL) {
             if (map_iter->wnet != NULL) {
                 if (map_iter->wnet->channel < 1 || map_iter->wnet->channel > 14) {
-                    map_iter->color_index = "#000000";
+                    map_iter->color_index = channelcolors[0];
                 } else {
                     map_iter->color_index = channelcolors[map_iter->wnet->channel - 1];
                 }
+            } else {
+                map_iter->color_index = channelcolors[0];
             }
         } else {
             if (netcolors[base_color] == NULL)
