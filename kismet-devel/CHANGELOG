@@ -1,3 +1,55 @@
+Apr 07 2004 2004-04 Released 2004-04R1.
+                    Major improvements in this release:
+                      Fixed 'Too many open files' errors on all platforms
+                      Tweaked autoconf scripts to make some distros happier 
+                       with finding components
+                      Additional FreeBSD support and compile-time fixes
+                      Better error reporting for most fatal conditions
+                      Fixed echoing to console fatal error conditions before 
+                       the client connects
+                      Support for latest Ethereal wtaplibs
+                      Support for ADMTek cards
+                      Fixed support for ACX100 cards
+                      Fixed support for prism2_legacy (please, upgrade 
+                       and stop using this)
+                      Fixed pcap on platforms like OSX, should compile 
+                       cleanly out of the box
+                      Fixed segfaults with empty *_manuf files
+                      Added support for dumpfiles greater than 2GB
+                      Added unmonitor support for more sources
+                      Fixed sound playing on many drivers
+                      Added optional fourth option to source= configfile 
+                       lines to set initial channels
+                      Modified monitor-entry IOCTLs to agree with more 
+                       drivers
+                      Added support for signal levels in dBm
+                      Changed release numbering to YYYY-MM-Relnum to make 
+                       people happy
+                    Also there have been a LOT of gpsmap updates:
+                      Binary caching of parsed XML for reduced processing 
+                       time on repeated mappings of the same data
+                      Rewritten power interpolation that actually works right 
+                       now
+                      Proper handling of signal and noise levels in dBm
+                      Feathered range circle drawing mode (translucent fading 
+                       edges to range estimations)
+                      Feathered scatterplot drawing (Very very slow however)
+                      Background map color saturation control (Desaturation 
+                       percentage control instead of pure greyscale)
+                      Background map intensity control (Overlay map 
+                       translucently over white or black)
+                      Revamped and extended network labeling support
+                      Revamped network center averaging code to sift the most 
+                       relevant center points and average them
+                      Moved to GMP for some math ops for extra precision
+                      Fixed Mapblast support
+                      Earthamap map source support
+                      Null map source (blank screen)
+                      Terraserver topographic map source
+                      Terraserver autoscale support
+                      Added gpsxml-sanitize command to clean XML files 
+                       outside of gpsmap
+                      Gobs of bugfixes.
 Apr 07 2004  devel  Set gpsmap caching to save empty files
 Apr 06 2004  devel  Fixed ACX100 FCS bytes
 Apr 05 2004  devel  Fixed packet count bug in csv
