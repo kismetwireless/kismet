@@ -169,17 +169,14 @@ void GetPacketInfo(const pkthdr *header, const u_char *data,
         // First byte of offsets
         ret_packinfo->header_offset = 24;
 
+        if (header->len < 36) {
+            ret_packinfo->type = packet_noise;
+            return;
+        }
+        fixed_parameters *fixparm = (fixed_parameters *) &msgbuf[24];
+
         if (fc->subtype == 8) {
             // beacon frame
-
-            // If we look like a beacon but we aren't long enough to hold
-            // tags, then we probably aren't a beacon.  Throw us out.
-            if (header->len < 36) {
-                ret_packinfo->type = packet_noise;
-                return;
-            }
-
-            fixed_parameters *fixparm = (fixed_parameters *) &msgbuf[24];
 
             //            ret.beacon = ntohl(fixparm->beacon);
             ret_packinfo->beacon = ktoh16(fixparm->beacon);
@@ -228,7 +225,6 @@ void GetPacketInfo(const pkthdr *header, const u_char *data,
                         ret_packinfo->maxrate = (msgbuf[tag_offset+1+x] & 0x7F) * 0.5;
                 }
             }
-
 
             // Extract the MAC's
             ret_packinfo->dest_mac = addr0;
@@ -279,6 +275,15 @@ void GetPacketInfo(const pkthdr *header, const u_char *data,
             ret_packinfo->dest_mac = addr0;
             ret_packinfo->source_mac = addr1;
             ret_packinfo->bssid_mac = addr2;
+
+            ret_packinfo->wep = fixparm->wep;
+            ret_packinfo->ap = fixparm->ess;
+
+            if (ret_packinfo->ap == 0) {
+                // Weird adhoc beacon where the BSSID isn't 'right' so we use the source instead.
+                ret_packinfo->bssid_mac = ret_packinfo->source_mac;
+                ret_packinfo->type = packet_adhoc;
+            }
 
             // First byte of offsets
             ret_packinfo->header_offset = 24;

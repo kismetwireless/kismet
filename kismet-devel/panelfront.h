@@ -195,6 +195,8 @@ protected:
         int num_networks, num_packets, num_crypt, num_interesting,
             num_noise, num_dropped, packet_rate;
 
+        time_t server_time;
+
     };
 
     // Update a context on the tick function
@@ -307,6 +309,8 @@ protected:
     int quality, power, noise;
 
     int zoomed;
+
+    time_t server_time;
 
     display_network *details_network;
     wireless_client *details_client;

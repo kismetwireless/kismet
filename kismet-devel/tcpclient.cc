@@ -318,6 +318,7 @@ int TcpClient::ParseData(char *in_data) {
 
         net->manuf_key = manuf_str;
         net->maxrate = maxrate;
+
     } else if (!strncmp(header, "*CLIENT", 64)) {
         short int ip[4];
 

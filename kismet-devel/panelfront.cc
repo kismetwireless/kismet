@@ -933,6 +933,8 @@ void PanelFront::UpdateContext(server_context *con) {
         con->power = con->client->FetchPower();
         con->noise = con->client->FetchNoise();
 
+        con->server_time = con->client->FetchTime();
+
     } else {
         // Update all the subnetworks
         for (unsigned int x = 0; x < con->contexts.size(); x++)
@@ -1200,6 +1202,7 @@ void PanelFront::LoadContext(server_context *in_context) {
     num_noise = in_context->num_noise;
     num_dropped = in_context->num_dropped;
     packet_rate = in_context->packet_rate;
+    server_time = in_context->server_time;
     context = in_context;
 }
 
@@ -1229,6 +1232,7 @@ void PanelFront::LoadSubContext(server_context *in_context) {
     num_noise = in_context->num_noise;
     num_dropped = in_context->num_dropped;
     packet_rate = in_context->packet_rate;
+    server_time = in_context->server_time;
 }
 
 void PanelFront::StoreContext(server_context *in_context) {
@@ -1257,6 +1261,7 @@ void PanelFront::StoreContext(server_context *in_context) {
     in_context->last_fix = last_fix;
     in_context->last_draw_size = last_draw_size;
     in_context->last_client_draw_size = last_client_draw_size;
+    in_context->server_time = server_time;
 }
 
 #endif

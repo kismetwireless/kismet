@@ -1,4 +1,5 @@
 Sep 29 2002  2.7    Beginnings of multi-server per client support.
+                    Fixed packet tracking bug with adhoc networks
 Sep 26 2002  2.7    Started 2.7 devel tree
 
 Sep 26 2002  2.6.0  Released 2.6.0
