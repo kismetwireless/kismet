@@ -32,7 +32,7 @@ ETC	= ${DESTDIR}@sysconfdir@
 BIN	= ${DESTDIR}@bindir@
 SHARE = ${DESTDIR}@datadir@/kismet/
 MAN = ${DESTDIR}@mandir@
-WAV = ${DESTDIR}${SHARE}/wav/
+WAV = ${SHARE}/wav/
 
 DEPEND	= .depend
 
