@@ -25,41 +25,35 @@ multiple server systems.
 .PP
 "maxclient" (int) Maximum number of simultaneously connected clients
 .PP
-"sourceN" (string) Comma-seperated packet source (engine,interface,cardtype,name)
-.RS
-Capture engine - Specifies how Kismet expects to receive packets for this interface.  It can be one of:
-.RS
-pcap - pcap packet stream.  This should work with almost every card, including Prism2 (wlan-ng and hostap), Cisco and Orinoco.
+"sourceN" (string) Comma-seperated packet source (cardtype,interface,name)
 .PP
-wsp100 - WSP100 remote sensor from Packetyzer/Network Chemistry.
+Card type - Specifies the type of device.  It can be one of:
+.RS
+cisco - Cisco card with Linux Kernel drivers
 .PP
-prism2 - Linux Netlink socket to old wlan-ng prism2 drivers.  This is deprecated and should not be used.
+cisco_cvs - Cisco card with CVS Linux drivers
+.PP
+cisco_bsd - Cisco on *BSD
+.PP
+prism2 - Prism2 using wlan-ng drivers with pcap support (all current versions support pcap)
+.PP
+prism2_hostap - Prism2 using hostap drivers
+.PP
+prism2_legacy - Prism2 using wlan-ng drivers without pcap support (0.1.9)
+.PP
+prism2_bsd - Prism2 on *BSD
+.PP
+orinoco - Orinoco cards using Snax's patched driers
+.PP
+generic - Generic card with no specific support.  You will have to put this into monitor mode yourself!
+.PP
+wsp100 - WSP100 embedded remote sensor.
+.PP
+wtapfile - Saved file of packets readable by libwiretap
+.PP
 .RE
 .PP
 Capture interface - Specifies the network interface Kismet will watch for packets to come in on.  Typically "ethX" or "wlanX".  For the WSP100 capture engine, the WSP100 device sends packets via a UDP stream, so the capture interface should be in the form of host:port where 'host' is the WSP100 and 'port' is the local UDP port that it will send data to.
-.PP
-Card type - Specifies the type of device (pcap, for instance, supports many different cards).  It can be one of:
-.RS
-cisco - Cisco card with Linux Kernel drivers (pcap source)
-.PP
-cisco_cvs - Cisco card with CVS Linux drivers (pcap source)
-.PP
-cisco_bsd - Cisco on *BSD (pcap source)
-.PP
-prism2 - Prism2 using wlan-ng drivers (deprecated) (prism2 source)
-.PP
-prism2_pcap - Prism2 using wlan-ng drivers with pcap support (pcap source)
-.PP
-prism2_bsd - Prism2 on *BSD (pcap source)
-.PP
-prism2_hostap - Prism2 using hostap drivers (pcap source)
-.PP
-orinoco - Orinoco cards using Snax's patch (pcap source)
-.PP
-generic - Generic card with no specific support.  You will have to put this into monitor mode yourself! (pcap source)
-.PP
-wsp100 - WSP100 embedded remote sensor.
-.RE
 .PP
 Capture Name - Purely informational, this allows you to name each interface for easier identification.
 .PP
@@ -133,7 +127,7 @@ configuration directory.
 "beaconlog" (true|false) Do we log beacon packets?  If beacon logging is turned off,
 one beacon per network will be logged.
 .PP
-"fuzzycrypt" (true|false) Comma-seperated list of capture types we use fuzzy
+"fuzzycrypt" (true|false) Comma-seperated list of card types we use fuzzy
 encryption detection on.
 .PP
 "dumptype" (string) Type of dumpfile we generate (wiretap is the only supported

@@ -35,7 +35,6 @@
 #include "pcapsource.h"
 #include "wtapfilesource.h"
 #include "wsp100source.h"
-#include "genericsource.h"
 
 #include "dumpfile.h"
 #include "wtapdump.h"
@@ -72,7 +71,6 @@ void ProtocolClientEnable(int in_fd);
 typedef struct capturesource {
     PacketSource *source;
     string name;
-    string engine;
     string interface;
     string scardtype;
     card_type cardtype;
@@ -704,7 +702,7 @@ int Usage(char *argv) {
     printf("  -t, --log-title <title>      Custom log file title\n"
            "  -n, --no-logging             No logging (only process packets)\n"
            "  -f, --config-file <file>     Use alternate config file\n"
-           "  -c, --capture-source <src>   Packet capture source line (engine,interface,type,name)\n"
+           "  -c, --capture-source <src>   Packet capture source line (type,interface,name)\n"
            "  -l, --log-types <types>      Comma seperated list of types to log,\n"
            "                                (ie, dump,cisco,weak,network,gps)\n"
            "  -d, --dump-type <type>       Dumpfile type (wiretap)\n"
@@ -1007,17 +1005,16 @@ int main(int argc,char *argv[]) {
         }
         optlist.push_back(sourceopt.substr(begin, sourceopt.size() - begin));
 
-        if (optlist.size() < 4) {
+        if (optlist.size() < 3) {
             fprintf(stderr, "FATAL:  Invalid source line '%s'\n", sourceopt.c_str());
             exit(1);
         }
 
         capturesource *newsource = new capturesource;
         newsource->source = NULL;
-        newsource->engine = optlist[0];
+        newsource->scardtype = optlist[0];
         newsource->interface = optlist[1];
-        newsource->scardtype = optlist[2];
-        newsource->name = optlist[3];
+        newsource->name = optlist[2];
         memset(&newsource->packparm, 0, sizeof(packet_parm));
 
         packet_sources.push_back(newsource);
@@ -1041,8 +1038,8 @@ int main(int argc,char *argv[]) {
             csrc->cardtype = card_cisco_bsd;
         else if (!strcasecmp(sctype, "prism2"))
             csrc->cardtype = card_prism2;
-        else if (!strcasecmp(sctype, "prism2_pcap"))
-            csrc->cardtype = card_prism2_pcap;
+        else if (!strcasecmp(sctype, "prism2_legacy"))
+            csrc->cardtype = card_prism2_legacy;
         else if (!strcasecmp(sctype, "prism2_bsd"))
             csrc->cardtype = card_prism2_bsd;
         else if (!strcasecmp(sctype, "prism2_hostap"))
@@ -1051,15 +1048,19 @@ int main(int argc,char *argv[]) {
             csrc->cardtype = card_orinoco;
         else if (!strcasecmp(sctype, "generic"))
             csrc->cardtype = card_generic;
+        else if (!strcasecmp(sctype, "wsp100"))
+            csrc->cardtype = card_wsp100;
+        else if (!strcasecmp(sctype, "wtapfile"))
+            csrc->cardtype = card_wtapfile;
         else {
-            fprintf(stderr, "WARNING:  Unknown card type '%s'\n", sctype);
-            csrc->cardtype = card_unspecified;
+            fprintf(stderr, "FATAL:  Unknown card type '%s'\n", sctype);
+            exit(1);
         }
 
         // Open it if it needs to be opened as root
-        const char *captype = csrc->engine.c_str();
+        card_type ctype = csrc->cardtype;
 
-        if (!strcasecmp(captype, "prism2")) {
+        if (ctype == card_prism2_legacy) {
 #ifdef HAVE_LINUX_NETLINK
             fprintf(stderr, "Source %d: Using prism2 to capture packets.\n", src);
 
@@ -1068,7 +1069,9 @@ int main(int argc,char *argv[]) {
             fprintf(stderr, "FATAL:  Source %d: Linux netlink support was not compiled in.\n", src);
             exit(1);
 #endif
-        } else if (!strcasecmp(captype, "pcap")) {
+        } else if (ctype == card_cisco || ctype == card_cisco_cvs || ctype == card_cisco_bsd ||
+                   ctype == card_prism2 || ctype == card_prism2_bsd || ctype == card_prism2_hostap ||
+                   ctype == card_orinoco || ctype == card_generic) {
 #ifdef HAVE_LIBPCAP
             if (csrc->interface == "") {
                 fprintf(stderr, "FATAL:  Source %d: No capture device specified.\n", src);
@@ -1083,31 +1086,7 @@ int main(int argc,char *argv[]) {
             fprintf(stderr, "FATAL:  Source %d: Pcap support was not compiled in.\n", src);
             exit(1);
 #endif
-        } else if (!strcasecmp(captype, "generic")) {
-#ifdef HAVE_LINUX_WIRELESS
-            if (csrc->interface == "") {
-                fprintf(stderr, "FATAL:  Source %d: No capture device specified.\n", src);
-                exit(1);
-            }
-
-            fprintf(stderr, "Source %d: Using generic kernel extentions to capture SSIDs from %s\n",
-                    src, csrc->interface.c_str());
-
-            fprintf(stderr, "Source %d: Generic capture does not support cisco, weak, or dump logs.\n", src);
-
-            fprintf(stderr, "**WARNING** Generic capture will generate packets which may be observable.\n");
-
-#ifdef HAVE_SUID
-            fprintf(stderr, "FATAL: Generic kernel capture will ONLY work as root.  Kismet must be run as\n"
-                    "root, not suid, for this to function.\n");
-            exit(1);
-#endif
-            csrc->source = new GenericSource;
-#else
-            fprintf(stderr, "FATAL: Source %d: Kernel wireless (wavelan/generic) support was not compiled in.\n", src);
-            exit(1);
-#endif
-        } else if (!strcasecmp(captype, "wtapfile")) {
+        } else if (ctype == card_wtapfile) {
 #ifdef HAVE_LIBWIRETAP
             if (csrc->interface == "") {
                 fprintf(stderr, "FATAL:  Source %d: No capture device specified.\n", src);
@@ -1120,7 +1099,7 @@ int main(int argc,char *argv[]) {
             exit(1);
 #endif
 
-        } else if (!strcasecmp(captype, "wsp100")) {
+        } else if (ctype == card_wsp100) {
 #ifdef HAVE_WSP100
             if (csrc->interface == "") {
                 fprintf(stderr, "FATAL:  Source %d: No capture device specified.\n", src);
@@ -1136,7 +1115,7 @@ int main(int argc,char *argv[]) {
             exit(1);
 #endif
         } else {
-            fprintf(stderr, "FATAL:  Source %d: Unknown capture engine '%s'\n", src, csrc->engine.c_str());
+            fprintf(stderr, "FATAL:  Source %d: Unhandled card type %s\n", src, csrc->scardtype.c_str());
             exit(1);
         }
 
@@ -1166,11 +1145,11 @@ int main(int argc,char *argv[]) {
     for (unsigned int src = 0; src < packet_sources.size(); src++) {
         capturesource *csrc = packet_sources[src];
 
-        const char *captype = csrc->engine.c_str();
+        card_type ctype = csrc->cardtype;
 
         // For any unopened soruces...
         if (csrc->source == NULL) {
-            if (!strcasecmp(captype, "wtapfile")) {
+            if (ctype == card_wtapfile) {
 #ifdef HAVE_LIBWIRETAP
                 fprintf(stderr, "Source %d: Loading packets from dump file %s\n",
                        src, csrc->interface.c_str());
@@ -1818,7 +1797,7 @@ int main(int argc,char *argv[]) {
 
     char *fuzzengines = strdup(conf->FetchOpt("fuzzycrypt").c_str());
     for (unsigned int x = 0; x < packet_sources.size(); x++) {
-        if (strstr(fuzzengines, packet_sources[x]->engine.c_str()) ||
+        if (strstr(fuzzengines, packet_sources[x]->scardtype.c_str()) ||
             strncmp(fuzzengines, "all", 3) == 0)
             packet_sources[x]->packparm.fuzzy_crypt = 1;
         else

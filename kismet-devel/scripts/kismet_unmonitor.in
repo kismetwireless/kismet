@@ -77,8 +77,8 @@ if test "$USEFILE" -eq 0; then
 fi
 
 for line in `cat $IFFILE`; do
+	CARDTYPE=`echo $line | cut -f 1 -d,`
 	DEVICE=`echo $line | cut -f 2 -d,`
-	CARDTYPE=`echo $line | cut -f 3 -d,`
 
 	case "$CARDTYPE" in
 		"cisco")
