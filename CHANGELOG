@@ -1,3 +1,5 @@
+Aug 10 2003  3.1.0  Added extra/listchan.pl script to extract supported
+                     channels, useful for building hopper lists for combo cards
 Aug 08 2003  3.1.0  Re-generated libpcap configure script to hopefully avoid 
                      configure issues on some platforms
 Aug 08 2003  3.1.0  Started 3.1.0 devel cycle
