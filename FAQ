@@ -28,6 +28,7 @@ Kismet Frequently Asked Questions
   localhost
 * Redhat 7.3 says it isn't in monitor mode even after I run kismet_monitor!
 * Why do I see more clients in the seperate networks than I do in a group?
+* Kismet says "No 'suiduser' option in the config file" and exits
 
 Q: How do I convert older binary GPS files to the new XML format?
 A: Use the utility "kismet2xml" in the extras/ directory.
@@ -38,9 +39,7 @@ it?
 A: Yes, I'll certianly try, if you:
 
 a: Give me one for development.
-
 b: Loan me one for however long it takes to write the code.
-
 c: Give me an account on a system with that card installed that I can do 
 development on. (and with enough access rights to throw the card into 
 promisc mode)
@@ -101,13 +100,16 @@ the hands of unprivileged users.
 
 Q: My Cisco doesn't seem to be capturing packets correctly or entering RF 
 monitor mode
-A: You probably have an old kernel version.  2.4.16 or higher is strongly 
-reccomended due to a high number of changes in the cisco driver and the kernel 
-wireless extentions in recent kernel versions. 
+A: You probably have an old kernel version, or are using the Cisco corporate
+drivers, or are using the pcmcia-cs cisco drivers.  Linux kernel 2.4.16 or 
+higher is strongly reccomended, as older linux kernel versions did not support
+rfmon correctly.  The cisco corporate and pcmcia-cs cisco drivers also do not
+support rfmon mode.
 
 
 Q: I'm using the CVS Cisco drivers and can't see any packets
-A: You need to capture on the interface 'wifi0' (or 'wifi1', and so on).
+A: You need to capture on the interface 'wifi0' (or 'wifi1', and so on) and
+the cardtype to "cisco_cvs"
 
 
 Q: Cisco beacons while in RF Monitor mode anyhow!
@@ -129,6 +131,7 @@ Q: Kismet quits immediately saying 'GPS logging requested but GPS support was
 not compiled'
 A: You disabled GPS support.  Set GPS to false and turn off the GPS in 
 logtypes.
+
 
 Q: My Garmin GPS appears to have a lock, and Kismet reports coordinates, but
 Kismet still won't record a GPS file and it says it has no lock.
@@ -164,7 +167,15 @@ doesn't.  It defaults to the one that doesn't.  A quick fix is:
 cp /lib/modules/2.4.18-?/kernel/drivers/net/wireless/airo*.o  \
    /lib/modules/2.4.18-?/kernel/drivers/net/pcmcia/ 
 
+
 Q: Why do I see more clients in the seperate networks than I do in a group?
 A: The same client can be broadcast from, and talking to, multiple APs.  When
 the APs are combined into a group, the duplicate client is collapsed into a 
 single client record.
+
+
+Q: Kismet says "No 'suiduser' option in the config file" and exits
+A: You need to upgrade your config.  Use 'make force_install' and then edit the
+config to match your system again.
+
+
