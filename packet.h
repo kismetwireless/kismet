@@ -199,24 +199,6 @@ typedef struct {
 
 #endif
 
-// A standard frame
-typedef struct {
-    // 2 byte duration
-    uint16_t duration;
-
-    // 18 bytes of normal address ranges
-    uint8_t addr0[6];
-    uint8_t addr1[6];
-    uint8_t addr2[6];
-
-    // 2 bytes of sequence and fragment counts
-    wireless_fragseq sequence;
-
-    // And an optional 6 bytes of address range for ds=0x3 packets
-    uint8_t addr3[6];
-
-} wireless_frame;
-
 enum protocol_info_type {
     proto_unknown,
     proto_udp, proto_misc_tcp, proto_arp, proto_dhcp_server,
