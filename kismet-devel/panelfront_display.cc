@@ -2804,7 +2804,7 @@ int PanelFront::DetailsClientPrinter(void *in_window) {
                 if (diagdist < 1000)
                     snprintf(output, print_width, "Range    : %f meters", diagdist);
                 else
-                    snprintf(output, print_width, "Range   : %f kilometers", diagdist / 1000);
+                    snprintf(output, print_width, "Range    : %f kilometers", diagdist / 1000);
             } else {
                 diagdist *= 3.3;
                 if (diagdist < 5280)
