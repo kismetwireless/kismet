@@ -52,7 +52,8 @@ ${BIN}/kismet_server --silent $server &
 
 servpid=$!
 
-sleep 1
+echo "Waiting for server to finish starting before startuing UI..."
+sleep 4
 
 echo "Starting UI..."
 ${BIN}/kismet_client $client
