@@ -66,9 +66,14 @@ int VihaSource::CloseSource() {
 int VihaSource::LocalSetChannel(int in_ch, char *in_err) {
     // Will this work inside the chanchange process?  I can only
     // hope it will...
+    /*
     wldi->stopCapture();
     wldi->startCapture(in_ch);
+    */
 
+    // Heres a hint, reading the headers helps
+    wldi->setChannel(in_ch);
+    
     return 1;
 }
 
