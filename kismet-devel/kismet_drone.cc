@@ -764,24 +764,6 @@ int main(int argc, char *argv[]) {
             if (packet_sources[src]->source == NULL)
                 continue;
 
-            // Ping them
-            int8_t child_cmd = CAPCMD_NULL;
-
-            if (write(packet_sources[src]->servpair[1], &child_cmd, 1) < 0) {
-                snprintf(status, STATUS_MAX,
-                         "Source %d (%s): Command pipe shut down.", src, packet_sources[src]->name.c_str());
-
-                packet_sources[src]->alive = 0;
-
-                if (!silent) {
-                    fprintf(stderr, "%s\n", status);
-                    fprintf(stderr, "Terminating.\n");
-                }
-
-                CatchShutdown(-1);
-            }
-
-
             int len;
             string chtxt;
 
