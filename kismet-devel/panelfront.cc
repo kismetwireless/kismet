@@ -22,6 +22,10 @@
 #include <sys/types.h>
 #include <dirent.h>
 
+#ifdef SYS_OPENBSD
+#include <machine/apmvar.h>
+#endif
+
 #include "panelfront.h"
 #include "displaynetworksort.h"
 
@@ -1251,6 +1255,53 @@ int PanelFront::Tick() {
             if (batteries != NULL)
                 closedir(batteries);
         }
+
+#elif defined(SYS_OPENBSD)
+
+               struct apm_power_info api;
+               int apmfd;
+
+               if ((apmfd = open("/dev/apm", O_RDONLY)) < 0) {
+                       bat_available = 0;
+                       WriteStatus("Unable to open /dev/apm\n");
+                       return 1;
+               } else if (ioctl(apmfd, APM_IOC_GETPOWER, &api) < 0) {
+                       bat_available = 0;
+                       WriteStatus("Apm ioctl failed\n");
+                       return 1;
+               } else {
+                       close(apmfd);
+                       switch(api.battery_state) {
+                       case APM_BATT_UNKNOWN:
+                               bat_available = 0;
+                       case APM_BATTERY_ABSENT:
+                               bat_available = 0;
+                       default:
+                               bat_available = 1;
+                       }
+                       if (bat_available == 1) {
+                               bat_percentage = (int)api.battery_life;
+                               bat_time = (int)api.minutes_left;
+                               if (api.battery_state == APM_BATT_CHARGING) {
+                                       bat_ac = 1;
+                                       bat_charging = 1;
+                               } else {
+                                       switch (api.ac_state) {
+                                       case APM_AC_ON:
+                                               bat_ac = 1;
+                                               if (bat_percentage < 100) {
+                                                       bat_charging = 1;
+                                               } else {
+                                                       bat_charging = 0;
+                                               }
+                                       break;
+                                       default:
+                                               bat_ac = 0;
+                                               bat_charging = 0;
+                                       }
+                               }
+                       }
+               }
 #endif
     }
 
