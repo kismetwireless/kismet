@@ -400,6 +400,8 @@ void GetPacketInfo(kis_packet *packet, packet_info *ret_packinfo,
         } else if (fc->subtype == 4) {
             ret_packinfo->subtype = packet_sub_probe_req;
 
+            ret_packinfo->distrib = to_distribution;
+            
             ret_packinfo->source_mac = addr1;
             ret_packinfo->bssid_mac = addr1;
            
