@@ -763,6 +763,7 @@ int main(int argc,char *argv[]) {
     int datainterval = 0;
 
     int beacon_log = 1;
+    int phy_log = 1;
 
     FILE *manuf_data;
     char *client_manuf_name = NULL, *ap_manuf_name = NULL;
@@ -1804,6 +1805,10 @@ int main(int argc,char *argv[]) {
         fprintf(stderr, "Filtering beacon packets.\n");
     }
 
+    if (conf->FetchOpt("phylog") == "false") {
+        phy_log = 0;
+        fprintf(stderr, "Filtering PHY layer packets.\n");
+    }
 
     if (ap_manuf_name != NULL) {
         char pathname[1024];
@@ -1917,6 +1922,7 @@ int main(int argc,char *argv[]) {
         }
 
         dumpfile->SetBeaconLog(beacon_log);
+        dumpfile->SetPhyLog(phy_log);
 
         fprintf(stderr, "Dump file format: %s\n", dumpfile->FetchType());
     }
@@ -2295,6 +2301,7 @@ int main(int argc,char *argv[]) {
                             }
 
                             dumpfile->SetBeaconLog(beacon_log);
+                            dumpfile->SetPhyLog(phy_log);
 
                             snprintf(status, STATUS_MAX, "Opened new packet log file %s",
                                      dumplogfile.c_str());

@@ -92,6 +92,9 @@ int WtapDumpFile::DumpPacket(const packet_info *in_info, const pkthdr *in_header
         }
     }
 
+    if (in_info->type == packet_phy && phy_log == 0)
+        return 1;
+
     pcaprec_hdr packhdr;
     unsigned int nwritten;
 
