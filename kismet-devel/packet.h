@@ -67,7 +67,6 @@ typedef struct packet_parm {
     int fuzzy_crypt;
 };
 
-
 // Very similar to pcap_pkthdr and wtap_pkthdr.  This is our
 // common packet header that we convert everything to.
 typedef struct {
