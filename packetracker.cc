@@ -167,6 +167,7 @@ bool Packetracker::IsBlank(const char *s) {
 int Packetracker::ProcessPacket(packet_info info, char *in_status) {
     wireless_network *net;
     int ret = 0;
+    map<mac_addr, wireless_network *>::iterator bsmapitr;
 
     // string bssid_mac;
 
@@ -191,10 +192,11 @@ int Packetracker::ProcessPacket(packet_info info, char *in_status) {
 
     // If it's a broadcast (From and To DS == 1) try to match it to an existing
     // network
-    if (info.type == packet_ap_broadcast && bssid_map.find(info.bssid_mac) == bssid_map.end()) {
-        if (bssid_map.find(info.source_mac) != bssid_map.end()) {
+    bsmapitr = bssid_map.find(info.bssid_mac);
+    if (info.type == packet_ap_broadcast && bsmapitr == bssid_map.end()) {
+        if (bsmapitr != bssid_map.end()) {
             info.bssid_mac = info.source_mac;
-        } else if (bssid_map.find(info.dest_mac) != bssid_map.end()) {
+        } else if (bsmapitr != bssid_map.end()) {
             info.bssid_mac = info.dest_mac;
         } else {
             num_dropped++;

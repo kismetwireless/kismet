@@ -45,8 +45,9 @@ void Frontend::PopulateGroups() {
 
                 // So far so good.  Now we see if we're supposed to be in any other networks,
                 // and remove the reference
-                if (bssid_group_map.find(net->bssid) != bssid_group_map.end()) {
-                    bssid_group_map.erase(bssid_group_map.find(net->bssid));
+                map<mac_addr, string>::iterator bsgmitr = bssid_group_map.find(net->bssid);
+                if (bsgmitr != bssid_group_map.end()) {
+                    bssid_group_map.erase(bsgmitr);
                 }
 
                 if (ganet->type == group_host) {
@@ -386,13 +387,15 @@ display_network *Frontend::GroupTagged() {
             wireless_network *snet = dnet->networks[y];
 
             // Destroy our assignment
-            if (group_assignment_map.find(snet->bssid) != group_assignment_map.end())
-                group_assignment_map.erase(group_assignment_map.find(snet->bssid));
+            map<mac_addr, display_network *>::iterator gamitr = group_assignment_map.find(snet->bssid);
+            if (gamitr != group_assignment_map.end())
+                group_assignment_map.erase(gamitr);
 
             // So far so good.  Now we see if we're supposed to be in any other networks,
             // and remove the reference
-            if (bssid_group_map.find(snet->bssid) != bssid_group_map.end())
-                bssid_group_map.erase(bssid_group_map.find(snet->bssid));
+            map<mac_addr, string>::iterator bsgmitr = bssid_group_map.find(snet->bssid);
+            if (bsgmitr != bssid_group_map.end())
+                bssid_group_map.erase(bsgmitr);
 
             // Now we tell them we belong to the new network
             bssid_group_map[snet->bssid] = core->tag;
@@ -448,20 +451,24 @@ void Frontend::DestroyGroup(display_network *in_group) {
         wireless_network *snet = in_group->networks[x];
 
         // Destroy our assignment
-        if (group_assignment_map.find(snet->bssid) != group_assignment_map.end())
-            group_assignment_map.erase(group_assignment_map.find(snet->bssid));
+        map<mac_addr, display_network *>::iterator gamitr = group_assignment_map.find(snet->bssid);
+        if (gamitr != group_assignment_map.end())
+            group_assignment_map.erase(gamitr);
 
         // So far so good.  Now we see if we're supposed to be in any other networks,
         // and remove the reference
-        if (bssid_group_map.find(snet->bssid) != bssid_group_map.end())
-            bssid_group_map.erase(bssid_group_map.find(snet->bssid));
+        map<mac_addr, string>::iterator bsgmitr = bssid_group_map.find(snet->bssid);
+        if (bsgmitr != bssid_group_map.end())
+            bssid_group_map.erase(bsgmitr);
     }
 
     // We've unassigned all the sub networks, so remove us from the tag map
-    if (group_tag_map.find(in_group->tag) != group_tag_map.end())
-        group_tag_map.erase(group_tag_map.find(in_group->tag));
-    if (group_name_map.find(in_group->tag) != group_name_map.end())
-        group_name_map.erase(group_name_map.find(in_group->tag));
+    map<string, display_network *>::iterator gtmitr = group_tag_map.find(in_group->tag);
+    if (gtmitr != group_tag_map.end())
+        group_tag_map.erase(gtmitr);
+    map<string, string>::iterator gnmitr = group_name_map.find(in_group->tag);
+    if (gnmitr != group_name_map.end())
+        group_name_map.erase(gnmitr);
 
     // Remove us from the vector
     for (unsigned int x = 0; x < group_vec.size(); x++) {
