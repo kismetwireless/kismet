@@ -1174,16 +1174,16 @@ int PanelFront::Tick() {
         const int info_res = 5;
         static int info_timer = 0;
         batteries = opendir("/proc/acpi/battery");
-        if (!bat_available || ((info_timer % info_res) == 0))
-        {
+
+        if (batteries == NULL || !bat_available || ((info_timer % info_res) == 0)) {
             bat_ac = 0;
             bat_percentage = 0;
             bat_time = 0;
             bat_charging = 0;
             total_remain = total_cap = 0;
         }
-        while (((info_timer % info_res) == 0) && ((this_battery = readdir(batteries)) != NULL))
-        {
+
+        while (batteries != NULL && ((info_timer % info_res) == 0) && ((this_battery = readdir(batteries)) != NULL)) {
             if (this_battery->d_name[0] == '.')
                 continue;
             snprintf(battery_state, sizeof(battery_state), "/proc/acpi/battery/%s/state", this_battery->d_name);
@@ -1224,7 +1224,9 @@ int PanelFront::Tick() {
         if (total_cap > 0)
             bat_percentage = int((float(total_remain) / total_cap) * 100);
         info_timer++;
-        closedir(batteries);
+
+        if (batteries != NULL)
+            closedir(batteries);
 #endif
 #endif
     }
