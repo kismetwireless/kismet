@@ -41,6 +41,7 @@
 #include "gpsd.h"
 #include "tcpstreamer.h"
 #include "configfile.h"
+#include "server_plugin.h"
 
 #ifndef exec_name
 char *exec_name;

@@ -128,46 +128,68 @@ int DroneSource::FetchPacket(kis_packet *packet) {
         return -1;
     }
 
-    // Bail if we don't know the packet type
-    if (fhdr.frame_type != 1) {
+    if (fhdr.frame_type == STREAM_FTYPE_VERSION) {
+        // Handle the version and generate an error if it's a mismatch
+
+        stream_version_packet vpkt;
+
+        if (read(drone_fd, &vpkt, sizeof(struct stream_version_packet)) <
+            (ssize_t) sizeof(struct stream_version_packet)) {
+            snprintf(errstr, 1024, "short read() getting version packet: %d (%s)",
+                     errno, strerror(errno));
+            return -1;
+        }
+
+        if (vpkt.drone_version != STREAM_DRONE_VERSION) {
+            snprintf(errstr, 1024, "version mismatch:  Drone sending version %d, expected %d.",
+                     vpkt.drone_version, STREAM_DRONE_VERSION);
+            return -1;
+        }
+
+        return 0;
+    } else if (fhdr.frame_type == STREAM_FTYPE_PACKET) {
+        // Bail if we have a frame header too small for a packet of any sort
+        if (fhdr.frame_len <= sizeof(struct stream_packet_header)) {
+            snprintf(errstr, 1024, "frame too small to hold a packet.");
+            return -1;
+        }
+
+        // Fetch the packet header
+        if (read(drone_fd, &phdr, sizeof(struct stream_packet_header)) < (ssize_t) sizeof(stream_packet_header)) {
+            snprintf(errstr, 1024, "short read() getting packet header: %d (%s)",
+                     errno, strerror(errno));
+            return -1;
+        }
+
+        if (phdr.caplen <= 0)
+            return 0;
+
+        if (phdr.caplen > MAX_PACKET_LEN)
+            phdr.caplen = MAX_PACKET_LEN;
+        if (phdr.len > MAX_PACKET_LEN)
+            phdr.len = MAX_PACKET_LEN;
+
+        // Finally, fetch the indicated packet data.
+        int ret;
+        if ((ret = read(drone_fd, data, phdr.caplen)) < (ssize_t) phdr.caplen) {
+            snprintf(errstr, 1024, "%d short read() getting packet content: %d (%s)",
+                     ret, errno, strerror(errno));
+            return -1;
+        }
+
+        if (paused || Drone2Common(packet) == 0) {
+            return 0;
+        }
+
+        return(packet->caplen);
+
+    } else {
+        // Bail if we don't know the packet type
         snprintf(errstr, 1024, "unknown frame type %d", fhdr.frame_type);
         return -1;
     }
 
-    // Bail if we have a frame header too small for a packet of any sort
-    if (fhdr.frame_len <= sizeof(struct stream_packet_header)) {
-        snprintf(errstr, 1024, "frame too small to hold a packet.");
-        return -1;
-    }
-
-    // Fetch the packet header
-    if (read(drone_fd, &phdr, sizeof(struct stream_packet_header)) < (ssize_t) sizeof(stream_packet_header)) {
-        snprintf(errstr, 1024, "short read() getting packet header: %d (%s)",
-                 errno, strerror(errno));
-        return -1;
-    }
-
-    if (phdr.caplen <= 0)
-        return 0;
-
-    if (phdr.caplen > MAX_PACKET_LEN)
-        phdr.caplen = MAX_PACKET_LEN;
-    if (phdr.len > MAX_PACKET_LEN)
-        phdr.len = MAX_PACKET_LEN;
-
-    // Finally, fetch the indicated packet data.
-    int ret;
-    if ((ret = read(drone_fd, data, phdr.caplen)) < (ssize_t) phdr.caplen) {
-        snprintf(errstr, 1024, "%d short read() getting packet content: %d (%s)",
-                 ret, errno, strerror(errno));
-        return -1;
-    }
-
-    if (paused || Drone2Common(packet) == 0) {
-        return 0;
-    }
-
-    return(packet->caplen);
+    return 0;
 }
 
 int DroneSource::Drone2Common(kis_packet *packet) {

@@ -199,6 +199,8 @@ int TcpStreamer::Accept() {
     int save_mode = fcntl(new_fd, F_GETFL, 0);
     fcntl(new_fd, F_SETFL, save_mode | O_NONBLOCK);
 
+    WriteVersion(new_fd);
+
     return new_fd;
 }
 
@@ -210,6 +212,36 @@ void TcpStreamer::Kill(int in_fd) {
         close(in_fd);
 }
 
+int TcpStreamer::WriteVersion(int in_fd) {
+    stream_frame_header hdr;
+    stream_version_packet vpkt;
+
+    hdr.frame_type = STREAM_FTYPE_VERSION;
+    hdr.frame_len = sizeof(struct stream_version_packet);
+
+    vpkt.drone_version = STREAM_DRONE_VERSION;
+
+    if (!FD_ISSET(in_fd, &client_fds))
+        return 0;
+
+    if (write(in_fd, &hdr, sizeof(struct stream_frame_header)) <= 0) {
+        if (errno != EAGAIN && errno != EINTR) {
+            Kill(in_fd);
+            return 0;
+        }
+    }
+
+    if (write(in_fd, &vpkt, sizeof(struct stream_version_packet)) <= 0) {
+        if (errno != EAGAIN && errno != EINTR) {
+            Kill(in_fd);
+            return 0;
+        }
+    }
+
+    return 1;
+}
+
+
 int TcpStreamer::WritePacket(const kis_packet *in_packet) {
 
     if (in_packet->data == NULL)
@@ -219,7 +251,7 @@ int TcpStreamer::WritePacket(const kis_packet *in_packet) {
     stream_packet_header packhdr;
 
     // Our one and only current frame type
-    hdr.frame_type = 1;
+    hdr.frame_type = STREAM_FTYPE_PACKET;
 
     packhdr.len = in_packet->len;
     packhdr.caplen = in_packet->caplen;
@@ -231,7 +263,7 @@ int TcpStreamer::WritePacket(const kis_packet *in_packet) {
     packhdr.channel = in_packet->channel;
     packhdr.carrier = in_packet->carrier;
 
-    hdr.frame_len = sizeof(packhdr) + packhdr.caplen;
+    hdr.frame_len = sizeof(struct stream_packet_header) + packhdr.caplen;
 
     int nsent = 0;
     for (unsigned int x = serv_fd; x <= max_fd; x++) {

@@ -79,9 +79,9 @@ public:
     inline int isClient(int fd) { return FD_ISSET(fd, &client_fds); }
 
     int WritePacket(const kis_packet *in_packet);
+    int WriteVersion(int in_fd);
 
 protected:
-    int RawSend(int in_fd, const char *in_data);
     int Accept();
 
     map<string, int> ref_map;
