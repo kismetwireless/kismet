@@ -100,11 +100,17 @@ int main(int argc, char *argv[]) {
 
     TcpStreamer streamer;
 
+    int beacon_stream = 1;
+    int phy_stream = 1;
+
     // For commandline and file sources
     string named_sources;
     vector<string> source_input_vec;
     int source_from_cmd = 0;
     int enable_from_cmd = 0;
+
+    // We don't actually use this but we need it for calls
+    map<mac_addr, wep_key_info *> bssid_wep_map;
 
     vector<client_ipblock *> legal_ipblock_vec;
 
@@ -430,6 +436,17 @@ int main(int argc, char *argv[]) {
         legal_ipblock_vec.push_back(ipb);
     }
 
+    if (conf->FetchOpt("beaconstream") == "false") {
+        beacon_stream = 0;
+        fprintf(stderr, "Filtering beacon packets.\n");
+    }
+
+    if (conf->FetchOpt("phystream") == "false") {
+        phy_stream = 0;
+        fprintf(stderr, "Filtering PHY layer packets.\n");
+    }
+
+
     // Now we can start doing things...
     fprintf(stderr, "Kismet Drone %d.%d.%d (%s)\n",
             VERSION_MAJOR, VERSION_MINOR, VERSION_TINY, servername);
@@ -540,6 +557,21 @@ int main(int argc, char *argv[]) {
 
                 // Handle a packet
                 if (len > 0) {
+                    if (beacon_stream == 0 || phy_stream == 0) {
+                        static packet_info info;
+                        GetPacketInfo(&packet, &packet_sources[src]->packparm, &info,
+                                      &bssid_wep_map, NULL);
+
+                        if ((info.type == packet_management && info.subtype == packet_sub_beacon) &&
+                            beacon_stream == 0) {
+                            delete[] packet.data;
+                            continue;
+                        } else if (info.type == packet_phy && phy_stream == 0) {
+                            delete[] packet.data;
+                            continue;
+                        }
+                    }
+
                     if (streamer.WritePacket(&packet) < 0) {
                         fprintf(stderr, "FATAL:  Error writing packet to streamer: %s\n",
                                 streamer.FetchError());

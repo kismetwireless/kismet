@@ -48,7 +48,7 @@ PSO	= configfile.o speech.o packet.o \
 		tcpserver.o server_protocols.o server_plugin.o kismet_server.o 
 PS	= kismet_server
 
-DRONEO = configfile.o getopt.o tcpstreamer.o \
+DRONEO = configfile.o getopt.o packet.o tcpstreamer.o \
 			prism2source.o pcapsource.o wtapfilesource.o wsp100source.o \
 				dronesource.o vihasource.o capturesourceutil.o \
 			server_plugin.o kismet_drone.o
