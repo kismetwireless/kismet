@@ -141,6 +141,10 @@ protected:
     void UpdateGroups();
     // Purge groups (primarily for when client focus changes)
     void PurgeGroups();
+
+    display_network *Frontend::CreateGroup(display_network *core, int in_persistent);
+    display_network *Frontend::AddToGroup(display_network *core, display_network *merger);
+
     // Group all the tagged networks
     display_network *GroupTagged();
     // Destroy a group

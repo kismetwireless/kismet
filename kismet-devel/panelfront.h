@@ -346,6 +346,8 @@ protected:
 
     time_t server_time;
 
+    display_network *probe_group;
+
     display_network *details_network;
     wireless_client *details_client;
     vector<display_network *> last_displayed;

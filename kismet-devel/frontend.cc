@@ -390,6 +390,144 @@ void Frontend::PurgeGroups() {
 
 }
 
+// Create a display group based off core that may or may not be saved
+display_network *Frontend::CreateGroup(display_network *core, int in_persistent) {
+
+    core->tagged = 0;
+    core->persistent = in_persistent;
+
+    for (unsigned int x = 0; x < group_vec.size(); x++) {
+        display_network *dnet = group_vec[x];
+
+        if (core == dnet)
+            continue;
+
+        // Go through all the networks, this will work for host groups and for
+        // merging bundles
+
+        for (unsigned int y = 0; y < dnet->networks.size(); y++) {
+            wireless_network *snet = dnet->networks[y];
+
+            // Destroy our assignment
+            map<mac_addr, display_network *>::iterator gamitr = group_assignment_map.find(snet->bssid);
+            if (gamitr != group_assignment_map.end())
+                group_assignment_map.erase(gamitr);
+
+            // So far so good.  Now we see if we're supposed to be in any other networks,
+            // and remove the reference
+            map<mac_addr, string>::iterator bsgmitr = bssid_group_map.find(snet->bssid);
+            if (bsgmitr != bssid_group_map.end())
+                bssid_group_map.erase(bsgmitr);
+
+            // Now we tell them we belong to the new network
+            bssid_group_map[snet->bssid] = core->tag;
+
+            // Register that we're assigned...
+            group_assignment_map[snet->bssid] = core;
+
+            // And add us to the core network list
+            core->networks.push_back(snet);
+        }
+
+        // Now we find all the pointers to this network from networks that aren't
+        // currently live, and move them.  This keeps us from breaking grouping.
+        for (map<mac_addr, string>::iterator iter = bssid_group_map.begin();
+             iter != bssid_group_map.end(); ++iter) {
+            if (iter->second == dnet->tag)
+                bssid_group_map[iter->first] = core->tag;
+        }
+
+        // Now we destroy the pointer to the old host group -- we assume we have to
+        // exist since we (can't/shouldn't) ever make a network that isn't in the
+        // name map
+        group_tag_map.erase(group_tag_map.find(dnet->tag));
+        map<string, string>::iterator gnmitr = group_name_map.find(dnet->tag);
+        if (gnmitr != group_name_map.end())
+            group_name_map.erase(gnmitr);
+
+        // And remove it from the vector, and compensate the for loop
+        group_vec.erase(group_vec.begin() + x);
+        x--;
+
+        // And free the group
+        delete dnet;
+    }
+
+    if (core != NULL) {
+        if (core->networks.size() > 1)
+            core->type = group_bundle;
+        else
+            core->type = group_host;
+    }
+
+    return core;
+}
+
+// Add a display network to a specific core group
+display_network *Frontend::AddToGroup(display_network *core, display_network *merger) {
+
+    for (unsigned int y = 0; y < merger->networks.size(); y++) {
+        wireless_network *snet = merger->networks[y];
+
+        // Destroy our assignment
+        map<mac_addr, display_network *>::iterator gamitr = group_assignment_map.find(snet->bssid);
+        if (gamitr != group_assignment_map.end())
+            group_assignment_map.erase(gamitr);
+
+        // So far so good.  Now we see if we're supposed to be in any other networks,
+        // and remove the reference
+        map<mac_addr, string>::iterator bsgmitr = bssid_group_map.find(snet->bssid);
+        if (bsgmitr != bssid_group_map.end())
+            bssid_group_map.erase(bsgmitr);
+
+        // Now we tell them we belong to the new network
+        bssid_group_map[snet->bssid] = core->tag;
+
+        // Register that we're assigned...
+        group_assignment_map[snet->bssid] = core;
+
+        // And add us to the core network list
+        core->networks.push_back(snet);
+    }
+
+    // Now we find all the pointers to this network from networks that aren't
+    // currently live, and move them.  This keeps us from breaking grouping.
+    for (map<mac_addr, string>::iterator iter = bssid_group_map.begin();
+         iter != bssid_group_map.end(); ++iter) {
+        if (iter->second == merger->tag)
+            bssid_group_map[iter->first] = core->tag;
+    }
+
+    // Now we destroy the pointer to the old host group -- we assume we have to
+    // exist since we (can't/shouldn't) ever make a network that isn't in the
+    // name map
+    group_tag_map.erase(group_tag_map.find(merger->tag));
+    map<string, string>::iterator gnmitr = group_name_map.find(merger->tag);
+    if (gnmitr != group_name_map.end())
+        group_name_map.erase(gnmitr);
+
+    // And remove it from the vector
+    for (unsigned int x = 0; x < group_vec.size(); x++) {
+        if (group_vec[x] == merger) {
+            group_vec.erase(group_vec.begin() + x);
+            break;
+        }
+    }
+
+    // And free the group
+    delete merger;
+
+    if (core != NULL) {
+        if (core->networks.size() > 1)
+            core->type = group_bundle;
+        else
+            core->type = group_host;
+    }
+
+    return core;
+}
+
+
 display_network *Frontend::GroupTagged() {
     display_network *core = NULL;
 
