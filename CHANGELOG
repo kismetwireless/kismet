@@ -1,3 +1,4 @@
+Nov 15 2004  devel  Tweaked includes in ringbuf.h to handle stdint.h correctly
 Nov 04 2004  devel  Tweaked macaddr.h again to try to appease different gcc
                      versions.
 Nov 01 2004  devel  Tweaked endian_magic and mac_addr - should compile
