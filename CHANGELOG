@@ -1,3 +1,5 @@
+Nov 01 2002  2.7.1  Rolled in patch from Russel Griffith to handle the 'time'
+                     option in the logfile templates.
 Oct 30 2002  2.7.1  Fixed shadowing bug in dumpfile code
 Oct 29 2002  2.7.1  Fixed gpsmap bug where files found exactly where the netxml
                      specified them were skipped
