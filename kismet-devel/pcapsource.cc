@@ -1202,10 +1202,11 @@ int monitor_orinoco(const char *in_dev, int initch, char *in_err, void **in_if) 
 
     // Try to turn on my patches to the new orinoco drivers to give us some signal
     // levels if they're available.  We don't care if we fail at this.
-    Iwconfig_Set_IntPriv(in_dev, "set_prismheader", 2, 0, in_err);
+    if (ret < 0)
+        Iwconfig_Set_IntPriv(in_dev, "set_prismheader", 2, 0, in_err);
    
     // Try to set wext monitor mode.  We're good if one of these succeeds...
-    if (monitor_wext(in_dev, initch, in_err, in_if) < 0 && ret < 0) {
+    if (ret < 0 && monitor_wext(in_dev, initch, in_err, in_if) < 0) {
         snprintf(in_err, 1024, "Could not find 'monitor' private ioctl or use "
                  "the newer style 'mode monitor' command.  This typically means "
                  "that the drivers have not been patched or the "
@@ -1215,7 +1216,7 @@ int monitor_orinoco(const char *in_dev, int initch, char *in_err, void **in_if) 
     }
 
     // If we didn't use iwpriv, set the channel directly
-    if (chancontrol_wext(in_dev, initch, in_err, NULL) < 0 && ret < 0)
+    if (ret < 0 && chancontrol_wext(in_dev, initch, in_err, NULL) < 0)
         return -1;
     
     return 0;
