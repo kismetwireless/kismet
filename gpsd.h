@@ -32,6 +32,9 @@
 #include <string.h>
 #include <fcntl.h>
 #include <math.h>
+#ifdef HAVE_INTTYPES_H
+#include <inttypes.h>
+#endif
 
 #ifdef HAVE_GPS
 
