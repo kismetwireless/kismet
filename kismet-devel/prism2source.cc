@@ -28,6 +28,9 @@
 int Prism2Source::OpenSource(const char *dev, card_type ctype) {
     snprintf(type, 64, "Prism/2 (DEPRECATED)");
 
+    channel = 0;
+    strncpy(carddev, dev, 64);
+
     paused = 0;
 
     int fds[2], r;
@@ -164,6 +167,19 @@ int Prism2Source::Prism2Common(kis_packet *packet, uint8_t *data, uint8_t *modda
 }
 
 int Prism2Source::SetChannel(unsigned int chan) {
+    char shellcmd[1024];
+
+    if (cardtype == card_prism2_legacy) {
+        snprintf(shellcmd, 1024, "wlanctl-ng %s lnxreq_wlansniff channel=%d enable=true >/dev/null",
+                 carddev, chan);
+    }
+
+    if (system(shellcmd) != 0) {
+        snprintf(errstr, 1024, "prism2source failed executing shell command: %s", shellcmd);
+        return -1;
+    }
+
+    channel = chan;
 
     return 1;
 }

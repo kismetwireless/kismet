@@ -35,12 +35,10 @@ u_char callback_data[MAX_PACKET_LEN];
 
 int PcapSource::OpenSource(const char *dev, card_type ctype) {
     cardtype = ctype;
+    strncpy(carddev, dev, 64);
 
     snprintf(type, 64, "libpcap device %s", dev);
-
-    char unconst_dev[64];
-
-    snprintf(unconst_dev, 64, "%s", dev);
+    channel = 0;
 
     if (ctype == card_cisco_cvs) {
         // Split off the wifiX interface
@@ -50,11 +48,11 @@ int PcapSource::OpenSource(const char *dev, card_type ctype) {
             return -1;
         }
 
-        snprintf(unconst_dev, 64, "%s", devbits[1].c_str());
+        snprintf(carddev, 64, "%s", devbits[1].c_str());
     }
 
     errstr[0] = '\0';
-    pd = pcap_open_live(unconst_dev, MAX_PACKET_LEN, 1, 1000, errstr);
+    pd = pcap_open_live(carddev, MAX_PACKET_LEN, 1, 1000, errstr);
 
     if (strlen(errstr) > 0)
         return -1; // Error is already in errstr
@@ -349,9 +347,50 @@ int PcapSource::Pcap2Common(kis_packet *packet, uint8_t *data, uint8_t *moddata)
     return 1;
 }
 
-int PcapSource::SetChannel(unsigned int chan) {
+int PcapSource::PcapShellCmd(char *in_cmd) {
+    if (system(in_cmd) != 0) {
+        snprintf(errstr, 1024, "pcapsource failed executing shell command: %s", in_cmd);
+        return -1;
+    }
 
     return 1;
+}
+
+int PcapSource::SetChannel(unsigned int chan) {
+    char shellcmd[1024];
+    int ret = 0;
+
+    if (cardtype == card_prism2) {
+        snprintf(shellcmd, 1024, "wlanctl-ng %s lnxreq_wlansniff channel=%d enable=true prismheader=true >/dev/null",
+                 carddev, chan);
+        if ((ret = PcapShellCmd(shellcmd)) > 0)
+            channel = chan;
+    } else if (cardtype == card_prism2_avs) {
+        snprintf(shellcmd, 1024, "wlanctl-ng %s lnxreq_wlansniff channel=%d prismheader=false wlanheader=true stripfcs=false keepwepflags=false enable=true >/dev/null",
+                 carddev, chan);
+        if ((ret = PcapShellCmd(shellcmd)) > 0)
+            channel = chan;
+    } else if (cardtype == card_prism2_bsd) {
+        snprintf(shellcmd, 1024, "prism2ctl %s -f %d >/dev/null", carddev, chan);
+        if ((ret = PcapShellCmd(shellcmd)) > 0)
+            channel = chan;
+    } else if (cardtype == card_prism2_hostap || cardtype == card_ar5k) {
+        snprintf(shellcmd, 1024, "iwconfig %s channel %d >/dev/null", carddev, chan);
+        if ((ret = PcapShellCmd(shellcmd)) > 0)
+            channel = chan;
+    } else if (cardtype == card_orinoco) {
+        snprintf(shellcmd, 1024, "iwpriv %s monitor 1 %d >/dev/null", carddev, chan);
+        if ((ret = PcapShellCmd(shellcmd)) > 0)
+            channel = chan;
+    } else if (cardtype == card_cisco || cardtype == card_cisco_cvs || cardtype == card_cisco_bsd) {
+        snprintf(errstr, 1024, "pcapsource: cisco's can't be set to a channel right now.");
+        return 0;
+    } else {
+        snprintf(errstr, 1024, "pcapsource: don't know how to change channel for cardtype %d", cardtype);
+        return 0;
+    }
+
+    return ret;
 }
 
 #endif

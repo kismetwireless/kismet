@@ -123,6 +123,8 @@ protected:
 
     int Pcap2Common(kis_packet *packet, uint8_t *data, uint8_t *moddata);
 
+    int PcapShellCmd(char *in_cmd);
+
     pcap_t *pd;
 
     // What kind of netlink is it
