@@ -30,7 +30,7 @@
 void MungeToShell(char *in_data, int max) {
     int i, j;
 
-    for (i = 0, j = 0; i < max, j < max; i++) {
+    for (i = 0, j = 0; i < max && j < max; i++) {
         if (in_data[i] == '\0')
             break;
 
