@@ -387,6 +387,7 @@ AC_SUBST(suid)
 if test $suid = yes; then
 	AC_MSG_CHECKING(for suid-root installation)
 	AC_MSG_RESULT(yes)
+	AC_DEFINE(HAVE_SUID, 1, suid-root installation)
 else
 	AC_MSG_CHECKING(for suid-root installation)
 	AC_MSG_RESULT(no)
