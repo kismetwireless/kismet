@@ -56,6 +56,7 @@ int speech = -1;
 int speech_encoding = 0;
 string speech_sentence_encrypted, speech_sentence_unencrypted;
 unsigned int metric = 0;
+unsigned int reconnect = 0;
 
 int group_track = 0;
 string configdir, groupfile;
@@ -105,6 +106,8 @@ int Usage(char *argv) {
            "  -s, --server <host:port>     Connect to Kismet host and port\n"
            "  -g, --gui <type>             GUI type to create (curses, panel)\n"
            "  -c, --columns <list>         Columns to display initially (comma seperated)\n"
+           "  -r, --reconnect              Try to reconnect after the client/server connection\n"
+           "                               fails.\n"
            "  -C, --client-columns <list>  Columns to display for client info\n"
            "  -v, --version                Kismet version\n"
            "  -h, --help                   What do you think you're reading?\n");
@@ -352,6 +355,7 @@ int main(int argc, char *argv[]) {
         { "version", no_argument, 0, 'v' },
         { "columns", required_argument, 0, 'c' },
         { "client-columns", required_argument, 0, 'C'},
+        { "reconnct", no_argument, 0, 'r' },
         { 0, 0, 0, 0 }
     };
     int option_index;
@@ -364,7 +368,7 @@ int main(int argc, char *argv[]) {
     signal(SIGPIPE, SIG_IGN);
 
     while(1) {
-        int r = getopt_long(argc, argv, "f:c:qs:hvg:u:",
+        int r = getopt_long(argc, argv, "f:c:qs:hvg:u:r",
                             long_options, &option_index);
         if (r < 0) break;
         switch(r) {
@@ -396,6 +400,9 @@ int main(int argc, char *argv[]) {
             break;
         case 'C':
             clientcolumns = optarg;
+            break;
+        case 'r':
+            reconnect = 1;
             break;
         default:
             Usage(argv[0]);
@@ -727,10 +734,6 @@ int main(int argc, char *argv[]) {
         max_fd = client_descrip;
 
     while (1) {
-        // Remove the client descriptor if we're not valid anymore
-        if (!kismet_serv.Valid())
-            FD_CLR(client_descrip, &read_set);
-
         fd_set rset;
 
         FD_ZERO(&rset);
@@ -764,6 +767,16 @@ int main(int argc, char *argv[]) {
                 if ((pollret = kismet_serv.Poll()) < 0) {
                     snprintf(status, STATUS_MAX, "TCP error: %s", kismet_serv.FetchError());
                     gui->WriteStatus(status);
+
+                    // Remove the client descriptor if we're not valid anymore
+                    FD_CLR(client_descrip, &read_set);
+
+                    if (reconnect) {
+                        snprintf(status, STATUS_MAX, "Will attempt to reconnect to %s:%d",
+                                 guihost, guiport);
+                        gui->WriteStatus(status);
+                    }
+
                 }
 
                 if (pollret != 0) {
@@ -823,6 +836,18 @@ int main(int argc, char *argv[]) {
                         num_noise = kismet_serv.FetchNumNoise();
                         num_dropped = kismet_serv.FetchNumDropped();
                     }
+                }
+            }
+        } else {
+            if (reconnect) {
+                if (kismet_serv.Connect(guiport, guihost) >= 0) {
+                    client_descrip = kismet_serv.FetchDescriptor();
+                    FD_SET(client_descrip, &read_set);
+                    if (client_descrip > max_fd)
+                        max_fd = client_descrip;
+
+                    snprintf(status, STATUS_MAX, "Reconnected to %s:%d.", guihost, guiport);
+                    gui->WriteStatus(status);
                 }
             }
         }

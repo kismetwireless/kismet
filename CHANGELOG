@@ -3,6 +3,8 @@ Sep 17 2002  2.5.2  Merged/Modified patch from Andrew Etter for customized
                     Updated docs
                     Removed curses and panels linkage from kismet_server
                     Trimmed comment-out code cruft
+                    Merged/Modified patch from Cougar for kismet_curses to
+                     reconnect to a server.
 Sep 16 2002  2.5.2  Fixed client handling and aging in groups
                     Fixed group map saving/loading
 Sep 14 2002  2.5.2  Stripped remnants of netmask/gateway tracking out since
