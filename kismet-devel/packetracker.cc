@@ -201,28 +201,29 @@ int Packetracker::ProcessPacket(packet_info info, char *in_status) {
         num_dropped++;
         num_noise++;
         return(0);
-    } else if (info.type == packet_unknown) {
-        // If we can't figure out what it is
-        // or if FromDS and ToDS are set, we can't make much sense of it so don't
-        // try to make a network out of it -- toss it.
+    } else if (info.type == packet_unknown || info.type == packet_phy) {
+        // If we didn't know what it was junk it
+        // We unceremoniously junk phy layer packets for now too
         num_dropped++;
         return(0);
-    } else if (info.bssid_mac == NUL_MAC) {
+    } else if (info.bssid_mac.longmac == 0) {
         num_dropped++;
         return(0);
     }
 
-    // If it's a broadcast (From and To DS == 1) try to match it to an existing
-    // network
     bsmapitr = bssid_map.find(info.bssid_mac);
 
-    if (info.type == packet_ap_broadcast && bsmapitr == bssid_map.end()) {
+    // If it's a broadcast (From and To DS == 1) try to match it to an existing network
+    if ((info.type == packet_data && info.subtype == packet_sub_data) &&
+        info.distrib == inter_distribution) {
+
         if ((bsmapitr = bssid_map.find(info.source_mac)) != bssid_map.end()) {
             info.bssid_mac = info.source_mac;
         } else if ((bsmapitr = bssid_map.find(info.dest_mac)) != bssid_map.end()) {
             info.bssid_mac = info.dest_mac;
         }
-    } else if (info.type == packet_probe_req) {
+
+    } else if (info.type == packet_management && info.subtype == packet_sub_probe_req) {
         // If it's a probe request, see if we already know who it should belong to
 
         if (probe_map.find(info.bssid_mac) != probe_map.end()) {
@@ -247,7 +248,7 @@ int Packetracker::ProcessPacket(packet_info info, char *in_status) {
 
                 // If it's a beacon and empty then we're cloaked and we found our
                 // ssid so fill it in
-                if (info.type == packet_beacon) {
+                if (info.type == packet_management && info.subtype == packet_sub_beacon) {
                     net->cloaked = 1;
                 } else {
                     net->cloaked = 0;
@@ -266,11 +267,13 @@ int Packetracker::ProcessPacket(packet_info info, char *in_status) {
 
         net->channel = info.channel;
 
-        if (info.ap == 1)
+        if (info.ess == 1)
             net->type = network_ap;
 
-        if (info.type == packet_probe_req)
+        if (info.type == packet_management && info.subtype == packet_sub_probe_req)
             net->type = network_probe;
+        else if (info.distrib == adhoc_distribution)
+            net->type = network_adhoc;
 
         net->wep = info.wep;
 
@@ -406,14 +409,12 @@ int Packetracker::ProcessPacket(packet_info info, char *in_status) {
 
     }
 
-    if (info.type != packet_data && info.type != packet_ap_broadcast &&
-        info.type != packet_adhoc_data) {
-
+    if (info.type == packet_management) {
         net->llc_packets++;
 
         // If it's a probe request shortcut to handling it like a client once we've
         // established what network it belongs to
-        if (info.type == packet_probe_req && net->type != network_ap) {
+        if (info.subtype == packet_sub_probe_req && net->type != network_ap) {
             if (net->ssid != info.ssid) {
                 if (IsBlank(info.ssid))
                     net->ssid = NOSSID;
@@ -425,12 +426,13 @@ int Packetracker::ProcessPacket(packet_info info, char *in_status) {
             return ret;
         }
 
-        if (info.type == packet_beacon && strlen(info.beacon_info) != 0 &&
+        if (info.subtype == packet_sub_beacon && strlen(info.beacon_info) != 0 &&
             IsBlank(net->beacon_info.c_str())) {
             net->beacon_info = info.beacon_info;
         }
 
-        if (info.type == packet_deauth || info.type == packet_disassociation) {
+        if (info.subtype == packet_sub_deauthentication ||
+            info.subtype == packet_sub_disassociation) {
             net->client_disconnects++;
 
             if (net->client_disconnects > 10) {
@@ -445,7 +447,7 @@ int Packetracker::ProcessPacket(packet_info info, char *in_status) {
         }
 
         // Update the ssid record if we got a beacon for a data network
-        if (info.type == packet_beacon) {
+        if (info.subtype == packet_sub_beacon) {
             // If we're updating the network record, update the manufacturer info -
             // if we just "became" an AP or if we've changed channel, we may have
             // changed state as well
@@ -479,7 +481,8 @@ int Packetracker::ProcessPacket(packet_info info, char *in_status) {
         // If this is a probe response and the ssid we have is blank, update it.
         // With "closed" networks, this is our chance to see the real ssid.
         // (Thanks to Jason Luther <jason@ixid.net> for this "closed network" detection)
-        if (info.type == packet_probe_response || info.type == packet_reassociation &&
+        if ((info.subtype == packet_sub_probe_resp ||
+             info.subtype == packet_sub_reassociation_resp) &&
             (strlen(info.ssid) > 0) && !IsBlank(info.ssid)) {
 
             if (net->ssid == NOSSID) {
@@ -543,7 +546,7 @@ int Packetracker::ProcessPacket(packet_info info, char *in_status) {
 
         }
 
-        if (net->type != network_ap && info.type == packet_adhoc) {
+        if (net->type != network_ap && info.distrib == adhoc_distribution) {
             net->type = network_adhoc;
         }
 
@@ -679,7 +682,8 @@ int Packetracker::ProcessDataPacket(packet_info info, wireless_network *net, cha
             net->best_noise = info.noise;
     }
 
-    if (info.type == packet_probe_req || info.type == packet_association_req) {
+    if (info.type == packet_management &&
+        (info.subtype == packet_sub_probe_req || info.subtype == packet_sub_association_req)) {
         if (info.maxrate > client->maxrate)
             client->maxrate = info.maxrate;
     }
@@ -700,7 +704,7 @@ int Packetracker::ProcessDataPacket(packet_info info, wireless_network *net, cha
         num_interesting++;
     }
 
-    if (info.type != packet_probe_req) {
+    if (info.type != packet_management) {
         net->data_packets++;
         client->data_packets++;
     }
@@ -1807,8 +1811,8 @@ string Packetracker::Packet2String(const packet_info *in_info) {
     string rets;
 
     // type, encrypted, weak, beacon, source, dest, bssid
-    snprintf(ret, 2048, "%d %d %d %d %d %s %s %s \001%s\001 ",
-             in_info->type, (int) in_info->time, in_info->encrypted,
+    snprintf(ret, 2048, "%d %d %d %d %d %d %s %s %s \001%s\001 ",
+             in_info->type, in_info->subtype, (int) in_info->time, in_info->encrypted,
              in_info->interesting, in_info->beacon,
              in_info->source_mac.Mac2String().c_str(),
              in_info->dest_mac.Mac2String().c_str(),

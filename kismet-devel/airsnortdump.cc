@@ -52,7 +52,7 @@ int AirsnortDumpFile::DumpPacket(const packet_info *in_info, const pkthdr *in_he
     int ret = 1;
 
     // Is it a beacon?  Do we know about this network?  Log it if we don't.
-    if (in_info->type == packet_beacon) {
+    if (in_info->type == packet_management && in_info->subtype == packet_sub_beacon) {
         if (bssid_dumped_map.find(in_info->bssid_mac) == bssid_dumped_map.end()) {
             // We only count weak packets as logged, not the headers
 
@@ -65,11 +65,7 @@ int AirsnortDumpFile::DumpPacket(const packet_info *in_info, const pkthdr *in_he
     }
 
     // Is it weak?  Always log them, and add it to our count
-        if ((in_info->type == packet_data ||
-             in_info->type == packet_adhoc_data ||
-             in_info->type == packet_ap_broadcast) &&
-            in_info->interesting == 1) {
-
+    if (in_info->type == packet_data && in_info->interesting == 1) {
         num_dumped++;
 
         ret = dumper->DumpPacket(in_info, in_header, in_data);

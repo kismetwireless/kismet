@@ -39,6 +39,7 @@
 #endif
 #include <string>
 #include <vector>
+#include <map>
 
 // These won't include right if they're not in the C namespace
 extern "C" {
@@ -300,16 +301,26 @@ typedef struct mac_addr {
     uint8_t mac[MAC_LEN];
     uint64_t longmac;
     uint8_t mask;
+    int error;
 
     void struc2long() {
         longmac = 0;
-        for (int x = 0; x < MAC_LEN; x++)
+        error = 0;
+        for (int x = 0; x < MAC_LEN; x++) {
+            if (mac[x] > 0xFF) {
+                longmac = 0;
+                error = 1;
+                break;
+            }
+
             longmac |= (uint64_t) mac[x] << ((MAC_LEN - x - 1) * 8);
+        }
     }
 
     mac_addr() {
         memset(mac, 0, MAC_LEN);
         longmac = 0;
+        error = 0;
         mask = 0;
     }
 
@@ -317,6 +328,7 @@ typedef struct mac_addr {
         for (int x = 0; x < MAC_LEN; x++)
             mac[x] = in[x];
         mask = 0;
+        error = 0;
         struc2long();
     }
 
@@ -328,6 +340,8 @@ typedef struct mac_addr {
                    &bs_in[0], &bs_in[1], &bs_in[2], &bs_in[3], &bs_in[4], &bs_in[5]) == 6) {
             for (int x = 0; x < MAC_LEN; x++)
                 mac[x] = bs_in[x];
+        } else {
+            error = 1;
         }
         mask = 0;
         struc2long();
@@ -362,6 +376,8 @@ typedef struct mac_addr {
                    &bs_in[0], &bs_in[1], &bs_in[2], &bs_in[3], &bs_in[4], &bs_in[5]) == 6) {
             for (int x = 0; x < MAC_LEN; x++)
                 mac[x] = bs_in[x];
+        } else {
+            error = 1;
         }
         struc2long();
         return *this;
@@ -403,24 +419,66 @@ typedef struct mac_addr {
 
 
 // packet conversion and extraction utilities
-// Packet types
+// Packet types, these should correspond to the frame header types
+enum packet_type {
+    packet_noise = -2,  // We're too short or otherwise corrupted
+    packet_unknown = -1, // What are we?
+    packet_management = 0, // LLC management
+    packet_phy = 1, // Physical layer packets, most drivers can't provide these
+    packet_data = 2, // Data frames
+};
+
+// Subtypes are a little odd because we re-use values depending on the type
+enum packet_sub_type {
+    packet_sub_unknown = -1,
+    // Management subtypes
+    packet_sub_association_req = 0,
+    packet_sub_association_resp = 1,
+    packet_sub_reassociation_req = 2,
+    packet_sub_reassociation_resp = 3,
+    packet_sub_probe_req = 4,
+    packet_sub_probe_resp = 5,
+    packet_sub_beacon = 8,
+    packet_sub_atim = 9,
+    packet_sub_disassociation = 10,
+    packet_sub_authentication = 11,
+    packet_sub_deauthentication = 12,
+    // Phy subtypes
+    packet_sub_rts = 11,
+    packet_sub_cts = 12,
+    packet_sub_ack = 13,
+    packet_sub_cf_end = 14,
+    packet_sub_cf_end_ack = 15,
+    // Data subtypes
+    packet_sub_data = 0,
+    packet_sub_data_cf_ack = 1,
+    packet_sub_data_cf_poll = 2,
+    packet_sub_data_cf_ack_poll = 3,
+    packet_sub_data_null = 4,
+    packet_sub_cf_ack = 5,
+    packet_sub_cf_ack_poll = 6
+};
+
+/*
 enum packet_info_type {
     packet_unknown, packet_beacon, packet_probe_req, packet_data, packet_ack,
     packet_ap_broadcast, packet_adhoc, packet_adhoc_data,
     packet_noise, packet_probe_response, packet_reassociation,
     packet_auth, packet_deauth, packet_disassociation, packet_association_req,
     packet_association_response
-};
+    };
+    */
 
 // distribution directions
 enum distribution_type {
-    no_distribution, from_distribution, to_distribution, inter_distribution
+    no_distribution, from_distribution, to_distribution, inter_distribution, adhoc_distribution
 };
 
 // Info about a packet
 typedef struct {
     // Packet info type
-    packet_info_type type;
+    packet_type type;
+    packet_sub_type subtype;
 
     // reason code for some management protocols
     int reason_code;
@@ -440,8 +498,8 @@ typedef struct {
     distribution_type distrib;
     // Is wep enabled?
     int wep;
-    // Is this an AP or a adhoc?
-    int ap;
+    // Was it flagged as ess? (ap)
+    int ess;
     // What channel?
     int channel;
     // Is this encrypted?
@@ -478,7 +536,8 @@ typedef struct {
 void MungeToPrintable(char *in_data, int max);
 
 // Info extraction functions
-int GetTagOffset(int init_offset, int tagnum, const pkthdr *header, const u_char *data);
+int GetTagOffset(int init_offset, int tagnum, const pkthdr *header,
+                 const u_char *data, map<int, int> *tag_cache_map);
 void GetPacketInfo(const pkthdr *header, const u_char *data,
                    packet_parm *parm, packet_info *ret_packinfo);
 void GetProtoInfo(const packet_info *in_info, const pkthdr *header,
