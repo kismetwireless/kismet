@@ -957,25 +957,6 @@ int main(int argc,char *argv[]) {
     fprintf(stderr, "NOTICE:  Suid priv-dropping disabled.  This may not be secure.\n");
 #endif
 
-    if (conf.FetchOpt("configdir") != "") {
-        configdir = conf.ExpandLogPath(conf.FetchOpt("configdir"), "", "", 0, 1);
-    } else {
-        fprintf(stderr, "FATAL:  No 'configdir' option in the config file.\n");
-        exit(1);
-    }
-
-    if (conf.FetchOpt("ssidmap") != "") {
-        // Explode the map file path
-        ssidtrackfile = conf.ExpandLogPath(configdir + conf.FetchOpt("ssidmap"), "", "", 0, 1);
-        ssid_cloak_track = 1;
-    }
-
-    if (conf.FetchOpt("ipmap") != "") {
-        // Explode the IP file path
-        iptrackfile = conf.ExpandLogPath(configdir + conf.FetchOpt("ipmap"), "", "", 0, 1);
-        ip_track = 1;
-    }
-
     // Find out what kind of card we are.
     if (conf.FetchOpt("cardtype") != "") {
         const char *sctype = conf.FetchOpt("cardtype").c_str();
@@ -1115,11 +1096,30 @@ int main(int argc,char *argv[]) {
         fprintf(stderr, "FATAL:  setuid() to %s (%d) failed.\n", suid_user, suid_id);
         exit(1);
     }
-
-    fprintf(stderr, "NOTICE:  Dropped privs to %s (%d)\n", suid_user, suid_id);
 #endif
 
     // Now parse the rest of our options
+
+    if (conf.FetchOpt("configdir") != "") {
+        configdir = conf.ExpandLogPath(conf.FetchOpt("configdir"), "", "", 0, 1);
+    } else {
+        fprintf(stderr, "FATAL:  No 'configdir' option in the config file.\n");
+        exit(1);
+    }
+
+    if (conf.FetchOpt("ssidmap") != "") {
+        // Explode the map file path
+        ssidtrackfile = conf.ExpandLogPath(configdir + conf.FetchOpt("ssidmap"), "", "", 0, 1);
+        ssid_cloak_track = 1;
+    }
+
+    if (conf.FetchOpt("ipmap") != "") {
+        // Explode the IP file path
+        iptrackfile = conf.ExpandLogPath(configdir + conf.FetchOpt("ipmap"), "", "", 0, 1);
+        ip_track = 1;
+    }
+
+
 #ifdef HAVE_GPS
     if (conf.FetchOpt("waypoints") == "true") {
         if(conf.FetchOpt("waypointdata") == "") {
