@@ -855,7 +855,6 @@ Optional Features:
   --enable-FEATURE[=ARG]  include FEATURE [ARG=yes]
   --disable-curses        disable curses UI
   --disable-panel         disable ncurses panel extentions
-  --disable-gps           disable GPS support
   --disable-netlink       disable linux netlink socket capture (prism2/orinoco patched)
   --disable-wireless      disable linux kernel wireless extentions
   --disable-pcap          disable libpcap capture support
@@ -5336,23 +5335,14 @@ fi
 
 
 wantgps=yes
-# Check whether --enable-gps or --disable-gps was given.
-if test "${enable_gps+set}" = set; then
-  enableval="$enable_gps"
-  wantgps=no
-else
-  wantgps=yes
-fi;
-if test "$wantgps" = "no"; then
-	{ echo "$as_me:$LINENO: WARNING: *** GPS support will not be built. ***" >&5
-echo "$as_me: WARNING: *** GPS support will not be built. ***" >&2;}
-else
-
-cat >>confdefs.h <<\_ACEOF
-#define HAVE_GPS 1
-_ACEOF
-
-fi
+#AC_ARG_ENABLE(gps,
+#[  --disable-gps           disable GPS support],
+#	wantgps=no, wantgps=yes)
+#if test "$wantgps" = "no"; then
+#	AC_MSG_WARN(*** GPS support will not be built. ***)
+#else
+#	AC_DEFINE(HAVE_GPS, 1, GPS support will be built.)
+#fi
 
 
 wantnetlink=yes
@@ -8856,12 +8846,6 @@ else
 fi
 echo -n "      libz compression: "
 if test "$libz" = "yes"; then
-	echo "yes"
-else
-	echo "no"
-fi
-echo -n "           GPS support: "
-if test "$wantgps" = "yes"; then
 	echo "yes"
 else
 	echo "no"

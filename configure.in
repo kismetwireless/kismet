@@ -309,14 +309,14 @@ fi
 AC_SUBST(CLIBS)
 
 wantgps=yes
-AC_ARG_ENABLE(gps,
-[  --disable-gps           disable GPS support],
-	wantgps=no, wantgps=yes)
-if test "$wantgps" = "no"; then
-	AC_MSG_WARN(*** GPS support will not be built. ***)
-else
-	AC_DEFINE(HAVE_GPS, 1, GPS support will be built.)
-fi
+#AC_ARG_ENABLE(gps,
+#[  --disable-gps           disable GPS support],
+#	wantgps=no, wantgps=yes)
+#if test "$wantgps" = "no"; then
+#	AC_MSG_WARN(*** GPS support will not be built. ***)
+#else
+#	AC_DEFINE(HAVE_GPS, 1, GPS support will be built.)
+#fi
 
 
 wantnetlink=yes
@@ -886,12 +886,6 @@ else
 fi
 echo -n "      libz compression: "
 if test "$libz" = "yes"; then
-	echo "yes"
-else
-	echo "no"
-fi
-echo -n "           GPS support: "
-if test "$wantgps" = "yes"; then
 	echo "yes"
 else
 	echo "no"

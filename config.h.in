@@ -27,9 +27,6 @@
 /* Define to 1 if you have the `gettimeofday' function. */
 #undef HAVE_GETTIMEOFDAY
 
-/* GPS support will be built. */
-#undef HAVE_GPS
-
 /* Imagemagick image library */
 #undef HAVE_IMAGEMAGICK
 
