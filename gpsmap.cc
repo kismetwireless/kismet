@@ -62,6 +62,9 @@
 #define OldMagickLib
 #endif
 
+/* Mapscale / pixelfact is meter / pixel */
+#define PIXELFACT 2817.947378
+
 // Global constant values
 const char *config_base = "kismet.conf";
 // &L = USA for the USA, EUR appears to be generic for Europe, EUR0809 for other parts of Europe.. if you get it wrong your map will be very bland =)
@@ -329,8 +332,9 @@ void MergeNetData(vector<wireless_network *> in_netdata) {
     for (unsigned int x = 0; x < in_netdata.size(); x++) {
         wireless_network *inet = in_netdata[x];
 
-        if (bssid_net_map.find(inet->bssid) != bssid_net_map.end()) {
-            wireless_network *onet = bssid_net_map[inet->bssid];
+        map<mac_addr, wireless_network *>::iterator bnmi = bssid_net_map.find(inet->bssid);
+        if (bnmi != bssid_net_map.end()) {
+            wireless_network *onet = bnmi->second;
 
             if (onet->last_time < inet->last_time) {
                 // Update stuff if it's better in the newer data
@@ -370,7 +374,6 @@ int ProcessGPSFile(char *in_fname) {
 #else
     FILE *gpsf;
 #endif
-
 
 #ifdef HAVE_LIBZ
     if ((gpsfz = gzopen(in_fname, "rb")) == NULL) {
@@ -442,6 +445,8 @@ int ProcessGPSFile(char *in_fname) {
 
 #endif
 
+        } else {
+            foundnetfile = 1;
         }
 
         if (foundnetfile) {
@@ -560,10 +565,11 @@ int ProcessGPSFile(char *in_fname) {
 
             gnet->bssid = file_points[i]->bssid;
 
-            if (bssid_net_map.find(file_points[i]->bssid) != bssid_net_map.end())
+            if (bssid_net_map.find(file_points[i]->bssid) != bssid_net_map.end()) {
                 gnet->wnet = bssid_net_map[file_points[i]->bssid];
-            else
+            } else {
                 gnet->wnet = NULL;
+            }
 
             gnet->points.push_back(file_points[i]);
 
@@ -582,6 +588,154 @@ int ProcessGPSFile(char *in_fname) {
     sample_points += file_samples;
 
     return 1;
+}
+
+// Do all the math
+void ProcessNetData(int in_printstats) {
+    // Convert the tracks to x,y
+    if (draw_track != 0 || draw_power != 0) {
+        for (unsigned int vec = 0; vec < track_vec.size(); vec++) {
+            for (unsigned int x = 0; x < track_vec[vec].size(); x++) {
+                double track_tx, track_ty;
+                calcxy(&track_tx, &track_ty, track_vec[vec][x].lat, track_vec[vec][x].lon,
+                       (double) map_scale/PIXELFACT, map_avg_lat, map_avg_lon);
+
+                track_vec[vec][x].x = (int) track_tx;
+                track_vec[vec][x].y = (int) track_ty;
+            }
+
+            if (in_printstats)
+                printf("Track %d: %d samples.\n", vec, track_vec[vec].size());
+        }
+    }
+
+    printf("Processing %d networks.\n", bssid_gpsnet_map.size());
+
+    for (map<string, gps_network *>::const_iterator x = bssid_gpsnet_map.begin();
+         x != bssid_gpsnet_map.end(); ++x) {
+
+        gps_network *map_iter = x->second;
+
+
+        if (map_iter->points.size() <= 1) {
+           // printf("net %s only had <= 1 point.\n", map_iter->bssid.c_str());
+            continue;
+        }
+
+        // Calculate the min/max and average sizes of this network
+        for (unsigned int y = 0; y < map_iter->points.size(); y++) {
+            float lat = map_iter->points[y]->lat;
+            float lon = map_iter->points[y]->lon;
+            float alt = map_iter->points[y]->alt;
+            float spd = map_iter->points[y]->spd;
+
+            //printf("Got %f %f %f %f\n", lat, lon, alt, spd);
+
+            map_iter->avg_lat += lat;
+            map_iter->avg_lon += lon;
+            map_iter->avg_alt += alt;
+            map_iter->avg_spd += spd;
+            map_iter->count++;
+
+            // Enter the max/min values
+            if (lat > map_iter->max_lat || map_iter->max_lat == 0)
+                map_iter->max_lat = lat;
+
+            if (lat < map_iter->min_lat || map_iter->min_lat == 0)
+                map_iter->min_lat = lat;
+
+            if (lon > map_iter->max_lon || map_iter->max_lon == 0)
+                map_iter->max_lon = lon;
+
+            if (lon < map_iter->min_lon || map_iter->min_lon == 0)
+                map_iter->min_lon = lon;
+
+            if (alt > map_iter->max_alt || map_iter->max_alt == 0)
+                map_iter->max_alt = alt;
+
+            if (alt < map_iter->min_alt || map_iter->min_alt == 0)
+                map_iter->min_alt = alt;
+        }
+
+        map_iter->diagonal_distance = earth_distance(map_iter->max_lat, map_iter->max_lon,
+                                                    map_iter->min_lat, map_iter->min_lon);
+
+        map_iter->altitude_distance = map_iter->max_alt - map_iter->min_alt;
+
+        double avg_lat = (double) map_iter->avg_lat / map_iter->count;
+        double avg_lon = (double) map_iter->avg_lon / map_iter->count;
+        double avg_alt = (double) map_iter->avg_alt / map_iter->count;
+        double avg_spd = (double) map_iter->avg_spd / map_iter->count;
+
+        map_iter->avg_lat = avg_lat;
+        map_iter->avg_lon = avg_lon;
+        map_iter->avg_alt = avg_alt;
+        map_iter->avg_spd = avg_spd;
+
+        if (in_printstats)
+            printf("Net:     %s [%s]\n"
+                   "  Samples : %d\n"
+                   "  Min lat : %f\n"
+                   "  Min lon : %f\n"
+                   "  Max lat : %f\n"
+                   "  Max lon : %f\n"
+                   "  Min alt : %f\n"
+                   "  Max Alt : %f\n"
+                   "  Avg Lat : %f\n"
+                   "  Avg Lon : %f\n"
+                   "  Avg Alt : %f\n"
+                   "  Avg Spd : %f\n"
+                   "  H. Range: %f ft\n"
+                   "  V. Range: %f ft\n",
+                   map_iter->wnet == NULL ? "Unknown" : map_iter->wnet->ssid.c_str(),
+                   map_iter->bssid.c_str(),
+                   map_iter->count,
+                   map_iter->min_lat, map_iter->min_lon,
+                   map_iter->max_lat, map_iter->max_lon,
+                   map_iter->min_alt, map_iter->max_alt,
+                   map_iter->avg_lat, map_iter->avg_lon,
+                   map_iter->avg_alt, map_iter->avg_spd,
+                   map_iter->diagonal_distance * 3.3, map_iter->altitude_distance);
+    }
+}
+
+void AssignNetColors() {
+    int base_color = 1;
+
+    for (map<string, gps_network *>::const_iterator x = bssid_gpsnet_map.begin();
+         x != bssid_gpsnet_map.end(); ++x) {
+
+        gps_network *map_iter = x->second;
+
+        if (color_coding == COLORCODE_WEP) {
+            if (map_iter->wnet != NULL) {
+                if (MatchBestManuf(map_iter->wnet, 0) == manuf_max_score) {
+                    map_iter->color_index = "#0000FF";
+                } else if (map_iter->wnet->wep) {
+                    map_iter->color_index = "#FF0000";
+                } else {
+                    map_iter->color_index = "#00FF00";
+                }
+            } else {
+                map_iter->color_index = "#00FF00";
+            }
+        } else if (color_coding == COLORCODE_CHANNEL) {
+            if (map_iter->wnet != NULL) {
+                if (map_iter->wnet->channel < 1 || map_iter->wnet->channel > 14) {
+                    map_iter->color_index = "#000000";
+                } else {
+                    map_iter->color_index = channelcolors[map_iter->wnet->channel - 1];
+                }
+            }
+        } else {
+            if (netcolors[base_color] == NULL)
+                base_color = 1;
+
+            map_iter->color_index = netcolors[base_color];
+
+            base_color++;
+        }
+    }
 }
 
 
@@ -639,9 +793,6 @@ double calcR (double lat) /*FOLD00*/
     r = r * 1000.0;
     return r;
 }
-
-/* Mapscale / pixelfact is meter / pixel */
-#define PIXELFACT 2817.947378
 
 void calcxy (double *posx, double *posy, double lat, double lon, double pixelfact, /*FOLD00*/
         double zero_lat, double zero_long) {
@@ -786,154 +937,6 @@ int InverseWeight(int in_x, int in_y, int in_fuzz, double in_scale) { /*FOLD00*/
 
     return (int) power_sum;
 
-}
-
-// Do all the math
-void ProcessNetData(int in_printstats) { /*FOLD00*/
-    // Convert the tracks to x,y
-    if (draw_track != 0 || draw_power != 0) {
-        for (unsigned int vec = 0; vec < track_vec.size(); vec++) {
-            for (unsigned int x = 0; x < track_vec[vec].size(); x++) {
-                double track_tx, track_ty;
-                calcxy(&track_tx, &track_ty, track_vec[vec][x].lat, track_vec[vec][x].lon,
-                       (double) map_scale/PIXELFACT, map_avg_lat, map_avg_lon);
-
-                track_vec[vec][x].x = (int) track_tx;
-                track_vec[vec][x].y = (int) track_ty;
-            }
-
-            if (in_printstats)
-                printf("Track %d: %d samples.\n", vec, track_vec[vec].size());
-        }
-    }
-
-    printf("Processing %d networks.\n", bssid_gpsnet_map.size());
-
-    for (map<string, gps_network *>::const_iterator x = bssid_gpsnet_map.begin();
-         x != bssid_gpsnet_map.end(); ++x) {
-
-        gps_network *map_iter = x->second;
-
-
-        if (map_iter->points.size() <= 1) {
-           // printf("net %s only had <= 1 point.\n", map_iter->bssid.c_str());
-            continue;
-        }
-
-        // Calculate the min/max and average sizes of this network
-        for (unsigned int y = 0; y < map_iter->points.size(); y++) {
-            float lat = map_iter->points[y]->lat;
-            float lon = map_iter->points[y]->lon;
-            float alt = map_iter->points[y]->alt;
-            float spd = map_iter->points[y]->spd;
-
-            //printf("Got %f %f %f %f\n", lat, lon, alt, spd);
-
-            map_iter->avg_lat += lat;
-            map_iter->avg_lon += lon;
-            map_iter->avg_alt += alt;
-            map_iter->avg_spd += spd;
-            map_iter->count++;
-
-            // Enter the max/min values
-            if (lat > map_iter->max_lat || map_iter->max_lat == 0)
-                map_iter->max_lat = lat;
-
-            if (lat < map_iter->min_lat || map_iter->min_lat == 0)
-                map_iter->min_lat = lat;
-
-            if (lon > map_iter->max_lon || map_iter->max_lon == 0)
-                map_iter->max_lon = lon;
-
-            if (lon < map_iter->min_lon || map_iter->min_lon == 0)
-                map_iter->min_lon = lon;
-
-            if (alt > map_iter->max_alt || map_iter->max_alt == 0)
-                map_iter->max_alt = alt;
-
-            if (alt < map_iter->min_alt || map_iter->min_alt == 0)
-                map_iter->min_alt = alt;
-        }
-
-        map_iter->diagonal_distance = earth_distance(map_iter->max_lat, map_iter->max_lon,
-                                                    map_iter->min_lat, map_iter->min_lon);
-
-        map_iter->altitude_distance = map_iter->max_alt - map_iter->min_alt;
-
-        double avg_lat = (double) map_iter->avg_lat / map_iter->count;
-        double avg_lon = (double) map_iter->avg_lon / map_iter->count;
-        double avg_alt = (double) map_iter->avg_alt / map_iter->count;
-        double avg_spd = (double) map_iter->avg_spd / map_iter->count;
-
-        map_iter->avg_lat = avg_lat;
-        map_iter->avg_lon = avg_lon;
-        map_iter->avg_alt = avg_alt;
-        map_iter->avg_spd = avg_spd;
-
-        if (in_printstats)
-            printf("Net:     %s [%s]\n"
-                   "  Samples : %d\n"
-                   "  Min lat : %f\n"
-                   "  Min lon : %f\n"
-                   "  Max lat : %f\n"
-                   "  Max lon : %f\n"
-                   "  Min alt : %f\n"
-                   "  Max Alt : %f\n"
-                   "  Avg Lat : %f\n"
-                   "  Avg Lon : %f\n"
-                   "  Avg Alt : %f\n"
-                   "  Avg Spd : %f\n"
-                   "  H. Range: %f ft\n"
-                   "  V. Range: %f ft\n",
-                   map_iter->wnet == NULL ? "Unknown" : map_iter->wnet->ssid.c_str(),
-                   map_iter->bssid.c_str(),
-                   map_iter->count,
-                   map_iter->min_lat, map_iter->min_lon,
-                   map_iter->max_lat, map_iter->max_lon,
-                   map_iter->min_alt, map_iter->max_alt,
-                   map_iter->avg_lat, map_iter->avg_lon,
-                   map_iter->avg_alt, map_iter->avg_spd,
-                   map_iter->diagonal_distance * 3.3, map_iter->altitude_distance);
-    }
-}
-
-void AssignNetColors() { /*FOLD00*/
-    int base_color = 1;
-
-    for (map<string, gps_network *>::const_iterator x = bssid_gpsnet_map.begin();
-         x != bssid_gpsnet_map.end(); ++x) {
-
-        gps_network *map_iter = x->second;
-
-        if (color_coding == COLORCODE_WEP) {
-            if (map_iter->wnet != NULL) {
-                if (MatchBestManuf(map_iter->wnet, 0) == manuf_max_score) {
-                    map_iter->color_index = "#0000FF";
-                } else if (map_iter->wnet->wep) {
-                    map_iter->color_index = "#FF0000";
-                } else {
-                    map_iter->color_index = "#00FF00";
-                }
-            } else {
-                map_iter->color_index = "#00FF00";
-            }
-        } else if (color_coding == COLORCODE_CHANNEL) {
-            if (map_iter->wnet != NULL) {
-                if (map_iter->wnet->channel < 1 || map_iter->wnet->channel > 14) {
-                    map_iter->color_index = "#000000";
-                } else {
-                    map_iter->color_index = channelcolors[map_iter->wnet->channel - 1];
-                }
-            }
-        } else {
-            if (netcolors[base_color] == NULL)
-                base_color = 1;
-
-            map_iter->color_index = netcolors[base_color];
-
-            base_color++;
-        }
-    }
 }
 
 void DrawNetTracks(Image *in_img, DrawInfo *in_di) { /*FOLD00*/
