@@ -1,4 +1,8 @@
 Dec 06 2003  3.1.0  Fixed Makefile looking for monitor/unmonitor scripts
+                    Added viha registrant (oops)
+                    Added most of the infrastructure for MadWifi support but
+                     Iwconfig_Set_IntPriv() has to be rewritten to handle
+                     subioctls before it'll really work.
 Dec 05 2003  3.1.0  First major CVS update in a while.  Most everything should
                      be working but documentation is a little sketchy about the
                      new setup.  Refer to kis_packsources.cc to see what your

@@ -88,7 +88,7 @@ int PcapSource::OpenSource() {
 carrier_type PcapSource::IEEE80211Carrier() {
     int ch = FetchChannel();
 
-    if (ch > 0 && ch < 14)
+    if (ch > 0 && ch <= 14)
         return carrier_80211b;
     else if (ch > 34)
         return carrier_80211a;
@@ -408,6 +408,18 @@ int PcapSourceWext::FetchChannel() {
     // Use wireless extensions to get the channel
     return Iwconfig_Get_Channel(interface.c_str(), errstr);
 }
+
+// Carrier override
+carrier_type PcapSourceMadwifiG::IEEE80211Carrier() {
+    int ch = FetchChannel();
+
+    if (ch > 0 && ch <= 14)
+        return carrier_80211g;
+    else if (ch > 34)
+        return carrier_80211a;
+
+    return carrier_unknown;
+}
 #endif
 
 // ----------------------------------------------------------------------------
@@ -437,6 +449,11 @@ KisPacketSource *pcapsource_ciscowifix_registrant(string in_name, string in_devi
     }
 
     return new PcapSourceWext(in_name, devbits[1]);
+}
+
+KisPacketSource *pcapsource_madwifig_registrant(string in_name, string in_device,
+                                                char *in_err) {
+    return new PcapSourceMadwifiG(in_name, in_device);
 }
 #endif
 
@@ -590,6 +607,51 @@ int monitor_vtar5k(const char *in_dev, int initch, char *in_err) {
         return -1;
     }
     
+    // The rest is standard wireless extensions
+    if (monitor_wext(in_dev, initch, in_err) < 0)
+        return -1;
+
+    return 0;
+}
+
+// Madwifi stuff uses iwpriv mode
+int monitor_madwifi_a(const char *in_dev, int initch, char *in_err) {
+    if (Iwconfig_Set_IntPriv(in_dev, "mode", 1, 0, in_err) < 0)
+        return -1;
+
+    // The rest is standard wireless extensions
+    if (monitor_wext(in_dev, initch, in_err) < 0)
+        return -1;
+
+    return 0;
+}
+
+int monitor_madwifi_b(const char *in_dev, int initch, char *in_err) {
+    if (Iwconfig_Set_IntPriv(in_dev, "mode", 2, 0, in_err) < 0)
+        return -1;
+
+    // The rest is standard wireless extensions
+    if (monitor_wext(in_dev, initch, in_err) < 0)
+        return -1;
+
+    return 0;
+}
+
+int monitor_madwifi_g(const char *in_dev, int initch, char *in_err) {
+    if (Iwconfig_Set_IntPriv(in_dev, "mode", 3, 0, in_err) < 0)
+        return -1;
+
+    // The rest is standard wireless extensions
+    if (monitor_wext(in_dev, initch, in_err) < 0)
+        return -1;
+
+    return 0;
+}
+
+int monitor_madwifi_comb(const char *in_dev, int initch, char *in_err) {
+    if (Iwconfig_Set_IntPriv(in_dev, "mode", 1, 0, in_err) < 0)
+        return -1;
+
     // The rest is standard wireless extensions
     if (monitor_wext(in_dev, initch, in_err) < 0)
         return -1;

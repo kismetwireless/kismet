@@ -127,6 +127,14 @@ int RegisterKismetSources(Packetsourcetracker *sourcetracker) {
     REG_EMPTY_CARD(sourcetracker, "wsp100");
 #endif
 
+#if defined(HAVE_VIHAHEADERS)
+    sourcetracker->RegisterPacketsource("viha", 1, "IEEE80211b", 6,
+                                        vihasource_registrant,
+                                        NULL, NULL, chancontrol_viha);
+#else
+    REG_EMPTY_CARD(sourcetracker, "viha");
+#endif
+
     return 1;
 }
 

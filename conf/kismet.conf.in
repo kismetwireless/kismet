@@ -4,7 +4,7 @@
 # not continually reading --help!
 
 # Version of Kismet config
-version=3.1.0a
+version=3.1.0b
 
 # Name of server (Purely for organiational purposes)
 servername=Kismet
@@ -12,7 +12,7 @@ servername=Kismet
 # User to setid to (should be your normal user)
 suiduser=your_user_here
 
-# See the README for the available packet sources and how to configure them
+# Docs to come soon, see kis_packsources.cc for now for all the card types
 source=cisco,eth0,ciscosource
 # Other common source configs:
 # source=prism2,wlan0,prism2source
@@ -54,6 +54,11 @@ defaultchannels=IEEE80211g:1,6,11,2,7,3,8,4,9,5,10
 # adjust the list depending on the channels your card actually supports.
 # defaultchannels=IEEE80211a:36,40,44,48,52,56,60,64,100,104,108,112,116,120,124,128,132,136,140,149,153,157,161,184,188,192,196,200,204,208,212,216 
 defaultchannels=IEEE80211a:36,40,44,48,52,56,60,64
+
+# Combo cards like Atheros use both 'a' and 'b/g' channels.  Of course, you
+# can also explicitly override a given source.  You can use the script 
+# extras/listchan.pl to extract all the channels your card supports.
+defaultchannels=IEEE80211ab:1,6,11,2,7,3,8,4,9,5,10,36,40,44,48,52,56,60,64
 
 # Fine-tuning channel hopping control:
 # The sourcechannels option can be used to set the channel hopping for 
