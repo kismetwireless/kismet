@@ -1,4 +1,6 @@
 Feb 25 2003  2.9.1  Fixed Makefile.in for kismet_drone
+                    Fixed kismet_hopper usage in kismet_monitor (patch from
+                     Frank Strauss)
 Feb 24 2003  2.9.1  Added man pages for drone and updated other man pages.
                     Updated README for drone info
                     Fixed segfault in new capturesource parsing
