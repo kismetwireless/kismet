@@ -210,12 +210,16 @@ bool hullPoint::operator() (const hullPoint& a, const hullPoint& b) const {
 typedef struct gps_network {
 
     gps_network() {
+        filtered = 0;
         wnet = NULL;
         max_lat = min_lat = max_lon = min_lon = max_alt = min_alt = 0;
         count = 0;
         avg_lat = avg_lon = avg_alt = avg_spd = 0;
         diagonal_distance = altitude_distance = 0;
     };
+
+    // Are we filtered from displying?
+    int filtered;
 
     // Wireless network w/ full details, loaded from the associated netfile xml
     wireless_network *wnet;
@@ -342,11 +346,16 @@ macmap<vector<manuf *> > client_manuf_map;
 string filter;
 int invert_filter = 0;
 
+// Filtered types
+string type_filter;
+int invert_type_filter;
+
 // Exception/error catching
 ExceptionInfo im_exception;
 
 // Forward prototypes
 string Mac2String(uint8_t *mac, char seperator);
+string NetType2String(wireless_network_type in_type);
 double rad2deg(double x);
 double earth_distance(double lat1, double lon1, double lat2, double lon2);
 double calcR (double lat);
@@ -402,6 +411,21 @@ string Mac2String(uint8_t *mac, char seperator) { /*FOLD00*/
 
     string temp = tempstr;
     return temp;
+}
+
+string NetType2String(wireless_network_type in_type) {
+    if (in_type == network_ap)
+        return "ap";
+    if (in_type == network_adhoc)
+        return "adhoc";
+    if (in_type == network_probe)
+        return "probe";
+    if (in_type == network_turbocell)
+        return "turbocell";
+    if (in_type == network_data)
+        return "data";
+
+    return "unknown";
 }
 
 void SanitizeSamplePoints(vector<gps_point *> in_samples, map<int,int> *dead_sample_ids) {
@@ -793,7 +817,7 @@ int ProcessGPSFile(char *in_fname) {
         // one if it doesn't exist).  We crunch all the data points in ProcessNetData
         gps_network *gnet = NULL;
 
-        // Don't process filtered networks at all.
+        // Don't process filtered macs at all.
         if (filter.length() != 0)
             if (((invert_filter == 0 && filter.find(file_points[i]->bssid) != string::npos) ||
                  (invert_filter == 1 && filter.find(file_points[i]->bssid) == string::npos)) &&
@@ -882,6 +906,15 @@ int ProcessGPSFile(char *in_fname) {
 
             if (bssid_net_map.find(file_points[i]->bssid) != bssid_net_map.end()) {
                 gnet->wnet = bssid_net_map[file_points[i]->bssid];
+
+                // Set filter bit as we create it
+                if (type_filter.length() != 0)
+                    if (((invert_type_filter == 0 && type_filter.find(NetType2String(gnet->wnet->type)) != string::npos) ||
+                         (invert_type_filter == 1 && type_filter.find(NetType2String(gnet->wnet->type)) == string::npos))) {
+                        gnet->filtered = 1;;
+                    }
+
+
             } else {
                 gnet->wnet = NULL;
             }
@@ -1021,6 +1054,9 @@ void AssignNetColors() {
          x != bssid_gpsnet_map.end(); ++x) {
 
         gps_network *map_iter = x->second;
+
+        if (map_iter->filtered)
+            continue;
 
         if (color_coding == COLORCODE_WEP) {
             if (map_iter->wnet != NULL) {
@@ -2282,9 +2318,10 @@ int Usage(char* argv, int ec = 1) {
            "  -v, --verbose                  Verbose output while running\n"
            "  -g, --config-file <file>       Alternate config file\n"
            "  -o, --output <filename>        Image output file\n"
-           "  -f, --filter <MAC list>        Comma-seperated ALL CAPS list of MAC's\n"
-           "                                  to filter\n"
-           "  -i, --invert-filter            Invert filtering (ONLY draw filtered MAC's)\n"
+           "  -f, --filter <MAC list>        Comma-separated list of MACs to filter\n"
+           "  -i, --invert-filter            Invert filtering (ONLY draw filtered MACs)\n"
+           "  -F, --typefilter <Type list>   Comma-separated list of net types to filter\n"
+           "  -I, --invert-typefilter        Invert type filtering\n"
            "  -z, --threads <num>            Number of simultaneous threads used for\n"
            "                                  complex operations [Default: 1]\n"
            "  -S, --map-source <#>           Source to download maps from [Default: 0]\n"
@@ -2373,6 +2410,8 @@ int main(int argc, char *argv[]) {
            {"output", required_argument, 0, 'o'},
            {"filter", required_argument, 0, 'f'},
            {"invert-filter", no_argument, 0, 'i'},
+           {"typefilter", required_argument, 0, 'F'},
+           {"invert-typefilter", required_argument, 0, 'I'},
            {"threads", required_argument, 0, 'z'},
            {"keep-gif", no_argument, 0, 'D'},
            {"version", no_argument, 0, 'V'},
@@ -2409,7 +2448,7 @@ int main(int argc, char *argv[]) {
            {"draw-label-orient", required_argument, 0, 'L'},
            {"draw-legend", no_argument, 0, 'k'},
            {"draw-legend-opacity", required_argument, 0, 'K'},
-           {"feature-order", required_argument, 0, 'F'},
+           {"feature-order", required_argument, 0, 'T'},
            { 0, 0, 0, 0 }
     };
     int option_index;
@@ -2433,7 +2472,7 @@ int main(int argc, char *argv[]) {
 
     while(1) {
         int r = getopt_long(argc, argv,
-                            "hvg:S:o:f:iz:DVc:s:m:d:n:GMO:tY:brR:uU:aA:B:pP:Z:q:Q:eE:H:l:L:kK:F:",
+                            "hvg:S:o:f:iF:Iz:DVc:s:m:d:n:GMO:tY:brR:uU:aA:B:pP:Z:q:Q:eE:H:l:L:kK:T:",
                             long_options, &option_index);
 
         if (r < 0) break;
@@ -2455,6 +2494,9 @@ int main(int argc, char *argv[]) {
         case 'f':
             filter = optarg;
             break;
+        case 'F':
+            type_filter = optarg;
+            break;
         case 'S':
             if (sscanf(optarg, "%d", &mapsource) != 1 || mapsource < 0 || mapsource > 3) {
                 fprintf(stderr, "Invalid map source.\n");
@@ -2464,6 +2506,9 @@ int main(int argc, char *argv[]) {
 	case 'i':
             invert_filter = true;
             break;
+        case 'I':
+            invert_type_filter = true;
+             break;
         case 'z':
 #ifdef HAVE_PTHREAD
             if (sscanf(optarg, "%d", &numthreads) != 1 || numthreads < 1) {
@@ -2656,7 +2701,7 @@ int main(int argc, char *argv[]) {
                 ShortUsage(exec_name);
             }
             break;
-        case 'F':
+        case 'T':
             draw_feature_order = optarg;
             break;
         default:
@@ -2944,6 +2989,11 @@ int main(int argc, char *argv[]) {
     vector<gps_network *> gpsnetvec;
     for (map<string, gps_network *>::iterator x = bssid_gpsnet_map.begin();
          x != bssid_gpsnet_map.end(); ++x) {
+
+        // Skip filtered
+        if (x->second->filtered)
+            continue;
+
         gpsnetvec.push_back(x->second);
     }
 
