@@ -296,7 +296,7 @@ int main(int argc, char *argv[]) {
             // Initial channel
             char capname[64];
             int initchan;
-            if (sscanf(optarg, "%64s:%d", capname, &initchan) != 2) {
+            if (sscanf(optarg, "%64[^:]:%d", capname, &initchan) != 2) {
                 fprintf(stderr, "FATAL: Unable to process initial channel '%s'.  Format should be capturename:channel\n",
                         optarg);
                 Usage(argv[0]);

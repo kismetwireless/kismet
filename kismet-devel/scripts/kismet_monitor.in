@@ -103,13 +103,13 @@ case "$CARDTYPE" in
 		WSPPORT=`echo $DEVICE | cut -f 2 -d:`;
 
 		# sensor::loghostaddress
-		snmpset -c public $WSPDEVICE .1.3.6.1.4.1.14422.1.1.5 a $HOSTIP
+		snmpset -v 1 -c public $WSPDEVICE .1.3.6.1.4.1.14422.1.1.5 a $HOSTIP
 		# sensor::channel
-		snmpset -c public $WSPDEVICE .1.3.6.1.4.1.14422.1.3.1 i $CHANNEL
+		snmpset -v 1 -c public $WSPDEVICE .1.3.6.1.4.1.14422.1.3.1 i $CHANNEL
 		# sensor::serverport
-		snmpset -c public $WSPDEVICE .1.3.6.1.4.1.14422.1.4.1 i $WSPPORT
+		snmpset -v 1 -c public $WSPDEVICE .1.3.6.1.4.1.14422.1.4.1 i $WSPPORT
 		# sensor::running
-		snmpset -c public $WSPDEVICE .1.3.6.1.4.1.14422.1.1.4 i 1
+		snmpset -v 1 -c public $WSPDEVICE .1.3.6.1.4.1.14422.1.1.4 i 1
 		;;
 	"ar5k")
 		echo "Enabling an ar5k 802.11a on $DEVICE"
