@@ -248,8 +248,6 @@ vector<int> Str2IntVec(string in_text) {
 }
 
 int RunSysCmd(char *in_cmd) {
-    pid_t chpid;
-
     system(in_cmd);
     
     return 0;
@@ -258,7 +256,7 @@ int RunSysCmd(char *in_cmd) {
 pid_t ExecSysCmd(char *in_cmd) {
     // Slice it into an array to pass to exec
     vector<string> cmdvec = StrTokenize(in_cmd, " ");
-    char **cmdarg = new (char *)[cmdvec.size() + 1];
+    char **cmdarg = new char *[cmdvec.size() + 1];
     pid_t retpid;
     unsigned int x;
 
