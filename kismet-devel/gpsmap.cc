@@ -351,8 +351,15 @@ int power_steps = 0;
 int center_resolution = 2;
 // Scatter resolution
 int scatter_resolution = 2;
+
 // Labels to draw
-string network_labels;
+#define NETLABEL_SSID     0
+#define NETLABEL_BSSID    1
+#define NETLABEL_INFO     2
+#define NETLABEL_MANUF    3
+#define NETLABEL_LOCATION 4
+vector<int> network_labels;
+
 // Order to draw in
 string draw_feature_order = "ptbrhscl";
 // Color coding (1 = wep, 2 = channel)
@@ -413,6 +420,7 @@ void DrawNetCircles(vector<gps_network *> in_nets, Image *in_img, DrawInfo *in_d
 void DrawNetBoundRects(vector<gps_network *> in_nets, Image *in_img, 
                        DrawInfo *in_di, int in_fill);
 void DrawNetCenterDot(vector<gps_network *> in_nets, Image *in_img, DrawInfo *in_di);
+void DrawNetCenterText(vector<gps_network *> in_nets, Image *in_img, DrawInfo *in_di);
 int InverseWeight(int in_x, int in_y, int in_fuzz, double in_scale);
 void DrawNetPower(vector<gps_network *> in_nets, Image *in_img, DrawInfo *in_di);
 void DrawNetHull(vector<gps_network *> in_nets, Image *in_img, DrawInfo *in_di);
@@ -2192,52 +2200,56 @@ void DrawNetCenterText(vector<gps_network *> in_nets, Image *in_img, DrawInfo *i
         in_di->stroke = netclr;
 
         char text[1024];
+        char text2[1024];
         text[0] = '\0';
+        text2[0] = '\0';
 
         // Do we not have a draw condition at all, so we stop doing this
         int draw = 0;
         // Do we just not have a draw condition for this network
         int thisdraw = 0;
 
-        if (network_labels.find("name") != string::npos) {
-            if (map_iter->wnet != NULL) {
-		if (map_iter->wnet->beacon_info == "") {
-		    snprintf(text, 1024, "%s", map_iter->wnet->ssid.c_str());
-		} else {
-		    snprintf(text, 1024, "%s/%s", map_iter->wnet->ssid.c_str(),
-					map_iter->wnet->beacon_info.c_str());
-		}
-                thisdraw = 1;
+        for (unsigned int nl = 0; nl < network_labels.size(); nl++) {
+            // Do something more efficient some day, but this only happens
+            // a few times and this is the easy way of doing it.
+            strncpy(text2, text, 1024);
+            switch (network_labels[nl]) {
+                case NETLABEL_BSSID:
+                    snprintf(text2, 1024, "%s%s ", text, map_iter->bssid.c_str());
+                    break;
+                case NETLABEL_SSID:
+                    if (map_iter->wnet != NULL) 
+                        snprintf(text2, 1024, "%s'%s' ", text, map_iter->wnet->ssid.c_str());
+                    break;
+                case NETLABEL_INFO:
+                    if (map_iter->wnet != NULL)
+                        snprintf(text2, 1024, "%s'%s' ", text, map_iter->wnet->beacon_info.c_str());
+                    break;
+                case NETLABEL_MANUF:
+                    if (map_iter->wnet != NULL) {
+                        map_iter->wnet->manuf_ref = MatchBestManuf(ap_manuf_map, 
+                                                                   map_iter->wnet->bssid,
+                                                                   map_iter->wnet->ssid, 
+                                                                   map_iter->wnet->channel,
+                                                                   map_iter->wnet->wep, 
+                                                                   map_iter->wnet->cloaked,
+                                                                   &map_iter->wnet->manuf_score);
+                        if (map_iter->wnet->manuf_ref) {
+                            snprintf(text2, 1024, "%s%s ", text, 
+                                     map_iter->wnet->manuf_ref->name.c_str());
+                        }
+                    }
+                    break;
+                case NETLABEL_LOCATION:
+                    snprintf(text2, 1024, "%s%f,%f ", text, map_iter->avg_lat, map_iter->avg_lon);
+                    break;
+                default:
+                    break;
             }
-            draw = 1;
-        }
 
-        if (network_labels.find("bssid") != string::npos) {
-	    char text2[1024];
-            snprintf(text2, 1024, "%s (%s)", text, map_iter->bssid.c_str());
-            strncpy(text, text2, 1024);
-            draw = 1;
             thisdraw = 1;
-        }
-
-        if (network_labels.find("manuf") != string::npos) {
-            if (map_iter->wnet != NULL) {
-                map_iter->wnet->manuf_ref = MatchBestManuf(ap_manuf_map, 
-                                                           map_iter->wnet->bssid,
-                                                           map_iter->wnet->ssid, 
-                                                           map_iter->wnet->channel,
-                                                           map_iter->wnet->wep, 
-                                                           map_iter->wnet->cloaked,
-                                                           &map_iter->wnet->manuf_score);
-                if (map_iter->wnet->manuf_ref) {
-                    char text2[1024];
-                    snprintf(text2, 1024, "%s %s", text, 
-                             map_iter->wnet->manuf_ref->name.c_str());
-                    strncpy(text, text2, 1024);
-                }
-                draw = 1;
-                thisdraw = 1;
-            }
+            draw = 1;
+            strncpy(text, text2, 1024);
         }
 
         if (thisdraw == 0)
@@ -3113,7 +3125,8 @@ int Usage(char* argv, int ec = 1) {
            "  -E, --draw-center-opacity <o>  Center dot opacity [Default: 100]\n"
            "  -H, --draw-center-size <s>     Center dot at radius size <s> [Default: 2]\n"
            "  -l, --draw-labels <list>       Draw network labels, comma-seperated list\n"
-           "                                  (bssid, name, manuf)\n"
+           "                                  that will be drawn in the order given.\n"
+           "                                  (bssid, ssid, manuf, info, location)\n"
            "  -L, --draw-label-orient <o>    Label orientation [Default: 7]\n"
            "                                  0       1       2\n"
            "                                  3       4       5\n"
@@ -3469,7 +3482,24 @@ int main(int argc, char *argv[]) {
             }
             break;
         case 'l':
-            network_labels = optarg;
+            opttok = StrTokenize(optarg, ",");
+            for (unsigned int t = 0; t < opttok.size(); t++) {
+                string tok = StrLower(opttok[t]);
+                if (tok == "ssid" || tok == "name")
+                    network_labels.push_back(NETLABEL_SSID);
+                else if (tok == "bssid")
+                    network_labels.push_back(NETLABEL_BSSID);
+                else if (tok == "info")
+                    network_labels.push_back(NETLABEL_INFO);
+                else if (tok == "manuf")
+                    network_labels.push_back(NETLABEL_MANUF);
+                else if (tok == "location")
+                    network_labels.push_back(NETLABEL_LOCATION);
+                else {
+                    fprintf(stderr, "Invalid label '%s'\n");
+                    exit(1);
+                }
+            }
             draw_label = 1;
             break;
         case 'L':
