@@ -116,8 +116,17 @@ int DroneSource::FetchPacket(kis_packet *packet, uint8_t *data, uint8_t *moddata
     }
 
     if (ntohl(fhdr.frame_sentinel) != STREAM_SENTINEL) {
-        snprintf(errstr, 1024, "Failure matching start-of-frame sentinel");
-        return -1;
+        int8_t cmd = STREAM_COMMAND_FLUSH;
+        int ret = 0;
+
+        if ((ret = write(drone_fd, &cmd, 1)) < 1) {
+            snprintf(errstr, 1024, "write() error attempting to flush packet stream: %d %s",
+                     errno, strerror(errno));
+            return -1;
+        }
+
+        resyncs++;
+        return 0;
     }
 
     if (fhdr.frame_type == STREAM_FTYPE_VERSION) {
