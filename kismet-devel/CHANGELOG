@@ -1,5 +1,6 @@
 Jun 15 2003  2.9.1  Fixed to handle ENOBUF cleanly in IPC
                     Rolled in OSX/Viha support from Sushila :)
+                    Updated docs to reflect Viha support
 Jun 14 2003  2.9.1  Tweaked queuing order of fatal text messages in IPC
 Jun 11 2003  2.9.1  I hate IPC.  Replaced entire stream-pipe IPC core with
                      unix dgram sockets and it works much better.
