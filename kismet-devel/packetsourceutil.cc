@@ -573,7 +573,7 @@ void CapSourceChild(capturesource *csrc) {
 
         // Write a text ping if we don't have anything else in the buffer that would be testing the
         // command pipe
-        if (txtringbuf->FetchLen() == 0) {
+        if (txtringbuf->FetchLen() == 0 && active == 1) {
             // Send a text ping.  This might be a little much overhead, but I don't want to do another
             // fd just to see if the server is alive
             CapSourceText("", txtringbuf);
