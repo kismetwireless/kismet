@@ -78,6 +78,8 @@ int DroneSource::OpenSource(const char *dev, card_type ctype) {
 
     resyncs = 0;
 
+    num_packets = 0;
+
     return 1;
 }
 
@@ -202,6 +204,8 @@ int DroneSource::FetchPacket(kis_packet *packet, uint8_t *data, uint8_t *moddata
         if (paused || Drone2Common(packet, data, moddata) == 0) {
             return 0;
         }
+
+        num_packets++;
 
         return(packet->caplen);
 

@@ -1,3 +1,6 @@
+May 27 2003  2.9.1  Fixed ssid len=32 management packets being flagged as noise
+                    Defined new channel hopping config file format (subject to
+                     change during implementation)
 May 24 2003  2.9.1  Removed sequence spoof detector (for now) since it didn't
                      do much useful
                     Added disassociate/deauth spoof detector

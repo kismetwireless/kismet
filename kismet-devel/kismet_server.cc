@@ -956,7 +956,11 @@ int Usage(char *argv) {
     printf("Usage: %s [OPTION]\n", argv);
     printf("Most (or all) of these options can (and should) be configured via the\n"
            "kismet.conf global config file, but can be overridden here.\n");
-    printf("  -t, --log-title <title>      Custom log file title\n"
+    printf("  -I, --initial-channel <n:c>  Initial channel to monitor on (default: 6)\n"
+           "                                Format capname:channel\n"
+           "  -x, --force-channel-hop      Forcibly enable the channel hopper\n"
+           "  -X, --force-no-channel-hop   Forcibly disable the channel hopper\n"
+           "  -t, --log-title <title>      Custom log file title\n"
            "  -n, --no-logging             No logging (only process packets)\n"
            "  -f, --config-file <file>     Use alternate config file\n"
            "  -c, --capture-source <src>   Packet capture source line (type,interface,name)\n"
@@ -1027,6 +1031,10 @@ int main(int argc,char *argv[]) {
 
     int datainterval = 0;
 
+    int channel_hop = -1;
+    int channel_velocity = 1;
+    map<string, int> channel_initmap;
+
     int beacon_log = 1;
     int phy_log = 1;
     int mangle_log = 0;
@@ -1061,6 +1069,9 @@ int main(int argc,char *argv[]) {
         { "help", no_argument, 0, 'h' },
         { "version", no_argument, 0, 'v' },
         { "silent", no_argument, 0, 's' },
+        { "initial-channel", required_argument, 0, 'I' },
+        { "force-channel-hop", no_argument, 0, 'x' },
+        { "force-no-channel-hop", no_argument, 0, 'X' },
         // No this isn't documented, and no, you shouldn't be screwing with it
         { "microsleep", required_argument, 0, 'M' },
         { 0, 0, 0, 0 }
@@ -1075,7 +1086,7 @@ int main(int argc,char *argv[]) {
     signal(SIGPIPE, SIG_IGN);
 
     while(1) {
-        int r = getopt_long(argc, argv, "d:M:t:nf:c:C:l:m:g:a:p:N:qhvs",
+        int r = getopt_long(argc, argv, "d:M:t:nf:c:C:l:m:g:a:p:N:I:xXqhvs",
                             long_options, &option_index);
         if (r < 0) break;
         switch(r) {
@@ -1175,6 +1186,27 @@ int main(int argc,char *argv[]) {
             // version
             fprintf(stderr, "Kismet %d.%d.%d\n", VERSION_MAJOR, VERSION_MINOR, VERSION_TINY);
             exit(0);
+            break;
+        case 'x':
+            // force channel hop
+            channel_hop = 1;
+            fprintf(stderr, "Ignoring config file and enabling channel hopping.\n");
+            break;
+        case 'X':
+            // Force channel hop off
+            channel_hop = 0;
+            fprintf(stderr, "Ignoring config file and disabling channel hopping.\n");
+            break;
+        case 'I':
+            // Initial channel
+            char capname[64];
+            int initchan;
+            if (sscanf(optarg, "%64s:%d", capname, &initchan) != 2) {
+                fprintf(stderr, "FATAL: Unable to process initial channel '%s'.  Format should be capturename:channel\n",
+                        optarg);
+                Usage(argv[0]);
+            }
+            channel_initmap[capname] = initchan;
             break;
         default:
             Usage(argv[0]);

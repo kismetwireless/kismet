@@ -100,6 +100,8 @@ int Wsp100Source::OpenSource(const char *dev, card_type ctype) {
 
     valid = 1;
 
+    num_packets = 0;
+
     // Register 'poke' events
     poke_event_id = timetracker->RegisterTimer(TZSP_NULL_PACKET_SLICE, NULL, 1,
                                                &Wsp100PokeSensor, (void *) this);
@@ -146,6 +148,8 @@ int Wsp100Source::FetchPacket(kis_packet *packet, uint8_t *data, uint8_t *moddat
     if (paused || Wsp2Common(packet, data, moddata) == 0) {
         return 0;
     }
+
+    num_packets++;
 
     return(packet->caplen);
 }

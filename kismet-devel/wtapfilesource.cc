@@ -39,6 +39,8 @@ int WtapFileSource::OpenSource(const char *dev, card_type ctype) {
         return -1;
     }
 
+    num_packets = 0;
+
     snprintf(errstr, 1024, "Wtap file source opened %s", dev);
     return 1;
 }
@@ -82,6 +84,8 @@ int WtapFileSource::FetchPacket(kis_packet *packet, uint8_t *data, uint8_t *modd
         return 0;
 
     Wtap2Common(packet, data, moddata);
+
+    num_packets++;
 
     return(packet->caplen);
 

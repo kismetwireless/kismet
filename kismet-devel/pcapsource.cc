@@ -104,6 +104,8 @@ int PcapSource::OpenSource(const char *dev, card_type ctype) {
     if (strlen(errstr) > 0)
         return -1; // Ditto
 
+    num_packets = 0;
+
     snprintf(errstr, 1024, "Pcap Source opened %s", dev);
     return 1;
 }
@@ -134,6 +136,8 @@ int PcapSource::FetchPacket(kis_packet *packet, uint8_t *data, uint8_t *moddata)
     if (paused || Pcap2Common(packet, data, moddata) == 0) {
         return 0;
     }
+
+    num_packets++;
 
     return(packet->caplen);
 }
