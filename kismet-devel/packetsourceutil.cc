@@ -450,6 +450,9 @@ int ParseSetChannels(vector<string> *in_sourcechanlines, vector<capturesource *>
     return 1;
 }
 
+// Nasty middle-of-file global - these are just to let the signal catcher know who we are
+pid_t capchild_global_pid;
+capturesource *capchild_global_capturesource;
 
 // Push a string of text out into the ring buffer for OOB-reporting to the server
 void CapSourceText(string in_text, KisRingBuffer *in_buf) {
@@ -474,9 +477,6 @@ void CapSourceText(string in_text, KisRingBuffer *in_buf) {
 
 }
 
-// Nasty middle-of-file global - these are just to let the signal catcher know who we are
-pid_t capchild_global_pid;
-capturesource *capchild_global_capturesource;
 
 // Signal catchers
 void CapSourceSignal(int sig) {
@@ -570,6 +570,7 @@ void CapSourceChild(capturesource *csrc) {
 
                 if (csrc->source->FetchDescriptor() > max_fd)
                     max_fd = csrc->source->FetchDescriptor();
+
             }
         }
 

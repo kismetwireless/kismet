@@ -2665,11 +2665,14 @@ int main(int argc,char *argv[]) {
         }
 
         for (unsigned int src = 0; src < packet_sources.size(); src++) {
-            if (packet_sources[src]->source == NULL)
+            if (packet_sources[src]->childpid <= 0)
                 continue;
 
+            /*
             // Ping them
             int8_t child_cmd = CAPCMD_NULL;
+
+            fprintf(stderr, "***DEBUG Server sending ping to %d %d\n");
 
             if (write(packet_sources[src]->servpair[1], &child_cmd, 1) < 0) {
                 snprintf(status, STATUS_MAX,
@@ -2686,6 +2689,8 @@ int main(int argc,char *argv[]) {
                 CatchShutdown(-1);
             }
 
+            fprintf(stderr, "***DEBUG Server sent ping\n");
+            */
 
             int len;
             string chtxt;
