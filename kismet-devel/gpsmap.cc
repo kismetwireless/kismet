@@ -63,7 +63,8 @@ const char *config_base = "kismet.conf";
 
 // Not all these work anymore, but left for people who kept gifs and want to still
 // plot on top of them.  We won't download new ones.
-#define MAPSOURCE_MIN        0
+#define MAPSOURCE_MIN        -1
+#define MAPSOURCE_NULL       -1
 #define MAPSOURCE_MAPBLAST   0
 #define MAPSOURCE_MAPPOINT   1
 #define MAPSOURCE_TERRA      2
@@ -3301,6 +3302,7 @@ int Usage(char* argv, int ec = 1) {
            "                                  complex operations [Default: 1]\n"
            "  -N, --pure-avg-center          Use old pure-average network center finding\n"
            "  -S, --map-source <#>           Source to download maps from [Default: 4]\n"
+           "                                 -1 Null map (blank background image)\n"
            "                                  0 MapBlast\n"
            "                                  1 MapPoint (BROKEN)\n"
            "                                  2 TerraServer (photo)\n"
@@ -3767,10 +3769,7 @@ int main(int argc, char *argv[]) {
         }
     }
 
-    if (verbose) {
-        // start up messages
-    }
-
+    // sanity checks
     if (draw_power == 0 && draw_track == 0 && draw_bounds == 0 && draw_range == 0 &&
         draw_hull == 0 && draw_scatter == 0 && draw_center == 0 && draw_label == 0) {
         fprintf(stderr, "FATAL:  No drawing methods requested.\n");
@@ -3789,11 +3788,16 @@ int main(int argc, char *argv[]) {
 
     if (feather_scatter == 1 && scatter_resolution < 3) {
         fprintf(stderr, "WARNING: Scatter resolution must be at least 3 "
-                "for scatter feathering.\n");
+                "for scatter feathering.  Scatter feathering will be "
+                "disabled.\n");
     }
 
-    // sanity checks
-
+    // Fail on nullsource + usermap
+    if (mapsource == MAPSOURCE_NULL && usermap) {
+        fprintf(stderr, "FATAL: Cannot provide a user map to the nullmap source.\n");
+        exit(1);
+    }
+    
     // no dump files
     if (optind == argc) {
         fprintf(stderr, "FATAL:  Must provide at least one gps file.\n");
@@ -3874,7 +3878,8 @@ int main(int argc, char *argv[]) {
             snprintf(pathname, 1024, "%s", ap_manuf_name);
 
         if ((manuf_data = fopen(pathname, "r")) == NULL) {
-            fprintf(stderr, "WARNING:  Unable to open '%s' for reading (%s), AP manufacturers and defaults will not be detected.\n",
+            fprintf(stderr, "WARNING:  Unable to open '%s' for reading (%s), AP manufacturers "
+                    "and defaults will not be detected.\n",
                     pathname, strerror(errno));
         } else {
             fprintf(stderr, "Reading AP manufacturer data and defaults from %s\n", pathname);
@@ -3894,10 +3899,12 @@ int main(int argc, char *argv[]) {
             snprintf(pathname, 1024, "%s", client_manuf_name);
 
         if ((manuf_data = fopen(pathname, "r")) == NULL) {
-            fprintf(stderr, "WARNING:  Unable to open '%s' for reading (%s), client manufacturers and defaults will not be detected.\n",
+            fprintf(stderr, "WARNING:  Unable to open '%s' for reading (%s), client "
+                    "manufacturers and defaults will not be detected.\n",
                     pathname, strerror(errno));
         } else {
-            fprintf(stderr, "Reading client manufacturer data and defaults from %s\n", pathname);
+            fprintf(stderr, "Reading client manufacturer data and defaults "
+                    "from %s\n", pathname);
             client_manuf_map = ReadManufMap(manuf_data, 1);
             fclose(manuf_data);
         }
@@ -3911,7 +3918,7 @@ int main(int argc, char *argv[]) {
 
 #ifdef HAVE_PTHREAD
     // Build the threads
-    mapthread = new pthread_t[numthreads];//(pthread_t *) malloc(sizeof(pthread_t) * numthreads);
+    mapthread = new pthread_t[numthreads];
     pthread_mutex_init(&power_lock, NULL);
     pthread_mutex_init(&print_lock, NULL);
     pthread_mutex_init(&power_pos_lock, NULL);
@@ -3925,17 +3932,12 @@ int main(int argc, char *argv[]) {
     InitializeMagick(*argv);
     GetExceptionInfo(&im_exception);
     img_info = CloneImageInfo((ImageInfo *) NULL);
-
-    if (optind == argc) {
-        fprintf(stderr, "FATAL:  Must provide at least one dump file.\n");
-        ShortUsage(exec_name);
-    }
+    di = CloneDrawInfo(img_info, NULL);
 
     for (int x = optind; x < argc; x++) {
         if (ProcessGPSFile(argv[x]) < 0) {
-            fprintf(stderr, "WARNING:  Unrecoverable error processing GPS data file \"%s\", skipping.\n",
-                    argv[x]);
-            //exit(1);
+            fprintf(stderr, "WARNING:  Unrecoverable error processing GPS data file "
+                    "\"%s\", skipping.\n", argv[x]);
         }
     }
 
@@ -4015,9 +4017,38 @@ int main(int argc, char *argv[]) {
         snprintf(mapoutname, 1024, "map_%f_%f_%ld_%d_%d.png", map_avg_lat, 
                  map_avg_lon, map_scale, map_width, map_height);
 
-    printf("Loading map into Imagemagick structures.\n");
     strcpy(img_info->filename, mapname);
-    img = ReadImage(img_info, &im_exception);
+
+    // Load the map or create the blank
+    unsigned char *pixdata = NULL;
+    if (mapsource != MAPSOURCE_NULL) {
+        printf("Loading map into Imagemagick structures.\n");
+        img = ReadImage(img_info, &im_exception);
+    } else {
+        printf("Creating blank map image.\n");
+        pixdata = (unsigned char *) malloc(sizeof(unsigned char) *
+                                           map_width * map_height * 3);
+        img = ConstituteImage(map_width, map_height, "RGB", CharPixel,
+                              pixdata, &im_exception);
+        if (im_exception.severity != UndefinedException) {
+            fprintf(stderr, "FATAL: ConstituteImage failed for null mapsource\n");
+            CatchException(&im_exception);
+            exit(1);
+        }
+
+        char prim[1024];
+        snprintf(prim, 1024, "stroke white fill white fill-opacity 100%% "
+                 "rectangle 0,0 %d,%d", map_width, map_height);
+        di->primitive = prim;
+        DrawImage(img, di);
+        GetImageException(img, &im_exception);
+        if (im_exception.severity != UndefinedException) {
+            fprintf(stderr, "FATAL: Couldn't blank image.\n");
+            CatchException(&im_exception);
+            exit(1);
+        }
+        di->primitive = strdup("");
+    }
 
     if (img == (Image *) NULL) {
         if (usermap) {
@@ -4113,7 +4144,6 @@ int main(int argc, char *argv[]) {
 
     fprintf(stderr, "Plotting %d networks...\n", gpsnetvec.size());
 
-    di = CloneDrawInfo(img_info, NULL);
     for (unsigned int x = 0; x < draw_feature_order.length(); x++) {
         switch (draw_feature_order[x]) {
         case 'p':
@@ -4198,6 +4228,8 @@ int main(int argc, char *argv[]) {
 
     DestroyDrawInfo(di);
     DestroyImage(img);
+    if (pixdata != NULL)
+        free(pixdata);
 
     DestroyMagick();
 
@@ -4205,7 +4237,7 @@ int main(int argc, char *argv[]) {
     delete[] mapthread;
 #endif
 
-    if (!keep_gif && !usermap && !filemap) {
+    if (!keep_gif && !usermap && !filemap && mapsource != MAPSOURCE_NULL) {
         fprintf(stderr, "Unlinking downloaded map.\n");
         unlink(mapname);
     }

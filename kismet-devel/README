@@ -669,6 +669,7 @@ Licensed under the GPL
     overlays.
 
     GPSMap currently can use maps from:
+        NullMap     (Blank white background)
         MapBlast    (Vector) 
         MapPoint    (Vector) (Broken, read warning)
         Terraserver (Satellite Photo)
