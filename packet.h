@@ -732,6 +732,8 @@ typedef struct {
     mac_addr bssid;
     unsigned char key[13];
     unsigned int len;
+    unsigned int decrypted;
+    unsigned int failed;
 } wep_key_info;
 
 // ----------------------------------

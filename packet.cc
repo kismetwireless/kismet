@@ -1145,12 +1145,13 @@ void DecryptPacket(kis_packet *packet, packet_info *in_info,
     if (crcfailure == 1) {
         delete[] packet->moddata;
         packet->moddata = NULL;
+        bwmitr->second->failed++;
     } else {
         // Skip the IV and don't count the ICV
         in_info->header_offset += 4;
         packet->len -= 4;
-
         in_info->decoded = 1;
+        bwmitr->second->decrypted++;
     }
 }
 

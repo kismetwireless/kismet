@@ -35,9 +35,6 @@ In no particular order:
 	linkage of seen-on devices to network info
 	horizontal column scrolling in UI
 	kismet_client perl module (org/kyzoku/others)
-	track WEP key decrypt/failure rates for supplied keys
-	mangle-packet dumpfile
-		mangle fuzzy encryption
 	do something smarter with RSSI signal levels from AVS headers
 	do something smarter in expat.cc with carriers, encodings, etc
 	AP uptime extraction
