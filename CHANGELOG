@@ -1,6 +1,7 @@
 Mar 29 2004  devel  Removed size restriction testing for now, let the remote
                      mapsource blow up if we're not a valid size.
                     Put scale ranges into --help
+                    Fixed error in tcpclient reading new major/minors
 Mar 27 2004  devel  Fixed Mapblast map source in GPSMap, left Earthamap as the
                      default however.  (Thanks, poptix!)
                     Fixed mapblast user-scale

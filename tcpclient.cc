@@ -296,7 +296,7 @@ int TcpClient::ParseData(char *in_data) {
                    &junkmajor, &junkminor, &junktiny, 
                    (int *) &start_time, servername, 
                    build, &channel_hop,
-                   &major, &minor, &tiny) < 7)
+                   major, minor, tiny) < 7)
             return 0;
     } else if (!strncmp(header, "*TIME", 64)) {
         if (sscanf(in_data+hdrlen, "%d", (int *) &serv_time) < 1)
