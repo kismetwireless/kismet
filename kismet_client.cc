@@ -706,6 +706,9 @@ int main(int argc, char *argv[]) {
     if (gui_conf->FetchOpt("apm") == "true")
         prefs["apm"] = "true";
 
+    if (gui_conf->FetchOpt("autogroup_probe") == "true")
+        prefs["autogroup_probe"] = "true";
+
     prefs["simpleborders"] = gui_conf->FetchOpt("simpleborders");
 
     prefs["color"] = gui_conf->FetchOpt("color");

@@ -398,6 +398,8 @@ PanelFront::PanelFront() {
 
     clear_dump = 0;
 
+    probe_group = NULL;
+
     hsize = COLS;
     vsize = LINES;
 
