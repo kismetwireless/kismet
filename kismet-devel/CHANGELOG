@@ -1,6 +1,7 @@
 Mar 26 2004  devel  Added feathered scatter plot drawing to gpsmap.  This is
                      VERY slow but produces some nice effects in combination
                      with channel coloring to show saturation in an area.
+                    Tweaked feather circle center drawing
 Mar 25 2004  devel  Added binary caching to gpsmap, this more than doubles
                      the speed of gpsmap when repeatedly processing the same
                      sets of XML data.
