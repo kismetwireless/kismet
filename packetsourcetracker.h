@@ -46,6 +46,9 @@
 #define CHANFLAG_NONE     0
 #define CHANFLAG_FATAL    1
 
+// Pre-prototype
+class Packetsourcetracker;
+
 // Non-class helper functions for each packet source type to handle allocating the
 // class instance of KisPacketSource and to handle changing the channel outside of
 // the instantiated object
@@ -90,12 +93,16 @@ public:
     // function to generate an instance of the source, and function to change channel 
     // for this card type.  This fills out the prototype. Sources that don't hop 
     // should request a default channelset of "none"
+    // Turning off child control puts the channel changing into the core of the
+    // server.  This isn't really a good thing to do, but one source (viha)
+    // requires it.
     int RegisterPacketsource(const char *in_cardtype, int in_root, 
                              const char *in_defaultchanset, int in_initch, 
                              packsource_registrant in_registrant, 
                              packsource_monitor in_monitor,
                              packsource_monitor in_unmonitor,
-                             packsource_chcontrol in_channelcon);
+                             packsource_chcontrol in_channelcon,
+                             int in_childcontrol);
 
     // Register default channels 
     int RegisterDefaultChannels(vector<string> *in_defchannels);
@@ -149,6 +156,7 @@ protected:
         packsource_monitor monitor_enable;
         packsource_monitor monitor_disable;
         packsource_chcontrol channelcon;
+        int child_control;
     } packsource_protorec;
 
     // Meta packetsource for handling created packetsources, channel control, etc

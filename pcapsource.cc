@@ -922,22 +922,22 @@ int monitor_wlanng(const char *in_dev, int initch, char *in_err) {
         return -1;
 
     // Enable the interface
-    snprintf(cmdline, 2048, "wlanctl-ng %s lnxreq_ifstate ifstate=enable", in_dev);
+    snprintf(cmdline, 2048, "wlanctl-ng %s lnxreq_ifstate ifstate=enable >/dev/null 2>dev/null", in_dev);
     if (ExecSysCmd(cmdline, in_err) < 0)
         return -1;
 
     // Turn off WEP
-    snprintf(cmdline, 2048, "wlanctl-ng %s dot11req_mibset mibattribute=dot11PrivacyInvoked=false", in_dev);
+    snprintf(cmdline, 2048, "wlanctl-ng %s dot11req_mibset mibattribute=dot11PrivacyInvoked=false >/dev/null 2>/dev/null", in_dev);
     if (ExecSysCmd(cmdline, in_err) < 0)
         return -1;
 
     // Don't exclude packets
-    snprintf(cmdline, 2048, "wlanctl-ng %s dot11req_mibset mibattribute=dot11ExcludeUnencrypted=false", in_dev);
+    snprintf(cmdline, 2048, "wlanctl-ng %s dot11req_mibset mibattribute=dot11ExcludeUnencrypted=false >/dev/null 2>/dev/null", in_dev);
     if (ExecSysCmd(cmdline, in_err) < 0)
         return -1;
 
     // Turn on rfmon on the initial channel
-    snprintf(cmdline, 2048, "wlanctl-ng %s lnxreq_wlansniff channel=%d enable=true prismheader=true", in_dev, initch);
+    snprintf(cmdline, 2048, "wlanctl-ng %s lnxreq_wlansniff channel=%d enable=true prismheader=true >/dev/null 2>/dev/null", in_dev, initch);
     if (ExecSysCmd(cmdline, in_err) < 0)
         return -1;
     
@@ -954,25 +954,25 @@ int monitor_wlanng_avs(const char *in_dev, int initch, char *in_err) {
         return -1;
 
     // Enable the interface
-    snprintf(cmdline, 2048, "wlanctl-ng %s lnxreq_ifstate ifstate=enable", in_dev);
+    snprintf(cmdline, 2048, "wlanctl-ng %s lnxreq_ifstate ifstate=enable >/dev/null 2>/dev/null", in_dev);
     if (ExecSysCmd(cmdline, in_err) < 0)
         return -1;
 
     // Turn off WEP
     snprintf(cmdline, 2048, "wlanctl-ng %s dot11req_mibset "
-             "mibattribute=dot11PrivacyInvoked=false", in_dev);
+             "mibattribute=dot11PrivacyInvoked=false >/dev/null 2>/dev/null", in_dev);
     if (ExecSysCmd(cmdline, in_err) < 0)
         return -1;
 
     // Don't exclude packets
     snprintf(cmdline, 2048, "wlanctl-ng %s dot11req_mibset "
-             "mibattribute=dot11ExcludeUnencrypted=false", in_dev);
+             "mibattribute=dot11ExcludeUnencrypted=false >/dev/null 2>/dev/null", in_dev);
     if (ExecSysCmd(cmdline, in_err) < 0)
         return -1;
 
     // Turn on rfmon on the initial channel
     snprintf(cmdline, 2048, "wlanctl-ng %s lnxreq_wlansniff channel=%d prismheader=false "
-             "wlanheader=true stripfcs=false keepwepflags=false enable=true", in_dev, initch);
+             "wlanheader=true stripfcs=false keepwepflags=false enable=true >/dev/null 2>/dev/null", in_dev, initch);
     if (ExecSysCmd(cmdline, in_err) < 0)
         return -1;
     

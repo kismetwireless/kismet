@@ -31,14 +31,14 @@ int RegisterKismetSources(Packetsourcetracker *sourcetracker) {
     // Drone
     sourcetracker->RegisterPacketsource("kismet_drone", 0, "na", 0,
                                        dronesource_registrant,
-                                       NULL, NULL, NULL);
+                                       NULL, NULL, NULL, 0);
     
     // pcap supported sources 
 #ifdef HAVE_LIBPCAP
     // pcapfile doesn't have channel or monitor controls
     sourcetracker->RegisterPacketsource("pcapfile", 0, "na", 0,
                                        pcapsource_file_registrant,
-                                       NULL, NULL, NULL);
+                                       NULL, NULL, NULL, 0);
 #else
     REG_EMPTY_CARD(sourcetracker, "pcapfile");
 #endif
@@ -47,57 +47,58 @@ int RegisterKismetSources(Packetsourcetracker *sourcetracker) {
     // Linux wext-driven cards
     sourcetracker->RegisterPacketsource("cisco", 1, "IEEE80211b", 6,
                                        pcapsource_wext_registrant,
-                                       monitor_cisco, NULL, chancontrol_wext);
+                                       monitor_cisco, NULL, chancontrol_wext, 1);
     sourcetracker->RegisterPacketsource("cisco_wifix", 1, "IEEE80211b", 6,
                                        pcapsource_ciscowifix_registrant,
-                                       monitor_cisco_wifix, NULL, chancontrol_wext);
+                                       monitor_cisco_wifix, NULL, chancontrol_wext, 1);
     sourcetracker->RegisterPacketsource("hostap", 1, "IEEE80211b", 6,
                                        pcapsource_wext_registrant,
-                                       monitor_hostap, NULL, chancontrol_wext);
+                                       monitor_hostap, NULL, chancontrol_wext, 1);
     sourcetracker->RegisterPacketsource("orinoco", 1, "IEEE80211b", 6,
                                        pcapsource_wext_registrant,
-                                       monitor_orinoco, NULL, chancontrol_orinoco);
+                                       monitor_orinoco, NULL, chancontrol_orinoco, 1);
     sourcetracker->RegisterPacketsource("acx100", 1, "IEEE80211b", 6,
                                        pcapsource_wext_registrant,
-                                       monitor_acx100, NULL, chancontrol_wext);
+                                       monitor_acx100, NULL, chancontrol_wext, 1);
     sourcetracker->RegisterPacketsource("vtar5k", 1, "IEEE80211a", 36,
                                        pcapsource_wext_registrant,
-                                       monitor_vtar5k, NULL, chancontrol_wext);
+                                       monitor_vtar5k, NULL, chancontrol_wext, 1);
 
     sourcetracker->RegisterPacketsource("madwifi_a", 1, "IEEE80211a", 36,
                                         pcapsource_madwifi_registrant,
-                                        monitor_madwifi_a, NULL, chancontrol_wext);
+                                        monitor_madwifi_a, NULL, chancontrol_wext, 1);
     sourcetracker->RegisterPacketsource("madwifi_b", 1, "IEEE80211b", 6,
                                         pcapsource_madwifi_registrant,
-                                        monitor_madwifi_b, NULL, chancontrol_wext);
+                                        monitor_madwifi_b, NULL, chancontrol_wext, 1);
     sourcetracker->RegisterPacketsource("madwifi_g", 1, "IEEE80211g", 6,
                                         pcapsource_madwifig_registrant,
-                                        monitor_madwifi_g, NULL, chancontrol_wext);
+                                        monitor_madwifi_g, NULL, chancontrol_wext, 1);
     sourcetracker->RegisterPacketsource("madwifi_ab", 1, "IEEE80211ab", 6,
                                         pcapsource_madwifi_registrant,
                                         monitor_madwifi_comb, NULL, 
-                                        chancontrol_madwifi_ab);
+                                        chancontrol_madwifi_ab, 1);
     sourcetracker->RegisterPacketsource("madwifi_ag", 1, "IEEE80211ab", 6,
                                         pcapsource_madwifig_registrant,
                                         monitor_madwifi_comb, NULL, 
-                                        chancontrol_madwifi_ag);
+                                        chancontrol_madwifi_ag, 1);
 
     sourcetracker->RegisterPacketsource("prism54g", 1, "IEEE80211g", 6,
                                         pcapsource_11g_registrant,
                                         monitor_prism54g, NULL,
-                                        chancontrol_prism54g);
+                                        chancontrol_prism54g, 1);
 
     sourcetracker->RegisterPacketsource("wlanng_wext", 1, "IEEE80211b", 6,
                                         pcapsource_wext_registrant,
                                         monitor_wlanng_avs, NULL,
-                                        chancontrol_wext);
+                                        chancontrol_wext, 1);
 
     sourcetracker->RegisterPacketsource("wlanng", 1, "IEEE80211b", 6,
                                        pcapsource_wext_registrant,
-                                       monitor_wlanng, NULL, chancontrol_wlanng);
+                                       monitor_wlanng, NULL, chancontrol_wlanng, 1);
     sourcetracker->RegisterPacketsource("wlanng_avs", 1, "IEEE80211b", 6,
                                        pcapsource_wext_registrant,
-                                       monitor_wlanng_avs, NULL, chancontrol_wlanng_avs);
+                                       monitor_wlanng_avs, NULL, 
+                                       chancontrol_wlanng_avs, 1);
 #else
     // Register the linuxwireless pcap stuff as null
     REG_EMPTY_CARD(sourcetracker, "cisco");
@@ -123,7 +124,7 @@ int RegisterKismetSources(Packetsourcetracker *sourcetracker) {
 #if defined(HAVE_LIBPCAP) && defined(SYS_LINUX)
     sourcetracker->RegisterPacketsource("wrt54g", 1, "na", 0,
                                         pcapsource_wrt54g_registrant,
-                                        monitor_wrt54g, NULL, NULL);
+                                        monitor_wrt54g, NULL, NULL, 0);
 #else
     REG_EMPTY_CARD(sourcetracker, "wrt54g");
 #endif
@@ -132,7 +133,7 @@ int RegisterKismetSources(Packetsourcetracker *sourcetracker) {
     sourcetracker->RegisterPacketsource("wlanng_legacy", 1, "IEEE80211b", 6,
                                         prism2source_registrant,
                                         monitor_wlanng_legacy, NULL,
-                                        chancontrol_wlanng_legacy);
+                                        chancontrol_wlanng_legacy, 1);
 #else
     REG_EMPTY_CARD(sourcetracker, "wlanng_legacy");
 #endif
@@ -140,11 +141,11 @@ int RegisterKismetSources(Packetsourcetracker *sourcetracker) {
 #if defined(HAVE_LIBPCAP) && defined(SYS_OPENBSD)
     sourcetracker->RegisterPacketsource("cisco_openbsd", 1, "IEEE80211b", 6,
                                        pcapsource_registrant,
-                                       monitor_openbsd_cisco, NULL, NULL);
+                                       monitor_openbsd_cisco, NULL, NULL, 1);
     sourcetracker->RegisterPacketsource("prism2_openbsd", 1, "IEEE80211b", 6,
                                        pcapsource_openbsdprism2_registrant,
                                        monitor_openbsd_prism2, NULL,
-                                       chancontrol_openbsd_prism2);
+                                       chancontrol_openbsd_prism2, 1);
 #else
     REG_EMPTY_CARD(sourcetracker, "cisco_openbsd");
     REG_EMPTY_CARD(sourcetracker, "prism2_openbsd");
@@ -153,7 +154,7 @@ int RegisterKismetSources(Packetsourcetracker *sourcetracker) {
 #if defined(HAVE_LIBWIRETAP)
     sourcetracker->RegisterPacketsource("wtapfile", 0, "na", 0,
                                        wtapfilesource_registrant,
-                                       NULL, NULL, NULL);
+                                       NULL, NULL, NULL, 0);
 #else
     REG_EMPTY_CARD(sourcetracker, "wtapfile");
 #endif
@@ -161,7 +162,7 @@ int RegisterKismetSources(Packetsourcetracker *sourcetracker) {
 #if defined(HAVE_WSP100)
     sourcetracker->RegisterPacketsource("wsp100", 0, "IEEE80211b", 6,
                                         wsp100source_registrant,
-                                        monitor_wsp100, NULL, chancontrol_wsp100);
+                                        monitor_wsp100, NULL, chancontrol_wsp100, 0);
 #else
     REG_EMPTY_CARD(sourcetracker, "wsp100");
 #endif
@@ -169,7 +170,7 @@ int RegisterKismetSources(Packetsourcetracker *sourcetracker) {
 #if defined(HAVE_VIHAHEADERS)
     sourcetracker->RegisterPacketsource("viha", 1, "IEEE80211b", 6,
                                         vihasource_registrant,
-                                        NULL, NULL, chancontrol_viha);
+                                        NULL, NULL, chancontrol_viha, 0);
 #else
     REG_EMPTY_CARD(sourcetracker, "viha");
 #endif

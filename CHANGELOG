@@ -1,4 +1,7 @@
 Dec 19 2003  3.1.0  Changed some viha stuff, maybe fixed some problems.
+                    Made child channel control spawning far more intelligent
+                    Merged viha into root process, forced disable of setuid
+                     dropping when using viha
 Dec 17 2003  3.1.0  Fixed initial channel setting on hostap
                     Fixed GPSD support to work with tgpsd
 Dec 16 2003  3.1.0  Added duplicate IV per BSSID detection, logging, and 

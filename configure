@@ -6112,26 +6112,7 @@ if test "${enable_setuid+set}" = set; then
 else
   suid=yes
 fi;
-
-
-if test $suid = yes; then
-	echo "$as_me:$LINENO: checking for setuid " >&5
-echo $ECHO_N "checking for setuid ... $ECHO_C" >&6
-	echo "$as_me:$LINENO: result: yes" >&5
-echo "${ECHO_T}yes" >&6
-
-cat >>confdefs.h <<\_ACEOF
-#define HAVE_SUID 1
-_ACEOF
-
-else
-	echo "$as_me:$LINENO: checking for setuid" >&5
-echo $ECHO_N "checking for setuid... $ECHO_C" >&6
-	echo "$as_me:$LINENO: result: no" >&5
-echo "${ECHO_T}no" >&6
-	{ echo "$as_me:$LINENO: WARNING: *** Not installing setuid capabilities.  It is more secure to install Kismet as setuid-capable so it can drop privileges.  Please consult the README file. ***" >&5
-echo "$as_me: WARNING: *** Not installing setuid capabilities.  It is more secure to install Kismet as setuid-capable so it can drop privileges.  Please consult the README file. ***" >&2;}
-fi
+# evaluate after viha test
 
 if test "$darwin" = yes; then
 	{ echo "$as_me:$LINENO: WARNING: *** Enabling Viha by default because we're compiling under OSX ***" >&5
@@ -6310,7 +6291,35 @@ done
 # Enable the ldflags and cxx flags if we found it...
 	if test $foundviha = "yes"; then
 		LDFLAGS="$LDFLAGS -framework WiFi"
+# Force suid disabled
+        suid="no"
+        { echo "$as_me:$LINENO: WARNING: *** Disabling setuid capabilities.  Viha must be controlled from the main process which makes setuid-dropping impossible. ***" >&5
+echo "$as_me: WARNING: *** Disabling setuid capabilities.  Viha must be controlled from the main process which makes setuid-dropping impossible. ***" >&2;}
 	fi
+fi
+
+# Evaluate suid
+
+if test $suid = yes; then
+	echo "$as_me:$LINENO: checking for setuid " >&5
+echo $ECHO_N "checking for setuid ... $ECHO_C" >&6
+	echo "$as_me:$LINENO: result: yes" >&5
+echo "${ECHO_T}yes" >&6
+
+cat >>confdefs.h <<\_ACEOF
+#define HAVE_SUID 1
+_ACEOF
+
+else
+	echo "$as_me:$LINENO: checking for setuid" >&5
+echo $ECHO_N "checking for setuid... $ECHO_C" >&6
+	echo "$as_me:$LINENO: result: no" >&5
+echo "${ECHO_T}no" >&6
+# Yell if we didn't already yell about viha
+    if test "$foundviha" != "yes"; then
+	    { echo "$as_me:$LINENO: WARNING: *** Not installing setuid capabilities.  It is more secure to install Kismet as setuid-capable so it can drop privileges.  Please consult the README file. ***" >&5
+echo "$as_me: WARNING: *** Not installing setuid capabilities.  It is more secure to install Kismet as setuid-capable so it can drop privileges.  Please consult the README file. ***" >&2;}
+    fi
 fi
 
 wsp100=yes
