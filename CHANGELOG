@@ -1,3 +1,14 @@
+Jul 30 2003  3.0.0  Released 3.0.0 stable.  Major improvements include:
+                     Integration with snort
+                     New packet engine
+                     Remote drone sniffers
+                     Mac OSX support
+                     Stateful packet inspector
+                     New alert system
+                     Uncountable bugfixes and updates
+                    BE SURE TO READ THE README WHEN UPGRADING FROM A PREVIOUS
+                    VERSION OF KISMET!  MANY THINGS HAVE CHANGED!
+                     
 Jul 30 2003  2.9.1  Hopefully fixed compass for real this time
 Jul 29 2003  2.9.1  Moved to libpcap 0.7.2 stable.  Use cvs update -P to prune
                      out the old directories automatically.
