@@ -784,31 +784,122 @@ int PanelFront::MainStatusPrinter(void *in_window) {
     return 1;
 }
 
-void PanelFront::ClientLine(string *in_str, wireless_client *client) {
+void PanelFront::ClientLine(string *in_str, wireless_client *wclient, int print_width) {
+    char retchr[4096];
+    char tmpchr[4096];
 
+    memset(retchr, 0, 4096);
+    memset(tmpchr, 0, 4096);
+
+    if (print_width > 4096)
+        print_width = 4096;
+
+    int pos = 0;
+    char element[1024];
+    int len = 0;
+
+    for (unsigned int col = 0; col < client_column_vec.size(); col++) {
+        client_columns colind = client_column_vec[col];
+
+        if (colind == ccol_decay) {
+            if ((client->FetchTime() - wclient->last_time) < decay)
+                snprintf(element, 1024, "!");
+            else if ((client->FetchTime() - wclient->last_time) < (decay * 2))
+                snprintf(element, 1024, ".");
+            else
+                snprintf(element, 1024, " ");
+            len = 1;
+        } else if (colind == ccol_type) {
+            if (wclient->type == client_fromds)
+                snprintf(element, 2, "F");
+            else if (wclient->type == client_tods)
+                snprintf(element, 2, "T");
+            else if (wclient->type == client_interds)
+                snprintf(element, 2, "I");
+            else if (wclient->type == client_established)
+                snprintf(element, 2, "E");
+            else
+                snprintf(element, 2, "-");
+            len = 1;
+        } else if (colind == ccol_mac) {
+            snprintf(element, 18, "%s", wclient->mac.Mac2String().c_str());
+            len = 17;
+        } else if (colind == ccol_manuf) {
+            if (wclient->manuf_id >= 0 && wclient->manuf_id < manuf_num) {
+                snprintf(element, 9, "%s", manuf_list[wclient->manuf_id].short_manuf.c_str());
+            } else {
+                snprintf(element, 9, "Unknown");
+            }
+            len = 8;
+        } else if (colind == ccol_data) {
+            snprintf(element, 7, "%6d", wclient->data_packets);
+            len = 6;
+        } else if (colind == ccol_crypt) {
+            snprintf(element, 6, "%5d", wclient->crypt_packets);
+            len = 5;
+        } else if (colind == ccol_weak) {
+            snprintf(element, 6, "%5d", wclient->interesting_packets);
+            len = 5;
+        } else if (colind == ccol_maxrate) {
+            snprintf(element, 6, "%2.1f", wclient->maxrate);
+            len = 5;
+        } else if (colind == ccol_ip) {
+            if (wclient->ipdata.atype == address_none) {
+                snprintf(element, 1024, "0.0.0.0");
+            } else {
+                snprintf(element, 16, "%d.%d.%d.%d",
+                         wclient->ipdata.ip[0], wclient->ipdata.ip[1],
+                         wclient->ipdata.ip[2], wclient->ipdata.ip[3]);
+            }
+            len = 15;
+        } else if (colind == ccol_signal) {
+            snprintf(element, 4, "%3d", wclient->signal);
+            len = 3;
+        } else if (colind == ccol_quality) {
+            snprintf(element, 4, "%3d", wclient->quality);
+            len = 3;
+        } else if (colind == ccol_noise) {
+            snprintf(element, 4, "%3d", wclient->noise);
+            len = 3;
+        }
+
+        if (pos + len > print_width - 1)
+            break;
+
+        snprintf(tmpchr, 4096, "%*s %s", (-1) * pos, retchr, element);
+
+        strncpy(retchr, tmpchr, 4096);
+
+        pos += len + 1;
+    }
+
+    *in_str = retchr;
 }
 
 int PanelFront::MainClientPrinter(void *in_window) {
     kis_window *kwin = (kis_window *) in_window;
 
-    int pos = 0;
-    for (unsigned int col = 0; col < column_vec.size(); col++) {
+    int pos = 2;
+    for (unsigned int col = 0; col < client_column_vec.size(); col++) {
         char title[1024];
         int len = 0;
         client_columns colind = client_column_vec[col];
 
-        if (colind == ccol_type) {
+        if (colind == ccol_decay) {
+            snprintf(title, 1024, " ");
+            len = 1;
+        } else if (colind == ccol_type) {
             snprintf(title, 1024, "T");
             len = 1;
+        } else if (colind == ccol_mac) {
+            snprintf(title, 1024, "MAC");
+            len = 17;
         } else if (colind == ccol_manuf) {
             snprintf(title, 1024, "Manuf");
             len = 8;
-        } else if (colind == ccol_packets) {
-            snprintf(title, 1024, "Packts");
-            len = 6;
         } else if (colind == ccol_data) {
-            snprintf(title, 1024, " Data");
-            len = 5;
+            snprintf(title, 1024, "  Data");
+            len = 6;
         } else if (colind == ccol_crypt) {
             snprintf(title, 1024, "Crypt");
             len = 5;
@@ -830,9 +921,11 @@ int PanelFront::MainClientPrinter(void *in_window) {
         } else if (colind == ccol_noise) {
             snprintf(title, 1024, "Nse");
             len = 3;
+        } else {
+            title[0] = '\0';
         }
 
-        if (pos + len > kwin->print_width + 2)
+        if (pos + len >= kwin->print_width)
             break;
 
         if (color)
@@ -844,26 +937,299 @@ int PanelFront::MainClientPrinter(void *in_window) {
             wattrset(kwin->win, color_map["text"].pair);
 
         pos += len + 1;
-
     }
 
-    string clientline;
-    for (map<mac_addr, wireless_client *>::iterator x = details_network->virtnet.client_map.begin();
-         x != details_network->virtnet.client_map.end(); ++x) {
-        wireless_client *cli = x->second;
+    char sortxt[24];
+    sortxt[0] = '\0';
 
-        ClientLine(&clientline, cli);
+    vector<wireless_client *> display_vector = details_network->virtnet.client_vec;
+    int drop;
+
+    switch (client_sortby) {
+    case client_sort_auto:
+        // Trim it ourselves for autofit mode.
+        // This is really easy because we don't allow groups to be expanded in autofit
+        // mode, so we just make it fit.
+
+        snprintf(sortxt, 24, "(Autofit)");
+
+        sort(display_vector.begin(), display_vector.end(), ClientSortLastTimeLT());
+
+        drop = display_vector.size() - kwin->max_display - 1;
+
+        if (drop > 0) {
+            display_vector.erase(display_vector.begin(), display_vector.begin() + drop);
+        }
+        sort(display_vector.begin(), display_vector.end(), ClientSortFirstTimeLT());
+        kwin->start = 0;
+
+        break;
+    case client_sort_channel:
+        sort(display_vector.begin(), display_vector.end(),
+             ClientSortChannel());
+        snprintf(sortxt, 24, "(Channel)");
+        break;
+    case client_sort_first:
+        sort(display_vector.begin(), display_vector.end(),
+             ClientSortFirstTime());
+        snprintf(sortxt, 24, "(First Seen)");
+        break;
+    case client_sort_first_dec:
+        sort(display_vector.begin(), display_vector.end(),
+             ClientSortFirstTimeLT());
+        snprintf(sortxt, 24, "(First Seen desc)");
+        break;
+    case client_sort_last:
+        sort(display_vector.begin(), display_vector.end(),
+             ClientSortLastTime());
+        snprintf(sortxt, 24, "(Latest Seen)");
+        break;
+    case client_sort_last_dec:
+        sort(display_vector.begin(), display_vector.end(),
+             ClientSortLastTimeLT());
+        snprintf(sortxt, 24, "(Latest Seen desc)");
+        break;
+    case client_sort_mac:
+        sort(display_vector.begin(), display_vector.end(),
+             ClientSortMAC());
+        snprintf(sortxt, 24, "(MAC)");
+        break;
+    case client_sort_mac_dec:
+        sort(display_vector.begin(), display_vector.end(),
+             ClientSortMACLT());
+        snprintf(sortxt, 24, "(MAC desc)");
+        break;
+    case client_sort_wep:
+        sort(display_vector.begin(), display_vector.end(),
+             ClientSortWEP());
+        snprintf(sortxt, 24, "(WEP)");
+        break;
+    case client_sort_packets:
+        sort(display_vector.begin(), display_vector.end(),
+             ClientSortPackets());
+        snprintf(sortxt, 24, "(Packets)");
+        break;
+    case client_sort_packets_dec:
+        sort(display_vector.begin(), display_vector.end(),
+             ClientSortPacketsLT());
+        snprintf(sortxt, 24, "(Packets desc)");
+        break;
+    case client_sort_quality:
+        sort(display_vector.begin(), display_vector.end(),
+             ClientSortQuality());
+        snprintf(sortxt, 24, "(Quality)");
+        break;
+    case client_sort_signal:
+        sort(display_vector.begin(), display_vector.end(),
+             ClientSortSignal());
+        snprintf(sortxt, 24, "(Signal)");
+        break;
     }
+
+    if (kwin->start + kwin->selected > kwin->max_display)
+        kwin->selected = kwin->max_display;
+
+    int num = 0;
+    int voffset = 2;
+    for (unsigned int i = kwin->start; i < display_vector.size(); i++) {
+        last_client_displayed.push_back(display_vector[i]);
+
+        if (i == (unsigned) (kwin->start + kwin->selected) && client_sortby != client_sort_auto) {
+            wattron(kwin->win, A_REVERSE);
+            char bar[1024];
+            memset(bar, ' ', 1024);
+            int w = kwin->print_width;
+            if (w >= 1024)
+                w = 1024;
+            bar[w] = '\0';
+            mvwaddstr(kwin->win, num+voffset, 1, bar);
+        }
+
+        string cliline;
+
+        ClientLine(&cliline, display_vector[i], kwin->print_width);
+
+        mvwaddstr(kwin->win, num+voffset, 1, cliline.c_str());
+
+        if (i == (unsigned) (kwin->start + kwin->selected) && client_sortby != client_sort_auto)
+            wattroff(kwin->win, A_REVERSE);
+
+        if (color)
+            wattrset(kwin->win, color_map["text"].pair);
+
+        num++;
+        kwin->end = i;
+
+        if (num >= kwin->max_display - 1)
+            break;
+    }
+
+    last_client_draw_size = num;
+
+    if (color)
+        wattrset(kwin->win, color_map["title"].pair);
+    mvwaddstr(kwin->win, 0, kwin->title.length() + 4, sortxt);
+    if (color)
+        wattrset(kwin->win, color_map["text"].pair);
+
+    if (kwin->start != 0 && client_sortby != client_sort_auto) {
+        mvwaddstr(kwin->win, 0, kwin->win->_maxx - 10, "(-) Up");
+    }
+
+    if (kwin->end < (int) (group_vec.size() - 1) && client_sortby != client_sort_auto) {
+        mvwaddstr(kwin->win, kwin->win->_maxy,
+                  kwin->win->_maxx - 10, "(+) Down");
+    }
+
+#if 0
+    for (unsigned int i = kwin->start; i < display_vector.size(); i++) {
+
+        /*
+        if (display_vector[i]->networks.size() == 0)
+        continue;
+        */
+
+        last_displayed.push_back(display_vector[i]);
+
+        wireless_network *net = &display_vector[i]->virtnet;
+
+        if (net->manuf_score == manuf_max_score && color)
+            wattrset(kwin->win, color_map["factory"].pair);
+        else if (net->wep && color)
+            wattrset(kwin->win, color_map["wep"].pair);
+        else if (color)
+            wattrset(kwin->win, color_map["open"].pair);
+
+        if (i == (unsigned) (kwin->start + kwin->selected) && sortby != sort_auto) {
+            wattron(netwin, A_REVERSE);
+            char bar[1024];
+            memset(bar, ' ', 1024);
+            int w = kwin->print_width;
+            if (w >= 1024)
+                w = 1024;
+            bar[w] = '\0';
+            mvwaddstr(netwin, num+voffset, 2, bar);
+        }
+
+        string netline;
+
+        // Build the netline for the group or single host and tag it for expansion if
+        // appropriate for this sort and group
+        NetLine(&netline, net,
+                display_vector[i]->name == "" ? display_vector[i]->virtnet.ssid.c_str() : display_vector[i]->name.c_str(),
+                0,
+                display_vector[i]->type == group_host ? 0 : 1,
+                sortby == sort_auto ? 0 : display_vector[i]->expanded,
+                display_vector[i]->tagged);
+
+        mvwaddstr(netwin, num+voffset, 1, netline.c_str());
+
+        if (i == (unsigned) (kwin->start + kwin->selected) && sortby != sort_auto)
+            wattroff(netwin, A_REVERSE);
+
+        if (color)
+            wattrset(kwin->win, color_map["text"].pair);
+
+        num++;
+        kwin->end = i;
+
+        if (num > kwin->max_display)
+            break;
+
+        if (sortby == sort_auto || display_vector[i]->type != group_bundle ||
+            display_vector[i]->expanded == 0)
+            continue;
+
+        // If we we're a group and we're expanded, show all our subgroups
+        vector<wireless_network *> sortsub = display_vector[i]->networks;
+        switch (sortby) {
+        case sort_auto:
+            break;
+        case sort_channel:
+            sort(sortsub.begin(), sortsub.end(), SortChannel());
+            break;
+        case sort_first:
+            sort(sortsub.begin(), sortsub.end(), SortFirstTimeLT());
+            break;
+        case sort_first_dec:
+            sort(sortsub.begin(), sortsub.end(), SortFirstTime());
+            break;
+        case sort_last:
+            sort(sortsub.begin(), sortsub.end(), SortLastTimeLT());
+            break;
+        case sort_last_dec:
+            sort(sortsub.begin(), sortsub.end(), SortLastTime());
+            break;
+        case sort_bssid:
+            sort(sortsub.begin(), sortsub.end(), SortBSSIDLT());
+            break;
+        case sort_bssid_dec:
+            sort(sortsub.begin(), sortsub.end(), SortBSSID());
+            break;
+        case sort_ssid:
+            sort(sortsub.begin(), sortsub.end(), SortSSIDLT());
+            break;
+        case sort_ssid_dec:
+            sort(sortsub.begin(), sortsub.end(), SortSSID());
+            break;
+        case sort_wep:
+            sort(sortsub.begin(), sortsub.end(), SortWEP());
+            break;
+        case sort_packets:
+            sort(sortsub.begin(), sortsub.end(), SortPacketsLT());
+            break;
+        case sort_packets_dec:
+            sort(sortsub.begin(), sortsub.end(), SortPackets());
+            break;
+        case sort_quality:
+            sort(sortsub.begin(), sortsub.end(), SortQuality());
+            break;
+        case sort_signal:
+            sort(sortsub.begin(), sortsub.end(), SortSignal());
+            break;
+        }
+
+        for (unsigned int y = 0; y < sortsub.size(); y++) {
+            net = display_vector[i]->networks[y];
+
+            NetLine(&netline, net, net->ssid.c_str(), 1, 0, 0, 0);
+
+            if (net->manuf_score == manuf_max_score && color)
+                wattrset(kwin->win, color_map["factory"].pair);
+            else if (net->wep && color)
+                wattrset(kwin->win, color_map["wep"].pair);
+            else if (color)
+                wattrset(kwin->win, color_map["open"].pair);
+
+            mvwaddstr(netwin, num+voffset, 1, netline.c_str());
+
+            if (color)
+                wattrset(kwin->win, color_map["text"].pair);
+
+            num++;
+
+            if (num > kwin->max_display) {
+                //cutoff = 1;
+                break;
+            }
+        }
+
+        if (num > kwin->max_display)
+            break;
+    }
+
+
+
+#endif
 
     return 1;
 }
-
-
 
 int PanelFront::TextPrinter(void *in_window) {
     kis_window *kwin = (kis_window *) in_window;
 
     unsigned int x;
+
     char *txt = new char[kwin->print_width + 1];
     for (x = 0; x + kwin->start < kwin->text.size() &&
          x < (unsigned int) kwin->max_display; x++) {
@@ -997,37 +1363,37 @@ int PanelFront::DetailsPrinter(void *in_window) {
     if (details_network->networks.size() > 1) {
         snprintf(output, print_width, "Networks: %d", details_network->networks.size());
         kwin->text.push_back(output);
-    }
 
-    if (details_network->virtnet.gps_fixed != -1) {
-        snprintf(output, print_width, "Min Loc : Lat %f Lon %f Alt %f Spd %f",
-                 details_network->virtnet.min_lat, details_network->virtnet.min_lon,
-                 details_network->virtnet.min_alt, details_network->virtnet.min_spd);
-        kwin->text.push_back(output);
-        snprintf(output, print_width, "Max Loc : Lat %f Lon %f Alt %f Spd %f",
-                 details_network->virtnet.max_lat, details_network->virtnet.max_lon,
-                 details_network->virtnet.max_alt, details_network->virtnet.max_spd);
-        kwin->text.push_back(output);
-
-        double diagdist = EarthDistance(details_network->virtnet.min_lat,
-                                        details_network->virtnet.min_lon,
-                                        details_network->virtnet.max_lat,
-                                        details_network->virtnet.max_lon);
-
-        if (finite(diagdist)) {
-            if (metric) {
-                if (diagdist < 1000)
-                    snprintf(output, print_width, "Range    : %f meters", diagdist);
-                else
-                    snprintf(output, print_width, "Range   : %f kilometers", diagdist / 1000);
-            } else {
-                diagdist *= 3.3;
-                if (diagdist < 5280)
-                    snprintf(output, print_width, "Range   : %f feet", diagdist);
-                else
-                    snprintf(output, print_width, "Range   : %f miles", diagdist / 5280);
-            }
+        if (details_network->virtnet.gps_fixed != -1) {
+            snprintf(output, print_width, "Min Loc : Lat %f Lon %f Alt %f Spd %f",
+                     details_network->virtnet.min_lat, details_network->virtnet.min_lon,
+                     details_network->virtnet.min_alt, details_network->virtnet.min_spd);
             kwin->text.push_back(output);
+            snprintf(output, print_width, "Max Loc : Lat %f Lon %f Alt %f Spd %f",
+                     details_network->virtnet.max_lat, details_network->virtnet.max_lon,
+                     details_network->virtnet.max_alt, details_network->virtnet.max_spd);
+            kwin->text.push_back(output);
+
+            double diagdist = EarthDistance(details_network->virtnet.min_lat,
+                                            details_network->virtnet.min_lon,
+                                            details_network->virtnet.max_lat,
+                                            details_network->virtnet.max_lon);
+
+            if (finite(diagdist)) {
+                if (metric) {
+                    if (diagdist < 1000)
+                        snprintf(output, print_width, "Range    : %f meters", diagdist);
+                    else
+                        snprintf(output, print_width, "Range   : %f kilometers", diagdist / 1000);
+                } else {
+                    diagdist *= 3.3;
+                    if (diagdist < 5280)
+                        snprintf(output, print_width, "Range   : %f feet", diagdist);
+                    else
+                        snprintf(output, print_width, "Range   : %f miles", diagdist / 5280);
+                }
+                kwin->text.push_back(output);
+            }
         }
     }
 

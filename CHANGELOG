@@ -1,3 +1,5 @@
+Sep 03 2002  2.5.2  Initial client display panel ('c').  Lots left to be done.
+Sep 01 2002  2.5.2  Details no longer prints gps twice for single networks.
 Aug 31 2002  2.5.2  Merged patch from poptix for gpsmap to support terraserver
                      images and to copy support for the new mapblast maps from
                      gpsdrive.

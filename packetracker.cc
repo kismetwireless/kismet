@@ -36,9 +36,8 @@ Packetracker::Packetracker() {
 
 Packetracker::~Packetracker() {
     for (unsigned int x = 0; x < network_list.size(); x++) {
-        for (map<mac_addr, wireless_client *>::iterator y = network_list[x]->client_map.begin();
-             y != network_list[x]->client_map.end(); ++y)
-            delete y->second;
+        for (unsigned int y = 0; y < network_list[x]->client_vec.size(); y++)
+            delete network_list[x]->client_vec[y];
         delete network_list[x];
     }
 }
@@ -552,7 +551,11 @@ int Packetracker::ProcessDataPacket(packet_info info, wireless_network *net, cha
     // Find the client or make one
     if (net->client_map.find(info.source_mac) == net->client_map.end()) {
         client = new wireless_client;
+
+        // Add it to the map
         net->client_map[info.source_mac] = client;
+        // Add it to the vec
+        net->client_vec.push_back(client);
 
         client->first_time = time(0);
         client->mac = info.source_mac;
@@ -582,7 +585,7 @@ int Packetracker::ProcessDataPacket(packet_info info, wireless_network *net, cha
         else if (info.distrib == to_distribution)
             client->type = client_tods;
         else if (info.distrib == inter_distribution)
-            client->type = client_interfs;
+            client->type = client_interds;
 
     } else {
         client = net->client_map[info.source_mac];
@@ -771,9 +774,8 @@ void Packetracker::UpdateIpdata(wireless_network *net) {
     if (net->ipdata.atype != address_factory)
         memset(&net->ipdata, 0, sizeof(net->ipdata));
 
-    for (map<mac_addr, wireless_client *>::iterator x = net->client_map.begin();
-         x != net->client_map.end(); ++x) {
-        client = x->second;
+    for (unsigned int y = 0; y < net->client_vec.size(); y++) {
+        client = net->client_vec[y];
 
         if (net->ipdata.atype < address_dhcp && client->ipdata.atype == address_dhcp) {
             // We've got a DHCP client, this overrides everything else.  Copy the

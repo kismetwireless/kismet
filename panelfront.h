@@ -212,7 +212,7 @@ protected:
 
     void NetLine(string *in_str, wireless_network *net, const char *name, int sub,
                  int group, int expanded, int tagged);
-    void ClientLine(string *in_str, wireless_client *client);
+    void ClientLine(string *in_str, wireless_client *wclient, int print_width);
 
     enum main_columns {
         mcol_unknown = -1,
@@ -224,10 +224,9 @@ protected:
 
     enum client_columns {
         ccol_unknown = -1,
-        ccol_type, ccol_manuf, ccol_packets, ccol_data, ccol_crypt, ccol_weak,
+        ccol_decay, ccol_type, ccol_mac, ccol_manuf, ccol_data, ccol_crypt, ccol_weak,
         ccol_maxrate, ccol_ip, ccol_signal, ccol_quality, ccol_noise
     };
-
 
     main_columns Token2MainColumn(string in_token);
     client_columns Token2ClientColumn(string in_token);
@@ -243,6 +242,7 @@ protected:
     int clear_dump;
 
     sort_type sortby;
+    client_sort_type client_sortby;
 
     vector<main_columns> column_vec;
     vector<client_columns> client_column_vec;
