@@ -357,10 +357,12 @@ int monitor_madwifi_g(const char *in_dev, int initch, char *in_err, void **in_if
 int monitor_madwifi_comb(const char *in_dev, int initch, char *in_err, void **in_if);
 // prism54 needs to override the error messages it gets setting channels
 int monitor_prism54g(const char *in_dev, int initch, char *in_err, void **in_if);
+int unmonitor_prism54g(const char *in_dev, int initch, char *in_err, void **in_if);
 // "Standard" wext monitor sequence - mostly a helper for other functions
 // since most cards that use wext still have custom initialization that
 // needs to be done.
 int monitor_wext(const char *in_dev, int initch, char *in_err, void **in_if);
+int unmonitor_wext(const char *in_dev, int initch, char *in_err, void **in_if);
 #endif
 
 #ifdef SYS_LINUX
