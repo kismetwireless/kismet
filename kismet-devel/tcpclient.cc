@@ -403,7 +403,7 @@ int TcpClient::ParseData(char *in_data) {
         memset(chan_details_sec, 0, 1024);
 
         unsigned int numchan;
-        if (sscanf(in_data+hdrlen, "%d %d %d %d %d %d %d %d %d %d%1024s\n",
+        if (sscanf(in_data+hdrlen, "%d %d %d %d %d %d %d %d %d %d%1023[^\n]\n",
                    &num_networks, &num_packets,
                    &num_crypt, &num_interesting,
                    &num_noise, &num_dropped, &quality, &power, &noise, &numchan,
@@ -411,7 +411,7 @@ int TcpClient::ParseData(char *in_data) {
             return 0;
 
         for (unsigned int x = 0; x < CHANNEL_MAX && x < numchan; x++) {
-            if (sscanf(chan_details, "%d %1024s\n",
+            if (sscanf(chan_details, "%d %1023[^\n]\n",
                        &channel_graph[x].signal, chan_details_sec) < 1)
                 break;
             strncpy(chan_details, chan_details_sec, 1024);
