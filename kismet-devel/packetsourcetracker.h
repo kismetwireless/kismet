@@ -59,7 +59,7 @@ class Packetsourcetracker;
 // which would prevent a metasource from having a real correlation.
 typedef KisPacketSource *(*packsource_registrant)(string, string, char *);
 typedef int (*packsource_chcontrol)(const char *, int, char *, void *);
-typedef int (*packsource_monitor)(const char *, int, char *);
+typedef int (*packsource_monitor)(const char *, int, char *, void *);
 
 // Packet source prototype for building an instance
 typedef struct {
@@ -101,6 +101,9 @@ typedef struct {
 
     // Actual packetsource
     KisPacketSource *capsource;
+
+    // Interface settings to store
+    void *stored_interface;
 } meta_packsource;
 
 class Packetsourcetracker {
