@@ -193,6 +193,8 @@ int PanelFront::MainInput(void *in_window, int in_chr) {
                 last_displayed[kwin->selected]->tagged = 0;
             else
                 last_displayed[kwin->selected]->tagged = 1;
+
+            MainInput(in_window, KEY_DOWN);
         } else {
             WriteStatus("Cannot tag networks in autofit sort mode.  Sort by a different method.");
         }

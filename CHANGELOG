@@ -1,3 +1,4 @@
+Jan 28 2003  3.1.0  Panels client now scrolls to next network after tagging
 Jan 27 2003  3.1.0  Modified internals to packet source handling to allow for
                      restoring card details on sources that support it
                     Merged patch from Pedro for more OpenBSD stuff
