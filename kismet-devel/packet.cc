@@ -425,7 +425,6 @@ packet_info GetPacketInfo(const pkthdr *header, const u_char *data, packet_parm 
 }
 
 proto_info GetProtoInfo(const packet_info *in_info, const pkthdr *header, const u_char *in_data) {
-
     // We cheat a little to protect ourselves.  We define a packet
     // that's double the maximum size, zero it out, and copy our data
     // packet into it.  This should give us a little leeway if a packet
@@ -452,12 +451,31 @@ proto_info GetProtoInfo(const packet_info *in_info, const pkthdr *header, const 
 
     if (memcmp(in_info->dest_mac, NETS_MAC, sizeof(NETS_MAC)) == 0) {
         // We look for netstumblers first since we need them to match before the
-        // multicast catch-all in the next compare
+        // multicast catch-all in the next compare...  Anything sending to this multicast
+        // MAC address seems to be a NS probe so we'll catch it directly
         ret.type = proto_netstumbler;
-    } else if (memcmp(&data[in_info->header_offset + NETSTUMBER_OFFSET], NETSTUMBLER_SIGNATURE,
-               sizeof(NETSTUMBLER_SIGNATURE)) == 0) {
-        ret.type = proto_netstumbler;
-    } else if (memcmp(in_info->dest_mac, LOR_MAC, sizeof(LOR_MAC)) == 0 ||
+        return ret;
+    } else if (memcmp(&data[in_info->header_offset + LLC_OFFSET], NETSTUMBLER_LLC_SIGNATURE,
+                      sizeof(NETSTUMBLER_LLC_SIGNATURE)) == 0) {
+
+        // If we have a LLC packet that looks like a netstumbler...
+        if (memcmp(&data[in_info->header_offset + NETSTUMBER_OFFSET], NETSTUMBLER_322_SIGNATURE,
+                   sizeof(NETSTUMBLER_322_SIGNATURE)) == 0) {
+            // Netstumbler 322 says Flurble gronk bloopit, bnip Frundletrune
+            ret.type = proto_netstumbler;
+            return ret;
+        } else if (memcmp(&data[in_info->header_offset + NETSTUMBER_OFFSET], NETSTUMBLER_323_SIGNATURE,
+                          sizeof(NETSTUMBLER_323_SIGNATURE)) == 0) {
+            // Netstumbler 323 says All your 802.11b are belong to us
+            ret.type = proto_netstumbler;
+            return ret;
+        }
+
+    }
+
+    // This isn't an 'else' because we want to try to handle it if it looked like a netstumbler
+    // but wasn't.
+    if (memcmp(in_info->dest_mac, LOR_MAC, sizeof(LOR_MAC)) == 0 ||
         (in_info->distrib == no_distribution && in_info->dest_mac[0] == 1)) {
         // First thing we do is see if the destination matches the multicast for
         // lucent outdoor routers, or if we're a multicast with no BSSID.  This should

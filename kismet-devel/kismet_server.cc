@@ -1891,14 +1891,18 @@ int main(int argc,char *argv[]) {
     
                 process_ret = tracker.ProcessPacket(info, status);
                 if (process_ret > 0) {
-                    if (!silent)
-                        fprintf(stderr, "%s\n", status);
-
                     if (process_ret == TRACKER_ALERT) {
+                        if (!silent)
+                            fprintf(stderr, "ALERT %s\n", status);
+
                         NetWriteAlert(status);
                         if (sound == 1)
                             sound = PlaySound("alert");
+
                     } else {
+                        if (!silent)
+                            fprintf(stderr, "%s\n", status);
+
                         NetWriteStatus(status);
                     }
                 }
