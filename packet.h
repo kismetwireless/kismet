@@ -580,7 +580,7 @@ vector<string> GetPacketStrings(const packet_info *in_info, kis_packet *packet);
 class SortPacketInfos {
 public:
     inline bool operator() (const packet_info x, const packet_info y) const {
-        if (x.time > y.time)
+        if (x.time < y.time)
             return 1;
         return 0;
     }

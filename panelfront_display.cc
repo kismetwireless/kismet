@@ -1867,7 +1867,6 @@ int PanelFront::PackPrinter(void *in_window) {
     // Sort them
     sort(packinfo.begin(), packinfo.end(), SortPacketInfos());
 
-
     // Print the single-character lines
     int singles = 0;
     kwin->text.clear();
