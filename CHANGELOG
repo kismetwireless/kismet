@@ -1,3 +1,5 @@
+Feb 28 2004  devel  Changed wtaplocaldump code to have better drive-ful error
+                     messages
 Feb 26 2004  devel  Smart determination of channel controls on new orinoco
                      drivers, correct exiting of rfmon on new orinoco drivers
                     Added new orinoco capture source orinoco_14 to handle the
