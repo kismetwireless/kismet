@@ -456,7 +456,7 @@ int Packetsourcetracker::ProcessCardList(string in_enableline,
             } else {
                 meta->cur_ch = meta->prototype->initial_channel;
             }
-            
+
             // Assign the channels - if it doesn't have a specific name, we look for 
             // the default channel set.  Assignment counts are used in the next run 
             // through to assign initial channel offsets.  These map references are 
