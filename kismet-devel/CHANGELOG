@@ -1,3 +1,5 @@
+Jul 30 2003  3.0.1  Started 3.0.1 devel tree
+
 Jul 30 2003  3.0.0  Released 3.0.0 stable.  Major improvements include:
                      Integration with snort
                      New packet engine
