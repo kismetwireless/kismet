@@ -164,6 +164,10 @@ void SoundHandler(int read_sock, const char *player, map<string, string> soundma
 
             harvested = 0;
             if ((sndpid = fork()) == 0) {
+                // Suppress errors
+                fclose(stdout);
+                fclose(stderr);
+
                 char * const echoarg[] = { plr, snd, NULL };
                 execve(echoarg[0], echoarg, NULL);
             }
