@@ -397,6 +397,17 @@ void Packetracker::ProcessPacket(packet_info info) {
         net->gps_fixed = 0;
     }
 
+    // Handle the IV sets.  4-byte compare IV is fine
+    if (info.encrypted) {
+        map<uint32_t, int>::iterator ivitr = net->iv_map.find(info.ivset);
+        if (ivitr != net->iv_map.end()) {
+            ivitr->second++;
+            net->dupeiv_packets++;
+        } else {
+            net->iv_map[info.ivset] = 1;
+        }
+    }
+
     // Assign the carrier types in this network.  There will likely be only one, but you
     // never know...
     net->carrier_set |= (1 << (int) info.carrier);
@@ -1036,6 +1047,7 @@ int Packetracker::WriteNetworks(string in_fname) {
                 "    Data     : %d\n"
                 "    Crypt    : %d\n"
                 "    Weak     : %d\n"
+                "    Dupe IV  : %d\n"
                 "    Total    : %d\n"
                 "    First    : \"%s\"\n"
                 "    Last     : \"%s\"\n",
@@ -1046,6 +1058,7 @@ int Packetracker::WriteNetworks(string in_fname) {
                 net->maxrate,
                 net->llc_packets, net->data_packets,
                 net->crypt_packets, net->interesting_packets,
+                net->dupeiv_packets,
                 (net->llc_packets + net->data_packets),
                 ft, lt);
 
@@ -1472,7 +1485,7 @@ int Packetracker::WriteXMLNetworks(string in_fname) {
     //vector<wireless_network *> bssid_vec;
 
     fprintf(netfile, "<?xml version=\"1.0\" encoding=\"ISO-8859-1\"?>\n");
-    fprintf(netfile, "<!DOCTYPE detection-run SYSTEM \"http://kismetwireless.net/kismet-2.9.1.dtd\">\n");
+    fprintf(netfile, "<!DOCTYPE detection-run SYSTEM \"http://kismetwireless.net/kismet-3.1.0.dtd\">\n");
 
     fprintf(netfile, "\n\n");
 
@@ -1568,6 +1581,7 @@ int Packetracker::WriteXMLNetworks(string in_fname) {
         fprintf(netfile, "      <data>%d</data>\n", net->data_packets);
         fprintf(netfile, "      <crypt>%d</crypt>\n", net->crypt_packets);
         fprintf(netfile, "      <weak>%d</weak>\n", net->interesting_packets);
+        fprintf(netfile, "      <dupeiv>%d</dupeiv>\n", net->dupeiv_packets);
         fprintf(netfile, "      <total>%d</total>\n",
                 (net->llc_packets + net->data_packets));
         fprintf(netfile, "    </packets>\n");

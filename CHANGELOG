@@ -1,3 +1,5 @@
+Dec 16 2003  3.1.0  Added duplicate IV per BSSID detection, logging, and 
+                     panelfront display via 'dupeiv' column.
 Dec 14 2003  3.1.0  Added per-cardtype FCS stripping
 Dec 13 2003  3.1.0  Stopped counting unlogged beacon frames as discarded.
                     Updated fuzzycrypt line in default config

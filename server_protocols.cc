@@ -106,7 +106,7 @@ char *NETWORK_fields_text[] = {
     "datasize",
     "turbocellnid", "turbocellmode", "turbocellsat",
     "carrierset", "maxseenrate", "encodingset",
-    "decrypted",
+    "decrypted", "dupeivpackets",
     NULL
 };
 
@@ -499,6 +499,9 @@ void Protocol_Network2Data(const wireless_network *net, NETWORK_data *data) {
     data->ndvec.push_back(tmpstr);
 
     snprintf(tmpstr, 128, "%d", net->decrypted);
+    data->ndvec.push_back(tmpstr);
+
+    snprintf(tmpstr, 128, "%d", net->dupeiv_packets);
     data->ndvec.push_back(tmpstr);
 
 }

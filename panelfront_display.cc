@@ -231,20 +231,10 @@ void PanelFront::NetLine(kis_window *in_window, string *in_str, wireless_network
             } else
                 snprintf(element, 1024, "===============");
             len = 15;
-        } /*
-             else if (colindex == mcol_qualitybar) {
-            if (net->best_quality > 0) {
-                int sx = (int)((double)(idle_time < (decay * 2) ? net->quality : 0) / net->best_quality * 15);
-                char sg[16];
-                memset(sg, '=', 15);
-                memset(sg, 'X', sx);
-                sg[15] = '\0';
-                snprintf(element, 16, "%s", sg);
-            } else
-                snprintf(element, 1024, "===============");
-            len = 15;
+        } else if (colindex == mcol_dupeiv) {
+            snprintf(element, 5, "%4d", net->dupeiv_packets);
+            len = 4;
         }
-        */
 	
         if (pos + len > print_width)
             break;
@@ -468,11 +458,9 @@ int PanelFront::MainNetworkPrinter(void *in_window) {
         } else if (colind == mcol_signalbar) {
             snprintf(title, 1024, "SignalGraph");
             len = 15;
-            /*
-        } else if (colind == mcol_qualitybar) {
-            snprintf(title, 1024, "QualityGraph");
-            len = 15;
-            */
+        } else if (colind == mcol_dupeiv) {
+            snprintf(title, 1024, "DIV");
+            len = 4;
         } else {
             len = -1;
         }

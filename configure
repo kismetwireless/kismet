@@ -6313,12 +6313,13 @@ done
 	fi
 fi
 
+wsp100=yes
 # Check whether --enable-wsp100 or --disable-wsp100 was given.
 if test "${enable_wsp100+set}" = set; then
   enableval="$enable_wsp100"
 
 else
-  wsp100=yes
+  wsp100=no
 fi;
 if test "$wsp100" = "yes"; then
 

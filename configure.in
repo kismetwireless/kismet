@@ -494,7 +494,8 @@ if test $want_viha = "yes"; then
 	fi
 fi
 
-AC_ARG_ENABLE(wsp100, [  --disable-wsp100        disable wsp100 remote drone source],,wsp100=yes)
+wsp100=yes
+AC_ARG_ENABLE(wsp100, [  --disable-wsp100        disable wsp100 remote drone source],,wsp100=no)
 if test "$wsp100" = "yes"; then
 	AC_DEFINE(HAVE_WSP100, 1, wsp100 remote sensor support)
 fi

@@ -983,6 +983,9 @@ typedef struct {
     float gps_lat, gps_lon, gps_alt, gps_spd, gps_heading;
     int gps_fix;
 
+    // ICV and key number
+    uint32_t ivset;
+
 } packet_info;
 
 typedef struct {

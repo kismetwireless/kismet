@@ -34,7 +34,7 @@ TcpClient::TcpClient() {
         "maxlat,maxlon,maxalt,maxspd,octets,cloaked,beaconrate,maxrate,"
         "quality,signal,noise,bestquality,bestsignal,bestnoise,bestlat,bestlon,bestalt,"
         "agglat,agglon,aggalt,aggpoints,datasize,turbocellnid,turbocellmode,turbocellsat,"
-        "carrierset,maxseenrate,encodingset,decrypted";
+        "carrierset,maxseenrate,encodingset,decrypted,dupeivpackets";
     protocol_default_map["CLIENT"] = "bssid,mac,type,firsttime,lasttime,"
         "datapackets,cryptpackets,weakpackets,"
         "gpsfixed,minlat,minlon,minalt,minspd,maxlat,maxlon,maxalt,maxspd,"
@@ -317,7 +317,7 @@ int TcpClient::ParseData(char *in_data) {
                          "%d %d %d %d %d %d %d %d %d %hd.%hd.%hd.%hd "
                          "%d %f %f %f %f %f %f %f %f %d %d %d %f %d %d %d %d %d %d %f %f %f "
                          "%lf %lf %lf %ld %ld"
-                         "%d %d %d %d %d %d %d",
+                         "%d %d %d %d %d %d %d %d",
                          (int *) &net->type, ssid, beacon,
                          &net->llc_packets, &net->data_packets, &net->crypt_packets, &net->interesting_packets,
                          &net->channel, &net->wep, (int *) &net->first_time, (int *) &net->last_time,
@@ -333,7 +333,7 @@ int TcpClient::ParseData(char *in_data) {
                          &net->aggregate_points, &net->datasize,
                          &net->turbocell_nid, (int *) &net->turbocell_mode, &net->turbocell_sat,
                          &net->carrier_set, &net->maxseenrate, &net->encoding_set,
-                         &net->decrypted);
+                         &net->decrypted, &net->dupeiv_packets);
 
         if (scanned < 47) {
             // fprintf(stderr, "Flubbed network, discarding...\n");
