@@ -54,6 +54,8 @@ protected:
 
     int valid;
 
+    int resyncs;
+
     short int port;
     char hostname[MAXHOSTNAMELEN];
 
