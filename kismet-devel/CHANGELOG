@@ -1,3 +1,5 @@
+Sep 13 2002  2.5.2  Added new mapblast/vicinity.com URL since they changed
+                     it AGAIN (poptix)
 Sep 12 2002  2.5.2  configure cleanups
                     Added prototype extra field to proto_info struct
                     Added Netstumbler version in warning message

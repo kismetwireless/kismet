@@ -66,7 +66,10 @@ const char *config_base = "kismet.conf";
 // default to USA, probably want to change this. -- poptix
 const char url_template_mp[] = "http://msrvmaps.mappoint.net/isapi/MSMap.dll?ID=3XNsF.&C=%f,%f&L=USA&CV=1&A=%ld&S=%d,%d&O=0.000000,0.000000&MS=0&P=|5748|";
 const char url_template_ts[] = "http://terraservice.net/GetImageArea.ashx?t=1&lat=%f&lon=%f&s=%ld&w=%d&h=%d";
-const char url_template_mb[] = "http://www.mapblast.com/myblastd/MakeMap.d?&CT=%f:%f:%ld&IC=&W=%d&H=%d&FAM=myblast&LB=%s";
+const char url_template_mb[] = "http://www.vicinity.com/gif?&CT=%f:%f:%ld&IC=&W=%d&H=%d&FAM=myblast&LB=%s";
+// Freaking mapblast changed again...
+// const char url_template_mb[] = "http://www.mapblast.com/myblastd/MakeMap.d?&CT=%f:%f:%ld&IC=&W=%d&H=%d&FAM=myblast&LB=%s";
+
 const char download_template[] = "wget \"%s\" -O %s";
 // Decay from absolute blue for multiple tracks
 const uint8_t track_decay = 0x1F;
