@@ -172,7 +172,7 @@ typedef struct wireless_client {
     void *uidata;
 
     // Data passed, in bytes
-    long datasize;
+    unsigned long datasize;
 
 };
 
@@ -321,7 +321,7 @@ typedef struct wireless_network {
     void *uidata;
 
     // Amount of data, in bytes
-    long datasize;
+    unsigned long datasize;
 
 };
 
