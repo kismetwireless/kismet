@@ -32,9 +32,8 @@ void Frontend::PopulateGroups(TcpClient *in_client) {
 
         // Handle networks tagged for removal
         if (net->type == network_remove) {
-            map<mac_addr, display_network *>::iterator gamitr = group_assignment_map.find(net->bssid);
-            if (gamitr != group_assignment_map.end()) {
-                display_network *ganet = gamitr->second;
+            if (net->dispnet != NULL) {
+                display_network *ganet = net->dispnet;
 
                 // Otherwise we have to unlink it and track it down
                 for (unsigned int y = 0; y < ganet->networks.size(); y++) {
@@ -42,13 +41,6 @@ void Frontend::PopulateGroups(TcpClient *in_client) {
                         ganet->networks.erase(ganet->networks.begin() + y);
                         break;
                     }
-                }
-
-                // So far so good.  Now we see if we're supposed to be in any other networks,
-                // and remove the reference
-                map<mac_addr, string>::iterator bsgmitr = bssid_group_map.find(net->bssid);
-                if (bsgmitr != bssid_group_map.end()) {
-                    bssid_group_map.erase(bsgmitr);
                 }
 
                 if (ganet->type == group_host) {
@@ -64,7 +56,7 @@ void Frontend::PopulateGroups(TcpClient *in_client) {
         }
 
         // Now, see if we've been assigned, if we have we can just keep going
-        if (group_assignment_map.find(net->bssid) != group_assignment_map.end())
+        if (net->dispnet != NULL)
             continue;
 
         int newgroup = 0;
@@ -104,6 +96,7 @@ void Frontend::PopulateGroups(TcpClient *in_client) {
             group->type = group_host;
             group->tagged = 0;
             group->expanded = 0;
+            group->virtnet = NULL;
 
             // Register it
             group_tag_map[group->tag] = group;
@@ -121,6 +114,7 @@ void Frontend::PopulateGroups(TcpClient *in_client) {
 
         // Register that we're known
         group_assignment_map[net->bssid] = group;
+        net->dispnet = group;
     }
 
 }
@@ -141,38 +135,25 @@ void Frontend::UpdateGroups() {
         // Groups just get copied over from the first element if we're not a group
         // or if, somehow, we're a subhost
         if (dnet->type == group_host || dnet->type == group_sub) {
-            dnet->virtnet = *dnet->networks[0];
+            dnet->virtnet = dnet->networks[0];
 
-            curtime = dnet->virtnet.tcpclient->FetchTime();
+            curtime = dnet->virtnet->tcpclient->FetchTime();
 
-            dnet->virtnet.idle_time = curtime - dnet->virtnet.last_time;
-
-            dnet->virtnet.client_vec.clear();
-            for (map<mac_addr, wireless_client *>::iterator cli = dnet->virtnet.client_map.begin();
-                 cli != dnet->virtnet.client_map.end(); ++cli) {
-
-                if (curtime - cli->second->last_time > (decay * 2)) {
-                    cli->second->signal = 0;
-                    cli->second->quality = 0;
-                    cli->second->noise = 0;
-                }
-
-                dnet->virtnet.client_vec.push_back(cli->second);
-            }
+            dnet->virtnet->idle_time = curtime - dnet->virtnet->last_time;
 
             // Update the group name if it's <no ssid> and the ssid is set
-            if (dnet->name == NOSSID && dnet->virtnet.ssid != NOSSID) {
-                dnet->name = dnet->virtnet.ssid;
+            if (dnet->name == NOSSID && dnet->virtnet->ssid != NOSSID) {
+                dnet->name = dnet->virtnet->ssid;
                 group_name_map[dnet->tag] = dnet->name;
             }
 
             // Take the highest overall signal and power levels.  Noise just
             // tags along for the ride.  Only do this if the network has been touched
             // within the decay period
-            if (curtime - dnet->virtnet.last_time > (decay * 2)) {
-                dnet->virtnet.signal = 0;
-                dnet->virtnet.quality = 0;
-                dnet->virtnet.noise = 0;
+            if (curtime - dnet->virtnet->last_time > (decay * 2)) {
+                dnet->virtnet->signal = 0;
+                dnet->virtnet->quality = 0;
+                dnet->virtnet->noise = 0;
             }
 
             continue;
@@ -183,36 +164,10 @@ void Frontend::UpdateGroups() {
             continue;
         }
 
-        // Zero out the virtual network
-        dnet->virtnet.ssid = "";
-        dnet->virtnet.beacon_info = "";
-        dnet->virtnet.llc_packets = dnet->virtnet.data_packets = dnet->virtnet.crypt_packets =
-            dnet->virtnet.interesting_packets = dnet->virtnet.channel =
-            dnet->virtnet.beacon = 0;
-        dnet->virtnet.wep = -1;
-        dnet->virtnet.cloaked = -1;
-
-        dnet->virtnet.ipdata.atype = address_none;
-        memset(dnet->virtnet.ipdata.range_ip, 0, 4);
-        dnet->virtnet.ipdata.octets = 4;
-        dnet->virtnet.last_time = dnet->virtnet.first_time = 0;
-        dnet->virtnet.maxrate = 0;
-        dnet->virtnet.quality = dnet->virtnet.signal = dnet->virtnet.noise = 0;
-        dnet->virtnet.best_quality = dnet->virtnet.best_signal = dnet->virtnet.best_noise = 0;
-        dnet->virtnet.best_lat = dnet->virtnet.best_lon = dnet->virtnet.best_alt = 0;
-
-        dnet->virtnet.min_lon = dnet->virtnet.max_lon = dnet->virtnet.min_lat =
-            dnet->virtnet.max_lat = dnet->virtnet.min_alt = dnet->virtnet.max_alt =
-            dnet->virtnet.min_spd = dnet->virtnet.max_spd = 0;
-
-        dnet->virtnet.aggregate_lat = dnet->virtnet.aggregate_lon = dnet->virtnet.aggregate_alt = 0;
-        dnet->virtnet.aggregate_points = 0;
-
-        dnet->virtnet.bssid = dnet->networks[0]->bssid;
-
-        dnet->virtnet.client_vec.clear();
-
-        dnet->virtnet.idle_time = 0;
+        // Otherwise we need to destroy the old virtual network and make a new one
+        if (dnet->virtnet != dnet->networks[0])
+            delete dnet->virtnet;
+        dnet->virtnet = new wireless_network;
 
         unsigned int bssid_matched = MAC_LEN;
 
@@ -223,153 +178,156 @@ void Frontend::UpdateGroups() {
 
             // Mask the bssid out
             for (unsigned int mask = 0; mask < bssid_matched; mask++) {
-                if (dnet->virtnet.bssid[mask] != wnet->bssid[mask]) {
+                if (dnet->virtnet->bssid[mask] != wnet->bssid[mask]) {
                     bssid_matched = mask;
                     break;
                 }
             }
 
             // If we don't have a SSID get the first one we encounter
-            if (dnet->virtnet.ssid == "" && wnet->ssid != "")
-                dnet->virtnet.ssid = wnet->ssid;
+            if (dnet->virtnet->ssid == "" && wnet->ssid != "")
+                dnet->virtnet->ssid = wnet->ssid;
 
             // If we don't have beacon info, get the first one we encounter
-            if (dnet->virtnet.beacon_info == "" && wnet->beacon_info != "")
-                dnet->virtnet.beacon_info = wnet->beacon_info;
+            if (dnet->virtnet->beacon_info == "" && wnet->beacon_info != "")
+                dnet->virtnet->beacon_info = wnet->beacon_info;
 
-            if ((curtime - wnet->last_time) < dnet->virtnet.idle_time ||
-                dnet->virtnet.idle_time == 0)
-                dnet->virtnet.idle_time = curtime - wnet->last_time;
+            if ((curtime - wnet->last_time) < dnet->virtnet->idle_time ||
+                dnet->virtnet->idle_time == 0)
+                dnet->virtnet->idle_time = curtime - wnet->last_time;
 
             // Take the highest overall signal and power levels.  Noise just
             // tags along for the ride.  Only do this if the network has been touched
             // within the decay period
             if (curtime - wnet->last_time <= (decay * 2)) {
-                if (wnet->signal >= dnet->virtnet.signal &&
-                    wnet->quality >= dnet->virtnet.quality) {
-                    dnet->virtnet.signal = wnet->signal;
-                    dnet->virtnet.quality = wnet->quality;
-                    dnet->virtnet.noise = wnet->noise;
+                if (wnet->signal >= dnet->virtnet->signal &&
+                    wnet->quality >= dnet->virtnet->quality) {
+                    dnet->virtnet->signal = wnet->signal;
+                    dnet->virtnet->quality = wnet->quality;
+                    dnet->virtnet->noise = wnet->noise;
                 }
 
-                if (wnet->quality > dnet->virtnet.best_quality)
-                    dnet->virtnet.best_quality = wnet->quality;
+                if (wnet->quality > dnet->virtnet->best_quality)
+                    dnet->virtnet->best_quality = wnet->quality;
 
-                if (wnet->signal > dnet->virtnet.best_signal) {
-                    dnet->virtnet.best_signal = wnet->signal;
-                    dnet->virtnet.best_lat = wnet->best_lat;
-                    dnet->virtnet.best_lon = wnet->best_lon;
-                    dnet->virtnet.best_alt = wnet->best_alt;
+                if (wnet->signal > dnet->virtnet->best_signal) {
+                    dnet->virtnet->best_signal = wnet->signal;
+                    dnet->virtnet->best_lat = wnet->best_lat;
+                    dnet->virtnet->best_lon = wnet->best_lon;
+                    dnet->virtnet->best_alt = wnet->best_alt;
                 }
 
-                if ((wnet->noise < dnet->virtnet.best_noise && wnet->noise != 0) ||
-                    dnet->virtnet.best_noise == 0)
-                    dnet->virtnet.best_noise = wnet->noise;
+                if ((wnet->noise < dnet->virtnet->best_noise && wnet->noise != 0) ||
+                    dnet->virtnet->best_noise == 0)
+                    dnet->virtnet->best_noise = wnet->noise;
 
             }
 
             // Aggregate the GPS data
             if (wnet->aggregate_points > 0) {
-                dnet->virtnet.aggregate_lat += wnet->aggregate_lat;
-                dnet->virtnet.aggregate_lon += wnet->aggregate_lon;
-                dnet->virtnet.aggregate_alt += wnet->aggregate_alt;
-                dnet->virtnet.aggregate_points += wnet->aggregate_points;
+                dnet->virtnet->aggregate_lat += wnet->aggregate_lat;
+                dnet->virtnet->aggregate_lon += wnet->aggregate_lon;
+                dnet->virtnet->aggregate_alt += wnet->aggregate_alt;
+                dnet->virtnet->aggregate_points += wnet->aggregate_points;
             }
 
-            if (wnet->gps_fixed > dnet->virtnet.gps_fixed)
-                dnet->virtnet.gps_fixed = wnet->gps_fixed;
-            if (wnet->min_lat < dnet->virtnet.min_lat || dnet->virtnet.min_lat == 0)
-                dnet->virtnet.min_lat = wnet->min_lat;
-            if (wnet->min_lon < dnet->virtnet.min_lon || dnet->virtnet.min_lon == 0)
-                dnet->virtnet.min_lon = wnet->min_lon;
-            if (wnet->min_alt < dnet->virtnet.min_alt || dnet->virtnet.min_alt == 0)
-                dnet->virtnet.min_alt = wnet->min_alt;
-            if (wnet->min_spd < dnet->virtnet.min_spd || dnet->virtnet.min_spd == 0)
-                dnet->virtnet.min_spd = wnet->min_spd;
-            if (wnet->max_lat > dnet->virtnet.max_lat || dnet->virtnet.max_lat == 0)
-                dnet->virtnet.max_lat = wnet->max_lat;
-            if (wnet->max_lon > dnet->virtnet.max_lon || dnet->virtnet.max_lon == 0)
-                dnet->virtnet.max_lon = wnet->max_lon;
-            if (wnet->max_alt > dnet->virtnet.max_alt || dnet->virtnet.max_alt == 0)
-                dnet->virtnet.max_alt = wnet->max_alt;
-            if (wnet->max_spd > dnet->virtnet.max_spd || dnet->virtnet.max_spd == 0)
-                dnet->virtnet.max_spd = wnet->max_spd;
+            if (wnet->gps_fixed > dnet->virtnet->gps_fixed)
+                dnet->virtnet->gps_fixed = wnet->gps_fixed;
+            if (wnet->min_lat < dnet->virtnet->min_lat || dnet->virtnet->min_lat == 0)
+                dnet->virtnet->min_lat = wnet->min_lat;
+            if (wnet->min_lon < dnet->virtnet->min_lon || dnet->virtnet->min_lon == 0)
+                dnet->virtnet->min_lon = wnet->min_lon;
+            if (wnet->min_alt < dnet->virtnet->min_alt || dnet->virtnet->min_alt == 0)
+                dnet->virtnet->min_alt = wnet->min_alt;
+            if (wnet->min_spd < dnet->virtnet->min_spd || dnet->virtnet->min_spd == 0)
+                dnet->virtnet->min_spd = wnet->min_spd;
+            if (wnet->max_lat > dnet->virtnet->max_lat || dnet->virtnet->max_lat == 0)
+                dnet->virtnet->max_lat = wnet->max_lat;
+            if (wnet->max_lon > dnet->virtnet->max_lon || dnet->virtnet->max_lon == 0)
+                dnet->virtnet->max_lon = wnet->max_lon;
+            if (wnet->max_alt > dnet->virtnet->max_alt || dnet->virtnet->max_alt == 0)
+                dnet->virtnet->max_alt = wnet->max_alt;
+            if (wnet->max_spd > dnet->virtnet->max_spd || dnet->virtnet->max_spd == 0)
+                dnet->virtnet->max_spd = wnet->max_spd;
 
             // Aggregate the packets
-            dnet->virtnet.llc_packets += wnet->llc_packets;
-            dnet->virtnet.data_packets += wnet->data_packets;
-            dnet->virtnet.crypt_packets += wnet->crypt_packets;
-            dnet->virtnet.interesting_packets += wnet->interesting_packets;
+            dnet->virtnet->llc_packets += wnet->llc_packets;
+            dnet->virtnet->data_packets += wnet->data_packets;
+            dnet->virtnet->crypt_packets += wnet->crypt_packets;
+            dnet->virtnet->interesting_packets += wnet->interesting_packets;
+
+            // Aggregate the data
+            dnet->virtnet->datasize += wnet->datasize;
 
             // Add all the clients
             for (map<mac_addr, wireless_client *>::iterator cli = wnet->client_map.begin();
                  cli != wnet->client_map.end(); ++cli)
-                dnet->virtnet.client_map[cli->second->mac] = cli->second;
+                dnet->virtnet->client_map[cli->second->mac] = cli->second;
 
             // Negative the channel if we can't agree.  Any channel takes precedence
             // over channel 0.
-            if (dnet->virtnet.channel == 0 && wnet->channel != 0)
-                dnet->virtnet.channel = wnet->channel;
-            else if (dnet->virtnet.channel > 0 && dnet->virtnet.channel != wnet->channel &&
+            if (dnet->virtnet->channel == 0 && wnet->channel != 0)
+                dnet->virtnet->channel = wnet->channel;
+            else if (dnet->virtnet->channel > 0 && dnet->virtnet->channel != wnet->channel &&
                      wnet->channel != 0)
-                dnet->virtnet.channel = 0;
+                dnet->virtnet->channel = 0;
 
             // If one channel isn't wep'ed, the group isn't wep'd
-            if (dnet->virtnet.wep == -1)
-                dnet->virtnet.wep = wnet->wep;
+            if (dnet->virtnet->wep == -1)
+                dnet->virtnet->wep = wnet->wep;
             else if (wnet->wep == 0)
-                dnet->virtnet.wep = 0;
+                dnet->virtnet->wep = 0;
 
             // If one channel is cloaked, the group is cloaked
-            if (dnet->virtnet.cloaked == -1)
-                dnet->virtnet.cloaked = wnet->cloaked;
+            if (dnet->virtnet->cloaked == -1)
+                dnet->virtnet->cloaked = wnet->cloaked;
             else if (wnet->cloaked == 1)
-                dnet->virtnet.cloaked = 1;
+                dnet->virtnet->cloaked = 1;
 
             // We get the oldest and latest for last and first
-            if (dnet->virtnet.last_time == 0 || dnet->virtnet.last_time < wnet->last_time)
-                dnet->virtnet.last_time = wnet->last_time;
-            if (dnet->virtnet.first_time == 0 || dnet->virtnet.first_time > wnet->first_time)
-                dnet->virtnet.first_time = wnet->first_time;
+            if (dnet->virtnet->last_time == 0 || dnet->virtnet->last_time < wnet->last_time)
+                dnet->virtnet->last_time = wnet->last_time;
+            if (dnet->virtnet->first_time == 0 || dnet->virtnet->first_time > wnet->first_time)
+                dnet->virtnet->first_time = wnet->first_time;
 
             // We get the smallest beacon interval
-            if (dnet->virtnet.beacon == 0 || dnet->virtnet.beacon > wnet->beacon)
-                dnet->virtnet.beacon = wnet->beacon;
+            if (dnet->virtnet->beacon == 0 || dnet->virtnet->beacon > wnet->beacon)
+                dnet->virtnet->beacon = wnet->beacon;
 
             // We get the highest maxrate
-            if (dnet->virtnet.maxrate == 0 || dnet->virtnet.maxrate < wnet->maxrate)
-                dnet->virtnet.maxrate = wnet->maxrate;
+            if (dnet->virtnet->maxrate == 0 || dnet->virtnet->maxrate < wnet->maxrate)
+                dnet->virtnet->maxrate = wnet->maxrate;
 
             if (wnet->ipdata.atype > address_none) {
                 int oct;
-                for (oct = 0; oct < dnet->virtnet.ipdata.octets &&
+                for (oct = 0; oct < dnet->virtnet->ipdata.octets &&
                      oct < wnet->ipdata.octets && oct < 4; oct++) {
-                    if (dnet->virtnet.ipdata.range_ip[oct] == 0 &&
+                    if (dnet->virtnet->ipdata.range_ip[oct] == 0 &&
                         wnet->ipdata.range_ip[oct] != 0)
-                        dnet->virtnet.ipdata.range_ip[oct] = wnet->ipdata.range_ip[oct];
-                    else if (dnet->virtnet.ipdata.range_ip[oct] != wnet->ipdata.range_ip[oct] ||
+                        dnet->virtnet->ipdata.range_ip[oct] = wnet->ipdata.range_ip[oct];
+                    else if (dnet->virtnet->ipdata.range_ip[oct] != wnet->ipdata.range_ip[oct] ||
                              wnet->ipdata.range_ip[oct] == 0) {
-                        dnet->virtnet.ipdata.range_ip[oct] = 0;
+                        dnet->virtnet->ipdata.range_ip[oct] = 0;
                         if (oct != 0)
                             oct--;
                         break;
                     }
                 }
 
-                dnet->virtnet.ipdata.octets = oct;
-                dnet->virtnet.ipdata.atype = address_group;
+                dnet->virtnet->ipdata.octets = oct;
+                dnet->virtnet->ipdata.atype = address_group;
             }
 
         }
 
-        dnet->virtnet.bssid.mask = bssid_matched;
-        MatchBestManuf(client_manuf_map, dnet->virtnet.bssid, dnet->virtnet.ssid,
-                       dnet->virtnet.channel, dnet->virtnet.wep, dnet->virtnet.cloaked,
-                       &dnet->virtnet.manuf_key, &dnet->virtnet.manuf_score);
+        dnet->virtnet->bssid.mask = bssid_matched;
+        MatchBestManuf(client_manuf_map, dnet->virtnet->bssid, dnet->virtnet->ssid,
+                       dnet->virtnet->channel, dnet->virtnet->wep, dnet->virtnet->cloaked,
+                       &dnet->virtnet->manuf_key, &dnet->virtnet->manuf_score);
 
         // convert our map into a vector
-        for (map<mac_addr, wireless_client *>::iterator cli = dnet->virtnet.client_map.begin();
-             cli != dnet->virtnet.client_map.end(); ++cli) {
+        for (map<mac_addr, wireless_client *>::iterator cli = dnet->virtnet->client_map.begin();
+             cli != dnet->virtnet->client_map.end(); ++cli) {
 
             if (curtime - cli->second->last_time > (decay * 2)) {
                 cli->second->signal = 0;
@@ -377,12 +335,12 @@ void Frontend::UpdateGroups() {
                 cli->second->noise = 0;
             }
 
-            dnet->virtnet.client_vec.push_back(cli->second);
+            dnet->virtnet->client_vec.push_back(cli->second);
         }
 
         // Update the group name if it's <no ssid> and the ssid is set
-        if (dnet->name == NOSSID && dnet->virtnet.ssid != NOSSID) {
-            dnet->name = dnet->virtnet.ssid;
+        if (dnet->name == NOSSID && dnet->virtnet->ssid != NOSSID) {
+            dnet->name = dnet->virtnet->ssid;
             group_name_map[dnet->tag] = dnet->name;
         }
 
@@ -582,8 +540,11 @@ void Frontend::WriteGroupMap(FILE *in_file) {
          x != group_name_map.end(); ++x) {
 
         if (group_tag_map.find(x->first) != group_tag_map.end()) {
+            if (group_tag_map[x->first]->virtnet == NULL)
+                continue;
+
             if (group_tag_map[x->first]->type != group_bundle &&
-                group_tag_map[x->first]->name == group_tag_map[x->first]->virtnet.ssid)
+                group_tag_map[x->first]->name == group_tag_map[x->first]->virtnet->ssid)
                 continue;
         }
 

@@ -405,6 +405,7 @@ int TcpClient::ParseData(char *in_data) {
         // Add it to the map, if its a new client.
         if (nclient) {
             net_map[bssid]->client_map[cmac] = client;
+            net_map[bssid]->client_vec.push_back(client);
         }
 
     } else if (!strncmp(header, "*REMOVE", 64)) {

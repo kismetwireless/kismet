@@ -4,6 +4,8 @@ Nov 28 2002  2.7.1  Happy thanksgiving
                      just a placeholder.
                     Sped up main filtering method
                     Added size column
+                    Groups now aggregate data size
+                    Profiling and speedboosts to kismet_client
 Nov 27 2002  2.7.1  Updated kismet_hopper to work with the new source specs
 Nov 26 2002  2.7.1  Removed user-specified capture engines.  They were 
                      redundant with the card type and led to misconfigurations.
