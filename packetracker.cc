@@ -18,6 +18,7 @@
 
 #include "packetracker.h"
 #include "networksort.h"
+#include "server_globals.h"
 #include "kismet_server.h"
 #include "packetsignatures.h"
 
@@ -145,10 +146,10 @@ int Packetracker::Tick() {
     return 1;
 }
 
-int Packetracker::ProcessPacket(packet_info info, char *in_status) {
+void Packetracker::ProcessPacket(packet_info info) {
     wireless_network *net;
-    int ret = 0;
     map<mac_addr, wireless_network *>::iterator bsmapitr;
+    char status[STATUS_MAX];
 
     // string bssid_mac;
 
@@ -162,12 +163,12 @@ int Packetracker::ProcessPacket(packet_info info, char *in_status) {
     if (info.type == packet_noise) {
         num_dropped++;
         num_noise++;
-        return(0);
+        return;
     } else if (info.type == packet_unknown || info.type == packet_phy) {
         // If we didn't know what it was junk it
         // We unceremoniously junk phy layer packets for now too
         num_dropped++;
-        return(0);
+        return;
     }
 
     bsmapitr = bssid_map.find(info.bssid_mac);
@@ -256,12 +257,14 @@ int Packetracker::ProcessPacket(packet_info info, char *in_status) {
             net->beacon_info = info.beacon_info;
 
         if (net->type == network_probe) {
-            snprintf(in_status, STATUS_MAX, "Found new probed network \"%s\" bssid %s",
+            snprintf(status, STATUS_MAX, "Found new probed network \"%s\" bssid %s",
                      net->ssid.c_str(), net->bssid.Mac2String().c_str());
+            KisLocalStatus(status);
         } else {
-            snprintf(in_status, STATUS_MAX, "Found new network \"%s\" bssid %s WEP %c Ch %d @ %.2f mbit",
+            snprintf(status, STATUS_MAX, "Found new network \"%s\" bssid %s WEP %c Ch %d @ %.2f mbit",
                      net->ssid.c_str(), net->bssid.Mac2String().c_str(), net->wep ? 'Y' : 'N',
                      net->channel, net->maxrate);
+            KisLocalStatus(status);
         }
 
         if (gps != NULL) {
@@ -300,15 +303,12 @@ int Packetracker::ProcessPacket(packet_info info, char *in_status) {
         // And add us to the map
         bssid_map[net->bssid] = net;
 
-        // Return 1 if we make a new network entry
-        ret = TRACKER_NEW;
     } else {
         net = bssid_map[info.bssid_mac];
         if (net->listed == 0) {
             network_list.push_back(net);
             net->listed = 1;
         }
-        ret = TRACKER_NONE;
     }
 
     net->last_time = time(0);
@@ -396,11 +396,9 @@ int Packetracker::ProcessPacket(packet_info info, char *in_status) {
                     net->ssid = info.ssid;
             }
 
-            int pret = ProcessDataPacket(info, net, in_status);
+            ProcessDataPacket(info, net);
 
-            if (ret != TRACKER_NEW)
-                ret = pret;
-            return ret;
+            return;
         }
 
         if (info.subtype == packet_sub_beacon && strlen(info.beacon_info) != 0 &&
@@ -414,10 +412,9 @@ int Packetracker::ProcessPacket(packet_info info, char *in_status) {
 
             if (net->client_disconnects > 10) {
                 if (alertracker->PotentialAlert(deauthflood_aref) > 0) {
-                    snprintf(in_status, STATUS_MAX, "Deauthenticate/Disassociate flood on %s",
+                    snprintf(status, STATUS_MAX, "Deauthenticate/Disassociate flood on %s",
                              net->bssid.Mac2String().c_str());
-                    alertracker->RaiseAlert(deauthflood_aref, in_status);
-                    return TRACKER_ALERT;
+                    alertracker->RaiseAlert(deauthflood_aref, status);
                 }
             }
         }
@@ -427,13 +424,12 @@ int Packetracker::ProcessPacket(packet_info info, char *in_status) {
             // If we have a beacon for an established AP network and it's not the
             // right channel, raise an alert.
 
-            if (net->type == network_ap && info.channel != net->channel) {
+            if (net->type == network_ap && info.channel != net->channel && net->channel != 0) {
                 if (alertracker->PotentialAlert(chanchange_aref) > 0) {
-                    snprintf(in_status, STATUS_MAX, "Beacon on %s (%s) for channel %d, network previously detected on channel %d",
+                    snprintf(status, STATUS_MAX, "Beacon on %s (%s) for channel %d, network previously detected on channel %d",
                              net->bssid.Mac2String().c_str(), net->ssid.c_str(),
                              info.channel, net->channel);
-                    alertracker->RaiseAlert(chanchange_aref, in_status);
-                    ret = TRACKER_ALERT;
+                    alertracker->RaiseAlert(chanchange_aref, status);
                 }
             }
 
@@ -454,10 +450,9 @@ int Packetracker::ProcessPacket(packet_info info, char *in_status) {
                 net->ssid = info.ssid;
                 bssid_cloak_map[net->bssid] = info.ssid;
 
-                snprintf(in_status, STATUS_MAX, "Found SSID \"%s\" for network BSSID %s",
+                snprintf(status, STATUS_MAX, "Found SSID \"%s\" for network BSSID %s",
                          net->ssid.c_str(), net->bssid.Mac2String().c_str());
-
-                ret = TRACKER_NOTICE;
+                KisLocalStatus(status);
             }
 
             net->channel = info.channel;
@@ -490,10 +485,9 @@ int Packetracker::ProcessPacket(packet_info info, char *in_status) {
 
                 bssid_cloak_map[net->bssid] = info.ssid;
 
-                snprintf(in_status, STATUS_MAX, "Found SSID \"%s\" for cloaked network BSSID %s",
+                snprintf(status, STATUS_MAX, "Found SSID \"%s\" for cloaked network BSSID %s",
                          net->ssid.c_str(), net->bssid.Mac2String().c_str());
-
-                ret = TRACKER_NOTICE;
+                KisLocalStatus(status);
             } else if (info.ssid != bssid_cloak_map[net->bssid]) {
                 bssid_cloak_map[net->bssid] = info.ssid;
                 net->ssid = info.ssid;
@@ -525,12 +519,11 @@ int Packetracker::ProcessPacket(packet_info info, char *in_status) {
                     pnet->type = network_remove;
                     pnet->last_time = time(0);
 
-                    snprintf(in_status, STATUS_MAX, "Associated probe network \"%s\".",
+                    snprintf(status, STATUS_MAX, "Associated probe network \"%s\".",
                              pnet->bssid.Mac2String().c_str());
+                    KisLocalStatus(status);
 
                     num_networks--;
-
-                    ret = TRACKER_ASSOCIATE;
                 }
             }
 
@@ -547,16 +540,16 @@ int Packetracker::ProcessPacket(packet_info info, char *in_status) {
 
         // We feed them into the data packet processor along with the network
         // they belong to, so that clients can be tracked.
-        ret = ProcessDataPacket(info, net, in_status);
+        ProcessDataPacket(info, net);
 
     } // data packet
 
-    return ret;
+    return;
 }
 
-int Packetracker::ProcessDataPacket(packet_info info, wireless_network *net, char *in_status) {
-    int ret = 0;
+void Packetracker::ProcessDataPacket(packet_info info, wireless_network *net) {
     wireless_client *client = NULL;
+    char status[STATUS_MAX];
 
     // GPS info
     float lat = 0, lon = 0, alt = 0, spd = 0;
@@ -758,15 +751,15 @@ int Packetracker::ProcessDataPacket(packet_info info, wireless_network *net, cha
     }
 
     if (ipdata_dirty) {
-        snprintf(in_status, STATUS_MAX, "Found IP %d.%d.%d.%d for %s::%s via %s",
+        snprintf(status, STATUS_MAX, "Found IP %d.%d.%d.%d for %s::%s via %s",
                  client->ipdata.ip[0], client->ipdata.ip[1],
                  client->ipdata.ip[2], client->ipdata.ip[3],
                  net->ssid.c_str(), info.source_mac.Mac2String().c_str(), means);
+        KisLocalStatus(status);
 
         client->ipdata.load_from_store = 0;
 
         UpdateIpdata(net);
-        ret = TRACKER_NOTICE;
     }
 
     if (info.proto.type == proto_turbocell) {
@@ -809,24 +802,18 @@ int Packetracker::ProcessDataPacket(packet_info info, wireless_network *net, cha
                 break;
             }
 
-            snprintf(in_status, STATUS_MAX, "NetStumbler (%s) probe detected from %s",
+            snprintf(status, STATUS_MAX, "NetStumbler (%s) probe detected from %s",
                      nsversion, client->mac.Mac2String().c_str());
-
-            ret = TRACKER_ALERT;
-
-            alertracker->RaiseAlert(netstumbler_aref, in_status);
+            alertracker->RaiseAlert(netstumbler_aref, status);
         }
 
     } else if (info.proto.type == proto_lucenttest) {
         // Handle lucent test packets
 
         if (alertracker->PotentialAlert(lucenttest_aref) > 0) {
-            snprintf(in_status, STATUS_MAX, "Lucent link test detected from %s",
+            snprintf(status, STATUS_MAX, "Lucent link test detected from %s",
                      client->mac.Mac2String().c_str());
-
-            ret = TRACKER_ALERT;
-
-            alertracker->RaiseAlert(lucenttest_aref, in_status);
+            alertracker->RaiseAlert(lucenttest_aref, status);
         }
 
 
@@ -834,17 +821,14 @@ int Packetracker::ProcessDataPacket(packet_info info, wireless_network *net, cha
         // Handle wellenreiter packets
 
         if (alertracker->PotentialAlert(wellenreiter_aref) > 0) {
-            snprintf(in_status, STATUS_MAX, "Wellenreiter probe detected from %s",
+            snprintf(status, STATUS_MAX, "Wellenreiter probe detected from %s",
                      client->mac.Mac2String().c_str());
-
-            ret = TRACKER_ALERT;
-
-            alertracker->RaiseAlert(wellenreiter_aref, in_status);
+            alertracker->RaiseAlert(wellenreiter_aref, status);
         }
 
     }
 
-    return ret;
+    return;
 }
 
 void Packetracker::UpdateIpdata(wireless_network *net) {

@@ -22,8 +22,6 @@
 #ifdef HAVE_WSP100
 
 #include "packetsource.h"
-#include "timetracker.h"
-#include "server_globals.h"
 
 #include <netdb.h>
 

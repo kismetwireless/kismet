@@ -41,13 +41,23 @@
 #include "util.h"
 #include "packet.h"
 #include "packetstream.h"
-#include "server_globals.h"
+
+// Global in kismet_drone.cc
+extern int silent;
 
 #ifndef MAXHOSTNAMELEN
 #define MAXHOSTNAMELEN 64
 #endif
 
 #define RING_LEN (MAX_PACKET_LEN * 8)
+
+// Allowed IP information
+struct client_ipblock {
+    // Allowed network
+    in_addr network;
+    // Allowed mask
+    in_addr mask;
+};
 
 class TcpStreamer {
 public:

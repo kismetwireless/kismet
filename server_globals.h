@@ -21,11 +21,11 @@
 
 #include "config.h"
 
-#include "config.h"
-#include "timetracker.h"
-
-extern Timetracker timetracker;
+#include <time.h>
 
 extern int silent;
+extern time_t start_time;
+extern unsigned int metric;
+
 
 #endif

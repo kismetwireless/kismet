@@ -101,8 +101,8 @@ int Wsp100Source::OpenSource(const char *dev, card_type ctype) {
     valid = 1;
 
     // Register 'poke' events
-    poke_event_id = timetracker.RegisterTimer(TZSP_NULL_PACKET_SLICE, NULL, 1,
-                                              &Wsp100PokeSensor, (void *) this);
+    poke_event_id = timetracker->RegisterTimer(TZSP_NULL_PACKET_SLICE, NULL, 1,
+                                               &Wsp100PokeSensor, (void *) this);
 
     return 1;
 }
@@ -113,7 +113,7 @@ int Wsp100Source::CloseSource() {
 
     valid = 0;
 
-    timetracker.RemoveTimer(poke_event_id);
+    timetracker->RemoveTimer(poke_event_id);
 
     return 1;
 }

@@ -16,7 +16,11 @@
     Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 */
 
+#include "config.h"
+
 #include "alertracker.h"
+#include "server_globals.h"
+#include "kismet_server.h"
 
 Alertracker::Alertracker() {
     next_alert_id = 0;
@@ -167,6 +171,9 @@ int Alertracker::RaiseAlert(int in_ref, string in_text) {
     }
 
     server->SendToAll(protoref, (void *) adata);
+
+    // Hook main for sounds and whatnot on the server
+    KisLocalAlert(adata);
 
     return 1;
 }
