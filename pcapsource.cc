@@ -191,14 +191,14 @@ int PcapSource::Pcap2Common(pkthdr *in_header, u_char *in_data) {
         FILE *procwireless;
 
         if ((procwireless = fopen("/proc/net/wireless", "r")) != NULL) {
-            char data[1024];
-            fgets(data, 1024, procwireless);
-            fgets(data, 1024, procwireless);
-            fgets(data, 1024, procwireless);
+            char wdata[1024];
+            fgets(wdata, 1024, procwireless);
+            fgets(wdata, 1024, procwireless);
+            fgets(wdata, 1024, procwireless);
 
             int qual, lev, noise;
             char qupd, lupd, nupd;
-            sscanf(data+14, "%d%c %d%c %d%c", &qual, &qupd, &lev, &lupd, &noise, &nupd);
+            sscanf(wdata+14, "%d%c %d%c %d%c", &qual, &qupd, &lev, &lupd, &noise, &nupd);
 
             if (qupd != '.')
                 qual = 0;

@@ -1848,8 +1848,8 @@ int main(int argc,char *argv[]) {
     
                     strlist = GetPacketStrings(&info, &header, data);
 
-                    for (unsigned int x = 0; x < strlist.size(); x++) {
-                        snprintf(netout, 2048, "*STRING: %.2000s\n", strlist[x].c_str());
+                    for (unsigned int y = 0; y < strlist.size(); y++) {
+                        snprintf(netout, 2048, "*STRING: %.2000s\n", strlist[y].c_str());
                         ui_server.SendToAllOpts((const char *) netout, string_options);
                     }
     

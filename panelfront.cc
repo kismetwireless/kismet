@@ -1019,31 +1019,31 @@ void PanelFront::AddPrefs(map<string, string> in_prefs) {
 }
 
 PanelFront::color_pair PanelFront::ColorParse(string in_color) {
-    string color = in_color;
+    string clr = in_color;
     color_pair ret;
 
     // First, find if theres a hi-
-    if (color.substr(0, 3) == "hi-") {
+    if (clr.substr(0, 3) == "hi-") {
         ret.bold = 1;
-        color = color.substr(3, color.length() - 3);
+        clr = clr.substr(3, clr.length() - 3);
     }
 
     // Then match all the colors
-    if (color == "black")
+    if (clr == "black")
         ret.index = COLOR_BLACK;
-    else if (color == "red")
+    else if (clr == "red")
         ret.index = COLOR_RED;
-    else if (color == "green")
+    else if (clr == "green")
         ret.index = COLOR_GREEN;
-    else if (color == "yellow")
+    else if (clr == "yellow")
         ret.index = COLOR_YELLOW;
-    else if (color == "blue")
+    else if (clr == "blue")
         ret.index = COLOR_BLUE;
-    else if (color == "magenta")
+    else if (clr == "magenta")
         ret.index = COLOR_MAGENTA;
-    else if (color == "cyan")
+    else if (clr == "cyan")
         ret.index = COLOR_CYAN;
-    else if (color == "white")
+    else if (clr == "white")
         ret.index = COLOR_WHITE;
 
 
