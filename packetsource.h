@@ -28,13 +28,14 @@ enum card_type {
     card_cisco_cvs,
     card_cisco_bsd,
     card_prism2,
-    card_prism2_pcap,
+    card_prism2_legacy,
     card_prism2_bsd,
     card_prism2_hostap,
     card_orinoco,
     card_orinoco_bsd,
     card_generic,
-    card_wsp100
+    card_wsp100,
+    card_wtapfile
 };
 
 // Packet capture source superclass
