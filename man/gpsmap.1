@@ -1,0 +1,88 @@
+.Dd June 2002
+.Dt GPSMAP 1
+.Os "Kismet"
+.Sh NAME
+.Nm gpsmap
+.Nd Wireless sniffing and monitoring
+.Sh SYNOPSIS
+.Ar gpsmap
+.Op Fl tbrwHpdgkiMIVh
+.Op Fl c Ar map-x,y,scale
+.Op Fl S Ar map-scale
+.Op Fl u Ar map-size-x,y
+.Op Fl m Ar user-map-image
+.Op Fl s Ar interpolated-size
+.Op Fl C Ar interpolated-color
+.Op Fl D Ar dot-size
+.Op Fl L Ar point-label-type
+.Op Fl O Ar opacity
+.Op Fl T Ar num-threads
+.Op Fl o Ar output-png
+.Op Fl f Ar confile-file
+.Sh DESCRIPTION
+.Nm gpsmap
+reads GPS and Network XML datafiles and plots networks on downloaded maps or
+user-supplied images (such as sattellite photos).
+.Sh USAGE
+.Bl -tag -width flag
+.It Fl c
+Force an alternate map center and scale
+.It Fl S
+Force an alternate map scale (but use gpsmap-determined center)
+.It Fl u
+Custom map size (default 1280x1024)
+.It Fl m
+Use a custom map instead of downloading one from mapblast (useful for sattelite
+imagery)
+.It Fl t
+Don't draw the movement track
+.It Fl b
+Draw bounding rectangles of extreme network data points
+.It Fl r
+Don't draw estimated network ranges
+.It Fl w
+Color networks based on WEP and factory config instead of rotating random colors.
+.It Fl H
+Draw convex hulls for each network
+.It Fl p
+Draw scatter plot of each sampled packet
+.It Fl i
+Draw interpolated power ranges
+.It Fl s
+Resolution to process interpolation at.
+.It Fl C
+Use alternate color map to draw interpolated power data.  Map 1 is a gradient through
+RGB colors.  Map 2 is a weather-radar style color map.
+.It Fl d
+Draw a dot at the estimated center of each network.
+.It Fl D
+Draw the center dot (or scatter plot dot) at radius 'size'
+.It Fl L
+Comma-seperated list of text to label each center (bssid, ssid)
+.It Fl O
+Opacity to draw range and interpolation at
+.It Fl g
+Don't convert the underlying image to greyscale
+.It Fl k
+Keep the downloaded image
+.It Fl T
+Spawn 'num' threads to process interpolation.
+.It Fl M
+Fetch metric-titled map
+.It Fl F
+Comma-seperated list of MAC addresses to ignore (also read from the global Kismet config.)
+.It Fl I
+Inverted filtering (draw ONLY MAC's in the filter list)
+.It Fl f
+Use an alternate config file
+.It Fl v
+Be verbose
+.It Fl o
+Name of output .png file
+.It Fl V
+GPSMap version
+.It Fl h
+Help
+.El
+.Sh SEE ALSO
+kismet(1)

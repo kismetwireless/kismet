@@ -1,0 +1,168 @@
+#!/bin/sh
+
+prefix=@prefix@
+ETC=@sysconfdir@
+
+CHANNEL=6
+CARDTYPE=""
+CONFIGFILE="$ETC/kismet.conf"
+DEVICE=""
+HOPPER="no"
+HOPOPT=""
+
+while test "$#" -gt 0; do
+	case "$1" in
+	"-h")
+		echo "kismet_unmonitor - places a wireless card into rf-mon mode (if possible)"
+        echo "Most of these options SHOULD be set in your kismet.conf file since kismet"
+        echo "won't work correctly if they aren't, but they can be overriden here."
+		echo "Usage:"
+		echo "  -f <file>         Use alternate Kismet config file <file>"
+		echo "  -i <dev>          Use interface <dev>"
+		echo "  -t <type>         Use card type <type>"
+		echo "  -c <channel>      Activate on channel <channel> (default 6)"
+		echo "  -O <options>      Extra options to pass to the hopper"
+		echo "  -h                What you're reading now"
+		exit
+		;;
+	"-f")
+		shift
+		if test -f "$1"; then
+			CONFIGFILE=$1
+		else
+			echo "Unable to open specified config file '$1'"
+			exit
+		fi
+		;;
+	"-i")
+		shift
+		if test "$1" = ""; then
+			echo "No capture interface specified."
+			exit
+		else
+			DEVICE=$1
+		fi
+		;;
+	"-t")
+		shift
+		if test "$1" = ""; then
+			echo "No card type specified."
+			exit
+		else
+			CARDTYPE=$1
+		fi
+		;;
+	"-c")
+		shift
+		if test "$1" = ""; then
+			echo "No channel specified."
+			exit
+		else
+			CHANNEL=$1
+		fi
+		;;
+	"-O")
+		shift
+		if test "$1" = ""; then
+			echo "No hopper options specified."
+			exit
+		else
+			HOPOPT=$1
+		fi
+		;;
+	*)
+		echo "Unknown option $1"
+		exit
+		;;
+	esac
+shift
+done
+
+if test "$CONFIGFILE" = ""; then
+	CONFIGFILE=$ETC/kismet.conf
+fi
+
+if test ! -f "$CONFIGFILE"; then
+	echo "Could not find '$CONFIGFILE'.  Please make sure Kismet is"
+	echo "installed correctly, or specify a configfile with -f."
+	exit
+fi
+
+if test "$DEVICE" = ""; then
+	echo "Setting interface from $CONFIGFILE capinterface"
+	DEVICE=`grep -e "^\ *capinterface\ *=" $CONFIGFILE | cut -d= -f2 | tr -d [:blank:]`
+fi
+
+if test "$DEVICE" = ""; then
+	echo "Could not determine what interface to use."
+	echo "Please make sure your 'capinterface=' in '$CONFIGFILE' is correct"
+	echo "or specify the device with -d."
+	exit
+fi
+
+if test "$CARDTYPE" = ""; then
+	echo "Setting card type from $CONFIGFILE cardtype"
+	CARDTYPE=`grep -i "^\ *cardtype\ *=" $CONFIGFILE | cut -d= -f2 | tr -d [:blank:]`
+fi
+
+if test "$CARDTYPE" = ""; then
+	echo "Could not determine what type of card to enable monitoring for."
+	echo "Please make sure your 'card=' in '$CONFIGFILE' is correct"
+	echo "or specify the card type with -t."
+fi
+
+case "$CARDTYPE" in
+	"cisco")
+		echo "Disabling monitor mode for a cisco card on $DEVICE"
+		iwconfig $DEVICE essid ""
+		echo "Mode: i" > /proc/driver/aironet/$DEVICE/Config
+		echo "XmitPower: 100" > /proc/driver/aironet/$DEVICE/Config
+		ifconfig $DEVICE -promisc up
+		;;
+	"cisco_cvs")
+		echo "Disabling monitor mode for a cisco card on $DEVICE"
+		DEVICE2=`echo $DEVICE | sed -e 's/wifi/eth/'`
+		echo "Modifying device $DEVICE2"
+		iwconfig $DEVICE essid ""
+		echo "Mode: i" > /proc/driver/aironet/$DEVICE2/Config
+		echo "XmitPower: 100" > /proc/driver/aironet/$DEVICE2/Config
+		ifconfig $DEVICE -promisc up
+		;;
+	"cisco_bsd")
+		echo "No unmonitor script for cisco_bsd"
+		;;
+	"prism2")
+		echo "Disabling monitor mode for a prism2 card on $DEVICE"
+		ifconfig $DEVICE -promisc up
+		wlanctl-ng $DEVICE lnxreq_wlansniff channel=$CHANNEL enable=false
+		;;
+	"prism2_pcap")
+		echo "Disabling monitor mode for a pcap prism2 card on $DEVICE"
+		ifconfig $DEVICE promisc up
+		wlanctl-ng $DEVICE lnxreq_wlansniff channel=$CHANNEL enable=true prismheader=true
+		;;
+	"prism2_bsd")
+		echo "No unmonitor script for prism2_bsd"
+		;;
+	"orinoco")
+		echo "Disabling monitor mode for an orinoco card on $DEVICE"
+		iwpriv $DEVICE monitor 0 $CHANNEL
+		ifconfig $DEVICE -promisc up
+		;;
+	"orinoco_bsd")
+		echo "No unmonitor script for orinoco_bsd"
+		;;
+	"generic")
+		echo "Generic card specified, so we do nothing."
+		exit
+		;;
+	*)
+		echo "Unknown card type '$CARDTYPE'.  Doing nothing."
+		exit	
+		;;
+esac
+
+echo "You will likely need to restart your PCMCIA services to reconfigure your card"
+echo "for the correct channel and SSID."
+
+exit

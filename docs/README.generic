@@ -1,0 +1,27 @@
+Generic Linux Packet Engine
+WARNING!  The generic engine, unlike any other capture engine, generates
+observeable, active probe requests!
+
+The generic engine is for cards supported under the linux-wireless
+extentions which do not have RF monitor capability.  Origionally written
+to support Orinoco cards, the patches by Snax have made it obsolete.
+
+The generic capture source is useful ONLY for detecting SSIDs.  It isn't
+capable of doing true sniffing, channel detection, wep detection, logging,
+or counting packets correctly.
+
+The generic packet source is basically equivalent to the method NetStumbler
+uses to detect networks on Windows.  The wireless card is set to associate with
+any network, and is then probed to report what network it's associated with.
+This will only capture networks which are within transmit range of your card,
+which aren't cloaked, and which don't have MAC filtering.  No traffic capture
+will be done, however the probe requests that a card using the generic capture
+method sends out can be observed from other stations.
+
+The generic engine CAN NOT be used in a suid-root setup. Suid root typicaly 
+drops privs immediately after binding to the device, since it can continue 
+reading from the socket.  Unfortunately, to use the wireless kernel extentions,
+the ioctls must be continually changed.  Rather than expose the system by 
+remaining suid-root, privs are dropped and the capture will error out if Kismet
+is not being run as root.
+

@@ -1,0 +1,19 @@
+Wtapfile Packet Engine
+
+Wtapfile allows previously recorded dump files (from Ethereal, PrismDump,
+PrismSnort, or Kismet itself) to be read and processed as a live capture.  
+This can be to replay a sniff, or to process network, cisco, and weak 
+logfiles.
+
+Wtapfile works like any other capture source, simply set the capture interface
+to be the dumpfile, ie:
+`kismet -n --capture-type wtapfile --capture-interface old.dump`
+
+Kismet will automatally process dump files as quickly as the CPU and drive of
+your system can handle.  
+
+To replay a dumpfile at a more moderate speed (for debugging or just watching
+what was recorded before) use the microsleep option, ie
+`kismet --capture-type wtapfile --capture-interface old.dump --microsleep 100 \
+        --log-types network,cisco` 
+

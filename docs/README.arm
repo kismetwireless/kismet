@@ -1,0 +1,40 @@
+Kismet ARM Support
+
+Kismet has been tested on the following ARM based handhelds:
+Sharp Zaurus with Linksys WFC11 card.
+Sharp Zaurus with SMC card.
+Compaq IPAQ (see ipaq instructions) with assorted cards.
+
+For some reason I have yet to determine, the Zaurus/QTopia ipackage manager
+doesn't like my package, and I haven't been able to fix it yet.  Uncompress
+the tarball from the download site and use 'ipk install'.
+
+* Zaurus Installation
+All CF form-factor wireless cards I'm aware of are Prism2 based.  As of the
+time of this release, the version of wlan-ng shipped with the Zaurus only
+supports the 'prism2' capture method and can't use pcap.
+
+* IPAQ Installation
+Depending on the version of the Familiar distribution installed on your Ipaq,
+the version of the wlan-ng drivers may not support sniffing.  If you get errors
+that enabling monitor mode is not supported, you'll need to update your 
+Familiar install or compile them yourself in a cross-build environment.
+
+Some Familiar installs also do not include the latest ncurses and panels 
+libraries - these can be obtained from the Skif cluster.
+
+Configure your card just as you would on an intel system - with the PCMCIA 
+sleeve, all the standard cards function and must be configured as they
+would be on any other system.
+
+* Compiling it yourself
+Pass the appropriate cross-build to configure, I use 
+'./configure --host=arm-linux --disable-pcap --enable-zaurus' to build for the
+Zaurus, and
+'ac_cv_linux_vers=2.4.16 ./configure --host=arm-linux --with-pcap=linux ' to 
+build for the iPaq.  Set ac_cv_linux_vers accordingly to match your system.
+
+I used the Zaurus cross-build environment from 
+http://www.lart.tudelft.nl/lartware/compile-tools/ 
+and the Skif cluster environment for Ipaq.
+

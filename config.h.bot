@@ -1,0 +1,18 @@
+
+/* Maximum number of characters in the status line */
+#define STATUS_MAX 1024
+
+/* Maximum number of channels - I've only ever heard of 14 being used. */
+#define CHANNEL_MAX 14
+
+/* Stupid ncurses */
+#define NCURSES_NOMACROS
+
+/* Namespace */
+using namespace std;
+#define __STL_USE_NAMESPACES
+
+#ifndef _
+#define _(x) x
+#endif
+

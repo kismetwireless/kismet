@@ -1,0 +1,682 @@
+#include <stdio.h>
+#include <ctype.h>
+#include "packet.h"
+#include "packetsignatures.h"
+
+//#include "frontend.h"
+
+// Munge text down to printable characters only
+void MungeToPrintable(char *in_data, int max) {
+    char *temp = new char[max];
+    strncpy(temp, in_data, max);
+    // Make sure we terminate this just in case
+
+    int i, j;
+
+    for (i = 0, j = 0; i < max && j < max; i++) {
+        if (temp[i] == 0 || temp[i] == '\n') {
+            in_data[j++] = '\0';
+            break;
+        }
+
+        if (temp[i] < 32) {
+            if (temp[i] < 32) {
+                if (j+2 < max) {
+                    // Convert control chars to ^X and so on
+                    in_data[j++] = '^';
+                    in_data[j++] = temp[i] + 64;
+                } else {
+                    break;
+                }
+            }
+        } else if (temp[i] > 126) {
+            // Do nothing
+        } else {
+            in_data[j++] = temp[i];
+        }
+    }
+    in_data[j] = '\0';
+
+    /*
+    for (int i = 0; i < max; i++) {
+        if (in_data[i] < 32 || in_data[i] > 126) {
+            in_data[i] = '\0';
+            break;
+        }
+        }
+        */
+}
+
+
+// Returns a pointer in the data block to the size byte of the desired
+// tag.
+int GetTagOffset(int init_offset, int tagnum, const pkthdr *header, const u_char *data) {
+    int cur_tag = 0;
+    // Initial offset is 36, that's the first tag
+    int cur_offset = init_offset;
+    uint8_t len;
+
+    while (1) {
+        // Are we over the packet length?
+        if (cur_offset > (uint8_t) header->len) {
+            return -1;
+        }
+
+        // Read the tag we're on and bail out if we're done
+        cur_tag = (int) data[cur_offset];
+        if (cur_tag == tagnum) {
+            cur_offset++;
+            break;
+        } else if (cur_tag > tagnum) {
+            return -1;
+        }
+
+        // Move ahead one byte and read the length.
+        len = (data[cur_offset+1] & 0xFF);
+
+        // Jump the length+length byte, this should put us at the next tag
+        // number.
+        cur_offset += len+2;
+    }
+
+    return cur_offset;
+}
+
+// Get the info from a packet
+packet_info GetPacketInfo(const pkthdr *header, const u_char *data, packet_parm *parm) {
+    packet_info ret;
+
+    // Zero the entire struct
+    memset(&ret, 0, sizeof(packet_info));
+
+    // Copy the time with second precision
+    ret.time = header->ts.tv_sec;
+    // Copy the signal values
+    ret.quality = header->quality;
+    ret.signal = header->signal;
+    ret.noise = header->noise;
+
+    // Point to the packet data
+    uint8_t *msgbuf = (uint8_t *) data;
+    // Temp pointer into the packet guts
+    uint8_t temp;
+
+    ret.type = packet_unknown;
+
+    // If we don't even have enough to make up an 802.11 header, bail
+    // as a garbage packet
+    if (header->len < 2) {
+        ret.type = packet_noise;
+        return ret;
+    }
+
+    // Point the frame control at the beginnng of the data
+    frame_control *fc = (frame_control *) data;
+
+    int tag_offset = 0;
+
+    // Raw test to see if it's just noise
+    if (msgbuf[0] == 0xff && msgbuf[1] == 0xff && msgbuf[2] == 0xff) {
+        ret.type = packet_noise;
+        return ret;
+    } else if (fc->type == 0) {
+        if (fc->subtype == 8) {
+            // beacon frame
+
+            // If we look like a beacon but we aren't long enough to hold
+            // tags, then we probably aren't a beacon.  Throw us out.
+            if (header->len < 35) {
+                ret.type = packet_noise;
+                return ret;
+            }
+
+            fixed_parameters *fixparm = (fixed_parameters *) &msgbuf[24];
+
+            //            ret.beacon = ntohl(fixparm->beacon);
+            ret.beacon = fixparm->beacon;
+
+            ret.wep = fixparm->wep;
+            ret.ap = fixparm->ess;
+
+            // Find the offset of tag 0 and fill in the ssid if we got the
+            // tag.
+            if ((tag_offset = GetTagOffset(36, 0, header, data)) > 0) {
+                temp = (msgbuf[tag_offset] & 0xFF) + 1;
+
+                // Protect against malicious packets
+                if (temp <= 32 && tag_offset + 1 + temp < (int) header->len) {
+                    snprintf(ret.ssid, temp, "%s", &msgbuf[tag_offset+1]);
+
+                    // Munge it down to printable characters... SSID's can be anything
+                    // but if we can't print them it's not going to be very useful
+                    MungeToPrintable(ret.ssid, temp);
+                }
+
+            }
+
+            // Find the offset of flag 3 and get the channel
+            if ((tag_offset = GetTagOffset(36, 3, header, data)) > 0) {
+                // Extract the channel from the next byte (GetTagOffset returns
+                // us on the size byte)
+                temp = msgbuf[tag_offset+1];
+                ret.channel = (int) temp;
+            }
+
+            // Extract the CISCO beacon info
+            if ((tag_offset = GetTagOffset(36, 133, header, data)) > 0) {
+                if ((unsigned) tag_offset + 11 < header->len) {
+                    snprintf(ret.beacon_info, BEACON_INFO_LEN, "%s", &msgbuf[tag_offset+11]);
+                    MungeToPrintable(ret.beacon_info, BEACON_INFO_LEN);
+                } else {
+                    ret.type = packet_noise;
+                }
+            }
+
+            // Extract the supported rates
+            if ((tag_offset = GetTagOffset(36, 1, header, data)) > 0) {
+                for (int x = 0; x < msgbuf[tag_offset]; x++) {
+                    if (ret.maxrate < (msgbuf[tag_offset+1+x] & 0x7F) * 0.5)
+                        ret.maxrate = (msgbuf[tag_offset+1+x] & 0x7F) * 0.5;
+                }
+            }
+
+
+            // Extract the MAC's
+            // Get the dest mac -- offset 4
+            memcpy(ret.dest_mac, (const char *) &msgbuf[4], MAC_LEN);
+            // Get the source mac -- offset 10
+            memcpy(ret.source_mac, (const char *) &msgbuf[10], MAC_LEN);
+            // Get the BSSID mac -- offset 16
+            memcpy(ret.bssid_mac, (const char *) &msgbuf[16], MAC_LEN);
+
+            ret.type = packet_beacon;
+
+            if (ret.ap == 0) {
+                // Weird adhoc beacon where the BSSID isn't 'right' so we use the source instead.
+                memcpy(ret.bssid_mac, ret.source_mac, MAC_LEN);
+                ret.type = packet_adhoc;
+            }
+
+            // First byte of offsets
+            ret.header_offset = 24;
+
+        } else if (fc->subtype == 4) {
+            // Probe req
+
+            // Bail if we aren't long enough
+            if (header->len < 24) {
+                ret.type = packet_noise;
+                return ret;
+            }
+
+            if ((tag_offset = GetTagOffset(24, 0, header, data)) > 0) {
+                temp = (msgbuf[tag_offset] & 0xFF) + 1;
+
+                if (temp <= 32 && tag_offset + 1 + temp < (int) header->len) {
+                    snprintf(ret.ssid, temp, "%s", &msgbuf[tag_offset+1]);
+                    // Munge us to printable
+                    MungeToPrintable(ret.ssid, temp);
+                } else {
+                    ret.type = packet_noise;
+                }
+            }
+
+            memcpy(ret.source_mac, (const char *) &msgbuf[10], MAC_LEN);
+            memcpy(ret.bssid_mac, (const char *) &msgbuf[10], MAC_LEN);
+
+            ret.type = packet_probe_req;
+
+            ret.header_offset = 24;
+
+        } else if (fc->subtype == 5) {
+            ret.type = packet_probe_response;
+            if ((tag_offset = GetTagOffset(36, 0, header, data)) > 0) {
+                temp = (msgbuf[tag_offset] & 0xFF) + 1;
+
+                if (temp <= 32 && tag_offset + 1 + temp < (int) header->len) {
+                    snprintf(ret.ssid, temp, "%s", &msgbuf[tag_offset+1]);
+                    MungeToPrintable(ret.ssid, temp);
+                } else {
+                    ret.type = packet_noise;
+                }
+            }
+
+            memcpy(ret.dest_mac, (const char *) &msgbuf[4], MAC_LEN);
+            memcpy(ret.source_mac, (const char *) &msgbuf[10], MAC_LEN);
+            memcpy(ret.bssid_mac, (const char *) &msgbuf[16], MAC_LEN);
+
+            // First byte of offsets
+            ret.header_offset = 24;
+        } else if (fc->subtype == 4) {
+            ret.type = packet_reassociation;
+            if ((tag_offset = GetTagOffset(36, 0, header, data)) > 0) {
+                temp = (msgbuf[tag_offset] & 0xFF) + 1;
+
+                if (temp <= 32 && tag_offset + 1 + temp < (int) header->len) {
+                    snprintf(ret.ssid, temp, "%s", &msgbuf[tag_offset+1]);
+                    MungeToPrintable(ret.ssid, temp);
+                } else {
+                    ret.type = packet_noise;
+                }
+            }
+
+            memcpy(ret.dest_mac, (const char *) &msgbuf[4], MAC_LEN);
+            memcpy(ret.source_mac, (const char *) &msgbuf[10], MAC_LEN);
+            memcpy(ret.bssid_mac, (const char *) &msgbuf[16], MAC_LEN);
+
+            ret.header_offset = 24;
+        }
+    } else if (fc->type == 2) {
+        // Data packets
+
+        // Bail if not long enough
+        if (header->len < 24) {
+            ret.type = packet_noise;
+            return ret;
+        }
+
+        ret.type = packet_data;
+
+        // Extract ID's
+        if (fc->to_ds == 0 && fc->from_ds == 0) {
+            // Adhoc's get specially typed and their BSSID is set to
+            // their source (I can't think of anything more reasonable
+            // to do with them)
+            memcpy(ret.dest_mac, (const char *) &msgbuf[4], MAC_LEN);
+            memcpy(ret.source_mac, (const char *) &msgbuf[10], MAC_LEN);
+            memcpy(ret.bssid_mac, (const char *) &msgbuf[10], MAC_LEN);
+
+            // First byte of offsets
+            ret.header_offset = 24;
+
+            ret.type = packet_adhoc_data;
+        } else if (fc->to_ds == 0 && fc->from_ds == 1) {
+            memcpy(ret.dest_mac, (const char *) &msgbuf[4], MAC_LEN);
+            memcpy(ret.bssid_mac, (const char *) &msgbuf[10], MAC_LEN);
+            memcpy(ret.source_mac, (const char *) &msgbuf[16], MAC_LEN);
+
+            // First byte of offsets
+            ret.header_offset = 24;
+
+        } else if (fc->to_ds == 1 && fc->from_ds == 0) {
+            memcpy(ret.bssid_mac, (const char *) &msgbuf[4], MAC_LEN);
+            memcpy(ret.source_mac, (const char *) &msgbuf[10], MAC_LEN);
+            memcpy(ret.dest_mac, (const char *) &msgbuf[16], MAC_LEN);
+
+            // First byte of offsets
+            ret.header_offset = 24;
+
+        } else if (fc->to_ds == 1 && fc->from_ds == 1) {
+            // AP->AP
+            // Source is a special offset to the source
+            // Dest is the reciever address
+
+            memcpy(ret.bssid_mac, (const char *) &msgbuf[10], MAC_LEN);
+
+            memcpy(ret.source_mac, (const char *) &msgbuf[24], MAC_LEN);
+            memcpy(ret.dest_mac, (const char *) &msgbuf[4], MAC_LEN);
+
+            // First byte of offsets
+            ret.header_offset = 30;
+
+            ret.type = packet_ap_broadcast;
+        }
+
+        // Detect encrypted frames
+        if (fc->wep) {
+            ret.encrypted = 1;
+
+            // Match the range of cryptographically weak packets and let us
+            // know.
+
+            // New detection method from Airsnort 2.0, should be much better.
+            unsigned int sum;
+            if (data[ret.header_offset+1] == 255 && data[ret.header_offset] > 2 &&
+                data[ret.header_offset] < 16) {
+                ret.interesting = 1;
+            } else {
+                sum = data[ret.header_offset] + data[ret.header_offset+1];
+                if (sum == 1 && (data[ret.header_offset + 2] <= 0x0A ||
+                                 data[ret.header_offset + 2] == 0xFF)) {
+                    ret.interesting = 1;
+                } else {
+                    if (sum <= 0x0C && (data[ret.header_offset + 2] >= 0xF2 &&
+                                        data[ret.header_offset + 2] <= 0xFE &&
+                                        data[ret.header_offset + 2] != 0xFD))
+                        ret.interesting = 1;
+                }
+            }
+
+        } else if (parm->fuzzy_crypt && (unsigned int) ret.header_offset+9 < header->len) {
+            // Do a fuzzy data compare... if it's not:
+            // 0xAA - IP LLC
+            // 0x42 - I forgot.
+            // 0xF0 - Netbios
+            // 0xE0 - IPX
+            if (data[ret.header_offset] != 0xAA && data[ret.header_offset] != 0x42 &&
+                data[ret.header_offset] != 0xF0 && data[ret.header_offset] != 0xE0)
+                ret.encrypted = 1;
+
+            if (data[ret.header_offset] >= 3 && data[ret.header_offset] < 16 &&
+                data[ret.header_offset + 1] == 255) {
+                ret.interesting = 1;
+                ret.encrypted = 1;
+            }
+        }
+
+        if (!ret.encrypted && (ret.type == packet_data || ret.type == packet_adhoc_data ||
+                               ret.type == packet_ap_broadcast))
+            ret.proto = GetProtoInfo(&ret, header, data);
+    }
+
+    // Do a little sanity checking on the BSSID
+    for (int x = 0; x < MAC_LEN; x++) {
+        if (ret.bssid_mac[x] > 0xFF ||
+            ret.source_mac[x] > 0xFF ||
+            ret.dest_mac[x] > 0xFF) {
+
+            printf("noise packet, invalid mac\n");
+
+
+            ret.type = packet_noise;
+            break;
+        }
+    }
+
+    return ret;
+}
+
+proto_info GetProtoInfo(const packet_info *in_info, const pkthdr *header, const u_char *in_data) {
+
+    // We cheat a little to protect ourselves.  We define a packet
+    // that's double the maximum size, zero it out, and copy our data
+    // packet into it.  This should give us a little leeway if a packet
+    // is corrupt and we don't detect it -- it's better to read some
+    // nulls than it is to fall into a segfault.
+    u_char data[MAX_PACKET_LEN * 2];
+    memset(data, 0, MAX_PACKET_LEN * 2);
+    memcpy(data, in_data, header->len);
+
+    proto_info ret;
+
+    // Zero the entire struct
+    memset(&ret, 0, sizeof(proto_info));
+
+    // Point to the data packet
+    uint8_t *msgbuf = (uint8_t *) data;
+
+    ret.type = proto_unknown;
+
+    /*
+     if (header->len < 56)
+        return ret;
+        */
+
+    if (memcmp(&data[in_info->header_offset + LLC_OFFSET], CISCO_SIGNATURE,
+               sizeof(CISCO_SIGNATURE)) == 0) {
+        // CDP
+
+        unsigned int offset = in_info->header_offset + LLC_OFFSET + 12;
+
+        while (offset < header->len) {
+            // Make sure that whatever we do, we don't wander off the
+            // edge of the proverbial world -- segfaulting due to crappy
+            // packets is a really bad thing!
+
+            cdp_element *elem = (cdp_element *) &data[offset];
+
+            if (elem->length == 0)
+                break;
+
+            if (elem->type == 0x01) {
+                // Device id
+                snprintf(ret.cdp.dev_id, elem->length-3, "%s", (char *) &elem->data);
+            } else if (elem->type == 0x02) {
+                // IP range
+
+                cdp_proto_element *proto;
+                int8_t *datarr = (int8_t *) &elem->data;
+
+                // We only take the first addr (for now)... And only if
+                // it's an IP
+                //for (int addr = 0; addr < datarr[3]; addr++) {
+                proto = (cdp_proto_element *) &datarr[4];
+
+                if (proto->proto == 0xcc) {
+                    memcpy(&ret.cdp.ip, &proto->addr, 4);
+                }
+                // }
+            } else if (elem->type == 0x03) {
+                // port id
+                snprintf(ret.cdp.interface, elem->length-3, "%s", (char *) &elem->data);
+            } else if (elem->type == 0x04) {
+                // capabilities
+                memcpy(&ret.cdp.cap, &elem->data, elem->length-4);
+            } else if (elem->type == 0x05) {
+                // software version
+                snprintf(ret.cdp.software, elem->length-3, "%s", (char *) &elem->data);
+            } else if (elem->type == 0x06) {
+                // Platform
+                snprintf(ret.cdp.platform, elem->length-3, "%s", (char *) &elem->data);
+            }
+
+            offset += elem->length;
+        }
+
+        ret.type = proto_cdp;
+    } else if (memcmp(&data[in_info->header_offset + LLC_OFFSET], NETBIOS_SIGNATURE,
+                      sizeof(NETBIOS_SIGNATURE)) == 0) {
+        ret.type = proto_netbios;
+
+            uint8_t nb_command = data[in_info->header_offset + NETBIOS_OFFSET];
+            if (nb_command == 0x01) {
+                // Netbios browser announcement
+                ret.nbtype = proto_netbios_host;
+                snprintf(ret.netbios_source, 17, "%s",
+                         &data[in_info->header_offset + NETBIOS_OFFSET + 6]);
+            } else if (nb_command == 0x0F) {
+                // Netbios srver announcement
+                ret.nbtype = proto_netbios_master;
+                snprintf(ret.netbios_source, 17, "%s",
+                         &data[in_info->header_offset + NETBIOS_OFFSET + 6]);
+            } else if (nb_command == 0x0C) {
+                // Netbios domain announcement
+                ret.nbtype = proto_netbios_domain;
+            }
+
+        //printf("got netbios '%s' '%s'\n", ret.netbios_source, ret.netbios_dest);
+    } else if (memcmp(&data[in_info->header_offset + LLC_OFFSET], IPX_SIGNATURE,
+                      sizeof(IPX_SIGNATURE)) == 0) {
+        // IPX packet
+        ret.type = proto_ipx_tcp;
+    } else if (memcmp(&data[in_info->header_offset + IP_OFFSET], UDP_SIGNATURE,
+                      sizeof(UDP_SIGNATURE)) == 0) {
+        // UDP
+        ret.type = proto_udp;
+
+        /*
+        memcpy(&ret.sport, (uint16_t *) &msgbuf[in_info->header_offset + UDP_OFFSET], 2);
+        memcpy(&ret.dport, (uint16_t *) &msgbuf[in_info->header_offset + UDP_OFFSET + 2], 2);
+        */
+
+        uint16_t d, s;
+
+        memcpy(&s, (uint16_t *) &msgbuf[in_info->header_offset + UDP_OFFSET], 2);
+        memcpy(&d, (uint16_t *) &msgbuf[in_info->header_offset + UDP_OFFSET + 2], 2);
+
+        ret.sport = ntohs((unsigned short int) s);
+        ret.dport = ntohs((unsigned short int) d);
+
+        memcpy(ret.source_ip, (const uint8_t *) &msgbuf[in_info->header_offset + IP_OFFSET + 3], 4);
+        memcpy(ret.dest_ip, (const uint8_t *) &msgbuf[in_info->header_offset + IP_OFFSET + 7], 4);
+
+        if (ret.sport == 138 && ret.dport == 138) {
+            // netbios
+
+            ret.type = proto_netbios_tcp;
+
+            uint8_t nb_command = data[in_info->header_offset + NETBIOS_TCP_OFFSET];
+            if (nb_command == 0x01) {
+                // Netbios browser announcement
+                ret.nbtype = proto_netbios_host;
+                snprintf(ret.netbios_source, 17, "%s",
+                         &data[in_info->header_offset + NETBIOS_TCP_OFFSET + 6]);
+            } else if (nb_command == 0x0F) {
+                // Netbios srver announcement
+                ret.nbtype = proto_netbios_master;
+                snprintf(ret.netbios_source, 17, "%s",
+                         &data[in_info->header_offset + NETBIOS_TCP_OFFSET + 6]);
+            } else if (nb_command == 0x0C) {
+                // Netbios domain announcement
+                ret.nbtype = proto_netbios_domain;
+            }
+
+            //printf("Got netbios tcp source '%s' dest '%s'\n", ret.netbios_source, ret.netbios_dest);
+
+        } else if (ret.sport == 137 && ret.dport == 137) {
+            ret.type = proto_netbios_tcp;
+
+            if (data[in_info->header_offset + UDP_OFFSET + 10] == 0x01 &&
+                data[in_info->header_offset + UDP_OFFSET + 11] == 0x10) {
+                ret.nbtype = proto_netbios_query;
+
+                unsigned int offset = in_info->header_offset + UDP_OFFSET + 21;
+
+                if (offset < header->len && offset + 32 < header->len) {
+                    ret.type = proto_netbios_tcp;
+                    for (unsigned int x = 0; x < 32; x += 2) {
+                        uint8_t fchr = data[offset+x];
+                        uint8_t schr = data[offset+x+1];
+
+                        if (fchr < 'A' || fchr > 'Z' ||
+                            schr < 'A' || schr > 'Z') {
+                            ret.type = proto_udp;
+                            ret.netbios_source[0] = '\0';
+                            break;
+                        }
+
+                        fchr -= 'A';
+                        ret.netbios_source[x/2] = fchr << 4;
+                        schr -= 'A';
+                        ret.netbios_source[x/2] |= schr;
+                    }
+
+                    ret.netbios_source[17] = '\0';
+                }
+            }
+
+        } else if (memcmp(&data[in_info->header_offset + DHCPD_OFFSET], DHCPD_SIGNATURE,
+                          sizeof(DHCPD_SIGNATURE)) == 0) {
+
+            // DHCP server responding
+            ret.type = proto_dhcp_server;
+
+            // Now we go through all the options until we find options 1, 3, and 53
+            // netmask.
+            unsigned int offset = in_info->header_offset + DHCPD_OFFSET + 252;
+
+
+            while (offset < header->len) {
+                if (data[offset] == 0x01) {
+                    // netmask
+
+                    /*
+                     fprintf(stderr, "OFfset %X %d.%d.%d.%d\n",
+                            offset,
+                            data[offset+2], data[offset+3], data[offset+4], data[offset+5]);
+                            */
+
+                    // Bail out of we're a "boring" dhcp ack
+                    if (data[offset+2] == 0x00) {
+                        ret.type = proto_udp;
+                        break;
+                    }
+
+                    memcpy(ret.mask, &data[offset+2], 4);
+                } else if (data[offset] == 0x03) {
+                    // gateway
+
+                    // Bail out of we're a "boring" dhcp ack
+                    if (data[offset+2] == 0x00) {
+                        ret.type = proto_udp;
+                        break;
+                    }
+
+                    memcpy(ret.gate_ip, &data[offset+2], 4);
+                } else if (data[offset] == 0x35) {
+                    // We're a DHCP ACK packet
+                    if (data[offset+2] != 0x05) {
+                        ret.type = proto_udp;
+                        break;
+                    } else {
+                        // Now rip straight to the heart of it and get the offered
+                        // IP from the BOOTP segment
+                        memcpy(ret.misc_ip, (const uint8_t *) &data[in_info->header_offset + DHCPD_OFFSET + 28], 4);
+                    }
+                }
+                offset += data[offset+1]+2;
+            }
+        }
+    } else if (memcmp(&data[in_info->header_offset + ARP_OFFSET], ARP_SIGNATURE,
+               sizeof(ARP_SIGNATURE)) == 0) {
+        // ARP
+        ret.type = proto_arp;
+
+        memcpy(ret.source_ip, (const uint8_t *) &data[in_info->header_offset + ARP_OFFSET + 16], 4);
+        memcpy(ret.misc_ip, (const uint8_t *) &data[in_info->header_offset + ARP_OFFSET + 26], 4);
+    } else if (memcmp(&data[in_info->header_offset + IP_OFFSET], TCP_SIGNATURE,
+                      sizeof(TCP_SIGNATURE)) == 0) {
+        // TCP
+        ret.type = proto_misc_tcp;
+
+        uint16_t d, s;
+
+        memcpy(&s, (uint16_t *) &msgbuf[in_info->header_offset + TCP_OFFSET], 2);
+        memcpy(&d, (uint16_t *) &msgbuf[in_info->header_offset + TCP_OFFSET + 2], 2);
+
+        ret.sport = ntohs((unsigned short int) s);
+        ret.dport = ntohs((unsigned short int) d);
+
+
+        /*
+        memcpy(&ret.sport, (uint16_t *) &msgbuf[in_info->header_offset + TCP_OFFSET], 2);
+        memcpy(&ret.dport, (uint16_t *) &msgbuf[in_info->header_offset + TCP_OFFSET + 2], 2);
+        */
+
+        memcpy(ret.source_ip, (const uint8_t *) &msgbuf[in_info->header_offset + IP_OFFSET + 3], 4);
+        memcpy(ret.dest_ip, (const uint8_t *) &msgbuf[in_info->header_offset + IP_OFFSET + 7], 4);
+
+    }
+
+    return ret;
+}
+
+// Pull all the printable data out
+vector<string> GetPacketStrings(const packet_info *in_info, const pkthdr *header, const u_char *in_data) {
+    char str[MAX_PACKET_LEN];
+    memset(str, 0, MAX_PACKET_LEN);
+    vector<string> ret;
+
+    int pos = 0;
+    int printable = 0;
+    for (unsigned int x = in_info->header_offset; x < header->len; x++) {
+        /*
+                     (!isalnum(in_data[x]) && !isspace(in_data[x]) &&
+             in_data[x] != '<' && in_data[x] != '>' &&
+             in_data[x] != '=' && in_data
+             */
+
+        if (printable && !isprint(in_data[x]) && pos != 0) {
+            if (pos > 4)
+                ret.push_back(str);
+
+            memset(str, 0, pos+1);
+            pos = 0;
+        } else if (isprint(in_data[x])) {
+            str[pos++] = in_data[x];
+            printable = 1;
+        }
+    }
+
+    return ret;
+}

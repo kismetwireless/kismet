@@ -1,0 +1,90 @@
+#!/bin/sh
+
+prefix=@prefix@
+ETC=@sysconfdir@
+
+set -m
+
+gui=`grep -e "^gui=" $ETC/kismet_ui.conf | cut -d= -f2 | tr -d [:space:]`
+
+if test "$gui" = ""; then
+	echo "No gui specified in $ETC/kismet.conf.  Please specify one!"
+	exit
+fi
+
+mode="server"
+while test "$1" != ""; do
+	if test "$1" = "-h"; then
+		echo "$0 [server options] -- [client options]"
+		echo "ex: $0 -c prism2 -p 5000 -- -q -p 5000"
+		echo "to start the server with a prism/2 capture source on port 5000 and start the"
+		echo "client in quiet mode on the same port."
+		exit
+	elif test "$1" = "--"; then
+		mode="client";
+	elif test "$mode" = "server"; then
+		server="$server $1"
+	elif test "$mode" = "client"; then
+		client="$client $1"
+	fi
+
+	shift
+done
+
+if test "$server" = ""; then
+	echo "Server options:  none"
+else
+	echo "Server options:  $server"
+fi
+
+if test "$client" = ""; then
+	echo "Client options:  none"
+else
+	echo "Server options:  $client"
+fi
+
+echo "Starting server..."
+kismet_server --silent $server &
+
+servpid=$!
+
+sleep 1
+
+echo "Starting UI..."
+kismet_curses $client
+
+kill $servpid
+
+wait %-
+
+echo "Terminating..."
+
+if test -f "/var/run/kismet_hopper.pid"; then
+	HOPPERPID=`cat /var/run/kismet_hopper.pid`
+	echo "Shutting down kismet_hopper..."
+	# Stupid race condition gymnastics...
+	# Make a temp file then move it to the target file to avoid symlinks
+	CNTFILE=`mktemp /tmp/kishopper.XXXXXX`
+	mv $CNTFILE /tmp/kismet_hopper.control
+
+	WAITTIME=0
+	while test "$WAITTIME" -le 5; do
+		if test ! -f /var/run/kismet_hopper.pid; then
+			break
+		fi
+		sleep 1
+		let WAITTIME=$WAITTIME+1
+	done
+
+	if test "$WAITTIME" -gt 5; then
+		echo "kismet_hopper pid $HOPPERPID didn't seem to die cleanly as requested "
+		echo "within 5 seconds.  You'll have to find it and kill it yourself if its"
+		echo "still running."
+	fi
+
+	rm /tmp/kismet_hopper.control
+fi
+
+echo "Done.  Run kismet_unmonitor or eject and re-insert your card (or restart your"
+echo " pcmcia services) to return your card to normal operation."
+

@@ -1,0 +1,178 @@
+/* config.h.in.  Generated automatically from configure.in by autoheader.  */
+
+/* Build curses-based UI */
+#undef BUILD_CURSES
+
+/* Build panel UI */
+#undef BUILD_PANEL
+
+/* AssumeDefaultColors present */
+#undef HAVE_ASSUME_DEFAULT_COLORS
+
+/* Define if you have the <errno.h> header file. */
+#undef HAVE_ERRNO_H
+
+/* Expat XML library */
+#undef HAVE_EXPAT
+
+/* Define if you have the `gettimeofday' function. */
+#undef HAVE_GETTIMEOFDAY
+
+/* GPS support will be built. */
+#undef HAVE_GPS
+
+/* Imagemagick image library */
+#undef HAVE_IMAGEMAGICK
+
+/* inttypes.h is present */
+#undef HAVE_INTTYPES_H
+
+/* Curses terminal lib */
+#undef HAVE_LIBCURSES
+
+/* NCurses terminal lib */
+#undef HAVE_LIBNCURSES
+
+/* Panel terminal lib */
+#undef HAVE_LIBPANEL
+
+/* libpcap packet capture lib */
+#undef HAVE_LIBPCAP
+
+/* Ethereal wiretap library */
+#undef HAVE_LIBWIRETAP
+
+/* Libz compression lib */
+#undef HAVE_LIBZ
+
+/* Linux netlink socket capture present */
+#undef HAVE_LINUX_NETLINK
+
+/* Linux wireless extentions present */
+#undef HAVE_LINUX_WIRELESS
+
+/* Define if you have the `memset' function. */
+#undef HAVE_MEMSET
+
+/* Define if you have the <netinet/in.h> header file. */
+#undef HAVE_NETINET_IN_H
+
+/* pcap/pcap.h */
+#undef HAVE_PCAPPCAP_H
+
+/* libpcap header */
+#undef HAVE_PCAP_H
+
+/* Nonblocking-capable libpcap */
+#undef HAVE_PCAP_NONBLOCK
+
+/* pthread threading library */
+#undef HAVE_PTHREAD
+
+/* Define if you have the `select' function. */
+#undef HAVE_SELECT
+
+/* Define if you have the `socket' function. */
+#undef HAVE_SOCKET
+
+/* accept() takes type socklen_t for addrlen */
+#undef HAVE_SOCKLEN_T
+
+/* Define if `stat' has the bug that it succeeds when given the zero-length
+   file name argument. */
+#undef HAVE_STAT_EMPTY_STRING_BUG
+
+/* stdint.h is present */
+#undef HAVE_STDINT_H
+
+/* Define if you have the <stdlib.h> header file. */
+#undef HAVE_STDLIB_H
+
+/* Define if you have the `strcasecmp' function. */
+#undef HAVE_STRCASECMP
+
+/* Define if you have the `strftime' function. */
+#undef HAVE_STRFTIME
+
+/* Define if you have the <string.h> header file. */
+#undef HAVE_STRING_H
+
+/* Define if you have the `strstr' function. */
+#undef HAVE_STRSTR
+
+/* System headers are there */
+#undef HAVE_SYSHEADERS
+
+/* Define if you have the <sys/socket.h> header file. */
+#undef HAVE_SYS_SOCKET_H
+
+/* Define if you have the <sys/time.h> header file. */
+#undef HAVE_SYS_TIME_H
+
+/* Define if you have the <sys/types.h> header file. */
+#undef HAVE_SYS_TYPES_H
+
+/* Define if you have the <sys/wait.h> header file. */
+#undef HAVE_SYS_WAIT_H
+
+/* Define if you have the <unistd.h> header file. */
+#undef HAVE_UNISTD_H
+
+/* wtap_read takes two int * parameters */
+#undef HAVE_WTAPREAD_INTINT
+
+/* Define if `lstat' dereferences a symlink specified with a trailing slash.
+   */
+#undef LSTAT_FOLLOWS_SLASHED_SYMLINK
+
+/* Define as the return type of signal handlers (`int' or `void'). */
+#undef RETSIGTYPE
+
+/* Define if you have the ANSI C header files. */
+#undef STDC_HEADERS
+
+/* system config directory */
+#undef SYSCONF_LOC
+
+/* Compiling for FreeBSD */
+#undef SYS_FREEBSD
+
+/* Compiling for Linux OS */
+#undef SYS_LINUX
+
+/* Compiling for OpenBSD */
+#undef SYS_OPENBSD
+
+/* Define if you can safely include both <sys/time.h> and <time.h>. */
+#undef TIME_WITH_SYS_TIME
+
+/* Define if your <sys/time.h> declares `struct tm'. */
+#undef TM_IN_SYS_TIME
+
+/* Use local dumper code */
+#undef USE_LOCAL_DUMP
+
+/* Define if your processor stores words with the most significant byte first
+   (like Motorola and SPARC, unlike Intel and VAX). */
+#undef WORDS_BIGENDIAN
+
+/* Define to empty if `const' does not conform to ANSI C. */
+#undef const
+
+/* Maximum number of characters in the status line */
+#define STATUS_MAX 1024
+
+/* Maximum number of channels - I've only ever heard of 14 being used. */
+#define CHANNEL_MAX 14
+
+/* Stupid ncurses */
+#define NCURSES_NOMACROS
+
+/* Namespace */
+using namespace std;
+#define __STL_USE_NAMESPACES
+
+#ifndef _
+#define _(x) x
+#endif
+

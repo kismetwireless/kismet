@@ -1,0 +1,75 @@
+Kismet 2.4
+Mike Kershaw <dragorn@nerv-un.net>
+http://www.kismetwireless.net/
+Licensed under the GPL
+
+* What is it?
+  Kismet is a 802.11b wireless network sniffer.  It is capable of sniffing 
+  using almost any wireless card supported in Linux, including Prism2
+  based cards supported by the Wlan-NG project (Linksys, Dlink, Rangelan,
+  etc), cards which support standard packet capture via libpcap (Cisco),
+  and limited support for cards without RF Monitor support.
+
+* Features
+  Multiple packet capture sources
+  Runtime network sorting by AP MAC address (bssid)
+  IP block detection
+  Cisco product detection via CDP
+  Ethereal and tcpdump compatable file logging
+  Airsnort-compatable "interesting" (cryptographically weak) logging
+  Secure SUID behavior
+  Cloaked network detection
+  Grouping and custom naming of SSIDs
+  Multiple clients viewing a single capture stream
+  Graphical mapping of data (gpsmap)
+  Cross-platform support (handheld linux and BSD)
+  Manufacturer identification
+  Default factory setup detection 
+
+* Quick start
+  All of this will make more sense if you read the docs for each segment.
+  1. Compile and Install Kismet
+  2. Configure kismet.conf and kismet_ui.conf for your card and setup.
+  3. Run kismet_monitor to enable rfmon mode, optionally with the 
+     channel hopper.
+  4. Run kismet.
+
+* More information:
+  Compilation and configuration:
+  docs/README.compiling    Compiling Kismet
+  docs/README.config       Configuring Kismet
+  docs/README.upgrading    Upgrading Kismet
+
+  Usage:
+  docs/README.curses       Curses interface (deprecated)
+  docs/README.panel        Panels interface
+
+  Portability:
+  docs/README.arm          Running Kismet on ARM platforms such as Ipaq 
+                           and Zaurus
+  docs/README.bsd          Running Kismet on *BSD systems
+
+  Capture engines:
+  docs/README.generic      Generic/Wireless Extention capture engine
+  docs/README.pcap         libpcap capture engine
+  docs/README.prism2       Prism2 (netlink) capture engine
+  docs/README.wtapfile     Wiretap (dump file) capture engine
+
+  GPS support:
+  docs/README.gps          GPS logging
+  docs/README.gpsmap       GPS graphing
+
+  Notes on specific cards:
+  docs/CARD.cisco          Cisco cards
+  docs/CARD.prism2         Prism2 cards
+  docs/CARD.orinoco        Orinoco cards
+  docs/CARD.airport        Airport cards
+
+  Misc:
+  docs/README.extras       Extra scripts and utilities
+
+  Developer:
+  docs/DEVEL.ssidmap       Format of the SSID map state file
+  docs/DEVEL.groupmap      Format of the group map state file
+  docs/DEVEL.ipmap         Format of the IP map state file
+

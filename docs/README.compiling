@@ -1,0 +1,49 @@
+Compilation & Installation
+
+Before configuration and compilation, you should get the following packages:
+
+- ethereal (www.ethereal.com).  This is a GREAT sniffer and capture reader, 
+  and will be invaluable to you for processing dump files.  Kismet will also 
+  use Ethereal's wiretap packet library for dumping and reading dumpfiles 
+  if it is available.
+
+- gpsdrive (http://www.kraftvoll.at/software/).  This program does
+  real-time street mapping and other useful GPS things, and includes gpsd,
+  the daemon Kismet interfaces to for GPS support.  Alternatively, you can get
+  just the daemon from http://russnelson.com/gpsd/.  This is NOT required for
+  compilation but you need the gpsd daemon running for GPS logging when you
+  go to run Kismet.
+
+1. Run the ./configure script.  This will find as much as possible about
+   your system.  Most configuration options are autodetected, you should only
+   need to override them for custom compilations if you are attempting to save
+   space (such as for a handheld).  Useful configuration options include:
+  --disable-curses        disable curses UI
+  --disable-panel         disable ncurses panel extentions
+  --disable-gps           disable GPS support
+  --disable-netlink       disable linux netlink socket capture (prism2/orinoco 
+                          patched)
+  --disable-wireless      disable linux kernel wireless extentions
+  --disable-pcap          disable libpcap capture support
+  --enable-syspcap        use system libpcap (not reccomended)
+  --disable-suid-root     disable suid-root installtion (not reccomended)
+  --enable-zaurus         enable some extra stuff (like piezzo buzzer) for 
+                          Zaurus
+  --enable-local-dumper   force use of local dumper code even if ethereal is 
+                          present
+  --with-ethereal=DIR     support ethereal wiretap for logs 
+  --without-ethereal      disable support for ethereal wiretap
+
+2. Run 'make dep' and 'make install'
+3. Edit kismet.conf (default install path, /usr/local/etc/kismet.conf)
+   to set your logging type and preferences.
+4. Edit kismet_ui.conf (default install path, /usr/local/etc/kismet_ui.conf)
+   to set your interface preferences.
+
+It is reccomended that you install Kismet suid-root.  In general, it is 
+actually more secure to run it in this fashion, because it will drop root privs
+and run as the user you start it as immediately after binding to the packet
+source, or before opening a wtapfile source.  After privs are dropped it will
+do packet dissection as a user program, which is much more secure than doing 
+it as root.
+
