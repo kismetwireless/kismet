@@ -779,16 +779,23 @@ int main(int argc, char *argv[]) {
     unsigned int max_fd = 0;
     FD_SET(fileno(stdin), &read_set);
 
-    unsigned int client_descrip = kismet_serv.FetchDescriptor();
-    FD_SET(client_descrip, &read_set);
-    if (client_descrip > max_fd)
-        max_fd = client_descrip;
+    vector<TcpClient *> client_list;
+    TcpClient *primary_client;
 
     while (1) {
         fd_set rset;
-
         FD_ZERO(&rset);
         rset = read_set;
+
+        // Grab the list of clients and set them all in the readset
+        gui->FetchClients(&client_list);
+        primary_client = gui->FetchPrimaryClient();
+        for (unsigned int cli = 0; cli < client_list.size(); cli++) {
+            unsigned int client_descrip = client_list[cli]->FetchDescriptor();
+            FD_SET(client_descrip, &rset);
+            if (client_descrip > max_fd)
+                max_fd = client_descrip;
+        }
 
         struct timeval tim;
         tim.tv_sec = 0;
@@ -811,96 +818,112 @@ int main(int argc, char *argv[]) {
                 CatchShutdown(-1);
         }
 
-        // If we have incoming data...
-        if (kismet_serv.Valid()) {
-            if (FD_ISSET(client_descrip, &rset)) {
-                int pollret;
-                if ((pollret = kismet_serv.Poll()) < 0) {
-                    snprintf(status, STATUS_MAX, "TCP error: %s", kismet_serv.FetchError());
-                    gui->WriteStatus(status);
+        // Reset our counters so we can add the different servers
+        num_networks = 0;
+        num_packets = 0;
+        num_noise = 0;
+        num_dropped = 0;
 
-                    // Remove the client descriptor if we're not valid anymore
-                    FD_CLR(client_descrip, &read_set);
+        for (unsigned int cli = 0; cli < client_list.size(); cli++) {
+            // If we have incoming data...
+            TcpClient *tcpcli = client_list[cli];
+            unsigned int client_descrip = tcpcli->FetchDescriptor();
+            if (tcpcli->Valid()) {
+                if (FD_ISSET(client_descrip, &rset)) {
+                    int pollret;
+                    if ((pollret = tcpcli->Poll()) < 0) {
+                        snprintf(status, STATUS_MAX, "%s:%d TCP error: %s",
+                                 tcpcli->FetchHost(), tcpcli->FetchPort(), tcpcli->FetchError());
+                        gui->WriteStatus(status);
 
-                    if (reconnect) {
-                        snprintf(status, STATUS_MAX, "Will attempt to reconnect to %s:%d",
-                                 guihost, guiport);
+                        // not any longer - clients are dynamically set in rset each time from
+                        // the list of clients now
+                        // Remove the client descriptor if we're not valid anymore
+                        // FD_CLR(client_descrip, &read_set);
+
+                        if (reconnect) {
+                            snprintf(status, STATUS_MAX, "Will attempt to reconnect to %s:%d",
+                                     tcpcli->FetchHost(), tcpcli->FetchPort());
+                            gui->WriteStatus(status);
+                        }
+
+                    }
+
+                    if (pollret != 0) {
+                        if (pollret == CLIENT_ALERT)
+                            if (sound == 1)
+                                sound = PlaySound("alert");
+
+                        if (strlen(tcpcli->FetchStatus()) != 0) {
+                            gui->WriteStatus(tcpcli->FetchStatus());
+                            // gui->DrawDisplay();
+                        }
+
+                        // The GPS only gets updated for the primary client
+                        if (tcpcli == primary_client) {
+                            if (tcpcli->FetchMode() == 0 && gpsmode != 0) {
+                                if (sound == 1 && gpsmode != -1)
+                                    sound = PlaySound("gpslost");
+                                gpsmode = 0;
+                            } else if (tcpcli->FetchMode() != 0 && gpsmode == 0) {
+                                if (sound == 1 && gpsmode != -1)
+                                    sound = PlaySound("gpslock");
+                                gpsmode = 1;
+                            }
+                        }
+
+                        if (tcpcli->FetchDeltaNumNetworks() != 0) {
+                            if (sound == 1) {
+                                sound = PlaySound("new");
+                            }
+
+                            if (speech == 1) {
+                                string text;
+
+                                wireless_network *newnet = tcpcli->FetchLastNewNetwork();
+
+                                if (newnet != NULL) {
+                                    if (newnet->wep)
+                                        text = ExpandSpeechString(speech_sentence_encrypted, newnet, speech_encoding);
+                                    else
+                                        text = ExpandSpeechString(speech_sentence_unencrypted, newnet, speech_encoding);
+
+                                    speech = SayText(text.c_str());
+                                }
+                            }
+                        }
+
+                        num_networks += tcpcli->FetchNumNetworks();
+                        num_packets += tcpcli->FetchNumPackets();
+                        num_noise += tcpcli->FetchNumNoise();
+                        num_dropped += tcpcli->FetchNumDropped();
+
+                        if (tcpcli->FetchDeltaNumPackets() != 0) {
+                            if (time(0) - last_click >= decay && sound == 1) {
+                                if (tcpcli->FetchDeltaNumPackets() > tcpcli->FetchDeltaNumDropped()) {
+                                    sound = PlaySound("traffic");
+                                } else {
+                                    sound = PlaySound("junktraffic");
+                                }
+
+                                last_click = time(0);
+                            }
+                        }
+                    }
+                }
+            } else {
+                // If we're supposed to try to reconnect and we're invalid, do so
+                if (reconnect) {
+                    if (tcpcli->Connect(guiport, guihost) >= 0) {
+                        client_descrip = tcpcli->FetchDescriptor();
+                        // FD_SET(client_descrip, &read_set);
+                        if (client_descrip > max_fd)
+                            max_fd = client_descrip;
+
+                        snprintf(status, STATUS_MAX, "Reconnected to %s:%d.",
+                                 tcpcli->FetchHost(), tcpcli->FetchPort());
                         gui->WriteStatus(status);
                     }
-
-                }
-
-                if (pollret != 0) {
-                    if (pollret == CLIENT_ALERT)
-                        if (sound == 1)
-                            sound = PlaySound("alert");
-
-                    if (strlen(kismet_serv.FetchStatus()) != 0) {
-                        gui->WriteStatus(kismet_serv.FetchStatus());
-                        gui->DrawDisplay();
-                    }
-
-                    if (kismet_serv.FetchMode() == 0 && gpsmode != 0) {
-                        if (sound == 1 && gpsmode != -1)
-                            sound = PlaySound("gpslost");
-                        gpsmode = 0;
-                    } else if (kismet_serv.FetchMode() != 0 && gpsmode == 0) {
-                        if (sound == 1 && gpsmode != -1)
-                            sound = PlaySound("gpslock");
-                        gpsmode = 1;
-                    }
-    
-                    if (kismet_serv.FetchNumNetworks() != num_networks) {
-                        if (sound == 1) {
-                            sound = PlaySound("new");
-                        }
-
-                        if (speech == 1) {
-                            string text;
-
-                            wireless_network *newnet = kismet_serv.FetchLastNewNetwork();
-
-                            if (newnet != NULL) {
-                                if (newnet->wep)
-                                    text = ExpandSpeechString(speech_sentence_encrypted, newnet, speech_encoding);
-                                else
-                                    text = ExpandSpeechString(speech_sentence_unencrypted, newnet, speech_encoding);
-
-                                speech = SayText(text.c_str());
-                            }
-                        }
-                    }
-                    num_networks = kismet_serv.FetchNumNetworks();
-
-                    if (kismet_serv.FetchNumPackets() != num_packets ) {
-                        if (time(0) - last_click >= decay && sound == 1) {
-
-                            if (kismet_serv.FetchNumPackets() - num_packets >
-                                kismet_serv.FetchNumDropped() - num_dropped) {
-                                sound = PlaySound("traffic");
-                            } else {
-                                sound = PlaySound("junktraffic");
-                            }
-
-                            last_click = time(0);
-                        }
-
-                        num_packets = kismet_serv.FetchNumPackets();
-                        num_noise = kismet_serv.FetchNumNoise();
-                        num_dropped = kismet_serv.FetchNumDropped();
-                    }
-                }
-            }
-        } else {
-            if (reconnect) {
-                if (kismet_serv.Connect(guiport, guihost) >= 0) {
-                    client_descrip = kismet_serv.FetchDescriptor();
-                    FD_SET(client_descrip, &read_set);
-                    if (client_descrip > max_fd)
-                        max_fd = client_descrip;
-
-                    snprintf(status, STATUS_MAX, "Reconnected to %s:%d.", guihost, guiport);
-                    gui->WriteStatus(status);
                 }
             }
         }
@@ -913,8 +936,11 @@ int main(int argc, char *argv[]) {
             // Force a display event
             gui->DrawDisplay();
             last_draw = time(0);
+        } else {
+            // If we're tainted, update even if it isn't time.  We don't tick since
+            // that only happens once a second.
+            gui->DrawDisplay();
         }
-
     }
 }
 

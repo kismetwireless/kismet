@@ -40,6 +40,7 @@ const int statheight = 6;
 #include <list>
 #include <map>
 #include <string>
+#include <vector>
 
 #include "packet.h"
 #include "frontend.h"
@@ -49,6 +50,16 @@ public:
     NCurseFront();
 
     void AddClient(TcpClient *in_client) { client = in_client; }
+
+    void FetchClients(vector<TcpClient *> *in_vec) {
+        in_vec->clear();
+        in_vec->push_back(client);
+    }
+
+    TcpClient *FetchPrimaryClient() {
+        return client;
+    }
+
     void AddPrefs(map<string, string> in_prefs) { return; }
 
     int ParseArgs(int argc, char *argv[]) { return 0; }

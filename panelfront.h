@@ -39,6 +39,7 @@
 #include <list>
 #include <map>
 #include <string>
+#include <vector>
 
 #include "packet.h"
 #include "frontend.h"
@@ -89,6 +90,9 @@ public:
     void AddPrefs(map<string, string> in_prefs);
 
     void AddClient(TcpClient *in_client);
+
+    void FetchClients(vector<TcpClient *> *in_vec);
+    TcpClient *FetchPrimaryClient();
 
     int ParseArgs(int argc, char *argv[]) { return 0; }
 
@@ -384,6 +388,8 @@ protected:
     // Current context so we can update multiple servers at once
     server_context *context;
     vector<server_context *> context_list;
+    // Secondary vector of clients so we can quickly return clients
+    vector<TcpClient *> client_list;
 
 };
 

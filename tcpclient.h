@@ -92,12 +92,22 @@ public:
     char *FetchHost() { return hostname; }
 
     char *FetchError() { return errstr; }
+
     int FetchNumNetworks() { return num_networks; }
     int FetchNumPackets() { return num_packets; }
     int FetchNumCrypt() { return num_crypt; }
     int FetchNumInteresting() { return num_interesting; }
     int FetchNumNoise() { return num_noise; }
     int FetchNumDropped() { return num_dropped; }
+
+    int FetchDeltaNumNetworks() { return num_networks - old_num_networks; }
+    int FetchDeltaNumPackets() { return num_packets - old_num_packets; }
+    int FetchDeltaNumCrypt() { return num_crypt - old_num_crypt; }
+    int FetchDeltaNumInteresting() { return num_interesting - old_num_interesting; }
+    int FetchDeltaNumNoise() { return num_noise - old_num_noise; }
+    int FetchDeltaNumDropped() { return num_dropped - old_num_dropped; }
+
+
     int FetchPacketRate() { return packet_rate; }
 
     int FetchMajor() { return major; }
@@ -177,6 +187,9 @@ protected:
 
     int num_networks, num_packets, num_crypt,
         num_interesting, num_noise, num_dropped, packet_rate;
+
+    int old_num_networks, old_num_packets, old_num_crypt,
+        old_num_interesting, old_num_noise, old_num_dropped, old_packet_rate;
 
     int major, minor, tiny;
     time_t start_time;

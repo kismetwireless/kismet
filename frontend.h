@@ -84,6 +84,11 @@ public:
 
     virtual void AddClient(TcpClient *in_client) = 0;
 
+    // Fetch all the clients
+    virtual void FetchClients(vector<TcpClient *> *in_vec) = 0;
+    // Fetch the primary client
+    virtual TcpClient *FetchPrimaryClient() = 0;
+
     // Handle consistent tick operations
     virtual int Tick() = 0;
 
@@ -105,6 +110,9 @@ public:
 
     // Get the error
     char *FetchError() { return errstr; }
+
+    // Get if the screen is tainted
+    int FetchTainted() { return tainted; }
 
     // Load group data from the stored groupfile
     void ReadGroupMap(FILE *in_file);
@@ -168,6 +176,9 @@ protected:
 
     map<mac_addr, manuf *> ap_manuf_map;
     map<mac_addr, manuf *> client_manuf_map;
+
+    // Has the drawing field been tainted?
+    int tainted;
 
 };
 
