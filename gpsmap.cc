@@ -1862,7 +1862,6 @@ void DrawNetCenterText(vector<gps_network *> in_nets, Image *in_img, DrawInfo *i
 
 
 void DrawNetScatterPlot(vector<gps_network *> in_nets, Image *in_img, DrawInfo *in_di) { /*FOLD00*/
-    int z;
     int power_level;
     int power_index;
 
@@ -1878,6 +1877,7 @@ void DrawNetScatterPlot(vector<gps_network *> in_nets, Image *in_img, DrawInfo *
 
 	// hehe, cheating with a hash
         map<string, string> dim;
+	map<string, int> dim_signal;
         for (unsigned int y = 0; y < map_iter->points.size(); y++) {
             gps_point *pt = map_iter->points[y];
 
@@ -1896,6 +1896,7 @@ void DrawNetScatterPlot(vector<gps_network *> in_nets, Image *in_img, DrawInfo *
             string a = mm1;
             string b = mm2;
             dim[a] = b;
+	    dim_signal[a] = (int) pt->signal;
         }
 
         if ( scatter_power == 0) {
@@ -1913,14 +1914,10 @@ void DrawNetScatterPlot(vector<gps_network *> in_nets, Image *in_img, DrawInfo *
             in_di->fill = netclr;
         }
 
-        z = 0; // ATR - Counter for getting signal from structure
         for (map<string, string>::const_iterator y = dim.begin(); y != dim.end(); ++y) {
             if (scatter_power == 1) {
                 // if power based coloring, determine and set color for each scatter point
-                gps_point *pt = map_iter->points[z];
-                z++;
-
-                power_level = (int) pt->signal;
+	        power_level = dim_signal[y->first];
 
                 if (power_level == 0) {
                     //sig is really something above zero or we wouldn't get a packet ;)
