@@ -660,6 +660,11 @@ Licensed under the GPL
     'gpsmap --help' lists all of the switches for enabling different map 
     overlays.
 
+    The extras/ directory contains an additional utility, 'gpsxml-sanitize',
+    for cleaning invalid sample points out of the gpsxml data files for use in
+    other programs.  GPSMap cleans the data set automatically, reprocessing the
+    gpsxml files is only needed if they are to be used in third-party programs.
+
 13. Drone Remotes
 
     Remote Kismet drones are designed to turn Kismet into a stationary, 

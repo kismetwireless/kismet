@@ -106,17 +106,40 @@ int ProcessGPSFile(char *in_fname) {
 
     // Write the start of the run
     printf("<gps-run gps-version=\"%d\" start-time=\"%.24s\">\n\n",
-            GPS_VERSION, ctime(&xmlct));
+           GPS_VERSION, ctime(&xmlct));
 
     if (XMLFetchGpsNetfile().length() > 0) {
         printf("    <network-file>%s</network-file>\n\n", 
-                XMLFetchGpsNetfile().c_str());
+               XMLFetchGpsNetfile().c_str());
     }
 
+    for (unsigned int x = 0; x < file_points.size(); x++) {
+        if (file_screen.find(file_points[x]->id) != file_screen.end())
+            continue;
+
+        printf("    <gps-point bssid=\"%s\" source=\"%s\" time-sec=\"%ld\" "
+               "time-usec=\"%ld\" lat=\"%f\" lon=\"%f\" alt=\"%f\" spd=\"%f\" "
+               "heading=\"%f\" fix=\"%d\" signal=\"%d\" noise=\"%d\"/>\n",
+               file_points[x]->bssid, file_points[x]->source,
+               (long int) file_points[x]->tv_sec, 
+               (long int) file_points[x]->tv_usec,
+               file_points[x]->lat, file_points[x]->lon, file_points[x]->alt,
+               file_points[x]->spd, file_points[x]->heading, file_points[x]->fix,
+               file_points[x]->signal, file_points[x]->noise);
+    }
+
+    printf("</gps-run>\n");
+    
     return 0;
 }
 
 int main(int argc, char *argv[]) {
+    fprintf(stderr, "Kismet GPSXML Sample Sanitizer\n");
+    fprintf(stderr, "Sanitized XML will be printed to stdout.\n");
+
+    if (argc != 2) {
+        fprintf(stderr, "FATAL: Must specifiy only one GPS file.\n");
+    }
 
     ProcessGPSFile(argv[1]);
     
