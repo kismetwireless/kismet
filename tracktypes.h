@@ -126,6 +126,8 @@ typedef struct wireless_client {
         datasize = 0;
 
         encoding_set = 0;
+
+        last_sequence = 0;
     }
 
     client_type type;
@@ -186,6 +188,8 @@ typedef struct wireless_client {
     // Data passed, in bytes
     unsigned long datasize;
 
+    int last_sequence;
+
 };
 
 // A network
@@ -227,7 +231,6 @@ typedef struct wireless_network {
         best_lat = best_lon = best_alt = 0;
 
         client_disconnects = 0;
-        sequence = 0;
 
         datasize = 0;
 
@@ -244,6 +247,8 @@ typedef struct wireless_network {
 
         turbocell_nid = turbocell_sat = 0;
         turbocell_mode = turbocell_unknown;
+
+        last_sequence = 0;
 
     }
 
@@ -323,7 +328,7 @@ typedef struct wireless_network {
     // Number of client disconnects (decayed per second by packetracker::tick)
     int client_disconnects;
     // Last sequence value
-    int sequence;
+    int last_sequence;
 
 #ifdef __TCPCLIENT_H__
     // If we're included in the client, include a reference to the server connection

@@ -278,8 +278,6 @@ void Packetracker::ProcessPacket(packet_info info) {
 
         net->first_time = time(0);
 
-        net->sequence = info.sequence_number;
-
         net->maxrate = info.maxrate;
 
         if (strlen(info.beacon_info) != 0)
@@ -337,6 +335,10 @@ void Packetracker::ProcessPacket(packet_info info) {
     }
 
     net->last_time = time(0);
+
+    // update the sequence for the owner of the bssid
+    if (info.source_mac == net->bssid)
+        net->last_sequence = info.sequence_number;
 
     if (info.quality >= 0 && info.signal >= 0) {
         net->quality = info.quality;
@@ -710,6 +712,8 @@ void Packetracker::ProcessDataPacket(packet_info info, wireless_network *net) {
     }
 
     client->last_time = time(0);
+
+    client->last_sequence = info.sequence_number;
 
     // Add data to the owning network and to the client
     net->datasize += info.datasize;
