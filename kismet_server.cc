@@ -615,6 +615,9 @@ void NetWriteInfo() {
     // Send card info
     vector<meta_packsource *> packet_sources = sourcetracker.FetchMetaSourceVec();
     for (unsigned int src = 0; src < packet_sources.size(); src++) {
+        if (packet_sources[src]->valid == 0)
+            continue;
+
         ui_server.SendToAll(card_ref, (void *) packet_sources[src]);
     }
 
