@@ -33,6 +33,7 @@ $(XML):		$(XMLO)
 clean:
 	@-rm -f *.o
 	@-rm -f $(CWGD)
+	@-rm -f $(XML)
 
 distclean:
 	@-make clean
