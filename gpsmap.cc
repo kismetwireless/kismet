@@ -3561,6 +3561,11 @@ int main(int argc, char *argv[]) {
         }
     }
 
+    if (sample_points == 0) {
+        fprintf(stderr, "FATAL:  No samples from any of the files given.\n");
+        exit(1);
+    }
+        
     fprintf(stderr, "Processing %d sample points.\n",
             sample_points);
 
