@@ -973,14 +973,15 @@ int ProcessGPSFile(char *in_fname) {
 
     file_samples = file_points.size();
 
-    if (file_samples == 0) {
-        fprintf(stderr, "WARNING:  No sample points found in '%s'.\n", in_fname);
-        return 0;
-    }
-
     if (cache_disable == 0 && cached < 0) {
         fprintf(stderr, "NOTICE: Caching GPS file %s\n", in_fname);
         WriteGpsCacheFile(in_fname, &file_networks, &file_points);
+    }
+
+    // Do this after caching so we don't keep reparsing empty files
+    if (file_samples == 0) {
+        fprintf(stderr, "WARNING:  No sample points found in '%s'.\n", in_fname);
+        return 0;
     }
 
     // We have the file correctly, so add to our gps track count
