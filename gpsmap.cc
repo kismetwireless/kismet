@@ -61,7 +61,7 @@
 #define PIXELFACT 2817.947378
 
 /* offset amount for relevance-finding */
-#define CHUNK_DIFF 0.00004
+#define CHUNK_DIFF 0.00005
 
 #define square(x) ((x)*(x))
 // Global constant values
@@ -252,6 +252,7 @@ typedef struct gps_network {
     float diagonal_distance, altitude_distance;
 
     vector<gps_point *> points;
+    vector<gps_point *> center_points;
 
     // Points w/in this network
     // vector<point> net_point;
@@ -352,7 +353,7 @@ pthread_mutex_t print_lock;
 pthread_mutex_t power_pos_lock;
 #endif
 unsigned int numthreads = 1;
-unsigned int *power_map;
+int *power_map;
 unsigned int power_pos = 0;
 int *power_input_map;
 
@@ -975,6 +976,9 @@ int ProcessGPSFile(char *in_fname) {
         spd = file_points[i]->spd;
         fix = file_points[i]->fix;
 
+        if (file_points[i]->signal != 0)
+            power_data = 1;
+
         // Only include tracks in the size of the map if we're going to draw them
         int trackdata = strncmp(file_points[i]->bssid, gps_track_bssid, MAC_STR_LEN);
         if ((draw_track && trackdata == 0) || trackdata != 0) {
@@ -1019,8 +1023,6 @@ int ProcessGPSFile(char *in_fname) {
                 tdat.noise = file_points[i]->noise;
             }
 
-            if (tdat.power != 0)
-                power_data = 1;
             track_vec[num_tracks-1].push_back(tdat);
         } else if (bssid_gpsnet_map.find(file_points[i]->bssid) == bssid_gpsnet_map.end()) {
             //printf("making new netork: %s\n", file_points[i]->bssid);
@@ -1187,8 +1189,6 @@ void ProcessNetData(int in_printstats) {
 
     printf("Processing %d raw networks.\n", (int) bssid_gpsnet_map.size());
 
-    mpf_set_default_prec(256);
-
     for (map<string, gps_network *>::const_iterator x = bssid_gpsnet_map.begin();
          x != bssid_gpsnet_map.end(); ++x) {
 
@@ -1209,6 +1209,7 @@ void ProcessNetData(int in_printstats) {
 
         vector<gps_point *> relvec;
         relvec = RelevantCenterPoints(map_iter->points);
+        map_iter->center_points = relvec;
         for (unsigned int y = 0; y < relvec.size(); y++) {
             mpf_t lat, lon;
             mpf_init_set_d(lat, relvec[y]->lat);
@@ -1487,78 +1488,24 @@ long int BestMapScale(double tlat, double tlon, double blat, double blon) { /*FO
     return 0;
 }
 
-//#define geom_distance(a, b, x, y) sqrt(pow((double) (a) - (double) (x), 2) + pow((double) (b) - (double) (y), 2))
-
 // This new distance macro does not use the pow function, for 2 we can simply multiply
 // which aves us ~800mio ops !!!!
 #define geom_distance(a, b, x, y) sqrt(square((double) (a) - (double) (x)) + square((double) (b) - (double) (y)))
 
-// Frank and Nielson's improved weighting algorithm
-double WeightAlgo(int start_x, int start_y, int in_x, int in_y, double in_fuzz, double in_scale) { /*FOLD00*/
+// Inverse weight calculations -- Shepard's with Frank and Nielson's improved 
+// weight algorithm
 
-    // Step 1:  Find 'r', the distance to the farthest interpolation point
-    int min_x = 0, min_y = 0;
-    int max_x = map_width, max_y = map_height;
-    int offset = (int) (in_fuzz/in_scale);
+// Keep track of stuff to save on math
+typedef struct {
+    int signal;
+    double ldist;
+} weight_point_rec;
 
-    if (start_x - offset > min_x)
-        min_x = start_x - offset;
-    if (start_y - offset > min_y)
-        min_y = start_y - offset;
-    if (start_x + offset < max_x)
-        max_x = start_x + offset;
-    if (start_y + offset < max_y)
-        max_y = start_y + offset;
-
-
-//    printf("startx %d starty %d inx %d iny %d\n", start_x, start_y, in_x, in_y);
-
-    // Find the farthest sample point in this set
-    double r = 0;
-    for (int cury = min_y; cury < max_y; cury++) {
-        for (int curx = min_x; curx < max_x; curx++) {
-            if (power_input_map[(map_width * cury) + curx] < 0)
-                continue;
-
-//            printf("power map at %d,%d has val %d max %d,%d\n", cury, curx,
-//                   power_input_map[(map_width * cury) + curx], max_x, max_y);
-
-            double h = geom_distance(start_x, start_y, curx, cury) * 1.2;
-            if (h > r)
-                r = h;
-        }
-    }
-
-    // Construct the 'top half' of the weight function:
-    double hi = geom_distance(start_x, start_y, in_x, in_y);
-    double top_func = square( ((r - hi)/(r * hi)));
-
-    double bot_sum = 0;
-    // Construct the 'bottom half' of the weight function
-    for (int cury = min_y; cury < max_y; cury++) {
-        for (int curx = min_x; curx < max_x; curx++) {
-            if (power_input_map[(map_width * cury) + curx] < 0)
-                continue;
-
-            double hj = geom_distance(start_x, start_y, curx, cury) * 1.8;
-
-            bot_sum += square( ((r - hj)/(r * hj)));
-        }
-    }
-
-    // Put it all together and return the influence
-    double weight = top_func/bot_sum;
-
-    return weight;
-}
-
-// Inverse weight calculations -- Shepard's with Frank and Nielson's improved weight
-// algorithm
 int InverseWeight(int in_x, int in_y, int in_fuzz, double in_scale) { /*FOLD00*/
     int min_x = 0, min_y = 0;
     int max_x = map_width, max_y = map_height;
 
-    int offset = (int)(100 * (double) (1 / in_scale));
+    int offset = (int)(200 * (double) (1 / in_scale));
 
     // Moved the abort to here, so we don't need to do the downward things
     if (offset == 0)
@@ -1581,24 +1528,48 @@ int InverseWeight(int in_x, int in_y, int in_fuzz, double in_scale) { /*FOLD00*/
 
     double power_sum = 0;
 
+    vector<weight_point_rec> wpvec;
+
+    // Find the farthest distance from the point we're at now thats within 
+    // our range
+
+    double maxdist = 0;
+    weight_point_rec wprec;
     for (int cury = min_y; cury < max_y; cury++) {
         for (int curx = min_x; curx < max_x; curx++) {
-            // Round out the distance we calc in...  Store some stuff to make
-            // math faster
             double ldist = sqrt(((in_x - curx)*(in_x - curx)) +
                     ((in_y - cury)*(in_y - cury)));
 
-            if ((int) ldist > offset) {
+            if ((int) ldist > offset)
                 continue;
-            }
             
-            if (power_input_map[(map_width * cury) + curx] < 0)
+            if (power_input_map[(map_width * cury) + curx] <= 0)
                 continue;
 
-            power_sum += WeightAlgo(in_x, in_y, curx, cury, in_fuzz, in_scale) * power_input_map[(map_width * cury) + curx];
+            if (maxdist < ldist)
+                maxdist = ldist;
+
+            // Save our point data since we've calculated it already
+            wprec.signal = power_input_map[(map_width * cury) + curx];
+            wprec.ldist = ldist;
+            wpvec.push_back(wprec);
 
         }
     }
+
+    if (wpvec.size() == 0)
+        return 0;
+
+    // Find the sum of all distances for the bottom half of the eq
+    double bottom_sum = 0;
+    for (unsigned int x = 0; x < wpvec.size(); x++) 
+        bottom_sum += square((maxdist - wpvec[x].ldist)/
+                (maxdist * wpvec[x].ldist));
+
+    // Now get the weighting and add all the points
+    for (unsigned int x = 0; x < wpvec.size(); x++)
+        power_sum += square((maxdist - wpvec[x].ldist)/
+                (maxdist * wpvec[x].ldist)) * wpvec[x].signal;
 
     return (int) power_sum;
 
@@ -2088,9 +2059,10 @@ void *PowerLine(void *arg) {
 #endif
 
         for (unsigned int x = 0; x < map_width; x+= in_res) {
-            unsigned int powr = InverseWeight(x, y, (int) (map_scale/200),
+            unsigned int powr = InverseWeight(x, y, 0,
                                               (double) map_scale/PIXELFACT);
-
+            if (powr > 255)
+                powr = 255;
 #ifdef HAVE_PTHREAD
             pthread_mutex_lock(&power_lock);
 #endif
@@ -2131,83 +2103,42 @@ void DrawNetPower(vector<gps_network *> in_nets, Image *in_img,
     pthread_attr_t attr;
 #endif
 
-    power_map = new unsigned int [map_width * map_height];
-//    memset(power_map, 0, sizeof(unsigned int) * (map_width * map_height));
-    //    This is not really needed, the image is ok althoug ( please verify )
-    //    so we can save about 1.3mio opcodes here
-
+    power_map = new int [map_width * map_height];
+    memset(power_map, 0, sizeof(int) * (map_width * map_height));
     power_input_map = new int [map_width * map_height];
     memset(power_input_map, -1, sizeof(int) * (map_width * map_height));
 
     for (unsigned int x = 0; x < in_nets.size(); x++) {
         gps_network *map_iter = in_nets[x];
+        int visible = 0;
 
-        for (unsigned int y = 0; y < map_iter->points.size(); y++) {
-            // unsigned int curx = track_vec[vec][i].x, cury = track_vec[vec][i].y;
+        for (unsigned int y = 0; y < map_iter->center_points.size(); y++) {
             double dcurx, dcury;
 
-            calcxy(&dcurx, &dcury, map_iter->points[y]->lat, map_iter->points[y]->lon,
+            calcxy(&dcurx, &dcury, map_iter->center_points[y]->lat, 
+                    map_iter->center_points[y]->lon,
                    (double) map_scale/PIXELFACT, map_avg_lat, map_avg_lon);
 
-            unsigned int curx = (unsigned int) dcurx, cury = (unsigned int) dcury;
+            unsigned int curx = (unsigned int) dcurx;
+            unsigned int cury = (unsigned int) dcury;
 
             if (curx >= map_width || cury >= map_height || curx < 0 || cury < 0)
                 continue;
 
-            /*
-            printf("comparing map %d,%d val %d to %d\n", curx, cury,
-                   power_input_map[(map_width * cury) + curx], 
-                   map_iter->points[y]->signal);
-                   */
-
-            if (power_input_map[(map_width * cury) + curx] < 
-                map_iter->points[y]->signal && map_iter->points[y]->signal != 0) {
-                power_input_map[(map_width * cury) + curx] = map_iter->points[y]->signal;
-                if (map_iter->points[y]->signal < signal_lowest)
-                    signal_lowest = map_iter->points[y]->signal;
-                if (map_iter->points[y]->signal > signal_highest)
-                    signal_highest = map_iter->points[y]->signal;
-            }
-        }
-
-    }
-
-    // Attempt to normalize the data somewhat
-    int median = (signal_lowest + signal_highest) / 2;
-    for (unsigned int v = 0; v < map_height; v++) {
-        for (unsigned int h = 0; h < map_width; h++) {
-            if (power_input_map[(map_width * v) + h] != 0)
-                power_input_map[(map_width * v) + h] -= median;
-        }
-    }
-
-#if 0
-    // Convert the power data in the tracks into a 2d map
-    fprintf(stderr, "Converting track power data to coordinate mesh...\n");
-    for (unsigned int vec = 0; vec < track_vec.size(); vec++) {
-        for(unsigned int i = 0; i < track_vec[vec].size(); i++) {
-
-            if (track_vec[vec][i].version < 2)
-                continue;
-
-            unsigned int curx = track_vec[vec][i].x, cury = track_vec[vec][i].y;
-
-            if (curx >= map_width || cury >= map_height || curx < 0 || cury < 0)
-                continue;
-
-            /*
-            printf("comparing map %d,%d val %d to %d\n", curx, cury,
-            power_input_map[(map_width * cury) + curx], track_vec[vec][i].power);
-            */
-
-            if (power_input_map[(map_width * cury) + curx] < track_vec[vec][i].power &&
-                track_vec[vec][i].power != 0) {
-                power_input_map[(map_width * cury) + curx] = track_vec[vec][i].power;
+            if (map_iter->center_points[y]->signal == 0 ||
+                    (power_input_map[(map_width * cury) + curx] < 
+                        map_iter->center_points[y]->signal && 
+                        map_iter->center_points[y]->signal > 0)) {
+                power_input_map[(map_width * cury) + curx] = 
+                    map_iter->center_points[y]->signal;
             }
 
+            visible = 1;
         }
+
+        if (visible)
+            drawn_net_map[map_iter->bssid.c_str()] = map_iter;
     }
-#endif
 
     fprintf(stderr, "Interpolating power into graph points.\n");
 
@@ -2240,6 +2171,21 @@ void DrawNetPower(vector<gps_network *> in_nets, Image *in_img,
 
     PowerLine((void *) pargs);
 #endif
+
+    // calc min and max signals for color scaling
+    for (unsigned int v = 0; v < map_height; v++) {
+        for (unsigned int h = 0; h < map_width; h++) {
+            int pw = power_map[(map_width * v) + h];
+
+            if (pw > 0) {
+                if (signal_highest < pw)
+                    signal_highest = pw;
+                if (signal_lowest > pw)
+                    signal_lowest = pw;
+            }
+        }
+    }
+
     fprintf(stderr, "Preparing colormap.\n");
     // Doing this here saves us another ~ 1mio operations
     PixelPacket colormap[power_steps];
@@ -2269,33 +2215,17 @@ void DrawNetPower(vector<gps_network *> in_nets, Image *in_img,
     fprintf(stderr, "Drawing interpolated power levels to map.\n");
 
     int power_stepsize = (signal_highest - signal_lowest) / power_steps;
-    int power_halfstepsize = power_stepsize;
     
     for (unsigned int y = 0; y < map_height; y += power_resolution) {
         for (unsigned int x = 0; x < map_width; x += power_resolution) {
-            //            int powr = InverseWeight(x, y, 200, (double) scale/PIXELFACT);
             int powr = power_map[(map_width * y) + x];
 
-            //printf("Got weight %d for pixel %d,%d\n", powr, x, y);
-
-            if (powr > 0 && powr > power_halfstepsize ) {
+            if (powr > 0) {
 
                 int power_index = powr / power_stepsize;
 
                 if (power_index >= power_steps)
                     power_index = power_steps - 1;
-
-		/*
-                QueryColorDatabase(power_colors[power_index], &point_clr, &excep);
-                if (excep.severity != UndefinedException) {
-                    CatchException(&excep);
-                    break;
-                }*/
-
-		/*
-                in_di->stroke = point_clr;
-                in_di->fill = point_clr;
-		*/
 
                 in_di->stroke = colormap[power_index];
                 in_di->fill = colormap[power_index];
@@ -2311,10 +2241,6 @@ void DrawNetPower(vector<gps_network *> in_nets, Image *in_img,
                     b = y + power_resolution - 1;
                     snprintf(prim, 1024, rect_template, x, y, r, b);
                 }
-
-                //printf("%d,%d power %d\n", x, y, powr);
-                //snprintf(prim, 1024, "fill-opacity %d%% stroke-opacity %d%% stroke-width 1 rectangle %d,%d %d,%d",
-                //         draw_opacity, draw_opacity, x, y, r, b);
 
                 in_di->primitive = prim;
                 DrawImage(in_img, in_di);
@@ -3140,10 +3066,11 @@ int DrawLegendComposite(vector<gps_network *> in_nets, Image **in_img,
             }
 
         }
+
+        cur_column++;
     }
 
     if (draw_power && power_data != 0) {
-        cur_column++;
         cur_rowpos = map_height + 5;
 
         cur_colpos = text_colwidth + ((avail_width / ncolumns) * cur_column) +
@@ -3445,6 +3372,8 @@ int main(int argc, char *argv[]) {
     mac_addr fm;
     string toklow;
     wireless_network_type wt;
+
+    mpf_set_default_prec(256);
 
     while(1) {
         int r = getopt_long(argc, argv,
