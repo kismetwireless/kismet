@@ -1,4 +1,4 @@
-Kismet 3.0.1
+Kismet 3.2.0
 Mike Kershaw <dragorn@kismetwireless.net>
 http://www.kismetwireless.net
 Licensed under the GPL
@@ -504,6 +504,170 @@ Licensed under the GPL
     called 'gpsmap'.  Gpsmap reads the netxml and gpsxml files, sanitizes the
     data, 
 
+    GPSMap can download maps from several online sources (MapBlast, Tiger,
+    Terraserver) as well as use user-provided graphics, provided you know the
+    scale and center coordinates.
+
+    Main features:
+        * Travel path/track
+        * Approximate network circular range
+        * Approximate network center
+        * Convex hull of all network sample points
+        * Interpolated (weathermap-style) graphing of power and range
+        * Labeling of network centers
+        * Scatterplot of all detected packets
+
+    'gpsmap --help' lists all of the switches for enabling different map 
+    overlays.
+
+13. Drone Remotes
+
+    Remote Kismet drones are designed to turn Kismet into a stationary, 
+    distibuted IDS system.  Each remote drone can use any number of packet
+    sources supported by Kismet, and reports the packets over a wired ethernet
+    connection.  Drones are optimized for minimal CPU requirements, and should
+    run on almost any hardware.
+
+    Each drone in the network can be configured for independent channel 
+    hopping, and even different 802.11 standards (such as one drone monitoring
+    802.11a and one monitoring 802.11b).
+
+    A kismet server can be connected to all the drones in the network and will
+    provide a single dump file and alert system.  Using wep decrpytion and a 
+    named pipe output ('fifo' config file option), wireless traffic from around
+    an installation can be sent to snort (or other layer3 IDS).
+
+14. Alerts and Intrusion Detection
+
+    Kismet will provide alerts based on fingerprints (specific netstumbler
+    versions, other specific attacks) and trends (unusual probes, excessive
+    disassociation, etc).  Kismet focuses on the 802.11 (layer 2) network
+    layer, and provides integration via named pipes with layer3+ IDS systems
+    such as Snort.
+
+    Alerts are primarily meant to be used in a stationary IDS situation.  Some
+    are potentially useful in a mobile/wardriving setup, but others may
+    generate false or useless information.
+
+    Alert name:       NETSTUMBLER
+    Alert type:       Fingerprint  
+    Alert on:         Netstumbler probe requests
+    Alert message:    "Netstumbler ($version) probe detected from ($macsource)"
+    Tool-specific:    Yes (Netstumbler 3.22, 3.23, 3.30)
+    References:       http://www.netstumber.com
+    Details:          In an attempt to disclose the SSID of a network, 
+                      Netstumbler sends out unique packets.  This is not done
+                      in all situations, but when it is detected the potential
+                      for false positives is very low.
+
+    Alert name:       DEAUTHFLOOD
+    Alert type:       Trend
+    Alert on:         Deauthenticate/Disassociate Flood
+    Alert message:    "Deassociate/Deauthenticate flood on $targetbssid"
+    Tool-specific:    No
+    References:       http://802.11ninja.net
+                      http://home.jwu.edu/jwright/papers/l2-wlan-ids.pdf  
+    Details:          By spoofing disassociate or deauthenticate packets, 
+                      arbitrary (or all) clients can be disconnected from a
+                      network.  This attack lasts only as long as the attacker
+                      maintains the flood.
+
+    Alert name:       LUCENTTEST
+    Alert type:       Fingerprint  
+    Alert on:         Lucent link test  
+    Alert message:    "Lucent link test detected from $sourcemac"
+    Tool-specific:    Yes (Lucent/Orinoco site survey software)
+    References:       http://www.agere.com/wlan/customercare/ (requires login)
+    Details:          Lucent/Orinoco/Proxim/Agere provide site survey 
+                      software.  This rule will generate an alert when it is
+                      in use.
+
+    Alert name:       WELLENREITER
+    Alert type:       Fingerprint
+    Alert on:         Wellenreiter SSID brute force attempt
+    Alert message:    "Wellenteiter probe detected from $sourcemac"
+    Tool-specific:    Yes (Wellenreiter 1.5, 1.6)
+    References:       http://home.jwu.edu/jwright/papers/l2-wlan-ids.pdf
+                      http://home.jwu.edu/jwright/papers/wlan-mac-spoof.pdf
+    Details:          Wellenreiter attempts to use a dictionary to brute-force
+                      a hidden SSID.  Between each probe attempt it resets the
+                      card to probe for 'this_is_used_for_wellenreiter'.
+
+    Alert name:       CHANCHANGE
+    Alert type:       Trend  
+    Alert on:         Previously detected AP changing to a new channel
+    Alert message:    "Beacon on $bssid ($ssid) for channel $newchannel,
+                      previously detected on $oldchannel"
+    Tool-specific:    No
+    Details:          Man-in-the-middle attacks attempt to direct users to a
+                      fake AP on another channel.  If Kismet sees an AP
+                      change to a new channel, this is often suspicious
+                      behavior.
+
+    Alert name:       BCASTDISCON
+    Alert type:       Fingerprint
+    Alert on:         Broadcast disconnect/deauthenticate
+    Alert message:    "Broadcast [disassociation|deathentication] on $bssid"
+    Tool-specific:    No
+    Details:          Many attacks use a broadcast disassociate or 
+                      deauthenticate to disconnect all users on a network, 
+                      either to redirect them to a new fake network or do
+                      cause a denial of service or disclose a cloaked SSID.
+                      Broadcast disassociations are rarely, if ever, legitimate.
+
+    Alert name:       AIRJACKSSID
+    Alert type:       Fingerprint
+    Alert on:         SSID of 'airjack'
+    Alert message:    "Beacon for SSID 'airjack' from $sourcemac"
+    Tool-specific:    Yes (airjack)
+    References:       http://802.11ninja.net/airjack/
+    Details:          The AirJack tools set the initial SSID to 'airjack'.
+
+    Alert name:       PROBENOJOIN
+    Alert type:       Trend
+    Alert on:         Clients probing for networks, being accepted by that
+                      network, and continuing to probe for networks.
+    Alert message:    "Suspicious client $sourcemac - probing networks but
+                      never joining."
+    Tool-specific:    No
+    Details:          'Active' or 'Firmware' network scanning tools work by
+                      letting the card probe for any network and recording
+                      those that respond.  These tools include NetStumbler,
+                      PocketStumbler, and many others.
+                      Kismet raises this alert when a client is seen to be 
+                      probing for networks but never joins any of the networks
+                      which respond.
+                      False positives are possible in noisy/lossy situations,
+                      disabling this alert may be desireable in some 
+                      installations.
+
+    Alert name:       DISASSOCTRAFFIC
+    Alert type:       Trend
+    Alert on:         Traffic from a source within 10 seconds of a
+                      disassociation
+    Alert message:    "Suspicious traffic on $sourcemac: Data traffic within
+                      10 seconds of a disassociate."
+    Tool-specific:    No
+    References:       "802.11 Denial-of-Service Attacks: Real Vulnerabilities 
+                      and Practical Solutions"
+    Details:          As discussed in the above research paper by Bellardo, J. 
+                      and Savage, S., a host which legitimately disassociates 
+                      or deauthenticates from a network should not be 
+                      exchanging data immediately thereafter. Any client which 
+                      DOES exchange data within 10 seconds of disassociating 
+                      from the network should be considered a likely victim of 
+                      a disassociate attack.
+
+    Alert name:       NOPROBERESP
+    Alert type:       Fingerprint
+    Alert on:         Probe response packet with 0-length SSID tagged parameter
+    Alert message:    "Probe response with 0-length SSID detected from 
+                      $sourcemac"
+    Tool-specific:    No
+    Details:          Many firmware versions from different manufacturers
+                      have a fatal error when they receive a probe response
+                      with a 0-length SSID tagged parameter.
+    
 15. Troubleshooting
     
     Some common problems with Kismet have easy solutions:

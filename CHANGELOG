@@ -1,3 +1,4 @@
+Dec 25 2003  3.1.0  More README updates
 Dec 24 2003  3.1.0  More README updates
                     More invalid packet detection for drivers that feed us junk
                     Fixed FCS on orinoco
