@@ -80,7 +80,7 @@ int Packetsourcetracker::Poll(fd_set *in_rset, fd_set *in_wset) {
             if (dataframe_only == 0) {
                 if (send(sockpair[1], pak, sizeof(chanchild_packhdr) - sizeof(void *), 0) < 0) {
                     if (errno == ENOBUFS) {
-                        goto pollendpackpipewrite;
+                        break;
                     } else {
                         snprintf(errstr, 1024, "ipc header send() failed: %d:%s", errno, strerror(errno));
                         return -1;
@@ -93,7 +93,7 @@ int Packetsourcetracker::Poll(fd_set *in_rset, fd_set *in_wset) {
                 if (send(sockpair[1], pak->data, pak->datalen, 0) < 0) {
                     if (errno == ENOBUFS) {
                         dataframe_only = 1;
-                        goto pollendpackpipewrite;
+                        break;
                     } else {
                         snprintf(errstr, 1024, "ipc content send() failed: %d:%s", errno, strerror(errno));
                         return -1;
@@ -107,10 +107,6 @@ int Packetsourcetracker::Poll(fd_set *in_rset, fd_set *in_wset) {
             free(pak->data);
             delete pak;
         }
-
-    // Labels are bad, but really, what else to do?
-pollendpackpipewrite: 
-        ;
 
     }
     
@@ -813,47 +809,6 @@ void Packetsourcetracker::ChannelChildLoop() {
             exit(1);
         }
 
-        // Write a packet - wset should never be set if child_ipc_buffer is empty
-        if (FD_ISSET(sockpair[0], &wset)) {
-            chanchild_packhdr *pak = child_ipc_buffer.front();
-
-            // Send the header if we didn't already
-            if (child_dataframe_only == 0) {
-                if (send(sockpair[0], pak, sizeof(chanchild_packhdr) - sizeof(void *), 0) < 0) {
-                    if (errno == ENOBUFS)
-                        goto childendpackpipewrite;
-                    else
-                        exit(1);
-                } 
-            }
-
-            // send the payload if there is one
-            if (pak->datalen > 0) {
-                if (send(sockpair[0], pak->data, pak->datalen, 0) < 0) {
-                    if (errno == ENOBUFS) {
-                        child_dataframe_only = 1;
-                        goto childendpackpipewrite;
-                    } else {
-                        exit(1);
-                    }
-                }
-            }
-
-            child_dataframe_only = 0;
-
-            // Blow ourselves away if we just wrote a fatal failure
-            if (pak->flags & CHANFLAG_FATAL)
-                exit(1);
-
-            child_ipc_buffer.pop_front();
-            free(pak->data);
-            delete pak;
-        }
-
-        // Labels are bad, but really, what else to do?
-childendpackpipewrite: 
-        ;
-
         // Obey incoming data
         if (FD_ISSET(sockpair[0], &rset)) {
             chanchild_packhdr pak;
@@ -921,6 +876,44 @@ childendpackpipewrite:
 
             }
         } 
+
+        // Write a packet - wset should never be set if child_ipc_buffer is empty
+        if (FD_ISSET(sockpair[0], &wset)) {
+            chanchild_packhdr *pak = child_ipc_buffer.front();
+
+            // Send the header if we didn't already
+            if (child_dataframe_only == 0) {
+                if (send(sockpair[0], pak, sizeof(chanchild_packhdr) - sizeof(void *), 0) < 0) {
+                    if (errno == ENOBUFS)
+                        continue;
+                    else
+                        exit(1);
+                } 
+            }
+
+            // send the payload if there is one
+            if (pak->datalen > 0) {
+                if (send(sockpair[0], pak->data, pak->datalen, 0) < 0) {
+                    if (errno == ENOBUFS) {
+                        child_dataframe_only = 1;
+                        continue;
+                    } else {
+                        exit(1);
+                    }
+                }
+            }
+
+            child_dataframe_only = 0;
+
+            // Blow ourselves away if we just wrote a fatal failure
+            if (pak->flags & CHANFLAG_FATAL)
+                exit(1);
+
+            child_ipc_buffer.pop_front();
+            free(pak->data);
+            delete pak;
+        }
+
     }
 
     exit(1);

@@ -733,7 +733,7 @@ int PanelFront::MainInfoPrinter(void *in_window) {
 //    mvwaddch(infowin, LINES-statheight-1, 7, 'S');
 
     // Now draw the info window
-    char info[kwin->print_width];
+    char info[infowidth];
 
     mvwaddstr(infowin, 1, 2, "Ntwrks");
     snprintf(info, kwin->print_width, "%*d", kwin->print_width-1, num_networks);
@@ -817,10 +817,13 @@ int PanelFront::MainInfoPrinter(void *in_window) {
     else
         mvwaddstr(infowin, LINES-statheight-2, 2, "Discon");
 
-    time_t elapsed = server_time - start_time;
-    snprintf(info, infowidth-1, "%02d:%02d:%02d",
-             (int) (elapsed / 60) / 60, (int) (elapsed / 60) % 60,
-             (int) elapsed % 60);
+    if (server_time > 0)
+    {
+        time_t elapsed = server_time - start_time;
+        snprintf(info, infowidth-1, "%02d:%02d:%02d",
+                 (int) (elapsed / 60) / 60, (int) (elapsed / 60) % 60,
+                 (int) elapsed % 60);
+    }
     mvwaddstr(infowin, infowin->_maxy, 1, info);
 
     return 1;
