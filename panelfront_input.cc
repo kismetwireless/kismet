@@ -825,6 +825,13 @@ int PanelFront::ServersInput(void *in_window, int in_chr) {
 
             if (con->tagged) {
                 con->tagged = 0;
+
+                // Flush the rate graph
+                packet_history.clear();
+                for (unsigned int x = 0; x < (60 * 5); x++)
+                    packet_history.push_back(0);
+                // Flush all the group mappings so we can repopulate with just the
+                // groups we have tagged now
                 PurgeGroups();
             } else {
                 con->tagged = 1;
@@ -845,6 +852,7 @@ int PanelFront::ServersInput(void *in_window, int in_chr) {
 
             con->primary = 1;
             con->tagged = 1;
+            context = con;
         }
         break;
     case 'q':
