@@ -245,8 +245,9 @@ public:
     bool chancontrol(int in_ch);
 
     bool setmediaopt(int options, int mode);
+    bool getifflags(int& flags);
     bool setifflags(int value);
-    bool get80211(int type, int *val, int len, u_int8_t *data);
+    bool get80211(int type, int& val, int len, u_int8_t *data);
     bool set80211(int type, int val, int len, u_int8_t *data);
 private:
     void perror(const char *, ...);
@@ -255,7 +256,7 @@ private:
 
     int s;
     char errstr[256];
-    char ifname[80];
+    string ifname;
 };
 #endif
 
@@ -264,7 +265,10 @@ class PcapSourceRadiotap : public PcapSource {
 public:
     PcapSourceRadiotap(string in_name, string in_dev) :
         PcapSource(in_name, in_dev) { }
+    int OpenSource();
     int FetchChannel();
+protected:
+    bool CheckForDLT(int dlt);
 };
 #endif
 
