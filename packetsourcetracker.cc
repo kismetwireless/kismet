@@ -731,7 +731,6 @@ int Packetsourcetracker::CloseSources() {
         if (uid != 0 && meta->prototype->root_required != 0)
             continue;
 
-        printf("debug - closing source %d uid %d\n", metc, uid);
         // close if we can
         if (meta->valid)
             meta->capsource->CloseSource();
@@ -743,7 +742,6 @@ int Packetsourcetracker::CloseSources() {
 
         // unmonitor - we don't care about errors.
         if (meta->prototype->monitor_disable != NULL) {
-            printf("debug - monitor disable not null\n");
             (*meta->prototype->monitor_disable)(meta->device.c_str(), 0, 
                                                 errstr, &meta->stored_interface);
         }

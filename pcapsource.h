@@ -43,6 +43,9 @@ extern "C" {
 
 // Custom packet stream headers
 
+// Define this for the max length of a ssid, not counting os-trailing null
+#define MAX_SSID_LEN 32
+
 // Define this for wlan-ng DLT_PRISM_HEADER support
 #define WLAN_DEVNAMELEN_MAX 16
 
@@ -170,6 +173,8 @@ typedef struct linux_ifparm {
     struct sockaddr_in broadaddr; 
     struct sockaddr_in maskaddr; 
     short flags;
+    char essid[MAX_SSID_LEN + 1];
+    int channel;
 };
 #endif
 
