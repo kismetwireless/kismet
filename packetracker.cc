@@ -1458,6 +1458,8 @@ int Packetracker::WriteXMLNetworks(string in_fname) {
             }
 
             fprintf(netfile, "      <client-datasize>%ld</client-datasize>\n", cli->datasize);
+            fprintf(netfile, "      <client-maxrate>%2.1f</client-maxrate>\n", cli->maxrate);
+
 
             if (cli->ipdata.atype > address_factory) {
                 char *addrtype;
