@@ -22,6 +22,9 @@ CWGD = kismet2cwgd
 XMLO = kismet2xml.o
 XML = kismet2xml
 
+SANITO = ../gpsmap_samples.o ../expat.o gpsxml-sanitize.o
+SANIT = gpsxml-sanitize
+
 all:	$(XML) 
 
 $(CWGD):	$(CWGDO)
@@ -29,6 +32,9 @@ $(CWGD):	$(CWGDO)
 
 $(XML):		$(XMLO)
 	$(LD) $(LDFLAGS) -o $(XML) $(XMLO) $(LIBS)
+
+$(SANIT):		$(SANITO)
+	$(LD) $(LDFLAGS) -o $(SANIT) $(SANITO) $(LIBS) -lexpat -lz
 
 clean:
 	@-rm -f *.o
