@@ -1247,15 +1247,38 @@ int PanelFront::Tick() {
                     bat_time *= 60;
             }
         } else {
-            DIR *batteries;
-            struct dirent* this_battery;
-            FILE *acpi, *acad;
+            DIR *batteries, *ac_adapters;
+            struct dirent *this_battery, *this_adapter;
+            FILE *acpi;
             char battery_state[PATH_MAX];
             int rate = 1, remain = 0, current = 0;
             static int total_remain = 0, total_cap = 0;
             int batno = 0;
             const int info_res = 5;
             static int info_timer = 0;
+
+            ac_adapters = opendir("/proc/acpi/ac_adapter");
+
+            while (ac_adapters != NULL && ((info_timer % info_res) == 0) && ((this_adapter = readdir(ac_adapters)) != NULL)) {
+                if (this_adapter->d_name[0] == '.')
+                    continue;
+                // safe overloaded use of battery_state path var
+                snprintf(battery_state, sizeof(battery_state), "/proc/acpi/ac_adapter/%s/state", this_adapter->d_name);
+                if ((acpi = fopen(battery_state, "r")) == NULL)
+                    continue;
+                if (acpi != NULL) {
+                    while(fgets(buf, 128, acpi)) {
+                        if (strstr(buf, "on-line") != NULL)
+                            bat_ac = 1;
+                        else
+                            bat_ac = 0;
+                    }
+                    fclose(acpi);
+                }
+            }
+
+            if (ac_adapters != NULL)
+                closedir(ac_adapters);
 
             batteries = opendir("/proc/acpi/battery");
 
@@ -1269,19 +1292,6 @@ int PanelFront::Tick() {
                 bat_time = 0;
                 bat_charging = 0;
                 total_remain = total_cap = 0;
-            }
-
-            acad = fopen("/proc/acpi/ac_adapter/ACAD/state", "r");
-            if (acad != NULL)
-            {
-                while(fgets(buf, 128, acad))
-                {
-                    if (strstr(buf, "on-line") != NULL)
-                        bat_ac = 1;
-                    else
-                        bat_ac = 0;
-                }
-                fclose(acad);
             }
 
             while (batteries != NULL && ((info_timer % info_res) == 0) && ((this_battery = readdir(batteries)) != NULL)) {

@@ -1,5 +1,6 @@
 Jan 03 2003  3.1.0  Fixed nullproberesp alert
                     Fixed segfault if acpi/ACAD/ not found
+                    Merged patch from Million adding more ACPI support
 Jan 02 2004  3.1.0  Fixed association of probe nets
                     Fixed weirdness with now-defunct quality bar
                     Fixed map legends w/ no network colors and no powerbar
