@@ -51,7 +51,7 @@ string StrStrip(string in_str);
 int XtoI(char x);
 int Hex2UChar(unsigned char *in_hex, unsigned char *in_chr);
 
-vector<string> StrTokenize(string in_str, string in_split);
+vector<string> StrTokenize(string in_str, string in_split, int return_partial = 1);
 vector<string> LineWrap(string in_txt, unsigned int in_hdr_len, unsigned int in_maxlen);
 vector<int> Str2IntVec(string in_text);
 

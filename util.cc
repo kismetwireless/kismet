@@ -142,9 +142,9 @@ int Hex2UChar(unsigned char *in_hex, unsigned char *in_chr) {
     return(chrpos);
 }
 
-vector<string> StrTokenize(string in_str, string in_split) {
-    unsigned int begin = 0;
-    unsigned int end = in_str.find(in_split);
+vector<string> StrTokenize(string in_str, string in_split, int return_partial) {
+    size_t begin = 0;
+    size_t end = in_str.find(in_split);
     vector<string> ret;
 
     if (in_str.length() == 0)
@@ -156,7 +156,9 @@ vector<string> StrTokenize(string in_str, string in_split) {
         end = in_str.find(in_split, begin);
         ret.push_back(sub);
     }
-    ret.push_back(in_str.substr(begin, in_str.size() - begin));
+
+    if (return_partial && begin != in_str.size())
+        ret.push_back(in_str.substr(begin, in_str.size() - begin));
 
     return ret;
 }
@@ -164,7 +166,7 @@ vector<string> StrTokenize(string in_str, string in_split) {
 vector<string> LineWrap(string in_txt, unsigned int in_hdr_len, unsigned int in_maxlen) {
 	vector<string> ret;
 
-	unsigned int pos, prev_pos, start, hdroffset;
+	size_t pos, prev_pos, start, hdroffset;
 	start = hdroffset = 0;
 
 	for (pos = prev_pos = in_txt.find(' ', in_hdr_len); pos != string::npos; pos = in_txt.find(' ', pos + 1)) {
