@@ -1000,6 +1000,8 @@ int Packetracker::WriteNetworks(string in_fname) {
         char carrier[15];
         if (net->carrier_set & (1 << (int) carrier_80211b))
             snprintf(carrier, 15, "802.11b");
+        else if (net->carrier_set & (1 << (int) carrier_80211bplus))
+            snprintf(carrier, 15, "802.11b+");
         else if (net->carrier_set & (1 << (int) carrier_80211a))
             snprintf(carrier, 15, "802.11a");
         else if (net->carrier_set & (1 << (int) carrier_80211g))
@@ -1500,6 +1502,8 @@ int Packetracker::WriteXMLNetworks(string in_fname) {
 
         if (net->carrier_set & (1 << (int) carrier_80211b))
             fprintf(netfile, "    <carrier>IEEE 802.11b</carrier>\n");
+        if (net->carrier_set & (1 << (int) carrier_80211bplus))
+            fprintf(netfile, "    <carrier>TI 802.11b+</carrier>\n");
         if (net->carrier_set & (1 << (int) carrier_80211a))
             fprintf(netfile, "    <carrier>IEEE 802.11a</carrier>\n");
         if (net->carrier_set & (1 << (int) carrier_80211g))
