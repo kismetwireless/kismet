@@ -1,3 +1,4 @@
+Sep 12 2002  2.5.2  configure cleanups
 Sep 11 2002  2.5.2  Added soundopts config file option per Mathias' suggestion
                     Implemented feature order in gpsmap
                     Fixed GetMetrics out-of-memory exception in gpsmap labels
