@@ -1,5 +1,6 @@
 Nov 07 2002  2.7.1  Various errno cleanups throughout the source
                     Updated beacon logging to log beacons with new SSIDs
+                    Fixed nasty memory leak in tcpclient
 Nov 06 2002  2.7.1  Fixed timestamp and capture-level noise packet reporting
                      for wsp100
                     Fixed panelfront packet type dumps

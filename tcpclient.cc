@@ -269,6 +269,7 @@ int TcpClient::ParseData(char *in_data) {
             return 0;
 
         bssid = bssid_str;
+        int newnet = 0;
 
         if (net_map.find(bssid) != net_map.end()) {
             net = net_map[bssid];
@@ -276,6 +277,7 @@ int TcpClient::ParseData(char *in_data) {
             net = new wireless_network;
             net->bssid = bssid;
             net->tcpclient = this;
+            newnet = 1;
         }
 
         scanned = sscanf(in_data+hdrlen+18, "%d \001%255[^\001]\001 \001%255[^\001]\001 "
@@ -303,9 +305,11 @@ int TcpClient::ParseData(char *in_data) {
             return 0;
         }
 
-        net_map[bssid] = net;
-        net_map_vec.push_back(net);
-        last_new_network = net;
+        if (newnet == 1) {
+            net_map[bssid] = net;
+            net_map_vec.push_back(net);
+            last_new_network = net;
+        }
 
         if (ssid[0] != '\002')
             net->ssid = ssid;
@@ -364,10 +368,18 @@ int TcpClient::ParseData(char *in_data) {
         for (unsigned int x = 0; x < 4; x++)
             client->ipdata.ip[x] = ip[x];
 
-        if (net_map.find(bssid) != net_map.end())
-            net_map[bssid]->client_map[client->mac] = client;
-        else
+        map<mac_addr, wireless_network *>::iterator nmi = net_map.find(bssid);
+        if (nmi != net_map.end()) {
+            map<mac_addr, wireless_client *>::iterator wci = nmi->second->client_map.find(client->mac);
+            if (wci != nmi->second->client_map.end()) {
+                delete wci->second;
+                wci->second = client;
+            } else {
+                nmi->second->client_map[client->mac] = client;
+            }
+        } else {
             delete client;
+        }
 
     } else if (!strncmp(header, "*REMOVE", 64)) {
 
