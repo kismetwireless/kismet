@@ -4,6 +4,7 @@ Mar 30 2003  2.9.1  Updated configure to look for magick better, various other
                     Restructured some of packetrackers alert handling to make
                      future code easier
                     Added ability to scroll panels ui columns left and right
+                    Fixed some new networks not being transmitted to the client
 Mar 28 2003  2.9.1  Updated configure to look for ethereal 0.9.10
                     Updated configure to work with autoconfig 2.57... stupid
                      autoconf 2.57 broke things that shouldn't have been broke.

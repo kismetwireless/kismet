@@ -536,6 +536,16 @@ void KisLocalStatus(const char *in_status) {
     NetWriteStatus(in_status);
 }
 
+void KisLocalNewnet(const wireless_network *in_net) {
+    if (ui_server.FetchNumClients() < 1)
+        return;
+
+    NETWORK_data ndata;
+    Protocol_Network2Data(in_net, &ndata);
+    ui_server.SendToAll(network_ref, (void *) &ndata);
+
+}
+
 void NetWriteInfo() {
     // If we have no clients, don't do this at all, it's expensive
     if (ui_server.FetchNumClients() < 1)
@@ -2547,12 +2557,12 @@ int main(int argc,char *argv[]) {
 
                     tracker.ProcessPacket(info);
 
-                    if (tracker.FetchNumNetworks() != num_networks) {
+                    if (tracker.FetchNumNetworks() > num_networks) {
                         if (sound == 1)
                             sound = PlaySound("new");
                     }
 
-                    if (tracker.FetchNumNetworks() != num_networks && speech == 1) {
+                    if (tracker.FetchNumNetworks() > num_networks && speech == 1) {
                         string text;
 
                         if (info.wep)

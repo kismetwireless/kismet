@@ -25,6 +25,7 @@
 #include <string>
 
 #include "tcpserver.h"
+#include "tracktypes.h"
 
 void WriteDatafiles(int in_shutdown);
 void CatchShutdown(int sig);
@@ -41,5 +42,7 @@ void ProtocolNetworkEnable(int in_fd);
 void ProtocolClientEnable(int in_fd);
 void KisLocalAlert(const char *in_text);
 void KisLocalStatus(const char *in_status);
+void KisLocalNewnet(const wireless_network *in_net);
+
 
 #endif

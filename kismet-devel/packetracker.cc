@@ -273,6 +273,7 @@ void Packetracker::ProcessPacket(packet_info info) {
             KisLocalStatus(status);
         }
 
+        KisLocalNewnet(net);
 
         if (info.gps_fix >= 2) {
             net->gps_fixed = info.gps_fix;
