@@ -1,3 +1,4 @@
+Jan 02 2003  2.9.0  Fixed missing test of opendir() failing for ACPI
 Jan 01 2003  2.9.0  Zero GREP_OPTIONS environment variable in the scripts
 Dec 30 2002  2.9.0  Fixed minor error in the client netxml block (Ray Essick)
 Dec 29 2002  2.8.0b Fixed another stupid set of oversights and released 2.8.0b
