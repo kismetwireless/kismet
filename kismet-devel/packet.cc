@@ -136,7 +136,11 @@ void GetPacketInfo(const pkthdr *header, const u_char *data,
 
     wireless_frame *frame = (wireless_frame *) data;
 
-    // Fill in packet sequence and frag info
+    // Endian swap the 2 byte duration
+    ret_packinfo->duration = ktoh16(frame->duration);
+
+    // Fill in packet sequence and frag info... Neither takes a full byte so we don't
+    // swap them
     ret_packinfo->sequence_number = frame->sequence.sequence;
     ret_packinfo->frag_number = frame->sequence.frag;
 
@@ -268,7 +272,7 @@ void GetPacketInfo(const pkthdr *header, const u_char *data,
 
             // First byte of offsets
             ret_packinfo->header_offset = 24;
-        } else if (frame->fc.subtype == 4) {
+        } else if (frame->fc.subtype == 3) {
             ret_packinfo->type = packet_reassociation;
 
             if ((tag_offset = GetTagOffset(36, 0, header, data)) > 0) {
