@@ -139,6 +139,7 @@ typedef struct packet_parm {
 enum carrier_type {
     carrier_unknown,
     carrier_80211b,
+    carrier_80211bplus,
     carrier_80211a,
     carrier_80211g,
     carrier_80211fhss,

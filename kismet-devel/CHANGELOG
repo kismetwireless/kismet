@@ -1,3 +1,4 @@
+Jul 16 2003  2.9.1  Added carrier 802.11b+ for future use
 Jul 14 2003  2.9.1  Fixed configure on OSX to enable viha correctly
 Jul 13 2003  2.9.1  Fixed 'Linksys' SSID in ap_manuf
 Jul 11 2003  2.9.1  Fixed initialization of some fields in kis_win in panels
