@@ -6226,7 +6226,7 @@ if test "$wireless" = "yes"; then
     # If we're compiling under linux and we need the wireless extentions,
     # then we should try to look in the current kernel module build dir, too.
     if test "$linux" = "yes"; then
-        CPPFLAGS="$CPPFLAGS -I/lib/modules/\`uname -r\`/build/include/"
+        CPPFLAGS="$CPPFLAGS -I/lib/modules/$(uname -r)/build/include/"
     fi
 
     echo "$as_me:$LINENO: checking that linux/wireless.h is what we expect" >&5
