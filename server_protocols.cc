@@ -31,7 +31,7 @@ char *STATUS_fields_text[] = {
 };
 
 char *ALERT_fields_text[] = {
-    "header" "sec", "usec", "text",
+    "sec", "usec", "header", "text",
     NULL
 };
 

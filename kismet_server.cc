@@ -2966,6 +2966,12 @@ int main(int argc,char *argv[]) {
             if (FD_ISSET(packet_sources[src]->textpair[0], &rset)) {
                 int len;
                 len = FetchChildText(packet_sources[src]->textpair[0]);
+
+                // try to resync if we're confused
+                if (len == -2) {
+                    int8_t child_cmd = CAPCMD_TXTFLUSH;
+                    write(packet_sources[src]->servpair[1], &child_cmd, 1);
+                }
             }
 
             if (FD_ISSET(packet_sources[src]->childpair[0], &rset)) {
@@ -3179,7 +3185,11 @@ int main(int argc,char *argv[]) {
                         cryptfile->DumpPacket(&info, &packet);
                     }
 
-                } else if (len < 0) {
+                } else if (len == -2) {
+                    // try to resync if we're confused
+                    int8_t child_cmd = CAPCMD_FLUSH;
+                    write(packet_sources[src]->servpair[1], &child_cmd, 1);
+                } else {
                     // Fail on error
                     /*
                     if (!silent) {
