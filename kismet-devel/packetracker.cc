@@ -590,6 +590,27 @@ int Packetracker::ProcessDataPacket(packet_info info, wireless_network *net, cha
         }
     }
 
+    if (info.quality >= 0 && info.signal >= 0) {
+        client->quality = info.quality;
+        if (info.quality > client->best_quality)
+            client->best_quality = info.quality;
+        client->signal = info.signal;
+
+        if (info.signal > client->best_signal) {
+            client->best_signal = info.signal;
+            if (gps != NULL && fix >= 2) {
+                client->best_lat = lat;
+                client->best_lon = lon;
+                client->best_alt = alt;
+            }
+        }
+
+        net->noise = info.noise;
+        if ((info.noise < net->best_noise && info.noise != 0) || net->best_noise == 0)
+            net->best_noise = info.noise;
+    }
+
+
 
     client->last_time = time(0);
 

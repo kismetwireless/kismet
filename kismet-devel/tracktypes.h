@@ -104,6 +104,8 @@ typedef struct wireless_client {
         metric = 0;
 
         signal = quality = noise = 0;
+        best_signal = best_quality = best_noise = 0;
+        best_lat = best_lon = best_alt = 0;
 
         memset(&ipdata, 0, sizeof(net_ip_data));
     }
@@ -140,6 +142,8 @@ typedef struct wireless_client {
 
     // Last seen quality for a packet from this client
     int quality, signal, noise;
+    int best_quality, best_signal, best_noise;
+    float best_lat, best_lon, best_alt;
 
     // ip data
     net_ip_data ipdata;

@@ -1,4 +1,6 @@
 Aug 16 2002  2.5.2  Fixed dumpfile.h to not generate warnings on GCC 3.2
+                    ACPI battery support patches merged in (configure with
+                     --enable-acpi) (Million and Juliano)
 Aug 15 2002  2.5.2  Client tracking internals complete, aggregate IP range
                      calculations used to find network ranges, and networks
                      with only a single IP display all four octets.
