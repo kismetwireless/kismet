@@ -558,7 +558,7 @@ void Frontend::ReadGroupMap(FILE *in_file) {
             group_name_map[parm1] = parm2;
         } else if (!strncmp(type, "LINK", 64)) {
             bssid = parm1;
-            if (bssid.longmac == 0)
+            if (bssid.error == 1)
                 continue;
             bssid_group_map[bssid] = parm2;
         }
