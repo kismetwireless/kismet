@@ -234,7 +234,7 @@ int PanelFront::MainNetworkPrinter(void *in_window) {
     kis_window *kwin = (kis_window *) in_window;
     WINDOW *netwin = kwin->win;
 
-    int drop;
+    unsigned int drop;
 
     // One:  Get our new data from the client
     PopulateGroups();
@@ -935,7 +935,7 @@ int PanelFront::MainClientPrinter(void *in_window) {
     sortxt[0] = '\0';
 
     vector<wireless_client *> display_vector = details_network->virtnet.client_vec;
-    int drop;
+    unsigned int drop;
 
     switch (client_sortby) {
     case client_sort_auto:
@@ -950,6 +950,9 @@ int PanelFront::MainClientPrinter(void *in_window) {
         drop = display_vector.size() - kwin->max_display - 1;
 
         if (drop > 0) {
+            if (drop > display_vector.size())
+                drop = display_vector.size();
+
             display_vector.erase(display_vector.begin(), display_vector.begin() + drop);
         }
         sort(display_vector.begin(), display_vector.end(), ClientSortFirstTimeLT());
