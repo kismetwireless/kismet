@@ -30,7 +30,8 @@
 #include "configfile.h"
 
 #define MAJOR 2
-#define MINOR 5
+#define MINOR 4
+#define TINY  5
 
 #ifndef exec_name
 char *exec_name;
@@ -340,7 +341,7 @@ int main(int argc, char *argv[]) {
             reqgui = optarg;
             break;
         case 'v':
-            fprintf(stderr, "Kismet curses %d.%d\n", MAJOR, MINOR);
+            fprintf(stderr, "Kismet curses %d.%d.%d\n", MAJOR, MINOR, TINY);
             break;
         case 's':
             server = optarg;
@@ -567,8 +568,9 @@ int main(int argc, char *argv[]) {
         sleep(1);
     }
 
-    fprintf(stderr, " found.\nConnected to Kismet server %d.%d on %s:%d\n",
-            kismet_serv.FetchMajor(), kismet_serv.FetchMinor(), guihost, guiport);
+    fprintf(stderr, " found.\nConnected to Kismet server %d.%d.%d on %s:%d\n",
+            kismet_serv.FetchMajor(), kismet_serv.FetchMinor(), kismet_serv.FetchTiny(),
+            guihost, guiport);
 
     map<string, string> prefs;
 
@@ -603,8 +605,9 @@ int main(int argc, char *argv[]) {
 
     gui->InitDisplay(decay, serv_start);
 
-    snprintf(status, STATUS_MAX, "Connected to Kismet server version %d.%d on %s:%d",
-             kismet_serv.FetchMajor(), kismet_serv.FetchMinor(), guihost, guiport);
+    snprintf(status, STATUS_MAX, "Connected to Kismet server version %d.%d.%d on %s:%d",
+             kismet_serv.FetchMajor(), kismet_serv.FetchMinor(), kismet_serv.FetchTiny(),
+             guihost, guiport);
     gui->WriteStatus(status);
 
     int num_networks = 0, num_packets = 0, num_noise = 0, num_dropped = 0;
