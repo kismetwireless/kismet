@@ -238,7 +238,7 @@ void GetPacketInfo(kis_packet *packet, packet_parm *parm, packet_info *ret_packi
             ret_packinfo->wep = fixparm->wep;
 
             // Pull the fixparm ibss info
-            if (fixparm->ess == 0 && fixparm->ibss == 0)
+            if (fixparm->ess == 0 && fixparm->ibss == 1)
                 ret_packinfo->distrib = adhoc_distribution;
         }
 
