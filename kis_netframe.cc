@@ -991,7 +991,6 @@ int Clicmd_ENABLE(CLIENT_PARMS) {
     // Match * - Rough match, good enough for me to just do the first character, if this
     // becomes a problem sometime come back to it and do it a better way
     if (((*parsedcmdline)[1]).word[0] == '*') {
-        printf("debug - enabling all fields\n");
         for (unsigned int x = 0; x < prot->field_vec.size(); x++) {
             printf("pushing: %d\n", x);
             numericf.push_back(x);
@@ -1008,7 +1007,6 @@ int Clicmd_ENABLE(CLIENT_PARMS) {
             }
 
             numericf.push_back(fitr->second);
-            printf("debug - enabling field number %d prot %d\n", fitr->second, cmdref);
         }
     }
 
@@ -1561,10 +1559,7 @@ int KisNetFramework::SendToClient(int in_fd, int in_refnum, const void *in_data)
     //  16      x   1
     int nlen = prot->header.length() + fieldtext.length() + 5; // *..: \n\0
     char *outtext = new char[nlen];
-    printf("debug - outtext len %d header %s content %s\n", nlen, prot->header.c_str(),
-           fieldtext.c_str());
     snprintf(outtext, nlen, "*%s: %s\n", prot->header.c_str(), fieldtext.c_str());
-    printf("debug - writing '%s'\n", outtext);
     netserver->WriteData(in_fd, (uint8_t *) outtext, strlen(outtext));
     delete[] outtext;
 
@@ -1667,7 +1662,6 @@ int KisNetFramework::FetchNumClients() {
 void KisNetFramework::AddProtocolClient(int in_fd, int in_refnum, vector<int> in_fields) {
     map<int, client_opt *>::iterator citr = client_optmap.find(in_fd);
     if (citr == client_optmap.end()) {
-        printf("debug - no such client %d\n", in_fd);
         return;
     }
 

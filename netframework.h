@@ -85,6 +85,9 @@ public:
                                   fd_set *out_rset, fd_set *out_wset);
     virtual int Poll(fd_set& in_rset, fd_set& in_wset);
 
+    // Flush all output buffers if we can
+    virtual int FlushRings();
+
     // Kill a connection by client ID - We define a stub that children
     // can use to do the lowlevel cleanup
     virtual void KillConnection(int in_fd);
@@ -147,7 +150,6 @@ protected:
     // Write ring buffers
     map<int, RingBuffer *> write_buf_map;
 
-    unsigned int max_clients;
     unsigned int max_fd;
 };
 
@@ -184,6 +186,9 @@ public:
 
     // Kill a connection
     virtual int KillConnection(int in_fd) = 0;
+
+    // Shutdown the protocol
+    virtual int Shutdown();
     
 protected:
     char errstr[STATUS_MAX];

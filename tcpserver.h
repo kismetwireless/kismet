@@ -101,7 +101,6 @@ protected:
 
     // Server info
     char hostname[MAXHOSTNAMELEN];
-    short int port;
 
     struct sockaddr_in serv_sock;
 };

@@ -44,9 +44,11 @@ unsigned int NetworkServer::MergeSet(fd_set in_rset, fd_set in_wset,
                                      fd_set *out_rset, fd_set *out_wset) {
     unsigned int max;
 
+    /* Uhh this is bad.
     FD_ZERO(out_rset);
     FD_ZERO(out_wset);
-   
+    */
+
     if (in_max_fd < max_fd) {
         max = max_fd;
     } else {
@@ -124,6 +126,63 @@ int NetworkServer::Poll(fd_set& in_rset, fd_set& in_wset) {
         }
 
     }
+
+    return 1;
+}
+
+int NetworkServer::FlushRings() {
+    if (!sv_valid)
+        return -1;
+
+    if (FetchNumClients() < 1)
+        return 0;
+    
+    fd_set rset, wset;
+    int max;
+    
+    // Use a large granularity 2-second timer, what the hell
+    time_t flushtime = time(0);
+
+    // Nuke the fatal conditon so we can track our own failures
+    int old_fcon = globalreg->fatal_condition;
+    globalreg->fatal_condition = 0;
+    
+    while ((time(0) - flushtime) < 2) {
+        // See if we have any data in any of our ring buffers
+        int allflushed = 1;
+        for (map<int, RingBuffer *>::iterator x = write_buf_map.begin();
+             x != write_buf_map.end(); ++x) {
+            if (x->second->FetchLen() > 0) {
+                allflushed = 0;
+                break;
+            }
+        }
+   
+        if (allflushed)
+            return 1;
+
+        max = 0;
+        FD_ZERO(&rset);
+        FD_ZERO(&wset);
+       
+        max = MergeSet(rset, wset, max, &rset, &wset);
+
+        struct timeval tm;
+        tm.tv_sec = 0;
+        tm.tv_usec = 100000;
+
+        if (select(max + 1, &rset, &wset, NULL, &tm) < 0) {
+            if (errno != EINTR) {
+                globalreg->fatal_condition = 1;
+                return -1;
+            }
+        }
+
+        if (Poll(rset, wset) < 0 || globalreg->fatal_condition != 0)
+            return -1;
+    }
+
+    globalreg->fatal_condition = old_fcon;
 
     return 1;
 }
@@ -224,5 +283,14 @@ int NetworkServer::FetchClientVector(vector<int> *ret_vec) {
         ret_vec->push_back(x->first);
 
     return ret_vec->size();
+}
+
+int ServerFramework::Shutdown() {
+    int ret;
+
+    if (netserver != NULL)
+        ret = netserver->FlushRings();
+
+    return ret;
 }
 

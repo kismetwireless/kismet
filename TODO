@@ -2,7 +2,6 @@
   new drone client/server code
   new client code
   handle generating and catching alert text
-  terminate should flush ring buffers and sockets
 
   Packet chain framework
   ieee802.11 dissect as packet chain module

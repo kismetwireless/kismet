@@ -313,7 +313,9 @@ void CatchShutdown(int sig) {
     globalregistry->kisnetserver->SendToAll(globalregistry->trm_prot_ref, 
                                             (void *) &termstr);
 
-    // globalregistry->kisnetserver->Shutdown();
+    // Shutdown and flush all the ring buffers
+    fprintf(stderr, "Shutting down Kismet server and flushing client buffers...\n");
+    globalregistry->kisnetserver->Shutdown();
 
     // Write the data file, closing the files and unlinking them
     WriteDatafiles(1);

@@ -278,9 +278,9 @@ int TcpServer::TcpAccept() {
     }
 
     // Bail right now if we have too many connections
-    if (FetchNumClients() >= (int) max_clients) {
+    if (FetchNumClients() >= (int) globalreg->kistcpmaxcli) {
         snprintf(errstr, STATUS_MAX, "TCP server maximum clients (%d) already reached.",
-                 max_clients);
+                 globalreg->kistcpmaxcli);
         globalreg->messagebus->InjectMessage(errstr, MSGFLAG_ERROR);
         close(new_fd);
         return -1;
