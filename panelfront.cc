@@ -527,6 +527,8 @@ string PanelFront::NetLine(wireless_network *net, const char *name, int sub,
                 snprintf(element, 1024, "P");
             else if (net->type == network_data)
                 snprintf(element, 1024, "D");
+            else if (net->type == network_lor)
+                snprintf(element, 1024, "O");
             else
                 snprintf(element, 1024, "?");
 
@@ -1604,6 +1606,9 @@ int PanelFront::DetailsPrinter(void *in_window) {
             break;
         case network_data:
             snprintf(output, print_width, "Type    : Data (no network control traffic)");
+            break;
+        case network_lor:
+            snprintf(output, print_width, "Type    : Lucent Outdoor Router (proprietary)");
             break;
         case network_remove:
             break;

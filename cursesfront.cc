@@ -192,6 +192,8 @@ int NCurseFront::DrawDisplay() {
             type = 'P';
         else if (net->type == network_data)
             type = 'D';
+        else if (net->type == network_lor)
+            type = 'O';
         else
             type = '?';
 
