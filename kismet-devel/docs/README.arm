@@ -40,10 +40,11 @@ would be on any other system.
 
 * Compiling it yourself
 Pass the appropriate cross-build to configure, I use 
-'./configure --host=arm-linux --disable-pcap --enable-zaurus' to build for the
-Zaurus, and
-'ac_cv_linux_vers=2.4.16 ./configure --host=arm-linux --with-pcap=linux ' to 
-build for the iPaq.  Set ac_cv_linux_vers accordingly to match your system.
+'./configure --host=arm-linux --disable-pcap --enable-zaurus \
+	--disable-suid-root' to build for the Zaurus, and
+'ac_cv_linux_vers=2.4.16 ./configure --host=arm-linux --with-pcap=linux \
+	--disable-suid-root' to build for the iPaq.  Set ac_cv_linux_vers 
+accordingly to match your system.
 
 I used the Zaurus cross-build environment from 
 http://www.lart.tudelft.nl/lartware/compile-tools/ 
