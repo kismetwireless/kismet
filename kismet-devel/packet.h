@@ -760,7 +760,10 @@ public:
 
     void reindex(void) {
         // Order it
-        sort(mask_vec.begin(), mask_vec.end(), SortMaskVec());
+        if (mask_vec.size() == 0)
+            return;
+
+        stable_sort(mask_vec.begin(), mask_vec.end(), SortMaskVec());
 
         // Clear our old map of content
         vec_offset_map.clear();
