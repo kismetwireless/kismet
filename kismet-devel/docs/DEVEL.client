@@ -22,7 +22,7 @@ The client->server commands consist of one-line statements of the format:
 {ID} is a unique numerical identifier (timestamp is often used) which is used
      by the server to return an error condition for a specific command.
      If {ID} is set to 0, no ACK is returned.
-{COMMAND} is the command to be run (ie, REQUEST, REMOVE, CAPABILITY)
+{COMMAND} is the command to be run (ie, ENABLE, REMOVE, CAPABILITY)
 {Options} are the options for that command.
 
 
@@ -72,7 +72,7 @@ KISMET: 2.7.1 1038236534 `"Gir"` 20021118101152
 !1234 CAPABILITY NETWORK
 *ACK: 1234
 *CAPABILITY: NETWORK bssid,type,ssid,beaconinfo,llcpackets,datapackets,cryptpackets,weakpackets,channel,wep,firsttime,lasttime,atype,rangeip,gpsfixed,minlat,minlon,minalt,minspd,maxlat,maxlon,maxalt,maxspd,octets,cloaked,beaconrate,maxrate,manufkey,manufscore,quality,signal,noise,bestquality,bestsignal,bestnoise,bestlat,bestlon,bestalt,agglat,agglon,aggalt,aggpoints
-!1235 REQUEST NETWORK bssid,type,ssid
+!1235 ENABLE NETWORK bssid,type,ssid
 *ACK: 1235
 *NETWORK: 00:40:96:55:A2:72 0 `p@thf1nd3r` 
 *NETWORK: 00:A0:F8:41:3C:DD 0 `KrullNet1` 
