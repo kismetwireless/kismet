@@ -45,7 +45,7 @@ char *exec_name;
 const char *config_base = "kismet.conf";
 
 // Channel rotations to maximize hopping for US and international frequencies
-int us_channels[] = {1, 6, 11, 2, 7, 3, 8, 4, 12, 9, 5, 10, -1};
+int us_channels[] = {1, 6, 11, 2, 7, 3, 8, 4, 9, 5, 10, -1};
 int intl_channels[] = {1, 7, 13, 2, 8, 3, 14, 9, 4, 10, 5, 11, 6, 12, -1};
 
 int *parse_hopseq(char* param) {
