@@ -115,6 +115,8 @@ typedef struct wireless_client {
 #ifdef __TCPCLIENT_H__
         tcpclient = NULL;
 #endif
+
+        uidata = NULL;
     }
 
     client_type type;
@@ -214,6 +216,9 @@ typedef struct wireless_network {
         tcpclient = NULL;
         idle_time = 0;
 #endif
+
+        uidata = NULL;
+
     }
 
     wireless_network_type type;
@@ -304,6 +309,9 @@ typedef struct wireless_network {
     // And include some records for tracking the time in the virtual group networks
     time_t idle_time;
 #endif
+
+    // Generic pointer for frontends to use to track things
+    void *uidata;
 
 };
 
