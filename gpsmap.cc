@@ -1758,7 +1758,7 @@ int main(int argc, char *argv[]) {
     };
     int option_index;
 
-    bool usermap = false;
+    bool usermap = false, useroutmap = false;
 
     power_steps = power_steps_Math;
     power_colors = powercolors_Math;
@@ -1794,6 +1794,7 @@ int main(int argc, char *argv[]) {
             break;
         case 'o':
             snprintf(mapoutname, 1024, "%s", optarg);
+            useroutmap = true;
             break;
         case 'f':
             filter = optarg;
@@ -2095,7 +2096,7 @@ int main(int argc, char *argv[]) {
                  map_scale, map_width, map_height);
     }
 
-    if (mapoutname[0] == '\0')
+    if (useroutmap == false)
         snprintf(mapoutname, 1024, "map_%f_%f_%ld_%d_%d.png", map_avg_lat, map_avg_lon,
                  map_scale, map_width, map_height);
 
