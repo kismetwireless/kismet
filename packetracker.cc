@@ -24,6 +24,7 @@
 // State shift bits used to tell when we've raised an alert on a given network
 #define RAISED_NETSTUMBLER_ALERT     1
 #define RAISED_DEAUTHFLOOD_ALERT     2
+#define RAISED_LUCENT_ALERT          4
 
 Packetracker::Packetracker() {
     gps = NULL;
@@ -781,6 +782,18 @@ int Packetracker::ProcessDataPacket(packet_info info, wireless_network *net, cha
             ret = TRACKER_ALERT;
         }
 
+    } else if (info.proto.type == proto_lucenttest) {
+        // Handle lucent test packets
+
+        // only raise a status when we ahven't raised one before
+        if ((net->alertmap & RAISED_LUCENT_ALERT) == 0) {
+            net->alertmap |= RAISED_LUCENT_ALERT;
+
+            snprintf(in_status, STATUS_MAX, "Lucent link test detected from %s",
+                     client->mac.Mac2String().c_str());
+
+            ret = TRACKER_NOTICE;
+        }
     }
 
     return ret;
