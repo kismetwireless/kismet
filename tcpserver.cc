@@ -5,7 +5,7 @@ TcpServer::TcpServer() {
     fprintf(stderr, "*** TcpServer() called with no global registry\n");
 }
 
-TcpServer::TcpServer(GlobalRegistry *in_globalreg) {
+TcpServer::TcpServer(GlobalRegistry *in_globalreg) : NetworkServer(in_globalreg) {
     globalreg = in_globalreg;
     // Init stuff
     sv_valid = 0;
