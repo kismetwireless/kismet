@@ -904,8 +904,8 @@ void Packetracker::ProcessDataPacket(packet_info info, wireless_network *net) {
 		client->crypt_set |= ((int) crypt_peap);
 		net->crypt_set |= ((int) crypt_peap);
 	} else if (info.proto.type == proto_isakmp) {
-		client->crypt_set |= ((int) crypt_isakmp);
-		net->crypt_set |= ((int) crypt_isakmp);
+		client->crypt_set |= ((int) crypt_isakmp & (int) crypt_layer3);
+		net->crypt_set |= ((int) crypt_isakmp & (int) crypt_layer3);
 	}
 
     if (info.datarate > client->maxseenrate)
@@ -1059,7 +1059,7 @@ void Packetracker::ProcessDataPacket(packet_info info, wireless_network *net) {
         }
 
         snprintf(status, STATUS_MAX, "%s Traffic - %s - from %s", eaptype, eapcode, 
-            client->mac.Mac2String().c_str());
+            info.source_mac.Mac2String().c_str());
         KisLocalStatus(status);
 
     } else if (info.proto.type == proto_isakmp) {
@@ -1108,7 +1108,7 @@ void Packetracker::ProcessDataPacket(packet_info info, wireless_network *net) {
         }
 
         snprintf(status, STATUS_MAX, "ISAKMP Traffic, Exchange type: %s - from %s", isakmpcode, 
-            client->mac.Mac2String().c_str());
+            info.source_mac.Mac2String().c_str());
         KisLocalStatus(status);
 
     } else if (info.proto.type == proto_lucenttest) {
