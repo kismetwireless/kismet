@@ -13,6 +13,9 @@ Aug 21 2002  2.5.2  Fixed a few minor parsing errors in tcpclient.cc
                     Added RPM specfile from Miah
                     Fixed kismet_server to find the home directory after the
                      privdrop
+                    Fixed segfault on free() when using command-line supplied 
+                     config file.
+                    Possible fix towards speech
 Aug 20 2002  2.5.2  Added skeleton of alert system ('w' in panels interface)
                     ! Added detection of Netstumbler and feeding to the alert
                      system.
