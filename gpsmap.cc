@@ -296,7 +296,7 @@ double map_avg_lat, map_avg_lon;
 // User options and defaults
 unsigned int map_width = 1280;
 unsigned int map_height = 1024;
-const int legend_height = 80;
+const int legend_height = 100;
 
 // Drawing features and opacity
 int draw_track = 0, draw_bounds = 0, draw_range = 0, draw_power = 0,
@@ -2584,6 +2584,10 @@ int DrawLegendComposite(vector<gps_network *> in_nets, Image **in_img,
     snprintf(text, 1024, "Map Created     : %.24s", ctime((const time_t *) &curtime));
     max_colwidth = kismax(max_colwidth, IMStringWidth(text, leg_img, leg_di));
 
+    snprintf(text, 1024, "Map Coordinates : %f,%f @ scale %ld",
+             map_avg_lat, map_avg_lon, map_scale);
+    max_colwidth = kismax(max_colwidth, IMStringWidth(text, leg_img, leg_di));
+
     // Now compare the sizes of the channel or color alloc
     int squaredim = IMStringHeight("0", leg_img, leg_di);
 
@@ -2617,6 +2621,22 @@ int DrawLegendComposite(vector<gps_network *> in_nets, Image **in_img,
     // Now we know how wide we have to be...
 
     // Draw the first column of text, always have this
+    snprintf(text, 1024, "Map Coordinates : %f,%f @ scale %ld",
+             map_avg_lat, map_avg_lon, map_scale);
+    tx_height = IMStringHeight(text, leg_img, leg_di);
+
+    snprintf(prim, 1024, "text %d,%d \"%s\"",
+             cur_colpos, cur_rowpos + (tx_height / 2), text);
+    leg_di->text = text;
+    leg_di->primitive = prim;
+    DrawImage(leg_img, leg_di);
+    GetImageException(leg_img, &im_exception);
+    if (im_exception.severity != UndefinedException) {
+        CatchException(&im_exception);
+        return -1;
+    }
+    cur_rowpos += tx_height + 2;
+
     snprintf(text, 1024, "Total networks  : %d\n", in_nets.size());
     tx_height = IMStringHeight(text, leg_img, leg_di);
 
