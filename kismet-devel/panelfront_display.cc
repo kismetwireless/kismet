@@ -531,7 +531,7 @@ int PanelFront::MainNetworkPrinter(void *in_window) {
         // Build the netline for the group or single host and tag it for expansion if
         // appropriate for this sort and group
         NetLine(&netline, net,
-                display_vector[i]->name == "" ? display_vector[i]->virtnet->ssid.c_str() : display_vector[i]->name.c_str(),
+                display_vector[i]->name.length() == 0 ? display_vector[i]->virtnet->ssid.c_str() : display_vector[i]->name.c_str(),
                 0,
                 display_vector[i]->type == group_host ? 0 : 1,
                 sortby == sort_auto ? 0 : display_vector[i]->expanded,

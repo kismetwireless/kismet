@@ -87,10 +87,13 @@ void Frontend::PopulateGroups(TcpClient *in_client) {
             map<string, string>::iterator gnmitr = group_name_map.find(grouptag);
             if (gnmitr != group_name_map.end()) {
                 group->name = gnmitr->second;
-            } else {
+            }
+            /*
+             else {
                 group->name = net->ssid;
                 group_name_map[grouptag] = net->ssid;
-            }
+                }
+                */
 
             group->tag = grouptag;
             group->type = group_host;
@@ -143,11 +146,13 @@ void Frontend::UpdateGroups() {
 
             // Update the group name if it's <no ssid> and the ssid is set or if it's a
             // turbocell network
+            /*
             if ((dnet->name == NOSSID || dnet->virtnet->type == network_turbocell) &&
                 dnet->virtnet->ssid != NOSSID) {
                 dnet->name = dnet->virtnet->ssid;
                 group_name_map[dnet->tag] = dnet->name;
-            }
+                }
+                */
 
             continue;
         }
@@ -177,8 +182,8 @@ void Frontend::UpdateGroups() {
                 }
             }
 
-            // If we don't have a SSID get the first one we encounter
-            if (dnet->virtnet->ssid == "" && wnet->ssid != "")
+            // If we don't have a SSID get the first non-null one we encounter
+            if (dnet->virtnet->ssid.length() == 0)
                 dnet->virtnet->ssid = wnet->ssid;
 
             // If we don't have beacon info, get the first one we encounter
@@ -313,6 +318,10 @@ void Frontend::UpdateGroups() {
 
         }
 
+        // Catch incase we didn't get a ssid
+        if (dnet->virtnet->ssid.length() == 0)
+            dnet->virtnet->ssid = NOSSID;
+
         dnet->virtnet->bssid.mask = bssid_matched;
         MatchBestManuf(client_manuf_map, dnet->virtnet->bssid, dnet->virtnet->ssid,
                        dnet->virtnet->channel, dnet->virtnet->wep, dnet->virtnet->cloaked,
@@ -325,10 +334,12 @@ void Frontend::UpdateGroups() {
         }
 
         // Update the group name if it's <no ssid> and the ssid is set
+        /*
         if (dnet->name == NOSSID && dnet->virtnet->ssid != NOSSID) {
             dnet->name = dnet->virtnet->ssid;
             group_name_map[dnet->tag] = dnet->name;
-        }
+            }
+            */
 
     }
 
@@ -408,7 +419,9 @@ display_network *Frontend::GroupTagged() {
         // exist since we (can't/shouldn't) ever make a network that isn't in the
         // name map
         group_tag_map.erase(group_tag_map.find(dnet->tag));
-        group_name_map.erase(group_name_map.find(dnet->tag));
+        map<string, string>::iterator gnmitr = group_name_map.find(dnet->tag);
+        if (gnmitr != group_name_map.end())
+            group_name_map.erase(gnmitr);
 
         // And remove it from the vector, and compensate the for loop
         group_vec.erase(group_vec.begin() + x);
