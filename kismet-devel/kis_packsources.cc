@@ -83,7 +83,7 @@ int RegisterKismetSources(Packetsourcetracker *sourcetracker) {
                                         chancontrol_madwifi_ag);
     sourcetracker->RegisterPacketsource("prism54g", 1, "IEEE80211g", 6,
                                         pcapsource_11g_registrant,
-                                        monitor_wext, NULL,
+                                        monitor_prism54g, NULL,
                                         chancontrol_prism54g);
 #else
     // Register the linuxwireless pcap stuff as null

@@ -1254,22 +1254,28 @@ int main(int argc,char *argv[]) {
     if (conf->FetchOpt("suiduser") != "") {
         suid_user = strdup(conf->FetchOpt("suiduser").c_str());
         if ((pwordent = getpwnam(suid_user)) == NULL) {
-            fprintf(stderr, "FATAL:  Could not find user '%s' for dropping priviledges.\n", suid_user);
-            fprintf(stderr, "        Make sure you have a valid user set for 'suiduser' in your config.\n");
+            fprintf(stderr, "FATAL:  Could not find user '%s' for dropping "
+                    "priviledges.  Make sure you have a valid user set for 'suiduser' "
+                    "in your config file.  See the 'Installation & Security' and "
+                    "'Configuration' sections of the README file for more "
+                    "information.\n", suid_user);
             exit(1);
         } else {
             suid_id = pwordent->pw_uid;
 
             if (suid_id == 0) {
                 // If we're suiding to root...
-                fprintf(stderr, "FATAL:  Specifying a uid-0 user for the priv drop is pointless.  Recompile\n");
-                fprintf(stderr, "        with --disable-setuid if you really want this.\n");
+                fprintf(stderr, "FATAL:  Specifying a uid-0 user for the priv drop "
+                        "is pointless.  See the 'Installation & Security' and "
+                        "'Configuration' sections of the README file for more "
+                        "information.\n");
                 exit(1);
             } else if (suid_id != real_uid && real_uid != 0) {
                 // If we're not running as root (ie, we've suid'd to root)
                 // and if we're not switching to the user that ran us
                 // then we don't like it and we bail.
-                fprintf(stderr, "FATAL:  kismet_server must be started as root or as the suid-target user.\n");
+                fprintf(stderr, "FATAL:  kismet_server must be started as root or "
+                        "as the suid-target user.\n");
                 exit(1);
             }
 
@@ -2328,7 +2334,8 @@ int main(int argc,char *argv[]) {
     FILE *testfile = NULL;
     if (net_log) {
         if ((testfile = fopen(netlogfile.c_str(), "w")) == NULL) {
-            fprintf(stderr, "FATAL:  Unable to open net file %s: %s\n",
+            fprintf(stderr, "FATAL:  Unable to open net file %s: %s.  Consult the "
+                    "'Troubleshooting' section of the README file for more info.\n",
                     netlogfile.c_str(), strerror(errno));
             ErrorShutdown();
         }
@@ -2337,7 +2344,8 @@ int main(int argc,char *argv[]) {
 
     if (csv_log) {
         if ((testfile = fopen(csvlogfile.c_str(), "w")) == NULL) {
-            fprintf(stderr, "FATAL:  Unable to open CSV file %s: %s\n",
+            fprintf(stderr, "FATAL:  Unable to open CSV file %s: %s.  Consult the "
+                    "'Troubleshooting' section of the README file for more info.\n",
                     netlogfile.c_str(), strerror(errno));
             ErrorShutdown();
         }
@@ -2346,7 +2354,8 @@ int main(int argc,char *argv[]) {
 
     if (xml_log) {
         if ((testfile = fopen(xmllogfile.c_str(), "w")) == NULL) {
-            fprintf(stderr, "FATAL:  Unable to open netxml file %s: %s\n",
+            fprintf(stderr, "FATAL:  Unable to open netxml file %s: %s.  Consult the "
+                    "'Troubleshooting' section of the README file for more info.\n",
                     netlogfile.c_str(), strerror(errno));
             ErrorShutdown();
         }
@@ -2355,7 +2364,8 @@ int main(int argc,char *argv[]) {
 
     if (cisco_log) {
         if ((testfile = fopen(ciscologfile.c_str(), "w")) == NULL) {
-            fprintf(stderr, "FATAL:  Unable to open CSV file %s: %s\n",
+            fprintf(stderr, "FATAL:  Unable to open CSV file %s: %s.  Consult the "
+                    "'Troubleshooting' section of the README file for more info.\n",
                     netlogfile.c_str(), strerror(errno));
             ErrorShutdown();
         }
