@@ -201,6 +201,8 @@ int monitor_wext(const char *in_dev, int initch, char *in_err);
 int monitor_wlanng(const char *in_dev, int initch, char *in_err);
 // wlan-ng avs
 int monitor_wlanng_avs(const char *in_dev, int initch, char *in_err);
+// linksys wrt54g monitoring
+int monitor_wrt54g(const char *in_dev, int initch, char *in_err);
 #endif
 
 // This should be expanded to handle BSD...

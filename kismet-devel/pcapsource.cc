@@ -768,6 +768,16 @@ int monitor_wlanng_avs(const char *in_dev, int initch, char *in_err) {
     return 0;
 }
 
+int monitor_wrt54g(const char *in_dev, int initch, char *in_err) {
+    char cmdline[2048];
+
+    snprintf(cmdline, 2048, "/usr/sbin/wl monitor 1");
+    if (ExecSysCmd(cmdline, in_err) < 0)
+        return -1;
+
+    return 0;
+}
+
 #endif
 
 #ifdef SYS_OPENBSD
