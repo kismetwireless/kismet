@@ -2170,6 +2170,9 @@ int main(int argc, char *argv[]) {
         case 'F':
             draw_feature_order = optarg;
             break;
+        default:
+            Usage(argv[1]);
+            break;
         }
     }
 
