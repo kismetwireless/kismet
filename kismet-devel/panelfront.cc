@@ -791,12 +791,6 @@ int PanelFront::Poll() {
 
     cur_window = window_list.back();
 
-    last_lat = lat; last_lon = lon;
-    last_spd = spd; last_alt = alt;
-    last_fix = fix;
-
-    client->FetchLoc(&lat, &lon, &alt, &spd, &fix);
-
     DrawDisplay();
 
     return ret;
@@ -1731,7 +1725,7 @@ int PanelFront::GpsPrinter(void *in_window) {
 
 
     // Find the orientation on our compass:
-    if (difference_angle > 330 && difference_angle <= 22) {
+    if (difference_angle > 330 || difference_angle <= 22) {
         snprintf(compass[0], 10, "  .-|-.  ");
         snprintf(compass[1], 10, " /  |  \\ ");
         snprintf(compass[2], 10, "|   O   |");
@@ -1779,8 +1773,10 @@ int PanelFront::GpsPrinter(void *in_window) {
         snprintf(compass[2], 10, "|   O   |");
         snprintf(compass[3], 10, " \\     / ");
         snprintf(compass[4], 10, "  '---'  ");
-
+    } else {
+        snprintf(compass[0], 10, "%f\n", difference_angle);
     }
+
 
     // - Network GPS ---------------------|
     // | Current:                         |
@@ -1797,7 +1793,7 @@ int PanelFront::GpsPrinter(void *in_window) {
     snprintf(output, print_width, "Current:");
     kwin->text.push_back(output);
 
-    snprintf(textfrag, 23, "%.3fx%.3f", lat, lon);
+    snprintf(textfrag, 23, "%.5fx%.5f", lat, lon);
     snprintf(output, print_width, "%-22s%s", textfrag, compass[0]);
     kwin->text.push_back(output);
 
@@ -1805,7 +1801,7 @@ int PanelFront::GpsPrinter(void *in_window) {
     snprintf(output, print_width, "%-22s%s", textfrag, compass[1]);
     kwin->text.push_back(output);
 
-    snprintf(textfrag, 23, " %.2f degrees", base_angle);
+    snprintf(textfrag, 23, " %.2f*", base_angle);
     snprintf(output, print_width, "%-22s%s", textfrag, compass[2]);
     kwin->text.push_back(output);
 
@@ -1817,7 +1813,8 @@ int PanelFront::GpsPrinter(void *in_window) {
     snprintf(output, print_width, "%-22s%s", textfrag, compass[4]);
     kwin->text.push_back(output);
 
-    snprintf(output, print_width, "%.3fx%.3f", center_lat, center_lon);
+    snprintf(textfrag, 23, "%.5fx%.5f", center_lat, center_lon);
+    snprintf(output, print_width, "%-22s%.2f*", textfrag, difference_angle);
     kwin->text.push_back(output);
 
     if (metric) {
@@ -2806,6 +2803,13 @@ int PanelFront::TextInput(void *in_window, int in_chr) {
 int PanelFront::Tick() {
     // We should be getting a 1-second tick - secondary to a draw event, because
     // we can cause our own draw events which wouldn't necessarily be a good thing
+
+    last_lat = lat; last_lon = lon;
+    last_spd = spd; last_alt = alt;
+    last_fix = fix;
+
+    client->FetchLoc(&lat, &lon, &alt, &spd, &fix);
+
 
     // Pull our packet count, store it, and bounce if we're
     // holding more than 5 minutes worth.
