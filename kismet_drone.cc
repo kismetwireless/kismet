@@ -38,7 +38,8 @@
 #include "wsp100source.h"
 #include "vihasource.h"
 #include "dronesource.h"
-#include "packetsourceutil.h"
+#include "packetsourcetracker.h"
+#include "kis_packsources.h"
 
 #include "gpsd.h"
 #include "tcpstreamer.h"
@@ -58,44 +59,25 @@ int gpsmode = 0;
 int gps_enable = 0;
 #endif
 
-// Capture sources
-vector<capturesource *> packet_sources;
-
 // Timetracker
 Timetracker timetracker;
 
+// Source trcker
+Packetsourcetracker sourcetracker;
+
+// Catch a fast error shutdown
+void ErrorShutdown() {
+    sourcetracker.CloseSources();
+    sourcetracker.ShutdownChannelChild();
+
+    fprintf(stderr, "Kismet drone exiting.\n");
+    exit(1);
+}
+
 // Catch our interrupt
 void CatchShutdown(int sig) {
-    capchild_packhdr pak;
-    pak.sentinel = CAPSENTINEL;
-    pak.packtype = CAPPACK_COMMAND;
-    pak.flags = CAPFLAG_NONE;
-    pak.datalen = 2;
-    pak.data = (uint8_t *) malloc(2);
-    int16_t cmd = CAPCMD_DIE;
-
-    memcpy(pak.data, &cmd, 2);
-
-    for (unsigned int x = 0; x < packet_sources.size(); x++) {
-        if (packet_sources[x]->alive) {
-            fprintf(stderr, "Shutting down source %d (%s)...\n", x, packet_sources[x]->name.c_str());
-
-            // Send the death command
-            if (send(packet_sources[x]->childpair[1], &pak, sizeof(capchild_packhdr) - sizeof(void *), 0) > 0)
-                send(packet_sources[x]->childpair[1], pak.data, pak.datalen, 0);
-        }
-    }
-
-    free(pak.data);
-
-    for (unsigned int x = 0; x < packet_sources.size(); x++) {
-        if (packet_sources[x]->alive) {
-            fprintf(stderr, "Waiting for capture child %d to terminate...\n", packet_sources[x]->childpid);
-            wait4(packet_sources[x]->childpid, NULL, 0, NULL);
-        }
-
-        delete packet_sources[x];
-    }
+    sourcetracker.CloseSources();
+    sourcetracker.ShutdownChannelChild();
 
     fprintf(stderr, "Kismet drone exiting.\n");
     exit(0);
@@ -126,21 +108,7 @@ int GpsEvent(Timetracker::timer_event *evt, void *parm) {
 
 // Handle channel hopping... this is actually really simple.
 int ChannelHopEvent(Timetracker::timer_event *evt, void *parm) {
-    for (unsigned int x = 0; x < packet_sources.size(); x++) {
-        if (packet_sources[x]->childpid <= 0 || packet_sources[x]->ch_hop == 0)
-            continue;
-
-        // Don't hop if a command is pending
-        if (packet_sources[x]->cmd_ack == 0)
-            continue;
-
-        SendChildCommand(packet_sources[x], packet_sources[x]->channels[packet_sources[x]->ch_pos++]);
-
-        // Wrap the channel sequence
-        if ((unsigned int) packet_sources[x]->ch_pos >= packet_sources[x]->channels.size())
-            packet_sources[x]->ch_pos = 0;
-
-    }
+    sourcetracker.AdvanceChannel();
 
     return 1;
 }
@@ -176,6 +144,8 @@ int main(int argc, char *argv[]) {
     char *configfile = NULL;
     char *servername = NULL;
 
+    char status[STATUS_MAX];
+    
     string allowed_hosts;
     int tcpport = -1;
     int tcpmax;
@@ -190,12 +160,12 @@ int main(int argc, char *argv[]) {
     int channel_hop = -1;
     int channel_velocity = 1;
     int channel_split = 0;
-    // capname to initial channel map
-    map<string, int> channel_initmap;
-    // Default channel hop sequences
-    vector<int> channel_def80211b;
-    vector<int> channel_def80211a;
 
+    // Default channels
+    vector<string> defaultchannel_vec;
+    vector<string> src_initchannel_vec;
+    vector<string> src_customchannel_vec;
+    
     // We don't actually use this but we need it for calls
     map<mac_addr, wep_key_info *> bssid_wep_map;
 
@@ -203,7 +173,6 @@ int main(int argc, char *argv[]) {
     string named_sources;
     vector<string> source_input_vec;
     int source_from_cmd = 0;
-    int enable_from_cmd = 0;
 
     vector<client_ipblock *> legal_ipblock_vec;
 
@@ -252,7 +221,6 @@ int main(int argc, char *argv[]) {
         case 'C':
             // Named sources
             named_sources = optarg;
-            enable_from_cmd = 1;
             fprintf(stderr, "Using specified capture sources: %s\n", named_sources.c_str());
             break;
         case 'p':
@@ -287,14 +255,7 @@ int main(int argc, char *argv[]) {
             break;
         case 'I':
             // Initial channel
-            char capname[64];
-            int initchan;
-            if (sscanf(optarg, "%64[^:]:%d", capname, &initchan) != 2) {
-                fprintf(stderr, "FATAL: Unable to process initial channel '%s'.  Format should be capturename:channel\n",
-                        optarg);
-                Usage(argv[0]);
-            }
-            channel_initmap[capname] = initchan;
+            src_initchannel_vec.push_back(optarg);
             break;
         default:
             Usage(argv[0]);
@@ -361,6 +322,26 @@ int main(int argc, char *argv[]) {
     fprintf(stderr, "Suid priv-dropping disabled.  This may not be secure.\n");
 #endif
 
+    // Catch old configs and yell about them
+    if (conf->FetchOpt("cardtype") != "" || conf->FetchOpt("captype") != "" ||
+        conf->FetchOpt("capinterface") != "") {
+        fprintf(stderr, "FATAL:  Your config file uses the old capture type "
+                "definitions.  These have been changed to support multiple captures "
+                "and other new features.  You need to install the latest configuration "
+                "files.  See the troubleshooting section of the README for more "
+                "information.\n");
+        exit(1);
+    }
+
+    if (conf->FetchOpt("80211achannels") != "" || 
+        conf->FetchOpt("80211bchannels") != "") {
+        fprintf(stderr, "FATAL:  Your config file uses the old default channel "
+                "configuration lines.  You need to install the latest configuration "
+                "files.  See the troubleshooting section of the README for more "
+                "information.\n");
+        exit(1);
+    }
+
 #ifdef HAVE_GPS
     if (conf->FetchOpt("gps") == "true") {
         if (sscanf(conf->FetchOpt("gpshost").c_str(), "%1024[^:]:%d", gpshost, &gpsport) != 2) {
@@ -399,6 +380,13 @@ int main(int argc, char *argv[]) {
 
 #endif
 
+    // Register the gps and timetracker with the sourcetracker
+    sourcetracker.AddGpstracker(gps);
+    sourcetracker.AddTimetracker(&timetracker);
+
+    // Register the sources
+    RegisterKismetSources(&sourcetracker);
+
     // Read all of our packet sources, tokenize the input and then start opening
     // them.
 
@@ -406,89 +394,13 @@ int main(int argc, char *argv[]) {
         named_sources = conf->FetchOpt("enablesources");
     }
 
-    // Parse the enabled sources into a map
-    map<string, int> enable_name_map;
-
     // Tell them if we're enabling everything
     if (named_sources.length() == 0)
-        fprintf(stderr, "No enable sources specified, all sources will be enabled.\n");
-
-    // Command line sources override the enable line, unless we also got an enable line
-    // from the command line too.
-    if ((source_from_cmd == 0 || enable_from_cmd == 1) && named_sources.length() > 0) {
-        enable_name_map = ParseEnableLine(named_sources);
-    }
+        fprintf(stderr, "No specific sources given to be enabled, all will be enabled.\n");
 
     // Read the config file if we didn't get any sources on the command line
     if (source_input_vec.size() == 0)
         source_input_vec = conf->FetchOptVec("source");
-
-    if (source_input_vec.size() == 0) {
-        fprintf(stderr, "FATAL:  No valid packet sources defined in config or passed on command line.\n");
-        exit(1);
-    }
-
-    int ret;
-    if ((ret = ParseCardLines(&source_input_vec, &packet_sources)) < 0) {
-        fprintf(stderr, "FATAL:  Invalid source line '%s'\n",
-                source_input_vec[(-1 * ret) - 1].c_str());
-        exit(1);
-    }
-
-    // Now enable root sources...  BindRoot will terminate if it fails.  We need to set our euid
-    // to be root here, we don't care if it fails though.
-    setreuid(0, 0);
-
-    // Now enable root sources...  BindRoot will terminate if it fails
-    BindRootSources(&packet_sources, &enable_name_map,
-                    ((source_from_cmd == 0) || (enable_from_cmd == 1)),
-                    &timetracker, gps);
-
-    // Once the packet source is opened, we shouldn't need special privileges anymore
-    // so lets drop to a normal user.  We also don't want to open our logfiles as root
-    // if we can avoid it.  Once we've dropped, we'll investigate our sources again and
-    // open any defered
-#ifdef HAVE_SUID
-    if (setuid(suid_id) < 0) {
-        fprintf(stderr, "FATAL:  setuid() to %s (%d) failed.\n", suid_user, suid_id);
-        exit(1);
-    } else {
-        fprintf(stderr, "Dropped privs to %s (%d)\n", suid_user, suid_id);
-    }
-#endif
-
-    // WE ARE NOW RUNNING AS THE TARGET UID
-
-    BindUserSources(&packet_sources, &enable_name_map,
-                    ((source_from_cmd == 0) || (enable_from_cmd == 1)),
-                    &timetracker, gps);
-
-    // Set the initial channel
-    for (unsigned int x = 0; x < packet_sources.size(); x++) {
-        if (channel_initmap.find(packet_sources[x]->name) == channel_initmap.end())
-            continue;
-
-        SendChildCommand(packet_sources[x], channel_initmap[packet_sources[x]->name]);
-
-        fprintf(stderr, "Source %d (%s): Setting initial channel %d\n",
-                x, packet_sources[x]->name.c_str(), channel_initmap[packet_sources[x]->name]);
-    }
-
-    // See if we tried to enable something that didn't exist
-    if (enable_name_map.size() == 0) {
-        fprintf(stderr, "FATAL:  No sources were enabled.  Check your source lines in your config file\n"
-                "        and on the command line.\n");
-        exit(1);
-    }
-
-    for (map<string, int>::iterator enmitr = enable_name_map.begin();
-         enmitr != enable_name_map.end(); ++enmitr) {
-        if (enmitr->second == 0) {
-            fprintf(stderr, "FATAL:  No source with the name '%s' was found.  Check your source and enable\n"
-                    "        lines in your configfile and on the command line.\n", enmitr->first.c_str());
-            exit(1);
-        }
-    }
 
     // Now look at our channel options
     if (channel_hop == -1) {
@@ -511,31 +423,86 @@ int main(int argc, char *argv[]) {
         }
 
         if (conf->FetchOpt("channelvelocity") != "") {
-            if (sscanf(conf->FetchOpt("channelvelocity").c_str(), "%d", &channel_velocity) != 1) {
-                fprintf(stderr, "FATAL:  Illegal config file value for channelvelocity.\n");
+            if (sscanf(conf->FetchOpt("channelvelocity").c_str(), "%d", 
+                       &channel_velocity) != 1) {
+                fprintf(stderr, "FATAL:  Illegal config file value for "
+                        "channelvelocity.\n");
                 exit(1);
             }
 
             if (channel_velocity < 1 || channel_velocity > 10) {
-                fprintf(stderr, "FATAL:  Illegal value for channelvelocity, must be between 1 and 10.\n");
+                fprintf(stderr, "FATAL:  Illegal value for channelvelocity, must "
+                        "be between 1 and 10.\n");
                 exit(1);
             }
         }
 
-        if (conf->FetchOpt("80211achannels") == "" || conf->FetchOpt("80211bchannels") == "") {
-            fprintf(stderr, "FATAL:  No base channel list (80211achannels or 80211bchannels) in configfile.\n");
-            fprintf(stderr, "        Update your config file (make forceinstall).\n");
+        // Fetch the vector of default channels
+        defaultchannel_vec = conf->FetchOptVec("defaultchannels");
+        if (defaultchannel_vec.size() == 0) {
+            fprintf(stderr, "FATAL:  Could not find any defaultchannels config lines "
+                    "and channel hopping was requested.");
             exit(1);
         }
 
-        // Parse our default channel listing
-        channel_def80211a = ParseChannelLine(conf->FetchOpt("80211achannels"));
-        channel_def80211b = ParseChannelLine(conf->FetchOpt("80211bchannels"));
+        // Fetch custom channels for individual sources
+        src_customchannel_vec = conf->FetchOptVec("sourcechannels");
+    }
 
-        // Parse and assign our channels
-        vector<string> sourcechannellines = conf->FetchOptVec("sourcechannels");
-        ParseSetChannels(&sourcechannellines, &packet_sources, channel_split,
-                         &channel_def80211a, &channel_def80211b);
+    // Register our default channels
+    if (sourcetracker.RegisterDefaultChannels(&defaultchannel_vec) < 0) {
+        fprintf(stderr, "FATAL:  %s\n", sourcetracker.FetchError());
+        exit(1);
+    }
+
+    // Turn all our config data into meta packsources, or fail...  If we're
+    // passing the sources from the command line, we enable them all, so we
+    // null the named_sources string
+    if (sourcetracker.ProcessCardList(source_from_cmd ? "" : named_sources, 
+                                      &source_input_vec, &src_customchannel_vec, 
+                                      &src_initchannel_vec,
+                                      channel_hop, channel_split) < 0) {
+        fprintf(stderr, "FATAL: %s\n", sourcetracker.FetchError());
+        exit(1);
+    }
+        
+    
+    // Now enable root sources...
+    setreuid(0, 0);
+
+    // Bind the root sources
+    if (sourcetracker.BindSources(1) < 0) {
+        fprintf(stderr, "FATAL: %s\n", sourcetracker.FetchError());
+        exit(1);
+    }
+
+    // Spawn the channel control source.  All future exits must now call the real
+    // exit function to terminate the channel hopper!
+    if (sourcetracker.SpawnChannelChild() < 0) {
+        fprintf(stderr, "FATAL: %s\n", sourcetracker.FetchError());
+        exit(1);
+    }
+
+
+    // Once the packet source and channel control is opened, we shouldn't need special
+    // privileges anymore so lets drop to a normal user.  We also don't want to open our
+    // logfiles as root if we can avoid it.  Once we've dropped, we'll investigate our
+    // sources again and open any defered
+#ifdef HAVE_SUID
+    if (setuid(suid_id) < 0) {
+        fprintf(stderr, "FATAL:  setuid() to %s (%d) failed.\n", suid_user, suid_id);
+        exit(1);
+    } else {
+        fprintf(stderr, "Dropped privs to %s (%d)\n", suid_user, suid_id);
+    }
+#endif
+
+    // WE ARE NOW RUNNING AS THE TARGET UID
+
+    // Bind the user sources
+    if (sourcetracker.BindSources(0) < 0) {
+        fprintf(stderr, "FATAL: %s\n", sourcetracker.FetchError());
+        ErrorShutdown();
     }
 
 
@@ -553,25 +520,25 @@ int main(int argc, char *argv[]) {
     if (tcpport == -1) {
         if (conf->FetchOpt("tcpport") == "") {
             fprintf(stderr, "FATAL:  No tcp port given to listen for stream connections.\n");
-            exit(1);
+            ErrorShutdown();
         } else if (sscanf(conf->FetchOpt("tcpport").c_str(), "%d", &tcpport) != 1) {
             fprintf(stderr, "FATAL:  Invalid config file value for tcp port.\n");
-            exit(1);
+            ErrorShutdown();
         }
     }
 
     if (conf->FetchOpt("maxclients") == "") {
         fprintf(stderr, "FATAL:  No maximum number of clients given.\n");
-        exit(1);
+        ErrorShutdown();
     } else if (sscanf(conf->FetchOpt("maxclients").c_str(), "%d", &tcpmax) != 1) {
         fprintf(stderr, "FATAL:  Invalid config file option for max clients.\n");
-        exit(1);
+        ErrorShutdown();
     }
 
     if (allowed_hosts.length() == 0) {
         if (conf->FetchOpt("allowedhosts") == "") {
             fprintf(stderr, "FATAL:  No list of allowed hosts.\n");
-            exit(1);
+            ErrorShutdown();
         }
 
         allowed_hosts = conf->FetchOpt("allowedhosts");
@@ -605,7 +572,7 @@ int main(int argc, char *argv[]) {
             if (inet_aton(hoststr.c_str(), &(ipb->network)) == 0) {
                 fprintf(stderr, "FATAL:  Illegal IP address '%s' in allowed hosts list.\n",
                         hoststr.c_str());
-                exit(1);
+                ErrorShutdown();
             }
         } else {
             // Handle pairs
@@ -615,7 +582,7 @@ int main(int argc, char *argv[]) {
             if (inet_aton(hosthalf.c_str(), &(ipb->network)) == 0) {
                 fprintf(stderr, "FATAL:  Illegal IP address '%s' in allowed hosts list.\n",
                         hosthalf.c_str());
-                exit(1);
+                ErrorShutdown();
             }
 
             int validmask = 1;
@@ -641,7 +608,7 @@ int main(int argc, char *argv[]) {
             if (validmask == 0) {
                 fprintf(stderr, "FATAL:  Illegal netmask '%s' in allowed hosts list.\n",
                         maskhalf.c_str());
-                exit(1);
+                ErrorShutdown();
             }
         }
 
@@ -649,7 +616,7 @@ int main(int argc, char *argv[]) {
         if ((ipb->network.s_addr & ipb->mask.s_addr) != ipb->network.s_addr) {
             fprintf(stderr, "FATAL:  Invalid network '%s' in allowed hosts list.\n",
                     inet_ntoa(ipb->network));
-            exit(1);
+            ErrorShutdown();
         }
 
         // Add it to our vector
@@ -692,41 +659,11 @@ int main(int argc, char *argv[]) {
         max_fd = stream_descrip;
     FD_SET(stream_descrip, &read_set);
 
-    for (unsigned int x = 0; x < packet_sources.size(); x++) {
-        if (packet_sources[x]->source == NULL)
-            continue;
-
-        FD_SET(packet_sources[x]->childpair[1], &read_set);
-
-        if (packet_sources[x]->childpair[1] > max_fd)
-            max_fd = packet_sources[x]->childpair[1];
-
-        if (silent)
-            SendChildCommand(packet_sources[x], CAPCMD_SILENT);
-
-        // Activate the source
-        SendChildCommand(packet_sources[x], CAPCMD_ACTIVATE);
-
-        packet_sources[x]->alive = 1;
-
-    }
-
     while (1) {
         fd_set rset, wset;
 
         max_fd = streamer.MergeSet(read_set, max_fd, &rset, &wset);
-
-        // Update the write set if we want to send commands
-        for (unsigned int x = 0; x < packet_sources.size(); x++) {
-            if (packet_sources[x]->childpid <= 0)
-                continue;
-
-            if (packet_sources[x]->cmd_buf.size() > 0) {
-                FD_SET(packet_sources[x]->childpair[1], &wset);
-                if (packet_sources[x]->childpair[1] > max_fd)
-                    max_fd = packet_sources[x]->childpair[1];
-            }
-        }
+        max_fd = sourcetracker.MergeSet(&rset, &wset, max_fd);
 
         struct timeval tm;
         tm.tv_sec = 0;
@@ -755,69 +692,54 @@ int main(int argc, char *argv[]) {
                 max_fd = accept_fd;
         }
 
-        for (unsigned int src = 0; src < packet_sources.size(); src++) {
-            if (packet_sources[src]->childpid <= 0)
-                continue;
 
-            int ret;
-
-            // Handle sending the commands
-            if (FD_ISSET(packet_sources[src]->childpair[1], &wset) && packet_sources[src]->cmd_buf.size() > 0) {
-                int send_fd = packet_sources[src]->childpair[1];
-                capchild_packhdr *pak = packet_sources[src]->cmd_buf.front();
-                packet_sources[src]->cmd_buf.pop_front();
-
-                // Send the packet header
-                if (send(send_fd, pak, sizeof(capchild_packhdr) - sizeof(void *), 0) < 0) {
-                    fprintf(stderr, "FATAL:  capture source %d (%s)send() error sending packhdr %d (%s)\n",
-                            src, packet_sources[src]->name.c_str(), errno, strerror(errno));
-                    exit(1);
-                }
-
-                // Send the data
-                if (send(send_fd, pak->data, pak->datalen, 0) < 0) {
-                    fprintf(stderr, "FATAL:  capture child %d (%s) send() error sending pack data %d (%s)\n",
-                            src, packet_sources[src]->name.c_str(), errno, strerror(errno));
-                    exit(1);
-                }
-
-                // Delete the data - this needs to be a free because of strdup
-                free(pak->data);
-                // Delete the packet
-                delete pak;
+        // Process sourcetracker-level stuff... This should someday handle packetpath
+        // stuff, and should someday be the same argument format as uiserver.poll...
+        int ret;
+        ret = sourcetracker.Poll(&rset, &wset);
+        if (ret < 0) {
+            snprintf(status, STATUS_MAX, "FATAL: %s", sourcetracker.FetchError());
+            if (!silent) {
+                fprintf(stderr, "%s\n", status);
+                fprintf(stderr, "Terminating.\n");
             }
 
-            string chtxt;
-
-            if (FD_ISSET(packet_sources[src]->childpair[1], &rset)) {
+            CatchShutdown(-1);
+        } else if (ret > 0) {
+            if (!silent) {
+                fprintf(stderr, "%s\n", sourcetracker.FetchError());
+            }
+        }
+      
+        // This is ugly, come up with a better way to do it someday
+        vector<KisPacketSource *> packet_sources = sourcetracker.FetchSourceVec();
+        
+        for (unsigned int src = 0; src < packet_sources.size(); src++) {
+            if (FD_ISSET(packet_sources[src]->FetchDescriptor(), &rset)) {
                 // Capture the packet from whatever device
                 // len = psrc->FetchPacket(&packet, data, moddata);
 
-                ret = FetchChildBlock(packet_sources[src]->childpair[1], &packet, data, moddata, &chtxt);
-
-                if (ret == CAPPACK_CMDACK) {
-                    packet_sources[src]->cmd_ack = 1;
-                } else if (ret == CAPPACK_TEXT && chtxt != "") {
-                    if (!silent)
-                        fprintf(stderr, "%s\n", chtxt.c_str());
-                } else if (ret == CAPPACK_PACKET && packet.len > 0) {
+                ret = packet_sources[src]->FetchPacket(&packet, data, moddata);
+                
+                if (ret > 0) {
                     if (streamer.WritePacket(&packet) < 0) {
                         fprintf(stderr, "FATAL:  Error writing packet to streamer: %s\n",
                                 streamer.FetchError());
                         CatchShutdown(-1);
                     }
-
                 } else if (ret < 0) {
                     // Fail on error
+                    snprintf(status, STATUS_MAX, "FATAL: %s",
+                             packet_sources[src]->FetchError());
                     if (!silent) {
-                        fprintf(stderr, "%s\n", chtxt.c_str());
+                        fprintf(stderr, "%s\n", status);
                         fprintf(stderr, "Terminating.\n");
                     }
 
                     CatchShutdown(-1);
                 }
+            } // End processing new packets
 
-            }
         }
 
         timetracker.Tick();

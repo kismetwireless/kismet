@@ -159,7 +159,7 @@ int GetTagOffset(int init_offset, int tagnum, kis_packet *packet,
 }
 
 // Get the info from a packet
-void GetPacketInfo(kis_packet *packet, packet_parm *parm, packet_info *ret_packinfo,
+void GetPacketInfo(kis_packet *packet, packet_info *ret_packinfo,
                    macmap<wep_key_info *> *bssid_wep_map, unsigned char *identity) {
     // Zero the entire struct
     memset(ret_packinfo, 0, sizeof(packet_info));
@@ -530,7 +530,8 @@ void GetPacketInfo(kis_packet *packet, packet_parm *parm, packet_info *ret_packi
              packet->data[ret_packinfo->header_offset + 1] & 0x40)) {
 
             ret_packinfo->encrypted = 1;
-        } else if (parm->fuzzy_crypt && (unsigned int) ret_packinfo->header_offset+9 < packet->len) {
+        } else if (packet->parm.fuzzy_crypt && 
+                   (unsigned int) ret_packinfo->header_offset+9 < packet->len) {
             // Do a fuzzy data compare... if it's not:
             // 0xAA - IP LLC
             // 0x42 - I forgot.

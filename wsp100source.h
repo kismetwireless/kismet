@@ -49,7 +49,9 @@ int Wsp100PokeSensor(Timetracker::timer_event *evt, void *call_parm);
 
 class Wsp100Source : public KisPacketSource {
 public:
-    int OpenSource(const char *dev, card_type ctype);
+    Wsp100Source(string in_name, string in_dev) : KisPacketSource(in_name, in_dev) { }
+
+    int OpenSource();
 
     int CloseSource();
 
@@ -59,13 +61,10 @@ public:
 
     void PokeSensor();
 
-    int SetChannel(unsigned int chan);
-
     // Just return 0 right now
     int FetchChannel() { return 0; }
 
 protected:
-
     int Wsp2Common(kis_packet *packet, uint8_t *data, uint8_t *moddata);
 
     short int port;
@@ -82,6 +81,12 @@ protected:
     int poke_event_id;
 
 };
+
+// Registrant bits
+KisPacketSource *wsp100source_registrant(string in_name, string in_device,
+                                         char *in_err);
+int monitor_wsp100(const char *in_dev, int initch, char *in_err);
+int chancontrol_wsp100(const char *in_dev, int in_ch, char *in_err, void *in_ext);
 
 // wsp100
 #endif

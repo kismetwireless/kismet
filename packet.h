@@ -168,6 +168,7 @@ typedef struct {
     int modified;               // Has moddata been populated?
     uint8_t *data;              // Raw packet data
     uint8_t *moddata;           // Modified packet data
+    char *sourcename;           // Name of the source that generated the data
     carrier_type carrier;       // Signal carrier
     encoding_type encoding;     // Signal encoding
     int datarate;               // Data rate in units of 100 kbps
@@ -177,6 +178,7 @@ typedef struct {
     float gps_spd;
     float gps_heading;
     int gps_fix;
+    packet_parm parm;           // Parameters from the packet source that trickle down
 } kis_packet;
 
 #ifdef WORDS_BIGENDIAN
@@ -996,7 +998,7 @@ void MungeToPrintable(char *in_data, int max);
 // Info extraction functions
 int GetTagOffset(int init_offset, int tagnum, kis_packet *packet,
                  map<int, int> *tag_cache_map);
-void GetPacketInfo(kis_packet *packet, packet_parm *parm, packet_info *ret_packinfo,
+void GetPacketInfo(kis_packet *packet, packet_info *ret_packinfo,
                    macmap<wep_key_info *> *bssid_wep_map, unsigned char *identity);
 void GetProtoInfo(kis_packet *packet, packet_info *in_info);
 void DecryptPacket(kis_packet *packet, packet_info *in_info, 

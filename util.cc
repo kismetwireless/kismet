@@ -137,6 +137,9 @@ vector<string> StrTokenize(string in_str, string in_split) {
     unsigned int end = in_str.find(in_split);
     vector<string> ret;
 
+    if (in_str.length() == 0)
+        return ret;
+    
     while (end != string::npos) {
         string sub = in_str.substr(begin, end-begin);
         begin = end+1;
@@ -191,6 +194,20 @@ float Pair2Float(int16_t primary, int64_t mantissa) {
 
 float IWFreq2Float(iwreq *inreq) {
     return ((float) inreq->u.freq.m) * pow(10,inreq->u.freq.e);
+}
+
+void IWFloat2Freq(double in_val, struct iw_freq *out_freq) {
+    out_freq->e = (short) (floor(log10(in_val)));
+    if(out_freq->e > 8)              
+    {  
+        out_freq->m = ((long) (floor(in_val / pow(10,out_freq->e - 6)))) * 100; 
+        out_freq->e -= 8;
+    }  
+    else 
+    {  
+        out_freq->m = (uint32_t) in_val;            
+        out_freq->e = 0;
+    }  
 }
 #endif
 
@@ -302,5 +319,38 @@ void KisRingBuffer::MarkRead(int in_len) {
     }
 
     return;
+}
+
+vector<int> Str2IntVec(string in_text) {
+    vector<string> optlist = StrTokenize(in_text, ",");
+    vector<int> ret;
+    int ch;
+
+    for (unsigned int x = 0; x < optlist.size(); x++) {
+        if (sscanf(optlist[x].c_str(), "%d", &ch) != 1) {
+            ret.clear();
+            break;
+        }
+
+        ret.push_back(ch);
+    }
+
+    return ret;
+}
+
+int ExecSysCmd(char *in_cmd, char *in_err) {
+    int ret;
+
+    if ((ret = system(in_cmd)) == -1) {
+        snprintf(in_err, STATUS_MAX, "fork() for system() failed.");
+        return -1;
+    }
+
+    if (WEXITSTATUS(ret) != 0) {
+        snprintf(in_err, STATUS_MAX, "command '%s' failed.", in_cmd);
+        return -1;
+    }
+
+    return 0;
 }
 

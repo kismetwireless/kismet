@@ -4,7 +4,7 @@
 # not continually reading --help!
 
 # Version of Kismet config
-version=3.0.1c
+version=3.1.0a
 
 # Name of server (Purely for organiational purposes)
 servername=Kismet
@@ -12,45 +12,7 @@ servername=Kismet
 # User to setid to (should be your normal user)
 suiduser=your_user_here
 
-# Packet sources:
-# source=capture_cardtype,capture_interface,capture_name
-# Card type - Specifies the type of device. It can be one of:
-#     cisco         - Cisco card with Linux Kernel drivers 
-#     cisco_cvs     - Cisco card with CVS Linux drivers
-#     cisco_bsd     - Cisco on *BSD
-#     prism2        - Prism2 using wlan-ng drivers with pcap support (all 
-#                      current versions support pcap)
-#     prism2_hostap - Prism2 using hostap drivers
-#     prism2_legacy - Prism2 using wlan-ng drivers without pcap support (0.1.9)
-#     prism2_bsd    - Prism2 on *BSD
-#     orinoco       - Orinoco cards using Snax's patched driers
-#     generic       - Generic card with no specific support.  You will have 
-#                      to put this into monitor mode yourself!
-#     wsp100        - WSP100 embedded remote sensor.  
-#     wtapfile      - Saved file of packets readable by libwiretap
-#     pcapfile      - Saved file of packets readable by libpcap
-#     ar5k          - ar5k 802.11a using the vt_ar5k drivers
-#     drone         - Kismet remote drone
-#     viha          - Mac OSX Airport drivers
-# Capture interface - Specifies the network interface Kismet will watch for
-#  packets to come in on.  Typically "ethX" or "wlanX".  For the WSP100 capture
-#  engine, the WSP100 device sends packets via a UDP stream, so the capture
-#  interface should be in the form of host:port where 'host' is the WSP100 and 
-#  'port' is the local UDP port that it will send data to.  
-#  Kismet remote drones function similarly and the interface should be the
-#  host:port of the drone.
-#  CVS Cisco drivers split the interface into 2 components, ethX and wifiX.
-#  They may not be the same, so for cisco_cvs the card type specifies 
-#  ethX:wifiX
-# Capture Name      - The name Kismet uses for this capture source.  This is the 
-#   name used to specify what sources to enable.
-# 
-# To enable multiple sources, specify a source line for each and then use the
-# enablesources line to enable them.  For example:
-# source=prism2,wlan0,prism
-# source=cisco,eth0,cisco
-# source=cisco_cvs,eth1:wifi0,ciscocvs
-
+# See the README for the available packet sources and how to configure them
 source=cisco,eth0,ciscosource
 # Other common source configs:
 # source=prism2,wlan0,prism2source
@@ -77,18 +39,21 @@ splitchannels=true
 # Basic channel hopping control:
 # These define the channels the cards hop through for various frequency ranges
 # supported by Kismet.   More finegrain control is available via the 
-# "sourcechannels" configuration option, but these lists are used for basic
-# channel hopping.
-80211bchannels=1,6,11,2,7,3,8,4,9,5,10
-# Alternately, users outside of the US or with firmware which supports the
-# full range of possible channels will probably want the extended channel
-# list:
-# 80211bchannels=1,7,13,2,8,3,14,9,4,10,5,11,6,12
-80211achannels=36,40,44,48,52,56,60,64
-# Depending on your card and drivers, this is a list of every 802.11a channel.
-# Most won't support all of these, so you'll have to tweak it to what your
-# system supports.
-# 80211achannels=36,40,44,48,52,56,60,64,100,104,108,112,116,120,124,128,132,136,140,149,153,157,161,184,188,192,196,200,204,208,212,216 
+# "sourcechannels" configuration option.
+# 
+# Don't change the IEEE80211<x> identifiers or channel hopping won't work.
+
+# Users outside the US might want to use this list:
+# defaultchannels=IEEE80211b:1,7,13,2,8,3,14,9,4,10,5,11,6,12
+defaultchannels=IEEE80211b:1,6,11,2,7,3,8,4,9,5,10
+
+# 802.11g uses the same channels as 802.11b...
+defaultchannels=IEEE80211g:1,6,11,2,7,3,8,4,9,5,10
+
+# 802.11a channels are non-overlapping so sequential is fine.  You may want to
+# adjust the list depending on the channels your card actually supports.
+# defaultchannels=IEEE80211a:36,40,44,48,52,56,60,64,100,104,108,112,116,120,124,128,132,136,140,149,153,157,161,184,188,192,196,200,204,208,212,216 
+defaultchannels=IEEE80211a:36,40,44,48,52,56,60,64
 
 # Fine-tuning channel hopping control:
 # The sourcechannels option can be used to set the channel hopping for 

@@ -1,4 +1,8 @@
 In no particular order:
+    GPSMap should use libcurl
+    Fix allocation on openbsd in panels client
+    Fix autoconf enable/disable stuff
+    Fix OSX compile without viha
 	reconnect to gpsd
 	first-seen-source
 	DCF/PCF

@@ -16,6 +16,10 @@
     Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 */
 
+// pcapsource is probably the most complex source handing the largest number of
+// card types.  Ideally, everything should be part of the pcap source except
+// wsp100 and drones.
+
 #ifndef __PCAPSOURCE_H__
 #define __PCAPSOURCE_H__
 
@@ -25,6 +29,7 @@
 
 #include "packet.h"
 #include "packetsource.h"
+#include "ifcontrol.h"
 
 extern "C" {
 #ifndef HAVE_PCAPPCAP_H
@@ -36,11 +41,7 @@ extern "C" {
 #endif
 }
 
-// We care about:
-// DLT_EN10MB (1) (encapsulated ethernet only, not useful.)
-// DLT_IEEE802_11 (105) (raw 802.11b like linux cisco gives us)
-// DLT_PRISM_HEADER (119) (linux prism2 headers)
-// DLT_AIRONET_HEADER (120) (BSD patch)
+// Custom packet stream headers
 
 // Define this for wlan-ng DLT_PRISM_HEADER support
 #define WLAN_DEVNAMELEN_MAX 16
@@ -48,9 +49,12 @@ extern "C" {
 // The BSD datalink that doesn't report a sane value
 #define KDLT_BSD802_11 -100
 
+// Generic pcapsource
 class PcapSource : public KisPacketSource {
 public:
-    int OpenSource(const char *dev, card_type ctype);
+    PcapSource(string in_name, string in_dev) : KisPacketSource(in_name, in_dev) { }
+
+    int OpenSource();
     int CloseSource();
 
     int FetchDescriptor();
@@ -60,10 +64,7 @@ public:
     static void Callback(u_char *bp, const struct pcap_pkthdr *header,
                          const u_char *in_data);
 
-    int SetChannel(unsigned int chan);
-
     int FetchChannel();
-
 protected:
     // Prism 802.11 headers from wlan-ng tacked on to the beginning of a
     // pcap packet... Snagged from the wlan-ng source
@@ -123,21 +124,113 @@ protected:
         uint32_t encoding;
     } avs_80211_1_header;
 
-    int Pcap2Common(kis_packet *packet, uint8_t *data, uint8_t *moddata);
-
-    int PcapShellCmd(char *in_cmd);
-
+    // Carrier setting
+    carrier_type IEEE80211Carrier();
+    // Datalink checker
+    int DatalinkType();
+    // Mangler
+    int ManglePacket(kis_packet *packet, uint8_t *data, uint8_t *moddata);
+    // Mangle a prism2 datalink to a kismet packet
+    int Prism2KisPack(kis_packet *packet, uint8_t *data, uint8_t *moddata);
+    // Mangle a BSD header
+    int BSD2KisPack(kis_packet *packet, uint8_t *data, uint8_t *moddata);
+    
     pcap_t *pd;
-
-    // What kind of netlink is it
     int datalink_type;
+};
 
-    // Linux wireless ioctl stuff
+// Open with pcap_dead for pcapfiles - we have a different open and we
+// have to kluge fetching the packet descriptor
+class PcapSourceFile : public PcapSource {
+public:
+    PcapSourceFile(string in_name, string in_dev) : PcapSource(in_name, in_dev) { }
+    int OpenSource();
+    int FetchPacket(kis_packet *packet, uint8_t *data, uint8_t *moddata);
+    int FetchDescriptor();
+};
+
+// Wireless extention pcapsource - use wext to get the channels.  Everything
+// else is straight pcapsource
 #ifdef HAVE_LINUX_WIRELESS
-    int ioctl_sock;
+class PcapSourceWext : public PcapSource {
+public:
+    PcapSourceWext(string in_name, string in_dev) : PcapSource(in_name, in_dev) { }
+    int FetchChannel();
+};
+
 #endif
 
-};
+
+// ----------------------------------------------------------------------------
+// Registrant and control functions
+
+KisPacketSource *pcapsource_registrant(string in_name, string in_device, 
+                                       char *in_err);
+KisPacketSource *pcapsource_file_registrant(string in_name, string in_device, 
+                                            char *in_err);
+
+#ifdef HAVE_LINUX_WIRELESS
+KisPacketSource *pcapsource_wext_registrant(string in_name, string in_device, 
+                                            char *in_err);
+KisPacketSource *pcapsource_ciscowifix_registrant(string in_name, string in_device, 
+                                                  char *in_err);
+#endif
+
+// Monitor activation
+#ifdef HAVE_LINUX_WIRELESS
+// Cisco (old) 
+int monitor_cisco(const char *in_dev, int initch, char *in_err);
+// Cisco (new)
+int monitor_cisco_wifix(const char *in_dev, int initch, char *in_err);
+// hostap prism2
+int monitor_hostap(const char *in_dev, int initch, char *in_err);
+// orinoco
+int monitor_orinoco(const char *in_dev, int initch, char *in_err);
+// acx100
+int monitor_acx100(const char *in_dev, int initch, char *in_err);
+// ar5k
+int monitor_vtar5k(const char *in_dev, int initch, char *in_err);
+// "Standard" wext monitor sequence - mostly a helper for other functions
+// since most cards that use wext still have custom initialization that
+// needs to be done.
+int monitor_wext(const char *in_dev, int initch, char *in_err);
+#endif
+
+#ifdef SYS_LINUX
+// wlan-ng modern standard
+int monitor_wlanng(const char *in_dev, int initch, char *in_err);
+// wlan-ng avs
+int monitor_wlanng_avs(const char *in_dev, int initch, char *in_err);
+#endif
+
+// This should be expanded to handle BSD...
+#ifdef SYS_OPENBSD
+// Cisco (bsd)
+int monitor_openbsd_cisco(const char *in_dev, int initch, char *in_err);
+// openbsd prism2
+int monitor_openbsd_prism2(const char *in_dev, int initch, char *in_err);
+#endif
+
+// Channel controls
+#ifdef HAVE_LINUX_WIRELESS
+// Standard wireless extension controls
+int chancontrol_wext(const char *in_dev, int in_ch, char *in_err, void *in_ext);
+// Orinoco iwpriv control
+int chancontrol_orinoco(const char *in_dev, int in_ch, char *in_err, void *in_ext);
+#endif
+
+#ifdef SYS_LINUX
+// Modern wlan-ng and wlan-ng avs
+int chancontrol_wlanng(const char *in_dev, int in_ch, char *in_err, void *in_ext);
+int chancontrol_wlanng_avs(const char *in_dev, int in_ch, char *in_err, void *in_ext);
+#endif
+
+#ifdef SYS_OPENBSD
+// openbsd prism2 controls
+int chancontrol_openbsd_prism2(const char *in_dev, int in_ch, char *in_err, 
+                               void *in_ext);
+#endif
+
 
 #endif
 

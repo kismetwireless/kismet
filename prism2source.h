@@ -20,6 +20,8 @@
 #define __PRISM2SOURCE_H__
 
 #include "config.h"
+#include "util.h"
+#include "ifcontrol.h"
 
 #ifdef HAVE_LINUX_NETLINK
 
@@ -48,7 +50,9 @@
 
 class Prism2Source : public KisPacketSource {
 public:
-    int OpenSource(const char *dev, card_type ctype);
+    Prism2Source(string in_name, string in_dev) : KisPacketSource(in_name, in_dev) { }
+
+    int OpenSource();
     int CloseSource();
 
     int FetchDescriptor() { return fd; }
@@ -60,13 +64,11 @@ public:
     int FetchChannel();
 
 protected:
-    int Prism2Common(kis_packet *packet, uint8_t *data, uint8_t *moddata);
-
     typedef struct {
         uint32_t did __attribute__ ((packed));
-	uint16_t status __attribute__ ((packed));
-	uint16_t len __attribute__ ((packed));
-	uint32_t data __attribute__ ((packed));
+        uint16_t status __attribute__ ((packed));
+        uint16_t len __attribute__ ((packed));
+        uint32_t data __attribute__ ((packed));
     } p80211item_t;
 
     typedef struct {
@@ -85,12 +87,19 @@ protected:
         p80211item_t frmlen __attribute__ ((packed));
     } sniff_packet_t;
 
+    int Prism2Common(kis_packet *packet, uint8_t *data, uint8_t *moddata);
+
     int read_sock;
     int write_sock;
     int fd;
 
     uint8_t buffer[MAX_PACKET_LEN];
 };
+
+KisPacketSource *prism2source_registrant(string in_name, string in_device, char *in_err);
+int monitor_wlanng_legacy(const char *in_dev, int initch, char *in_err);
+int chancontrol_wlanng_legacy(const char *in_dev, int initch, char *in_err, 
+                              void *in_ext);
 
 #endif
 
