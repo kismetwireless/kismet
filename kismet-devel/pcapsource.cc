@@ -106,9 +106,9 @@ void PcapSource::Callback(u_char *bp, const struct pcap_pkthdr *header,
 
 int PcapSource::FetchPacket(pkthdr *in_header, u_char *in_data) {
     int ret;
-    unsigned char *udata = '\0';
+    //unsigned char *udata = '\0';
 
-    if ((ret = pcap_dispatch(pd, 1, PcapSource::Callback, udata)) < 0) {
+    if ((ret = pcap_dispatch(pd, 1, PcapSource::Callback, NULL)) < 0) {
         snprintf(errstr, 1024, "Pcap Get Packet pcap_dispatch() failed");
         return -1;
     }
