@@ -173,7 +173,7 @@ int Packetsourcetracker::Poll(fd_set *in_rset, fd_set *in_wset) {
 }
 
 meta_packsource *Packetsourcetracker::FetchMetaID(int in_id) {
-    if (in_id < 0 || in_id > (int) meta_packsources.size())
+    if (in_id < 0 || in_id >= (int) meta_packsources.size())
         return NULL;
 
     return meta_packsources[in_id];

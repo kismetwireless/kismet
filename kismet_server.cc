@@ -914,14 +914,101 @@ void handle_command(TcpServer *tcps, client_command *cc) {
     string out_error = string(id);
     char status[1024];
 
-    unsigned int space = cc->cmd.find(" ");
+    vector<string> cmdvec = StrTokenize(cc->cmd, " ");
 
-    if (space == string::npos)
-        space = cc->cmd.length();
+    string cmdword = cmdvec[0];
 
-    string cmdword = cc->cmd.substr(0, space);
+    if (cmdword == "CHANLOCK") {
+        // Lock a metasource to the specified channel
+        // ! 0 CHANLOCK SRC CHAN
+        if (cmdvec.size() != 3) {
+            out_error += "invalid chanlock request";
+            tcps->SendToClient(cc->client_fd, error_ref, (void *) &out_error);
+            return;
+        }
 
-    if (cmdword == "PAUSE") {
+        int metanum;
+        if (sscanf(cmdvec[1].c_str(), "%d", &metanum) != 1) {
+            out_error += "invalid chanlock request";
+            tcps->SendToClient(cc->client_fd, error_ref, (void *) &out_error);
+            return;
+        }
+
+        int chnum;
+        if (sscanf(cmdvec[2].c_str(), "%d", &chnum) != 1) {
+            out_error += "invalid chanlock request";
+            tcps->SendToClient(cc->client_fd, error_ref, (void *) &out_error);
+            return;
+        }
+
+        // See if this meta number even exists...
+        meta_packsource *meta;
+        if ((meta = sourcetracker.FetchMetaID(metanum)) == NULL) {
+            out_error += "invalid chanlock request, unknown meta id";
+            tcps->SendToClient(cc->client_fd, error_ref, (void *) &out_error);
+            return;
+        }
+
+        // See if the requested channel is in the list of valid channels for this
+        // source...
+        int chvalid = 0;
+        for (unsigned int chi = 0; chi < meta->channels.size(); chi++) {
+            if (meta->channels[chi] == chnum) {
+                chvalid = 1;
+                break;
+            }
+        }
+
+        if (chvalid == 0) {
+            out_error += "invalid chanlock request - illegal channel for this source";
+            tcps->SendToClient(cc->client_fd, error_ref, (void *) &out_error);
+            return;
+        }
+
+        // Finally if we're valid, stop the source from hopping and lock it to this
+        // channel
+        sourcetracker.SetHopping(0, meta);
+        sourcetracker.SetChannel(chnum, meta);
+
+        snprintf(status, 1024, "Locking source '%s' to channel %d",
+                 meta->name.c_str(), chnum);
+        NetWriteStatus(status);
+        if (!silent)
+            fprintf(stderr, "%s\n", status);
+    } else if (cmdword == "CHANHOP") {
+        // Lock a metasource to the specified channel
+        if (cmdvec.size() != 2) {
+            out_error += "invalid chanhop request";
+            tcps->SendToClient(cc->client_fd, error_ref, (void *) &out_error);
+            return;
+        }
+
+        int metanum;
+        if (sscanf(cmdvec[1].c_str(), "%d", &metanum) != 1) {
+            out_error += "invalid chanhop request";
+            tcps->SendToClient(cc->client_fd, error_ref, (void *) &out_error);
+            return;
+        }
+
+        // See if this meta number even exists...
+        meta_packsource *meta;
+        if ((meta = sourcetracker.FetchMetaID(metanum)) == NULL) {
+            out_error += "invalid chanhop request, unknown meta id";
+            tcps->SendToClient(cc->client_fd, error_ref, (void *) &out_error);
+            return;
+        }
+
+        // Set it to hopping.  We con't care if Kismet thinks its hopping or not,
+        // we're just saying this source is ALLOWED to hop again.
+        sourcetracker.SetHopping(1, meta);
+
+        snprintf(status, 1024, "Allowing source '%s' to hop channels",
+                 meta->name.c_str());
+        NetWriteStatus(status);
+        if (!silent)
+            fprintf(stderr, "%s\n", status);
+
+    } else if (cmdword == "PAUSE") {
         sourcetracker.PauseSources();
 
         snprintf(status, 1024, "Pausing packet sources per request of client %d", 
@@ -956,20 +1043,22 @@ void handle_command(TcpServer *tcps, client_command *cc) {
         }
     } else if (cmdword == "ADDWEPKEY") {
         // !0 ADDWEPKEY bssid,key
-        unsigned int begin = space + 1;
-        unsigned int com = cc->cmd.find(",", begin);
-
-        if (com == string::npos) {
+        if (cmdvec.size() < 2) {
             out_error += "Invalid ADDWEPKEY";
             tcps->SendToClient(cc->client_fd, error_ref, (void *) &out_error);
             return;
         }
 
-        cmdword = cc->cmd.substr(begin, com);
+        vector<string> keyvec = StrTokenize(cmdvec[1], ",");
+        if (keyvec.size() != 2) {
+            out_error += "Invalid ADDWEPKEY";
+            tcps->SendToClient(cc->client_fd, error_ref, (void *) &out_error);
+            return;
+        }
 
         wep_key_info *winfo = new wep_key_info;
         winfo->fragile = 1;
-        winfo->bssid = cmdword.c_str();
+        winfo->bssid = keyvec[0].c_str();
 
         if (winfo->bssid.error) {
             out_error += "Invalid ADDWEPKEY bssid";
@@ -977,17 +1066,8 @@ void handle_command(TcpServer *tcps, client_command *cc) {
             return;
         }
 
-        begin = com + 1;
-        cmdword = cc->cmd.substr(begin, cc->cmd.length() - begin);
-
         unsigned char key[WEPKEY_MAX];
-        int len = Hex2UChar((unsigned char *) cmdword.c_str(), key);
-
-        if (len != 5 && len != 13 && len != 16) {
-            out_error += "Invalid ADDWEPKEY key";
-            tcps->SendToClient(cc->client_fd, error_ref, (void *) &out_error);
-            return;
-        }
+        int len = Hex2UChar((unsigned char *) keyvec[1].c_str(), key);
 
         winfo->len = len;
         memcpy(winfo->key, key, sizeof(unsigned char) * WEPKEY_MAX);
@@ -1006,9 +1086,13 @@ void handle_command(TcpServer *tcps, client_command *cc) {
 
     } else if (cmdword == "DELWEPKEY") {
         // !0 DELWEPKEY bssid
-        cmdword = cc->cmd.substr(space + 1, cc->cmd.length() - (space + 1));
+        if (cmdvec.size() != 2) {
+            out_error += "Invalid DELWEPKEY bssid";
+            tcps->SendToClient(cc->client_fd, error_ref, (void *) &out_error);
+            return;
+        }
 
-        mac_addr bssid_mac = cmdword.c_str();
+        mac_addr bssid_mac = cmdvec[1].c_str();
 
         if (bssid_mac.error) {
             out_error += "Invalid DELWEPKEY bssid";
