@@ -1495,8 +1495,8 @@ int PanelFront::DetailsPrinter(void *in_window) {
             snprintf(output, print_width, "Data    : %ldk (%ldB)",
                      dnet->datasize/1024, dnet->datasize);
         else // Display in MB
-            snprintf(output, print_width, "Data    : %ldM (%ldB)",
-                     dnet->datasize/1024/1024, dnet->datasize);
+            snprintf(output, print_width, "Data    : %ldM (%ldk, %ldB)",
+                     dnet->datasize/1024/1024, dnet->datasize/1024, dnet->datasize);
         kwin->text.push_back(output);
 
         snprintf(output, print_width, "Signal  :");
@@ -2628,8 +2628,9 @@ int PanelFront::DetailsClientPrinter(void *in_window) {
         snprintf(output, print_width, "Data    : %ldk (%ldB)",
                  details_client->datasize/1024, details_client->datasize);
     else // Display in MB
-        snprintf(output, print_width, "Data    : %ldM (%ldB)",
-                 details_client->datasize/1024/1024, details_client->datasize);
+        snprintf(output, print_width, "Data    : %ldM (%ldk, %ldB)",
+                 details_client->datasize/1024/1024, details_client->datasize/1024,
+                 details_client->datasize);
     kwin->text.push_back(output);
 
 
