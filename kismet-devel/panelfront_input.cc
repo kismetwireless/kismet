@@ -162,6 +162,10 @@ int PanelFront::MainInput(void *in_window, int in_chr) {
     case 'R':
         SpawnWindow("Packet Rate", &PanelFront::RatePrinter, &PanelFront::RateInput);
         break;
+    case 'w':
+    case 'W':
+        SpawnWindow("Alerts", &PanelFront::AlertPrinter, &PanelFront::AlertInput);
+        break;
     case 'a':
     case 'A':
         SpawnWindow("Statistics", &PanelFront::StatsPrinter, &PanelFront::StatsInput, 18, 65);
@@ -500,6 +504,20 @@ void PanelFront::MuteToggle() {
     } else if (sound == 0 && speech == 0) {
         WriteStatus("Sound not enabled.");
     }
+}
+
+int PanelFront::AlertInput(void *in_window, int in_chr) {
+    switch (in_chr) {
+    case 'h':
+    case 'H':
+        //SpawnHelp(KismetHelpDetails);
+        break;
+    default:
+        return TextInput(in_window, in_chr);
+        break;
+    }
+
+    return 1;
 }
 
 

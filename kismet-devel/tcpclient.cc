@@ -36,6 +36,7 @@ TcpClient::TcpClient() {
 
     maxstrings = 100;
     maxpackinfos = 1000;
+    maxalerts = 50;
 
     memset(status, 0, STATUS_MAX);
     memset(channel_graph, 0, sizeof(channel_power) * CHANNEL_MAX);
@@ -444,6 +445,18 @@ int TcpClient::ParseData(char *in_data) {
     } else if (!strncmp(header, "*STATUS", 64)) {
         if (sscanf(in_data+hdrlen, "%1023[^\n]\n", status) != 1)
             return 0;
+        return 2;
+    } else if (!strncmp(header, "*ALERT", 64)) {
+        char alrmstr[2048];
+        alert_info alrm;
+        if (sscanf(in_data+hdrlen, "%ld %ld %2047[^\n]\n", &alrm.alert_ts.tv_sec,
+                   &alrm.alert_ts.tv_usec, alrmstr) < 3)
+            return 0;
+        alrm.alert_text = alrmstr;
+        alerts.push_back(alrm);
+        if (alerts.size() > maxalerts)
+            alerts.erase(alerts.begin());
+        snprintf(status, STATUS_MAX, "ALERT: %s", alrmstr);
         return 2;
     } else if (!strncmp(header, "*STRING", 64)) {
         char netstr[2048];

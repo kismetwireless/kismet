@@ -27,6 +27,7 @@
 #include <signal.h>
 #include <pwd.h>
 #include <string>
+#include <vector>
 
 #include "packet.h"
 #include "packetsource.h"
@@ -91,6 +92,10 @@ int numpackclients = 0;
 int soundpair[2];
 int speechpair[2];
 pid_t soundpid = -1, speechpid = -1;
+
+// Past alerts
+vector<string> past_alerts;
+unsigned int max_alerts = 20;
 
 // This/these have to be globals, unfortunately, so that the interrupt
 // handler can shut down logging and write out to disk the network list.
@@ -226,108 +231,6 @@ void CatchShutdown(int sig) {
         kill(speechpid, 9);
 
     exit(0);
-}
-
-void NetWriteInfo() {
-    static time_t last_write = time(0);
-    vector<wireless_network *> tracked;
-    char output[2048];
-
-    snprintf(output, 2048, "*TIME: %d\n", (int) time(0));
-    ui_server.SendToAll(output);
-
-#ifdef HAVE_GPS
-    if (gps_enable) {
-        float lat, lon, alt, spd;
-        int mode;
-
-        gps.FetchLoc(&lat, &lon, &alt, &spd, &mode);
-
-        // lat, lon, alt, spd, mode
-        snprintf(output, 2048, "*GPS: %f %f %f %f %d\n",
-                 lat, lon, alt, spd, mode);
-
-        ui_server.SendToAll(output);
-    } else {
-        snprintf(output, 2048, "*GPS: 0.0 0.0 0.0 0.0 0\n");
-        ui_server.SendToAll(output);
-    }
-#endif
-
-    // Build power output and channel power output
-    char power_output[16];
-
-    if (time(0) - last_info.time < decay && last_info.quality != -1)
-        snprintf(power_output, 16, "%d %d %d", last_info.quality,
-                 last_info.signal, last_info.noise);
-    else if (last_info.quality == -1)
-        snprintf(power_output, 16, "-1 -1 -1");
-    else
-        snprintf(power_output, 16, "0 0 0");
-
-    snprintf(output, 2048, "*INFO: %d %d %d %d %d %d %s %d",
-             tracker.FetchNumNetworks(), tracker.FetchNumPackets(),
-             tracker.FetchNumCrypt(), tracker.FetchNumInteresting(),
-             tracker.FetchNumNoise(), tracker.FetchNumDropped() + localdropnum,
-             power_output, CHANNEL_MAX);
-
-    char munge[2048];
-    for (unsigned int x = 0; x < CHANNEL_MAX; x++) {
-        snprintf(munge, 2048, "%s %d",
-                 output,
-                 (time(0) - channel_graph[x].last_time) < decay ? channel_graph[x].signal : -1);
-        strncpy(output, munge, 2048);
-    }
-    snprintf(munge, 2048, "%s\n", output);
-    strncpy(output, munge, 2048);
-
-    ui_server.SendToAll(output);
-
-    tracked = tracker.FetchNetworks();
-
-    for (unsigned int x = 0; x < tracked.size(); x++) {
-        // Only send new networks
-        if (tracked[x]->last_time < last_write)
-            continue;
-
-        if (tracked[x]->type == network_remove) {
-            snprintf(output, 2048, "*REMOVE: %s\n", tracked[x]->bssid.c_str());
-
-            ui_server.SendToAll(output);
-
-            tracker.RemoveNetwork(tracked[x]->bssid);
-
-            continue;
-        }
-
-        snprintf(output, 2048, "*NETWORK: %.2000s\n", Packetracker::Net2String(tracked[x]).c_str());
-        // bssid type ssid info llc data crypt interesting channel wep first_time
-        // last_time address_type range_ip mask
-        // lat lon alt spd fix firstlat firstlon firstalt firstspd firstfix
-        ui_server.SendToAll(output);
-
-        if (tracked[x]->bssid.size() <= 0)
-            continue;
-
-        for (map<string, wireless_client *>::const_iterator y = tracked[x]->client_map.begin();
-             y != tracked[x]->client_map.end(); ++y) {
-            snprintf(output, 2048, "*CLIENT: %.2000s\n", Packetracker::Client2String(tracked[x], y->second).c_str());
-            ui_server.SendToAll(output);
-        }
-
-        for (map<string, cdp_packet>::const_iterator y = tracked[x]->cisco_equip.begin();
-             y != tracked[x]->cisco_equip.end(); ++y) {
-
-            cdp_packet cdp = y->second;
-
-            snprintf(output, 2048, "*CISCO %s %.2000s\n",
-                     tracked[x]->bssid.c_str(), Packetracker::CDP2String(&cdp).c_str());
-
-            ui_server.SendToAll(output);
-        }
-    }
-
-    last_write = time(0);
 }
 
 // Subprocess sound handler
@@ -551,10 +454,128 @@ int SayText(string in_text) {
 }
 
 
+void NetWriteInfo() {
+    static time_t last_write = time(0);
+    vector<wireless_network *> tracked;
+    char output[2048];
+
+    snprintf(output, 2048, "*TIME: %d\n", (int) time(0));
+    ui_server.SendToAll(output);
+
+#ifdef HAVE_GPS
+    if (gps_enable) {
+        float lat, lon, alt, spd;
+        int mode;
+
+        gps.FetchLoc(&lat, &lon, &alt, &spd, &mode);
+
+        // lat, lon, alt, spd, mode
+        snprintf(output, 2048, "*GPS: %f %f %f %f %d\n",
+                 lat, lon, alt, spd, mode);
+
+        ui_server.SendToAll(output);
+    } else {
+        snprintf(output, 2048, "*GPS: 0.0 0.0 0.0 0.0 0\n");
+        ui_server.SendToAll(output);
+    }
+#endif
+
+    // Build power output and channel power output
+    char power_output[16];
+
+    if (time(0) - last_info.time < decay && last_info.quality != -1)
+        snprintf(power_output, 16, "%d %d %d", last_info.quality,
+                 last_info.signal, last_info.noise);
+    else if (last_info.quality == -1)
+        snprintf(power_output, 16, "-1 -1 -1");
+    else
+        snprintf(power_output, 16, "0 0 0");
+
+    snprintf(output, 2048, "*INFO: %d %d %d %d %d %d %s %d",
+             tracker.FetchNumNetworks(), tracker.FetchNumPackets(),
+             tracker.FetchNumCrypt(), tracker.FetchNumInteresting(),
+             tracker.FetchNumNoise(), tracker.FetchNumDropped() + localdropnum,
+             power_output, CHANNEL_MAX);
+
+    char munge[2048];
+    for (unsigned int x = 0; x < CHANNEL_MAX; x++) {
+        snprintf(munge, 2048, "%s %d",
+                 output,
+                 (time(0) - channel_graph[x].last_time) < decay ? channel_graph[x].signal : -1);
+        strncpy(output, munge, 2048);
+    }
+    snprintf(munge, 2048, "%s\n", output);
+    strncpy(output, munge, 2048);
+
+    ui_server.SendToAll(output);
+
+    tracked = tracker.FetchNetworks();
+
+    for (unsigned int x = 0; x < tracked.size(); x++) {
+        // Only send new networks
+        if (tracked[x]->last_time < last_write)
+            continue;
+
+        if (tracked[x]->type == network_remove) {
+            snprintf(output, 2048, "*REMOVE: %s\n", tracked[x]->bssid.c_str());
+
+            ui_server.SendToAll(output);
+
+            tracker.RemoveNetwork(tracked[x]->bssid);
+
+            continue;
+        }
+
+        snprintf(output, 2048, "*NETWORK: %.2000s\n", Packetracker::Net2String(tracked[x]).c_str());
+        // bssid type ssid info llc data crypt interesting channel wep first_time
+        // last_time address_type range_ip mask
+        // lat lon alt spd fix firstlat firstlon firstalt firstspd firstfix
+        ui_server.SendToAll(output);
+
+        if (tracked[x]->bssid.size() <= 0)
+            continue;
+
+        for (map<string, wireless_client *>::const_iterator y = tracked[x]->client_map.begin();
+             y != tracked[x]->client_map.end(); ++y) {
+            snprintf(output, 2048, "*CLIENT: %.2000s\n", Packetracker::Client2String(tracked[x], y->second).c_str());
+            ui_server.SendToAll(output);
+        }
+
+        for (map<string, cdp_packet>::const_iterator y = tracked[x]->cisco_equip.begin();
+             y != tracked[x]->cisco_equip.end(); ++y) {
+
+            cdp_packet cdp = y->second;
+
+            snprintf(output, 2048, "*CISCO %s %.2000s\n",
+                     tracked[x]->bssid.c_str(), Packetracker::CDP2String(&cdp).c_str());
+
+            ui_server.SendToAll(output);
+        }
+    }
+
+    last_write = time(0);
+}
+
+
 void NetWriteStatus(char *in_status) {
     char out_stat[1024];
     snprintf(out_stat, 1024, "*STATUS: %s\n", in_status);
     ui_server.SendToAll(out_stat);
+}
+
+void NetWriteAlert(char *in_alert) {
+    char out_alert[1024];
+    timeval ts;
+    gettimeofday(&ts, NULL);
+
+    snprintf(out_alert, 1024, "*ALERT: %ld %ld %s\n", (long int) ts.tv_sec,
+             (long int) ts.tv_usec, in_alert);
+
+    past_alerts.push_back(out_alert);
+    if (past_alerts.size() > max_alerts)
+        past_alerts.erase(past_alerts.begin());
+
+    ui_server.SendToAll(out_alert);
 }
 
 void NetWriteNew(int in_fd) {
@@ -592,6 +613,9 @@ void NetWriteNew(int in_fd) {
             ui_server.SendToAll(output);
         }
     }
+
+    for (unsigned int x = 0; x < past_alerts.size(); x++)
+        ui_server.SendToAll(past_alerts[x].c_str());
 
 }
 
@@ -1855,8 +1879,12 @@ int main(int argc,char *argv[]) {
                 if (process_ret > 0) {
                     if (!silent)
                         fprintf(stderr, "%s\n", status);
-    
-                    NetWriteStatus(status);
+
+                    if (process_ret == TRACKER_ALERT) {
+                        NetWriteAlert(status);
+                    } else {
+                        NetWriteStatus(status);
+                    }
                 }
     
                 if (tracker.FetchNumNetworks() != num_networks) {

@@ -333,14 +333,14 @@ int Packetracker::ProcessPacket(packet_info info, char *in_status) {
         ssid_map[net->ssid] = net;
 
         // Return 1 if we make a new network entry
-        ret = 1;
+        ret = TRACKER_NEW;
     } else {
         net = bssid_map[bssid_mac];
         if (net->listed == 0) {
             network_list.push_back(net);
             net->listed = 1;
         }
-        ret = 0;
+        ret = TRACKER_NONE;
     }
 
     net->last_time = time(0);
@@ -439,7 +439,7 @@ int Packetracker::ProcessPacket(packet_info info, char *in_status) {
                 }
 
                 MatchBestManuf(net, 1);
-                ret = 2;
+                ret = TRACKER_NOTICE;
             }
 
             net->channel = info.channel;
@@ -467,7 +467,7 @@ int Packetracker::ProcessPacket(packet_info info, char *in_status) {
 
                 MatchBestManuf(net, 1);
 
-                ret = 2;
+                ret = TRACKER_NOTICE;
             } else if (info.ssid != bssid_cloak_map[net->bssid]) {
                 bssid_cloak_map[net->bssid] = info.ssid;
                 net->ssid = info.ssid;
@@ -499,7 +499,7 @@ int Packetracker::ProcessPacket(packet_info info, char *in_status) {
 
                     num_networks--;
 
-                    ret = 3;
+                    ret = TRACKER_ASSOCIATE;
                 }
             }
 
@@ -531,15 +531,6 @@ int Packetracker::ProcessDataPacket(packet_info info, wireless_network *net, cha
     // GPS info
     float lat = 0, lon = 0, alt = 0, spd = 0;
     int fix = 0;
-
-    // Handle lucent outdoor routers
-    if (net->type == network_data &&
-        (info.type == packet_data || info.type == packet_adhoc_data))
-        if (info.proto.type == proto_lor) {
-            net->cloaked = 1;
-            net->ssid = "Lucent Outdoor Router";
-            net->type = network_lor;
-        }
 
     string smac = Mac2String(info.source_mac, ':');
 
@@ -727,8 +718,33 @@ int Packetracker::ProcessDataPacket(packet_info info, wireless_network *net, cha
         client->ipdata.load_from_store = 0;
 
         UpdateIpdata(net);
-        ret = 2;
+        ret = TRACKER_NOTICE;
     }
+
+    if (net->type == network_data &&
+        (info.type == packet_data || info.type == packet_adhoc_data)) {
+        if (info.proto.type == proto_lor) {
+            // Handle lucent outdoor routers
+            net->cloaked = 1;
+            net->ssid = "Lucent Outdoor Router";
+            net->type = network_lor;
+        } else if (info.proto.type == proto_netstumbler) {
+            // Handle netstumbler packets
+
+            // Only raise an alert when we haven't raised one for this client
+            // before.
+            if (netstumbler_map.find(client->mac) == netstumbler_map.end()) {
+                netstumbler_map[client->mac] = client;
+
+                snprintf(in_status, STATUS_MAX, "NetStumbler probe detected from %s",
+                         client->mac.c_str());
+
+                ret = TRACKER_ALERT;
+            }
+
+        }
+    }
+
 
     return ret;
 }
@@ -817,7 +833,7 @@ void Packetracker::UpdateIpdata(wireless_network *net) {
 
             net->ipdata.load_from_store = 0;
 
-            ret = 2;
+            ret = TRACKER_NOTICE;
 
         } else if (net->ipdata.atype < address_arp && client->ipdata.atype == address_arp) {
             net->ipdata.atype = address_arp;
@@ -864,7 +880,7 @@ void Packetracker::UpdateIpdata(wireless_network *net) {
                 bssid_ip_map[net->bssid] = net->ipdata;
                 net->ipdata.load_from_store = 0;
 
-                ret = 2;
+                ret = TRACKER_NOTICE;
             }
         } // valid arp
     } else if (info.proto.type == proto_udp && (net->ipdata.atype <= address_udp ||
@@ -900,7 +916,7 @@ void Packetracker::UpdateIpdata(wireless_network *net) {
                 bssid_ip_map[net->bssid] = net->ipdata;
                 net->ipdata.load_from_store = 0;
 
-                ret = 2;
+                ret = TRACKER_NOTICE;
             }
         }
     }  else if (info.proto.type == proto_misc_tcp && (net->ipdata.atype <= address_tcp ||
@@ -936,7 +952,7 @@ void Packetracker::UpdateIpdata(wireless_network *net) {
                 bssid_ip_map[net->bssid] = net->ipdata;
                 net->ipdata.load_from_store = 0;
 
-                ret = 2;
+                ret = TRACKER_NOTICE;
             }
         }
     }

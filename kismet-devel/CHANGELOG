@@ -1,3 +1,6 @@
+Aug 20 2002  2.5.2  Added skeleton of alert system ('w' in panels interface)
+                    ! Added detection of Netstumbler and feeding to the alert
+                     system.
 Aug 19 2002  2.5.2  Changed client/server protocol to not rely on C99/glibc
                      printf doubles.  Should fix display on BSD. (pedro)
 Aug 18 2002  2.5.2  Moved netline to panelfront_display.cc

@@ -39,6 +39,12 @@ extern time_t start_time;
 // Extern over to kismet_server.cc to get our metric settings
 extern unsigned int metric;
 
+// Return values from ProcessPacket
+#define TRACKER_NONE      0
+#define TRACKER_NEW       1
+#define TRACKER_NOTICE    2
+#define TRACKER_ASSOCIATE 3
+#define TRACKER_ALERT     4
 
 class Packetracker {
 public:
@@ -117,6 +123,9 @@ protected:
     // Several maps to refer to networks
     map<string, wireless_network *> ssid_map;
     map<string, wireless_network *> bssid_map;
+
+    // Alert map for netstumbler clients
+    map<string, wireless_client *> netstumbler_map;
 
     // Map BSSID's to SSID for storage and cloaking
     map<string, string> bssid_cloak_map;

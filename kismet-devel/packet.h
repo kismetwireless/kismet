@@ -115,7 +115,8 @@ enum protocol_info_type {
     proto_netbios, proto_netbios_tcp,
     proto_ipx,
     proto_ipx_tcp,
-    proto_lor
+    proto_lor,
+    proto_netstumbler
 };
 
 enum protocol_netbios_type {
@@ -208,16 +209,6 @@ enum packet_info_type {
 enum distribution_type {
     no_distribution, from_distribution, to_distribution, inter_distribution
 };
-
-// Packet rate values.. This is a little annoying.  Find a better way.
-#define packrate_1mb       1
-#define packrate_1mb_req   2
-#define packrate_2mb       4
-#define packrate_2mb_req   8
-#define packrate_5_5mb     16
-#define packrate_5_5mb_req 32
-#define packrate_11mb      64
-#define packrate_11mb_req  128
 
 // Info about a packet
 typedef struct {
