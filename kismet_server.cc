@@ -58,7 +58,6 @@
 #include "packetracker.h"
 #include "timetracker.h"
 #include "alertracker.h"
-#include "finitestate.h"
 
 #include "speech.h"
 #include "tcpserver.h"
@@ -87,7 +86,6 @@ int packnum = 0, localdropnum = 0;
 Packetracker tracker;
 Alertracker alertracker;
 Timetracker timetracker;
-Finitetracker finitetracker;
 
 GPSD *gps = NULL;
 #ifdef HAVE_GPS
@@ -2345,9 +2343,6 @@ int main(int argc,char *argv[]) {
     // Tell the packetracker engine where alerts are
     tracker.AddAlertracker(&alertracker);
 
-    // Tell the finitestate engine where alerts are
-    finitetracker.AddAlertracker(&alertracker);
-
     // Register alerts with the packetracker
     fprintf(stderr, "Registering requested alerts...\n");
     for (unsigned int alvec = 0; alvec < alert_enable_vec.size(); alvec++) {
@@ -2355,12 +2350,6 @@ int main(int argc,char *argv[]) {
                                       alert_enable_vec[alvec].limit_unit,
                                       alert_enable_vec[alvec].limit_rate,
                                       alert_enable_vec[alvec].limit_burst);
-        // If the packetracker didn't take this alert, try it on the finitetracker
-        if (ret == 0)
-            ret = finitetracker.EnableAlert(alert_enable_vec[alvec].alert_name,
-                                            alert_enable_vec[alvec].limit_unit,
-                                            alert_enable_vec[alvec].limit_rate,
-                                            alert_enable_vec[alvec].limit_burst);
 
         // Then process the return value
         if (ret < 0) {
@@ -2573,7 +2562,6 @@ int main(int argc,char *argv[]) {
 #endif
 
                     tracker.ProcessPacket(info);
-                    finitetracker.ProcessPacket(&packet, &info);
 
                     if (tracker.FetchNumNetworks() > num_networks) {
                         if (sound == 1)

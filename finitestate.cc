@@ -21,46 +21,6 @@
 #include "finitestate.h"
 #include "util.h"
 
-Finitetracker::Finitetracker() {
-    atracker = NULL;
-}
-
-Finitetracker::~Finitetracker() {
-    // Nothing smart to do here
-}
-
-int Finitetracker::ProcessPacket(const kis_packet *in_packet, const packet_info *in_info) {
-
-    int ret = 0;
-
-    for (unsigned int x = 0; x < fsa_vec.size(); x++) {
-        if ((ret = fsa_vec[x]->ProcessPacket(in_packet, in_info)) < 0)
-            return ret;
-    }
-
-    return 1;
-}
-
-void Finitetracker::AddAlertracker(Alertracker *in_tracker) {
-    atracker = in_tracker;
-}
-
-int Finitetracker::EnableAlert(string in_alname, alert_time_unit in_unit,
-                               int in_rate, int in_burstrate) {
-
-    if (atracker == NULL)
-        return -1;
-
-    string lname = StrLower(in_alname);
-    if (lname == "probenojoin") {
-        ProbeNoJoinAutomata *pnja = new ProbeNoJoinAutomata(atracker, in_unit, in_rate, in_burstrate);
-        fsa_vec.push_back(pnja);
-        return 1;
-    }
-
-    return 0;
-}
-
 ProbeNoJoinAutomata::ProbeNoJoinAutomata(Alertracker *in_tracker, alert_time_unit in_unit, int in_rate, int in_burstrate) {
     atracker = in_tracker;
     alertid = atracker->RegisterAlert("PROBENOJOIN", in_unit, in_rate, in_burstrate);
@@ -73,7 +33,7 @@ ProbeNoJoinAutomata::~ProbeNoJoinAutomata() {
     }
 }
 
-int ProbeNoJoinAutomata::ProcessPacket(const kis_packet *in_packet, const packet_info *in_info) {
+int ProbeNoJoinAutomata::ProcessPacket(const packet_info *in_info) {
     _fsa_element *elem;
     map<mac_addr, _fsa_element *>::iterator iter;
 
@@ -136,4 +96,48 @@ int ProbeNoJoinAutomata::ProcessPacket(const kis_packet *in_packet, const packet
     return 0;
 }
 
+SequenceSpoofAutomata::SequenceSpoofAutomata(Alertracker *in_tracker, alert_time_unit in_unit, int in_rate, int in_burstrate) {
+    atracker = in_tracker;
+    alertid = atracker->RegisterAlert("SEQUENCESPOOF", in_unit, in_rate, in_burstrate);
+}
+
+SequenceSpoofAutomata::~SequenceSpoofAutomata() {
+}
+
+
+int SequenceSpoofAutomata::ProcessPacket(const packet_info *in_info) {
+    // Only sequence-track beacons (for now)
+    int ret = 0;
+    /*
+    if (in_info->type != packet_management && in_info->subtype != packet_sub_beacon)
+        return 0;
+
+    // Try to match the mac addr to an existing network
+    map<mac_adder, _fsa_element *>::iterator iter;
+
+
+    // If we have more than 2 suspicious MAC changes in the records, raise an alert.
+    if (count > 2) {
+        char atext[STATUS_MAX];
+        snprintf(atext, STATUS_MAX, "Suspicious sequence order - %s looks like %s (%d to %d).  Possible FakeAP.",
+                 in_info->source_mac.Mac2String().c_str(), seq->source_mac.Mac2String().c_str(),
+                 in_info->sequence_number, seq->seq_num);
+        atracker->RaiseAlert(alertid, atext);
+        fprintf(stderr, "**FORCED** %s\n", atext);
+        ret = 1;
+    }
+
+    // Put it on the stack
+    seq = new _seq_elem;
+    seq->seq_num = in_info->sequence_number;
+    seq->source_mac = in_info->source_mac;
+    seq_stack.push_back(seq);
+    if (seq_stack.size() > 150) {
+        delete seq_stack[0];
+        seq_stack.erase(seq_stack.begin());
+    }
+    */
+
+    return ret;
+}
 
