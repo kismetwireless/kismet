@@ -70,6 +70,7 @@ extern char *KismetHelpStats[];
 extern char *KismetHelpDump[];
 extern char *KismetHelpPack[];
 extern char *KismetHelpAlert[];
+extern char *KismetHelpServer[];
 
 extern char *KismetClientHelpText[];
 extern char *KismetClientHelpDetails[];
@@ -256,6 +257,10 @@ protected:
     int SortClientPrinter(void *in_window);
     int DetailsClientPrinter(void *in_window);
 
+    // List of servers we're connected to
+    int ServersPrinter(void *in_window);
+    int ServerJoinPrinter(void *in_window);
+
     // Keyboard handlers
     int MainInput(void *in_window, int in_chr);
     int SortInput(void *in_window, int in_chr);
@@ -275,6 +280,7 @@ protected:
     int SortClientInput(void *in_window, int in_chr);
     int DetailsClientInput(void *in_window, int in_chr);
 
+    int ServersInput(void *in_window, int in_chr);
 
     // Spawn a generic popup
     void SpawnWindow(string in_title, panel_printer in_print, key_handler in_input,

@@ -665,7 +665,6 @@ int main(int argc, char *argv[]) {
         }
     }
 
-
     if (kismet_serv.Connect(guiport, guihost) < 0) {
         fprintf(stderr, "FATAL:  Could not connect to %s:%d.\n", guihost, guiport);
         exit(1);
@@ -790,11 +789,14 @@ int main(int argc, char *argv[]) {
         // Grab the list of clients and set them all in the readset
         gui->FetchClients(&client_list);
         primary_client = gui->FetchPrimaryClient();
+
         for (unsigned int cli = 0; cli < client_list.size(); cli++) {
-            unsigned int client_descrip = client_list[cli]->FetchDescriptor();
-            FD_SET(client_descrip, &rset);
-            if (client_descrip > max_fd)
-                max_fd = client_descrip;
+            if (client_list[cli]->Valid()) {
+                unsigned int client_descrip = client_list[cli]->FetchDescriptor();
+                FD_SET(client_descrip, &rset);
+                if (client_descrip > max_fd)
+                    max_fd = client_descrip;
+            }
         }
 
         struct timeval tim;
