@@ -23,14 +23,15 @@
 #include "packetsignatures.h"
 
 // Aref array indexes
-#define NETSTUMBLER_AREF  0
-#define DEAUTHFLOOD_AREF  1
-#define LUCENTTEST_AREF   2
-#define WELLENREITER_AREF 3
-#define CHANCHANGE_AREF   4
-#define BCASTDISCON_AREF  5
-#define AIRJACKSSID_AREF  6
-#define MAX_AREF          6
+#define NETSTUMBLER_AREF   0
+#define DEAUTHFLOOD_AREF   1
+#define LUCENTTEST_AREF    2
+#define WELLENREITER_AREF  3
+#define CHANCHANGE_AREF    4
+#define BCASTDISCON_AREF   5
+#define AIRJACKSSID_AREF   6
+#define NULLPROBERESP_AREF 7
+#define MAX_AREF           7
 
 Packetracker::Packetracker() {
     alertracker = NULL;
@@ -103,6 +104,9 @@ int Packetracker::EnableAlert(string in_alname, alert_time_unit in_unit,
     } else if (lname == "airjackssid") {
         // Register airjack SSID alert
         ret = arefs[AIRJACKSSID_AREF] = alertracker->RegisterAlert("AIRJACKSSID", in_unit, in_rate, in_burstrate);
+    } else if (lname == "nullproberesp") {
+        // Register 0-len probe response alert
+        ret = arefs[NULLPROBERESP_AREF] = alertracker->RegisterAlert("NULLPROBERESP", in_unit, in_rate, in_burstrate);
     } else if (lname == "probenojoin") {
         ProbeNoJoinAutomata *pnja = new ProbeNoJoinAutomata(this, alertracker, in_unit, in_rate, in_burstrate);
         fsa_vec.push_back(pnja);
@@ -208,8 +212,8 @@ void Packetracker::ProcessPacket(packet_info info) {
         fsa_vec[x]->ProcessPacket(&info);
     }
 
-    // Junk unknown and noise packets
-    if (info.type == packet_noise) {
+    // Junk unknown, pure noise, and corrupt packets
+    if (info.type == packet_noise || info.corrupt == 1) {
         num_dropped++;
         num_noise++;
         return;
@@ -508,6 +512,14 @@ void Packetracker::ProcessPacket(packet_info info) {
                 net->type = network_ap;
         }
 
+        // If it's a probe response with no SSID, something funny is happening, raise an alert
+        if (info.subtype == packet_sub_probe_resp && strlen(info.ssid) == 0) {
+            if (alertracker->PotentialAlert(arefs[NULLPROBERESP_AREF]) > 0) {
+                snprintf(status, STATUS_MAX, "Probe response with 0-length SSID detected from %s",
+                         info.source_mac.Mac2String().c_str());
+                alertracker->RaiseAlert(arefs[NULLPROBERESP_AREF], status);
+            }
+        }
 
         // If this is a probe response and the ssid we have is blank, update it.
         // With "closed" networks, this is our chance to see the real ssid.

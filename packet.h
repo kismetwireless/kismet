@@ -903,6 +903,10 @@ typedef struct {
     packet_type type;
     packet_sub_type subtype;
 
+    // Is it a corrupt packet?  We might want to know what type it is
+    // even if it's corrupt
+    int corrupt;
+
     // reason code for some management protocols
     int reason_code;
 

@@ -1,4 +1,4 @@
-   KISMET 3.0.0
+   KISMET 3.0.1
    Mike Kershaw <dragorn@kismetwireless.net>
    http://www.kismetwireless.net
    Licensed under the GPL
@@ -788,3 +788,14 @@
             exchange data within 10 seconds of disassociating from the
             network should be considered a likely victim of a
             disassociate attack.
+          + NOPROBERESP
+            Alert on: Probe response packet with no ssid or ssid field
+            length 0.
+            Alert message: "Probe response with 0-length SSID detected
+            from $sourcemac"
+            Tool specific: No
+            Implemented in: PoC code, Georgia Institute of Tech reseach
+            paper
+            Details: Many firmwares (prism2, prism2.5, orinoco, airport)
+            will crash when expecting and receiving a probe response
+            packet with the SSID tagged parameter length set to 0.
