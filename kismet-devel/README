@@ -1014,3 +1014,11 @@ Licensed under the GPL
     A: WindowsXP leaks bits of memory into the probe requests.  These are legit
        packets, and thats whats really in them.
 
+    Q: Why is the range of a network sometimes hundreds of miles inside Kismet,
+       but normal in GPSMap?
+    A: GPSMap does some moderately advanced filtering on data points which 
+       allows it to sift the data collected and clean out invalid samples.  
+       These methods require all of the sample points to be available, however,
+       and won't work during a live capture.  If the gps reports a momentary
+       invalid, but not wholly invalid, sample then Kismet will get confused.
+       
