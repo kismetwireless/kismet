@@ -610,8 +610,6 @@ int Packetracker::ProcessDataPacket(packet_info info, wireless_network *net, cha
             net->best_noise = info.noise;
     }
 
-
-
     client->last_time = time(0);
 
     // We modify our client and our network concurrently to save on CPU cycles.

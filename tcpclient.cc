@@ -126,14 +126,14 @@ int TcpClient::Poll() {
     FD_SET(client_fd, &write_set);
     FD_ZERO(&except_set);
 
-    struct timeval tm;
+    struct timeval tim;
 
-    tm.tv_sec = 0;
-    tm.tv_usec = 0;
+    tim.tv_sec = 0;
+    tim.tv_usec = 0;
 
     // Enter the select loop
     //Debug("Server::Poll() - Calling select()");
-    if ((selected = select(client_fd+1, &read_set, &write_set, &except_set, &tm)) < 0) {
+    if ((selected = select(client_fd+1, &read_set, &write_set, &except_set, &tim)) < 0) {
         if (errno != EINTR) {
             snprintf(errstr, 1024, "TcpServer select() returned %d (%s)\n",
                      errno, sys_errlist[errno]);

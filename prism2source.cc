@@ -73,7 +73,7 @@ int Prism2Source::CloseSource() {
 int Prism2Source::FetchPacket(pkthdr *in_header, u_char *in_data) {
     fd_set rs;
     int r;
-    struct timeval tm;
+    struct timeval tim;
     struct timeval *ptm;
 
     if (read_sock < 0 || fd < 0) {
@@ -86,9 +86,9 @@ int Prism2Source::FetchPacket(pkthdr *in_header, u_char *in_data) {
     FD_SET(read_sock, &rs);
 
     if (PRISM2_READ_TIMEOUT >= 0) {
-        tm.tv_sec = PRISM2_READ_TIMEOUT / 1000;
-        tm.tv_usec = (PRISM2_READ_TIMEOUT % 1000) * 1000;
-        ptm = &tm;
+        tim.tv_sec = PRISM2_READ_TIMEOUT / 1000;
+        tim.tv_usec = (PRISM2_READ_TIMEOUT % 1000) * 1000;
+        ptm = &tim;
     } else {
         ptm = NULL;
     }
