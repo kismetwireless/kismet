@@ -28,6 +28,7 @@
 #include "cursesfront.h"
 #include "panelfront.h"
 #include "configfile.h"
+#include "speech.h"
 
 #define MAJOR 2
 #define MINOR 5
@@ -52,6 +53,8 @@ char *uiconfigfile;
 char *server = NULL;
 int sound = -1;
 int speech = -1;
+int speech_encoding = 0;
+string speech_sentence_encrypted, speech_sentence_unencrypted;
 unsigned int metric = 0;
 
 int group_track = 0;
@@ -535,6 +538,7 @@ int main(int argc, char *argv[]) {
 
         } else {
             fprintf(stderr, "ERROR:  Sound alerts enabled but no sound playing binary specified.\n");
+            sound = 0;
         }
     } else if (sound == -1)
         sound = 0;
@@ -544,8 +548,28 @@ int main(int argc, char *argv[]) {
         if (gui_conf.FetchOpt("festival") != "") {
             festival = gui_conf.FetchOpt("festival").c_str();
             speech = 1;
+
+            string speechtype = gui_conf.FetchOpt("speech_type");
+
+            if (!strcasecmp(speechtype.c_str(), "nato"))
+                speech_encoding = SPEECH_ENCODING_NATO;
+            else if (!strcasecmp(speechtype.c_str(), "spell"))
+                speech_encoding = SPEECH_ENCODING_SPELL;
+            else
+                speech_encoding = SPEECH_ENCODING_NORMAL;
+
+            // Make sure we have encrypted text lines
+            if (gui_conf.FetchOpt("speech_encrypted") == "" || gui_conf.FetchOpt("speech_unencrypted") == "") {
+                fprintf(stderr, "ERROR:  Speech request but speech_encrypted or speech_unencrypted line missing.\n");
+                speech = 0;
+            }
+
+            speech_sentence_encrypted = gui_conf.FetchOpt("speech_encrypted");
+            speech_sentence_unencrypted = gui_conf.FetchOpt("speech_unencrypted");
+
         } else {
             fprintf(stderr, "ERROR: Speech alerts enabled but no path to festival has been specified.\n");
+            speech = 0;
         }
     } else if (speech == -1)
         speech = 0;
@@ -787,7 +811,6 @@ int main(int argc, char *argv[]) {
                             sound = PlaySound("gpslock");
                         gpsmode = 1;
                     }
-
     
                     if (kismet_serv.FetchNumNetworks() != num_networks) {
                         if (sound == 1) {
@@ -795,15 +818,16 @@ int main(int argc, char *argv[]) {
                         }
 
                         if (speech == 1) {
-                            char text[100];
+                            string text;
 
                             wireless_network *newnet = kismet_serv.FetchNthRecent(1)[0];
 
-                            snprintf(text, 100, "New %s network '%s' detected.",
-                                     (newnet->wep ? "En-crypted" : "Un-en-crypted"),
-                                     newnet->ssid == NOSSID ? "unknown name" : newnet->ssid.c_str());
+                            if (newnet->wep)
+                                text = ExpandSpeechString(speech_sentence_encrypted, newnet, speech_encoding);
+                            else
+                                text = ExpandSpeechString(speech_sentence_unencrypted, newnet, speech_encoding);
 
-                            speech = SayText(text);
+                            speech = SayText(MungeToShell(text).c_str());
                         }
                     }
                     num_networks = kismet_serv.FetchNumNetworks();

@@ -43,6 +43,7 @@
 #include "gpsdump.h"
 #include "packetracker.h"
 #include "configfile.h"
+#include "speech.h"
 #include "tcpserver.h"
 #include "kismet_server.h"
 
@@ -754,6 +755,8 @@ int main(int argc,char *argv[]) {
 
     const char *festival = NULL;
     int speech = -1;
+    int speech_encoding = 0;
+    string speech_sentence_encrypted, speech_sentence_unencrypted;
 
     map<string, string> wav_map;
 
@@ -1369,17 +1372,38 @@ int main(int argc,char *argv[]) {
 
         } else {
             fprintf(stderr, "ERROR:  Sound alerts enabled but no sound playing binary specified.\n");
+            sound = 0;
         }
     } else if (sound == -1)
         sound = 0;
 
     /* Added by Shaw Innes 17/2/02 */
+    /* Modified by Andrew Etter 15/9/02 */
     if (conf.FetchOpt("speech") == "true" && speech == -1) {
         if (conf.FetchOpt("festival") != "") {
             festival = conf.FetchOpt("festival").c_str();
             speech = 1;
+
+            string speechtype = conf.FetchOpt("speech_type");
+
+            if (!strcasecmp(speechtype.c_str(), "nato"))
+                speech_encoding = SPEECH_ENCODING_NATO;
+            else if (!strcasecmp(speechtype.c_str(), "spell"))
+                speech_encoding = SPEECH_ENCODING_SPELL;
+            else
+                speech_encoding = SPEECH_ENCODING_NORMAL;
+
+            // Make sure we have encrypted text lines
+            if (conf.FetchOpt("speech_encrypted") == "" || conf.FetchOpt("speech_unencrypted") == "") {
+                fprintf(stderr, "ERROR:  Speech request but speech_encrypted or speech_unencrypted line missing.\n");
+                speech = 0;
+            }
+
+            speech_sentence_encrypted = conf.FetchOpt("speech_encrypted");
+            speech_sentence_unencrypted = conf.FetchOpt("speech_unencrypted");
         } else {
             fprintf(stderr, "ERROR: Speech alerts enabled but no path to festival has been specified.\n");
+            speech = 0;
         }
     } else if (speech == -1)
         speech = 0;
@@ -1931,13 +1955,14 @@ int main(int argc,char *argv[]) {
                 }
     
                 if (tracker.FetchNumNetworks() != num_networks && speech == 1) {
-                    char text[100];
-    
-                    snprintf(text, 100, "New %s network '%s' detected.",
-                             (info.wep ? "En-crypted" : "Un-en-crypted"),
-                             strncmp(info.ssid, NOSSID.c_str(), SSID_SIZE)  ? "unknown name" : info.ssid);
-    
-                    speech = SayText(text);
+                    string text;
+
+                    if (info.wep)
+                        text = ExpandSpeechString(speech_sentence_encrypted, &info, speech_encoding);
+                    else
+                        text = ExpandSpeechString(speech_sentence_unencrypted, &info, speech_encoding);
+
+                    speech = SayText(MungeToShell(text).c_str());
                 }
                 num_networks = tracker.FetchNumNetworks();
     

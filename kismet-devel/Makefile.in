@@ -37,7 +37,7 @@ WAV = ${SHARE}/wav/
 DEPEND	= .depend
 
 # Objects
-PSO	= configfile.o packet.o \
+PSO	= configfile.o speech.o packet.o \
 		prism2source.o pcapsource.o wtapfilesource.o genericsource.o \
 		wtapdump.o wtaplocaldump.o gpsdump.o airsnortdump.o \
 		gpsd.o packetracker.o manuf.o \
@@ -45,7 +45,7 @@ PSO	= configfile.o packet.o \
 		tcpserver.o kismet_server.o 
 PS	= kismet_server
 
-NCO	= configfile.o manuf.o tcpclient.o frontend.o cursesfront.o \
+NCO	= configfile.o speech.o manuf.o tcpclient.o frontend.o cursesfront.o \
 		panelfront.o panelfront_display.o panelfront_input.o \
 		getopt.o kismet_curses.o 
 NC	= kismet_curses
