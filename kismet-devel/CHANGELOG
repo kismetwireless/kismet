@@ -1,3 +1,4 @@
+Jan 10 2003  3.1.0  Started implementing wsp100 snmp calls in new framework
 Jan 09 2003  3.1.0  Merged patch from Bjarke Pederson for different sounds for
                      new wepped networks
 Jan 07 2003  3.1.0  Fixed more wep keysize bugs

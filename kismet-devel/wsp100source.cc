@@ -48,6 +48,8 @@
 #include <netdb.h>
 #include <fcntl.h>
 
+#include "util.h"
+
 // Straight-C callback
 int Wsp100PokeSensor(Timetracker::timer_event *evt, void *call_parm) {
     // Poke it
@@ -114,7 +116,8 @@ int Wsp100Source::CloseSource() {
 
     valid = 0;
 
-    timetracker->RemoveTimer(poke_event_id);
+    if (timetracker != NULL)
+        timetracker->RemoveTimer(poke_event_id);
 
     return 1;
 }
@@ -278,7 +281,64 @@ KisPacketSource *wsp100source_registrant(string in_name, string in_device,
 }
 
 int monitor_wsp100(const char *in_dev, int initch, char *in_err) {
-    fprintf(stderr, "Need to implement wsp100 monitor mode...\n");
+    // Split the device
+    vector<string> wsp100_bits;
+    char cmdline[2048];
+
+    wsp100_bits = StrTokenize(in_dev, ":");
+
+    if (wsp100_bits.size() < 3) {
+        snprintf(in_err, STATUS_MAX, "Malformed wsp100 device string '%s', should be "
+                 "localip:localport:remoteip", in_dev);
+        return -1;
+    }
+
+    // sanitize it
+    for (unsigned int x = 0; x < wsp100_bits[0].size(); x++) {
+        if (!isdigit(wsp100_bits[0][x]) && wsp100_bits[0][x] != '.') {
+            snprintf(in_err, STATUS_MAX, "Malformed wsp100 localip '%s', should be "
+                     "x.x.x.x", wsp100_bits[0].c_str());
+            return -1;
+        }
+    }
+    for (unsigned int x = 0; x < wsp100_bits[1].size(); x++) {
+        if (!isdigit(wsp100_bits[0][x])) {
+            snprintf(in_err, STATUS_MAX, "Malformed wsp100 localport '%s'",
+                     wsp100_bits[0].c_str());
+            return -1;
+        }
+    }
+    for (unsigned int x = 0; x < wsp100_bits[2].size(); x++) {
+        char bit = wsp100_bits[0][x];
+        if (!isalnum(bit) && bit != '.' && bit != '-' && bit != '_') {
+            snprintf(in_err, STATUS_MAX, "Malformed wsp100 remoteip '%s', should be "
+                     "x.x.x.x or domain name", wsp100_bits[2].c_str());
+            return -1;
+        }
+    }
+
+    // Do system calls to talk snmp.
+    // sendor.longhostaddress
+    snprintf(cmdline, 2048, "snmpset -v1 -c public %s .1.3.6.1.4.1.14422.1.1.5 a %s",
+             wsp100_bits[2].c_str(), wsp100_bits[0].c_str());
+    if (ExecSysCmd(cmdline, in_err) < 0)
+        return -1;
+    // sensor.channel
+    snprintf(cmdline, 2048, "snmpset -v 1 -c public %s .1.3.6.1.4.1.14422.1.3.1 i %d",
+             wsp100_bits[2].c_str(), initch);
+    if (ExecSysCmd(cmdline, in_err) < 0)
+        return -1;
+    // sensor.serverport
+    snprintf(cmdline, 2048, "snmpset -v 1 -c public %s .1.3.6.1.4.1.14422.1.4.1 i %s",
+             wsp100_bits[2].c_str(), wsp100_bits[1].c_str());
+    if (ExecSysCmd(cmdline, in_err) < 0)
+        return -1;
+    // sensor.enable
+    snprintf(cmdline, 2038, "snmpset -v 1 -c public %s .1.3.6.1.4.1.14422.1.1.4 i 1",
+             wsp100_bits[2].c_str());
+    if (ExecSysCmd(cmdline, in_err) < 0)
+        return -1;
+
     return 0;
 }
 
