@@ -1,3 +1,19 @@
+Sep 26 2002  2.6.0  Released 2.6.0
+                    Massive optomizations and speed boosts to the core of
+                     Kismet.
+                    Netstumbler detection
+                    Deauthentication flood detection
+                    Better OpenBSD support
+                    ACPI battery monitoring
+                    Lucent Outdoor Router/Karlnet/Turbocell detection
+                    GPSMap command line and drawing revamp, alternate map 
+                     source support.
+                    Customizable speech output
+                    Support for bigendian hardware
+                    Forced priveledge drop to specified non-root user
+                    Tracking of individual clients within each network
+                    Detailed manufacturer fingerprinting from unbolted.net
+
 Sep 26 2002  2.5.2  Consolidated kismet versioning into the makefile
                     Fixed ipk generation (for real this time.  ipk's now show
                      up even in qtopia's ipk manager.)
