@@ -220,7 +220,7 @@ is a hook to tcpclient and uidata still applicable here?  Taken out for now.
 Lightweight hooks into packetchain trigger full handling inside
  netracker class
 
-Import tracker file reading/writing
+Fill in cache during normal network classification
 
 From background-static Sun Jan  9 18:01:15 EST 2005
 Message-Id: <riot.20050109180115.3>

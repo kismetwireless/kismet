@@ -33,6 +33,10 @@
 #include "packetchain.h"
 #include "manuf.h"
 
+// Cache file versioning
+#define NETRACKER_SSIDCACHE_VERSION 	2
+#define NETRACKER_IPCACHE_VERSION 		2
+
 // Core network tracker hooks to call back into our core tracker
 // elements
 int kis_80211_netracker_hook(CHAINCALL_PARMS);
@@ -264,6 +268,8 @@ public:
 
 	typedef map<mac_addr, Netracker::tracked_network *>::iterator track_iter;
 	typedef map<mac_addr, Netracker::tracked_client *>::iterator client_iter;
+	typedef map<mac_addr, Netracker::ip_data>::iterator ipcache_iter;
+	typedef map<mac_addr, string>::iterator ssidcache_iter;
 
 protected:
 	GlobalRegistry *globalreg;
@@ -272,6 +278,12 @@ protected:
 	int netracker_chain_handler(kis_packet *in_pack);
 	int datatracker_chain_handler(kis_packet *in_pack);
 
+	// Read and write the cache files
+	int ReadSSIDCache();
+	int WriteSSIDCache();
+	int ReadIPCache();
+	int WriteIPCache();
+	
 	// All networks
 	map<mac_addr, Netracker::tracked_network *> tracked_map;
 	// Probe association to network that owns it
@@ -286,6 +298,10 @@ protected:
 	// Manufacturer maps
 	macmap<vector<manuf *> > ap_manuf_map;
 	macmap<vector<manuf *> > client_manuf_map;
+
+	// Cache files paths and states
+	string ssid_cache_path, ip_cache_path;
+	int ssid_cache_track, ip_cache_track;
 
 	// Let the hooks call directly in
 	friend int kis_80211_netracker_hook(CHAINCALL_PARMS);
