@@ -188,10 +188,9 @@
          5. MacOS X
             Kismet will work with Airport (but not Airport Extreme due to
             a lack of drivers) under MacOS X.
-            To compile Kismet under OSX, first download the Viha 0.0.1a
-            drivers (http://www.dopesquad.net/security/) and install
-            them. Use the following configuration:
-            ./configure --disable-pcap --enable-viha
+            To compile Kismet under OSX, download the Viha drivers
+            (http://www.dopesquad.net/security/) and install them, then
+            run configure and compile as normal.
             Kismet should operate normally inside OSX.
     6. SUPPORTED CARD TYPES
          1. CISCO
