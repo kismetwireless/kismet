@@ -280,7 +280,7 @@ KisPacketSource *wsp100source_registrant(string in_name, string in_device,
     return new Wsp100Source(in_name, in_device);
 }
 
-int monitor_wsp100(const char *in_dev, int initch, char *in_err, void **in_if) {
+int monitor_wsp100(const char *in_dev, int initch, char *in_err, void **in_if, void *in_ext) {
     // Split the device
     vector<string> wsp100_bits;
     char cmdline[2048];

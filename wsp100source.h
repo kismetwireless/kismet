@@ -85,7 +85,7 @@ protected:
 // Registrant bits
 KisPacketSource *wsp100source_registrant(string in_name, string in_device,
                                          char *in_err);
-int monitor_wsp100(const char *in_dev, int initch, char *in_err, void **in_if);
+int monitor_wsp100(const char *in_dev, int initch, char *in_err, void **in_if, void *in_ext);
 int chancontrol_wsp100(const char *in_dev, int in_ch, char *in_err, void *in_ext);
 
 // wsp100

@@ -85,6 +85,9 @@ int Ifconfig_Get_Linux(const char *in_dev, char *errstr,
 int Iwconfig_Set_SSID(const char *in_dev, char *errstr, char *in_essid);
 int Iwconfig_Get_SSID(const char *in_dev, char *errstr, char *in_essid);
 
+// get the name.  We really only use this to try to identify drivers
+int Iwconfig_Get_Name(const char *in_dev, char *errstr, char *in_name);
+
 // Set a private ioctl that takes 1 or 2 integer parameters
 // A return of -2 means no privctl found that matches, so that the caller
 // can return a more detailed failure message

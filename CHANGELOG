@@ -1,3 +1,5 @@
+Jul 23 2004  devel  Added support for new Cisco drivers (see download page)
+                    Added support for the new GPL drivers for admtek
 Jul 14 2004  devel  Merged patch from Sebastian to clean up ipw2100 behavior a
                      bit more
 Jul 12 2004  devel  Fixed Imagemagick support for 6.x

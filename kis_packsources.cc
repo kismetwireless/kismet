@@ -26,7 +26,7 @@ KisPacketSource *nullsource_registrant(string in_name, string in_device,
 }
 
 int unmonitor_nullsource(const char *in_dev, int initch, 
-                         char *in_err, void **in_if) {
+                         char *in_err, void **in_if, void *in_ext) {
     return 0;
 }
 
@@ -62,7 +62,8 @@ int RegisterKismetSources(Packetsourcetracker *sourcetracker) {
     // Linux wext-driven cards
     sourcetracker->RegisterPacketsource("cisco", 1, "IEEE80211b", 6,
                                        pcapsource_wext_registrant,
-                                       monitor_cisco, NULL, NULL, 1);
+                                       monitor_cisco, unmonitor_cisco, 
+                                       chancontrol_wext, 1);
     sourcetracker->RegisterPacketsource("cisco_wifix", 1, "IEEE80211b", 6,
                                        pcapsource_ciscowifix_registrant,
                                        monitor_cisco_wifix, NULL, NULL, 1);

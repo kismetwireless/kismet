@@ -305,6 +305,31 @@ int Iwconfig_Get_SSID(const char *in_dev, char *errstr, char *in_essid) {
     return 0;
 }
 
+int Iwconfig_Get_Name(const char *in_dev, char *errstr, char *in_name) {
+    struct iwreq wrq;
+    int skfd;
+
+    if ((skfd = socket(AF_INET, SOCK_DGRAM, 0)) < 0) {
+        snprintf(errstr, STATUS_MAX, "Failed to create AF_INET DGRAM socket %d:%s", 
+                 errno, strerror(errno));
+        return -1;
+    }
+
+    strncpy(wrq.ifr_name, in_dev, IFNAMSIZ);
+
+    if (ioctl(skfd, SIOCGIWNAME, &wrq) < 0) {
+        snprintf(errstr, STATUS_MAX, "Failed to get NAME %d:%s", errno, 
+                 strerror(errno));
+        close(skfd);
+        return -1;
+    }
+
+    snprintf(in_name, IFNAMSIZ, "%s", wrq.u.name);
+
+    close(skfd);
+    return 0;
+}
+
 // Set a private ioctl that takes 1 or 2 integer parameters
 // A return of -2 means no privctl found that matches, so that the caller
 // can return a more detailed failure message

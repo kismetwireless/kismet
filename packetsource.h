@@ -44,6 +44,8 @@ public:
 
         gpsd = NULL;
         timetracker = NULL;
+
+        fcsbytes = 0;
     }
 
     virtual ~KisPacketSource() { };
@@ -96,7 +98,14 @@ public:
         return parameters;
     }
 
+    // Bytes in the FCS - public so monitor can write it
+    int fcsbytes;
 protected:
+    // Get the bytes in the fcs
+    virtual int FCSBytes() {
+        return fcsbytes;
+    }
+
     // Global tracking pointers
     Timetracker *timetracker;
     GPSD *gpsd;

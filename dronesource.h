@@ -86,7 +86,7 @@ KisPacketSource *dronesource_registrant(string in_name, string in_device,
                                         char *in_err);
 
 int unmonitor_dronesource(const char *in_dev, int initch, 
-                          char *in_err, void **in_if);
+                          char *in_err, void **in_if, void *in_ext);
 
 // ifdef
 #endif

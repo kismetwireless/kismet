@@ -668,7 +668,8 @@ int Packetsourcetracker::BindSources(int in_root) {
 
             ret = (*meta->prototype->monitor_enable)(meta->device.c_str(), 
                                                      meta->cur_ch, errstr,
-                                                     &meta->stored_interface);
+                                                     &meta->stored_interface,
+                                                     (void *) meta->capsource);
         }
 
         if (ret < 0) {
@@ -767,7 +768,8 @@ int Packetsourcetracker::CloseSources() {
             if ((umon_ret = 
                  (*meta->prototype->monitor_disable)(meta->device.c_str(), 0, 
                                                      errstr, 
-                                                     &meta->stored_interface)) < 0) {
+                                                     &meta->stored_interface,
+                                                     (void *) meta->capsource)) < 0) {
                 fprintf(stderr, "WARNING: Error disabling monitor mode: %s\n",
                         errstr);
                 fprintf(stderr, 

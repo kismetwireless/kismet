@@ -266,10 +266,6 @@ int PcapSource::FetchPacket(kis_packet *packet, uint8_t *data, uint8_t *moddata)
     return(packet->caplen);
 }
 
-int PcapSource::FCSBytes() {
-    return 0;
-}
-
 int PcapSource::ManglePacket(kis_packet *packet, uint8_t *data, uint8_t *moddata) {
     int ret = 0;
     memset(packet, 0, sizeof(kis_packet));
@@ -780,10 +776,6 @@ int PcapSourceWext::FetchChannel() {
     return Iwconfig_Get_Channel(interface.c_str(), errstr);
 }
 
-int PcapSourceWextFCS::FCSBytes() {
-    return 4;
-}
-
 int PcapSourceWext::FetchSignalLevels(int *in_siglev, int *in_noiselev) {
     int raw_siglev, raw_noiselev, ret;
 
@@ -809,17 +801,9 @@ carrier_type PcapSource11G::IEEE80211Carrier() {
     return carrier_unknown;
 }
 
-int PcapSource11GFCS::FCSBytes() {
-    return 4;
-}
-
 #endif
 
 #ifdef SYS_LINUX
-// FCS bytes for wlanng
-int PcapSourceWlanng::FCSBytes() {
-    return 4;
-}
 
 int PcapSourceWlanng::FetchChannel() {
     // Use wireless extensions to get the channel if we can
@@ -828,11 +812,6 @@ int PcapSourceWlanng::FetchChannel() {
 #else
     return last_channel;
 #endif
-}
-
-// The wrt54g seems to put a fcs on it
-int PcapSourceWrt54g::FCSBytes() {
-    return 4;
 }
 
 // Handle badly formed jumbo packets from the drivers
@@ -1019,23 +998,44 @@ KisPacketSource *pcapsource_radiotap_registrant(string in_name, string in_device
 }
 #endif
 
-int unmonitor_pcapfile(const char *in_dev, int initch, char *in_err, void **in_if) {
+int unmonitor_pcapfile(const char *in_dev, int initch, char *in_err, void **in_if, void *in_ext) {
     return 0;
 }
 
 // Monitor commands
 #ifdef HAVE_LINUX_WIRELESS
 // Cisco uses its own config file in /proc to control modes
-int monitor_cisco(const char *in_dev, int initch, char *in_err, void **in_if) {
+int monitor_cisco(const char *in_dev, int initch, char *in_err, void **in_if, void *in_ext) {
     FILE *cisco_config;
     char cisco_path[128];
+
+    linux_ifparm *ifparm = (linux_ifparm *) malloc(sizeof(linux_ifparm));
+    (*in_if) = ifparm;
+
+    if (Ifconfig_Get_Flags(in_dev, in_err, &ifparm->flags) < 0) {
+        return -1;
+    }
+
+    if (Iwconfig_Get_SSID(in_dev, in_err, ifparm->essid) < 0)
+        return -1;
+
+    if ((ifparm->channel = Iwconfig_Get_Channel(in_dev, in_err)) < 0)
+        return -1;
+
+    if (Iwconfig_Get_Mode(in_dev, in_err, &ifparm->mode) < 0)
+        return -1;
 
     if (Ifconfig_Delta_Flags(in_dev, in_err, IFF_UP | IFF_RUNNING | IFF_PROMISC) < 0)
         return -1;
 
+    // Try the iwpriv
+    if (Iwconfig_Set_IntPriv(in_dev, "setRFMonitor", 1, 0, in_err) >= 0) {
+        return 0;
+    }
+
     // Zero the ssid - nonfatal
     Iwconfig_Set_SSID(in_dev, in_err, NULL);
-    
+   
     // Build the proc control path
     snprintf(cisco_path, 128, "/proc/driver/aironet/%s/Config", in_dev);
 
@@ -1056,11 +1056,39 @@ int monitor_cisco(const char *in_dev, int initch, char *in_err, void **in_if) {
     return 0;
 }
 
+int unmonitor_cisco(const char *in_dev, int initch, char *in_err, void **in_if, void *in_ext) {
+    linux_ifparm *ifparm = (linux_ifparm *) (*in_if);
+    int ret = -1;
+
+    // Try the iwpriv
+    if (Iwconfig_Set_IntPriv(in_dev, "setRFMonitor", 0, 0, in_err) >= 0) {
+        // If we're the new drivers, unmonitor
+        if (Ifconfig_Set_Flags(in_dev, in_err, ifparm->flags) < 0) {
+            return -1;
+        }
+
+        // Reset the SSID since monitor mode nukes it
+        if (Iwconfig_Set_SSID(in_dev, in_err, ifparm->essid) < 0)
+            return -1;
+
+        if (ifparm->channel > 0) {
+            if (Iwconfig_Set_Channel(in_dev, ifparm->channel, in_err) < 0)
+                return -1;
+        }
+
+        ret = 1;
+    }
+
+    free(ifparm);
+
+    return ret;
+}
+
 // Cisco uses its own config file in /proc to control modes
 //
 // I was doing this with ioctls but that seems to cause lockups while
 // this method doesn't.  I don't think I like these drivers.
-int monitor_cisco_wifix(const char *in_dev, int initch, char *in_err, void **in_if) {
+int monitor_cisco_wifix(const char *in_dev, int initch, char *in_err, void **in_if, void *in_ext) {
     FILE *cisco_config;
     char cisco_path[128];
     vector<string> devbits = StrTokenize(in_dev, ":");
@@ -1103,7 +1131,7 @@ int monitor_cisco_wifix(const char *in_dev, int initch, char *in_err, void **in_
 }
 
 // Hostap uses iwpriv and iwcontrol settings to control monitor mode
-int monitor_hostap(const char *in_dev, int initch, char *in_err, void **in_if) {
+int monitor_hostap(const char *in_dev, int initch, char *in_err, void **in_if, void *in_ext) {
     int ret;
   
     // Allocate a tracking record for the interface settings and remember our
@@ -1136,7 +1164,7 @@ int monitor_hostap(const char *in_dev, int initch, char *in_err, void **in_if) {
     }
    
     // Try to set wext monitor mode.  We're good if one of these succeeds...
-    if (monitor_wext(in_dev, initch, in_err, in_if) < 0 && ret < 0)
+    if (monitor_wext(in_dev, initch, in_err, in_if, in_ext) < 0 && ret < 0)
         return -1;
 
     // If we didn't set wext mode, set the channel manually
@@ -1146,7 +1174,7 @@ int monitor_hostap(const char *in_dev, int initch, char *in_err, void **in_if) {
     return 0;
 }
 
-int unmonitor_hostap(const char *in_dev, int initch, char *in_err, void **in_if) {
+int unmonitor_hostap(const char *in_dev, int initch, char *in_err, void **in_if, void *in_ext) {
 
     // Restore the IP settings
     linux_ifparm *ifparm = (linux_ifparm *) (*in_if);
@@ -1173,7 +1201,7 @@ int unmonitor_hostap(const char *in_dev, int initch, char *in_err, void **in_if)
 }
 
 // Orinoco uses iwpriv and iwcontrol settings to control monitor mode
-int monitor_orinoco(const char *in_dev, int initch, char *in_err, void **in_if) {
+int monitor_orinoco(const char *in_dev, int initch, char *in_err, void **in_if, void *in_ext) {
     int ret;
     
     // Allocate a tracking record for the interface settings and remember our
@@ -1215,7 +1243,7 @@ int monitor_orinoco(const char *in_dev, int initch, char *in_err, void **in_if) 
    
     usleep(5000);
     // Try to set wext monitor mode.  We're good if one of these succeeds...
-    if (ret < 0 && monitor_wext(in_dev, initch, in_err, in_if) < 0) {
+    if (ret < 0 && monitor_wext(in_dev, initch, in_err, in_if, in_ext) < 0) {
         snprintf(in_err, 1024, "Could not find 'monitor' private ioctl or use "
                  "the newer style 'mode monitor' command.  This typically means "
                  "that the drivers have not been patched or the "
@@ -1232,7 +1260,7 @@ int monitor_orinoco(const char *in_dev, int initch, char *in_err, void **in_if) 
     return 0;
 }
 
-int unmonitor_orinoco(const char *in_dev, int initch, char *in_err, void **in_if) {
+int unmonitor_orinoco(const char *in_dev, int initch, char *in_err, void **in_if, void *in_ext) {
     // Restore the IP settings
     linux_ifparm *ifparm = (linux_ifparm *) (*in_if);
 
@@ -1252,7 +1280,7 @@ int unmonitor_orinoco(const char *in_dev, int initch, char *in_err, void **in_if
 }
 
 // Acx100 uses the packhdr iwpriv control to set link state, rest is normal
-int monitor_acx100(const char *in_dev, int initch, char *in_err, void **in_if) {
+int monitor_acx100(const char *in_dev, int initch, char *in_err, void **in_if, void *in_ext) {
     int ret;
 
     // Allocate a tracking record for the interface settings and remember our
@@ -1287,7 +1315,7 @@ int monitor_acx100(const char *in_dev, int initch, char *in_err, void **in_if) {
     return 0;
 }
 
-int unmonitor_acx100(const char *in_dev, int initch, char *in_err, void **in_if) {
+int unmonitor_acx100(const char *in_dev, int initch, char *in_err, void **in_if, void *in_ext) {
     // Restore the IP settings
     linux_ifparm *ifparm = (linux_ifparm *) (*in_if);
 
@@ -1306,11 +1334,22 @@ int unmonitor_acx100(const char *in_dev, int initch, char *in_err, void **in_if)
     return 1;
 }
 
-int monitor_admtek(const char *in_dev, int initch, char *in_err, void **in_if) {
+int monitor_admtek(const char *in_dev, int initch, char *in_err, void **in_if, void *in_ext) {
     // Allocate a tracking record for the interface settings and remember our
     // setup
     linux_ifparm *ifparm = (linux_ifparm *) malloc(sizeof(linux_ifparm));
     (*in_if) = ifparm;
+
+    // Try to figure out the name so we know if we have fcs bytes or not
+    char iwname[IFNAMSIZ+1];
+    if (Iwconfig_Get_Name(in_dev, in_err, iwname) < 0)
+        return -1;
+
+    if (strncmp(iwname, "IEEE 802.11b", IFNAMSIZ) == 0) {
+        // Looks like the GPL driver, we need to adjust the fcsbytes
+        PcapSource *psrc = (PcapSource *) in_ext;
+        psrc->fcsbytes = 4;
+    }
 
     if (Ifconfig_Get_Flags(in_dev, in_err, &ifparm->flags) < 0) {
         return -1;
@@ -1325,10 +1364,10 @@ int monitor_admtek(const char *in_dev, int initch, char *in_err, void **in_if) {
     if (Iwconfig_Get_Mode(in_dev, in_err, &ifparm->mode) < 0)
         return -1;
 
-    if  (Iwconfig_Set_SSID(in_dev, in_err, "") < 0)
+    if (Iwconfig_Set_SSID(in_dev, in_err, "") < 0)
         return -1;
     
-    int ret = monitor_wext(in_dev, initch, in_err, in_if);
+    int ret = monitor_wext(in_dev, initch, in_err, in_if, in_ext);
 
     if (ret < 0 && ret != -2)
         return ret;
@@ -1336,10 +1375,10 @@ int monitor_admtek(const char *in_dev, int initch, char *in_err, void **in_if) {
     return 0;
 }
 
-int unmonitor_admtek(const char *in_dev, int initch, char *in_err, void **in_if) {
+int unmonitor_admtek(const char *in_dev, int initch, char *in_err, void **in_if, void *in_ext) {
     linux_ifparm *ifparm = (linux_ifparm *) (*in_if);
 
-    if (unmonitor_wext(in_dev, initch, in_err, in_if))
+    if (unmonitor_wext(in_dev, initch, in_err, in_if, in_ext))
         return -1;
 
     if (Iwconfig_Set_SSID(in_dev, in_err, ifparm->essid) < 0)
@@ -1348,21 +1387,21 @@ int unmonitor_admtek(const char *in_dev, int initch, char *in_err, void **in_if)
     return 1;
 }
 // vtar5k iwpriv control to set link state, rest is normal
-int monitor_vtar5k(const char *in_dev, int initch, char *in_err, void **in_if) {
+int monitor_vtar5k(const char *in_dev, int initch, char *in_err, void **in_if, void *in_ext) {
     // Set the prism iwpriv control to 1
     if (Iwconfig_Set_IntPriv(in_dev, "prism", 1, 0, in_err) < 0) {
         return -1;
     }
     
     // The rest is standard wireless extensions
-    if (monitor_wext(in_dev, initch, in_err, in_if) < 0)
+    if (monitor_wext(in_dev, initch, in_err, in_if, in_ext) < 0)
         return -1;
 
     return 0;
 }
 
 // Madwifi stuff uses iwpriv mode
-int monitor_madwifi_a(const char *in_dev, int initch, char *in_err, void **in_if) {
+int monitor_madwifi_a(const char *in_dev, int initch, char *in_err, void **in_if, void *in_ext) {
     // Allocate a tracking record for the interface settings and remember our
     // setup
     linux_ifparm *ifparm = (linux_ifparm *) malloc(sizeof(linux_ifparm));
@@ -1385,7 +1424,7 @@ int monitor_madwifi_a(const char *in_dev, int initch, char *in_err, void **in_if
         return -1;
 
     // The rest is standard wireless extensions
-    if (monitor_wext(in_dev, initch, in_err, in_if) < 0) {
+    if (monitor_wext(in_dev, initch, in_err, in_if, in_ext) < 0) {
         snprintf(in_err, STATUS_MAX, "Unable to enter monitor mode.  This can happen if "
                  "you are not using the CVS madwifi drivers or if your kernel version is "
                  "older than 2.4.23.  Make sure you are running a current driver release "
@@ -1397,7 +1436,7 @@ int monitor_madwifi_a(const char *in_dev, int initch, char *in_err, void **in_if
     return 0;
 }
 
-int monitor_madwifi_b(const char *in_dev, int initch, char *in_err, void **in_if) {
+int monitor_madwifi_b(const char *in_dev, int initch, char *in_err, void **in_if, void *in_ext) {
     // Allocate a tracking record for the interface settings and remember our
     // setup
     linux_ifparm *ifparm = (linux_ifparm *) malloc(sizeof(linux_ifparm));
@@ -1420,13 +1459,13 @@ int monitor_madwifi_b(const char *in_dev, int initch, char *in_err, void **in_if
         return -1;
 
     // The rest is standard wireless extensions
-    if (monitor_wext(in_dev, initch, in_err, in_if) < 0)
+    if (monitor_wext(in_dev, initch, in_err, in_if, in_ext) < 0)
         return -1;
 
     return 0;
 }
 
-int monitor_madwifi_g(const char *in_dev, int initch, char *in_err, void **in_if) {
+int monitor_madwifi_g(const char *in_dev, int initch, char *in_err, void **in_if, void *in_ext) {
     // Allocate a tracking record for the interface settings and remember our
     // setup
     linux_ifparm *ifparm = (linux_ifparm *) malloc(sizeof(linux_ifparm));
@@ -1449,13 +1488,13 @@ int monitor_madwifi_g(const char *in_dev, int initch, char *in_err, void **in_if
         return -1;
 
     // The rest is standard wireless extensions
-    if (monitor_wext(in_dev, initch, in_err, in_if) < 0)
+    if (monitor_wext(in_dev, initch, in_err, in_if, in_ext) < 0)
         return -1;
 
     return 0;
 }
 
-int monitor_madwifi_comb(const char *in_dev, int initch, char *in_err, void **in_if) {
+int monitor_madwifi_comb(const char *in_dev, int initch, char *in_err, void **in_if, void *in_ext) {
     // Allocate a tracking record for the interface settings and remember our
     // setup
     linux_ifparm *ifparm = (linux_ifparm *) malloc(sizeof(linux_ifparm));
@@ -1478,14 +1517,14 @@ int monitor_madwifi_comb(const char *in_dev, int initch, char *in_err, void **in
         return -1;
 
     // The rest is standard wireless extensions
-    if (monitor_wext(in_dev, initch, in_err, in_if) < 0)
+    if (monitor_wext(in_dev, initch, in_err, in_if, in_ext) < 0)
         return -1;
 
     return 0;
 }
 
 // Unmonitor madwifi (shared)
-int unmonitor_madwifi(const char *in_dev, int initch, char *in_err, void **in_if) {
+int unmonitor_madwifi(const char *in_dev, int initch, char *in_err, void **in_if, void *in_ext) {
     // Restore the stored mode
     linux_ifparm *ifparm = (linux_ifparm *) (*in_if);
 
@@ -1494,12 +1533,12 @@ int unmonitor_madwifi(const char *in_dev, int initch, char *in_err, void **in_if
     }
 
     // Call the standard unmonitor
-    return unmonitor_wext(in_dev, initch, in_err, in_if);
+    return unmonitor_wext(in_dev, initch, in_err, in_if, in_ext);
 }
 
 // Call the standard monitor but ignore error codes since channel
 // setting won't work.  This is a temp kluge.
-int monitor_prism54g(const char *in_dev, int initch, char *in_err, void **in_if) {
+int monitor_prism54g(const char *in_dev, int initch, char *in_err, void **in_if, void *in_ext) {
     // Allocate a tracking record for the interface settings and remember our
     // setup
     linux_ifparm *ifparm = (linux_ifparm *) malloc(sizeof(linux_ifparm));
@@ -1525,21 +1564,21 @@ int monitor_prism54g(const char *in_dev, int initch, char *in_err, void **in_if)
         return -1;
 
     // Call the normal monitor mode
-    return (monitor_wext(in_dev, initch, in_err, in_if));
+    return (monitor_wext(in_dev, initch, in_err, in_if, in_ext));
 
 }
 
-int unmonitor_prism54g(const char *in_dev, int initch, char *in_err, void **in_if) {
+int unmonitor_prism54g(const char *in_dev, int initch, char *in_err, void **in_if, void *in_ext) {
     // Restore initial monitor header
     linux_ifparm *ifparm = (linux_ifparm *) (*in_if);
 
     if (ifparm->prismhdr >= 0)
         Iwconfig_Set_IntPriv(in_dev, "set_prismhdr", ifparm->prismhdr, 0, in_err);
 
-    return unmonitor_wext(in_dev, initch, in_err, in_if);
+    return unmonitor_wext(in_dev, initch, in_err, in_if, in_ext);
 }
 
-int monitor_ipw2100(const char *in_dev, int initch, char *in_err, void **in_if) {
+int monitor_ipw2100(const char *in_dev, int initch, char *in_err, void **in_if, void *in_ext) {
     // Allocate a tracking record for the interface settings and remember our
     // setup
     linux_ifparm *ifparm = (linux_ifparm *) malloc(sizeof(linux_ifparm));
@@ -1556,10 +1595,10 @@ int monitor_ipw2100(const char *in_dev, int initch, char *in_err, void **in_if) 
         return -1;
 
     // Call the normal monitor mode
-    return (monitor_wext(in_dev, initch, in_err, in_if));
+    return (monitor_wext(in_dev, initch, in_err, in_if, in_ext));
 }
 
-int unmonitor_ipw2100(const char *in_dev, int initch, char *in_err, void **in_if) {
+int unmonitor_ipw2100(const char *in_dev, int initch, char *in_err, void **in_if, void *in_ext) {
     // Restore initial monitor header
     // linux_ifparm *ifparm = (linux_ifparm *) (*in_if);
 
@@ -1578,7 +1617,7 @@ int unmonitor_ipw2100(const char *in_dev, int initch, char *in_err, void **in_if
 }
 
 // "standard" wireless extension monitor mode
-int monitor_wext(const char *in_dev, int initch, char *in_err, void **in_if) {
+int monitor_wext(const char *in_dev, int initch, char *in_err, void **in_if, void *in_ext) {
     int mode;
 
     // Bring the device up, zero its ip, and set promisc
@@ -1612,7 +1651,7 @@ int monitor_wext(const char *in_dev, int initch, char *in_err, void **in_if) {
     return 0;
 }
 
-int unmonitor_wext(const char *in_dev, int initch, char *in_err, void **in_if) {
+int unmonitor_wext(const char *in_dev, int initch, char *in_err, void **in_if, void *in_ext) {
     // Restore the IP settings
     linux_ifparm *ifparm = (linux_ifparm *) (*in_if);
 
@@ -1635,7 +1674,7 @@ int unmonitor_wext(const char *in_dev, int initch, char *in_err, void **in_if) {
 
 #ifdef SYS_LINUX
 // wlan-ng modern standard
-int monitor_wlanng(const char *in_dev, int initch, char *in_err, void **in_if) {
+int monitor_wlanng(const char *in_dev, int initch, char *in_err, void **in_if, void *in_ext) {
     // I really didn't want to do this...
     char cmdline[2048];
 
@@ -1675,7 +1714,7 @@ int monitor_wlanng(const char *in_dev, int initch, char *in_err, void **in_if) {
 }
 
 // wlan-ng avs
-int monitor_wlanng_avs(const char *in_dev, int initch, char *in_err, void **in_if) {
+int monitor_wlanng_avs(const char *in_dev, int initch, char *in_err, void **in_if, void *in_ext) {
     // I really didn't want to do this...
     char cmdline[2048];
 
@@ -1717,7 +1756,7 @@ int monitor_wlanng_avs(const char *in_dev, int initch, char *in_err, void **in_i
     return 0;
 }
 
-int monitor_wrt54g(const char *in_dev, int initch, char *in_err, void **in_if) {
+int monitor_wrt54g(const char *in_dev, int initch, char *in_err, void **in_if, void *in_ext) {
     char cmdline[2048];
 
     snprintf(cmdline, 2048, "/usr/sbin/wl monitor 1");
@@ -1731,7 +1770,7 @@ int monitor_wrt54g(const char *in_dev, int initch, char *in_err, void **in_if) {
 
 #ifdef SYS_OPENBSD
 // This should be done programattically...
-int monitor_openbsd_cisco(const char *in_dev, int initch, char *in_err, void **in_if) {
+int monitor_openbsd_cisco(const char *in_dev, int initch, char *in_err, void **in_if, void *in_ext) {
     char cmdline[2048];
 
     // Sanitize the device just to be safe.  The ifconfig should fail if
@@ -1758,7 +1797,7 @@ int monitor_openbsd_cisco(const char *in_dev, int initch, char *in_err, void **i
     return 0;
 }
 
-int monitor_openbsd_prism2(const char *in_dev, int initch, char *in_err, void **in_if) {
+int monitor_openbsd_prism2(const char *in_dev, int initch, char *in_err, void **in_if, void *in_ext) {
     struct wi_req wreq;
     struct ifreq ifr;
     int s, flags;
@@ -2264,7 +2303,7 @@ bool FreeBSD::chancontrol(int in_ch) {
 	return true;
 }
 
-int monitor_freebsd(const char *in_dev, int initch, char *in_err, void **in_if) {
+int monitor_freebsd(const char *in_dev, int initch, char *in_err, void **in_if, void *in_ext) {
     FreeBSD *bsd = new FreeBSD(in_dev);
     if (!bsd->monitor_enable(initch)) {
         strcpy(in_err, bsd->geterror());
@@ -2276,7 +2315,7 @@ int monitor_freebsd(const char *in_dev, int initch, char *in_err, void **in_if) 
     }
 }
 
-int unmonitor_freebsd(const char *in_dev, int initch, char *in_err, void **in_if) {
+int unmonitor_freebsd(const char *in_dev, int initch, char *in_err, void **in_if, void *in_ext) {
     FreeBSD *bsd = *(FreeBSD **)in_if;
     if (!bsd->monitor_reset(initch)) {
         strcpy(in_err, bsd->geterror());

@@ -139,8 +139,6 @@ protected:
     virtual carrier_type IEEE80211Carrier();
     // Datalink checker
     virtual int DatalinkType();
-    // FCS byte checker (override)
-    virtual int FCSBytes();
     // Signal level fetcher
     virtual int FetchSignalLevels(int *in_siglev, int *in_noiselev);
     // Mangler
@@ -156,6 +154,10 @@ protected:
     
     pcap_t *pd;
     int datalink_type;
+
+    // Some toggles for subclasses to use
+    int toggle0;
+    int toggle1;
 };
 
 // Open with pcap_dead for pcapfiles - we have a different open and we
@@ -202,9 +204,9 @@ protected:
 class PcapSourceWextFCS : public PcapSourceWext {
 public:
     PcapSourceWextFCS(string in_name, string in_dev) :
-        PcapSourceWext(in_name, in_dev) { }
-protected:
-    int FCSBytes();
+        PcapSourceWext(in_name, in_dev) { 
+            fcsbytes = 4;
+        }
 };
 
 // Override carrier detection for 11g cards like madwifi and prism54g.
@@ -220,9 +222,9 @@ protected:
 class PcapSource11GFCS : public PcapSource11G {
 public:
     PcapSource11GFCS(string in_name, string in_dev) :
-        PcapSource11G(in_name, in_dev) { }
-protected:
-    int FCSBytes();
+        PcapSource11G(in_name, in_dev) { 
+            fcsbytes = 4;
+        }
 };
 #endif
 
@@ -231,11 +233,12 @@ protected:
 class PcapSourceWlanng : public PcapSource {
 public:
     PcapSourceWlanng(string in_name, string in_dev) :
-        PcapSource(in_name, in_dev) { }
+        PcapSource(in_name, in_dev) { 
+            fcsbytes = 4;
+        }
     int FetchChannel();
 protected:
     // Signal levels are pulled from the prism2 or avs headers so leave that as 0
-    int FCSBytes();
     int last_channel;
 
     friend int chancontrol_wlanng_avs(const char *in_dev, int in_ch, char *in_err, 
@@ -248,11 +251,12 @@ protected:
 // that it likes to generate
 class PcapSourceWrt54g : public PcapSource {
 public:
-    PcapSourceWrt54g(string in_name, string in_dev) : PcapSource(in_name, in_dev) { }
+    PcapSourceWrt54g(string in_name, string in_dev) : PcapSource(in_name, in_dev) { 
+        fcsbytes = 4;
+    }
     int FetchPacket(kis_packet *packet, uint8_t *data, uint8_t *moddata);
 protected:
     carrier_type IEEE80211Carrier();
-    int FCSBytes();
 };
 #endif
 
@@ -348,61 +352,62 @@ KisPacketSource *pcapsource_radiotap_registrant(string in_name, string in_device
 #endif
 
 // Monitor activation
-int unmonitor_pcapfile(const char *in_dev, int initch, char *in_err, void **in_if);
+int unmonitor_pcapfile(const char *in_dev, int initch, char *in_err, void **in_if, void *in_ext);
 
 #ifdef HAVE_LINUX_WIRELESS
 // Cisco (old) 
-int monitor_cisco(const char *in_dev, int initch, char *in_err, void **in_if);
+int monitor_cisco(const char *in_dev, int initch, char *in_err, void **in_if, void *in_ext);
+int unmonitor_cisco(const char *in_dev, int initch, char *in_err, void **in_if, void *in_ext);
 // Cisco (new)
-int monitor_cisco_wifix(const char *in_dev, int initch, char *in_err, void **in_if);
+int monitor_cisco_wifix(const char *in_dev, int initch, char *in_err, void **in_if, void *in_ext);
 // hostap prism2
-int monitor_hostap(const char *in_dev, int initch, char *in_err, void **in_if);
-int unmonitor_hostap(const char *in_dev, int initch, char *in_err, void **in_if);
+int monitor_hostap(const char *in_dev, int initch, char *in_err, void **in_if, void *in_ext);
+int unmonitor_hostap(const char *in_dev, int initch, char *in_err, void **in_if, void *in_ext);
 // orinoco
-int monitor_orinoco(const char *in_dev, int initch, char *in_err, void **in_if);
-int unmonitor_orinoco(const char *in_dev, int initch, char *in_err, void **in_if);
+int monitor_orinoco(const char *in_dev, int initch, char *in_err, void **in_if, void *in_ext);
+int unmonitor_orinoco(const char *in_dev, int initch, char *in_err, void **in_if, void *in_ext);
 // acx100
-int monitor_acx100(const char *in_dev, int initch, char *in_err, void **in_if);
-int unmonitor_acx100(const char *in_dev, int initch, char *in_err, void **in_if);
+int monitor_acx100(const char *in_dev, int initch, char *in_err, void **in_if, void *in_ext);
+int unmonitor_acx100(const char *in_dev, int initch, char *in_err, void **in_if, void *in_ext);
 // admtek
-int monitor_admtek(const char *in_dev, int initch, char *in_err, void **in_if);
-int unmonitor_admtek(const char *in_dev, int initch, char *in_err, void **in_if);
+int monitor_admtek(const char *in_dev, int initch, char *in_err, void **in_if, void *in_ext);
+int unmonitor_admtek(const char *in_dev, int initch, char *in_err, void **in_if, void *in_ext);
 // ar5k
-int monitor_vtar5k(const char *in_dev, int initch, char *in_err, void **in_if);
+int monitor_vtar5k(const char *in_dev, int initch, char *in_err, void **in_if, void *in_ext);
 // Madwifi group of cards
-int monitor_madwifi_a(const char *in_dev, int initch, char *in_err, void **in_if);
-int monitor_madwifi_b(const char *in_dev, int initch, char *in_err, void **in_if);
-int monitor_madwifi_g(const char *in_dev, int initch, char *in_err, void **in_if);
-int monitor_madwifi_comb(const char *in_dev, int initch, char *in_err, void **in_if);
-int unmonitor_madwifi(const char *in_dev, int initch, char *in_err, void **in_if);
+int monitor_madwifi_a(const char *in_dev, int initch, char *in_err, void **in_if, void *in_ext);
+int monitor_madwifi_b(const char *in_dev, int initch, char *in_err, void **in_if, void *in_ext);
+int monitor_madwifi_g(const char *in_dev, int initch, char *in_err, void **in_if, void *in_ext);
+int monitor_madwifi_comb(const char *in_dev, int initch, char *in_err, void **in_if, void *in_ext);
+int unmonitor_madwifi(const char *in_dev, int initch, char *in_err, void **in_if, void *in_ext);
 // prism54 needs to override the error messages it gets setting channels
-int monitor_prism54g(const char *in_dev, int initch, char *in_err, void **in_if);
-int unmonitor_prism54g(const char *in_dev, int initch, char *in_err, void **in_if);
+int monitor_prism54g(const char *in_dev, int initch, char *in_err, void **in_if, void *in_ext);
+int unmonitor_prism54g(const char *in_dev, int initch, char *in_err, void **in_if, void *in_ext);
 // Centrino
-int monitor_ipw2100(const char *in_dev, int initch, char *in_err, void **in_if);
-int unmonitor_ipw2100(const char *in_dev, int initch, char *in_err, void **in_if);
+int monitor_ipw2100(const char *in_dev, int initch, char *in_err, void **in_if, void *in_ext);
+int unmonitor_ipw2100(const char *in_dev, int initch, char *in_err, void **in_if, void *in_ext);
 // "Standard" wext monitor sequence - mostly a helper for other functions
 // since most cards that use wext still have custom initialization that
 // needs to be done.
-int monitor_wext(const char *in_dev, int initch, char *in_err, void **in_if);
-int unmonitor_wext(const char *in_dev, int initch, char *in_err, void **in_if);
+int monitor_wext(const char *in_dev, int initch, char *in_err, void **in_if, void *in_ext);
+int unmonitor_wext(const char *in_dev, int initch, char *in_err, void **in_if, void *in_ext);
 #endif
 
 #ifdef SYS_LINUX
 // wlan-ng modern standard
-int monitor_wlanng(const char *in_dev, int initch, char *in_err, void **in_if);
+int monitor_wlanng(const char *in_dev, int initch, char *in_err, void **in_if, void *in_ext);
 // wlan-ng avs
-int monitor_wlanng_avs(const char *in_dev, int initch, char *in_err, void **in_if);
+int monitor_wlanng_avs(const char *in_dev, int initch, char *in_err, void **in_if, void *in_ext);
 // linksys wrt54g monitoring
-int monitor_wrt54g(const char *in_dev, int initch, char *in_err, void **in_if);
+int monitor_wrt54g(const char *in_dev, int initch, char *in_err, void **in_if, void *in_ext);
 #endif
 
 // This should be expanded to handle BSD...
 #ifdef SYS_OPENBSD
 // Cisco (bsd)
-int monitor_openbsd_cisco(const char *in_dev, int initch, char *in_err, void **in_if);
+int monitor_openbsd_cisco(const char *in_dev, int initch, char *in_err, void **in_if, void *in_ext);
 // openbsd prism2
-int monitor_openbsd_prism2(const char *in_dev, int initch, char *in_err, void **in_if);
+int monitor_openbsd_prism2(const char *in_dev, int initch, char *in_err, void **in_if, void *in_ext);
 #endif
 
 // Channel controls
@@ -432,8 +437,8 @@ int chancontrol_openbsd_prism2(const char *in_dev, int in_ch, char *in_err,
 #endif
 
 #if (defined(SYS_FREEBSD) && defined(HAVE_RADIOTAP))
-int monitor_freebsd(const char *in_dev, int initch, char *in_err, void **in_if);
-int unmonitor_freebsd(const char *in_dev, int initch, char *in_err, void **in_if);
+int monitor_freebsd(const char *in_dev, int initch, char *in_err, void **in_if, void *in_ext);
+int unmonitor_freebsd(const char *in_dev, int initch, char *in_err, void **in_if, void *in_ext);
 int chancontrol_freebsd(const char *in_dev, int in_ch, char *in_err, void *in_ext);
 #endif
 
