@@ -24,7 +24,7 @@
 .Op Fl a Ar allowed-hosts
 .Pp
 .Ar kismet_client
-.Op Fl q
+.Op Fl qr
 .Op Fl f Ar config-file
 .Op Fl s Ar serverhost:port
 .Op Fl g Ar gui-type
@@ -58,7 +58,10 @@ handles automatically starting kismet_server and kismet_curses.
 .br
 IT IS IMPERATIVE THAT YOU PLACE YOUR CARD IN RFMON MODE BEFORE STARTING 
 KISMET OR YOU WILL NOT SEE ANY TRAFFIC.  Your card can be placed into 
-monitor mode by running the appropriate monitor script for your card type.
+monitor mode by configuring
+.Nm kismet
+for your card and running 
+.Nm kismet_monitor
 
 .Sh KISMET_SERVER
 .Nm kismet_server
@@ -108,6 +111,8 @@ Use an alternate UI config file
 Override sound option and run in quiet mode
 .It Fl s
 Override server host:port
+.It Fl r
+Attempt to automatically restablish the connection if the server terminates
 .It Fl g
 Override UI type (curses, panel)
 .It Fl c
@@ -122,4 +127,4 @@ Help
 reads GPS and Network XML datafiles and plots networks on downloaded maps or
 user-supplied images (such as sattellite photos).
 .Sh SEE ALSO
-kismet.conf(5), kismet_ui.conf(5), gpsmap(1)
+kismet_monitor(1), kismet.conf(5), kismet_ui.conf(5), gpsmap(1)

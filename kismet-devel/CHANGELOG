@@ -3,6 +3,7 @@ Sep 20 2002  2.5.2  Revamped host fingerprinting to use the database from
                     Updated gpsmap to bail when no drawing methods are
                      requested.
                     Fixed spanning tree protocol being identified as LOR.
+                    Updated man files
 Sep 17 2002  2.5.2  Merged/Modified patch from Andrew Etter for customized
                      festival speech.
                     Updated docs
