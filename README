@@ -37,7 +37,7 @@ Licensed under the GPL
     Kismet has many features useful in different situations for monitoring
     wireless networks:
 
-    - Ethereal/Tcpdump compatable data logging
+    - Ethereal/Tcpdump compatible data logging
     - Airsnort compatible weak-iv packet logging
     - Network IP range detection
     - Built-in channel hopping and multicard split channel hopping
@@ -171,7 +171,7 @@ Licensed under the GPL
 7.  Compiling
     
     Compiling should be fairly straightforward.  It uses the normal configure
-    scripts found in most open source projects, and should build with any
+    scripts found in most open-source projects, and should build with any
     modern version of gcc.
 
     1.  Download any libraries and external utilities needed
