@@ -203,9 +203,8 @@ int Wsp100Source::Wsp2Common(pkthdr *in_header, u_char *in_data) {
             len = data[pos++];
             break;
         case WSP100_TAG_RADIO_FCSERR:
-            // We need to find a way to handle this to flag a noise/error packet
             len = data[pos++];
-            in_header->error = 1;
+            in_header->error = data[pos];
             break;
         case WSP100_TAG_RADIO_CHANNEL:
             // We get this off the other data inside the packets so we ignore this...
