@@ -399,7 +399,8 @@ int Packetsourcetracker::ProcessCardList(string in_enableline,
     // Split the initial channel allocations, with a little help for people with only one
     // capture source enabled - if only a number is given, assume it's a for the only 
     // enabled source.
-    if (enable_map.size() == 1 && in_initchannels->size() == 1) {
+    if (enable_map.size() == 1 && in_initchannels->size() == 1 &&
+        (*in_initchannels)[0].find(":") == string::npos) {
         int tmpchan;
         if (sscanf((*in_initchannels)[0].c_str(), "%d", &tmpchan) != 1) {
             snprintf(errstr, 1024, "Illegal initial channel '%s'", 
