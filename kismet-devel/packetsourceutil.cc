@@ -307,6 +307,154 @@ int BindUserSources(vector<capturesource *> *in_capsources, map<string, int> *in
     return 1;
 }
 
+vector<int> ParseChannelLine(string in_channels) {
+    vector<string> optlist = StrTokenize(in_channels, ",");
+    vector<int> ret;
+    int ch;
+
+    for (unsigned int x = 0; x < optlist.size(); x++) {
+        if (sscanf(optlist[x].c_str(), "%d", &ch) != 1) {
+            fprintf(stderr, "FATAL: Illegal channel '%s' in channel list '%s'\n", optlist[x].c_str(), in_channels.c_str());
+            exit(1);
+        }
+        ret.push_back(ch);
+    }
+
+    return ret;
+}
+
+// This is a really big, really scary function that handles figuring out who gets custom channels,
+// who gets default channels, and how those channels get split over multiple capture sources.
+int ParseSetChannels(vector<string> *in_sourcechanlines, vector<capturesource *> *in_capsources,
+                     int in_chsplit, vector<int> *in_80211adefaults, vector<int> *in_80211bdefaults) {
+    // Capname to sequence ID map - this links multisources on a single sequence, and defaults
+    map<string, int> cap_seqid_map;
+    // Sequence ID to channel sequences
+    map<int, vector<int> > seqid_seq_map;
+    // Sequence counts, if we're splitting.  -1 is 11a def, -2 is 11b def.
+    map<int, int> seqid_count_map;
+    // OK this is just kind of silly to have so many maps but they're cheap and they're
+    // only here during startup
+    map<int, int> seqid_assign_map;
+    int seqid = 0;
+
+    // Fill in the defaults
+    seqid_count_map[-1] = 0;
+    seqid_count_map[-2] = 0;
+    seqid_seq_map[-1] = (*in_80211adefaults);
+    seqid_seq_map[-2] = (*in_80211bdefaults);
+
+    // Temporary vectors of capnames and such
+    vector<string> sourcecaps;
+    vector<int> sourceseq;
+
+    // Now parse the source lines and assign them
+    for (unsigned int sline = 0; sline < in_sourcechanlines->size(); sline++) {
+        // Get the sources
+        vector<string> sourcebits = StrTokenize((*in_sourcechanlines)[sline], ":");
+
+        if (sourcebits.size() != 2) {
+            fprintf(stderr, "FATAL:  Invalid sourcechannel line '%s'\n", (*in_sourcechanlines)[sline].c_str());
+            exit(1);
+        }
+
+        // Split the sources
+        sourcecaps = StrTokenize(sourcebits[0], ",");
+        // And the channels
+        sourceseq = ParseChannelLine(sourcebits[1]);
+
+        // Now put our sequence in the custom sequence map
+        seqid_seq_map[seqid] = sourceseq;
+        // And assign it to each of our sources
+        for (unsigned int cap = 0; cap < sourcecaps.size(); cap++) {
+            if (cap_seqid_map.find(sourcecaps[cap]) != cap_seqid_map.end()) {
+                fprintf(stderr, "FATAL:  Capture source '%s' assigned multiple channel sequences.\n",
+                        sourcecaps[cap].c_str());
+                exit(1);
+            }
+            // Assign it
+            cap_seqid_map[sourcecaps[cap]] = seqid;
+        }
+        // And increment the sequence id
+        seqid++;
+    }
+
+    // Now go through the capture sources
+    for (unsigned int capnum = 0; capnum < in_capsources->size(); capnum++) {
+        capturesource *csrc = (*in_capsources)[capnum];
+
+        if (csrc->source == NULL)
+            continue;
+
+        // If they don't have a custom channel sequence, they get the default...
+        // Lets figure out what card type they are and assign the right thing
+        if (cap_seqid_map.find(csrc->name) == cap_seqid_map.end()) {
+            if (csrc->cardtype == card_drone || csrc->cardtype == card_unspecified ||
+                csrc->cardtype == card_generic) {
+                // non-hopping cap types
+                continue;
+            } else if (csrc->cardtype == card_ar5k) {
+                // 802.11a
+                seqid_count_map[-1]++;
+                cap_seqid_map[csrc->name] = -1;
+            } else {
+                // Everything else is 802.11b
+                seqid_count_map[-2]++;
+                cap_seqid_map[csrc->name] = -2;
+            }
+        } else {
+            // Blow up on card types that don't hop.  We'll be nasty and hard-fault on this.
+            if (csrc->cardtype == card_drone || csrc->cardtype == card_unspecified ||
+                csrc->cardtype == card_generic) {
+
+                fprintf(stderr, "FATAL:  Source %d (%s) has type %s, which cannot channel hop.\n",
+                        capnum, csrc->name.c_str(), card_type_str[csrc->cardtype]);
+                exit(1);
+            }
+
+            // otherwise increment the seqid
+            int id = cap_seqid_map[csrc->name];
+            if (seqid_count_map.find(id) == seqid_count_map.end())
+                seqid_count_map[id] = 1;
+            else
+                seqid_count_map[id]++;
+        }
+    }
+
+    // Now we know how many copies of each source there are, and who gets copies
+    // of the default hops.  Lets do some assignments and some math.  It's annoying
+    // to have to iterate the capturesources twice, but this only happens at boot
+    // so I'm not too concerned
+    for (unsigned int capnum = 0; capnum < in_capsources->size(); capnum++) {
+        capturesource *csrc = (*in_capsources)[capnum];
+
+        if (csrc->source == NULL)
+            continue;
+
+        // If they're a default...
+        if (cap_seqid_map.find(csrc->name) == cap_seqid_map.end())
+            continue;
+
+        int id = cap_seqid_map[csrc->name];
+
+        csrc->channels = seqid_seq_map[id];
+        csrc->ch_hop = 1;
+
+        // handle the splits if we're splitting them
+        if (in_chsplit) {
+            if (seqid_assign_map.find(id) == seqid_assign_map.end())
+                seqid_assign_map[id] = 0;
+
+            csrc->ch_pos = (csrc->channels.size() / seqid_count_map[id]) * seqid_assign_map[id];
+
+            seqid_assign_map[id]++;
+        }
+    }
+
+    return 1;
+}
+
+
 // Push a string of text out into the ring buffer for OOB-reporting to the server
 void CapSourceText(string in_text, KisRingBuffer *in_buf) {
     uint32_t sentinel = CAPSENTINEL;
@@ -330,6 +478,11 @@ void CapSourceText(string in_text, KisRingBuffer *in_buf) {
 
 }
 
+// Signal catcher
+void CapSourceSignal(int) {
+    exit(0);
+}
+
 // Handle doing things as a child
 void CapSourceChild(capturesource *csrc) {
     char txtbuf[1024];
@@ -338,6 +491,11 @@ void CapSourceChild(capturesource *csrc) {
     int active = 0;
     pid_t mypid = getpid();
     uint32_t sentinel = CAPSENTINEL;
+
+    signal(SIGINT, CapSourceSignal);
+    signal(SIGTERM, CapSourceSignal);
+    signal(SIGHUP, CapSourceSignal);
+    signal(SIGPIPE, SIG_IGN);
 
     // Make a large ring buffer of packet bits
     KisRingBuffer *ringbuf = new KisRingBuffer(MAX_PACKET_LEN * 50);
@@ -466,6 +624,11 @@ void CapSourceChild(capturesource *csrc) {
                 csrc->source->Resume();
             } else if (cmd > 0) {
                 // do a channel set
+                if (csrc->source->SetChannel(cmd) < 0) {
+                    snprintf(txtbuf, 1024, "FATAL: %s", csrc->source->FetchError());
+                    CapSourceText(txtbuf, txtringbuf);
+                    diseased = 1;
+                }
             } else {
                 snprintf(txtbuf, 1024, "WARNING:  capture child unknown command %d", cmd);
                 CapSourceText(txtbuf, txtringbuf);

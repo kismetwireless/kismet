@@ -122,4 +122,7 @@ case "$CARDTYPE" in
 		;;
 esac
 
+# Wait a moment
+sleep 1
+
 exit 0
