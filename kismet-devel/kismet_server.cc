@@ -1420,10 +1420,13 @@ int ProcessBulkConf(ConfigFile *conf) {
     }
 
     if (conf->FetchOpt("alertbacklog") != "") {
-        if (sscanf(conf->FetchOpt("alertbacklog").c_str(), "%d", &max_alerts) != 1) {
+        int scantmp;
+        if (sscanf(conf->FetchOpt("alertbacklog").c_str(), "%d", &scantmp) != 1 ||
+            scantmp < 0) {
             fprintf(stderr, "FATAL:  Illegal config file value for alert backlog.\n");
             ErrorShutdown();
         }
+        max_alerts = scantmp;
     }
 
     if (tcpport == -1) {

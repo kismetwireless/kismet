@@ -52,7 +52,7 @@ enum client_sort_type {
 };
 
 enum group_type {
-    group_host, group_bundle, group_sub, group_empty,
+    group_host, group_bundle, group_sub, group_empty
 };
 
 // What do we actually display
@@ -142,8 +142,8 @@ protected:
     // Purge groups (primarily for when client focus changes)
     virtual void PurgeGroups();
 
-    display_network *Frontend::CreateGroup(int in_persistent, string in_tag, string in_name);
-    display_network *Frontend::AddToGroup(display_network *core, display_network *merger);
+    display_network *CreateGroup(int in_persistent, string in_tag, string in_name);
+    display_network *AddToGroup(display_network *core, display_network *merger);
 
     // Group all the tagged networks
     display_network *GroupTagged();
