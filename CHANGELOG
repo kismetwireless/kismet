@@ -1,3 +1,5 @@
+Sep 24 2002  2.5.2  Tweaked network storing to not track ssids for probe, etc
+                     networks.
 Sep 23 2002  2.5.2  Tweaked hopper to go to channel 11 in the US ranges
                     Added netxml dtd 1.5 for new ip range handling
                     Fixed lucent router clients being classified as unknown.
