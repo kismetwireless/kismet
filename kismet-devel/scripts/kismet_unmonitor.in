@@ -12,6 +12,9 @@ DEVICE=""
 IFFILE=`mktemp /tmp/kismonitor.XXXXXX`
 USEFILE=0
 
+ENABLELIST=""
+ENABLECMD=0
+
 while test "$#" -gt 0; do
 	case "$1" in
 	"-h")
@@ -21,6 +24,7 @@ while test "$#" -gt 0; do
 		echo "Usage:"
 		echo "  -f <file>         Use alternate Kismet config file <file>"
 		echo "  -s <source>       Use alternate capture source (engine,interface,type,name)"
+		echo "  -C <enable>       Use an alternate list of sources to enable"
 		echo "  -c <channel>      Activate on channel <channel> (default 6)"
 		echo "  -h                What you're reading now"
 		exit
@@ -44,6 +48,16 @@ while test "$#" -gt 0; do
 			USEFILE=1
 		fi
 		;;
+	"-C")
+		shift
+		if test "$1" = ""; then
+			echo "No enable list specified."
+			exit
+		else
+			ENABLELIST="$1"
+			ENABLECMD=1
+		fi
+		;;
 	"-c")
 		shift
 		if test "$1" = ""; then
@@ -65,20 +79,37 @@ if test "$CONFIGFILE" = ""; then
 	CONFIGFILE=$ETC/kismet.conf
 fi
 
-if test ! -f "$CONFIGFILE"; then
-	echo "Could not find '$CONFIGFILE'.  Please make sure Kismet is"
-	echo "installed correctly, or specify a configfile with -f."
-	exit
+if test "$USEFILE" -eq 0; then
+	if test ! -f "$CONFIGFILE"; then
+		echo "Could not find '$CONFIGFILE'.  Please make sure Kismet is"
+		echo "installed correctly, or specify a configfile with -f."
+		exit
+	fi
+
+	echo "Using $CONFIGFILE sources..."
+	`grep -e "^\ *source\ *=" $CONFIGFILE | cut -d= -f2 | tr -d " \t" > $IFFILE`
+
+	if test "$ENABLECMD" -eq 0; then
+		ENABLELIST=`grep -e "^\ *enablesources\ *=" $CONFIGFILE | cut -d= -f2 | tr -d " \t"`
+	fi
 fi
 
-if test "$USEFILE" -eq 0; then
-	echo "Using $CONFIGFILE sources..."
-	`grep -e "^\ *source[0-9]*\ *=" $CONFIGFILE | cut -d= -f2 | tr -d " \t" > $IFFILE`
+# Pad the enable list
+if test "$ENABLELIST" != ""; then
+	ENABLELIST=","$ENABLELIST","
 fi
+
 
 for line in `cat $IFFILE`; do
 	CARDTYPE=`echo $line | cut -f 1 -d,`
 	DEVICE=`echo $line | cut -f 2 -d,`
+	NAME=`echo $line | cut -f 3 -d,`
+
+	if test "$ENABLELIST" != ""; then
+		if test "`echo $ENABLELIST | grep \",\"$NAME\",\"`" == ""; then
+			continue;
+		fi
+	fi
 
 	case "$CARDTYPE" in
 		"cisco")
