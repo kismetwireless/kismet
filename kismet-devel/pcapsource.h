@@ -158,6 +158,14 @@ public:
     int FetchChannel();
 };
 
+// Override madwifi stuff for g-carrier.  A and B can be handled normally,
+// so this just gets used for 'g' and 'ag'
+class PcapSourceMadwifiG : public PcapSource {
+public:
+    PcapSourceMadwifiG(string in_name, string in_dev) : PcapSource(in_name, in_dev) { }
+protected:
+    carrier_type IEEE80211Carrier();
+};
 #endif
 
 
@@ -174,6 +182,8 @@ KisPacketSource *pcapsource_wext_registrant(string in_name, string in_device,
                                             char *in_err);
 KisPacketSource *pcapsource_ciscowifix_registrant(string in_name, string in_device, 
                                                   char *in_err);
+KisPacketSource *pcapsource_madwifig_registrant(string in_name, string in_device,
+                                                char *in_err);
 #endif
 
 // Monitor activation
@@ -190,6 +200,11 @@ int monitor_orinoco(const char *in_dev, int initch, char *in_err);
 int monitor_acx100(const char *in_dev, int initch, char *in_err);
 // ar5k
 int monitor_vtar5k(const char *in_dev, int initch, char *in_err);
+// Madwifi group of cards
+int monitor_madwifi_a(const char *in_dev, int initch, char *in_err);
+int monitor_madwifi_b(const char *in_dev, int initch, char *in_err);
+int monitor_madwifi_g(const char *in_dev, int initch, char *in_err);
+int monitor_madwifi_comb(const char *in_dev, int initch, char *in_err);
 // "Standard" wext monitor sequence - mostly a helper for other functions
 // since most cards that use wext still have custom initialization that
 // needs to be done.
