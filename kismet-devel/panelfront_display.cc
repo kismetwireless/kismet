@@ -1374,8 +1374,12 @@ int PanelFront::DetailsPrinter(void *in_window) {
             snprintf(output, print_width, "Carrier : IEEE 802.11g");
             kwin->text.push_back(output);
         }
-        if (details_network->virtnet->carrier_set & (1 << (int) carrier_80211)) {
-            snprintf(output, print_width, "Carrier : IEEE 802.11");
+        if (details_network->virtnet->carrier_set & (1 << (int) carrier_80211fhss)) {
+            snprintf(output, print_width, "Carrier : IEEE 802.11 FHSS");
+            kwin->text.push_back(output);
+        }
+        if (details_network->virtnet->carrier_set & (1 << (int) carrier_80211dsss)) {
+            snprintf(output, print_width, "Carrier : IEEE 802.11 DSSS");
             kwin->text.push_back(output);
         }
 
@@ -1424,11 +1428,27 @@ int PanelFront::DetailsPrinter(void *in_window) {
             snprintf(output, print_width, "Carrier : IEEE 802.11g");
             kwin->text.push_back(output);
         }
-        if (dnet->carrier_set & (1 << (int) carrier_80211)) {
-            snprintf(output, print_width, "Carrier : IEEE 802.11");
+        if (dnet->carrier_set & (1 << (int) carrier_80211fhss)) {
+            snprintf(output, print_width, "Carrier : IEEE 802.11 FHSS");
+            kwin->text.push_back(output);
+        }
+        if (dnet->carrier_set & (1 << (int) carrier_80211dsss)) {
+            snprintf(output, print_width, "Carrier : IEEE 802.11 DSSS");
             kwin->text.push_back(output);
         }
 
+        if (dnet->encoding_set & (1 << (int) encoding_cck)) {
+            snprintf(output, print_width, "Encoding: CCK");
+            kwin->text.push_back(output);
+        }
+        if (dnet->encoding_set & (1 << (int) encoding_pbcc)) {
+            snprintf(output, print_width, "Encoding: PBCC");
+            kwin->text.push_back(output);
+        }
+        if (dnet->encoding_set & (1 << (int) encoding_ofdm)) {
+            snprintf(output, print_width, "Encoding: OFDM");
+            kwin->text.push_back(output);
+        }
 
         map<mac_addr, manuf *>::const_iterator mitr;
         int found = 0;
@@ -1465,6 +1485,11 @@ int PanelFront::DetailsPrinter(void *in_window) {
     
         snprintf(output, print_width, "Max Rate: %2.1f", dnet->maxrate);
         kwin->text.push_back(output);
+
+        if (dnet->maxseenrate != 0) {
+            snprintf(output, print_width, "Max Seen: %ld kbps", (long) dnet->maxseenrate * 100);
+            kwin->text.push_back(output);
+        }
     
         snprintf(output, print_width, "First   : %.24s", ctime((const time_t *) &dnet->first_time));
         kwin->text.push_back(output);
@@ -2713,6 +2738,25 @@ int PanelFront::DetailsClientPrinter(void *in_window) {
     kwin->text.push_back(output);
     snprintf(output, print_width, "Max Rate: %2.1f", details_client->maxrate);
     kwin->text.push_back(output);
+
+    if (details_client->maxseenrate != 0) {
+        snprintf(output, print_width, "Max Seen: %ld kbps", (long) details_client->maxseenrate * 100);
+        kwin->text.push_back(output);
+    }
+
+    if (details_client->encoding_set & (1 << (int) encoding_cck)) {
+        snprintf(output, print_width, "Encoding: CCK");
+        kwin->text.push_back(output);
+    }
+    if (details_client->encoding_set & (1 << (int) encoding_pbcc)) {
+        snprintf(output, print_width, "Encoding: PBCC");
+        kwin->text.push_back(output);
+    }
+    if (details_client->encoding_set & (1 << (int) encoding_ofdm)) {
+        snprintf(output, print_width, "Encoding: OFDM");
+        kwin->text.push_back(output);
+    }
+
     snprintf(output, print_width, "Channel : %d", details_client->channel);
     kwin->text.push_back(output);
     snprintf(output, print_width, "WEP     : %s", details_client->wep ? "Yes" : "No");

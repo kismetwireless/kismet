@@ -192,8 +192,10 @@ void GetPacketInfo(kis_packet *packet, packet_parm *parm, packet_info *ret_packi
     ret_packinfo->signal = packet->signal;
     ret_packinfo->noise = packet->noise;
 
-    // Assign the carrier
+    // Assign the carrier, encoding, and data rates
     ret_packinfo->carrier = packet->carrier;
+    ret_packinfo->encoding = packet->encoding;
+    ret_packinfo->datarate = packet->datarate;
 
     // Assign a hardware channel if we're on an 802.11a carrier since the beacon doesn't
     // carry that tag
@@ -1185,6 +1187,8 @@ kis_packet *MangleCryptPacket(const kis_packet *packet, const packet_info *in_in
     outpack->error = 0;
     outpack->channel = packet->channel;
     outpack->carrier = packet->carrier;
+    outpack->encoding = packet->encoding;
+    outpack->datarate = packet->datarate;
     outpack->moddata = NULL;
 
     // Copy the decrypted data, skipping the wep header and dropping the crc32 off the end

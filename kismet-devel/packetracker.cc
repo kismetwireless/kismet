@@ -348,6 +348,14 @@ int Packetracker::ProcessPacket(packet_info info, char *in_status) {
     // never know...
     net->carrier_set |= (1 << (int) info.carrier);
 
+    // Assign the encoding types in this network, there can quite likely be more than
+    // one...
+    net->encoding_set |= (1 << (int) info.encoding);
+
+    // Assign the highest seen datarate
+    if (info.datarate > net->maxseenrate)
+        net->maxseenrate = info.datarate;
+
     if ((info.type == packet_management) || (info.proto.type == proto_iapp)) {
         if (info.type == packet_management)
             net->llc_packets++;
@@ -658,6 +666,13 @@ int Packetracker::ProcessDataPacket(packet_info info, wireless_network *net, cha
         client->data_packets++;
     }
 
+    // Assign the encoding types in this network, there can quite likely be more than
+    // one...
+    client->encoding_set |= (1 << (int) info.encoding);
+
+    if (info.datarate > client->maxseenrate)
+        client->maxseenrate = info.datarate;
+
     // Record a cisco device
     if (info.proto.type == proto_cdp) {
         net->cisco_equip[info.proto.cdp.dev_id] = info.proto.cdp;
@@ -932,8 +947,10 @@ int Packetracker::WriteNetworks(string in_fname) {
             snprintf(carrier, 15, "802.11a");
         else if (net->carrier_set & (1 << (int) carrier_80211g))
             snprintf(carrier, 15, "802.11g");
-        else if (net->carrier_set & (1 << (int) carrier_80211))
-            snprintf(carrier, 15, "802.11");
+        else if (net->carrier_set & (1 << (int) carrier_80211fhss))
+            snprintf(carrier, 15, "802.11 FHSS");
+        else if (net->carrier_set & (1 << (int) carrier_80211dsss))
+            snprintf(carrier, 15, "802.11 DSSS");
         else
             snprintf(carrier, 15, "unknown");
 
@@ -1353,7 +1370,7 @@ int Packetracker::WriteXMLNetworks(string in_fname) {
     //vector<wireless_network *> bssid_vec;
 
     fprintf(netfile, "<?xml version=\"1.0\" encoding=\"ISO-8859-1\"?>\n");
-    fprintf(netfile, "<!DOCTYPE detection-run SYSTEM \"http://kismetwireless.net/kismet-1.6.2.dtd\">\n");
+    fprintf(netfile, "<!DOCTYPE detection-run SYSTEM \"http://kismetwireless.net/kismet-2.9.1.dtd\">\n");
 
     fprintf(netfile, "\n\n");
 
@@ -1410,21 +1427,9 @@ int Packetracker::WriteXMLNetworks(string in_fname) {
         else
             snprintf(type, 15, "unknown");
 
-        char carrier[15];
-        if (net->carrier_set & (1 << (int) carrier_80211b))
-            snprintf(carrier, 15, "802.11b");
-        else if (net->carrier_set & (1 << (int) carrier_80211a))
-            snprintf(carrier, 15, "802.11a");
-        else if (net->carrier_set & (1 << (int) carrier_80211g))
-            snprintf(carrier, 15, "802.11g");
-        else if (net->carrier_set & (1 << (int) carrier_80211))
-            snprintf(carrier, 15, "802.11");
-        else
-            snprintf(carrier, 15, "unknown");
-
-        fprintf(netfile, "  <wireless-network number=\"%d\" type=\"%s\" wep=\"%s\" cloaked=\"%s\" carrier=\"%s\" first-time=\"%s\" last-time=\"%s\">\n",
+        fprintf(netfile, "  <wireless-network number=\"%d\" type=\"%s\" wep=\"%s\" cloaked=\"%s\" first-time=\"%s\" last-time=\"%s\">\n",
                 netnum, type, net->wep ? "true" : "false", net->cloaked ? "true" : "false",
-                carrier, ft, lt);
+                ft, lt);
 
         if (net->ssid != NOSSID)
             fprintf(netfile, "    <SSID>%s</SSID>\n", SanitizeXML(net->ssid).c_str());
@@ -1434,6 +1439,26 @@ int Packetracker::WriteXMLNetworks(string in_fname) {
             fprintf(netfile, "    <info>%s</info>\n", SanitizeXML(net->beacon_info).c_str());
         fprintf(netfile, "    <channel>%d</channel>\n", net->channel);
         fprintf(netfile, "    <maxrate>%2.1f</maxrate>\n", net->maxrate);
+        fprintf(netfile, "    <maxseenrate>%ld</maxseenrate>\n", (long) net->maxseenrate * 100);
+
+        if (net->carrier_set & (1 << (int) carrier_80211b))
+            fprintf(netfile, "    <carrier>IEEE 802.11b</carrier>\n");
+        if (net->carrier_set & (1 << (int) carrier_80211a))
+            fprintf(netfile, "    <carrier>IEEE 802.11a</carrier>\n");
+        if (net->carrier_set & (1 << (int) carrier_80211g))
+            fprintf(netfile, "    <carrier>IEEE 802.11g</carrier>\n");
+        if (net->carrier_set & (1 << (int) carrier_80211fhss))
+            fprintf(netfile, "    <carrier>IEEE 802.11 FHSS</carrier>\n");
+        if (net->carrier_set & (1 << (int) carrier_80211dsss))
+            fprintf(netfile, "    <carrier>IEEE 802.11 FSSS</carrier>\n");
+
+        if (net->encoding_set & (1 << (int) encoding_cck))
+            fprintf(netfile, "    <encoding>CCK</encoding>\n");
+        if (net->encoding_set & (1 << (int) encoding_pbcc))
+            fprintf(netfile, "    <encoding>PBCC</encoding>\n");
+        if (net->encoding_set & (1 << (int) encoding_ofdm))
+            fprintf(netfile, "    <encoding>OFDM</encoding>\n");
+
         fprintf(netfile, "    <packets>\n");
         fprintf(netfile, "      <LLC>%d</LLC>\n", net->llc_packets);
         fprintf(netfile, "      <data>%d</data>\n", net->data_packets);
@@ -1546,6 +1571,15 @@ int Packetracker::WriteXMLNetworks(string in_fname) {
 
             fprintf(netfile, "      <client-datasize>%ld</client-datasize>\n", cli->datasize);
             fprintf(netfile, "      <client-maxrate>%2.1f</client-maxrate>\n", cli->maxrate);
+            fprintf(netfile, "      <client-maxseenrate>%ld</client-maxseenrate>\n", (long) cli->maxseenrate * 100);
+
+            if (net->encoding_set & (1 << (int) encoding_cck))
+                fprintf(netfile, "      <client-encoding>CCK</client-encoding>\n");
+            if (net->encoding_set & (1 << (int) encoding_pbcc))
+                fprintf(netfile, "      <client-encoding>PBCC</client-encoding>\n");
+            if (net->encoding_set & (1 << (int) encoding_ofdm))
+                fprintf(netfile, "      <client-encoding>OFDM</client-encoding>\n");
+
 
 
             if (cli->ipdata.atype > address_factory) {

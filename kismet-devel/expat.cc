@@ -59,7 +59,8 @@ enum net_xml_node {
     net_node_wireless_network,
     net_node_wn_expired, // An expired XML tag we don't use anymore
     net_node_wn_SSID, net_node_wn_BSSID, net_node_wn_info,
-    net_node_wn_channel, net_node_wn_maxrate, net_node_wn_datasize,
+    net_node_wn_channel, net_node_wn_maxrate, net_node_wn_maxseenrate,
+    net_node_wn_carrier, net_node_wn_encoding, net_node_wn_datasize,
     net_node_packdata,
     net_node_pk_LLC, net_node_pk_data, net_node_pk_crypt, net_node_pk_weak, net_node_pk_total,
     net_node_gpsdata,
@@ -72,7 +73,8 @@ enum net_xml_node {
     net_node_cdp_cap, net_node_cdp_device_id, net_node_cdp_interface, net_node_cdp_ip,
     net_node_cdp_platform, net_node_cdp_software,
     net_node_wireless_client,
-    net_node_wc_mac, net_node_wc_datasize, net_node_wc_maxrate, net_node_wc_channel,
+    net_node_wc_mac, net_node_wc_datasize, net_node_wc_maxrate, net_node_wc_maxseenrate,
+    net_node_wc_encoding, net_node_wc_channel,
     net_node_wc_ip_address,
     net_node_wc_packdata,
     net_node_wc_pk_data, net_node_wc_pk_crypt, net_node_wc_pk_weak,
@@ -412,6 +414,12 @@ static void xpat_net_start(void *data, const char *el, const char **attr) {
             netnode = net_node_wn_channel;
         } else if (strcasecmp(el, "maxrate") == 0) {
             netnode = net_node_wn_maxrate;
+        } else if (strcasecmp(el, "maxseenrate") == 0) {
+            netnode = net_node_wn_maxseenrate;
+        } else if (strcasecmp(el, "carrier") == 0) {
+            netnode = net_node_wn_carrier;
+        } else if (strcasecmp(el, "encoding") == 0) {
+            netnode = net_node_wn_encoding;
         } else if (strcasecmp(el, "packets") == 0) {
             netnode = net_node_packdata;
         } else if (strcasecmp(el, "datasize") == 0) {
@@ -596,6 +604,10 @@ static void xpat_net_start(void *data, const char *el, const char **attr) {
             netnode = net_node_wc_ip_address;
         else if (strcasecmp(el, "client-maxrate") == 0)
             netnode = net_node_wc_maxrate;
+        else if (strcasecmp(el, "client-maxseenrate") == 0)
+            netnode = net_node_wc_maxseenrate;
+        else if (strcasecmp(el, "client-encoding") == 0)
+            netnode = net_node_wc_encoding;
         else if (strcasecmp(el, "client-channel") == 0)
             netnode = net_node_wc_channel;
         else if (strcasecmp(el, "client-packets") == 0)

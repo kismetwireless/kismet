@@ -1,3 +1,7 @@
+Mar 06 2003  2.9.1  Added 802.11 FHSS/DSSS distinction
+                    Added encoding and data rate tracking
+                    Changed DTD versioning to match kismet version
+                    Included old DTD's in cvs again
 Mar 05 2003  2.9.1  Fixed prism2 dropping FCS (should fix wep decoding)
                     Added additional wlanctl-ng commands to initialize the card
                      more cleanly, should help with some setups.

@@ -107,6 +107,7 @@ typedef struct wireless_client {
         aggregate_points = 0;
 
         maxrate = 0;
+        maxseenrate = 0;
 
         metric = 0;
 
@@ -123,6 +124,8 @@ typedef struct wireless_client {
         uidata = NULL;
 
         datasize = 0;
+
+        encoding_set = 0;
     }
 
     client_type type;
@@ -155,6 +158,11 @@ typedef struct wireless_client {
 
     // How fast we can go
     double maxrate;
+    // How fast we've been seen to go, in 100kbs units
+    int maxseenrate;
+
+    // Bitfield set of encoding types seen on this client
+    int encoding_set;
 
     int metric;
 
@@ -210,6 +218,7 @@ typedef struct wireless_network {
         aggregate_points = 0;
 
         maxrate = 0;
+        maxseenrate = 0;
 
         metric = 0;
 
@@ -224,6 +233,7 @@ typedef struct wireless_network {
         datasize = 0;
 
         carrier_set = 0;
+        encoding_set = 0;
 
 #ifdef __TCPCLIENT_H__
         tcpclient = NULL;
@@ -278,6 +288,8 @@ typedef struct wireless_network {
 
     // Bitmask set of carrier types seen in this network
     int carrier_set;
+    // Bitmask set of encoding types seen in this network
+    int encoding_set;
 
     // IP data
     net_ip_data ipdata;
@@ -294,6 +306,8 @@ typedef struct wireless_network {
 
     // How fast we can go
     double maxrate;
+
+    int maxseenrate;
 
     // Are we metric? (used for loading from XML)
     int metric;

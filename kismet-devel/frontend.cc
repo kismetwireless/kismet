@@ -249,8 +249,9 @@ void Frontend::UpdateGroups() {
             if (wnet->max_spd > dnet->virtnet->max_spd || dnet->virtnet->max_spd == 0)
                 dnet->virtnet->max_spd = wnet->max_spd;
 
-            // Aggregate the carriers
+            // Aggregate the carriers and encodings
             dnet->virtnet->carrier_set |= wnet->carrier_set;
+            dnet->virtnet->encoding_set |= wnet->encoding_set;
 
             // Aggregate the packets
             dnet->virtnet->llc_packets += wnet->llc_packets;
@@ -299,6 +300,10 @@ void Frontend::UpdateGroups() {
             // We get the highest maxrate
             if (dnet->virtnet->maxrate == 0 || dnet->virtnet->maxrate < wnet->maxrate)
                 dnet->virtnet->maxrate = wnet->maxrate;
+
+            // Highest max seen rate
+            if (wnet->maxseenrate > dnet->virtnet->maxseenrate)
+                dnet->virtnet->maxseenrate = wnet->maxseenrate;
 
             if (wnet->ipdata.atype > address_none) {
                 int oct;

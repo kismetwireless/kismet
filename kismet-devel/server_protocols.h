@@ -41,7 +41,7 @@ enum NETWORK_fields {
     NETWORK_bestlat, NETWORK_bestlon, NETWORK_bestalt,
     NETWORK_agglat, NETWORK_agglon, NETWORK_aggalt, NETWORK_aggpoints,
     NETWORK_datasize, NETWORK_tcnid, NETWORK_tcmode, NETWORK_tsat,
-    NETWORK_carrierset
+    NETWORK_carrierset, NETWORK_maxseenrate, NETWORK_encodingset
 };
 
 enum CLIENT_fields {
@@ -56,7 +56,7 @@ enum CLIENT_fields {
     CLIENT_quality, CLIENT_signal, CLIENT_noise,
     CLIENT_bestquality, CLIENT_bestsignal, CLIENT_bestnoise,
     CLIENT_bestlat, CLIENT_bestlon, CLIENT_bestalt,
-    CLIENT_atype, CLIENT_ip, CLIENT_datasize
+    CLIENT_atype, CLIENT_ip, CLIENT_datasize, CLIENT_maxseenrate, CLIENT_encodingset
 };
 
 enum REMOVE_fields {

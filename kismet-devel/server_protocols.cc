@@ -104,7 +104,7 @@ char *NETWORK_fields_text[] = {
     "agglat", "agglon", "aggalt", "aggpoints",
     "datasize",
     "turbocellnid", "turbocellmode", "turbocellsat",
-    "carrierset",
+    "carrierset", "maxseenrate", "encodingset",
     NULL
 };
 
@@ -120,7 +120,7 @@ char *CLIENT_fields_text[] = {
     "quality", "signal", "noise",
     "bestquality", "bestsignal", "bestnoise",
     "bestlat", "bestlon", "bestalt",
-    "atype", "ip", "datasize",
+    "atype", "ip", "datasize", "maxseenrate", "encodingset",
     NULL
 };
 
@@ -475,6 +475,12 @@ void Protocol_Network2Data(const wireless_network *net, NETWORK_data *data) {
     snprintf(tmpstr, 128, "%d", net->carrier_set);
     data->ndvec.push_back(tmpstr);
 
+    snprintf(tmpstr, 128, "%d", net->maxseenrate);
+    data->ndvec.push_back(tmpstr);
+
+    snprintf(tmpstr, 128, "%d", net->encoding_set);
+    data->ndvec.push_back(tmpstr);
+
 }
 
 // Network records.  data = NETWORK_data
@@ -605,6 +611,12 @@ void Protocol_Client2Data(const wireless_network *net, const wireless_client *cl
     data->cdvec.push_back(tmpstr);
 
     snprintf(tmpstr, 128, "%ld", cli->datasize);
+    data->cdvec.push_back(tmpstr);
+
+    snprintf(tmpstr, 128, "%d", cli->maxseenrate);
+    data->cdvec.push_back(tmpstr);
+
+    snprintf(tmpstr, 128, "%d", cli->encoding_set);
     data->cdvec.push_back(tmpstr);
 
 }
