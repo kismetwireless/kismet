@@ -78,7 +78,4 @@ if test "$?" != "5"; then
 fi
 
 echo "Kismet exited."
-echo "If you are using a pcmcia wireless card, eject and reinsert your card to "
-echo "return to normal operation, otherwise remove and reinsert your wireless driver "
-echo "modules to resume normal operation."
 

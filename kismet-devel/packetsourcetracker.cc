@@ -740,10 +740,26 @@ int Packetsourcetracker::CloseSources() {
 
         meta->valid = 0;
 
-        // unmonitor - we don't care about errors.
+        // Unmonitor if we can
         if (meta->prototype->monitor_disable != NULL) {
-            (*meta->prototype->monitor_disable)(meta->device.c_str(), 0, 
-                                                errstr, &meta->stored_interface);
+            if ((*meta->prototype->monitor_disable)(meta->device.c_str(), 0, 
+                                                    errstr, 
+                                                    &meta->stored_interface) < 0) {
+                fprintf(stderr, "WARNING: Error disabling monitor mode: %s\n",
+                        errstr);
+                fprintf(stderr, 
+                        "WARNING: %s (%s) left in an unknown state.  You may need to "
+                        "manually\n"
+                        "         restart or reconfigure it for normal operation.\n",
+                        meta->name.c_str(), meta->device.c_str());
+            } 
+        } else {
+            fprintf(stderr, 
+                    "WARNING: %s (%s) unable to exit monitor mode automatically.  "
+                    "You may\n"
+                    "         need to manually restart the device and reconfigure it "
+                    "for normal\n"
+                    "         operation.", meta->name.c_str(), meta->device.c_str());
         }
 
     }
