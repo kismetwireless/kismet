@@ -175,6 +175,7 @@ typedef struct linux_ifparm {
     short flags;
     char essid[MAX_SSID_LEN + 1];
     int channel;
+    int mode;
 };
 #endif
 
