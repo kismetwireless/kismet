@@ -506,6 +506,8 @@ int main(int argc, char *argv[]) {
                 wav_map["gpslock"] = gui_conf.FetchOpt("sound_gpslock");
             if (gui_conf.FetchOpt("sound_gpslost") != "")
                 wav_map["gpslost"] = gui_conf.FetchOpt("sound_gpslost");
+            if (gui_conf.FetchOpt("sound_alert") != "")
+                wav_map["alert"] = gui_conf.FetchOpt("sound_alert");
 
         } else {
             fprintf(stderr, "ERROR:  Sound alerts enabled but no sound playing binary specified.\n");
@@ -735,64 +737,69 @@ int main(int argc, char *argv[]) {
         // If we have incoming data...
         if (kismet_serv.Valid()) {
             if (FD_ISSET(client_descrip, &rset)) {
-                if (kismet_serv.Poll() < 0) {
+                int pollret;
+                if ((pollret = kismet_serv.Poll()) < 0) {
                     snprintf(status, STATUS_MAX, "TCP error: %s", kismet_serv.FetchError());
                     gui->WriteStatus(status);
                 }
 
-                if (strlen(kismet_serv.FetchStatus()) != 0) {
-                    gui->WriteStatus(kismet_serv.FetchStatus());
-                    gui->DrawDisplay();
-                }
+                if (pollret != 0) {
+                    if (pollret == CLIENT_ALERT)
+                        sound = PlaySound("alert");
 
-                if (kismet_serv.FetchMode() == 0 && gpsmode != 0) {
-                    if (sound == 1 && gpsmode != -1)
-                        sound = PlaySound("gpslost");
-                    gpsmode = 0;
-                } else if (kismet_serv.FetchMode() != 0 && gpsmode == 0) {
-                    if (sound == 1 && gpsmode != -1)
-                        sound = PlaySound("gpslock");
-                    gpsmode = 1;
-                }
-    
-    
-                if (kismet_serv.FetchNumNetworks() != num_networks) {
-                    if (sound == 1) {
-                        sound = PlaySound("new");
+                    if (strlen(kismet_serv.FetchStatus()) != 0) {
+                        gui->WriteStatus(kismet_serv.FetchStatus());
+                        gui->DrawDisplay();
                     }
 
-                    if (speech == 1) {
-                        char text[100];
-    
-                        wireless_network *newnet = kismet_serv.FetchNthRecent(1)[0];
-
-                        snprintf(text, 100, "New %s network '%s' detected.",
-                                 (newnet->wep ? "En-crypted" : "Un-en-crypted"),
-                                 newnet->ssid.c_str());
-
-                        speech = SayText(text);
+                    if (kismet_serv.FetchMode() == 0 && gpsmode != 0) {
+                        if (sound == 1 && gpsmode != -1)
+                            sound = PlaySound("gpslost");
+                        gpsmode = 0;
+                    } else if (kismet_serv.FetchMode() != 0 && gpsmode == 0) {
+                        if (sound == 1 && gpsmode != -1)
+                            sound = PlaySound("gpslock");
+                        gpsmode = 1;
                     }
-                }
-                num_networks = kismet_serv.FetchNumNetworks();
 
-                if (kismet_serv.FetchNumPackets() != num_packets ) {
-                    if (time(0) - last_click >= decay && sound == 1) {
-
-                        if (kismet_serv.FetchNumPackets() - num_packets >
-                            kismet_serv.FetchNumDropped() - num_dropped) {
-                            sound = PlaySound("traffic");
-                        } else {
-                            sound = PlaySound("junktraffic");
+    
+                    if (kismet_serv.FetchNumNetworks() != num_networks) {
+                        if (sound == 1) {
+                            sound = PlaySound("new");
                         }
 
-                        last_click = time(0);
-                    }
-    
-                    num_packets = kismet_serv.FetchNumPackets();
-                    num_noise = kismet_serv.FetchNumNoise();
-                    num_dropped = kismet_serv.FetchNumDropped();
-                }
+                        if (speech == 1) {
+                            char text[100];
 
+                            wireless_network *newnet = kismet_serv.FetchNthRecent(1)[0];
+
+                            snprintf(text, 100, "New %s network '%s' detected.",
+                                     (newnet->wep ? "En-crypted" : "Un-en-crypted"),
+                                     newnet->ssid.c_str());
+
+                            speech = SayText(text);
+                        }
+                    }
+                    num_networks = kismet_serv.FetchNumNetworks();
+
+                    if (kismet_serv.FetchNumPackets() != num_packets ) {
+                        if (time(0) - last_click >= decay && sound == 1) {
+
+                            if (kismet_serv.FetchNumPackets() - num_packets >
+                                kismet_serv.FetchNumDropped() - num_dropped) {
+                                sound = PlaySound("traffic");
+                            } else {
+                                sound = PlaySound("junktraffic");
+                            }
+
+                            last_click = time(0);
+                        }
+
+                        num_packets = kismet_serv.FetchNumPackets();
+                        num_noise = kismet_serv.FetchNumNoise();
+                        num_dropped = kismet_serv.FetchNumDropped();
+                    }
+                }
             }
         }
 
