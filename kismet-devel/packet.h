@@ -930,6 +930,7 @@ typedef struct {
 
     // SSID
     char ssid[SSID_SIZE+1];
+    int ssid_len;
 
     // Source name
     char sourcename[32];
