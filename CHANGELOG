@@ -1,4 +1,6 @@
 Jul 27 2004  devel  Fixed Imagemagick 6.x (again)
+                    Merged gpsmap packet-count filtering patch from 
+                     Scott Brooks from Binary Solutions
 Jul 23 2004  devel  Added support for new Cisco drivers (see download page)
                     Added support for the new GPL drivers for admtek
                     Tweaked admtek support to not fetch channel if interface

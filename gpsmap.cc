@@ -356,6 +356,7 @@ int track_width = 3;
 int convert_greyscale = 1, keep_gif = 0, verbose = 0, label_orientation = 7, feather_range = 0,
     feather_hull = 0, feather_scatter = 0, color_saturation = 0, map_intensity = 0;
 int cache_disable = 0;
+int ignore_under_count = 0, ignore_under_distance = 0;
 
 // Offsets for drawing from what we calculated
 int draw_x_offset = 0, draw_y_offset = 0;
@@ -3398,6 +3399,8 @@ int Usage(char* argv, int ec = 1) {
            "                                  s: scatter plot\n"
            "                                  c: center dot\n"
            "                                  l: labels\n"
+           "  --ignore-under-count <x>        Ignore networks unless it has been seen more then <x> times\n"
+           "  --ignore-under-distance <x>     Ignore networks unless they are larger then x ft\n"
           );
     exit(ec);
 }
@@ -3468,6 +3471,8 @@ int main(int argc, char *argv[]) {
            {"feather-scatter", no_argument, 0, 3},
            {"color-saturation", required_argument, 0, 4},
            {"map-intensity", required_argument, 0, 5},
+           {"ignore-under-count",required_argument, 0, 6},
+           {"ignore-under-distance",required_argument, 0, 7},
            { 0, 0, 0, 0 }
     };
     int option_index;
@@ -3806,6 +3811,18 @@ int main(int argc, char *argv[]) {
             if (sscanf(optarg, "%d", &map_intensity) != 1 || 
                 map_intensity < -100 || map_intensity > 100) {
                 fprintf(stderr, "Invalid map intensity.\n");
+                ShortUsage(exec_name);
+            }
+            break;
+        case 6:
+            if (sscanf(optarg, "%d", &ignore_under_count) != 1 || ignore_under_count < 0) {
+                fprintf(stderr, "You must specify a positive number.\n");
+                ShortUsage(exec_name);
+            }
+            break;
+        case 7:
+            if (sscanf(optarg, "%d", &ignore_under_distance) != 1 || ignore_under_distance < 0) {
+                fprintf(stderr, "You must specify a positive number.\n");
                 ShortUsage(exec_name);
             }
             break;
@@ -4299,15 +4316,15 @@ int main(int argc, char *argv[]) {
     ProcessNetData(verbose);
 
     fprintf(stderr, "Assigning network colors...\n");
-    AssignNetColors();
-
+    AssignNetColors();    
+    
     // Build a vector.  This can become a selected list in the future.
     vector<gps_network *> gpsnetvec;
     for (map<string, gps_network *>::iterator x = bssid_gpsnet_map.begin();
          x != bssid_gpsnet_map.end(); ++x) {
 
         // Skip filtered
-        if (x->second->filtered)
+        if (x->second->filtered || x->second->count < ignore_under_count || x->second->diagonal_distance < ignore_under_distance)
             continue;
 
         gpsnetvec.push_back(x->second);
