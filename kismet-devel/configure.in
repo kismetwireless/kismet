@@ -650,7 +650,7 @@ elif test $wget = "no"; then
 else
 	#CPPFLAGS="$CPPFLAGS `Magick-config --cppflags` -I`Magick-config --prefix`/include"
 	CPPFLAGS="$CPPFLAGS `Magick-config --cppflags`"
-	CXXFLAGS="$CXXFLAGS `Magick-config --cflags`"
+	CXXFLAGS="$CXXFLAGS `Magick-config --cflags` `Magick-config --cppflags`"
 	#CXXFLAGS="$CXXFLAGS `Magick-config --cflags` -I`Magick-config --prefix`/include"
 	LDFLAGS="$LDFLAGS `Magick-config --ldflags`"
 	LIBS="`Magick-config --libs`"
