@@ -1,6 +1,7 @@
 Jan 17 2003  3.1.0  Tweaked empty SSID assignment (again)
                     Forced wext-fetched signal levels to abs values
                     Fixed initialization of client sort value in panels
+                    Moved group updates into population code in panels
 Jan 16 2003  3.1.0  Fixed offset mangling in probe request parsing
 Jan 15 2003  3.1.0  Fixed data network autogrouping
                     Fixed panels client segfault when viewing details on a 

@@ -125,6 +125,9 @@ void Frontend::PopulateGroups(TcpClient *in_client) {
         net->dispnet = group;
     }
 
+    // Update us
+    UpdateGroups();
+
 }
 
 void Frontend::UpdateGroups() {
