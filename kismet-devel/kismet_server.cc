@@ -539,8 +539,12 @@ void NetWriteInfo() {
 
         for (map<mac_addr, wireless_client *>::const_iterator y = tracked[x]->client_map.begin();
              y != tracked[x]->client_map.end(); ++y) {
-            snprintf(output, 2048, "*CLIENT: %.2000s\n", Packetracker::Client2String(tracked[x], y->second).c_str());
-            ui_server.SendToAll(output);
+            if (y->second->last_time < last_write)
+                continue;
+
+                snprintf(output, 2048, "*CLIENT: %.2000s\n",
+                         Packetracker::Client2String(tracked[x], y->second).c_str());
+                ui_server.SendToAll(output);
         }
 
         for (map<string, cdp_packet>::const_iterator y = tracked[x]->cisco_equip.begin();
