@@ -590,7 +590,7 @@ if test $want_ethereal = yes; then
 	    local=yes
 	else
 
-	AC_MSG_CHECKING(for usable wiretap in $ethereal_dir/wiretap)
+	AC_MSG_CHECKING(for usable wiretap with 3 arguments in $ethereal_dir/wiretap)
 	save_cppflags="$CPPFLAGS"
 	CPPFLAGS="$CPPFLAGS `glib-config --cflags glib` -I$ethereal_dir/wiretap"
 	#CPPFLAGS="$CPPFLAGS `glib-config --cflags glib` -I$ethereal_dir/wiretap"
@@ -611,32 +611,55 @@ if test $want_ethereal = yes; then
 	wtap_open_offline(filename, &err, 0);
 		]])],[wtap_valid=yes],[wtap_valid=no])
 
-    if test "$wtap_valid" = yes ; then
-        AC_MSG_RESULT(yes)
-        AC_DEFINE(HAVE_LIBWIRETAP, 1, Ethereal wiretap library)
-		libz="yes";
-		AC_DEFINE(HAVE_LIBZ, 1, Zlib compression library)
-
-		AC_MSG_CHECKING(for wtap_read parameters)
+    if test "$wtap_valid" = no ; then
+        AC_MSG_RESULT(no);
+	    AC_MSG_CHECKING(for usable wiretap with 4 arguments in $ethereal_dir/wiretap)
     	AC_LINK_IFELSE([AC_LANG_PROGRAM([[
         	#include <stdio.h>
 			#include <sys/types.h>
 			#include <netinet/in.h>
       		#include "wtap.h"
        	]], [[
-    		int err;
-			struct wtap *packfile;
-			long *offset;
+	const char *filename = "autoconf test";
+	int err;
 
-    		wtap_read(packfile, &err, offset);
-        ]])],[wtap_intint=no],[wtap_intint=yes])
+	wtap_open_offline(filename, &err, 0, 0);
+        ]])],[wtap_argquad=yes],[wtap_argquad=no])
 
-		if test "$wtap_intint" = yes ; then
-			AC_MSG_RESULT([struct wtap *, int *, int *])
-            AC_DEFINE(HAVE_WTAPREAD_INTINT, 1, wtap_read takes two int * parameters)
-		else
-			AC_MSG_RESULT([struct wtap *, int *, long *])
+		if test "$wtap_argquad" = yes ; then
+            wtap_valid="yes";
+            AC_DEFINE(HAVE_WTAP_ARGQUAD, 1, wiretap functions takesfour parameters)
 		fi
+    fi
+
+    if test "$wtap_valid" = yes ; then
+        AC_MSG_RESULT(yes)
+        AC_DEFINE(HAVE_LIBWIRETAP, 1, Ethereal wiretap library)
+		libz="yes";
+		AC_DEFINE(HAVE_LIBZ, 1, Zlib compression library)
+
+        if test "$wtap_argquad" = no ; then
+    		AC_MSG_CHECKING(for wtap_read parameters (wtap *, int *, int *))
+        	AC_LINK_IFELSE([AC_LANG_PROGRAM([[
+            	#include <stdio.h>
+    			#include <sys/types.h>
+    			#include <netinet/in.h>
+          		#include "wtap.h"
+           	]], [[
+        		int err;
+    			struct wtap *packfile;
+    			long *offset;
+    
+        		wtap_read(packfile, &err, offset);
+            ]])],[wtap_intint=no],[wtap_intint=yes])
+    
+    		if test "$wtap_intint" = yes ; then
+    			AC_MSG_RESULT([struct wtap *, int *, int *])
+                AC_DEFINE(HAVE_WTAPREAD_INTINT, 1, wtap_read takes two int * parameters)
+    		else
+                AC_MSG_RESULT([struct wtap *, int *, long *])
+            fi
+        fi
 
 		if test $local = yes; then
 		    AC_MSG_CHECKING(for forced local-dumper)

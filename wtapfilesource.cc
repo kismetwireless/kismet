@@ -26,7 +26,13 @@ int WtapFileSource::OpenSource() {
 
     char *unconst = strdup(interface.c_str());
 
+#ifdef HAVE_WTAP_ARGQUAD
+    char *nfo;
+    packfile = wtap_open_offline(unconst, &err, &nfo, false);
+#else
     packfile = wtap_open_offline(unconst, &err, false);
+#endif
+
     if (packfile == NULL) {
         snprintf(errstr, 1024, "Wtap file source unable to open %s: %s",
                  unconst, strerror(err));
@@ -63,6 +69,9 @@ int WtapFileSource::FetchPacket(kis_packet *packet, uint8_t *data, uint8_t *modd
 
 #ifdef HAVE_WTAPREAD_INTINT
     if (!wtap_read(packfile, &err, (int *) &offset)) 
+#elif defined(HAVE_WTAP_ARGQUAD)
+    char *nfo;
+    if (!wtap_read(packfile, &err, &nfo, &offset))
 #else
     if (!wtap_read(packfile, &err, &offset))
 #endif
