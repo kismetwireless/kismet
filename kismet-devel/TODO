@@ -25,10 +25,6 @@ In no particular order:
 	fix compass/heading
 	location beacon info (hostAP mod)
 	alert filtering
-	alert_on config
-		alert on any disauth/death
-		alert on channel change
-		alert on ssid change
 	Alerts as forged packets in pipe
 	gps satellite plot in client
 	VPN detection
@@ -38,3 +34,6 @@ In no particular order:
 	do something smarter with RSSI signal levels from AVS headers
 	do something smarter in expat.cc with carriers, encodings, etc
 	AP uptime extraction
+	Restucture core code for less duplication
+	getopt problems on freebsd5
+	add -mCPU compile-time options
