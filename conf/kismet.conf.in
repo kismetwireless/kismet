@@ -4,7 +4,7 @@
 # not continually reading --help!
 
 # Version of Kismet config
-version=2.9.1k
+version=2.9.1l
 
 # Name of server (Purely for organiational purposes)
 servername=Kismet
@@ -30,6 +30,7 @@ suiduser=your_user_here
 #     wtapfile      - Saved file of packets readable by libwiretap
 #     ar5k          - ar5k 802.11a using the vt_ar5k drivers
 #     drone         - Kismet remote drone
+#     viha          - Mac OSX Airport drivers
 # Capture interface - Specifies the network interface Kismet will watch for
 #  packets to come in on.  Typically "ethX" or "wlanX".  For the WSP100 capture
 #  engine, the WSP100 device sends packets via a UDP stream, so the capture

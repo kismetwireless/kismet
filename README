@@ -20,6 +20,7 @@
          5. wtapfile
          6. ar5k
          7. drone
+         8. airport (viha)
     7. GPS Support
     8. Compiling
     9. Configuration
@@ -185,13 +186,13 @@
             --disable-wireless --disable-netlink --disable-suid-root
             --enable-wsp100
          5. MacOS X
-            Kismet will compile under OSX, however currently only the
-            client is useful. The Kismet server component will work with
-            the wsp100 or the drone remote sources. The Viha drivers DO
-            support rfmon under OSX, and as soon as a Viha capture source
-            is written Kismet should work natively in OSX, however this
-            has not yet happened. Anyone interested in working on a Viha
-            capture source should contact me.
+            Kismet will work with Airport (but not Airport Extreme due to
+            a lack of drivers) under MacOS X.
+            To compile Kismet under OSX, first download the Viha 0.0.1a
+            drivers (http://www.dopesquad.net/security/) and install
+            them. Use the following configuration:
+            ./configure --disable-pcap --enable-viha
+            Kismet should operate normally inside OSX.
     6. SUPPORTED CARD TYPES
          1. CISCO
             Cards: Aironet 340, Aironet 350
@@ -309,6 +310,17 @@
                  Notes: The capture interface specifies the address of
                  the Kismet drone server and the port on that server
                  which provides packets.
+         8. AIRPORT (VIHA)
+            Cards: Airport cards under OSX using the Viha drivers
+            Notes: Viha only works with the Airport cards, not the
+            Airport Extreme cards. Lowlevel PHY reporting is available.
+               o 'viha': OSX Viha drivers
+                 Capture interface: enX
+                 Notes: Drivers available from
+                 http://www.dopesquad.net/security/. Current Kismet
+                 support is for Viha 0.0.1a, but it MAY work with newer
+                 versions. Normal OSX drivers will not work in RFMon
+                 mode.
     7. GPS SUPPORT
        GPS support is provided via the GPSD daemon, available at
        http://russnelson.com/gpsd/. GPSD is also included with the
