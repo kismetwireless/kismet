@@ -1,3 +1,4 @@
+Jul 26 2002  2.5    Tweaked altitude handling, should report the right value.
 Jul 25 2002  2.5    Fixed bugs in the airsnort logger that discarded weak
                      ap->ap data packets and weak adhoc data packets.
                     Added GPL license headers to all source files
