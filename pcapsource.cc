@@ -1191,9 +1191,12 @@ int monitor_orinoco(const char *in_dev, int initch, char *in_err, void **in_if) 
 
     // Try to turn on my patches to the new orinoco drivers to give us some signal
     // levels if they're available.  We don't care if we fail at this.
-    if (ret < 0)
+    if (ret < 0) {
+        usleep(5000);
         Iwconfig_Set_IntPriv(in_dev, "set_prismheader", 2, 0, in_err);
+    }
    
+    usleep(5000);
     // Try to set wext monitor mode.  We're good if one of these succeeds...
     if (ret < 0 && monitor_wext(in_dev, initch, in_err, in_if) < 0) {
         snprintf(in_err, 1024, "Could not find 'monitor' private ioctl or use "
@@ -1204,6 +1207,7 @@ int monitor_orinoco(const char *in_dev, int initch, char *in_err, void **in_if) 
         return -1;
     }
 
+    usleep(5000);
     // If we didn't use iwpriv, set the channel directly
     if (ret < 0 && chancontrol_wext(in_dev, initch, in_err, NULL) < 0)
         return -1;
@@ -1540,7 +1544,7 @@ int monitor_ipw2100(const char *in_dev, int initch, char *in_err, void **in_if) 
 
 int unmonitor_ipw2100(const char *in_dev, int initch, char *in_err, void **in_if) {
     // Restore initial monitor header
-    linux_ifparm *ifparm = (linux_ifparm *) (*in_if);
+    // linux_ifparm *ifparm = (linux_ifparm *) (*in_if);
 
     return unmonitor_wext(in_dev, initch, in_err, in_if);
 }
@@ -1861,6 +1865,7 @@ int chancontrol_orinoco(const char *in_dev, int in_ch, char *in_err, void *in_ex
     // Learn how to control our channel
     if (source->modern_chancontrol == -1) {
         if ((ret = Iwconfig_Set_IntPriv(in_dev, "monitor", 1, in_ch, in_err)) == -2) {
+	  usleep(5000);
             if (Iwconfig_Set_Channel(in_dev, in_ch, in_err) < 0) {
                 snprintf(in_err, 1024, "Could not find 'monitor' private ioctl or use "
                          "the newer style 'channel X' command.  This typically means "
@@ -1875,6 +1880,7 @@ int chancontrol_orinoco(const char *in_dev, int in_ch, char *in_err, void *in_ex
         } else {
             return ret;
         }
+        usleep(5000);
     } 
     
     if (source->modern_chancontrol == 0) {
