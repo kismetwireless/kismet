@@ -1,7 +1,10 @@
-Upgrading to 2.5 and beyond
+Upgrading to 2.6
 
 It is reccomended that you remove the state files in ~/.kismet if you have
 previously been running 2.4, as the format of the files may change.
+
+MAKE SURE you install the new config files (make forceinstall) and edit to 
+your setup, since many things have changed and been added.
 
 Upgrading to 2.4
 
