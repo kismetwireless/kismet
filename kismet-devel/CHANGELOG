@@ -1,4 +1,6 @@
-Jul 20 2002  2.4.5  Dropped 2.4.5 release from current development code.  
+Jul 30 2002  2.5.1  Started 2.5.1 development tree
+
+Jul 30 2002  2.4.5  Dropped 2.4.5 release from current development code.  
                      Numerous bugfixes and some new features.
 
 Jul 30 2002  2.5    Fixed window sizing on small screens and caught possible
