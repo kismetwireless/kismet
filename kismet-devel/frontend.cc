@@ -569,6 +569,29 @@ void Frontend::WriteGroupMap(FILE *in_file) {
         fprintf(in_file, format, dnet->tag.c_str(), dnet->name.c_str());
     }
 
+    // Now save groups that weren't live this run
+    for (map<string, string>::iterator x = group_name_map.begin();
+         x != group_name_map.end(); ++x) {
+
+        if (saved_groups.find(x->first) != saved_groups.end())
+            continue;
+
+        if (group_tag_map.find(x->first) != group_tag_map.end()) {
+            if (group_tag_map[x->first]->virtnet == NULL)
+                continue;
+
+            if (group_tag_map[x->first]->persistent == 0)
+                continue;
+
+            if (group_tag_map[x->first]->type != group_bundle &&
+                group_tag_map[x->first]->name == group_tag_map[x->first]->virtnet->ssid)
+                continue;
+        }
+
+        saved_groups[x->first] = 1;
+        fprintf(in_file, format, x->first.c_str(), x->second.c_str());
+    }
+
     snprintf(format, 64, "LINK: %%.%ds %%.%ds\n", MAC_STR_LEN, MAC_STR_LEN);
     for (map<mac_addr, string>::iterator x = bssid_group_map.begin();
          x != bssid_group_map.end(); ++x) {
