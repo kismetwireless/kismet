@@ -6,10 +6,9 @@
 .Nd Wireless sniffing and monitoring
 .Sh SYNOPSIS
 .Ar kismet_hopper
-.Op Fl hn
+.Op Fl hnd
 .Op Fl f Ar file
-.Op Fl i Ar dev
-.Op Fl t Ar type
+.Op Fl c Ar capture-source
 .Op Fl s Ar hop-sequence
 .Op Fl v Ar velocity
 .Sh DESCRIPTION
@@ -20,10 +19,10 @@ enable monitoring across all of the channels in 802.11b.
 .Bl -tag -width flag
 .It Fl f
 Use an alternate config file
-.It Fl i
-Use an alternate interface
-.It Fl t
-Use an alternate card type
+.It Fl c
+Override capture source lines (engine,interface,type,name).  Refer to kismet.conf(5) for more information.
+.It Fl d
+Divide the channel spectrum among multiple cards
 .It Fl n
 Use international channels (1-14) instead of US channels (1-12)
 .It Fl s
