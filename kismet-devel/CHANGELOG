@@ -1,3 +1,4 @@
+Jun 14 2003  2.9.1  Tweaked queuing order of fatal text messages in IPC
 Jun 11 2003  2.9.1  I hate IPC.  Replaced entire stream-pipe IPC core with
                      unix dgram sockets and it works much better.
                     Added IPC command acks to throttle channel hopping if the

@@ -589,7 +589,7 @@ void CapSourceChild(capturesource *csrc) {
             if (len < 0) {
                 snprintf(txtbuf, 1024, "FATAL: capture child %d source %s: %s", mypid, csrc->name.c_str(),
                          csrc->source->FetchError());
-                packet_buf.push_back(CapSourceText(txtbuf, CAPFLAG_FATAL));
+                packet_buf.push_front(CapSourceText(txtbuf, CAPFLAG_FATAL));
                 diseased = 1;
             }
 
@@ -624,14 +624,14 @@ void CapSourceChild(capturesource *csrc) {
 
             if (pak.sentinel != CAPSENTINEL) {
                 snprintf(txtbuf, 1024, "capture child %d got IPC frame without valid sentinel", mypid);
-                packet_buf.push_back(CapSourceText(txtbuf, CAPFLAG_NONE));
+                packet_buf.push_front(CapSourceText(txtbuf, CAPFLAG_NONE));
                 continue;
             }
 
             if (pak.packtype != CAPPACK_COMMAND) {
                 snprintf(txtbuf, 1024, "capture child %d got non-command IPC frame type %d",
                          mypid, pak.packtype);
-                packet_buf.push_back(CapSourceText(txtbuf, CAPFLAG_NONE));
+                packet_buf.push_front(CapSourceText(txtbuf, CAPFLAG_NONE));
                 continue;
             }
 
@@ -661,7 +661,7 @@ void CapSourceChild(capturesource *csrc) {
                 // do a channel set
                 if (csrc->source->SetChannel(cmd) < 0) {
                     snprintf(txtbuf, 1024, "FATAL: %s", csrc->source->FetchError());
-                    packet_buf.push_back(CapSourceText(txtbuf, CAPFLAG_FATAL));
+                    packet_buf.push_front(CapSourceText(txtbuf, CAPFLAG_FATAL));
                     diseased = 1;
                 }
             } else {
