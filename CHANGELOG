@@ -2,6 +2,8 @@ Jul 23 2004  devel  Added support for new Cisco drivers (see download page)
                     Added support for the new GPL drivers for admtek
                     Tweaked admtek support to not fetch channel if interface
                      is down.
+                    Fixed attempts to restore mode or channel when the 
+                     original mode/channel was unavailable
 Jul 14 2004  devel  Merged patch from Sebastian to clean up ipw2100 behavior a
                      bit more
 Jul 12 2004  devel  Fixed Imagemagick support for 6.x

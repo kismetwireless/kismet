@@ -1665,11 +1665,15 @@ int unmonitor_wext(const char *in_dev, int initch, char *in_err, void **in_if, v
         return -1;
     }
 
-    if (Iwconfig_Set_Mode(in_dev, in_err, ifparm->mode) < 0)
-        return -1;
+    if (ifparm->mode >= 0) {
+        if (Iwconfig_Set_Mode(in_dev, in_err, ifparm->mode) < 0)
+            return -1;
+    }
 
-    if (Iwconfig_Set_Channel(in_dev, ifparm->channel, in_err) < 0)
-        return -1;
+    if (ifparm->channel > 0) {
+        if (Iwconfig_Set_Channel(in_dev, ifparm->channel, in_err) < 0)
+            return -1;
+    }
     
     free(ifparm);
 
