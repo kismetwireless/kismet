@@ -785,40 +785,6 @@ int PanelFront::MainStatusPrinter(void *in_window) {
 }
 
 void PanelFront::ClientLine(string *in_str, wireless_client *client) {
-    if (colind == ccol_type) {
-        snprintf(title, 1024, "T");
-        len = 1;
-    } else if (colind == ccol_manuf) {
-        snprintf(title, 1024, "Manuf");
-        len = 8;
-    } else if (colind == ccol_packets) {
-        snprintf(title, 1024, "Packts");
-        len = 6;
-    } else if (colind == ccol_data) {
-        snprintf(title, 1024, " Data");
-        len = 5;
-    } else if (colind == ccol_crypt) {
-        snprintf(title, 1024, "Crypt");
-        len = 5;
-    } else if (colind == ccol_weak) {
-        snprintf(title, 1024, " Weak");
-        len = 5;
-    } else if (colind == ccol_maxrate) {
-        snprintf(title, 1024, "Rate");
-        len = 5;
-    } else if (colind == ccol_ip) {
-        snprintf(title, 1024, "IP Range");
-        len = 15;
-    } else if (colind == ccol_signal) {
-        snprintf(title, 1024, "Sgn");
-        len = 3;
-    } else if (colind == ccol_quality) {
-        snprintf(title, 1024, "Qly");
-        len = 3;
-    } else if (colind == ccol_noise) {
-        snprintf(title, 1024, "Nse");
-        len = 3;
-    }
 
 }
 
