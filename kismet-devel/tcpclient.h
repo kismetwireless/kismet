@@ -93,6 +93,13 @@ public:
         }
     };
 
+    typedef struct card_info {
+        string interface;
+        string type;
+        string username;
+        int channel;
+    };
+
     TcpClient();
     ~TcpClient();
 
@@ -124,6 +131,9 @@ public:
     // Get the most recently touched n-th networks
     vector<wireless_network *> FetchNthRecent(unsigned int n);
 
+    // List of cards
+    vector<card_info *> FetchCardList();
+
     short int FetchPort() { return port; }
     char *FetchHost() { return hostname; }
 
@@ -144,7 +154,6 @@ public:
     int FetchDeltaNumInteresting() { int ret = num_interesting - old_num_interesting; old_num_interesting = num_interesting; return ret; }
     int FetchDeltaNumNoise() { int ret = num_noise - old_num_noise; old_num_noise = num_noise; return ret; }
     int FetchDeltaNumDropped() { int ret = num_dropped - old_num_dropped; old_num_dropped = num_dropped; return ret; }
-
 
     int FetchPacketRate() { return packet_rate; }
 
@@ -224,6 +233,9 @@ protected:
     map<mac_addr, wireless_network *> net_map;
     vector<wireless_network *> net_map_vec;
     wireless_network *last_new_network;
+
+    map<string, card_info *> card_map;
+    vector<card_info *> card_map_vec;
 
     int num_networks, num_packets, num_crypt,
         num_interesting, num_noise, num_dropped, packet_rate;
