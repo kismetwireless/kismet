@@ -9,6 +9,7 @@ Dec 10 2002  2.7.1  Fixed some packet dissection and wep/interesting detection
                      a known key (ie, monitoring stationary networks)
                     Fixed string extraction from decoded packets
                     Updated configure to look for ethereal 0.9.8
+                    Minor fix to kismet_hopper (Anders Gustafsson)
 Dec 05 2002  2.7.1  Fixed wsp100 cygwin header
                     Started adding viha support.  VIHA SUPPORT DOES NOT WORK
                      CURRENTLY.

@@ -173,7 +173,7 @@ int main(int argc, char *argv[]) {
     chanlist = us_channels;
     int option_index;
     while(1) {
-        int r = getopt_long(argc, argv, "fnc:C:s:v:hd",
+        int r = getopt_long(argc, argv, "f:nc:C:s:v:hd",
                             long_options, &option_index);
         if (r < 0) break;
 
