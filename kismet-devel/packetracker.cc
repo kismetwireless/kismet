@@ -308,6 +308,10 @@ int Packetracker::ProcessPacket(packet_info info, char *in_status) {
 
     }
 
+    // Assign the carrier types in this network.  There will likely be only one, but you
+    // never know...
+    net->carrier_set |= (1 << (int) info.carrier);
+
     if (info.type == packet_management) {
         net->llc_packets++;
 

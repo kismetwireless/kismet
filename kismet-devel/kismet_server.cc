@@ -1215,6 +1215,8 @@ int main(int argc,char *argv[]) {
             csrc->cardtype = card_wtapfile;
         else if (!strcasecmp(sctype, "viha"))
             csrc->cardtype = card_viha;
+        else if (!strcasecmp(sctype, "ar5k"))
+            csrc->cardtype = card_ar5k;
         else {
             fprintf(stderr, "FATAL:  Source %d (%s):  Unknown card type '%s'\n", src, csrc->name.c_str(), sctype);
             exit(1);
@@ -1234,7 +1236,7 @@ int main(int argc,char *argv[]) {
 #endif
         } else if (ctype == card_cisco || ctype == card_cisco_cvs || ctype == card_cisco_bsd ||
                    ctype == card_prism2 || ctype == card_prism2_bsd || ctype == card_prism2_hostap ||
-                   ctype == card_orinoco || ctype == card_generic) {
+                   ctype == card_orinoco || ctype == card_generic || ctype == card_ar5k) {
 #ifdef HAVE_LIBPCAP
             if (csrc->interface == "") {
                 fprintf(stderr, "FATAL:  Source %d (%s): No capture device specified.\n", src, csrc->name.c_str());

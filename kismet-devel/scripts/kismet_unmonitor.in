@@ -166,6 +166,10 @@ for line in `cat $IFFILE`; do
 	        # sensor::running
 	        snmpset $DEVICE public .1.3.6.1.4.1.14422.1.1.4 i 0
 	        ;;
+		"ar5k")
+			echo "Disabling monitore mode for an ar5k 802.11a on $DEVICE (setting to managed)"
+			iwconfig $DEVICE mode managed
+			;;
 		*)
 			echo "Unknown card type '$CARDTYPE'.  Doing nothing."
 			exit	

@@ -104,6 +104,7 @@ char *NETWORK_fields_text[] = {
     "agglat", "agglon", "aggalt", "aggpoints",
     "datasize",
     "turbocellnid", "turbocellmode", "turbocellsat",
+    "carrierset",
     NULL
 };
 
@@ -469,6 +470,9 @@ void Protocol_Network2Data(const wireless_network *net, NETWORK_data *data) {
     data->ndvec.push_back(tmpstr);
 
     snprintf(tmpstr, 128, "%d", net->turbocell_sat);
+    data->ndvec.push_back(tmpstr);
+
+    snprintf(tmpstr, 128, "%d", net->carrier_set);
     data->ndvec.push_back(tmpstr);
 
 }

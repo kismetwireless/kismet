@@ -227,6 +227,8 @@ int Wsp100Source::Wsp2Common(kis_packet *packet) {
     packet->data = new uint8_t[packet->caplen];
     memcpy(packet->data, data + pos, packet->caplen);
 
+    packet->carrier = carrier_80211b;
+
     return 1;
 
 }

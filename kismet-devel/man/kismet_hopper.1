@@ -10,12 +10,13 @@
 .Op Fl f Ar file
 .Op Fl c Ar capture-source
 .Op Fl C Ar enable-capture-sources
-.Op Fl s Ar hop-sequence
+.Op Fl s Ar hopsequence
+.Op Fl S Ar hosequence-80211a
 .Op Fl v Ar velocity
 .Sh DESCRIPTION
 kismet_hopper is a component of kismet
 which changes the channel a wireless card is tuned to several times a second to
-enable monitoring across all of the channels in 802.11b.
+enable monitoring across all of the channels in 802.11b and 802.11a.
 .Sh OPTIONS
 .Bl -tag -width flag
 .It Fl f
@@ -25,12 +26,16 @@ Override capture source lines (type,interface,name).  Refer to kismet.conf(5) fo
 .It Fl C
 Comma-separated list to override what capture sources are enabled.
 .It Fl d
-Divide the channel spectrum among multiple cards
+Divide the channel spectrum among multiple cards.  When mixing 802.11b and 802.11a cards,
+multiple 802.11b cards will share that channel list and multiple 802.11a cards will
+share the 802.11a portions of the list.
 .It Fl n
 Use international channels (1-14) instead of US channels (1-12)
 .It Fl s
 Use a custom hop sequence instead of the default.  When making a hop sequence, 
 remember that ajacent channels overlap.
+.It Fl S
+Use a custom 802.11a hop sequence instead of the default.
 .It Fl v
 Use a custom hop velocity (channels per second).  Many cards exhibit problems under
 high hop velocities.

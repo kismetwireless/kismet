@@ -40,7 +40,8 @@ enum NETWORK_fields {
     NETWORK_bestquality, NETWORK_bestsignal, NETWORK_bestnoise,
     NETWORK_bestlat, NETWORK_bestlon, NETWORK_bestalt,
     NETWORK_agglat, NETWORK_agglon, NETWORK_aggalt, NETWORK_aggpoints,
-    NETWORK_datasize, NETWORK_tcnid, NETWORK_tcmode, NETWORK_tsat
+    NETWORK_datasize, NETWORK_tcnid, NETWORK_tcmode, NETWORK_tsat,
+    NETWORK_carrierset
 };
 
 enum CLIENT_fields {

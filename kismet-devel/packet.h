@@ -101,6 +101,16 @@ typedef struct packet_parm {
     int fuzzy_crypt;
 };
 
+// Signalling layer info - what protocol are we seeing data on?
+// Not all of these types are currently supported, of course
+enum carrier_type {
+    carrier_unknown,
+    carrier_80211b,
+    carrier_80211a,
+    carrier_80211g,
+    carrier_80211
+};
+
 // Very similar to pcap_pkthdr and wtap_pkthdr.  This is our
 // common packet header that we convert everything to.
 typedef struct {
@@ -111,8 +121,10 @@ typedef struct {
     int signal;                 // Signal strength
     int noise;                  // Noise level
     int error;                  // Capture source told us this was a bad packet
+    int channel;                // Hardware receive channel, if the drivers tell us
     uint8_t *data;              // Raw packet data
     uint8_t *moddata;           // Modified packet data
+    carrier_type carrier;       // Signal carrier
 } kis_packet;
 
 #ifdef WORDS_BIGENDIAN
@@ -508,6 +520,8 @@ typedef struct {
     int decoded;
     // Is it weak crypto?
     int interesting;
+    // What carrier brought us this packet?
+    carrier_type carrier;
 
     mac_addr source_mac;
     mac_addr dest_mac;

@@ -198,7 +198,6 @@ for line in `cat $IFFILE`; do
 			;;
 		"generic")
 			echo "Generic card specified, so we do nothing."
-			exit
 			;;
 		"wsp100")
 			echo "Enabling a wsp100 at $DEVICE for channel $CHANNEL"
@@ -219,6 +218,12 @@ for line in `cat $IFFILE`; do
 			snmpset -c public $WSPDEVICE .1.3.6.1.4.1.14422.1.4.1 i $WSPPORT
 			# sensor::running
 			snmpset -c public $WSPDEVICE .1.3.6.1.4.1.14422.1.1.4 i 1
+			;;
+		"ar5k")
+			echo "Enabling an ar5k 802.11a on $DEVICE"
+			iwpriv $DEVICE prism 1
+			iwconfig $DEVICE mode monitor
+			ifconfig $DEVICE promisc up
 			;;
 		*)
 			echo "Unknown card type '$CARDTYPE'.  Doing nothing."

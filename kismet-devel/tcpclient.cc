@@ -294,7 +294,7 @@ int TcpClient::ParseData(char *in_data) {
                          "%d %d %d %d %d %d %d %d %d %hd.%hd.%hd.%hd "
                          "%d %f %f %f %f %f %f %f %f %d %d %d %f %17s %d %d %d %d %d %d %d %f %f %f "
                          "%lf %lf %lf %ld %ld"
-                         "%d %d %d",
+                         "%d %d %d %d",
                          (int *) &net->type, ssid, beacon,
                          &net->llc_packets, &net->data_packets, &net->crypt_packets, &net->interesting_packets,
                          &net->channel, &net->wep, (int *) &net->first_time, (int *) &net->last_time,
@@ -309,9 +309,10 @@ int TcpClient::ParseData(char *in_data) {
                          &net->best_lat, &net->best_lon, &net->best_alt,
                          &net->aggregate_lat, &net->aggregate_lon, &net->aggregate_alt,
                          &net->aggregate_points, &net->datasize,
-                         &net->turbocell_nid, (int *) &net->turbocell_mode, &net->turbocell_sat);
+                         &net->turbocell_nid, (int *) &net->turbocell_mode, &net->turbocell_sat,
+                         &net->carrier_set);
 
-        if (scanned < 45) {
+        if (scanned < 46) {
             // fprintf(stderr, "Flubbed network, discarding...\n");
             delete net;
             return 0;

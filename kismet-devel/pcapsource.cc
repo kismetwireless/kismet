@@ -151,6 +151,8 @@ int PcapSource::Pcap2Common(kis_packet *packet) {
         packet->signal = p2head->signal.data;
         packet->noise = p2head->noise.data;
 
+        packet->channel = p2head->channel.data;
+
     } else if (datalink_type == KDLT_BSD802_11) {
         // Process our hacked in BSD type
         if (callback_header.caplen < sizeof(bsd_80211_header)) {
@@ -236,6 +238,12 @@ int PcapSource::Pcap2Common(kis_packet *packet) {
 
         memcpy(packet->data, callback_data + callback_offset, packet->caplen);
     }
+
+    // For now, anything not the ar5k is 802.11b
+    if (cardtype == card_ar5k)
+        packet->carrier = carrier_80211a;
+    else
+        packet->carrier = carrier_80211b;
 
     return 1;
 }

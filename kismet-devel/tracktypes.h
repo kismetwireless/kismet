@@ -223,6 +223,8 @@ typedef struct wireless_network {
 
         datasize = 0;
 
+        carrier_set = 0;
+
 #ifdef __TCPCLIENT_H__
         tcpclient = NULL;
         idle_time = 0;
@@ -273,6 +275,9 @@ typedef struct wireless_network {
 
     // Are we in the list?
     int listed;
+
+    // Bitmask set of carrier types seen in this network
+    int carrier_set;
 
     // IP data
     net_ip_data ipdata;

@@ -151,6 +151,8 @@ int Prism2Source::Prism2Common(kis_packet *packet) {
     memcpy(packet->data, &buffer[offset], packet->caplen);
     packet->moddata = NULL;
 
+    packet->carrier = carrier_80211b;
+
     return 1;
 }
 

@@ -1,3 +1,9 @@
+Jan 07 2003  2.9.0  Added support for 802.11a (ar5k cardtype, via Reyk Floeters
+                     drivers at http://team.vantronix.net/ar5k/.  Make sure you
+                     upgrade your linux-wireless-tools to version 25 or you 
+                     will not be able to place the card into monitor mode.)
+                    Added network carrier classification (802.11, 11b, 11a,
+                     etc)
 Jan 02 2003  2.9.0  Fixed missing test of opendir() failing for ACPI
 Jan 01 2003  2.9.0  Zero GREP_OPTIONS environment variable in the scripts
 Dec 30 2002  2.9.0  Fixed minor error in the client netxml block (Ray Essick)

@@ -248,6 +248,9 @@ void Frontend::UpdateGroups() {
             if (wnet->max_spd > dnet->virtnet->max_spd || dnet->virtnet->max_spd == 0)
                 dnet->virtnet->max_spd = wnet->max_spd;
 
+            // Aggregate the carriers
+            dnet->virtnet->carrier_set |= wnet->carrier_set;
+
             // Aggregate the packets
             dnet->virtnet->llc_packets += wnet->llc_packets;
             dnet->virtnet->data_packets += wnet->data_packets;
