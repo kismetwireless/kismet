@@ -170,6 +170,7 @@ int PcapSource::FetchPacket(kis_packet *packet, uint8_t *data, uint8_t *moddata)
 }
 
 int PcapSource::ManglePacket(kis_packet *packet, uint8_t *data, uint8_t *moddata) {
+    int ret = 0;
     memset(packet, 0, sizeof(kis_packet));
     
     packet->ts = callback_header.ts;
@@ -182,20 +183,24 @@ int PcapSource::ManglePacket(kis_packet *packet, uint8_t *data, uint8_t *moddata
                        &packet->gps_spd, &packet->gps_heading, &packet->gps_fix);
     }
 
-    if (datalink_type == DLT_PRISM_HEADER)
-        return Prism2KisPack(packet, data, moddata);
-    else if (datalink_type == KDLT_BSD802_11)
-        return BSD2KisPack(packet, data, moddata);
+    if (datalink_type == DLT_PRISM_HEADER) {
+        ret = Prism2KisPack(packet, data, moddata);
+    } else if (datalink_type == KDLT_BSD802_11) {
+        ret = BSD2KisPack(packet, data, moddata);
+    } else {
+        packet->caplen = kismin(callback_header.caplen, (uint32_t) MAX_PACKET_LEN);
+        packet->len = packet->caplen;
+        memcpy(packet->data, callback_data, packet->caplen);
+    }
 
     // Fetch the channel if we know how and it hasn't been filled in already
     if (packet->channel == 0)
         packet->channel = FetchChannel();
 
-    packet->caplen = kismin(callback_header.caplen, (uint32_t) MAX_PACKET_LEN);
-    packet->len = packet->caplen;
-    memcpy(packet->data, callback_data, packet->caplen);
+    if (packet->carrier == carrier_unknown)
+        packet->carrier = IEEE80211Carrier();
     
-    return 1;
+    return ret;
 
 }
 
@@ -272,23 +277,11 @@ int PcapSource::Prism2KisPack(kis_packet *packet, uint8_t *data, uint8_t *moddat
         // Set our offset for extracting the actual data
         callback_offset = sizeof(wlan_ng_prism2_header);
 
-        packet->quality = p2head->sq.data;
+        // packet->quality = p2head->sq.data;
         packet->signal = p2head->signal.data;
         packet->noise = p2head->noise.data;
 
         packet->channel = p2head->channel.data;
-
-        // Fill in the carrier if we haven't yet
-        if (packet->carrier == carrier_unknown)
-            packet->carrier = IEEE80211Carrier();
-        
-        /*
-        // For now, anything not the ar5k is 802.11b
-        if (cardtype == card_ar5k)
-            packet->carrier = carrier_80211a;
-        else
-            packet->carrier = carrier_80211b;
-            */
 
     }
 
@@ -297,32 +290,6 @@ int PcapSource::Prism2KisPack(kis_packet *packet, uint8_t *data, uint8_t *moddat
         packet->len = 0;
         packet->caplen = 0;
         return 0;
-    }
-
-    // Fetch the channel if we know how and it hasn't been filled in already
-    if (packet->channel == 0)
-        packet->channel = FetchChannel();
-
-    if ((callback_offset + packet->caplen) > 68) {
-        // 802.11 header
-        memcpy(packet->data, callback_data + callback_offset, 24);
-
-        // Adjust for driver appended snap and 802.3 headers
-        if (packet->data[0] > 0x08) {
-            packet->len -= 8;
-            packet->caplen -= 8;
-            memcpy(packet->data + 24, callback_data + callback_offset + 46, packet->caplen - 16);
-
-        } else {
-
-            memcpy(packet->data + 24, callback_data + callback_offset + 46, packet->caplen - 60);
-        }
-
-        // skip driver appended prism header
-        packet->len -= 14;
-        packet->caplen -= 14;
-    } else {
-        memcpy(packet->data, callback_data + callback_offset, packet->caplen);
     }
 
     return 1;
