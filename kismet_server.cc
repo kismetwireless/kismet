@@ -258,6 +258,10 @@ void CatchShutdown(int sig) {
             fprintf(stderr, "Shutting down source %d (%s)...\n", x, packet_sources[x]->name.c_str());
             int8_t child_cmd = CAPCMD_DIE;
             write(packet_sources[x]->servpair[1], &child_cmd, 1);
+
+            close(packet_sources[x]->childpair[0]);
+            close(packet_sources[x]->servpair[1]);
+            close(packet_sources[x]->textpair[0]);
         }
 
         if (packet_sources[x]->source != NULL) {
@@ -315,31 +319,15 @@ void CatchShutdown(int sig) {
 
     // Kill any child sniffers still around
     for (unsigned int x = 0; x < packet_sources.size(); x++) {
-        // See if the child died and kill it with a signal if it didn't handle our command
-        if (packet_sources[x]->childpid > 0) {
-            if (wait4(packet_sources[x]->childpid, NULL, WNOHANG, NULL) != packet_sources[x]->childpid) {
-                fprintf(stderr, "WARNING:  Capture child %d didn't die when we asked it to, sending kill signal...\n",
-                        packet_sources[x]->childpid);
-                // SIGUSR1 is an out-of-band "drop dead cleanly"...
-                if (kill(packet_sources[x]->childpid, SIGUSR1) < 0) {
-                    fprintf(stderr, "WARNING:  Couldn't send SIGUSR1.  Hope it dies on its own... %d: %s\n", errno, strerror(errno));
-                } else {
-                    fprintf(stderr, "Waiting for capture child %d to exit...\n", packet_sources[x]->childpid);
-                    // Wait for it to exit cleanly
-                    wait4(packet_sources[x]->childpid, NULL, 0, NULL);
-                    packet_sources[x]->alive = 0;
-                }
-            }
-        }
-
         if (packet_sources[x]->alive) {
-            // Try a hard kill of anything thats still somehow set to be live.  This is redundant.
-            kill(packet_sources[x]->childpid, 9);
+            fprintf(stderr, "Waiting for capture child %d to terminate...\n", packet_sources[x]->childpid);
+            wait4(packet_sources[x]->childpid, NULL, 0, NULL);
         }
 
         delete packet_sources[x];
     }
 
+    fprintf(stderr, "Kismet exiting.\n");
     exit(0);
 }
 
@@ -1395,7 +1383,7 @@ int main(int argc,char *argv[]) {
 
     // Now enable root sources...  BindRoot will terminate if it fails.  We need to set our euid
     // to be root here, we don't care if it fails though.
-    //seteuid(0);
+    setreuid(0, 0);
 
     BindRootSources(&packet_sources, &enable_name_map,
                     ((source_from_cmd == 0) || (enable_from_cmd == 1)),
@@ -2717,7 +2705,7 @@ int main(int argc,char *argv[]) {
             if (FD_ISSET(packet_sources[src]->textpair[0], &rset)) {
                 len = FetchChildText(packet_sources[src]->textpair[0], &chtxt);
 
-                if (chtxt != "") {
+                if (chtxt != "" && len > 0) {
                     if (!silent)
                         fprintf(stderr, "%s\n", chtxt.c_str());
                     NetWriteStatus(chtxt.c_str());
