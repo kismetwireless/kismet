@@ -186,9 +186,6 @@ int beacon_log = 1;
 int phy_log = 1;
 int mangle_log = 0;
 
-FILE *manuf_data;
-char *client_manuf_name = NULL, *ap_manuf_name = NULL;
-
 int datainterval = 0;
 
 string logtemplate;
@@ -1254,20 +1251,6 @@ int ProcessBulkConf(ConfigFile *conf) {
         }
     }
 
-    if (conf->FetchOpt("ap_manuf") != "") {
-        ap_manuf_name = strdup(conf->FetchOpt("ap_manuf").c_str());
-    } else {
-        globalregistry->messagebus->InjectMessage("No ap_manuf file specified, AP manufacturers and default "
-                                                  "configurations will not be detected", MSGFLAG_ERROR);
-    }
-
-    if (conf->FetchOpt("client_manuf") != "") {
-        client_manuf_name = strdup(conf->FetchOpt("client_manuf").c_str());
-    } else {
-        globalregistry->messagebus->InjectMessage("No ap_manuf file specified, client manufacturers "
-                                                  "will not be detected", MSGFLAG_ERROR);
-    }
-
     // Fork and find the sound options
     if (sound) {
         if (pipe(soundpair) == -1) {
@@ -1543,54 +1526,6 @@ int ProcessBulkConf(ConfigFile *conf) {
         globalregistry->track_probenets = 1;
         globalregistry->messagebus->InjectMessage("Will attempt to associate probing clients with networks",
                                                   MSGFLAG_INFO);
-    }
-
-    if (ap_manuf_name != NULL) {
-        char pathname[1024];
-
-        if (strchr(ap_manuf_name, '/') == NULL)
-            snprintf(pathname, 1024, "%s/%s", getenv("KISMET_CONF") != NULL ? 
-                     getenv("KISMET_CONF") : SYSCONF_LOC, ap_manuf_name);
-        else
-            snprintf(pathname, 1024, "%s", ap_manuf_name);
-
-        if ((manuf_data = fopen(pathname, "r")) == NULL) {
-            snprintf(errstr, STATUS_MAX, "Unable to open '%s' for reading (%s).  AP manufacturers and "
-                     "default configurations will not be detected.", pathname, strerror(errno));
-            globalregistry->messagebus->InjectMessage(errstr,
-                                                      MSGFLAG_ERROR);
-        } else {
-            snprintf(errstr, STATUS_MAX, "Reading AP manufacturer data and configuration defaults "
-                     "from %s", pathname);
-            globalregistry->messagebus->InjectMessage(errstr, MSGFLAG_INFO);
-            globalregistry->packetracker->ReadAPManufMap(manuf_data);
-            fclose(manuf_data);
-        }
-
-        free(ap_manuf_name);
-    }
-
-    if (client_manuf_name != NULL) {
-        char pathname[1024];
-
-        if (strchr(client_manuf_name, '/') == NULL)
-            snprintf(pathname, 1024, "%s/%s", getenv("KISMET_CONF") != NULL ? 
-                     getenv("KISMET_CONF") : SYSCONF_LOC, client_manuf_name);
-        else
-            snprintf(pathname, 1024, "%s", client_manuf_name);
-
-        if ((manuf_data = fopen(pathname, "r")) == NULL) {
-            snprintf(errstr, STATUS_MAX, "Unable to open '%s' for reading(%s), client manufacturer "
-                     "will not be detected.", pathname, strerror(errno));
-            globalregistry->messagebus->InjectMessage(errstr, MSGFLAG_ERROR);
-        } else {
-            snprintf(errstr, STATUS_MAX, "Reading client manufacturer data from %s", pathname);
-            globalregistry->messagebus->InjectMessage(errstr, MSGFLAG_INFO);
-            globalregistry->packetracker->ReadClientManufMap(manuf_data);
-            fclose(manuf_data);
-        }
-
-        free(client_manuf_name);
     }
 
     // Push the packparms into each source...

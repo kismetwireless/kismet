@@ -3,7 +3,6 @@
   new client code
   handle generating and catching alert text
   terminate should flush ring buffers and sockets
-  move *_manuf config reading into packetracker
 
   Packet chain framework
   ieee802.11 dissect as packet chain module

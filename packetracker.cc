@@ -70,6 +70,61 @@ Packetracker::Packetracker(GlobalRegistry *in_globalreg) {
     for (unsigned int ref = 0; ref < MAX_AREF; ref++)
         arefs[ref] = -1;
 
+    FILE *manuf_data;
+    char pathname[1024];
+
+    if (globalreg->kismet_config->FetchOpt("ap_manuf") != "") {
+        string ap_manuf_name;
+        ap_manuf_name = globalreg->kismet_config->FetchOpt("ap_manuf");
+
+        if (ap_manuf_name.find('/') == string::npos)
+            snprintf(pathname, 1024, "%s/%s", getenv("KISMET_CONF") != NULL ? 
+                     getenv("KISMET_CONF") : SYSCONF_LOC, ap_manuf_name.c_str());
+        else
+            snprintf(pathname, 1024, "%s", ap_manuf_name.c_str());
+
+        if ((manuf_data = fopen(pathname, "r")) == NULL) {
+            snprintf(errstr, STATUS_MAX, "Unable to open '%s' for reading (%s).  AP manufacturers and "
+                     "default configurations will not be detected.", pathname, strerror(errno));
+            globalreg->messagebus->InjectMessage(errstr, MSGFLAG_ERROR);
+        } else {
+            snprintf(errstr, STATUS_MAX, "Reading AP manufacturer data and configuration defaults "
+                     "from %s", pathname);
+            globalreg->messagebus->InjectMessage(errstr, MSGFLAG_INFO);
+            ReadAPManufMap(manuf_data);
+            fclose(manuf_data);
+        }
+    } else {
+        globalreg->messagebus->InjectMessage("No ap_manuf file specified, AP manufacturers and default "
+                                             "configurations will not be detected", MSGFLAG_ERROR);
+    }
+
+    if (globalreg->kismet_config->FetchOpt("client_manuf") != "") {
+        string client_manuf_name;
+        client_manuf_name = globalreg->kismet_config->FetchOpt("client_manuf");
+
+        if (client_manuf_name.find('/') == string::npos)
+            snprintf(pathname, 1024, "%s/%s", getenv("KISMET_CONF") != NULL ? 
+                     getenv("KISMET_CONF") : SYSCONF_LOC, client_manuf_name.c_str());
+        else
+            snprintf(pathname, 1024, "%s", client_manuf_name.c_str());
+
+        if ((manuf_data = fopen(pathname, "r")) == NULL) {
+            snprintf(errstr, STATUS_MAX, "Unable to open '%s' for reading (%s).  AP manufacturers and "
+                     "default configurations will not be detected.", pathname, strerror(errno));
+            globalreg->messagebus->InjectMessage(errstr, MSGFLAG_ERROR);
+        } else {
+            snprintf(errstr, STATUS_MAX, "Reading AP manufacturer data and configuration defaults "
+                     "from %s", pathname);
+            globalreg->messagebus->InjectMessage(errstr, MSGFLAG_INFO);
+            ReadAPManufMap(manuf_data);
+            fclose(manuf_data);
+        }
+    } else {
+        globalreg->messagebus->InjectMessage("No client_manuf file specified, client manufacturers "
+                                                  "will not be detected", MSGFLAG_ERROR);
+    }
+
     // Fetch all the alerts and process ones we know how to handle
     for (unsigned int av = 0; 
          av < globalreg->kismet_config->FetchOptVec("alert").size(); 

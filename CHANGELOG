@@ -1,4 +1,5 @@
 Sep 15 2004  devel  Added requeuing of fatal error messages as Kismet terminates
+                    Moved configfile manuf handling to packetracker
 Sep 14 2004  devel  Forked to new temporary branch, major updates, see SVN
                      changes
                     Moved config file parsing into alertracker and tcpserver
