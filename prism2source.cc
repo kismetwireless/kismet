@@ -191,7 +191,7 @@ int monitor_wlanng_legacy(const char *in_dev, int initch, char *in_err, void **i
 
     // Enable the interface
     snprintf(cmdline, 2048, "wlanctl-ng %s lnxreq_wlansniff channel=%d enable=true", in_dev, initch);
-    if (ExecSysCmd(cmdline) < 0) {
+    if (RunSysCmd(cmdline) < 0) {
         snprintf(in_err, 1024, "Unable to execute '%s'", cmdline);
         return -1;
     }
@@ -206,7 +206,7 @@ int chancontrol_wlanng_legacy(const char *in_dev, int initch, char *in_err,
 
     // Set the channel
     snprintf(cmdline, 2048, "wlanctl-ng %s lnxreq_wlansniff channel=%d enable=true >/dev/null 2>/dev/null", in_dev, initch);
-    if (ExecSysCmd(cmdline) < 0) {
+    if (RunSysCmd(cmdline) < 0) {
         snprintf(in_err, 1024, "Unable to execute '%s'", cmdline);
         return -1;
     }

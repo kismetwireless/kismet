@@ -79,7 +79,7 @@ int FloatChan2Int(float in_chan);
 
 // Run a system command and return the error code.  Caller is responsible for security.
 // Does not fork out
-int RunSysCmd(char *in_cmd, char *in_err);
+int RunSysCmd(char *in_cmd);
 
 // Fork and exec a syscmd, return the pid of the new process
 pid_t ExecSysCmd(char *in_cmd);

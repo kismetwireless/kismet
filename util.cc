@@ -247,28 +247,10 @@ vector<int> Str2IntVec(string in_text) {
     return ret;
 }
 
-int RunSysCmd(char *in_cmd, char *in_err) {
-
-#if 0
-    if ((ret = system(in_cmd)) == -1) {
-        snprintf(in_err, STATUS_MAX, "fork() for system() failed.");
-        return -1;
-    }
-
-    if (WEXITSTATUS(ret) != 0) {
-        snprintf(in_err, STATUS_MAX, "command '%s' failed.", in_cmd);
-        return -1;
-    }
-#endif
-
+int RunSysCmd(char *in_cmd) {
     pid_t chpid;
 
-    if ((chpid = ExecSysCmd(in_cmd)) < 0) {
-        snprintf(in_err, 1024, "fork() and exec() failed.");
-        return -1;
-    }
-
-    wait4(chpid, NULL, 0, NULL);
+    system(in_cmd);
     
     return 0;
 }
