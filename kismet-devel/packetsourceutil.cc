@@ -729,8 +729,8 @@ void CapSourceChild(capturesource *csrc) {
             }
 
             // Hardcode cmd length here
-            int8_t cmd;
-            if (recv(csrc->childpair[0], &cmd, 1, 0) < 0) {
+            int16_t cmd;
+            if (recv(csrc->childpair[0], &cmd, 2, 0) < 0) {
                 fprintf(stderr, "FATAL:  capture child %d recv() error reading pack data %d (%s)\n",
                         mypid, errno, strerror(errno));
                 exit(1);
@@ -827,10 +827,14 @@ int SendChildCommand(capturesource *csrc, int in_cmd) {
     ret->sentinel = CAPSENTINEL;
     ret->packtype = CAPPACK_COMMAND;
     ret->flags = CAPFLAG_NONE;
-    ret->datalen = 1;
-    ret->data = (uint8_t *) malloc(1);
+    ret->datalen = 2;
+    ret->data = (uint8_t *) malloc(2);
 
-    ret->data[0] = in_cmd;
+    int16_t cmd = (int16_t) in_cmd;
+
+    memcpy(ret->data, &cmd, 2);
+
+    //ret->data[0] = in_cmd;
 
     if (in_cmd == CAPCMD_DIE) {
         csrc->cmd_buf.push_front(ret);
