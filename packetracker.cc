@@ -1262,11 +1262,10 @@ int Packetracker::WriteCSVNetworks(string in_fname) {
         sort(bssid_vec.begin(), bssid_vec.end(), SortFirstTimeLT());
         */
 
-    fprintf(netfile, "Network;NetType;ESSID;BSSID;Info;Channel;Maxrate;WEP;LLC;Data;Crypt;Weak;Total;"
-			"First;Last;BestQuality;BestSignal;BestNoise;"
-            "GPSMinLat;GPSMinLon;GPSMinAlt;GPSMinSpd;"
-            "GPSMaxLat;GPSMaxLon;GPSMaxAlt;GPSMaxSpd;"
-            "DHCP;ARP;UDP;TCP;\r\n");
+    fprintf(netfile, "Network;NetType;ESSID;BSSID;Info;Channel;Cloaked;WEP;Decrypted;MaxRate;MaxSeenRate;Beacon;"
+            "LLC;Data;Crypt;Weak;Total;Carrier;Encoding;FirstTime;LastTime;BestQuality;BestSignal;BestNoise;"
+            "GPSMinLat;GPSMinLon;GPSMinAlt;GPSMinSpd;GPSMaxLat;GPSMaxLon;GPSMaxAlt;GPSMaxSpd;"
+            "GPSBestLat;GPSBestLon;GPSBestAlt;DataSize;IPType;IP;\n\r");
 
     sort(network_list.begin(), network_list.end(), SortFirstTimeLT());
 
@@ -1305,53 +1304,85 @@ int Packetracker::WriteCSVNetworks(string in_fname) {
         else
             snprintf(type, 15, "unknown");
 
-
-        fprintf(netfile, "%d;%s;%s;%s;%s;%02d;%2.1f;%s;%d;%d;%d;%d;%d;%s;%s;%d;%d;%d;",
-                netnum, type,
-                SanitizeCSV(net->ssid).c_str(), net->bssid.Mac2String().c_str(),
-                net->beacon_info == "" ? "None" : SanitizeCSV(net->beacon_info).c_str(),
-                net->channel, 
-                net->maxrate,
-                net->wep ? "Yes" : "No",
-                net->llc_packets, net->data_packets,
-                net->crypt_packets, net->interesting_packets,
-                (net->llc_packets + net->data_packets),
-                ft, lt,
-                net->best_quality, net->best_signal, net->best_noise);
-
-        if (net->gps_fixed != -1) {
-            fprintf(netfile,
-                    "%f;%f;%f;%f;"
-                    "%f;%f;%f;%f;",
-                    net->min_lat, net->min_lon,
-                    metric ? net->min_alt / 3.3 : net->min_alt,
-                    metric ? net->min_spd * 1.6093 : net->min_spd,
-                    net->max_lat, net->max_lon,
-                    metric ? net->max_alt / 3.3 : net->max_alt,
-                    metric ? net->max_spd * 1.6093 : net->max_spd);
-        } else {
-            fprintf(netfile, ";;;;;;;;");
+        string carrier;
+        if (net->carrier_set & (1 << (int) carrier_80211b)) {
+            carrier += "IEEE 802.11b";
+        }
+        if (net->carrier_set & (1 << (int) carrier_80211bplus)) {
+            if (carrier != "")
+                carrier += ",";
+            carrier += "TI 802.11b+";
+        }
+        if (net->carrier_set & (1 << (int) carrier_80211a)) {
+            if (carrier != "")
+                carrier += ",";
+            carrier += "IEEE 802.11a";
+        }
+        if (net->carrier_set & (1 << (int) carrier_80211g)) {
+            if (carrier != "")
+                carrier += ",";
+            carrier += "IEEE 802.11g";
+        }
+        if (net->carrier_set & (1 << (int) carrier_80211fhss)) {
+            if (carrier != "")
+                carrier += ",";
+            carrier += "IEEE 802.11 FHSS";
+        }
+        if (net->carrier_set & (1 << (int) carrier_80211dsss)) {
+            if (carrier != "")
+                carrier += ",";
+            carrier += "IEEE 802.11 DSSS";
         }
 
+        string encoding;
+        if (net->encoding_set & (1 << (int) encoding_cck)) {
+            encoding = "CCK";
+        }
+        if (net->encoding_set & (1 << (int) encoding_pbcc)) {
+            if (encoding != "")
+                encoding += ",";
+            encoding += "PBCC";
+        }
+        if (net->encoding_set & (1 << (int) encoding_ofdm)) {
+            if (encoding != "")
+                encoding += ",";
+            encoding += "OFDM";
+        }
+
+        string iptype = "None";
         if (net->ipdata.atype == address_dhcp)
-            fprintf(netfile, "%d.%d.%d.%d;;;;\r\n",
-                    net->ipdata.range_ip[0], net->ipdata.range_ip[1],
-                    net->ipdata.range_ip[2], net->ipdata.range_ip[3]
-                   );
+            iptype = "DHCP";
         else if (net->ipdata.atype == address_arp)
-            fprintf(netfile, ";;;%d.%d.%d.%d;;;\r\n",
-                    net->ipdata.range_ip[0], net->ipdata.range_ip[1],
-                    net->ipdata.range_ip[2], net->ipdata.range_ip[3]);
+            iptype = "ARP";
         else if (net->ipdata.atype == address_udp)
-            fprintf(netfile, ";;;;%d.%d.%d.%d;;\r\n",
-                    net->ipdata.range_ip[0], net->ipdata.range_ip[1],
-                    net->ipdata.range_ip[2], net->ipdata.range_ip[3]);
+            iptype = "UDP";
         else if (net->ipdata.atype == address_tcp)
-            fprintf(netfile, ";;;;;%d.%d.%d.%d;\r\n",
-                    net->ipdata.range_ip[0], net->ipdata.range_ip[1],
-                    net->ipdata.range_ip[2], net->ipdata.range_ip[3]);
-        else
-            fprintf(netfile, ";;;;;;\r\n");
+            iptype = "TCP";
+
+        fprintf(netfile,
+                "%d;%s;%s;%s;%s;"
+                "%d;%s;%s;%s;"
+                "%2.1f;%ld;%d;"
+                "%d;%d;%d;%d;%d"
+                "%s;%s;%s;%s;"
+                "%d;%d;%d;"
+                "%f;%f;%f;%f;"
+                "%f;%f;%f;%f;"
+                "%f;%f;%f;"
+                "%ld;%s;"
+                "%hd.%hd.%hd.%hd;\n\r",
+                netnum, type, SanitizeCSV(net->ssid).c_str(), net->bssid.Mac2String().c_str(), SanitizeCSV(net->beacon_info).c_str(),
+                net->channel, net->cloaked ? "Yes" : "No", net->wep ? "Yes" : "No", net->decrypted ? "Yes" : "No",
+                net->maxrate, (long) net->maxseenrate * 100, net->beacon,
+                net->llc_packets, net->data_packets, net->crypt_packets, net->interesting_packets, (net->llc_packets + net->interesting_packets),
+                carrier.c_str(), encoding.c_str(), ft, lt,
+                net->best_quality, net->best_signal, net->best_noise,
+                net->min_lat, net->min_lon, net->min_alt, net->min_spd,
+                net->max_lat, net->max_lon, net->max_alt, net->max_spd,
+                net->best_lat, net->best_lon, net->best_alt,
+                net->datasize, iptype.c_str(),
+                net->ipdata.range_ip[0], net->ipdata.range_ip[1], net->ipdata.range_ip[2], net->ipdata.range_ip[3]);
+
         netnum++;
     }
 

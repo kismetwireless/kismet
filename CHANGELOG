@@ -1,5 +1,6 @@
 Jul 24 2003  2.9.1  Fixed cisco and cisco_cvs to not try to hop
                     Updated config file man page
+                    Rewrote CSV export log
 Jul 23 2003  2.9.1  Fixed vihasource gps call
                     Updated gpsd.h to use inttypes.h if present
                     Updated panel compass to (hopefully) be not broken now.
