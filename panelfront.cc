@@ -1175,7 +1175,10 @@ int PanelFront::Tick() {
         static int info_timer = 0;
         batteries = opendir("/proc/acpi/battery");
 
-        if (batteries == NULL || !bat_available || ((info_timer % info_res) == 0)) {
+        if (batteries == NULL)
+            bat_available = 0;
+
+        if (!bat_available || ((info_timer % info_res) == 0)) {
             bat_ac = 0;
             bat_percentage = 0;
             bat_time = 0;
@@ -1249,7 +1252,7 @@ void PanelFront::AddPrefs(map<string, string> in_prefs) {
     int batno = 0;
     bat_available = 0;
     batteries = opendir("/proc/acpi/battery");
-    while ((this_battery = readdir(batteries)) != NULL)
+    while (batteries != NULL && (this_battery = readdir(batteries)) != NULL)
     {
         // Skip . and ..
         if (this_battery->d_name[0] == '.')
