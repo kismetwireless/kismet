@@ -59,7 +59,7 @@ int PcapSource::OpenSource(const char *dev) {
     }
 #else
     if (datalink_type == DLT_EN10MB) {
-        snprintf(errstr, 1024, "pcap reported netlink type 1 (EN10MB) for %s.  This probably means you're not in RFMON mode or your cards drivers are reporting a bad value.",
+        snprintf(errstr, 1024, "pcap reported netlink type 1 (EN10MB) for %s.  This probably means you're not in RFMON mode or your drivers are reporting a bad value.  Make sure you have run kismet_monitor.",
                 dev);
         return -1;
     }
