@@ -29,6 +29,7 @@
 class MessageBus;
 class Packetsourcetracker;
 class Packetracker;
+class Packetchain;
 class Alertracker;
 class Timetracker;
 class GPSDClient;
@@ -36,6 +37,8 @@ class KisNetFramework;
 class ConfigFile;
 class SpeechControl;
 class SoundControl;
+
+struct wep_key_info;
 
 // Global registry of references to tracker objects and preferences.  This 
 // should supplant the masses of globals and externs we'd otherwise need.
@@ -48,11 +51,13 @@ public:
     MessageBus *messagebus;
     Packetsourcetracker *sourcetracker;
     Packetracker *packetracker;
+    Packetchain *packetchain;
     Alertracker *alertracker;
     Timetracker *timetracker;
     GPSDClient *gpsd;
     KisNetFramework *kisnetserver;
     ConfigFile *kismet_config;
+    ConfigFile *kismetui_config;
     SpeechControl *speechctl;
     SoundControl *soundctl;
 
@@ -114,6 +119,10 @@ public:
     mac_addr broadcast_mac;
 
     int alert_backlog;
+
+    // Packet component references we use internally and don't want to keep looking up
+    int pcr_80211_ref, pcr_turbo_ref, pcr_l1_ref, pcr_gps_ref, pcr_linkframe_ref,
+        pcr_80211frame_ref, pcr_mangleframe_ref;
     
     GlobalRegistry() { 
         fatal_condition = 0;
@@ -128,6 +137,7 @@ public:
         gpsd = NULL;
         kisnetserver = NULL;
         kismet_config = NULL;
+        kismetui_config = NULL;
         speechctl = NULL;
         soundctl = NULL;
 
@@ -186,6 +196,14 @@ public:
         broadcast_mac = mac_addr("FF:FF:FF:FF:FF:FF");
 
         alert_backlog = 0;
+
+        pcr_80211_ref = -1;
+        pcr_turbo_ref = -1;
+        pcr_l1_ref = -1;
+        pcr_gps_ref = -1;
+        pcr_linkframe_ref = -1;
+        pcr_80211frame_ref = -1;
+        pcr_mangleframe_ref = -1;
     }
 
     // External globals -- allow other things to tie structs to us

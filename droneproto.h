@@ -16,8 +16,8 @@
     Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 */
 
-#ifndef __PACKETSTREAM_H__
-#define __PACKETSTREAM_H__
+#ifndef __DRONEPROTO_H__
+#define __DRONEPROTO_H__
 
 #include "config.h"
 
@@ -28,19 +28,38 @@
 #include <inttypes.h>
 #endif
 
-#define STREAM_DRONE_VERSION 8
+// Protocol exchange:
+// CL --> Connect
+// SV --> Version (cl verify)
+// CL --> Login (sv verify)
+// CL --> Packet
+//   .....
+// CL --> Packet
 
-#define STREAM_SENTINEL      0xDECAFBAD
+#define DRONE_STREAM_VERSION    9
 
-#define STREAM_FTYPE_VERSION 1
-#define STREAM_FTYPE_PACKET  2
+#define DRONE_SENTINEL          0xDECAFBAD
 
-#define STREAM_COMMAND_FLUSH -1
+#define DRONE_FTYPE_LOGIN       1
+#define DRONE_FTYPE_VERSION     2
+#define DRONE_FTYPE_PACKET      3
+
+#define DRONE_COMMAND_FLUSH     -1
+
+#define DRONE_HEADER_LEN  (sizeof(struct stream_frame_header))
+#define DRONE_LOGIN_LEN   (sizeof(struct stream_login_packet))
+#define DRONE_VERSION_LEN (sizeof(struct stream_version_packet))
+#define DRONE_PACKET_LEN  (sizeof(struct stream_packet_header))
 
 typedef struct stream_frame_header {
     uint32_t frame_sentinel __attribute__ ((packed));
     uint8_t frame_type __attribute__ ((packed));
     uint32_t frame_len __attribute__ ((packed));
+};
+
+typedef struct stream_login_packet {
+    uint8_t password[32] __attribute__ ((packed));
+    uint8_t version;
 };
 
 typedef struct stream_version_packet {
@@ -49,7 +68,6 @@ typedef struct stream_version_packet {
 
 typedef struct stream_packet_header {
     uint32_t header_len __attribute__ ((packed));
-    uint16_t drone_version __attribute__ ((packed));
     uint32_t len __attribute__ ((packed));
     uint32_t caplen __attribute__ ((packed));
     uint64_t tv_sec __attribute__ ((packed));

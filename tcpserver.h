@@ -78,6 +78,9 @@ public:
     // Kill a connection by client ID
     virtual void KillConnection(int in_fd);
 
+    // Fetch the info for a client id
+    virtual int FetchClientConnectInfo(int in_clid, void *ret_info);
+
     // Shutdown the entire server
     virtual void Shutdown();
 

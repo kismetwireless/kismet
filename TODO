@@ -5,6 +5,14 @@ Status: RO
 X-Riot-Version: 1ds-20040924
 
 General Recoding
+From background-static Sat Oct 23 16:35:49 EDT 2004
+Message-Id: <riot.20041023163549.1>
+Date: Sat Oct 23 16:35:49 EDT 2004
+Status: RO
+X-Riot-Version: 1ds-20040924
+In-Reply-To: <riot.20040927141546.8>
+
+Test reference return in macaddr macmap  (Type *&foo)
 From background-static Mon Sep 27 14:21:00 EDT 2004
 Message-Id: <riot.20040927142100.9>
 Date: Mon Sep 27 14:21:00 EDT 2004
@@ -79,6 +87,30 @@ Apply off-by-one protocol fixes
                     &cinfo_id, &cinfo_packets, &cinfo_hopping) < 7)
              return 0;
 
+From background-static Mon Sep 27 20:13:55 EDT 2004
+Message-Id: <riot.20040927201355.1>
+Date: Mon Sep 27 20:13:55 EDT 2004
+Status: RO
+X-Riot-Version: 1ds-20040924
+In-Reply-To: <riot.20040927001446.1>
+
+Migrate sound and speech into kis_netclient
+From background-static Tue Sep 28 01:40:20 EDT 2004
+Message-Id: <riot.20040928014020.2>
+Date: Tue Sep 28 01:40:20 EDT 2004
+Status: RO
+X-Riot-Version: 1ds-20040924
+In-Reply-To: <riot.20040927001446.1>
+
+Add reconnect to conf default file
+From background-static Tue Sep 28 02:11:12 EDT 2004
+Message-Id: <riot.20040928021112.3>
+Date: Tue Sep 28 02:11:12 EDT 2004
+Status: RO
+X-Riot-Version: 1ds-20040924
+In-Reply-To: <riot.20040927001446.1>
+
+Add messageclient to fill in curses status field
 From background-static Mon Sep 27 00:15:20 EDT 2004
 Message-Id: <riot.20040927001520.3>
 Date: Mon Sep 27 00:15:20 EDT 2004

@@ -157,6 +157,29 @@ void TcpServer::Shutdown() {
     max_fd = 0;
 }
 
+int TcpServer::FetchClientConnectInfo(int in_clid, void *ret_info) {
+    struct sockaddr_in client_addr;
+#ifdef HAVE_SOCKLEN_T
+    socklen_t client_len;
+#else
+    int client_len;
+#endif
+
+    memset(&client_addr, 0, sizeof(struct sockaddr_in));
+    client_len = sizeof(struct sockaddr_in);
+
+    if (getsockname(in_clid, (struct sockaddr *) &client_addr, &client_len) < 0) {
+        snprintf(errstr, STATUS_MAX, "TCP server unable to get sockname for client info: %s",
+                 strerror(errno));
+        globalreg->messagebus->InjectMessage(errstr, MSGFLAG_ERROR);
+        return -1;
+    }
+
+    memcpy(ret_info, &client_addr, client_len);
+    
+    return 1;
+}
+
 int TcpServer::TcpAccept() {
     unsigned int new_fd;
     struct sockaddr_in client_addr;

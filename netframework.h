@@ -122,6 +122,10 @@ public:
     // Fetch a vector of all the current clients for mass-writes
     virtual int FetchClientVector(vector<int> *ret_vec);
 
+    // Fetch info about a client, cast it into whatever makes sense for the
+    // future
+    virtual int FetchClientConnectInfo(int in_clid, void *ret_info) = 0;
+
     // Shutdown the server
     virtual void Shutdown() = 0;
 
