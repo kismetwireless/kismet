@@ -1,3 +1,4 @@
+Aug 27 2002  2.5.2  Resampled alert.wav to be much smaller.
 Aug 25 2002  2.5.2  Optomizations to panelfront
                     Rudimentary deauthentication flood detection
                     kismet_curses exit code used to determine if a kill of 
