@@ -242,5 +242,224 @@ int kis_80211_dissector(CHAINCALL_PARMS) {
 #endif
         }
 
+        map<int, int> tag_cache_map;
+        map<int, int>::iterator tcitr;
+
+        // Extract various tags from the packet
+        int found_ssid_tag = 0;
+        int found_rate_tag = 0;
+        int found_channel_tag = 0;
+
+        if (fc->subtype == 8 || fc->subtype == 4 || fc->subtype == 5) {
+            // This is guaranteed to only give us tags that fit within the packets,
+            // so we don't have to do more error checking
+            if (GetTagOffsets(packinfo->header_offset, chunk->data, &tag_cache_map) < 0) {
+                // The frame is corrupt, bail
+                ret_packinfo->corrupt = 1;
+                return;
+            }
+      
+            if ((tcitr = tag_cache_map.find(0)) != tag_cache_map.end()) {
+                tag_offset = tcitr->second;
+
+                found_ssid_tag = 1;
+                temp = (packet->data[tag_offset] & 0xFF);
+                packinfo->ssid_len = temp;
+                // Protect against malicious packets
+                if (temp == 0) {
+                    // do nothing for 0-length ssid's
+                } else if (temp <= 32) {
+                    memcpy(ret_packinfo->ssid, &packet->data[tag_offset+1], temp);
+                    packinfo->ssid[temp] = '\0';
+                    // Munge it down to printable characters... SSID's can be anything
+                    // but if we can't print them it's not going to be very useful
+                    // MungeToPrintable(ret_packinfo->ssid, temp);
+                    // PRINTABLE MUNGING IS NOW THE RESPONSIBILITY OF OTHER CODE
+                } else {
+                    // Otherwise we're corrupt, set it and stop processing
+                    packinfo->corrupt = 1;
+                    in_pack->insert(globalreg->pcr_80211_ref, packinfo);
+                    return 0;
+                }
+            } else {
+                packinfo->ssid_len = -1;
+            }
+
+            // Extract the supported rates
+            if ((tcitr = tag_cache_map.find(1)) != tag_cache_map.end()) {
+                tag_offset = tcitr->second;
+
+                found_rate_tag = 1;
+                for (int x = 0; x < chunk->data[tag_offset]; x++) {
+                    if (packinfo->maxrate < (chunk->data[tag_offset+1+x] & 
+                                             0x7F) * 0.5)
+                        packinfo->maxrate = (chunk->data[tag_offset+1+x] & 
+                                             0x7F) * 0.5;
+                }
+            }
+
+            // Find the offset of flag 3 and get the channel.   802.11a doesn't have 
+            // this tag so we use the hardware channel, assigned at the beginning of 
+            // GetPacketInfo
+            if ((tcitr = tag_cache_map.find(3)) != tag_cache_map.end()) {
+                tag_offset = tcitr->second;
+                found_channel_tag = 1;
+                // Extract the channel from the next byte (GetTagOffset returns
+                // us on the size byte)
+                temp = chunk->data[tag_offset+1];
+                packinfo->channel = (int) temp;
+            }
+        }
+
+        if (fc->subtype == 0) {
+            packinfo->subtype = packet_sub_association_req;
+
+            packinfo->dest_mac = addr0;
+            packinfo->source_mac = addr1;
+            packinfo->bssid_mac = addr2;
+
+        } else if (fc->subtype == 1) {
+            packinfo->subtype = packet_sub_association_resp;
+
+            packinfo->dest_mac = addr0;
+            packinfo->source_mac = addr1;
+            packinfo->bssid_mac = addr2;
+
+        } else if (fc->subtype == 2) {
+            packinfo->subtype = packet_sub_reassociation_req;
+
+            packinfo->dest_mac = addr0;
+            packinfo->source_mac = addr1;
+            packinfo->bssid_mac = addr2;
+
+        } else if (fc->subtype == 3) {
+            packinfo->subtype = packet_sub_reassociation_resp;
+
+            packinfo->dest_mac = addr0;
+            packinfo->source_mac = addr1;
+            packinfo->bssid_mac = addr2;
+
+        } else if (fc->subtype == 4) {
+            packinfo->subtype = packet_sub_probe_req;
+
+            packinfo->distrib = to_distribution;
+            
+            packinfo->source_mac = addr1;
+            packinfo->bssid_mac = addr1;
+           
+            // Probe req's with no SSID are bad
+            if (found_ssid_tag == 0) {
+                packinfo->corrupt = 1;
+                in_pack->insert(globalreg->pcr_80211_ref, packinfo);
+                return 0;
+            }
+
+        } else if (fc->subtype == 5) {
+            packinfo->subtype = packet_sub_probe_resp;
+
+            packinfo->dest_mac = addr0;
+            packinfo->source_mac = addr1;
+            packinfo->bssid_mac = addr2;
+
+            /*
+            if (ret_packinfo->ess == 0) {
+                // A lot of cards seem to rotate through adhoc BSSID's, so we use the source
+                // instead
+                ret_packinfo->bssid_mac = ret_packinfo->source_mac;
+                ret_packinfo->distrib = adhoc_distribution;
+                }
+                */
+
+        } else if (fc->subtype == 8) {
+            packinfo->subtype = packet_sub_beacon;
+
+            packinfo->beacon = kis_ntoh16(fixparm->beacon);
+
+            // Extract the CISC.O beacon info
+            if ((tcitr = tag_cache_map.find(133)) != tag_cache_map.end()) {
+                tag_offset = tcitr->second;
+
+                if ((unsigned) tag_offset + 11 < chunk->length) {
+                    snprintf(packinfo->beacon_info, BEACON_INFO_LEN, "%s", &(chunk->data[tag_offset+11]));
+                    // Munge this right here since it's just extra info
+                    MungeToPrintable(packinfo->beacon_info, BEACON_INFO_LEN);
+                } else {
+                    // Otherwise we're corrupt, bail
+                    packinfo->corrupt = 1;
+                    in_pack->insert(globalreg->pcr_80211_ref, packinfo);
+                    return 0;
+                }
+            }
+
+            packinfo->dest_mac = addr0;
+            packinfo->source_mac = addr1;
+            packinfo->bssid_mac = addr2;
+
+            // If beacons aren't do a broadcast destination, consider them corrupt.
+            if (packinfo->dest_mac != broadcast_mac) 
+                packinfo->corrupt = 1;
+            
+            // If beacons don't have a SSID and a basicrate then we consider them
+            // corrupt
+            if (found_ssid_tag == 0 || found_rate_tag == 0)
+                packinfo->corrupt = 1;
+
+            /*
+            if (ret_packinfo->ess == 0) {
+                // Weird adhoc beacon where the BSSID isn't 'right' so we use the source instead.
+                ret_packinfo->bssid_mac = ret_packinfo->source_mac;
+                ret_packinfo->distrib = adhoc_distribution;
+                }
+                */
+        } else if (fc->subtype == 9) {
+            // I'm not positive this is the right handling of atim packets.  Do something
+            // smarter in the future
+            packinfo->subtype = packet_sub_atim;
+
+            packinfo->dest_mac = addr0;
+            packinfo->source_mac = addr1;
+            packinfo->bssid_mac = addr2;
+
+            packinfo->distrib = no_distribution;
+
+        } else if (fc->subtype == 10) {
+            packinfo->subtype = packet_sub_disassociation;
+
+            packinfo->dest_mac = addr0;
+            packinfo->source_mac = addr1;
+            packinfo->bssid_mac = addr2;
+
+            uint16_t rcode;
+            memcpy(&rcode, (const char *) &packet->data[24], 2);
+
+            packinfo->reason_code = rcode;
+
+        } else if (fc->subtype == 11) {
+            packinfo->subtype = packet_sub_authentication;
+
+            packinfo->dest_mac = addr0;
+            packinfo->source_mac = addr1;
+            packinfo->bssid_mac = addr2;
+
+            uint16_t rcode;
+            memcpy(&rcode, (const char *) &(chunk->data[24]), 2);
+
+            packinfo->reason_code = rcode;
+
+        } else if (fc->subtype == 12) {
+            packinfo->subtype = packet_sub_deauthentication;
+
+            packinfo->dest_mac = addr0;
+            packinfo->source_mac = addr1;
+            packinfo->bssid_mac = addr2;
+
+            uint16_t rcode;
+            memcpy(&rcode, (const char *) &(chunk->data[24]), 2);
+
+            packinfo->reason_code = rcode;
+        } else {
+            packinfo->subtype = packet_sub_unknown;
+        }
+
 }
 
