@@ -107,14 +107,14 @@ int GetTagOffset(int init_offset, int tagnum, const pkthdr *header,
 // Get the info from a packet
 void GetPacketInfo(const pkthdr *header, const u_char *data,
                    packet_parm *parm, packet_info *ret_packinfo) {
-    // packet_info ret;
-
-    if (ret_packinfo == NULL)
-        return;
+    // Zero the entire struct
+    memset(ret_packinfo, 0, sizeof(packet_info));
 
     // Screen capture-level errors
-    if (header->error == 1)
+    if (header->error == 1) {
         ret_packinfo->type = packet_noise;
+        return;
+    }
 
     frame_control *fc = (frame_control *) data;
 
@@ -130,11 +130,6 @@ void GetPacketInfo(const pkthdr *header, const u_char *data,
 
     // And an optional 6 bytes of address range for ds=0x3 packets
     uint8_t *addr3;
-
-    //numpack++;
-
-    // Zero the entire struct
-    memset(ret_packinfo, 0, sizeof(packet_info));
 
     // Copy the time with second precision
     ret_packinfo->time = header->ts.tv_sec;
@@ -233,17 +228,6 @@ void GetPacketInfo(const pkthdr *header, const u_char *data,
             ret_packinfo->channel = (int) temp;
         }
 
-        // Extract the CISCO beacon info
-        if ((tag_offset = GetTagOffset(ret_packinfo->header_offset, 133, header, data, &tag_cache_map)) > 0) {
-            if ((unsigned) tag_offset + 11 < header->len) {
-                snprintf(ret_packinfo->beacon_info, BEACON_INFO_LEN, "%s", &msgbuf[tag_offset+11]);
-                MungeToPrintable(ret_packinfo->beacon_info, BEACON_INFO_LEN);
-            } else {
-                ret_packinfo->type = packet_noise;
-                return;
-            }
-        }
-
         if (fc->subtype == 0) {
             ret_packinfo->subtype = packet_sub_association_req;
 
@@ -312,6 +296,17 @@ void GetPacketInfo(const pkthdr *header, const u_char *data,
             ret_packinfo->subtype = packet_sub_beacon;
 
             ret_packinfo->beacon = ktoh16(fixparm->beacon);
+
+            // Extract the CISCO beacon info
+            if ((tag_offset = GetTagOffset(ret_packinfo->header_offset, 133, header, data, &tag_cache_map)) > 0) {
+                if ((unsigned) tag_offset + 11 < header->len) {
+                    snprintf(ret_packinfo->beacon_info, BEACON_INFO_LEN, "%s", &msgbuf[tag_offset+11]);
+                    MungeToPrintable(ret_packinfo->beacon_info, BEACON_INFO_LEN);
+                } else {
+                    ret_packinfo->type = packet_noise;
+                    return;
+                }
+            }
 
             ret_packinfo->dest_mac = addr0;
             ret_packinfo->source_mac = addr1;

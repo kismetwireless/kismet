@@ -391,6 +391,7 @@ PanelFront::PanelFront() {
     muted = 0;
 
     // Push blanks into the RRD history vector
+    packet_history.reserve(60 * 5);
     for (unsigned int x = 0; x < (60 * 5); x++)
         packet_history.push_back(0);
 
@@ -1319,103 +1320,5 @@ PanelFront::color_pair PanelFront::ColorParse(string in_color) {
 
     return ret;
 }
-
-/*
-void PanelFront::LoadContext(server_context *in_context) {
-    if (in_context == NULL)
-        return;
-
-    client = in_context->client;
-    quality = in_context->quality;
-    power = in_context->power;
-    noise = in_context->noise;
-    details_network = in_context->details_network;
-    details_client = in_context->details_client;
-    last_displayed = in_context->last_displayed;
-    last_client_displayed = in_context->last_client_displayed;
-    packet_history = in_context->packet_history;
-    lat = in_context->lat;
-    lon = in_context->lon;
-    alt = in_context->alt;
-    spd = in_context->spd;
-    fix = in_context->fix;
-    last_lat = in_context->last_lat;
-    last_lon = in_context->last_lon;
-    last_alt = in_context->last_alt;
-    last_spd = in_context->last_spd;
-    last_fix = in_context->last_fix;
-    last_draw_size = in_context->last_draw_size;
-    last_client_draw_size = in_context->last_client_draw_size;
-    max_packet_rate = in_context->max_packet_rate;
-    max_packet_rate = in_context->max_packet_rate;
-    num_networks = in_context->num_networks;
-    num_packets = in_context->num_packets;
-    num_crypt = in_context->num_crypt;
-    num_interesting = in_context->num_interesting;
-    num_noise = in_context->num_noise;
-    num_dropped = in_context->num_dropped;
-    packet_rate = in_context->packet_rate;
-    server_time = in_context->server_time;
-    context = in_context;
-}
-
-void PanelFront::LoadSubContext(server_context *in_context) {
-    if (in_context == NULL)
-        return;
-
-    packet_history = in_context->packet_history;
-    quality = in_context->quality;
-    power = in_context->power;
-    noise = in_context->noise;
-    lat = in_context->lat;
-    lon = in_context->lon;
-    alt = in_context->alt;
-    spd = in_context->spd;
-    fix = in_context->fix;
-    last_lat = in_context->last_lat;
-    last_lon = in_context->last_lon;
-    last_alt = in_context->last_alt;
-    last_spd = in_context->last_spd;
-    last_fix = in_context->last_fix;
-    max_packet_rate = in_context->max_packet_rate;
-    num_networks = in_context->num_networks;
-    num_packets = in_context->num_packets;
-    num_crypt = in_context->num_crypt;
-    num_interesting = in_context->num_interesting;
-    num_noise = in_context->num_noise;
-    num_dropped = in_context->num_dropped;
-    packet_rate = in_context->packet_rate;
-    server_time = in_context->server_time;
-}
-
-void PanelFront::StoreContext(server_context *in_context) {
-    if (in_context == NULL)
-        return;
-
-    // Some of this is automatically updated by the updatecontext code so
-    // it isn't recorded here
-    in_context->client = client;
-    in_context->quality = quality;
-    in_context->power = power;
-    in_context->noise = noise;
-    in_context->details_network = details_network;
-    in_context->details_client = details_client;
-    in_context->last_displayed = last_displayed;
-    in_context->last_client_displayed = last_client_displayed;
-    in_context->packet_history = packet_history;
-    in_context->lat = lat;
-    in_context->lon = lon;
-    in_context->alt = alt;
-    in_context->spd = spd;
-    in_context->last_lat = last_lat;
-    in_context->last_lon = last_lon;
-    in_context->last_spd = last_spd;
-    in_context->last_alt = last_alt;
-    in_context->last_fix = last_fix;
-    in_context->last_draw_size = last_draw_size;
-    in_context->last_client_draw_size = last_client_draw_size;
-    in_context->server_time = server_time;
-    }
-    */
 
 #endif
