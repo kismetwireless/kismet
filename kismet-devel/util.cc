@@ -148,3 +148,95 @@ vector<string> StrTokenize(string in_str, string in_split) {
     return ret;
 }
 
+KisRingBuffer::KisRingBuffer(int in_size) {
+    ring_len = in_size;
+    ring_data = new uint8_t[in_size];
+    ring_rptr = ring_data;
+    ring_wptr = ring_data;
+}
+
+KisRingBuffer::~KisRingBuffer() {
+    delete[] ring_data;
+}
+
+int KisRingBuffer::InsertDummy(int in_len) {
+    if (ring_wptr + in_len > ring_data + ring_len) {
+        int tail = (ring_data + ring_len) - ring_wptr;
+        if (ring_data + (in_len - tail) >= ring_rptr)
+            return 0;
+    } else {
+        if ((ring_rptr > ring_wptr) && (ring_wptr + in_len >= ring_rptr))
+            return 0;
+    }
+
+    return 1;
+}
+
+int KisRingBuffer::InsertData(uint8_t *in_data, int in_len) {
+    // Will this hit the end of the ring and go back to the beginning?
+    if ((ring_wptr + in_len) > (ring_data + ring_len)) {
+        // How much data gets written to the tail of the ring before we
+        // wrap?
+        int tail = (ring_data + ring_len) - ring_wptr;
+
+        // If we're going to wrap, will we overrun the read position?
+        if (ring_data + (in_len - tail) >= ring_rptr)
+            return 0;
+
+        // Copy the data to the end of the loop, move to the beginning
+        memcpy(ring_wptr, in_data, tail);
+        memcpy(ring_data, in_data + tail, in_len - tail);
+        ring_wptr = ring_data + (in_len - tail);
+    } else {
+        // Will we surpass the read pointer?
+        if ((ring_rptr > ring_wptr) && (ring_wptr + in_len >= ring_rptr))
+            return 0;
+
+        // Copy the data to the write pointer
+        memcpy(ring_wptr, in_data, in_len);
+        ring_wptr = ring_wptr + in_len;
+    }
+
+    return 1;
+}
+
+int KisRingBuffer::FetchLen() {
+    if (ring_wptr < ring_rptr) {
+        return (ring_data + ring_len) - ring_rptr;
+    } else {
+        return (ring_wptr - ring_rptr);
+    }
+
+}
+
+void KisRingBuffer::FetchPtr(uint8_t **in_dataptr, int *in_len) {
+    // Has the write pointer looped back?
+    if (ring_wptr < ring_rptr) {
+        // return the read to the end
+        *in_len = (ring_data + ring_len) - ring_rptr;
+    } else {
+        // Return the read to the write
+        *in_len = (ring_wptr - ring_rptr);
+    }
+
+    *in_dataptr = ring_rptr;
+}
+
+void KisRingBuffer::MarkRead(uint8_t in_len) {
+    // Will we loop the array?
+    if ((ring_rptr + in_len) >= (ring_data + ring_len)) {
+        // How much comes off the length before we wrap?
+        int tail = (ring_data + ring_len) - ring_rptr;
+
+        // Catch surpassing the write pointer after the loop
+        if (ring_data + (in_len - tail) > ring_wptr)
+            ring_rptr = ring_wptr;
+        else
+            ring_rptr = ring_data + (in_len - tail);
+    } else {
+        ring_rptr += in_len;
+    }
+
+    return;
+}
+
