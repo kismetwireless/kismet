@@ -76,10 +76,12 @@ void CatchShutdown(int sig) {
             close(packet_sources[x]->textpair[0]);
         }
 
+        /*
         if (packet_sources[x]->source != NULL) {
             packet_sources[x]->source->CloseSource();
             delete packet_sources[x]->source;
-        }
+            }
+            */
     }
 
     for (unsigned int x = 0; x < packet_sources.size(); x++) {
@@ -413,14 +415,6 @@ int main(int argc, char *argv[]) {
                     ((source_from_cmd == 0) || (enable_from_cmd == 1)),
                     &timetracker, gps);
 
-    for (unsigned int x = 0; x < packet_sources.size(); x++) {
-        if (packet_sources[x]->source == NULL)
-            continue;
-
-        if (SpawnCapSourceChild(packet_sources[x]) < 0)
-            exit(1);
-    }
-
     // Once the packet source is opened, we shouldn't need special privileges anymore
     // so lets drop to a normal user.  We also don't want to open our logfiles as root
     // if we can avoid it.  Once we've dropped, we'll investigate our sources again and
@@ -439,14 +433,6 @@ int main(int argc, char *argv[]) {
     BindUserSources(&packet_sources, &enable_name_map,
                     ((source_from_cmd == 0) || (enable_from_cmd == 1)),
                     &timetracker, gps);
-
-    for (unsigned int x = 0; x < packet_sources.size(); x++) {
-        if (packet_sources[x]->source == NULL)
-            continue;
-
-        if (SpawnCapSourceChild(packet_sources[x]) < 0)
-            exit(1);
-    }
 
     // Set the initial channel
     for (unsigned int x = 0; x < packet_sources.size(); x++) {
@@ -687,14 +673,6 @@ int main(int argc, char *argv[]) {
     // Now we can start doing things...
     fprintf(stderr, "Kismet Drone %d.%d.%d (%s)\n",
             VERSION_MAJOR, VERSION_MINOR, VERSION_TINY, servername);
-
-    for (unsigned int x = 0; x < packet_sources.size(); x++) {
-        if (packet_sources[x]->source == NULL)
-            continue;
-
-        fprintf(stderr, "Source %d (%s): Capturing packets from %s\n",
-                 x, packet_sources[x]->name.c_str(), packet_sources[x]->source->FetchType());
-    }
 
     fprintf(stderr, "Listening on port %d (protocol %d).\n", tcpport, STREAM_DRONE_VERSION);
     for (unsigned int ipvi = 0; ipvi < legal_ipblock_vec.size(); ipvi++) {

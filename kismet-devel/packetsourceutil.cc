@@ -231,13 +231,10 @@ int BindRootSources(vector<capturesource *> *in_capsources, map<string, int> *in
             csrc->source->AddTimetracker(in_tracker);
             csrc->source->AddGpstracker(in_gpsd);
 
-            if (csrc->source->OpenSource(csrc->interface.c_str(), csrc->cardtype) < 0) {
-                fprintf(stderr, "FATAL: Source %d (%s): %s\n", src, csrc->name.c_str(), csrc->source->FetchError());
+            if (SpawnCapSourceChild(csrc) < 0)
                 exit(1);
-            }
         }
     }
-
 
     return 1;
 }
@@ -295,10 +292,9 @@ int BindUserSources(vector<capturesource *> *in_capsources, map<string, int> *in
                 csrc->source->AddTimetracker(in_tracker);
                 csrc->source->AddGpstracker(in_gpsd);
 
-                if (csrc->source->OpenSource(csrc->interface.c_str(), csrc->cardtype) < 0) {
-                    fprintf(stderr, "FATAL: Source %d (%s): %s\n", src, csrc->name.c_str(), csrc->source->FetchError());
+                if (SpawnCapSourceChild(csrc) < 0)
                     exit(1);
-                }
+
             }
         }
     }
@@ -544,6 +540,15 @@ void CapSourceChild(capturesource *csrc) {
     // and we don't read from the text stream
     close(csrc->textpair[0]);
 
+    // Try to open the child...
+    if (csrc->source->OpenSource(csrc->interface.c_str(), csrc->cardtype) < 0) {
+        fprintf(stderr, "FATAL: Capture child %d (%s): %s\n", mypid, csrc->name.c_str(), csrc->source->FetchError());
+        exit(1);
+    }
+
+    fprintf(stderr, "Capture child %d (%s): Capturing packets from %s\n",
+            mypid, csrc->name.c_str(), csrc->source->FetchType());
+
     while (1) {
         int max_fd = 0;
 
@@ -739,10 +744,12 @@ void CapSourceChild(capturesource *csrc) {
 int SpawnCapSourceChild(capturesource *csrc) {
     pid_t cpid;
 
+    /*
     if (csrc->source->FetchDescriptor() < 0) {
         fprintf(stderr, "FATAL:  Capture source didn't return a valid fd, we don't handle this right now.\n");
         return -1;
     }
+    */
 
     if (csrc->childpid != 0)
         return 0;
