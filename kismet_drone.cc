@@ -51,6 +51,14 @@ char *exec_name;
 
 const char *config_base = "kismet_drone.conf";
 
+int silent = 0;
+
+#ifdef HAVE_GPS
+    GPSD gps;
+    int gpsmode = 0;
+    int gps_enable = 0;
+#endif
+
 // Capture sources
 vector<capturesource *> packet_sources;
 
@@ -67,6 +75,29 @@ void CatchShutdown(int sig) {
     fprintf(stderr, "Kismet drone terminating.\n");
 
     exit(0);
+}
+
+int GpsEvent(server_timer_event *evt, void *parm) {
+#ifdef HAVE_GPS
+    // The GPS only provides us a new update once per second we might
+    // as well only update it here once a second
+    if (gps_enable) {
+        int gpsret;
+        gpsret = gps.Scan();
+        if (gpsret < 0) {
+            if (!silent)
+                fprintf(stderr, "GPS error fetching data: %s\n",
+                        gps.FetchError());
+
+            gps_enable = 0;
+        }
+
+    }
+
+    // We want to be rescheduled
+    return 1;
+#endif
+    return 0;
 }
 
 int Usage(char *argv) {
@@ -96,9 +127,10 @@ int main(int argc, char *argv[]) {
     int tcpport = -1;
     int tcpmax;
 
-    int silent = 0;
-
     TcpStreamer streamer;
+
+    char gpshost[1024];
+    int gpsport = -1;
 
     int beacon_stream = 1;
     int phy_stream = 1;
@@ -446,6 +478,35 @@ int main(int argc, char *argv[]) {
         fprintf(stderr, "Filtering PHY layer packets.\n");
     }
 
+#ifdef HAVE_GPS
+    if (conf->FetchOpt("gps") == "true") {
+        if (sscanf(conf->FetchOpt("gpshost").c_str(), "%1024[^:]:%d", gpshost, &gpsport) != 2) {
+            fprintf(stderr, "Invalid GPS host in config (host:port required)\n");
+            exit(1);
+        }
+
+        gps_enable = 1;
+    } else {
+            gps_enable = 0;
+    }
+
+    if (gps_enable == 1) {
+        // Open the GPS
+        if (gps.OpenGPSD(gpshost, gpsport) < 0) {
+            fprintf(stderr, "%s\n", gps.FetchError());
+
+            gps_enable = 0;
+        } else {
+            fprintf(stderr, "Opened GPS connection to %s port %d\n",
+                    gpshost, gpsport);
+
+        }
+    }
+
+    // Update GPS coordinates and handle signal loss if defined
+    RegisterServerTimer(SERVER_TIMESLICES_SEC, NULL, 1, &GpsEvent, NULL);
+
+#endif
 
     // Now we can start doing things...
     fprintf(stderr, "Kismet Drone %d.%d.%d (%s)\n",
@@ -498,6 +559,9 @@ int main(int argc, char *argv[]) {
                 max_fd = source_descrip;
         }
     }
+
+    float lat, lon, alt, spd;
+    int mode;
 
     while (1) {
         fd_set rset, wset;
@@ -577,7 +641,14 @@ int main(int argc, char *argv[]) {
                         }
                     }
 
-                    if (streamer.WritePacket(&packet) < 0) {
+#ifdef HAVE_GPS
+                    gps.FetchLoc(&lat, &lon, &alt, &spd, &mode);
+#else
+                    lat = lon = alt = spd = 0;
+                    mode = -1;
+#endif
+
+                    if (streamer.WritePacket(&packet, lat, lon, alt, spd, mode) < 0) {
                         fprintf(stderr, "FATAL:  Error writing packet to streamer: %s\n",
                                 streamer.FetchError());
                         CatchShutdown(-1);

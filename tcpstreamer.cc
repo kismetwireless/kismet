@@ -242,7 +242,8 @@ int TcpStreamer::WriteVersion(int in_fd) {
 }
 
 
-int TcpStreamer::WritePacket(const kis_packet *in_packet) {
+int TcpStreamer::WritePacket(const kis_packet *in_packet, float in_lat, float in_lon,
+                             float in_alt, float in_spd, int in_mode) {
 
     if (in_packet->data == NULL)
         return 0;

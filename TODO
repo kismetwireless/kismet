@@ -32,3 +32,4 @@ In no particular order:
 	VPN detection
 	endian-safe drones
 	linkage of seen-on devices to network info
+	horizontal column scrolling in UI
