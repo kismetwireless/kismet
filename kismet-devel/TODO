@@ -1,5 +1,6 @@
 In no particular order:
 	reconnect to gpsd
+	first-seen-source
 	DCF/PCF
 	FH/DS tags
 	cardtype/interface dumps
