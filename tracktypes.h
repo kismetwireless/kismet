@@ -91,11 +91,13 @@ typedef struct wireless_client {
         manuf_id = 0;
         manuf_score = 0;
 
-        llc_packets = data_packets = crypt_packets = interesting_packets = 0;
+        data_packets = crypt_packets = interesting_packets = 0;
 
         gps_fixed = -1;
         min_lat = min_lon = min_alt = min_spd = 0;
         max_lat = max_lon = max_alt = max_spd = 0;
+        aggregate_lat = aggregate_lon = aggregate_alt = 0;
+        aggregate_points = 0;
 
         maxrate = 0;
 
@@ -120,7 +122,6 @@ typedef struct wireless_client {
     int manuf_score;
 
     // Packet counts
-    int llc_packets;
     int data_packets;
     int crypt_packets;
     int interesting_packets;
@@ -129,6 +130,8 @@ typedef struct wireless_client {
     int gps_fixed;
     float min_lat, min_lon, min_alt, min_spd;
     float max_lat, max_lon, max_alt, max_spd;
+    double aggregate_lat, aggregate_lon, aggregate_alt;
+    long aggregate_points;
 
     // How fast we can go
     double maxrate;

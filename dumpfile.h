@@ -25,6 +25,8 @@
 // Packet capture source superclass
 class DumpFile {
 public:
+    virtual ~DumpFile() { }
+
     // Open the packet source
     virtual int OpenDump(const char *file) = 0;
 
