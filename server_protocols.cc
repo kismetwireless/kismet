@@ -133,6 +133,11 @@ char *ACK_fields_text[] = {
     NULL
 };
 
+char *WEPKEY_fields_text[] = {
+    "origin", "bssid", "key",
+    NULL
+};
+
 // Kismet welcome printer.  Data should be KISMET_data
 int Protocol_KISMET(PROTO_PARMS) {
     KISMET_data *kdata = (KISMET_data *) data;
@@ -748,4 +753,39 @@ int Protocol_STRING(PROTO_PARMS) {
     return 1;
 }
 
+// wep keys.  data = wep_key_info
+int Protocol_WEPKEY(PROTO_PARMS) {
+    wep_key_info *winfo = (wep_key_info *) data;
+    char wdstr[3];
+
+    for (unsigned int x = 0; x < field_vec->size(); x++) {
+        switch ((WEPKEY_fields) (*field_vec)[x]) {
+        case WEPKEY_origin:
+            if (winfo->fragile == 0)
+                out_string += "0";
+            else
+                out_string += "1";
+            break;
+        case WEPKEY_bssid:
+            out_string += winfo->bssid.Mac2String();
+            break;
+        case WEPKEY_key:
+            for (unsigned int kpos = 0; kpos < WEPKEY_MAX && kpos < winfo->len; kpos++) {
+                snprintf(wdstr, 3, "%02X", (uint8_t) winfo->key[kpos]);
+                out_string += wdstr;
+                if (kpos < (WEPKEY_MAX - 1) && kpos < (winfo->len - 1))
+                    out_string += ":";
+            }
+            break;
+        default:
+            out_string = "Unknown field requested.";
+            return -1;
+            break;
+        }
+
+        out_string += " ";
+    }
+
+    return 1;
+}
 

@@ -62,6 +62,12 @@ The server supports the following commands:
   Pause the packet sources
 !{ID} RESUME
   Resume capturing from the packet sources
+!{ID} LISTWEPKEYS
+  Lists WEP decryption keys if the server allows this.
+!{ID} ADDWEPKEY {bssid},{hex key}
+  Add a WEP decryption key for the given BSSID.
+!{ID} DELWEPKEY {bssid}
+  Remove the WEP key for a give BSSID.
 
 
 An example session:
