@@ -762,6 +762,13 @@ int main(int argc,char *argv[]) {
     string filter;
     vector<mac_addr> filter_vec;
 
+    map<mac_addr, unsigned char *> bssid_wep_map;
+    unsigned char wep_identity[256];
+
+    // Initialize the identity field
+    for (unsigned int wi = 0; wi < 256; wi++)
+        wep_identity[wi] = wi;
+
     int datainterval = 0;
 
     int beacon_log = 1;
@@ -2188,7 +2195,8 @@ int main(int argc,char *argv[]) {
 
                     static packet_info info;
 
-                    GetPacketInfo(&header, data, &packet_sources[src]->packparm, &info);
+                    GetPacketInfo(&header, data, &packet_sources[src]->packparm, &info,
+                                  &bssid_wep_map, wep_identity);
 
                     last_info = info;
 
