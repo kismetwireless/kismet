@@ -2,7 +2,7 @@
 
 VERSION_MAJOR	= 2004
 VERSION_MINOR	= 04
-VERSION_TINY	= R1
+VERSION_TINY	= devel
 
 INSTGRP ?= "@instgrp@"
 MANGRP ?= "@mangrp@"
