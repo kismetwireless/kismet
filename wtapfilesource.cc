@@ -38,7 +38,8 @@ int WtapFileSource::OpenSource() {
 
     // We need to update this someday to handle wtapfiles with other encodings,
     // like we do with pcapfiles
-    if (wtap_file_encap(packfile) != WTAP_ENCAP_IEEE_802_11) {
+    if (wtap_file_encap(packfile) != WTAP_ENCAP_IEEE_802_11 &&
+        wtap_file_encap(packfile) != WTAP_ENCAP_IEEE_802_11_WITH_RADIO) {
         snprintf(errstr, 1024, "Wtap file '%s' not an 802.11 encapsulation.", 
                  interface.c_str());
         return -1;
