@@ -1713,7 +1713,7 @@ int PanelFront::GpsPrinter(void *in_window) {
 int PanelFront::PackPrinter(void *in_window) {
     kis_window *kwin = (kis_window *) in_window;
 
-    if (client->GetMaxPackInfos() != (kwin->max_display / 4) * (kwin->print_width - 1))
+    if (client->GetMaxPackInfos() != ((kwin->max_display / 4) * (kwin->print_width - 2)) / 3)
         client->SetMaxPackInfos((kwin->max_display / 4) * (kwin->print_width - 1));
 
     if (kwin->paused != 0) {
@@ -1733,7 +1733,9 @@ int PanelFront::PackPrinter(void *in_window) {
     char dsubtype[1024], srcport[12], dstport[12];
     struct servent *srcserv, *dstserv;
 
-    for (unsigned int x = 0; x < packinfo.size(); x++) {
+    // For as many packets as we can fit in 1/4...
+    for (unsigned int x = max(0, (int) packinfo.size() - (((kwin->max_display / 4) * (kwin->print_width - 2)) / 3));
+         x < packinfo.size(); x++) {
         switch(packinfo[x].type) {
         case packet_noise:
             data += "N ";
@@ -1851,7 +1853,7 @@ int PanelFront::PackPrinter(void *in_window) {
 
         data += " ";
 
-        if ((x + 1) % (kwin->print_width - 1) == 0) {
+        if ((int) data.length() >= kwin->print_width - 2) {
             kwin->text.push_back(data);
             data.erase();
             singles++;
@@ -1866,7 +1868,7 @@ int PanelFront::PackPrinter(void *in_window) {
 
     unsigned int start = 0;
     if ((unsigned int) (kwin->max_display + (kwin->max_display / 4)) < packinfo.size())
-        start = packinfo.size() - kwin->max_display + (kwin->max_display / 4);
+        start = packinfo.size() - kwin->max_display + (kwin->max_display / 4) + 1;
 
     for (unsigned int x = start; x < packinfo.size(); x++) {
         switch(packinfo[x].type) {
