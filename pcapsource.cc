@@ -148,7 +148,7 @@ int PcapSource::Pcap2Common(kis_packet *packet) {
 
             header_found = 1;
 
-            packet->caplen = min(callback_header.caplen - (uint32_t) ntohl(v1hdr->length),
+            packet->caplen = kismin(callback_header.caplen - (uint32_t) ntohl(v1hdr->length),
                                  (uint32_t) MAX_PACKET_LEN);
             packet->len = packet->caplen;
 
@@ -198,7 +198,7 @@ int PcapSource::Pcap2Common(kis_packet *packet) {
 
             // Subtract the packet FCS since kismet doesn't do anything terribly bright
             // with it right now
-            packet->caplen = min(p2head->frmlen.data - 4, (uint32_t) MAX_PACKET_LEN);
+            packet->caplen = kismin(p2head->frmlen.data - 4, (uint32_t) MAX_PACKET_LEN);
             packet->len = packet->caplen;
 
             // Set our offset for extracting the actual data
@@ -234,7 +234,7 @@ int PcapSource::Pcap2Common(kis_packet *packet) {
             return 0;
         }
 
-        packet->caplen = min(callback_header.caplen - sizeof(bsd_80211_header), (uint32_t) MAX_PACKET_LEN);
+        packet->caplen = kismin(callback_header.caplen - sizeof(bsd_80211_header), (uint32_t) MAX_PACKET_LEN);
         packet->len = packet->caplen;
 
         bsd_80211_header *bsdhead = (bsd_80211_header *) callback_data;
@@ -246,7 +246,7 @@ int PcapSource::Pcap2Common(kis_packet *packet) {
         callback_offset = sizeof(bsd_80211_header);
 
     } else {
-        packet->caplen = min(callback_header.caplen, (uint32_t) MAX_PACKET_LEN);
+        packet->caplen = kismin(callback_header.caplen, (uint32_t) MAX_PACKET_LEN);
         packet->len = packet->caplen;
 
         // Fill in the connection info from the wireless extentions, if we can
