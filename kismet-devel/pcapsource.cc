@@ -1022,9 +1022,8 @@ int monitor_cisco(const char *in_dev, int initch, char *in_err, void **in_if) {
     if (Ifconfig_Delta_Flags(in_dev, in_err, IFF_UP | IFF_RUNNING | IFF_PROMISC) < 0)
         return -1;
 
-    // Zero the ssid
-    if (Iwconfig_Set_SSID(in_dev, in_err, NULL) < 0)
-        return -1;
+    // Zero the ssid - nonfatal
+    Iwconfig_Set_SSID(in_dev, in_err, NULL);
     
     // Build the proc control path
     snprintf(cisco_path, 128, "/proc/driver/aironet/%s/Config", in_dev);
@@ -1068,11 +1067,9 @@ int monitor_cisco_wifix(const char *in_dev, int initch, char *in_err, void **in_
                              IFF_UP | IFF_RUNNING | IFF_PROMISC) < 0)
         return -1;
 
-    // Zero the ssid
-    if (Iwconfig_Set_SSID(devbits[0].c_str(), in_err, NULL) < 0)
-        return -1;
-    if (Iwconfig_Set_SSID(devbits[1].c_str(), in_err, NULL) < 0)
-        return -1;
+    // Zero the ssid, nonfatally
+    Iwconfig_Set_SSID(devbits[0].c_str(), in_err, NULL);
+    Iwconfig_Set_SSID(devbits[1].c_str(), in_err, NULL);
     
     // Build the proc control path
     snprintf(cisco_path, 128, "/proc/driver/aironet/%s/Config", devbits[0].c_str());
@@ -1185,9 +1182,9 @@ int monitor_orinoco(const char *in_dev, int initch, char *in_err, void **in_if) 
     if (Ifconfig_Delta_Flags(in_dev, in_err, IFF_UP | IFF_RUNNING | IFF_PROMISC) < 0)
         return -1;
 
-    // Zero the ssid
-    if (Iwconfig_Set_SSID(in_dev, in_err, NULL) < 0) 
-        return -1;
+    // Zero the ssid - nonfatal if we don't succeed, since a lot of things seem to have
+    // issues doing it.
+    Iwconfig_Set_SSID(in_dev, in_err, NULL);
 
     // Socket lowpower cards seem to need a little time for the firmware to settle
     // down between these calls, so we'll just sleep for everyone.  It won't hurt
@@ -1421,9 +1418,8 @@ int monitor_wext(const char *in_dev, int initch, char *in_err, void **in_if) {
     if (Ifconfig_Delta_Flags(in_dev, in_err, IFF_UP | IFF_RUNNING | IFF_PROMISC) < 0)
         return -1;
 
-    // Zero the ssid
-    if (Iwconfig_Set_SSID(in_dev, in_err, NULL) < 0) 
-        return -1;
+    // Zero the ssid - nonfatal
+    Iwconfig_Set_SSID(in_dev, in_err, NULL);
 
     // Kick it into rfmon mode
     if ((skfd = socket(AF_INET, SOCK_DGRAM, 0)) < 0) {
