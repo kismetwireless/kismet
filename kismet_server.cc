@@ -1426,6 +1426,8 @@ int ProcessBulkConf(ConfigFile *conf) {
 
             if (conf->FetchOpt("sound_new") != "")
                 wav_map["new"] = conf->FetchOpt("sound_new");
+            if (conf->FetchOpt("sound_new_wep") != "")
+                wav_map["new_wep"] = conf->FetchOpt("sound_new_wep");
             if (conf->FetchOpt("sound_traffic") != "")
                 wav_map["traffic"] = conf->FetchOpt("sound_traffic");
             if (conf->FetchOpt("sound_junktraffic") != "")
@@ -2787,8 +2789,10 @@ int main(int argc,char *argv[]) {
 
                     if (tracker.FetchNumNetworks() > num_networks) {
                         if (sound == 1)
-                            sound = PlaySound("new");
-
+                            if (info.wep && wav_map.find("new_wep") != wav_map.end())
+                                sound = PlaySound("new_wep");
+                            else
+                                sound = PlaySound("new");
                         if (speech == 1) {
                             string text;
 

@@ -1,3 +1,5 @@
+Jan 09 2003  3.1.0  Merged patch from Bjarke Pederson for different sounds for
+                     new wepped networks
 Jan 07 2003  3.1.0  Fixed more wep keysize bugs
 Jan 04 2003  3.1.0  Changed probe network autogrouping to not group when there
                      is only 1 probe network

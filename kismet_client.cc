@@ -521,6 +521,8 @@ int main(int argc, char *argv[]) {
 
             if (gui_conf->FetchOpt("sound_new") != "")
                 wav_map["new"] = gui_conf->FetchOpt("sound_new");
+            if (gui_conf->FetchOpt("sound_new_wep") != "")
+                wav_map["new_wep"] = gui_conf->FetchOpt("sound_new_wep");
             if (gui_conf->FetchOpt("sound_traffic") != "")
                 wav_map["traffic"] = gui_conf->FetchOpt("sound_traffic");
             if (gui_conf->FetchOpt("sound_junktraffic") != "")
@@ -892,7 +894,11 @@ int main(int argc, char *argv[]) {
                             wireless_network *newnet = tcpcli->FetchLastNewNetwork();
 
                             if (sound == 1 && newnet != lastspoken) {
-                                sound = PlaySound("new");
+                                if (newnet->wep && 
+                                    wav_map.find("new_wep") != wav_map.end())
+                                    sound = PlaySound("new_wep");
+                                else
+                                    sound = PlaySound("new");
                             }
 
                             if (speech == 1 && newnet != lastspoken) {
