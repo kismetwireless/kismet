@@ -18,6 +18,11 @@
 
 #include "util.h"
 
+// We need this to make uclibc happy since they don't even have rintf...
+#ifndef rintf
+#define rintf(x) (float) rint((double) (x))
+#endif
+
 // Munge input to shell-safe
 void MungeToShell(char *in_data, int max) {
     int i, j;
