@@ -93,6 +93,10 @@ protected:
     char type[64];
 
     card_type cardtype;
+
+    char carddev[64];
+
+    unsigned int channel;
 };
 
 #endif
