@@ -38,6 +38,14 @@
 #include <math.h>
 
 #ifdef HAVE_LINUX_WIRELESS
+
+// Because some kernels include ethtool which breaks horribly...
+// The stock ones don't but others seem to
+typedef unsigned char u8;
+typedef unsigned short u16;
+typedef unsigned int u32;
+typedef unsigned long u64;
+
 #include <sys/ioctl.h>
 #include <sys/socket.h>
 #include <linux/wireless.h>

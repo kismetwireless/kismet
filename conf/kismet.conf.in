@@ -4,7 +4,7 @@
 # not continually reading --help!
 
 # Version of Kismet config
-version=2004.03.devel.a
+version=2004.04.devel
 
 # Name of server (Purely for organiational purposes)
 servername=Kismet
@@ -18,10 +18,6 @@ suiduser=your_user_here
 # The initial channel is optional, if hopping is not enabled it can be used
 # to set the channel the interface listens on.
 source=cisco,eth0,ciscosource
-# Other common source configs:
-# source=prism2,wlan0,prism2source
-# source=prism2_avs,wlan0,newprism2source
-# source=orinoco,eth0,orinocosource
 # An example source line with an initial channel:
 # source=orinoco,eth0,silver,11
 
