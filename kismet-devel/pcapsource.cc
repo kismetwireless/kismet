@@ -490,11 +490,13 @@ int PcapSourceOpenBSDPrism::FetchChannel() {
     ifr.ifr_data = (caddr_t)&wreq;                                          
 
 	if (ioctl(skfd, SIOCGWAVELAN, &ifr) < 0) {
+        close(skfd);
 		snprintf(errstr, 1024, "Channel set ioctl failed: %s",
                  strerror(errno));
 		return -1;
 	}
 
+    close(skfd);
     return wreq.wi_val[0];                                                  
 }
 #endif
@@ -952,6 +954,7 @@ int monitor_openbsd_prism2(const char *in_dev, int initch, char *in_err) {
 	ifr.ifr_data = (caddr_t)&wreq;
 
 	if (ioctl(s, SIOCSPRISM2DEBUG, &ifr) < 0) {
+        close(s);
 		snprintf(in_err, 1024, "Channel set ioctl failed: %s",
                  strerror(errno));
 		return -1;
@@ -964,6 +967,7 @@ int monitor_openbsd_prism2(const char *in_dev, int initch, char *in_err) {
 	wreq.wi_val[0] = 0;
 
 	if (ioctl(s, SIOCSWAVELAN, &ifr) < 0) {
+        close(s);
 		snprintf(in_err, 1024, "Power management ioctl failed: %s",
                  strerror(errno));
 		return -1;
@@ -976,6 +980,7 @@ int monitor_openbsd_prism2(const char *in_dev, int initch, char *in_err) {
 	wreq.wi_val[0] = 1;
 
 	if (ioctl(s, SIOCSWAVELAN, &ifr) < 0) {
+        close(s);
 		snprintf(in_err, 1024, "AP Density ioctl failed: %s",
                  strerror(errno));
 		return -1;
@@ -988,6 +993,7 @@ int monitor_openbsd_prism2(const char *in_dev, int initch, char *in_err) {
 	wreq.wi_val[0] = 1;
 
 	if (ioctl(s, SIOCSWAVELAN, &ifr) < 0) {
+        close(s);
 		snprintf(in_err, 1024, "Driver processing ioctl failed: %s",
                  strerror(errno));
 		return -1;
@@ -1000,6 +1006,7 @@ int monitor_openbsd_prism2(const char *in_dev, int initch, char *in_err) {
 	wreq.wi_val[0] = 3;
 
 	if (ioctl(s, SIOCSWAVELAN, &ifr) < 0) {
+        close(s);
 		snprintf(in_err, 1024, "Roaming disable ioctl failed: %s",
                  strerror(errno));
 		return -1;
@@ -1012,12 +1019,13 @@ int monitor_openbsd_prism2(const char *in_dev, int initch, char *in_err) {
 	wreq.wi_val[0] = 1;
 
 	if (ioctl(s, SIOCSPRISM2DEBUG, &ifr) < 0) {
+        close(s);
 		snprintf(in_err, 1024, "Monitor mode ioctl failed: %s",
                  strerror(errno));
 		return -1;
 	}
 
-        close(s);
+    close(s);
 
     return 0;
 }
@@ -1140,6 +1148,7 @@ int chancontrol_openbsd_prism2(const char *in_dev, int in_ch, char *in_err,
 	}
 
 	if (ioctl(s, SIOCSPRISM2DEBUG, &ifr) < 0) {
+        close(s);
 		snprintf(in_err, 1024, "Channel set ioctl failed: %s", strerror(errno));
 		return -1;
 	}
