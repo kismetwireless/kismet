@@ -64,6 +64,19 @@ extern "C" {
 
 #define BEACON_INFO_LEN 128
 
+// Cribbed from ethereal
+#define kptoh16(p) (uint16_t) ((uint16_t) * ((uint8_t *)(p) + 1) << 8 | \
+                               (uint16_t) * ((uint8_t *)(p) + 0) << 0)
+
+#define kptoh24(p) (uint16_t) ((uint16_t) * ((uint8_t *)(p) + 2) << 16 | \
+                               (uint16_t) * ((uint8_t *)(p) + 1) << 8 | \
+                               (uint16_t) * ((uint8_t *)(p) + 0) << 0)
+
+#define kptoh32(p) (uint16_t) ((uint16_t) * ((uint8_t *)(p) + 3) << 24 | \
+                               (uint16_t) * ((uint8_t *)(p) + 2) << 16 | \
+                               (uint16_t) * ((uint8_t *)(p) + 1) << 8 | \
+                               (uint16_t) * ((uint8_t *)(p) + 0) << 0)
+
 // Parmeters to the packet info
 typedef struct packet_parm {
     int fuzzy_crypt;
@@ -95,6 +108,11 @@ typedef struct {
     unsigned short order : 1;
 } frame_control;
 
+typedef struct {
+    unsigned short frag : 4;
+    unsigned short sequence : 12;
+} wireless_fragseq;
+
 // A standard frame
 typedef struct {
     // 2 byte frame control
@@ -109,8 +127,7 @@ typedef struct {
     uint8_t addr2[6];
 
     // 2 bytes of sequence and fragment counts
-    unsigned short frag : 4;
-    unsigned short sequence : 12;
+    wireless_fragseq sequence;
 
     // And an optional 6 bytes of address range for ds=0x3 packets
     uint8_t addr3[6];
@@ -390,6 +407,8 @@ typedef struct {
 
     int sequence_number;
     int frag_number;
+
+    int duration;
 
 } packet_info;
 

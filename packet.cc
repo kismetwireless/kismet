@@ -93,8 +93,6 @@ int GetTagOffset(int init_offset, int tagnum, const pkthdr *header, const u_char
     return cur_offset;
 }
 
-// static int numpack = 0;
-
 // Get the info from a packet
 void GetPacketInfo(const pkthdr *header, const u_char *data,
                    packet_parm *parm, packet_info *ret_packinfo) {
@@ -124,7 +122,7 @@ void GetPacketInfo(const pkthdr *header, const u_char *data,
     ret_packinfo->distrib = no_distribution;
 
     // Raw test to see if it's just noise
-    if (msgbuf[0] == 0xff && msgbuf[1] == 0xff && msgbuf[2] == 0xff) {
+    if (msgbuf[0] == 0xff && msgbuf[1] == 0xff && msgbuf[2] == 0xff && msgbuf[3] == 0xff) {
         ret_packinfo->type = packet_noise;
         return;
     }
@@ -136,12 +134,11 @@ void GetPacketInfo(const pkthdr *header, const u_char *data,
         return;
     }
 
-    // Point the packet frame at the beginning of the data
     wireless_frame *frame = (wireless_frame *) data;
 
     // Fill in packet sequence and frag info
-    ret_packinfo->sequence_number = frame->sequence;
-    ret_packinfo->frag_number = frame->frag;
+    ret_packinfo->sequence_number = frame->sequence.sequence;
+    ret_packinfo->frag_number = frame->sequence.frag;
 
     int tag_offset = 0;
 
