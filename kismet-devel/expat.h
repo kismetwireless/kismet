@@ -21,6 +21,8 @@
 
 #include "config.h"
 
+#ifdef HAVE_EXPAT
+
 #include <stdio.h>
 #include <vector>
 #include <string>
@@ -48,5 +50,7 @@ vector<gps_point *> XMLFetchGpsList(FILE *in_file);
 double XMLFetchGpsVersion();
 string XMLFetchGpsNetfile();
 time_t XMLFetchGpsStart();
+#endif
 
 #endif
+
