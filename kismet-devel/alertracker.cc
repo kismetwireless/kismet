@@ -135,7 +135,7 @@ int Alertracker::PotentialAlert(int in_ref) {
 
 int Alertracker::RaiseAlert(int in_ref, 
                             mac_addr bssid, mac_addr source, mac_addr dest, mac_addr other,
-                            string in_text) {
+                            int in_channel, string in_text) {
     map<int, alert_rec *>::iterator aritr = alert_ref_map.find(in_ref);
 
     if (aritr == alert_ref_map.end())
@@ -157,6 +157,9 @@ int Alertracker::RaiseAlert(int in_ref,
 
     snprintf(tmpstr, 128, "%ld", (long int) ts->tv_usec);
     adata->usec = tmpstr;
+
+    snprintf(tmpstr, 128, "%d", in_channel);
+    adata->channel = tmpstr;
 
     adata->text = in_text;
     adata->header = arec->header;

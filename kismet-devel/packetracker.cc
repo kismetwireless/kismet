@@ -505,7 +505,8 @@ void Packetracker::ProcessPacket(packet_info info) {
         if (alertracker->PotentialAlert(arefs[AIRJACKSSID_AREF])) {
             snprintf(status, STATUS_MAX, "Beacon for SSID 'AirJack' from %s",
                      info.source_mac.Mac2String().c_str());
-            alertracker->RaiseAlert(arefs[AIRJACKSSID_AREF], info.source_mac, info.source_mac, 0, 0, status);
+            alertracker->RaiseAlert(arefs[AIRJACKSSID_AREF], info.source_mac, 
+                                    info.source_mac, 0, 0, info.channel, status);
         }
     }
 
@@ -518,7 +519,8 @@ void Packetracker::ProcessPacket(packet_info info) {
             snprintf(status, STATUS_MAX, "Broadcast %s on %s",
                      info.subtype == packet_sub_disassociation ? "disassociation" : "deauthentication",
                      net->bssid.Mac2String().c_str());
-            alertracker->RaiseAlert(arefs[BCASTDISCON_AREF], net->bssid, 0, 0, 0, status);
+            alertracker->RaiseAlert(arefs[BCASTDISCON_AREF], net->bssid, 
+                                    0, 0, 0, info.channel, status);
         }
 
     }
@@ -558,7 +560,8 @@ void Packetracker::ProcessPacket(packet_info info) {
                 if (alertracker->PotentialAlert(arefs[DEAUTHFLOOD_AREF]) > 0) {
                     snprintf(status, STATUS_MAX, "Deauthenticate/Disassociate flood on %s",
                              net->bssid.Mac2String().c_str());
-                    alertracker->RaiseAlert(arefs[DEAUTHFLOOD_AREF], net->bssid, 0, 0, 0, status);
+                    alertracker->RaiseAlert(arefs[DEAUTHFLOOD_AREF], net->bssid, 
+                                            0, 0, 0, info.channel, status);
                 }
             }
         }
@@ -574,7 +577,8 @@ void Packetracker::ProcessPacket(packet_info info) {
                     snprintf(status, STATUS_MAX, "Beacon on %s (%s) for channel %d, network previously detected on channel %d",
                              net->bssid.Mac2String().c_str(), net->ssid.c_str(),
                              info.channel, net->channel);
-                    alertracker->RaiseAlert(arefs[CHANCHANGE_AREF], net->bssid, 0, 0, 0, status);
+                    alertracker->RaiseAlert(arefs[CHANCHANGE_AREF], net->bssid, 
+                                            0, 0, 0, info.channel, status);
                 }
             }
 
@@ -613,7 +617,7 @@ void Packetracker::ProcessPacket(packet_info info) {
                 snprintf(status, STATUS_MAX, "Probe response with 0-length SSID "
                          "detected from %s", info.source_mac.Mac2String().c_str());
                 alertracker->RaiseAlert(arefs[NULLPROBERESP_AREF], info.bssid_mac, info.source_mac, 
-                                        info.dest_mac, 0, status);
+                                        info.dest_mac, 0, info.channel, status);
             }
         }
 
@@ -977,7 +981,8 @@ void Packetracker::ProcessDataPacket(packet_info info, wireless_network *net) {
 
             snprintf(status, STATUS_MAX, "NetStumbler (%s) probe detected from %s",
                      nsversion, client->mac.Mac2String().c_str());
-            alertracker->RaiseAlert(arefs[NETSTUMBLER_AREF], 0, client->mac, 0, 0, status);
+            alertracker->RaiseAlert(arefs[NETSTUMBLER_AREF], 0, client->mac, 
+                                    0, 0, info.channel, status);
         }
 
     } else if (info.proto.type == proto_lucenttest) {
@@ -986,7 +991,8 @@ void Packetracker::ProcessDataPacket(packet_info info, wireless_network *net) {
         if (alertracker->PotentialAlert(arefs[LUCENTTEST_AREF]) > 0) {
             snprintf(status, STATUS_MAX, "Lucent link test detected from %s",
                      client->mac.Mac2String().c_str());
-            alertracker->RaiseAlert(arefs[LUCENTTEST_AREF], 0, client->mac, 0, 0, status);
+            alertracker->RaiseAlert(arefs[LUCENTTEST_AREF], 0, client->mac, 
+                                    0, 0, info.channel, status);
         }
 
 
@@ -996,7 +1002,8 @@ void Packetracker::ProcessDataPacket(packet_info info, wireless_network *net) {
         if (alertracker->PotentialAlert(arefs[WELLENREITER_AREF]) > 0) {
             snprintf(status, STATUS_MAX, "Wellenreiter probe detected from %s",
                      client->mac.Mac2String().c_str());
-            alertracker->RaiseAlert(arefs[WELLENREITER_AREF], 0, client->mac, 0, 0, status);
+            alertracker->RaiseAlert(arefs[WELLENREITER_AREF], 0, client->mac, 
+                                    0, 0, info.channel, status);
         }
 
     }

@@ -232,7 +232,8 @@ void WriteDatafiles(int in_shutdown) {
         if (tracker.FetchNumNetworks() != 0) {
             if (tracker.WriteNetworks(netlogfile) == -1) {
                 snprintf(alert, 2048, "WARNING: %s", tracker.FetchError());
-                alertracker.RaiseAlert(kissrv_aref, 0, 0, 0, 0, alert);
+                alertracker.RaiseAlert(kissrv_aref, mac_addr(0), mac_addr(0), 
+                                       mac_addr(0), mac_addr(0), 0, alert);
                 //NetWriteAlert(alert);
                 if (!silent)
                     fprintf(stderr, "%s\n", alert);
@@ -247,7 +248,7 @@ void WriteDatafiles(int in_shutdown) {
         if (tracker.FetchNumNetworks() != 0) {
             if (tracker.WriteCSVNetworks(csvlogfile) == -1) {
                 snprintf(alert, 2048, "WARNING: %s", tracker.FetchError());
-                alertracker.RaiseAlert(kissrv_aref, 0, 0, 0, 0, alert);
+                alertracker.RaiseAlert(kissrv_aref, 0, 0, 0, 0, 0, alert);
                 //NetWriteAlert(alert);
                 if (!silent)
                     fprintf(stderr, "%s\n", alert);
@@ -262,7 +263,8 @@ void WriteDatafiles(int in_shutdown) {
         if (tracker.FetchNumNetworks() != 0) {
             if (tracker.WriteXMLNetworks(xmllogfile) == -1) {
                 snprintf(alert, 2048, "WARNING: %s", tracker.FetchError());
-                alertracker.RaiseAlert(kissrv_aref, 0, 0, 0, 0, alert);
+                alertracker.RaiseAlert(kissrv_aref, mac_addr(0), mac_addr(0),
+                                       mac_addr(0), mac_addr(0), 0, alert);
                 //NetWriteAlert(alert);
                 if (!silent)
                     fprintf(stderr, "%s\n", alert);
@@ -277,7 +279,8 @@ void WriteDatafiles(int in_shutdown) {
         if (tracker.FetchNumCisco() != 0) {
             if (tracker.WriteCisco(ciscologfile) == -1) {
                 snprintf(alert, 2048, "WARNING: %s", tracker.FetchError());
-                alertracker.RaiseAlert(kissrv_aref, 0, 0, 0, 0, alert);
+                alertracker.RaiseAlert(kissrv_aref, mac_addr(0), mac_addr(0),
+                                       mac_addr(0), mac_addr(0), 0, alert);
                 //NetWriteAlert(alert);
                 if (!silent)
                     fprintf(stderr, "%s\n", alert);

@@ -71,7 +71,7 @@ enum STATUS_fields {
 
 enum ALERT_fields {
     ALERT_sec, ALERT_usec, ALERT_header, ALERT_bssid, ALERT_source,
-    ALERT_dest, ALERT_other, ALERT_text
+    ALERT_dest, ALERT_other, ALERT_channel, ALERT_text
 };
 
 enum ERROR_fields {
@@ -189,7 +189,7 @@ typedef struct CLIENT_data {
 };
 
 typedef struct ALERT_data {
-    string header, sec, usec, bssid, source, dest, other, text;
+    string header, sec, usec, bssid, source, dest, other, channel, text;
 };
 
 typedef struct PACKET_data {
