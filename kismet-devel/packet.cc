@@ -474,6 +474,34 @@ void GetPacketInfo(kis_packet *packet, packet_info *ret_packinfo,
     } else if (fc->type == 2) {
         ret_packinfo->type = packet_data;
 
+        // Collect the subtypes - we probably want to do something better with thse
+        // in the future
+        if (fc->subtype == 0) {
+            ret_packinfo->subtype = packet_sub_data;
+
+        } else if (fc->subtype == 1) {
+            ret_packinfo->subtype = packet_sub_data_cf_ack;
+
+        } else if (fc->subtype == 2) {
+            ret_packinfo->subtype = packet_sub_data_cf_poll;
+
+        } else if (fc->subtype == 3) {
+            ret_packinfo->subtype = packet_sub_data_cf_ack_poll;
+
+        } else if (fc->subtype == 4) {
+            ret_packinfo->subtype = packet_sub_data_null;
+
+        } else if (fc->subtype == 5) {
+            ret_packinfo->subtype = packet_sub_cf_ack;
+
+        } else if (fc->subtype == 6) {
+            ret_packinfo->subtype = packet_sub_cf_ack_poll;
+        } else {
+            ret_packinfo->corrupt = 1;
+            ret_packinfo->subtype = packet_sub_unknown;
+            return;
+        }
+
         int datasize = packet->len - ret_packinfo->header_offset;
         if (datasize > 0)
             ret_packinfo->datasize = datasize;
@@ -581,32 +609,6 @@ void GetPacketInfo(kis_packet *packet, packet_info *ret_packinfo,
         if (ret_packinfo->encrypted == 0 || ret_packinfo->decoded == 1)
             GetProtoInfo(packet, ret_packinfo);
 
-        // Collect the subtypes - we probably want to do something better with thse
-        // in the future
-        if (fc->subtype == 0) {
-            ret_packinfo->subtype = packet_sub_data;
-
-        } else if (fc->subtype == 1) {
-            ret_packinfo->subtype = packet_sub_data_cf_ack;
-
-        } else if (fc->subtype == 2) {
-            ret_packinfo->subtype = packet_sub_data_cf_poll;
-
-        } else if (fc->subtype == 3) {
-            ret_packinfo->subtype = packet_sub_data_cf_ack_poll;
-
-        } else if (fc->subtype == 4) {
-            ret_packinfo->subtype = packet_sub_data_null;
-
-        } else if (fc->subtype == 5) {
-            ret_packinfo->subtype = packet_sub_cf_ack;
-
-        } else if (fc->subtype == 6) {
-            ret_packinfo->subtype = packet_sub_cf_ack_poll;
-
-        } else {
-            ret_packinfo->subtype = packet_sub_unknown;
-        }
     } else {
         // If we didn't figure out what it was yet, test it for cisco noise.  If the first
         // four bytes are 0xFF, bail
