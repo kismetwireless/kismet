@@ -211,13 +211,13 @@ void PanelFront::NetLine(string *in_str, wireless_network *net, const char *name
 
             len = 8;
         } else if (colindex == mcol_signal) {
-            snprintf(element, 4, "%3d", net->signal);
+            snprintf(element, 4, "%3d", (idle_time < (decay * 2)) ? net->signal : 0);
             len = 3;
         } else if (colindex == mcol_quality) {
-            snprintf(element, 4, "%3d", net->quality);
+            snprintf(element, 4, "%3d", (idle_time < (decay * 2)) ? net->quality : 0);
             len = 3;
         } else if (colindex == mcol_noise) {
-            snprintf(element, 4, "%3d", net->noise);
+            snprintf(element, 4, "%3d", (idle_time < (decay * 2)) ? net->noise : 0);
             len = 3;
         } else if (colindex == mcol_clients) {
             snprintf(element, 5, "%4d", net->client_map.size());
@@ -824,13 +824,24 @@ void PanelFront::ClientLine(string *in_str, wireless_client *wclient, int print_
     char element[1024];
     int len = 0;
 
+    time_t idle_time;
+    if (wclient->tcpclient != NULL) {
+        if (wclient->tcpclient->Valid())
+            idle_time = wclient->tcpclient->FetchTime() - wclient->last_time;
+        else
+            idle_time = decay + 1;
+    } else {
+        idle_time = decay + 1;
+    }
+
+
     for (unsigned int col = 0; col < client_column_vec.size(); col++) {
         client_columns colind = client_column_vec[col];
 
         if (colind == ccol_decay) {
-            if ((wclient->tcpclient->FetchTime() - wclient->last_time) < decay)
+            if (idle_time < decay)
                 snprintf(element, 1024, "!");
-            else if ((wclient->tcpclient->FetchTime() - wclient->last_time) < (decay * 2))
+            else if (idle_time < (decay * 2))
                 snprintf(element, 1024, ".");
             else
                 snprintf(element, 1024, " ");
@@ -881,13 +892,13 @@ void PanelFront::ClientLine(string *in_str, wireless_client *wclient, int print_
             }
             len = 15;
         } else if (colind == ccol_signal) {
-            snprintf(element, 4, "%3d", wclient->signal);
+            snprintf(element, 4, "%3d", (idle_time < (decay * 2)) ? wclient->signal : 0);
             len = 3;
         } else if (colind == ccol_quality) {
-            snprintf(element, 4, "%3d", wclient->quality);
+            snprintf(element, 4, "%3d", (idle_time < (decay * 2)) ? wclient->quality : 0);
             len = 3;
         } else if (colind == ccol_noise) {
-            snprintf(element, 4, "%3d", wclient->noise);
+            snprintf(element, 4, "%3d", (idle_time < (decay * 2)) ? wclient->noise : 0);
             len = 3;
         } else if (colind == ccol_datasize) {
             if (wclient->datasize < 1024) // Less than 1k gets raw bytes
