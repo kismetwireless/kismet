@@ -605,6 +605,11 @@ int monitor_orinoco(const char *in_dev, int initch, char *in_err) {
     if (Iwconfig_Blank_SSID(in_dev, in_err) < 0) 
         return -1;
 
+    // Socket lowpower cards seem to need a little time for the firmware to settle
+    // down between these calls, so we'll just sleep for everyone.  It won't hurt
+    // to add a few more ms onto an indefinitely blocking ioctl setup
+    usleep(5000);
+
     // Set the monitor mode iwpriv controls.  Explain more if we fail on monitor.
     if ((ret = Iwconfig_Set_IntPriv(in_dev, "monitor", 1, initch, in_err)) < 0) {
         if (ret == -2)
