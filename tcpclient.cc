@@ -561,7 +561,35 @@ int TcpClient::ParseData(char *in_data) {
         if (packinfos.size() > maxpackinfos)
             packinfos.erase(packinfos.begin());
 
+    } else if (!strncmp(header, "*CARD", 64)) {
+        card_info *cinfo;
+
+        char cinfo_interface[64];
+        char cinfo_type[64];
+        char cinfo_username[128];
+        int cinfo_channel;
+
+        if (sscanf(in_data+hdrlen, "%64s %64s \001%128s[^\001]\001 %d\n",
+                   cinfo_interface, cinfo_type, cinfo_username, &cinfo_channel) < 4)
+            return 0;
+
+        map<string, card_info *>::iterator ciitr = card_map.find(cinfo_username);
+        if (ciitr == card_map.end()) {
+            cinfo = new card_info;
+            cinfo->interface = cinfo_interface;
+            cinfo->type = cinfo_type;
+            cinfo->username = cinfo_username;
+            cinfo->channel = cinfo_channel;
+
+            card_map[cinfo_username] = cinfo;
+            card_map_vec.push_back(cinfo);
+        } else {
+            cinfo = ciitr->second;
+            cinfo->channel = cinfo_channel;
+        }
+
     } else {
+
 //        fprintf(stderr, "%ld we can't handle our header\n", this);
         return 0;
     }
@@ -578,6 +606,10 @@ int TcpClient::FetchLoc(float *in_lat, float *in_lon, float *in_alt, float *in_s
     *in_alt = alt; *in_spd = spd;
     *in_mode = mode;
     return mode;
+}
+
+vector<TcpClient::card_info *> TcpClient::FetchCardList() {
+    return card_map_vec;
 }
 
 vector<wireless_network *> TcpClient::FetchNetworkList() {
