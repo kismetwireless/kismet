@@ -1775,9 +1775,12 @@ int main(int argc,char *argv[]) {
     }
 
     char netout[2048];
+    time_t cur_time = time(0);
+    time_t last_time = cur_time;
     while (1) {
         fd_set rset, wset, eset;
-	int x;
+        int x;
+        cur_time = time(0);
 
         max_fd = ui_server.MergeSet(read_set, max_fd, &rset, &wset);
         FD_ZERO(&eset);
@@ -1928,7 +1931,7 @@ int main(int argc,char *argv[]) {
                 num_networks = tracker.FetchNumNetworks();
     
                 if (tracker.FetchNumPackets() != num_packets) {
-                    if (time(0) - last_click >= decay && sound == 1) {
+                    if (cur_time - last_click >= decay && sound == 1) {
                         if (tracker.FetchNumPackets() - num_packets >
                             tracker.FetchNumDropped() + localdropnum - num_dropped) {
                             sound = PlaySound("traffic");
@@ -1936,7 +1939,7 @@ int main(int argc,char *argv[]) {
                             sound = PlaySound("junktraffic");
                         }
     
-                        last_click = time(0);
+                        last_click = cur_time;
                     }
     
                     num_packets = tracker.FetchNumPackets();
@@ -2017,7 +2020,7 @@ int main(int argc,char *argv[]) {
 
         // Draw if it's time
     last_draw: ;
-        if (time(0) != last_draw) {
+        if (cur_time != last_draw) {
 #ifdef HAVE_GPS
             // The GPS only provides us a new update once per second we might
             // as well only update it here once a second
@@ -2061,24 +2064,30 @@ int main(int argc,char *argv[]) {
 
             NetWriteInfo();
 
-            last_draw = time(0);
+            last_draw = cur_time;
         }
 
         // Write the data files out every x seconds
         if (datainterval > 0) {
-            if (time(0) - last_write > datainterval) {
+            if (cur_time - last_write > datainterval) {
                 if (!silent)
                     fprintf(stderr, "Saving data files.\n");
                 NetWriteStatus("Saving data files.");
                 WriteDatafiles(0);
-                last_write = time(0);
+                last_write = cur_time;
             }
         }
 
         // Write the waypoints every decay seconds
-        if (time(0) - last_waypoint > decay && waypoint) {
+        if (cur_time - last_waypoint > decay && waypoint) {
             tracker.WriteGpsdriveWaypt(waypoint_file);
-            last_waypoint = time(0);
+            last_waypoint = cur_time;
+        }
+
+        // Once per second handle our update event ticks
+        if (last_time != cur_time) {
+            tracker.Tick();
+            last_time = cur_time;
         }
 
         // Sleep if we have a custom additional sleep time

@@ -164,6 +164,23 @@ bool Packetracker::IsBlank(const char *s) {
     return true;
 }
 
+// Periodic tick to handle events.  We expect this once a second.
+int Packetracker::Tick() {
+    for (unsigned int x = 0; x < network_list.size(); x++) {
+        wireless_network *net = network_list[x];
+
+        // Decay 10 disconnects per second
+        if (net->client_disconnects != 0) {
+            net->client_disconnects -= 10;
+            if (net->client_disconnects < 0)
+                net->client_disconnects = 0;
+        }
+
+    }
+
+    return 1;
+}
+
 int Packetracker::ProcessPacket(packet_info info, char *in_status) {
     wireless_network *net;
     int ret = 0;
@@ -381,21 +398,39 @@ int Packetracker::ProcessPacket(packet_info info, char *in_status) {
 
     }
 
-    // If it's a probe request shortcut to handling it like a client once we've
-    // established what network it belongs to
-    if (info.type == packet_probe_req) {
-        ret = ProcessDataPacket(info, net, in_status);
-        return ret;
-    }
-
-
-    if (info.type == packet_beacon && strlen(info.beacon_info) != 0 &&
-        IsBlank(net->beacon_info.c_str())) {
-        net->beacon_info = info.beacon_info;
-    }
-
     if (info.type != packet_data && info.type != packet_ap_broadcast &&
         info.type != packet_adhoc_data) {
+
+        net->llc_packets++;
+
+        // If it's a probe request shortcut to handling it like a client once we've
+        // established what network it belongs to
+        if (info.type == packet_probe_req) {
+            ret = ProcessDataPacket(info, net, in_status);
+            return ret;
+        }
+
+
+        if (info.type == packet_beacon && strlen(info.beacon_info) != 0 &&
+            IsBlank(net->beacon_info.c_str())) {
+            net->beacon_info = info.beacon_info;
+        }
+
+        if (info.type == packet_deauth) {
+            net->client_disconnects++;
+
+            if (net->client_disconnects > 10) {
+                if (deauthflood_map.find(net->bssid) == deauthflood_map.end()) {
+                    deauthflood_map[net->bssid] = net;
+
+                    snprintf(in_status, STATUS_MAX, "Deauth/Disassociate flood on %s",
+                             net->bssid.Mac2String().c_str());
+                    return TRACKER_ALERT;
+                }
+            }
+        }
+
+
         // Update the ssid record if we got a beacon for a data network
         if (info.type == packet_beacon) {
             // Update if they changed their SSID
@@ -487,8 +522,6 @@ int Packetracker::ProcessPacket(packet_info info, char *in_status) {
         if (net->type != network_ap && info.type == packet_adhoc) {
             net->type = network_adhoc;
         }
-
-        net->llc_packets++;
 
     } else {
 
