@@ -1,4 +1,10 @@
+Aug 03 2002  2.4.6  Released 2.4.6 with numerous bugfixes to the 2.4.5 code.
+
 Aug 03 2002  2.5.1  Fixed include order in expat.cc
+                    Added "simpleborder" pref option to use non-high-ascii
+                     border chars (mainly zaurus, but some other terminals
+                     might need this)
+                    Changed default waypoint file to way_kismet.txt
 Aug 02 2002  2.5.1  Fixed sound playing completely (I hope)
                     Squished segfault-on-quit due to improper deleting of 
                      objects

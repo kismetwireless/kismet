@@ -30,8 +30,8 @@
 #include "configfile.h"
 
 #define MAJOR 2
-#define MINOR 5
-#define TINY  1
+#define MINOR 4
+#define TINY  6
 
 #ifndef exec_name
 char *exec_name;
@@ -637,6 +637,8 @@ int main(int argc, char *argv[]) {
 
     if (gui_conf.FetchOpt("apm") == "true")
         prefs["apm"] = "true";
+
+    prefs["simpleborders"] = gui_conf.FetchOpt("simpleborders");
 
     prefs["color"] = gui_conf.FetchOpt("color");
     prefs["backgroundcolor"] = gui_conf.FetchOpt("backgroundcolor");
