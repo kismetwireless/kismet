@@ -744,11 +744,15 @@ void AssignNetColors() {
             if (map_iter->wnet != NULL) {
                 if (map_iter->wnet->type == network_adhoc || map_iter->wnet->type == network_probe)
                     MatchBestManuf(client_manuf_map, map_iter->wnet->bssid, map_iter->wnet->ssid,
-                                   map_iter->wnet->channel, &map_iter->wnet->manuf_key,
+                                   map_iter->wnet->channel, map_iter->wnet->wep,
+                                   map_iter->wnet->cloaked,
+                                   &map_iter->wnet->manuf_key,
                                    &map_iter->wnet->manuf_score);
                 else
                     MatchBestManuf(ap_manuf_map, map_iter->wnet->bssid, map_iter->wnet->ssid,
-                                   map_iter->wnet->channel, &map_iter->wnet->manuf_key,
+                                   map_iter->wnet->channel, map_iter->wnet->wep,
+                                   map_iter->wnet->cloaked,
+                                   &map_iter->wnet->manuf_key,
                                    &map_iter->wnet->manuf_score);
 
                 if (map_iter->wnet->manuf_score == manuf_max_score) {

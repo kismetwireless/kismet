@@ -323,11 +323,13 @@ int Packetracker::ProcessPacket(packet_info info, char *in_status) {
         // Find out what we can from what we know now...
         if (net->type != network_adhoc && net->type != network_probe) {
             MatchBestManuf(ap_manuf_map, net->bssid, net->ssid, net->channel,
+                           net->wep, net->cloaked,
                            &net->manuf_key, &net->manuf_score);
             if (net->manuf_score == manuf_max_score)
                 memcpy(&net->ipdata, &ap_manuf_map[net->manuf_key]->ipdata, sizeof(net_ip_data));
         } else {
             MatchBestManuf(client_manuf_map, net->bssid, net->ssid, net->channel,
+                           net->wep, net->cloaked,
                            &net->manuf_key, &net->manuf_score);
         }
 
@@ -453,6 +455,7 @@ int Packetracker::ProcessPacket(packet_info info, char *in_status) {
                 bssid_cloak_map[net->bssid] = info.ssid;
 
                 MatchBestManuf(ap_manuf_map, net->bssid, net->ssid, net->channel,
+                               net->wep, net->cloaked,
                                &net->manuf_key, &net->manuf_score);
                 // Update our IP range info too if we're a default
                 if (net->manuf_score == manuf_max_score && net->ipdata.atype == address_none)
@@ -473,6 +476,7 @@ int Packetracker::ProcessPacket(packet_info info, char *in_status) {
                 }
 
                 MatchBestManuf(ap_manuf_map, net->bssid, net->ssid, net->channel,
+                               net->wep, net->cloaked,
                                &net->manuf_key, &net->manuf_score);
                 // Update our IP range info too if we're a default
                 if (net->manuf_score == manuf_max_score && net->ipdata.atype == address_none)
@@ -486,6 +490,7 @@ int Packetracker::ProcessPacket(packet_info info, char *in_status) {
             // changed state as well
             if (net->channel != info.channel || net->type != network_ap) {
                 MatchBestManuf(ap_manuf_map, net->bssid, net->ssid, info.channel,
+                               net->wep, net->cloaked,
                                &net->manuf_key, &net->manuf_score);
                 // Update our IP range info too if we're a default
                 if (net->manuf_score == manuf_max_score && net->ipdata.atype == address_none)
@@ -512,6 +517,7 @@ int Packetracker::ProcessPacket(packet_info info, char *in_status) {
                 net->wep = info.wep;
 
                 MatchBestManuf(ap_manuf_map, net->bssid, net->ssid, net->channel,
+                               net->wep, net->cloaked,
                                &net->manuf_key, &net->manuf_score);
                 // Update our IP range info too if we're a default
                 if (net->manuf_score == manuf_max_score && net->ipdata.atype == address_none)
@@ -529,6 +535,7 @@ int Packetracker::ProcessPacket(packet_info info, char *in_status) {
                 net->wep = info.wep;
 
                 MatchBestManuf(ap_manuf_map, net->bssid, net->ssid, net->channel,
+                               net->wep, net->cloaked,
                                &net->manuf_key, &net->manuf_score);
                 // Update our IP range info too if we're a default
                 if (net->manuf_score == manuf_max_score && net->ipdata.atype == address_none)
@@ -600,7 +607,7 @@ int Packetracker::ProcessDataPacket(packet_info info, wireless_network *net, cha
 
         client->first_time = time(0);
         client->mac = info.source_mac;
-        MatchBestManuf(client_manuf_map, client->mac, "", 0,
+        MatchBestManuf(client_manuf_map, client->mac, "", 0, 0, 0,
                        &client->manuf_key, &client->manuf_score);
 
         client->metric = net->metric;

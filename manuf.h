@@ -50,6 +50,7 @@ map<mac_addr, manuf *> ReadManufMap(FILE *in_file, int ap_map);
 // Match the best manufacturer given a vector and pertinent info, returning the index to
 // the matching manufacturer and the score in the parameters.  NULL's are acceptable.
 void MatchBestManuf(map<mac_addr, manuf *> in_manuf, mac_addr in_mac, string in_ssid,
-                    int in_channel, mac_addr *manuf_mac, int *manuf_score);
+                    int in_channel, int in_wep, int in_cloaked,
+                    mac_addr *manuf_mac, int *manuf_score);
 
 #endif
