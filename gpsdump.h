@@ -67,6 +67,8 @@ typedef struct {
     int signal;
     int quality;
     int noise;
+
+    int id;
 } gps_point;
 
 class GPSDump {

@@ -47,6 +47,7 @@
 #include <algorithm>
 #include <string>
 #include <deque>
+#include <algorithm>
 #include <zlib.h>
 #include <magick/api.h>
 #include "configfile.h"
@@ -366,6 +367,26 @@ void DrawNetPower(Image *in_img, DrawInfo *in_di);
 void DrawNetHull(vector<gps_network *> in_nets, Image *in_img, DrawInfo *in_di);
 void DrawNetScatterPlot(vector<gps_network *> in_nets, Image *in_img, DrawInfo *in_di);
 
+// Algo sort by lon
+class PointSortLon {
+public:
+    inline bool operator() (const gps_point *x, const gps_point *y) const {
+        if (x->lon < y->lon)
+            return 1;
+        return 0;
+    }
+};
+
+// Algo sort by lon
+class PointSortLat {
+public:
+    inline bool operator() (const gps_point *x, const gps_point *y) const {
+        if (x->lat < y->lat)
+            return 1;
+        return 0;
+    }
+};
+
 string Mac2String(uint8_t *mac, char seperator) { /*FOLD00*/
     char tempstr[MAC_STR_LEN];
 
@@ -381,6 +402,105 @@ string Mac2String(uint8_t *mac, char seperator) { /*FOLD00*/
 
     string temp = tempstr;
     return temp;
+}
+
+void SanitizeSamplePoints(vector<gps_point *> in_samples, map<int,int> *dead_sample_ids) {
+    dead_sample_ids->clear();
+
+    // Two copies of our sample vector... yeah, this eats ram.  So does the whole app.
+    vector<gps_point *> lat_samples = in_samples;
+    vector<gps_point *> lon_samples = in_samples;
+
+    // Sort the networks
+    sort(lat_samples.begin(), lat_samples.end(), PointSortLat());
+    sort(lon_samples.begin(), lon_samples.end(), PointSortLon());
+
+    // Lets make the assumption that half our sample points can't be crap....
+    unsigned int slice_point = 0;
+    for (unsigned int pos = lat_samples.size() / 2; pos > 0; pos--) {
+        float lat_offset = lat_samples[pos + 1]->lat - lat_samples[pos]->lat;
+
+        // Slice if we have a major break, it can only get worse from here...
+        if (lat_offset > 2 || lat_offset < -2) {
+            printf("Major lat break at pos %d in sorted lats, %f,%f id %d\n",
+                   pos, lat_samples[pos]->lat, lat_samples[pos]->lon, lat_samples[pos]->id);
+            slice_point = pos;
+            break;
+        }
+    }
+
+    if (slice_point != 0) {
+        for (unsigned int pos = 0; pos <= slice_point; pos++) {
+            printf("Discarding point lat violation %f,%f %d...\n", lat_samples[pos]->lat, lat_samples[pos]->lon, lat_samples[pos]->id);
+            (*dead_sample_ids)[lat_samples[pos]->id] = 1;
+        }
+    }
+
+    // Now for the upper bounds of the lat...
+    slice_point = 0;
+    for (unsigned int pos = lat_samples.size() / 2; pos < lat_samples.size(); pos++) {
+        float lat_offset = lat_samples[pos - 1]->lat - lat_samples[pos]->lat;
+
+        // Slice if we have a major break, it can only get worse from here...
+        if (lat_offset > 2 || lat_offset < -2) {
+            printf("Major lat break at pos %d in sorted lats, %f,%f id %d\n",
+                   pos, lat_samples[pos]->lat, lat_samples[pos]->lon, lat_samples[pos]->id);
+            slice_point = pos;
+            break;
+        }
+    }
+
+    if (slice_point != 0) {
+        for (unsigned int pos = slice_point; pos < lat_samples.size(); pos++) {
+            printf("Discarding point lat violation %f,%f %d...\n", lat_samples[pos]->lat, lat_samples[pos]->lon, lat_samples[pos]->id);
+            (*dead_sample_ids)[lat_samples[pos]->id] = 1;
+        }
+    }
+
+
+    // Now for the lon...
+    slice_point = 0;
+    for (unsigned int pos = lon_samples.size() / 2; pos > 0; pos--) {
+        float lon_offset = lon_samples[pos + 1]->lon - lon_samples[pos]->lon;
+
+        // Slice if we have a major break, it can only get worse from here...
+        if (lon_offset > 2 || lon_offset < -2) {
+            printf("Major lon break at pos %d in sorted lons, %f,%f id %d\n",
+                   pos, lon_samples[pos]->lon, lon_samples[pos]->lon, lon_samples[pos]->id);
+            slice_point = pos;
+            break;
+        }
+    }
+
+    if (slice_point != 0) {
+        for (unsigned int pos = 0; pos <= slice_point; pos++) {
+            printf("Discarding point lon violation %f,%f %d...\n", lon_samples[pos]->lon, lon_samples[pos]->lon, lon_samples[pos]->id);
+            (*dead_sample_ids)[lon_samples[pos]->id] = 1;
+        }
+    }
+
+    // Now for the lon upper bound...
+    slice_point = 0;
+    for (unsigned int pos = lon_samples.size() / 2; pos < lon_samples.size(); pos++) {
+        float lon_offset = lon_samples[pos - 1]->lon - lon_samples[pos]->lon;
+
+        // Slice if we have a major break, it can only get worse from here...
+        if (lon_offset > 2 || lon_offset < -2) {
+            printf("Major lon break at pos %d in sorted lons, %f,%f id %d\n",
+                   pos, lon_samples[pos]->lon, lon_samples[pos]->lon, lon_samples[pos]->id);
+            slice_point = pos;
+            break;
+        }
+    }
+
+    if (slice_point != 0) {
+        for (unsigned int pos = slice_point; pos < lon_samples.size(); pos++) {
+            printf("Discarding point lon violation %f,%f %d...\n", lon_samples[pos]->lon, lon_samples[pos]->lon, lon_samples[pos]->id);
+            (*dead_sample_ids)[lon_samples[pos]->id] = 1;
+        }
+    }
+
+
 }
 
 void MergeNetData(vector<wireless_network *> in_netdata) {
@@ -464,6 +584,7 @@ int ProcessGPSFile(char *in_fname) {
     fprintf(stderr, "NOTICE:  Processing gps file '%s'\n", in_fname);
 
     vector<gps_point *> file_points;
+    map<int, int> file_screen;
 #ifdef HAVE_LIBZ
     file_points = XMLFetchGpsList(gpsfz);
 #else
@@ -648,7 +769,16 @@ int ProcessGPSFile(char *in_fname) {
     int last_power = 0;
     int power_count = 0;
 
+    // Sanitize the data and build the map of points we don't look at
+    SanitizeSamplePoints(file_points, &file_screen);
+
     for (unsigned int i = 0; i < file_points.size(); i++) {
+
+        if (file_screen.find(file_points[i]->id) != file_screen.end()) {
+            printf("Nuking invalid data point from consideration %d\n", file_points[i]->id);
+            continue;
+        }
+
         // All we have to do here is push the points into the network (and make them
         // one if it doesn't exist).  We crunch all the data points in ProcessNetData
         gps_network *gnet = NULL;
