@@ -156,12 +156,12 @@ public:
     int FetchNumNoise() { return num_noise; }
     int FetchNumDropped() { return num_dropped; }
 
-    int FetchDeltaNumNetworks() { int ret = num_networks - old_num_networks; old_num_networks = num_networks; return ret; }
-    int FetchDeltaNumPackets() { int ret = num_packets - old_num_packets; old_num_packets = num_packets; return ret; }
-    int FetchDeltaNumCrypt() { int ret = num_crypt - old_num_crypt; old_num_crypt = num_crypt; return ret; }
-    int FetchDeltaNumInteresting() { int ret = num_interesting - old_num_interesting; old_num_interesting = num_interesting; return ret; }
-    int FetchDeltaNumNoise() { int ret = num_noise - old_num_noise; old_num_noise = num_noise; return ret; }
-    int FetchDeltaNumDropped() { int ret = num_dropped - old_num_dropped; old_num_dropped = num_dropped; return ret; }
+    int FetchDeltaNumNetworks() { return num_networks - old_num_networks; }
+    int FetchDeltaNumPackets() { return num_packets - old_num_packets; }
+    int FetchDeltaNumCrypt() { return num_crypt - old_num_crypt; }
+    int FetchDeltaNumInteresting() { return num_interesting - old_num_interesting; }
+    int FetchDeltaNumNoise() { return num_noise - old_num_noise; }
+    int FetchDeltaNumDropped() { return num_dropped - old_num_dropped; }
 
     int FetchPacketRate() { return packet_rate; }
 

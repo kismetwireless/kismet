@@ -1,3 +1,5 @@
+Jun 13 2004  devel  Merged fix from Million to repair delta calculations and
+                     fix playing the correct sound for traffic
 Jun 10 2004  devel  Expanded alert protocol to carry source, dest, bssid, and
                      other mac address fields for better programatic handling
                      of alerts through external clients
