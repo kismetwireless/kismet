@@ -33,7 +33,8 @@ enum card_type {
     card_prism2_hostap,
     card_orinoco,
     card_orinoco_bsd,
-    card_generic
+    card_generic,
+    card_wsp100
 };
 
 // Packet capture source superclass

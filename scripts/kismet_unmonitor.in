@@ -150,6 +150,11 @@ case "$CARDTYPE" in
 		echo "Generic card specified, so we do nothing."
 		exit
 		;;
+	"wsp100")
+		echo "Disabling wsp100 device at $DEVICE"
+        # sensor::running
+        snmpset $DEVICE public .1.3.6.1.4.1.14422.1.1.4 i 0
+        ;;
 	*)
 		echo "Unknown card type '$CARDTYPE'.  Doing nothing."
 		exit	
