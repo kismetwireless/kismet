@@ -108,6 +108,47 @@ string StrStrip(string in_str) {
 
 }
 
+int XtoI(char x) {
+    if (isxdigit(x)) {
+        if (x <= '9')
+            return x - '0';
+        return toupper(x) - 'A' + 10;
+    }
+
+    return -1;
+}
+
+int Hex2UChar13(unsigned char *in_hex, unsigned char *in_chr) {
+    memset(in_chr, 0, sizeof(unsigned char) * WEPKEY_MAX);
+    int chrpos = 0;
+
+    for (unsigned int strpos = 0; strpos < WEPKEYSTR_MAX && chrpos < WEPKEY_MAX; strpos++) {
+        if (in_hex[strpos] == 0)
+            break;
+
+        if (in_hex[strpos] == ':')
+            strpos++;
+
+        // Assume we're going to eat the pair here
+        if (isxdigit(in_hex[strpos])) {
+            if (strpos > (WEPKEYSTR_MAX - 2))
+                return 0;
+
+            int d1, d2;
+            if ((d1 = XtoI(in_hex[strpos++])) == -1)
+                return 0;
+            if ((d2 = XtoI(in_hex[strpos])) == -1)
+                return 0;
+
+            in_chr[chrpos++] = (d1 * 16) + d2;
+        }
+
+    }
+
+    return(chrpos);
+}
+
+
 int ConfigFile::ParseConfig(const char *in_fname) {
     FILE *configf;
     char confline[8192];

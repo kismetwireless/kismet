@@ -539,6 +539,8 @@ typedef struct {
 } packet_info;
 
 typedef struct {
+    int fragile;
+    mac_addr bssid;
     unsigned char key[13];
     unsigned int len;
 } wep_key_info;

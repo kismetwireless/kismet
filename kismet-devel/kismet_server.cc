@@ -111,10 +111,11 @@ char *servername = NULL;
 
 fd_set read_set;
 
-// Number of clients with string printing on
-int numstringclients = 0;
-// Number of clients with packtype printing on
-int numpackclients = 0;
+// Do we allow sending wep keys to the client?
+int client_wepkey_allowed = 0;
+// Wep keys
+map<mac_addr, wep_key_info *> bssid_wep_map;
+
 
 // Pipe file descriptor pairs and fd's
 int soundpair[2];
@@ -132,7 +133,7 @@ vector<capturesource *> packet_sources;
 int kismet_ref = -1, network_ref = -1, client_ref = -1, gps_ref = -1, time_ref = -1, error_ref = -1,
     info_ref = -1, cisco_ref = -1, terminate_ref = -1, remove_ref = -1, capability_ref = -1,
     protocols_ref = -1, status_ref = -1, alert_ref = -1, packet_ref = -1, string_ref = -1,
-    ack_ref = -1;
+    ack_ref = -1, wepkey_ref;
 
 // A kismet data record for passing to the protocol
 KISMET_data kdata;
@@ -660,6 +661,7 @@ static void handle_command(TcpServer *tcps, client_command *cc) {
     char id[12];
     snprintf(id, 12, "%d ", cc->stamp);
     string out_error = string(id);
+    char status[1024];
 
     unsigned int space = cc->cmd.find(" ");
 
@@ -674,8 +676,11 @@ static void handle_command(TcpServer *tcps, client_command *cc) {
                 if (packet_sources[x]->source != NULL)
                     packet_sources[x]->source->Pause();
             }
+
+            snprintf(status, 1024, "Pausing packet sources per request of client %d", cc->client_fd);
+            NetWriteStatus(status);
             if (!silent)
-                printf("Pausing packet sources per request of client %d\n", cc->client_fd);
+                fprintf(stderr, "%s\n", status);
         }
     } else if (cmdword == "RESUME") {
         if (packet_sources.size() > 0) {
@@ -683,9 +688,105 @@ static void handle_command(TcpServer *tcps, client_command *cc) {
                 if (packet_sources[x]->source != NULL)
                     packet_sources[x]->source->Resume();
             }
+
+            snprintf(status, 1024, "Resuming packet sources per request of client %d", cc->client_fd);
+            NetWriteStatus(status);
             if (!silent)
-                printf("Resuming packet source per request of client %d\n", cc->client_fd);
+                fprintf(stderr, "%s\n", status);
         }
+    } else if (cmdword == "LISTWEPKEYS") {
+        if (client_wepkey_allowed == 0) {
+            out_error += "Server does not allow clients to retrieve WEP keys";
+            tcps->SendToClient(cc->client_fd, error_ref, (void *) &out_error);
+            return;
+        }
+
+        if (bssid_wep_map.size() == 0) {
+            out_error += "Server has no WEP keys";
+            tcps->SendToClient(cc->client_fd, error_ref, (void *) &out_error);
+            return;
+        }
+
+        for (map<mac_addr, wep_key_info *>::iterator wkitr = bssid_wep_map.begin();
+             wkitr != bssid_wep_map.end(); ++wkitr) {
+            tcps->SendToClient(cc->client_fd, wepkey_ref, (void *) wkitr->second);
+        }
+    } else if (cmdword == "ADDWEPKEY") {
+        // !0 ADDWEPKEY bssid,key
+        unsigned int begin = space + 1;
+        unsigned int com = cc->cmd.find(",", begin);
+
+        if (com == string::npos) {
+            out_error += "Invalid ADDWEPKEY";
+            tcps->SendToClient(cc->client_fd, error_ref, (void *) &out_error);
+            return;
+        }
+
+        cmdword = cc->cmd.substr(begin, com);
+
+        wep_key_info *winfo = new wep_key_info;
+        winfo->fragile = 1;
+        winfo->bssid = cmdword.c_str();
+
+        if (winfo->bssid.error) {
+            out_error += "Invalid ADDWEPKEY bssid";
+            tcps->SendToClient(cc->client_fd, error_ref, (void *) &out_error);
+            return;
+        }
+
+        begin = com + 1;
+        cmdword = cc->cmd.substr(begin, cc->cmd.length() - begin);
+
+        unsigned char key[WEPKEY_MAX];
+        int len = Hex2UChar13((unsigned char *) cmdword.c_str(), key);
+
+        if (len != 5 && len != 13) {
+            out_error += "Invalid ADDWEPKEY key";
+            tcps->SendToClient(cc->client_fd, error_ref, (void *) &out_error);
+            return;
+        }
+
+        winfo->len = len;
+        memcpy(winfo->key, key, sizeof(unsigned char) * WEPKEY_MAX);
+
+        // Replace exiting ones
+        if (bssid_wep_map.find(winfo->bssid) != bssid_wep_map.end())
+            delete bssid_wep_map[winfo->bssid];
+
+        bssid_wep_map[winfo->bssid] = winfo;
+
+        snprintf(status, 1024, "Added key %s length %d for BSSID %s",
+                 cmdword.c_str(), len, winfo->bssid.Mac2String().c_str());
+        NetWriteStatus(status);
+        if (!silent)
+            fprintf(stderr, "%s\n", status);
+
+    } else if (cmdword == "DELWEPKEY") {
+        // !0 DELWEPKEY bssid
+        cmdword = cc->cmd.substr(space + 1, cc->cmd.length() - (space + 1));
+
+        mac_addr bssid_mac = cmdword.c_str();
+
+        if (bssid_mac.error) {
+            out_error += "Invalid DELWEPKEY bssid";
+            tcps->SendToClient(cc->client_fd, error_ref, (void *) &out_error);
+            return;
+        }
+
+        if (bssid_wep_map.find(bssid_mac) == bssid_wep_map.end()) {
+            out_error += "Unknown DELWEPKEY bssid";
+            tcps->SendToClient(cc->client_fd, error_ref, (void *) &out_error);
+            return;
+        }
+
+        delete bssid_wep_map[bssid_mac];
+        bssid_wep_map.erase(bssid_mac);
+
+        snprintf(status, 1024, "Deleted key for BSSID %s", bssid_mac.Mac2String().c_str());
+        NetWriteStatus(status);
+        if (!silent)
+            fprintf(stderr, "%s\n", status);
+
     } else {
         out_error += "Unknown command '" + cmdword + "'";
         tcps->SendToClient(cc->client_fd, error_ref, (void *) &out_error);
@@ -695,46 +796,6 @@ static void handle_command(TcpServer *tcps, client_command *cc) {
     if (cc->stamp != 0)
         tcps->SendToClient(cc->client_fd, ack_ref, (void *) &cc->stamp);
 
-}
-
-int XtoI(char x) {
-    if (isxdigit(x)) {
-        if (x <= '9')
-            return x - '0';
-        return toupper(x) - 'A' + 10;
-    }
-
-    return -1;
-}
-
-int Hex2UChar13(unsigned char *in_hex, unsigned char *in_chr) {
-    memset(in_chr, 0, sizeof(unsigned char) * 13);
-    int chrpos = 0;
-
-    for (unsigned int strpos = 0; strpos < 38 && chrpos < 13; strpos++) {
-        if (in_hex[strpos] == 0)
-            break;
-
-        if (in_hex[strpos] == ':')
-            strpos++;
-
-        // Assume we're going to eat the pair here
-        if (isxdigit(in_hex[strpos])) {
-            if (strpos > 36)
-                return 0;
-
-            int d1, d2;
-            if ((d1 = XtoI(in_hex[strpos++])) == -1)
-                return 0;
-            if ((d2 = XtoI(in_hex[strpos])) == -1)
-                return 0;
-
-            in_chr[chrpos++] = (d1 * 16) + d2;
-        }
-
-    }
-
-    return(chrpos);
 }
 
 int Usage(char *argv) {
@@ -802,7 +863,6 @@ int main(int argc,char *argv[]) {
     string filter;
     vector<mac_addr> filter_vec;
 
-    map<mac_addr, wep_key_info *> bssid_wep_map;
     unsigned char wep_identity[256];
 
     // Initialize the identity field
@@ -1332,7 +1392,7 @@ int main(int argc,char *argv[]) {
 
         string rawkey = wepline.substr(rwsplit + 1, wepline.length() - (rwsplit + 1));
 
-        unsigned char key[13];
+        unsigned char key[WEPKEY_MAX];
         int len = Hex2UChar13((unsigned char *) rawkey.c_str(), key);
 
         if (len != 5 && len != 13) {
@@ -1342,13 +1402,19 @@ int main(int argc,char *argv[]) {
         }
 
         wep_key_info *keyinfo = new wep_key_info;
+        keyinfo->bssid = bssid_mac;
+        keyinfo->fragile = 0;
         keyinfo->len = len;
-        memcpy(keyinfo->key, key, sizeof(unsigned char) * 13);
+        memcpy(keyinfo->key, key, sizeof(unsigned char) * WEPKEY_MAX);
 
         bssid_wep_map[bssid_mac] = keyinfo;
 
         fprintf(stderr, "Using key %s length %d for BSSID %s\n",
                 rawkey.c_str(), len, bssid_mac.Mac2String().c_str());
+    }
+    if (conf->FetchOpt("allowkeytransmit") == "true") {
+        fprintf(stderr, "Allowing clients to fetch WEP keys.\n");
+        client_wepkey_allowed = 1;
     }
 
     if (servername == NULL) {
@@ -2151,6 +2217,8 @@ int main(int argc,char *argv[]) {
                                             &Protocol_PACKET, NULL);
     string_ref = ui_server.RegisterProtocol("STRING", 0, STRING_fields_text,
                                             &Protocol_STRING, NULL);
+    wepkey_ref = ui_server.RegisterProtocol("WEPKEY", 0, WEPKEY_fields_text,
+                                            &Protocol_WEPKEY, NULL);
 
     cisco_ref = -1;
 
