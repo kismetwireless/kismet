@@ -1,4 +1,6 @@
 Dec 27 2002  2.9.0  Added log-dropped packets to the 'discard' packet count.
+                    Fixed oddities with kismet_hopper and disabled multiple 
+                     sources
 Dec 24 2002  2.9.0  Started new Kismet development cycle
 
 Dec 24 2002  2.8.0  Released Kismet 2.8.0.  Updates include:

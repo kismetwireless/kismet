@@ -39,7 +39,7 @@
 char *exec_name;
 #endif
 
-typedef void (*hopfunction)(struct capturesource *,int chan);
+typedef void (*hopfunction)(struct capturesource *, int chan);
 
 typedef struct capturesource {
     char *name;
@@ -394,17 +394,21 @@ int main(int argc, char *argv[]) {
         newsource->interface = strdup(optlist[1].c_str());
         newsource->name = strdup(optlist[2].c_str());
         newsource->chanpos = 0;
+        newsource->func = NULL;
+        newsource->cmd_template = NULL;
         packet_sources.push_back(newsource);
         optlist.clear();
     }
+    source_input_vec.clear();
 
     for (unsigned int src = 0; src < packet_sources.size(); src++) {
         capturesource *csrc = packet_sources[src];
         char *type = csrc->cardtype;
 
         // If we didn't get sources on the command line or if we have a forced enable
-        // on the command line, check to see if we should enable this source.  If we just
-        // skip it it keeps a NULL capturesource pointer and gets ignored in the code.
+        // on the command line, check to see if we should enable this source.  If we
+        // continue we should keep a null func and cmd_template and skip this inthe
+        // future.
         if ((source_from_cmd == 0 || enable_from_cmd == 1) &&
             (enable_name_map.find(StrLower(csrc->name)) == enable_name_map.end() &&
              named_sources.length() != 0)) {
@@ -413,7 +417,7 @@ int main(int argc, char *argv[]) {
 
         enable_name_map[StrLower(csrc->name)] = 1;
 
-	packet_sources[src]->func = defaulthopper;
+	csrc->func = defaulthopper;
 
         if (!strcasecmp(type, "cisco") || !strcasecmp(type, "cisco_bsd") ||
             !strcasecmp(type, "cisco_cvs")) {
@@ -422,22 +426,22 @@ int main(int argc, char *argv[]) {
                 exit(1);
             }
             fprintf(stderr, "NOTICE:  Source %d:  Skipping, cisco cards hop internally.\n", src);
-            packet_sources[src]->cmd_template = NULL;
+            csrc->cmd_template = NULL;
         } else if (!strcasecmp(type, "prism2")) {
-            packet_sources[src]->cmd_template = prism2;
+            csrc->cmd_template = prism2;
             divisions++;
         } else if (!strcasecmp(type, "prism2_pcap")) {
-            packet_sources[src]->cmd_template = prism2_pcap;
+            csrc->cmd_template = prism2_pcap;
             divisions++;
         } else if (!strcasecmp(type, "prism2_bsd")) {
-            packet_sources[src]->cmd_template = prism2_bsd;
+            csrc->cmd_template = prism2_bsd;
             divisions++;
         } else if (!strcasecmp(type, "prism2_hostap")) {
-            packet_sources[src]->cmd_template = prism2_hostap;
+            csrc->cmd_template = prism2_hostap;
             divisions++;
         } else if (!strcasecmp(type, "orinoco")) {
-	    packet_sources[src]->func = orinocohopper;
-            packet_sources[src]->cmd_template = orinoco;
+	    csrc->func = orinocohopper;
+            csrc->cmd_template = orinoco;
             divisions++;
         } else if (!strcasecmp(type, "wsp100")) {
             // We just process this one immediately - it's annoying that it's a special
@@ -454,7 +458,7 @@ int main(int argc, char *argv[]) {
             char cmd[1024];
             char iface[64];
 
-            if (sscanf(packet_sources[src]->interface, "%64[^:]:", iface) < 1) {
+            if (sscanf(csrc->interface, "%64[^:]:", iface) < 1) {
                 fprintf(stderr, "FATAL:  Source %d: Could not parse host from interface.\n", src);
                 exit(0);
             }
@@ -476,22 +480,21 @@ int main(int argc, char *argv[]) {
                 exit(0);
             }
 
-            packet_sources[src]->cmd_template = NULL;
+            csrc->cmd_template = NULL;
         } else if (!strcasecmp(type, "wtapfile")) {
             if (packet_sources.size() == 1) {
                 fprintf(stderr, "FATAL:  Wtapfiles aren't hoppable sources.\n");
                 exit(1);
             }
             fprintf(stderr, "NOTICE:  Source %d:  Skipping, wtapfiles aren't hoppable sources.\n", src);
-            packet_sources[src]->cmd_template = NULL;
+            csrc->cmd_template = NULL;
         } else {
             fprintf(stderr, "FATAL: Source %d: Unknown card type '%s'.\n", src, type);
             exit(1);
         }
 
-        free(type);
-        source_input_vec.clear();
     }
+
 
     // See if we tried to enable something that didn't exist
     if (enable_name_map.size() == 0) {
@@ -530,15 +533,19 @@ int main(int argc, char *argv[]) {
     if (divide && divisions > 1) {
         int nchannels = 0;
         while (chanlist[nchannels++] != -1) ;
+        int enabledsrc = 0;
         fprintf(stderr, "Dividing %d channels into %d segments.\n", nchannels, divisions);
         for (unsigned int ofst = 0; ofst < packet_sources.size(); ofst++) {
-            packet_sources[ofst]->chanpos = (nchannels / divisions) * ofst;
+            if (packet_sources[ofst]->func == NULL)
+                continue;
+            packet_sources[ofst]->chanpos = (nchannels / divisions) * enabledsrc;
             printf("Source %d starting at offset %d\n", ofst, packet_sources[ofst]->chanpos);
+            enabledsrc++;
         }
     }
 
     for (unsigned int src = 0; src < packet_sources.size(); src++)
-        if (packet_sources[src]->cmd_template != NULL)
+        if (packet_sources[src]->func != NULL)
             fprintf(stderr, "%s - Source %d - Channel hopping (%s) on interface %s\n",
                     argv[0], src, channame, packet_sources[src]->interface);
 
@@ -552,27 +559,25 @@ int main(int argc, char *argv[]) {
             }
         }
 
-	if(progress)
+	if (progress)
 	    printf(" Hopping:");
 
         for (unsigned int src = 0; src < packet_sources.size(); src++) {
 	    capturesource *csrc = packet_sources[src];
-            if (csrc == NULL)
+            if (csrc->func == NULL)
                 continue;
 
-	    if(progress)
-		printf(" %d",chanlist[csrc->chanpos]);
+	    if (progress)
+		printf(" %d", chanlist[csrc->chanpos]);
 
-	    csrc->func(packet_sources[src],chanlist[csrc->chanpos]);
+	    csrc->func(csrc, chanlist[csrc->chanpos]);
 
 	    csrc->chanpos++;
 	    if (chanlist[csrc->chanpos] == -1)
 		csrc->chanpos = 0;
-    
-
         }
 
-	if(progress){
+	if (progress){
 	    printf("          \r");
 	    fflush(stdout);
 	}
