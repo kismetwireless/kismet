@@ -1,3 +1,5 @@
+Sep 08 2004  devel  Fixed earthdistance math w/ info from ESR for network 
+                     distance guessing during live capture
 Sep 01 2004  devel  Split up packet.h into endian and macaddr files in prep
                     Re-fixed friend class issue in macmap.h in gcc3.4
 Aug 15 2004  devel  Fixed log sync event to not start if logging is disabled

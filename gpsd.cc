@@ -276,12 +276,12 @@ double GPSD::Deg2Rad(double x) {
 }
 
 double GPSD::EarthDistance(double in_lat, double in_lon, double in_lat2, double in_lon2) {
-    double x1 = CalcRad(in_lat) * cos(Rad2Deg(in_lon)) * sin(Rad2Deg(90-in_lat));
-    double x2 = CalcRad(in_lat2) * cos(Rad2Deg(in_lon2)) * sin(Rad2Deg(90-in_lat2));
-    double y1 = CalcRad(in_lat) * sin(Rad2Deg(in_lon)) * sin(Rad2Deg(90-in_lat));
-    double y2 = CalcRad(in_lat2) * sin(Rad2Deg(in_lon2)) * sin(Rad2Deg(90-in_lat2));
-    double z1 = CalcRad(in_lat) * cos(Rad2Deg(90-in_lat));
-    double z2 = CalcRad(in_lat2) * cos(Rad2Deg(90-in_lat2));
+    double x1 = CalcRad(in_lat) * cos(Deg2Rad(in_lon)) * sin(Deg2Rad(90-in_lat));
+    double x2 = CalcRad(in_lat2) * cos(Deg2Rad(in_lon2)) * sin(Deg2Rad(90-in_lat2));
+    double y1 = CalcRad(in_lat) * sin(Deg2Rad(in_lon)) * sin(Deg2Rad(90-in_lat));
+    double y2 = CalcRad(in_lat2) * sin(Deg2Rad(in_lon2)) * sin(Deg2Rad(90-in_lat2));
+    double z1 = CalcRad(in_lat) * cos(Deg2Rad(90-in_lat));
+    double z2 = CalcRad(in_lat2) * cos(Deg2Rad(90-in_lat2));
     double a = acos((x1*x2 + y1*y2 + z1*z2)/pow(CalcRad((double) (in_lat+in_lat2)/2),2));
     return CalcRad((double) (in_lat+in_lat2) / 2) * a;
 }
