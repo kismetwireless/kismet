@@ -21,6 +21,8 @@
 
 #include "config.h"
 
+#include <map>
+
 // Timer slices per second
 #define SERVER_TIMESLICES_SEC 10
 
@@ -41,9 +43,11 @@ typedef struct server_timer_event {
     void *callback_parm;
 };
 
+extern int timer_id;
+extern map<int, server_timer_event *> timer_map;
+
 // Register an optionally recurring timer.  Slices are 1/100th of a second (100000usec,
-// or the smallest select can slice internally.)  Function itself is implemented in
-// kismet_server for access to globals
+// or the smallest select can slice internally.)
 int RegisterServerTimer(int in_timeslices, struct timeval *in_trigger,
                         int in_recurring, int (*in_callback)(server_timer_event *, void *),
                         void *in_parm);
