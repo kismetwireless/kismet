@@ -34,7 +34,7 @@ typedef struct server_timer_event {
     // Event is rescheduled again once it expires, if it's a timesliced event
     int recurring;
 
-    void (*callback)(void *);
+    int (*callback)(server_timer_event *, void *);
     void *callback_parm;
 };
 
@@ -42,6 +42,9 @@ typedef struct server_timer_event {
 // or the smallest select can slice internally.)  Function itself is implemented in
 // kismet_server for access to globals
 int RegisterServerTimer(int in_timeslices, struct timeval *in_trigger,
-                        int in_recurring, void (*in_callback)(void *), void *in_parm);
+                        int in_recurring, int (*in_callback)(server_timer_event *, void *),
+                        void *in_parm);
+// Remove a timer that's going to execute
+int RemoveServerTimer(int timer_id);
 
 #endif

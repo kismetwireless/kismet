@@ -22,6 +22,7 @@
 #ifdef HAVE_WSP100
 
 #include "packetsource.h"
+#include "server_plugin.h"
 
 #include <netdb.h>
 
@@ -41,6 +42,11 @@
 #define WSP100_TAG_RADIO_FCSERR   0x11   // FCS error in packet
 #define WSP100_TAG_RADIO_CHANNEL  0x12   // Channel, unsigned
 
+#define TZSP_NULL_PACKET          0x01C40000 // for TZSP v1 at least
+#define TZSP_NULL_PACKET_SLICE    15 * 10    // must be less than 32, and consists of timer slices (100000us)
+
+int Wsp100PokeSensor(server_timer_event *evt, void *call_parm);
+
 class Wsp100Source : public KisPacketSource {
 public:
     int OpenSource(const char *dev, card_type ctype);
@@ -50,6 +56,8 @@ public:
     int FetchDescriptor() { return udp_sock; }
 
     int FetchPacket(kis_packet *packet);
+
+    void PokeSensor();
 
 protected:
 
@@ -64,6 +72,9 @@ protected:
     in_addr filter_addr;
 
     uint8_t data[MAX_PACKET_LEN];
+
+    // For when we need to revoke this
+    int poke_event_id;
 
 };
 

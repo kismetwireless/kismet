@@ -149,7 +149,7 @@ int timer_id = 0;
 map<int, server_timer_event *> timer_map;
 
 int RegisterServerTimer(int in_timeslices, struct timeval *in_trigger,
-                        int in_recurring, void (*in_callback)(void *),
+                        int in_recurring, int (*in_callback)(server_timer_event *, void *),
                         void *in_parm) {
     server_timer_event *evt = new server_timer_event;
 
@@ -173,6 +173,20 @@ int RegisterServerTimer(int in_timeslices, struct timeval *in_trigger,
     timer_map[evt->timer_id] = evt;
 
     return evt->timer_id;
+}
+
+int RemoveServerTimer(int in_timerid) {
+    map<int, server_timer_event *>::iterator itr;
+
+    itr = timer_map.find(in_timerid);
+
+    if (itr != timer_map.end()) {
+        delete itr->second;
+        timer_map.erase(itr);
+        return 1;
+    }
+
+    return -1;
 }
 
 // Handle writing all the files out and optionally unlinking the empties
@@ -2747,9 +2761,10 @@ int main(int argc,char *argv[]) {
                  evt->trigger_tm.tv_usec < cur_tm.tv_usec)) {
 
                 // Call the function with the given parameters
-                (*evt->callback)(evt->callback_parm);
+                int ret;
+                ret = (*evt->callback)(evt, evt->callback_parm);
 
-                if (evt->timeslices != -1 && evt->recurring) {
+                if (ret > 0 && evt->timeslices != -1 && evt->recurring) {
                     evt->schedule_tm.tv_sec = cur_tm.tv_sec;
                     evt->schedule_tm.tv_usec = cur_tm.tv_usec;
                     evt->trigger_tm.tv_sec = evt->schedule_tm.tv_sec + (evt->timeslices / 10);
