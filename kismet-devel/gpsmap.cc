@@ -447,37 +447,121 @@ int ProcessGPSFile(char *in_fname) {
     // data we already (may) have from ther files.
 
     int foundnetfile = 0;
+    string comp;
 
     if (XMLFetchGpsNetfile() != "") {
         fprintf(stderr, "NOTICE:  Reading associated network file, '%s'\n", XMLFetchGpsNetfile().c_str());
 #ifdef HAVE_LIBZ
         if ((gpsfz = gzopen(XMLFetchGpsNetfile().c_str(), "r")) == NULL) {
-            fprintf(stderr, "WARNING:  Could not open associated network xml file '%s', trying compressed...\n",
+            fprintf(stderr, "WARNING:  Could not open associated network xml file '%s'.\n",
                     XMLFetchGpsNetfile().c_str());
-
-            string comp = XMLFetchGpsNetfile();
-            comp += ".gz";
-
-            if ((gpsfz = gzopen(comp.c_str(), "r")) == NULL) {
-                fprintf(stderr, "WARNING:  Could not open associated network xml file '%s' even with .gz suffix.\n",
-                        XMLFetchGpsNetfile().c_str());
-            } else {
-                fprintf(stderr, "NOTICE:  Opened associated network xml file '%s'\n",
-                        comp.c_str());
-                foundnetfile = 1;
-            }
-#else
-        if ((gpsf = fopen(XMLFetchGpsNetfile().c_str(), "r")) == NULL) {
-            fprintf(stderr, "WARNING:  Could not open associated network xml file '%s'\n",
-                    XMLFetchGpsNetfile().c_str());
-
-#endif
-
         } else {
             foundnetfile = 1;
         }
 
+        // Try our alternate file methods
+
+        if (foundnetfile == 0) {
+            comp = XMLFetchGpsNetfile();
+            comp += ".gz";
+
+            if ((gpsfz = gzopen(comp.c_str(), "r")) == NULL) {
+                fprintf(stderr, "WARNING:  Could not open compressed network xml file '%s'\n",
+                        comp.c_str());
+            } else {
+                foundnetfile = 1;
+            }
+        }
+
+        if (foundnetfile == 0) {
+            string orignetfile = XMLFetchGpsNetfile();
+            string origxmlfile = in_fname;
+
+            // Break up the path to the gpsxml file and form a path based on that
+            unsigned int lastslash = 0;
+            for (unsigned int x = origxmlfile.find('/'); x != string::npos;
+                 lastslash = x, x = origxmlfile.find('/', lastslash+1)) {
+                // We don't actually need to do anything...
+            }
+
+            comp = origxmlfile.substr(0, lastslash);
+
+            lastslash = 0;
+            for (unsigned int x = orignetfile.find('/'); x != string::npos;
+                 lastslash = x, x = orignetfile.find('/', lastslash+1)) {
+                // We don't actually need to do anything...
+            }
+
+            comp += "/" + orignetfile.substr(lastslash, orignetfile.size() - lastslash);
+
+            if (comp != origxmlfile) {
+                if ((gpsfz = gzopen(comp.c_str(), "r")) == NULL) {
+                    fprintf(stderr, "WARNING:  Could not open network xml file relocated to %s\n",
+                            comp.c_str());
+                } else {
+                    foundnetfile = 1;
+                }
+
+                // And look again for our relocated compressed file.
+                if (foundnetfile == 0) {
+                    comp += ".gz";
+                    if ((gpsfz = gzopen(comp.c_str(), "r")) == NULL) {
+                        fprintf(stderr, "WARNING:  Could not open compressed network xml file relocated to %s\n",
+                                comp.c_str());
+                    } else {
+                        foundnetfile = 1;
+                    }
+                }
+            }
+        }
+
+#else
+        if ((gpsf = fopen(XMLFetchGpsNetfile().c_str(), "r")) == NULL) {
+            fprintf(stderr, "WARNING:  Could not open associated network xml file '%s'\n",
+                    XMLFetchGpsNetfile().c_str());
+        } else {
+            foundnetfile = 1;
+        }
+
+        // Try our alternate file methods
+
+        if (foundnetfile == 0) {
+            string orignetfile = XMLFetchGpsNetfile();
+            string origxmlfile = in_fname;
+
+            // Break up the path to the gpsxml file and form a path based on that
+            unsigned int lastslash = 0;
+            for (unsigned int x = origxmlfile.find('/'); x != string::npos;
+                 lastslash = x, x = origxmlfile.find('/', lastslash+1)) {
+                // We don't actually need to do anything...
+            }
+
+            comp = origxmlfile.substr(0, lastslash);
+
+            lastslash = 0;
+            for (unsigned int x = orignetfile.find('/'); x != string::npos;
+                 lastslash = x, x = orignetfile.find('/', lastslash+1)) {
+                // We don't actually need to do anything...
+            }
+
+            comp += "/" + orignetfile.substr(lastslash, orignetfile.size() - lastslash - 1);
+
+            if (comp != origxmlfile) {
+                if ((gpsf = fopen(comp.c_str(), "r")) == NULL) {
+                    fprintf(stderr, "WARNING:  Could not open network xml file relocated to %s\n",
+                            comp.c_str());
+                } else {
+                    foundnetfile = 1;
+                }
+
+            }
+        }
+
+#endif
+
         if (foundnetfile) {
+            fprintf(stderr, "NOTICE:  Opened associated network xml file '%s'\n", comp.c_str());
+
             fprintf(stderr, "NOTICE:  Processing network XML file.\n");
 
             vector<wireless_network *> file_networks;
