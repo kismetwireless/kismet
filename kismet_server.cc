@@ -165,6 +165,8 @@ void WriteDatafiles(int in_shutdown) {
         }
     }
 
+    sync();
+
 }
 
 // Catch our interrupt

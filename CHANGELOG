@@ -3,6 +3,8 @@ Aug 18 2002  2.5.2  Moved netline to panelfront_display.cc
                     Added wireless_client export to kismet_server
                     Added wireless_client counting column for panel UI
                     Added fflush to waypoint writing
+                    Added sync() to file writing
+                    Fixed group handling of clients
 Aug 16 2002  2.5.2  Fixed dumpfile.h to not generate warnings on GCC 3.2
                     ACPI battery support patches merged in (configure with
                      --enable-acpi) (Million and Juliano)
