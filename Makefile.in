@@ -212,6 +212,8 @@ ipkg: $(PS) $(NC) $(HOPPER)
 	@cp $(HOPPER) packaging/ipkg/$(BIN)/$(HOPPER)
 	@cp conf/kismet.conf packaging/ipkg/$(ETC)/kismet.conf
 	@cp conf/kismet_ui.conf packaging/ipkg/$(ETC)/kismet_ui.conf
+	@cp conf/ap_manuf packaging/ipkg/$(ETC)/ap_manuf
+	@cp conf/client_manuf packaging/ipkg/$(ETC)/client_manuf
 	@if test "$(ZAURUS)" = "yes"; then \
 		cp $(BUZZER) packaging/ipkg/$(BIN)/buzzme; \
 		cp conf/zaurus_kismet.conf packaging/ipkg/$(ETC)/kismet.conf; \

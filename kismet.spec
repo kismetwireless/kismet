@@ -43,6 +43,8 @@ make DESTDIR=$RPM_BUILD_ROOT/ rpm
 %doc docs/CARD.* docs/DEVEL.* docs/README.*
 %config /etc/kismet.conf
 %config /etc/kismet_ui.conf
+/etc/ap_manuf
+/etc/client_manuf
 /usr/bin/kismet
 /usr/bin/kismet_curses
 /usr/bin/kismet_hopper
@@ -56,3 +58,5 @@ make DESTDIR=$RPM_BUILD_ROOT/ rpm
 %changelog
 * Wed Aug 21 2002 Jeremiah Johnson <jjohnson@sunrise-linux.com>
 - Initial specfile creation.
+* Sat Sep 21 2002 Mike Kershaw <dragorn@kismetwireless.net>
+- Added manuf tag files
