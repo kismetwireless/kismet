@@ -40,7 +40,7 @@ vector<wireless_network *> XMLFetchNetworkList(FILE *in_file);
 #endif
 time_t XMLFetchNetworkStart();
 time_t XMLFetchNetworkEnd();
-double XMLFetchNetworkVersion();
+char *XMLFetchNetworkVersion();
 
 #ifdef HAVE_LIBZ
 vector<gps_point *> XMLFetchGpsList(gzFile in_file);

@@ -1,3 +1,4 @@
+Feb 25 2004  devel  Fixed expat parsing the new kismet version strings
 Feb 24 2004  devel  Fixed prism2_legacy (wow, someone still uses this) to trim
                      the FCS off the frames correctly, and to mute the wlanctl
                      commands
