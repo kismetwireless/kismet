@@ -6133,13 +6133,6 @@ echo "$as_me: WARNING: *** Not installing setuid capabilities.  It is more secur
 fi
 
 
-if test "$darwin" = yes; then
-	{ echo "$as_me:$LINENO: WARNING: *** Enabling Viha by default because we're compiling under OSX ***" >&5
-echo "$as_me: WARNING: *** Enabling Viha by default because we're compiling under OSX ***" >&2;};
-	want_viha=yes;
-else
-	want_viha=no;
-fi
 
 # Check whether --enable-viha or --disable-viha was given.
 if test "${enable_viha+set}" = set; then
@@ -6148,6 +6141,15 @@ if test "${enable_viha+set}" = set; then
 else
   want_viha=no
 fi;
+
+if test "$darwin" = yes; then
+	{ echo "$as_me:$LINENO: WARNING: *** Enabling Viha by default because we're compiling under OSX ***" >&5
+echo "$as_me: WARNING: *** Enabling Viha by default because we're compiling under OSX ***" >&2;};
+	want_viha=yes;
+else
+	want_viha=no;
+fi
+
 if test $want_viha = "yes"; then
 
 
