@@ -275,7 +275,7 @@ int scatter_resolution = 2;
 // Labels to draw
 string network_labels;
 // Order to draw in
-string draw_feature_order;
+string draw_feature_order = "ptbrhscl";
 // Color coding (1 = wep, 2 = channel)
 int color_coding = 0;
 #define COLORCODE_NONE    0
@@ -2322,48 +2322,64 @@ int main(int argc, char *argv[]) {
         gpsnetvec.push_back(x->second);
     }
 
-    if (draw_track) {
-        fprintf(stderr, "Drawing track coordinates...\n");
-        DrawNetTracks(img, di);
-    }
-
-    if (draw_scatter) {
-        fprintf(stderr, "Drawing scatter plot, dot size %d...\n", scatter_resolution);
-        DrawNetScatterPlot(gpsnetvec, img, di);
-    }
-
-    if (draw_power && power_data == 0) {
-        fprintf(stderr, "ERROR:  Interpolated power drawing requested, but none of the GPS datafiles being\n"
-                "processed have power data.  Not doing interpolated graphing.\n");
-    } else if (draw_power) {
-        fprintf(stderr, "Drawing network power interpolations...\n");
-
-        DrawNetPower(img, di);
-    }
-
-    if (draw_range) {
-        fprintf(stderr, "Calculating and drawing network circles...\n");
-        DrawNetCircles(gpsnetvec, img, di);
-    }
-
-    if (draw_hull) {
-	fprintf(stderr, "Calculating and drawing network hulls...\n");
-	DrawNetHull(gpsnetvec, img, di);
-    }
-
-    if (draw_bounds) {
-        fprintf(stderr, "Calculating and drawing bounding rectangles...\n");
-        DrawNetBoundRects(gpsnetvec, img, di, 0);
-    }
-
-    if (draw_center) {
-        fprintf(stderr, "Drawing center dot, size %d...\n", center_resolution);
-        DrawNetCenterDot(gpsnetvec, img, di);
-    }
-
-    if (draw_label) {
-        fprintf(stderr, "Labeling networks...\n");
-        DrawNetCenterText(gpsnetvec, img, di);
+    for (unsigned int x = 0; x < draw_feature_order.length(); x++) {
+        switch (draw_feature_order[x]) {
+        case 'p':
+            if (draw_power && power_data == 0) {
+                fprintf(stderr, "ERROR:  Interpolated power drawing requested, but none of the GPS datafiles being\n"
+                        "processed have power data.  Not doing interpolated graphing.\n");
+            } else if (draw_power) {
+                fprintf(stderr, "Drawing network power interpolations...\n");
+                DrawNetPower(img, di);
+            }
+            break;
+        case 't':
+            if (draw_track) {
+                fprintf(stderr, "Drawing track coordinates...\n");
+                DrawNetTracks(img, di);
+            }
+            break;
+        case 'b':
+            if (draw_bounds) {
+                fprintf(stderr, "Calculating and drawing bounding rectangles...\n");
+                DrawNetBoundRects(gpsnetvec, img, di, 0);
+            }
+            break;
+        case 'r':
+            if (draw_range) {
+                fprintf(stderr, "Calculating and drawing network circles...\n");
+                DrawNetCircles(gpsnetvec, img, di);
+            }
+            break;
+        case 'h':
+            if (draw_hull) {
+                fprintf(stderr, "Calculating and drawing network hulls...\n");
+                DrawNetHull(gpsnetvec, img, di);
+            }
+            break;
+        case 's':
+            if (draw_scatter) {
+                fprintf(stderr, "Drawing scatter plot, dot size %d...\n", scatter_resolution);
+                DrawNetScatterPlot(gpsnetvec, img, di);
+            }
+            break;
+        case 'c':
+            if (draw_center) {
+                fprintf(stderr, "Drawing center dot, size %d...\n", center_resolution);
+                DrawNetCenterDot(gpsnetvec, img, di);
+            }
+            break;
+        case 'l':
+            if (draw_label) {
+                fprintf(stderr, "Labeling networks...\n");
+                DrawNetCenterText(gpsnetvec, img, di);
+            }
+            break;
+        default:
+            fprintf(stderr, "WARNING:  Unknown feature '%c' in requested order.  Skipping.\n",
+                    draw_feature_order[x]);
+            break;
+        };
     }
 
     WriteImage(img_info, img);
