@@ -2548,6 +2548,10 @@ int DrawLegendComposite(vector<gps_network *> in_nets, Image **in_img,
     time_t curtime = time(0);
     int cur_column = 0;
     PixelPacket sqcol;
+    // Width of the text column thats mandatory
+    int text_colwidth = 0;
+    // max val of each column
+    map<int, int> max_col_map;
 
     Image *leg_img = NULL;
     DrawInfo *leg_di = NULL;
@@ -2595,52 +2599,52 @@ int DrawLegendComposite(vector<gps_network *> in_nets, Image **in_img,
     leg_di->text_antialias = 1;
 
     // Figure out how many columns we're going to have...
-    int ncolumns = 1;
-    // If we draw the networks in any way, we need to show the channel/wep assignment
-    // map graphs, thats a column
-    if (draw_bounds || draw_range || draw_hull || draw_scatter || draw_center)
-        ncolumns++;
-    // If we draw power interpolation, we need to show those colors too
-    if (draw_power && power_data != 0)
-        ncolumns++;
+    int ncolumns = 0;
 
-    // Now, to split the screen correctly, we need to figure out the maximum
-    // column width, so we have to do all the string and drawing stuff.
-    int max_colwidth = 0;
+    // Find the width of the everpresent text and then take the remaining area
+    // and make it the right number of columns, based off their max width of 
+    // contents
 
     // Test the standard text in col1
     snprintf(text, 1024, "Total networks  : %d\n", in_nets.size());
-    max_colwidth = kismax(max_colwidth, IMStringWidth(text, leg_img, leg_di));
+    text_colwidth = kismax(text_colwidth, IMStringWidth(text, leg_img, leg_di));
 
     snprintf(text, 1024, "Visible networks: %d\n", drawn_net_map.size());
-    max_colwidth = kismax(max_colwidth, IMStringWidth(text, leg_img, leg_di));
+    text_colwidth = kismax(text_colwidth, IMStringWidth(text, leg_img, leg_di));
 
     snprintf(text, 1024, "Map Created     : %.24s", ctime((const time_t *) &curtime));
-    max_colwidth = kismax(max_colwidth, IMStringWidth(text, leg_img, leg_di));
+    text_colwidth = kismax(text_colwidth, IMStringWidth(text, leg_img, leg_di));
 
     snprintf(text, 1024, "Map Coordinates : %f,%f @ scale %ld",
              map_avg_lat, map_avg_lon, map_scale);
-    max_colwidth = kismax(max_colwidth, IMStringWidth(text, leg_img, leg_di));
+    text_colwidth = kismax(text_colwidth, IMStringWidth(text, leg_img, leg_di));
+
+    // Account for the margain
+    text_colwidth += 5;
 
     // Now compare the sizes of the channel or color alloc
     int squaredim = IMStringHeight("0", leg_img, leg_di);
 
     if (draw_bounds || draw_range || draw_hull || draw_scatter || draw_center) {
+        int curmax_colwidth = 0;
         if (color_coding == COLORCODE_WEP) {
-            max_colwidth = kismax(max_colwidth, 
-                                  IMStringWidth("WEP Encrypted", leg_img, leg_di) + 5 + 
-                                  squaredim);
-            max_colwidth = kismax(max_colwidth, 
-                                  IMStringWidth("Unencrypted", leg_img, leg_di) + 5 + 
-                                  squaredim);
-            max_colwidth = kismax(max_colwidth, 
-                                  IMStringWidth("Default", leg_img, leg_di) + 5 + 
-                                  squaredim);
+            curmax_colwidth = kismax(curmax_colwidth, 
+                                     IMStringWidth("WEP Encrypted", leg_img, leg_di) + 
+                                     5 + squaredim);
+            curmax_colwidth = kismax(curmax_colwidth, 
+                                     IMStringWidth("Unencrypted", leg_img, leg_di) + 
+                                     5 + squaredim);
+            curmax_colwidth = kismax(curmax_colwidth, 
+                                     IMStringWidth("Default", leg_img, leg_di) + 5 + 
+                                     squaredim);
+            max_col_map[ncolumns] = curmax_colwidth;
+            ncolumns++;
         } else if (color_coding == COLORCODE_CHANNEL) {
-            max_colwidth = kismax(max_colwidth, squaredim * channelcolor_max);
-        } else {
-            ncolumns--;
-        }
+            curmax_colwidth = kismax(curmax_colwidth, squaredim * channelcolor_max);
+            max_col_map[ncolumns] = curmax_colwidth;
+            ncolumns++;
+        } 
+
     }
 
     int power_step_skip = 1;
@@ -2648,8 +2652,10 @@ int DrawLegendComposite(vector<gps_network *> in_nets, Image **in_img,
         if (power_steps > 16)
             power_step_skip = power_steps / 16;
 
-        max_colwidth = kismax(max_colwidth, 
-                              squaredim * (power_steps / power_step_skip));
+        int curmax_colwidth = squaredim * (power_steps / power_step_skip);
+        max_col_map[ncolumns] = curmax_colwidth;
+        ncolumns++;
+
     }
 
     // Now we know how wide we have to be...
@@ -2714,15 +2720,16 @@ int DrawLegendComposite(vector<gps_network *> in_nets, Image **in_img,
         return -1;
     }
     cur_rowpos += tx_height + 2;
-   
+  
+    int avail_width = map_width - text_colwidth;
+    
     // Draw the second column
-
     if (draw_bounds || draw_range || draw_hull || draw_scatter || draw_center &&
         (color_coding == COLORCODE_WEP || color_coding == COLORCODE_CHANNEL)) {
-        cur_column++;
         cur_rowpos = map_height + 5;
-        cur_colpos = ((map_width / ncolumns) * cur_column) + (map_width / ncolumns) - 
-            max_colwidth;
+
+        cur_colpos = text_colwidth + ((avail_width / ncolumns) * cur_column) +
+            (((avail_width / ncolumns) / 2) - (max_col_map[cur_column] / 2));
 
         if (color_coding == COLORCODE_WEP) {
             // Draw the pretty colored squares
@@ -2839,6 +2846,27 @@ int DrawLegendComposite(vector<gps_network *> in_nets, Image **in_img,
             cur_rowpos += squaredim + 2;
             
         } else if (color_coding == COLORCODE_CHANNEL) {
+            // Draw the header
+            leg_di->fill = textclr;
+            leg_di->stroke = textclr;
+            snprintf(text, 1024, "Channel Number");
+            tx_height = IMStringHeight(text, leg_img, leg_di);
+            snprintf(prim, 1024, "text %d,%d \"%s\"",
+                     cur_colpos + (((channelcolor_max - 1) * squaredim) / 2) -
+                     (IMStringWidth(text, leg_img, leg_di) / 2) + 4,
+                     cur_rowpos + (IMStringHeight(text, leg_img, leg_di) / 2) + 3,
+                     text);
+            leg_di->primitive = prim;
+            DrawImage(leg_img, leg_di);
+            GetImageException(leg_img, &im_exception);
+            if (im_exception.severity != UndefinedException) {
+                fprintf(stderr, "FATAL: ImageMagick error:\n");
+                MagickError(im_exception.severity, im_exception.reason,
+                            im_exception.description);
+                return -1;
+            }
+            cur_rowpos += tx_height + 2;
+
             // Draw each square in the channel graph sized to text
             for (int x = 0; x < channelcolor_max; x++) {
                 QueryColorDatabase(channelcolors[x], &sqcol, &im_exception);
@@ -2864,31 +2892,14 @@ int DrawLegendComposite(vector<gps_network *> in_nets, Image **in_img,
                 }
             }
 
-            // Print the channel numbers and alloc name
+
             leg_di->fill = textclr;
             leg_di->stroke = textclr;
             snprintf(text, 1024, "1");
             snprintf(prim, 1024, "text %d,%d \"%s\"",
-                     cur_colpos + (IMStringWidth(text, leg_img, leg_di) / 2), 
-                     cur_rowpos + squaredim + (IMStringHeight(text, 
-                                                              leg_img, leg_di) / 2) + 3, 
-                     text);
-            leg_di->primitive = prim;
-            DrawImage(leg_img, leg_di);
-            GetImageException(leg_img, &im_exception);
-            if (im_exception.severity != UndefinedException) {
-                fprintf(stderr, "FATAL: ImageMagick error:\n");
-                MagickError(im_exception.severity, im_exception.reason,
-                            im_exception.description);
-                return -1;
-            }
-
-            snprintf(text, 1024, "Channel Number");
-            snprintf(prim, 1024, "text %d,%d \"%s\"",
-                     cur_colpos + (((channelcolor_max - 1) * squaredim) / 2) -
-                     (IMStringWidth(text, leg_img, leg_di) / 2) + 4,
+                     cur_colpos + (IMStringWidth(text, leg_img, leg_di) / 2),
                      cur_rowpos + squaredim + (IMStringHeight(text, leg_img, 
-                                                              leg_di) / 2) + 3,
+                                                              leg_di) / 2) + 3, 
                      text);
             leg_di->primitive = prim;
             DrawImage(leg_img, leg_di);
@@ -2900,6 +2911,8 @@ int DrawLegendComposite(vector<gps_network *> in_nets, Image **in_img,
                 return -1;
             }
 
+            leg_di->fill = textclr;
+            leg_di->stroke = textclr;
             snprintf(text, 1024, "%d", channelcolor_max);
             snprintf(prim, 1024, "text %d,%d \"%s\"",
                      cur_colpos +  
@@ -2923,8 +2936,31 @@ int DrawLegendComposite(vector<gps_network *> in_nets, Image **in_img,
     if (draw_power && power_data != 0) {
         cur_column++;
         cur_rowpos = map_height + 5;
-        cur_colpos = ((map_width / ncolumns) * cur_column) + (map_width / ncolumns) - 
-            max_colwidth;
+
+        cur_colpos = text_colwidth + ((avail_width / ncolumns) * cur_column) +
+            (((avail_width / ncolumns) / 2) - (max_col_map[cur_column] / 2));
+
+        snprintf(text, 1024, "Signal Level");
+        tx_height = IMStringHeight(text, leg_img, leg_di);
+        
+        int powerbarlen = ((power_steps / power_step_skip) * squaredim) + squaredim;
+        leg_di->fill = textclr;
+        leg_di->stroke = textclr;
+        snprintf(prim, 1024, "text %d,%d \"%s\"",
+                 cur_colpos + (powerbarlen / 2) - 
+                 (IMStringWidth(text, leg_img, leg_di) / 2) + 4,
+                 cur_rowpos + (tx_height / 2) + 3,
+                 text);
+        leg_di->primitive = prim;
+        DrawImage(leg_img, leg_di);
+        GetImageException(leg_img, &im_exception);
+        if (im_exception.severity != UndefinedException) {
+            fprintf(stderr, "FATAL: ImageMagick error:\n");
+            MagickError(im_exception.severity, im_exception.reason,
+                        im_exception.description);
+            return -1;
+        }
+        cur_rowpos += tx_height + 2;
 
         int actual_pos = 0;
         for (int x = 0; x < power_steps; x += power_step_skip) {

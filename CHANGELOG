@@ -7,6 +7,7 @@ Jan 01 2004  3.1.0  Added legend drawing to GPSMap, finally
                      to be a bug in some gcc versions that causes segfaults.
                     Moved most of gpsmaps messages into the 'verbose' setting
                      (gpsmap -v ... )
+                    Revamped column positioning code for gpsmap legends
 Dec 27 2003  3.1.0  Fixed remembering probe networks associated by data packets
                     Added reporting of cardsource id (step 1 of client-
                      controlled channel locking) over card protocol
