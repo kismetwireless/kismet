@@ -218,7 +218,7 @@ int PcapSource::FetchDescriptor() {
 void PcapSource::Callback(u_char *bp, const struct pcap_pkthdr *header,
                                  const u_char *in_data) {
     memcpy(&callback_header, header, sizeof(pcap_pkthdr));
-    memcpy(callback_data, in_data, header->len);
+    memcpy(callback_data, in_data, kismin(header->len, MAX_PACKET_LEN));
 }
 
 int PcapSource::FetchPacket(kis_packet *packet, uint8_t *data, uint8_t *moddata) {
