@@ -138,6 +138,11 @@ commoninstall:
 	install -o $(INSTUSR) -g $(INSTGRP) -m 644 conf/ap_manuf $(ETC)/ap_manuf; 
 	install -o $(INSTUSR) -g $(INSTGRP) -m 644 conf/client_manuf $(ETC)/client_manuf; 
 
+	@if test -f $(BIN)/kismet_curses; then \
+		echo "Removing old kismet_curses binary.  The panels frontend is now kismet_client."; \
+		rm $(BIN)/kismet_curses; \
+	fi
+
 install: $(PS) $(HOPPER) $(NC) $(GPSLBUILD) $(ZAURUSBUILD)
 	$(MAKE) -e commoninstall
 	@if test -f $(ETC)/kismet.conf; then \
