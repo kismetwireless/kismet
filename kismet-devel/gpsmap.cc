@@ -1929,6 +1929,12 @@ void DrawNetScatterPlot(vector<gps_network *> in_nets, Image *in_img, DrawInfo *
 
 }
 
+int ShortUsage(char *argv) {
+    printf("Usage: %s [OPTION] <GPS Files>\n", argv);
+    printf("Try `%s --help' for more information.\n", argv);
+    exit(1);
+}
+
 int Usage(char* argv, int ec = 1) { 
     printf("Usage: %s [OPTION] <GPS files>\n", argv);
     printf(
@@ -2109,7 +2115,7 @@ int main(int argc, char *argv[]) {
         case 'S':
             if (sscanf(optarg, "%d", &mapsource) != 1 || mapsource < 0 || mapsource > 3) {
                 fprintf(stderr, "Invalid map source.\n");
-                Usage(exec_name);
+                ShortUsage(exec_name);
             }
             break;
 	case 'i':
@@ -2118,7 +2124,7 @@ int main(int argc, char *argv[]) {
 	case 'z':
             if (sscanf(optarg, "%d", &numthreads) != 1 || numthreads < 1) {
                 fprintf(stderr, "Invalid number of threads.\n");
-                Usage(exec_name);
+                ShortUsage(exec_name);
             }
             break;
         case 'D':
@@ -2131,14 +2137,14 @@ int main(int argc, char *argv[]) {
         case 'c':
             if (sscanf(optarg, "%f,%f", &user_lat, &user_lon) != 2) {
                 fprintf(stderr, "Invalid custom map coordinates.\n");
-                Usage(exec_name);
+                ShortUsage(exec_name);
             }
             user_latlon = true;
             break;
         case 's':
             if (sscanf(optarg, "%ld", &user_scale) != 1) {
                 fprintf(stderr, "Invalid custom map scale.\n");
-                Usage(exec_name);
+                ShortUsage(exec_name);
             }
             break;
         case 'm':
@@ -2148,14 +2154,14 @@ int main(int argc, char *argv[]) {
        	case 'd':
             if (sscanf(optarg, "%d,%d", &map_width, &map_height) != 2 || map_width < 0 || map_height < 0) {
                 fprintf(stderr, "Invalid custom map size.\n");
-                Usage(exec_name);
+                ShortUsage(exec_name);
             }
             usersize = 1;
             break;
         case 'n':
             if (sscanf(optarg, "%d", &color_coding) !=1 || color_coding < 0 || color_coding > 2) {
                 fprintf(stderr, "Invalid network color set\n");
-                Usage(exec_name);
+                ShortUsage(exec_name);
             }
             break;
         case 'G':
@@ -2167,7 +2173,7 @@ int main(int argc, char *argv[]) {
         case 'O':
             if (sscanf(optarg, "%d,%d", &draw_x_offset, &draw_y_offset) != 2) {
                 fprintf(stderr, "Invalid drawing offset.\n");
-                Usage(exec_name);
+                ShortUsage(exec_name);
             }
             break;
         case 't':
@@ -2184,7 +2190,7 @@ int main(int argc, char *argv[]) {
         case 'Y':             /* Ge0 was here - this could very well break crap */
             if (sscanf(optarg, "%d", &track_width) != 1 || track_width <= 0) {
                 fprintf(stderr, "Invalid track width.\n");
-                Usage(exec_name);
+                ShortUsage(exec_name);
             }
             break;
         case 'b':
@@ -2196,7 +2202,7 @@ int main(int argc, char *argv[]) {
         case 'R':
             if (sscanf(optarg, "%d", &range_opacity) != 1 || range_opacity < 0 || range_opacity > 100) {
                 fprintf(stderr, "Invalid range opacity.\n");
-                Usage(exec_name);
+                ShortUsage(exec_name);
             }
             break;
         case 'u':
@@ -2205,7 +2211,7 @@ int main(int argc, char *argv[]) {
         case 'U':
             if (sscanf(optarg, "%d", &hull_opacity) != 1 || hull_opacity < 0 || hull_opacity > 100) {
                 fprintf(stderr, "Invalid convex hull opacity.\n");
-                Usage(exec_name);
+                ShortUsage(exec_name);
             }
             break;
         case 'a':
@@ -2214,13 +2220,13 @@ int main(int argc, char *argv[]) {
         case 'A':
             if (sscanf(optarg, "%d", &scatter_opacity) != 1 || scatter_opacity < 0 || scatter_opacity > 100) {
                 fprintf(stderr, "Invalid scatter plot opacity.\n");
-                Usage(exec_name);
+                ShortUsage(exec_name);
             }
             break;
         case 'B':
             if (sscanf(optarg, "%d", &scatter_resolution) != 1 || scatter_resolution < 1) {
                 fprintf(stderr, "Invalid scatter plot size.\n");
-                Usage(exec_name);
+                ShortUsage(exec_name);
             }
             break;
         case 'p':
@@ -2229,13 +2235,13 @@ int main(int argc, char *argv[]) {
         case 'P':
             if (sscanf(optarg, "%d", &power_opacity) != 1 || power_opacity < 0 || power_opacity > 100) {
                 fprintf(stderr, "Invalid interpolated power opacity.\n");
-                Usage(exec_name);
+                ShortUsage(exec_name);
             }
             break;
         case 'Q':
             if (sscanf(optarg, "%d", &power_resolution) != 1 || power_resolution < 1) {
                 fprintf(stderr, "Invalid interpolated power resolution.\n");
-                Usage(exec_name);
+                ShortUsage(exec_name);
             }
             break;
         case 'q':
@@ -2243,7 +2249,7 @@ int main(int argc, char *argv[]) {
                 int icolor;
                 if (sscanf(optarg, "%d", &icolor) !=1 || icolor < 0 || icolor > 2) {
                     fprintf(stderr, "Invalid interpolated power color set\n");
-                    Usage(exec_name);
+                    ShortUsage(exec_name);
                 }
                 if (icolor == 0) {
                     power_steps = power_steps_Orig;
@@ -2260,13 +2266,13 @@ int main(int argc, char *argv[]) {
         case 'E':
             if (sscanf(optarg, "%d", &center_opacity) != 1 || center_opacity < 0 || center_opacity > 100) {
                 fprintf(stderr, "Invalid center dot opacity.\n");
-                Usage(exec_name);
+                ShortUsage(exec_name);
             }
             break;
         case 'H':
             if (sscanf(optarg, "%d", &center_resolution) != 1 || center_resolution < 1) {
                 fprintf(stderr, "Invalid center dot size.\n");
-                Usage(exec_name);
+                ShortUsage(exec_name);
             }
             break;
         case 'l':
@@ -2277,7 +2283,7 @@ int main(int argc, char *argv[]) {
             if (sscanf(optarg, "%d", &label_orientation) != 1 || label_orientation < 0 ||
                 label_orientation > 8) {
                 fprintf(stderr, "Invalid label orientation.\n");
-                Usage(exec_name);
+                ShortUsage(exec_name);
             }
             break;
         case 'k':
@@ -2286,14 +2292,14 @@ int main(int argc, char *argv[]) {
         case 'K':
             if (sscanf(optarg, "%d", &legend_opacity) != 1 || legend_opacity < 0 || legend_opacity > 100) {
                 fprintf(stderr, "Invalid map legend opacity.\n");
-                Usage(exec_name);
+                ShortUsage(exec_name);
             }
             break;
         case 'F':
             draw_feature_order = optarg;
             break;
         default:
-            Usage(argv[1]);
+            ShortUsage(exec_name);
             break;
         }
     }
@@ -2305,7 +2311,7 @@ int main(int argc, char *argv[]) {
     if (draw_power == 0 && draw_track == 0 && draw_bounds == 0 && draw_range == 0 &&
         draw_hull == 0 && draw_scatter == 0 && draw_center == 0 && draw_label == 0) {
         fprintf(stderr, "FATAL:  No drawing methods requested.\n");
-        Usage(argv[0]);
+        ShortUsage(exec_name);
     }
 
     if ((map_width > 1280 || map_height > 1024) && mapsource == MAPSOURCE_MAPBLAST) {
@@ -2319,7 +2325,7 @@ int main(int argc, char *argv[]) {
     // no dump files
     if (optind == argc) {
         fprintf(stderr, "FATAL:  Must provide at least one dump file.\n");
-        Usage(argv[0]);
+        ShortUsage(exec_name);
     }
 
     ConfigFile conf;
@@ -2437,7 +2443,7 @@ int main(int argc, char *argv[]) {
 
     if (optind == argc) {
         fprintf(stderr, "FATAL:  Must provide at least one dump file.\n");
-        Usage(argv[0]);
+        ShortUsage(exec_name);
     }
 
     for (int x = optind; x < argc; x++) {
