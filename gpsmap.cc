@@ -253,6 +253,9 @@ typedef struct gps_network {
 
     // Index to the netcolors table
     string color_index;
+
+    struct {
+	int x, y, h, w; } label;
 };
 
 // All networks we know about
@@ -2295,20 +2298,41 @@ void DrawNetCenterText(vector<gps_network *> in_nets, Image *in_img, DrawInfo *i
         // Do we just not have a draw condition for this network
         int thisdraw = 0;
 
+        if (network_labels.find("name") != string::npos) {
+            if (map_iter->wnet != NULL) {
+		if (map_iter->wnet->beacon_info == "") {
+		    snprintf(text, 1024, "%s", map_iter->wnet->ssid.c_str());
+		} else {
+		    snprintf(text, 1024, "%s/%s", map_iter->wnet->ssid.c_str(),
+					map_iter->wnet->beacon_info.c_str());
+		}
+                thisdraw = 1;
+            }
+            draw = 1;
+        }
+
         if (network_labels.find("bssid") != string::npos) {
-            snprintf(text, 1024, "%s ", map_iter->bssid.c_str());
+	    char text2[1024];
+            snprintf(text2, 1024, "%s (%s)", text, map_iter->bssid.c_str());
+            strncpy(text, text2, 1024);
             draw = 1;
             thisdraw = 1;
         }
 
-        if (network_labels.find("name") != string::npos) {
+        if (network_labels.find("manuf") != string::npos) {
             if (map_iter->wnet != NULL) {
-                char text2[1024];
-                snprintf(text2, 1024, "%s%s", text, map_iter->wnet->ssid.c_str());
-                strncpy(text, text2, 1024);
-                thisdraw = 1;
-            }
-            draw = 1;
+		map_iter->wnet->manuf_ref = MatchBestManuf(ap_manuf_map, map_iter->wnet->bssid,
+			       map_iter->wnet->ssid, map_iter->wnet->channel,
+			       map_iter->wnet->wep, map_iter->wnet->cloaked,
+			       &map_iter->wnet->manuf_score);
+		if (map_iter->wnet->manuf_ref) {
+		    char text2[1024];
+		    snprintf(text2, 1024, "%s %s", text, map_iter->wnet->manuf_ref->name.c_str());
+		    strncpy(text, text2, 1024);
+		}
+		draw = 1;
+		thisdraw = 1;
+	    }
         }
 
         if (thisdraw == 0)
@@ -2377,8 +2401,28 @@ void DrawNetCenterText(vector<gps_network *> in_nets, Image *in_img, DrawInfo *i
             break;
         }
 
+	map_iter->label.x = (int) mapx + yoff;
+	map_iter->label.y = (int) mapy + xoff;
+	map_iter->label.h = (int) metrics.height;
+	map_iter->label.w = (int) metrics.width;
+
+	while (1) {
+	    unsigned int y;
+	    for (y = 0; y < x; y++) {
+		gps_network *map_iter1 = in_nets[y];
+		if ((map_iter1->label.x + map_iter1->label.w > map_iter->label.x)
+		 && (map_iter1->label.x < map_iter->label.x + map_iter->label.w)
+		 && (map_iter1->label.y + map_iter1->label.h > map_iter->label.y)
+		 && (map_iter1->label.y < map_iter->label.y + map_iter->label.h)) {
+			map_iter->label.y = map_iter1->label.y + map_iter1->label.h;
+			break;
+		}
+	    }
+	    if (x == y) break;
+	}
+
         snprintf(prim, 1024, "fill-opacity 100%% stroke-opacity 100%% text %d,%d \"%s\"",
-                 (int) mapx + yoff, (int) mapy + xoff, text);
+                 map_iter->label.x, map_iter->label.y, text);
 
         in_di->primitive = prim;
         DrawImage(in_img, in_di);
