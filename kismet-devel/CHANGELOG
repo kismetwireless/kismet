@@ -1,6 +1,7 @@
 Nov 06 2002  2.7.1  Fixed timestamp and capture-level noise packet reporting
                      for wsp100
                     Fixed panelfront packet type dumps
+                    Changed wsp100 snmp calls to be more widely compatable
 Nov 05 2002  2.7.1  Fixed kismet_monitor host:port support for WSP100 sensor
                     Stripped unneeded (and incorrect) exception fd from selects
                     Minor memory leaks and bugs fixed in tcpclient
