@@ -130,7 +130,8 @@ case "$CARDTYPE" in
 		wlanctl-ng $DEVICE lnxreq_wlansniff channel=$CHANNEL enable=false
 		;;
 	"prism2_bsd")
-		echo "No unmonitor script for prism2_bsd"
+		echo "Disabling monitor mode for a prism2 card on $DEVICE under BSD."
+		prism2ctl $DEVICE -h
 		;;
 	"prism2_hostap")
 		echo "Disabling monitor mode for a hostap prism2 card on $DEVICE"
