@@ -36,12 +36,10 @@ enablesources=prism
 enablesources=prism,cisco
 .RE
 .PP
-"noiselog" (true|false) Do we log packets that are noise/invalid?
-.PP
-"beaconlog" (true|false) Do we log beacon packets?  If beacon logging is turned off,
+"beaconstream" (true|false) Do we log beacon packets?  If beacon logging is turned off,
 one beacon per network will be logged.
 .PP
-"phylog" (true|false) Do we log PHY physical layer packets?  These can greatly increse
+"phystream" (true|false) Do we log PHY physical layer packets?  These can greatly increse
 the size of a logfile with little gain.  Not every packet source reports PHY
 packets.
 
