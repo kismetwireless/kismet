@@ -184,6 +184,9 @@ int Packetsourcetracker::AdvanceChannel() {
         chanchild_changepacket *data = (chanchild_changepacket *) 
             malloc(sizeof(chanchild_changepacket));
 
+        memset(chancmd, 0, sizeof(chanchild_packhdr));
+        memset(data, 0, sizeof(chanchild_changepacket));
+
         if (data == NULL) {
             snprintf(errstr, STATUS_MAX, "Could not allocate data struct for "
                      "changing channels: %s", strerror(errno));
@@ -442,6 +445,8 @@ int Packetsourcetracker::ProcessCardList(string in_enableline,
             meta->name = tokens[2];
             meta->device = tokens[1];
             meta->capsource = NULL;
+            meta->ch_pos = 0;
+            meta->cur_ch = 0;
 
             // Assign the initial channel - if one hasn't been requested specifically, 
             // use the prototype default.  cur_ch is treated as the initial channel 
@@ -658,6 +663,8 @@ int Packetsourcetracker::SpawnChannelChild() {
 // Die cleanly
 int Packetsourcetracker::ShutdownChannelChild() {
     chanchild_packhdr death_packet;
+   
+    memset(&death_packet, 0, sizeof(chanchild_packhdr));
     
     death_packet.sentinel = CHANSENTINEL;
     death_packet.packtype = CHANPACK_DIE;
