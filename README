@@ -6,18 +6,18 @@ Licensed under the GPL
 1.  What is Kismet
 2.  Feature Overview
 3.  Typical Uses
-4.  Required Libraries/Utilities
+4.  Upgrading From Previous Versions
 5.  Suidroot & Security
-6.  Upgrading From Previous Versions
-7.  Operating Systems
-8.  Capture Sources
-9.  Compiling
-10. Configuration
-11. Troubleshooting
-12. Panels Interface
-13. Network Mapping
-14. Drone Remotes
-15. Intrusion Detection
+6.  Required Libraries/Utilities
+7.  Compiling
+8.  Configuration
+9.  Panels Interface
+10. Operating Systems
+11. Capture Sources
+12. Network Mapping
+13. Drone Remotes
+14. Intrusion Detection
+15. Troubleshooting
 
 1.  What is Kismet
 
@@ -66,7 +66,33 @@ Licensed under the GPL
     - Rogue AP Detection:  Stationary or mobile sniffers to enforce site policy
       against rogue access points.
 
-4.  Required Libraries
+4.  Upgrading from Previous Versions
+
+    Upgrading to Kismet 3.1+:
+      Kismet 3.1 has significantly changed how Kismet operates again.  There
+      have been config file changes, changes to the names of capture types,
+      and various other mayhem.  Be sure to upgrade your config file or things
+      will definitely not work how you expect them to.
+
+5.  Suidroot & Security
+
+    In order to configure the wireless card for rfmon and start the packet
+    capture, Kismet needs root access.  As soon as root access is no longer
+    required, Kismet drops to a designated user so that potentially hostile
+    remote data isn't processed as root.
+
+    If channel hopping is enabled, Kismet forks and retains one process as
+    root for changing the channel of the capture sources.
+
+    For Kismet to have root access, it can be installed two different ways:
+    - Normal installation via 'make install' requires Kismet be started as
+      root.  
+    - Suid-root installation via 'make suidinstall'.  DO NOT INSTALL KISMET
+      SUID-ROOT IF YOU HAVE OTHER USERS ON YOUR SYSTEM.  Suid-root installation
+      will allow unprivileged users to set the wireless card to rfmon (breaking
+      any connections using wireless) and capture data.
+
+6.  Required Libraries
 
     Kismet is primary self-contained, however for some features it requires
     some external libraries or utilities.
@@ -121,33 +147,125 @@ Licensed under the GPL
       If you do not need to replay compressed dumps, you don't need a compiled
       copy of Ethereal.
 
-5.  Suidroot & Security
+7.  Compiling
+    
+    Compiling should be fairly straightforward.  It uses the normal configure
+    scripts found in most open source projects, and should build with any
+    modern version of gcc.
 
-    In order to configure the wireless card for rfmon and start the packet
-    capture, Kismet needs root access.  As soon as root access is no longer
-    required, Kismet drops to a designated user so that potentially hostile
-    remote data isn't processed as root.
+    1.  Download any libraries and external utilities needed
+    2.  Run './configure' with any special options you want (see
+        './configure --help')
+    3.  Run 'make' or 'gmake'
+    4.  Run 'make install' or 'make suidinstall' - SEE THE SECURITY SECTION
+        OF THE README BEFORE INSTALLING KISMET SUIDROOT!
 
-    If channel hopping is enabled, Kismet forks and retains one process as
-    root for changing the channel of the capture sources.
+    Crosscompiling Kismet can sometimes have problems with the libpcap 
+    autoconf scripts not being able to detect the kernel type and version
+    of the target system.  Overriding the configuration script variables
+    and passing extra configuration options can fix this:
 
-    For Kismet to have root access, it can be installed two different ways:
-    - Normal installation via 'make install' requires Kismet be started as
-      root.  
-    - Suid-root installation via 'make suidinstall'.  DO NOT INSTALL KISMET
-      SUID-ROOT IF YOU HAVE OTHER USERS ON YOUR SYSTEM.  Suid-root installation
-      will allow unprivileged users to set the wireless card to rfmon (breaking
-      any connections using wireless) and capture data.
-   
-6.  Upgrading from Previous Versions
+    'ac_cv_linux_vers=foo ./configure --with-pcap=linux ...'
 
-    Upgrading to Kismet 3.1+:
-      Kismet 3.1 has significantly changed how Kismet operates again.  There
-      have been config file changes, changes to the names of capture types,
-      and various other mayhem.  Be sure to upgrade your config file or things
-      will definitely not work how you expect them to.
+8.  Configuration
 
-7.  Operating Systems
+    Kismet is controlled by 2 primary configuration files:
+    kismet.conf controls the server backend, and kismet_ui.conf controls the
+    panels user interface.  By default, these files are in /usr/local/etc/.
+    Remote drone servers use a third file, kismet_drone.conf.
+
+    Kismet configuration files are a simple 'variable=value' format.
+
+    Basic server configuration:
+
+    1.  Set up the target suiduser.  This is the user that Kismet will drop
+        to after it sets the cards in monitor mode and attaches to them.  See
+        the section 'Suidroot & Security' for more information.  If this is
+        not set correctly, Kismet won't start.
+        This is controlled by the 'suiduser' directive.
+
+    2.  Set up the capture sources.  Most users will only need one, but it is
+        possible to have any number of sources defined which will be combined
+        into a single packet log.
+        Sources are defined with the 'source' directive.  Source lines are
+        defined with 'source=type,interface,name'.  See the section
+        'Capture Types' for a list of source types.  The name can be anything
+        that is useful for you to identify what source it is.
+
+    3.  Set up channel hopping.  The default channel hopping values will
+        probably be fine for most, but the speed of channel hopping can be
+        set with the 'channelvelocity' directive and the lists of channels
+        to be hopped can be set with 'defaultchannels'.
+        Additional per-source fine-grained channel hopping control is available
+        via the 'sourcechannels' directives, which are explained in the 
+        configuration file comments.
+
+    4.  Set up what clients are allowed to connect.  By default this is 
+        limited to 'localhost', which is fine for most users.
+
+    5.  Set the log template.  By default, Kismet writes logs to the directory
+        it is started in.  By putting a full path into the 'logtemplate'
+        directive you can force it to write them to another location (such as
+        a directory guaranteed to be writeable by the target suiduser).
+
+    Client configuration:
+
+    1.  Set the host and port.  By default, Kismet is configured to connect
+        to the localhost and standard port.
+
+    2.  Set columns to be displayed.  The default set should be fine for most
+        but it can be changed/expanded.  Columns can be scrolled in the client
+        with the arrow keys.
+
+    3.  Set a sound player.  For most, 'play' from Sox (the default) should
+        be fine.  If you use a sound daemon such as esd or ksd you will need
+        to change the play command to call esdplay or similar.
+
+    4.  Configure speech (or not).  Kismet can write to Festival for speaking
+        information about networks.
+
+    5.  Customize colors.  Most components of the Kismet panels UI can be 
+        colorized.
+
+    More advanced server configuration:
+
+    * IDS alert rates can be controlled via the 'alert' directive, which 
+      specifies the alert type, rate per timeframe (ie, 5/min), and the burst
+      limits.
+
+    * Networks with known WEP keys can be decrypted realtime with the 
+      'wepkey' directive, which specifies a BSSID (or bssid mask) and the
+      WEP key.
+
+    * Runtime filtering of packets is controlled by the 'filter_tracker',
+      'filter_dump', and 'filter_export' directives, which influence which
+      packets are processed at all, logged to dump files, and logged to
+      xml/csv/etc files, respectively.
+
+      Once filters are enabled they control what packets are allowed through.
+      To allow all packets NOT specified, invert the filter with '!'.
+
+      Filtering can be done on address types (ANY, SOURCE, DEST, and BSSID),
+      and can be inverted.  For example, to exclude all packets from a given
+      MAC, 'filter_tracker=ANY(!00:11:22:33:44:55)'.
+
+      Multiple filters can be chained together on one line with a ','.
+      'filter_tracker=ANY(..),BSSID(!...)'
+     
+    * MAC address masking.  Nearly any directive which takes a MAC address
+      (such as filters, WEP keys, etc) can take a masked address.  MAC masking
+      works the same as netmask in TCP/IP, for example
+      '00:11:22:00:00:00/FF:FF:FF:00:00:00' 
+      would match all addresses beginning with 00:11:22.  Masks do not have
+      to break on whole pairs ('FF:FF:FF:F0:00:00' is a valid mask).
+
+    * Log tuning.  The types of packets that make it into the logfiles can be
+      controlled via the 'noiselog', 'beaconlog', 'phylog, 'mangledatalog',
+      and other options.
+
+9.  Panels Interface
+      
+10. Operating Systems
 
     Kismet will work (at some level) on any operating system which has Posix
     compatibility, however for it to do native packet capturing it needs
@@ -206,7 +324,7 @@ Licensed under the GPL
 
       Don't use win32 if you want to capture data natively.
 
-8.  Capture Sources
+11. Capture Sources
     
     A capture source in Kismet is anything which provides packets to the Kismet
     engine.  Capture sources define the underlying engine needed to capture
@@ -362,55 +480,8 @@ Licensed under the GPL
                     automatically decompress gzipped files, etc.  Wtapfile
                     sources are only available if Kismet was compiled with
                     libwiretap support.
-9.  Compiling
-    
-    Compiling should be fairly straightforward.  It uses the normal configure
-    scripts found in most open source projects, and should build with any
-    modern version of gcc.
 
-    1.  Download any libraries and external utilities needed
-    2.  Run './configure' with any special options you want (see
-        './configure --help')
-    3.  Run 'make' or 'gmake'
-    4.  Run 'make install' or 'make suidinstall' - SEE THE SECURITY SECTION
-        OF THE README BEFORE INSTALLING KISMET SUIDROOT!
-
-    Crosscompiling Kismet can sometimes have problems with the libpcap 
-    autoconf scripts not being able to detect the kernel type and version
-    of the target system.  Overriding the configuration script variables
-    and passing extra configuration options can fix this:
-
-    'ac_cv_linux_vers=foo ./configure --with-pcap=linux ...'
-
-10. Configuration
-
-    Kismet is controlled by 2 primary configuration files:
-    kismet.conf controls the server backend, and kismet_ui.conf controls the
-    panels user interface.  By default, these files are in /usr/local/etc/.
-    Remote drone servers use a third file, kismet_drone.conf.
-
-    Kismet configuration files are a simple 'variable=value' format.
-
-    Key kismet.conf configuration variables:
-
-        Conf Variable    Usage
-        ---------------  ------------------------------------------------------
-        version          Version of Kismet config.  Users shouldn't need to 
-                         change this.       
-        servername       Name of Kismet server, for use in setting up multiple 
-                         servers.
-        source           Defines a Kismet source.  Each source provides packets
-                         to Kismet.  Format is 'sourcetype,interface,name'.
-                         Multiple sources can be defined with multiple 'source'
-                         lines.
-        suiduser         User Kismet drops to after binding to root sources.
-        channelhop       Controls if Kismet hops channels or stays on the
-                         initial channel.  (True or False)  
-        channelvelocity  Number of hops per second  
-        splitchannels    Divide position in the channel sequence between 
-                         sources.  
-
-11. Troubleshooting
+15. Troubleshooting
     
     Some common problems with Kismet have easy solutions:
 
