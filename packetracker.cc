@@ -74,7 +74,7 @@ string Packetracker::Net2String(wireless_network *in_net) {
 
     snprintf(output, 2048, "%s %d \001%s\001 \001%s\001 %d %d %d %d %d %d %d %d %d "
              "%d.%d.%d.%d %d.%d.%d.%d %d.%d.%d.%d %d %f %f %f %f %f %f %f %f %d %d %d %2.1f "
-             "%d %d %d %d %d %d %d %d %f %f %f %A %A %A %ld",
+             "%d %d %d %d %d %d %d %d %f %f %f %f %f %f %ld",
              in_net->bssid.size() > 0 ? in_net->bssid.c_str() : "\002",
              (int) in_net->type,
              in_net->ssid.size() > 0 ? in_net->ssid.c_str() : "\002",
@@ -118,8 +118,8 @@ string Packetracker::Client2String(wireless_network *net, wireless_client *clien
 
     snprintf(output, 2048,
              "%s %s %d %d %d %d %d %d %d %d %d "
-             "%f %f %f %f %f %f %f %f %A %A "
-             "%A %ld %2.1f %d %d %d %d %d %d %d "
+             "%f %f %f %f %f %f %f %f %f %f "
+             "%f %ld %2.1f %d %d %d %d %d %d %d "
              "%f %f %f %d %d.%d.%d.%d",
              net->bssid.c_str(),
              client->mac.c_str(),

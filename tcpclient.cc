@@ -253,10 +253,12 @@ int TcpClient::ParseData(char *in_data) {
 
         float maxrate;
 
+        float alat, alon, aalt;
+
         scanned = sscanf(in_data+hdrlen, "%17s %d \001%255[^\001]\001 \001%255[^\001]\001 "
                          "%d %d %d %d %d %d %d %d %d %hd.%hd.%hd.%hd %hd.%hd.%hd.%hd %hd.%hd.%hd.%hd "
                          "%d %f %f %f %f %f %f %f %f %d %d %d %f %d %d %d %d %d %d %d %d %f %f %f "
-                         "%lA %lA %lA %ld",
+                         "%f %f %f %ld",
                          bssid, (int *) &net.type, ssid, beacon,
                          &net.llc_packets, &net.data_packets, &net.crypt_packets, &net.interesting_packets,
                          &net.channel, &net.wep, (int *) &net.first_time, (int *) &net.last_time,
@@ -276,7 +278,7 @@ int TcpClient::ParseData(char *in_data) {
                          &net.quality, &net.signal, &net.noise,
                          &net.best_quality, &net.best_signal, &net.best_noise,
                          &net.best_lat, &net.best_lon, &net.best_alt,
-                         &net.aggregate_lat, &net.aggregate_lon, &net.aggregate_alt,
+                         &alat, &alon, &aalt,
                          &net.aggregate_points);
 
         if (scanned < 53) {
@@ -316,6 +318,10 @@ int TcpClient::ParseData(char *in_data) {
             net.ipdata.gate_ip[x] = (uint8_t) gate[x];
         }
 
+        net.aggregate_lat = alat;
+        net.aggregate_lon = alon;
+        net.aggregate_alt = aalt;
+
         net.maxrate = maxrate;
 
         net_map[net.bssid] = net;
@@ -331,9 +337,11 @@ int TcpClient::ParseData(char *in_data) {
         float maxrate;
         wireless_client *client = new wireless_client;
 
+        float alat, alon, aalt;
+
         scanned = sscanf(in_data+hdrlen, "%17s %17s %d %d %d %d %d %d %d %d %d "
-                         "%f %f %f %f %f %f %f %f %lA %lA "
-                         "%lA %ld %f %d %d %d %d %d %d %d "
+                         "%f %f %f %f %f %f %f %f %f %f "
+                         "%f %ld %f %d %d %d %d %d %d %d "
                          "%f %f %f %d %hd.%hd.%hd.%hd",
                          bssid, mac, (int *) &client->type,
                          (int *) &client->first_time, (int *) &client->last_time,
@@ -343,8 +351,7 @@ int TcpClient::ParseData(char *in_data) {
                          &client->gps_fixed, &client->min_lat, &client->min_lon,
                          &client->min_alt, &client->min_spd,
                          &client->max_lat, &client->max_lon, &client->max_alt,
-                         &client->max_spd, &client->aggregate_lat, &client->aggregate_lon,
-                         &client->aggregate_alt, &client->aggregate_points,
+                         &client->max_spd, &alat, &alon, &aalt, &client->aggregate_points,
                          &maxrate, &client->metric,
                          &client->quality, &client->signal, &client->noise,
                          &client->best_quality, &client->best_signal, &client->best_noise,
@@ -373,6 +380,10 @@ int TcpClient::ParseData(char *in_data) {
 
         for (unsigned int x = 0; x < 4; x++)
             client->ipdata.ip[x] = ip[x];
+
+        client->aggregate_lat = alat;
+        client->aggregate_lon = alon;
+        client->aggregate_alt = aalt;
 
         if (net_map.find(bssid) != net_map.end())
             net_map[bssid].client_map[mac] = client;
