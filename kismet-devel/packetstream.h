@@ -28,7 +28,7 @@
 #include <inttypes.h>
 #endif
 
-#define STREAM_DRONE_VERSION 6
+#define STREAM_DRONE_VERSION 7
 
 #define STREAM_SENTINEL      0xDECAFBAD
 
@@ -71,6 +71,8 @@ typedef struct stream_packet_header {
     int64_t gps_alt_mant __attribute__ ((packed));
     int16_t gps_spd __attribute__ ((packed));
     int64_t gps_spd_mant __attribute__ ((packed));
+    int16_t gps_heading __attribute__ ((packed));
+    int64_t gps_heading_mant __attribute__ ((packed));
     int8_t gps_fix __attribute__ ((packed));
 };
 

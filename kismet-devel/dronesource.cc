@@ -251,6 +251,8 @@ int DroneSource::Drone2Common(kis_packet *packet, uint8_t *data, uint8_t *moddat
                                  (int64_t) kis_ntoh64(phdr.gps_alt_mant));
     packet->gps_spd = Pair2Float((int16_t) ntohs(phdr.gps_spd),
                                  (int64_t) kis_ntoh64(phdr.gps_spd_mant));
+    packet->gps_heading = Pair2Float((int16_t) ntohs(phdr.gps_heading),
+                                     (int64_t) kis_ntoh64(phdr.gps_heading_mant));
     packet->gps_fix = phdr.gps_fix;
 
     packet->data = data;

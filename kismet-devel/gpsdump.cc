@@ -78,13 +78,13 @@ int GPSDump::DumpPacket(packet_info *in_packinfo) {
     gettimeofday(&ts, NULL);
 
     fprintf(gpsf, "    <gps-point bssid=\"%s\" source=\"%s\" time-sec=\"%ld\" time-usec=\"%ld\" "
-            "lat=\"%f\" lon=\"%f\" alt=\"%f\" spd=\"%f\" fix=\"%d\" "
+            "lat=\"%f\" lon=\"%f\" alt=\"%f\" spd=\"%f\" heading=\"%f\" fix=\"%d\" "
             "signal=\"%d\" quality=\"%d\" noise=\"%d\"/>\n",
             in_packinfo->bssid_mac.Mac2String().c_str(),
             in_packinfo->source_mac.Mac2String().c_str(),
             (long int) in_packinfo->ts.tv_sec, (long int) in_packinfo->ts.tv_usec,
             in_packinfo->gps_lat, in_packinfo->gps_lon, in_packinfo->gps_alt,
-            in_packinfo->gps_spd, in_packinfo->gps_fix,
+            in_packinfo->gps_spd, in_packinfo->gps_heading, in_packinfo->gps_fix,
             in_packinfo->signal, in_packinfo->quality, in_packinfo->noise);
 
     num_packets++;
@@ -93,7 +93,7 @@ int GPSDump::DumpPacket(packet_info *in_packinfo) {
 }
 
 int GPSDump::DumpTrack(GPSD *in_gps) {
-    float lat, lon, alt, spd;
+    float lat, lon, alt, spd, hed;
     int fix;
 
     // Bail if we don't have a lock
@@ -103,7 +103,7 @@ int GPSDump::DumpTrack(GPSD *in_gps) {
     timeval ts;
     gettimeofday(&ts, NULL);
 
-    in_gps->FetchLoc(&lat, &lon, &alt, &spd, &fix);
+    in_gps->FetchLoc(&lat, &lon, &alt, &spd, &hed, &fix);
 
     int sig = 0, qual = 0, noise = 0;
 
@@ -114,11 +114,11 @@ int GPSDump::DumpTrack(GPSD *in_gps) {
     }
 
     fprintf(gpsf, "    <gps-point bssid=\"%s\" time-sec=\"%ld\" time-usec=\"%ld\" "
-            "lat=\"%f\" lon=\"%f\" alt=\"%f\" spd=\"%f\" fix=\"%d\" "
+            "lat=\"%f\" lon=\"%f\" alt=\"%f\" spd=\"%f\" heading=\"%f\" fix=\"%d\" "
             "signal=\"%d\" quality=\"%d\" noise=\"%d\"/>\n",
             gps_track_bssid,
             (long int) ts.tv_sec, (long int) ts.tv_usec,
-            lat, lon, alt, spd, fix,
+            lat, lon, alt, spd, hed, fix,
             sig, qual, noise);
 
     num_packets++;

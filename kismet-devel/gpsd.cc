@@ -23,7 +23,7 @@
 
 GPSD::GPSD(char *in_host, int in_port) {
     sock = -1;
-    lat = lon = alt = spd = 0;
+    lat = lon = alt = spd = hed = 0;
     mode = -1;
 
     sock = -1;
@@ -139,20 +139,25 @@ int GPSD::Scan() {
     strncpy(data, concat, 1024);
 
     char *live;
+    int scanret;
 
     if ((live = strstr(data, "GPSD,")) == NULL) {
         return 1;
     }
 
     //GPSD,P=41.711592 -73.931137,A=49.500000,V=0.000000,M=1
-    if (sscanf(live, "GPSD,P=%f %f,A=%f,V=%f,M=%d",
-               &lat, &lon, &alt, &spd, &mode) < 5) {
+    if ((scanret = sscanf(live, "GPSD,P=%f %f,A=%f,V=%f,M=%d,H=%f",
+               &lat, &lon, &alt, &spd, &mode, &hed)) < 5) {
 
-        lat = lon = spd = alt = 0;
+        lat = lon = spd = alt = hed = 0;
         mode = 0;
 
         return 0;
     }
+
+    // Maybe calc this live in the future?
+    if (scanret == 5)
+        hed = 0;
 
     spd = spd * (6076.12 / 5280);
 
@@ -178,12 +183,13 @@ int GPSD::Scan() {
     return 1;
 }
 
-int GPSD::FetchLoc(float *in_lat, float *in_lon, float *in_alt, float *in_spd, int *in_mode) {
+int GPSD::FetchLoc(float *in_lat, float *in_lon, float *in_alt, float *in_spd, float *in_hed, int *in_mode) {
     *in_lat = lat;
     *in_lon = lon;
     *in_alt = alt;
     *in_spd = spd;
     *in_mode = mode;
+    *in_hed = hed;
 
     return mode;
 }

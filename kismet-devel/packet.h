@@ -175,6 +175,7 @@ typedef struct {
     float gps_lon;
     float gps_alt;
     float gps_spd;
+    float gps_heading;
     int gps_fix;
 } kis_packet;
 
@@ -970,7 +971,7 @@ typedef struct {
     int turbocell_sat;
 
     // Location info
-    float gps_lat, gps_lon, gps_alt, gps_spd;
+    float gps_lat, gps_lon, gps_alt, gps_spd, gps_heading;
     int gps_fix;
 
 } packet_info;

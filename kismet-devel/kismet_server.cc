@@ -605,10 +605,10 @@ void NetWriteInfo() {
     GPS_data gdata;
 
     if (gps_enable) {
-        float lat, lon, alt, spd;
+        float lat, lon, alt, spd, hed;
         int mode;
 
-        gps->FetchLoc(&lat, &lon, &alt, &spd, &mode);
+        gps->FetchLoc(&lat, &lon, &alt, &spd, &hed, &mode);
 
         snprintf(tmpstr, 32, "%f", lat);
         gdata.lat = tmpstr;
@@ -618,6 +618,8 @@ void NetWriteInfo() {
         gdata.alt = tmpstr;
         snprintf(tmpstr, 32, "%f", spd);
         gdata.spd = tmpstr;
+        snprintf(tmpstr, 32, "%f", hed);
+        gdata.heading = tmpstr;
         snprintf(tmpstr, 32, "%d", mode);
         gdata.mode = tmpstr;
     } else {
@@ -625,6 +627,7 @@ void NetWriteInfo() {
         gdata.lon = "0.0";
         gdata.alt = "0.0";
         gdata.spd = "0.0";
+        gdata.heading = "0.0";
         gdata.mode = "0";
     }
 

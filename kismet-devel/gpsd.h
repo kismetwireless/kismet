@@ -43,7 +43,7 @@
 // POSITION, ALT, VELOCITY, MODE
 
 // Our command
-const char gpsd_command[] = "PAVM";
+const char gpsd_command[] = "PAVMH";
 
 // Options
 #define GPSD_OPT_FORCEMODE    1
@@ -71,7 +71,7 @@ public:
     int Scan();
 
     // Fetch a location
-    int FetchLoc(float *in_lat, float *in_lon, float *in_alt, float *in_spd, int *mode);
+    int FetchLoc(float *in_lat, float *in_lon, float *in_alt, float *in_spd, float *in_hed, int *mode);
 
     // Fetch mode
     int FetchMode() { return mode; }
@@ -81,7 +81,7 @@ protected:
 
     int sock;
 
-    float lat, lon, alt, spd;
+    float lat, lon, alt, spd, hed;
     int mode;
 
     char data[1024];
@@ -116,7 +116,7 @@ public:
     int Scan() { return -1; }
 
     // Fetch a location
-    int FetchLoc(float *in_lat, float *in_lon, float *in_alt, float *in_spd, int *mode) {
+    int FetchLoc(float *in_lat, float *in_lon, float *in_alt, float *in_spd, float *in_hed, int *mode) {
         return -1;
     }
 
