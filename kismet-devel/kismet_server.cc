@@ -87,6 +87,11 @@ int numstringclients = 0;
 // Number of clients with packtype printing on
 int numpackclients = 0;
 
+// Pipe file descriptor pairs and fd's
+int soundpair[2];
+int speechpair[2];
+pid_t soundpid = -1, speechpid = -1;
+
 // This/these have to be globals, unfortunately, so that the interrupt
 // handler can shut down logging and write out to disk the network list.
 
@@ -305,47 +310,181 @@ void NetWriteInfo() {
     last_write = time(0);
 }
 
-// Fork and run a system call to play a sound
-void PlaySound(string player, string sound, map<string, string> soundmap) {
-    // Why doesn't the above work?  It seems to bugger up wtap dumping.
-    // If we don't have this sound event defined
-    if (soundmap.find(sound) == soundmap.end())
-        return;
+// Subprocess sound handler
+void SoundHandler(int read_sock, const char *player, map<string, string> soundmap) {
+    fd_set rset;
+    fd_set eset;
 
-    char snd_call[1024];
-    snprintf(snd_call, 1024, "%s %s &", player.c_str(),
-             soundmap[sound].c_str());
-    if (system(snd_call) < 0) {
-        char status[STATUS_MAX];
-        if (!silent)
-            fprintf(stderr, "ERROR:  Could not execute system() call for `%s'\n", snd_call);
-        snprintf(status, STATUS_MAX, "KISMET ERROR:  Could not execute system() for `%s'",
-                 snd_call);
-        NetWriteStatus(status);
+    char data[1024];
+
+    pid_t sndpid = -1;
+    int harvested = 1;
+
+    while (1) {
+        FD_ZERO(&rset);
+        FD_SET(read_sock, &rset);
+        FD_ZERO(&eset);
+        char *end;
+
+        memset(data, 0, 1024);
+
+        select(read_sock + 1, &rset, NULL, &eset, NULL);
+
+        if (FD_ISSET(read_sock, &rset)) {
+            int ret;
+            ret = read(read_sock, data, 1024);
+
+            if (ret == 0)
+                continue;
+
+            // We'll die off if we get a read error, and we'll let kismet on the
+            // other side detact that it died
+            if (ret < 0)
+                exit(1);
+
+            if ((end = strstr(data, "\n")) == NULL)
+                continue;
+
+            end[0] = '\0';
+        }
+
+        if (harvested == 0) {
+            // We consider a wait error to be a sign that the child pid died
+            // so we flag it as harvested and keep on going
+            pid_t harvestpid = waitpid(sndpid, NULL, WNOHANG);
+            if (harvestpid == -1 || harvestpid == sndpid)
+                harvested = 1;
+        }
+
+        // If we've harvested the process, spawn a new one and watch it
+        // instead.  Otherwise, we just let go of the data we read
+        if (harvested == 1) {
+            char snd[1024];
+
+            if (soundmap.size() == 0)
+                snprintf(snd, 1024, "%s", data);
+            if (soundmap.find(data) != soundmap.end())
+                snprintf(snd, 1024, "%s", soundmap[data].c_str());
+            else
+                continue;
+
+            char plr[1024];
+            snprintf(plr, 1024, "%s", player);
+
+            harvested = 0;
+            if ((sndpid = fork()) == 0) {
+                char * const echoarg[] = { plr, snd, NULL };
+                execve(echoarg[0], echoarg, NULL);
+            }
+        }
     }
 }
 
-// Fork and run a system call to play a sound
-void SayText(string player, string text) {
-    char snd_call[1024];
+// Subprocess speech handler
+void SpeechHandler(int read_sock, const char *player) {
+    fd_set rset;
+    fd_set eset;
 
-    char textprint[1024];
+    char data[1024];
 
-    snprintf(textprint, 1024, "%s", text.c_str());
-    MungeToShell(textprint, 1024);
+    pid_t sndpid = -1;
+    int harvested = 1;
 
-    snprintf(snd_call, 1024, "echo '(SayText \"%s\")' | %s &", textprint,
-             player.c_str());
+    while (1) {
+        FD_ZERO(&rset);
+        FD_SET(read_sock, &rset);
+        FD_ZERO(&eset);
+        char *end;
 
-    if (system(snd_call) < 0) {
-        char status[STATUS_MAX];
-        if (!silent)
-            fprintf(stderr, "ERROR:  Could not execute system() call for `%s'\n", snd_call);
-        snprintf(status, STATUS_MAX, "KISMET ERROR:  Could not execute system() for `%s'",
-                 snd_call);
-        NetWriteStatus(status);
+        memset(data, 0, 1024);
+
+        select(read_sock + 1, &rset, NULL, &eset, NULL);
+
+        if (FD_ISSET(read_sock, &rset)) {
+            int ret;
+            ret = read(read_sock, data, 1024);
+
+            if (ret == 0)
+                continue;
+
+            // We'll die off if we get a read error, and we'll let kismet on the
+            // other side detact that it died
+            if (ret < 0)
+                exit(1);
+
+            if ((end = strstr(data, "\n")) == NULL)
+                continue;
+
+            end[0] = '\0';
+        }
+
+        if (harvested == 0) {
+            // We consider a wait error to be a sign that the child pid died
+            // so we flag it as harvested and keep on going
+            pid_t harvestpid = waitpid(sndpid, NULL, WNOHANG);
+            if (harvestpid == -1 || harvestpid == sndpid)
+                harvested = 1;
+        }
+
+        // If we've harvested the process, spawn a new one and watch it
+        // instead.  Otherwise, we just let go of the data we read
+        if (harvested == 1) {
+            harvested = 0;
+            if ((sndpid = fork()) == 0) {
+                FILE *sayf;
+
+                if ((sayf = popen(player, "w")) != NULL) {
+                    fprintf(sayf, "(SayText %s)\n", data);
+                    pclose(sayf);
+                }
+
+                exit(0);
+            }
+        }
     }
 }
+
+
+// Fork and run a system call to play a sound
+int PlaySound(string in_sound) {
+
+    char snd[1024];
+
+    snprintf(snd, 1024, "%s\n", in_sound.c_str());
+
+    if (write(soundpair[1], snd, strlen(snd)) < 0) {
+        char status[STATUS_MAX];
+        if (!silent)
+            fprintf(stderr, "ERROR:  Write error, closing sound pipe.\n");
+        snprintf(status, STATUS_MAX, "ERROR:  Write error on sound pipe, closing sound connection");
+        NetWriteStatus(status);
+
+        return 0;
+    }
+
+    return 1;
+}
+
+int SayText(string in_text) {
+
+    char snd[1024];
+
+    snprintf(snd, 1024, "%s\n", in_text.c_str());
+    MungeToShell(snd, 1024);
+
+    if (write(speechpair[1], snd, strlen(snd)) < 0) {
+        char status[STATUS_MAX];
+        if (!silent)
+            fprintf(stderr, "ERROR:  Write error, closing speech pipe.\n");
+        snprintf(status, STATUS_MAX, "ERROR:  Write error on speech pipe, closing speech connection");
+        NetWriteStatus(status);
+
+        return 0;
+    }
+
+    return 1;
+}
+
 
 void NetWriteStatus(char *in_status) {
     char out_stat[1024];
@@ -711,6 +850,108 @@ int main(int argc,char *argv[]) {
         ip_track = 1;
     }
 
+    // Open the captype
+    if (captype == NULL) {
+        if (conf.FetchOpt("captype") == "") {
+            fprintf(stderr, "FATAL:  No capture type specified.");
+            exit(1);
+        }
+        captype = conf.FetchOpt("captype").c_str();
+    }
+
+    // Create a capture source
+    if (!strcasecmp(captype, "prism2")) {
+#ifdef HAVE_LINUX_NETLINK
+        fprintf(stderr, "Using prism2 to capture packets.\n");
+
+        packsource = new Prism2Source;
+#else
+        fprintf(stderr, "FATAL:  Linux netlink support was not compiled in.\n");
+        exit(1);
+#endif
+    } else if (!strcasecmp(captype, "pcap")) {
+#ifdef HAVE_LIBPCAP
+        if (capif == NULL) {
+            if (conf.FetchOpt("capinterface") == "") {
+                fprintf(stderr, "FATAL:  No capture device specified.\n");
+                exit(1);
+            }
+            capif = conf.FetchOpt("capinterface").c_str();
+        }
+
+        fprintf(stderr, "Using pcap to capture packets from %s\n", capif);
+
+        packsource = new PcapSource;
+#else
+        fprintf(stderr, "FATAL: Pcap support was not compiled in.\n");
+        exit(1);
+#endif
+    } else if (!strcasecmp(captype, "generic")) {
+#ifdef HAVE_LINUX_WIRELESS
+        if (capif == NULL) {
+            if (conf.FetchOpt("capinterface") == "") {
+                fprintf(stderr, "FATAL:  No capture device specified.\n");
+                exit(1);
+            }
+            capif = conf.FetchOpt("capinterface").c_str();
+        }
+
+        fprintf(stderr, "Using generic kernel extentions to capture SSIDs from %s\n", capif);
+
+        fprintf(stderr, "Generic capture does not support cisco, weak, or dump logs.\n");
+        cisco_log = crypt_log = data_log = 0;
+
+        fprintf(stderr, "**WARNING** Generic capture will generate packets which may be observable.\n");
+
+        if (getuid() != 0) {
+            fprintf(stderr, "FATAL: Generic kernel capture will ONLY work as root.  Kismet must be run as\n"
+                    "root, not suid, for this to function.\n");
+            exit(1);
+        }
+
+        packsource = new GenericSource;
+#else
+        fprintf(stderr, "FATAL: Kernel wireless (wavelan/generic) support was not compiled in.\n");
+        exit(1);
+#endif
+    } else if (!strcasecmp(captype, "wtapfile")) {
+        if (capif == NULL) {
+            if (conf.FetchOpt("capinterface") == "") {
+                fprintf(stderr, "FATAL:  No capture file specified.\n");
+                exit(1);
+            }
+            capif = conf.FetchOpt("capinterface").c_str();
+        }
+#ifdef HAVE_LIBWIRETAP
+        fprintf(stderr, "Loading packets from dump file %s\n", capif);
+
+        // Drop root privs NOW, because we don't want them reading any
+        // files in the system they shouldn't be.
+        setuid(getuid());
+
+        packsource = new WtapFileSource;
+#else
+        fprintf(stderr, "FATAL: Wtap support was not compiled in.\n");
+        exit(1);
+#endif
+
+    } else {
+        fprintf(stderr, "FATAL: Unknown capture type '%s'\n", captype);
+        exit(1);
+    }
+
+    // Open the packet source
+    if (packsource->OpenSource(capif) < 0) {
+        fprintf(stderr, "FATAL: %s\n", packsource->FetchError());
+        exit(1);
+    }
+
+    // Once the packet source is opened, we shouldn't need special privileges anymore
+    // so lets drop to a normal user.  We also don't want to open our logfiles as root
+    // if we can avoid it.
+    setuid(getuid());
+
+    // Now parse the rest of our options
 #ifdef HAVE_GPS
     if (conf.FetchOpt("waypoints") == "true") {
         if(conf.FetchOpt("waypointdata") == "") {
@@ -955,106 +1196,29 @@ int main(int argc,char *argv[]) {
         }
     }
 
-    // Open the captype
-    if (captype == NULL) {
-        if (conf.FetchOpt("captype") == "") {
-            fprintf(stderr, "FATAL:  No capture type specified.");
-            exit(1);
+    // Fork and find the sound options
+    if (sound) {
+        if (pipe(soundpair) == -1) {
+            fprintf(stderr, "WARNING:  Unable to create pipe for audio.  Disabling sound.\n");
+            sound = 0;
+        } else {
+            pid_t forkpid = fork();
+
+            if (forkpid < 0) {
+                fprintf(stderr, "WARNING:  Unable to fork for audio.  Disabling sound.\n");
+                sound = 0;
+            } else if (forkpid == 0) {
+                SoundHandler(soundpair[0], sndplay, wav_map);
+                exit(0);
+            }
         }
-        captype = conf.FetchOpt("captype").c_str();
     }
 
-    // Create a capture source
-    if (!strcasecmp(captype, "prism2")) {
-#ifdef HAVE_LINUX_NETLINK
-        fprintf(stderr, "Using prism2 to capture packets.\n");
+    if (speech) {
 
-        packsource = new Prism2Source;
-#else
-        fprintf(stderr, "FATAL:  Linux netlink support was not compiled in.\n");
-        exit(1);
-#endif
-    } else if (!strcasecmp(captype, "pcap")) {
-#ifdef HAVE_LIBPCAP
-        if (capif == NULL) {
-            if (conf.FetchOpt("capinterface") == "") {
-                fprintf(stderr, "FATAL:  No capture device specified.\n");
-                exit(1);
-            }
-            capif = conf.FetchOpt("capinterface").c_str();
-        }
 
-        fprintf(stderr, "Using pcap to capture packets from %s\n", capif);
-
-        packsource = new PcapSource;
-#else
-        fprintf(stderr, "FATAL: Pcap support was not compiled in.\n");
-        exit(1);
-#endif
-    } else if (!strcasecmp(captype, "generic")) {
-#ifdef HAVE_LINUX_WIRELESS
-        if (capif == NULL) {
-            if (conf.FetchOpt("capinterface") == "") {
-                fprintf(stderr, "FATAL:  No capture device specified.\n");
-                exit(1);
-            }
-            capif = conf.FetchOpt("capinterface").c_str();
-        }
-
-        fprintf(stderr, "Using generic kernel extentions to capture SSIDs from %s\n", capif);
-
-        fprintf(stderr, "Generic capture does not support cisco, weak, or dump logs.\n");
-        cisco_log = crypt_log = data_log = 0;
-
-        fprintf(stderr, "**WARNING** Generic capture will generate packets which may be observable.\n");
-
-        if (getuid() != 0) {
-            fprintf(stderr, "FATAL: Generic kernel capture will ONLY work as root.  Kismet must be run as\n"
-                    "root, not suid, for this to function.\n");
-            exit(1);
-        }
-
-        packsource = new GenericSource;
-#else
-        fprintf(stderr, "FATAL: Kernel wireless (wavelan/generic) support was not compiled in.\n");
-        exit(1);
-#endif
-    } else if (!strcasecmp(captype, "wtapfile")) {
-        if (capif == NULL) {
-            if (conf.FetchOpt("capinterface") == "") {
-                fprintf(stderr, "FATAL:  No capture file specified.\n");
-                exit(1);
-            }
-            capif = conf.FetchOpt("capinterface").c_str();
-        }
-#ifdef HAVE_LIBWIRETAP
-        fprintf(stderr, "Loading packets from dump file %s\n", capif);
-
-        // Drop root privs NOW, because we don't want them reading any
-        // files in the system they shouldn't be.
-        setuid(getuid());
-
-        packsource = new WtapFileSource;
-#else
-        fprintf(stderr, "FATAL: Wtap support was not compiled in.\n");
-        exit(1);
-#endif
-
-    } else {
-        fprintf(stderr, "FATAL: Unknown capture type '%s'\n", captype);
-        exit(1);
     }
 
-    // Open the packet source
-    if (packsource->OpenSource(capif) < 0) {
-        fprintf(stderr, "FATAL: %s\n", packsource->FetchError());
-        exit(1);
-    }
-
-    // Once the packet source is opened, we shouldn't need special privileges anymore
-    // so lets drop to a normal user.  We also don't want to open our logfiles as root
-    // if we can avoid it.
-    setuid(getuid());
 
     // Grab the filtering
     filter = conf.FetchOpt("macfilter");
@@ -1535,7 +1699,7 @@ int main(int argc,char *argv[]) {
     
                 if (tracker.FetchNumNetworks() != num_networks) {
                     if (sound == 1)
-                        PlaySound(sndplay, "new", wav_map);
+                        sound = PlaySound("new");
                 }
     
                 if (tracker.FetchNumNetworks() != num_networks && speech == 1) {
@@ -1545,7 +1709,7 @@ int main(int argc,char *argv[]) {
                              (info.wep ? "En-crypted" : "Un-en-crypted"),
                              info.ssid);
     
-                    SayText(festival, text);
+                    speech = SayText(text);
                 }
                 num_networks = tracker.FetchNumNetworks();
     
@@ -1553,9 +1717,9 @@ int main(int argc,char *argv[]) {
                     if (time(0) - last_click >= decay && sound == 1) {
                         if (tracker.FetchNumPackets() - num_packets >
                             tracker.FetchNumDropped() + localdropnum - num_dropped) {
-                            PlaySound(sndplay, "traffic", wav_map);
+                            sound = PlaySound("traffic");
                         } else {
-                            PlaySound(sndplay, "junktraffic", wav_map);
+                            sound = PlaySound("junktraffic");
                         }
     
                         last_click = time(0);
@@ -1661,14 +1825,16 @@ int main(int argc,char *argv[]) {
                     if (!silent)
                         fprintf(stderr, "Lost GPS signal.\n");
                     if (sound == 1)
-                        PlaySound(sndplay, "gpslost", wav_map);
+                        sound = PlaySound("gpslost");
+
                     NetWriteStatus("Lost GPS signal.");
                     gpsmode = 0;
                 } else if (gpsret != 0 && gpsmode == 0) {
                     if (!silent)
                         fprintf(stderr, "Aquired GPS signal.\n");
                     if (sound == 1)
-                        PlaySound(sndplay, "gpslock", wav_map);
+                        sound = PlaySound("gpslock");
+
                     NetWriteStatus("Aquired GPS signal.");
                     gpsmode = 1;
                 }

@@ -57,6 +57,11 @@ int group_track = 0;
 string configdir, groupfile;
 FILE *group_file = NULL;
 
+// Pipe file descriptor pairs and fd's
+int soundpair[2];
+int speechpair[2];
+pid_t soundpid = -1, speechpid = -1;
+
 // Catch our interrupt
 void CatchShutdown(int sig) {
 
@@ -91,44 +96,176 @@ int Usage(char *argv) {
     exit(1);
 }
 
+// Subprocess sound handler
+void SoundHandler(int read_sock, const char *player, map<string, string> soundmap) {
+    fd_set rset;
+    fd_set eset;
 
-// Fork and run a system call to play a sound
-void PlaySound(string player, string sound, map<string, string> soundmap) {
-    // Why doesn't the above work?  It seems to bugger up wtap dumping.
-    // If we don't have this sound event defined
-    if (soundmap.find(sound) == soundmap.end())
-        return;
+    char data[1024];
 
-    char snd_call[1024];
-    snprintf(snd_call, 1024, "%s %s >/dev/null 2>/dev/null &", player.c_str(),
-             soundmap[sound].c_str());
-    if (system(snd_call) < 0) {
-        char status[STATUS_MAX];
-        snprintf(status, STATUS_MAX, "ERROR:  Could not execute system() for `%s'",
-                 snd_call);
-        gui->WriteStatus(status);
+    pid_t sndpid = -1;
+    int harvested = 1;
+
+    while (1) {
+        FD_ZERO(&rset);
+        FD_SET(read_sock, &rset);
+        FD_ZERO(&eset);
+        char *end;
+
+        memset(data, 0, 1024);
+
+        select(read_sock + 1, &rset, NULL, &eset, NULL);
+
+        if (FD_ISSET(read_sock, &rset)) {
+            int ret;
+            ret = read(read_sock, data, 1024);
+
+            if (ret == 0)
+                continue;
+
+            // We'll die off if we get a read error, and we'll let kismet on the
+            // other side detact that it died
+            if (ret < 0)
+                exit(1);
+
+            if ((end = strstr(data, "\n")) == NULL)
+                continue;
+
+            end[0] = '\0';
+        }
+
+        if (harvested == 0) {
+            // We consider a wait error to be a sign that the child pid died
+            // so we flag it as harvested and keep on going
+            pid_t harvestpid = waitpid(sndpid, NULL, WNOHANG);
+            if (harvestpid == -1 || harvestpid == sndpid)
+                harvested = 1;
+        }
+
+        // If we've harvested the process, spawn a new one and watch it
+        // instead.  Otherwise, we just let go of the data we read
+        if (harvested == 1) {
+            char snd[1024];
+
+            if (soundmap.size() == 0)
+                snprintf(snd, 1024, "%s", data);
+            if (soundmap.find(data) != soundmap.end())
+                snprintf(snd, 1024, "%s", soundmap[data].c_str());
+            else
+                continue;
+
+            char plr[1024];
+            snprintf(plr, 1024, "%s", player);
+
+            harvested = 0;
+            if ((sndpid = fork()) == 0) {
+                char * const echoarg[] = { plr, snd, NULL };
+                execve(echoarg[0], echoarg, NULL);
+            }
+        }
     }
-
 }
 
-// Fork and run a system call to play a sound
-void SayText(string player, string text) {
-    char snd_call[1024];
+// Subprocess speech handler
+void SpeechHandler(int read_sock, const char *player) {
+    fd_set rset;
+    fd_set eset;
 
-    char textprint[1024];
+    char data[1024];
 
-    snprintf(textprint, 1024, "%s", text.c_str());
-    MungeToShell(textprint, 1024);
+    pid_t sndpid = -1;
+    int harvested = 1;
 
-    snprintf(snd_call, 1024, "echo '(SayText \"%s\")' | %s >/dev/null 2>/dev/null &", textprint,
-             player.c_str());
+    while (1) {
+        FD_ZERO(&rset);
+        FD_SET(read_sock, &rset);
+        FD_ZERO(&eset);
+        char *end;
 
-    if (system(snd_call) < 0) {
-        char status[STATUS_MAX];
-        snprintf(status, STATUS_MAX, "ERROR:  Could not execute system() for `%s'",
-                 snd_call);
-        gui->WriteStatus(status);
+        memset(data, 0, 1024);
+
+        select(read_sock + 1, &rset, NULL, &eset, NULL);
+
+        if (FD_ISSET(read_sock, &rset)) {
+            int ret;
+            ret = read(read_sock, data, 1024);
+
+            if (ret == 0)
+                continue;
+
+            // We'll die off if we get a read error, and we'll let kismet on the
+            // other side detact that it died
+            if (ret < 0)
+                exit(1);
+
+            if ((end = strstr(data, "\n")) == NULL)
+                continue;
+
+            end[0] = '\0';
+        }
+
+        if (harvested == 0) {
+            // We consider a wait error to be a sign that the child pid died
+            // so we flag it as harvested and keep on going
+            pid_t harvestpid = waitpid(sndpid, NULL, WNOHANG);
+            if (harvestpid == -1 || harvestpid == sndpid)
+                harvested = 1;
+        }
+
+        // If we've harvested the process, spawn a new one and watch it
+        // instead.  Otherwise, we just let go of the data we read
+        if (harvested == 1) {
+            harvested = 0;
+            if ((sndpid = fork()) == 0) {
+                FILE *sayf;
+
+                if ((sayf = popen(player, "w")) != NULL) {
+                    fprintf(sayf, "(SayText %s)\n", data);
+                    pclose(sayf);
+                }
+
+                exit(0);
+            }
+        }
     }
+}
+
+
+int PlaySound(string in_sound) {
+
+    char snd[1024];
+
+    snprintf(snd, 1024, "%s\n", in_sound.c_str());
+
+    if (write(soundpair[1], snd, strlen(snd)) < 0) {
+        char status[STATUS_MAX];
+        snprintf(status, STATUS_MAX,
+                 "ERROR: Could not write to sound pipe.  Stopping sound.");
+        gui->WriteStatus(status);
+
+        return 0;
+    }
+
+    return 1;
+}
+
+int SayText(string in_text) {
+
+    char snd[1024];
+
+    snprintf(snd, 1024, "%s\n", in_text.c_str());
+    MungeToShell(snd, 1024);
+
+    if (write(speechpair[1], snd, strlen(snd)) < 0) {
+        char status[STATUS_MAX];
+        snprintf(status, STATUS_MAX,
+                 "ERROR: Could not write to speech pipe.  Stopping speech.");
+        gui->WriteStatus(status);
+
+        return 0;
+    }
+
+    return 1;
 }
 
 int main(int argc, char *argv[]) {
@@ -375,6 +512,25 @@ int main(int argc, char *argv[]) {
         }
     }
 
+    // Fork and find the sound options
+    if (sound) {
+        if (pipe(soundpair) == -1) {
+            fprintf(stderr, "WARNING:  Unable to create pipe for audio.  Disabling sound.\n");
+            sound = 0;
+        } else {
+            pid_t forkpid = fork();
+
+            if (forkpid < 0) {
+                fprintf(stderr, "WARNING:  Unable to fork for audio.  Disabling sound.\n");
+                sound = 0;
+            } else if (forkpid == 0) {
+                SoundHandler(soundpair[0], sndplay, wav_map);
+                exit(0);
+            }
+        }
+    }
+
+
     if (kismet_serv.Connect(guiport, guihost) < 0) {
         fprintf(stderr, "FATAL:  Could not connect to %s:%d.\n", guihost, guiport);
         exit(1);
@@ -504,18 +660,18 @@ int main(int argc, char *argv[]) {
 
                 if (kismet_serv.FetchMode() == 0 && gpsmode != 0) {
                     if (sound == 1 && gpsmode != -1)
-                        PlaySound(sndplay, "gpslost", wav_map);
+                        sound = PlaySound("gpslost");
                     gpsmode = 0;
                 } else if (kismet_serv.FetchMode() != 0 && gpsmode == 0) {
                     if (sound == 1 && gpsmode != -1)
-                        PlaySound(sndplay, "gpslock", wav_map);
+                        sound = PlaySound("gpslock");
                     gpsmode = 1;
                 }
     
     
                 if (kismet_serv.FetchNumNetworks() != num_networks) {
                     if (sound == 1)
-                        PlaySound(sndplay, "new", wav_map);
+                        sound = PlaySound("new");
                 }
                 num_networks = kismet_serv.FetchNumNetworks();
 
@@ -528,7 +684,7 @@ int main(int argc, char *argv[]) {
                              (newnet->wep ? "En-crypted" : "Un-en-crypted"),
                              newnet->ssid.c_str());
     
-                    SayText(festival, text);
+                    speech = SayText(text);
                 }
 
     
@@ -537,9 +693,9 @@ int main(int argc, char *argv[]) {
 
                         if (kismet_serv.FetchNumPackets() - num_packets >
                             kismet_serv.FetchNumDropped() - num_dropped) {
-                            PlaySound(sndplay, "traffic", wav_map);
+                            sound = PlaySound("traffic");
                         } else {
-                            PlaySound(sndplay, "junktraffic", wav_map);
+                            sound = PlaySound("junktraffic");
                         }
 
                         last_click = time(0);
