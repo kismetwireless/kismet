@@ -1,3 +1,6 @@
+Sep 08 2002  2.5.2  First iteration of gpsmap rewriting.  Command line args are
+                     COMPLETELY changed.  Expect full functionality to return
+                     soon.
 Sep 05 2002  2.5.2  Fixed client scrolling
                     Added client info pane
                     Finished first iteration of client panels
