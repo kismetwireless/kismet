@@ -732,3 +732,14 @@ Licensed under the GPL
       don't require root, you can change this in kismet.conf to put pidfiles
       in /tmp (or any other directory).
 
+    PROBLEM: Configure is unable to find libncurses or other libraries, but
+     they're installed.
+    FIX: If you are running a RPM-based distribution, you will need the 
+     foo-devel.rpm packages for each library.  These packages contain the 
+     headers needed to compile against the libraries.
+
+    PROBLEM: The panels client fails with the error 'unable to open 
+     terminal xyz'.
+    FIX: Set your TERM environment variable to something libcurses has support
+     for.  'vt100' is usually a good choice.
+

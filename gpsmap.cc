@@ -104,6 +104,7 @@ char *channelcolors[] = {
     "#8000FF", "#FF00FF", "#FF0080",
     "#808080", "#CCCCCC"
 };
+int channelcolor_max = 14;
 
 // Origional
 char *powercolors_Orig[] = {
@@ -162,11 +163,13 @@ const int power_steps_Math = 12;
 char *powercolors_Radar[] = {
     "#50E350", "#39C339", "#208420",
     "#145A14", "#C8C832", "#DC961E",
-    "#E61E1E", "#B31A17", "#811610",
+    "#811610", "#B31A17", "#E61E1E"
 };
 const int power_steps_Radar = 9;
 // Maximum power reported
 const int power_max = 255;
+
+int powercolor_index = 0;
 
 // Label gravity
 char *label_gravity_list[] = {
@@ -257,6 +260,8 @@ map<mac_addr, wireless_network *> bssid_net_map;
 
 // All the networks we know about for drawing
 map<string, gps_network *> bssid_gpsnet_map;
+// All networks we're going to draw
+map<mac_addr, gps_network *> drawn_net_map;
 
 typedef struct {
     int version;
@@ -291,12 +296,13 @@ double map_avg_lat, map_avg_lon;
 // User options and defaults
 unsigned int map_width = 1280;
 unsigned int map_height = 1024;
+const int legend_height = 80;
 
 // Drawing features and opacity
 int draw_track = 0, draw_bounds = 0, draw_range = 0, draw_power = 0,
     draw_hull = 0, draw_scatter = 0, draw_legend = 0, draw_center = 0, draw_label = 0;
 int track_opacity = 100, /* no bounds opacity */ range_opacity = 70, power_opacity = 70,
-    hull_opacity = 70, scatter_opacity = 100, legend_opacity = 90, center_opacity = 100, label_opacity = 100;
+    hull_opacity = 70, scatter_opacity = 100, center_opacity = 100, label_opacity = 100;
 int track_width = 3;
 int convert_greyscale = 1, keep_gif = 0, verbose = 0, label_orientation = 7;
 
@@ -378,12 +384,16 @@ void ProcessNetData(int in_printstats);
 void DrawNetTracks(vector< vector<track_data> > in_tracks, Image *in_img, DrawInfo *in_di);
 void DrawNetCircles(vector<gps_network *> in_nets, Image *in_img, DrawInfo *in_di);
 void DrawNetBoundRects(vector<gps_network *> in_nets, Image *in_img, DrawInfo *in_di, int in_fill);
-void DrawLegend(vector<gps_network *> in_nets, Image *in_img, DrawInfo *in_di);
 void DrawNetCenterDot(vector<gps_network *> in_nets, Image *in_img, DrawInfo *in_di);
 int InverseWeight(int in_x, int in_y, int in_fuzz, double in_scale);
 void DrawNetPower(vector<gps_network *> in_nets, Image *in_img, DrawInfo *in_di);
 void DrawNetHull(vector<gps_network *> in_nets, Image *in_img, DrawInfo *in_di);
 void DrawNetScatterPlot(vector<gps_network *> in_nets, Image *in_img, DrawInfo *in_di);
+
+int DrawLegendComposite(vector<gps_network *> in_nets, Image **in_img, DrawInfo **in_di);
+
+int IMStringWidth(const char *psztext, Image *in_img, DrawInfo *in_di);
+int IMStringHeight(const char *psztext, Image *in_img, DrawInfo *in_di);
 
 // Algo sort by lon
 class PointSortLon {
@@ -416,6 +426,38 @@ public:
         return 0;
     }
 };
+
+int IMStringWidth(const char *psztext, Image *in_img, DrawInfo *in_di) {
+    ExceptionInfo ex;
+    TypeMetric metrics;
+
+    in_di->text = (char *) psztext;
+    GetExceptionInfo(&ex);
+    if (!GetTypeMetrics(in_img, in_di, &metrics)) {
+        GetImageException(in_img, &ex);
+        fprintf(stderr, "stringwidth... %s %s\n", ex.reason, ex.description);
+    }
+
+    in_di->text = NULL;
+
+    return (int) fabs(metrics.width);
+}
+
+int IMStringHeight(const char *psztext, Image *in_img, DrawInfo *in_di) {
+    ExceptionInfo ex;
+    TypeMetric metrics;
+
+    in_di->text = (char *) psztext;
+    GetExceptionInfo(&ex);
+    if (!GetTypeMetrics(in_img, in_di, &metrics)) {
+        GetImageException(in_img, &ex);
+        fprintf(stderr, "stringwidth... %s %s\n", ex.reason, ex.description);
+    }
+
+    in_di->text = NULL;
+
+    return (int) fabs(metrics.height);
+}
 
 string Mac2String(uint8_t *mac, char seperator) { /*FOLD00*/
     char tempstr[MAC_STR_LEN];
@@ -1566,11 +1608,20 @@ void DrawNetCircles(vector<gps_network *> in_nets, Image *in_img, DrawInfo *in_d
         distavg = distavg / map_iter->points.size();
 
         if (!finite(distavg))
-            break;
+            continue;
 
         endx = mapx + distavg;
         endy = mapy + distavg;
 
+        if (!(((mapx - distavg > 0 && mapx - distavg < map_width) &&
+               (mapy - distavg > 0 && mapy - distavg < map_width)) &&
+              ((endx > 0 && endx < map_height) &&
+               (endy > 0 && endy < map_height)))) {
+            continue;
+        } 
+
+        drawn_net_map[mac_addr(map_iter->bssid.c_str())] = map_iter;
+        
         PixelPacket netclr;
 
         ExceptionInfo excep;
@@ -1621,6 +1672,10 @@ void DrawNetHull(vector<gps_network *> in_nets, Image *in_img, DrawInfo *in_di) 
 
             calcxy (&mapx, &mapy, pt->lat, pt->lon,
                     (double) map_scale/PIXELFACT, map_avg_lat, map_avg_lon);
+
+            // This is faily inefficient but what the hell.
+            if ((mapx > 0 && mapx < map_width) || (mapy > 0 && mapy < map_height))
+                drawn_net_map[mac_addr(map_iter->bssid.c_str())] = map_iter;
 
             char mm1[64];
             snprintf(mm1, 64, "%d,%d", (int) mapx, (int) mapy);
@@ -1774,6 +1829,14 @@ void DrawNetBoundRects(vector<gps_network *> in_nets, Image *in_img, DrawInfo *i
             bry = mapy;
         }
 
+        if (!(((tlx > 0 && tlx < map_width) &&
+               (tly > 0 && tly < map_width)) &&
+              ((brx > 0 && brx < map_height) &&
+               (bry > 0 && bry < map_height)))) {
+            continue;
+        } 
+        drawn_net_map[mac_addr(map_iter->bssid.c_str())] = map_iter;
+
         if (in_fill) {
             PixelPacket netclr;
 
@@ -1811,15 +1874,6 @@ void DrawNetBoundRects(vector<gps_network *> in_nets, Image *in_img, DrawInfo *i
         */
 
     }
-}
-
-void DrawLegend(Image *in_img, DrawInfo *in_di) { /*FOLD00*/
-    /*
-     int legend_height = map_height / 6;
-    int base_x = map_height - legend_height;
-    */
-
-
 }
 
 // Thread function to compute a line of interpolated data
@@ -2128,6 +2182,11 @@ void DrawNetCenterDot(vector<gps_network *> in_nets, Image *in_img, DrawInfo *in
         calcxy (&mapx, &mapy, map_iter->avg_lat, map_iter->avg_lon,
                 (double) map_scale/PIXELFACT, map_avg_lat, map_avg_lon);
 
+        if (!((mapx > 0 && mapx < map_width) || (mapy > 0 && mapy < map_height)))
+            continue;
+
+        drawn_net_map[mac_addr(map_iter->bssid.c_str())] = map_iter;
+
         double endx, endy;
         endx = mapx + center_resolution;
         endy = mapy + center_resolution;
@@ -2434,6 +2493,491 @@ void DrawNetScatterPlot(vector<gps_network *> in_nets, Image *in_img, DrawInfo *
 
 }
 
+// Draw the legend and composite into the main map
+//
+// Make sure to call this as the LAST DRAWING OPTION or else it won't get
+// the count right and various other things will go wrong.
+//
+// Text alignment SUCKS.  I don't like writing graphics code.
+// This might screw up in some font situations, i'll deal with it whenever it
+// comes to that.
+int DrawLegendComposite(vector<gps_network *> in_nets, Image **in_img, 
+                        DrawInfo **in_di) {
+   // char pixdata[map_width][map_height + legend_height];
+    unsigned int *pixdata;
+    char prim[1024];
+    ExceptionInfo im_exception;
+    GetExceptionInfo(&im_exception);
+    PixelPacket textclr;
+    int tx_height;
+    int cur_colpos = 5, cur_rowpos = map_height + 5;
+    time_t curtime = time(0);
+    int cur_column = 0;
+    PixelPacket sqcol;
+
+    Image *leg_img = NULL;
+    DrawInfo *leg_di = NULL;
+    ImageInfo *leg_img_info = NULL;
+
+    leg_img_info = CloneImageInfo((ImageInfo *) NULL);
+
+    pixdata = (unsigned int *) malloc(sizeof(unsigned int) * 
+                                      (map_width * (map_height + legend_height)));
+
+    leg_img = ConstituteImage(map_width, map_height + legend_height, "RGB", CharPixel, 
+                              pixdata, &im_exception);
+
+    if (leg_img == (Image *) NULL) {
+        fprintf(stderr, "FATAL: ImageMagick error:\n");
+        MagickError(im_exception.severity, im_exception.reason,
+                    im_exception.description);
+        exit(0);
+    }
+
+    leg_di = CloneDrawInfo(leg_img_info, NULL);
+
+    snprintf(prim, 1024, "stroke black fill-opacity 100%% rectangle 0,%d %d,%d",
+             map_height, map_width, legend_height);
+    leg_di->primitive = prim;
+    DrawImage(leg_img, leg_di);
+    GetImageException(leg_img, &im_exception);
+    if (im_exception.severity != UndefinedException) {
+        CatchException(&im_exception);
+        return -1;
+    }
+
+    char text[1024];
+
+    QueryColorDatabase("#FFFFFF", &textclr, &im_exception);
+    if (im_exception.severity != UndefinedException) {
+        CatchException(&im_exception);
+        return -1;
+    }
+   
+    leg_di->fill = textclr;
+    leg_di->stroke = textclr;
+    leg_di->font = strdup("courier");
+    leg_di->pointsize = 14;
+    leg_di->text_antialias = 1;
+
+    // Figure out how many columns we're going to have...
+    int ncolumns = 1;
+    // If we draw the networks in any way, we need to show the channel/wep assignment
+    // map graphs, thats a column
+    if (draw_bounds || draw_range || draw_hull || draw_scatter || draw_center)
+        ncolumns++;
+    // If we draw power interpolation, we need to show those colors too
+    if (draw_power && power_data != 0)
+        ncolumns++;
+
+    // Now, to split the screen correctly, we need to figure out the maximum
+    // column width, so we have to do all the string and drawing stuff.
+    int max_colwidth = 0;
+
+    // Test the standard text in col1
+    snprintf(text, 1024, "Total networks  : %d\n", in_nets.size());
+    max_colwidth = kismax(max_colwidth, IMStringWidth(text, leg_img, leg_di));
+
+    snprintf(text, 1024, "Visible networks: %d\n", drawn_net_map.size());
+    max_colwidth = kismax(max_colwidth, IMStringWidth(text, leg_img, leg_di));
+
+    snprintf(text, 1024, "Map Created     : %.24s", ctime((const time_t *) &curtime));
+    max_colwidth = kismax(max_colwidth, IMStringWidth(text, leg_img, leg_di));
+
+    // Now compare the sizes of the channel or color alloc
+    int squaredim = IMStringHeight("0", leg_img, leg_di);
+
+    if (draw_bounds || draw_range || draw_hull || draw_scatter || draw_center) {
+        if (color_coding == COLORCODE_WEP) {
+            max_colwidth = kismax(max_colwidth, 
+                                  IMStringWidth("WEP Encrypted", leg_img, leg_di) + 5 + 
+                                  squaredim);
+            max_colwidth = kismax(max_colwidth, 
+                                  IMStringWidth("Unencrypted", leg_img, leg_di) + 5 + 
+                                  squaredim);
+            max_colwidth = kismax(max_colwidth, 
+                                  IMStringWidth("Default", leg_img, leg_di) + 5 + 
+                                  squaredim);
+        } else if (color_coding == COLORCODE_CHANNEL) {
+            max_colwidth = kismax(max_colwidth, squaredim * channelcolor_max);
+        } else {
+            ncolumns--;
+        }
+    }
+
+    int power_step_skip = 1;
+    if (draw_power && power_data != 0) {
+        if (power_steps > 16)
+            power_step_skip = power_steps / 16;
+
+        max_colwidth = kismax(max_colwidth, 
+                              squaredim * (power_steps / power_step_skip));
+    }
+
+    // Now we know how wide we have to be...
+
+    // Draw the first column of text, always have this
+    snprintf(text, 1024, "Total networks  : %d\n", in_nets.size());
+    tx_height = IMStringHeight(text, leg_img, leg_di);
+
+    snprintf(prim, 1024, "text %d,%d \"%s\"",
+             cur_colpos, cur_rowpos + (tx_height / 2), text);
+    leg_di->text = text;
+    leg_di->primitive = prim;
+    DrawImage(leg_img, leg_di);
+    GetImageException(leg_img, &im_exception);
+    if (im_exception.severity != UndefinedException) {
+        CatchException(&im_exception);
+        return -1;
+    }
+    cur_rowpos += tx_height + 2;
+   
+
+    snprintf(text, 1024, "Visible networks: %d\n", drawn_net_map.size());
+    tx_height = IMStringHeight(text, leg_img, leg_di);
+
+    snprintf(prim, 1024, "text %d,%d \"%s\"",
+             cur_colpos, cur_rowpos + (tx_height / 2), text);
+    leg_di->primitive = prim;
+    DrawImage(leg_img, leg_di);
+    GetImageException(leg_img, &im_exception);
+    if (im_exception.severity != UndefinedException) {
+        CatchException(&im_exception);
+        return -1;
+    }
+    cur_rowpos += tx_height + 2;
+
+    snprintf(text, 1024, "Map Created     : %.24s", ctime((const time_t *) &curtime));
+    tx_height = IMStringHeight(text, leg_img, leg_di);
+
+    snprintf(prim, 1024, "text %d,%d \"%s\"",
+             cur_colpos, cur_rowpos + (tx_height / 2), text);
+    leg_di->primitive = prim;
+    DrawImage(leg_img, leg_di);
+    GetImageException(leg_img, &im_exception);
+    if (im_exception.severity != UndefinedException) {
+        CatchException(&im_exception);
+        return -1;
+    }
+    cur_rowpos += tx_height + 2;
+   
+    // Draw the second column
+
+    if (draw_bounds || draw_range || draw_hull || draw_scatter || draw_center &&
+        (color_coding == COLORCODE_WEP || color_coding == COLORCODE_CHANNEL)) {
+        cur_column++;
+        cur_rowpos = map_height + 5;
+        cur_colpos = ((map_width / ncolumns) * cur_column) + (map_width / ncolumns) - 
+            max_colwidth;
+
+        if (color_coding == COLORCODE_WEP) {
+            // Draw the pretty colored squares
+            QueryColorDatabase("#FF0000", &sqcol, &im_exception);
+            if (im_exception.severity != UndefinedException) {
+                CatchException(&im_exception);
+                return -1;
+            }
+            snprintf(prim, 1024, "fill-opacity 100%% stroke-opacity 100%% "
+                     "rectangle %d,%d %d,%d",
+                     cur_colpos , cur_rowpos,
+                     cur_colpos + squaredim, cur_rowpos + squaredim);
+            leg_di->fill = sqcol;
+            leg_di->primitive = prim;
+            DrawImage(leg_img, leg_di);
+            GetImageException(leg_img, &im_exception);
+            if (im_exception.severity != UndefinedException) {
+                fprintf(stderr, "FATAL: ImageMagick error:\n");
+                MagickError(im_exception.severity, im_exception.reason,
+                            im_exception.description);
+                return -1;
+            }
+            cur_rowpos += squaredim + 2;
+
+            QueryColorDatabase("#00FF00", &sqcol, &im_exception);
+            if (im_exception.severity != UndefinedException) {
+                CatchException(&im_exception);
+                return -1;
+            }
+            snprintf(prim, 1024, "fill-opacity 100%% stroke-opacity 100%% "
+                     "rectangle %d,%d %d,%d",
+                     cur_colpos , cur_rowpos,
+                     cur_colpos + squaredim, cur_rowpos + squaredim);
+            leg_di->fill = sqcol;
+            leg_di->primitive = prim;
+            DrawImage(leg_img, leg_di);
+            GetImageException(leg_img, &im_exception);
+            if (im_exception.severity != UndefinedException) {
+                fprintf(stderr, "FATAL: ImageMagick error:\n");
+                MagickError(im_exception.severity, im_exception.reason,
+                            im_exception.description);
+                return -1;
+            }
+            cur_rowpos += squaredim + 2;
+
+            QueryColorDatabase("#0000FF", &sqcol, &im_exception);
+            if (im_exception.severity != UndefinedException) {
+                CatchException(&im_exception);
+                return -1;
+            }
+            snprintf(prim, 1024, "fill-opacity 100%% stroke-opacity 100%% "
+                     "rectangle %d,%d %d,%d",
+                     cur_colpos , cur_rowpos,
+                     cur_colpos + squaredim, cur_rowpos + squaredim);
+            leg_di->fill = sqcol;
+            leg_di->primitive = prim;
+            DrawImage(leg_img, leg_di);
+            GetImageException(leg_img, &im_exception);
+            if (im_exception.severity != UndefinedException) {
+                fprintf(stderr, "FATAL: ImageMagick error:\n");
+                MagickError(im_exception.severity, im_exception.reason,
+                            im_exception.description);
+                return -1;
+            }
+
+            // Go back and draw the text
+            cur_rowpos = map_height + 5;
+            cur_colpos += squaredim + 5;
+            int tx_offset = (squaredim / 2) + (squaredim / 3);
+
+            leg_di->fill = textclr;
+            leg_di->stroke = textclr;
+
+            snprintf(text, 1024, "WEP Encrypted");
+            tx_height = IMStringHeight(text, leg_img, leg_di);
+
+            snprintf(prim, 1024, "text %d,%d \"%s\"",
+                     cur_colpos, cur_rowpos + tx_offset, text);
+            leg_di->primitive = prim;
+            DrawImage(leg_img, leg_di);
+            GetImageException(leg_img, &im_exception);
+            if (im_exception.severity != UndefinedException) {
+                CatchException(&im_exception);
+                return -1;
+            }
+            cur_rowpos += squaredim + 2;
+
+            snprintf(text, 1024, "Unencrypted");
+            tx_height = IMStringHeight(text, leg_img, leg_di);
+
+            snprintf(prim, 1024, "text %d,%d \"%s\"",
+                     cur_colpos, cur_rowpos + tx_offset, text);
+            leg_di->primitive = prim;
+            DrawImage(leg_img, leg_di);
+            GetImageException(leg_img, &im_exception);
+            if (im_exception.severity != UndefinedException) {
+                CatchException(&im_exception);
+                return -1;
+            }
+            cur_rowpos += squaredim + 2;
+
+            snprintf(text, 1024, "Factory Default");
+            tx_height = IMStringHeight(text, leg_img, leg_di);
+
+            snprintf(prim, 1024, "text %d,%d \"%s\"",
+                     cur_colpos, cur_rowpos + tx_offset, text);
+            leg_di->primitive = prim;
+            DrawImage(leg_img, leg_di);
+            GetImageException(leg_img, &im_exception);
+            if (im_exception.severity != UndefinedException) {
+                CatchException(&im_exception);
+                return -1;
+            }
+            cur_rowpos += squaredim + 2;
+            
+        } else if (color_coding == COLORCODE_CHANNEL) {
+            // Draw each square in the channel graph sized to text
+            for (int x = 0; x < channelcolor_max; x++) {
+                QueryColorDatabase(channelcolors[x], &sqcol, &im_exception);
+                if (im_exception.severity != UndefinedException) {
+                    CatchException(&im_exception);
+                    break;
+                }
+
+                snprintf(prim, 1024, "fill-opacity 100%% stroke-opacity 100%% "
+                         "rectangle %d,%d %d,%d", 
+                         cur_colpos + (x * squaredim), cur_rowpos,
+                         cur_colpos + ((x+1) * squaredim), cur_rowpos + squaredim);
+                //leg_di->stroke = sqcol;
+                leg_di->fill = sqcol;
+                leg_di->primitive = prim;
+                DrawImage(leg_img, leg_di);
+                GetImageException(leg_img, &im_exception);
+                if (im_exception.severity != UndefinedException) {
+                    fprintf(stderr, "FATAL: ImageMagick error:\n");
+                    MagickError(im_exception.severity, im_exception.reason,
+                                im_exception.description);
+                    return -1;
+                }
+            }
+
+            // Print the channel numbers and alloc name
+            leg_di->fill = textclr;
+            leg_di->stroke = textclr;
+            snprintf(text, 1024, "1");
+            snprintf(prim, 1024, "text %d,%d \"%s\"",
+                     cur_colpos + (IMStringWidth(text, leg_img, leg_di) / 2), 
+                     cur_rowpos + squaredim + (IMStringHeight(text, 
+                                                              leg_img, leg_di) / 2) + 3, 
+                     text);
+            leg_di->primitive = prim;
+            DrawImage(leg_img, leg_di);
+            GetImageException(leg_img, &im_exception);
+            if (im_exception.severity != UndefinedException) {
+                fprintf(stderr, "FATAL: ImageMagick error:\n");
+                MagickError(im_exception.severity, im_exception.reason,
+                            im_exception.description);
+                return -1;
+            }
+
+            snprintf(text, 1024, "Channel Number");
+            snprintf(prim, 1024, "text %d,%d \"%s\"",
+                     cur_colpos + (((channelcolor_max - 1) * squaredim) / 2) -
+                     (IMStringWidth(text, leg_img, leg_di) / 2) + 4,
+                     cur_rowpos + squaredim + (IMStringHeight(text, leg_img, 
+                                                              leg_di) / 2) + 3,
+                     text);
+            leg_di->primitive = prim;
+            DrawImage(leg_img, leg_di);
+            GetImageException(leg_img, &im_exception);
+            if (im_exception.severity != UndefinedException) {
+                fprintf(stderr, "FATAL: ImageMagick error:\n");
+                MagickError(im_exception.severity, im_exception.reason,
+                            im_exception.description);
+                return -1;
+            }
+
+            snprintf(text, 1024, "%d", channelcolor_max);
+            snprintf(prim, 1024, "text %d,%d \"%s\"",
+                     cur_colpos +  
+                     ((channelcolor_max - 1) * squaredim), 
+                     cur_rowpos + squaredim + (IMStringHeight(text, leg_img, 
+                                                              leg_di) / 2) + 3, 
+                     text);
+            leg_di->primitive = prim;
+            DrawImage(leg_img, leg_di);
+            GetImageException(leg_img, &im_exception);
+            if (im_exception.severity != UndefinedException) {
+                fprintf(stderr, "FATAL: ImageMagick error:\n");
+                MagickError(im_exception.severity, im_exception.reason,
+                            im_exception.description);
+                return -1;
+            }
+
+        }
+    }
+
+    if (draw_power && power_data != 0) {
+        cur_column++;
+        cur_rowpos = map_height + 5;
+        cur_colpos = ((map_width / ncolumns) * cur_column) + (map_width / ncolumns) - 
+            max_colwidth;
+
+        int actual_pos = 0;
+        for (int x = 0; x < power_steps; x += power_step_skip) {
+            actual_pos++;
+
+            QueryColorDatabase(power_colors[x], &sqcol, &im_exception);
+            if (im_exception.severity != UndefinedException) {
+                CatchException(&im_exception);
+                break;
+            }
+
+            snprintf(prim, 1024, "fill-opacity 100%% stroke-opacity 100%% "
+                     "rectangle %d,%d %d,%d", 
+                     cur_colpos + (actual_pos * squaredim), cur_rowpos,
+                     cur_colpos + ((actual_pos+1) * squaredim), cur_rowpos + squaredim);
+            //leg_di->stroke = sqcol;
+            leg_di->fill = sqcol;
+            leg_di->primitive = prim;
+            DrawImage(leg_img, leg_di);
+            GetImageException(leg_img, &im_exception);
+            if (im_exception.severity != UndefinedException) {
+                fprintf(stderr, "FATAL: ImageMagick error:\n");
+                MagickError(im_exception.severity, im_exception.reason,
+                            im_exception.description);
+                return -1;
+            }
+
+        }
+
+        // Print the channel numbers and alloc name
+        leg_di->fill = textclr;
+        leg_di->stroke = textclr;
+        snprintf(text, 1024, "<- Weaker");
+        snprintf(prim, 1024, "text %d,%d \"%s\"",
+                 cur_colpos + (IMStringWidth(text, leg_img, leg_di) / 3) - 3, 
+                 cur_rowpos + squaredim + (IMStringHeight(text, 
+                                                          leg_img, leg_di) / 2) + 3, 
+                 text);
+        leg_di->primitive = prim;
+        DrawImage(leg_img, leg_di);
+        GetImageException(leg_img, &im_exception);
+        if (im_exception.severity != UndefinedException) {
+            fprintf(stderr, "FATAL: ImageMagick error:\n");
+            MagickError(im_exception.severity, im_exception.reason,
+                        im_exception.description);
+            return -1;
+        }
+
+        snprintf(text, 1024, "Stronger ->");
+        snprintf(prim, 1024, "text %d,%d \"%s\"",
+                 cur_colpos + ((actual_pos + 1) * squaredim) - 
+                 IMStringWidth(text, leg_img, leg_di),  
+                 cur_rowpos + squaredim + (IMStringHeight(text, 
+                                                          leg_img, leg_di) / 2) + 3, 
+                 text);
+        leg_di->primitive = prim;
+        DrawImage(leg_img, leg_di);
+        GetImageException(leg_img, &im_exception);
+        if (im_exception.severity != UndefinedException) {
+            fprintf(stderr, "FATAL: ImageMagick error:\n");
+            MagickError(im_exception.severity, im_exception.reason,
+                        im_exception.description);
+            return -1;
+        }
+
+    }
+
+    snprintf(text, 1024, "Map generated by Kismet/GPSMap %d.%d.%d - "
+             "http://www.kismetwireless.net", VERSION_MAJOR, 
+             VERSION_MINOR, VERSION_TINY);
+    QueryColorDatabase("#999999", &textclr, &im_exception);
+    if (im_exception.severity != UndefinedException) {
+        CatchException(&im_exception);
+        return -1;
+    }
+    leg_di->fill = textclr;
+    leg_di->stroke = textclr;
+    leg_di->pointsize = 12;
+
+    snprintf(prim, 1024, "text %d,%d \"%s\"",
+             (map_width / 2) - (IMStringWidth(text, leg_img, leg_di) / 2),
+             map_height + legend_height - (IMStringHeight(text, leg_img, leg_di) / 2),
+             text);
+    leg_di->primitive = prim;
+    DrawImage(leg_img, leg_di);
+    GetImageException(leg_img, &im_exception);
+    if (im_exception.severity != UndefinedException) {
+        fprintf(stderr, "FATAL: ImageMagick error:\n");
+        MagickError(im_exception.severity, im_exception.reason,
+                    im_exception.description);
+        return -1;
+    }
+
+    // Now stick them together...  This doesn't take an exception and the return
+    // type isn't documented, so lets just hope it does something.  Go IM!
+    CompositeImage(leg_img, OverCompositeOp, *in_img, 0, 0);
+
+    DestroyImage(*in_img);
+    DestroyDrawInfo(*in_di);
+
+    *in_img = leg_img;
+    *in_di = leg_di;
+
+
+    return 0;
+}
+
 int ShortUsage(char *argv) {
     printf("Usage: %s [OPTION] <GPS Files>\n", argv);
     printf("Try `%s --help' for more information.\n", argv);
@@ -2504,7 +3048,6 @@ int Usage(char* argv, int ec = 1) {
            "                                  3       4       5\n"
            "                                  6       7       8\n"
            "  -k, --draw-legend              Draw map legend\n"
-           "  -K, --draw-legend-opacity <o>  Legend opacity [Default: 90]\n"
            "  -T, --feature-order <order>    String representing the order map features\n"
            "                                  are drawn [Default: 'ptbrhscl']\n"
            "                                  p: interpolated power\n"
@@ -2577,7 +3120,6 @@ int main(int argc, char *argv[]) {
            {"draw-labels", required_argument, 0, 'l'},
            {"draw-label-orient", required_argument, 0, 'L'},
            {"draw-legend", no_argument, 0, 'k'},
-           {"draw-legend-opacity", required_argument, 0, 'K'},
            {"feature-order", required_argument, 0, 'T'},
            { 0, 0, 0, 0 }
     };
@@ -2602,7 +3144,7 @@ int main(int argc, char *argv[]) {
 
     while(1) {
         int r = getopt_long(argc, argv,
-                            "hvg:S:o:f:iF:Iz:DVc:s:m:d:n:GMO:tY:brR:uU:aA:B:pP:Z:q:Q:eE:H:l:L:kK:T:",
+                            "hvg:S:o:f:iF:Iz:DVc:s:m:d:n:GMO:tY:brR:uU:aA:B:pP:Z:q:Q:eE:H:l:L:k:T:",
                             long_options, &option_index);
 
         if (r < 0) break;
@@ -2784,6 +3326,8 @@ int main(int argc, char *argv[]) {
                 // ATR - set vars for scatter plot
                 scatter_power = 1;
 
+                powercolor_index = icolor;
+
                 if (icolor == 0) {
                     power_steps = power_steps_Orig;
                     power_colors = powercolors_Orig;
@@ -2824,12 +3368,6 @@ int main(int argc, char *argv[]) {
             break;
         case 'k':
             draw_legend = true;
-            break;
-        case 'K':
-            if (sscanf(optarg, "%d", &legend_opacity) != 1 || legend_opacity < 0 || legend_opacity > 100) {
-                fprintf(stderr, "Invalid map legend opacity.\n");
-                ShortUsage(exec_name);
-            }
             break;
         case 'T':
             draw_feature_order = optarg;
@@ -3194,6 +3732,21 @@ int main(int argc, char *argv[]) {
     // local variables
     di->text = strdup("");
     di->primitive = strdup("");
+
+    // Draw the legend if we're going to...  And of course since it has to be
+    // annoying, it needs to be able to modify img itself so it's a pointer to
+    // a pointer.
+    if (draw_legend) {
+        fprintf(stderr, "Drawing legend...\n");
+        DrawLegendComposite(gpsnetvec, &img, &di);
+
+        // Clean up and set our new image out values
+        di->text = strdup("");
+        di->primitive = strdup("");
+        img_info = CloneImageInfo((ImageInfo *) NULL);
+        strcpy(img_info->filename, mapoutname);
+        strcpy(img->filename, mapoutname);
+    }
 
     WriteImage(img_info, img);
 
