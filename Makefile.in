@@ -124,6 +124,7 @@ install: $(PS) $(HOPPER) $(NC) $(GPSLBUILD) $(ZAURUSBUILD)
 	install -o root -g $(INSTGRP) -m 644 wav/new_network.wav $(WAV)/new_network.wav
 	install -o root -g $(INSTGRP) -m 644 wav/traffic.wav $(WAV)/traffic.wav
 	install -o root -g $(INSTGRP) -m 644 wav/junk_traffic.wav $(WAV)/junk_traffic.wav
+	install -o root -g $(INSTGRP) -m 644 wav/alert.wav $(WAV)/alert.wav
 	@echo "Installed kismet into $(BIN)/."
 	@if test -f $(ETC)/kismet.conf; then \
 		make checkconfig; \
@@ -178,6 +179,7 @@ forceinstall: $(PS)
 	install -o root -g $(INSTGRP) -m 644 wav/new_network.wav $(WAV)/new_network.wav
 	install -o root -g $(INSTGRP) -m 644 wav/traffic.wav $(WAV)/traffic.wav
 	install -o root -g $(INSTGRP) -m 644 wav/junk_traffic.wav $(WAV)/junk_traffic.wav
+	install -o root -g $(INSTGRP) -m 644 wav/alert.wav $(WAV)/alert.wav
 	@echo "Installed kismet into $(BIN)/."
 	@echo "If you have not already, read the docs in docs/ and edit"
 	@echo "$(ETC)/kismet.conf to configure it for your system.  If you do not"
