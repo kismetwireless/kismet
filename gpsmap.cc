@@ -2431,6 +2431,7 @@ int main(int argc, char *argv[]) {
 
     // Make sure our DI has a clean primitive, since all of the other assignments were
     // local variables
+    di->text = strdup("");
     di->primitive = strdup("");
 
     WriteImage(img_info, img);
