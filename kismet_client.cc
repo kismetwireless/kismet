@@ -720,6 +720,7 @@ int main(int argc, char *argv[]) {
     prefs["titlecolor"] = gui_conf->FetchOpt("titlecolor");
     prefs["wepcolor"] = gui_conf->FetchOpt("wepcolor");
     prefs["factorycolor"] = gui_conf->FetchOpt("factorycolor");
+    prefs["cloakcolor"] = gui_conf->FetchOpt("cloakcolor");
     prefs["opencolor"] = gui_conf->FetchOpt("opencolor");
     prefs["monitorcolor"] = gui_conf->FetchOpt("monitorcolor");
 

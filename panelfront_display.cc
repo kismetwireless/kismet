@@ -532,6 +532,8 @@ int PanelFront::MainNetworkPrinter(void *in_window) {
 
         if (net->manuf_score == manuf_max_score && color)
             wattrset(kwin->win, color_map["factory"].pair);
+        else if (net->cloaked && color)
+            wattrset(kwin->win, color_map["cloak"].pair);
         else if (net->wep && color)
             wattrset(kwin->win, color_map["wep"].pair);
         else if (color)

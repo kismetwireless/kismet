@@ -1,7 +1,7 @@
 # Kismet GUI config file
 
 # Version of Kismet config
-version=3.1.0a
+version=3.1.0b
 
 # Gui type to use
 # Valid types: curses, panel
@@ -95,3 +95,5 @@ wepcolor=hi-green
 factorycolor=hi-red
 # Open color
 opencolor=hi-yellow
+# Decloaked network color
+cloakcolor=hi-blue
