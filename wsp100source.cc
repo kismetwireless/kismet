@@ -21,6 +21,11 @@
 
     This supports the WSP100 device under Cygwin and Linux
 
+    2/6/2003 - gherlein@herlein.com added TZSP NULL packet generation
+    to support late model firmware requirement for this
+    heartbeat packet.  Must be sent within every 32 sec and
+    must come from the listen port of kismet.
+
 */
 
 #include "config.h"
@@ -33,6 +38,25 @@
 #include <string.h>
 #include <time.h>
 #include <stdio.h>
+
+#include <stdio.h>
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <arpa/inet.h>
+#include <netinet/in.h>
+#include <string.h>
+#include <netdb.h>
+#include <fcntl.h>
+
+// Straight-C callback
+int Wsp100PokeSensor(server_timer_event *evt, void *call_parm) {
+    // Poke it
+    ((Wsp100Source *) call_parm)->PokeSensor();
+
+    // And we want to use the event record over again - that is, obey the
+    // recurrance field
+    return 1;
+}
 
 // Build UDP listener code
 
@@ -76,6 +100,10 @@ int Wsp100Source::OpenSource(const char *dev, card_type ctype) {
 
     valid = 1;
 
+    // Register 'poke' events
+    poke_event_id = RegisterServerTimer(TZSP_NULL_PACKET_SLICE, NULL, 1,
+                                        &Wsp100PokeSensor, (void *) this);
+
     return 1;
 }
 
@@ -84,6 +112,8 @@ int Wsp100Source::CloseSource() {
         close(udp_sock);
 
     valid = 0;
+
+    RemoveServerTimer(poke_event_id);
 
     return 1;
 }
@@ -231,6 +261,12 @@ int Wsp100Source::Wsp2Common(kis_packet *packet) {
 
     return 1;
 
+}
+
+void Wsp100Source::PokeSensor() {
+    uint32_t null_frame = TZSP_NULL_PACKET;
+    sendto(udp_sock, &null_frame, sizeof(null_frame), 0, (struct sockaddr *) &serv_sockaddr,
+           sizeof(struct sockaddr));
 }
 
 // wsp100
