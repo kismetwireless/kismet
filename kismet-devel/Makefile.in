@@ -44,7 +44,7 @@ PSO	= configfile.o speech.o packet.o \
 			dronesource.o vihasource.o capturesourceutil.o \
 		wtapdump.o wtaplocaldump.o gpsdump.o airsnortdump.o fifodump.o \
 		gpsd.o manuf.o \
-		packetracker.o timetracker.o \
+		packetracker.o timetracker.o alertracker.o \
 		getopt.o \
 		tcpserver.o server_protocols.o server_plugin.o kismet_server.o 
 PS	= kismet_server

@@ -68,7 +68,7 @@ enum STATUS_fields {
 };
 
 enum ALERT_fields {
-    ALERT_sec, ALERT_usec, ALERT_text
+    ALERT_header, ALERT_sec, ALERT_usec, ALERT_text
 };
 
 enum ERROR_fields {
@@ -178,7 +178,7 @@ typedef struct CLIENT_data {
 };
 
 typedef struct ALERT_data {
-    string sec, usec, text;
+    string header, sec, usec, text;
 };
 
 typedef struct PACKET_data {
