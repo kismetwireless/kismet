@@ -231,10 +231,10 @@ protected:
     int hsize, vsize;
 
     // Map of bssid's to display groups
-    map<string, display_network *> bssidgroup_map;
+    //map<string, display_network *> bssidgroup_map;
 
     // Map of BSSID's to custom names
-    map<string, string> bssidname_map;
+    //map<string, string> bssidname_map;
 
     int old_sound;
     int old_speech;
