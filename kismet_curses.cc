@@ -30,8 +30,8 @@
 #include "configfile.h"
 
 #define MAJOR 2
-#define MINOR 4
-#define TINY  6
+#define MINOR 5
+#define TINY  2
 
 #ifndef exec_name
 char *exec_name;
