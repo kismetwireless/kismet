@@ -1,3 +1,26 @@
+Oct 20 2002  2.7.1  Moved devel to 2.7.1
+
+Oct 20 2002  2.6.2  Released 2.6.2 - Bugfixes and minor feature enhancements
+                     from the -devel tree.  This is just a maintenance release.
+                    Possible fix for festival speech offsets
+                    Revamped data file writing code to use temp files and
+                     unlink/rename them.  Should help prevent truncated data
+                     files (netxml, cisco, network, csv) in a power-off
+                     situation.  Only really relevant for headless sniffers.
+                    Added control-L to redraw the entire screen in the panels
+                     frontend (good for drawing corruption).
+                    Added better searching for related netxml files - gpsmap
+                     will look in the same directory as the gps file.  This
+                     should make relocating GPS files much easier.
+                    Tweaked gpsmap range-circle calculation to use average
+                     distances to all network points from the average center.
+                    Merged gpsmap by ge0 to allow setting track width
+                    Merged gpsmap by tz to use Tiger census data
+                    Fixed failure to unlink empty data files if server can't
+                     bind to the requested port
+                    Fixed bug in default IP range reading
+                    Fixed segfault when wtap local dumping can't open a file
+
 Oct 20 2002  2.7    Possible fix for odd behavior with festival speech
 Oct 19 2002  2.7    Revamped data file writing code to use temp files and
                      unlink/rename them.  Should help prevent truncated data
