@@ -1,3 +1,5 @@
+Jan 11 2005  devel  Added card type 'atmel_usb' for the berlios.de atmel USB 
+                     drivers with pseudo-monitor support
 Jan 09 2005  devel  Minor tweak to signal/noise handlers to report the signal
                      level if noise is equal to 0.  (This fixes behavior on
                      madwifi drivers that report a signal and no noise)

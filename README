@@ -389,8 +389,8 @@ Licensed under the GPL
     compile on.
 
     - Linux (Intel, PPC, MIPS, X-Scale, Arm, etc)
-      Known supported cards: ACX100, ADMTek, Atheros, Cisco, Prism2, Orinoco, 
-      WSP100, Drone, wtapfile, pcapfile, wrt54g, ipw2100
+      Known supported cards: Atmel_USB, ACX100, ADMTek, Atheros, Cisco, Prism2, 
+       Orinoco, WSP100, Drone, wtapfile, pcapfile, wrt54g, ipw2100
 
       Kismet will work with any distribution of Linux.  Currently, Linux is the
       recommended platform for running Kismet because it has the largest
@@ -444,7 +444,9 @@ Licensed under the GPL
     A capture source in Kismet is anything which provides packets to the Kismet
     engine.  Capture sources define the underlying engine needed to capture
     data from the interface, how to change channel, and how to enter rfmon
-    mode.
+    mode.  It is necessary to tell Kismet what specific type of card you use
+    because different drivers often use different methods to report information
+    and enter monitor mode.
 
     Source type     Cards               OS          Driver
     --------------- ------------------- ----------- -------------------------
@@ -455,18 +457,37 @@ Licensed under the GPL
                      and others.
 
     admtek          ADMTek              Linux       ADMTek
-                    http://www.latinsud.com/adm8211/
+                    http://www.latinsud.com/adm8211/        (Patches)
+                    http://aluminum.sourmilk.net/adm8211/   (GPL driver)
                     ADMTek drivers used in many consumer 802.11b cards. With
                      the patches above, quasi-rfmon is possible - these cards
                      appear to be almost entirely software controlled and 
                      always in a rfmon-like state.  This card WILL BROADCAST
                      while in rfmon, rendering the sniffer visible.
+                    The fully GPL drivers are supported, in addition to the 
+                     hacks to the non-free drivers.
+
+    atmel_usb       Atmel-USB           Linux       Berlios-Atmel
+                    http://at76c503a.berlios.de/
+                    Capture interface:  'wlanX'
+                    These drivers work ONLY on USB cards (Sorry, no pcmcia
+                     support).  Monitor mode support is limited and "faked"
+                     by bypassing part of the firmware and parsing packets
+                     directly, and is likely to not report all of the 
+                     frames.
+                     This card MAY BROADCAST while in rfmon, rendering the
+                     sniffer visible.
 
     cisco           Aironet 340,350     Linux       Kernel 2.4.10 - 2.4.19
                     Capture interface:  'ethX'  
                     Standard Cisco cards in Linux.  Works only with
-                     the Linux kernel drivers, not the drivers found on
-                     cisco.com or pcmcia-cs.
+                     the Linux kernel drivers, not the drivers found in
+                     pcmcia-cs.
+                    The drivers found on the cisco.com site can be patched
+                     with the files from the Kismet download site to add
+                     monitor mode with channel control, HOWEVER these drivers
+                     are extremely buggy for normal use and work only with
+                     the 2.4 kernel tree.
                     The cisco drivers currently do not enter rfmon mode 
                      correctly, so channel control is not available.  The
                      firmware will hop to whatever channel it feels like 
@@ -550,18 +571,23 @@ Licensed under the GPL
     orinoco         Lucent, Orinoco     Linux       Patched orinoco_cs
                     http://airsnort.shmoo.com/orinocoinfo.html
                     Capture interface:  'ethX'
-                    The standard orinoco_cs drivers do not support monitor mode
-                     but they work well after being patched with the above.
-                    As of Feb, 2004, the CVS tree and 2.6 kernels include 
-                     monitor mode, but require the new orinoco source.
+                    The orinoco-cs drivers do not support monitor mode as-is,
+                     but patches are on the Kismet download site for 
+                     standalone drivers, Linux 2.6 kernel drivers, and 
+                     Linux 2.6.9+ kernel drivers.  These expanded patches fix
+                     several performance issues with previous monitor mode
+                     patches.
 
-    orinoco_14      Lucent, Orinoco     Linux       Orinoco 0.14+, Kernel 2.6+
+    orinoco_14      Lucent, Orinoco     Linux       Orinoco 0.14+
                     https://savannah.nongnu.org/projects/orinoco/
                     Capture interface:  'ethX'
                     The new orinoco_cs drivers changed things subtly, but
                      at least they include rfmon without patching.
                     Patches to enable signal level reporting are available on
                      the kismet download site.
+                    These drivers are NOT CURRENTLY RECCOMENDED.  Once the new
+                     Orinoco drivers have solidified, final patches for 
+                     per-packet stats will be made and this source changed.
 
     pcapfile        n/a                 Any         n/a
                     Capture interface:  '/path/to/file' 
@@ -651,12 +677,15 @@ Licensed under the GPL
      Broadcom           - No linux drivers, only useable with ndiswrapper or
                           linuxant wrappers around windows drivers.
      Airport Extreme    - Really a Broadcom, with no rfmon in the OSX drivers.
-     Atmel              - The USB firmware has no rfmon feature.  The PCMCIA
-                          firmware -may-, but the drivers don't support it.
+     Atmel              - There is a hack for pseudo-monitor in USB.  There is
+                          currently no equivalent hack for pcmcia.
      Realtek            - Cards seem to be primarily software-driven, no
                           support in the drivers.
      HermesII           - Proxim successor to the Orinoco/HermesI.  No support
                           yet in the drivers, may be available in the future.
+     ipw2200            - Intel 2200 802.11g/Centrino-G cards.  Similar to the
+                          ipw2100s, but the drivers currently do NOT support
+                          monitor mode.  Once they do, support will be added.
 
 12. Graphical Network Mapping
 

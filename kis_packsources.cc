@@ -90,6 +90,10 @@ int RegisterKismetSources(Packetsourcetracker *sourcetracker) {
     sourcetracker->RegisterPacketsource("vtar5k", 1, "IEEE80211a", 36,
                                        pcapsource_wext_registrant,
                                        monitor_vtar5k, NULL, chancontrol_wext, 1);
+    sourcetracker->RegisterPacketsource("atmel_usb", 1, "IEEE80211b", 6,
+                                       pcapsource_wext_registrant,
+                                       monitor_wext, unmonitor_wext, 
+                                       chancontrol_wext, 1);
 
     sourcetracker->RegisterPacketsource("madwifi_a", 1, "IEEE80211a", 36,
                                         pcapsource_wextfcs_registrant,
