@@ -13,6 +13,7 @@ In no particular order:
 	gpsmap power filtering
 	gpsmap coloring/plotting by encoding, carrier, data rate
 	gpsmap legend drawing
+	gpsmap font picking
 	congestion simulation
 	UI channel hopping control
 	fix csv log
@@ -33,3 +34,4 @@ In no particular order:
 	denote networks with keys in UI
 	strong authentication/SSL of client/server server/drone
 	acpi/apm reporting via server protocol
+	fix grouping in panels
