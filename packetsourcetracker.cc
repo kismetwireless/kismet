@@ -513,6 +513,7 @@ int Packetsourcetracker::ProcessCardList(string in_enableline,
             meta->name = tokens[2];
             meta->device = tokens[1];
             meta->capsource = NULL;
+            meta->stored_interface = NULL;
             meta->ch_pos = 0;
             meta->cur_ch = 0;
             // Hopping is turned on in any source that has a channel control pointer.
@@ -630,7 +631,8 @@ int Packetsourcetracker::BindSources(int in_root) {
                     meta->device.c_str(), meta->cur_ch);
 
             ret = (*meta->prototype->monitor_enable)(meta->device.c_str(), 
-                                                     meta->cur_ch, errstr);
+                                                     meta->cur_ch, errstr,
+                                                     meta->stored_interface);
         }
 
         if (ret < 0) {
@@ -703,19 +705,31 @@ int Packetsourcetracker::SetTypeParms(string in_types, packet_parm in_parm) {
 }
 
 int Packetsourcetracker::CloseSources() {
+    uid_t uid = getuid();
+
     for (unsigned int metc = 0; metc < meta_packsources.size(); metc++) {
         meta_packsource *meta = meta_packsources[metc];
-      
-        // close
+     
+        // If we're not root and we can't close stuff, don't.  This might need to
+        // turn into something that checks caps later...
+        if (uid != 0 && meta->prototype->root_required != 0)
+            continue;
+        
+        // close if we can
         if (meta->valid)
             meta->capsource->CloseSource();
         
         // delete
         delete meta->capsource;
 
+        meta->valid = 0;
+
         // unmonitor - we don't care about errors.
-        if (meta->prototype->monitor_disable != NULL)
-            (*meta->prototype->monitor_disable)(meta->device.c_str(), 0, errstr);
+        if (meta->prototype->monitor_disable != NULL) {
+            (*meta->prototype->monitor_disable)(meta->device.c_str(), 0, 
+                                                errstr, meta->stored_interface);
+        }
+
     }
 
     return 1;
@@ -849,14 +863,17 @@ void Packetsourcetracker::ChannelChildLoop() {
             }
 
             if (pak.sentinel != CHANSENTINEL) {
-                snprintf(txtbuf, 1024, "capture child %d got IPC frame without valid sentinel", getpid());
+                snprintf(txtbuf, 1024, "capture child %d got IPC frame without valid "
+                         "sentinel", getpid());
                 child_ipc_buffer.push_front(CreateTextPacket(txtbuf, CHANFLAG_NONE));
                 continue;
             }
 
             // Drop dead
-            if (pak.packtype == CHANPACK_DIE || pak.flags & CHANFLAG_FATAL) 
+            if (pak.packtype == CHANPACK_DIE || pak.flags & CHANFLAG_FATAL) {
+                CloseSources();
                 exit(1);
+            }
           
             if (pak.packtype == CHANPACK_CMDACK)
                 continue;

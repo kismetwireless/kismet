@@ -180,7 +180,7 @@ KisPacketSource *prism2source_registrant(string in_name, string in_device, char 
     return new Prism2Source(in_name, in_device);
 }
 
-int monitor_wlanng_legacy(const char *in_dev, int initch, char *in_err) {
+int monitor_wlanng_legacy(const char *in_dev, int initch, char *in_err, void *in_if) {
     // I really didn't want to do this...
     char cmdline[2048];
 
