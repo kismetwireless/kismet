@@ -368,14 +368,20 @@ int TcpClient::ParseData(char *in_data) {
         memset(&cdp, 0, sizeof(cdp_packet));
         char bssid[18];
         int cap0, cap1, cap2, cap3, cap4, cap5, cap6;
+        short int cdpip[4];
 
-        if (sscanf(in_data+hdrlen, "%17s \001%s\001 %d.%d.%d.%d \001%s\001 "
+        if (sscanf(in_data+hdrlen, "%17s \001%s\001 %hd.%hd.%hd.%hd \001%s\001 "
                    "%d:%d:%d:%d;%d;%d;%d \001%s\001 \001%s\001\n",
                    bssid, cdp.dev_id,
-                   (int *) &cdp.ip[0], (int *) &cdp.ip[1], (int *) &cdp.ip[2], (int *) &cdp.ip[2],
+                   &cdpip[0], &cdpip[1], &cdpip[2], &cdpip[3],
                    cdp.interface, &cap0, &cap1, &cap2, &cap3, &cap4, &cap5, &cap6,
                    cdp.software, cdp.platform) < 16)
             return 0;
+
+        cdp.ip[0] = cdpip[0];
+        cdp.ip[1] = cdpip[1];
+        cdp.ip[2] = cdpip[2];
+        cdp.ip[3] = cdpip[3];
 
         if (net_map.find(bssid) == net_map.end())
             return 0;
@@ -396,30 +402,36 @@ int TcpClient::ParseData(char *in_data) {
     } else if (!strncmp(header, "*PACKET", 64)) {
         packet_info packinfo;
         memset(&packinfo, 0, sizeof(packet_info));
+        unsigned int smac[MAC_LEN], dmac[MAC_LEN], bmac[MAC_LEN];
+        short int sip[4], dip[4];
 
         if (sscanf(in_data+hdrlen, "%d %d %d %d %d %02X:%02X:%02X:%02X:%02X:%02X "
                    "%02X:%02X:%02X:%02X:%02X:%02X %02X:%02X:%02X:%02X:%02X:%02X "
-                   "\001%32[^\001]\001 %d %d.%d.%d.%d %d.%d.%d.%d %d %d %d "
+                   "\001%32[^\001]\001 %d %hd.%hd.%hd.%hd %hd.%hd.%hd.%hd %d %d %d "
                    "\001%16[^\001]\001\n",
                    (int *) &packinfo.type,
                    (int *) &packinfo.time,
                    &packinfo.encrypted, &packinfo.interesting, &packinfo.beacon,
-                   (unsigned int *) &packinfo.source_mac[0], (unsigned int *) &packinfo.source_mac[1],
-                   (unsigned int *) &packinfo.source_mac[2], (unsigned int *) &packinfo.source_mac[3],
-                   (unsigned int *) &packinfo.source_mac[4], (unsigned int *) &packinfo.source_mac[5],
-                   (unsigned int *) &packinfo.dest_mac[0], (unsigned int *) &packinfo.dest_mac[1], (unsigned int *) &packinfo.dest_mac[2],
-                   (unsigned int *) &packinfo.dest_mac[3], (unsigned int *) &packinfo.dest_mac[4], (unsigned int *) &packinfo.dest_mac[5],
-                   (unsigned int *) &packinfo.bssid_mac[0], (unsigned int *) &packinfo.bssid_mac[1], (unsigned int *) &packinfo.bssid_mac[2],
-                   (unsigned int *) &packinfo.bssid_mac[3], (unsigned int *) &packinfo.bssid_mac[4], (unsigned int *) &packinfo.bssid_mac[5],
+                   &smac[0], &smac[1], &smac[2], &smac[3], &smac[4], &smac[5],
+                   &dmac[0], &dmac[1], &dmac[2], &dmac[3], &dmac[4], &dmac[5],
+                   &bmac[0], &bmac[1], &bmac[2], &bmac[3], &bmac[4], &bmac[5],
                    packinfo.ssid,
                    (int *) &packinfo.proto.type,
-                   (int *) &packinfo.proto.source_ip[0], (int *) &packinfo.proto.source_ip[1],
-                   (int *) &packinfo.proto.source_ip[2], (int *) &packinfo.proto.source_ip[3],
-                   (int *) &packinfo.proto.dest_ip[0], (int *) &packinfo.proto.dest_ip[1],
-                   (int *) &packinfo.proto.dest_ip[2], (int *) &packinfo.proto.dest_ip[3],
+                   &sip[0], &sip[1], &sip[2], &sip[3], &dip[0], &dip[1], &dip[2], &dip[3],
                    (int *) &packinfo.proto.sport, (int *) &packinfo.proto.dport,
                    (int *) &packinfo.proto.nbtype, packinfo.proto.netbios_source) < 36)
             return 0;
+
+        for (unsigned int x = 0; x < 6; x++) {
+            packinfo.source_mac[x] = smac[x];
+            packinfo.dest_mac[x] = dmac[x];
+            packinfo.bssid_mac[x] = bmac[x];
+        }
+
+        for (unsigned int x = 0; x < 4; x++) {
+            packinfo.proto.source_ip[x] = sip[x];
+            packinfo.proto.dest_ip[x] = dip[x];
+        }
 
         packinfos.push_back(packinfo);
         if (packinfos.size() > maxpackinfos)
