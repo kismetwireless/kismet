@@ -68,7 +68,8 @@ const char *config_base = "kismet.conf";
 #define MAPSOURCE_TERRA      2
 #define MAPSOURCE_TIGER      3
 #define MAPSOURCE_EARTHAMAPS 4
-#define MAPSOURCE_MAX        4
+#define MAPSOURCE_TERRATOPO  5
+#define MAPSOURCE_MAX        5
 
 // Broken map sources...  Damn vendors changing.
 // Mappoint
@@ -76,8 +77,9 @@ const char *config_base = "kismet.conf";
 // Mapblast
 // const char url_template_mb[] = "http://www.vicinity.com/gif?&CT=%f:%f:%ld&IC=&W=%d&H=%d&FAM=myblast&LB=%s";
 
-// Terraserver photo-maps
+// Terraserver photo-maps and topo maps
 const char url_template_ts[] = "http://terraservice.net/GetImageArea.ashx?t=1&lat=%f&lon=%f&s=%ld&w=%d&h=%d";
+const char url_template_tt[] = "http://terraservice.net/GetImageArea.ashx?t=2&lat=%f&lon=%f&s=%ld&w=%d&h=%d";
 // Tiger census vector maps
 const char url_template_ti[] = "http://tiger.census.gov/cgi-bin/mapper/map.gif?lat=%f&lon=%f&wid=0.001&ht=%f&iwd=%d&iht=%d&on=majroads&on=places&on=shorelin&on=streets&on=interstate&on=statehwy&on=ushwy&on=water&tlevel=-&tvar=-&tmeth=i";
 // Earthamaps need a perl helper script to get data because of cookies
@@ -1258,7 +1260,7 @@ int BestMapScale(long int *in_mapscale, long int *in_fetchscale,
     double mapx, mapy;
     double map2x, map2y;
 
-    if (mapsource == MAPSOURCE_TERRA) {
+    if ((mapsource == MAPSOURCE_TERRA) || (mapsource == MAPSOURCE_TERRATOPO)) {
         for (int x = 0; terrascales[x] != -1; x++) {
             calcxy(&mapx, &mapy, tlat, tlon, 
                     (double) terrascales[x]/PIXELFACT, 
@@ -3091,6 +3093,7 @@ int Usage(char* argv, int ec = 1) {
            "                                  2 TerraServer (photo)\n"
            "                                  3 Tiger US Census (vector)\n"
            "                                  4 EarthaMaps (vector)\n"
+           "                                  5 TerraServer (topo)\n"
            "  -D, --keep-gif                 Keep the downloaded map\n"
            "  -V, --version                  GPSMap version\n"
            "\nImage options\n"
@@ -3599,7 +3602,7 @@ int main(int argc, char *argv[]) {
     // Some day this needs to get rewritten to not be using a source that doesn't
     // work anymore as the internal reference point.
     
-    if (mapsource == MAPSOURCE_TERRA && user_scale != 0) {
+    if (((mapsource == MAPSOURCE_TERRA) || (mapsource == MAPSOURCE_TERRATOPO)) && user_scale != 0) {
         // It's way too much of a kludge to muck with munging the scale around
         if ((user_scale < 10) || (user_scale > 16)) {
             fprintf(stderr, "FATAL: You must provide a scale with the -s option that is from 10 to 16\n");
@@ -3790,6 +3793,9 @@ int main(int argc, char *argv[]) {
 
         if (mapsource == MAPSOURCE_TERRA) {
             snprintf(url, 1024, url_template_ts, map_avg_lat, map_avg_lon, fetch_scale,
+                     map_width, map_height);
+        } else if (mapsource == MAPSOURCE_TERRATOPO) {
+            snprintf(url, 1024, url_template_tt, map_avg_lat, map_avg_lon, fetch_scale,
                      map_width, map_height);
         } else if (mapsource == MAPSOURCE_TIGER) {
             snprintf(url, 1024, url_template_ti, map_avg_lat, map_avg_lon, (map_scale / 300000.0),
