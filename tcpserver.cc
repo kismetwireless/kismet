@@ -64,7 +64,7 @@ TcpServer::TcpServer(GlobalRegistry *in_globalreg) {
             inet_aton("255.255.255.255", &(ipb->mask));
 
             if (inet_aton(hoststr.c_str(), &(ipb->network)) == 0) {
-                snprintf(errstr, STATUS_MAX, "Illegal IP address '%s' in allowed hosts list.\n",
+                snprintf(errstr, STATUS_MAX, "Illegal IP address '%s' in allowed hosts list.",
                          hoststr.c_str());
                 globalreg->messagebus->InjectMessage(errstr, MSGFLAG_FATAL);
                 globalreg->fatal_condition = 1;
@@ -76,7 +76,7 @@ TcpServer::TcpServer(GlobalRegistry *in_globalreg) {
             string maskhalf = hoststr.substr(masksplit + 1, hoststr.length() - (masksplit + 1));
 
             if (inet_aton(hosthalf.c_str(), &(ipb->network)) == 0) {
-                snprintf(errstr, STATUS_MAX, "Illegal IP address '%s' in allowed hosts list.\n",
+                snprintf(errstr, STATUS_MAX, "Illegal IP address '%s' in allowed hosts list.",
                          hosthalf.c_str());
                 globalreg->messagebus->InjectMessage(errstr, MSGFLAG_FATAL);
                 globalreg->fatal_condition = 1;
@@ -104,7 +104,7 @@ TcpServer::TcpServer(GlobalRegistry *in_globalreg) {
             }
 
             if (validmask == 0) {
-                snprintf(errstr, STATUS_MAX, "Illegal IP netmask '%s' in allowed hosts list.\n",
+                snprintf(errstr, STATUS_MAX, "Illegal IP netmask '%s' in allowed hosts list.",
                          maskhalf.c_str());
                 globalreg->messagebus->InjectMessage(errstr, MSGFLAG_FATAL);
                 globalreg->fatal_condition = 1;
@@ -114,7 +114,7 @@ TcpServer::TcpServer(GlobalRegistry *in_globalreg) {
 
         // Catch 'network' addresses that aren't network addresses.
         if ((ipb->network.s_addr & ipb->mask.s_addr) != ipb->network.s_addr) {
-            snprintf(errstr, STATUS_MAX, "Illegal network '%s' in allowed hosts list.\n",
+            snprintf(errstr, STATUS_MAX, "Illegal network '%s' in allowed hosts list.",
                      inet_ntoa(ipb->network));
             globalreg->messagebus->InjectMessage(errstr, MSGFLAG_FATAL);
             globalreg->fatal_condition = 1;
@@ -185,13 +185,13 @@ int TcpServer::EnableServer() {
     // We're valid
     sv_valid = 1;
 
-    snprintf(errstr, STATUS_MAX, "Listening on port %d.\n", globalreg->kistcpport);
+    snprintf(errstr, STATUS_MAX, "Listening on port %d.", globalreg->kistcpport);
     globalreg->messagebus->InjectMessage(errstr, MSGFLAG_INFO);
     for (unsigned int ipvi = 0; ipvi < ipfilter_vec.size(); ipvi++) {
         char *netaddr = strdup(inet_ntoa(ipfilter_vec[ipvi]->network));
         char *maskaddr = strdup(inet_ntoa(ipfilter_vec[ipvi]->mask));
 
-        snprintf(errstr, STATUS_MAX,  "Allowing connections from %s/%s\n", 
+        snprintf(errstr, STATUS_MAX,  "Allowing connections from %s/%s", 
                  netaddr, maskaddr);
         globalreg->messagebus->InjectMessage(errstr, MSGFLAG_INFO);
 

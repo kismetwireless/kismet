@@ -948,7 +948,7 @@ int ProcessBulkConf(ConfigFile *conf) {
 
         globalregistry->bssid_wep_map.insert(bssid_mac, keyinfo);
 
-        snprintf(errstr, STATUS_MAX, "Using key %s length %d for BSSID %s\n",
+        snprintf(errstr, STATUS_MAX, "Using key %s length %d for BSSID %s",
                 rawkey.c_str(), len, bssid_mac.Mac2String().c_str());
         globalregistry->messagebus->InjectMessage(errstr, MSGFLAG_INFO);
     }
@@ -1055,7 +1055,7 @@ int ProcessBulkConf(ConfigFile *conf) {
                     }
 
                 if (limit_logs != 0) {
-                    snprintf(errstr, STATUS_MAX, "Limiting dumpfile to %d packets each.\n",
+                    snprintf(errstr, STATUS_MAX, "Limiting dumpfile to %d packets each.",
                             limit_logs);
                     globalregistry->messagebus->InjectMessage(errstr, MSGFLAG_INFO);
                 }
@@ -1073,7 +1073,7 @@ int ProcessBulkConf(ConfigFile *conf) {
             if (!strcasecmp(dumptype, "wiretap")) {
                 dumpfile = new WtapDumpFile;
             } else {
-                snprintf(errstr, STATUS_MAX, "Unknown dump file type '%s'\n", dumptype);
+                snprintf(errstr, STATUS_MAX, "Unknown dump file type '%s'", dumptype);
                 globalregistry->messagebus->InjectMessage(errstr, MSGFLAG_FATAL);
                 ErrorShutdown();
             }
