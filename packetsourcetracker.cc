@@ -66,6 +66,8 @@ Packetsourcetracker::Packetsourcetracker(GlobalRegistry *in_globalreg) {
     chanchild_pid = 0;
     sockpair[0] = sockpair[1] = 0;
 
+    dataframe_only = 0;
+
     // Register all our packet sources
     // RegisterPacketsource(name, root, channelset, init channel, register,
     // monitor, unmonitor, channelchanger)
@@ -473,6 +475,7 @@ int Packetsourcetracker::Poll(fd_set *in_rset, fd_set *in_wset) {
                         return -1;
                     }
                 }
+
             }
 
             dataframe_only = 0;
@@ -495,8 +498,8 @@ int Packetsourcetracker::Poll(fd_set *in_rset, fd_set *in_wset) {
 
         // Keep trying to go on...
         if (in_pak.sentinel != CHANSENTINEL) {
-            snprintf(errstr, 1024, "Got packet from channel control with invalid "
-                     "sentinel.");
+            snprintf(errstr, 1024, "Got packet from channel control process with "
+                     "invalid sentinel.");
             globalreg->messagebus->InjectMessage(errstr, MSGFLAG_FATAL);
             globalreg->fatal_condition = 1;
             return 1;
@@ -1283,6 +1286,7 @@ int Packetsourcetracker::ShutdownChannelChild() {
     // THIS NEEDS TO BE TIMERED against blocking
     fprintf(stderr, "Sending termination request to channel control child %d...\n",
             chanchild_pid);
+    printf("send term\n");
     send(sockpair[1], &death_packet, sizeof(chanchild_packhdr) - sizeof(void *), 0);
 
     // THIS NEEDS TO BE TIMERED TOO
@@ -1340,8 +1344,9 @@ void Packetsourcetracker::ChannelChildLoop() {
         // Obey incoming data
         if (FD_ISSET(sockpair[0], &rset)) {
             chanchild_packhdr pak;
+            int ret;
 
-            if (recv(sockpair[0], &pak, sizeof(chanchild_packhdr) - sizeof(void *), 0) < 0) {
+            if ((ret = recv(sockpair[0], &pak, sizeof(chanchild_packhdr) - sizeof(void *), 0)) < 0) {
                 exit(1);
             }
 

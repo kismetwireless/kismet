@@ -1,3 +1,4 @@
+Sep 23 2004  devel  Fixed sentinel warning in channel control child
 Sep 22 2004  devel  Fixed parsing of enable lines that caused the first field
                      to be dropped
 Sep 21 2004  devel  Removed spurious debug string
