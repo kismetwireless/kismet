@@ -645,7 +645,7 @@ Optional Features:
 Optional Packages:
   --with-PACKAGE[=ARG]    use PACKAGE [ARG=yes]
   --without-PACKAGE       do not use PACKAGE (same as --with-PACKAGE=no)
-  --with-ethereal=DIR     support ethereal wiretap for logs default=/usr/src/ethereal-0.9.6
+  --with-ethereal=DIR     support ethereal wiretap for logs default=/usr/src/ethereal-0.9.7
   --without-ethereal        disable support for ethereal wiretap
 
 Some influential environment variables:
@@ -4386,7 +4386,7 @@ if test "${with_ethereal+set}" = set; then
         want_ethereal=no
     elif test $withval = yes; then
         want_ethereal=yes
-		ethereal_dir="/usr/src/ethereal-0.9.6"
+		ethereal_dir="/usr/src/ethereal-0.9.7"
     else
         want_ethereal=yes
         ethereal_dir=$withval
@@ -4395,7 +4395,7 @@ if test "${with_ethereal+set}" = set; then
 else
 
     want_ethereal=yes
-    ethereal_dir="/usr/src/ethereal-0.9.6"
+    ethereal_dir="/usr/src/ethereal-0.9.7"
 
 fi;
 
