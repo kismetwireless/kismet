@@ -226,6 +226,10 @@ Licensed under the GPL
         Additional per-source fine-grained channel hopping control is available
         via the 'sourcechannels' directives, which are explained in the 
         configuration file comments.
+        Channel dwelling (similar to hopping) can be set with the channeldwell
+        option.  Setting a channel dwell time controls the number of seconds
+        between channel change, compared to the tenths of a second defined by
+        channelvelocity.
 
         Most users will want to use channel hopping, but remember - just like
         it's impossible to see all of a program while channel surfing on TV,
