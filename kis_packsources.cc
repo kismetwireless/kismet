@@ -65,20 +65,20 @@ int RegisterKismetSources(Packetsourcetracker *sourcetracker) {
                                        monitor_vtar5k, NULL, chancontrol_wext);
 
     sourcetracker->RegisterPacketsource("madwifi_a", 1, "IEEE80211a", 36,
-                                        pcapsource_wext_registrant,
+                                        pcapsource_madwifi_registrant,
                                         monitor_madwifi_a, NULL, chancontrol_wext);
     sourcetracker->RegisterPacketsource("madwifi_b", 1, "IEEE80211b", 6,
-                                        pcapsource_wext_registrant,
+                                        pcapsource_madwifi_registrant,
                                         monitor_madwifi_b, NULL, chancontrol_wext);
     sourcetracker->RegisterPacketsource("madwifi_g", 1, "IEEE80211g", 6,
-                                        pcapsource_11g_registrant,
+                                        pcapsource_madwifig_registrant,
                                         monitor_madwifi_g, NULL, chancontrol_wext);
     sourcetracker->RegisterPacketsource("madwifi_ab", 1, "IEEE80211ab", 6,
-                                        pcapsource_wext_registrant,
+                                        pcapsource_madwifi_registrant,
                                         monitor_madwifi_comb, NULL, 
                                         chancontrol_madwifi_ab);
     sourcetracker->RegisterPacketsource("madwifi_ag", 1, "IEEE80211ab", 6,
-                                        pcapsource_11g_registrant,
+                                        pcapsource_madwifig_registrant,
                                         monitor_madwifi_comb, NULL, 
                                         chancontrol_madwifi_ag);
 

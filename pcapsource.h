@@ -128,6 +128,8 @@ protected:
     carrier_type IEEE80211Carrier();
     // Datalink checker
     int DatalinkType();
+    // FCS byte checker (override)
+    int FCSBytes();
     // Mangler
     int ManglePacket(kis_packet *packet, uint8_t *data, uint8_t *moddata);
     // Mangle a prism2 datalink to a kismet packet
@@ -167,6 +169,24 @@ public:
 protected:
     carrier_type IEEE80211Carrier();
 };
+
+// Override madwifi stuff for FCS
+class PcapSourceMadWifi : public PcapSourceWext {
+public:
+    PcapSourceMadWifi(string in_name, string in_dev) : 
+        PcapSourceWext(in_name, in_dev) { }
+protected:
+    int FCSBytes();
+};
+
+class PcapSourceMadWifiG : public PcapSource11G {
+public:
+    PcapSourceMadWifiG(string in_name, string in_dev) : 
+        PcapSource11G(in_name, in_dev) { }
+protected:
+    int FCSBytes();
+};
+
 #endif
 
 #ifdef SYS_LINUX
@@ -178,6 +198,7 @@ public:
     int FetchPacket(kis_packet *packet, uint8_t *data, uint8_t *moddata);
 protected:
     carrier_type IEEE80211Carrier();
+    int FCSBytes();
 };
 #endif
 
@@ -205,6 +226,10 @@ KisPacketSource *pcapsource_ciscowifix_registrant(string in_name, string in_devi
                                                   char *in_err);
 KisPacketSource *pcapsource_11g_registrant(string in_name, string in_device,
                                            char *in_err);
+KisPacketSource *pcapsource_madwifi_registrant(string in_name, string in_device,
+                                               char *in_err);
+KisPacketSource *pcapsource_madwifig_registrant(string in_name, string in_device,
+                                                char *in_err);
 #endif
 
 #ifdef SYS_LINUX

@@ -179,6 +179,13 @@ int PcapSource::FetchPacket(kis_packet *packet, uint8_t *data, uint8_t *moddata)
     return(packet->caplen);
 }
 
+int PcapSource::FCSBytes() {
+    if (datalink_type == DLT_PRISM_HEADER)
+        return 4;
+    
+    return 0;
+}
+
 int PcapSource::ManglePacket(kis_packet *packet, uint8_t *data, uint8_t *moddata) {
     int ret = 0;
     memset(packet, 0, sizeof(kis_packet));
@@ -233,14 +240,8 @@ int PcapSource::Prism2KisPack(kis_packet *packet, uint8_t *data, uint8_t *moddat
 
         header_found = 1;
 
-        // Nasty hack to strip FCS if its all 0xFF that some drivers put in.
-        // Find a better way to do this.
-        int fcs = 0;
-        if (memcmp((uint32_t *) &callback_data[kismin(callback_header.caplen, 
-                                                      (uint32_t) MAX_PACKET_LEN) - 4], 
-                   "\xFF\xFF\xFF\xFF", 4) == 0) {
-            fcs = 4;
-        } 
+        // Get the FCS for this subclass
+        int fcs = FCSBytes();
 
         // Subtract the packet FCS since kismet doesn't do anything terribly bright
         // with it right now
@@ -296,14 +297,8 @@ int PcapSource::Prism2KisPack(kis_packet *packet, uint8_t *data, uint8_t *moddat
 
         header_found = 1;
 
-        // Nasty hack to strip FCS if its all 0xFF that some drivers put in.
-        // Find a better way to do this.
-        int fcs = 0;
-        if (memcmp((uint32_t *) &callback_data[kismin(p2head->frmlen.data, 
-                                                      (uint32_t) MAX_PACKET_LEN) - 4], 
-                   "\xFF\xFF\xFF\xFF", 4) == 0) {
-            fcs = 4;
-        } 
+        // Get the FCS
+        int fcs = FCSBytes();
 
         // Subtract the packet FCS since kismet doesn't do anything terribly bright
         // with it right now
@@ -473,9 +468,25 @@ carrier_type PcapSource11G::IEEE80211Carrier() {
 
     return carrier_unknown;
 }
+
+// Madwifi only has 1 linktype, and it doesn't report a fcs on it
+int PcapSourceMadWifi::FCSBytes() {
+    return 0;
+}
+
+// Madwifig also
+int PcapSourceMadWifiG::FCSBytes() {
+    return 0;
+}
 #endif
 
 #ifdef SYS_LINUX
+// The wrt54g seems to put a fcs on it
+int PcapSourceWrt54g::FCSBytes() {
+    return 4;
+}
+
+// Handle badly formed jumbo packets from the drivers
 int PcapSourceWrt54g::FetchPacket(kis_packet *packet, uint8_t *data, uint8_t *moddata) {
     int ret;
     //unsigned char *udata = '\0';
@@ -587,6 +598,16 @@ KisPacketSource *pcapsource_ciscowifix_registrant(string in_name, string in_devi
 KisPacketSource *pcapsource_11g_registrant(string in_name, string in_device,
                                            char *in_err) {
     return new PcapSource11G(in_name, in_device);
+}
+
+KisPacketSource *pcapsource_madwifi_registrant(string in_name, string in_device,
+                                               char *in_err) {
+    return new PcapSourceMadWifi(in_name, in_device);
+}
+
+KisPacketSource *pcapsource_madwifig_registrant(string in_name, string in_device,
+                                                char *in_err) {
+    return new PcapSourceMadWifiG(in_name, in_device);
 }
 #endif
 
