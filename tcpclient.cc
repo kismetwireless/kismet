@@ -344,6 +344,10 @@ int TcpClient::ParseData(char *in_data) {
     } else if (!strncmp(header, "*INFO", 64)) {
         char chan_details[1024];
         char chan_details_sec[1024];
+
+        memset(chan_details, 0, 1024);
+        memset(chan_details_sec, 0, 1024);
+
         unsigned int numchan;
         if (sscanf(in_data+hdrlen, "%d %d %d %d %d %d %d %d %d %d%1024s\n",
                    &num_networks, &num_packets,

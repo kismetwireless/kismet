@@ -28,6 +28,8 @@
 int Prism2Source::OpenSource(const char *dev) {
     snprintf(type, 64, "Prism/2 (DEPRECATED)");
 
+    paused = 0;
+
     int fds[2], r;
 
     fd = -1;

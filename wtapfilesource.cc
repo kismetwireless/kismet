@@ -23,6 +23,7 @@
 int WtapFileSource::OpenSource(const char *dev) {
     snprintf(type, 64, "Wtap Save File");
 
+    paused = 0;
 
     int err;
 
@@ -72,7 +73,8 @@ int WtapFileSource::FetchPacket(pkthdr *in_header, u_char *in_data) {
         return -1;
     }
 
-    if (paused) return 0;
+    if (paused)
+        return 0;
 
     Wtap2Common(in_header, in_data);
 
