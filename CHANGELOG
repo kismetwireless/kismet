@@ -9,6 +9,8 @@ Mar 20 2003  2.9.1  Various code cleanups and reorganizations
                     Migrated drone output to a per-listener ring buffer, fixed
                      spin condition when listener disconnects inbetween writes,
                      fixed incomplete drone packet writes.
+                    Applied patch from Faust to eliminate warnings when gps is
+                     disabled.
 Mar 18 2003  2.9.1  Fixed new alert logic, added alert fields to the config
                      file, started moving existing alerts to new alert
                      logic.

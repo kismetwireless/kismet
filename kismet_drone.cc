@@ -136,8 +136,10 @@ int main(int argc, char *argv[]) {
 
     TcpStreamer streamer;
 
+#ifdef HAVE_GPS
     char gpshost[1024];
     int gpsport = -1;
+#endif
 
     /*
     int beacon_stream = 1;

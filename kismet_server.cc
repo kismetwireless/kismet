@@ -958,8 +958,10 @@ int main(int argc,char *argv[]) {
 
     const char *logtypes = NULL, *dumptype = NULL;
 
+#ifdef HAVE_GPS
     char gpshost[1024];
     int gpsport = -1;
+#endif
 
     string allowed_hosts;
     int tcpport = -1;
