@@ -4,7 +4,7 @@
 # not continually reading --help!
 
 # Version of Kismet config
-version=3.1.0d
+version=3.1.0e
 
 # Name of server (Purely for organiational purposes)
 servername=Kismet
@@ -164,6 +164,8 @@ soundplay=/usr/bin/play
 # soundopts=--volume=.3
 # New network found
 sound_new=@sharedatadir@/kismet/wav/new_network.wav
+# Wepped new network
+# sound_new_wep=@sharedstatedir@/kismet/wav/new_wep_network.wav
 # Network traffic sound
 sound_traffic=@sharedatadir@/kismet/wav/traffic.wav
 # Network junk traffic found

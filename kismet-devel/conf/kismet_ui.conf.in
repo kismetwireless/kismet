@@ -26,6 +26,8 @@ soundplay=/usr/bin/play
 # soundopts=--volume=.3
 # New network found
 sound_new=@sharedatadir@/kismet/wav/new_network.wav
+# Wepped new network
+# sound_new_wep=@sharedstatedir@/kismet/wav/new_wep_network.wav
 # Network traffic sound
 sound_traffic=@sharedatadir@/kismet/wav/traffic.wav
 # Network junk traffic found
