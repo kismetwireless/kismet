@@ -4,6 +4,9 @@ Dec 09 2003  3.1.0  Fixed prism54g override of channel change failure in
                     Finally fixed kismet_drone and removed debugging info.
                      Should be stable for normal use.
                     Added rintf define for uclibc
+                    Added usleep between blanking ssid and setting iwpriv
+                     controls for orinoco to keep Socket CF cards from getting
+                     unhappy.  (Thanks, TZ)
 Dec 08 2003  3.1.0  Fixed util.h to include math.h outside of the wext
                      ifdef.
                     Removed mentions of signal quality from the panels client.
