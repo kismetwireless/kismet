@@ -80,7 +80,7 @@ void SmartStdoutMessageClient::ProcessMessage(string in_msg, int in_flags) {
     if ((in_flags & MSGFLAG_DEBUG) && !globalreg->silent)
         fprintf(stdout, "DEBUG: %s\n", in_msg.c_str());
     else if ((in_flags & MSGFLAG_INFO) && !globalreg->silent)
-        fprintf(stdout, "NOTICE: %s\n", in_msg.c_str());
+        fprintf(stdout, "%s\n", in_msg.c_str());
     else if ((in_flags & MSGFLAG_ERROR) && !globalreg->silent)
         fprintf(stdout, "ERROR: %s\n", in_msg.c_str());
     else if (in_flags & MSGFLAG_FATAL)
@@ -292,10 +292,12 @@ void WriteDatafiles(int in_shutdown) {
 // Quick shutdown to clean up from a fatal config after we opened the child
 void ErrorShutdown() {
     // Shut down the packet sources
-    globalregistry->sourcetracker->CloseSources();
+    if (globalregistry->sourcetracker != NULL) {
+        globalregistry->sourcetracker->CloseSources();
 
-    // Shut down the channel control child
-    globalregistry->sourcetracker->ShutdownChannelChild();
+        // Shut down the channel control child
+        globalregistry->sourcetracker->ShutdownChannelChild();
+    }
 
     // Shouldn't need to requeue fatal errors here since error shutdown means 
     // we just printed something about fatal errors.  Probably.
@@ -1604,28 +1606,29 @@ int CatchOldConfigs(ConfigFile *conf) {
     // Catch old configs and yell about them
     if (conf->FetchOpt("cardtype") != "" || conf->FetchOpt("captype") != "" ||
         conf->FetchOpt("capinterface") != "") {
-        fprintf(stderr, "FATAL:  Your config file uses the old capture type "
-                "definitions.  These have been changed to support multiple captures "
-                "and other new features.  You need to install the latest configuration "
-                "files.  See the troubleshooting section of the README for more "
-                "information.\n");
-        exit(1);
+        globalregistry->messagebus->InjectMessage("Your config file uses the old capture type "
+                                                  "definitions.  These have been changed to support multiple captures "
+                                                  "and other new features.  You need to install the latest configuration "
+                                                  "files.  See the troubleshooting section of the README for more "
+                                                  "information.", MSGFLAG_FATAL);
+        ErrorShutdown();
     }
 
     if (conf->FetchOpt("80211achannels") != "" || 
         conf->FetchOpt("80211bchannels") != "") {
-        fprintf(stderr, "FATAL:  Your config file uses the old default channel "
-                "configuration lines.  You need to install the latest configuration "
-                "files.  See the troubleshooting section of the README for more "
-                "information.\n");
-        exit(1);
+        globalregistry->messagebus->InjectMessage("Your config file uses the old default channel "
+                                                  "configuration lines.  You need to install the latest configuration "
+                                                  "files.  See the troubleshooting section of the README for more "
+                                                  "information.", MSGFLAG_FATAL);
+        ErrorShutdown();
     }
 
     if (conf->FetchOpt("macfilter") != "") {
-        fprintf(stderr, "FATAL:  Your config file uses the old filtering configuration "
-                "settings.  You need to install the latest configuration files.  See "
-                "the troubleshooting section of the README for more information.\n");
-        exit(1);
+        globalregistry->messagebus->InjectMessage("Your config file uses the old filtering configuration "
+                                                  "settings.  You need to install the latest configuration files.  See "
+                                                  "the troubleshooting section of the README for more information.",
+                                                  MSGFLAG_FATAL);
+        ErrorShutdown();
     }
 
     return 1;
@@ -1633,6 +1636,8 @@ int CatchOldConfigs(ConfigFile *conf) {
 
 int main(int argc,char *argv[]) {
     exec_name = argv[0];
+
+    char errstr[STATUS_MAX];
 
     // Start filling in key components of the globalregistry
     globalregistry = new GlobalRegistry;
@@ -1714,24 +1719,27 @@ int main(int argc,char *argv[]) {
         case 'M':
             // Microsleep
             if (sscanf(optarg, "%d", &sleepu) != 1) {
-                fprintf(stderr, "Invalid microsleep\n");
+                globalregistry->messagebus->InjectMessage("Invalid microsleep value.", 
+                                                          MSGFLAG_FATAL);
                 Usage(argv[0]);
             }
             break;
         case 't':
             // Logname
             logname = string(optarg);
-            fprintf(stderr, "Using logname: %s\n", logname.c_str());
+            snprintf(errstr, STATUS_MAX, "Using log template name '%s'", logname.c_str());
+            globalregistry->messagebus->InjectMessage(errstr, MSGFLAG_INFO);
             break;
         case 'n':
             // No logging
             no_log = 1;
-            fprintf(stderr, "Not logging any data\n");
+            globalregistry->messagebus->InjectMessage("Disabling all logging", MSGFLAG_INFO);
             break;
         case 'f':
             // Config path
             configfile = optarg;
-            fprintf(stderr, "Using alternate config file: %s\n", configfile);
+            snprintf(errstr, STATUS_MAX, "Using alternate configuration file: %s", configfile);
+            globalregistry->messagebus->InjectMessage(errstr, MSGFLAG_INFO);
             break;
         case 'c':
             // Capture type
@@ -1741,8 +1749,8 @@ int main(int argc,char *argv[]) {
         case 'C':
             // Named sources
             globalregistry->named_sources = string(optarg);
-            fprintf(stderr, "Using specified capture sources: %s\n", 
-                    globalregistry->named_sources.c_str());
+            snprintf(errstr, STATUS_MAX, "Using specified capture sources: %s", optarg);
+            globalregistry->messagebus->InjectMessage(errstr, MSGFLAG_INFO);
             break;
         case 'l':
             // Log types
@@ -1755,7 +1763,8 @@ int main(int argc,char *argv[]) {
         case 'm':
             // Maximum log
             if (sscanf(optarg, "%d", &limit_logs) != 1) {
-                fprintf(stderr, "Invalid maximum packet number.\n");
+                globalregistry->messagebus->InjectMessage("Invalid maxpacket number on commandline",
+                                                          MSGFLAG_FATAL);
                 Usage(argv[0]);
             }
             break;
@@ -1766,24 +1775,25 @@ int main(int argc,char *argv[]) {
             }
 #ifdef HAVE_GPS
             else if (sscanf(optarg, "%1024[^:]:%d", gpshost, &gpsport) < 2) {
-                fprintf(stderr, "Invalid GPS host '%s' (host:port or off required)\n",
-                       optarg);
+                globalregistry->messagebus->InjectMessage("Invalid GPS host.  'host:port' or 'off' required",
+                                                          MSGFLAG_FATAL);
                 gps_enable = 1;
                 Usage(argv[0]);
             }
 #else
             else {
-                fprintf(stderr, "WARNING:  GPS requested but gps support was not included.  GPS\n"
-                        "          logging will be disabled.\n");
+                globalregistry->messagebus->InjectMessage("GPS specified but gps support was not compiled "
+                                                          "into Kismet.  GPS logging will be disabled.",
+                                                          MSGFLAG_INFO);
                 gps_enable = 0;
-                exit(1);
             }
 #endif
             break;
         case 'p':
             // Port
             if (sscanf(optarg, "%d", &globalregistry->kistcpport) != 1) {
-                fprintf(stderr, "Invalid port number.\n");
+                globalregistry->messagebus->InjectMessage("Invalid port number specified for Kismet TCP server",
+                                                          MSGFLAG_FATAL);
                 Usage(argv[0]);
             }
             break;
@@ -1807,12 +1817,14 @@ int main(int argc,char *argv[]) {
         case 'x':
             // force channel hop
             globalregistry->channel_hop = 1;
-            fprintf(stderr, "Ignoring config file and enabling channel hopping.\n");
+            globalregistry->messagebus->InjectMessage("Overriding config file and forcing channel hopping",
+                                                      MSGFLAG_INFO);
             break;
         case 'X':
             // Force channel hop off
             globalregistry->channel_hop = 0;
-            fprintf(stderr, "Ignoring config file and disabling channel hopping.\n");
+            globalregistry->messagebus->InjectMessage("Overriding config file and disabling channel hopping",
+                                                      MSGFLAG_INFO);
             break;
         case 'I':
             // Initial channel
@@ -1877,42 +1889,49 @@ int main(int argc,char *argv[]) {
     if (conf->FetchOpt("suiduser") != "") {
         suid_user = strdup(conf->FetchOpt("suiduser").c_str());
         if ((pwordent = getpwnam(suid_user)) == NULL) {
-            fprintf(stderr, "FATAL:  Could not find user '%s' for dropping "
-                    "priviledges.  Make sure you have a valid user set for 'suiduser' "
-                    "in your config file.  See the 'Installation & Security' and "
-                    "'Configuration' sections of the README file for more "
-                    "information.\n", suid_user);
-            exit(1);
+            snprintf(errstr, STATUS_MAX,"Could not find user '%s' for dropping "
+                     "priviledges.  Make sure you have a valid user set for 'suiduser' "
+                     "in your config file.  See the 'Installation & Security' and "
+                     "'Configuration' sections of the README file for more "
+                     "information.", suid_user);
+            globalregistry->messagebus->InjectMessage(errstr, MSGFLAG_FATAL);
+            ErrorShutdown();
         } else {
             suid_id = pwordent->pw_uid;
             suid_gid = pwordent->pw_gid;
 
             if (suid_id == 0) {
                 // If we're suiding to root...
-                fprintf(stderr, "FATAL:  Specifying a uid-0 user for the priv drop "
-                        "is pointless.  See the 'Installation & Security' and "
-                        "'Configuration' sections of the README file for more "
-                        "information.\n");
-                exit(1);
+                snprintf(errstr, STATUS_MAX, "Specifying a uid-0 user for the priv drop "
+                         "is pointless.  See the 'Installation & Security' and "
+                         "'Configuration' sections of the README file for more "
+                         "information.");
+                globalregistry->messagebus->InjectMessage(errstr, MSGFLAG_FATAL);
+                ErrorShutdown();
             } else if (suid_id != real_uid && real_uid != 0) {
                 // If we're not running as root (ie, we've suid'd to root)
                 // and if we're not switching to the user that ran us
                 // then we don't like it and we bail.
-                fprintf(stderr, "FATAL:  kismet_server must be started as root or "
-                        "as the suid-target user.\n");
-                exit(1);
+                snprintf(errstr, STATUS_MAX, "Kismet was compiled with suid priv dropping "
+                         "but was not started as root or as the suid-target user.");
+                globalregistry->messagebus->InjectMessage(errstr, MSGFLAG_FATAL);
+                ErrorShutdown();
             }
 
 
-            fprintf(stderr, "Will drop privs to %s (%d) gid %d\n", suid_user, 
-                    suid_id, suid_gid);
+            snprintf(errstr, STATUS_MAX, "Will drop privs to %s (%d) gid %d", suid_user, 
+                     suid_id, suid_gid);
+            globalregistry->messagebus->InjectMessage(errstr, MSGFLAG_INFO);
         }
     } else {
-        fprintf(stderr, "FATAL:  No 'suiduser' option in the config file.\n");
-        exit(1);
+        globalregistry->messagebus->InjectMessage("Kismet was compiled with suid priv dropping "
+                                                  "but not 'suiduser' option in the config file",
+                                                  MSGFLAG_FATAL);
+        ErrorShutdown();
     }
 #else
-    fprintf(stderr, "Suid priv-dropping disabled.  This may not be secure.\n");
+    globalregistry->messagebus->InjectMessage("Kismet was compiled with suid priv-dropping "
+                                              "enabled.  This may not be secure.", MSGFLAG_ERROR);
 #endif
 
     // Catch old config file elements that indicate we won't work
@@ -1921,24 +1940,27 @@ int main(int argc,char *argv[]) {
     // Try to open the pidfile
     string pidfpath;
     if ((pidfpath = conf->FetchOpt("piddir")) == "") {
-        fprintf(stderr, "FATAL:  Your config file does not define a 'piddir' setting. "
-                "You need to install the latest configuration files.  See the "
-                "troubleshooting section of the README for more information.\n");
-        exit(1);
+        globalregistry->messagebus->InjectMessage("The kismet config file does not define a 'piddir' "
+                                                  "setting.  You need to install the latest configuration "
+                                                  "files.  See the troubleshooting section of the README "
+                                                  "for more information.", MSGFLAG_FATAL);
+        ErrorShutdown();
     }
 
     pidfpath += string("/") + pid_base;
 
     if (unlink(pidfpath.c_str()) < 0 && errno != ENOENT) {
-        fprintf(stderr, "FATAL:  Unable to set up pidfile %s, unlink() failed: %s\n",
-                pidfpath.c_str(), strerror(errno));
-        exit(1);
+        snprintf(errstr, STATUS_MAX, "Unable to set up pidfile %s, unlink() failed: %s",
+                 pidfpath.c_str(), strerror(errno));
+        globalregistry->messagebus->InjectMessage(errstr, MSGFLAG_FATAL);
+        ErrorShutdown();
     }
 
     if ((pid_file = fopen(pidfpath.c_str(), "w")) == NULL) {
-        fprintf(stderr, "FATAL:  Unable to set up pidfile %s, couldn't open for "
-                "writing: %s", pidfpath.c_str(), strerror(errno));
-        exit(1);
+        snprintf(errstr, STATUS_MAX, "Unable to set up pidfile %s, couldn't open for "
+                 "writing: %s", pidfpath.c_str(), strerror(errno));
+        globalregistry->messagebus->InjectMessage(errstr, MSGFLAG_FATAL);
+        ErrorShutdown();
     }
 
     // Write our pid.  Things calling us need to check and see if we're actually
@@ -1955,8 +1977,9 @@ int main(int argc,char *argv[]) {
         if (conf->FetchOpt("gps") == "true") {
             if (sscanf(conf->FetchOpt("gpshost").c_str(), "%1024[^:]:%d", gpshost, 
                        &gpsport) != 2) {
-                fprintf(stderr, "Invalid GPS host in config (host:port required)\n");
-                exit(1);
+                globalregistry->messagebus->InjectMessage("Invalid GPS host in config, host:port required",
+                                                          MSGFLAG_FATAL);
+                ErrorShutdown();
             }
 
             gps_enable = 1;
@@ -1971,8 +1994,10 @@ int main(int argc,char *argv[]) {
 
         // Lock GPS position
         if (conf->FetchOpt("gpsmodelock") == "true") {
-            fprintf(stderr, "Enabling GPS position lock override (broken GPS unit "
-                    "reports 0 always)\n");
+            globalregistry->messagebus->InjectMessage("Enabling GPS position information override "
+                                                      "(override broken GPS units that always report 0 "
+                                                      "in the NMEA stream)",
+                                                      MSGFLAG_INFO);
             globalregistry->gpsd->SetOptions(GPSD_OPT_FORCEMODE);
         }
 
@@ -2006,22 +2031,27 @@ int main(int argc,char *argv[]) {
     // sources again and open any defered
 #ifdef HAVE_SUID
     if (setgid(suid_gid) < 0) {
-        fprintf(stderr, "FATAL:  setgid() to %d failed.\n", suid_gid);
-        exit(1);
+        snprintf(errstr, STATUS_MAX, "setgid() to %d failed.", suid_gid);
+        globalregistry->messagebus->InjectMessage(errstr, MSGFLAG_FATAL);
+        ErrorShutdown();
     }
 
     if (setuid(suid_id) < 0) {
-        fprintf(stderr, "FATAL:  setuid() to %s (%d) failed.\n", suid_user, suid_id);
-        exit(1);
+        snprintf(errstr, STATUS_MAX, "setuid() to %s (%d) failed.", suid_user, suid_id);
+        globalregistry->messagebus->InjectMessage(errstr, MSGFLAG_FATAL);
+        ErrorShutdown();
     } 
 
-    fprintf(stderr, "Dropped privs to %s (%d) gid %d\n", suid_user, suid_id, suid_gid);
+    snprintf(errstr, STATUS_MAX, "Dropped privs to %s (%d) gid %d", 
+             suid_user, suid_id, suid_gid);
+    globalregistry->messagebus->InjectMessage(errstr, MSGFLAG_INFO);
 #endif
 
     // WE ARE NOW RUNNING AS THE TARGET UID
 
     // Bind the user sources
-    if (globalregistry->sourcetracker->BindSources(0) < 0) {
+    if (globalregistry->sourcetracker->BindSources(0) < 0 || 
+        globalregistry->fatal_condition) {
         ErrorShutdown();
     }
 
@@ -2037,7 +2067,9 @@ int main(int argc,char *argv[]) {
 
     if (data_log) {
         if (dumpfile->OpenDump(dumplogfile.c_str()) < 0) {
-            fprintf(stderr, "FATAL: Dump file error: %s\n", dumpfile->FetchError());
+            snprintf(errstr, STATUS_MAX, "Dump file error: %s", 
+                     dumpfile->FetchError());
+            globalregistry->messagebus->InjectMessage(errstr, MSGFLAG_FATAL);
             ErrorShutdown();
         }
 
@@ -2045,13 +2077,16 @@ int main(int argc,char *argv[]) {
         dumpfile->SetPhyLog(phy_log);
         dumpfile->SetMangleLog(mangle_log);
 
-        fprintf(stderr, "Dump file format: %s\n", dumpfile->FetchType());
+        snprintf(errstr, STATUS_MAX, "Dump file format: %s\n", 
+                 dumpfile->FetchType());
+        globalregistry->messagebus->InjectMessage(errstr, MSGFLAG_INFO);
     }
 
 #ifdef HAVE_GPS
     if (gps_enable && gps_log == 1) {
         if (gpsdump.OpenDump(gpslogfile.c_str(), xmllogfile.c_str()) < 0) {
-            fprintf(stderr, "FATAL: GPS dump error: %s\n", gpsdump.FetchError());
+            snprintf(errstr, STATUS_MAX, "GPS dump error: %s", gpsdump.FetchError());
+            globalregistry->messagebus->InjectMessage(errstr, MSGFLAG_FATAL);
             ErrorShutdown();
         }
     }
@@ -2062,9 +2097,10 @@ int main(int argc,char *argv[]) {
     FILE *testfile = NULL;
     if (net_log) {
         if ((testfile = fopen(netlogfile.c_str(), "w")) == NULL) {
-            fprintf(stderr, "FATAL:  Unable to open net file %s: %s.  Consult the "
-                    "'Troubleshooting' section of the README file for more info.\n",
-                    netlogfile.c_str(), strerror(errno));
+            snprintf(errstr, STATUS_MAX, "Unable to open net file %s: %s.  Consult the "
+                     "'Troubleshooting' section of the README file for more info.",
+                     netlogfile.c_str(), strerror(errno));
+            globalregistry->messagebus->InjectMessage(errstr, MSGFLAG_FATAL);
             ErrorShutdown();
         }
         fclose(testfile);
@@ -2072,9 +2108,10 @@ int main(int argc,char *argv[]) {
 
     if (csv_log) {
         if ((testfile = fopen(csvlogfile.c_str(), "w")) == NULL) {
-            fprintf(stderr, "FATAL:  Unable to open CSV file %s: %s.  Consult the "
-                    "'Troubleshooting' section of the README file for more info.\n",
-                    netlogfile.c_str(), strerror(errno));
+            snprintf(errstr, STATUS_MAX, "Unable to open CSV file %s: %s.  Consult the "
+                     "'Troubleshooting' section of the README file for more info.",
+                     netlogfile.c_str(), strerror(errno));
+            globalregistry->messagebus->InjectMessage(errstr, MSGFLAG_FATAL);
             ErrorShutdown();
         }
         fclose(testfile);
@@ -2082,9 +2119,10 @@ int main(int argc,char *argv[]) {
 
     if (xml_log) {
         if ((testfile = fopen(xmllogfile.c_str(), "w")) == NULL) {
-            fprintf(stderr, "FATAL:  Unable to open netxml file %s: %s.  Consult the "
-                    "'Troubleshooting' section of the README file for more info.\n",
-                    netlogfile.c_str(), strerror(errno));
+            snprintf(errstr, STATUS_MAX, "Unable to open netxml file %s: %s.  Consult the "
+                     "'Troubleshooting' section of the README file for more info.",
+                     netlogfile.c_str(), strerror(errno));
+            globalregistry->messagebus->InjectMessage(errstr, MSGFLAG_FATAL);
             ErrorShutdown();
         }
         fclose(testfile);
@@ -2092,9 +2130,10 @@ int main(int argc,char *argv[]) {
 
     if (cisco_log) {
         if ((testfile = fopen(ciscologfile.c_str(), "w")) == NULL) {
-            fprintf(stderr, "FATAL:  Unable to open CSV file %s: %s.  Consult the "
-                    "'Troubleshooting' section of the README file for more info.\n",
-                    netlogfile.c_str(), strerror(errno));
+            snprintf(errstr, STATUS_MAX, "Unable to open CSV file %s: %s.  Consult the "
+                     "'Troubleshooting' section of the README file for more info.",
+                     netlogfile.c_str(), strerror(errno));
+            globalregistry->messagebus->InjectMessage(errstr, MSGFLAG_FATAL);
             ErrorShutdown();
         }
         fclose(testfile);
@@ -2105,28 +2144,19 @@ int main(int argc,char *argv[]) {
         cryptfile = new AirsnortDumpFile;
 
         if (cryptfile->OpenDump(cryptlogfile.c_str()) < 0) {
-            fprintf(stderr, "FATAL: %s\n", cryptfile->FetchError());
+            globalregistry->messagebus->InjectMessage(cryptfile->FetchError(),
+                                                      MSGFLAG_FATAL);
             ErrorShutdown();
         }
 
-        fprintf(stderr, "Crypt file format: %s\n", cryptfile->FetchType());
+        snprintf(errstr, STATUS_MAX, "Crypt file format: %s", cryptfile->FetchType());
+        globalregistry->messagebus->InjectMessage(errstr, MSGFLAG_INFO);
 
     }
 
     snprintf(status, STATUS_MAX, "Kismet %s.%s.%s (%s)",
              VERSION_MAJOR, VERSION_MINOR, VERSION_TINY, servername);
-    fprintf(stderr, "%s\n", status);
-
-    /*
-    for (unsigned int x = 0; x < packet_sources.size(); x++) {
-        if (packet_sources[x]->source == NULL)
-            continue;
-
-        snprintf(status, STATUS_MAX, "Source %d (%s): Capturing packets from %s",
-                 x, packet_sources[x]->name.c_str(), packet_sources[x]->source->FetchType());
-        fprintf(stderr, "%s\n", status);
-    }
-    */
+    globalregistry->messagebus->InjectMessage(status, MSGFLAG_INFO);
 
     if (data_log || net_log || crypt_log) {
         snprintf(status, STATUS_MAX, "Logging%s%s%s%s%s%s%s",
@@ -2137,19 +2167,22 @@ int main(int argc,char *argv[]) {
                  crypt_log ? " weak" : "",
                  cisco_log ? " cisco" : "",
                  gps_log == 1 ? " gps" : "");
-        fprintf(stderr, "%s\n", status);
+        globalregistry->messagebus->InjectMessage(status, MSGFLAG_INFO);
     } else if (no_log) {
         snprintf(status, STATUS_MAX, "Not logging any data.");
-        fprintf(stderr, "%s\n", status);
+        globalregistry->messagebus->InjectMessage(status, MSGFLAG_INFO);
     }
 
     // Open the fifo, if one is requested.  This will block us until something is
     // ready to read from the fifo.
     if (fifo) {
-        fprintf(stderr, "Creating and opening named pipe '%s'.  Kismet will now block\n"
-                "until another utility opens this pipe.\n", fifofile.c_str());
+        snprintf(errstr, STATUS_MAX, "Creating and opening named pipe '%s'.  "
+                 "Kismet will now block until another utility opens this pipe.", 
+                 fifofile.c_str());
+        globalregistry->messagebus->InjectMessage(errstr, MSGFLAG_INFO);
         if (fifodump.OpenDump(fifofile.c_str()) < 0) {
-            fprintf(stderr, "FATAL:  %s\n", fifodump.FetchError());
+            globalregistry->messagebus->InjectMessage(fifodump.FetchError(),
+                                                      MSGFLAG_FATAL);
             CatchShutdown(-1);
         }
     }
@@ -2158,13 +2191,15 @@ int main(int argc,char *argv[]) {
     if (gps_enable) {
         // Open the GPS
         if (globalregistry->gpsd->OpenGPSD() < 0) {
-            fprintf(stderr, "%s\n", globalregistry->gpsd->FetchError());
+            globalregistry->messagebus->InjectMessage(globalregistry->gpsd->FetchError(),
+                                                      MSGFLAG_FATAL);
 
             gps_enable = 0;
             gps_log = 0;
         } else {
-            fprintf(stderr, "Opened GPS connection to %s port %d\n",
+            snprintf(errstr, STATUS_MAX, "Opened GPS connection to %s port %d",
                     gpshost, gpsport);
+            globalregistry->messagebus->InjectMessage(errstr, MSGFLAG_INFO);
 
             gpsmode = globalregistry->gpsd->FetchMode();
 
@@ -2183,7 +2218,8 @@ int main(int argc,char *argv[]) {
     
     // Schedule our routine events that repeat the entire operational period.  We don't
     // care about their ID's since we're never ever going to cancel them.
-    fprintf(stderr, "Registering builtin timer events...\n");
+    globalregistry->messagebus->InjectMessage("Registering builtin timer events...", 
+                                              MSGFLAG_INFO);
 
     // Write network info and tick the tracker once per second
     globalregistry->timetracker->RegisterTimer(SERVER_TIMESLICES_SEC, NULL, 1, &NetWriteEvent, NULL);
@@ -2205,7 +2241,7 @@ int main(int argc,char *argv[]) {
     // to wake up
     FD_ZERO(&read_set);
 
-    fprintf(stderr, "Gathering packets...\n");
+    globalregistry->messagebus->InjectMessage("Starting to gather packets", MSGFLAG_INFO);
 
     time_t cur_time;
     while (1) {
