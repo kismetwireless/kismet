@@ -632,7 +632,10 @@ int Iwconfig_Get_Channel(const char *in_dev, char *in_err) {
     }
 
     close(skfd);
-    return (FloatChan2Int(IWFreq2Float(&wrq)));
+    if ((wrq.u.freq.e==0) && (wrq.u.freq.m<=1000))
+        return wrq.u.freq.m;
+    else
+        return (FloatChan2Int(IWFreq2Float(&wrq)));
 }
 
 int Iwconfig_Set_Channel(const char *in_dev, int in_ch, char *in_err) {
