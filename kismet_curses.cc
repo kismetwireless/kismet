@@ -712,11 +712,6 @@ int main(int argc, char *argv[]) {
     prefs["factorycolor"] = gui_conf.FetchOpt("factorycolor");
     prefs["opencolor"] = gui_conf.FetchOpt("opencolor");
     prefs["monitorcolor"] = gui_conf.FetchOpt("monitorcolor");
-	
-#ifdef HAVE_ACPI
-	prefs["acpistatefile"] = gui_conf.FetchOpt("acpistatefile");
-	prefs["acpiinfofile"] = gui_conf.FetchOpt("acpiinfofile");
-#endif
 
     gui->AddPrefs(prefs);
 

@@ -344,7 +344,7 @@ protected:
     unsigned int bat_available;
     unsigned int bat_ac;
     unsigned int bat_charging;
-    unsigned int bat_full_capacity;
+    unsigned int bat_full_capacity[3];  // I doubt a machine has more than 3 batteries...
 
     // Statistics
     int max_packet_rate;
