@@ -446,8 +446,8 @@ void DrawNetScatterPlot(vector<gps_network *> in_nets, Image *in_img, DrawInfo *
 int DrawLegendComposite(vector<gps_network *> in_nets, Image **in_img, DrawInfo **in_di);
 
 int DrawFeatherCircle(int in_width, Image *in_img, int in_xpos, int in_ypos,
-                      int concoffset, int in_opacity, float inner_perc, float outer_perc,
-                      PixelPacket circlecolor);
+                      int concoffset, int in_opacity, float inner_perc, 
+                      float outer_perc, PixelPacket circlecolor);
 int IMStringWidth(const char *psztext, Image *in_img, DrawInfo *in_di);
 int IMStringHeight(const char *psztext, Image *in_img, DrawInfo *in_di);
 
@@ -594,8 +594,8 @@ int DrawFeatherCircle(int in_width, Image *in_img, int in_xpos, int in_ypos,
 
     snprintf(prim, 1024, "fill-opacity 100%% circle %d,%d %d,%d",
              centerpoint, centerpoint, 
-             centerpoint + in_width - concoffset, 
-             centerpoint + in_width - concoffset);
+             centerpoint + (int) (in_width * inner_perc),
+             centerpoint + (int) (in_width * inner_perc));
     alpha_di->primitive = prim;
 
     DrawImage(alpha_img, alpha_di);
