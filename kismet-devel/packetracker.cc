@@ -490,8 +490,11 @@ int Packetracker::ProcessDataPacket(packet_info info, wireless_network *net, cha
     string smac = Mac2String(info.source_mac, ':');
 
     // Find the client or make one
+    /*
     if (net->client_map.find(smac) != client_map.end()) {
         client = net->client_map[smac];
+
+        printf("Found client: %p\n", client);
 
         if ((client->type == client_fromds && info.distrib == to_distribution) ||
             (client->type == client_tods && info.distrib == from_distribution))
@@ -499,7 +502,7 @@ int Packetracker::ProcessDataPacket(packet_info info, wireless_network *net, cha
 
     } else {
         client = new wireless_client;
-        net->client_map[smac] = client;
+        //net->client_map[smac] = client;
 
         if (info.distrib == from_distribution)
             client->type = client_fromds;
@@ -508,7 +511,8 @@ int Packetracker::ProcessDataPacket(packet_info info, wireless_network *net, cha
         else if (info.distrib == inter_distribution)
             client->type = client_interfs;
 
-    }
+            }
+            */
 
     if (info.encrypted) {
         net->crypt_packets++;
