@@ -135,7 +135,7 @@ char *label_gravity_list[] = {
 };
 
 int scatter_power;
-int power_max_threshold;
+int power_zoom;
 
 // Tracker internals
 int sample_points;
@@ -1862,22 +1862,29 @@ void DrawNetCenterText(vector<gps_network *> in_nets, Image *in_img, DrawInfo *i
 
 
 void DrawNetScatterPlot(vector<gps_network *> in_nets, Image *in_img, DrawInfo *in_di) { /*FOLD00*/
-    int power_level;
-    int power_index;
+    int power_level=0;
+    int power_level_total=0;
+    int coord_count=0;
+    int power_index=0;
+    float threshold=0;
+    int max_power_level=0;
 
     for (unsigned int x = 0; x < in_nets.size(); x++) {
         gps_network *map_iter = in_nets[x];
 
         // Skip networks w/ no determined coordinates
+        /* ATR - Removed this check because it skips sites with readings at only a single coordinate. Hope it doesn't break something else.........
         if (map_iter->max_lat == 0)
             continue;
+        */
 
         if (map_iter->diagonal_distance > horiz_throttle)
             continue;
 
 	// hehe, cheating with a hash
         map<string, string> dim;
-	map<string, int> dim_signal;
+        map<string, int> dim_signal_total; // For power plotting
+        map<string, int> dim_count; // For power plotting
         for (unsigned int y = 0; y < map_iter->points.size(); y++) {
             gps_point *pt = map_iter->points[y];
 
@@ -1896,7 +1903,13 @@ void DrawNetScatterPlot(vector<gps_network *> in_nets, Image *in_img, DrawInfo *
             string a = mm1;
             string b = mm2;
             dim[a] = b;
-	    dim_signal[a] = (int) pt->signal;
+            dim_signal_total[a] = dim_signal_total[a] + (int) pt->signal; //ATR associative array for commulative signal values seen at this coordinate
+            dim_count[a]++; //ATR associative array for number of entries seen at this coordinate
+
+            // ATR Find highest power reading for dynamic scaling
+            if ((int) pt->signal > max_power_level) {
+                max_power_level = (int) pt->signal;
+            }
         }
 
         if ( scatter_power == 0) {
@@ -1912,35 +1925,58 @@ void DrawNetScatterPlot(vector<gps_network *> in_nets, Image *in_img, DrawInfo *
             }
 
             in_di->fill = netclr;
+        }  else {
+
+                // ATR Determine range value for assigning colors
+                if (power_zoom > 0) {
+                        max_power_level = power_zoom;
+                }
+                if(max_power_level < power_steps) {  // ATR don't break down further than number of colors
+                        threshold = 1;
+                } else {
+                        threshold = (float) max_power_level/(float) (power_steps);
+
+                }
+                printf("Power Zoom=%d : Power Steps=%d : Range for Color Index=%.2f\n", max_power_level, power_steps, threshold);
         }
 
         for (map<string, string>::const_iterator y = dim.begin(); y != dim.end(); ++y) {
-            if (scatter_power == 1) {
-                // if power based coloring, determine and set color for each scatter point
-	        power_level = dim_signal[y->first];
+            if (scatter_power == 1) { // ATR If power based coloring, determine and set color for each scatter point
 
-                if (power_level == 0) {
-                    //sig is really something above zero or we wouldn't get a packet ;)
-                    power_level++;
-                }
+                        // ATR calc average power from multiple values
+                        power_level_total = dim_signal_total[y->first];
+                        coord_count = dim_count[y->first];
+                        if (power_level_total == 0) { //ATR sig is really something above zero or we wouldn't get a packet ;)
+                                power_level_total++;
+                        }
+                        power_level = power_level_total/coord_count;
+                        if (power_level == 0) { //ATR sig is really something above zero or we wouldn't get a packet ;)
+                                power_level++;
+                        }
 
-                power_index = power_level / (power_max_threshold/power_steps);
+                        // ATR Determine color index
+                        power_index = (int) (power_level / threshold);
+                        if (power_index == 0) { // ATR value of zero means we got a bogus integer rounding number
+                                power_index++;
+                        }
+                        if (power_index > power_steps) { //ATR if user specifies zoom that's less than max_power, then set index to highest color
+                                power_index = power_steps;
+                        }
 
-                //printf("Power %d : Color Index %d\n",power_level, power_index); // debug
-
-                PixelPacket netclr;
-
-                ExceptionInfo excep;
-                GetExceptionInfo(&excep);
-
-                // ATR - Get color based on signal power
-                QueryColorDatabase(power_colors[power_index], &netclr, &excep);
-                if (excep.severity != UndefinedException) {
-                    CatchException(&excep);
-                    break;
-                }
-                in_di->fill = netclr;
+                        PixelPacket netclr;
+                        ExceptionInfo excep;
+                        GetExceptionInfo(&excep);
+                        QueryColorDatabase(power_colors[power_index-1], &netclr, &excep); // ATR - Get color based on signal power
+                        if (excep.severity != UndefinedException) {
+                                CatchException(&excep);
+                                break;
+                        }
+                        in_di->fill = netclr;
+                        printf("Plot=%s : Commulative Power=%d : Number Readings=%d : Ave Power=%d : Color Index=%d \n", y->first.c_str(), power_level_total, coord_count, power_level, power_index);
             }
+
+
+
 
             char prim[1024];
 
@@ -2010,6 +2046,9 @@ int Usage(char* argv, int ec = 1) {
            "  -a, --draw-scatter             Draw scatter plot of data points\n"
            "  -A, --draw-scatter-opacity <o> Scatter plot opacity [Default: 100]\n"
            "  -B, --draw-scatter-size <s>    Draw scatter at radius size <s> [Default: 2]\n"
+           "  -Z, --draw-power-zoom          Power based scatter plot range for scaling colors [Default: 0]\n"
+           "                                 0 determines upper limit based on max observed for network\n"
+           "                                 1-255 is user defined upper limit\n"
            "  -p, --draw-power               Draw interpolated network power\n"
            "  -P, --draw-power-opacity <o>   Interpolated power opacity [Default: 70]\n"
            "  -Q, --draw-power-res <res>     Interpolated power resolution [Default: 5]\n"
@@ -2044,7 +2083,7 @@ int Usage(char* argv, int ec = 1) {
 
 char *exec_name;
 
-int main(int argc, char *argv[]) { 
+int main(int argc, char *argv[]) {
     char* exec_name = argv[0];
 
     char mapname[1024];
@@ -2087,6 +2126,7 @@ int main(int argc, char *argv[]) {
            {"draw-scatter", no_argument, 0, 'a'},
            {"draw-scatter-opacity", required_argument, 0, 'A'},
            {"draw-scatter-size", required_argument, 0, 'B'},
+           {"draw-power-zoom", required_argument, 0, 'Z'}, // ATR - option for scaling with power based scatter plots
            {"draw-power", no_argument, 0, 'p'},
            {"draw-power-opacity", required_argument, 0, 'P'},
            {"draw-power-res", required_argument, 0, 'Q'},
@@ -2122,7 +2162,7 @@ int main(int argc, char *argv[]) {
 
     while(1) {
         int r = getopt_long(argc, argv,
-                            "hvg:S:o:f:iz:DVc:s:m:d:n:GMO:tY:brR:uU:aA:B:pP:q:Q:eE:H:l:L:kK:F:",
+                            "hvg:S:o:f:iz:DVc:s:m:d:n:GMO:tY:brR:uU:aA:B:pP:Z:q:Q:eE:H:l:L:kK:F:",
                             long_options, &option_index);
 
         if (r < 0) break;
@@ -2276,6 +2316,12 @@ int main(int argc, char *argv[]) {
                 ShortUsage(exec_name);
             }
             break;
+        case 'Z':
+            if (sscanf(optarg, "%d", &power_zoom) > 255 || power_zoom < 0) {
+                fprintf(stderr, "Invalid scatter power zoom.\n");
+                ShortUsage(exec_name);
+            }
+            break;
         case 'q':
             {
                 int icolor;
@@ -2286,9 +2332,6 @@ int main(int argc, char *argv[]) {
 
                 // ATR - set vars for scatter plot
                 scatter_power = 1;
-                power_max_threshold = power_max/2;
-                // static coded value for now - signal power seems to be below 128
-                // ATR -end
 
                 if (icolor == 0) {
                     power_steps = power_steps_Orig;
