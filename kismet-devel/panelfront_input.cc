@@ -217,7 +217,7 @@ int PanelFront::MainInput(void *in_window, int in_chr) {
         break;
     case 'e':
     case 'E':
-        SpawnWindow("Kismet Servers", &PanelFront::ServersPrinter, &PanelFront::ServersInput, 10, 47);
+        SpawnWindow("Kismet Servers", &PanelFront::ServersPrinter, &PanelFront::ServersInput, 10, 62);
         break;
     }
 
