@@ -263,7 +263,11 @@ void SoundHandler(int *fds, const char *player, map<string, string> soundmap) {
         tm.tv_sec = 1;
         tm.tv_usec = 0;
 
-        select(read_sock + 1, &rset, NULL, NULL, &tm);
+        if (select(read_sock + 1, &rset, NULL, NULL, &tm) < 0) {
+            if (errno != EINTR) {
+                exit(1);
+            }
+        }
 
         if (harvested == 0) {
             // We consider a wait error to be a sign that the child pid died
@@ -276,9 +280,6 @@ void SoundHandler(int *fds, const char *player, map<string, string> soundmap) {
         if (FD_ISSET(read_sock, &rset)) {
             int ret;
             ret = read(read_sock, data, 1024);
-
-            if (ret <= 0 || errno != 0)
-                exit(1);
 
             // We'll die off if we get a read error, and we'll let kismet on the
             // other side detact that it died
@@ -357,14 +358,15 @@ void SpeechHandler(int *fds, const char *player) {
         tm.tv_sec = 1;
         tm.tv_usec = 0;
 
-        select(read_sock + 1, &rset, NULL, NULL, &tm);
+        if (select(read_sock + 1, &rset, NULL, NULL, &tm) < 0) {
+            if (errno != EINTR) {
+                exit(1);
+            }
+        }
 
         if (FD_ISSET(read_sock, &rset)) {
             int ret;
             ret = read(read_sock, data, 1024);
-
-            if (ret <= 0 || errno != 0)
-                exit(1);
 
             // We'll die off if we get a read error, and we'll let kismet on the
             // other side detact that it died
