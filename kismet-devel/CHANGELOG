@@ -6,6 +6,9 @@ Feb 23 2003  2.9.1  Spun server timer events into seperate file
                      a lightweight network of capture drones monitored by a
                      central kismet for loggig/detection/etc.  Docs and
                      kismet stream capture source coming soon.
+                    Added new kismet capture source, Drone.  Capture interface
+                     is host:port, where the host and port are that of the 
+                     Drone remote capture.
 Feb 22 2003  2.9.1  Added 'TODO' file to CVS after enough people complained
                      that it wasn't there.
 Feb 21 2003  2.9.1  Wrote code to mangle a WEP'd packet into a non-wep'd one

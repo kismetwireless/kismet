@@ -199,6 +199,9 @@ for line in `cat $IFFILE`; do
 		"generic")
 			echo "Generic card specified, so we do nothing."
 			;;
+		"drone")
+			echo "Drone connection Specified, so we do nothing."
+			;;
 		"wsp100")
 			echo "Enabling a wsp100 at $DEVICE for channel $CHANNEL"
 			if test "$HOSTIP" == ""; then
