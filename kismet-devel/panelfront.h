@@ -111,6 +111,8 @@ public:
 
     int WriteStatus(string status);
 
+    // We read from stdin
+    virtual int FetchDescriptor() { return fileno(stdin); };
 protected:
     // Curses color pair
     typedef struct color_pair {

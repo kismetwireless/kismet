@@ -9,6 +9,8 @@ Jan 01 2004  3.1.0  Added legend drawing to GPSMap, finally
                      (gpsmap -v ... )
                     Revamped column positioning code for gpsmap legends
                     Fixed missing '/' in pcapsource wlanng (thanks falter)
+                    Merged patch from Million fixing memory and var init bugs
+                     in panels and goto calls.
 Dec 27 2003  3.1.0  Fixed remembering probe networks associated by data packets
                     Added reporting of cardsource id (step 1 of client-
                      controlled channel locking) over card protocol

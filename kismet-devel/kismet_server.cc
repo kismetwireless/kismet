@@ -2764,8 +2764,7 @@ int main(int argc,char *argv[]) {
                         if (filter_packet == 1) {
                             localdropnum++;
 
-                            // This is bad.
-                            goto end_packprocess;
+                            continue;
                         }
 
                     }
@@ -2789,19 +2788,19 @@ int main(int argc,char *argv[]) {
                     if (tracker.FetchNumNetworks() > num_networks) {
                         if (sound == 1)
                             sound = PlaySound("new");
-                    }
 
-                    if (tracker.FetchNumNetworks() > num_networks && speech == 1) {
-                        string text;
+                        if (speech == 1) {
+                            string text;
 
-                        if (info.wep)
-                            text = ExpandSpeechString(speech_sentence_encrypted, &info, 
-                                                      speech_encoding);
-                        else
-                            text = ExpandSpeechString(speech_sentence_unencrypted, 
-                                                      &info, speech_encoding);
+                            if (info.wep)
+                                text = ExpandSpeechString(speech_sentence_encrypted, &info, 
+                                                          speech_encoding);
+                            else
+                                text = ExpandSpeechString(speech_sentence_unencrypted, 
+                                                          &info, speech_encoding);
 
-                        speech = SayText(MungeToShell(text).c_str());
+                            speech = SayText(MungeToShell(text).c_str());
+                        }
                     }
                     num_networks = tracker.FetchNumNetworks();
 
@@ -2943,8 +2942,6 @@ int main(int argc,char *argv[]) {
                     CatchShutdown(-1);
                 }
             } // End processing new packets
-
-        end_packprocess: ;
 
         }
 
