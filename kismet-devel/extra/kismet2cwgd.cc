@@ -104,34 +104,121 @@ int ProcessGPSFile(char *in_fname, char *in_oname) {
     vector<wireless_network *> file_networks;
 
     int foundnetfile = 0;
+    string comp;
 
-    if (XMLFetchGpsNetfile() != "") {
+    if ((comp = XMLFetchGpsNetfile()) != "") {
         fprintf(stderr, "NOTICE:  Reading associated network file, '%s'\n", XMLFetchGpsNetfile().c_str());
 #ifdef HAVE_LIBZ
         if ((gpsfz = gzopen(XMLFetchGpsNetfile().c_str(), "r")) == NULL) {
-            fprintf(stderr, "WARNING:  Could not open associated network xml file '%s', trying compressed...\n",
+            fprintf(stderr, "WARNING:  Could not open associated network xml file '%s'.\n",
                     XMLFetchGpsNetfile().c_str());
+        } else {
+            foundnetfile = 1;
+        }
 
-            string comp = XMLFetchGpsNetfile();
+        // Try our alternate file methods
+
+        if (foundnetfile == 0) {
+            comp = XMLFetchGpsNetfile();
             comp += ".gz";
 
             if ((gpsfz = gzopen(comp.c_str(), "r")) == NULL) {
-                fprintf(stderr, "WARNING:  Could not open associated network xml file '%s' even with .gz suffix.\n",
-                        XMLFetchGpsNetfile().c_str());
-            } else {
-                fprintf(stderr, "NOTICE:  Opened associated network xml file '%s'\n",
+                fprintf(stderr, "WARNING:  Could not open compressed network xml file '%s'\n",
                         comp.c_str());
+            } else {
                 foundnetfile = 1;
             }
+        }
+
+        if (foundnetfile == 0) {
+            string orignetfile = XMLFetchGpsNetfile();
+            string origxmlfile = in_fname;
+
+            // Break up the path to the gpsxml file and form a path based on that
+            unsigned int lastslash = 0;
+            for (unsigned int x = origxmlfile.find('/'); x != string::npos;
+                 lastslash = x, x = origxmlfile.find('/', lastslash+1)) {
+                // We don't actually need to do anything...
+            }
+
+            comp = origxmlfile.substr(0, lastslash);
+
+            lastslash = 0;
+            for (unsigned int x = orignetfile.find('/'); x != string::npos;
+                 lastslash = x, x = orignetfile.find('/', lastslash+1)) {
+                // We don't actually need to do anything...
+            }
+
+            comp += "/" + orignetfile.substr(lastslash, orignetfile.size() - lastslash);
+
+            if (comp != origxmlfile) {
+                if ((gpsfz = gzopen(comp.c_str(), "r")) == NULL) {
+                    fprintf(stderr, "WARNING:  Could not open network xml file relocated to %s\n",
+                            comp.c_str());
+                } else {
+                    foundnetfile = 1;
+                }
+
+                // And look again for our relocated compressed file.
+                if (foundnetfile == 0) {
+                    comp += ".gz";
+                    if ((gpsfz = gzopen(comp.c_str(), "r")) == NULL) {
+                        fprintf(stderr, "WARNING:  Could not open compressed network xml file relocated to %s\n",
+                                comp.c_str());
+                    } else {
+                        foundnetfile = 1;
+                    }
+                }
+            }
+        }
+
 #else
         if ((gpsf = fopen(XMLFetchGpsNetfile().c_str(), "r")) == NULL) {
             fprintf(stderr, "WARNING:  Could not open associated network xml file '%s'\n",
                     XMLFetchGpsNetfile().c_str());
-#endif
-
+        } else {
+            foundnetfile = 1;
         }
 
+        // Try our alternate file methods
+
+        if (foundnetfile == 0) {
+            string orignetfile = XMLFetchGpsNetfile();
+            string origxmlfile = in_fname;
+
+            // Break up the path to the gpsxml file and form a path based on that
+            unsigned int lastslash = 0;
+            for (unsigned int x = origxmlfile.find('/'); x != string::npos;
+                 lastslash = x, x = origxmlfile.find('/', lastslash+1)) {
+                // We don't actually need to do anything...
+            }
+
+            comp = origxmlfile.substr(0, lastslash);
+
+            lastslash = 0;
+            for (unsigned int x = orignetfile.find('/'); x != string::npos;
+                 lastslash = x, x = orignetfile.find('/', lastslash+1)) {
+                // We don't actually need to do anything...
+            }
+
+            comp += "/" + orignetfile.substr(lastslash, orignetfile.size() - lastslash - 1);
+
+            if (comp != origxmlfile) {
+                if ((gpsf = fopen(comp.c_str(), "r")) == NULL) {
+                    fprintf(stderr, "WARNING:  Could not open network xml file relocated to %s\n",
+                            comp.c_str());
+                } else {
+                    foundnetfile = 1;
+                }
+
+            }
+        }
+
+#endif
+
         if (foundnetfile) {
+            fprintf(stderr, "NOTICE:  Opened associated network xml file '%s'\n", comp.c_str());
+
             fprintf(stderr, "NOTICE:  Processing network XML file.\n");
 
 #ifdef HAVE_LIBZ
@@ -159,7 +246,7 @@ int ProcessGPSFile(char *in_fname, char *in_oname) {
             "# BSSID SSID LAT LON ALT SPEED FIX QUALITY POWER NOISE TIME\n\n",
             ctime(&now));
 
-    map<string, wireless_network *> bssid_cache;
+    map<mac_addr, wireless_network *> bssid_cache;
 
     for (unsigned int i = 0; i < file_points.size(); i++) {
         double lat, lon, alt, spd;
@@ -181,27 +268,27 @@ int ProcessGPSFile(char *in_fname, char *in_oname) {
         } else {
             char ssid[32] = "<no ssid>";
 
-            string bssidstr = file_points[i]->bssid;
+            mac_addr bssid = file_points[i]->bssid;
 
-            if (bssid_cache.find(bssidstr) == bssid_cache.end()) {
+            if (bssid_cache.find(bssid) == bssid_cache.end()) {
                 int matched = 0;
                 for (unsigned int f = 0; f < file_networks.size(); f++) {
-                    if (bssidstr == file_networks[f]->bssid) {
+                    if (bssid == file_networks[f]->bssid) {
                         snprintf(ssid, 32, "%s", file_networks[f]->ssid.c_str());
-                        bssid_cache[bssidstr] = file_networks[f];
+                        bssid_cache[bssid] = file_networks[f];
                         matched = 1;
                         break;
                     }
                 }
                 if (!matched)
-                    bssid_cache[bssidstr] = NULL;
+                    bssid_cache[bssid] = NULL;
             } else {
-                if (bssid_cache[bssidstr] != NULL)
-                    snprintf(ssid, 32, "%s", bssid_cache[bssidstr]->ssid.c_str());
+                if (bssid_cache[bssid] != NULL)
+                    snprintf(ssid, 32, "%s", bssid_cache[bssid]->ssid.c_str());
             }
 
             fprintf(outf, "%s\t%s\t%3.6f\t%3.6f\t%3.6f\t%3.6f\t%d\t%d\t%d\t%d\t%.24s\n",
-                    bssidstr.c_str(),
+                    bssid.Mac2String().c_str(),
                     ssid,
                     lat, lon, alt, spd, fix,
                     file_points[i]->quality, file_points[i]->signal, file_points[i]->noise,
