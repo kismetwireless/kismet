@@ -97,7 +97,8 @@ else
         AC_DEFINE(SYS_FREEBSD, 1, Compiling for FreeBSD)
         ;;
     openbsd*)
-        AC_MSG_RESULT(none needed)
+		CFLAGS="-fno-stack-protector $CFLAGS"
+		AC_MSG_RESULT(OpenBSD - added -fno-stack-protector)
         AC_DEFINE(SYS_OPENBSD, 1, Compiling for OpenBSD)
         ;;
 	cygwin*)
