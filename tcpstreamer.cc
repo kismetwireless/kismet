@@ -354,7 +354,7 @@ int TcpStreamer::WritePacket(const kis_packet *in_packet) {
     packhdr.gps_spd = (int16_t) htons(packhdr.gps_spd);
     packhdr.gps_spd_mant = (int64_t) kis_hton64(packhdr.gps_spd_mant);
 
-    hdr.frame_len = (uint32_t) htonl(sizeof(struct stream_packet_header) + packhdr.caplen);
+    hdr.frame_len = (uint32_t) htonl(sizeof(struct stream_packet_header) + in_packet->caplen);
 
     int nsent = 0;
     for (unsigned int x = serv_fd; x <= max_fd; x++) {
