@@ -327,8 +327,8 @@ Licensed under the GPL
     compile on.
 
     - Linux (Intel, PPC, MIPS, X-Scale, Arm, etc)
-      Known supported cards: ACX100, Atheros, Cisco, Prism2, Orinoco, WSP100,
-      Drone, wtapfile, pcapfile, wrt54g
+      Known supported cards: ACX100, ADMTek, Atheros, Cisco, Prism2, Orinoco, 
+      WSP100, Drone, wtapfile, pcapfile, wrt54g
 
       Kismet will work with any distribution of Linux.  Currently, Linux is the
       reccomended platform for running Kismet because it has the largest
@@ -391,6 +391,14 @@ Licensed under the GPL
                     Capture interface:  'ethX'
                     ACX100 drivers handle the 22mbit cards branded by DLink
                      and others.
+
+    admtek          ADMTek              Linux       ADMTek
+                    http://www.latinsud.com/adm8211/
+                    ADMTek drivers used in many consumer 802.11b cards. With
+                     the patches above, quasi-rfmon is possible - these cards
+                     appear to be almost entirely software controlled and 
+                     always in a rfmon-like state.  This card WILL BROADCAST
+                     while in rfmon, rendering the sniffer visible.
 
     cisco           Aironet 340,350     Linux       Kernel 2.4.10 - 2.4.19
                     Capture interface:  'ethX'  
@@ -580,8 +588,6 @@ Licensed under the GPL
                           support in the drivers.
      HermesII           - Proxim successor to the Orinoco/HermesI.  No support
                           yet in the drivers, may be available in the future.
-     ADMTek             - Found in some cards from Dlink, others.  Seem to be
-                          incapable of rfmon.
 
 12. Graphical Network Mapping
 
