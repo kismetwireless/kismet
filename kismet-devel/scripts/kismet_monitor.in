@@ -189,17 +189,23 @@ case "$CARDTYPE" in
 		;;
 	"wsp100")
 		echo "Enabling a wsp100 at $DEVICE for channel $CHANNEL"
-		if [ "$HOSTIP" == "" ]; then
+		if test "$HOSTIP" == ""; then
 			HOSTIP=`hostname -i`
 			echo "'hostname -i' thinks our IP is $HOSTIP.  Set HOSTIP manually if this is wrong."
 			echo "     ie, HOSTIP=1.2.3.4 kismet_monitor"
 		fi
+
+		WSPDEVICE=`echo $DEVICE | cut -f 1 -d:`;
+		WSPPORT=`echo $DEVICE | cut -f 2 -d:`;
+
 		# sensor::loghostaddress
-		snmpset $DEVICE public .1.3.6.1.4.1.14422.1.1.5 a $HOSTIP
+		snmpset $WSPDEVICE public .1.3.6.1.4.1.14422.1.1.5 a $HOSTIP
 		# sensor::channel
-		snmpset $DEVICE public .1.3.6.1.4.1.14422.1.3.1 i $CHANNEL
+		snmpset $WSPDEVICE public .1.3.6.1.4.1.14422.1.3.1 i $CHANNEL
+		# sensor::serverport
+		snmpset $WSPDEVICE public .1.3.6.1.4.1.14422.1.4.1 i $WSPPORT
 		# sensor::running
-		snmpset $DEVICE public .1.3.6.1.4.1.14422.1.1.4 i 1
+		snmpset $WSPDEVICE public .1.3.6.1.4.1.14422.1.1.4 i 1
 		;;
 	*)
 		echo "Unknown card type '$CARDTYPE'.  Doing nothing."

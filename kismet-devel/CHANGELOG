@@ -1,3 +1,4 @@
+Nov 05 2002  2.7.1  Fixed kismet_monitor host:port support for WSP100 sensor
 Nov 04 2002  2.7.1  Added 'gstsearch' exploit detection
                     Added preliminary support for the WSP100 remote sensor 
                      under *nix.
