@@ -33,6 +33,8 @@
 #define NULLPROBERESP_AREF 7
 #define MAX_AREF           8
 
+extern mac_addr broadcast_mac;
+
 Packetracker::Packetracker() {
     alertracker = NULL;
 
@@ -509,7 +511,7 @@ void Packetracker::ProcessPacket(packet_info info) {
     if (info.type == packet_management &&
         (info.subtype == packet_sub_disassociation ||
          info.subtype == packet_sub_deauthentication) &&
-        info.dest_mac == mac_addr("FF:FF:FF:FF:FF:FF")) {
+        info.dest_mac == broadcast_mac) {
 
         if (alertracker->PotentialAlert(arefs[BCASTDISCON_AREF]) > 0) {
             snprintf(status, STATUS_MAX, "Broadcast %s on %s",
