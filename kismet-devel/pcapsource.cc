@@ -187,9 +187,6 @@ int PcapSource::FetchPacket(kis_packet *packet, uint8_t *data, uint8_t *moddata)
 }
 
 int PcapSource::FCSBytes() {
-    if (datalink_type == DLT_PRISM_HEADER)
-        return 4;
-    
     return 0;
 }
 
@@ -484,15 +481,11 @@ carrier_type PcapSource11G::IEEE80211Carrier() {
     return carrier_unknown;
 }
 
-// Madwifi only has 1 linktype, and it doesn't report a fcs on it
-int PcapSourceMadWifi::FCSBytes() {
-    return 0;
+// FCS bytes for wlanng
+int PcapSourceWlanng::FCSBytes() {
+    return 4;
 }
 
-// Madwifig also
-int PcapSourceMadWifiG::FCSBytes() {
-    return 0;
-}
 #endif
 
 #ifdef SYS_LINUX
@@ -615,14 +608,9 @@ KisPacketSource *pcapsource_11g_registrant(string in_name, string in_device,
     return new PcapSource11G(in_name, in_device);
 }
 
-KisPacketSource *pcapsource_madwifi_registrant(string in_name, string in_device,
-                                               char *in_err) {
-    return new PcapSourceMadWifi(in_name, in_device);
-}
-
-KisPacketSource *pcapsource_madwifig_registrant(string in_name, string in_device,
-                                                char *in_err) {
-    return new PcapSourceMadWifiG(in_name, in_device);
+KisPacketSource *pcapsource_wlanng_registrant(string in_name, string in_device,
+                                              char *in_err) {
+    return new PcapSourceWlanng(in_name, in_device);
 }
 #endif
 

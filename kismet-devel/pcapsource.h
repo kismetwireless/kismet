@@ -174,23 +174,14 @@ protected:
     carrier_type IEEE80211Carrier();
 };
 
-// Override madwifi stuff for FCS
-class PcapSourceMadWifi : public PcapSourceWext {
+// Override fcs controls to add 4 bytes on wlanng
+class PcapSourceWlanng : public PcapSourceWext {
 public:
-    PcapSourceMadWifi(string in_name, string in_dev) : 
+    PcapSourceWlanng(string in_name, string in_dev) :
         PcapSourceWext(in_name, in_dev) { }
 protected:
     int FCSBytes();
 };
-
-class PcapSourceMadWifiG : public PcapSource11G {
-public:
-    PcapSourceMadWifiG(string in_name, string in_dev) : 
-        PcapSource11G(in_name, in_dev) { }
-protected:
-    int FCSBytes();
-};
-
 #endif
 
 #ifdef SYS_LINUX
@@ -230,10 +221,8 @@ KisPacketSource *pcapsource_ciscowifix_registrant(string in_name, string in_devi
                                                   char *in_err);
 KisPacketSource *pcapsource_11g_registrant(string in_name, string in_device,
                                            char *in_err);
-KisPacketSource *pcapsource_madwifi_registrant(string in_name, string in_device,
-                                               char *in_err);
-KisPacketSource *pcapsource_madwifig_registrant(string in_name, string in_device,
-                                                char *in_err);
+KisPacketSource *pcapsource_wlanng_registrant(string in_name, string in_device,
+                                              char *in_err);
 #endif
 
 #ifdef SYS_LINUX
