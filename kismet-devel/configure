@@ -3023,8 +3023,9 @@ _ACEOF
 
         ;;
     openbsd*)
-        echo "$as_me:$LINENO: result: none needed" >&5
-echo "${ECHO_T}none needed" >&6
+		CFLAGS="-fno-stack-protector $CFLAGS"
+		echo "$as_me:$LINENO: result: OpenBSD - added -fno-stack-protector" >&5
+echo "${ECHO_T}OpenBSD - added -fno-stack-protector" >&6
 
 cat >>confdefs.h <<\_ACEOF
 #define SYS_OPENBSD 1
