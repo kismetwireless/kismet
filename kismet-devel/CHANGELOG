@@ -9,6 +9,8 @@ Dec 08 2003  3.1.0  Fixed util.h to include math.h outside of the wext
                     Removed quality logging from gpsxml, see above for why.
                     Fixed glitches in gpsmap filtering junk points.
                     Dumped wlan-ng channel change commands to null
+                    Rolled back to earlier gpsmap earth_distance code since the
+                     sped up version doesn't work at the moment.
 Dec 07 2003  3.1.0  Tweaked prism2 packet mangling to preserve ICV on packets
                      that don't come in with a FCS set.
                     Restored channel/card reports from server
