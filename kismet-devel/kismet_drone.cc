@@ -183,8 +183,6 @@ int main(int argc, char *argv[]) {
 #ifdef HAVE_GPS
     char gpshost[1024];
     int gpsport = -1;
-
-    gps = new GPSD;
 #endif
 
     int channel_hop = -1;
@@ -375,7 +373,9 @@ int main(int argc, char *argv[]) {
 
     if (gps_enable == 1) {
         // Open the GPS
-        if (gps->OpenGPSD(gpshost, gpsport) < 0) {
+        gps = new GPSD(gpshost, gpsport);
+
+        if (gps->OpenGPSD() < 0) {
             fprintf(stderr, "%s\n", gps->FetchError());
 
             gps_enable = 0;

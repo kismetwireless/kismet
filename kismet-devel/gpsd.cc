@@ -21,7 +21,7 @@
 
 #ifdef HAVE_GPS
 
-GPSD::GPSD() {
+GPSD::GPSD(char *in_host, int in_port) {
     sock = -1;
     lat = lon = alt = spd = 0;
     mode = -1;
@@ -29,6 +29,9 @@ GPSD::GPSD() {
     sock = -1;
     errstr[0] = '\0';
     data[0] = '\0';
+
+    host = strdup(in_host);
+    port = in_port;
 }
 
 GPSD::~GPSD(void) {
@@ -42,18 +45,18 @@ char *GPSD::FetchError() {
     return errstr;
 }
 
-int GPSD::OpenGPSD(char *in_host, int in_port) {
+int GPSD::OpenGPSD() {
     // Find our host
-    h = gethostbyname(in_host);
+    h = gethostbyname(host);
     if (h == NULL) {
-        snprintf(errstr, 1024, "GPSD unknown host '%s'", in_host);
+        snprintf(errstr, 1024, "GPSD unknown host '%s'", host);
         return -1;
     }
 
     // Fill in our server
     servaddr.sin_family = h->h_addrtype;
     memcpy((char *) &servaddr.sin_addr.s_addr, h->h_addr_list[0], h->h_length);
-    servaddr.sin_port = htons(in_port);
+    servaddr.sin_port = htons(port);
 
     // Create the socket
     if((sock = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
