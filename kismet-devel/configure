@@ -869,8 +869,8 @@ Optional Features:
 Optional Packages:
   --with-PACKAGE[=ARG]    use PACKAGE [ARG=yes]
   --without-PACKAGE       do not use PACKAGE (same as --with-PACKAGE=no)
-  --with-ethereal=DIR     support ethereal wiretap for logs default=/usr/src/ethereal-0.9.10
-  --without-ethereal        disable support for ethereal wiretap
+  --with-ethereal=DIR     support ethereal wiretap for replaying logs
+  --without-ethereal        disable support for ethereal wiretap]
 
 Some influential environment variables:
   CC          C compiler command
@@ -1295,6 +1295,7 @@ ac_compiler_gnu=$ac_cv_c_compiler_gnu
 
 # Included pcap directory
 pcapdir="libpcap-2002.12.23"
+etherealdir="/usr/src/ethereal-0.9.12"
 
 
 # Check for host type
@@ -6117,7 +6118,7 @@ if test "${with_ethereal+set}" = set; then
         want_ethereal=no
     elif test $withval = yes; then
         want_ethereal=yes
-		ethereal_dir="/usr/src/ethereal-0.9.10"
+		ethereal_dir=$etherealdir
     else
         want_ethereal=yes
         ethereal_dir=$withval
@@ -6126,7 +6127,7 @@ if test "${with_ethereal+set}" = set; then
 else
 
     want_ethereal=yes
-    ethereal_dir="/usr/src/ethereal-0.9.10"
+    ethereal_dir=$etherealdir
 
 fi;
 

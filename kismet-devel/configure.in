@@ -6,6 +6,7 @@ AC_PREREQ(2.57)
 
 # Included pcap directory
 pcapdir="libpcap-2002.12.23"
+etherealdir="/usr/src/ethereal-0.9.12"
 AC_SUBST(pcapdir)
 
 # Check for host type
@@ -471,21 +472,21 @@ AC_ARG_ENABLE(local-dumper,
 AC_SUBST(local)
 
 AC_ARG_WITH(ethereal,
-[  --with-ethereal[=DIR]     support ethereal wiretap for logs [default=/usr/src/ethereal-0.9.10]
+[  --with-ethereal[=DIR]     support ethereal wiretap for replaying logs ]
   --without-ethereal        disable support for ethereal wiretap],
 [
     if test $withval = no; then
         want_ethereal=no
     elif test $withval = yes; then
         want_ethereal=yes
-		ethereal_dir="/usr/src/ethereal-0.9.10"
+		ethereal_dir=$etherealdir
     else
         want_ethereal=yes
         ethereal_dir=$withval
     fi
 ],[
     want_ethereal=yes
-    ethereal_dir="/usr/src/ethereal-0.9.10"
+    ethereal_dir=$etherealdir
 ])
 
 #
