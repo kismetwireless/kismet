@@ -1073,4 +1073,7 @@ Licensed under the GPL
        These methods require all of the sample points to be available, however,
        and won't work during a live capture.  If the gps reports a momentary
        invalid, but not wholly invalid, sample then Kismet will get confused.
+
+    Q: How can I merge multiple capture files into one?
+    A: Use ``mergecap'' that comes with Ethereal to combine dump files.
        
