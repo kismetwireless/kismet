@@ -683,7 +683,7 @@ int Protocol_ALERT(PROTO_PARMS) {
             out_string += adata->usec;
             break;
         case ALERT_text:
-            out_string += adata->text;
+            out_string += string("\001") + adata->text + string("\001");
             break;
         default:
             out_string = "Unknown field requested.";

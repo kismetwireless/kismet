@@ -515,7 +515,7 @@ int TcpClient::ParseData(char *in_data) {
     } else if (!strncmp(header, "*ALERT", 64)) {
         char alrmstr[2048];
         alert_info alrm;
-        if (sscanf(in_data+hdrlen, "%ld %ld %2047[^\n]\n", &alrm.alert_ts.tv_sec,
+        if (sscanf(in_data+hdrlen, "%ld %ld \001%2047[^\001]\001", &alrm.alert_ts.tv_sec,
                    &alrm.alert_ts.tv_usec, alrmstr) < 3)
             return 0;
         alrm.alert_text = alrmstr;
