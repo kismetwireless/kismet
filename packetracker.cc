@@ -1266,7 +1266,7 @@ int Packetracker::WriteXMLNetworks(string in_fname) {
     //vector<wireless_network *> bssid_vec;
 
     fprintf(netfile, "<?xml version=\"1.0\" encoding=\"ISO-8859-1\"?>\n");
-    fprintf(netfile, "<!DOCTYPE detection-run SYSTEM \"http://kismetwireless.net/kismet-1.6.dtd\">\n");
+    fprintf(netfile, "<!DOCTYPE detection-run SYSTEM \"http://kismetwireless.net/kismet-1.6.1.dtd\">\n");
 
     fprintf(netfile, "\n\n");
 
@@ -1409,6 +1409,7 @@ int Packetracker::WriteXMLNetworks(string in_fname) {
                     "wep=\"%s\" first-time=\"%s\" last-time=\"%s\">\n",
                     clinum, clitype, cli->wep ? "true" : "false", ft, lt);
 
+            fprintf(netfile, "      <client-mac>%s</client-mac>\n", cli->mac.Mac2String().c_str());
             fprintf(netfile, "      <client-packets>\n");
             fprintf(netfile, "        <client-data>%d</client-data>\n", cli->data_packets);
             fprintf(netfile, "        <client-crypt>%d</client-crypt>\n", cli->crypt_packets);
