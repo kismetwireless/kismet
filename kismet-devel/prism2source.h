@@ -53,10 +53,10 @@ public:
 
     int FetchDescriptor() { return fd; }
 
-    int FetchPacket(kis_packet *packet);
+    int FetchPacket(kis_packet *packet, uint8_t *data, uint8_t *moddata);
 
 protected:
-    int Prism2Common(kis_packet *packet);
+    int Prism2Common(kis_packet *packet, uint8_t *data, uint8_t *moddata);
 
     typedef struct {
         uint32_t did __attribute__ ((packed));

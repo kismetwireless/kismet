@@ -59,6 +59,11 @@ protected:
 
     FILE *dump_file;
 
+    uint8_t mangle_data[MAX_PACKET_LEN];
+    uint8_t mangle_moddata[MAX_PACKET_LEN];
+    kis_packet mangle_packet;
+
+
 };
 
 #endif

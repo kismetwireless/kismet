@@ -54,7 +54,7 @@ public:
     virtual int FetchDescriptor() = 0;
 
     // Get a packet from the medium
-    virtual int FetchPacket(kis_packet *packet) = 0;
+    virtual int FetchPacket(kis_packet *packet, uint8_t *data, uint8_t *moddata) = 0;
 
     // Say what we are
     char *FetchType() { return(type); };

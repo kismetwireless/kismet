@@ -45,10 +45,10 @@ public:
 
     int FetchDescriptor() { return drone_fd; }
 
-    int FetchPacket(kis_packet *packet);
+    int FetchPacket(kis_packet *packet, uint8_t *data, uint8_t *moddata);
 
 protected:
-    int Drone2Common(kis_packet *packet);
+    int Drone2Common(kis_packet *packet, uint8_t *data, uint8_t *moddata);
 
     int valid;
 

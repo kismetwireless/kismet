@@ -70,7 +70,7 @@ int Prism2Source::CloseSource() {
     return 1;
 }
 
-int Prism2Source::FetchPacket(kis_packet *packet) {
+int Prism2Source::FetchPacket(kis_packet *packet, uint8_t *data, uint8_t *moddata) {
     fd_set rs;
     int r;
     struct timeval tim;
@@ -125,17 +125,21 @@ int Prism2Source::FetchPacket(kis_packet *packet) {
 
     if (paused) return 0;
 
-    Prism2Common(packet);
+    Prism2Common(packet, data, moddata);
 
     return(packet->caplen);
 }
 
-int Prism2Source::Prism2Common(kis_packet *packet) {
+int Prism2Source::Prism2Common(kis_packet *packet, uint8_t *data, uint8_t *moddata) {
     memset(packet, 0, sizeof(kis_packet));
 
     sniff_packet_t *sniff_info = (sniff_packet_t *) buffer;
 
     gettimeofday(&packet->ts, NULL);
+
+    packet->data = data;
+    packet->moddata = moddata;
+    packet->modified = 0;
 
     packet->caplen = kismin(sniff_info->frmlen.data, (uint32_t) MAX_PACKET_LEN);
     packet->len = packet->caplen;
@@ -147,9 +151,7 @@ int Prism2Source::Prism2Common(kis_packet *packet) {
 
     int offset = sizeof(sniff_packet_t);
 
-    packet->data = new uint8_t[packet->caplen];
     memcpy(packet->data, &buffer[offset], packet->caplen);
-    packet->moddata = NULL;
 
     packet->carrier = carrier_80211b;
 

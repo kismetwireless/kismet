@@ -61,26 +61,20 @@ int WtapDumpFile::DumpPacket(const packet_info *in_info, const kis_packet *packe
         return 0;
 
     kis_packet *dump_packet;
-    int mangled = 0;
 
     // Mangle decrypted and fuzzy packets into legit packets
-    if ((dump_packet = MangleDeCryptPacket(packet, in_info)) != NULL)
-        mangled = 1;
-    else if ((dump_packet = MangleFuzzyCryptPacket(packet, in_info)) != NULL)
-        mangled = 1;
+    if (MangleDeCryptPacket(packet, in_info, &mangle_packet,
+                            mangle_data, mangle_moddata) > 0)
+        dump_packet = &mangle_packet;
+    else if (MangleFuzzyCryptPacket(packet, in_info, &mangle_packet,
+                                    mangle_data, mangle_moddata) > 0)
+        dump_packet = &mangle_packet;
     else
         dump_packet = (kis_packet *) packet;
 
     Common2Wtap(dump_packet);
 
     wtap_dump(dump_file, &packet_header, NULL, packet_data, &wtap_error);
-
-    if (mangled == 1) {
-        delete[] dump_packet->data;
-        if (dump_packet->moddata != NULL)
-            delete[] dump_packet->moddata;
-        delete dump_packet;
-    }
 
     num_dumped++;
 
