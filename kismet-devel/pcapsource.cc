@@ -991,7 +991,7 @@ int monitor_cisco(const char *in_dev, int initch, char *in_err, void **in_if) {
         return -1;
 
     // Zero the ssid
-    if (Iwconfig_Blank_SSID(in_dev, in_err) < 0)
+    if (Iwconfig_Set_SSID(in_dev, in_err, NULL) < 0)
         return -1;
     
     // Build the proc control path
@@ -1035,9 +1035,9 @@ int monitor_cisco_wifix(const char *in_dev, int initch, char *in_err, void **in_
         return -1;
 
     // Zero the ssid
-    if (Iwconfig_Blank_SSID(devbits[0].c_str(), in_err) < 0)
+    if (Iwconfig_Set_SSID(devbits[0].c_str(), in_err, NULL) < 0)
         return -1;
-    if (Iwconfig_Blank_SSID(devbits[1].c_str(), in_err) < 0)
+    if (Iwconfig_Set_SSID(devbits[1].c_str(), in_err, NULL) < 0)
         return -1;
     
     // Build the proc control path
@@ -1072,6 +1072,12 @@ int monitor_hostap(const char *in_dev, int initch, char *in_err, void **in_if) {
                            &ifparm->broadaddr, &ifparm->maskaddr, &ifparm->flags) < 0) {
         return -1;
     }
+
+    if (Iwconfig_Get_SSID(in_dev, in_err, ifparm->essid) < 0)
+        return -1;
+
+    if ((ifparm->channel = Iwconfig_Get_Channel(in_dev, in_err)) < 0)
+        return -1;
     
     // Try to use the iwpriv command to set monitor mode.  Some versions of
     // hostap require this, some don't, so don't fail on the monitor ioctl
@@ -1107,6 +1113,12 @@ int unmonitor_hostap(const char *in_dev, int initch, char *in_err, void **in_if)
         return -1;
     }
 
+    if (Iwconfig_Set_Channel(in_dev, ifparm->channel, in_err) < 0)
+        return -1;
+
+    if (Iwconfig_Set_SSID(in_dev, in_err, ifparm->essid) < 0)
+        return -1;
+    
     free(ifparm);
 
     return 0;
@@ -1121,7 +1133,7 @@ int monitor_orinoco(const char *in_dev, int initch, char *in_err, void **in_if) 
         return -1;
 
     // Zero the ssid
-    if (Iwconfig_Blank_SSID(in_dev, in_err) < 0) 
+    if (Iwconfig_Set_SSID(in_dev, in_err, NULL) < 0) 
         return -1;
 
     // Socket lowpower cards seem to need a little time for the firmware to settle
@@ -1238,7 +1250,7 @@ int monitor_wext(const char *in_dev, int initch, char *in_err, void **in_if) {
         return -1;
 
     // Zero the ssid
-    if (Iwconfig_Blank_SSID(in_dev, in_err) < 0) 
+    if (Iwconfig_Set_SSID(in_dev, in_err, NULL) < 0) 
         return -1;
 
     // Kick it into rfmon mode
@@ -1389,7 +1401,6 @@ int unmonitor_wlanng_avs(const char *in_dev, int initch, char *in_err, void **in
     // Restore the IP settings
     linux_ifparm *ifparm = (linux_ifparm *) (*in_if);
 
-    printf("debug - unmonitoring wlanng\n");
     if (Ifconfig_Set_Linux(in_dev, in_err, &ifparm->ifaddr, &ifparm->dstaddr,
                            &ifparm->broadaddr, &ifparm->maskaddr, ifparm->flags) < 0) {
         return -1;

@@ -146,39 +146,31 @@ int Ifconfig_Get_Linux(const char *in_dev, char *errstr,
     // Fetch interface addresses
     strncpy(ifr.ifr_name, in_dev, IFNAMSIZ);
     if (ioctl(skfd, SIOCGIFADDR, &ifr) < 0) {
-        snprintf(errstr, STATUS_MAX, "Failed to get interface address: %s", 
-                 strerror(errno));
-        close(skfd);
-        return -1;
+        memset(ifaddr, 0, sizeof(struct sockaddr));
+    } else {
+        memcpy(ifaddr, &ifr.ifr_addr, sizeof(struct sockaddr));
     }
-    memcpy(ifaddr, &ifr.ifr_addr, sizeof(struct sockaddr));
 
     strncpy(ifr.ifr_name, in_dev, IFNAMSIZ);
     if (ioctl(skfd, SIOCGIFDSTADDR, &ifr) < 0) {
-        snprintf(errstr, STATUS_MAX, "Failed to get interface dest address: %s", 
-                 strerror(errno));
-        close(skfd);
-        return -1;
+        memset(dstaddr, 0, sizeof(struct sockaddr));
+    } else {
+        memcpy(dstaddr, &ifr.ifr_dstaddr, sizeof(struct sockaddr));
     }
-    memcpy(dstaddr, &ifr.ifr_dstaddr, sizeof(struct sockaddr));
 
     strncpy(ifr.ifr_name, in_dev, IFNAMSIZ);
     if (ioctl(skfd, SIOCGIFBRDADDR, &ifr) < 0) {
-        snprintf(errstr, STATUS_MAX, "Failed to get interface bcast address: %s", 
-                 strerror(errno));
-        close(skfd);
-        return -1;
+        memset(broadaddr, 0, sizeof(struct sockaddr));
+    } else {
+        memcpy(broadaddr, &ifr.ifr_broadaddr, sizeof(struct sockaddr));
     }
-    memcpy(broadaddr, &ifr.ifr_broadaddr, sizeof(struct sockaddr));
 
     strncpy(ifr.ifr_name, in_dev, IFNAMSIZ);
     if (ioctl(skfd, SIOCGIFNETMASK, &ifr) < 0) {
-        snprintf(errstr, STATUS_MAX, "Failed to get interface netmask: %s", 
-                 strerror(errno));
-        close(skfd);
-        return -1;
+        memset(maskaddr, 0, sizeof(struct sockaddr));
+    } else {
+        memcpy(maskaddr, &ifr.ifr_netmask, sizeof(struct sockaddr));
     }
-    memcpy(maskaddr, &ifr.ifr_netmask, sizeof(struct sockaddr));
 
     close(skfd);
     return 0;
@@ -186,12 +178,20 @@ int Ifconfig_Get_Linux(const char *in_dev, char *errstr,
 #endif
 
 #ifdef HAVE_LINUX_WIRELESS
-// remove the SSID of the device.  Some cards seem to need this.
-int Iwconfig_Blank_SSID(const char *in_dev, char *errstr) {
+
+
+int Iwconfig_Set_SSID(const char *in_dev, char *errstr, char *in_essid) {
     struct iwreq wrq;
     int skfd;
-    char essid[IW_ESSID_MAX_SIZE + 1] = "\0";
+    char essid[IW_ESSID_MAX_SIZE + 1];
 
+    if (in_essid == NULL) {
+        essid[0] = '\0';
+    } else {
+        // Trim transparently
+        snprintf(essid, IW_ESSID_MAX_SIZE+1, "%s", in_essid);
+    }
+    
     if ((skfd = socket(AF_INET, SOCK_DGRAM, 0)) < 0) {
         snprintf(errstr, STATUS_MAX, "Failed to create AF_INET DGRAM socket %d:%s", 
                  errno, strerror(errno));
@@ -201,7 +201,7 @@ int Iwconfig_Blank_SSID(const char *in_dev, char *errstr) {
     // Zero the ssid
     strncpy(wrq.ifr_name, in_dev, IFNAMSIZ);
     wrq.u.essid.pointer = (caddr_t) essid;
-    wrq.u.essid.length = 1;
+    wrq.u.essid.length = strlen(essid)+1;
     wrq.u.essid.flags = 1;
 
     if (ioctl(skfd, SIOCSIWESSID, &wrq) < 0) {
@@ -210,6 +210,35 @@ int Iwconfig_Blank_SSID(const char *in_dev, char *errstr) {
         close(skfd);
         return -1;
     }
+
+    close(skfd);
+    return 0;
+}
+
+int Iwconfig_Get_SSID(const char *in_dev, char *errstr, char *in_essid) {
+    struct iwreq wrq;
+    int skfd;
+    char essid[IW_ESSID_MAX_SIZE + 1];
+
+    if ((skfd = socket(AF_INET, SOCK_DGRAM, 0)) < 0) {
+        snprintf(errstr, STATUS_MAX, "Failed to create AF_INET DGRAM socket %d:%s", 
+                 errno, strerror(errno));
+        return -1;
+    }
+
+    strncpy(wrq.ifr_name, in_dev, IFNAMSIZ);
+    wrq.u.essid.pointer = (caddr_t) essid;
+    wrq.u.essid.length = IW_ESSID_MAX_SIZE+1;
+    wrq.u.essid.flags = 0;
+
+    if (ioctl(skfd, SIOCGIWESSID, &wrq) < 0) {
+        snprintf(errstr, STATUS_MAX, "Failed to set SSID %d:%s", errno, 
+                 strerror(errno));
+        close(skfd);
+        return -1;
+    }
+
+    snprintf(in_essid, IW_ESSID_MAX_SIZE+1, "%s", wrq.u.essid.pointer);
 
     close(skfd);
     return 0;
@@ -446,6 +475,57 @@ int Iwconfig_Set_Channel(const char *in_dev, int in_ch, char *in_err) {
             close(skfd);
             return -1;
         }
+    }
+
+    close(skfd);
+    return 0;
+}
+
+int Iwconfig_Get_Mode(const char *in_dev, char *in_err, int *in_mode) {
+    struct iwreq wrq;
+    int skfd;
+
+    if ((skfd = socket(AF_INET, SOCK_DGRAM, 0)) < 0) {
+        snprintf(in_err, STATUS_MAX, "Failed to create AF_INET DGRAM socket %d:%s", 
+                 errno, strerror(errno));
+        return -1;
+    }
+
+    memset(&wrq, 0, sizeof(struct iwreq));
+    strncpy(wrq.ifr_name, in_dev, IFNAMSIZ);
+
+    if (ioctl(skfd, SIOCGIWMODE, &wrq) < 0) {
+        snprintf(in_err, STATUS_MAX, "mode get ioctl failed %d:%s",
+                 errno, strerror(errno));
+        close(skfd);
+        return -1;
+    }
+
+    (*in_mode) = wrq.u.mode;
+    
+    close(skfd);
+    return 0;
+}
+
+int Iwconfig_Set_Mode(const char *in_dev, char *in_err, int in_mode) {
+    struct iwreq wrq;
+    int skfd;
+
+    if ((skfd = socket(AF_INET, SOCK_DGRAM, 0)) < 0) {
+        snprintf(in_err, STATUS_MAX, "Failed to create AF_INET DGRAM socket %d:%s", 
+                 errno, strerror(errno));
+        return -1;
+    }
+
+    memset(&wrq, 0, sizeof(struct iwreq));
+    strncpy(wrq.ifr_name, in_dev, IFNAMSIZ);
+    wrq.u.mode = in_mode;
+
+    if (ioctl(skfd, SIOCSIWMODE, &wrq) < 0) {
+        snprintf(in_err, STATUS_MAX, "mode set ioctl failed %d:%s",
+                 errno, strerror(errno));
+        close(skfd);
+        return -1;
     }
 
     close(skfd);

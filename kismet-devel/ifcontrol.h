@@ -68,7 +68,8 @@ int Ifconfig_Get_Linux(const char *in_dev, char *errstr,
 #define LINUX_WLEXT_MONITOR 6
 
 // remove the SSID of the device.  Some cards seem to need this.
-int Iwconfig_Blank_SSID(const char *in_dev, char *errstr);
+int Iwconfig_Set_SSID(const char *in_dev, char *errstr, char *in_essid);
+int Iwconfig_Get_SSID(const char *in_dev, char *errstr, char *in_essid);
 
 // Set a private ioctl that takes 1 or 2 integer parameters
 // A return of -2 means no privctl found that matches, so that the caller
@@ -86,6 +87,10 @@ int Iwconfig_Get_Levels(const char *in_dev, char *in_err, int *level, int *noise
 int Iwconfig_Get_Channel(const char *in_dev, char *errstr);
 // Set channel
 int Iwconfig_Set_Channel(const char *in_dev, int in_ch, char *errstr);
+
+// Get/set mode
+int Iwconfig_Get_Mode(const char *in_dev, char *errstr, int *in_mode);
+int Iwconfig_Set_Mode(const char *in_dev, char *errstr, int in_mode);
 
 #endif
 
