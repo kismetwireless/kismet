@@ -605,40 +605,6 @@ void NetWriteInfo() {
 
     char tmpstr[32];
 
-#ifdef HAVE_GPS
-    GPS_data gdata;
-
-    if (gps_enable) {
-        float lat, lon, alt, spd, hed;
-        int mode;
-
-        globalregistry->gpsd->FetchLoc(&lat, &lon, &alt, &spd, &hed, &mode);
-
-        snprintf(tmpstr, 32, "%f", lat);
-        gdata.lat = tmpstr;
-        snprintf(tmpstr, 32, "%f", lon);
-        gdata.lon = tmpstr;
-        snprintf(tmpstr, 32, "%f", alt);
-        gdata.alt = tmpstr;
-        snprintf(tmpstr, 32, "%f", spd);
-        gdata.spd = tmpstr;
-        snprintf(tmpstr, 32, "%f", hed);
-        gdata.heading = tmpstr;
-        snprintf(tmpstr, 32, "%d", mode);
-        gdata.mode = tmpstr;
-    } else {
-        gdata.lat = "0.0";
-        gdata.lon = "0.0";
-        gdata.alt = "0.0";
-        gdata.spd = "0.0";
-        gdata.heading = "0.0";
-        gdata.mode = "0";
-    }
-
-    globalregistry->kisnetserver->SendToAll(globalregistry->gps_prot_ref, 
-                                            (void *) &gdata);
-#endif
-
     INFO_data idata;
     snprintf(tmpstr, 32, "%d", 
              globalregistry->packetracker->FetchNumNetworks());

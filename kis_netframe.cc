@@ -89,11 +89,6 @@ char *CISCO_fields_text[] = {
     NULL
 };
 
-char *GPS_fields_text[] = {
-    "lat", "lon", "alt", "spd", "heading", "fix",
-    NULL
-};
-
 char *NETWORK_fields_text[] = {
     "bssid", "type", "ssid", "beaconinfo",
     "llcpackets", "datapackets", "cryptpackets",
@@ -287,41 +282,6 @@ int Protocol_TIME(PROTO_PARMS) {
     int *tim = (int *) data;
     snprintf(tmpstr, 32, "%d", *tim);
     out_string += tmpstr;
-    return 1;
-}
-
-int Protocol_GPS(PROTO_PARMS) {
-    GPS_data *gdata = (GPS_data *) data;
-
-    for (unsigned int x = 0; x < field_vec->size(); x++) {
-        switch ((GPS_fields) (*field_vec)[x]) {
-        case GPS_lat:
-            out_string += gdata->lat;
-            break;
-        case GPS_lon:
-            out_string += gdata->lon;
-            break;
-        case GPS_alt:
-            out_string += gdata->alt;
-            break;
-        case GPS_spd:
-            out_string += gdata->spd;
-            break;
-        case GPS_heading:
-            out_string += gdata->heading;
-            break;
-        case GPS_fix:
-            out_string += gdata->mode;
-            break;
-        default:
-            out_string = "Unknown field requested.";
-            return -1;
-            break;
-        }
-
-        out_string += " ";
-    }
-
     return 1;
 }
 

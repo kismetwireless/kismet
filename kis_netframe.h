@@ -135,10 +135,6 @@ enum CISCO_fields {
     CISCO_placeholder
 };
 
-enum GPS_fields {
-    GPS_lat, GPS_lon, GPS_alt, GPS_spd, GPS_heading, GPS_fix
-};
-
 enum INFO_fields {
     INFO_networks, INFO_packets, INFO_crypt, INFO_weak,
     INFO_noise, INFO_dropped, INFO_rate, INFO_signal
@@ -164,7 +160,6 @@ extern char *TIME_fields_text[];
 extern char *CARD_fields_text[];
 extern char *CISCO_fields_text[];
 extern char *CLIENT_fields_text[];
-extern char *GPS_fields_text[];
 extern char *INFO_fields_text[];
 extern char *NETWORK_fields_text[];
 extern char *PACKET_fields_text[];
@@ -178,10 +173,6 @@ extern char *WEPKEY_fields_text[];
 // These are all done in two main ways - a var for each field, or a vector in the
 // same order as the field names.  For shorter ones, the code is a lot more maintainable
 // to have named vars, for longer ones it just makes sense to use a big ordered vector
-
-typedef struct GPS_data {
-    string lat, lon, alt, spd, heading, mode;
-};
 
 typedef struct INFO_data {
     string networks, packets, crypt, weak, noise, dropped, rate, signal;
@@ -210,7 +201,6 @@ int Protocol_PROTOCOLS(PROTO_PARMS);
 int Protocol_CAPABILITY(PROTO_PARMS);
 int Protocol_TERMINATE(PROTO_PARMS);
 int Protocol_TIME(PROTO_PARMS);
-int Protocol_GPS(PROTO_PARMS); // GPS_data
 int Protocol_INFO(PROTO_PARMS); // INFO_data
 void Protocol_Network2Data(const wireless_network *net, NETWORK_data *data);  // Convert a network to NET_data
 int Protocol_NETWORK(PROTO_PARMS); // NETWORK_data
