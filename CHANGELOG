@@ -1,5 +1,6 @@
 Jul 25 2002  2.5    Fixed bugs in the airsnort logger that discarded weak
                      ap->ap data packets and weak adhoc data packets.
+                    Added GPL license headers to all source files
 Jul 24 2002  2.5    Added network/group center calculations and distance/
                      bearing to network center to panels ('f').
                     Fixed stupid tcpclient bug with parsing network data.
