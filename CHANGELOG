@@ -1,3 +1,4 @@
+Feb 07 2003  2.9.1  Added handling of filter_export
 Feb 06 2003  2.9.1  Added masking capability to MAC addresses and filters, 
                      reduced memory usage slightly.
 Feb 05 2003  2.9.1  Fixed minor gpsmap netxml-search-path bug that didn't 
