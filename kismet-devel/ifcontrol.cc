@@ -169,7 +169,7 @@ int Iwconfig_Set_IntPriv(const char *in_dev, const char *privcmd,
     }
     
     // Find out how many arguments it takes and die if we can't handle it
-    int nargs = priv[pn].get_args & IW_PRIV_SIZE_MASK;
+    int nargs = (priv[pn].set_args & IW_PRIV_SIZE_MASK);
     if (nargs > 2) {
         snprintf(errstr, STATUS_MAX, "Private ioctl expects more than 2 arguments.");
         close(skfd);
@@ -183,8 +183,9 @@ int Iwconfig_Set_IntPriv(const char *in_dev, const char *privcmd,
     // Assign the arguments
     wrq.u.data.length = nargs;     
     ((__s32 *) buffer)[0] = (__s32) val1;
-    if (nargs > 1)
+    if (nargs > 1) {
         ((__s32 *) buffer)[1] = (__s32) val2;
+    }
        
     // This is terrible!
     // This is also simplified from what iwpriv.c does, because we don't
@@ -201,8 +202,8 @@ int Iwconfig_Set_IntPriv(const char *in_dev, const char *privcmd,
 
     // Actually do it.
     if (ioctl(skfd, priv[pn].cmd, &wrq) < 0) {
-        snprintf(errstr, STATUS_MAX, "Failed to set private ioctl '%s' %d:%s",
-                 privcmd, errno, strerror(errno));
+        snprintf(errstr, STATUS_MAX, "Failed to set private ioctl '%s': %s",
+                 privcmd, strerror(errno));
         close(skfd);
         return -1;
     }
