@@ -574,6 +574,8 @@ int main(int argc, char *argv[]) {
                 SoundHandler(soundpair, sndplay, wav_map);
                 exit(0);
             }
+
+            close(soundpair[0]);
         }
     }
 
@@ -591,6 +593,8 @@ int main(int argc, char *argv[]) {
                 SpeechHandler(speechpair, festival);
                 exit(0);
             }
+
+            close(speechpair[0]);
         }
     }
 
