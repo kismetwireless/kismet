@@ -459,6 +459,8 @@ PanelFront::PanelFront() {
     bat_charging = 0;
     bat_time = 0;
     bat_percentage = 0;
+
+    localnets_dirty = 0;
 }
 
 PanelFront::~PanelFront() {
@@ -471,6 +473,8 @@ void PanelFront::UpdateGroups() {
     int auto_pgroup = 0;
     int auto_dgroup = 0;
     int move_details = 0;
+
+    localnets_dirty = 0;
 
     if (prefs["autogroup_probe"] == "true") 
         auto_pgroup = 1;

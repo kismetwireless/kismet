@@ -211,6 +211,7 @@ int PanelFront::MainInput(void *in_window, int in_chr) {
     case 'g':
     case 'G':
         if (sortby != sort_auto &&  last_displayed.size() > 0) {
+            localnets_dirty = 1;
             details_network = GroupTagged();
             if (details_network != NULL)
                 SpawnWindow("Group Name", &PanelFront::GroupNamePrinter, NULL, 3, 30);
@@ -222,8 +223,10 @@ int PanelFront::MainInput(void *in_window, int in_chr) {
     case 'U':
         if (sortby != sort_auto && last_displayed.size() > 0) {
             if (last_displayed[kwin->selected] != NULL)
-                if (last_displayed[kwin->selected]->type == group_bundle)
+                if (last_displayed[kwin->selected]->type == group_bundle) {
+                    localnets_dirty = 1;
                     DestroyGroup(last_displayed[kwin->selected]);
+                }
         } else {
             WriteStatus("Cannot ungroup in autofit sort mode.  Sort by a different method.");
         }

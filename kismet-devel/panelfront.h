@@ -427,6 +427,7 @@ protected:
     // Past display vector if we're not changing
     vector<display_network *> past_display_vec;
     char main_sortxt[24];
+    int localnets_dirty;
 
 };
 
