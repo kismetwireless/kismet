@@ -274,6 +274,7 @@ int PcapSource::Pcap2Common(kis_packet *packet, uint8_t *data, uint8_t *moddata)
 
         bsd_80211_header *bsdhead = (bsd_80211_header *) callback_data;
 
+        packet->signal = bsdhead->wi_signal;
         packet->noise = bsdhead->wi_silence;
         packet->quality = ((packet->signal - packet->noise) * 100) / 256;
 		
