@@ -275,7 +275,7 @@ int WriteGpsCacheFile(const char *in_gpsfname,
         (int) sizeof(gpscache_header)) {
         gzclose(cachefile);
         fprintf(stderr, "FATAL:  Error writing to cache %s: %s\n",
-                cachefile, strerror(errno));
+                cachefname, strerror(errno));
         exit(1);
     }
 #else
@@ -283,7 +283,7 @@ int WriteGpsCacheFile(const char *in_gpsfname,
         (int) sizeof(gpscache_header)) {
         fclose(cachefile);
         fprintf(stderr, "FATAL:  Error writing to cache %s: %s\n",
-                cachefile, strerror(errno));
+                cachefname, strerror(errno));
         exit(1);
     }
 #endif
@@ -320,7 +320,7 @@ int WriteGpsCacheFile(const char *in_gpsfname,
             (int) sizeof(gpscache_network)) {
             gzclose(cachefile);
             fprintf(stderr, "FATAL:  Error writing to cache %s: %s\n",
-                    cachefile, strerror(errno));
+                    cachefname, strerror(errno));
             return -1;
         }
 #else
@@ -328,7 +328,7 @@ int WriteGpsCacheFile(const char *in_gpsfname,
             (int) sizeof(gpscache_network)) {
             fclose(cachefile);
             fprintf(stderr, "FATAL:  Error writing to cache %s: %s\n",
-                    cachefile, strerror(errno));
+                    cachefname, strerror(errno));
             return -1;
         }
 #endif
@@ -357,7 +357,7 @@ int WriteGpsCacheFile(const char *in_gpsfname,
             (int) sizeof(gpscache_point)) {
             gzclose(cachefile);
             fprintf(stderr, "FATAL:  Error writing to cache %s: %s\n",
-                    cachefile, strerror(errno));
+                    cachefname, strerror(errno));
             return -1;
         }
 #else
@@ -365,7 +365,7 @@ int WriteGpsCacheFile(const char *in_gpsfname,
             (int) sizeof(gpscache_point)) {
             fclose(cachefile);
             fprintf(stderr, "FATAL:  Error writing to cache %s: %s\n",
-                    cachefile, strerror(errno));
+                    cachefname, strerror(errno));
             return -1;
         }
 #endif
