@@ -277,12 +277,12 @@ void GetPacketInfo(kis_packet *packet, packet_parm *parm, packet_info *ret_packi
 
         // Extract various tags from the packet
         if ((tag_offset = GetTagOffset(ret_packinfo->header_offset, 0, packet, &tag_cache_map)) > 0) {
-            temp = (packet->data[tag_offset] & 0xFF) + 1;
+            temp = (packet->data[tag_offset] & 0xFF);
             // Protect against malicious packets
             if (temp == 0) {
                 // do nothing for 0-length ssid's
             } else if (temp <= 32 && (tag_offset + 1 + temp) < (int) packet->len) {
-                snprintf(ret_packinfo->ssid, temp, "%s", &packet->data[tag_offset+1]);
+                snprintf(ret_packinfo->ssid, temp + 1, "%s", &packet->data[tag_offset+1]);
                 // Munge it down to printable characters... SSID's can be anything
                 // but if we can't print them it's not going to be very useful
                 MungeToPrintable(ret_packinfo->ssid, temp);

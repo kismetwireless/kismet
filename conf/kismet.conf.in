@@ -4,7 +4,7 @@
 # not continually reading --help!
 
 # Version of Kismet config
-version=2.9.1i
+version=2.9.1j
 
 # Name of server (Purely for organiational purposes)
 servername=Kismet
@@ -49,13 +49,66 @@ suiduser=your_user_here
 # source=cisco,eth0,cisco
 # source=cisco_cvs,eth1:wifi0,ciscocvs
 
-source=cisco,eth0,Kismet
+# REMEMBER - when you define a source here, and you want it to channel hop,
+# be sure to give an appropriate channels config option below.
+
+source=cisco,eth0,ciscosource
+# Other common source configs:
+# source=prism2,wlan0,prism2source
+# source=prism2_avs,wlan0,newprism2source
+# source=orinoco,eth0,orinocosource
 
 # Comma-separated list of sources to enable.  This is only needed if you wish 
 # to selectively enable multiple sources.
 # For example:
 # enablesources=prismsource,ciscosource
-enablesources=Kismet
+
+# Do we channelhop?
+channelhop=true
+
+# How many channels per second do we hop?  (1-10)
+channelvelocity=5
+
+# Do we split channels between cards on the same spectrum?  This means if 
+# multiple 802.11b capture sources are defined, they will be offset to cover
+# the most possible spectrum at a given time.  This also controls splitting
+# fine-tuned sourcechannels lines which cover multiple interfaces (see below)
+splitchannels=true
+
+# Basic channel hopping control:
+# These define the channels the cards hop through for various frequency ranges
+# supported by Kismet.   More finegrain control is available via the 
+# "sourcechannels" configuration option, but these lists are used for basic
+# channel hopping.
+80211bchannels=1,6,11,2,7,3,8,4,9,5,10
+# Alternately, users outside of the US or with firmware which supports the
+# full range of possible channels will probably want the extended channel
+# list:
+# 80211bchannels=1,7,13,2,8,3,14,9,4,10,5,11,6,12
+80211achannels=36,40,44,48,52,56,60,64
+
+# Fine-tuning channel hopping control:
+# The sourcechannels option can be used to set the channel hopping for 
+# specific interfaces, and to control what interfaces share a list of 
+# channels for split hopping.  This can also be used to easily lock
+# one card on a single channel while hopping with other cards.
+# Any card without a sourcechannel definition will use the standard hopping
+# list.
+# sourcechannels=sourcename[,sourcename]:ch1,ch2,ch3,...chN
+
+# ie, for us channels on the source 'prism2source' (same as normal channel
+# hopping behavior):
+# sourcechannels=prism2source:1,6,11,2,7,3,8,4,9,5,10
+
+# Given two capture sources, "prism2a" and "prism2b", we want prism2a to stay
+# on channel 6 and prism2b to hop normally.  By not setting a sourcechannels 
+# line for prism2b, it will use the standard hopping.
+# sourcechannels=prism2a:6
+
+# To assign the same custom hop channel to multiple sources, or to split the 
+# same custom hop channel over two sources (if splitchannels is true), list
+# them all on the same sourcechannels line:
+# sourcechannels=prism2a,prism2b,prism2c:1,6,11
 
 # Port to serve GUI data
 tcpport=2501

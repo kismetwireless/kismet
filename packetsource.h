@@ -71,10 +71,13 @@ public:
     void AddGpstracker(GPSD *in_gpsd) { gpsd = in_gpsd; }
 
     // Say what we are
-    char *FetchType() { return(type); };
+    char *FetchType() { return(type); }
 
     // Get the error
-    char *FetchError() { return(errstr); };
+    char *FetchError() { return(errstr); }
+
+    // Fetch number of packets
+    int FetchNumPackets() { return num_packets; }
 
     // Ignore incoming packets
     void Pause() { paused = 1; };
@@ -97,6 +100,8 @@ protected:
     char carddev[64];
 
     unsigned int channel;
+
+    unsigned int num_packets;
 };
 
 #endif

@@ -65,6 +65,8 @@ int Prism2Source::OpenSource(const char *dev, card_type ctype) {
         return(-1);
     }
 
+    num_packets = 0;
+
     snprintf(errstr, 1024, "Prism2 capture source opened.");
     return(1);
 }
@@ -129,6 +131,8 @@ int Prism2Source::FetchPacket(kis_packet *packet, uint8_t *data, uint8_t *moddat
     if (paused) return 0;
 
     Prism2Common(packet, data, moddata);
+
+    num_packets++;
 
     return(packet->caplen);
 }
