@@ -314,6 +314,7 @@ typedef struct mac_addr {
     uint8_t mask;
 
     void struc2long() {
+        longmac = 0;
         for (int x = 0; x < MAC_LEN; x++)
             longmac |= (uint64_t) mac[x] << ((MAC_LEN - x - 1) * 8);
     }
