@@ -22,6 +22,14 @@
 #include <errno.h>
 #include <fcntl.h>
 #include <time.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <sys/ioctl.h>
+#include <sys/socket.h>
+
+#ifdef HAVE_LINUX_WIRELESS
+#include <linux/wireless.h>
+#endif
 
 #include "pcapsource.h"
 #include "util.h"
@@ -107,13 +115,43 @@ int PcapSource::OpenSource(const char *dev, card_type ctype) {
     // Set up the ioctl stuff for pcap cards that work via the ioctl extentions
 #ifdef HAVE_LINUX_WIRELESS
     if (ctype == card_prism2 || ctype == card_prism2_hostap || ctype == card_orinoco) {
+        // Cribbed from the wireless tools
+        static const int families[] = {
+            AF_INET, AF_IPX, AF_AX25, AF_APPLETALK
+        };
+        unsigned int i;
 
+        for(i = 0; i < sizeof(families)/sizeof(int); ++i) {
+            /* Try to open the socket, if success returns it */
+            ioctl_sock = socket(families[i], SOCK_DGRAM, 0);
+            if (ioctl_sock >= 0)
+                break;
+        }
+
+        if (ioctl_sock < 0) {
+            snprintf(errstr, 1024, "Unable to create ioctl socket");
+            return -1;
+        }
+
+        // Check wireless extentions - the device has to exist or pcap_open would blow up,
+        // but lets make sure.
+        iwreq wrq;
+        strncpy(wrq.ifr_name, carddev, IFNAMSIZ);
+        if (ioctl(ioctl_sock, SIOCGIWNAME, &wrq) < 0) {
+            snprintf(errstr, 1024, "Unable to issue SIOCGIWNAME ioctl - no wireless extentions on this interface?");
+            return -1;
+        }
+
+        strncpy(wrq.ifr_name, carddev, IFNAMSIZ);
+        if (ioctl(ioctl_sock, SIOCGIWFREQ, &wrq) < 0) {
+            snprintf(errstr, 1024, "Unable to issue SIOCGIWGFREQ ioctl - couldn't find initial channel");
+            return -1;
+        }
     }
 
     // Prism2avs puts the hardware channel into the headers
     // Cisco is uncontrollable for channel
     // ar5k puts the hardware channel into the headers
-
 #endif
 
     num_packets = 0;
@@ -284,6 +322,10 @@ int PcapSource::Pcap2Common(kis_packet *packet, uint8_t *data, uint8_t *moddata)
         packet->caplen = kismin(callback_header.caplen - sizeof(bsd_80211_header), (uint32_t) MAX_PACKET_LEN);
         packet->len = packet->caplen;
 
+        // Fetch the channel if we know how and it hasn't been filled in already
+        if (packet->channel == 0)
+            packet->channel = FetchChannel();
+
         bsd_80211_header *bsdhead = (bsd_80211_header *) callback_data;
 
         packet->signal = bsdhead->wi_signal;
@@ -297,8 +339,12 @@ int PcapSource::Pcap2Common(kis_packet *packet, uint8_t *data, uint8_t *moddata)
         packet->caplen = kismin(callback_header.caplen, (uint32_t) MAX_PACKET_LEN);
         packet->len = packet->caplen;
 
-        // Fill in the connection info from the wireless extentions, if we can
+        // Fetch the channel if we know how and it hasn't been filled in already
+        if (packet->channel == 0)
+            packet->channel = FetchChannel();
+
 #ifdef HAVE_LINUX_WIRELESS
+        // Fill in the connection info from the wireless extentions, if we can
         FILE *procwireless;
 
         if ((procwireless = fopen("/proc/net/wireless", "r")) != NULL) {
@@ -411,7 +457,22 @@ int PcapSource::SetChannel(unsigned int chan) {
 }
 
 int PcapSource::FetchChannel() {
+#ifdef HAVE_LINUX_WIRELESS
+    // Use ioctl's to get the current channel if we're a card type that supports them
+    if (cardtype == card_prism2 || cardtype == card_prism2_hostap || cardtype == card_orinoco) {
+        iwreq wrq;
+        strncpy(wrq.ifr_name, carddev, IFNAMSIZ);
+        if (ioctl(ioctl_sock, SIOCGIWFREQ, &wrq) < 0) {
+            snprintf(errstr, 1024, "Unable to issue SIOCGIWGFREQ ioctl - couldn't find channel");
+            return -1;
+        }
 
+        // Turn it into a channel
+        return (FloatChan2Int(IWFreq2Float(&wrq)));
+    }
+#endif
+
+    // We don't know how to get the channel from anything else so just return 0
 
     return 0;
 }

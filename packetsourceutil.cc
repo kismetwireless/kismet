@@ -479,7 +479,8 @@ void CapSourceText(string in_text, KisRingBuffer *in_buf) {
 }
 
 // Signal catcher
-void CapSourceSignal(int) {
+void CapSourceSignal(int sig) {
+    fprintf(stderr, "Fatal: Capture child got signal %d, dying.\n", sig);
     exit(0);
 }
 
@@ -492,9 +493,9 @@ void CapSourceChild(capturesource *csrc) {
     pid_t mypid = getpid();
     uint32_t sentinel = CAPSENTINEL;
 
-    signal(SIGINT, CapSourceSignal);
-    signal(SIGTERM, CapSourceSignal);
-    signal(SIGHUP, CapSourceSignal);
+    signal(SIGINT, SIG_IGN);
+    signal(SIGTERM, SIG_IGN);
+    signal(SIGHUP, SIG_IGN);
     signal(SIGPIPE, SIG_IGN);
 
     // Make a large ring buffer of packet bits
