@@ -489,7 +489,7 @@ int PcapSourceWrt54g::FetchPacket(kis_packet *packet, uint8_t *data, uint8_t *mo
     // Junk packets that are too big, this is the only real way to detect crap
     // packets...
     if (packet->caplen == MAX_PACKET_LEN) {
-        printf("debug - dropping large wrt54g packet\n");
+        // printf("debug - dropping large wrt54g packet\n");
         return 0;
     }
     
