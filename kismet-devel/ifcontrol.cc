@@ -381,6 +381,7 @@ int Iwconfig_Set_IntPriv(const char *in_dev, const char *privcmd,
     if ((priv[pn].set_args & IW_PRIV_TYPE_MASK) != IW_PRIV_TYPE_INT) {
         snprintf(errstr, STATUS_MAX, "'%s' does not accept integer parameters.",
                  privcmd);
+        close(skfd);
         return -1;
     }
     
