@@ -5,10 +5,6 @@ Sharp Zaurus with Linksys WFC11 card.
 Sharp Zaurus with SMC card.
 Compaq IPAQ (see ipaq instructions) with assorted cards.
 
-For some reason I have yet to determine, the Zaurus/QTopia ipackage manager
-doesn't like my package, and I haven't been able to fix it yet.  Uncompress
-the tarball from the download site and use 'ipk install'.
-
 * Zaurus Installation
 All CF form-factor wireless cards I'm aware of are Prism2 based.  As of the
 time of this release, the version of wlan-ng shipped with the Zaurus only
@@ -45,6 +41,10 @@ Pass the appropriate cross-build to configure, I use
 'ac_cv_linux_vers=2.4.16 ./configure --host=arm-linux --with-pcap=linux \
 	--disable-setuid' to build for the iPaq.  Set ac_cv_linux_vers 
 accordingly to match your system.
+
+Some versions of GCC appear to generate incorrect alignments when optimization
+is turned on.  If you experience bus errors under arm, try removing the -O2 
+from the CXXFLAGS in the Makefile and recompiling.
 
 I used the Zaurus cross-build environment from 
 http://www.lart.tudelft.nl/lartware/compile-tools/ 

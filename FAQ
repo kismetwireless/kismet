@@ -30,6 +30,7 @@ Kismet Frequently Asked Questions
 * Why do I see more clients in the seperate networks than I do in a group?
 * Kismet says "No 'suiduser' option in the config file" and exits
 * Where do the manufacturer fingerprints come from?
+* I use a non-english language system, and gpsmap isn't working.
 
 Q: How do I convert older binary GPS files to the new XML format?
 A: Use the utility "kismet2xml" in the extras/ directory.
@@ -183,4 +184,11 @@ config to match your system again.
 Q: Where do the manufacturer fingerprints come from?
 A: The manufacturer fingerprints come from a database designed and managed by
 pr00f at http://unbolted.net.
+
+Q: I use a non-english language system, and gpsmap isn't working.
+A: Non-posix language systems cause glibc to format floats incorrectly (for
+example, 0,5 instead of 0.5).  This causes the URL which is being fetched
+to be incorrect.  This is most easily fixed with the LC_NUMERIC environment
+variable.  Launch gpsmap with:
+LC_NUMERIC="posix" gpsmap ... ...
 
