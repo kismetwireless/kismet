@@ -18,24 +18,9 @@
 
 /*
     WSP100 support added by Chris Waters.  chris.waters@networkchemistry.com
-    
-    This files contains support for the Network Chemistry WSP100 under cygwin.
-    The WSP100 can be used by kismet like any other network interface, just 
-    specify the MAC address of the sensor you wish to use when asked for the 
-    capture interface.
 
-    To create a cygwin import library for the SensorManager interface DLL (sm_if.dll)
-    copy and paste the following commands to the shell:
+    This supports the WSP100 device under Cygwin and Linux
 
-echo EXPORTS > sm_if.def
-echo "\tStartSensor" >> sm_if.def
-echo "\tStopSensor" >> sm_if.def
-echo "\tGetPacket" >> sm_if.def
-dlltool --def sm_if.def --dllname sm_if.dll --output-lib sm_if.a
-
-    For some reason the treatment of underscores is not consistent with Borland
-    B++ Builder so the sm_if.dll functions used in this file are prefixed with
-    underscores.
 */
 
 #include "config.h"
@@ -49,63 +34,6 @@ dlltool --def sm_if.def --dllname sm_if.dll --output-lib sm_if.a
 #include <time.h>
 #include <stdio.h>
 
-#ifdef SYS_CYGWIN
-// Build code that links to the wsp100 DLL on windows
-
-extern "C" {
-#include "sm_if.h"
-};
-
-int Wsp100Source::OpenSource(const char *dev, card_type ctype) {
-    snprintf(type, 64, "WSP100 Remote Sensor");
-
-    paused = 0;
-
-    /* Attempt to start the named sensor. */
-    if ( _StartSensor((char*)dev) != 0 ) {
-        snprintf(errstr, 1024, "Unable to find WSP100: %s.", dev);
-        return(-1);
-    }
-
-    snprintf(errstr, 1024, "WSP100 connection opened.");
-    return(1);
-}
-
-int Wsp100Source::CloseSource() {
-    /* Unconditionally stop the sensor and assume that there were no errors. */
-    _StopSensor();
-
-    return 1;
-}
-
-int Wsp100Source::FetchPacket(pkthdr *in_header, u_char *in_data) {
-    int Length = 3000;
-    unsigned char Buffer[3000];
-    int Offset = 35; // Size of the TZSP header. TODO: the TZSP header is variable
-                     // length so this should be computed correctly.
-
-    _GetPacket(&Length, Buffer);
-    if ( Length > 0 ) {
-        gettimeofday(&in_header->ts, NULL);
-
-        in_header->caplen = Length - Offset;
-
-        if (Length - Offset > MAX_PACKET_LEN)
-            in_header->len = MAX_PACKET_LEN;
-        else
-            in_header->len = Length - Offset;
-
-        // TODO: copy the signal strength out of the TZSP header.
-        in_header->quality = 0;
-        in_header->signal = 0;
-        in_header->noise = 0;
-
-        memcpy(in_data, &Buffer[Offset], in_header->len);
-    }
-    return(Length);
-}
-
-#else
 // Build UDP listener code
 
 int Wsp100Source::OpenSource(const char *dev, card_type ctype) {
@@ -183,10 +111,10 @@ int Wsp100Source::FetchPacket(pkthdr *in_header, u_char *in_data) {
         return 0;
 
     struct sockaddr_in cli_sockaddr;
-    socklen_t cli_len = sizeof(cli_sockaddr);
+    int cli_len = sizeof(cli_sockaddr);
     memset(&cli_sockaddr, 0, sizeof(cli_sockaddr));
 
-    if ((read_len = recvfrom(udp_sock, data, MAX_PACKET_LEN, 0,
+    if ((read_len = recvfrom(udp_sock, (char *) data, MAX_PACKET_LEN, 0,
                              (struct sockaddr *) &cli_sockaddr, &cli_len)) < 0) {
         snprintf(errstr, 1024, "recvfrom() error %d (%s)", errno, strerror(errno));
         return -1;
@@ -230,7 +158,7 @@ int Wsp100Source::Wsp2Common(pkthdr *in_header, u_char *in_data) {
             break;
         case WSP100_TAG_RADIO_SIGNAL:
             len = data[pos++];
-            in_header->quality = data[pos];
+            in_header->signal = data[pos];
             break;
         case WSP100_TAG_RADIO_NOISE:
             len = data[pos++];
@@ -295,9 +223,6 @@ int Wsp100Source::Wsp2Common(pkthdr *in_header, u_char *in_data) {
     return 1;
 
 }
-
-// cygwin/other
-#endif
 
 // wsp100
 #endif

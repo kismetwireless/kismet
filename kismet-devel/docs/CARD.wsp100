@@ -2,11 +2,7 @@ WSP100 Remote Sensor
 
 The WSP100 Remote Sensor is an embedded sniffer system controlled by SNMP which
 returns packets as a UDP stream over wired ethernet.  More information is 
-available at http://www.packetyzer.com and http://www.networkchemistry.com
-
-The WSP100 is supported on win32/cygwin via DLL's provided by Network Chemistry
-with the Packetyzer software.  More information is available in README.cygwin.
-On any other platform, Kismet parses the WSP100 stream internally.
+available at http://www.networkchemistry.com
 
 The 'interface' specified for a WSP100 is a host:port pair, where 'host' is
 the WSP100 devices address and 'port' is the UDP listener port Kismet
