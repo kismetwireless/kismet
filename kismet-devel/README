@@ -466,6 +466,8 @@ Licensed under the GPL
                     Capture interface:  'ethX'
                     The standard orinoco_cs drivers do not support monitor mode
                      but they work well after being patched with the above.
+                    As of Feb, 2004, the CVS tree of orinoco_cs contains 
+                     monitor mode.
 
     pcapfile        n/a                 Any         n/a
                     Capture interface:  '/path/to/file' 

@@ -1142,6 +1142,9 @@ int monitor_orinoco(const char *in_dev, int initch, char *in_err, void **in_if) 
     if (Iwconfig_Get_SSID(in_dev, in_err, ifparm->essid) < 0)
         return -1;
 
+    if ((ifparm->channel = Iwconfig_Get_Channel(in_dev, in_err)) < 0)
+        return -1;
+
     // Bring the device up, zero its ip, and set promisc
     if (Ifconfig_Delta_Flags(in_dev, in_err, IFF_UP | IFF_RUNNING | IFF_PROMISC) < 0)
         return -1;
@@ -1155,17 +1158,25 @@ int monitor_orinoco(const char *in_dev, int initch, char *in_err, void **in_if) 
     // to add a few more ms onto an indefinitely blocking ioctl setup
     usleep(5000);
 
-    // Set the monitor mode iwpriv controls.  Explain more if we fail on monitor.
+    // Set monitor mode with iwpriv for orinoco_cs 0.13 with Snax patches
     if ((ret = Iwconfig_Set_IntPriv(in_dev, "monitor", 1, initch, in_err)) < 0) {
-        if (ret == -2)
-            snprintf(in_err, 1024, "Could not find 'monitor' private ioctl.  This "
-                     "typically means that the drivers have not been patched or the "
-                     "patched drivers are being loaded.  See the troubleshooting "
-                     "section of the README for more information.");
+        if (ret != -2)
+            return -1;
+    }
+   
+    // Try to set wext monitor mode.  We're good if one of these succeeds...
+    if (monitor_wext(in_dev, initch, in_err, in_if) < 0 && ret < 0) {
+        snprintf(in_err, 1024, "Could not find 'monitor' private ioctl or use "
+                 "the newer style 'mode monitor' command.  This typically means "
+                 "that the drivers have not been patched or the "
+                 "correct drivers are being loaded. See the troubleshooting "
+                 "section of the README for more information.");
         return -1;
     }
 
-    // The channel is set by the iwpriv so we're done.
+    // If we didn't use iwpriv, set the channel directly
+    if (chancontrol_wext(in_dev, initch, in_err, NULL) < 0 && ret < 0)
+        return -1;
     
     return 0;
 }
@@ -1178,9 +1189,10 @@ int unmonitor_orinoco(const char *in_dev, int initch, char *in_err, void **in_if
         return -1;
     }
 
-    if (Iwconfig_Set_IntPriv(in_dev, "monitor", 0, 0, in_err) < 0) {
-        return -1;
-    }
+    // Ignore errors from both of these, since one might fail with other versions
+    // of orinoco_cs
+    Iwconfig_Set_IntPriv(in_dev, "monitor", 0, ifparm->channel, in_err);
+    Iwconfig_Set_Mode(in_dev, in_err, ifparm->mode);
 
     if (Iwconfig_Set_SSID(in_dev, in_err, ifparm->essid) < 0)
         return -1;
