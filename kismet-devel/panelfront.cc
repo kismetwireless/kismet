@@ -19,6 +19,7 @@
 #include "config.h"
 
 #include <math.h>
+#include <dirent.h>
 
 #include "panelfront.h"
 #include "displaynetworksort.h"
@@ -1045,19 +1046,38 @@ int PanelFront::Tick() {
                 bat_time *= 60;
         }
 #else // ACPI
+        DIR *batteries;
+        struct dirent* this_battery;
         FILE *acpi;
+        char battery_state[PATH_MAX];
         int rate = 1, remain = 0, current = 0;
-        bat_available = 0;
-        if ((acpi = fopen(prefs["acpistatefile"].c_str(), "r")) != NULL) {
+        static int total_remain = 0, total_cap = 0;
+        int batno = 0;
+        const int info_res = 5;
+        static int info_timer = 0;
+        batteries = opendir("/proc/acpi/battery");
+        if (!bat_available || ((info_timer % info_res) == 0))
+        {
+            bat_ac = 0;
+            bat_percentage = 0;
+            bat_time = 0;
+            bat_charging = 0;
+            total_remain = total_cap = 0;
+        }
+        while (((info_timer % info_res) == 0) && ((this_battery = readdir(batteries)) != NULL))
+        {
+            if (this_battery->d_name[0] == '.')
+                continue;
+            snprintf(battery_state, sizeof(battery_state), "/proc/acpi/battery/%s/state", this_battery->d_name);
+            if ((acpi = fopen(battery_state, "r")) == NULL)
+                continue;
             while (fgets(buf, 128, acpi))
             {
                 if (strncmp(buf, "present:", 8 ) == 0)
                 {
                     // No information for this battery
                     if (strstr(buf, "no" ))
-                        break;
-                    else
-                        bat_available = 1;
+                        continue;
                 }
                 else if (strncmp(buf, "charging state:", 15) == 0)
                 {
@@ -1068,22 +1088,25 @@ int PanelFront::Tick() {
                 else if (strncmp(buf, "present rate:", 13) == 0)
                     rate = atoi(buf + 25);
                 else if (strncmp(buf, "remaining capacity:", 19) == 0)
+                {
                     remain = atoi(buf + 25);
+                    total_remain += remain;
+                }
                 else if (strncmp(buf, "present voltage:", 17) == 0)
                     current = atoi(buf + 25);
             }
+            total_cap += bat_full_capacity[batno];
             fclose(acpi);
-            bat_percentage = int((float(remain) / bat_full_capacity) * 100);
             if (bat_charging)
-                bat_time = int((float(bat_full_capacity - remain) / rate) * 3600);
+                bat_time += int((float(bat_full_capacity[batno] - remain) / rate) * 3600);
             else
-                bat_time = int((float(remain) / rate) * 3600);
-        } else {
-            bat_ac = 0;
-            bat_percentage = 0;
-            bat_time = 0;
-            bat_charging = 0;
+                bat_time += int((float(remain) / rate) * 3600);
+            batno++;
         }
+        if (total_cap > 0)
+            bat_percentage = int((float(total_remain) / total_cap) * 100);
+        info_timer++;
+        closedir(batteries);
 #endif
 #endif
     }
@@ -1099,14 +1122,31 @@ void PanelFront::AddPrefs(map<string, string> in_prefs) {
 
 #ifdef HAVE_ACPI
     char buf[80];
-    FILE *info = fopen(prefs["acpiinfofile"].c_str(), "r");
-    bat_full_capacity = 3000; // Avoid div by zero by guessing, however unlikely to be right
-    if ( info != NULL ) {
-        while (fgets(buf, sizeof(buf), info) != NULL)
-            if (1 == sscanf(buf, "last full capacity:      %d mWh", &bat_full_capacity))
-                break;
-        fclose(info);
+    DIR* batteries;
+    FILE* info;
+    struct dirent* this_battery;
+    char battery_info[PATH_MAX];
+    int batno = 0;
+    bat_available = 0;
+    batteries = opendir("/proc/acpi/battery");
+    while ((this_battery = readdir(batteries)) != NULL)
+    {
+        // Skip . and ..
+        if (this_battery->d_name[0] == '.')
+            continue;
+        snprintf(battery_info, sizeof(battery_info), "/proc/acpi/battery/%s/info", this_battery->d_name);
+        info = fopen(battery_info, "r");
+        bat_full_capacity[batno] = 0;
+        if ( info != NULL ) {
+            while (fgets(buf, sizeof(buf), info) != NULL)
+                if (1 == sscanf(buf, "last full capacity:      %d mWh", &bat_full_capacity[batno]))
+                    continue;
+            fclose(info);
+            bat_available = 1;
+        }
+        batno++;
     }
+    closedir(batteries);
 #endif
     if (prefs["apm"] == "true")
         monitor_bat = 1;
