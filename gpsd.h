@@ -47,7 +47,7 @@
 // POSITION, ALT, VELOCITY, MODE
 
 // Our command
-const char gpsd_command[] = "PAVMH";
+const char gpsd_command[] = "PAVMH\n";
 
 // Options
 #define GPSD_OPT_FORCEMODE    1
