@@ -4,7 +4,7 @@
 # not continually reading --help!
 
 # Version of Kismet config
-version=2004.04.devel-b
+version=2004.10.R1
 
 # Name of server (Purely for organiational purposes)
 servername=Kismet
