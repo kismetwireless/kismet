@@ -612,10 +612,10 @@ int PanelFront::MainClientInput(void *in_window, int in_chr) {
         if (client_sortby != client_sort_auto) {
             if (kwin->selected == 0 && kwin->start != 0) {
                 kwin->start -= kwin->max_display;
-                kwin->start = MAX(kwin->start,0);
+                kwin->start = max(kwin->start,0);
             } else if (kwin->selected > 0) {
                 kwin->selected -= kwin->max_display;
-                kwin->selected = MAX(kwin->selected,0);
+                kwin->selected = max(kwin->selected,0);
             }
         } else {
             WriteStatus("Cannot scroll clients in autofit sort mode.");
