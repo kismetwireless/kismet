@@ -289,7 +289,10 @@ void GetPacketInfo(kis_packet *packet, packet_info *ret_packinfo,
         map<int, int> tag_cache_map;
 
         // Extract various tags from the packet
-        if ((tag_offset = GetTagOffset(ret_packinfo->header_offset, 0, packet, &tag_cache_map)) > 0) {
+        int found_ssid_tag = 0;
+        if ((tag_offset = GetTagOffset(ret_packinfo->header_offset, 0, packet, 
+                                       &tag_cache_map)) > 0) {
+            found_ssid_tag = 1;
             temp = (packet->data[tag_offset] & 0xFF);
             // Protect against malicious packets
             if (temp == 0) {
@@ -307,7 +310,10 @@ void GetPacketInfo(kis_packet *packet, packet_info *ret_packinfo,
         }
 
         // Extract the supported rates
-        if ((tag_offset = GetTagOffset(ret_packinfo->header_offset, 1, packet, &tag_cache_map)) > 0) {
+        int found_rate_tag = 0;
+        if ((tag_offset = GetTagOffset(ret_packinfo->header_offset, 1, packet, 
+                                       &tag_cache_map)) > 0) {
+            found_rate_tag = 1;
             for (int x = 0; x < packet->data[tag_offset]; x++) {
                 if (ret_packinfo->maxrate < (packet->data[tag_offset+1+x] & 0x7F) * 0.5)
                     ret_packinfo->maxrate = (packet->data[tag_offset+1+x] & 0x7F) * 0.5;
@@ -316,7 +322,10 @@ void GetPacketInfo(kis_packet *packet, packet_info *ret_packinfo,
 
         // Find the offset of flag 3 and get the channel.   802.11a doesn't have this tag
         // so we use the hardware channel, assigned at the beginning of GetPacketInfo
-        if ((tag_offset = GetTagOffset(ret_packinfo->header_offset, 3, packet, &tag_cache_map)) > 0) {
+        int found_channel_tag = 0;
+        if ((tag_offset = GetTagOffset(ret_packinfo->header_offset, 3, packet, 
+                                       &tag_cache_map)) > 0) {
+            found_channel_tag = 1;
             // Extract the channel from the next byte (GetTagOffset returns
             // us on the size byte)
             temp = packet->data[tag_offset+1];
@@ -356,6 +365,10 @@ void GetPacketInfo(kis_packet *packet, packet_info *ret_packinfo,
 
             ret_packinfo->source_mac = addr1;
             ret_packinfo->bssid_mac = addr1;
+           
+            // Probe req's with no SSID are bad
+            if (found_ssid_tag == 0)
+                ret_packinfo->corrupt = 1;
 
             // Catch wellenreiter probes
             if (!strncmp(ret_packinfo->ssid, "this_is_used_for_wellenreiter", 32)) {
@@ -398,6 +411,11 @@ void GetPacketInfo(kis_packet *packet, packet_info *ret_packinfo,
             ret_packinfo->dest_mac = addr0;
             ret_packinfo->source_mac = addr1;
             ret_packinfo->bssid_mac = addr2;
+
+            // If beacons don't have a SSID and a basicrate then we consider them
+            // corrupt
+            if (found_ssid_tag == 0 || found_rate_tag == 0)
+                ret_packinfo->corrupt = 1;
 
             /*
             if (ret_packinfo->ess == 0) {
