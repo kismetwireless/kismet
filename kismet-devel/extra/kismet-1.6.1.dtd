@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="ISO-8859-1"?>
 
 <!-- Kismet network/cisco dump DTD
-     version 1.6.0
+     version 1.6.1
      dragorn@kismetwireless.net
 -->
 
@@ -47,6 +47,7 @@
 			  wep (true | false ) "false"
 			  first-time CDATA "na"
 			  last-time CDATA "na">
+	<!ELEMENT client-mac (#PCDATA)>
 	<!ELEMENT client-packets (LLC,data,crypt,weak,total)>
 		<!ELEMENT client-data (#PCDATA)>
 		<!ELEMENT client-crypt (#PCDATA)>

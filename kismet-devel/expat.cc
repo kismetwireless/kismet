@@ -72,7 +72,7 @@ enum net_xml_node {
     net_node_cdp_cap, net_node_cdp_device_id, net_node_cdp_interface, net_node_cdp_ip,
     net_node_cdp_platform, net_node_cdp_software,
     net_node_wireless_client,
-    net_node_wc_datasize, net_node_wc_ip_address,
+    net_node_wc_mac, net_node_wc_datasize, net_node_wc_ip_address,
     net_node_wc_packdata,
     net_node_wc_pk_data, net_node_wc_pk_crypt, net_node_wc_pk_weak,
     net_node_wc_gpsdata,
@@ -587,6 +587,8 @@ static void xpat_net_start(void *data, const char *el, const char **attr) {
         // We don't parse client data for now
         if (strcasecmp(el, "client-datasize") == 0)
             netnode = net_node_wc_datasize;
+        else if (strcasecmp(el, "client-mac") == 0)
+            netnode = net_node_wc_mac;
         else if (strcasecmp(el, "client-ip-address") == 0)
             netnode = net_node_wc_ip_address;
         else if (strcasecmp(el, "client-packets") == 0)
