@@ -805,6 +805,17 @@ Licensed under the GPL
       in /tmp (or any other directory).  This isn't reccomended if you use
       Kismet as root on a system with untrusted users.
 
+    PROBLEM: Fatal error about interface no longer available, and DHCP
+    FIX: Many distributions turn on DHCP for wireless interfaces.  When DHCP
+      is turned on and rfmon is used, one of two things happens:
+      1. rfmon is entered before DHCP gets an address.  After approximately
+         a minute, DHCP times out, and turns off the interface.
+      2. DHCP gets an address, but when the address expires, it is unable to
+         renew it, and turns off the interface.
+      MAKE SURE YOU DISABLE DHCP before starting Kismet - either turn it off
+      entirely for that interface, or kill the client (usually dhclient,
+      dhcpcd, or pump) before starting Kismet.
+
     PROBLEM: Configure is unable to find libncurses or other libraries, but
      they're installed.
     FIX: If you are running a RPM-based distribution, you will need the 

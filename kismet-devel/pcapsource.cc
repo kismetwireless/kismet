@@ -192,7 +192,20 @@ int PcapSource::FetchPacket(kis_packet *packet, uint8_t *data, uint8_t *moddata)
     //unsigned char *udata = '\0';
 
     if ((ret = pcap_dispatch(pd, 1, PcapSource::Callback, NULL)) < 0) {
-        snprintf(errstr, 1024, "Pcap Get Packet pcap_dispatch() failed");
+        // Is the interface still here and just not running?  Lets give a more intelligent
+        // error if that looks to be the case.
+        short flags = 0;
+        int ret = 0;
+
+        // Are we able to fetch the interface, and is it running?
+        ret = Ifconfig_Get_Flags(interface.c_str(), errstr, &flags);
+        if (ret >= 0 && (flags & IFF_UP) == 0) {
+            snprintf(errstr, 1024, "Reading packet from pcap failed, interface is no longer up.  Usually this "
+                     "happens when a DHCP client times out and turns off the interface.  See the Troubleshooting "
+                     "section of the README for more information.");
+        } else {
+            snprintf(errstr, 1024, "Reading packet from pcap failed, interface no longer available.");
+        }
         return -1;
     }
 

@@ -1,6 +1,8 @@
 Feb 24 2004  devel  Fixed prism2_legacy (wow, someone still uses this) to trim
                      the FCS off the frames correctly, and to mute the wlanctl
                      commands
+                    Added more intelligent error messages for the interface
+                     going away in the middle of a capture.
 Feb 22 2004  devel  Merged FreeBSD patch from Sam (with some changes):
                      * Renamed to radiotap_fbsd_X (me.  radiotap_freebsd_x was
                        just getting kind of silly to type.)
