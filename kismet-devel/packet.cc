@@ -1091,9 +1091,9 @@ void DecryptPacket(kis_packet *packet, packet_info *in_info,
     memset(pwd, 0, 16);
 
     // Add the WEP IV to the key
-    pwd[0] = packet->data[in_info->header_offset];
-    pwd[1] = packet->data[in_info->header_offset + 1];
-    pwd[2] = packet->data[in_info->header_offset + 2];
+    pwd[0] = packet->data[in_info->header_offset] & 0xFF;
+    pwd[1] = packet->data[in_info->header_offset + 1] & 0xFF;
+    pwd[2] = packet->data[in_info->header_offset + 2] & 0xFF;
 
     // Add the supplied password to the key
     memcpy(pwd + 3, (*bwmitr->second)->key, 13);
