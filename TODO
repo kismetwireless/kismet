@@ -27,6 +27,8 @@ In no particular order:
 	alert filtering
 	alert_on config
 		alert on any disauth/death
+	Alerts as forged packets in pipe
 	gps satellite plot
 	VPN detection
-	Alerts as forged packets in pipe
+	endian-safe drones
+	linkage of seen-on devices to network info
