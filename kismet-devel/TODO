@@ -41,3 +41,4 @@ In no particular order:
 		mangle fuzzy encryption
 	do something smarter with RSSI signal levels from AVS headers
 	do something smarter in expat.cc with carriers, encodings, etc
+	AP uptime extraction

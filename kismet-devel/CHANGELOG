@@ -5,6 +5,7 @@ Mar 07 2003  2.9.1  Added encoding, error, and rate transmission to drone
                     Fixed segfault with drone source
                     Added header length offset and version to drone packet 
                      header
+                    Added packet source logging to gpsxml, updated DTD
 Mar 06 2003  2.9.1  Added 802.11 FHSS/DSSS distinction
                     Added encoding and data rate tracking
                     Changed DTD versioning to match kismet version

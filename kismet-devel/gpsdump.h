@@ -51,6 +51,7 @@ extern int decay;
 
 typedef struct {
     char bssid[MAC_STR_LEN];
+    char source[MAC_STR_LEN];
 
     long tv_sec;
     long tv_usec;
