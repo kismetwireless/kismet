@@ -59,7 +59,7 @@ enum net_xml_node {
     net_node_wireless_network,
     net_node_wn_expired, // An expired XML tag we don't use anymore
     net_node_wn_SSID, net_node_wn_BSSID, net_node_wn_info,
-    net_node_wn_channel, net_node_wn_maxrate,
+    net_node_wn_channel, net_node_wn_maxrate, net_node_wn_datasize,
     net_node_packdata,
     net_node_pk_LLC, net_node_pk_data, net_node_pk_crypt, net_node_pk_weak, net_node_pk_total,
     net_node_gpsdata,
@@ -71,12 +71,20 @@ enum net_xml_node {
     net_node_cisco,
     net_node_cdp_cap, net_node_cdp_device_id, net_node_cdp_interface, net_node_cdp_ip,
     net_node_cdp_platform, net_node_cdp_software,
+    net_node_wireless_client,
+    net_node_wc_datasize, net_node_wc_ip_address,
+    net_node_wc_packdata,
+    net_node_wc_pk_data, net_node_wc_pk_crypt, net_node_wc_pk_weak,
+    net_node_wc_gpsdata,
+    net_node_wc_gps_min_lat, net_node_wc_gps_max_lat, net_node_wc_gps_min_lon, net_node_wc_gps_max_lon,
+    net_node_wc_gps_min_alt, net_node_wc_gps_max_alt, net_node_wc_gps_min_spd, net_node_wc_gps_max_spd,
+    net_xml_node_maxnode
 };
 
 // What type of node are we working on right now
 net_xml_node netnode;
 
-#define net_node_numnodes 36
+#define net_node_numnodes net_xml_node_maxnode
 string xmlstrnodes[net_node_numnodes];
 
 // Does a string consist of anything but whitespace?
@@ -403,14 +411,15 @@ static void xpat_net_start(void *data, const char *el, const char **attr) {
             netnode = net_node_wn_maxrate;
         } else if (strcasecmp(el, "packets") == 0) {
             netnode = net_node_packdata;
-
+        } else if (strcasecmp(el, "datasize") == 0) {
+            netnode = net_node_wn_datasize;
         } else if (strcasecmp(el, "gps-info") == 0) {
             netnode = net_node_gpsdata;
 
             building_net->gps_fixed = 2;
 
             for (int i = 0; attr[i]; i += 2) {
-                if (strcasecmp(attr[i], "unit") == 0) {
+                 if (strcasecmp(attr[i], "unit") == 0) {
                     if (strcasecmp(attr[i+1], "metric") == 0)
                         building_net->metric = 1;
                     else
@@ -446,6 +455,11 @@ static void xpat_net_start(void *data, const char *el, const char **attr) {
                             attr[i]);
                 }
             }
+
+        } else if (strcasecmp(el, "wireless-client") == 0) {
+            netnode = net_node_wireless_client;
+
+            // We don't parse any other attributes of wireless clients right now
 
         } else if (strcasecmp(el, "cisco") == 0) {
             netnode = net_node_cisco;
@@ -569,6 +583,48 @@ static void xpat_net_start(void *data, const char *el, const char **attr) {
         } else {
             fprintf(stderr, "WARNING: Illegal tag '%s' in cisco\n", el);
         }
+    } else if (netnode == net_node_wireless_client) {
+        // We don't parse client data for now
+        if (strcasecmp(el, "client-datasize") == 0)
+            netnode = net_node_wc_datasize;
+        else if (strcasecmp(el, "client-ip-address") == 0)
+            netnode = net_node_wc_ip_address;
+        else if (strcasecmp(el, "client-packets") == 0)
+            netnode = net_node_wc_packdata;
+        else if (strcasecmp(el, "client-gps-info") == 0)
+            netnode = net_node_wc_gpsdata;
+        else
+            fprintf(stderr, "WARNING:  Illegal tag '%s' in wireless-client\n", el);
+    } else if (netnode == net_node_wc_gpsdata) {
+        if (strcasecmp(el, "client-min-lat") == 0) {
+            netnode = net_node_wc_gps_min_lat;
+        } else if (strcasecmp(el, "client-max-lat") == 0) {
+            netnode = net_node_wc_gps_max_lat;
+        } else if (strcasecmp(el, "client-min-lon") == 0) {
+            netnode = net_node_wc_gps_min_lon;
+        } else if (strcasecmp(el, "client-max-lon") == 0) {
+            netnode = net_node_wc_gps_max_lon;
+        } else if (strcasecmp(el, "client-min-alt") == 0) {
+            netnode = net_node_wc_gps_min_alt;
+        } else if (strcasecmp(el, "client-max-alt") == 0) {
+            netnode = net_node_wc_gps_max_alt;
+        } else if (strcasecmp(el, "client-min-spd") == 0) {
+            netnode = net_node_wc_gps_min_spd;
+        } else if (strcasecmp(el, "client-max-spd") == 0) {
+            netnode = net_node_wc_gps_max_spd;
+        } else {
+            fprintf(stderr, "WARNING:  Illegal tag '%s' in client-gps-info\n", el);
+        }
+    } else if (netnode == net_node_wc_packdata) {
+        if (strcasecmp(el, "client-data") == 0) {
+            netnode = net_node_wc_pk_data;
+        } else if (strcasecmp(el, "client-crypt") == 0) {
+            netnode = net_node_wc_pk_crypt;
+        } else if (strcasecmp(el, "client-weak") == 0) {
+            netnode = net_node_wc_pk_weak;
+        } else {
+            fprintf(stderr, "WARNING: Illegal tag '%s' in client-packets\n", el);
+        }
     } else {
         fprintf(stderr, "WARNING: Illegal tag '%s' in unknown state %d.\n", el, netnode);
     }
@@ -613,8 +669,21 @@ static void xpat_net_end(void *data, const char *el) {
         netnode = net_node_gpsdata;
     else if (netnode > net_node_ipdata && netnode < net_node_cisco)
         netnode = net_node_ipdata;
-    else if (netnode > net_node_cisco)
+    else if (netnode > net_node_cisco && netnode < net_node_wireless_client)
         netnode = net_node_cisco;
+    else if (netnode == net_node_wireless_client) {
+        // We'd insert our client if we parsed it, but we don't right now...
+        netnode = net_node_wireless_network;
+    } else if (netnode > net_node_wireless_client && netnode < net_node_wc_packdata)
+        netnode = net_node_wireless_client;
+    else if (netnode == net_node_wc_packdata)
+        netnode = net_node_wireless_client;
+    else if (netnode > net_node_wc_packdata && netnode < net_node_wc_gpsdata)
+        netnode = net_node_wc_packdata;
+    else if (netnode == net_node_wc_gpsdata)
+        netnode = net_node_wireless_client;
+    else if (netnode > net_node_wc_gpsdata)
+        netnode = net_node_wc_gpsdata;
 
 }
 
