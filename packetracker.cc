@@ -721,30 +721,26 @@ int Packetracker::ProcessDataPacket(packet_info info, wireless_network *net, cha
         ret = TRACKER_NOTICE;
     }
 
-    if (net->type == network_data &&
-        (info.type == packet_data || info.type == packet_adhoc_data)) {
-        if (info.proto.type == proto_lor) {
-            // Handle lucent outdoor routers
-            net->cloaked = 1;
-            net->ssid = "Lucent Outdoor Router";
-            net->type = network_lor;
-        } else if (info.proto.type == proto_netstumbler) {
-            // Handle netstumbler packets
+    if (info.proto.type == proto_lor) {
+        // Handle lucent outdoor routers
+        net->cloaked = 1;
+        net->ssid = "Lucent Outdoor Router";
+        net->type = network_lor;
+    } else if (info.proto.type == proto_netstumbler) {
+        // Handle netstumbler packets
 
-            // Only raise an alert when we haven't raised one for this client
-            // before.
-            if (netstumbler_map.find(client->mac) == netstumbler_map.end()) {
-                netstumbler_map[client->mac] = client;
+        // Only raise an alert when we haven't raised one for this client
+        // before.
+        if (netstumbler_map.find(client->mac) == netstumbler_map.end()) {
+            netstumbler_map[client->mac] = client;
 
-                snprintf(in_status, STATUS_MAX, "NetStumbler probe detected from %s",
-                         client->mac.c_str());
+            snprintf(in_status, STATUS_MAX, "NetStumbler probe detected from %s",
+                     client->mac.c_str());
 
-                ret = TRACKER_ALERT;
-            }
-
+            ret = TRACKER_ALERT;
         }
-    }
 
+    }
 
     return ret;
 }

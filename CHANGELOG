@@ -1,3 +1,7 @@
+Aug 22 2002  2.5.2  Added Netstumbler 2.32 detection
+                    Improved netstumbler dissection and boosted packet
+                     processing speed slightly
+                    Improved speed of packetracker data handling
 Aug 21 2002  2.5.2  Fixed a few minor parsing errors in tcpclient.cc
                     Speedboosted kismet_curses tcpclient.poll() interpretation
                     Added alert sound conditions
