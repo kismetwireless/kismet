@@ -173,7 +173,7 @@ const int manuf_max_score = 9;
 // SSID, channel, and wep are each worth 1 point
 // if a network has a max score, its completely default
 // Further tests can be integrated later.
-int MatchBestManuf(wireless_network *in_net, int in_set) { /*FOLD00*/
+int MatchBestManuf(wireless_network *in_net, int in_set) {
     int best_score = in_net->manuf_score;
     int best_match = in_net->manuf_id;
 
@@ -227,3 +227,31 @@ int MatchBestManuf(wireless_network *in_net, int in_set) { /*FOLD00*/
 
     return best_match;
 }
+
+int MatchBestClientManuf(wireless_client *in_cli, int in_set) {
+    int best_match = in_cli->manuf_id;
+
+    for (int x = 0; x < manuf_num; x++) {
+        if (manuf_list[x].tag_len > 0) {
+            int tagmatch = 1;
+            for (unsigned int y = 0; y < manuf_list[x].tag_len; y++) {
+                if (in_cli->mac[y] != manuf_list[x].mac_tag[y]) {
+                    tagmatch = 0;
+                    break;
+                }
+            }
+
+            if (tagmatch) {
+                best_match = x;
+                break;
+            }
+
+        }
+    }
+
+    if (in_set)
+        in_cli->manuf_id = best_match;
+
+    return best_match;
+}
+

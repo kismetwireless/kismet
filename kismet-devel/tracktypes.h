@@ -85,7 +85,7 @@ typedef struct wireless_client {
         first_time = 0;
         last_time = 0;
 
-        manuf_id = 0;
+        manuf_id = -1;
         manuf_score = 0;
 
         channel = 0;

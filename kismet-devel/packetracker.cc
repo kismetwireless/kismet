@@ -559,6 +559,7 @@ int Packetracker::ProcessDataPacket(packet_info info, wireless_network *net, cha
 
         client->first_time = time(0);
         client->mac = info.source_mac;
+        MatchBestClientManuf(client, 1);
 
         client->metric = net->metric;
 
