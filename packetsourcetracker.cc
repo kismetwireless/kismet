@@ -773,8 +773,6 @@ void Packetsourcetracker::ChannelChildLoop() {
     fd_set rset, wset;
     int child_dataframe_only = 0;
     char txtbuf[1024];
-    // Track when we drop dead
-    //time_t last_command = time(0);
    
     signal(SIGINT, SIG_IGN);
     signal(SIGTERM, SIG_IGN);
@@ -805,22 +803,6 @@ void Packetsourcetracker::ChannelChildLoop() {
                     "%d:%s\n", getpid(), errno, strerror(errno));
             exit(1);
         }
-
-        // Kluge in a timeout to exit if we don't see commands.  This shouldn't
-        // be needed, but it's better to have it than to leave a root process running
-        // that the server can't kill.
-        //
-        // We won't do this for now until it really becomes a problem
-#if 0
-        if (time(0) - last_command > 5) {
-            fprintf(stderr, "FATAL:  Channel control child %d didn't see a command "
-                    "from the server in over 5 seconds.  Something is wrong, "
-                    "channel control exiting.\n", getpid());
-            close(sockpair[0]);
-            close(sockpair[1]);
-            exit(1);
-        }
-#endif
 
         // Write a packet - wset should never be set if child_ipc_buffer is empty
         if (FD_ISSET(sockpair[0], &wset)) {

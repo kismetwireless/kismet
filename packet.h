@@ -991,7 +991,7 @@ typedef struct {
 typedef struct {
     int fragile;
     mac_addr bssid;
-    unsigned char key[13];
+    unsigned char key[WEPKEY_MAX];
     unsigned int len;
     unsigned int decrypted;
     unsigned int failed;
