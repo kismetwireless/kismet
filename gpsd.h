@@ -31,6 +31,7 @@
 #include <errno.h>
 #include <string.h>
 #include <fcntl.h>
+#include <math.h>
 
 #ifdef HAVE_GPS
 
@@ -76,6 +77,13 @@ public:
     // Fetch mode
     int FetchMode() { return mode; }
 
+    // Various GPS transformations
+    static float CalcHeading(float in_lat, float in_lon, float in_lat2, float in_lon2);
+    static double CalcRad(double lat);
+    static double Rad2Deg(double x);
+    static double Deg2Rad(double x);
+    static double EarthDistance(double in_lat, double in_lon, double in_lat2, double in_lon2);
+
 protected:
     char errstr[1024];
 
@@ -83,6 +91,9 @@ protected:
 
     float lat, lon, alt, spd, hed;
     int mode;
+
+    // Last location used for softheading calcs
+    float last_lat, last_lon, last_hed;
 
     char data[1024];
 
