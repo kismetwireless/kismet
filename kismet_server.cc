@@ -250,8 +250,12 @@ void WriteDatafiles(int in_shutdown) {
 
 // Catch our interrupt
 void CatchShutdown(int sig) {
+    if (sig == SIGPIPE)
+        fprintf(stderr, "FATAL: Pipe closed unexpectedly, shutting down...\n");
+
     for (unsigned int x = 0; x < packet_sources.size(); x++) {
         if (packet_sources[x]->alive) {
+            fprintf(stderr, "Shutting down source %d (%s)...\n", x, packet_sources[x]->name.c_str());
             int8_t child_cmd = CAPCMD_DIE;
             write(packet_sources[x]->servpair[1], &child_cmd, 1);
         }
@@ -306,11 +310,33 @@ void CatchShutdown(int sig) {
     if (speechpid > 0)
         kill(speechpid, 9);
 
+    // Sleep for half a second to give the chilren time to die off from the command
+    usleep(500000);
+
     // Kill any child sniffers still around
     for (unsigned int x = 0; x < packet_sources.size(); x++) {
+        // See if the child died and kill it with a signal if it didn't handle our command
+        if (packet_sources[x]->childpid > 0) {
+            if (wait4(packet_sources[x]->childpid, NULL, WNOHANG, NULL) != packet_sources[x]->childpid) {
+                fprintf(stderr, "WARNING:  Capture child %d didn't die when we asked it to, sending kill signal...\n",
+                        packet_sources[x]->childpid);
+                // SIGUSR1 is an out-of-band "drop dead cleanly"...
+                if (kill(packet_sources[x]->childpid, SIGUSR1) < 0) {
+                    fprintf(stderr, "WARNING:  Couldn't send SIGUSR1.  Hope it dies on its own... %d: %s\n", errno, strerror(errno));
+                } else {
+                    fprintf(stderr, "Waiting for capture child %d to exit...\n", packet_sources[x]->childpid);
+                    // Wait for it to exit cleanly
+                    wait4(packet_sources[x]->childpid, NULL, 0, NULL);
+                    packet_sources[x]->alive = 0;
+                }
+            }
+        }
+
         if (packet_sources[x]->alive) {
+            // Try a hard kill of anything thats still somehow set to be live.  This is redundant.
             kill(packet_sources[x]->childpid, 9);
         }
+
         delete packet_sources[x];
     }
 
@@ -1123,7 +1149,7 @@ int main(int argc,char *argv[]) {
     signal(SIGINT, CatchShutdown);
     signal(SIGTERM, CatchShutdown);
     signal(SIGHUP, CatchShutdown);
-    signal(SIGPIPE, SIG_IGN);
+    signal(SIGPIPE, CatchShutdown);
 
     while(1) {
         int r = getopt_long(argc, argv, "d:M:t:nf:c:C:l:m:g:a:p:N:I:xXqhvs",
@@ -1369,7 +1395,7 @@ int main(int argc,char *argv[]) {
 
     // Now enable root sources...  BindRoot will terminate if it fails.  We need to set our euid
     // to be root here, we don't care if it fails though.
-    setreuid(0, 0);
+    //seteuid(0);
 
     BindRootSources(&packet_sources, &enable_name_map,
                     ((source_from_cmd == 0) || (enable_from_cmd == 1)),

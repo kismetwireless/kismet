@@ -3,6 +3,8 @@ Jun 06 2003  2.9.1  Implemented wireless-extention IOCTL fetching of current
                     Caught capture sources that don't return valid fd's to the
                      capture client select() loop.  We just die for now.
                     Tweaked channel change alert tests
+                    Added wait4() pausing for client capsources to exit
+                    Added signalling to terminate client capsources
 Jun 04 2003  2.9.1  Implemented dronesource buffer resyncs
                     Updated kismet_drone to use new forked packet paths
 Jun 03 2003  2.9.1  Stubbed FetchChannel
