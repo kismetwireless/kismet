@@ -66,6 +66,16 @@ int PlaySound(string in_sound);
 void SpeechHandler(int *fds, const char *player);
 void SoundHandler(int *fds, const char *player, map<string, string> soundmap);
 
+typedef struct capturesource {
+    PacketSource *source;
+    string name;
+    string engine;
+    string interface;
+    string scardtype;
+    card_type cardtype;
+    packet_parm packparm;
+};
+
 const char *config_base = "kismet.conf";
 
 // Some globals for command line options
@@ -80,11 +90,9 @@ FILE *ssid_file = NULL, *ip_file = NULL, *waypoint_file = NULL;
     *xml_file = NULL, */
 
 DumpFile *dumpfile, *cryptfile;
-PacketSource *packsource;
 int packnum = 0, localdropnum = 0;
 //Frontend *gui = NULL;
 Packetracker tracker;
-packet_parm pack_parm;
 #ifdef HAVE_GPS
 GPSD gps;
 GPSDump gpsdump;
@@ -113,6 +121,9 @@ pid_t soundpid = -1, speechpid = -1;
 // Past alerts
 vector<string> past_alerts;
 unsigned int max_alerts = 50;
+
+// Capture sources
+vector<capturesource *> packet_sources;
 
 // Handle writing all the files out and optionally unlinking the empties
 void WriteDatafiles(int in_shutdown) {
@@ -206,9 +217,12 @@ void CatchShutdown(int sig) {
     gui->EndDisplay();
     */
 
-    if (packsource != NULL) {
-        packsource->CloseSource();
-        delete packsource;
+    for (unsigned int x = 0; x < packet_sources.size(); x++) {
+        if (packet_sources[x]->source != NULL) {
+            packet_sources[x]->source->CloseSource();
+            delete packet_sources[x]->source;
+            delete packet_sources[x];
+        }
     }
 
     ui_server.SendToAll("*TERMINATE: Kismet server terminating.\n");
@@ -623,24 +637,29 @@ static void handle_command(TcpServer *tcps, client_command *cc) {
     const char *cmdptr = cmdspace.c_str();
     string resp = "unknown";
     if (!strncmp(cmdptr, "pause ", 6)) {
-	if (packsource) {
-	    packsource->Pause();
+        if (packet_sources.size() > 0) {
+            for (unsigned int x = 0; x < packet_sources.size(); x++) {
+                if (packet_sources[x]->source != NULL)
+                    packet_sources[x]->source->Pause();
+            }
             resp = "ok";
             if (!silent)
-                printf("NOTICE:  Pausing packet source per request of client %d\n", cc->client_fd);
-	} else {
-	    resp = "err";
-	}
+                printf("NOTICE:  Pausing packet sources per request of client %d\n", cc->client_fd);
+        } else {
+            resp = "err";
+        }
     } else if (!strncmp(cmdptr, "resume ", 7)) {
-	if (packsource) {
-	    packsource->Resume();
+        if (packet_sources.size() > 0) {
+            for (unsigned int x = 0; x < packet_sources.size(); x++) {
+                if (packet_sources[x]->source != NULL)
+                    packet_sources[x]->source->Resume();
+            }
             resp = "ok";
             if (!silent)
                 printf("NOTICE:  Resuming packet source per request of client %d\n", cc->client_fd);
-
-	} else {
-	    resp = "err";
-	}
+        } else {
+            resp = "err";
+        }
     } else if (!strncmp(cmdptr, "strings ", 8)) {
         client_opt opts;
         if (tcps->GetClientOpts(cc->client_fd, &opts) == 1) {
@@ -710,8 +729,7 @@ int Usage(char *argv) {
     printf("  -t, --log-title <title>      Custom log file title\n"
            "  -n, --no-logging             No logging (only process packets)\n"
            "  -f, --config-file <file>     Use alternate config file\n"
-           "  -c, --capture-type <type>    Type of packet capture device (prism2, pcap, etc)\n"
-           "  -i, --capture-interface <if> Packet capture interface (eth0, eth1, etc)\n"
+           "  -c, --capture-source <src>   Packet capture source line (engine,interface,type,name)\n"
            "  -l, --log-types <types>      Comma seperated list of types to log,\n"
            "                                (ie, dump,cisco,weak,network,gps)\n"
            "  -d, --dump-type <type>       Dumpfile type (wiretap)\n"
@@ -749,7 +767,7 @@ int main(int argc,char *argv[]) {
 
     map<string, string> wav_map;
 
-    const char *captype = NULL, *capif = NULL, *logtypes = NULL, *dumptype = NULL;
+    const char *logtypes = NULL, *dumptype = NULL;
 
     char gpshost[1024];
     int gpsport = -1;
@@ -771,17 +789,17 @@ int main(int argc,char *argv[]) {
 
     int beacon_log = 1;
 
-    card_type cardtype = card_unspecified;
-
     FILE *manuf_data;
     char *client_manuf_name = NULL, *ap_manuf_name = NULL;
+
+    // For commandline and file sources
+    vector<string> source_input_vec;
 
     static struct option long_options[] = {   /* options table */
         { "log-title", required_argument, 0, 't' },
         { "no-logging", no_argument, 0, 'n' },
         { "config-file", required_argument, 0, 'f' },
-        { "capture-type", required_argument, 0, 'c' },
-        { "capture-interface", required_argument, 0, 'i' },
+        { "capture-source", required_argument, 0, 'c' },
         { "log-types", required_argument, 0, 'l' },
         { "dump-type", required_argument, 0, 'd' },
         { "max-packets", required_argument, 0, 'm' },
@@ -817,7 +835,7 @@ int main(int argc,char *argv[]) {
 
 
     while(1) {
-        int r = getopt_long(argc, argv, "d:M:t:nf:c:i:l:m:g:a:p:N:qhvs",
+        int r = getopt_long(argc, argv, "d:M:t:nf:c:l:m:g:a:p:N:qhvs",
                             long_options, &option_index);
         if (r < 0) break;
         switch(r) {
@@ -849,11 +867,7 @@ int main(int argc,char *argv[]) {
             break;
         case 'c':
             // Capture type
-            captype = optarg;
-            break;
-        case 'i':
-            // Capture interface
-            capif = optarg;
+            source_input_vec.push_back(optarg);
             break;
         case 'l':
             // Log types
@@ -982,166 +996,231 @@ int main(int argc,char *argv[]) {
     fprintf(stderr, "NOTICE:  Suid priv-dropping disabled.  This may not be secure.\n");
 #endif
 
-    // Find out what kind of card we are.
-    if (conf.FetchOpt("cardtype") != "") {
-        const char *sctype = conf.FetchOpt("cardtype").c_str();
-
-        if (!strcasecmp(sctype, "cisco"))
-            cardtype = card_cisco;
-        else if (!strcasecmp(sctype, "cisco_cvs"))
-            cardtype = card_cisco_cvs;
-        else if (!strcasecmp(sctype, "cisco_bsd"))
-            cardtype = card_cisco_bsd;
-        else if (!strcasecmp(sctype, "prism2"))
-            cardtype = card_prism2;
-        else if (!strcasecmp(sctype, "prism2_pcap"))
-            cardtype = card_prism2_pcap;
-        else if (!strcasecmp(sctype, "prism2_bsd"))
-            cardtype = card_prism2_bsd;
-        else if (!strcasecmp(sctype, "prism2_hostap"))
-            cardtype = card_prism2_hostap;
-        else if (!strcasecmp(sctype, "orinoco"))
-            cardtype = card_orinoco;
-        else if (!strcasecmp(sctype, "orinoco_bsd"))
-            cardtype = card_orinoco_bsd;
-        else if (!strcasecmp(sctype, "generic"))
-            cardtype = card_generic;
-        else
-            fprintf(stderr, "WARNING:  Unknown card type '%s'\n", sctype);
+    // Catch old configs and yell about them
+    if (conf.FetchOpt("cardtype") != "" || conf.FetchOpt("captype") != "" ||
+        conf.FetchOpt("capinterface") != "") {
+        fprintf(stderr, "FATAL:  Old config file options found.  To support multiple sources, Kismet now\n"
+                "uses a new config file format.  Please consult the example config file in your Kismet\n"
+                "source directory, OR do 'make forceinstall' and reconfigure Kismet.\n");
+        exit(1);
     }
 
-    // Open the captype
-    if (captype == NULL) {
-        if (conf.FetchOpt("captype") == "") {
-            fprintf(stderr, "FATAL:  No capture type specified.");
+    // Read all of our packet sources, tokenize the input and then start opening
+    // them.
+
+    string sourceopt;
+
+    // Read the config file if we didn't get any sources on the command line
+    if (source_input_vec.size() == 0) {
+        int sourcenum = 0;
+        char sourcestr[16];
+
+        while (snprintf(sourcestr, 16, "source%d", sourcenum++) &&
+               (sourceopt = conf.FetchOpt(sourcestr)) != "") {
+            source_input_vec.push_back(sourceopt);
+        }
+    }
+
+    if (source_input_vec.size() == 0) {
+        fprintf(stderr, "FATAL:  No valid packet sources defined in config or passed on command line.\n");
+        exit(1);
+    }
+
+    // Now tokenize the sources
+    for (unsigned int x = 0; x < source_input_vec.size(); x++) {
+        sourceopt = source_input_vec[x];
+
+        unsigned int begin = 0;
+        unsigned int end = sourceopt.find(",");
+        vector<string> optlist;
+
+        while (end != string::npos) {
+            string subopt = sourceopt.substr(begin, end-begin);
+            begin = end+1;
+            end = sourceopt.find(",", begin);
+            optlist.push_back(subopt);
+        }
+        optlist.push_back(sourceopt.substr(begin, sourceopt.size() - begin));
+
+        if (optlist.size() < 4) {
+            fprintf(stderr, "FATAL:  Invalid source line '%s'\n", sourceopt.c_str());
             exit(1);
         }
-        captype = conf.FetchOpt("captype").c_str();
+
+        capturesource *newsource = new capturesource;
+        newsource->source = NULL;
+        newsource->engine = optlist[0];
+        newsource->interface = optlist[1];
+        newsource->scardtype = optlist[2];
+        newsource->name = optlist[3];
+        memset(&newsource->packparm, 0, sizeof(packet_parm));
+
+        packet_sources.push_back(newsource);
     }
 
-    // Create a capture source
-    if (!strcasecmp(captype, "prism2")) {
+    // Now loop through each of the sources - parse the engines, interfaces, types.
+    // Open any that need to be opened as root.
+    for (unsigned int src = 0; src < packet_sources.size(); src++) {
+        capturesource *csrc = packet_sources[src];
+
+        // Figure out the card type
+        const char *sctype = csrc->scardtype.c_str();
+
+        if (!strcasecmp(sctype, "cisco"))
+            csrc->cardtype = card_cisco;
+        else if (!strcasecmp(sctype, "cisco_cvs"))
+            csrc->cardtype = card_cisco_cvs;
+        else if (!strcasecmp(sctype, "cisco_bsd"))
+            csrc->cardtype = card_cisco_bsd;
+        else if (!strcasecmp(sctype, "prism2"))
+            csrc->cardtype = card_prism2;
+        else if (!strcasecmp(sctype, "prism2_pcap"))
+            csrc->cardtype = card_prism2_pcap;
+        else if (!strcasecmp(sctype, "prism2_bsd"))
+            csrc->cardtype = card_prism2_bsd;
+        else if (!strcasecmp(sctype, "prism2_hostap"))
+            csrc->cardtype = card_prism2_hostap;
+        else if (!strcasecmp(sctype, "orinoco"))
+            csrc->cardtype = card_orinoco;
+        else if (!strcasecmp(sctype, "generic"))
+            csrc->cardtype = card_generic;
+        else {
+            fprintf(stderr, "WARNING:  Unknown card type '%s'\n", sctype);
+            csrc->cardtype = card_unspecified;
+        }
+
+        // Open it if it needs to be opened as root
+        const char *captype = csrc->engine.c_str();
+
+        if (!strcasecmp(captype, "prism2")) {
 #ifdef HAVE_LINUX_NETLINK
-        fprintf(stderr, "Using prism2 to capture packets.\n");
+            fprintf(stderr, "Source %d: Using prism2 to capture packets.\n", src);
 
-        packsource = new Prism2Source;
+            csrc->source = new Prism2Source;
 #else
-        fprintf(stderr, "FATAL:  Linux netlink support was not compiled in.\n");
-        exit(1);
+            fprintf(stderr, "FATAL:  Source %d: Linux netlink support was not compiled in.\n", src);
+            exit(1);
 #endif
-    } else if (!strcasecmp(captype, "pcap")) {
+        } else if (!strcasecmp(captype, "pcap")) {
 #ifdef HAVE_LIBPCAP
-        if (capif == NULL) {
-            if (conf.FetchOpt("capinterface") == "") {
-                fprintf(stderr, "FATAL:  No capture device specified.\n");
+            if (csrc->interface == "") {
+                fprintf(stderr, "FATAL:  Source %d: No capture device specified.\n", src);
                 exit(1);
             }
-            capif = conf.FetchOpt("capinterface").c_str();
-        }
 
-        fprintf(stderr, "Using pcap to capture packets from %s\n", capif);
+            fprintf(stderr, "Source %d: Using pcap to capture packets from %s\n",
+                    src, csrc->interface.c_str());
 
-        packsource = new PcapSource;
+            csrc->source = new PcapSource;
 #else
-        fprintf(stderr, "FATAL: Pcap support was not compiled in.\n");
-        exit(1);
+            fprintf(stderr, "FATAL:  Source %d: Pcap support was not compiled in.\n", src);
+            exit(1);
 #endif
-    } else if (!strcasecmp(captype, "generic")) {
+        } else if (!strcasecmp(captype, "generic")) {
 #ifdef HAVE_LINUX_WIRELESS
-        if (capif == NULL) {
-            if (conf.FetchOpt("capinterface") == "") {
-                fprintf(stderr, "FATAL:  No capture device specified.\n");
+            if (csrc->interface == "") {
+                fprintf(stderr, "FATAL:  Source %d: No capture device specified.\n", src);
                 exit(1);
             }
-            capif = conf.FetchOpt("capinterface").c_str();
-        }
 
-        fprintf(stderr, "Using generic kernel extentions to capture SSIDs from %s\n", capif);
+            fprintf(stderr, "Source %d: Using generic kernel extentions to capture SSIDs from %s\n",
+                    src, csrc->interface.c_str());
 
-        fprintf(stderr, "Generic capture does not support cisco, weak, or dump logs.\n");
-        cisco_log = crypt_log = data_log = 0;
+            fprintf(stderr, "Source %d: Generic capture does not support cisco, weak, or dump logs.\n", src);
 
-        fprintf(stderr, "**WARNING** Generic capture will generate packets which may be observable.\n");
+            fprintf(stderr, "**WARNING** Generic capture will generate packets which may be observable.\n");
 
-        if (getuid() != 0) {
+#ifdef HAVE_SUID
             fprintf(stderr, "FATAL: Generic kernel capture will ONLY work as root.  Kismet must be run as\n"
                     "root, not suid, for this to function.\n");
             exit(1);
-        }
-
-        packsource = new GenericSource;
-#else
-        fprintf(stderr, "FATAL: Kernel wireless (wavelan/generic) support was not compiled in.\n");
-        exit(1);
 #endif
-    } else if (!strcasecmp(captype, "wtapfile")) {
-        if (capif == NULL) {
-            if (conf.FetchOpt("capinterface") == "") {
-                fprintf(stderr, "FATAL:  No capture file specified.\n");
+            csrc->source = new GenericSource;
+#else
+            fprintf(stderr, "FATAL: Source %d: Kernel wireless (wavelan/generic) support was not compiled in.\n", src);
+            exit(1);
+#endif
+        } else if (!strcasecmp(captype, "wtapfile")) {
+#ifdef HAVE_LIBWIRETAP
+            if (csrc->interface == "") {
+                fprintf(stderr, "FATAL:  Source %d: No capture device specified.\n", src);
                 exit(1);
             }
-            capif = conf.FetchOpt("capinterface").c_str();
-        }
-#ifdef HAVE_LIBWIRETAP
-        fprintf(stderr, "Loading packets from dump file %s\n", capif);
 
-        // Drop root privs NOW, because we don't want them reading any
-        // files in the system they shouldn't be.
-#ifdef HAVE_SUID
-        if (setuid(suid_id) < 0) {
-            fprintf(stderr, "FATAL:  setuid() to %s (%d) failed.\n", suid_user, suid_id);
+            fprintf(stderr, "Source %d: Defering wtapfile open until priv drop.\n", src);
+#else
+            fprintf(stderr, "FATAL:  Source %d: libwiretap support was not compiled in.\n", src);
+            exit(1);
+#endif
+
+        } else if (!strcasecmp(captype, "wsp100")) {
+#ifdef HAVE_WSP100
+            if (csrc->interface == "") {
+                fprintf(stderr, "FATAL:  Source %d: No capture device specified.\n", src);
+                exit(1);
+            }
+
+            fprintf(stderr, "Source %d: Using WSP100 to capture packets from %s.\n",
+                   src, csrc->interface.c_str());
+
+            csrc->source = new Wsp100Source;
+#else
+            fprintf(stderr, "FATAL:  Source %d: WSP100 support was not compiled in.\n", src);
+            exit(1);
+#endif
+        } else {
+            fprintf(stderr, "FATAL:  Source %d: Unknown capture engine '%s'\n", src, csrc->engine.c_str());
             exit(1);
         }
 
-        fprintf(stderr, "NOTICE:  Dropped privs to %s (%d)\n", suid_user, suid_id);
-#endif
-
-        packsource = new WtapFileSource;
-#else
-        fprintf(stderr, "FATAL: Wtap support was not compiled in.\n");
-        exit(1);
-#endif
-    } else if (!strcasecmp(captype, "wsp100")) {
-#ifdef HAVE_WSP100
-        if (capif == NULL) {
-            if (conf.FetchOpt("capinterface") == "") {
-                fprintf(stderr, "FATAL:  No capture device specified.\n");
+        // Open the packet source
+        if (csrc->source != NULL)
+            if (csrc->source->OpenSource(csrc->interface.c_str(), csrc->cardtype) < 0) {
+                fprintf(stderr, "FATAL: Source %d: %s\n", src, csrc->source->FetchError());
                 exit(1);
             }
-            capif = conf.FetchOpt("capinterface").c_str();
-        }
-
-        fprintf(stderr, "Using WSP100 to capture packets.\n");
-
-        packsource = new Wsp100Source;
-#else
-        fprintf(stderr, "FATAL:  WSP100 support was not compiled in.\n");
-        exit(1);
-#endif
-    } else {
-        fprintf(stderr, "FATAL: Unknown capture type '%s'\n", captype);
-        exit(1);
-    }
-
-    // Open the packet source
-    if (packsource->OpenSource(capif, cardtype) < 0) {
-        fprintf(stderr, "FATAL: %s\n", packsource->FetchError());
-        exit(1);
     }
 
     // Once the packet source is opened, we shouldn't need special privileges anymore
     // so lets drop to a normal user.  We also don't want to open our logfiles as root
-    // if we can avoid it.
+    // if we can avoid it.  Once we've dropped, we'll investigate our sources again and
+    // open any defered
 #ifdef HAVE_SUID
     if (setuid(suid_id) < 0) {
         fprintf(stderr, "FATAL:  setuid() to %s (%d) failed.\n", suid_user, suid_id);
         exit(1);
+    } else {
+        fprintf(stderr, "NOTICE:  Dropped privs to %s (%d)\n", suid_user, suid_id);
     }
 #endif
 
+    // WE ARE NOW RUNNING AS THE TARGET UID
+
+    for (unsigned int src = 0; src < packet_sources.size(); src++) {
+        capturesource *csrc = packet_sources[src];
+
+        const char *captype = csrc->engine.c_str();
+
+        // For any unopened soruces...
+        if (csrc->source == NULL) {
+            if (!strcasecmp(captype, "wtapfile")) {
+                fprintf(stderr, "Source %d: Loading packets from dump file %s\n",
+                       src, csrc->interface.c_str());
+
+                csrc->source = new WtapFileSource;
+            }
+
+            // Open the packet source
+            if (csrc->source != NULL)
+                if (csrc->source->OpenSource(csrc->interface.c_str(), csrc->cardtype) < 0) {
+                    fprintf(stderr, "FATAL: Source %d: %s\n", src, csrc->source->FetchError());
+                    exit(1);
+                }
+        }
+    }
+
     // Now parse the rest of our options
     // ---------------
-    // WE ARE NOW RUNNING AS THE TARGET UID IF POSSIBLE
 
     if (servername == NULL) {
         if (conf.FetchOpt("servername") != "") {
@@ -1762,10 +1841,14 @@ int main(int argc,char *argv[]) {
     }
 #endif
 
-    if (strstr(conf.FetchOpt("fuzzycrypt").c_str(), captype) || conf.FetchOpt("fuzzycrypt") == "all")
-        pack_parm.fuzzy_crypt = 1;
-    else
-        pack_parm.fuzzy_crypt = 0;
+    const char *fuzzengines = conf.FetchOpt("fuzzycrypt").c_str();
+    for (unsigned int x = 0; x < packet_sources.size(); x++) {
+        if (strstr(fuzzengines, packet_sources[x]->engine.c_str()) ||
+            strncmp(fuzzengines, "all", 3) == 0)
+            packet_sources[x]->packparm.fuzzy_crypt = 1;
+        else
+            packet_sources[x]->packparm.fuzzy_crypt = 0;
+    }
 
     if (data_log) {
         if (dumpfile->OpenDump(dumplogfile.c_str()) < 0) {
@@ -1833,9 +1916,11 @@ int main(int argc,char *argv[]) {
              VERSION_MAJOR, VERSION_MINOR, VERSION_TINY, servername);
     fprintf(stderr, "%s\n", status);
 
-    snprintf(status, STATUS_MAX, "Capturing packets from %s",
-             packsource->FetchType());
-    fprintf(stderr, "%s\n", status);
+    for (unsigned int x = 0; x < packet_sources.size(); x++) {
+        snprintf(status, STATUS_MAX, "Source %d: Capturing packets from %s (%s)",
+                 x, packet_sources[x]->source->FetchType(), packet_sources[x]->name.c_str());
+        fprintf(stderr, "%s\n", status);
+    }
 
     if (data_log || net_log || crypt_log) {
         snprintf(status, STATUS_MAX, "Logging%s%s%s%s%s%s%s",
@@ -1878,11 +1963,13 @@ int main(int argc,char *argv[]) {
         max_fd = ui_descrip;
     FD_SET(ui_descrip, &read_set);
 
-    int source_descrip = packsource->FetchDescriptor();
-    if (source_descrip > 0) {
-        FD_SET(source_descrip, &read_set);
-        if (source_descrip > max_fd)
-            max_fd = source_descrip;
+    for (unsigned int x = 0; x < packet_sources.size(); x++) {
+        int source_descrip = packet_sources[x]->source->FetchDescriptor();
+        if (source_descrip > 0) {
+            FD_SET(source_descrip, &read_set);
+            if (source_descrip > max_fd)
+                max_fd = source_descrip;
+        }
     }
 
     char netout[2048];
@@ -1890,7 +1977,6 @@ int main(int argc,char *argv[]) {
     time_t last_time = cur_time;
     while (1) {
         fd_set rset, wset;
-        int x;
         cur_time = time(0);
 
         max_fd = ui_server.MergeSet(read_set, max_fd, &rset, &wset);
@@ -1910,11 +1996,11 @@ int main(int argc,char *argv[]) {
             }
         }
 
-	for(x = 0; x <= max_fd; ++x) {
+        for (int x = 0; x <= max_fd; ++x) {
             if (ui_server.isClient(x) && ui_server.HandleClient(x, &cmd, &rset, &wset)) {
                 handle_command(&ui_server, &cmd);
             }
-	}
+        }
 
         // We can pass the results of this select to the UI handler without incurring a
         // a delay since it will bail nicely if there aren't any new connections.
@@ -1936,183 +2022,189 @@ int main(int argc,char *argv[]) {
 
         }
 
-        // Jump through hoops to handle generic packet source
-        int process_packet_source = 0;
-        if (source_descrip < 0) {
-            process_packet_source = 1;
-        } else {
-            if (FD_ISSET(source_descrip, &rset))
+        for (unsigned int src = 0; src < packet_sources.size(); src++) {
+            PacketSource *psrc = packet_sources[src]->source;
+
+            // Jump through hoops to handle generic packet source
+            int process_packet_source = 0;
+            if (psrc->FetchDescriptor() < 0) {
                 process_packet_source = 1;
+            } else {
+                if (FD_ISSET(psrc->FetchDescriptor(), &rset)) {
+                    process_packet_source = 1;
+                }
+            }
+
+            if (process_packet_source) {
+                pkthdr header;
+                u_char data[MAX_PACKET_LEN];
+
+                int len;
+
+                // Capture the packet from whatever device
+                len = psrc->FetchPacket(&header, data);
+
+                // Handle a packet
+                if (len > 0) {
+                    packnum++;
+
+                    static packet_info info;
+
+                    GetPacketInfo(&header, data, &packet_sources[src]->packparm, &info);
+
+                    last_info = info;
+
+                    // Discard it if we're filtering it
+                    if (filter.find(info.bssid_mac.Mac2String().c_str()) != string::npos) {
+                        localdropnum++;
+
+                        // don't ever do this.  ever.  (but it really is the most efficient way
+                        // of getting from here to there, so....)
+                        goto end_packprocess;
+
+                    }
+
+                    // Handle the per-channel signal power levels
+                    if (info.channel > 0 && info.channel < CHANNEL_MAX) {
+                        channel_graph[info.channel].last_time = info.time;
+                        channel_graph[info.channel].signal = info.signal;
+                    }
+
+                    int process_ret;
+
+#ifdef HAVE_GPS
+                    if (gps_log && info.type != packet_noise && info.type != packet_unknown) {
+                        process_ret = gpsdump.DumpPacket(&info);
+                        if (process_ret < 0) {
+                            snprintf(status, STATUS_MAX, "%s", gpsdump.FetchError());
+                            if (!silent)
+                                fprintf(stderr, "%s\n", status);
+
+                            NetWriteStatus(status);
+                        }
+                    }
+#endif
+
+                    process_ret = tracker.ProcessPacket(info, status);
+                    if (process_ret > 0) {
+                        if (process_ret == TRACKER_ALERT) {
+                            if (!silent)
+                                fprintf(stderr, "ALERT %s\n", status);
+
+                            NetWriteAlert(status);
+                            if (sound == 1)
+                                sound = PlaySound("alert");
+
+                        } else {
+                            if (!silent)
+                                fprintf(stderr, "%s\n", status);
+
+                            NetWriteStatus(status);
+                        }
+                    }
+
+                    if (tracker.FetchNumNetworks() != num_networks) {
+                        if (sound == 1)
+                            sound = PlaySound("new");
+                    }
+
+                    if (tracker.FetchNumNetworks() != num_networks && speech == 1) {
+                        string text;
+
+                        if (info.wep)
+                            text = ExpandSpeechString(speech_sentence_encrypted, &info, speech_encoding);
+                        else
+                            text = ExpandSpeechString(speech_sentence_unencrypted, &info, speech_encoding);
+
+                        speech = SayText(MungeToShell(text).c_str());
+                    }
+                    num_networks = tracker.FetchNumNetworks();
+
+                    if (tracker.FetchNumPackets() != num_packets) {
+                        if (cur_time - last_click >= decay && sound == 1) {
+                            if (tracker.FetchNumPackets() - num_packets >
+                                tracker.FetchNumDropped() + localdropnum - num_dropped) {
+                                sound = PlaySound("traffic");
+                            } else {
+                                sound = PlaySound("junktraffic");
+                            }
+
+                            last_click = cur_time;
+                        }
+
+                        num_packets = tracker.FetchNumPackets();
+                        num_noise = tracker.FetchNumNoise();
+                        num_dropped = tracker.FetchNumDropped() + localdropnum;
+                    }
+
+                    // Send the packet info
+                    if (numpackclients > 0) {
+                        snprintf(netout, 2048, "*PACKET: %.2000s\n",
+                                 Packetracker::Packet2String(&info).c_str());
+                        ui_server.SendToAllOpts((const char *) netout, packtype_options);
+                    }
+
+                    // Extract the strings from it
+                    if (info.type == packet_data && info.encrypted == 0 && numstringclients > 0) {
+                        vector<string> strlist;
+
+                        strlist = GetPacketStrings(&info, &header, data);
+
+                        for (unsigned int y = 0; y < strlist.size(); y++) {
+                            snprintf(netout, 2048, "*STRING: %.2000s\n", strlist[y].c_str());
+                            ui_server.SendToAllOpts((const char *) netout, string_options);
+                        }
+
+                    }
+
+                    if (data_log && !(info.type == packet_noise && noise_log == 1)) {
+                        if (limit_logs && log_packnum > limit_logs) {
+                            dumpfile->CloseDump();
+
+                            dumplogfile = conf.ExpandLogPath(conf.FetchOpt("logtemplate"), logname, "dump", 0);
+
+                            if (dumpfile->OpenDump(dumplogfile.c_str()) < 0) {
+                                perror("Unable to open new dump file");
+                                CatchShutdown(-1);
+                            }
+
+                            dumpfile->SetBeaconLog(beacon_log);
+
+                            snprintf(status, STATUS_MAX, "Opened new packet log file %s",
+                                     dumplogfile.c_str());
+
+                            if (!silent)
+                                fprintf(stderr, "%s\n", status);
+
+                            NetWriteStatus(status);
+                        }
+
+                        dumpfile->DumpPacket(&info, &header, data);
+                        log_packnum = dumpfile->FetchDumped();
+                    }
+
+                    if (crypt_log) {
+                        cryptfile->DumpPacket(&info, &header, data);
+
+                    }
+
+                } else if (len < 0) {
+                    // Fail on error
+                    if (!silent) {
+                        fprintf(stderr, "Source %d: %s\n", src, psrc->FetchError());
+                        fprintf(stderr, "Terminating.\n");
+                    }
+
+                    NetWriteStatus(psrc->FetchError());
+                    CatchShutdown(-1);
+                }
+            } // End processing new packets
+
+        end_packprocess: ;
+
         }
 
-        if (process_packet_source) {
-    
-            pkthdr header;
-            u_char data[MAX_PACKET_LEN];
-    
-            int len;
-    
-            // Capture the packet from whatever device
-            len = packsource->FetchPacket(&header, data);
-    
-            // Handle a packet
-            if (len > 0) {
-                packnum++;
-
-                static packet_info info;
-
-                GetPacketInfo(&header, data, &pack_parm, &info);
-
-                last_info = info;
-
-                // Discard it if we're filtering it
-                if (filter.find(info.bssid_mac.Mac2String().c_str()) != string::npos) {
-                    localdropnum++;
-
-                    // don't ever do this.  ever.  (but it really is the most efficient way
-                    // of getting from here to there, so....)
-                goto last_draw;
-
-                }
-
-                // Handle the per-channel signal power levels
-                if (info.channel > 0 && info.channel < CHANNEL_MAX) {
-                    channel_graph[info.channel].last_time = info.time;
-                    channel_graph[info.channel].signal = info.signal;
-                }
-    
-                int process_ret;
-    
-#ifdef HAVE_GPS
-                if (gps_log && info.type != packet_noise && info.type != packet_unknown) {
-                    process_ret = gpsdump.DumpPacket(&info);
-                    if (process_ret < 0) {
-                        snprintf(status, STATUS_MAX, "%s", gpsdump.FetchError());
-                        if (!silent)
-                            fprintf(stderr, "%s\n", status);
-    
-                        NetWriteStatus(status);
-                    }
-                }
-#endif
-    
-                process_ret = tracker.ProcessPacket(info, status);
-                if (process_ret > 0) {
-                    if (process_ret == TRACKER_ALERT) {
-                        if (!silent)
-                            fprintf(stderr, "ALERT %s\n", status);
-
-                        NetWriteAlert(status);
-                        if (sound == 1)
-                            sound = PlaySound("alert");
-
-                    } else {
-                        if (!silent)
-                            fprintf(stderr, "%s\n", status);
-
-                        NetWriteStatus(status);
-                    }
-                }
-    
-                if (tracker.FetchNumNetworks() != num_networks) {
-                    if (sound == 1)
-                        sound = PlaySound("new");
-                }
-    
-                if (tracker.FetchNumNetworks() != num_networks && speech == 1) {
-                    string text;
-
-                    if (info.wep)
-                        text = ExpandSpeechString(speech_sentence_encrypted, &info, speech_encoding);
-                    else
-                        text = ExpandSpeechString(speech_sentence_unencrypted, &info, speech_encoding);
-
-                    speech = SayText(MungeToShell(text).c_str());
-                }
-                num_networks = tracker.FetchNumNetworks();
-    
-                if (tracker.FetchNumPackets() != num_packets) {
-                    if (cur_time - last_click >= decay && sound == 1) {
-                        if (tracker.FetchNumPackets() - num_packets >
-                            tracker.FetchNumDropped() + localdropnum - num_dropped) {
-                            sound = PlaySound("traffic");
-                        } else {
-                            sound = PlaySound("junktraffic");
-                        }
-    
-                        last_click = cur_time;
-                    }
-    
-                    num_packets = tracker.FetchNumPackets();
-                    num_noise = tracker.FetchNumNoise();
-                    num_dropped = tracker.FetchNumDropped() + localdropnum;
-                }
-
-                // Send the packet info
-                if (numpackclients > 0) {
-                    snprintf(netout, 2048, "*PACKET: %.2000s\n",
-                             Packetracker::Packet2String(&info).c_str());
-                    ui_server.SendToAllOpts((const char *) netout, packtype_options);
-                }
-
-                // Extract the strings from it
-                if (info.type == packet_data && info.encrypted == 0 && numstringclients > 0) {
-                    vector<string> strlist;
-    
-                    strlist = GetPacketStrings(&info, &header, data);
-
-                    for (unsigned int y = 0; y < strlist.size(); y++) {
-                        snprintf(netout, 2048, "*STRING: %.2000s\n", strlist[y].c_str());
-                        ui_server.SendToAllOpts((const char *) netout, string_options);
-                    }
-    
-                }
-    
-                if (data_log && !(info.type == packet_noise && noise_log == 1)) {
-                    if (limit_logs && log_packnum > limit_logs) {
-                        dumpfile->CloseDump();
-
-                        dumplogfile = conf.ExpandLogPath(conf.FetchOpt("logtemplate"), logname, "dump", 0);
-
-                        if (dumpfile->OpenDump(dumplogfile.c_str()) < 0) {
-                            perror("Unable to open new dump file");
-                            CatchShutdown(-1);
-                        }
-
-                        dumpfile->SetBeaconLog(beacon_log);
-
-                        snprintf(status, STATUS_MAX, "Opened new packet log file %s",
-                                 dumplogfile.c_str());
-
-                        if (!silent)
-                            fprintf(stderr, "%s\n", status);
-
-                        NetWriteStatus(status);
-                    }
-
-                    dumpfile->DumpPacket(&info, &header, data);
-                    log_packnum = dumpfile->FetchDumped();
-                }
-    
-                if (crypt_log) {
-                    cryptfile->DumpPacket(&info, &header, data);
-
-                }
-    
-            } else if (len < 0) {
-                // Fail on error
-                if (!silent) {
-                    fprintf(stderr, "%s\n", packsource->FetchError());
-                    fprintf(stderr, "Terminating.\n");
-                }
-    
-                NetWriteStatus(packsource->FetchError());
-                CatchShutdown(-1);
-            }
-        } // End processing new packets
-
         // Draw if it's time
-    last_draw: ;
         if (cur_time != last_draw) {
 #ifdef HAVE_GPS
             // The GPS only provides us a new update once per second we might
