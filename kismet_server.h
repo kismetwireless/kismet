@@ -31,13 +31,15 @@
 string ExpandLogPath(string path, string logname, string type);
 void CatchShutdown(int sig);
 int Usage(char *argv);
-void NetWriteInfo();
 
 void SoundHandler(int *fds, const char *player, map<string, string> soundmap);
 void SpeechHandler(int *fds, const char *player);
 int PlaySound(string in_sound);
 int SayText(string in_text);
 
+void NetWriteInfo();
 void NetWriteStatus(char *in_status);
+void NetWriteAlert(char *in_alert);
+void NetWriteNew(int in_fd);
 
 #endif

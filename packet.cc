@@ -93,9 +93,13 @@ int GetTagOffset(int init_offset, int tagnum, const pkthdr *header, const u_char
     return cur_offset;
 }
 
+static int numpack = 0;
+
 // Get the info from a packet
 packet_info GetPacketInfo(const pkthdr *header, const u_char *data, packet_parm *parm) {
     packet_info ret;
+
+    numpack++;
 
     // Zero the entire struct
     memset(&ret, 0, sizeof(packet_info));
@@ -428,7 +432,14 @@ proto_info GetProtoInfo(const packet_info *in_info, const pkthdr *header, const 
         return ret;
         */
 
-    if (memcmp(in_info->dest_mac, LOR_MAC, sizeof(LOR_MAC)) == 0 ||
+    if (memcmp(in_info->dest_mac, NETS_MAC, sizeof(NETS_MAC)) == 0) {
+        // We look for netstumblers first since we need them to match before the
+        // multicast catch-all in the next compare
+        ret.type = proto_netstumbler;
+    } else if (memcmp(&data[in_info->header_offset + NETSTUMBER_OFFSET], NETSTUMBLER_SIGNATURE,
+               sizeof(NETSTUMBLER_SIGNATURE)) == 0) {
+        ret.type = proto_netstumbler;
+    } else if (memcmp(in_info->dest_mac, LOR_MAC, sizeof(LOR_MAC)) == 0 ||
         (in_info->distrib == no_distribution && in_info->dest_mac[0] == 1)) {
         // First thing we do is see if the destination matches the multicast for
         // lucent outdoor routers, or if we're a multicast with no BSSID.  This should

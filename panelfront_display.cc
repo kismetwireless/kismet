@@ -1886,4 +1886,22 @@ int PanelFront::RatePrinter(void *in_window) {
     return 1;
 }
 
+int PanelFront::AlertPrinter(void *in_window) {
+    kis_window *kwin = (kis_window *) in_window;
+
+    vector<TcpClient::alert_info> alerts = client->FetchAlerts();
+
+    kwin->text.clear();
+
+    for (unsigned int x = 0; x < alerts.size(); x++)
+        kwin->text.push_back(alerts[x].alert_text);
+
+    if (kwin->paused != 0) {
+        mvwaddstr(kwin->win, 0, kwin->win->_maxx - 10, "Paused");
+    }
+
+    return TextPrinter(in_window);
+}
+
+
 #endif

@@ -52,6 +52,11 @@
 
 class TcpClient {
 public:
+    typedef struct alert_info {
+        timeval alert_ts;
+        string alert_text;
+    };
+
     TcpClient();
     ~TcpClient();
 
@@ -117,6 +122,15 @@ public:
     vector<packet_info> FetchPackInfos() { return packinfos; }
     void ClearPackInfos() { packinfos.clear(); }
 
+    int GetMaxAlerts() { return maxalerts; }
+    void SetMaxAlerts(int in_max) {
+        maxalerts = in_max;
+        if (alerts.size() > maxalerts)
+            alerts.erase(alerts.begin(), alerts.begin() + (alerts.size() - maxalerts));
+    }
+    vector <alert_info> FetchAlerts() { return alerts; }
+    void ClearAlarms() { alerts.clear(); }
+
     void RemoveNetwork(string in_bssid);
 
 protected:
@@ -155,10 +169,11 @@ protected:
 
     int power, quality, noise;
 
-    unsigned int maxstrings, maxpackinfos;
+    unsigned int maxstrings, maxpackinfos, maxalerts;
 
     vector<string> strings;
     vector<packet_info> packinfos;
+    vector<alert_info> alerts;
 
     channel_power channel_graph[CHANNEL_MAX];
 
