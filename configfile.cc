@@ -262,6 +262,9 @@ string ConfigFile::ExpandLogPath(string path, string logname, string type,
         }
     }
 
+    // Close the pwent
+    endpwent();
+
     return logtemplate;
 }
 
