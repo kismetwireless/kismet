@@ -140,8 +140,9 @@ int Packetracker::ProcessPacket(packet_info info, char *in_status) {
         // Make a network for them
         net = new wireless_network;
 
-        if (bssid_ip_map.find(info.bssid_mac) != bssid_ip_map.end())
+        if (bssid_ip_map.find(info.bssid_mac) != bssid_ip_map.end()) {
             memcpy(&net->ipdata, &bssid_ip_map[info.bssid_mac], sizeof(net_ip_data));
+        }
 
         if (IsBlank(info.ssid)) {
             if (bssid_cloak_map.find(info.bssid_mac) != bssid_cloak_map.end()) {
@@ -813,152 +814,6 @@ void Packetracker::UpdateIpdata(wireless_network *net) {
 
         }
     }
-
-#if 0
-    if (ipdata_dirty) {
-        if (net->ipdata.atype < address_dhcp && client->ipdata.atype == address_dhcp) {
-            net->ipdata.atype = address_dhcp;
-
-            memcpy(&client->ipdata, &net->ipdata, sizeof(net->ipdata));
-            net->ipdata.range_ip[0] = net->ipdata.ip[0] & net->ipdata.mask[0];
-            net->ipdata.range_ip[1] = net->ipdata.ip[1] & net->ipdata.mask[1];
-            net->ipdata.range_ip[2] = net->ipdata.ip[2] & net->ipdata.mask[2];
-            net->ipdata.range_ip[3] = net->ipdata.ip[3] & net->ipdata.mask[3];
-
-            snprintf(in_status, STATUS_MAX, "Found IP range for \"%s\" via DHCP %d.%d.%d.%d mask %d.%d.%d.%d",
-                 net->ssid.c_str(), net->ipdata.range_ip[0], net->ipdata.range_ip[1],
-                 net->ipdata.range_ip[2], net->ipdata.range_ip[3],
-                 net->ipdata.mask[0], net->ipdata.mask[1],
-                 net->ipdata.mask[2], net->ipdata.mask[3]);
-
-            net->ipdata.octets = 0;
-
-            net->ipdata.load_from_store = 0;
-
-            ret = TRACKER_NOTICE;
-
-        } else if (net->ipdata.atype < address_arp && client->ipdata.atype == address_arp) {
-            net->ipdata.atype = address_arp;
-
-
-
-        } else if (net->ipdata.atype < address_tcp && client->ipdata.atype == address_tcp) {
-            net->ipdata.atype = address_tcp;
-
-
-        } else if (net->ipdata.atype < address_udp && client->ipdata.atype == address_udp) {
-            net->ipdata.atype = address_udp;
-
-        }
-
-    } else if (info.proto.type == proto_arp && (net->ipdata.atype < address_arp ||
-                                                net->ipdata.load_from_store == 1)) {
-
-        uint8_t new_range[4];
-
-        memset(new_range, 0, 4);
-
-        if (info.proto.source_ip[0] != 0x00 &&
-            info.proto.misc_ip[0] != 0x00) {
-
-            int oct;
-            for (oct = 0; oct < 4; oct++) {
-                if (info.proto.source_ip[oct] != info.proto.misc_ip[oct])
-                    break;
-
-                new_range[oct] = info.proto.source_ip[oct];
-            }
-
-            if (oct < net->ipdata.octets || net->ipdata.octets == 0) {
-                net->ipdata.octets = oct;
-                memcpy(net->ipdata.range_ip, new_range, 4);
-                snprintf(in_status, STATUS_MAX, "Found IP range for \"%s\" via ARP %d.%d.%d.%d",
-                         net->ssid.c_str(), net->ipdata.range_ip[0], net->ipdata.range_ip[1],
-                         net->ipdata.range_ip[2], net->ipdata.range_ip[3]);
-                //gui->WriteStatus(status);
-
-                net->ipdata.atype = address_arp;
-
-                bssid_ip_map[net->bssid] = net->ipdata;
-                net->ipdata.load_from_store = 0;
-
-                ret = TRACKER_NOTICE;
-            }
-        } // valid arp
-    } else if (info.proto.type == proto_udp && (net->ipdata.atype <= address_udp ||
-                                                net->ipdata.load_from_store == 1)) {
-        uint8_t new_range[4];
-
-        memset(new_range, 0, 4);
-
-        // Not 0.x.x.x.  Not 255.x.x.x.  At least first octet must
-        // match.
-        if (info.proto.source_ip[0] != 0x00 &&
-            info.proto.dest_ip[0] != 0x00 &&
-            info.proto.dest_ip[0] != 0xFF &&
-            info.proto.source_ip[0] == info.proto.dest_ip[0]) {
-
-            int oct;
-            for (oct = 0; oct < 4; oct++) {
-                if (info.proto.source_ip[oct] != info.proto.dest_ip[oct])
-                    break;
-
-                new_range[oct] = info.proto.source_ip[oct];
-            }
-
-            if (oct < net->ipdata.octets || net->ipdata.octets == 0) {
-                net->ipdata.octets = oct;
-                memcpy(net->ipdata.range_ip, new_range, 4);
-                snprintf(in_status, STATUS_MAX, "Found IP range for \"%s\" via UDP %d.%d.%d.%d",
-                         net->ssid.c_str(), net->ipdata.range_ip[0], net->ipdata.range_ip[1],
-                         net->ipdata.range_ip[2], net->ipdata.range_ip[3]);
-
-                net->ipdata.atype = address_udp;
-
-                bssid_ip_map[net->bssid] = net->ipdata;
-                net->ipdata.load_from_store = 0;
-
-                ret = TRACKER_NOTICE;
-            }
-        }
-    }  else if (info.proto.type == proto_misc_tcp && (net->ipdata.atype <= address_tcp ||
-                                                      net->ipdata.load_from_store == 1)) {
-        uint8_t new_range[4];
-
-        memset(new_range, 0, 4);
-
-        // Not 0.x.x.x.  Not 255.x.x.x.  At least first octet must
-        // match.
-        if (info.proto.source_ip[0] != 0x00 &&
-            info.proto.dest_ip[0] != 0x00 &&
-            info.proto.dest_ip[0] != 0xFF &&
-            info.proto.source_ip[0] == info.proto.dest_ip[0]) {
-
-            int oct;
-            for (oct = 0; oct < 4; oct++) {
-                if (info.proto.source_ip[oct] != info.proto.dest_ip[oct])
-                    break;
-
-                new_range[oct] = info.proto.source_ip[oct];
-            }
-
-            if (oct < net->ipdata.octets || net->ipdata.octets == 0) {
-                net->ipdata.octets = oct;
-                memcpy(net->ipdata.range_ip, new_range, 4);
-                snprintf(in_status, STATUS_MAX, "Found IP range for \"%s\" via TCP %d.%d.%d.%d",
-                         net->ssid.c_str(), net->ipdata.range_ip[0], net->ipdata.range_ip[1],
-                         net->ipdata.range_ip[2], net->ipdata.range_ip[3]);
-
-                net->ipdata.atype = address_tcp;
-
-                bssid_ip_map[net->bssid] = net->ipdata;
-                net->ipdata.load_from_store = 0;
-
-                ret = TRACKER_NOTICE;
-            }
-        }
-    }
-#endif
 }
 
 int Packetracker::WriteNetworks(string in_fname) {
@@ -988,23 +843,7 @@ int Packetracker::WriteNetworks(string in_fname) {
         return -1;
     }
 
-    /*
-     fseek(in_file, 0L, SEEK_SET);
-     ftruncate(fileno(in_file), 0);
-     */
-
     int netnum = 1;
-
-    /*
-    vector<wireless_network *> bssid_vec;
-
-    // Convert the map to a vector and sort it
-    for (map<mac_addr, wireless_network *>::const_iterator i = bssid_map.begin();
-         i != bssid_map.end(); ++i)
-        bssid_vec.push_back(i->second);
-
-        sort(bssid_vec.begin(), bssid_vec.end(), SortFirstTimeLT());
-        */
 
     sort(network_list.begin(), network_list.end(), SortFirstTimeLT());
 
@@ -1665,7 +1504,7 @@ void Packetracker::ReadIPMap(FILE *in_file) {
                    bssid_str,
                    (int *) &dat.atype, &dat.octets,
                    &range[0], &range[1], &range[2], &range[3]
-                  ) < 15)
+                  ) < 7)
             continue;
 
         for (int x = 0; x < 4; x++) {
@@ -1675,6 +1514,9 @@ void Packetracker::ReadIPMap(FILE *in_file) {
         dat.load_from_store = 1;
 
         bssid = bssid_str;
+
+        if (bssid.error == 1)
+            continue;
 
         memcpy(&bssid_ip_map[bssid], &dat, sizeof(net_ip_data));
     }
@@ -1697,8 +1539,7 @@ void Packetracker::WriteIPMap(FILE *in_file) {
                 x->first.Mac2String().c_str(),
                 x->second.atype, x->second.octets,
                 x->second.range_ip[0], x->second.range_ip[1],
-                x->second.range_ip[2], x->second.range_ip[3]
-               );
+                x->second.range_ip[2], x->second.range_ip[3]);
     }
 
     return;
