@@ -943,3 +943,27 @@ Licensed under the GPL
        But of course everyone already read the docs all the way to the end,
        right?
        
+    Q: 'configure' says it can't find libncurses/libcurses
+    A: First, did you install ncurses-devel?  Kismet needs the development
+        headers.
+       Second, run 'ldconfig'.  Some distributions (Fedora) seem to have an
+        out-of-date library cache that means ld can't find the library.
+       Third, make sure you installed the libstdc++/g++ packages.  Configure 
+        will erroneously blame libncurses if the linkage with libstdc++ fails.
+
+    Q: Compiling fails on OSX with undefined variables in pcapsource.cc
+    A: Re-run configure with --without-pcap to bypass this.  Viha doesn't use
+       pcap, so you won't lose functionality.
+
+    Q: When channel hopping, the orinoco keeps going to channel -1 and not
+       working.
+    A: Apply the latest patches available on the Kismet download page, these
+       fix a number of issues with the orinoco drivers and seem to alleviate
+       this problem for most users.
+
+    Q: I get 'invalid mode: monitor' or similar errors trying to go into rfmon
+       with madwifi
+    A: First, make sure you have madwifi-cvs.
+       Second, make sure you're running a recent kernel.  You need wireless
+        extensions >= 15.  To be safe, upgrade to the latest stable kernel.
+
