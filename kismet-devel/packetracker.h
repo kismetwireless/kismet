@@ -57,6 +57,7 @@ public:
 
     // Packet tracker stuff
     int ProcessPacket(packet_info info, char *in_status);
+    int ProcessDataPacket(packet_info info, wireless_network *net, char *in_status);
 
     // Get all the networks
     vector<wireless_network *> FetchNetworks();

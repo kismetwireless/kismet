@@ -193,12 +193,19 @@ typedef struct proto_info {
 
 
 // ------------------------
+
+
 // packet conversion and extraction utilities
 // Packet types
 enum packet_info_type {
     packet_unknown, packet_beacon, packet_probe_req, packet_data,
     packet_ap_broadcast, packet_adhoc, packet_adhoc_data,
     packet_noise, packet_probe_response, packet_reassociation
+};
+
+// distribution directions
+enum distribution_type {
+    no_distribution, from_distribution, to_distribution, inter_distribution
 };
 
 // Info about a packet
@@ -216,6 +223,9 @@ typedef struct {
 
     // SSID
     char ssid[SSID_SIZE+1];
+
+    // Where did it come from?
+    distribution_type distrib;
     // Is wep enabled?
     int wep;
     // Is this an AP or a adhoc?
