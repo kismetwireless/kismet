@@ -377,7 +377,7 @@ int TcpServer::HandleClient(int fd, client_command *c, fd_set *rds, fd_set *wrs)
 
     /* See if the buffer contains a command. */
     int killbits = 0;
-    unsigned int nl = copt->cmdbuf.find("\r\n");
+    size_t nl = copt->cmdbuf.find("\r\n");
     if (nl == string::npos) {
         nl = copt->cmdbuf.find('\n');
         if (nl == string::npos)
@@ -422,8 +422,8 @@ int TcpServer::HandleInternalCommand(client_command *in_command) {
 
     // Find the first space - this is the command.  If it doesn't look like something
     // we can handle, pass it on.
-    unsigned int start = 0;
-    unsigned int space = in_command->cmd.find(" ");
+    size_t start = 0;
+    size_t space = in_command->cmd.find(" ");
     if (space == string::npos)
         return 1;
 
@@ -482,7 +482,7 @@ int TcpServer::HandleInternalCommand(client_command *in_command) {
         start = space + 1;
         vector<int> field_vec;
 
-        unsigned int end = in_command->cmd.find(",", start);
+        size_t end = in_command->cmd.find(",", start);
 
         int done = 0;
         int initial = 1;
@@ -499,7 +499,7 @@ int TcpServer::HandleInternalCommand(client_command *in_command) {
             // Try once to match it to * - an int compare is cheaper than a string
             if (initial) {
                 if (com == "*") {
-                    for (unsigned int fld = 0; fld < sprot->field_map.size(); fld++)
+                    for (size_t fld = 0; fld < sprot->field_map.size(); fld++)
                         field_vec.push_back(fld);
                     break;
                 }

@@ -571,8 +571,8 @@ int main(int argc, char *argv[]) {
     }
 
     // Parse the allowed hosts into the vector
-    unsigned int ahstart = 0;
-    unsigned int ahend = allowed_hosts.find(",");
+    size_t ahstart = 0;
+    size_t ahend = allowed_hosts.find(",");
 
     int ahdone = 0;
     while (ahdone == 0) {
@@ -590,7 +590,7 @@ int main(int argc, char *argv[]) {
         client_ipblock *ipb = new client_ipblock;
 
         // Find the netmask divider, if one exists
-        unsigned int masksplit = hoststr.find("/");
+        size_t masksplit = hoststr.find("/");
         if (masksplit == string::npos) {
             // Handle hosts with no netmask - they're treated as single hosts
             inet_aton("255.255.255.255", &(ipb->mask));

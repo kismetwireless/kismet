@@ -251,12 +251,12 @@ int ConfigFile::ParseFilterLine(string filter_str, macmap<int> *bssid_map,
                                 macmap<int> *dest_map,
                                 int *bssid_invert, int *source_invert, int *dest_invert) {
     // Break it into filter terms
-    unsigned int parse_pos = 0;
-    unsigned int parse_error = 0;
+    size_t parse_pos = 0;
+    size_t parse_error = 0;
 
     while (parse_pos < filter_str.length()) {
-        unsigned int addr_term_end;
-        unsigned int address_target = 0; // 1=bssid 2=source 4=dest 7=any
+        size_t addr_term_end;
+        size_t address_target = 0; // 1=bssid 2=source 4=dest 7=any
 
         if (filter_str[parse_pos] == ',' || filter_str[parse_pos] == ' ') {
             parse_pos++;
@@ -310,10 +310,10 @@ int ConfigFile::ParseFilterLine(string filter_str, macmap<int> *bssid_map,
             break;
         }
 
-        unsigned int term_parse_pos = 0;
+        size_t term_parse_pos = 0;
         while (term_parse_pos < term_contents.length()) {
-            unsigned int term_end;
-            unsigned int invert = 0;
+            size_t term_end;
+            size_t invert = 0;
 
             if (term_contents[term_parse_pos] == ' ' || term_contents[term_parse_pos] == ',') {
                 term_parse_pos++;

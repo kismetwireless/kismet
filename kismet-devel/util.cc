@@ -138,8 +138,8 @@ int Hex2UChar(unsigned char *in_hex, unsigned char *in_chr) {
 }
 
 vector<string> StrTokenize(string in_str, string in_split) {
-    unsigned int begin = 0;
-    unsigned int end = in_str.find(in_split);
+    size_t begin = 0;
+    size_t end = in_str.find(in_split);
     vector<string> ret;
 
     if (in_str.length() == 0)
@@ -159,7 +159,7 @@ vector<string> StrTokenize(string in_str, string in_split) {
 vector<string> LineWrap(string in_txt, unsigned int in_hdr_len, unsigned int in_maxlen) {
 	vector<string> ret;
 
-	unsigned int pos, prev_pos, start, hdroffset;
+	size_t pos, prev_pos, start, hdroffset;
 	start = hdroffset = 0;
 
 	for (pos = prev_pos = in_txt.find(' ', in_hdr_len); pos != string::npos; pos = in_txt.find(' ', pos + 1)) {
@@ -359,7 +359,7 @@ vector<int> Str2IntVec(string in_text) {
     vector<int> ret;
     int ch;
 
-    for (unsigned int x = 0; x < optlist.size(); x++) {
+    for (size_t x = 0; x < optlist.size(); x++) {
         if (sscanf(optlist[x].c_str(), "%d", &ch) != 1) {
             ret.clear();
             break;

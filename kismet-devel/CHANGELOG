@@ -1,4 +1,6 @@
 May 30 2004  devel  Fixed docs for OpenBSD
+                    Merged patch from KW which should fix the problems on 64bit
+                     platforms.
 May 15 2004  devel  Added support for ipw2100 (Centrino) cards using the latest
                      drivers from sourceforge.
                     Merged patch from Antonio Eugenio Burriel for proper 
