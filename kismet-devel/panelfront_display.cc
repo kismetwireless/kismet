@@ -625,13 +625,13 @@ int PanelFront::SortPrinter(void *in_window) {
 int PanelFront::PowerPrinter(void *in_window) {
     kis_window *kwin = (kis_window *) in_window;
 
-    int quality, power, noise;
+    int qual, pwr, nse;
 
-    quality = client->FetchQuality();
-    power = client->FetchPower();
-    noise = client->FetchNoise();
+    qual = client->FetchQuality();
+    pwr = client->FetchPower();
+    nse = client->FetchNoise();
 
-    if (quality == -1 && power == -1 && noise == -1) {
+    if (qual == -1 && pwr == -1 && nse == -1) {
         mvwaddstr(kwin->win, 2, 2, "Server did not report card power levels.");
         mvwaddstr(kwin->win, 3, 2, "No card information is available.");
         return 1;
@@ -645,20 +645,20 @@ int PanelFront::PowerPrinter(void *in_window) {
 
     char *bar = new char[width+1];
 
-    if (quality > LINKQ_MAX)
-        quality = LINKQ_MAX;
-    if (power > LEVEL_MAX)
-        power = LEVEL_MAX;
-    if (noise > NOISE_MAX)
-        noise = NOISE_MAX;
+    if (qual > LINKQ_MAX)
+        qual = LINKQ_MAX;
+    if (pwr > LEVEL_MAX)
+        pwr = LEVEL_MAX;
+    if (nse > NOISE_MAX)
+        nse = NOISE_MAX;
 
     double qperc = 0, pperc = 0, nperc = 0;
-    if (quality != 0)
-        qperc = (double) quality/LINKQ_MAX;
-    if (power != 0)
-        pperc = (double) power/LEVEL_MAX;
-    if (noise != 0)
-        nperc = (double) noise/NOISE_MAX;
+    if (qual != 0)
+        qperc = (double) qual/LINKQ_MAX;
+    if (pwr != 0)
+        pperc = (double) pwr/LEVEL_MAX;
+    if (nse != 0)
+        nperc = (double) nse/NOISE_MAX;
 
     int qbar = 0, pbar = 0, nbar = 0;
     qbar = (int) (width * qperc);
@@ -683,11 +683,11 @@ int PanelFront::PowerPrinter(void *in_window) {
     mvwaddstr(kwin->win, 3, 2, "N:");
     mvwaddstr(kwin->win, 3, 5, bar);
 
-    snprintf(bar, width, "%d", quality);
+    snprintf(bar, width, "%d", qual);
     mvwaddstr(kwin->win, 1, width+6, bar);
-    snprintf(bar, width, "%d", power);
+    snprintf(bar, width, "%d", pwr);
     mvwaddstr(kwin->win, 2, width+6, bar);
-    snprintf(bar, width, "%d", noise);
+    snprintf(bar, width, "%d", nse);
     mvwaddstr(kwin->win, 3, width+6, bar);
 
     return 1;
