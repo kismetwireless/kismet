@@ -1,3 +1,6 @@
+Jan 01 2005  devel  Merged gpsmap patch from Daniel Dorau to fix gpsmap alpha
+                     blending on imagemagick 6.x, label positioning bugs, and a
+                     cleaner text drawer for labels.
 Nov 16 2004  devel  Fixed compiler warning in iwconfig.cc
                     Added microsleep delay to ipw2100 channel control function
                      to try to alleviate driver errors
