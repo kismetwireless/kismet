@@ -199,6 +199,7 @@ distclean:
 	@-rm -f config.h
 	@-rm -f config.log
 	@-rm -rf packaging/ipkg/usr 
+	@-rm -rf packaging/pak
 	@-rm -rf *.ipk
 	@-rm -f scripts/kismet
 	@-rm -f scripts/kismet_monitor
@@ -233,7 +234,12 @@ ipkg: $(PS) $(NC) $(HOPPER)
 	cp scripts/kismet_unmonitor packaging/ipkg/$(BIN)/
 	@chmod a+x packaging/ipkg/$(BIN)/*
 	@chown root.root packaging/ipkg -R
-	@ipkg-build packaging/ipkg/
+	#	@ipkg-build packaging/ipkg/
+	@echo "Making ipkg..."
+	@mkdir -p packaging/pak
+	@( cd packaging/ipkg/CONTROL; tar zcf ../../pak/control.tar.gz . --exclude=CVS; )
+	@( cd packaging/ipkg/; tar zcf ../../pak/data.tar.gz . --exclude=CVS --exclude=CONTROL; )
+	@( cd packaging/pak; tar zcf ../../kismet_arm.ipk . ; )
 
 dep:
 	@make depend
