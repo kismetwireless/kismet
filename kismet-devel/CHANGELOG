@@ -1,3 +1,6 @@
+Jan 21 2003  3.1.0  Fixed embarassingly stupid bug in panels probe/data
+                     autogroup, minor efficiency improvements as well
+                    Removed debug printing on corrupt dronesource packets
 Jan 17 2003  3.1.0  Tweaked empty SSID assignment (again)
                     Forced wext-fetched signal levels to abs values
                     Fixed initialization of client sort value in panels

@@ -124,12 +124,14 @@ int DroneSource::FetchPacket(kis_packet *packet, uint8_t *data, uint8_t *moddata
             int ret = 0;
 
             // debug
-            for (unsigned int x = 0; x < sizeof(struct stream_frame_header); x++) {
+            /*
+             for (unsigned int x = 0; x < sizeof(struct stream_frame_header); x++) {
                 printf("%02X ", ((uint8_t *) &fhdr)[x]);
             }
             printf("\n");
 
             printf("debug - resyncing\n");
+            */
 
             stream_recv_bytes = 0;
             resyncs++;

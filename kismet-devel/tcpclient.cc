@@ -256,9 +256,11 @@ void TcpClient::RemoveNetwork(mac_addr in_bssid) {
 
     if (itr != net_map.end()) {
         for (unsigned int x = 0; x < net_map_vec.size(); x++) {
-            if (net_map_vec[x] == itr->second)
+            if (net_map_vec[x] == itr->second) {
                 net_map_vec.erase(net_map_vec.begin() + x);
+            }
         }
+        delete(itr->second);
         net_map.erase(itr);
     }
 }
