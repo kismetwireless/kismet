@@ -2997,6 +2997,8 @@ int main(int argc, char *argv[]) {
         gpsnetvec.push_back(x->second);
     }
 
+    fprintf(stderr, "Plotting %d networks...\n", gpsnetvec.size());
+
     di = CloneDrawInfo(img_info, NULL);
     for (unsigned int x = 0; x < draw_feature_order.length(); x++) {
         switch (draw_feature_order[x]) {
