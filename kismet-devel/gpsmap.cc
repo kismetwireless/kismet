@@ -2215,18 +2215,24 @@ void DrawNetCenterText(vector<gps_network *> in_nets, Image *in_img, DrawInfo *i
             strncpy(text2, text, 1024);
             switch (network_labels[nl]) {
                 case NETLABEL_BSSID:
+                    thisdraw = 1;
                     snprintf(text2, 1024, "%s%s ", text, map_iter->bssid.c_str());
                     break;
                 case NETLABEL_SSID:
-                    if (map_iter->wnet != NULL) 
+                    if (map_iter->wnet != NULL) {
+                        thisdraw = 1;
                         snprintf(text2, 1024, "%s'%s' ", text, map_iter->wnet->ssid.c_str());
+                    }
                     break;
                 case NETLABEL_INFO:
-                    if (map_iter->wnet != NULL)
+                    if (map_iter->wnet != NULL && map_iter->wnet->beacon_info.length() > 0) {
+                        thisdraw = 1;
                         snprintf(text2, 1024, "%s'%s' ", text, map_iter->wnet->beacon_info.c_str());
+                    }
                     break;
                 case NETLABEL_MANUF:
                     if (map_iter->wnet != NULL) {
+                        thisdraw = 1;
                         map_iter->wnet->manuf_ref = MatchBestManuf(ap_manuf_map, 
                                                                    map_iter->wnet->bssid,
                                                                    map_iter->wnet->ssid, 
@@ -2241,13 +2247,13 @@ void DrawNetCenterText(vector<gps_network *> in_nets, Image *in_img, DrawInfo *i
                     }
                     break;
                 case NETLABEL_LOCATION:
+                    thisdraw = 1;
                     snprintf(text2, 1024, "%s%f,%f ", text, map_iter->avg_lat, map_iter->avg_lon);
                     break;
                 default:
                     break;
             }
 
-            thisdraw = 1;
             draw = 1;
             strncpy(text, text2, 1024);
         }
