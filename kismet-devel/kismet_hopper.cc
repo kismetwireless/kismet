@@ -113,7 +113,7 @@ int Usage(char *argv) {
     printf(
            "  -f, --config-file <file>     Use alternate config file\n"
            "  -d, --divide-channels        Divide channels across multiple cards when possible\n"
-           "  -c, --capture-source <src>   Packet capture source line (engine,interface,type,name)\n"
+           "  -c, --capture-source <src>   Packet capture source line (type,interface,name)\n"
            "  -n, --international          Use international channels (1-14)\n"
            "  -s, --hopsequence            Use given hop sequence\n"
            "  -v, --velocity               Hopping velocity (hops per second)\n"
@@ -282,14 +282,14 @@ int main(int argc, char *argv[]) {
         }
         optlist.push_back(sourceopt.substr(begin, sourceopt.size() - begin));
 
-        if (optlist.size() < 4) {
+        if (optlist.size() < 3) {
             fprintf(stderr, "FATAL:  Invalid source line '%s'\n", sourceopt.c_str());
             exit(1);
         }
 
         capturesource *newsource = new capturesource;
+        newsource->cardtype = strdup(optlist[0].c_str());
         newsource->interface = strdup(optlist[1].c_str());
-        newsource->cardtype = strdup(optlist[2].c_str());
         newsource->chanpos = 0;
         packet_sources.push_back(newsource);
         optlist.clear();
