@@ -27,6 +27,7 @@ const uint8_t intel3_tag[] = {0x00, 0x02, 0xB3};
 const uint8_t linksys_tag[] = {0x00, 0x04, 0x5A};
 const uint8_t linksys2_tag[] = {0x00, 0x06, 0x25};
 const uint8_t netgear_tag[] = {0x00, 0x30, 0xab};
+const uint8_t netgear2_tag[] = {0x00, 0x09, 0x5b};
 const uint8_t smc_tag[] = {0x00, 0x90, 0xD1};
 const uint8_t smc2_tag[] = {0x00, 0x04, 0xe2};
 const uint8_t soho_tag[] = {0x00, 0x80, 0xc6};
@@ -61,6 +62,7 @@ const uint8_t sony_tag[] = {0x08, 0x00, 0x46};
 const uint8_t breezecom_tag[] = {0x00, 0x10, 0xE7};
 const uint8_t xerox_tag[] = {0x00, 0x00, 0xAA};
 const uint8_t zcom_tag[] = {0x00, 0x60, 0xB3};
+const uint8_t senao_tag[] = {0x00, 0x02, 0x6F};
 
 const net_ip_data linksys_ip = {
     address_factory,
@@ -142,8 +144,10 @@ const manuf manuf_list[] = {
     { "Linksys", "Linksys", linksys_tag, 3, "linksys",  6, 0, 0, &linksys_ip },
     { "Linksys", "Linksys", linksys2_tag, 3, "linksys", 6, 0, 0, &linksys_ip },
     { "Netgear ME102/MA401", "Netgear", netgear_tag, 3, "Wireless", 6, 0, 0, &netgear_ip },
+    { "Netgear MA401RA/MA701", "Netgear", netgear2_tag, 3, "Wireless", 0, 0, 0, NULL },
     { "Netwave", "Netwave", netwave_tag, 3, "", 0, 0, 0, NULL },
     { "NexLand", "NexLand", nexland_tag, 3, "NexLand", 5, 0, 0, NULL },
+    { "Senao", "Senao", senao_tag, 3, "IEEE802.11", 0, 0, 0, NULL },
     { "SMC", "SMC", smc_tag, 3, "WLAN", 11, 0, 0, &smc_ip },
     { "SMC", "SMC", smc2_tag, 3, "WLAN", 11, 0, 0, &smc_ip },
     { "SMC EZ-Connect Bridge", "SMC", smc_tag, 3, "BRIDGE", 11, 0, 0, &smc_ip },
@@ -162,7 +166,7 @@ const manuf manuf_list[] = {
     { "ZYXEL Prestige 316", "ZYXEL", delta_tag, 3, "Wireless", 6, 0, 0, NULL },
 };
 
-const int manuf_num = 56;
+const int manuf_num = 58;
 const int manuf_max_score = 9;
 
 
