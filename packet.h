@@ -201,9 +201,6 @@ typedef struct {
 
 // A standard frame
 typedef struct {
-    // 2 byte frame control
-    frame_control fc;
-
     // 2 byte duration
     uint16_t duration;
 
