@@ -735,7 +735,7 @@ int Packetracker::ProcessDataPacket(packet_info info, wireless_network *net, cha
             snprintf(in_status, STATUS_MAX, "Lucent link test detected from %s",
                      client->mac.Mac2String().c_str());
 
-            ret = TRACKER_NOTICE;
+            ret = TRACKER_ALERT;
         }
     } else if (info.proto.type == proto_wellenreiter) {
         // Handle wellenreiter packets
@@ -746,7 +746,7 @@ int Packetracker::ProcessDataPacket(packet_info info, wireless_network *net, cha
             snprintf(in_status, STATUS_MAX, "Wellenreiter probe detected from %s",
                      client->mac.Mac2String().c_str());
 
-            ret = TRACKER_NOTICE;
+            ret = TRACKER_ALERT;
         }
     } else if (info.proto.type == proto_gstsearch) {
         // Handle gstsearch exploits
@@ -759,7 +759,7 @@ int Packetracker::ProcessDataPacket(packet_info info, wireless_network *net, cha
                      info.proto.source_ip[2], info.proto.source_ip[3],
                      client->mac.Mac2String().c_str());
 
-            ret = TRACKER_NOTICE;
+            ret = TRACKER_ALERT;
         }
     }
 
