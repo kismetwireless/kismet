@@ -1,3 +1,16 @@
+Dec 24 2002  2.8.0  Released Kismet 2.8.0.  Updates include:
+                     Multiple capture sources
+                     Multiple server support
+                     Revamped client/server protocol
+                     Packet processing speed boosts
+                     Runtime WEP decoding
+                     WSP100 Remote Sensor capture support
+                     Cygwin support
+                     Improved Turbocell/Karlnet dissection
+                     Netmask range options for allowed clients
+                     Client logging in XML
+                     Dozens of bugfixes.
+
 Dec 24 2002  2.7.1  Added writing of client info to the XML file, updated the
                      Kismet DTD.
                     Updated conf files to 2.8.0
