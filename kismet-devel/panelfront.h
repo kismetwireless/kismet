@@ -236,6 +236,7 @@ protected:
 
     // Semi-override of update groups
     void UpdateGroups();
+    void DestroyGroup(display_network *in_group);
 
     // Update a context on the tick function
     void UpdateContexts();
