@@ -493,8 +493,8 @@ int Packetracker::ProcessDataPacket(packet_info info, wireless_network *net, cha
     if (net->client_map.find(smac) != client_map.end()) {
         client = net->client_map[smac];
 
-        if ((client->type == client_fromds && info.type == to_distribution) ||
-            (client->type == client_tods && info.type == from_distribution))
+        if ((client->type == client_fromds && info.distrib == to_distribution) ||
+            (client->type == client_tods && info.distrib == from_distribution))
             client->type = client_established;
 
     } else {
