@@ -117,6 +117,11 @@ one beacon per network will be logged.
 the size of a logfile with little gain.  Not every packet source reports PHY
 packets.
 .PP
+"mangledatalog" (true|false) Do we mangle data packets as we log them?  This changes
+packets as they are logged so that decrypted packets are transformed and logged as 
+standard decrypted packets, and packets detected via fuzzy encryption are logged as
+standard encrypted packets.
+.PP
 "fuzzycrypt" (true|false) Comma-separated list of card types we use fuzzy
 encryption detection on.
 .PP

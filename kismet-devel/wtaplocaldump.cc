@@ -94,14 +94,25 @@ int WtapDumpFile::DumpPacket(const packet_info *in_info, const kis_packet *packe
     if (in_info->type == packet_phy && phy_log == 0)
         return 0;
 
+    kis_packet *dump_packet;
+    int mangled = 0;
+
+    // Mangle decrypted and fuzzy packets into legit packets
+    if ((dump_packet = MangleDeCryptPacket(packet, in_info)) != NULL)
+        mangled = 1;
+    else if ((dump_packet = MangleFuzzyCryptPacket(packet, in_info)) != NULL)
+        mangled = 1;
+    else
+        dump_packet = (kis_packet *) packet;
+
     pcaprec_hdr packhdr;
     unsigned int nwritten;
 
     // Convert it to a pcap header
-    packhdr.ts_sec = packet->ts.tv_sec;
-    packhdr.ts_usec = packet->ts.tv_usec;
-    packhdr.incl_len = packet->caplen;
-    packhdr.orig_len = packet->caplen;
+    packhdr.ts_sec = kis_packet->ts.tv_sec;
+    packhdr.ts_usec = kis_packet->ts.tv_usec;
+    packhdr.incl_len = kis_packet->caplen;
+    packhdr.orig_len = kis_packet->caplen;
 
     nwritten = fwrite(&packhdr, 1, sizeof(pcaprec_hdr), dump_file);
     if (nwritten != sizeof(pcaprec_hdr)) {
@@ -110,17 +121,38 @@ int WtapDumpFile::DumpPacket(const packet_info *in_info, const kis_packet *packe
         else
             snprintf(errstr, 1024, "Short write on pcap packet header");
 
+        if (mangled == 1) {
+            delete[] dump_packet->data;
+            if (dump_packet->moddata != NULL)
+                delete[] dump_packet->moddata;
+            delete dump_packet;
+        }
+
         return -1;
     }
 
-    nwritten = fwrite(packet->data, 1, packhdr.incl_len, dump_file);
+    nwritten = fwrite(kis_packet->data, 1, packhdr.incl_len, dump_file);
     if (nwritten != packhdr.incl_len) {
         if (nwritten == 0 && ferror(dump_file))
             snprintf(errstr, 1024, "Unable to write pcap packet (%s)", strerror(errno));
         else
             snprintf(errstr, 1024, "Short write on pcap packet");
 
+        if (mangled == 1) {
+            delete[] dump_packet->data;
+            if (dump_packet->moddata != NULL)
+                delete[] dump_packet->moddata;
+            delete dump_packet;
+        }
+
         return -1;
+    }
+
+    if (mangled == 1) {
+        delete[] dump_packet->data;
+        if (dump_packet->moddata != NULL)
+            delete[] dump_packet->moddata;
+        delete dump_packet;
     }
 
     num_dumped++;

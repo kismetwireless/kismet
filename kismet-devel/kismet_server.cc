@@ -994,6 +994,7 @@ int main(int argc,char *argv[]) {
 
     int beacon_log = 1;
     int phy_log = 1;
+    int mangle_log = 0;
 
     FILE *manuf_data;
     char *client_manuf_name = NULL, *ap_manuf_name = NULL;
@@ -1994,6 +1995,11 @@ int main(int argc,char *argv[]) {
         fprintf(stderr, "Filtering PHY layer packets.\n");
     }
 
+    if (conf->FetchOpt("mangledatalog") == "true") {
+        mangle_log = 1;
+        fprintf(stderr, "Mangling encrypted and fuzzy data packets.\n");
+    }
+
     if (ap_manuf_name != NULL) {
         char pathname[1024];
 
@@ -2117,6 +2123,7 @@ int main(int argc,char *argv[]) {
 
         dumpfile->SetBeaconLog(beacon_log);
         dumpfile->SetPhyLog(phy_log);
+        dumpfile->SetMangleLog(mangle_log);
 
         fprintf(stderr, "Dump file format: %s\n", dumpfile->FetchType());
     }
@@ -2563,6 +2570,7 @@ int main(int argc,char *argv[]) {
 
                             dumpfile->SetBeaconLog(beacon_log);
                             dumpfile->SetPhyLog(phy_log);
+                            dumpfile->SetMangleLog(mangle_log);
 
                             snprintf(status, STATUS_MAX, "Opened new packet log file %s",
                                      dumplogfile.c_str());
