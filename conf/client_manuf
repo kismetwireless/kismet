@@ -1,150 +1,249 @@
+00:40:05:B7	D-Link	DWL-650	internet	8	
+00:00:22:D1	Lucent	Orinoco Silver		0	
+00:00:8F:88	BreezeCOM	Breezenet Pro SA-PC		0	
+00:01:03	3Com	Unknown		0	
+00:01:03:79	3Com	3CRWE777A		0	
 00:01:03:DA	3Com	3CRWE62092A
-00:02:2D:00	Lucent	WaveLAN Silver
-00:02:2D:00	Lucent	WaveLAN Gold
+00:01:24	SMC	Unknown	default	6	192.168.2.1
+00:01:F4:EC	Entrasys	CSIBD-AB-S Roamabout		0	
+00:02:2D	Lucent	Unknown		0	
 00:02:2D:00	Buffalo	WLI-PCM-L11
+00:02:2D:00	Lucent	WaveLAN Silver (PC24E-H-FC)		0	
 00:02:2D:08	Lucent	Orinoco Silver
-00:02:2D:08	Orinoco	Silver
 00:02:2D:09	Lucent	Orinoco Silver
 00:02:2D:0A	Orinoco	Silver
 00:02:2D:0C	Lucent	WaveLAN-Silver
+00:02:2D:12	Dell	TrueMobile 1150 Mini-PCI		0	
 00:02:2D:1C	Orinoco	PC24E-H-ET
 00:02:2D:1E	Lucent	Orinoco Silver
 00:02:2D:20	Lucent	Orinoco Silver
-00:02:2D:20	Orinoco	Silver
 00:02:2D:28	Orinoco	Silver
 00:02:2D:29	Orinoco	Orinoco Gold
 00:02:2D:2A	Lucent	Orinoco Gold
-00:02:2D:2A	Avaya	World Card Gold
 00:02:2D:2B	Avaya	World Card Silver
-00:02:2D:39	Lucent	Silver
+00:02:2D:31	Avaya	PC24E-H-FC		0	
+00:02:2D:32	Dell	Truemobile 1150		0	
+00:02:2D:39	Lucent	WaveLAN Silver		0	
 00:02:2D:3A	Agere	Orinoco Gold
 00:02:2D:3D	Buffalo	WLI-PCM-L11
+00:02:2D:3D	Buffalo	WLI-PCM-L11GP		0	
 00:02:2D:3D	Orinoco	Silver
+00:02:2D:3F	Orinoco	Orinoco Gold	wireless	3	
+00:02:2D:45	Orinoco	MiniPCI Card (embedded in Sony Laptop)		0	
 00:02:2D:49	Orinoco	Silver
 00:02:2D:4B	Avaya	PC24E-H-ET
+00:02:2D:4C	Dell	true mobile 1150		0	
+00:02:2D:4C	Lucent	PC24E-H-FC		0	
+00:02:2D:4F	Lucent	PC24E-H-FC		0	
+00:02:2D:54	Lucent	PC24E-H-FC		0	
+00:02:2D:5B	Orinoco	Orinoco Mini PCI Card		0	
+00:02:2D:5F	Lucent	WaveLAN/IEEE Version 01.01		0	
+00:02:2D:66	Agere	PC24E-H-FC		0	
+00:02:2D:76	Orinoco	PC24E-H-FC		0	
+00:02:2D:88	Orinoco	PC Card T2 Extended ORiNOCO Europe 128RC4 Kit Gold		0	
 00:02:2D:D4	Dell	TrueMobile 1150
-00:02:6F:01	Senao	SL-2011CD
+00:02:6F	Senao	Unknown		0	
 00:02:6F:01	Senao	SL-2011 CD
+00:02:6F:01	Senao	SL-2011CD		0	
+00:02:6F:01	Senao	SL-2011CD
+00:02:6F:01	Senao	SL-2511CD PLUS EXT2(F200)		0	
+00:02:A5	Compaq	Unknown		0	
 00:02:A5:2D	Compaq	WL110
+00:02:A5:2E	Compaq	WL110 REV.0A		0	
+00:02:B3:BA	Intel	WPC-2011BWW		0	
+00:03:2F	Linksys	Unknown		0	
+00:03:2F:01	Linksys	WPC11		0	
 00:03:2F:01	Linksys	WPC11
 00:03:2F:01	Repotec	GL241101
+00:04:5A	Linksys	Unknown		0	
+00:04:5A	Linksys	Unknown	linksys	6	192.168.1.1
 00:04:5A:0D	Linksys	WPC11
 00:04:5A:C8	Linksys	WUSB11
 00:04:5A:CC	Linksys	WPC11
 00:04:5A:CD	Linksys	WPC11
+00:04:5A:D1	Linksys	BEFW11S4	linksys	0	
+00:04:75	3Com	Unknown		0	
+00:04:75:92	3Com	3CRSHPW696		0	
 00:04:75:BA	3Com	3CRWE62092B
+00:04:75:BC	3Com	3CRWE62092B		0	
+00:04:DB:00	Tellus	TWL-C11		0	
+00:04:E2	SMC	Unknown		0	
+00:04:E2:08	SMC	SMC2632W		0	
 00:04:E2:08	SMC	SMC2632W
 00:04:E2:08	SMC	SMC2632W
 00:04:E2:1B	SMC	SMC2632W
 00:04:E2:1B	SMC	SMC2632W
+00:05:3C:04	Intel	Intel MiniPCI High Rate Wireless (ISL3874A)		0	
+00:05:5D	D-Link	Unknown		0	
+00:05:5D	D-Link	Unknown	default	6	
+00:05:5D:25	D-Link	DWL-660 H/W:A1 F/W:4.04		0	
+00:05:5D:D5	Compaq	HNW-100		0	
 00:05:5D:D7	D-Link	DWL-650H
 00:05:5D:DA	D-Link	DWL-650
 00:05:5D:DA	D-Link	DWL-650
 00:05:5D:ED	D-Link	DWL-650
+00:05:5D:EE	D-Link	DWL-650		0	
+00:05:5D:EE	D-Link	DWL-650		0	
 00:05:5D:EE	D-Link	DWL-650
+00:05:5D:F0	D-Link	DWL-650		0	
 00:05:5D:F2	D-Link	DWL-650
 00:05:5D:F9	D-Link	DCF-650W
+00:06:25	Linksys	Unknown		0	
+00:06:25	Linksys	Unknown	linksys	6	192.168.1.1
 00:06:25:01	Linksys	WPC11 v2.5
 00:06:25:02	Linksys	WPC11 v2.5
+00:06:25:0B	Linksys	WPC11 V.3		0	
+00:06:25:0D	Linksys	WUSB11 v2.6		0	
+00:06:25:11	Linksys	WPC11 ver.3 (FCC-ID: PKW-WPC11-V31[suggests V3.1])		0	
+00:06:25:13	Linksys	WCF12		0	
+00:06:25:17	Linksys	WPC11 v3.0		0	
+00:06:25:54	Dell	True Mobile 1150		6	
+00:06:25:5D	Linksys	BEFW11S4 v2	linksys	6	192.168.1.1
 00:06:25:62	D-Link	DCF-650W
+00:06:25:64	Cisco	AIR-PCM340		0	
+00:06:25:A6	Linksys	WMP11		0	
+00:06:25:A8	Linksys	WMP11 v2.5		0	
 00:06:25:A8	Linksys	WPC11 v3
 00:06:25:A9	Linksys	WPC11 v3
+00:06:25:AA	Linksys	WPC11 v3		0	
 00:06:25:AA	Linksys	WPC11 v3
+00:06:25:AB	Linksys	WPC11 v3		0	
 00:06:25:AB	Linksys	WPC11 v3
 00:06:25:AB	Linksys	WPC11 v3
+00:06:25:AC	Linksys	WCF11		0	
 00:06:25:AC	Linksys	WCF11
 00:06:25:AC	Linksys	WPC11 v3
 00:06:25:B1	Linksys	WCF12
 00:06:25:B1	Linksys	WCF12
+00:07:0E	Cisco	Unknown		0	
 00:07:0E:B4	Cisco	AIR-PCM352
 00:07:0E:B9	Cisco	AIR-LMC352
+00:07:50	Cisco	Unknown		0	
 00:07:50:CA	Cisco	AIR-LMC352
+00:07:50:CA	Cisco	AIR-PCM350		0	
+00:08:21	Cisco	Unknown		0	
 00:08:21:29	Cisco	AIR-PCM352
+00:08:21:31	Cisco	AIR-LMC352
+00:08:21:31	Cisco	AIR-LMC352
 00:08:21:31	Cisco	AIR-PCM352
-00:08:21:31	Cisco	AIR-LMC352
-00:08:21:31	Cisco	AIR-LMC352
+00:09:43	Cisco	Unknown		0	
 00:09:43:99	Cisco	AIR-LMC352
+00:09:5B	Netgear	Unknown		0	
 00:09:5B:03	Netgear	MA701
+00:09:5B:0E	Netgear	MA401RA		0	
 00:09:5B:0E	Netgear	MA401RA
+00:09:5B:11	Netgear	MA701		0	
+00:09:5B:23	Netgear	MA401		0	
+00:09:5B:2F	Netgear	wab501		0	
+00:09:5B:33	Netgear	ma101		0	
+00:09:7C	Cisco	Unknown		0	
+00:09:7C:78	Cisco	Cisco Aironet 352 802.11b pcmcia card		0	
 00:09:7C:E1	Cisco	AIR-LMC352
+00:09:92:00	Sweex	LC500010 ATMEL PCMCIA FastVNET (502A-D)		0	
+00:09:B7:68	Cisco	AIR-LMC352		0	
+00:09:B7:F1	Cisco	AIR-LMC352		0	
+00:09:E8	Cisco	Unknown		0	
 00:09:E8:DA	Cisco	AIR-LMC352
+00:0A:41	Cisco	Unknown		0	
+00:0A:41:7D	Cisco	AIR-PCM352		0	
 00:0A:41:7D	Cisco	AIR-PCM352
 00:0A:41:7D	Cisco	AIR-PCM352
+00:0A:41:EE	Cisco	AIR-LMC352		0	
+00:0A:41:EE	Cisco	AIR-PCM352		0	
+00:0A:8A	Cisco	Unknown		0	
+00:0A:8A	Cisco	Unknown		0	
 00:0A:8A:47	Cisco	AIR-PCM352
+00:0B:5F:45	Cisco	AIR-CB20A-A-K9		0	
+00:20:A6:41	Proxim	Symphony (PC Card 4430)		0	
+00:20:D6:05	BreezeCOM	Breezenet Pro.11 SA-PCR		0	
+00:30:65	Apple	Unknown		0	
+00:30:65	Apple	Unknown		0	
 00:30:65:17	Apple	Airport Card 2002
+00:30:AB	Netgear	Unknown		0	
 00:30:AB:06	Netgear	MA401
 00:30:AB:06	Netgear	MA401
+00:30:AB:0D	Netgear	MR314	Wireless	1	192.168.0.1
 00:30:AB:0F	Netgear	MA401
 00:30:AB:14	Netgear	MA401
+00:30:AB:17	Netgear	MA401		0	
+00:30:AB:22	Netgear	Netgear ma401		0	
+00:30:BD	Belkin	Unknown		0	
+00:30:BD	Belkin	Unknown		0	
+00:30:BD:60	Belkin	F5D6020		0	
 00:30:BD:60	Belkin	F5D6020
+00:30:BD:60	Belkin	F5D6020 (Version 01.02)&quot;		0	
 00:30:BD:61	Belkin	F5D6020
+00:30:BD:64	Belkin	F5D6020		0	
+00:30:BD:64	Belkin	F5D6020u		0	
+00:40:05:B1	D-Link	DI-614+	default	6	192.168.0.1
+00:40:05:B4	D-Link	DWL-520+		0	
+00:40:05:C7	D-Link	DI-614+ 22Mbps router/AP/switch	default	6	192.168.0.1
+00:40:05:C7	D-Link	DWL-650		0	
+00:40:05:D0	D-Link	DWL-650+	wireless	6	192.168.0.1
+00:40:26	Buffalo	Unknown		0	
+00:40:96	Cisco	Unknown		0	
+00:40:96	Cisco	Unknown	tsunami	6	
 00:40:96:29	Cisco	AIR-PC4800
+00:40:96:31	Cisco	AIR-PCM340 (Dell Rebrand)		0	
+00:40:96:32	Cisco	AIR-PCM340		0	
+00:40:96:34	Cisco	AIR-PCM340		0	
+00:40:96:38	Cisco	PC 4800 DS PCI Adapter		0	
 00:40:96:41	Cisco	350
 00:40:96:42	Cisco	AIR-PCM340
 00:40:96:47	Cisco	AIR-PCM352
 00:40:96:47	Cisco	AIR-PCM352
 00:40:96:48	Cisco	AIR-PCM340
 00:40:96:48	Cisco	AIR-PCM340
+00:50:08	Compaq	Unknown		0	
+00:50:08:BD	Compaq	WL100		0	
 00:50:08:BD	Compaq	WL100
+00:50:8B:46	Compaq	WL200 - ETSI region		0	
+00:50:8B:D0	Compaq	Compaq WL100	compaq	0	
+00:50:DA	3Com	Unknown		0	
+00:50:DA	3Com	Unknown		0	
 00:50:DA:E7	3Com	3CRWE73796B
+00:50:F2:75	Microsoft	MN-510		0	
+00:50:F2:79	Microsoft	Wireless Notebook Adapter MN-520		0	
+00:60:01	Lucent	Unknown		0	
 00:60:01:D2	Lucent	WaveLAN Silver
+00:60:1D	Lucent	Unknown		0	
+00:60:1D	Orinoco	Unknown		0	
+00:60:1D:03	Lucent	PC24E-00-FC		0	
 00:60:1D:03	Lucent	WaveLAN Bronze
+00:60:1D:04	Lucent	Lucent WaveLAN Turbo - Bronze, P/N: 011498/A		0	
+00:60:1D:1C	Lucent	Wavelan Turbo Bronze		0	
 00:60:1D:23	Lucent	WaveLAN Gold
 00:60:1D:F0	Lucent	Silver
 00:60:1D:F2	Lucent	Orinoco Gold
-00:60:6D:92	Cabletron	CSIBB-AA
-00:60:6D:92	Cabletron	CSIBB-AA
-00:60:B3:69	SMC	SMC2642W
-00:60:B3:6F	Proxim	RangeLan DS 8430
-00:90:D1:07	LeArtery	SyncByAir LN101
-00:A0:F8:2E	Symbol	Spectrum24
-00:E0:29:9E	OEM	OEM
-08:00:46:0A	Sony	PCWA-C100
-00;04:5A	Linksys	Unknown	Linksys	6	192.168.1.1
-00:A0:04	3Com	Unknown		0	
-00:90:D1	SMC	Unknown	WLAN	11	
-00:80:C6	SOHOware	Unknown		0	
-00:60:1D	Orinoco	Unknown		0	
-00:50:DA	3Com	Unknown		0	
-00:40:96	Cisco	Unknown	tsunami	6	
-00:40:26	Buffalo	Unknown		0	
-00:30:BD	Belkin	Unknown		0	
-00:30:65	Apple	Unknown		0	
-00:0A:8A	Cisco	Unknown		0	
-00:06:25	Linksys	Unknown	linksys	6	192.168.1.1
-00:05:5D	D-Link	Unknown	default	6	
-00:04:5A	Linksys	Unknown	linksys	6	192.168.1.1
-00:01:24	SMC	Unknown	default	6	192.168.2.1
-08:00:46	Sony	Unknown		0	
-00:E0:29	OEM	Unknown		0	
-00:A0:F8	Symbol	Unknown		0	
-00:90:D1	LeArtery	Unknown		0	
-00:60:B3	Proxim	Unknown		0	
 00:60:6D	Cabletron	Unknown		0	
-00:60:1D	Lucent	Unknown		0	
-00:60:01	Lucent	Unknown		0	
-00:50:DA	3Com	Unknown		0	
-00:50:08	Compaq	Unknown		0	
-00:40:96	Cisco	Unknown		0	
-00:30:BD	Belkin	Unknown		0	
-00:30:AB	Netgear	Unknown		0	
-00:30:65	Apple	Unknown		0	
-00:0A:8A	Cisco	Unknown		0	
-00:0A:41	Cisco	Unknown		0	
-00:09:E8	Cisco	Unknown		0	
-00:09:7C	Cisco	Unknown		0	
-00:09:5B	Netgear	Unknown		0	
-00:09:43	Cisco	Unknown		0	
-00:08:21	Cisco	Unknown		0	
-00:07:50	Cisco	Unknown		0	
-00:07:0E	Cisco	Unknown		0	
-00:06:25	Linksys	Unknown		0	
-00:05:5D	D-Link	Unknown		0	
-00:04:E2	SMC	Unknown		0	
-00:04:75	3Com	Unknown		0	
-00:04:5A	Linksys	Unknown		0	
-00:03:2F	Linksys	Unknown		0	
-00:02:A5	Compaq	Unknown		0	
-00:02:6F	Senao	Unknown		0	
-00:02:2D	Lucent	Unknown		0	
-00:01:03	3Com	Unknown		0	
+00:60:6D:92	Cabletron	CSIBB-AA
+00:60:6D:92	Cabletron	CSIBB-AA
+00:60:6D:92	Cabletron	RoamAbout 802.11DS		0	
+00:60:B3	Proxim	Unknown		0	
+00:60:B3:1F	3Com	Zcom WL2000D		0	
+00:60:B3:69	SMC	SMC2642W
+00:60:B3:6A	3Com	XI-815		0	
+00:60:B3:6F	Proxim	RangeLAN DS		0	
+00:60:B3:6F	Proxim	RangeLan DS 8430
+00:80:37:50	Ericsson	C11 (LA-4121-102M-ER-EU)		0	
+00:80:C6	SOHOware	Unknown		0	
+00:90:4B:B0	Dell	1180 True Mobile PCI		0	
+00:90:96:2B	Yakumo	WLAN PCMCIA Card 11 Mbps		0	
+00:90:D1	LeArtery	Unknown		0	
+00:90:D1	SMC	Unknown	WLAN	11	
+00:90:D1:05	SMC	SMC2632W		0	
+00:90:D1:06	SMC	2662W		0	
+00:90:D1:07	LeArtery	SyncByAir LN101
+00:A0:04	3Com	Unknown		0	
+00:A0:65:00	Nexland	Zcom XI-300		0	
+00:A0:F8	Symbol	Unknown		0	
+00:A0:F8:2E	Symbol	Spectrum24
+00:A0:F8:31	Symbol	Spectrum 24 High Rate 11MBps wireless LAN adapter		0	
+00:C0:49:80	US Robotics	USR1120		0	
+00:E0:29	OEM	Unknown		0	
+00:E0:29:9E	OEM	OEM
+00:E0:29:9E	SMC	2632W		0	
+00:E0:29:9E	SMC	EZ-Connect Wireless		0	
+00;04:5A	Linksys	Unknown	Linksys	6	192.168.1.1
+08:00:46	Sony	Unknown		0	
+08:00:46:0A	Sony	PCWA-C100
