@@ -289,6 +289,18 @@ void GetPacketInfo(const pkthdr *header, const u_char *data,
             ret_packinfo->source_mac = frame->addr1;
             ret_packinfo->bssid_mac = frame->addr2;
 
+        } else if (frame->fc.subtype == 10) {
+            // Disassociation
+            ret_packinfo->type = packet_disassociation;
+
+            ret_packinfo->dest_mac = frame->addr0;
+            ret_packinfo->source_mac = frame->addr1;
+            ret_packinfo->bssid_mac = frame->addr2;
+
+            uint16_t rcode;
+            memcpy(&rcode, (const char *) &msgbuf[24], 2);
+
+            ret_packinfo->reason_code = rcode;
         } else if (frame->fc.subtype == 12) {
             // deauth
             ret_packinfo->type = packet_deauth;
