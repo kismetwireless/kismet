@@ -132,10 +132,10 @@ void PanelFront::NetLine(kis_window *in_window, string *in_str, wireless_network
             len = 1;
         } else if (colindex == mcol_channel) {
             if (net->channel == 0)
-                snprintf(element, 3, "--");
+                snprintf(element, 4, "---");
             else
-                snprintf(element, 3, "%02d", net->channel);
-            len = 2;
+                snprintf(element, 4, "%03d", net->channel);
+            len = 3;
         } else if (colindex == mcol_data) {
             snprintf(element, 6, "%5d", net->data_packets);
             len = 5;
@@ -408,7 +408,7 @@ int PanelFront::MainNetworkPrinter(void *in_window) {
             len = 1;
         } else if (colind == mcol_channel) {
             snprintf(title, 1024, "Ch");
-            len = 2;
+            len = 3;
         } else if (colind == mcol_data) {
             snprintf(title, 1024, " Data");
             len = 5;
@@ -806,7 +806,7 @@ int PanelFront::MainInfoPrinter(void *in_window) {
             snprintf(info, kwin->print_width, "%*s", kwin->print_width-1,
                      cardlist[cardc]->username.c_str());
             mvwaddstr(infowin, pos, 2, info);
-            snprintf(info, kwin->print_width, "Ch: %2d", cardlist[cardc]->channel);
+            snprintf(info, kwin->print_width, "Ch:%3d", cardlist[cardc]->channel);
             mvwaddstr(infowin, pos + 1, 2, info);
         }
 

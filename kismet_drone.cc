@@ -70,9 +70,11 @@ void CatchShutdown(int sig) {
     pak.sentinel = CAPSENTINEL;
     pak.packtype = CAPPACK_COMMAND;
     pak.flags = CAPFLAG_NONE;
-    pak.datalen = 1;
-    pak.data = (uint8_t *) malloc(1);
-    (int8_t) pak.data[0] = CAPCMD_DIE;
+    pak.datalen = 2;
+    pak.data = (uint8_t *) malloc(2);
+    int16_t cmd = CAPCMD_DIE;
+
+    memcpy(pak.data, &cmd, 2);
 
     for (unsigned int x = 0; x < packet_sources.size(); x++) {
         if (packet_sources[x]->alive) {
