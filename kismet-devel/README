@@ -824,6 +824,11 @@ Licensed under the GPL
      implement it for some reason.  You'll need to reconfigure (or restart)
      the interfaces manually.
 
+    PROBLEM: Kismet says it took the card out of monitor mode, but it still
+     doesn't work.
+    FIX: Sometimes cards don't come out of monitor mode cleanly.  If it doesn't
+     work, you'll need to manually restart your card, sorry.
+
 16. Frequently Asked Questions
 
     Q: Where did the name Kismet come from?
@@ -883,4 +888,11 @@ Licensed under the GPL
        you're likely going to have problems with lost frames, corrupt frames,
        and system hangs.  Plus, if you ever have problems and mention you're
        using the orinoco drivers, I'll yell at you.
+
+    Q: Why am I not seeing all the traffic on a network?
+    A: You're most likely channel hopping.  You can't see all the traffic on
+       a channel if you're hopping, just like you can't see all of a show on
+       TV if you're channel surfing.  If you need to see all of the data from 
+       a single network, you'll need to disable hopping or lock Kismet onto the
+       network you want to watch.
        
