@@ -223,8 +223,8 @@ int PcapSource::FetchPacket(kis_packet *packet, uint8_t *data, uint8_t *moddata)
         // error if that looks to be the case.
         int ret = 0;
 
-        // Stupid hack around *BSD - do something better with this when more awake.
-#if (!defined(SYS_NETBSD) && !defined(SYS_OPENBSD) && !defined(SYS_FREEBSD))
+        // Do something smarter here in the future
+#ifdef SYS_LINUX
         short flags = 0;
         // Are we able to fetch the interface, and is it running?
         ret = Ifconfig_Get_Flags(interface.c_str(), errstr, &flags);
@@ -235,7 +235,7 @@ int PcapSource::FetchPacket(kis_packet *packet, uint8_t *data, uint8_t *moddata)
         } else {
 #endif
             snprintf(errstr, 1024, "Reading packet from pcap failed, interface no longer available.");
-#if (!defined(SYS_NETBSD) && !defined(SYS_OPENBSD) && !defined(SYS_FREEBSD))
+#ifdef SYS_LINUX
         }
         return -1;
 #endif
