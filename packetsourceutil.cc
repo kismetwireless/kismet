@@ -813,6 +813,9 @@ int FetchChildPacket(int in_fd, kis_packet *packet, uint8_t *data, uint8_t *modd
             return -1;
         }
 
+        if (ret == 0 && bcount == 0)
+            return 0;
+
         bcount += ret;
     }
 
@@ -883,6 +886,9 @@ int FetchChildText(int in_fd, string *in_text) {
 
             return -1;
         }
+
+        if (ret == 0 && bcount == 0)
+            return 0;
 
         bcount += ret;
     }
