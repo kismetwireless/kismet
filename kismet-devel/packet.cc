@@ -669,6 +669,16 @@ void GetProtoInfo(const packet_info *in_info, const pkthdr *header,
         memcpy(ret_protoinfo->source_ip, (const uint8_t *) &msgbuf[in_info->header_offset + IP_OFFSET + 3], 4);
         memcpy(ret_protoinfo->dest_ip, (const uint8_t *) &msgbuf[in_info->header_offset + IP_OFFSET + 7], 4);
 
+        if (ret_protoinfo->dport == GSTSEARCH_PORT) {
+            // GSTSEARCH exploit
+            if (memcmp(&data[in_info->header_offset + GSTSEARCH_OFFSET], GSTSEARCH_SIGNATURE,
+                       sizeof(GSTSEARCH_SIGNATURE)) == 0) {
+                ret_protoinfo->type = proto_gstsearch;
+
+                return;
+            }
+        }
+
         if (ret_protoinfo->sport == 138 && ret_protoinfo->dport == 138) {
             // netbios
 

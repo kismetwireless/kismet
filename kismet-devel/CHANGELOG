@@ -1,3 +1,4 @@
+Nov 04 2002  2.7.1  Added 'gstsearch' exploit detection
 Nov 02 2002  2.7.1  Initial multiserver support
                     Completed all basic multiserver functionality ('e' in
                      panels interface)

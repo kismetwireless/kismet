@@ -209,7 +209,8 @@ enum protocol_info_type {
     proto_lor,
     proto_netstumbler,
     proto_lucenttest,
-    proto_wellenreiter
+    proto_wellenreiter,
+    proto_gstsearch
 };
 
 enum protocol_netbios_type {
