@@ -1,5 +1,7 @@
 Sep 09 2002  2.5.2  Fixed longstanding minor bug in mac_addr, failed to zero
                      longmac in some situations leading to map collisions.
+                    Fixed gpsmap not reading netxml files with libz
+                    Fixed gpsmap not getting network names correctly
 Sep 08 2002  2.5.2  First iteration of gpsmap rewriting.  Command line args are
                      COMPLETELY changed.  Expect full functionality to return
                      soon.
