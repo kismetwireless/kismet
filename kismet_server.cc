@@ -1178,10 +1178,10 @@ int ProcessBulkConf(ConfigFile *conf) {
     // Convert the WEP mappings to our real map
     vector<string> raw_wepmap_vec;
     raw_wepmap_vec = conf->FetchOptVec("wepkey");
-    for (unsigned int rwvi = 0; rwvi < raw_wepmap_vec.size(); rwvi++) {
+    for (size_t rwvi = 0; rwvi < raw_wepmap_vec.size(); rwvi++) {
         string wepline = raw_wepmap_vec[rwvi];
 
-        unsigned int rwsplit = wepline.find(",");
+        size_t rwsplit = wepline.find(",");
         if (rwsplit == string::npos) {
             fprintf(stderr, "FATAL:  Malformed 'wepkey' option in the config file.\n");
             ErrorShutdown();
@@ -1458,12 +1458,12 @@ int ProcessBulkConf(ConfigFile *conf) {
 
     vector<string> hostsvec = StrTokenize(allowed_hosts, ",");
 
-    for (unsigned int hostcomp = 0; hostcomp < hostsvec.size(); hostcomp++) {
+    for (size_t hostcomp = 0; hostcomp < hostsvec.size(); hostcomp++) {
         client_ipblock *ipb = new client_ipblock;
         string hoststr = hostsvec[hostcomp];
 
         // Find the netmask divider, if one exists
-        unsigned int masksplit = hoststr.find("/");
+        size_t masksplit = hoststr.find("/");
         if (masksplit == string::npos) {
             // Handle hosts with no netmask - they're treated as single hosts
             inet_aton("255.255.255.255", &(ipb->mask));
