@@ -134,7 +134,7 @@ public:
     vector <alert_info> FetchAlerts() { return alerts; }
     void ClearAlarms() { alerts.clear(); }
 
-    void RemoveNetwork(string in_bssid);
+    void RemoveNetwork(uint8_t *in_bssid);
 
 protected:
     char errstr[1024];
@@ -162,7 +162,7 @@ protected:
     // Timestampt
     time_t serv_time;
 
-    map<string, wireless_network> net_map;
+    map<uint8_t *, wireless_network *, STLMacComp> net_map;
 
     int num_networks, num_packets, num_crypt,
         num_interesting, num_noise, num_dropped;

@@ -213,8 +213,6 @@ protected:
 
     color_pair ColorParse(string in_color);
 
-    string Mac2String(uint8_t *mac, char seperator);
-
     int color;
 
     int clear_dump;

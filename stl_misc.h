@@ -23,7 +23,7 @@
 // STL comparator for a MAC address
 class STLMacComp {
 public:
-    bool operator() (const uint8_t *x, const uint8_t *y) {
+    bool operator() (uint8_t* const& x, uint8_t* const& y) {
         for (int c = 0; c < MAC_LEN; c++) {
             if (x[c] != y[c])
                 return x[c] < y[c];

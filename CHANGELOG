@@ -1,5 +1,6 @@
 Aug 23 2002  2.5.2  Doubled (or more) the speed of packet tracking via 
                      suggestions from Million
+                    Incorporated speed boosts into tcpclient and frontend
 Aug 22 2002  2.5.2  Added Netstumbler 2.32 detection
                     Improved netstumbler dissection and boosted packet
                      processing speed slightly
