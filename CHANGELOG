@@ -7,6 +7,7 @@ Mar 19 2004  devel  Merged earthamap map source support from Ryan Maple
                     New gpsmap labeling method, labels now drawn in the order
                      given, added new labels, bssid, ssid, manuf, info,
                      location
+                    Tweaked labeling
 Mar 18 2004  devel  Fixed expat error
 Mar 17 2004  devel  Tweaked gpsmap to error out on no sample points
                     Fixed error string typo in get_ssid
