@@ -48,7 +48,10 @@
 #include "gpsdump.h"
 
 #include "gpsd.h"
+
 #include "packetracker.h"
+#include "timetracker.h"
+
 #include "configfile.h"
 #include "speech.h"
 #include "tcpserver.h"
@@ -699,7 +702,7 @@ void ProtocolClientEnable(int in_fd) {
     }
 }
 
-int GpsEvent(server_timer_event *evt, void *parm) {
+int GpsEvent(TimeTracker::timer_event *evt, void *parm) {
 #ifdef HAVE_GPS
     char status[STATUS_MAX];
 
@@ -750,7 +753,7 @@ int GpsEvent(server_timer_event *evt, void *parm) {
 
 // Simple redirect to the network info drawer.  We don't want to change netwriteinfo to a
 // timer event since we call it un-timed too
-int NetWriteEvent(server_timer_event *evt, void *parm) {
+int NetWriteEvent(TimeTracker::timer_event *evt, void *parm) {
     NetWriteInfo();
 
     // Reschedule us
@@ -758,7 +761,7 @@ int NetWriteEvent(server_timer_event *evt, void *parm) {
 }
 
 // Handle writing and sync'ing dump files
-int ExportSyncEvent(server_timer_event *evt, void *parm) {
+int ExportSyncEvent(TimeTracker::timer_event *evt, void *parm) {
     if (!silent)
         fprintf(stderr, "Saving data files.\n");
 
@@ -769,14 +772,14 @@ int ExportSyncEvent(server_timer_event *evt, void *parm) {
 }
 
 // Write the waypoints for gpsdrive
-int WaypointSyncEvent(server_timer_event *evt, void *parm) {
+int WaypointSyncEvent(TimeTracker::timer_event *evt, void *parm) {
     tracker.WriteGpsdriveWaypt(waypoint_file);
 
     return 1;
 }
 
 // Handle tracker maintenance
-int TrackerTickEvent(server_timer_event *evt, void *parm) {
+int TrackerTickEvent(TimeTracker::timer_event *evt, void *parm) {
     tracker.Tick();
 
     return 1;
@@ -2287,18 +2290,18 @@ int main(int argc,char *argv[]) {
     fprintf(stderr, "Registering builtin timer events...\n");
 
     // Write network info and tick the tracker once per second
-    RegisterServerTimer(SERVER_TIMESLICES_SEC, NULL, 1, &NetWriteEvent, NULL);
-    RegisterServerTimer(SERVER_TIMESLICES_SEC, NULL, 1, &TrackerTickEvent, NULL);
+    timetracker.RegisterTimer(SERVER_TIMESLICES_SEC, NULL, 1, &NetWriteEvent, NULL);
+    timetracker.RegisterTimer(SERVER_TIMESLICES_SEC, NULL, 1, &TrackerTickEvent, NULL);
 #ifdef HAVE_GPS
     // Update GPS coordinates and handle signal loss if defined
-    RegisterServerTimer(SERVER_TIMESLICES_SEC, NULL, 1, &GpsEvent, NULL);
+    timetracker.RegisterTimer(SERVER_TIMESLICES_SEC, NULL, 1, &GpsEvent, NULL);
 #endif
     // Sync the data files if requested
     if (datainterval > 0)
-        RegisterServerTimer(datainterval * SERVER_TIMESLICES_SEC, NULL, 1, &ExportSyncEvent, NULL);
+        timetracker.RegisterTimer(datainterval * SERVER_TIMESLICES_SEC, NULL, 1, &ExportSyncEvent, NULL);
     // Write waypoints if requested
     if (waypoint)
-        RegisterServerTimer(decay * SERVER_TIMESLICES_SEC, NULL, 1, &WaypointSyncEvent, NULL);
+        timetracker.RegisterTimer(decay * SERVER_TIMESLICES_SEC, NULL, 1, &WaypointSyncEvent, NULL);
 
     cisco_ref = -1;
 
@@ -2651,34 +2654,7 @@ int main(int argc,char *argv[]) {
 
         }
 
-        // Handle scheduled events
-        struct timeval cur_tm;
-        gettimeofday(&cur_tm, NULL);
-        for (map<int, server_timer_event *>::iterator evtitr = timer_map.begin();
-             evtitr != timer_map.end(); ++evtitr) {
-            server_timer_event *evt = evtitr->second;
-
-            if ((evt->trigger_tm.tv_sec < cur_tm.tv_sec) ||
-                (evt->trigger_tm.tv_sec == cur_tm.tv_sec &&
-                 evt->trigger_tm.tv_usec < cur_tm.tv_usec)) {
-
-                // Call the function with the given parameters
-                int ret;
-                ret = (*evt->callback)(evt, evt->callback_parm);
-
-                if (ret > 0 && evt->timeslices != -1 && evt->recurring) {
-                    evt->schedule_tm.tv_sec = cur_tm.tv_sec;
-                    evt->schedule_tm.tv_usec = cur_tm.tv_usec;
-                    evt->trigger_tm.tv_sec = evt->schedule_tm.tv_sec + (evt->timeslices / 10);
-                    evt->trigger_tm.tv_usec = evt->schedule_tm.tv_usec + (evt->timeslices % 10);
-                } else {
-                    delete evt;
-                    timer_map.erase(evtitr);
-                }
-
-            }
-
-        }
+        timetracker.Tick();
 
         // Sleep if we have a custom additional sleep time
         if (sleepu > 0)

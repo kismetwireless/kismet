@@ -22,6 +22,7 @@
 #ifdef HAVE_WSP100
 
 #include "packetsource.h"
+#include "timetracker.h"
 #include "server_plugin.h"
 
 #include <netdb.h>
@@ -45,7 +46,7 @@
 #define TZSP_NULL_PACKET          0x01C40000 // for TZSP v1 at least
 #define TZSP_NULL_PACKET_SLICE    15 * SERVER_TIMESLICES_SEC  // must be less than 32, and consists of timer slices (100000us)
 
-int Wsp100PokeSensor(server_timer_event *evt, void *call_parm);
+int Wsp100PokeSensor(TimeTracker::timer_event *evt, void *call_parm);
 
 class Wsp100Source : public KisPacketSource {
 public:

@@ -2,6 +2,7 @@ Mar 16 2003  2.9.1  Switched (returned) to statically allocated packet buffers
                      for a minor speed improvement.
                     Removed ability to filter outbound drone streams since it
                      would break badly if a client didn't connect immediately.
+                    Restructured timer code
 Mar 13 2003  2.9.1  Removed redundant select() in several capture sources
                     Fixed drone capture source dropping dead under high loads
                     Fixed wtaplocaldump compile errors

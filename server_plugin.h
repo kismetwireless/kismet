@@ -21,39 +21,41 @@
 
 #include "config.h"
 #include "server_protocols.h"
+#include "timetracker.h"
 
 #include <map>
+#include <list>
 
-// Timer slices per second
-#define SERVER_TIMESLICES_SEC 10
+extern TimeTracker timetracker;
 
-typedef struct server_timer_event {
-    int timer_id;
-
-    // Time it was scheduled
-    struct timeval schedule_tm;
-
-    // Explicit trigger time or number of 100000us timeslices
-    struct timeval trigger_tm;
-    int timeslices;
-
-    // Event is rescheduled again once it expires, if it's a timesliced event
-    int recurring;
-
-    int (*callback)(server_timer_event *, void *);
-    void *callback_parm;
+enum server_alert_time_unit {
+    sat_second, sat_minute, sat_hour, sat_day
 };
 
-extern int timer_id;
-extern map<int, server_timer_event *> timer_map;
+// A registered alert type
+typedef struct server_alert_rec {
+    int ref_index;
+    string header;
 
-// Register an optionally recurring timer.  Slices are 1/100th of a second (100000usec,
-// or the smallest select can slice internally.)
-int RegisterServerTimer(int in_timeslices, struct timeval *in_trigger,
-                        int in_recurring, int (*in_callback)(server_timer_event *, void *),
-                        void *in_parm);
-// Remove a timer that's going to execute
-int RemoveServerTimer(int timer_id);
+    // Units limiting is measured in
+    server_alert_time_unit limit_unit;
+    // Alerts per unit
+    int limit_rate;
+    // Alerts sent before limiting takes hold
+    int limit_burst;
+
+    // How many alerts have been sent burst-mode (decremented once per unit)
+    int burst_sent;
+
+    // List of times we sent an alert... to handle throttling
+    list<struct timeval *> alert_log;
+};
+
+typedef struct server_alert_event {
+    struct timeval ts;
+    string text;
+    int type;
+};
 
 extern vector<ALERT_data *> pending_alerts;
 extern vector<ALERT_data *> past_alerts;
