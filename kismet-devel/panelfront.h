@@ -253,7 +253,7 @@ protected:
     unsigned int bat_ac;
     unsigned int bat_charging;
 #ifdef HAVE_ACPI
-	unsigned int bat_full_capacity;
+    unsigned int bat_full_capacity;
 #endif
 
     // Statistics

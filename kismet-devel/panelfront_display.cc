@@ -935,6 +935,38 @@ int PanelFront::DetailsPrinter(void *in_window) {
         kwin->text.push_back(output);
     }
 
+    if (details_network->virtnet.gps_fixed != -1) {
+        snprintf(output, print_width, "Min Loc : Lat %f Lon %f Alt %f Spd %f",
+                 details_network->virtnet.min_lat, details_network->virtnet.min_lon,
+                 details_network->virtnet.min_alt, details_network->virtnet.min_spd);
+        kwin->text.push_back(output);
+        snprintf(output, print_width, "Max Loc : Lat %f Lon %f Alt %f Spd %f",
+                 details_network->virtnet.max_lat, details_network->virtnet.max_lon,
+                 details_network->virtnet.max_alt, details_network->virtnet.max_spd);
+        kwin->text.push_back(output);
+
+        double diagdist = EarthDistance(details_network->virtnet.min_lat,
+                                        details_network->virtnet.min_lon,
+                                        details_network->virtnet.max_lat,
+                                        details_network->virtnet.max_lon);
+
+        if (metric) {
+            if (diagdist < 1000)
+                snprintf(output, print_width, "Range    : %f meters", diagdist);
+            else
+                snprintf(output, print_width, "Range   : %f kilometers", diagdist / 1000);
+        } else {
+            diagdist *= 3.3;
+            if (diagdist < 5280)
+                snprintf(output, print_width, "Range   : %f feet", diagdist);
+            else
+                snprintf(output, print_width, "Range   : %f miles", diagdist / 5280);
+        }
+        kwin->text.push_back(output);
+    }
+
+    kwin->text.push_back("");
+
     for (unsigned int x = 0; x < details_network->networks.size(); x++) {
         wireless_network *dnet = details_network->networks[x];
 

@@ -181,6 +181,10 @@ void Frontend::UpdateGroups() {
         dnet->virtnet.best_quality = dnet->virtnet.best_signal = dnet->virtnet.best_noise = 0;
         dnet->virtnet.best_lat = dnet->virtnet.best_lon = dnet->virtnet.best_alt = 0;
 
+        dnet->virtnet.min_lon = dnet->virtnet.max_lon = dnet->virtnet.min_lat =
+            dnet->virtnet.max_lat = dnet->virtnet.min_alt = dnet->virtnet.max_alt =
+            dnet->virtnet.min_spd = dnet->virtnet.max_spd = 0;
+
         dnet->virtnet.aggregate_lat = dnet->virtnet.aggregate_lon = dnet->virtnet.aggregate_alt = 0;
         dnet->virtnet.aggregate_points = 0;
 
@@ -240,6 +244,25 @@ void Frontend::UpdateGroups() {
                 dnet->virtnet.aggregate_alt += wnet->aggregate_alt;
                 dnet->virtnet.aggregate_points += wnet->aggregate_points;
             }
+
+            if (wnet->gps_fixed > dnet->virtnet.gps_fixed)
+                dnet->virtnet.gps_fixed = wnet->gps_fixed;
+            if (wnet->min_lat < dnet->virtnet.min_lat || dnet->virtnet.min_lat == 0)
+                dnet->virtnet.min_lat = wnet->min_lat;
+            if (wnet->min_lon < dnet->virtnet.min_lon || dnet->virtnet.min_lon == 0)
+                dnet->virtnet.min_lon = wnet->min_lon;
+            if (wnet->min_alt < dnet->virtnet.min_alt || dnet->virtnet.min_alt == 0)
+                dnet->virtnet.min_alt = wnet->min_alt;
+            if (wnet->min_spd < dnet->virtnet.min_spd || dnet->virtnet.min_spd == 0)
+                dnet->virtnet.min_spd = wnet->min_spd;
+            if (wnet->max_lat > dnet->virtnet.max_lat || dnet->virtnet.max_lat == 0)
+                dnet->virtnet.max_lat = wnet->max_lat;
+            if (wnet->max_lon > dnet->virtnet.max_lon || dnet->virtnet.max_lon == 0)
+                dnet->virtnet.max_lon = wnet->max_lon;
+            if (wnet->max_alt > dnet->virtnet.max_alt || dnet->virtnet.max_alt == 0)
+                dnet->virtnet.max_alt = wnet->max_alt;
+            if (wnet->max_spd > dnet->virtnet.max_spd || dnet->virtnet.max_spd == 0)
+                dnet->virtnet.max_spd = wnet->max_spd;
 
             // Aggregate the packets
             dnet->virtnet.llc_packets += wnet->llc_packets;
