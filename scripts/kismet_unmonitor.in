@@ -131,12 +131,12 @@ for line in `cat $IFFILE`; do
 		"cisco_bsd")
 			echo "No unmonitor script for cisco_bsd"
 			;;
-		"prism2")
+		"prism2_legacy")
 			echo "Disabling monitor mode for a prism2 card on $DEVICE"
 			ifconfig $DEVICE -promisc up
 			wlanctl-ng $DEVICE lnxreq_wlansniff channel=$CHANNEL enable=false
 			;;
-		"prism2_pcap")
+		"prism2")
 			echo "Disabling monitor mode for a pcap prism2 card on $DEVICE"
 			ifconfig $DEVICE -promisc up
 			wlanctl-ng $DEVICE lnxreq_wlansniff channel=$CHANNEL enable=false

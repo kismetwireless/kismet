@@ -50,8 +50,8 @@ typedef struct capturesource {
     hopfunction func;
 };
 
-#define prism2 "wlanctl-ng %s lnxreq_wlansniff channel=%d enable=true >/dev/null"
-#define prism2_pcap "wlanctl-ng %s lnxreq_wlansniff channel=%d enable=true prismheader=true >/dev/null"
+#define prism2_legacy "wlanctl-ng %s lnxreq_wlansniff channel=%d enable=true >/dev/null"
+#define prism2 "wlanctl-ng %s lnxreq_wlansniff channel=%d enable=true prismheader=true >/dev/null"
 #define prism2_bsd "prism2ctl %s -f %d >/dev/null"
 #define prism2_hostap "iwconfig %s channel %d >/dev/null"
 #define orinoco "iwpriv %s monitor 1 %d >/dev/null"
@@ -430,8 +430,8 @@ int main(int argc, char *argv[]) {
         } else if (!strcasecmp(type, "prism2")) {
             csrc->cmd_template = prism2;
             divisions++;
-        } else if (!strcasecmp(type, "prism2_pcap")) {
-            csrc->cmd_template = prism2_pcap;
+        } else if (!strcasecmp(type, "prism2_legacy")) {
+            csrc->cmd_template = prism2_legacy;
             divisions++;
         } else if (!strcasecmp(type, "prism2_bsd")) {
             csrc->cmd_template = prism2_bsd;
