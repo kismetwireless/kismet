@@ -27,7 +27,7 @@ TcpClient::TcpClient() {
     mode = 0;
 
     num_networks = num_packets = num_crypt = num_interesting =
-        num_noise = num_dropped = 0;
+        num_noise = num_dropped = packet_rate = 0;
 
     start_time = 0;
     major = minor = tiny = 0;
@@ -408,10 +408,11 @@ int TcpClient::ParseData(char *in_data) {
         memset(chan_details_sec, 0, 1024);
 
         unsigned int numchan;
-        if (sscanf(in_data+hdrlen, "%d %d %d %d %d %d %d %d %d %d%1023[^\n]\n",
+        if (sscanf(in_data+hdrlen, "%d %d %d %d %d %d %d %d %d %d %d%1023[^\n]\n",
                    &num_networks, &num_packets,
                    &num_crypt, &num_interesting,
-                   &num_noise, &num_dropped, &quality, &power, &noise, &numchan,
+                   &num_noise, &num_dropped, &packet_rate,
+                   &quality, &power, &noise, &numchan,
                    chan_details) < 11)
             return 0;
 

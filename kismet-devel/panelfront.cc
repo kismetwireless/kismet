@@ -717,14 +717,7 @@ int PanelFront::Tick() {
 
     int rate = client->FetchNumPackets() - client->FetchNumDropped();
 
-    // Find the delta change since the last event and push it as the max seen packet
-    // rate if it's larger.
-    int adjrate;
-    if (packet_history[packet_history.size()] != 0) {
-        adjrate = rate - packet_history[packet_history.size()];
-    } else {
-        adjrate = 0;
-    }
+    int adjrate = client->FetchPacketRate();
     if (adjrate > max_packet_rate)
         max_packet_rate = adjrate;
 
