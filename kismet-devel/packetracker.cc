@@ -674,16 +674,21 @@ int Packetracker::ProcessDataPacket(packet_info info, wireless_network *net, cha
     if (info.proto.type == proto_turbocell) {
         // Handle lucent outdoor routers
         net->cloaked = 1;
-        if (!IsBlank(info.ssid)) {
-            char turbossid[32];
-            snprintf(turbossid, 32, "Turbocell: %d %s", info.turbocell_nid, info.ssid);
-            net->ssid = turbossid;
+
+        if (info.turbocell_mode != turbocell_unknown) {
             net->turbocell_mode = info.turbocell_mode;
             net->turbocell_sat = info.turbocell_sat;
             net->turbocell_nid = info.turbocell_nid;
-        } else {
-            net->ssid = "Turbocell: Unknown";
+
+            if (!IsBlank(info.ssid))
+                net->turbocell_name = info.ssid;
         }
+
+        char turbossid[32];
+        snprintf(turbossid, 32, "%d %s", net->turbocell_nid,
+                 (net->turbocell_name.length() > 0) ? net->turbocell_name.c_str() : "Unknown");
+        net->ssid = turbossid;
+
         net->type = network_turbocell;
     } else if (info.proto.type == proto_netstumbler) {
         // Handle netstumbler packets

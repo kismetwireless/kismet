@@ -329,6 +329,7 @@ typedef struct wireless_network {
     int turbocell_nid;
     turbocell_type turbocell_mode;
     int turbocell_sat;
+    string turbocell_name;
 
 };
 
