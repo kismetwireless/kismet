@@ -4,7 +4,7 @@
 # not continually reading --help!
 
 # Version of Kismet config
-version=3.1.0c
+version=3.1.0d
 
 # Name of server (Purely for organiational purposes)
 servername=Kismet
@@ -247,7 +247,7 @@ mangledatalog=true
 # frame headers)
 # valid option: Comma seperated list of card types to perform fuzzy detection 
 #  on, or 'all'
-fuzzycrypt=prism2_legacy,wtapfile
+fuzzycrypt=wtapfile,wlanng,wlanng_legacy,wlanng_avs,hostap,wlanng_wext
 
 # What type of dump do we generate? 
 # valid option: "wiretap" 
