@@ -203,6 +203,8 @@ void SoundHandler(int *fds, const char *player, map<string, string> soundmap) {
                 execve(echoarg[0], echoarg, NULL);
             }
         }
+
+        data[0] = '\0';
     }
 }
 
@@ -278,6 +280,8 @@ void SpeechHandler(int *fds, const char *player) {
                 exit(0);
             }
         }
+
+        data[0] = '\0';
     }
 }
 
