@@ -584,7 +584,7 @@ string PanelFront::NetLine(wireless_network *net, const char *name, int sub,
             snprintf(element, 6, "%c%c%c%c%c",
                      net->manuf_score == manuf_max_score ? 'F' : ' ',
                      atype,
-                     (net->ipdata.atype > address_factory && net->ipdata.octets != 0 && net->ipdata.octets != 4) ? net->ipdata.octets + '0' : ' ',
+                     (net->ipdata.atype > address_factory && net->ipdata.octets != 0) ? net->ipdata.octets + '0' : ' ',
                      net->cisco_equip.size() > 0 ? 'C' : ' ',
                      ' ');
             len = 5;
@@ -2238,7 +2238,7 @@ int PanelFront::StatsPrinter(void *in_window) {
 
     const int print_width = kwin->print_width;
 
-    snprintf(output, print_width, "Start   : %s", ctime((const time_t *) &start_time));
+    snprintf(output, print_width, "Start   : %.24s", ctime((const time_t *) &start_time));
     details_text.push_back(output);
 
     snprintf(output, print_width, "Networks: %d", client->FetchNumNetworks());

@@ -315,6 +315,7 @@ int TcpClient::ParseData(char *in_data) {
             net.ipdata.mask[x] = (uint8_t) mask[x];
             net.ipdata.gate_ip[x] = (uint8_t) gate[x];
         }
+
         net.maxrate = maxrate;
 
         net_map[net.bssid] = net;

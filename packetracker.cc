@@ -30,8 +30,12 @@ Packetracker::Packetracker() {
 }
 
 Packetracker::~Packetracker() {
-    for (unsigned int x = 0; x < network_list.size(); x++)
+    for (unsigned int x = 0; x < network_list.size(); x++) {
+        for (map<string, wireless_client *>::iterator y = network_list[x]->client_map.begin();
+             y != network_list[x]->client_map.end(); ++y)
+            delete y->second;
         delete network_list[x];
+    }
 }
 
 void Packetracker::AddGPS(GPSD *in_gps) {
@@ -541,6 +545,7 @@ int Packetracker::ProcessDataPacket(packet_info info, wireless_network *net, cha
     }
 
     unsigned int ipdata_dirty = 0;
+    char *means = NULL;
 
     if (info.proto.type == proto_dhcp_server && (client->ipdata.atype < address_dhcp ||
                                                  client->ipdata.load_from_store == 1)) {
@@ -554,27 +559,110 @@ int Packetracker::ProcessDataPacket(packet_info info, wireless_network *net, cha
         memcpy(client->ipdata.mask, info.proto.mask, 4);
         memcpy(client->ipdata.gate_ip, info.proto.gate_ip, 4);
 
+        means = "DHCP";
         ipdata_dirty = 1;
     } else if (info.proto.type == proto_arp && (client->ipdata.atype < address_arp ||
                                                 client->ipdata.load_from_store == 1)) {
         client->ipdata.atype = address_arp;
         memcpy(client->ipdata.ip, info.proto.source_ip, 4);
-        memcpy(client->ipdata.range_ip, info.proto.dest_ip, 4);
+        //memcpy(client->ipdata.range_ip, info.proto.dest_ip, 4);
+        means = "ARP";
         ipdata_dirty = 1;
     } else if ((info.proto.type == proto_udp || info.proto.type == proto_netbios) &&
                (client->ipdata.atype < address_udp || client->ipdata.load_from_store == 1)) {
         client->ipdata.atype = address_udp;
         memcpy(client->ipdata.ip, info.proto.source_ip, 4);
-        memcpy(client->ipdata.range_ip, info.proto.dest_ip, 4);
+        //memcpy(client->ipdata.range_ip, info.proto.dest_ip, 4);
+        means = "UDP";
         ipdata_dirty = 1;
     } else if ((info.proto.type == proto_misc_tcp || info.proto.type == proto_netbios_tcp) &&
                (client->ipdata.atype < address_tcp || client->ipdata.load_from_store == 1)) {
         client->ipdata.atype = address_tcp;
         memcpy(client->ipdata.ip, info.proto.source_ip, 4);
-        memcpy(client->ipdata.range_ip, info.proto.dest_ip, 4);
+        //memcpy(client->ipdata.range_ip, info.proto.dest_ip, 4);
+        means = "TCP";
         ipdata_dirty = 1;
     }
 
+    if (ipdata_dirty) {
+        snprintf(in_status, STATUS_MAX, "Found IP %d.%d.%d.%d for %s::%s via %s",
+                 client->ipdata.ip[0], client->ipdata.ip[1],
+                 client->ipdata.ip[2], client->ipdata.ip[3],
+                 net->ssid.c_str(), smac.c_str(), means);
+
+        client->ipdata.load_from_store = 0;
+
+        UpdateIpdata(net);
+        ret = 2;
+    }
+
+    return ret;
+}
+
+void Packetracker::UpdateIpdata(wireless_network *net) {
+    memset(&net->ipdata, 0, sizeof(net_ip_data));
+
+    wireless_client *client = NULL;
+
+    if (net->client_map.size() == 0)
+        return;
+
+    // Zero out our range knowledge.  This will get grafted in from the client
+    // aggregates.  Keep us if we're a factory config, we get handled specially.
+    if (net->ipdata.atype != address_factory)
+        memset(&net->ipdata, 0, sizeof(net->ipdata));
+
+    for (map<string, wireless_client *>::iterator x = net->client_map.begin();
+         x != net->client_map.end(); ++x) {
+        client = x->second;
+
+        if (net->ipdata.atype < address_dhcp && client->ipdata.atype == address_dhcp) {
+            // We've got a DHCP client, this overrides everything else.  Copy the
+            // ipdata, calculate the mask, and don't look at any more clients
+            memcpy(&net->ipdata, &client->ipdata, sizeof(net_ip_data));
+            net->ipdata.range_ip[0] = net->ipdata.ip[0] & net->ipdata.mask[0];
+            net->ipdata.range_ip[1] = net->ipdata.ip[1] & net->ipdata.mask[1];
+            net->ipdata.range_ip[2] = net->ipdata.ip[2] & net->ipdata.mask[2];
+            net->ipdata.range_ip[3] = net->ipdata.ip[3] & net->ipdata.mask[3];
+            break;
+        } else if (net->ipdata.atype < address_dhcp) {
+            // We treat all non-dhcp client addresses equally.  We compare what we have
+            // already (net->ipdata.range_ip) to the client source address to see what the
+            // difference is, and form the new address range.  If the new address range
+            // takes precedence, we set the network address type appropriately.
+            // We favor the IP of the previous clients, for no good reason.
+
+            uint8_t new_range[4];
+
+            memset(new_range, 0, 4);
+
+            if (client->ipdata.ip[0] != 0x00) {
+                if (net->ipdata.atype == address_factory) {
+                    memset(&net->ipdata, 0, sizeof(net_ip_data));
+                }
+
+                int oct;
+                for (oct = 0; oct < 4; oct++) {
+                    if (net->ipdata.range_ip[oct] != client->ipdata.ip[oct] &&
+                        net->ipdata.range_ip[oct] != 0x00) {
+                        break;
+                    }
+
+                    new_range[oct] = client->ipdata.ip[oct];
+                }
+
+                if (oct < net->ipdata.octets || net->ipdata.octets == 0) {
+                    net->ipdata.octets = oct;
+                    net->ipdata.atype = client->ipdata.atype;
+                    memcpy(net->ipdata.range_ip, new_range, 4);
+                }
+
+            }
+        }
+
+    }
+
+#if 0
     if (ipdata_dirty) {
         if (net->ipdata.atype < address_dhcp && client->ipdata.atype == address_dhcp) {
             net->ipdata.atype = address_dhcp;
@@ -585,46 +673,35 @@ int Packetracker::ProcessDataPacket(packet_info info, wireless_network *net, cha
             net->ipdata.range_ip[2] = net->ipdata.ip[2] & net->ipdata.mask[2];
             net->ipdata.range_ip[3] = net->ipdata.ip[3] & net->ipdata.mask[3];
 
+            snprintf(in_status, STATUS_MAX, "Found IP range for \"%s\" via DHCP %d.%d.%d.%d mask %d.%d.%d.%d",
+                 net->ssid.c_str(), net->ipdata.range_ip[0], net->ipdata.range_ip[1],
+                 net->ipdata.range_ip[2], net->ipdata.range_ip[3],
+                 net->ipdata.mask[0], net->ipdata.mask[1],
+                 net->ipdata.mask[2], net->ipdata.mask[3]);
+
+            net->ipdata.octets = 0;
+
+            net->ipdata.load_from_store = 0;
+
+            ret = 2;
+
         } else if (net->ipdata.atype < address_arp && client->ipdata.atype == address_arp) {
             net->ipdata.atype = address_arp;
 
+
+
         } else if (net->ipdata.atype < address_tcp && client->ipdata.atype == address_tcp) {
             net->ipdata.atype = address_tcp;
+
 
         } else if (net->ipdata.atype < address_udp && client->ipdata.atype == address_udp) {
             net->ipdata.atype = address_udp;
 
         }
 
-    }
-
-    if (info.proto.type == proto_dhcp_server && (net->ipdata.atype < address_dhcp ||
-                                                 net->ipdata.load_from_store == 1)) {
-
-        // Jackpot, this tells us everything we need to know
-        net->ipdata.atype = address_dhcp;
-
-
-        // memcpy(net->range_ip, info.proto.misc_ip, 4);
-        memcpy(net->ipdata.mask, info.proto.mask, 4);
-        memcpy(net->ipdata.gate_ip, info.proto.gate_ip, 4);
-
-        snprintf(in_status, STATUS_MAX, "Found IP range for \"%s\" via DHCP %d.%d.%d.%d mask %d.%d.%d.%d",
-                 net->ssid.c_str(), net->ipdata.range_ip[0], net->ipdata.range_ip[1],
-                 net->ipdata.range_ip[2], net->ipdata.range_ip[3],
-                 net->ipdata.mask[0], net->ipdata.mask[1],
-                 net->ipdata.mask[2], net->ipdata.mask[3]);
-
-        net->ipdata.octets = 0;
-
-        //memcpy(&bssid_ip_map[net->bssid], &net->ipdata, sizeof(net_ip_data));
-        bssid_ip_map[net->bssid] = net->ipdata;
-        net->ipdata.load_from_store = 0;
-
-        ret = 2;
-
     } else if (info.proto.type == proto_arp && (net->ipdata.atype < address_arp ||
                                                 net->ipdata.load_from_store == 1)) {
+
         uint8_t new_range[4];
 
         memset(new_range, 0, 4);
@@ -729,8 +806,7 @@ int Packetracker::ProcessDataPacket(packet_info info, wireless_network *net, cha
             }
         }
     }
-
-    return ret;
+#endif
 }
 
 int Packetracker::WriteNetworks(FILE *in_file) {

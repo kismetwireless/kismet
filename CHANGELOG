@@ -1,3 +1,6 @@
+Aug 15 2002  2.5.2  Client tracking internals complete, aggregate IP range
+                     calculations used to find network ranges, and networks
+                     with only a single IP display all four octets.
 Aug 14 2002  2.5.2  Preliminary detection of Lucent Outdoor Router equip
                      thanks to Steve's dumps.
 Aug 12 2002  2.5.2  Passing of card type param to packet sources

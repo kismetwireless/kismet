@@ -59,6 +59,8 @@ public:
     int ProcessPacket(packet_info info, char *in_status);
     int ProcessDataPacket(packet_info info, wireless_network *net, char *in_status);
 
+    void UpdateIpdata(wireless_network *net);
+
     // Get all the networks
     vector<wireless_network *> FetchNetworks();
 
