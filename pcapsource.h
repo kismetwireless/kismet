@@ -58,7 +58,7 @@ public:
     int FetchPacket(pkthdr *in_header, u_char *in_data);
 
     static void Callback(u_char *bp, const struct pcap_pkthdr *header,
-                         const u_char *data);
+                         const u_char *in_data);
 
 protected:
     // Prism 802.11 headers from wlan-ng tacked on to the beginning of a

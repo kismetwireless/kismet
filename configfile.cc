@@ -215,7 +215,7 @@ string ConfigFile::ExpandLogPath(string path, string logname, string type,
 
             for (int num = 1; num < 100; num++) {
                 string copied = logtemplate;
-                struct stat fstat;
+                struct stat filstat;
 
                 // This is annoying
                 char numstr[5];
@@ -223,7 +223,7 @@ string ConfigFile::ExpandLogPath(string path, string logname, string type,
 
                 copied.insert(inc, numstr);
 
-                if (stat(copied.c_str(), &fstat) == -1) {
+                if (stat(copied.c_str(), &filstat) == -1) {
                     found = 1;
                     logtemplate = copied;
                     break;
@@ -232,13 +232,13 @@ string ConfigFile::ExpandLogPath(string path, string logname, string type,
         } else {
             // Otherwise find out if this incremental is taken
             string copied = logtemplate;
-            struct stat fstat;
+            struct stat filstat;
             char numstr[5];
             snprintf(numstr, 5, "%d", start);
 
             copied.insert(inc, numstr);
 
-            if (stat(copied.c_str(), &fstat) != -1 && overwrite == 0) {
+            if (stat(copied.c_str(), &filstat) != -1 && overwrite == 0) {
                 logtemplate = "";
             } else {
                 logtemplate = copied;
@@ -255,9 +255,9 @@ string ConfigFile::ExpandLogPath(string path, string logname, string type,
             exit(1);
         }
     } else {
-        struct stat fstat;
+        struct stat filstat;
 
-        if (stat(logtemplate.c_str(), &fstat) != -1 && overwrite == 0) {
+        if (stat(logtemplate.c_str(), &filstat) != -1 && overwrite == 0) {
             logtemplate = "";
         }
     }
