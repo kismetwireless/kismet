@@ -5,6 +5,8 @@ Jan 25 2003  3.1.0  Long-asked for, the panels client is now able to lock
                      follow soon.
                     Merged patch from Josh Wright to handle airopeek files with
                      wtapfile
+                    Merged patch from Pedro to fix bringing an interface up in
+                     OpenBSD
 Jan 24 2003  3.1.0  Merged patch from Ray Essick to add an alternate date 
                      format to the logfile naming format
                     Unitialized variable fix in panels client

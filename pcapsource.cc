@@ -1348,98 +1348,120 @@ int monitor_openbsd_cisco(const char *in_dev, int initch, char *in_err) {
 }
 
 int monitor_openbsd_prism2(const char *in_dev, int initch, char *in_err) {
+    struct wi_req wreq;
+    struct ifreq ifr;
+    int s, flags;
 
-	struct wi_req		wreq;
-	struct ifreq		ifr;
-
-	int	s = socket(AF_INET, SOCK_DGRAM, 0);
-	if (s == -1) {
-		snprintf(in_err, 1024, "Failed to create AF_INET socket: %s",
+    s = socket(AF_INET, SOCK_DGRAM, 0);
+    if (s == -1) {
+        snprintf(in_err, 1024, "Failed to create AF_INET socket: %s",
                  strerror(errno));
-		return -1;
-	}
+        return -1;
+    }
 
-	// Set our initial channel
-	bzero((char *)&wreq, sizeof(wreq));
-	wreq.wi_len = WI_MAX_DATALEN;
-	wreq.wi_type = WI_DEBUG_CHAN;
-	wreq.wi_val[0] = htole16(initch);
-
-	bzero((char *)&ifr, sizeof(ifr));
-	strlcpy(ifr.ifr_name, in_dev, sizeof(ifr.ifr_name));
-	ifr.ifr_data = (caddr_t)&wreq;
-
-	if (ioctl(s, SIOCSPRISM2DEBUG, &ifr) < 0) {
+    //Make sure our interface is up
+    strlcpy(ifr.ifr_name, in_dev, sizeof(ifr.ifr_name));
+    if (ioctl(s, SIOCGIFFLAGS, (caddr_t)&ifr) == -1) {
         close(s);
-		snprintf(in_err, 1024, "Channel set ioctl failed: %s",
+        snprintf(in_err, 1024, "Failed to get interface flags: %s",
                  strerror(errno));
-		return -1;
-	}
+        return -1;
+    }
 
-	// Disable power managment
-	bzero((char *)&wreq, sizeof(wreq));
-	wreq.wi_len = WI_MAX_DATALEN;
-	wreq.wi_type = WI_RID_PM_ENABLED;
-	wreq.wi_val[0] = 0;
+    flags = ifr.ifr_flags;
+    if ((flags & IFF_UP) == 0) {
+        ifr.ifr_flags = (flags | IFF_UP);
+        strlcpy(ifr.ifr_name, in_dev, sizeof(ifr.ifr_name));
+        if (ioctl(s, SIOCSIFFLAGS, (caddr_t)&ifr) == -1) {
+            close(s);
+            snprintf(in_err, 1024, "Failed to ioctl interface up: %s",
+                     strerror(errno));
+            return -1;
+        }
+        usleep(5000); // Allow interface to settle
+    }
 
-	if (ioctl(s, SIOCSWAVELAN, &ifr) < 0) {
+    // Set our initial channel
+    bzero((char *)&wreq, sizeof(wreq));
+    wreq.wi_len = WI_MAX_DATALEN;
+    wreq.wi_type = WI_DEBUG_CHAN;
+    wreq.wi_val[0] = htole16(initch);
+
+    bzero((char *)&ifr, sizeof(ifr));
+    strlcpy(ifr.ifr_name, in_dev, sizeof(ifr.ifr_name));
+    ifr.ifr_data = (caddr_t)&wreq;
+
+    if (ioctl(s, SIOCSPRISM2DEBUG, &ifr) < 0) {
         close(s);
-		snprintf(in_err, 1024, "Power management ioctl failed: %s",
+        snprintf(in_err, 1024, "Channel set ioctl failed: %s",
                  strerror(errno));
-		return -1;
-	}
+        return -1;
+    }
 
-	// Lower AP density, better radio threshold settings?
-	bzero((char *)&wreq, sizeof(wreq));
-	wreq.wi_len = WI_MAX_DATALEN;
-	wreq.wi_type = WI_RID_SYSTEM_SCALE;
-	wreq.wi_val[0] = 1;
+    // Disable power managment
+    bzero((char *)&wreq, sizeof(wreq));
+    wreq.wi_len = WI_MAX_DATALEN;
+    wreq.wi_type = WI_RID_PM_ENABLED;
+    wreq.wi_val[0] = 0;
 
-	if (ioctl(s, SIOCSWAVELAN, &ifr) < 0) {
+    if (ioctl(s, SIOCSWAVELAN, &ifr) < 0) {
         close(s);
-		snprintf(in_err, 1024, "AP Density ioctl failed: %s",
+        snprintf(in_err, 1024, "Power management ioctl failed: %s",
                  strerror(errno));
-		return -1;
-	}
+        return -1;
+    }
 
-	// Enable driver processing of 802.11b frames
-	bzero((char *)&wreq, sizeof(wreq));
-	wreq.wi_len = WI_MAX_DATALEN;
-	wreq.wi_type = WI_RID_PROCFRAME;
-	wreq.wi_val[0] = 1;
+    // Lower AP density, better radio threshold settings?
+    bzero((char *)&wreq, sizeof(wreq));
+    wreq.wi_len = WI_MAX_DATALEN;
+    wreq.wi_type = WI_RID_SYSTEM_SCALE;
+    wreq.wi_val[0] = 1;
 
-	if (ioctl(s, SIOCSWAVELAN, &ifr) < 0) {
+    if (ioctl(s, SIOCSWAVELAN, &ifr) < 0) {
         close(s);
-		snprintf(in_err, 1024, "Driver processing ioctl failed: %s",
+        snprintf(in_err, 1024, "AP Density ioctl failed: %s",
                  strerror(errno));
-		return -1;
-	}
+        return -1;
+    }
 
-	// Disable roaming, we don't want the card to probe
-	bzero((char *)&wreq, sizeof(wreq));
-	wreq.wi_len = WI_MAX_DATALEN;
-	wreq.wi_type = WI_RID_ROAMING_MODE;
-	wreq.wi_val[0] = 3;
+    // Enable driver processing of 802.11b frames
+    bzero((char *)&wreq, sizeof(wreq));
+    wreq.wi_len = WI_MAX_DATALEN;
+    wreq.wi_type = WI_RID_PROCFRAME;
+    wreq.wi_val[0] = 1;
 
-	if (ioctl(s, SIOCSWAVELAN, &ifr) < 0) {
+    if (ioctl(s, SIOCSWAVELAN, &ifr) < 0) {
         close(s);
-		snprintf(in_err, 1024, "Roaming disable ioctl failed: %s",
+        snprintf(in_err, 1024, "Driver processing ioctl failed: %s",
                  strerror(errno));
-		return -1;
-	}
+        return -1;
+    }
 
-	// Enable monitor mode
-	bzero((char *)&wreq, sizeof(wreq));
-	wreq.wi_len = WI_MAX_DATALEN;
-	wreq.wi_type = WI_DEBUG_MONITOR;
-	wreq.wi_val[0] = 1;
+    // Disable roaming, we don't want the card to probe
+    bzero((char *)&wreq, sizeof(wreq));
+    wreq.wi_len = WI_MAX_DATALEN;
+    wreq.wi_type = WI_RID_ROAMING_MODE;
+    wreq.wi_val[0] = 3;
 
-	if (ioctl(s, SIOCSPRISM2DEBUG, &ifr) < 0) {
+    if (ioctl(s, SIOCSWAVELAN, &ifr) < 0) {
         close(s);
-		snprintf(in_err, 1024, "Monitor mode ioctl failed: %s",
+        snprintf(in_err, 1024, "Roaming disable ioctl failed: %s",
                  strerror(errno));
-		return -1;
-	}
+        return -1;
+    }
+
+    // Enable monitor mode
+    bzero((char *)&wreq, sizeof(wreq));
+    wreq.wi_len = WI_MAX_DATALEN;
+    wreq.wi_type = WI_DEBUG_MONITOR;
+    wreq.wi_val[0] = 1;
+
+    if (ioctl(s, SIOCSPRISM2DEBUG, &ifr) < 0) {
+        close(s);
+        snprintf(in_err, 1024, "Monitor mode ioctl failed: %s",
+                 strerror(errno));
+        return -1;
+    }
 
     close(s);
 
