@@ -61,6 +61,15 @@ int PanelFront::MainInput(void *in_window, int in_chr) {
             WriteStatus("Cannot scroll in autofit sort mode.");
         }
         break;
+    case KEY_RIGHT:
+        if ((unsigned int) kwin->col_start < column_vec.size() &&
+            (unsigned int) (kwin->col_end + kwin->col_start) <= column_vec.size())
+            kwin->col_start++;
+        break;
+    case KEY_LEFT:
+        if ((unsigned int) kwin->col_start > 0)
+            kwin->col_start--;
+        break;
     case KEY_PPAGE:
         if (sortby != sort_auto) {
             kwin->selected = -1; // We want to start a page in reverse
@@ -76,7 +85,6 @@ int PanelFront::MainInput(void *in_window, int in_chr) {
             WriteStatus("Cannot scroll in autofit sort mode.");
         }
         break;
-    case KEY_RIGHT:
     case '+':
         if (sortby != sort_auto && last_displayed.size() > 0) {
             if (last_displayed[kwin->selected]->type == group_bundle)
@@ -85,7 +93,6 @@ int PanelFront::MainInput(void *in_window, int in_chr) {
             WriteStatus("Cannot expand groups in autofit sort mode.");
         }
         break;
-    case KEY_LEFT:
     case '-':
         if (sortby != sort_auto && last_displayed.size() > 0) {
             if (last_displayed[kwin->selected]->type == group_bundle)

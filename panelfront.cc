@@ -91,6 +91,8 @@ char *KismetHelpText[] = {
     "MODE.  Sort the network display by one of the other methods to select and",
     "group networks.  Autofit mode changes the location of networks too ",
     "frequently make selecting a single network realistic.",
+    "If all of the requested columns can not be fit on the screen, the left",
+    "and right keys can be used to scroll the column display.",
     "",
     "For more information, consult the documentation in the docs/ directory",
     "of the Kismet source package.",
@@ -819,6 +821,9 @@ void PanelFront::SpawnWindow(string in_title, panel_printer in_print, key_handle
     kwin->input = in_input;
     kwin->start = 0;
     kwin->end = 0;
+    kwin->col_start = 0;
+    kwin->col_end = 0;
+    kwin->col_selected = 0;
     kwin->selected = 0;
     kwin->paused = 0;
     kwin->scrollable = 0;

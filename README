@@ -499,6 +499,9 @@
             networks as possible on the screen. When in autofit mode,
             selecting an indifidual network is disabled. Use the sort
             function to sort networks in a stable order.
+            If more columns of information are requested than can fit on
+            the current screen, the left and right arrow keys can be used
+            to shift the columns.
           + Network types
             Tracked networks may be one of several types:
               1. P - Probe request - A client card searching for a
