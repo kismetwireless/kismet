@@ -115,13 +115,13 @@ enum protocol_info_type {
     proto_netbios, proto_netbios_tcp,
     proto_ipx,
     proto_ipx_tcp,
-    proto_lor,
+    proto_lor
 };
 
 enum protocol_netbios_type {
     proto_netbios_unknown,
     proto_netbios_host, proto_netbios_master,
-    proto_netbios_domain, proto_netbios_query, proto_netbios_pdcquery,
+    proto_netbios_domain, proto_netbios_query, proto_netbios_pdcquery
 };
 
 // CDP

@@ -57,7 +57,7 @@ struct client_opt {
         send_packtype = 0;
     }
 
-    bool client_opt::operator== (const client_opt& op) const {
+    bool operator== (const client_opt& op) const {
         if (send_strings != op.send_strings)
             return 0;
         if (send_packtype != op.send_packtype)
@@ -66,7 +66,7 @@ struct client_opt {
         return 1;
     }
 
-    bool client_opt::operator!= (const client_opt& op) const {
+    bool operator!= (const client_opt& op) const {
         if (send_strings != op.send_strings)
             return 1;
         if (send_packtype != op.send_packtype)
@@ -75,7 +75,7 @@ struct client_opt {
         return 0;
     }
 
-    bool client_opt::operator>= (const client_opt& op) const {
+    bool operator>= (const client_opt& op) const {
         if ((op.send_strings == -1 && send_strings == op.send_strings) &&
             (op.send_packtype == -1 && send_packtype == op.send_packtype))
             return 1;

@@ -140,11 +140,11 @@ void SoundHandler(int *fds, const char *player, map<string, string> soundmap) {
                 harvested = 1;
         }
 
-        struct timeval tm;
-        tm.tv_sec = 1;
-        tm.tv_usec = 0;
+        struct timeval tim;
+        tim.tv_sec = 1;
+        tim.tv_usec = 0;
 
-        select(read_sock + 1, &rset, NULL, &eset, &tm);
+        select(read_sock + 1, &rset, NULL, &eset, &tim);
 
         // Die and let the other side detect it
         if (FD_ISSET(read_sock, &eset))
@@ -220,11 +220,11 @@ void SpeechHandler(int *fds, const char *player) {
 
         memset(data, 0, 1024);
 
-        struct timeval tm;
-        tm.tv_sec = 1;
-        tm.tv_usec = 0;
+        struct timeval tim;
+        tim.tv_sec = 1;
+        tim.tv_usec = 0;
 
-        select(read_sock + 1, &rset, NULL, &eset, &tm);
+        select(read_sock + 1, &rset, NULL, &eset, &tim);
 
         // Die and let the other side detect it
         if (FD_ISSET(read_sock, &eset))
@@ -711,11 +711,11 @@ int main(int argc, char *argv[]) {
         FD_ZERO(&rset);
         rset = read_set;
 
-        struct timeval tm;
-        tm.tv_sec = 1;
-        tm.tv_usec = 0;
+        struct timeval tim;
+        tim.tv_sec = 1;
+        tim.tv_usec = 0;
 
-        if (select(max_fd + 1, &rset, NULL, NULL, &tm) < 0) {
+        if (select(max_fd + 1, &rset, NULL, NULL, &tim) < 0) {
             if (errno != EINTR) {
                 snprintf(status, STATUS_MAX,
                          "ERROR: select() error %d (%s)", errno, strerror(errno));
