@@ -32,6 +32,7 @@ typedef struct display_network;
 
 // Forward definition
 class manuf;
+class TcpClient;
 
 const string NOSSID("<no ssid>");
 
@@ -131,9 +132,7 @@ typedef struct wireless_client {
 
         memset(&ipdata, 0, sizeof(net_ip_data));
 
-#ifdef __TCPCLIENT_H__
         tcpclient = NULL;
-#endif
 
         uidata = NULL;
 
@@ -192,11 +191,9 @@ typedef struct wireless_client {
     // ip data
     net_ip_data ipdata;
 
-#ifdef __TCPCLIENT_H__
     // If we're included in the client, include a reference to the server connection
     // that spawned us
     TcpClient *tcpclient;
-#endif
 
     // Generic pointer for frontends to use to track things
     void *uidata;
@@ -268,11 +265,9 @@ typedef struct wireless_network {
         carrier_set = 0;
         encoding_set = 0;
 
-#ifdef __TCPCLIENT_H__
         tcpclient = NULL;
         idle_time = 0;
         dispnet = NULL;
-#endif
 
         uidata = NULL;
 
@@ -367,7 +362,6 @@ typedef struct wireless_network {
     // Last sequence value
     int last_sequence;
 
-#ifdef __TCPCLIENT_H__
     // If we're included in the client, include a reference to the server connection
     // that spawned us
     TcpClient *tcpclient;
@@ -375,7 +369,6 @@ typedef struct wireless_network {
     time_t idle_time;
     // Display network pointer
     display_network *dispnet;
-#endif
 
     // Generic pointer for frontends to use to track things
     void *uidata;
