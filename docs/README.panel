@@ -89,6 +89,7 @@ Key  Action
  t   Tag (or untag) current network or group
  g   Group currently tagged networks (will prompt for a new group name)
  u   Ungroup current group
+ c   Show clients in current network
 
  h   Popup help window
  n   Custom name currently selected network
@@ -100,6 +101,7 @@ Key  Action
  a   Statistics about network channel usage and encryption
  p   Dump packet types
  f   Follow network center or strongest point
+ w   Track alerts
  x   Close popup window
 
  Q   Quit

@@ -27,6 +27,7 @@ Kismet Frequently Asked Questions
 * kismet_client won't start with an error about being unable to connect to
   localhost
 * Redhat 7.3 says it isn't in monitor mode even after I run kismet_monitor!
+* Why do I see more clients in the seperate networks than I do in a group?
 
 Q: How do I convert older binary GPS files to the new XML format?
 A: Use the utility "kismet2xml" in the extras/ directory.
@@ -162,3 +163,8 @@ A: Redhat 7.3 has 2 copies of the airo drivers, one which works and one which
 doesn't.  It defaults to the one that doesn't.  A quick fix is:
 cp /lib/modules/2.4.18-?/kernel/drivers/net/wireless/airo*.o  \
    /lib/modules/2.4.18-?/kernel/drivers/net/pcmcia/ 
+
+Q: Why do I see more clients in the seperate networks than I do in a group?
+A: The same client can be broadcast from, and talking to, multiple APs.  When
+the APs are combined into a group, the duplicate client is collapsed into a 
+single client record.

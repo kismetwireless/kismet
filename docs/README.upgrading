@@ -1,3 +1,8 @@
+Upgrading to 2.5 and beyond
+
+It is reccomended that you remove the state files in ~/.kismet if you have
+previously been running 2.4, as the format of the files may change.
+
 Upgrading to 2.4
 
 Kismet 2.4 has added several configure options and consolidated the monitor
