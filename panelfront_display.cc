@@ -1695,6 +1695,8 @@ int PanelFront::DetailsPrinter(void *in_window) {
 			crypt = "None";
 		if (dnet->crypt_set & crypt_wep)
 			crypt += "WEP ";
+		if (dnet->crypt_set & crypt_wpa)
+			crypt += "WPA ";
 		if (dnet->crypt_set & crypt_layer3)
 			crypt += "Layer3 ";
 		if (dnet->crypt_set & crypt_leap)
@@ -2910,6 +2912,8 @@ int PanelFront::DetailsClientPrinter(void *in_window) {
 		crypt = "None";
 	if (details_client->crypt_set & crypt_wep)
 		crypt += "WEP ";
+	if (details_client->crypt_set & crypt_wpa)
+		crypt += "WPA ";
 	if (details_client->crypt_set & crypt_layer3)
 		crypt += "Layer3 ";
 	if (details_client->crypt_set & crypt_leap)

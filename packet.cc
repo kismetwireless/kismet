@@ -460,6 +460,12 @@ void GetPacketInfo(kis_packet *packet, packet_info *ret_packinfo,
                 }
             }
 
+			// Extract WPA info
+			if ((tcitr = tag_cache_map.find(221)) != tag_cache_map.end()) {
+				// Assume we have WPA at all right now
+				ret_packinfo->wpa = 1;
+			}
+
             ret_packinfo->dest_mac = addr0;
             ret_packinfo->source_mac = addr1;
             ret_packinfo->bssid_mac = addr2;

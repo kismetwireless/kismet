@@ -347,6 +347,9 @@ void Packetracker::ProcessPacket(packet_info info) {
 		if (info.wep)
 			net->crypt_set |= crypt_wep;
 
+		if (info.wpa)
+			net->crypt_set |= crypt_wpa;
+
         net->beacon = info.beacon;
 
         //net->bssid = Mac2String(info.bssid_mac, ':');
@@ -1277,6 +1280,8 @@ int Packetracker::WriteNetworks(string in_fname) {
 			crypt = "None";
 		if (net->crypt_set & crypt_wep)
 			crypt += "WEP ";
+		if (net->crypt_set & crypt_wpa)
+			crypt += "WPA ";
 		if (net->crypt_set & crypt_layer3)
 			crypt += "Layer3 ";
 		if (net->crypt_set & crypt_leap)
@@ -1642,7 +1647,11 @@ int Packetracker::WriteCSVNetworks(string in_fname) {
 				crypt += ",";
 			crypt += "WEP";
 		}
-
+		if (net->crypt_set & crypt_wpa) {
+			if (crypt != "")
+				crypt += ",";
+			crypt += "WPA";
+		}
 		if (net->crypt_set & crypt_layer3) {
 			if (crypt != "")
 				crypt += ",";
@@ -1880,6 +1889,8 @@ int Packetracker::WriteXMLNetworks(string in_fname) {
 			fprintf(netfile, "    <encryption>None</encryption>\n");
 		if (net->crypt_set & crypt_wep)
 			fprintf(netfile, "    <encryption>WEP</encryption>\n");
+		if (net->crypt_set & crypt_wpa)
+			fprintf(netfile, "    <encryption>WPA</encryption>\n");
 		if (net->crypt_set & crypt_layer3)
 			fprintf(netfile, "    <encryption>Layer3</encryption>\n");
 		if (net->crypt_set & crypt_leap)
@@ -1991,6 +2002,8 @@ int Packetracker::WriteXMLNetworks(string in_fname) {
 			fprintf(netfile, "      <client-encryption>None</client-encryption>\n");
 		if (net->crypt_set & crypt_wep)
 			fprintf(netfile, "      <client-encryption>WEP</client-encryption>\n");
+		if (net->crypt_set & crypt_wpa)
+			fprintf(netfile, "      <client-encryption>WPA</client-encryption>\n");
 		if (net->crypt_set & crypt_layer3)
 			fprintf(netfile, "      <client-encryption>Layer3</client-encryption>\n");
 		if (net->crypt_set & crypt_leap)

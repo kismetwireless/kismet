@@ -482,6 +482,8 @@ typedef struct {
     distribution_type distrib;
     // Is wep enabled?
     int wep;
+	// Is WPA enabled?
+	int wpa;
     // Was the encryption detection fuzzy?
     int fuzzy;
     // Was it flagged as ess? (ap)
