@@ -495,7 +495,7 @@ int Packetracker::ProcessDataPacket(packet_info info, wireless_network *net, cha
 
         if ((client->type == client_fromds && info.type == to_distribution) ||
             (client->type == client_tods && info.type == from_distribution))
-            client->type == client_established;
+            client->type = client_established;
 
     } else {
         client = new wireless_client;
