@@ -20,6 +20,7 @@
          4. wsp100
          5. wtapfile
          6. ar5k
+         7. drone
     7. GPS Support
     8. Compiling
     9. Configuration
@@ -156,19 +157,21 @@
             The Kismet panels frontend will compile and run under Cygwin
             on win32.
             The Kismet server will work under cygwin with the wsp100
-            source. No other sources can currently be used because no
-            publicly available drivers for win32 can support rfmon.
+            source or the drone remote source. No other sources can
+            currently be used because no publicly available drivers for
+            win32 can support rfmon.
             To compile Kismet under win32, use:
             ./configure --disable-pcap --without-ethereal --disable-gps
             --disable-wireless --disable-netlink --disable-suid-root
             --enable-wsp100
          5. MacOS X
             Kismet will compile under OSX, however currently only the
-            client is useful. The Viha drivers DO support rfmon under
-            OSX, and as soon as a Viha capture source is written Kismet
-            should work natively in OSX, however this has not yet
-            happened. Anyone interested in working on a Viha capture
-            source should contact me.
+            client is useful. The Kismet server component will work with
+            the wsp100 or the drone remote sources. The Viha drivers DO
+            support rfmon under OSX, and as soon as a Viha capture source
+            is written Kismet should work natively in OSX, however this
+            has not yet happened. Anyone interested in working on a Viha
+            capture source should contact me.
     6. SUPPORTED CARD TYPES
          1. CISCO
             Cards: Aironet 340, Aironet 350
