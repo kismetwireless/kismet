@@ -47,7 +47,7 @@
 // This should be generic but we'll leave it fbsd only right now -drag
 #ifdef HAVE_RADIOTAP
 #include <net80211/ieee80211_radiotap.h>
-#include "extract.h"
+#include "tcpdump-extract.h"
 #include <stdarg.h>
 #endif
 
