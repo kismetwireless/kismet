@@ -3654,7 +3654,7 @@ fi
 	fi
 
 	if test "$panel" = yes; then
-		LIBS="$LIBS -lpanel"
+		CLIBS="$CLIBS -lpanel"
 		if test "$curses" = "yes"; then
         	echo "$as_me:3659: checking for assume_default_colors in -lcurses" >&5
 echo $ECHO_N "checking for assume_default_colors in -lcurses... $ECHO_C" >&6
@@ -3782,9 +3782,9 @@ fi
 
 	if test "$ncurses" = yes; then
 		if test "$curses" = yes; then
-			LIBS="$LIBS -lcurses"
+			CLIBS="$CLIBS -lcurses"
 		else
-			LIBS="$LIBS -lncurses"
+			CLIBS="$CLIBS -lncurses"
 		fi
 	fi
 else
@@ -5520,6 +5520,7 @@ s,@CPP@,$CPP,;t t
 s,@LIBOBJS@,$LIBOBJS,;t t
 s,@instgrp@,$instgrp,;t t
 s,@mangrp@,$mangrp,;t t
+s,@CLIBS@,$CLIBS,;t t
 s,@wantnetlink@,$wantnetlink,;t t
 s,@wantwireless@,$wantwireless,;t t
 s,@wantpcap@,$wantpcap,;t t
@@ -5650,7 +5651,7 @@ done; }
   esac
 
   if test x"$ac_file" != x-; then
-    { echo "$as_me:5653: creating $ac_file" >&5
+    { echo "$as_me:5654: creating $ac_file" >&5
 echo "$as_me: creating $ac_file" >&6;}
     rm -f "$ac_file"
   fi
@@ -5668,7 +5669,7 @@ echo "$as_me: creating $ac_file" >&6;}
       -) echo $tmp/stdin ;;
       [\\/$]*)
          # Absolute (can't be DOS-style, as IFS=:)
-         test -f "$f" || { { echo "$as_me:5671: error: cannot find input file: $f" >&5
+         test -f "$f" || { { echo "$as_me:5672: error: cannot find input file: $f" >&5
 echo "$as_me: error: cannot find input file: $f" >&2;}
    { (exit 1); exit 1; }; }
          echo $f;;
@@ -5681,7 +5682,7 @@ echo "$as_me: error: cannot find input file: $f" >&2;}
            echo $srcdir/$f
          else
            # /dev/null tree
-           { { echo "$as_me:5684: error: cannot find input file: $f" >&5
+           { { echo "$as_me:5685: error: cannot find input file: $f" >&5
 echo "$as_me: error: cannot find input file: $f" >&2;}
    { (exit 1); exit 1; }; }
          fi;;
@@ -5742,7 +5743,7 @@ for ac_file in : $CONFIG_HEADERS; do test "x$ac_file" = x: && continue
   * )   ac_file_in=$ac_file.in ;;
   esac
 
-  test x"$ac_file" != x- && { echo "$as_me:5745: creating $ac_file" >&5
+  test x"$ac_file" != x- && { echo "$as_me:5746: creating $ac_file" >&5
 echo "$as_me: creating $ac_file" >&6;}
 
   # First look for the input files in the build tree, otherwise in the
@@ -5753,7 +5754,7 @@ echo "$as_me: creating $ac_file" >&6;}
       -) echo $tmp/stdin ;;
       [\\/$]*)
          # Absolute (can't be DOS-style, as IFS=:)
-         test -f "$f" || { { echo "$as_me:5756: error: cannot find input file: $f" >&5
+         test -f "$f" || { { echo "$as_me:5757: error: cannot find input file: $f" >&5
 echo "$as_me: error: cannot find input file: $f" >&2;}
    { (exit 1); exit 1; }; }
          echo $f;;
@@ -5766,7 +5767,7 @@ echo "$as_me: error: cannot find input file: $f" >&2;}
            echo $srcdir/$f
          else
            # /dev/null tree
-           { { echo "$as_me:5769: error: cannot find input file: $f" >&5
+           { { echo "$as_me:5770: error: cannot find input file: $f" >&5
 echo "$as_me: error: cannot find input file: $f" >&2;}
    { (exit 1); exit 1; }; }
          fi;;
@@ -5883,7 +5884,7 @@ cat >>$CONFIG_STATUS <<\EOF
   rm -f $tmp/in
   if test x"$ac_file" != x-; then
     if cmp -s $ac_file $tmp/config.h 2>/dev/null; then
-      { echo "$as_me:5886: $ac_file is unchanged" >&5
+      { echo "$as_me:5887: $ac_file is unchanged" >&5
 echo "$as_me: $ac_file is unchanged" >&6;}
     else
       ac_dir=`$as_expr X"$ac_file" : 'X\(.*[^/]\)//*[^/][^/]*/*$' \| \
@@ -5987,7 +5988,7 @@ if test "$no_recursion" != yes; then
     # parts of a large source tree are present.
     test -d $srcdir/$ac_subdir || continue
 
-    { echo "$as_me:5990: configuring in $ac_subdir" >&5
+    { echo "$as_me:5991: configuring in $ac_subdir" >&5
 echo "$as_me: configuring in $ac_subdir" >&6;}
     case $srcdir in
     .) ;;
@@ -6009,7 +6010,7 @@ done; }
 
        if test -d ./$ac_subdir; then :;
        else
-         { { echo "$as_me:6012: error: cannot create \`pwd\`/$ac_subdir" >&5
+         { { echo "$as_me:6013: error: cannot create \`pwd\`/$ac_subdir" >&5
 echo "$as_me: error: cannot create \`pwd\`/$ac_subdir" >&2;}
    { (exit 1); exit 1; }; }
        fi
@@ -6040,7 +6041,7 @@ echo "$as_me: error: cannot create \`pwd\`/$ac_subdir" >&2;}
     elif test -f $ac_sub_srcdir/configure.in; then
       ac_sub_configure=$ac_configure
     else
-      { echo "$as_me:6043: WARNING: no configuration information is in $ac_subdir" >&5
+      { echo "$as_me:6044: WARNING: no configuration information is in $ac_subdir" >&5
 echo "$as_me: WARNING: no configuration information is in $ac_subdir" >&2;}
       ac_sub_configure=
     fi
@@ -6054,12 +6055,12 @@ echo "$as_me: WARNING: no configuration information is in $ac_subdir" >&2;}
         ac_sub_cache_file=$ac_dots$cache_file ;;
       esac
 
-      { echo "$as_me:6057: running $ac_sub_configure $ac_sub_configure_args --cache-file=$ac_sub_cache_file --srcdir=$ac_sub_srcdir" >&5
+      { echo "$as_me:6058: running $ac_sub_configure $ac_sub_configure_args --cache-file=$ac_sub_cache_file --srcdir=$ac_sub_srcdir" >&5
 echo "$as_me: running $ac_sub_configure $ac_sub_configure_args --cache-file=$ac_sub_cache_file --srcdir=$ac_sub_srcdir" >&6;}
       # The eval makes quoting arguments work.
       eval $ac_sub_configure $ac_sub_configure_args \
            --cache-file=$ac_sub_cache_file --srcdir=$ac_sub_srcdir ||
-        { { echo "$as_me:6062: error: $ac_sub_configure failed for $ac_subdir" >&5
+        { { echo "$as_me:6063: error: $ac_sub_configure failed for $ac_subdir" >&5
 echo "$as_me: error: $ac_sub_configure failed for $ac_subdir" >&2;}
    { (exit 1); exit 1; }; }
     fi
@@ -6193,7 +6194,7 @@ else
 	vertiny=`uname -r | cut -d '.' -f 3 | cut -f 1 -d-`
 
 	if test "$verminor" = "4" -a "$vertiny" -lt 16 ; then
-		{ echo "$as_me:6196: WARNING: There have been a number of major improvements in the linux-wireless extentions and in the aironet drivers in recent versions.  It is recomended that you run at least kernel version 2.4.16" >&5
+		{ echo "$as_me:6197: WARNING: There have been a number of major improvements in the linux-wireless extentions and in the aironet drivers in recent versions.  It is recomended that you run at least kernel version 2.4.16" >&5
 echo "$as_me: WARNING: There have been a number of major improvements in the linux-wireless extentions and in the aironet drivers in recent versions.  It is recomended that you run at least kernel version 2.4.16" >&2;}
 	fi
 

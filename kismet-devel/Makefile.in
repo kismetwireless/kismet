@@ -21,6 +21,7 @@ CC	= @CC@
 LD	= @CXX@
 LDFLAGS	= @LDFLAGS@
 LIBS	= @LIBS@
+CLIBS   = @CLIBS@
 CFLAGS	= @CPPFLAGS@
 CXXFLAGS = -O2 -Wall @CXXFLAGS@
 CPPFLAGS = @CPPFLAGS@
@@ -67,7 +68,7 @@ $(PS):	$(PSO) $(PCAPLIB)
 	$(LD) $(LDFLAGS) -o $(PS) $(PSO) $(PCAPLIB) $(LIBS) $(PCAPLNK)
 
 $(NC):	$(NCO)
-	$(LD) $(LDFLAGS) -o $(NC) $(NCO) $(LIBS)
+	$(LD) $(LDFLAGS) -o $(NC) $(NCO) $(LIBS) $(CLIBS)
 
 $(GPSL):	$(GPSLO)
 	$(LD) $(LDFLAGS) -o $(GPSL) $(GPSLO) $(LIBS) `Magick-config --cflags --cppflags --ldflags` `Magick-config --libs` -lpthread -lexpat
