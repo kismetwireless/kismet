@@ -1,4 +1,6 @@
-Mar 15 2004  devel  Split gpsmap sample manipulation voodoo off into its own
+Mar 15 2004  devel  Finished gpsxml-sanitize, util takes a xml files and prints
+                     the valid points back to stdout.
+Mar 14 2004  devel  Split gpsmap sample manipulation voodoo off into its own
                      file for other utils to tie into
                     Started adding extras/ util to sanitize XML files for other
                      programs to use
