@@ -49,35 +49,12 @@
 #include "speech.h"
 #include "tcpserver.h"
 #include "server_protocols.h"
+#include "server_plugin.h"
 #include "kismet_server.h"
 
 #ifndef exec_name
 char *exec_name;
 #endif
-
-void WriteDatafiles(int in_shutdown);
-void CatchShutdown(int sig);
-int Usage(char *argv);
-static void handle_command(TcpServer *tcps, client_command *cc);
-void NetWriteAlert(char *in_alert);
-void NetWriteStatus(char *in_status);
-void NetWriteInfo();
-int SayText(string in_text);
-int PlaySound(string in_sound);
-void SpeechHandler(int *fds, const char *player);
-void SoundHandler(int *fds, const char *player, map<string, string> soundmap);
-void ProtocolAlertEnable(int in_fd);
-void ProtocolNetworkEnable(int in_fd);
-void ProtocolClientEnable(int in_fd);
-
-typedef struct capturesource {
-    KisPacketSource *source;
-    string name;
-    string interface;
-    string scardtype;
-    card_type cardtype;
-    packet_parm packparm;
-};
 
 const char *config_base = "kismet.conf";
 
@@ -167,6 +144,36 @@ map<mac_addr, int> filter_export_dest;
 int filter_export_bssid_invert = -1, filter_export_source_invert = -1,
     filter_export_dest_invert = -1;
 
+// timer events
+int timer_id = 0;
+map<int, server_timer_event *> timer_map;
+
+int RegisterServerTimer(int in_timeslices, struct timeval *in_trigger,
+                        int in_recurring, void (*in_callback)(void *),
+                        void *in_parm) {
+    server_timer_event *evt = new server_timer_event;
+
+    evt->timer_id = timer_id++;
+    gettimeofday(&(evt->schedule_tm), NULL);
+
+    if (in_trigger != NULL) {
+        evt->trigger_tm.tv_sec = in_trigger->tv_sec;
+        evt->trigger_tm.tv_usec = in_trigger->tv_usec;
+        evt->timeslices = -1;
+    } else {
+        evt->trigger_tm.tv_sec = evt->schedule_tm.tv_sec + (in_timeslices / 10);
+        evt->trigger_tm.tv_usec = evt->schedule_tm.tv_usec + (in_timeslices % 10);
+        evt->timeslices = in_timeslices;
+    }
+
+    evt->recurring = in_recurring;
+    evt->callback = in_callback;
+    evt->callback_parm = in_parm;
+
+    timer_map[evt->timer_id] = evt;
+
+    return evt->timer_id;
+}
 
 // Handle writing all the files out and optionally unlinking the empties
 void WriteDatafiles(int in_shutdown) {
@@ -701,7 +708,7 @@ void ProtocolClientEnable(int in_fd) {
 }
 
 // Handle a command sent by a client over its TCP connection.
-static void handle_command(TcpServer *tcps, client_command *cc) {
+void handle_command(TcpServer *tcps, client_command *cc) {
     char id[12];
     snprintf(id, 12, "%d ", cc->stamp);
     string out_error = string(id);
@@ -2101,37 +2108,6 @@ int main(int argc,char *argv[]) {
                 datainterval);
 
 
-    // Set the filtering
-    /*
-    if (filter != "") {
-        fprintf(stderr, "Filtering MAC addresses: %s\n",
-                filter.c_str());
-
-        int fdone = 0;
-        unsigned int fstart = 0;
-        unsigned int fend = filter.find(",", fstart);
-        while (fdone == 0) {
-            if (fend == string::npos) {
-                fend = filter.length();
-                fdone = 1;
-            }
-
-            string faddr = filter.substr(fstart, fend-fstart);
-            fstart = fend+1;
-            fend = filter.find(",", fstart);
-
-            mac_addr fmaddr = faddr.c_str();
-            if (fmaddr.error) {
-                fprintf(stderr, "FATAL:  Invalid filter address %s.\n", faddr.c_str());
-                exit(1);
-            }
-
-            filter_vec.push_back(fmaddr);
-        }
-
-        }
-        */
-
     if (conf->FetchOpt("beaconlog") == "false") {
         beacon_log = 0;
         fprintf(stderr, "Filtering beacon packets.\n");
@@ -2420,6 +2396,7 @@ int main(int argc,char *argv[]) {
     time_t last_waypoint = time(0);
     int num_networks = 0, num_packets = 0, num_noise = 0, num_dropped = 0;
 
+
     // We're ready to begin the show... Fill in our file descriptors for when
     // to wake up
     FD_ZERO(&read_set);
@@ -2454,10 +2431,9 @@ int main(int argc,char *argv[]) {
 
         max_fd = ui_server.MergeSet(read_set, max_fd, &rset, &wset);
 
-        // 0.5 second cycle
         struct timeval tm;
         tm.tv_sec = 0;
-        tm.tv_usec = 500000;
+        tm.tv_usec = 100000;
 
         if (select(max_fd + 1, &rset, &wset, NULL, &tm) < 0) {
             if (errno != EINTR) {
@@ -2573,28 +2549,6 @@ int main(int argc,char *argv[]) {
                         }
 
                     }
-
-                    // Discard it if we're filtering it
-                    /*
-                    for (unsigned int fcount = 0; fcount < filter_vec.size(); fcount++) {
-                        if (filter_vec[fcount] == info.bssid_mac) {
-                            localdropnum++;
-
-                            // don't ever do this.  ever.  (but it really is the most efficient way
-                            // of getting from here to there, so....)
-                            goto end_packprocess;
-                        }
-                        }
-                        */
-
-                    /* We never implemented this doing anything so comment it out,
-                       especially since the new server code doesn't use it yet
-                    // Handle the per-channel signal power levels
-                    if (info.channel > 0 && info.channel < CHANNEL_MAX) {
-                        channel_graph[info.channel].last_time = info.time;
-                        channel_graph[info.channel].signal = info.signal;
-                    }
-                    */
 
                     int process_ret;
 
@@ -2778,6 +2732,34 @@ int main(int argc,char *argv[]) {
             } // End processing new packets
 
         end_packprocess: ;
+
+        }
+
+        // Handle scheduled events
+        struct timeval cur_tm;
+        gettimeofday(&cur_tm, NULL);
+        for (map<int, server_timer_event *>::iterator evtitr = timer_map.begin();
+             evtitr != timer_map.end(); ++evtitr) {
+            server_timer_event *evt = evtitr->second;
+
+            if ((evt->trigger_tm.tv_sec < cur_tm.tv_sec) ||
+                (evt->trigger_tm.tv_sec == cur_tm.tv_sec &&
+                 evt->trigger_tm.tv_usec < cur_tm.tv_usec)) {
+
+                // Call the function with the given parameters
+                (*evt->callback)(evt->callback_parm);
+
+                if (evt->timeslices != -1 && evt->recurring) {
+                    evt->schedule_tm.tv_sec = cur_tm.tv_sec;
+                    evt->schedule_tm.tv_usec = cur_tm.tv_usec;
+                    evt->trigger_tm.tv_sec = evt->schedule_tm.tv_sec + (evt->timeslices / 10);
+                    evt->trigger_tm.tv_usec = evt->schedule_tm.tv_usec + (evt->timeslices % 10);
+                } else {
+                    delete evt;
+                    timer_map.erase(evtitr);
+                }
+
+            }
 
         }
 

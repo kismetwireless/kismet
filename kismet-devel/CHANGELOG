@@ -1,3 +1,5 @@
+Feb 09 2003  2.9.1  Added timer scheduler for (future) plugins and WSP100
+                     wakeup packets.
 Feb 07 2003  2.9.1  Added handling of filter_export
                     Fixed multi-server connecting, grouping bug still present
 Feb 06 2003  2.9.1  Added masking capability to MAC addresses and filters, 

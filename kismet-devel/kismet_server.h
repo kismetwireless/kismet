@@ -24,22 +24,31 @@
 #include <map>
 #include <string>
 
-string ExpandLogPath(string path, string logname, string type);
+#include "tcpserver.h"
+#include "packetsource.h"
+
+void WriteDatafiles(int in_shutdown);
 void CatchShutdown(int sig);
 int Usage(char *argv);
-
-void SoundHandler(int *fds, const char *player, map<string, string> soundmap);
-void SpeechHandler(int *fds, const char *player);
-int PlaySound(string in_sound);
-int SayText(string in_text);
-
-void NetWriteInfo();
-void NetWriteStatus(char *in_status);
+void handle_command(TcpServer *tcps, client_command *cc);
 void NetWriteAlert(char *in_alert);
-
+void NetWriteStatus(char *in_status);
+void NetWriteInfo();
+int SayText(string in_text);
+int PlaySound(string in_sound);
+void SpeechHandler(int *fds, const char *player);
+void SoundHandler(int *fds, const char *player, map<string, string> soundmap);
 void ProtocolAlertEnable(int in_fd);
 void ProtocolNetworkEnable(int in_fd);
 void ProtocolClientEnable(int in_fd);
 
+typedef struct capturesource {
+    KisPacketSource *source;
+    string name;
+    string interface;
+    string scardtype;
+    card_type cardtype;
+    packet_parm packparm;
+};
 
 #endif
