@@ -71,7 +71,7 @@
 00:0A:41:7D	Cisco	AIR-PCM352
 00:0A:41:7D	Cisco	AIR-PCM352
 00:0A:8A:47	Cisco	AIR-PCM352
-00:30:65:17	Apple	airport card 2002
+00:30:65:17	Apple	Airport Card 2002
 00:30:AB:06	Netgear	MA401
 00:30:AB:06	Netgear	MA401
 00:30:AB:0F	Netgear	MA401
@@ -100,12 +100,13 @@
 00:A0:F8:2E	Symbol	Spectrum24
 00:E0:29:9E	OEM	OEM
 08:00:46:0A	Sony	PCWA-C100
+00;04:5A	Linksys	Unknown	Linksys	6	192.168.1.1
 00:A0:04	3Com	Unknown		0	
 00:90:D1	SMC	Unknown	WLAN	11	
 00:80:C6	SOHOware	Unknown		0	
 00:60:1D	Orinoco	Unknown		0	
 00:50:DA	3Com	Unknown		0	
-00:40:96	Cisco	Unknown		0	
+00:40:96	Cisco	Unknown	tsunami	6	
 00:40:26	Buffalo	Unknown		0	
 00:30:BD	Belkin	Unknown		0	
 00:30:65	Apple	Unknown		0	
@@ -145,5 +146,5 @@
 00:03:2F	Linksys	Unknown		0	
 00:02:A5	Compaq	Unknown		0	
 00:02:6F	Senao	Unknown		0	
-00:02:2D	Dell	Unknown		0	
+00:02:2D	Lucent	Unknown		0	
 00:01:03	3Com	Unknown		0	
