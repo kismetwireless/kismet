@@ -195,11 +195,18 @@ for line in `cat $IFFILE`; do
 	esac
 done
 
-rm $IFFILE
-
 if test "$HOPPER" = "yes"; then
 	echo "Launching kismet_hopper in the background."
-	kismet_hopper -i $DEVICE -f $CONFIGFILE -t $CARDTYPE $HOPOPT &
+
+	if test "$usefile" -eq 1; then
+		for x in `cat $IFFILE`; do
+			srcs="$srcs -s $x"
+		done
+	fi
+
+	kismet_hopper $srcs $HOPOPT &
 fi
+
+rm $IFFILE
 
 exit
