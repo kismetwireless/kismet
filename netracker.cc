@@ -622,7 +622,7 @@ int Netracker::netracker_chain_handler(kis_packet *in_pack) {
 
 	// Link it to the packet for future chain elements
 	kis_netracker_netinfo *netpackinfo = new kis_netracker_netinfo;
-	netpackinfo->netref = (void *) net;
+	netpackinfo->netref = net;
 	in_pack->insert(globalreg->pcr_tracker_net_ref, netpackinfo);
 
 	// Update the time

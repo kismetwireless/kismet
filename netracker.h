@@ -395,5 +395,25 @@ protected:
 	friend int kis_80211_datatracker_hook(CHAINCALL_PARMS);
 };
 
+// Hooks into the packet component trackers
+class kis_netracker_netinfo : public packet_component {
+public:
+	kis_netracker_netinfo() {
+		netref = NULL;
+	}
+
+	Netracker::tracked_network *netref;
+};
+
+class kis_netracker_cliinfo : public packet_component {
+public:
+	kis_netracker_cliinfo() {
+		cliref = NULL;
+	}
+
+	Netracker::tracked_client *cliref;
+};
+
+
 #endif
 

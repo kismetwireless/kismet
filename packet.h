@@ -435,27 +435,5 @@ public:
     int gps_fix;
 };
 
-// Hook into the network tracker to give other chain elements a reference
-// to the tracked_network struct.  They'll have to cast it out of the void*.
-class kis_netracker_netinfo : public packet_component {
-public:
-	kis_netracker_netinfo() {
-		netref = NULL;
-	}
-
-	void *netref;
-};
-
-// Hook into the network tracker to give other chain elements a reference
-// to the tracked_client struct.  They'll have to cast it out of the void*.
-class kis_netracker_cliinfo : public packet_component {
-public:
-	kis_netracker_cliinfo() {
-		cliref = NULL;
-	}
-
-	void *cliref;
-};
-
 #endif
 

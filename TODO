@@ -310,7 +310,7 @@ Status: RO
 X-Riot-Version: 1ds-20040924
 In-Reply-To: <riot.20040927011304.1>
 
-Move *NETWORK code into packetracker as a timer event
+Move *NETWORK push code into netracker as a timer event
 From background-static Mon Feb 14 14:12:29 EST 2005
 Message-Id: <riot.20050214141229.5>
 Date: Mon Feb 14 14:12:29 EST 2005
