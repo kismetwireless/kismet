@@ -3,15 +3,17 @@
   new drone client/server code
   handle generating and catching alert text
   move gpstracklog into gpsdump
+  move speech and sound playing into packetracker module
+  move sound and speech into gpsd module
 
   Packet chain framework
   ieee802.11 dissect as packet chain module
   Filtering as packet chain module
   Logging as packet chain module
+  move packet protocol printing into packetchain modules
   Move config filehandling to gpsd
   rewrite isblank during handler rewrite
   debuglog as raw logging at head of packet chain
-  modularize sound and speech
 
   globalreg/messagebus more bits of packetsourcetracker
   p0f plugin

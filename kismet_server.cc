@@ -58,9 +58,10 @@
 #include "fifodump.h"
 #include "gpsdump.h"
 
-#include "gpsdclient.h"
+#include "speechcontrol.h"
+#include "soundcontrol.h"
 
-#include "speech.h"
+#include "gpsdclient.h"
 
 #ifndef exec_name
 char *exec_name;
@@ -138,19 +139,12 @@ GPSDump gpsdump;
 #endif
 
 FifoDumpFile fifodump;
-int sound = -1;
 packet_info last_info;
 int decay;
 channel_power channel_graph[CHANNEL_MAX];
 char *servername = NULL;
 
 fd_set read_set;
-
-// Pipe file descriptor pairs and fd's
-int soundpair[2];
-int speechpair[2];
-int chanpair[2];
-pid_t soundpid = -1, speechpid = -1, chanpid = -1;
 
 // Past alerts
 unsigned int max_alerts = 50;
@@ -166,16 +160,6 @@ int limit_logs = 0;
 char gpshost[1024];
 int gpsport = -1;
 #endif
-
-//const char *sndplay = NULL;
-string sndplay;
-
-const char *festival = NULL;
-int speech = -1;
-int speech_encoding = 0;
-string speech_sentence_encrypted, speech_sentence_unencrypted;
-
-map<string, string> wav_map;
 
 int beacon_log = 1;
 int phy_log = 1;
@@ -345,12 +329,6 @@ void CatchShutdown(int sig) {
 
 #endif
 
-    // Kill our sound players
-    if (soundpid > 0)
-        kill(soundpid, 9);
-    if (speechpid > 0)
-        kill(speechpid, 9);
-
     // Shut down the packet sources
     globalregistry->sourcetracker->CloseSources();
 
@@ -363,215 +341,6 @@ void CatchShutdown(int sig) {
 
     fprintf(stderr, "Kismet exiting.\n");
     exit(0);
-}
-
-// Subprocess sound handler
-void SoundHandler(int *fds, const char *player, map<string, string> soundmap) {
-    int read_sock = fds[0];
-    close(fds[1]);
-
-    fd_set rset;
-
-    char data[1024];
-
-    pid_t sndpid = -1;
-    int harvested = 1;
-
-    while (1) {
-        FD_ZERO(&rset);
-        FD_SET(read_sock, &rset);
-        char *end;
-
-        memset(data, 0, 1024);
-
-        struct timeval tm;
-        tm.tv_sec = 1;
-        tm.tv_usec = 0;
-
-        if (select(read_sock + 1, &rset, NULL, NULL, &tm) < 0) {
-            if (errno != EINTR) {
-                exit(1);
-            }
-        }
-
-        if (harvested == 0) {
-            // We consider a wait error to be a sign that the child pid died
-            // so we flag it as harvested and keep on going
-            pid_t harvestpid = waitpid(sndpid, NULL, WNOHANG);
-            if (harvestpid == -1 || harvestpid == sndpid)
-                harvested = 1;
-        }
-
-        if (FD_ISSET(read_sock, &rset)) {
-            int ret;
-            ret = read(read_sock, data, 1024);
-
-            // We'll die off if we get a read error, and we'll let kismet on the
-            // other side detact that it died
-            if (ret <= 0 && (errno != EAGAIN && errno != EPIPE))
-                exit(1);
-
-            if ((end = strstr(data, "\n")) == NULL)
-                continue;
-
-            end[0] = '\0';
-        }
-
-        if (data[0] == '\0')
-            continue;
-
-
-        // If we've harvested the process, spawn a new one and watch it
-        // instead.  Otherwise, we just let go of the data we read
-        if (harvested == 1) {
-            // Only take the first line
-            char *nl;
-            if ((nl = strchr(data, '\n')) != NULL)
-                *nl = '\0';
-
-            // Make sure it's shell-clean
-
-            char snd[1024];
-
-            if (soundmap.size() == 0)
-                snprintf(snd, 1024, "%s", data);
-            if (soundmap.find(data) != soundmap.end())
-                snprintf(snd, 1024, "%s", soundmap[data].c_str());
-            else
-                continue;
-
-            char plr[1024];
-            snprintf(plr, 1024, "%s", player);
-
-            harvested = 0;
-            if ((sndpid = fork()) == 0) {
-                // Suppress errors
-                if (globalregistry->silent) {
-                    int nulfd = open("/dev/null", O_RDWR);
-                    dup2(nulfd, 1);
-                    dup2(nulfd, 2);
-                }
-
-                char * const echoarg[] = { plr, snd, NULL };
-                execve(echoarg[0], echoarg, NULL);
-            }
-        }
-        data[0] = '\0';
-    }
-}
-
-// Subprocess speech handler
-void SpeechHandler(int *fds, const char *player) {
-    int read_sock = fds[0];
-    close(fds[1]);
-
-    fd_set rset;
-
-    char data[1024];
-
-    pid_t sndpid = -1;
-    int harvested = 1;
-
-    while (1) {
-        FD_ZERO(&rset);
-        FD_SET(read_sock, &rset);
-        //char *end;
-
-        memset(data, 0, 1024);
-
-        if (harvested == 0) {
-            // We consider a wait error to be a sign that the child pid died
-            // so we flag it as harvested and keep on going
-            pid_t harvestpid = waitpid(sndpid, NULL, WNOHANG);
-            if (harvestpid == -1 || harvestpid == sndpid)
-                harvested = 1;
-        }
-
-        struct timeval tm;
-        tm.tv_sec = 1;
-        tm.tv_usec = 0;
-
-        if (select(read_sock + 1, &rset, NULL, NULL, &tm) < 0) {
-            if (errno != EINTR) {
-                exit(1);
-            }
-        }
-
-        if (FD_ISSET(read_sock, &rset)) {
-            int ret;
-            ret = read(read_sock, data, 1024);
-
-            // We'll die off if we get a read error, and we'll let kismet on the
-            // other side detact that it died
-            if (ret <= 0 && (errno != EAGAIN && errno != EPIPE))
-                exit(1);
-
-            data[ret] = '\0';
-        }
-
-        if (data[0] == '\0')
-            continue;
-
-        // If we've harvested the process, spawn a new one and watch it
-        // instead.  Otherwise, we just let go of the data we read
-        if (harvested == 1) {
-            harvested = 0;
-            if ((sndpid = fork()) == 0) {
-                // Only take the first line
-                char *nl;
-                if ((nl = strchr(data, '\n')) != NULL)
-                    *nl = '\0';
-
-                // Make sure it's shell-clean
-                MungeToShell(data, strlen(data));
-                char spk_call[1024];
-                snprintf(spk_call, 1024, "echo \"(SayText \\\"%s\\\")\" | %s >/dev/null 2>/dev/null",
-                         data, player);
-                system(spk_call);
-
-                exit(0);
-            }
-        }
-
-        data[0] = '\0';
-    }
-}
-
-
-// Fork and run a system call to play a sound
-int PlaySound(string in_sound) {
-
-    char snd[1024];
-
-    snprintf(snd, 1024, "%s\n", in_sound.c_str());
-
-    if (write(soundpair[1], snd, strlen(snd)) < 0) {
-        char status[STATUS_MAX];
-        snprintf(status, STATUS_MAX, "ERROR:  Write error on sound pipe, closing sound connection");
-        globalregistry->messagebus->InjectMessage(status, MSGFLAG_FATAL);
-
-        return 0;
-    }
-
-    return 1;
-}
-
-int SayText(string in_text) {
-
-    char snd[1024];
-
-    snprintf(snd, 1024, "%s\n", in_text.c_str());
-    MungeToShell(snd, 1024);
-
-    if (write(speechpair[1], snd, strlen(snd)) < 0) {
-        char status[STATUS_MAX];
-        snprintf(status, STATUS_MAX, "ERROR:  Write error on speech pipe, closing speech connection");
-        globalregistry->messagebus->InjectMessage(status, MSGFLAG_FATAL);
-
-        return 0;
-    }
-
-    return 1;
 }
 
 void KisLocalNewnet(const wireless_network *in_net) {
@@ -731,7 +500,6 @@ int Usage(char *argv) {
            "                                (ie, dump,cisco,weak,network,gps)\n"
            "  -d, --dump-type <type>       Dumpfile type (wiretap)\n"
            "  -m, --max-packets <num>      Maximum number of packets before starting new dump\n"
-           "  -q, --quiet                  Don't play sounds\n"
            "  -g, --gps <host:port>        GPS server (host:port or off)\n"
            "  -p, --port <port>            TCPIP server port for GUI connections\n"
            "  -a, --allowed-hosts <hosts>  Comma separated list of hosts allowed to connect\n"
@@ -1059,122 +827,11 @@ int ProcessBulkConf(ConfigFile *conf) {
         }
     }
 
-    // Process sound stuff
-    if (conf->FetchOpt("sound") == "true" && sound == -1) {
-        if (conf->FetchOpt("soundplay") != "") {
-            sndplay = conf->FetchOpt("soundplay");
-
-            if (conf->FetchOpt("soundopts") != "")
-                sndplay += " " + conf->FetchOpt("soundopts");
-
-            sound = 1;
-
-            if (conf->FetchOpt("sound_new") != "")
-                wav_map["new"] = conf->FetchOpt("sound_new");
-            if (conf->FetchOpt("sound_new_wep") != "")
-                wav_map["new_wep"] = conf->FetchOpt("sound_new_wep");
-            if (conf->FetchOpt("sound_traffic") != "")
-                wav_map["traffic"] = conf->FetchOpt("sound_traffic");
-            if (conf->FetchOpt("sound_junktraffic") != "")
-                wav_map["junktraffic"] = conf->FetchOpt("sound_traffic");
-            if (conf->FetchOpt("sound_gpslock") != "")
-                wav_map["gpslock"] = conf->FetchOpt("sound_gpslock");
-            if (conf->FetchOpt("sound_gpslost") != "")
-                wav_map["gpslost"] = conf->FetchOpt("sound_gpslost");
-            if (conf->FetchOpt("sound_alert") != "")
-                wav_map["alert"] = conf->FetchOpt("sound_alert");
-
-        } else {
-            globalregistry->messagebus->InjectMessage("Sound alerts enabled but no sound player specified, "
-                                                      "sound will be disabled", MSGFLAG_ERROR);
-            sound = 0;
-        }
-    } else if (sound == -1)
-        sound = 0;
-
-    /* Added by Shaw Innes 17/2/02 */
-    /* Modified by Andrew Etter 15/9/02 */
-    if (conf->FetchOpt("speech") == "true" && speech == -1) {
-        if (conf->FetchOpt("festival") != "") {
-            festival = strdup(conf->FetchOpt("festival").c_str());
-            speech = 1;
-
-            string speechtype = conf->FetchOpt("speech_type");
-
-            if (!strcasecmp(speechtype.c_str(), "nato"))
-                speech_encoding = SPEECH_ENCODING_NATO;
-            else if (!strcasecmp(speechtype.c_str(), "spell"))
-                speech_encoding = SPEECH_ENCODING_SPELL;
-            else
-                speech_encoding = SPEECH_ENCODING_NORMAL;
-
-            // Make sure we have encrypted text lines
-            if (conf->FetchOpt("speech_encrypted") == "" || conf->FetchOpt("speech_unencrypted") == "") {
-                globalregistry->messagebus->InjectMessage("Speech requested but no speech templates given "
-                                                          "in the config file.  Speech will be disabled.", 
-                                                          MSGFLAG_ERROR);
-                speech = 0;
-            }
-
-            speech_sentence_encrypted = conf->FetchOpt("speech_encrypted");
-            speech_sentence_unencrypted = conf->FetchOpt("speech_unencrypted");
-        } else {
-            globalregistry->messagebus->InjectMessage("Speech requested but no path to festival has been "
-                                                      "specified.  Speech will be disabled",
-                                                      MSGFLAG_ERROR);
-            speech = 0;
-        }
-    } else if (speech == -1)
-        speech = 0;
-
     if (conf->FetchOpt("writeinterval") != "") {
         if (sscanf(conf->FetchOpt("writeinterval").c_str(), "%d", &datainterval) != 1) {
             globalregistry->messagebus->InjectMessage("Illegal value for 'writeinterval' in config file",
                                                       MSGFLAG_FATAL);
             ErrorShutdown();
-        }
-    }
-
-    // Fork and find the sound options
-    if (sound) {
-        if (pipe(soundpair) == -1) {
-            globalregistry->messagebus->InjectMessage("Unable to create pipe for audio.  Disabling sound.",
-                                                      MSGFLAG_ERROR);
-            sound = 0;
-        } else {
-            soundpid = fork();
-
-            if (soundpid < 0) {
-                globalregistry->messagebus->InjectMessage("Unable to fork audio control process.  Disabling sound.",
-                                                          MSGFLAG_ERROR);
-                sound = 0;
-            } else if (soundpid == 0) {
-                SoundHandler(soundpair, sndplay.c_str(), wav_map);
-                exit(0);
-            }
-
-            close(soundpair[0]);
-        }
-    }
-
-    if (speech) {
-        if (pipe(speechpair) == -1) {
-            globalregistry->messagebus->InjectMessage("Unable to create pipe for speech.  Disabling speech.",
-                                                      MSGFLAG_ERROR);
-            speech = 0;
-        } else {
-            speechpid = fork();
-
-            if (speechpid < 0) {
-                globalregistry->messagebus->InjectMessage("Unable to fork speech control process.  Disabling speech.",
-                                                          MSGFLAG_ERROR);
-                speech = 0;
-            } else if (speechpid == 0) {
-                SpeechHandler(speechpair, festival);
-                exit(0);
-            }
-
-            close(speechpair[0]);
         }
     }
 
@@ -1507,7 +1164,6 @@ int main(int argc,char *argv[]) {
         { "log-types", required_argument, 0, 'l' },
         { "dump-type", required_argument, 0, 'd' },
         { "max-packets", required_argument, 0, 'm' },
-        { "quiet", no_argument, 0, 'q' },
         { "gps", required_argument, 0, 'g' },
         { "port", required_argument, 0, 'p' },
         { "allowed-hosts", required_argument, 0, 'a' },
@@ -1532,7 +1188,7 @@ int main(int argc,char *argv[]) {
     signal(SIGPIPE, CatchShutdown);
 
     while(1) {
-        int r = getopt_long(argc, argv, "d:M:t:nf:c:C:l:m:g:a:p:N:I:xXqhvs",
+        int r = getopt_long(argc, argv, "d:M:t:nf:c:C:l:m:g:a:p:N:I:xXhvs",
                             long_options, &option_index);
         if (r < 0) break;
         switch(r) {
@@ -1628,10 +1284,6 @@ int main(int argc,char *argv[]) {
         case 'N':
             // Servername
             servername = optarg;
-            break;
-        case 'q':
-            // Quiet
-            sound = 0;
             break;
         case 'v':
             // version
@@ -1962,6 +1614,10 @@ int main(int argc,char *argv[]) {
         ipfilter_vec.push_back(ipb);
     }
 
+    // Configure the sound and speech elements
+    globalregistry->speechctl = new SpeechControl(globalregistry);
+    globalregistry->soundctl = new SoundControl(globalregistry);
+    
     // Configure the server
     kistcpserver->SetupServer(kistcpport, kistcpmaxcli, ipfilter_vec);
 
@@ -2113,9 +1769,6 @@ int main(int argc,char *argv[]) {
     if (waypoint)
         globalregistry->timetracker->RegisterTimer(decay * SERVER_TIMESLICES_SEC, NULL, 1, &WaypointSyncEvent, NULL);
 
-    time_t last_click = 0;
-    int num_networks = 0, num_packets = 0, num_noise = 0, num_dropped = 0;
-
     // We're ready to begin the show... Fill in our file descriptors for when
     // to wake up
     FD_ZERO(&read_set);
@@ -2241,44 +1894,6 @@ int main(int argc,char *argv[]) {
 #endif
 
                     globalregistry->packetracker->ProcessPacket(info);
-
-                    if (globalregistry->packetracker->FetchNumNetworks() > num_networks) {
-                        if (sound == 1)
-                            if (info.wep && wav_map.find("new_wep") != wav_map.end())
-                                sound = PlaySound("new_wep");
-                            else
-                                sound = PlaySound("new");
-                        if (speech == 1) {
-                            string text;
-
-                            if (info.wep)
-                                text = ExpandSpeechString(speech_sentence_encrypted, &info, 
-                                                          speech_encoding);
-                            else
-                                text = ExpandSpeechString(speech_sentence_unencrypted, 
-                                                          &info, speech_encoding);
-
-                            speech = SayText(MungeToShell(text).c_str());
-                        }
-                    }
-                    num_networks = globalregistry->packetracker->FetchNumNetworks();
-
-                    if (globalregistry->packetracker->FetchNumPackets() != num_packets) {
-                        if (cur_time - last_click >= decay && sound == 1) {
-                            if (globalregistry->packetracker->FetchNumPackets() - num_packets >
-                                globalregistry->packetracker->FetchNumDropped() + localdropnum - num_dropped) {
-                                sound = PlaySound("traffic");
-                            } else {
-                                sound = PlaySound("junktraffic");
-                            }
-
-                            last_click = cur_time;
-                        }
-
-                        num_packets = globalregistry->packetracker->FetchNumPackets();
-                        num_noise = globalregistry->packetracker->FetchNumNoise();
-                        num_dropped = globalregistry->packetracker->FetchNumDropped() + localdropnum;
-                    }
 
                     // Send the packet info to clients if any of them are requesting it
                     if (globalregistry->kisnetserver->FetchNumClientRefs(globalregistry->pkt_prot_ref) > 0) {

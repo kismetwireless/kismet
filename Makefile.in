@@ -40,7 +40,7 @@ DEPEND	= .depend
 
 # Objects
 PSO	= util.o ringbuf.o messagebus.o configfile.o getopt.o \
-	  	speech.o ifcontrol.o iwcontrol.o \
+	  	ifcontrol.o iwcontrol.o soundcontrol.o speechcontrol.o \
 		netframework.o tcpserver.o clinetframework.o tcpclient.o \
 		kis_netframe.o gpsdclient.o \
 	  	packet.o pcapsource.o prism2source.o wtapfilesource.o wsp100source.o \

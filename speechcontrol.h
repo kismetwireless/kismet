@@ -16,36 +16,58 @@
     Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 */
 
-
-// Dump a file in a format airsnort likes
-
-#ifndef __SPEECH_H__
-#define __SPEECH_H__
-
 #include "config.h"
 
-#include <stdio.h>
-#include <string>
-#include <map>
-#include "tracktypes.h"
+#ifndef __SPEECHCONTROL_H__
+#define __SPEECHCONTROL_H__
+
+#include <unistd.h>
+#include <sys/stat.h>
+#include <sys/types.h>
+#include <sys/wait.h>
+#include "getopt.h"
+#include <stdlib.h>
+#include <signal.h>
+#include <pwd.h>
+#include "globalregistry.h"
 
 #define SPEECH_ENCODING_NORMAL   0
 #define SPEECH_ENCODING_NATO     1
 #define SPEECH_ENCODING_SPELL    2
 
-// Speech manipulation options based on a patch from Andrew Etter 15/9/02
-
 extern char speech_alphabet[2][36][12];
 
-string EncodeSpeechString(string in_str, int in_encoding);
+class SpeechControl {
+public:
+    SpeechControl();
+    SpeechControl(GlobalRegistry *in_globalreg);
+    virtual ~SpeechControl();
 
-// Internal speech expansion
-string IntExpandSpeech(string in_str, int in_encoding, string in_ssid, mac_addr in_mac,
-                       int in_channel, float in_maxrate);
+    // Kill
+    void Shutdown();
+   
+    // Send something to the speech pipe
+    int SayText(string in_text);
 
-// Server expansion
-string ExpandSpeechString(string in_str, const packet_info *in_info, int in_encoding);
-// Client expansion
-string ExpandSpeechString(string in_str, const wireless_network *in_info, int in_encoding);
+    // Encode to nato, etc
+    string EncodeSpeechString(string in_str);
+
+protected:
+    int SpawnChildProcess();
+    void SpeechChild();
+
+    GlobalRegistry *globalreg;
+    
+    char errstr[STATUS_MAX];
+
+    pid_t childpid;
+    int fds[2];
+    char *player;
+
+    int speech_encoding;
+    char *festival;
+    string speech_sentence_encrypted, speech_sentence_unencrypted;
+};
 
 #endif
+

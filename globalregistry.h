@@ -34,6 +34,8 @@ class Timetracker;
 class GPSDClient;
 class KisNetFramework;
 class ConfigFile;
+class SpeechControl;
+class SoundControl;
 
 // Global registry of references to tracker objects and preferences.  This 
 // should supplant the masses of globals and externs we'd otherwise need.
@@ -51,6 +53,8 @@ public:
     GPSDClient *gpsd;
     KisNetFramework *kisnetserver;
     ConfigFile *kismet_config;
+    SpeechControl *speechctl;
+    SoundControl *soundctl;
 
     string version;
     time_t start_time;
@@ -68,6 +72,8 @@ public:
     int source_from_cmd;
 
     int gps_enable;
+    int speech_enable;
+    int sound_enable;
     
     unsigned int silent;
     unsigned int metric;
@@ -123,11 +129,15 @@ public:
         gpsd = NULL;
         kisnetserver = NULL;
         kismet_config = NULL;
+        speechctl = NULL;
+        soundctl = NULL;
 
         start_time = time(0);
         timestamp = start_time;
 
         gps_enable = -1;
+        speech_enable = -1;
+        sound_enable = -1;
 
         channel_hop = -1;
         channel_split = 0;
