@@ -34,6 +34,7 @@ char *exec_name;
 #endif
 
 typedef struct capturesource {
+    char *name;
     char *interface;
     int chanpos;
     char *cardtype;
@@ -114,8 +115,9 @@ int Usage(char *argv) {
            "  -f, --config-file <file>     Use alternate config file\n"
            "  -d, --divide-channels        Divide channels across multiple cards when possible\n"
            "  -c, --capture-source <src>   Packet capture source line (type,interface,name)\n"
+           "  -C, --enable-capture-sources Comma separated list of named packet sources to use.\n"
            "  -n, --international          Use international channels (1-14)\n"
-           "  -s, --hopsequence            Use given hop sequence\n"
+           "  -s, --hopsequence            Use given hop sequence (comma separated list)\n"
            "  -v, --velocity               Hopping velocity (hops per second)\n"
            "  -h, --help                   What do you think you're reading?\n");
     exit(1);
@@ -152,6 +154,7 @@ int main(int argc, char *argv[]) {
         { "config-file", required_argument, 0, 'f' },
         { "international", no_argument, 0, 'n' },
         { "capture-source", required_argument, 0, 'c' },
+        { "enable-capture-sources", required_argument, 0, 'C' },
         { "hopsequence", required_argument, 0, 's' },
         { "velocity", required_argument, 0, 'v' },
         { "divide-channels", no_argument, 0, 'd' },
@@ -160,13 +163,17 @@ int main(int argc, char *argv[]) {
     };
 
     vector<string> source_input_vec;
+    string named_sources;
+    int enable_from_cmd = 0;
+    int source_from_cmd = 0;
+
     int divide = 0;
     int divisions = 0;
 
     chanlist = us_channels;
     int option_index;
     while(1) {
-        int r = getopt_long(argc, argv, "fnc:s:v:hd",
+        int r = getopt_long(argc, argv, "fnc:C:s:v:hd",
                             long_options, &option_index);
         if (r < 0) break;
 
@@ -193,6 +200,13 @@ int main(int argc, char *argv[]) {
         case 'c':
             // Capture type
             source_input_vec.push_back(optarg);
+            source_from_cmd = 1;
+            break;
+        case 'C':
+            // Named sources
+            named_sources = optarg;
+            enable_from_cmd = 1;
+            fprintf(stderr, "Using specified capture sources: %s\n", named_sources.c_str());
             break;
         case 'd':
             // Divide channels
@@ -250,16 +264,41 @@ int main(int argc, char *argv[]) {
     fprintf(stderr, "Hopping %d channel%sper second (%ld microseconds per channel)\n",
             freq, freq > 1 ? "s " : " ", interval);
 
-    // Read the config file if we didn't get any sources on the command line
-    if (source_input_vec.size() == 0) {
-        int sourcenum = 0;
-        char sourcestr[16];
+    if (named_sources.length() == 0) {
+        named_sources = conf->FetchOpt("enablesources");
+    }
 
-        while (snprintf(sourcestr, 16, "source%d", sourcenum++) &&
-               (sourceopt = conf->FetchOpt(sourcestr)) != "") {
-            source_input_vec.push_back(sourceopt);
+    // Parse the enabled sources into a map
+    map<string, int> enable_name_map;
+
+    unsigned int begin = 0;
+    unsigned int end = named_sources.find(",");
+    int done = 0;
+
+    // Tell them if we're enabling everything
+    if (named_sources.length() == 0)
+        fprintf(stderr, "NOTICE:  No enable sources specified, all sources will be enabled.\n");
+
+    // Command line sources override the enable line, unless we also got an enable line
+    // from the command line too.
+    if ((source_from_cmd == 0 || enable_from_cmd == 1) && named_sources.length() > 0) {
+        while (done == 0) {
+            if (end == string::npos) {
+                end = named_sources.length();
+                done = 1;
+            }
+
+            string ensrc = named_sources.substr(begin, end-begin);
+            begin = end+1;
+            end = named_sources.find(",", begin);
+
+            enable_name_map[StrLower(ensrc)] = 0;
         }
     }
+
+    // Read the config file if we didn't get any sources on the command line
+    if (source_input_vec.size() == 0)
+        source_input_vec = conf->FetchOptVec("source");
 
     if (source_input_vec.size() == 0) {
         fprintf(stderr, "FATAL:  No valid packet sources defined in config or passed on command line.\n");
@@ -290,13 +329,26 @@ int main(int argc, char *argv[]) {
         capturesource *newsource = new capturesource;
         newsource->cardtype = strdup(optlist[0].c_str());
         newsource->interface = strdup(optlist[1].c_str());
+        newsource->name = strdup(optlist[2].c_str());
         newsource->chanpos = 0;
         packet_sources.push_back(newsource);
         optlist.clear();
     }
 
     for (unsigned int src = 0; src < packet_sources.size(); src++) {
-        char *type = packet_sources[src]->cardtype;
+        capturesource *csrc = packet_sources[src];
+        char *type = csrc->cardtype;
+
+        // If we didn't get sources on the command line or if we have a forced enable
+        // on the command line, check to see if we should enable this source.  If we just
+        // skip it it keeps a NULL capturesource pointer and gets ignored in the code.
+        if ((source_from_cmd == 0 || enable_from_cmd == 1) &&
+            (enable_name_map.find(StrLower(csrc->name)) == enable_name_map.end() &&
+             named_sources.length() != 0)) {
+            continue;
+        }
+
+        enable_name_map[StrLower(csrc->name)] = 1;
 
         if (!strcasecmp(type, "cisco") || !strcasecmp(type, "cisco_bsd") ||
             !strcasecmp(type, "cisco_cvs")) {
@@ -359,6 +411,13 @@ int main(int argc, char *argv[]) {
             }
 
             packet_sources[src]->cmd_template = NULL;
+        } else if (!strcasecmp(type, "wtapfile")) {
+            if (packet_sources.size() == 1) {
+                fprintf(stderr, "FATAL:  Wtapfiles aren't hoppable sources.\n");
+                exit(1);
+            }
+            fprintf(stderr, "NOTICE:  Source %d:  Skipping, wtapfiles aren't hoppable sources.\n", src);
+            packet_sources[src]->cmd_template = NULL;
         } else {
             fprintf(stderr, "FATAL: Source %d: Unknown card type '%s'.\n", src, type);
             exit(1);
@@ -366,6 +425,22 @@ int main(int argc, char *argv[]) {
 
         free(type);
         source_input_vec.clear();
+    }
+
+    // See if we tried to enable something that didn't exist
+    if (enable_name_map.size() == 0) {
+        fprintf(stderr, "FATAL:  No sources were enabled.  Check your source lines in your config file\n"
+                "        and on the command line.\n");
+        exit(1);
+    }
+
+    for (map<string, int>::iterator enmitr = enable_name_map.begin();
+         enmitr != enable_name_map.end(); ++enmitr) {
+        if (enmitr->second == 0) {
+            fprintf(stderr, "FATAL:  No source with the name '%s' was found.  Check your source and enable\n"
+                    "        lines in your configfile and on the command line.\n", enmitr->first.c_str());
+            exit(1);
+        }
     }
 
     // Free up the memory

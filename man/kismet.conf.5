@@ -17,15 +17,16 @@ multiple server systems.
 .PP
 "suiduser" (string) User to switch privileges to after binding to the capture.
 .PP
-"macfilter" (string) Comma-seperated list of MAC addresses to filter.
+"macfilter" (string) Comma-separated list of MAC addresses to filter.
 .PP
 "tcpport" (int) Port to serve GUI data
 .PP
-"allowedhosts" (string) Comma-seperated list of IP's allowed to connect.
+"allowedhosts" (string) Comma-separated list of IP's allowed to connect.
 .PP
 "maxclient" (int) Maximum number of simultaneously connected clients
 .PP
-"sourceN" (string) Comma-seperated packet source (cardtype,interface,name)
+"source" (string) Comma-separated packet source (cardtype,interface,name).  Multiple
+source lines can be defined, refer to the enablesources config line for more details.
 .PP
 Card type - Specifies the type of device.  It can be one of:
 .RS
@@ -55,13 +56,23 @@ wtapfile - Saved file of packets readable by libwiretap
 .PP
 Capture interface - Specifies the network interface Kismet will watch for packets to come in on.  Typically "ethX" or "wlanX".  For the WSP100 capture engine, the WSP100 device sends packets via a UDP stream, so the capture interface should be in the form of host:port where 'host' is the WSP100 and 'port' is the local UDP port that it will send data to.
 .PP
-Capture Name - Purely informational, this allows you to name each interface for easier identification.
+Capture Name - The name Kismet uses for this capture source.  This is the name used to specify what sources to enable.
 .PP
-Kismet will read packet sources starting at 0 and incrementing until a source line isn't found.  To capture from 2 pcap prism2 cards you'd define:
+To enable multiple sources, specify a source line for each and then use the
+enablesources line to enable them.  For example:
+.RS
+source=prism2,wlan0,prism
 .PP
-source0=pcap,wlan0,prism2_pcap,Card Zero
+source=cisco,eth0,cisco
+.RE
 .PP
-source1=pcap,wlan1,prism2_pcap,Card One
+.RE
+.PP
+"enablesources" - Comma-separated list of source names (defined previously in the source lines) to enable.  This is only needed if you wish to selectively enable multiple sources.  For example:
+.RS
+enablesources=prism
+.PP
+enablesources=prism,cisco
 .RE
 .PP
 "gps" (true|false) Enable GPS support?
@@ -120,14 +131,14 @@ configuration directory.
 .PP
 "waypointdata" (string) Waypoint file.  This WILL overwrite any waypoints saved
 .PP
-"logtypes" (string) Comma-seperated list of logtypes to write
+"logtypes" (string) Comma-separated list of logtypes to write
 .PP
 "noiselog" (true|false) Do we log packets that are noise/invalid?
 .PP
 "beaconlog" (true|false) Do we log beacon packets?  If beacon logging is turned off,
 one beacon per network will be logged.
 .PP
-"fuzzycrypt" (true|false) Comma-seperated list of card types we use fuzzy
+"fuzzycrypt" (true|false) Comma-separated list of card types we use fuzzy
 encryption detection on.
 .PP
 "dumptype" (string) Type of dumpfile we generate (wiretap is the only supported
@@ -157,7 +168,7 @@ There are several log types used for different types of data:
 .PP
 "xml" logs are a XML-formatted dump of all the networks found
 .PP
-"csv" logs are a comma-seperated dump suitable to being loaded into SQL.
+"csv" logs are a comma-separated dump suitable to being loaded into SQL.
 .PP
 "weak" logs are airsnort-compatable dumps of cryptographically weak packets.
 .PP
