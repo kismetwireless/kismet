@@ -191,7 +191,7 @@ int PanelFront::MainInput(void *in_window, int in_chr) {
         break;
     case 'l':
     case 'L':
-        SpawnWindow("Wireless Card Power", &PanelFront::PowerPrinter, &PanelFront::PowerInput, 2);
+        SpawnWindow("Wireless Card Power", &PanelFront::PowerPrinter, &PanelFront::PowerInput, 3);
         break;
     case 'd':
     case 'D':

@@ -212,6 +212,62 @@ int Iwconfig_Set_IntPriv(const char *in_dev, const char *privcmd,
     return 0;
 }
 
+int Iwconfig_Get_Levels(const char *in_dev, char *in_err, int *level, int *noise) {
+    struct iwreq wrq;
+    struct iw_range range;
+    struct iw_statistics stats;
+    char buffer[sizeof(iw_range) * 2];
+    int skfd;
+
+    if ((skfd = socket(AF_INET, SOCK_DGRAM, 0)) < 0) {
+        snprintf(in_err, STATUS_MAX, "Failed to create AF_INET DGRAM socket %d:%s", 
+                 errno, strerror(errno));
+        return -1;
+    }
+
+    // Fetch the range
+    memset(buffer, 0, sizeof(iw_range) * 2);
+    memset(&wrq, 0, sizeof(struct iwreq));
+    wrq.u.data.pointer = (caddr_t) buffer;
+    wrq.u.data.length = sizeof(buffer);
+    wrq.u.data.flags = 0;
+    strncpy(wrq.ifr_name, in_dev, IFNAMSIZ);
+
+    if (ioctl(skfd, SIOCGIWRANGE, &wrq) < 0) {
+        snprintf(in_err, STATUS_MAX, "Failed to fetch signal range, %s", strerror(errno));
+        close(skfd);
+        return -1;
+    }
+
+    // Pull it out
+    memcpy((char *) &range, buffer, sizeof(iw_range));
+
+    // Fetch the stats
+    wrq.u.data.pointer = (caddr_t) &stats;
+    wrq.u.data.length = 0;
+    wrq.u.data.flags = 1;     /* Clear updated flag */
+    strncpy(wrq.ifr_name, in_dev, IFNAMSIZ);
+
+    if (ioctl(skfd, SIOCGIWSTATS, &wrq) < 0) {
+        snprintf(in_err, STATUS_MAX, "Failed to fetch signal stats, %s", strerror(errno));
+        close(skfd);
+        return -1;
+    }
+
+    if (stats.qual.level <= range.max_qual.level) {
+        *level = 0;
+        *noise = 0;
+        return 0;
+    }
+
+    *level = stats.qual.level - 0x100;
+    *noise = stats.qual.noise - 0x100;
+
+    close(skfd);
+
+    return 0;
+}
+
 int Iwconfig_Get_Channel(const char *in_dev, char *in_err) {
     struct iwreq wrq;
     int skfd;

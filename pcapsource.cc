@@ -103,6 +103,13 @@ carrier_type PcapSource::IEEE80211Carrier() {
     return carrier_unknown;
 }
 
+// Signal levels
+int PcapSource::FetchSignalLevels(int *in_siglev, int *in_noiselev) {
+    *in_siglev = 0;
+    *in_noiselev = 0;
+    return 0;
+}
+
 // Errorcheck the datalink type
 int PcapSource::DatalinkType() {
     datalink_type = pcap_datalink(pd);
@@ -211,6 +218,10 @@ int PcapSource::ManglePacket(kis_packet *packet, uint8_t *data, uint8_t *moddata
         ret = 1;
     }
 
+    // Fetch the signal levels if we know how and it hasn't been already
+    if (packet->signal == 0 && packet->noise == 0)
+        FetchSignalLevels(&(packet->signal), &(packet->noise));
+    
     // Fetch the channel if we know how and it hasn't been filled in already
     if (packet->channel == 0)
         packet->channel = FetchChannel();
@@ -455,6 +466,10 @@ int PcapSourceFile::FetchPacket(kis_packet *packet, uint8_t *data, uint8_t *modd
 int PcapSourceWext::FetchChannel() {
     // Use wireless extensions to get the channel
     return Iwconfig_Get_Channel(interface.c_str(), errstr);
+}
+
+int PcapSourceWext::FetchSignalLevels(int *in_siglev, int *in_noiselev) {
+    return Iwconfig_Get_Levels(interface.c_str(), errstr, in_siglev, in_noiselev);
 }
 
 // Carrier override

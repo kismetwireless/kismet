@@ -130,6 +130,8 @@ protected:
     int DatalinkType();
     // FCS byte checker (override)
     int FCSBytes();
+    // Signal level fetcher
+    int FetchSignalLevels(int *in_siglev, int *in_noiselev);
     // Mangler
     int ManglePacket(kis_packet *packet, uint8_t *data, uint8_t *moddata);
     // Mangle a prism2 datalink to a kismet packet
@@ -159,6 +161,8 @@ class PcapSourceWext : public PcapSource {
 public:
     PcapSourceWext(string in_name, string in_dev) : PcapSource(in_name, in_dev) { }
     int FetchChannel();
+protected:
+    int FetchSignalLevels(int *in_siglev, int *in_noiselev);
 };
 
 // Override carrier detection for 11g cards like madwifi and prism54g.

@@ -67,6 +67,9 @@ int Iwconfig_Blank_SSID(const char *in_dev, char *errstr);
 int Iwconfig_Set_IntPriv(const char *in_dev, const char *privcmd, 
                          int val1, int val2, char *errstr);
 
+// Fetch levels
+int Iwconfig_Get_Levels(const char *in_dev, char *in_err, int *level, int *noise);
+
 // Fetch channel
 int Iwconfig_Get_Channel(const char *in_dev, char *errstr);
 // Set channel
