@@ -10,6 +10,7 @@
 [\fB-f\fP \fIfilter-list\fP] [\fB-z\fP \fInumthreads\fP] [\fB-S\fP \fImapsource\fP] [\fB-c\fP \fIcoords\fP] [\fB-s\fP \fIscale\fP]
 [\fB-m\fP \fIusermap\fP] [\fB-d\fP \fImapsize\fP] [\fB-n\fP \fInetcolors\fP] [\fB-O\fP \fIoffset\fP] [\fB-R\fP \fIrange-opacity\fP]
 [\fB-U\fP \fIhull-opacity\fP] [\fB-A\fP \fIscatter-opacity\fP] [\fB-B\fP \fIscatter-size\fP]
+[\fB-Z\fP \fIdraw-power-zoom\fI] 
 [\fB-P\fP \fIpower-opacity\fP] [\fB-Q\fP \fIpower-res\fP] [\fB-q\fP \fIpower-colors\fP] [\fB-E\fP \fIcenter-opacity\fP]
 [\fB-H\fP \fIcenter-size\fP] [\fB-l\fP \fIlabel-list\fP] [\fB-L\fP \fIlabel-orientation\fP]
 [\fB-K\fP \fIlegend-opacity\fP] [\fB-F\fP \fIfeature-order\fP]
@@ -135,6 +136,12 @@ Scatter plot opacity Default: 100
 .B
 \fB-B\fP, \fB--draw\fP-\fBscatter-size\fP SIZE
 Draw scatter at radius size.  Default: 2
+.TP
+.B
+\fB-Z\fP, \fB--draw-power-zoom\fP
+Power based scatter plot range for scaling colors [Default: 0]
+0 determines upper limit based on max observed for network
+1-255 is user defined upper limit
 .TP
 .B
 \fB-p\fP, \fB--draw-power\fP
