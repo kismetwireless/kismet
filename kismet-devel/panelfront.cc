@@ -25,6 +25,15 @@
 
 #if (defined(HAVE_LIBNCURSES) && defined(HAVE_LIBPANEL) && defined(BUILD_PANEL))
 
+// Handle curses implementations that don't define this
+#ifndef ACS_HLINE
+#define ACS_HLINE '-'
+#endif
+
+#ifndef ACS_VLINE
+#define ACS_VLINE '|'
+#endif
+
 char *KismetHelpText[] = {
     "KISMET PANELS INTERFACE",
     "KISMET NETWORK PANEL",
@@ -400,7 +409,10 @@ int PanelFront::DrawDisplay() {
         werase(kwin->win);
         if (color)
             wattrset(kwin->win, color_map["border"].pair);
-        box(kwin->win, '|', '-');
+        //box(kwin->win, '|', '-');
+
+        box(kwin->win, ACS_VLINE, ACS_HLINE);
+
         if (color) {
             wattron(kwin->win, color_map["text"].pair);
             wattrset(kwin->win, color_map["title"].pair);
