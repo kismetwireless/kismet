@@ -47,6 +47,29 @@
 
 #define COLOR_DEFAULT -1
 
+// Handle curses implementations that don't define this
+#ifndef ACS_HLINE
+#define ACS_HLINE '-'
+#endif
+
+#ifndef ACS_VLINE
+#define ACS_VLINE '|'
+#endif
+
+extern char *KismetHelpText[];
+extern char *KismetHelpTextNarrow[];
+extern char *KismetHelpDetails[];
+extern char *KismetSortText[];
+extern char *KismetSortTextNarrow[];
+#define SORT_SIZE 10
+extern char *KismetHelpPower[];
+extern char *KismetHelpRate[];
+extern char *KismetHelpGps[];
+extern char *KismetHelpStats[];
+extern char *KismetHelpDump[];
+extern char *KismetHelpPack[];
+
+
 // These are in the kismet_curses.cc main code
 extern int sound;
 extern int speech;

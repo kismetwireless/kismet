@@ -44,7 +44,8 @@ PSO	= configfile.o packet.o \
 		tcpserver.o kismet_server.o 
 PS	= kismet_server
 
-NCO	= configfile.o manuf.o tcpclient.o frontend.o cursesfront.o panelfront.o \
+NCO	= configfile.o manuf.o tcpclient.o frontend.o cursesfront.o \
+		panelfront.o panelfront_display.o panelfront_input.o \
 		getopt.o kismet_curses.o 
 NC	= kismet_curses
 
