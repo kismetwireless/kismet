@@ -366,7 +366,7 @@ static void xpat_net_start(void *data, const char *el, const char **attr) {
 
             for (int i = 0; attr[i]; i += 2) {
                 if (strcasecmp(attr[i], "kismet-version") == 0) {
-                    if (sscanf(attr[i+1], "%32s", &net_kisversion) < 1) {
+                    if (sscanf(attr[i+1], "%32s", net_kisversion) < 1) {
                         fprintf(stderr, "WARNING:  Illegal value '%s' for kismet version\n",
                                 attr[i+1]);
                     }
