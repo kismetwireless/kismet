@@ -99,9 +99,9 @@ int PcapSource::CloseSource() {
 }
 
 void PcapSource::Callback(u_char *bp, const struct pcap_pkthdr *header,
-                                 const u_char *data) {
+                                 const u_char *in_data) {
     memcpy(&callback_header, header, sizeof(pcap_pkthdr));
-    memcpy(callback_data, data, header->len);
+    memcpy(callback_data, in_data, header->len);
 }
 
 int PcapSource::FetchPacket(pkthdr *in_header, u_char *in_data) {
