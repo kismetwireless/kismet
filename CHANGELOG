@@ -1,3 +1,17 @@
+Jan 13 2005 2005-01 Released 2005-01-R1.  Not the major rewrite yet, sorry,
+                    pushed out for the CHIP magazine CD.  Minor bugfixes and 
+                    general updates:
+                     Fixed non-intel compilation bugs in previous release
+                     Fixed gcc version issues that crept into previous release
+                     Tweaked ipw2100 channel control to try to minimize driver 
+                      errors
+                     Tweaked signal/noise handlers to work with Madwifi again
+                     Added Atmel-USB support (rudimentary pseudo-rfmon)
+                     Tweaked configure scripts
+                     Fixed alpha blending elements of gpsmap images on new 
+                      image magick libs
+                     Fixed label positioning code in gpsmap
+                     Documentation and spelling errors fixed up
 Jan 13 2005  devel  Tweaked configure.in/configure to use $(...) instead of `...`
                      to find the kernel headers since it seems to not always
                      translate correctly (Andreas 'GlaDiaC' Schneider)
