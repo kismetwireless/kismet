@@ -88,6 +88,20 @@ enum client_type {
     client_established
 };
 
+enum crypt_type {
+	crypt_none = 0,
+	crypt_unknown = 1,
+	crypt_wep = 2,
+	crypt_layer3 = 4,
+	// ...
+	crypt_wpa = 64,
+	crypt_leap = 128,
+	crypt_ttls = 256,
+	crypt_tls = 512,
+	crypt_peap = 1024,
+	crypt_isakmp = 2048
+};
+
 // Client info
 typedef struct wireless_client {
     wireless_client() {
@@ -100,7 +114,7 @@ typedef struct wireless_client {
         manuf_ref = NULL;
 
         channel = 0;
-        wep = 0;
+        crypt_set = 0;
 
         data_packets = crypt_packets = interesting_packets = 0;
 
@@ -155,7 +169,7 @@ typedef struct wireless_client {
     mac_addr mac;
 
     int channel;
-    int wep;
+    int crypt_set;
 
     // Manufacturer info - mac address key to the manufacturer map and score for
     // easy-default maps
@@ -226,7 +240,7 @@ typedef struct wireless_network {
         llc_packets = data_packets = crypt_packets = interesting_packets = 0;
 
         channel = 0;
-        wep = 0;
+		crypt_set = 0;
 
         cloaked = 0;
 
@@ -308,7 +322,7 @@ typedef struct wireless_network {
     // info extracted from packets
     //uint8_t bssid[MAC_LEN];
     int channel;
-    int wep;
+	int crypt_set;
 
     mac_addr bssid;
 

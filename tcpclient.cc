@@ -31,7 +31,7 @@ TcpClient::TcpClient() {
         "channelhop,newversion";
     protocol_default_map["GPS"] = "lat,lon,alt,spd,heading,fix";
     protocol_default_map["NETWORK"] = "bssid,type,ssid,beaconinfo,llcpackets,datapackets,cryptpackets,"
-        "weakpackets,channel,wep,firsttime,lasttime,atype,rangeip,gpsfixed,minlat,minlon,minalt,minspd,"
+        "weakpackets,channel,cryptset,firsttime,lasttime,atype,rangeip,gpsfixed,minlat,minlon,minalt,minspd,"
         "maxlat,maxlon,maxalt,maxspd,octets,cloaked,beaconrate,maxrate,"
         "quality,signal,noise,bestquality,bestsignal,bestnoise,bestlat,bestlon,bestalt,"
         "agglat,agglon,aggalt,aggpoints,datasize,turbocellnid,turbocellmode,turbocellsat,"
@@ -41,7 +41,7 @@ TcpClient::TcpClient() {
         "gpsfixed,minlat,minlon,minalt,minspd,maxlat,maxlon,maxalt,maxspd,"
         "agglat,agglon,aggalt,aggpoints,maxrate,quality,signal,noise,"
         "bestquality,bestsignal,bestnoise,bestlat,bestlon,bestalt,"
-        "atype,ip,datasize,maxseenrate,encodingset,decrypted";
+        "atype,ip,datasize,maxseenrate,encodingset,decrypted,cryptset";
     protocol_default_map["WEPKEY"] = "origin,bssid,key,encrypted,failed";
     protocol_default_map["CARD"] = "interface,type,username,channel,id,packets,hopping";
 
@@ -335,7 +335,7 @@ int TcpClient::ParseData(char *in_data) {
                          "%d %d %d %d %d %d %d %d",
                          (int *) &net->type, ssid, beacon,
                          &net->llc_packets, &net->data_packets, &net->crypt_packets, 
-                         &net->interesting_packets, &net->channel, &net->wep, 
+                         &net->interesting_packets, &net->channel, &net->crypt_set, 
                          (int *) &net->first_time, (int *) &net->last_time,
                          (int *) &net->ipdata.atype, &range[0], &range[1], &range[2], 
                          &range[3], &net->gps_fixed, &net->min_lat, &net->min_lon, 
@@ -411,7 +411,7 @@ int TcpClient::ParseData(char *in_data) {
         scanned = sscanf(in_data+hdrlen+36, "%d %d %d %d %d %d %d "
                          "%f %f %f %f %f %f %f %f %lf %lf "
                          "%lf %ld %f %d %d %d %d %d %d %d "
-                         "%f %f %f %d %hd.%hd.%hd.%hd %ld %d %d %d",
+                         "%f %f %f %d %hd.%hd.%hd.%hd %ld %d %d %d %d",
                          (int *) &client->type,
                          (int *) &client->first_time, (int *) &client->last_time,
                          &client->data_packets, &client->crypt_packets,
@@ -427,9 +427,9 @@ int TcpClient::ParseData(char *in_data) {
                          &client->best_lat, &client->best_lon, &client->best_alt,
                          (int *) &client->ipdata.atype, &ip[0], &ip[1], &ip[2], &ip[3],
                          &client->datasize, &client->maxseenrate, &client->encoding_set,
-                         &client->decrypted);
+                         &client->decrypted, &client->crypt_set);
 
-        if (scanned < 38) {
+        if (scanned < 39) {
             if (nclient)
                 delete client;
             return 0;

@@ -158,7 +158,7 @@ void Frontend::UpdateGroups() {
                                                           dnet->virtnet->bssid, 
                                                           dnet->virtnet->ssid,
                                                           dnet->virtnet->channel, 
-                                                          dnet->virtnet->wep, 
+                                                          dnet->virtnet->crypt_set, 
                                                           dnet->virtnet->cloaked,
                                                           &dnet->virtnet->manuf_score);
 
@@ -301,10 +301,11 @@ void Frontend::UpdateGroups() {
                 dnet->virtnet->channel = 0;
 
             // If one channel isn't wep'ed, the group isn't wep'd
-            if (dnet->virtnet->wep == -1)
-                dnet->virtnet->wep = wnet->wep;
-            else if (wnet->wep == 0)
-                dnet->virtnet->wep = 0;
+            if (wnet->crypt_set == 0)
+                dnet->virtnet->crypt_set = 0;
+			else
+				dnet->virtnet->crypt_set = (dnet->virtnet->crypt_set &
+											wnet->crypt_set);
 
             // If one channel is cloaked, the group is cloaked
             if (dnet->virtnet->cloaked == -1)
@@ -362,7 +363,7 @@ void Frontend::UpdateGroups() {
         dnet->virtnet->manuf_ref = MatchBestManuf(ap_manuf_map, dnet->virtnet->bssid, 
                                                   dnet->virtnet->ssid,
                                                   dnet->virtnet->channel, 
-                                                  dnet->virtnet->wep, 
+                                                  dnet->virtnet->crypt_set, 
                                                   dnet->virtnet->cloaked,
                                                   &dnet->virtnet->manuf_score);
 

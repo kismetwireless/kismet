@@ -128,7 +128,9 @@ void PanelFront::NetLine(kis_window *in_window, string *in_str, wireless_network
 
             len = 1;
         } else if (colindex == mcol_wep) {
-            if (net->wep)
+			if (net->crypt_set > crypt_wep)
+				snprintf(element, 1024, "O");
+			else if (net->crypt_set)
                 snprintf(element, 1024, "Y");
             else
                 snprintf(element, 1024, "N");
@@ -573,7 +575,7 @@ int PanelFront::MainNetworkPrinter(void *in_window) {
             wattrset(kwin->win, color_map["factory"].pair);
         else if (net->cloaked && color)
             wattrset(kwin->win, color_map["cloak"].pair);
-        else if (net->wep && color)
+        else if (net->crypt_set && color)
             wattrset(kwin->win, color_map["wep"].pair);
         else if (color)
             wattrset(kwin->win, color_map["open"].pair);
@@ -675,7 +677,7 @@ int PanelFront::MainNetworkPrinter(void *in_window) {
 
             if (net->manuf_score == manuf_max_score && color)
                 wattrset(kwin->win, color_map["factory"].pair);
-            else if (net->wep && color)
+            else if (net->crypt_set && color)
                 wattrset(kwin->win, color_map["wep"].pair);
             else if (color)
                 wattrset(kwin->win, color_map["open"].pair);
@@ -1641,7 +1643,7 @@ int PanelFront::DetailsPrinter(void *in_window) {
             snprintf(output, print_width, "Type    : Data (no network control traffic)");
             break;
         case network_turbocell:
-            if (dnet->wep)
+            if (dnet->crypt_set)
                 snprintf(output, print_width, "Type    : Turbocell (encrypted)");
             else
                 snprintf(output, print_width, "Type    : Turbocell");
@@ -1651,7 +1653,7 @@ int PanelFront::DetailsPrinter(void *in_window) {
         }
         kwin->text.push_back(output);
 
-        if (dnet->type == network_turbocell && dnet->wep == 0) {
+        if (dnet->type == network_turbocell && dnet->crypt_set == 0) {
             snprintf(output, print_width, "  Net ID  : %d", dnet->turbocell_nid);
             kwin->text.push_back(output);
 
@@ -1685,10 +1687,32 @@ int PanelFront::DetailsPrinter(void *in_window) {
     
         snprintf(output, print_width, "Channel : %d", dnet->channel);
         kwin->text.push_back(output);
-        snprintf(output, print_width, "WEP     : %s", dnet->wep ? "Yes" : "No");
+        snprintf(output, print_width, "WEP     : %s", dnet->crypt_set ? "Yes" : "No");
         kwin->text.push_back(output);
 
-        if (dnet->wep) {
+		string crypt;
+		if (dnet->crypt_set == 0)
+			crypt = "None";
+		if (dnet->crypt_set & crypt_wep)
+			crypt += "WEP ";
+		if (dnet->crypt_set & crypt_layer3)
+			crypt += "Layer3 ";
+		if (dnet->crypt_set & crypt_leap)
+			crypt += "LEAP ";
+		if (dnet->crypt_set & crypt_ttls)
+			crypt += "TTLS ";
+		if (dnet->crypt_set & crypt_tls)
+			crypt += "TLS ";
+		if (dnet->crypt_set & crypt_peap)
+			crypt += "PEAP ";
+		if (dnet->crypt_set & crypt_isakmp)
+			crypt += "ISAKMP ";
+		if (crypt.length() == 0)
+			crypt = "Unknown";
+		snprintf(output, print_width, "Encrypt : %s", crypt.c_str());
+		kwin->text.push_back(output);
+
+        if (dnet->crypt_set) {
             snprintf(output, print_width, "Decryptd: %s", dnet->decrypted ? "Yes" : "No");
             kwin->text.push_back(output);
         }
@@ -2541,7 +2565,7 @@ int PanelFront::StatsPrinter(void *in_window) {
                         maxch = perc;
                 }
 
-                if (netlist[x]->wep)
+                if (netlist[x]->crypt_set)
                     wep_count++;
                 if (netlist[x]->manuf_score == manuf_max_score)
                     vuln_count++;
@@ -2877,10 +2901,33 @@ int PanelFront::DetailsClientPrinter(void *in_window) {
 
     snprintf(output, print_width, "Channel : %d", details_client->channel);
     kwin->text.push_back(output);
-    snprintf(output, print_width, "WEP     : %s", details_client->wep ? "Yes" : "No");
+    snprintf(output, print_width, "WEP     : %s", 
+			 details_client->crypt_set ? "Yes" : "No");
+    kwin->text.push_back(output);
+	
+	string crypt;
+	if (details_client->crypt_set == 0)
+		crypt = "None";
+	if (details_client->crypt_set & crypt_wep)
+		crypt += "WEP ";
+	if (details_client->crypt_set & crypt_layer3)
+		crypt += "Layer3 ";
+	if (details_client->crypt_set & crypt_leap)
+		crypt += "LEAP ";
+	if (details_client->crypt_set & crypt_ttls)
+		crypt += "TTLS ";
+	if (details_client->crypt_set & crypt_tls)
+		crypt += "TLS ";
+	if (details_client->crypt_set & crypt_peap)
+		crypt += "PEAP ";
+	if (details_client->crypt_set & crypt_isakmp)
+		crypt += "ISAKMP ";
+	if (crypt.length() == 0)
+		crypt = "Unknown";
+    snprintf(output, print_width, "Encrypt : %s", crypt.c_str());
     kwin->text.push_back(output);
 
-    if (details_client->wep) {
+    if (details_client->crypt_set) {
         snprintf(output, print_width, "Decryptd: %s", details_client->decrypted ? "Yes" : "No");
         kwin->text.push_back(output);
     }

@@ -206,7 +206,12 @@ enum protocol_info_type {
     proto_netstumbler,
     proto_lucenttest,
     proto_wellenreiter,
-    proto_iapp
+    proto_iapp,
+    proto_leap,
+    proto_ttls,
+    proto_tls,
+    proto_peap,
+    proto_isakmp,
 };
 
 enum protocol_netbios_type {
@@ -250,6 +255,35 @@ typedef struct {
     unsigned int length : 8 __attribute__ ((packed));
     char data;
 } cdp_element;
+
+// 802.1x Header
+typedef struct dot1x_header {
+    uint8_t    version;
+    uint8_t    type;
+    uint16_t   length;
+} __attribute__ ((packed)) dot1x_header_t;
+
+// EAP Packet header
+typedef struct eap_packet {
+    uint8_t    code; /* 1=request, 2=response, 3=success, 4=failure */
+    uint8_t    identifier; /* Sequential counter, not sure what it's for */
+    uint16_t   length; /* Length of the entire EAP message */
+    uint8_t    type; /* 0x11 for LEAP */
+    /* The fields that follow the type octet are variable, depending on the
+       type and code values.  This information isn't important for us. */
+} __attribute__ ((packed)) eap_packet_t;
+
+// ISAKMP packet header
+typedef struct isakmp_packet {
+    uint8_t    init_cookie[8];
+    uint8_t    resp_cookie[8];
+    uint8_t    next_payload;
+    uint8_t    version;
+    uint8_t    exchtype;
+    uint8_t    flags;
+    uint32_t   messageid;
+    uint32_t   length;
+} __attribute__ ((packed)) isakmp_packet_t;
 
 typedef struct {
     unsigned int type : 8 __attribute__ ((packed));

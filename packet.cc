@@ -834,7 +834,55 @@ void GetProtoInfo(kis_packet *packet, packet_info *in_info) {
 
             ret_protoinfo->type = proto_cdp;
             return;
+
+        } else if (memcmp(&data[in_info->header_offset + LLC_UI_OFFSET + 3], DOT1X_PROTO, 
+            sizeof(DOT1X_PROTO)) == 0) {
+                           
+            // 802.1X frame - let's find out if it's LEAP
+
+            // Make sure it's an EAP packet
+            unsigned int offset = in_info->header_offset + DOT1X_OFFSET;
+            struct dot1x_header *dot1x_ptr = (struct dot1x_header *)&data[offset];
+            if (dot1x_ptr->version == 1 && dot1x_ptr->type == 0 &&
+                (packet->len > (sizeof(dot1x_header) + offset))) {
+
+                // Check out EAP characteristics
+                offset = offset + EAP_OFFSET;
+                struct eap_packet *eap_ptr = (struct eap_packet *)&data[offset];
+                // code can be 1-4 for request, response, success or failure, respectively
+                if ( (eap_ptr->code > 0 || eap_ptr->code < 5) && 
+                    (packet->len > (sizeof(eap_packet) + offset)) ) {
+                    switch(eap_ptr->type) {
+                        case EAP_TYPE_LEAP:
+                            ret_protoinfo->type = proto_leap;
+                            ret_protoinfo->prototype_extra = eap_ptr->code;
+                            return;
+                            break;
+                        case EAP_TYPE_TLS:
+                            ret_protoinfo->type = proto_tls;
+                            ret_protoinfo->prototype_extra = eap_ptr->code;
+                            return;
+                            break;
+                        case EAP_TYPE_TTLS:
+                            ret_protoinfo->type = proto_ttls;
+                            ret_protoinfo->prototype_extra = eap_ptr->code;
+                            return;
+                            break;
+                        case EAP_TYPE_PEAP:
+                            ret_protoinfo->type = proto_peap;
+                            ret_protoinfo->prototype_extra = eap_ptr->code;
+                            return;
+                            break;
+                        default:
+                            ret_protoinfo->type = proto_unknown;
+                            return;
+                            break;
+                    }
+                }
+            }
         }
+
+
     }
 
     // This isn't an 'else' because we want to try to handle it if it looked like a netstumbler
@@ -939,6 +987,7 @@ void GetProtoInfo(kis_packet *packet, packet_info *in_info) {
 
         memcpy(ret_protoinfo->source_ip, (const uint8_t *) &data[in_info->header_offset + IP_OFFSET + 3], 4);
         memcpy(ret_protoinfo->dest_ip, (const uint8_t *) &data[in_info->header_offset + IP_OFFSET + 7], 4);
+
 
         if (ret_protoinfo->sport == IAPP_PORT && ret_protoinfo->dport == IAPP_PORT) {
             iapp_header *ih = (iapp_header *) &data[in_info->header_offset + IAPP_OFFSET];
@@ -1114,7 +1163,21 @@ void GetProtoInfo(kis_packet *packet, packet_info *in_info) {
                 }
                 offset += data[offset+1]+2;
             }
+
+            // Check for ISAKMP traffic
+        } else if (ret_protoinfo->type == proto_udp &&
+        (ret_protoinfo->sport == ISAKMP_PORT || ret_protoinfo->dport == ISAKMP_PORT)) {
+
+            unsigned int offset = in_info->header_offset + ISAKMP_OFFSET;
+            // Don't read past the packet size
+            if (packet->len >= (offset + sizeof(struct isakmp_packet))) {
+                struct isakmp_packet *isakmp_ptr = (struct isakmp_packet *)&data[offset];
+                ret_protoinfo->type = proto_isakmp;
+                ret_protoinfo->prototype_extra = isakmp_ptr->exchtype;
+            }
+
         }
+
     } else if (memcmp(&data[in_info->header_offset + ARP_OFFSET], ARP_SIGNATURE,
                sizeof(ARP_SIGNATURE)) == 0) {
         // ARP
@@ -1139,6 +1202,8 @@ void GetProtoInfo(kis_packet *packet, packet_info *in_info) {
         memcpy(ret_protoinfo->dest_ip, (const uint8_t *) &data[in_info->header_offset + IP_OFFSET + 7], 4);
 
     }
+
+
 }
 
 // Pull all the printable data out

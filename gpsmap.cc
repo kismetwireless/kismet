@@ -753,7 +753,7 @@ void MergeNetData(vector<wireless_network *> in_netdata) {
                     onet->beacon_info = inet->beacon_info;
 
                 onet->cloaked = inet->cloaked;
-                onet->wep = inet->wep;
+                onet->crypt_set = inet->crypt_set;
             }
 
             if (onet->first_time < inet->first_time)
@@ -1322,17 +1322,17 @@ void AssignNetColors() {
                 if (map_iter->wnet->type == network_adhoc || map_iter->wnet->type == network_probe)
                     map_iter->wnet->manuf_ref = MatchBestManuf(client_manuf_map, map_iter->wnet->bssid,
                                                                map_iter->wnet->ssid, map_iter->wnet->channel,
-                                                               map_iter->wnet->wep, map_iter->wnet->cloaked,
+                                                               map_iter->wnet->crypt_set, map_iter->wnet->cloaked,
                                                                &map_iter->wnet->manuf_score);
                 else
                     map_iter->wnet->manuf_ref = MatchBestManuf(ap_manuf_map, map_iter->wnet->bssid,
                                                                map_iter->wnet->ssid, map_iter->wnet->channel,
-                                                               map_iter->wnet->wep, map_iter->wnet->cloaked,
+                                                               map_iter->wnet->crypt_set, map_iter->wnet->cloaked,
                                                                &map_iter->wnet->manuf_score);
 
                 if (map_iter->wnet->manuf_score == manuf_max_score) {
                     map_iter->color_index = "#0000FF";
-                } else if (map_iter->wnet->wep) {
+                } else if (map_iter->wnet->crypt_set) {
                     map_iter->color_index = "#FF0000";
                 } else {
                     map_iter->color_index = "#00FF00";
@@ -2445,7 +2445,7 @@ void DrawNetCenterText(vector<gps_network *> in_nets, Image *in_img, DrawInfo *i
                                                                    map_iter->wnet->bssid,
                                                                    map_iter->wnet->ssid, 
                                                                    map_iter->wnet->channel,
-                                                                   map_iter->wnet->wep, 
+                                                                   map_iter->wnet->crypt_set, 
                                                                    map_iter->wnet->cloaked,
                                                                    &map_iter->wnet->manuf_score);
                         if (map_iter->wnet->manuf_ref) {
@@ -2775,7 +2775,7 @@ int DrawLegendComposite(vector<gps_network *> in_nets, Image **in_img,
 
         if (map_iter->wnet->manuf_score == manuf_max_score) {
             default_nets++;
-        } else if (map_iter->wnet->wep) {
+        } else if (map_iter->wnet->crypt_set) {
             wepped_nets++;
         } else {
             unwepped_nets++;

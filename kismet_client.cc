@@ -902,7 +902,7 @@ int main(int argc, char *argv[]) {
                             wireless_network *newnet = tcpcli->FetchLastNewNetwork();
 
                             if (sound == 1 && newnet != lastspoken) {
-                                if (newnet->wep && 
+                                if (newnet->crypt_set && 
                                     wav_map.find("new_wep") != wav_map.end())
                                     sound = PlaySound("new_wep");
                                 else
@@ -913,7 +913,7 @@ int main(int argc, char *argv[]) {
                                 string text;
 
                                 if (newnet != NULL) {
-                                    if (newnet->wep)
+                                    if (newnet->crypt_set)
                                         text = ExpandSpeechString(speech_sentence_encrypted, newnet, speech_encoding);
                                     else
                                         text = ExpandSpeechString(speech_sentence_unencrypted, newnet, speech_encoding);

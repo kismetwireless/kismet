@@ -80,7 +80,7 @@ enum net_xml_node {
     net_node_wc_mac, net_node_wc_datasize, net_node_wc_maxrate, net_node_wc_maxseenrate,
     net_node_wc_encoding, net_node_wc_channel,
     net_node_wc_ip_address,
-    net_node_wc_packdata,
+    net_node_wc_packdata, net_node_wc_encryption,
     net_node_wc_pk_data, net_node_wc_pk_crypt, net_node_wc_pk_weak,
     net_node_wc_gpsdata,
     net_node_wc_gps_min_lat, net_node_wc_gps_max_lat, net_node_wc_gps_min_lon, net_node_wc_gps_max_lon,
@@ -415,14 +415,16 @@ static void xpat_net_start(void *data, const char *el, const char **attr) {
                     ; // do nothing about the number
                 else if (strcasecmp(attr[i], "wep") == 0) {
                     if (strcasecmp(attr[i+1], "true") == 0)
-                        building_net->wep = 1;
-                    else
-                        building_net->wep = 0;
+						building_net->crypt_set |= (int) crypt_wep;
+					else
+                        building_net->crypt_set = crypt_none;
                 } else if (strcasecmp(attr[i], "cloaked") == 0) {
                     if (strcasecmp(attr[i+1], "true") == 0)
                         building_net->cloaked = 1;
                     else
                         building_net->cloaked = 0;
+				} else if (strcasecmp(attr[i], "encryption") == 0) {
+					// We need to do something smarter
                 } else if (strcasecmp(attr[i], "first-time") == 0) {
                     building_net->first_time = XMLAsc2Time(attr[i+1]);
                 } else if (strcasecmp(attr[i], "last-time") == 0) {
@@ -648,6 +650,8 @@ static void xpat_net_start(void *data, const char *el, const char **attr) {
             netnode = net_node_wc_channel;
         else if (strcasecmp(el, "client-packets") == 0)
             netnode = net_node_wc_packdata;
+        else if (strcasecmp(el, "client-encryption") == 0)
+			netnode = net_node_wc_encryption;
         else if (strcasecmp(el, "client-gps-info") == 0)
             netnode = net_node_wc_gpsdata;
         else
@@ -682,6 +686,9 @@ static void xpat_net_start(void *data, const char *el, const char **attr) {
         } else {
             fprintf(stderr, "WARNING: Illegal tag '%s' in client-packets\n", el);
         }
+	} else if (netnode == net_node_wc_encryption) {
+		// Do something smarter here.
+		;
     } else {
         fprintf(stderr, "WARNING: Illegal tag '%s' in unknown state %d.\n", el, netnode);
     }

@@ -344,7 +344,8 @@ void Packetracker::ProcessPacket(packet_info info) {
             net->type = network_ap;
         }
 
-        net->wep = info.wep;
+		if (info.wep)
+			net->crypt_set |= crypt_wep;
 
         net->beacon = info.beacon;
 
@@ -373,7 +374,7 @@ void Packetracker::ProcessPacket(packet_info info) {
             snprintf(status, STATUS_MAX, "Found new network \"%s\" bssid %s WEP %c Ch "
                      "%d @ %.2f mbit",
                      net->ssid.c_str(), net->bssid.Mac2String().c_str(), 
-                     net->wep ? 'Y' : 'N',
+                     net->crypt_set ? 'Y' : 'N',
                      net->channel, net->maxrate);
             KisLocalStatus(status);
         }
@@ -393,13 +394,16 @@ void Packetracker::ProcessPacket(packet_info info) {
 
         // Find out what we can from what we know now...
         if (net->type != network_adhoc && net->type != network_probe) {
-            net->manuf_ref = MatchBestManuf(ap_manuf_map, net->bssid, net->ssid, net->channel,
-                                            net->wep, net->cloaked, &net->manuf_score);
+            net->manuf_ref = MatchBestManuf(ap_manuf_map, net->bssid, net->ssid, 
+											net->channel, net->crypt_set, 
+											net->cloaked, &net->manuf_score);
             if (net->manuf_score == manuf_max_score)
                 memcpy(&net->ipdata, &net->manuf_ref->ipdata, sizeof(net_ip_data));
         } else {
-            net->manuf_ref = MatchBestManuf(client_manuf_map, net->bssid, net->ssid, net->channel,
-                                            net->wep, net->cloaked, &net->manuf_score);
+            net->manuf_ref = MatchBestManuf(client_manuf_map, net->bssid, 
+											net->ssid, net->channel,
+                                            net->crypt_set, net->cloaked, 
+											&net->manuf_score);
         }
 
         num_networks++;
@@ -517,7 +521,8 @@ void Packetracker::ProcessPacket(packet_info info) {
 
         if (alertracker->PotentialAlert(arefs[BCASTDISCON_AREF]) > 0) {
             snprintf(status, STATUS_MAX, "Broadcast %s on %s",
-                     info.subtype == packet_sub_disassociation ? "disassociation" : "deauthentication",
+                     info.subtype == packet_sub_disassociation ? 
+					 "disassociation" : "deauthentication",
                      net->bssid.Mac2String().c_str());
             alertracker->RaiseAlert(arefs[BCASTDISCON_AREF], net->bssid, 
                                     0, 0, 0, info.channel, status);
@@ -587,8 +592,9 @@ void Packetracker::ProcessPacket(packet_info info) {
             // changed state as well
             if (net->channel != info.channel || net->type != network_ap ||
                 (net->ssid != info.ssid && !IsBlank(info.ssid))) {
-                net->manuf_ref = MatchBestManuf(ap_manuf_map, net->bssid, info.ssid, info.channel,
-                                                net->wep,net->cloaked, &net->manuf_score);
+                net->manuf_ref = MatchBestManuf(ap_manuf_map, net->bssid, info.ssid, 
+												info.channel, net->crypt_set,
+												net->cloaked, &net->manuf_score);
                 // Update our IP range info too if we're a default
                 if (net->manuf_score == manuf_max_score && net->ipdata.atype == address_none)
                     memcpy(&net->ipdata, &net->manuf_ref->ipdata, sizeof(net_ip_data));
@@ -604,7 +610,9 @@ void Packetracker::ProcessPacket(packet_info info) {
             }
 
             net->channel = info.channel;
-            net->wep = info.wep;
+			
+			if (info.wep)
+				net->crypt_set |= (int) crypt_wep;
 
             if (info.distrib != adhoc_distribution)
                 net->type = network_ap;
@@ -632,11 +640,13 @@ void Packetracker::ProcessPacket(packet_info info) {
                 net->cloaked = 1;
                 net->ssid = info.ssid;
                 net->channel = info.channel;
-                net->wep = info.wep;
+
+				if (info.wep)
+					net->crypt_set |= (int) crypt_wep;
 
                 net->manuf_ref = MatchBestManuf(ap_manuf_map, net->bssid, net->ssid, 
-                                                net->channel, net->wep, net->cloaked, 
-                                                &net->manuf_score);
+                                                net->channel, net->crypt_set, 
+												net->cloaked, &net->manuf_score);
                 // Update our IP range info too if we're a default
                 if (net->manuf_score == manuf_max_score && 
                     net->ipdata.atype == address_none)
@@ -651,11 +661,13 @@ void Packetracker::ProcessPacket(packet_info info) {
             } else if (info.ssid != bssid_cloak_map[net->bssid]) {
                 bssid_cloak_map[net->bssid] = info.ssid;
                 net->ssid = info.ssid;
-                net->wep = info.wep;
+				
+				if (info.wep)
+					net->crypt_set |= (int) crypt_wep;
 
                 net->manuf_ref = MatchBestManuf(ap_manuf_map, net->bssid, net->ssid, 
-                                                net->channel, net->wep, net->cloaked, 
-                                                &net->manuf_score);
+                                                net->channel, net->crypt_set,
+												net->cloaked, &net->manuf_score);
                 // Update our IP range info too if we're a default
                 if (net->manuf_score == manuf_max_score && 
                     net->ipdata.atype == address_none)
@@ -878,6 +890,24 @@ void Packetracker::ProcessDataPacket(packet_info info, wireless_network *net) {
     // one...
     client->encoding_set |= (1 << (int) info.encoding);
 
+	// Assign the encryption types from the protocol field
+	if (info.proto.type == proto_leap) {
+		client->crypt_set |= ((int) crypt_leap);
+		net->crypt_set |= ((int) crypt_leap);
+	} else if (info.proto.type == proto_ttls) {
+		client->crypt_set |= ((int) crypt_leap);
+		net->crypt_set |= ((int) crypt_leap);
+	} else if (info.proto.type == proto_tls) {
+		client->crypt_set |= ((int) crypt_tls);
+		net->crypt_set |= ((int) crypt_tls);
+	} else if (info.proto.type == proto_peap) {
+		client->crypt_set |= ((int) crypt_peap);
+		net->crypt_set |= ((int) crypt_peap);
+	} else if (info.proto.type == proto_isakmp) {
+		client->crypt_set |= ((int) crypt_isakmp);
+		net->crypt_set |= ((int) crypt_isakmp);
+	}
+
     if (info.datarate > client->maxseenrate)
         client->maxseenrate = info.datarate;
 
@@ -890,8 +920,9 @@ void Packetracker::ProcessDataPacket(packet_info info, wireless_network *net) {
     unsigned int ipdata_dirty = 0;
     char *means = NULL;
 
-    if (info.proto.type == proto_dhcp_server && (client->ipdata.atype < address_dhcp ||
-                                                 client->ipdata.load_from_store == 1)) {
+    if (info.proto.type == proto_dhcp_server && 
+		(client->ipdata.atype < address_dhcp ||
+		 client->ipdata.load_from_store == 1)) {
         // If we have a DHCP packet and we didn't before, turn it into a full record
         // in the client and flag us dirty.
         client->ipdata.atype = address_dhcp;
@@ -984,6 +1015,101 @@ void Packetracker::ProcessDataPacket(packet_info info, wireless_network *net) {
             alertracker->RaiseAlert(arefs[NETSTUMBLER_AREF], 0, client->mac, 
                                     0, 0, info.channel, status);
         }
+    } else if (info.proto.type == proto_leap || info.proto.type == proto_peap ||
+               info.proto.type == proto_ttls || info.proto.type == proto_tls) {
+        // Handle EAP packets
+
+        char *eapcode;
+        char *eaptype;
+
+        switch (info.proto.prototype_extra) {
+            case EAP_CODE_REQUEST:
+            eapcode = "Authentication Request";
+            break;
+            case EAP_CODE_RESPONSE:
+            eapcode = "Authentication Response";
+            break;
+            case EAP_CODE_SUCCESS:
+            eapcode = "Authentication Success";
+            break;
+            case EAP_CODE_FAILURE:
+            eapcode = "Authentication Failure";
+            break;
+            default: // Should never happen
+            eapcode = "unknown";
+            break;
+        }
+
+        switch (info.proto.type) {
+            case proto_leap:
+                eaptype = "LEAP";
+                break;
+            case proto_ttls:
+                eaptype = "TTLS";
+                break;
+            case proto_tls:
+                eaptype = "TLS";
+                break;
+            case proto_peap:
+                eaptype = "PEAP";
+                break;
+            default: // Should never happen
+                eaptype = "UNKNOWN";
+                break;
+        }
+
+        snprintf(status, STATUS_MAX, "%s Traffic - %s - from %s", eaptype, eapcode, 
+            client->mac.Mac2String().c_str());
+        KisLocalStatus(status);
+
+    } else if (info.proto.type == proto_isakmp) {
+        // Handle ISAKMP traffic
+
+        char *isakmpcode;
+        switch (info.proto.prototype_extra) {
+            case ISAKMP_EXCH_NONE:
+                isakmpcode = "NONE";
+                break;
+            case ISAKMP_EXCH_BASE:
+                isakmpcode = "Base";
+                break;
+            case ISAKMP_EXCH_IDPROT:
+                isakmpcode = "Identity Protection (Main Mode)";
+                break;
+            case ISAKMP_EXCH_AUTHONLY:
+                isakmpcode = "Authentication Only";
+                break;
+            case ISAKMP_EXCH_AGGRESS:
+                isakmpcode = "Aggressive";
+                break;
+            case ISAKMP_EXCH_INFORM:
+                isakmpcode = "Informational";
+                break;
+            case ISAKMP_EXCH_TRANS:
+                isakmpcode = "Transaction (Config Mode)";
+                break;
+            case ISAKMP_EXCH_QUICK:
+                isakmpcode = "Quick Mode";
+                break;
+            case ISAKMP_EXCH_NEWGRP:
+                isakmpcode = "New Group Mode";
+                break;
+            default:
+                if (info.proto.prototype_extra < 32) { 
+                    isakmpcode = "Reserved for Future Use";
+                    break;
+                }
+                if (info.proto.prototype_extra < 240) {
+                    isakmpcode = "DOI Specific Use";
+                    break;
+                }
+                isakmpcode = "Private Use";
+                break;
+        }
+
+        snprintf(status, STATUS_MAX, "ISAKMP Traffic, Exchange type: %s - from %s", isakmpcode, 
+            client->mac.Mac2String().c_str());
+        KisLocalStatus(status);
 
     } else if (info.proto.type == proto_lucenttest) {
         // Handle lucent test packets
@@ -1146,25 +1272,47 @@ int Packetracker::WriteNetworks(string in_fname) {
         else
             snprintf(carrier, 15, "unknown");
 
+		string crypt;
+		if (net->crypt_set == 0)
+			crypt = "None";
+		if (net->crypt_set & crypt_wep)
+			crypt += "WEP ";
+		if (net->crypt_set & crypt_layer3)
+			crypt += "Layer3 ";
+		if (net->crypt_set & crypt_leap)
+			crypt += "LEAP ";
+		if (net->crypt_set & crypt_ttls)
+			crypt += "TTLS ";
+		if (net->crypt_set & crypt_tls)
+			crypt += "TLS ";
+		if (net->crypt_set & crypt_peap)
+			crypt += "PEAP ";
+		if (net->crypt_set & crypt_isakmp)
+			crypt += "ISAKMP ";
+
+		if (crypt.length() == 0)
+			crypt = "Unknown";
+
         fprintf(netfile, "Network %d: \"%s\" BSSID: \"%s\"\n"
-                "    Type     : %s\n"
-                "    Carrier  : %s\n"
-                "    Info     : \"%s\"\n"
-                "    Channel  : %02d\n"
-                "    WEP      : \"%s\"\n"
-                "    Maxrate  : %2.1f\n"
-                "    LLC      : %d\n"
-                "    Data     : %d\n"
-                "    Crypt    : %d\n"
-                "    Weak     : %d\n"
-                "    Dupe IV  : %d\n"
-                "    Total    : %d\n"
-                "    First    : \"%s\"\n"
-                "    Last     : \"%s\"\n",
+                "    Type       : %s\n"
+                "    Carrier    : %s\n"
+                "    Info       : \"%s\"\n"
+                "    Channel    : %02d\n"
+                "    Encryption : \"%s\"\n"
+                "    Maxrate    : %2.1f\n"
+                "    LLC        : %d\n"
+                "    Data       : %d\n"
+                "    Crypt      : %d\n"
+                "    Weak       : %d\n"
+                "    Dupe IV    : %d\n"
+                "    Total      : %d\n"
+                "    First      : \"%s\"\n"
+                "    Last       : \"%s\"\n",
                 netnum,
                 net->ssid.c_str(), net->bssid.Mac2String().c_str(), type, carrier,
                 net->beacon_info == "" ? "None" : net->beacon_info.c_str(),
-                net->channel, net->wep ? "Yes" : "No",
+                net->channel, 
+				crypt.c_str(),
                 net->maxrate,
                 net->llc_packets, net->data_packets,
                 net->crypt_packets, net->interesting_packets,
@@ -1386,18 +1534,9 @@ int Packetracker::WriteCSVNetworks(string in_fname) {
     */
 
     int netnum = 1;
-    /*
-    vector<wireless_network *> bssid_vec;
 
-    // Convert the map to a vector and sort it
-    for (map<mac_addr, wireless_network *>::const_iterator i = bssid_map.begin();
-         i != bssid_map.end(); ++i)
-        bssid_vec.push_back(i->second);
 
-        stable_sort(bssid_vec.begin(), bssid_vec.end(), SortFirstTimeLT());
-        */
-
-    fprintf(netfile, "Network;NetType;ESSID;BSSID;Info;Channel;Cloaked;WEP;Decrypted;MaxRate;MaxSeenRate;Beacon;"
+    fprintf(netfile, "Network;NetType;ESSID;BSSID;Info;Channel;Cloaked;Encryption;Decrypted;MaxRate;MaxSeenRate;Beacon;"
             "LLC;Data;Crypt;Weak;Total;Carrier;Encoding;FirstTime;LastTime;BestQuality;BestSignal;BestNoise;"
             "GPSMinLat;GPSMinLon;GPSMinAlt;GPSMinSpd;GPSMaxLat;GPSMaxLon;GPSMaxAlt;GPSMaxSpd;"
             "GPSBestLat;GPSBestLon;GPSBestAlt;DataSize;IPType;IP;\n\r");
@@ -1494,6 +1633,50 @@ int Packetracker::WriteCSVNetworks(string in_fname) {
         else if (net->ipdata.atype == address_tcp)
             iptype = "TCP";
 
+		string crypt;
+		if (net->crypt_set == 0)
+			crypt = "None";
+
+		if (net->crypt_set & crypt_wep) {
+			if (crypt != "")
+				crypt += ",";
+			crypt += "WEP";
+		}
+
+		if (net->crypt_set & crypt_layer3) {
+			if (crypt != "")
+				crypt += ",";
+			crypt += "Layer3";
+		}
+		if (net->crypt_set & crypt_leap) {
+			if (crypt != "")
+				crypt += ",";
+			crypt += "LEAP";
+		}
+		if (net->crypt_set & crypt_ttls) {
+			if (crypt != "")
+				crypt += ",";
+			crypt += "TTLS";
+		}
+		if (net->crypt_set & crypt_tls) {
+			if (crypt != "")
+				crypt += ",";
+			crypt += "TLS";
+		}
+		if (net->crypt_set & crypt_peap) {
+			if (crypt != "")
+				crypt += ",";
+			crypt += "PEAP";
+		}
+		if (net->crypt_set & crypt_isakmp) {
+			if (crypt != "")
+				crypt += ",";
+			crypt += "ISAKMP";
+		}
+
+		if (crypt.length() == 0)
+			crypt = "Unknown";
+
         fprintf(netfile,
                 "%d;%s;%s;%s;%s;"
                 "%d;%s;%s;%s;"
@@ -1506,10 +1689,14 @@ int Packetracker::WriteCSVNetworks(string in_fname) {
                 "%f;%f;%f;"
                 "%ld;%s;"
                 "%hd.%hd.%hd.%hd;\n\r",
-                netnum, type, SanitizeCSV(net->ssid).c_str(), net->bssid.Mac2String().c_str(), SanitizeCSV(net->beacon_info).c_str(),
-                net->channel, net->cloaked ? "Yes" : "No", net->wep ? "Yes" : "No", net->decrypted ? "Yes" : "No",
+                netnum, type, SanitizeCSV(net->ssid).c_str(), 
+				net->bssid.Mac2String().c_str(), 
+				SanitizeCSV(net->beacon_info).c_str(),
+                net->channel, net->cloaked ? "Yes" : "No", crypt.c_str(), 
+				net->decrypted ? "Yes" : "No",
                 net->maxrate, (long) net->maxseenrate * 100, net->beacon,
-                net->llc_packets, net->data_packets, net->crypt_packets, net->interesting_packets, 
+                net->llc_packets, net->data_packets, net->crypt_packets, 
+				net->interesting_packets, 
                 (net->llc_packets + net->data_packets),
                 carrier.c_str(), encoding.c_str(), ft, lt,
                 net->best_quality, net->best_signal, net->best_noise,
@@ -1517,7 +1704,8 @@ int Packetracker::WriteCSVNetworks(string in_fname) {
                 net->max_lat, net->max_lon, net->max_alt, net->max_spd,
                 net->best_lat, net->best_lon, net->best_alt,
                 net->datasize, iptype.c_str(),
-                net->ipdata.range_ip[0], net->ipdata.range_ip[1], net->ipdata.range_ip[2], net->ipdata.range_ip[3]);
+                net->ipdata.range_ip[0], net->ipdata.range_ip[1], 
+				net->ipdata.range_ip[2], net->ipdata.range_ip[3]);
 
         netnum++;
     }
@@ -1654,7 +1842,8 @@ int Packetracker::WriteXMLNetworks(string in_fname) {
             snprintf(type, 15, "unknown");
 
         fprintf(netfile, "  <wireless-network number=\"%d\" type=\"%s\" wep=\"%s\" cloaked=\"%s\" first-time=\"%s\" last-time=\"%s\">\n",
-                netnum, type, net->wep ? "true" : "false", net->cloaked ? "true" : "false",
+                netnum, type, net->crypt_set ? "true" : "false", 
+				net->cloaked ? "true" : "false",
                 ft, lt);
 
         if (net->ssid != NOSSID)
@@ -1686,6 +1875,23 @@ int Packetracker::WriteXMLNetworks(string in_fname) {
             fprintf(netfile, "    <encoding>PBCC</encoding>\n");
         if (net->encoding_set & (1 << (int) encoding_ofdm))
             fprintf(netfile, "    <encoding>OFDM</encoding>\n");
+
+		if (net->crypt_set == 0)
+			fprintf(netfile, "    <encryption>None</encryption>\n");
+		if (net->crypt_set & crypt_wep)
+			fprintf(netfile, "    <encryption>WEP</encryption>\n");
+		if (net->crypt_set & crypt_layer3)
+			fprintf(netfile, "    <encryption>Layer3</encryption>\n");
+		if (net->crypt_set & crypt_leap)
+			fprintf(netfile, "    <encryption>LEAP</encryption>\n");
+		if (net->crypt_set & crypt_ttls)
+			fprintf(netfile, "    <encryption>TTLS</encryption>\n");
+		if (net->crypt_set & crypt_tls)
+			fprintf(netfile, "    <encryption>TLS</encryption>\n");
+		if (net->crypt_set & crypt_peap)
+			fprintf(netfile, "    <encryption>PEAP</encryption>\n");
+		if (net->crypt_set & crypt_isakmp)
+			fprintf(netfile, "    <encryption>ISAKMP</encryption>\n");
 
         fprintf(netfile, "    <packets>\n");
         fprintf(netfile, "      <LLC>%d</LLC>\n", net->llc_packets);
@@ -1772,7 +1978,7 @@ int Packetracker::WriteXMLNetworks(string in_fname) {
 
             fprintf(netfile, "    <wireless-client number=\"%d\" type=\"%s\" "
                     "wep=\"%s\" first-time=\"%s\" last-time=\"%s\">\n",
-                    clinum, clitype, cli->wep ? "true" : "false", ft, lt);
+                    clinum, clitype, cli->crypt_set ? "true" : "false", ft, lt);
 
             fprintf(netfile, "      <client-mac>%s</client-mac>\n", cli->mac.Mac2String().c_str());
             fprintf(netfile, "      <client-packets>\n");
@@ -1780,6 +1986,23 @@ int Packetracker::WriteXMLNetworks(string in_fname) {
             fprintf(netfile, "        <client-crypt>%d</client-crypt>\n", cli->crypt_packets);
             fprintf(netfile, "        <client-weak>%d</client-weak>\n", cli->interesting_packets);
             fprintf(netfile, "      </client-packets>\n");
+
+		if (net->crypt_set == 0)
+			fprintf(netfile, "      <client-encryption>None</client-encryption>\n");
+		if (net->crypt_set & crypt_wep)
+			fprintf(netfile, "      <client-encryption>WEP</client-encryption>\n");
+		if (net->crypt_set & crypt_layer3)
+			fprintf(netfile, "      <client-encryption>Layer3</client-encryption>\n");
+		if (net->crypt_set & crypt_leap)
+			fprintf(netfile, "      <client-encryption>LEAP</client-encryption>\n");
+		if (net->crypt_set & crypt_ttls)
+			fprintf(netfile, "      <client-encryption>TTLS</client-encryption>\n");
+		if (net->crypt_set & crypt_tls)
+			fprintf(netfile, "      <client-encryption>TLS</client-encryption>\n");
+		if (net->crypt_set & crypt_peap)
+			fprintf(netfile, "      <client-encryption>PEAP</client-encryption>\n");
+		if (net->crypt_set & crypt_isakmp)
+			fprintf(netfile, "      <client-encryption>ISAKMP</client-encryption>\n");
 
             if (cli->gps_fixed != -1) {
                 fprintf(netfile, "      <client-gps-info unit=\"%s\">\n", metric ? "metric" : "english");
