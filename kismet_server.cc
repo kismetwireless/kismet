@@ -711,10 +711,7 @@ void NetWriteInfo() {
     tracked = tracker.FetchNetworks();
 
     for (unsigned int x = 0; x < tracked.size(); x++) {
-        // Only send new networks
-        if (tracked[x]->last_time < last_write)
-            continue;
-
+		// Remove networks always get sent
         if (tracked[x]->type == network_remove) {
             string remstr = tracked[x]->bssid.Mac2String();
             ui_server.SendToAll(remove_ref, (void *) &remstr);
@@ -723,6 +720,10 @@ void NetWriteInfo() {
 
             continue;
         }
+
+        // Only send new networks
+        if (tracked[x]->last_time < last_write)
+            continue;
 
         NETWORK_data ndata;
         Protocol_Network2Data(tracked[x], &ndata);

@@ -6,6 +6,8 @@ Mar 10 2005  devel  Merged long-delayed patch from Josh Wright to add detection
                      extra encryption are listed as 'O'ther in the client.
                     Expanded XML, ascii, csv logs
                     Added/fixed client WEP fields
+                    Fixed bug that caused some removed networks to not be sent for
+                     removal if the times collided
 Mar 07 2005  devel  Merged patch from Chris Kuethe cleaning up some possible
                      over-by-one string parsing and to remove two warnings.
 Feb 08 2005  devel  Merged patch from Mindfab to potentially resolve some of the
