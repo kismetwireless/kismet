@@ -1017,6 +1017,10 @@ KisPacketSource *pcapsource_radiotap_registrant(string in_name, string in_device
 }
 #endif
 
+int unmonitor_pcapfile(const char *in_dev, int initch, char *in_err, void **in_if) {
+    return 0;
+}
+
 // Monitor commands
 #ifdef HAVE_LINUX_WIRELESS
 // Cisco uses its own config file in /proc to control modes
@@ -1152,7 +1156,7 @@ int unmonitor_hostap(const char *in_dev, int initch, char *in_err, void **in_if)
 
     free(ifparm);
 
-    return 0;
+    return 1;
 }
 
 // Orinoco uses iwpriv and iwcontrol settings to control monitor mode
@@ -1230,7 +1234,7 @@ int unmonitor_orinoco(const char *in_dev, int initch, char *in_err, void **in_if
 
     free(ifparm);
 
-    return 0;
+    return 1;
 
 }
 
@@ -1286,7 +1290,7 @@ int unmonitor_acx100(const char *in_dev, int initch, char *in_err, void **in_if)
     
     free(ifparm);
 
-    return 0;
+    return 1;
 }
 
 int monitor_admtek(const char *in_dev, int initch, char *in_err, void **in_if) {
@@ -1328,7 +1332,7 @@ int unmonitor_admtek(const char *in_dev, int initch, char *in_err, void **in_if)
     if (Iwconfig_Set_SSID(in_dev, in_err, ifparm->essid) < 0)
         return -1;
    
-    return 0;
+    return 1;
 }
 // vtar5k iwpriv control to set link state, rest is normal
 int monitor_vtar5k(const char *in_dev, int initch, char *in_err, void **in_if) {
@@ -1600,7 +1604,7 @@ int unmonitor_wext(const char *in_dev, int initch, char *in_err, void **in_if) {
     
     free(ifparm);
 
-    return 0;
+    return 1;
 }
 
 #endif
@@ -2251,12 +2255,12 @@ int monitor_freebsd(const char *in_dev, int initch, char *in_err, void **in_if) 
 int unmonitor_freebsd(const char *in_dev, int initch, char *in_err, void **in_if) {
     FreeBSD *bsd = *(FreeBSD **)in_if;
     if (!bsd->monitor_reset(initch)) {
-	strcpy(in_err, bsd->geterror());
-	delete bsd;
-	return -1;
+        strcpy(in_err, bsd->geterror());
+        delete bsd;
+        return -1;
     } else {
-	delete bsd;
-	return 0;
+        delete bsd;
+        return 1;
     }
 }
 

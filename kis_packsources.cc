@@ -20,6 +20,16 @@
 
 #include "kis_packsources.h"
 
+KisPacketSource *nullsource_registrant(string in_name, string in_device, 
+                                       char *in_err) {
+    return new NullPacketSource(in_name, in_device);
+}
+
+int unmonitor_nullsource(const char *in_dev, int initch, 
+                         char *in_err, void **in_if) {
+    return 0;
+}
+
 int RegisterKismetSources(Packetsourcetracker *sourcetracker) {
     // Register all our packet sources
     // RegisterPacketsource(name, root, channelset, init channel, register,
@@ -27,18 +37,23 @@ int RegisterKismetSources(Packetsourcetracker *sourcetracker) {
     //
     // We register sources we known about but didn't compile support for as
     // NULL so we can report a sensible error if someone tries to use it
-   
+ 
+    // Null source
+    sourcetracker->RegisterPacketsource("none", 0, "na", 0,
+                                        nullsource_registrant,
+                                        NULL, unmonitor_nullsource, NULL, 0);
+    
     // Drone
     sourcetracker->RegisterPacketsource("kismet_drone", 0, "na", 0,
                                        dronesource_registrant,
-                                       NULL, NULL, NULL, 0);
+                                       NULL, unmonitor_dronesource, NULL, 0);
     
     // pcap supported sources 
 #ifdef HAVE_LIBPCAP
     // pcapfile doesn't have channel or monitor controls
     sourcetracker->RegisterPacketsource("pcapfile", 0, "na", 0,
                                        pcapsource_file_registrant,
-                                       NULL, NULL, NULL, 0);
+                                       NULL, unmonitor_pcapfile, NULL, 0);
 #else
     REG_EMPTY_CARD(sourcetracker, "pcapfile");
 #endif

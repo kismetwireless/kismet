@@ -348,6 +348,8 @@ KisPacketSource *pcapsource_radiotap_registrant(string in_name, string in_device
 #endif
 
 // Monitor activation
+int unmonitor_pcapfile(const char *in_dev, int initch, char *in_err, void **in_if);
+
 #ifdef HAVE_LINUX_WIRELESS
 // Cisco (old) 
 int monitor_cisco(const char *in_dev, int initch, char *in_err, void **in_if);
