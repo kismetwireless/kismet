@@ -87,6 +87,12 @@ case "$CARDTYPE" in
 	"orinoco_bsd")
 		echo "orinoco BSD - we need commands here!"
 		;;
+	"acx100")
+		echo "Enabling monitor mode for an acx100 card on $DEVICE channel $CHANNEL"
+		ifconfig $DEVICE promisc up
+		iwpriv $DEVICE packhdr 1
+		iwconfig $DEVICE mode monitor
+		;;
 	"generic")
 		echo "Generic card specified, so we do nothing."
 		;;

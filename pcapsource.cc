@@ -114,7 +114,7 @@ int PcapSource::OpenSource(const char *dev, card_type ctype) {
 
     // Set up the ioctl stuff for pcap cards that work via the ioctl extentions
 #ifdef HAVE_LINUX_WIRELESS
-    if (ctype == card_prism2 || ctype == card_prism2_hostap || ctype == card_orinoco) {
+    if (ctype == card_prism2 || ctype == card_prism2_hostap || ctype == card_orinoco || ctype == card_acx100) {
         // Cribbed from the wireless tools
         static const int families[] = {
             AF_INET, AF_IPX, AF_AX25, AF_APPLETALK
@@ -459,7 +459,7 @@ int PcapSource::SetChannel(unsigned int chan) {
 int PcapSource::FetchChannel() {
 #ifdef HAVE_LINUX_WIRELESS
     // Use ioctl's to get the current channel if we're a card type that supports them
-    if (cardtype == card_prism2 || cardtype == card_prism2_hostap || cardtype == card_orinoco) {
+    if (cardtype == card_prism2 || cardtype == card_prism2_hostap || cardtype == card_orinoco || cardtype == card_acx100) {
         iwreq wrq;
         strncpy(wrq.ifr_name, carddev, IFNAMSIZ);
         if (ioctl(ioctl_sock, SIOCGIWFREQ, &wrq) < 0) {
