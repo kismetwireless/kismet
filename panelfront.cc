@@ -147,6 +147,8 @@ char *KismetHelpGps[] = {
     "direction of travel, and the direction of the network center",
     "and distance relative to the current direction of movement.",
     " Key   Action",
+    "  s    Follow location of strongest packet",
+    "  c    Follow location of estimated network center",
     "  q    Close popup",
     NULL
 };
@@ -1711,8 +1713,16 @@ int PanelFront::GpsPrinter(void *in_window) {
         return TextPrinter(in_window);
     }
 
-    float center_lat = dnet.aggregate_lat / dnet.aggregate_points;
-    float center_lon = dnet.aggregate_lon / dnet.aggregate_points;
+    float center_lat, center_lon;
+
+    // We hijack the "selected" field as a toggle
+    if (kwin->selected == 1) {
+        center_lat = dnet.best_lat;
+        center_lon = dnet.best_lon;
+    } else {
+        center_lat = dnet.aggregate_lat / dnet.aggregate_points;
+        center_lon = dnet.aggregate_lon / dnet.aggregate_points;
+    }
 
     // Try to calculate the bearing and distance to the estimated center
     // Liberally stolen from gpsdrive - math is scary! >:P
@@ -1855,7 +1865,10 @@ int PanelFront::GpsPrinter(void *in_window) {
     snprintf(output, print_width, "%-22s%s", textfrag, compass[3]);
     kwin->text.push_back(output);
 
-    snprintf(textfrag, 23, "Estimated Center:");
+    if (kwin->selected == 1)
+        snprintf(textfrag, 23, "Strongest signal:");
+    else
+        snprintf(textfrag, 23, "Estimated Center:");
     snprintf(output, print_width, "%-22s%s", textfrag, compass[4]);
     kwin->text.push_back(output);
 
@@ -2772,7 +2785,17 @@ int PanelFront::PowerInput(void *in_window, int in_chr) {
 }
 
 int PanelFront::GpsInput(void *in_window, int in_chr) {
+    kis_window *kwin = (kis_window *) in_window;
+
     switch (in_chr) {
+    case 's':
+    case 'S':
+        kwin->selected = 1;
+        break;
+    case 'c':
+    case 'C':
+        kwin->selected = 0;
+        break;
     case 'h':
     case 'H':
         SpawnHelp(KismetHelpGps);
