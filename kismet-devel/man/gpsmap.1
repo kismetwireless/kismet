@@ -187,8 +187,8 @@ Center dot at radius size. Default: 2
 .TP
 .B
 \fB-l\fP, \fB--draw-labels\fP LIST
-Draw network label types, comma-seperated list (bssid, name).  This is literally
-"bssid", "name", or a combination thereof.
+Draw network label types, comma-seperated list.  Labels are drawn in the order given.
+Valid labels are bssid, ssid, info, location, manuf.
 .TP
 .B
 \fB-L\fP, \fB--draw-label-orient\fP ORIENT
@@ -229,9 +229,10 @@ the entire area, preferably forming a grid or mesh, should be taken.
 .SS        NETWORK CENTER
 Simply draw a dot in the averaged center of each network
 .SS        LABELS
-Label a network with the bssid or ssid.
-Labels are drawn based off the network 
-center and the orientation.
+Labels are drawn in the order requested in the list.
+Labels are drawn based on the center of the network and the label orientation.
+There is some logic to attempt to prevent label overlap, but on extremely crowded
+maps it will be unavoidable.
 .SS        LEGEND
 Draws a legend on the bottom of the map with the coordinates, scale, total sampled
 networks, networks visible on the current plot, and dynamic information based on the

@@ -3695,27 +3695,32 @@ int main(int argc, char *argv[]) {
     fprintf(stderr, "Processing %d sample points.\n",
             sample_points);
 
-    map_avg_lat = (double) (global_map_avg.min_lat + global_map_avg.max_lat) / 2;
-    map_avg_lon = (double) (global_map_avg.min_lon + global_map_avg.max_lon) / 2;
-
-    // Fit the whole map
-    if (BestMapScale(&map_scale, &fetch_scale, global_map_avg.min_lat, 
-                global_map_avg.min_lon, global_map_avg.max_lat, 
-                global_map_avg.max_lon) < 0) {
-        fprintf(stderr, "Could not find a suitable scale for the sample points. "
-                "Please manually provide a scale with the -s option.\n");
-        exit(1);
+    map_avg_lat = (double) (global_map_avg.min_lat + 
+                            global_map_avg.max_lat) / 2;
+    map_avg_lon = (double) (global_map_avg.min_lon + 
+                            global_map_avg.max_lon) / 2;
+    
+    // Fit the whole map if we can
+    if (user_scale == 0) {
+        if (BestMapScale(&map_scale, &fetch_scale, global_map_avg.min_lat, 
+                         global_map_avg.min_lon, global_map_avg.max_lat, 
+                         global_map_avg.max_lon) < 0) {
+            fprintf(stderr, "Could not find a suitable scale for the sample "
+                    "points. Please manually provide a scale with the -s "
+                    "option.\n");
+            exit(1);
+        }
     }
 
     fprintf(stderr, "Map image scale: %ld\n", map_scale);
-    fprintf(stderr, "Minimum Corner (lat/lon): %f x %f\n", global_map_avg.min_lat,
-            global_map_avg.min_lon);
-    fprintf(stderr, "Maximum Corner (lat/lon): %f x %f\n", global_map_avg.max_lat,
-            global_map_avg.max_lon);
-    fprintf(stderr, "Map center (lat/lon): %f x %f\n", map_avg_lat, map_avg_lon);
+    fprintf(stderr, "Minimum Corner (lat/lon): %f x %f\n", 
+            global_map_avg.min_lat, global_map_avg.min_lon);
+    fprintf(stderr, "Maximum Corner (lat/lon): %f x %f\n", 
+            global_map_avg.max_lat, global_map_avg.max_lon);
+    fprintf(stderr, "Map center (lat/lon): %f x %f\n", 
+            map_avg_lat, map_avg_lon);
 
-    if (usermap && user_scale == 0 && user_lat == 0 &&
-        user_lon == 0 && usersize == 0) {
+    if (usermap && user_scale == 0 && user_latlon == 0 && usersize == 0) {
         float filelat, filelon;
         long filescale;
         int filewidth, fileheight;
