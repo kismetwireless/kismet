@@ -1027,7 +1027,7 @@ int Clicmd_REMOVE(CLIENT_PARMS) {
 
     if ((cmdref = 
          globalreg->kisnetserver->FetchProtocolRef(((*parsedcmdline)[0]).word)) < 0) {
-        snprintf(errstr, 1024, "Unknown protocol");
+        snprintf(errstr, 1024, "Unknown protocol: '%s'", ((*parsedcmdline)[0]).word.c_str());
         return -1;
     }
 
@@ -1431,6 +1431,11 @@ int KisNetFramework::ParseData(int in_fd) {
         // No matter what we've dealt with this data block
         netserver->MarkRead(in_fd, inptok[it].length() + 1);
 
+        // Handle funny trailing stuff
+        if (!isalnum(inptok[it][inptok[it].length() - 1])) {
+            inptok[it] = inptok[it].substr(0, inptok[it].length() - 1);
+        }
+        
         vector<smart_word_token> cmdtoks = SmartStrTokenize(inptok[it], " ");
 
         if (cmdtoks.size() < 2) {

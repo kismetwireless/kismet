@@ -1,6 +1,7 @@
 Sep 18 2004  devel  First generation of new gpsd client interface using generic
                      tcpclient core and support for ESRs gpsd2.0 protocol
                     Fixed dual TIME protocol
+                    Fixed handling of weird chars at end of line
 Sep 17 2004  devel  Removed spurious headers from endian_magic that weren't
                      really necessary
 Sep 16 2004  devel  Fixed spurious warning about NetworkServer constructor
