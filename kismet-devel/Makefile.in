@@ -43,7 +43,7 @@ DEPEND	= .depend
 
 # Objects
 PSO	= configfile.o speech.o packet.o \
-		prism2source.o pcapsource.o wtapfilesource.o wsp100source.o \
+		prism2source.o pcapsource.o wtapfilesource.o wsp100source.o vihasource.o \
 		wtapdump.o wtaplocaldump.o gpsdump.o airsnortdump.o \
 		gpsd.o packetracker.o manuf.o \
 		getopt.o \
