@@ -55,10 +55,14 @@ void PanelFront::NetLine(string *in_str, wireless_network *net, const char *name
         snprintf(retchr, 4096, "|");
 
     time_t idle_time;
-    if (sub && net->tcpclient != NULL)
-        idle_time = net->tcpclient->FetchTime() - net->last_time;
-    else
+    if (sub && net->tcpclient != NULL) {
+        if (net->tcpclient->Valid())
+            idle_time = net->tcpclient->FetchTime() - net->last_time;
+        else
+            idle_time = decay + 1;
+    } else {
         idle_time = net->idle_time;
+    }
 
     int pos = 2;
     for (unsigned int col = 0; col < column_vec.size(); col++) {
@@ -234,7 +238,6 @@ void PanelFront::NetLine(string *in_str, wireless_network *net, const char *name
 
     *in_str = retchr;
 }
-
 
 int PanelFront::MainNetworkPrinter(void *in_window) {
     kis_window *kwin = (kis_window *) in_window;
@@ -445,7 +448,6 @@ int PanelFront::MainNetworkPrinter(void *in_window) {
             wattrset(kwin->win, color_map["text"].pair);
 
         pos += len + 1;
-
     }
 
     if (kwin->selected == -1) {
@@ -490,9 +492,7 @@ int PanelFront::MainNetworkPrinter(void *in_window) {
         kwin->selected = calcnum - 1;
 
     for (unsigned int i = kwin->start; i < display_vector.size(); i++) {
-
         last_displayed.push_back(display_vector[i]);
-
         wireless_network *net = &display_vector[i]->virtnet;
 
         if (net->manuf_score == manuf_max_score && color)
@@ -501,6 +501,8 @@ int PanelFront::MainNetworkPrinter(void *in_window) {
             wattrset(kwin->win, color_map["wep"].pair);
         else if (color)
             wattrset(kwin->win, color_map["open"].pair);
+        else if (color)
+            wattrset(kwin->win, color_map["text"].pair);
 
         if (i == (unsigned) (kwin->start + kwin->selected) && sortby != sort_auto) {
             wattron(netwin, A_REVERSE);
@@ -528,9 +530,6 @@ int PanelFront::MainNetworkPrinter(void *in_window) {
 
         if (i == (unsigned) (kwin->start + kwin->selected) && sortby != sort_auto)
             wattroff(netwin, A_REVERSE);
-
-        if (color)
-            wattrset(kwin->win, color_map["text"].pair);
 
         num++;
         kwin->end = i;
@@ -1060,6 +1059,9 @@ int PanelFront::MainClientPrinter(void *in_window) {
     for (unsigned int i = kwin->start; i < display_vector.size(); i++) {
         last_client_displayed.push_back(display_vector[i]);
 
+        if (color)
+            wattrset(kwin->win, color_map["text"].pair);
+
         if (num == kwin->selected && client_sortby != client_sort_auto) {
             wattron(kwin->win, A_REVERSE);
             char bar[1024];
@@ -1079,9 +1081,6 @@ int PanelFront::MainClientPrinter(void *in_window) {
 
         if (num == kwin->selected && client_sortby != client_sort_auto)
             wattroff(kwin->win, A_REVERSE);
-
-        if (color)
-            wattrset(kwin->win, color_map["text"].pair);
 
         num++;
         kwin->end = i;
@@ -2389,6 +2388,132 @@ int PanelFront::DetailsClientPrinter(void *in_window) {
     kwin->text.push_back(output);
 
     return TextPrinter(in_window);
+}
+
+int PanelFront::ServersPrinter(void *in_window) {
+    kis_window *kwin = (kis_window *) in_window;
+
+    if (color)
+        wattrset(kwin->win, color_map["title"].pair);
+    mvwaddstr(kwin->win, 1, 3, "Server                    Port  Status");
+    if (color)
+        wattrset(kwin->win, color_map["text"].pair);
+
+    if (kwin->start >= (int) context_list.size())
+        kwin->start = 0;
+    if (kwin->selected < kwin->start)
+        kwin->selected = 0;
+    if (kwin->selected > (kwin->max_display - 1))
+        kwin->selected = kwin->max_display - 1;
+
+    int voffset = 2;
+    int num = 0;
+
+    char line[1024];
+    int w = kwin->print_width;
+    if (w >= 1024)
+        w = 1023;
+
+    for (int x = (int) kwin->start; x < (int) context_list.size() &&
+         x < kwin->max_display - 1; x++, num++) {
+
+        if (color)
+            wattrset(kwin->win, color_map["text"].pair);
+
+        if ((x - kwin->start) == kwin->selected) {
+            wattron(kwin->win, A_REVERSE);
+            memset(line, ' ', 1024);
+            line[w] = '\0';
+            mvwaddstr(kwin->win, num+voffset, 1, line);
+        }
+
+        char type;
+        if (context_list[x]->primary == 1)
+            type = 'P';
+        else if (context_list[x]->tagged == 1)
+            type = '*';
+        else
+            type = ' ';
+
+        if (context_list[x]->client) {
+            snprintf(line, w, "%c %-25s %-5d %-12s",
+                     type, context_list[x]->client->FetchHost(),
+                     context_list[x]->client->FetchPort(),
+                     context_list[x]->client->Valid() ? "Connected" : "Disconnected");
+        } else {
+            snprintf(line, w, "- %-25s %-5d %-12s",
+                     "INVALID", 0, "Invalid");
+        }
+
+        mvwaddstr(kwin->win, num+voffset, 1, line);
+
+        if ((x - kwin->start) == kwin->selected)
+            wattroff(kwin->win, A_REVERSE);
+
+        kwin->end = x;
+
+    }
+
+    return 1;
+}
+
+int PanelFront::ServerJoinPrinter(void *in_window) {
+    kis_window *kwin = (kis_window *) in_window;
+
+    char targclient[32];
+    int print_width = kwin->print_width;
+
+    if (print_width > 31)
+        print_width = 31;
+
+    mvwaddstr(kwin->win, 1, 2, "Server (host::port):");
+
+    // The text field is reversed
+    wattron(kwin->win, WA_REVERSE);
+
+    memset(targclient, ' ', print_width);
+    targclient[print_width] = '\0';
+
+    mvwaddstr(kwin->win, 2, 2, targclient);
+
+    wattroff(kwin->win, WA_REVERSE);
+
+    echo();
+    nocbreak();
+    nodelay(kwin->win, 0);
+
+    wattron(kwin->win, WA_REVERSE);
+    mvwgetnstr(kwin->win, 2, 2, targclient, print_width-1);
+    wattroff(kwin->win, WA_REVERSE);
+
+    noecho();
+    cbreak();
+
+    // Return 0 to tell them to kill the popup
+    if (strlen(targclient) == 0)
+        return 0;
+
+    char host[1024];
+    int port = -1;
+    char msg[1024];
+
+    if (sscanf(targclient, "%1024[^:]:%d", host, &port) != 2) {
+        snprintf(msg, 1024, "Illegal server '%s'.", targclient);
+        WriteStatus(msg);
+    }
+
+    snprintf(msg, 1024, "Connecting to server '%s:%d'.", host, port);
+    WriteStatus(msg);
+
+    // Create the new client
+    TcpClient *netclient = new TcpClient;
+    netclient->Connect(port, host);
+
+    // Add it to our contexts
+    AddClient(netclient);
+
+    return 0;
+
 }
 
 #endif

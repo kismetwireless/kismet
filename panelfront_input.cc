@@ -215,7 +215,12 @@ int PanelFront::MainInput(void *in_window, int in_chr) {
     case 'M':
         MuteToggle();
         break;
+    case 'e':
+    case 'E':
+        SpawnWindow("Kismet Servers", &PanelFront::ServersPrinter, &PanelFront::ServersInput, 10, 47);
+        break;
     }
+
 
     return 1;
 }
@@ -761,5 +766,28 @@ int PanelFront::DetailsClientInput(void *in_window, int in_chr) {
     return 1;
 }
 
+int PanelFront::ServersInput(void *in_window, int in_chr) {
+
+    switch (in_chr) {
+    case 'h':
+    case 'H':
+        SpawnHelp(KismetHelpServer);
+        break;
+    case KEY_UP:
+        break;
+    case KEY_DOWN:
+        break;
+    case 'c':
+    case 'C':
+        SpawnWindow("New Server", &PanelFront::ServerJoinPrinter, NULL, 3, 40);
+        break;
+    case 'q':
+    case 'Q':
+        return 0;
+        break;
+    }
+
+    return 1;
+}
 
 #endif

@@ -30,6 +30,7 @@ char *KismetHelpText[] = {
     "KISMET PANELS INTERFACE",
     "QUICK REFERENCE",
     "  Key  Action",
+    "   e   List Kismet servers",
     "   z   Toggle fullscreen zoom of network view",
     "   m   Toggle muting of sound and speech",
     "   t   Tag (or untag) selected network",
@@ -101,6 +102,7 @@ char *KismetHelpTextNarrow[] = {
     "KISMET PANELS INTERFACE",
     "KISMET NETWORK PANEL",
     "Key Action",
+    " e  List Kismet servers",
     " z  Toggle fullscreen net list",
     " m  Toggle muting",
     " t  Tag (or untag) selected",
@@ -321,6 +323,28 @@ char *KismetClientHelpDetails[] = {
     NULL
 };
 
+char *KismetHelpServer[] = {
+    "KISMET SERVERS",
+    " Key   Action",
+    " Up    Scroll list up",
+    " Down  Scroll list down",
+    "  t    Tag (or untag) selected server",
+    "  p    Make selected server the primary source",
+    "  c    Connect to new server",
+    "  d    Disconnect from selected server",
+    "  r    Reconnect to selected server",
+    "  q    Close server list",
+    "",
+    "Kismet supports monitoring data from several servers simultaneously.",
+    "When connected to multiple servers, only servers which are tagged",
+    "are displayed.  The server flagged as the 'primary' server is used for",
+    "GPS and time data.  Packet and network counts, packet rates, and",
+    "statistics are calculated for all of the available servers.  Networks",
+    "detected by two servers are displayed twice.",
+    "Servers tagged for display are denoted by a '*'",
+    "The primary server is denoted by a 'P'",
+    NULL
+};
 
 PanelFront::PanelFront() {
     errstr[0] = '\0';
@@ -369,11 +393,12 @@ void PanelFront::AddClient(TcpClient *in_client) {
     context_list.push_back(new_context);
     client_list.push_back(in_client);
 
+    new_context->tagged = 1;
+
     if (context == NULL) {
         client = in_client;
         context = new_context;
         context->primary = 1;
-        context->tagged = 1;
     }
 }
 
