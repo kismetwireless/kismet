@@ -353,6 +353,8 @@ PanelFront::PanelFront() {
         num_dropped = packet_rate = 0;
 
     context = NULL;
+
+    tainted = 0;
 }
 
 PanelFront::~PanelFront() {
@@ -365,6 +367,7 @@ void PanelFront::AddClient(TcpClient *in_client) {
     server_context *new_context = new server_context;
     new_context->client = in_client;
     context_list.push_back(new_context);
+    client_list.push_back(in_client);
 
     if (context == NULL) {
         client = in_client;
@@ -372,6 +375,15 @@ void PanelFront::AddClient(TcpClient *in_client) {
         context->primary = 1;
         context->tagged = 1;
     }
+}
+
+void PanelFront::FetchClients(vector<TcpClient *> *in_vec) {
+    in_vec->clear();
+    *in_vec = client_list;
+}
+
+TcpClient *PanelFront::FetchPrimaryClient() {
+    return client;
 }
 
 int PanelFront::InitDisplay(int in_decay, time_t in_start) {
@@ -633,6 +645,8 @@ void PanelFront::SetClientColumns(string in_columns) {
 int PanelFront::WriteStatus(string status) {
     stat_win->text.push_back(status);
 
+    tainted = 1;
+
     return 1;
 
     /*
@@ -698,6 +712,8 @@ int PanelFront::DrawDisplay() {
 
     update_panels();
     doupdate();
+
+    tainted = 0;
 
     return 1;
 }

@@ -48,6 +48,8 @@ int NCurseFront::InitDisplay(int in_decay, time_t in_start) {
     statuswin = subwin(stdscr, statheight-2, COLS-2, LINES-statheight+1, 1);
     scrollok(statuswin, 1);
 
+    tainted = 0;
+
     return 0;
 }
 
@@ -55,6 +57,9 @@ int NCurseFront::InitDisplay(int in_decay, time_t in_start) {
 int NCurseFront::WriteStatus(string status) {
     winsertln(statuswin);
     mvwaddstr(statuswin, 0, 1, status.substr(0, COLS-4).c_str());
+
+    // This taints us
+    tainted = 1;
 
     return 1;
 }
@@ -256,6 +261,8 @@ int NCurseFront::DrawDisplay() {
     wrefresh(netwin);
     wrefresh(infowin);
     refresh();
+
+    tainted = 0;
 
     return 1;
 }
