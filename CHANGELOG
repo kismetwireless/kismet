@@ -3,6 +3,8 @@ Dec 27 2003  3.1.0  Fixed remembering probe networks associated by data packets
                      controlled channel locking) over card protocol
                     Added reporting of number of packets per source over card
                      protocol
+                    Split bulk of config file handling off into a separate
+                     function to make compiling kismet_server.cc less demanding
 Dec 25 2003  3.1.0  More README updates
                     Smarter handling of garbage gps values in gpsd
                     Added association of probe networks based on data exchange
