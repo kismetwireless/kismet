@@ -1,3 +1,5 @@
+Nov 13 2002  2.7.1  Fixed packetracker incorrect handling of interdistribution
+                     data packets.
 Nov 12 2002  2.7.1  Free()'d initial memory allocated for config file parsing
                      in all components, fixed secondary case of kismet_curses
                      not terminating sound/speech forks on an initial conenct

@@ -215,12 +215,14 @@ int Packetracker::ProcessPacket(packet_info info, char *in_status) {
 
     // If it's a broadcast (From and To DS == 1) try to match it to an existing network
     if ((info.type == packet_data && info.subtype == packet_sub_data) &&
-        info.distrib == inter_distribution) {
+        info.distrib == inter_distribution && bsmapitr == bssid_map.end()) {
 
         if ((bsmapitr = bssid_map.find(info.source_mac)) != bssid_map.end()) {
             info.bssid_mac = info.source_mac;
+            bsmapitr = bssid_map.find(info.bssid_mac);
         } else if ((bsmapitr = bssid_map.find(info.dest_mac)) != bssid_map.end()) {
             info.bssid_mac = info.dest_mac;
+            bsmapitr = bssid_map.find(info.bssid_mac);
         }
 
     } else if (info.type == packet_management && info.subtype == packet_sub_probe_req) {
