@@ -476,7 +476,7 @@ int PcapSourceOpenBSDPrism::FetchChannel() {
     int skfd;
 
 	if ((skfd = socket(AF_INET, SOCK_DGRAM, 0)) < 0) {
-		snprintf(in_err, 1024, "Failed to create AF_INET socket: %s",
+		snprintf(errstr, 1024, "Failed to create AF_INET socket: %s",
                  strerror(errno));
 		return -1;
 	}
@@ -486,18 +486,16 @@ int PcapSourceOpenBSDPrism::FetchChannel() {
     wreq.wi_type = WI_RID_CURRENT_CHAN; 
 
     bzero((char *)&ifr, sizeof(ifr));                                       
-    strlcpy(ifr.ifr_name, device.c_str(), sizeof(ifr.ifr_name));                       
+    strlcpy(ifr.ifr_name, interface.c_str(), sizeof(ifr.ifr_name));
     ifr.ifr_data = (caddr_t)&wreq;                                          
 
 	if (ioctl(skfd, SIOCGWAVELAN, &ifr) < 0) {
-		snprintf(in_err, 1024, "Channel set ioctl failed: %s",
+		snprintf(errstr, 1024, "Channel set ioctl failed: %s",
                  strerror(errno));
 		return -1;
 	}
 
-    chan = wreq.wi_val[0];                                                  
-
-    return chan;
+    return wreq.wi_val[0];                                                  
 }
 #endif
 
@@ -540,7 +538,7 @@ KisPacketSource *pcapsource_11g_registrant(string in_name, string in_device,
 #ifdef SYS_OPENBSD
 KisPacketSource *pcapsource_openbsdprism2_registrant(string in_name, string in_device,
                                                      char *in_err) {
-    return new PcapSourceOpenBSDPrism(in_name, in-device);
+    return new PcapSourceOpenBSDPrism(in_name, in_device);
 }
 #endif
 
