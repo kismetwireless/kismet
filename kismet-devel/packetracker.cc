@@ -1508,8 +1508,18 @@ void Packetracker::WriteSSIDMap(FILE *in_file) {
     snprintf(format, 64, "%%.%ds %%.%ds\n", MAC_STR_LEN, SSID_SIZE);
 
     for (map<mac_addr, string>::iterator x = bssid_cloak_map.begin();
-         x != bssid_cloak_map.end(); ++x)
+         x != bssid_cloak_map.end(); ++x) {
+
+        // Find us in the map - if we don't have a current record, we get written out,
+        // if we do have a current record and it's not something we like, we don't get
+        // written out
+        map<mac_addr, wireless_network *>::iterator wnitr = bssid_map.find(x->first);
+        if (wnitr != bssid_map.end())
+            if (wnitr->second->type != network_ap && wnitr->second->type != network_data)
+                continue;
+
         fprintf(in_file, format, x->first.Mac2String().c_str(), x->second.c_str());
+    }
 
     return;
 }
