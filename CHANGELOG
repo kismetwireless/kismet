@@ -1,3 +1,4 @@
+Sep 01 2003  3.1.0  De-walled some casting errors on some compilers
 Aug 24 2003  3.1.0  Merged gpsmap speedup patch from Dennis Lubert
                     Fixed missing semicolon in CSV output
                     Merged configure patch from Stig Hackvan
