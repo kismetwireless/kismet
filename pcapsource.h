@@ -346,8 +346,10 @@ int monitor_hostap(const char *in_dev, int initch, char *in_err, void **in_if);
 int unmonitor_hostap(const char *in_dev, int initch, char *in_err, void **in_if);
 // orinoco
 int monitor_orinoco(const char *in_dev, int initch, char *in_err, void **in_if);
+int unmonitor_orinoco(const char *in_dev, int initch, char *in_err, void **in_if);
 // acx100
 int monitor_acx100(const char *in_dev, int initch, char *in_err, void **in_if);
+int unmonitor_acx100(const char *in_dev, int initch, char *in_err, void **in_if);
 // ar5k
 int monitor_vtar5k(const char *in_dev, int initch, char *in_err, void **in_if);
 // Madwifi group of cards

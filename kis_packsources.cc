@@ -57,10 +57,12 @@ int RegisterKismetSources(Packetsourcetracker *sourcetracker) {
                                        chancontrol_wext, 1);
     sourcetracker->RegisterPacketsource("orinoco", 1, "IEEE80211b", 6,
                                        pcapsource_wext_registrant,
-                                       monitor_orinoco, NULL, chancontrol_orinoco, 1);
+                                       monitor_orinoco, unmonitor_orinoco, 
+                                       chancontrol_orinoco, 1);
     sourcetracker->RegisterPacketsource("acx100", 1, "IEEE80211b", 6,
                                        pcapsource_wext_registrant,
-                                       monitor_acx100, NULL, chancontrol_wext, 1);
+                                       monitor_acx100, unmonitor_acx100, 
+                                       chancontrol_wext, 1);
     sourcetracker->RegisterPacketsource("vtar5k", 1, "IEEE80211a", 36,
                                        pcapsource_wext_registrant,
                                        monitor_vtar5k, NULL, chancontrol_wext, 1);
