@@ -34,7 +34,9 @@
 #include "prism2source.h"
 #include "pcapsource.h"
 #include "wtapfilesource.h"
+#include "wsp100source.h"
 #include "genericsource.h"
+
 #include "dumpfile.h"
 #include "wtapdump.h"
 #include "wtaplocaldump.h"
@@ -1086,7 +1088,15 @@ int main(int argc,char *argv[]) {
         fprintf(stderr, "FATAL: Wtap support was not compiled in.\n");
         exit(1);
 #endif
+    } else if (!strcasecmp(captype, "wsp100")) {
+#ifdef HAVE_WSP100
+        fprintf(stderr, "Using WSP100 to capture packets.\n");
 
+        packsource = new Wsp100Source;
+#else
+        fprintf(stderr, "FATAL:  WSP100 support was not compiled in.\n");
+        exit(1);
+#endif
     } else {
         fprintf(stderr, "FATAL: Unknown capture type '%s'\n", captype);
         exit(1);

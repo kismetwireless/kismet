@@ -121,6 +121,9 @@
 /* Define if you have the <unistd.h> header file. */
 #undef HAVE_UNISTD_H
 
+/* wsp100 remote sensor support */
+#undef HAVE_WSP100
+
 /* wtap_read takes two int * parameters */
 #undef HAVE_WTAPREAD_INTINT
 
@@ -136,6 +139,9 @@
 
 /* system config directory */
 #undef SYSCONF_LOC
+
+/* Compiling for Cygwin */
+#undef SYS_CYGWIN
 
 /* Compiling for FreeBSD */
 #undef SYS_FREEBSD

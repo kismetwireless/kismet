@@ -1,3 +1,5 @@
+Oct 28 2002  2.7.1  Merged WSP100 and Cygwin support from Chris Waters.  See
+                     docs/README.cygwin for details about building this.
 Oct 26 2002  2.7.1  Merged pageup/pagedown code from Million
                     Fixed bus error on arm packet type display
 Oct 23 2002  2.7.1  Fixed horribly stupid bug in AP->AP packet handling in
