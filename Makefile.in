@@ -138,8 +138,8 @@ commoninstall:
 		install -o $(INSTUSR) -g $(INSTGRP) -s -m 755 $(BUZZER) $(BIN)/buzzme; \
 		echo install -o $(INSTUSR) -g $(INSTGRP) -s -m 755 $(BUZZER) $(BIN)/buzzme; \
 	fi
-	install -o $(INSTUSR) -g $(INSTGRP) -m 755 scripts/kismet_monitor $(BIN)/kismet_monitor
-	install -o $(INSTUSR) -g $(INSTGRP) -m 755 scripts/kismet_unmonitor $(BIN)/kismet_unmonitor
+#install -o $(INSTUSR) -g $(INSTGRP) -m 755 scripts/kismet_monitor $(BIN)/kismet_monitor
+#install -o $(INSTUSR) -g $(INSTGRP) -m 755 scripts/kismet_unmonitor $(BIN)/kismet_unmonitor
 	mkdir -p $(MAN)/man1
 	install -o $(INSTUSR) -g $(MANGRP) -m 644 man/kismet.1 $(MAN)/man1/kismet.1
 	# install -o $(INSTUSR) -g $(MANGRP) -m 644 man/kismet_monitor.1 $(MAN)/man1/kismet_monitor.1
@@ -299,8 +299,8 @@ distclean:
 	@-rm -rf packaging/pak
 	@-rm -rf *.ipk
 	@-rm -f scripts/kismet
-	@-rm -f scripts/kismet_monitor
-	@-rm -f scripts/kismet_unmonitor
+#@-rm -f scripts/kismet_monitor
+#@-rm -f scripts/kismet_unmonitor
 	@-( cd extra/; $(MAKE) distclean )
 	@-( cd extra/buzzme; $(MAKE) distclean )
 	@-( cd $(PCAPDIR); $(MAKE) distclean )
@@ -329,8 +329,8 @@ ipkg: $(PS) $(NC)
 		cp conf/zaurus_kismet.conf packaging/ipkg/$(ETC)/kismet.conf; \
 		cp conf/zaurus_kismet_ui.conf packaging/ipkg/$(ETC)/kismet_ui.conf; \
 	fi
-	@cp scripts/kismet_monitor packaging/ipkg/$(BIN)/ 
-	@cp scripts/kismet_unmonitor packaging/ipkg/$(BIN)/
+#@cp scripts/kismet_monitor packaging/ipkg/$(BIN)/ 
+#@cp scripts/kismet_unmonitor packaging/ipkg/$(BIN)/
 	@chmod a+x packaging/ipkg/$(BIN)/*
 	@chown root.root packaging/ipkg -R
 	@echo "Making ipkg..."
