@@ -58,6 +58,7 @@
 /* Mapscale / pixelfact is meter / pixel */
 #define PIXELFACT 2817.947378
 
+#define square(x) ((x)*(x))
 // Global constant values
 const char *config_base = "kismet.conf";
 // &L = USA for the USA, EUR appears to be generic for Europe, EUR0809 for other parts of Europe.. if you get it wrong your map will be very bland =)
@@ -111,6 +112,43 @@ char *powercolors_Orig[] = {
     "#FA00FF"
 };
 const int power_steps_Orig = 10;
+// Blue powercolors
+char *powercolors_Blue[] = {
+    "#A0A0FF",
+    "#9B9BFA",
+    "#9696F5",
+    "#9191F0",
+    "#8C8CEB",
+    "#8787E6",
+    "#8282E1",
+    "#7D7DDC",
+    "#7878D7",
+    "#7373D2",
+    "#6E6ECD",
+    "#6969C8",
+    "#6464C3",
+    "#5F5FBE",
+    "#5A5AB9",
+    "#5555B4",
+    "#5050AF",
+    "#4B4BAA",
+    "#4646A5",
+    "#4141A0",
+    "#3C3C9B",
+    "#373796",
+    "#323291",
+    "#2D2D8C",
+    "#282887",
+    "#232382",
+    "#1E1E7D",
+    "#191978",
+    "#141473",
+    "#0F0F6E",
+    "#0A0A69",
+    "#050564",
+};
+const int power_steps_Blue = 32;
+
 // Math progression
 char *powercolors_Math[] = {
     "#FF0000", "#FF8000", "#FFFF00",
@@ -892,19 +930,30 @@ void AssignNetColors() {
 // Faust Code to convert rad to deg and find the distance between two points
 // on the globe.  Thanks, Faust.
 //const float M_PI = 3.14159;
-double rad2deg(double x) { /*FOLD00*/
-     return x*M_PI/180.0;
-}
+
+//double rad2deg(double x) { /*FOLD00*/
+//     return x*M_PI/180.0;
+//}
+#define rad2deg(x) ((double)((x)*M_PI/180.0))
 
 double earth_distance(double lat1, double lon1, double lat2, double lon2) { /*FOLD00*/
 
-    double x1 = calcR(lat1) * cos(rad2deg(lon1)) * sin(rad2deg(90-lat1));
-    double x2 = calcR(lat2) * cos(rad2deg(lon2)) * sin(rad2deg(90-lat2));
-    double y1 = calcR(lat1) * sin(rad2deg(lon1)) * sin(rad2deg(90-lat1));
-    double y2 = calcR(lat2) * sin(rad2deg(lon2)) * sin(rad2deg(90-lat2));
-    double z1 = calcR(lat1) * cos(rad2deg(90-lat1));
-    double z2 = calcR(lat2) * cos(rad2deg(90-lat2));
-    double a = acos((x1*x2 + y1*y2 + z1*z2)/pow(calcR((double) (lat1+lat2)/2),2));
+    double calcedR1 = calcR(lat1);
+    double calcedR2 = calcR(lat2);
+
+    double sinradi1 = sin(rad2deg(90-lat1));
+    double sinradi2 = sin(rad2deg(90-lat2));
+    
+    double x1 = calcedR1 * cos(rad2deg(lon1)) * sinradi1;
+    double x2 = calcedR2 * cos(rad2deg(lon2)) * sinradi2;
+    double y1 = calcedR1 * sin(rad2deg(lon1)) * sinradi1;
+    double y2 = calcedR2 * sin(rad2deg(lon2)) * sinradi2;
+    double z1 = calcedR1 * cos(rad2deg(90-lat1));
+    double z2 = calcedR2 * cos(rad2deg(90-lat2));
+    
+    double calcedR = calcR((double)(lat1+lat2)) / 2;
+    double a = acos((x1*x2 + y1*y2 + z1*z2)/square(calcedR));
+    
     return calcR((double) (lat1+lat2) / 2) * a;
 }
 
@@ -989,7 +1038,11 @@ long int BestMapScale(double tlat, double tlon, double blat, double blon) { /*FO
     return 0;
 }
 
-#define geom_distance(a, b, x, y) sqrt(pow((double) (a) - (double) (x), 2) + pow((double) (b) - (double) (y), 2))
+//#define geom_distance(a, b, x, y) sqrt(pow((double) (a) - (double) (x), 2) + pow((double) (b) - (double) (y), 2))
+
+// This new distance macro does not use the pow function, for 2 we can simply multiply
+// which aves us ~800mio ops !!!!
+#define geom_distance(a, b, x, y) sqrt(square((double) (a) - (double) (x)) + square((double) (b) - (double) (y)))
 
 // Frank and Nielson's improved weighting algorithm
 double WeightAlgo(int start_x, int start_y, int in_x, int in_y, double in_fuzz, double in_scale) { /*FOLD00*/
@@ -1029,7 +1082,7 @@ double WeightAlgo(int start_x, int start_y, int in_x, int in_y, double in_fuzz, 
 
     // Construct the 'top half' of the weight function:
     double hi = geom_distance(start_x, start_y, in_x, in_y);
-    double top_func = pow( ((r - hi)/(r * hi)), 2);
+    double top_func = square( ((r - hi)/(r * hi)));
 
     double bot_sum = 0;
     // Construct the 'bottom half' of the weight function
@@ -1040,7 +1093,7 @@ double WeightAlgo(int start_x, int start_y, int in_x, int in_y, double in_fuzz, 
 
             double hj = geom_distance(start_x, start_y, curx, cury) * 1.8;
 
-            bot_sum += pow( ((r - hj)/(r * hj)), 2);
+            bot_sum += square( ((r - hj)/(r * hj)));
         }
     }
 
@@ -1057,6 +1110,10 @@ int InverseWeight(int in_x, int in_y, int in_fuzz, double in_scale) { /*FOLD00*/
     int max_x = map_width, max_y = map_height;
     int offset = (int) (in_fuzz/in_scale);
 
+    // Moved the abort to here, so we don't need to do the downward things
+    if (offset == 0)
+        return 0;
+
     if (in_x - offset > min_x)
         min_x = in_x - offset;
     if (in_y - offset > min_y)
@@ -1071,19 +1128,15 @@ int InverseWeight(int in_x, int in_y, int in_fuzz, double in_scale) { /*FOLD00*/
             offset, in_x, in_y, min_x, min_y, max_x, max_y);
             */
 
-    if (offset == 0)
-        return 0;
 
     double power_sum = 0;
 
     for (int cury = min_y; cury < max_y; cury++) {
         for (int curx = min_x; curx < max_x; curx++) {
-
             if (power_input_map[(map_width * cury) + curx] < 0)
                 continue;
 
-            power_sum += WeightAlgo(in_x, in_y, curx, cury, in_fuzz, in_scale) *
-                power_input_map[(map_width * cury) + curx];
+            power_sum += WeightAlgo(in_x, in_y, curx, cury, in_fuzz, in_scale) * power_input_map[(map_width * cury) + curx];
 
         }
     }
@@ -1540,7 +1593,7 @@ void *PowerLine(void *arg) {
         if (y >= map_height)
             break;
 
-        //    for (unsigned int y = y_offset; y < map_height; y+= (in_res * numthreads)) {
+        //    for (unsigned int y = y_offset; y < map_height; y+= (in_res * numthreads)) 
         startline = time(0);
 
 #ifdef HAVE_PTHREAD
@@ -1588,15 +1641,17 @@ void *PowerLine(void *arg) {
 }
 
 void DrawNetPower(Image *in_img, DrawInfo *in_di) { /*FOLD00*/
-    PixelPacket point_clr;
+//    PixelPacket point_clr;
 #ifdef HAVE_PTHREAD
     pthread_attr_t attr;
 #endif
 
-    power_map = (unsigned int *) malloc(sizeof(unsigned int) * (map_width * map_height));
-    memset(power_map, 0, sizeof(unsigned int) * (map_width * map_height));
+    power_map = new unsigned int [map_width * map_height];
+//    memset(power_map, 0, sizeof(unsigned int) * (map_width * map_height));
+    //    This is not really needed, the image is ok althoug ( please verify )
+    //    so we can save about 1.3mio opcodes here
 
-    power_input_map = (int *) malloc(sizeof(int) * (map_width * map_height));
+    power_input_map = new int [map_width * map_height];
     memset(power_input_map, -1, sizeof(int) * (map_width * map_height));
 
     // Convert the power data in the tracks into a 2d map
@@ -1656,9 +1711,35 @@ void DrawNetPower(Image *in_img, DrawInfo *in_di) { /*FOLD00*/
 
     PowerLine((void *) pargs);
 #endif
+    fprintf(stderr, "Preparing colormap.\n");
+    // Doing this here saves us another ~ 1mio operations
+    PixelPacket colormap[power_steps];
+    ExceptionInfo ex;
+    GetExceptionInfo(&ex);
+    for ( int i = 0; i < power_steps; i++) {
+	QueryColorDatabase(power_colors[i], &colormap[i], &ex);
+	if ( ex.severity != UndefinedException ) {
+	    CatchException(&ex);
+	    break;
+	}
+    }
 
+    ExceptionInfo excep;
+    GetExceptionInfo(&excep);
 
+    // Since the opacity value is always the same, we can 
+    // generate the template before the loop, which saves
+    // us another 1.5mio ops
+
+    char * point_template = new char[1024];
+    char * rect_template = new char[1024];
+
+    snprintf(point_template , 1024, "fill-opacity %d%%%% stroke-opacity %d%%%% stroke-width 0 point %%d,%%d", power_opacity, power_opacity);
+    snprintf(rect_template  , 1024, "fill-opacity %d%%%% stroke-opacity %d%%%% stroke-width 0 rectangle %%d,%%d %%d,%%d", power_opacity, power_opacity);
+    
     fprintf(stderr, "Drawing interpolated power levels to map.\n");
+    int power_stepsize = power_max / power_steps;
+    int power_halfstepsize = (power_max / power_steps);
     for (unsigned int y = 0; y < map_height; y += power_resolution) {
         for (unsigned int x = 0; x < map_width; x += power_resolution) {
             //            int powr = InverseWeight(x, y, 200, (double) scale/PIXELFACT);
@@ -1666,38 +1747,38 @@ void DrawNetPower(Image *in_img, DrawInfo *in_di) { /*FOLD00*/
 
             //printf("Got weight %d for pixel %d,%d\n", powr, x, y);
 
-            if (powr > 0) {
+            if (powr > 0 && powr > power_halfstepsize ) {
 
-                int power_index = powr / (power_max / power_steps);
-                if (powr < (power_max / power_steps) / 2)
-                    continue;
+                int power_index = powr / power_stepsize;
 
                 if (power_index >= power_steps)
                     power_index = power_steps - 1;
 
-                ExceptionInfo excep;
-                GetExceptionInfo(&excep);
+		/*
                 QueryColorDatabase(power_colors[power_index], &point_clr, &excep);
                 if (excep.severity != UndefinedException) {
                     CatchException(&excep);
                     break;
-                }
+                }*/
 
+		/*
                 in_di->stroke = point_clr;
                 in_di->fill = point_clr;
+		*/
+
+                in_di->stroke = colormap[power_index];
+                in_di->fill = colormap[power_index];
 
                 char prim[1024];
 
                 int b, r;
 
                 if (power_resolution == 1) {
-                    snprintf(prim, 1024, "fill-opacity %d%% stroke-opacity %d%% stroke-width 0 point %d,%d",
-                         power_opacity, power_opacity, x, y);
+                    snprintf(prim, 1024, point_template, x, y);
                 } else {
                     r = x + power_resolution - 1;
                     b = y + power_resolution - 1;
-                    snprintf(prim, 1024, "fill-opacity %d%% stroke-opacity %d%% stroke-width 0 rectangle %d,%d %d,%d",
-                         power_opacity, power_opacity, x, y, r, b);
+                    snprintf(prim, 1024, rect_template, x, y, r, b);
                 }
 
                 //printf("%d,%d power %d\n", x, y, powr);
@@ -1716,7 +1797,10 @@ void DrawNetPower(Image *in_img, DrawInfo *in_di) { /*FOLD00*/
 
     }
 
-    delete power_map;
+    delete[] power_map;
+    delete[] power_input_map;
+    delete point_template;
+    delete rect_template;
 }
 
 void DrawNetCenterDot(vector<gps_network *> in_nets, Image *in_img, DrawInfo *in_di) {
@@ -2376,7 +2460,7 @@ int main(int argc, char *argv[]) {
         case 'q':
             {
                 int icolor;
-                if (sscanf(optarg, "%d", &icolor) !=1 || icolor < 0 || icolor > 2) {
+                if (sscanf(optarg, "%d", &icolor) !=1 || icolor < 0 || icolor > 3) {
                     fprintf(stderr, "Invalid interpolated power color set\n");
                     ShortUsage(exec_name);
                 }
@@ -2390,6 +2474,9 @@ int main(int argc, char *argv[]) {
                 } else if (icolor == 2) {
                     power_steps = power_steps_Radar;
                     power_colors = powercolors_Radar;
+                } else if (icolor == 3) {
+                    power_steps = power_steps_Blue;
+                    power_colors = powercolors_Blue;
                 }
             }
             break;
@@ -2561,7 +2648,7 @@ int main(int argc, char *argv[]) {
 
 #ifdef HAVE_PTHREAD
     // Build the threads
-    mapthread = (pthread_t *) malloc(sizeof(pthread_t) * numthreads);
+    mapthread = new pthread_t[numthreads];//(pthread_t *) malloc(sizeof(pthread_t) * numthreads);
     pthread_mutex_init(&power_lock, NULL);
     pthread_mutex_init(&print_lock, NULL);
     pthread_mutex_init(&power_pos_lock, NULL);
@@ -2791,7 +2878,7 @@ int main(int argc, char *argv[]) {
     DestroyMagick();
 
 #ifdef HAVE_PTHREAD
-    delete mapthread;
+    delete[] mapthread;
 #endif
 
     if (!keep_gif && !usermap) {
