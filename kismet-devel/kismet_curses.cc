@@ -30,10 +30,6 @@
 #include "configfile.h"
 #include "speech.h"
 
-#define MAJOR 2
-#define MINOR 5
-#define TINY  2
-
 #ifndef exec_name
 char *exec_name;
 #endif
@@ -392,7 +388,7 @@ int main(int argc, char *argv[]) {
             reqgui = optarg;
             break;
         case 'v':
-            fprintf(stderr, "Kismet curses %d.%d.%d\n", MAJOR, MINOR, TINY);
+            fprintf(stderr, "Kismet curses %d.%d.%d\n", VERSION_MAJOR, VERSION_MINOR, VERSION_TINY);
             break;
         case 's':
             server = optarg;

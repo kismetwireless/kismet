@@ -1,7 +1,7 @@
 Package: kismet
 Section: extras
 Priority: optional
-Version: 2.4
+Version: 2.6.0
 Architecture: arm
 Maintainer: Mike Kershaw <dragorn@nerv-un.net>
 Description: 802.11b network sniffer and analyser

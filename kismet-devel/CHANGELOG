@@ -1,3 +1,6 @@
+Sep 26 2002  2.5.2  Consolidated kismet versioning into the makefile
+                    Fixed ipk generation (for real this time.  ipk's now show
+                     up even in qtopia's ipk manager.)
 Sep 25 2002  2.5.2  More documentation updates
                     Merged patch from Pedro to do signal levels on BSD
                     Tweaked magick version checking

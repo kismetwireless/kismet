@@ -570,7 +570,7 @@ void NetWriteAlert(char *in_alert) {
 void NetWriteNew(int in_fd) {
     char output[2048];
     snprintf(output, 2048, "*KISMET: %d.%d.%d %d\n",
-             MAJOR, MINOR, TINY, (int) start_time);
+             VERSION_MAJOR, VERSION_MINOR, VERSION_TINY, (int) start_time);
     ui_server.Send(in_fd, output);
 
     vector<wireless_network *> tracked;
@@ -890,7 +890,7 @@ int main(int argc,char *argv[]) {
             break;
         case 'v':
             // version
-            fprintf(stderr, "Kismet %d.%d.%d\n", MAJOR, MINOR, TINY);
+            fprintf(stderr, "Kismet %d.%d.%d\n", VERSION_MAJOR, VERSION_MINOR, VERSION_TINY);
             exit(0);
             break;
         default:
@@ -1748,7 +1748,7 @@ int main(int argc,char *argv[]) {
 
     }
 
-    snprintf(status, STATUS_MAX, "Kismet %d.%d.%d", MAJOR, MINOR, TINY);
+    snprintf(status, STATUS_MAX, "Kismet %d.%d.%d", VERSION_MAJOR, VERSION_MINOR, VERSION_TINY);
     fprintf(stderr, "%s\n", status);
 
     snprintf(status, STATUS_MAX, "Capturing packets from %s",
