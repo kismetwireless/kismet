@@ -346,12 +346,29 @@ void MergeNetData(vector<wireless_network *> in_netdata) {
         if (bnmi != bssid_net_map.end()) {
             wireless_network *onet = bnmi->second;
 
+            // Update stuff if it's info we don't have, period
+
+            if (onet->type > inet->type)
+                onet->type = inet->type;
+
+            if (onet->ssid == "")
+                onet->ssid = inet->ssid;
+
+            if (onet->channel == 0)
+                onet->channel = inet->channel;
+
+            if (onet->beacon_info == "")
+                onet->beacon_info = inet->beacon_info;
+
+            if (onet->ipdata.atype < inet->ipdata.atype)
+                memcpy(&onet->ipdata, &inet->ipdata, sizeof(net_ip_data));
+
             if (onet->last_time < inet->last_time) {
-                // Update stuff if it's better in the newer data
+                // Update stuff if it's better in the newer data.  This may cause a
+                // double-update but this only happens once in a massively CPU intensive
+                // utility so I don't care.
                 onet->last_time = inet->last_time;
 
-                if (onet->type > inet->type)
-                    onet->type = inet->type;
                 if (inet->ssid != "")
                     onet->ssid = inet->ssid;
 
@@ -360,9 +377,6 @@ void MergeNetData(vector<wireless_network *> in_netdata) {
 
                 if (inet->beacon_info != "")
                     onet->beacon_info = inet->beacon_info;
-
-                if (onet->ipdata.atype < inet->ipdata.atype)
-                    memcpy(&onet->ipdata, &inet->ipdata, sizeof(net_ip_data));
 
                 onet->cloaked = inet->cloaked;
                 onet->wep = inet->wep;

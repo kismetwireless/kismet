@@ -1,6 +1,8 @@
 Sep 11 2002  2.5.2  Added soundopts config file option per Mathias' suggestion
                     Implemented feature order in gpsmap
                     Fixed GetMetrics out-of-memory exception in gpsmap labels
+                    Updated gpsmap MergeNetData to handle duplicate and 
+                     incomplete netxml records of networks better.
 Sep 10 2002  2.5.2  Added more imagemagick exception catching/handling 
                      to gpsmap
                     Fixed silly typo for default image size in gpsmap
