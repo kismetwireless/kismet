@@ -19,6 +19,10 @@ multiple server systems.
 .PP
 "macfilter" (string) Comma-separated list of MAC addresses to filter.
 .PP
+"wepkey" (string) Comma-separated BSSID and WEP key (in hex) to decrypt.  This is for
+runtime decryption of networks where the wep key is known, and may impact the throughput
+on slower hardware.
+.PP
 "tcpport" (int) Port to serve GUI data
 .PP
 "allowedhosts" (string) Comma-separated list of IP's allowed to connect.

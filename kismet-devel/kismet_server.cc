@@ -170,7 +170,7 @@ void WriteDatafiles(int in_shutdown) {
                     fprintf(stderr, "%s\n", alert);
             }
         } else if (in_shutdown) {
-            fprintf(stderr, "NOTICE: Didn't detect any networks, unlinking network list.\n");
+            fprintf(stderr, "Didn't detect any networks, unlinking network list.\n");
             unlink(netlogfile.c_str());
         }
     }
@@ -184,7 +184,7 @@ void WriteDatafiles(int in_shutdown) {
                     fprintf(stderr, "%s\n", alert);
             }
         } else if (in_shutdown) {
-            fprintf(stderr, "NOTICE: Didn't detect any networks, unlinking CSV network list.\n");
+            fprintf(stderr, "Didn't detect any networks, unlinking CSV network list.\n");
             unlink(csvlogfile.c_str());
         }
     }
@@ -198,7 +198,7 @@ void WriteDatafiles(int in_shutdown) {
                     fprintf(stderr, "%s\n", alert);
             }
         } else if (in_shutdown) {
-            fprintf(stderr, "NOTICE: Didn't detect any networks, unlinking XML network list.\n");
+            fprintf(stderr, "Didn't detect any networks, unlinking XML network list.\n");
             unlink(xmllogfile.c_str());
         }
     }
@@ -212,7 +212,7 @@ void WriteDatafiles(int in_shutdown) {
                     fprintf(stderr, "%s\n", alert);
             }
         } else if (in_shutdown) {
-            fprintf(stderr, "NOTICE: Didn't detect any Cisco Discovery Packets, unlinking cisco dump\n");
+            fprintf(stderr, "Didn't detect any Cisco Discovery Packets, unlinking cisco dump\n");
             unlink(ciscologfile.c_str());
         }
     }
@@ -243,7 +243,7 @@ void CatchShutdown(int sig) {
         dumpfile->CloseDump();
 
         if (dumpfile->FetchDumped() == 0) {
-            fprintf(stderr, "NOTICE: Didn't capture any packets, unlinking dump file\n");
+            fprintf(stderr, "Didn't capture any packets, unlinking dump file\n");
             unlink(dumpfile->FetchFilename());
         }
 
@@ -254,7 +254,7 @@ void CatchShutdown(int sig) {
         cryptfile->CloseDump();
 
         if (cryptfile->FetchDumped() == 0) {
-            fprintf(stderr, "NOTICE: Didn't see any weak encryption packets, unlinking weak file\n");
+            fprintf(stderr, "Didn't see any weak encryption packets, unlinking weak file\n");
             unlink(cryptlogfile.c_str());
         }
 
@@ -264,7 +264,7 @@ void CatchShutdown(int sig) {
 #ifdef HAVE_GPS
     if (gps_log) {
         if (gpsdump.CloseDump(1) < 0)
-            fprintf(stderr, "NOTICE:  Didn't log any GPS coordinates, unlinking gps file\n");
+            fprintf(stderr, "Didn't log any GPS coordinates, unlinking gps file\n");
     }
 
 #endif
@@ -675,7 +675,7 @@ static void handle_command(TcpServer *tcps, client_command *cc) {
                     packet_sources[x]->source->Pause();
             }
             if (!silent)
-                printf("NOTICE:  Pausing packet sources per request of client %d\n", cc->client_fd);
+                printf("Pausing packet sources per request of client %d\n", cc->client_fd);
         }
     } else if (cmdword == "RESUME") {
         if (packet_sources.size() > 0) {
@@ -684,7 +684,7 @@ static void handle_command(TcpServer *tcps, client_command *cc) {
                     packet_sources[x]->source->Resume();
             }
             if (!silent)
-                printf("NOTICE:  Resuming packet source per request of client %d\n", cc->client_fd);
+                printf("Resuming packet source per request of client %d\n", cc->client_fd);
         }
     } else {
         out_error += "Unknown command '" + cmdword + "'";
@@ -695,6 +695,46 @@ static void handle_command(TcpServer *tcps, client_command *cc) {
     if (cc->stamp != 0)
         tcps->SendToClient(cc->client_fd, ack_ref, (void *) &cc->stamp);
 
+}
+
+int XtoI(char x) {
+    if (isxdigit(x)) {
+        if (x <= '9')
+            return x - '0';
+        return toupper(x) - 'A' + 10;
+    }
+
+    return -1;
+}
+
+int Hex2UChar13(unsigned char *in_hex, unsigned char *in_chr) {
+    memset(in_chr, 0, sizeof(unsigned char) * 13);
+    int chrpos = 0;
+
+    for (unsigned int strpos = 0; strpos < 38 && chrpos < 13; strpos++) {
+        if (in_hex[strpos] == 0)
+            break;
+
+        if (in_hex[strpos] == ':')
+            strpos++;
+
+        // Assume we're going to eat the pair here
+        if (isxdigit(in_hex[strpos])) {
+            if (strpos > 36)
+                return 0;
+
+            int d1, d2;
+            if ((d1 = XtoI(in_hex[strpos++])) == -1)
+                return 0;
+            if ((d2 = XtoI(in_hex[strpos])) == -1)
+                return 0;
+
+            in_chr[chrpos++] = (d1 * 16) + d2;
+        }
+
+    }
+
+    return(chrpos);
 }
 
 int Usage(char *argv) {
@@ -762,7 +802,7 @@ int main(int argc,char *argv[]) {
     string filter;
     vector<mac_addr> filter_vec;
 
-    map<mac_addr, unsigned char *> bssid_wep_map;
+    map<mac_addr, wep_key_info *> bssid_wep_map;
     unsigned char wep_identity[256];
 
     // Initialize the identity field
@@ -972,14 +1012,14 @@ int main(int argc,char *argv[]) {
             }
 
 
-            fprintf(stderr, "NOTICE:  Will drop privs to %s (%d)\n", suid_user, suid_id);
+            fprintf(stderr, "Will drop privs to %s (%d)\n", suid_user, suid_id);
         }
     } else {
         fprintf(stderr, "FATAL:  No 'suiduser' option in the config file.\n");
         exit(1);
     }
 #else
-    fprintf(stderr, "NOTICE:  Suid priv-dropping disabled.  This may not be secure.\n");
+    fprintf(stderr, "Suid priv-dropping disabled.  This may not be secure.\n");
 #endif
 
     // Catch old configs and yell about them
@@ -1007,7 +1047,7 @@ int main(int argc,char *argv[]) {
 
     // Tell them if we're enabling everything
     if (named_sources.length() == 0)
-        fprintf(stderr, "NOTICE:  No enable sources specified, all sources will be enabled.\n");
+        fprintf(stderr, "No enable sources specified, all sources will be enabled.\n");
 
     // Command line sources override the enable line, unless we also got an enable line
     // from the command line too.
@@ -1207,7 +1247,7 @@ int main(int argc,char *argv[]) {
         fprintf(stderr, "FATAL:  setuid() to %s (%d) failed.\n", suid_user, suid_id);
         exit(1);
     } else {
-        fprintf(stderr, "NOTICE:  Dropped privs to %s (%d)\n", suid_user, suid_id);
+        fprintf(stderr, "Dropped privs to %s (%d)\n", suid_user, suid_id);
     }
 #endif
 
@@ -1271,6 +1311,46 @@ int main(int argc,char *argv[]) {
     // Now parse the rest of our options
     // ---------------
 
+    // Convert the WEP mappings to our real map
+    vector<string> raw_wepmap_vec;
+    raw_wepmap_vec = conf->FetchOptVec("wepkey");
+    for (unsigned int rwvi = 0; rwvi < raw_wepmap_vec.size(); rwvi++) {
+        string wepline = raw_wepmap_vec[rwvi];
+
+        unsigned int rwsplit = wepline.find(",");
+        if (rwsplit == string::npos) {
+            fprintf(stderr, "FATAL:  Malformed 'wepkey' option in the config file.\n");
+            exit(1);
+        }
+
+        mac_addr bssid_mac = wepline.substr(0, rwsplit).c_str();
+
+        if (bssid_mac.error == 1) {
+            fprintf(stderr, "FATAL:  Malformed 'wepkey' option in the config file.\n");
+            exit(1);
+        }
+
+        string rawkey = wepline.substr(rwsplit + 1, wepline.length() - (rwsplit + 1));
+
+        unsigned char key[13];
+        int len = Hex2UChar13((unsigned char *) rawkey.c_str(), key);
+
+        if (len != 5 && len != 13) {
+            fprintf(stderr, "FATAL:  Invalid key '%s' length %d in a wepkey option in the config file.\n",
+                    rawkey.c_str(), len);
+            exit(1);
+        }
+
+        wep_key_info *keyinfo = new wep_key_info;
+        keyinfo->len = len;
+        memcpy(keyinfo->key, key, sizeof(unsigned char) * 13);
+
+        bssid_wep_map[bssid_mac] = keyinfo;
+
+        fprintf(stderr, "Using key %s length %d for BSSID %s\n",
+                rawkey.c_str(), len, bssid_mac.Mac2String().c_str());
+    }
+
     if (servername == NULL) {
         if (conf->FetchOpt("servername") != "") {
             servername = strdup(conf->FetchOpt("servername").c_str());
@@ -1314,7 +1394,7 @@ int main(int argc,char *argv[]) {
 #endif
 
     if (conf->FetchOpt("metric") == "true") {
-        fprintf(stderr, "NOTICE:  Using metric measurements.\n");
+        fprintf(stderr, "Using metric measurements.\n");
         metric = 1;
     }
 
@@ -1623,7 +1703,7 @@ int main(int argc,char *argv[]) {
     // handle the config bits
     struct stat fstat;
     if (stat(configdir.c_str(), &fstat) == -1) {
-        fprintf(stderr, "NOTICE: configdir '%s' does not exist, making it.\n",
+        fprintf(stderr, "configdir '%s' does not exist, making it.\n",
                 configdir.c_str());
         if (mkdir(configdir.c_str(), S_IRUSR | S_IWUSR | S_IXUSR) < 0) {
             fprintf(stderr, "FATAL:  Could not make configdir: %s\n",
@@ -1638,7 +1718,7 @@ int main(int argc,char *argv[]) {
 
     if (ssid_cloak_track) {
         if (stat(ssidtrackfile.c_str(), &fstat) == -1) {
-            fprintf(stderr, "NOTICE:  SSID cloak file did not exist, it will be created.\n");
+            fprintf(stderr, "SSID cloak file did not exist, it will be created.\n");
         } else {
             if ((ssid_file = fopen(ssidtrackfile.c_str(), "r")) == NULL) {
                 fprintf(stderr, "FATAL: Could not open SSID track file '%s': %s\n",
@@ -1662,7 +1742,7 @@ int main(int argc,char *argv[]) {
 
     if (ip_track) {
         if (stat(iptrackfile.c_str(), &fstat) == -1) {
-            fprintf(stderr, "NOTICE:  IP track file did not exist, it will be created.\n");
+            fprintf(stderr, "IP track file did not exist, it will be created.\n");
 
         } else {
             if ((ip_file = fopen(iptrackfile.c_str(), "r")) == NULL) {

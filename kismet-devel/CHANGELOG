@@ -3,6 +3,10 @@ Dec 10 2002  2.7.1  Fixed some packet dissection and wep/interesting detection
                     Added (broken) WEP decoding.  Right now this is just a 
                      bit-blender, I'm not sure it's going to give you ANYTHING
                      useful and it's not user-controllable yet.
+                    Fixed WEP decoding, at least on the tests so far.  See the
+                     'wepkey' config file option.  This is NOT for wep 
+                     cracking - this is for decoding traffic on networks with
+                     a known key (ie, monitoring stationary networks)
 Dec 05 2002  2.7.1  Fixed wsp100 cygwin header
                     Started adding viha support.  VIHA SUPPORT DOES NOT WORK
                      CURRENTLY.

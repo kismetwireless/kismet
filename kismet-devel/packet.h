@@ -538,6 +538,11 @@ typedef struct {
 
 } packet_info;
 
+typedef struct {
+    unsigned char key[13];
+    unsigned int len;
+} wep_key_info;
+
 // ----------------------------------
 // String munger
 void MungeToPrintable(char *in_data, int max);
@@ -547,11 +552,11 @@ int GetTagOffset(int init_offset, int tagnum, const pkthdr *header,
                  const u_char *data, map<int, int> *tag_cache_map);
 void GetPacketInfo(const pkthdr *header, u_char *data,
                    packet_parm *parm, packet_info *ret_packinfo,
-                   map<mac_addr, unsigned char *> *bssid_wep_map, unsigned char *identity);
+                   map<mac_addr, wep_key_info *> *bssid_wep_map, unsigned char *identity);
 void GetProtoInfo(packet_info *in_info, const pkthdr *header,
                   const u_char *in_data, proto_info *ret_protoinfo);
 void DecryptPacket(packet_info *in_info, const pkthdr *header,
-                   u_char *in_data, map<mac_addr, unsigned char *> *bssid_wep_map,
+                   u_char *in_data, map<mac_addr, wep_key_info *> *bssid_wep_map,
                    unsigned char *identity);
 
 vector<string> GetPacketStrings(const packet_info *in_info, const pkthdr *header, const u_char *in_data);
