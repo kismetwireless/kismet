@@ -66,7 +66,7 @@ int ProbeNoJoinAutomata::ProcessPacket(const packet_info *in_info) {
             elem->counter++;
 
             // Trigger on threshold
-            if (elem->counter > 10) {
+            if (elem->counter > 25) {
                 char atext[STATUS_MAX];
                 snprintf(atext, STATUS_MAX, "Suspicious client %s - probing networks but never participating.",
                          iter->first.Mac2String().c_str());
