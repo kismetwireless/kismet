@@ -1166,6 +1166,7 @@ int chancontrol_wlanng_avs(const char *in_dev, int in_ch, char *in_err, void *in
     snprintf(cmdline, 2048, "wlanctl-ng %s lnxreq_wlansniff channel=%d "
              "prismheader=false wlanheader=true stripfcs=false keepwepflags=false "
              "enable=true >/dev/null 2>&1", in_dev, in_ch);
+
     if (ExecSysCmd(cmdline, in_err) < 0)
         return -1;
     

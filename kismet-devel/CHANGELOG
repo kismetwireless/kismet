@@ -14,6 +14,7 @@ Dec 09 2003  3.1.0  Fixed prism54g override of channel change failure in
                     Modified wrt54g packet source to discard max_cap_len 
                      packets which get spawned by the linksys in monitor
                      while people are associated.
+                    Fixed channel fetching for wlanng-avs
 Dec 08 2003  3.1.0  Fixed util.h to include math.h outside of the wext
                      ifdef.
                     Removed mentions of signal quality from the panels client.
