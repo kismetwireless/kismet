@@ -1,3 +1,4 @@
+Apr 21 2003  2.9.1  Added 'comment' field to the netxml and gpsxml files
 Apr 15 2003  2.9.1  Tweaked some of the BSD packet-munging code, added another
                      warning about freebsd.
 Apr 10 2003  2.9.1  Changed 'kismet' script to use install paths to components
