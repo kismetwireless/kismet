@@ -1,5 +1,7 @@
 May 23 2003  2.9.1  Added drone server-side flush/resync
                     Added pcap and prism2_legacy engine channel control
+                    Fixed makefile running checkconfig twice and
+                     checkdroneconfig never.
 May 22 2003  2.9.1  Absorbed kismet_monitor into kismet_server, changed suid
                      root behavior.  READ THE DOCS.
 May 21 2003  2.9.1  First major rewrite to the packet path.  kismet_monitor

@@ -180,7 +180,7 @@ suidinstall: $(PS) $(DRONE) $(HOPPER) $(NC) $(GPSLBUILD) $(ZAURUSBUILD)
 		echo "Installed config into $(ETC)/kismet.conf."; \
 	fi
 	@if test -f $(ETC)/kismet_drone.conf; then \
-		$(MAKE) -e checkconfig; \
+		$(MAKE) -e checkdroneconfig; \
     else \
 		install -o $(INSTUSR) -g $(INSTGRP) -m 644 conf/kismet_drone.conf $(ETC)/kismet_drone.conf;  \
 		echo install -o $(INSTUSR) -g $(INSTGRP) -m 644 conf/kismet_drone.conf $(ETC)/kismet_drone.conf;  \
@@ -213,7 +213,7 @@ install: $(PS) $(DRONE) $(HOPPER) $(NC) $(GPSLBUILD) $(ZAURUSBUILD)
 		echo "Installed config into $(ETC)/kismet.conf."; \
 	fi
 	@if test -f $(ETC)/kismet_drone.conf; then \
-		$(MAKE) -e checkconfig; \
+		$(MAKE) -e checkdroneconfig; \
     else \
 		install -o $(INSTUSR) -g $(INSTGRP) -m 644 conf/kismet_drone.conf $(ETC)/kismet_drone.conf;  \
 		echo install -o $(INSTUSR) -g $(INSTGRP) -m 644 conf/kismet_drone.conf $(ETC)/kismet_drone.conf;  \
