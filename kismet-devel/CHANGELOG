@@ -1,5 +1,7 @@
 Mar 01 2004  devel  Tweaked error reporting to client.
                     Fixed wtapfile support for new ethereal wiretap versions
+                    Merged ifdefs from Thomas Dettbarn to fix compiling on 
+                     some freebsd systems
 Feb 28 2004  devel  Changed wtaplocaldump code to have better drive-ful error
                      messages
 Feb 26 2004  devel  Smart determination of channel controls on new orinoco
