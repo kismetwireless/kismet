@@ -232,7 +232,6 @@ int Packetracker::ProcessPacket(packet_info info, char *in_status) {
             info.bssid_mac = probe_map[info.bssid_mac];
     }
 
-
     // Find out if we have this network -- Every network that actually
     // gets added has a bssid, so we'll use that to search.  We've filtered
     // everything else out by this point so we're safe to just work off bssid
@@ -507,8 +506,8 @@ int Packetracker::ProcessPacket(packet_info info, char *in_status) {
         // With "closed" networks, this is our chance to see the real ssid.
         // (Thanks to Jason Luther <jason@ixid.net> for this "closed network" detection)
         if (info.type == packet_probe_response || info.type == packet_reassociation &&
-            (strlen(info.ssid) > 0) &&
-            !IsBlank(info.ssid)) {
+            (strlen(info.ssid) > 0) && !IsBlank(info.ssid)) {
+
             if (net->ssid == NOSSID) {
                 net->cloaked = 1;
                 net->ssid = info.ssid;
