@@ -56,7 +56,7 @@ int PcapSource::OpenSource(const char *dev, card_type ctype) {
 #if (defined(SYS_FREEBSD) || defined(SYS_OPENBSD))
     if (datalink_type == DLT_EN10MB) {
         snprintf(type, 64, "libpcap device %s [ BSD EN10MB HACK ]", dev);
-        fprintf(stderr, "WARNING:  pcap reports link type of EN10MB but we'll fake it on BSD.");
+        fprintf(stderr, "WARNING:  pcap reports link type of EN10MB but we'll fake it on BSD.\n");
         datalink_type = KDLT_BSD802_11;
     }
 #else

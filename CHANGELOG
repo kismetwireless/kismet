@@ -1,3 +1,6 @@
+Oct 29 2002  2.7.1  Fixed gpsmap bug where files found exactly where the netxml
+                     specified them were skipped
+                    Updated kismet2cwgd to work again
 Oct 28 2002  2.7.1  Merged WSP100 and Cygwin support from Chris Waters.  See
                      docs/README.cygwin for details about building this.
                     Added alert for wellenreiter probes

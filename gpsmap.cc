@@ -449,7 +449,7 @@ int ProcessGPSFile(char *in_fname) {
     int foundnetfile = 0;
     string comp;
 
-    if (XMLFetchGpsNetfile() != "") {
+    if ((comp = XMLFetchGpsNetfile()) != "") {
         fprintf(stderr, "NOTICE:  Reading associated network file, '%s'\n", XMLFetchGpsNetfile().c_str());
 #ifdef HAVE_LIBZ
         if ((gpsfz = gzopen(XMLFetchGpsNetfile().c_str(), "r")) == NULL) {
