@@ -8,7 +8,7 @@
 .fam C
 \fBgpsmap\fP [\fB-hviNIDVGMtbruapek\fP] [\fB-g\fP \fIconfig-file\fP] [\fB-o\fP \fIoutput-file\fP]
 [\fB-f\fP \fIfilter-list\fP] [\fB-F\fP \fIfilter-type-list\fP] [\fB-z\fP \fInumthreads\fP] [\fB-S\fP \fImapsource\fP] [\fB-c\fP \fIcoords\fP] [\fB-s\fP \fIscale\fP]
-[\fB-m\fP \fIusermap\fP] [\fB-d\fP \fImapsize\fP] [\fB-n\fP \fInetcolors\fP] [\fB-O\fP \fIoffset\fP] [\fB-R\fP \fIrange-opacity\fP] [\fIfeather-range\fP] [\fB-K\fP \fIbounds-opacity\fP]
+[\fB-m\fP \fIusermap\fP] [\fB-d\fP \fImapsize\fP] [\fB-n\fP \fInetcolors\fP] [\fB-O\fP \fIoffset\fP] [\fIcolor-saturation\fP] [\fImap-intensity\fP] [\fB-R\fP \fIrange-opacity\fP] [\fIfeather-range\fP] [\fB-K\fP \fIbounds-opacity\fP]
 [\fB-U\fP \fIhull-opacity\fP] [\fB-A\fP \fIscatter-opacity\fP] [\fB-B\fP \fIscatter-size\fP] [\fBfeather-scatter\fP]
 [\fB-Z\fP \fIdraw-power-zoom\fI] 
 [\fB-P\fP \fIpower-opacity\fP] [\fB-Q\fP \fIpower-res\fP] [\fB-q\fP \fIpower-colors\fP] [\fB-E\fP \fIcenter-opacity\fP]
@@ -101,6 +101,15 @@ Color networks by COLORS (0 = Random rotation; 1 = Color based on WEP and factor
 .B
 \fB-G\fP, \fB--no-greyscale\fP
 Don't convert map to greyscale
+.TP
+.B
+\fB--color-saturation\fP PERCENTAGE
+Set background map image color saturation.  0 is greyscale, 100 is full normal colors.
+.TP
+.B
+\fB--map-intensity\fP [-]PERCENTAGE
+Set background map intensity.  Negative percentages cause the map to be layered over a black background, while 
+positive percentages cause the map to be layered over a white background.
 .TP
 .B
 \fB-M\fP, \fB--metric\fP
