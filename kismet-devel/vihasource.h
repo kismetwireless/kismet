@@ -36,11 +36,11 @@
 
 class VihaSource : public KisPacketSource {
 public:
-    int OpenSource(const char *dev, card_type ctype);
+    VihaSource(string in_name, string in_dev) : KisPacketSource(in_name, in_dev) { }
+
+    int OpenSource();
 
     int CloseSource();
-
-    int SetChannel(unsigned int chan);
 
     int FetchChannel();
 
@@ -49,6 +49,8 @@ public:
     int FetchPacket(kis_packet *packet, uint8_t *data, uint8_t *moddata);
 
 protected:
+    int LocalSetChannel(int in_ch, char *in_err);
+    
     WLFrame *frame;
     WLPacketSource *wlsource;
     WLDriverInterface* wldi;
@@ -61,9 +63,16 @@ protected:
     int frame_full;
 
     friend void *ReadPacketLoop(void *arg);
+    friend int chancontrol_viha(const char *in_dev, int in_ch, char *in_err, 
+                                void *in_ext);
 };
 
-#endif /* HAVE_VIHAHEADERS */
+// We don't need a monitor function since loading the viha drivers puts us
+// into monitormode automatically
+KisPacketSource *vihasource_registrant(string in_name, string in_device,
+                                       char *in_err);
+int chancontrol_viha(const char *in_dev, int in_ch, char *in_err, void *in_ext);
 
+#endif /* HAVE_VIHAHEADERS */
 
 #endif /* __VIHASOURCE_H__ */

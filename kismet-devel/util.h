@@ -59,15 +59,22 @@ int Hex2UChar(unsigned char *in_hex, unsigned char *in_chr);
 
 vector<string> StrTokenize(string in_str, string in_split);
 vector<string> LineWrap(string in_txt, unsigned int in_hdr_len, unsigned int in_maxlen);
+vector<int> Str2IntVec(string in_text);
 
 void Float2Pair(float in_float, int16_t *primary, int64_t *mantissa);
 float Pair2Float(int16_t primary, int64_t mantissa);
 
 #ifdef HAVE_LINUX_WIRELESS
+// From iwconfig source
 float IWFreq2Float(iwreq *inreq);
+void IWFloat2Freq(double in_val, struct iw_freq *out_freq);
 #endif
 
+// Convert a float frequency to a channel number
 int FloatChan2Int(float in_chan);
+
+// Run a system command and return the error code.  Caller is responsible for security.
+int ExecSysCmd(char *in_cmd, char *in_err);
 
 class KisRingBuffer {
 public:

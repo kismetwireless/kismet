@@ -60,17 +60,15 @@ int Wsp100PokeSensor(Timetracker::timer_event *evt, void *call_parm) {
 
 // Build UDP listener code
 
-int Wsp100Source::OpenSource(const char *dev, card_type ctype) {
+int Wsp100Source::OpenSource() {
     char listenhost[1024];
     struct hostent *filter_host;
 
-    snprintf(type, 64, "WSP100 Remote Sensor on %s", dev);
-    cardtype = ctype;
-
     // Device is handled as a host:port pair - remote host we accept data
     // from, local port we open to listen for it.  yeah, it's a little weird.
-    if (sscanf(dev, "%1024[^:]:%hd", listenhost, &port) < 2) {
-        snprintf(errstr, 1024, "Couldn't parse host:port: '%s'", dev);
+    if (sscanf(interface.c_str(), "%1024[^:]:%hd", listenhost, &port) < 2) {
+        snprintf(errstr, 1024, "Couldn't parse host:port: '%s'", 
+                 interface.c_str());
         return -1;
     }
 
@@ -79,7 +77,8 @@ int Wsp100Source::OpenSource(const char *dev, card_type ctype) {
         return -1;
     }
 
-    memcpy((char *) &filter_addr.s_addr, filter_host->h_addr_list[0], filter_host->h_length);
+    memcpy((char *) &filter_addr.s_addr, filter_host->h_addr_list[0], 
+           filter_host->h_length);
 
     if ((udp_sock = socket(AF_INET, SOCK_DGRAM, 0)) < 0) {
         snprintf(errstr, 1024, "Couldn't create UDP socket: %s", strerror(errno));
@@ -270,11 +269,20 @@ void Wsp100Source::PokeSensor() {
            sizeof(poke_sockaddr));
 }
 
-int Wsp100Source::SetChannel(unsigned int chan) {
-
-    return 1;
+KisPacketSource *wsp100source_registrant(string in_name, string in_device,
+                                         char *in_err) {
+    return new Wsp100Source(in_name, in_device);
 }
 
+int monitor_wsp100(const char *in_dev, int initch, char *in_err) {
+    fprintf(stderr, "Need to implement wsp100 monitor mode...\n");
+    return 0;
+}
+
+int chancontrol_wsp100(const char *in_dev, int in_ch, char *in_err, void *in_ext) {
+    fprintf(stderr, "Need to implement wsp100 channel change...\n");
+    return 0;
+}
 
 // wsp100
 #endif

@@ -22,11 +22,8 @@
 
 #ifdef HAVE_VIHAHEADERS
 
-int VihaSource::OpenSource(const char *dev, card_type ctype) {
+int VihaSource::OpenSource() {
     pthread_t read_loop;
-
-    snprintf(type, 64, "Viha Mac OSX airport card");
-    cardtype = ctype;
 
     /* Open source */
     wlsource = new WLPacketSource(11);
@@ -66,10 +63,11 @@ int VihaSource::CloseSource() {
     return 1;
 }
 
-int VihaSource::SetChannel(unsigned int chan) {
-
+int VihaSource::LocalSetChannel(int in_ch, char *in_err) {
+    // Will this work inside the chanchange process?  I can only
+    // hope it will...
     wldi->stopCapture();
-    wldi->startCapture(chan);
+    wldi->startCapture(in_ch);
 
     return 1;
 }
@@ -209,6 +207,24 @@ void *ReadPacketLoop(void *vsp) {
     }
 
     return NULL;
+}
+
+KisPacketSource *vihasource_registrant(string in_name, string in_device,
+                                       char *in_err) {
+    return new VihaSource(in_name, in_device);
+}
+
+int chancontrol_viha(const char *in_dev, int in_ch, char *in_err, void *in_ext) {
+    if (in_ext == NULL) {
+        snprintf(in_err, STATUS_MAX, "No reference to vihasource instance to change "
+                 "channel.");
+        return -1;
+    }
+
+    // hook into the instance to change channel.  This is really not good, but 
+    // I can't figure out how to avoid it.  This is the only source type we have
+    // to do this for, but it makes us change the code for all of them.
+    ((VihaSource *) in_ext)->LocalSetChannel(in_ch, in_err);
 }
 
 #endif

@@ -20,28 +20,32 @@
 
 #ifdef HAVE_LIBWIRETAP
 
-int WtapFileSource::OpenSource(const char *dev, card_type ctype) {
-    snprintf(type, 64, "Wtap Save File");
-
+int WtapFileSource::OpenSource() {
     paused = 0;
-
     int err;
 
-    packfile = wtap_open_offline(dev, &err, false);
+    char *unconst = strdup(interface.c_str());
+
+    packfile = wtap_open_offline(unconst, &err, false);
     if (packfile == NULL) {
         snprintf(errstr, 1024, "Wtap file source unable to open %s: %s",
-                 dev, strerror(err));
+                 unconst, strerror(err));
+        free(unconst);
         return -1;
     }
 
+    free(unconst);
+
+    // We need to update this someday to handle wtapfiles with other encodings,
+    // like we do with pcapfiles
     if (wtap_file_encap(packfile) != WTAP_ENCAP_IEEE_802_11) {
-        snprintf(errstr, 1024, "Wtap file '%s' not an 802.11 encapsulation.", dev);
+        snprintf(errstr, 1024, "Wtap file '%s' not an 802.11 encapsulation.", 
+                 interface.c_str());
         return -1;
     }
 
     num_packets = 0;
 
-    snprintf(errstr, 1024, "Wtap file source opened %s", dev);
     return 1;
 }
 
@@ -87,6 +91,8 @@ int WtapFileSource::FetchPacket(kis_packet *packet, uint8_t *data, uint8_t *modd
 
     num_packets++;
 
+    packet->parm = parameters;
+
     return(packet->caplen);
 
 }
@@ -97,7 +103,6 @@ int WtapFileSource::Wtap2Common(kis_packet *packet, uint8_t *data, uint8_t *modd
     packet->caplen = kismin(packet_header->caplen, (uint32_t) MAX_PACKET_LEN);
     packet->len = packet->caplen;
 
-    packet->quality = -1;
     packet->signal = -1;
     packet->noise = -1;
 
@@ -124,11 +129,11 @@ int WtapFileSource::Wtap2Common(kis_packet *packet, uint8_t *data, uint8_t *modd
     return 1;
 }
 
-int WtapFileSource::SetChannel(unsigned int chan) {
-
-    return 1;
+// Nonclass registrant
+KisPacketSource *wtapfilesource_registrant(string in_name, string in_device,
+                                           char *in_err) {
+    return new WtapFileSource(in_name, in_device);
 }
-
 
 #endif
 

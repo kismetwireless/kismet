@@ -32,7 +32,9 @@ extern "C" {
 
 class WtapFileSource : public KisPacketSource {
 public:
-    int OpenSource(const char *dev, card_type ctype);
+    WtapFileSource(string in_name, string in_dev) : KisPacketSource(in_name, in_dev) { }
+
+    int OpenSource();
     int CloseSource();
 
     int FetchDescriptor() { return wtap_fd(packfile); }
@@ -41,8 +43,6 @@ public:
 
     static void Callback(u_char *bp, const struct pcap_pkthdr *header,
                          const u_char *data);
-
-    int SetChannel(unsigned int chan);
 
     int FetchChannel() { return 0; }
 
@@ -54,6 +54,10 @@ protected:
     const uint8_t *packet_data;
 
 };
+
+// Registrant only.  There aren't any channel or monitor controls.
+KisPacketSource *wtapfilesource_registrant(string in_name, string in_device, 
+                                           char *in_err);
 
 #endif
 

@@ -21,44 +21,34 @@
 
 #include "config.h"
 
+#include <string>
+#include <errno.h>
+
 #include "packet.h"
 #include "timetracker.h"
 #include "gpsd.h"
 
-// Card type, for some capture sources which require it
-extern char *card_type_str[];
-enum card_type {
-    card_unspecified,
-    card_cisco,
-    card_cisco_cvs,
-    card_cisco_bsd,
-    card_prism2,
-    card_prism2_legacy,
-    card_prism2_bsd,
-    card_prism2_hostap,
-    card_orinoco,
-    card_orinoco_bsd,
-    card_generic,
-    card_wsp100,
-    card_wtapfile,
-    card_pcapfile,
-    card_viha,
-    card_ar5k,
-    card_drone,
-    card_prism2_avs,
-    card_acx100
-};
+// All packetsources need to provide out-of-class functions for the 
+// packetsourcetracker class
+//
+// typedef KisPacketSource *(*packsource_registrant)(string, string);
+// typedef int (*packsource_chcontrol)(char *, int, char *);
+// typedef int (*packsource_monitor)(char *, int, char *);
 
 // Packet capture source superclass
 class KisPacketSource {
 public:
+    KisPacketSource(string in_name, string in_dev) {
+        name = in_name;
+        interface = in_dev;
+    }
+
+    virtual ~KisPacketSource() { };
+
     // Open the packet source
-    virtual int OpenSource(const char *dev, card_type ctype) = 0;
+    virtual int OpenSource() = 0;
 
     virtual int CloseSource() = 0;
-
-    // Change the channel
-    virtual int SetChannel(unsigned int chan) = 0;
 
     // Get the channel
     virtual int FetchChannel() = 0;
@@ -75,9 +65,6 @@ public:
     // Register the GPS server for us to use
     void AddGpstracker(GPSD *in_gpsd) { gpsd = in_gpsd; }
 
-    // Say what we are
-    char *FetchType() { return(type); }
-
     // Get the error
     char *FetchError() { return(errstr); }
 
@@ -90,7 +77,18 @@ public:
     // Stop ignoring incoming packets
     void Resume() { paused = 0; };
 
+    // Set packet parameters
+    void SetPackparm(packet_parm in_parameters) {
+        parameters = in_parameters;
+    }
+
+    // Get packet parameters
+    packet_parm GetPackparm() {
+        return parameters;
+    }
+
 protected:
+    // Global tracking pointers
     Timetracker *timetracker;
     GPSD *gpsd;
 
@@ -98,15 +96,20 @@ protected:
 
     int paused;
 
-    char type[64];
+    // Name, interface
+    string name;
+    string interface;
 
-    card_type cardtype;
+    // Various parameters we track
+    packet_parm parameters;
 
-    char carddev[64];
-
-    unsigned int channel;
-
+    // Total packets
     unsigned int num_packets;
+
+    // Current channel, if we don't fetch it live
+    int channel;
+
 };
+
 
 #endif

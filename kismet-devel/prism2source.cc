@@ -25,12 +25,8 @@
 
 #ifdef HAVE_LINUX_NETLINK
 
-int Prism2Source::OpenSource(const char *dev, card_type ctype) {
-    snprintf(type, 64, "Prism/2 (DEPRECATED)");
-
+int Prism2Source::OpenSource() {
     channel = 0;
-    strncpy(carddev, dev, 64);
-
     paused = 0;
 
     int fds[2], r;
@@ -67,11 +63,11 @@ int Prism2Source::OpenSource(const char *dev, card_type ctype) {
 
     num_packets = 0;
 
-    snprintf(errstr, 1024, "Prism2 capture source opened.");
     return(1);
 }
 
 int Prism2Source::CloseSource() {
+    close(fd);
     return 1;
 }
 
@@ -134,6 +130,8 @@ int Prism2Source::FetchPacket(kis_packet *packet, uint8_t *data, uint8_t *moddat
 
     num_packets++;
 
+    packet->parm = parameters;
+
     return(packet->caplen);
 }
 
@@ -156,8 +154,7 @@ int Prism2Source::Prism2Common(kis_packet *packet, uint8_t *data, uint8_t *modda
     packet->caplen = kismin(sniff_info->frmlen.data, (uint32_t) MAX_PACKET_LEN);
     packet->len = packet->caplen;
 
-    // Copy the quality out of the prism2 header
-    packet->quality = sniff_info->sq.data;
+    // Copy the radio levels out
     packet->signal = sniff_info->signal.data;
     packet->noise = sniff_info->noise.data;
 
@@ -170,25 +167,43 @@ int Prism2Source::Prism2Common(kis_packet *packet, uint8_t *data, uint8_t *modda
     return 1;
 }
 
-int Prism2Source::SetChannel(unsigned int chan) {
-    char shellcmd[1024];
+int Prism2Source::FetchChannel() {
 
-    if (cardtype == card_prism2_legacy) {
-        snprintf(shellcmd, 1024, "wlanctl-ng %s lnxreq_wlansniff channel=%d enable=true >/dev/null",
-                 carddev, chan);
-    }
-
-    if (system(shellcmd) != 0) {
-        snprintf(errstr, 1024, "prism2source failed executing shell command: %s", shellcmd);
-        return -1;
-    }
-
-    channel = chan;
-
-    return 1;
+    return 0;
 }
 
-int Prism2Source::FetchChannel() {
+// ----------------------------------------------------------------------------
+// // Registrant and control functions outside of the class
+
+KisPacketSource *prism2source_registrant(string in_name, string in_device, char *in_err) {
+    return new Prism2Source(in_name, in_device);
+}
+
+int monitor_wlanng_legacy(const char *in_dev, int initch, char *in_err) {
+    // I really didn't want to do this...
+    char cmdline[2048];
+
+    // Bring the device up, zero its ip, and set promisc
+    if (Ifconfig_Linux(in_dev, in_err) < 0)
+        return -1;
+
+    // Enable the interface
+    snprintf(cmdline, 2048, "wlanctl-ng %s lnxreq_wlansniff channel=%d enable=true", in_dev, initch);
+    if (ExecSysCmd(cmdline, in_err) < 0)
+        return -1;
+
+    return 0;
+}
+
+int chancontrol_wlanng_legacy(const char *in_dev, int initch, char *in_err, 
+                              void *in_ext) {
+    // I really didn't want to do this...
+    char cmdline[2048];
+
+    // Set the channel
+    snprintf(cmdline, 2048, "wlanctl-ng %s lnxreq_wlansniff channel=%d enable=true", in_dev, initch);
+    if (ExecSysCmd(cmdline, in_err) < 0)
+        return -1;
 
     return 0;
 }

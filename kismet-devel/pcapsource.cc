@@ -35,40 +35,25 @@
 #include "util.h"
 
 #ifdef HAVE_LIBPCAP
+
 // This is such a bad thing to do...
 #include <pcap-int.h>
 
-// I hate libpcap, I really really do.  Stupid callbacks...
+// Pcap global callback structs
 pcap_pkthdr callback_header;
 u_char callback_data[MAX_PACKET_LEN];
 
-
-int PcapSource::OpenSource(const char *dev, card_type ctype) {
-    cardtype = ctype;
-    strncpy(carddev, dev, 64);
-
-    snprintf(type, 64, "libpcap device %s", dev);
+// Open a source
+int PcapSource::OpenSource() {
     channel = 0;
-
-    if (ctype == card_cisco_cvs) {
-        // Split off the wifiX interface
-        vector<string> devbits = StrTokenize(dev, ":");
-        if (devbits.size() < 2) {
-            snprintf(errstr, 1024, "Misformed cisco_cvs interface '%s', correct form is 'ethX:wifiX'", dev);
-            return -1;
-        }
-
-        snprintf(carddev, 64, "%s", devbits[1].c_str());
-    }
 
     errstr[0] = '\0';
 
-    // Handle file sources
-    if (ctype == card_pcapfile) {
-        pd = pcap_open_offline(dev, errstr);
-    } else {
-        pd = pcap_open_live(carddev, MAX_PACKET_LEN, 1, 1000, errstr);
-    }
+    char *unconst = strdup(interface.c_str());
+
+    pd = pcap_open_live(unconst, MAX_PACKET_LEN, 1, 1000, errstr);
+
+    free(unconst);
 
     if (strlen(errstr) > 0)
         return -1; // Error is already in errstr
@@ -77,23 +62,61 @@ int PcapSource::OpenSource(const char *dev, card_type ctype) {
 
     errstr[0] = '\0';
 
+    num_packets = 0;
+
+    if (DatalinkType() < 0)
+        return -1;
+
+#ifdef HAVE_PCAP_NONBLOCK
+    pcap_setnonblock(pd, 1, errstr);
+#elif !defined(SYS_OPENBSD)
+    // do something clever  (Thanks to Guy Harris for suggesting this).
+    int save_mode = fcntl(pcap_fileno(pd), F_GETFL, 0);
+    if (fcntl(pcap_fileno(pd), F_SETFL, save_mode | O_NONBLOCK) < 0) {
+        snprintf(errstr, 1024, "fcntl failed, errno %d (%s)",
+                 errno, strerror(errno));
+    }
+#endif
+
+    if (strlen(errstr) > 0)
+        return -1; // Ditto
+    
+    return 1;
+}
+
+// Datalink, override as appropriate
+carrier_type PcapSource::IEEE80211Carrier() {
+    int ch = FetchChannel();
+
+    if (ch > 0 && ch < 14)
+        return carrier_80211b;
+    else if (ch > 34)
+        return carrier_80211a;
+
+    return carrier_unknown;
+}
+
+// Errorcheck the datalink type
+int PcapSource::DatalinkType() {
     datalink_type = pcap_datalink(pd);
 
     // Blow up if we're not valid 802.11 headers
 #if (defined(SYS_FREEBSD) || defined(SYS_OPENBSD))
     if (datalink_type == DLT_EN10MB) {
-        snprintf(type, 64, "libpcap device %s [ BSD EN10MB HACK ]", dev);
-        fprintf(stderr, "WARNING:  pcap reports link type of EN10MB but we'll fake it on BSD.\n");
-#ifdef SYS_FREEBSD
-        fprintf(stderr, "WARNING:  FreeBSD is known to have SEVERE compatability problems.  We'll keep running,\n"
-                "but this will NOT work correctly.  This is a FreeBSD driver issue.\n");
+        fprintf(stderr, "WARNING:  pcap reports link type of EN10MB but we'll fake it on BSD.\n"
+                "This may not work the way we want it to.\n");
+#if (defined(SYS_FREEBSD) || defined(SYS_NETBSD))
+        fprintf(stderr, "WARNING:  Most Free and Net BSD drivers do not report rfmon packets\n"
+                "correctly.  Kismet will probably not run correctly.");
 #endif
         datalink_type = KDLT_BSD802_11;
     }
 #else
     if (datalink_type == DLT_EN10MB) {
-        snprintf(errstr, 1024, "pcap reported netlink type 1 (EN10MB) for %s.  This probably means you're not in RFMON mode or your drivers are reporting a bad value.  Make sure you have run kismet_monitor.",
-                dev);
+        snprintf(errstr, 1024, "pcap reported netlink type 1 (EN10MB) for %s.  "
+                 "This probably means you're not in RFMON mode or your drivers are "
+                 "reporting a bad value.  Make sure you have the correct drivers "
+                 "and that entering monitor mode succeeded.", interface.c_str());
         return -1;
     }
 #endif
@@ -102,72 +125,8 @@ int PcapSource::OpenSource(const char *dev, card_type ctype) {
         datalink_type != DLT_PRISM_HEADER) {
         fprintf(stderr, "WARNING:  Unknown link type %d reported.  Continuing on blindly...\n",
                 datalink_type);
-        snprintf(type, 64, "libpcap device %s linktype %d",
-                 dev, datalink_type);
     }
 
-#ifdef HAVE_PCAP_NONBLOCK
-    if (cardtype != card_pcapfile)
-        pcap_setnonblock(pd, 1, errstr);
-#elif !defined(SYS_OPENBSD)
-    // do something clever  (Thanks to Guy Harris for suggesting this).
-    if (cardtype != card_pcapfile) {
-        int save_mode = fcntl(pcap_fileno(pd), F_GETFL, 0);
-        if (fcntl(pcap_fileno(pd), F_SETFL, save_mode | O_NONBLOCK) < 0) {
-            snprintf(errstr, 1024, "fcntl failed, errno %d (%s)",
-                     errno, strerror(errno));
-        }
-    }
-#endif
-
-    if (strlen(errstr) > 0)
-        return -1; // Ditto
-
-    // Set up the ioctl stuff for pcap cards that work via the ioctl extentions
-#ifdef HAVE_LINUX_WIRELESS
-    if (ctype == card_prism2 || ctype == card_prism2_hostap || ctype == card_orinoco || ctype == card_acx100) {
-        // Cribbed from the wireless tools
-        static const int families[] = {
-            AF_INET, AF_IPX, AF_AX25, AF_APPLETALK
-        };
-        unsigned int i;
-
-        for(i = 0; i < sizeof(families)/sizeof(int); ++i) {
-            /* Try to open the socket, if success returns it */
-            ioctl_sock = socket(families[i], SOCK_DGRAM, 0);
-            if (ioctl_sock >= 0)
-                break;
-        }
-
-        if (ioctl_sock < 0) {
-            snprintf(errstr, 1024, "Unable to create ioctl socket");
-            return -1;
-        }
-
-        // Check wireless extentions - the device has to exist or pcap_open would blow up,
-        // but lets make sure.
-        iwreq wrq;
-        strncpy(wrq.ifr_name, carddev, IFNAMSIZ);
-        if (ioctl(ioctl_sock, SIOCGIWNAME, &wrq) < 0) {
-            snprintf(errstr, 1024, "Unable to issue SIOCGIWNAME ioctl - no wireless extentions on this interface?");
-            return -1;
-        }
-
-        strncpy(wrq.ifr_name, carddev, IFNAMSIZ);
-        if (ioctl(ioctl_sock, SIOCGIWFREQ, &wrq) < 0) {
-            snprintf(errstr, 1024, "Unable to issue SIOCGIWGFREQ ioctl - couldn't find initial channel");
-            return -1;
-        }
-    }
-
-    // Prism2avs puts the hardware channel into the headers
-    // Cisco is uncontrollable for channel
-    // ar5k puts the hardware channel into the headers
-#endif
-
-    num_packets = 0;
-
-    snprintf(errstr, 1024, "Pcap Source opened %s", dev);
     return 1;
 }
 
@@ -177,10 +136,6 @@ int PcapSource::CloseSource() {
 }
 
 int PcapSource::FetchDescriptor() {
-    // Ugly hack for now
-    if (cardtype == card_pcapfile)
-        return fileno(pd->sf.rfile);
-
     return pcap_fileno(pd);
 }
 
@@ -202,22 +157,22 @@ int PcapSource::FetchPacket(kis_packet *packet, uint8_t *data, uint8_t *moddata)
     if (ret == 0)
         return 0;
 
-    if (paused || Pcap2Common(packet, data, moddata) == 0) {
+    if (paused || ManglePacket(packet, data, moddata) == 0) {
         return 0;
     }
 
     num_packets++;
 
+    // Set the parameters
+    packet->parm = parameters;
+    
     return(packet->caplen);
 }
 
-int PcapSource::Pcap2Common(kis_packet *packet, uint8_t *data, uint8_t *moddata) {
+int PcapSource::ManglePacket(kis_packet *packet, uint8_t *data, uint8_t *moddata) {
     memset(packet, 0, sizeof(kis_packet));
-
-    int callback_offset = 0;
-
+    
     packet->ts = callback_header.ts;
-
     packet->data = data;
     packet->moddata = moddata;
     packet->modified = 0;
@@ -227,50 +182,55 @@ int PcapSource::Pcap2Common(kis_packet *packet, uint8_t *data, uint8_t *moddata)
                        &packet->gps_spd, &packet->gps_heading, &packet->gps_fix);
     }
 
-    // Get the power from the datalink headers if we can, otherwise use proc/wireless
-    if (datalink_type == DLT_PRISM_HEADER) {
-        int header_found = 0;
+    if (datalink_type == DLT_PRISM_HEADER)
+        return Prism2KisPack(packet, data, moddata);
+    else if (datalink_type == KDLT_BSD802_11)
+        return BSD2KisPack(packet, data, moddata);
 
-        // See if we have an AVS wlan header...
-        avs_80211_1_header *v1hdr = (avs_80211_1_header *) callback_data;
-        if (callback_header.caplen >= sizeof(avs_80211_1_header) &&
-            ntohl(v1hdr->version) == 0x80211001 && header_found == 0) {
+    // Fetch the channel if we know how and it hasn't been filled in already
+    if (packet->channel == 0)
+        packet->channel = FetchChannel();
 
-            if (ntohl(v1hdr->length) > callback_header.caplen) {
-                snprintf(errstr, 1024, "pcap Pcap2Common got corrupted AVS header length");
-                packet->len = 0;
-                packet->caplen = 0;
-                return 0;
-            }
+    packet->caplen = kismin(callback_header.caplen, (uint32_t) MAX_PACKET_LEN);
+    packet->len = packet->caplen;
+    memcpy(packet->data, callback_data, packet->caplen);
+    
+    return 1;
 
-            header_found = 1;
+}
 
-            /* What?  No.
-             packet->caplen = kismin(callback_header.caplen - (uint32_t) ntohl(v1hdr->length),
-             (uint32_t) MAX_PACKET_LEN);
-             packet->len = packet->caplen;
-             */
+int PcapSource::Prism2KisPack(kis_packet *packet, uint8_t *data, uint8_t *moddata) {
+    int header_found = 0;
+    int callback_offset = 0;
 
-            // We knock the FCS off the end since we don't do anything smart with
-            // it anyway
-            int fcs = 0;
-            if (cardtype == card_prism2 || cardtype == card_prism2_avs)
-                fcs = 4;
+    // See if we have an AVS wlan header...
+    avs_80211_1_header *v1hdr = (avs_80211_1_header *) callback_data;
+    if (callback_header.caplen >= sizeof(avs_80211_1_header) &&
+        ntohl(v1hdr->version) == 0x80211001 && header_found == 0) {
 
-            packet->caplen = kismin(callback_header.caplen - fcs - ntohl(v1hdr->length), (uint32_t) MAX_PACKET_LEN);
-            packet->len = packet->caplen;
+        if (ntohl(v1hdr->length) > callback_header.caplen) {
+            snprintf(errstr, 1024, "pcap prism2 converter got corrupted AVS header length");
+            packet->len = 0;
+            packet->caplen = 0;
+            return 0;
+        }
 
-            callback_offset = ntohl(v1hdr->length);
+        header_found = 1;
 
-            // We REALLY need to do something smarter about this and handle the RSSI
-            // type instead of just copying
-            packet->quality = 0;
-            packet->signal = ntohl(v1hdr->ssi_signal);
-            packet->noise = ntohl(v1hdr->ssi_noise);
+        packet->caplen = kismin(callback_header.caplen - 4 - ntohl(v1hdr->length), (uint32_t) MAX_PACKET_LEN);
+        packet->len = packet->caplen;
 
-            packet->channel = ntohl(v1hdr->channel);
+        callback_offset = ntohl(v1hdr->length);
 
-            switch (ntohl(v1hdr->phytype)) {
+        // We REALLY need to do something smarter about this and handle the RSSI
+        // type instead of just copying
+        packet->quality = 0;
+        packet->signal = ntohl(v1hdr->ssi_signal);
+        packet->noise = ntohl(v1hdr->ssi_noise);
+
+        packet->channel = ntohl(v1hdr->channel);
+
+        switch (ntohl(v1hdr->phytype)) {
             case 1:
                 packet->carrier = carrier_80211fhss;
             case 2:
@@ -290,126 +250,60 @@ int PcapSource::Pcap2Common(kis_packet *packet, uint8_t *data, uint8_t *moddata)
             default:
                 packet->carrier = carrier_unknown;
                 break;
-            }
-
-            packet->encoding = (encoding_type) ntohl(v1hdr->encoding);
-
-            packet->datarate = (int) ntohl(v1hdr->datarate);
         }
 
-        // See if we have a prism2 header
-        wlan_ng_prism2_header *p2head = (wlan_ng_prism2_header *) callback_data;
-        if (callback_header.caplen >= sizeof(wlan_ng_prism2_header) &&
-            header_found == 0) {
+        packet->encoding = (encoding_type) ntohl(v1hdr->encoding);
 
-            header_found = 1;
-
-            // Subtract the packet FCS since kismet doesn't do anything terribly bright
-            // with it right now
-            int fcs = 0;
-            if (cardtype == card_prism2 || cardtype == card_prism2_avs)
-                fcs = 4;
-
-            packet->caplen = kismin(p2head->frmlen.data - fcs, (uint32_t) MAX_PACKET_LEN);
-            packet->len = packet->caplen;
-
-            // Set our offset for extracting the actual data
-            callback_offset = sizeof(wlan_ng_prism2_header);
-
-            packet->quality = p2head->sq.data;
-            packet->signal = p2head->signal.data;
-            packet->noise = p2head->noise.data;
-
-            packet->channel = p2head->channel.data;
-
-            // For now, anything not the ar5k is 802.11b
-            if (cardtype == card_ar5k)
-                packet->carrier = carrier_80211a;
-            else
-                packet->carrier = carrier_80211b;
-
-        }
-
-        if (header_found == 0) {
-            snprintf(errstr, 1024, "pcap Pcap2Common saw undersized capture frame");
-            packet->len = 0;
-            packet->caplen = 0;
-            return 0;
-        }
-
-    } else if (datalink_type == KDLT_BSD802_11) {
-        // Process our hacked in BSD type
-        if (callback_header.caplen < sizeof(bsd_80211_header)) {
-            snprintf(errstr, 1024, "pcap Pcap2Common saw undersized capture frame for bsd-header header.");
-            packet->len = 0;
-            packet->caplen = 0;
-            return 0;
-        }
-
-        packet->caplen = kismin(callback_header.caplen - sizeof(bsd_80211_header), (uint32_t) MAX_PACKET_LEN);
-        packet->len = packet->caplen;
-
-        // Fetch the channel if we know how and it hasn't been filled in already
-        if (packet->channel == 0)
-            packet->channel = FetchChannel();
-
-        bsd_80211_header *bsdhead = (bsd_80211_header *) callback_data;
-
-        packet->signal = bsdhead->wi_signal;
-        packet->noise = bsdhead->wi_silence;
-        packet->quality = ((packet->signal - packet->noise) * 100) / 256;
-		
-        // Set our offset
-        callback_offset = sizeof(bsd_80211_header);
-
-    } else {
-        packet->caplen = kismin(callback_header.caplen, (uint32_t) MAX_PACKET_LEN);
-        packet->len = packet->caplen;
-
-        // Fetch the channel if we know how and it hasn't been filled in already
-        if (packet->channel == 0)
-            packet->channel = FetchChannel();
-
-#ifdef HAVE_LINUX_WIRELESS
-        // Fill in the connection info from the wireless extentions, if we can
-        FILE *procwireless;
-
-        if ((procwireless = fopen("/proc/net/wireless", "r")) != NULL) {
-            char wdata[1024];
-            fgets(wdata, 1024, procwireless);
-            fgets(wdata, 1024, procwireless);
-            fgets(wdata, 1024, procwireless);
-
-            int qual, lev, noise;
-            char qupd, lupd, nupd;
-            sscanf(wdata+14, "%d%c %d%c %d%c", &qual, &qupd, &lev, &lupd, &noise, &nupd);
-
-            if (qupd != '.')
-                qual = 0;
-            if (lupd != '.')
-                lev = 0;
-            if (nupd != '.')
-                noise = 0;
-
-            fclose(procwireless);
-
-            packet->quality = qual;
-            packet->signal = lev;
-            packet->noise = noise;
-        }
-#endif
+        packet->datarate = (int) ntohl(v1hdr->datarate);
     }
 
-    if (cardtype == card_cisco_bsd && (callback_offset + packet->caplen) > 26) {
-        // The cisco BSD drivers seem to insert 2 bytes of crap
+    // See if we have a prism2 header
+    wlan_ng_prism2_header *p2head = (wlan_ng_prism2_header *) callback_data;
+    if (callback_header.caplen >= sizeof(wlan_ng_prism2_header) &&
+        header_found == 0) {
 
-        memcpy(packet->data, callback_data + callback_offset, 24);
-        memcpy(packet->data + 24, callback_data + callback_offset + 26, packet->caplen - 26);
+        header_found = 1;
 
-        packet->len -= 2;
-        packet->caplen -= 2;
+        // Subtract the packet FCS since kismet doesn't do anything terribly bright
+        // with it right now
+        packet->caplen = kismin(p2head->frmlen.data - 4, (uint32_t) MAX_PACKET_LEN);
+        packet->len = packet->caplen;
 
-    } else if (cardtype == card_prism2_bsd && (callback_offset + packet->caplen) > 68) {
+        // Set our offset for extracting the actual data
+        callback_offset = sizeof(wlan_ng_prism2_header);
+
+        packet->quality = p2head->sq.data;
+        packet->signal = p2head->signal.data;
+        packet->noise = p2head->noise.data;
+
+        packet->channel = p2head->channel.data;
+
+        // Fill in the carrier if we haven't yet
+        if (packet->carrier == carrier_unknown)
+            packet->carrier = IEEE80211Carrier();
+        
+        /*
+        // For now, anything not the ar5k is 802.11b
+        if (cardtype == card_ar5k)
+            packet->carrier = carrier_80211a;
+        else
+            packet->carrier = carrier_80211b;
+            */
+
+    }
+
+    if (header_found == 0) {
+        snprintf(errstr, 1024, "pcap prism2 convverter saw undersized capture frame");
+        packet->len = 0;
+        packet->caplen = 0;
+        return 0;
+    }
+
+    // Fetch the channel if we know how and it hasn't been filled in already
+    if (packet->channel == 0)
+        packet->channel = FetchChannel();
+
+    if ((callback_offset + packet->caplen) > 68) {
         // 802.11 header
         memcpy(packet->data, callback_data + callback_offset, 24);
 
@@ -427,82 +321,561 @@ int PcapSource::Pcap2Common(kis_packet *packet, uint8_t *data, uint8_t *moddata)
         // skip driver appended prism header
         packet->len -= 14;
         packet->caplen -= 14;
-
     } else {
-        // Otherwise we don't do anything or we don't have enough of a packet to do anything
-        // with.
+        memcpy(packet->data, callback_data + callback_offset, packet->caplen);
+    }
+
+    return 1;
+
+}
+
+int PcapSource::BSD2KisPack(kis_packet *packet, uint8_t *data, uint8_t *moddata) {
+    int callback_offset = 0;
+
+    // Process our hacked in BSD type
+    if (callback_header.caplen < sizeof(bsd_80211_header)) {
+        snprintf(errstr, 1024, "pcap bsd converter saw undersized capture frame for bsd header.");
+        packet->len = 0;
+        packet->caplen = 0;
+        return 0;
+    }
+
+    packet->caplen = kismin(callback_header.caplen - sizeof(bsd_80211_header), (uint32_t) MAX_PACKET_LEN);
+    packet->len = packet->caplen;
+
+    // Fetch the channel if we know how and it hasn't been filled in already
+    if (packet->channel == 0)
+        packet->channel = FetchChannel();
+
+    bsd_80211_header *bsdhead = (bsd_80211_header *) callback_data;
+
+    packet->signal = bsdhead->wi_signal;
+    packet->noise = bsdhead->wi_silence;
+
+    // We're not going to even try to do quality measurements
+    // packet->quality = ((packet->signal - packet->noise) * 100) / 256;
+
+    // Set our offset
+    callback_offset = sizeof(bsd_80211_header);
+
+    if ((callback_offset + packet->caplen) > 26) {
+        // The cisco BSD drivers seem to insert 2 bytes of crap
+
+        memcpy(packet->data, callback_data + callback_offset, 24);
+        memcpy(packet->data + 24, callback_data + callback_offset + 26, packet->caplen - 26);
+
+        packet->len -= 2;
+        packet->caplen -= 2;
+    } else {
         memcpy(packet->data, callback_data + callback_offset, packet->caplen);
     }
 
     return 1;
 }
 
-int PcapSource::PcapShellCmd(char *in_cmd) {
-    if (system(in_cmd) != 0) {
-        snprintf(errstr, 1024, "pcapsource failed executing shell command: %s", in_cmd);
-        return -1;
-    }
+int PcapSource::FetchChannel() {
+    // We don't know anything
+    return 0;
+}
 
+// Open an offline file with pcap
+int PcapSourceFile::OpenSource() {
+    channel = 0;
+
+    errstr[0] = '\0';
+
+    pd = pcap_open_offline(interface.c_str(), errstr);
+
+    if (strlen(errstr) > 0)
+        return -1; // Error is already in errstr
+
+    paused = 0;
+
+    errstr[0] = '\0';
+
+    num_packets = 0;
+
+    if (DatalinkType() < 0)
+        return -1;
+    
     return 1;
 }
 
-int PcapSource::SetChannel(unsigned int chan) {
-    char shellcmd[1024];
-    int ret = 0;
-
-    if (cardtype == card_prism2) {
-        snprintf(shellcmd, 1024, "wlanctl-ng %s lnxreq_wlansniff channel=%d enable=true prismheader=true >/dev/null",
-                 carddev, chan);
-        if ((ret = PcapShellCmd(shellcmd)) > 0)
-            channel = chan;
-    } else if (cardtype == card_prism2_avs) {
-        snprintf(shellcmd, 1024, "wlanctl-ng %s lnxreq_wlansniff channel=%d prismheader=false wlanheader=true stripfcs=false keepwepflags=false enable=true >/dev/null",
-                 carddev, chan);
-        if ((ret = PcapShellCmd(shellcmd)) > 0)
-            channel = chan;
-    } else if (cardtype == card_prism2_bsd) {
-        snprintf(shellcmd, 1024, "prism2ctl %s -f %d >/dev/null", carddev, chan);
-        if ((ret = PcapShellCmd(shellcmd)) > 0)
-            channel = chan;
-    } else if (cardtype == card_prism2_hostap || cardtype == card_ar5k) {
-        snprintf(shellcmd, 1024, "iwconfig %s channel %d >/dev/null", carddev, chan);
-        if ((ret = PcapShellCmd(shellcmd)) > 0)
-            channel = chan;
-    } else if (cardtype == card_orinoco) {
-        snprintf(shellcmd, 1024, "iwpriv %s monitor 1 %d >/dev/null", carddev, chan);
-        if ((ret = PcapShellCmd(shellcmd)) > 0)
-            channel = chan;
-    } else if (cardtype == card_cisco || cardtype == card_cisco_cvs || cardtype == card_cisco_bsd) {
-        snprintf(errstr, 1024, "pcapsource: cisco's can't be set to a channel right now.");
-        return 0;
-    } else {
-        snprintf(errstr, 1024, "pcapsource: don't know how to change channel for cardtype %d", cardtype);
-        return 0;
-    }
-
-    return ret;
+// Nasty hack into pcap priv functions to get the file descriptor.  This
+// most likely is a bad idea.
+int PcapSourceFile::FetchDescriptor() {
+    return fileno(pd->sf.rfile);
 }
 
-int PcapSource::FetchChannel() {
-#ifdef HAVE_LINUX_WIRELESS
-    // Use ioctl's to get the current channel if we're a card type that supports them
-    if (cardtype == card_prism2 || cardtype == card_prism2_hostap || cardtype == card_orinoco || cardtype == card_acx100) {
-        iwreq wrq;
-        strncpy(wrq.ifr_name, carddev, IFNAMSIZ);
-        if (ioctl(ioctl_sock, SIOCGIWFREQ, &wrq) < 0) {
-            snprintf(errstr, 1024, "Unable to issue SIOCGIWGFREQ ioctl - couldn't find channel");
-            return -1;
-        }
+int PcapSourceFile::FetchPacket(kis_packet *packet, uint8_t *data, uint8_t *moddata) {
+    int ret;
+    //unsigned char *udata = '\0';
 
-        // Turn it into a channel
-        return (FloatChan2Int(IWFreq2Float(&wrq)));
+    ret = pcap_dispatch(pd, 1, PcapSource::Callback, NULL);
+
+    if (ret < 0) {
+        snprintf(errstr, 1024, "Pcap Get Packet pcap_dispatch() failed");
+        return -1;
+    } else if (ret == 0) {
+        snprintf(errstr, 1024, "Pcap file reached end of capture.");
+        return -1;
     }
+
+    if (paused || ManglePacket(packet, data, moddata) == 0) {
+        return 0;
+    }
+
+    num_packets++;
+
+    // Set the parameters
+    packet->parm = parameters;
+    
+    return(packet->caplen);
+}
+
+#ifdef HAVE_LINUX_WIRELESS
+// Simple alias to our ifcontrol interface
+int PcapSourceWext::FetchChannel() {
+    // Use wireless extensions to get the channel
+    return Iwconfig_Get_Channel(interface.c_str(), errstr);
+}
 #endif
 
-    // We don't know how to get the channel from anything else so just return 0
+// ----------------------------------------------------------------------------
+// Registrant and control functions outside of the class
+
+KisPacketSource *pcapsource_registrant(string in_name, string in_device, char *in_err) {
+    return new PcapSource(in_name, in_device);
+}
+
+KisPacketSource *pcapsource_file_registrant(string in_name, string in_device,
+                                            char *in_err) {
+    return new PcapSourceFile(in_name, in_device);
+}
+
+#ifdef HAVE_LINUX_WIRELESS
+KisPacketSource *pcapsource_wext_registrant(string in_name, string in_device, 
+                                            char *in_err) {
+    return new PcapSourceWext(in_name, in_device);
+}
+
+KisPacketSource *pcapsource_ciscowifix_registrant(string in_name, string in_device, char *in_err) {
+    vector<string> devbits = StrTokenize(in_device, ":");
+
+    if (devbits.size() < 2) {
+        snprintf(in_err, STATUS_MAX, "Invalid device pair '%s'", in_device.c_str());
+        return NULL;
+    }
+
+    return new PcapSourceWext(in_name, devbits[1]);
+}
+#endif
+
+// Monitor commands
+#ifdef HAVE_LINUX_WIRELESS
+// Cisco uses its own config file in /proc to control modes
+int monitor_cisco(const char *in_dev, int initch, char *in_err) {
+    FILE *cisco_config;
+    char cisco_path[128];
+
+    // Bring the device up, zero its ip, and set promisc
+    if (Ifconfig_Linux(in_dev, in_err) < 0)
+        return -1;
+
+    // Zero the ssid
+    if (Iwconfig_Blank_SSID(in_dev, in_err) < 0)
+        return -1;
+    
+    // Build the proc control path
+    snprintf(cisco_path, 128, "/proc/driver/aironet/%s/Config", in_dev);
+
+    if ((cisco_config = fopen(cisco_path, "w")) == NULL) {
+        snprintf(in_err, STATUS_MAX, "Unable to open cisco control file '%s' %d:%s",
+                 cisco_path, errno, strerror(errno));
+        return -1;
+    }
+
+    fprintf(cisco_config, "Mode: r\n");
+    fprintf(cisco_config, "Mode: y\n");
+    fprintf(cisco_config, "XmitPower: 1\n");
+
+    fclose(cisco_config);
+
+    // Channel can't be set on cisco with these drivers.
 
     return 0;
 }
+
+// Cisco uses its own config file in /proc to control modes
+int monitor_cisco_wifix(const char *in_dev, int initch, char *in_err) {
+    FILE *cisco_config;
+    char cisco_path[128];
+    vector<string> devbits = StrTokenize(in_dev, ":");
+
+    if (devbits.size() < 2) {
+        snprintf(in_err, STATUS_MAX, "Invalid device pair '%s'", in_dev);
+        return -1;
+    }
+
+    // Detect if we're already in monitor mode, since it lies to iwext about the
+    // mode...
+    snprintf(cisco_path, 128, "/proc/driver/aironet/%s/Config", devbits[0].c_str());
+
+    if ((cisco_config = fopen(cisco_path, "r")) == NULL) {
+        snprintf(in_err, STATUS_MAX, "Unable to open cisco control file '%s' %d:%s",
+                 cisco_path, errno, strerror(errno));
+        return -1;
+    }
+
+    // Reuse the path var, since we can
+    if (fgets(cisco_path, 128, cisco_config) == NULL) {
+        snprintf(in_err, STATUS_MAX, "Unable to read from cisco control file %d:%s",
+                 errno, strerror(errno));
+        fclose(cisco_config);
+        return -1;
+    }
+
+    fclose(cisco_config);
+
+    // This is safe since fgets will give us a terminal and we're comparing against
+    // static
+    if (!strcmp(cisco_path, "Mode: rfmon\n")) {
+        printf("-- debug - not going into rfmon, already there.\n");
+        // Just set up the interface with ifconfig
+        // Bring the device up, zero its ip, and set promisc
+        if (Ifconfig_Linux(devbits[1].c_str(), in_err) < 0)
+            return -1;
+
+        // Zero the ssid
+        if (Iwconfig_Blank_SSID(devbits[1].c_str(), in_err) < 0)
+            return -1;
+
+        return 0;
+    }
+
+    // Use the wireless extensions to set the mode of the ethX interface
+    // Channel set is simply ignored by the current drivers, but the future ones
+    // should be able to do something.  Someday.  I hope.
+    if (monitor_wext(devbits[1].c_str(), initch, in_err) < 0)
+        return -1;
+
+    return 0;
+}
+
+// Hostap uses iwpriv and iwcontrol settings to control monitor mode
+int monitor_hostap(const char *in_dev, int initch, char *in_err) {
+    int ret;
+    
+    // Set the monitor mode iwpriv controls.  Explain more if we fail on monitor.
+    if ((ret = Iwconfig_Set_IntPriv(in_dev, "monitor", 3, 0, in_err)) < 0) {
+        if (ret == -2)
+            snprintf(in_err, 1024, "Could not find 'monitor' private ioctl.  This "
+                     "typically means that the drivers have not been patched or the "
+                     "patched drivers are being loaded.  See the troubleshooting "
+                     "section of the README for more information.");
+        return -1;
+    }
+    
+    // The rest is standard wireless extensions
+    if (monitor_wext(in_dev, initch, in_err) < 0)
+        return -1;
+
+    return 0;
+}
+
+// Orinoco uses iwpriv and iwcontrol settings to control monitor mode
+int monitor_orinoco(const char *in_dev, int initch, char *in_err) {
+    int ret;
+    
+    // Bring the device up, zero its ip, and set promisc
+    if (Ifconfig_Linux(in_dev, in_err) < 0) 
+        return -1;
+
+    // Zero the ssid
+    if (Iwconfig_Blank_SSID(in_dev, in_err) < 0) 
+        return -1;
+
+    // Set the monitor mode iwpriv controls.  Explain more if we fail on monitor.
+    if ((ret = Iwconfig_Set_IntPriv(in_dev, "monitor", 1, initch, in_err)) < 0) {
+        if (ret == -2)
+            snprintf(in_err, 1024, "Could not find 'monitor' private ioctl.  This "
+                     "typically means that the drivers have not been patched or the "
+                     "patched drivers are being loaded.  See the troubleshooting "
+                     "section of the README for more information.");
+        return -1;
+    }
+
+    // The channel is set by the iwpriv so we're done.
+    
+    return 0;
+}
+
+// Acx100 uses the packhdr iwpriv control to set link state, rest is normal
+int monitor_acx100(const char *in_dev, int initch, char *in_err) {
+    // Set the packhdr iwpriv control to 1
+    if (Iwconfig_Set_IntPriv(in_dev, "packhdr", 1, 0, in_err) < 0) {
+        return -1;
+    }
+    
+    // The rest is standard wireless extensions
+    if (monitor_wext(in_dev, initch, in_err) < 0)
+        return -1;
+
+    return 0;
+}
+
+// vtar5k iwpriv control to set link state, rest is normal
+int monitor_vtar5k(const char *in_dev, int initch, char *in_err) {
+    // Set the prism iwpriv control to 1
+    if (Iwconfig_Set_IntPriv(in_dev, "prism", 1, 0, in_err) < 0) {
+        return -1;
+    }
+    
+    // The rest is standard wireless extensions
+    if (monitor_wext(in_dev, initch, in_err) < 0)
+        return -1;
+
+    return 0;
+}
+
+// "standard" wireless extension monitor mode
+int monitor_wext(const char *in_dev, int initch, char *in_err) {
+    struct iwreq wrq;
+    int skfd;
+
+    // Bring the device up, zero its ip, and set promisc
+    if (Ifconfig_Linux(in_dev, in_err) < 0) 
+        return -1;
+
+    // Zero the ssid
+    if (Iwconfig_Blank_SSID(in_dev, in_err) < 0) 
+        return -1;
+
+    // Kick it into rfmon mode
+    if ((skfd = socket(AF_INET, SOCK_DGRAM, 0)) < 0) {
+        snprintf(in_err, STATUS_MAX, "Failed to create AF_INET DGRAM socket %d:%s", 
+                 errno, strerror(errno));
+        return -1;
+    }
+
+    // Get mode and see if we're already in monitor, don't try to go in
+    // if we are (cisco doesn't like rfmon rfmon)
+    memset(&wrq, 0, sizeof(struct iwreq));
+    strncpy(wrq.ifr_name, in_dev, IFNAMSIZ);
+
+    if (ioctl(skfd, SIOCGIWMODE, &wrq) < 0) {
+        snprintf(in_err, STATUS_MAX, "Failed to get mode %d:%s", 
+                 errno, strerror(errno));
+        close(skfd);
+        return -1;
+    }
+
+    if (wrq.u.mode == LINUX_WLEXT_MONITOR) {
+        close(skfd);
+        return 0;
+    }
+
+    // Set it
+    //
+    memset(&wrq, 0, sizeof(struct iwreq));
+    strncpy(wrq.ifr_name, in_dev, IFNAMSIZ);
+    wrq.u.mode = LINUX_WLEXT_MONITOR;
+
+    if (ioctl(skfd, SIOCSIWMODE, &wrq) < 0) {
+        snprintf(in_err, STATUS_MAX, "Failed to set mode monitor %d:%s", 
+                 errno, strerror(errno));
+        close(skfd);
+        return -1;
+    }
+    
+    // Set the initial channel - if we ever get a pcapsource that needs a hook
+    // back into the class, this will have to be rewritten
+    if (chancontrol_wext(in_dev, initch, in_err, NULL) < 0) {
+        close(skfd);
+        return -1;
+    }
+    
+    close(skfd);
+    return 0;
+}
+#endif
+
+#ifdef SYS_LINUX
+// wlan-ng modern standard
+int monitor_wlanng(const char *in_dev, int initch, char *in_err) {
+    // I really didn't want to do this...
+    char cmdline[2048];
+
+    // Bring the device up, zero its ip, and set promisc
+    if (Ifconfig_Linux(in_dev, in_err) < 0) 
+        return -1;
+
+    // Enable the interface
+    snprintf(cmdline, 2048, "wlanctl-ng %s lnxreq_ifstate ifstate=enable", in_dev);
+    if (ExecSysCmd(cmdline, in_err) < 0)
+        return -1;
+
+    // Turn off WEP
+    snprintf(cmdline, 2048, "wlanctl-ng %s dot11req_mibset mibattribute=dot11PrivacyInvoked=false", in_dev);
+    if (ExecSysCmd(cmdline, in_err) < 0)
+        return -1;
+
+    // Don't exclude packets
+    snprintf(cmdline, 2048, "wlanctl-ng %s dot11req_mibset mibattribute=dot11ExcludeUnencrypted=false", in_dev);
+    if (ExecSysCmd(cmdline, in_err) < 0)
+        return -1;
+
+    // Turn on rfmon on the initial channel
+    snprintf(cmdline, 2048, "wlanctl-ng %s lnxreq_wlansniff channel=%d enable=true prismheader=true", in_dev, initch);
+    if (ExecSysCmd(cmdline, in_err) < 0)
+        return -1;
+    
+    return 0;
+}
+
+// wlan-ng avs
+int monitor_wlanng_avs(const char *in_dev, int initch, char *in_err) {
+    // I really didn't want to do this...
+    char cmdline[2048];
+
+    // Bring the device up, zero its ip, and set promisc
+    if (Ifconfig_Linux(in_dev, in_err) < 0) 
+        return -1;
+
+    // Enable the interface
+    snprintf(cmdline, 2048, "wlanctl-ng %s lnxreq_ifstate ifstate=enable", in_dev);
+    if (ExecSysCmd(cmdline, in_err) < 0)
+        return -1;
+
+    // Turn off WEP
+    snprintf(cmdline, 2048, "wlanctl-ng %s dot11req_mibset "
+             "mibattribute=dot11PrivacyInvoked=false", in_dev);
+    if (ExecSysCmd(cmdline, in_err) < 0)
+        return -1;
+
+    // Don't exclude packets
+    snprintf(cmdline, 2048, "wlanctl-ng %s dot11req_mibset "
+             "mibattribute=dot11ExcludeUnencrypted=false", in_dev);
+    if (ExecSysCmd(cmdline, in_err) < 0)
+        return -1;
+
+    // Turn on rfmon on the initial channel
+    snprintf(cmdline, 2048, "wlanctl-ng %s lnxreq_wlansniff channel=%d prismheader=false "
+             "wlanheader=true stripfcs=false keepwepflags=false enable=true", in_dev, initch);
+    if (ExecSysCmd(cmdline, in_err) < 0)
+        return -1;
+    
+    return 0;
+}
+
+#endif
+
+#ifdef SYS_OPENBSD
+// This should be done programattically...
+int monitor_openbsd_cisco(const char *in_dev, int initch, char *in_err) {
+    char cmdline[2048];
+
+    snprintf(cmdline, 2048, "ancontrol -i %s -o 1", in_dev);
+    if (ExecSysCmd(cmdline, in_err) < 0)
+        return -1;
+
+    snprintf(cmdline, 2048, "ancontrol -i %s -p 1", in_dev);
+    if (ExecSysCmd(cmdline, in_err) < 0)
+        return -1;
+
+    snprintf(cmdline, 2048, "ancontrol -i %s -M 7", in_dev);
+    if (ExecSysCmd(cmdline, in_err) < 0)
+        return -1;
+    
+    return 0;
+}
+
+int monitor_openbsd_prism2(const char *in_dev, int initch, char *in_err) {
+    char cmdline[2048];
+
+    snprintf(cmdline, 2048, "prism2ctl %s -m", in_dev);
+    if (ExecSysCmd(cmdline, in_err) < 0)
+        return -1;
+
+    snprintf(cmdline, 2048, "prism2ctl %s -f %d", in_dev, initch);
+    if (ExecSysCmd(cmdline, in_err) < 0)
+        return -1;
+
+    return 0;
+}
+#endif
+
+// Channel change commands
+#ifdef HAVE_LINUX_WIRELESS
+// Generic wireless "iwconfig channel x" 
+int chancontrol_wext(const char *in_dev, int in_ch, char *in_err, void *in_ext) {
+    return(Iwconfig_Set_Channel(in_dev, in_ch, in_err));
+}
+
+// Use iwpriv to control the channel for orinoco
+int chancontrol_orinoco(const char *in_dev, int in_ch, char *in_err, void *in_ext) {
+    int ret;
+    
+    // Set the monitor mode iwpriv controls.  Explain more if we fail on monitor.
+    if ((ret = Iwconfig_Set_IntPriv(in_dev, "monitor", 1, in_ch, in_err)) < 0) {
+        if (ret == -2) 
+            snprintf(in_err, 1024, "Could not find 'monitor' private ioctl.  This "
+                     "typically means that the drivers have not been patched or the "
+                     "patched drivers are being loaded.  See the troubleshooting "
+                     "section of the README for more information.");
+        return -1;
+    }
+
+    // The channel is set by the iwpriv so we're done.
+    
+    return 0;
+}
+#endif
+
+#ifdef SYS_LINUX
+int chancontrol_wlanng(const char *in_dev, int in_ch, char *in_err, void *in_ext) {
+    // I really didn't want to do this...
+    char cmdline[2048];
+
+    // Turn on rfmon on the initial channel
+    snprintf(cmdline, 2048, "wlanctl-ng %s lnxreq_wlansniff channel=%d enable=true "
+             "prismheader=true", in_dev, in_ch);
+    if (ExecSysCmd(cmdline, in_err) < 0)
+        return -1;
+    
+    return 0;
+    
+}
+
+int chancontrol_wlanng_avs(const char *in_dev, int in_ch, char *in_err, void *in_ext) {
+    // I really didn't want to do this...
+    char cmdline[2048];
+
+    // Turn on rfmon on the initial channel
+    snprintf(cmdline, 2048, "wlanctl-ng %s lnxreq_wlansniff channel=%d "
+             "prismheader=false wlanheader=true stripfcs=false keepwepflags=false "
+             "enable=true", in_dev, in_ch);
+    if (ExecSysCmd(cmdline, in_err) < 0)
+        return -1;
+    
+    return 0;
+    
+}
+#endif
+
+#ifdef SYS_OPENBSD
+int chancontrol_openbsd_prism2(const char *in_dev, int in_ch, char *in_err, 
+                               void *in_ext) {
+    char cmdline[2048];
+
+    snprintf(cmdline, 2048, "prism2ctl %s -f %d", in_dev, initch);
+    if (ExecSysCmd(cmdline, in_err) < 0)
+        return -1;
+
+    return 0;
+}
+#endif
+
 
 #endif
 

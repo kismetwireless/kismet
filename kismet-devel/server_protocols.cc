@@ -18,7 +18,6 @@
 
 #include <stdio.h>
 #include "server_protocols.h"
-#include "packetsourceutil.h"
 
 char *INFO_fields_text[] = {
     "networks", "packets", "crypt", "weak",
@@ -846,6 +845,7 @@ int Protocol_WEPKEY(PROTO_PARMS) {
 }
 
 int Protocol_CARD(PROTO_PARMS) {
+#if 0
     capturesource *csrc = (capturesource *) data;
     char tmp[32];
 
@@ -870,6 +870,6 @@ int Protocol_CARD(PROTO_PARMS) {
 
         out_string += " ";
     }
-
+#endif
     return 1;
 }

@@ -37,9 +37,14 @@
 #define MAXHOSTNAMELEN 64
 #endif
 
+// This needs to be rewritten to spin correctly and read data into a buffer and
+// then return full packets.
+
 class DroneSource : public KisPacketSource {
 public:
-    int OpenSource(const char *dev, card_type ctype);
+    DroneSource(string in_name, string in_dev) : KisPacketSource(in_name, in_dev) { }
+
+    int OpenSource();
 
     int CloseSource();
 
@@ -47,9 +52,7 @@ public:
 
     int FetchPacket(kis_packet *packet, uint8_t *data, uint8_t *moddata);
 
-    int SetChannel(unsigned int chan);
-
-    // We don't have a channel
+    // We don't have a channel on the drone, let the packets speak for themselves
     int FetchChannel() { return 0; }
 
 protected:
@@ -67,10 +70,21 @@ protected:
     struct sockaddr_in drone_sock, local_sock;
     struct hostent *drone_host;
 
+    // How many bytes of the current stage do we have
+    unsigned int stream_recv_bytes;
+    // Queue of data
     stream_frame_header fhdr;
     stream_packet_header phdr;
-    uint8_t data[MAX_PACKET_LEN];
+    stream_version_packet vpkt;
+    uint8_t databuf[MAX_PACKET_LEN];
+
+    unsigned int resyncing;
 };
+
+// Nothing but a registrant for us
+KisPacketSource *dronesource_registrant(string in_name, string in_device,
+                                        char *in_err);
+
 
 // ifdef
 #endif

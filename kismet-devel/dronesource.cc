@@ -21,16 +21,13 @@
 #include "util.h"
 #include "dronesource.h"
 
-int DroneSource::OpenSource(const char *dev, card_type ctype) {
+int DroneSource::OpenSource() {
     char listenhost[1024];
-
-    snprintf(type, 64, "Drone Remote Capture on %s", dev);
-    cardtype = ctype;
 
     // Device is handled as a host:port pair - remote host we accept data
     // from, local port we open to listen for it.  yeah, it's a little weird.
-    if (sscanf(dev, "%1024[^:]:%hd", listenhost, &port) < 2) {
-        snprintf(errstr, 1024, "Couldn't parse host:port: '%s'", dev);
+    if (sscanf(interface.c_str(), "%1024[^:]:%hd", listenhost, &port) < 2) {
+        snprintf(errstr, 1024, "Couldn't parse host:port: '%s'", interface.c_str());
         return -1;
     }
 
@@ -77,8 +74,11 @@ int DroneSource::OpenSource(const char *dev, card_type ctype) {
     valid = 1;
 
     resyncs = 0;
+    resyncing = 0;
 
     num_packets = 0;
+
+    stream_recv_bytes = 0;
 
     return 1;
 }
@@ -95,94 +95,145 @@ int DroneSource::CloseSource() {
 int DroneSource::FetchPacket(kis_packet *packet, uint8_t *data, uint8_t *moddata) {
     if (valid == 0)
         return 0;
-
-    unsigned int bcount;
+  
     uint8_t *inbound;
+    int ret = 0;
+    fd_set rset;
+    struct timeval tm;
+    unsigned int offset = 0;
 
-    // Fetch the frame header
-    bcount = 0;
-    inbound = (uint8_t *) &fhdr;
-    while (bcount < sizeof(struct stream_frame_header)) {
-        int ret = 0;
-
-        if ((ret = read(drone_fd, &inbound[bcount],
-                        (ssize_t) sizeof(struct stream_frame_header) - bcount)) < 0) {
-            snprintf(errstr, 1024, "read() error getting frame header: %d %s",
+    // Read more of our frame header if we need to
+    if (stream_recv_bytes < sizeof(struct stream_frame_header)) {
+        inbound = (uint8_t *) &fhdr;
+        if ((ret = read(drone_fd, &inbound[stream_recv_bytes],
+             (ssize_t) sizeof(struct stream_frame_header) - stream_recv_bytes)) < 0) {
+            snprintf(errstr, STATUS_MAX, "drone read() error getting frame header %d:%s",
                      errno, strerror(errno));
             return -1;
         }
+        stream_recv_bytes += ret;
+        // printf("debug - we got %d bytes of the fhdr, total %d\n", ret, stream_recv_bytes);
 
-        bcount += ret;
-    }
-
-    if (ntohl(fhdr.frame_sentinel) != STREAM_SENTINEL) {
-        int8_t cmd = STREAM_COMMAND_FLUSH;
-        int ret = 0;
-
-        if ((ret = write(drone_fd, &cmd, 1)) < 1) {
-            snprintf(errstr, 1024, "write() error attempting to flush packet stream: %d %s",
-                     errno, strerror(errno));
-            return -1;
-        }
-
-        resyncs++;
-        return 0;
-    }
-
-    if (fhdr.frame_type == STREAM_FTYPE_VERSION) {
-        // Handle the version and generate an error if it's a mismatch
-
-        stream_version_packet vpkt;
-
-        bcount = 0;
-        inbound = (uint8_t *) &vpkt;
-        while (bcount < sizeof(struct stream_version_packet)) {
+        // Leave if we aren't done
+        if (stream_recv_bytes < sizeof(struct stream_frame_header))
+            return 0;
+        
+        // Validate it
+        if (ntohl(fhdr.frame_sentinel) != STREAM_SENTINEL) {
+            int8_t cmd = STREAM_COMMAND_FLUSH;
             int ret = 0;
 
-            if ((ret = read(drone_fd, &inbound[bcount],
-                            (ssize_t) sizeof(struct stream_version_packet) - bcount)) < 0) {
-                snprintf(errstr, 1024, "read() error getting version packet: %d %s",
+            // debug
+            for (unsigned int x = 0; x < sizeof(struct stream_frame_header); x++) {
+                printf("%02X ", ((uint8_t *) &fhdr)[x]);
+            }
+            printf("\n");
+
+            printf("debug - resyncing\n");
+
+            stream_recv_bytes = 0;
+            resyncs++;
+
+            if (resyncs > 20) {
+                snprintf(errstr, 1024, "too many resync attempts, something is wrong.");
+                return -1;
+            }
+
+            if (resyncing == 1)
+                return 0;
+
+            resyncing = 1;
+            
+            if ((ret = write(drone_fd, &cmd, 1)) < 1) {
+                snprintf(errstr, 1024, "write() error attempting to flush "
+                         "packet stream: %d %s",
                          errno, strerror(errno));
                 return -1;
             }
 
-            bcount += ret;
+            return 0;
         }
 
+        resyncing = 0;
+        resyncs = 0;
+        
+        // printf("debug - We got a valid header\n");
+        
+        // See if we keep looking for more packet pieces
+        FD_ZERO(&rset);
+        FD_SET(drone_fd, &rset);
+        tm.tv_sec = 0;
+        tm.tv_usec = 0;
+
+        if (select(drone_fd + 1, &rset, NULL, NULL, &tm) <= 0)
+            return 0;
+
+        // printf("debug - moving on past header in the same call, select thinks we have data\n");
+
+    }
+
+    // Handle version packets
+    offset = sizeof(struct stream_frame_header);
+    if (fhdr.frame_type == STREAM_FTYPE_VERSION && stream_recv_bytes >= offset && 
+        stream_recv_bytes < offset + sizeof(stream_version_packet)) {
+
+        inbound = (uint8_t *) &vpkt;
+        if ((ret = read(drone_fd, &inbound[stream_recv_bytes - offset],
+                        (ssize_t) sizeof(struct stream_version_packet) - 
+                        (stream_recv_bytes - offset))) < 0) {
+
+            snprintf(errstr, STATUS_MAX, "drone read() error getting version "
+                     "packet %d:%s", errno, strerror(errno));
+            return -1;
+        }
+        stream_recv_bytes += ret;
+
+        // Leave if we aren't done
+        if ((stream_recv_bytes - offset) < sizeof(struct stream_version_packet))
+            return 0;
+
+        // Validate
         if (ntohs(vpkt.drone_version) != STREAM_DRONE_VERSION) {
-            snprintf(errstr, 1024, "version mismatch:  Drone sending version %d, expected %d.",
-                     ntohs(vpkt.drone_version), STREAM_DRONE_VERSION);
+            snprintf(errstr, 1024, "version mismatch:  Drone sending version %d, "
+                     "expected %d.", ntohs(vpkt.drone_version), STREAM_DRONE_VERSION);
             return -1;
         }
 
+        stream_recv_bytes = 0;
+
+        // printf("debug - version packet valid\n\n");
+
         return 0;
-    } else if (fhdr.frame_type == STREAM_FTYPE_PACKET) {
+    } 
+    
+    if (fhdr.frame_type == STREAM_FTYPE_PACKET && stream_recv_bytes >= offset &&
+        stream_recv_bytes < offset + sizeof(struct stream_packet_header)) {
+
+        // printf("debug - considering a stream packet header\n");
+        
         // Bail if we have a frame header too small for a packet of any sort
         if (ntohl(fhdr.frame_len) <= sizeof(struct stream_packet_header)) {
             snprintf(errstr, 1024, "frame too small to hold a packet.");
             return -1;
         }
 
-        // Fetch the packet header
-
-        bcount = 0;
         inbound = (uint8_t *) &phdr;
-        while (bcount < sizeof(struct stream_packet_header)) {
-            int ret = 0;
-
-            if ((ret = read(drone_fd, &inbound[bcount],
-                            (ssize_t) sizeof(struct stream_packet_header) - bcount)) < 0) {
-                snprintf(errstr, 1024, "read() error getting packet header: %d %s",
-                         errno, strerror(errno));
-                return -1;
-            }
-
-            bcount += ret;
+        if ((ret = read(drone_fd, &inbound[stream_recv_bytes - offset],
+                        (ssize_t) sizeof(struct stream_packet_header) - 
+                        (stream_recv_bytes - offset))) < 0) {
+            snprintf(errstr, STATUS_MAX, "drone read() error getting packet "
+                     "header %d:%s", errno, strerror(errno));
+            return -1;
         }
+        stream_recv_bytes += ret;
+
+        // Leave if we aren't done
+        if ((stream_recv_bytes - offset) < sizeof(struct stream_packet_header))
+            return 0;
 
         if (ntohs(phdr.drone_version) != STREAM_DRONE_VERSION) {
-            snprintf(errstr, 1024, "version mismatch:  Drone sending version %d, expected %d.",
-                     ntohs(phdr.drone_version), STREAM_DRONE_VERSION);
+            snprintf(errstr, 1024, "version mismatch:  Drone sending version %d, "
+                     "expected %d.", ntohs(phdr.drone_version), STREAM_DRONE_VERSION);
             return -1;
         }
 
@@ -196,31 +247,68 @@ int DroneSource::FetchPacket(kis_packet *packet, uint8_t *data, uint8_t *moddata
             return -1;
         }
 
-        // Finally, fetch the indicated packet data.
-        bcount = 0;
-        while (bcount < ntohl(phdr.caplen)) {
-            int ret = 0;
+        //printf("debug - drone sent us a packet header indicating %d long.\n", (uint32_t) ntohl(phdr.len));
+        
+        // See if we keep looking for more packet pieces
+        FD_ZERO(&rset);
+        FD_SET(drone_fd, &rset);
+        tm.tv_sec = 0;
+        tm.tv_usec = 0;
 
-            if ((ret = read(drone_fd, &data[bcount], ntohl(phdr.caplen) - bcount)) < 0) {
-                snprintf(errstr, 1024, "read() error getting packet content: %d %s",
-                         errno, strerror(errno));
-                return -1;
-            }
+        if (select(drone_fd + 1, &rset, NULL, NULL, &tm) <= 0)
+            return 0;
 
-            bcount += ret;
+        // printf("debug - got a valid packet header and still rading in the same call\n");
+    }
+
+    offset = sizeof(struct stream_frame_header) + sizeof(struct stream_packet_header);
+    if (fhdr.frame_type == STREAM_FTYPE_PACKET && stream_recv_bytes >= offset) {
+
+        unsigned int plen = (uint32_t) ntohl(phdr.len);
+
+        inbound = (uint8_t *) databuf;
+        if ((ret = read(drone_fd, &inbound[stream_recv_bytes - offset],
+                        (ssize_t) plen - (stream_recv_bytes - offset))) < 0) {
+            snprintf(errstr, STATUS_MAX, "drone read() error getting packet "
+                     "header %d:%s", errno, strerror(errno));
+            return -1;
         }
+        stream_recv_bytes += ret;
 
+        // Leave if we aren't done
+        if ((stream_recv_bytes - offset) < plen)
+            return 0;
+
+        // If we have it all, complete it and return
         if (paused || Drone2Common(packet, data, moddata) == 0) {
+            stream_recv_bytes = 0;
             return 0;
         }
 
         num_packets++;
 
-        return(packet->caplen);
+        packet->parm = parameters;
 
+        stream_recv_bytes = 0;
+
+        // printf("debug - we got all of the packet that was %d long\n", plen);
+
+        return(packet->caplen);
     } else {
+        // printf("debug - somehow not a stream packet or too much data...  type %d recv %d\n", fhdr.frame_type, stream_recv_bytes);
+    }
+
+    if (fhdr.frame_type != STREAM_FTYPE_PACKET && 
+        fhdr.frame_type != STREAM_FTYPE_VERSION) {
         // Bail if we don't know the packet type
         snprintf(errstr, 1024, "unknown frame type %d", fhdr.frame_type);
+
+        // debug
+        for (unsigned int x = 0; x < sizeof(struct stream_frame_header); x++) {
+            printf("%02X ", ((uint8_t *) &fhdr)[x]);
+        }
+        printf("\n");
+        
         return -1;
     }
 
@@ -259,14 +347,13 @@ int DroneSource::Drone2Common(kis_packet *packet, uint8_t *data, uint8_t *moddat
     packet->moddata = moddata;
     packet->modified = 0;
 
-    memcpy(packet->data, data, packet->caplen);
+    memcpy(packet->data, databuf, packet->caplen);
 
     return 1;
 }
 
-int DroneSource::SetChannel(unsigned int chan) {
-
-    return 1;
+KisPacketSource *dronesource_registrant(string in_name, string in_device,
+                                        char *in_err) {
+    return new DroneSource(in_name, in_device);
 }
-
 
