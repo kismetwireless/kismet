@@ -79,6 +79,7 @@ int GpsInjectEvent(Timetracker::timer_event *evt, void *parm,
 GPSDClient::GPSDClient() {
     fprintf(stderr, "*** gpsdclient called with no global registry reference\n");
     globalreg = NULL;
+    tcpcli = NULL;
 }
 
 GPSDClient::GPSDClient(GlobalRegistry *in_globalreg) : ClientFramework(in_globalreg) {
