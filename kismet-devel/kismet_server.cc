@@ -138,6 +138,36 @@ int kismet_ref = -1, network_ref = -1, client_ref = -1, gps_ref = -1, time_ref =
 // A kismet data record for passing to the protocol
 KISMET_data kdata;
 
+// Filter maps for the various filter types
+int filter_tracker = 0;
+map<mac_addr, int> filter_tracker_bssid;
+map<mac_addr, int> filter_tracker_source;
+map<mac_addr, int> filter_tracker_dest;
+int filter_tracker_bssid_invert = -1, filter_tracker_source_invert = -1,
+    filter_tracker_dest_invert = -1;
+
+int filter_dump = 0;
+map<mac_addr, int> filter_dump_bssid;
+map<mac_addr, int> filter_dump_source;
+map<mac_addr, int> filter_dump_dest;
+int filter_dump_bssid_invert = -1, filter_dump_source_invert = -1,
+    filter_dump_dest_invert = -1;
+
+int filter_alert = 0;
+map<mac_addr, int> filter_alert_bssid;
+map<mac_addr, int> filter_alert_source;
+map<mac_addr, int> filter_alert_dest;
+int filter_alert_bssid_invert = -1, filter_alert_source_invert = -1,
+    filter_alert_dest_invert = -1;
+
+int filter_export = 0;
+map<mac_addr, int> filter_export_bssid;
+map<mac_addr, int> filter_export_source;
+map<mac_addr, int> filter_export_dest;
+int filter_export_bssid_invert = -1, filter_export_source_invert = -1,
+    filter_export_dest_invert = -1;
+
+
 // Handle writing all the files out and optionally unlinking the empties
 void WriteDatafiles(int in_shutdown) {
     // If we're on our way out make one last write of the network stuff - this
@@ -873,9 +903,6 @@ int main(int argc,char *argv[]) {
     start_time = time(0);
 
     int gpsmode = 0;
-
-    string filter;
-    vector<mac_addr> filter_vec;
 
     unsigned char wep_identity[256];
 
@@ -1852,7 +1879,55 @@ int main(int argc,char *argv[]) {
     }
 
     // Grab the filtering
-    filter = conf->FetchOpt("macfilter");
+    if (conf->FetchOpt("macfilter") != "") {
+        fprintf(stderr, "FATAL:  Old config file options found.  Kismet now supports a much improved\n"
+                "filtering scheme.  Please consult the example config file in your Kismet\n"
+                "source directory, OR do 'make forceinstall' and reconfigure Kismet.\n");
+        exit(1);
+    }
+
+    string filter_bit;
+
+    if ((filter_bit = conf->FetchOpt("filter_tracker")) != "") {
+        fprintf(stderr, "Enabling tracker filtering.\n");
+        filter_tracker = 1;
+        if (ConfigFile::ParseFilterLine(filter_bit, &filter_tracker_bssid, &filter_tracker_source,
+                                        &filter_tracker_dest, &filter_tracker_bssid_invert,
+                                        &filter_tracker_source_invert,
+                                        &filter_tracker_dest_invert) < 0)
+            exit(1);
+    }
+
+
+    if ((filter_bit = conf->FetchOpt("filter_dump")) != "") {
+        fprintf(stderr, "Enabling filtering on dump files.\n");
+        filter_dump = 1;
+        if (ConfigFile::ParseFilterLine(filter_bit, &filter_dump_bssid, &filter_dump_source,
+                                        &filter_dump_dest, &filter_dump_bssid_invert,
+                                        &filter_dump_source_invert,
+                                        &filter_dump_dest_invert) < 0)
+            exit(1);
+    }
+
+    if ((filter_bit = conf->FetchOpt("filter_alert")) != "") {
+        fprintf(stderr, "Enabling filtering on alerts.\n");
+        filter_alert = 1;
+        if (ConfigFile::ParseFilterLine(filter_bit, &filter_alert_bssid, &filter_alert_source,
+                                        &filter_alert_dest, &filter_alert_bssid_invert,
+                                        &filter_alert_source_invert,
+                                        &filter_alert_dest_invert) < 0)
+            exit(1);
+    }
+
+    if ((filter_bit = conf->FetchOpt("filter_export")) != "") {
+        fprintf(stderr, "Enabling filtering on exported (csv, xml, network, gps) files.\n");
+        filter_export = 1;
+        if (ConfigFile::ParseFilterLine(filter_bit, &filter_export_bssid, &filter_export_source,
+                                        &filter_export_dest, &filter_export_bssid_invert,
+                                        &filter_export_source_invert,
+                                        &filter_export_dest_invert) < 0)
+            exit(1);
+    }
 
     // handle the config bits
     struct stat fstat;
@@ -2027,6 +2102,7 @@ int main(int argc,char *argv[]) {
 
 
     // Set the filtering
+    /*
     if (filter != "") {
         fprintf(stderr, "Filtering MAC addresses: %s\n",
                 filter.c_str());
@@ -2053,7 +2129,8 @@ int main(int argc,char *argv[]) {
             filter_vec.push_back(fmaddr);
         }
 
-    }
+        }
+        */
 
     if (conf->FetchOpt("beaconlog") == "false") {
         beacon_log = 0;
@@ -2358,6 +2435,7 @@ int main(int argc,char *argv[]) {
         }
     }
 
+    map<mac_addr, int>::iterator fitr;
     time_t cur_time = time(0);
     time_t last_time = cur_time;
     while (1) {
@@ -2443,7 +2521,51 @@ int main(int argc,char *argv[]) {
 
                     last_info = info;
 
+                    // Discard it if we're filtering it at the tracker level
+                    if (filter_tracker == 1) {
+                        int filter_packet = 0;
+
+                        // Look for the attributes of the packet for each filter address
+                        // type.  If filtering is inverted, then lack of a match means
+                        // allow the packet
+                        fitr = filter_tracker_bssid.find(info.bssid_mac);
+                        // In the list and we've got inverted filtering - kill it
+                        if (fitr != filter_tracker_bssid.end() &&
+                            filter_tracker_bssid_invert == 1)
+                            filter_packet = 1;
+                        // Not in the list and we've got normal filtering - kill it
+                        if (fitr == filter_tracker_bssid.end() &&
+                            filter_tracker_bssid_invert == 0)
+                            filter_packet = 1;
+
+                        // And continue for the others
+                        fitr = filter_tracker_source.find(info.source_mac);
+                        if (fitr != filter_tracker_source.end() &&
+                            filter_tracker_source_invert == 1)
+                            filter_packet = 1;
+                        if (fitr == filter_tracker_source.end() &&
+                            filter_tracker_source_invert == 0)
+                            filter_packet = 1;
+
+                        fitr = filter_tracker_dest.find(info.dest_mac);
+                        if (fitr != filter_tracker_dest.end() &&
+                            filter_tracker_dest_invert == 1)
+                            filter_packet = 1;
+                        if (fitr == filter_tracker_dest.end() &&
+                            filter_tracker_dest_invert == 0)
+                            filter_packet = 1;
+
+                        if (filter_packet == 1) {
+                            localdropnum++;
+
+                            // This is bad.
+                            goto end_packprocess;
+                        }
+
+                    }
+
                     // Discard it if we're filtering it
+                    /*
                     for (unsigned int fcount = 0; fcount < filter_vec.size(); fcount++) {
                         if (filter_vec[fcount] == info.bssid_mac) {
                             localdropnum++;
@@ -2452,7 +2574,8 @@ int main(int argc,char *argv[]) {
                             // of getting from here to there, so....)
                             goto end_packprocess;
                         }
-                    }
+                        }
+                        */
 
                     /* We never implemented this doing anything so comment it out,
                        especially since the new server code doesn't use it yet
@@ -2578,16 +2701,49 @@ int main(int argc,char *argv[]) {
                             NetWriteStatus(status);
                         }
 
-                        int ret = dumpfile->DumpPacket(&info, &packet);
-                        if (ret < 0) {
-                            NetWriteStatus(dumpfile->FetchError());
-                            fprintf(stderr, "FATAL: %s\n", dumpfile->FetchError());
-                            CatchShutdown(-1);
-                        } else if (ret == 0) {
-                            localdropnum++;
+                        int log_packet = 1;
+
+                        if (filter_dump == 1) {
+                            fitr = filter_dump_bssid.find(info.bssid_mac);
+                            // In the list and we've got inverted filtering - kill it
+                            if (fitr != filter_dump_bssid.end() &&
+                                filter_dump_bssid_invert == 1)
+                                log_packet = 0;
+                            // Not in the list and we've got normal filtering - kill it
+                            if (fitr == filter_dump_bssid.end() &&
+                                filter_dump_bssid_invert == 0)
+                                log_packet = 0;
+
+                            // And continue for the others
+                            fitr = filter_dump_source.find(info.source_mac);
+                            if (fitr != filter_dump_source.end() &&
+                                filter_dump_source_invert == 1)
+                                log_packet = 0;
+                            if (fitr == filter_dump_source.end() &&
+                                filter_dump_source_invert == 0)
+                                log_packet = 0;
+
+                            fitr = filter_dump_dest.find(info.dest_mac);
+                            if (fitr != filter_dump_dest.end() &&
+                                filter_dump_dest_invert == 1)
+                                log_packet = 0;
+                            if (fitr == filter_dump_dest.end() &&
+                                filter_dump_dest_invert == 0)
+                                log_packet = 0;
                         }
 
-                        log_packnum = dumpfile->FetchDumped();
+                        if (log_packet == 1) {
+                            int ret = dumpfile->DumpPacket(&info, &packet);
+                            if (ret < 0) {
+                                NetWriteStatus(dumpfile->FetchError());
+                                fprintf(stderr, "FATAL: %s\n", dumpfile->FetchError());
+                                CatchShutdown(-1);
+                            } else if (ret == 0) {
+                                localdropnum++;
+                            }
+
+                            log_packnum = dumpfile->FetchDumped();
+                        }
                     }
 
                     if (crypt_log) {
