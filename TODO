@@ -4,7 +4,6 @@
   handle generating and catching alert text
   move gpstracklog into gpsdump
   move speech and sound playing into packetracker module
-  move sound and speech into gpsd module
 
   Packet chain framework
   ieee802.11 dissect as packet chain module

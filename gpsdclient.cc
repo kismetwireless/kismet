@@ -19,6 +19,8 @@
 #include "config.h"
 #include "gpsdclient.h"
 #include "configfile.h"
+#include "speechcontrol.h"
+#include "soundcontrol.h"
 
 #ifdef HAVE_GPS
 
@@ -205,7 +207,7 @@ int GPSDClient::Reconnect() {
         last_disconnect = time(0);
         return 0;
     }
-     
+    
     return 1;
 }
 
@@ -364,6 +366,18 @@ int GPSDClient::ParseData() {
             newgpsd_invalid == 0) {
             mode = 2;
         } else {
+            if (mode < 2 && in_mode >= 2) {
+                if (globalreg->speech_enable > 0)
+                    globalreg->speechctl->SayText("Got G P S position fix");
+                if (globalreg->sound_enable > 0)
+                    globalreg->soundctl->PlaySound("gpslock");
+            } else if (mode >= 2 && in_mode < 2) {
+                if (globalreg->speech_enable > 0)
+                    globalreg->speechctl->SayText("Lost G P S position fix");
+                if (globalreg->sound_enable > 0)
+                    globalreg->soundctl->PlaySound("gpslost");
+            }
+
             mode = in_mode;
         }
     }
