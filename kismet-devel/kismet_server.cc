@@ -596,7 +596,7 @@ void NetWriteInfo() {
     snprintf(tmpstr, 32, "%d", tracker.FetchNumPackets() - last_packnum);
     idata.rate = tmpstr;
 
-    if (time(0) - last_info.time < decay && last_info.quality != -1)
+    if (time(0) - last_info.ts.tv_sec < decay && last_info.quality != -1)
         snprintf(tmpstr, 16, "%d %d %d", last_info.quality,
                  last_info.signal, last_info.noise);
     else if (last_info.quality == -1)
@@ -735,8 +735,8 @@ int GpsEvent(Timetracker::timer_event *evt, void *parm) {
         }
     }
 
-    if (gps_log) {
-        gpsdump.DumpPacket(NULL);
+    if (gps_log && gps != NULL) {
+        gpsdump.DumpTrack(gps);
     }
 
     // We want to be rescheduled
@@ -2121,8 +2121,6 @@ int main(int argc,char *argv[]) {
                     gpshost, gpsport);
 
             gpsmode = gps->FetchMode();
-
-            gpsdump.AddGPS(gps);
 
             if (gps_log) {
                 if (gpsdump.OpenDump(gpslogfile.c_str(), xmllogfile.c_str()) < 0) {

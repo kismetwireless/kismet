@@ -71,55 +71,60 @@ int GPSDump::CloseDump(int in_unlink) {
 }
 
 int GPSDump::DumpPacket(packet_info *in_packinfo) {
-    float lat, lon, alt, spd;
-    int fix;
-
-    // Bail if we don't have a lock
-    if (gps->FetchMode() < 2)
+    if (in_packinfo->gps_fix < 2)
         return 0;
 
     timeval ts;
     gettimeofday(&ts, NULL);
 
-    if (in_packinfo == NULL) {
-        gps->FetchLoc(&lat, &lon, &alt, &spd, &fix);
-
-        int sig = 0, qual = 0, noise = 0;
-
-        if (time(0) - last_info.time < decay && last_info.quality != -1) {
-            sig = last_info.signal;
-            qual = last_info.quality;
-            noise = last_info.noise;
-        }
-
-        fprintf(gpsf, "    <gps-point bssid=\"%s\" time-sec=\"%ld\" time-usec=\"%ld\" "
-                "lat=\"%f\" lon=\"%f\" alt=\"%f\" spd=\"%f\" fix=\"%d\" "
-                "signal=\"%d\" quality=\"%d\" noise=\"%d\"/>\n",
-                gps_track_bssid,
-                (long int) ts.tv_sec, (long int) ts.tv_usec,
-                lat, lon, alt, spd, fix,
-                sig, qual, noise);
-    } else {
-        lat = in_packinfo->gps_lat;
-        lon = in_packinfo->gps_lon;
-        alt = in_packinfo->gps_alt;
-        spd = in_packinfo->gps_spd;
-        fix = in_packinfo->gps_fix;
-
-        fprintf(gpsf, "    <gps-point bssid=\"%s\" source=\"%s\" time-sec=\"%ld\" time-usec=\"%ld\" "
-                "lat=\"%f\" lon=\"%f\" alt=\"%f\" spd=\"%f\" fix=\"%d\" "
-                "signal=\"%d\" quality=\"%d\" noise=\"%d\"/>\n",
-                in_packinfo->bssid_mac.Mac2String().c_str(),
-                in_packinfo->source_mac.Mac2String().c_str(),
-                (long int) ts.tv_sec, (long int) ts.tv_usec,
-                lat, lon, alt, spd, fix,
-                in_packinfo->signal, in_packinfo->quality, in_packinfo->noise);
-
-    }
+    fprintf(gpsf, "    <gps-point bssid=\"%s\" source=\"%s\" time-sec=\"%ld\" time-usec=\"%ld\" "
+            "lat=\"%f\" lon=\"%f\" alt=\"%f\" spd=\"%f\" fix=\"%d\" "
+            "signal=\"%d\" quality=\"%d\" noise=\"%d\"/>\n",
+            in_packinfo->bssid_mac.Mac2String().c_str(),
+            in_packinfo->source_mac.Mac2String().c_str(),
+            (long int) in_packinfo->ts.tv_sec, (long int) in_packinfo->ts.tv_usec,
+            in_packinfo->gps_lat, in_packinfo->gps_lon, in_packinfo->gps_alt,
+            in_packinfo->gps_spd, in_packinfo->gps_fix,
+            in_packinfo->signal, in_packinfo->quality, in_packinfo->noise);
 
     num_packets++;
 
     return 1;
 }
+
+int GPSDump::DumpTrack(GPSD *in_gps) {
+    float lat, lon, alt, spd;
+    int fix;
+
+    // Bail if we don't have a lock
+    if (in_gps->FetchMode() < 2)
+        return 0;
+
+    timeval ts;
+    gettimeofday(&ts, NULL);
+
+    in_gps->FetchLoc(&lat, &lon, &alt, &spd, &fix);
+
+    int sig = 0, qual = 0, noise = 0;
+
+    if (time(0) - last_info.ts.tv_sec < decay && last_info.quality != -1) {
+        sig = last_info.signal;
+        qual = last_info.quality;
+        noise = last_info.noise;
+    }
+
+    fprintf(gpsf, "    <gps-point bssid=\"%s\" time-sec=\"%ld\" time-usec=\"%ld\" "
+            "lat=\"%f\" lon=\"%f\" alt=\"%f\" spd=\"%f\" fix=\"%d\" "
+            "signal=\"%d\" quality=\"%d\" noise=\"%d\"/>\n",
+            gps_track_bssid,
+            (long int) ts.tv_sec, (long int) ts.tv_usec,
+            lat, lon, alt, spd, fix,
+            sig, qual, noise);
+
+    num_packets++;
+
+    return 1;
+}
+
 
 #endif

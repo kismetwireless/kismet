@@ -666,7 +666,7 @@ typedef struct {
     int reason_code;
 
     // Timestamp.  Second precision is fine.
-    time_t time;
+    struct timeval ts;
 
     // Connection info
     int quality;
@@ -767,7 +767,8 @@ vector<string> GetPacketStrings(const packet_info *in_info, const kis_packet *pa
 class SortPacketInfos {
 public:
     inline bool operator() (const packet_info x, const packet_info y) const {
-        if (x.time < y.time)
+        if (x.ts.tv_sec < y.ts.tv_sec ||
+            (x.ts.tv_sec == y.ts.tv_sec && x.ts.tv_usec < y.ts.tv_usec))
             return 1;
         return 0;
     }

@@ -186,7 +186,8 @@ void GetPacketInfo(kis_packet *packet, packet_parm *parm, packet_info *ret_packi
     uint8_t *addr3;
 
     // Copy the time with second precision
-    ret_packinfo->time = packet->ts.tv_sec;
+    ret_packinfo->ts.tv_sec = packet->ts.tv_sec;
+    ret_packinfo->ts.tv_usec = packet->ts.tv_usec;
     // Copy the signal values
     ret_packinfo->quality = packet->quality;
     ret_packinfo->signal = packet->signal;

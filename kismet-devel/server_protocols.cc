@@ -680,7 +680,7 @@ void Protocol_Packet2Data(const packet_info *info, PACKET_data *data) {
     snprintf(tmpstr, 128, "%d", (int) info->subtype);
     data->pdvec.push_back(tmpstr);
 
-    snprintf(tmpstr, 128, "%d", (int) info->time);
+    snprintf(tmpstr, 128, "%d", (int) info->ts.tv_sec);
     data->pdvec.push_back(tmpstr);
 
     snprintf(tmpstr, 128, "%d", info->encrypted);

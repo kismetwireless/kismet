@@ -535,7 +535,7 @@ int TcpClient::ParseData(char *in_data) {
                    "\001%16[^\001]\001\n",
                    (int *) &packinfo.type,
                    (int *) &packinfo.subtype,
-                   (int *) &packinfo.time,
+                   (int *) &packinfo.ts.tv_sec,
                    &packinfo.encrypted, &packinfo.interesting, &packinfo.beacon,
                    smac, dmac, bmac,
                    packinfo.ssid,

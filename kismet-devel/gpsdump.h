@@ -77,17 +77,14 @@ public:
     int OpenDump(const char *in_fname, const char *in_netfname);
     int CloseDump(int in_unlink);
 
-    void AddGPS(GPSD *in_gps) { gps = in_gps; };
-
     int DumpPacket(packet_info *in_packinfo);
+    int DumpTrack(GPSD *in_gps);
 
 protected:
     int num_packets;
     FILE *gpsf;
     const char *fname;
     char errstr[1024];
-
-    GPSD *gps;
 
 };
 
