@@ -64,15 +64,15 @@ NC	= kismet_client
 GPSLO = getopt.o util.o configfile.o expat.o manuf.o gpsmap.o
 GPSL = gpsmap
 
-HOPPERO = util.o configfile.o getopt.o kismet_hopper.o
-HOPPER = kismet_hopper
+# HOPPERO = util.o configfile.o getopt.o kismet_hopper.o
+# HOPPER = kismet_hopper
 
 BUZZER = extra/buzzme/buzzme
 
 GPSLBUILD=@gpslc@
 ZAURUSBUILD=@zbuild@
 
-all:	$(DEPEND) $(PS) $(DRONE) $(NC) $(GPSLBUILD) $(HOPPER) $(ZAURUSBUILD)
+all:	$(DEPEND) $(PS) $(DRONE) $(NC) $(GPSLBUILD) $(ZAURUSBUILD)
 
 $(PS):	$(PSO) $(PCAPLIB)
 	$(LD) $(LDFLAGS) -o $(PS) $(PSO) $(PCAPLIB) $(LIBS) $(PCAPLNK)
@@ -86,8 +86,8 @@ $(NC):	$(NCO)
 $(GPSL):	$(GPSLO)
 	$(LD) $(LDFLAGS) -o $(GPSL) $(GPSLO) $(LIBS) `Magick-config --cflags --cppflags --ldflags` `Magick-config --libs` $(THREADL) -lexpat
 
-$(HOPPER):	$(HOPPERO)
-	$(LD) $(LDFLAGS) -o $(HOPPER) $(HOPPERO)
+#$(HOPPER):	$(HOPPERO)
+#	$(LD) $(LDFLAGS) -o $(HOPPER) $(HOPPERO)
 
 $(BUZZER):	
 	@( cd extra/buzzme; $(MAKE); ) ; 
@@ -133,7 +133,7 @@ commoninstall:
 
 	install -o $(INSTUSR) -g $(INSTGRP) -m 755 scripts/kismet $(BIN)/kismet
 	install -o $(INSTUSR) -g $(INSTGRP) -s -m 755 $(NC) $(BIN)/$(NC)
-	install -o $(INSTUSR) -g $(INSTGRP) -s -m 755 $(HOPPER) $(BIN)/$(HOPPER)
+	# install -o $(INSTUSR) -g $(INSTGRP) -s -m 755 $(HOPPER) $(BIN)/$(HOPPER)
 	@if test "$(ZAURUS)" = "yes"; then \
 		install -o $(INSTUSR) -g $(INSTGRP) -s -m 755 $(BUZZER) $(BIN)/buzzme; \
 		echo install -o $(INSTUSR) -g $(INSTGRP) -s -m 755 $(BUZZER) $(BIN)/buzzme; \
@@ -143,7 +143,7 @@ commoninstall:
 	mkdir -p $(MAN)/man1
 	install -o $(INSTUSR) -g $(MANGRP) -m 644 man/kismet.1 $(MAN)/man1/kismet.1
 	install -o $(INSTUSR) -g $(MANGRP) -m 644 man/kismet_monitor.1 $(MAN)/man1/kismet_monitor.1
-	install -o $(INSTUSR) -g $(MANGRP) -m 644 man/kismet_hopper.1 $(MAN)/man1/kismet_hopper.1
+	# install -o $(INSTUSR) -g $(MANGRP) -m 644 man/kismet_hopper.1 $(MAN)/man1/kismet_hopper.1
 	install -o $(INSTUSR) -g $(MANGRP) -m 644 man/kismet_drone.1 $(MAN)/man1/kismet_drone.1
 	mkdir -p $(MAN)/man5
 	install -o $(INSTUSR) -g $(MANGRP) -m 644 man/kismet.conf.5 $(MAN)/man5/kismet.conf.5
@@ -169,7 +169,7 @@ commoninstall:
 		rm $(BIN)/kismet_curses; \
 	fi
 
-suidinstall: $(PS) $(DRONE) $(HOPPER) $(NC) $(GPSLBUILD) $(ZAURUSBUILD)
+suidinstall: $(PS) $(DRONE) $(NC) $(GPSLBUILD) $(ZAURUSBUILD)
 	$(MAKE) -e commoninstall
 	$(MAKE) -e binsuidinstall
 	@if test -f $(ETC)/kismet.conf; then \
@@ -195,14 +195,14 @@ suidinstall: $(PS) $(DRONE) $(HOPPER) $(NC) $(GPSLBUILD) $(ZAURUSBUILD)
 	fi
 	@echo "Installed kismet into $(BIN)/."
 	@echo "If you have not done so already, read the README file and the FAQ file.  Additional"
-	@echo "documentation is in the docs/ directory.  You MUST edit $(ETC)/kismet.conf and configure"
-	@echo "Kismet for your system, or it will NOT run properly!"
+	@echo "documentation is in the docs/ directory.  You MUST edit $(ETC)/kismet.conf "
+	@echo "and configure Kismet for your system, or it will NOT run properly!"
 	@echo
-	@echo "Kismet has been installed SUID ROOT.  This WILL ALLOW NORMAL USERS TO BREAK YOUR WIRELESS"
-	@echo "NETWORK CONNECTION.  IF YOU HAVE ANY UNTRUSTED USERS ON YOUR SYSTEM DO NOT INSTALL KISMET"
-	@echo "AS SUID ROOT."
+	@echo "Kismet has been installed SUID ROOT.  This WILL ALLOW NORMAL USERS TO BREAK "
+	@echo "YOUR WIRELESS NETWORK CONNECTION.  IF YOU HAVE ANY UNTRUSTED USERS ON YOUR "
+	@echo "SYSTEM DO NOT INSTALL KISMET AS SUID ROOT."
 
-install: $(PS) $(DRONE) $(HOPPER) $(NC) $(GPSLBUILD) $(ZAURUSBUILD)
+install: $(PS) $(DRONE) $(NC) $(GPSLBUILD) $(ZAURUSBUILD)
 	$(MAKE) -e commoninstall
 	$(MAKE) -e binuserinstall
 	@if test -f $(ETC)/kismet.conf; then \
@@ -228,12 +228,13 @@ install: $(PS) $(DRONE) $(HOPPER) $(NC) $(GPSLBUILD) $(ZAURUSBUILD)
 	fi
 	@echo "Installed kismet into $(BIN)/."
 	@echo "If you have not done so already, read the README file and the FAQ file.  Additional"
-	@echo "documentation is in the docs/ directory.  You MUST edit $(ETC)/kismet.conf and configure"
-	@echo "Kismet for your system, or it will NOT run properly!"
+	@echo "documentation is in the docs/ directory.  You MUST edit $(ETC)/kismet.conf "
+	@echo "and configure Kismet for your system, or it will NOT run properly!"
 	@echo
-	@echo "Kismet has NOT been installed suid-root.  This means you will need to start it as root."
-	@echo "If you have no untrusted users on your system, it can be installed as suid-root via"
-	@echo "'make suidinstall'.  READ THE DOCUMENTATION BEFORE INSTALLING KISMET AS SUID-ROOT!"
+	@echo "Kismet has NOT been installed suid-root.  This means you will need to start "
+	@echo "it as root.  If you have no untrusted users on your system, it can be installed "
+	@echo "as suid-root via 'make suidinstall'.  READ THE DOCUMENTATION BEFORE INSTALLING "
+	@echo "KISMET AS SUID-ROOT!"
                 
 forceinstall: $(PS)
 	$(MAKE) -e commoninstall
@@ -246,12 +247,13 @@ forceinstall: $(PS)
 		echo "Installed UI config into $(ETC)/kismet_ui.conf."; 
 	@echo "Installed kismet into $(BIN)/."
 	@echo "If you have not done so already, read the README file and the FAQ file.  Additional"
-	@echo "documentation is in the docs/ directory.  You MUST edit $(ETC)/kismet.conf and configure"
-	@echo "Kismet for your system, or it will NOT run properly!"
+	@echo "documentation is in the docs/ directory.  You MUST edit $(ETC)/kismet.conf "
+	@echo "and configure Kismet for your system, or it will NOT run properly!"
 	@echo
-	@echo "Kismet has NOT been installed suid-root.  This means you will need to start it as root."
-	@echo "If you have no untrusted users on your system, it can be installed as suid-root via"
-	@echo "'make suidinstall'.  READ THE DOCUMENTATION BEFORE INSTALLING KISMET AS SUID-ROOT!"
+	@echo "Kismet has NOT been installed suid-root.  This means you will need to start "
+	@echo "it as root.  If you have no untrusted users on your system, it can be installed "
+	@echo "as suid-root via 'make suidinstall'.  READ THE DOCUMENTATION BEFORE INSTALLING "
+	@echo "KISMET AS SUID-ROOT!"
 
 suidforceinstall: $(PS)
 	$(MAKE) -e commoninstall
@@ -264,13 +266,12 @@ suidforceinstall: $(PS)
 		echo "Installed UI config into $(ETC)/kismet_ui.conf."; 
 	@echo "Installed kismet into $(BIN)/."
 	@echo "If you have not done so already, read the README file and the FAQ file.  Additional"
-	@echo "documentation is in the docs/ directory.  You MUST edit $(ETC)/kismet.conf and configure"
-	@echo "Kismet for your system, or it will NOT run properly!"
+	@echo "documentation is in the docs/ directory.  You MUST edit $(ETC)/kismet.conf "
+	@echo "and configure Kismet for your system, or it will NOT run properly!"
 	@echo
-	@echo "Kismet has been installed SUID ROOT.  This WILL ALLOW NORMAL USERS TO BREAK YOUR WIRELESS"
-	@echo "NETWORK CONNECTION.  IF YOU HAVE ANY UNTRUSTED USERS ON YOUR SYSTEM DO NOT INSTALL KISMET"
-	@echo "AS SUID ROOT."
-
+	@echo "Kismet has been installed SUID ROOT.  This WILL ALLOW NORMAL USERS TO BREAK "
+	@echo "YOUR WIRELESS NETWORK CONNECTION.  IF YOU HAVE ANY UNTRUSTED USERS ON YOUR "
+	@echo "SYSTEM DO NOT INSTALL KISMET AS SUID ROOT."
 
 rpm:
 	@echo "Disabling SUID installation (RPM will handle setting the SUID bit.)"
@@ -283,7 +284,7 @@ clean:
 	@-rm -f $(DRONE)
 	@-rm -f $(NC)
 	@-rm -f $(GPSL)
-	@-rm -f $(HOPPER)
+	# @-rm -f $(HOPPER)
 	@-( cd extra/buzzme; $(MAKE) clean )
 	@-( cd $(PCAPDIR); $(MAKE) clean )
 
@@ -305,19 +306,19 @@ distclean:
 	@-( cd $(PCAPDIR); $(MAKE) distclean )
 	@-rm -f Makefile
 
-arm: $(PS) $(NC) $(HOPPER) $(ZBUILD)
+arm: $(PS) $(NC) $(ZBUILD)
 	@echo "ARM toolset built."
 
-ipkg: $(PS) $(NC) $(HOPPER)
+ipkg: $(PS) $(NC) 
 	@if test "`whoami`" != "root"; then echo "Warning:  You are not root.  The ipkg will probably not be what you want."; fi
 	@mkdir -p packaging/ipkg/$(ETC)
 	@mkdir -p packaging/ipkg/$(BIN)
 	@arm-linux-strip $(PS)
 	@arm-linux-strip $(NC)
-	@arm-linux-strip $(HOPPER)
+	# @arm-linux-strip $(HOPPER)
 	@cp $(PS) packaging/ipkg/$(BIN)/$(PS)
 	@cp $(NC) packaging/ipkg/$(BIN)/$(NC)
-	@cp $(HOPPER) packaging/ipkg/$(BIN)/$(HOPPER)
+	# @cp $(HOPPER) packaging/ipkg/$(BIN)/$(HOPPER)
 	@cp scripts/kismet packaging/ipkg/$(BIN)/kismet
 	@cp conf/kismet.conf packaging/ipkg/$(ETC)/kismet.conf
 	@cp conf/kismet_ui.conf packaging/ipkg/$(ETC)/kismet_ui.conf
@@ -352,7 +353,7 @@ $(DEPEND):
 	@echo "Generating dependencies... "
 	@echo > $(DEPEND)
 	@$(CXX) $(CFLAGS) -MM \
-		`echo $(PSO) $(DRONEO) $(HOPPERO) $(GPSLO) $(NCO) | sed -e "s/\.o/\.cc/g"` >> $(DEPEND)
+		`echo $(PSO) $(DRONEO) $(GPSLO) $(NCO) | sed -e "s/\.o/\.cc/g"` >> $(DEPEND)
 
 include $(DEPEND)
 

@@ -8641,7 +8641,8 @@ if test "`echo $host_os | grep linux`" = ""; then
 	echo "Run 'gmake dep' to generate dependencies and 'gmake' followed by"
 	echo "'gmake install' to compile and install Kismet"
 	echo "Kismet WILL NOT be installed suid-root by default.  If you wish to install"
-	echo "Kismet as a suid-root utility, READ THE DOCUMENTATION and run 'make suidinstall'."
+	echo "Kismet as a suid-root utility, READ THE DOCUMENTATION and run "
+	echo "'make suidinstall'."
 	echo "DO NOT INSTALL KISMET AS SUID-ROOT IF YOU HAVE UNTRUSTED USERS ON YOUR SYSTEM."
 else
 	verminor=`uname -r | cut -d '.' -f 2`
