@@ -247,7 +247,8 @@ void GetPacketInfo(kis_packet *packet, packet_info *ret_packinfo,
     }
 
     // Endian swap the 2 byte duration from a pointer
-    duration = kptoh16(&packet->data[2]);
+    memcpy(&duration, &packet->data[2], 2);
+    duration = kis_ntoh16(duration);
 
     addr0 = &packet->data[4];
     addr1 = &packet->data[10];
@@ -443,7 +444,7 @@ void GetPacketInfo(kis_packet *packet, packet_info *ret_packinfo,
         } else if (fc->subtype == 8) {
             ret_packinfo->subtype = packet_sub_beacon;
 
-            ret_packinfo->beacon = ktoh16(fixparm->beacon);
+            ret_packinfo->beacon = kis_ntoh16(fixparm->beacon);
 
             // Extract the CISC.O beacon info
             if ((tcitr = tag_cache_map.find(133)) != tag_cache_map.end()) {
