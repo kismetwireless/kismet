@@ -35,6 +35,9 @@
 #include <fcntl.h>
 #include <errno.h>
 
+// Prototype tcpclient class
+class TcpClient;
+
 #include "packetracker.h"
 
 #define TCP_SELECT_TIMEOUT 100
