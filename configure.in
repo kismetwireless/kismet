@@ -465,9 +465,8 @@ if test $want_ethereal = yes; then
 
     AC_TRY_LINK([
 		#include <stdio.h>
-		#include <netinet/in.h>
 		#include <sys/types.h>
-		#include <netinet/in.h>
+		#include <sys/time.h>
 		#include "wtap.h"
 		],
 		[
