@@ -20,8 +20,6 @@
 #define __ENDIAN_MAGIC_H__
 
 #include "config.h"
-#include <endian.h>
-#include <byteswap.h>
 
 // Byteswap magic
 #ifdef WORDS_BIGENDIAN
