@@ -199,7 +199,7 @@ Licensed under the GPL
     panels user interface.  By default, these files are in /usr/local/etc/.
     Remote drone servers use a third file, kismet_drone.conf.
 
-    Kismet configuration files are a simple 'variable=value' format.
+    Kismet configuration files are a simple 'directive=value' format.
 
     Basic server configuration:
 
