@@ -62,7 +62,7 @@ public:
 class SortBSSID {
 public:
     bool operator() (const wireless_network *x, const wireless_network *y) const {
-        if (x->bssid > y->bssid)
+        if (y->bssid < x->bssid)
             return 1;
         return 0;
     }
