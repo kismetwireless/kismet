@@ -201,11 +201,6 @@ int TcpStreamer::Accept() {
     FD_SET(new_fd, &server_fds);
     FD_SET(new_fd, &client_fds);
 
-    // Set it to nonblocking.  The app logic handles all the buffering and
-    // blocking.
-    int save_mode = fcntl(new_fd, F_GETFL, 0);
-    fcntl(new_fd, F_SETFL, save_mode | O_NONBLOCK);
-
     WriteVersion(new_fd);
 
     return new_fd;

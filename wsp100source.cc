@@ -122,6 +122,7 @@ int Wsp100Source::FetchPacket(kis_packet *packet) {
     if (valid == 0)
         return 0;
 
+    /*
     fd_set rset;
     FD_ZERO(&rset);
     FD_SET(udp_sock, &rset);
@@ -138,7 +139,9 @@ int Wsp100Source::FetchPacket(kis_packet *packet) {
     }
 
     if (!FD_ISSET(udp_sock, &rset))
-        return 0;
+    return 0;
+
+    */
 
     struct sockaddr_in cli_sockaddr;
 #ifdef HAVE_SOCKLEN_T
