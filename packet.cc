@@ -530,8 +530,10 @@ void GetProtoInfo(const packet_info *in_info, const pkthdr *header,
 
     // This isn't an 'else' because we want to try to handle it if it looked like a netstumbler
     // but wasn't.
-    if (in_info->dest_mac == LOR_MAC ||
-        (in_info->distrib == no_distribution && in_info->dest_mac[0] == 1)) {
+    if (in_info->dest_mac == LOR_MAC) {
+        /* This gets confused with STP, so we just rely on that one multicast now. ||
+         (in_info->distrib == no_distribution && in_info->dest_mac[0] == 1)) {
+         */
         // First thing we do is see if the destination matches the multicast for
         // lucent outdoor routers, or if we're a multicast with no BSSID.  This should
         // be indicative of being a lucent outdoor router
