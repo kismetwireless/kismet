@@ -239,8 +239,8 @@ int Packetsourcetracker::AdvanceChannel() {
             meta->ch_pos = 0;
 
         ipc_buffer.push_back(chancmd);
-    }
 #endif
+    }
 
     return 1;
 }
