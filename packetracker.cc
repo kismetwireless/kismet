@@ -222,10 +222,9 @@ int Packetracker::ProcessPacket(packet_info info, char *in_status) {
         } else if ((bsmapitr = bssid_map.find(info.dest_mac)) != bssid_map.end()) {
             info.bssid_mac = info.dest_mac;
         }
-    }
+    } else if (info.type == packet_probe_req) {
+        // If it's a probe request, see if we already know who it should belong to
 
-    // If it's a probe request, see if we already know who it should belong to
-    if (info.type == packet_probe_req) {
         if (probe_map.find(info.bssid_mac) != probe_map.end()) {
             info.bssid_mac = probe_map[info.bssid_mac];
             bsmapitr = bssid_map.find(info.bssid_mac);

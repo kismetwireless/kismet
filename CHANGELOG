@@ -1,6 +1,7 @@
 Nov 04 2002  2.7.1  Added 'gstsearch' exploit detection
                     Added preliminary support for the WSP100 remote sensor 
                      under *nix.
+                    Added data ACK packet type, still discarding ACKS
 Nov 02 2002  2.7.1  Initial multiserver support
                     Completed all basic multiserver functionality ('e' in
                      panels interface)
