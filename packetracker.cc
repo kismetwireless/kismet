@@ -472,7 +472,8 @@ void Packetracker::ProcessPacket(packet_info info) {
             // If we have a beacon for an established AP network and it's not the
             // right channel, raise an alert.
 
-            if (net->type == network_ap && info.channel != net->channel && net->channel != 0) {
+            if (net->type == network_ap && info.channel != net->channel &&
+                net->channel != 0 && info.channel != 0) {
                 if (alertracker->PotentialAlert(arefs[CHANCHANGE_AREF]) > 0) {
                     snprintf(status, STATUS_MAX, "Beacon on %s (%s) for channel %d, network previously detected on channel %d",
                              net->bssid.Mac2String().c_str(), net->ssid.c_str(),
