@@ -368,7 +368,6 @@ int unmonitor_wext(const char *in_dev, int initch, char *in_err, void **in_if);
 int monitor_wlanng(const char *in_dev, int initch, char *in_err, void **in_if);
 // wlan-ng avs
 int monitor_wlanng_avs(const char *in_dev, int initch, char *in_err, void **in_if);
-int unmonitor_wlanng_avs(const char *in_dev, int initch, char *in_err, void **in_if);
 // linksys wrt54g monitoring
 int monitor_wrt54g(const char *in_dev, int initch, char *in_err, void **in_if);
 #endif
