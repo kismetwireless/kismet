@@ -1,4 +1,4 @@
-Kismet 3.2.0
+Kismet Feb-2004-01
 Mike Kershaw <dragorn@kismetwireless.net>
 http://www.kismetwireless.net
 Licensed under the GPL
@@ -848,6 +848,12 @@ Licensed under the GPL
         - Don't be stupid using Kismet.
         - If you are stupid, I'm not responsible.
 
+    Q: What happened to the version numbers?
+    A: They stopped making sense.  3.0 to 3.1 was a 30,000 line diff, but 
+       calling it 4.0 doesn't make sense either.  So, it's getting versioned
+       by the release date, which should also help keep stable releases coming
+       in a timely manner.
+
     Q: Why is rfmon different from promiscuous mode, and why can't you just use
        promisc?
     A: In the wired world, promiscuous mode turns off the filtering mechanism 
@@ -921,6 +927,14 @@ Licensed under the GPL
        of 100, but individually the numbers don't have much relevance.  They
        can be useful for coloring the maps as "better" and "worse", but thats
        about the most you should use them for.
+
+    Q: Can Kismet be used in a commercial product?
+    A: As long as you follow the requirements of the GPL, I can't stop you. 
+       It would certianly be nice if you're using Kismet to make a profit to
+       take a look at my wishlist or make a donation though.
+
+    Q: What about plugins?
+    A: Yeah, I know, I'm working on them.
 
     Q: What happens when I ask a question thats already answered here?
     A: I'll probably be rude to you and tell you go to go read the docs. 
