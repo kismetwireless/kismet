@@ -1,5 +1,6 @@
 May 31 2003  2.9.1  Integrated channel hopper with kismet_server
                     Implemented initial channel set code
+                    Fixed error output for childpacket read failure
 May 30 2003  2.9.1  Fixed gpsmap -Z blowing up if no parameter given.
 May 27 2003  2.9.1  Fixed ssid len=32 management packets being flagged as noise
                     Defined new channel hopping config file format (subject to

@@ -2684,9 +2684,11 @@ int main(int argc,char *argv[]) {
                 CatchShutdown(-1);
             }
 
+
+            int len;
+            string chtxt;
+
             if (FD_ISSET(packet_sources[src]->textpair[0], &rset)) {
-                int len;
-                string chtxt;
                 len = FetchChildText(packet_sources[src]->textpair[0], &chtxt);
 
                 if (chtxt != "") {
@@ -2703,9 +2705,6 @@ int main(int argc,char *argv[]) {
             }
 
             if (FD_ISSET(packet_sources[src]->childpair[0], &rset)) {
-                int len;
-                string chtxt;
-
                 // Capture the packet from whatever device
                 // len = psrc->FetchPacket(&packet, data, moddata);
 
@@ -2934,6 +2933,13 @@ int main(int argc,char *argv[]) {
 
                         NetWriteStatus(psrc->FetchError());
                         */
+                    if (!silent) {
+                        fprintf(stderr, "%s\n", chtxt.c_str());
+                        fprintf(stderr, "Terminating.\n");
+                    }
+
+                    NetWriteStatus(chtxt.c_str());
+
                     CatchShutdown(-1);
                 }
             } // End processing new packets
