@@ -2370,7 +2370,7 @@ int main(int argc, char *argv[]) {
             }
             break;
         case 'Z':
-            if (sscanf(optarg, "%d", &power_zoom) > 255 || power_zoom < 0) {
+            if (sscanf(optarg, "%d", &power_zoom) != 1 || power_zoom > 255 || power_zoom < 0) {
                 fprintf(stderr, "Invalid scatter power zoom.\n");
                 ShortUsage(exec_name);
             }
@@ -2459,7 +2459,7 @@ int main(int argc, char *argv[]) {
 
     // no dump files
     if (optind == argc) {
-        fprintf(stderr, "FATAL:  Must provide at least one dump file.\n");
+        fprintf(stderr, "FATAL:  Must provide at least one gps file.\n");
         ShortUsage(exec_name);
     }
 

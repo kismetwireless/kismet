@@ -4,7 +4,7 @@
 # not continually reading --help!
 
 # Version of Kismet config
-version=2.9.1j
+version=2.9.1k
 
 # Name of server (Purely for organiational purposes)
 servername=Kismet
@@ -48,9 +48,6 @@ suiduser=your_user_here
 # source=prism2,wlan0,prism
 # source=cisco,eth0,cisco
 # source=cisco_cvs,eth1:wifi0,ciscocvs
-
-# REMEMBER - when you define a source here, and you want it to channel hop,
-# be sure to give an appropriate channels config option below.
 
 source=cisco,eth0,ciscosource
 # Other common source configs:
