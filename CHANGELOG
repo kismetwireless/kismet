@@ -5,6 +5,10 @@ Sep 11 2002  2.5.2  Added soundopts config file option per Mathias' suggestion
                      incomplete netxml records of networks better.
                     Updated readssidmap and readipmap to use mac_addr struct
                      and be generaly better behaved
+                    Changed beacon logging to log one beacon packet per network
+                     when beacon logs are turned off.  This makes dumpfiles 
+                     still useable for future runs throug kismet.  Thanks to
+                     poptix for the suggestion.
 Sep 10 2002  2.5.2  Added more imagemagick exception catching/handling 
                      to gpsmap
                     Fixed silly typo for default image size in gpsmap

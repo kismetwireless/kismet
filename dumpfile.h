@@ -20,6 +20,9 @@
 #define __DUMPFILE_H__
 
 #include "config.h"
+
+#include <map>
+
 #include "packet.h"
 
 // Packet capture source superclass
@@ -35,6 +38,9 @@ public:
     // Get a packet from the medium
     virtual int DumpPacket(const packet_info *in_info, const pkthdr *in_header,
                            const u_char *in_data) = 0;
+
+    // Do we log beacons?
+    void SetBeaconLog(int in_log) { beacon_log = in_log; };
 
     // Get the number of packets
     int FetchDumped() { return(num_dumped); };
@@ -54,6 +60,8 @@ protected:
     char filename[1024];
 
     int num_dumped;
+    int beacon_log;
+    map<mac_addr, int> beacon_logged_map;
 
 };
 
