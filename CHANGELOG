@@ -1,3 +1,5 @@
+Aug 13 2004  devel  Fixed error message for channel locking when in autofit 
+                     sort
 Aug 11 2004  devel  Fixed Run/ExecSysCmd functions in util
 Aug 09 2004  devel  Split ringbuffer and iwconfig stuff into their own files,
                      cleaned up util.h

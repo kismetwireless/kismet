@@ -154,7 +154,7 @@ int PanelFront::MainInput(void *in_window, int in_chr) {
                 clwin->toggle0 = 0;
             }
         } else {
-            WriteStatus("Server does not have channel hopping enabled.");
+            WriteStatus("Cannot lock to a network channel in autofit sort mode.  Sort by a different method.");
         }
 
         break;
