@@ -16,30 +16,35 @@
     Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 */
 
-#ifndef __KISMET_SERVER_H__
-#define __KISMET_SERVER_H__
+#ifndef __CAPTURESOURCEUTIL_H__
+#define __CAPTURESOURCEUTIL_H__
 
 #include "config.h"
 
-#include <map>
 #include <string>
+#include <vector>
+#include <map>
 
-#include "tcpserver.h"
 #include "packetsource.h"
+#include "prism2source.h"
+#include "pcapsource.h"
+#include "wtapfilesource.h"
+#include "wsp100source.h"
+#include "vihasource.h"
+#include "dronesource.h"
 
-void WriteDatafiles(int in_shutdown);
-void CatchShutdown(int sig);
-int Usage(char *argv);
-void handle_command(TcpServer *tcps, client_command *cc);
-void NetWriteAlert(char *in_alert);
-void NetWriteStatus(char *in_status);
-void NetWriteInfo();
-int SayText(string in_text);
-int PlaySound(string in_sound);
-void SpeechHandler(int *fds, const char *player);
-void SoundHandler(int *fds, const char *player, map<string, string> soundmap);
-void ProtocolAlertEnable(int in_fd);
-void ProtocolNetworkEnable(int in_fd);
-void ProtocolClientEnable(int in_fd);
+typedef struct capturesource {
+    KisPacketSource *source;
+    string name;
+    string interface;
+    string scardtype;
+    card_type cardtype;
+    packet_parm packparm;
+};
+
+map<string, int> ParseEnableLine(string in_named);
+int ParseCardLines(vector<string> *in_lines, vector<capturesource *> *in_capsources);
+int BindRootSources(vector<capturesource *> *in_capsources, map<string, int> *in_enable);
+int BindUserSources(vector<capturesource *> *in_capsources, map<string, int> *in_enable);
 
 #endif

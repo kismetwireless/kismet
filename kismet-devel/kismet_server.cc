@@ -38,6 +38,7 @@
 #include "wsp100source.h"
 #include "vihasource.h"
 #include "dronesource.h"
+#include "capturesourceutil.h"
 
 #include "dumpfile.h"
 #include "wtapdump.h"
@@ -1207,10 +1208,6 @@ int main(int argc,char *argv[]) {
     // Parse the enabled sources into a map
     map<string, int> enable_name_map;
 
-    unsigned int begin = 0;
-    unsigned int end = named_sources.find(",");
-    int done = 0;
-
     // Tell them if we're enabling everything
     if (named_sources.length() == 0)
         fprintf(stderr, "No enable sources specified, all sources will be enabled.\n");
@@ -1218,21 +1215,8 @@ int main(int argc,char *argv[]) {
     // Command line sources override the enable line, unless we also got an enable line
     // from the command line too.
     if ((source_from_cmd == 0 || enable_from_cmd == 1) && named_sources.length() > 0) {
-        while (done == 0) {
-            if (end == string::npos) {
-                end = named_sources.length();
-                done = 1;
-            }
-
-            string ensrc = named_sources.substr(begin, end-begin);
-            begin = end+1;
-            end = named_sources.find(",", begin);
-
-            enable_name_map[StrLower(ensrc)] = 0;
-        }
+        enable_name_map = ParseEnableLine(named_sources);
     }
-
-    string sourceopt;
 
     // Read the config file if we didn't get any sources on the command line
     if (source_input_vec.size() == 0)
@@ -1243,177 +1227,20 @@ int main(int argc,char *argv[]) {
         exit(1);
     }
 
-    // Now tokenize the sources
-    for (unsigned int x = 0; x < source_input_vec.size(); x++) {
-        sourceopt = source_input_vec[x];
-
-        begin = 0;
-        end = sourceopt.find(",");
-        vector<string> optlist;
-
-        while (end != string::npos) {
-            string subopt = sourceopt.substr(begin, end-begin);
-            begin = end+1;
-            end = sourceopt.find(",", begin);
-            optlist.push_back(subopt);
-        }
-        optlist.push_back(sourceopt.substr(begin, sourceopt.size() - begin));
-
-        if (optlist.size() < 3) {
-            fprintf(stderr, "FATAL:  Invalid source line '%s'\n", sourceopt.c_str());
-            exit(1);
-        }
-
-        capturesource *newsource = new capturesource;
-        newsource->source = NULL;
-        newsource->scardtype = optlist[0];
-        newsource->interface = optlist[1];
-        newsource->name = optlist[2];
-        memset(&newsource->packparm, 0, sizeof(packet_parm));
-
-        packet_sources.push_back(newsource);
+    int ret;
+    if ((ret = ParseCardLines(&source_input_vec, &packet_sources)) < 0) {
+        fprintf(stderr, "FATAL:  Invalid source line '%s'\n",
+                source_input_vec[(-1 * ret) - 1].c_str());
+        exit(1);
     }
 
     source_input_vec.clear();
 
-    // Now loop through each of the sources - parse the engines, interfaces, types.
-    // Open any that need to be opened as root.
-    for (unsigned int src = 0; src < packet_sources.size(); src++) {
-        capturesource *csrc = packet_sources[src];
+    // Now enable root sources...  BindRoot will terminate if it fails
+    BindRootSources(&packet_sources,
+                    ((source_from_cmd == 0) || (enable_from_cmd == 1)) ?
+                    &enable_name_map : NULL);
 
-        // If we didn't get sources on the command line or if we have a forced enable
-        // on the command line, check to see if we should enable this source.  If we just
-        // skip it it keeps a NULL capturesource pointer and gets ignored in the code.
-        if ((source_from_cmd == 0 || enable_from_cmd == 1) &&
-            (enable_name_map.find(StrLower(csrc->name)) == enable_name_map.end() &&
-             named_sources.length() != 0)) {
-            continue;
-        }
-
-        enable_name_map[StrLower(csrc->name)] = 1;
-
-        // Figure out the card type
-        const char *sctype = csrc->scardtype.c_str();
-
-        if (!strcasecmp(sctype, "cisco"))
-            csrc->cardtype = card_cisco;
-        else if (!strcasecmp(sctype, "cisco_cvs"))
-            csrc->cardtype = card_cisco_cvs;
-        else if (!strcasecmp(sctype, "cisco_bsd"))
-            csrc->cardtype = card_cisco_bsd;
-        else if (!strcasecmp(sctype, "prism2"))
-            csrc->cardtype = card_prism2;
-        else if (!strcasecmp(sctype, "prism2_legacy"))
-            csrc->cardtype = card_prism2_legacy;
-        else if (!strcasecmp(sctype, "prism2_bsd"))
-            csrc->cardtype = card_prism2_bsd;
-        else if (!strcasecmp(sctype, "prism2_hostap"))
-            csrc->cardtype = card_prism2_hostap;
-        else if (!strcasecmp(sctype, "orinoco"))
-            csrc->cardtype = card_orinoco;
-        else if (!strcasecmp(sctype, "generic"))
-            csrc->cardtype = card_generic;
-        else if (!strcasecmp(sctype, "wsp100"))
-            csrc->cardtype = card_wsp100;
-        else if (!strcasecmp(sctype, "wtapfile"))
-            csrc->cardtype = card_wtapfile;
-        else if (!strcasecmp(sctype, "viha"))
-            csrc->cardtype = card_viha;
-        else if (!strcasecmp(sctype, "ar5k"))
-            csrc->cardtype = card_ar5k;
-        else if (!strcasecmp(sctype, "drone"))
-            csrc->cardtype= card_drone;
-        else {
-            fprintf(stderr, "FATAL:  Source %d (%s):  Unknown card type '%s'\n", src, csrc->name.c_str(), sctype);
-            exit(1);
-        }
-
-        // Open it if it needs to be opened as root
-        card_type ctype = csrc->cardtype;
-
-        if (ctype == card_prism2_legacy) {
-#ifdef HAVE_LINUX_NETLINK
-            fprintf(stderr, "Source %d (%s): Using prism2 to capture packets.\n", src, csrc->name.c_str());
-
-            csrc->source = new Prism2Source;
-#else
-            fprintf(stderr, "FATAL:  Source %d (%s): Linux netlink support was not compiled in.\n", src, csrc->name.c_str());
-            exit(1);
-#endif
-        } else if (ctype == card_cisco || ctype == card_cisco_cvs || ctype == card_cisco_bsd ||
-                   ctype == card_prism2 || ctype == card_prism2_bsd || ctype == card_prism2_hostap ||
-                   ctype == card_orinoco || ctype == card_generic || ctype == card_ar5k) {
-#ifdef HAVE_LIBPCAP
-            if (csrc->interface == "") {
-                fprintf(stderr, "FATAL:  Source %d (%s): No capture device specified.\n", src, csrc->name.c_str());
-                exit(1);
-            }
-
-            fprintf(stderr, "Source %d (%s): Using pcap to capture packets from %s\n",
-                    src, csrc->name.c_str(), csrc->interface.c_str());
-
-            csrc->source = new PcapSource;
-#else
-            fprintf(stderr, "FATAL:  Source %d (%s): Pcap support was not compiled in.\n", src, csrc->name.c_str());
-            exit(1);
-#endif
-        } else if (ctype == card_wtapfile) {
-#ifdef HAVE_LIBWIRETAP
-            if (csrc->interface == "") {
-                fprintf(stderr, "FATAL:  Source %d (%s): No capture device specified.\n", src, csrc->name.c_str());
-                exit(1);
-            }
-
-            fprintf(stderr, "Source %d (%s): Defering wtapfile open until priv drop.\n", src, csrc->name.c_str());
-#else
-            fprintf(stderr, "FATAL:  Source %d (%s): libwiretap support was not compiled in.\n", src, csrc->name.c_str());
-            exit(1);
-#endif
-        } else if (ctype == card_drone) {
-            if (csrc->interface == "") {
-                fprintf(stderr, "FATAL:  Source %d (%s): No capture device specified.\n", src, csrc->name.c_str());
-                exit(1);
-            }
-
-            fprintf(stderr, "Source %d (%s): Defering drone open until priv drop.\n", src, csrc->name.c_str());
-
-        } else if (ctype == card_wsp100) {
-#ifdef HAVE_WSP100
-            if (csrc->interface == "") {
-                fprintf(stderr, "FATAL:  Source %d (%s): No capture device specified.\n", src, csrc->name.c_str());
-                exit(1);
-            }
-
-            fprintf(stderr, "Source %d (%s): Using WSP100 to capture packets from %s.\n",
-                   src, csrc->name.c_str(), csrc->interface.c_str());
-
-            csrc->source = new Wsp100Source;
-#else
-            fprintf(stderr, "FATAL:  Source %d (%s): WSP100 support was not compiled in.\n", src, csrc->name.c_str());
-            exit(1);
-#endif
-        } else if (ctype == card_viha) {
-#ifdef HAVE_VIHAHEADERS
-            fprintf(stderr, "Source %d (%s): Using Viha to capture packets.\n",
-                    src, csrc->name.c_str());
-
-            csrc->source = new VihaSource;
-#else
-            fprintf(stderr, "FATAL:  Source %d (%s): Viha support was not compiled in.\n", src, csrc->name.c_str());
-            exit(1);
-#endif
-        } else {
-            fprintf(stderr, "FATAL:  Source %d (%s): Unhandled card type %s\n", src, csrc->name.c_str(), csrc->scardtype.c_str());
-            exit(1);
-        }
-
-        // Open the packet source
-        if (csrc->source != NULL)
-            if (csrc->source->OpenSource(csrc->interface.c_str(), csrc->cardtype) < 0) {
-                fprintf(stderr, "FATAL: Source %d (%s): %s\n", src, csrc->name.c_str(), csrc->source->FetchError());
-                exit(1);
-            }
-    }
 
     // Once the packet source is opened, we shouldn't need special privileges anymore
     // so lets drop to a normal user.  We also don't want to open our logfiles as root
@@ -1430,48 +1257,9 @@ int main(int argc,char *argv[]) {
 
     // WE ARE NOW RUNNING AS THE TARGET UID
 
-    for (unsigned int src = 0; src < packet_sources.size(); src++) {
-        capturesource *csrc = packet_sources[src];
-
-        card_type ctype = csrc->cardtype;
-
-        // For any unopened soruces...
-        if (csrc->source == NULL) {
-
-            // Again, see if we should enable anything
-            if ((source_from_cmd == 0 || enable_from_cmd == 1) &&
-                (enable_name_map.find(StrLower(csrc->name)) == enable_name_map.end() &&
-                 named_sources.length() != 0)) {
-                continue;
-            }
-
-            enable_name_map[StrLower(csrc->name)] = 1;
-
-            if (ctype == card_wtapfile) {
-#ifdef HAVE_LIBWIRETAP
-                fprintf(stderr, "Source %d (%s): Loading packets from dump file %s\n",
-                       src, csrc->name.c_str(), csrc->interface.c_str());
-
-                csrc->source = new WtapFileSource;
-#else
-                fprintf(stderr, "FATAL: Source %d (%s): Wtapfile support was not compiled in.\n", src, csrc->name.c_str());
-                exit(1);
-#endif
-            } else if (ctype == card_drone) {
-                fprintf(stderr, "Source %d (%s): Capturing packets from Drone %s.\n",
-                        src, csrc->name.c_str(), csrc->interface.c_str());
-
-                csrc->source = new DroneSource;
-            }
-
-            // Open the packet source
-            if (csrc->source != NULL)
-                if (csrc->source->OpenSource(csrc->interface.c_str(), csrc->cardtype) < 0) {
-                    fprintf(stderr, "FATAL: Source %d (%s): %s\n", src, csrc->name.c_str(), csrc->source->FetchError());
-                    exit(1);
-                }
-        }
-    }
+    BindUserSources(&packet_sources,
+                    ((source_from_cmd == 0) || (enable_from_cmd == 1)) ?
+                    &enable_name_map : NULL);
 
     // See if we tried to enable something that didn't exist
     if (enable_name_map.size() == 0) {
