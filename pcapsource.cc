@@ -187,6 +187,7 @@ int PcapSource::FetchPacket(kis_packet *packet, uint8_t *data, uint8_t *moddata)
 }
 
 int PcapSource::FCSBytes() {
+    printf("pcapsource::fcsbytes\n");
     return 0;
 }
 

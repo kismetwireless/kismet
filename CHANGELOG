@@ -1,6 +1,7 @@
 Dec 24 2003  3.1.0  More README updates
                     More invalid packet detection for drivers that feed us junk
                     Fixed FCS on orinoco
+                    Actually fixed FCS
 Dec 23 2003  3.1.0  Added DupeIV display to panels client
 Dec 22 2003  3.1.0  Increased max wep key size to 32 hex pairs
                     Fixed gpsmap dupeiv
