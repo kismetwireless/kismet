@@ -253,7 +253,9 @@ char *KismetHelpDump[] = {
     " Key   Action",
     "  c    Clear string window",
     "  p    Pause scrolling",
-    "  t    Toggle display of alert condition timestamp",
+    "  t    Toggle display of string timestamp",
+    "  a    Toggle display of strings from tagged networks or all",
+    "       networks.",
     "  q    Close popup",
     NULL
 };
@@ -299,6 +301,8 @@ char *KismetHelpPack[] = {
     "  'D?' - Unknown data frame",
     " Key   Action",
     "  p    Pause scrolling",
+    "  a    Toggle display of strings from tagged networks or all",
+    "       networks.",
     "  q    Close popup",
     NULL
 };
