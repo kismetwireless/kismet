@@ -63,10 +63,12 @@
 
 const char *config_base = "kismet.conf";
 
-//const char url_template[] = "http://www.mapblast.com/gif?&CT=%f:%f:%ld&IC=&W=%d&H=%d&FAM=myblast&LB=%s";
 // &L = USA for the USA, EUR appears to be generic for Europe, EUR0809 for other parts of Europe.. if you get it wrong your map will be very bland =)
 // default to USA, probably want to change this. -- poptix
-const char url_template[] = "http://msrvmaps.mappoint.net/isapi/MSMap.dll?ID=3XNsF.&C=%f,%f&L=USA&CV=1&A=%ld&S=%d,%d&O=0.000000,0.000000&MS=0&P=|5748|";
+const char url_template_mp[] = "http://msrvmaps.mappoint.net/isapi/MSMap.dll?ID=3XNsF.&C=%f,%f&L=USA&CV=1&A=%ld&S=%d,%d&O=0.000000,0.000000&MS=0&P=|5748|";
+const char url_template_ts[] = "http://terraservice.net/GetImageArea.ashx?t=1&lat=%f&lon=%f&s=%ld&w=%d&h=%d";
+const char url_template_mb[] = "http://www.mapblast.com/myblastd/MakeMap.d?&CT=%f:%f:%d&IC=&W=%d&H=%d&FAM=myblast&LB=";
+
 const char download_template[] = "wget \"%s\" -O %s";
 
 // Decay from absolute blue for multiple tracks
@@ -83,6 +85,9 @@ long int scales[] = { 1000, 2000, 5000, 10000, 20000, 30000, 50000, 60000, 70000
 85000, 90000, 95000, 100000, 125000, 150000, 200000, 300000, 500000, 750000, 1000000, 2000000,
 3000000, 4000000, 5000000, 6000000, 7000000, 8000000, 9000000, 10000000, 15000000,
 20000000, 25000000, 30000000, 35000000, 40000000, 0 };
+
+// Terraserver scales for conversion to mapblast scales
+long int terrascales[] = { 2757, 5512, 11024, 22048, 44096, 88182, 176384 };
 
 // Image colors
 const char *netcolors[] = {
@@ -141,6 +146,8 @@ unsigned int map_height = 1024;
 
 int draw_opacity, draw_track, draw_bounds, draw_range, draw_interpolated, draw_hull, draw_scatter,
     draw_legend, convert_greyscale, keep_gif, draw_center, center_dot, verbose, interpolation_res;
+
+int alternatemap = 0;
 
 int sample_points;
 
@@ -1653,7 +1660,7 @@ void DrawNetScatterPlot(Image *in_img, DrawInfo *in_di, int in_dotsize) { /*FOLD
 }
 
 
-int Usage(char *argv, int ec = 1) { /*FOLD00*/
+void Usage(char *argv, int ec = 1) { /*FOLD00*/
     printf("Usage: %s [OPTION] <GPS files>\n", argv);
     printf(
            "  -c, --coords <x,y,s>         Force map center at x,y of scale s\n"
@@ -1683,6 +1690,7 @@ int Usage(char *argv, int ec = 1) { /*FOLD00*/
            "  -T, --threads <num>          Number of simultaneous threads used for complex\n"
            "                               operations\n"
            "  -M, --metric                 Fetch metric-titled map\n"
+           "  -A, --alternatemap           Alternate map source, 1 for Mapblast, 2 for TerraServer (aerial photos, you must provide a scale between 10 and 16)\n"
            "  -F, --filter <MAC list>      Comma-seperated ALL CAPS list of MAC's to filter\n"
            "  -I, --invert-filter          Invert filtering (ONLY draw filtered MAC's)\n"
            "  -v, --verbose                Verbose output while running\n"
@@ -1700,7 +1708,6 @@ int main(int argc, char *argv[]) { /*FOLD00*/
 
     char mapname[1024];
     char mapoutname[1024];
-
     unsigned int metric = 0;
 
     static struct option long_options[] = {   /* options table */
@@ -1726,6 +1733,7 @@ int main(int argc, char *argv[]) { /*FOLD00*/
         { "draw-center-dot", no_argument, 0, 'd' },
         { "interpolated-color", required_argument, 0, 'C' },
         { "metric", no_argument, 0, 'M' },
+        { "alternatemap", required_argument, 0, 'A' },
         { "draw-hull", no_argument, 0, 'H' },
         { "draw-scatter-plot", no_argument, 0, 'p' },
         { "dot-size", required_argument, 0, 'D' },
@@ -1772,7 +1780,7 @@ int main(int argc, char *argv[]) { /*FOLD00*/
     int label = 0;
 
     while(1) {
-        int r = getopt_long(argc, argv, "S:T:tbrils:c:o:m:O:gqu:hvdkC:MHVpD:f:IwL:N",
+        int r = getopt_long(argc, argv, "S:A:T:tbrils:c:o:m:O:gqu:hvdkC:MHVpD:f:IwL:N",
                             long_options, &option_index);
 
         if (r < 0) break;
@@ -1827,6 +1835,12 @@ int main(int argc, char *argv[]) { /*FOLD00*/
         case 'm':
             snprintf(mapname, 1024, "%s", optarg);
             usermap = 1;
+            break;
+        case 'A':
+	    if (sscanf(optarg, "%d", &alternatemap) != 1) {
+		    fprintf(stderr, "Invalid map server.\n");
+		    Usage(argv[0]);
+	    }
             break;
         case 'M':
             metric = 1;
@@ -1956,6 +1970,17 @@ int main(int argc, char *argv[]) { /*FOLD00*/
         exit(1);
     }
 
+    // It's way too much of a kludge to muck with munging the scale around
+    if (alternatemap == 2) {
+	if ((user_scale < 10) || (user_scale > 16)) {
+		fprintf(stderr, "FATAL: You must provide a scale with the -A option that is from 10 to 16\n");
+		exit(0);
+	}
+	scale2 = user_scale;
+	user_scale = terrascales[(scale2 - 10)];
+    }
+
+
     // Initialize stuff
     num_tracks = 0;
 //    memset(&global_map_avg, 0, sizeof(gps_network));
@@ -2045,12 +2070,17 @@ int main(int argc, char *argv[]) { /*FOLD00*/
 
         char url[1024];
 
-        scale2 = (long) (scale / 1378.6);
-
-        snprintf(url, 1024, url_template, map_avg_lat, map_avg_lon, scale2,
-                 map_width, map_height);
-//                 metric ? "&DU=KM" : ""); // poptix -- there is no scale on mappoint
-
+	if (alternatemap == 2) {
+	        snprintf(url, 1024, url_template_ts, map_avg_lat, map_avg_lon, scale2,
+        	         map_width, map_height);
+	} else if (alternatemap == 1) {
+	        snprintf(url, 1024, url_template_mb, map_avg_lat, map_avg_lon, scale,
+      	         map_width, map_height, metric ? "&DU=KM" : "");
+	} else {
+	        scale2 = (long) (scale / 1378.6);
+	        snprintf(url, 1024, url_template_mp, map_avg_lat, map_avg_lon, scale2,
+        	         map_width, map_height);
+	}
         printf("Map url: %s\n", url);
         printf("Fetching map...\n");
 
