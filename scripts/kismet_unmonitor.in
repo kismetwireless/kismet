@@ -8,6 +8,10 @@ CARDTYPE=""
 CONFIGFILE="$ETC/kismet.conf"
 DEVICE=""
 
+# Tempfile of interfaces
+IFFILE=`mktemp /tmp/kismonitor.XXXXXX`
+USEFILE=0
+
 while test "$#" -gt 0; do
 	case "$1" in
 	"-h")
@@ -16,8 +20,7 @@ while test "$#" -gt 0; do
 		echo "won't work correctly if they aren't, but they can be overriden here."
 		echo "Usage:"
 		echo "  -f <file>         Use alternate Kismet config file <file>"
-		echo "  -i <dev>          Use interface <dev>"
-		echo "  -t <type>         Use card type <type>"
+		echo "  -s <source>       Use alternate capture source (engine,interface,type,name)"
 		echo "  -c <channel>      Activate on channel <channel> (default 6)"
 		echo "  -h                What you're reading now"
 		exit
@@ -31,22 +34,14 @@ while test "$#" -gt 0; do
 			exit
 		fi
 		;;
-	"-i")
+	"-s")
 		shift
 		if test "$1" = ""; then
 			echo "No capture interface specified."
 			exit
 		else
-			DEVICE=$1
-		fi
-		;;
-	"-t")
-		shift
-		if test "$1" = ""; then
-			echo "No card type specified."
-			exit
-		else
-			CARDTYPE=$1
+			echo "$1" >> $IFFILE
+			USEFILE=1
 		fi
 		;;
 	"-c")
@@ -76,91 +71,75 @@ if test ! -f "$CONFIGFILE"; then
 	exit
 fi
 
-if test "$DEVICE" = ""; then
-	echo "Setting interface from $CONFIGFILE capinterface"
-	DEVICE=`grep -e "^\ *capinterface\ *=" $CONFIGFILE | cut -d= -f2 | tr -d [:blank:]`
+if test "$USEFILE" -eq 0; then
+	echo "Using $CONFIGFILE sources..."
+	`grep -e "^\ *source[0-9]*\ *=" $CONFIGFILE | cut -d= -f2 | tr -d [:blank:] > $IFFILE`
 fi
 
-if test "$DEVICE" = ""; then
-	echo "Could not determine what interface to use."
-	echo "Please make sure your 'capinterface=' in '$CONFIGFILE' is correct"
-	echo "or specify the device with -d."
-	exit
-fi
+for line in `cat $IFFILE`; do
+	DEVICE=`echo $line | cut -f 2 -d,`
+	CARDTYPE=`echo $line | cut -f 3 -d,`
 
-if test "$CARDTYPE" = ""; then
-	echo "Setting card type from $CONFIGFILE cardtype"
-	CARDTYPE=`grep -i "^\ *cardtype\ *=" $CONFIGFILE | cut -d= -f2 | tr -d [:blank:]`
-fi
-
-if test "$CARDTYPE" = ""; then
-	echo "Could not determine what type of card to enable monitoring for."
-	echo "Please make sure your 'card=' in '$CONFIGFILE' is correct"
-	echo "or specify the card type with -t."
-fi
-
-case "$CARDTYPE" in
-	"cisco")
-		echo "Disabling monitor mode for a cisco card on $DEVICE"
-		iwconfig $DEVICE essid ""
-		echo "Mode: i" > /proc/driver/aironet/$DEVICE/Config
-		echo "XmitPower: 100" > /proc/driver/aironet/$DEVICE/Config
-		ifconfig $DEVICE -promisc up
-		;;
-	"cisco_cvs")
-		echo "Disabling monitor mode for a cisco card on $DEVICE"
-		DEVICE2=`echo $DEVICE | sed -e 's/wifi/eth/'`
-		echo "Modifying device $DEVICE2"
-		iwconfig $DEVICE essid ""
-		echo "Mode: i" > /proc/driver/aironet/$DEVICE2/Config
-		echo "XmitPower: 100" > /proc/driver/aironet/$DEVICE2/Config
-		ifconfig $DEVICE -promisc up
-		;;
-	"cisco_bsd")
-		echo "No unmonitor script for cisco_bsd"
-		;;
-	"prism2")
-		echo "Disabling monitor mode for a prism2 card on $DEVICE"
-		ifconfig $DEVICE -promisc up
-		wlanctl-ng $DEVICE lnxreq_wlansniff channel=$CHANNEL enable=false
-		;;
-	"prism2_pcap")
-		echo "Disabling monitor mode for a pcap prism2 card on $DEVICE"
-		ifconfig $DEVICE -promisc up
-		wlanctl-ng $DEVICE lnxreq_wlansniff channel=$CHANNEL enable=false
-		;;
-	"prism2_bsd")
-		echo "Disabling monitor mode for a prism2 card on $DEVICE under BSD."
-		prism2ctl $DEVICE -h
-		;;
-	"prism2_hostap")
-		echo "Disabling monitor mode for a hostap prism2 card on $DEVICE"
-		iwconfig $DEVICE mode managed
-		ifconfig $DEVICE -promisc up
-		;;
-	"orinoco")
-		echo "Disabling monitor mode for an orinoco card on $DEVICE"
-		iwpriv $DEVICE monitor 0 $CHANNEL
-		ifconfig $DEVICE -promisc up
-		;;
-	"orinoco_bsd")
-		echo "No unmonitor script for orinoco_bsd"
-		;;
-	"generic")
-		echo "Generic card specified, so we do nothing."
-		exit
-		;;
-	"wsp100")
-		echo "Disabling wsp100 device at $DEVICE"
-        # sensor::running
-        snmpset $DEVICE public .1.3.6.1.4.1.14422.1.1.4 i 0
-        ;;
-	*)
-		echo "Unknown card type '$CARDTYPE'.  Doing nothing."
-		exit	
-		;;
-esac
-
+	case "$CARDTYPE" in
+		"cisco")
+			echo "Disabling monitor mode for a cisco card on $DEVICE"
+			iwconfig $DEVICE essid ""
+			echo "Mode: i" > /proc/driver/aironet/$DEVICE/Config
+			echo "XmitPower: 100" > /proc/driver/aironet/$DEVICE/Config
+			ifconfig $DEVICE -promisc up
+			;;
+		"cisco_cvs")
+			echo "Disabling monitor mode for a cisco card on $DEVICE"
+			DEVICE2=`echo $DEVICE | sed -e 's/wifi/eth/'`
+			echo "Modifying device $DEVICE2"
+			iwconfig $DEVICE essid ""
+			echo "Mode: i" > /proc/driver/aironet/$DEVICE2/Config
+			echo "XmitPower: 100" > /proc/driver/aironet/$DEVICE2/Config
+			ifconfig $DEVICE -promisc up
+			;;
+		"cisco_bsd")
+			echo "No unmonitor script for cisco_bsd"
+			;;
+		"prism2")
+			echo "Disabling monitor mode for a prism2 card on $DEVICE"
+			ifconfig $DEVICE -promisc up
+			wlanctl-ng $DEVICE lnxreq_wlansniff channel=$CHANNEL enable=false
+			;;
+		"prism2_pcap")
+			echo "Disabling monitor mode for a pcap prism2 card on $DEVICE"
+			ifconfig $DEVICE -promisc up
+			wlanctl-ng $DEVICE lnxreq_wlansniff channel=$CHANNEL enable=false
+			;;
+		"prism2_bsd")
+			echo "Disabling monitor mode for a prism2 card on $DEVICE under BSD."
+			prism2ctl $DEVICE -h
+			;;
+		"prism2_hostap")
+			echo "Disabling monitor mode for a hostap prism2 card on $DEVICE"
+			iwconfig $DEVICE mode managed
+			ifconfig $DEVICE -promisc up
+			;;
+		"orinoco")
+			echo "Disabling monitor mode for an orinoco card on $DEVICE"
+			iwpriv $DEVICE monitor 0 $CHANNEL
+			ifconfig $DEVICE -promisc up
+			;;
+		"generic")
+			echo "Generic card specified, so we do nothing."
+			exit
+			;;
+		"wsp100")
+			echo "Disabling wsp100 device at $DEVICE"
+	        # sensor::running
+	        snmpset $DEVICE public .1.3.6.1.4.1.14422.1.1.4 i 0
+	        ;;
+		*)
+			echo "Unknown card type '$CARDTYPE'.  Doing nothing."
+			exit	
+			;;
+	esac
+done
+	
 echo "You will likely need to restart your PCMCIA services to reconfigure your card"
 echo "for the correct channel and SSID."
 
