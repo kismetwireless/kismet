@@ -63,7 +63,10 @@
 
 const char *config_base = "kismet.conf";
 
-const char url_template[] = "http://www.mapblast.com/gif?&CT=%f:%f:%ld&IC=&W=%d&H=%d&FAM=myblast&LB=%s";
+//const char url_template[] = "http://www.mapblast.com/gif?&CT=%f:%f:%ld&IC=&W=%d&H=%d&FAM=myblast&LB=%s";
+// &L = USA for the USA, EUR appears to be generic for Europe, EUR0809 for other parts of Europe.. if you get it wrong your map will be very bland =)
+// default to USA, probably want to change this. -- poptix
+const char url_template[] = "http://msrvmaps.mappoint.net/isapi/MSMap.dll?ID=3XNsF.&C=%f,%f&L=USA&CV=1&A=%ld&S=%d,%d&O=0.000000,0.000000&MS=0&P=|5748|";
 const char download_template[] = "wget \"%s\" -O %s";
 
 // Decay from absolute blue for multiple tracks
@@ -239,6 +242,8 @@ vector< vector<track_data> > track_vec;
 gps_network global_map_avg;
 // Mapquest map scale
 long scale;
+// Expedia scale =/
+long scale2;
 // Center lat/lon for map
 double map_avg_lat, map_avg_lon;
 // Do we have any power data?
@@ -2039,9 +2044,12 @@ int main(int argc, char *argv[]) { /*FOLD00*/
         }
 
         char url[1024];
-        snprintf(url, 1024, url_template, map_avg_lat, map_avg_lon, scale,
-                 map_width, map_height,
-                 metric ? "&DU=KM" : "");
+
+        scale2 = (long) (scale / 1378.6);
+
+        snprintf(url, 1024, url_template, map_avg_lat, map_avg_lon, scale2,
+                 map_width, map_height);
+//                 metric ? "&DU=KM" : ""); // poptix -- there is no scale on mappoint
 
         printf("Map url: %s\n", url);
         printf("Fetching map...\n");
@@ -2140,3 +2148,4 @@ int main(int argc, char *argv[]) { /*FOLD00*/
 }
 
 #endif
+
