@@ -654,7 +654,7 @@ int TcpServer::FetchNumClients() {
     int num = 0;
 
     for (unsigned int x = serv_fd + 1; x <= max_fd; x++) {
-        if (!FD_ISSET(x, &client_fds))
+        if (FD_ISSET(x, &client_fds))
             num++;
     }
 

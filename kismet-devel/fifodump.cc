@@ -107,10 +107,13 @@ int FifoDumpFile::DumpPacket(const packet_info *in_info, const kis_packet *packe
     */
 
     kis_packet *dump_packet;
+    int mangled = 0;
 
-    // Mangle encrypted packets...
-    if (packet->moddata != NULL && in_info->decoded)
-        dump_packet = MangleCryptPacket(packet, in_info);
+    // Mangle decrypted and fuzzy packets into legit packets
+    if ((dump_packet = MangleDeCryptPacket(packet, in_info)) != NULL)
+        mangled = 1;
+    else if ((dump_packet = MangleFuzzyCryptPacket(packet, in_info)) != NULL)
+        mangled = 1;
     else
         dump_packet = (kis_packet *) packet;
 
@@ -131,7 +134,7 @@ int FifoDumpFile::DumpPacket(const packet_info *in_info, const kis_packet *packe
             snprintf(errstr, 1024, "Short write on pcap packet header");
 
         // delete the new packet if needed
-        if (in_info->decoded) {
+        if (mangled == 1) {
             delete[] dump_packet->data;
             delete dump_packet;
         }
@@ -147,7 +150,7 @@ int FifoDumpFile::DumpPacket(const packet_info *in_info, const kis_packet *packe
             snprintf(errstr, 1024, "Short write on pcap packet");
 
         // delete the new packet if needed
-        if (in_info->decoded) {
+        if (mangled == 1) {
             delete[] dump_packet->data;
             delete dump_packet;
         }
@@ -156,7 +159,7 @@ int FifoDumpFile::DumpPacket(const packet_info *in_info, const kis_packet *packe
     }
 
     // delete the new packet if needed
-    if (in_info->decoded) {
+    if (mangled == 1) {
         delete[] dump_packet->data;
         delete dump_packet;
     }

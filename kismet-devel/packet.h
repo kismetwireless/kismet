@@ -676,6 +676,8 @@ typedef struct {
     distribution_type distrib;
     // Is wep enabled?
     int wep;
+    // Was the encryption detection fuzzy?
+    int fuzzy;
     // Was it flagged as ess? (ap)
     int ess;
     // What channel?
@@ -744,7 +746,8 @@ void GetPacketInfo(kis_packet *packet, packet_parm *parm, packet_info *ret_packi
 void GetProtoInfo(kis_packet *packet, packet_info *in_info);
 void DecryptPacket(kis_packet *packet, packet_info *in_info, 
                    map<mac_addr, wep_key_info *> *bssid_wep_map, unsigned char *identity);
-kis_packet *MangleCryptPacket(const kis_packet *packet, const packet_info *in_info);
+kis_packet *MangleDeCryptPacket(const kis_packet *packet, const packet_info *in_info);
+kis_packet *MangleFuzzyCryptPacket(const kis_packet *packet, const packet_info *in_info);
 
 vector<string> GetPacketStrings(const packet_info *in_info, const kis_packet *packet);
 
