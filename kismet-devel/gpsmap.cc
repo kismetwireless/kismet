@@ -481,6 +481,12 @@ int ProcessGPSFile(char *in_fname) {
             string orignetfile = XMLFetchGpsNetfile();
             string origxmlfile = in_fname;
 
+            // Prepend a ./ to the files if it isn't there
+            if (origxmlfile[0] != '/' && origxmlfile[0] != '.')
+                origxmlfile = "./" + origxmlfile;
+            if (orignetfile[0] != '/' && orignetfile[0] != '.')
+                orignetfile = "./" + orignetfile;
+
             // Break up the path to the gpsxml file and form a path based on that
             unsigned int lastslash = 0;
             for (unsigned int x = origxmlfile.find('/'); x != string::npos;
@@ -532,6 +538,12 @@ int ProcessGPSFile(char *in_fname) {
         if (foundnetfile == 0) {
             string orignetfile = XMLFetchGpsNetfile();
             string origxmlfile = in_fname;
+
+            // Prepend a ./ to the files if it isn't there
+            if (origxmlfile[0] != '/' && origxmlfile[0] != '.')
+                origxmlfile = "./" + origxmlfile;
+            if (orignetfile[0] != '/' && orignetfile[0] != '.')
+                orignetfile = "./" + orignetfile;
 
             // Break up the path to the gpsxml file and form a path based on that
             unsigned int lastslash = 0;
