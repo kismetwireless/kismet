@@ -381,44 +381,30 @@ int PcapSource::BSD2KisPack(kis_packet *packet, uint8_t *data, uint8_t *moddata)
         return 0;
     }
 
-    packet->caplen = kismin(callback_header.caplen - sizeof(bsd_80211_header), (uint32_t) MAX_PACKET_LEN);
+    packet->caplen = kismin(callback_header.caplen - sizeof(bsd_80211_header), 
+                            (uint32_t) MAX_PACKET_LEN);
     packet->len = packet->caplen;
-
-    // Fetch the channel if we know how and it hasn't been filled in already
-    if (packet->channel == 0)
-        packet->channel = FetchChannel();
 
     bsd_80211_header *bsdhead = (bsd_80211_header *) callback_data;
 
     packet->signal = bsdhead->wi_signal;
     packet->noise = bsdhead->wi_silence;
 
-    // We're not going to even try to do quality measurements
-    // packet->quality = ((packet->signal - packet->noise) * 100) / 256;
-
     // Set our offset
     callback_offset = sizeof(bsd_80211_header);
-    if ((callback_offset + packet->caplen) > 68) {
-        // 802.11 header
-        memcpy(packet->data, callback_data + callback_offset, 24);
+    memcpy(packet->data, callback_data + callback_offset, 24);
 
-        // Adjust for driver appended snap and 802.3 headers
-        if (packet->data[0] > 0x08) {
-            packet->len -= 8;
-            packet->caplen -= 8;
-            memcpy(packet->data + 24, callback_data + callback_offset + 46, packet->caplen - 16);
-
-        } else {
-
-            memcpy(packet->data + 24, callback_data + callback_offset + 46, packet->caplen - 60);
-        }
-
-	// skip driver appended prism header
-        packet->len -= 14;
-        packet->caplen -= 14;
-
+    // Adjust for driver appended headers
+    if (packet->data[0] > 0x08) {
+        packet->len -= 22;
+        packet->caplen -= 22;
+        memcpy(packet->data + 24, callback_data + callback_offset + 46, 
+               packet->caplen - 2);
     } else {
-        memcpy(packet->data, callback_data + callback_offset, packet->caplen);
+        packet->len -= 30;
+        packet->caplen -= 30;
+        memcpy(packet->data + 24, callback_data + callback_offset + 46, 
+               packet->caplen - 2);
     }
 
     return 1;
