@@ -8,7 +8,7 @@ Licensed under the GPL
 3.  Typical Uses
 4.  Upgrading From Previous Versions
 5.  Suidroot & Security
-6.  Required Libraries/Utilities
+6.  Required Libraries & Utilities
 7.  Compiling
 8.  Configuration
 9.  Panels Interface
@@ -94,7 +94,7 @@ Licensed under the GPL
       will allow unprivileged users to set the wireless card to rfmon (breaking
       any connections using wireless) and capture data.
 
-6.  Required Libraries
+6.  Required Libraries & Utilities
 
     Kismet is primary self-contained, however for some features it requires
     some external libraries or utilities.
@@ -121,7 +121,7 @@ Licensed under the GPL
       to IMs frequently changing API.  If you do not plan to use gpsmap, you
       can skip this library.
 
-    - Expat (??): ??
+    - Expat (1.95+): http://expat.sourceforge.net/
       REQUIRED for gpsmap map generation
 
       Expat is an XML processing library.  Kismet requires this for parsing
@@ -160,7 +160,8 @@ Licensed under the GPL
         './configure --help')
     3.  Run 'make' or 'gmake'
     4.  Run 'make install' or 'make suidinstall' - SEE THE SECURITY SECTION
-        OF THE README BEFORE INSTALLING KISMET SUIDROOT!
+        OF THE README BEFORE INSTALLING KISMET SUIDROOT!  IF YOU INSTALL 
+        SUIDROOT ON A SYSTEM WITH UNTRUSTED USERS, BAD THINGS CAN HAPPEN.
 
     Crosscompiling Kismet can sometimes have problems with the libpcap 
     autoconf scripts not being able to detect the kernel type and version
@@ -249,7 +250,8 @@ Licensed under the GPL
 
       Filtering can be done on address types (ANY, SOURCE, DEST, and BSSID),
       and can be inverted.  For example, to exclude all packets from a given
-      MAC, 'filter_tracker=ANY(!00:11:22:33:44:55)'.
+      MAC, 'filter_tracker=ANY(!00:11:22:33:44:55)'.  To include only one 
+      network, filter by BSSID - 'filter_tracker=BSSID(00:11:22:33:44:55)'
 
       Multiple filters can be chained together on one line with a ','.
       'filter_tracker=ANY(..),BSSID(!...)'
@@ -315,7 +317,9 @@ Licensed under the GPL
       to have rfmon support but return scrambled data.  
 
       FreeBSD-current is beginning to unify the driver interface and monitor
-      mode, so hopefully it can become better supported in the future.
+      mode, so hopefully it can become better supported in the future.  
+      FreeBSD-current radiotap support is in development and will be merged 
+      when it becomes available.
 
     - NetBSD
       Known supported cards: WSP100, Drone, wtapfile, pcapfile
@@ -356,45 +360,53 @@ Licensed under the GPL
                     http://acx100.sourceforge.net/
                     Capture interface:  'ethX'
                     ACX100 drivers handle the 22mbit cards branded by DLink
-                    and others.
+                     and others.
 
     cisco           Aironet 340,350     Linux       Kernel 2.4.10 - 2.4.19
                     Capture interface:  'ethX'  
                     Standard Cisco cards in Linux.  Works only with
-                    the Linux kernel drivers, not the drivers found on
-                    cisco.com or pcmcia-cs.
+                     the Linux kernel drivers, not the drivers found on
+                     cisco.com or pcmcia-cs.
+                    The cisco drivers currently do not enter rfmon mode 
+                     correctly, so channel control is not available.  The
+                     firmware will hop to whatever channel it feels like 
+                     hopping to, when it feels like hopping.
 
     cisco_wifix     Aironet 340,350     Linux       Kernel 2.4.20+, CVS  
                     http://sourceforge.net/projects/airo-linux/  
                     Capture interface:  'ethX:wifiX'
                     Kernel 2.4.20+ and CVS drivers use ethX for normal mode
-                    and wifiX for monitor mode.  Kismet needs to know both
-                    devices, which may not necessarily be the same number,
-                    for example 'eth1:wifi0'.
+                     and wifiX for monitor mode.  Kismet needs to know both
+                     devices, which may not necessarily be the same number,
+                     for example 'eth1:wifi0'.
                     Linux kernel 2.4.20 and 2.4.21 have highly unstable cisco
-                    drivers and should be avoided.
+                     drivers and should be avoided.
+                    The cisco drivers currently do not enter rfmon mode 
+                     correctly, so channel control is not available.  The
+                     firmware will hop to whatever channel it feels like 
+                     hopping to, when it feels like hopping.
 
     cisco_openbsd   Aironet 340,350     OpenBSD     Kernel
                     Capture interface:  'anX'  
                     OpenBSD cisco drivers are not fully supported currently,
-                    but may become so.  Packet capture probably will not
-                    work correctly.
+                     but may become so.  Packet capture probably will not
+                     work correctly.
 
     hostap          Prism/2             Linux       HostAP 0.4
                     http://hostap.epitest.fi/
                     Capture interface:  'wlanX'  
                     HostAP drivers drive the Prism/2 chipset in access point
-                    mode, but also can drive the cards in client and monitor
-                    modes.  The HostAP drivers seem to change how they go
-                    into monitor mode fairly often, but this source should 
-                    manage to get them going.
+                     mode, but also can drive the cards in client and monitor
+                     modes.  The HostAP drivers seem to change how they go
+                     into monitor mode fairly often, but this source should 
+                     manage to get them going.
 
     kismet_drone    n/a                 Any         n/a
                     Capture interface:  'dronehost:port'  
                     The remote drone capture source connects to a Kismet
-                    drone and proceses the packets.  Refer to the Remote 
-                    Drone section of the README for more details about how
-                    to set up a drone.
+                     drone and proceses the packets.  Refer to the Remote 
+                     Drone section of the README for more details about how
+                     to set up a drone.
 
     madwifi_a       Atheros             Linux       madwifi-cvs
                     http://sourceforge.net/projects/madwifi/
@@ -410,35 +422,35 @@ Licensed under the GPL
                     http://sourceforge.net/projects/madwifi/
                     Capture interface:  'athX'
                     Madwifi drivers in 802.11g-only mode.  This will, 
-                    obviously, also see 11b networks.
+                     obviously, also see 11b networks.
 
     madwifi_ab      Atheros             Linux       madwifi-cvs
                     http://sourceforge.net/projects/madwifi/
                     Capture interface:  'athX'
                     Madwifi drivers in 802.11a and 802.11b combo mode.  This
-                    will seamlessly switch between bands during channel 
-                    hopping.
+                     will seamlessly switch between bands during channel 
+                     hopping.
 
     madwifi_ag      Atheros             Linux       madwifi-cvs
                     http://sourceforge.net/projects/madwifi/
                     Capture interface:  'athX'
                     Madwifi drivers in 802.11a and 802.11g combo mode.  This
-                    will seamlessly switch between bands during channel 
-                    hopping.
+                     will seamlessly switch between bands during channel 
+                     hopping.
 
     orinoco         Lucent, Orinoco     Linux       Patched orinoco_cs
                     http://airsnort.shmoo.com/orinocoinfo.html
                     Capture interface:  'ethX'
                     The standard orinoco_cs drivers do not support monitor mode
-                    but they work well after being patched with the above.
+                     but they work well after being patched with the above.
 
     pcapfile        n/a                 Any         n/a
                     Capture interface:  '/path/to/file' 
                     The pcapfile capture source feeds a stored 802.11-encap
-                    dump file through the Kismet engine again.  This can be
-                    useful for debugging or rescanning old logs for 
-                    alert conditions.  Pcapfile sources are only available
-                    if Kismet was compiled with libpcap support.
+                     dump file through the Kismet engine again.  This can be
+                     useful for debugging or rescanning old logs for 
+                     alert conditions.  Pcapfile sources are only available
+                     if Kismet was compiled with libpcap support.
 
     prism_openbsd   Prism/2             OpenBSD     Kernel
                     Capture interface:  'wiX'
@@ -453,19 +465,19 @@ Licensed under the GPL
                     http://www.dopesquad.net/security/
                     Capture interface:  'enX'
                     Monitor mode support for Airport under OSX.  Does not
-                    support Airport Extreme.
+                     support Airport Extreme.
 
     vtar5k          Atheros 802.11a     Linux       vtar5k
                     http://team.vantronix.net/ar5k/
                     vtar5k drivers handle some Atheros 802.11a cards.  Chances
-                    are you'll have better luck with madwifi drivers.
+                     are you'll have better luck with madwifi drivers.
 
     wlanng_legacy   Prism/2             Linux       wlan-ng 0.1.3 and earlier
                     http://www.linux-wlan.com/
                     Capture interface:  'wlanX'
                     Old wlan-ng drivers didn't support pcap capturing and
-                    use a netlink socket to the kernel.  These are still in
-                    use on some embedded systems (like the Zaurus).
+                     use a netlink socket to the kernel.  These are still in
+                     use on some embedded systems (like the Zaurus).
 
     wlanng          Prism/2             Linux       wlan-ng 0.1.4 - 0.1.9
                     http://www.linux-wlan.com/
@@ -476,29 +488,29 @@ Licensed under the GPL
                     http://www.linux-wlan.com/
                     Capture interface:  'wlanX'
                     Newer wlan-ng drivers support a new header type and 
-                    slightly different monitor commands to report wepped
-                    packets.
+                     slightly different monitor commands to report wepped
+                     packets.
 
     wrt54g          Linksys WRT54G      Linux       linksys
                     http://seattlewireless.net/index.cgi/LinksysWrt54g  
                     Capture interface:  'ethX'
                     Support for the drivers found in the embedded Linux 
-                    inside the Linksys WRT54G (and probably other APs using
-                    the same firmware).
+                     inside the Linksys WRT54G (and probably other APs using
+                     the same firmware).
 
     wsp100          NetChem WSP100      Any         n/a
                     http://networkchemistry.com/
                     Capture interface:  'host:port'
                     The WSP100 is an embedded device which reports 802.11
-                    packets over UDP.
+                     packets over UDP.
 
     wtapfile        n/a                 Any         n/a
                     Capture interface:  '/path/to/file'  
                     Wtapfile sources are the same as pcapfile sources but
-                    they use the Ethereal libwiretap loader.  libwiretap can
-                    automatically decompress gzipped files, etc.  Wtapfile
-                    sources are only available if Kismet was compiled with
-                    libwiretap support.
+                     they use the Ethereal libwiretap loader.  libwiretap can
+                     automatically decompress gzipped files, etc.  Wtapfile
+                     sources are only available if Kismet was compiled with
+                     libwiretap support.
 
 12. Graphical Network Mapping
 
