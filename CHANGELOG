@@ -1,4 +1,5 @@
 Sep 01 2004  devel  Split up packet.h into endian and macaddr files in prep
+                    Re-fixed friend class issue in macmap.h in gcc3.4
 Aug 15 2004  devel  Fixed log sync event to not start if logging is disabled
                     Fixed BSS timestamp alerts to not trigger in adhoc networks
 Aug 14 2004  devel  Fixed util.cc on gcc 3.4
