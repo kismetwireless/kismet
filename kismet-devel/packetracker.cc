@@ -127,7 +127,6 @@ int Packetracker::ProcessPacket(packet_info info, char *in_status) {
 
     } else if (info.type == packet_management && info.subtype == packet_sub_probe_req) {
         // If it's a probe request, see if we already know who it should belong to
-
         if (probe_map.find(info.bssid_mac) != probe_map.end()) {
             info.bssid_mac = probe_map[info.bssid_mac];
             bsmapitr = bssid_map.find(info.bssid_mac);
@@ -197,8 +196,8 @@ int Packetracker::ProcessPacket(packet_info info, char *in_status) {
             net->beacon_info = info.beacon_info;
 
         if (net->type == network_probe) {
-            snprintf(in_status, STATUS_MAX, "Found new probed network bssid %s",
-                     net->bssid.Mac2String().c_str());
+            snprintf(in_status, STATUS_MAX, "Found new probed network \"%s\" bssid %s",
+                     net->ssid.c_str(), net->bssid.Mac2String().c_str());
         } else {
             snprintf(in_status, STATUS_MAX, "Found new network \"%s\" bssid %s WEP %c Ch %d @ %.2f mbit",
                      net->ssid.c_str(), net->bssid.Mac2String().c_str(), net->wep ? 'Y' : 'N',
@@ -324,7 +323,8 @@ int Packetracker::ProcessPacket(packet_info info, char *in_status) {
                     net->ssid = info.ssid;
             }
 
-            ret = ProcessDataPacket(info, net, in_status);
+            if (ret != TRACKER_NEW)
+                ret = ProcessDataPacket(info, net, in_status);
             return ret;
         }
 
