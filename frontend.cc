@@ -532,6 +532,9 @@ display_network *Frontend::GroupTagged() {
             // Register that we're assigned...
             group_assignment_map[snet->bssid] = core;
 
+            // Assign our display net
+            snet->dispnet = core;
+
             // And add us to the core network list
             core->networks.push_back(snet);
         }
