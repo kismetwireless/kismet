@@ -7,7 +7,7 @@
 
 VERSION_MAJOR	= 2
 VERSION_MINOR	= 7
-VERSION_TINY	= 0
+VERSION_TINY	= 1
 
 INSTGRP ?= "@instgrp@"
 MANGRP ?= "@mangrp@"
