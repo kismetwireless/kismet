@@ -696,8 +696,16 @@ AC_SUBST(threadlib)
 	
 AC_SUBST(gpslc)
 
+sharedatadir=$datadir
+sharedatadir=`(
+    test "$prefix" = NONE && prefix=$ac_default_prefix
+    test "$exec_prefix" = NONE && exec_prefix=${prefix}
+    eval echo "$sharedatadir"
+)`
+sharedatadir=${sharedatadir}
+AC_SUBST(sharedatadir)
 
-AC_CONFIG_FILES([Makefile scripts/kismet scripts/kismet_monitor scripts/kismet_unmonitor extra/buzzme/Makefile extra/Makefile])
+AC_CONFIG_FILES([Makefile scripts/kismet scripts/kismet_monitor scripts/kismet_unmonitor extra/buzzme/Makefile extra/Makefile conf/kismet.conf conf/kismet_ui.conf])
 AC_OUTPUT
 
 echo
