@@ -1617,11 +1617,18 @@ int main(int argc,char *argv[]) {
 
 
     if (ap_manuf_name != NULL) {
-        if ((manuf_data = fopen(ap_manuf_name, "r")) == NULL) {
+        char pathname[1024];
+
+        if (strchr(ap_manuf_name, '/') == NULL)
+            snprintf(pathname, 1024, "%s/%s", SYSCONF_LOC, ap_manuf_name);
+        else
+            snprintf(pathname, 1024, "%s", ap_manuf_name);
+
+        if ((manuf_data = fopen(pathname, "r")) == NULL) {
             fprintf(stderr, "WARNING:  Unable to open '%s' for reading (%s), AP manufacturers and defaults will not be detected.\n",
-                    ap_manuf_name, strerror(errno));
+                    pathname, strerror(errno));
         } else {
-            fprintf(stderr, "Reading AP manufacturer data and defaults from %s\n", ap_manuf_name);
+            fprintf(stderr, "Reading AP manufacturer data and defaults from %s\n", pathname);
             tracker.ReadAPManufMap(manuf_data);
             fclose(manuf_data);
         }
@@ -1630,11 +1637,18 @@ int main(int argc,char *argv[]) {
     }
 
     if (client_manuf_name != NULL) {
-        if ((manuf_data = fopen(client_manuf_name, "r")) == NULL) {
+        char pathname[1024];
+
+        if (strchr(client_manuf_name, '/') == NULL)
+            snprintf(pathname, 1024, "%s/%s", SYSCONF_LOC, client_manuf_name);
+        else
+            snprintf(pathname, 1024, "%s", client_manuf_name);
+
+        if ((manuf_data = fopen(pathname, "r")) == NULL) {
             fprintf(stderr, "WARNING:  Unable to open '%s' for reading (%s), client manufacturers will not be detected.\n",
-                    client_manuf_name, strerror(errno));
+                    pathname, strerror(errno));
         } else {
-            fprintf(stderr, "Reading client manufacturer data and defaults from %s\n", client_manuf_name);
+            fprintf(stderr, "Reading client manufacturer data and defaults from %s\n", pathname);
             tracker.ReadClientManufMap(manuf_data);
             fclose(manuf_data);
         }
