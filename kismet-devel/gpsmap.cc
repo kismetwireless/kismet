@@ -836,7 +836,7 @@ int ProcessGPSFile(char *in_fname) {
     int power_count = 0;
 
     // Sanitize the data and build the map of points we don't look at
-    fprintf(stderr, "NOTICE:  Sanitizing sample points...\n");
+    fprintf(stderr, "NOTICE:  Sanitizing %d sample points...\n", file_points.size());
     SanitizeSamplePoints(file_points, &file_screen);
 
     for (unsigned int i = 0; i < file_points.size(); i++) {
