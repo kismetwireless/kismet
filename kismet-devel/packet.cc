@@ -134,7 +134,8 @@ void GetPacketInfo(const pkthdr *header, const u_char *data,
         return;
     }
 
-    wireless_frame *frame = (wireless_frame *) data;
+    frame_control *fc = (frame_control *) data;
+    wireless_frame *frame = (wireless_frame *) &data[2];
 
     // Endian swap the 2 byte duration
     ret_packinfo->duration = ktoh16(frame->duration);
@@ -146,11 +147,11 @@ void GetPacketInfo(const pkthdr *header, const u_char *data,
 
     int tag_offset = 0;
 
-    if (frame->fc.type == 0) {
+    if (fc->type == 0) {
         // First byte of offsets
         ret_packinfo->header_offset = 24;
 
-        if (frame->fc.subtype == 8) {
+        if (fc->subtype == 8) {
             // beacon frame
 
             // If we look like a beacon but we aren't long enough to hold
@@ -224,7 +225,7 @@ void GetPacketInfo(const pkthdr *header, const u_char *data,
                 ret_packinfo->type = packet_adhoc;
             }
 
-        } else if (frame->fc.subtype == 4) {
+        } else if (fc->subtype == 4) {
             // Probe req
             if ((tag_offset = GetTagOffset(24, 0, header, data)) > 0) {
                 temp = (msgbuf[tag_offset] & 0xFF) + 1;
@@ -243,7 +244,7 @@ void GetPacketInfo(const pkthdr *header, const u_char *data,
 
             ret_packinfo->type = packet_probe_req;
 
-        } else if (frame->fc.subtype == 5) {
+        } else if (fc->subtype == 5) {
             ret_packinfo->type = packet_probe_response;
 
             if ((tag_offset = GetTagOffset(36, 0, header, data)) > 0) {
@@ -263,7 +264,7 @@ void GetPacketInfo(const pkthdr *header, const u_char *data,
 
             // First byte of offsets
             ret_packinfo->header_offset = 24;
-        } else if (frame->fc.subtype == 3) {
+        } else if (fc->subtype == 3) {
             ret_packinfo->type = packet_reassociation;
 
             if ((tag_offset = GetTagOffset(36, 0, header, data)) > 0) {
@@ -281,7 +282,7 @@ void GetPacketInfo(const pkthdr *header, const u_char *data,
             ret_packinfo->source_mac = frame->addr1;
             ret_packinfo->bssid_mac = frame->addr2;
 
-        } else if (frame->fc.subtype == 10) {
+        } else if (fc->subtype == 10) {
             // Disassociation
             ret_packinfo->type = packet_disassociation;
 
@@ -293,7 +294,7 @@ void GetPacketInfo(const pkthdr *header, const u_char *data,
             memcpy(&rcode, (const char *) &msgbuf[24], 2);
 
             ret_packinfo->reason_code = rcode;
-        } else if (frame->fc.subtype == 12) {
+        } else if (fc->subtype == 12) {
             // deauth
             ret_packinfo->type = packet_deauth;
 
@@ -306,12 +307,12 @@ void GetPacketInfo(const pkthdr *header, const u_char *data,
 
             ret_packinfo->reason_code = rcode;
         }
-    } else if (frame->fc.type == 2) {
+    } else if (fc->type == 2) {
         // Data packets
         ret_packinfo->type = packet_data;
 
         // Extract ID's
-        if (frame->fc.to_ds == 0 && frame->fc.from_ds == 0) {
+        if (fc->to_ds == 0 && fc->from_ds == 0) {
             // Adhoc's get specially typed and their BSSID is set to
             // their source (I can't think of anything more reasonable
             // to do with them)
@@ -325,7 +326,7 @@ void GetPacketInfo(const pkthdr *header, const u_char *data,
             ret_packinfo->header_offset = 24;
 
             ret_packinfo->type = packet_adhoc_data;
-        } else if (frame->fc.to_ds == 0 && frame->fc.from_ds == 1) {
+        } else if (fc->to_ds == 0 && fc->from_ds == 1) {
             ret_packinfo->dest_mac = frame->addr0;
             ret_packinfo->bssid_mac = frame->addr1;
             ret_packinfo->source_mac = frame->addr2;
@@ -335,7 +336,7 @@ void GetPacketInfo(const pkthdr *header, const u_char *data,
             // First byte of offsets
             ret_packinfo->header_offset = 24;
 
-        } else if (frame->fc.to_ds == 1 && frame->fc.from_ds == 0) {
+        } else if (fc->to_ds == 1 && fc->from_ds == 0) {
             ret_packinfo->bssid_mac = frame->addr0;
             ret_packinfo->source_mac = frame->addr1;
             ret_packinfo->dest_mac = frame->addr2;
@@ -345,7 +346,7 @@ void GetPacketInfo(const pkthdr *header, const u_char *data,
             // First byte of offsets
             ret_packinfo->header_offset = 24;
 
-        } else if (frame->fc.to_ds == 1 && frame->fc.from_ds == 1) {
+        } else if (fc->to_ds == 1 && fc->from_ds == 1) {
             // AP->AP
             // Source is a special offset to the source
             // Dest is the reciever address
@@ -363,7 +364,7 @@ void GetPacketInfo(const pkthdr *header, const u_char *data,
         }
 
         // Detect encrypted frames
-        if (frame->fc.wep) {
+        if (fc->wep) {
             ret_packinfo->encrypted = 1;
 
             // Match the range of cryptographically weak packets and let us

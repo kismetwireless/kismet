@@ -4,6 +4,8 @@ Sep 25 2002  2.5.2  More documentation updates
                     Fixed headers in manuf.cc
                     Fixed headers in packet.h
                     Updated zaurus configs for 2.6 release
+                    Redid packet dissection to split the frame_control from the
+                     wireless_frame (Fixes ARM decoding problem)
 Sep 24 2002  2.5.2  Tweaked network storing to not track ssids for probe, etc
                      networks.
                     Rolled cougar's patch for gpsmap tracks into gpsmap
