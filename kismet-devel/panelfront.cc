@@ -164,8 +164,8 @@ char *KismetSortText[] = {
     " b   BSSID                B   BSSID (descending)",
     " s   SSID                 S   SSID (descending)",
     " p   Packet count         P   Packet count (descending)",
-    " q   Signal Quality       Q   Signal power level",
-    " w   WEP                  x   Cancel",
+    " Q   Signal power level   w   Wep",
+    " x   Cancel",
     NULL
 };
 
@@ -178,8 +178,8 @@ char *KismetSortTextNarrow[] = {
     " b  BSSID        B  BSSID (d)",
     " s  SSID         S  SSID (d)",
     " p  Packet count P  Packet count (d)",
-    " q  Quality      Q  Power level",
-    " w  WEP          x  Cancel",
+    " w  WEP          Q  Power level",
+    " x  Cancel",
     NULL
 };
 
@@ -190,8 +190,8 @@ char *KismetClientSortText[] = {
     " l   Latest time seen     L   Latest time seen (descending)",
     " m   MAC                  M   MAC (descending)",
     " p   Packet count         P   Packet count (descending)",
-    " w   WEP                  q   Quality",
-    " Q   Power level          x   Cancel",
+    " w   WEP                  Q   Signal power level",
+    " x   Cancel",
     NULL
 };
 
@@ -202,15 +202,15 @@ char *KismetClientSortTextNarrow[] = {
     " l  Latest time  L  Latest time (d)",
     " m  MAC          M  MAC (d)",
     " p  Packet count P  Packet count (d)",
-    " w  WEP          q  Quality",
-    " Q  Power level  x  Cancel",
+    " w  WEP          Q  Power level",
+    " x  Cancel",
     NULL
 };
 
 char *KismetHelpPower[] = {
     "KISMET POWER",
-    "This panel lists the overall quality (Q), signal (S)",
-    "and noise (N) levels reported by the wireless card, if",
+    "This panel lists the overall signal (S) and "
+    "noise (N) levels reported by the wireless card, if",
     "they are available."
     " Key   Action",
     "  q    Close popup",

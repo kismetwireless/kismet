@@ -41,14 +41,14 @@ enum sort_type {
     sort_auto, sort_channel, sort_first, sort_first_dec,
     sort_last, sort_last_dec, sort_bssid, sort_bssid_dec,
     sort_ssid, sort_ssid_dec, sort_wep, sort_packets, sort_packets_dec,
-    sort_quality, sort_signal
+    sort_signal
 };
 
 enum client_sort_type {
     client_sort_auto, client_sort_channel, client_sort_first, client_sort_first_dec,
     client_sort_last, client_sort_last_dec, client_sort_mac, client_sort_mac_dec,
     client_sort_wep, client_sort_packets, client_sort_packets_dec,
-    client_sort_quality, client_sort_signal
+    client_sort_signal
 };
 
 enum group_type {

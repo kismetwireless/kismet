@@ -43,7 +43,7 @@ int PanelFront::MainInput(void *in_window, int in_chr) {
                 kwin->selected--;
             }
         } else {
-            WriteStatus("Cannot scroll in autofit sort mode.");
+            WriteStatus("Cannot scroll in autofit sort mode.  Sort by a different method.");
         }
 
         break;
@@ -58,7 +58,7 @@ int PanelFront::MainInput(void *in_window, int in_chr) {
             }
 
         } else {
-            WriteStatus("Cannot scroll in autofit sort mode.");
+            WriteStatus("Cannot scroll in autofit sort mode.  Sort by a different method.");
         }
         break;
     case KEY_RIGHT:
@@ -74,7 +74,7 @@ int PanelFront::MainInput(void *in_window, int in_chr) {
         if (sortby != sort_auto) {
             kwin->selected = -1; // We want to start a page in reverse
         } else {
-            WriteStatus("Cannot scroll in autofit sort mode.");
+            WriteStatus("Cannot scroll in autofit sort mode.  Sort by a different method.");
         }
 
         break;
@@ -82,7 +82,7 @@ int PanelFront::MainInput(void *in_window, int in_chr) {
         if (sortby != sort_auto) {
             kwin->selected = -2; // We want to start a page forward
         } else {
-            WriteStatus("Cannot scroll in autofit sort mode.");
+            WriteStatus("Cannot scroll in autofit sort mode.  Sort by a different method.");
         }
         break;
     case ' ':
@@ -94,7 +94,7 @@ int PanelFront::MainInput(void *in_window, int in_chr) {
                     last_displayed[kwin->selected]->expanded = 1;
             }
         } else {
-            WriteStatus("Cannot expand groups in autofit sort mode.");
+            WriteStatus("Cannot expand groups in autofit sort mode.  Sort by a different method.");
         }
         break;
     case '+':
@@ -102,7 +102,7 @@ int PanelFront::MainInput(void *in_window, int in_chr) {
             if (last_displayed[kwin->selected]->type == group_bundle)
                 last_displayed[kwin->selected]->expanded = 1;
         } else {
-            WriteStatus("Cannot expand groups in autofit sort mode.");
+            WriteStatus("Cannot expand groups in autofit sort mode.  Sort by a different method.");
         }
         break;
     case '-':
@@ -110,7 +110,7 @@ int PanelFront::MainInput(void *in_window, int in_chr) {
             if (last_displayed[kwin->selected]->type == group_bundle)
                 last_displayed[kwin->selected]->expanded = 0;
         } else {
-            WriteStatus("Cannot collapse groups in autofit sort mode.");
+            WriteStatus("Cannot collapse groups in autofit sort mode.  Sort by a different method.");
         }
         break;
     case 'i':
@@ -121,7 +121,7 @@ int PanelFront::MainInput(void *in_window, int in_chr) {
             SpawnWindow("Network Details",
                         &PanelFront::DetailsPrinter, &PanelFront::DetailsInput);
         } else {
-            WriteStatus("Cannot view details in autofit sort mode.");
+            WriteStatus("Cannot view details in autofit sort mode.  Sort by a different method.");
         }
         break;
     case 't':
@@ -132,7 +132,7 @@ int PanelFront::MainInput(void *in_window, int in_chr) {
             else
                 last_displayed[kwin->selected]->tagged = 1;
         } else {
-            WriteStatus("Cannot tag networks in autofit sort mode.");
+            WriteStatus("Cannot tag networks in autofit sort mode.  Sort by a different method.");
         }
         break;
     case 'n':
@@ -141,7 +141,7 @@ int PanelFront::MainInput(void *in_window, int in_chr) {
             details_network = last_displayed[kwin->selected];
             SpawnWindow("Group Name", &PanelFront::GroupNamePrinter, NULL, 3, 30);
         } else {
-            WriteStatus("Cannot name groups in autofit sort mode.");
+            WriteStatus("Cannot name groups in autofit sort mode.  Sort by a different method.");
         }
         break;
     case 'g':
@@ -151,7 +151,7 @@ int PanelFront::MainInput(void *in_window, int in_chr) {
             if (details_network != NULL)
                 SpawnWindow("Group Name", &PanelFront::GroupNamePrinter, NULL, 3, 30);
         } else {
-            WriteStatus("Cannot create groups in autofit sort mode.");
+            WriteStatus("Cannot create groups in autofit sort mode.  Sort by a different method.");
         }
         break;
     case 'u':
@@ -161,7 +161,7 @@ int PanelFront::MainInput(void *in_window, int in_chr) {
                 if (last_displayed[kwin->selected]->type == group_bundle)
                     DestroyGroup(last_displayed[kwin->selected]);
         } else {
-            WriteStatus("Cannot ungroup in autofit sort mode.");
+            WriteStatus("Cannot ungroup in autofit sort mode.  Sort by a different method.");
         }
         break;
     case 'c':
@@ -170,11 +170,12 @@ int PanelFront::MainInput(void *in_window, int in_chr) {
             details_network = last_displayed[kwin->selected];
             SpawnWindow("Client List", &PanelFront::MainClientPrinter, &PanelFront::MainClientInput);
         } else {
-            WriteStatus("Cannot view clients in autofit sort mode.");
+            WriteStatus("Cannot view clients in autofit sort mode.  Sort by a different method.");
         }
         break;
     case 'h':
     case 'H':
+    case '?':
         if (kwin->win->_maxx < 64)
             SpawnHelp(KismetHelpTextNarrow);
         else
@@ -190,7 +191,7 @@ int PanelFront::MainInput(void *in_window, int in_chr) {
         break;
     case 'l':
     case 'L':
-        SpawnWindow("Wireless Card Power", &PanelFront::PowerPrinter, &PanelFront::PowerInput, 3);
+        SpawnWindow("Wireless Card Power", &PanelFront::PowerPrinter, &PanelFront::PowerInput, 2);
         break;
     case 'd':
     case 'D':
@@ -224,7 +225,7 @@ int PanelFront::MainInput(void *in_window, int in_chr) {
             details_network = last_displayed[kwin->selected];
             SpawnWindow("Network Location", &PanelFront::GpsPrinter, &PanelFront::GpsInput, 8, 34);
         } else {
-            WriteStatus("Cannot view network GPS info in autofit sort mode.");
+            WriteStatus("Cannot view network GPS info in autofit sort mode.  Sort by a different method.");
         }
         break;
     case 'm':
@@ -298,10 +299,12 @@ int PanelFront::SortInput(void *in_window, int in_chr) {
         sortby = sort_packets_dec;
         WriteStatus("Sorting by packet counts (descending)");
         break;
+        /*
     case 'q':
         sortby = sort_quality;
         WriteStatus("Sorting by signal quality");
         break;
+        */
     case 'Q':
         sortby = sort_signal;
         WriteStatus("Sorting by signal strength");
@@ -621,7 +624,7 @@ int PanelFront::MainClientInput(void *in_window, int in_chr) {
                 kwin->selected--;
             }
         } else {
-            WriteStatus("Cannot scroll clients in autofit sort mode.");
+            WriteStatus("Cannot scroll clients in autofit sort mode.  Sort by a different method.");
         }
 
         break;
@@ -639,7 +642,7 @@ int PanelFront::MainClientInput(void *in_window, int in_chr) {
             }
 
         } else {
-            WriteStatus("Cannot scroll clients in autofit sort mode.");
+            WriteStatus("Cannot scroll clients in autofit sort mode.  Sort by a different method.");
         }
         break;
     case KEY_PPAGE:
@@ -652,7 +655,7 @@ int PanelFront::MainClientInput(void *in_window, int in_chr) {
                 kwin->selected = max(kwin->selected,0);
             }
         } else {
-            WriteStatus("Cannot scroll clients in autofit sort mode.");
+            WriteStatus("Cannot scroll clients in autofit sort mode.  Sort by a different method.");
         }
 
         break;
@@ -663,7 +666,7 @@ int PanelFront::MainClientInput(void *in_window, int in_chr) {
             else
                 kwin->selected = kwin->end - kwin->start;
         } else {
-            WriteStatus("Cannot scroll clients in autofit sort mode.");
+            WriteStatus("Cannot scroll clients in autofit sort mode.  Sort by a different method.");
         }
         break;
     case 's':
@@ -679,7 +682,7 @@ int PanelFront::MainClientInput(void *in_window, int in_chr) {
             SpawnWindow("Client Details",
                         &PanelFront::DetailsClientPrinter, &PanelFront::DetailsClientInput);
         } else {
-            WriteStatus("Cannot view details in autofit sort mode.");
+            WriteStatus("Cannot view details in autofit sort mode.  Sort by a different method.");
         }
         break;
     case 'n':
@@ -753,10 +756,12 @@ int PanelFront::SortClientInput(void *in_window, int in_chr) {
         client_sortby = client_sort_wep;
         WriteStatus("Sorting client display by WEP");
         break;
+        /*
     case 'q':
         client_sortby = client_sort_quality;
         WriteStatus("Sorting client display by signal quality");
         break;
+        */
     case 'Q':
         client_sortby = client_sort_signal;
         WriteStatus("Sorting client display by signal power");
