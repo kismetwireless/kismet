@@ -306,21 +306,16 @@ Licensed under the GPL
     - OpenBSD
       Known supported cards: Prism2, WSP100, Drone, wtapfile, pcapfile
     
-      Thanks to the efforts of Pedro la Peu, OpenBSD is the best supported of
-      the BSD variants.  The Prism2 drivers as of OpenBSD
+      Thanks to the efforts of Pedro la Peu, the Prism2 drivers as of OpenBSD
       3.2 support a standard rfmon, performance with other drivers may be
       varied.
 
     - FreeBSD
-      Known supported cards: WSP100, Drone, wtapfile, pcapfile
-      
-      FreeBSD seems to have broken wireless drivers for most cards which claim
-      to have rfmon support but return scrambled data.  
+      Known supported cards: Atheros, Prism2, WSP100, Drone, wtapfile, pcapfile
 
-      FreeBSD-current is beginning to unify the driver interface and monitor
-      mode, so hopefully it can become better supported in the future.  
-      FreeBSD-current radiotap support is in development and will be merged 
-      when it becomes available.
+      FreeBSD-current adds a common Radiotap packet header format.  Thanks
+      to Sam Leffler, Kismet supports the radiotap headers and should work with
+      current FreeBSD systems.
 
     - NetBSD
       Known supported cards: WSP100, Drone, wtapfile, pcapfile
@@ -461,6 +456,10 @@ Licensed under the GPL
                     http://www.prism54.org
                     Capture interface:  'ethX'
                     PrismGT 802.11g drivers supporting monitor mode.
+
+    radiotap_freebsd Atheros            FreeBSD     Kernel
+                     Prism2
+                    FreeBSD drivers supporting the Radiotap headers
 
     viha            Airport             OSX         viha
                     http://www.dopesquad.net/security/
