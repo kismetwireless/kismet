@@ -120,23 +120,23 @@ install: $(PS) $(HOPPER) $(NC) $(GPSLBUILD) $(ZAURUSBUILD)
 	install -o root -g $(MANGRP) -m 644 man/kismet.1 $(MAN)/man1/kismet.1
 	install -o root -g $(MANGRP) -m 644 man/gpsmap.1 $(MAN)/man1/gpsmap.1
 	mkdir -p $(WAV)
-	install -o root -g $(INSTGRP) wav/new_network.wav $(WAV)/new_network.wav
-	install -o root -g $(INSTGRP) wav/traffic.wav $(WAV)/traffic.wav
-	install -o root -g $(INSTGRP) wav/junk_traffic.wav $(WAV)/junk_traffic.wav
+	install -o root -g $(INSTGRP) -m 644 wav/new_network.wav $(WAV)/new_network.wav
+	install -o root -g $(INSTGRP) -m 644 wav/traffic.wav $(WAV)/traffic.wav
+	install -o root -g $(INSTGRP) -m 644 wav/junk_traffic.wav $(WAV)/junk_traffic.wav
 	@echo "Installed kismet into $(BIN)/."
 	@if test -f $(ETC)/kismet.conf; then \
 		make checkconfig; \
     else \
-		install -o root -g $(INSTGRP) conf/kismet.conf $(ETC)/kismet.conf;  \
-		echo install -o root -g $(INSTGRP) conf/kismet.conf $(ETC)/kismet.conf;  \
+		install -o root -g $(INSTGRP) -m 644 conf/kismet.conf $(ETC)/kismet.conf;  \
+		echo install -o root -g $(INSTGRP) -m 644 conf/kismet.conf $(ETC)/kismet.conf;  \
 		echo "Installed config into $(ETC)/kismet.conf."; \
 	fi
 
 	@if test -f $(ETC)/kismet_ui.conf; then \
 		make checkuiconfig; \
 	else \
-		install -o root -g $(INSTGRP) conf/kismet_ui.conf $(ETC)/kismet_ui.conf;  \
-		echo install -o root -g $(INSTGRP) conf/kismet_ui.conf $(ETC)/kismet_ui.conf;  \
+		install -o root -g $(INSTGRP) -m 644 conf/kismet_ui.conf $(ETC)/kismet_ui.conf;  \
+		echo install -o root -g $(INSTGRP) -m 644 conf/kismet_ui.conf $(ETC)/kismet_ui.conf;  \
 		echo "Installed UI config into $(ETC)/kismet_ui.conf."; \
 	fi
 
@@ -145,9 +145,9 @@ install: $(PS) $(HOPPER) $(NC) $(GPSLBUILD) $(ZAURUSBUILD)
 	@echo "configure this, Kismet will NOT run properly!"
                 
 forceinstall: $(PS)
-	install -o root -g $(INSTGRP) conf/kismet.conf $(ETC)/kismet.conf;  \
+	install -o root -g $(INSTGRP) -m 644 conf/kismet.conf $(ETC)/kismet.conf;  \
 		echo "Installed config into $(ETC)/kismet.conf."; 
-	install -o root -g $(INSTGRP) conf/kismet_ui.conf $(ETC)/kismet_ui.conf;  \
+	install -o root -g $(INSTGRP) -m 644 conf/kismet_ui.conf $(ETC)/kismet_ui.conf;  \
 		echo "Installed UI config into $(ETC)/kismet_ui.conf."; 
 
 	@if test "$(SUID)" = "yes"; then \
@@ -174,9 +174,9 @@ forceinstall: $(PS)
 	install -o root -g $(MANGRP) -m 644 man/kismet.1 $(MAN)/man1/kismet.1
 	install -o root -g $(MANGRP) -m 644 man/gpsmap.1 $(MAN)/man1/gpsmap.1
 	mkdir -p $(WAV)
-	install -o root -g $(INSTGRP) wav/new_network.wav $(WAV)/new_network.wav
-	install -o root -g $(INSTGRP) wav/traffic.wav $(WAV)/traffic.wav
-	install -o root -g $(INSTGRP) wav/junk_traffic.wav $(WAV)/junk_traffic.wav
+	install -o root -g $(INSTGRP) -m 644 wav/new_network.wav $(WAV)/new_network.wav
+	install -o root -g $(INSTGRP) -m 644 wav/traffic.wav $(WAV)/traffic.wav
+	install -o root -g $(INSTGRP) -m 644 wav/junk_traffic.wav $(WAV)/junk_traffic.wav
 	@echo "Installed kismet into $(BIN)/."
 	@echo "If you have not already, read the docs in docs/ and edit"
 	@echo "$(ETC)/kismet.conf to configure it for your system.  If you do not"
