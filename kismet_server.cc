@@ -805,6 +805,40 @@ int TrackerTickEvent(Timetracker::timer_event *evt, void *parm) {
     return 1;
 }
 
+// Handle channel hopping... this is actually really simple.
+int ChannelHopEvent(Timetracker::timer_event *evt, void *parm) {
+    char msg[1024];
+
+    for (unsigned int x = 0; x < packet_sources.size(); x++) {
+        if (packet_sources[x]->source == NULL || packet_sources[x]->ch_hop == 0)
+            continue;
+
+        int8_t child_cmd = packet_sources[x]->channels[packet_sources[x]->ch_pos++];
+
+        if (write(packet_sources[x]->servpair[1], &child_cmd, 1) < 0) {
+            snprintf(msg, 1024,
+                     "Source %d (%s): Command pipe shut down.", x, packet_sources[x]->name.c_str());
+            NetWriteStatus(msg);
+
+            packet_sources[x]->alive = 0;
+
+            if (!silent) {
+                fprintf(stderr, "%s\n", msg);
+                fprintf(stderr, "Terminating.\n");
+            }
+
+            CatchShutdown(-1);
+        }
+
+        // Wrap the channel sequence
+        if ((unsigned int) packet_sources[x]->ch_pos >= packet_sources[x]->channels.size())
+            packet_sources[x]->ch_pos = 0;
+
+    }
+
+    return 1;
+}
+
 // Handle a command sent by a client over its TCP connection.
 void handle_command(TcpServer *tcps, client_command *cc) {
     char id[12];
@@ -1033,7 +1067,13 @@ int main(int argc,char *argv[]) {
 
     int channel_hop = -1;
     int channel_velocity = 1;
+    int channel_split = 0;
+    // capname to initial channel map
     map<string, int> channel_initmap;
+    // Default channel hop sequences
+    vector<int> channel_def80211b;
+    vector<int> channel_def80211a;
+
 
     int beacon_log = 1;
     int phy_log = 1;
@@ -1386,6 +1426,47 @@ int main(int argc,char *argv[]) {
         }
     }
 
+    // Now look at our channel options
+    if (channel_hop == -1) {
+        if (conf->FetchOpt("channelhop") == "true") {
+            fprintf(stderr, "Enabling channel hopping.\n");
+            channel_hop = 1;
+        } else {
+            fprintf(stderr, "Disabling channel hopping.\n");
+            channel_hop = 0;
+        }
+    }
+
+    if (channel_hop == 1) {
+        if (conf->FetchOpt("channelsplit") == "true") {
+            fprintf(stderr, "Enabling channel splitting.\n");
+            channel_split = 1;
+        } else {
+            fprintf(stderr, "Disabling channel splitting.\n");
+            channel_split = 0;
+        }
+
+        if (conf->FetchOpt("channelvelocity") != "") {
+            if (sscanf(conf->FetchOpt("channelvelocity").c_str(), "%d", &channel_velocity) != 1) {
+                fprintf(stderr, "FATAL:  Illegal config file value for channelvelocity.\n");
+                exit(1);
+            }
+
+            if (channel_velocity < 1 || channel_velocity > 10) {
+                fprintf(stderr, "FATAL:  Illegal value for channelvelocity, must be between 1 and 10.\n");
+                exit(1);
+            }
+        }
+
+        // Parse our default channel listing
+        channel_def80211a = ParseChannelLine(conf->FetchOpt("80211achannels"));
+        channel_def80211b = ParseChannelLine(conf->FetchOpt("80211bchannels"));
+
+        // Parse and assign our channels
+        vector<string> sourcechannellines = conf->FetchOptVec("sourcechannels");
+        ParseSetChannels(&sourcechannellines, &packet_sources, channel_split,
+                         &channel_def80211a, &channel_def80211b);
+    }
 
     // Now parse the rest of our options
     // ---------------
@@ -2446,6 +2527,9 @@ int main(int argc,char *argv[]) {
     // Write waypoints if requested
     if (waypoint)
         timetracker.RegisterTimer(decay * SERVER_TIMESLICES_SEC, NULL, 1, &WaypointSyncEvent, NULL);
+    // Channel hop if requested
+    if (channel_hop)
+        timetracker.RegisterTimer(SERVER_TIMESLICES_SEC / channel_velocity, NULL, 1, &ChannelHopEvent, NULL);
 
     cisco_ref = -1;
 

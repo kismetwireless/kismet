@@ -61,6 +61,9 @@ int BindRootSources(vector<capturesource *> *in_capsources,
 int BindUserSources(vector<capturesource *> *in_capsources,
                     map<string, int> *in_enable, int filter_enable,
                     Timetracker *in_tracker, GPSD *in_gps);
+vector<int> ParseChannelLine(string in_channels);
+int ParseSetChannels(vector<string> *in_sourcechanlines, vector<capturesource *> *in_capsources,
+                     int in_chsplit, vector<int> *in_80211adefaults, vector<int> *in_80211bdefaults);
 
 // negative numbers are commands, positive numbers are a channel set.  All commands are
 // one byte.
