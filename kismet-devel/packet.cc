@@ -55,14 +55,7 @@ void MungeToPrintable(char *in_data, int max) {
     }
     in_data[j] = '\0';
 
-    /*
-    for (int i = 0; i < max; i++) {
-        if (in_data[i] < 32 || in_data[i] > 126) {
-            in_data[i] = '\0';
-            break;
-        }
-        }
-        */
+    delete[] temp;
 }
 
 

@@ -214,6 +214,8 @@ string PanelFront::Mac2String(uint8_t *mac, char seperator) {
 PanelFront::PanelFront() {
     errstr[0] = '\0';
 
+    sortby = sort_auto;
+
     client = NULL;
 
     clear_dump = 0;
@@ -718,6 +720,7 @@ void PanelFront::SpawnHelp(char **in_helptext) {
     kwin->start = 0;
     kwin->end = 0;
     kwin->selected = 0;
+    kwin->scrollable = 1;
 
     // Now find the length and the maximum width.  Accomodate them if we can.
     int width = 0;
@@ -751,6 +754,7 @@ void PanelFront::SpawnHelp(char **in_helptext) {
         kwin->text.push_back(resize);
         x++;
     }
+    delete[] resize;
 
     height += 2;
     width += 5;
@@ -1342,6 +1346,7 @@ int PanelFront::MainStatusPrinter(void *in_window) {
             snprintf(trim, kwin->print_width, "%s", kwin->text[x-1].c_str());
             mvwaddstr(kwin->win, 2 + kwin->max_display - x, 3, trim);
         }
+        delete[] trim;
     }
 
     if (monitor_bat) {
@@ -1381,7 +1386,7 @@ int PanelFront::TextPrinter(void *in_window) {
         snprintf(txt, kwin->print_width + 1, "%s", kwin->text[x+kwin->start].c_str());
         mvwaddstr(kwin->win, 1+x, 2, txt);
     }
-    delete txt;
+    delete[] txt;
 
     kwin->end = x+kwin->start;
 
@@ -2413,7 +2418,7 @@ int PanelFront::RatePrinter(void *in_window) {
     mvwaddstr(kwin->win, graph_voffset+graph_height+2,
               graph_hoffset+(graph_width/2)-7, "Time (Minutes)");
 
-    delete graphstring;
+    delete[] graphstring;
 
     return 1;
 }
