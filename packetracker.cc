@@ -373,24 +373,24 @@ void Packetracker::ProcessPacket(packet_info info) {
 
         net->gps_fixed = info.gps_fix;
 
-        if (info.gps_lat < net->min_lat || net->min_lat == 0)
+        if (info.gps_lat < net->min_lat || net->min_lat == -90)
             net->min_lat = info.gps_lat;
-        else if (info.gps_lat > net->max_lat)
+        if (info.gps_lat > net->max_lat || net->max_lat == 90)
             net->max_lat = info.gps_lat;
 
-        if (info.gps_lon < net->min_lon || net->min_lon == 0)
+        if (info.gps_lon < net->min_lon || net->min_lon == -180)
             net->min_lon = info.gps_lon;
-        else if (info.gps_lon > net->max_lon)
+        if (info.gps_lon > net->max_lon || net->max_lon == 180)
             net->max_lon = info.gps_lon;
 
         if (info.gps_alt < net->min_alt || net->min_alt == 0)
             net->min_alt = info.gps_alt;
-        else if (info.gps_alt > net->max_alt)
+        if (info.gps_alt > net->max_alt || net->max_alt == 0)
             net->max_alt = info.gps_alt;
 
         if (info.gps_spd < net->min_spd || net->min_spd == 0)
             net->min_spd = info.gps_spd;
-        else if (info.gps_spd > net->max_spd)
+        if (info.gps_spd > net->max_spd || net->max_spd == 0)
             net->max_spd = info.gps_spd;
 
     } else {
@@ -673,24 +673,24 @@ void Packetracker::ProcessDataPacket(packet_info info, wireless_network *net) {
 
         client->gps_fixed = info.gps_fix;
 
-        if (info.gps_lat < client->min_lat || client->min_lat == 0)
+        if (info.gps_lat < client->min_lat || client->min_lat == -90)
             client->min_lat = info.gps_lat;
-        else if (info.gps_lat > client->max_lat)
+        if (info.gps_lat > client->max_lat || client->max_lat == 90)
             client->max_lat = info.gps_lat;
 
-        if (info.gps_lon < client->min_lon || client->min_lon == 0)
+        if (info.gps_lon < client->min_lon || client->min_lon == -180)
             client->min_lon = info.gps_lon;
-        else if (info.gps_lon > client->max_lon)
+        if (info.gps_lon > client->max_lon == 180)
             client->max_lon = info.gps_lon;
 
         if (info.gps_alt < client->min_alt || client->min_alt == 0)
             client->min_alt = info.gps_alt;
-        else if (info.gps_alt > client->max_alt)
+        if (info.gps_alt > client->max_alt || client->min_alt == 0)
             client->max_alt = info.gps_alt;
 
         if (info.gps_spd < client->min_spd || client->min_spd == 0)
             client->min_spd = info.gps_spd;
-        else if (info.gps_spd > client->max_spd)
+        if (info.gps_spd > client->max_spd || client->max_spd == 0)
             client->max_spd = info.gps_spd;
 
     } else {
