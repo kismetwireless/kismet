@@ -43,7 +43,6 @@ string EncodeSpeechString(string in_str, int in_encoding) {
         int pos;
 
         // Find our encoding in the array
-        // Find our encoding in the array
         if (chr >= '0' && chr <= '9')
             pos = 25 + (chr - '0');
         else if (chr >= 'A' && chr <= 'Z')
@@ -53,11 +52,11 @@ string EncodeSpeechString(string in_str, int in_encoding) {
 
         if (in_encoding == SPEECH_ENCODING_NATO) {
             encodestr += speech_alphabet[0][pos];
-            encodestr += " ";
         } else if (in_encoding == SPEECH_ENCODING_SPELL) {
             encodestr += speech_alphabet[1][pos];
-            encodestr += " ";
         }
+
+        encodestr += "., ";
     }
 
     return encodestr;
