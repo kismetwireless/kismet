@@ -1,4 +1,5 @@
 Mar 17 2004  devel  Tweaked gpsmap to error out on no sample points
+                    Fixed error string typo in get_ssid
 Mar 16 2004  devel  Tweaked acx100 source to match acx's new orinoco-esque
                      method
 Mar 15 2004  devel  Finished gpsxml-sanitize, util takes a xml files and prints
