@@ -482,8 +482,8 @@ void GetProtoInfo(const packet_info *in_info, const pkthdr *header,
                       sizeof(LLC_UI_SIGNATURE)) == 0) {
         // Handle all the protocols which fall under the LLC UI 0x3 frame
 
-        if (memcmp(&data[in_info->header_offset + LLC_UI_OFFSET], NETSTUMBLER_LLC_SIGNATURE,
-                      sizeof(NETSTUMBLER_LLC_SIGNATURE)) == 0) {
+        if (memcmp(&data[in_info->header_offset + LLC_UI_OFFSET], PROBE_LLC_SIGNATURE,
+                   sizeof(PROBE_LLC_SIGNATURE)) == 0) {
 
             // If we have a LLC packet that looks like a netstumbler...
             if (memcmp(&data[in_info->header_offset + NETSTUMBLER_OFFSET], NETSTUMBLER_322_SIGNATURE,
@@ -504,6 +504,9 @@ void GetProtoInfo(const packet_info *in_info, const pkthdr *header,
                 ret_protoinfo->type = proto_netstumbler;
                 ret_protoinfo->prototype_extra = 30;
                 return;
+            } else if (memcmp(&data[in_info->header_offset + LUCENT_OFFSET], LUCENT_TEST_SIGNATURE,
+                              sizeof(LUCENT_TEST_SIGNATURE)) == 0) {
+                ret_protoinfo->type = proto_lucenttest;
             }
         } else if (memcmp(&data[in_info->header_offset + LLC_UI_OFFSET], CISCO_SIGNATURE,
                sizeof(CISCO_SIGNATURE)) == 0) {

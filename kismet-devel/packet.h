@@ -227,7 +227,8 @@ enum protocol_info_type {
     proto_ipx,
     proto_ipx_tcp,
     proto_lor,
-    proto_netstumbler
+    proto_netstumbler,
+    proto_lucenttest
 };
 
 enum protocol_netbios_type {

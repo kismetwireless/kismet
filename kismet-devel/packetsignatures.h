@@ -39,8 +39,9 @@ const int LLC_OFFSET = 0;
 // Offset for all LLC-fragment protocols
 const int LLC_UI_OFFSET = 3;
 
-// LLC packets that look like netstumbler
-const uint8_t NETSTUMBLER_LLC_SIGNATURE[] = {0x00, 0x60, 0x1D};
+// LLC packets that look like probe info (netstumbler and lucent)
+const uint8_t PROBE_LLC_SIGNATURE[] = {0x00, 0x60, 0x1D};
+
 // "All" is all we need to match at this offset.  We matched the LLC already so
 // we can use a very small fragment
 // This catches "All your 802.11b are belong to us"
@@ -52,6 +53,10 @@ const uint8_t NETSTUMBLER_322_SIGNATURE[] = {0x46, 0x6C, 0x75};
 // "          Intentionally blank"
 const uint8_t NETSTUMBLER_330_SIGNATURE[] = {0x20, 0x20, 0x20};
 const uint8_t NETSTUMBLER_OFFSET = 12;
+
+// Lucent link test signatures
+const uint8_t LUCENT_TEST_SIGNATURE[] = {0x00, 0x01, 0x02, 0x03};
+const uint8_t LUCENT_OFFSET = 12;
 
 const uint8_t CISCO_SIGNATURE[] = {0x00, 0x00, 0x0C, 0x20, 0x00};
 
