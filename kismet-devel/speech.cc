@@ -44,7 +44,7 @@ string EncodeSpeechString(string in_str, int in_encoding) {
 
         // Find our encoding in the array
         if (chr >= '0' && chr <= '9')
-            pos = 25 + (chr - '0');
+            pos = 26 + (chr - '0');
         else if (chr >= 'A' && chr <= 'Z')
             pos = chr - 'A';
         else
