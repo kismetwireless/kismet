@@ -103,6 +103,7 @@ char *NETWORK_fields_text[] = {
     "bestlat", "bestlon", "bestalt",
     "agglat", "agglon", "aggalt", "aggpoints",
     "datasize",
+    "turbocellnid", "turbocellmode", "turbocellsat",
     NULL
 };
 
@@ -453,6 +454,15 @@ void Protocol_Network2Data(const wireless_network *net, NETWORK_data *data) {
     data->ndvec.push_back(tmpstr);
 
     snprintf(tmpstr, 128, "%ld", net->datasize);
+    data->ndvec.push_back(tmpstr);
+
+    snprintf(tmpstr, 128, "%d", net->turbocell_nid);
+    data->ndvec.push_back(tmpstr);
+
+    snprintf(tmpstr, 128, "%d", (int) net->turbocell_mode);
+    data->ndvec.push_back(tmpstr);
+
+    snprintf(tmpstr, 128, "%d", net->turbocell_sat);
     data->ndvec.push_back(tmpstr);
 
 }

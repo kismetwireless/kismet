@@ -356,7 +356,9 @@ static void xpat_net_start(void *data, const char *el, const char **attr) {
                     else if (strcasecmp(attr[i+1], "data") == 0)
                         building_net->type = network_data;
                     else if (strcasecmp(attr[i+1], "lucent") == 0)
-                        building_net->type = network_lor;
+                        building_net->type = network_turbocell;
+                    else if (strcasecmp(attr[i+1], "turbocell") == 0)
+                        building_net->type = network_turbocell;
                     else if (strcasecmp(attr[i+1], "unknown") == 0)
                         building_net->type = network_data;
                     else {

@@ -117,8 +117,8 @@ void PanelFront::NetLine(string *in_str, wireless_network *net, const char *name
                 snprintf(element, 1024, "P");
             else if (net->type == network_data)
                 snprintf(element, 1024, "D");
-            else if (net->type == network_lor)
-                snprintf(element, 1024, "O");
+            else if (net->type == network_turbocell)
+                snprintf(element, 1024, "T");
             else
                 snprintf(element, 1024, "?");
 
@@ -1411,14 +1411,44 @@ int PanelFront::DetailsPrinter(void *in_window) {
         case network_data:
             snprintf(output, print_width, "Type    : Data (no network control traffic)");
             break;
-        case network_lor:
-            snprintf(output, print_width, "Type    : Lucent Outdoor Router (proprietary)");
+        case network_turbocell:
+            if (dnet->wep)
+                snprintf(output, print_width, "Type    : Turbocell (encrypted)");
+            else
+                snprintf(output, print_width, "Type    : Turbocell");
             break;
         case network_remove:
             break;
         }
         kwin->text.push_back(output);
-    
+
+        if (dnet->type == network_turbocell && dnet->wep == 0) {
+            snprintf(output, print_width, "  Net ID  : %d", dnet->turbocell_nid);
+            kwin->text.push_back(output);
+
+            switch (dnet->turbocell_mode) {
+            case turbocell_ispbase:
+                snprintf(output, print_width, "  Mode    : ISP base station");
+                break;
+            case turbocell_pollbase:
+                snprintf(output, print_width, "  Mode    : Polling base station");
+                break;
+            case turbocell_base:
+                snprintf(output, print_width, "  Mode    : Base station");
+                break;
+            case turbocell_nonpollbase:
+                snprintf(output, print_width, "  Mode    : Non-polling base station");
+                break;
+            default:
+                snprintf(output, print_width, "  Mode    : Unknown");
+                break;
+            }
+            kwin->text.push_back(output);
+
+            snprintf(output, print_width, "  Sats    : %s", dnet->turbocell_sat ? "Yes" : "No");
+            kwin->text.push_back(output);
+        }
+
         if (dnet->beacon_info.size() > 0) {
             snprintf(output, print_width, "Info    : %s", dnet->beacon_info.c_str());
             kwin->text.push_back(output);

@@ -204,8 +204,8 @@ int NCurseFront::DrawDisplay() {
             type = 'P';
         else if (net->type == network_data)
             type = 'D';
-        else if (net->type == network_lor)
-            type = 'O';
+        else if (net->type == network_turbocell)
+            type = 'T';
         else
             type = '?';
 

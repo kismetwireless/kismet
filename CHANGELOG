@@ -1,6 +1,9 @@
 Nov 29 2002  2.7.1  Changed client back to only updating once per second - 
                      massive speed improvements.
                     Fixed handling of adhoc probe/ssids
+                    Changed "Lucent Outdoor Router" to "Turbocell"
+                    Added more complete turbocell dissection (Turbocell ID,
+                     name, and mode extraction)
 Nov 28 2002  2.7.1  Happy thanksgiving
                     Fixed tcpserver code for tracking the number of clients
                      using a protocol reference to actually have code, not

@@ -540,7 +540,7 @@ void GetPacketInfo(const pkthdr *header, const u_char *data,
 
 }
 
-void GetProtoInfo(const packet_info *in_info, const pkthdr *header,
+void GetProtoInfo(packet_info *in_info, const pkthdr *header,
                   const u_char *in_data, proto_info *ret_protoinfo) {
     // We cheat a little to protect ourselves.  We define a packet
     // that's double the maximum size, zero it out, and copy our data
@@ -655,7 +655,44 @@ void GetProtoInfo(const packet_info *in_info, const pkthdr *header,
         // First thing we do is see if the destination matches the multicast for
         // lucent outdoor routers, or if we're a multicast with no BSSID.  This should
         // be indicative of being a lucent outdoor router
-        ret_protoinfo->type = proto_lor;
+        ret_protoinfo->type = proto_turbocell;
+
+        // if it IS a turbocell packet, see if we can dissect it any...
+        if (in_info->encrypted == 0) {
+            // Get the modes from the LLC header
+            uint8_t turbomode = data[in_info->header_offset + LLC_OFFSET + 6];
+            switch (turbomode) {
+            case 0xA0:
+                in_info->turbocell_mode = turbocell_ispbase;
+                break;
+            case 0x80:
+                in_info->turbocell_mode = turbocell_pollbase;
+                break;
+            case 0x40:
+                in_info->turbocell_mode = turbocell_base;
+                break;
+            case 0x00:
+                in_info->turbocell_mode = turbocell_nonpollbase;
+                break;
+            default:
+                in_info->turbocell_mode = turbocell_unknown;
+                break;
+            }
+
+            // Get the nwid and sat options
+            uint8_t turbonwid = ((data[in_info->header_offset + LLC_OFFSET + 7] & 0xF0) >> 4);
+            uint8_t turbosat = (data[in_info->header_offset + LLC_OFFSET + 7] & 0x0F);
+            in_info->turbocell_nid = turbonwid;
+            if (turbosat == 2)
+                in_info->turbocell_sat = 1;
+            else
+                in_info->turbocell_sat = 0;
+
+            // Get the SSID
+            u_char *turbossid = &data[in_info->header_offset + LLC_OFFSET + 26];
+            snprintf(in_info->ssid, SSID_SIZE, "%s", turbossid);
+        }
+
     } else if (memcmp(&data[in_info->header_offset + LLC_OFFSET], NETBIOS_SIGNATURE,
                           sizeof(NETBIOS_SIGNATURE)) == 0) {
         ret_protoinfo->type = proto_netbios;
