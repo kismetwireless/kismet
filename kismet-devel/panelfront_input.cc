@@ -390,6 +390,8 @@ int PanelFront::SortInput(void *in_window, int in_chr) {
         break;
     }
 
+    // Flag the local networks as dirty
+    localnets_dirty = 1;
     // We don't have anything that doesn't kill the window for the key event
     return 0;
 }
