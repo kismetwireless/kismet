@@ -171,6 +171,20 @@ int DisassocTrafficAutomata::ProcessPacket(const packet_info *in_info) {
     return 0;
 }
 
+WepRebroadcastAutomata::WepRebroadcastAutomata(Packetracker *in_ptracker, Alertracker *in_atracker,
+                                               alert_time_unit in_unit, int in_rate, int in_burstrate) {
+    atracker = in_atracker;
+    ptracker = in_ptracker;
+    alertid = atracker->RegisterAlert("WEPREBROADCAST", in_unit, in_rate, in_burstrate);
+}
+
+WepRebroadcastAutomata::~WepRebroadcastAutomata() {
+}
+
+int WepRebroadcastAutomata::ProcessPacket(const packet_info *in_info) {
+    return 0;
+}
+
 #if 0
 SequenceSpoofAutomata::SequenceSpoofAutomata(Packetracker *in_ptracker, Alertracker *in_atracker,
                                              alert_time_unit in_unit, int in_rate, int in_burstrate) {
