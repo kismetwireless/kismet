@@ -58,8 +58,9 @@ void PanelFront::NetLine(string *in_str, wireless_network *net, const char *name
     for (unsigned int col = 0; col < column_vec.size(); col++) {
         char element[1024];
         int len = 0;
+        main_columns colindex = column_vec[col];
 
-        if (column_vec[col] == "decay") {
+        if (colindex == mcol_decay) {
             if ((client->FetchTime() - net->last_time) < decay)
                 snprintf(element, 1024, "!");
             else if ((client->FetchTime() - net->last_time) < (decay * 2))
@@ -67,35 +68,35 @@ void PanelFront::NetLine(string *in_str, wireless_network *net, const char *name
             else
                 snprintf(element, 1024, " ");
             len = 1;
-        } else if (column_vec[col] == "name") {
+        } else if (colindex == mcol_name) {
             if (net->cloaked) {
                 snprintf(element, 26, "<%s>", name);
             } else {
                 snprintf(element, 26, "%s", name);
             }
             len = 25;
-        } else if (column_vec[col] == "shortname") {
+        } else if (colindex == mcol_shortname) {
             if (net->cloaked) {
                 snprintf(element, 16, "<%s>", name);
             } else {
                 snprintf(element, 16, "%s", name);
             }
             len = 15;
-        } else if (column_vec[col] == "ssid") {
+        } else if (colindex == mcol_ssid) {
             if (net->cloaked) {
                 snprintf(element, 26, "<%s>", net->ssid.c_str());
             } else {
                 snprintf(element, 26, "%s", net->ssid.c_str());
             }
             len = 25;
-        } else if (column_vec[col] == "shortssid") {
+        } else if (colindex == mcol_shortssid) {
             if (net->cloaked) {
                 snprintf(element, 16, "<%s>", net->ssid.c_str());
             } else {
                 snprintf(element, 16, "%s", net->ssid.c_str());
             }
             len = 15;
-        } else if (column_vec[col] == "type") {
+        } else if (colindex == mcol_type) {
             if (group)
                 snprintf(element, 1024, "G");
             else if (net->type == network_ap)
@@ -112,40 +113,40 @@ void PanelFront::NetLine(string *in_str, wireless_network *net, const char *name
                 snprintf(element, 1024, "?");
 
             len = 1;
-        } else if (column_vec[col] == "wep") {
+        } else if (colindex == mcol_wep) {
             if (net->wep)
                 snprintf(element, 1024, "Y");
             else
                 snprintf(element, 1024, "N");
             len = 1;
-        } else if (column_vec[col] == "channel") {
+        } else if (colindex == mcol_channel) {
             if (net->channel == 0)
                 snprintf(element, 3, "--");
             else
                 snprintf(element, 3, "%02d", net->channel);
             len = 2;
-        } else if (column_vec[col] == "data") {
+        } else if (colindex == mcol_data) {
             snprintf(element, 6, "%5d", net->data_packets);
             len = 5;
-        } else if (column_vec[col] == "llc") {
+        } else if (colindex == mcol_llc) {
             snprintf(element, 6, "%5d", net->llc_packets);
             len = 5;
-        } else if (column_vec[col] == "crypt") {
+        } else if (colindex == mcol_crypt) {
             snprintf(element, 6, "%5d", net->crypt_packets);
             len = 5;
-        } else if (column_vec[col] == "weak") {
+        } else if (colindex == mcol_weak) {
             snprintf(element, 6, "%5d", net->interesting_packets);
             len = 5;
-        } else if (column_vec[col] == "packets") {
+        } else if (colindex == mcol_packets) {
             snprintf(element, 7, "%6d", net->data_packets + net->llc_packets);
             len = 6;
-        } else if (column_vec[col] == "bssid") {
+        } else if (colindex == mcol_bssid) {
             snprintf(element, 18, "%s", net->bssid.Mac2String().c_str());
             len = 17;
-        } else if (column_vec[col] == "info") {
+        } else if (colindex == mcol_info) {
             snprintf(element, 16, "%s", net->beacon_info.c_str());
             len = 15;
-        } else if (column_vec[col] == "flags") {
+        } else if (colindex == mcol_flags) {
             char atype;
             if (net->ipdata.atype == address_dhcp)
                 atype = 'D';
@@ -167,7 +168,7 @@ void PanelFront::NetLine(string *in_str, wireless_network *net, const char *name
                      net->cisco_equip.size() > 0 ? 'C' : ' ',
                      ' ');
             len = 5;
-        } else if (column_vec[col] == "ip") {
+        } else if (colindex == mcol_ip) {
             if (net->ipdata.atype == address_none) {
                 snprintf(element, 1024, "0.0.0.0");
             } else {
@@ -176,44 +177,26 @@ void PanelFront::NetLine(string *in_str, wireless_network *net, const char *name
                          net->ipdata.range_ip[2], net->ipdata.range_ip[3]);
             }
             len = 15;
-        } else if (column_vec[col] == "mask") {
-            if (net->ipdata.atype == address_none) {
-                snprintf(element, 1024, "0.0.0.0");
-            } else {
-                snprintf(element, 16, "%d.%d.%d.%d",
-                         net->ipdata.mask[0], net->ipdata.mask[1],
-                         net->ipdata.mask[2], net->ipdata.mask[3]);
-            }
-            len = 15;
-        } else if (column_vec[col] == "gateway") {
-            if (net->ipdata.atype == address_none) {
-                snprintf(element, 1024, "0.0.0.0");
-            } else {
-                snprintf(element, 16, "%d.%d.%d.%d",
-                         net->ipdata.gate_ip[0], net->ipdata.gate_ip[1],
-                         net->ipdata.gate_ip[2], net->ipdata.gate_ip[3]);
-            }
-            len = 15;
-        } else if (column_vec[col] == "maxrate") {
+        } else if (colindex == mcol_maxrate) {
             snprintf(element, 6, "%2.1f", net->maxrate);
             len = 5;
-        } else if (column_vec[col] == "manuf") {
+        } else if (colindex == mcol_manuf) {
             if (net->manuf_id >= 0 && net->manuf_id < manuf_num) {
                 snprintf(element, 9, "%s", manuf_list[net->manuf_id].short_manuf.c_str());
             } else {
                 snprintf(element, 9, "Unknown");
             }
             len = 8;
-        } else if (column_vec[col] == "signal") {
+        } else if (colindex == mcol_signal) {
             snprintf(element, 4, "%3d", net->signal);
             len = 3;
-        } else if (column_vec[col] == "quality") {
+        } else if (colindex == mcol_quality) {
             snprintf(element, 4, "%3d", net->quality);
             len = 3;
-        } else if (column_vec[col] == "noise") {
+        } else if (colindex == mcol_noise) {
             snprintf(element, 4, "%3d", net->noise);
             len = 3;
-        } else if (column_vec[col] == "clients") {
+        } else if (colindex == mcol_clients) {
             snprintf(element, 5, "%4d", net->client_map.size());
             len = 4;
         }
@@ -362,80 +345,81 @@ int PanelFront::MainNetworkPrinter(void *in_window) {
     for (unsigned int col = 0; col < column_vec.size(); col++) {
         char title[1024];
         int len = 0;
+        main_columns colind = column_vec[col];
 
-        if (column_vec[col] == "decay") {
+        if (colind == mcol_decay) {
             snprintf(title, 1024, " ");
             len = 1;
-        } else if (column_vec[col] == "name") {
+        } else if (colind == mcol_name) {
             snprintf(title, 1024, "Name");
             len = 25;
-        } else if (column_vec[col] == "shortname") {
+        } else if (colind == mcol_shortname) {
             snprintf(title, 1024, "Name");
             len = 15;
-        } else if (column_vec[col] == "ssid") {
+        } else if (colind == mcol_ssid) {
             snprintf(title, 1024, "SSID");
             len = 25;
-        } else if (column_vec[col] == "shortssid") {
+        } else if (colind == mcol_shortssid) {
             snprintf(title, 1024, "SSID");
             len = 15;
-        } else if (column_vec[col] == "type") {
+        } else if (colind == mcol_type) {
             snprintf(title, 1024, "T");
             len = 1;
-        } else if (column_vec[col] == "wep") {
+        } else if (colind == mcol_wep) {
             snprintf(title, 1024, "W");
             len = 1;
-        } else if (column_vec[col] == "channel") {
+        } else if (colind == mcol_channel) {
             snprintf(title, 1024, "Ch");
             len = 2;
-        } else if (column_vec[col] == "data") {
+        } else if (colind == mcol_data) {
             snprintf(title, 1024, " Data");
             len = 5;
-        } else if (column_vec[col] == "llc") {
+        } else if (colind == mcol_llc) {
             snprintf(title, 1024, "  LLC");
             len = 5;
-        } else if (column_vec[col] == "crypt") {
+        } else if (colind == mcol_crypt) {
             snprintf(title, 1024, "Crypt");
             len = 5;
-        } else if (column_vec[col] == "weak") {
+        } else if (colind == mcol_weak) {
             snprintf(title, 1024, " Weak");
             len = 5;
-        } else if (column_vec[col] == "bssid") {
+        } else if (colind == mcol_bssid) {
             snprintf(title, 1024, "BSSID");
             len = 17;
-        } else if (column_vec[col] == "flags") {
+        } else if (colind == mcol_flags) {
             snprintf(title, 1024, "Flags");
             len = 5;
-        } else if (column_vec[col] == "ip") {
+        } else if (colind == mcol_ip) {
             snprintf(title, 1024, "IP Range");
             len = 15;
-        } else if (column_vec[col] == "mask") {
+        } else if (colind == mcol_mask) {
             snprintf(title, 1024, "IP Mask");
             len = 15;
-        } else if (column_vec[col] == "gateway") {
+        } else if (colind == mcol_gateway) {
             snprintf(title, 1024, "IP Gateway");
             len = 15;
-        } else if (column_vec[col] == "packets") {
+        } else if (colind == mcol_packets) {
             snprintf(title, 1024, "Packts");
             len = 6;
-        } else if (column_vec[col] == "info") {
+        } else if (colind == mcol_info) {
             snprintf(title, 1024, "Beacon Info");
             len = 15;
-        } else if (column_vec[col] == "maxrate") {
+        } else if (colind == mcol_maxrate) {
             snprintf(title, 1024, "Rate");
             len = 5;
-        } else if (column_vec[col] == "manuf") {
+        } else if (colind == mcol_manuf) {
             snprintf(title, 1024, "Manuf");
             len = 8;
-        } else if (column_vec[col] == "signal") {
+        } else if (colind == mcol_signal) {
             snprintf(title, 1024, "Sgn");
             len = 3;
-        } else if (column_vec[col] == "quality") {
+        } else if (colind == mcol_quality) {
             snprintf(title, 1024, "Qly");
             len = 3;
-        } else if (column_vec[col] == "noise") {
+        } else if (colind == mcol_noise) {
             snprintf(title, 1024, "Nse");
             len = 3;
-        } else if (column_vec[col] == "clients") {
+        } else if (colind == mcol_clients) {
             snprintf(title, 1024, "Clnt");
             len = 4;
         } else {
@@ -804,6 +788,82 @@ int PanelFront::MainStatusPrinter(void *in_window) {
 
     return 1;
 }
+
+void PanelFront::ClientLine(string *in_str, wireless_client *client) {
+
+}
+
+int PanelFront::MainClientPrinter(void *in_window) {
+    kis_window *kwin = (kis_window *) in_window;
+
+    int pos = 0;
+    for (unsigned int col = 0; col < column_vec.size(); col++) {
+        char title[1024];
+        int len = 0;
+        client_columns colind = client_column_vec[col];
+
+        if (colind == ccol_type) {
+            snprintf(title, 1024, "T");
+            len = 1;
+        } else if (colind == ccol_manuf) {
+            snprintf(title, 1024, "Manuf");
+            len = 8;
+        } else if (colind == ccol_packets) {
+            snprintf(title, 1024, "Packts");
+            len = 6;
+        } else if (colind == ccol_data) {
+            snprintf(title, 1024, " Data");
+            len = 5;
+        } else if (colind == ccol_crypt) {
+            snprintf(title, 1024, "Crypt");
+            len = 5;
+        } else if (colind == ccol_weak) {
+            snprintf(title, 1024, " Weak");
+            len = 5;
+        } else if (colind == ccol_maxrate) {
+            snprintf(title, 1024, "Rate");
+            len = 5;
+        } else if (colind == ccol_ip) {
+            snprintf(title, 1024, "IP Range");
+            len = 15;
+        } else if (colind == ccol_signal) {
+            snprintf(title, 1024, "Sgn");
+            len = 3;
+        } else if (colind == ccol_quality) {
+            snprintf(title, 1024, "Qly");
+            len = 3;
+        } else if (colind == ccol_noise) {
+            snprintf(title, 1024, "Nse");
+            len = 3;
+        }
+
+        if (pos + len > kwin->print_width + 2)
+            break;
+
+        if (color)
+            wattrset(kwin->win, color_map["title"].pair);
+
+        mvwaddstr(kwin->win, 1, pos, title);
+
+        if (color)
+            wattrset(kwin->win, color_map["text"].pair);
+
+        pos += len + 1;
+
+    }
+
+    string clientline;
+    for (map<mac_addr, wireless_client *>::iterator x = details_network->virtnet.client_map.begin();
+         x != details_network->virtnet.client_map.end(); ++x) {
+        wireless_client *cli = x->second;
+
+        ClientLine(&clientline, cli);
+    }
+
+    return 1;
+}
+
+
 
 int PanelFront::TextPrinter(void *in_window) {
     kis_window *kwin = (kis_window *) in_window;

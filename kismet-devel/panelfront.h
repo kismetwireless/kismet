@@ -160,6 +160,8 @@ protected:
     int MainInfoPrinter(void *in_window);
     int MainStatusPrinter(void *in_window);
 
+    int MainClientPrinter(void *in_window);
+
     // Just print the stored text
     int TextPrinter(void *in_window);
     // Various popups that generate stuff dynamically
@@ -176,6 +178,9 @@ protected:
 
     // Keyboard handlers
     int MainInput(void *in_window, int in_chr);
+
+    int MainClientInput(void *in_window, int in_chr);
+
     int SortInput(void *in_window, int in_chr);
     int PowerInput(void *in_window, int in_chr);
     int DetailsInput(void *in_window, int in_chr);
@@ -207,8 +212,27 @@ protected:
 
     void NetLine(string *in_str, wireless_network *net, const char *name, int sub,
                  int group, int expanded, int tagged);
+    void ClientLine(string *in_str, wireless_client *client);
 
-    void SetColumns(string in_columns, vector<string> *vec);
+    enum main_columns {
+        mcol_unknown = -1,
+        mcol_decay, mcol_name, mcol_shortname, mcol_ssid, mcol_shortssid, mcol_type,
+        mcol_wep, mcol_channel, mcol_data, mcol_llc, mcol_crypt, mcol_weak, mcol_bssid,
+        mcol_flags, mcol_ip, mcol_mask, mcol_gateway, mcol_packets, mcol_info, mcol_maxrate,
+        mcol_manuf, mcol_signal, mcol_quality, mcol_noise, mcol_clients
+    };
+
+    enum client_columns {
+        ccol_unknown = -1,
+        ccol_type, ccol_manuf, ccol_packets, ccol_data, ccol_crypt, ccol_weak,
+        ccol_maxrate, ccol_ip, ccol_signal, ccol_quality, ccol_noise
+    };
+
+
+    main_columns Token2MainColumn(string in_token);
+    client_columns Token2ClientColumn(string in_token);
+    void SetMainColumns(string in_columns);
+    void SetClientColumns(string in_columns);
 
     void MuteToggle();
 
@@ -220,8 +244,8 @@ protected:
 
     sort_type sortby;
 
-    vector<string> column_vec;
-    vector<string> client_column_vec;
+    vector<main_columns> column_vec;
+    vector<client_columns> client_column_vec;
 
     int quality, power, noise;
 

@@ -1,3 +1,6 @@
+Aug 28 2002  2.5.2  Merged diff from jwright to the ARM docs to alleviate some
+                     questions and problems.
+                    More speed improvements to panelfront
 Aug 27 2002  2.5.2  Resampled alert.wav to be much smaller.
                     Merged patch from poptix to use mappoint since MapBlast
                      encodes their URL's now.  gpsmap works again.
