@@ -1,3 +1,6 @@
+Mar 19 2004  devel  Merged earthamap map source support from Ryan Maple
+                    Added autoscale map selection to Earthamap and Terraserver
+                    Marked Mapblast and Mappoint sources as defunct
 Mar 18 2004  devel  Fixed expat error
 Mar 17 2004  devel  Tweaked gpsmap to error out on no sample points
                     Fixed error string typo in get_ssid
