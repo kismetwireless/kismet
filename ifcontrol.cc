@@ -101,7 +101,7 @@ int Iwconfig_Set_IntPriv(const char *in_dev, const char *privcmd,
                          int val1, int val2, char *errstr) {
     struct iwreq wrq;
     int skfd;
-    struct iw_priv_args priv[16];
+    struct iw_priv_args priv[IW_MAX_PRIV_DEF];
     u_char buffer[4096];
 
     if ((skfd = socket(AF_INET, SOCK_DGRAM, 0)) < 0) {
