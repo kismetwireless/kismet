@@ -329,10 +329,35 @@ if test "$wireless" = "yes"; then
 
 	if test "$wireless" = "no"; then
 		AC_MSG_RESULT(no)
-		AC_MSG_WARN(*** Missing working Linux Wireless kernel extentions.  Wavelan/generic source will not be built. ***)
+		AC_MSG_WARN(*** Missing working Linux Wireless kernel extentions.  ***)
 	else
 		AC_MSG_RESULT(yes)
 		AC_DEFINE(HAVE_LINUX_WIRELESS, 1, Linux wireless extentions present)
+		# Check if we have 22+ (SIOCIWFIRSTPRIV) support
+		wireless22=no
+		AC_MSG_CHECKING(that wireless extentions support SIOCIWFIRSTPRIV)
+    	AC_TRY_LINK([
+        	#include <stdio.h>
+			#include <sys/types.h>
+			#include <netinet/in.h>
+        	#include <sys/resource.h>
+			#include <linux/wireless.h>
+    	],
+    	[
+			int x;
+			x = SIOCIWFIRSTPRIV;
+	    ],
+	    wireless22=yes,
+	    wireless22=no)
+
+		if test "$wireless22" = "no"; then
+			AC_MSG_RESULT(no)
+			AC_MSG_WARN(*** Your wireless extentions version is old.  You may want to consider upgrading.  kismet_hopper will use iwpriv instead of ioctl controls for orinoco cards. ***);
+		else
+			AC_MSG_RESULT(yes)
+			AC_DEFINE(HAVE_LINUX_WIRELESS22, 1, Linux wireless extentions v22 or better present)
+		fi
+
 	fi
 fi
 
@@ -748,8 +773,14 @@ if test "$netlink" = "yes"; then
 else
 	echo "no"
 fi
-echo -n "Linux Wireless capture: "
+echo -n "       Linux wireless : "
 if test "$wireless" = "yes"; then
+	echo "yes"
+else
+	echo "no"
+fi
+echo -n " Linux wireless v.22+ : "
+if test "$wireless22" = "yes"; then
 	echo "yes"
 else
 	echo "no"
