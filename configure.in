@@ -391,7 +391,7 @@ if test "$wireless" = "yes"; then
 
 		if test "$wireless22" = "no"; then
 			AC_MSG_RESULT(no)
-			AC_MSG_WARN([*** Your wireless extentions version is old.  You may want to consider upgrading.  kismet_hopper will use iwpriv instead of ioctl controls for orinoco cards. ***]);
+			AC_MSG_WARN([*** Your wireless extentions version is old.  This will almost certianly cause problems entering monitor mode and controlling channels. ***]);
 		else
 			AC_MSG_RESULT(yes)
 			AC_DEFINE(HAVE_LINUX_WIRELESS22, 1, [Linux wireless extentions v22 or better present])
@@ -700,6 +700,17 @@ else
 	expatl=no
 fi
 
+# Check for libgmp
+if test "$wantgps" = "yes"; then
+	gmpl=no
+    AC_CHECK_HEADER([stdint.h],
+		AC_DEFINE(HAVE_GMP, 1, GMP math library) gmpl=yes,
+		AC_MSG_WARN(*** Missing GMP math library.  gpsmap will not be built. ***))
+else
+	gmpl=no
+fi
+
+
 magickold=no
 
 # Check for imagemagick
@@ -763,6 +774,13 @@ LDFLAGS="$save_ldflags"
 if test "$expatl" = "no"; then
 	if test "$gpslc" != ""; then
 		AC_MSG_WARN(*** Disabling gpsmap because expat was not found. ***)
+		gpslc=""
+	fi
+fi
+
+if test "$gmpl" = "no"; then
+	if test "$gpslc" != ""; then
+		AC_MSG_WARN(*** Disabling gpsmap because GMP was not found. ***)
 		gpslc=""
 	fi
 fi
@@ -926,6 +944,12 @@ if test "$expatl" = "no"; then
 	echo "no"
 else
 	echo "yes"
+fi
+echo -n "           GMP Library: "
+if test "$gmpl" = "no"; then
+    echo "no"
+else
+    echo "yes"
 fi
 echo -n "       PThread Support: "
 if test "$pthr" = "no"; then
