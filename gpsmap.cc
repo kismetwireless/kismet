@@ -2321,18 +2321,22 @@ void DrawNetCenterText(vector<gps_network *> in_nets, Image *in_img, DrawInfo *i
 
         if (network_labels.find("manuf") != string::npos) {
             if (map_iter->wnet != NULL) {
-		map_iter->wnet->manuf_ref = MatchBestManuf(ap_manuf_map, map_iter->wnet->bssid,
-			       map_iter->wnet->ssid, map_iter->wnet->channel,
-			       map_iter->wnet->wep, map_iter->wnet->cloaked,
-			       &map_iter->wnet->manuf_score);
-		if (map_iter->wnet->manuf_ref) {
-		    char text2[1024];
-		    snprintf(text2, 1024, "%s %s", text, map_iter->wnet->manuf_ref->name.c_str());
-		    strncpy(text, text2, 1024);
-		}
-		draw = 1;
-		thisdraw = 1;
-	    }
+                map_iter->wnet->manuf_ref = MatchBestManuf(ap_manuf_map, 
+                                                           map_iter->wnet->bssid,
+                                                           map_iter->wnet->ssid, 
+                                                           map_iter->wnet->channel,
+                                                           map_iter->wnet->wep, 
+                                                           map_iter->wnet->cloaked,
+                                                           &map_iter->wnet->manuf_score);
+                if (map_iter->wnet->manuf_ref) {
+                    char text2[1024];
+                    snprintf(text2, 1024, "%s %s", text, 
+                             map_iter->wnet->manuf_ref->name.c_str());
+                    strncpy(text, text2, 1024);
+                }
+                draw = 1;
+                thisdraw = 1;
+            }
         }
 
         if (thisdraw == 0)
@@ -3204,7 +3208,7 @@ int Usage(char* argv, int ec = 1) {
            "  -E, --draw-center-opacity <o>  Center dot opacity [Default: 100]\n"
            "  -H, --draw-center-size <s>     Center dot at radius size <s> [Default: 2]\n"
            "  -l, --draw-labels <list>       Draw network labels, comma-seperated list\n"
-           "                                  (bssid, name)\n"
+           "                                  (bssid, name, manuf)\n"
            "  -L, --draw-label-orient <o>    Label orientation [Default: 7]\n"
            "                                  0       1       2\n"
            "                                  3       4       5\n"
