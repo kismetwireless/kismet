@@ -39,14 +39,15 @@ WAV = ${SHARE}/wav/
 DEPEND	= .depend
 
 # Objects
-PSO	= util.o ringbuf.o configfile.o speech.o ifcontrol.o iwcontrol.o packet.o \
-		pcapsource.o prism2source.o wtapfilesource.o wsp100source.o \
-		dronesource.o vihasource.o packetsourcetracker.o kis_packsources.o \
+PSO	= util.o ringbuf.o messagebus.o configfile.o getopt.o \
+	  	speech.o ifcontrol.o iwcontrol.o \
+	  	packet.o pcapsource.o prism2source.o wtapfilesource.o wsp100source.o \
+		dronesource.o vihasource.o packetsourcetracker.o \
 		wtapdump.o wtaplocaldump.o gpsdump.o airsnortdump.o fifodump.o \
 		gpsd.o manuf.o \
 		packetracker.o timetracker.o alertracker.o finitestate.o \
-		getopt.o \
-		tcpserver.o server_protocols.o server_globals.o kismet_server.o 
+		netframework.o tcpserver.o kis_netframe.o \
+		kismet_server.o 
 PS	= kismet_server
 
 DRONEO = util.o ringbuf.o configfile.o getopt.o ifcontrol.o iwcontrol.o packet.o \
