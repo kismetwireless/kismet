@@ -262,114 +262,138 @@ int PanelFront::MainNetworkPrinter(void *in_window) {
 
     int drop;
 
+    int dirty = 0;
+
     // One:  Get our new data from the clients we have tagged
     for (unsigned int x = 0; x < context_list.size(); x++) {
         if (context_list[x]->tagged == 1 && context_list[x]->client != NULL &&
             context_list[x]->client->FetchNetworkDirty())
+            dirty = 1;
             PopulateGroups(context_list[x]->client);
     }
     // Two:  Recalculate all our agregate data
     // UpdateGroups();
+
+    
     // Three: Copy it to our own local vector so we can sort it.
-    vector<display_network *> display_vector = group_vec;
+    vector<display_network *> display_vector;
+       
+    // resort of we're dirty
+    if (dirty == 0) {
+        display_vector = past_display_vec;
+    } else {
+        display_vector = group_vec;
 
-    char sortxt[24];
-    sortxt[0] = '\0';
+        main_sortxt[0] = '\0';
 
-    switch (sortby) {
-    case sort_auto:
-        // Trim it ourselves for autofit mode.
-        // This is really easy because we don't allow groups to be expanded in autofit
-        // mode, so we just make it fit.
+        switch (sortby) {
+            case sort_auto:
+                // Trim it ourselves for autofit mode.
+                // This is really easy because we don't allow groups to be expanded 
+                // in autofit mode, so we just make it fit.
 
-        snprintf(sortxt, 24, "(Autofit)");
+                snprintf(main_sortxt, 24, "(Autofit)");
 
-        stable_sort(display_vector.begin(), display_vector.end(), DisplaySortLastTimeLT());
+                stable_sort(display_vector.begin(), display_vector.end(), 
+                            DisplaySortLastTimeLT());
 
-        drop = display_vector.size() - kwin->max_display - 1;
+                drop = display_vector.size() - kwin->max_display - 1;
 
-        if (drop > 0) {
-            if (drop > (int) display_vector.size())
-                drop = display_vector.size();
+                if (drop > 0) {
+                    if (drop > (int) display_vector.size())
+                        drop = display_vector.size();
 
-            display_vector.erase(display_vector.begin(), display_vector.begin() + drop);
+                    display_vector.erase(display_vector.begin(), 
+                                         display_vector.begin() + drop);
+                }
+                stable_sort(display_vector.begin(), display_vector.end(), 
+                            DisplaySortFirstTimeLT());
+                kwin->start = 0;
+
+                break;
+
+            // Otherwise, go on to sort the groups by the other means available 
+            // to us...
+            case sort_channel:
+                snprintf(main_sortxt, 24, "(Channel)");
+
+                stable_sort(display_vector.begin(), display_vector.end(), 
+                            DisplaySortChannel());
+                break;
+            case sort_first:
+                snprintf(main_sortxt, 24, "(First Seen)");
+
+                stable_sort(display_vector.begin(), display_vector.end(), 
+                            DisplaySortFirstTimeLT());
+                break;
+            case sort_first_dec:
+                snprintf(main_sortxt, 24, "(First Seen desc)");
+
+                stable_sort(display_vector.begin(), display_vector.end(), 
+                            DisplaySortFirstTime());
+                break;
+            case sort_last:
+                snprintf(main_sortxt, 24, "(Latest Seen)");
+
+                stable_sort(display_vector.begin(), display_vector.end(), 
+                            DisplaySortLastTimeLT());
+                break;
+            case sort_last_dec:
+                snprintf(main_sortxt, 24, "(Latest Seen desc)");
+
+                stable_sort(display_vector.begin(), display_vector.end(), 
+                            DisplaySortLastTime());
+                break;
+            case sort_bssid:
+                snprintf(main_sortxt, 24, "(BSSID)");
+
+                stable_sort(display_vector.begin(), display_vector.end(), 
+                            DisplaySortBSSIDLT());
+                break;
+            case sort_bssid_dec:
+                snprintf(main_sortxt, 24, "(BSSID desc)");
+
+                stable_sort(display_vector.begin(), display_vector.end(), 
+                            DisplaySortBSSID());
+                break;
+            case sort_ssid:
+                snprintf(main_sortxt, 24, "(SSID)");
+
+                stable_sort(display_vector.begin(), display_vector.end(), 
+                            DisplaySortSSIDLT());
+                break;
+            case sort_ssid_dec:
+                snprintf(main_sortxt, 24, "(SSID desc)");
+
+                stable_sort(display_vector.begin(), display_vector.end(), 
+                            DisplaySortSSID());
+                break;
+            case sort_wep:
+                snprintf(main_sortxt, 24, "(WEP)");
+
+                stable_sort(display_vector.begin(), display_vector.end(), 
+                            DisplaySortWEP());
+                break;
+            case sort_packets:
+                snprintf(main_sortxt, 24, "(Packets)");
+
+                stable_sort(display_vector.begin(), display_vector.end(), 
+                            DisplaySortPacketsLT());
+                break;
+            case sort_packets_dec:
+                snprintf(main_sortxt, 24, "(Packets desc)");
+
+                stable_sort(display_vector.begin(), display_vector.end(), 
+                            DisplaySortPackets());
+                break;
+            case sort_signal:
+                snprintf(main_sortxt, 24, "(Signal)");
+                stable_sort(display_vector.begin(), display_vector.end(), 
+                            DisplaySortSignal());
+                break;
         }
-        stable_sort(display_vector.begin(), display_vector.end(), DisplaySortFirstTimeLT());
-        kwin->start = 0;
 
-        break;
-
-        // Otherwise, go on to sort the groups by the other means available to us...
-    case sort_channel:
-        snprintf(sortxt, 24, "(Channel)");
-
-        stable_sort(display_vector.begin(), display_vector.end(), DisplaySortChannel());
-        break;
-    case sort_first:
-        snprintf(sortxt, 24, "(First Seen)");
-
-        stable_sort(display_vector.begin(), display_vector.end(), DisplaySortFirstTimeLT());
-        break;
-    case sort_first_dec:
-        snprintf(sortxt, 24, "(First Seen desc)");
-
-        stable_sort(display_vector.begin(), display_vector.end(), DisplaySortFirstTime());
-        break;
-    case sort_last:
-        snprintf(sortxt, 24, "(Latest Seen)");
-
-        stable_sort(display_vector.begin(), display_vector.end(), DisplaySortLastTimeLT());
-        break;
-    case sort_last_dec:
-        snprintf(sortxt, 24, "(Latest Seen desc)");
-
-        stable_sort(display_vector.begin(), display_vector.end(), DisplaySortLastTime());
-        break;
-    case sort_bssid:
-        snprintf(sortxt, 24, "(BSSID)");
-
-        stable_sort(display_vector.begin(), display_vector.end(), DisplaySortBSSIDLT());
-        break;
-    case sort_bssid_dec:
-        snprintf(sortxt, 24, "(BSSID desc)");
-
-        stable_sort(display_vector.begin(), display_vector.end(), DisplaySortBSSID());
-        break;
-    case sort_ssid:
-        snprintf(sortxt, 24, "(SSID)");
-
-        stable_sort(display_vector.begin(), display_vector.end(), DisplaySortSSIDLT());
-        break;
-    case sort_ssid_dec:
-        snprintf(sortxt, 24, "(SSID desc)");
-
-        stable_sort(display_vector.begin(), display_vector.end(), DisplaySortSSID());
-        break;
-    case sort_wep:
-        snprintf(sortxt, 24, "(WEP)");
-
-        stable_sort(display_vector.begin(), display_vector.end(), DisplaySortWEP());
-        break;
-    case sort_packets:
-        snprintf(sortxt, 24, "(Packets)");
-
-        stable_sort(display_vector.begin(), display_vector.end(), DisplaySortPacketsLT());
-        break;
-    case sort_packets_dec:
-        snprintf(sortxt, 24, "(Packets desc)");
-
-        stable_sort(display_vector.begin(), display_vector.end(), DisplaySortPackets());
-        break;
-        /*
-    case sort_quality:
-        snprintf(sortxt, 24, "(Quality)");
-        stable_sort(display_vector.begin(), display_vector.end(), DisplaySortQuality());
-        break;
-        */
-    case sort_signal:
-        snprintf(sortxt, 24, "(Signal)");
-        stable_sort(display_vector.begin(), display_vector.end(), DisplaySortSignal());
-        break;
+        past_display_vec = display_vector;
     }
 
     last_displayed.clear();
@@ -664,7 +688,7 @@ int PanelFront::MainNetworkPrinter(void *in_window) {
 
     if (color)
         wattrset(kwin->win, color_map["title"].pair);
-    mvwaddstr(netwin, 0, kwin->title.length() + 4, sortxt);
+    mvwaddstr(netwin, 0, kwin->title.length() + 4, main_sortxt);
     if (color)
         wattrset(kwin->win, color_map["text"].pair);
 
