@@ -1,3 +1,6 @@
+Feb 08 2005  devel  Merged patch from Mindfab to potentially resolve some of the
+                     problems with gpsd reconnecting.  Untested at the moment
+                     since I don't have my GPS handy.
 Feb 06 2005  devel  Merged patch from Delicious Nougat to handle binding only
                      to the specified address for TCP servers, vs. INADDR_ANY.
 					 Currently left in the config to bind to localhost only,

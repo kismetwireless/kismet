@@ -75,6 +75,7 @@ int GPSD::OpenGPSD() {
 
     if (bind(sock, (struct sockaddr *) &localaddr, sizeof(localaddr)) < 0) {
         snprintf(errstr, 1024, "GPSD cannot bind port: %s", strerror(errno));
+		CloseGPSD();
         return -1;
     }
 
@@ -126,8 +127,18 @@ int GPSD::Scan() {
     if (ret <= 0 && errno != EAGAIN) {
         snprintf(errstr, 1024, "GPSD error reading data, aborting GPS");
         sock = -1;
-        mode = -1;
+		mode = 0;
         return -1;
+    }
+
+    // And reissue a command
+    if (write(sock, gpsd_command, sizeof(gpsd_command)) < 0) {
+        if (errno != EAGAIN) {
+            snprintf(errstr, 1024, "GPSD error while writing data: %s", 
+					 strerror(errno));
+            CloseGPSD();
+            return -1;
+        }
     }
 
     // Combine it
@@ -139,6 +150,7 @@ int GPSD::Scan() {
     // Instead, we'll munge them together safely, AND we'll catch if we've filled the
     // data buffer last time and still didn't get anything, if we did, we eliminate it
     // and we only work from the new data buffer.
+	// and we only work from the new data buffer
     if (strlen(data) == 1024)
         data[0] = '\0';
 
@@ -153,12 +165,14 @@ int GPSD::Scan() {
         return 1;
     }
 
-    //GPSD,P=41.711592 -73.931137,A=49.500000,V=0.000000,M=1
+	// PAVMH (NAVLOCK,BU303) ->
+	// GPSD,P=41.711592 -73.931137,A=49.500000,V=0.000000,M=x,M=x
     if ((scanret = sscanf(live, "GPSD,P=%f %f,A=%f,V=%f,M=%d,H=%f",
                &lat, &lon, &alt, &spd, &mode, &hed)) < 5) {
 
         lat = lon = spd = alt = hed = 0;
         mode = 0;
+		data[0] = '\0';
 
         return 0;
     }
@@ -202,13 +216,16 @@ int GPSD::Scan() {
     data[0] = '\0';
 
     // And reissue a command
+	/*
     if (write(sock, gpsd_command, sizeof(gpsd_command)) < 0) {
         if (errno != EAGAIN) {
-            snprintf(errstr, 1024, "GPSD error while writing data: %s", strerror(errno));
+            snprintf(errstr, 1024, "GPSD error while writing data: %s", 
+					 strerror(errno));
             CloseGPSD();
             return -1;
         }
     }
+	*/
 
     return 1;
 }

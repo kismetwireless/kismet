@@ -803,7 +803,7 @@ int GpsEvent(Timetracker::timer_event *evt, void *parm) {
             if (gps->OpenGPSD() < 0) {
                 last_gpsd_reconnect = time(0);
 
-                if (gpsd_reconnect_attempt < 11)
+                if (gpsd_reconnect_attempt < 20)
                     gpsd_reconnect_attempt++;
 
                 snprintf(status, STATUS_MAX, "Unable to reconnect to GPSD, trying "
