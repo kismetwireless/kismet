@@ -1756,6 +1756,12 @@ int PanelFront::PackPrinter(void *in_window) {
             data += "n";
             break;
         case packet_reassociation:
+            data += "s";
+            break;
+        case packet_association_req:
+            data += "a";
+            break;
+        case packet_association_response:
             data += "A";
             break;
         default:
@@ -1906,13 +1912,23 @@ int PanelFront::PackPrinter(void *in_window) {
         case packet_reassociation:
             snprintf(cdata, 1024, "%.8s %s REASSOCIATION '%s'",
                      ctime(&packinfo[x].time) + 11,
-                     packinfo[x].bssid_mac.Mac2String().c_str(),
+                     packinfo[x].source_mac.Mac2String().c_str(),
                      packinfo[x].ssid);
+            break;
+        case packet_association_req:
+            snprintf(cdata, 1024, "%.8s %s ASSOCIATION '%s'",
+                     ctime(&packinfo[x].time) + 11,
+                     packinfo[x].source_mac.Mac2String().c_str(),
+                     packinfo[x].ssid);
+        case packet_association_response:
+            snprintf(cdata, 1024, "%.8s %s ASSOCIATION RESPONSE",
+                     ctime(&packinfo[x].time) + 11,
+                     packinfo[x].source_mac.Mac2String().c_str());
             break;
         default:
             snprintf(cdata, 1024, "%.8s %s UNKNOWN",
                      ctime(&packinfo[x].time) + 11,
-                     packinfo[x].bssid_mac.Mac2String().c_str());
+                     packinfo[x].source_mac.Mac2String().c_str());
             break;
         }
 

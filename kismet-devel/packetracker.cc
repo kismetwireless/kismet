@@ -682,7 +682,7 @@ int Packetracker::ProcessDataPacket(packet_info info, wireless_network *net, cha
             net->best_noise = info.noise;
     }
 
-    if (info.type == packet_probe_req) {
+    if (info.type == packet_probe_req || info.type == packet_association_req) {
         if (info.maxrate > client->maxrate)
             client->maxrate = info.maxrate;
     }
