@@ -6105,6 +6105,62 @@ echo "$as_me: WARNING: Compiling without libpcap support." >&2;}
 fi
 
 
+echo "$as_me:$LINENO: checking that linux/wireless.h is what we expect" >&5
+echo $ECHO_N "checking that linux/wireless.h is what we expect... $ECHO_C" >&6
+cat >conftest.$ac_ext <<_ACEOF
+#line $LINENO "configure"
+/* confdefs.h.  */
+_ACEOF
+cat confdefs.h >>conftest.$ac_ext
+cat >>conftest.$ac_ext <<_ACEOF
+/* end confdefs.h.  */
+
+    #include <stdio.h>
+    #include <sys/socket.h>
+    #include <net/if.h>
+    #include <net/if_media.h>
+    #include <net80211/ieee80211_ioctl.h>
+    #include <net80211/ieee80211_radiotap.h>
+
+int
+main ()
+{
+
+
+
+  ;
+  return 0;
+}
+_ACEOF
+rm -f conftest.$ac_objext conftest$ac_exeext
+if { (eval echo "$as_me:$LINENO: \"$ac_link\"") >&5
+  (eval $ac_link) 2>&5
+  ac_status=$?
+  echo "$as_me:$LINENO: \$? = $ac_status" >&5
+  (exit $ac_status); } &&
+         { ac_try='test -s conftest$ac_exeext'
+  { (eval echo "$as_me:$LINENO: \"$ac_try\"") >&5
+  (eval $ac_try) 2>&5
+  ac_status=$?
+  echo "$as_me:$LINENO: \$? = $ac_status" >&5
+  (exit $ac_status); }; }; then
+  radiotap=yes
+else
+  echo "$as_me: failed program was:" >&5
+sed 's/^/| /' conftest.$ac_ext >&5
+
+radiotap=no
+fi
+rm -f conftest.$ac_objext conftest$ac_exeext conftest.$ac_ext
+
+if test "$radiotap" = yes; then
+
+cat >>confdefs.h <<\_ACEOF
+#define HAVE_RADIOTAP 1
+_ACEOF
+
+fi
+
 # Check whether --enable-setuid or --disable-setuid was given.
 if test "${enable_setuid+set}" = set; then
   enableval="$enable_setuid"
@@ -8829,6 +8885,12 @@ if test "$want_viha" = "yes"; then
 	echo "yes";
 else
 	echo "no";
+fi
+echo -n "      Radiotap headers: "
+if test "$radiotap" = "yes"; then
+    echo "yes";
+else
+    echo "no";
 fi
 echo -n " Using local dump code: "
 if test "$local" = "yes"; then

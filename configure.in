@@ -457,6 +457,22 @@ else
 fi
 AC_SUBST(pcap)
 
+AC_MSG_CHECKING(that linux/wireless.h is what we expect)
+AC_LINK_IFELSE([AC_LANG_PROGRAM([[
+    #include <stdio.h>
+    #include <sys/socket.h>
+    #include <net/if.h>
+    #include <net/if_media.h>
+    #include <net80211/ieee80211_ioctl.h>
+    #include <net80211/ieee80211_radiotap.h>
+]], [[
+
+]])],[radiotap=yes],[radiotap=no])
+
+if test "$radiotap" = yes; then
+    AC_DEFINE(HAVE_RADIOTAP, 1, radiotap packet headers)
+fi
+
 AC_ARG_ENABLE(setuid, [  --disable-setuid        disable setuid/privdrop ability (not reccomended)],,suid=yes)
 # evaluate after viha test
 
@@ -850,6 +866,12 @@ if test "$want_viha" = "yes"; then
 	echo "yes";
 else
 	echo "no";
+fi
+echo -n "      Radiotap headers: "
+if test "$radiotap" = "yes"; then
+    echo "yes";
+else
+    echo "no";
 fi
 echo -n " Using local dump code: "
 if test "$local" = "yes"; then

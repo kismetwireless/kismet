@@ -38,6 +38,21 @@
 #include <dev/ic/if_wi_ieee.h>
 #endif
 
+#ifdef SYS_FREEBSD
+#include <sys/socket.h>
+#include <net/if.h>
+#include <net/if_media.h>
+#include <net80211/ieee80211_ioctl.h>
+
+// This should be generic but we'll leave it fbsd only right now -drag
+#ifdef HAVE_RADIOTAP
+#include <net80211/ieee80211_radiotap.h>
+#include "extract.h"
+#include <stdarg.h>
+#endif
+
+#endif
+
 #include "pcapsource.h"
 #include "util.h"
 
@@ -117,11 +132,14 @@ int PcapSource::DatalinkType() {
     // Blow up if we're not valid 802.11 headers
 #if (defined(SYS_FREEBSD) || defined(SYS_OPENBSD))
     if (datalink_type == DLT_EN10MB) {
-        fprintf(stderr, "WARNING:  pcap reports link type of EN10MB but we'll fake it on BSD.\n"
+        fprintf(stderr, "WARNING:  pcap reports link type of EN10MB but we'll fake "
+                "it on BSD.\n"
                 "This may not work the way we want it to.\n");
-#if (defined(SYS_FREEBSD) || defined(SYS_NETBSD))
-        fprintf(stderr, "WARNING:  Most Free and Net BSD drivers do not report rfmon packets\n"
-                "correctly.  Kismet will probably not run correctly.");
+#if (defined(SYS_FREEBSD) || defined(SYS_NETBSD) && !defined(HAVE_RADIOTAP))
+        fprintf(stderr, "WARNING:  Some Free- and Net- BSD drivers do not report "
+                "rfmon packets\n"
+                "correctly.  Kismet will probably not run correctly.  For better\n"
+                "support, you should upgrade to a version of *BSD with Radiotap.\n");
 #endif
         datalink_type = KDLT_BSD802_11;
     }
@@ -135,10 +153,20 @@ int PcapSource::DatalinkType() {
     }
 #endif
 
+    // Little hack to give an intelligent error report for radiotap
+#ifndef HAVE_RADIOTAP
+    if (datalink_type == DLT_IEEE802_11_RADIO) {
+        snprintf(errstr, 1024, "FATAL: Radiotap link type reported but radiotap "
+                 "support was not compiled into Kismet.");
+        return -1;
+    }
+#endif
+    
     if (datalink_type != KDLT_BSD802_11 && datalink_type != DLT_IEEE802_11 &&
-        datalink_type != DLT_PRISM_HEADER) {
-        fprintf(stderr, "WARNING:  Unknown link type %d reported.  Continuing on blindly...\n",
-                datalink_type);
+        datalink_type != DLT_PRISM_HEADER &&
+        datalink_type != DLT_IEEE802_11_RADIO) {
+        fprintf(stderr, "WARNING:  Unknown link type %d reported.  Continuing on "
+                "blindly...\n", datalink_type);
     }
 
     return 1;
@@ -208,6 +236,10 @@ int PcapSource::ManglePacket(kis_packet *packet, uint8_t *data, uint8_t *moddata
         ret = Prism2KisPack(packet, data, moddata);
     } else if (datalink_type == KDLT_BSD802_11) {
         ret = BSD2KisPack(packet, data, moddata);
+#ifdef HAVE_RADIOTAP
+    } else if (datalink_type == DLT_IEEE802_11_RADIO) {
+        ret = Radiotap2KisPack(packet, data, moddata);
+#endif
     } else {
         packet->caplen = kismin(callback_header.caplen, (uint32_t) MAX_PACKET_LEN);
         packet->len = packet->caplen;
@@ -391,6 +423,248 @@ int PcapSource::BSD2KisPack(kis_packet *packet, uint8_t *data, uint8_t *moddata)
 
     return 1;
 }
+
+#ifdef HAVE_RADIOTAP
+/*
+ * Convert MHz frequency to IEEE channel number.
+ */
+static u_int ieee80211_mhz2ieee(u_int freq, u_int flags) {
+	if (flags & IEEE80211_CHAN_2GHZ) {	/* 2GHz band */
+		if (freq == 2484)
+			return 14;
+		if (freq < 2484)
+			return (freq - 2407) / 5;
+		else
+			return 15 + ((freq - 2512) / 20);
+	} else if (flags & IEEE80211_CHAN_5GHZ) {	/* 5Ghz band */
+		return (freq - 5000) / 5;
+	} else {				/* either, guess */
+		if (freq == 2484)
+			return 14;
+		if (freq < 2484)
+			return (freq - 2407) / 5;
+		if (freq < 5000)
+			return 15 + ((freq - 2512) / 20);
+		return (freq - 5000) / 5;
+	}
+}
+
+/*
+ * Useful combinations of channel characteristics.
+ */
+#define	IEEE80211_CHAN_FHSS \
+	(IEEE80211_CHAN_2GHZ | IEEE80211_CHAN_GFSK)
+#define	IEEE80211_CHAN_A \
+	(IEEE80211_CHAN_5GHZ | IEEE80211_CHAN_OFDM)
+#define	IEEE80211_CHAN_B \
+	(IEEE80211_CHAN_2GHZ | IEEE80211_CHAN_CCK)
+#define	IEEE80211_CHAN_PUREG \
+	(IEEE80211_CHAN_2GHZ | IEEE80211_CHAN_OFDM)
+#define	IEEE80211_CHAN_G \
+	(IEEE80211_CHAN_2GHZ | IEEE80211_CHAN_DYN)
+#define	IEEE80211_CHAN_T \
+	(IEEE80211_CHAN_5GHZ | IEEE80211_CHAN_OFDM | IEEE80211_CHAN_TURBO)
+
+#define	IEEE80211_IS_CHAN_FHSS(_flags) \
+	((_flags & IEEE80211_CHAN_FHSS) == IEEE80211_CHAN_FHSS)
+#define	IEEE80211_IS_CHAN_A(_flags) \
+	((_flags & IEEE80211_CHAN_A) == IEEE80211_CHAN_A)
+#define	IEEE80211_IS_CHAN_B(_flags) \
+	((_flags & IEEE80211_CHAN_B) == IEEE80211_CHAN_B)
+#define	IEEE80211_IS_CHAN_PUREG(_flags) \
+	((_flags & IEEE80211_CHAN_PUREG) == IEEE80211_CHAN_PUREG)
+#define	IEEE80211_IS_CHAN_G(_flags) \
+	((_flags & IEEE80211_CHAN_G) == IEEE80211_CHAN_G)
+#define	IEEE80211_IS_CHAN_T(_flags) \
+	((_flags & IEEE80211_CHAN_T) == IEEE80211_CHAN_T)
+
+int PcapSource::Radiotap2KisPack(kis_packet *packet, uint8_t *data, uint8_t *moddata) {
+#define BITNO_32(x) (((x) >> 16) ? 16 + BITNO_16((x) >> 16) : BITNO_16((x)))
+#define BITNO_16(x) (((x) >> 8) ? 8 + BITNO_8((x) >> 8) : BITNO_8((x)))
+#define BITNO_8(x) (((x) >> 4) ? 4 + BITNO_4((x) >> 4) : BITNO_4((x)))
+#define BITNO_4(x) (((x) >> 2) ? 2 + BITNO_2((x) >> 2) : BITNO_2((x)))
+#define BITNO_2(x) (((x) & 2) ? 1 : 0)
+#define BIT(n)	(1 << n)
+    union {
+        int8_t	i8;
+        int16_t	i16;
+        u_int8_t	u8;
+        u_int16_t	u16;
+        u_int32_t	u32;
+        u_int64_t	u64;
+    } u;
+    union {
+        int8_t		i8;
+        int16_t		i16;
+        u_int8_t	u8;
+        u_int16_t	u16;
+        u_int32_t	u32;
+        u_int64_t	u64;
+    } u2;
+    struct ieee80211_radiotap_header *hdr;
+    u_int32_t present, next_present;
+    u_int32_t *presentp, *last_presentp;
+    enum ieee80211_radiotap_type bit;
+    int bit0;
+    const u_char *iter;
+
+    if (callback_header.caplen < sizeof(*hdr)) {
+        packet->len = 0;
+        packet->caplen = 0;
+        return 0;
+    }
+    hdr = (struct ieee80211_radiotap_header *) callback_data;
+    if (callback_header.caplen < hdr->it_len) {
+        packet->len = 0;
+        packet->caplen = 0;
+        return 0;
+    }
+
+    for (last_presentp = &hdr->it_present;
+         (*last_presentp & BIT(IEEE80211_RADIOTAP_EXT)) != 0 &&
+         (u_char*)(last_presentp + 1) <= data + hdr->it_len;
+         last_presentp++);
+
+    /* are there more bitmap extensions than bytes in header? */
+    if ((*last_presentp & BIT(IEEE80211_RADIOTAP_EXT)) != 0) {
+        packet->len = 0;
+        packet->caplen = 0;
+        return 0;
+    }
+
+    packet->caplen = packet->len = callback_header.caplen;
+
+    iter = (u_char*)(last_presentp + 1);
+
+    for (bit0 = 0, presentp = &hdr->it_present; presentp <= last_presentp;
+         presentp++, bit0 += 32) {
+        for (present = *presentp; present; present = next_present) {
+            /* clear the least significant bit that is set */
+            next_present = present & (present - 1);
+
+            /* extract the least significant bit that is set */
+            bit = (enum ieee80211_radiotap_type)
+                (bit0 + BITNO_32(present ^ next_present));
+
+            switch (bit) {
+                case IEEE80211_RADIOTAP_FLAGS:
+                case IEEE80211_RADIOTAP_RATE:
+                case IEEE80211_RADIOTAP_DB_ANTSIGNAL:
+                case IEEE80211_RADIOTAP_DB_ANTNOISE:
+                case IEEE80211_RADIOTAP_ANTENNA:
+                    u.u8 = *iter++;
+                    break;
+                case IEEE80211_RADIOTAP_DBM_TX_POWER:
+                    u.i8 = *iter++;
+                    break;
+                case IEEE80211_RADIOTAP_CHANNEL:
+                    u.u16 = EXTRACT_LE_16BITS(iter);
+                    iter += sizeof(u.u16);
+                    u2.u16 = EXTRACT_LE_16BITS(iter);
+                    iter += sizeof(u2.u16);
+                    break;
+                case IEEE80211_RADIOTAP_FHSS:
+                case IEEE80211_RADIOTAP_LOCK_QUALITY:
+                case IEEE80211_RADIOTAP_TX_ATTENUATION:
+                case IEEE80211_RADIOTAP_DB_TX_ATTENUATION:
+                    u.u16 = EXTRACT_LE_16BITS(iter);
+                    iter += sizeof(u.u16);
+                    break;
+                case IEEE80211_RADIOTAP_TSFT:
+                    u.u64 = EXTRACT_LE_64BITS(iter);
+                    iter += sizeof(u.u64);
+                    break;
+                default:
+                    /* this bit indicates a field whose
+                     * size we do not know, so we cannot
+                     * proceed.
+                     */
+                    printf("[0x%08x] ", next_present);
+                    next_present = 0;
+                    continue;
+            }
+
+            switch (bit) {
+                case IEEE80211_RADIOTAP_CHANNEL:
+                    packet->channel = ieee80211_mhz2ieee(u.u16, u2.u16);
+                    if (IEEE80211_IS_CHAN_FHSS(u2.u16))
+                        packet->carrier = carrier_80211dsss;
+                    else if (IEEE80211_IS_CHAN_A(u2.u16))
+                        packet->carrier = carrier_80211a;
+                    else if (IEEE80211_IS_CHAN_B(u2.u16))
+                        packet->carrier = carrier_80211b;
+                    else if (IEEE80211_IS_CHAN_PUREG(u2.u16))
+                        packet->carrier = carrier_80211g;
+                    else if (IEEE80211_IS_CHAN_G(u2.u16))
+                        packet->carrier = carrier_80211g;
+                    else if (IEEE80211_IS_CHAN_T(u2.u16))
+                        packet->carrier = carrier_80211a;/*XXX*/
+                    else
+                        packet->carrier = carrier_unknown;
+                    break;
+                case IEEE80211_RADIOTAP_RATE:
+                    packet->datarate = u.u8;
+                    break;
+                case IEEE80211_RADIOTAP_DB_ANTSIGNAL:
+                    packet->signal = u.i8;
+                    break;
+                case IEEE80211_RADIOTAP_DB_ANTNOISE:
+                    packet->noise = u.i8;
+                    break;
+#if 0
+                case IEEE80211_RADIOTAP_FHSS:
+                    printf("fhset %d fhpat %d ", u.u16 & 0xff,
+                           (u.u16 >> 8) & 0xff);
+                    break;
+                case IEEE80211_RADIOTAP_LOCK_QUALITY:
+                    printf("%u sq ", u.u16);
+                    break;
+                case IEEE80211_RADIOTAP_TX_ATTENUATION:
+                    printf("%d tx power ", -(int)u.u16);
+                    break;
+                case IEEE80211_RADIOTAP_DB_TX_ATTENUATION:
+                    printf("%ddB tx power ", -(int)u.u16);
+                    break;
+                case IEEE80211_RADIOTAP_DBM_TX_POWER:
+                    printf("%ddBm tx power ", u.i8);
+                    break;
+                case IEEE80211_RADIOTAP_FLAGS:
+                    if (u.u8 & IEEE80211_RADIOTAP_F_CFP)
+                        printf("cfp ");
+                    if (u.u8 & IEEE80211_RADIOTAP_F_SHORTPRE)
+                        printf("short preamble ");
+                    if (u.u8 & IEEE80211_RADIOTAP_F_WEP)
+                        printf("wep ");
+                    if (u.u8 & IEEE80211_RADIOTAP_F_FRAG)
+                        printf("fragmented ");
+                    break;
+                case IEEE80211_RADIOTAP_ANTENNA:
+                    printf("antenna %u ", u.u8);
+                    break;
+                case IEEE80211_RADIOTAP_TSFT:
+                    printf("%llus tsft ", u.u64);
+                    break;
+#endif
+                default:
+                    break;
+            }
+        }
+    }
+
+    /* copy data down over radiotap header */
+    packet->caplen -= hdr->it_len;
+    packet->len -= hdr->it_len;
+    memcpy(packet->data, callback_data + hdr->it_len, packet->caplen);
+
+    return 1;
+#undef BITNO_32
+#undef BITNO_16
+#undef BITNO_8
+#undef BITNO_4
+#undef BITNO_2
+#undef BIT
+}
+#endif
 
 int PcapSource::FetchChannel() {
     return 0;
@@ -584,6 +858,20 @@ int PcapSourceOpenBSDPrism::FetchChannel() {
 }
 #endif
 
+#ifdef HAVE_RADIOTAP
+int PcapSourceRadiotap::FetchChannel() {
+#ifdef SYS_FREEBSD
+	FreeBSD bsd(interface.c_str());
+	int c;
+	return bsd.get80211(IEEE80211_IOC_CHANNEL, &c, 0, NULL) ? c : -1;
+#elif __linux__
+	// use wireless extensions - implement this in the future -drag
+#else
+#error	"No support for your operating system"
+#endif
+}
+#endif
+
 // ----------------------------------------------------------------------------
 // Registrant and control functions outside of the class
 
@@ -636,6 +924,13 @@ KisPacketSource *pcapsource_wrt54g_registrant(string in_name, string in_device,
 KisPacketSource *pcapsource_openbsdprism2_registrant(string in_name, string in_device,
                                                      char *in_err) {
     return new PcapSourceOpenBSDPrism(in_name, in_device);
+}
+#endif
+
+#ifdef HAVE_RADIOTAP
+KisPacketSource *pcapsource_radiotap_registrant(string in_name, string in_device,
+                                                     char *in_err) {
+    return new PcapSourceRadiotap(in_name, in_device);
 }
 #endif
 
@@ -1280,6 +1575,224 @@ int chancontrol_openbsd_prism2(const char *in_dev, int in_ch, char *in_err,
 	return 0;
 }
 #endif
+
+#ifdef SYS_FREEBSD
+FreeBSD::FreeBSD(const char *name) {
+    strncpy(ifname, name, sizeof(ifname));
+    s = -1;
+}
+
+FreeBSD::~FreeBSD() {
+    if (s >= 0)
+        close(s);
+}
+
+const char *FreeBSD::geterror() const {
+	return errstr;
+}
+
+void FreeBSD::perror(const char *fmt, ...) {
+#if 0
+	va_list ap;
+	va_start(ap, fmt);
+	vsnprintf(errstr, sizeof(errstr), fmt, ap);
+	va_end(ap);
+	char *cp = strchr(errstr, '\0');
+	vsnprintf(cp, sizeof(errstr) - (cp - errstr), ": %s", strerror(errno));
+#else
+	snprintf(errstr, sizeof(errstr), "%s: %s", fmt, strerror(errno));
+#endif
+}
+
+void FreeBSD::seterror(const char *fmt, ...) {
+	va_list ap;
+	va_start(ap, fmt);
+	vsnprintf(errstr, sizeof(errstr), fmt, ap);
+	va_end(ap);
+}
+
+bool FreeBSD::checksocket() {
+    if (s < 0) {
+        s = socket(AF_INET, SOCK_DGRAM, 0);
+        if (s < 0) {
+            perror("Failed to create AF_INET socket");
+            return false;
+        }
+    }
+    return true;
+}
+
+bool FreeBSD::setmediaopt(int options, int mode) {
+    struct ifmediareq ifmr;
+    struct ifreq ifr;
+    int *mwords;
+
+    if (!checksocket())
+        return false;
+
+    memset(&ifmr, 0, sizeof(ifmr));
+    strncpy(ifmr.ifm_name, ifname, sizeof(ifmr.ifm_name));
+
+    /*
+     * We must go through the motions of reading all
+     * supported media because we need to know both
+     * the current media type and the top-level type.
+     */
+    if (ioctl(s, SIOCGIFMEDIA, (caddr_t)&ifmr) < 0) {
+        perror("%s: cannot get ifmedia", ifname);
+        return false;
+    }
+    if (ifmr.ifm_count == 0) {
+        seterror("%s: no media types?", ifname);
+        return false;
+    }
+    mwords = new int[ifmr.ifm_count];
+    if (mwords == NULL) {
+        seterror("cannot malloc");
+        return false;
+    }
+    ifmr.ifm_ulist = mwords;
+    if (ioctl(s, SIOCGIFMEDIA, (caddr_t)&ifmr) < 0) {
+        perror("%s: cannot get ifmedia", ifname);
+        return false;
+    }
+    delete mwords;
+
+    strncpy(ifr.ifr_name, ifname, sizeof(ifr.ifr_name));
+    ifr.ifr_media = ifmr.ifm_current;
+    if (options < 0) {
+        options = -options;
+        ifr.ifr_media &= ~options;
+    } else
+        ifr.ifr_media |= options;
+    ifr.ifr_media = (ifr.ifr_media &~ IFM_OMASK) | IFM_TYPE_OPTIONS(mode);
+
+    if (ioctl(s, SIOCSIFMEDIA, (caddr_t)&ifr) < 0) {
+        perror("%s: cannot set ifmedia", ifname);
+        return false;
+    }
+    return true;
+}
+
+bool FreeBSD::get80211(int type, int *val, int len, u_int8_t *data) {
+    if (!checksocket())
+        return false;
+    struct ieee80211req ireq;
+    memset(&ireq, 0, sizeof(ireq));
+    strncpy(ireq.i_name, ifname, sizeof(ireq.i_name));
+    ireq.i_type = type;
+    ireq.i_len = len;
+    ireq.i_data = data;
+    if (ioctl(s, SIOCG80211, &ireq) < 0) {
+        perror("%s: SIOCG80211 ioctl failed", ifname);
+        return false;
+    }
+    *val = ireq.i_val;
+    return true;
+}
+
+bool FreeBSD::set80211(int type, int val, int len, u_int8_t *data) {
+	struct ieee80211req ireq;
+
+	if (!checksocket())
+		return false;
+	memset(&ireq, 0, sizeof(ireq));
+	strncpy(ireq.i_name, ifname, sizeof(ireq.i_name));
+	ireq.i_type = type;
+	ireq.i_val = val;
+	ireq.i_len = len;
+	ireq.i_data = data;
+	if (ioctl(s, SIOCS80211, &ireq) < 0) {
+		perror("%s: SIOCS80211 ioctl failed", ifname);
+		return false;
+	}
+	return true;
+}
+
+bool FreeBSD::setifflags(int value) {
+    struct ifreq ifr;
+    int flags;
+
+    if (!checksocket())
+        return false;
+
+    strncpy(ifr.ifr_name, ifname, sizeof (ifr.ifr_name));
+    if (ioctl(s, SIOCGIFFLAGS, (caddr_t)&ifr) < 0) {
+        perror("%s: SIOCGIFFLAGS ioctl failed", ifname);
+        return false;
+    }
+    flags = (ifr.ifr_flags & 0xffff) | (ifr.ifr_flagshigh << 16);
+
+    if (value < 0) {
+        value = -value;
+        flags &= ~value;
+    } else
+        flags |= value;
+    ifr.ifr_flags = flags & 0xffff;
+    ifr.ifr_flagshigh = flags >> 16;
+    if (ioctl(s, SIOCSIFFLAGS, (caddr_t)&ifr) < 0) {
+        perror("%s: SIOCSIFFLAGS ioctl failed", ifname);
+        return false;
+    }
+    return true;
+}
+
+bool FreeBSD::monitor_enable(int initch) {
+    /*
+     * Enter monitor mode, enable promiscuous reception,
+     * and set the specified channel.
+     */
+    if (!setmediaopt(IFM_IEEE80211_MONITOR, IFM_AUTO))
+        return false;
+    if (!setifflags(IFF_PPROMISC))
+        return false;
+    if (!set80211(IEEE80211_IOC_CHANNEL, initch, 0, NULL))
+        return false;
+    return true;
+}
+
+bool FreeBSD::monitor_reset(int initch) {
+    (void) setifflags(-IFF_PPROMISC);
+    /* NB: reset the current channel before switching modes */
+    (void) set80211(IEEE80211_IOC_CHANNEL, initch, 0, NULL);
+    (void) setmediaopt(-IFM_IEEE80211_MONITOR, IFM_AUTO);
+    return true;
+}
+
+bool FreeBSD::chancontrol(int in_ch) {
+	return set80211(IEEE80211_IOC_CHANNEL, in_ch, 0, NULL);
+}
+
+int monitor_freebsd(const char *in_dev, int initch, char *in_err) {
+    FreeBSD bsd(in_dev);
+    if (!bsd.monitor_enable(initch)) {
+        strcpy(in_err, bsd.geterror());
+        return -1;
+    } else {
+        return 0;
+    }
+}
+
+int unmonitor_freebsd(const char *in_dev, int initch, char *in_err) {
+	FreeBSD bsd(in_dev);
+	if (!bsd.monitor_reset(initch)) {
+		strcpy(in_err, bsd.geterror());
+		return -1;
+	} else {
+		return 0;
+    }
+}
+
+int chancontrol_freebsd(const char *in_dev, int in_ch, char *in_err, void *in_ext) {
+	FreeBSD bsd(in_dev);
+	if (!bsd.chancontrol(in_ch)) {
+		strcpy(in_err, bsd.geterror());
+		return -1;
+	} else {
+		return 0;
+    }
+}
+#endif /* SYS_FREEBSD */
 
 #endif
 

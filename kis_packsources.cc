@@ -151,6 +151,15 @@ int RegisterKismetSources(Packetsourcetracker *sourcetracker) {
     REG_EMPTY_CARD(sourcetracker, "prism2_openbsd");
 #endif
 
+#if defined(HAVE_LIBPCAP) && defined(SYS_FREEBSD)
+    sourcetracker->RegisterPacketsource("radiotap", 1, "IEEE80211ab", 6,
+                                        pcapsource_radiotap_registrant,
+                                        monitor_freebsd, unmonitor_freebsd,
+                                        chancontrol_freebsd, 1);
+#else
+    REG_EMPTY_CARD(sourcetracker, "radiotap");
+#endif
+
 #if defined(HAVE_LIBWIRETAP)
     sourcetracker->RegisterPacketsource("wtapfile", 0, "na", 0,
                                        wtapfilesource_registrant,
