@@ -63,6 +63,17 @@ public:
         string alert_text;
     };
 
+    // Sort alerts by alert time
+    class SortAlerts {
+    public:
+        inline bool operator() (const TcpClient::alert_info x, const TcpClient::alert_info y) const {
+            if ((x.alert_ts.tv_sec > y.alert_ts.tv_sec) ||
+                ((x.alert_ts.tv_sec== y.alert_ts.tv_sec) && (x.alert_ts.tv_usec > y.alert_ts.tv_usec)))
+                return 1;
+            return 0;
+        }
+    };
+
     typedef struct string_info {
         mac_addr bssid;
         mac_addr source;

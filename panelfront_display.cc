@@ -2479,7 +2479,20 @@ int PanelFront::AlertPrinter(void *in_window) {
 
     kwin->scrollable = 1;
 
-    vector<TcpClient::alert_info> alerts = client->FetchAlerts();
+    vector<TcpClient::alert_info> alerts;
+    alerts.reserve(100);
+
+    // Get all the alerts
+    for (unsigned int x = 0; x < context_list.size(); x++) {
+        if (context_list[x]->tagged == 1 && context_list[x]->client != NULL) {
+            vector<TcpClient::alert_info> cli_alerts = context_list[x]->client->FetchAlerts();
+            for (unsigned int alrt = 0; alrt < cli_alerts.size(); alrt++)
+                alerts.push_back(cli_alerts[alrt]);
+        }
+    }
+
+    // Sort them
+    sort(alerts.begin(), alerts.end(), TcpClient::SortAlerts());
 
     kwin->text.clear();
 
