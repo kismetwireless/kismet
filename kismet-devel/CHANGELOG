@@ -2,6 +2,14 @@ Mar 04 2004  devel  Fixed undefined function error on BSDs introduced from
                      other error catching
                     Fixed stupid config test copy and paste bug for GMP
                     Reordered orinoco monitor commands
+                    More major gpsmap updates
+                     Total rewrite of interpolation.  Previous code was 
+                      terminally broken.  New interpolation algos are MUCH
+                      more adept at handling "generic wardriving" data.
+                     Moved interpolation to only process "relevant center"
+                      (see previous gpsmap update) instead of every point
+                     Fixed legend drawing when using default network colors
+                      and doing power interpolation
 Mar 03 2004  devel  Rewrote gpsmap network-center guessing to find groups of
                      sample points and use those
                     Started rewriting gpsmap to use GMP for math.  GMP is
