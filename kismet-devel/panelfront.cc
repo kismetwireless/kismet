@@ -177,6 +177,30 @@ char *KismetSortTextNarrow[] = {
     NULL
 };
 
+char *KismetClientSortText[] = {
+    "Key  Sort                Key  Sort",
+    " a   Auto-fit (standard)  c   Channel",
+    " f   First time seen      F   First time seen (descending)",
+    " l   Latest time seen     L   Latest time seen (descending)",
+    " m   MAC                  M   MAC (descending)",
+    " p   Packet count         P   Packet count (descending)",
+    " w   WEP                  q   Quality",
+    " Q   Power level          x   Cancel",
+    NULL
+};
+
+char *KismetClientSortTextNarrow[] = {
+    "Key Sort        Key Sort",
+    " a  Auto-fit     c  Channel",
+    " f  First time   F  First time (d)",
+    " l  Latest time  L  Latest time (d)",
+    " m  MAC          M  MAC (d)",
+    " p  Packet count P  Packet count (d)",
+    " w  WEP          q  Quality",
+    " Q  Power level  x  Cancel",
+    NULL
+};
+
 char *KismetHelpPower[] = {
     "KISMET POWER",
     "This panel lists the overall quality (Q), signal (S)",

@@ -572,6 +572,11 @@ int PanelFront::MainClientInput(void *in_window, int in_chr) {
             WriteStatus("Cannot scroll clients in autofit sort mode.");
         }
         break;
+    case 's':
+    case 'S':
+        SpawnWindow("Sort Clients", &PanelFront::ClientSortPrinter,
+                    &PanelFront::ClientSortInput, CLIENT_SORT_SIZE);
+        break;
     default:
         return 1;
         break;
@@ -579,5 +584,75 @@ int PanelFront::MainClientInput(void *in_window, int in_chr) {
 
     return 1;
 }
+
+int PanelFront::ClientSortInput(void *in_window, int in_chr) {
+    switch (in_chr) {
+    case 'a':
+    case 'A':
+        client_sortby = client_sort_auto;
+        WriteStatus("Autofitting client display");
+        break;
+    case 'c':
+    case 'C':
+        client_sortby = client_sort_channel;
+        WriteStatus("Sorting client display by channel");
+        break;
+    case 'f':
+        client_sortby = client_sort_first;
+        WriteStatus("Sorting client display by time first detected");
+        break;
+    case 'F':
+        client_sortby = client_sort_first_dec;
+        WriteStatus("Sorting client display by time first detected (descending)");
+        break;
+    case 'l':
+        client_sortby = client_sort_last;
+        WriteStatus("Sorting client display by time last detected");
+        break;
+    case 'L':
+        client_sortby = client_sort_last_dec;
+        WriteStatus("Sorting client display by time last detected (descending)");
+        break;
+    case 'm':
+        client_sortby = client_sort_mac;
+        WriteStatus("Sorting client display by MAC");
+        break;
+    case 'M':
+        client_sortby = client_sort_mac_dec;
+        WriteStatus("Sorting client display by MAC (descending)");
+        break;
+    case 'p':
+        client_sortby = client_sort_packets;
+        WriteStatus("Sorting client display by packets");
+        break;
+    case 'P':
+        client_sortby = client_sort_packets_dec;
+        WriteStatus("Sorting client display by packets (descending)");
+        break;
+    case 'w':
+        client_sortby = client_sort_wep;
+        WriteStatus("Sorting client display by WEP");
+        break;
+    case 'q':
+        client_sortby = client_sort_quality;
+        WriteStatus("Sorting client display by signal quality");
+        break;
+    case 'Q':
+        client_sortby = client_sort_signal;
+        WriteStatus("Sorting client display by signal power");
+        break;
+    case 'x':
+    case 'X':
+        break;
+    default:
+        beep();
+        return 1;
+        break;
+    }
+
+    // We don't have anything that doesn't kill the window for the key event
+    return 0;
+}
+
 
 #endif
