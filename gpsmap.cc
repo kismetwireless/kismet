@@ -1585,19 +1585,27 @@ void DrawNetCircles(vector<gps_network *> in_nets, Image *in_img, DrawInfo *in_d
         GetExceptionInfo(&excep);
         QueryColorDatabase(map_iter->color_index.c_str(), &netclr, &excep);
         if (excep.severity != UndefinedException) {
+            fprintf(stderr, "WARNING: QueryColorDatabase failed for %s\n", 
+                    map_iter->color_index.c_str());
             CatchException(&excep);
             break;
         }
 
         char prim[1024];
+        int network_width = (int) distavg;
 
-        if (feather_range) {
+        // We want circles from 3/4 to 6/4 of the network range
+        // in decreasing opacity, that are 8 pixels wide...  Do the concentric
+        // calcs here to use them in testing if we draw feathers for this net
+        int nconcentric = (int) (((network_width * 1.5) - 
+                                  (network_width * 0.75)) / 8);
+
+
+        if (feather_range && network_width > 16 && nconcentric > 1) {
             // Do special voodoo here to make a series of concentric circles
 
             // Allocate the width of the circle + 50%, odd-sized so we get
             // a center pixel we can span out from
-            int network_width = abs((int) (mapx - endx));
-            // Extended width for fading
             int extwidth = (int) (network_width * 1.5);
             // Give us plenty of room around the image
             int circlewidth = (int) (extwidth * 4);
@@ -1623,11 +1631,14 @@ void DrawNetCircles(vector<gps_network *> in_nets, Image *in_img, DrawInfo *in_d
                                                (circlewidth * circlewidth) * 4);
             apixdata = (unsigned char *) malloc(sizeof(unsigned char) * 
                                                 (circlewidth * circlewidth));
+            memset(pixdata, 0, sizeof(unsigned char) * (circlewidth * circlewidth) * 4);
+            memset(apixdata, 0, sizeof(unsigned char) * (circlewidth * circlewidth));
 
             // Allocate the RGB+Alpha channel image
             base_img = ConstituteImage(circlewidth, circlewidth, "RGBA", CharPixel,
                                        pixdata, &excep);
             if (excep.severity != UndefinedException) {
+                fprintf(stderr, "WARNING: ConstituteImage failed for base\n");
                 CatchException(&excep);
                 break;
             }
@@ -1638,6 +1649,7 @@ void DrawNetCircles(vector<gps_network *> in_nets, Image *in_img, DrawInfo *in_d
             alpha_img = ConstituteImage(circlewidth, circlewidth, "I", CharPixel,
                                         apixdata, &excep);
             if (excep.severity != UndefinedException) {
+                fprintf(stderr, "WARNING: ConstituteImage failed for alpha channel\n");
                 CatchException(&excep);
                 break;
             }
@@ -1646,11 +1658,6 @@ void DrawNetCircles(vector<gps_network *> in_nets, Image *in_img, DrawInfo *in_d
 
             base_di = CloneDrawInfo(base_info, NULL);
             alpha_di = CloneDrawInfo(alpha_info, NULL);
-
-            // We want circles from 3/4 to 6/4 of the network range
-            // in decreasing opacity, that are 8 pixels wide
-            int nconcentric = (int) (((network_width * 1.5) - 
-                                      (network_width * 0.75)) / 8);
 
             int opac = 0;
             int max_opac = (int) ((double) 255 * ((double) range_opacity / (double) 100));
@@ -1663,6 +1670,7 @@ void DrawNetCircles(vector<gps_network *> in_nets, Image *in_img, DrawInfo *in_d
 
                 QueryColorDatabase(clrstr, &alphacolor, &im_exception);
                 if (im_exception.severity != UndefinedException) {
+                    fprintf(stderr, "WARNING: QueryColorDatabase failed for %s\n", clrstr);
                     CatchException(&im_exception);
                     break;
                 }
@@ -1674,6 +1682,7 @@ void DrawNetCircles(vector<gps_network *> in_nets, Image *in_img, DrawInfo *in_d
 
                 DrawImage(alpha_img, alpha_di);
                 if (im_exception.severity != UndefinedException) {
+                    fprintf(stderr, "WARNING: DrawImage failed for %s\n", prim);
                     CatchException(&im_exception);
                     break;
                 }
@@ -1684,6 +1693,7 @@ void DrawNetCircles(vector<gps_network *> in_nets, Image *in_img, DrawInfo *in_d
             snprintf(clrstr, 8, "#%02X%02X%02X", max_opac, max_opac, max_opac);
             QueryColorDatabase(clrstr, &alphacolor, &im_exception);
             if (im_exception.severity != UndefinedException) {
+                fprintf(stderr, "WARNING: QueryColorDatabase failed for %s\n", clrstr);
                 CatchException(&im_exception);
                 break;
             }
@@ -1696,6 +1706,7 @@ void DrawNetCircles(vector<gps_network *> in_nets, Image *in_img, DrawInfo *in_d
 
             DrawImage(alpha_img, alpha_di);
             if (im_exception.severity != UndefinedException) {
+                fprintf(stderr, "WARNING: DrawImage failed for %s\n", prim);
                 CatchException(&im_exception);
                 break;
             }
@@ -1709,6 +1720,7 @@ void DrawNetCircles(vector<gps_network *> in_nets, Image *in_img, DrawInfo *in_d
 
             DrawImage(base_img, base_di);
             if (im_exception.severity != UndefinedException) {
+                fprintf(stderr, "WARNING: DrawImage failed for %s\n", prim);
                 CatchException(&im_exception);
                 break;
             }
@@ -1723,7 +1735,7 @@ void DrawNetCircles(vector<gps_network *> in_nets, Image *in_img, DrawInfo *in_d
                            (int) (mapy - (circlewidth / 2)));
             DestroyImage(base_img);
             
-        } else {
+        } else if (network_width > 0) {
             // Plot a transparent circle directly over our map
             in_di->fill = netclr;
             in_di->stroke = netclr;
@@ -1736,6 +1748,7 @@ void DrawNetCircles(vector<gps_network *> in_nets, Image *in_img, DrawInfo *in_d
             DrawImage(in_img, in_di);
             GetImageException(in_img, &im_exception);
             if (im_exception.severity != UndefinedException) {
+                fprintf(stderr, "WARNING: DrawImage failed for %s\n", prim);
                 CatchException(&im_exception);
                 break;
             }
