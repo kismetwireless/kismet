@@ -905,4 +905,23 @@ int PanelFront::ServersInput(void *in_window, int in_chr) {
     return 1;
 }
 
+int PanelFront::IntroInput(void *in_window, int in_chr) {
+    kis_window *kwin = (kis_window *) in_window;
+
+    switch (in_chr) {
+    case 'x':
+    case 'X':
+    case 'q':
+    case 'Q':
+    case ' ':
+        return 0;
+        break;
+    default:
+        return 1;
+        break;
+    }
+
+    return 1;
+}
+
 #endif

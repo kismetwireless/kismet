@@ -674,6 +674,11 @@ int PanelFront::InitDisplay(int in_decay, time_t in_start) {
 	if (colorkilled)
         WriteStatus("Terminal cannot support colors, turning off color options.");
 
+    // Spawn intro
+    if (prefs["showintro"] != "false")
+        SpawnWindow("Welcome to Kismet",
+                    &PanelFront::IntroPrinter, &PanelFront::IntroInput, 10, 66);
+
     return 0;
 }
 

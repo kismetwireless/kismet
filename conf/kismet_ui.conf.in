@@ -1,7 +1,10 @@
 # Kismet GUI config file
 
 # Version of Kismet config
-version=3.1.0c
+version=3.1.0d
+
+# Do we show the intro window?
+showintro=true
 
 # Gui type to use
 # Valid types: curses, panel
