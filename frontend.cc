@@ -141,8 +141,10 @@ void Frontend::UpdateGroups() {
 
             dnet->virtnet->idle_time = curtime - dnet->virtnet->last_time;
 
-            // Update the group name if it's <no ssid> and the ssid is set
-            if (dnet->name == NOSSID && dnet->virtnet->ssid != NOSSID) {
+            // Update the group name if it's <no ssid> and the ssid is set or if it's a
+            // turbocell network
+            if ((dnet->name == NOSSID || dnet->virtnet->type == network_turbocell) &&
+                dnet->virtnet->ssid != NOSSID) {
                 dnet->name = dnet->virtnet->ssid;
                 group_name_map[dnet->tag] = dnet->name;
             }
