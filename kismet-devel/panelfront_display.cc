@@ -2207,6 +2207,10 @@ int PanelFront::DumpPrinter(void *in_window) {
         return TextPrinter(in_window);
     }
 
+    if (kwin->toggle1 == 0)
+        mvwaddstr(kwin->win, 0, kwin->win->_maxx - 10, "All");
+    else
+        mvwaddstr(kwin->win, 0, kwin->win->_maxx - 10, "Tagged");
 
     for (unsigned int x = 0; x < context_list.size(); x++) {
         if (context_list[x]->tagged == 1 && context_list[x]->client != NULL) {
@@ -2215,8 +2219,17 @@ int PanelFront::DumpPrinter(void *in_window) {
                 kwin->text.clear();
             } else {
                 vector<TcpClient::string_info> cli_strings = context_list[x]->client->FetchStrings();
-                for (unsigned int stng = 0; stng < cli_strings.size(); stng++)
+                for (unsigned int stng = 0; stng < cli_strings.size(); stng++) {
+                    // Only add tagged networks if we care about that.
+                    map<mac_addr, display_network *>::iterator gamitr;
+                    gamitr = group_assignment_map.find(cli_strings[stng].bssid);
+                    if (gamitr == group_assignment_map.end())
+                        continue;
+                    if (kwin->toggle1 == 1 && gamitr->second->tagged == 0)
+                        continue;
+
                     strinf.push_back(cli_strings[stng]);
+                }
             }
         }
     }
@@ -2238,10 +2251,6 @@ int PanelFront::DumpPrinter(void *in_window) {
         } else {
             kwin->text.push_back(strinf[x].text);
         }
-    }
-
-    if (kwin->paused != 0) {
-        mvwaddstr(kwin->win, 0, kwin->win->_maxx - 10, "Paused");
     }
 
     return TextPrinter(in_window);

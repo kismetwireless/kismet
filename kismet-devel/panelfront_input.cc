@@ -316,6 +316,13 @@ int PanelFront::PackInput(void *in_window, int in_chr) {
         else
             kwin->paused = 1;
         break;
+    case 'a':
+    case 'A':
+        if (kwin->toggle1)
+            kwin->toggle1 = 0;
+        else
+            kwin->toggle1 = 1;
+        break;
     case 'x':
     case 'X':
     case 'q':
@@ -349,6 +356,13 @@ int PanelFront::DumpInput(void *in_window, int in_chr) {
             kwin->paused = 0;
         else
             kwin->paused = 1;
+        break;
+    case 'a':
+    case 'A':
+        if (kwin->toggle1)
+            kwin->toggle1 = 0;
+        else
+            kwin->toggle1 = 1;
         break;
     case 't':
     case 'T':

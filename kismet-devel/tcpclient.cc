@@ -37,9 +37,9 @@ TcpClient::TcpClient() {
 
     power = quality = noise = 0;
 
-    maxstrings = 100;
+    maxstrings = 500;
     maxpackinfos = 1000;
-    maxalerts = 50;
+    maxalerts = 500;
 
     memset(status, 0, STATUS_MAX);
     memset(channel_graph, 0, sizeof(channel_power) * CHANNEL_MAX);
