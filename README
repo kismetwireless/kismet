@@ -556,6 +556,8 @@ Licensed under the GPL
                           support in the drivers.
      HermesII           - Proxim successor to the Orinoco/HermesI.  No support
                           yet in the drivers, may be available in the future.
+     ADMTek             - Found in some cards from Dlink, others.  Seem to be
+                          incapable of rfmon.
 
 12. Graphical Network Mapping
 
