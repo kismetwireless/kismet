@@ -377,13 +377,6 @@ void SpeechHandler(int *fds, const char *player) {
                 exit(1);
 
             data[ret] = '\0';
-
-            /*
-            if ((end = strstr(data, "\n")) == NULL)
-                continue;
-
-                end[0] = '\0';
-                */
         }
 
         if (data[0] == '\0')
@@ -394,15 +387,6 @@ void SpeechHandler(int *fds, const char *player) {
         if (harvested == 1) {
             harvested = 0;
             if ((sndpid = fork()) == 0) {
-                /*
-                FILE *sayf;
-
-                if ((sayf = popen(player, "w")) != NULL) {
-                    fprintf(sayf, "(SayText %s)\n", data);
-                    pclose(sayf);
-                    }
-                    */
-
                 char spk_call[1024];
                 snprintf(spk_call, 1024, "echo '(SayText \"%s\")' | %s >/dev/null 2>/dev/null",
                          data, player);
@@ -534,13 +518,7 @@ void NetWriteInfo() {
         }
 
         snprintf(output, 2048, "*NETWORK: %.2000s\n", Packetracker::Net2String(tracked[x]).c_str());
-        // bssid type ssid info llc data crypt interesting channel wep first_time
-        // last_time address_type range_ip mask
-        // lat lon alt spd fix firstlat firstlon firstalt firstspd firstfix
         ui_server.SendToAll(output);
-
-//        if (tracked[x]->bssid.size() <= 0)
-//            continue;
 
         for (map<mac_addr, wireless_client *>::const_iterator y = tracked[x]->client_map.begin();
              y != tracked[x]->client_map.end(); ++y) {
@@ -600,9 +578,6 @@ void NetWriteNew(int in_fd) {
 
     for (unsigned int x = 0; x < tracked.size(); x++) {
         snprintf(output, 2048, "*NETWORK: %.2000s\n", Packetracker::Net2String(tracked[x]).c_str());
-        // bssid type ssid info llc data crypt interesting channel wep first_time
-        // last_time address_type range_ip mask
-        // lat lon alt spd fix firstlat firstlon firstalt firstspd firstfix
         ui_server.Send(in_fd, output);
 
         for (map<mac_addr, wireless_client *>::const_iterator y = tracked[x]->client_map.begin();
@@ -610,9 +585,6 @@ void NetWriteNew(int in_fd) {
             snprintf(output, 2048, "*CLIENT: %.2000s\n", Packetracker::Client2String(tracked[x], y->second).c_str());
             ui_server.Send(in_fd, output);
         }
-
-        //if (tracked[x]->bssid.size() <= 0)
-        //    continue;
 
         for (map<string, cdp_packet>::const_iterator y = tracked[x]->cisco_equip.begin();
              y != tracked[x]->cisco_equip.end(); ++y) {
@@ -1300,17 +1272,6 @@ int main(int argc,char *argv[]) {
         }
     }
 
-    /*
-    if (sleepu == 0) {
-        if (conf.FetchOpt("microsleep") == "") {
-            sleepu = 100;
-        } else if (sscanf(conf.FetchOpt("microsleep").c_str(), "%d", &sleepu) != 1) {
-            fprintf(stderr, "FATAL:  Illegal config file value for microsleep.\n");
-            exit(1);
-        }
-        }
-        */
-
     if (tcpport == -1) {
         if (conf.FetchOpt("tcpport") == "") {
             fprintf(stderr, "FATAL:  No tcp port given to listen for GUI connections.\n");
@@ -1743,14 +1704,7 @@ int main(int argc,char *argv[]) {
 
         fprintf(stderr, "Crypt file format: %s\n", cryptfile->FetchType());
 
-        /*
-        if ((crypt_file = fopen(cryptlogfile.c_str(), "w")) == NULL) {
-            perror("Unable to open weak log file");
-            exit(1);
-            }
-            */
     }
-
 
     snprintf(status, STATUS_MAX, "Kismet %d.%d.%d", MAJOR, MINOR, TINY);
     fprintf(stderr, "%s\n", status);
@@ -1792,8 +1746,6 @@ int main(int argc,char *argv[]) {
     FD_ZERO(&read_set);
 
     int max_fd = 0;
-
-    //FD_SET(fileno(stdin), &read_set);
 
     // We want to remember all our FD's so we don't have to keep calling functions which
     // call functions and so on.  Fill in our descriptors while we're at it.
@@ -1861,15 +1813,6 @@ int main(int argc,char *argv[]) {
                 max_fd = accept_fd;
 
         }
-
-        // Remove anything in the set that had an exception...
-        /*
-        for (unsigned int x = 0; x < max_fd; x++)
-            if (FD_ISSET(x, &eset)) {
-                FD_CLR(x, &read_set);
-                fprintf(stderr, "Got except on fd %d\n", x);
-                }
-                */
 
         // Jump through hoops to handle generic packet source
         int process_packet_source = 0;
@@ -2003,11 +1946,6 @@ int main(int argc,char *argv[]) {
     
                 }
     
-                /*
-                if (process_ret == 1 && sound == 1)
-                PlaySound(sndplay, "new", wav_map);
-                */
-
                 if (data_log && !(info.type == packet_noise && noise_log == 1)) {
                     if (limit_logs && log_packnum > limit_logs) {
                         dumpfile->CloseDump();

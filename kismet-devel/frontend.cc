@@ -191,10 +191,6 @@ void Frontend::UpdateGroups() {
 
         dnet->virtnet.ipdata.atype = address_none;
         memset(dnet->virtnet.ipdata.range_ip, 0, 4);
-        /*
-        memset(dnet->virtnet.ipdata.mask, 0, 4);
-        memset(dnet->virtnet.ipdata.gate_ip, 0, 4);
-        */
         dnet->virtnet.ipdata.octets = 4;
         dnet->virtnet.last_time = dnet->virtnet.first_time = 0;
         dnet->virtnet.maxrate = 0;
@@ -508,12 +504,6 @@ void Frontend::ReadGroupMap(FILE *in_file) {
     char dline[8192];
 
     char type[6];
-    /*
-    char parm1[MAC_STR_LEN];
-    short int bssid_in[MAC_LEN];
-    uint8_t bssid[MAC_LEN];
-    char parm2[1024];
-    */
 
     char parm1[MAC_STR_LEN];
     char parm2[1024];

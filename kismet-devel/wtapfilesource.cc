@@ -101,8 +101,6 @@ int WtapFileSource::Wtap2Common(pkthdr *in_header, u_char *in_data) {
     in_header->ts.tv_sec = packet_header->ts.tv_sec;
     in_header->ts.tv_usec = packet_header->ts.tv_usec;
 
-    // in_header->pkt_encap = WTAP_ENCAP_IEEE_802_11;
-
     memcpy(in_data, packet_data, in_header->len);
 
     return 1;

@@ -226,15 +226,6 @@ void GetPacketInfo(const pkthdr *header, const u_char *data,
 
         } else if (frame->fc.subtype == 4) {
             // Probe req
-
-            // Bail if we aren't long enough
-            /* We wouldn't haven gotten this far if we weren't long enough
-            if (header->len < 24) {
-                ret.type = packet_noise;
-                return ret;
-                }
-                */
-
             if ((tag_offset = GetTagOffset(24, 0, header, data)) > 0) {
                 temp = (msgbuf[tag_offset] & 0xFF) + 1;
 
@@ -317,15 +308,6 @@ void GetPacketInfo(const pkthdr *header, const u_char *data,
         }
     } else if (frame->fc.type == 2) {
         // Data packets
-
-        // Bail if not long enough
-        /* Again, we can't get here now
-        if (header->len < 24) {
-            ret.type = packet_noise;
-            return ret;
-            }
-            */
-
         ret_packinfo->type = packet_data;
 
         // Extract ID's
@@ -461,23 +443,6 @@ void GetProtoInfo(const packet_info *in_info, const pkthdr *header,
 
     ret_protoinfo->type = proto_unknown;
 
-    /*
-     if (header->len < 56)
-        return ret;
-        */
-
-    /* Disabled temporarily as it seems to be used by some other things and to force
-     netstumbler version detection.
-
-    if (in_info->dest_mac == NETS_MAC) {
-        // We look for netstumblers first since we need them to match before the
-        // multicast catch-all in the next compare...  Anything sending to this multicast
-        // MAC address seems to be a NS probe so we'll catch it directly, this saves us
-        // processing time on the other NS identifiers
-        ret_protoinfo->type = proto_netstumbler;
-        return;
-        } else */
-
     if (memcmp(&data[in_info->header_offset], LLC_UI_SIGNATURE,
                       sizeof(LLC_UI_SIGNATURE)) == 0) {
         // Handle all the protocols which fall under the LLC UI 0x3 frame
@@ -535,7 +500,6 @@ void GetProtoInfo(const packet_info *in_info, const pkthdr *header,
 
                     // We only take the first addr (for now)... And only if
                     // it's an IP
-                    //for (int addr = 0; addr < datarr[3]; addr++) {
                     proto = (cdp_proto_element *) &datarr[4];
 
                     if (proto->proto == 0xcc) {
@@ -592,7 +556,6 @@ void GetProtoInfo(const packet_info *in_info, const pkthdr *header,
             ret_protoinfo->nbtype = proto_netbios_domain;
         }
 
-        //printf("got netbios '%s' '%s'\n", ret.netbios_source, ret.netbios_dest);
     } else if (memcmp(&data[in_info->header_offset + LLC_OFFSET], IPX_SIGNATURE,
                       sizeof(IPX_SIGNATURE)) == 0) {
         // IPX packet
@@ -601,11 +564,6 @@ void GetProtoInfo(const packet_info *in_info, const pkthdr *header,
                       sizeof(UDP_SIGNATURE)) == 0) {
         // UDP
         ret_protoinfo->type = proto_udp;
-
-        /*
-        memcpy(&ret.sport, (uint16_t *) &msgbuf[in_info->header_offset + UDP_OFFSET], 2);
-        memcpy(&ret.dport, (uint16_t *) &msgbuf[in_info->header_offset + UDP_OFFSET + 2], 2);
-        */
 
         uint16_t d, s;
 
@@ -638,8 +596,6 @@ void GetProtoInfo(const packet_info *in_info, const pkthdr *header,
                 // Netbios domain announcement
                 ret_protoinfo->nbtype = proto_netbios_domain;
             }
-
-            //printf("Got netbios tcp source '%s' dest '%s'\n", ret.netbios_source, ret.netbios_dest);
 
         } else if (ret_protoinfo->sport == 137 && ret_protoinfo->dport == 137) {
             ret_protoinfo->type = proto_netbios_tcp;
@@ -687,12 +643,6 @@ void GetProtoInfo(const packet_info *in_info, const pkthdr *header,
             while (offset < header->len) {
                 if (data[offset] == 0x01) {
                     // netmask
-
-                    /*
-                     fprintf(stderr, "OFfset %X %d.%d.%d.%d\n",
-                            offset,
-                            data[offset+2], data[offset+3], data[offset+4], data[offset+5]);
-                            */
 
                     // Bail out of we're a "boring" dhcp ack
                     if (data[offset+2] == 0x00) {
@@ -745,12 +695,6 @@ void GetProtoInfo(const packet_info *in_info, const pkthdr *header,
         ret_protoinfo->sport = ntohs((unsigned short int) s);
         ret_protoinfo->dport = ntohs((unsigned short int) d);
 
-
-        /*
-        memcpy(&ret.sport, (uint16_t *) &msgbuf[in_info->header_offset + TCP_OFFSET], 2);
-        memcpy(&ret.dport, (uint16_t *) &msgbuf[in_info->header_offset + TCP_OFFSET + 2], 2);
-        */
-
         memcpy(ret_protoinfo->source_ip, (const uint8_t *) &msgbuf[in_info->header_offset + IP_OFFSET + 3], 4);
         memcpy(ret_protoinfo->dest_ip, (const uint8_t *) &msgbuf[in_info->header_offset + IP_OFFSET + 7], 4);
 
@@ -766,12 +710,6 @@ vector<string> GetPacketStrings(const packet_info *in_info, const pkthdr *header
     int pos = 0;
     int printable = 0;
     for (unsigned int x = in_info->header_offset; x < header->len; x++) {
-        /*
-                     (!isalnum(in_data[x]) && !isspace(in_data[x]) &&
-             in_data[x] != '<' && in_data[x] != '>' &&
-             in_data[x] != '=' && in_data
-             */
-
         if (printable && !isprint(in_data[x]) && pos != 0) {
             if (pos > 4)
                 ret.push_back(str);
