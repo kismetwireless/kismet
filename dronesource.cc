@@ -18,6 +18,7 @@
 
 #include "config.h"
 
+#include "util.h"
 #include "dronesource.h"
 
 int DroneSource::OpenSource(const char *dev, card_type ctype) {
@@ -220,6 +221,16 @@ int DroneSource::Drone2Common(kis_packet *packet, uint8_t *data, uint8_t *moddat
     packet->error = phdr.error;
     packet->encoding = (encoding_type) phdr.encoding;
     packet->datarate = (uint32_t) ntohl(phdr.datarate);
+
+    packet->gps_lat = Pair2Float((int16_t) ntohs(phdr.gps_lat),
+                                 (int64_t) kis_ntoh64(phdr.gps_lat_mant));
+    packet->gps_lon = Pair2Float((int16_t) ntohs(phdr.gps_lon),
+                                 (int64_t) kis_ntoh64(phdr.gps_lon_mant));
+    packet->gps_alt = Pair2Float((int16_t) ntohs(phdr.gps_alt),
+                                 (int64_t) kis_ntoh64(phdr.gps_alt_mant));
+    packet->gps_spd = Pair2Float((int16_t) ntohs(phdr.gps_spd),
+                                 (int64_t) kis_ntoh64(phdr.gps_spd_mant));
+    packet->gps_fix = phdr.gps_fix;
 
     packet->data = data;
     packet->moddata = moddata;

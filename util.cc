@@ -148,6 +148,15 @@ vector<string> StrTokenize(string in_str, string in_split) {
     return ret;
 }
 
+void Float2Pair(float in_float, int16_t *primary, int64_t *mantissa) {
+    *primary = (int) in_float;
+    *mantissa = (long) (1000000 * ((in_float) - *primary));
+}
+
+float Pair2Float(int16_t primary, int64_t mantissa) {
+    return (double) primary + ((double) mantissa / 1000000);
+}
+
 KisRingBuffer::KisRingBuffer(int in_size) {
     ring_len = in_size;
     ring_data = new uint8_t[in_size];

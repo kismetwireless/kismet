@@ -52,6 +52,9 @@ int Hex2UChar(unsigned char *in_hex, unsigned char *in_chr);
 
 vector<string> StrTokenize(string in_str, string in_split);
 
+void Float2Pair(float in_float, int16_t *primary, int64_t *mantissa);
+float Pair2Float(int16_t primary, int64_t mantissa);
+
 class KisRingBuffer {
 public:
     KisRingBuffer(int in_size);
