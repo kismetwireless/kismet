@@ -62,7 +62,7 @@ int Timetracker::Tick() {
             }
 
             // Resort the list
-            sort(sorted_timers.begin(), sorted_timers.end(), SortTimerEventsTrigger());
+            stable_sort(sorted_timers.begin(), sorted_timers.end(), SortTimerEventsTrigger());
         } else {
             RemoveTimer(evt->timer_id);
         }
@@ -98,7 +98,7 @@ int Timetracker::RegisterTimer(int in_timeslices, struct timeval *in_trigger,
     sorted_timers.push_back(evt);
 
     // Resort the list
-    sort(sorted_timers.begin(), sorted_timers.end(), SortTimerEventsTrigger());
+    stable_sort(sorted_timers.begin(), sorted_timers.end(), SortTimerEventsTrigger());
 
     return evt->timer_id;
 }
@@ -115,7 +115,7 @@ int Timetracker::RemoveTimer(int in_timerid) {
         }
 
         // Resort the list
-        sort(sorted_timers.begin(), sorted_timers.end(), SortTimerEventsTrigger());
+        stable_sort(sorted_timers.begin(), sorted_timers.end(), SortTimerEventsTrigger());
 
         delete itr->second;
         timer_map.erase(itr);
