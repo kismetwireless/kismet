@@ -491,10 +491,12 @@ int PanelFront::TextInput(void *in_window, int in_chr) {
 
     switch (in_chr) {
     case KEY_PPAGE:
-        kwin->start = max(0, kwin->start - kwin->max_display);
+        if (kwin->start != 0)
+            kwin->start = max(0, kwin->start - kwin->max_display);
         break;
     case KEY_NPAGE:
-        kwin->start = min((int)kwin->text.size() - kwin->max_display, kwin->start + kwin->max_display);
+        if (kwin->end < (int) kwin->text.size() - 1 && kwin->end != 0)
+            kwin->start = min((int)kwin->text.size() - kwin->max_display, kwin->start + kwin->max_display);
         break;
     case KEY_UP:
     case '-':
