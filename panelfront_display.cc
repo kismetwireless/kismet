@@ -455,8 +455,10 @@ int PanelFront::MainNetworkPrinter(void *in_window) {
 
     // Move the selected line to the end of the window if the new display we're
     // about to draw would bump it off the end
-    if (kwin->selected > calcnum)
-        kwin->selected = calcnum;
+    if (kwin->selected < 0)
+        kwin->selected = 0;
+    if (kwin->selected >= calcnum && calcnum != 0)
+        kwin->selected = calcnum - 1;
 
     for (unsigned int i = kwin->start; i < display_vector.size(); i++) {
 
@@ -2234,10 +2236,10 @@ int PanelFront::DetailsClientPrinter(void *in_window) {
 
     switch (details_client->type) {
     case client_fromds:
-        snprintf(temp, print_width, "From Distribution");
+        snprintf(temp, print_width, "From Distribution (Most likely a wired system)");
         break;
     case client_tods:
-        snprintf(temp, print_width, "To Distribution");
+        snprintf(temp, print_width, "To Distribution (Most likely a wireless system)");
         break;
     case client_interds:
         snprintf(temp, print_width, "Intra-distribution");
@@ -2251,6 +2253,9 @@ int PanelFront::DetailsClientPrinter(void *in_window) {
     }
 
     snprintf(output, print_width, "Type    : %s", temp);
+    kwin->text.push_back(output);
+
+    snprintf(output, print_width, "MAC     : %s", details_client->mac.Mac2String().c_str());
     kwin->text.push_back(output);
 
     map<mac_addr, manuf *>::const_iterator mitr;
@@ -2274,8 +2279,6 @@ int PanelFront::DetailsClientPrinter(void *in_window) {
     snprintf(output, print_width, "First   : %.24s", ctime((const time_t *) &details_client->first_time));
     kwin->text.push_back(output);
     snprintf(output, print_width, "Latest  : %.24s", ctime((const time_t *) &details_client->last_time));
-    kwin->text.push_back(output);
-    snprintf(output, print_width, "MAC     : %s", details_client->mac.Mac2String().c_str());
     kwin->text.push_back(output);
     snprintf(output, print_width, "Max Rate: %2.1f", details_client->maxrate);
     kwin->text.push_back(output);
