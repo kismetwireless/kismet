@@ -70,6 +70,9 @@ void PanelFront::NetLine(kis_window *in_window, string *in_str, wireless_network
         char element[1024];
         int len = 0;
         main_columns colindex = column_vec[col];
+    
+        if (colindex == mcol_unknown)
+            continue;
 
         if (colindex == mcol_decay) {
             if (idle_time < decay)
@@ -381,6 +384,9 @@ int PanelFront::MainNetworkPrinter(void *in_window) {
         int len = 0;
         main_columns colind = column_vec[col];
 
+        if (colind == mcol_unknown)
+            continue;
+        
         if (colind == mcol_decay) {
             snprintf(title, 1024, " ");
             len = 1;
@@ -908,6 +914,9 @@ void PanelFront::ClientLine(kis_window *in_window, string *in_str, wireless_clie
     for (unsigned int col = 0; col < client_column_vec.size(); col++) {
         client_columns colind = client_column_vec[col];
 
+        if (colind == ccol_unknown)
+            continue;
+        
         if (colind == ccol_decay) {
             if (idle_time < decay)
                 snprintf(element, 1024, "!");
@@ -1005,6 +1014,9 @@ int PanelFront::MainClientPrinter(void *in_window) {
         int len = 0;
         client_columns colind = client_column_vec[col];
 
+        if (colind == ccol_unknown)
+            continue;
+        
         if (colind == ccol_decay) {
             snprintf(title, 1024, " ");
             len = 1;

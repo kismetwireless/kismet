@@ -694,8 +694,10 @@ PanelFront::main_columns PanelFront::Token2MainColumn(string in_token) {
         return mcol_manuf;
     } else if (in_token == "signal") {
         return mcol_signal;
+        /*
     } else if (in_token == "quality") {
         return mcol_quality;
+        */
     } else if (in_token == "noise") {
         return mcol_noise;
     } else if (in_token == "clients") {
@@ -704,8 +706,10 @@ PanelFront::main_columns PanelFront::Token2MainColumn(string in_token) {
         return mcol_datasize;
     } else if (in_token == "signalbar") {
         return mcol_signalbar;
+        /*
     } else if (in_token == "qualitybar") {
         return mcol_qualitybar;
+        */
     } else if (in_token == "dupeiv") {
         return mcol_dupeiv;
     } else {
@@ -737,8 +741,10 @@ PanelFront::client_columns PanelFront::Token2ClientColumn(string in_token) {
         return ccol_ip;
     } else if (in_token == "signal") {
         return ccol_signal;
+        /*
     } else if (in_token == "quality") {
         return ccol_quality;
+        */
     } else if (in_token == "noise") {
         return ccol_noise;
     } else if (in_token == "size") {
