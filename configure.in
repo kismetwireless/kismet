@@ -650,7 +650,7 @@ elif test $wget = "no"; then
 else
 	#CPPFLAGS="$CPPFLAGS `Magick-config --cppflags` -I`Magick-config --prefix`/include"
 	CPPFLAGS="$CPPFLAGS `Magick-config --cppflags`"
-	CXXFLAGS="$CXXFLAGS `Magick-config --cflags` `Magick-config --cppflags`"
+	CXXFLAGS="$CXXFLAGS `Magick-config --cflags`"
 	#CXXFLAGS="$CXXFLAGS `Magick-config --cflags` -I`Magick-config --prefix`/include"
 	LDFLAGS="$LDFLAGS `Magick-config --ldflags`"
 	LIBS="`Magick-config --libs`"
@@ -676,18 +676,16 @@ CXXFLAGS="$save_cxxflags"
 LIBS="$save_libs"
 LDFLAGS="$save_ldflags"
 
-if test "$wantgps" = "no"; then
-	if test "$gpslc" != ""; then
-		AC_MSG_WARN(*** Disabling gpsmap because gps support is turned off. ***)
-		gpslc=""
-	fi
-fi
-
 if test "$expatl" = "no"; then
 	if test "$gpslc" != ""; then
 		AC_MSG_WARN(*** Disabling gpsmap because expat was not found. ***)
 		gpslc=""
 	fi
+fi
+
+if test "$gpslc" != ""; then
+	CPPFLAGS="$CPPFLAGS `Magick-config --cppflags`"
+	CXXFLAGS="$CXXFLAGS `Magick-config --cflags`"
 fi
 
 if test "$libz" = "no" -a "$gpslc" != ""; then

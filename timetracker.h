@@ -29,9 +29,6 @@
 #include <algorithm>
 #include <string>
 
-// Timer slices per second
-#define SERVER_TIMESLICES_SEC 10
-
 class Timetracker {
 public:
     typedef struct timer_event {
