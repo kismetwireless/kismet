@@ -286,11 +286,12 @@ int NetworkServer::FetchClientVector(vector<int> *ret_vec) {
 }
 
 int ServerFramework::Shutdown() {
-    int ret;
+    // Initiate a shutdown of the components
+    if (netserver != NULL) {
+        netserver->FlushRings();
+        netserver->Shutdown();
+    }
 
-    if (netserver != NULL)
-        ret = netserver->FlushRings();
-
-    return ret;
+    return 1;
 }
 

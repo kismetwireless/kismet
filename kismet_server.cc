@@ -1603,6 +1603,11 @@ int main(int argc,char *argv[]) {
     int log_packnum = 0;
     char status[STATUS_MAX];
 
+    int kistcpport = -1;
+    unsigned int kistcpmaxcli = 0;
+    string kisallowedhosts;
+    vector<TcpServer::client_ipfilter *> ipfilter_vec;
+    
     globalregistry->start_time = time(0);
 
     unsigned char wep_identity[256];
@@ -1728,7 +1733,7 @@ int main(int argc,char *argv[]) {
             break;
         case 'p':
             // Port
-            if (sscanf(optarg, "%d", &globalregistry->kistcpport) != 1) {
+            if (sscanf(optarg, "%d", &kistcpport) != 1) {
                 globalregistry->messagebus->InjectMessage("Invalid port number specified for Kismet TCP server",
                                                           MSGFLAG_FATAL);
                 Usage(argv[0]);
@@ -1736,7 +1741,7 @@ int main(int argc,char *argv[]) {
             break;
         case 'a':
             // Allowed
-            globalregistry->kisallowedhosts = string(optarg);
+            kisallowedhosts = string(optarg);
             break;
         case 'N':
             // Servername
@@ -1997,10 +2002,123 @@ int main(int argc,char *argv[]) {
 
     // Grab the rest of our config options
     ProcessBulkConf(conf);
-    
-    // Delete the conf stuff
-    delete conf;
-    conf = NULL;
+
+    // Parse out the tcp kismet client stuff
+    if (kistcpport == -1) {
+        if (conf->FetchOpt("tcpport") == "") {
+            globalregistry->messagebus->InjectMessage("No TCP port given for UI server",
+                                                      MSGFLAG_FATAL);
+            globalregistry->fatal_condition = 1;
+            ErrorShutdown();
+        } else if (sscanf(conf->FetchOpt("tcpport").c_str(), 
+                          "%d", &kistcpport) != 1) {
+            globalregistry->messagebus->InjectMessage("Invalid value for 'tcpport' in config file",
+                                                      MSGFLAG_FATAL);
+            globalregistry->fatal_condition = 1;
+            ErrorShutdown();
+        }
+    }
+
+    if (conf->FetchOpt("maxclients") == "") {
+        globalregistry->messagebus->InjectMessage("No maximum number of UI clients given",
+                                                  MSGFLAG_FATAL);
+        globalregistry->fatal_condition = 1;
+        ErrorShutdown();
+    } else if (sscanf(conf->FetchOpt("maxclients").c_str(), "%d", 
+                      &kistcpmaxcli) != 1) {
+        globalregistry->messagebus->InjectMessage("Invalid value for 'maxclients' in config file",
+                                                  MSGFLAG_FATAL);
+        globalregistry->fatal_condition = 1;
+        ErrorShutdown();
+    }
+
+    if (kisallowedhosts.length() == 0) {
+        if (conf->FetchOpt("allowedhosts") == "") {
+            globalregistry->messagebus->InjectMessage("No list of allowed hosts for UI connections",
+                                                      MSGFLAG_FATAL);
+            globalregistry->fatal_condition = 1;
+            ErrorShutdown();
+        }
+
+        kisallowedhosts = conf->FetchOpt("allowedhosts");
+    }
+
+    vector<string> hostsvec = StrTokenize(kisallowedhosts, ",");
+
+    for (size_t hostcomp = 0; hostcomp < hostsvec.size(); hostcomp++) {
+        TcpServer::client_ipfilter *ipb = new TcpServer::client_ipfilter;
+        string hoststr = hostsvec[hostcomp];
+
+        // Find the netmask divider, if one exists
+        size_t masksplit = hoststr.find("/");
+        if (masksplit == string::npos) {
+            // Handle hosts with no netmask - they're treated as single hosts
+            inet_aton("255.255.255.255", &(ipb->mask));
+
+            if (inet_aton(hoststr.c_str(), &(ipb->network)) == 0) {
+                snprintf(errstr, STATUS_MAX, "Illegal IP address '%s' in allowed hosts list.",
+                         hoststr.c_str());
+                globalregistry->messagebus->InjectMessage(errstr, MSGFLAG_FATAL);
+                globalregistry->fatal_condition = 1;
+                ErrorShutdown();
+            }
+        } else {
+            // Handle pairs
+            string hosthalf = hoststr.substr(0, masksplit);
+            string maskhalf = hoststr.substr(masksplit + 1, hoststr.length() - (masksplit + 1));
+
+            if (inet_aton(hosthalf.c_str(), &(ipb->network)) == 0) {
+                snprintf(errstr, STATUS_MAX, "Illegal IP address '%s' in allowed hosts list.",
+                         hosthalf.c_str());
+                globalregistry->messagebus->InjectMessage(errstr, MSGFLAG_FATAL);
+                globalregistry->fatal_condition = 1;
+                ErrorShutdown();
+            }
+
+            int validmask = 1;
+            if (maskhalf.find(".") == string::npos) {
+                // If we have a single number (ie, /24) calculate it and put it into
+                // the mask.
+                long masklong = strtol(maskhalf.c_str(), (char **) NULL, 10);
+
+                if (masklong < 0 || masklong > 32) {
+                    validmask = 0;
+                } else {
+                    if (masklong == 0)
+                        masklong = 32;
+
+                    ipb->mask.s_addr = htonl((-1 << (32 - masklong)));
+                }
+            } else {
+                // We have a dotted quad mask (ie, 255.255.255.0), convert it
+                if (inet_aton(maskhalf.c_str(), &(ipb->mask)) == 0)
+                    validmask = 0;
+            }
+
+            if (validmask == 0) {
+                snprintf(errstr, STATUS_MAX, "Illegal IP netmask '%s' in allowed hosts list.",
+                         maskhalf.c_str());
+                globalregistry->messagebus->InjectMessage(errstr, MSGFLAG_FATAL);
+                globalregistry->fatal_condition = 1;
+                ErrorShutdown();
+            }
+        }
+
+        // Catch 'network' addresses that aren't network addresses.
+        if ((ipb->network.s_addr & ipb->mask.s_addr) != ipb->network.s_addr) {
+            snprintf(errstr, STATUS_MAX, "Illegal network '%s' in allowed hosts list.",
+                     inet_ntoa(ipb->network));
+            globalregistry->messagebus->InjectMessage(errstr, MSGFLAG_FATAL);
+            globalregistry->fatal_condition = 1;
+            ErrorShutdown();
+        }
+
+        // Add it to our vector
+        ipfilter_vec.push_back(ipb);
+    }
+
+    // Configure the server
+    kistcpserver->SetupServer(kistcpport, kistcpmaxcli, ipfilter_vec);
 
     if (data_log) {
         if (dumpfile->OpenDump(dumplogfile.c_str()) < 0) {
@@ -2145,7 +2263,7 @@ int main(int argc,char *argv[]) {
     }
 #endif
 
-    // Set up the 
+    // Turn on the server
     if (kistcpserver->EnableServer() < 0 || globalregistry->fatal_condition) {
         CatchShutdown(-1);
     }

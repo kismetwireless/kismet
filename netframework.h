@@ -76,7 +76,7 @@ public:
     }
 
     // Generic stuff that every network-y server will need to do.
-    // All of this must be overridden
+    // Most of this needs to be overridden
     
     // Core select loop merge - combine FDs with the master FD list, and
     // handle a strobe across pending FDs
@@ -121,6 +121,9 @@ public:
 
     // Fetch a vector of all the current clients for mass-writes
     virtual int FetchClientVector(vector<int> *ret_vec);
+
+    // Shutdown the server
+    virtual void Shutdown() = 0;
 
 protected:
     // Broker various acceptance stuff

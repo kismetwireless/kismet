@@ -63,6 +63,10 @@ public:
     virtual ~TcpServer();
 
     // Set up the TCP socket and listening
+    virtual int SetupServer(short int in_port, unsigned int in_maxcli,
+                            vector<TcpServer::client_ipfilter *> in_filtervec);
+
+    // Enable server
     virtual int EnableServer();
 
     // Core select loop merge - combine FDs with the master FD list, and
@@ -101,6 +105,11 @@ protected:
 
     // Server info
     char hostname[MAXHOSTNAMELEN];
+    short int port;
+    unsigned int maxcli;
+
+    // Is it configured?
+    int sv_configured;
 
     struct sockaddr_in serv_sock;
 };
