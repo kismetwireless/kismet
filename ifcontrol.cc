@@ -28,7 +28,6 @@ int Ifconfig_Set_Linux(const char *in_dev, char *errstr,
                        short flags) {
     struct ifreq ifr;
     int skfd;
-    struct sockaddr_in loc;
 
     if ((skfd = socket(AF_INET, SOCK_DGRAM, 0)) < 0) {
         snprintf(errstr, STATUS_MAX, "Failed to create AF_INET DGRAM socket. %d:%s",
@@ -47,7 +46,7 @@ int Ifconfig_Set_Linux(const char *in_dev, char *errstr,
     }
     strncpy(ifr.ifr_name, in_dev, IFNAMSIZ);
 
-    if (ifaddr == NULL) {
+    if (flags == 0) {
         ifr.ifr_flags |= (IFF_UP | IFF_RUNNING | IFF_PROMISC);    
     } else {
         ifr.ifr_flags = flags;
@@ -60,21 +59,15 @@ int Ifconfig_Set_Linux(const char *in_dev, char *errstr,
         return -1;
     }  
 
-    strncpy(ifr.ifr_name, in_dev, IFNAMSIZ);
-
-    if (ifaddr == NULL) {
-        memset(&loc, 0, sizeof(sockaddr_in));
-        loc.sin_family = AF_INET;
-    } else {
-        memcpy(&loc, ifaddr, sizeof(sockaddr_in));
-    }
-    memcpy(&ifr.ifr_addr, &loc, sizeof(struct sockaddr));
-
-    if (ioctl(skfd, SIOCSIFADDR, &ifr) < 0) {
-        snprintf(errstr, STATUS_MAX, "Failed to set interface address: %s",
-                 strerror(errno));
-        close(skfd);
-        return -1;
+    if (ifaddr != NULL) {
+        strncpy(ifr.ifr_name, in_dev, IFNAMSIZ);
+        memcpy(&ifr.ifr_addr, ifaddr, sizeof(struct sockaddr));
+        if (ioctl(skfd, SIOCSIFADDR, &ifr) < 0) {
+            snprintf(errstr, STATUS_MAX, "Failed to set interface address: %s",
+                     strerror(errno));
+            close(skfd);
+            return -1;
+        }
     }
 
     if (dstaddr != NULL) {
