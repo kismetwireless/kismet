@@ -164,7 +164,7 @@ void GetPacketInfo(kis_packet *packet, packet_parm *parm, packet_info *ret_packi
     // Zero the entire struct
     memset(ret_packinfo, 0, sizeof(packet_info));
 
-    // Screen capture-level errors
+    // Screen capture-level errors as just pure noise
     if (packet->error == 1) {
         ret_packinfo->type = packet_noise;
         return;
@@ -220,7 +220,8 @@ void GetPacketInfo(kis_packet *packet, packet_parm *parm, packet_info *ret_packi
     ret_packinfo->distrib = no_distribution;
 
     // If we don't have enough to make up an 802.11 frame and we're not a PHY layer frame,
-    // count us as noise and bail
+    // count us as noise and bail.  We don't try to figure out what we are, we're just
+    // broken
     if (packet->len < 24 && fc->type != 1) {
         ret_packinfo->type = packet_noise;
         return;
@@ -288,7 +289,8 @@ void GetPacketInfo(kis_packet *packet, packet_parm *parm, packet_info *ret_packi
                 // but if we can't print them it's not going to be very useful
                 MungeToPrintable(ret_packinfo->ssid, temp);
             } else {
-                ret_packinfo->type = packet_noise;
+                // Otherwise we're corrupt, set it and stop processing
+                ret_packinfo->corrupt = 1;
                 return;
             }
         }
@@ -376,7 +378,8 @@ void GetPacketInfo(kis_packet *packet, packet_parm *parm, packet_info *ret_packi
                     snprintf(ret_packinfo->beacon_info, BEACON_INFO_LEN, "%s", &packet->data[tag_offset+11]);
                     MungeToPrintable(ret_packinfo->beacon_info, BEACON_INFO_LEN);
                 } else {
-                    ret_packinfo->type = packet_noise;
+                    // Otherwise we're corrupt, bail
+                    ret_packinfo->corrupt = 1;
                     return;
                 }
             }
@@ -502,7 +505,7 @@ void GetPacketInfo(kis_packet *packet, packet_parm *parm, packet_info *ret_packi
         case inter_distribution:
             // If we aren't long enough to hold a intra-ds packet, bail
             if (packet->len < 30) {
-                ret_packinfo->type = packet_noise;
+                ret_packinfo->corrupt = 1;
                 return;
             }
 
@@ -516,7 +519,7 @@ void GetPacketInfo(kis_packet *packet, packet_parm *parm, packet_info *ret_packi
             ret_packinfo->header_offset = 30;
             break;
         default:
-            ret_packinfo->type = packet_noise;
+            ret_packinfo->corrupt = 1;
             return;
             break;
         }
@@ -618,8 +621,9 @@ void GetPacketInfo(kis_packet *packet, packet_parm *parm, packet_info *ret_packi
     // Do a little sanity checking on the BSSID
     if (ret_packinfo->bssid_mac.error == 1 ||
         ret_packinfo->source_mac.error == 1 ||
-        ret_packinfo->dest_mac.error == 1)
-        ret_packinfo->type = packet_noise;
+        ret_packinfo->dest_mac.error == 1) {
+        ret_packinfo->corrupt = 1;
+    }
 
 }
 

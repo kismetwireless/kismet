@@ -73,7 +73,7 @@ const char *config_base = "kismet.conf";
 char *configfile = NULL;
 int no_log = 0, noise_log = 0, data_log = 0, net_log = 0, crypt_log = 0, cisco_log = 0,
     gps_log = -1, gps_enable = 1, csv_log = 0, xml_log = 0, ssid_cloak_track = 0, ip_track = 0,
-    waypoint = 0, fifo = 0;
+    waypoint = 0, fifo = 0, corrupt_log = 0;
 string logname, dumplogfile, netlogfile, cryptlogfile, ciscologfile,
     gpslogfile, csvlogfile, xmllogfile, ssidtrackfile, configdir, iptrackfile, waypointfile,
     fifofile;
@@ -304,7 +304,7 @@ void CatchShutdown(int sig) {
     }
 
 #ifdef HAVE_GPS
-    if (gps_log) {
+    if (gps_log == 1) {
         if (gpsdump.CloseDump(1) < 0)
             fprintf(stderr, "Didn't log any GPS coordinates, unlinking gps file\n");
     }
@@ -789,7 +789,7 @@ int GpsEvent(Timetracker::timer_event *evt, void *parm) {
         }
     }
 
-    if (gps_log && gpsmode != 0 && gps != NULL) {
+    if (gps_log == 1 && gpsmode != 0 && gps != NULL) {
         gpsdump.DumpTrack(gps);
     }
 
@@ -1632,6 +1632,9 @@ int main(int argc,char *argv[]) {
         if (conf->FetchOpt("noiselog") == "true")
             noise_log = 1;
 
+        if (conf->FetchOpt("corruptlog") == "true")
+            corrupt_log = 1;
+
         if (strstr(logtypes, "dump")) {
             data_log = 1;
 
@@ -1738,7 +1741,7 @@ int main(int argc,char *argv[]) {
 
         }
 
-        if (gps_log && !net_log) {
+        if (gps_log == 1 && !net_log) {
             fprintf(stderr, "WARNING:  Logging (gps coordinates) enabled but XML logging (networks) was not.\n"
                     "It will be enabled now.\n");
             xml_log = 1;
@@ -2193,7 +2196,7 @@ int main(int argc,char *argv[]) {
         }
 
 #ifdef HAVE_GPS
-        if (gps_log) {
+        if (gps_log == 1) {
             gpslogfile = conf->ExpandLogPath(conf->FetchOpt("logtemplate"), logname, "gps", run_num);
 
             if (gpslogfile == "")
@@ -2230,7 +2233,7 @@ int main(int argc,char *argv[]) {
         fprintf(stderr, "Logging cisco product information to %s\n", ciscologfile.c_str());
 
 #ifdef HAVE_GPS
-    if (gps_log)
+    if (gps_log == 1)
         fprintf(stderr, "Logging gps coordinates to %s\n", gpslogfile.c_str());
 #endif
 
@@ -2333,7 +2336,7 @@ int main(int argc,char *argv[]) {
     }
 
 #ifdef HAVE_GPS
-    if (gps_enable && gps_log) {
+    if (gps_enable && gps_log == 1) {
         if (gpsdump.OpenDump(gpslogfile.c_str(), xmllogfile.c_str()) < 0) {
             fprintf(stderr, "FATAL: GPS dump error: %s\n", gpsdump.FetchError());
             exit(1);
@@ -2416,7 +2419,7 @@ int main(int argc,char *argv[]) {
                  xml_log ? " XML" : "" ,
                  crypt_log ? " weak" : "",
                  cisco_log ? " cisco" : "",
-                 gps_log ? " gps" : "");
+                 gps_log == 1 ? " gps" : "");
         fprintf(stderr, "%s\n", status);
     } else if (no_log) {
         snprintf(status, STATUS_MAX, "Not logging any data.");
@@ -2783,8 +2786,8 @@ int main(int argc,char *argv[]) {
                     }
 
 #ifdef HAVE_GPS
-                    if (gps_log && info.type != packet_noise && info.type != packet_unknown &&
-                        info.type != packet_phy) {
+                    if (gps_log == 1 && info.type != packet_noise && info.type != packet_unknown &&
+                        info.type != packet_phy && info.corrupt == 0) {
                         if (gpsdump.DumpPacket(&info) < 0) {
                             snprintf(status, STATUS_MAX, "%s", gpsdump.FetchError());
                             if (!silent)
@@ -2858,7 +2861,8 @@ int main(int argc,char *argv[]) {
                     if (fifo)
                         fifodump.DumpPacket(&info, &packet);
 
-                    if (data_log && !(info.type == packet_noise && noise_log == 1)) {
+                    if (data_log && !(info.type == packet_noise && noise_log == 1) &&
+                        !(info.corrupt != 0 && corrupt_log == 1)) {
                         if (limit_logs && log_packnum > limit_logs) {
                             dumpfile->CloseDump();
 
