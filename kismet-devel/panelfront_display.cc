@@ -448,8 +448,25 @@ int PanelFront::MainNetworkPrinter(void *in_window) {
 
     }
 
-    // Figure out if we need to reposition the selected highlight...  It's
-    // quicker to iterate twice.
+    if (kwin->selected == -1) {
+        int calcnum = 0, calclines = 0;
+        for (unsigned int i = kwin->start; (i > 0) && (calclines < kwin->max_display); i--) {
+            calcnum++;
+            calclines++;
+
+            if (sortby == sort_auto || display_vector[i]->type != group_bundle ||
+                display_vector[i]->expanded == 0)
+                continue;
+
+            calclines += display_vector[i]->networks.size();
+        }
+        kwin->start -= calcnum;
+
+    } else if (kwin->selected == -2) {
+        kwin->start = kwin->end;
+    }
+
+    // Figure out if we need to reposition the selected highlight...
     int calcnum = 0, calclines = 0;
     for (unsigned int i = kwin->start; i < display_vector.size(); i++) {
         calcnum++;

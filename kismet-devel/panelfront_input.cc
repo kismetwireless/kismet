@@ -62,6 +62,21 @@ int PanelFront::MainInput(void *in_window, int in_chr) {
             WriteStatus("Cannot scroll in autofit sort mode.");
         }
         break;
+    case KEY_PPAGE:
+        if (sortby != sort_auto) {
+            kwin->selected = -1; // We want to start a page in reverse
+        } else {
+            WriteStatus("Cannot scroll in autofit sort mode.");
+        }
+
+        break;
+    case KEY_NPAGE:
+        if (sortby != sort_auto) {
+            kwin->selected = -2; // We want to start a page forward
+        } else {
+            WriteStatus("Cannot scroll in autofit sort mode.");
+        }
+        break;
     case KEY_RIGHT:
     case '+':
         if (sortby != sort_auto && last_displayed.size() > 0) {
@@ -474,6 +489,12 @@ int PanelFront::TextInput(void *in_window, int in_chr) {
     kis_window *kwin = (kis_window *) in_window;
 
     switch (in_chr) {
+    case KEY_PPAGE:
+        kwin->start = max(0, kwin->start - kwin->max_display);
+        break;
+    case KEY_NPAGE:
+        kwin->start = min((int)kwin->text.size() - kwin->max_display, kwin->start + kwin->max_display);
+        break;
     case KEY_UP:
     case '-':
         if (kwin->start != 0) {
@@ -575,6 +596,30 @@ int PanelFront::MainClientInput(void *in_window, int in_chr) {
                 }
             }
 
+        } else {
+            WriteStatus("Cannot scroll clients in autofit sort mode.");
+        }
+        break;
+    case KEY_PPAGE:
+        if (client_sortby != client_sort_auto) {
+            if (kwin->selected == 0 && kwin->start != 0) {
+                kwin->start -= kwin->max_display;
+                kwin->start = MAX(kwin->start,0);
+            } else if (kwin->selected > 0) {
+                kwin->selected -= kwin->max_display;
+                kwin->selected = MAX(kwin->selected,0);
+            }
+        } else {
+            WriteStatus("Cannot scroll clients in autofit sort mode.");
+        }
+
+        break;
+    case KEY_NPAGE:
+        if (client_sortby != client_sort_auto) {
+            if (kwin->start + kwin->selected + kwin->max_display < last_client_draw_size)
+                kwin->start += kwin->max_display - 1;
+            else
+                kwin->selected = kwin->end - kwin->start;
         } else {
             WriteStatus("Cannot scroll clients in autofit sort mode.");
         }

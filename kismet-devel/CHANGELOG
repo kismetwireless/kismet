@@ -1,5 +1,6 @@
+Oct 26 2002  2.7.1  Merged pageup/pagedown code from Million
 Oct 23 2002  2.7.1  Fixed horribly stupid bug in AP->AP packet handling in
-                     packetracker.cc (Caught by Mike Mackenzie)
+                     packetracker.cc (Caught by KurdtK)
                     Changed usage output of gpsmap to make error messages
                      clearer.
 Oct 22 2002  2.7.1  Various off-by-one errors in panelfront fixed (Million)
