@@ -193,6 +193,8 @@ int DroneSource::FetchPacket(kis_packet *packet) {
 }
 
 int DroneSource::Drone2Common(kis_packet *packet) {
+    memset(packet, 0, sizeof(kis_packet));
+
     packet->len = (uint32_t) ntohl(phdr.len);
     packet->caplen = (uint32_t) ntohl(phdr.caplen);
     packet->ts.tv_sec = (uint64_t) ntoh64(phdr.tv_sec);
@@ -207,6 +209,7 @@ int DroneSource::Drone2Common(kis_packet *packet) {
     packet->datarate = (uint32_t) ntohl(phdr.datarate);
 
     packet->data = new uint8_t[packet->caplen];
+    packet->moddata = NULL;
 
     memcpy(packet->data, data, packet->caplen);
 
