@@ -1243,6 +1243,8 @@ int unmonitor_orinoco(const char *in_dev, int initch, char *in_err, void **in_if
 
 // Acx100 uses the packhdr iwpriv control to set link state, rest is normal
 int monitor_acx100(const char *in_dev, int initch, char *in_err, void **in_if) {
+    int ret;
+
     // Allocate a tracking record for the interface settings and remember our
     // setup
     linux_ifparm *ifparm = (linux_ifparm *) malloc(sizeof(linux_ifparm));
@@ -1261,24 +1263,35 @@ int monitor_acx100(const char *in_dev, int initch, char *in_err, void **in_if) {
     if (Iwconfig_Get_Mode(in_dev, in_err, &ifparm->mode) < 0)
         return -1;
 
-    // Set the packhdr iwpriv control to 1
-    if (Iwconfig_Set_IntPriv(in_dev, "packhdr", 1, 0, in_err) < 0) {
+    // it looks like an orinoco now, apparently
+    if ((ret = Iwconfig_Set_IntPriv(in_dev, "monitor", 1, initch, in_err)) < 0) {
+        if (ret == -2)
+            snprintf(in_err, 1024, "Could not find 'monitor' private ioctl "
+                     "Make sure you have the latest ACX100 development release.");
         return -1;
     }
-    
-    // The rest is standard wireless extensions
-    if (monitor_wext(in_dev, initch, in_err, in_if) < 0)
+
+    if (chancontrol_wext(in_dev, initch, in_err, NULL) < 0)
         return -1;
 
     return 0;
 }
 
 int unmonitor_acx100(const char *in_dev, int initch, char *in_err, void **in_if) {
-    if (Iwconfig_Set_IntPriv(in_dev, "packhdr", 0, 0, in_err) < 0) {
+    // Restore the IP settings
+    linux_ifparm *ifparm = (linux_ifparm *) (*in_if);
+
+    if (Ifconfig_Set_Flags(in_dev, in_err, ifparm->flags) < 0) {
         return -1;
     }
 
-    return unmonitor_wext(in_dev, initch, in_err, in_if);
+    Iwconfig_Set_IntPriv(in_dev, "monitor", 0, ifparm->channel, in_err);
+    Iwconfig_Set_Mode(in_dev, in_err, ifparm->mode);
+
+    if (Iwconfig_Set_SSID(in_dev, in_err, ifparm->essid) < 0)
+        return -1;
+    
+    free(ifparm);
 }
 
 int monitor_admtek(const char *in_dev, int initch, char *in_err, void **in_if) {
