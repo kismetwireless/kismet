@@ -135,6 +135,9 @@ public:
     // How many clients are using this protocol type?
     int FetchNumClientRefs(int in_refnum);
 
+    // How many clients are connected?
+    int FetchNumClients();
+
 protected:
     void AddProtocolClient(int in_fd, int in_refnum, vector<int> in_fields);
     void DelProtocolClient(int in_fd, int in_refnum);

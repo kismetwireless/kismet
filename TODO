@@ -12,7 +12,6 @@ In no particular order:
 	fakeap detection
 	retry ratios
 	gpsmap client-link drawing (dot-line clusters)
-	gpsxml client position/source mac logging
 	gpsmap power filtering
 	gpsmap coloring/plotting by encoding, carrier, data rate
 	power-modified distance logging(?)

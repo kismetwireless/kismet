@@ -507,6 +507,10 @@ int SayText(string in_text) {
 
 
 void NetWriteInfo() {
+    // If we have no clients, don't do this at all, it's expensive
+    if (ui_server.FetchNumClients() < 1)
+        return;
+
     static time_t last_write = time(0);
     static int last_packnum = tracker.FetchNumPackets();
     vector<wireless_network *> tracked;
@@ -575,6 +579,15 @@ void NetWriteInfo() {
 
     ui_server.SendToAll(info_ref, (void *) &idata);
 
+    last_write = time(0);
+
+    // Bail out if nobody is listening to networks or packets, building these
+    // lists is expensive and if we're headless, don't bother.
+
+    if (ui_server.FetchNumClientRefs(network_ref) < 1 &&
+        ui_server.FetchNumClientRefs(client_ref) < 1)
+        return;
+
     tracked = tracker.FetchNetworks();
 
     for (unsigned int x = 0; x < tracked.size(); x++) {
@@ -594,6 +607,10 @@ void NetWriteInfo() {
         NETWORK_data ndata;
         Protocol_Network2Data(tracked[x], &ndata);
         ui_server.SendToAll(network_ref, (void *) &ndata);
+
+        // Bail if we don't have any client users...
+        if (ui_server.FetchNumClientRefs(client_ref) < 1)
+            continue;
 
         for (map<mac_addr, wireless_client *>::const_iterator y = tracked[x]->client_map.begin();
              y != tracked[x]->client_map.end(); ++y) {
@@ -619,7 +636,6 @@ void NetWriteInfo() {
             */
     }
 
-    last_write = time(0);
 }
 
 void NetWriteStatus(char *in_status) {
