@@ -229,7 +229,7 @@
 #define NCURSES_NOMACROS
 
 /* Number of hex pairs in a key */
-#define WEPKEY_MAX 16
+#define WEPKEY_MAX 32
 
 /* String length of a key */
 #define WEPKEYSTR_MAX ((WEPKEY_MAX * 2) + WEPKEY_MAX)
