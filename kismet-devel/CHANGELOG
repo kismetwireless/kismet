@@ -1,3 +1,4 @@
+Dec 17 2003  3.1.0  Fixed initial channel setting on hostap
 Dec 16 2003  3.1.0  Added duplicate IV per BSSID detection, logging, and 
                      panelfront display via 'dupeiv' column.
 Dec 14 2003  3.1.0  Added per-cardtype FCS stripping

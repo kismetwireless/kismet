@@ -709,7 +709,6 @@ int monitor_cisco_wifix(const char *in_dev, int initch, char *in_err) {
 // Hostap uses iwpriv and iwcontrol settings to control monitor mode
 int monitor_hostap(const char *in_dev, int initch, char *in_err) {
     int ret;
-    int monret;
    
     // Try to use the iwpriv command to set monitor mode.  Some versions of
     // hostap require this, some don't, so don't fail on the monitor ioctl
@@ -720,11 +719,11 @@ int monitor_hostap(const char *in_dev, int initch, char *in_err) {
     }
    
     // Try to set wext monitor mode.  We're good if one of these succeeds...
-    if ((monret = monitor_wext(in_dev, initch, in_err)) < 0 && ret < 0)
+    if (monitor_wext(in_dev, initch, in_err) < 0 && ret < 0)
         return -1;
 
     // If we didn't set wext mode, set the channel manually
-    if (monret < 0 && chancontrol_wext(in_dev, initch, in_err, NULL) < 0)
+    if (chancontrol_wext(in_dev, initch, in_err, NULL) < 0)
         return -1;
 
     return 0;
