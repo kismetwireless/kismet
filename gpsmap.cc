@@ -838,6 +838,10 @@ void calcxy (double *posx, double *posy, double lat, double lon, double pixelfac
 
     *posy = *posy + dif / 1.85;
     *posy = (map_height/2) - *posy / pixelfact;
+
+    *posx += draw_x_offset;
+    *posy += draw_y_offset;
+
     //*posy = *posy - yoff;
 }
 
