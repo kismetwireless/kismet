@@ -703,8 +703,12 @@ int monitor_wext(const char *in_dev, int initch, char *in_err) {
     wrq.u.mode = LINUX_WLEXT_MONITOR;
 
     if (ioctl(skfd, SIOCSIWMODE, &wrq) < 0) {
-        snprintf(in_err, STATUS_MAX, "Failed to set mode monitor %d:%s", 
-                 errno, strerror(errno));
+        snprintf(in_err, STATUS_MAX, "Failed to set monitor mode: %s.  This usually "
+                 "means your drivers either do not support monitor mode, or use a "
+                 "different mechanism for getting to it.  Make sure you have a "
+                 "version of your drivers that support monitor mode, and consult "
+                 "the troubleshooting section of the README.", 
+                 strerror(errno));
         close(skfd);
         return -1;
     }
