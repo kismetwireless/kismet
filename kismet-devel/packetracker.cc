@@ -253,6 +253,7 @@ wireless_client *Packetracker::CreateClient(const packet_info *info,
 void Packetracker::ProcessPacket(packet_info info) {
     wireless_network *net;
     char status[STATUS_MAX];
+    int newnet = 0;
 
     // string bssid_mac;
 
@@ -348,18 +349,24 @@ void Packetracker::ProcessPacket(packet_info info) {
         if (strlen(info.beacon_info) != 0)
             net->beacon_info = info.beacon_info;
 
+        newnet = 1;
+
         if (net->type == network_probe) {
             snprintf(status, STATUS_MAX, "Found new probed network \"%s\" bssid %s",
                      net->ssid.c_str(), net->bssid.Mac2String().c_str());
             KisLocalStatus(status);
         } else {
-            snprintf(status, STATUS_MAX, "Found new network \"%s\" bssid %s WEP %c Ch %d @ %.2f mbit",
-                     net->ssid.c_str(), net->bssid.Mac2String().c_str(), net->wep ? 'Y' : 'N',
+            snprintf(status, STATUS_MAX, "Found new network \"%s\" bssid %s WEP %c Ch "
+                     "%d @ %.2f mbit",
+                     net->ssid.c_str(), net->bssid.Mac2String().c_str(), 
+                     net->wep ? 'Y' : 'N',
                      net->channel, net->maxrate);
             KisLocalStatus(status);
         }
 
-        KisLocalNewnet(net);
+        // Do this after we process other stuff so that counts on one-packet networks
+        // are correct
+//        KisLocalNewnet(net);
 
         if (info.gps_fix >= 2) {
             net->gps_fixed = info.gps_fix;
@@ -520,6 +527,8 @@ void Packetracker::ProcessPacket(packet_info info) {
 
             if (probe_map.find(info.source_mac) != probe_map.end()) {
                 ProcessDataPacket(info, net);
+                if (newnet == 1)
+                    KisLocalNewnet(net);
                 return;
             }
         }
@@ -675,6 +684,9 @@ void Packetracker::ProcessPacket(packet_info info) {
         ProcessDataPacket(info, net);
 
     } // data packet
+
+    if (newnet == 1)
+        KisLocalNewnet(net);
 
     return;
 }
