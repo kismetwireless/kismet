@@ -65,12 +65,11 @@ const char url_template_ts[] = "http://terraservice.net/GetImageArea.ashx?t=1&la
 const char url_template_mb[] = "http://www.vicinity.com/gif?&CT=%f:%f:%ld&IC=&W=%d&H=%d&FAM=myblast&LB=%s";
 // Freaking mapblast changed again...
 // const char url_template_mb[] = "http://www.mapblast.com/myblastd/MakeMap.d?&CT=%f:%f:%ld&IC=&W=%d&H=%d&FAM=myblast&LB=%s";
+const char url_template_ti[] = "http://tiger.census.gov/cgi-bin/mapper/map.gif?lat=%f&lon=%f&wid=0.001&ht=%f&iwd=%d&iht=%d&on=majroads&on=places&on=shorelin&on=streets&on=interstate&on=statehwy&on=ushwy&on=water&tlevel=-&tvar=-&tmeth=i";
 
 const char download_template[] = "wget \"%s\" -O %s";
 // Decay from absolute blue for multiple tracks
 const uint8_t track_decay = 0x1F;
-// Width of the track
-const unsigned int track_width = 3;
 // distance (in feet) before we throttle a network and discard it
 const unsigned int horiz_throttle = 75000;
 
@@ -246,6 +245,7 @@ int draw_track = 0, draw_bounds = 0, draw_range = 0, draw_power = 0,
     draw_hull = 0, draw_scatter = 0, draw_legend = 0, draw_center = 0, draw_label = 0;
 int track_opacity = 100, /* no bounds opacity */ range_opacity = 70, power_opacity = 70,
     hull_opacity = 70, scatter_opacity = 100, legend_opacity = 90, center_opacity = 100, label_opacity = 100;
+int track_width = 3;
 int convert_greyscale = 1, keep_gif = 0, verbose = 0, label_orientation = 7;
 
 // Offsets for drawing from what we calculated
@@ -275,6 +275,7 @@ int color_coding = 0;
 #define COLORCODE_NONE    0
 #define COLORCODE_WEP     1
 #define COLORCODE_CHANNEL 2
+#define MAPSOURCE_TIGER 3 
 
 // Threads, locks, and graphs to hold the power
 pthread_t *mapthread;
@@ -1832,6 +1833,7 @@ int Usage(char* argv, int ec = 1) {
            "                                  0 MapBlast (vector)\n"
            "                                  1 MapPoint (vector)\n"
            "                                  2 TerraServer (photo)\n"
+           "                                  3 Tiger US Census (vector)\n"
            "  -D, --keep-gif                 Keep the downloaded map\n"
            "  -V, --version                  GPSMap version\n"
            "\nImage options\n"
@@ -1848,6 +1850,7 @@ int Usage(char* argv, int ec = 1) {
            "  -O, --offset <x,y>             Offset drawn features by x,y pixels\n"
            "\nDraw options\n"
            "  -t, --draw-track               Draw travel track\n"
+           "  -Y, --draw-track-width <w>     travel track width [Default: 3] \n"
            "  -b, --draw-bounds              Draw network bounding box\n"
            "  -r, --draw-range               Draw estimaged range circles\n"
            "  -R, --draw-range-opacity <o>   Range circle opacity [Default: 70]\n"
@@ -1922,8 +1925,9 @@ int main(int argc, char *argv[]) {
            {"offset", required_argument, 0, 'O'},
            {"draw-track", no_argument, 0, 't'},
            /*
-            {"draw-track-opacity", required_argument, 0, 'T'},
-            */
+           {"draw-track-opacity", required_argument, 0, 'T'},
+           */
+           {"draw-track-width", required_argument, 0, 'Y'},
            {"draw-bounds", no_argument, 0, 'b'},
            {"draw-range", no_argument, 0, 'r'},
            {"draw-range-opacity", required_argument, 0, 'R'},
@@ -1967,7 +1971,7 @@ int main(int argc, char *argv[]) {
 
     while(1) {
         int r = getopt_long(argc, argv,
-                            "hvg:S:o:f:iz:DVc:s:m:d:n:GMO:tbrR:uU:aA:B:pP:q:Q:eE:H:l:L:kK:F:",
+                            "hvg:S:o:f:iz:DVc:s:m:d:n:GMO:tY:brR:uU:aA:B:pP:q:Q:eE:H:l:L:kK:F:",
                             long_options, &option_index);
 
         if (r < 0) break;
@@ -2063,7 +2067,13 @@ int main(int argc, char *argv[]) {
                 Usage(exec_name);
             }
             break;
-            */
+            */            
+        case 'Y':             /* Ge0 was here - this could very well break crap */
+            if (sscanf(optarg, "%d", &track_width) != 1 || track_width <= 0) {
+                fprintf(stderr, "Invalid track width.\n");
+                Usage(exec_name);
+            }
+            break;
         case 'b':
             draw_bounds = true;
             break;
@@ -2407,7 +2417,11 @@ int main(int argc, char *argv[]) {
             fetch_scale = (long) (map_scale / 1378.6);
             snprintf(url, 1024, url_template_mp, map_avg_lat, map_avg_lon, fetch_scale,
                      map_width, map_height);
+        } else if (mapsource == MAPSOURCE_TIGER) {
+            snprintf(url, 1024, url_template_ti, map_avg_lat, map_avg_lon, (map_scale / 300000.0),
+                     map_width, map_height);
         }
+
         printf("Map url: %s\n", url);
         printf("Fetching map...\n");
 
@@ -2463,7 +2477,7 @@ int main(int argc, char *argv[]) {
             break;
         case 't':
             if (draw_track) {
-                fprintf(stderr, "Drawing track coordinates...\n");
+                fprintf(stderr, "Drawing track coordinates, width: %d...\n", track_width);
                 DrawNetTracks(img, di);
             }
             break;

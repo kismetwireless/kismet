@@ -1,3 +1,5 @@
+Oct 05 2002  2.7    Merged gpsmap by ge0 to allow setting track width
+                    Merged gpsmap by tz to use Tiger census data
 Oct 04 2002  2.7    Fixed failure to unlink empty data files if server can't
                      bind to the requested port
 Oct 03 2002  2.7    Fixed bug in default IP range reading
