@@ -873,9 +873,21 @@ int Packetracker::WriteNetworks(string in_fname) {
         else
             snprintf(type, 15, "unknown");
 
+        char carrier[15];
+        if (net->carrier_set & (1 << (int) carrier_80211b))
+            snprintf(carrier, 15, "802.11b");
+        else if (net->carrier_set & (1 << (int) carrier_80211a))
+            snprintf(carrier, 15, "802.11a");
+        else if (net->carrier_set & (1 << (int) carrier_80211g))
+            snprintf(carrier, 15, "802.11g");
+        else if (net->carrier_set & (1 << (int) carrier_80211))
+            snprintf(carrier, 15, "802.11");
+        else
+            snprintf(carrier, 15, "unknown");
 
         fprintf(netfile, "Network %d: \"%s\" BSSID: \"%s\"\n"
                 "    Type     : %s\n"
+                "    Carrier  : %s\n"
                 "    Info     : \"%s\"\n"
                 "    Channel  : %02d\n"
                 "    WEP      : \"%s\"\n"
@@ -888,7 +900,7 @@ int Packetracker::WriteNetworks(string in_fname) {
                 "    First    : \"%s\"\n"
                 "    Last     : \"%s\"\n",
                 netnum,
-                net->ssid.c_str(), net->bssid.Mac2String().c_str(), type,
+                net->ssid.c_str(), net->bssid.Mac2String().c_str(), type, carrier,
                 net->beacon_info == "" ? "None" : net->beacon_info.c_str(),
                 net->channel, net->wep ? "Yes" : "No",
                 net->maxrate,
@@ -1266,7 +1278,7 @@ int Packetracker::WriteXMLNetworks(string in_fname) {
     //vector<wireless_network *> bssid_vec;
 
     fprintf(netfile, "<?xml version=\"1.0\" encoding=\"ISO-8859-1\"?>\n");
-    fprintf(netfile, "<!DOCTYPE detection-run SYSTEM \"http://kismetwireless.net/kismet-1.6.1.dtd\">\n");
+    fprintf(netfile, "<!DOCTYPE detection-run SYSTEM \"http://kismetwireless.net/kismet-1.6.2.dtd\">\n");
 
     fprintf(netfile, "\n\n");
 
@@ -1311,9 +1323,21 @@ int Packetracker::WriteXMLNetworks(string in_fname) {
         else
             snprintf(type, 15, "unknown");
 
-        fprintf(netfile, "  <wireless-network number=\"%d\" type=\"%s\" wep=\"%s\" cloaked=\"%s\" first-time=\"%s\" last-time=\"%s\">\n",
+        char carrier[15];
+        if (net->carrier_set & (1 << (int) carrier_80211b))
+            snprintf(carrier, 15, "802.11b");
+        else if (net->carrier_set & (1 << (int) carrier_80211a))
+            snprintf(carrier, 15, "802.11a");
+        else if (net->carrier_set & (1 << (int) carrier_80211g))
+            snprintf(carrier, 15, "802.11g");
+        else if (net->carrier_set & (1 << (int) carrier_80211))
+            snprintf(carrier, 15, "802.11");
+        else
+            snprintf(carrier, 15, "unknown");
+
+        fprintf(netfile, "  <wireless-network number=\"%d\" type=\"%s\" wep=\"%s\" cloaked=\"%s\" carrier=\"%s\" first-time=\"%s\" last-time=\"%s\">\n",
                 netnum, type, net->wep ? "true" : "false", net->cloaked ? "true" : "false",
-                ft, lt);
+                carrier, ft, lt);
 
         if (net->ssid != NOSSID)
             fprintf(netfile, "    <SSID>%s</SSID>\n", SanitizeXML(net->ssid).c_str());
