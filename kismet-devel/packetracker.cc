@@ -237,25 +237,35 @@ void Packetracker::ProcessPacket(packet_info info) {
             memcpy(&net->ipdata, &bssid_ip_map[info.bssid_mac], sizeof(net_ip_data));
         }
 
-        if (IsBlank(info.ssid)) {
-            if (bssid_cloak_map.find(info.bssid_mac) != bssid_cloak_map.end()) {
-                net->ssid = bssid_cloak_map[info.bssid_mac];
+        if (info.type == packet_management && 
+            (info.subtype == packet_sub_beacon ||
+             info.subtype == packet_sub_probe_req ||
+             info.subtype == packet_sub_probe_resp)) {
 
-                // If it's a beacon and empty then we're cloaked and we found our
-                // ssid so fill it in
-                if (info.type == packet_management && info.subtype == packet_sub_beacon) {
-                    net->cloaked = 1;
+            if (IsBlank(info.ssid)) {
+                if (bssid_cloak_map.find(info.bssid_mac) != bssid_cloak_map.end()) {
+                    net->ssid = bssid_cloak_map[info.bssid_mac];
+
+                    // If it's a beacon and empty then we're cloaked and we found our
+                    // ssid so fill it in
+                    if (info.type == packet_management && 
+                        info.subtype == packet_sub_beacon) {
+                        net->cloaked = 1;
+                    } else {
+                        net->cloaked = 0;
+                    }
                 } else {
+                    net->ssid = NOSSID;
                     net->cloaked = 0;
                 }
             } else {
-                net->ssid = NOSSID;
+                net->ssid = info.ssid;
                 net->cloaked = 0;
+                bssid_cloak_map[info.bssid_mac] = info.ssid;
             }
         } else {
-            net->ssid = info.ssid;
+            net->ssid = NOSSID;
             net->cloaked = 0;
-            bssid_cloak_map[info.bssid_mac] = info.ssid;
         }
 
         net->bssid = info.bssid_mac;

@@ -21,6 +21,9 @@
 #include "packet.h"
 #include "packetsignatures.h"
 
+// Handly little global so that it only has to do the ascii->mac_addr transform once
+mac_addr broadcast_mac = "FF:FF:FF:FF:FF:FF";
+
 // CRC32 index for verifying WEP - cribbed from ethereal
 static const uint32_t wep_crc32_table[256] = {
     0x00000000L, 0x77073096L, 0xee0e612cL, 0x990951baL, 0x076dc419L,
@@ -115,52 +118,61 @@ void MungeToPrintable(char *in_data, int max) {
 
 // Returns a pointer in the data block to the size byte of the desired
 // tag.
-int GetTagOffset(int init_offset, int tagnum, kis_packet *packet,
-                 map<int, int> *tag_cache_map) {
+int GetTagOffsets(kis_packet *packet, map<int, int> *tag_cache_map) {
     int cur_tag = 0;
     // Initial offset is 36, that's the first tag
-    int cur_offset = init_offset;
+    int cur_offset = 36;
     uint8_t len;
 
-    // If we've found the tag before when we were going through looking
-    // for something else, return it directly.
-    map<int, int>::iterator itr = tag_cache_map->find(tagnum);
-    if (itr != tag_cache_map->end()) {
-        return itr->second;
-    }
+    // If we haven't parsed the tags for this frame before, parse them all now.
+    // Return an error code if one of them is malformed.
+    if (tag_cache_map->size() == 0) {
+        while (1) {
+            // Are we over the packet length?
+            if (cur_offset >= (uint8_t) packet->len) {
+                break;
+            }
 
-    while (1) {
-        // Are we over the packet length?
-        if (cur_offset >= (uint8_t) packet->len) {
-            return -1;
+            // Read the tag we're on and bail out if we're done
+            cur_tag = (int) packet->data[cur_offset];
+
+            // Move ahead one byte and read the length.
+            len = (packet->data[cur_offset+1] & 0xFF);
+
+            // If this is longer than we have...
+            if ((unsigned int) (cur_offset + len + 2) > packet->len) {
+                return -1;
+            }
+
+            (*tag_cache_map)[cur_tag] = cur_offset + 1;
+
+            /*
+               if (cur_tag == tagnum) {
+               cur_offset++;
+               break;
+               } else if (cur_tag > tagnum) {
+               return -1;
+               }
+               */
+
+            // Jump the length+length byte, this should put us at the next tag
+            // number.
+            cur_offset += len+2;
         }
-
-        // Read the tag we're on and bail out if we're done
-        cur_tag = (int) packet->data[cur_offset];
-
-        (*tag_cache_map)[cur_tag] = cur_offset + 1;
-
-        if (cur_tag == tagnum) {
-            cur_offset++;
-            break;
-        } else if (cur_tag > tagnum) {
-            return -1;
-        }
-
-        // Move ahead one byte and read the length.
-        len = (packet->data[cur_offset+1] & 0xFF);
-
-        // Jump the length+length byte, this should put us at the next tag
-        // number.
-        cur_offset += len+2;
     }
-
-    return cur_offset;
+    
+    return 0;
 }
 
 // Get the info from a packet
 void GetPacketInfo(kis_packet *packet, packet_info *ret_packinfo,
                    macmap<wep_key_info *> *bssid_wep_map, unsigned char *identity) {
+    static int packet_num = 0;
+
+    packet_num++;
+
+    //printf("debug - packet %d\n", packet_num);
+    
     // Zero the entire struct
     memset(ret_packinfo, 0, sizeof(packet_info));
 
@@ -287,53 +299,70 @@ void GetPacketInfo(kis_packet *packet, packet_info *ret_packinfo,
         }
 
         map<int, int> tag_cache_map;
+        map<int, int>::iterator tcitr;
 
         // Extract various tags from the packet
         int found_ssid_tag = 0;
-        if ((tag_offset = GetTagOffset(ret_packinfo->header_offset, 0, packet, 
-                                       &tag_cache_map)) > 0) {
-            found_ssid_tag = 1;
-            temp = (packet->data[tag_offset] & 0xFF);
-            ret_packinfo->ssid_len = temp;
-            // Protect against malicious packets
-            if (temp == 0) {
-                // do nothing for 0-length ssid's
-            } else if (temp <= 32 && (tag_offset + 1 + temp) < (int) packet->len) {
-                memcpy(ret_packinfo->ssid, &packet->data[tag_offset+1], temp);
-                ret_packinfo->ssid[temp] = '\0';
-                // Munge it down to printable characters... SSID's can be anything
-                // but if we can't print them it's not going to be very useful
-                MungeToPrintable(ret_packinfo->ssid, temp);
-            } else {
-                // Otherwise we're corrupt, set it and stop processing
+        int found_rate_tag = 0;
+        int found_channel_tag = 0;
+
+        if (fc->subtype == 8 || fc->subtype == 4 || fc->subtype == 5) {
+            // This is guaranteed to only give us tags that fit within the packets,
+            // so we don't have to do more error checking
+            if (GetTagOffsets(packet, &tag_cache_map) < 0) {
+                // The frame is corrupt, bail
                 ret_packinfo->corrupt = 1;
                 return;
             }
-        } else {
-            ret_packinfo->ssid_len = -1;
-        }
+      
+            if ((tcitr = tag_cache_map.find(0)) != tag_cache_map.end()) {
+                tag_offset = tcitr->second;
 
-        // Extract the supported rates
-        int found_rate_tag = 0;
-        if ((tag_offset = GetTagOffset(ret_packinfo->header_offset, 1, packet, 
-                                       &tag_cache_map)) > 0) {
-            found_rate_tag = 1;
-            for (int x = 0; x < packet->data[tag_offset]; x++) {
-                if (ret_packinfo->maxrate < (packet->data[tag_offset+1+x] & 0x7F) * 0.5)
-                    ret_packinfo->maxrate = (packet->data[tag_offset+1+x] & 0x7F) * 0.5;
+                found_ssid_tag = 1;
+                temp = (packet->data[tag_offset] & 0xFF);
+                ret_packinfo->ssid_len = temp;
+                // Protect against malicious packets
+                if (temp == 0) {
+                    // do nothing for 0-length ssid's
+                } else if (temp <= 32) {
+                    memcpy(ret_packinfo->ssid, &packet->data[tag_offset+1], temp);
+                    ret_packinfo->ssid[temp] = '\0';
+                    // Munge it down to printable characters... SSID's can be anything
+                    // but if we can't print them it's not going to be very useful
+                    MungeToPrintable(ret_packinfo->ssid, temp);
+                } else {
+                    // Otherwise we're corrupt, set it and stop processing
+                    ret_packinfo->corrupt = 1;
+                    return;
+                }
+            } else {
+                ret_packinfo->ssid_len = -1;
             }
-        }
 
-        // Find the offset of flag 3 and get the channel.   802.11a doesn't have this tag
-        // so we use the hardware channel, assigned at the beginning of GetPacketInfo
-        int found_channel_tag = 0;
-        if ((tag_offset = GetTagOffset(ret_packinfo->header_offset, 3, packet, 
-                                       &tag_cache_map)) > 0) {
-            found_channel_tag = 1;
-            // Extract the channel from the next byte (GetTagOffset returns
-            // us on the size byte)
-            temp = packet->data[tag_offset+1];
-            ret_packinfo->channel = (int) temp;
+            // Extract the supported rates
+            if ((tcitr = tag_cache_map.find(1)) != tag_cache_map.end()) {
+                tag_offset = tcitr->second;
+
+                found_rate_tag = 1;
+                for (int x = 0; x < packet->data[tag_offset]; x++) {
+                    if (ret_packinfo->maxrate < (packet->data[tag_offset+1+x] & 
+                                                 0x7F) * 0.5)
+                        ret_packinfo->maxrate = (packet->data[tag_offset+1+x] & 
+                                                 0x7F) * 0.5;
+                }
+            }
+
+            // Find the offset of flag 3 and get the channel.   802.11a doesn't have 
+            // this tag so we use the hardware channel, assigned at the beginning of 
+            // GetPacketInfo
+            if ((tcitr = tag_cache_map.find(3)) != tag_cache_map.end()) {
+                tag_offset = tcitr->second;
+                found_channel_tag = 1;
+                // Extract the channel from the next byte (GetTagOffset returns
+                // us on the size byte)
+                temp = packet->data[tag_offset+1];
+                ret_packinfo->channel = (int) temp;
+            }
         }
 
         if (fc->subtype == 0) {
@@ -400,8 +429,10 @@ void GetPacketInfo(kis_packet *packet, packet_info *ret_packinfo,
 
             ret_packinfo->beacon = ktoh16(fixparm->beacon);
 
-            // Extract the CISCO beacon info
-            if ((tag_offset = GetTagOffset(ret_packinfo->header_offset, 133, packet, &tag_cache_map)) > 0) {
+            // Extract the CISC.O beacon info
+            if ((tcitr = tag_cache_map.find(133)) != tag_cache_map.end()) {
+                tag_offset = tcitr->second;
+
                 if ((unsigned) tag_offset + 11 < packet->len) {
                     snprintf(ret_packinfo->beacon_info, BEACON_INFO_LEN, "%s", &packet->data[tag_offset+11]);
                     MungeToPrintable(ret_packinfo->beacon_info, BEACON_INFO_LEN);
@@ -416,6 +447,10 @@ void GetPacketInfo(kis_packet *packet, packet_info *ret_packinfo,
             ret_packinfo->source_mac = addr1;
             ret_packinfo->bssid_mac = addr2;
 
+            // If beacons aren't do a broadcast destination, consider them corrupt.
+            if (ret_packinfo->dest_mac != broadcast_mac) 
+                ret_packinfo->corrupt = 1;
+            
             // If beacons don't have a SSID and a basicrate then we consider them
             // corrupt
             if (found_ssid_tag == 0 || found_rate_tag == 0)
