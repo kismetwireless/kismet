@@ -53,6 +53,18 @@
 char *exec_name;
 #endif
 
+void WriteDatafiles(int in_shutdown);
+void CatchShutdown(int sig);
+int Usage(char *argv);
+static void handle_command(TcpServer *tcps, client_command *cc);
+void NetWriteNew(int in_fd);
+void NetWriteAlert(char *in_alert);
+void NetWriteStatus(char *in_status);
+void NetWriteInfo();
+int SayText(string in_text);
+int PlaySound(string in_sound);
+void SpeechHandler(int *fds, const char *player);
+void SoundHandler(int *fds, const char *player, map<string, string> soundmap);
 
 const char *config_base = "kismet.conf";
 
@@ -104,6 +116,10 @@ unsigned int max_alerts = 50;
 
 // Handle writing all the files out and optionally unlinking the empties
 void WriteDatafiles(int in_shutdown) {
+    // If we're on our way out make one last write of the network stuff - this
+    // has a nice side effect of clearing out any "REMOVE" networks.
+    NetWriteInfo();
+
     if (ssid_cloak_track) {
         if (ssid_file)
             tracker.WriteSSIDMap(ssid_file);

@@ -1073,6 +1073,8 @@ int Packetracker::WriteNetworks(string in_fname) {
      */
 
     int netnum = 1;
+
+    /*
     vector<wireless_network *> bssid_vec;
 
     // Convert the map to a vector and sort it
@@ -1080,10 +1082,13 @@ int Packetracker::WriteNetworks(string in_fname) {
          i != bssid_map.end(); ++i)
         bssid_vec.push_back(i->second);
 
-    sort(bssid_vec.begin(), bssid_vec.end(), SortFirstTimeLT());
+        sort(bssid_vec.begin(), bssid_vec.end(), SortFirstTimeLT());
+        */
 
-    for (unsigned int i = 0; i < bssid_vec.size(); i++) {
-        wireless_network *net = bssid_vec[i];
+    sort(network_list.begin(), network_list.end(), SortFirstTimeLT());
+
+    for (unsigned int i = 0; i < network_list.size(); i++) {
+        wireless_network *net = network_list[i];
 
         char lt[25];
         char ft[25];
@@ -1214,6 +1219,7 @@ int Packetracker::WriteCisco(string in_fname) {
     ftruncate(fileno(in_file), 0);
     */
 
+    /*
     vector<wireless_network *> bssid_vec;
 
     // Convert the map to a vector and sort it
@@ -1221,10 +1227,13 @@ int Packetracker::WriteCisco(string in_fname) {
          i != bssid_map.end(); ++i)
         bssid_vec.push_back(i->second);
 
-    sort(bssid_vec.begin(), bssid_vec.end(), SortFirstTimeLT());
+        sort(bssid_vec.begin(), bssid_vec.end(), SortFirstTimeLT());
+        */
 
-    for (unsigned int i = 0; i < bssid_vec.size(); i++) {
-        wireless_network *net = bssid_vec[i];
+    sort(network_list.begin(), network_list.end(), SortFirstTimeLT());
+
+    for (unsigned int i = 0; i < network_list.size(); i++) {
+        wireless_network *net = network_list[i];
 
         if (net->cisco_equip.size() == 0)
             continue;
@@ -1329,6 +1338,7 @@ int Packetracker::WriteCSVNetworks(string in_fname) {
     */
 
     int netnum = 1;
+    /*
     vector<wireless_network *> bssid_vec;
 
     // Convert the map to a vector and sort it
@@ -1336,7 +1346,8 @@ int Packetracker::WriteCSVNetworks(string in_fname) {
          i != bssid_map.end(); ++i)
         bssid_vec.push_back(i->second);
 
-    sort(bssid_vec.begin(), bssid_vec.end(), SortFirstTimeLT());
+        sort(bssid_vec.begin(), bssid_vec.end(), SortFirstTimeLT());
+        */
 
     fprintf(netfile, "Network;NetType;ESSID;BSSID;Info;Channel;Maxrate;WEP;LLC;Data;Crypt;Weak;Total;"
 			"First;Last;BestQuality;BestSignal;BestNoise;"
@@ -1344,8 +1355,10 @@ int Packetracker::WriteCSVNetworks(string in_fname) {
             "GPSMaxLat;GPSMaxLon;GPSMaxAlt;GPSMaxSpd;"
             "DHCP;ARP;UDP;TCP;\r\n");
 
-    for (unsigned int i = 0; i < bssid_vec.size(); i++) {
-        wireless_network *net = bssid_vec[i];
+    sort(network_list.begin(), network_list.end(), SortFirstTimeLT());
+
+    for (unsigned int i = 0; i < network_list.size(); i++) {
+        wireless_network *net = network_list[i];
 
         char lt[25];
         char ft[25];
@@ -1488,7 +1501,7 @@ int Packetracker::WriteXMLNetworks(string in_fname) {
     */
 
     int netnum = 1;
-    vector<wireless_network *> bssid_vec;
+    //vector<wireless_network *> bssid_vec;
 
     fprintf(netfile, "<?xml version=\"1.0\" encoding=\"ISO-8859-1\"?>\n");
     fprintf(netfile, "<!DOCTYPE detection-run SYSTEM \"http://kismetwireless.net/kismet-1.5.dtd\">\n");
@@ -1505,15 +1518,19 @@ int Packetracker::WriteXMLNetworks(string in_fname) {
     fprintf(netfile, "<detection-run kismet-version=\"%d.%d.%d\" start-time=\"%s\" end-time=\"%s\">\n",
             VERSION_MAJOR, VERSION_MINOR, VERSION_TINY, ft, lt);
 
+    /*
     // Convert the map to a vector and sort it
     for (map<mac_addr, wireless_network *>::const_iterator i = bssid_map.begin();
          i != bssid_map.end(); ++i)
         bssid_vec.push_back(i->second);
 
-    sort(bssid_vec.begin(), bssid_vec.end(), SortFirstTimeLT());
+        sort(bssid_vec.begin(), bssid_vec.end(), SortFirstTimeLT());
+        */
 
-    for (unsigned int i = 0; i < bssid_vec.size(); i++) {
-        wireless_network *net = bssid_vec[i];
+    sort(network_list.begin(), network_list.end(), SortFirstTimeLT());
+
+    for (unsigned int i = 0; i < network_list.size(); i++) {
+        wireless_network *net = network_list[i];
 
         snprintf(lt, 25, "%s", ctime(&net->last_time));
         snprintf(ft, 25, "%s", ctime(&net->first_time));
@@ -1776,11 +1793,19 @@ void Packetracker::ReadClientManufMap(FILE *in_file) {
 }
 
 void Packetracker::RemoveNetwork(mac_addr in_bssid) {
+    // Remove us from the vector the slow and painful way
     for (unsigned int x = 0; x < network_list.size(); x++) {
         if (network_list[x]->bssid == in_bssid) {
             network_list.erase(network_list.begin() + x);
             break;
         }
+    }
+
+    // Remove us from the hash
+    map<mac_addr, wireless_network *>::iterator bmi = bssid_map.find(in_bssid);
+    if (bmi != bssid_map.end()) {
+        delete bmi->second;
+        bssid_map.erase(bmi);
     }
 
 }
