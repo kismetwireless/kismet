@@ -7,6 +7,7 @@ Nov 25 2002  2.7.1  Enormous rewrite of the client-server protocol.  This will
                     Added build number to connect output
                     Changed 'tr' use in scripts to avoid errors with some 
                      busybox implementations
+                    Changed kismet_curses to kismet_client
 Nov 22 2002  2.7.1  Fixed UDP interrupt error
                     Added build version/timestamp for CVS commits
 Nov 17 2002  2.7.1  Merged patch from Chris Waters tweaking the cygwin support
