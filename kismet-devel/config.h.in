@@ -18,7 +18,10 @@
 /* Expat XML library */
 #undef HAVE_EXPAT
 
-/* Define to 1 if you have the `getopt_long' function. */
+/* Define to 1 if you have the <getopt.h> header file. */
+#undef HAVE_GETOPT_H
+
+/* system defines getopt_long */
 #undef HAVE_GETOPT_LONG
 
 /* Define to 1 if you have the `gettimeofday' function. */
