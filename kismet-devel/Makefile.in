@@ -119,20 +119,22 @@ commoninstall:
 		install -o $(INSTUSR) -g $(INSTGRP) -s -m 755 $(BUZZER) $(BIN)/buzzme; \
 		echo install -o $(INSTUSR) -g $(INSTGRP) -s -m 755 $(BUZZER) $(BIN)/buzzme; \
 	fi
-	@if test "$(GPSLBUILD)" = "$(GPSL)"; then \
-		install -o $(INSTUSR) -g $(INSTGRP) -s -m 755 $(GPSL) $(BIN)/$(GPSL); \
-		echo install -o $(INSTUSR) -g $(INSTGRP) -s -m 755 $(GPSL) $(BIN)/$(GPSL); \
-	fi
 	install -o $(INSTUSR) -g $(INSTGRP) -m 755 scripts/kismet_monitor $(BIN)/kismet_monitor
 	install -o $(INSTUSR) -g $(INSTGRP) -m 755 scripts/kismet_unmonitor $(BIN)/kismet_unmonitor
 	mkdir -p $(MAN)/man1
 	install -o $(INSTUSR) -g $(MANGRP) -m 644 man/kismet.1 $(MAN)/man1/kismet.1
-	install -o $(INSTUSR) -g $(MANGRP) -m 644 man/gpsmap.1 $(MAN)/man1/gpsmap.1
 	install -o $(INSTUSR) -g $(MANGRP) -m 644 man/kismet_monitor.1 $(MAN)/man1/kismet_monitor.1
 	install -o $(INSTUSR) -g $(MANGRP) -m 644 man/kismet_hopper.1 $(MAN)/man1/kismet_hopper.1
 	mkdir -p $(MAN)/man5
 	install -o $(INSTUSR) -g $(MANGRP) -m 644 man/kismet.conf.5 $(MAN)/man5/kismet.conf.5
 	install -o $(INSTUSR) -g $(MANGRP) -m 644 man/kismet_ui.conf.5 $(MAN)/man5/kismet_ui.conf.5
+
+	@if test "$(GPSLBUILD)" = "$(GPSL)"; then \
+		install -o $(INSTUSR) -g $(INSTGRP) -s -m 755 $(GPSL) $(BIN)/$(GPSL); \
+		echo install -o $(INSTUSR) -g $(INSTGRP) -s -m 755 $(GPSL) $(BIN)/$(GPSL); \
+		install -o $(INSTUSR) -g $(MANGRP) -m 644 man/gpsmap.1 $(MAN)/man1/gpsmap.1; \
+	fi
+
 	mkdir -p $(WAV)
 	install -o $(INSTUSR) -g $(INSTGRP) -m 644 wav/new_network.wav $(WAV)/new_network.wav
 	install -o $(INSTUSR) -g $(INSTGRP) -m 644 wav/traffic.wav $(WAV)/traffic.wav
