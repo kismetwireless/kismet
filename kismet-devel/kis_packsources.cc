@@ -89,6 +89,15 @@ int RegisterKismetSources(Packetsourcetracker *sourcetracker) {
     REG_EMPTY_CARD(sourcetracker, "wrt54g");
 #endif
 
+#if defined(SYS_LINUX) && defined(HAVE_LINUX_NETLINK)
+    sourcetracker->RegisterPacketsource("wlanng_legacy", 1, "IEEE80211b", 6,
+                                        prism2source_registrant,
+                                        monitor_wlanng_legacy, NULL,
+                                        chancontrol_wlanng_legacy);
+#else
+    REG_EMPTY_CARD(sourcetracker, "wlanng_legacy");
+#endif
+
 #if defined(HAVE_LIBPCAP) && defined(SYS_OPENBSD)
     sourcetracker->RegisterPacketsource("cisco_openbsd", 1, "IEEE80211b", 6,
                                        pcapsource_registrant,

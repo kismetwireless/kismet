@@ -10,6 +10,7 @@ Dec 05 2003  3.1.0  First major CVS update in a while.  Most everything should
                     Added 'wrt54g' card type for embedded drones on linksys
                      routers.  More on this project later.
                     Fixed mispasted code in prism2 pcap packet mangling
+                    Added cardtype definition for wlanng_legacy
 Dec 04 2003  3.1.0  Major refactoring of core code:
                      * Rewrite of core packet stream code
                      * 10-15 times speed increase in packet processing
