@@ -1,5 +1,6 @@
 Aug 02 2003  3.0.1  Fixed alert protocol to use a \001 delimited string
                     Fixed initialization of GPS coords (mdmcl)
+                    Fixed stray gps debug string (mdmcl)
 Jul 31 2003  3.0.1  Added PROBENORESP alert
                     Fixed always trying to log gps info
 Jul 30 2003  3.0.1  Started 3.0.1 devel tree

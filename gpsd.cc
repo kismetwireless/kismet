@@ -168,8 +168,6 @@ int GPSD::Scan() {
         // Update the last lat and heading if we've moved more than 10 meters
         if (EarthDistance(lat, lon, last_lat, last_lon) > 10) {
             hed = CalcHeading(lat, lon, last_lat, last_lon);
-            printf("calculating heading between %f %f and %f %f ... %f\n",
-                   lat, lon, last_lat, last_lon, last_hed);
 
             last_lat = lat;
             last_lon = lon;
