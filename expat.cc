@@ -18,11 +18,11 @@
 
 #include "config.h"
 
+#ifdef HAVE_EXPAT
+
 #include <stdio.h>
 #include <string.h>
 #include <string>
-
-#ifdef HAVE_EXPAT
 
 #include <expat.h>
 
