@@ -11,7 +11,7 @@
               end-time CDATA "na">
 <!ELEMENT wireless-network ( SSID?,BSSID?,info?,channel?,maxrate?,packets?,gps-info?,ip-address?,cisco* )>
 	<!ATTLIST wireless-network number CDATA "0"
-              type ( infrastructure | ad-hoc | probe | data ) "data"
+              type ( infrastructure | ad-hoc | probe | data | unknown ) "data"
 	          wep ( true | false ) "false"
 	          cloaked ( true | false ) "false"
 	          first-time CDATA "na"
