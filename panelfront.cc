@@ -451,6 +451,8 @@ void PanelFront::UpdateGroups() {
 
     // Try to autogroup probe networks
     if (prefs["autogroup_probe"] == "true") {
+        // Count the probes
+        vector<display_network *> probevec;
         for (unsigned int x = 0; x < group_vec.size(); x++) {
             display_network *dnet = group_vec[x];
 
@@ -458,12 +460,21 @@ void PanelFront::UpdateGroups() {
                 continue;
 
             if (dnet->networks[0]->type == network_probe && dnet != probe_group) {
+                probevec.push_back(dnet);
+            }
+        }
+
+        if (probevec.size() > 1) {
+            for (unsigned int x = 0; x < probevec.size(); x++) {
+                display_network *dnet = probevec[x];
+
                 if (probe_group == NULL) {
                     probe_group = CreateGroup(0, "autogroup_probe", "Probe Networks");
                 }
 
                 probe_group = AddToGroup(probe_group, dnet);
             }
+
         }
     }
 
