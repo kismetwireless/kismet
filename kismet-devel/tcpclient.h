@@ -162,9 +162,9 @@ public:
 
     int FetchPacketRate() { return packet_rate; }
 
-    int FetchMajor() { return major; }
-    int FetchMinor() { return minor; }
-    int FetchTiny() { return tiny; }
+    char *FetchMajor() { return major; }
+    char *FetchMinor() { return minor; }
+    char *FetchTiny() { return tiny; }
     char *FetchBuild() { return build; }
     time_t FetchStart() { return start_time; }
     time_t FetchTime() { return serv_time; }
@@ -252,7 +252,7 @@ protected:
     int old_num_networks, old_num_packets, old_num_crypt,
         old_num_interesting, old_num_noise, old_num_dropped, old_packet_rate;
 
-    int major, minor, tiny;
+    char major[24], minor[24], tiny[24];
     char build[24];
     time_t start_time;
 

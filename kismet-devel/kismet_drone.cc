@@ -250,7 +250,7 @@ int main(int argc, char *argv[]) {
             break;
         case 'v':
             // version
-            fprintf(stderr, "Kismet Drone %d.%d.%d\n", VERSION_MAJOR, VERSION_MINOR, VERSION_TINY);
+            fprintf(stderr, "Kismet Drone %s.%s.%s\n", VERSION_MAJOR, VERSION_MINOR, VERSION_TINY);
             exit(0);
             break;
         case 'x':
@@ -644,7 +644,7 @@ int main(int argc, char *argv[]) {
         timetracker.RegisterTimer(SERVER_TIMESLICES_SEC / channel_velocity, NULL, 1, &ChannelHopEvent, NULL);
 
     // Now we can start doing things...
-    fprintf(stderr, "Kismet Drone %d.%d.%d (%s)\n",
+    fprintf(stderr, "Kismet Drone %s.%s.%s (%s)\n",
             VERSION_MAJOR, VERSION_MINOR, VERSION_TINY, servername);
 
     fprintf(stderr, "Listening on port %d (protocol %d).\n", tcpport, STREAM_DRONE_VERSION);

@@ -1,7 +1,7 @@
 # Kismet GUI config file
 
 # Version of Kismet config
-version=3.1.0d
+version=Feb.04.01a
 
 # Do we show the intro window?
 showintro=true

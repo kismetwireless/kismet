@@ -58,7 +58,7 @@ char *CISCO_fields_text[] = {
 };
 
 char *KISMET_fields_text[] = {
-    "version", "starttime", "servername", "timestamp", "channelhop",
+    "version", "starttime", "servername", "timestamp", "channelhop", "newversion",
     NULL
 };
 
@@ -172,6 +172,9 @@ int Protocol_KISMET(PROTO_PARMS) {
                 out_string += "0";
             else
                 out_string += "1";
+            break;
+        case KISMET_newversion:
+            out_string += kdata->newversion;
             break;
         default:
             out_string = "Unknown field requested.";

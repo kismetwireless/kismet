@@ -1595,7 +1595,7 @@ int Packetracker::WriteXMLNetworks(string in_fname) {
     time_t cur_time = time(0);
     snprintf(lt, 25, "%s", ctime(&cur_time));
 
-    fprintf(netfile, "<detection-run kismet-version=\"%d.%d.%d\" start-time=\"%s\" end-time=\"%s\">\n",
+    fprintf(netfile, "<detection-run kismet-version=\"%s.%s.%s\" start-time=\"%s\" end-time=\"%s\">\n",
             VERSION_MAJOR, VERSION_MINOR, VERSION_TINY, ft, lt);
 
     /*
