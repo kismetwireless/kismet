@@ -402,6 +402,14 @@ int Packetracker::ProcessPacket(packet_info info, char *in_status) {
 
     }
 
+    // If it's a probe request shortcut to handling it like a client once we've
+    // established what network it belongs to
+    if (info.type == packet_probe_req) {
+        ret = ProcessDataPacket(info, net, in_status);
+        return ret;
+    }
+
+
     if (info.type == packet_beacon && strlen(info.beacon_info) != 0 &&
         IsBlank(net->beacon_info.c_str())) {
         net->beacon_info = info.beacon_info;
@@ -684,21 +692,25 @@ int Packetracker::ProcessDataPacket(packet_info info, wireless_network *net, cha
         means = "DHCP";
         ipdata_dirty = 1;
     } else if (info.proto.type == proto_arp && (client->ipdata.atype < address_arp ||
-                                                client->ipdata.load_from_store == 1)) {
+                                                client->ipdata.load_from_store == 1) &&
+               info.proto.source_ip[0] != 0x00) {
         client->ipdata.atype = address_arp;
+
         memcpy(client->ipdata.ip, info.proto.source_ip, 4);
         //memcpy(client->ipdata.range_ip, info.proto.dest_ip, 4);
         means = "ARP";
         ipdata_dirty = 1;
     } else if ((info.proto.type == proto_udp || info.proto.type == proto_netbios) &&
-               (client->ipdata.atype < address_udp || client->ipdata.load_from_store == 1)) {
+               (client->ipdata.atype < address_udp || client->ipdata.load_from_store == 1) &&
+               info.proto.source_ip[0] != 0x00) {
         client->ipdata.atype = address_udp;
         memcpy(client->ipdata.ip, info.proto.source_ip, 4);
         //memcpy(client->ipdata.range_ip, info.proto.dest_ip, 4);
         means = "UDP";
         ipdata_dirty = 1;
     } else if ((info.proto.type == proto_misc_tcp || info.proto.type == proto_netbios_tcp) &&
-               (client->ipdata.atype < address_tcp || client->ipdata.load_from_store == 1)) {
+               (client->ipdata.atype < address_tcp || client->ipdata.load_from_store == 1) &&
+               info.proto.source_ip[0] != 0x00) {
         client->ipdata.atype = address_tcp;
         memcpy(client->ipdata.ip, info.proto.source_ip, 4);
         //memcpy(client->ipdata.range_ip, info.proto.dest_ip, 4);
