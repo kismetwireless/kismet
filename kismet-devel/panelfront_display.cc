@@ -618,10 +618,12 @@ int PanelFront::MainNetworkPrinter(void *in_window) {
     if (!(lat == 0 && lon == 0 && alt == 0 && spd == 0 && fix == 0)) {
 
         char fixstr[16];
+        float show_alt = alt;
+        float show_spd = spd;
 
         if (metric) {
-            alt = alt / 3.3;
-            spd = spd * 1.6093;
+            show_alt = alt / 3.3;
+            show_spd = spd * 1.6093;
         }
 
         if (fix == -1)
@@ -638,16 +640,16 @@ int PanelFront::MainNetworkPrinter(void *in_window) {
         if (spd < 0.5) {
             spdslow = 1;
             if (metric)
-                spd = spd * 0.2222;
+                show_spd = spd * 0.2778;
             else
-                spd = spd * 1.4666;
+                show_spd = spd * 1.4667;
         }
 
         snprintf(gpsdata, 80, "Lat %.3f Lon %.3f Alt %.1f%c Spd %.3f%s Fix %s",
-                 lat, lon, alt,
+                 lat, lon, show_alt,
                  metric ? 'm' : 'f',
-                 spd,
-                 spdslow ? (metric ? "m/h" : "f/s") : (metric ? "km/h" : "m/h"),
+                 show_spd,
+                 spdslow ? (metric ? "m/s" : "f/s") : (metric ? "km/h" : "m/h"),
                  fixstr);
 
         if (color)
