@@ -51,6 +51,9 @@ public:
     Packetracker();
     ~Packetracker();
 
+    // Do regular maintenance
+    int Tick();
+
     // Get the error
     char *FetchError() { return errstr; }
 
@@ -125,6 +128,8 @@ protected:
 
     // Alert map for netstumbler clients
     map<mac_addr, wireless_client *> netstumbler_map;
+    // Alert map for deauth floods
+    map<mac_addr, wireless_network *> deauthflood_map;
 
     // Map BSSID's to SSID for storage and cloaking
     map<mac_addr, string> bssid_cloak_map;

@@ -1,4 +1,5 @@
 Aug 25 2002  2.5.2  Optomizations to panelfront
+                    Rudimentary deauthentication flood detection
 Aug 24 2002  2.5.2  Fixed major problems introduced with yesterdays speed boost
                     Fixed gpsmap from yesterdays changes
 Aug 23 2002  2.5.2  Doubled (or more) the speed of packet tracking via 

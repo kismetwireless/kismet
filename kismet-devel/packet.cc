@@ -300,7 +300,7 @@ void GetPacketInfo(const pkthdr *header, const u_char *data,
             uint16_t rcode;
             memcpy(&rcode, (const char *) &msgbuf[24], 2);
 
-            ret_packinfo->reason_code = 0;
+            ret_packinfo->reason_code = rcode;
         }
     } else if (frame->fc.type == 2) {
         // Data packets
