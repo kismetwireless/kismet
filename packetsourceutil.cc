@@ -491,16 +491,18 @@ int ChildGpsEvent(Timetracker::timer_event *evt, void *parm) {
 #ifdef HAVE_GPS
     capturesource *csrc = (capturesource *) parm;
 
-    if (csrc->gps_enable == 1 && csrc->gps->Scan() < 0) {
-        char txtbuf[1024];
-        snprintf(txtbuf, 1024, "capture child %d source %s gps error fetcing data: %s",
-                 capchild_global_pid, csrc->name.c_str(), csrc->gps->FetchError());
-        packet_buf.push_front(CapSourceText(txtbuf, CAPFLAG_NONE));
-        csrc->gps_enable = 0;
-        return 0;
+    if (csrc->gps_enable == 1) {
+        if (csrc->gps->Scan() < 0) {
+            char txtbuf[1024];
+            snprintf(txtbuf, 1024, "capture child %d source %s gps error fetcing data: %s",
+                     capchild_global_pid, csrc->name.c_str(), csrc->gps->FetchError());
+            packet_buf.push_front(CapSourceText(txtbuf, CAPFLAG_NONE));
+            csrc->gps_enable = 0;
+            return 0;
+        }
     }
 
-    // We want to be rescheduled
+    // We want to reschedule if we're not enabled
     return 1;
 #endif
     return 0;
@@ -527,6 +529,9 @@ void CapSourceChild(capturesource *csrc) {
     signal(SIGHUP, SIG_IGN);
     signal(SIGPIPE, CapSourceInterruptSignal);
 
+    // Turn off the child gps until it gets enabled
+    csrc->gps_enable = 0;
+
     // Try to open the child...
     if (csrc->source->OpenSource(csrc->interface.c_str(), csrc->cardtype) < 0) {
         fprintf(stderr, "FATAL: Capture child %d (%s): %s\n", mypid, csrc->name.c_str(), csrc->source->FetchError());
@@ -535,10 +540,6 @@ void CapSourceChild(capturesource *csrc) {
 
     fprintf(stderr, "Capture child %d (%s): Capturing packets from %s\n",
             mypid, csrc->name.c_str(), csrc->source->FetchType());
-
-#ifdef HAVE_GPS
-    timetracker.RegisterTimer(SERVER_TIMESLICES_SEC, NULL, 1, &ChildGpsEvent, (void *) csrc);
-#endif
 
     while (1) {
         int max_fd = 0;
@@ -717,7 +718,10 @@ void CapSourceChild(capturesource *csrc) {
             } else if (cmd == CAPCMD_RESUME) {
                 csrc->source->Resume();
             } else if (cmd == CAPCMD_GPSENABLE) {
+#ifdef HAVE_GPS
                 csrc->gps_enable = 1;
+                timetracker.RegisterTimer(SERVER_TIMESLICES_SEC, NULL, 1, &ChildGpsEvent, (void *) csrc);
+#endif
             } else if (cmd > 0) {
                 // do a channel set
                 if (csrc->source->SetChannel(cmd) < 0) {
