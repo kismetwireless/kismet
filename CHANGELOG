@@ -1,6 +1,8 @@
 Mar 08 2003  2.9.1  Actually implemented max clients for server and drone
                     Only perform network protocol conversions if there are
                      clients connected to speed up headless servers.
+                    Tweaked packet mangling for fifo pipe
+                    Fixed client counting
 Mar 07 2003  2.9.1  Added encoding, error, and rate transmission to drone 
                      protocol
                     Sanitized drone protocol for cross-endian use

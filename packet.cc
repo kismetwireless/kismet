@@ -514,7 +514,20 @@ void GetPacketInfo(kis_packet *packet, packet_parm *parm, packet_info *ret_packi
              packet->data[ret_packinfo->header_offset + 1] & 0x40)) {
 
             ret_packinfo->encrypted = 1;
+        } else if (parm->fuzzy_crypt && (unsigned int) ret_packinfo->header_offset+9 < packet->len) {
+            // Do a fuzzy data compare... if it's not:
+            // 0xAA - IP LLC
+            // 0x42 - I forgot.
+            // 0xF0 - Netbios
+            // 0xE0 - IPX
+            if (packet->data[ret_packinfo->header_offset] != 0xAA && packet->data[ret_packinfo->header_offset] != 0x42 &&
+                packet->data[ret_packinfo->header_offset] != 0xF0 && packet->data[ret_packinfo->header_offset] != 0xE0) {
+                ret_packinfo->encrypted = 1;
+                ret_packinfo->fuzzy = 1;
+            }
+        }
 
+        if (ret_packinfo->encrypted) {
             // Match the range of cryptographically weak packets and let us
             // know.
 
@@ -534,42 +547,17 @@ void GetPacketInfo(kis_packet *packet, packet_parm *parm, packet_info *ret_packi
                     ret_packinfo->interesting = 1;
             }
 
-        } else if (parm->fuzzy_crypt && (unsigned int) ret_packinfo->header_offset+9 < packet->len) {
-            // Do a fuzzy data compare... if it's not:
-            // 0xAA - IP LLC
-            // 0x42 - I forgot.
-            // 0xF0 - Netbios
-            // 0xE0 - IPX
-            if (packet->data[ret_packinfo->header_offset] != 0xAA && packet->data[ret_packinfo->header_offset] != 0x42 &&
-                packet->data[ret_packinfo->header_offset] != 0xF0 && packet->data[ret_packinfo->header_offset] != 0xE0)
-                ret_packinfo->encrypted = 1;
+            // Knock 8 bytes off the data size of encrypted packets for the
+            // wep IV and check
+            int datasize = packet->len - ret_packinfo->header_offset - 8;
+            if (datasize > 0)
+                ret_packinfo->datasize = datasize;
 
-            unsigned int sum;
-            if (packet->data[ret_packinfo->header_offset+1] == 255 && packet->data[ret_packinfo->header_offset] > 2 &&
-                packet->data[ret_packinfo->header_offset] < 16) {
-                ret_packinfo->interesting = 1;
-            } else {
-                sum = packet->data[ret_packinfo->header_offset] + packet->data[ret_packinfo->header_offset+1];
-                if (sum == 1 && (packet->data[ret_packinfo->header_offset + 2] <= 0x0A ||
-                                 packet->data[ret_packinfo->header_offset + 2] == 0xFF)) {
-                    ret_packinfo->interesting = 1;
-                } else if (sum <= 0x0C && (packet->data[ret_packinfo->header_offset + 2] >= 0xF2 &&
-                                           packet->data[ret_packinfo->header_offset + 2] <= 0xFE &&
-                                           packet->data[ret_packinfo->header_offset + 2] != 0xFD))
-                    ret_packinfo->interesting = 1;
-            }
+            // De-wep if we have any keys
+            if (ret_packinfo->encrypted && bssid_wep_map->size() != 0)
+                DecryptPacket(packet, ret_packinfo, bssid_wep_map, identity);
 
         }
-
-        // Knock 8 bytes off the data size of encrypted packets for the
-        // wep IV and check
-        int datasize = packet->len - ret_packinfo->header_offset - 8;
-        if (datasize > 0)
-            ret_packinfo->datasize = datasize;
-
-        // De-wep if we have any keys
-        if (ret_packinfo->encrypted && bssid_wep_map->size() != 0)
-            DecryptPacket(packet, ret_packinfo, bssid_wep_map, identity);
 
         if (ret_packinfo->encrypted == 0 || ret_packinfo->decoded == 1)
             GetProtoInfo(packet, ret_packinfo);
@@ -1170,7 +1158,7 @@ void DecryptPacket(kis_packet *packet, packet_info *in_info,
 // Calling function is responsible for deleting the returned packet
 // and the contents of the returned packet.
 // We turn the packet into an "un-modified" packet for logging
-kis_packet *MangleCryptPacket(const kis_packet *packet, const packet_info *in_info) {
+kis_packet *MangleDeCryptPacket(const kis_packet *packet, const packet_info *in_info) {
     if (in_info->decoded == 0 || packet->error != 0 || packet->moddata == NULL)
         return NULL;
 
@@ -1204,3 +1192,40 @@ kis_packet *MangleCryptPacket(const kis_packet *packet, const packet_info *in_in
 
     return outpack;
 }
+
+// Mangle a fuzzy packet into a "really encrypted" packet
+kis_packet *MangleFuzzyCryptPacket(const kis_packet *packet, const packet_info *in_info) {
+    if (in_info->fuzzy == 0 || packet->error != 0)
+        return NULL;
+
+    kis_packet *outpack = new kis_packet;
+
+    // Remove the WEP header
+    outpack->ts.tv_sec = packet->ts.tv_sec;
+    outpack->ts.tv_usec = packet->ts.tv_usec;
+    outpack->len = packet->len;
+    outpack->caplen = packet->caplen;
+    outpack->quality = packet->quality;
+    outpack->signal = packet->signal;
+    outpack->noise = packet->noise;
+    outpack->error = 0;
+    outpack->channel = packet->channel;
+    outpack->carrier = packet->carrier;
+    outpack->encoding = packet->encoding;
+    outpack->datarate = packet->datarate;
+
+    // Copy the encrypted data
+    outpack->data = new uint8_t[outpack->len];
+    memcpy((void *) outpack->data, (void *) packet->data, outpack->len);
+
+    // Copy any decrypted data
+    outpack->moddata = new uint8_t[outpack->len];
+    memcpy((void *) outpack->moddata, (void *) packet->moddata, outpack->len);
+
+    // Twiddle the frame control bit to set us to be really encrypted
+    frame_control *fc = (frame_control *) outpack->data;
+    fc->wep = 0;
+
+    return outpack;
+}
+
