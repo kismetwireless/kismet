@@ -336,7 +336,8 @@ int track_opacity = 100, /* no bounds opacity */ range_opacity = 70, power_opaci
     hull_opacity = 70, scatter_opacity = 100, center_opacity = 100, label_opacity = 100,
     bounds_opacity = 10;
 int track_width = 3;
-int convert_greyscale = 1, keep_gif = 0, verbose = 0, label_orientation = 7;
+int convert_greyscale = 1, keep_gif = 0, verbose = 0, label_orientation = 7, feather_range = 0,
+    feather_hull = 0;
 
 // Offsets for drawing from what we calculated
 int draw_x_offset = 0, draw_y_offset = 0;
@@ -1542,33 +1543,6 @@ void DrawNetCircles(vector<gps_network *> in_nets, Image *in_img, DrawInfo *in_d
         if (map_iter->diagonal_distance > horiz_throttle)
             continue;
 
-        /*
-        // Figure x, y of min on our hypothetical map
-        double mapx, mapy;
-
-        calcxy (&mapx, &mapy, map_iter->avg_lat, map_iter->avg_lon,
-                (double) map_scale/PIXELFACT, map_avg_lat, map_avg_lon);
-
-        double end_lat, end_lon;
-
-        // Find the nearest corner of the bounding rectangle, this will determine
-        // the size of our network circle
-        if (((map_iter->min_lat + map_iter->max_lat) / 2) < map_iter->avg_lat)
-            end_lat = map_iter->max_lat;
-        else
-            end_lat = map_iter->min_lat;
-        if (((map_iter->min_lon + map_iter->max_lon)/ 2) < map_iter->avg_lon)
-            end_lon = map_iter->max_lon;
-        else
-            end_lon = map_iter->min_lon;
-
-        double endx, endy;
-        calcxy(&endx, &endy, end_lat, end_lon,
-               (double) map_scale/PIXELFACT, map_avg_lat, map_avg_lon);
-
-        // printf("  Endpt   : %dx%d\n", (int) endx, (int) endy);
-        */
-
         // Find the average distance to all the points in the network and use it as
         // the radius
         if (map_iter->points.size() == 0)
@@ -1596,17 +1570,6 @@ void DrawNetCircles(vector<gps_network *> in_nets, Image *in_img, DrawInfo *in_d
         endx = mapx + distavg;
         endy = mapy + distavg;
 
-        /*
-        double tlx = mapx - distavg;
-        double tly = mapy - distavg;
-
-        if (((tlx < 0 && tly < 0) && (endx < 0 && endy < 0)) ||
-            ((tlx > map_width && tly > map_height) &&
-             (endx > map_width && endy > map_height))) {
-            continue;
-        }
-        */
-
         if (!(((mapx - distavg > 0 && mapx - distavg < map_width) &&
                (mapy - distavg > 0 && mapy - distavg < map_width)) &&
               ((endx > 0 && endx < map_height) &&
@@ -1626,20 +1589,156 @@ void DrawNetCircles(vector<gps_network *> in_nets, Image *in_img, DrawInfo *in_d
             break;
         }
 
-        in_di->fill = netclr;
-        in_di->stroke = netclr;
-
         char prim[1024];
 
-        snprintf(prim, 1024, "fill-opacity %d%% stroke-opacity %d%% circle %d,%d %d,%d",
-                 range_opacity, range_opacity, (int) mapx, (int) mapy, (int) endx, (int) endy);
+        if (feather_range) {
+            // Do special voodoo here to make a series of concentric circles
 
-        in_di->primitive = prim;
-        DrawImage(in_img, in_di);
-        GetImageException(in_img, &im_exception);
-        if (im_exception.severity != UndefinedException) {
-            CatchException(&im_exception);
-            break;
+            // Allocate the width of the circle + 50%, odd-sized so we get
+            // a center pixel we can span out from
+            int network_width = abs((int) (mapx - endx));
+            // Extended width for fading
+            int extwidth = (int) (network_width * 1.5);
+            // Give us plenty of room around the image
+            int circlewidth = (int) (extwidth * 4);
+            // Center pixel that we draw the network around
+            int centerpoint = (circlewidth / 2);
+
+            unsigned char *pixdata;
+            unsigned char *apixdata;
+
+            // Printable hex string and color info
+            char clrstr[8];
+            PixelPacket alphacolor;
+
+            Image *base_img = NULL;
+            Image *alpha_img = NULL;
+            ImageInfo *base_info = CloneImageInfo((ImageInfo *) NULL);
+            ImageInfo *alpha_info = CloneImageInfo((ImageInfo *) NULL);
+            DrawInfo *base_di = NULL;
+            DrawInfo *alpha_di = NULL;
+
+            // Allocate space for the image and the alpha image
+            pixdata = (unsigned char *) malloc(sizeof(unsigned char) * 
+                                               (circlewidth * circlewidth) * 4);
+            apixdata = (unsigned char *) malloc(sizeof(unsigned char) * 
+                                                (circlewidth * circlewidth));
+
+            // Allocate the RGB+Alpha channel image
+            base_img = ConstituteImage(circlewidth, circlewidth, "RGBA", CharPixel,
+                                       pixdata, &excep);
+            if (excep.severity != UndefinedException) {
+                CatchException(&excep);
+                break;
+            }
+
+            free(pixdata);
+
+            // Allocate an intensity-only image to build the alpha channel into
+            alpha_img = ConstituteImage(circlewidth, circlewidth, "I", CharPixel,
+                                        apixdata, &excep);
+            if (excep.severity != UndefinedException) {
+                CatchException(&excep);
+                break;
+            }
+
+            free(apixdata);
+
+            base_di = CloneDrawInfo(base_info, NULL);
+            alpha_di = CloneDrawInfo(alpha_info, NULL);
+
+            // We want circles from 3/4 to 6/4 of the network range
+            // in decreasing opacity, that are 8 pixels wide
+            int nconcentric = (int) (((network_width * 1.5) - 
+                                      (network_width * 0.75)) / 8);
+
+            int opac = 0;
+            int max_opac = (int) ((double) 255 * ((double) range_opacity / (double) 100));
+            for (int x = (int) (network_width * 1.5) + centerpoint;
+                 x >= centerpoint + (network_width * 0.75); 
+                 x -= 8) {
+                if ((opac = opac + (max_opac / (nconcentric - 1))) > max_opac)
+                    opac = max_opac;
+                snprintf(clrstr, 8, "#%02X%02X%02X", opac, opac, opac);
+
+                QueryColorDatabase(clrstr, &alphacolor, &im_exception);
+                if (im_exception.severity != UndefinedException) {
+                    CatchException(&im_exception);
+                    break;
+                }
+                alpha_di->fill = alphacolor;
+
+                snprintf(prim, 1024, "fill-opacity %d%% circle %d,%d %d,%d",
+                         range_opacity, centerpoint, centerpoint, x, x);
+                alpha_di->primitive = prim;
+
+                DrawImage(alpha_img, alpha_di);
+                if (im_exception.severity != UndefinedException) {
+                    CatchException(&im_exception);
+                    break;
+                }
+
+            }
+
+            // Draw the center itself
+            snprintf(clrstr, 8, "#%02X%02X%02X", max_opac, max_opac, max_opac);
+            QueryColorDatabase(clrstr, &alphacolor, &im_exception);
+            if (im_exception.severity != UndefinedException) {
+                CatchException(&im_exception);
+                break;
+            }
+            alpha_di->fill = alphacolor;
+
+            snprintf(prim, 1024, "fill-opacity 100%% circle %d,%d %d,%d",
+                     centerpoint, centerpoint, 
+                     centerpoint + network_width - 8, centerpoint + network_width - 8);
+            alpha_di->primitive = prim;
+
+            DrawImage(alpha_img, alpha_di);
+            if (im_exception.severity != UndefinedException) {
+                CatchException(&im_exception);
+                break;
+            }
+
+            // Draw a simple color over the entire base and let the alpha channel
+            // control where it gets drawn
+            base_di->fill = netclr;
+            snprintf(prim, 1024, "fill-opacity 100%% rectangle 0,0 %d,%d",
+                     circlewidth, circlewidth);
+            base_di->primitive = prim;
+
+            DrawImage(base_img, base_di);
+            if (im_exception.severity != UndefinedException) {
+                CatchException(&im_exception);
+                break;
+            }
+
+            // Now we composite the alpha channel into our base image
+            CompositeImage(base_img, CopyOpacityCompositeOp, alpha_img, 0, 0);
+            DestroyImage(alpha_img);
+
+            // Now we composite it over the map
+            CompositeImage(in_img, OverCompositeOp, base_img, 
+                           (int) (mapx - (circlewidth / 2)),
+                           (int) (mapy - (circlewidth / 2)));
+            DestroyImage(base_img);
+            
+        } else {
+            // Plot a transparent circle directly over our map
+            in_di->fill = netclr;
+            in_di->stroke = netclr;
+
+            snprintf(prim, 1024, "fill-opacity %d%% stroke-opacity %d%% circle %d,%d %d,%d",
+                     range_opacity, range_opacity, (int) mapx, (int) mapy, 
+                     (int) endx, (int) endy);
+
+            in_di->primitive = prim;
+            DrawImage(in_img, in_di);
+            GetImageException(in_img, &im_exception);
+            if (im_exception.severity != UndefinedException) {
+                CatchException(&im_exception);
+                break;
+            }
         }
     }
 }
@@ -2358,7 +2457,6 @@ void DrawNetCenterText(vector<gps_network *> in_nets, Image *in_img, DrawInfo *i
     }
 }
 
-
 void DrawNetScatterPlot(vector<gps_network *> in_nets, Image *in_img, DrawInfo *in_di) { /*FOLD00*/
     int power_level=0;
     int power_level_total=0;
@@ -2370,16 +2468,10 @@ void DrawNetScatterPlot(vector<gps_network *> in_nets, Image *in_img, DrawInfo *
     for (unsigned int x = 0; x < in_nets.size(); x++) {
         gps_network *map_iter = in_nets[x];
 
-        // Skip networks w/ no determined coordinates
-        /* ATR - Removed this check because it skips sites with readings at only a single coordinate. Hope it doesn't break something else.........
-        if (map_iter->max_lat == 0)
-            continue;
-        */
-
         if (map_iter->diagonal_distance > horiz_throttle)
             continue;
 
-	// hehe, cheating with a hash
+        // hehe, cheating with a hash
         map<string, string> dim;
         map<string, int> dim_signal_total; // For power plotting
         map<string, int> dim_count; // For power plotting
@@ -2423,58 +2515,57 @@ void DrawNetScatterPlot(vector<gps_network *> in_nets, Image *in_img, DrawInfo *
             }
 
             in_di->fill = netclr;
-        }  else {
+            in_di->stroke = netclr;
+        } else {
 
-                // ATR Determine range value for assigning colors
-                if (power_zoom > 0) {
-                        max_power_level = power_zoom;
-                }
-                if(max_power_level < power_steps) {  // ATR don't break down further than number of colors
-                        threshold = 1;
-                } else {
-                        threshold = (float) max_power_level/(float) (power_steps);
+            // ATR Determine range value for assigning colors
+            if (power_zoom > 0) {
+                max_power_level = power_zoom;
+            }
+            if(max_power_level < power_steps) {  // ATR don't break down further than number of colors
+                threshold = 1;
+            } else {
+                threshold = (float) max_power_level/(float) (power_steps);
 
-                }
-                printf("Power Zoom=%d : Power Steps=%d : Range for Color Index=%.2f\n", max_power_level, power_steps, threshold);
+            }
+            printf("Power Zoom=%d : Power Steps=%d : Range for Color Index=%.2f\n", max_power_level, power_steps, threshold);
         }
 
         for (map<string, string>::const_iterator y = dim.begin(); y != dim.end(); ++y) {
             if (scatter_power == 1) { // ATR If power based coloring, determine and set color for each scatter point
 
-                        // ATR calc average power from multiple values
-                        power_level_total = dim_signal_total[y->first];
-                        coord_count = dim_count[y->first];
-                        if (power_level_total == 0) { //ATR sig is really something above zero or we wouldn't get a packet ;)
-                                power_level_total++;
-                        }
-                        power_level = power_level_total/coord_count;
-                        if (power_level == 0) { //ATR sig is really something above zero or we wouldn't get a packet ;)
-                                power_level++;
-                        }
+                // ATR calc average power from multiple values
+                power_level_total = dim_signal_total[y->first];
+                coord_count = dim_count[y->first];
+                if (power_level_total == 0) { //ATR sig is really something above zero or we wouldn't get a packet ;)
+                    power_level_total++;
+                }
+                power_level = power_level_total/coord_count;
+                if (power_level == 0) { //ATR sig is really something above zero or we wouldn't get a packet ;)
+                    power_level++;
+                }
 
-                        // ATR Determine color index
-                        power_index = (int) (power_level / threshold);
-                        if (power_index == 0) { // ATR value of zero means we got a bogus integer rounding number
-                                power_index++;
-                        }
-                        if (power_index > power_steps) { //ATR if user specifies zoom that's less than max_power, then set index to highest color
-                                power_index = power_steps;
-                        }
+                // ATR Determine color index
+                power_index = (int) (power_level / threshold);
+                if (power_index == 0) { // ATR value of zero means we got a bogus integer rounding number
+                    power_index++;
+                }
+                if (power_index > power_steps) { //ATR if user specifies zoom that's less than max_power, then set index to highest color
+                    power_index = power_steps;
+                }
 
-                        PixelPacket netclr;
-                        ExceptionInfo excep;
-                        GetExceptionInfo(&excep);
-                        QueryColorDatabase(power_colors[power_index-1], &netclr, &excep); // ATR - Get color based on signal power
-                        if (excep.severity != UndefinedException) {
-                                CatchException(&excep);
-                                break;
-                        }
-                        in_di->fill = netclr;
-                        printf("Plot=%s : Commulative Power=%d : Number Readings=%d : Ave Power=%d : Color Index=%d \n", y->first.c_str(), power_level_total, coord_count, power_level, power_index);
+                PixelPacket netclr;
+                ExceptionInfo excep;
+                GetExceptionInfo(&excep);
+                QueryColorDatabase(power_colors[power_index-1], &netclr, &excep); // ATR - Get color based on signal power
+                if (excep.severity != UndefinedException) {
+                    CatchException(&excep);
+                    break;
+                }
+                in_di->fill = netclr;
+                in_di->stroke = netclr;
+                printf("Plot=%s : Commulative Power=%d : Number Readings=%d : Ave Power=%d : Color Index=%d \n", y->first.c_str(), power_level_total, coord_count, power_level, power_index);
             }
-
-
-
 
             char prim[1024];
 
@@ -2547,7 +2638,7 @@ int DrawLegendComposite(vector<gps_network *> in_nets, Image **in_img,
     leg_img_info = CloneImageInfo((ImageInfo *) NULL);
 
     pixdata = (unsigned int *) malloc(sizeof(unsigned int) * 
-                                      (map_width * (map_height + legend_height)));
+                                      (map_width * (map_height + legend_height)) * 3);
 
     leg_img = ConstituteImage(map_width, map_height + legend_height, "RGB", CharPixel, 
                               pixdata, &im_exception);
@@ -2556,8 +2647,10 @@ int DrawLegendComposite(vector<gps_network *> in_nets, Image **in_img,
         fprintf(stderr, "FATAL: ImageMagick error:\n");
         MagickError(im_exception.severity, im_exception.reason,
                     im_exception.description);
-        exit(0);
+        exit(1);
     }
+
+    free(pixdata);
 
     leg_di = CloneDrawInfo(leg_img_info, NULL);
 
@@ -2593,9 +2686,6 @@ int DrawLegendComposite(vector<gps_network *> in_nets, Image **in_img,
     // contents
 
     // Test the standard text in col1
-    snprintf(text, 1024, "Total networks  : %d\n", in_nets.size());
-    text_colwidth = kismax(text_colwidth, IMStringWidth(text, leg_img, leg_di));
-
     snprintf(text, 1024, "Visible networks: %d\n", drawn_net_map.size());
     text_colwidth = kismax(text_colwidth, IMStringWidth(text, leg_img, leg_di));
 
@@ -3115,6 +3205,7 @@ int Usage(char* argv, int ec = 1) {
            "  -K, --draw-bounds-opacity <o>  Bounding box opacity [Default: 10]\n"
            "  -r, --draw-range               Draw estimaged range circles\n"
            "  -R, --draw-range-opacity <o>   Range circle opacity [Default: 70]\n"
+           "      --feather-range            Draw range circles with staged opacity\n"
            "  -u, --draw-hull                Draw convex hull of data points\n"
            "  -U, --draw-hull-opacity <o>    Convex hull opacity [Default: 70]\n"
            "  -a, --draw-scatter             Draw scatter plot of data points\n"
@@ -3216,6 +3307,7 @@ int main(int argc, char *argv[]) {
            {"draw-legend", no_argument, 0, 'k'},
            {"feature-order", required_argument, 0, 'T'},
            {"pure-avg-center", no_argument, 0, 'N'},
+           {"feather-range", no_argument, 0, 2},
            { 0, 0, 0, 0 }
     };
     int option_index;
@@ -3530,6 +3622,9 @@ int main(int argc, char *argv[]) {
             break;
         case 'T':
             draw_feature_order = optarg;
+            break;
+        case 2:
+            feather_range = 1;
             break;
         default:
             ShortUsage(exec_name);

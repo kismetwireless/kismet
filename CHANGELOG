@@ -1,3 +1,7 @@
+Mar 22 2004  devel  Added --feather-range to gpsmap to blur network range
+                     circles into invisibility.  Imagemagick is very very
+                     poorly documented.
+                    Fixed various other bugs in gpsmap
 Mar 21 2004  devel  Additional tweaks to prism54 avs monitoring
 Mar 20 2004  devel  Fixed gpsmap trying to autoscale even with user scales
                     Merged patch from Antonio Eugenio Burriel to enable AVS 
