@@ -1,5 +1,7 @@
 Sep 13 2002  2.5.2  Added new mapblast/vicinity.com URL since they changed
                      it AGAIN (poptix)
+                    Tweaked prope request network tracking to update ssid to
+                     <No SSID> when probing for any network.
 Sep 12 2002  2.5.2  configure cleanups
                     Added prototype extra field to proto_info struct
                     Added Netstumbler version in warning message
