@@ -228,7 +228,7 @@ protected:
         mcol_unknown = -1,
         mcol_decay, mcol_name, mcol_shortname, mcol_ssid, mcol_shortssid, mcol_type,
         mcol_wep, mcol_channel, mcol_data, mcol_llc, mcol_crypt, mcol_weak, mcol_bssid,
-        mcol_flags, mcol_ip, mcol_mask, mcol_gateway, mcol_packets, mcol_info, mcol_maxrate,
+        mcol_flags, mcol_ip, /* mcol_mask, mcol_gateway, */ mcol_packets, mcol_info, mcol_maxrate,
         mcol_manuf, mcol_signal, mcol_quality, mcol_noise, mcol_clients
     };
 

@@ -1,3 +1,6 @@
+Sep 16 2002  2.5.2  Fixed client handling and aging in groups
+Sep 14 2002  2.5.2  Stripped remnants of netmask/gateway tracking out since
+                     they're not used with the new client ip tracker
 Sep 13 2002  2.5.2  Added new mapblast/vicinity.com URL since they changed
                      it AGAIN (poptix)
                     Tweaked prope request network tracking to update ssid to

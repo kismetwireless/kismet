@@ -392,12 +392,14 @@ int PanelFront::MainNetworkPrinter(void *in_window) {
         } else if (colind == mcol_ip) {
             snprintf(title, 1024, "IP Range");
             len = 15;
-        } else if (colind == mcol_mask) {
-            snprintf(title, 1024, "IP Mask");
-            len = 15;
-        } else if (colind == mcol_gateway) {
-            snprintf(title, 1024, "IP Gateway");
-            len = 15;
+            /*
+             } else if (colind == mcol_mask) {
+             snprintf(title, 1024, "IP Mask");
+             len = 15;
+             } else if (colind == mcol_gateway) {
+             snprintf(title, 1024, "IP Gateway");
+             len = 15;
+            */
         } else if (colind == mcol_packets) {
             snprintf(title, 1024, "Packts");
             len = 6;
@@ -1420,7 +1422,8 @@ int PanelFront::DetailsPrinter(void *in_window) {
                      dnet->ipdata.range_ip[0], dnet->ipdata.range_ip[1],
                      dnet->ipdata.range_ip[2], dnet->ipdata.range_ip[3]);
             kwin->text.push_back(output);
-    
+
+            /*
             if (dnet->ipdata.atype == address_dhcp || dnet->ipdata.atype == address_factory) {
                 snprintf(output, print_width, "Netmask : %d.%d.%d.%d",
                          dnet->ipdata.mask[0], dnet->ipdata.mask[1],
@@ -1431,7 +1434,8 @@ int PanelFront::DetailsPrinter(void *in_window) {
                         dnet->ipdata.gate_ip[0], dnet->ipdata.gate_ip[1],
                         dnet->ipdata.gate_ip[2], dnet->ipdata.gate_ip[3]);
                 kwin->text.push_back(output);
-            }
+                }
+                */
     
         }
     

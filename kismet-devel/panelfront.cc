@@ -488,10 +488,12 @@ PanelFront::main_columns PanelFront::Token2MainColumn(string in_token) {
         return mcol_flags;
     } else if (in_token == "ip") {
         return mcol_ip;
-    } else if (in_token == "mask") {
-        return mcol_mask;
-    } else if (in_token == "gateway") {
-        return mcol_gateway;
+        /*
+         } else if (in_token == "mask") {
+         return mcol_mask;
+         } else if (in_token == "gateway") {
+         return mcol_gateway;
+        */
     } else if (in_token == "packets") {
         return mcol_packets;
     } else if (in_token == "info") {
