@@ -702,7 +702,7 @@ void ProtocolClientEnable(int in_fd) {
     }
 }
 
-int GpsEvent(TimeTracker::timer_event *evt, void *parm) {
+int GpsEvent(Timetracker::timer_event *evt, void *parm) {
 #ifdef HAVE_GPS
     char status[STATUS_MAX];
 
@@ -753,7 +753,7 @@ int GpsEvent(TimeTracker::timer_event *evt, void *parm) {
 
 // Simple redirect to the network info drawer.  We don't want to change netwriteinfo to a
 // timer event since we call it un-timed too
-int NetWriteEvent(TimeTracker::timer_event *evt, void *parm) {
+int NetWriteEvent(Timetracker::timer_event *evt, void *parm) {
     NetWriteInfo();
 
     // Reschedule us
@@ -761,7 +761,7 @@ int NetWriteEvent(TimeTracker::timer_event *evt, void *parm) {
 }
 
 // Handle writing and sync'ing dump files
-int ExportSyncEvent(TimeTracker::timer_event *evt, void *parm) {
+int ExportSyncEvent(Timetracker::timer_event *evt, void *parm) {
     if (!silent)
         fprintf(stderr, "Saving data files.\n");
 
@@ -772,14 +772,14 @@ int ExportSyncEvent(TimeTracker::timer_event *evt, void *parm) {
 }
 
 // Write the waypoints for gpsdrive
-int WaypointSyncEvent(TimeTracker::timer_event *evt, void *parm) {
+int WaypointSyncEvent(Timetracker::timer_event *evt, void *parm) {
     tracker.WriteGpsdriveWaypt(waypoint_file);
 
     return 1;
 }
 
 // Handle tracker maintenance
-int TrackerTickEvent(TimeTracker::timer_event *evt, void *parm) {
+int TrackerTickEvent(Timetracker::timer_event *evt, void *parm) {
     tracker.Tick();
 
     return 1;

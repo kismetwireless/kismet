@@ -24,7 +24,7 @@
 #include "server_plugin.h"
 
 // Instance of the time tracker
-TimeTracker timetracker;
+Timetracker timetracker;
 
 vector<ALERT_data *> pending_alerts;
 vector<ALERT_data *> past_alerts;
