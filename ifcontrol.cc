@@ -251,11 +251,19 @@ int Iwconfig_Set_Channel(const char *in_dev, int in_ch, char *in_err) {
     strncpy(wrq.ifr_name, in_dev, IFNAMSIZ);
     IWFloat2Freq(in_ch, &wrq.u.freq);
 
+    // Try twice with a tiny delay, some cards (madwifi) need a second chance...
     if (ioctl(skfd, SIOCSIWFREQ, &wrq) < 0) {
-        snprintf(in_err, STATUS_MAX, "Failed to set channel %d %d:%s", in_ch,
-                 errno, strerror(errno));
-        close(skfd);
-        return -1;
+        struct timeval tm;
+        tm.tv_sec = 0;
+        tm.tv_usec = 5000;
+        select(0, NULL, NULL, NULL, &tm);
+
+        if (ioctl(skfd, SIOCSIWFREQ, &wrq) < 0) {
+            snprintf(in_err, STATUS_MAX, "Failed to set channel %d %d:%s", in_ch,
+                     errno, strerror(errno));
+            close(skfd);
+            return -1;
+        }
     }
 
     close(skfd);
