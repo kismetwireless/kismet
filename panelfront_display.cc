@@ -1076,7 +1076,7 @@ int PanelFront::MainClientPrinter(void *in_window) {
         mvwaddstr(kwin->win, 0, kwin->win->_maxx - 10, "(-) Up");
     }
 
-    if (kwin->end < (int) (group_vec.size() - 1) && client_sortby != client_sort_auto) {
+    if (kwin->end < (int) (display_vector.size() - 1) && client_sortby != client_sort_auto) {
         mvwaddstr(kwin->win, kwin->win->_maxy,
                   kwin->win->_maxx - 10, "(+) Down");
     }
@@ -1269,6 +1269,24 @@ int PanelFront::SortPrinter(void *in_window) {
 
     return 1;
 }
+
+int PanelFront::ClientSortPrinter(void *in_window) {
+    kis_window *kwin = (kis_window *) in_window;
+
+    int x = 0;
+    while (1) {
+        if (KismetClientSortText[x] == NULL)
+            break;
+        if (kwin->win->_maxx < 64)
+            mvwaddstr(kwin->win, 1+x, 2, KismetClientSortTextNarrow[x]);
+        else
+            mvwaddstr(kwin->win, 1+x, 2, KismetClientSortText[x]);
+        x++;
+    }
+
+    return 1;
+}
+
 
 int PanelFront::PowerPrinter(void *in_window) {
     kis_window *kwin = (kis_window *) in_window;

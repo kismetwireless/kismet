@@ -62,6 +62,9 @@ extern char *KismetHelpDetails[];
 extern char *KismetSortText[];
 extern char *KismetSortTextNarrow[];
 #define SORT_SIZE 10
+extern char *KismetClientSortText[];
+extern char *KismetClientSortTextNarrow[];
+#define CLIENT_SORT_SIZE 8
 extern char *KismetHelpPower[];
 extern char *KismetHelpRate[];
 extern char *KismetHelpGps[];
@@ -166,6 +169,7 @@ protected:
     int TextPrinter(void *in_window);
     // Various popups that generate stuff dynamically
     int SortPrinter(void *in_window);
+    int ClientSortPrinter(void *in_window);
     int PowerPrinter(void *in_window);
     int DetailsPrinter(void *in_window);
     int DumpPrinter(void *in_window);
@@ -182,6 +186,7 @@ protected:
     int MainClientInput(void *in_window, int in_chr);
 
     int SortInput(void *in_window, int in_chr);
+    int ClientSortInput(void *in_window, int in_chr);
     int PowerInput(void *in_window, int in_chr);
     int DetailsInput(void *in_window, int in_chr);
     int DumpInput(void *in_window, int in_chr);
