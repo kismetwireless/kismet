@@ -24,10 +24,11 @@ Licensed under the GPL
     Kismet is an 802.11 layer2 wireless network detector, sniffer, and
     intrusion detection system.  Kismet will work with any wireless card which
     support raw monitoring (rfmon) mode, and can sniff 802.11b, 802.11a, and
-    802.11g traffic.  Kismet is fully passive and undetectable when in
-    operation. Kismet automatically tracks all networks in range and is able to
-    detect (or infer) hidden networks, attack attempts, find rogue access
-    points, and find unauthorised users.
+    802.11g traffic.  
+
+    Kismet identifies networks at the 802.11 layer by passively collecting
+    packets to detect named networks, decloak hidden networks, and infering
+    the presence of nonbeaconing networks via data traffic.
 
 2.  Feature Overview
 
