@@ -103,6 +103,14 @@ int Packetracker::EnableAlert(string in_alname, alert_time_unit in_unit,
     } else if (lname == "airjackssid") {
         // Register airjack SSID alert
         ret = arefs[AIRJACKSSID_AREF] = alertracker->RegisterAlert("AIRJACKSSID", in_unit, in_rate, in_burstrate);
+    } else if (lname == "probenojoin") {
+        ProbeNoJoinAutomata *pnja = new ProbeNoJoinAutomata(alertracker, in_unit, in_rate, in_burstrate);
+        fsa_vec.push_back(pnja);
+        ret = pnja->FetchAlertRef();
+    } else if (lname == "sequencespoof") {
+        SequenceSpoofAutomata *sqa = new SequenceSpoofAutomata(alertracker, in_unit, in_rate, in_burstrate);
+        fsa_vec.push_back(sqa);
+        ret = sqa->FetchAlertRef();
     } else {
         snprintf(errstr, 1024, "Unknown alert type %s, not processing.", lname.c_str());
         return 0;
@@ -164,6 +172,11 @@ void Packetracker::ProcessPacket(packet_info info) {
     // string bssid_mac;
 
     num_packets++;
+
+    // Feed it through the finite state alert processors
+    for (unsigned int x = 0; x < fsa_vec.size(); x++) {
+        fsa_vec[x]->ProcessPacket(&info);
+    }
 
     // Junk unknown and noise packets
     if (info.type == packet_noise) {

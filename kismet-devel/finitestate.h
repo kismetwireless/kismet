@@ -54,7 +54,9 @@ public:
     virtual ~FiniteAutomata() { }
 
     // Handle a packet
-    virtual int ProcessPacket(const kis_packet *in_packet, const packet_info *in_info) = 0;
+    virtual int ProcessPacket(const packet_info *in_info) = 0;
+
+    int FetchAlertRef() { return alertid; }
 
 protected:
     Alertracker *atracker;
@@ -74,7 +76,7 @@ public:
 
     // Threshold if state == 2 && counter is over threshold
 
-    int ProcessPacket(const kis_packet *in_packet, const packet_info *in_info);
+    int ProcessPacket(const packet_info *in_info);
 
 protected:
     // Map of probing clients to responding people.  If the client sends any "normal" data
@@ -82,29 +84,20 @@ protected:
     map<mac_addr, _fsa_element *> bssid_map;
 };
 
-// FSA tracker
-class Finitetracker {
+// Finite state automata to watch sequence numbers
+class SequenceSpoofAutomata : public FiniteAutomata {
 public:
-    Finitetracker();
-    ~Finitetracker();
+    SequenceSpoofAutomata(Alertracker *in_tracker, alert_time_unit in_unit, int in_rate, int in_burstrate);
+    ~SequenceSpoofAutomata();
 
-    // Dispatch a packet to all the FSA's
-    int ProcessPacket(const kis_packet *in_packet, const packet_info *in_info);
-
-    // Register the alert tracker
-    void AddAlertracker(Alertracker *in_tracker);
-
-    // Alias finitestates to alerts
-    int EnableAlert(string in_alname, alert_time_unit in_unit,
-                    int in_rate, int in_burstrate);
-
-    // Nothing happens when a FSA doesn't complete, so we don't need to tick, we'll see if
-    // we remove them when we handle a packet
-    // int Tick();
+    int ProcessPacket(const packet_info *in_info);
 
 protected:
-    vector<FiniteAutomata *> fsa_vec;
-    Alertracker *atracker;
+    // State 0 - Undefined source
+    // State 1 - Source with beacons only
+    // State 2 - Source with real traffic
+
+    map<mac_addr, _fsa_element *> seq_map;
 };
 
 #endif

@@ -29,12 +29,13 @@
 #include <algorithm>
 #include <string>
 
+#include "util.h"
 #include "gpsd.h"
 #include "packet.h"
 #include "tracktypes.h"
 #include "manuf.h"
 #include "alertracker.h"
-#include "util.h"
+#include "finitestate.h"
 
 class Packetracker {
 public:
@@ -133,6 +134,9 @@ protected:
     // Manufacturer maps
     map<mac_addr, manuf *> ap_manuf_map;
     map<mac_addr, manuf *> client_manuf_map;
+
+    // Finite state trackers
+    vector<FiniteAutomata *> fsa_vec;
 
     // Filters
     map<mac_addr, int> *filter_export_bssid;
