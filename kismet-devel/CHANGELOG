@@ -1,3 +1,6 @@
+Feb 21 2003  2.9.1  Wrote code to mangle a WEP'd packet into a non-wep'd one
+                    Added ability to write data frames to a FIFO named pipe
+                     for external utilities such as Snort to do layer3+ IDS.
 Feb 19 2003  2.9.1  Development has been slow lately.  Sorry.
                     Removed pthreads requirement for gpsmap.  This should let 
                      us compile and run on *BSD systems now.

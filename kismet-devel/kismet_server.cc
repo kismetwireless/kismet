@@ -42,8 +42,10 @@
 #include "wtapdump.h"
 #include "wtaplocaldump.h"
 #include "airsnortdump.h"
-#include "gpsd.h"
+#include "fifodump.h"
 #include "gpsdump.h"
+
+#include "gpsd.h"
 #include "packetracker.h"
 #include "configfile.h"
 #include "speech.h"
@@ -62,9 +64,10 @@ const char *config_base = "kismet.conf";
 char *configfile = NULL;
 int no_log = 0, noise_log = 0, data_log = 0, net_log = 0, crypt_log = 0, cisco_log = 0,
     gps_log = 0, gps_enable = 1, csv_log = 0, xml_log = 0, ssid_cloak_track = 0, ip_track = 0,
-    waypoint = 0;
+    waypoint = 0, fifo = 0;
 string logname, dumplogfile, netlogfile, cryptlogfile, ciscologfile,
-    gpslogfile, csvlogfile, xmllogfile, ssidtrackfile, configdir, iptrackfile, waypointfile;
+    gpslogfile, csvlogfile, xmllogfile, ssidtrackfile, configdir, iptrackfile, waypointfile,
+    fifofile;
 FILE *ssid_file = NULL, *ip_file = NULL, *waypoint_file = NULL;
 /* *net_file = NULL, *cisco_file = NULL, *csv_file = NULL,
     *xml_file = NULL, */
@@ -78,6 +81,7 @@ GPSD gps;
 int gpsmode = 0;
 GPSDump gpsdump;
 #endif
+FifoDumpFile fifodump;
 TcpServer ui_server;
 int silent;
 int sound = -1;
@@ -1611,6 +1615,11 @@ int main(int argc,char *argv[]) {
     }
 
     if (!no_log) {
+        if (conf->FetchOpt("fifo") != "") {
+            fifofile = conf->FetchOpt("fifo");
+            fifo = 1;
+        }
+
         if (logname == "") {
             if (conf->FetchOpt("logdefault") == "") {
                 fprintf(stderr, "FATAL:  No default log name in config and no log name provided on the command line.\n");
@@ -2418,6 +2427,18 @@ int main(int argc,char *argv[]) {
         fprintf(stderr, "%s\n", status);
     }
 
+    // Open the fifo, if one is requested.  This will block us until something is
+    // ready to read from the fifo.
+    if (fifo) {
+        fprintf(stderr, "Creating and opening named pipe '%s'.  Kismet will now block\n"
+                "until another utility opens this pipe.\n", fifofile.c_str());
+        if (fifodump.OpenDump(fifofile.c_str()) < 0) {
+            fprintf(stderr, "FATAL:  %s\n", fifodump.FetchError());
+            CatchShutdown(-1);
+        }
+    }
+
+
     fprintf(stderr, "Listening on port %d.\n", tcpport);
     for (unsigned int ipvi = 0; ipvi < legal_ipblock_vec.size(); ipvi++) {
         char *netaddr = strdup(inet_ntoa(legal_ipblock_vec[ipvi]->network));
@@ -2752,6 +2773,9 @@ int main(int argc,char *argv[]) {
                         }
 
                     }
+
+                    if (fifo)
+                        fifodump.DumpPacket(&info, &packet);
 
                     if (data_log && !(info.type == packet_noise && noise_log == 1)) {
                         if (limit_logs && log_packnum > limit_logs) {
