@@ -147,13 +147,6 @@ map<mac_addr, int> filter_dump_dest;
 int filter_dump_bssid_invert = -1, filter_dump_source_invert = -1,
     filter_dump_dest_invert = -1;
 
-int filter_alert = 0;
-map<mac_addr, int> filter_alert_bssid;
-map<mac_addr, int> filter_alert_source;
-map<mac_addr, int> filter_alert_dest;
-int filter_alert_bssid_invert = -1, filter_alert_source_invert = -1,
-    filter_alert_dest_invert = -1;
-
 int filter_export = 0;
 map<mac_addr, int> filter_export_bssid;
 map<mac_addr, int> filter_export_source;
@@ -1777,16 +1770,6 @@ int main(int argc,char *argv[]) {
             exit(1);
     }
 
-    if ((filter_bit = conf->FetchOpt("filter_alert")) != "") {
-        fprintf(stderr, "Enabling filtering on alerts.\n");
-        filter_alert = 1;
-        if (ConfigFile::ParseFilterLine(filter_bit, &filter_alert_bssid, &filter_alert_source,
-                                        &filter_alert_dest, &filter_alert_bssid_invert,
-                                        &filter_alert_source_invert,
-                                        &filter_alert_dest_invert) < 0)
-            exit(1);
-    }
-
     if ((filter_bit = conf->FetchOpt("filter_export")) != "") {
         fprintf(stderr, "Enabling filtering on exported (csv, xml, network, gps) files.\n");
         filter_export = 1;
@@ -2134,11 +2117,6 @@ int main(int argc,char *argv[]) {
         tracker.AddExportFilters(&filter_export_bssid, &filter_export_source, &filter_export_dest,
                                  &filter_export_bssid_invert, &filter_export_source_invert,
                                  &filter_export_dest_invert);
-
-    if (filter_alert)
-        tracker.AddExportFilters(&filter_alert_bssid, &filter_alert_source, &filter_alert_dest,
-                                 &filter_alert_bssid_invert, &filter_alert_source_invert,
-                                 &filter_alert_dest_invert);
 
     char *fuzzengines = strdup(conf->FetchOpt("fuzzycrypt").c_str());
     for (unsigned int x = 0; x < packet_sources.size(); x++) {
@@ -2550,10 +2528,8 @@ int main(int argc,char *argv[]) {
                     process_ret = tracker.ProcessPacket(info, status);
                     if (process_ret > 0) {
                         if (process_ret == TRACKER_ALERT) {
-                            if (!silent)
-                                fprintf(stderr, "ALERT %s\n", status);
-
-                            // NetWriteAlert(status);
+                            fprintf(stderr, "ALERT %.24s %s\n", ctime(&cur_time),
+                                    status);
 
                             if (sound == 1)
                                 sound = PlaySound("alert");

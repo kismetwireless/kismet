@@ -30,13 +30,11 @@ Packetracker::Packetracker() {
 
     errstr[0] = '\0';
 
-    filter_alert_bssid = filter_alert_source = filter_alert_dest =
-        filter_export_bssid = filter_export_source = filter_export_dest = NULL;
+    filter_export_bssid = filter_export_source = filter_export_dest = NULL;
 
-    filter_alert_bssid_invert = filter_alert_source_invert = filter_alert_dest_invert =
-        filter_export_bssid_invert = filter_export_source_invert = filter_export_dest_invert = NULL;
+    filter_export_bssid_invert = filter_export_source_invert = filter_export_dest_invert = NULL;
 
-    filter_export = filter_alert = 0;
+    filter_export = 0;
 
     netstumbler_aref = deauthflood_aref = lucenttest_aref = wellenreiter_aref = -1;
 
@@ -99,19 +97,6 @@ int Packetracker::EnableAlert(string in_alname, alert_time_unit in_unit,
         snprintf(errstr, 1024, "Alert '%s' already processed, duplicate.", in_alname.c_str());
 
     return ret;
-}
-
-void Packetracker::AddAlertFilters(map<mac_addr, int> *bssid_map,
-                                   map<mac_addr, int> *source_map,
-                                   map<mac_addr, int> *dest_map, int *bssid_invert,
-                                   int *source_invert, int *dest_invert) {
-    filter_alert = 1;
-    filter_alert_bssid = bssid_map;
-    filter_alert_bssid_invert = bssid_invert;
-    filter_alert_source = source_map;
-    filter_alert_source_invert = source_invert;
-    filter_alert_dest = dest_map;
-    filter_alert_dest_invert = dest_invert;
 }
 
 void Packetracker::AddExportFilters(map<mac_addr, int> *bssid_map,

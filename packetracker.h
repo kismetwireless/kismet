@@ -68,9 +68,6 @@ public:
                     int in_rate, int in_burstrate);
 
     // Set up filters
-    void AddAlertFilters(map<mac_addr, int> *bssid_map, map<mac_addr, int> *source_map,
-                         map<mac_addr, int> *dest_map, int *bssid_invert,
-                         int *source_invert, int *dest_invert);
     void AddExportFilters(map<mac_addr, int> *bssid_map, map<mac_addr, int> *source_map,
                           map<mac_addr, int> *dest_map, int *bssid_invert,
                           int *source_invert, int *dest_invert);
@@ -153,14 +150,6 @@ protected:
     map<mac_addr, manuf *> client_manuf_map;
 
     // Filters
-    map<mac_addr, int> *filter_alert_bssid;
-    int *filter_alert_bssid_invert;
-    map<mac_addr, int> *filter_alert_source;
-    int *filter_alert_source_invert;
-    map<mac_addr, int> *filter_alert_dest;
-    int *filter_alert_dest_invert;
-    int filter_alert;
-
     map<mac_addr, int> *filter_export_bssid;
     int *filter_export_bssid_invert;
     map<mac_addr, int> *filter_export_source;
