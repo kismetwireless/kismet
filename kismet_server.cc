@@ -1271,7 +1271,7 @@ int main(int argc,char *argv[]) {
     int freeconf = 0;
     if (configfile == NULL) {
         configfile = (char *) malloc(1024*sizeof(char));
-        snprintf(configfile, 1024, "%s/%s", SYSCONF_LOC, config_base);
+        snprintf(configfile, 1024, "%s/%s", getenv("KISMET_CONF") != NULL ? getenv("KISMET_CONF") : SYSCONF_LOC, config_base);
         freeconf = 1;
     }
 
@@ -2260,7 +2260,7 @@ int main(int argc,char *argv[]) {
         char pathname[1024];
 
         if (strchr(ap_manuf_name, '/') == NULL)
-            snprintf(pathname, 1024, "%s/%s", SYSCONF_LOC, ap_manuf_name);
+            snprintf(pathname, 1024, "%s/%s", getenv("KISMET_CONF") != NULL ? getenv("KISMET_CONF") : SYSCONF_LOC, ap_manuf_name);
         else
             snprintf(pathname, 1024, "%s", ap_manuf_name);
 
@@ -2280,7 +2280,7 @@ int main(int argc,char *argv[]) {
         char pathname[1024];
 
         if (strchr(client_manuf_name, '/') == NULL)
-            snprintf(pathname, 1024, "%s/%s", SYSCONF_LOC, client_manuf_name);
+            snprintf(pathname, 1024, "%s/%s", getenv("KISMET_CONF") != NULL ? getenv("KISMET_CONF") : SYSCONF_LOC, client_manuf_name);
         else
             snprintf(pathname, 1024, "%s", client_manuf_name);
 

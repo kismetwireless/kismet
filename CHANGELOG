@@ -1,5 +1,7 @@
 Jul 03 2003  2.9.1  Totally revamped mac-masking code and manufacturer
                      matching code.
+                    Added environment var KISMET_CONF to change the directory
+                     kismet looks in for config and manuf files by default
 Jun 22 2003  2.9.1  Added panels UI display of current channel
                     Added some other paths to kismet_monitor for binaries
                     Fixed prism2_avs capture source
