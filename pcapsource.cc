@@ -1327,6 +1327,27 @@ int monitor_vtar5k(const char *in_dev, int initch, char *in_err, void **in_if) {
 
 // Madwifi stuff uses iwpriv mode
 int monitor_madwifi_a(const char *in_dev, int initch, char *in_err, void **in_if) {
+    // Allocate a tracking record for the interface settings and remember our
+    // setup
+    linux_ifparm *ifparm = (linux_ifparm *) malloc(sizeof(linux_ifparm));
+    (*in_if) = ifparm;
+
+    if (Ifconfig_Get_Flags(in_dev, in_err, &ifparm->flags) < 0) {
+        return -1;
+    }
+
+    if (Iwconfig_Get_SSID(in_dev, in_err, ifparm->essid) < 0)
+        return -1;
+
+    if ((ifparm->channel = Iwconfig_Get_Channel(in_dev, in_err)) < 0)
+        return -1;
+
+    if (Iwconfig_Get_Mode(in_dev, in_err, &ifparm->mode) < 0)
+        return -1;
+
+    if (Iwconfig_Get_IntPriv(in_dev, "get_mode", &ifparm->privmode, in_err) < 0)
+        return -1;
+    
     if (Iwconfig_Set_IntPriv(in_dev, "mode", 1, 0, in_err) < 0)
         return -1;
 
@@ -1344,6 +1365,27 @@ int monitor_madwifi_a(const char *in_dev, int initch, char *in_err, void **in_if
 }
 
 int monitor_madwifi_b(const char *in_dev, int initch, char *in_err, void **in_if) {
+    // Allocate a tracking record for the interface settings and remember our
+    // setup
+    linux_ifparm *ifparm = (linux_ifparm *) malloc(sizeof(linux_ifparm));
+    (*in_if) = ifparm;
+
+    if (Ifconfig_Get_Flags(in_dev, in_err, &ifparm->flags) < 0) {
+        return -1;
+    }
+
+    if (Iwconfig_Get_SSID(in_dev, in_err, ifparm->essid) < 0)
+        return -1;
+
+    if ((ifparm->channel = Iwconfig_Get_Channel(in_dev, in_err)) < 0)
+        return -1;
+
+    if (Iwconfig_Get_Mode(in_dev, in_err, &ifparm->mode) < 0)
+        return -1;
+
+    if (Iwconfig_Get_IntPriv(in_dev, "get_mode", &ifparm->privmode, in_err) < 0)
+        return -1;
+    
     if (Iwconfig_Set_IntPriv(in_dev, "mode", 2, 0, in_err) < 0)
         return -1;
 
@@ -1355,6 +1397,27 @@ int monitor_madwifi_b(const char *in_dev, int initch, char *in_err, void **in_if
 }
 
 int monitor_madwifi_g(const char *in_dev, int initch, char *in_err, void **in_if) {
+    // Allocate a tracking record for the interface settings and remember our
+    // setup
+    linux_ifparm *ifparm = (linux_ifparm *) malloc(sizeof(linux_ifparm));
+    (*in_if) = ifparm;
+
+    if (Ifconfig_Get_Flags(in_dev, in_err, &ifparm->flags) < 0) {
+        return -1;
+    }
+
+    if (Iwconfig_Get_SSID(in_dev, in_err, ifparm->essid) < 0)
+        return -1;
+
+    if ((ifparm->channel = Iwconfig_Get_Channel(in_dev, in_err)) < 0)
+        return -1;
+
+    if (Iwconfig_Get_Mode(in_dev, in_err, &ifparm->mode) < 0)
+        return -1;
+
+    if (Iwconfig_Get_IntPriv(in_dev, "get_mode", &ifparm->privmode, in_err) < 0)
+        return -1;
+    
     if (Iwconfig_Set_IntPriv(in_dev, "mode", 3, 0, in_err) < 0)
         return -1;
 
@@ -1366,6 +1429,27 @@ int monitor_madwifi_g(const char *in_dev, int initch, char *in_err, void **in_if
 }
 
 int monitor_madwifi_comb(const char *in_dev, int initch, char *in_err, void **in_if) {
+    // Allocate a tracking record for the interface settings and remember our
+    // setup
+    linux_ifparm *ifparm = (linux_ifparm *) malloc(sizeof(linux_ifparm));
+    (*in_if) = ifparm;
+
+    if (Ifconfig_Get_Flags(in_dev, in_err, &ifparm->flags) < 0) {
+        return -1;
+    }
+
+    if (Iwconfig_Get_SSID(in_dev, in_err, ifparm->essid) < 0)
+        return -1;
+
+    if ((ifparm->channel = Iwconfig_Get_Channel(in_dev, in_err)) < 0)
+        return -1;
+
+    if (Iwconfig_Get_Mode(in_dev, in_err, &ifparm->mode) < 0)
+        return -1;
+
+    if (Iwconfig_Get_IntPriv(in_dev, "get_mode", &ifparm->privmode, in_err) < 0)
+        return -1;
+    
     if (Iwconfig_Set_IntPriv(in_dev, "mode", 0, 0, in_err) < 0)
         return -1;
 
@@ -1374,6 +1458,19 @@ int monitor_madwifi_comb(const char *in_dev, int initch, char *in_err, void **in
         return -1;
 
     return 0;
+}
+
+// Unmonitor madwifi (shared)
+int unmonitor_madwifi(const char *in_dev, int initch, char *in_err, void **in_if) {
+    // Restore the stored mode
+    linux_ifparm *ifparm = (linux_ifparm *) (*in_if);
+
+    if (Iwconfig_Set_IntPriv(in_dev, "mode", ifparm->privmode, 0, in_err) < 0) {
+        return -1;
+    }
+
+    // Call the standard unmonitor
+    return unmonitor_wext(in_dev, initch, in_err, in_if);
 }
 
 // Call the standard monitor but ignore error codes since channel

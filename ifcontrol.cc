@@ -429,6 +429,129 @@ int Iwconfig_Set_IntPriv(const char *in_dev, const char *privcmd,
     return 0;
 }
 
+int Iwconfig_Get_IntPriv(const char *in_dev, const char *privcmd,
+                         int *val, char *errstr) {
+    struct iwreq wrq;
+    int skfd;
+    struct iw_priv_args priv[IW_MAX_PRIV_DEF];
+    u_char buffer[4096];
+    int subcmd = 0;
+    int offset = 0;
+
+    memset(priv, 0, sizeof(priv));
+
+    if ((skfd = socket(AF_INET, SOCK_DGRAM, 0)) < 0) {
+        snprintf(errstr, STATUS_MAX, "Failed to create AF_INET DGRAM socket %d:%s", 
+                 errno, strerror(errno));
+        return -1;
+    }
+
+    memset(&wrq, 0, sizeof(struct iwreq));
+    strncpy(wrq.ifr_name, in_dev, IFNAMSIZ);
+
+    wrq.u.data.pointer = (caddr_t) priv;
+    wrq.u.data.length = IW_MAX_PRIV_DEF;
+    wrq.u.data.flags = 0;
+
+    if (ioctl(skfd, SIOCGIWPRIV, &wrq) < 0) {
+        snprintf(errstr, STATUS_MAX, "Failed to retrieve list of private ioctls %d:%s",
+                 errno, strerror(errno));
+        close(skfd);
+        return -1;
+    }
+
+    int pn = -1;
+    while ((++pn < wrq.u.data.length) && strcmp(priv[pn].name, privcmd));
+
+    if (pn == wrq.u.data.length) {
+        snprintf(errstr, STATUS_MAX, "Unable to find private ioctl '%s'", privcmd);
+        close(skfd);
+        return -2;
+    }
+
+    // Find subcmds, as if this isn't ugly enough already
+    if (priv[pn].cmd < SIOCDEVPRIVATE) {
+        int j = -1;
+
+        while ((++j < wrq.u.data.length) && ((priv[j].name[0] != '\0') ||
+                                             (priv[j].set_args != priv[pn].set_args) ||
+                                             (priv[j].get_args != priv[pn].get_args)));
+        
+        if (j == wrq.u.data.length) {
+            snprintf(errstr, STATUS_MAX, "Unable to find subioctl '%s'", privcmd);
+            close(skfd);
+            return -2;
+        }
+
+        subcmd = priv[pn].cmd;
+        offset = sizeof(__u32);
+        pn = j;
+    }
+
+    // Make sure its an iwpriv we can set
+    if (priv[pn].get_args & IW_PRIV_TYPE_MASK == 0 ||
+        priv[pn].get_args & IW_PRIV_SIZE_MASK == 0) {
+        snprintf(errstr, STATUS_MAX, "Unable to get values for private ioctl '%s'", 
+                 privcmd);
+        close(skfd);
+        return -1;
+    }
+  
+    if ((priv[pn].get_args & IW_PRIV_TYPE_MASK) != IW_PRIV_TYPE_INT) {
+        snprintf(errstr, STATUS_MAX, "'%s' does not return integer parameters.",
+                 privcmd);
+        close(skfd);
+        return -1;
+    }
+    
+    // Find out how many arguments it takes and die if we can't handle it
+    int nargs = (priv[pn].get_args & IW_PRIV_SIZE_MASK);
+    if (nargs > 1) {
+        snprintf(errstr, STATUS_MAX, "Private ioctl returns more than 1 parameter and we can't handle that.");
+        close(skfd);
+        return -1;
+    }
+
+    // Build the get request
+    memset(&wrq, 0, sizeof(struct iwreq));
+    strncpy(wrq.ifr_name, in_dev, IFNAMSIZ);
+
+    // Assign the arguments
+    wrq.u.data.length = 0L;     
+       
+    // This is terrible!
+    // Simplified (again) from iwpriv, since we split the command into
+    // a set and a get instead of combining the cases
+    if ((priv[pn].get_args & IW_PRIV_SIZE_FIXED) &&
+        ((sizeof(__u32) * nargs) + offset <= IFNAMSIZ)) {
+        /* Second case : no SET args, GET args fit within wrq */
+        if (offset)
+            wrq.u.mode = subcmd;
+    } else {
+        wrq.u.data.pointer = (caddr_t) buffer;
+        wrq.u.data.flags = 0;
+    }
+
+    // Actually do it.
+    if (ioctl(skfd, priv[pn].cmd, &wrq) < 0) {
+        snprintf(errstr, STATUS_MAX, "Failed to call get private ioctl '%s': %s",
+                 privcmd, strerror(errno));
+        close(skfd);
+        return -1;
+    }
+
+    // Where do we get the data from?
+    if ((priv[pn].get_args & IW_PRIV_SIZE_FIXED) &&
+        ((sizeof(__u32) * nargs) + offset <= IFNAMSIZ))
+        memcpy(buffer, wrq.u.name, IFNAMSIZ);
+
+    // Return the value of the ioctl
+    (*val) = ((__s32 *) buffer)[0];
+
+    close(skfd);
+    return 0;
+}
+
 int Iwconfig_Get_Levels(const char *in_dev, char *in_err, int *level, int *noise) {
     struct iwreq wrq;
     struct iw_range range;

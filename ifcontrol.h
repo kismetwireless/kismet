@@ -87,6 +87,12 @@ int Iwconfig_Get_SSID(const char *in_dev, char *errstr, char *in_essid);
 int Iwconfig_Set_IntPriv(const char *in_dev, const char *privcmd, 
                          int val1, int val2, char *errstr);
 
+// Get a single-param private ioctl.  This will have to be changed if we 
+// ever need to remember a two-value privioctl, but hopefully nothing
+// will.
+int Iwconfig_Get_IntPriv(const char *in_dev, const char *privcmd,
+                         int *val, char *errstr);
+
 // Fetch levels
 int Iwconfig_Get_Levels(const char *in_dev, char *in_err, int *level, int *noise);
 
