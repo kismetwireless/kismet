@@ -166,10 +166,14 @@ and many more new features.<br>
 	<br>
 	Kismet should configure and compile cleanly on *BSD.
 	<br>
-	Due to problems with the wireless drivers in FreeBSD, Kismet may not perform
+	Due to problems with the wireless drivers in FreeBSD and NetBSD, Kismet may not perform
 	well or at all.  Thanks to the efforts of Pedro la Peu, Kismet WILL function
-	without problems on OpenBSD 3.2, and hopefully FreeBSD will update their drivers
-	soon to report the correct link type and a consistent packet format.
+	without problems on OpenBSD 3.2 with prism/2 cards.
+	<br>
+	The lions share of drivers supporting rfmon are available only for Linux, so
+	for general use, using Linux to run Kismet is highly reccomended.  Some driver maintainers
+	for the BSD variants have expressed no interest in providing support for monitoring tools,
+	so it is unknown when useful drivers for rfmon will be available.
 	<br>
 	The standard './configure' script should detect your OS and configure itself
 	accordingly.  It is vital that you use 'gmake' instead of 'make' to 
