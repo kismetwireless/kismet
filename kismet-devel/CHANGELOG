@@ -7,6 +7,9 @@ Feb 04 2004  3.1.0  Merged more diffs from Pedro to fix the stackprot alerts on
                      earlier.
                     Added unmonitor support for prism54
                     Added smarter output on termination, tied to unmonitor
+                    Removed zeroing IPs from interfaces going into rfmon.  This
+                     places the onus on the drivers to Do The Right Thing, but
+                     makes my life a lot easier for restoring card states.
 Feb 02 2004  3.1.0  Tweaked probe req handling to assign to_ds
                     Changed panels channel display to show --- for uncontrolled
                      source channels
