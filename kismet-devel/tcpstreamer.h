@@ -40,18 +40,11 @@
 
 #include "packet.h"
 #include "packetstream.h"
+#include "server_plugin.h"
 
 #ifndef MAXHOSTNAMELEN
 #define MAXHOSTNAMELEN 64
 #endif
-
-// Allowed IP information
-struct client_ipblock {
-    // Allowed network
-    in_addr network;
-    // Allowed mask
-    in_addr mask;
-};
 
 
 class TcpStreamer {

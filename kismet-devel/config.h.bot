@@ -14,6 +14,13 @@
 /* String length of a key */
 #define WEPKEYSTR_MAX ((WEPKEY_MAX * 2) + WEPKEY_MAX)
 
+/* Number of past alerts to queue for new clients */
+#define ALERT_BACKLOG 50
+
+/* system min isn't reliable */
+#define kismin(x,y) ((x) < (y) ? (x) : (y))
+#define kismax(x,y) ((x) < (y) ? (x) : (y))
+
 /* Namespace */
 using namespace std;
 #define __STL_USE_NAMESPACES

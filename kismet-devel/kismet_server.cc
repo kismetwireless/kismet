@@ -108,7 +108,6 @@ int speechpair[2];
 pid_t soundpid = -1, speechpid = -1;
 
 // Past alerts
-vector<ALERT_data *> past_alerts;
 unsigned int max_alerts = 50;
 
 // Capture sources

@@ -1220,12 +1220,16 @@ kis_packet *MangleFuzzyCryptPacket(const kis_packet *packet, const packet_info *
     memcpy((void *) outpack->data, (void *) packet->data, outpack->len);
 
     // Copy any decrypted data
-    outpack->moddata = new uint8_t[outpack->len];
-    memcpy((void *) outpack->moddata, (void *) packet->moddata, outpack->len);
+    if (packet->moddata != NULL) {
+        outpack->moddata = new uint8_t[outpack->len];
+        memcpy((void *) outpack->moddata, (void *) packet->moddata, outpack->len);
+    } else {
+        outpack->moddata = NULL;
+    }
 
     // Twiddle the frame control bit to set us to be really encrypted
     frame_control *fc = (frame_control *) outpack->data;
-    fc->wep = 0;
+    fc->wep = 1;
 
     return outpack;
 }

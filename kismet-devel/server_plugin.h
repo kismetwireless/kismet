@@ -20,6 +20,7 @@
 #define __SERVER_PLUGIN_H__
 
 #include "config.h"
+#include "server_protocols.h"
 
 #include <map>
 
@@ -53,5 +54,11 @@ int RegisterServerTimer(int in_timeslices, struct timeval *in_trigger,
                         void *in_parm);
 // Remove a timer that's going to execute
 int RemoveServerTimer(int timer_id);
+
+extern vector<ALERT_data *> pending_alerts;
+extern vector<ALERT_data *> past_alerts;
+
+// Queue an alert to be transmitted to the clients or inserted into the fifo stream
+void QueueAlert(const char *in_text);
 
 #endif
