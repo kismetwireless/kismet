@@ -1078,6 +1078,14 @@ int main(int argc,char *argv[]) {
 #endif
     } else if (!strcasecmp(captype, "wsp100")) {
 #ifdef HAVE_WSP100
+        if (capif == NULL) {
+            if (conf.FetchOpt("capinterface") == "") {
+                fprintf(stderr, "FATAL:  No capture device specified.\n");
+                exit(1);
+            }
+            capif = conf.FetchOpt("capinterface").c_str();
+        }
+
         fprintf(stderr, "Using WSP100 to capture packets.\n");
 
         packsource = new Wsp100Source;
