@@ -30,7 +30,7 @@ X packetsourcetracker messagebus integration
   messagebus fatal text gen in all of main
 X move source parsing into packetsourcetracker
 X move internal registration into packetsourcetracker
-  requeue fatal messages on exit
+X requeue fatal messages on exit
   terminate should flush ring buffers and sockets
 X move tcpserver configuration stuff into the tcpserver class
 

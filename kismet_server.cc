@@ -117,7 +117,7 @@ const char *pid_base = "kismet_server.pid";
 
 // This needs to be a global but nothing outside of this main file will
 // use it, so we don't have to worry much about putting it in the globalreg.
-FatalQueueMessageClient *fqmescli;
+FatalQueueMessageClient *fqmescli = NULL;
 
 // Some globals for command line options
 char *configfile = NULL;
@@ -297,6 +297,9 @@ void ErrorShutdown() {
     // Shut down the channel control child
     globalregistry->sourcetracker->ShutdownChannelChild();
 
+    // Shouldn't need to requeue fatal errors here since error shutdown means 
+    // we just printed something about fatal errors.  Probably.
+
     fprintf(stderr, "Kismet exiting.\n");
     exit(1);
 }
@@ -357,6 +360,10 @@ void CatchShutdown(int sig) {
 
     // Shut down the channel control child
     globalregistry->sourcetracker->ShutdownChannelChild();
+
+    // Dump fatal errors again
+    if (fqmescli != NULL) 
+        fqmescli->DumpFatals();
 
     fprintf(stderr, "Kismet exiting.\n");
     exit(0);
