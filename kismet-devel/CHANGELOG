@@ -3,8 +3,9 @@ Feb 04 2004  3.1.0  Merged more diffs from Pedro to fix the stackprot alerts on
                     Changed framework of unmonitor support.  This breaks some 
                      things right now, this sync only temporary.  Expect a 
                      fully fixed devel sync later this afternoon.
-                    Added unmonitor suppor for HostAP, fixed broken stuff from
+                    Added unmonitor support for HostAP, fixed broken stuff from
                      earlier.
+                    Added unmonitor support for prism54
 Feb 02 2004  3.1.0  Tweaked probe req handling to assign to_ds
                     Changed panels channel display to show --- for uncontrolled
                      source channels

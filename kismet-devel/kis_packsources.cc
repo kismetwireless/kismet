@@ -85,7 +85,7 @@ int RegisterKismetSources(Packetsourcetracker *sourcetracker) {
 
     sourcetracker->RegisterPacketsource("prism54g", 1, "IEEE80211g", 6,
                                         pcapsource_11g_registrant,
-                                        monitor_prism54g, NULL,
+                                        monitor_prism54g, unmonitor_prism54g,
                                         chancontrol_prism54g, 1);
 
     sourcetracker->RegisterPacketsource("wlanng_wext", 1, "IEEE80211b", 6,
