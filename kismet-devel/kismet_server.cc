@@ -246,7 +246,6 @@ void SoundHandler(int *fds, const char *player, map<string, string> soundmap) {
     close(fds[1]);
 
     fd_set rset;
-    fd_set eset;
 
     char data[1024];
 
@@ -256,7 +255,6 @@ void SoundHandler(int *fds, const char *player, map<string, string> soundmap) {
     while (1) {
         FD_ZERO(&rset);
         FD_SET(read_sock, &rset);
-        FD_ZERO(&eset);
         char *end;
 
         memset(data, 0, 1024);
@@ -265,11 +263,7 @@ void SoundHandler(int *fds, const char *player, map<string, string> soundmap) {
         tm.tv_sec = 1;
         tm.tv_usec = 0;
 
-        select(read_sock + 1, &rset, NULL, &eset, &tm);
-
-        // Die and let the other side detect it
-        if (FD_ISSET(read_sock, &eset))
-            exit(1);
+        select(read_sock + 1, &rset, NULL, NULL, &tm);
 
         if (harvested == 0) {
             // We consider a wait error to be a sign that the child pid died
@@ -338,7 +332,6 @@ void SpeechHandler(int *fds, const char *player) {
     close(fds[1]);
 
     fd_set rset;
-    fd_set eset;
 
     char data[1024];
 
@@ -348,7 +341,6 @@ void SpeechHandler(int *fds, const char *player) {
     while (1) {
         FD_ZERO(&rset);
         FD_SET(read_sock, &rset);
-        FD_ZERO(&eset);
         //char *end;
 
         memset(data, 0, 1024);
@@ -365,11 +357,7 @@ void SpeechHandler(int *fds, const char *player) {
         tm.tv_sec = 1;
         tm.tv_usec = 0;
 
-        select(read_sock + 1, &rset, NULL, &eset, &tm);
-
-        // Die and let the other side detect it
-        if (FD_ISSET(read_sock, &eset))
-            exit(1);
+        select(read_sock + 1, &rset, NULL, NULL, &tm);
 
         if (FD_ISSET(read_sock, &rset)) {
             int ret;
@@ -1858,19 +1846,18 @@ int main(int argc,char *argv[]) {
     time_t cur_time = time(0);
     time_t last_time = cur_time;
     while (1) {
-        fd_set rset, wset, eset;
+        fd_set rset, wset;
         int x;
         cur_time = time(0);
 
         max_fd = ui_server.MergeSet(read_set, max_fd, &rset, &wset);
-        FD_ZERO(&eset);
 
         // 1 second idle clock tick on select
         struct timeval tm;
         tm.tv_sec = 1;
         tm.tv_usec = 0;
 
-        if (select(max_fd + 1, &rset, &wset, &eset, &tm) < 0) {
+        if (select(max_fd + 1, &rset, &wset, NULL, &tm) < 0) {
             if (errno != EINTR) {
                 snprintf(status, STATUS_MAX,
                          "FATAL: select() error %d (%s)", errno, strerror(errno));
@@ -1890,7 +1877,7 @@ int main(int argc,char *argv[]) {
         // a delay since it will bail nicely if there aren't any new connections.
 
         int accept_fd = 0;
-        accept_fd = ui_server.Poll(rset, wset, eset);
+        accept_fd = ui_server.Poll(rset, wset);
         if (accept_fd < 0) {
             if (!silent)
                 fprintf(stderr, "UI error: %s\n", ui_server.FetchError());

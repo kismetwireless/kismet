@@ -97,7 +97,6 @@ int TcpServer::Setup(unsigned int in_max_clients, short int in_port, const char 
 
     // Zero the FD's
     FD_ZERO(&server_fds);
-    FD_ZERO(&except_fds);
     FD_ZERO(&client_fds);
     FD_ZERO(&stale_fds);
 
@@ -138,7 +137,7 @@ unsigned int TcpServer::MergeSet(fd_set in_set, unsigned int in_max,
     return max;
 }
 
-int TcpServer::Poll(fd_set& in_rset, fd_set& in_wset, fd_set& in_eset)
+int TcpServer::Poll(fd_set& in_rset, fd_set& in_wset)
 {
     if (!sv_valid)
         return -1;
@@ -147,11 +146,6 @@ int TcpServer::Poll(fd_set& in_rset, fd_set& in_wset, fd_set& in_eset)
     if (FD_ISSET(serv_fd, &in_rset))
         if ((accept_fd = Accept()) < 0)
             return -1;
-
-    for (unsigned int fd = serv_fd; fd < max_fd; fd++) {
-        if (FD_ISSET(fd, &in_eset))
-            Kill(fd);
-    }
 
     return accept_fd;
 }
