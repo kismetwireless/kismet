@@ -6,22 +6,24 @@
     1. What is Kismet
     2. Features
     3. Quick Start
-    4. Supported Operating Systems
+    4. Upgrading
+    5. Supported Operating Systems
          1. Linux
-         2. BSD
-         3. Win32 (Cygwin)
-         4. MacOS X
-    5. Supported Card Types
+         2. Linux-ARM
+         3. BSD
+         4. Win32 (Cygwin)
+         5. MacOS X
+    6. Supported Card Types
          1. cisco
          2. prism2
          3. orinoco
          4. wsp100
          5. wtapfile
-    6. GPS Support
-    7. Compiling
-    8. Configuration
-    9. Panels Interface
-   10. Mapping
+    7. GPS Support
+    8. Compiling
+    9. Configuration
+   10. Panels Interface
+   11. Mapping
        
     1. WHAT IS KISMET
        Kismet is a 802.11b wireless network sniffer - this is different
@@ -32,7 +34,6 @@
        based card (Linksys, D-Link, Rangelan, etc), Cisco Aironet cards,
        and Orinoco based cards. Kismet also supports the WSP100 remote
        sensor by Network Chemistry.
-
     2. FEATURES
           + Multiple packet sources
           + Channel hopping
@@ -49,7 +50,8 @@
           + Manufacturer identification
           + Detection of default access point configurations
           + Detection of Netstumbler clients
-
+          + Runtime decoding of WEP packets
+          + Multiplexing of multiple capture sources
     3. QUICK START
        Detailed information about each of these steps can be found in the
        appropriate section of the documentation.
@@ -64,8 +66,14 @@
          4. Run kismet. Kismet should be run as the user you specified as
             the 'suiduser'. If kismet is started as root, it will drop
             privs to this user, but the frontend will still run as root.
-
-    4. SUPPORTED OPERATING SYSTEMS
+    4. UPGRADING
+       Upgrading to 2.8
+       Kismet 2.8 adds support for several features, which necessitate
+       changing the configure file. All users should install Kismet with
+       'make forceinstall' and reconfigure it accordingly.
+       New options include runtime WEP decoding, multiple sources,
+       multiple servers under one client, and many more new features.
+    5. SUPPORTED OPERATING SYSTEMS
          1. Linux
             Kismet was developed primarily on Linux, and should work on
             any distribution.
@@ -73,7 +81,58 @@
             Kismet is endian-clean and should compile on little (intel)
             and big (powerpc) endian systems. It also works on ARM-based
             systems (Ipaq and Zaurus) and SH3 (Jornada) handhelds.
-         2. BSD
+         2. Linux-ARM
+             Zaurus Installation
+                 Nearly all CF form-factor wireless cards are Prism/2
+                 based. As of this writing, the version of wlan-ng
+                 shipped with the Zaurus only supports the 'prism2' card
+                 type. A seperate package is provided with pcap support
+                 for OpenZaurus installs, which use HostAP and the
+                 prism_hostap card type.
+             Ipaq Installation
+                 Depending on the version of the Familiar distribution
+                 installed on your Ipaq, the version of the wlan-ng
+                 drivers may not support sniffing. If you get errors that
+                 enabling monitor mode is not supported, you'll need to
+                 update your Familiar install or compile them yourself in
+                 a cross-build environment.
+                 As of Familiar 0.5.3, Lucent/Orinoco cards do not
+                 support RFMON (PF_PACKET) and as such, cannot be used
+                 with Kismet without patching. As of 8/28/02, Jamey Hicks
+                 who maintains the Familiar distribution promises future
+                 releases of Familiar will include Snax's patch for the
+                 orinoco_cs drivers.
+                 Familiar users with Cisco cards will need to set their
+                 kismet.conf file to use a cardtype of "cisco_cvs", with
+                 a capinterface of "wifi0".
+                 Some Familiar installs also do not include the latest
+                 ncurses and panels libraries - these can be obtained
+                 from the Skif cluster (telnet to ipaq3.handhelds.org and
+                 copy the /lib/libpanel.so.5 and /lib/libncurses.so.5.0
+                 files to your ipaq). You may also need to install the
+                 GNU stdc++ libraries by running "ipkg install
+                 libstdc++2.01-glibc2.2".
+                 Configure your card just as you would on an intel system
+                 - with the PCMCIA sleeve, all the standard cards
+                 function and must be configured as they would be on any
+                 other system.
+             Compiling it yourself
+                 Pass the appropriate cross-build to configure, I use
+                 './configure --host=arm-linux --disable-pcap
+                 --enable-zaurus --disable-setuid'
+                 to build for the Zaurus, and
+                 'ac_cv_linux_vers=2.4.16 ./configure --host=arm-linux
+                 --with-pcap=linux --disable-setuid'
+                 to build for the iPaq. Set ac_cv_linux_vers accordingly
+                 to match your system.
+                 Some versions of GCC appear to generate incorrect
+                 alignments when optimization is turned on. If you
+                 experience bus errors under arm, try removing the -O2
+                 from the CXXFLAGS in the Makefile and recompiling.
+                 I used the Zaurus cross-build environment from
+                 http://www.lart.tudelft.nl/lartware/compile-tools/ and
+                 the Skif cluster environment for Ipaq.
+         3. BSD
             Kismet should configure and compile cleanly on *BSD.
             Due to problems with the wireless drivers in FreeBSD, Kismet
             may not perform well or at all. Thanks to the efforts of
@@ -88,7 +147,7 @@
             I'm definitely NOT a BSD expert. If you experience problems,
             probably the best course to take is to report them to the
             mailing list (wireless@kismetwireless.net).
-         3. Win32 (Cygwin)
+         4. Win32 (Cygwin)
             The Kismet panels frontend will compile and run under Cygwin
             on win32.
             The Kismet server will work under cygwin with the wsp100
@@ -98,15 +157,14 @@
             ./configure --disable-pcap --without-ethereal --disable-gps
             --disable-wireless --disable-netlink --disable-suid-root
             --enable-wsp100
-         4. MacOS X
+         5. MacOS X
             Kismet will compile under OSX, however currently only the
             client is useful. The Viha drivers DO support rfmon under
             OSX, and as soon as a Viha capture source is written Kismet
             should work natively in OSX, however this has not yet
             happened. Anyone interested in working on a Viha capture
             source should contact me.
-
-    5. SUPPORTED CARD TYPES
+    6. SUPPORTED CARD TYPES
          1. CISCO
             Cards: Aironet 340, Aironet 350
             Notes: Cisco cards use an internal firmware channel hopper.
@@ -200,8 +258,7 @@
                  Ethereal, TCPdump, and others. Files can be gzip
                  compressed. File replaying can be slowed down using the
                  '-M' command line option. -M100 is typical.
-
-    6. GPS SUPPORT
+    7. GPS SUPPORT
        GPS support is provided via the GPSD daemon, available at
        http://russnelson.com/gpsd/. GPSD is also included with the
        navigation software GPSDrive. Current versions of GPSDrive
@@ -217,8 +274,7 @@
        Some systems have trouble compiling GPSD. The easiest fix is to
        edit em.c and change "#include <sys/time.h>" to "#include
        <time.h>".
-
-    7. COMPILING & INSTALLATION
+    8. COMPILING & INSTALLATION
        Before configuration and compilation, you should get the following
        packages:
           + ethereal (www.ethereal.com). This is a GREAT sniffer and
@@ -271,8 +327,7 @@
        It is reccomended that you do NOT disable this capability, as
        Kismet is handling potentially hostile foreign data and should not
        have elevated rights to the system.
-
-    8. CONFIGURATION
+    9. CONFIGURATION
        Kismet is controlled by 2 system-wide config files (by default, in
        /usr/local/etc/). These files use a simple option=value format.
           + kismet.conf
@@ -342,8 +397,7 @@
                  changed via the kismet_ui.conf file any the 'xxxcolor'
                  options. The config file and the man page list all the
                  possible colors and configurable elements.
-
-    9. PANELS INTERFACE
+   10. PANELS INTERFACE
        Kismet's primary user interface uses the curses extention library,
        panels. Other interfaces i can be connected at will.
           + Basics of the panels interface
@@ -482,8 +536,7 @@
              16. Packets - Number of packets and types of packets seen.
              17. Data - Amount of data transfered through this network
              18. Signal - Current and best signal levels
-
-   10. MAPPING
+   11. MAPPING
        Gpsmap (which comes with Kismet) takes GPS and network data (.gps
        and .xml files, respectively) and plots them graphically on
        vector, satellite, or user supplied maps.
@@ -513,5 +566,3 @@
             taken.
        More information about gpsmap is available from the man page
        gpsmap(1).
-
-
