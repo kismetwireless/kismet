@@ -75,7 +75,7 @@ if test -f "/var/run/kismet_hopper.pid"; then
 			break
 		fi
 		sleep 1
-		let WAITTIME=$WAITTIME+1
+		WAITTIME=$(($WAITTIME+1))
 	done
 
 	if test "$WAITTIME" -gt 5; then

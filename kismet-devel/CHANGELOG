@@ -5,6 +5,7 @@ Oct 02 2002  2.7    Implemented more secure suid-behavior from reports by
                     Fixed gpsmap requiring tracks be turned on to correctly
                      draw interpolated power
                     Tweaked pcap source
+                    Changed kismet script arith to work with ash on zaurus
 Sep 29 2002  2.7    Beginnings of multi-server per client support.
                     Fixed packet tracking bug with adhoc networks
                     Updated manuf database and tweaked lucent pair
