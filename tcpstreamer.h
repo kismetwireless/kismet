@@ -68,7 +68,7 @@ public:
 
     int Valid() { return sv_valid; };
 
-    int Setup(unsigned int in_max_clients, short int in_port, vector<client_ipblock *> *in_ipb);
+    int Setup(unsigned int in_max_clients, string bind_addr, short int in_port, vector<client_ipblock *> *in_ipb);
 
     unsigned int MergeSet(fd_set in_set, unsigned int in_max, fd_set *out_set,
 	    fd_set *outw_set);

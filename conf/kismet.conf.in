@@ -4,7 +4,7 @@
 # not continually reading --help!
 
 # Version of Kismet config
-version=2004.10.R1
+version=2005.01.R1a
 
 # Name of server (Purely for organiational purposes)
 servername=Kismet
@@ -95,6 +95,9 @@ tcpport=2501
 # blocks.  Netmasks can be expressed as dotted quad (/255.255.255.0) or as
 # numbers (/24)
 allowedhosts=127.0.0.1
+# Address to bind to.  Should be an address already configured already on
+# this host, reverts to INADDR_ANY if specified incorrectly.
+bindaddress=127.0.0.1
 # Maximum number of concurrent GUI's
 maxclients=5
 

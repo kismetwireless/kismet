@@ -176,6 +176,7 @@ int gpsport = -1;
 #endif
 
 string allowed_hosts;
+string bind_addr;
 int tcpport = -1;
 int tcpmax;
 
@@ -1168,6 +1169,7 @@ int Usage(char *argv) {
            "  -g, --gps <host:port>        GPS server (host:port or off)\n"
            "  -p, --port <port>            TCPIP server port for GUI connections\n"
            "  -a, --allowed-hosts <hosts>  Comma separated list of hosts allowed to connect\n"
+           "  -b, --bind-address <address>    Bind to this address. Default INADDR_ANY\n."
            "  -s, --silent                 Don't send any output to console.\n"
            "  -N, --server-name            Server name\n"
            "  -v, --version                Kismet version\n"
@@ -1457,6 +1459,14 @@ int ProcessBulkConf(ConfigFile *conf) {
         }
 
         allowed_hosts = conf->FetchOpt("allowedhosts");
+    }
+    
+    if (bind_addr.length() == 0) {
+        if (conf->FetchOpt("bindaddress") == "") {
+            fprintf(stderr, "NOTICE: bind address not specified, using INADDR_ANY.\n");
+        }
+
+    bind_addr = conf->FetchOpt("bindaddress");
     }
 
     vector<string> hostsvec = StrTokenize(allowed_hosts, ",");
@@ -2044,6 +2054,7 @@ int main(int argc,char *argv[]) {
         { "gps", required_argument, 0, 'g' },
         { "port", required_argument, 0, 'p' },
         { "allowed-hosts", required_argument, 0, 'a' },
+        { "bind-address", required_argument, 0, 'b'},
         { "server-name", required_argument, 0, 'N' },
         { "help", no_argument, 0, 'h' },
         { "version", no_argument, 0, 'v' },
@@ -2065,7 +2076,7 @@ int main(int argc,char *argv[]) {
     signal(SIGPIPE, CatchShutdown);
 
     while(1) {
-        int r = getopt_long(argc, argv, "d:M:t:nf:c:C:l:m:g:a:p:N:I:xXqhvs",
+        int r = getopt_long(argc, argv, "d:M:t:nf:c:C:l:m:g:a:b:p:N:I:xXqhvs",
                             long_options, &option_index);
         if (r < 0) break;
         switch(r) {
@@ -2152,6 +2163,10 @@ int main(int argc,char *argv[]) {
         case 'a':
             // Allowed
             allowed_hosts = string(optarg);
+            break;
+        case 'b':
+            // bind address
+            bind_addr = string(optarg);
             break;
         case 'N':
             // Servername
@@ -2411,7 +2426,7 @@ int main(int argc,char *argv[]) {
                          "channeldwell.\n");
                  exit(1);
             }
-	}
+        }
 
         // Fetch the vector of default channels
         defaultchannel_vec = conf->FetchOptVec("defaultchannels");
@@ -2651,7 +2666,7 @@ int main(int argc,char *argv[]) {
         free(maskaddr);
     }
 
-    if (ui_server.Setup(tcpmax, tcpport, &legal_ipblock_vec) < 0) {
+    if (ui_server.Setup(tcpmax, bind_addr, tcpport, &legal_ipblock_vec) < 0) {
         fprintf(stderr, "Failed to set up UI server: %s\n", ui_server.FetchError());
         CatchShutdown(-1);
     }

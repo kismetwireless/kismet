@@ -267,6 +267,9 @@ Licensed under the GPL
 
     More advanced server configuration:
 
+	* To allow Kismet clients from remote hosts to connect, comment out the 
+	  bind_addr field to default to INADDR_ANY (all network interfaces).
+
     * IDS alert rates can be controlled via the 'alert' directive, which 
       specifies the alert type, rate per timeframe (ie, 5/min), and the burst
       limits.  These controls are similar to the iptables limit controls.

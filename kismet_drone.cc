@@ -126,6 +126,7 @@ int Usage(char *argv) {
            "  -C, --enable-capture-sources Comma separated list of named packet sources to use.\n"
            "  -p, --port <port>            TCPIP server port for stream connections\n"
            "  -a, --allowed-hosts <hosts>  Comma separated list of hosts allowed to connect\n"
+           "  -b, --bind-address <address>    Bind to this address. Default INADDR_ANY.\n"
            "  -s, --silent                 Don't send any output to console.\n"
            "  -N, --server-name            Server name\n"
            "  -v, --version                Kismet version\n"
@@ -146,7 +147,7 @@ int main(int argc, char *argv[]) {
 
     char status[STATUS_MAX];
     
-    string allowed_hosts;
+    string allowed_hosts, bind_addr;
     int tcpport = -1;
     int tcpmax;
 
@@ -185,6 +186,7 @@ int main(int argc, char *argv[]) {
         { "enable-capture-sources", required_argument, 0, 'C' },
         { "port", required_argument, 0, 'p' },
         { "allowed-hosts", required_argument, 0, 'a' },
+        { "bind-address", required_argument, 0, 'b'},
         { "server-name", required_argument, 0, 'N' },
         { "help", no_argument, 0, 'h' },
         { "version", no_argument, 0, 'v' },
@@ -204,7 +206,7 @@ int main(int argc, char *argv[]) {
     signal(SIGPIPE, SIG_IGN);
 
     while(1) {
-        int r = getopt_long(argc, argv, "f:c:C:p:a:N:hvsI:xXM:",
+        int r = getopt_long(argc, argv, "f:c:C:p:a:b:N:hvsI:xXM:",
                             long_options, &option_index);
         if (r < 0) break;
         switch(r) {
@@ -244,6 +246,9 @@ int main(int argc, char *argv[]) {
         case 'a':
             // Allowed
             allowed_hosts = string(optarg);
+            break;
+        case 'b':
+            bind_addr = string(optarg);
             break;
         case 'N':
             // Servername
@@ -570,6 +575,16 @@ int main(int argc, char *argv[]) {
         allowed_hosts = conf->FetchOpt("allowedhosts");
     }
 
+    if (bind_addr.length() == 0) {
+        if (conf->FetchOpt("bindaddress") == "") {
+            fprintf(stderr, "NOTICE: bind address not specified, using INADDR_ANY.\n");
+        }
+
+        bind_addr = conf->FetchOpt("bindaddress");
+    }
+        
+    
+
     // Parse the allowed hosts into the vector
     size_t ahstart = 0;
     size_t ahend = allowed_hosts.find(",");
@@ -672,7 +687,7 @@ int main(int argc, char *argv[]) {
         free(maskaddr);
     }
 
-    if (streamer.Setup(tcpmax, tcpport, &legal_ipblock_vec) < 0) {
+    if (streamer.Setup(tcpmax, bind_addr, tcpport, &legal_ipblock_vec) < 0) {
         fprintf(stderr, "Failed to set up stream server: %s\n", streamer.FetchError());
         CatchShutdown(-1);
     }
