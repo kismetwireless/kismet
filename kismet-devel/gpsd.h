@@ -45,6 +45,9 @@
 // Our command
 const char gpsd_command[] = "PAVM";
 
+// Options
+#define GPSD_OPT_FORCEMODE    1
+
 // gpsd GPS capture
 class GPSD {
 public:
@@ -57,6 +60,9 @@ public:
     int OpenGPSD();
     // Close it
     int CloseGPSD();
+
+    // Set options
+    void SetOptions(uint32_t in_opt) { options = in_opt; }
 
     // Get our file descriptor
     int FetchDescriptor() { return sock; }
@@ -85,6 +91,8 @@ protected:
 
     struct sockaddr_in localaddr, servaddr;
     struct hostent *h;
+
+    uint32_t options;
   
 };
 
@@ -101,6 +109,8 @@ public:
     int OpenGPSD() { return -1; }
     // Close it
     int CloseGPSD() { return 0; }
+
+    void SetOptions(uint32_t) { return; }
 
     // Scan the GPSD so we can return instantly when someone asks for it
     int Scan() { return -1; }

@@ -53,6 +53,11 @@ enablesources=prism,cisco
 "gpshost" (string) host:port for GPSD.
 This can be localhost OR remote
 .PP
+"gpsmodelock" (true|false) Force gps mode lock
+Some GPS units don't report a lock correctly via GPSD.  This will force a
+lock to be true, but may result in some junk data.  Don't turn this on if
+you don't need it.
+.PP
 "writeinterval" (int) Interval in seconds to re-write datafiles
 .PP
 "sound" (true|false) Do we use sound?  (not to be confused with GUI sound)

@@ -158,6 +158,10 @@ int GPSD::Scan() {
 
     alt = alt * 3.3;
 
+    // Override mode
+    if ((options & GPSD_OPT_FORCEMODE) && mode == 0)
+        mode = 2;
+
     // Zero the buffer
     buf[0] = '\0';
     data[0] = '\0';
