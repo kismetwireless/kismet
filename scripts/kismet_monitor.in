@@ -238,7 +238,7 @@ done
 if test "$HOPPER" = "yes"; then
 	echo "Launching kismet_hopper in the background."
 
-	if test "$usefile" -eq 1; then
+	if test "$USEFILE" -eq 1; then
 		for x in `cat $IFFILE`; do
 			srcs="$srcs -s $x"
 		done
