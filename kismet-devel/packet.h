@@ -66,17 +66,17 @@ extern "C" {
 #define BEACON_INFO_LEN 128
 
 // Cribbed from ethereal, pointer to host endian swap
-#define kptoh16(p) (uint16_t) ((uint16_t) * ((uint8_t *)(p) + 1) << 8 | \
-                               (uint16_t) * ((uint8_t *)(p) + 0) << 0)
+#define kptoh16(p) (uint16_t) ((uint16_t) * ((uint8_t *)(p) + 0) << 8 | \
+                               (uint16_t) * ((uint8_t *)(p) + 1) << 0)
 
-#define kptoh24(p) (uint16_t) ((uint16_t) * ((uint8_t *)(p) + 2) << 16 | \
-                               (uint16_t) * ((uint8_t *)(p) + 1) << 8 | \
-                               (uint16_t) * ((uint8_t *)(p) + 0) << 0)
+#define kptoh24(p) (uint32_t) ((uint32_t) * ((uint8_t *)(p) + 0) << 16 | \
+                               (uint32_t) * ((uint8_t *)(p) + 1) << 8 | \
+                               (uint32_t) * ((uint8_t *)(p) + 2) << 0)
 
-#define kptoh32(p) (uint16_t) ((uint16_t) * ((uint8_t *)(p) + 3) << 24 | \
-                               (uint16_t) * ((uint8_t *)(p) + 2) << 16 | \
-                               (uint16_t) * ((uint8_t *)(p) + 1) << 8 | \
-                               (uint16_t) * ((uint8_t *)(p) + 0) << 0)
+#define kptoh32(p) (uint32_t) ((uint32_t) * ((uint8_t *)(p) + 0) << 24 | \
+                               (uint32_t) * ((uint8_t *)(p) + 1) << 16 | \
+                               (uint32_t) * ((uint8_t *)(p) + 2) << 8 | \
+                               (uint32_t) * ((uint8_t *)(p) + 3) << 0)
 
 // Inline converters
 #ifdef WORDS_BIGENDIAN
