@@ -196,10 +196,15 @@ for line in `cat $IFFILE`; do
 			;;
 		"prism2_hostap")
 			echo "Enabling monitor mode for a hostap prism2 card on $DEVICE channel $CHANNEL"
-			prism2_param $DEVICE monitor_type 1
-			iwconfig $DEVICE mode monitor
-			iwconfig $DEVICE channel $CHANNEL
-			ifconfig $DEVICE promisc up
+# They've changed again...
+			iwpriv $DEVICE monitor 3                                        
+			iwconfig $DEVICE channel $CHANNEL                               
+			iwconfig $DEVICE mode monitor                                   
+			ifconfig $DEVICE promisc up   
+#			prism2_param $DEVICE monitor_type 1
+#			iwconfig $DEVICE mode monitor
+#			iwconfig $DEVICE channel $CHANNEL
+#			ifconfig $DEVICE promisc up
 			;;
 		"orinoco")
 			echo "Enabling monitor mode for an orinoco card on $DEVICE channel $CHANNEL"
