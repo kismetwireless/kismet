@@ -571,7 +571,7 @@ Licensed under the GPL
                      alert conditions.  Pcapfile sources are only available
                      if Kismet was compiled with libpcap support.
 
-    prism_openbsd   Prism/2             OpenBSD     Kernel
+    prism2_openbsd  Prism/2             OpenBSD     Kernel
                     Capture interface:  'wiX'
                     Full support for Prism2 under OpenBSD
 
