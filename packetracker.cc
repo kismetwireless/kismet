@@ -243,7 +243,7 @@ int Packetracker::ProcessPacket(packet_info info, char *in_status) {
         if (bssid_ip_map.find(info.bssid_mac) != bssid_ip_map.end())
             memcpy(&net->ipdata, &bssid_ip_map[info.bssid_mac], sizeof(net_ip_data));
 
-        if (strlen(info.ssid) == 0 || IsBlank(info.ssid)) {
+        if (IsBlank(info.ssid)) {
             if (bssid_cloak_map.find(info.bssid_mac) != bssid_cloak_map.end()) {
                 net->ssid = bssid_cloak_map[info.bssid_mac];
 
@@ -448,52 +448,27 @@ int Packetracker::ProcessPacket(packet_info info, char *in_status) {
 
         // Update the ssid record if we got a beacon for a data network
         if (info.type == packet_beacon) {
-            // Update if they changed their SSID
-            if (net->ssid != NOSSID && net->ssid != info.ssid && !IsBlank(info.ssid)) {
-                net->ssid = info.ssid;
-                bssid_cloak_map[net->bssid] = info.ssid;
-
-                MatchBestManuf(ap_manuf_map, net->bssid, net->ssid, net->channel,
-                               net->wep, net->cloaked,
-                               &net->manuf_key, &net->manuf_score);
-                // Update our IP range info too if we're a default
-                if (net->manuf_score == manuf_max_score && net->ipdata.atype == address_none)
-                    memcpy(&net->ipdata, &ap_manuf_map[net->manuf_key]->ipdata, sizeof(net_ip_data));
-
-            } else if (net->ssid == NOSSID && strlen(info.ssid) > 0 && !IsBlank(info.ssid)) {
-                net->ssid = info.ssid;
-
-                bssid_cloak_map[net->bssid] = info.ssid;
-
-                if (net->type == network_ap) {
-                    net->cloaked = 1;
-                    snprintf(in_status, STATUS_MAX, "Found SSID \"%s\" for cloaked network BSSID %s",
-                             net->ssid.c_str(), net->bssid.Mac2String().c_str());
-                } else {
-                    snprintf(in_status, STATUS_MAX, "Found SSID \"%s\" for network BSSID %s",
-                             net->ssid.c_str(), net->bssid.Mac2String().c_str());
-                }
-
-                MatchBestManuf(ap_manuf_map, net->bssid, net->ssid, net->channel,
-                               net->wep, net->cloaked,
-                               &net->manuf_key, &net->manuf_score);
-                // Update our IP range info too if we're a default
-                if (net->manuf_score == manuf_max_score && net->ipdata.atype == address_none)
-                    memcpy(&net->ipdata, &ap_manuf_map[net->manuf_key]->ipdata, sizeof(net_ip_data));
-
-                ret = TRACKER_NOTICE;
-            }
-
             // If we're updating the network record, update the manufacturer info -
             // if we just "became" an AP or if we've changed channel, we may have
             // changed state as well
-            if (net->channel != info.channel || net->type != network_ap) {
-                MatchBestManuf(ap_manuf_map, net->bssid, net->ssid, info.channel,
+            if (net->channel != info.channel || net->type != network_ap ||
+                (net->ssid != info.ssid && !IsBlank(info.ssid))) {
+                MatchBestManuf(ap_manuf_map, net->bssid, info.ssid, info.channel,
                                net->wep, net->cloaked,
                                &net->manuf_key, &net->manuf_score);
                 // Update our IP range info too if we're a default
                 if (net->manuf_score == manuf_max_score && net->ipdata.atype == address_none)
                     memcpy(&net->ipdata, &ap_manuf_map[net->manuf_key]->ipdata, sizeof(net_ip_data));
+            }
+
+            if (net->ssid != info.ssid && !IsBlank(info.ssid)) {
+                net->ssid = info.ssid;
+                bssid_cloak_map[net->bssid] = info.ssid;
+
+                snprintf(in_status, STATUS_MAX, "Found SSID \"%s\" for network BSSID %s",
+                         net->ssid.c_str(), net->bssid.Mac2String().c_str());
+
+                ret = TRACKER_NOTICE;
             }
 
             net->channel = info.channel;
