@@ -214,10 +214,8 @@ void Frontend::UpdateGroups() {
             // tags along for the ride.  Only do this if the network has been touched
             // within the decay period
             if (curtime - wnet->last_time <= (decay * 2)) {
-                if (wnet->signal >= dnet->virtnet->signal &&
-                    wnet->quality >= dnet->virtnet->quality) {
+                if (wnet->signal >= dnet->virtnet->signal) {
                     dnet->virtnet->signal = wnet->signal;
-                    dnet->virtnet->quality = wnet->quality;
                     dnet->virtnet->noise = wnet->noise;
                 }
 
@@ -273,6 +271,7 @@ void Frontend::UpdateGroups() {
             dnet->virtnet->data_packets += wnet->data_packets;
             dnet->virtnet->crypt_packets += wnet->crypt_packets;
             dnet->virtnet->interesting_packets += wnet->interesting_packets;
+            dnet->virtnet->dupeiv_packets += wnet->dupeiv_packets;
 
             // Aggregate the data
             dnet->virtnet->datasize += wnet->datasize;
