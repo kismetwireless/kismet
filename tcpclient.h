@@ -98,6 +98,8 @@ public:
         string type;
         string username;
         int channel;
+        int id;
+        int packets;
     };
 
     TcpClient();

@@ -18,6 +18,7 @@
 
 #include <stdio.h>
 #include "packetsource.h"
+#include "packetsourcetracker.h"
 #include "server_protocols.h"
 
 char *INFO_fields_text[] = {
@@ -143,7 +144,7 @@ char *WEPKEY_fields_text[] = {
 };
 
 char *CARD_fields_text[] = {
-    "interface", "type", "username", "channel",
+    "interface", "type", "username", "channel", "id", "packets",
     NULL
 };
 
@@ -853,24 +854,32 @@ int Protocol_WEPKEY(PROTO_PARMS) {
 }
 
 int Protocol_CARD(PROTO_PARMS) {
-    KisPacketSource *csrc = (KisPacketSource *) data;
+    meta_packsource *csrc = (meta_packsource *) data;
     char tmp[32];
 
     for (unsigned int x = 0; x < field_vec->size(); x++) {
         switch ((CARD_fields) (*field_vec)[x]) {
         case CARD_interface:
-            out_string += csrc->FetchInterface();
+            out_string += csrc->device.c_str();
             break;
         case CARD_type:
             // Fix this in the future...
-            out_string += "na";
+            out_string += csrc->prototype->cardtype.c_str();
             break;
         case CARD_username:
-            snprintf(tmp, 32, "\001%s\001", csrc->FetchName());
+            snprintf(tmp, 32, "\001%s\001", csrc->name.c_str());
             out_string += tmp;
             break;
         case CARD_channel:
-            snprintf(tmp, 32, "%d", csrc->FetchChannel());
+            snprintf(tmp, 32, "%d", csrc->capsource->FetchChannel());
+            out_string += tmp;
+            break;
+        case CARD_id:
+            snprintf(tmp, 32, "%d", csrc->id);
+            out_string += tmp;
+            break;
+        case CARD_packets:
+            snprintf(tmp, 32, "%d", csrc->capsource->FetchNumPackets());
             out_string += tmp;
             break;
         }

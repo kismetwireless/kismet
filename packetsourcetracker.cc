@@ -176,6 +176,62 @@ pollendpackpipewrite:
     return 0;
 }
 
+meta_packsource *Packetsourcetracker::FetchMetaID(int in_id) {
+    if (in_id < 0 || in_id > (int) meta_packsources.size())
+        return NULL;
+
+    return meta_packsources[in_id];
+}
+
+int Packetsourcetracker::SetChannel(int in_ch, meta_packsource *in_meta) {
+    if (in_meta->prototype->channelcon == NULL)
+        return 0;
+
+#ifndef HAVE_SUID
+    int ret = (*in_meta->prototype->channelcon)(in_meta->device.c_str(),
+                                                in_ch, errstr, 
+                                                (void *) in_meta->capsource);
+    if (ret < 0)
+        return ret;
+#else
+    if (in_meta->prototype->child_control == 0) {
+        int ret;
+        ret = (*in_meta->prototype->channelcon)(in_meta->device.c_str(),
+                                                in_ch, errstr,
+                                                (void *) in_meta->capsource);
+        if (ret < 0)
+            return ret;
+    }
+
+    chanchild_packhdr *chancmd = new chanchild_packhdr;
+    chanchild_changepacket *data = (chanchild_changepacket *)
+        malloc(sizeof(chanchild_changepacket));
+
+    memset(chancmd, 0, sizeof(chanchild_packhdr));
+
+    if (data == NULL) {
+        snprintf(errstr, STATUS_MAX, "Could not allocate data struct for "
+                 "changing channels: %s", strerror(errno));
+        return -1;
+    }
+    memset(data, 0, sizeof(chanchild_changepacket));
+
+    chancmd->sentinel = CHANSENTINEL;
+    chancmd->packtype = CHANPACK_CHANNEL;
+    chancmd->flags = CHANFLAG_NONE;
+    chancmd->datalen = sizeof(chanchild_changepacket);
+    chancmd->data = (uint8_t *) data;
+
+    data->meta_num = (uint8_t) in_meta->id;
+    data->channel = (uint16_t) in_ch;
+
+    ipc_buffer.push_back(chancmd);
+#endif
+
+    return 1;
+
+}
+
 // Hop the packet sources up a channel
 int Packetsourcetracker::AdvanceChannel() {
     for (unsigned int metac = 0; metac < meta_packsources.size(); metac++) {
@@ -184,67 +240,16 @@ int Packetsourcetracker::AdvanceChannel() {
         // Don't do anything for sources with no channel controls
         if (meta->prototype->channelcon == NULL)
             continue;
+
+        int ret = SetChannel(meta->channels[meta->ch_pos++], meta);
         
-#ifndef HAVE_SUID
-        // Control stuff in one process if we don't suiddrop
-        //
-        int ret;
-        ret = (*meta->prototype->channelcon)(meta->device.c_str(),
-                                             meta->channels[meta->ch_pos++],
-                                             errstr, (void *) meta->capsource);
 
         if (meta->ch_pos >= (int) meta->channels.size())
             meta->ch_pos = 0;
 
         if (ret < 0)
             return ret;
-#else
-        // Stuff that doesn't have a child control gets done now
-        if (meta->prototype->child_control == 0) {
-            int ret;
-            ret = (*meta->prototype->channelcon)(meta->device.c_str(),
-                                                 meta->channels[meta->ch_pos++],
-                                                 errstr, (void *) meta->capsource);
 
-            if (meta->ch_pos >= (int) meta->channels.size())
-                meta->ch_pos = 0;
-
-            if (ret < 0)
-                return ret;
-
-            continue;
-        }
-
-        // Don't try to change channels if they've not ackd the previous
-        if (meta->cmd_ack == 0)
-            continue;
-
-        chanchild_packhdr *chancmd = new chanchild_packhdr;
-        chanchild_changepacket *data = (chanchild_changepacket *) 
-            malloc(sizeof(chanchild_changepacket));
-
-        memset(chancmd, 0, sizeof(chanchild_packhdr));
-        memset(data, 0, sizeof(chanchild_changepacket));
-        if (data == NULL) {
-            snprintf(errstr, STATUS_MAX, "Could not allocate data struct for "
-                     "changing channels: %s", strerror(errno));
-            return -1;
-        }
-
-        chancmd->sentinel = CHANSENTINEL;
-        chancmd->packtype = CHANPACK_CHANNEL;
-        chancmd->flags = CHANFLAG_NONE;
-        chancmd->datalen = sizeof(chanchild_changepacket);
-        chancmd->data = (uint8_t *) data;
-
-        data->meta_num = (uint8_t) metac;
-        data->channel = (uint16_t) meta->channels[meta->ch_pos++];
-
-        if (meta->ch_pos >= (int) meta->channels.size())
-            meta->ch_pos = 0;
-
-        ipc_buffer.push_back(chancmd);
-#endif
     }
 
     return 1;
@@ -322,6 +327,10 @@ int Packetsourcetracker::RegisterDefaultChannels(vector<string> *in_defchannels)
 
 vector<KisPacketSource *> Packetsourcetracker::FetchSourceVec() {
     return live_packsources;
+}
+
+vector<meta_packsource *> Packetsourcetracker::FetchMetaSourceVec() {
+    return meta_packsources;
 }
 
 // Big scary function to build the meta-packsource records from the requested configs 
