@@ -1,3 +1,4 @@
+Oct 01 2003  3.1.0  Fixed pcap support on OSX, mostly
 Sep 14 2003  3.1.0  Fixed clients not doing some timer events correctly (which
                      broke wsp100).  Process inheritance is annoying.
 Sep 01 2003  3.1.0  De-walled some casting errors on some compilers

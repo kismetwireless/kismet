@@ -404,11 +404,6 @@ AC_ARG_ENABLE(pcap,
 [  --disable-pcap          disable libpcap capture support],
     wantpcap=no, wantpcap=yes)
     
-if test "$darwin" = yes; then
-	AC_MSG_WARN([*** Disabling pcap because we're building under OSX. ***]);
-	wantpcap=no;
-fi
-
 AC_SUBST(wantpcap)
 
 if test $wantpcap = yes; then
@@ -449,8 +444,16 @@ AC_ARG_ENABLE(syspcap,
 		export CXX
 		AC_CONFIG_SUBDIRS($pcapdir)
 
-		pcaplib="$pcapdir/libpcap.a"
+		if test "$darwin" = yes; then
+			pcaplib=""
+			pcaplnk="-L$pcapdir -lpcap"
+		else
+			pcaplib="$pcapdir/libpcap.a"
+			pcaplnk=""
+		fi
+
 		AC_SUBST(pcaplib)
+		AC_SUBST(pcaplnk)
 
 		CPPFLAGS="$CPPFLAGS -I$pcapdir"
 		#CXXFLAGS="$CPPFLAGS -I$pcapdir"
