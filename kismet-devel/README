@@ -1,5 +1,5 @@
 
-   KISMET 2.8.1
+   KISMET 2.9.0
    Mike Kershaw <dragorn@kismetwireless.net>
    http://www.kismetwireless.net
    Licensed under the GPL
@@ -37,23 +37,24 @@
        WSP100 remote sensor by Network Chemistry. Kismet is also able to
        sniff 802.11a networks using ar5k cards.
     2. FEATURES
-          + Channel hopping
-          + IP block detection
+          + Configurable channel hopping
+          + IP range detection
           + Cisco product detection via CDP
           + Ethereal/tcpdump compatable file logging
           + Airsnort-compatable "interesting" (cryptographically weak)
             logging
           + Hidden SSID decloaking
-          + Grouping and custom naming of SSIDs
+          + Grouping and custom naming of networks
           + Multiple clients viewing a single capture stream
           + Graphical mapping of data (gpsmap)
           + Cross-platform support (handheld linux and BSD)
-          + Manufacturer identification
+          + Manufacturer and model identification
           + Detection of default access point configurations
-          + Detection of Netstumbler clients
+          + Detection of Netstumbler and Wellenreiter clients
           + Runtime decoding of WEP packets
           + Multiplexing of multiple capture sources
           + 802.11b and 802.11a sniffing abilities
+          + Data export for external layer3 IDS (such as Snort)
     3. QUICK START
        Detailed information about each of these steps can be found in the
        appropriate section of the documentation.
@@ -393,6 +394,17 @@
                  wepkey=00:FE:ED:BE:EF:00,00:11:22:33:44
                  WEP keys can be 5 hex pairs (40-bit) or 13 hex pairs
                  (128-bit)
+               o Using an external IDS
+                 By configuring a FIFO named pipe (fifo="..." in
+                 kismet.conf), Kismet will create the specified pipe and
+                 write the data packets to it. If a packet can be
+                 decrypted with a known key, it will be modified and
+                 written as an unencrypted packet to the FIFO.
+                 External IDS programs (such as Snort) should be
+                 instructed to read packets from a file or pipe.
+                 When writing packets to a FIFO pipe, Kismet will pause
+                 during the startup procedure until an external utility
+                 opens the pipe for reading.
           + kismet_ui.conf
             kismet_ui.conf controls the behavior of the user interface -
             colors, columns, default server, etc. All of the options are
