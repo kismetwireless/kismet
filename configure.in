@@ -426,11 +426,12 @@ AC_ARG_ENABLE(syspcap,
 		if test $foundsyspcap = yes; then
 		## if we don't have a pcap.h, do a search for pcap/pcap.h
 		AC_CHECK_HEADER([pcap.h],
-			[AC_DEFINE(HAVE_PCAP_H, 1, libpcap header), 
+			AC_DEFINE(HAVE_PCAP_H, 1, libpcap header) foundsyspcaph=yes)
+		    if test $foundsyspcaph != yes; then 
 				AC_CHECK_HEADER([pcap/pcap.h], 
-					[AC_DEFINE(HAVE_PCAP_H, 1, libpcap header) AC_DEFINE(HAVE_PCAPPCAP_H, 1, pcap/pcap.h)],
-					AC_MSG_ERROR([found libpcap but unable to find pcap.h]))])
-
+				AC_DEFINE(HAVE_PCAP_H, 1, libpcap header) AC_DEFINE(HAVE_PCAPPCAP_H, 1, pcap/pcap.h),
+				AC_MSG_ERROR([found libpcap but unable to find pcap.h]))
+		    fi
 		# Look for the new PCAP stuff
 		AC_CHECK_LIB([pcap], [pcap_setnonblock],
 		    AC_DEFINE(HAVE_PCAP_NONBLOCK, 1, Nonblocking-capable libpcap),
