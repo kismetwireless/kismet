@@ -19,7 +19,12 @@
 #ifndef __PACKETSIGNATURES_H__
 
 #include "config.h"
+#ifdef HAVE_STDINT
 #include <stdint.h>
+#endif
+#ifdef HAVE_INTTYPES_H
+#include <inttypes.h>
+#endif
 
 const int LLC_OFFSET = 0;
 
