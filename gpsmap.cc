@@ -983,6 +983,10 @@ void DrawNetTracks(Image *in_img, DrawInfo *in_di) { /*FOLD00*/
 
 	ExceptionInfo excep;
 	QueryColorDatabase(color_str, &track_clr, &excep);
+        if (excep.severity != UndefinedException) {
+            CatchException(&excep);
+            break;
+        }
 
         in_di->stroke = track_clr;
 
@@ -1105,6 +1109,10 @@ void DrawNetCircles(vector<gps_network *> in_nets, Image *in_img, DrawInfo *in_d
 
         ExceptionInfo excep;
         QueryColorDatabase(map_iter->color_index.c_str(), &netclr, &excep);
+        if (excep.severity != UndefinedException) {
+            CatchException(&excep);
+            break;
+        }
 
         in_di->fill = netclr;
         in_di->stroke = netclr;
@@ -1221,7 +1229,11 @@ void DrawNetHull(vector<gps_network *> in_nets, Image *in_img, DrawInfo *in_di) 
         PixelPacket netclr;
 
 	ExceptionInfo excep;
- 	QueryColorDatabase(map_iter->color_index.c_str(), &netclr, &excep);
+        QueryColorDatabase(map_iter->color_index.c_str(), &netclr, &excep);
+        if (excep.severity != UndefinedException) {
+            CatchException(&excep);
+            break;
+        }
 
         in_di->fill = netclr;
 
@@ -1298,6 +1310,10 @@ void DrawNetBoundRects(vector<gps_network *> in_nets, Image *in_img, DrawInfo *i
 
             ExceptionInfo excep;
             QueryColorDatabase(map_iter->color_index.c_str(), &netclr, &excep);
+            if (excep.severity != UndefinedException) {
+                CatchException(&excep);
+                break;
+            }
 
             in_di->fill = netclr;
         }
@@ -1328,7 +1344,10 @@ void DrawNetBoundRects(vector<gps_network *> in_nets, Image *in_img, DrawInfo *i
 }
 
 void DrawLegend(Image *in_img, DrawInfo *in_di) { /*FOLD00*/
-
+    /*
+     int legend_height = map_height / 6;
+    int base_x = map_height - legend_height;
+    */
 
 
 }
@@ -1468,6 +1487,10 @@ void DrawNetPower(Image *in_img, DrawInfo *in_di) { /*FOLD00*/
 
                 ExceptionInfo excep;
                 QueryColorDatabase(power_colors[power_index], &point_clr, &excep);
+                if (excep.severity != UndefinedException) {
+                    CatchException(&excep);
+                    break;
+                }
 
                 in_di->stroke = point_clr;
                 in_di->fill = point_clr;
@@ -1533,6 +1556,10 @@ void DrawNetCenterDot(vector<gps_network *> in_nets, Image *in_img, DrawInfo *in
 
         ExceptionInfo excep;
         QueryColorDatabase(map_iter->color_index.c_str(), &netclr, &excep);
+        if (excep.severity != UndefinedException) {
+            CatchException(&excep);
+            break;
+        }
 
         in_di->fill = netclr;
         in_di->stroke = netclr;
@@ -1575,6 +1602,10 @@ void DrawNetCenterText(vector<gps_network *> in_nets, Image *in_img, DrawInfo *i
 
         ExceptionInfo excep;
         QueryColorDatabase("#000000", &netclr, &excep);
+        if (excep.severity != UndefinedException) {
+            CatchException(&excep);
+            break;
+        }
 
         in_di->fill = netclr;
         in_di->stroke = netclr;
@@ -1720,6 +1751,10 @@ void DrawNetScatterPlot(vector<gps_network *> in_nets, Image *in_img, DrawInfo *
 
         ExceptionInfo excep;
         QueryColorDatabase(map_iter->color_index.c_str(), &netclr, &excep);
+        if (excep.severity != UndefinedException) {
+            CatchException(&excep);
+            break;
+        }
 
 	in_di->fill = netclr;
 
