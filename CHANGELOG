@@ -1,5 +1,7 @@
 Feb 05 2003  2.9.1  Fixed minor gpsmap netxml-search-path bug that didn't 
                      handle netxml in the current directory.
+                    Revamped filtering mechanism to be far more flexable and
+                     useful.  See the config file and man page.
 Feb 03 2003  2.9.1  Fixed some alerts being reported as notifications
 Feb 01 2003  2.9.1  Merged patch from Pedro to fix memory faults on some BSDs.
                     Added ability to include subconfig files (containing, for

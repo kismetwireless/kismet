@@ -32,6 +32,8 @@
 #include <map>
 #include <vector>
 
+#include "packet.h"
+
 // Munge a string to characters safe for calling in a shell
 void MungeToShell(char *in_data, int max);
 string MungeToShell(string in_data);
@@ -50,6 +52,10 @@ public:
     vector<string> FetchOptVec(string in_key);
 
     static string ExpandLogPath(string path, string logname, string type, int start, int overwrite = 0);
+    static int ParseFilterLine(string filter_str, map<mac_addr, int> *bssid_map,
+                               map<mac_addr, int> *source_map,
+                               map<mac_addr, int> *dest_map,
+                               int *bssid_invert, int *source_invert, int *dest_invert);
 
 protected:
     map<string, vector<string> > config_map;

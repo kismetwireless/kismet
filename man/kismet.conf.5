@@ -14,12 +14,19 @@ All entries are of the format directive = value
 .SH CONFIGURATION VALUES
 "include" (string) Include another config file.
 .PP
-"servername" (string) Name of this Kismet server.  This is purely for information in
+"servername" (string) Name of this Kismet server.  This is purely for information in 
 multiple server systems.
 .PP
 "suiduser" (string) User to switch privileges to after binding to the capture.
 .PP
-"macfilter" (string) Comma-separated list of MAC addresses to filter.
+"filter_tracker" (string) Filter string to control packets passed to the entire tracking system.  If a packet is blocked at the tracker level, it will not be displayed, logged, or otherwise processed.
+.PP
+"filter_dump" (string) Filter string to control packets written to the dump file.
+.PP
+"filter_alert" (string) Filter string to control packets that generate alerts.
+.PP
+"filter_export" (string) Filter string to control packets that are written to the
+exported csv, gps, xml, and network files.
 .PP
 "wepkey" (string) Comma-separated BSSID and WEP key (in hex) to decrypt.  This is for
 runtime decryption of networks where the wep key is known, and may impact the throughput
@@ -35,47 +42,6 @@ expressed as dotted quads (/255.255.255.0) or as numbers (/24)
 "source" (string) Comma-separated packet source (cardtype,interface,name).  Multiple
 source lines can be defined, refer to the enablesources config line for more details.
 .PP
-Card type - Specifies the type of device.  It can be one of:
-.RS
-cisco - Cisco card with Linux Kernel drivers
-.PP
-cisco_cvs - Cisco card with CVS Linux drivers
-.PP
-cisco_bsd - Cisco on *BSD
-.PP
-prism2 - Prism2 using wlan-ng drivers with pcap support (all current versions support pcap)
-.PP
-prism2_hostap - Prism2 using hostap drivers
-.PP
-prism2_legacy - Prism2 using wlan-ng drivers without pcap support (0.1.9)
-.PP
-prism2_bsd - Prism2 on *BSD
-.PP
-orinoco - Orinoco cards using Snax's patched driers
-.PP
-generic - Generic card with no specific support.  You will have to put this into monitor mode yourself!
-.PP
-wsp100 - WSP100 embedded remote sensor.
-.PP
-wtapfile - Saved file of packets readable by libwiretap
-.PP
-ar5k - AR5K-based 802.11a cards using the vt_ar5k drivers.
-.PP
-.RE
-.PP
-Capture interface - Specifies the network interface Kismet will watch for packets to come in on.  Typically "ethX" or "wlanX".  For the WSP100 capture engine, the WSP100 device sends packets via a UDP stream, so the capture interface should be in the form of host:port where 'host' is the WSP100 and 'port' is the local UDP port that it will send data to.
-.PP
-Capture Name - The name Kismet uses for this capture source.  This is the name used to specify what sources to enable.
-.PP
-To enable multiple sources, specify a source line for each and then use the
-enablesources line to enable them.  For example:
-.RS
-source=prism2,wlan0,prism
-.PP
-source=cisco,eth0,cisco
-.RE
-.PP
-.RE
 .PP
 "enablesources" (string) Comma-separated list of source names (defined previously in the source lines) to enable.  This is only needed if you wish to selectively enable multiple sources.  For example:
 .RS
@@ -171,6 +137,61 @@ dumplog (for limited cases where ethereal crashes when a logfile is too large)
 "groupmap" (string) Saved groups
 .PP
 "ipmap" (string) IP trackfile
+
+.SH PACKET FILTERING
+All filtering options take arguments containing the type of address and addresses to be filtered.  Valid address types are ANY, BSSID, SOURCE, and DEST.  Filtering can be inverted by the use of '!' before the address.  If standard packet filtering is enabled, only packets matching the filter are passed.  If the filter is inverted, only packets which do not match the filter are passed.  Normal and inverted filters cannot be combined.
+.PP
+For example,
+.PP
+filter_tracker=ANY(!00:00:DE:AD:BE:EF)
+.PP
+has the same effect as the previous mac_filter config file option.
+.PP
+Multiple address types and addresses can be combined to form advanced filtering, such as:
+.PP
+filter_dump=SOURCE(00:11:22:33:44:55,00:55:44:33:22:11), DEST(!00:AA:BB:CC:DD:EE), BSSID(00:FF:FF:FF:FF:FF)
+.PP
+
+.SH CARD TYPES AND MULTIPLE CAPTURE SOURCES
+Card type - Specifies the type of device.  It can be one of:
+.PP
+cisco - Cisco card with Linux Kernel drivers
+.PP
+cisco_cvs - Cisco card with CVS Linux drivers
+.PP
+cisco_bsd - Cisco on *BSD
+.PP
+prism2 - Prism2 using wlan-ng drivers with pcap support (all current versions support pcap)
+.PP
+prism2_hostap - Prism2 using hostap drivers
+.PP
+prism2_legacy - Prism2 using wlan-ng drivers without pcap support (0.1.9)
+.PP
+prism2_bsd - Prism2 on *BSD
+.PP
+orinoco - Orinoco cards using Snax's patched driers
+.PP
+generic - Generic card with no specific support.  You will have to put this into monitor mode yourself!
+.PP
+wsp100 - WSP100 embedded remote sensor.
+.PP
+wtapfile - Saved file of packets readable by libwiretap
+.PP
+ar5k - AR5K-based 802.11a cards using the vt_ar5k drivers.
+.PP
+.PP
+Capture interface - Specifies the network interface Kismet will watch for packets to come in on.  Typically "ethX" or "wlanX".  For the WSP100 capture engine, the WSP100 device sends packets via a UDP stream, so the capture interface should be in the form of host:port where 'host' is the WSP100 and 'port' is the local UDP port that it will send data to.
+.PP
+Capture Name - The name Kismet uses for this capture source.  This is the name used to specify what sources to enable.
+.PP
+To enable multiple sources, specify a source line for each and then use the
+enablesources line to enable them.  For example:
+.RS
+source=prism2,wlan0,prism
+.PP
+source=cisco,eth0,cisco
+.RE
+.PP
 
 .SH LOG TYPES
 There are several log types used for different types of data:
