@@ -933,7 +933,7 @@ PATH_SEPARATOR="$ac_path_separator"
 rm -f conftest.sh
 
 # Included pcap directory
-pcapdir="libpcap-2002.07.02"
+pcapdir="libpcap-2002.12.23"
 
 # Check for host type
 ac_aux_dir=

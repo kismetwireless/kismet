@@ -4,7 +4,7 @@ AC_INIT(kismet.h)
 AC_PREREQ(2.13)
 
 # Included pcap directory
-pcapdir="libpcap-2002.07.02"
+pcapdir="libpcap-2002.12.23"
 AC_SUBST(pcapdir)
 
 # Check for host type
