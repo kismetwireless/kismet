@@ -1,3 +1,4 @@
+Mar 07 2004  devel  Fixed another bsd compile error
 Mar 04 2004  devel  Fixed undefined function error on BSDs introduced from
                      other error catching
                     Fixed stupid config test copy and paste bug for GMP
