@@ -53,6 +53,11 @@
 #include "gpsmap_cache.h"
 #include "gpsmap_samples.h"
 
+// Kludge old IM
+#ifndef MagickTrue
+#define MagickTrue 1
+#endif
+
 /* Mapscale / pixelfact is meter / pixel */
 #define PIXELFACT 2817.947378
 
@@ -2812,7 +2817,8 @@ int DrawLegendComposite(vector<gps_network *> in_nets, Image **in_img,
     leg_di->stroke = textclr;
     leg_di->font = strdup("courier");
     leg_di->pointsize = 14;
-    leg_di->text_antialias = 1;
+    leg_di->text_antialias = MagickTrue;
+    // leg_di->text_antialias = 1;
 
     // Figure out how many columns we're going to have...
     int ncolumns = 0;
