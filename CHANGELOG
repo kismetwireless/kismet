@@ -1,3 +1,4 @@
+Jan 26 2005  devel  Added typedef for MagickBooleanType on old IM libs
 Jan 17 2005  devel  Updated ipkg spec
                     Changed configure to accept --with-linuxheaders for 
                      cross-compiling with a different kernel header path

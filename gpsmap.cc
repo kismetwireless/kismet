@@ -57,6 +57,8 @@
 #if (MagickLibVersion < 0x600)
 #define MagickTrue 1
 #define MagickFalse 0
+
+typedef unsigned int MagickBooleanType;
 #endif
 
 /* Mapscale / pixelfact is meter / pixel */
@@ -616,7 +618,7 @@ int DrawFeatherCircle(int in_width, Image *in_img, int in_xpos, int in_ypos,
         return -1;
     }
 
-    alpha_img->matte = (MagickBooleanType)false;
+    alpha_img->matte = (MagickBooleanType) false;
     // Draw a simple color over the entire base and let the alpha channel
     // control where it gets drawn
     base_di->fill = circlecolor;
@@ -4296,7 +4298,7 @@ int main(int argc, char *argv[]) {
             CatchException(&excep);
             return -1;
         }
-        alpha_img->matte = (MagickBooleanType)false;
+        alpha_img->matte = (MagickBooleanType) false;
 
         // Composite the alpha and new map images
         // base is now the map with the new alpha channel
