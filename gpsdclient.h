@@ -56,12 +56,12 @@ public:
     virtual unsigned int MergeSet(fd_set in_rset, fd_set in_wset, 
                                   unsigned int in_max_fd,
                                   fd_set *out_rset, fd_set *out_wset) {
-        return tcpcli->MergeSet(in_rset, in_wset, in_max_fd,
-                                out_rset, out_wset);
+        return netclient->MergeSet(in_rset, in_wset, in_max_fd,
+                                   out_rset, out_wset);
     }
 
     virtual int Poll(fd_set& in_rset, fd_set& in_wset) {
-        return tcpcli->Poll(in_rset, in_wset);
+        return netclient->Poll(in_rset, in_wset);
     }
     
     virtual int ParseData();
