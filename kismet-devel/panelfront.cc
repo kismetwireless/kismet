@@ -693,8 +693,8 @@ PanelFront::main_columns PanelFront::Token2MainColumn(string in_token) {
         return mcol_signalbar;
     } else if (in_token == "qualitybar") {
         return mcol_qualitybar;
-//    } else if (in_token == "noisebar") {
-//        return mcol_noisebar;
+    } else if (in_token == "dupeiv") {
+        return mcol_dupeiv;
     } else {
         return mcol_unknown;
     }

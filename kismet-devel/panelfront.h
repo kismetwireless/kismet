@@ -315,7 +315,7 @@ protected:
         mcol_wep, mcol_channel, mcol_data, mcol_llc, mcol_crypt, mcol_weak, mcol_bssid,
         mcol_flags, mcol_ip, /* mcol_mask, mcol_gateway, */ mcol_packets, mcol_info, mcol_maxrate,
         mcol_manuf, mcol_signal, mcol_quality, mcol_noise, mcol_clients, mcol_datasize,
-        mcol_signalbar, mcol_qualitybar /*, mcol_noisebar */
+        mcol_signalbar, mcol_qualitybar, mcol_dupeiv
     };
 
     enum client_columns {

@@ -281,6 +281,8 @@ typedef struct wireless_network {
 
         decrypted = 0;
 
+        dupeiv_packets = 0;
+
     }
 
     wireless_network_type type;
@@ -385,6 +387,11 @@ typedef struct wireless_network {
 
     // Did we decrypt this network?
     int decrypted;
+
+    // Used IVs in this BSSID
+    map<uint32_t, int> iv_map;
+    // number of duplicate IV counts
+    int dupeiv_packets;
 
 };
 

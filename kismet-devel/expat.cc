@@ -63,7 +63,7 @@ enum net_xml_node {
     net_node_wn_channel, net_node_wn_maxrate, net_node_wn_maxseenrate,
     net_node_wn_carrier, net_node_wn_encoding, net_node_wn_datasize,
     net_node_packdata,
-    net_node_pk_LLC, net_node_pk_data, net_node_pk_crypt, net_node_pk_weak, net_node_pk_total,
+    net_node_pk_LLC, net_node_pk_data, net_node_pk_crypt, net_node_pk_weak, net_node_pk_total, net_node_pk_dupeiv,
     net_node_gpsdata,
     net_node_gps_expired,
     net_node_gps_min_lat, net_node_gps_max_lat, net_node_gps_min_lon, net_node_gps_max_lon,
@@ -213,6 +213,12 @@ int NetXmlStr2Struct(wireless_network *in_net) {
     if (sscanf(xmlstrnodes[net_node_pk_weak].c_str(), "%d", &in_net->interesting_packets) < 1) {
         fprintf(stderr, "WARNING:  Illegal weak packet count '%s', skipping rest of network.\n",
                 xmlstrnodes[net_node_pk_weak].c_str());
+        return -1;
+    }
+
+    if (sscanf(xmlstrnodes[net_node_pk_dupeiv].c_str(), "%d", &in_net->dupeiv_packets) < 1) {
+        fprintf(stderr, "WARNING:  Illegal dupeiv packet count '%s', skipping rest of network.\n",
+                xmlstrnodes[net_node_pk_dupeiv].c_str());
         return -1;
     }
 
@@ -500,6 +506,8 @@ static void xpat_net_start(void *data, const char *el, const char **attr) {
             netnode = net_node_pk_weak;
         } else if (strcasecmp(el, "total") == 0) {
             netnode = net_node_pk_total;
+        } else if (strcasecmp(el, "dupeiv") == 0) {
+            netnode = net_node_pk_dupeiv;
         } else {
             fprintf(stderr, "WARNING: Illegal tag '%s' in packets\n", el);
         }

@@ -603,9 +603,15 @@ void GetPacketInfo(kis_packet *packet, packet_info *ret_packinfo,
             else
                 ret_packinfo->datasize = 0;
 
-            // De-wep if we have any keys
-            if (ret_packinfo->encrypted && bssid_wep_map->size() != 0)
-                DecryptPacket(packet, ret_packinfo, bssid_wep_map, identity);
+            if (ret_packinfo->encrypted) {
+                // De-wep if we have any keys
+                if (bssid_wep_map->size() != 0)
+                    DecryptPacket(packet, ret_packinfo, bssid_wep_map, identity);
+
+                // Record the IV in the info
+                memcpy(&ret_packinfo->ivset, 
+                       &packet->data[ret_packinfo->header_offset], 4);
+            }
 
         }
 
