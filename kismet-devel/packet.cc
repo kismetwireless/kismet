@@ -93,13 +93,13 @@ int GetTagOffset(int init_offset, int tagnum, const pkthdr *header, const u_char
     return cur_offset;
 }
 
-static int numpack = 0;
+// static int numpack = 0;
 
 // Get the info from a packet
 packet_info GetPacketInfo(const pkthdr *header, const u_char *data, packet_parm *parm) {
     packet_info ret;
 
-    numpack++;
+    //numpack++;
 
     // Zero the entire struct
     memset(&ret, 0, sizeof(packet_info));
@@ -119,24 +119,33 @@ packet_info GetPacketInfo(const pkthdr *header, const u_char *data, packet_parm 
     ret.type = packet_unknown;
     ret.distrib = no_distribution;
 
-    // If we don't even have enough to make up an 802.11 header, bail
-    // as a garbage packet
-    if (header->len < 2) {
-        ret.type = packet_noise;
-        return ret;
-    }
-
-    // Point the frame control at the beginnng of the data
-    frame_control *fc = (frame_control *) data;
-
-    int tag_offset = 0;
-
     // Raw test to see if it's just noise
     if (msgbuf[0] == 0xff && msgbuf[1] == 0xff && msgbuf[2] == 0xff) {
         ret.type = packet_noise;
         return ret;
-    } else if (fc->type == 0) {
-        if (fc->subtype == 8) {
+    }
+
+    // If we don't even have enough to make up an 802.11 frame, bail
+    // as a garbage packet
+    if (header->len < 24) {
+        ret.type = packet_noise;
+        return ret;
+    }
+
+    // Point the packet frame at the beginning of the data
+    wireless_frame *frame = (wireless_frame *) data;
+
+    // Fill in packet sequence and frag info
+    ret.sequence_number = frame->sequence;
+    ret.frag_number = frame->frag;
+
+    int tag_offset = 0;
+
+    if (frame->fc.type == 0) {
+        // First byte of offsets
+        ret.header_offset = 24;
+
+        if (frame->fc.subtype == 8) {
             // beacon frame
 
             // If we look like a beacon but we aren't long enough to hold
@@ -198,12 +207,9 @@ packet_info GetPacketInfo(const pkthdr *header, const u_char *data, packet_parm 
 
 
             // Extract the MAC's
-            // Get the dest mac -- offset 4
-            memcpy(ret.dest_mac, (const char *) &msgbuf[4], MAC_LEN);
-            // Get the source mac -- offset 10
-            memcpy(ret.source_mac, (const char *) &msgbuf[10], MAC_LEN);
-            // Get the BSSID mac -- offset 16
-            memcpy(ret.bssid_mac, (const char *) &msgbuf[16], MAC_LEN);
+            memcpy(ret.dest_mac, frame->addr0, MAC_LEN);
+            memcpy(ret.source_mac, frame->addr1, MAC_LEN);
+            memcpy(ret.bssid_mac, frame->addr2, MAC_LEN);
 
             ret.type = packet_beacon;
 
@@ -213,17 +219,16 @@ packet_info GetPacketInfo(const pkthdr *header, const u_char *data, packet_parm 
                 ret.type = packet_adhoc;
             }
 
-            // First byte of offsets
-            ret.header_offset = 24;
-
-        } else if (fc->subtype == 4) {
+        } else if (frame->fc.subtype == 4) {
             // Probe req
 
             // Bail if we aren't long enough
+            /* We wouldn't haven gotten this far if we weren't long enough
             if (header->len < 24) {
                 ret.type = packet_noise;
                 return ret;
-            }
+                }
+                */
 
             if ((tag_offset = GetTagOffset(24, 0, header, data)) > 0) {
                 temp = (msgbuf[tag_offset] & 0xFF) + 1;
@@ -237,15 +242,14 @@ packet_info GetPacketInfo(const pkthdr *header, const u_char *data, packet_parm 
                 }
             }
 
-            memcpy(ret.source_mac, (const char *) &msgbuf[10], MAC_LEN);
-            memcpy(ret.bssid_mac, (const char *) &msgbuf[10], MAC_LEN);
+            memcpy(ret.source_mac, frame->addr1, MAC_LEN);
+            memcpy(ret.bssid_mac, frame->addr1, MAC_LEN);
 
             ret.type = packet_probe_req;
 
-            ret.header_offset = 24;
-
-        } else if (fc->subtype == 5) {
+        } else if (frame->fc.subtype == 5) {
             ret.type = packet_probe_response;
+
             if ((tag_offset = GetTagOffset(36, 0, header, data)) > 0) {
                 temp = (msgbuf[tag_offset] & 0xFF) + 1;
 
@@ -257,14 +261,15 @@ packet_info GetPacketInfo(const pkthdr *header, const u_char *data, packet_parm 
                 }
             }
 
-            memcpy(ret.dest_mac, (const char *) &msgbuf[4], MAC_LEN);
-            memcpy(ret.source_mac, (const char *) &msgbuf[10], MAC_LEN);
-            memcpy(ret.bssid_mac, (const char *) &msgbuf[16], MAC_LEN);
+            memcpy(ret.dest_mac, frame->addr0, MAC_LEN);
+            memcpy(ret.source_mac, frame->addr1, MAC_LEN);
+            memcpy(ret.bssid_mac, frame->addr2, MAC_LEN);
 
             // First byte of offsets
             ret.header_offset = 24;
-        } else if (fc->subtype == 4) {
+        } else if (frame->fc.subtype == 4) {
             ret.type = packet_reassociation;
+
             if ((tag_offset = GetTagOffset(36, 0, header, data)) > 0) {
                 temp = (msgbuf[tag_offset] & 0xFF) + 1;
 
@@ -276,31 +281,44 @@ packet_info GetPacketInfo(const pkthdr *header, const u_char *data, packet_parm 
                 }
             }
 
-            memcpy(ret.dest_mac, (const char *) &msgbuf[4], MAC_LEN);
-            memcpy(ret.source_mac, (const char *) &msgbuf[10], MAC_LEN);
-            memcpy(ret.bssid_mac, (const char *) &msgbuf[16], MAC_LEN);
+            memcpy(ret.dest_mac, frame->addr0, MAC_LEN);
+            memcpy(ret.source_mac, frame->addr1, MAC_LEN);
+            memcpy(ret.bssid_mac, frame->addr2, MAC_LEN);
 
-            ret.header_offset = 24;
+        } else if (frame->fc.subtype == 12) {
+            // deauth
+            ret.type = packet_deauth;
+
+            memcpy(ret.dest_mac, frame->addr0, MAC_LEN);
+            memcpy(ret.source_mac, frame->addr1, MAC_LEN);
+            memcpy(ret.bssid_mac, frame->addr2, MAC_LEN);
+
+            uint16_t rcode;
+            memcpy(&rcode, (const char *) &msgbuf[24], 2);
+
+            ret.reason_code = 0;
         }
-    } else if (fc->type == 2) {
+    } else if (frame->fc.type == 2) {
         // Data packets
 
         // Bail if not long enough
+        /* Again, we can't get here now
         if (header->len < 24) {
             ret.type = packet_noise;
             return ret;
-        }
+            }
+            */
 
         ret.type = packet_data;
 
         // Extract ID's
-        if (fc->to_ds == 0 && fc->from_ds == 0) {
+        if (frame->fc.to_ds == 0 && frame->fc.from_ds == 0) {
             // Adhoc's get specially typed and their BSSID is set to
             // their source (I can't think of anything more reasonable
             // to do with them)
-            memcpy(ret.dest_mac, (const char *) &msgbuf[4], MAC_LEN);
-            memcpy(ret.source_mac, (const char *) &msgbuf[10], MAC_LEN);
-            memcpy(ret.bssid_mac, (const char *) &msgbuf[10], MAC_LEN);
+            memcpy(ret.dest_mac, frame->addr0, MAC_LEN);
+            memcpy(ret.source_mac, frame->addr1, MAC_LEN);
+            memcpy(ret.bssid_mac, frame->addr1, MAC_LEN);
 
             // No distribution flags
 
@@ -308,34 +326,34 @@ packet_info GetPacketInfo(const pkthdr *header, const u_char *data, packet_parm 
             ret.header_offset = 24;
 
             ret.type = packet_adhoc_data;
-        } else if (fc->to_ds == 0 && fc->from_ds == 1) {
-            memcpy(ret.dest_mac, (const char *) &msgbuf[4], MAC_LEN);
-            memcpy(ret.bssid_mac, (const char *) &msgbuf[10], MAC_LEN);
-            memcpy(ret.source_mac, (const char *) &msgbuf[16], MAC_LEN);
+        } else if (frame->fc.to_ds == 0 && frame->fc.from_ds == 1) {
+            memcpy(ret.dest_mac, frame->addr0, MAC_LEN);
+            memcpy(ret.bssid_mac, frame->addr1, MAC_LEN);
+            memcpy(ret.source_mac, frame->addr2, MAC_LEN);
 
             ret.distrib = from_distribution;
 
             // First byte of offsets
             ret.header_offset = 24;
 
-        } else if (fc->to_ds == 1 && fc->from_ds == 0) {
-            memcpy(ret.bssid_mac, (const char *) &msgbuf[4], MAC_LEN);
-            memcpy(ret.source_mac, (const char *) &msgbuf[10], MAC_LEN);
-            memcpy(ret.dest_mac, (const char *) &msgbuf[16], MAC_LEN);
+        } else if (frame->fc.to_ds == 1 && frame->fc.from_ds == 0) {
+            memcpy(ret.bssid_mac, frame->addr0, MAC_LEN);
+            memcpy(ret.source_mac, frame->addr1, MAC_LEN);
+            memcpy(ret.dest_mac, frame->addr2, MAC_LEN);
 
             ret.distrib = to_distribution;
 
             // First byte of offsets
             ret.header_offset = 24;
 
-        } else if (fc->to_ds == 1 && fc->from_ds == 1) {
+        } else if (frame->fc.to_ds == 1 && frame->fc.from_ds == 1) {
             // AP->AP
             // Source is a special offset to the source
             // Dest is the reciever address
 
-            memcpy(ret.bssid_mac, (const char *) &msgbuf[10], MAC_LEN);
-            memcpy(ret.source_mac, (const char *) &msgbuf[24], MAC_LEN);
-            memcpy(ret.dest_mac, (const char *) &msgbuf[4], MAC_LEN);
+            memcpy(ret.bssid_mac, frame->addr1, MAC_LEN);
+            memcpy(ret.source_mac, frame->addr3, MAC_LEN);
+            memcpy(ret.dest_mac, frame->addr0, MAC_LEN);
 
             ret.distrib = inter_distribution;
 
@@ -346,7 +364,7 @@ packet_info GetPacketInfo(const pkthdr *header, const u_char *data, packet_parm 
         }
 
         // Detect encrypted frames
-        if (fc->wep) {
+        if (frame->fc.wep) {
             ret.encrypted = 1;
 
             // Match the range of cryptographically weak packets and let us
