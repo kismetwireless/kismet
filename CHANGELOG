@@ -1,3 +1,6 @@
+Jan 09 2005  devel  Minor tweak to signal/noise handlers to report the signal
+                     level if noise is equal to 0.  (This fixes behavior on
+                     madwifi drivers that report a signal and no noise)
 Jan 03 2005  devel  Merged documentation spelling patch from Andreas Mohr
 Jan 01 2005  devel  Merged gpsmap patch from Daniel Dorau to fix gpsmap alpha
                      blending on imagemagick 6.x, label positioning bugs, and a

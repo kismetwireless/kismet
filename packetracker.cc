@@ -420,7 +420,7 @@ void Packetracker::ProcessPacket(packet_info info) {
     if (info.source_mac == net->bssid)
         net->last_sequence = info.sequence_number;
 
-    if (info.noise != 0 && info.signal != 0) {
+    if (info.noise != 0 || info.signal != 0) {
         net->signal = info.signal;
 
         if (info.signal > net->best_signal) {
