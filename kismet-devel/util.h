@@ -36,6 +36,13 @@
 #include <pwd.h>
 #include <ctype.h>
 
+#ifdef HAVE_LINUX_WIRELESS
+#include <math.h>
+#include <sys/ioctl.h>
+#include <sys/socket.h>
+#include <linux/wireless.h>
+#endif
+
 #include <string>
 #include <map>
 #include <vector>
@@ -54,6 +61,12 @@ vector<string> StrTokenize(string in_str, string in_split);
 
 void Float2Pair(float in_float, int16_t *primary, int64_t *mantissa);
 float Pair2Float(int16_t primary, int64_t mantissa);
+
+#ifdef HAVE_LINUX_WIRELESS
+float IWFreq2Float(iwreq *inreq);
+#endif
+
+int FloatChan2Int(float in_chan);
 
 class KisRingBuffer {
 public:

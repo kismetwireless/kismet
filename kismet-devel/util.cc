@@ -157,6 +157,17 @@ float Pair2Float(int16_t primary, int64_t mantissa) {
     return (double) primary + ((double) mantissa / 1000000);
 }
 
+#ifdef HAVE_LINUX_WIRELESS
+// Also cribbed from wireless tools
+float IWFreq2Float(iwreq *inreq) {
+    return ((float) inreq->u.freq.m) * pow(10,inreq->u.freq.e);
+}
+#endif
+
+int FloatChan2Int(float in_chan) {
+    return 0;
+}
+
 KisRingBuffer::KisRingBuffer(int in_size) {
     ring_len = in_size;
     ring_data = new uint8_t[in_size];
