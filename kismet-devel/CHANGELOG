@@ -1,5 +1,6 @@
 Sep 21 2002  2.5.2  Tweaked manuf matching code to not find cloaked/wep'd 
                      networks as defaults.
+                    Updated makefile and spec file for manuf tag files
 Sep 20 2002  2.5.2  Revamped host fingerprinting to use the database from
                      unbolted.net
                     Updated gpsmap to bail when no drawing methods are
