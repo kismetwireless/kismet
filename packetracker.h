@@ -73,10 +73,10 @@ public:
     // Get all the networks
     vector<wireless_network *> FetchNetworks();
 
-    int WriteNetworks(FILE *in_file);
-    int WriteCSVNetworks(FILE *in_file);
-    int WriteXMLNetworks(FILE *in_file);
-    int WriteCisco(FILE *in_file);
+    int WriteNetworks(string in_fname);
+    int WriteCSVNetworks(string in_fname);
+    int WriteXMLNetworks(string in_fname);
+    int WriteCisco(string in_fname);
 
     int WriteGpsdriveWaypt(FILE *in_file);
 
