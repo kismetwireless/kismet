@@ -85,6 +85,7 @@ char *KismetHelpText[] = {
     "  U#   Address range of # octets found via UDP traffic",
     "  A#   Address range of # octets found via ARP traffic",
     "  D    Address range found via observed DHCP traffic",
+    "  W    WEPed network decrypted with user-supplied key",
     "",
     "SELECTING NETWORKS:",
     "The default sorting method is Autofit.  This fits as many currently active",

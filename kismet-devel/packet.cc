@@ -1070,6 +1070,7 @@ vector<string> GetPacketStrings(const packet_info *in_info, const kis_packet *pa
 // This is an amalgamation of ethereal, wlan-ng, and others
 void DecryptPacket(kis_packet *packet, packet_info *in_info, 
                    map<mac_addr, wep_key_info *> *bssid_wep_map, unsigned char *identity) {
+
     // Bail if we don't have enough for the iv+any real data
     if ((int) packet->len - in_info->header_offset <= 8)
         return;

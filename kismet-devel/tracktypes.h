@@ -128,6 +128,8 @@ typedef struct wireless_client {
         encoding_set = 0;
 
         last_sequence = 0;
+
+        decrypted = 0;
     }
 
     client_type type;
@@ -190,6 +192,9 @@ typedef struct wireless_client {
 
     int last_sequence;
 
+    // Did we decrypt this client?
+    int decrypted;
+
 };
 
 // A network
@@ -249,6 +254,8 @@ typedef struct wireless_network {
         turbocell_mode = turbocell_unknown;
 
         last_sequence = 0;
+
+        decrypted = 0;
 
     }
 
@@ -351,6 +358,9 @@ typedef struct wireless_network {
     turbocell_type turbocell_mode;
     int turbocell_sat;
     string turbocell_name;
+
+    // Did we decrypt this network?
+    int decrypted;
 
 };
 

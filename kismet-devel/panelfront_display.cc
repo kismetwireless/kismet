@@ -177,7 +177,7 @@ void PanelFront::NetLine(kis_window *in_window, string *in_str, wireless_network
                      atype,
                      (net->ipdata.atype > address_factory && net->ipdata.octets != 0) ? net->ipdata.octets + '0' : ' ',
                      net->cisco_equip.size() > 0 ? 'C' : ' ',
-                     ' ');
+                     net->decrypted ? 'W' : ' ');
             len = 5;
         } else if (colindex == mcol_ip) {
             if (net->ipdata.atype == address_none) {
@@ -1616,7 +1616,12 @@ int PanelFront::DetailsPrinter(void *in_window) {
         kwin->text.push_back(output);
         snprintf(output, print_width, "WEP     : %s", dnet->wep ? "Yes" : "No");
         kwin->text.push_back(output);
-    
+
+        if (dnet->wep) {
+            snprintf(output, print_width, "Decryptd: %s", dnet->decrypted ? "Yes" : "No");
+            kwin->text.push_back(output);
+        }
+
         snprintf(output, print_width, "Beacon  : %d (%f sec)", dnet->beacon,
                  (float) dnet->beacon * 1024 / 1000000);
         kwin->text.push_back(output);
@@ -2819,6 +2824,12 @@ int PanelFront::DetailsClientPrinter(void *in_window) {
     kwin->text.push_back(output);
     snprintf(output, print_width, "WEP     : %s", details_client->wep ? "Yes" : "No");
     kwin->text.push_back(output);
+
+    if (details_client->wep) {
+        snprintf(output, print_width, "Decryptd: %s", details_client->decrypted ? "Yes" : "No");
+        kwin->text.push_back(output);
+    }
+
     snprintf(output, print_width, "IP      : %d.%d.%d.%d",
              details_client->ipdata.ip[0], details_client->ipdata.ip[1],
              details_client->ipdata.ip[2], details_client->ipdata.ip[3]);

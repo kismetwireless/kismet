@@ -30,7 +30,6 @@ In no particular order:
 	do something smarter with RSSI signal levels from AVS headers
 	do something smarter in expat.cc with carriers, encodings, etc
 	AP uptime extraction
-	denote networks with keys in UI
 	strong authentication/SSL of client/server server/drone
 	acpi/apm reporting via server protocol
 	revamp manuf matching to use mac masking
