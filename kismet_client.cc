@@ -179,7 +179,7 @@ void SoundHandler(int *fds, const char *player, map<string, string> soundmap) {
             // Only take the first line
             char *nl;
             if ((nl = strchr(data, '\n')) != NULL)
-                nl = '\0';
+                *nl = '\0';
 
             char snd[1024];
 
@@ -269,7 +269,7 @@ void SpeechHandler(int *fds, const char *player) {
                 // Only take the first line
                 char *nl;
                 if ((nl = strchr(data, '\n')) != NULL)
-                    nl = '\0';
+                    *nl = '\0';
 
                 // Make sure it's shell-clean
                 MungeToShell(data, strlen(data));
@@ -307,7 +307,6 @@ int PlaySound(string in_sound) {
 }
 
 int SayText(string in_text) {
-
     char snd[1024];
 
     snprintf(snd, 1024, "%s\n", in_text.c_str());
@@ -791,6 +790,7 @@ int main(int argc, char *argv[]) {
 
     vector<TcpClient *> client_list;
     TcpClient *primary_client;
+    wireless_network *lastspoken = NULL;
 
     while (1) {
         fd_set rset;
@@ -885,15 +885,15 @@ int main(int argc, char *argv[]) {
                             }
                         }
 
-                        if (tcpcli->FetchDeltaNumNetworks() != 0) {
-                            if (sound == 1) {
+                        if (tcpcli->FetchDeltaNumNetworks() > 0) {
+                            wireless_network *newnet = tcpcli->FetchLastNewNetwork();
+
+                            if (sound == 1 && newnet != lastspoken) {
                                 sound = PlaySound("new");
                             }
 
-                            if (speech == 1) {
+                            if (speech == 1 && newnet != lastspoken) {
                                 string text;
-
-                                wireless_network *newnet = tcpcli->FetchLastNewNetwork();
 
                                 if (newnet != NULL) {
                                     if (newnet->wep)
@@ -904,6 +904,8 @@ int main(int argc, char *argv[]) {
                                     speech = SayText(text.c_str());
                                 }
                             }
+
+                            lastspoken = newnet;
                         }
 
                         num_networks += tcpcli->FetchNumNetworks();

@@ -341,7 +341,7 @@ void SoundHandler(int *fds, const char *player, map<string, string> soundmap) {
             // Only take the first line
             char *nl;
             if ((nl = strchr(data, '\n')) != NULL)
-                nl = '\0';
+                *nl = '\0';
 
             // Make sure it's shell-clean
 
@@ -433,7 +433,7 @@ void SpeechHandler(int *fds, const char *player) {
                 // Only take the first line
                 char *nl;
                 if ((nl = strchr(data, '\n')) != NULL)
-                    nl = '\0';
+                    *nl = '\0';
 
                 // Make sure it's shell-clean
                 MungeToShell(data, strlen(data));
