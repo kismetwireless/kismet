@@ -41,6 +41,8 @@ TcpClient::TcpClient() {
     memset(status, 0, STATUS_MAX);
     memset(channel_graph, 0, sizeof(channel_power) * CHANNEL_MAX);
 
+    last_new_network = 0;
+
 }
 
 TcpClient::~TcpClient() {
@@ -279,6 +281,7 @@ int TcpClient::ParseData(char *in_data) {
             net->bssid = bssid;
             net_map[bssid] = net;
             net_map_vec.push_back(net);
+            last_new_network = net;
         }
 
         scanned = sscanf(in_data+hdrlen+18, "%d \001%255[^\001]\001 \001%255[^\001]\001 "

@@ -6,6 +6,8 @@ Sep 25 2002  2.5.2  More documentation updates
                     Updated zaurus configs for 2.6 release
                     Redid packet dissection to split the frame_control from the
                      wireless_frame (Fixes ARM decoding problem)
+                    Fixed speech in the frontend selecting the wrong network
+                     to announce.
 Sep 24 2002  2.5.2  Tweaked network storing to not track ssids for probe, etc
                      networks.
                     Rolled cougar's patch for gpsmap tracks into gpsmap
