@@ -411,7 +411,10 @@ int PanelFront::DrawDisplay() {
             wattrset(kwin->win, color_map["border"].pair);
         //box(kwin->win, '|', '-');
 
-        box(kwin->win, ACS_VLINE, ACS_HLINE);
+        if (prefs["simpleborders"] == "true")
+            box(kwin->win, '|', '-');
+        else
+            box(kwin->win, ACS_VLINE, ACS_HLINE);
 
         if (color) {
             wattron(kwin->win, color_map["text"].pair);
