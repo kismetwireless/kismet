@@ -210,8 +210,8 @@ int DroneSource::Drone2Common(kis_packet *packet) {
 
     packet->len = (uint32_t) ntohl(phdr.len);
     packet->caplen = (uint32_t) ntohl(phdr.caplen);
-    packet->ts.tv_sec = (uint64_t) ntoh64(phdr.tv_sec);
-    packet->ts.tv_usec = (uint64_t) ntoh64(phdr.tv_usec);
+    packet->ts.tv_sec = (uint64_t) kis_ntoh64(phdr.tv_sec);
+    packet->ts.tv_usec = (uint64_t) kis_ntoh64(phdr.tv_usec);
     packet->quality = (uint16_t) ntohs(phdr.quality);
     packet->signal = (uint16_t) ntohs(phdr.signal);
     packet->noise = (uint16_t) ntohs(phdr.noise);

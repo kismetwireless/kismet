@@ -68,15 +68,14 @@ extern "C" {
 
 // 64 bit ntoh/hton
 #ifdef WORDS_BIGENDIAN
-#define hton64(x) (x)
-#define ntoh64(x) (x)
+#define kis_hton64(x) (x)
+#define kis_ntoh64(x) (x)
 #else
-#define hton64(x) swap64((x))
-#define ntoh64(x) swap64((x))
+#define kis_hton64(x) kis_swap64((x))
+#define kis_ntoh64(x) kis_swap64((x))
 #endif
 
-#ifndef swap64
-#define swap64(x) \
+#define kis_swap64(x) \
 ({ \
     uint64_t __x = (x); \
     ((uint64_t)( \
@@ -89,7 +88,6 @@ extern "C" {
         (uint64_t)(((uint64_t)(__x) & (uint64_t)0x00ff000000000000ULL) >> 40) | \
         (uint64_t)(((uint64_t)(__x) & (uint64_t)0xff00000000000000ULL) >> 56) )); \
 })
-#endif
 
 // Cribbed from ethereal, pointer to host endian swap
 #define kptoh16(p) (uint16_t) ((uint16_t) * ((uint8_t *)(p) + 0) << 8 | \
