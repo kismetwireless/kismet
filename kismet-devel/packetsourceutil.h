@@ -62,6 +62,8 @@ typedef struct capturesource {
     int ch_pos;
     int ch_hop;
     list<capchild_packhdr *> cmd_buf;
+    GPSD *gps;
+    int gps_enable;
 };
 
 map<string, int> ParseEnableLine(string in_named);
@@ -86,6 +88,7 @@ int ParseSetChannels(vector<string> *in_sourcechanlines, vector<capturesource *>
 #define CAPCMD_DIE      -5   // Close the source and die
 #define CAPCMD_PAUSE    -6   // Pause
 #define CAPCMD_RESUME   -7   // Resume
+#define CAPCMD_GPSENABLE -8  // Enable gps
 
 // Sentinel for starting a new packet
 #define CAPSENTINEL      0xDECAFBAD
