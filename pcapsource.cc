@@ -69,6 +69,10 @@ int PcapSource::OpenSource(const char *dev, card_type ctype) {
     if (datalink_type == DLT_EN10MB) {
         snprintf(type, 64, "libpcap device %s [ BSD EN10MB HACK ]", dev);
         fprintf(stderr, "WARNING:  pcap reports link type of EN10MB but we'll fake it on BSD.\n");
+#ifdef SYS_FREEBSD
+        fprintf(stderr, "WARNING:  FreeBSD is known to have SEVERE compatability problems.  We'll keep running,\n"
+                "but this will NOT work correctly.  This is a FreeBSD driver issue.\n");
+#endif
         datalink_type = KDLT_BSD802_11;
     }
 #else
@@ -310,17 +314,13 @@ int PcapSource::Pcap2Common(kis_packet *packet, uint8_t *data, uint8_t *moddata)
     if (cardtype == card_cisco_bsd && (callback_offset + packet->caplen) > 26) {
         // The cisco BSD drivers seem to insert 2 bytes of crap
 
-        packet->len -= 2;
-        packet->caplen -= 2;
-
         memcpy(packet->data, callback_data + callback_offset, 24);
         memcpy(packet->data + 24, callback_data + callback_offset + 26, packet->caplen - 26);
 
-    } else if (cardtype == card_prism2_bsd && (callback_offset + packet->caplen) > 68) {
-        // skip driver appended prism header
-        packet->len -= 14;
-        packet->caplen -= 14;
+        packet->len -= 2;
+        packet->caplen -= 2;
 
+    } else if (cardtype == card_prism2_bsd && (callback_offset + packet->caplen) > 68) {
         // 802.11 header
         memcpy(packet->data, callback_data + callback_offset, 24);
 
@@ -334,6 +334,10 @@ int PcapSource::Pcap2Common(kis_packet *packet, uint8_t *data, uint8_t *moddata)
 
             memcpy(packet->data + 24, callback_data + callback_offset + 46, packet->caplen - 60);
         }
+
+        // skip driver appended prism header
+        packet->len -= 14;
+        packet->caplen -= 14;
 
     } else {
         // Otherwise we don't do anything or we don't have enough of a packet to do anything
