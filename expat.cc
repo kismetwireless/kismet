@@ -835,6 +835,10 @@ static void xpat_gps_start(void *data, const char *el, const char **attr) {
                     if (sscanf(attr[i+1], "%s", building_point->bssid) < 1)
                         fprintf(stderr, "WARNING:  Illegal value '%s' on gps-point bssid\n",
                                 attr[i+1]);
+                } else if (strcasecmp(attr[i], "source") == 0) {
+                    if (sscanf(attr[i+1], "%s", building_point->source) < 1)
+                        fprintf(stderr, "WARNING:  Illegal value '%s' on gps-point source\n",
+                                attr[i+1]);
                 } else if (strcasecmp(attr[i], "time-sec") == 0) {
                     if (sscanf(attr[i+1], "%ld", &building_point->tv_sec) < 1)
                         fprintf(stderr, "WARNING:  Illegal value '%s' on gps-point time-sec\n",

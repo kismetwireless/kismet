@@ -36,7 +36,7 @@ int GPSDump::OpenDump(const char *in_fname, const char *in_netfname) {
     fname = in_fname;
 
     // Write the XML headers
-    fprintf(gpsf, "<?xml version=\"1.0\" encoding=\"ISO-8859-1\"?>\n<!DOCTYPE gps-run SYSTEM \"http://kismetwireless.net/kismet-gps-1.0.dtd\">\n\n");
+    fprintf(gpsf, "<?xml version=\"1.0\" encoding=\"ISO-8859-1\"?>\n<!DOCTYPE gps-run SYSTEM \"http://kismetwireless.net/kismet-gps-2.9.1.dtd\">\n\n");
 
     // Write the start of the run
     time_t cur_time = time(0);
@@ -101,10 +101,11 @@ int GPSDump::DumpPacket(packet_info *in_packinfo) {
                 lat, lon, alt, spd, fix,
                 sig, qual, noise);
     } else {
-        fprintf(gpsf, "    <gps-point bssid=\"%s\" time-sec=\"%ld\" time-usec=\"%ld\" "
+        fprintf(gpsf, "    <gps-point bssid=\"%s\" source=\"%s\" time-sec=\"%ld\" time-usec=\"%ld\" "
                 "lat=\"%f\" lon=\"%f\" alt=\"%f\" spd=\"%f\" fix=\"%d\" "
                 "signal=\"%d\" quality=\"%d\" noise=\"%d\"/>\n",
                 in_packinfo->bssid_mac.Mac2String().c_str(),
+                in_packinfo->source_mac.Mac2String().c_str(),
                 (long int) ts.tv_sec, (long int) ts.tv_usec,
                 lat, lon, alt, spd, fix,
                 in_packinfo->signal, in_packinfo->quality, in_packinfo->noise);
