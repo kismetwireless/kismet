@@ -72,6 +72,7 @@ int ParseCardLines(vector<string> *in_lines, vector<capturesource *> *in_sources
         newsource->childpid = 0;
         newsource->ch_pos = 0;
         newsource->ch_hop = 0;
+        newsource->cmd_ack = 1;
 
         in_sources->push_back(newsource);
     }
@@ -668,6 +669,16 @@ void CapSourceChild(capturesource *csrc) {
                 packet_buf.push_back(CapSourceText(txtbuf, CAPFLAG_NONE));
             }
 
+            // Acknowledge the command
+            capchild_packhdr *ackpak = new capchild_packhdr;
+
+            ackpak->sentinel = CAPSENTINEL;
+            ackpak->packtype = CAPPACK_CMDACK;
+            ackpak->flags = CAPFLAG_NONE;
+            ackpak->datalen = 1;
+            ackpak->data = (uint8_t *) malloc(1);
+            packet_buf.push_back(ackpak);
+
         }
 
     }
@@ -713,10 +724,14 @@ int SendChildCommand(capturesource *csrc, int in_cmd) {
 
     ret->data[0] = in_cmd;
 
-    if (in_cmd == CAPCMD_DIE)
+    if (in_cmd == CAPCMD_DIE) {
         csrc->cmd_buf.push_front(ret);
-    else
+        ret->flags = CAPFLAG_FATAL;
+    } else {
         csrc->cmd_buf.push_back(ret);
+    }
+
+    csrc->cmd_ack = 0;
 
     return 1;
 }
@@ -737,7 +752,7 @@ int FetchChildBlock(int in_fd, kis_packet *packet, uint8_t *data, uint8_t *modda
         return -1;
     }
 
-    if (pak.packtype != CAPPACK_PACKET && pak.packtype != CAPPACK_TEXT) {
+    if (pak.packtype != CAPPACK_PACKET && pak.packtype != CAPPACK_TEXT && pak.packtype != CAPPACK_CMDACK) {
         snprintf(status, STATUS_MAX, "FATAL: unknown IPC frame type %d", pak.packtype);
         return -1;
     }
