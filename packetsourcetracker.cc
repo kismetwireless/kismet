@@ -164,7 +164,7 @@ Packetsourcetracker::Packetsourcetracker(GlobalRegistry *in_globalreg) {
     RegisterPacketsource("ipw2100", 1, "IEEE80211b", 6,
                          pcapsource_wext_registrant,
                          monitor_ipw2100, unmonitor_ipw2100,
-                         chancontrol_wext, 1);
+                         chancontrol_ipw2100, 1);
 
 #else
     // Register the linuxwireless pcap stuff as null
