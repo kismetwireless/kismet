@@ -616,6 +616,8 @@ void Packetracker::ProcessDataPacket(packet_info info, wireless_network *net) {
         else if (info.distrib == no_distribution)
             client->type = client_interds;
 
+        KisLocalNewclient(client, net);
+
     } else {
         client = net->client_map[info.source_mac];
 
