@@ -184,14 +184,20 @@ int Packetsourcetracker::AdvanceChannel() {
         chanchild_changepacket *data = (chanchild_changepacket *) 
             malloc(sizeof(chanchild_changepacket));
 
+        if (data == NULL) {
+            snprintf(errstr, STATUS_MAX, "Could not allocate data struct for "
+                     "changing channels: %s", strerror(errno));
+            return -1;
+        }
+
         chancmd->sentinel = CHANSENTINEL;
         chancmd->packtype = CHANPACK_CHANNEL;
         chancmd->flags = CHANFLAG_NONE;
         chancmd->datalen = sizeof(chanchild_changepacket);
         chancmd->data = (uint8_t *) data;
 
-        data->meta_num = metac;
-        data->channel = meta->channels[meta->ch_pos++];
+        data->meta_num = (uint8_t) metac;
+        data->channel = (uint16_t) meta->channels[meta->ch_pos++];
 
         if (meta->ch_pos >= (int) meta->channels.size())
             meta->ch_pos = 0;
