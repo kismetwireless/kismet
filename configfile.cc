@@ -58,6 +58,20 @@ void MungeToShell(char *in_data, int max) {
     }
 }
 
+// Quick wrapper to save us time in other code
+string MungeToShell(string in_data) {
+    char *data = new char[in_data.length() + 1];
+    string ret;
+
+    snprintf(data, in_data.length() + 1, "%s", in_data.c_str());
+
+    MungeToShell(data, in_data.length() + 1);
+
+    ret = data;
+    delete[] data;
+    return ret;
+}
+
 string StrLower(string in_str) {
     string thestr = in_str;
     for (unsigned int i = 0; i < thestr.length(); i++)
