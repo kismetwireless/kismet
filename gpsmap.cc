@@ -458,6 +458,18 @@ void SanitizeSamplePoints(vector<gps_point *> in_samples, map<int,int> *dead_sam
     vector<gps_point *> lat_samples = in_samples;
     vector<gps_point *> lon_samples = in_samples;
 
+    // Clean up offset-valid (in broken, limited capture files) points
+    for (unsigned int pos = 0; pos < in_samples.size(); pos++) {
+        if ((in_samples[pos]->lat == 0 && in_samples[pos]->lon == 0) ||
+            (isnan(in_samples[pos]->lat) || isinf(in_samples[pos]->lat) ||
+             isnan(in_samples[pos]->lon) || isinf(in_samples[pos]->lon)))
+            (*dead_sample_ids)[in_samples[pos]->id] = 1;
+    }
+
+    // Bail out on small lists that we won't be able to get anything out of
+    if (in_samples.size() < 4)
+        return;
+
     // Sort the networks
     sort(lat_samples.begin(), lat_samples.end(), PointSortLat());
     sort(lon_samples.begin(), lon_samples.end(), PointSortLon());
@@ -553,14 +565,6 @@ void SanitizeSamplePoints(vector<gps_point *> in_samples, map<int,int> *dead_sam
             // printf("Discarding point lon violation %f,%f %d...\n", lon_samples[pos]->lon, lon_samples[pos]->lon, lon_samples[pos]->id);
             (*dead_sample_ids)[lon_samples[pos]->id] = 1;
         }
-    }
-
-    // Clean up offset-valid (in broken, limited capture files) points
-    for (unsigned int pos = 0; pos < in_samples.size(); pos++) {
-        if ((in_samples[pos]->lat == 0 && in_samples[pos]->lon == 0) ||
-            (isnan(in_samples[pos]->lat) || isinf(in_samples[pos]->lat) ||
-             isnan(in_samples[pos]->lon) || isinf(in_samples[pos]->lon)))
-            (*dead_sample_ids)[in_samples[pos]->id] = 1;
     }
 
 }

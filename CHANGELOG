@@ -1,3 +1,4 @@
+Nov 01 2003  3.1.0  Fixed segfault in gpsmap sample sanitizer
 Oct 31 2003  3.1.0  Fixed parsing of multiple sequential gpsxml files
                     Fixed multiple gpsmap quirks leading to bad plotting
 Oct 20 2003  3.1.0  Fixed double-allocation of imagemagick background records
