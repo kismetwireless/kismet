@@ -4,6 +4,7 @@ Dec 23 2002  2.7.1  Kismet is now 1 year old!
                      prune empty directories.
                     Updated README w/ new documentation, merged most of the docs/
                      directory into one file.
+                    More 2.8 docs updates
 Dec 22 2002  2.7.1  Fixed multiserver alert displays in panels frontend
                     Fixed adhoc network handling - it once again uses the 
                      actual advertised BSSID, but this may result in a creeping
