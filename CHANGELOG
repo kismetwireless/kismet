@@ -1,3 +1,5 @@
+Nov 04 2004  devel  Tweaked macaddr.h again to try to appease different gcc
+                     versions.
 Nov 01 2004  devel  Tweaked endian_magic and mac_addr - should compile
                      cleanly on non-linux systems and on gcc 2.95 now.
 Oct 25 2004 2004-10 Released 2004-10-R1.  Major changes include:

@@ -270,8 +270,6 @@ public:
     // This isn't quite like STL iterators, because I'm too damned lazy to deal with all
     // the nasty STL hoop-jumping.  This does provide a somewhat-stl-ish interface to
     // iterating through the singleton and masked maps
-    friend class iterator;
-
     class iterator {
         friend class macmap;
 
@@ -365,6 +363,8 @@ public:
         int vector_itr;
         macmap<T> *owner;
     };
+
+    friend class macmap<T>::iterator;
 
     iterator begin() {
         iterator ret(this);
