@@ -146,7 +146,7 @@ int ConfigFile::ParseConfig(const char *in_fname) {
                 continue;
             }
 
-            config_map[StrLower(directive)] = value;
+            config_map[StrLower(directive)].push_back(value);
         }
     }
 
@@ -156,17 +156,30 @@ int ConfigFile::ParseConfig(const char *in_fname) {
 }
 
 string ConfigFile::FetchOpt(string in_key) {
+    map<string, vector<string> >::iterator cmitr = config_map.find(StrLower(in_key));
     // No such key
-    if (config_map.find(StrLower(in_key)) == config_map.end())
+    if (cmitr == config_map.end())
         return "";
 
-    // Get key
-    string val = config_map[StrLower(in_key)];
-    // Catch single-element stuff "DisableWEP" or whatever
-    if (val == "")
-        val = "true";
+    // Get a single key if we can
+    if (cmitr->second.size() == 0)
+        return "";
+
+    string val = cmitr->second[0];
 
     return val;
+}
+
+vector<string> ConfigFile::FetchOptVec(string in_key) {
+    // Empty vec to return
+    vector<string> eretvec;
+
+    map<string, vector<string> >::iterator cmitr = config_map.find(StrLower(in_key));
+    // No such key
+    if (cmitr == config_map.end())
+        return eretvec;
+
+    return cmitr->second;
 }
 
 // Expand a logfile into a full filename
