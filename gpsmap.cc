@@ -215,7 +215,7 @@ typedef struct gps_network {
 map<mac_addr, wireless_network *> bssid_net_map;
 
 // All the networks we know about for drawing
-map<mac_addr, gps_network *> bssid_gpsnet_map;
+map<string, gps_network *> bssid_gpsnet_map;
 
 typedef struct {
     int version;
@@ -817,7 +817,7 @@ void ProcessNetData(int in_printstats) { /*FOLD00*/
 
     printf("Processing %d networks.\n", bssid_gpsnet_map.size());
 
-    for (map<mac_addr, gps_network *>::const_iterator x = bssid_gpsnet_map.begin();
+    for (map<string, gps_network *>::const_iterator x = bssid_gpsnet_map.begin();
          x != bssid_gpsnet_map.end(); ++x) {
 
         gps_network *map_iter = x->second;
@@ -908,7 +908,7 @@ void ProcessNetData(int in_printstats) { /*FOLD00*/
 void AssignNetColors() { /*FOLD00*/
     int base_color = 1;
 
-    for (map<mac_addr, gps_network *>::const_iterator x = bssid_gpsnet_map.begin();
+    for (map<string, gps_network *>::const_iterator x = bssid_gpsnet_map.begin();
          x != bssid_gpsnet_map.end(); ++x) {
 
         gps_network *map_iter = x->second;
@@ -1040,7 +1040,7 @@ void DrawNetTracks(Image *in_img, DrawInfo *in_di) { /*FOLD00*/
 }
 
 void DrawNetCircles(Image *in_img, DrawInfo *in_di) { /*FOLD00*/
-    for (map<mac_addr, gps_network *>::const_iterator x = bssid_gpsnet_map.begin();
+    for (map<string, gps_network *>::const_iterator x = bssid_gpsnet_map.begin();
          x != bssid_gpsnet_map.end(); ++x) {
 
         gps_network *map_iter = x->second;
@@ -1106,7 +1106,7 @@ double clockwize( int x0, int y0, int x1, int y1, int x2, int y2) { /*FOLD00*/
 }
 
 void DrawNetHull(Image *in_img, DrawInfo *in_di) { /*FOLD00*/
-    for (map<mac_addr, gps_network *>::const_iterator x = bssid_gpsnet_map.begin();
+    for (map<string, gps_network *>::const_iterator x = bssid_gpsnet_map.begin();
          x != bssid_gpsnet_map.end(); ++x) {
 
         gps_network *map_iter = x->second;
@@ -1234,7 +1234,7 @@ void DrawNetHull(Image *in_img, DrawInfo *in_di) { /*FOLD00*/
 }
 
 void DrawNetBoundRects(Image *in_img, DrawInfo *in_di, int in_fill) { /*FOLD00*/
-    for (map<mac_addr, gps_network *>::const_iterator x = bssid_gpsnet_map.begin();
+    for (map<string, gps_network *>::const_iterator x = bssid_gpsnet_map.begin();
          x != bssid_gpsnet_map.end(); ++x) {
 
         gps_network *map_iter = x->second;
@@ -1486,7 +1486,7 @@ void DrawNetPower(Image *in_img, DrawInfo *in_di, int in_res) { /*FOLD00*/
 }
 
 void DrawNetCenterDot(Image *in_img, DrawInfo *in_di, int in_dotsize) {
-    for (map<mac_addr, gps_network *>::const_iterator x = bssid_gpsnet_map.begin();
+    for (map<string, gps_network *>::const_iterator x = bssid_gpsnet_map.begin();
          x != bssid_gpsnet_map.end(); ++x) {
 
         gps_network *map_iter = x->second;
@@ -1533,7 +1533,7 @@ void DrawNetCenterDot(Image *in_img, DrawInfo *in_di, int in_dotsize) {
 }
 
 void DrawNetCenterText(Image *in_img, DrawInfo *in_di, int in_textmode) {
-    for (map<mac_addr, gps_network *>::const_iterator x = bssid_gpsnet_map.begin();
+    for (map<string, gps_network *>::const_iterator x = bssid_gpsnet_map.begin();
          x != bssid_gpsnet_map.end(); ++x) {
 
         gps_network *map_iter = x->second;
@@ -1579,7 +1579,7 @@ void DrawNetCenterText(Image *in_img, DrawInfo *in_di, int in_textmode) {
 
 
 void DrawNetScatterPlot(Image *in_img, DrawInfo *in_di, int in_dotsize) { /*FOLD00*/
-    for (map<mac_addr, gps_network *>::const_iterator x = bssid_gpsnet_map.begin();
+    for (map<string, gps_network *>::const_iterator x = bssid_gpsnet_map.begin();
          x != bssid_gpsnet_map.end(); ++x) {
 
         gps_network *map_iter = x->second;

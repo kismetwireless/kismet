@@ -207,7 +207,7 @@ protected:
 
     string NetLine(wireless_network *net, const char *name, int sub, int group, int expanded, int tagged);
 
-    void SetColumns(string in_columns);
+    void SetColumns(string in_columns, vector<string> *vec);
 
     void MuteToggle();
 
@@ -220,13 +220,16 @@ protected:
     sort_type sortby;
 
     vector<string> column_vec;
+    vector<string> client_column_vec;
 
     int quality, power, noise;
 
     int zoomed;
 
     display_network *details_network;
+    wireless_client *details_client;
     vector<display_network *> last_displayed;
+    vector<wireless_client *> last_client_displayed;
 
     int hsize, vsize;
 
@@ -249,6 +252,7 @@ protected:
 
     // Size of the group vec the last time we drew it
     int last_draw_size;
+    int last_client_draw_size;
 
     // Battery monitoring states
     unsigned int monitor_bat;

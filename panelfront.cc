@@ -350,21 +350,21 @@ void PanelFront::RescaleDisplay() {
     move_panel(stat_win->pan, LINES-statheight, 0);
 }
 
-void PanelFront::SetColumns(string in_columns) {
+void PanelFront::SetColumns(string in_columns, vector<string> *vec) {
     unsigned int begin = 0;
     unsigned int end = in_columns.find(",");
 
-    column_vec.clear();
+    vec->clear();
 
     while (end < in_columns.size()) {
         string opt = in_columns.substr(begin, end-begin);
         begin = end+1;
         end = in_columns.find(",", begin);
 
-        column_vec.push_back(opt);
+        vec->push_back(opt);
     }
 
-    column_vec.push_back(in_columns.substr(begin, in_columns.size()));
+    vec->push_back(in_columns.substr(begin, in_columns.size()));
 }
 
 int PanelFront::WriteStatus(string status) {
@@ -775,18 +775,19 @@ int PanelFront::Tick() {
 void PanelFront::AddPrefs(map<string, string> in_prefs) {
     prefs = in_prefs;
 
-    SetColumns(prefs["columns"]);
+    SetColumns(prefs["columns"], &column_vec);
+    SetColumns(prefs["clientcolumns"], &client_column_vec);
 
 #ifdef HAVE_ACPI
-	char buf[80];
-	FILE *info = fopen(prefs["acpiinfofile"].c_str(), "r");
-	bat_full_capacity = 3000; // Avoid div by zero by guessing, however unlikely to be right
-	if ( info != NULL ) {
-		while (fgets(buf, sizeof(buf), info) != NULL)
-			if (1 == sscanf(buf, "last full capacity:      %d mWh", &bat_full_capacity)) 
-				break;
-		fclose(info);
-	}
+    char buf[80];
+    FILE *info = fopen(prefs["acpiinfofile"].c_str(), "r");
+    bat_full_capacity = 3000; // Avoid div by zero by guessing, however unlikely to be right
+    if ( info != NULL ) {
+        while (fgets(buf, sizeof(buf), info) != NULL)
+            if (1 == sscanf(buf, "last full capacity:      %d mWh", &bat_full_capacity))
+                break;
+        fclose(info);
+    }
 #endif
     if (prefs["apm"] == "true")
         monitor_bat = 1;
