@@ -446,8 +446,9 @@ void SoundHandler(int *fds, const char *player, map<string, string> soundmap) {
             if ((sndpid = fork()) == 0) {
                 // Suppress errors
                 if (silent) {
-                    fclose(stdout);
-                    fclose(stderr);
+                    int nulfd = open("/dev/null", O_RDWR);
+                    dup2(nulfd, 1);
+                    dup2(nulfd, 2);
                 }
 
                 char * const echoarg[] = { plr, snd, NULL };
