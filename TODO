@@ -1,8 +1,5 @@
 In no particular order:
     GPSMap should use libcurl
-    Fix allocation on openbsd in panels client
-    Fix autoconf enable/disable stuff
-    Fix OSX compile without viha
 	reconnect to gpsd
 	first-seen-source
 	DCF/PCF
@@ -16,7 +13,6 @@ In no particular order:
 	fakeap detection
 	retry ratios
 	gpsmap client-link drawing (dot-line clusters)
-	gpsmap power filtering
 	gpsmap coloring/plotting by encoding, carrier, data rate
 	gpsmap legend drawing
 	gpsmap font picking
@@ -25,9 +21,7 @@ In no particular order:
 	UI channel hopping control
 	fix csv log
 	display filtering
-	map filtering
 	Multiple host= lines for kismet_client
-	multiserver grouping bugger-up
 	Alerts as forged packets in pipe
 	gps satellite plot in client
 	VPN detection
