@@ -193,12 +193,13 @@ int BindRootSources(vector<capturesource *> *in_capsources, map<string, int> *in
 
         // Open the packet source and assign the timetracker
         if (csrc->source != NULL) {
+            csrc->source->AddTimetracker(in_tracker);
+            csrc->source->AddGpstracker(in_gpsd);
+
             if (csrc->source->OpenSource(csrc->interface.c_str(), csrc->cardtype) < 0) {
                 fprintf(stderr, "FATAL: Source %d (%s): %s\n", src, csrc->name.c_str(), csrc->source->FetchError());
                 exit(1);
             }
-            csrc->source->AddTimetracker(in_tracker);
-            csrc->source->AddGpstracker(in_gpsd);
         }
     }
 
@@ -243,12 +244,13 @@ int BindUserSources(vector<capturesource *> *in_capsources, map<string, int> *in
 
             // Open the packet source and add the timer tracker
             if (csrc->source != NULL) {
+                csrc->source->AddTimetracker(in_tracker);
+                csrc->source->AddGpstracker(in_gpsd);
+
                 if (csrc->source->OpenSource(csrc->interface.c_str(), csrc->cardtype) < 0) {
                     fprintf(stderr, "FATAL: Source %d (%s): %s\n", src, csrc->name.c_str(), csrc->source->FetchError());
                     exit(1);
                 }
-                csrc->source->AddTimetracker(in_tracker);
-                csrc->source->AddGpstracker(in_gpsd);
             }
         }
     }
