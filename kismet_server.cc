@@ -30,11 +30,13 @@
 #include <vector>
 
 #include "packet.h"
+
 #include "packetsource.h"
 #include "prism2source.h"
 #include "pcapsource.h"
 #include "wtapfilesource.h"
 #include "wsp100source.h"
+#include "vihasource.h"
 
 #include "dumpfile.h"
 #include "wtapdump.h"
@@ -1102,6 +1104,8 @@ int main(int argc,char *argv[]) {
             csrc->cardtype = card_wsp100;
         else if (!strcasecmp(sctype, "wtapfile"))
             csrc->cardtype = card_wtapfile;
+        else if (!strcasecmp(sctype, "viha"))
+            csrc->cardtype = card_viha;
         else {
             fprintf(stderr, "FATAL:  Source %d (%s):  Unknown card type '%s'\n", src, csrc->name.c_str(), sctype);
             exit(1);
@@ -1162,6 +1166,16 @@ int main(int argc,char *argv[]) {
             csrc->source = new Wsp100Source;
 #else
             fprintf(stderr, "FATAL:  Source %d (%s): WSP100 support was not compiled in.\n", src, csrc->name.c_str());
+            exit(1);
+#endif
+        } else if (ctype == card_viha) {
+#ifdef HAVE_VIHAHEADERS
+            fprintf(stderr, "Source %d (%s): Using Viha to capture packets.\n",
+                    src, csrc->name.c_str());
+
+            csrc->source = new VihaSource;
+#else
+            fprintf(stderr, "FATAL:  Source %d (%s): Viha support was not compiled in.\n", src, csrc->name.c_str());
             exit(1);
 #endif
         } else {
