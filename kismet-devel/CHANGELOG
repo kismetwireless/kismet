@@ -1,3 +1,5 @@
+Sep 20 2002  2.5.2  Revamped host fingerprinting to use the database from
+                     unbolted.net
 Sep 17 2002  2.5.2  Merged/Modified patch from Andrew Etter for customized
                      festival speech.
                     Updated docs

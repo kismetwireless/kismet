@@ -263,6 +263,7 @@ int TcpClient::ParseData(char *in_data) {
 
         char ssid[256], beacon[256];
         short int range[4];
+        char manuf_str[18];
 
         float maxrate;
 
@@ -282,7 +283,7 @@ int TcpClient::ParseData(char *in_data) {
 
         scanned = sscanf(in_data+hdrlen+18, "%d \001%255[^\001]\001 \001%255[^\001]\001 "
                          "%d %d %d %d %d %d %d %d %d %hd.%hd.%hd.%hd "
-                         "%d %f %f %f %f %f %f %f %f %d %d %d %f %d %d %d %d %d %d %d %d %f %f %f "
+                         "%d %f %f %f %f %f %f %f %f %d %d %d %f %17s %d %d %d %d %d %d %d %f %f %f "
                          "%lf %lf %lf %ld",
                          (int *) &net->type, ssid, beacon,
                          &net->llc_packets, &net->data_packets, &net->crypt_packets, &net->interesting_packets,
@@ -292,7 +293,7 @@ int TcpClient::ParseData(char *in_data) {
                          &net->max_lat, &net->max_lon, &net->max_alt, &net->max_spd,
                          &net->ipdata.octets, &net->cloaked, &net->beacon,
                          &maxrate,
-                         &net->manuf_id, &net->manuf_score,
+                         manuf_str, &net->manuf_score,
                          &net->quality, &net->signal, &net->noise,
                          &net->best_quality, &net->best_signal, &net->best_noise,
                          &net->best_lat, &net->best_lon, &net->best_alt,
@@ -312,23 +313,25 @@ int TcpClient::ParseData(char *in_data) {
             net->ipdata.range_ip[x] = (uint8_t) range[x];
         }
 
+        net->manuf_key = manuf_str;
         net->maxrate = maxrate;
     } else if (!strncmp(header, "*CLIENT", 64)) {
         short int ip[4];
 
         char cmac_str[18];
+        char manuf_str[18];
 
         int scanned;
         float maxrate;
         wireless_client *client = new wireless_client;
 
-        scanned = sscanf(in_data+hdrlen, "%17s %17s %d %d %d %d %d %d %d %d %d "
+        scanned = sscanf(in_data+hdrlen, "%17s %17s %d %d %d %17s %d %d %d %d %d "
                          "%f %f %f %f %f %f %f %f %lf %lf "
                          "%lf %ld %f %d %d %d %d %d %d %d "
                          "%f %f %f %d %hd.%hd.%hd.%hd",
                          bssid_str, cmac_str, (int *) &client->type,
                          (int *) &client->first_time, (int *) &client->last_time,
-                         (int *) &client->manuf_id, &client->manuf_score,
+                         manuf_str, &client->manuf_score,
                          &client->data_packets, &client->crypt_packets,
                          &client->interesting_packets,
                          &client->gps_fixed, &client->min_lat, &client->min_lon,
@@ -348,6 +351,8 @@ int TcpClient::ParseData(char *in_data) {
         bssid = bssid_str;
         client->mac = cmac_str;
         client->maxrate = maxrate;
+
+        client->manuf_key = manuf_str;
 
         for (unsigned int x = 0; x < 4; x++)
             client->ipdata.ip[x] = ip[x];

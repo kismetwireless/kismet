@@ -86,6 +86,10 @@ public:
     void WriteIPMap(FILE *in_file);
     void ReadIPMap(FILE *in_file);
 
+    // Tell the tracker to load maps of the manufacturer info
+    void ReadAPManufMap(FILE *in_file);
+    void ReadClientManufMap(FILE *in_file);
+
     // Convert the MAC
     static string Mac2String(uint8_t *mac, char seperator);
     // Utility to find strings that are empty or contain all spaces
@@ -134,6 +138,11 @@ protected:
 
     // Map probe responses for clients so we know we need to merge
     map<mac_addr, mac_addr> probe_map;
+
+    // Manufacturer maps
+    map<mac_addr, manuf *> ap_manuf_map;
+    map<mac_addr, manuf *> client_manuf_map;
+
 };
 
 #endif

@@ -110,6 +110,9 @@ public:
     void ReadGroupMap(FILE *in_file);
     void WriteGroupMap(FILE *in_file);
 
+    void ReadAPManufMap(FILE *in_file);
+    void ReadClientManufMap(FILE *in_file);
+
     void RemoveGroup(mac_addr in_bssid);
 
 protected:
@@ -160,6 +163,9 @@ protected:
     map<mac_addr, display_network *> group_assignment_map;
 
     map<string, string> prefs;
+
+    map<mac_addr, manuf *> ap_manuf_map;
+    map<mac_addr, manuf *> client_manuf_map;
 
 };
 

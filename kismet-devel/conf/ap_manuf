@@ -1,0 +1,38 @@
+00:01:24:F0	SMC	SMC7004AWBR	default	6	192.168.2.1
+00:01:24:F0	SMC	SMC7004AWBR	default	6	192.168.2.1
+00:04:5A:0E	Linksys	WAP11	linksys	6	192.168.1.251
+00:04:5A:2E	Linksys	BEFW11S4	linksys	6	192.168.1.1
+00:04:5A:CE	Linksys	BEFW11S4	linksys	6	192.168.1.1
+00:04:5A:DA	Linksys	BEFW11S4	linksys	6	192.168.1.1
+00:04:5A:F9	Linksys	BEFW11S4 v2	linksys	6	192.168.1.1
+00:05:5D:25	D-Link	DWL-900AP		6	default
+00:05:5D:A6	D-Link	DWL-1000AP	default	6	
+00:06:25:25	Linksys	WAP11 v2.2	linksys	6	192.168.1.251
+00:06:25:5D	Linksys	BEFW11S4 v2	linksys	6	192.168.1.1
+00:0A:8A:5F	Cisco	AIR-AP1200		0	
+00:30:65:15	Apple	Apple Airport Card		0	
+00:30:65:17	Apple	snow base station	airport XXXX	1	10.3.1.1
+00:30:65:1F	Apple	Apple Airport Card		0	
+00:30:BD:49	Belkin	F5D6230-3		0	
+00:40:26:F0	Buffalo	WLAR-L11G-L		0	
+00:40:96:47	Cisco	Cisco 350		0	
+00:50:DA:00	3Com	3CRWE747A		0	
+00:60:1D:10	Orinoco	RG1000		0	
+00:80:C6:FA	SOHOware	NetBlaster II		0	
+00:90:D1:01	SMC	SMC2652W	WLAN	11	
+00:90:D1:01	SMC	SMC2682W	BRIDGE	11	
+00:A0:04:98	3Com	3CRWE51196		0	
+00:A0:04	3Com Unknown		0	
+00:90:D1	SMC Unknown	WLAN	11	
+00:80:C6	SOHOware Unknown		0	
+00:60:1D	Orinoco Unknown		0	
+00:50:DA	3Com Unknown		0	
+00:40:96	Cisco Unknown		0	
+00:40:26	Buffalo Unknown		0	
+00:30:BD	Belkin Unknown		0	
+00:30:65	Apple Unknown		0	
+00:0A:8A	Cisco Unknown		0	
+00:06:25	Linksys Unknown	linksys	6	192.168.1.1
+00:05:5D	D-Link Unknown	default	6	
+00:04:5A	Linksys Unknown	linksys	6	192.168.1.1
+00:01:24	SMC Unknown	default	6	192.168.2.1

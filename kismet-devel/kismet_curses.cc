@@ -346,6 +346,9 @@ int main(int argc, char *argv[]) {
     configfile = NULL;
     uiconfigfile = NULL;
 
+    char *ap_manuf_name = NULL, *client_manuf_name = NULL;
+    FILE *manuf_data;
+
     static struct option long_options[] = {   /* options table */
         { "config-file", required_argument, 0, 'f' },
         { "ui-config-file", required_argument, 0, 'u' },
@@ -572,6 +575,18 @@ int main(int argc, char *argv[]) {
         }
     }
 
+    if (server_conf.FetchOpt("ap_manuf") != "") {
+        ap_manuf_name = strdup(server_conf.FetchOpt("ap_manuf").c_str());
+    } else {
+        fprintf(stderr, "WARNING:  No ap_manuf file specified, AP manufacturers and defaults will not be detected.\n");
+    }
+
+    if (server_conf.FetchOpt("client_manuf") != "") {
+        client_manuf_name = strdup(server_conf.FetchOpt("client_manuf").c_str());
+    } else {
+        fprintf(stderr, "WARNING:  No client_manuf file specified.  Client manufacturers will not be detected.\n");
+    }
+
     if (sscanf(server, "%1024[^:]:%d", guihost, &guiport) != 2) {
         fprintf(stderr, "FATAL:  Invalid server (%s) specified (host:port required)\n",
                server);
@@ -708,6 +723,32 @@ int main(int argc, char *argv[]) {
 #endif
 
     gui->AddPrefs(prefs);
+
+    if (ap_manuf_name != NULL) {
+        if ((manuf_data = fopen(ap_manuf_name, "r")) == NULL) {
+            fprintf(stderr, "WARNING:  Unable to open '%s' for reading (%s), AP manufacturers and defaults will not be detected.\n",
+                    ap_manuf_name, strerror(errno));
+        } else {
+            fprintf(stderr, "Reading AP manufacturer data and defaults from %s\n", ap_manuf_name);
+            gui->ReadAPManufMap(manuf_data);
+            fclose(manuf_data);
+        }
+
+        free(ap_manuf_name);
+    }
+
+    if (client_manuf_name != NULL) {
+        if ((manuf_data = fopen(client_manuf_name, "r")) == NULL) {
+            fprintf(stderr, "WARNING:  Unable to open '%s' for reading (%s), client manufacturers will not be detected.\n",
+                    client_manuf_name, strerror(errno));
+        } else {
+            fprintf(stderr, "Reading client manufacturer data and defaults from %s\n", client_manuf_name);
+            gui->ReadClientManufMap(manuf_data);
+            fclose(manuf_data);
+        }
+
+        free(client_manuf_name);
+    }
 
     gui->AddClient(&kismet_serv);
 

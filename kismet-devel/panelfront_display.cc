@@ -181,11 +181,24 @@ void PanelFront::NetLine(string *in_str, wireless_network *net, const char *name
             snprintf(element, 6, "%2.1f", net->maxrate);
             len = 5;
         } else if (colindex == mcol_manuf) {
-            if (net->manuf_id >= 0 && net->manuf_id < manuf_num) {
-                snprintf(element, 9, "%s", manuf_list[net->manuf_id].short_manuf.c_str());
+            map<mac_addr, manuf *>::const_iterator mitr;
+            int found = 0;
+
+            if (net->type == network_adhoc || net->type == network_probe) {
+                if ((mitr = client_manuf_map.find(net->manuf_key)) != client_manuf_map.end()) {
+                    found = 1;
+                }
             } else {
-                snprintf(element, 9, "Unknown");
+                if ((mitr = ap_manuf_map.find(net->manuf_key)) != ap_manuf_map.end()) {
+                    found = 1;
+                }
             }
+
+            if (found)
+                snprintf(element, 9, "%s", mitr->second->name.c_str());
+            else
+                snprintf(element, 9, "Unknown");
+
             len = 8;
         } else if (colindex == mcol_signal) {
             snprintf(element, 4, "%3d", net->signal);
@@ -795,11 +808,13 @@ void PanelFront::ClientLine(string *in_str, wireless_client *wclient, int print_
             snprintf(element, 18, "%s", wclient->mac.Mac2String().c_str());
             len = 17;
         } else if (colind == ccol_manuf) {
-            if (wclient->manuf_id >= 0 && wclient->manuf_id < manuf_num) {
-                snprintf(element, 9, "%s", manuf_list[wclient->manuf_id].short_manuf.c_str());
+            map<mac_addr, manuf *>::const_iterator mitr;
+            if ((mitr = client_manuf_map.find(wclient->manuf_key)) != client_manuf_map.end()) {
+                snprintf(element, 9, "%s", mitr->second->name.c_str());
             } else {
                 snprintf(element, 9, "Unknown");
             }
+
             len = 8;
         } else if (colind == ccol_data) {
             snprintf(element, 7, "%6d", wclient->data_packets);
@@ -1273,10 +1288,33 @@ int PanelFront::DetailsPrinter(void *in_window) {
             kwin->text.push_back(output);
         }
 
-        snprintf(output, print_width, "Manuf   : %s",
-                 dnet->manuf_id >= 0 ? manuf_list[dnet->manuf_id].name.c_str() :
-                 "Unknown");
-        kwin->text.push_back(output);
+        map<mac_addr, manuf *>::const_iterator mitr;
+        int found = 0;
+
+        if (dnet->type == network_adhoc || dnet->type == network_probe) {
+            if ((mitr = client_manuf_map.find(dnet->manuf_key)) != client_manuf_map.end())
+                found = 1;
+        } else {
+            if ((mitr = ap_manuf_map.find(dnet->manuf_key)) != ap_manuf_map.end())
+                found = 1;
+        }
+
+        if (found) {
+            snprintf(output, print_width, "Manuf   : %s",
+                     mitr->second->name.c_str());
+            kwin->text.push_back(output);
+            if (mitr->second->model != "") {
+                snprintf(output, print_width, "Model   : %s",
+                         mitr->second->model.c_str());
+                kwin->text.push_back(output);
+            }
+            snprintf(output, print_width, "Matched : %s",
+                     dnet->manuf_key.Mac2String().c_str());
+            kwin->text.push_back(output);
+        } else {
+            snprintf(output, print_width, "Manuf   : Unknown");
+            kwin->text.push_back(output);
+        }
 
         if (dnet->manuf_score == manuf_max_score) {
             snprintf(output, print_width, "     FACTORY CONFIGURATION");
@@ -2214,6 +2252,25 @@ int PanelFront::DetailsClientPrinter(void *in_window) {
 
     snprintf(output, print_width, "Type    : %s", temp);
     kwin->text.push_back(output);
+
+    map<mac_addr, manuf *>::const_iterator mitr;
+    if ((mitr = client_manuf_map.find(details_client->manuf_key)) != client_manuf_map.end()) {
+        snprintf(output, print_width, "Manuf   : %s",
+                 mitr->second->name.c_str());
+        kwin->text.push_back(output);
+        if (mitr->second->model != "") {
+            snprintf(output, print_width, "Model   : %s",
+                     mitr->second->model.c_str());
+            kwin->text.push_back(output);
+        }
+        snprintf(output, print_width, "Matched : %s",
+                 details_client->manuf_key.Mac2String().c_str());
+        kwin->text.push_back(output);
+    } else {
+        snprintf(output, print_width, "Manuf   : Unknown");
+        kwin->text.push_back(output);
+    }
+
     snprintf(output, print_width, "First   : %.24s", ctime((const time_t *) &details_client->first_time));
     kwin->text.push_back(output);
     snprintf(output, print_width, "Latest  : %.24s", ctime((const time_t *) &details_client->last_time));

@@ -756,6 +756,9 @@ int main(int argc,char *argv[]) {
 
     card_type cardtype = card_unspecified;
 
+    FILE *manuf_data;
+    char *client_manuf_name = NULL, *ap_manuf_name = NULL;
+
     static struct option long_options[] = {   /* options table */
         { "log-title", required_argument, 0, 't' },
         { "no-logging", no_argument, 0, 'n' },
@@ -1376,6 +1379,18 @@ int main(int argc,char *argv[]) {
         }
     }
 
+    if (conf.FetchOpt("ap_manuf") != "") {
+        ap_manuf_name = strdup(conf.FetchOpt("ap_manuf").c_str());
+    } else {
+        fprintf(stderr, "WARNING:  No ap_manuf file specified, AP manufacturers and defaults will not be detected.\n");
+    }
+
+    if (conf.FetchOpt("client_manuf") != "") {
+        client_manuf_name = strdup(conf.FetchOpt("client_manuf").c_str());
+    } else {
+        fprintf(stderr, "WARNING:  No client_manuf file specified.  Client manufacturers will not be detected.\n");
+    }
+
     // Fork and find the sound options
     if (sound) {
         if (pipe(soundpair) == -1) {
@@ -1598,6 +1613,33 @@ int main(int argc,char *argv[]) {
     if (conf.FetchOpt("beaconlog") == "false") {
         beacon_log = 0;
         fprintf(stderr, "Filtering beacon packets.\n");
+    }
+
+
+    if (ap_manuf_name != NULL) {
+        if ((manuf_data = fopen(ap_manuf_name, "r")) == NULL) {
+            fprintf(stderr, "WARNING:  Unable to open '%s' for reading (%s), AP manufacturers and defaults will not be detected.\n",
+                    ap_manuf_name, strerror(errno));
+        } else {
+            fprintf(stderr, "Reading AP manufacturer data and defaults from %s\n", ap_manuf_name);
+            tracker.ReadAPManufMap(manuf_data);
+            fclose(manuf_data);
+        }
+
+        free(ap_manuf_name);
+    }
+
+    if (client_manuf_name != NULL) {
+        if ((manuf_data = fopen(client_manuf_name, "r")) == NULL) {
+            fprintf(stderr, "WARNING:  Unable to open '%s' for reading (%s), client manufacturers will not be detected.\n",
+                    client_manuf_name, strerror(errno));
+        } else {
+            fprintf(stderr, "Reading client manufacturer data and defaults from %s\n", client_manuf_name);
+            tracker.ReadClientManufMap(manuf_data);
+            fclose(manuf_data);
+        }
+
+        free(client_manuf_name);
     }
 
     // Now lets open the GPS host if specified
