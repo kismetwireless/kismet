@@ -34,7 +34,7 @@ channelvelocity=5
 # multiple 802.11b capture sources are defined, they will be offset to cover
 # the most possible spectrum at a given time.  This also controls splitting
 # fine-tuned sourcechannels lines which cover multiple interfaces (see below)
-splitchannels=true
+channelsplit=true
 
 # Basic channel hopping control:
 # These define the channels the cards hop through for various frequency ranges
