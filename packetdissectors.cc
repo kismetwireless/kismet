@@ -655,3 +655,7 @@ int kis_80211_dissector(CHAINCALL_PARMS) {
     return 1;
 }
 
+int kis_turbocell_dissector(CHAINCALL_PARMS) {
+
+}
+
