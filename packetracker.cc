@@ -525,7 +525,7 @@ void Packetracker::ProcessPacket(packet_info info) {
         }
 
         // If it's a probe response with no SSID, something funny is happening, raise an alert
-        if (info.subtype == packet_sub_probe_resp && strlen(info.ssid) == 0) {
+        if (info.subtype == packet_sub_probe_resp && info.ssid_len == 0) {
             if (alertracker->PotentialAlert(arefs[NULLPROBERESP_AREF]) > 0) {
                 snprintf(status, STATUS_MAX, "Probe response with 0-length SSID detected from %s",
                          info.source_mac.Mac2String().c_str());
