@@ -1816,6 +1816,14 @@ int ProcessBulkConf(ConfigFile *conf) {
         fprintf(stderr, "Mangling encrypted and fuzzy data packets.\n");
     }
 
+    if (conf->FetchOpt("trackprobenets") == "false") {
+        track_probenets = 0;
+        fprintf(stderr, "Not tracking probe responses or associating probe networks.\n");
+    } else {
+        track_probenets = 1;
+        fprintf(stderr, "Tracking probe responses and associating probe networks.\n");
+    }
+
     if (ap_manuf_name != NULL) {
         char pathname[1024];
 
@@ -1912,6 +1920,7 @@ int main(int argc,char *argv[]) {
 
     silent = 0;
     metric = 0;
+    track_probenets = 0;
 
     static struct option long_options[] = {   /* options table */
         { "log-title", required_argument, 0, 't' },

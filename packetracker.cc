@@ -189,7 +189,7 @@ wireless_network *Packetracker::MatchNetwork(const packet_info *info) {
         }
 
     } else if (info->type == packet_management && 
-               info->subtype == packet_sub_probe_req) {
+               info->subtype == packet_sub_probe_req && track_probenets) {
         // If it's a probe request, see if we already know who it should belong to
         if (probe_map.find(info->bssid_mac) != probe_map.end()) {
             // info->bssid_mac = probe_map[info->bssid_mac];
@@ -301,8 +301,6 @@ void Packetracker::ProcessPacket(packet_info info) {
             (info.subtype == packet_sub_beacon ||
              info.subtype == packet_sub_probe_req ||
              info.subtype == packet_sub_probe_resp)) {
-
-            if (info.subtype == packet_sub_probe_req)
 
             if (IsBlank(info.ssid)) {
                 if (bssid_cloak_map.find(info.bssid_mac) != bssid_cloak_map.end()) {
@@ -536,7 +534,7 @@ void Packetracker::ProcessPacket(packet_info info) {
                     net->ssid = info.ssid;
             }
 
-            if (probe_map.find(info.source_mac) != probe_map.end()) {
+            if (probe_map.find(info.source_mac) != probe_map.end() && track_probenets) {
                 ProcessDataPacket(info, net);
                 if (newnet == 1)
                     KisLocalNewnet(net);
@@ -605,11 +603,12 @@ void Packetracker::ProcessPacket(packet_info info) {
                 net->type = network_ap;
         }
 
-        // If it's a probe response with no SSID, something funny is happening, raise an alert
+        // If it's a probe response with no SSID, something funny is happening, 
+        // raise an alert
         if (info.subtype == packet_sub_probe_resp && info.ssid_len == 0) {
             if (alertracker->PotentialAlert(arefs[NULLPROBERESP_AREF]) > 0) {
-                snprintf(status, STATUS_MAX, "Probe response with 0-length SSID detected from %s",
-                         info.source_mac.Mac2String().c_str());
+                snprintf(status, STATUS_MAX, "Probe response with 0-length SSID "
+                         "detected from %s", info.source_mac.Mac2String().c_str());
                 alertracker->RaiseAlert(arefs[NULLPROBERESP_AREF], status);
             }
         }
@@ -619,7 +618,7 @@ void Packetracker::ProcessPacket(packet_info info) {
         // (Thanks to Jason Luther <jason@ixid.net> for this "closed network" detection)
         if ((info.subtype == packet_sub_probe_resp ||
              info.subtype == packet_sub_reassociation_resp ||
-	     info.proto.type == proto_iapp) && !IsBlank(info.ssid)) {
+             info.proto.type == proto_iapp) && !IsBlank(info.ssid)) {
 
             if (net->ssid == NOSSID) {
                 net->cloaked = 1;
@@ -627,55 +626,62 @@ void Packetracker::ProcessPacket(packet_info info) {
                 net->channel = info.channel;
                 net->wep = info.wep;
 
-                net->manuf_ref = MatchBestManuf(ap_manuf_map, net->bssid, net->ssid, net->channel,
-                                                net->wep, net->cloaked, &net->manuf_score);
+                net->manuf_ref = MatchBestManuf(ap_manuf_map, net->bssid, net->ssid, 
+                                                net->channel, net->wep, net->cloaked, 
+                                                &net->manuf_score);
                 // Update our IP range info too if we're a default
-                if (net->manuf_score == manuf_max_score && net->ipdata.atype == address_none)
+                if (net->manuf_score == manuf_max_score && 
+                    net->ipdata.atype == address_none)
                     memcpy(&net->ipdata, &net->manuf_ref->ipdata, sizeof(net_ip_data));
 
                 bssid_cloak_map[net->bssid] = info.ssid;
 
-                snprintf(status, STATUS_MAX, "Found SSID \"%s\" for cloaked network BSSID %s",
-                         net->ssid.c_str(), net->bssid.Mac2String().c_str());
+                snprintf(status, STATUS_MAX, "Found SSID \"%s\" for cloaked "
+                         "network BSSID %s", net->ssid.c_str(), 
+                         net->bssid.Mac2String().c_str());
                 KisLocalStatus(status);
             } else if (info.ssid != bssid_cloak_map[net->bssid]) {
                 bssid_cloak_map[net->bssid] = info.ssid;
                 net->ssid = info.ssid;
                 net->wep = info.wep;
 
-                net->manuf_ref = MatchBestManuf(ap_manuf_map, net->bssid, net->ssid, net->channel,
-                                                net->wep, net->cloaked, &net->manuf_score);
+                net->manuf_ref = MatchBestManuf(ap_manuf_map, net->bssid, net->ssid, 
+                                                net->channel, net->wep, net->cloaked, 
+                                                &net->manuf_score);
                 // Update our IP range info too if we're a default
-                if (net->manuf_score == manuf_max_score && net->ipdata.atype == address_none)
+                if (net->manuf_score == manuf_max_score && 
+                    net->ipdata.atype == address_none)
                     memcpy(&net->ipdata, &net->manuf_ref->ipdata, sizeof(net_ip_data));
             }
 
             // If we have a probe request network, absorb it into the main network
             //string resp_mac = Mac2String(info.dest_mac, ':');
             //probe_map[resp_mac] = net->bssid;
-            probe_map[info.dest_mac] = net->bssid;
+            if (track_probenets) {
+                probe_map[info.dest_mac] = net->bssid;
 
-            // If we have any networks that match the response already in existance,
-            // we should add them to the main network and kill them off
-            if (bssid_map.find(info.dest_mac) != bssid_map.end()) {
-                wireless_network *pnet = bssid_map[info.dest_mac];
-                if (pnet->type == network_probe) {
-                    net->llc_packets += pnet->llc_packets;
-                    net->data_packets += pnet->data_packets;
-                    net->crypt_packets += pnet->crypt_packets;
-                    net->interesting_packets += pnet->interesting_packets;
-                    pnet->type = network_remove;
-                    pnet->last_time = time(0);
+                // If we have any networks that match the response already in existance,
+                // we should add them to the main network and kill them off
+                if (bssid_map.find(info.dest_mac) != bssid_map.end()) {
+                    wireless_network *pnet = bssid_map[info.dest_mac];
+                    if (pnet->type == network_probe) {
+                        net->llc_packets += pnet->llc_packets;
+                        net->data_packets += pnet->data_packets;
+                        net->crypt_packets += pnet->crypt_packets;
+                        net->interesting_packets += pnet->interesting_packets;
+                        pnet->type = network_remove;
+                        pnet->last_time = time(0);
 
-                    snprintf(status, STATUS_MAX, "Associated probe network \"%s\" "
-                             "with \"%s\" via probe response.",
-                             pnet->bssid.Mac2String().c_str(),
-                             net->bssid.Mac2String().c_str());
-                    KisLocalStatus(status);
+                        snprintf(status, STATUS_MAX, "Associated probe network \"%s\" "
+                                 "with \"%s\" via probe response.",
+                                 pnet->bssid.Mac2String().c_str(),
+                                 net->bssid.Mac2String().c_str());
+                        KisLocalStatus(status);
 
-                    CreateClient(&info, net);
+                        CreateClient(&info, net);
 
-                    num_networks--;
+                        num_networks--;
+                    }
                 }
             }
 
@@ -725,32 +731,33 @@ void Packetracker::ProcessDataPacket(packet_info info, wireless_network *net) {
         }
     } 
 
-    if (bssid_map.find(info.dest_mac) != bssid_map.end()) {
-        pnet = bssid_map[info.dest_mac];
-        probe_map[info.source_mac] = pnet->bssid;
-    } else if (bssid_map.find(info.source_mac) != bssid_map.end()) { 
-        pnet = bssid_map[info.source_mac];
-        probe_map[info.dest_mac] = pnet->bssid;
-    }
+    if (track_probenets) {
+        if (bssid_map.find(info.dest_mac) != bssid_map.end()) {
+            pnet = bssid_map[info.dest_mac];
+            probe_map[info.source_mac] = pnet->bssid;
+        } else if (bssid_map.find(info.source_mac) != bssid_map.end()) { 
+            pnet = bssid_map[info.source_mac];
+            probe_map[info.dest_mac] = pnet->bssid;
+        }
 
-    if (pnet != NULL) {
-        if (pnet->type == network_probe) {
+        if (pnet != NULL) {
+            if (pnet->type == network_probe) {
+                net->llc_packets += pnet->llc_packets;
+                net->data_packets += pnet->data_packets;
+                net->crypt_packets += pnet->crypt_packets;
+                net->interesting_packets += pnet->interesting_packets;
+                pnet->type = network_remove;
+                pnet->last_time = time(0);
 
-            net->llc_packets += pnet->llc_packets;
-            net->data_packets += pnet->data_packets;
-            net->crypt_packets += pnet->crypt_packets;
-            net->interesting_packets += pnet->interesting_packets;
-            pnet->type = network_remove;
-            pnet->last_time = time(0);
+                snprintf(status, STATUS_MAX, "Associated probe network \"%s\" with "
+                         "\"%s\" via data.", pnet->bssid.Mac2String().c_str(),
+                         net->bssid.Mac2String().c_str());
+                KisLocalStatus(status);
 
-            snprintf(status, STATUS_MAX, "Associated probe network \"%s\" with "
-                     "\"%s\" via data.", pnet->bssid.Mac2String().c_str(),
-                     net->bssid.Mac2String().c_str());
-            KisLocalStatus(status);
+                CreateClient(&info, net);
 
-            CreateClient(&info, net);
-
-            num_networks--;
+                num_networks--;
+            }
         }
     }
     

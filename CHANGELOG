@@ -6,6 +6,8 @@ Jan 22 2003  3.1.0  Added channel hopping status to CARD field
                     Added intro window to panels client for new users, this
                      can be turned off by editing the ui config and putting
                      'showintro=false'
+                    Added 'trackprobenets' config option to turn off following
+                     probe responses and tracking probenets.
 Jan 21 2003  3.1.0  Fixed embarassingly stupid bug in panels probe/data
                      autogroup, minor efficiency improvements as well
                     Removed debug printing on corrupt dronesource packets

@@ -4,7 +4,7 @@
 # not continually reading --help!
 
 # Version of Kismet config
-version=3.1.0e
+version=3.1.0f
 
 # Name of server (Purely for organiational purposes)
 servername=Kismet
@@ -226,6 +226,11 @@ alertbacklog=50
 # cisco   - cisco equipment CDP broadcasts
 # gps     - gps coordinates
 logtypes=dump,network,csv,xml,weak,cisco,gps
+
+# Do we track probe responses and merge probe networks into their owners?
+# This isn't always desireable, depending on the type of monitoring you're
+# trying to do.
+trackprobenets=true
 
 # Do we log "noise" packets that we can't decipher?  I tend to not, since 
 # they don't have anything interesting at all in them.
