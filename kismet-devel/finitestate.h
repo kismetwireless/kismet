@@ -105,6 +105,33 @@ protected:
     map<mac_addr, _fsa_element *> source_map;
 };
 
+// FSA to look for spoofing via BSS timestamp. 
+// BSS timestamps are monotonically increasing within the BSSID for all times they're defined
+// An invalid timestamp increases us by 10, a valid timestamp decreases by one.  This is a 
+// cheap way to keep track of how much we're flapping - we don't want a reboot of an AP to
+// generate an alert, but we DO want a spoofed AP beaconing in the same space to generate
+// one.
+class BssTimestampAutomata : public FiniteAutomata {
+public:
+    class _bs_fsa_element : public FiniteAutomata::_fsa_element {
+    public:
+        _bs_fsa_element() {
+            bss_timestamp = 0;
+        }
+
+        uint64_t bss_timestamp;
+    };
+
+    BssTimestampAutomata(Packetracker *in_ptracker, Alertracker *in_atracker,
+                         alert_time_unit in_unit, int in_rate, int in_burstrate);
+    ~BssTimestampAutomata();
+
+    int ProcessPacket(const packet_info *in_info);
+
+protected:
+    macmap<BssTimestampAutomata::_bs_fsa_element *> bss_map;
+};
+
 // Detect broadcast replay WEP attacks by looking for bursts of packets with the same
 // IV and ICV
 class WepRebroadcastAutomata : public FiniteAutomata {

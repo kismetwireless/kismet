@@ -118,6 +118,10 @@ int Packetracker::EnableAlert(string in_alname, alert_time_unit in_unit,
         DisassocTrafficAutomata *dta = new DisassocTrafficAutomata(this, alertracker, in_unit, in_rate, in_burstrate);
         fsa_vec.push_back(dta);
         ret = dta->FetchAlertRef();
+    } else if (lname == "bsstimestamp") {
+        BssTimestampAutomata *bta = new BssTimestampAutomata(this, alertracker, in_unit, in_rate, in_burstrate);
+        fsa_vec.push_back(bta);
+        ret = bta->FetchAlertRef();
     } else {
         snprintf(errstr, 1024, "Unknown alert type %s, not processing.", lname.c_str());
         return 0;
@@ -332,7 +336,6 @@ void Packetracker::ProcessPacket(packet_info info) {
 
         net->channel = info.channel;
 
-
         if (info.type == packet_management && info.subtype == packet_sub_probe_req) {
             net->type = network_probe;
         } else if (info.distrib == adhoc_distribution) {
@@ -355,6 +358,8 @@ void Packetracker::ProcessPacket(packet_info info) {
 
         net->maxrate = info.maxrate;
 
+        net->bss_timestamp = info.timestamp;
+        
         if (strlen(info.beacon_info) != 0)
             net->beacon_info = info.beacon_info;
 
@@ -372,10 +377,6 @@ void Packetracker::ProcessPacket(packet_info info) {
                      net->channel, net->maxrate);
             KisLocalStatus(status);
         }
-
-        // Do this after we process other stuff so that counts on one-packet networks
-        // are correct
-//        KisLocalNewnet(net);
 
         if (info.gps_fix >= 2) {
             net->gps_fixed = info.gps_fix;
@@ -483,6 +484,9 @@ void Packetracker::ProcessPacket(packet_info info) {
             net->iv_map[info.ivset] = 1;
         }
     }
+
+    if (info.timestamp != 0)
+        net->bss_timestamp = info.timestamp;
 
     // Assign the carrier types in this network.  There will likely be only one, but you
     // never know...

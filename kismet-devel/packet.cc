@@ -300,6 +300,16 @@ void GetPacketInfo(kis_packet *packet, packet_info *ret_packinfo,
             if (fixparm->ess == 0 && fixparm->ibss == 1) {
                 ret_packinfo->distrib = adhoc_distribution;
             }
+
+            // Pull the fixparm timestamp
+            uint64_t temp_ts;
+            memcpy(&temp_ts, fixparm->timestamp, 8);
+            // ret_packinfo->timestamp = kis_hton64(temp_ts);
+#ifdef WORDS_BIGENDIAN
+            ret_packinfo = kis_swap64(temp_ts);
+#else
+            ret_packinfo->timestamp = temp_ts;
+#endif
         }
 
         map<int, int> tag_cache_map;

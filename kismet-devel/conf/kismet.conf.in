@@ -4,7 +4,7 @@
 # not continually reading --help!
 
 # Version of Kismet config
-version=2004.04.devel
+version=2004.04.devel-a
 
 # Name of server (Purely for organiational purposes)
 servername=Kismet
@@ -147,6 +147,7 @@ alert=AIRJACKSSID,5/min,2
 alert=PROBENOJOIN,5/min,2
 alert=DISASSOCTRAFFIC,5/min,2
 alert=NULLPROBERESP,5/min,5
+alert=BSSTIMESTAMP,5/min,5
 
 # Known WEP keys to decrypt, bssid,hexkey.  This is only for networks where
 # the keys are already known, and it may impact throughput on slower hardware.

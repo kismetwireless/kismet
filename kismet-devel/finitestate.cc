@@ -171,6 +171,66 @@ int DisassocTrafficAutomata::ProcessPacket(const packet_info *in_info) {
     return 0;
 }
 
+BssTimestampAutomata::BssTimestampAutomata(Packetracker *in_ptracker, Alertracker *in_atracker,
+                        alert_time_unit in_unit, int in_rate, int in_burstrate) {
+    atracker = in_atracker;
+    ptracker = in_ptracker;
+    alertid = atracker->RegisterAlert("BSSTIMESTAMP", in_unit, in_rate, in_burstrate);
+}
+
+BssTimestampAutomata::~BssTimestampAutomata() {
+    for (macmap<BssTimestampAutomata::_bs_fsa_element *>::iterator iter = bss_map.begin();
+         iter != bss_map.end(); ++iter) {
+        delete iter->second;
+    }
+}
+
+int BssTimestampAutomata::ProcessPacket(const packet_info *in_info) {
+    _bs_fsa_element *elem;
+    char atext[1024];
+
+    if (in_info->timestamp == 0 || in_info->type != packet_management || 
+        in_info->subtype != packet_sub_beacon)
+        return 0;
+
+    macmap<BssTimestampAutomata::_bs_fsa_element *>::iterator iter = bss_map.find(in_info->bssid_mac);
+    if (iter == bss_map.end()) {
+        elem = new _bs_fsa_element;
+        elem->bss_timestamp = in_info->timestamp;
+        bss_map.insert(in_info->bssid_mac, elem);
+        return 0;
+    } else {
+        elem = *(iter->second);
+    }
+
+    if (in_info->timestamp < elem->bss_timestamp) {
+        if (elem->counter > 0) {
+            // Generate an alert, we're getting a bunch of invalid timestamps
+
+            snprintf(atext, STATUS_MAX, "Out-of-sequence BSS timestamp on %s "
+                     "- got %llx, expected %llx - this could indicate AP spoofing",
+                     in_info->bssid_mac.Mac2String().c_str(), in_info->timestamp,
+                     elem->bss_timestamp);
+            atracker->RaiseAlert(alertid, atext);
+
+            // Reset so we don't keep thrashing here
+            elem->counter = 0;
+            elem->bss_timestamp = in_info->timestamp;
+
+            return 1;
+        } else {
+            // Increase our invalid stock
+            elem->counter += 10;
+        }
+    } else if (elem->counter > 0) {
+        elem->counter--;
+    }
+
+    elem->bss_timestamp = in_info->timestamp;
+
+    return 0;
+}
+
 WepRebroadcastAutomata::WepRebroadcastAutomata(Packetracker *in_ptracker, Alertracker *in_atracker,
                                                alert_time_unit in_unit, int in_rate, int in_burstrate) {
     atracker = in_atracker;
