@@ -25,6 +25,7 @@
 #define RAISED_NETSTUMBLER_ALERT     1
 #define RAISED_DEAUTHFLOOD_ALERT     2
 #define RAISED_LUCENT_ALERT          4
+#define RAISED_WELLENREITER_ALERT    8
 
 Packetracker::Packetracker() {
     gps = NULL;
@@ -807,6 +808,17 @@ int Packetracker::ProcessDataPacket(packet_info info, wireless_network *net, cha
             net->alertmap |= RAISED_LUCENT_ALERT;
 
             snprintf(in_status, STATUS_MAX, "Lucent link test detected from %s",
+                     client->mac.Mac2String().c_str());
+
+            ret = TRACKER_NOTICE;
+        }
+    } else if (info.proto.type == proto_wellenreiter) {
+        // Handle wellenreiter packets
+
+        if ((net->alertmap & RAISED_WELLENREITER_ALERT) == 0) {
+            net->alertmap |= RAISED_WELLENREITER_ALERT;
+
+            snprintf(in_status, STATUS_MAX, "Wellenreiter probe detected from %s",
                      client->mac.Mac2String().c_str());
 
             ret = TRACKER_NOTICE;

@@ -208,7 +208,8 @@ enum protocol_info_type {
     proto_ipx_tcp,
     proto_lor,
     proto_netstumbler,
-    proto_lucenttest
+    proto_lucenttest,
+    proto_wellenreiter
 };
 
 enum protocol_netbios_type {
