@@ -584,8 +584,12 @@ if test "$magickconfig" = "yes"; then
 	magickminor=`echo $magickversion | cut -d '.' -f 2`
 	magicktiny=`echo $magickversion | cut -d '.' -f 3`
 
-	if test "$magickmajor" -lt 5 -o "$magickminor" -lt 4 -o "$magicktiny" -lt 7; then
-		magickold="yes"
+	if test "$magickmajor" -lt 5; then
+		magickold="yes";
+	elif test "$magickmajor" -eq 5 -a "$magickminor" -lt 4; then
+		magickold="yes";
+	elif test "$magickmajor" -eq 5 -a "$magickminor" -eq 4 -a "$magicktiny" -lt 7; then
+		magickold="yes";
 	fi
 fi
 
