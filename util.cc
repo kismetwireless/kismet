@@ -282,12 +282,18 @@ int KisRingBuffer::InsertData(uint8_t *in_data, int in_len) {
 }
 
 int KisRingBuffer::FetchLen() {
+    int ret = 0;
+
     if (ring_wptr < ring_rptr) {
-        return (ring_data + ring_len) - ring_rptr;
+        ret = (ring_data + ring_len) - ring_rptr;
     } else {
-        return (ring_wptr - ring_rptr);
+        ret = (ring_wptr - ring_rptr);
     }
 
+    printf("ring begin %p wptr %p rptr %p lt %d len %d\n",
+           ring_data, ring_wptr, ring_rptr, ring_wptr < ring_rptr, ret);
+
+    return ret;
 }
 
 void KisRingBuffer::FetchPtr(uint8_t **in_dataptr, int *in_len) {
