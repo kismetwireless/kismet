@@ -1,3 +1,7 @@
+Oct 19 2002  2.7    Revamped data file writing code to use temp files and
+                     unlink/rename them.  Should help prevent truncated data
+                     files (netxml, cisco, network, csv) in a power-off
+                     situation.  Only really relevant for headless sniffers.
 Oct 13 2002  2.7    Segfault fix in panel frontend groups, various other minor
                      bugfixes in client and multiserver code.
                     Added control-L to redraw the entire screen in the panels

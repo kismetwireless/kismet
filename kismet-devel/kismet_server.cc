@@ -61,8 +61,9 @@ int no_log = 0, noise_log = 0, data_log = 0, net_log = 0, crypt_log = 0, cisco_l
     waypoint = 0;
 string logname, dumplogfile, netlogfile, cryptlogfile, ciscologfile,
     gpslogfile, csvlogfile, xmllogfile, ssidtrackfile, configdir, iptrackfile, waypointfile;
-FILE *net_file = NULL, *cisco_file = NULL, *csv_file = NULL,
-    *xml_file = NULL, *ssid_file = NULL, *ip_file = NULL, *waypoint_file = NULL;
+FILE *ssid_file = NULL, *ip_file = NULL, *waypoint_file = NULL;
+/* *net_file = NULL, *cisco_file = NULL, *csv_file = NULL,
+    *xml_file = NULL, */
 
 DumpFile *dumpfile, *cryptfile;
 PacketSource *packsource;
@@ -98,9 +99,6 @@ pid_t soundpid = -1, speechpid = -1;
 vector<string> past_alerts;
 unsigned int max_alerts = 50;
 
-// This/these have to be globals, unfortunately, so that the interrupt
-// handler can shut down logging and write out to disk the network list.
-
 // Handle writing all the files out and optionally unlinking the empties
 void WriteDatafiles(int in_shutdown) {
     if (ssid_cloak_track) {
@@ -119,14 +117,17 @@ void WriteDatafiles(int in_shutdown) {
             fclose(ip_file);
     }
 
+    char alert[2048];
+
     if (net_log) {
         if (tracker.FetchNumNetworks() != 0) {
-            if (net_file)
-                tracker.WriteNetworks(net_file);
-            if (in_shutdown)
-                fclose(net_file);
+            if (tracker.WriteNetworks(netlogfile) == -1) {
+                snprintf(alert, 2048, "WARNING: %s", tracker.FetchError());
+                NetWriteAlert(alert);
+                if (!silent)
+                    fprintf(stderr, "%s\n", alert);
+            }
         } else if (in_shutdown) {
-            fclose(net_file);
             fprintf(stderr, "NOTICE: Didn't detect any networks, unlinking network list.\n");
             unlink(netlogfile.c_str());
         }
@@ -134,12 +135,13 @@ void WriteDatafiles(int in_shutdown) {
 
     if (csv_log) {
         if (tracker.FetchNumNetworks() != 0) {
-            if (csv_file)
-                tracker.WriteCSVNetworks(csv_file);
-            if (in_shutdown)
-                fclose(csv_file);
+            if (tracker.WriteCSVNetworks(csvlogfile) == -1) {
+                snprintf(alert, 2048, "WARNING: %s", tracker.FetchError());
+                NetWriteAlert(alert);
+                if (!silent)
+                    fprintf(stderr, "%s\n", alert);
+            }
         } else if (in_shutdown) {
-            fclose(csv_file);
             fprintf(stderr, "NOTICE: Didn't detect any networks, unlinking CSV network list.\n");
             unlink(csvlogfile.c_str());
         }
@@ -147,12 +149,13 @@ void WriteDatafiles(int in_shutdown) {
 
     if (xml_log) {
         if (tracker.FetchNumNetworks() != 0) {
-            if (xml_file)
-                tracker.WriteXMLNetworks(xml_file);
-            if (in_shutdown)
-                fclose(xml_file);
+            if (tracker.WriteXMLNetworks(xmllogfile) == -1) {
+                snprintf(alert, 2048, "WARNING: %s", tracker.FetchError());
+                NetWriteAlert(alert);
+                if (!silent)
+                    fprintf(stderr, "%s\n", alert);
+            }
         } else if (in_shutdown) {
-            fclose(xml_file);
             fprintf(stderr, "NOTICE: Didn't detect any networks, unlinking XML network list.\n");
             unlink(xmllogfile.c_str());
         }
@@ -160,12 +163,13 @@ void WriteDatafiles(int in_shutdown) {
 
     if (cisco_log) {
         if (tracker.FetchNumCisco() != 0) {
-            if (cisco_file)
-                tracker.WriteCisco(cisco_file);
-            if (in_shutdown)
-                fclose(cisco_file);
+            if (tracker.WriteCisco(ciscologfile) == -1) {
+                snprintf(alert, 2048, "WARNING: %s", tracker.FetchError());
+                NetWriteAlert(alert);
+                if (!silent)
+                    fprintf(stderr, "%s\n", alert);
+            }
         } else if (in_shutdown) {
-            fclose(cisco_file);
             fprintf(stderr, "NOTICE: Didn't detect any Cisco Discovery Packets, unlinking cisco dump\n");
             unlink(ciscologfile.c_str());
         }
@@ -1732,32 +1736,41 @@ int main(int argc,char *argv[]) {
     }
 
     // Open our files first to make sure we can, we'll unlink the empties later.
+    FILE *testfile = NULL;
     if (net_log) {
-        if ((net_file = fopen(netlogfile.c_str(), "w")) == NULL) {
-            perror("Unable to open net file");
+        if ((testfile = fopen(netlogfile.c_str(), "w")) == NULL) {
+            fprintf(stderr, "FATAL:  Unable to open net file %s: %s\n",
+                    netlogfile.c_str(), strerror(errno));
             exit(1);
         }
+        fclose(testfile);
     }
 
     if (csv_log) {
-        if ((csv_file = fopen(csvlogfile.c_str(), "w")) == NULL) {
-            perror("Unable to open net csv file");
+        if ((testfile = fopen(csvlogfile.c_str(), "w")) == NULL) {
+            fprintf(stderr, "FATAL:  Unable to open CSV file %s: %s\n",
+                    netlogfile.c_str(), strerror(errno));
             exit(1);
         }
+        fclose(testfile);
     }
 
     if (xml_log) {
-        if ((xml_file = fopen(xmllogfile.c_str(), "w")) == NULL) {
-            perror("Unable to open net xml file");
+        if ((testfile = fopen(xmllogfile.c_str(), "w")) == NULL) {
+            fprintf(stderr, "FATAL:  Unable to open netxml file %s: %s\n",
+                    netlogfile.c_str(), strerror(errno));
             exit(1);
         }
+        fclose(testfile);
     }
 
     if (cisco_log) {
-        if ((cisco_file = fopen(ciscologfile.c_str(), "w")) == NULL) {
-            perror("Unable to open cisco file");
+        if ((testfile = fopen(ciscologfile.c_str(), "w")) == NULL) {
+            fprintf(stderr, "FATAL:  Unable to open CSV file %s: %s\n",
+                    netlogfile.c_str(), strerror(errno));
             exit(1);
         }
+        fclose(testfile);
     }
 
     // Crypt log stays open like the dump log for continual writing

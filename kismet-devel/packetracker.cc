@@ -1038,9 +1038,37 @@ void Packetracker::UpdateIpdata(wireless_network *net) {
 #endif
 }
 
-int Packetracker::WriteNetworks(FILE *in_file) {
-    fseek(in_file, 0L, SEEK_SET);
-    ftruncate(fileno(in_file), 0);
+int Packetracker::WriteNetworks(string in_fname) {
+    string fname_temp = in_fname + ".temp";
+
+    FILE *netfile;
+
+    if ((netfile = fopen(in_fname.c_str(), "w+")) == NULL) {
+        snprintf(errstr, 1024, "Could not open %s for writing: %s", in_fname.c_str(),
+                 strerror(errno));
+        return -1;
+    }
+
+    fclose(netfile);
+
+    if (unlink(fname_temp.c_str()) == -1) {
+        if (errno != ENOENT) {
+            snprintf(errstr, 1024, "Could not unlink temp file %s: %s", fname_temp.c_str(),
+                     strerror(errno));
+            return -1;
+        }
+    }
+
+    if ((netfile = fopen(fname_temp.c_str(), "w")) == NULL) {
+        snprintf(errstr, 1024, "Could not open %s for writing even though we could unlink it: %s",
+                 fname_temp.c_str(), strerror(errno));
+        return -1;
+    }
+
+    /*
+     fseek(in_file, 0L, SEEK_SET);
+     ftruncate(fileno(in_file), 0);
+     */
 
     int netnum = 1;
     vector<wireless_network *> bssid_vec;
@@ -1077,7 +1105,7 @@ int Packetracker::WriteNetworks(FILE *in_file) {
             snprintf(type, 15, "unknown");
 
 
-        fprintf(in_file, "Network %d: \"%s\" BSSID: \"%s\"\n"
+        fprintf(netfile, "Network %d: \"%s\" BSSID: \"%s\"\n"
                 "    Type     : %s\n"
                 "    Info     : \"%s\"\n"
                 "    Channel  : %02d\n"
@@ -1101,7 +1129,7 @@ int Packetracker::WriteNetworks(FILE *in_file) {
                 ft, lt);
 
         if (net->gps_fixed != -1)
-            fprintf(in_file,
+            fprintf(netfile,
                     "    Min Loc: Lat %f Lon %f Alt %f Spd %f\n"
                     "    Max Loc: Lat %f Lon %f Alt %f Spd %f\n",
                     net->min_lat, net->min_lon,
@@ -1112,33 +1140,77 @@ int Packetracker::WriteNetworks(FILE *in_file) {
                     metric ? net->max_spd * 1.6093 : net->max_spd);
 
         if (net->ipdata.atype == address_dhcp)
-            fprintf(in_file, "    Address found via DHCP %d.%d.%d.%d \n",
+            fprintf(netfile, "    Address found via DHCP %d.%d.%d.%d \n",
                     net->ipdata.range_ip[0], net->ipdata.range_ip[1],
                     net->ipdata.range_ip[2], net->ipdata.range_ip[3]
                    );
         else if (net->ipdata.atype == address_arp)
-            fprintf(in_file, "    Address found via ARP %d.%d.%d.%d\n",
+            fprintf(netfile, "    Address found via ARP %d.%d.%d.%d\n",
                     net->ipdata.range_ip[0], net->ipdata.range_ip[1],
                     net->ipdata.range_ip[2], net->ipdata.range_ip[3]);
         else if (net->ipdata.atype == address_udp)
-            fprintf(in_file, "    Address found via UDP %d.%d.%d.%d\n",
+            fprintf(netfile, "    Address found via UDP %d.%d.%d.%d\n",
                     net->ipdata.range_ip[0], net->ipdata.range_ip[1],
                     net->ipdata.range_ip[2], net->ipdata.range_ip[3]);
         else if (net->ipdata.atype == address_tcp)
-            fprintf(in_file, "    Address found via TCP %d.%d.%d.%d\n",
+            fprintf(netfile, "    Address found via TCP %d.%d.%d.%d\n",
                     net->ipdata.range_ip[0], net->ipdata.range_ip[1],
                     net->ipdata.range_ip[2], net->ipdata.range_ip[3]);
-        fprintf(in_file, "\n");
+        fprintf(netfile, "\n");
         netnum++;
+    }
+
+    fclose(netfile);
+
+    if (unlink(in_fname.c_str()) == -1) {
+        if (errno != ENOENT) {
+            snprintf(errstr, 1024, "Unable to unlink %s even though we could write to it: %s",
+                     in_fname.c_str(), strerror(errno));
+            return -1;
+        }
+    }
+
+    if (rename(fname_temp.c_str(), in_fname.c_str()) == -1) {
+        snprintf(errstr, 1024, "Unable to rename %s to %s: %s", fname_temp.c_str(), in_fname.c_str(),
+                 strerror(errno));
+        return -1;
     }
 
     return 1;
 }
 
 // Write out the cisco information
-int Packetracker::WriteCisco(FILE *in_file) {
+int Packetracker::WriteCisco(string in_fname) {
+    string fname_temp = in_fname + ".temp";
+
+    FILE *netfile;
+
+    if ((netfile = fopen(in_fname.c_str(), "w+")) == NULL) {
+        snprintf(errstr, 1024, "Could not open %s for writing: %s", in_fname.c_str(),
+                 strerror(errno));
+        return -1;
+    }
+
+    fclose(netfile);
+
+    if (unlink(fname_temp.c_str()) == -1) {
+        if (errno != ENOENT) {
+            snprintf(errstr, 1024, "Could not unlink temp file %s: %s", fname_temp.c_str(),
+                     strerror(errno));
+            return -1;
+        }
+    }
+
+    if ((netfile = fopen(fname_temp.c_str(), "w")) == NULL) {
+        snprintf(errstr, 1024, "Could not open %s for writing even though we could unlink it: %s",
+                 fname_temp.c_str(), strerror(errno));
+        return -1;
+    }
+
+    /*
     fseek(in_file, 0L, SEEK_SET);
     ftruncate(fileno(in_file), 0);
+    */
 
     vector<wireless_network *> bssid_vec;
 
@@ -1156,7 +1228,7 @@ int Packetracker::WriteCisco(FILE *in_file) {
             continue;
 
 
-        fprintf(in_file, "Network: \"%s\" BSSID: \"%s\"\n",
+        fprintf(netfile, "Network: \"%s\" BSSID: \"%s\"\n",
                 net->ssid.c_str(), net->bssid.Mac2String().c_str());
 
         int devnum = 1;
@@ -1164,9 +1236,9 @@ int Packetracker::WriteCisco(FILE *in_file) {
              x != net->cisco_equip.end(); ++x) {
             cdp_packet cdp = x->second;
 
-            fprintf(in_file, "CDP Broadcast Device %d\n", devnum);
-            fprintf(in_file, "    Device ID : %s\n", cdp.dev_id);
-            fprintf(in_file, "    Capability: %s%s%s%s%s%s%s\n",
+            fprintf(netfile, "CDP Broadcast Device %d\n", devnum);
+            fprintf(netfile, "    Device ID : %s\n", cdp.dev_id);
+            fprintf(netfile, "    Capability: %s%s%s%s%s%s%s\n",
                     cdp.cap.level1 ? "Level 1 " : "" ,
                     cdp.cap.igmp_forward ? "IGMP forwarding " : "",
                     cdp.cap.nlp ? "Network-layer protocols " : "",
@@ -1174,15 +1246,31 @@ int Packetracker::WriteCisco(FILE *in_file) {
                     cdp.cap.level2_sourceroute ? "Level 2 source-route bridging " : "",
                     cdp.cap.level2_transparent ? "Level 2 transparent bridging " : "",
                     cdp.cap.level3 ? "Level 3 routing " : "");
-            fprintf(in_file, "    Interface : %s\n", cdp.interface);
-            fprintf(in_file, "    IP        : %d.%d.%d.%d\n",
+            fprintf(netfile, "    Interface : %s\n", cdp.interface);
+            fprintf(netfile, "    IP        : %d.%d.%d.%d\n",
                     cdp.ip[0], cdp.ip[1], cdp.ip[2], cdp.ip[3]);
-            fprintf(in_file, "    Platform  : %s\n", cdp.platform);
-            fprintf(in_file, "    Software  : %s\n", cdp.software);
-            fprintf(in_file, "\n");
+            fprintf(netfile, "    Platform  : %s\n", cdp.platform);
+            fprintf(netfile, "    Software  : %s\n", cdp.software);
+            fprintf(netfile, "\n");
             devnum++;
         } // cdp
     } // net
+
+    fclose(netfile);
+
+    if (unlink(in_fname.c_str()) == -1) {
+        if (errno != ENOENT) {
+            snprintf(errstr, 1024, "Unable to unlink %s even though we could write to it: %s",
+                     in_fname.c_str(), strerror(errno));
+            return -1;
+        }
+    }
+
+    if (rename(fname_temp.c_str(), in_fname.c_str()) == -1) {
+        snprintf(errstr, 1024, "Unable to rename %s to %s: %s", fname_temp.c_str(), in_fname.c_str(),
+                 strerror(errno));
+        return -1;
+    }
 
     return 1;
 }
@@ -1205,9 +1293,38 @@ string Packetracker::SanitizeCSV(string in_data) {
  * Author: Reyk Floeter <reyk@synack.de>
  * Date:   2002/03/13
  */
-int Packetracker::WriteCSVNetworks(FILE *in_file) {
+int Packetracker::WriteCSVNetworks(string in_fname) {
+
+    string fname_temp = in_fname + ".temp";
+
+    FILE *netfile;
+
+    if ((netfile = fopen(in_fname.c_str(), "w+")) == NULL) {
+        snprintf(errstr, 1024, "Could not open %s for writing: %s", in_fname.c_str(),
+                 strerror(errno));
+        return -1;
+    }
+
+    fclose(netfile);
+
+    if (unlink(fname_temp.c_str()) == -1) {
+        if (errno != ENOENT) {
+            snprintf(errstr, 1024, "Could not unlink temp file %s: %s", fname_temp.c_str(),
+                     strerror(errno));
+            return -1;
+        }
+    }
+
+    if ((netfile = fopen(fname_temp.c_str(), "w")) == NULL) {
+        snprintf(errstr, 1024, "Could not open %s for writing even though we could unlink it: %s",
+                 fname_temp.c_str(), strerror(errno));
+        return -1;
+    }
+
+    /*
     fseek(in_file, 0L, SEEK_SET);
     ftruncate(fileno(in_file), 0);
+    */
 
     int netnum = 1;
     vector<wireless_network *> bssid_vec;
@@ -1219,7 +1336,7 @@ int Packetracker::WriteCSVNetworks(FILE *in_file) {
 
     sort(bssid_vec.begin(), bssid_vec.end(), SortFirstTimeLT());
 
-    fprintf(in_file, "Network;NetType;ESSID;BSSID;Info;Channel;Maxrate;WEP;LLC;Data;Crypt;Weak;Total;"
+    fprintf(netfile, "Network;NetType;ESSID;BSSID;Info;Channel;Maxrate;WEP;LLC;Data;Crypt;Weak;Total;"
 			"First;Last;BestQuality;BestSignal;BestNoise;"
             "GPSMinLat;GPSMinLon;GPSMinAlt;GPSMinSpd;"
             "GPSMaxLat;GPSMaxLon;GPSMaxAlt;GPSMaxSpd;"
@@ -1249,7 +1366,7 @@ int Packetracker::WriteCSVNetworks(FILE *in_file) {
             snprintf(type, 15, "unknown");
 
 
-        fprintf(in_file, "%d;%s;%s;%s;%s;%02d;%2.1f;%s;%d;%d;%d;%d;%d;%s;%s;%d;%d;%d;",
+        fprintf(netfile, "%d;%s;%s;%s;%s;%02d;%2.1f;%s;%d;%d;%d;%d;%d;%s;%s;%d;%d;%d;",
                 netnum, type,
                 SanitizeCSV(net->ssid).c_str(), net->bssid.Mac2String().c_str(),
                 net->beacon_info == "" ? "None" : SanitizeCSV(net->beacon_info).c_str(),
@@ -1263,7 +1380,7 @@ int Packetracker::WriteCSVNetworks(FILE *in_file) {
                 net->best_quality, net->best_signal, net->best_noise);
 
         if (net->gps_fixed != -1) {
-            fprintf(in_file,
+            fprintf(netfile,
                     "%f;%f;%f;%f;"
                     "%f;%f;%f;%f;",
                     net->min_lat, net->min_lon,
@@ -1273,29 +1390,45 @@ int Packetracker::WriteCSVNetworks(FILE *in_file) {
                     metric ? net->max_alt / 3.3 : net->max_alt,
                     metric ? net->max_spd * 1.6093 : net->max_spd);
         } else {
-            fprintf(in_file, ";;;;;;;;");
+            fprintf(netfile, ";;;;;;;;");
         }
 
         if (net->ipdata.atype == address_dhcp)
-            fprintf(in_file, "%d.%d.%d.%d;;;;\r\n",
+            fprintf(netfile, "%d.%d.%d.%d;;;;\r\n",
                     net->ipdata.range_ip[0], net->ipdata.range_ip[1],
                     net->ipdata.range_ip[2], net->ipdata.range_ip[3]
                    );
         else if (net->ipdata.atype == address_arp)
-            fprintf(in_file, ";;;%d.%d.%d.%d;;;\r\n",
+            fprintf(netfile, ";;;%d.%d.%d.%d;;;\r\n",
                     net->ipdata.range_ip[0], net->ipdata.range_ip[1],
                     net->ipdata.range_ip[2], net->ipdata.range_ip[3]);
         else if (net->ipdata.atype == address_udp)
-            fprintf(in_file, ";;;;%d.%d.%d.%d;;\r\n",
+            fprintf(netfile, ";;;;%d.%d.%d.%d;;\r\n",
                     net->ipdata.range_ip[0], net->ipdata.range_ip[1],
                     net->ipdata.range_ip[2], net->ipdata.range_ip[3]);
         else if (net->ipdata.atype == address_tcp)
-            fprintf(in_file, ";;;;;%d.%d.%d.%d;\r\n",
+            fprintf(netfile, ";;;;;%d.%d.%d.%d;\r\n",
                     net->ipdata.range_ip[0], net->ipdata.range_ip[1],
                     net->ipdata.range_ip[2], net->ipdata.range_ip[3]);
         else
-            fprintf(in_file, ";;;;;;\r\n");
+            fprintf(netfile, ";;;;;;\r\n");
         netnum++;
+    }
+
+    fclose(netfile);
+
+    if (unlink(in_fname.c_str()) == -1) {
+        if (errno != ENOENT) {
+            snprintf(errstr, 1024, "Unable to unlink %s even though we could write to it: %s",
+                     in_fname.c_str(), strerror(errno));
+            return -1;
+        }
+    }
+
+    if (rename(fname_temp.c_str(), in_fname.c_str()) == -1) {
+        snprintf(errstr, 1024, "Unable to rename %s to %s: %s", fname_temp.c_str(), in_fname.c_str(),
+                 strerror(errno));
+        return -1;
     }
 
     return 1;
@@ -1320,17 +1453,45 @@ string Packetracker::SanitizeXML(string in_data) {
 
 // Write an XML-formatted output conforming to our DTD at
 // http://kismetwireless.net/kismet-1.0.dtd
-int Packetracker::WriteXMLNetworks(FILE *in_file) {
+int Packetracker::WriteXMLNetworks(string in_fname) {
+    string fname_temp = in_fname + ".temp";
+
+    FILE *netfile;
+
+    if ((netfile = fopen(in_fname.c_str(), "w+")) == NULL) {
+        snprintf(errstr, 1024, "Could not open %s for writing: %s", in_fname.c_str(),
+                 strerror(errno));
+        return -1;
+    }
+
+    fclose(netfile);
+
+    if (unlink(fname_temp.c_str()) == -1) {
+        if (errno != ENOENT) {
+            snprintf(errstr, 1024, "Could not unlink temp file %s: %s", fname_temp.c_str(),
+                     strerror(errno));
+            return -1;
+        }
+    }
+
+    if ((netfile = fopen(fname_temp.c_str(), "w")) == NULL) {
+        snprintf(errstr, 1024, "Could not open %s for writing even though we could unlink it: %s",
+                 fname_temp.c_str(), strerror(errno));
+        return -1;
+    }
+
+    /*
     fseek(in_file, 0L, SEEK_SET);
     ftruncate(fileno(in_file), 0);
+    */
 
     int netnum = 1;
     vector<wireless_network *> bssid_vec;
 
-    fprintf(in_file, "<?xml version=\"1.0\" encoding=\"ISO-8859-1\"?>\n");
-    fprintf(in_file, "<!DOCTYPE detection-run SYSTEM \"http://kismetwireless.net/kismet-1.5.dtd\">\n");
+    fprintf(netfile, "<?xml version=\"1.0\" encoding=\"ISO-8859-1\"?>\n");
+    fprintf(netfile, "<!DOCTYPE detection-run SYSTEM \"http://kismetwireless.net/kismet-1.5.dtd\">\n");
 
-    fprintf(in_file, "\n\n");
+    fprintf(netfile, "\n\n");
 
     char lt[25];
     char ft[25];
@@ -1339,7 +1500,7 @@ int Packetracker::WriteXMLNetworks(FILE *in_file) {
     time_t cur_time = time(0);
     snprintf(lt, 25, "%s", ctime(&cur_time));
 
-    fprintf(in_file, "<detection-run kismet-version=\"%d.%d.%d\" start-time=\"%s\" end-time=\"%s\">\n",
+    fprintf(netfile, "<detection-run kismet-version=\"%d.%d.%d\" start-time=\"%s\" end-time=\"%s\">\n",
             VERSION_MAJOR, VERSION_MINOR, VERSION_TINY, ft, lt);
 
     // Convert the map to a vector and sort it
@@ -1369,42 +1530,42 @@ int Packetracker::WriteXMLNetworks(FILE *in_file) {
         else
             snprintf(type, 15, "unknown");
 
-        fprintf(in_file, "  <wireless-network number=\"%d\" type=\"%s\" wep=\"%s\" cloaked=\"%s\" first-time=\"%s\" last-time=\"%s\">\n",
+        fprintf(netfile, "  <wireless-network number=\"%d\" type=\"%s\" wep=\"%s\" cloaked=\"%s\" first-time=\"%s\" last-time=\"%s\">\n",
                 netnum, type, net->wep ? "true" : "false", net->cloaked ? "true" : "false",
                 ft, lt);
 
         if (net->ssid != NOSSID)
-            fprintf(in_file, "    <SSID>%s</SSID>\n", SanitizeXML(net->ssid).c_str());
+            fprintf(netfile, "    <SSID>%s</SSID>\n", SanitizeXML(net->ssid).c_str());
 
-        fprintf(in_file, "    <BSSID>%s</BSSID>\n", net->bssid.Mac2String().c_str());
+        fprintf(netfile, "    <BSSID>%s</BSSID>\n", net->bssid.Mac2String().c_str());
         if (net->beacon_info != "")
-            fprintf(in_file, "    <info>%s</info>\n", SanitizeXML(net->beacon_info).c_str());
-        fprintf(in_file, "    <channel>%d</channel>\n", net->channel);
-        fprintf(in_file, "    <maxrate>%2.1f</maxrate>\n", net->maxrate);
-        fprintf(in_file, "    <packets>\n");
-        fprintf(in_file, "      <LLC>%d</LLC>\n", net->llc_packets);
-        fprintf(in_file, "      <data>%d</data>\n", net->data_packets);
-        fprintf(in_file, "      <crypt>%d</crypt>\n", net->crypt_packets);
-        fprintf(in_file, "      <weak>%d</weak>\n", net->interesting_packets);
-        fprintf(in_file, "      <total>%d</total>\n",
+            fprintf(netfile, "    <info>%s</info>\n", SanitizeXML(net->beacon_info).c_str());
+        fprintf(netfile, "    <channel>%d</channel>\n", net->channel);
+        fprintf(netfile, "    <maxrate>%2.1f</maxrate>\n", net->maxrate);
+        fprintf(netfile, "    <packets>\n");
+        fprintf(netfile, "      <LLC>%d</LLC>\n", net->llc_packets);
+        fprintf(netfile, "      <data>%d</data>\n", net->data_packets);
+        fprintf(netfile, "      <crypt>%d</crypt>\n", net->crypt_packets);
+        fprintf(netfile, "      <weak>%d</weak>\n", net->interesting_packets);
+        fprintf(netfile, "      <total>%d</total>\n",
                 (net->llc_packets + net->data_packets));
-        fprintf(in_file, "    </packets>\n");
+        fprintf(netfile, "    </packets>\n");
 
         if (net->gps_fixed != -1) {
-            fprintf(in_file, "    <gps-info unit=\"%s\">\n", metric ? "metric" : "english");
-            fprintf(in_file, "      <min-lat>%f</min-lat>\n", net->min_lat);
-            fprintf(in_file, "      <min-lon>%f</min-lon>\n", net->min_lon);
-            fprintf(in_file, "      <min-alt>%f</min-alt>\n",
+            fprintf(netfile, "    <gps-info unit=\"%s\">\n", metric ? "metric" : "english");
+            fprintf(netfile, "      <min-lat>%f</min-lat>\n", net->min_lat);
+            fprintf(netfile, "      <min-lon>%f</min-lon>\n", net->min_lon);
+            fprintf(netfile, "      <min-alt>%f</min-alt>\n",
                     metric ? net->min_alt / 3.3 : net->min_alt);
-            fprintf(in_file, "      <min-spd>%f</min-spd>\n",
+            fprintf(netfile, "      <min-spd>%f</min-spd>\n",
                     metric ? net->min_alt * 1.6093 : net->min_spd);
-            fprintf(in_file, "      <max-lat>%f</max-lat>\n", net->max_lat);
-            fprintf(in_file, "      <max-lon>%f</max-lon>\n", net->max_lon);
-            fprintf(in_file, "      <max-alt>%f</max-alt>\n",
+            fprintf(netfile, "      <max-lat>%f</max-lat>\n", net->max_lat);
+            fprintf(netfile, "      <max-lon>%f</max-lon>\n", net->max_lon);
+            fprintf(netfile, "      <max-alt>%f</max-alt>\n",
                     metric ? net->max_alt / 3.3 : net->max_alt);
-            fprintf(in_file, "      <max-spd>%f</max-spd>\n",
+            fprintf(netfile, "      <max-spd>%f</max-spd>\n",
                     metric ? net->max_spd * 1.6093 : net->max_spd);
-            fprintf(in_file, "    </gps-info>\n");
+            fprintf(netfile, "    </gps-info>\n");
         }
 
         if (net->ipdata.atype > address_factory) {
@@ -1427,16 +1588,16 @@ int Packetracker::WriteXMLNetworks(FILE *in_file) {
                 break;
             }
 
-            fprintf(in_file, "    <ip-address type=\"%s\">\n", addrtype);
-            fprintf(in_file, "      <ip-range>%d.%d.%d.%d</ip-range>\n",
+            fprintf(netfile, "    <ip-address type=\"%s\">\n", addrtype);
+            fprintf(netfile, "      <ip-range>%d.%d.%d.%d</ip-range>\n",
                     net->ipdata.range_ip[0], net->ipdata.range_ip[1],
                     net->ipdata.range_ip[2], net->ipdata.range_ip[3]);
-            fprintf(in_file, "    </ip-address>\n");
+            fprintf(netfile, "    </ip-address>\n");
         }
         netnum++;
 
         if (net->cisco_equip.size() == 0) {
-        	fprintf(in_file, "  </wireless-network>\n");
+        	fprintf(netfile, "  </wireless-network>\n");
             continue;
 		}
 
@@ -1445,10 +1606,10 @@ int Packetracker::WriteXMLNetworks(FILE *in_file) {
              x != net->cisco_equip.end(); ++x) {
             cdp_packet cdp = x->second;
 
-            fprintf(in_file, "    <cisco number=\"%d\">\n", devnum);
-            fprintf(in_file, "      <cdp-device-id>%s</cdp-device-id>\n",
+            fprintf(netfile, "    <cisco number=\"%d\">\n", devnum);
+            fprintf(netfile, "      <cdp-device-id>%s</cdp-device-id>\n",
                     cdp.dev_id);
-            fprintf(in_file, "      <cdp-capability level1=\"%s\" igmp-forward=\"%s\" netlayer=\"%s\" "
+            fprintf(netfile, "      <cdp-capability level1=\"%s\" igmp-forward=\"%s\" netlayer=\"%s\" "
                     "level2-switching=\"%s\" level2-sourceroute=\"%s\" level2-transparent=\"%s\" "
                     "level3-routing=\"%s\"/>\n",
                     cdp.cap.level1 ? "true" : "false",
@@ -1458,20 +1619,36 @@ int Packetracker::WriteXMLNetworks(FILE *in_file) {
                     cdp.cap.level2_sourceroute ? "true" : "false",
                     cdp.cap.level2_transparent ? "true" : "false",
                     cdp.cap.level3 ? "true" : "false");
-            fprintf(in_file, "      <cdp-interface>%s</cdp-interface>\n", cdp.interface);
-            fprintf(in_file, "      <cdp-ip>%d.%d.%d.%d</cdp-ip>\n",
+            fprintf(netfile, "      <cdp-interface>%s</cdp-interface>\n", cdp.interface);
+            fprintf(netfile, "      <cdp-ip>%d.%d.%d.%d</cdp-ip>\n",
                     cdp.ip[0], cdp.ip[1], cdp.ip[2], cdp.ip[3]);
-            fprintf(in_file, "      <cdp-platform>%s</cdp-platform>\n", cdp.platform);
-            fprintf(in_file, "      <cdp-software>%s</cdp-software>\n", cdp.software);
-            fprintf(in_file, "    </cisco>\n");
+            fprintf(netfile, "      <cdp-platform>%s</cdp-platform>\n", cdp.platform);
+            fprintf(netfile, "      <cdp-software>%s</cdp-software>\n", cdp.software);
+            fprintf(netfile, "    </cisco>\n");
             devnum++;
         } // cdp
 
-        fprintf(in_file, "  </wireless-network>\n");
+        fprintf(netfile, "  </wireless-network>\n");
 
     } // net
 
-    fprintf(in_file, "</detection-run>\n");
+    fprintf(netfile, "</detection-run>\n");
+
+    fclose(netfile);
+
+    if (unlink(in_fname.c_str()) == -1) {
+        if (errno != ENOENT) {
+            snprintf(errstr, 1024, "Unable to unlink %s even though we could write to it: %s",
+                     in_fname.c_str(), strerror(errno));
+            return -1;
+        }
+    }
+
+    if (rename(fname_temp.c_str(), in_fname.c_str()) == -1) {
+        snprintf(errstr, 1024, "Unable to rename %s to %s: %s", fname_temp.c_str(), in_fname.c_str(),
+                 strerror(errno));
+        return -1;
+    }
 
     return 1;
 }
