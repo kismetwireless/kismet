@@ -64,6 +64,7 @@ Key  Action
  r   Packet rate graph
  a   Statistics about network channel usage and encryption
  p   Dump packet types
+ f   Follow network center or strongest point
  x   Close popup window
 
  Q   Quit
@@ -121,4 +122,8 @@ Displays a graph of the rate of incoming packets over the past 5 minutes.
 
 * Packet type dumps
 Displays the packet types seen, and dissects some common protocols.
+
+* Follow network center
+Displays a compass and bearing to the average network center or the point with
+the strongest signal.
 
