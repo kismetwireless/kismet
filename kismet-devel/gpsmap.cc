@@ -212,7 +212,11 @@ typedef struct gps_network {
     gps_network() {
         filtered = 0;
         wnet = NULL;
-        max_lat = min_lat = max_lon = min_lon = max_alt = min_alt = 0;
+        max_lat = 90;
+        max_lon = 180;
+        min_lat = -90;
+        min_lon = -180;
+        max_alt = min_alt = 0;
         count = 0;
         avg_lat = avg_lon = avg_alt = avg_spd = 0;
         diagonal_distance = altitude_distance = 0;
@@ -356,6 +360,7 @@ ExceptionInfo im_exception;
 // Forward prototypes
 string Mac2String(uint8_t *mac, char seperator);
 string NetType2String(wireless_network_type in_type);
+void UpdateGlobalCoords(float in_lat, float in_lon, float in_alt);
 double rad2deg(double x);
 double earth_distance(double lat1, double lon1, double lat2, double lon2);
 double calcR (double lat);
@@ -426,6 +431,24 @@ string NetType2String(wireless_network_type in_type) {
         return "data";
 
     return "unknown";
+}
+
+void UpdateGlobalCoords(float in_lat, float in_lon, float in_alt) {
+    if (in_lat > global_map_avg.max_lat || global_map_avg.max_lat == 90)
+        global_map_avg.max_lat = in_lat;
+    if (in_lat < global_map_avg.min_lat || global_map_avg.min_lat == -90)
+        global_map_avg.min_lat = in_lat;
+
+    if (in_lon > global_map_avg.max_lon || global_map_avg.max_lon == 180)
+        global_map_avg.max_lon = in_lon;
+    if (in_lon < global_map_avg.min_lon || global_map_avg.min_lon == -180)
+        global_map_avg.min_lon = in_lon;
+
+    if (in_alt > global_map_avg.max_alt || global_map_avg.max_alt == 0)
+        global_map_avg.max_alt = in_alt;
+    if (in_alt < global_map_avg.min_alt || global_map_avg.min_alt == 0)
+        global_map_avg.min_alt = in_alt;
+
 }
 
 void SanitizeSamplePoints(vector<gps_point *> in_samples, map<int,int> *dead_sample_ids) {
@@ -532,6 +555,13 @@ void SanitizeSamplePoints(vector<gps_point *> in_samples, map<int,int> *dead_sam
         }
     }
 
+    // Clean up offset-valid (in broken, limited capture files) points
+    for (unsigned int pos = 0; pos < in_samples.size(); pos++) {
+        if ((in_samples[pos]->lat == 0 && in_samples[pos]->lon == 0) ||
+            (isnan(in_samples[pos]->lat) || isinf(in_samples[pos]->lat) ||
+             isnan(in_samples[pos]->lon) || isinf(in_samples[pos]->lon)))
+            (*dead_sample_ids)[in_samples[pos]->id] = 1;
+    }
 
 }
 
@@ -846,20 +876,7 @@ int ProcessGPSFile(char *in_fname) {
             global_map_avg.avg_spd += spd;
             global_map_avg.count++;
 
-            if (lat > global_map_avg.max_lat || global_map_avg.max_lat == 0)
-                global_map_avg.max_lat = lat;
-            if (lat < global_map_avg.min_lat || global_map_avg.min_lat == 0)
-                global_map_avg.min_lat = lat;
-
-            if (lon > global_map_avg.max_lon || global_map_avg.max_lon == 0)
-                global_map_avg.max_lon = lon;
-            if (lon < global_map_avg.min_lon || global_map_avg.min_lon == 0)
-                global_map_avg.min_lon = lon;
-
-            if (alt > global_map_avg.max_alt || global_map_avg.max_alt == 0)
-                global_map_avg.max_alt = alt;
-            if (alt < global_map_avg.min_alt || global_map_avg.min_alt == 0)
-                global_map_avg.min_alt = alt;
+            UpdateGlobalCoords(lat, lon, alt);
         }
 
         if (trackdata == 0) {
@@ -923,10 +940,15 @@ int ProcessGPSFile(char *in_fname) {
 
             bssid_gpsnet_map[file_points[i]->bssid] = gnet;
 
+            UpdateGlobalCoords(lat, lon, alt);
+
         } else {
             gnet = bssid_gpsnet_map[file_points[i]->bssid];
 
             gnet->points.push_back(file_points[i]);
+
+            UpdateGlobalCoords(lat, lon, alt);
+
         }
     }
 
@@ -986,16 +1008,16 @@ void ProcessNetData(int in_printstats) {
             map_iter->count++;
 
             // Enter the max/min values
-            if (lat > map_iter->max_lat || map_iter->max_lat == 0)
+            if (lat > map_iter->max_lat || map_iter->max_lat == 90)
                 map_iter->max_lat = lat;
 
-            if (lat < map_iter->min_lat || map_iter->min_lat == 0)
+            if (lat < map_iter->min_lat || map_iter->min_lat == -90)
                 map_iter->min_lat = lat;
 
-            if (lon > map_iter->max_lon || map_iter->max_lon == 0)
+            if (lon > map_iter->max_lon || map_iter->max_lon == 180)
                 map_iter->max_lon = lon;
 
-            if (lon < map_iter->min_lon || map_iter->min_lon == 0)
+            if (lon < map_iter->min_lon || map_iter->min_lon == -180)
                 map_iter->min_lon = lon;
 
             if (alt > map_iter->max_alt || map_iter->max_alt == 0)
@@ -1191,16 +1213,24 @@ void calcxy (double *posx, double *posy, double lat, double lon, double pixelfac
     //*posy = *posy - yoff;
 }
 
-// Find the best map scale for the 'rectangle' tlat,tlon blat,blon
+// Find the best map scale for the 'rectangle' tlat,tlon
 long int BestMapScale(double tlat, double tlon, double blat, double blon) { /*FOLD00*/
     for (int x = 0; scales[x] != 0; x++) {
         double mapx, mapy;
+        double map2x, map2y;
+
+        /*
         calcxy (&mapx, &mapy, global_map_avg.max_lat, global_map_avg.max_lon,
                 (double) scales[x]/PIXELFACT, map_avg_lat, map_avg_lon);
+                */
 
-        if (mapx < 0 || mapx > map_width || mapy < 0 || mapy > map_height)
+        calcxy(&mapx, &mapy, tlat, tlon, (double) scales[x]/PIXELFACT, map_avg_lat, map_avg_lon);
+        calcxy(&map2x, &map2y, blat, blon, (double) scales[x]/PIXELFACT, map_avg_lat, map_avg_lon);
+
+        if ((mapx < 0 || mapx > map_width || mapy < 0 || mapy > map_height) ||
+            (map2x < 0 || map2x > map_width || map2y < 0 || map2y > map_height)) {
             continue;
-        else {
+        } else {
             // Fudge the scale by 10% for extreme ranges
             if (scales[x] >= 1000000 && scales[x] < 20000000)
                 return (long) (scales[x] + (scales[x] * 0.10));
@@ -1429,7 +1459,7 @@ void DrawNetCircles(vector<gps_network *> in_nets, Image *in_img, DrawInfo *in_d
         gps_network *map_iter = in_nets[x];
 
         // Skip networks w/ no determined coordinates
-        if (map_iter->max_lat == 0)
+        if (map_iter->max_lat == 90)
             continue;
 
         if (map_iter->diagonal_distance > horiz_throttle)
@@ -1526,7 +1556,7 @@ void DrawNetHull(vector<gps_network *> in_nets, Image *in_img, DrawInfo *in_di) 
         gps_network *map_iter = in_nets[x];
 
         // Skip networks w/ no determined coordinates
-        if (map_iter->max_lat == 0)
+        if (map_iter->max_lat == 90)
             continue;
 
         if (map_iter->diagonal_distance > horiz_throttle)
@@ -1658,7 +1688,7 @@ void DrawNetBoundRects(vector<gps_network *> in_nets, Image *in_img, DrawInfo *i
         gps_network *map_iter = in_nets[x];
 
         // Skip networks w/ no determined coordinates
-        if (map_iter->max_lat == 0)
+        if (map_iter->max_lat == 90)
             continue;
 
         if (map_iter->diagonal_distance == 0 || map_iter->diagonal_distance > horiz_throttle)
@@ -1985,7 +2015,7 @@ void DrawNetCenterDot(vector<gps_network *> in_nets, Image *in_img, DrawInfo *in
         gps_network *map_iter = in_nets[x];
 
         // Skip networks w/ no determined coordinates
-        if (map_iter->max_lat == 0)
+        if (map_iter->max_lat == 90)
             continue;
 
         if (map_iter->diagonal_distance > horiz_throttle)
@@ -2037,7 +2067,7 @@ void DrawNetCenterText(vector<gps_network *> in_nets, Image *in_img, DrawInfo *i
         gps_network *map_iter = in_nets[x];
 
         // Skip networks w/ no determined coordinates
-        if (map_iter->max_lat == 0)
+        if (map_iter->max_lat == 90)
             continue;
 
         if (map_iter->diagonal_distance > horiz_throttle)
