@@ -201,9 +201,9 @@ install: $(PS) $(DRONE) $(HOPPER) $(NC) $(GPSLBUILD) $(ZAURUSBUILD)
 		echo "Installed UI config into $(ETC)/kismet_ui.conf."; \
 	fi
 	@echo "Installed kismet into $(BIN)/."
-	@echo "If you have not already, read the docs in docs/ and edit"
-	@echo "$(ETC)/kismet.conf to configure it for your system.  If you do not"
-	@echo "configure this, Kismet will NOT run properly!"
+	@echo "If you have not done so already, read the README file and the FAQ file.  Additional"
+	@echo "documentation is in the docs/ directory.  You MUST edit $(ETC)/kismet.conf and configure"
+	@echo "Kismet for your system, or it will NOT run properly!"
                 
 forceinstall: $(PS)
 	$(MAKE) -e commoninstall
@@ -214,9 +214,9 @@ forceinstall: $(PS)
 	install -o $(INSTUSR) -g $(INSTGRP) -m 644 conf/kismet_ui.conf $(ETC)/kismet_ui.conf;  \
 		echo "Installed UI config into $(ETC)/kismet_ui.conf."; 
 	@echo "Installed kismet into $(BIN)/."
-	@echo "If you have not already, read the docs in docs/ and edit"
-	@echo "$(ETC)/kismet.conf to configure it for your system.  If you do not"
-	@echo "configure this, Kismet will NOT run properly!"
+	@echo "If you have not done so already, read the README file and the FAQ file.  Additional"
+	@echo "documentation is in the docs/ directory.  You MUST edit $(ETC)/kismet.conf and configure"
+	@echo "Kismet for your system, or it will NOT run properly!"
 
 rpm:
 	@echo "Disabling SUID installation (RPM will handle setting the SUID bit.)"
