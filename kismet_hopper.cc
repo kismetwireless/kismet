@@ -24,6 +24,12 @@
 #include <string.h>
 #include <sys/types.h>
 #include <sys/stat.h>
+#include <sys/ioctl.h>
+#include <sys/socket.h>
+#ifdef HAVE_LINUX_WIRELESS
+#include <linux/wireless.h>
+#endif
+#include <errno.h>
 #include <signal.h>
 #include <vector>
 #include "getopt.h"
@@ -33,19 +39,22 @@
 char *exec_name;
 #endif
 
+typedef void (*hopfunction)(struct capturesource *,int chan);
+
 typedef struct capturesource {
     char *name;
     char *interface;
     int chanpos;
     char *cardtype;
     const char *cmd_template;
+    hopfunction func;
 };
 
-#define prism2 "wlanctl-ng %s lnxreq_wlansniff channel=%d enable=true"
-#define prism2_pcap "wlanctl-ng %s lnxreq_wlansniff channel=%d enable=true prismheader=true"
-#define prism2_bsd "prism2ctl %s -f %d"
-#define prism2_hostap "iwconfig %s channel %d"
-#define orinoco "iwpriv %s monitor 1 %d"
+#define prism2 "wlanctl-ng %s lnxreq_wlansniff channel=%d enable=true >/dev/null"
+#define prism2_pcap "wlanctl-ng %s lnxreq_wlansniff channel=%d enable=true prismheader=true >/dev/null"
+#define prism2_bsd "prism2ctl %s -f %d >/dev/null"
+#define prism2_hostap "iwconfig %s channel %d >/dev/null"
+#define orinoco "iwpriv %s monitor 1 %d >/dev/null"
 
 // This one is nonstandard, but then, the wsp100 is in general.  We push channelhop, channel mask,
 // and hop speed then stop
@@ -119,6 +128,7 @@ int Usage(char *argv) {
            "  -n, --international          Use international channels (1-14)\n"
            "  -s, --hopsequence            Use given hop sequence (comma separated list)\n"
            "  -v, --velocity               Hopping velocity (hops per second)\n"
+	   "  -p, --progress               Show hopping progress\n"
            "  -h, --help                   What do you think you're reading?\n");
     exit(1);
 }
@@ -129,9 +139,56 @@ void CatchShutdown(int sig) {
     exit(0);
 }
 
+void defaulthopper(struct capturesource *csrc, int chan) {
+    char cmd[1024];
+
+    snprintf(cmd, 1024, csrc->cmd_template, csrc->interface, chan);
+
+    if (system(cmd) != 0) {
+        fprintf(stderr,"FATAL:  Error executing ``%s''.  Aborting.\n", cmd);
+        CatchShutdown(-1);
+    }
+
+    return;
+}
+
+void orinocohopper(struct capturesource *csrc, int chan) {
+#ifdef HAVE_LINUX_WIRELESS
+    int fd;
+    struct iwreq ireq;  //for Orinoco
+    int *ptr;
+
+    /* get a socket */
+    fd = socket(AF_INET, SOCK_STREAM, 0);
+
+    if (fd == -1) {
+        fprintf(stderr, "FATAL:  Error getting socket for orinoco: %s.\n", strerror(errno));
+        CatchShutdown(-1);
+    }
+
+    ptr = (int *) ireq.u.name;
+    ptr[0] = 1;
+    ptr[1] = chan;
+
+    strncpy(ireq.ifr_ifrn.ifrn_name, csrc->interface, IFNAMSIZ);
+    if (ioctl(fd, SIOCIWFIRSTPRIV + 0x8, &ireq) != 0) {
+        fprintf(stderr, "FATAL:  Error setting orinoco channel using private ioctl: %s.\n", strerror(errno));
+        CatchShutdown(-1);
+    }
+
+    close(fd);
+
+#else
+    defaulthopper(csrc, chan);
+#endif
+
+    return;
+}
+
+
+
 int main(int argc, char *argv[]) {
     int *chanlist;
-    FILE *pgsock;
     char *configfile = NULL;
     char *channame = "United States";
     struct stat fstat;
@@ -158,6 +215,7 @@ int main(int argc, char *argv[]) {
         { "hopsequence", required_argument, 0, 's' },
         { "velocity", required_argument, 0, 'v' },
         { "divide-channels", no_argument, 0, 'd' },
+	{ "progress", no_argument, 0, 'p' },
         { "help", no_argument, 0, 'h' },
         { 0, 0, 0, 0}
     };
@@ -169,11 +227,12 @@ int main(int argc, char *argv[]) {
 
     int divide = 0;
     int divisions = 0;
+    int progress = 0;
 
     chanlist = us_channels;
     int option_index;
     while(1) {
-        int r = getopt_long(argc, argv, "f:nc:C:s:v:hd",
+        int r = getopt_long(argc, argv, "f:nc:C:s:v:hdp",
                             long_options, &option_index);
         if (r < 0) break;
 
@@ -211,6 +270,10 @@ int main(int argc, char *argv[]) {
         case 'd':
             // Divide channels
             divide = 1;
+            break;
+        case 'p':
+            // Show progress
+            progress = 1;
             break;
         default:
             Usage(argv[0]);
@@ -350,6 +413,8 @@ int main(int argc, char *argv[]) {
 
         enable_name_map[StrLower(csrc->name)] = 1;
 
+	packet_sources[src]->func = defaulthopper;
+
         if (!strcasecmp(type, "cisco") || !strcasecmp(type, "cisco_bsd") ||
             !strcasecmp(type, "cisco_cvs")) {
             if (packet_sources.size() == 1) {
@@ -371,6 +436,7 @@ int main(int argc, char *argv[]) {
             packet_sources[src]->cmd_template = prism2_hostap;
             divisions++;
         } else if (!strcasecmp(type, "orinoco")) {
+	    packet_sources[src]->func = orinocohopper;
             packet_sources[src]->cmd_template = orinoco;
             divisions++;
         } else if (!strcasecmp(type, "wsp100")) {
@@ -476,7 +542,6 @@ int main(int argc, char *argv[]) {
             fprintf(stderr, "%s - Source %d - Channel hopping (%s) on interface %s\n",
                     argv[0], src, channame, packet_sources[src]->interface);
 
-    char cmd[1024];
     int statime = 0;
     while (1) {
         if (statime++ > 5) {
@@ -487,23 +552,30 @@ int main(int argc, char *argv[]) {
             }
         }
 
+	if(progress)
+	    printf(" Hopping:");
+
         for (unsigned int src = 0; src < packet_sources.size(); src++) {
-            if (packet_sources[src] == NULL)
+	    capturesource *csrc = packet_sources[src];
+            if (csrc == NULL)
                 continue;
 
-            capturesource *csrc = packet_sources[src];
-            snprintf(cmd, 1024, csrc->cmd_template, csrc->interface, chanlist[csrc->chanpos++]);
+	    if(progress)
+		printf(" %d",chanlist[csrc->chanpos]);
 
-            if (chanlist[csrc->chanpos] == -1)
-                csrc->chanpos = 0;
+	    csrc->func(packet_sources[src],chanlist[csrc->chanpos]);
 
-            if ((pgsock = popen(cmd, "r")) < 0) {
-                fprintf(stderr, "FATAL:  Source %d: Could not popen ``%s''.  Aborting.\n", src, cmd);
-                exit(0);
-            }
+	    csrc->chanpos++;
+	    if (chanlist[csrc->chanpos] == -1)
+		csrc->chanpos = 0;
+    
 
-            pclose(pgsock);
         }
+
+	if(progress){
+	    printf("          \r");
+	    fflush(stdout);
+	}
 
         usleep(interval);
 
