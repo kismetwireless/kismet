@@ -166,13 +166,10 @@ int PcapSource::Pcap2Common(kis_packet *packet) {
         packet->len = packet->caplen;
 
         bsd_80211_header *bsdhead = (bsd_80211_header *) callback_data;
-        packet->signal = bsdhead->wi_signal;
 
-        // No noise level so quality = percentage of max signal level
-        packet->quality = (packet->signal * 100) / 256;
-
-        // Adjust to take out the BSD header
-
+        packet->noise = bsdhead->wi_silence;
+        packet->quality = ((packet->signal - packet->noise) * 100) / 256;
+		
         // Set our offset
         callback_offset = sizeof(bsd_80211_header);
 
@@ -220,16 +217,27 @@ int PcapSource::Pcap2Common(kis_packet *packet) {
 
         memcpy(packet->data, callback_data + callback_offset, 24);
         memcpy(packet->data + 24, callback_data + callback_offset + 26, packet->caplen - 26);
-    } else if (cardtype == card_prism2_bsd && (callback_offset + packet->caplen) > 46) {
-        // The freebsd prism2 drivers insert 22 bytes of crap
 
-        packet->len -= 22;
-        packet->caplen -= 22;
+    } else if (cardtype == card_prism2_bsd && (callback_offset + packet->caplen) > 68) {
+        // skip driver appended prism header
+        packet->len -= 14;
+        packet->caplen -= 14;
 
         packet->data = new uint8_t[packet->caplen];
 
+        // 802.11 header
         memcpy(packet->data, callback_data + callback_offset, 24);
-        memcpy(packet->data + 24, callback_data + callback_offset + 46, packet->caplen - 46);
+
+        // Adjust for driver appended snap and 802.3 headers
+        if (packet->data[0] > 0x08) {
+            packet->len -= 8;
+            packet->caplen -= 8;
+            memcpy(packet->data + 24, callback_data + callback_offset + 46, packet->caplen - 16);
+
+        } else {
+
+            memcpy(packet->data + 24, callback_data + callback_offset + 46, packet->caplen - 60);
+        }
 
     } else {
         // Otherwise we don't do anything or we don't have enough of a packet to do anything
