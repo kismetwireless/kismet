@@ -147,15 +147,6 @@ void Frontend::UpdateGroups() {
                 group_name_map[dnet->tag] = dnet->name;
             }
 
-            // Take the highest overall signal and power levels.  Noise just
-            // tags along for the ride.  Only do this if the network has been touched
-            // within the decay period
-            if (curtime - dnet->virtnet->last_time > (decay * 2)) {
-                dnet->virtnet->signal = 0;
-                dnet->virtnet->quality = 0;
-                dnet->virtnet->noise = 0;
-            }
-
             continue;
         }
 
@@ -328,13 +319,6 @@ void Frontend::UpdateGroups() {
         // convert our map into a vector
         for (map<mac_addr, wireless_client *>::iterator cli = dnet->virtnet->client_map.begin();
              cli != dnet->virtnet->client_map.end(); ++cli) {
-
-            if (curtime - cli->second->last_time > (decay * 2)) {
-                cli->second->signal = 0;
-                cli->second->quality = 0;
-                cli->second->noise = 0;
-            }
-
             dnet->virtnet->client_vec.push_back(cli->second);
         }
 
