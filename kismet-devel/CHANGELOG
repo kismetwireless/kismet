@@ -1,4 +1,5 @@
 Mar 31 2004  devel  Fixed gpsmap cache error reporting mistake
+                    Changed 'best signal' and 'best noise' stuff to handle dBm
 Mar 30 2004  devel  Tentative support for calculating SNR from signal levels
                      in dBm for Kismet and gpsmap
 Mar 29 2004  devel  Removed size restriction testing for now, let the remote
