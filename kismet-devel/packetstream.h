@@ -28,7 +28,7 @@
 #include <inttypes.h>
 #endif
 
-#define STREAM_DRONE_VERSION 4
+#define STREAM_DRONE_VERSION 5
 
 #define STREAM_FTYPE_VERSION 1
 #define STREAM_FTYPE_PACKET  2
@@ -57,6 +57,16 @@ typedef struct stream_packet_header {
     uint8_t carrier __attribute__ ((packed));
     uint8_t encoding __attribute__ ((packed));
     uint32_t datarate __attribute__ ((packed));
+
+    int16_t gps_lat __attribute__ ((packed));
+    int64_t gps_lat_mant __attribute__ ((packed));
+    int16_t gps_lon __attribute__ ((packed));
+    int64_t gps_lon_mant __attribute__ ((packed));
+    int16_t gps_alt __attribute__ ((packed));
+    int64_t gps_alt_mant __attribute__ ((packed));
+    int16_t gps_spd __attribute__ ((packed));
+    int64_t gps_spd_mant __attribute__ ((packed));
+    int8_t gps_fix __attribute__ ((packed));
 };
 
 #endif

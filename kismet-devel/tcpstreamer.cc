@@ -338,6 +338,21 @@ int TcpStreamer::WritePacket(const kis_packet *in_packet) {
     packhdr.carrier = in_packet->carrier;
     packhdr.encoding = in_packet->encoding;
     packhdr.datarate = (uint32_t) htonl(in_packet->datarate);
+    // GPS first-iteration
+    Float2Pair(in_packet->gps_lat, &packhdr.gps_lat, &packhdr.gps_lat_mant);
+    Float2Pair(in_packet->gps_lon, &packhdr.gps_lon, &packhdr.gps_lon_mant);
+    Float2Pair(in_packet->gps_alt, &packhdr.gps_alt, &packhdr.gps_alt_mant);
+    Float2Pair(in_packet->gps_spd, &packhdr.gps_spd, &packhdr.gps_spd_mant);
+    packhdr.gps_fix = in_packet->gps_fix;
+    // endianswap
+    packhdr.gps_lat = (int16_t) htons(packhdr.gps_lat);
+    packhdr.gps_lat_mant = (int64_t) kis_hton64(packhdr.gps_lat_mant);
+    packhdr.gps_lon = (int16_t) htons(packhdr.gps_lon);
+    packhdr.gps_lon_mant = (int64_t) kis_hton64(packhdr.gps_lon_mant);
+    packhdr.gps_alt = (int16_t) htons(packhdr.gps_alt);
+    packhdr.gps_alt_mant = (int64_t) kis_hton64(packhdr.gps_alt_mant);
+    packhdr.gps_spd = (int16_t) htons(packhdr.gps_spd);
+    packhdr.gps_spd_mant = (int64_t) kis_hton64(packhdr.gps_spd_mant);
 
     hdr.frame_len = (uint32_t) htonl(sizeof(struct stream_packet_header) + packhdr.caplen);
 
