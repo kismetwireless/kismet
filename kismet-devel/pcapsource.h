@@ -100,6 +100,25 @@ protected:
         u_int16_t wi_rsvd1;
     } bsd_80211_header;
 
+    // wlan-ng (and hopefully others) AVS header, version one.  Fields in
+    // network byte order.
+    typedef struct {
+        uint32_t version;
+        uint32_t length;
+        uint64_t mactime;
+        uint64_t hosttime;
+        uint32_t phytype;
+        uint32_t channel;
+        uint32_t datarate;
+        uint32_t antenna;
+        uint32_t priority;
+        uint32_t ssi_type;
+        int32_t ssi_signal;
+        int32_t ssi_noise;
+        uint32_t preamble;
+        uint32_t encoding;
+    } avs_80211_1_header;
+
     int Pcap2Common(kis_packet *packet);
 
     pcap_t *pd;

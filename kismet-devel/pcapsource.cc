@@ -132,28 +132,94 @@ int PcapSource::Pcap2Common(kis_packet *packet) {
 
     // Get the power from the datalink headers if we can, otherwise use proc/wireless
     if (datalink_type == DLT_PRISM_HEADER) {
-        if (callback_header.caplen < sizeof(wlan_ng_prism2_header)) {
-            snprintf(errstr, 1024, "pcap Pcap2Common saw undersized capture frame for prism2-header data.");
+        int header_found = 0;
+
+        // See if we have an AVS wlan header...
+        avs_80211_1_header *v1hdr = (avs_80211_1_header *) callback_data;
+        if (callback_header.caplen >= sizeof(avs_80211_1_header) &&
+            ntohl(v1hdr->version) == 0x80211001 && header_found == 0) {
+
+            if (ntohl(v1hdr->length) > callback_header.caplen) {
+                snprintf(errstr, 1024, "pcap Pcap2Common got corrupted AVS header length");
+                packet->len = 0;
+                packet->caplen = 0;
+                return 0;
+            }
+
+            header_found = 1;
+
+            packet->caplen = min(callback_header.caplen - (uint32_t) ntohl(v1hdr->length),
+                                 (uint32_t) MAX_PACKET_LEN);
+            packet->len = packet->caplen;
+
+            callback_offset = ntohl(v1hdr->length);
+
+            // We REALLY need to do something smarter about this and handle the RSSI
+            // type instead of just copying
+            packet->quality = 0;
+            packet->signal = ntohl(v1hdr->ssi_signal);
+            packet->noise = ntohl(v1hdr->ssi_noise);
+
+            packet->channel = ntohl(v1hdr->channel);
+
+            switch (ntohl(v1hdr->phytype)) {
+            case 1:
+            case 2:
+                packet->carrier = carrier_80211;
+                break;
+            case 4:
+            case 5:
+                packet->carrier = carrier_80211b;
+                break;
+            case 6:
+            case 7:
+                packet->carrier = carrier_80211g;
+                break;
+            case 8:
+                packet->carrier = carrier_80211a;
+                break;
+            default:
+                packet->carrier = carrier_unknown;
+                break;
+            }
+
+        }
+
+        // See if we have a prism2 header
+        wlan_ng_prism2_header *p2head = (wlan_ng_prism2_header *) callback_data;
+        if (callback_header.caplen >= sizeof(wlan_ng_prism2_header) &&
+            header_found == 0) {
+
+            header_found = 1;
+
+            // Subtract the packet FCS since kismet doesn't do anything terribly bright
+            // with it right now
+            packet->caplen = min(p2head->frmlen.data - 4, (uint32_t) MAX_PACKET_LEN);
+            packet->len = packet->caplen;
+
+            // Set our offset for extracting the actual data
+            callback_offset = sizeof(wlan_ng_prism2_header);
+
+            packet->quality = p2head->sq.data;
+            packet->signal = p2head->signal.data;
+            packet->noise = p2head->noise.data;
+
+            packet->channel = p2head->channel.data;
+
+            // For now, anything not the ar5k is 802.11b
+            if (cardtype == card_ar5k)
+                packet->carrier = carrier_80211a;
+            else
+                packet->carrier = carrier_80211b;
+
+        }
+
+        if (header_found == 0) {
+            snprintf(errstr, 1024, "pcap Pcap2Common saw undersized capture frame");
             packet->len = 0;
             packet->caplen = 0;
             return 0;
         }
-
-        wlan_ng_prism2_header *p2head = (wlan_ng_prism2_header *) callback_data;
-
-        // Subtract the packet FCS since kismet doesn't do anything terribly bright
-        // with it right now
-        packet->caplen = min(p2head->frmlen.data - 4, (uint32_t) MAX_PACKET_LEN);
-        packet->len = packet->caplen;
-
-        // Set our offset for extracting the actual data
-        callback_offset = sizeof(wlan_ng_prism2_header);
-
-        packet->quality = p2head->sq.data;
-        packet->signal = p2head->signal.data;
-        packet->noise = p2head->noise.data;
-
-        packet->channel = p2head->channel.data;
 
     } else if (datalink_type == KDLT_BSD802_11) {
         // Process our hacked in BSD type
@@ -248,12 +314,6 @@ int PcapSource::Pcap2Common(kis_packet *packet) {
 
         memcpy(packet->data, callback_data + callback_offset, packet->caplen);
     }
-
-    // For now, anything not the ar5k is 802.11b
-    if (cardtype == card_ar5k)
-        packet->carrier = carrier_80211a;
-    else
-        packet->carrier = carrier_80211b;
 
     return 1;
 }

@@ -143,6 +143,11 @@ for line in `cat $IFFILE`; do
 			ifconfig $DEVICE -promisc up
 			wlanctl-ng $DEVICE lnxreq_wlansniff channel=$CHANNEL enable=false
 			;;
+		"prism2_avs")
+			echo "Disabling monitor mode for a pcap prism2 card on $DEVICE"
+			ifconfig $DEVICE -promisc up
+			wlanctl-ng $DEVICE lnxreq_wlansniff channel=$CHANNEL enable=false
+			;;
 		"prism2_bsd")
 			echo "Disabling monitor mode for a prism2 card on $DEVICE under BSD."
 			prism2ctl $DEVICE -h
