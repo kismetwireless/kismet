@@ -254,6 +254,10 @@ int TcpStreamer::WritePacket(const kis_packet *in_packet, float in_lat, float in
     // Our one and only current frame type
     hdr.frame_type = STREAM_FTYPE_PACKET;
 
+    // Size of the header so we can skip the headers of unknown versions
+    packhdr.header_len = (uint32_t) htonl(sizeof(struct stream_packet_header));
+    packhdr.drone_version = (uint16_t) htons(STREAM_DRONE_VERSION);
+    // Payload
     packhdr.len = (uint32_t) htonl(in_packet->len);
     packhdr.caplen = (uint32_t) htonl(in_packet->caplen);
     packhdr.tv_sec = (uint64_t) hton64(in_packet->ts.tv_sec);

@@ -3,6 +3,8 @@ Mar 07 2003  2.9.1  Added encoding, error, and rate transmission to drone
                     Sanitized drone protocol for cross-endian use
                     Added kismet-local min/max functions
                     Fixed segfault with drone source
+                    Added header length offset and version to drone packet 
+                     header
 Mar 06 2003  2.9.1  Added 802.11 FHSS/DSSS distinction
                     Added encoding and data rate tracking
                     Changed DTD versioning to match kismet version
