@@ -47,5 +47,6 @@ extern const int manuf_num;
 extern const int manuf_max_score;
 
 int MatchBestManuf(wireless_network *in_net, int in_set);
+int MatchBestClientManuf(wireless_client *in_cli, int in_set);
 
 #endif
