@@ -1334,8 +1334,14 @@ int monitor_madwifi_a(const char *in_dev, int initch, char *in_err, void **in_if
         return -1;
 
     // The rest is standard wireless extensions
-    if (monitor_wext(in_dev, initch, in_err, in_if) < 0)
+    if (monitor_wext(in_dev, initch, in_err, in_if) < 0) {
+        snprintf(in_err, STATUS_MAX, "Unable to enter monitor mode.  This can happen if "
+                 "you are not using the CVS madwifi drivers or if your kernel version is "
+                 "older than 2.4.23.  Make sure you are running a current driver release "
+                 "and kernel version.  See the troubleshooting section of the README for "
+                 "more information.");
         return -1;
+    }
 
     return 0;
 }
