@@ -19,9 +19,15 @@
 #ifndef __VIHASOURCE_H__
 #define __VIHASOURCE_H__
 
+#include "config.h"
+
 #ifdef HAVE_VIHAHEADERS
 
 #include "packetsource.h"
+
+#include <pthread.h>
+#include <sys/types.h>
+#include <unistd.h>
 
 #include <WiFi/WLPacketSource.h>
 #include <WiFi/WLFrame.h>
@@ -34,18 +40,30 @@ public:
 
     int CloseSource();
 
-    int FetchDescriptor() { return udp_sock; }
+    int SetChannel(unsigned int chan);
 
-    int FetchPacket(pkthdr *in_header, u_char *in_data);
+    int FetchChannel();
+
+    int FetchDescriptor() { return pipe_fds[0]; }
+
+    int FetchPacket(kis_packet *packet, uint8_t *data, uint8_t *moddata);
 
 protected:
+    WLFrame *frame;
     WLPacketSource *wlsource;
+    WLDriverInterface* wldi;
+    int pipe_fds[2];
+    
+    int Viha2Common(kis_packet *packet, uint8_t *data, uint8_t *moddata);
 
-    int Viha2Common(pkthdr *in_header, u_char *in_data);
+    pthread_mutex_t capture_lock;
+    pthread_cond_t capture_wait;
+    int frame_full;
 
+    friend void *ReadPacketLoop(void *arg);
 };
 
-#endif
+#endif /* HAVE_VIHAHEADERS */
 
-// ifdef
-#endif
+
+#endif /* __VIHASOURCE_H__ */
