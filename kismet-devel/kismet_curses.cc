@@ -267,12 +267,19 @@ void SpeechHandler(int *fds, const char *player) {
         if (harvested == 1) {
             harvested = 0;
             if ((sndpid = fork()) == 0) {
+                /*
                 FILE *sayf;
 
                 if ((sayf = popen(player, "w")) != NULL) {
                     fprintf(sayf, "(SayText %s)\n", data);
                     pclose(sayf);
-                }
+                    }
+                    */
+
+                char spk_call[1024];
+                snprintf(spk_call, 1024, "echo '(SayText \"%s\")' | %s >/dev/null 2>/dev/null",
+                         data, player);
+                system(spk_call);
 
                 exit(0);
             }
