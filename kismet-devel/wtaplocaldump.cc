@@ -45,7 +45,7 @@ int WtapDumpFile::OpenDump(const char *file) {
         if (nwritten == 0 && ferror(dump_file))
             snprintf(errstr, 1024, "Unable to write pcap magic header. (%s)", strerror(errno));
         else
-            snprintf(errstr, 1024, "Short write on pcap magic header.");
+            snprintf(errstr, 1024, "Short write on pcap magic header - is the drive full?");
 
         return -1;
     }
@@ -66,7 +66,7 @@ int WtapDumpFile::OpenDump(const char *file) {
         if (nwritten == 0 && ferror(dump_file))
             snprintf(errstr, 1024, "Unable to write pcap file header. (%s)", strerror(errno));
         else
-            snprintf(errstr, 1024, "Short write on pcap file header.");
+            snprintf(errstr, 1024, "Short write on pcap file header - is the drive full?");
 
         return -1;
     }
@@ -121,7 +121,7 @@ int WtapDumpFile::DumpPacket(const packet_info *in_info, const kis_packet *packe
         if (nwritten == 0 && ferror(dump_file))
             snprintf(errstr, 1024, "Unable to write pcap packet header (%s)", strerror(errno));
         else
-            snprintf(errstr, 1024, "Short write on pcap packet header");
+            snprintf(errstr, 1024, "Short write on pcap packet header - is the drive full?");
 
         return -1;
     }
@@ -131,7 +131,7 @@ int WtapDumpFile::DumpPacket(const packet_info *in_info, const kis_packet *packe
         if (nwritten == 0 && ferror(dump_file))
             snprintf(errstr, 1024, "Unable to write pcap packet (%s)", strerror(errno));
         else
-            snprintf(errstr, 1024, "Short write on pcap packet");
+            snprintf(errstr, 1024, "Short write on pcap packet - is the drive full?");
 
         return -1;
     }
