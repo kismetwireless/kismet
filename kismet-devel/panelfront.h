@@ -307,13 +307,13 @@ protected:
         mcol_decay, mcol_name, mcol_shortname, mcol_ssid, mcol_shortssid, mcol_type,
         mcol_wep, mcol_channel, mcol_data, mcol_llc, mcol_crypt, mcol_weak, mcol_bssid,
         mcol_flags, mcol_ip, /* mcol_mask, mcol_gateway, */ mcol_packets, mcol_info, mcol_maxrate,
-        mcol_manuf, mcol_signal, mcol_quality, mcol_noise, mcol_clients
+        mcol_manuf, mcol_signal, mcol_quality, mcol_noise, mcol_clients, mcol_datasize
     };
 
     enum client_columns {
         ccol_unknown = -1,
         ccol_decay, ccol_type, ccol_mac, ccol_manuf, ccol_data, ccol_crypt, ccol_weak,
-        ccol_maxrate, ccol_ip, ccol_signal, ccol_quality, ccol_noise
+        ccol_maxrate, ccol_ip, ccol_signal, ccol_quality, ccol_noise, ccol_datasize
     };
 
     main_columns Token2MainColumn(string in_token);

@@ -20,80 +20,84 @@ can also be configured for speech, sound,
 .PP
 "columns" (string) Comma seperated list of columns to be displayed.
 .RS
-decay     - indicates traffic within the last (decay) seconds (default: 3)
+decay - indicates traffic within the last (decay) seconds (default: 3)
 .PP
-name      - custom name of the network
+name - custom name of the network
 .PP
 shortname - short custom name of the network
 .PP
-ssid      - network SSID
+ssid - network SSID
 .PP
 shortssid - short network SSID
 .PP
-type      - type of network (group, adhoc, etc)
+type - type of network (group, adhoc, etc)
 .PP
-wep       - WEP flag of network
+wep - WEP flag of network
 .PP
-channel   - channel network is using
+channel - channel network is using
 .PP
-data      - number of data packets seen
+data - number of data packets seen
 .PP
-llc       - number of LLC packets seen (802.11b control packets)
+llc - number of LLC packets seen (802.11b control packets)
 .PP
-crypt     - number of encrypted packets seen
+crypt - number of encrypted packets seen
 .PP
-weak      - number of cryptographically weak packets seen
+weak - number of cryptographically weak packets seen
 .PP
-packets   - total number of packets seen
+packets - total number of packets seen
 .PP
-bssid     - network BSSID (MAC of AP)
+bssid - network BSSID (MAC of AP)
 .PP
-info      - network info flag (set by cisco APs)
+info - network info flag (set by cisco APs)
 .PP
-flags     - status flags (arp, dhcp, udp, and number of octets detected)
+flags - status flags (arp, dhcp, udp, and number of octets detected)
 .PP
-ip        - detected IP range of network
+ip - detected IP range of network
 .PP
-mask      - detected netmask of network
+mask - detected netmask of network
 .PP
-gateway   - detected gateway of network
+gateway - detected gateway of network
 .PP
-maxrate   - maximum rate supported by network (mbits/sec)
+maxrate - maximum rate supported by network (mbits/sec)
 .PP
-manuf     - manufacturer
+manuf - manufacturer
 .PP
-signal    - network signal power level
+signal - network signal power level
 .PP
-quality   - network signal quality percentage
+quality - network signal quality percentage
 .PP
-noise     - network signal noise level
+noise - network signal noise level
+.PP
+size - amount of data transfered
 .RE
 .PP
 "clientcolumns" (string) Comma seperated list of client columns to be displayed.
 .RS
-decay     - indicates traffic within the last (decay) seconds (default: 3)
+decay - indicates traffic within the last (decay) seconds (default: 3)
 .PP
-type      - indicates the type of the client
+type - indicates the type of the client
 .PP
-mac       - MAC of client
+mac - MAC of client
 .PP
-manuf     - manufacturer
+manuf - manufacturer
 .PP
-data      - total number of data packets
+data - total number of data packets
 .PP
-crypt     - number of encrypted packets
+crypt - number of encrypted packets
 .PP
-weak      - number of cryptographically weak packets
+weak - number of cryptographically weak packets
 .PP
-maxrate   - maximum transfer rate of client (if a probe was detected)
+maxrate - maximum transfer rate of client (if a probe was detected)
 .PP
-ip        - IP of client (if detected)
+ip - IP of client (if detected)
 .PP
-signal    - network signal power level
+signal - network signal power level
 .PP
-quality   - network quality level
+quality - network quality level
 .PP
-noise     - network noise level
+noise - network noise level
+.PP
+size - amount of data transfered
 .RE
 .PP
 "apm" (true|false) Display battery status of client system?

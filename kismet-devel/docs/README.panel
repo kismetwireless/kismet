@@ -40,6 +40,7 @@ manuf     - manufacturer
 signal    - network signal power level
 quality   - network signal quality percentage
 noise     - network signal noise level
+size      - amount of data transfered
 
 Client columns control the display for clients on a network or group.  
 Currently support client columns are:
@@ -56,6 +57,7 @@ ip        - IP of client (if detected)
 signal    - network signal power level
 quality   - network quality level
 noise     - network noise level
+size      - amount of data transfered
 
 * Network and Client Types
 Several types of networks and clients are tracked.
