@@ -1,5 +1,7 @@
 Aug 01 2002  2.5.1  Added stderr and stdout suppression to the sound playing
                      binary forks
+                    Added kill signal to sound and speech pids to stop them
+                     when we exit.
 Jul 31 2002  2.5.1  Made packetsignatures.h bsd-friendly and added a BSD
                      prism2 unmonitor (Dave Worth)
                     More memory alignment errors in tcpclient fixed.
