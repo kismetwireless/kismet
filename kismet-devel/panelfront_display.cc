@@ -814,7 +814,8 @@ int PanelFront::MainInfoPrinter(void *in_window) {
             snprintf(info, kwin->print_width, "%*s", kwin->print_width-1,
                      cardlist[cardc]->username.c_str());
             mvwaddstr(infowin, pos, 2, info);
-            snprintf(info, kwin->print_width, "Ch:%3d", cardlist[cardc]->channel);
+            snprintf(info, kwin->print_width, "Ch:%3d%c", cardlist[cardc]->channel,
+                     cardlist[cardc]->hopping ? '*' : ' ');
             mvwaddstr(infowin, pos + 1, 2, info);
         }
 
@@ -3051,6 +3052,24 @@ int PanelFront::ServerJoinPrinter(void *in_window) {
 
     return 0;
 
+}
+
+int PanelFront::IntroPrinter(void *in_window) {
+    kis_window *kwin = (kis_window *) in_window;
+
+    kwin->scrollable = 1;
+
+    kwin->text.clear();
+
+    char output[1024];
+
+    snprintf(output, 1024, "Kismet-Client %d.%d.%d build %s",
+             VERSION_MAJOR, VERSION_MINOR, VERSION_TINY,
+             TIMESTAMP);
+    kwin->text.push_back(output);
+
+    
+    return TextPrinter(in_window);
 }
 
 #endif

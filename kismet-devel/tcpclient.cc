@@ -42,7 +42,7 @@ TcpClient::TcpClient() {
         "bestquality,bestsignal,bestnoise,bestlat,bestlon,bestalt,"
         "atype,ip,datasize,maxseenrate,encodingset,decrypted";
     protocol_default_map["WEPKEY"] = "origin,bssid,key,encrypted,failed";
-    protocol_default_map["CARD"] = "interface,type,username,channel,id,packets";
+    protocol_default_map["CARD"] = "interface,type,username,channel,id,packets,hopping";
 
     sv_valid = 0;
     client_fd = 0;
@@ -595,10 +595,11 @@ int TcpClient::ParseData(char *in_data) {
         int cinfo_channel;
         int cinfo_id;
         int cinfo_packets;
+        int cinfo_hopping;
 
-        if (sscanf(in_data+hdrlen, "%64s %64s \001%128[^\001]\001 %d %d %d\n",
+        if (sscanf(in_data+hdrlen, "%64s %64s \001%128[^\001]\001 %d %d %d %d\n",
                    cinfo_interface, cinfo_type, cinfo_username, &cinfo_channel,
-                   &cinfo_id, &cinfo_packets) < 6)
+                   &cinfo_id, &cinfo_packets, &cinfo_hopping) < 7)
             return 0;
 
         map<string, card_info *>::iterator ciitr = card_map.find(cinfo_username);
@@ -610,6 +611,7 @@ int TcpClient::ParseData(char *in_data) {
             cinfo->channel = cinfo_channel;
             cinfo->id = cinfo_id;
             cinfo->packets = cinfo_packets;
+            cinfo->hopping = cinfo_hopping;
 
             card_map[cinfo_username] = cinfo;
             card_map_vec.push_back(cinfo);
@@ -617,6 +619,7 @@ int TcpClient::ParseData(char *in_data) {
             cinfo = ciitr->second;
             cinfo->channel = cinfo_channel;
             cinfo->packets = cinfo_packets;
+            cinfo->hopping = cinfo_hopping;
         }
 
     } else {

@@ -179,6 +179,8 @@ meta_packsource *Packetsourcetracker::FetchMetaID(int in_id) {
     return meta_packsources[in_id];
 }
 
+// Explicitly set a channel.  Caller is responsible for turning off hopping
+// on this source if they want it to really stay on this channel
 int Packetsourcetracker::SetChannel(int in_ch, meta_packsource *in_meta) {
     if (in_meta->prototype->channelcon == NULL)
         return 0;
@@ -228,6 +230,15 @@ int Packetsourcetracker::SetChannel(int in_ch, meta_packsource *in_meta) {
 
 }
 
+int Packetsourcetracker::SetHopping(int in_hopping, meta_packsource *in_meta) {
+    if (in_meta->prototype->channelcon == NULL)
+        return 0;
+
+    in_meta->ch_hop = in_hopping;
+
+    return 0;
+}
+
 // Hop the packet sources up a channel
 int Packetsourcetracker::AdvanceChannel() {
     for (unsigned int metac = 0; metac < meta_packsources.size(); metac++) {
@@ -235,6 +246,10 @@ int Packetsourcetracker::AdvanceChannel() {
 
         // Don't do anything for sources with no channel controls
         if (meta->prototype->channelcon == NULL)
+            continue;
+
+        // Don't do anything if this source doesn't hop
+        if (meta->ch_hop == 0)
             continue;
 
         int ret = SetChannel(meta->channels[meta->ch_pos++], meta);
@@ -500,6 +515,13 @@ int Packetsourcetracker::ProcessCardList(string in_enableline,
             meta->capsource = NULL;
             meta->ch_pos = 0;
             meta->cur_ch = 0;
+            // Hopping is turned on in any source that has a channel control pointer.
+            // This isn't controlling if kismet hops in general, only if this source
+            // changes channel when Kismet decides to channel hop.
+            if (meta->prototype->channelcon == NULL)
+                meta->ch_hop = 0;
+            else
+                meta->ch_hop = 1;
 
             // Assign the initial channel - if one hasn't been requested specifically, 
             // use the prototype default.  cur_ch is treated as the initial channel 

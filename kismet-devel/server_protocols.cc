@@ -144,7 +144,7 @@ char *WEPKEY_fields_text[] = {
 };
 
 char *CARD_fields_text[] = {
-    "interface", "type", "username", "channel", "id", "packets",
+    "interface", "type", "username", "channel", "id", "packets", "hopping",
     NULL
 };
 
@@ -880,6 +880,10 @@ int Protocol_CARD(PROTO_PARMS) {
             break;
         case CARD_packets:
             snprintf(tmp, 32, "%d", csrc->capsource->FetchNumPackets());
+            out_string += tmp;
+            break;
+        case CARD_hopping:
+            snprintf(tmp, 32, "%d", csrc->ch_hop);
             out_string += tmp;
             break;
         }
