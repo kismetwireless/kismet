@@ -32,8 +32,8 @@ void NCurseFront::AddClient(TcpClient *in_client) {
     client = in_client;
     client->EnableProtocol("GPS");
     client->EnableProtocol("INFO");
-    client->EnableProtocol("NETWORK");
     client->EnableProtocol("REMOVE");
+    client->EnableProtocol("NETWORK");
     client->EnableProtocol("ALERT");
     client->EnableProtocol("STATUS");
 }
