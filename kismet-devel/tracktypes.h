@@ -105,6 +105,7 @@ typedef struct wireless_network {
 
         quality = signal = noise = 0;
         best_quality = best_signal = best_noise = 0;
+        best_lat = best_lon = best_alt = 0;
     }
 
     wireless_network_type type;
@@ -176,6 +177,7 @@ typedef struct wireless_network {
     // Connection information
     int quality, signal, noise;
     int best_quality, best_signal, best_noise;
+    float best_lat, best_lon, best_alt;
 
 };
 

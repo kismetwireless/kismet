@@ -66,7 +66,7 @@ string Packetracker::Net2String(wireless_network *in_net) {
 
     snprintf(output, 2048, "%s %d \001%s\001 \001%s\001 %d %d %d %d %d %d %d %d %d "
              "%d.%d.%d.%d %d.%d.%d.%d %d.%d.%d.%d %d %f %f %f %f %f %f %f %f %d %d %d %2.1f "
-             "%d %d %d %d %d %d %d %d %A %A %A %ld",
+             "%d %d %d %d %d %d %d %d %f %f %f %A %A %A %ld",
              in_net->bssid.size() > 0 ? in_net->bssid.c_str() : "\002",
              (int) in_net->type,
              in_net->ssid.size() > 0 ? in_net->ssid.c_str() : "\002",
@@ -94,6 +94,7 @@ string Packetracker::Net2String(wireless_network *in_net) {
 	     
              in_net->quality, in_net->signal, in_net->noise,
              in_net->best_quality, in_net->best_signal, in_net->best_noise,
+             in_net->best_lat, in_net->best_lon, in_net->best_alt,
 
              in_net->aggregate_lat, in_net->aggregate_lon, in_net->aggregate_alt,
              in_net->aggregate_points);
@@ -145,6 +146,11 @@ int Packetracker::ProcessPacket(packet_info info, char *in_status) {
     wireless_network *net;
     int ret = 0;
     string bssid_mac;
+
+    // GPS info
+    float lat = 0, lon = 0, alt = 0, spd = 0;
+    int fix = 0;
+
 
     num_packets++;
 
@@ -264,9 +270,6 @@ int Packetracker::ProcessPacket(packet_info info, char *in_status) {
         MatchBestManuf(net, 1);
 
         if (gps != NULL) {
-            float lat, lon, alt, spd;
-            int fix;
-
             gps->FetchLoc(&lat, &lon, &alt, &spd, &fix);
 
             if (fix >= 2) {
@@ -308,8 +311,16 @@ int Packetracker::ProcessPacket(packet_info info, char *in_status) {
         if (info.quality > net->best_quality)
             net->best_quality = info.quality;
         net->signal = info.signal;
-        if (info.signal > net->best_signal)
+
+        if (info.signal > net->best_signal) {
             net->best_signal = info.signal;
+            if (gps != NULL && fix >= 2) {
+                net->best_lat = lat;
+                net->best_lon = lon;
+                net->best_alt = alt;
+            }
+        }
+
         net->noise = info.noise;
         if ((info.noise < net->best_noise && info.noise != 0) || net->best_noise == 0)
             net->best_noise = info.noise;

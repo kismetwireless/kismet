@@ -179,6 +179,7 @@ void Frontend::UpdateGroups() {
         dnet->virtnet.maxrate = 0;
         dnet->virtnet.quality = dnet->virtnet.signal = dnet->virtnet.noise = 0;
         dnet->virtnet.best_quality = dnet->virtnet.best_signal = dnet->virtnet.best_noise = 0;
+        dnet->virtnet.best_lat = dnet->virtnet.best_lon = dnet->virtnet.best_alt = 0;
 
         dnet->virtnet.aggregate_lat = dnet->virtnet.aggregate_lon = dnet->virtnet.aggregate_alt = 0;
         dnet->virtnet.aggregate_points = 0;
@@ -218,8 +219,14 @@ void Frontend::UpdateGroups() {
 
                 if (wnet->quality > dnet->virtnet.best_quality)
                     dnet->virtnet.best_quality = wnet->quality;
-                if (wnet->signal > dnet->virtnet.best_signal)
+
+                if (wnet->signal > dnet->virtnet.best_signal) {
                     dnet->virtnet.best_signal = wnet->signal;
+                    dnet->virtnet.best_lat = wnet->best_lat;
+                    dnet->virtnet.best_lon = wnet->best_lon;
+                    dnet->virtnet.best_alt = wnet->best_alt;
+                }
+
                 if ((wnet->noise < dnet->virtnet.best_noise && wnet->noise != 0) ||
                     dnet->virtnet.best_noise == 0)
                     dnet->virtnet.best_noise = wnet->noise;
