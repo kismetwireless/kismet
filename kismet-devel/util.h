@@ -58,6 +58,7 @@ int XtoI(char x);
 int Hex2UChar(unsigned char *in_hex, unsigned char *in_chr);
 
 vector<string> StrTokenize(string in_str, string in_split);
+vector<string> LineWrap(string in_txt, unsigned int in_hdr_len, unsigned int in_maxlen);
 
 void Float2Pair(float in_float, int16_t *primary, int64_t *mantissa);
 float Pair2Float(int16_t primary, int64_t mantissa);

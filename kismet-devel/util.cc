@@ -148,6 +148,35 @@ vector<string> StrTokenize(string in_str, string in_split) {
     return ret;
 }
 
+vector<string> LineWrap(string in_txt, unsigned int in_hdr_len, unsigned int in_maxlen) {
+	vector<string> ret;
+
+	unsigned int pos, prev_pos, start, hdroffset;
+	start = hdroffset = 0;
+
+	for (pos = prev_pos = in_txt.find(' ', in_hdr_len); pos != string::npos; pos = in_txt.find(' ', pos + 1)) {
+		if ((hdroffset + pos) - start > in_maxlen) {
+			if (pos - prev_pos > 8) {
+				prev_pos = start + (in_maxlen - hdroffset);
+			}
+
+			string str(hdroffset, ' ');
+			hdroffset = in_hdr_len;
+			str += in_txt.substr(start, prev_pos - start);
+			ret.push_back(str);
+			
+			start = prev_pos;
+		}
+
+		prev_pos = pos + 1;
+	}
+	string str(hdroffset, ' ');
+	str += in_txt.substr(start, in_txt.length() - start);
+	ret.push_back(str);
+
+	return ret;
+}
+
 void Float2Pair(float in_float, int16_t *primary, int64_t *mantissa) {
     *primary = (int) in_float;
     *mantissa = (long) (1000000 * ((in_float) - *primary));
