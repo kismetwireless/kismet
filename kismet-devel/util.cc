@@ -212,20 +212,36 @@ void IWFloat2Freq(double in_val, struct iw_freq *out_freq) {
 #endif
 
 // 80211b frequencies to channels
-int IEEE80211bFreq[] = {
-    14,
+int IEEE80211Freq[] = {
     2412, 2417, 2422, 2427, 2432,
     2437, 2442, 2447, 2452, 2457,
-    2462, 2467, 2472, 2484
+    2462, 2467, 2472, 2484,
+    5180, 5200, 5210, 5220, 5240,
+    5250, 5260, 5280, 5290, 5300, 
+    5320, 5745, 5760, 5765, 5785, 
+    5800, 5805, 5825,
+    -1
+};
+
+int IEEE80211Ch[] = {
+    1, 2, 3, 4, 5,
+    6, 7, 8, 9, 10,
+    11, 12, 13, 14,
+    36, 40, 42, 44, 48,
+    50, 52, 56, 58, 60,
+    64, 149, 152, 153, 157,
+    160, 161, 165
 };
 
 int FloatChan2Int(float in_chan) {
     int mod_chan = (int) roundf(in_chan / 1000000);
-    //float mod_chan = in_chan / 1000000;
-    if (mod_chan >= 2412 && mod_chan <= 2484) {
-        for (int x = 1; x < IEEE80211bFreq[0]; x++)
-            if (mod_chan == IEEE80211bFreq[x])
-                return x;
+    int x = 0;
+
+    while (IEEE80211Freq[x] != -1) {
+        if (IEEE80211Freq[x] == mod_chan) {
+            return IEEE80211Ch[x];
+        }
+        x++;
     }
 
     return 0;

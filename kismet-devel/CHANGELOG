@@ -4,6 +4,7 @@ Dec 07 2003  3.1.0  Tweaked prism2 packet mangling to preserve ICV on packets
                     Fixed 802.11b freq-channel translation
                     Switched madwifi combo to priv mode 0 to reduce mode
                      switching overhead when changing channels
+                    Added 802.11a frequencies to freq2chan conversion
 Dec 06 2003  3.1.0  Fixed Makefile looking for monitor/unmonitor scripts
                     Added viha registrant (oops)
                     Added most of the infrastructure for MadWifi support but
