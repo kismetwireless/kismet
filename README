@@ -283,16 +283,8 @@ Licensed under the GPL
       packets are processed at all, logged to dump files, and logged to
       xml/csv/etc files, respectively.
 
-      Once filters are enabled they control what packets are allowed through.
-      To allow all packets NOT specified, invert the filter with '!'.
-
-      Filtering can be done on address types (ANY, SOURCE, DEST, and BSSID),
-      and can be inverted.  For example, to exclude all packets from a given
-      MAC, 'filter_tracker=ANY(!00:11:22:33:44:55)'.  To include only one 
-      network, filter by BSSID - 'filter_tracker=BSSID(00:11:22:33:44:55)'
-
-      Multiple filters can be chained together on one line with a ','.
-      'filter_tracker=ANY(..),BSSID(!...)'
+      See the sub-section "Filtering Syntax" in this section for more 
+      information on filtering.
 
     * Including subconfig files.  By using 'include=...' other files can be
       included into the Kismet config, with filtering, WEP keys, etc.
@@ -321,6 +313,26 @@ Licensed under the GPL
       a similar effect while providing more frequent monitoring of other 
       channels.
 
+    Filtering syntax:
+
+    Filters are "positive-pass": anything matched by the filter is passed and 
+    all else is excluded.
+
+    Filtering can be done on address types (ANY, SOURCE, DEST, and BSSID).
+
+    To exclude a network with the BSSID AA:BB:CC:DD:EE:FF, the filter would be:
+        filter_tracker=BSSID(!AA:BB:CC:DD:EE:FF)
+
+    MAC addresses can be masked in the same fashion as IP netmasks.  To 
+    match all networks of a certian manufacturer, restrict to the OUI:
+        filter_tracker=BSSID(AA:BB:CC:00:00:00/FF:FF:FF:00:00:00)
+
+    Multiple MAC addresses can be used on the same filter line.  To filter
+    out two known networks from being considered:
+        filter_tracker=BSSID(!00:11:22:33:44:55,!00:11:22:33:44:66)
+    Which is to say, all traffic not from 00..55 and not from 00..66 will
+    be considered.
+
 9.  Ncurses/Panels Interface
 
     The ncurses/panels interface is the default frontend provided with Kismet.
@@ -348,7 +360,9 @@ Licensed under the GPL
       clients   Number of clients (unique MACs) seen on network
       crypt     Number of encrypted packets
       data      Number of data packets
-      decay     Displays '!' or '.' based on network activity
+      decay     Displays '!' or '.' or blank, based on network activity in the
+                last 'decay' seconds (controlled by the 'decay' variable in the
+                config file)
       dupeiv    Number of packets with duplicate IVs seen  
       flags     Network status flags (Address size, decrypted, etc)
       info      Extra AP info included by some manufacturers
