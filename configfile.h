@@ -30,6 +30,7 @@
 
 #include <string>
 #include <map>
+#include <vector>
 
 // Munge a string to characters safe for calling in a shell
 void MungeToShell(char *in_data, int max);
@@ -43,11 +44,12 @@ public:
 
     int ParseConfig(const char *in_fname);
     string FetchOpt(string in_key);
+    vector<string> FetchOptVec(string in_key);
 
     static string ExpandLogPath(string path, string logname, string type, int start, int overwrite = 0);
 
 protected:
-    map<string, string> config_map;
+    map<string, vector<string> > config_map;
 };
 
 #endif
