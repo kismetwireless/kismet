@@ -1,5 +1,6 @@
 Jan 24 2003  3.1.0  Merged patch from Ray Essick to add an alternate date 
                      format to the logfile naming format
+                    Unitialized variable fix in panels client
 Jan 23 2003  3.1.0  Added packsource channel locking to server protocol
                     First-run merge of FreeBSD Radiotap support from Sam
                      Leffler

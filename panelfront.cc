@@ -448,6 +448,7 @@ PanelFront::PanelFront() {
 
     probe_group = NULL;
     data_group = NULL;
+    details_network = NULL;
     server_time = 0;
     bat_ac = 0;
     bat_charging = 0;
