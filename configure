@@ -5286,15 +5286,21 @@ if test $ac_cv_lib_pthread_pthread_create = yes; then
 cat >>confdefs.h <<\EOF
 #define HAVE_PTHREAD 1
 EOF
-
+ pthr="yes"
 else
-  { echo "$as_me:5291: WARNING: *** Disabling gpsmap because threads support not present. ***" >&5
-echo "$as_me: WARNING: *** Disabling gpsmap because threads support not present. ***" >&2;}
+  pthr="no"
 fi
 
 else
-  { echo "$as_me:5296: WARNING: *** Disabling gpsmap because threads support not present. ***" >&5
-echo "$as_me: WARNING: *** Disabling gpsmap because threads support not present. ***" >&2;}
+  pthr="no"
+fi
+
+if test "$pthr" = "no"; then
+	{ echo "$as_me:5299: WARNING: *** GPSMap will be built without pthread support. ***" >&5
+echo "$as_me: WARNING: *** GPSMap will be built without pthread support. ***" >&2;};
+	threadlib=""
+else
+	threadlib="-lpthread"
 fi
 
 ac_config_files="$ac_config_files Makefile scripts/kismet scripts/kismet_monitor scripts/kismet_unmonitor extra/buzzme/Makefile extra/Makefile"
@@ -5378,7 +5384,7 @@ DEFS=-DHAVE_CONFIG_H
 : ${CONFIG_STATUS=./config.status}
 ac_clean_files_save=$ac_clean_files
 ac_clean_files="$ac_clean_files $CONFIG_STATUS"
-{ echo "$as_me:5381: creating $CONFIG_STATUS" >&5
+{ echo "$as_me:5387: creating $CONFIG_STATUS" >&5
 echo "$as_me: creating $CONFIG_STATUS" >&6;}
 cat >$CONFIG_STATUS <<_ACEOF
 #! $SHELL
@@ -5551,7 +5557,7 @@ cat >>$CONFIG_STATUS <<\EOF
     echo "$ac_cs_version"; exit 0 ;;
   --he | --h)
     # Conflict between --help and --header
-    { { echo "$as_me:5554: error: ambiguous option: $1
+    { { echo "$as_me:5560: error: ambiguous option: $1
 Try \`$0 --help' for more information." >&5
 echo "$as_me: error: ambiguous option: $1
 Try \`$0 --help' for more information." >&2;}
@@ -5579,12 +5585,12 @@ Try \`$0 --help' for more information." >&2;}
   'config.h' ) CONFIG_HEADERS="$CONFIG_HEADERS config.h" ;;
 
   # This is an error.
-  -*) { { echo "$as_me:5582: error: unrecognized option: $1
+  -*) { { echo "$as_me:5588: error: unrecognized option: $1
 Try \`$0 --help' for more information." >&5
 echo "$as_me: error: unrecognized option: $1
 Try \`$0 --help' for more information." >&2;}
    { (exit 1); exit 1; }; } ;;
-  *) { { echo "$as_me:5587: error: invalid argument: $1" >&5
+  *) { { echo "$as_me:5593: error: invalid argument: $1" >&5
 echo "$as_me: error: invalid argument: $1" >&2;}
    { (exit 1); exit 1; }; };;
   esac
@@ -5721,6 +5727,7 @@ s,@glib@,$glib,;t t
 s,@acpi@,$acpi,;t t
 s,@wget@,$wget,;t t
 s,@magickconfig@,$magickconfig,;t t
+s,@threadlib@,$threadlib,;t t
 s,@gpslc@,$gpslc,;t t
 CEOF
 
@@ -5836,7 +5843,7 @@ done; }
   esac
 
   if test x"$ac_file" != x-; then
-    { echo "$as_me:5839: creating $ac_file" >&5
+    { echo "$as_me:5846: creating $ac_file" >&5
 echo "$as_me: creating $ac_file" >&6;}
     rm -f "$ac_file"
   fi
@@ -5854,7 +5861,7 @@ echo "$as_me: creating $ac_file" >&6;}
       -) echo $tmp/stdin ;;
       [\\/$]*)
          # Absolute (can't be DOS-style, as IFS=:)
-         test -f "$f" || { { echo "$as_me:5857: error: cannot find input file: $f" >&5
+         test -f "$f" || { { echo "$as_me:5864: error: cannot find input file: $f" >&5
 echo "$as_me: error: cannot find input file: $f" >&2;}
    { (exit 1); exit 1; }; }
          echo $f;;
@@ -5867,7 +5874,7 @@ echo "$as_me: error: cannot find input file: $f" >&2;}
            echo $srcdir/$f
          else
            # /dev/null tree
-           { { echo "$as_me:5870: error: cannot find input file: $f" >&5
+           { { echo "$as_me:5877: error: cannot find input file: $f" >&5
 echo "$as_me: error: cannot find input file: $f" >&2;}
    { (exit 1); exit 1; }; }
          fi;;
@@ -5928,7 +5935,7 @@ for ac_file in : $CONFIG_HEADERS; do test "x$ac_file" = x: && continue
   * )   ac_file_in=$ac_file.in ;;
   esac
 
-  test x"$ac_file" != x- && { echo "$as_me:5931: creating $ac_file" >&5
+  test x"$ac_file" != x- && { echo "$as_me:5938: creating $ac_file" >&5
 echo "$as_me: creating $ac_file" >&6;}
 
   # First look for the input files in the build tree, otherwise in the
@@ -5939,7 +5946,7 @@ echo "$as_me: creating $ac_file" >&6;}
       -) echo $tmp/stdin ;;
       [\\/$]*)
          # Absolute (can't be DOS-style, as IFS=:)
-         test -f "$f" || { { echo "$as_me:5942: error: cannot find input file: $f" >&5
+         test -f "$f" || { { echo "$as_me:5949: error: cannot find input file: $f" >&5
 echo "$as_me: error: cannot find input file: $f" >&2;}
    { (exit 1); exit 1; }; }
          echo $f;;
@@ -5952,7 +5959,7 @@ echo "$as_me: error: cannot find input file: $f" >&2;}
            echo $srcdir/$f
          else
            # /dev/null tree
-           { { echo "$as_me:5955: error: cannot find input file: $f" >&5
+           { { echo "$as_me:5962: error: cannot find input file: $f" >&5
 echo "$as_me: error: cannot find input file: $f" >&2;}
    { (exit 1); exit 1; }; }
          fi;;
@@ -6069,7 +6076,7 @@ cat >>$CONFIG_STATUS <<\EOF
   rm -f $tmp/in
   if test x"$ac_file" != x-; then
     if cmp -s $ac_file $tmp/config.h 2>/dev/null; then
-      { echo "$as_me:6072: $ac_file is unchanged" >&5
+      { echo "$as_me:6079: $ac_file is unchanged" >&5
 echo "$as_me: $ac_file is unchanged" >&6;}
     else
       ac_dir=`$as_expr X"$ac_file" : 'X\(.*[^/]\)//*[^/][^/]*/*$' \| \
@@ -6173,7 +6180,7 @@ if test "$no_recursion" != yes; then
     # parts of a large source tree are present.
     test -d $srcdir/$ac_subdir || continue
 
-    { echo "$as_me:6176: configuring in $ac_subdir" >&5
+    { echo "$as_me:6183: configuring in $ac_subdir" >&5
 echo "$as_me: configuring in $ac_subdir" >&6;}
     case $srcdir in
     .) ;;
@@ -6195,7 +6202,7 @@ done; }
 
        if test -d ./$ac_subdir; then :;
        else
-         { { echo "$as_me:6198: error: cannot create \`pwd\`/$ac_subdir" >&5
+         { { echo "$as_me:6205: error: cannot create \`pwd\`/$ac_subdir" >&5
 echo "$as_me: error: cannot create \`pwd\`/$ac_subdir" >&2;}
    { (exit 1); exit 1; }; }
        fi
@@ -6226,7 +6233,7 @@ echo "$as_me: error: cannot create \`pwd\`/$ac_subdir" >&2;}
     elif test -f $ac_sub_srcdir/configure.in; then
       ac_sub_configure=$ac_configure
     else
-      { echo "$as_me:6229: WARNING: no configuration information is in $ac_subdir" >&5
+      { echo "$as_me:6236: WARNING: no configuration information is in $ac_subdir" >&5
 echo "$as_me: WARNING: no configuration information is in $ac_subdir" >&2;}
       ac_sub_configure=
     fi
@@ -6240,12 +6247,12 @@ echo "$as_me: WARNING: no configuration information is in $ac_subdir" >&2;}
         ac_sub_cache_file=$ac_dots$cache_file ;;
       esac
 
-      { echo "$as_me:6243: running $ac_sub_configure $ac_sub_configure_args --cache-file=$ac_sub_cache_file --srcdir=$ac_sub_srcdir" >&5
+      { echo "$as_me:6250: running $ac_sub_configure $ac_sub_configure_args --cache-file=$ac_sub_cache_file --srcdir=$ac_sub_srcdir" >&5
 echo "$as_me: running $ac_sub_configure $ac_sub_configure_args --cache-file=$ac_sub_cache_file --srcdir=$ac_sub_srcdir" >&6;}
       # The eval makes quoting arguments work.
       eval $ac_sub_configure $ac_sub_configure_args \
            --cache-file=$ac_sub_cache_file --srcdir=$ac_sub_srcdir ||
-        { { echo "$as_me:6248: error: $ac_sub_configure failed for $ac_subdir" >&5
+        { { echo "$as_me:6255: error: $ac_sub_configure failed for $ac_subdir" >&5
 echo "$as_me: error: $ac_sub_configure failed for $ac_subdir" >&2;}
    { (exit 1); exit 1; }; }
     fi
@@ -6366,6 +6373,12 @@ if test "$expatl" = "no"; then
 else
 	echo "yes"
 fi
+echo -n "       PThread Support: "
+if test "$pthr" = "no"; then
+	echo "no"
+else
+	echo "yes"
+fi
 echo -n "      libz compression: "
 if test "$libz" = "yes"; then
 	echo "yes"
@@ -6397,7 +6410,7 @@ else
 	vertiny=`uname -r | cut -d '.' -f 3 | cut -f 1 -d-`
 
 	if test "$verminor" = "4" -a "$vertiny" -lt 16 ; then
-		{ echo "$as_me:6400: WARNING: There have been a number of major improvements in the linux-wireless extentions and in the aironet drivers in recent versions.  It is recomended that you run at least kernel version 2.4.16" >&5
+		{ echo "$as_me:6413: WARNING: There have been a number of major improvements in the linux-wireless extentions and in the aironet drivers in recent versions.  It is recomended that you run at least kernel version 2.4.16" >&5
 echo "$as_me: WARNING: There have been a number of major improvements in the linux-wireless extentions and in the aironet drivers in recent versions.  It is recomended that you run at least kernel version 2.4.16" >&2;}
 	fi
 

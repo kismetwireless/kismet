@@ -64,6 +64,8 @@ typedef struct display_network {
     int tagged;
     // Are we expanded?
     int expanded;
+    // Are we something that should be saved?
+    int persistent;
     // our virtual wireless network built out of all our members
     wireless_network *virtnet;
     // name

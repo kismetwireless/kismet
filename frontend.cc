@@ -99,6 +99,7 @@ void Frontend::PopulateGroups(TcpClient *in_client) {
             group->type = group_host;
             group->tagged = 0;
             group->expanded = 0;
+            group->persistent = 0;
             group->virtnet = NULL;
 
             // Register it
@@ -372,6 +373,7 @@ display_network *Frontend::GroupTagged() {
 
     for (unsigned int x = 0; x < group_vec.size(); x++) {
         display_network *dnet = group_vec[x];
+
         if (!dnet->tagged)
             continue;
 
@@ -380,6 +382,7 @@ display_network *Frontend::GroupTagged() {
         if (core == NULL) {
             core = dnet;
             core->tagged = 0;
+            core->persistent = 1;
             continue;
         }
 
@@ -543,6 +546,9 @@ void Frontend::WriteGroupMap(FILE *in_file) {
 
         if (group_tag_map.find(x->first) != group_tag_map.end()) {
             if (group_tag_map[x->first]->virtnet == NULL)
+                continue;
+
+            if (group_tag_map[x->first]->persistent == 0)
                 continue;
 
             if (group_tag_map[x->first]->type != group_bundle &&

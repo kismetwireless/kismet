@@ -710,10 +710,19 @@ fi
 
 AC_CHECK_HEADER(pthread.h,
 	AC_CHECK_LIB([pthread], [pthread_create],
-		AC_DEFINE(HAVE_PTHREAD, 1, pthread threading library),
-		AC_MSG_WARN(*** Disabling gpsmap because threads support not present. ***)),
-	AC_MSG_WARN(*** Disabling gpsmap because threads support not present. ***))
+		AC_DEFINE(HAVE_PTHREAD, 1, pthread threading library) pthr="yes",
+		pthr="no"),
+	pthr="no")
 
+if test "$pthr" = "no"; then
+	AC_MSG_WARN(*** GPSMap will be built without pthread support. ***);
+	threadlib=""
+else
+	threadlib="-lpthread"
+fi
+
+AC_SUBST(threadlib)
+	
 AC_SUBST(gpslc)
 
 
@@ -828,6 +837,12 @@ else
 fi
 echo -n "         Expat Library: "
 if test "$expatl" = "no"; then
+	echo "no"
+else
+	echo "yes"
+fi
+echo -n "       PThread Support: "
+if test "$pthr" = "no"; then
 	echo "no"
 else
 	echo "yes"

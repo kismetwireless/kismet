@@ -14,6 +14,8 @@ PCAPDIR = @pcapdir@
 PCAPLIB = @pcaplib@
 PCAPLNK = @pcaplnk@
 
+THREADL = @threadlib@
+
 HOME	= @srcdir@
 CXX	= @CXX@
 CC	= @CC@
@@ -70,7 +72,7 @@ $(NC):	$(NCO)
 	$(LD) $(LDFLAGS) -o $(NC) $(NCO) $(LIBS) $(CLIBS)
 
 $(GPSL):	$(GPSLO)
-	$(LD) $(LDFLAGS) -o $(GPSL) $(GPSLO) $(LIBS) `Magick-config --cflags --cppflags --ldflags` `Magick-config --libs` -lpthread -lexpat
+	$(LD) $(LDFLAGS) -o $(GPSL) $(GPSLO) $(LIBS) `Magick-config --cflags --cppflags --ldflags` `Magick-config --libs` $(THREADL) -lexpat
 
 $(HOPPER):	$(HOPPERO)
 	$(LD) $(LDFLAGS) -o $(HOPPER) $(HOPPERO)
