@@ -33,6 +33,7 @@ X move internal registration into packetsourcetracker
 X requeue fatal messages on exit
   terminate should flush ring buffers and sockets
 X move tcpserver configuration stuff into the tcpserver class
+  move *_manuf config reading into packetracker
 
   Packet chain framework
   ieee802.11 dissect as packet chain module

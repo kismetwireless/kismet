@@ -1202,7 +1202,8 @@ int ProcessBulkConf(ConfigFile *conf) {
                 wav_map["alert"] = conf->FetchOpt("sound_alert");
 
         } else {
-            fprintf(stderr, "ERROR:  Sound alerts enabled but no sound playing binary specified.\n");
+            globalregistry->messagebus->InjectMessage("Sound alerts enabled but no sound player specified, "
+                                                      "sound will be disabled", MSGFLAG_ERROR);
             sound = 0;
         }
     } else if (sound == -1)
@@ -1226,14 +1227,18 @@ int ProcessBulkConf(ConfigFile *conf) {
 
             // Make sure we have encrypted text lines
             if (conf->FetchOpt("speech_encrypted") == "" || conf->FetchOpt("speech_unencrypted") == "") {
-                fprintf(stderr, "ERROR:  Speech request but speech_encrypted or speech_unencrypted line missing.\n");
+                globalregistry->messagebus->InjectMessage("Speech requested but no speech templates given "
+                                                          "in the config file.  Speech will be disabled.", 
+                                                          MSGFLAG_ERROR);
                 speech = 0;
             }
 
             speech_sentence_encrypted = conf->FetchOpt("speech_encrypted");
             speech_sentence_unencrypted = conf->FetchOpt("speech_unencrypted");
         } else {
-            fprintf(stderr, "ERROR: Speech alerts enabled but no path to festival has been specified.\n");
+            globalregistry->messagebus->InjectMessage("Speech requested but no path to festival has been "
+                                                      "specified.  Speech will be disabled",
+                                                      MSGFLAG_ERROR);
             speech = 0;
         }
     } else if (speech == -1)
@@ -1241,7 +1246,8 @@ int ProcessBulkConf(ConfigFile *conf) {
 
     if (conf->FetchOpt("writeinterval") != "") {
         if (sscanf(conf->FetchOpt("writeinterval").c_str(), "%d", &datainterval) != 1) {
-            fprintf(stderr, "FATAL:  Illegal config file value for data interval.\n");
+            globalregistry->messagebus->InjectMessage("Illegal value for 'writeinterval' in config file",
+                                                      MSGFLAG_FATAL);
             ErrorShutdown();
         }
     }
@@ -1249,25 +1255,29 @@ int ProcessBulkConf(ConfigFile *conf) {
     if (conf->FetchOpt("ap_manuf") != "") {
         ap_manuf_name = strdup(conf->FetchOpt("ap_manuf").c_str());
     } else {
-        fprintf(stderr, "WARNING:  No ap_manuf file specified, AP manufacturers and defaults will not be detected.\n");
+        globalregistry->messagebus->InjectMessage("No ap_manuf file specified, AP manufacturers and default "
+                                                  "configurations will not be detected", MSGFLAG_ERROR);
     }
 
     if (conf->FetchOpt("client_manuf") != "") {
         client_manuf_name = strdup(conf->FetchOpt("client_manuf").c_str());
     } else {
-        fprintf(stderr, "WARNING:  No client_manuf file specified.  Client manufacturers will not be detected.\n");
+        globalregistry->messagebus->InjectMessage("No ap_manuf file specified, client manufacturers "
+                                                  "will not be detected", MSGFLAG_ERROR);
     }
 
     // Fork and find the sound options
     if (sound) {
         if (pipe(soundpair) == -1) {
-            fprintf(stderr, "WARNING:  Unable to create pipe for audio.  Disabling sound.\n");
+            globalregistry->messagebus->InjectMessage("Unable to create pipe for audio.  Disabling sound.",
+                                                      MSGFLAG_ERROR);
             sound = 0;
         } else {
             soundpid = fork();
 
             if (soundpid < 0) {
-                fprintf(stderr, "WARNING:  Unable to fork for audio.  Disabling sound.\n");
+                globalregistry->messagebus->InjectMessage("Unable to fork audio control process.  Disabling sound.",
+                                                          MSGFLAG_ERROR);
                 sound = 0;
             } else if (soundpid == 0) {
                 SoundHandler(soundpair, sndplay.c_str(), wav_map);
@@ -1280,13 +1290,15 @@ int ProcessBulkConf(ConfigFile *conf) {
 
     if (speech) {
         if (pipe(speechpair) == -1) {
-            fprintf(stderr, "WARNING:  Unable to create pipe for speech.  Disabling speech.\n");
+            globalregistry->messagebus->InjectMessage("Unable to create pipe for speech.  Disabling speech.",
+                                                      MSGFLAG_ERROR);
             speech = 0;
         } else {
             speechpid = fork();
 
             if (speechpid < 0) {
-                fprintf(stderr, "WARNING:  Unable to fork for speech.  Disabling speech.\n");
+                globalregistry->messagebus->InjectMessage("Unable to fork speech control process.  Disabling speech.",
+                                                          MSGFLAG_ERROR);
                 speech = 0;
             } else if (speechpid == 0) {
                 SpeechHandler(speechpair, festival);
@@ -1303,26 +1315,31 @@ int ProcessBulkConf(ConfigFile *conf) {
     // handle the config bits
     struct stat fstat;
     if (stat(configdir.c_str(), &fstat) == -1) {
-        fprintf(stderr, "configdir '%s' does not exist, making it.\n",
-                configdir.c_str());
+        snprintf(errstr, STATUS_MAX, "Local config and cache directory '%s' does not exist, making it",
+                 configdir.c_str());
+        globalregistry->messagebus->InjectMessage(errstr, MSGFLAG_INFO);
         if (mkdir(configdir.c_str(), S_IRUSR | S_IWUSR | S_IXUSR) < 0) {
-            fprintf(stderr, "FATAL:  Could not make configdir: %s\n",
-                    strerror(errno));
+            snprintf(errstr, STATUS_MAX, "Could not create config and cache directory: %s",
+                     strerror(errno));
+            globalregistry->messagebus->InjectMessage(errstr, MSGFLAG_FATAL);
             ErrorShutdown();
         }
     } else if (! S_ISDIR(fstat.st_mode)) {
-        fprintf(stderr, "FATAL: configdir '%s' exists but is not a directory.\n",
-                configdir.c_str());
+        snprintf(errstr, STATUS_MAX, "Local config and cache directory '%s' exists but is not a directory",
+                 configdir.c_str());
+        globalregistry->messagebus->InjectMessage(errstr, MSGFLAG_FATAL);
         ErrorShutdown();
     }
 
     if (ssid_cloak_track) {
         if (stat(ssidtrackfile.c_str(), &fstat) == -1) {
-            fprintf(stderr, "SSID cloak file did not exist, it will be created.\n");
+            globalregistry->messagebus->InjectMessage("SSID cache file does not exist, it will be created",
+                                                      MSGFLAG_INFO);
         } else {
             if ((ssid_file = fopen(ssidtrackfile.c_str(), "r")) == NULL) {
-                fprintf(stderr, "FATAL: Could not open SSID track file '%s': %s\n",
-                        ssidtrackfile.c_str(), strerror(errno));
+                snprintf(errstr, STATUS_MAX, "Could not open SSID cache file '%s': %s",
+                         ssidtrackfile.c_str(), strerror(errno));
+                globalregistry->messagebus->InjectMessage(errstr, MSGFLAG_FATAL);
                 ErrorShutdown();
             }
 
@@ -1333,8 +1350,9 @@ int ProcessBulkConf(ConfigFile *conf) {
         }
 
         if ((ssid_file = fopen(ssidtrackfile.c_str(), "a")) == NULL) {
-            fprintf(stderr, "FATAL: Could not open SSID track file '%s' for writing: %s\n",
-                    ssidtrackfile.c_str(), strerror(errno));
+            snprintf(errstr, STATUS_MAX, "Could not open SSID track file '%s' for writing: %s",
+                     ssidtrackfile.c_str(), strerror(errno));
+            globalregistry->messagebus->InjectMessage(errstr, MSGFLAG_FATAL);
             ErrorShutdown();
         }
 
@@ -1342,12 +1360,14 @@ int ProcessBulkConf(ConfigFile *conf) {
 
     if (ip_track) {
         if (stat(iptrackfile.c_str(), &fstat) == -1) {
-            fprintf(stderr, "IP track file did not exist, it will be created.\n");
+            globalregistry->messagebus->InjectMessage("IP cache file does not exist, it will be created",
+                                                      MSGFLAG_INFO);
 
         } else {
             if ((ip_file = fopen(iptrackfile.c_str(), "r")) == NULL) {
-                fprintf(stderr, "FATAL: Could not open IP track file '%s': %s\n",
-                        iptrackfile.c_str(), strerror(errno));
+                snprintf(errstr, STATUS_MAX, "Could not open IP track file '%s': %s",
+                         iptrackfile.c_str(), strerror(errno));
+                globalregistry->messagebus->InjectMessage(errstr, MSGFLAG_FATAL);
                 ErrorShutdown();
             }
 
@@ -1357,8 +1377,9 @@ int ProcessBulkConf(ConfigFile *conf) {
         }
 
         if ((ip_file = fopen(iptrackfile.c_str(), "a")) == NULL) {
-            fprintf(stderr, "FATAL: Could not open IP track file '%s' for writing: %s\n",
-                    iptrackfile.c_str(), strerror(errno));
+            snprintf(errstr, STATUS_MAX, "Could not open IP track file '%s' for writing: %s",
+                     iptrackfile.c_str(), strerror(errno));
+            globalregistry->messagebus->InjectMessage(errstr, MSGFLAG_FATAL);
             ErrorShutdown();
         }
 
@@ -1367,8 +1388,11 @@ int ProcessBulkConf(ConfigFile *conf) {
 #ifdef HAVE_GPS
     if (waypoint) {
         if ((waypoint_file = fopen(waypointfile.c_str(), "a")) == NULL) {
-            fprintf(stderr, "WARNING:  Could not open waypoint file '%s' for writing: %s\n",
-                    waypointfile.c_str(), strerror(errno));
+            snprintf(errstr, STATUS_MAX, "Could not open gpsdrive waypoint file '%s' for writing: %s",
+                     waypointfile.c_str(), strerror(errno));
+            globalregistry->messagebus->InjectMessage(errstr, MSGFLAG_ERROR);
+            globalregistry->messagebus->InjectMessage("Waypoint file generation will be disabled",
+                                                      MSGFLAG_ERROR);
             waypoint = 0;
         }
     }
@@ -1437,76 +1461,106 @@ int ProcessBulkConf(ConfigFile *conf) {
     }
 
     if (logfile_matched == 0) {
-        fprintf(stderr, "ERROR:  Unable to find room for logging files within 100 counts.  If you really are\n"
-                "        logging this many times in 1 day, change log title or edit the source.\n");
+        globalregistry->messagebus->InjectMessage("Unable to find a name for the logfiles within 100 "
+                                                  "attempts.  If you are really logging more than 100 separate "
+                                                  "instances in a single day, edit change the log title or exit "
+                                                  "the source, however the most common reason for this failure "
+                                                  "is an invalid 'logtemplate' line in the config file.",
+                                                  MSGFLAG_FATAL);
         ErrorShutdown();
     }
 
-    if (net_log)
-        fprintf(stderr, "Logging networks to %s\n", netlogfile.c_str());
+    if (net_log) {
+        snprintf(errstr, STATUS_MAX, "Logging networks to %s", netlogfile.c_str());
+        globalregistry->messagebus->InjectMessage(errstr, MSGFLAG_INFO);
+    }
 
+    if (csv_log) {
+        snprintf(errstr, STATUS_MAX, "Logging CSV data to %s", csvlogfile.c_str());
+        globalregistry->messagebus->InjectMessage(errstr, MSGFLAG_INFO);
+    }
 
-    if (csv_log)
-        fprintf(stderr, "Logging networks in CSV format to %s\n", csvlogfile.c_str());
+    if (xml_log) {
+        snprintf(errstr, STATUS_MAX, "Logging XML data to %s", xmllogfile.c_str());
+        globalregistry->messagebus->InjectMessage(errstr, MSGFLAG_INFO);
+    }
 
-    if (xml_log)
-        fprintf(stderr, "Logging networks in XML format to %s\n", xmllogfile.c_str());
+    if (crypt_log) {
+        snprintf(errstr, STATUS_MAX, "Logging FMS WeakIV data packets to %s", cryptlogfile.c_str());
+        globalregistry->messagebus->InjectMessage(errstr, MSGFLAG_INFO);
+    }
 
-    if (crypt_log)
-        fprintf(stderr, "Logging cryptographically weak packets to %s\n", cryptlogfile.c_str());
-
-    if (cisco_log)
-        fprintf(stderr, "Logging cisco product information to %s\n", ciscologfile.c_str());
+    if (cisco_log) {
+        snprintf(errstr, STATUS_MAX, "Logging Cisco identification info to %s", ciscologfile.c_str());
+        globalregistry->messagebus->InjectMessage(errstr, MSGFLAG_INFO);
+    }
 
 #ifdef HAVE_GPS
-    if (gps_log == 1)
-        fprintf(stderr, "Logging gps coordinates to %s\n", gpslogfile.c_str());
+    if (gps_log) {
+        snprintf(errstr, STATUS_MAX, "Logging GPS XML data to %s", gpslogfile.c_str());
+        globalregistry->messagebus->InjectMessage(errstr, MSGFLAG_INFO);
+    }
 #endif
 
-    if (data_log)
-        fprintf(stderr, "Logging data to %s\n", dumplogfile.c_str());
+    if (data_log) {
+        snprintf(errstr, STATUS_MAX, "Logging packets to %s", dumplogfile.c_str());
+        globalregistry->messagebus->InjectMessage(errstr, MSGFLAG_INFO);
+    }
 
-    if (datainterval != 0 && data_log)
-        fprintf(stderr, "Writing data files to disk every %d seconds.\n",
-                datainterval);
+    if (datainterval != 0 && data_log) {
+        snprintf(errstr, STATUS_MAX, "Flushing data files to diskevery %d seconds", 
+                 datainterval);
+        globalregistry->messagebus->InjectMessage(errstr, MSGFLAG_INFO);
+    }
 
 
     if (conf->FetchOpt("beaconlog") == "false") {
         beacon_log = 0;
-        fprintf(stderr, "Filtering beacon packets.\n");
+        globalregistry->messagebus->InjectMessage("Filtering beacon packets from the packet dump file",
+                                                  MSGFLAG_INFO);
     }
 
     if (conf->FetchOpt("phylog") == "false") {
         phy_log = 0;
-        fprintf(stderr, "Filtering PHY layer packets.\n");
+        globalregistry->messagebus->InjectMessage("Filtering PHY-layer packets from the packet dump file",
+                                                  MSGFLAG_INFO);
     }
 
     if (conf->FetchOpt("mangledatalog") == "true") {
         mangle_log = 1;
-        fprintf(stderr, "Mangling encrypted and fuzzy data packets.\n");
+        globalregistry->messagebus->InjectMessage("Rewriting encrypted and fuzzy-encryption data packets in "
+                                                  "the packet dump file",
+                                                  MSGFLAG_INFO);
     }
 
     if (conf->FetchOpt("trackprobenets") == "false") {
         globalregistry->track_probenets = 0;
-        fprintf(stderr, "Not tracking probe responses or associating probe networks.\n");
+        globalregistry->messagebus->InjectMessage("Not tracking probe responses or attempting to associate probe networks",
+                                                  MSGFLAG_INFO);
     } else {
         globalregistry->track_probenets = 1;
-        fprintf(stderr, "Tracking probe responses and associating probe networks.\n");
+        globalregistry->messagebus->InjectMessage("Will attempt to associate probing clients with networks",
+                                                  MSGFLAG_INFO);
     }
 
     if (ap_manuf_name != NULL) {
         char pathname[1024];
 
         if (strchr(ap_manuf_name, '/') == NULL)
-            snprintf(pathname, 1024, "%s/%s", getenv("KISMET_CONF") != NULL ? getenv("KISMET_CONF") : SYSCONF_LOC, ap_manuf_name);
+            snprintf(pathname, 1024, "%s/%s", getenv("KISMET_CONF") != NULL ? 
+                     getenv("KISMET_CONF") : SYSCONF_LOC, ap_manuf_name);
         else
             snprintf(pathname, 1024, "%s", ap_manuf_name);
 
         if ((manuf_data = fopen(pathname, "r")) == NULL) {
-            fprintf(stderr, "WARNING:  Unable to open '%s' for reading (%s), AP manufacturers and defaults will not be detected.\n",
-                    pathname, strerror(errno));
+            snprintf(errstr, STATUS_MAX, "Unable to open '%s' for reading (%s).  AP manufacturers and "
+                     "default configurations will not be detected.", pathname, strerror(errno));
+            globalregistry->messagebus->InjectMessage(errstr,
+                                                      MSGFLAG_ERROR);
         } else {
-            fprintf(stderr, "Reading AP manufacturer data and defaults from %s\n", pathname);
+            snprintf(errstr, STATUS_MAX, "Reading AP manufacturer data and configuration defaults "
+                     "from %s", pathname);
+            globalregistry->messagebus->InjectMessage(errstr, MSGFLAG_INFO);
             globalregistry->packetracker->ReadAPManufMap(manuf_data);
             fclose(manuf_data);
         }
@@ -1518,15 +1572,18 @@ int ProcessBulkConf(ConfigFile *conf) {
         char pathname[1024];
 
         if (strchr(client_manuf_name, '/') == NULL)
-            snprintf(pathname, 1024, "%s/%s", getenv("KISMET_CONF") != NULL ? getenv("KISMET_CONF") : SYSCONF_LOC, client_manuf_name);
+            snprintf(pathname, 1024, "%s/%s", getenv("KISMET_CONF") != NULL ? 
+                     getenv("KISMET_CONF") : SYSCONF_LOC, client_manuf_name);
         else
             snprintf(pathname, 1024, "%s", client_manuf_name);
 
         if ((manuf_data = fopen(pathname, "r")) == NULL) {
-            fprintf(stderr, "WARNING:  Unable to open '%s' for reading (%s), client manufacturers will not be detected.\n",
-                    pathname, strerror(errno));
+            snprintf(errstr, STATUS_MAX, "Unable to open '%s' for reading(%s), client manufacturer "
+                     "will not be detected.", pathname, strerror(errno));
+            globalregistry->messagebus->InjectMessage(errstr, MSGFLAG_ERROR);
         } else {
-            fprintf(stderr, "Reading client manufacturer data and defaults from %s\n", pathname);
+            snprintf(errstr, STATUS_MAX, "Reading client manufacturer data from %s", pathname);
+            globalregistry->messagebus->InjectMessage(errstr, MSGFLAG_INFO);
             globalregistry->packetracker->ReadClientManufMap(manuf_data);
             fclose(manuf_data);
         }
