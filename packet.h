@@ -116,86 +116,86 @@ typedef struct {
 #ifdef WORDS_BIGENDIAN
 // Byte ordering for bigendian systems.  Bitwise strcts are so funky.
 typedef struct {
-    unsigned short subtype : 4;
-    unsigned short type : 2;
-    unsigned short version : 2;
+    unsigned short subtype : 4 __attribute__ ((packed));
+    unsigned short type : 2 __attribute__ ((packed));
+    unsigned short version : 2 __attribute__ ((packed));
 
-    unsigned short order : 1;
-    unsigned short wep : 1;
-    unsigned short more_data : 1;
-    unsigned short power_management : 1;
+    unsigned short order : 1 __attribute__ ((packed));
+    unsigned short wep : 1 __attribute__ ((packed));
+    unsigned short more_data : 1 __attribute__ ((packed));
+    unsigned short power_management : 1 __attribute__ ((packed));
 
-    unsigned short retry : 1;
-    unsigned short more_fragments : 1;
-    unsigned short from_ds : 1;
-    unsigned short to_ds : 1;
+    unsigned short retry : 1 __attribute__ ((packed));
+    unsigned short more_fragments : 1 __attribute__ ((packed));
+    unsigned short from_ds : 1 __attribute__ ((packed));
+    unsigned short to_ds : 1 __attribute__ ((packed));
 } frame_control;
 
 typedef struct {
-    unsigned short frag : 12;
-    unsigned short sequence : 4;
+    unsigned short frag : 12 __attribute__ ((packed));
+    unsigned short sequence : 4 __attribute__ ((packed));
 } wireless_fragseq;
 
 typedef struct {
     uint8_t timestamp[8];
 
     // This field must be converted to host-endian before being used
-    unsigned int beacon : 16;
+    unsigned int beacon : 16 __attribute__ ((packed));
 
-    unsigned short agility : 1;
-    unsigned short pbcc : 1;
-    unsigned short short_preamble : 1;
-    unsigned short wep : 1;
+    unsigned short agility : 1 __attribute__ ((packed));
+    unsigned short pbcc : 1 __attribute__ ((packed));
+    unsigned short short_preamble : 1 __attribute__ ((packed));
+    unsigned short wep : 1 __attribute__ ((packed));
 
-    unsigned short unused2 : 1;
-    unsigned short unused1 : 1;
-    unsigned short ibss : 1;
-    unsigned short ess : 1;
+    unsigned short unused2 : 1 __attribute__ ((packed));
+    unsigned short unused1 : 1 __attribute__ ((packed));
+    unsigned short ibss : 1 __attribute__ ((packed));
+    unsigned short ess : 1 __attribute__ ((packed));
 
-    unsigned int coordinator : 8;
+    unsigned int coordinator : 8 __attribute__ ((packed));
 
 } fixed_parameters;
 
 #else
 // And 802.11 packet frame header
 typedef struct {
-    unsigned short version : 2;
-    unsigned short type : 2;
-    unsigned short subtype : 4;
+    unsigned short version : 2 __attribute__ ((packed));
+    unsigned short type : 2 __attribute__ ((packed));
+    unsigned short subtype : 4 __attribute__ ((packed));
 
-    unsigned short to_ds : 1;
-    unsigned short from_ds : 1;
-    unsigned short more_fragments : 1;
-    unsigned short retry : 1;
+    unsigned short to_ds : 1 __attribute__ ((packed));
+    unsigned short from_ds : 1 __attribute__ ((packed));
+    unsigned short more_fragments : 1 __attribute__ ((packed));
+    unsigned short retry : 1 __attribute__ ((packed));
 
-    unsigned short power_management : 1;
-    unsigned short more_data : 1;
-    unsigned short wep : 1;
-    unsigned short order : 1;
+    unsigned short power_management : 1 __attribute__ ((packed));
+    unsigned short more_data : 1 __attribute__ ((packed));
+    unsigned short wep : 1 __attribute__ ((packed));
+    unsigned short order : 1 __attribute__ ((packed));
 } frame_control;
 
 typedef struct {
-    unsigned short frag : 4;
-    unsigned short sequence : 12;
+    unsigned short frag : 4 __attribute__ ((packed));
+    unsigned short sequence : 12 __attribute__ ((packed));
 } wireless_fragseq;
 
 typedef struct {
     uint8_t timestamp[8];
 
     // This field must be converted to host-endian before being used
-    unsigned int beacon : 16;
+    unsigned int beacon : 16 __attribute__ ((packed));
 
-    unsigned short ess : 1;
-    unsigned short ibss : 1;
-    unsigned short unused1 : 1;
-    unsigned short unused2 : 1;
+    unsigned short ess : 1 __attribute__ ((packed));
+    unsigned short ibss : 1 __attribute__ ((packed));
+    unsigned short unused1 : 1 __attribute__ ((packed));
+    unsigned short unused2 : 1 __attribute__ ((packed));
 
-    unsigned short wep : 1;
-    unsigned short short_preamble : 1;
-    unsigned short pbcc : 1;
-    unsigned short agility : 1;
+    unsigned short wep : 1 __attribute__ ((packed));
+    unsigned short short_preamble : 1 __attribute__ ((packed));
+    unsigned short pbcc : 1 __attribute__ ((packed));
+    unsigned short agility : 1 __attribute__ ((packed));
 
-    unsigned int coordinator : 8;
+    unsigned int coordinator : 8 __attribute__ ((packed));
 } fixed_parameters;
 
 
@@ -226,18 +226,18 @@ enum protocol_netbios_type {
 // This spews a tremendous amount of revealing information about the
 // internals of a network, if they have cisco equipment.
 typedef struct {
-    unsigned int : 8;
-    unsigned int : 8;
+    unsigned int : 8 __attribute__ ((packed));
+    unsigned int : 8 __attribute__ ((packed));
 
-    unsigned int : 8;
-    unsigned int : 1;
-    unsigned int level1 : 1;
-    unsigned int igmp_forward : 1;
-    unsigned int nlp : 1;
-    unsigned int level2_switching : 1;
-    unsigned int level2_sourceroute : 1;
-    unsigned int level2_transparent : 1;
-    unsigned int level3 : 1;
+    unsigned int : 8 __attribute__ ((packed));
+    unsigned int : 1 __attribute__ ((packed));
+    unsigned int level1 : 1 __attribute__ ((packed));
+    unsigned int igmp_forward : 1 __attribute__ ((packed));
+    unsigned int nlp : 1 __attribute__ ((packed));
+    unsigned int level2_switching : 1 __attribute__ ((packed));
+    unsigned int level2_sourceroute : 1 __attribute__ ((packed));
+    unsigned int level2_transparent : 1 __attribute__ ((packed));
+    unsigned int level3 : 1 __attribute__ ((packed));
 } cdp_capabilities;
 
 typedef struct {
@@ -250,19 +250,19 @@ typedef struct {
 } cdp_packet;
 
 typedef struct {
-    unsigned int : 8;
-    unsigned int type : 8;
-    unsigned int : 8;
-    unsigned int length : 8;
+    unsigned int : 8 __attribute__ ((packed));
+    unsigned int type : 8 __attribute__ ((packed));
+    unsigned int : 8 __attribute__ ((packed));
+    unsigned int length : 8 __attribute__ ((packed));
     char data;
 } cdp_element;
 
 typedef struct {
-    unsigned int type : 8;
-    unsigned int length : 8;
-    unsigned int proto : 8;
-    unsigned int : 8;
-    unsigned int proto_length : 8;
+    unsigned int type : 8 __attribute__ ((packed));
+    unsigned int length : 8 __attribute__ ((packed));
+    unsigned int proto : 8 __attribute__ ((packed));
+    unsigned int : 8 __attribute__ ((packed));
+    unsigned int proto_length : 8 __attribute__ ((packed));
     char addr;
 } cdp_proto_element;
 
@@ -289,8 +289,6 @@ typedef struct proto_info {
 
     // Extra versioning/details of the proto type
     int prototype_extra;
-
-
 
 };
 
