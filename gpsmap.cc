@@ -357,6 +357,10 @@ int invert_type_filter;
 // Exception/error catching
 ExceptionInfo im_exception;
 
+// Signal levels
+int signal_lowest = 255;
+int signal_highest = -255;
+
 // Forward prototypes
 string Mac2String(uint8_t *mac, char seperator);
 string NetType2String(wireless_network_type in_type);
@@ -1911,8 +1915,6 @@ void DrawNetPower(vector<gps_network *> in_nets, Image *in_img,
     power_input_map = new int [map_width * map_height];
     memset(power_input_map, -1, sizeof(int) * (map_width * map_height));
 
-    int lowest = 255;
-
     for (unsigned int x = 0; x < in_nets.size(); x++) {
         gps_network *map_iter = in_nets[x];
 
@@ -1937,18 +1939,21 @@ void DrawNetPower(vector<gps_network *> in_nets, Image *in_img,
             if (power_input_map[(map_width * cury) + curx] < 
                 map_iter->points[y]->signal && map_iter->points[y]->signal != 0) {
                 power_input_map[(map_width * cury) + curx] = map_iter->points[y]->signal;
-                if (map_iter->points[y]->signal < lowest)
-                    lowest = map_iter->points[y]->signal;
+                if (map_iter->points[y]->signal < signal_lowest)
+                    signal_lowest = map_iter->points[y]->signal;
+                if (map_iter->points[y]->signal > signal_highest)
+                    signal_highest = map_iter->points[y]->signal;
             }
         }
 
     }
 
     // Attempt to normalize the data somewhat
+    int median = (signal_lowest + signal_highest) / 2;
     for (unsigned int v = 0; v < map_height; v++) {
         for (unsigned int h = 0; h < map_width; h++) {
             if (power_input_map[(map_width * v) + h] != 0)
-                power_input_map[(map_width * v) + h] -= lowest;
+                power_input_map[(map_width * v) + h] -= median;
         }
     }
 
@@ -2017,11 +2022,11 @@ void DrawNetPower(vector<gps_network *> in_nets, Image *in_img,
     ExceptionInfo ex;
     GetExceptionInfo(&ex);
     for ( int i = 0; i < power_steps; i++) {
-	QueryColorDatabase(power_colors[i], &colormap[i], &ex);
-	if ( ex.severity != UndefinedException ) {
-	    CatchException(&ex);
-	    break;
-	}
+        QueryColorDatabase(power_colors[i], &colormap[i], &ex);
+        if ( ex.severity != UndefinedException ) {
+            CatchException(&ex);
+            break;
+        }
     }
 
     ExceptionInfo excep;
@@ -2038,8 +2043,10 @@ void DrawNetPower(vector<gps_network *> in_nets, Image *in_img,
     snprintf(rect_template  , 1024, "fill-opacity %d%%%% stroke-opacity %d%%%% stroke-width 0 rectangle %%d,%%d %%d,%%d", power_opacity, power_opacity);
     
     fprintf(stderr, "Drawing interpolated power levels to map.\n");
-    int power_stepsize = power_max / power_steps;
-    int power_halfstepsize = (power_max / power_steps);
+
+    int power_stepsize = (signal_highest - signal_lowest) / power_steps;
+    int power_halfstepsize = power_stepsize;
+    
     for (unsigned int y = 0; y < map_height; y += power_resolution) {
         for (unsigned int x = 0; x < map_width; x += power_resolution) {
             //            int powr = InverseWeight(x, y, 200, (double) scale/PIXELFACT);

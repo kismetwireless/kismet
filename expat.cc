@@ -216,10 +216,12 @@ int NetXmlStr2Struct(wireless_network *in_net) {
         return -1;
     }
 
-    if (sscanf(xmlstrnodes[net_node_pk_dupeiv].c_str(), "%d", &in_net->dupeiv_packets) < 1) {
-        fprintf(stderr, "WARNING:  Illegal dupeiv packet count '%s', skipping rest of network.\n",
-                xmlstrnodes[net_node_pk_dupeiv].c_str());
-        return -1;
+    if (xmlstrnodes[net_node_pk_dupeiv].length() > 0) {
+        if (sscanf(xmlstrnodes[net_node_pk_dupeiv].c_str(), "%d", &in_net->dupeiv_packets) < 1) {
+            fprintf(stderr, "WARNING:  Illegal dupeiv packet count '%s', skipping rest of network.\n",
+                    xmlstrnodes[net_node_pk_dupeiv].c_str());
+            return -1;
+        }
     }
 
     if (in_net->gps_fixed && xmlstrnodes[net_node_gps_min_lat] != "") {

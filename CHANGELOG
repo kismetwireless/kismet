@@ -1,4 +1,6 @@
 Dec 22 2003  3.1.0  Increased max wep key size to 32 hex pairs
+                    Fixed gpsmap dupeiv
+                    Revamped gpsmap power level colormap assignment
 Dec 21 2003  3.1.0  Added discarding of large management and phy frames as an
                      effort to minimize the impact of junk frames from some
                      drivers.
