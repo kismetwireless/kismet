@@ -460,6 +460,198 @@ int kis_80211_dissector(CHAINCALL_PARMS) {
         } else {
             packinfo->subtype = packet_sub_unknown;
         }
+    } else if (fc->type == 1) {
+        packinfo->type = packet_phy;
 
+        // Throw away large phy packets just like we throw away large management.
+        // Phy stuff is all really small, so we set the limit smaller.
+        if (chunk->length > 128) {
+            packinfo->corrupt = 1;
+            in_pack->insert(globalreg->pcr_80211_ref, packinfo);
+            return 0;
+        }
+
+        packinfo->distrib = no_distribution;
+
+        if (fc->subtype == 11) {
+            packinfo->subtype = packet_sub_rts;
+
+        } else if (fc->subtype == 12) {
+            packinfo->subtype = packet_sub_cts;
+
+        } else if (fc->subtype == 13) {
+            packinfo->subtype = packet_sub_ack;
+
+            packinfo->dest_mac = addr0;
+
+        } else if (fc->subtype == 14) {
+            packinfo->subtype = packet_sub_cf_end;
+
+        } else if (fc->subtype == 15) {
+            packinfo->subtype = packet_sub_cf_end_ack;
+
+        } else {
+            packinfo->subtype = packet_sub_unknown;
+        }
+
+    } else if (fc->type == 2) {
+        packinfo->type = packet_data;
+
+        // Collect the subtypes - we probably want to do something better with thse
+        // in the future
+        if (fc->subtype == 0) {
+            packinfo->subtype = packet_sub_data;
+
+        } else if (fc->subtype == 1) {
+            packinfo->subtype = packet_sub_data_cf_ack;
+
+        } else if (fc->subtype == 2) {
+            packinfo->subtype = packet_sub_data_cf_poll;
+
+        } else if (fc->subtype == 3) {
+            packinfo->subtype = packet_sub_data_cf_ack_poll;
+
+        } else if (fc->subtype == 4) {
+            packinfo->subtype = packet_sub_data_null;
+
+        } else if (fc->subtype == 5) {
+            packinfo->subtype = packet_sub_cf_ack;
+
+        } else if (fc->subtype == 6) {
+            packinfo->subtype = packet_sub_cf_ack_poll;
+        } else {
+            packinfo->corrupt = 1;
+            packinfo->subtype = packet_sub_unknown;
+            in_pack->insert(globalreg->pcr_80211_ref, packinfo);
+            return 0;
+        }
+
+        int datasize = packet->len - ret_packinfo->header_offset;
+        if (datasize > 0)
+            packinfo->datasize = datasize;
+
+        // Extract ID's
+        switch (packinfo->distrib) {
+        case adhoc_distribution:
+            packinfo->dest_mac = addr0;
+            packinfo->source_mac = addr1;
+            packinfo->bssid_mac = addr2;
+
+            if (packinfo->bssid_mac.longmac == 0)
+                packinfo->bssid_mac = packinfo->source_mac;
+
+            packinfo->header_offset = 24;
+            break;
+        case from_distribution:
+            packinfo->dest_mac = addr0;
+            packinfo->bssid_mac = addr1;
+            packinfo->source_mac = addr2;
+            packinfo->header_offset = 24;
+            break;
+        case to_distribution:
+            packinfo->bssid_mac = addr0;
+            packinfo->source_mac = addr1;
+            packinfo->dest_mac = addr2;
+            packinfo->header_offset = 24;
+            break;
+        case inter_distribution:
+            // If we aren't long enough to hold a intra-ds packet, bail
+            if (chunk->length < 30) {
+                packinfo->corrupt = 1;
+                in_pack->insert(globalreg->pcr_80211_ref, packinfo);
+                return 0;
+            }
+
+            packinfo->bssid_mac = addr1;
+            packinfo->source_mac = addr3;
+            packinfo->dest_mac = addr0;
+
+            packinfo->distrib = inter_distribution;
+
+            // First byte of offsets
+            packinfo->header_offset = 30;
+            break;
+        default:
+            packinfo->corrupt = 1;
+            return;
+            break;
+        }
+
+        // Detect encrypted frames
+        if (fc->wep &&
+            (*((unsigned short *) &(chunk->data[ret_packinfo->header_offset])) != 0xAAAA ||
+             chunk->data[ret_packinfo->header_offset + 1] & 0x40)) {
+
+            packinfo->encrypted = 1;
+        } else if (packet->parm.fuzzy_crypt && 
+                   (unsigned int) packinfo->header_offset + 9 < chunk->length) {
+            // Do a fuzzy data compare... if it's not:
+            // 0xAA - IP LLC
+            // 0x42 - I forgot.
+            // 0xF0 - Netbios
+            // 0xE0 - IPX
+            if (chunk->data[packinfo->header_offset] != 0xAA && chunk->data[packinfo->header_offset] != 0x42 &&
+                chunk->data[packinfo->header_offset] != 0xF0 && chunk->data[packinfo->header_offset] != 0xE0) {
+                packinfo->encrypted = 1;
+                packinfo->fuzzy = 1;
+            }
+        }
+
+        if (packinfo->encrypted) {
+            // Match the range of cryptographically weak packets and let us
+            // know.
+
+            // New detection method from Airsnort 2.0, should be much better.
+            unsigned int sum;
+            if (chunk->data[packinfo->header_offset +1 ] == 255 && chunk->data[packinfo->header_offset] > 2 &&
+                chunk->data[packinfo->header_offset] < 16) {
+                packinfo->interesting = 1;
+            } else {
+                sum = chunk->data[packinfo->header_offset] + chunk->data[packinfo->header_offset + 1];
+                if (sum == 1 && (chunk->data[packinfo->header_offset + 2] <= 0x0A ||
+                                 chunk->data[packinfo->header_offset + 2] == 0xFF)) {
+                    packinfo->interesting = 1;
+                } else if (sum <= 0x0C && (chunk->data[packinfo->header_offset + 2] >= 0xF2 &&
+                                           chunk->data[packinfo->header_offset + 2] <= 0xFE &&
+                                           chunk->data[packinfo->header_offset + 2] != 0xFD))
+                    packinfo->interesting = 1;
+            }
+
+            // Knock 8 bytes off the data size of encrypted packets for the
+            // wep IV and check
+            datasize = packinfo->datasize - 8;
+            if (datasize > 0) {
+                packinfo->datasize = datasize;
+            } else {
+                packinfo->datasize = 0;
+            }
+
+            if (ret_packinfo->encrypted) {
+                // Record the IV in the info
+                memcpy(&packinfo->ivset, 
+                       &(chunk->data[packinfo->header_offset]), 4);
+            }
+        }
+    } else {
+        // If we didn't figure out what it was yet, test it for cisco noise.  If the first
+        // four bytes are 0xFF, bail
+        uint32_t fox = ~0;
+        if (memcmp(chunk->data, &fox, 4) == 0) {
+            packinfo->type = packet_noise;
+            in_pack->insert(globalreg->pcr_80211_ref, packinfo);
+            return 0;
+        }
+    }
+
+    // Do a little sanity checking on the BSSID
+    if (packinfo->bssid_mac.error == 1 ||
+        packinfo->source_mac.error == 1 ||
+        packinfo->dest_mac.error == 1) {
+        packinfo->corrupt = 1;
+    }
+
+    in_pack->insert(globalreg->pcr_80211_ref, packinfo);
+
+    return 1;
 }
 
