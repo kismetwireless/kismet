@@ -360,6 +360,7 @@ int main(int argc, char *argv[]) {
         { "columns", required_argument, 0, 'c' },
         { "client-columns", required_argument, 0, 'C'},
         { "reconnct", no_argument, 0, 'r' },
+        { "gui", required_argument, 0, 'g'},
         { 0, 0, 0, 0 }
     };
     int option_index;
