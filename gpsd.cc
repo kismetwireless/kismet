@@ -156,16 +156,24 @@ int GPSD::Scan() {
         return 0;
     }
 
+    if (last_lat == 0 && last_lon == 0) {
+        last_lat = lat;
+        last_lon = lon;
+    }
+
     if (scanret == 5) {
         // Calculate the heading
         hed = last_hed;
-    }
 
-    // Update the last lat and heading if we've moved more than 10 meters
-    if (EarthDistance(lat, lon, last_lat, last_lon) > 10) {
-        last_hed = CalcHeading(lat, lon, last_lat, last_lon);
-        last_lat = lat;
-        last_lon = lon;
+        // Update the last lat and heading if we've moved more than 10 meters
+        if (EarthDistance(lat, lon, last_lat, last_lon) > 10) {
+            hed = CalcHeading(lat, lon, last_lat, last_lon);
+            printf("calculating heading between %f %f and %f %f ... %f\n",
+                   lat, lon, last_lat, last_lon, last_hed);
+
+            last_lat = lat;
+            last_lon = lon;
+        }
     }
 
     spd = spd * (6076.12 / 5280);
@@ -204,13 +212,14 @@ int GPSD::FetchLoc(float *in_lat, float *in_lon, float *in_alt, float *in_spd, f
 }
 
 float GPSD::CalcHeading(float in_lat, float in_lon, float in_lat2, float in_lon2) {
-    double r = CalcRad((double) in_lat2);
-    double lat1 = Deg2Rad((double) in_lat);
-    double lon1 = Deg2Rad((double) in_lon);
-    double lat2 = Deg2Rad((double) in_lat2);
-    double lon2 = Deg2Rad((double) in_lon2);
+    float r = CalcRad((float) in_lat2);
 
-    double angle = 0;
+    float lat1 = Deg2Rad((float) in_lat);
+    float lon1 = Deg2Rad((float) in_lon);
+    float lat2 = Deg2Rad((float) in_lat2);
+    float lon2 = Deg2Rad((float) in_lon2);
+
+    float angle = 0;
 
     if (lat1 == lat2) {
         if (lon2 > lon1) {
@@ -227,9 +236,9 @@ float GPSD::CalcHeading(float in_lat, float in_lon, float in_lat2, float in_lon2
             angle = M_PI;
         }
     } else {
-        double tx = r * cos(lat1) * (lon2 - lon1);
-        double ty = r * (lat2 - lat1);
-        angle = atan(tx/ty);
+        float tx = r * cos((double) lat1) * (lon2 - lon1);
+        float ty = r * (lat2 - lat1);
+        angle = atan((double) (tx/ty));
 
         if (ty < 0) {
             angle += M_PI;
@@ -249,7 +258,7 @@ float GPSD::CalcHeading(float in_lat, float in_lon, float in_lat2, float in_lon2
 }
 
 double GPSD::Rad2Deg(double x) {
-    return x*M_PI/180.0;
+    return (x/M_PI) * 180.0;
 }
 
 double GPSD::Deg2Rad(double x) {
