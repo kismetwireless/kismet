@@ -1,3 +1,5 @@
+Sep 21 2004  devel  Removed spurious debug string
+                    Fixed handling '*' and '\r' as final characters of a string
 Sep 19 2004  devel  Implemented modular speech and sound players.  Arrr.
                     Implemented GPSD lock/lost sound and speech with new module
                     Fixed second register attempt of gpsd protocol

@@ -952,7 +952,6 @@ int Clicmd_ENABLE(CLIENT_PARMS) {
     // becomes a problem sometime come back to it and do it a better way
     if (((*parsedcmdline)[1]).word[0] == '*') {
         for (unsigned int x = 0; x < prot->field_vec.size(); x++) {
-            printf("pushing: %d\n", x);
             numericf.push_back(x);
         }
     } else {
@@ -1385,12 +1384,13 @@ int KisNetFramework::ParseData(int in_fd) {
         return 0;
     }
 
+
     for (unsigned int it = 0; it < inptok.size(); it++) {
         // No matter what we've dealt with this data block
         netserver->MarkRead(in_fd, inptok[it].length() + 1);
 
-        // Handle funny trailing stuff
-        if (!isalnum(inptok[it][inptok[it].length() - 1])) {
+        // Handle funny trailing stuff from telnet and some other clients
+        if (inptok[it][inptok[it].length() - 1] == '\r') {
             inptok[it] = inptok[it].substr(0, inptok[it].length() - 1);
         }
         
