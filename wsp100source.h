@@ -23,33 +23,6 @@
 
 #include "packetsource.h"
 
-// If we're running under a cygwin system, build code to link the DLL from Chris
-// and use that as a source of packets
-// If we're running under anything else, create a UDP socket to listen and process
-// tzsp outselves
-
-#ifdef SYS_CYGWIN
-
-class Wsp100Source : public PacketSource {
-public:
-    // Open the packet source
-    int OpenSource(const char *dev, card_type ctype);
-
-    int CloseSource();
-
-    // We don't really have a FD that can be monitored, so we tell the server to
-    // fake it
-    int FetchDescriptor() { return -1; }
-
-    // Get a packet from the medium
-    int FetchPacket(pkthdr *in_header, u_char *in_data);
-
-protected:
-
-};
-
-#else
-
 #include <netdb.h>
 
 // Copy this from wtap for our own records
@@ -91,9 +64,6 @@ protected:
     in_addr filter_addr;
 
 };
-
-// cygwin/other
-#endif
 
 // wsp100
 #endif

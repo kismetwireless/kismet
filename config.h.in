@@ -121,6 +121,21 @@
 /* Define if you have the <unistd.h> header file. */
 #undef HAVE_UNISTD_H
 
+/* Viha headers are there */
+#undef HAVE_VIHAHEADERS
+
+/* Define if you have the <WiFi/IEEE80211Frame.h> header file. */
+#undef HAVE_WIFI_IEEE80211FRAME_H
+
+/* Define if you have the <WiFi/WFException.h> header file. */
+#undef HAVE_WIFI_WFEXCEPTION_H
+
+/* Define if you have the <WiFi/WLFrame.h> header file. */
+#undef HAVE_WIFI_WLFRAME_H
+
+/* Define if you have the <WiFi/WLPacketSource.h> header file. */
+#undef HAVE_WIFI_WLPACKETSOURCE_H
+
 /* wsp100 remote sensor support */
 #undef HAVE_WSP100
 
@@ -185,7 +200,3 @@ using namespace std;
 #define _(x) x
 #endif
 
-/* If we're not using GNU C, elide __attribute__ */
-#ifndef __GNUC__
-#  define  __attribute__(x)  /*NOTHING*/
-#endif
