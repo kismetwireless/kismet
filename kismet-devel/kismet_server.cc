@@ -75,10 +75,12 @@ int packnum = 0, localdropnum = 0;
 Packetracker tracker;
 #ifdef HAVE_GPS
 GPSD gps;
+int gpsmode = 0;
 GPSDump gpsdump;
 #endif
 TcpServer ui_server;
 int silent;
+int sound = -1;
 time_t start_time;
 packet_info last_info;
 int decay;
@@ -721,6 +723,89 @@ void ProtocolClientEnable(int in_fd) {
     }
 }
 
+int GpsEvent(server_timer_event *evt, void *parm) {
+#ifdef HAVE_GPS
+    char status[STATUS_MAX];
+
+    // The GPS only provides us a new update once per second we might
+    // as well only update it here once a second
+    if (gps_enable) {
+        int gpsret;
+        gpsret = gps.Scan();
+        if (gpsret < 0) {
+            snprintf(status, STATUS_MAX, "GPS error fetching data: %s",
+                     gps.FetchError());
+
+            if (!silent)
+                fprintf(stderr, "%s\n", gps.FetchError());
+
+            NetWriteStatus(status);
+            gps_enable = 0;
+        }
+
+        if (gpsret == 0 && gpsmode != 0) {
+            if (!silent)
+                fprintf(stderr, "Lost GPS signal.\n");
+            if (sound == 1)
+                sound = PlaySound("gpslost");
+
+            NetWriteStatus("Lost GPS signal.");
+            gpsmode = 0;
+        } else if (gpsret != 0 && gpsmode == 0) {
+            if (!silent)
+                fprintf(stderr, "Aquired GPS signal.\n");
+            if (sound == 1)
+                sound = PlaySound("gpslock");
+
+            NetWriteStatus("Aquired GPS signal.");
+            gpsmode = 1;
+        }
+    }
+
+    if (gps_log) {
+        gpsdump.DumpPacket(NULL);
+    }
+
+    // We want to be rescheduled
+    return 1;
+#endif
+    return 0;
+}
+
+// Simple redirect to the network info drawer.  We don't want to change netwriteinfo to a
+// timer event since we call it un-timed too
+int NetWriteEvent(server_timer_event *evt, void *parm) {
+    NetWriteInfo();
+
+    // Reschedule us
+    return 1;
+}
+
+// Handle writing and sync'ing dump files
+int ExportSyncEvent(server_timer_event *evt, void *parm) {
+    if (!silent)
+        fprintf(stderr, "Saving data files.\n");
+
+    NetWriteStatus("Saving data files.");
+    WriteDatafiles(0);
+
+    return 1;
+}
+
+// Write the waypoints for gpsdrive
+int WaypointSyncEvent(server_timer_event *evt, void *parm) {
+    tracker.WriteGpsdriveWaypt(waypoint_file);
+
+    return 1;
+}
+
+// Handle tracker maintenance
+int TrackerTickEvent(server_timer_event *evt, void *parm) {
+    tracker.Tick();
+
+    return 1;
+}
+
 // Handle a command sent by a client over its TCP connection.
 void handle_command(TcpServer *tcps, client_command *cc) {
     char id[12];
@@ -892,15 +977,12 @@ int main(int argc,char *argv[]) {
 
     client_command cmd;
     int sleepu = 0;
-    time_t last_draw = time(0);
-    time_t last_write = time(0);
     int log_packnum = 0;
     int limit_logs = 0;
     char status[STATUS_MAX];
 
     //const char *sndplay = NULL;
     string sndplay;
-    int sound = -1;
 
     const char *festival = NULL;
     int speech = -1;
@@ -922,8 +1004,6 @@ int main(int argc,char *argv[]) {
     metric = 0;
 
     start_time = time(0);
-
-    int gpsmode = 0;
 
     unsigned char wep_identity[256];
 
@@ -2393,6 +2473,25 @@ int main(int argc,char *argv[]) {
     wepkey_ref = ui_server.RegisterProtocol("WEPKEY", 0, WEPKEY_fields_text,
                                             &Protocol_WEPKEY, NULL);
 
+
+    // Schedule our routine events that repeat the entire operational period.  We don't
+    // care about their ID's since we're never ever going to cancel them.
+    fprintf(stderr, "Registering builtin timer events...\n");
+
+    // Write network info and tick the tracker once per second
+    RegisterServerTimer(SERVER_TIMESLICES_SEC, NULL, 1, &NetWriteEvent, NULL);
+    RegisterServerTimer(SERVER_TIMESLICES_SEC, NULL, 1, &TrackerTickEvent, NULL);
+#ifdef HAVE_GPS
+    // Update GPS coordinates and handle signal loss if defined
+    RegisterServerTimer(SERVER_TIMESLICES_SEC, NULL, 1, &GpsEvent, NULL);
+#endif
+    // Sync the data files if requested
+    if (datainterval > 0)
+        RegisterServerTimer(datainterval * SERVER_TIMESLICES_SEC, NULL, 1, &ExportSyncEvent, NULL);
+    // Write waypoints if requested
+    if (waypoint)
+        RegisterServerTimer(decay * SERVER_TIMESLICES_SEC, NULL, 1, &WaypointSyncEvent, NULL);
+
     cisco_ref = -1;
 
     // Hijack the status char* for some temp work and fill in our server data record
@@ -2407,7 +2506,6 @@ int main(int argc,char *argv[]) {
     kdata.timestamp = status;
 
     time_t last_click = 0;
-    time_t last_waypoint = time(0);
     int num_networks = 0, num_packets = 0, num_noise = 0, num_dropped = 0;
 
 
@@ -2437,8 +2535,7 @@ int main(int argc,char *argv[]) {
     }
 
     map<mac_addr, int>::iterator fitr;
-    time_t cur_time = time(0);
-    time_t last_time = cur_time;
+    time_t cur_time;
     while (1) {
         fd_set rset, wset;
         cur_time = time(0);
@@ -2776,77 +2873,6 @@ int main(int argc,char *argv[]) {
 
             }
 
-        }
-
-        // Draw if it's time
-        if (cur_time != last_draw) {
-#ifdef HAVE_GPS
-            // The GPS only provides us a new update once per second we might
-            // as well only update it here once a second
-            if (gps_enable) {
-                int gpsret;
-                gpsret = gps.Scan();
-                if (gpsret < 0) {
-                    snprintf(status, STATUS_MAX, "GPS error fetching data: %s",
-                             gps.FetchError());
-
-                    if (!silent)
-                        fprintf(stderr, "%s\n", gps.FetchError());
-
-                    NetWriteStatus(status);
-                    gps_enable = 0;
-                }
-
-                if (gpsret == 0 && gpsmode != 0) {
-                    if (!silent)
-                        fprintf(stderr, "Lost GPS signal.\n");
-                    if (sound == 1)
-                        sound = PlaySound("gpslost");
-
-                    NetWriteStatus("Lost GPS signal.");
-                    gpsmode = 0;
-                } else if (gpsret != 0 && gpsmode == 0) {
-                    if (!silent)
-                        fprintf(stderr, "Aquired GPS signal.\n");
-                    if (sound == 1)
-                        sound = PlaySound("gpslock");
-
-                    NetWriteStatus("Aquired GPS signal.");
-                    gpsmode = 1;
-                }
-            }
-
-            if (gps_log) {
-                gpsdump.DumpPacket(NULL);
-            }
-#endif
-
-            NetWriteInfo();
-
-            last_draw = cur_time;
-        }
-
-        // Write the data files out every x seconds
-        if (datainterval > 0) {
-            if (cur_time - last_write > datainterval) {
-                if (!silent)
-                    fprintf(stderr, "Saving data files.\n");
-                NetWriteStatus("Saving data files.");
-                WriteDatafiles(0);
-                last_write = cur_time;
-            }
-        }
-
-        // Write the waypoints every decay seconds
-        if (cur_time - last_waypoint > decay && waypoint) {
-            tracker.WriteGpsdriveWaypt(waypoint_file);
-            last_waypoint = cur_time;
-        }
-
-        // Once per second handle our update event ticks
-        if (last_time != cur_time) {
-            tracker.Tick();
-            last_time = cur_time;
         }
 
         // Sleep if we have a custom additional sleep time

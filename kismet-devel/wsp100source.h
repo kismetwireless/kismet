@@ -43,7 +43,7 @@
 #define WSP100_TAG_RADIO_CHANNEL  0x12   // Channel, unsigned
 
 #define TZSP_NULL_PACKET          0x01C40000 // for TZSP v1 at least
-#define TZSP_NULL_PACKET_SLICE    15 * 10    // must be less than 32, and consists of timer slices (100000us)
+#define TZSP_NULL_PACKET_SLICE    15 * SERVER_TIMESLICES_SEC  // must be less than 32, and consists of timer slices (100000us)
 
 int Wsp100PokeSensor(server_timer_event *evt, void *call_parm);
 
