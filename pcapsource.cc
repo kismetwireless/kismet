@@ -1149,7 +1149,7 @@ int monitor_orinoco(const char *in_dev, int initch, char *in_err, void **in_if) 
     if (Iwconfig_Get_Mode(in_dev, in_err, &ifparm->mode) < 0)
         return -1;
 
-    // Bring the device up, zero its ip, and set promisc
+    // Bring the device up and set promisc
     if (Ifconfig_Delta_Flags(in_dev, in_err, IFF_UP | IFF_RUNNING | IFF_PROMISC) < 0)
         return -1;
 
@@ -1167,6 +1167,10 @@ int monitor_orinoco(const char *in_dev, int initch, char *in_err, void **in_if) 
         if (ret != -2)
             return -1;
     }
+
+    // Try to turn on my patches to the new orinoco drivers to give us some signal
+    // levels if they're available.  We don't care if we fail at this.
+    Iwconfig_Set_IntPriv(in_dev, "set_prismheader", 2, 0, in_err);
    
     // Try to set wext monitor mode.  We're good if one of these succeeds...
     if (monitor_wext(in_dev, initch, in_err, in_if) < 0 && ret < 0) {
