@@ -1,5 +1,6 @@
 Mar 21 2003  2.9.1  Added CHANCHANGE alert for BSSID's that get a beacon
                      on a different channel
+                    Revamped core tracker status and alert output
 Mar 20 2003  2.9.1  Various code cleanups and reorganizations
                     Removed alert filter string, too unwieldy from the code
                      and redundant

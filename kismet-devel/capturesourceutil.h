@@ -25,6 +25,7 @@
 #include <vector>
 #include <map>
 
+#include "timetracker.h"
 #include "packetsource.h"
 #include "prism2source.h"
 #include "pcapsource.h"
@@ -45,8 +46,10 @@ typedef struct capturesource {
 map<string, int> ParseEnableLine(string in_named);
 int ParseCardLines(vector<string> *in_lines, vector<capturesource *> *in_capsources);
 int BindRootSources(vector<capturesource *> *in_capsources,
-                    map<string, int> *in_enable, int filter_enable);
+                    map<string, int> *in_enable, int filter_enable,
+                    Timetracker *in_tracker);
 int BindUserSources(vector<capturesource *> *in_capsources,
-                    map<string, int> *in_enable, int filter_enable);
+                    map<string, int> *in_enable, int filter_enable,
+                    Timetracker *in_tracker);
 
 #endif

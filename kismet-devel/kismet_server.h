@@ -25,7 +25,7 @@
 #include <string>
 
 #include "tcpserver.h"
-#include "packetsource.h"
+#include "server_protocols.h"
 
 void WriteDatafiles(int in_shutdown);
 void CatchShutdown(int sig);
@@ -40,5 +40,7 @@ void SoundHandler(int *fds, const char *player, map<string, string> soundmap);
 void ProtocolAlertEnable(int in_fd);
 void ProtocolNetworkEnable(int in_fd);
 void ProtocolClientEnable(int in_fd);
+void KisLocalAlert(ALERT_data *adat);
+void KisLocalStatus(char *in_status);
 
 #endif

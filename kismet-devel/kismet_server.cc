@@ -85,6 +85,7 @@ int packnum = 0, localdropnum = 0;
 
 Packetracker tracker;
 Alertracker alertracker;
+Timetracker timetracker;
 
 #ifdef HAVE_GPS
 GPSD gps;
@@ -95,10 +96,8 @@ GPSDump gpsdump;
 FifoDumpFile fifodump;
 TcpServer ui_server;
 int sound = -1;
-time_t start_time;
 packet_info last_info;
 int decay;
-unsigned int metric;
 channel_power channel_graph[CHANNEL_MAX];
 char *servername = NULL;
 
@@ -519,6 +518,24 @@ int SayText(string in_text) {
     return 1;
 }
 
+void KisLocalAlert(ALERT_data *adat) {
+    time_t now = time(0);
+    if (!silent)
+        fprintf(stderr, "ALERT %.24s %s %s\n", ctime(&now),
+                adat->header.c_str(), adat->text.c_str());
+
+    if (sound == 1)
+        sound = PlaySound("alert");
+
+}
+
+void KisLocalStatus(char *in_status) {
+    time_t now = time(0);
+    if (!silent)
+        fprintf(stderr, "%.24s %s\n", ctime(&now), in_status);
+
+    NetWriteStatus(in_status);
+}
 
 void NetWriteInfo() {
     // If we have no clients, don't do this at all, it's expensive
@@ -1245,7 +1262,8 @@ int main(int argc,char *argv[]) {
 
     // Now enable root sources...  BindRoot will terminate if it fails
     BindRootSources(&packet_sources, &enable_name_map,
-                    ((source_from_cmd == 0) || (enable_from_cmd == 1)));
+                    ((source_from_cmd == 0) || (enable_from_cmd == 1)),
+                    &timetracker);
 
     // Once the packet source is opened, we shouldn't need special privileges anymore
     // so lets drop to a normal user.  We also don't want to open our logfiles as root
@@ -1263,7 +1281,8 @@ int main(int argc,char *argv[]) {
     // WE ARE NOW RUNNING AS THE TARGET UID
 
     BindUserSources(&packet_sources, &enable_name_map,
-                    ((source_from_cmd == 0) || (enable_from_cmd == 1)));
+                    ((source_from_cmd == 0) || (enable_from_cmd == 1)),
+                    &timetracker);
 
     // See if we tried to enable something that didn't exist
     if (enable_name_map.size() == 0) {
@@ -2511,13 +2530,10 @@ int main(int argc,char *argv[]) {
 
                     }
 
-                    int process_ret;
-
 #ifdef HAVE_GPS
                     if (gps_log && info.type != packet_noise && info.type != packet_unknown &&
                         info.type != packet_phy) {
-                        process_ret = gpsdump.DumpPacket(&info);
-                        if (process_ret < 0) {
+                        if (gpsdump.DumpPacket(&info) < 0) {
                             snprintf(status, STATUS_MAX, "%s", gpsdump.FetchError());
                             if (!silent)
                                 fprintf(stderr, "%s\n", status);
@@ -2527,22 +2543,7 @@ int main(int argc,char *argv[]) {
                     }
 #endif
 
-                    process_ret = tracker.ProcessPacket(info, status);
-                    if (process_ret > 0) {
-                        if (process_ret == TRACKER_ALERT) {
-                            fprintf(stderr, "ALERT %.24s %s\n", ctime(&cur_time),
-                                    status);
-
-                            if (sound == 1)
-                                sound = PlaySound("alert");
-
-                        } else {
-                            if (!silent)
-                                fprintf(stderr, "%s\n", status);
-
-                            NetWriteStatus(status);
-                        }
-                    }
+                    tracker.ProcessPacket(info);
 
                     if (tracker.FetchNumNetworks() != num_networks) {
                         if (sound == 1)

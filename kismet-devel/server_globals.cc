@@ -19,6 +19,7 @@
 #include "config.h"
 #include "server_globals.h"
 
-Timetracker timetracker;
 int silent;
+time_t start_time;
+unsigned int metric;
 

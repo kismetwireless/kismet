@@ -20,6 +20,7 @@
 #define __PACKETSOURCE_H__
 
 #include "packet.h"
+#include "timetracker.h"
 
 // Card type, for some capture sources which require it
 enum card_type {
@@ -56,6 +57,9 @@ public:
     // Get a packet from the medium
     virtual int FetchPacket(kis_packet *packet, uint8_t *data, uint8_t *moddata) = 0;
 
+    // Register a timer event handler for us to use
+    void AddTimetracker(Timetracker *in_tracker) { timetracker = in_tracker; }
+
     // Say what we are
     char *FetchType() { return(type); };
 
@@ -69,11 +73,10 @@ public:
     void Resume() { paused = 0; };
 
 protected:
+    Timetracker *timetracker;
+
     char errstr[1024];
-    /*
-     pkthdr header;
-     u_char data[MAX_PACKET_LEN];
-     */
+
     int paused;
 
     char type[64];

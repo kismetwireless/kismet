@@ -36,18 +36,6 @@
 #include "alertracker.h"
 #include "util.h"
 
-// Extern over to kismet_server.cc to get our first time
-extern time_t start_time;
-// Extern over to kismet_server.cc to get our metric settings
-extern unsigned int metric;
-
-// Return values from ProcessPacket
-#define TRACKER_NONE      0
-#define TRACKER_NEW       1
-#define TRACKER_NOTICE    2
-#define TRACKER_ASSOCIATE 3
-#define TRACKER_ALERT     4
-
 class Packetracker {
 public:
     Packetracker();
@@ -77,8 +65,8 @@ public:
     //    void AddFilter(string in_filter) { filter = in_filter; }
 
     // Packet tracker stuff
-    int ProcessPacket(packet_info info, char *in_status);
-    int ProcessDataPacket(packet_info info, wireless_network *net, char *in_status);
+    void ProcessPacket(packet_info info);
+    void ProcessDataPacket(packet_info info, wireless_network *net);
 
     void UpdateIpdata(wireless_network *net);
 

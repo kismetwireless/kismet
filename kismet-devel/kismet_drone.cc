@@ -46,8 +46,6 @@
 
 #include "timetracker.h"
 
-#include "server_globals.h"
-
 #ifndef exec_name
 char *exec_name;
 #endif
@@ -55,13 +53,16 @@ char *exec_name;
 const char *config_base = "kismet_drone.conf";
 
 #ifdef HAVE_GPS
-    GPSD gps;
-    int gpsmode = 0;
-    int gps_enable = 0;
+GPSD gps;
+int gpsmode = 0;
+int gps_enable = 0;
 #endif
 
 // Capture sources
 vector<capturesource *> packet_sources;
+
+// Timetracker
+Timetracker timetracker;
 
 // Catch our interrupt
 void CatchShutdown(int sig) {
@@ -326,7 +327,8 @@ int main(int argc, char *argv[]) {
 
     // Now enable root sources...  BindRoot will terminate if it fails
     BindRootSources(&packet_sources, &enable_name_map,
-                    ((source_from_cmd == 0) || (enable_from_cmd == 1)));
+                    ((source_from_cmd == 0) || (enable_from_cmd == 1)),
+                    &timetracker);
 
     // Once the packet source is opened, we shouldn't need special privileges anymore
     // so lets drop to a normal user.  We also don't want to open our logfiles as root
@@ -344,7 +346,8 @@ int main(int argc, char *argv[]) {
     // WE ARE NOW RUNNING AS THE TARGET UID
 
     BindUserSources(&packet_sources, &enable_name_map,
-                    ((source_from_cmd == 0) || (enable_from_cmd == 1)));
+                    ((source_from_cmd == 0) || (enable_from_cmd == 1)),
+                    &timetracker);
 
     // See if we tried to enable something that didn't exist
     if (enable_name_map.size() == 0) {
