@@ -810,6 +810,12 @@ Licensed under the GPL
     FIX: Some GPS units have invalid NMEA streams which gpsd doesn't understand
      correctly.  Set the "gpsmodelock" option to "true" in kismet.conf
 
+    PROBLEM: I can't lock Kismet onto a single channel, it says the server
+     doesn't support channel hopping.
+    FIX: You need to start Kismet with channel hopping enabled to be able to
+     lock a source to a specific channel.  Kismet will automatically disable
+     channel hopping if none of the enabled sources support setting the channel.
+
 16. Frequently Asked Questions
 
     Q: Where did the name Kismet come from?

@@ -132,12 +132,12 @@ int PanelFront::MainInput(void *in_window, int in_chr) {
 
             // Immediately lock on if we've only got one card.
             for (unsigned int ci = 0; ci < context_list.size(); ci++)
-                if (context_list[ci]->client != NULL && context_list[ci]->tagged)
+                if (context_list[ci]->client != NULL && context_list[ci]->tagged &&
+                    context_list[ci]->client->FetchHopping() != 0)
                     nactivec += context_list[ci]->client->FetchCardList().size();
 
             if (nactivec == 0) {
-                WriteStatus("Cannot lock onto a network channel when there are no "
-                            "active interfaces.");
+                WriteStatus("Server does not have channel hopping enabled.");
                 return 1;
             } else if (nactivec == 1) {
                 // Lock onto the one channel, we'll assume the meta number is 0.
@@ -154,20 +154,19 @@ int PanelFront::MainInput(void *in_window, int in_chr) {
                 clwin->toggle0 = 0;
             }
         } else {
-            WriteStatus("Cannot lock channels to a network in autofit mode.  Sort "
-                        "by a different method.");
+            WriteStatus("Server does not have channel hopping enabled.");
         }
 
         break;
     case 'H':
         // Immediately lock on if we've only got one card.
         for (unsigned int ci = 0; ci < context_list.size(); ci++)
-            if (context_list[ci]->client != NULL && context_list[ci]->tagged)
+            if (context_list[ci]->client != NULL && context_list[ci]->tagged &&
+                context_list[ci]->client->FetchHopping() != 0)
                 nactivec += context_list[ci]->client->FetchCardList().size();
 
         if (nactivec == 0) {
-            WriteStatus("Cannot lock onto a network channel when there are no "
-                        "active interfaces.");
+            WriteStatus("Server does not have channel hopping enabled.");
             return 1;
         } else if (nactivec == 1) {
             // Return to hopping, we assume 0

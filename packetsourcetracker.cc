@@ -363,7 +363,7 @@ int Packetsourcetracker::ProcessCardList(string in_enableline,
                                          vector<string> *in_cardlines, 
                                          vector<string> *in_sourcechannels, 
                                          vector<string> *in_initchannels,
-                                         int in_chhop, int in_chsplit) {
+                                         int& in_chhop, int in_chsplit) {
     // reuseable token vector
     vector<string> tokens;
     // capsource names to be enabled
@@ -382,6 +382,8 @@ int Packetsourcetracker::ProcessCardList(string in_enableline,
     map<int, int> chan_seqid_count_map;
     // Sequence id counter
     int chan_seqid = 0;
+    // Was anything able to hop?
+    int hop_possible = 0;
 
     // Split the enable lines into a map saying if a source should be turned on
     tokens.clear();
@@ -519,10 +521,12 @@ int Packetsourcetracker::ProcessCardList(string in_enableline,
             // Hopping is turned on in any source that has a channel control pointer.
             // This isn't controlling if kismet hops in general, only if this source
             // changes channel when Kismet decides to channel hop.
-            if (meta->prototype->channelcon == NULL)
+            if (meta->prototype->channelcon == NULL) {
                 meta->ch_hop = 0;
-            else
+            } else {
                 meta->ch_hop = 1;
+                hop_possible++;
+            }
 
             // Assign the initial channel - if one hasn't been requested specifically, 
             // use the prototype default.  cur_ch is treated as the initial channel 
@@ -543,7 +547,8 @@ int Packetsourcetracker::ProcessCardList(string in_enableline,
                 // Hard-fault on sources that have an explicit channel hop but can't 
                 // hop...
                 if (meta->prototype->default_channelset == "none") {
-                    snprintf(errstr, 1024, "Channel set assigned to capsource %s, which cannot channel hop.",
+                    snprintf(errstr, 1024, "Channel set assigned to capsource %s, "
+                             "which cannot channel hop.",
                              meta->name.c_str());
                     return -1;
                 }
@@ -553,7 +558,8 @@ int Packetsourcetracker::ProcessCardList(string in_enableline,
             } else if (chan_cap_seqid_map.find(StrLower(meta->prototype->default_channelset)) 
                        != chan_cap_seqid_map.end()) {
 
-                meta->channel_seqid = chan_cap_seqid_map[StrLower(meta->prototype->default_channelset)];
+                meta->channel_seqid = 
+                    chan_cap_seqid_map[StrLower(meta->prototype->default_channelset)];
                 chan_seqid_count_map[meta->channel_seqid]++;
             }
                         
@@ -561,6 +567,11 @@ int Packetsourcetracker::ProcessCardList(string in_enableline,
         }
     }
 
+    // Even if we asked for channel hopping, if nothing we enabled is able to,
+    // turn it off.
+    if (hop_possible == 0)
+        in_chhop = 0;
+    
     // Now we assign split channels by going through all the meta sources, if we're 
     // hopping and splitting channels, that is.
     //
@@ -578,11 +589,14 @@ int Packetsourcetracker::ProcessCardList(string in_enableline,
             if (in_chsplit == 0)
                 continue;
 
-            // Track how many actual assignments we've made so far and use it to offset the channel position.
-            if (tmp_seqid_assign_map.find(meta->channel_seqid) == tmp_seqid_assign_map.end())
+            // Track how many actual assignments we've made so far and use it to 
+            // offset the channel position.
+            if (tmp_seqid_assign_map.find(meta->channel_seqid) == 
+                tmp_seqid_assign_map.end())
                 tmp_seqid_assign_map[meta->channel_seqid] = 0;
 
-            meta->ch_pos = (meta->channels.size() / chan_seqid_count_map[meta->channel_seqid]) * 
+            meta->ch_pos = (meta->channels.size() / 
+                            chan_seqid_count_map[meta->channel_seqid]) * 
                 tmp_seqid_assign_map[meta->channel_seqid];
 
             tmp_seqid_assign_map[meta->channel_seqid]++;
@@ -590,7 +604,9 @@ int Packetsourcetracker::ProcessCardList(string in_enableline,
     }
 
     if (meta_packsources.size() == 0) {
-        snprintf(errstr, STATUS_MAX, "No packsources were enabled.  Make sure that if you use an enablesource line that you specify the correct sources.");
+        snprintf(errstr, STATUS_MAX, "No packsources were enabled.  Make sure that "
+                 "if you use an enablesource line that you specify the correct "
+                 "sources.");
         return -1;
     }
 

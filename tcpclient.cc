@@ -27,7 +27,7 @@ TcpClient::TcpClient() {
         "ssid,prototype,sourceip,destip,sourceport,destport,nbtype,"
         "nbsource";
     protocol_default_map["STRING"] = "bssid,sourcemac,text";
-    protocol_default_map["KISMET"] = "version,starttime,servername,timestamp";
+    protocol_default_map["KISMET"] = "version,starttime,servername,timestamp,channelhop";
     protocol_default_map["GPS"] = "lat,lon,alt,spd,heading,fix";
     protocol_default_map["NETWORK"] = "bssid,type,ssid,beaconinfo,llcpackets,datapackets,cryptpackets,"
         "weakpackets,channel,wep,firsttime,lasttime,atype,rangeip,gpsfixed,minlat,minlon,minalt,minspd,"
@@ -73,6 +73,8 @@ TcpClient::TcpClient() {
     servername[0] = '\0';
 
     network_dirty = 0;
+
+    channel_hop = 0;
 
 }
 
@@ -285,8 +287,9 @@ int TcpClient::ParseData(char *in_data) {
         snprintf(errstr, 1024, "Server has terminated.\n");
         return -1;
     } else if (!strncmp(header, "*KISMET", 64)) {
-        if (sscanf(in_data+hdrlen, "%d.%d.%d %d \001%32[^\001]\001 %24s",
-                   &major, &minor, &tiny, (int *) &start_time, servername, build) < 6)
+        if (sscanf(in_data+hdrlen, "%d.%d.%d %d \001%32[^\001]\001 %24s %d",
+                   &major, &minor, &tiny, (int *) &start_time, servername, 
+                   build, &channel_hop) < 7)
             return 0;
     } else if (!strncmp(header, "*TIME", 64)) {
         if (sscanf(in_data+hdrlen, "%d", (int *) &serv_time) < 1)

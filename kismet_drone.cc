@@ -468,6 +468,7 @@ int main(int argc, char *argv[]) {
     // Turn all our config data into meta packsources, or fail...  If we're
     // passing the sources from the command line, we enable them all, so we
     // null the named_sources string
+    int old_chhop = channel_hop;
     if (sourcetracker.ProcessCardList(source_from_cmd ? "" : named_sources, 
                                       &source_input_vec, &src_customchannel_vec, 
                                       &src_initchannel_vec,
@@ -476,6 +477,11 @@ int main(int argc, char *argv[]) {
         exit(1);
     }
         
+    // This would only change if we're channel hopping and processcardlist had
+    // to turn it off because nothing supports it, so print a notice...
+    if (old_chhop != channel_hop)
+        fprintf(stderr, "NOTICE: Disabling channel hopping, no enabled sources "
+                "are able to change channel.\n");
     
     // Now enable root sources...
     setreuid(0, 0);

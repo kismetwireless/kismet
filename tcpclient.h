@@ -144,6 +144,8 @@ public:
 
     string FetchServername() { return servername; }
 
+    int FetchHopping() { return channel_hop; }
+
     int FetchNumNetworks() { return num_networks; }
     int FetchNumPackets() { return num_packets; }
     int FetchNumCrypt() { return num_crypt; }
@@ -275,6 +277,8 @@ protected:
     map<string, string> protocol_default_map;
 
     int network_dirty;
+
+    int channel_hop;
 
 };
 
