@@ -675,6 +675,7 @@ int main(int argc, char *argv[]) {
         if (header_count++ >= 20) {
             fprintf(stderr, " failed.\nFATAL:  Did not get startup info from %s:%d within 20 seconds.\n",
                     guihost, guiport);
+            CatchShutdown(-1);
             exit(1);
         }
 
