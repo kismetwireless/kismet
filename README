@@ -875,4 +875,12 @@ Licensed under the GPL
     A: Kismet support of a card is largely dependant on available drivers with
        rfmon support.  I'll be happy to get in touch with driver authors about
        support.
+
+    Q: My distro loads the orinoco drivers for my prism2 card, is this OK?
+    A: No, not really.  The orinoco and prism chipsets are based off the same
+       reference design, but there are subtle differences, especially in the
+       firmware timings.  Using the orinoco drivers may work for a while, but
+       you're likely going to have problems with lost frames, corrupt frames,
+       and system hangs.  Plus, if you ever have problems and mention you're
+       using the orinoco drivers, I'll yell at you.
        
