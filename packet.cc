@@ -155,7 +155,7 @@ void GetPacketInfo(const pkthdr *header, const u_char *data,
 
             // If we look like a beacon but we aren't long enough to hold
             // tags, then we probably aren't a beacon.  Throw us out.
-            if (header->len < 35) {
+            if (header->len < 36) {
                 ret_packinfo->type = packet_noise;
                 return;
             }

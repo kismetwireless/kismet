@@ -1,5 +1,6 @@
 Aug 30 2002  2.5.2  Added fixed-parameter support on bigendian systems.  Normal
                      packet detection/dissection should occur on bigendian now.
+                    Minor tweaks to packet noise detection
 Aug 29 2002  2.5.2  Fixed reassociation subtype
                     Fixed netstumbler detection signature
                     Started fixing support for bigendian systems.  Initial
