@@ -467,3 +467,10 @@ Licensed under the GPL
       the logtemplate variable to always put the logs in a directory the 
       suiduser can write to.
 
+    PROBLEM: Fatal error about being unable to open the pidfile
+    FIX: By default Kismet writes the pid to /var/run/.  If you didn't install
+      Kismet as suidroot, you need to start it as root so it can write to this
+      directory and bind interfaces.  If you're using capture sources that
+      don't require root, you can change this in kismet.conf to put pidfiles
+      in /tmp (or any other directory).
+
