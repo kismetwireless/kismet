@@ -421,9 +421,11 @@ void SanitizeSamplePoints(vector<gps_point *> in_samples, map<int,int> *dead_sam
         float lat_offset = lat_samples[pos + 1]->lat - lat_samples[pos]->lat;
 
         // Slice if we have a major break, it can only get worse from here...
-        if (lat_offset > 2 || lat_offset < -2) {
+        if (lat_offset > 0.5 || lat_offset < -0.5) {
+            /*
             printf("Major lat break at pos %d in sorted lats, %f,%f id %d\n",
-                   pos, lat_samples[pos]->lat, lat_samples[pos]->lon, lat_samples[pos]->id);
+            pos, lat_samples[pos]->lat, lat_samples[pos]->lon, lat_samples[pos]->id);
+            */
             slice_point = pos;
             break;
         }
@@ -431,7 +433,7 @@ void SanitizeSamplePoints(vector<gps_point *> in_samples, map<int,int> *dead_sam
 
     if (slice_point != 0) {
         for (unsigned int pos = 0; pos <= slice_point; pos++) {
-            printf("Discarding point lat violation %f,%f %d...\n", lat_samples[pos]->lat, lat_samples[pos]->lon, lat_samples[pos]->id);
+            //printf("Discarding point lat violation %f,%f %d...\n", lat_samples[pos]->lat, lat_samples[pos]->lon, lat_samples[pos]->id);
             (*dead_sample_ids)[lat_samples[pos]->id] = 1;
         }
     }
@@ -442,9 +444,11 @@ void SanitizeSamplePoints(vector<gps_point *> in_samples, map<int,int> *dead_sam
         float lat_offset = lat_samples[pos - 1]->lat - lat_samples[pos]->lat;
 
         // Slice if we have a major break, it can only get worse from here...
-        if (lat_offset > 2 || lat_offset < -2) {
-            printf("Major lat break at pos %d in sorted lats, %f,%f id %d\n",
-                   pos, lat_samples[pos]->lat, lat_samples[pos]->lon, lat_samples[pos]->id);
+        if (lat_offset > 0.5 || lat_offset < -0.5) {
+            /*
+             printf("Major lat break at pos %d in sorted lats, %f,%f id %d\n",
+             pos, lat_samples[pos]->lat, lat_samples[pos]->lon, lat_samples[pos]->id);
+             */
             slice_point = pos;
             break;
         }
@@ -452,7 +456,7 @@ void SanitizeSamplePoints(vector<gps_point *> in_samples, map<int,int> *dead_sam
 
     if (slice_point != 0) {
         for (unsigned int pos = slice_point; pos < lat_samples.size(); pos++) {
-            printf("Discarding point lat violation %f,%f %d...\n", lat_samples[pos]->lat, lat_samples[pos]->lon, lat_samples[pos]->id);
+            //printf("Discarding point lat violation %f,%f %d...\n", lat_samples[pos]->lat, lat_samples[pos]->lon, lat_samples[pos]->id);
             (*dead_sample_ids)[lat_samples[pos]->id] = 1;
         }
     }
@@ -464,9 +468,11 @@ void SanitizeSamplePoints(vector<gps_point *> in_samples, map<int,int> *dead_sam
         float lon_offset = lon_samples[pos + 1]->lon - lon_samples[pos]->lon;
 
         // Slice if we have a major break, it can only get worse from here...
-        if (lon_offset > 2 || lon_offset < -2) {
+        if (lon_offset > 0.5 || lon_offset < -0.5) {
+            /*
             printf("Major lon break at pos %d in sorted lons, %f,%f id %d\n",
-                   pos, lon_samples[pos]->lon, lon_samples[pos]->lon, lon_samples[pos]->id);
+            pos, lon_samples[pos]->lon, lon_samples[pos]->lon, lon_samples[pos]->id);
+            */
             slice_point = pos;
             break;
         }
@@ -474,7 +480,7 @@ void SanitizeSamplePoints(vector<gps_point *> in_samples, map<int,int> *dead_sam
 
     if (slice_point != 0) {
         for (unsigned int pos = 0; pos <= slice_point; pos++) {
-            printf("Discarding point lon violation %f,%f %d...\n", lon_samples[pos]->lon, lon_samples[pos]->lon, lon_samples[pos]->id);
+            // printf("Discarding point lon violation %f,%f %d...\n", lon_samples[pos]->lon, lon_samples[pos]->lon, lon_samples[pos]->id);
             (*dead_sample_ids)[lon_samples[pos]->id] = 1;
         }
     }
@@ -485,9 +491,11 @@ void SanitizeSamplePoints(vector<gps_point *> in_samples, map<int,int> *dead_sam
         float lon_offset = lon_samples[pos - 1]->lon - lon_samples[pos]->lon;
 
         // Slice if we have a major break, it can only get worse from here...
-        if (lon_offset > 2 || lon_offset < -2) {
+        if (lon_offset > 0.5 || lon_offset < -0.5) {
+            /*
             printf("Major lon break at pos %d in sorted lons, %f,%f id %d\n",
-                   pos, lon_samples[pos]->lon, lon_samples[pos]->lon, lon_samples[pos]->id);
+            pos, lon_samples[pos]->lon, lon_samples[pos]->lon, lon_samples[pos]->id);
+            */
             slice_point = pos;
             break;
         }
@@ -495,7 +503,7 @@ void SanitizeSamplePoints(vector<gps_point *> in_samples, map<int,int> *dead_sam
 
     if (slice_point != 0) {
         for (unsigned int pos = slice_point; pos < lon_samples.size(); pos++) {
-            printf("Discarding point lon violation %f,%f %d...\n", lon_samples[pos]->lon, lon_samples[pos]->lon, lon_samples[pos]->id);
+            // printf("Discarding point lon violation %f,%f %d...\n", lon_samples[pos]->lon, lon_samples[pos]->lon, lon_samples[pos]->id);
             (*dead_sample_ids)[lon_samples[pos]->id] = 1;
         }
     }
@@ -770,12 +778,14 @@ int ProcessGPSFile(char *in_fname) {
     int power_count = 0;
 
     // Sanitize the data and build the map of points we don't look at
+    fprintf(stderr, "NOTICE:  Sanitizing sample points...\n");
     SanitizeSamplePoints(file_points, &file_screen);
 
     for (unsigned int i = 0; i < file_points.size(); i++) {
 
         if (file_screen.find(file_points[i]->id) != file_screen.end()) {
-            printf("Nuking invalid data point from consideration %d\n", file_points[i]->id);
+            fprintf(stderr, "Removing invalid point %f,%f id %d from consideration...\n",
+                    file_points[i]->lat, file_points[i]->lon, file_points[i]->id);
             continue;
         }
 
