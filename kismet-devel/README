@@ -577,11 +577,11 @@ Licensed under the GPL
                      libwiretap support.
 
     Chipsets known to NOT WORK:
-     Intel Centrino     - The only way to use these cards in Linux wraps the
-                          windows drivers into a Linux interface.  There is no
-                          rfmon support.
-     Broadcom           - Like Centrino, windows drivers only.
-     Airport Extreme    - Really a Broadcom, see above.
+     Intel Centrino     - Intel has recently released linux-native drivers for
+                          Centrino, but they don't support rfmon.
+     Broadcom           - No linux drivers, only useable with ndiswrapper or
+                          linuxant wrappers around windows drivers.
+     Airport Extreme    - Really a Broadcom, with no rfmon in the OSX drivers.
      Atmel              - The USB firmware has no rfmon feature.  The pcmcia
                           firmware -may-, but the drivers don't support it.
      Realtek            - Cards seem to be primarily software-driven, no
