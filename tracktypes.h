@@ -111,6 +111,10 @@ typedef struct wireless_client {
         best_lat = best_lon = best_alt = 0;
 
         memset(&ipdata, 0, sizeof(net_ip_data));
+
+#ifdef __TCPCLIENT_H__
+        tcpclient = NULL;
+#endif
     }
 
     client_type type;
@@ -154,6 +158,11 @@ typedef struct wireless_client {
     // ip data
     net_ip_data ipdata;
 
+#ifdef __TCPCLIENT_H__
+    // If we're included in the client, include a reference to the server connection
+    // that spawned us
+    TcpClient *tcpclient;
+#endif
 };
 
 // A network
@@ -198,7 +207,7 @@ typedef struct wireless_network {
         sequence = 0;
 
 #ifdef __TCPCLIENT_H__
-        client = NULL;
+        tcpclient = NULL;
 #endif
     }
 
@@ -286,7 +295,7 @@ typedef struct wireless_network {
 #ifdef __TCPCLIENT_H__
     // If we're included in the client, include a reference to the server connection
     // that spawned us
-    TcpClient *client;
+    TcpClient *tcpclient;
 #endif
 
 };

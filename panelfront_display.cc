@@ -61,9 +61,9 @@ void PanelFront::NetLine(string *in_str, wireless_network *net, const char *name
         main_columns colindex = column_vec[col];
 
         if (colindex == mcol_decay) {
-            if ((client->FetchTime() - net->last_time) < decay)
+            if ((net->tcpclient->FetchTime() - net->last_time) < decay)
                 snprintf(element, 1024, "!");
-            else if ((client->FetchTime() - net->last_time) < (decay * 2))
+            else if ((net->tcpclient->FetchTime() - net->last_time) < (decay * 2))
                 snprintf(element, 1024, ".");
             else
                 snprintf(element, 1024, " ");
@@ -792,9 +792,9 @@ void PanelFront::ClientLine(string *in_str, wireless_client *wclient, int print_
         client_columns colind = client_column_vec[col];
 
         if (colind == ccol_decay) {
-            if ((client->FetchTime() - wclient->last_time) < decay)
+            if ((wclient->tcpclient->FetchTime() - wclient->last_time) < decay)
                 snprintf(element, 1024, "!");
-            else if ((client->FetchTime() - wclient->last_time) < (decay * 2))
+            else if ((wclient->tcpclient->FetchTime() - wclient->last_time) < (decay * 2))
                 snprintf(element, 1024, ".");
             else
                 snprintf(element, 1024, " ");
@@ -1298,6 +1298,10 @@ int PanelFront::DetailsPrinter(void *in_window) {
             snprintf(output, print_width, "          SSID Cloaking on/Closed Network");
             kwin->text.push_back(output);
         }
+
+        snprintf(output, print_width, "Server  : %s:%d", dnet->tcpclient->FetchHost(),
+                 dnet->tcpclient->FetchPort());
+        kwin->text.push_back(output);
 
         snprintf(output, print_width, "BSSID   : %s", dnet->bssid.Mac2String().c_str());
         kwin->text.push_back(output);
@@ -2260,6 +2264,10 @@ int PanelFront::DetailsClientPrinter(void *in_window) {
     }
 
     snprintf(output, print_width, "Type    : %s", temp);
+    kwin->text.push_back(output);
+
+    snprintf(output, print_width, "Server  : %s:%d", details_client->tcpclient->FetchHost(),
+             details_client->tcpclient->FetchPort());
     kwin->text.push_back(output);
 
     snprintf(output, print_width, "MAC     : %s", details_client->mac.Mac2String().c_str());
