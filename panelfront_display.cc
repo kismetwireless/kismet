@@ -201,9 +201,11 @@ void PanelFront::NetLine(kis_window *in_window, string *in_str, wireless_network
         } else if (colindex == mcol_signal) {
             snprintf(element, 4, "%3d", (idle_time < (decay * 2)) ? net->signal : 0);
             len = 3;
+            /*
         } else if (colindex == mcol_quality) {
             snprintf(element, 4, "%3d", (idle_time < (decay * 2)) ? net->quality : 0);
             len = 3;
+            */
         } else if (colindex == mcol_noise) {
             snprintf(element, 4, "%3d", (idle_time < (decay * 2)) ? net->noise : 0);
             len = 3;
@@ -229,7 +231,8 @@ void PanelFront::NetLine(kis_window *in_window, string *in_str, wireless_network
             } else
                 snprintf(element, 1024, "===============");
             len = 15;
-        } else if (colindex == mcol_qualitybar) {
+        } /*
+             else if (colindex == mcol_qualitybar) {
             if (net->best_quality > 0) {
                 int sx = (int)((double)(idle_time < (decay * 2) ? net->quality : 0) / net->best_quality * 15);
                 char sg[16];
@@ -240,7 +243,8 @@ void PanelFront::NetLine(kis_window *in_window, string *in_str, wireless_network
             } else
                 snprintf(element, 1024, "===============");
             len = 15;
-	}
+        }
+        */
 	
         if (pos + len > print_width)
             break;
@@ -362,10 +366,12 @@ int PanelFront::MainNetworkPrinter(void *in_window) {
 
         sort(display_vector.begin(), display_vector.end(), DisplaySortPackets());
         break;
+        /*
     case sort_quality:
         snprintf(sortxt, 24, "(Quality)");
         sort(display_vector.begin(), display_vector.end(), DisplaySortQuality());
         break;
+        */
     case sort_signal:
         snprintf(sortxt, 24, "(Signal)");
         sort(display_vector.begin(), display_vector.end(), DisplaySortSignal());
@@ -445,9 +451,11 @@ int PanelFront::MainNetworkPrinter(void *in_window) {
         } else if (colind == mcol_signal) {
             snprintf(title, 1024, "Sgn");
             len = 3;
+            /*
         } else if (colind == mcol_quality) {
             snprintf(title, 1024, "Qly");
             len = 3;
+            */
         } else if (colind == mcol_noise) {
             snprintf(title, 1024, "Nse");
             len = 3;
@@ -460,9 +468,11 @@ int PanelFront::MainNetworkPrinter(void *in_window) {
         } else if (colind == mcol_signalbar) {
             snprintf(title, 1024, "SignalGraph");
             len = 15;
+            /*
         } else if (colind == mcol_qualitybar) {
             snprintf(title, 1024, "QualityGraph");
             len = 15;
+            */
         } else {
             len = -1;
         }
@@ -613,9 +623,11 @@ int PanelFront::MainNetworkPrinter(void *in_window) {
         case sort_packets_dec:
             sort(sortsub.begin(), sortsub.end(), SortPackets());
             break;
+            /*
         case sort_quality:
             sort(sortsub.begin(), sortsub.end(), SortQuality());
             break;
+            */
         case sort_signal:
             sort(sortsub.begin(), sortsub.end(), SortSignal());
             break;
@@ -960,9 +972,11 @@ void PanelFront::ClientLine(kis_window *in_window, string *in_str, wireless_clie
         } else if (colind == ccol_signal) {
             snprintf(element, 4, "%3d", (idle_time < (decay * 2)) ? wclient->signal : 0);
             len = 3;
+            /*
         } else if (colind == ccol_quality) {
             snprintf(element, 4, "%3d", (idle_time < (decay * 2)) ? wclient->quality : 0);
             len = 3;
+            */
         } else if (colind == ccol_noise) {
             snprintf(element, 4, "%3d", (idle_time < (decay * 2)) ? wclient->noise : 0);
             len = 3;
@@ -1030,9 +1044,11 @@ int PanelFront::MainClientPrinter(void *in_window) {
         } else if (colind == ccol_signal) {
             snprintf(title, 1024, "Sgn");
             len = 3;
+            /*
         } else if (colind == ccol_quality) {
             snprintf(title, 1024, "Qly");
             len = 3;
+            */
         } else if (colind == ccol_noise) {
             snprintf(title, 1024, "Nse");
             len = 3;
@@ -1135,11 +1151,13 @@ int PanelFront::MainClientPrinter(void *in_window) {
              ClientSortPacketsLT());
         snprintf(sortxt, 24, "(Packets desc)");
         break;
+        /*
     case client_sort_quality:
         sort(display_vector.begin(), display_vector.end(),
              ClientSortQuality());
         snprintf(sortxt, 24, "(Quality)");
         break;
+        */
     case client_sort_signal:
         sort(display_vector.begin(), display_vector.end(),
              ClientSortSignal());
@@ -1280,13 +1298,13 @@ int PanelFront::SortClientPrinter(void *in_window) {
 int PanelFront::PowerPrinter(void *in_window) {
     kis_window *kwin = (kis_window *) in_window;
 
-    int qual, pwr, nse;
+    int pwr, nse;
 
-    qual = quality;
+    // qual = quality;
     pwr = power;
     nse = noise;
 
-    if (qual == -1 && pwr == -1 && nse == -1) {
+    if (pwr == -1 && nse == -1) {
         mvwaddstr(kwin->win, 2, 2, "Server did not report card power levels.");
         mvwaddstr(kwin->win, 3, 2, "No card information is available.");
         return 1;
@@ -1299,32 +1317,39 @@ int PanelFront::PowerPrinter(void *in_window) {
     }
 
     char *bar = new char[width+1];
-
+/*
     if (qual > LINKQ_MAX)
         qual = LINKQ_MAX;
+        */
     if (pwr > LEVEL_MAX)
         pwr = LEVEL_MAX;
     if (nse > NOISE_MAX)
         nse = NOISE_MAX;
 
-    double qperc = 0, pperc = 0, nperc = 0;
+    double pperc = 0, nperc = 0;
+    /*
     if (qual != 0)
         qperc = (double) qual/LINKQ_MAX;
+        */
     if (pwr != 0)
         pperc = (double) pwr/LEVEL_MAX;
     if (nse != 0)
         nperc = (double) nse/NOISE_MAX;
 
-    int qbar = 0, pbar = 0, nbar = 0;
+    int pbar = 0, nbar = 0;
+    /*
     qbar = (int) (width * qperc);
+    */
     pbar = (int) (width * pperc);
     nbar = (int) (width * nperc);
 
+    /*
     memset(bar, '=', width);
     memset(bar, 'X', qbar);
     bar[width] = '\0';
     mvwaddstr(kwin->win, 1, 2, "Q:");
     mvwaddstr(kwin->win, 1, 5, bar);
+    */
 
     memset(bar, '=', width);
     memset(bar, 'X', pbar);
@@ -1338,8 +1363,10 @@ int PanelFront::PowerPrinter(void *in_window) {
     mvwaddstr(kwin->win, 3, 2, "N:");
     mvwaddstr(kwin->win, 3, 5, bar);
 
-    snprintf(bar, width, "%d", qual);
-    mvwaddstr(kwin->win, 1, width+6, bar);
+    /*
+      snprintf(bar, width, "%d", qual);
+      mvwaddstr(kwin->win, 1, width+6, bar);
+      */
     snprintf(bar, width, "%d", pwr);
     mvwaddstr(kwin->win, 2, width+6, bar);
     snprintf(bar, width, "%d", nse);
@@ -1640,9 +1667,11 @@ int PanelFront::DetailsPrinter(void *in_window) {
 
         snprintf(output, print_width, "Signal  :");
         kwin->text.push_back(output);
+        /*
         snprintf(output, print_width, "  Quality : %d (best %d)",
                  dnet->quality, dnet->best_quality);
         kwin->text.push_back(output);
+        */
         snprintf(output, print_width, "  Power   : %d (best %d)",
                  dnet->signal, dnet->best_signal);
         kwin->text.push_back(output);
@@ -2874,9 +2903,11 @@ int PanelFront::DetailsClientPrinter(void *in_window) {
 
     snprintf(output, print_width, "Signal  :");
     kwin->text.push_back(output);
+    /*
     snprintf(output, print_width, "  Quality : %d (best %d)",
              details_client->quality, details_client->best_quality);
     kwin->text.push_back(output);
+    */
     snprintf(output, print_width, "  Power   : %d (best %d)",
              details_client->signal, details_client->best_signal);
     kwin->text.push_back(output);
