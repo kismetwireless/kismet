@@ -51,7 +51,7 @@ servpid=$!
 sleep 1
 
 echo "Starting UI..."
-kismet_curses $client
+kismet_client $client
 
 if test "$?" != "5"; then
 	echo "Killing server..."

@@ -52,8 +52,8 @@ PS	= kismet_server
 
 NCO	= configfile.o speech.o manuf.o tcpclient.o frontend.o cursesfront.o \
 		panelfront.o panelfront_display.o panelfront_input.o \
-		getopt.o kismet_curses.o 
-NC	= kismet_curses
+		getopt.o kismet_client.o 
+NC	= kismet_client
 
 GPSLO = getopt.o configfile.o expat.o manuf.o gpsmap.o
 GPSL = gpsmap
