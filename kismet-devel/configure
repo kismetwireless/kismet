@@ -6513,8 +6513,8 @@ _ACEOF
 	    local=yes
 	else
 
-	echo "$as_me:$LINENO: checking for usable wiretap in $ethereal_dir/wiretap" >&5
-echo $ECHO_N "checking for usable wiretap in $ethereal_dir/wiretap... $ECHO_C" >&6
+	echo "$as_me:$LINENO: checking for usable wiretap with 3 arguments in $ethereal_dir/wiretap" >&5
+echo $ECHO_N "checking for usable wiretap with 3 arguments in $ethereal_dir/wiretap... $ECHO_C" >&6
 	save_cppflags="$CPPFLAGS"
 	CPPFLAGS="$CPPFLAGS `glib-config --cflags glib` -I$ethereal_dir/wiretap"
 	#CPPFLAGS="$CPPFLAGS `glib-config --cflags glib` -I$ethereal_dir/wiretap"
@@ -6570,23 +6570,11 @@ wtap_valid=no
 fi
 rm -f conftest.$ac_objext conftest$ac_exeext conftest.$ac_ext
 
-    if test "$wtap_valid" = yes ; then
-        echo "$as_me:$LINENO: result: yes" >&5
-echo "${ECHO_T}yes" >&6
-
-cat >>confdefs.h <<\_ACEOF
-#define HAVE_LIBWIRETAP 1
-_ACEOF
-
-		libz="yes";
-
-cat >>confdefs.h <<\_ACEOF
-#define HAVE_LIBZ 1
-_ACEOF
-
-
-		echo "$as_me:$LINENO: checking for wtap_read parameters" >&5
-echo $ECHO_N "checking for wtap_read parameters... $ECHO_C" >&6
+    if test "$wtap_valid" = no ; then
+        echo "$as_me:$LINENO: result: no" >&5
+echo "${ECHO_T}no" >&6;
+	    echo "$as_me:$LINENO: checking for usable wiretap with 4 arguments in $ethereal_dir/wiretap" >&5
+echo $ECHO_N "checking for usable wiretap with 4 arguments in $ethereal_dir/wiretap... $ECHO_C" >&6
     	cat >conftest.$ac_ext <<_ACEOF
 #line $LINENO "configure"
 /* confdefs.h.  */
@@ -6604,11 +6592,86 @@ int
 main ()
 {
 
-    		int err;
-			struct wtap *packfile;
-			long *offset;
+	const char *filename = "autoconf test";
+	int err;
 
-    		wtap_read(packfile, &err, offset);
+	wtap_open_offline(filename, &err, 0, 0);
+
+  ;
+  return 0;
+}
+_ACEOF
+rm -f conftest.$ac_objext conftest$ac_exeext
+if { (eval echo "$as_me:$LINENO: \"$ac_link\"") >&5
+  (eval $ac_link) 2>&5
+  ac_status=$?
+  echo "$as_me:$LINENO: \$? = $ac_status" >&5
+  (exit $ac_status); } &&
+         { ac_try='test -s conftest$ac_exeext'
+  { (eval echo "$as_me:$LINENO: \"$ac_try\"") >&5
+  (eval $ac_try) 2>&5
+  ac_status=$?
+  echo "$as_me:$LINENO: \$? = $ac_status" >&5
+  (exit $ac_status); }; }; then
+  wtap_argquad=yes
+else
+  echo "$as_me: failed program was:" >&5
+sed 's/^/| /' conftest.$ac_ext >&5
+
+wtap_argquad=no
+fi
+rm -f conftest.$ac_objext conftest$ac_exeext conftest.$ac_ext
+
+		if test "$wtap_argquad" = yes ; then
+            wtap_valid="yes";
+
+cat >>confdefs.h <<\_ACEOF
+#define HAVE_WTAP_ARGQUAD 1
+_ACEOF
+
+		fi
+    fi
+
+    if test "$wtap_valid" = yes ; then
+        echo "$as_me:$LINENO: result: yes" >&5
+echo "${ECHO_T}yes" >&6
+
+cat >>confdefs.h <<\_ACEOF
+#define HAVE_LIBWIRETAP 1
+_ACEOF
+
+		libz="yes";
+
+cat >>confdefs.h <<\_ACEOF
+#define HAVE_LIBZ 1
+_ACEOF
+
+
+        if test "$wtap_argquad" = no ; then
+    		echo "$as_me:$LINENO: checking for wtap_read parameters (wtap *, int *, int *)" >&5
+echo $ECHO_N "checking for wtap_read parameters (wtap *, int *, int *)... $ECHO_C" >&6
+        	cat >conftest.$ac_ext <<_ACEOF
+#line $LINENO "configure"
+/* confdefs.h.  */
+_ACEOF
+cat confdefs.h >>conftest.$ac_ext
+cat >>conftest.$ac_ext <<_ACEOF
+/* end confdefs.h.  */
+
+            	#include <stdio.h>
+    			#include <sys/types.h>
+    			#include <netinet/in.h>
+          		#include "wtap.h"
+
+int
+main ()
+{
+
+        		int err;
+    			struct wtap *packfile;
+    			long *offset;
+
+        		wtap_read(packfile, &err, offset);
 
   ;
   return 0;
@@ -6635,18 +6698,19 @@ wtap_intint=yes
 fi
 rm -f conftest.$ac_objext conftest$ac_exeext conftest.$ac_ext
 
-		if test "$wtap_intint" = yes ; then
-			echo "$as_me:$LINENO: result: struct wtap *, int *, int *" >&5
+    		if test "$wtap_intint" = yes ; then
+    			echo "$as_me:$LINENO: result: struct wtap *, int *, int *" >&5
 echo "${ECHO_T}struct wtap *, int *, int *" >&6
 
 cat >>confdefs.h <<\_ACEOF
 #define HAVE_WTAPREAD_INTINT 1
 _ACEOF
 
-		else
-			echo "$as_me:$LINENO: result: struct wtap *, int *, long *" >&5
+    		else
+                echo "$as_me:$LINENO: result: struct wtap *, int *, long *" >&5
 echo "${ECHO_T}struct wtap *, int *, long *" >&6
-		fi
+            fi
+        fi
 
 		if test $local = yes; then
 		    echo "$as_me:$LINENO: checking for forced local-dumper" >&5

@@ -163,6 +163,9 @@
 /* wtap_read takes two int * parameters */
 #undef HAVE_WTAPREAD_INTINT
 
+/* wiretap functions takesfour parameters */
+#undef HAVE_WTAP_ARGQUAD
+
 /* system state directory */
 #undef LOCALSTATE_DIR
 
