@@ -27,13 +27,7 @@
 #include "packet.h"
 #include "dumpfile.h"
 
-#ifndef WORDS_BIGENDIAN
-// Little endian magic
 #define PCAP_MAGIC          0xa1b2c3d4
-#else
-// Big endian magic
-#define PCAP_MAGIC          0xd4c3b2a1
-#endif
 
 class FifoDumpFile : public virtual DumpFile {
 public:
