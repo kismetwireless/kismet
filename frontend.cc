@@ -127,6 +127,7 @@ void Frontend::PopulateGroups() {
 
 void Frontend::UpdateGroups() {
     list<display_network *> discard;
+    time_t curtime = time(0);
 
     for (unsigned int x = 0; x < group_vec.size(); x++) {
         display_network *dnet = group_vec[x];
@@ -144,8 +145,14 @@ void Frontend::UpdateGroups() {
 
             dnet->virtnet.client_vec.clear();
             for (map<mac_addr, wireless_client *>::iterator cli = dnet->virtnet.client_map.begin();
-                 cli != dnet->virtnet.client_map.end(); ++cli)
+                 cli != dnet->virtnet.client_map.end(); ++cli) {
+                if (curtime - cli->second->last_time > decay) {
+                    cli->second->signal = 0;
+                    cli->second->quality = 0;
+                    cli->second->noise = 0;
+                }
                 dnet->virtnet.client_vec.push_back(cli->second);
+            }
 
             // Update the group name if it's <no ssid> and the ssid is set
             if (dnet->name == NOSSID && dnet->virtnet.ssid != NOSSID) {
@@ -156,7 +163,7 @@ void Frontend::UpdateGroups() {
             // Take the highest overall signal and power levels.  Noise just
             // tags along for the ride.  Only do this if the network has been touched
             // within the decay period
-            if (time(0) - dnet->virtnet.last_time > decay) {
+            if (curtime - dnet->virtnet.last_time > decay) {
                 dnet->virtnet.signal = 0;
                 dnet->virtnet.quality = 0;
                 dnet->virtnet.noise = 0;
@@ -226,7 +233,7 @@ void Frontend::UpdateGroups() {
             // Take the highest overall signal and power levels.  Noise just
             // tags along for the ride.  Only do this if the network has been touched
             // within the decay period
-            if (time(0) - wnet->last_time <= decay) {
+            if (curtime - wnet->last_time <= decay) {
                 if (wnet->signal >= dnet->virtnet.signal &&
                     wnet->quality >= dnet->virtnet.quality) {
                     dnet->virtnet.signal = wnet->signal;
