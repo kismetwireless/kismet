@@ -677,8 +677,10 @@ int PanelFront::MainNetworkPrinter(void *in_window) {
     }
 
     if (kwin->end < (int) (group_vec.size() - 1) && sortby != sort_auto) {
-        mvwaddstr(netwin, netwin->_maxy,
-                  netwin->_maxx - 10, "(+) Down");
+        unsigned int percent = (unsigned int)(100 * (double) kwin->end / (group_vec.size() - 1));
+        char ptxt[15];
+        snprintf(ptxt, 15, "%2d%% (+) Down", percent); 
+        mvwaddstr(netwin, netwin->_maxy, netwin->_maxx - 14, ptxt);
     }
 
 #ifdef HAVE_GPS
@@ -738,9 +740,9 @@ int PanelFront::MainInfoPrinter(void *in_window) {
     kis_window *kwin = (kis_window *) in_window;
     WINDOW *infowin = kwin->win;
 
-    mvwaddch(infowin, LINES-statheight-1, 3, 'H');
-    mvwaddch(infowin, LINES-statheight-1, 5, 'M');
-    mvwaddch(infowin, LINES-statheight-1, 7, 'S');
+//    mvwaddch(infowin, LINES-statheight-1, 3, 'H');
+//    mvwaddch(infowin, LINES-statheight-1, 5, 'M');
+//    mvwaddch(infowin, LINES-statheight-1, 7, 'S');
 
     // Now draw the info window
     char info[kwin->print_width];
@@ -789,10 +791,10 @@ int PanelFront::MainInfoPrinter(void *in_window) {
         mvwaddstr(infowin, LINES-statheight-2, 2, "Discon");
 
     time_t elapsed = server_time - start_time;
-    snprintf(info, infowidth-2, "%02d%02d%02d",
+    snprintf(info, infowidth-1, "%02d:%02d:%02d",
              (int) (elapsed / 60) / 60, (int) (elapsed / 60) % 60,
              (int) elapsed % 60);
-    mvwaddstr(infowin, infowin->_maxy, 2, info);
+    mvwaddstr(infowin, infowin->_maxy, 1, info);
 
     return 1;
 }
@@ -809,9 +811,14 @@ int PanelFront::MainStatusPrinter(void *in_window) {
 
         // This is kind of funky
         char *trim = new char[kwin->print_width];
-        for (unsigned int x = kwin->text.size(); x > 0; x--) {
-            snprintf(trim, kwin->print_width, "%s", kwin->text[x-1].c_str());
-            mvwaddstr(kwin->win, 2 + kwin->max_display - x, 3, trim);
+//        for (unsigned int x = kwin->text.size(); x > 0; x--) {
+//            snprintf(trim, kwin->print_width, "%s", kwin->text[x-1].c_str());
+//            mvwaddstr(kwin->win, 2 + kwin->max_display - x, 3, trim);
+//        }
+        // This isn't as funky
+        for (unsigned int x = 0; x < kwin->text.size(); x++) {
+            snprintf(trim, kwin->print_width, "%s", kwin->text[x].c_str());
+            mvwaddstr(kwin->win, x + 1, 3, trim);
         }
         delete[] trim;
     }
@@ -1168,8 +1175,10 @@ int PanelFront::MainClientPrinter(void *in_window) {
     }
 
     if (kwin->end < (int) (display_vector.size() - 1) && client_sortby != client_sort_auto) {
-        mvwaddstr(kwin->win, kwin->win->_maxy,
-                  kwin->win->_maxx - 10, "(+) Down");
+        unsigned int percent = (unsigned int)(100 * (double) kwin->end / (display_vector.size() - 1));
+        char ptxt[15];
+        snprintf(ptxt, 15, "%2d%% (+) Down", percent); 
+        mvwaddstr(kwin->win, kwin->win->_maxy, kwin->win->_maxx - 14, ptxt);
     }
 
     return 1;
@@ -1197,7 +1206,10 @@ int PanelFront::TextPrinter(void *in_window) {
         }
 
         if (kwin->end < (int) (kwin->text.size() - 1)) {
-            mvwaddstr(kwin->win, kwin->win->_maxy, kwin->win->_maxx - 10, "(+) Down");
+            unsigned int percent = (unsigned int)(100 * (double) kwin->end / (kwin->text.size() - 1));
+            char ptxt[15];
+            snprintf(ptxt, 15, "%2d%% (+) Down", percent); 
+            mvwaddstr(kwin->win, kwin->win->_maxy, kwin->win->_maxx - 14, ptxt);
         }
     }
 
@@ -2329,14 +2341,15 @@ int PanelFront::DumpPrinter(void *in_window) {
     kwin->text.clear();
 
     char output[1024];
-    for (unsigned int x = 0; x < strinf.size(); x++) {
+    for (unsigned int x = (strinf.size() > (unsigned int) kwin->win->_maxy - 1 ?
+                           kwin->win->_maxy - 1 : strinf.size());x > 0; x--) {
         if (kwin->toggle0 == 1) {
             // If we print the date
-            snprintf(output, 1024, "%.24s - %s", ctime((const time_t *) &strinf[x].string_ts.tv_sec),
-                     strinf[x].text.c_str());
+            snprintf(output, 1024, "%.24s - %s", ctime((const time_t *) &strinf[x-1].string_ts.tv_sec),
+                     strinf[x-1].text.c_str());
             kwin->text.push_back(output);
         } else {
-            kwin->text.push_back(strinf[x].text);
+            kwin->text.push_back(strinf[x-1].text);
         }
     }
 

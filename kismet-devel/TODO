@@ -4,7 +4,6 @@ In no particular order:
 	cardtype/interface dumps
 	non-rfmon-signal gps logger
 	ipv6
-	server info via protocol
 	key management via panels client
 	server and client plugins
 	strings dumpfile
@@ -14,7 +13,6 @@ In no particular order:
 	gpsmap power filtering
 	gpsmap coloring/plotting by encoding, carrier, data rate
 	gpsmap legend drawing
-	power-modified distance logging(?)
 	congestion simulation
 	UI channel hopping control
 	fix csv log
