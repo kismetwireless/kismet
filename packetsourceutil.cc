@@ -563,12 +563,15 @@ void CapSourceChild(capturesource *csrc) {
 
     // Try to open the child...
     if (csrc->source->OpenSource(csrc->interface.c_str(), csrc->cardtype) < 0) {
-        fprintf(stderr, "FATAL: Capture child %d (%s): %s\n", mypid, csrc->name.c_str(), csrc->source->FetchError());
-        exit(1);
+        snprintf(txtbuf, 1024, "FATAL: capture child %d (%s): %s", mypid, csrc->name.c_str(),
+                 csrc->source->FetchError());
+        packet_buf.push_front(CapSourceText(txtbuf, CAPFLAG_FATAL));
+        diseased = 1;
+        active = 0;
+    } else {
+        fprintf(stderr, "Capture child %d (%s): Capturing packets from %s\n",
+                mypid, csrc->name.c_str(), csrc->source->FetchType());
     }
-
-    fprintf(stderr, "Capture child %d (%s): Capturing packets from %s\n",
-            mypid, csrc->name.c_str(), csrc->source->FetchType());
 
     while (1) {
         int max_fd = 0;

@@ -1,3 +1,4 @@
+Aug 05 2003  3.0.1  Fixed capchildren failing on open not killing server
 Aug 04 2003  3.0.1  Added pcapfile capture source (nearly the same function as
                      wtapfile but doesn't need ethereal)
                     Merged panelfront gps fixes from mdmcl
