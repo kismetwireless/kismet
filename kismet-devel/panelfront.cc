@@ -398,8 +398,6 @@ PanelFront::PanelFront() {
 
     clear_dump = 0;
 
-    probe_group = NULL;
-
     hsize = COLS;
     vsize = LINES;
 
@@ -435,6 +433,7 @@ PanelFront::PanelFront() {
         fclose(acpinfo);
     }
 
+    probe_group = NULL;
 
 }
 
@@ -442,6 +441,30 @@ PanelFront::~PanelFront() {
     // Delete the dynamically allocated contexts
     for (unsigned int x = 0; x < context_list.size(); x++)
         delete context_list[x];
+}
+
+void PanelFront::UpdateGroups() {
+
+    // Try to autogroup probe networks
+    if (prefs["autogroup_probe"] == "true") {
+        for (unsigned int x = 0; x < group_vec.size(); x++) {
+            display_network *dnet = group_vec[x];
+
+            if (dnet->networks.size() != 1)
+                continue;
+
+            if (dnet->networks[0]->type == network_probe && dnet != probe_group) {
+                if (probe_group == NULL) {
+                    probe_group = CreateGroup(0, "autogroup_probe", "Probe Networks");
+                }
+
+                probe_group = AddToGroup(probe_group, dnet);
+            }
+        }
+    }
+
+    // Call our generic parent update... is this bad form?  It works, anyhow.
+    Frontend::UpdateGroups();
 }
 
 void PanelFront::AddClient(TcpClient *in_client) {
