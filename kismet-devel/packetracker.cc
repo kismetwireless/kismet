@@ -671,11 +671,17 @@ int Packetracker::ProcessDataPacket(packet_info info, wireless_network *net, cha
         ret = TRACKER_NOTICE;
     }
 
-    if (info.proto.type == proto_lor) {
+    if (info.proto.type == proto_turbocell) {
         // Handle lucent outdoor routers
         net->cloaked = 1;
-        net->ssid = "Lucent Outdoor Router";
-        net->type = network_lor;
+        if (!IsBlank(info.ssid)) {
+            char turbossid[32];
+            snprintf(turbossid, 32, "Turbocell: %d %s", info.turbocell_nid, info.ssid);
+            net->ssid = turbossid;
+        } else {
+            net->ssid = "Turbocell: Unknown";
+        }
+        net->type = network_turbocell;
     } else if (info.proto.type == proto_netstumbler) {
         // Handle netstumbler packets
 
@@ -1011,8 +1017,8 @@ int Packetracker::WriteNetworks(string in_fname) {
             snprintf(type, 15, "probe");
         else if (net->type == network_data)
             snprintf(type, 15, "data");
-        else if (net->type == network_lor)
-            snprintf(type, 15, "lucent");
+        else if (net->type == network_turbocell)
+            snprintf(type, 15, "turbocell");
         else
             snprintf(type, 15, "unknown");
 
@@ -1280,8 +1286,8 @@ int Packetracker::WriteCSVNetworks(string in_fname) {
             snprintf(type, 15, "probe");
         else if (net->type == network_data)
             snprintf(type, 15, "data");
-        else if (net->type == network_lor)
-            snprintf(type, 15, "lucent");
+        else if (net->type == network_turbocell)
+            snprintf(type, 15, "turbocell");
         else
             snprintf(type, 15, "unknown");
 
@@ -1449,8 +1455,8 @@ int Packetracker::WriteXMLNetworks(string in_fname) {
             snprintf(type, 15, "probe");
         else if (net->type == network_data)
             snprintf(type, 15, "data");
-        else if (net->type == network_lor)
-            snprintf(type, 15, "lucent");
+        else if (net->type == network_turbocell)
+            snprintf(type, 15, "turbocell");
         else
             snprintf(type, 15, "unknown");
 

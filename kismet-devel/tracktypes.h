@@ -36,7 +36,7 @@ enum wireless_network_type {
     network_ap,
     network_adhoc,
     network_probe,
-    network_lor,
+    network_turbocell,
     network_data,
     network_remove
 };
@@ -231,6 +231,9 @@ typedef struct wireless_network {
 
         uidata = NULL;
 
+        turbocell_nid = turbocell_sat = 0;
+        turbocell_mode = turbocell_unknown;
+
     }
 
     wireless_network_type type;
@@ -321,6 +324,11 @@ typedef struct wireless_network {
 
     // Amount of data, in bytes
     unsigned long datasize;
+
+    // Turbocell info
+    int turbocell_nid;
+    turbocell_type turbocell_mode;
+    int turbocell_sat;
 
 };
 

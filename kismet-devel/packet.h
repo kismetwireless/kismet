@@ -208,7 +208,7 @@ enum protocol_info_type {
     proto_netbios, proto_netbios_tcp,
     proto_ipx,
     proto_ipx_tcp,
-    proto_lor,
+    proto_turbocell,
     proto_netstumbler,
     proto_lucenttest,
     proto_wellenreiter,
@@ -458,19 +458,18 @@ enum packet_sub_type {
     packet_sub_cf_ack_poll = 6
 };
 
-/*
-enum packet_info_type {
-    packet_unknown, packet_beacon, packet_probe_req, packet_data, packet_ack,
-    packet_ap_broadcast, packet_adhoc, packet_adhoc_data,
-    packet_noise, packet_probe_response, packet_reassociation,
-    packet_auth, packet_deauth, packet_disassociation, packet_association_req,
-    packet_association_response
-    };
-    */
-
 // distribution directions
 enum distribution_type {
     no_distribution, from_distribution, to_distribution, inter_distribution, adhoc_distribution
+};
+
+// Turbocell modes
+enum turbocell_type {
+    turbocell_unknown,
+    turbocell_ispbase, // 0xA0
+    turbocell_pollbase, // 0x80
+    turbocell_nonpollbase, // 0x00
+    turbocell_base // 0x40
 };
 
 // Info about a packet
@@ -530,6 +529,11 @@ typedef struct {
 
     int datasize;
 
+    // Turbocell tracking info
+    int turbocell_nid;
+    turbocell_type turbocell_mode;
+    int turbocell_sat;
+
 } packet_info;
 
 // ----------------------------------
@@ -541,7 +545,7 @@ int GetTagOffset(int init_offset, int tagnum, const pkthdr *header,
                  const u_char *data, map<int, int> *tag_cache_map);
 void GetPacketInfo(const pkthdr *header, const u_char *data,
                    packet_parm *parm, packet_info *ret_packinfo);
-void GetProtoInfo(const packet_info *in_info, const pkthdr *header,
+void GetProtoInfo(packet_info *in_info, const pkthdr *header,
                   const u_char *in_data, proto_info *ret_protoinfo);
 
 vector<string> GetPacketStrings(const packet_info *in_info, const pkthdr *header, const u_char *in_data);
