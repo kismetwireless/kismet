@@ -110,7 +110,7 @@ int XtoI(char x) {
     return -1;
 }
 
-int Hex2UChar13(unsigned char *in_hex, unsigned char *in_chr) {
+int Hex2UChar(unsigned char *in_hex, unsigned char *in_chr) {
     memset(in_chr, 0, sizeof(unsigned char) * WEPKEY_MAX);
     int chrpos = 0;
 
