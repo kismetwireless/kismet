@@ -384,9 +384,9 @@ void Packetracker::ProcessPacket(packet_info info) {
         net->maxseenrate = info.datarate;
 
     if (info.type == packet_management && info.subtype == packet_sub_beacon &&
-        !strncmp(info.ssid, "airjack", SSID_SIZE)) {
+        !strncmp(info.ssid, "AirJack", SSID_SIZE)) {
         if (alertracker->PotentialAlert(arefs[AIRJACKSSID_AREF])) {
-            snprintf(status, STATUS_MAX, "Beacon for SSID 'airjack' from %s",
+            snprintf(status, STATUS_MAX, "Beacon for SSID 'AirJack' from %s",
                      info.source_mac.Mac2String().c_str());
             alertracker->RaiseAlert(arefs[AIRJACKSSID_AREF], status);
         }
