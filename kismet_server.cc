@@ -338,6 +338,13 @@ void SoundHandler(int *fds, const char *player, map<string, string> soundmap) {
         // If we've harvested the process, spawn a new one and watch it
         // instead.  Otherwise, we just let go of the data we read
         if (harvested == 1) {
+            // Only take the first line
+            char *nl;
+            if ((nl = strchr(data, '\n')) != NULL)
+                nl = '\0';
+
+            // Make sure it's shell-clean
+
             char snd[1024];
 
             if (soundmap.size() == 0)
@@ -423,6 +430,13 @@ void SpeechHandler(int *fds, const char *player) {
         if (harvested == 1) {
             harvested = 0;
             if ((sndpid = fork()) == 0) {
+                // Only take the first line
+                char *nl;
+                if ((nl = strchr(data, '\n')) != NULL)
+                    nl = '\0';
+
+                // Make sure it's shell-clean
+                MungeToShell(data, strlen(data));
                 char spk_call[1024];
                 snprintf(spk_call, 1024, "echo \"(SayText \\\"%s\\\")\" | %s >/dev/null 2>/dev/null",
                          data, player);
