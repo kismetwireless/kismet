@@ -118,12 +118,16 @@ void MungeToPrintable(char *in_data, int max) {
 
 // Returns a pointer in the data block to the size byte of the desired
 // tag.
-int GetTagOffsets(kis_packet *packet, map<int, int> *tag_cache_map) {
+int GetTagOffsets(int init_offset, kis_packet *packet, map<int, int> *tag_cache_map) {
     int cur_tag = 0;
     // Initial offset is 36, that's the first tag
-    int cur_offset = 36;
+    int cur_offset = init_offset;
     uint8_t len;
 
+    // Bail on invalid incoming offsets
+    if (init_offset >= (uint8_t) packet->len)
+        return -1;
+    
     // If we haven't parsed the tags for this frame before, parse them all now.
     // Return an error code if one of them is malformed.
     if (tag_cache_map->size() == 0) {
@@ -309,7 +313,7 @@ void GetPacketInfo(kis_packet *packet, packet_info *ret_packinfo,
         if (fc->subtype == 8 || fc->subtype == 4 || fc->subtype == 5) {
             // This is guaranteed to only give us tags that fit within the packets,
             // so we don't have to do more error checking
-            if (GetTagOffsets(packet, &tag_cache_map) < 0) {
+            if (GetTagOffsets(ret_packinfo->header_offset, packet, &tag_cache_map) < 0) {
                 // The frame is corrupt, bail
                 ret_packinfo->corrupt = 1;
                 return;

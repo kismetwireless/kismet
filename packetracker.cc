@@ -186,7 +186,8 @@ wireless_network *Packetracker::MatchNetwork(const packet_info *info) {
             bsmapitr = bssid_map.find(info->dest_mac);
         }
 
-    } else if (info->type == packet_management && info->subtype == packet_sub_probe_req) {
+    } else if (info->type == packet_management && 
+               info->subtype == packet_sub_probe_req) {
         // If it's a probe request, see if we already know who it should belong to
         if (probe_map.find(info->bssid_mac) != probe_map.end()) {
             // info->bssid_mac = probe_map[info->bssid_mac];
@@ -293,6 +294,8 @@ void Packetracker::ProcessPacket(packet_info info) {
             (info.subtype == packet_sub_beacon ||
              info.subtype == packet_sub_probe_req ||
              info.subtype == packet_sub_probe_resp)) {
+
+            if (info.subtype == packet_sub_probe_req)
 
             if (IsBlank(info.ssid)) {
                 if (bssid_cloak_map.find(info.bssid_mac) != bssid_cloak_map.end()) {
