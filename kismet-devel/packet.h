@@ -728,6 +728,14 @@ public:
     inline T& operator[](mac_addr& index) {
         iterator foo = find(index);
 
+        // This isn't very clean but its better than heap corruption 
+        // and other horrible stuff
+        if (foo == end()) {
+            fprintf(stderr, "Something tried to use macmap[] to reference an "
+                    "element that doesn't exist.  Fix me.\n");
+            exit(1);
+        }
+
         return *(foo->second);
     }
 
