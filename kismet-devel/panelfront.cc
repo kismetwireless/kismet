@@ -103,8 +103,7 @@ char *KismetHelpText[] = {
     "If all of the requested columns can not be fit on the screen, the left",
     "and right keys can be used to scroll the column display.",
     "",
-    "For more information, consult the documentation in the docs/ directory",
-    "of the Kismet source package.",
+    "For more information, consult the README and man pages",
     NULL
 };
 

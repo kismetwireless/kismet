@@ -814,10 +814,11 @@ int PanelFront::MainInfoPrinter(void *in_window) {
 
         int nlines = cardlist.size() * 2;
 
-        // Trim the list of cards if we have to...  trim out as many cards that don't channel
-        // hop as we need to
+        // Trim the list of cards if we have to...  trim out as many cards that don't 
+        // channel hop as we need to
         if (14 + nlines > kwin->max_display) {
-            for (unsigned int trimc = 0; trimc < cardlist.size() && 14 + nlines > kwin->max_display; trimc++) {
+            for (unsigned int trimc = 0; trimc < cardlist.size() && 
+                 14 + nlines > kwin->max_display; trimc++) {
                 if (cardlist[trimc]->channel == 0) {
                     cardlist.erase(cardlist.begin() + trimc);
                     trimc--;
@@ -840,8 +841,10 @@ int PanelFront::MainInfoPrinter(void *in_window) {
             snprintf(info, kwin->print_width, "%*s", kwin->print_width-1,
                      cardlist[cardc]->username.c_str());
             mvwaddstr(infowin, pos, 2, info);
-            snprintf(info, kwin->print_width, "Ch:%3d%c", cardlist[cardc]->channel,
-                     cardlist[cardc]->hopping ? '*' : ' ');
+            if (cardlist[cardc]->channel == 0)
+                snprintf(info, kwin->print_width, "Ch:---");
+            else
+                snprintf(info, kwin->print_width, "Ch:%3d", cardlist[cardc]->channel);
             mvwaddstr(infowin, pos + 1, 2, info);
         }
 

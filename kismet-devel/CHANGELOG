@@ -1,4 +1,6 @@
-Feb 02 2003  3.1.0  Tweaked probe req handling to assign to_ds
+Feb 02 2004  3.1.0  Tweaked probe req handling to assign to_ds
+                    Changed panels channel display to show --- for uncontrolled
+                     source channels
 Feb 01 2004  3.1.0  Fixed broken channel stuff in wlanng to use stored last
                      channel if wext isn't available.
                     Added source picking window for channel locking on multiple
