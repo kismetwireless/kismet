@@ -2951,6 +2951,7 @@ cat >>confdefs.h <<\_ACEOF
 #define SYS_LINUX 1
 _ACEOF
 
+        linux="yes"
 		;;
 	freebsd*)
 		echo "$as_me:$LINENO: result: none needed" >&5
@@ -3011,6 +3012,7 @@ cat >>confdefs.h <<\_ACEOF
 #define SYS_LINUX 1
 _ACEOF
 
+        linux="yes"
 		;;
     freebsd*)
         echo "$as_me:$LINENO: result: none needed" >&5
@@ -5489,6 +5491,12 @@ echo "$as_me: WARNING: *** Compiling without Linux Wireless kernel extentions.  
 fi
 
 if test "$wireless" = "yes"; then
+    # If we're compiling under linux and we need the wireless extentions,
+    # then we should try to look in the current kernel module build dir, too.
+    if test "$linux" = "yes"; then
+        CPPFLAGS="$CPPFLAGS -I/lib/modules/\`uname -r\`/build/include/"
+    fi
+
     echo "$as_me:$LINENO: checking that linux/wireless.h is what we expect" >&5
 echo $ECHO_N "checking that linux/wireless.h is what we expect... $ECHO_C" >&6
     cat >conftest.$ac_ext <<_ACEOF
@@ -8926,6 +8934,17 @@ if test "$libz" = "yes"; then
 	echo "yes"
 else
 	echo "no"
+fi
+
+if test "$wireless" != "yes" -a "$linux" = "yes"; then
+    echo "*** WARNING ***"
+    echo "Linux Wireless Extentions were not found.  This means that they are not"
+    echo "turned on in your kernel or that your kernel source include paths on your"
+    echo "distribution are broken (namely, that linux/wireless.h didn't exist or"
+    echo "was unuseable).  Without wireless extentions, most of the commonly used"
+    echo "packet sources (such as Cisco, Orinoco, Madwifi, Prism54, and others)"
+    echo "WILL NOT BE BUILT."
+    echo "*** WARNING ***"
 fi
 
 if test "`echo $host_os | grep linux`" = ""; then
