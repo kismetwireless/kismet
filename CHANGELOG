@@ -1,3 +1,4 @@
+Oct 20 2002  2.7    Possible fix for odd behavior with festival speech
 Oct 19 2002  2.7    Revamped data file writing code to use temp files and
                      unlink/rename them.  Should help prevent truncated data
                      files (netxml, cisco, network, csv) in a power-off
