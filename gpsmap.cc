@@ -1889,6 +1889,8 @@ int main(int argc, char *argv[]) {
     bool user_latlon = false;
     long user_scale = 0;
 
+    int usersize = 0;
+
     long fetch_scale = 0;
 
     sample_points = 0;
@@ -1963,6 +1965,7 @@ int main(int argc, char *argv[]) {
                 fprintf(stderr, "Invalid custom map size.\n");
                 Usage(exec_name);
             }
+            usersize = 1;
             break;
         case 'n':
             if (sscanf(optarg, "%d", &color_coding) !=1 || color_coding < 0 || color_coding > 2) {
@@ -2119,7 +2122,6 @@ int main(int argc, char *argv[]) {
         Usage(argv[0]);
     }
 
-
     ConfigFile conf;
 
     // If we haven't gotten a command line config option...
@@ -2209,6 +2211,22 @@ int main(int argc, char *argv[]) {
     fprintf(stderr, "Maximum Corner (lat/lon): %f x %f\n", global_map_avg.max_lat,
             global_map_avg.max_lon);
     fprintf(stderr, "Map center (lat/lon): %f x %f\n", map_avg_lat, map_avg_lon);
+
+    if (usermap && user_scale == 0 && user_lat == 0 &&
+        user_lon == 0 && usersize == 0) {
+        float filelat, filelon;
+        long filescale;
+        int filewidth, fileheight;
+
+        if (sscanf(mapname, "map_%f_%f_%ld_%d_%d.gif",
+                   &filelat, &filelon, &filescale, &filewidth, &fileheight) == 5) {
+            user_lat = filelat;
+            user_lon = filelon;
+            user_scale = filescale;
+            map_width = filewidth;
+            map_height = fileheight;
+        }
+    }
 
     if (user_scale != 0) {
         fprintf(stderr, "Overriding with user scale: %ld\n", user_scale);
