@@ -2085,6 +2085,8 @@ int PanelFront::PackPrinter(void *in_window) {
 int PanelFront::DumpPrinter(void *in_window) {
     kis_window *kwin = (kis_window *) in_window;
 
+    vector<TcpClient::string_info> strinf;
+
     if (client->GetMaxStrings() != kwin->max_display)
         client->SetMaxStrings(kwin->max_display);
 
@@ -2093,7 +2095,9 @@ int PanelFront::DumpPrinter(void *in_window) {
         kwin->text.clear();
         clear_dump = 0;
     } else if (!kwin->paused) {
-        kwin->text = client->FetchStrings();
+        strinf = client->FetchStrings();
+        for (unsigned int x = 0; x < strinf.size(); x++)
+            kwin->text.push_back(strinf[x].text);
     }
 
     if (kwin->paused != 0) {

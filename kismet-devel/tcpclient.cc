@@ -249,9 +249,8 @@ int TcpClient::ParseData(char *in_data) {
         snprintf(errstr, 1024, "Server has terminated.\n");
         return -1;
     } else if (!strncmp(header, "*KISMET", 64)) {
-        // This test is deliberately allowing servername to be blank
-        if (sscanf(in_data+hdrlen, "%d.%d.%d %d \001%32[^\001]\001",
-                   &major, &minor, &tiny, (int *) &start_time, servername) < 4)
+        if (sscanf(in_data+hdrlen, "%d.%d.%d %d \001%32[^\001]\001 %24s",
+                   &major, &minor, &tiny, (int *) &start_time, servername, build) < 6)
             return 0;
     } else if (!strncmp(header, "*TIME", 64)) {
         if (sscanf(in_data+hdrlen, "%d", (int *) &serv_time) < 1)
@@ -286,7 +285,7 @@ int TcpClient::ParseData(char *in_data) {
         scanned = sscanf(in_data+hdrlen+18, "%d \001%255[^\001]\001 \001%255[^\001]\001 "
                          "%d %d %d %d %d %d %d %d %d %hd.%hd.%hd.%hd "
                          "%d %f %f %f %f %f %f %f %f %d %d %d %f %17s %d %d %d %d %d %d %d %f %f %f "
-                         "%lf %lf %lf %ld",
+                         "%lf %lf %lf %ld %ld",
                          (int *) &net->type, ssid, beacon,
                          &net->llc_packets, &net->data_packets, &net->crypt_packets, &net->interesting_packets,
                          &net->channel, &net->wep, (int *) &net->first_time, (int *) &net->last_time,
@@ -300,9 +299,9 @@ int TcpClient::ParseData(char *in_data) {
                          &net->best_quality, &net->best_signal, &net->best_noise,
                          &net->best_lat, &net->best_lon, &net->best_alt,
                          &net->aggregate_lat, &net->aggregate_lon, &net->aggregate_alt,
-                         &net->aggregate_points);
+                         &net->aggregate_points, &net->datasize);
 
-        if (scanned < 44) {
+        if (scanned < 45) {
             // fprintf(stderr, "Flubbed network, discarding...\n");
             delete net;
             return 0;
@@ -338,7 +337,7 @@ int TcpClient::ParseData(char *in_data) {
         scanned = sscanf(in_data+hdrlen, "%17s %17s %d %d %d %17s %d %d %d %d %d "
                          "%f %f %f %f %f %f %f %f %lf %lf "
                          "%lf %ld %f %d %d %d %d %d %d %d "
-                         "%f %f %f %d %hd.%hd.%hd.%hd",
+                         "%f %f %f %d %hd.%hd.%hd.%hd %ld",
                          bssid_str, cmac_str, (int *) &client->type,
                          (int *) &client->first_time, (int *) &client->last_time,
                          manuf_str, &client->manuf_score,
@@ -353,9 +352,10 @@ int TcpClient::ParseData(char *in_data) {
                          &client->quality, &client->signal, &client->noise,
                          &client->best_quality, &client->best_signal, &client->best_noise,
                          &client->best_lat, &client->best_lon, &client->best_alt,
-                         (int *) &client->ipdata.atype, &ip[0], &ip[1], &ip[2], &ip[3]);
+                         (int *) &client->ipdata.atype, &ip[0], &ip[1], &ip[2], &ip[3],
+                         &client->datasize);
 
-        if (scanned < 38) {
+        if (scanned < 39) {
             delete client;
             return 0;
         }
@@ -475,9 +475,18 @@ int TcpClient::ParseData(char *in_data) {
         return CLIENT_ALERT;
     } else if (!strncmp(header, "*STRING", 64)) {
         char netstr[2048];
-        if (sscanf(in_data+hdrlen, "%2047[^\n]\n", netstr) != 1)
+        char bssid_str[18];
+        char source_str[18];
+        string_info strng;
+        if (sscanf(in_data+hdrlen, "%17s %17s %2047[^\n]\n", bssid_str, source_str, netstr) != 3)
             return 0;
-        strings.push_back(netstr);
+
+        strng.bssid = bssid_str;
+        strng.source = source_str;
+
+        strng.text = netstr;
+
+        strings.push_back(strng);
         if (strings.size() > maxstrings)
             strings.erase(strings.begin());
     } else if (!strncmp(header, "*PACKET", 64)) {
@@ -570,7 +579,7 @@ int TcpClient::FetchChannelPower(int in_channel) {
 
 int TcpClient::Send(const char *in_data) {
     if (!sv_valid) {
-        snprintf(errstr, 1024, "TcpClient poll() on an inactive connection.");
+        snprintf(errstr, 1024, "TcpClient send() on an inactive connection.");
         return -1;
     }
 
@@ -578,3 +587,23 @@ int TcpClient::Send(const char *in_data) {
 
     return 1;
 }
+
+void TcpClient::EnableProtocol(string in_protocol) {
+    char data[1024];
+
+    // We don't care about ACKS or even errors, so we just don't give an ID number
+    snprintf(data, 1024, "!0 ENABLE %s *\n", in_protocol.c_str());
+
+    Send(data);
+
+}
+
+void TcpClient::RemoveProtocol(string in_protocol) {
+    char data[1024];
+
+    // We also don't care about acks or errors here
+    snprintf(data, 1024, "!0 REMOVE %s\n", in_protocol.c_str());
+
+    Send(data);
+}
+

@@ -98,7 +98,6 @@ int TcpServer::Setup(unsigned int in_max_clients, short int in_port, const char 
     // Zero the FD's
     FD_ZERO(&server_fds);
     FD_ZERO(&client_fds);
-    FD_ZERO(&stale_fds);
 
     // Set the server socket
     FD_SET(serv_fd, &server_fds);
@@ -129,7 +128,7 @@ unsigned int TcpServer::MergeSet(fd_set in_set, unsigned int in_max,
         if (FD_ISSET(x, &in_set) || FD_ISSET(x, &server_fds)) {
             FD_SET(x, out_set);
 	}
-	if (FD_ISSET(x, &client_fds) && client_wrbuf[x].length() > 0) {
+	if (FD_ISSET(x, &client_fds) && client_optmap[x]->wrbuf.length() > 0) {
 	    FD_SET(x, outw_set);
 	}
     }
@@ -151,8 +150,7 @@ int TcpServer::Poll(fd_set& in_rset, fd_set& in_wset)
 }
 
 // Accept an incoming connection
-int TcpServer::Accept()
-{
+int TcpServer::Accept() {
     unsigned int new_fd;
     struct sockaddr_in client_addr;
 #ifdef HAVE_SOCKLEN_T
@@ -192,109 +190,180 @@ int TcpServer::Accept()
     // Set the file descriptor
     FD_SET(new_fd, &server_fds);
     FD_SET(new_fd, &client_fds);
-    client_cmdbuf[new_fd] = "";
-    client_wrbuf[new_fd] = "";
 
     // Set it to nonblocking.  The app logic handles all the buffering and
     // blocking.
     int save_mode = fcntl(new_fd, F_GETFL, 0);
     fcntl(new_fd, F_SETFL, save_mode | O_NONBLOCK);
 
+    // Create their options
+    client_opt *opt = new client_opt;
+    client_optmap[new_fd] = opt;
+
+    // Set the mandatory sentences.  We don't have to do error checking here because
+    // it can't exist in the required vector if it isn't registered.
+    for (unsigned int reqprot = 0; reqprot < required_protocols.size(); reqprot++) {
+        int tref = required_protocols[reqprot];
+        vector<int> reqfields;
+        map<int, server_protocol *>::iterator spitr = protocol_map.find(tref);
+        for (unsigned int fnum = 0; fnum < spitr->second->field_vec.size(); fnum++) {
+            reqfields.push_back(fnum);
+        }
+
+        AddProtocolClient(new_fd, tref, reqfields);
+    }
+
     return new_fd;
 }
 
 // Kill a connection
-void TcpServer::Kill(int in_fd)
-{
+void TcpServer::Kill(int in_fd) {
     FD_CLR(in_fd, &server_fds);
     FD_CLR(in_fd, &client_fds);
-    FD_CLR(in_fd, &stale_fds);
-    client_cmdbuf[in_fd] = "";
-    client_wrbuf[in_fd] = "";
     if (in_fd)
         close(in_fd);
-}
 
-//Mark an fd as "stale"; i.e. we shouldn't read or write it anymore, but
-//there's still data we haven't handled.
-void TcpServer::Stale(int in_fd)
-{
-    FD_CLR(in_fd, &server_fds);
-    FD_CLR(in_fd, &client_fds);
-    FD_SET(in_fd, &stale_fds);
-    /* We don't clear client_cmdbuf here, since the client might have
-     * spewed a bunch of commands to us and gone away before we've processed
-     * them.  We may as well clear the wrbuf, though. */
-    client_wrbuf[in_fd] = "";
-}
+    // Do a little testing here since we might not have an opt record
+    map<int, client_opt *>::iterator citr = client_optmap.find(in_fd);
+    if (citr != client_optmap.end()) {
+        // Remove all our protocols
+        for (map<int, vector<int> >::iterator clpitr = citr->second->protocols.begin();
+             clpitr != citr->second->protocols.end(); ++clpitr)
+            DelProtocolClient(in_fd, clpitr->first);
 
-void TcpServer::Send(int in_fd, const char *in_data) {
-    if (in_fd < 0 || FD_ISSET(in_fd, &stale_fds)) {
-        return;
+        delete citr->second;
+        client_optmap.erase(citr);
     }
-    client_wrbuf[in_fd] += in_data;
-
 }
 
-void TcpServer::SendToAll(const char *in_data) {
+int TcpServer::RawSend(int in_fd, const char *in_data) {
+    // Anything that calls this is responsible for making sure it's calling it
+    // on valid data.
+    client_optmap[in_fd]->wrbuf += in_data;
+    return 1;
+}
+
+// Create an output string based on the clients
+// This looks very complex - and it is - but almost all of the "big" ops like
+// find are done with integer references.  They're cheap.
+// This takes the struct to be sent and pumps it through the dynamic protocol/field
+// system.
+int TcpServer::SendToClient(int in_fd, int in_refnum, const void *in_data) {
+    // Make sure this is a valid client
+    map<int, client_opt *>::iterator opitr = client_optmap.find(in_fd);
+    if (opitr == client_optmap.end()) {
+        snprintf(errstr, 1024, "Illegal client %d.", in_fd);
+        return -1;
+    }
+    client_opt *opt = opitr->second;
+
+    // See if this client even handles this protocol...
+    map<int, vector<int> >::iterator clprotitr = opt->protocols.find(in_refnum);
+    if (clprotitr == opt->protocols.end())
+        return 0;
+
+    const vector<int> *fieldlist = &clprotitr->second;
+
+    // Find this protocol now - we only do this after we're sure we want to print to
+    // it.
+    map<int, server_protocol *>::iterator spitr = protocol_map.find(in_refnum);
+    if (spitr == protocol_map.end()) {
+        snprintf(errstr, 1024, "Protocol %d not registered.", in_refnum);
+        return -1;
+    }
+    server_protocol *prot = spitr->second;
+
+    // Bounce through the printer function
+    string fieldtext;
+    if ((*prot->printer)(fieldtext, fieldlist, in_data) == -1) {
+        snprintf(errstr, 1024, "%s", fieldtext.c_str());
+        return -1;
+    }
+
+    // Assemble a line for them:
+    // *HEADER: DATA\n
+    //  16      x   1
+    int nlen = 20 + fieldtext.length();
+    char *outtext = new char[nlen];
+    snprintf(outtext, nlen, "*%s: %s\n", prot->header.c_str(), fieldtext.c_str());
+    RawSend(in_fd, outtext);
+    delete[] outtext;
+
+    return nlen;
+}
+
+int TcpServer::SendToAll(int in_refnum, const void *in_data) {
+    int nsent = 0;
     for (unsigned int x = serv_fd; x <= max_fd; x++) {
         if (!FD_ISSET(x, &client_fds))
             continue;
 
-        Send(x, in_data);
+        if (SendToClient(x, in_refnum, in_data) > 0)
+            nsent++;
     }
+
+    return nsent;
 }
 
 int TcpServer::HandleClient(int fd, client_command *c, fd_set *rds, fd_set *wrs) {
-    int isstale = FD_ISSET(fd, &stale_fds);
-
-    if (!FD_ISSET(fd, &client_fds) && !isstale) {
+    if (!FD_ISSET(fd, &client_fds)) {
 	/* It's not a client fd */
 	return 0;
     }
+
+    // Assign the iterator and freak out if we don't have an option set for this
+    // client
+    map<int, client_opt *>::iterator citr = client_optmap.find(fd);
+    if (citr == client_optmap.end()) {
+        snprintf(errstr, 1024, "No option set for client %d, killing it.", fd);
+        Kill(fd);
+        return -1;
+    }
+    client_opt *copt = citr->second;
     
     if (FD_ISSET(fd, rds)) {
 	/* Slurp in whatever data we've got into the buffer. */
-	char buf[1025];
-        int res = read(fd, buf, 1024);
-	if (res <= 0) {
-	    if (res == 0 || (errno != EAGAIN && errno != EINTR)) {
-		Stale(fd);
-	    }
+	char buf[2049];
+        int res = read(fd, buf, 2048);
+        if (res <= 0 && (errno != EAGAIN && errno != EPIPE)) {
+            Kill(fd);
+            return 0;
 	} else {
-	    buf[res] = '\0';
-	    client_cmdbuf[fd] += buf;
-	}
+            buf[res] = '\0';
+            copt->cmdbuf += buf;
+        }
     }
 
-    if (client_wrbuf[fd].length() > 0 && FD_ISSET(fd, wrs)) {
-	/* We can write some data to this client. */
-        int res = write(fd, client_wrbuf[fd].c_str(),
-                        client_wrbuf[fd].length());
-	if (res <= 0) {
-	    if (res == 0 || (errno != EAGAIN && errno != EINTR)) {
-		Kill(fd);
+    if (copt->wrbuf.length() > 0) {
+        /* We can write some data to this client. */
+        int res = write(fd, copt->wrbuf.c_str(), copt->wrbuf.length());
+
+        if (res <= 0) {
+            if (errno != EAGAIN && errno != EINTR) {
+                Kill(fd);
+                return 0;
             }
-	} else {
-	    client_wrbuf[fd].erase(0, res);
+        } else {
+            copt->wrbuf.erase(0, res);
 	}
-    }
-
-    /* If we're done reading from a stale fd, close it. */
-    if (isstale && client_cmdbuf[fd].length() == 0) {
-	Kill(fd);
-	return 0;
     }
 
     /* See if the buffer contains a command. */
-    int nl = client_cmdbuf[fd].find('\n');
-    if (nl < 0) {
-	return 0;
+    int killbits = 0;
+    unsigned int nl = copt->cmdbuf.find("\r\n");
+    if (nl == string::npos) {
+        nl = copt->cmdbuf.find('\n');
+        if (nl == string::npos)
+            return 0;
+        else
+            killbits = 1;
+    } else {
+        killbits = 2;
     }
 
     /* OK; here's a command.  Extract it from the buffer. */
-    string cmdline = string(client_cmdbuf[fd], 0, nl);
-    client_cmdbuf[fd].erase(0, nl+1);
+    string cmdline = string(copt->cmdbuf, 0, nl);
+    copt->cmdbuf.erase(0, nl+killbits);
 
     /* A command looks like:
      * '!' unsigned_int space cmd_string
@@ -306,47 +375,249 @@ int TcpServer::HandleClient(int fd, client_command *c, fd_set *rds, fd_set *wrs)
     }
 
     c->cmd = string(cmdline, nch);
-    c->client_fd = isstale ? -1 : fd;
+    c->client_fd = fd;
 
+    // Dispatch it to our internal handler for cap requests and opt handling
+    return HandleInternalCommand(c);
+}
+
+// Process commands we handle in the server itself.  The return value controls
+// if the kismet_server component handles the command
+int TcpServer::HandleInternalCommand(client_command *in_command) {
+    // Get the reference to the error handler - they'd better have registered
+    // the error protocol... it'll just get discarded if they didn't.
+    int error_ref = FetchProtocolRef("ERROR");
+    int ack_ref = FetchProtocolRef("ACK");
+    // Prepare the first part of our error string, should we need to use it
+    char id[12];
+    snprintf(id, 12, "%d ", in_command->stamp);
+    string out_error = string(id);
+
+    // Find the first space - this is the command.  If it doesn't look like something
+    // we can handle, pass it on.
+    unsigned int start = 0;
+    unsigned int space = in_command->cmd.find(" ");
+    if (space == string::npos)
+        return 1;
+
+    string com = in_command->cmd.substr(0, space);
+
+    if (com == "CAPABILITY") {
+        // Handle requesting capabilities
+        start = space + 1;
+        space = in_command->cmd.length();
+
+        // Get the protocol
+        com = in_command->cmd.substr(start, space-start);
+        int cap_ref = FetchProtocolRef(com);
+        if (cap_ref == -1) {
+            out_error += "Unknown protocol " + com;
+            SendToClient(in_command->client_fd, error_ref, (void *) &out_error);
+            return 1;
+        }
+        server_protocol *sprot = protocol_map[cap_ref];
+
+        // Send an ack
+        if (in_command->stamp != 0)
+            SendToClient(in_command->client_fd, ack_ref, (void *) &in_command->stamp);
+
+        // Grab the CAPABILITY protocol reference.  Like error, this should always
+        // be here and if it isn't, we just throw away this data
+        int capability_ref = FetchProtocolRef("CAPABILITY");
+        SendToClient(in_command->client_fd, capability_ref, (void *) sprot);
+
+        return 0;
+
+    } else if (com == "ENABLE") {
+        // Handle requesting new protocols
+        start = space + 1;
+        space = in_command->cmd.find(" ", start);
+
+        // We'll assume that we're the only thing that can handle ENABLE commands, so if it's
+        // not looking like a valid remove, error out.
+        if (space == string::npos) {
+            out_error += "Invalid ENABLE";
+            SendToClient(in_command->client_fd, error_ref, (void *) &out_error);
+            return 1;
+        }
+
+        // Get the protocol
+        com = in_command->cmd.substr(start, space-start);
+        int add_ref = FetchProtocolRef(com);
+        if (add_ref == -1) {
+            out_error += "Unknown protocol " + com;
+            SendToClient(in_command->client_fd, error_ref, (void *) &out_error);
+            return 1;
+        }
+        server_protocol *sprot = protocol_map[add_ref];
+
+        // Split all the fields and add up our vector
+        start = space + 1;
+        vector<int> field_vec;
+
+        unsigned int end = in_command->cmd.find(",", start);
+
+        int done = 0;
+        int initial = 1;
+        while (done == 0) {
+            if (end == string::npos) {
+                end = in_command->cmd.length();
+                done = 1;
+            }
+
+            com = in_command->cmd.substr(start, end-start);
+            start = end+1;
+            end = in_command->cmd.find(",", start);
+
+            // Try once to match it to * - an int compare is cheaper than a string
+            if (initial) {
+                if (com == "*") {
+                    for (unsigned int fld = 0; fld < sprot->field_map.size(); fld++)
+                        field_vec.push_back(fld);
+                    break;
+                }
+
+                initial = 0;
+            }
+
+            map<string, int>::iterator fmitr = sprot->field_map.find(com);
+            if (fmitr == sprot->field_map.end()) {
+                out_error += "Unknown field '" + com + "' for protocol " + sprot->header;
+                SendToClient(in_command->client_fd, error_ref, (void *) &out_error);
+                return 1;
+            }
+
+            field_vec.push_back(fmitr->second);
+        }
+
+        // We're done, add this protocol to the client
+        AddProtocolClient(in_command->client_fd, add_ref, field_vec);
+        // And trigger the enable function, if they have one
+        if (sprot->enable != NULL)
+            (*sprot->enable)(in_command->client_fd);
+
+        // Send an ack
+        if (in_command->stamp != 0)
+            SendToClient(in_command->client_fd, ack_ref, (void *) &in_command->stamp);
+
+        return 0;
+
+    } else if (com == "REMOVE") {
+        // Handle removing protocols
+        start = space + 1;
+        space = in_command->cmd.length();
+
+        // Get the protocol
+        com = in_command->cmd.substr(start, space-start);
+        int del_ref = FetchProtocolRef(com);
+        if (del_ref == -1) {
+            out_error += "Unknown protocol " + com;
+            SendToClient(in_command->client_fd, error_ref, (void *) &out_error);
+            return 1;
+        }
+
+        // Remove it
+        DelProtocolClient(in_command->client_fd, del_ref);
+
+        // Send an ack
+        if (in_command->stamp != 0)
+            SendToClient(in_command->client_fd, ack_ref, (void *) &in_command->stamp);
+
+        return 0;
+
+    } else {
+        return 1;
+    }
+
+    return 0;
+}
+
+int TcpServer::SendMainProtocols(int in_fd, int in_ref) {
+    return SendToClient(in_fd, in_ref, (void *) &protocol_map);
+}
+
+int TcpServer::RegisterProtocol(string in_header, int in_required, char **in_fields,
+                                int (*in_printer)(PROTO_PARMS),
+                                void (*in_enable)(int)) {
+    // First, see if we're already registered and return a -1 if we are.  You can't
+    // register a protocol twice.
+    if (FetchProtocolRef(in_header) != -1) {
+        snprintf(errstr, 1024, "Refusing to register '%s' as it is already a registered protocol.",
+                 in_header.c_str());
+        return -1;
+    }
+
+    if (in_header.length() > 16) {
+        snprintf(errstr, 1024, "Refusing to register '%s' as it is greater than 16 characters.",
+                 in_header.c_str());
+        return -1;
+    }
+
+    int refnum = protocol_map.size() + 1;
+
+    server_protocol *sen = new server_protocol;
+    sen->ref_index = refnum;
+    sen->header = in_header;
+
+    int x = 0;
+    while (in_fields[x] != NULL) {
+        sen->field_map[in_fields[x]] = x;
+        sen->field_vec.push_back(in_fields[x]);
+        x++;
+    }
+    sen->printer = in_printer;
+    sen->enable = in_enable;
+    sen->required = in_required;
+
+    // Put us in the map
+    protocol_map[refnum] = sen;
+    ref_map[in_header] = refnum;
+
+    if (in_required)
+        required_protocols.push_back(refnum);
+
+    /*
+    fprintf(stderr, "TcpServer registered %sprotocol '%s', %d fields.\n",
+    in_required ? "required " : "", in_header.c_str(), sen->field_vec.size());
+    */
+
+    return refnum;
+}
+
+int TcpServer::FetchProtocolRef(string in_header) {
+    map<string, int>::iterator rmitr = ref_map.find(in_header);
+    if (rmitr == ref_map.end())
+        return -1;
+
+    return rmitr->second;
+}
+
+int TcpServer::FetchNumClientRefs(int in_refnum) {
     return 1;
 }
 
-int TcpServer::GetClientOpts(int in_client, client_opt *in_opt) {
-    if (client_optmap.find(in_client) != client_optmap.end() && FD_ISSET(in_client, &client_fds)) {
-        *in_opt = client_optmap[in_client];
-        return 1;
-    } else if (FD_ISSET(in_client, &client_fds)) {
-        client_opt ret;
-        *in_opt = ret;
-        return 1;
-    }
+void TcpServer::AddProtocolClient(int in_fd, int in_refnum, vector<int> in_fields) {
+    map<int, client_opt *>::iterator citr = client_optmap.find(in_fd);
+    if (citr == client_optmap.end())
+        return;
 
-    return 0;
+    // Find out if it already exists and increment the use count if it does
+    map<int, vector<int> >::iterator clpitr = citr->second->protocols.find(in_refnum);
+    if (clpitr == citr->second->protocols.end())
+        client_mapped_protocols[in_refnum]++;
+
+    citr->second->protocols[in_refnum] = in_fields;
 }
 
-int TcpServer::SetClientOpts(int in_client, client_opt in_opt) {
-    if (FD_ISSET(in_client, &client_fds)) {
-        client_optmap[in_client] = in_opt;
-        return 1;
-    }
+void TcpServer::DelProtocolClient(int in_fd, int in_refnum) {
+    map<int, client_opt *>::iterator citr = client_optmap.find(in_fd);
+    if (citr == client_optmap.end())
+        return;
 
-    return 0;
+    map<int, vector<int> >::iterator clpitr = citr->second->protocols.find(in_refnum);
+    if (clpitr != citr->second->protocols.end()) {
+        citr->second->protocols.erase(clpitr);
+        client_mapped_protocols[in_refnum]--;
+    }
 }
 
-void TcpServer::SendToAllOpts(const char *in_data, client_opt in_opt) {
-    for (unsigned int x = serv_fd; x <= max_fd; x++) {
-        if (!FD_ISSET(x, &client_fds))
-            continue;
-
-        // If we have settings and we don't match...
-        if (client_optmap.find(x) != client_optmap.end()) {
-            if (client_optmap[x] >= in_opt)
-                continue;
-        } else {
-            continue;
-        }
-
-        Send(x, in_data);
-    }
-
-}

@@ -428,6 +428,15 @@ void PanelFront::AddClient(TcpClient *in_client) {
         context = new_context;
         context->primary = 1;
     }
+
+    // Enable all the protocols we handle
+    client->EnableProtocol("GPS");
+    client->EnableProtocol("INFO");
+    client->EnableProtocol("NETWORK");
+    client->EnableProtocol("CLIENT");
+    client->EnableProtocol("REMOVE");
+    client->EnableProtocol("ALERT");
+    client->EnableProtocol("STATUS");
 }
 
 void PanelFront::FetchClients(vector<TcpClient *> *in_vec) {

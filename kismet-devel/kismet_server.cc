@@ -47,6 +47,7 @@
 #include "configfile.h"
 #include "speech.h"
 #include "tcpserver.h"
+#include "server_protocols.h"
 #include "kismet_server.h"
 
 #ifndef exec_name
@@ -57,7 +58,6 @@ void WriteDatafiles(int in_shutdown);
 void CatchShutdown(int sig);
 int Usage(char *argv);
 static void handle_command(TcpServer *tcps, client_command *cc);
-void NetWriteNew(int in_fd);
 void NetWriteAlert(char *in_alert);
 void NetWriteStatus(char *in_status);
 void NetWriteInfo();
@@ -65,6 +65,9 @@ int SayText(string in_text);
 int PlaySound(string in_sound);
 void SpeechHandler(int *fds, const char *player);
 void SoundHandler(int *fds, const char *player, map<string, string> soundmap);
+void ProtocolAlertEnable(int in_fd);
+void ProtocolNetworkEnable(int in_fd);
+void ProtocolClientEnable(int in_fd);
 
 typedef struct capturesource {
     PacketSource *source;
@@ -119,11 +122,20 @@ int speechpair[2];
 pid_t soundpid = -1, speechpid = -1;
 
 // Past alerts
-vector<string> past_alerts;
+vector<ALERT_data *> past_alerts;
 unsigned int max_alerts = 50;
 
 // Capture sources
 vector<capturesource *> packet_sources;
+
+// Reference numbers for all of our builtin protocols
+int kismet_ref = -1, network_ref = -1, client_ref = -1, gps_ref = -1, time_ref = -1, error_ref = -1,
+    info_ref = -1, cisco_ref = -1, terminate_ref = -1, remove_ref = -1, capability_ref = -1,
+    protocols_ref = -1, status_ref = -1, alert_ref = -1, packet_ref = -1, string_ref = -1,
+    ack_ref = -1;
+
+// A kismet data record for passing to the protocol
+KISMET_data kdata;
 
 // Handle writing all the files out and optionally unlinking the empties
 void WriteDatafiles(int in_shutdown) {
@@ -211,12 +223,6 @@ void WriteDatafiles(int in_shutdown) {
 
 // Catch our interrupt
 void CatchShutdown(int sig) {
-    // If we're sighuping ignore the gui entirely
-    /*
-    if (gui != NULL && sig != SIGHUP)
-    gui->EndDisplay();
-    */
-
     for (unsigned int x = 0; x < packet_sources.size(); x++) {
         if (packet_sources[x]->source != NULL) {
             packet_sources[x]->source->CloseSource();
@@ -225,7 +231,8 @@ void CatchShutdown(int sig) {
         }
     }
 
-    ui_server.SendToAll("*TERMINATE: Kismet server terminating.\n");
+    string termstr = "Kismet server terminating.";
+    ui_server.SendToAll(terminate_ref, (void *) &termstr);
 
     ui_server.Shutdown();
 
@@ -474,60 +481,70 @@ void NetWriteInfo() {
     static time_t last_write = time(0);
     static int last_packnum = tracker.FetchNumPackets();
     vector<wireless_network *> tracked;
-    char output[2048];
 
-    snprintf(output, 2048, "*TIME: %d\n", (int) time(0));
-    ui_server.SendToAll(output);
+    int tim = time(0);
+    ui_server.SendToAll(time_ref, &tim);
+
+    char tmpstr[32];
 
 #ifdef HAVE_GPS
+    GPS_data gdata;
+
     if (gps_enable) {
         float lat, lon, alt, spd;
         int mode;
 
         gps.FetchLoc(&lat, &lon, &alt, &spd, &mode);
 
-        // lat, lon, alt, spd, mode
-        snprintf(output, 2048, "*GPS: %f %f %f %f %d\n",
-                 lat, lon, alt, spd, mode);
-
-        ui_server.SendToAll(output);
+        snprintf(tmpstr, 32, "%f", lat);
+        gdata.lat = tmpstr;
+        snprintf(tmpstr, 32, "%f", lon);
+        gdata.lon = tmpstr;
+        snprintf(tmpstr, 32, "%f", alt);
+        gdata.alt = tmpstr;
+        snprintf(tmpstr, 32, "%f", spd);
+        gdata.spd = tmpstr;
+        snprintf(tmpstr, 32, "%d", mode);
+        gdata.mode = tmpstr;
     } else {
-        snprintf(output, 2048, "*GPS: 0.0 0.0 0.0 0.0 0\n");
-        ui_server.SendToAll(output);
+        gdata.lat = "0.0";
+        gdata.lon = "0.0";
+        gdata.alt = "0.0";
+        gdata.spd = "0.0";
+        gdata.mode = "0";
     }
+
+    ui_server.SendToAll(gps_ref, (void *) &gdata);
 #endif
 
-    // Build power output and channel power output
-    char power_output[16];
+    INFO_data idata;
+    snprintf(tmpstr, 32, "%d", tracker.FetchNumNetworks());
+    idata.networks = tmpstr;
+    snprintf(tmpstr, 32, "%d", tracker.FetchNumPackets());
+    idata.packets = tmpstr;
+    snprintf(tmpstr, 32, "%d", tracker.FetchNumCrypt());
+    idata.crypt = tmpstr;
+    snprintf(tmpstr, 32, "%d", tracker.FetchNumInteresting());
+    idata.weak = tmpstr;
+    snprintf(tmpstr, 32, "%d", tracker.FetchNumNoise());
+    idata.noise = tmpstr;
+    snprintf(tmpstr, 32, "%d", tracker.FetchNumDropped() + localdropnum);
+    idata.dropped = tmpstr;
+    snprintf(tmpstr, 32, "%d", tracker.FetchNumPackets() - last_packnum);
+    idata.rate = tmpstr;
 
     if (time(0) - last_info.time < decay && last_info.quality != -1)
-        snprintf(power_output, 16, "%d %d %d", last_info.quality,
+        snprintf(tmpstr, 16, "%d %d %d", last_info.quality,
                  last_info.signal, last_info.noise);
     else if (last_info.quality == -1)
-        snprintf(power_output, 16, "-1 -1 -1");
+        snprintf(tmpstr, 16, "-1 -1 -1");
     else
-        snprintf(power_output, 16, "0 0 0");
-
-    snprintf(output, 2048, "*INFO: %d %d %d %d %d %d %d %s %d",
-             tracker.FetchNumNetworks(), tracker.FetchNumPackets(),
-             tracker.FetchNumCrypt(), tracker.FetchNumInteresting(),
-             tracker.FetchNumNoise(), tracker.FetchNumDropped() + localdropnum,
-             tracker.FetchNumPackets() - last_packnum,
-             power_output, CHANNEL_MAX);
+        snprintf(tmpstr, 16, "0 0 0");
+    idata.signal = tmpstr;
 
     last_packnum = tracker.FetchNumPackets();
 
-    char munge[2048];
-    for (unsigned int x = 0; x < CHANNEL_MAX; x++) {
-        snprintf(munge, 2048, "%s %d",
-                 output,
-                 (time(0) - channel_graph[x].last_time) < decay ? channel_graph[x].signal : -1);
-        strncpy(output, munge, 2048);
-    }
-    snprintf(munge, 2048, "%s\n", output);
-    strncpy(output, munge, 2048);
-
-    ui_server.SendToAll(output);
+    ui_server.SendToAll(info_ref, (void *) &idata);
 
     tracked = tracker.FetchNetworks();
 
@@ -537,28 +554,29 @@ void NetWriteInfo() {
             continue;
 
         if (tracked[x]->type == network_remove) {
-            snprintf(output, 2048, "*REMOVE: %s\n", tracked[x]->bssid.Mac2String().c_str());
-
-            ui_server.SendToAll(output);
+            string remstr = tracked[x]->bssid.Mac2String();
+            ui_server.SendToAll(remove_ref, (void *) &remstr);
 
             tracker.RemoveNetwork(tracked[x]->bssid);
 
             continue;
         }
 
-        snprintf(output, 2048, "*NETWORK: %.2000s\n", Packetracker::Net2String(tracked[x]).c_str());
-        ui_server.SendToAll(output);
+        NETWORK_data ndata;
+        Protocol_Network2Data(tracked[x], &ndata);
+        ui_server.SendToAll(network_ref, (void *) &ndata);
 
         for (map<mac_addr, wireless_client *>::const_iterator y = tracked[x]->client_map.begin();
              y != tracked[x]->client_map.end(); ++y) {
             if (y->second->last_time < last_write)
                 continue;
 
-                snprintf(output, 2048, "*CLIENT: %.2000s\n",
-                         Packetracker::Client2String(tracked[x], y->second).c_str());
-                ui_server.SendToAll(output);
+            CLIENT_data cdata;
+            Protocol_Client2Data(tracked[x], y->second, &cdata);
+            ui_server.SendToAll(client_ref, (void *) &cdata);
         }
 
+        /*
         for (map<string, cdp_packet>::const_iterator y = tracked[x]->cisco_equip.begin();
              y != tracked[x]->cisco_equip.end(); ++y) {
 
@@ -568,158 +586,115 @@ void NetWriteInfo() {
                      tracked[x]->bssid.Mac2String().c_str(), Packetracker::CDP2String(&cdp).c_str());
 
             ui_server.SendToAll(output);
-        }
+            }
+            */
     }
 
     last_write = time(0);
 }
 
-
 void NetWriteStatus(char *in_status) {
-    char out_stat[1024];
-    snprintf(out_stat, 1024, "*STATUS: %s\n", in_status);
-    ui_server.SendToAll(out_stat);
+    string str = in_status;
+    ui_server.SendToAll(status_ref, (void *) &str);
+}
+
+void ProtocolEnableAlert(int in_fd) {
+    for (unsigned int x = 0; x < past_alerts.size(); x++)
+        ui_server.SendToClient(in_fd, alert_ref, (void *) past_alerts[x]);
 }
 
 void NetWriteAlert(char *in_alert) {
-    char out_alert[1024];
+    ALERT_data *adata = new ALERT_data;
+    char tmpstr[128];
     timeval ts;
     gettimeofday(&ts, NULL);
 
-    snprintf(out_alert, 1024, "*ALERT: %ld %ld %s\n", (long int) ts.tv_sec,
-             (long int) ts.tv_usec, in_alert);
+    snprintf(tmpstr, 128, "%ld", (long int) ts.tv_sec);
+    adata->sec = tmpstr;
 
-    past_alerts.push_back(out_alert);
-    if (past_alerts.size() > max_alerts)
+    snprintf(tmpstr, 128, "%ld", (long int) ts.tv_usec);
+    adata->usec = tmpstr;
+
+    adata->text = in_alert;
+
+    past_alerts.push_back(adata);
+    if (past_alerts.size() > max_alerts) {
+        delete past_alerts[0];
         past_alerts.erase(past_alerts.begin());
+    }
 
-    ui_server.SendToAll(out_alert);
+    ui_server.SendToAll(alert_ref, (void *) adata);
 }
 
-void NetWriteNew(int in_fd) {
-    char output[2048];
-    snprintf(output, 2048, "*KISMET: %d.%d.%d %d \001%s\001\n",
-             VERSION_MAJOR, VERSION_MINOR, VERSION_TINY, (int) start_time, servername);
-    ui_server.Send(in_fd, output);
-
+// Called when a client enables the NETWORK protocol, this needs to send all of the
+// queued networks.
+void ProtocolNetworkEnable(int in_fd) {
     vector<wireless_network *> tracked;
     tracked = tracker.FetchNetworks();
 
     for (unsigned int x = 0; x < tracked.size(); x++) {
-        snprintf(output, 2048, "*NETWORK: %.2000s\n", Packetracker::Net2String(tracked[x]).c_str());
-        ui_server.Send(in_fd, output);
-
-        for (map<mac_addr, wireless_client *>::const_iterator y = tracked[x]->client_map.begin();
-             y != tracked[x]->client_map.end(); ++y) {
-            snprintf(output, 2048, "*CLIENT: %.2000s\n", Packetracker::Client2String(tracked[x], y->second).c_str());
-            ui_server.Send(in_fd, output);
-        }
-
-        for (map<string, cdp_packet>::const_iterator y = tracked[x]->cisco_equip.begin();
-             y != tracked[x]->cisco_equip.end(); ++y) {
-
-            cdp_packet cdp = y->second;
-
-            snprintf(output, 2048, "*CISCO %s %.2000s\n",
-                     tracked[x]->bssid.Mac2String().c_str(), Packetracker::CDP2String(&cdp).c_str());
-            ui_server.Send(in_fd, output);
-        }
+        NETWORK_data ndata;
+        Protocol_Network2Data(tracked[x], &ndata);
+        ui_server.SendToClient(in_fd, network_ref, (void *) &ndata);
     }
 
-    for (unsigned int x = 0; x < past_alerts.size(); x++)
-        ui_server.Send(in_fd, past_alerts[x].c_str());
+}
 
+// Called when a client enables the CLIENT protocol
+void ProtocolClientEnable(int in_fd) {
+    vector<wireless_network *> tracked;
+    tracked = tracker.FetchNetworks();
+
+    for (unsigned int x = 0; x < tracked.size(); x++) {
+        for (map<mac_addr, wireless_client *>::const_iterator y = tracked[x]->client_map.begin();
+             y != tracked[x]->client_map.end(); ++y) {
+            CLIENT_data cdata;
+            Protocol_Client2Data(tracked[x], y->second, &cdata);
+            ui_server.SendToClient(in_fd, client_ref, (void *) &cdata);
+        }
+    }
 }
 
 // Handle a command sent by a client over its TCP connection.
 static void handle_command(TcpServer *tcps, client_command *cc) {
-    string cmdspace = cc->cmd + " ";
-    const char *cmdptr = cmdspace.c_str();
-    string resp = "unknown";
-    if (!strncmp(cmdptr, "pause ", 6)) {
+    char id[12];
+    snprintf(id, 12, "%d ", cc->stamp);
+    string out_error = string(id);
+
+    unsigned int space = cc->cmd.find(" ");
+
+    if (space == string::npos)
+        space = cc->cmd.length();
+
+    string cmdword = cc->cmd.substr(0, space);
+
+    if (cmdword == "PAUSE") {
         if (packet_sources.size() > 0) {
             for (unsigned int x = 0; x < packet_sources.size(); x++) {
                 if (packet_sources[x]->source != NULL)
                     packet_sources[x]->source->Pause();
             }
-            resp = "ok";
             if (!silent)
                 printf("NOTICE:  Pausing packet sources per request of client %d\n", cc->client_fd);
-        } else {
-            resp = "err";
         }
-    } else if (!strncmp(cmdptr, "resume ", 7)) {
+    } else if (cmdword == "RESUME") {
         if (packet_sources.size() > 0) {
             for (unsigned int x = 0; x < packet_sources.size(); x++) {
                 if (packet_sources[x]->source != NULL)
                     packet_sources[x]->source->Resume();
             }
-            resp = "ok";
             if (!silent)
                 printf("NOTICE:  Resuming packet source per request of client %d\n", cc->client_fd);
-        } else {
-            resp = "err";
         }
-    } else if (!strncmp(cmdptr, "strings ", 8)) {
-        client_opt opts;
-        if (tcps->GetClientOpts(cc->client_fd, &opts) == 1) {
-            resp = "ok";
-            opts.send_strings = 1;
-            tcps->SetClientOpts(cc->client_fd, opts);
-            numstringclients++;
-            if (!silent)
-                printf("NOTICE:  Sending strings to client %d\n", cc->client_fd);
-        } else {
-            resp = "err";
-        }
-    } else if (!strncmp(cmdptr, "nostrings ", 10)) {
-        client_opt opts;
-        if (tcps->GetClientOpts(cc->client_fd, &opts) == 1) {
-            resp = "ok";
-            opts.send_strings = 0;
-            tcps->SetClientOpts(cc->client_fd, opts);
-            numstringclients--;
-            if (!silent)
-                printf("NOTICE:  Stopping strings to client %d\n", cc->client_fd);
-        } else {
-            resp = "err";
-        }
-    } else if (!strncmp(cmdptr, "packtypes ", 10)) {
-        client_opt opts;
-        if (tcps->GetClientOpts(cc->client_fd, &opts) == 1) {
-            resp = "ok";
-            opts.send_packtype = 1;
-            tcps->SetClientOpts(cc->client_fd, opts);
-            numpackclients++;
-            if (!silent)
-                printf("NOTICE:  Sending packet types to client %d\n", cc->client_fd);
-
-        } else {
-            resp = "err";
-        }
-    } else if (!strncmp(cmdptr, "nopacktypes ", 12)) {
-        client_opt opts;
-        if (tcps->GetClientOpts(cc->client_fd, &opts) == 1) {
-            resp = "ok";
-            opts.send_packtype = 0;
-            tcps->SetClientOpts(cc->client_fd, opts);
-            numpackclients--;
-            if (!silent)
-                printf("NOTICE:  Stopping packet types to client %d\n", cc->client_fd);
-
-        } else {
-            resp = "err";
-        }
+    } else {
+        out_error += "Unknown command '" + cmdword + "'";
+        tcps->SendToClient(cc->client_fd, error_ref, (void *) &out_error);
+        return;
     }
 
-    // Reply to the client if he wants it
-    if (cc->stamp != 0) {
-	char cliresp[2048];
-	sprintf(cliresp, "!%u ", cc->stamp);
-	int rlen = strlen(cliresp);
-	snprintf(cliresp+rlen, 2046-rlen, "%s\n", resp.c_str());
-	tcps->Send(cc->client_fd, cliresp);
-    }
+    if (cc->stamp != 0)
+        tcps->SendToClient(cc->client_fd, ack_ref, (void *) &cc->stamp);
+
 }
 
 int Usage(char *argv) {
@@ -823,16 +798,6 @@ int main(int argc,char *argv[]) {
     signal(SIGTERM, CatchShutdown);
     signal(SIGHUP, CatchShutdown);
     signal(SIGPIPE, SIG_IGN);
-
-    // Some default option masks
-    client_opt string_options;
-    string_options.send_strings = 1;
-    string_options.send_packtype = -1;
-
-    client_opt packtype_options;
-    packtype_options.send_strings = -1;
-    packtype_options.send_packtype = 1;
-
 
     while(1) {
         int r = getopt_long(argc, argv, "d:M:t:nf:c:l:m:g:a:p:N:qhvs",
@@ -1960,6 +1925,55 @@ int main(int argc,char *argv[]) {
         CatchShutdown(-1);
     }
 
+    fprintf(stderr, "Registering builtin client/server protocols...\n");
+    // Register the required protocols - every client gets these automatically
+    // although they can turn them off themselves later
+    kismet_ref = ui_server.RegisterProtocol("KISMET", 1, KISMET_fields_text,
+                                            &Protocol_KISMET, NULL);
+    error_ref = ui_server.RegisterProtocol("ERROR", 1, ERROR_fields_text,
+                                           &Protocol_ERROR, NULL);
+    ack_ref = ui_server.RegisterProtocol("ACK", 1, ACK_fields_text,
+                                         &Protocol_ACK, NULL);
+    protocols_ref = ui_server.RegisterProtocol("PROTOCOLS", 1, PROTOCOLS_fields_text,
+                                               &Protocol_PROTOCOLS, NULL);
+    capability_ref = ui_server.RegisterProtocol("CAPABILITY", 1, CAPABILITY_fields_text,
+                                                &Protocol_CAPABILITY, NULL);
+    terminate_ref = ui_server.RegisterProtocol("TERMINATE", 1, TERMINATE_fields_text,
+                                               &Protocol_TERMINATE, NULL);
+    time_ref = ui_server.RegisterProtocol("TIME", 1, TIME_fields_text,
+                                          &Protocol_TIME, NULL);
+    // register the others
+    alert_ref = ui_server.RegisterProtocol("ALERT", 0, ALERT_fields_text,
+                                           &Protocol_ALERT, &ProtocolEnableAlert);
+    network_ref = ui_server.RegisterProtocol("NETWORK", 0, NETWORK_fields_text,
+                                             &Protocol_NETWORK, &ProtocolNetworkEnable);
+    client_ref = ui_server.RegisterProtocol("CLIENT", 0, CLIENT_fields_text,
+                                            &Protocol_CLIENT, &ProtocolClientEnable);
+    gps_ref = ui_server.RegisterProtocol("GPS", 0, GPS_fields_text,
+                                         &Protocol_GPS, NULL);
+    info_ref = ui_server.RegisterProtocol("INFO", 0, INFO_fields_text,
+                                          &Protocol_INFO, NULL);
+    remove_ref = ui_server.RegisterProtocol("REMOVE", 0, REMOVE_fields_text,
+                                            &Protocol_REMOVE, NULL);
+    status_ref = ui_server.RegisterProtocol("STATUS", 0, STATUS_fields_text,
+                                            &Protocol_STATUS, NULL);
+    packet_ref = ui_server.RegisterProtocol("PACKET", 0, PACKET_fields_text,
+                                            &Protocol_PACKET, NULL);
+    string_ref = ui_server.RegisterProtocol("STRING", 0, STRING_fields_text,
+                                            &Protocol_STRING, NULL);
+
+    cisco_ref = -1;
+
+    // Hijack the status char* for some temp work and fill in our server data record
+    // for sending to new clients.
+    snprintf(status, 1024, "%d.%d.%d", VERSION_MAJOR, VERSION_MINOR, VERSION_TINY);
+    kdata.version = status;
+    snprintf(status, 1024, "%d", (int) start_time);
+    kdata.starttime = status;
+    snprintf(status, 1024, "\001%s\001", servername);
+    kdata.servername = status;
+    snprintf(status, 1024, "%s", TIMESTAMP);
+    kdata.timestamp = status;
 
     time_t last_click = 0;
     time_t last_waypoint = time(0);
@@ -1987,7 +2001,6 @@ int main(int argc,char *argv[]) {
         }
     }
 
-    char netout[2048];
     time_t cur_time = time(0);
     time_t last_time = cur_time;
     while (1) {
@@ -1996,10 +2009,10 @@ int main(int argc,char *argv[]) {
 
         max_fd = ui_server.MergeSet(read_set, max_fd, &rset, &wset);
 
-        // 1 second idle clock tick on select
+        // 0.5 second cycle
         struct timeval tm;
-        tm.tv_sec = 1;
-        tm.tv_usec = 0;
+        tm.tv_sec = 0;
+        tm.tv_usec = 500000;
 
         if (select(max_fd + 1, &rset, &wset, NULL, &tm) < 0) {
             if (errno != EINTR) {
@@ -2026,11 +2039,12 @@ int main(int argc,char *argv[]) {
             if (!silent)
                 fprintf(stderr, "UI error: %s\n", ui_server.FetchError());
         } else if (accept_fd > 0) {
-            NetWriteNew(accept_fd);
-
             if (!silent)
                 fprintf(stderr, "Accepted interface connection from %s\n",
                         ui_server.FetchError());
+
+            ui_server.SendToClient(accept_fd, kismet_ref, (void *) &kdata);
+            ui_server.SendMainProtocols(accept_fd, protocols_ref);
 
             if (accept_fd > max_fd)
                 max_fd = accept_fd;
@@ -2152,22 +2166,26 @@ int main(int argc,char *argv[]) {
                         num_dropped = tracker.FetchNumDropped() + localdropnum;
                     }
 
-                    // Send the packet info
-                    if (numpackclients > 0) {
-                        snprintf(netout, 2048, "*PACKET: %.2000s\n",
-                                 Packetracker::Packet2String(&info).c_str());
-                        ui_server.SendToAllOpts((const char *) netout, packtype_options);
+                    // Send the packet info to clients if any of them are requesting it
+                    if (ui_server.FetchNumClientRefs(packet_ref) > 0) {
+                        PACKET_data pdata;
+                        Protocol_Packet2Data(&info, &pdata);
+                        ui_server.SendToAll(packet_ref, (void *) &pdata);
                     }
 
-                    // Extract the strings from it
-                    if (info.type == packet_data && info.encrypted == 0 && numstringclients > 0) {
+                    // Extract and send string info to clients if any are requesting it
+                    if (info.type == packet_data && info.encrypted == 0 &&
+                        ui_server.FetchNumClientRefs(string_ref) > 0) {
                         vector<string> strlist;
+                        STRING_data sdata;
 
                         strlist = GetPacketStrings(&info, &header, data);
+                        sdata.bssid = info.bssid_mac.Mac2String();
+                        sdata.sourcemac = info.source_mac.Mac2String();
 
                         for (unsigned int y = 0; y < strlist.size(); y++) {
-                            snprintf(netout, 2048, "*STRING: %.2000s\n", strlist[y].c_str());
-                            ui_server.SendToAllOpts((const char *) netout, string_options);
+                            sdata.text = strlist[y];
+                            ui_server.SendToAll(string_ref, (void *) &sdata);
                         }
 
                     }

@@ -27,6 +27,17 @@ NCurseFront::NCurseFront() {
     client = NULL;
 }
 
+// Enable the protocols we can use
+void NCurseFront::AddClient(TcpClient *in_client) {
+    client = in_client;
+    client->EnableProtocol("GPS");
+    client->EnableProtocol("INFO");
+    client->EnableProtocol("NETWORK");
+    client->EnableProtocol("REMOVE");
+    client->EnableProtocol("ALERT");
+    client->EnableProtocol("STATUS");
+}
+
 int NCurseFront::InitDisplay(int in_decay, time_t in_start) {
     start_time = in_start;
 

@@ -27,7 +27,6 @@
 
 int PanelFront::MainInput(void *in_window, int in_chr) {
     kis_window *kwin = (kis_window *) in_window;
-    char sendbuf[1024];
 
     switch (in_chr) {
     case 'Q':
@@ -176,8 +175,7 @@ int PanelFront::MainInput(void *in_window, int in_chr) {
         break;
     case 'd':
     case 'D':
-        snprintf(sendbuf, 1024, "!%u strings \n", (unsigned int) time(0));
-        client->Send(sendbuf);
+        client->EnableProtocol("STRING");
         WriteStatus("Requesting strings from the server");
 
         SpawnWindow("Data Strings Dump", &PanelFront::DumpPrinter, &PanelFront::DumpInput);
@@ -196,8 +194,7 @@ int PanelFront::MainInput(void *in_window, int in_chr) {
         break;
     case 'p':
     case 'P':
-        snprintf(sendbuf, 1024, "!%u packtypes \n", (unsigned int) time(0));
-        client->Send(sendbuf);
+        client->EnableProtocol("PACKET");
         WriteStatus("Requesting packet types from the server");
 
         SpawnWindow("Packet Types", &PanelFront::PackPrinter, &PanelFront::PackInput);
@@ -305,7 +302,6 @@ int PanelFront::SortInput(void *in_window, int in_chr) {
 
 int PanelFront::PackInput(void *in_window, int in_chr) {
     kis_window *kwin = (kis_window *) in_window;
-    char sendbuf[1024];
 
     switch(in_chr) {
     case 'h':
@@ -324,8 +320,7 @@ int PanelFront::PackInput(void *in_window, int in_chr) {
     case 'X':
     case 'q':
     case 'Q':
-        snprintf(sendbuf, 1024, "!%u nopacktypes\n", (unsigned int) time(0));
-        client->Send(sendbuf);
+        client->RemoveProtocol("PACKET");
         return 0;
         break;
     default:
@@ -338,7 +333,6 @@ int PanelFront::PackInput(void *in_window, int in_chr) {
 
 int PanelFront::DumpInput(void *in_window, int in_chr) {
     kis_window *kwin = (kis_window *) in_window;
-    char sendbuf[1024];
 
     switch(in_chr) {
     case 'm':
@@ -370,8 +364,7 @@ int PanelFront::DumpInput(void *in_window, int in_chr) {
     case 'X':
     case 'q':
     case 'Q':
-        snprintf(sendbuf, 1024, "!%u nostrings \n", (unsigned int) time(0));
-        client->Send(sendbuf);
+        client->RemoveProtocol("STRING");
         return 0;
         break;
     default:

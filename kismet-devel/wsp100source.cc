@@ -111,13 +111,20 @@ int Wsp100Source::FetchPacket(pkthdr *in_header, u_char *in_data) {
         return 0;
 
     struct sockaddr_in cli_sockaddr;
-    int cli_len = sizeof(cli_sockaddr);
+#ifdef HAVE_SOCKLEN_T
+    socklen_t cli_len;
+#else
+    int cli_len;
+#endif
+    cli_len = sizeof(cli_sockaddr);
     memset(&cli_sockaddr, 0, sizeof(cli_sockaddr));
 
     if ((read_len = recvfrom(udp_sock, (char *) data, MAX_PACKET_LEN, 0,
                              (struct sockaddr *) &cli_sockaddr, &cli_len)) < 0) {
-        snprintf(errstr, 1024, "recvfrom() error %d (%s)", errno, strerror(errno));
-        return -1;
+        if (errno != EINTR) {
+            snprintf(errstr, 1024, "recvfrom() error %d (%s)", errno, strerror(errno));
+            return -1;
+        }
     }
 
     // Find out if it came from an IP associated with our target sensor system
