@@ -1747,7 +1747,7 @@ int chancontrol_wext(const char *in_dev, int in_ch, char *in_err, void *in_ext) 
 int chancontrol_orinoco(const char *in_dev, int in_ch, char *in_err, void *in_ext) {
     int ret;
     PcapSourceWext *source = (PcapSourceWext *) in_ext;
-  
+ 
     // Learn how to control our channel
     if (source->modern_chancontrol == -1) {
         if ((ret = Iwconfig_Set_IntPriv(in_dev, "monitor", 1, in_ch, in_err)) == -2) {
@@ -1765,7 +1765,9 @@ int chancontrol_orinoco(const char *in_dev, int in_ch, char *in_err, void *in_ex
         } else {
             return ret;
         }
-    } else if (source->modern_chancontrol == 0) {
+    } 
+    
+    if (source->modern_chancontrol == 0) {
         // Set the monitor mode iwpriv controls.  Explain more if we fail on monitor.
         if ((ret = Iwconfig_Set_IntPriv(in_dev, "monitor", 1, in_ch, in_err)) < 0) {
             if (ret == -2) 
