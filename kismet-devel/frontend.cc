@@ -353,7 +353,8 @@ void Frontend::UpdateGroups() {
 
         dnet->virtnet.bssid.mask = bssid_matched;
         MatchBestManuf(client_manuf_map, dnet->virtnet.bssid, dnet->virtnet.ssid,
-                       dnet->virtnet.channel, &dnet->virtnet.manuf_key, &dnet->virtnet.manuf_score);
+                       dnet->virtnet.channel, dnet->virtnet.wep, dnet->virtnet.cloaked,
+                       &dnet->virtnet.manuf_key, &dnet->virtnet.manuf_score);
 
         // convert our map into a vector
         for (map<mac_addr, wireless_client *>::iterator cli = dnet->virtnet.client_map.begin();

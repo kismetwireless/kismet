@@ -141,7 +141,8 @@ map<mac_addr, manuf *> ReadManufMap(FILE *in_file, int ap_map) {
 // Returned in the parameters are the pointers to the best manufacturer record, the
 // score, and the modified mac address which matched it
 void MatchBestManuf(map<mac_addr, manuf *> in_manuf, mac_addr in_mac, string in_ssid,
-                    int in_channel, mac_addr *manuf_mac, int *manuf_score) {
+                    int in_channel, int in_wep, int in_cloaked,
+                    mac_addr *manuf_mac, int *manuf_score) {
     mac_addr best_mac;
     manuf *likely_manuf;
 
@@ -170,6 +171,10 @@ void MatchBestManuf(map<mac_addr, manuf *> in_manuf, mac_addr in_mac, string in_
             score += 1;
         if (in_channel != 0 && in_channel == likely_manuf->channel_default)
             score += 1;
+        if (in_wep)
+            score -= 1;
+        if (in_cloaked)
+            score -= 1;
     } else if ((mitr = in_manuf.find(mac3)) != in_manuf.end()) {
         // If we didn't get a 4-pair, look for a 3-pair to at least give some
         // inkling of what we are...
@@ -180,6 +185,11 @@ void MatchBestManuf(map<mac_addr, manuf *> in_manuf, mac_addr in_mac, string in_
             score += 1;
         if (in_channel != 0 && in_channel == likely_manuf->channel_default)
             score += 1;
+        if (in_wep)
+            score -= 1;
+        if (in_cloaked)
+            score -= 1;
+
     }
 
     *manuf_score = score;
