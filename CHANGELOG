@@ -1,6 +1,8 @@
 Dec 21 2003  3.1.0  Added discarding of large management and phy frames as an
                      effort to minimize the impact of junk frames from some
                      drivers.
+                    Fixed errors in sourcetracker when child processes aren't
+                     used
 Dec 19 2003  3.1.0  Changed some viha stuff, maybe fixed some problems.
                     Made child channel control spawning far more intelligent
                     Merged viha into root process, forced disable of setuid

@@ -26,6 +26,8 @@ Packetsourcetracker::Packetsourcetracker() {
     next_meta_id = 0;
     gpsd = NULL;
     timetracker = NULL;
+    chanchild_pid = 0;
+    sockpair[0] = sockpair[1] = 0;
 }
 
 Packetsourcetracker::~Packetsourcetracker() {
@@ -36,17 +38,20 @@ Packetsourcetracker::~Packetsourcetracker() {
 
 unsigned int Packetsourcetracker::MergeSet(fd_set *in_rset, fd_set *in_wset,
                                            unsigned int in_max) {
+
     unsigned int max = in_max;
 
-    if (in_max < (unsigned int) sockpair[1])
-        max = sockpair[1];
+    if (chanchild_pid != 0) {
+        if (in_max < (unsigned int) sockpair[1])
+            max = sockpair[1];
 
-    // Set the read sock all the time
-    FD_SET(sockpair[1], in_rset);
+        // Set the read sock all the time
+        FD_SET(sockpair[1], in_rset);
 
-    // Set it for writing if we have some queued
-    if (ipc_buffer.size() > 0)
-        FD_SET(sockpair[1], in_wset);
+        // Set it for writing if we have some queued
+        if (ipc_buffer.size() > 0)
+            FD_SET(sockpair[1], in_wset);
+    }
 
     for (unsigned int metc = 0; metc < meta_packsources.size(); metc++) {
         meta_packsource *meta = meta_packsources[metc];
