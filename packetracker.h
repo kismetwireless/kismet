@@ -34,6 +34,7 @@
 #include "tracktypes.h"
 #include "manuf.h"
 #include "alertracker.h"
+#include "util.h"
 
 // Extern over to kismet_server.cc to get our first time
 extern time_t start_time;

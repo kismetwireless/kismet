@@ -687,39 +687,22 @@ PanelFront::client_columns PanelFront::Token2ClientColumn(string in_token) {
 }
 
 void PanelFront::SetMainColumns(string in_columns) {
-    unsigned int begin = 0;
-    unsigned int end = in_columns.find(",");
+    vector<string> tokens = StrTokenize(in_columns, ",");
 
     column_vec.clear();
 
-    while (end < in_columns.size()) {
-        string opt = in_columns.substr(begin, end-begin);
-        begin = end+1;
-        end = in_columns.find(",", begin);
-
-        column_vec.push_back(Token2MainColumn(opt));
-    }
-
-    column_vec.push_back(Token2MainColumn(in_columns.substr(begin, in_columns.size())));
+    for (unsigned int x = 0; x < tokens.size(); x++)
+        column_vec.push_back(Token2MainColumn(tokens[x]));
 }
 
 void PanelFront::SetClientColumns(string in_columns) {
-    unsigned int begin = 0;
-    unsigned int end = in_columns.find(",");
+    vector<string> tokens = StrTokenize(in_columns, ",");
 
-    client_column_vec.clear();
+    column_vec.clear();
 
-    while (end < in_columns.size()) {
-        string opt = in_columns.substr(begin, end-begin);
-        begin = end+1;
-        end = in_columns.find(",", begin);
-
-        client_column_vec.push_back(Token2ClientColumn(opt));
-    }
-
-    client_column_vec.push_back(Token2ClientColumn(in_columns.substr(begin, in_columns.size())));
+    for (unsigned int x = 0; x < tokens.size(); x++)
+        client_column_vec.push_back(Token2ClientColumn(tokens[x]));
 }
-
 
 int PanelFront::WriteStatus(string status) {
     stat_win->text.push_back(status);

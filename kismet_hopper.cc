@@ -33,6 +33,7 @@
 #include <signal.h>
 #include <vector>
 #include "getopt.h"
+#include "util.h"
 #include "configfile.h"
 
 #ifndef exec_name

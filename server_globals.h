@@ -16,16 +16,16 @@
     Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 */
 
-#ifndef __SERVER_PLUGIN_H__
-#define __SERVER_PLUGIN_H__
+#ifndef __SERVER_GLOBALS_H__
+#define __SERVER_GLOBALS_H__
 
 #include "config.h"
-#include "server_protocols.h"
+
+#include "config.h"
 #include "timetracker.h"
 
-#include <map>
-#include <list>
-
 extern Timetracker timetracker;
+
+extern int silent;
 
 #endif

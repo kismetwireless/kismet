@@ -23,7 +23,7 @@
 
 #include "packetsource.h"
 #include "timetracker.h"
-#include "server_plugin.h"
+#include "server_globals.h"
 
 #include <netdb.h>
 

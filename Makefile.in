@@ -46,14 +46,13 @@ PSO	= configfile.o speech.o packet.o \
 		gpsd.o manuf.o \
 		packetracker.o timetracker.o alertracker.o \
 		getopt.o \
-		tcpserver.o server_protocols.o server_plugin.o kismet_server.o 
+		tcpserver.o server_protocols.o server_globals.o kismet_server.o 
 PS	= kismet_server
 
 DRONEO = configfile.o getopt.o packet.o tcpstreamer.o \
 			prism2source.o pcapsource.o wtapfilesource.o wsp100source.o \
 				dronesource.o vihasource.o capturesourceutil.o \
-			timetracker.o \
-			server_plugin.o gpsd.o kismet_drone.o
+			alertracker.o timetracker.o gpsd.o server_globals.o kismet_drone.o
 DRONE = kismet_drone
 
 NCO	= configfile.o speech.o manuf.o tcpclient.o frontend.o cursesfront.o \

@@ -18,6 +18,8 @@
 
 #include "config.h"
 
+#define KISMET_SERVER
+
 #include <unistd.h>
 #include <sys/stat.h>
 #include <sys/types.h>
@@ -29,6 +31,9 @@
 #include <string>
 #include <vector>
 
+#include "util.h"
+#include "configfile.h"
+
 #include "packet.h"
 
 #include "packetsource.h"
@@ -38,6 +43,7 @@
 #include "wsp100source.h"
 #include "vihasource.h"
 #include "dronesource.h"
+
 #include "capturesourceutil.h"
 
 #include "dumpfile.h"
@@ -53,11 +59,9 @@
 #include "timetracker.h"
 #include "alertracker.h"
 
-#include "configfile.h"
 #include "speech.h"
 #include "tcpserver.h"
-#include "server_protocols.h"
-#include "server_plugin.h"
+#include "server_globals.h"
 #include "kismet_server.h"
 
 #ifndef exec_name
@@ -75,22 +79,21 @@ string logname, dumplogfile, netlogfile, cryptlogfile, ciscologfile,
     gpslogfile, csvlogfile, xmllogfile, ssidtrackfile, configdir, iptrackfile, waypointfile,
     fifofile;
 FILE *ssid_file = NULL, *ip_file = NULL, *waypoint_file = NULL;
-/* *net_file = NULL, *cisco_file = NULL, *csv_file = NULL,
-    *xml_file = NULL, */
 
 DumpFile *dumpfile, *cryptfile;
 int packnum = 0, localdropnum = 0;
-//Frontend *gui = NULL;
+
 Packetracker tracker;
 Alertracker alertracker;
+
 #ifdef HAVE_GPS
 GPSD gps;
 int gpsmode = 0;
 GPSDump gpsdump;
 #endif
+
 FifoDumpFile fifodump;
 TcpServer ui_server;
-int silent;
 int sound = -1;
 time_t start_time;
 packet_info last_info;
@@ -105,7 +108,6 @@ fd_set read_set;
 int client_wepkey_allowed = 0;
 // Wep keys
 map<mac_addr, wep_key_info *> bssid_wep_map;
-
 
 // Pipe file descriptor pairs and fd's
 int soundpair[2];
@@ -1559,24 +1561,11 @@ int main(int argc,char *argv[]) {
         allowed_hosts = conf->FetchOpt("allowedhosts");
     }
 
-    // Parse the allowed hosts into the vector
-    unsigned int ahstart = 0;
-    unsigned int ahend = allowed_hosts.find(",");
+    vector<string> hostsvec = StrTokenize(allowed_hosts, ",");
 
-    int ahdone = 0;
-    while (ahdone == 0) {
-        string hoststr;
-
-        if (ahend == string::npos) {
-            ahend = allowed_hosts.length();
-            ahdone = 1;
-        }
-
-        hoststr = allowed_hosts.substr(ahstart, ahend - ahstart);
-        ahstart = ahend + 1;
-        ahend = allowed_hosts.find(",", ahstart);
-
+    for (unsigned int hostcomp = 0; hostcomp < hostsvec.size(); hostcomp++) {
         client_ipblock *ipb = new client_ipblock;
+        string hoststr = hostsvec[hostcomp];
 
         // Find the netmask divider, if one exists
         unsigned int masksplit = hoststr.find("/");
@@ -1811,67 +1800,56 @@ int main(int argc,char *argv[]) {
     // Parse the alert enables.  This is ugly, and maybe should belong in the
     // configfile class with some of the other parsing code.
     for (unsigned int av = 0; av < conf->FetchOptVec("alert").size(); av++) {
-        string line = conf->FetchOptVec("alert")[av];
+        vector<string> tokens = StrTokenize(conf->FetchOptVec("alert")[av], ",");
         _alert_enable aven;
 
-        unsigned int av_begin = 0;
-        unsigned int av_end = line.find(",");
-
-        if (av_end == string::npos) {
-            fprintf(stderr, "FATAL:  Invalid alert line: %s\n", line.c_str());
+        if (tokens.size() < 2 || tokens.size() > 3) {
+            fprintf(stderr, "FATAL:  Invalid alert line: %s\n", conf->FetchOptVec("alert")[av].c_str());
             exit(1);
         }
 
-        aven.alert_name = line.substr(av_begin, av_end - av_begin);
+        aven.alert_name = tokens[0];
 
-        av_begin = av_end + 1;
-        av_end = line.find(",", av_begin);
+        vector<string> units = StrTokenize(tokens[1], "/");
 
-        // Set the default burst
-        if (av_end == string::npos) {
-            aven.limit_burst = 5;
-            av_end = line.length();
-        }
-
-        string limit = line.substr(av_begin, av_end - av_begin);
-
-        unsigned int slash = limit.find("/");
-        if (slash == string::npos) {
+        if (units.size() == 1) {
             aven.limit_unit = sat_minute;
-            if (sscanf(limit.c_str(), "%d", &aven.limit_rate) != 1) {
-                fprintf(stderr, "FATAL:  Invalid alert line: %s\n", line.c_str());
+            if (sscanf(units[0].c_str(), "%d", &aven.limit_rate) != 1) {
+                fprintf(stderr, "FATAL:  Invalid limit rate: %s\n",
+                        conf->FetchOptVec("alert")[av].c_str());
                 exit(1);
             }
         } else {
-            if (sscanf(limit.substr(0, slash).c_str(), "%d",
-                       &aven.limit_rate) != 1) {
-                fprintf(stderr, "FATAL:  Invalid alert line: %s\n", line.c_str());
+            if (sscanf(units[0].c_str(), "%d", &aven.limit_rate) != 1) {
+                fprintf(stderr, "FATAL:  Invalid limit rate: %s\n",
+                        conf->FetchOptVec("alert")[av].c_str());
                 exit(1);
             }
 
-            string unit = limit.substr(slash + 1, limit.length() - slash);
-            if (unit == "sec" || unit == "second")
+            if (units[1] == "sec" || units[1] == "second")
                 aven.limit_unit = sat_second;
-            else if (unit == "min" || unit == "minute")
+            else if (units[1] == "min" || units[1] == "minute")
                 aven.limit_unit = sat_minute;
-            else if (unit == "hour")
+            else if (units[1] == "hour")
                 aven.limit_unit = sat_hour;
-            else if (unit == "day")
+            else if (units[1] == "day")
                 aven.limit_unit = sat_day;
             else {
-                fprintf(stderr, "FATAL:  Invalid time unit in alert line: %s\n", line.c_str());
+                fprintf(stderr, "FATAL:  Invalid time unit in alert line: %s\n",
+                        conf->FetchOptVec("alert")[av].c_str());
                 exit(1);
             }
         }
 
-        // get the burst rate
-        av_begin = av_end + 1;
-        if (av_begin < line.length()) {
-            if (sscanf(line.substr(av_begin, line.length() - av_begin).c_str(),
-                       "%d", &aven.limit_burst) != 1) {
-                fprintf(stderr, "FATAL:  Invalid burst limit in alert line: %s\n", line.c_str());
+        if (tokens.size() == 2) {
+            aven.limit_burst = 5;
+        } else {
+            if (sscanf(tokens[2].c_str(), "%d", &aven.limit_burst) != 1) {
+                fprintf(stderr, "FATAL:  Invalid time unit in alert line: %s\n",
+                        conf->FetchOptVec("alert")[av].c_str());
                 exit(1);
             }
+
         }
 
         alert_enable_vec.push_back(aven);
