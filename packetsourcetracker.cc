@@ -484,6 +484,7 @@ int Packetsourcetracker::ProcessCardList(string in_enableline,
     for (unsigned int cl = 0; cl < in_cardlines->size(); cl++) {
         tokens.clear();
         tokens = StrTokenize((*in_cardlines)[cl], ",");
+        int sourceline_initch = -1;
 
         if (tokens.size() < 3) {
             snprintf(errstr, 1024, "Illegal card source line '%s'", (*in_cardlines)[cl].c_str());
@@ -503,6 +504,17 @@ int Packetsourcetracker::ProcessCardList(string in_enableline,
                      "Check the output from 'configure' for more information about why it might "
                      "not have been compiled in.", tokens[0].c_str());
             return -1;
+        }
+
+        // If they have four elements in the source line, take the fourth as the
+        // initial channel
+        if (tokens.size() > 3) {
+            if (sscanf(tokens[3].c_str(), "%d", &sourceline_initch) != 1) {
+                snprintf(errstr, 1024, "Illegal initial channel '%s' specified on "
+                         "the sourceline for '%s'", tokens[3].c_str(), 
+                         tokens[0].c_str());
+                return -1;
+            }
         }
 
         if (enable_map.find(StrLower(tokens[2])) != enable_map.end() ||
@@ -529,13 +541,19 @@ int Packetsourcetracker::ProcessCardList(string in_enableline,
                 hop_possible++;
             }
 
-            // Assign the initial channel - if one hasn't been requested specifically, 
-            // use the prototype default.  cur_ch is treated as the initial channel 
-            // when setting up the card.
+            // Assign the initial channel - the kismet command line takes the highest
+            // priority, then if they defined a quad-element sourceline, and finally
+            // the prototype default if nothing overrides it
             if (initch_map.find(StrLower(meta->name)) != initch_map.end()) {
                 meta->cur_ch = initch_map[StrLower(meta->name)];
             } else {
-                meta->cur_ch = meta->prototype->initial_channel;
+                // If they didn't request an initial channel, and they specified one on
+                // the source line, set it to that, otherwise use the prototype initial
+                // channel
+                if (sourceline_initch > 0)
+                    meta->cur_ch = sourceline_initch;
+                else
+                    meta->cur_ch = meta->prototype->initial_channel;
             }
 
             // Assign the channels - if it doesn't have a specific name, we look for 

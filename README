@@ -213,9 +213,11 @@ Licensed under the GPL
         possible to have any number of sources defined which will be combined
         into a single packet log.
         Sources are defined with the 'source' directive.  Source lines are
-        defined with 'source=type,interface,name'.  See the section
+        defined with 'source=type,interface,name[,channel]'.  See the section
         'Capture Types' for a list of source types.  The name can be anything
-        that is useful for you to identify what source it is.
+        that is useful for you to identify what source it is.  The initial
+        channel is optional.  If an initial channel is requested on the command
+        line it will take precedence.
 
     3.  Set up channel hopping.  The default channel hopping values will
         probably be fine for most, but the speed of channel hopping can be
@@ -224,6 +226,10 @@ Licensed under the GPL
         Additional per-source fine-grained channel hopping control is available
         via the 'sourcechannels' directives, which are explained in the 
         configuration file comments.
+
+        Most users will want to use channel hopping, but remember - just like
+        it's impossible to see all of a program while channel surfing on TV,
+        channel hopping means missing some of the data on the network.
 
     4.  Set up what clients are allowed to connect.  By default this is 
         limited to 'localhost', which is fine for most users.
