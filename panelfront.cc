@@ -389,6 +389,18 @@ char *KismetHelpServer[] = {
     NULL
 };
 
+char *KismetIntroText[] = {
+    "",
+    "Welcome to the Kismet panels frontend.",
+    "Context help is available for all displays, press 'H' at any time",
+    "for more information.",
+    "",
+    "This message can be turned off by editing the kismet_ui.conf file.",
+    "",
+    "Press <Space> to continue.",  
+    NULL
+};
+
 PanelFront::PanelFront() {
     errstr[0] = '\0';
 
