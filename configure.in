@@ -229,7 +229,7 @@ if test "$wantecurses" = "yes" -o "$wantepanel" = "yes"; then
 	fi
 
 	if test "$panel" = yes; then
-		LIBS="$LIBS -lpanel"
+		CLIBS="$CLIBS -lpanel"
 		if test "$curses" = "yes"; then
         	AC_CHECK_LIB([curses], [assume_default_colors],
 				AC_DEFINE(HAVE_ASSUME_DEFAULT_COLORS, 1, AssumeDefaultColors present),
@@ -243,14 +243,15 @@ if test "$wantecurses" = "yes" -o "$wantepanel" = "yes"; then
 
 	if test "$ncurses" = yes; then
 		if test "$curses" = yes; then
-			LIBS="$LIBS -lcurses"
+			CLIBS="$CLIBS -lcurses"
 		else
-			LIBS="$LIBS -lncurses"
+			CLIBS="$CLIBS -lncurses"
 		fi
 	fi
 else
 	AC_MSG_WARN(*** Neither ncurses or panel interface will be built. ***)
 fi
+AC_SUBST(CLIBS)
 
 wantgps=yes
 AC_ARG_ENABLE(gps,
