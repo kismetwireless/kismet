@@ -1,3 +1,6 @@
+Sep 10 2002  2.5.2  Added more imagemagick exception catching/handling 
+                     to gpsmap
+                    Fixed silly typo for default image size in gpsmap
 Sep 09 2002  2.5.2  Fixed longstanding minor bug in mac_addr, failed to zero
                      longmac in some situations leading to map collisions.
                     Fixed gpsmap not reading netxml files with libz

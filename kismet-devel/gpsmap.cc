@@ -244,8 +244,8 @@ double map_avg_lat, map_avg_lon;
 
 
 // User options and defaults
-unsigned int map_width = 1280;
-unsigned int map_height = 1024;
+unsigned int map_width = 1024;
+unsigned int map_height = 1280;
 
 // Drawing features and opacity
 int draw_track = 0, draw_bounds = 0, draw_range = 0, draw_power = 0,
@@ -295,6 +295,9 @@ int *power_input_map;
 // Filtered MAC's
 string filter;
 int invert_filter = 0;
+
+// Exception/error catching
+ExceptionInfo im_exception;
 
 // Forward prototypes
 string Mac2String(uint8_t *mac, char seperator);
@@ -827,7 +830,6 @@ void calcxy (double *posx, double *posy, double lat, double lon, double pixelfac
     *posy = (map_height/2) - *posy / pixelfact;
     //*posy = *posy - yoff;
 }
-//#endif
 
 // Find the best map scale for the 'rectangle' tlat,tlon blat,blon
 long int BestMapScale(double tlat, double tlon, double blat, double blon) { /*FOLD00*/
@@ -1039,11 +1041,14 @@ void DrawNetTracks(Image *in_img, DrawInfo *in_di) { /*FOLD00*/
 
             // fill-opacity %d%% stroke-opacity %d%%
             snprintf(prim, 1024, "stroke-width %d line %d,%d %d,%d",
-                     track_width, /* track_opacity,*/
+                     track_width,
                      prev_tx, prev_ty, track_vec[vec][x].x, track_vec[vec][x].y);
 
             in_di->primitive = strdup(prim);
             DrawImage(in_img, in_di);
+            GetImageException(in_img, &im_exception);
+            if (im_exception.severity != UndefinedException)
+                CatchException(&im_exception);
 
             prev_tx = track_vec[vec][x].x;
             prev_ty = track_vec[vec][x].y;
@@ -1108,6 +1113,10 @@ void DrawNetCircles(vector<gps_network *> in_nets, Image *in_img, DrawInfo *in_d
 
         in_di->primitive = strdup(prim);
         DrawImage(in_img, in_di);
+        GetImageException(in_img, &im_exception);
+        if (im_exception.severity != UndefinedException)
+            CatchException(&im_exception);
+
     }
 }
 
@@ -1237,6 +1246,10 @@ void DrawNetHull(vector<gps_network *> in_nets, Image *in_img, DrawInfo *in_di) 
 	
         in_di->primitive = strdup(prim);
         DrawImage(in_img, in_di);
+        GetImageException(in_img, &im_exception);
+        if (im_exception.severity != UndefinedException)
+            CatchException(&im_exception);
+
     }
 
 }
@@ -1304,6 +1317,9 @@ void DrawNetBoundRects(vector<gps_network *> in_nets, Image *in_img, DrawInfo *i
 
         in_di->primitive = strdup(prim);
         DrawImage(in_img, in_di);
+        GetImageException(in_img, &im_exception);
+        if (im_exception.severity != UndefinedException)
+            CatchException(&im_exception);
 
         /*
         //d = sqrt[(x1-x2)^2 + (y1-y2)^2]
@@ -1484,6 +1500,9 @@ void DrawNetPower(Image *in_img, DrawInfo *in_di) { /*FOLD00*/
 
                 in_di->primitive = strdup(prim);
                 DrawImage(in_img, in_di);
+                GetImageException(in_img, &im_exception);
+                if (im_exception.severity != UndefinedException)
+                    CatchException(&im_exception);
 
             }
         }
@@ -1535,6 +1554,10 @@ void DrawNetCenterDot(vector<gps_network *> in_nets, Image *in_img, DrawInfo *in
                  (int) mapx, (int) mapy, (int) endx, (int) endy);
         in_di->primitive = strdup(prim);
         DrawImage(in_img, in_di);
+        GetImageException(in_img, &im_exception);
+        if (im_exception.severity != UndefinedException)
+            CatchException(&im_exception);
+
     }
 }
 
@@ -1647,7 +1670,9 @@ void DrawNetCenterText(vector<gps_network *> in_nets, Image *in_img, DrawInfo *i
 
         in_di->primitive = strdup(prim);
         DrawImage(in_img, in_di);
-
+        GetImageException(in_img, &im_exception);
+        if (im_exception.severity != UndefinedException)
+            CatchException(&im_exception);
     }
 }
 
@@ -1712,7 +1737,10 @@ void DrawNetScatterPlot(vector<gps_network *> in_nets, Image *in_img, DrawInfo *
 			scatter_opacity, scatter_opacity, mm1, mm2);
 
 		in_di->primitive = strdup(prim);
-		DrawImage(in_img, in_di);
+                DrawImage(in_img, in_di);
+                GetImageException(in_img, &im_exception);
+                if (im_exception.severity != UndefinedException)
+                    CatchException(&im_exception);
 	       
 	}
 
@@ -2075,6 +2103,12 @@ int main(int argc, char *argv[]) {
         // start up messages
     }
 
+    if ((map_width > 1024 || map_height > 1280) && mapsource == MAPSOURCE_MAPBLAST) {
+        fprintf(stderr, "WARNING:  Maximum Mapblast image size is 1024x1280.  Adjusting.\n");
+        map_width = 1024;
+        map_height = 1280;
+    }
+
     // sanity checks
 
     // no dump files
@@ -2137,11 +2171,10 @@ int main(int argc, char *argv[]) {
     // Imagemagick stuff
     Image *img = NULL;
     ImageInfo *img_info;
-    ExceptionInfo exception;
     DrawInfo *di;
 
     InitializeMagick(*argv);
-    GetExceptionInfo(&exception);
+    GetExceptionInfo(&im_exception);
     img_info = CloneImageInfo((ImageInfo *) NULL);
 
     if (optind == argc) {
@@ -2202,7 +2235,7 @@ int main(int argc, char *argv[]) {
 
     printf("Loading map into Imagemagick structures.\n");
     strcpy(img_info->filename, mapname);
-    img = ReadImage(img_info, &exception);
+    img = ReadImage(img_info, &im_exception);
 
     if (img == (Image *) NULL) {
         if (usermap) {
@@ -2233,12 +2266,12 @@ int main(int argc, char *argv[]) {
 
         printf("Loading map into Imagemagick structures.\n");
         strcpy(img_info->filename, mapname);
-        img = ReadImage(img_info, &exception);
+        img = ReadImage(img_info, &im_exception);
     }
 
     if (img == (Image *) NULL) {
         fprintf(stderr, "FATAL:  ImageMagick error:\n");
-        MagickError(exception.severity,exception.reason,exception.description);
+        MagickError(im_exception.severity, im_exception.reason, im_exception.description);
         exit(0);
     }
 
