@@ -207,9 +207,16 @@ class PcapSourceWlanng : public PcapSource {
 public:
     PcapSourceWlanng(string in_name, string in_dev) :
         PcapSource(in_name, in_dev) { }
+    int FetchChannel();
 protected:
     // Signal levels are pulled from the prism2 or avs headers so leave that as 0
     int FCSBytes();
+    int last_channel;
+
+    friend int chancontrol_wlanng_avs(const char *in_dev, int in_ch, char *in_err, 
+                                      void *in_ext);
+    friend int chancontrol_wlanng(const char *in_dev, int in_ch, char *in_err, 
+                                  void *in_ext);
 };
 
 // Override packet fetching logic on this one to discard jumbo corrupt packets

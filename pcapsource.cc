@@ -769,6 +769,15 @@ int PcapSourceWlanng::FCSBytes() {
     return 4;
 }
 
+int PcapSourceWlanng::FetchChannel() {
+    // Use wireless extensions to get the channel if we can
+#ifdef HAVE_LINUX_WIRELESS
+    return Iwconfig_Get_Channel(interface.c_str(), errstr);
+#else
+    return last_channel;
+#endif
+}
+
 // The wrt54g seems to put a fcs on it
 int PcapSourceWrt54g::FCSBytes() {
     return 4;
@@ -949,6 +958,7 @@ KisPacketSource *pcapsource_wlanng_registrant(string in_name, string in_device,
                                               char *in_err) {
     return new PcapSourceWlanng(in_name, in_device);
 }
+
 KisPacketSource *pcapsource_wrt54g_registrant(string in_name, string in_device,
                                               char *in_err) {
     return new PcapSourceWrt54g(in_name, in_device);
@@ -1569,9 +1579,13 @@ int chancontrol_wlanng(const char *in_dev, int in_ch, char *in_err, void *in_ext
              "prismheader=true >/dev/null 2>&1", in_dev, in_ch);
     if (ExecSysCmd(cmdline, in_err) < 0)
         return -1;
+
+    if (in_ext != NULL) {
+        PcapSourceWlanng *src = (PcapSourceWlanng *) in_ext;
+        src->last_channel = in_ch;
+    }
     
     return 0;
-    
 }
 
 int chancontrol_wlanng_avs(const char *in_dev, int in_ch, char *in_err, void *in_ext) {
@@ -1585,9 +1599,13 @@ int chancontrol_wlanng_avs(const char *in_dev, int in_ch, char *in_err, void *in
 
     if (ExecSysCmd(cmdline, in_err) < 0)
         return -1;
+
+    if (in_ext != NULL) {
+        PcapSourceWlanng *src = (PcapSourceWlanng *) in_ext;
+        src->last_channel = in_ch;
+    }
     
     return 0;
-    
 }
 #endif
 

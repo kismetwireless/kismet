@@ -3106,6 +3106,64 @@ int PanelFront::IntroPrinter(void *in_window) {
 }
 
 int PanelFront::ChanlockPrinter(void *in_window) {
+    kis_window *kwin = (kis_window *) in_window;
+
+    if (color)
+        wattrset(kwin->win, color_map["title"].pair);
+    mvwaddstr(kwin->win, 1, 2, "Card       H Ch  Server");
+    if (color)
+        wattrset(kwin->win, color_map["text"].pair);
+
+    int voffset = 2;
+    int num = 0;
+
+    char line[1024];
+    int w = kwin->print_width;
+    if (w >= 1024)
+        w = 1023;
+
+    context_cardlist.clear();
+
+    for (unsigned int x = 0; x < context_list.size(); x++) {
+        if (context_list[x]->tagged == 0 || context_list[x]->client == NULL)
+            continue;
+
+        vector<TcpClient::card_info *> cl = context_list[x]->client->FetchCardList();
+        for (unsigned int y = 0; y < cl.size(); y++) {
+            cardinfo_context ctx;
+            ctx.context = context_list[x];
+            ctx.cardinfo = cl[y];
+            context_cardlist.push_back(ctx);
+        }
+    }
+    
+    for (int x = (int) kwin->start; x < (int) context_cardlist.size() &&
+         num < kwin->max_display - voffset; x++, num++) {
+
+        if (color)
+            wattrset(kwin->win, color_map["text"].pair);
+
+        if ((x - kwin->start) == kwin->selected) {
+            wattron(kwin->win, A_REVERSE);
+            memset(line, ' ', 1024);
+            line[w] = '\0';
+            mvwaddstr(kwin->win, num+voffset, 1, line);
+        }
+        // Card:10 Hop:1 Chan:3 server:20
+        
+        snprintf(line, w, " %-10s %c %.3d %-20s",
+                 context_cardlist[x].cardinfo->username.c_str(),
+                 context_cardlist[x].cardinfo->hopping ? 'Y' : 'N',
+                 context_cardlist[x].cardinfo->channel,
+                 context_cardlist[x].context->client->FetchServername().c_str());
+
+        mvwaddstr(kwin->win, num+voffset, 1, line);
+
+        if ((x - kwin->start) == kwin->selected)
+            wattroff(kwin->win, A_REVERSE);
+
+        kwin->end = x;
+    }
 
     return 1;
 }
