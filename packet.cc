@@ -112,6 +112,10 @@ void GetPacketInfo(const pkthdr *header, const u_char *data,
     if (ret_packinfo == NULL)
         return;
 
+    // Screen capture-level errors
+    if (header->error == 1)
+        ret_packinfo->type = packet_noise;
+
     frame_control *fc = (frame_control *) data;
 
     uint16_t duration = 0;

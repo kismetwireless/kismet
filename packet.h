@@ -110,6 +110,7 @@ typedef struct {
     int quality;
     int signal;
     int noise;
+    int error;                  // Capture source told us this was a bad packet
 } pkthdr;
 
 #ifdef WORDS_BIGENDIAN

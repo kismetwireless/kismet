@@ -214,9 +214,6 @@ int Wsp100Source::Wsp2Common(pkthdr *in_header, u_char *in_data) {
         return 0;
     }
 
-    // Placeholder for time
-    uint32_t time_sec;
-
     // Iterate through the dynamic list of tags
     uint8_t pos = 4;
     while (pos < read_len) {
@@ -245,8 +242,17 @@ int Wsp100Source::Wsp2Common(pkthdr *in_header, u_char *in_data) {
             break;
         case WSP100_TAG_RADIO_TIME:
             len = data[pos++];
-            time_sec = kptoh32(&data[pos]);
-            in_header->ts.tv_sec = time_sec;
+
+            /*
+             Either the packet timestamp or my decoding of it is broken, so put our
+             own timestamp in
+
+             time_sec = kptoh32(&data[pos]);
+             in_header->ts.tv_sec = time_sec;
+             */
+
+            gettimeofday(&in_header->ts, NULL);
+
             break;
         case WSP100_TAG_RADIO_MSG:
             // We don't really care about this since we get the packet type from
@@ -264,6 +270,7 @@ int Wsp100Source::Wsp2Common(pkthdr *in_header, u_char *in_data) {
         case WSP100_TAG_RADIO_FCSERR:
             // We need to find a way to handle this to flag a noise/error packet
             len = data[pos++];
+            in_header->error = 1;
             break;
         case WSP100_TAG_RADIO_CHANNEL:
             // We get this off the other data inside the packets so we ignore this...
