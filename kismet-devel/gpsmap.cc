@@ -526,6 +526,10 @@ int ProcessGPSFile(char *in_fname) {
         if (file_points[i]->fix < 2)
             continue;
 
+        // Don't process track data if not needed
+        if (!draw_track && strncmp(file_points[i]->bssid, gps_track_bssid, MAC_STR_LEN) == 0)
+            continue;
+
         double lat, lon, alt, spd;
         int fix;
 
