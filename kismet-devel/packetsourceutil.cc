@@ -478,10 +478,21 @@ void CapSourceText(string in_text, KisRingBuffer *in_buf) {
 
 }
 
-// Signal catcher
+// Nasty middle-of-file global - these are just to let the signal catcher know who we are
+pid_t capchild_global_pid;
+capturesource *capchild_global_capturesource;
+
+// Signal catchers
 void CapSourceSignal(int sig) {
-    fprintf(stderr, "Fatal: Capture child got signal %d, dying.\n", sig);
+    fprintf(stderr, "FATAL: Capture child got signal %d, dying.\n", sig);
     exit(0);
+}
+
+void CapSourceUserSignal(int sig) {
+    fprintf(stderr, "Capture child %d asked to die (via signal), shutting down.\n",
+           capchild_global_pid);
+    capchild_global_capturesource->source->CloseSource();
+    exit(1);
 }
 
 // Handle doing things as a child
@@ -493,10 +504,15 @@ void CapSourceChild(capturesource *csrc) {
     pid_t mypid = getpid();
     uint32_t sentinel = CAPSENTINEL;
 
+    // Assign globals for signal handler
+    capchild_global_pid = mypid;
+    capchild_global_capturesource = csrc;
+
     signal(SIGINT, SIG_IGN);
     signal(SIGTERM, SIG_IGN);
     signal(SIGHUP, SIG_IGN);
-    signal(SIGPIPE, SIG_IGN);
+    signal(SIGPIPE, CapSourceSignal);
+    signal(SIGUSR1, CapSourceUserSignal);
 
     // Make a large ring buffer of packet bits
     KisRingBuffer *ringbuf = new KisRingBuffer(MAX_PACKET_LEN * 50);
@@ -593,7 +609,7 @@ void CapSourceChild(capturesource *csrc) {
 
         // Obey commands coming in
         if (FD_ISSET(csrc->servpair[0], &rset)) {
-            int8_t cmd;
+            int8_t cmd = 0;
 
             if (read(csrc->servpair[0], &cmd, 1) < 0) {
                 fprintf(stderr, "FATAL:  capture child %d command read() error %d (%s)", mypid, errno, strerror(errno));
@@ -617,6 +633,7 @@ void CapSourceChild(capturesource *csrc) {
             } else if (cmd == CAPCMD_SILENT) {
                 silent = 1;
             } else if (cmd == CAPCMD_DIE) {
+                fprintf(stderr, "Capture child %d asked to die, shutting down.\n", mypid);
                 csrc->source->CloseSource();
                 exit(1);
             } else if (cmd == CAPCMD_PAUSE) {
