@@ -29,6 +29,7 @@ Kismet Frequently Asked Questions
 * Redhat 7.3 says it isn't in monitor mode even after I run kismet_monitor!
 * Why do I see more clients in the seperate networks than I do in a group?
 * Kismet says "No 'suiduser' option in the config file" and exits
+* Where do the manufacturer fingerprints come from?
 
 Q: How do I convert older binary GPS files to the new XML format?
 A: Use the utility "kismet2xml" in the extras/ directory.
@@ -178,4 +179,8 @@ Q: Kismet says "No 'suiduser' option in the config file" and exits
 A: You need to upgrade your config.  Use 'make force_install' and then edit the
 config to match your system again.
 
+
+Q: Where do the manufacturer fingerprints come from?
+A: The manufacturer fingerprints come from a database designed and managed by
+pr00f at http://unbolted.net.
 

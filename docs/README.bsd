@@ -1,26 +1,16 @@
 BSD support
 
 Kismet should configure and compile cleanly on OpenBSD and on Mac OSX/Darwin
-flavored BSD.  I have not been able to test it on NetBSD yet, but there is 
-no reason it shouldn't work.
+flavored BSD.  
+
+Due to problems with the wireless drivers in FreeBSD, Kismet may not perform
+well or at all.  Thanks to the efforts of Pedro la Peu, Kismet WILL function
+without problems on OpenBSD 3.2.
 
 The standard './configure' script should detect your OS and configure itself
 accordingly.  It is vital that you use 'gmake' instead of 'make' to 
 compile however -- most *BSD make's do NOT like the GNU makefile format very
 much.
-
-You may need to install the ncurses terminal control library to gain support
-for the panels interface.
-
-Currently the prism2/hermes drivers for BSD (Free and Open) do not come with
-a method to enable monitor mode.  BSD-airtools from
-http://www.dachb0den.com/projects/bsd-airtools.html includes a program to
-set the appropriate ioctls.  kismet_monitor and kismet_hopper expect these to
-be present.
-
-Mac OSX commercial drivers do not support rfmon, and cannot be used.  However,
-the thirdparty drivers at http://wirelessdriver.sourceforge.net may function
-but have not been tested.
 
 I'm definitely NOT a BSD expert.  If you experience problems, probably the best
 course to take is to report them to the mailing list 

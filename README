@@ -1,5 +1,5 @@
-Kismet 2.4.5
-Mike Kershaw <dragorn@nerv-un.net>
+Kismet 2.6
+Mike Kershaw <dragorn@kismetwireless.net>
 http://www.kismetwireless.net/
 Licensed under the GPL
 
@@ -17,7 +17,6 @@ Licensed under the GPL
   Cisco product detection via CDP
   Ethereal and tcpdump compatable file logging
   Airsnort-compatable "interesting" (cryptographically weak) logging
-  Secure SUID behavior
   Cloaked network detection
   Grouping and custom naming of SSIDs
   Multiple clients viewing a single capture stream
@@ -25,6 +24,7 @@ Licensed under the GPL
   Cross-platform support (handheld linux and BSD)
   Manufacturer identification
   Default factory setup detection 
+  Detection of Netstumbler clients
 
 * Quick start
   All of this will make more sense if you read the docs for each segment.
