@@ -180,12 +180,12 @@ KisPacketSource *prism2source_registrant(string in_name, string in_device, char 
     return new Prism2Source(in_name, in_device);
 }
 
-int monitor_wlanng_legacy(const char *in_dev, int initch, char *in_err, void *in_if) {
+int monitor_wlanng_legacy(const char *in_dev, int initch, char *in_err, void **in_if) {
     // I really didn't want to do this...
     char cmdline[2048];
 
     // Bring the device up, zero its ip, and set promisc
-    if (Ifconfig_Linux(in_dev, in_err) < 0)
+    if (Ifconfig_Set_Linux(in_dev, in_err, NULL, NULL, NULL, NULL, 0) < 0)
         return -1;
 
     // Enable the interface

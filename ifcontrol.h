@@ -46,7 +46,19 @@
 
 #ifdef SYS_LINUX
 // Bring up an interface in promisc mode with no IP in linux
-int Ifconfig_Linux(const char *in_dev, char *errstr);
+int Ifconfig_Set_Linux(const char *in_dev, char *errstr, 
+                       struct sockaddr_in *ifaddr, 
+                       struct sockaddr_in *dstaddr, 
+                       struct sockaddr_in *broadaddr, 
+                       struct sockaddr_in *maskaddr, 
+                       short flags);
+
+int Ifconfig_Get_Linux(const char *in_dev, char *errstr, 
+                       struct sockaddr_in *ifaddr, 
+                       struct sockaddr_in *dstaddr, 
+                       struct sockaddr_in *broadaddr, 
+                       struct sockaddr_in *maskaddr, 
+                       short *flags);
 #endif
 
 #ifdef HAVE_LINUX_WIRELESS

@@ -53,7 +53,8 @@ int RegisterKismetSources(Packetsourcetracker *sourcetracker) {
                                        monitor_cisco_wifix, NULL, NULL, 1);
     sourcetracker->RegisterPacketsource("hostap", 1, "IEEE80211b", 6,
                                        pcapsource_wext_registrant,
-                                       monitor_hostap, NULL, chancontrol_wext, 1);
+                                       monitor_hostap, unmonitor_hostap, 
+                                       chancontrol_wext, 1);
     sourcetracker->RegisterPacketsource("orinoco", 1, "IEEE80211b", 6,
                                        pcapsource_wext_registrant,
                                        monitor_orinoco, NULL, chancontrol_orinoco, 1);
@@ -89,7 +90,7 @@ int RegisterKismetSources(Packetsourcetracker *sourcetracker) {
 
     sourcetracker->RegisterPacketsource("wlanng_wext", 1, "IEEE80211b", 6,
                                         pcapsource_wlanng_registrant,
-                                        monitor_wlanng_avs, NULL,
+                                        monitor_wlanng_avs, unmonitor_wlanng_avs,
                                         chancontrol_wext, 1);
 
 #else
@@ -118,7 +119,7 @@ int RegisterKismetSources(Packetsourcetracker *sourcetracker) {
                                        monitor_wlanng, NULL, chancontrol_wlanng, 1);
     sourcetracker->RegisterPacketsource("wlanng_avs", 1, "IEEE80211b", 6,
                                        pcapsource_wlanng_registrant,
-                                       monitor_wlanng_avs, NULL, 
+                                       monitor_wlanng_avs, unmonitor_wlanng_avs,
                                        chancontrol_wlanng_avs, 1);
     sourcetracker->RegisterPacketsource("wrt54g", 1, "na", 0,
                                         pcapsource_wrt54g_registrant,

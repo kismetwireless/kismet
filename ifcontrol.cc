@@ -20,10 +20,15 @@
 #include "ifcontrol.h"
 
 #ifdef SYS_LINUX
-int Ifconfig_Linux(const char *in_dev, char *errstr) {
+int Ifconfig_Set_Linux(const char *in_dev, char *errstr, 
+                       struct sockaddr_in *ifaddr, 
+                       struct sockaddr_in *dstaddr, 
+                       struct sockaddr_in *broadaddr, 
+                       struct sockaddr_in *maskaddr, 
+                       short flags) {
     struct ifreq ifr;
     int skfd;
-    struct sockaddr_in sin;
+    struct sockaddr_in loc;
 
     if ((skfd = socket(AF_INET, SOCK_DGRAM, 0)) < 0) {
         snprintf(errstr, STATUS_MAX, "Failed to create AF_INET DGRAM socket. %d:%s",
@@ -31,30 +36,149 @@ int Ifconfig_Linux(const char *in_dev, char *errstr) {
         return -1;
     }
 
+    // If we're setting an IP, we're setting absolute flags, otherwise we're setting
+    // up, running, promisc.
     strncpy(ifr.ifr_name, in_dev, IFNAMSIZ);
     if (ioctl(skfd, SIOCGIFFLAGS, &ifr) < 0) {
-        snprintf(errstr, STATUS_MAX, "Unknown interface %s: %s", in_dev, strerror(errno));
+        snprintf(errstr, STATUS_MAX, "Unknown interface %s: %s", 
+                 in_dev, strerror(errno));
         close(skfd);
         return -1;
     }
-
     strncpy(ifr.ifr_name, in_dev, IFNAMSIZ);
-    ifr.ifr_flags |= (IFF_UP | IFF_RUNNING | IFF_PROMISC);    
+
+    if (ifaddr == NULL) {
+        ifr.ifr_flags |= (IFF_UP | IFF_RUNNING | IFF_PROMISC);    
+    } else {
+        ifr.ifr_flags = flags;
+    }
+
     if (ioctl(skfd, SIOCSIFFLAGS, &ifr) < 0) {
-        snprintf(errstr, STATUS_MAX, "Failed to set interface up, running, and promisc %d:%s", errno, strerror(errno));
+        snprintf(errstr, STATUS_MAX, "Failed to set interface flags: %s", 
+                 strerror(errno));
         close(skfd);
         return -1;
     }  
 
     strncpy(ifr.ifr_name, in_dev, IFNAMSIZ);
-    memset(&sin, 0, sizeof(sockaddr_in));
-    sin.sin_family = AF_INET;
-    memcpy(&ifr.ifr_addr, &sin, sizeof(struct sockaddr));
+
+    if (ifaddr == NULL) {
+        memset(&loc, 0, sizeof(sockaddr_in));
+        loc.sin_family = AF_INET;
+    } else {
+        memcpy(&loc, ifaddr, sizeof(sockaddr_in));
+    }
+    memcpy(&ifr.ifr_addr, &loc, sizeof(struct sockaddr));
+
     if (ioctl(skfd, SIOCSIFADDR, &ifr) < 0) {
-        snprintf(errstr, STATUS_MAX, "Failed to set interface address to 0.0.0.0 %d:%s", errno, strerror(errno));
+        snprintf(errstr, STATUS_MAX, "Failed to set interface address: %s",
+                 strerror(errno));
         close(skfd);
         return -1;
     }
+
+    if (dstaddr != NULL) {
+        strncpy(ifr.ifr_name, in_dev, IFNAMSIZ);
+        memcpy(&ifr.ifr_dstaddr, dstaddr, sizeof(struct sockaddr));
+
+        if (ioctl(skfd, SIOCSIFDSTADDR, &ifr) < 0) {
+            snprintf(errstr, STATUS_MAX, "Failed to set interface dest address: %s",
+                     strerror(errno));
+            close(skfd);
+            return -1;
+        }
+    }
+
+    if (broadaddr != NULL) {
+        strncpy(ifr.ifr_name, in_dev, IFNAMSIZ);
+        memcpy(&ifr.ifr_broadaddr, broadaddr, sizeof(struct sockaddr));
+
+        if (ioctl(skfd, SIOCSIFBRDADDR, &ifr) < 0) {
+            snprintf(errstr, STATUS_MAX, "Failed to set interface bcast address: %s",
+                     strerror(errno));
+            close(skfd);
+            return -1;
+        }
+    }
+
+    if (maskaddr != NULL) {
+        strncpy(ifr.ifr_name, in_dev, IFNAMSIZ);
+        memcpy(&ifr.ifr_netmask, maskaddr, sizeof(struct sockaddr));
+
+        if (ioctl(skfd, SIOCSIFNETMASK, &ifr) < 0) {
+            snprintf(errstr, STATUS_MAX, "Failed to set interface netmask: %s",
+                     strerror(errno));
+            close(skfd);
+            return -1;
+        }
+    }
+
+    close(skfd);
+    return 0;
+}
+
+int Ifconfig_Get_Linux(const char *in_dev, char *errstr, 
+                       struct sockaddr_in *ifaddr, 
+                       struct sockaddr_in *dstaddr, 
+                       struct sockaddr_in *broadaddr, 
+                       struct sockaddr_in *maskaddr, 
+                       short *flags) {
+    struct ifreq ifr;
+    int skfd;
+
+    if ((skfd = socket(AF_INET, SOCK_DGRAM, 0)) < 0) {
+        snprintf(errstr, STATUS_MAX, "Failed to create AF_INET DGRAM socket. %d:%s",
+                 errno, strerror(errno));
+        return -1;
+    }
+
+    // Fetch interface flags
+    strncpy(ifr.ifr_name, in_dev, IFNAMSIZ);
+    if (ioctl(skfd, SIOCGIFFLAGS, &ifr) < 0) {
+        snprintf(errstr, STATUS_MAX, "Unknown interface %s: %s", 
+                 in_dev, strerror(errno));
+        close(skfd);
+        return -1;
+    }
+
+    (*flags) = ifr.ifr_flags;
+
+    // Fetch interface addresses
+    strncpy(ifr.ifr_name, in_dev, IFNAMSIZ);
+    if (ioctl(skfd, SIOCGIFADDR, &ifr) < 0) {
+        snprintf(errstr, STATUS_MAX, "Failed to get interface address: %s", 
+                 strerror(errno));
+        close(skfd);
+        return -1;
+    }
+    memcpy(ifaddr, &ifr.ifr_addr, sizeof(struct sockaddr));
+
+    strncpy(ifr.ifr_name, in_dev, IFNAMSIZ);
+    if (ioctl(skfd, SIOCGIFDSTADDR, &ifr) < 0) {
+        snprintf(errstr, STATUS_MAX, "Failed to get interface dest address: %s", 
+                 strerror(errno));
+        close(skfd);
+        return -1;
+    }
+    memcpy(dstaddr, &ifr.ifr_dstaddr, sizeof(struct sockaddr));
+
+    strncpy(ifr.ifr_name, in_dev, IFNAMSIZ);
+    if (ioctl(skfd, SIOCGIFBRDADDR, &ifr) < 0) {
+        snprintf(errstr, STATUS_MAX, "Failed to get interface bcast address: %s", 
+                 strerror(errno));
+        close(skfd);
+        return -1;
+    }
+    memcpy(broadaddr, &ifr.ifr_broadaddr, sizeof(struct sockaddr));
+
+    strncpy(ifr.ifr_name, in_dev, IFNAMSIZ);
+    if (ioctl(skfd, SIOCGIFNETMASK, &ifr) < 0) {
+        snprintf(errstr, STATUS_MAX, "Failed to get interface netmask: %s", 
+                 strerror(errno));
+        close(skfd);
+        return -1;
+    }
+    memcpy(maskaddr, &ifr.ifr_netmask, sizeof(struct sockaddr));
 
     close(skfd);
     return 0;

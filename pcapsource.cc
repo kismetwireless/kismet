@@ -982,12 +982,12 @@ KisPacketSource *pcapsource_radiotap_registrant(string in_name, string in_device
 // Monitor commands
 #ifdef HAVE_LINUX_WIRELESS
 // Cisco uses its own config file in /proc to control modes
-int monitor_cisco(const char *in_dev, int initch, char *in_err, void *in_if) {
+int monitor_cisco(const char *in_dev, int initch, char *in_err, void **in_if) {
     FILE *cisco_config;
     char cisco_path[128];
 
     // Bring the device up, zero its ip, and set promisc
-    if (Ifconfig_Linux(in_dev, in_err) < 0)
+    if (Ifconfig_Set_Linux(in_dev, in_err, NULL, NULL, NULL, NULL, 0) < 0)
         return -1;
 
     // Zero the ssid
@@ -1018,7 +1018,7 @@ int monitor_cisco(const char *in_dev, int initch, char *in_err, void *in_if) {
 //
 // I was doing this with ioctls but that seems to cause lockups while
 // this method doesn't.  I don't think I like these drivers.
-int monitor_cisco_wifix(const char *in_dev, int initch, char *in_err, void *in_if) {
+int monitor_cisco_wifix(const char *in_dev, int initch, char *in_err, void **in_if) {
     FILE *cisco_config;
     char cisco_path[128];
     vector<string> devbits = StrTokenize(in_dev, ":");
@@ -1029,9 +1029,9 @@ int monitor_cisco_wifix(const char *in_dev, int initch, char *in_err, void *in_i
     }
 
     // Bring the device up, zero its ip, and set promisc
-    if (Ifconfig_Linux(devbits[0].c_str(), in_err) < 0)
+    if (Ifconfig_Set_Linux(devbits[0].c_str(), in_err, NULL, NULL, NULL, NULL, 0) < 0)
         return -1;
-    if (Ifconfig_Linux(devbits[1].c_str(), in_err) < 0)
+    if (Ifconfig_Set_Linux(devbits[1].c_str(), in_err, NULL, NULL, NULL, NULL, 0) < 0)
         return -1;
 
     // Zero the ssid
@@ -1061,9 +1061,18 @@ int monitor_cisco_wifix(const char *in_dev, int initch, char *in_err, void *in_i
 }
 
 // Hostap uses iwpriv and iwcontrol settings to control monitor mode
-int monitor_hostap(const char *in_dev, int initch, char *in_err, void *in_if) {
+int monitor_hostap(const char *in_dev, int initch, char *in_err, void **in_if) {
     int ret;
-   
+  
+    // Allocate a tracking record for the interface settings and remember our
+    // setup
+    linux_ifparm *ifparm = (linux_ifparm *) malloc(sizeof(linux_ifparm));
+    (*in_if) = ifparm;
+    if (Ifconfig_Get_Linux(in_dev, in_err, &ifparm->ifaddr, &ifparm->dstaddr,
+                           &ifparm->broadaddr, &ifparm->maskaddr, &ifparm->flags) < 0) {
+        return -1;
+    }
+    
     // Try to use the iwpriv command to set monitor mode.  Some versions of
     // hostap require this, some don't, so don't fail on the monitor ioctl
     // if we can't find it, it might get removed in the future.
@@ -1083,12 +1092,32 @@ int monitor_hostap(const char *in_dev, int initch, char *in_err, void *in_if) {
     return 0;
 }
 
+int unmonitor_hostap(const char *in_dev, int initch, char *in_err, void **in_if) {
+
+    // Restore the IP settings
+    linux_ifparm *ifparm = (linux_ifparm *) (*in_if);
+
+    if (Ifconfig_Set_Linux(in_dev, in_err, &ifparm->ifaddr, &ifparm->dstaddr,
+                           &ifparm->broadaddr, &ifparm->maskaddr, ifparm->flags) < 0) {
+        return -1;
+    }
+
+    // Restore normal mode with iwpriv for now
+    if (Iwconfig_Set_IntPriv(in_dev, "monitor", 0, 0, in_err) < 0) {
+        return -1;
+    }
+
+    free(ifparm);
+
+    return 0;
+}
+
 // Orinoco uses iwpriv and iwcontrol settings to control monitor mode
-int monitor_orinoco(const char *in_dev, int initch, char *in_err, void *in_if) {
+int monitor_orinoco(const char *in_dev, int initch, char *in_err, void **in_if) {
     int ret;
     
     // Bring the device up, zero its ip, and set promisc
-    if (Ifconfig_Linux(in_dev, in_err) < 0) 
+    if (Ifconfig_Set_Linux(in_dev, in_err, NULL, NULL, NULL, NULL, 0) < 0) 
         return -1;
 
     // Zero the ssid
@@ -1116,7 +1145,7 @@ int monitor_orinoco(const char *in_dev, int initch, char *in_err, void *in_if) {
 }
 
 // Acx100 uses the packhdr iwpriv control to set link state, rest is normal
-int monitor_acx100(const char *in_dev, int initch, char *in_err, void *in_if) {
+int monitor_acx100(const char *in_dev, int initch, char *in_err, void **in_if) {
     // Set the packhdr iwpriv control to 1
     if (Iwconfig_Set_IntPriv(in_dev, "packhdr", 1, 0, in_err) < 0) {
         return -1;
@@ -1130,7 +1159,7 @@ int monitor_acx100(const char *in_dev, int initch, char *in_err, void *in_if) {
 }
 
 // vtar5k iwpriv control to set link state, rest is normal
-int monitor_vtar5k(const char *in_dev, int initch, char *in_err, void *in_if) {
+int monitor_vtar5k(const char *in_dev, int initch, char *in_err, void **in_if) {
     // Set the prism iwpriv control to 1
     if (Iwconfig_Set_IntPriv(in_dev, "prism", 1, 0, in_err) < 0) {
         return -1;
@@ -1144,7 +1173,7 @@ int monitor_vtar5k(const char *in_dev, int initch, char *in_err, void *in_if) {
 }
 
 // Madwifi stuff uses iwpriv mode
-int monitor_madwifi_a(const char *in_dev, int initch, char *in_err, void *in_if) {
+int monitor_madwifi_a(const char *in_dev, int initch, char *in_err, void **in_if) {
     if (Iwconfig_Set_IntPriv(in_dev, "mode", 1, 0, in_err) < 0)
         return -1;
 
@@ -1155,7 +1184,7 @@ int monitor_madwifi_a(const char *in_dev, int initch, char *in_err, void *in_if)
     return 0;
 }
 
-int monitor_madwifi_b(const char *in_dev, int initch, char *in_err, void *in_if) {
+int monitor_madwifi_b(const char *in_dev, int initch, char *in_err, void **in_if) {
     if (Iwconfig_Set_IntPriv(in_dev, "mode", 2, 0, in_err) < 0)
         return -1;
 
@@ -1166,7 +1195,7 @@ int monitor_madwifi_b(const char *in_dev, int initch, char *in_err, void *in_if)
     return 0;
 }
 
-int monitor_madwifi_g(const char *in_dev, int initch, char *in_err, void *in_if) {
+int monitor_madwifi_g(const char *in_dev, int initch, char *in_err, void **in_if) {
     if (Iwconfig_Set_IntPriv(in_dev, "mode", 3, 0, in_err) < 0)
         return -1;
 
@@ -1177,7 +1206,7 @@ int monitor_madwifi_g(const char *in_dev, int initch, char *in_err, void *in_if)
     return 0;
 }
 
-int monitor_madwifi_comb(const char *in_dev, int initch, char *in_err, void *in_if) {
+int monitor_madwifi_comb(const char *in_dev, int initch, char *in_err, void **in_if) {
     if (Iwconfig_Set_IntPriv(in_dev, "mode", 0, 0, in_err) < 0)
         return -1;
 
@@ -1190,7 +1219,7 @@ int monitor_madwifi_comb(const char *in_dev, int initch, char *in_err, void *in_
 
 // Call the standard monitor but ignore error codes since channel
 // setting won't work.  This is a temp kluge.
-int monitor_prism54g(const char *in_dev, int initch, char *in_err, void *in_if) {
+int monitor_prism54g(const char *in_dev, int initch, char *in_err, void **in_if) {
     int ret = monitor_wext(in_dev, initch, in_err, in_if);
 
     if (ret < 0 && ret != -2)
@@ -1200,12 +1229,12 @@ int monitor_prism54g(const char *in_dev, int initch, char *in_err, void *in_if) 
 }
 
 // "standard" wireless extension monitor mode
-int monitor_wext(const char *in_dev, int initch, char *in_err, void *in_if) {
+int monitor_wext(const char *in_dev, int initch, char *in_err, void **in_if) {
     struct iwreq wrq;
     int skfd;
 
     // Bring the device up, zero its ip, and set promisc
-    if (Ifconfig_Linux(in_dev, in_err) < 0) 
+    if (Ifconfig_Set_Linux(in_dev, in_err, NULL, NULL, NULL, NULL, 0) < 0) 
         return -1;
 
     // Zero the ssid
@@ -1263,7 +1292,7 @@ int monitor_wext(const char *in_dev, int initch, char *in_err, void *in_if) {
 
 #ifdef SYS_LINUX
 // wlan-ng modern standard
-int monitor_wlanng(const char *in_dev, int initch, char *in_err, void *in_if) {
+int monitor_wlanng(const char *in_dev, int initch, char *in_err, void **in_if) {
     // I really didn't want to do this...
     char cmdline[2048];
 
@@ -1277,7 +1306,7 @@ int monitor_wlanng(const char *in_dev, int initch, char *in_err, void *in_if) {
     }
     
     // Bring the device up, zero its ip, and set promisc
-    if (Ifconfig_Linux(in_dev, in_err) < 0) 
+    if (Ifconfig_Set_Linux(in_dev, in_err, NULL, NULL, NULL, NULL, 0) < 0) 
         return -1;
 
     // Enable the interface
@@ -1304,9 +1333,18 @@ int monitor_wlanng(const char *in_dev, int initch, char *in_err, void *in_if) {
 }
 
 // wlan-ng avs
-int monitor_wlanng_avs(const char *in_dev, int initch, char *in_err, void *in_if) {
+int monitor_wlanng_avs(const char *in_dev, int initch, char *in_err, void **in_if) {
     // I really didn't want to do this...
     char cmdline[2048];
+
+    // Allocate a tracking record for the interface settings and remember our
+    // setup
+    linux_ifparm *ifparm = (linux_ifparm *) malloc(sizeof(linux_ifparm));
+    (*in_if) = ifparm;
+    if (Ifconfig_Get_Linux(in_dev, in_err, &ifparm->ifaddr, &ifparm->dstaddr,
+                           &ifparm->broadaddr, &ifparm->maskaddr, &ifparm->flags) < 0) {
+        return -1;
+    }
 
     // Sanitize the device just to be safe.  The ifconfig should fail if
     // the device is invalid, but why take risks
@@ -1318,7 +1356,7 @@ int monitor_wlanng_avs(const char *in_dev, int initch, char *in_err, void *in_if
     }
 
     // Bring the device up, zero its ip, and set promisc
-    if (Ifconfig_Linux(in_dev, in_err) < 0) 
+    if (Ifconfig_Set_Linux(in_dev, in_err, NULL, NULL, NULL, NULL, 0) < 0) 
         return -1;
 
     // Enable the interface
@@ -1347,7 +1385,22 @@ int monitor_wlanng_avs(const char *in_dev, int initch, char *in_err, void *in_if
     return 0;
 }
 
-int monitor_wrt54g(const char *in_dev, int initch, char *in_err, void *in_if) {
+int unmonitor_wlanng_avs(const char *in_dev, int initch, char *in_err, void **in_if) {
+    // Restore the IP settings
+    linux_ifparm *ifparm = (linux_ifparm *) (*in_if);
+
+    printf("debug - unmonitoring wlanng\n");
+    if (Ifconfig_Set_Linux(in_dev, in_err, &ifparm->ifaddr, &ifparm->dstaddr,
+                           &ifparm->broadaddr, &ifparm->maskaddr, ifparm->flags) < 0) {
+        return -1;
+    }
+
+    free(ifparm);
+
+    return 0;
+}
+
+int monitor_wrt54g(const char *in_dev, int initch, char *in_err, void **in_if) {
     char cmdline[2048];
 
     snprintf(cmdline, 2048, "/usr/sbin/wl monitor 1");
@@ -1361,7 +1414,7 @@ int monitor_wrt54g(const char *in_dev, int initch, char *in_err, void *in_if) {
 
 #ifdef SYS_OPENBSD
 // This should be done programattically...
-int monitor_openbsd_cisco(const char *in_dev, int initch, char *in_err, void *in_if) {
+int monitor_openbsd_cisco(const char *in_dev, int initch, char *in_err, void **in_if) {
     char cmdline[2048];
 
     // Sanitize the device just to be safe.  The ifconfig should fail if
@@ -1388,7 +1441,7 @@ int monitor_openbsd_cisco(const char *in_dev, int initch, char *in_err, void *in
     return 0;
 }
 
-int monitor_openbsd_prism2(const char *in_dev, int initch, char *in_err, void *in_if) {
+int monitor_openbsd_prism2(const char *in_dev, int initch, char *in_err, void **in_if) {
     struct wi_req wreq;
     struct ifreq ifr;
     int s, flags;
@@ -1840,7 +1893,7 @@ bool FreeBSD::chancontrol(int in_ch) {
     return set80211(IEEE80211_IOC_CHANNEL, in_ch, 0, NULL);
 }
 
-int monitor_freebsd(const char *in_dev, int initch, char *in_err, void *in_if) {
+int monitor_freebsd(const char *in_dev, int initch, char *in_err, void **in_if) {
     FreeBSD bsd(in_dev);
     if (!bsd.monitor_enable(initch)) {
         strcpy(in_err, bsd.geterror());
@@ -1850,7 +1903,7 @@ int monitor_freebsd(const char *in_dev, int initch, char *in_err, void *in_if) {
     }
 }
 
-int unmonitor_freebsd(const char *in_dev, int initch, char *in_err, void *in_if) {
+int unmonitor_freebsd(const char *in_dev, int initch, char *in_err, void **in_if) {
     FreeBSD bsd(in_dev);
     if (!bsd.monitor_reset(initch)) {
 	strcpy(in_err, bsd.geterror());
