@@ -1,4 +1,6 @@
-Nov 02 2002  2.7.1  Initial multiclient support
+Nov 02 2002  2.7.1  Initial multiserver support
+                    Completed all basic multiserver functionality ('e' in
+                     panels interface)
 Nov 01 2002  2.7.1  Rolled in patch from Russel Griffith to handle the 'time'
                      option in the logfile templates.
 Oct 30 2002  2.7.1  Fixed shadowing bug in dumpfile code

@@ -2466,7 +2466,7 @@ int PanelFront::ServerJoinPrinter(void *in_window) {
     if (print_width > 31)
         print_width = 31;
 
-    mvwaddstr(kwin->win, 1, 2, "Server (host::port):");
+    mvwaddstr(kwin->win, 1, 2, "Server (host:port):");
 
     // The text field is reversed
     wattron(kwin->win, WA_REVERSE);
@@ -2500,6 +2500,7 @@ int PanelFront::ServerJoinPrinter(void *in_window) {
     if (sscanf(targclient, "%1024[^:]:%d", host, &port) != 2) {
         snprintf(msg, 1024, "Illegal server '%s'.", targclient);
         WriteStatus(msg);
+        return 0;
     }
 
     snprintf(msg, 1024, "Connecting to server '%s:%d'.", host, port);

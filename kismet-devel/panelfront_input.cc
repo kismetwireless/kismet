@@ -767,6 +767,8 @@ int PanelFront::DetailsClientInput(void *in_window, int in_chr) {
 }
 
 int PanelFront::ServersInput(void *in_window, int in_chr) {
+    kis_window *kwin = (kis_window *) in_window;
+    char msg[1024];
 
     switch (in_chr) {
     case 'h':
@@ -774,12 +776,76 @@ int PanelFront::ServersInput(void *in_window, int in_chr) {
         SpawnHelp(KismetHelpServer);
         break;
     case KEY_UP:
+        if (kwin->selected > 0) 
+            kwin->selected--;
+        else if (kwin->selected == 0 && kwin->start > 0)
+            kwin->start--;
         break;
     case KEY_DOWN:
+        if ((kwin->selected + kwin->start) < kwin->end)
+            kwin->selected++;
+        else if (kwin->end < ((int) context_list.size() - 1))
+            kwin->start++;
         break;
     case 'c':
     case 'C':
         SpawnWindow("New Server", &PanelFront::ServerJoinPrinter, NULL, 3, 40);
+        break;
+    case 'd':
+    case 'D':
+        if ((kwin->start + kwin->selected) < (int) context_list.size()) {
+            server_context *con = context_list[kwin->start + kwin->selected];
+            if (con->client != NULL) {
+                snprintf(msg, 1024, "Disconnecting from %s:%d",
+                         con->client->FetchHost(), con->client->FetchPort());
+                WriteStatus(msg);
+                con->client->Disconnect();
+            }
+        }
+        break;
+    case 'r':
+    case 'R':
+        if ((kwin->start + kwin->selected) < (int) context_list.size()) {
+            server_context *con = context_list[kwin->start + kwin->selected];
+            if (con->client != NULL) {
+                snprintf(msg, 1024, "Reconnecting to %s:%d",
+                         con->client->FetchHost(), con->client->FetchPort());
+                WriteStatus(msg);
+                con->client->Connect(con->client->FetchPort(), con->client->FetchHost());
+            }
+        }
+        break;
+    case 't':
+    case 'T':
+        if ((kwin->start + kwin->selected) < (int) context_list.size()) {
+            server_context *con = context_list[kwin->start + kwin->selected];
+
+            if (con->primary)
+                return 1;
+
+            if (con->tagged) {
+                con->tagged = 0;
+                PurgeGroups();
+            } else {
+                con->tagged = 1;
+            }
+        }
+        break;
+    case 'p':
+    case 'P':
+        if ((kwin->start + kwin->selected) < (int) context_list.size()) {
+            server_context *con = context_list[kwin->start + kwin->selected];
+
+            if (con->primary)
+                return 1;
+
+            for (unsigned int x = 0; x < context_list.size(); x++)
+                if (context_list[x]->primary)
+                    context_list[x]->primary = 0;
+
+            con->primary = 1;
+            con->tagged = 1;
+        }
         break;
     case 'q':
     case 'Q':

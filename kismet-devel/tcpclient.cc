@@ -55,6 +55,13 @@ TcpClient::~TcpClient() {
     sv_valid = 0;
 }
 
+void TcpClient::Disconnect() {
+    if (sv_valid)
+        close(client_fd);
+
+    sv_valid = 0;
+}
+
 int TcpClient::Connect(short int in_port, char *in_host) {
     // Copy the port to our local data
     port = in_port;
