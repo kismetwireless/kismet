@@ -1,6 +1,8 @@
 Jul 22 2003  2.9.1  Integrated not-broken heading code from gkismet to do 
                      software heading calcs.  Hopefully I didn't break it. Fix
                      to compass coming soon.
+                    Changed FCS trimming to only trim prism2 and prism2_avs
+                     card types.
 Jul 21 2003  2.9.1  Added gpsmodelock config file option to override a gps lock
                      of 0.  This will override broken GPS units that always 
                      report no lock via gpsd.

@@ -234,7 +234,11 @@ int PcapSource::Pcap2Common(kis_packet *packet, uint8_t *data, uint8_t *moddata)
 
             // We knock the FCS off the end since we don't do anything smart with
             // it anyway
-            packet->caplen = kismin(callback_header.caplen - 4 - ntohl(v1hdr->length), (uint32_t) MAX_PACKET_LEN);
+            int fcs = 0;
+            if (cardtype == card_prism2 || cardtype == card_prism2_avs)
+                fcs = 4;
+
+            packet->caplen = kismin(callback_header.caplen - fcs - ntohl(v1hdr->length), (uint32_t) MAX_PACKET_LEN);
             packet->len = packet->caplen;
 
             callback_offset = ntohl(v1hdr->length);
@@ -283,7 +287,11 @@ int PcapSource::Pcap2Common(kis_packet *packet, uint8_t *data, uint8_t *moddata)
 
             // Subtract the packet FCS since kismet doesn't do anything terribly bright
             // with it right now
-            packet->caplen = kismin(p2head->frmlen.data - 4, (uint32_t) MAX_PACKET_LEN);
+            int fcs = 0;
+            if (cardtype == card_prism2 || cardtype == card_prism2_avs)
+                fcs = 4;
+
+            packet->caplen = kismin(p2head->frmlen.data - fcs, (uint32_t) MAX_PACKET_LEN);
             packet->len = packet->caplen;
 
             // Set our offset for extracting the actual data
