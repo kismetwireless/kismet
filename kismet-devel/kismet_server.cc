@@ -1891,7 +1891,8 @@ int main(int argc,char *argv[]) {
 
                     if (process_ret == TRACKER_ALERT) {
                         NetWriteAlert(status);
-                        sound = PlaySound("alert");
+                        if (sound == 1)
+                            sound = PlaySound("alert");
                     } else {
                         NetWriteStatus(status);
                     }

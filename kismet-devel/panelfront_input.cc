@@ -507,10 +507,19 @@ void PanelFront::MuteToggle() {
 }
 
 int PanelFront::AlertInput(void *in_window, int in_chr) {
+    kis_window *kwin = (kis_window *) in_window;
+
     switch (in_chr) {
     case 'h':
     case 'H':
-        //SpawnHelp(KismetHelpDetails);
+        SpawnHelp(KismetHelpAlert);
+        break;
+    case 't':
+    case 'T':
+        if (kwin->toggle0 == 0)
+            kwin->toggle0 = 1;
+        else
+            kwin->toggle0 = 0;
         break;
     default:
         return TextInput(in_window, in_chr);

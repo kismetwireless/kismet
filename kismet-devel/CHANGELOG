@@ -3,6 +3,9 @@ Aug 21 2002  2.5.2  Fixed a few minor parsing errors in tcpclient.cc
                     Added alert sound conditions
                     Added configurable alert backlog in server for low mem/high
                      alert situations.
+                    Added alert wav file to install
+                    Fixed alert sound breaking the UI when sound was disabled
+                    Added alert window help and toggle to display/hide timestamps
 Aug 20 2002  2.5.2  Added skeleton of alert system ('w' in panels interface)
                     ! Added detection of Netstumbler and feeding to the alert
                      system.

@@ -1889,12 +1889,23 @@ int PanelFront::RatePrinter(void *in_window) {
 int PanelFront::AlertPrinter(void *in_window) {
     kis_window *kwin = (kis_window *) in_window;
 
+    kwin->scrollable = 1;
+
     vector<TcpClient::alert_info> alerts = client->FetchAlerts();
 
     kwin->text.clear();
 
-    for (unsigned int x = 0; x < alerts.size(); x++)
-        kwin->text.push_back(alerts[x].alert_text);
+    char output[1024];
+    for (unsigned int x = 0; x < alerts.size(); x++) {
+        if (kwin->toggle0 == 0) {
+            // If we print the date
+            snprintf(output, 1024, "%.24s - %s", ctime((const time_t *) &alerts[x].alert_ts.tv_sec),
+                     alerts[x].alert_text.c_str());
+            kwin->text.push_back(output);
+        } else {
+            kwin->text.push_back(alerts[x].alert_text);
+        }
+    }
 
     if (kwin->paused != 0) {
         mvwaddstr(kwin->win, 0, kwin->win->_maxx - 10, "Paused");
