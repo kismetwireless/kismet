@@ -67,9 +67,6 @@ protected:
         uint32_t orig_len;   /* actual length of packet */
     };
 
-    char errstr[1024];
-    char type[64];
-
     FILE *dump_file;
 
 };

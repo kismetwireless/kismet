@@ -33,7 +33,7 @@ int WtapDumpFile::OpenDump(const char *file) {
 
     if ((dump_file = fopen(file, "w")) == NULL) {
         snprintf(errstr, 1024, "Unable to open dump file (%s)", strerror(errno));
-        return errno;
+        return -1;
     }
 
     uint32_t magic = PCAP_MAGIC;
