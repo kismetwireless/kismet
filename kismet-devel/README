@@ -880,6 +880,11 @@ Licensed under the GPL
      prism54 cards
     FIX: Update to the latest CVS release of the prism54 driver.
 
+    PROBLEM: Kismet can't enter monitor mode using MadWifi
+    FIX: The CVS version of the MadWifi drivers are needed for rfmon.  
+     Additonally, you need kernel 2.4.23 or newer because of wireless extention
+     dependencies.  Make sure to upgrade your drivers and kernel.
+
 16. Frequently Asked Questions
 
     Q: Where did the name Kismet come from?
