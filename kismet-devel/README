@@ -171,6 +171,9 @@ Licensed under the GPL
 
     'ac_cv_linux_vers=foo ./configure --with-pcap=linux ...'
 
+    FreeBSD users should configure kismet to use the systemwide pcap, which
+    supports multiple DLT types, with --enable-syspcap
+
 8.  Configuration
 
     Kismet is controlled by 2 primary configuration files:
@@ -316,6 +319,9 @@ Licensed under the GPL
       FreeBSD-current adds a common Radiotap packet header format.  Thanks
       to Sam Leffler, Kismet supports the radiotap headers and should work with
       current FreeBSD systems.
+
+      FreeBSD users should configure with the --enable-syspcap to get mutlidlt
+      support.
 
     - NetBSD
       Known supported cards: WSP100, Drone, wtapfile, pcapfile
