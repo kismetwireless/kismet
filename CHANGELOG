@@ -1,3 +1,6 @@
+Mar 09 2003  2.9.1  Fixed stupidity in fuzzy mangling
+                    Started new alert code framework
+                    Fixed stupidity in wlan-ng 0.2.0 capture source
 Mar 08 2003  2.9.1  Actually implemented max clients for server and drone
                     Only perform network protocol conversions if there are
                      clients connected to speed up headless servers.

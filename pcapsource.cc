@@ -148,8 +148,15 @@ int PcapSource::Pcap2Common(kis_packet *packet) {
 
             header_found = 1;
 
-            packet->caplen = kismin(callback_header.caplen - (uint32_t) ntohl(v1hdr->length),
-                                 (uint32_t) MAX_PACKET_LEN);
+            /* What?  No.
+             packet->caplen = kismin(callback_header.caplen - (uint32_t) ntohl(v1hdr->length),
+             (uint32_t) MAX_PACKET_LEN);
+             packet->len = packet->caplen;
+             */
+
+            // We knock the FCS off the end since we don't do anything smart with
+            // it anyway
+            packet->caplen = kismin(callback_header.caplen - 4, (uint32_t) MAX_PACKET_LEN);
             packet->len = packet->caplen;
 
             callback_offset = ntohl(v1hdr->length);
