@@ -14,7 +14,7 @@ Licensed under the GPL
 9.  Panels Interface
 10. Operating Systems
 11. Capture Sources
-12. Network Mapping
+12. Graphical Network Mapping
 13. Drone Remotes
 14. Intrusion Detection
 15. Troubleshooting
@@ -263,7 +263,24 @@ Licensed under the GPL
       controlled via the 'noiselog', 'beaconlog', 'phylog, 'mangledatalog',
       and other options.
 
-9.  Panels Interface
+9.  Ncurses/Panels Interface
+
+    The ncurses/panels interface is the default frontend provided with Kismet.
+    
+    The panels interface is fairly intuitive, and has integrated help.  
+    'h' will open the main help window showing all the options available.
+
+    Primary functions:
+        * Auto-fit and sorted network lists
+        * Client lists for each network
+        * Detailed network information
+        * Packet rate graphs
+        * Channel allocation graphs
+        * Realtime packet type display
+        * Compass-display of network locations
+
+    Other clients for Kismet are available from the links page on the Kismet
+    website.
       
 10. Operating Systems
 
@@ -480,6 +497,12 @@ Licensed under the GPL
                     automatically decompress gzipped files, etc.  Wtapfile
                     sources are only available if Kismet was compiled with
                     libwiretap support.
+
+12. Graphical Network Mapping
+
+    Kismet provides a tool for drawing networks overlaid on downloaded maps
+    called 'gpsmap'.  Gpsmap reads the netxml and gpsxml files, sanitizes the
+    data, 
 
 15. Troubleshooting
     
