@@ -491,9 +491,24 @@ int Packetracker::ProcessDataPacket(packet_info info, wireless_network *net, cha
 
     // Find the client or make one
     if (net->client_map.find(smac) != client_map.end()) {
+        client = net->client_map[smac];
+
+        if ((client->type == client_fromds && info.type == to_distribution) ||
+            (client->type == client_tods && info.type == from_distribution))
+            client->type == client_established;
+
+    } else {
+        client = new wireless_client;
+        net->client_map[smac] = client;
+
+        if (info.distrib == from_distribution)
+            client->type = client_fromds;
+        else if (info.distrib == to_distribution)
+            client->type = client_tods;
+        else if (info.distrib == inter_distribution)
+            client->type = client_interfs;
+
     }
-
-
 
     if (info.encrypted) {
         net->crypt_packets++;

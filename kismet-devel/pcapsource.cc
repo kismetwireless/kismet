@@ -216,12 +216,18 @@ int PcapSource::Pcap2Common(pkthdr *in_header, u_char *in_data) {
 #endif
     }
 
-    // Now we compensate for the BSD cisco drivers inserting 2 bytes between the 802.11
-    // headers and the data by moving it all
     if (cardtype == card_cisco_bsd) {
+        // Now we compensate for the BSD cisco drivers inserting 2 bytes between the 802.11
+        // headers and the data by moving it all
         memcpy(&callback_data[36], &callback_data[38], in_header->len - 38);
         in_header->len -= 2;
         in_header->caplen -= 2;
+    } else if (cardtype == card_prism2_bsd) {
+        // Or we compensate for the BSD prism2 crivers inserting crap in the middle of
+        // the packet as well
+        memcpy(&callback_data[24], &callback_data[46], in_header->len - 46);
+        in_header->len -= 22;
+        in_header->caplen -= 22;
     }
 
     // in_header->pkt_encap = WTAP_ENCAP_IEEE_802_11;
