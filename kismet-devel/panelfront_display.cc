@@ -978,7 +978,10 @@ int PanelFront::DetailsPrinter(void *in_window) {
     
         snprintf(output, print_width, "Latest  : %.24s", ctime((const time_t *) &dnet->last_time));
         kwin->text.push_back(output);
-    
+
+        snprintf(output, print_width, "Clients : %d", dnet->client_map.size());
+        kwin->text.push_back(output);
+
         switch (dnet->type) {
         case network_ap:
             snprintf(output, print_width, "Type    : Access Point (infrastructure)");

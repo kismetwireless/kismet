@@ -247,6 +247,11 @@ void Frontend::UpdateGroups() {
             dnet->virtnet.crypt_packets += wnet->crypt_packets;
             dnet->virtnet.interesting_packets += wnet->interesting_packets;
 
+            // Add all the clients
+            for (map<string, wireless_client *>::iterator cli = wnet->client_map.begin();
+                 cli != wnet->client_map.end(); ++cli)
+                dnet->virtnet.client_map[cli->second->mac] = cli->second;
+
             // Negative the channel if we can't agree.  Any channel takes precedence
             // over channel 0.
             if (dnet->virtnet.channel == 0 && wnet->channel != 0)
