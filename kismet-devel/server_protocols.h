@@ -68,7 +68,7 @@ enum STATUS_fields {
 };
 
 enum ALERT_fields {
-    ALERT_header, ALERT_sec, ALERT_usec, ALERT_text
+    ALERT_sec, ALERT_usec, ALERT_header, ALERT_text
 };
 
 enum ERROR_fields {
