@@ -484,10 +484,12 @@ int ProcessGPSFile(char *in_fname) {
         gps_network *gnet = NULL;
 
         // Don't process filtered networks at all.
-        if (((invert_filter == 0 && filter.find(file_points[i]->bssid) != string::npos) ||
-             (invert_filter == 1 && filter.find(file_points[i]->bssid) == string::npos)) &&
-            strncmp(file_points[i]->bssid, gps_track_bssid, MAC_STR_LEN) != 0)
-            continue;
+        if (filter.length() != 0)
+            if (((invert_filter == 0 && filter.find(file_points[i]->bssid) != string::npos) ||
+                 (invert_filter == 1 && filter.find(file_points[i]->bssid) == string::npos)) &&
+                strncmp(file_points[i]->bssid, gps_track_bssid, MAC_STR_LEN) != 0) {
+                continue;
+            }
 
         // Don't process unfixed points at all
         if (file_points[i]->fix < 2)
@@ -558,7 +560,6 @@ int ProcessGPSFile(char *in_fname) {
 
             if (tdat.power != 0)
                 power_data = 1;
-
             track_vec[num_tracks-1].push_back(tdat);
         } else if (bssid_gpsnet_map.find(file_points[i]->bssid) == bssid_gpsnet_map.end()) {
             //printf("making new netork: %s\n", file_points[i]->bssid);
@@ -1022,8 +1023,9 @@ void DrawNetTracks(Image *in_img, DrawInfo *in_di) { /*FOLD00*/
                        }
                        */
 
-            snprintf(prim, 1024, "fill-opacity %d%% stroke-opacity %d%% stroke-width %d line %d,%d %d,%d",
-                     track_opacity, track_opacity, track_width,
+            // fill-opacity %d%% stroke-opacity %d%%
+            snprintf(prim, 1024, "stroke-opacity %d%% stroke-width %d line %d,%d %d,%d",
+                     track_opacity, track_width, /* track_opacity,*/
                      prev_tx, prev_ty, track_vec[vec][x].x, track_vec[vec][x].y);
 
             in_di->primitive = strdup(prim);
