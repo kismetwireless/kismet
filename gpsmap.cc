@@ -2176,7 +2176,7 @@ int main(int argc, char *argv[]) {
     if (draw_power == 0 && draw_track == 0 && draw_bounds == 0 && draw_range == 0 &&
         draw_hull == 0 && draw_scatter == 0 && draw_center == 0 && draw_label == 0) {
         fprintf(stderr, "FATAL:  No drawing methods requested.\n");
-        exit(1);
+        Usage(argv[0]);
     }
 
     if ((map_width > 1280 || map_height > 1024) && mapsource == MAPSOURCE_MAPBLAST) {
