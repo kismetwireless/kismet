@@ -434,6 +434,7 @@ PanelFront::PanelFront() {
     }
 
     probe_group = NULL;
+    data_group = NULL;
     server_time = 0;
     bat_ac = 0;
     bat_charging = 0;
@@ -448,20 +449,36 @@ PanelFront::~PanelFront() {
 }
 
 void PanelFront::UpdateGroups() {
+    int auto_pgroup = 0;
+    int auto_dgroup = 0;
+
+    if (prefs["autogroup_probe"] == "true") 
+        auto_pgroup = 1;
+    if (prefs["autogroup_data"] == "true") 
+        auto_dgroup = 1;
 
     // Try to autogroup probe networks
-    if (prefs["autogroup_probe"] == "true") {
+    if (auto_pgroup || auto_dgroup) {
         // Count the probes
         vector<display_network *> probevec;
+        vector<display_network *> datavec;
+
         for (unsigned int x = 0; x < group_vec.size(); x++) {
             display_network *dnet = group_vec[x];
 
             if (dnet->networks.size() != 1)
                 continue;
 
-            if (dnet->networks[0]->type == network_probe && dnet != probe_group) {
+            if (auto_pgroup && dnet->networks[0]->type == network_probe && 
+                dnet != probe_group) {
                 probevec.push_back(dnet);
             }
+
+            if (auto_dgroup && dnet->networks[0]->type == network_data && 
+                dnet != data_group) {
+                datavec.push_back(dnet);
+            }
+                
         }
 
         if (probevec.size() > 1) {
@@ -473,6 +490,18 @@ void PanelFront::UpdateGroups() {
                 }
 
                 probe_group = AddToGroup(probe_group, dnet);
+            }
+        }
+
+        if (datavec.size() > 1) {
+            for (unsigned int x = 0; x < probevec.size(); x++) {
+                display_network *dnet = datavec[x];
+
+                if (data_group == NULL) {
+                    data_group = CreateGroup(0, "autogroup_data", "Data Networks");
+                }
+
+                data_group = AddToGroup(data_group, dnet);
             }
 
         }
@@ -486,6 +515,8 @@ void PanelFront::DestroyGroup(display_network *in_group) {
     // Handle when we destroy the probe group
     if (in_group == probe_group) {
         probe_group = NULL;
+    } else if (in_group == data_group) {
+        data_group = NULL;
     }
 
     Frontend::DestroyGroup(in_group);
