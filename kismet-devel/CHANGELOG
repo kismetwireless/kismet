@@ -1,4 +1,6 @@
 Aug 27 2002  2.5.2  Resampled alert.wav to be much smaller.
+                    Merged patch from poptix to use mappoint since MapBlast
+                     encodes their URL's now.  gpsmap works again.
 Aug 25 2002  2.5.2  Optomizations to panelfront
                     Rudimentary deauthentication flood detection
                     kismet_curses exit code used to determine if a kill of 
