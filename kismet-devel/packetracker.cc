@@ -112,6 +112,14 @@ string Packetracker::Net2String(wireless_network *in_net) {
     return ret;
 }
 
+string Packetracker::Client2String(wireless_client *client) {
+    string ret;
+    char output[2048];
+
+
+    return ret;
+}
+
 string Packetracker::CDP2String(cdp_packet *in_cdp) {
     string ret;
     char output[2048];
@@ -334,9 +342,6 @@ int Packetracker::ProcessPacket(packet_info info, char *in_status) {
     }
 
     if (gps != NULL) {
-        float lat, lon, alt, spd;
-        int fix;
-
         gps->FetchLoc(&lat, &lon, &alt, &spd, &fix);
 
         if (fix > 1) {
@@ -491,6 +496,10 @@ int Packetracker::ProcessDataPacket(packet_info info, wireless_network *net, cha
     int ret = 0;
     wireless_client *client = NULL;
 
+    // GPS info
+    float lat = 0, lon = 0, alt = 0, spd = 0;
+    int fix = 0;
+
     // Handle lucent outdoor routers
     if (net->type == network_data && info.proto.type == proto_lor) {
         net->cloaked = 1;
@@ -504,6 +513,30 @@ int Packetracker::ProcessDataPacket(packet_info info, wireless_network *net, cha
     if (net->client_map.find(smac) == net->client_map.end()) {
         client = new wireless_client;
         net->client_map[smac] = client;
+
+        client->first_time = time(0);
+        client->mac = smac;
+        memcpy(client->raw_mac, info.source_mac, MAC_LEN);
+
+        client->metric = net->metric;
+
+        if (gps != NULL) {
+            gps->FetchLoc(&lat, &lon, &alt, &spd, &fix);
+
+            if (fix >= 2) {
+                client->gps_fixed = fix;
+                client->min_lat = client->max_lat = lat;
+                client->min_lon = client->max_lon = lon;
+                client->min_alt = client->max_alt = alt;
+                client->min_spd = client->max_spd = spd;
+
+                client->aggregate_lat = lat;
+                client->aggregate_lon = lon;
+                client->aggregate_alt = alt;
+                client->aggregate_points = 1;
+            }
+
+        }
 
         if (info.distrib == from_distribution)
             client->type = client_fromds;
@@ -520,6 +553,45 @@ int Packetracker::ProcessDataPacket(packet_info info, wireless_network *net, cha
             client->type = client_established;
         }
     }
+
+    if (gps != NULL) {
+        gps->FetchLoc(&lat, &lon, &alt, &spd, &fix);
+
+        if (fix > 1) {
+            client->aggregate_lat += lat;
+            client->aggregate_lon += lon;
+            client->aggregate_alt += alt;
+            client->aggregate_points += 1;
+
+            client->gps_fixed = fix;
+
+            if (lat < client->min_lat || client->min_lat == 0)
+                client->min_lat = lat;
+            else if (lat > client->max_lat)
+                client->max_lat = lat;
+
+            if (lon < client->min_lon || client->min_lon == 0)
+                client->min_lon = lon;
+            else if (lon > client->max_lon)
+                client->max_lon = lon;
+
+            if (alt < client->min_alt || client->min_alt == 0)
+                client->min_alt = alt;
+            else if (alt > client->max_alt)
+                client->max_alt = alt;
+
+            if (spd < client->min_spd || client->min_spd == 0)
+                client->min_spd = spd;
+            else if (spd > client->max_spd)
+                client->max_spd = spd;
+
+        } else {
+            client->gps_fixed = 0;
+        }
+    }
+
+
+    client->last_time = time(0);
 
     // We modify our client and our network concurrently to save on CPU cycles.
     // Easier to update them in sync than it is to process the map as a list.
