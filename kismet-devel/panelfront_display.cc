@@ -1372,37 +1372,48 @@ int PanelFront::DetailsPrinter(void *in_window) {
         kwin->text.push_back(output);
 
         if (details_network->virtnet->gps_fixed != -1) {
-            snprintf(output, print_width, "Min Loc : Lat %f Lon %f Alt %f Spd %f",
-                     details_network->virtnet->min_lat, details_network->virtnet->min_lon,
-                     metric ? details_network->virtnet->min_alt / 3.3 : details_network->virtnet->min_alt,
-                     metric ? details_network->virtnet->min_spd * 1.6093 : details_network->virtnet->min_spd);
-            kwin->text.push_back(output);
-            snprintf(output, print_width, "Max Loc : Lat %f Lon %f Alt %f Spd %f",
-                     details_network->virtnet->max_lat, details_network->virtnet->max_lon,
-                     metric ? details_network->virtnet->max_alt / 3.3 : details_network->virtnet->max_alt,
-                     metric ? details_network->virtnet->max_spd * 1.6093 : details_network->virtnet->max_spd);
-            kwin->text.push_back(output);
-
-            double diagdist = GPSD::EarthDistance(details_network->virtnet->min_lat,
-                                                  details_network->virtnet->min_lon,
-                                                  details_network->virtnet->max_lat,
-                                                  details_network->virtnet->max_lon);
-
-            if (finite(diagdist)) {
-                if (metric) {
-                    if (diagdist < 1000)
-                        snprintf(output, print_width, "Range    : %f meters", diagdist);
-                    else
-                        snprintf(output, print_width, "Range   : %f kilometers", diagdist / 1000);
-                } else {
-                    diagdist *= 3.3;
-                    if (diagdist < 5280)
-                        snprintf(output, print_width, "Range   : %f feet", diagdist);
-                    else
-                        snprintf(output, print_width, "Range   : %f miles", diagdist / 5280);
-                }
-                kwin->text.push_back(output);
+            if ((details_network->virtnet->min_lat == 90) && (details_network->virtnet->min_lon == 180) &&
+                (details_network->virtnet->max_lat == -90) && (details_network->virtnet->max_lon == -180)) {
+                   snprintf(output, print_width, "Min Loc : N/A");
+                   kwin->text.push_back(output);
+                   snprintf(output, print_width, "Max Loc : N/A");
+                   kwin->text.push_back(output);
+                   snprintf(output, print_width, "Range   : N/A");
+                   kwin->text.push_back(output);
             }
+	    else {
+                snprintf(output, print_width, "Min Loc : Lat %f Lon %f Alt %f Spd %f",
+                         details_network->virtnet->min_lat, details_network->virtnet->min_lon,
+                         metric ? details_network->virtnet->min_alt / 3.3 : details_network->virtnet->min_alt,
+                         metric ? details_network->virtnet->min_spd * 1.6093 : details_network->virtnet->min_spd);
+                kwin->text.push_back(output);
+                snprintf(output, print_width, "Max Loc : Lat %f Lon %f Alt %f Spd %f",
+                         details_network->virtnet->max_lat, details_network->virtnet->max_lon,
+                         metric ? details_network->virtnet->max_alt / 3.3 : details_network->virtnet->max_alt,
+                         metric ? details_network->virtnet->max_spd * 1.6093 : details_network->virtnet->max_spd);
+                kwin->text.push_back(output);
+
+                double diagdist = GPSD::EarthDistance(details_network->virtnet->min_lat,
+                                                      details_network->virtnet->min_lon,
+                                                      details_network->virtnet->max_lat,
+                                                      details_network->virtnet->max_lon);
+
+                if (finite(diagdist)) {
+                    if (metric) {
+                        if (diagdist < 1000)
+                            snprintf(output, print_width, "Range    : %f meters", diagdist);
+                        else
+                            snprintf(output, print_width, "Range   : %f kilometers", diagdist / 1000);
+                    } else {
+                        diagdist *= 3.3;
+                        if (diagdist < 5280)
+                            snprintf(output, print_width, "Range   : %f feet", diagdist);
+                        else
+                            snprintf(output, print_width, "Range   : %f miles", diagdist / 5280);
+                    }
+                    kwin->text.push_back(output);
+                }
+	    }
         }
 
         if (details_network->virtnet->carrier_set & (1 << (int) carrier_80211b)) {
@@ -1672,36 +1683,46 @@ int PanelFront::DetailsPrinter(void *in_window) {
         }
     
         if (dnet->gps_fixed != -1) {
-            snprintf(output, print_width, "Min Loc : Lat %f Lon %f Alt %f Spd %f",
-                     dnet->min_lat, dnet->min_lon,
-                     metric ? dnet->min_alt / 3.3 : dnet->min_alt,
-                     metric ? dnet->min_spd * 1.6093 : dnet->min_spd);
-            kwin->text.push_back(output);
-            snprintf(output, print_width, "Max Loc : Lat %f Lon %f Alt %f Spd %f",
-                     dnet->max_lat, dnet->max_lon,
-                     metric ? dnet->max_alt / 3.3 : dnet->max_alt,
-                     metric ? dnet->max_spd * 1.6093 : dnet->max_spd);
-            kwin->text.push_back(output);
+            if ((dnet->min_lat == 90) && (dnet->min_lon == 180) &&
+	        (dnet->max_lat == -90) && (dnet->max_lon == -180)) {
+                   snprintf(output, print_width, "Min Loc : N/A");
+                   kwin->text.push_back(output);
+                   snprintf(output, print_width, "Max Loc : N/A");
+                   kwin->text.push_back(output);
+                   snprintf(output, print_width, "Range   : N/A");
+                   kwin->text.push_back(output);
+	    }
+	    else {
+                snprintf(output, print_width, "Min Loc : Lat %f Lon %f Alt %f Spd %f",
+                         dnet->min_lat, dnet->min_lon,
+                         metric ? dnet->min_alt / 3.3 : dnet->min_alt,
+                         metric ? dnet->min_spd * 1.6093 : dnet->min_spd);
+                kwin->text.push_back(output);
+                snprintf(output, print_width, "Max Loc : Lat %f Lon %f Alt %f Spd %f",
+                         dnet->max_lat, dnet->max_lon,
+                         metric ? dnet->max_alt / 3.3 : dnet->max_alt,
+                         metric ? dnet->max_spd * 1.6093 : dnet->max_spd);
+                kwin->text.push_back(output);
 
-
-            double diagdist = GPSD::EarthDistance(dnet->min_lat, dnet->min_lon,
+                double diagdist = GPSD::EarthDistance(dnet->min_lat, dnet->min_lon,
                                                   dnet->max_lat, dnet->max_lon);
 
-            if (finite(diagdist)) {
-                if (metric) {
-                    if (diagdist < 1000)
-                        snprintf(output, print_width, "Range    : %f meters", diagdist);
-                    else
-                        snprintf(output, print_width, "Range   : %f kilometers", diagdist / 1000);
-                } else {
-                    diagdist *= 3.3;
-                    if (diagdist < 5280)
-                        snprintf(output, print_width, "Range   : %f feet", diagdist);
-                    else
-                        snprintf(output, print_width, "Range   : %f miles", diagdist / 5280);
+                if (finite(diagdist)) {
+                    if (metric) {
+                        if (diagdist < 1000)
+                            snprintf(output, print_width, "Range    : %f meters", diagdist);
+                        else
+                            snprintf(output, print_width, "Range   : %f kilometers", diagdist / 1000);
+                    } else {
+                        diagdist *= 3.3;
+                        if (diagdist < 5280)
+                            snprintf(output, print_width, "Range   : %f feet", diagdist);
+                        else
+                            snprintf(output, print_width, "Range   : %f miles", diagdist / 5280);
+                    }
+                    kwin->text.push_back(output);
                 }
-                kwin->text.push_back(output);
-            }
+	    }
         }
     }
 
@@ -2784,38 +2805,48 @@ int PanelFront::DetailsClientPrinter(void *in_window) {
     if (details_client->gps_fixed != -1) {
         kwin->text.push_back("");
 
-        snprintf(output, print_width, "Min Loc : Lat %f Lon %f Alt %f Spd %f",
-                 details_client->min_lat, details_client->min_lon,
-                 metric ? details_client->min_alt / 3.3 : details_client->min_alt,
-                 metric ? details_client->min_spd * 1.6093 : details_client->min_spd);
-        kwin->text.push_back(output);
-        snprintf(output, print_width, "Max Loc : Lat %f Lon %f Alt %f Spd %f",
-                 details_client->max_lat, details_client->max_lon,
-                 metric ? details_client->max_alt / 3.3 : details_client->max_alt,
-                 metric ? details_client->max_spd * 1.6093 : details_client->max_spd);
-        kwin->text.push_back(output);
-
-        double diagdist = GPSD::EarthDistance(details_client->min_lat,
-                                              details_client->min_lon,
-                                              details_client->max_lat,
-                                              details_client->max_lon);
-
-        if (finite(diagdist)) {
-            if (metric) {
-                if (diagdist < 1000)
-                    snprintf(output, print_width, "Range    : %f meters", diagdist);
-                else
-                    snprintf(output, print_width, "Range    : %f kilometers", diagdist / 1000);
-            } else {
-                diagdist *= 3.3;
-                if (diagdist < 5280)
-                    snprintf(output, print_width, "Range   : %f feet", diagdist);
-                else
-                    snprintf(output, print_width, "Range   : %f miles", diagdist / 5280);
-            }
-            kwin->text.push_back(output);
+        if ((details_client->min_lat == 90) && (details_client->min_lon == 180) &&
+            (details_client->max_lat == -90) && (details_client->max_lon == -180)) {
+               snprintf(output, print_width, "Min Loc : N/A");
+               kwin->text.push_back(output);
+               snprintf(output, print_width, "Max Loc : N/A");
+               kwin->text.push_back(output);
+               snprintf(output, print_width, "Range   : N/A");
+               kwin->text.push_back(output);
         }
+	else {
+            snprintf(output, print_width, "Min Loc : Lat %f Lon %f Alt %f Spd %f",
+                     details_client->min_lat, details_client->min_lon,
+                     metric ? details_client->min_alt / 3.3 : details_client->min_alt,
+                     metric ? details_client->min_spd * 1.6093 : details_client->min_spd);
+            kwin->text.push_back(output);
+            snprintf(output, print_width, "Max Loc : Lat %f Lon %f Alt %f Spd %f",
+                     details_client->max_lat, details_client->max_lon,
+                     metric ? details_client->max_alt / 3.3 : details_client->max_alt,
+                     metric ? details_client->max_spd * 1.6093 : details_client->max_spd);
+            kwin->text.push_back(output);
 
+            double diagdist = GPSD::EarthDistance(details_client->min_lat,
+                                                  details_client->min_lon,
+                                                  details_client->max_lat,
+                                                  details_client->max_lon);
+
+            if (finite(diagdist)) {
+                if (metric) {
+                    if (diagdist < 1000)
+                        snprintf(output, print_width, "Range    : %f meters", diagdist);
+                    else
+                        snprintf(output, print_width, "Range    : %f kilometers", diagdist / 1000);
+                } else {
+                    diagdist *= 3.3;
+                    if (diagdist < 5280)
+                        snprintf(output, print_width, "Range   : %f feet", diagdist);
+                    else
+                        snprintf(output, print_width, "Range   : %f miles", diagdist / 5280);
+                }
+                kwin->text.push_back(output);
+            }
+        }
         kwin->text.push_back("");
     }
 
