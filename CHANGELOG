@@ -1,3 +1,7 @@
+Mar 23 2004  devel  Tweaked gpsmap channel color allocation
+                    Tweaked legend drawing to scale to US 11 channels if
+                     there are no networks on higher channels.  This makes
+                     the legend look much nicer.
 Mar 22 2004  devel  Added --feather-range to gpsmap to blur network range
                      circles into invisibility.  Imagemagick is very very
                      poorly documented.
