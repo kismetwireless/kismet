@@ -128,6 +128,14 @@ CONFFILE_DIR=`(
 )`
 AC_DEFINE_UNQUOTED(SYSCONF_LOC, "$CONFFILE_DIR", system config directory)
 
+LOCALSTATE_DIR=$localstatedir
+LOCALSTATE_DIR=`(
+                 test "$prefix" = NONE && prefix=$ac_default_prefix
+                 test "$exec_prefix" = NONE && exec_prefix=${prefix}
+                 eval echo "$LOCALSTATE_DIR"
+                )`
+AC_DEFINE_UNQUOTED(LOCALSTATE_DIR, "$LOCALSTATE_DIR", system state directory)
+
 BIN_DIR=$bindir
 BIN_DIR=`(
     test "$prefix" = NONE && prefix=$ac_default_prefix

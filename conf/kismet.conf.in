@@ -4,7 +4,7 @@
 # not continually reading --help!
 
 # Version of Kismet config
-version=3.1.0b
+version=3.1.0c
 
 # Name of server (Purely for organiational purposes)
 servername=Kismet
@@ -289,6 +289,9 @@ logdefault=Kismet
 # and so on.  The "dump", "crypt", etc, dirs must exist before kismet is run
 # in this case.
 logtemplate=%n-%d-%i.%l
+
+# Where do we store the pid file of the server?
+piddir=/var/run/
 
 # Where state info, etc, is stored.  You shouldnt ever need to change this.
 # This is a directory.

@@ -69,6 +69,7 @@ char *exec_name;
 #endif
 
 const char *config_base = "kismet.conf";
+const char *pid_base = "kismet_server.pid";
 
 // Some globals for command line options
 char *configfile = NULL;
@@ -78,7 +79,7 @@ int no_log = 0, noise_log = 0, data_log = 0, net_log = 0, crypt_log = 0, cisco_l
 string logname, dumplogfile, netlogfile, cryptlogfile, ciscologfile,
     gpslogfile, csvlogfile, xmllogfile, ssidtrackfile, configdir, iptrackfile, waypointfile,
     fifofile;
-FILE *ssid_file = NULL, *ip_file = NULL, *waypoint_file = NULL;
+FILE *ssid_file = NULL, *ip_file = NULL, *waypoint_file = NULL, *pid_file = NULL;
 
 DumpFile *dumpfile, *cryptfile;
 int packnum = 0, localdropnum = 0;
@@ -1309,7 +1310,37 @@ int main(int argc,char *argv[]) {
                 "the troubleshooting section of the README for more information.\n");
         exit(1);
     }
-        
+       
+    // Try to open the pidfile
+    string pidfpath;
+    if ((pidfpath = conf->FetchOpt("piddir")) == "") {
+        fprintf(stderr, "FATAL:  Your config file does not define a 'piddir' setting. "
+                "You need to install the latest configuration files.  See the "
+                "troubleshooting section of the README for more information.\n");
+        exit(1);
+    }
+
+    pidfpath += string("/") + pid_base;
+
+    if (unlink(pidfpath.c_str()) < 0 && errno != ENOENT) {
+        fprintf(stderr, "FATAL:  Unable to set up pidfile %s, unlink() failed: %s\n",
+                pidfpath.c_str(), strerror(errno));
+        exit(1);
+    }
+
+    if ((pid_file = fopen(pidfpath.c_str(), "w")) == NULL) {
+        fprintf(stderr, "FATAL:  Unable to set up pidfile %s, couldn't open for "
+                "writing: %s", pidfpath.c_str(), strerror(errno));
+        exit(1);
+    }
+
+    // Write our pid.  Things calling us need to check and see if we're actually
+    // running.
+    fprintf(pid_file, "%d\n", getpid());
+
+    // And we're done
+    fclose(pid_file);
+            
 
 #ifdef HAVE_GPS
     // Set up the GPS object to give to the children
