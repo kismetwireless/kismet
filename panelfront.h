@@ -68,7 +68,7 @@ extern char *KismetHelpGps[];
 extern char *KismetHelpStats[];
 extern char *KismetHelpDump[];
 extern char *KismetHelpPack[];
-
+extern char *KismetHelpAlert[];
 
 // These are in the kismet_curses.cc main code
 extern int sound;
@@ -141,6 +141,11 @@ protected:
         int paused;
         // Are we scrollable?
         int scrollable;
+
+        // Some toggles for various windows to use if they need them
+        int toggle0;
+        int toggle1;
+        int toggle2;
 
         // Text, if we store it seperately
         vector<string> text;

@@ -745,7 +745,8 @@ int main(int argc, char *argv[]) {
 
                 if (pollret != 0) {
                     if (pollret == CLIENT_ALERT)
-                        sound = PlaySound("alert");
+                        if (sound == 1)
+                            sound = PlaySound("alert");
 
                     if (strlen(kismet_serv.FetchStatus()) != 0) {
                         gui->WriteStatus(kismet_serv.FetchStatus());

@@ -203,6 +203,15 @@ char *KismetHelpPack[] = {
     NULL
 };
 
+char *KismetHelpAlert[] = {
+    "KISMET ALERTS",
+    "This panel tracks alert conditions, such as NetStumbler clients",
+    "or DOS attacks.",
+    " Key   Action",
+    "  t    Toggle display of alert condition timestamp",
+    "  q    Close popup",
+    NULL
+};
 
 string PanelFront::Mac2String(uint8_t *mac, char seperator) {
     char tempstr[MAC_STR_LEN];
@@ -490,6 +499,9 @@ void PanelFront::SpawnWindow(string in_title, panel_printer in_print, key_handle
     kwin->selected = 0;
     kwin->paused = 0;
     kwin->scrollable = 0;
+    kwin->toggle0 = 0;
+    kwin->toggle1 = 0;
+    kwin->toggle2 = 0;
 
     if (in_x == -1 || in_x + 2 > LINES)
         if (LINES < 10) {
