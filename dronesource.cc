@@ -168,8 +168,10 @@ int DroneSource::FetchPacket(kis_packet *packet, uint8_t *data, uint8_t *moddata
             return -1;
         }
 
-        if (ntohl(phdr.caplen) <= 0)
-            return 0;
+        if (ntohl(phdr.caplen) <= 0 || ntohl(phdr.len) <= 0) {
+            snprintf(errstr, 1024, "drone sent us a 0-length packet.");
+            return -1;
+        }
 
         if (ntohl(phdr.caplen) > MAX_PACKET_LEN || ntohl(phdr.len) > MAX_PACKET_LEN) {
             snprintf(errstr, 1024, "drone sent us an oversized packet.");

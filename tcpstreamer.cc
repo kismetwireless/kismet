@@ -316,6 +316,9 @@ int TcpStreamer::WritePacket(const kis_packet *in_packet) {
     if (in_packet->data == NULL)
         return 0;
 
+    if (in_packet->caplen <= 0 || in_packet->len <= 0)
+        return 0;
+
     stream_frame_header hdr;
     stream_packet_header packhdr;
 
