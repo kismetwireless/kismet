@@ -1,3 +1,5 @@
+Apr 02 2004  devel  Fixed bug in gpsmap cache that assigned the same id to all
+                     points, eating an entire file if any points were filtered.
 Mar 31 2004  devel  Fixed gpsmap cache error reporting mistake
                     Changed 'best signal' and 'best noise' stuff to handle dBm
                     Fixed signal recording for wext

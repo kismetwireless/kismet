@@ -152,6 +152,7 @@ int ReadGpsCacheFile(const char *in_gpsfname,
     }
 
     // Now read all the points
+    int point_id = 0;
     in_points->reserve(fheader.num_points);
     for (unsigned int nsam = 0; nsam < fheader.num_points; nsam++) {
         gpscache_point cpt;
@@ -183,6 +184,7 @@ int ReadGpsCacheFile(const char *in_gpsfname,
         pt->fix = cpt.fix;
         pt->signal = cpt.signal;
         pt->noise = cpt.noise;
+        pt->id = point_id++;
 
         in_points->push_back(pt);
     }

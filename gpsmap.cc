@@ -1009,6 +1009,8 @@ int ProcessGPSFile(char *in_fname) {
                 file_points.size());
     SanitizeSamplePoints(file_points, &file_screen);
 
+    int valid_filepoints = 0;
+
     for (unsigned int i = 0; i < file_points.size(); i++) {
         if (file_screen.find(file_points[i]->id) != file_screen.end()) {
             if (verbose)
@@ -1036,6 +1038,8 @@ int ProcessGPSFile(char *in_fname) {
         // Don't process unfixed points at all
         if (file_points[i]->fix < 2)
             continue;
+
+        valid_filepoints++;
 
         double lat, lon, alt, spd;
         int fix;
@@ -1139,9 +1143,9 @@ int ProcessGPSFile(char *in_fname) {
     }
 
     if (verbose)
-        fprintf(stderr, "%s contains %d valid samples.\n", in_fname, file_points.size());
+        fprintf(stderr, "%s contains %d valid samples.\n", in_fname, valid_filepoints);
 
-    sample_points += file_points.size();
+    sample_points += valid_filepoints;
 
     return 1;
 }
