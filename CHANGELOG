@@ -1,3 +1,5 @@
+Mar 30 2004  devel  Tentative support for calculating SNR from signal levels
+                     in dBm for Kismet and gpsmap
 Mar 29 2004  devel  Removed size restriction testing for now, let the remote
                      mapsource blow up if we're not a valid size.
                     Put scale ranges into --help

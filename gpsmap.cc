@@ -2151,12 +2151,15 @@ void DrawNetPower(vector<gps_network *> in_nets, Image *in_img,
             if (curx >= map_width || cury >= map_height || curx < 0 || cury < 0)
                 continue;
 
-            if (map_iter->center_points[y]->signal == 0 ||
-                    (power_input_map[(map_width * cury) + curx] < 
-                        map_iter->center_points[y]->signal && 
-                        map_iter->center_points[y]->signal > 0)) {
-                power_input_map[(map_width * cury) + curx] = 
-                    map_iter->center_points[y]->signal;
+            // Do SNR for power if we look like dB
+            int snr = map_iter->center_points[y]->signal;
+            if (snr < 0 && map_iter->center_points[y]->noise < 0) {
+                snr = map_iter->center_points[y]->signal - 
+                    map_iter->center_points[y]->noise;
+            } 
+
+            if (snr == 0 || abs(power_input_map[(map_width * cury) + curx]) < abs(snr)) {
+                power_input_map[(map_width * cury) + curx] = snr;
             }
 
             visible = 1;

@@ -225,10 +225,23 @@ void PanelFront::NetLine(kis_window *in_window, string *in_str, wireless_network
             len = 5;
         } else if (colindex == mcol_signalbar) {
             if (net->best_signal > 0) {
-                int sx = (int)((double)(idle_time < (decay * 2) ? net->signal : 0) / net->best_signal * 15);
+                int sx = 0;
+
+                // see if it looks like dBm...
+                if (net->signal < 0 && idle_time < (decay * 2)) {
+                    // If we have a dB noise level, get the percentage of signal to noise
+                    if (net->noise < 0)
+                        sx = (int) (double) (net->noise / net->signal) * 15;
+                    else
+                        sx = (int) (double) (100 / abs(net->signal)) * 15;
+                } else if (idle_time < (decay * 2)) {
+                    // Extract the signal percentage of the best signal seen
+                    sx = (int)((double)(idle_time < (decay * 2) ? net->signal : 0) / net->best_signal * 15);
+                }
+
                 char sg[16];
-                memset(sg, '=', 15);
                 memset(sg, 'X', sx);
+                memset(sg + sx, '=', 15 - sx);
                 sg[15] = '\0';
                 snprintf(element, 16, "%s", sg);
             } else
@@ -1340,7 +1353,7 @@ int PanelFront::PowerPrinter(void *in_window) {
     pwr = power;
     nse = noise;
 
-    if (pwr == -1 && nse == -1) {
+    if (pwr == 0 && nse == 0) {
         mvwaddstr(kwin->win, 2, 2, "Server did not report card power levels.");
         mvwaddstr(kwin->win, 3, 2, "No card information is available.");
         return 1;
@@ -1353,66 +1366,68 @@ int PanelFront::PowerPrinter(void *in_window) {
     }
 
     char *bar = new char[width+1];
-/*
-    if (qual > LINKQ_MAX)
-        qual = LINKQ_MAX;
-        */
+
     if (pwr > LEVEL_MAX)
         pwr = LEVEL_MAX;
     if (nse > NOISE_MAX)
         nse = NOISE_MAX;
 
     double pperc = 0, nperc = 0;
-    /*
-    if (qual != 0)
-        qperc = (double) qual/LINKQ_MAX;
-        */
-    if (pwr != 0)
-        pperc = (double) pwr/LEVEL_MAX;
-    if (nse != 0)
-        nperc = (double) nse/NOISE_MAX;
+    int snr = -1;
+
+    // Do SNR calcs if it looks like dBm
+    if (pwr < 0 && nse < 0) {
+        snr = pwr - nse;
+        if (snr < 0)
+            snr = 0;
+        if (snr > SNR_MAX)
+            snr = SNR_MAX;
+
+        // Use powerbar percentage to hold us
+        pperc = (double) snr/SNR_MAX;
+    } else {
+        if (pwr != 0)
+            pperc = (double) abs(pwr)/LEVEL_MAX;
+        if (nse != 0)
+            nperc = (double) abs(nse)/NOISE_MAX;
+    }
 
     int pbar = 0, nbar = 0;
-    /*
-    qbar = (int) (width * qperc);
-    */
+
+    // We need to do this for SNR bars and power bars
     pbar = (int) (width * pperc);
-    nbar = (int) (width * nperc);
-
-    /* assuming that negative levels are dBm */
-    if (pbar < 0)
-        pbar = width + pbar;
-    if (nbar < 0)
-        nbar = width + nbar;
-
-    /*
-    memset(bar, '=', width);
-    memset(bar, 'X', qbar);
-    bar[width] = '\0';
-    mvwaddstr(kwin->win, 1, 2, "Q:");
-    mvwaddstr(kwin->win, 1, 5, bar);
-    */
-
-    memset(bar, '=', width);
     memset(bar, 'X', pbar);
+    memset(bar + pbar, '=', width - pbar);
     bar[width] = '\0';
-    mvwaddstr(kwin->win, 2, 2, "P:");
-    mvwaddstr(kwin->win, 2, 5, bar);
 
-    memset(bar, '=', width);
-    memset(bar, 'X', nbar);
-    bar[width] = '\0';
-    mvwaddstr(kwin->win, 3, 2, "N:");
-    mvwaddstr(kwin->win, 3, 5, bar);
+    if (snr == -1) {
+        nbar = (int) (width * nperc);
 
-    /*
-      snprintf(bar, width, "%d", qual);
-      mvwaddstr(kwin->win, 1, width+6, bar);
-      */
-    snprintf(bar, width, "%d", pwr);
-    mvwaddstr(kwin->win, 2, width+6, bar);
-    snprintf(bar, width, "%d", nse);
-    mvwaddstr(kwin->win, 3, width+6, bar);
+        mvwaddstr(kwin->win, 2, 2, "P:");
+        mvwaddstr(kwin->win, 2, 5, bar);
+
+        memset(bar, 'X', nbar);
+        memset(bar + nbar, '=', width - nbar);
+        bar[width] = '\0';
+
+        mvwaddstr(kwin->win, 3, 2, "N:");
+        mvwaddstr(kwin->win, 3, 5, bar);
+
+        snprintf(bar, width, "%d", pwr);
+        mvwaddstr(kwin->win, 2, width+6, bar);
+        snprintf(bar, width, "%d", nse);
+        mvwaddstr(kwin->win, 3, width+6, bar);
+    } else {
+        mvwaddstr(kwin->win, 2, 2, "SNR:");
+        mvwaddstr(kwin->win, 2, 7, bar);
+
+        snprintf(bar, width, "SNR: %ddB, Signal %ddB, Noise %ddB",
+                 snr, pwr, nse);
+
+        // center it
+        mvwaddstr(kwin->win, 3, ((kwin->print_width / 2) - (strlen(bar) / 2)),
+                  bar);
+    }
 
     return 1;
 }
