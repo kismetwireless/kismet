@@ -9,6 +9,10 @@ Aug 18 2002  2.5.2  Moved netline to panelfront_display.cc
                      transmission maxrate
                     Fixed finding of 0.0.0.0 client addresses
                     Added group range calculations to info window
+                    ! Added forced suid priv drops - see kismet.conf (new 
+                     option suiduser).  Even if started as root, Kismet will
+                     drop privs to the specified user.  This is more secure.
+                     It is a good thing.
 Aug 16 2002  2.5.2  Fixed dumpfile.h to not generate warnings on GCC 3.2
                     ACPI battery support patches merged in (configure with
                      --enable-acpi) (Million and Juliano)

@@ -904,6 +904,35 @@ int main(int argc,char *argv[]) {
 
     free(configfile);
 
+#ifdef HAVE_SUID
+    struct passwd *pwordent;
+    const char *suid_user;
+    uid_t suid_id;
+    if (conf.FetchOpt("suiduser") != "") {
+        suid_user = conf.FetchOpt("suiduser").c_str();
+        if ((pwordent = getpwnam(suid_user)) == NULL) {
+            fprintf(stderr, "FATAL:  Could not find user '%s' for dropping priviledges.\n", suid_user);
+            fprintf(stderr, "        Make sure you have a valid user set for 'suiduser' in your config.\n");
+            exit(1);
+        } else {
+            suid_id = pwordent->pw_uid;
+
+            if (suid_id == 0) {
+                fprintf(stderr, "FATAL:  Specifying a uid-0 user for the priv drop is pointless.  Recompile\n");
+                fprintf(stderr, "        with --disable-suid if you really want this.\n");
+                exit(1);
+            }
+
+            fprintf(stderr, "NOTICE:  Will drop privs to %s (%d)\n", suid_user, suid_id);
+        }
+    } else {
+        fprintf(stderr, "FATAL:  No 'suiduser' option in the config file.\n");
+        exit(1);
+    }
+#else
+    fprintf(stderr, "NOTICE:  Suid priv-dropping disabled.  This may not be secure.\n");
+#endif
+
     if (conf.FetchOpt("configdir") != "") {
         configdir = conf.ExpandLogPath(conf.FetchOpt("configdir"), "", "", 0, 1);
     } else {
@@ -1028,7 +1057,14 @@ int main(int argc,char *argv[]) {
 
         // Drop root privs NOW, because we don't want them reading any
         // files in the system they shouldn't be.
-        setuid(getuid());
+#ifdef HAVE_SUID
+        if (setuid(suid_id) < 0) {
+            fprintf(stderr, "FATAL:  setuid() to %s (%d) failed.\n", suid_user, suid_id);
+            exit(1);
+        }
+
+        fprintf(stderr, "NOTICE:  Dropped privs to %s (%d)\n", suid_user, suid_id);
+#endif
 
         packsource = new WtapFileSource;
 #else
@@ -1050,7 +1086,14 @@ int main(int argc,char *argv[]) {
     // Once the packet source is opened, we shouldn't need special privileges anymore
     // so lets drop to a normal user.  We also don't want to open our logfiles as root
     // if we can avoid it.
-    setuid(getuid());
+#ifdef HAVE_SUID
+    if (setuid(suid_id) < 0) {
+        fprintf(stderr, "FATAL:  setuid() to %s (%d) failed.\n", suid_user, suid_id);
+        exit(1);
+    }
+
+    fprintf(stderr, "NOTICE:  Dropped privs to %s (%d)\n", suid_user, suid_id);
+#endif
 
     // Now parse the rest of our options
 #ifdef HAVE_GPS
