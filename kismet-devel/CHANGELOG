@@ -2,6 +2,7 @@ Dec 17 2002  2.7.1  Fixed kismet_hopper on systems with old wireless extention
                      versions.
                     Revamped packet capture stream.  Live-decoded wep packets
                      are now logged as encrypted data again.
+                    Added CRC32 checking of WEP data
 Dec 16 2002  2.7.1  Added error handling for client access control 'network'
                      addresses which aren't valid network addresses (ie,
                      10.0.0.1/24 is not valid.)

@@ -983,10 +983,11 @@ vector<string> GetPacketStrings(const packet_info *in_info, kis_packet *packet) 
 }
 
 // Decode WEP for the given packet based on the keys in the bssid_wep_map.
+// This is an amalgamation of ethereal, wlan-ng, and others
 void DecryptPacket(kis_packet *packet, packet_info *in_info, 
                    map<mac_addr, wep_key_info *> *bssid_wep_map, unsigned char *identity) {
     // Bail if we don't have enough for the iv+any real data
-    if ((int) packet->len - in_info->header_offset <= 4)
+    if ((int) packet->len - in_info->header_offset <= 8)
         return;
 
     // Bail if we don't have a match
@@ -1030,8 +1031,14 @@ void DecryptPacket(kis_packet *packet, packet_info *in_info,
 
     // decrypt the data payload and check the crc
     kba = kbb = 0;
+    uint32_t crc = ~0;
+    uint8_t c_crc[4];
+    uint8_t icv[4];
 
-    for (unsigned int dpos = in_info->header_offset + 4; dpos < packet->len; dpos++) {
+    // Copy out the icv for our crc check
+    memcpy(icv, packet->data + packet->len - 4, 4);
+
+    for (unsigned int dpos = in_info->header_offset + 4; dpos < packet->len - 4; dpos++) {
         kba = (kba + 1) & 0xFF;
         kbb = (kbb + keyblock[kba]) & 0xFF;
 
@@ -1040,10 +1047,42 @@ void DecryptPacket(kis_packet *packet, packet_info *in_info,
         keyblock[kbb] = oldkey;
 
         packet->moddata[dpos] = packet->data[dpos] ^ keyblock[(keyblock[kba] + keyblock[kbb]) & 0xFF];
+
+        crc = wep_crc32_table[(crc ^ packet->moddata[dpos]) & 0xff] ^ (crc >> 8);
     }
 
-    in_info->header_offset += 4;
+    // Check the CRC
+    crc = ~crc;
+    c_crc[0] = crc;
+    c_crc[1] = crc >> 8;
+    c_crc[2] = crc >> 16;
+    c_crc[3] = crc >> 24;
 
-    in_info->decoded = 1;
+    int crcfailure = 0;
+    for (unsigned int crcpos = 0; crcpos < 4; crcpos++) {
+        kba = (kba + 1) & 0xff;
+        kbb = (kbb+keyblock[kba]) & 0xff;
 
+        unsigned char oldkey = keyblock[kba];
+        keyblock[kba] = keyblock[kbb];
+        keyblock[kbb] = oldkey;
+
+        if ((c_crc[crcpos] ^ keyblock[(keyblock[kba] + keyblock[kbb]) & 0xff]) != icv[crcpos]) {
+            crcfailure = 1;
+            break;
+        }
+    }
+
+    // If the CRC check failed, delete the moddata, set it to null, and don't change the
+    // length
+    if (crcfailure == 1) {
+        delete[] packet->moddata;
+        packet->moddata = NULL;
+    } else {
+        // Skip the IV and don't count the ICV
+        in_info->header_offset += 4;
+        packet->len -= 4;
+
+        in_info->decoded = 1;
+    }
 }
