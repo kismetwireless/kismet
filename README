@@ -1,4 +1,4 @@
-Kismet 2.6.0
+Kismet 2.6.1
 Mike Kershaw <dragorn@kismetwireless.net>
 http://www.kismetwireless.net/
 Licensed under the GPL
@@ -29,10 +29,16 @@ Licensed under the GPL
 * Quick start
   All of this will make more sense if you read the docs for each segment.
   1. Compile and Install Kismet
-  2. Configure kismet.conf and kismet_ui.conf for your card and setup.
+  2. Configure kismet.conf and kismet_ui.conf for your card and setup.  Make
+     sure to put a valid, non-root user as the 'suiduser' option.  This user
+     is the account kismet will run as once it has attached to the capture
+     source.
   3. Run kismet_monitor to enable rfmon mode, optionally with the 
-     channel hopper.
-  4. Run kismet.
+     channel hopper.  kismet_monitor must be run as root because it changes
+     the state of the card.
+  4. Run kismet.  Kismet should be run as the user you specified as the 
+     'suiduser'.  If kismet is started as root, it will drop privs to this
+     user, but the frontend will still run as root.
 
 * More information:
   Compilation and configuration:
