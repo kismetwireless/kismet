@@ -1,4 +1,5 @@
 Jun 08 2003  2.9.1  Tweaked kismet_monitor to set PATH var for suidinstalls
+                    Tweaked IPC code to try to prevent blocking lockups.
 Jun 07 2003  2.9.1  Tweaked kismet_monitor to force snmp version 1 for wsp100
                     Fixed initial channel argument (Million)
                     Fixed sub-1-second recurring timer events (like channel

@@ -488,6 +488,11 @@ void CapSourceSignal(int sig) {
     exit(0);
 }
 
+void CapSourceInterruptSignal(int sig) {
+    // Just return to interrupt something else happening
+    return;
+}
+
 // Spin through our commands and see if we were asked to die...
 // return 1 if we were asked to end
 int CapSourceFlushCmdDeath(int cmd_fd) {
@@ -524,7 +529,7 @@ void CapSourceChild(capturesource *csrc) {
     signal(SIGINT, SIG_IGN);
     signal(SIGTERM, SIG_IGN);
     signal(SIGHUP, SIG_IGN);
-    signal(SIGPIPE, SIG_IGN);
+    signal(SIGPIPE, CapSourceInterruptSignal);
 
     // Make a large ring buffer of packet bits
     KisRingBuffer *ringbuf = new KisRingBuffer(MAX_PACKET_LEN * 50);
@@ -563,12 +568,16 @@ void CapSourceChild(capturesource *csrc) {
             }
         }
 
-        // Send a text ping.  This might be a little much overhead, but I don't want to do another
-        // fd for commands.
-        CapSourceText("", txtringbuf);
-
         uint8_t *dptr;
         int dlen, ret;
+
+        // Write a text ping if we don't have anything else in the buffer that would be testing the
+        // command pipe
+        if (txtringbuf->FetchLen() == 0) {
+            // Send a text ping.  This might be a little much overhead, but I don't want to do another
+            // fd just to see if the server is alive
+            CapSourceText("", txtringbuf);
+        }
 
         // Write out a text ring buffer if we can
         if (txtringbuf->FetchLen() != 0) {
