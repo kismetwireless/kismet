@@ -1,3 +1,4 @@
+Aug 11 2003  3.1.0  Tweaked capture children to show errors better
 Aug 10 2003  3.1.0  Added extra/listchan.pl script to extract supported
                      channels, useful for building hopper lists for combo cards
                     Expanded capture process commands to 16 bits for 11a 
