@@ -38,7 +38,7 @@
 #include "wsp100source.h"
 #include "vihasource.h"
 #include "dronesource.h"
-#include "capturesourceutil.h"
+#include "packetsourceutil.h"
 
 #include "gpsd.h"
 #include "tcpstreamer.h"

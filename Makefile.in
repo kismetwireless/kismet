@@ -41,7 +41,7 @@ DEPEND	= .depend
 # Objects
 PSO	= util.o configfile.o speech.o packet.o \
 		prism2source.o pcapsource.o wtapfilesource.o wsp100source.o \
-			dronesource.o vihasource.o capturesourceutil.o \
+			dronesource.o vihasource.o packetsourceutil.o \
 		wtapdump.o wtaplocaldump.o gpsdump.o airsnortdump.o fifodump.o \
 		gpsd.o manuf.o \
 		packetracker.o timetracker.o alertracker.o finitestate.o \
@@ -51,7 +51,7 @@ PS	= kismet_server
 
 DRONEO = util.o configfile.o getopt.o packet.o tcpstreamer.o \
 			prism2source.o pcapsource.o wtapfilesource.o wsp100source.o \
-				dronesource.o vihasource.o capturesourceutil.o \
+				dronesource.o vihasource.o packetsourceutil.o \
 			timetracker.o gpsd.o server_globals.o kismet_drone.o
 DRONE = kismet_drone
 

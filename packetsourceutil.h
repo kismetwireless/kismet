@@ -33,6 +33,8 @@
 #include "wsp100source.h"
 #include "vihasource.h"
 #include "dronesource.h"
+#include "util.h"
+#include "server_globals.h"
 
 typedef struct capturesource {
     KisPacketSource *source;
@@ -46,6 +48,9 @@ typedef struct capturesource {
     int textpair[2];
     pid_t childpid;
     int alive;
+    vector<int> channels;
+    int ch_pos;
+    int ch_hop;
 };
 
 map<string, int> ParseEnableLine(string in_named);
@@ -56,5 +61,25 @@ int BindRootSources(vector<capturesource *> *in_capsources,
 int BindUserSources(vector<capturesource *> *in_capsources,
                     map<string, int> *in_enable, int filter_enable,
                     Timetracker *in_tracker, GPSD *in_gps);
+
+// negative numbers are commands, positive numbers are a channel set.  All commands are
+// one byte.
+#define CAPCMD_NULL      0   // Don't do anything, just something to see if the pipe is still there
+#define CAPCMD_ACTIVATE -1   // Start watching the sniffer
+#define CAPCMD_FLUSH    -2   // Flush the ring buffer and loose any packets we have
+#define CAPCMD_TXTFLUSH -3   // Flush text buffer
+#define CAPCMD_SILENT   -4   // Enable silence (no stdout output)
+#define CAPCMD_DIE      -5   // Close the source and die
+#define CAPCMD_PAUSE    -6   // Pause
+#define CAPCMD_RESUME   -7   // Resume
+
+// Sentinel for starting a new packet
+#define CAPSENTINEL     0xDECAFBAD
+
+void CapSourceText(string in_text, KisRingBuffer *in_buf);
+void CapSourceChild(capturesource *csrc);
+int SpawnCapSourceChild(capturesource *csrc);
+int FetchChildPacket(int in_fd, kis_packet *packet, uint8_t *data, uint8_t *moddata, string *in_text);
+int FetchChildText(int in_fd, string *in_text);
 
 #endif
