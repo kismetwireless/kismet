@@ -49,12 +49,12 @@ and logs and plots network data.
 .Nm kismet
 is divided into three basic programs,
 .Nm kismet_server
-.Nm kismet_curses
+.Nm kismet_client
 and
 .Nm gpsmap
 .Sh USAGE
 .Nm kismet
-handles automatically starting kismet_server and kismet_curses.
+handles automatically starting kismet_server and kismet_client.
 .br
 IT IS IMPERATIVE THAT YOU PLACE YOUR CARD IN RFMON MODE BEFORE STARTING 
 KISMET OR YOU WILL NOT SEE ANY TRAFFIC.  Your card can be placed into 
@@ -109,8 +109,8 @@ Print version
 .It Fl h
 Help
 .El
-.Sh KISMET_CURSES
-.Nm kismet_curses
+.Sh KISMET_CLIENT
+.Nm kismet_client
 is a ncurses and panels interface which connects to the server and displays detected 
 networks, statistics, network details, etc.
 .Bl -tag -width flag
