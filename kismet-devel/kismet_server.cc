@@ -2562,7 +2562,15 @@ int main(int argc,char *argv[]) {
                             NetWriteStatus(status);
                         }
 
-                        dumpfile->DumpPacket(&info, &packet);
+                        int ret = dumpfile->DumpPacket(&info, &packet);
+                        if (ret < 0) {
+                            NetWriteStatus(dumpfile->FetchError());
+                            fprintf(stderr, "FATAL: %s\n", dumpfile->FetchError());
+                            CatchShutdown(-1);
+                        } else if (ret == 0) {
+                            localdropnum++;
+                        }
+
                         log_packnum = dumpfile->FetchDumped();
                     }
 

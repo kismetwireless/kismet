@@ -53,12 +53,12 @@ int WtapDumpFile::DumpPacket(const packet_info *in_info, const kis_packet *packe
         if (blm == beacon_logged_map.end()) {
             beacon_logged_map[in_info->bssid_mac] = in_info->ssid;
         } else if (blm->second == in_info->ssid) {
-            return 1;
+            return 0;
         }
     }
 
     if (in_info->type == packet_phy && phy_log == 0)
-        return 1;
+        return 0;
 
     Common2Wtap(packet);
 
