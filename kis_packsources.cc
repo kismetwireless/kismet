@@ -64,7 +64,7 @@ int RegisterKismetSources(Packetsourcetracker *sourcetracker) {
                                         monitor_orinoco, unmonitor_orinoco,
                                         chancontrol_orinoco, 1);
     sourcetracker->RegisterPacketsource("acx100", 1, "IEEE80211b", 6,
-                                       pcapsource_wext_registrant,
+                                       pcapsource_wextfcs_registrant,
                                        monitor_acx100, unmonitor_acx100, 
                                        chancontrol_wext, 1);
     sourcetracker->RegisterPacketsource("admtek", 1, "IEEE80211b", 6,
