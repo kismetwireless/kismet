@@ -426,6 +426,11 @@ Licensed under the GPL
     FIX: Provide the correct interface and ensure that the patched drivers are
       loaded.
 
+    PROBLEM: Fatal error about a Cisco card not reporting the correct 
+      link type in Linux
+    FIX: Use the correct Cisco card drivers.  The ones from cisco.com and
+      the ones in pcmcia-cs don't support rfmon, but act as if they do.
+
     PROBLEM: Fatal error about being unable to open a file for writing
       The most common cause of this problem is that the suiduser you specified
       for Kismet to drop to does not have rights to write to the directory 
