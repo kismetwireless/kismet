@@ -323,6 +323,9 @@ int Protocol_STATUS(PROTO_PARMS) {
 void Protocol_Network2Data(const wireless_network *net, NETWORK_data *data) {
     char tmpstr[128];
 
+    // Reserve fields
+    data->ndvec.reserve(50);
+
     data->ndvec.push_back(net->bssid.Mac2String());
 
     snprintf(tmpstr, 128, "%d", (int) net->type);
@@ -473,6 +476,9 @@ int Protocol_NETWORK(PROTO_PARMS) {
 
 void Protocol_Client2Data(const wireless_network *net, const wireless_client *cli, CLIENT_data *data) {
     char tmpstr[128];
+
+    // Reserve fields
+    data->cdvec.reserve(50);
 
     data->cdvec.push_back(net->bssid.Mac2String());
 
@@ -629,6 +635,9 @@ int Protocol_ALERT(PROTO_PARMS) {
 
 void Protocol_Packet2Data(const packet_info *info, PACKET_data *data) {
     char tmpstr[128];
+
+    // Reserve
+    data->pdvec.reserve(10);
 
     snprintf(tmpstr, 128, "%d", (int) info->type);
     data->pdvec.push_back(tmpstr);

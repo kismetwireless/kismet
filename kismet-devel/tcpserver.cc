@@ -593,7 +593,11 @@ int TcpServer::FetchProtocolRef(string in_header) {
 }
 
 int TcpServer::FetchNumClientRefs(int in_refnum) {
-    return 1;
+    map<int, int>::iterator cmpitr = client_mapped_protocols.find(in_refnum);
+    if (cmpitr != client_mapped_protocols.end())
+        return cmpitr->second;
+
+    return 0;
 }
 
 void TcpServer::AddProtocolClient(int in_fd, int in_refnum, vector<int> in_fields) {

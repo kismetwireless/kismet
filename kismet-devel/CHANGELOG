@@ -1,3 +1,7 @@
+Nov 28 2002  2.7.1  Happy thanksgiving
+                    Fixed tcpserver code for tracking the number of clients
+                     using a protocol reference to actually have code, not
+                     just a placeholder.
 Nov 27 2002  2.7.1  Updated kismet_hopper to work with the new source specs
 Nov 26 2002  2.7.1  Removed user-specified capture engines.  They were 
                      redundant with the card type and led to misconfigurations.
