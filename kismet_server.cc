@@ -2096,11 +2096,14 @@ int main(int argc,char *argv[]) {
                         }
                     }
 
+                    /* We never implemented this doing anything so comment it out,
+                       especially since the new server code doesn't use it yet
                     // Handle the per-channel signal power levels
                     if (info.channel > 0 && info.channel < CHANNEL_MAX) {
                         channel_graph[info.channel].last_time = info.time;
                         channel_graph[info.channel].signal = info.signal;
                     }
+                    */
 
                     int process_ret;
 

@@ -222,6 +222,14 @@ void PanelFront::NetLine(string *in_str, wireless_network *net, const char *name
         } else if (colindex == mcol_clients) {
             snprintf(element, 5, "%4d", net->client_map.size());
             len = 4;
+        } else if (colindex == mcol_datasize) {
+            if (net->datasize < 1024) // Less than 1k gets raw bytes
+                snprintf(element, 6, "%4ldB", net->datasize);
+            else if (net->datasize < 1048576) // Less than 1 meg gets mb
+                snprintf(element, 6, "%4ldk", net->datasize/1024);
+            else // Display in MB
+                snprintf(element, 6, "%4ldM", net->datasize/1024/1024);
+            len = 5;
         }
 
         if (pos + len > print_width)
@@ -434,6 +442,9 @@ int PanelFront::MainNetworkPrinter(void *in_window) {
         } else if (colind == mcol_clients) {
             snprintf(title, 1024, "Clnt");
             len = 4;
+        } else if (colind == mcol_datasize) {
+            snprintf(title, 1024, " Size");
+            len = 5;
         } else {
             len = -1;
         }
@@ -878,6 +889,14 @@ void PanelFront::ClientLine(string *in_str, wireless_client *wclient, int print_
         } else if (colind == ccol_noise) {
             snprintf(element, 4, "%3d", wclient->noise);
             len = 3;
+        } else if (colind == ccol_datasize) {
+            if (wclient->datasize < 1024) // Less than 1k gets raw bytes
+                snprintf(element, 6, "%4ldB", wclient->datasize);
+            else if (wclient->datasize < 1048576) // Less than 1 meg gets mb
+                snprintf(element, 6, "%4ldk", wclient->datasize/1024);
+            else // Display in MB
+                snprintf(element, 6, "%4ldM", wclient->datasize/1024/1024);
+            len = 5;
         }
 
         if (pos + len > print_width - 1)
@@ -940,6 +959,9 @@ int PanelFront::MainClientPrinter(void *in_window) {
         } else if (colind == ccol_noise) {
             snprintf(title, 1024, "Nse");
             len = 3;
+        } else if (colind == ccol_datasize) {
+            snprintf(title, 1024, " Size");
+            len = 5;
         } else {
             title[0] = '\0';
         }

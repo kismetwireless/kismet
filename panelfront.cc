@@ -632,6 +632,8 @@ PanelFront::main_columns PanelFront::Token2MainColumn(string in_token) {
         return mcol_noise;
     } else if (in_token == "clients") {
         return mcol_clients;
+    } else if (in_token == "size") {
+        return mcol_datasize;
     } else {
         return mcol_unknown;
     }
@@ -665,6 +667,8 @@ PanelFront::client_columns PanelFront::Token2ClientColumn(string in_token) {
         return ccol_quality;
     } else if (in_token == "noise") {
         return ccol_noise;
+    } else if (in_token == "size") {
+        return ccol_datasize;
     }
 
     return ccol_unknown;
