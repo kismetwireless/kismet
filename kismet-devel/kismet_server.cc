@@ -760,6 +760,9 @@ void ProtocolNetworkEnable(int in_fd) {
     tracked = tracker.FetchNetworks();
 
     for (unsigned int x = 0; x < tracked.size(); x++) {
+        if (tracked[x]->type == network_remove) 
+            continue;
+
         NETWORK_data ndata;
         Protocol_Network2Data(tracked[x], &ndata);
         ui_server.SendToClient(in_fd, network_ref, (void *) &ndata);
