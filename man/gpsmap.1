@@ -6,8 +6,8 @@
 .SH SYNOPSIS
 .nf
 .fam C
-\fBgpsmap\fP [\fB-hvDVGMtbruapek\fP] [\fB-g\fP \fIconfig-file\fP] [\fB-o\fP \fIoutput-file\fP]
-[\fB-f\fP \fIfilter-list\fP] [\fB-z\fP \fInumthreads\fP] [\fB-S\fP \fImapsource\fP] [\fB-c\fP \fIcoords\fP] [\fB-s\fP \fIscale\fP]
+\fBgpsmap\fP [\fB-hviIDVGMtbruapek\fP] [\fB-g\fP \fIconfig-file\fP] [\fB-o\fP \fIoutput-file\fP]
+[\fB-f\fP \fIfilter-list\fP] [\fB-F\fP \fIfilter-type-list\fP] [\fB-z\fP \fInumthreads\fP] [\fB-S\fP \fImapsource\fP] [\fB-c\fP \fIcoords\fP] [\fB-s\fP \fIscale\fP]
 [\fB-m\fP \fIusermap\fP] [\fB-d\fP \fImapsize\fP] [\fB-n\fP \fInetcolors\fP] [\fB-O\fP \fIoffset\fP] [\fB-R\fP \fIrange-opacity\fP]
 [\fB-U\fP \fIhull-opacity\fP] [\fB-A\fP \fIscatter-opacity\fP] [\fB-B\fP \fIscatter-size\fP]
 [\fB-Z\fP \fIdraw-power-zoom\fI] 
@@ -41,11 +41,19 @@ Image output file
 .TP
 .B
 \fB-f\fP, \fB--filter\fP LIST
-Comma separated list of MAC's to filter
+Comma separated list of MACs to filter
 .TP
 .B
 \fB-i\fP, \fB--invert-filter\fP
 Process only MACs specified in the filter list
+.TP
+.B
+\fB-F\fP, \fB--typefilter\fP LIST
+Comma separated list of network types (ap,adhoc,probe,turbocell,data,unknown) to filter
+.TP
+.B
+\fB-I\fP, \fB--invert-typefilter\fP
+Process only MACs and types  specified in the filter list
 .TP
 .B
 \fB-z\fP, \fB--threads\fP NUM
@@ -173,7 +181,8 @@ Center dot at radius size. Default: 2
 .TP
 .B
 \fB-l\fP, \fB--draw-labels\fP LIST
-Draw network labels, comma-seperated list (bssid, name)
+Draw network label types, comma-seperated list (bssid, name).  This is literally
+"bssid", "name", or a combination thereof.
 .TP
 .B
 \fB-L\fP, \fB--draw-label-orient\fP ORIENT
