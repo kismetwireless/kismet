@@ -772,8 +772,10 @@ void GetProtoInfo(kis_packet *packet, packet_info *in_info) {
             // Get the SSID
             if (packet->len > (unsigned int) (in_info->header_offset + LLC_OFFSET + 26)) {
                 u_char *turbossid = &data[in_info->header_offset + LLC_OFFSET + 26];
-                snprintf(in_info->ssid, SSID_SIZE, "%s", turbossid);
-                MungeToPrintable(in_info->ssid, SSID_SIZE);
+                if (isprint(turbossid[0])) {
+                    snprintf(in_info->ssid, SSID_SIZE, "%s", turbossid);
+                    MungeToPrintable(in_info->ssid, SSID_SIZE);
+                }
             }
         }
 
