@@ -5,6 +5,7 @@ Sep 17 2002  2.5.2  Merged/Modified patch from Andrew Etter for customized
                     Trimmed comment-out code cruft
                     Merged/Modified patch from Cougar for kismet_curses to
                      reconnect to a server.
+                    Fixed numerics in speech patches
 Sep 16 2002  2.5.2  Fixed client handling and aging in groups
                     Fixed group map saving/loading
 Sep 14 2002  2.5.2  Stripped remnants of netmask/gateway tracking out since
