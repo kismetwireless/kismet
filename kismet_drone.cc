@@ -66,23 +66,25 @@ Timetracker timetracker;
 
 // Catch our interrupt
 void CatchShutdown(int sig) {
+    capchild_packhdr pak;
+    pak.sentinel = CAPSENTINEL;
+    pak.packtype = CAPPACK_COMMAND;
+    pak.flags = CAPFLAG_NONE;
+    pak.datalen = 1;
+    pak.data = (uint8_t *) malloc(1);
+    (int8_t) pak.data[0] = CAPCMD_DIE;
+
     for (unsigned int x = 0; x < packet_sources.size(); x++) {
         if (packet_sources[x]->alive) {
-            int8_t child_cmd = CAPCMD_DIE;
-            write(packet_sources[x]->servpair[1], &child_cmd, 1);
+            fprintf(stderr, "Shutting down source %d (%s)...\n", x, packet_sources[x]->name.c_str());
 
-            close(packet_sources[x]->childpair[0]);
-            close(packet_sources[x]->servpair[1]);
-            close(packet_sources[x]->textpair[0]);
+            // Send the death command
+            if (send(packet_sources[x]->childpair[1], &pak, sizeof(capchild_packhdr) - sizeof(void *), 0) > 0)
+                send(packet_sources[x]->childpair[1], pak.data, pak.datalen, 0);
         }
-
-        /*
-        if (packet_sources[x]->source != NULL) {
-            packet_sources[x]->source->CloseSource();
-            delete packet_sources[x]->source;
-            }
-            */
     }
+
+    free(pak.data);
 
     for (unsigned int x = 0; x < packet_sources.size(); x++) {
         if (packet_sources[x]->alive) {
@@ -122,24 +124,11 @@ int GpsEvent(Timetracker::timer_event *evt, void *parm) {
 
 // Handle channel hopping... this is actually really simple.
 int ChannelHopEvent(Timetracker::timer_event *evt, void *parm) {
-    char msg[1024];
-
     for (unsigned int x = 0; x < packet_sources.size(); x++) {
-        if (packet_sources[x]->source == NULL || packet_sources[x]->ch_hop == 0)
+        if (packet_sources[x]->childpid <= 0 || packet_sources[x]->ch_hop == 0)
             continue;
 
-        int8_t child_cmd = packet_sources[x]->channels[packet_sources[x]->ch_pos++];
-
-        if (write(packet_sources[x]->servpair[1], &child_cmd, 1) < 0) {
-            packet_sources[x]->alive = 0;
-
-            if (!silent) {
-                fprintf(stderr, "%s\n", msg);
-                fprintf(stderr, "Terminating.\n");
-            }
-
-            CatchShutdown(-1);
-        }
+        SendChildCommand(packet_sources[x], packet_sources[x]->channels[packet_sources[x]->ch_pos++]);
 
         // Wrap the channel sequence
         if ((unsigned int) packet_sources[x]->ch_pos >= packet_sources[x]->channels.size())
@@ -434,28 +423,13 @@ int main(int argc, char *argv[]) {
 
     // Set the initial channel
     for (unsigned int x = 0; x < packet_sources.size(); x++) {
-        char msg[1024];
-
         if (channel_initmap.find(packet_sources[x]->name) == channel_initmap.end())
             continue;
 
-        int child_cmd = channel_initmap[packet_sources[x]->name];
-        if (write(packet_sources[x]->servpair[1], &child_cmd, 1) < 0) {
-            snprintf(msg, 1024,
-                     "Source %d (%s): Command pipe shut down.", x, packet_sources[x]->name.c_str());
-            packet_sources[x]->alive = 0;
-
-            if (!silent) {
-                fprintf(stderr, "%s\n", msg);
-                fprintf(stderr, "Terminating.\n");
-            }
-
-            CatchShutdown(-1);
-        }
+        SendChildCommand(packet_sources[x], channel_initmap[packet_sources[x]->name]);
 
         fprintf(stderr, "Source %d (%s): Setting initial channel %d\n",
-                x, packet_sources[x]->name.c_str(), child_cmd);
-
+                x, packet_sources[x]->name.c_str(), channel_initmap[packet_sources[x]->name]);
     }
 
     // See if we tried to enable something that didn't exist
@@ -704,34 +678,16 @@ int main(int argc, char *argv[]) {
         if (packet_sources[x]->source == NULL)
             continue;
 
-        FD_SET(packet_sources[x]->childpair[0], &read_set);
+        FD_SET(packet_sources[x]->childpair[1], &read_set);
 
-        if (packet_sources[x]->childpair[0] > max_fd)
-            max_fd = packet_sources[x]->childpair[0];
+        if (packet_sources[x]->childpair[1] > max_fd)
+            max_fd = packet_sources[x]->childpair[1];
 
-        FD_SET(packet_sources[x]->textpair[0], &read_set);
-
-        if (packet_sources[x]->textpair[0] > max_fd)
-            max_fd = packet_sources[x]->textpair[0];
-
-        int8_t child_cmd;
-        // set it as silent if requested
-        child_cmd = CAPCMD_SILENT;
-        if (silent) {
-            if (write(packet_sources[x]->servpair[1], &child_cmd, 1) < 1) {
-                fprintf(stderr, "FATAL: Could not write activate command to source %s.\n",
-                        packet_sources[x]->name.c_str());
-                exit(1);
-            }
-        }
+        if (silent)
+            SendChildCommand(packet_sources[x], CAPCMD_SILENT);
 
         // Activate the source
-        child_cmd = CAPCMD_ACTIVATE;
-        if (write(packet_sources[x]->servpair[1], &child_cmd, 1) < 1) {
-            fprintf(stderr, "FATAL: Could not write activate command to source %s.\n",
-                    packet_sources[x]->name.c_str());
-            exit(1);
-        }
+        SendChildCommand(packet_sources[x], CAPCMD_ACTIVATE);
 
         packet_sources[x]->alive = 1;
 
@@ -741,6 +697,18 @@ int main(int argc, char *argv[]) {
         fd_set rset, wset;
 
         max_fd = streamer.MergeSet(read_set, max_fd, &rset, &wset);
+
+        // Update the write set if we want to send commands
+        for (unsigned int x = 0; x < packet_sources.size(); x++) {
+            if (packet_sources[x]->childpid <= 0)
+                continue;
+
+            if (packet_sources[x]->cmd_buf.size() > 0) {
+                FD_SET(packet_sources[x]->childpair[1], &wset);
+                if (packet_sources[x]->childpair[1] > max_fd)
+                    max_fd = packet_sources[x]->childpair[1];
+            }
+        }
 
         struct timeval tm;
         tm.tv_sec = 0;
@@ -770,48 +738,56 @@ int main(int argc, char *argv[]) {
         }
 
         for (unsigned int src = 0; src < packet_sources.size(); src++) {
-            if (packet_sources[src]->source == NULL)
+            if (packet_sources[src]->childpid <= 0)
                 continue;
 
-            int len;
-            string chtxt;
+            int ret;
 
-            if (FD_ISSET(packet_sources[src]->textpair[0], &rset)) {
-                len = FetchChildText(packet_sources[src]->textpair[0], &chtxt);
+            // Handle sending the commands
+            if (FD_ISSET(packet_sources[src]->childpair[1], &wset) && packet_sources[src]->cmd_buf.size() > 0) {
+                int send_fd = packet_sources[src]->childpair[1];
+                capchild_packhdr *pak = packet_sources[src]->cmd_buf.front();
+                packet_sources[src]->cmd_buf.pop_front();
 
-                if (chtxt != "" && len > 0) {
-                    if (!silent)
-                        fprintf(stderr, "%s\n", chtxt.c_str());
+                // Send the packet header
+                if (send(send_fd, pak, sizeof(capchild_packhdr) - sizeof(void *), 0) < 0) {
+                    fprintf(stderr, "FATAL:  capture source %d (%s)send() error sending packhdr %d (%s)\n",
+                            src, packet_sources[src]->name.c_str(), errno, strerror(errno));
+                    exit(1);
                 }
 
-                // try to resync if we're confused
-                if (len == -2) {
-                    int8_t child_cmd = CAPCMD_TXTFLUSH;
-                    write(packet_sources[src]->servpair[1], &child_cmd, 1);
+                // Send the data
+                if (send(send_fd, pak->data, pak->datalen, 0) < 0) {
+                    fprintf(stderr, "FATAL:  capture child %d (%s) send() error sending pack data %d (%s)\n",
+                            src, packet_sources[src]->name.c_str(), errno, strerror(errno));
+                    exit(1);
                 }
+
+                // Delete the data - this needs to be a free because of strdup
+                free(pak->data);
+                // Delete the packet
+                delete pak;
             }
 
-            if (FD_ISSET(packet_sources[src]->childpair[0], &rset)) {
+            string chtxt;
+
+            if (FD_ISSET(packet_sources[src]->childpair[1], &rset)) {
                 // Capture the packet from whatever device
                 // len = psrc->FetchPacket(&packet, data, moddata);
 
-                len = FetchChildPacket(packet_sources[src]->childpair[0], &packet, data, moddata, &chtxt);
+                ret = FetchChildBlock(packet_sources[src]->childpair[1], &packet, data, moddata, &chtxt);
 
-                if (chtxt != "") {
+                if (ret == CAPPACK_TEXT && chtxt != "") {
                     if (!silent)
                         fprintf(stderr, "%s\n", chtxt.c_str());
-                }
-
-                // Handle a packet
-                if (len > 0) {
-
+                } else if (ret == CAPPACK_PACKET && packet.len > 0) {
                     if (streamer.WritePacket(&packet) < 0) {
                         fprintf(stderr, "FATAL:  Error writing packet to streamer: %s\n",
                                 streamer.FetchError());
                         CatchShutdown(-1);
                     }
 
-                } else if (len < 0) {
+                } else if (ret < 0) {
                     // Fail on error
                     if (!silent) {
                         fprintf(stderr, "%s\n", chtxt.c_str());
