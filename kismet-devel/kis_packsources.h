@@ -32,7 +32,7 @@
 
 // Shortcut for registering uncompiled sources
 #define REG_EMPTY_CARD(x, y) x->RegisterPacketsource(y, 0, "na", 0, \
-                                                     NULL, NULL, NULL, NULL)
+                                                     NULL, NULL, NULL, NULL, 0)
 
 // Register all our packet sources.  
 //

@@ -458,17 +458,7 @@ fi
 AC_SUBST(pcap)
 
 AC_ARG_ENABLE(setuid, [  --disable-setuid        disable setuid/privdrop ability (not reccomended)],,suid=yes)
-AC_SUBST(suid)
-
-if test $suid = yes; then
-	AC_MSG_CHECKING(for setuid )
-	AC_MSG_RESULT(yes)
-	AC_DEFINE(HAVE_SUID, 1, setuid capable)
-else
-	AC_MSG_CHECKING(for setuid)
-	AC_MSG_RESULT(no)
-	AC_MSG_WARN(*** Not installing setuid capabilities.  It is more secure to install Kismet as setuid-capable so it can drop privileges.  Please consult the README file. ***)
-fi
+# evaluate after viha test
 
 if test "$darwin" = yes; then
 	AC_MSG_WARN([*** Enabling Viha by default because we're compiling under OSX ***]);
@@ -491,7 +481,25 @@ if test $want_viha = "yes"; then
 # Enable the ldflags and cxx flags if we found it...
 	if test $foundviha = "yes"; then
 		LDFLAGS="$LDFLAGS -framework WiFi"
+# Force suid disabled
+        suid="no"        
+        AC_MSG_WARN(*** Disabling setuid capabilities.  Viha must be controlled from the main process which makes setuid-dropping impossible. ***)
 	fi
+fi
+
+# Evaluate suid
+AC_SUBST(suid)
+if test $suid = yes; then
+	AC_MSG_CHECKING(for setuid )
+	AC_MSG_RESULT(yes)
+	AC_DEFINE(HAVE_SUID, 1, setuid capable)
+else
+	AC_MSG_CHECKING(for setuid)
+	AC_MSG_RESULT(no)
+# Yell if we didn't already yell about viha
+    if test "$foundviha" != "yes"; then
+	    AC_MSG_WARN(*** Not installing setuid capabilities.  It is more secure to install Kismet as setuid-capable so it can drop privileges.  Please consult the README file. ***)
+    fi
 fi
 
 wsp100=yes

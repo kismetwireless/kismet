@@ -176,6 +176,40 @@ int Packetsourcetracker::AdvanceChannel() {
     for (unsigned int metac = 0; metac < meta_packsources.size(); metac++) {
         meta_packsource *meta = meta_packsources[metac];
 
+        // Don't do anything for sources with no channel controls
+        if (meta->prototype->channelcon == NULL)
+            continue;
+        
+#ifndef HAVE_SUID
+        // Control stuff in one process if we don't suiddrop
+        //
+        int ret;
+        ret = (*meta->prototype->channelcon)(meta->device.c_str(),
+                                             meta->channels[meta->ch_pos++],
+                                             errstr, (void *) meta->capsource);
+
+        if (meta->ch_pos >= (int) meta->channels.size())
+            meta->ch_pos = 0;
+
+        if (ret < 0)
+            return ret;
+#else
+        // Stuff that doesn't have a child control gets done now
+        if (meta->prototype->child_control == 0) {
+            int ret;
+            ret = (*meta->prototype->channelcon)(meta->device.c_str(),
+                                                 meta->channels[meta->ch_pos++],
+                                                 errstr, (void *) meta->capsource);
+
+            if (meta->ch_pos >= (int) meta->channels.size())
+                meta->ch_pos = 0;
+
+            if (ret < 0)
+                return ret;
+
+            continue;
+        }
+
         // Don't try to change channels if they've not ackd the previous
         if (meta->cmd_ack == 0)
             continue;
@@ -186,7 +220,6 @@ int Packetsourcetracker::AdvanceChannel() {
 
         memset(chancmd, 0, sizeof(chanchild_packhdr));
         memset(data, 0, sizeof(chanchild_changepacket));
-
         if (data == NULL) {
             snprintf(errstr, STATUS_MAX, "Could not allocate data struct for "
                      "changing channels: %s", strerror(errno));
@@ -204,9 +237,10 @@ int Packetsourcetracker::AdvanceChannel() {
 
         if (meta->ch_pos >= (int) meta->channels.size())
             meta->ch_pos = 0;
-       
+
         ipc_buffer.push_back(chancmd);
     }
+#endif
 
     return 1;
 }
@@ -219,7 +253,8 @@ int Packetsourcetracker::RegisterPacketsource(const char *in_cardtype, int in_ro
                                               packsource_registrant in_registrant, 
                                               packsource_monitor in_monitor,
                                               packsource_monitor in_unmonitor,
-                                              packsource_chcontrol in_channelcon) {
+                                              packsource_chcontrol in_channelcon,
+                                              int in_childcontrol) {
     // Do we have it?  Can't register a type that's already registered.
     if (cardtype_map.find(in_cardtype) != cardtype_map.end())
         return -1;
@@ -236,6 +271,10 @@ int Packetsourcetracker::RegisterPacketsource(const char *in_cardtype, int in_ro
     rec->monitor_enable = in_monitor;
     rec->monitor_disable = in_unmonitor;
     rec->channelcon = in_channelcon;
+
+    rec->child_control = in_childcontrol;
+
+    rec->cardtype = in_cardtype;
 
     cardtype_map[StrLower(in_cardtype)] = rec;
 
@@ -547,15 +586,17 @@ int Packetsourcetracker::BindSources(int in_root) {
         }
 
         // Enable monitor mode
-        fprintf(stderr, "Source %d (%s): Enabling monitor mode for %s source "
-                "interface %s channel %d...\n",
-                x, meta->name.c_str(), meta->prototype->cardtype.c_str(), 
-                meta->device.c_str(), meta->cur_ch);
-
         int ret = 0;
-        if (meta->prototype->monitor_enable != NULL)
+        if (meta->prototype->monitor_enable != NULL) {
+            fprintf(stderr, "Source %d (%s): Enabling monitor mode for %s source "
+                    "interface %s channel %d...\n",
+                    x, meta->name.c_str(), meta->prototype->cardtype.c_str(), 
+                    meta->device.c_str(), meta->cur_ch);
+
             ret = (*meta->prototype->monitor_enable)(meta->device.c_str(), 
                                                      meta->cur_ch, errstr);
+        }
+
         if (ret < 0) {
             // Errstr gets filled out by the monitor command via reference argument
             return -1;
@@ -640,6 +681,25 @@ int Packetsourcetracker::CloseSources() {
 }
 
 int Packetsourcetracker::SpawnChannelChild() {
+    // If we don't do priv dropping don't bother opening a channel control child
+#ifndef HAVE_SUID
+    return 1;
+#else
+
+    int child_control = 0;
+    for (unsigned int metac = 0; metac < meta_packsources.size(); metac++) {
+        if (meta_packsources[metac]->prototype->child_control == 1) {
+            child_control = 1;
+            break;
+        }
+    }
+
+    // Don't spawn a process if we don't ahve anyting to do with it
+    if (child_control == 0) {
+        chanchild_pid = 0;
+        return 1;
+    }
+    
     // Generate socket pair before we split
     if (socketpair(PF_UNIX, SOCK_DGRAM, 0, sockpair) < 0) {
         fprintf(stderr, "FATAL:  Unable to create child socket pair for channel control: %d, %s\n",
@@ -656,13 +716,22 @@ int Packetsourcetracker::SpawnChannelChild() {
         ChannelChildLoop();
         exit(0);
     }
+
+    fprintf(stderr, "Spawned channelc control process %d\n", chanchild_pid);
     
     return 1;
+#endif
 }
 
 // Die cleanly
 int Packetsourcetracker::ShutdownChannelChild() {
+#ifndef HAVE_SUID
+    return 1;
+#else
     chanchild_packhdr death_packet;
+
+    if (chanchild_pid == 0)
+        return 1;
    
     memset(&death_packet, 0, sizeof(chanchild_packhdr));
     
@@ -685,6 +754,7 @@ int Packetsourcetracker::ShutdownChannelChild() {
     wait4(chanchild_pid, NULL, 0, NULL);
 
     return 1;
+#endif
 }
 
 // Interrupt handler - we just die.
