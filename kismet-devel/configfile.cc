@@ -140,6 +140,18 @@ string ConfigFile::ExpandLogPath(string path, string logname, string type,
 
             logtemplate.insert(nl, datestr);
         }
+        else if (op == 'D') {
+            time_t tnow;
+            struct tm *now;
+
+            tnow = time(0);
+            now = localtime(&tnow);
+
+            char datestr[24];
+            strftime(datestr, 24, "%Y%m%d", now);
+
+            logtemplate.insert(nl, datestr);
+        }
         else if (op == 't') {
             time_t tnow;
             struct tm *now;
