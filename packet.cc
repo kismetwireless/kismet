@@ -470,6 +470,10 @@ void GetPacketInfo(kis_packet *packet, packet_parm *parm, packet_info *ret_packi
     } else if (fc->type == 2) {
         ret_packinfo->type = packet_data;
 
+        int datasize = packet->len - ret_packinfo->header_offset;
+        if (datasize > 0)
+            ret_packinfo->datasize = datasize;
+
         // Extract ID's
         switch (ret_packinfo->distrib) {
         case adhoc_distribution:
@@ -557,9 +561,11 @@ void GetPacketInfo(kis_packet *packet, packet_parm *parm, packet_info *ret_packi
 
             // Knock 8 bytes off the data size of encrypted packets for the
             // wep IV and check
-            int datasize = packet->len - ret_packinfo->header_offset - 8;
+            datasize = ret_packinfo->datasize - 8;
             if (datasize > 0)
                 ret_packinfo->datasize = datasize;
+            else
+                ret_packinfo->datasize = 0;
 
             // De-wep if we have any keys
             if (ret_packinfo->encrypted && bssid_wep_map->size() != 0)
