@@ -438,23 +438,51 @@ int PanelFront::InitDisplay(int in_decay, time_t in_start) {
 }
 
 void PanelFront::RescaleDisplay() {
-    wresize(net_win->win, LINES-statheight, COLS-infowidth);
-    net_win->max_display = net_win->win->_maxy - 3;
-    net_win->print_width = net_win->win->_maxx - 2;
-    replace_panel(net_win->pan, net_win->win);
-    move_panel(net_win->pan, 0, 0);
+    for (list<kis_window *>::iterator x = window_list.begin();
+         x != window_list.end(); ++x) {
+        kis_window *kwin = *x;
 
-    wresize(info_win->win, LINES-statheight, infowidth);
-    info_win->max_display = info_win->win->_maxy - 2;
-    info_win->print_width = info_win->win->_maxx - 2;
-    replace_panel(info_win->pan, info_win->win);
-    move_panel(info_win->pan, 0, COLS-infowidth);
+        if (kwin == net_win) {
+            wresize(net_win->win, LINES-statheight, COLS-infowidth);
+            net_win->max_display = net_win->win->_maxy - 3;
+            net_win->print_width = net_win->win->_maxx - 2;
+            replace_panel(net_win->pan, net_win->win);
+            move_panel(net_win->pan, 0, 0);
+        } else if (kwin == info_win) {
+            wresize(info_win->win, LINES-statheight, infowidth);
+            info_win->max_display = info_win->win->_maxy - 2;
+            info_win->print_width = info_win->win->_maxx - 2;
+            replace_panel(info_win->pan, info_win->win);
+            move_panel(info_win->pan, 0, COLS-infowidth);
+        } else if (kwin == stat_win) {
+            wresize(stat_win->win, statheight, COLS);
+            stat_win->max_display = stat_win->win->_maxy - 2;
+            stat_win->print_width = stat_win->win->_maxx - 2;
+            replace_panel(stat_win->pan, stat_win->win);
+            move_panel(stat_win->pan, LINES-statheight, 0);
+        } else {
+            int xchange = kwin->win->_maxx, ychange = kwin->win->_maxy;
+            int needresize = 0;
 
-    wresize(stat_win->win, statheight, COLS);
-    stat_win->max_display = stat_win->win->_maxy - 2;
-    stat_win->print_width = stat_win->win->_maxx - 2;
-    replace_panel(stat_win->pan, stat_win->win);
-    move_panel(stat_win->pan, LINES-statheight, 0);
+            if (kwin->win->_begx + kwin->win->_maxx >= COLS) {
+                needresize = 1;
+                xchange = COLS - 2;
+            }
+
+            if (kwin->win->_begy + kwin->win->_maxy >= LINES) {
+                needresize = 1;
+                ychange = LINES - 2;
+            }
+
+            if (needresize) {
+                wresize(kwin->win, ychange, xchange);
+                kwin->max_display = kwin->win->_maxy - 2;
+                kwin->print_width = kwin->win->_maxx - 2;
+                replace_panel(kwin->pan, kwin->win);
+            }
+
+        }
+    }
 }
 
 PanelFront::main_columns PanelFront::Token2MainColumn(string in_token) {
