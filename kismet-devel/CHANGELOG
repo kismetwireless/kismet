@@ -7,6 +7,8 @@ Sep 26 2002  2.5.2  Consolidated kismet versioning into the makefile
                     Fixed stupid error in manuf matching that prevented model
                      matches
                     Fixed counting of probe packets as data packets
+                    Changed manuf datafile paths to assume default etc dir
+                     if an absolute path isn't given
 Sep 25 2002  2.5.2  More documentation updates
                     Merged patch from Pedro to do signal levels on BSD
                     Tweaked magick version checking

@@ -53,10 +53,6 @@
 #include "expat.h"
 #include "manuf.h"
 
-#define MAJOR 2
-#define MINOR 5
-#define TINY  2
-
 /* Mapscale / pixelfact is meter / pixel */
 #define PIXELFACT 2817.947378
 
@@ -2013,7 +2009,7 @@ int main(int argc, char *argv[]) {
             keep_gif = true;
             break;
         case 'V':
-            printf("GPSMap v%i.%i.%i\n", MAJOR, MINOR, TINY);
+            printf("GPSMap v%i.%i.%i\n", VERSION_MAJOR, VERSION_MINOR, VERSION_TINY);
             exit(0);
             break;
         case 'c':
@@ -2259,11 +2255,18 @@ int main(int argc, char *argv[]) {
     }
 
     if (ap_manuf_name != NULL) {
-        if ((manuf_data = fopen(ap_manuf_name, "r")) == NULL) {
+        char pathname[1024];
+
+        if (strchr(ap_manuf_name, '/') == NULL)
+            snprintf(pathname, 1024, "%s/%s", SYSCONF_LOC, ap_manuf_name);
+        else
+            snprintf(pathname, 1024, "%s", ap_manuf_name);
+
+        if ((manuf_data = fopen(pathname, "r")) == NULL) {
             fprintf(stderr, "WARNING:  Unable to open '%s' for reading (%s), AP manufacturers and defaults will not be detected.\n",
-                    ap_manuf_name, strerror(errno));
+                    pathname, strerror(errno));
         } else {
-            fprintf(stderr, "Reading AP manufacturer data and defaults from %s\n", ap_manuf_name);
+            fprintf(stderr, "Reading AP manufacturer data and defaults from %s\n", pathname);
             ap_manuf_map = ReadManufMap(manuf_data, 1);
             fclose(manuf_data);
         }
@@ -2272,18 +2275,24 @@ int main(int argc, char *argv[]) {
     }
 
     if (client_manuf_name != NULL) {
-        if ((manuf_data = fopen(client_manuf_name, "r")) == NULL) {
-            fprintf(stderr, "WARNING:  Unable to open '%s' for reading (%s), client manufacturers will not be detected.\n",
-                    client_manuf_name, strerror(errno));
+        char pathname[1024];
+
+        if (strchr(client_manuf_name, '/') == NULL)
+            snprintf(pathname, 1024, "%s/%s", SYSCONF_LOC, client_manuf_name);
+        else
+            snprintf(pathname, 1024, "%s", client_manuf_name);
+
+        if ((manuf_data = fopen(pathname, "r")) == NULL) {
+            fprintf(stderr, "WARNING:  Unable to open '%s' for reading (%s), client manufacturers and defaults will not be detected.\n",
+                    pathname, strerror(errno));
         } else {
-            fprintf(stderr, "Reading client manufacturer data and defaults from %s\n", client_manuf_name);
+            fprintf(stderr, "Reading client manufacturer data and defaults from %s\n", pathname);
             client_manuf_map = ReadManufMap(manuf_data, 1);
             fclose(manuf_data);
         }
 
         free(client_manuf_name);
     }
-
 
     // Initialize stuff
     num_tracks = 0;
