@@ -5335,6 +5335,11 @@ fi
 
 
 wantgps=yes
+
+cat >>confdefs.h <<\_ACEOF
+#define HAVE_GPS 1
+_ACEOF
+
 #AC_ARG_ENABLE(gps,
 #[  --disable-gps           disable GPS support],
 #	wantgps=no, wantgps=yes)
