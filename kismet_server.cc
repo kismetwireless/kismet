@@ -945,11 +945,11 @@ int main(int argc,char *argv[]) {
         freeconf = 1;
     }
 
-    ConfigFile conf;
+    ConfigFile *conf = new ConfigFile;
 
     // Parse the config and load all the values from it and/or our command
     // line options.  This is a little soupy but it does the trick.
-    if (conf.ParseConfig(configfile) < 0) {
+    if (conf->ParseConfig(configfile) < 0) {
         exit(1);
     }
 
@@ -963,8 +963,8 @@ int main(int argc,char *argv[]) {
 
     real_uid = getuid();
 
-    if (conf.FetchOpt("suiduser") != "") {
-        suid_user = conf.FetchOpt("suiduser").c_str();
+    if (conf->FetchOpt("suiduser") != "") {
+        suid_user = conf->FetchOpt("suiduser").c_str();
         if ((pwordent = getpwnam(suid_user)) == NULL) {
             fprintf(stderr, "FATAL:  Could not find user '%s' for dropping priviledges.\n", suid_user);
             fprintf(stderr, "        Make sure you have a valid user set for 'suiduser' in your config.\n");
@@ -997,8 +997,8 @@ int main(int argc,char *argv[]) {
 #endif
 
     // Catch old configs and yell about them
-    if (conf.FetchOpt("cardtype") != "" || conf.FetchOpt("captype") != "" ||
-        conf.FetchOpt("capinterface") != "") {
+    if (conf->FetchOpt("cardtype") != "" || conf->FetchOpt("captype") != "" ||
+        conf->FetchOpt("capinterface") != "") {
         fprintf(stderr, "FATAL:  Old config file options found.  To support multiple sources, Kismet now\n"
                 "uses a new config file format.  Please consult the example config file in your Kismet\n"
                 "source directory, OR do 'make forceinstall' and reconfigure Kismet.\n");
@@ -1016,7 +1016,7 @@ int main(int argc,char *argv[]) {
         char sourcestr[16];
 
         while (snprintf(sourcestr, 16, "source%d", sourcenum++) &&
-               (sourceopt = conf.FetchOpt(sourcestr)) != "") {
+               (sourceopt = conf->FetchOpt(sourcestr)) != "") {
             source_input_vec.push_back(sourceopt);
         }
     }
@@ -1057,6 +1057,8 @@ int main(int argc,char *argv[]) {
 
         packet_sources.push_back(newsource);
     }
+
+    source_input_vec.clear();
 
     // Now loop through each of the sources - parse the engines, interfaces, types.
     // Open any that need to be opened as root.
@@ -1223,83 +1225,83 @@ int main(int argc,char *argv[]) {
     // ---------------
 
     if (servername == NULL) {
-        if (conf.FetchOpt("servername") != "") {
-            servername = strdup(conf.FetchOpt("servername").c_str());
+        if (conf->FetchOpt("servername") != "") {
+            servername = strdup(conf->FetchOpt("servername").c_str());
         } else {
             servername = strdup("Unnamed");
         }
     }
 
-    if (conf.FetchOpt("configdir") != "") {
-        configdir = conf.ExpandLogPath(conf.FetchOpt("configdir"), "", "", 0, 1);
+    if (conf->FetchOpt("configdir") != "") {
+        configdir = conf->ExpandLogPath(conf->FetchOpt("configdir"), "", "", 0, 1);
     } else {
         fprintf(stderr, "FATAL:  No 'configdir' option in the config file.\n");
         exit(1);
     }
 
-    if (conf.FetchOpt("ssidmap") != "") {
+    if (conf->FetchOpt("ssidmap") != "") {
         // Explode the map file path
-        ssidtrackfile = conf.ExpandLogPath(configdir + conf.FetchOpt("ssidmap"), "", "", 0, 1);
+        ssidtrackfile = conf->ExpandLogPath(configdir + conf->FetchOpt("ssidmap"), "", "", 0, 1);
         ssid_cloak_track = 1;
     }
 
-    if (conf.FetchOpt("ipmap") != "") {
+    if (conf->FetchOpt("ipmap") != "") {
         // Explode the IP file path
-        iptrackfile = conf.ExpandLogPath(configdir + conf.FetchOpt("ipmap"), "", "", 0, 1);
+        iptrackfile = conf->ExpandLogPath(configdir + conf->FetchOpt("ipmap"), "", "", 0, 1);
         ip_track = 1;
     }
 
 
 #ifdef HAVE_GPS
-    if (conf.FetchOpt("waypoints") == "true") {
-        if(conf.FetchOpt("waypointdata") == "") {
+    if (conf->FetchOpt("waypoints") == "true") {
+        if(conf->FetchOpt("waypointdata") == "") {
             fprintf(stderr, "WARNING:  Waypoint logging requested but no waypoint data file given.\n"
                     "Waypoint logging will be disabled.\n");
             waypoint = 0;
         } else {
-            waypointfile = conf.ExpandLogPath(conf.FetchOpt("waypointdata"), "", "", 0, 1);
+            waypointfile = conf->ExpandLogPath(conf->FetchOpt("waypointdata"), "", "", 0, 1);
             waypoint = 1;
         }
 
     }
 #endif
 
-    if (conf.FetchOpt("metric") == "true") {
+    if (conf->FetchOpt("metric") == "true") {
         fprintf(stderr, "NOTICE:  Using metric measurements.\n");
         metric = 1;
     }
 
     if (!no_log) {
         if (logname == "") {
-            if (conf.FetchOpt("logdefault") == "") {
+            if (conf->FetchOpt("logdefault") == "") {
                 fprintf(stderr, "FATAL:  No default log name in config and no log name provided on the command line.\n");
                 exit(1);
             }
-            logname = conf.FetchOpt("logdefault").c_str();
+            logname = conf->FetchOpt("logdefault").c_str();
         }
 
         if (logtypes == NULL) {
-            if (conf.FetchOpt("logtypes") == "") {
+            if (conf->FetchOpt("logtypes") == "") {
                 fprintf(stderr, "FATAL:  No log types in config and none provided on the command line.\n");
                 exit(1);
             }
-            logtypes = conf.FetchOpt("logtypes").c_str();
+            logtypes = conf->FetchOpt("logtypes").c_str();
         }
 
-        if (conf.FetchOpt("noiselog") == "true")
+        if (conf->FetchOpt("noiselog") == "true")
             noise_log = 1;
 
         if (strstr(logtypes, "dump")) {
             data_log = 1;
 
-            if (conf.FetchOpt("logtemplate") == "") {
+            if (conf->FetchOpt("logtemplate") == "") {
                 fprintf(stderr, "FATAL:  Logging (network dump) enabled but no logtemplate given in config.\n");
                 exit(1);
             }
 
-            if (conf.FetchOpt("dumplimit") != "" || limit_logs != 0) {
+            if (conf->FetchOpt("dumplimit") != "" || limit_logs != 0) {
                 if (limit_logs == 0)
-                    if (sscanf(conf.FetchOpt("dumplimit").c_str(), "%d", &limit_logs) != 1) {
+                    if (sscanf(conf->FetchOpt("dumplimit").c_str(), "%d", &limit_logs) != 1) {
                         fprintf(stderr, "FATAL:  Illegal config file value for dumplimit.\n");
                         exit(1);
                     }
@@ -1309,13 +1311,13 @@ int main(int argc,char *argv[]) {
                             limit_logs);
             }
 
-            if (conf.FetchOpt("dumptype") == "" && dumptype == NULL) {
+            if (conf->FetchOpt("dumptype") == "" && dumptype == NULL) {
                 fprintf(stderr, "FATAL: Dump file logging requested but no dump type given.\n");
                 exit(1);
             }
 
-            if (conf.FetchOpt("dumptype") != "" && dumptype == NULL)
-                dumptype = conf.FetchOpt("dumptype").c_str();
+            if (conf->FetchOpt("dumptype") != "" && dumptype == NULL)
+                dumptype = conf->FetchOpt("dumptype").c_str();
 
             if (!strcasecmp(dumptype, "wiretap")) {
                 dumpfile = new WtapDumpFile;
@@ -1328,7 +1330,7 @@ int main(int argc,char *argv[]) {
         if (strstr(logtypes, "network")) {
             net_log = 1;
 
-            if (conf.FetchOpt("logtemplate") == "") {
+            if (conf->FetchOpt("logtemplate") == "") {
                 fprintf(stderr, "FATAL:  Logging (network list) enabled but no logtemplate given in config.\n");
                 exit(1);
             }
@@ -1338,7 +1340,7 @@ int main(int argc,char *argv[]) {
         if (strstr(logtypes, "weak")) {
             crypt_log = 1;
 
-            if (conf.FetchOpt("logtemplate") == "") {
+            if (conf->FetchOpt("logtemplate") == "") {
                 fprintf(stderr, "FATAL:  Logging (weak packets) enabled but no logtemplate given in config.\n");
                 exit(1);
             }
@@ -1348,7 +1350,7 @@ int main(int argc,char *argv[]) {
         if (strstr(logtypes, "csv")) {
             csv_log = 1;
 
-            if (conf.FetchOpt("logtemplate") == "") {
+            if (conf->FetchOpt("logtemplate") == "") {
                 fprintf(stderr, "FATAL:  CSV Logging (network list) enabled but no logtemplate given in config.\n");
                 exit(1);
             }
@@ -1358,7 +1360,7 @@ int main(int argc,char *argv[]) {
         if (strstr(logtypes, "xml")) {
             xml_log = 1;
 
-            if (conf.FetchOpt("logtemplate") == "") {
+            if (conf->FetchOpt("logtemplate") == "") {
                 fprintf(stderr, "FATAL:  XML Logging (network list) enabled but no logtemplate given in config.\n");
                 exit(1);
             }
@@ -1367,7 +1369,7 @@ int main(int argc,char *argv[]) {
         if (strstr(logtypes, "cisco")) {
             cisco_log = 1;
 
-            if (conf.FetchOpt("logtemplate") == "") {
+            if (conf->FetchOpt("logtemplate") == "") {
                 fprintf(stderr, "FATAL: Logging (cisco packets) enabled but no logtemplate given in config.\n");
                 exit(1);
             }
@@ -1379,7 +1381,7 @@ int main(int argc,char *argv[]) {
 
             gps_log = 1;
 
-            if (conf.FetchOpt("logtemplate") == "") {
+            if (conf->FetchOpt("logtemplate") == "") {
                 fprintf(stderr, "FATAL:  Logging (gps coordinates) enabled but no logtemplate given in config.\n");
                 exit(1);
             }
@@ -1399,45 +1401,45 @@ int main(int argc,char *argv[]) {
         }
     }
 
-    if (conf.FetchOpt("decay") != "") {
-        if (sscanf(conf.FetchOpt("decay").c_str(), "%d", &decay) != 1) {
+    if (conf->FetchOpt("decay") != "") {
+        if (sscanf(conf->FetchOpt("decay").c_str(), "%d", &decay) != 1) {
             fprintf(stderr, "FATAL:  Illegal config file value for decay.\n");
             exit(1);
         }
     }
 
-    if (conf.FetchOpt("alertbacklog") != "") {
-        if (sscanf(conf.FetchOpt("alertbacklog").c_str(), "%d", &max_alerts) != 1) {
+    if (conf->FetchOpt("alertbacklog") != "") {
+        if (sscanf(conf->FetchOpt("alertbacklog").c_str(), "%d", &max_alerts) != 1) {
             fprintf(stderr, "FATAL:  Illegal config file value for alert backlog.\n");
             exit(1);
         }
     }
 
     if (tcpport == -1) {
-        if (conf.FetchOpt("tcpport") == "") {
+        if (conf->FetchOpt("tcpport") == "") {
             fprintf(stderr, "FATAL:  No tcp port given to listen for GUI connections.\n");
             exit(1);
-        } else if (sscanf(conf.FetchOpt("tcpport").c_str(), "%d", &tcpport) != 1) {
+        } else if (sscanf(conf->FetchOpt("tcpport").c_str(), "%d", &tcpport) != 1) {
             fprintf(stderr, "FATAL:  Invalid config file value for tcp port.\n");
             exit(1);
         }
     }
 
-    if (conf.FetchOpt("maxclients") == "") {
+    if (conf->FetchOpt("maxclients") == "") {
         fprintf(stderr, "FATAL:  No maximum number of clients given.\n");
         exit(1);
-    } else if (sscanf(conf.FetchOpt("maxclients").c_str(), "%d", &tcpmax) != 1) {
+    } else if (sscanf(conf->FetchOpt("maxclients").c_str(), "%d", &tcpmax) != 1) {
         fprintf(stderr, "FATAL:  Invalid config file option for max clients.\n");
         exit(1);
     }
 
     if (allowed_hosts == NULL) {
-        if (conf.FetchOpt("allowedhosts") == "") {
+        if (conf->FetchOpt("allowedhosts") == "") {
             fprintf(stderr, "FATAL:  No list of allowed hosts.\n");
             exit(1);
         }
 
-        allowed_hosts = conf.FetchOpt("allowedhosts").c_str();
+        allowed_hosts = conf->FetchOpt("allowedhosts").c_str();
     }
 
     // Make sure allowed hosts is valid
@@ -1450,27 +1452,27 @@ int main(int argc,char *argv[]) {
     }
 
     // Process sound stuff
-    if (conf.FetchOpt("sound") == "true" && sound == -1) {
-        if (conf.FetchOpt("soundplay") != "") {
-            sndplay = conf.FetchOpt("soundplay");
+    if (conf->FetchOpt("sound") == "true" && sound == -1) {
+        if (conf->FetchOpt("soundplay") != "") {
+            sndplay = conf->FetchOpt("soundplay");
 
-            if (conf.FetchOpt("soundopts") != "")
-                sndplay += " " + conf.FetchOpt("soundopts");
+            if (conf->FetchOpt("soundopts") != "")
+                sndplay += " " + conf->FetchOpt("soundopts");
 
             sound = 1;
 
-            if (conf.FetchOpt("sound_new") != "")
-                wav_map["new"] = conf.FetchOpt("sound_new");
-            if (conf.FetchOpt("sound_traffic") != "")
-                wav_map["traffic"] = conf.FetchOpt("sound_traffic");
-            if (conf.FetchOpt("sound_junktraffic") != "")
-                wav_map["junktraffic"] = conf.FetchOpt("sound_traffic");
-            if (conf.FetchOpt("sound_gpslock") != "")
-                wav_map["gpslock"] = conf.FetchOpt("sound_gpslock");
-            if (conf.FetchOpt("sound_gpslost") != "")
-                wav_map["gpslost"] = conf.FetchOpt("sound_gpslost");
-            if (conf.FetchOpt("sound_alert") != "")
-                wav_map["alert"] = conf.FetchOpt("sound_alert");
+            if (conf->FetchOpt("sound_new") != "")
+                wav_map["new"] = conf->FetchOpt("sound_new");
+            if (conf->FetchOpt("sound_traffic") != "")
+                wav_map["traffic"] = conf->FetchOpt("sound_traffic");
+            if (conf->FetchOpt("sound_junktraffic") != "")
+                wav_map["junktraffic"] = conf->FetchOpt("sound_traffic");
+            if (conf->FetchOpt("sound_gpslock") != "")
+                wav_map["gpslock"] = conf->FetchOpt("sound_gpslock");
+            if (conf->FetchOpt("sound_gpslost") != "")
+                wav_map["gpslost"] = conf->FetchOpt("sound_gpslost");
+            if (conf->FetchOpt("sound_alert") != "")
+                wav_map["alert"] = conf->FetchOpt("sound_alert");
 
         } else {
             fprintf(stderr, "ERROR:  Sound alerts enabled but no sound playing binary specified.\n");
@@ -1481,12 +1483,12 @@ int main(int argc,char *argv[]) {
 
     /* Added by Shaw Innes 17/2/02 */
     /* Modified by Andrew Etter 15/9/02 */
-    if (conf.FetchOpt("speech") == "true" && speech == -1) {
-        if (conf.FetchOpt("festival") != "") {
-            festival = conf.FetchOpt("festival").c_str();
+    if (conf->FetchOpt("speech") == "true" && speech == -1) {
+        if (conf->FetchOpt("festival") != "") {
+            festival = conf->FetchOpt("festival").c_str();
             speech = 1;
 
-            string speechtype = conf.FetchOpt("speech_type");
+            string speechtype = conf->FetchOpt("speech_type");
 
             if (!strcasecmp(speechtype.c_str(), "nato"))
                 speech_encoding = SPEECH_ENCODING_NATO;
@@ -1496,13 +1498,13 @@ int main(int argc,char *argv[]) {
                 speech_encoding = SPEECH_ENCODING_NORMAL;
 
             // Make sure we have encrypted text lines
-            if (conf.FetchOpt("speech_encrypted") == "" || conf.FetchOpt("speech_unencrypted") == "") {
+            if (conf->FetchOpt("speech_encrypted") == "" || conf->FetchOpt("speech_unencrypted") == "") {
                 fprintf(stderr, "ERROR:  Speech request but speech_encrypted or speech_unencrypted line missing.\n");
                 speech = 0;
             }
 
-            speech_sentence_encrypted = conf.FetchOpt("speech_encrypted");
-            speech_sentence_unencrypted = conf.FetchOpt("speech_unencrypted");
+            speech_sentence_encrypted = conf->FetchOpt("speech_encrypted");
+            speech_sentence_unencrypted = conf->FetchOpt("speech_unencrypted");
         } else {
             fprintf(stderr, "ERROR: Speech alerts enabled but no path to festival has been specified.\n");
             speech = 0;
@@ -1510,21 +1512,21 @@ int main(int argc,char *argv[]) {
     } else if (speech == -1)
         speech = 0;
 
-    if (conf.FetchOpt("writeinterval") != "") {
-        if (sscanf(conf.FetchOpt("writeinterval").c_str(), "%d", &datainterval) != 1) {
+    if (conf->FetchOpt("writeinterval") != "") {
+        if (sscanf(conf->FetchOpt("writeinterval").c_str(), "%d", &datainterval) != 1) {
             fprintf(stderr, "FATAL:  Illegal config file value for data interval.\n");
             exit(1);
         }
     }
 
-    if (conf.FetchOpt("ap_manuf") != "") {
-        ap_manuf_name = strdup(conf.FetchOpt("ap_manuf").c_str());
+    if (conf->FetchOpt("ap_manuf") != "") {
+        ap_manuf_name = strdup(conf->FetchOpt("ap_manuf").c_str());
     } else {
         fprintf(stderr, "WARNING:  No ap_manuf file specified, AP manufacturers and defaults will not be detected.\n");
     }
 
-    if (conf.FetchOpt("client_manuf") != "") {
-        client_manuf_name = strdup(conf.FetchOpt("client_manuf").c_str());
+    if (conf->FetchOpt("client_manuf") != "") {
+        client_manuf_name = strdup(conf->FetchOpt("client_manuf").c_str());
     } else {
         fprintf(stderr, "WARNING:  No client_manuf file specified.  Client manufacturers will not be detected.\n");
     }
@@ -1569,7 +1571,7 @@ int main(int argc,char *argv[]) {
     }
 
     // Grab the filtering
-    filter = conf.FetchOpt("macfilter");
+    filter = conf->FetchOpt("macfilter");
 
     // handle the config bits
     struct stat fstat;
@@ -1646,45 +1648,48 @@ int main(int argc,char *argv[]) {
 #endif
 
     // Create all the logs and title/number them appropriately
+    // We need to save this for after we toast the conf record
+    string logtemplate;
     int logfile_matched = 0;
     for (int run_num = 1; run_num < 100; run_num++) {
         if (data_log) {
-            dumplogfile = conf.ExpandLogPath(conf.FetchOpt("logtemplate"), logname, "dump", run_num);
+            dumplogfile = conf->ExpandLogPath(conf->FetchOpt("logtemplate"), logname, "dump", run_num);
+            logtemplate = conf->FetchOpt("logtemplate");
 
             if (dumplogfile == "")
                 continue;
         }
 
         if (net_log) {
-            netlogfile = conf.ExpandLogPath(conf.FetchOpt("logtemplate"), logname, "network", run_num);
+            netlogfile = conf->ExpandLogPath(conf->FetchOpt("logtemplate"), logname, "network", run_num);
 
             if (netlogfile == "")
                 continue;
         }
 
         if (crypt_log) {
-            cryptlogfile = conf.ExpandLogPath(conf.FetchOpt("logtemplate"), logname, "weak", run_num);
+            cryptlogfile = conf->ExpandLogPath(conf->FetchOpt("logtemplate"), logname, "weak", run_num);
 
             if (cryptlogfile == "")
                 continue;
         }
 
         if (csv_log) {
-            csvlogfile = conf.ExpandLogPath(conf.FetchOpt("logtemplate"), logname, "csv", run_num);
+            csvlogfile = conf->ExpandLogPath(conf->FetchOpt("logtemplate"), logname, "csv", run_num);
 
             if (csvlogfile == "")
                 continue;
         }
 
         if (xml_log) {
-            xmllogfile = conf.ExpandLogPath(conf.FetchOpt("logtemplate"), logname, "xml", run_num);
+            xmllogfile = conf->ExpandLogPath(conf->FetchOpt("logtemplate"), logname, "xml", run_num);
 
             if (xmllogfile == "")
                 continue;
         }
 
         if (cisco_log) {
-            ciscologfile = conf.ExpandLogPath(conf.FetchOpt("logtemplate"), logname, "cisco", run_num);
+            ciscologfile = conf->ExpandLogPath(conf->FetchOpt("logtemplate"), logname, "cisco", run_num);
 
             if (ciscologfile == "")
                 continue;
@@ -1692,7 +1697,7 @@ int main(int argc,char *argv[]) {
 
 #ifdef HAVE_GPS
         if (gps_log) {
-            gpslogfile = conf.ExpandLogPath(conf.FetchOpt("logtemplate"), logname, "gps", run_num);
+            gpslogfile = conf->ExpandLogPath(conf->FetchOpt("logtemplate"), logname, "gps", run_num);
 
             if (gpslogfile == "")
                 continue;
@@ -1747,7 +1752,7 @@ int main(int argc,char *argv[]) {
         //tracker.AddFilter(filter);
     }
 
-    if (conf.FetchOpt("beaconlog") == "false") {
+    if (conf->FetchOpt("beaconlog") == "false") {
         beacon_log = 0;
         fprintf(stderr, "Filtering beacon packets.\n");
     }
@@ -1796,8 +1801,8 @@ int main(int argc,char *argv[]) {
     // Now lets open the GPS host if specified
 #ifdef HAVE_GPS
     if (gpsport == -1 && gps_enable) {
-        if (conf.FetchOpt("gps") == "true") {
-            if (sscanf(conf.FetchOpt("gpshost").c_str(), "%1024[^:]:%d", gpshost, &gpsport) != 2) {
+        if (conf->FetchOpt("gps") == "true") {
+            if (sscanf(conf->FetchOpt("gpshost").c_str(), "%1024[^:]:%d", gpshost, &gpsport) != 2) {
                 fprintf(stderr, "Invalid GPS host in config (host:port required)\n");
                 exit(1);
             }
@@ -1841,7 +1846,7 @@ int main(int argc,char *argv[]) {
     }
 #endif
 
-    const char *fuzzengines = conf.FetchOpt("fuzzycrypt").c_str();
+    const char *fuzzengines = conf->FetchOpt("fuzzycrypt").c_str();
     for (unsigned int x = 0; x < packet_sources.size(); x++) {
         if (strstr(fuzzengines, packet_sources[x]->engine.c_str()) ||
             strncmp(fuzzengines, "all", 3) == 0)
@@ -1849,6 +1854,10 @@ int main(int argc,char *argv[]) {
         else
             packet_sources[x]->packparm.fuzzy_crypt = 0;
     }
+
+    // Delete the conf stuff
+    delete conf;
+    conf = NULL;
 
     if (data_log) {
         if (dumpfile->OpenDump(dumplogfile.c_str()) < 0) {
@@ -2161,7 +2170,7 @@ int main(int argc,char *argv[]) {
                         if (limit_logs && log_packnum > limit_logs) {
                             dumpfile->CloseDump();
 
-                            dumplogfile = conf.ExpandLogPath(conf.FetchOpt("logtemplate"), logname, "dump", 0);
+                            dumplogfile = ConfigFile::ExpandLogPath(logtemplate, logname, "dump", 0);
 
                             if (dumpfile->OpenDump(dumplogfile.c_str()) < 0) {
                                 perror("Unable to open new dump file");

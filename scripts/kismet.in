@@ -16,8 +16,8 @@ mode="server"
 while test "$1" != ""; do
 	if test "$1" = "-h"; then
 		echo "$0 [server options] -- [client options]"
-		echo "ex: $0 -c prism2 -p 5000 -- -q -p 5000"
-		echo "to start the server with a prism/2 capture source on port 5000 and start the"
+		echo "ex: $0 -s pcap,eth0,cisco,Kismet -p 5000 -- -q -p 5000"
+		echo "to start the server with a pcap capture source on port 5000 and start the"
 		echo "client in quiet mode on the same port."
 		exit
 	elif test "$1" = "--"; then

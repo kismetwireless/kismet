@@ -404,8 +404,8 @@ int main(int argc, char *argv[]) {
         }
     }
 
-    ConfigFile server_conf;
-    ConfigFile gui_conf;
+    ConfigFile *server_conf = new ConfigFile;
+    ConfigFile *gui_conf = new ConfigFile;
 
     // If we haven't gotten a command line config option...
     if (configfile == NULL) {
@@ -420,41 +420,41 @@ int main(int argc, char *argv[]) {
 
     // Parse the config and load all the values from it and/or our command
     // line options.  This is a little soupy but it does the trick.
-    if (server_conf.ParseConfig(configfile) < 0) {
+    if (server_conf->ParseConfig(configfile) < 0) {
         fprintf(stderr, "Unable to parse config file.");
         exit(1);
     }
 
-    if (gui_conf.ParseConfig(uiconfigfile) < 0) {
+    if (gui_conf->ParseConfig(uiconfigfile) < 0) {
         fprintf(stderr, "Unable to parse ui config file.");
         exit(1);
     }
 
-    if (server_conf.FetchOpt("configdir") != "") {
-        configdir = server_conf.ExpandLogPath(server_conf.FetchOpt("configdir"), "", "", 0, 1);
+    if (server_conf->FetchOpt("configdir") != "") {
+        configdir = server_conf->ExpandLogPath(server_conf->FetchOpt("configdir"), "", "", 0, 1);
     } else {
         fprintf(stderr, "FATAL:  No 'configdir' option in the config file.\n");
         exit(1);
     }
 
-    if (server_conf.FetchOpt("groupmap") != "") {
+    if (server_conf->FetchOpt("groupmap") != "") {
         // Explode the group map path
-        groupfile = server_conf.ExpandLogPath(configdir + server_conf.FetchOpt("groupmap"),
+        groupfile = server_conf->ExpandLogPath(configdir + server_conf->FetchOpt("groupmap"),
                                               "", "", 0, 1);
         group_track = 1;
     }
 
-    if (server_conf.FetchOpt("metric") == "true") {
+    if (server_conf->FetchOpt("metric") == "true") {
         metric = 1;
     }
 
     if (reqgui == NULL) {
-        if (gui_conf.FetchOpt("gui") == "") {
+        if (gui_conf->FetchOpt("gui") == "") {
             fprintf(stderr, "ERROR:  No gui given in config file and none given on the command line.\n");
             exit(1);
         }
 
-        reqgui = gui_conf.FetchOpt("gui").c_str();
+        reqgui = gui_conf->FetchOpt("gui").c_str();
     }
 
     if (!strcasecmp(reqgui, "curses")) {
@@ -479,47 +479,47 @@ int main(int argc, char *argv[]) {
     }
 
     if (columns == NULL) {
-        if (gui_conf.FetchOpt("columns") == "") {
+        if (gui_conf->FetchOpt("columns") == "") {
             fprintf(stderr, "FATAL:  No columns in the config file and none given on the command line.\n");
             exit(1);
         }
 
-        columns = gui_conf.FetchOpt("columns").c_str();
+        columns = gui_conf->FetchOpt("columns").c_str();
     }
 
     if (clientcolumns == NULL) {
-        if (gui_conf.FetchOpt("clientcolumns") == "") {
+        if (gui_conf->FetchOpt("clientcolumns") == "") {
             fprintf(stderr, "FATAL: No client columns in the config file and none given on the command line.\n");
             exit(1);
         }
 
-        clientcolumns = gui_conf.FetchOpt("clientcolumns").c_str();
+        clientcolumns = gui_conf->FetchOpt("clientcolumns").c_str();
     }
 
     if (server == NULL) {
-        server = (char *) gui_conf.FetchOpt("host").c_str();
+        server = (char *) gui_conf->FetchOpt("host").c_str();
     }
 
-    if (gui_conf.FetchOpt("sound") == "true" && sound == -1) {
-        if (gui_conf.FetchOpt("soundplay") != "") {
-            sndplay = gui_conf.FetchOpt("soundplay");
+    if (gui_conf->FetchOpt("sound") == "true" && sound == -1) {
+        if (gui_conf->FetchOpt("soundplay") != "") {
+            sndplay = gui_conf->FetchOpt("soundplay");
             sound = 1;
 
-            if (gui_conf.FetchOpt("soundopts") != "")
-                sndplay += " " + gui_conf.FetchOpt("soundopts");
+            if (gui_conf->FetchOpt("soundopts") != "")
+                sndplay += " " + gui_conf->FetchOpt("soundopts");
 
-            if (gui_conf.FetchOpt("sound_new") != "")
-                wav_map["new"] = gui_conf.FetchOpt("sound_new");
-            if (gui_conf.FetchOpt("sound_traffic") != "")
-                wav_map["traffic"] = gui_conf.FetchOpt("sound_traffic");
-            if (gui_conf.FetchOpt("sound_junktraffic") != "")
-                wav_map["junktraffic"] = gui_conf.FetchOpt("sound_junktraffic");
-            if (gui_conf.FetchOpt("sound_gpslock") != "")
-                wav_map["gpslock"] = gui_conf.FetchOpt("sound_gpslock");
-            if (gui_conf.FetchOpt("sound_gpslost") != "")
-                wav_map["gpslost"] = gui_conf.FetchOpt("sound_gpslost");
-            if (gui_conf.FetchOpt("sound_alert") != "")
-                wav_map["alert"] = gui_conf.FetchOpt("sound_alert");
+            if (gui_conf->FetchOpt("sound_new") != "")
+                wav_map["new"] = gui_conf->FetchOpt("sound_new");
+            if (gui_conf->FetchOpt("sound_traffic") != "")
+                wav_map["traffic"] = gui_conf->FetchOpt("sound_traffic");
+            if (gui_conf->FetchOpt("sound_junktraffic") != "")
+                wav_map["junktraffic"] = gui_conf->FetchOpt("sound_junktraffic");
+            if (gui_conf->FetchOpt("sound_gpslock") != "")
+                wav_map["gpslock"] = gui_conf->FetchOpt("sound_gpslock");
+            if (gui_conf->FetchOpt("sound_gpslost") != "")
+                wav_map["gpslost"] = gui_conf->FetchOpt("sound_gpslost");
+            if (gui_conf->FetchOpt("sound_alert") != "")
+                wav_map["alert"] = gui_conf->FetchOpt("sound_alert");
 
         } else {
             fprintf(stderr, "ERROR:  Sound alerts enabled but no sound playing binary specified.\n");
@@ -529,12 +529,12 @@ int main(int argc, char *argv[]) {
         sound = 0;
 
     /* Added by Shaw Innes 17/2/02 */
-    if (gui_conf.FetchOpt("speech") == "true" && speech == -1) {
-        if (gui_conf.FetchOpt("festival") != "") {
-            festival = gui_conf.FetchOpt("festival").c_str();
+    if (gui_conf->FetchOpt("speech") == "true" && speech == -1) {
+        if (gui_conf->FetchOpt("festival") != "") {
+            festival = gui_conf->FetchOpt("festival").c_str();
             speech = 1;
 
-            string speechtype = gui_conf.FetchOpt("speech_type");
+            string speechtype = gui_conf->FetchOpt("speech_type");
 
             if (!strcasecmp(speechtype.c_str(), "nato"))
                 speech_encoding = SPEECH_ENCODING_NATO;
@@ -544,13 +544,13 @@ int main(int argc, char *argv[]) {
                 speech_encoding = SPEECH_ENCODING_NORMAL;
 
             // Make sure we have encrypted text lines
-            if (gui_conf.FetchOpt("speech_encrypted") == "" || gui_conf.FetchOpt("speech_unencrypted") == "") {
+            if (gui_conf->FetchOpt("speech_encrypted") == "" || gui_conf->FetchOpt("speech_unencrypted") == "") {
                 fprintf(stderr, "ERROR:  Speech request but speech_encrypted or speech_unencrypted line missing.\n");
                 speech = 0;
             }
 
-            speech_sentence_encrypted = gui_conf.FetchOpt("speech_encrypted");
-            speech_sentence_unencrypted = gui_conf.FetchOpt("speech_unencrypted");
+            speech_sentence_encrypted = gui_conf->FetchOpt("speech_encrypted");
+            speech_sentence_unencrypted = gui_conf->FetchOpt("speech_unencrypted");
 
         } else {
             fprintf(stderr, "ERROR: Speech alerts enabled but no path to festival has been specified.\n");
@@ -559,21 +559,21 @@ int main(int argc, char *argv[]) {
     } else if (speech == -1)
         speech = 0;
 
-    if (gui_conf.FetchOpt("decay") != "") {
-        if (sscanf(gui_conf.FetchOpt("decay").c_str(), "%d", &decay) != 1) {
+    if (gui_conf->FetchOpt("decay") != "") {
+        if (sscanf(gui_conf->FetchOpt("decay").c_str(), "%d", &decay) != 1) {
             fprintf(stderr, "FATAL:  Illegal config file value for decay.\n");
             exit(1);
         }
     }
 
-    if (server_conf.FetchOpt("ap_manuf") != "") {
-        ap_manuf_name = strdup(server_conf.FetchOpt("ap_manuf").c_str());
+    if (server_conf->FetchOpt("ap_manuf") != "") {
+        ap_manuf_name = strdup(server_conf->FetchOpt("ap_manuf").c_str());
     } else {
         fprintf(stderr, "WARNING:  No ap_manuf file specified, AP manufacturers and defaults will not be detected.\n");
     }
 
-    if (server_conf.FetchOpt("client_manuf") != "") {
-        client_manuf_name = strdup(server_conf.FetchOpt("client_manuf").c_str());
+    if (server_conf->FetchOpt("client_manuf") != "") {
+        client_manuf_name = strdup(server_conf->FetchOpt("client_manuf").c_str());
     } else {
         fprintf(stderr, "WARNING:  No client_manuf file specified.  Client manufacturers will not be detected.\n");
     }
@@ -657,7 +657,7 @@ int main(int argc, char *argv[]) {
 
     if (kismet_serv.Connect(guiport, guihost) < 0) {
         fprintf(stderr, "FATAL:  Could not connect to %s:%d.\n", guihost, guiport);
-        exit(1);
+        CatchShutdown(-1);
     }
 
     time_t serv_start = 0;
@@ -692,20 +692,25 @@ int main(int argc, char *argv[]) {
     prefs["columns"] = columns;
     prefs["clientcolumns"] = clientcolumns;
 
-    if (gui_conf.FetchOpt("apm") == "true")
+    if (gui_conf->FetchOpt("apm") == "true")
         prefs["apm"] = "true";
 
-    prefs["simpleborders"] = gui_conf.FetchOpt("simpleborders");
+    prefs["simpleborders"] = gui_conf->FetchOpt("simpleborders");
 
-    prefs["color"] = gui_conf.FetchOpt("color");
-    prefs["backgroundcolor"] = gui_conf.FetchOpt("backgroundcolor");
-    prefs["textcolor"] = gui_conf.FetchOpt("textcolor");
-    prefs["bordercolor"] = gui_conf.FetchOpt("bordercolor");
-    prefs["titlecolor"] = gui_conf.FetchOpt("titlecolor");
-    prefs["wepcolor"] = gui_conf.FetchOpt("wepcolor");
-    prefs["factorycolor"] = gui_conf.FetchOpt("factorycolor");
-    prefs["opencolor"] = gui_conf.FetchOpt("opencolor");
-    prefs["monitorcolor"] = gui_conf.FetchOpt("monitorcolor");
+    prefs["color"] = gui_conf->FetchOpt("color");
+    prefs["backgroundcolor"] = gui_conf->FetchOpt("backgroundcolor");
+    prefs["textcolor"] = gui_conf->FetchOpt("textcolor");
+    prefs["bordercolor"] = gui_conf->FetchOpt("bordercolor");
+    prefs["titlecolor"] = gui_conf->FetchOpt("titlecolor");
+    prefs["wepcolor"] = gui_conf->FetchOpt("wepcolor");
+    prefs["factorycolor"] = gui_conf->FetchOpt("factorycolor");
+    prefs["opencolor"] = gui_conf->FetchOpt("opencolor");
+    prefs["monitorcolor"] = gui_conf->FetchOpt("monitorcolor");
+
+    // We're done with the config files, delete their memory allocations
+    delete server_conf;
+    delete gui_conf;
+    server_conf = gui_conf = NULL;
 
     gui->AddPrefs(prefs);
 
