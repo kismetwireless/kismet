@@ -751,8 +751,25 @@ int Packetracker::ProcessDataPacket(packet_info info, wireless_network *net, cha
         // before.
         if ((net->alertmap & RAISED_NETSTUMBLER_ALERT) == 0) {
             net->alertmap |= RAISED_NETSTUMBLER_ALERT;
-            snprintf(in_status, STATUS_MAX, "NetStumbler probe detected from %s",
-                     client->mac.Mac2String().c_str());
+            char *nsversion;
+
+            switch (info.proto.prototype_extra) {
+            case 22:
+                nsversion = "3.22";
+                break;
+            case 23:
+                nsversion = "3.23";
+                break;
+            case 30:
+                nsversion = "3.30";
+                break;
+            default:
+                nsversion = "unknown";
+                break;
+            }
+
+            snprintf(in_status, STATUS_MAX, "NetStumbler (%s) probe detected from %s",
+                     nsversion, client->mac.Mac2String().c_str());
 
             ret = TRACKER_ALERT;
         }
