@@ -452,25 +452,83 @@ proto_info GetProtoInfo(const packet_info *in_info, const pkthdr *header, const 
     if (memcmp(in_info->dest_mac, NETS_MAC, sizeof(NETS_MAC)) == 0) {
         // We look for netstumblers first since we need them to match before the
         // multicast catch-all in the next compare...  Anything sending to this multicast
-        // MAC address seems to be a NS probe so we'll catch it directly
+        // MAC address seems to be a NS probe so we'll catch it directly, this saves us
+        // processing time on the other NS identifiers
         ret.type = proto_netstumbler;
         return ret;
-    } else if (memcmp(&data[in_info->header_offset + LLC_OFFSET], NETSTUMBLER_LLC_SIGNATURE,
+    } else if (memcmp(&data[in_info->header_offset], LLC_UI_SIGNATURE,
+                      sizeof(LLC_UI_SIGNATURE)) == 0) {
+        // Handle all the protocols which fall under the LLC UI 0x3 frame
+
+        if (memcmp(&data[in_info->header_offset + LLC_UI_OFFSET], NETSTUMBLER_LLC_SIGNATURE,
                       sizeof(NETSTUMBLER_LLC_SIGNATURE)) == 0) {
 
-        // If we have a LLC packet that looks like a netstumbler...
-        if (memcmp(&data[in_info->header_offset + NETSTUMBER_OFFSET], NETSTUMBLER_322_SIGNATURE,
-                   sizeof(NETSTUMBLER_322_SIGNATURE)) == 0) {
-            // Netstumbler 322 says Flurble gronk bloopit, bnip Frundletrune
-            ret.type = proto_netstumbler;
-            return ret;
-        } else if (memcmp(&data[in_info->header_offset + NETSTUMBER_OFFSET], NETSTUMBLER_323_SIGNATURE,
-                          sizeof(NETSTUMBLER_323_SIGNATURE)) == 0) {
-            // Netstumbler 323 says All your 802.11b are belong to us
-            ret.type = proto_netstumbler;
+            // If we have a LLC packet that looks like a netstumbler...
+            if (memcmp(&data[in_info->header_offset + NETSTUMBER_OFFSET], NETSTUMBLER_322_SIGNATURE,
+                       sizeof(NETSTUMBLER_322_SIGNATURE)) == 0) {
+                // Netstumbler 322 says Flurble gronk bloopit, bnip Frundletrune
+                ret.type = proto_netstumbler;
+                return ret;
+            } else if (memcmp(&data[in_info->header_offset + NETSTUMBER_OFFSET], NETSTUMBLER_323_SIGNATURE,
+                              sizeof(NETSTUMBLER_323_SIGNATURE)) == 0) {
+                // Netstumbler 323 says All your 802.11b are belong to us
+                ret.type = proto_netstumbler;
+                return ret;
+            }
+        } else if (memcmp(&data[in_info->header_offset + LLC_UI_OFFSET], CISCO_SIGNATURE,
+               sizeof(CISCO_SIGNATURE)) == 0) {
+            // CDP
+
+            unsigned int offset = in_info->header_offset + LLC_UI_OFFSET + 12;
+
+            while (offset < header->len) {
+                // Make sure that whatever we do, we don't wander off the
+                // edge of the proverbial world -- segfaulting due to crappy
+                // packets is a really bad thing!
+
+                cdp_element *elem = (cdp_element *) &data[offset];
+
+                if (elem->length == 0)
+                    break;
+
+                if (elem->type == 0x01) {
+                    // Device id
+                    snprintf(ret.cdp.dev_id, elem->length-3, "%s", (char *) &elem->data);
+                } else if (elem->type == 0x02) {
+                    // IP range
+
+                    cdp_proto_element *proto;
+                    int8_t *datarr = (int8_t *) &elem->data;
+
+                    // We only take the first addr (for now)... And only if
+                    // it's an IP
+                    //for (int addr = 0; addr < datarr[3]; addr++) {
+                    proto = (cdp_proto_element *) &datarr[4];
+
+                    if (proto->proto == 0xcc) {
+                        memcpy(&ret.cdp.ip, &proto->addr, 4);
+                    }
+                    // }
+                } else if (elem->type == 0x03) {
+                    // port id
+                    snprintf(ret.cdp.interface, elem->length-3, "%s", (char *) &elem->data);
+                } else if (elem->type == 0x04) {
+                    // capabilities
+                    memcpy(&ret.cdp.cap, &elem->data, elem->length-4);
+                } else if (elem->type == 0x05) {
+                    // software version
+                    snprintf(ret.cdp.software, elem->length-3, "%s", (char *) &elem->data);
+                } else if (elem->type == 0x06) {
+                    // Platform
+                    snprintf(ret.cdp.platform, elem->length-3, "%s", (char *) &elem->data);
+                }
+
+                offset += elem->length;
+            }
+
+            ret.type = proto_cdp;
             return ret;
         }
-
     }
 
     // This isn't an 'else' because we want to try to handle it if it looked like a netstumbler
@@ -481,77 +539,25 @@ proto_info GetProtoInfo(const packet_info *in_info, const pkthdr *header, const 
         // lucent outdoor routers, or if we're a multicast with no BSSID.  This should
         // be indicative of being a lucent outdoor router
         ret.type = proto_lor;
-    } else if (memcmp(&data[in_info->header_offset + LLC_OFFSET], CISCO_SIGNATURE,
-               sizeof(CISCO_SIGNATURE)) == 0) {
-        // CDP
-
-        unsigned int offset = in_info->header_offset + LLC_OFFSET + 12;
-
-        while (offset < header->len) {
-            // Make sure that whatever we do, we don't wander off the
-            // edge of the proverbial world -- segfaulting due to crappy
-            // packets is a really bad thing!
-
-            cdp_element *elem = (cdp_element *) &data[offset];
-
-            if (elem->length == 0)
-                break;
-
-            if (elem->type == 0x01) {
-                // Device id
-                snprintf(ret.cdp.dev_id, elem->length-3, "%s", (char *) &elem->data);
-            } else if (elem->type == 0x02) {
-                // IP range
-
-                cdp_proto_element *proto;
-                int8_t *datarr = (int8_t *) &elem->data;
-
-                // We only take the first addr (for now)... And only if
-                // it's an IP
-                //for (int addr = 0; addr < datarr[3]; addr++) {
-                proto = (cdp_proto_element *) &datarr[4];
-
-                if (proto->proto == 0xcc) {
-                    memcpy(&ret.cdp.ip, &proto->addr, 4);
-                }
-                // }
-            } else if (elem->type == 0x03) {
-                // port id
-                snprintf(ret.cdp.interface, elem->length-3, "%s", (char *) &elem->data);
-            } else if (elem->type == 0x04) {
-                // capabilities
-                memcpy(&ret.cdp.cap, &elem->data, elem->length-4);
-            } else if (elem->type == 0x05) {
-                // software version
-                snprintf(ret.cdp.software, elem->length-3, "%s", (char *) &elem->data);
-            } else if (elem->type == 0x06) {
-                // Platform
-                snprintf(ret.cdp.platform, elem->length-3, "%s", (char *) &elem->data);
-            }
-
-            offset += elem->length;
-        }
-
-        ret.type = proto_cdp;
     } else if (memcmp(&data[in_info->header_offset + LLC_OFFSET], NETBIOS_SIGNATURE,
-                      sizeof(NETBIOS_SIGNATURE)) == 0) {
+                          sizeof(NETBIOS_SIGNATURE)) == 0) {
         ret.type = proto_netbios;
 
-            uint8_t nb_command = data[in_info->header_offset + NETBIOS_OFFSET];
-            if (nb_command == 0x01) {
-                // Netbios browser announcement
-                ret.nbtype = proto_netbios_host;
-                snprintf(ret.netbios_source, 17, "%s",
-                         &data[in_info->header_offset + NETBIOS_OFFSET + 6]);
-            } else if (nb_command == 0x0F) {
-                // Netbios srver announcement
-                ret.nbtype = proto_netbios_master;
-                snprintf(ret.netbios_source, 17, "%s",
-                         &data[in_info->header_offset + NETBIOS_OFFSET + 6]);
-            } else if (nb_command == 0x0C) {
-                // Netbios domain announcement
-                ret.nbtype = proto_netbios_domain;
-            }
+        uint8_t nb_command = data[in_info->header_offset + NETBIOS_OFFSET];
+        if (nb_command == 0x01) {
+            // Netbios browser announcement
+            ret.nbtype = proto_netbios_host;
+            snprintf(ret.netbios_source, 17, "%s",
+                     &data[in_info->header_offset + NETBIOS_OFFSET + 6]);
+        } else if (nb_command == 0x0F) {
+            // Netbios srver announcement
+            ret.nbtype = proto_netbios_master;
+            snprintf(ret.netbios_source, 17, "%s",
+                     &data[in_info->header_offset + NETBIOS_OFFSET + 6]);
+        } else if (nb_command == 0x0C) {
+            // Netbios domain announcement
+            ret.nbtype = proto_netbios_domain;
+        }
 
         //printf("got netbios '%s' '%s'\n", ret.netbios_source, ret.netbios_dest);
     } else if (memcmp(&data[in_info->header_offset + LLC_OFFSET], IPX_SIGNATURE,
