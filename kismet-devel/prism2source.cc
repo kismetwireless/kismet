@@ -137,7 +137,7 @@ int Prism2Source::Prism2Common(kis_packet *packet) {
 
     gettimeofday(&packet->ts, NULL);
 
-    packet->caplen = min(sniff_info->frmlen.data, (uint32_t) MAX_PACKET_LEN);
+    packet->caplen = kismin(sniff_info->frmlen.data, (uint32_t) MAX_PACKET_LEN);
     packet->len = packet->caplen;
 
     // Copy the quality out of the prism2 header

@@ -201,6 +201,10 @@
 /* String length of a key */
 #define WEPKEYSTR_MAX ((WEPKEY_MAX * 2) + WEPKEY_MAX)
 
+/* system min isn't reliable */
+#define kismin(x,y) ((x) < (y) ? (x) : (y))
+#define kismax(x,y) ((x) < (y) ? (x) : (y))
+
 /* Namespace */
 using namespace std;
 #define __STL_USE_NAMESPACES

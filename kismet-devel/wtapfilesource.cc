@@ -90,7 +90,7 @@ int WtapFileSource::FetchPacket(kis_packet *packet) {
 int WtapFileSource::Wtap2Common(kis_packet *packet) {
     memset(packet, 0, sizeof(kis_packet));
 
-    packet->caplen = min(packet_header->caplen, (uint32_t) MAX_PACKET_LEN);
+    packet->caplen = kismin(packet_header->caplen, (uint32_t) MAX_PACKET_LEN);
     packet->len = packet->caplen;
 
     packet->quality = -1;
