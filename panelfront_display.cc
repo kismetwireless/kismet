@@ -1026,15 +1026,17 @@ int PanelFront::MainClientPrinter(void *in_window) {
         break;
     }
 
-    if (kwin->start + kwin->selected > kwin->max_display)
-        kwin->selected = kwin->max_display;
-
     int num = 0;
     int voffset = 2;
+
+    if (kwin->selected > kwin->max_display - voffset) {
+        kwin->selected = kwin->max_display - voffset;
+    }
+
     for (unsigned int i = kwin->start; i < display_vector.size(); i++) {
         last_client_displayed.push_back(display_vector[i]);
 
-        if (i == (unsigned) (kwin->start + kwin->selected) && client_sortby != client_sort_auto) {
+        if (num == kwin->selected && client_sortby != client_sort_auto) {
             wattron(kwin->win, A_REVERSE);
             char bar[1024];
             memset(bar, ' ', 1024);
@@ -1051,7 +1053,7 @@ int PanelFront::MainClientPrinter(void *in_window) {
 
         mvwaddstr(kwin->win, num+voffset, 1, cliline.c_str());
 
-        if (i == (unsigned) (kwin->start + kwin->selected) && client_sortby != client_sort_auto)
+        if (num == kwin->selected && client_sortby != client_sort_auto)
             wattroff(kwin->win, A_REVERSE);
 
         if (color)
@@ -1060,11 +1062,11 @@ int PanelFront::MainClientPrinter(void *in_window) {
         num++;
         kwin->end = i;
 
-        if (num >= kwin->max_display - 1)
+        if (num > kwin->max_display - voffset)
             break;
     }
 
-    last_client_draw_size = num;
+    last_client_draw_size = display_vector.size();
 
     if (color)
         wattrset(kwin->win, color_map["title"].pair);
@@ -1076,151 +1078,11 @@ int PanelFront::MainClientPrinter(void *in_window) {
         mvwaddstr(kwin->win, 0, kwin->win->_maxx - 10, "(-) Up");
     }
 
+//    fprintf(stderr, "max: %d (%d) num: %d start: %d size: %d end: %d selected %d\n", kwin->max_display, kwin->max_display - voffset, num, kwin->start, display_vector.size(), kwin->end, kwin->selected);
     if (kwin->end < (int) (display_vector.size() - 1) && client_sortby != client_sort_auto) {
         mvwaddstr(kwin->win, kwin->win->_maxy,
                   kwin->win->_maxx - 10, "(+) Down");
     }
-
-#if 0
-    for (unsigned int i = kwin->start; i < display_vector.size(); i++) {
-
-        /*
-        if (display_vector[i]->networks.size() == 0)
-        continue;
-        */
-
-        last_displayed.push_back(display_vector[i]);
-
-        wireless_network *net = &display_vector[i]->virtnet;
-
-        if (net->manuf_score == manuf_max_score && color)
-            wattrset(kwin->win, color_map["factory"].pair);
-        else if (net->wep && color)
-            wattrset(kwin->win, color_map["wep"].pair);
-        else if (color)
-            wattrset(kwin->win, color_map["open"].pair);
-
-        if (i == (unsigned) (kwin->start + kwin->selected) && sortby != sort_auto) {
-            wattron(netwin, A_REVERSE);
-            char bar[1024];
-            memset(bar, ' ', 1024);
-            int w = kwin->print_width;
-            if (w >= 1024)
-                w = 1024;
-            bar[w] = '\0';
-            mvwaddstr(netwin, num+voffset, 2, bar);
-        }
-
-        string netline;
-
-        // Build the netline for the group or single host and tag it for expansion if
-        // appropriate for this sort and group
-        NetLine(&netline, net,
-                display_vector[i]->name == "" ? display_vector[i]->virtnet.ssid.c_str() : display_vector[i]->name.c_str(),
-                0,
-                display_vector[i]->type == group_host ? 0 : 1,
-                sortby == sort_auto ? 0 : display_vector[i]->expanded,
-                display_vector[i]->tagged);
-
-        mvwaddstr(netwin, num+voffset, 1, netline.c_str());
-
-        if (i == (unsigned) (kwin->start + kwin->selected) && sortby != sort_auto)
-            wattroff(netwin, A_REVERSE);
-
-        if (color)
-            wattrset(kwin->win, color_map["text"].pair);
-
-        num++;
-        kwin->end = i;
-
-        if (num > kwin->max_display)
-            break;
-
-        if (sortby == sort_auto || display_vector[i]->type != group_bundle ||
-            display_vector[i]->expanded == 0)
-            continue;
-
-        // If we we're a group and we're expanded, show all our subgroups
-        vector<wireless_network *> sortsub = display_vector[i]->networks;
-        switch (sortby) {
-        case sort_auto:
-            break;
-        case sort_channel:
-            sort(sortsub.begin(), sortsub.end(), SortChannel());
-            break;
-        case sort_first:
-            sort(sortsub.begin(), sortsub.end(), SortFirstTimeLT());
-            break;
-        case sort_first_dec:
-            sort(sortsub.begin(), sortsub.end(), SortFirstTime());
-            break;
-        case sort_last:
-            sort(sortsub.begin(), sortsub.end(), SortLastTimeLT());
-            break;
-        case sort_last_dec:
-            sort(sortsub.begin(), sortsub.end(), SortLastTime());
-            break;
-        case sort_bssid:
-            sort(sortsub.begin(), sortsub.end(), SortBSSIDLT());
-            break;
-        case sort_bssid_dec:
-            sort(sortsub.begin(), sortsub.end(), SortBSSID());
-            break;
-        case sort_ssid:
-            sort(sortsub.begin(), sortsub.end(), SortSSIDLT());
-            break;
-        case sort_ssid_dec:
-            sort(sortsub.begin(), sortsub.end(), SortSSID());
-            break;
-        case sort_wep:
-            sort(sortsub.begin(), sortsub.end(), SortWEP());
-            break;
-        case sort_packets:
-            sort(sortsub.begin(), sortsub.end(), SortPacketsLT());
-            break;
-        case sort_packets_dec:
-            sort(sortsub.begin(), sortsub.end(), SortPackets());
-            break;
-        case sort_quality:
-            sort(sortsub.begin(), sortsub.end(), SortQuality());
-            break;
-        case sort_signal:
-            sort(sortsub.begin(), sortsub.end(), SortSignal());
-            break;
-        }
-
-        for (unsigned int y = 0; y < sortsub.size(); y++) {
-            net = display_vector[i]->networks[y];
-
-            NetLine(&netline, net, net->ssid.c_str(), 1, 0, 0, 0);
-
-            if (net->manuf_score == manuf_max_score && color)
-                wattrset(kwin->win, color_map["factory"].pair);
-            else if (net->wep && color)
-                wattrset(kwin->win, color_map["wep"].pair);
-            else if (color)
-                wattrset(kwin->win, color_map["open"].pair);
-
-            mvwaddstr(netwin, num+voffset, 1, netline.c_str());
-
-            if (color)
-                wattrset(kwin->win, color_map["text"].pair);
-
-            num++;
-
-            if (num > kwin->max_display) {
-                //cutoff = 1;
-                break;
-            }
-        }
-
-        if (num > kwin->max_display)
-            break;
-    }
-
-
-
-#endif
 
     return 1;
 }

@@ -560,12 +560,15 @@ int PanelFront::MainClientInput(void *in_window, int in_chr) {
         break;
     case KEY_DOWN:
         if (client_sortby != client_sort_auto) {
-            if (kwin->start + kwin->selected < last_client_draw_size - 1) {
-                if ((kwin->start + kwin->selected >= kwin->end) &&
-                    (kwin->start + kwin->selected + 1 < last_client_draw_size))
+            if (kwin->start + kwin->selected < last_client_draw_size) {
+                if (kwin->start + kwin->selected + 1 == last_client_draw_size) {
+                    break;
+                } else if ((kwin->start + kwin->selected + 1 > kwin->end) &&
+                           (kwin->start + kwin->selected + 1 < last_client_draw_size)) {
                     kwin->start++;
-                else
+                } else {
                     kwin->selected++;
+                }
             }
 
         } else {
