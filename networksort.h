@@ -24,7 +24,7 @@
 
 class SortLastTime {
 public:
-    bool operator() (const wireless_network *x, const wireless_network *y) const {
+    inline bool operator() (const wireless_network *x, const wireless_network *y) const {
         if (x->last_time > y->last_time)
             return 1;
         return 0;
