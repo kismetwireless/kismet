@@ -1237,10 +1237,8 @@ int main(int argc,char *argv[]) {
     source_input_vec.clear();
 
     // Now enable root sources...  BindRoot will terminate if it fails
-    BindRootSources(&packet_sources,
-                    ((source_from_cmd == 0) || (enable_from_cmd == 1)) ?
-                    &enable_name_map : NULL);
-
+    BindRootSources(&packet_sources, &enable_name_map,
+                    ((source_from_cmd == 0) || (enable_from_cmd == 1)));
 
     // Once the packet source is opened, we shouldn't need special privileges anymore
     // so lets drop to a normal user.  We also don't want to open our logfiles as root
@@ -1257,9 +1255,8 @@ int main(int argc,char *argv[]) {
 
     // WE ARE NOW RUNNING AS THE TARGET UID
 
-    BindUserSources(&packet_sources,
-                    ((source_from_cmd == 0) || (enable_from_cmd == 1)) ?
-                    &enable_name_map : NULL);
+    BindUserSources(&packet_sources, &enable_name_map,
+                    ((source_from_cmd == 0) || (enable_from_cmd == 1)));
 
     // See if we tried to enable something that didn't exist
     if (enable_name_map.size() == 0) {

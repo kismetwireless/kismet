@@ -44,7 +44,9 @@ typedef struct capturesource {
 
 map<string, int> ParseEnableLine(string in_named);
 int ParseCardLines(vector<string> *in_lines, vector<capturesource *> *in_capsources);
-int BindRootSources(vector<capturesource *> *in_capsources, map<string, int> *in_enable);
-int BindUserSources(vector<capturesource *> *in_capsources, map<string, int> *in_enable);
+int BindRootSources(vector<capturesource *> *in_capsources,
+                    map<string, int> *in_enable, int filter_enable);
+int BindUserSources(vector<capturesource *> *in_capsources,
+                    map<string, int> *in_enable, int filter_enable);
 
 #endif
