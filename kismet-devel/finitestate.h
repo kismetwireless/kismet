@@ -105,6 +105,26 @@ protected:
     map<mac_addr, _fsa_element *> source_map;
 };
 
+// Detect broadcast replay WEP attacks by looking for bursts of packets with the same
+// IV and ICV
+class WepRebroadcastAutomata : public FiniteAutomata {
+public:
+    WepRebroadcastAutomata(Packetracker *in_ptracker, Alertracker *in_atracker,
+                           alert_time_unit in_unit, int in_rate, int in_burstrate);
+    ~WepRebroadcastAutomata();
+
+    int ProcessPacket(const packet_info *in_info);
+
+protected:
+    class _wreb_element : public _fsa_element {
+        // Just add a wep field tracker
+        uint32_t wepfield;
+    };
+
+    map<mac_addr, _wreb_element *> source_map;
+
+};
+
 #if 0
 // This doesn't really work so we won't use it.
 // Finite state automata to watch sequence numbers
