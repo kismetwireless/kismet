@@ -60,6 +60,15 @@ public:
     // Set up the gps
     void AddGPS(GPSD *in_gps);
 
+    // Set up filters
+    void AddAlertFilters(const map<mac_addr, int> *bssid_map, const map<mac_addr, int> *source_map,
+                         const map<mac_addr, int> *dest_map, const int *bssid_invert,
+                         const int *source_invert, const int *dest_invert);
+    void AddExportFilters(const map<mac_addr, int> *bssid_map, const map<mac_addr, int> *source_map,
+                         const map<mac_addr, int> *dest_map, const int *bssid_invert,
+                         const int *source_invert, const int *dest_invert);
+
+
     // Set up filtering - removed.  we do this in the server now before processing
     // anything else.
     //    void AddFilter(string in_filter) { filter = in_filter; }
@@ -137,6 +146,21 @@ protected:
     // Manufacturer maps
     map<mac_addr, manuf *> ap_manuf_map;
     map<mac_addr, manuf *> client_manuf_map;
+
+    // Filters
+    const map<mac_addr, int> *filter_alert_bssid;
+    const int *filter_alert_bssid_invert;
+    const map<mac_addr, int> *filter_alert_source;
+    const int *filter_alert_source_invert;
+    const map<mac_addr, int> *filter_alert_dest;
+    const int *filter_alert_dest_invert;
+
+    const map<mac_addr, int> *filter_export_bssid;
+    const int *filter_export_bssid_invert;
+    const map<mac_addr, int> *filter_export_source;
+    const int *filter_export_source_invert;
+    const map<mac_addr, int> *filter_export_dest;
+    const int *filter_export_dest_invert;
 
 };
 

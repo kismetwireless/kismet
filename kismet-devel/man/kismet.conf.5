@@ -139,7 +139,9 @@ dumplog (for limited cases where ethereal crashes when a logfile is too large)
 "ipmap" (string) IP trackfile
 
 .SH PACKET FILTERING
-All filtering options take arguments containing the type of address and addresses to be filtered.  Valid address types are ANY, BSSID, SOURCE, and DEST.  Filtering can be inverted by the use of '!' before the address.  If standard packet filtering is enabled, only packets matching the filter are passed.  If the filter is inverted, only packets which do not match the filter are passed.  Normal and inverted filters cannot be combined.
+All filtering options take arguments containing the type of address and addresses to be filtered.  Valid address types are ANY, BSSID, SOURCE, and DEST.  Filtering can be inverted by the use of '!' before the address.  MAC addresses can have an optional mask component, which is treated the same way a netmask is treated for IP.  MAC address masks can be numerical (/24) or hex (/FF:FF:FF:00:00:00).  
+.PP
+If standard packet filtering is enabled, only packets matching the filter are passed.  If the filter is inverted, only packets which do not match the filter are passed.  Normal and inverted filters cannot be combined.
 .PP
 For example,
 .PP
@@ -151,6 +153,13 @@ Multiple address types and addresses can be combined to form advanced filtering,
 .PP
 filter_dump=SOURCE(00:11:22:33:44:55,00:55:44:33:22:11), DEST(!00:AA:BB:CC:DD:EE), BSSID(00:FF:FF:FF:FF:FF)
 .PP
+Filtering by manufacturer MAC headers:
+.PP
+filter_dump=BSSID(00:04:20:00:00:00/FF:FF:FF:00:00:00)
+.PP
+or
+.PP
+filter_dump=BSSID(00:04:20:00:00:00/24)
 
 .SH CARD TYPES AND MULTIPLE CAPTURE SOURCES
 Card type - Specifies the type of device.  It can be one of:

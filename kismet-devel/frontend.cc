@@ -325,7 +325,7 @@ void Frontend::UpdateGroups() {
         if (dnet->virtnet->ssid.length() == 0)
             dnet->virtnet->ssid = NOSSID;
 
-        dnet->virtnet->bssid.mask = bssid_matched;
+        dnet->virtnet->bssid.bytemask = bssid_matched;
         MatchBestManuf(client_manuf_map, dnet->virtnet->bssid, dnet->virtnet->ssid,
                        dnet->virtnet->channel, dnet->virtnet->wep, dnet->virtnet->cloaked,
                        &dnet->virtnet->manuf_key, &dnet->virtnet->manuf_score);

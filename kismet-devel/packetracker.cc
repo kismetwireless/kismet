@@ -35,6 +35,12 @@ Packetracker::Packetracker() {
         num_crypt = num_interesting = num_cisco = 0;
 
     errstr[0] = '\0';
+
+    filter_alert_bssid = filter_alert_source = filter_alert_dest =
+        filter_export_bssid = filter_export_source = filter_export_dest = NULL;
+
+    filter_alert_bssid_invert = filter_alert_source_invert = filter_alert_dest_invert =
+        filter_export_bssid_invert = filter_export_source_invert = filter_export_dest_invert = NULL;
 }
 
 Packetracker::~Packetracker() {
@@ -54,6 +60,31 @@ vector<wireless_network *> Packetracker::FetchNetworks() {
 
     return ret_vec;
 }
+
+void Packetracker::AddAlertFilters(const map<mac_addr, int> *bssid_map,
+                                   const map<mac_addr, int> *source_map,
+                                   const map<mac_addr, int> *dest_map, const int *bssid_invert,
+                                   const int *source_invert, const int *dest_invert) {
+    filter_alert_bssid = bssid_map;
+    filter_alert_bssid_invert = bssid_invert;
+    filter_alert_source = source_map;
+    filter_alert_source_invert = source_invert;
+    filter_alert_dest = dest_map;
+    filter_alert_dest_invert = dest_invert;
+}
+
+void Packetracker::AddExportFilters(const map<mac_addr, int> *bssid_map,
+                                    const map<mac_addr, int> *source_map,
+                                    const map<mac_addr, int> *dest_map, const int *bssid_invert,
+                                    const int *source_invert, const int *dest_invert) {
+    filter_export_bssid = bssid_map;
+    filter_export_bssid_invert = bssid_invert;
+    filter_export_source = source_map;
+    filter_export_source_invert = source_invert;
+    filter_export_dest = dest_map;
+    filter_export_dest_invert = dest_invert;
+}
+
 
 // Is a string blank?
 bool Packetracker::IsBlank(const char *s) {

@@ -320,104 +320,139 @@ typedef struct proto_info {
 
 // A packet MAC address
 typedef struct mac_addr {
-    uint8_t mac[MAC_LEN];
     uint64_t longmac;
-    uint8_t mask;
+    uint64_t longmask;
+    uint8_t bytemask; // Number of octets masked for manuf info, NOT the real mask!
     int error;
 
-    void struc2long() {
+    // Convert a string mac address to the long-int storage format, with mask conversion
+    // if present.
+    void string2long(const char *in) {
+        short unsigned int *bs_in = new short unsigned int[MAC_LEN];
+
+        error = 0;
         longmac = 0;
-        error = 0;
-        for (int x = 0; x < MAC_LEN; x++) {
-            if (mac[x] > 0xFF) {
-                longmac = 0;
-                error = 1;
-                break;
-            }
+        longmask = (uint64_t) -1;
 
-            longmac |= (uint64_t) mac[x] << ((MAC_LEN - x - 1) * 8);
-        }
-    }
-
-    mac_addr() {
-        memset(mac, 0, MAC_LEN);
-        longmac = 0;
-        error = 0;
-        mask = 0;
-    }
-
-    mac_addr(const uint8_t *in) {
-        for (int x = 0; x < MAC_LEN; x++)
-            mac[x] = in[x];
-        mask = 0;
-        error = 0;
-        struc2long();
-    }
-
-    mac_addr(const char *in) {
-        memset(mac, 0, MAC_LEN);
-
-        short int bs_in[MAC_LEN];
+        // Get the MAC
         if (sscanf(in, "%hX:%hX:%hX:%hX:%hX:%hX",
                    &bs_in[0], &bs_in[1], &bs_in[2], &bs_in[3], &bs_in[4], &bs_in[5]) == 6) {
+
             for (int x = 0; x < MAC_LEN; x++)
-                mac[x] = bs_in[x];
+                longmac |= (uint64_t) bs_in[x] << ((MAC_LEN - x - 1) * 8);
+
+            // If it has a mask component, get that
+            char *in_mask = strchr(in, '/');
+            if (in_mask != NULL) {
+                longmask = 0;
+
+                // See if it's numerical or expanded
+                if (strchr(in_mask + 1, ':') != NULL) {
+                    // expanded, sscanf hex octets
+                    if (sscanf(in_mask + 1, "%hX:%hX:%hX:%hX:%hX:%hX",
+                               &bs_in[0], &bs_in[1], &bs_in[2],
+                               &bs_in[3], &bs_in[4], &bs_in[5]) == 6) {
+
+                        for (int x = 0; x < MAC_LEN; x++)
+                            longmask |= (uint64_t) bs_in[x] << ((MAC_LEN - x - 1) * 8);
+                    } else {
+                        error = 1;
+                    }
+                } else {
+                    // numerical, scan and shift
+                    int nummask;
+                    if (sscanf(in_mask + 1, "%d", &nummask) == 1) {
+                        if (nummask == 48)
+                            nummask = 0;
+
+                        longmask = ((uint64_t) -1 << (48 - nummask));
+
+                    } else {
+                        error = 1;
+                    }
+                }
+            }
+
         } else {
             error = 1;
         }
-        mask = 0;
-        struc2long();
+
+        delete[] bs_in;
     }
 
-    bool operator== (const mac_addr& op) const {
+    mac_addr() {
+        longmac = 0;
+        longmask = (uint64_t) -1;
+        error = 0;
+        bytemask = 0;
+    }
+
+    mac_addr(const uint8_t *in) {
+        longmac = 0;
+        bytemask = 0;
+        longmask = (uint64_t) -1;
+        error = 0;
+
+        for (int x = 0; x < MAC_LEN; x++)
+            longmac |= (uint64_t) in[x] << ((MAC_LEN - x - 1) * 8);
+    }
+
+    mac_addr(const char *in) {
+        bytemask = 0;
+        string2long(in);
+    }
+
+    // Masked MAC compare
+    inline bool operator== (const mac_addr& op) const {
+        return ((longmac & op.longmask) == (op.longmac & op.longmask));
+    }
+
+    // MAC compare
+    inline bool operator!= (const mac_addr& op) const {
         return (longmac == op.longmac);
     }
 
-    bool operator< (const mac_addr& op) const {
-        return (longmac < op.longmac);
+    // MAC less-than for STL sorts
+    inline bool operator< (const mac_addr& op) const {
+        return ((longmac & longmask) < (op.longmac & longmask));
     }
 
     mac_addr& operator= (mac_addr op) {
-        memcpy(mac, op.mac, MAC_LEN);
         longmac = op.longmac;
-        return *this;
-    }
-
-    mac_addr& operator= (uint8_t *in) {
-        for (int x = 0; x < MAC_LEN; x++)
-            mac[x] = in[x];
-        struc2long();
+        longmask = op.longmask;
+        bytemask = op.bytemask;
+        error = op.error;
         return *this;
     }
 
     mac_addr& operator= (char *in) {
-        memset(mac, 0, MAC_LEN);
+        bytemask = 0;
+        string2long(in);
 
-        short int bs_in[MAC_LEN];
-        if (sscanf(in, "%hX:%hX:%hX:%hX:%hX:%hX",
-                   &bs_in[0], &bs_in[1], &bs_in[2], &bs_in[3], &bs_in[4], &bs_in[5]) == 6) {
-            for (int x = 0; x < MAC_LEN; x++)
-                mac[x] = bs_in[x];
-        } else {
-            error = 1;
-        }
-        struc2long();
         return *this;
     }
 
-    const uint8_t& operator[] (const int& index) const {
-        int mdex = index;
-        if (index < 0 || index > MAC_LEN)
-            mdex = 0;
-        return mac[mdex];
+    inline uint8_t index64(uint64_t val, int index) const {
+        // Bitshift kung-foo
+        return (uint8_t) ((uint64_t) (val & ((uint64_t) 0xFF << ((MAC_LEN - index - 1) * 8))) >>
+                          ((MAC_LEN - index - 1) * 8));
     }
 
-    string Mac2String() const {
-        if (mask == 0) {
+    inline const uint8_t operator[] (const int& index) const {
+        int mdex = index;
+        if (index < 0 || index >= MAC_LEN)
+            mdex = 0;
+
+        return index64(longmac, mdex);
+    }
+
+    inline string Mac2String() const {
+        if (bytemask == 0) {
             char tempstr[MAC_STR_LEN];
 
             snprintf(tempstr, MAC_STR_LEN, "%02X:%02X:%02X:%02X:%02X:%02X",
-                     mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
+                     (*this)[0], (*this)[1], (*this)[2],
+                     (*this)[3], (*this)[4], (*this)[5]);
             return tempstr;
         }
 
@@ -425,8 +460,8 @@ typedef struct mac_addr {
 
         for (unsigned int macbit = 0; macbit < MAC_LEN; macbit++) {
             char adr[3];
-            if (macbit < mask)
-                snprintf(adr, 3, "%02X", mac[macbit]);
+            if (macbit < bytemask)
+                snprintf(adr, 3, "%02X", (*this)[macbit]);
             else
                 snprintf(adr, 3, "**");
 
@@ -435,6 +470,17 @@ typedef struct mac_addr {
         }
 
         return ret;
+    }
+
+    inline string MacMask2String() const {
+        uint64_t maskedmac = longmac & longmask;
+
+        char tempstr[MAC_STR_LEN];
+
+        snprintf(tempstr, MAC_STR_LEN, "%02X:%02X:%02X:%02X:%02X:%02X",
+                 index64(maskedmac, 0), index64(maskedmac, 1), index64(maskedmac, 2),
+                 index64(maskedmac, 3), index64(maskedmac, 4), index64(maskedmac, 5));
+        return tempstr;
     }
 
 };
