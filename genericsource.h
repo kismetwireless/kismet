@@ -44,7 +44,7 @@
 
 class GenericSource : public PacketSource {
 public:
-    int OpenSource(const char *dev);
+    int OpenSource(const char *dev, card_type ctype);
     int CloseSource();
 
     // We don't really have a FD that can be monitored, so we tell the server to

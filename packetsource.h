@@ -21,11 +21,26 @@
 
 #include "packet.h"
 
+// Card type, for some capture sources which require it
+enum card_type {
+    card_unspecified,
+    card_cisco,
+    card_cisco_cvs,
+    card_cisco_bsd,
+    card_prism2,
+    card_prism2_pcap,
+    card_prism2_bsd,
+    card_prism2_hostap,
+    card_orinoco,
+    card_orinoco_bsd,
+    card_generic
+};
+
 // Packet capture source superclass
 class PacketSource {
 public:
     // Open the packet source
-    virtual int OpenSource(const char *dev) = 0;
+    virtual int OpenSource(const char *dev, card_type ctype) = 0;
 
     virtual int CloseSource() = 0;
 
@@ -54,6 +69,8 @@ protected:
     int paused;
 
     char type[64];
+
+    card_type cardtype;
 
 };
 

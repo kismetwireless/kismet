@@ -32,7 +32,7 @@ extern "C" {
 
 class WtapFileSource : public PacketSource {
 public:
-    int OpenSource(const char *dev);
+    int OpenSource(const char *dev, card_type ctype);
     int CloseSource();
 
     int FetchDescriptor() { return wtap_fd(packfile); }

@@ -50,7 +50,7 @@ extern "C" {
 
 class PcapSource : public PacketSource {
 public:
-    int OpenSource(const char *dev);
+    int OpenSource(const char *dev, card_type ctype);
     int CloseSource();
 
     int FetchDescriptor() { return pcap_fileno(pd); }

@@ -32,7 +32,9 @@ pcap_pkthdr callback_header;
 u_char callback_data[MAX_PACKET_LEN];
 
 
-int PcapSource::OpenSource(const char *dev) {
+int PcapSource::OpenSource(const char *dev, card_type ctype) {
+    cardtype = ctype;
+
     snprintf(type, 64, "libpcap device %s", dev);
 
     char unconst_dev[64];
@@ -212,6 +214,14 @@ int PcapSource::Pcap2Common(pkthdr *in_header, u_char *in_data) {
             in_header->noise = noise;
         }
 #endif
+    }
+
+    // Now we compensate for the BSD cisco drivers inserting 2 bytes between the 802.11
+    // headers and the data by moving it all
+    if (cardtype == card_cisco_bsd) {
+        memcpy(&callback_data[36], &callback_data[38], in_header->len - 38);
+        in_header->len -= 2;
+        in_header->caplen -= 2;
     }
 
     // in_header->pkt_encap = WTAP_ENCAP_IEEE_802_11;
