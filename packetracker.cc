@@ -21,6 +21,10 @@
 #include "kismet_server.h"
 #include "packetsignatures.h"
 
+// State shift bits used to tell when we've raised an alert on a given network
+#define RAISED_NETSTUMBLER_ALERT     1
+#define RAISED_DEAUTHFLOOD_ALERT     2
+
 Packetracker::Packetracker() {
     gps = NULL;
 
@@ -286,6 +290,8 @@ int Packetracker::ProcessPacket(packet_info info, char *in_status) {
 
         net->first_time = time(0);
 
+        net->sequence = info.sequence_number;
+
         net->maxrate = info.maxrate;
 
         if (strlen(info.beacon_info) != 0)
@@ -420,8 +426,8 @@ int Packetracker::ProcessPacket(packet_info info, char *in_status) {
             net->client_disconnects++;
 
             if (net->client_disconnects > 10) {
-                if (deauthflood_map.find(net->bssid) == deauthflood_map.end()) {
-                    deauthflood_map[net->bssid] = net;
+                if ((net->alertmap & RAISED_DEAUTHFLOOD_ALERT) == 0) {
+                    net->alertmap |= RAISED_DEAUTHFLOOD_ALERT;
 
                     snprintf(in_status, STATUS_MAX, "Deauth/Disassociate flood on %s",
                              net->bssid.Mac2String().c_str());
@@ -429,7 +435,6 @@ int Packetracker::ProcessPacket(packet_info info, char *in_status) {
                 }
             }
         }
-
 
         // Update the ssid record if we got a beacon for a data network
         if (info.type == packet_beacon) {
@@ -740,9 +745,8 @@ int Packetracker::ProcessDataPacket(packet_info info, wireless_network *net, cha
 
         // Only raise an alert when we haven't raised one for this client
         // before.
-        if (netstumbler_map.find(client->mac) == netstumbler_map.end()) {
-            netstumbler_map[client->mac] = client;
-
+        if ((net->alertmap & RAISED_NETSTUMBLER_ALERT) == 0) {
+            net->alertmap |= RAISED_NETSTUMBLER_ALERT;
             snprintf(in_status, STATUS_MAX, "NetStumbler probe detected from %s",
                      client->mac.Mac2String().c_str());
 
