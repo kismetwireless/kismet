@@ -105,7 +105,7 @@ char *channelcolors[] = {
     "#80FF00", "#00FF00", "#00FF80",
     "#00FFFF", "#0080FF", "#0000FF",
     "#8000FF", "#FF00FF", "#FF0080",
-    "#808080", "#000000"
+    "#808080", "#CCCCCC"
 };
 
 // Origional
@@ -484,8 +484,9 @@ int ProcessGPSFile(char *in_fname) {
         gps_network *gnet = NULL;
 
         // Don't process filtered networks at all.
-        if ((invert_filter == 0 && filter.find(file_points[i]->bssid) != string::npos) ||
-            (invert_filter == 1 && filter.find(file_points[i]->bssid) == string::npos))
+        if (((invert_filter == 0 && filter.find(file_points[i]->bssid) != string::npos) ||
+             (invert_filter == 1 && filter.find(file_points[i]->bssid) == string::npos)) &&
+            strncmp(file_points[i]->bssid, gps_track_bssid, MAC_STR_LEN) != 0)
             continue;
 
         // Don't process unfixed points at all
@@ -1076,8 +1077,8 @@ void DrawNetCircles(vector<gps_network *> in_nets, Image *in_img, DrawInfo *in_d
         QueryColorDatabase(map_iter->color_index.c_str(), &netclr);
 #else
 	{
-	ExceptionInfo excep;
-        QueryColorDatabase(map_iter->color_index.c_str(), &netclr, &excep);
+            ExceptionInfo excep;
+            QueryColorDatabase(map_iter->color_index.c_str(), &netclr, &excep);
 	}
 #endif
 
