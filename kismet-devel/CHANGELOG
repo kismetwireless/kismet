@@ -1,3 +1,4 @@
+Mar 10 2004  devel  Fixed a segfault in the client command protocol
 Mar 08 2004  devel  Fixed a segfault with a 0-length macaddr struct (exposed
                      by an empty manuf map file).  No security implications.
                     Changed ifdef block in pcapsource, added ifndef to 

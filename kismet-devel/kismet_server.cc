@@ -910,6 +910,12 @@ void handle_command(TcpServer *tcps, client_command *cc) {
 
     vector<string> cmdvec = StrTokenize(cc->cmd, " ");
 
+    if (cmdvec.size() == 0) {
+        out_error += "invalid command";
+        tcps->SendToClient(cc->client_fd, error_ref, (void *) &out_error);
+        return;
+    }
+    
     string cmdword = cmdvec[0];
 
     if (cmdword == "CHANLOCK") {
