@@ -88,5 +88,8 @@ const uint8_t NETBIOS_SIGNATURE[] = {0xF0, 0xF0, 0x03};
 // IPX LLC signature
 const uint8_t IPX_SIGNATURE[] = {0xE0, 0xE0, 0x03};
 
+// IAPP
+const int IAPP_OFFSET = 36;
+const uint16_t IAPP_PORT = 2313;
 
 #endif

@@ -235,7 +235,8 @@ enum protocol_info_type {
     proto_netstumbler,
     proto_lucenttest,
     proto_wellenreiter,
-    proto_gstsearch
+    proto_gstsearch,
+    proto_iapp
 };
 
 enum protocol_netbios_type {
@@ -540,6 +541,81 @@ enum turbocell_type {
     turbocell_nonpollbase, // 0x00
     turbocell_base // 0x40
 };
+
+// IAPP stuff
+enum iapp_type {
+    iapp_announce_request = 0,
+    iapp_announce_response = 1,
+    iapp_handover_request = 2,
+    iapp_handover_response = 3
+};
+
+enum iapp_pdu {
+    iapp_pdu_ssid = 0x00,
+    iapp_pdu_bssid = 0x01,
+    iapp_pdu_oldbssid = 0x02,
+    iapp_pdu_msaddr = 0x03,
+    iapp_pdu_capability = 0x04,
+    iapp_pdu_announceint = 0x05,
+    iapp_pdu_hotimeout = 0x06,
+    iapp_pdu_messageid = 0x07,
+    iapp_pdu_phytype = 0x10,
+    iapp_pdu_regdomain = 0x11,
+    iapp_pdu_channel = 0x12,
+    iapp_pdu_beaconint = 0x13,
+    iapp_pdu_ouiident = 0x80,
+    iapp_pdu_authinfo = 0x81
+};
+
+enum iapp_cap {
+    iapp_cap_forwarding = 0x40,
+    iapp_cap_wep = 0x20
+};
+
+enum iapp_phy {
+    iapp_phy_prop = 0x00,
+    iapp_phy_fhss = 0x01,
+    iapp_phy_dsss = 0x02,
+    iapp_phy_ir = 0x03,
+    iapp_phy_ofdm = 0x04
+};
+
+enum iapp_dom {
+    iapp_dom_fcc = 0x10,
+    iapp_dom_ic = 0x20,
+    iapp_dom_etsi = 0x30,
+    iapp_dom_spain = 0x31,
+    iapp_dom_france = 0x32,
+    iapp_dom_mkk = 0x40
+};
+
+enum iapp_auth {
+    iapp_auth_status = 0x01,
+    iapp_auth_username = 0x02,
+    iapp_auth_provname = 0x03,
+    iapp_auth_rxpkts = 0x04,
+    iapp_auth_txpkts = 0x05,
+    iapp_auth_rxbytes = 0x06,
+    iapp_auth_txbytes = 0x07,
+    iapp_auth_logintime = 0x08,
+    iapp_auth_timelimit = 0x09,
+    iapp_auth_vollimit = 0x0a,
+    iapp_auth_acccycle = 0x0b,
+    iapp_auth_rxgwords = 0x0c,
+    iapp_auth_txgwords = 0x0d,
+    iapp_auth_ipaddr = 0x0e,
+    iapp_auth_trailer = 0xff
+};
+
+typedef struct {
+    unsigned iapp_version : 8 __attribute__ ((packed));
+    unsigned iapp_type : 8 __attribute__ ((packed));
+} iapp_header;
+
+typedef struct {
+    unsigned pdu_type : 8 __attribute__ ((packed));
+    unsigned pdu_len : 16 __attribute__ ((packed));
+} iapp_pdu_header;
 
 // Info about a packet
 typedef struct {

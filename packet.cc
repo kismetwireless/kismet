@@ -827,7 +827,83 @@ void GetProtoInfo(kis_packet *packet, packet_info *in_info) {
             }
         }
 
-        if (ret_protoinfo->sport == 138 && ret_protoinfo->dport == 138) {
+	else if (ret_protoinfo->sport == IAPP_PORT && ret_protoinfo->dport == IAPP_PORT) {
+	    iapp_header *ih = (iapp_header *) &data[in_info->header_offset + IAPP_OFFSET];
+	    uint8_t *pdu = &data[in_info->header_offset + IAPP_OFFSET + sizeof(iapp_header)];
+
+	    if (ih->iapp_version != 1)
+		return;
+
+	    switch (ih->iapp_type) {
+	    case iapp_announce_request:
+	    case iapp_announce_response:
+	    case iapp_handover_request:
+	    case iapp_handover_response:
+		break;
+	    default:
+		return;
+	    }
+
+	    ret_protoinfo->type = proto_iapp;
+
+	    while (pdu < &data[packet->len - 1]) {
+		iapp_pdu_header *ph = (iapp_pdu_header *) pdu;
+		uint16_t pdu_len = ntohs(ph->pdu_len);
+		
+		switch (ph->pdu_type) {
+		case iapp_pdu_ssid:
+			if (pdu_len > SSID_SIZE)
+				break;
+			memcpy(in_info->ssid, &pdu[3], pdu_len);
+			in_info->ssid[pdu_len] = '\0';
+			break;
+		case iapp_pdu_bssid:
+			if (pdu_len != MAC_LEN)
+				break;
+			in_info->bssid_mac = mac_addr(&pdu[3]);
+			break;
+		case iapp_pdu_oldbssid:
+			break;
+		case iapp_pdu_msaddr:
+			break;
+		case iapp_pdu_capability:
+			if (pdu_len != 1)
+				break;
+			in_info->wep = !!(pdu[3] & iapp_cap_wep);
+			break;
+		case iapp_pdu_announceint:
+			break;
+		case iapp_pdu_hotimeout:
+			break;
+		case iapp_pdu_messageid:
+			break;
+		case iapp_pdu_phytype:
+			break;
+		case iapp_pdu_regdomain:
+			break;
+		case iapp_pdu_channel:
+			if (pdu_len != 1)
+				break;
+			in_info->channel = pdu[3];
+			break;
+		case iapp_pdu_beaconint:
+			if (pdu_len != 2)
+				break;
+			in_info->beacon = (pdu[3] << 8) | pdu[4];
+			break;
+		case iapp_pdu_ouiident:
+			break;
+		case iapp_pdu_authinfo:
+			break;
+		default:
+			break;
+		}
+
+		pdu += pdu_len + 3;
+	    }
+	}
+
+	else if (ret_protoinfo->sport == 138 && ret_protoinfo->dport == 138) {
             // netbios
 
             ret_protoinfo->type = proto_netbios_tcp;
