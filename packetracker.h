@@ -33,6 +33,7 @@
 #include "packet.h"
 #include "tracktypes.h"
 #include "manuf.h"
+#include "stl_misc.h"
 
 // Extern over to kismet_server.cc to get our first time
 extern time_t start_time;
@@ -121,20 +122,37 @@ protected:
     vector<wireless_network *> network_list;
 
     // Several maps to refer to networks
-    map<string, wireless_network *> ssid_map;
-    map<string, wireless_network *> bssid_map;
+    /*
+     map<string, wireless_network *> ssid_map;
+     map<string, wireless_network *> bssid_map;
+     */
+    //map<uint8_t *, wireless_network *, STLMacComp> ssid_map;
+    map<uint8_t *, wireless_network *, STLMacComp> bssid_map;
+
 
     // Alert map for netstumbler clients
-    map<string, wireless_client *> netstumbler_map;
+    /*
+     map<string, wireless_client *, STLMacComp> netstumbler_map;
+     */
+    map<uint8_t *, wireless_client *, STLMacComp> netstumbler_map;
 
     // Map BSSID's to SSID for storage and cloaking
-    map<string, string> bssid_cloak_map;
+    /*
+     map<string, string> bssid_cloak_map;
+     */
+    map<uint8_t *, string> bssid_cloak_map;
 
     // Map BSSID's to IP ranges for storage
-    map<string, net_ip_data> bssid_ip_map;
+    /*
+     map<string, net_ip_data> bssid_ip_map;
+     */
+    map<uint8_t *, net_ip_data> bssid_ip_map;
 
     // Map probe responses for clients so we know we need to merge
-    map<string, string> probe_map;
+    /*
+     map<string, string> probe_map;
+     */
+    map<uint8_t *, uint8_t *> probe_map;
 };
 
 #endif
