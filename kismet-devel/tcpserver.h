@@ -110,7 +110,7 @@ public:
 
     void Stale(int in_fd);
 
-    int Poll(fd_set in_rset, fd_set in_wset, fd_set in_eset);
+    int Poll(fd_set& in_rset, fd_set& in_wset, fd_set& in_eset);
 
     void Send(int in_fd, const char *in_data);
 
