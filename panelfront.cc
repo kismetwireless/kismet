@@ -896,15 +896,11 @@ int PanelFront::Poll() {
 
     // Catch the redraw event ^L
     if (ch == 12) {
-        fprintf(stderr, "We got a refresh key...\n");
-        for (list<kis_window *>::iterator x = window_list.begin();
-             x != window_list.end(); ++x) {
-            kis_window *kwin = *x;
+        clearok(curscr, 1);
 
-            redrawwin(kwin->win);
+        DrawDisplay();
 
-            return 0;
-        }
+        return 1;
     }
 
     int ret;
