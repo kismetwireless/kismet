@@ -225,6 +225,9 @@ protected:
 
     char servername[32];
 
+    // Protocols we have enabled so that we can replay them on a reconnect
+    map<string, int> protocol_map;
+
 };
 
 #endif
