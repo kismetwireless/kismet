@@ -155,7 +155,6 @@ int Packetracker::ProcessPacket(packet_info info, char *in_status) {
     float lat = 0, lon = 0, alt = 0, spd = 0;
     int fix = 0;
 
-
     num_packets++;
 
     // Junk unknown and noise packets
@@ -472,161 +471,183 @@ int Packetracker::ProcessPacket(packet_info info, char *in_status) {
         net->llc_packets++;
 
     } else {
-        if (info.encrypted) {
-            net->crypt_packets++;
-            num_crypt++;
-        }
 
-        if (info.interesting) {
-            num_interesting++;
-            net->interesting_packets++;
-        }
+        // Process data packets
 
-        net->data_packets++;
-
-        // Record a cisco device
-        if (info.proto.type == proto_cdp) {
-            net->cisco_equip[info.proto.cdp.dev_id] = info.proto.cdp;
-            num_cisco++;
-        }
-
-        // If we're not aware of a dhcp server already, try to find one.
-        if (info.proto.type == proto_dhcp_server && (net->ipdata.atype < address_dhcp ||
-                                                     net->ipdata.load_from_store == 1)) {
-            // Jackpot, this tells us everything we need to know
-            net->ipdata.atype = address_dhcp;
-
-            net->ipdata.range_ip[0] = info.proto.misc_ip[0] & info.proto.mask[0];
-            net->ipdata.range_ip[1] = info.proto.misc_ip[1] & info.proto.mask[1];
-            net->ipdata.range_ip[2] = info.proto.misc_ip[2] & info.proto.mask[2];
-            net->ipdata.range_ip[3] = info.proto.misc_ip[3] & info.proto.mask[3];
-
-            // memcpy(net->range_ip, info.proto.misc_ip, 4);
-            memcpy(net->ipdata.mask, info.proto.mask, 4);
-            memcpy(net->ipdata.gate_ip, info.proto.gate_ip, 4);
-
-            snprintf(in_status, STATUS_MAX, "Found IP range for \"%s\" via DHCP %d.%d.%d.%d mask %d.%d.%d.%d",
-                     net->ssid.c_str(), net->ipdata.range_ip[0], net->ipdata.range_ip[1],
-                     net->ipdata.range_ip[2], net->ipdata.range_ip[3],
-                     net->ipdata.mask[0], net->ipdata.mask[1],
-                     net->ipdata.mask[2], net->ipdata.mask[3]);
-
-            net->ipdata.octets = 0;
-
-            //memcpy(&bssid_ip_map[net->bssid], &net->ipdata, sizeof(net_ip_data));
-            bssid_ip_map[net->bssid] = net->ipdata;
-            net->ipdata.load_from_store = 0;
-
-            ret = 2;
-
-        } else if (info.proto.type == proto_arp && (net->ipdata.atype < address_arp ||
-                                                    net->ipdata.load_from_store == 1)) {
-            uint8_t new_range[4];
-
-            memset(new_range, 0, 4);
-
-            if (info.proto.source_ip[0] != 0x00 &&
-                info.proto.misc_ip[0] != 0x00) {
-
-                int oct;
-                for (oct = 0; oct < 4; oct++) {
-                    if (info.proto.source_ip[oct] != info.proto.misc_ip[oct])
-                        break;
-
-                    new_range[oct] = info.proto.source_ip[oct];
-                }
-
-                if (oct < net->ipdata.octets || net->ipdata.octets == 0) {
-                    net->ipdata.octets = oct;
-                    memcpy(net->ipdata.range_ip, new_range, 4);
-                    snprintf(in_status, STATUS_MAX, "Found IP range for \"%s\" via ARP %d.%d.%d.%d",
-                             net->ssid.c_str(), net->ipdata.range_ip[0], net->ipdata.range_ip[1],
-                             net->ipdata.range_ip[2], net->ipdata.range_ip[3]);
-                    //gui->WriteStatus(status);
-
-                    net->ipdata.atype = address_arp;
-
-                    bssid_ip_map[net->bssid] = net->ipdata;
-                    net->ipdata.load_from_store = 0;
-
-                    ret = 2;
-                }
-            } // valid arp
-        } else if (info.proto.type == proto_udp && (net->ipdata.atype <= address_udp ||
-                                                    net->ipdata.load_from_store == 1)) {
-            uint8_t new_range[4];
-
-            memset(new_range, 0, 4);
-
-            // Not 0.x.x.x.  Not 255.x.x.x.  At least first octet must
-            // match.
-            if (info.proto.source_ip[0] != 0x00 &&
-                info.proto.dest_ip[0] != 0x00 &&
-                info.proto.dest_ip[0] != 0xFF &&
-                info.proto.source_ip[0] == info.proto.dest_ip[0]) {
-
-                int oct;
-                for (oct = 0; oct < 4; oct++) {
-                    if (info.proto.source_ip[oct] != info.proto.dest_ip[oct])
-                        break;
-
-                    new_range[oct] = info.proto.source_ip[oct];
-                }
-
-                if (oct < net->ipdata.octets || net->ipdata.octets == 0) {
-                    net->ipdata.octets = oct;
-                    memcpy(net->ipdata.range_ip, new_range, 4);
-                    snprintf(in_status, STATUS_MAX, "Found IP range for \"%s\" via UDP %d.%d.%d.%d",
-                             net->ssid.c_str(), net->ipdata.range_ip[0], net->ipdata.range_ip[1],
-                             net->ipdata.range_ip[2], net->ipdata.range_ip[3]);
-
-                    net->ipdata.atype = address_udp;
-
-                    bssid_ip_map[net->bssid] = net->ipdata;
-                    net->ipdata.load_from_store = 0;
-
-                    ret = 2;
-                }
-            }
-        }  else if (info.proto.type == proto_misc_tcp && (net->ipdata.atype <= address_tcp ||
-                                                          net->ipdata.load_from_store == 1)) {
-            uint8_t new_range[4];
-
-            memset(new_range, 0, 4);
-
-            // Not 0.x.x.x.  Not 255.x.x.x.  At least first octet must
-            // match.
-            if (info.proto.source_ip[0] != 0x00 &&
-                info.proto.dest_ip[0] != 0x00 &&
-                info.proto.dest_ip[0] != 0xFF &&
-                info.proto.source_ip[0] == info.proto.dest_ip[0]) {
-
-                int oct;
-                for (oct = 0; oct < 4; oct++) {
-                    if (info.proto.source_ip[oct] != info.proto.dest_ip[oct])
-                        break;
-
-                    new_range[oct] = info.proto.source_ip[oct];
-                }
-
-                if (oct < net->ipdata.octets || net->ipdata.octets == 0) {
-                    net->ipdata.octets = oct;
-                    memcpy(net->ipdata.range_ip, new_range, 4);
-                    snprintf(in_status, STATUS_MAX, "Found IP range for \"%s\" via TCP %d.%d.%d.%d",
-                             net->ssid.c_str(), net->ipdata.range_ip[0], net->ipdata.range_ip[1],
-                             net->ipdata.range_ip[2], net->ipdata.range_ip[3]);
-
-                    net->ipdata.atype = address_tcp;
-
-                    bssid_ip_map[net->bssid] = net->ipdata;
-                    net->ipdata.load_from_store = 0;
-
-                    ret = 2;
-                }
-            }
-        }
+        // We feed them into the data packet processor along with the network
+        // they belong to, so that clients can be tracked.
+        ret = ProcessDataPacket(info, net, in_status);
 
     } // data packet
+
+    return ret;
+}
+
+int Packetracker::ProcessDataPacket(packet_info info, wireless_network *net, char *in_status) {
+    int ret = 0;
+    wireless_client *client = NULL;
+
+    string smac = Mac2String(info.source_mac, ':');
+
+    // Find the client or make one
+    if (net->client_map.find(smac) != client_map.end()) {
+    }
+
+
+
+    if (info.encrypted) {
+        net->crypt_packets++;
+        num_crypt++;
+    }
+
+    if (info.interesting) {
+        num_interesting++;
+        net->interesting_packets++;
+    }
+
+    net->data_packets++;
+
+    // Record a cisco device
+    if (info.proto.type == proto_cdp) {
+        net->cisco_equip[info.proto.cdp.dev_id] = info.proto.cdp;
+        num_cisco++;
+    }
+
+    // If we're not aware of a dhcp server already, try to find one.
+    if (info.proto.type == proto_dhcp_server && (net->ipdata.atype < address_dhcp ||
+                                                 net->ipdata.load_from_store == 1)) {
+        // Jackpot, this tells us everything we need to know
+        net->ipdata.atype = address_dhcp;
+
+        net->ipdata.range_ip[0] = info.proto.misc_ip[0] & info.proto.mask[0];
+        net->ipdata.range_ip[1] = info.proto.misc_ip[1] & info.proto.mask[1];
+        net->ipdata.range_ip[2] = info.proto.misc_ip[2] & info.proto.mask[2];
+        net->ipdata.range_ip[3] = info.proto.misc_ip[3] & info.proto.mask[3];
+
+        // memcpy(net->range_ip, info.proto.misc_ip, 4);
+        memcpy(net->ipdata.mask, info.proto.mask, 4);
+        memcpy(net->ipdata.gate_ip, info.proto.gate_ip, 4);
+
+        snprintf(in_status, STATUS_MAX, "Found IP range for \"%s\" via DHCP %d.%d.%d.%d mask %d.%d.%d.%d",
+                 net->ssid.c_str(), net->ipdata.range_ip[0], net->ipdata.range_ip[1],
+                 net->ipdata.range_ip[2], net->ipdata.range_ip[3],
+                 net->ipdata.mask[0], net->ipdata.mask[1],
+                 net->ipdata.mask[2], net->ipdata.mask[3]);
+
+        net->ipdata.octets = 0;
+
+        //memcpy(&bssid_ip_map[net->bssid], &net->ipdata, sizeof(net_ip_data));
+        bssid_ip_map[net->bssid] = net->ipdata;
+        net->ipdata.load_from_store = 0;
+
+        ret = 2;
+
+    } else if (info.proto.type == proto_arp && (net->ipdata.atype < address_arp ||
+                                                net->ipdata.load_from_store == 1)) {
+        uint8_t new_range[4];
+
+        memset(new_range, 0, 4);
+
+        if (info.proto.source_ip[0] != 0x00 &&
+            info.proto.misc_ip[0] != 0x00) {
+
+            int oct;
+            for (oct = 0; oct < 4; oct++) {
+                if (info.proto.source_ip[oct] != info.proto.misc_ip[oct])
+                    break;
+
+                new_range[oct] = info.proto.source_ip[oct];
+            }
+
+            if (oct < net->ipdata.octets || net->ipdata.octets == 0) {
+                net->ipdata.octets = oct;
+                memcpy(net->ipdata.range_ip, new_range, 4);
+                snprintf(in_status, STATUS_MAX, "Found IP range for \"%s\" via ARP %d.%d.%d.%d",
+                         net->ssid.c_str(), net->ipdata.range_ip[0], net->ipdata.range_ip[1],
+                         net->ipdata.range_ip[2], net->ipdata.range_ip[3]);
+                //gui->WriteStatus(status);
+
+                net->ipdata.atype = address_arp;
+
+                bssid_ip_map[net->bssid] = net->ipdata;
+                net->ipdata.load_from_store = 0;
+
+                ret = 2;
+            }
+        } // valid arp
+    } else if (info.proto.type == proto_udp && (net->ipdata.atype <= address_udp ||
+                                                net->ipdata.load_from_store == 1)) {
+        uint8_t new_range[4];
+
+        memset(new_range, 0, 4);
+
+        // Not 0.x.x.x.  Not 255.x.x.x.  At least first octet must
+        // match.
+        if (info.proto.source_ip[0] != 0x00 &&
+            info.proto.dest_ip[0] != 0x00 &&
+            info.proto.dest_ip[0] != 0xFF &&
+            info.proto.source_ip[0] == info.proto.dest_ip[0]) {
+
+            int oct;
+            for (oct = 0; oct < 4; oct++) {
+                if (info.proto.source_ip[oct] != info.proto.dest_ip[oct])
+                    break;
+
+                new_range[oct] = info.proto.source_ip[oct];
+            }
+
+            if (oct < net->ipdata.octets || net->ipdata.octets == 0) {
+                net->ipdata.octets = oct;
+                memcpy(net->ipdata.range_ip, new_range, 4);
+                snprintf(in_status, STATUS_MAX, "Found IP range for \"%s\" via UDP %d.%d.%d.%d",
+                         net->ssid.c_str(), net->ipdata.range_ip[0], net->ipdata.range_ip[1],
+                         net->ipdata.range_ip[2], net->ipdata.range_ip[3]);
+
+                net->ipdata.atype = address_udp;
+
+                bssid_ip_map[net->bssid] = net->ipdata;
+                net->ipdata.load_from_store = 0;
+
+                ret = 2;
+            }
+        }
+    }  else if (info.proto.type == proto_misc_tcp && (net->ipdata.atype <= address_tcp ||
+                                                      net->ipdata.load_from_store == 1)) {
+        uint8_t new_range[4];
+
+        memset(new_range, 0, 4);
+
+        // Not 0.x.x.x.  Not 255.x.x.x.  At least first octet must
+        // match.
+        if (info.proto.source_ip[0] != 0x00 &&
+            info.proto.dest_ip[0] != 0x00 &&
+            info.proto.dest_ip[0] != 0xFF &&
+            info.proto.source_ip[0] == info.proto.dest_ip[0]) {
+
+            int oct;
+            for (oct = 0; oct < 4; oct++) {
+                if (info.proto.source_ip[oct] != info.proto.dest_ip[oct])
+                    break;
+
+                new_range[oct] = info.proto.source_ip[oct];
+            }
+
+            if (oct < net->ipdata.octets || net->ipdata.octets == 0) {
+                net->ipdata.octets = oct;
+                memcpy(net->ipdata.range_ip, new_range, 4);
+                snprintf(in_status, STATUS_MAX, "Found IP range for \"%s\" via TCP %d.%d.%d.%d",
+                         net->ssid.c_str(), net->ipdata.range_ip[0], net->ipdata.range_ip[1],
+                         net->ipdata.range_ip[2], net->ipdata.range_ip[3]);
+
+                net->ipdata.atype = address_tcp;
+
+                bssid_ip_map[net->bssid] = net->ipdata;
+                net->ipdata.load_from_store = 0;
+
+                ret = 2;
+            }
+        }
+    }
 
     return ret;
 }

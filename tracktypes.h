@@ -68,6 +68,80 @@ typedef struct {
     int load_from_store;
 } net_ip_data;
 
+enum client_type {
+    client_unknown,
+    client_fromds,
+    client_tods,
+    client_established
+};
+
+// Client info
+typedef struct wireless_client {
+    wireless_client() {
+        type = client_unknown;
+        memset(raw_mac, 0, MAC_LEN);
+
+        first_time = 0;
+        last_time = 0;
+
+        manuf_id = 0;
+        manuf_score = 0;
+
+        llc_packets = data_packets = crypt_packets = interesting_packets = 0;
+
+        gps_fixed = -1;
+        min_lat = min_lon = min_alt = min_spd = 0;
+        max_lat = max_lon = max_alt = max_spd = 0;
+
+        maxrate = 0;
+
+        metric = 0;
+
+        signal = quality = noise = 0;
+
+        memset(&ipdata, 0, sizeof(net_ip_data));
+    }
+
+    client_type type;
+
+    // Owning network
+    string bssid;
+
+    time_t first_time;
+    time_t last_time;
+
+    // MAC of client
+    string mac;
+    uint8_t raw_mac[MAC_LEN];
+
+    // Manufacturer ID
+    int manuf_id;
+    int manuf_score;
+
+    // Packet counts
+    int llc_packets;
+    int data_packets;
+    int crypt_packets;
+    int interesting_packets;
+
+    // gps data
+    int gps_fixed;
+    float min_lat, min_lon, min_alt, min_spd;
+    float max_lat, max_lon, max_alt, max_spd;
+
+    // How fast we can go
+    double maxrate;
+
+    int metric;
+
+    // Last seen quality for a packet from this client
+    int quality, signal, noise;
+
+    // ip data
+    net_ip_data ipdata;
+
+};
+
 // A network
 typedef struct wireless_network {
     wireless_network() {
@@ -179,77 +253,10 @@ typedef struct wireless_network {
     int best_quality, best_signal, best_noise;
     float best_lat, best_lon, best_alt;
 
-};
-
-enum client_type {
-    client_unknown,
-    client_fromds,
-    client_tods,
-    client_established
-};
-
-// Client info
-typedef struct wireless_client {
-    wireless_client() {
-        type = client_unknown;
-        memset(raw_mac, 0, MAC_LEN);
-
-        first_time = 0;
-        last_time = 0;
-
-        manuf_id = 0;
-        manuf_score = 0;
-
-        llc_packets = data_packets = crypt_packets = interesting_packets = 0;
-
-        gps_fixed = -1;
-        min_lat = min_lon = min_alt = min_spd = 0;
-        max_lat = max_lon = max_alt = max_spd = 0;
-
-        maxrate = 0;
-
-        metric = 0;
-
-
-        signal = quality = noise = 0;
-    }
-
-    client_type type;
-
-    // Owning network
-    string bssid;
-
-    time_t first_time;
-    time_t last_time;
-
-    // MAC of client
-    string mac;
-    uint8_t raw_mac[MAC_LEN];
-
-    // Manufacturer ID
-    int manuf_id;
-    int manuf_score;
-
-    // Packet counts
-    int llc_packets;
-    int data_packets;
-    int crypt_packets;
-    int interesting_packets;
-
-    // gps data
-    int gps_fixed;
-    float min_lat, min_lon, min_alt, min_spd;
-    float max_lat, max_lon, max_alt, max_spd;
-
-    // How fast we can go
-    double maxrate;
-
-    int metric;
-
-    // Last seen quality for a packet from this client
-    int quality, signal, noise;
+    map<string, wireless_client *> client_map;
 
 };
+
 
 // Channel power info
 typedef struct {

@@ -113,6 +113,7 @@ packet_info GetPacketInfo(const pkthdr *header, const u_char *data, packet_parm 
     uint8_t temp;
 
     ret.type = packet_unknown;
+    ret.distrib = no_distribution;
 
     // If we don't even have enough to make up an 802.11 header, bail
     // as a garbage packet
@@ -297,6 +298,8 @@ packet_info GetPacketInfo(const pkthdr *header, const u_char *data, packet_parm 
             memcpy(ret.source_mac, (const char *) &msgbuf[10], MAC_LEN);
             memcpy(ret.bssid_mac, (const char *) &msgbuf[10], MAC_LEN);
 
+            // No distribution flags
+
             // First byte of offsets
             ret.header_offset = 24;
 
@@ -306,6 +309,8 @@ packet_info GetPacketInfo(const pkthdr *header, const u_char *data, packet_parm 
             memcpy(ret.bssid_mac, (const char *) &msgbuf[10], MAC_LEN);
             memcpy(ret.source_mac, (const char *) &msgbuf[16], MAC_LEN);
 
+            ret.distrib = from_distribution;
+
             // First byte of offsets
             ret.header_offset = 24;
 
@@ -313,6 +318,8 @@ packet_info GetPacketInfo(const pkthdr *header, const u_char *data, packet_parm 
             memcpy(ret.bssid_mac, (const char *) &msgbuf[4], MAC_LEN);
             memcpy(ret.source_mac, (const char *) &msgbuf[10], MAC_LEN);
             memcpy(ret.dest_mac, (const char *) &msgbuf[16], MAC_LEN);
+
+            ret.distrib = to_distribution;
 
             // First byte of offsets
             ret.header_offset = 24;
@@ -323,9 +330,10 @@ packet_info GetPacketInfo(const pkthdr *header, const u_char *data, packet_parm 
             // Dest is the reciever address
 
             memcpy(ret.bssid_mac, (const char *) &msgbuf[10], MAC_LEN);
-
             memcpy(ret.source_mac, (const char *) &msgbuf[24], MAC_LEN);
             memcpy(ret.dest_mac, (const char *) &msgbuf[4], MAC_LEN);
+
+            ret.distrib = inter_distribution;
 
             // First byte of offsets
             ret.header_offset = 30;
@@ -384,8 +392,7 @@ packet_info GetPacketInfo(const pkthdr *header, const u_char *data, packet_parm 
             ret.source_mac[x] > 0xFF ||
             ret.dest_mac[x] > 0xFF) {
 
-            printf("noise packet, invalid mac\n");
-
+            //printf("noise packet, invalid mac\n");
 
             ret.type = packet_noise;
             break;
