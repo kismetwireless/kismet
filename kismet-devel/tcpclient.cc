@@ -74,7 +74,7 @@ int TcpClient::Connect(short int in_port, char *in_host) {
 
     if ((client_fd = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
         snprintf(errstr, 1024, "TcpClient socket() failed %d (%s)\n",
-                 errno, sys_errlist[errno]);
+                 errno, strerror(errno));
         return (-2);
     }
 
@@ -85,26 +85,26 @@ int TcpClient::Connect(short int in_port, char *in_host) {
 
     if (bind(client_fd, (struct sockaddr *) &local_sock, sizeof(local_sock)) < 0) {
         snprintf(errstr, 1024, "FATAL: TcpClient bind() failed %d (%s)\n",
-                 errno, sys_errlist[errno]);
+                 errno, strerror(errno));
         return (-3);
     }
 
     // Connect
     if (connect(client_fd, (struct sockaddr *) &client_sock, sizeof(client_sock)) < 0) {
         snprintf(errstr, 1024, "FATAL: TcpClient connect() failed %d (%s)\n",
-                 errno, sys_errlist[errno]);
+                 errno, strerror(errno));
         return (-4);
     }
 
     int save_mode = fcntl(client_fd, F_GETFL, 0);
     if (save_mode == -1) {
         snprintf(errstr, 1024, "FATAL:  TcpClient connect() failed fcntl get %d (%s)\n",
-                 errno, sys_errlist[errno]);
+                 errno, strerror(errno));
         return (-5);
     }
     if (fcntl(client_fd, F_SETFL, save_mode | O_NONBLOCK) < 0) {
         snprintf(errstr, 1024, "FATAL:  TcpClient connect() failed fcntl set %d (%s)\n",
-                 errno, sys_errlist[errno]);
+                 errno, strerror(errno));
         return (-6);
     }
 
@@ -145,7 +145,7 @@ int TcpClient::Poll() {
     if ((selected = select(client_fd+1, &read_set, &write_set, &except_set, &tim)) < 0) {
         if (errno != EINTR) {
             snprintf(errstr, 1024, "TcpServer select() returned %d (%s)\n",
-                     errno, sys_errlist[errno]);
+                     errno, strerror(errno));
             sv_valid = 0;
             close(client_fd);
             return (-1);
@@ -183,15 +183,9 @@ int TcpClient::Poll() {
 
     //    while (1) {
     if (fgets(data, 2048, clientf) == NULL) {
-        /*
-        if (errno != 0)
-            snprintf(errstr, 1024, "Errno %d %s ferror %d\n",
-            errno, sys_errlist[errno], ferror(clientf));
-            */
-
         if (errno != 0 && errno != EAGAIN) {
             snprintf(errstr, 1024, "Read error %d (%s), closing the connection.",
-                     errno, sys_errlist[errno]);
+                     errno, strerror(errno));
             sv_valid = 0;
             close(client_fd);
             return (-1);
