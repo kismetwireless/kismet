@@ -1,3 +1,5 @@
+Jan 13 2003  3.1.0  Added more packet sanitizing.  Most invalid management
+                     frames now intercepted, data frames still problematic.
 Jan 12 2003  3.1.0  Fixed stupid word-transposition in default config, should
                      be channelsplit not splitchannels.
 Jan 10 2003  3.1.0  Started implementing wsp100 snmp calls in new framework
