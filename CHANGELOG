@@ -1,4 +1,6 @@
-Feb 09 2003  devel  New devel cylcle started
+Feb 10 2004  devel  Fixed 2 socket closure bugs, neither of which should have
+                     any real world effect (both fatal conditions anyhow)
+Feb 09 2004  devel  New devel cylcle started
                     Added check of new makefile.in and configure to makefile
 Feb 09 2004 Feb0401 Released successor to 3.x with new versioning scheme. Enjoy
                      the new stable release, hopefully beginning a more monthly
