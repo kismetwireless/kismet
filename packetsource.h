@@ -58,6 +58,9 @@ public:
     // Change the channel
     virtual int SetChannel(unsigned int chan) = 0;
 
+    // Get the channel
+    virtual int FetchChannel() = 0;
+
     // Get the FD of our packet source
     virtual int FetchDescriptor() = 0;
 

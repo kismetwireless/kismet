@@ -188,5 +188,9 @@ int Prism2Source::SetChannel(unsigned int chan) {
     return 1;
 }
 
+int Prism2Source::FetchChannel() {
+
+    return 0;
+}
 
 #endif
