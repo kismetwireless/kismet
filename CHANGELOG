@@ -4,6 +4,8 @@ Aug 29 2002  2.5.2  Fixed reassociation subtype
                      packet type dissection and network detection should
                      work.
                     Added netstumbler 3.30 detection (     Intentionally blank)
+                    Suppressed error catching for GPS to accomadate new gpsd
+                     and garmin interaction leading to rapid loss/regain of gps
 Aug 28 2002  2.5.2  Merged diff from jwright to the ARM docs to alleviate some
                      questions and problems.
                     More speed improvements to panelfront
