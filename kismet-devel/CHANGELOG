@@ -5,6 +5,7 @@ Dec 08 2003  3.1.0  Fixed util.h to include math.h outside of the wext
                      it.  Firmwares don't seem to compute quality measurements
                      in rfmon, so this isn't useful to us, and confuses some
                      people.
+                    Tweaked util.cc to use rintf for *bsd compatability
 Dec 07 2003  3.1.0  Tweaked prism2 packet mangling to preserve ICV on packets
                      that don't come in with a FCS set.
                     Restored channel/card reports from server
