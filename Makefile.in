@@ -52,7 +52,7 @@ PS	= kismet_server
 DRONEO = util.o configfile.o getopt.o packet.o tcpstreamer.o \
 			prism2source.o pcapsource.o wtapfilesource.o wsp100source.o \
 				dronesource.o vihasource.o capturesourceutil.o \
-			alertracker.o timetracker.o gpsd.o server_globals.o kismet_drone.o
+			timetracker.o gpsd.o server_globals.o kismet_drone.o
 DRONE = kismet_drone
 
 NCO	= util.o configfile.o speech.o manuf.o tcpclient.o \
