@@ -259,6 +259,9 @@ int PanelFront::MainNetworkPrinter(void *in_window) {
         drop = display_vector.size() - kwin->max_display - 1;
 
         if (drop > 0) {
+            if (drop > display_vector.size())
+                drop = display_vector.size();
+
             display_vector.erase(display_vector.begin(), display_vector.begin() + drop);
         }
         sort(display_vector.begin(), display_vector.end(), DisplaySortFirstTimeLT());
