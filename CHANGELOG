@@ -1,3 +1,4 @@
+Aug 21 2002  2.5.2  Fixed a few minor parsing errors in tcpclient.cc
 Aug 20 2002  2.5.2  Added skeleton of alert system ('w' in panels interface)
                     ! Added detection of Netstumbler and feeding to the alert
                      system.
