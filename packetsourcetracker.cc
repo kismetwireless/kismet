@@ -499,8 +499,9 @@ int Packetsourcetracker::ProcessCardList(string in_enableline,
 
         // Look for stuff the code knows about but which was disabled
         if (cardtype_map[StrLower(tokens[0])]->registrant == NULL) {
-            snprintf(errstr, 1024, "Support for capture source type '%s' was not compiled in.  "
-                     "Check your build-time configure options.", tokens[0].c_str());
+            snprintf(errstr, 1024, "Support for capture source type '%s' was not built.  "
+                     "Check the output from 'configure' for more information about why it might "
+                     "not have been compiled in.", tokens[0].c_str());
             return -1;
         }
 
