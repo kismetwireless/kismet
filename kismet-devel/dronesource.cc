@@ -142,7 +142,7 @@ int DroneSource::FetchPacket(kis_packet *packet) {
 
         if (ntohs(vpkt.drone_version) != STREAM_DRONE_VERSION) {
             snprintf(errstr, 1024, "version mismatch:  Drone sending version %d, expected %d.",
-                     ntohl(vpkt.drone_version), STREAM_DRONE_VERSION);
+                     ntohs(vpkt.drone_version), STREAM_DRONE_VERSION);
             return -1;
         }
 
@@ -160,6 +160,13 @@ int DroneSource::FetchPacket(kis_packet *packet) {
                      errno, strerror(errno));
             return -1;
         }
+
+        if (ntohs(phdr.drone_version) != STREAM_DRONE_VERSION) {
+            snprintf(errstr, 1024, "version mismatch:  Drone sending version %d, expected %d.",
+                     ntohs(phdr.drone_version), STREAM_DRONE_VERSION);
+            return -1;
+        }
+
 
         if (ntohl(phdr.caplen) <= 0)
             return 0;

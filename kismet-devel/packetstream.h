@@ -28,7 +28,7 @@
 #include <inttypes.h>
 #endif
 
-#define STREAM_DRONE_VERSION 3
+#define STREAM_DRONE_VERSION 4
 
 #define STREAM_FTYPE_VERSION 1
 #define STREAM_FTYPE_PACKET  2
@@ -43,6 +43,8 @@ typedef struct stream_version_packet {
 };
 
 typedef struct stream_packet_header {
+    uint32_t header_len __attribute__ ((packed));
+    uint16_t drone_version __attribute__ ((packed));
     uint32_t len __attribute__ ((packed));
     uint32_t caplen __attribute__ ((packed));
     uint64_t tv_sec __attribute__ ((packed));
