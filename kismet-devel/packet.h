@@ -58,7 +58,9 @@ extern "C" {
 #define MAX_PACKET_LEN 8192
 
 #define SSID_SIZE 32
+
 #define MAC_LEN 6
+#define MAC_STR_LEN (MAC_LEN * 2) + 6
 
 #define BEACON_INFO_LEN 128
 
@@ -217,6 +219,91 @@ typedef struct proto_info {
 
 // ------------------------
 
+// A packet MAC address
+typedef struct mac_addr {
+    uint8_t mac[MAC_LEN];
+    uint64_t longmac;
+
+    void struc2long() {
+        for (int x = 0; x < MAC_LEN; x++)
+            longmac |= (uint64_t) mac[x] << ((MAC_LEN - x - 1) * 8);
+    }
+
+    mac_addr() {
+        memset(mac, 0, MAC_LEN);
+        longmac = 0;
+    }
+
+    mac_addr(const uint8_t *in) {
+        for (int x = 0; x < MAC_LEN; x++)
+            mac[x] = in[x];
+        struc2long();
+    }
+
+    mac_addr(const char *in) {
+        memset(mac, 0, MAC_LEN);
+
+        short int bs_in[MAC_LEN];
+        if (sscanf(in, "%hX:%hX:%hX:%hX:%hX:%hX",
+                   &bs_in[0], &bs_in[1], &bs_in[2], &bs_in[3], &bs_in[4], &bs_in[5]) == 6) {
+            for (int x = 0; x < MAC_LEN; x++)
+                mac[x] = bs_in[x];
+        }
+        struc2long();
+    }
+
+    bool operator== (const mac_addr& op) const {
+        return (longmac == op.longmac);
+    }
+
+    bool operator< (const mac_addr& op) const {
+        return (longmac < op.longmac);
+    }
+
+    mac_addr& operator= (mac_addr op) {
+        memcpy(mac, op.mac, MAC_LEN);
+        longmac = op.longmac;
+        return *this;
+    }
+
+    mac_addr& operator= (uint8_t *in) {
+        for (int x = 0; x < MAC_LEN; x++)
+            mac[x] = in[x];
+        struc2long();
+        return *this;
+    }
+
+    mac_addr& operator= (char *in) {
+        memset(mac, 0, MAC_LEN);
+
+        short int bs_in[MAC_LEN];
+        if (sscanf(in, "%hX:%hX:%hX:%hX:%hX:%hX",
+                   &bs_in[0], &bs_in[1], &bs_in[2], &bs_in[3], &bs_in[4], &bs_in[5]) == 6) {
+            for (int x = 0; x < MAC_LEN; x++)
+                mac[x] = bs_in[x];
+        }
+        struc2long();
+        return *this;
+    }
+
+    const short int& operator[] (const int& index) const {
+        int mdex = index;
+        if (index < 0 || index > MAC_LEN)
+            mdex = 0;
+        return mac[mdex];
+    }
+
+    string Mac2String() const {
+        char tempstr[MAC_STR_LEN];
+
+        snprintf(tempstr, MAC_STR_LEN, "%02X:%02X:%02X:%02X:%02X:%02X",
+                 mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
+
+        return tempstr;
+    }
+
+};
+
 
 // packet conversion and extraction utilities
 // Packet types
@@ -263,12 +350,10 @@ typedef struct {
     int encrypted;
     // Is it weak crypto?
     int interesting;
-    // MAC source of packet
-    uint8_t source_mac[MAC_LEN];
-    // MAC dest of packet
-    uint8_t dest_mac[MAC_LEN];
-    // BSSID MAC this packet belongs to
-    uint8_t bssid_mac[MAC_LEN];
+
+    mac_addr source_mac;
+    mac_addr dest_mac;
+    mac_addr bssid_mac;
 
     // Beacon interval if this is a beacon packet, raw 16bit format
     int beacon;

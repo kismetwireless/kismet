@@ -33,7 +33,6 @@
 #include "packet.h"
 #include "tracktypes.h"
 #include "manuf.h"
-#include "stl_misc.h"
 
 // Extern over to kismet_server.cc to get our first time
 extern time_t start_time;
@@ -103,7 +102,7 @@ public:
     static string CDP2String(cdp_packet *in_cdp);
     static string Packet2String(const packet_info *in_info);
 
-    void RemoveNetwork(string in_bssid);
+    void RemoveNetwork(mac_addr in_bssid);
 
 protected:
     string SanitizeCSV(string in_data);
@@ -122,37 +121,19 @@ protected:
     vector<wireless_network *> network_list;
 
     // Several maps to refer to networks
-    /*
-     map<string, wireless_network *> ssid_map;
-     map<string, wireless_network *> bssid_map;
-     */
-    //map<uint8_t *, wireless_network *, STLMacComp> ssid_map;
-    map<uint8_t *, wireless_network *, STLMacComp> bssid_map;
-
+    map<mac_addr, wireless_network *> bssid_map;
 
     // Alert map for netstumbler clients
-    /*
-     map<string, wireless_client *, STLMacComp> netstumbler_map;
-     */
-    map<uint8_t *, wireless_client *, STLMacComp> netstumbler_map;
+    map<mac_addr, wireless_client *> netstumbler_map;
 
     // Map BSSID's to SSID for storage and cloaking
-    /*
-     map<string, string> bssid_cloak_map;
-     */
-    map<uint8_t *, string> bssid_cloak_map;
+    map<mac_addr, string> bssid_cloak_map;
 
     // Map BSSID's to IP ranges for storage
-    /*
-     map<string, net_ip_data> bssid_ip_map;
-     */
-    map<uint8_t *, net_ip_data> bssid_ip_map;
+    map<mac_addr, net_ip_data> bssid_ip_map;
 
     // Map probe responses for clients so we know we need to merge
-    /*
-     map<string, string> probe_map;
-     */
-    map<uint8_t *, uint8_t *> probe_map;
+    map<mac_addr, mac_addr> probe_map;
 };
 
 #endif

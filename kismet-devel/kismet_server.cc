@@ -519,7 +519,7 @@ void NetWriteInfo() {
             continue;
 
         if (tracked[x]->type == network_remove) {
-            snprintf(output, 2048, "*REMOVE: %s\n", tracked[x]->bssid.c_str());
+            snprintf(output, 2048, "*REMOVE: %s\n", tracked[x]->bssid.Mac2String().c_str());
 
             ui_server.SendToAll(output);
 
@@ -534,10 +534,10 @@ void NetWriteInfo() {
         // lat lon alt spd fix firstlat firstlon firstalt firstspd firstfix
         ui_server.SendToAll(output);
 
-        if (tracked[x]->bssid.size() <= 0)
-            continue;
+//        if (tracked[x]->bssid.size() <= 0)
+//            continue;
 
-        for (map<string, wireless_client *>::const_iterator y = tracked[x]->client_map.begin();
+        for (map<mac_addr, wireless_client *>::const_iterator y = tracked[x]->client_map.begin();
              y != tracked[x]->client_map.end(); ++y) {
             snprintf(output, 2048, "*CLIENT: %.2000s\n", Packetracker::Client2String(tracked[x], y->second).c_str());
             ui_server.SendToAll(output);
@@ -549,7 +549,7 @@ void NetWriteInfo() {
             cdp_packet cdp = y->second;
 
             snprintf(output, 2048, "*CISCO %s %.2000s\n",
-                     tracked[x]->bssid.c_str(), Packetracker::CDP2String(&cdp).c_str());
+                     tracked[x]->bssid.Mac2String().c_str(), Packetracker::CDP2String(&cdp).c_str());
 
             ui_server.SendToAll(output);
         }
@@ -596,14 +596,14 @@ void NetWriteNew(int in_fd) {
         // lat lon alt spd fix firstlat firstlon firstalt firstspd firstfix
         ui_server.SendToAll(output);
 
-        for (map<string, wireless_client *>::const_iterator y = tracked[x]->client_map.begin();
+        for (map<mac_addr, wireless_client *>::const_iterator y = tracked[x]->client_map.begin();
              y != tracked[x]->client_map.end(); ++y) {
             snprintf(output, 2048, "*CLIENT: %.2000s\n", Packetracker::Client2String(tracked[x], y->second).c_str());
             ui_server.SendToAll(output);
         }
 
-        if (tracked[x]->bssid.size() <= 0)
-            continue;
+        //if (tracked[x]->bssid.size() <= 0)
+        //    continue;
 
         for (map<string, cdp_packet>::const_iterator y = tracked[x]->cisco_equip.begin();
              y != tracked[x]->cisco_equip.end(); ++y) {
@@ -611,7 +611,7 @@ void NetWriteNew(int in_fd) {
             cdp_packet cdp = y->second;
 
             snprintf(output, 2048, "*CISCO %s %.2000s\n",
-                     tracked[x]->bssid.c_str(), Packetracker::CDP2String(&cdp).c_str());
+                     tracked[x]->bssid.Mac2String().c_str(), Packetracker::CDP2String(&cdp).c_str());
             ui_server.SendToAll(output);
         }
     }
@@ -1859,7 +1859,7 @@ int main(int argc,char *argv[]) {
                 last_info = info;
 
                 // Discard it if we're filtering it
-                if (filter.find(Packetracker::Mac2String(info.bssid_mac, ':')) != string::npos) {
+                if (filter.find(info.bssid_mac.Mac2String().c_str()) != string::npos) {
                     localdropnum++;
 
                     // don't ever do this.  ever.  (but it really is the most efficient way

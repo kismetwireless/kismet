@@ -97,7 +97,16 @@ int TcpClient::Connect(short int in_port, char *in_host) {
     }
 
     int save_mode = fcntl(client_fd, F_GETFL, 0);
-    fcntl(client_fd, F_SETFL, save_mode | O_NONBLOCK);
+    if (save_mode == -1) {
+        snprintf(errstr, 1024, "FATAL:  TcpClient connect() failed fcntl get %d (%s)\n",
+                 errno, sys_errlist[errno]);
+        return (-5);
+    }
+    if (fcntl(client_fd, F_SETFL, save_mode | O_NONBLOCK) < 0) {
+        snprintf(errstr, 1024, "FATAL:  TcpClient connect() failed fcntl set %d (%s)\n",
+                 errno, sys_errlist[errno]);
+        return (-6);
+    }
 
     sv_valid = 1;
 
@@ -176,7 +185,7 @@ int TcpClient::Poll() {
     //    while (1) {
     if (fgets(data, 2048, clientf) == NULL) {
         if (errno != 0)
-            printf("errno %d\n", errno);
+            printf("errno %d %s ferror %d\n", errno, sys_errlist[errno], ferror(clientf));
         if (errno != 0 && errno != EAGAIN) {
             snprintf(errstr, 1024, "Read error %d (%s)\n",
                      errno, sys_errlist[errno]);
@@ -211,16 +220,22 @@ int TcpClient::Poll() {
     return ret;
 }
 
-void TcpClient::RemoveNetwork(uint8_t *in_bssid) {
-    if (net_map.find(in_bssid) != net_map.end())
-        net_map.erase(net_map.find(in_bssid));
+void TcpClient::RemoveNetwork(mac_addr in_bssid) {
+    map<mac_addr, wireless_network *>::iterator itr = net_map.find(in_bssid);
+
+    if (itr != net_map.end()) {
+        for (unsigned int x = 0; x < net_map_vec.size(); x++) {
+            if (net_map_vec[x] == itr->second)
+                net_map_vec.erase(net_map_vec.begin() + x);
+        }
+        net_map.erase(itr);
+    }
 }
 
 int TcpClient::ParseData(char *in_data) {
     char header[65];
-
-    uint8_t bssid[MAC_LEN];
-    unsigned int bssid_in[MAC_LEN];
+    char bssid_str[18];
+    mac_addr bssid;
 
     // fprintf(stderr, "About to parse: '%s'\n", in_data);
 
@@ -255,7 +270,7 @@ int TcpClient::ParseData(char *in_data) {
 
         int scanned;
 
-        char bssid_str[18], ssid[256], beacon[256];
+        char ssid[256], beacon[256];
         short int range[4], mask[4], gate[4];
 
         float maxrate;
@@ -263,20 +278,15 @@ int TcpClient::ParseData(char *in_data) {
         if (sscanf(in_data+hdrlen, "%17s", bssid_str) != 1)
             return 0;
 
-        sscanf(bssid_str, "%02X:%02X:%02X:%02X:%02X:%02X",
-               &bssid_in[0], &bssid_in[1], &bssid_in[2],
-               &bssid_in[3], &bssid_in[4], &bssid_in[5]);
-
-        for (int x = 0; x < MAC_LEN; x++)
-            bssid[x] = bssid_in[x];
-
+        bssid = bssid_str;
 
         if (net_map.find(bssid) != net_map.end()) {
             net = net_map[bssid];
         } else {
             net = new wireless_network;
-            memcpy(net->bssid_raw, bssid, MAC_LEN);
-            net->bssid = bssid_str;
+            net->bssid = bssid;
+            net_map[bssid] = net;
+            net_map_vec.push_back(net);
         }
 
         scanned = sscanf(in_data+hdrlen+18, "%d \001%255[^\001]\001 \001%255[^\001]\001 "
@@ -306,16 +316,9 @@ int TcpClient::ParseData(char *in_data) {
                          &net->aggregate_points);
 
         if (scanned < 52) {
-            //fprintf(stderr, "Flubbed network, discarding...\n");
+            // fprintf(stderr, "Flubbed network, discarding...\n");
             return 0;
         }
-
-        /*
-        sscanf(bssid, "%02X:%02X:%02X:%02X:%02X:%02X",
-               (unsigned int *) &net->bssid_raw[0], (unsigned int *) &net->bssid_raw[1],
-               (unsigned int *) &net->bssid_raw[2], (unsigned int *) &net->bssid_raw[3],
-               (unsigned int *) &net->bssid_raw[4], (unsigned int *) &net->bssid_raw[5]);
-               */
 
         if (ssid[0] != '\002')
             net->ssid = ssid;
@@ -329,9 +332,6 @@ int TcpClient::ParseData(char *in_data) {
 
         net->maxrate = maxrate;
 
-        net_map[net->bssid_raw] = net;
-
-
         /*
         fprintf(stderr, "Netmap size is now:  %d\n", net_map.size());
         fprintf(stderr, "dealing with net %s\n", ssid);
@@ -343,19 +343,18 @@ int TcpClient::ParseData(char *in_data) {
 
     } else if (!strncmp(header, "*CLIENT", 64)) {
         short int ip[4];
-        char mac[18];
+
+        char cmac_str[18];
+
         int scanned;
         float maxrate;
         wireless_client *client = new wireless_client;
 
-        scanned = sscanf(in_data+hdrlen, "%02X:%02X:%02X:%02X:%02X:%02X "
-                         "%17s %d %d %d %d %d %d %d %d %d "
+        scanned = sscanf(in_data+hdrlen, "%17s %17s %d %d %d %d %d %d %d %d %d "
                          "%f %f %f %f %f %f %f %f %lf %lf "
                          "%lf %ld %f %d %d %d %d %d %d %d "
                          "%f %f %f %d %hd.%hd.%hd.%hd",
-                         &bssid_in[0], &bssid_in[1], &bssid_in[2],
-                         &bssid_in[3], &bssid_in[4], &bssid_in[5],
-                         mac, (int *) &client->type,
+                         bssid_str, cmac_str, (int *) &client->type,
                          (int *) &client->first_time, (int *) &client->last_time,
                          (int *) &client->manuf_id, &client->manuf_score,
                          &client->data_packets, &client->crypt_packets,
@@ -371,46 +370,27 @@ int TcpClient::ParseData(char *in_data) {
                          &client->best_lat, &client->best_lon, &client->best_alt,
                          (int *) &client->ipdata.atype, &ip[0], &ip[1], &ip[2], &ip[3]);
 
-        if (scanned < 43)
+        if (scanned < 38)
             return 0;
 
-        client->mac = mac;
+        bssid = bssid_str;
+        client->mac = cmac_str;
         client->maxrate = maxrate;
-
-        // Alignment issues on some platforms make this necessary
-        unsigned int rawmac0, rawmac1, rawmac2, rawmac3, rawmac4, rawmac5;
-
-        sscanf(mac, "%02X:%02X:%02X:%02X:%02X:%02X",
-               &rawmac0, &rawmac1, &rawmac2,
-               &rawmac3, &rawmac4, &rawmac5);
-
-        client->raw_mac[0] = rawmac0;
-        client->raw_mac[1] = rawmac1;
-        client->raw_mac[2] = rawmac2;
-        client->raw_mac[3] = rawmac3;
-        client->raw_mac[4] = rawmac4;
-        client->raw_mac[5] = rawmac5;
-
-        for (int x = 0; x < MAC_LEN; x++)
-            bssid[x] = bssid_in[x];
 
         for (unsigned int x = 0; x < 4; x++)
             client->ipdata.ip[x] = ip[x];
 
         if (net_map.find(bssid) != net_map.end())
-            net_map[bssid]->client_map[mac] = client;
+            net_map[bssid]->client_map[client->mac] = client;
 
     } else if (!strncmp(header, "*REMOVE", 64)) {
 
         // If we get a remove request flag it to die and the group code will
         // destroy it after ungrouping it
-        if (sscanf(in_data+hdrlen, "%02X:%02X:%02X:%02X:%02X:%02X",
-                   &bssid_in[0], &bssid_in[1], &bssid_in[2],
-                   &bssid_in[3], &bssid_in[4], &bssid_in[5]) < 6)
+        if (sscanf(in_data+hdrlen, "%17s", bssid_str) < 0)
             return 0;
 
-        for (int x = 0; x < MAC_LEN; x++)
-            bssid[x] = bssid_in[x];
+        bssid = bssid_str;
 
         if (net_map.find(bssid) != net_map.end()) {
             net_map[bssid]->type = network_remove;
@@ -448,23 +428,20 @@ int TcpClient::ParseData(char *in_data) {
         int cap0, cap1, cap2, cap3, cap4, cap5, cap6;
         short int cdpip[4];
 
-        if (sscanf(in_data+hdrlen, "%02X:%02X:%02X:%02X:%02X:%02X \001%s\001 %hd.%hd.%hd.%hd \001%s\001 "
+        if (sscanf(in_data+hdrlen, "%17s \001%s\001 %hd.%hd.%hd.%hd \001%s\001 "
                    "%d:%d:%d:%d;%d;%d;%d \001%s\001 \001%s\001\n",
-                   &bssid_in[0], &bssid_in[1], &bssid_in[2],
-                   &bssid_in[3], &bssid_in[4], &bssid_in[5],
-                   cdp.dev_id,
+                   bssid_str, cdp.dev_id,
                    &cdpip[0], &cdpip[1], &cdpip[2], &cdpip[3],
                    cdp.interface, &cap0, &cap1, &cap2, &cap3, &cap4, &cap5, &cap6,
-                   cdp.software, cdp.platform) < 20)
+                   cdp.software, cdp.platform) < 16)
             return 0;
+
+        bssid = bssid_str;
 
         cdp.ip[0] = cdpip[0];
         cdp.ip[1] = cdpip[1];
         cdp.ip[2] = cdpip[2];
         cdp.ip[3] = cdpip[3];
-
-        for (int x = 0; x < MAC_LEN; x++)
-            bssid[x] = bssid_in[x];
 
         if (net_map.find(bssid) == net_map.end())
             return 0;
@@ -497,31 +474,26 @@ int TcpClient::ParseData(char *in_data) {
     } else if (!strncmp(header, "*PACKET", 64)) {
         packet_info packinfo;
         memset(&packinfo, 0, sizeof(packet_info));
-        unsigned int smac[MAC_LEN], dmac[MAC_LEN], bmac[MAC_LEN];
+        char smac[18], dmac[18], bmac[18];
         short int sip[4], dip[4];
 
-        if (sscanf(in_data+hdrlen, "%d %d %d %d %d %02X:%02X:%02X:%02X:%02X:%02X "
-                   "%02X:%02X:%02X:%02X:%02X:%02X %02X:%02X:%02X:%02X:%02X:%02X "
+        if (sscanf(in_data+hdrlen, "%d %d %d %d %d %17s %17s %17s "
                    "\001%32[^\001]\001 %d %hd.%hd.%hd.%hd %hd.%hd.%hd.%hd %d %d %d "
                    "\001%16[^\001]\001\n",
                    (int *) &packinfo.type,
                    (int *) &packinfo.time,
                    &packinfo.encrypted, &packinfo.interesting, &packinfo.beacon,
-                   &smac[0], &smac[1], &smac[2], &smac[3], &smac[4], &smac[5],
-                   &dmac[0], &dmac[1], &dmac[2], &dmac[3], &dmac[4], &dmac[5],
-                   &bmac[0], &bmac[1], &bmac[2], &bmac[3], &bmac[4], &bmac[5],
+                   smac, dmac, bmac,
                    packinfo.ssid,
                    (int *) &packinfo.proto.type,
                    &sip[0], &sip[1], &sip[2], &sip[3], &dip[0], &dip[1], &dip[2], &dip[3],
                    (int *) &packinfo.proto.sport, (int *) &packinfo.proto.dport,
-                   (int *) &packinfo.proto.nbtype, packinfo.proto.netbios_source) < 36)
+                   (int *) &packinfo.proto.nbtype, packinfo.proto.netbios_source) < 22)
             return 0;
 
-        for (unsigned int x = 0; x < 6; x++) {
-            packinfo.source_mac[x] = smac[x];
-            packinfo.dest_mac[x] = dmac[x];
-            packinfo.bssid_mac[x] = bmac[x];
-        }
+        packinfo.source_mac = smac;
+        packinfo.dest_mac = dmac;
+        packinfo.bssid_mac = bmac;
 
         for (unsigned int x = 0; x < 4; x++) {
             packinfo.proto.source_ip[x] = sip[x];
@@ -552,6 +524,7 @@ int TcpClient::FetchLoc(float *in_lat, float *in_lon, float *in_alt, float *in_s
 }
 
 vector<wireless_network *> TcpClient::FetchNetworkList() {
+    /*
     vector<wireless_network *> retvec;
 
     for (map<uint8_t *, wireless_network *, STLMacComp>::iterator x = net_map.begin(); x != net_map.end(); ++x) {
@@ -559,6 +532,11 @@ vector<wireless_network *> TcpClient::FetchNetworkList() {
     }
 
     return retvec;
+    */
+
+//    fprintf(stderr, "map: %d vec: %d\n", net_map.size(), net_map_vec.size());
+
+    return net_map_vec;
 }
 
 vector<wireless_network *> TcpClient::FetchNthRecent(unsigned int n) {

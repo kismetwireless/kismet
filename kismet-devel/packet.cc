@@ -211,15 +211,15 @@ void GetPacketInfo(const pkthdr *header, const u_char *data,
 
 
             // Extract the MAC's
-            memcpy(ret_packinfo->dest_mac, frame->addr0, MAC_LEN);
-            memcpy(ret_packinfo->source_mac, frame->addr1, MAC_LEN);
-            memcpy(ret_packinfo->bssid_mac, frame->addr2, MAC_LEN);
+            ret_packinfo->dest_mac = frame->addr0;
+            ret_packinfo->source_mac = frame->addr1;
+            ret_packinfo->bssid_mac = frame->addr2;
 
             ret_packinfo->type = packet_beacon;
 
             if (ret_packinfo->ap == 0) {
                 // Weird adhoc beacon where the BSSID isn't 'right' so we use the source instead.
-                memcpy(ret_packinfo->bssid_mac, ret_packinfo->source_mac, MAC_LEN);
+                ret_packinfo->bssid_mac = ret_packinfo->source_mac;
                 ret_packinfo->type = packet_adhoc;
             }
 
@@ -246,8 +246,8 @@ void GetPacketInfo(const pkthdr *header, const u_char *data,
                 }
             }
 
-            memcpy(ret_packinfo->source_mac, frame->addr1, MAC_LEN);
-            memcpy(ret_packinfo->bssid_mac, frame->addr1, MAC_LEN);
+            ret_packinfo->source_mac = frame->addr1;
+            ret_packinfo->bssid_mac = frame->addr1;
 
             ret_packinfo->type = packet_probe_req;
 
@@ -265,9 +265,9 @@ void GetPacketInfo(const pkthdr *header, const u_char *data,
                 }
             }
 
-            memcpy(ret_packinfo->dest_mac, frame->addr0, MAC_LEN);
-            memcpy(ret_packinfo->source_mac, frame->addr1, MAC_LEN);
-            memcpy(ret_packinfo->bssid_mac, frame->addr2, MAC_LEN);
+            ret_packinfo->dest_mac = frame->addr0;
+            ret_packinfo->source_mac = frame->addr1;
+            ret_packinfo->bssid_mac = frame->addr2;
 
             // First byte of offsets
             ret_packinfo->header_offset = 24;
@@ -285,17 +285,17 @@ void GetPacketInfo(const pkthdr *header, const u_char *data,
                 }
             }
 
-            memcpy(ret_packinfo->dest_mac, frame->addr0, MAC_LEN);
-            memcpy(ret_packinfo->source_mac, frame->addr1, MAC_LEN);
-            memcpy(ret_packinfo->bssid_mac, frame->addr2, MAC_LEN);
+            ret_packinfo->dest_mac = frame->addr0;
+            ret_packinfo->source_mac = frame->addr1;
+            ret_packinfo->bssid_mac = frame->addr2;
 
         } else if (frame->fc.subtype == 12) {
             // deauth
             ret_packinfo->type = packet_deauth;
 
-            memcpy(ret_packinfo->dest_mac, frame->addr0, MAC_LEN);
-            memcpy(ret_packinfo->source_mac, frame->addr1, MAC_LEN);
-            memcpy(ret_packinfo->bssid_mac, frame->addr2, MAC_LEN);
+            ret_packinfo->dest_mac = frame->addr0;
+            ret_packinfo->source_mac = frame->addr1;
+            ret_packinfo->bssid_mac = frame->addr2;
 
             uint16_t rcode;
             memcpy(&rcode, (const char *) &msgbuf[24], 2);
@@ -320,9 +320,9 @@ void GetPacketInfo(const pkthdr *header, const u_char *data,
             // Adhoc's get specially typed and their BSSID is set to
             // their source (I can't think of anything more reasonable
             // to do with them)
-            memcpy(ret_packinfo->dest_mac, frame->addr0, MAC_LEN);
-            memcpy(ret_packinfo->source_mac, frame->addr1, MAC_LEN);
-            memcpy(ret_packinfo->bssid_mac, frame->addr1, MAC_LEN);
+            ret_packinfo->dest_mac = frame->addr0;
+            ret_packinfo->source_mac = frame->addr1;
+            ret_packinfo->bssid_mac = frame->addr1;
 
             // No distribution flags
 
@@ -331,9 +331,9 @@ void GetPacketInfo(const pkthdr *header, const u_char *data,
 
             ret_packinfo->type = packet_adhoc_data;
         } else if (frame->fc.to_ds == 0 && frame->fc.from_ds == 1) {
-            memcpy(ret_packinfo->dest_mac, frame->addr0, MAC_LEN);
-            memcpy(ret_packinfo->bssid_mac, frame->addr1, MAC_LEN);
-            memcpy(ret_packinfo->source_mac, frame->addr2, MAC_LEN);
+            ret_packinfo->dest_mac = frame->addr0;
+            ret_packinfo->bssid_mac = frame->addr1;
+            ret_packinfo->source_mac = frame->addr2;
 
             ret_packinfo->distrib = from_distribution;
 
@@ -341,9 +341,9 @@ void GetPacketInfo(const pkthdr *header, const u_char *data,
             ret_packinfo->header_offset = 24;
 
         } else if (frame->fc.to_ds == 1 && frame->fc.from_ds == 0) {
-            memcpy(ret_packinfo->bssid_mac, frame->addr0, MAC_LEN);
-            memcpy(ret_packinfo->source_mac, frame->addr1, MAC_LEN);
-            memcpy(ret_packinfo->dest_mac, frame->addr2, MAC_LEN);
+            ret_packinfo->bssid_mac = frame->addr0;
+            ret_packinfo->source_mac = frame->addr1;
+            ret_packinfo->dest_mac = frame->addr2;
 
             ret_packinfo->distrib = to_distribution;
 
@@ -355,9 +355,9 @@ void GetPacketInfo(const pkthdr *header, const u_char *data,
             // Source is a special offset to the source
             // Dest is the reciever address
 
-            memcpy(ret_packinfo->bssid_mac, frame->addr1, MAC_LEN);
-            memcpy(ret_packinfo->source_mac, frame->addr3, MAC_LEN);
-            memcpy(ret_packinfo->dest_mac, frame->addr0, MAC_LEN);
+            ret_packinfo->bssid_mac = frame->addr1;
+            ret_packinfo->source_mac = frame->addr3;
+            ret_packinfo->dest_mac = frame->addr0;
 
             ret_packinfo->distrib = inter_distribution;
 
@@ -453,7 +453,7 @@ void GetProtoInfo(const packet_info *in_info, const pkthdr *header,
         return ret;
         */
 
-    if (memcmp(in_info->dest_mac, NETS_MAC, sizeof(NETS_MAC)) == 0) {
+    if (in_info->dest_mac == NETS_MAC) {
         // We look for netstumblers first since we need them to match before the
         // multicast catch-all in the next compare...  Anything sending to this multicast
         // MAC address seems to be a NS probe so we'll catch it directly, this saves us
@@ -537,7 +537,7 @@ void GetProtoInfo(const packet_info *in_info, const pkthdr *header,
 
     // This isn't an 'else' because we want to try to handle it if it looked like a netstumbler
     // but wasn't.
-    if (memcmp(in_info->dest_mac, LOR_MAC, sizeof(LOR_MAC)) == 0 ||
+    if (in_info->dest_mac == LOR_MAC ||
         (in_info->distrib == no_distribution && in_info->dest_mac[0] == 1)) {
         // First thing we do is see if the destination matches the multicast for
         // lucent outdoor routers, or if we're a multicast with no BSSID.  This should

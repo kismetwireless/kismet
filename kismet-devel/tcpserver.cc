@@ -285,9 +285,13 @@ void TcpServer::Send(int in_fd, const char *in_data) {
         return;
     }
     client_wrbuf[in_fd] += in_data;
+
+    /*
     if (client_wrbuf[in_fd].length() > (1<<20)) {
-        Kill(in_fd);
+    //    printf("We're killing on a send for wrbuf length\n");
+    //    Kill(in_fd);
     }
+    */
 }
 
 void TcpServer::SendToAll(const char *in_data) {

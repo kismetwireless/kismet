@@ -104,7 +104,7 @@ int GPSDump::DumpPacket(packet_info *in_packinfo) {
         fprintf(gpsf, "    <gps-point bssid=\"%s\" time-sec=\"%ld\" time-usec=\"%ld\" "
                 "lat=\"%f\" lon=\"%f\" alt=\"%f\" spd=\"%f\" fix=\"%d\" "
                 "signal=\"%d\" quality=\"%d\" noise=\"%d\"/>\n",
-                Packetracker::Mac2String(in_packinfo->bssid_mac, ':').c_str(),
+                in_packinfo->bssid_mac.Mac2String().c_str(),
                 (long int) ts.tv_sec, (long int) ts.tv_usec,
                 lat, lon, alt, spd, fix,
                 in_packinfo->signal, in_packinfo->quality, in_packinfo->noise);
