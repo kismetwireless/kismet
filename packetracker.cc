@@ -206,6 +206,9 @@ int Packetracker::ProcessPacket(packet_info info, char *in_status) {
         // try to make a network out of it -- toss it.
         num_dropped++;
         return(0);
+    } else if (info.bssid_mac == NUL_MAC) {
+        num_dropped++;
+        return(0);
     }
 
     // If it's a broadcast (From and To DS == 1) try to match it to an existing
@@ -217,21 +220,15 @@ int Packetracker::ProcessPacket(packet_info info, char *in_status) {
             info.bssid_mac = info.source_mac;
         } else if ((bsmapitr = bssid_map.find(info.dest_mac)) != bssid_map.end()) {
             info.bssid_mac = info.dest_mac;
-        } else {
-            num_dropped++;
-            return(0);
         }
-    }
-
-    if (info.bssid_mac == NUL_MAC) {
-        num_dropped++;
-        return(0);
     }
 
     // If it's a probe request, see if we already know who it should belong to
     if (info.type == packet_probe_req) {
-        if (probe_map.find(info.bssid_mac) != probe_map.end())
+        if (probe_map.find(info.bssid_mac) != probe_map.end()) {
             info.bssid_mac = probe_map[info.bssid_mac];
+            bsmapitr = bssid_map.find(info.bssid_mac);
+        }
     }
 
     // Find out if we have this network -- Every network that actually
