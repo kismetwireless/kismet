@@ -950,10 +950,11 @@ int ProcessGPSFile(char *in_fname) {
         // Don't process filtered macs at all.
         //macmap<int>::iterator fitr = 
         //    filter_map.find(mac_addr(file_points[i]->bssid));
-        if ((invert_filter == 0 && 
+        if (((invert_filter == 0 && 
              filter_map.find(file_points[i]->bssid) != filter_map.end()) ||
             (invert_filter == 1 && 
-             filter_map.find(file_points[i]->bssid) != filter_map.end())) {
+             filter_map.find(file_points[i]->bssid) == filter_map.end())) &&
+            (strncmp(file_points[i]->bssid, gps_track_bssid, 17) != 0)) {
             continue;
         }
 
