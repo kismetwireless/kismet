@@ -208,7 +208,7 @@ void PanelFront::NetLine(kis_window *in_window, string *in_str, wireless_network
             snprintf(element, 4, "%3d", (idle_time < (decay * 2)) ? net->noise : 0);
             len = 3;
         } else if (colindex == mcol_clients) {
-            snprintf(element, 5, "%4d", net->client_map.size());
+            snprintf(element, 5, "%4d", (int) net->client_map.size());
             len = 4;
         } else if (colindex == mcol_datasize) {
             if (net->datasize < 1024) // Less than 1k gets raw bytes
@@ -1368,7 +1368,7 @@ int PanelFront::DetailsPrinter(void *in_window) {
     kwin->text.push_back(output);
 
     if (details_network->networks.size() > 1) {
-        snprintf(output, print_width, "Networks: %d", details_network->networks.size());
+        snprintf(output, print_width, "Networks: %d", (int) details_network->networks.size());
         kwin->text.push_back(output);
 
         if (details_network->virtnet->gps_fixed != -1) {
@@ -1540,7 +1540,7 @@ int PanelFront::DetailsPrinter(void *in_window) {
         snprintf(output, print_width, "Latest  : %.24s", ctime((const time_t *) &dnet->last_time));
         kwin->text.push_back(output);
 
-        snprintf(output, print_width, "Clients : %d", dnet->client_map.size());
+        snprintf(output, print_width, "Clients : %d", (int) dnet->client_map.size());
         kwin->text.push_back(output);
 
         switch (dnet->type) {

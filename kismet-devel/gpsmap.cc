@@ -780,11 +780,11 @@ void ProcessNetData(int in_printstats) {
             }
 
             if (in_printstats)
-                printf("Track %d: %d samples.\n", vec, track_vec[vec].size());
+                printf("Track %d: %d samples.\n", vec, (int) track_vec[vec].size());
         }
     }
 
-    printf("Processing %d networks.\n", bssid_gpsnet_map.size());
+    printf("Processing %d networks.\n", (int) bssid_gpsnet_map.size());
 
     for (map<string, gps_network *>::const_iterator x = bssid_gpsnet_map.begin();
          x != bssid_gpsnet_map.end(); ++x) {
@@ -1635,6 +1635,7 @@ void *PowerLine(void *arg) {
 
 #ifdef HAVE_PTHREAD
     pthread_exit((void *) 0);
+    return NULL;
 #else
     return NULL;
 #endif
