@@ -1705,6 +1705,13 @@ int main(int argc,char *argv[]) {
             }
         }
 
+        // Catch 'network' addresses that aren't network addresses.
+        if ((ipb->network.s_addr & ipb->mask.s_addr) != ipb->network.s_addr) {
+            fprintf(stderr, "FATAL:  Invalid network '%s' in allowed hosts list.\n",
+                    inet_ntoa(ipb->network));
+            exit(1);
+        }
+
         // Add it to our vector
         legal_ipblock_vec.push_back(ipb);
     }
