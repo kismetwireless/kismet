@@ -140,7 +140,8 @@ int PanelFront::MainInput(void *in_window, int in_chr) {
     case 'U':
         if (sortby != sort_auto && last_displayed.size() > 0) {
             if (last_displayed[kwin->selected] != NULL)
-                DestroyGroup(last_displayed[kwin->selected]);
+                if (last_displayed[kwin->selected]->type == group_bundle)
+                    DestroyGroup(last_displayed[kwin->selected]);
         } else {
             WriteStatus("Cannot ungroup in autofit sort mode.");
         }
