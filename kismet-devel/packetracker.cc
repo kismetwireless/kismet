@@ -1426,33 +1426,20 @@ int Packetracker::WriteXMLNetworks(FILE *in_file) {
 
 void Packetracker::ReadSSIDMap(FILE *in_file) {
     char dline[8192];
-    short int bssid_in[MAC_LEN];
-    uint8_t bssid[MAC_LEN];
-
-    //char bssid[MAC_STR_LEN];
-    char name[SSID_SIZE+1];
-
-    char format[64];
-    // stupid sscanf not taking dynamic sizes
-/*    snprintf(format, 64, "%%%d[^ ] %%%d[^\n]\n",
- MAC_STR_LEN, SSID_SIZE);
- */
-    snprintf(format, 64, "%%hd:%%hd:%%hd:%%hd:%%hd:%%hd %%%d[^\n]\n", SSID_SIZE);
+    mac_addr bssid;
+    char name[1024];
+    char bssid_str[18];
 
     while (!feof(in_file)) {
         fgets(dline, 8192, in_file);
 
         if (feof(in_file)) break;
 
-        // Fetch the line and continue if we're invalid...
-        if (sscanf(dline, format,
-                   &bssid_in[0], &bssid_in[1], &bssid_in[2],
-                   &bssid_in[3], &bssid_in[4], &bssid_in[5],
-                   name) < 7)
+        if (sscanf(dline, "%17s %1024[^\n]\n",
+                   bssid_str, name) < 2)
             continue;
 
-        for (unsigned int x = 0; x < MAC_LEN; x++)
-            bssid[x] = bssid_in[x];
+        bssid = bssid_str;
 
         bssid_cloak_map[bssid] = name;
 
@@ -1477,15 +1464,8 @@ void Packetracker::WriteSSIDMap(FILE *in_file) {
 
 void Packetracker::ReadIPMap(FILE *in_file) {
     char dline[8192];
-    short int bssid_in[MAC_LEN];
-    uint8_t bssid[MAC_LEN];
-
-//    char format[64];
-    // stupid sscanf not taking dynamic sizes
-    /*
-    snprintf(format, 64, "%%hd:%%hd:%%hd:%%hd:%%hd:%%hd %%d %%d %%hd %%hd %%hd %%hd %%hd %%hd %%hd %%hd %%hd %%hd %%hd %%hd\n",
-    MAC_STR_LEN);
-    */
+    mac_addr bssid;
+    char bssid_str[18];
 
     net_ip_data dat;
 
@@ -1499,13 +1479,12 @@ void Packetracker::ReadIPMap(FILE *in_file) {
         short int range[4], mask[4], gate[4];
 
         // Fetch the line and continue if we're invalid...
-        if (sscanf(dline, "%hd:%hd:%hd:%hd:%hd:%hd %d %d %hd %hd %hd %hd %hd %hd %hd %hd %hd %hd %hd %hd",
-                   &bssid_in[0], &bssid_in[1], &bssid_in[2],
-                   &bssid_in[3], &bssid_in[4], &bssid_in[5],
+        if (sscanf(dline, "%17s %d %d %hd %hd %hd %hd %hd %hd %hd %hd %hd %hd %hd %hd",
+                   bssid_str,
                    (int *) &dat.atype, &dat.octets,
                    &range[0], &range[1], &range[2], &range[3],
                    &mask[0], &mask[1], &mask[2], &mask[3],
-                   &gate[0], &gate[1], &gate[2], &gate[3]) < 20)
+                   &gate[0], &gate[1], &gate[2], &gate[3]) < 15)
             continue;
 
         for (int x = 0; x < 4; x++) {
@@ -1516,8 +1495,7 @@ void Packetracker::ReadIPMap(FILE *in_file) {
 
         dat.load_from_store = 1;
 
-        for (unsigned int x = 0; x < MAC_LEN; x++)
-            bssid[x] = bssid_in[x];
+        bssid = bssid_str;
 
         memcpy(&bssid_ip_map[bssid], &dat, sizeof(net_ip_data));
     }
