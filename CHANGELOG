@@ -1,3 +1,4 @@
+Jan 15 2003  2.9.0  Fixed up netxml more
 Jan 11 2003  2.9.0  Cleaned up MungeToShell to be more restrictive for passing
                      text to Festival.
                     Merged metric display patch from Peter Sturm

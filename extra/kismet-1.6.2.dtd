@@ -63,6 +63,8 @@
 		<!ELEMENT client-max-lon (#PCDATA)>
 		<!ELEMENT client-max-alt (#PCDATA)>
 		<!ELEMENT client-max-spd (#PCDATA)>
+	<!ELEMENT client-maxrate (#PCDATA)>
+	<!ELEMENT client-channel (#PCDATA)>
 	<!ELEMENT client-datasize (#PCDATA)>
 	<!ELEMENT client-ip-address (#PCDATA)>
 		<!ATTLIST client-ip-address type (none | arp | udp | tcp | dhcp) "none">
