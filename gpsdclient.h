@@ -33,7 +33,8 @@
 // Our command
 const char gpsd_command[] = "PAVMH\n";
 
-int GpsInjectEvent(Timetracker::timer_event *evt, void *parm, GlobalRegistry *globalreg);
+int GpsInjectEvent(Timetracker::timer_event *evt, void *parm, 
+				   GlobalRegistry *globalreg);
 
 enum GPS_fields {
     GPS_lat, GPS_lon, GPS_alt, GPS_spd, GPS_heading, GPS_fix

@@ -146,6 +146,14 @@ X-Riot-Version: 1ds-20040924
 In-Reply-To: <riot.20040927001446.1>
 
 Add messageclient to fill in curses status field
+From background-static Mon Feb  7 23:06:07 EST 2005
+Message-Id: <riot.20050207230607.2>
+Date: Mon Feb  7 23:06:07 EST 2005
+Status: RO
+X-Riot-Version: 1ds-20040924
+In-Reply-To: <riot.20040927001446.1>
+
+Data export hooks?
 From background-static Mon Sep 27 00:15:20 EDT 2004
 Message-Id: <riot.20040927001520.3>
 Date: Mon Sep 27 00:15:20 EDT 2004
@@ -267,7 +275,10 @@ Status: RO
 X-Riot-Version: 1ds-20040924
 In-Reply-To: <riot.20040927011304.1>
 
-Replace awful ISBLANK stuff (partial)
+Replace awful ISBLANK stuff
+
+IsBlank calculated during tag extraction in dissector and recorded in
+80211_info::ssid_blank
 From background-static Mon Sep 27 14:25:30 EDT 2004
 Message-Id: <riot.20040927142530.1>
 Date: Mon Sep 27 14:25:30 EDT 2004
@@ -300,3 +311,42 @@ X-Riot-Version: 1ds-20040924
 In-Reply-To: <riot.20040927011304.1>
 
 Move *NETWORK code into packetracker as a timer event
+From background-static Mon Feb 14 14:12:29 EST 2005
+Message-Id: <riot.20050214141229.5>
+Date: Mon Feb 14 14:12:29 EST 2005
+Status: RO
+X-Riot-Version: 1ds-20040924
+In-Reply-To: <riot.20040927011304.1>
+
+hardware recieved channel histogram records
+From background-static Mon Feb 14 11:09:18 EST 2005
+Message-Id: <riot.20050214110918.1>
+Date: Mon Feb 14 11:09:18 EST 2005
+Status: RO
+X-Riot-Version: 1ds-20040924
+
+gpsmap
+From background-static Mon Feb 14 11:09:34 EST 2005
+Message-Id: <riot.20050214110934.2>
+Date: Mon Feb 14 11:09:34 EST 2005
+Status: RO
+X-Riot-Version: 1ds-20040924
+In-Reply-To: <riot.20050214110918.1>
+
+Datafile export for dhtml webpage about map
+From background-static Mon Feb 14 11:09:59 EST 2005
+Message-Id: <riot.20050214110959.3>
+Date: Mon Feb 14 11:09:59 EST 2005
+Status: RO
+X-Riot-Version: 1ds-20040924
+In-Reply-To: <riot.20050214110918.1>
+
+compartmentalize aggregating code for re-export to single xml
+From background-static Mon Feb 14 11:10:20 EST 2005
+Message-Id: <riot.20050214111020.4>
+Date: Mon Feb 14 11:10:20 EST 2005
+Status: RO
+X-Riot-Version: 1ds-20040924
+In-Reply-To: <riot.20050214110918.1>
+
+expand gpsxml to allow inclusion of netxml file, write merger util

@@ -271,6 +271,8 @@ int kis_80211_dissector(CHAINCALL_PARMS) {
                 } else if (temp <= 32) {
                     memcpy(ret_packinfo->ssid, &packet->data[tag_offset+1], temp);
                     packinfo->ssid[temp] = '\0';
+					// Test the SSID for blankness
+					packinfo->ssid_blank = IsBlank(packinfo->ssid);
                     // Munge it down to printable characters... SSID's can be anything
                     // but if we can't print them it's not going to be very useful
                     // MungeToPrintable(ret_packinfo->ssid, temp);
@@ -282,7 +284,7 @@ int kis_80211_dissector(CHAINCALL_PARMS) {
                     return 0;
                 }
             } else {
-                packinfo->ssid_len = -1;
+                packinfo->ssid_len = 0;
             }
 
             // Extract the supported rates

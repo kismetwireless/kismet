@@ -134,10 +134,11 @@ void Packetchain::DestroyPacket(kis_packet *in_pack) {
         (*(pcl->callback))(globalreg, pcl->auxdata, newpack);
     }
 
-    // Delete anything left
+    // Delete anything left if it's meant to self destruct
     for (map<int, void *>::iterator x = in_pack->content_map.begin();
          x != in_pack->content_map.end(); ++x) {
-        delete x->second;
+		if (x->second->self_destruct)
+			delete x->second;
     }
 
 }

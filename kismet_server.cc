@@ -619,19 +619,6 @@ int ProcessBulkConf(ConfigFile *conf) {
         ErrorShutdown();
     }
 
-    if (conf->FetchOpt("ssidmap") != "") {
-        // Explode the map file path
-        ssidtrackfile = conf->ExpandLogPath(configdir + conf->FetchOpt("ssidmap"), "", "", 0, 1);
-        ssid_cloak_track = 1;
-    }
-
-    if (conf->FetchOpt("ipmap") != "") {
-        // Explode the IP file path
-        iptrackfile = conf->ExpandLogPath(configdir + conf->FetchOpt("ipmap"), "", "", 0, 1);
-        ip_track = 1;
-    }
-
-
 #ifdef HAVE_GPS
     if (conf->FetchOpt("waypoints") == "true") {
         if(conf->FetchOpt("waypointdata") == "") {

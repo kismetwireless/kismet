@@ -68,8 +68,11 @@ typedef struct smart_word_token {
 };
 vector<smart_word_token> SmartStrTokenize(string in_str, string in_split, int return_partial = 1);
 
-vector<string> LineWrap(string in_txt, unsigned int in_hdr_len, unsigned int in_maxlen);
+vector<string> LineWrap(string in_txt, unsigned int in_hdr_len, 
+						unsigned int in_maxlen);
 vector<int> Str2IntVec(string in_text);
+
+int IsBlank(const char *s);
 
 void Float2Pair(float in_float, int16_t *primary, int64_t *mantissa);
 float Pair2Float(int16_t primary, int64_t mantissa);

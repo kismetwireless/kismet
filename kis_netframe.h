@@ -77,44 +77,6 @@ enum TIME_fields {
     TIME_timesec
 };
 
-enum NETWORK_fields {
-    NETWORK_bssid, NETWORK_type, NETWORK_ssid, NETWORK_beaconinfo,
-    NETWORK_llcpackets, NETWORK_datapackets, NETWORK_cryptpackets,
-    NETWORK_weakpackets, NETWORK_channel, NETWORK_wep, NETWORK_firsttime,
-    NETWORK_lasttime, NETWORK_atype, NETWORK_rangeip, NETWORK_gpsfixed,
-    NETWORK_minlat, NETWORK_minlon, NETWORK_minalt, NETWORK_minspd,
-    NETWORK_maxlat, NETWORK_maxlon, NETWORK_maxalt, NETWORK_maxspd,
-    NETWORK_octets, NETWORK_cloaked, NETWORK_beaconrate, NETWORK_maxrate,
-    NETWORK_manufkey, NETWORK_manufscore,
-    NETWORK_quality, NETWORK_signal, NETWORK_noise,
-    NETWORK_bestquality, NETWORK_bestsignal, NETWORK_bestnoise,
-    NETWORK_bestlat, NETWORK_bestlon, NETWORK_bestalt,
-    NETWORK_agglat, NETWORK_agglon, NETWORK_aggalt, NETWORK_aggpoints,
-    NETWORK_datasize, NETWORK_tcnid, NETWORK_tcmode, NETWORK_tsat,
-    NETWORK_carrierset, NETWORK_maxseenrate, NETWORK_encodingset,
-    NETWORK_decrypted, NETWORK_DUPEIV
-};
-
-enum CLIENT_fields {
-    CLIENT_bssid, CLIENT_mac, CLIENT_type, CLIENT_firsttime, CLIENT_lasttime,
-    CLIENT_manufkey, CLIENT_manufscore,
-    CLIENT_datapackets, CLIENT_cryptpackets, CLIENT_weakpackets,
-    CLIENT_gpsfixed,
-    CLIENT_minlat, CLIENT_minlon, CLIENT_minalt, CLIENT_minspd,
-    CLIENT_maxlat, CLIENT_maxlon, CLIENT_maxalt, CLIENT_maxspd,
-    CLIENT_agglat, CLIENT_agglon, CLIENT_aggalt, CLIENT_aggpoints,
-    CLIENT_maxrate,
-    CLIENT_quality, CLIENT_signal, CLIENT_noise,
-    CLIENT_bestquality, CLIENT_bestsignal, CLIENT_bestnoise,
-    CLIENT_bestlat, CLIENT_bestlon, CLIENT_bestalt,
-    CLIENT_atype, CLIENT_ip, CLIENT_datasize, CLIENT_maxseenrate, CLIENT_encodingset,
-    CLIENT_decrypted
-};
-
-enum REMOVE_fields {
-    REMOVE_bssid
-};
-
 enum STATUS_fields {
     STATUS_text
 };
@@ -159,11 +121,8 @@ extern char *TIME_fields_text[];
 
 extern char *CARD_fields_text[];
 extern char *CISCO_fields_text[];
-extern char *CLIENT_fields_text[];
 extern char *INFO_fields_text[];
-extern char *NETWORK_fields_text[];
 extern char *PACKET_fields_text[];
-extern char *REMOVE_fields_text[];
 extern char *STATUS_fields_text[];
 extern char *STRING_fields_text[];
 extern char *WEPKEY_fields_text[];
@@ -176,14 +135,6 @@ extern char *WEPKEY_fields_text[];
 
 typedef struct INFO_data {
     string networks, packets, crypt, weak, noise, dropped, rate, signal;
-};
-
-typedef struct NETWORK_data {
-    vector<string> ndvec;
-};
-
-typedef struct CLIENT_data {
-    vector<string> cdvec;
 };
 
 typedef struct PACKET_data {
@@ -202,10 +153,6 @@ int Protocol_CAPABILITY(PROTO_PARMS);
 int Protocol_TERMINATE(PROTO_PARMS);
 int Protocol_TIME(PROTO_PARMS);
 int Protocol_INFO(PROTO_PARMS); // INFO_data
-void Protocol_Network2Data(const wireless_network *net, NETWORK_data *data);  // Convert a network to NET_data
-int Protocol_NETWORK(PROTO_PARMS); // NETWORK_data
-void Protocol_Client2Data(const wireless_network *net, const wireless_client *cli, CLIENT_data *data); // Convert a client
-int Protocol_CLIENT(PROTO_PARMS); // CLIENT_data
 int Protocol_STATUS(PROTO_PARMS); // string
 void Protocol_Packet2Data(const kis_packet *info, PACKET_data *data);
 int Protocol_PACKET(PROTO_PARMS); // PACKET_data
@@ -213,10 +160,6 @@ int Protocol_STRING(PROTO_PARMS); // STRING_data
 int Protocol_WEPKEY(PROTO_PARMS); // wep_key_info
 int Protocol_CARD(PROTO_PARMS); // captype
 int Protocol_CISCO(PROTO_PARMS);
-int Protocol_REMOVE(PROTO_PARMS);
-
-void Protocol_NETWORK_enable(PROTO_ENABLE_PARMS);
-void Protocol_CLIENT_enable(PROTO_ENABLE_PARMS);
 
 typedef struct KISMET_data {
     string version;

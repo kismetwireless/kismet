@@ -318,6 +318,7 @@ public:
         subtype = packet_sub_unknown;
         mgt_reason_code = 0;
         ssid_len = 0;
+		ssid_blank = 0;
         source_mac = mac_addr(0);
         dest_mac = mac_addr(0);
         bssid_mac = mac_addr(0);
@@ -353,6 +354,8 @@ public:
     // Raw SSID
     char ssid[SSID_SIZE+1];
     int ssid_len;
+	// Is the SSID empty spaces?
+	int ssid_blank;
 
     // Address set
     mac_addr source_mac;
@@ -430,6 +433,28 @@ public:
     double spd;
     double heading;
     int gps_fix;
+};
+
+// Hook into the network tracker to give other chain elements a reference
+// to the tracked_network struct.  They'll have to cast it out of the void*.
+class kis_netracker_netinfo : public packet_component {
+public:
+	kis_netracker_netinfo() {
+		netref = NULL;
+	}
+
+	void *netref;
+};
+
+// Hook into the network tracker to give other chain elements a reference
+// to the tracked_client struct.  They'll have to cast it out of the void*.
+class kis_netracker_cliinfo : public packet_component {
+public:
+	kis_netracker_cliinfo() {
+		cliref = NULL;
+	}
+
+	void *cliref;
 };
 
 #endif

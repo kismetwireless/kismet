@@ -33,6 +33,421 @@
 #include "netracker.h"
 #include "packet.h"
 
+// TCP server hooks
+char *NETWORK_fields_text[] = {
+    "bssid", "type", "ssid", "beaconinfo",
+    "llcpackets", "datapackets", "cryptpackets",
+    "weakpackets", "channel", "wep", "firsttime",
+    "lasttime", "atype", "rangeip", "gpsfixed",
+    "minlat", "minlon", "minalt", "minspd",
+    "maxlat", "maxlon", "maxalt", "maxspd",
+    "octets", "cloaked", "beaconrate", "maxrate",
+    "manufkey", "manufscore",
+    "quality", "signal", "noise",
+    "bestquality", "bestsignal", "bestnoise",
+    "bestlat", "bestlon", "bestalt",
+    "agglat", "agglon", "aggalt", "aggpoints",
+    "datasize",
+    "turbocellnid", "turbocellmode", "turbocellsat",
+    "carrierset", "maxseenrate", "encodingset",
+    "decrypted", "dupeivpackets",
+    NULL
+};
+
+char *REMOVE_fields_text[] = {
+    "bssid",
+    NULL
+};
+
+char *CLIENT_fields_text[] = {
+    "bssid", "mac", "type", "firsttime", "lasttime",
+    "manufkey", "manufscore",
+    "datapackets", "cryptpackets", "weakpackets",
+    "gpsfixed",
+    "minlat", "minlon", "minalt", "minspd",
+    "maxlat", "maxlon", "maxalt", "maxspd",
+    "agglat", "agglon", "aggalt", "aggpoints",
+    "maxrate",
+    "quality", "signal", "noise",
+    "bestquality", "bestsignal", "bestnoise",
+    "bestlat", "bestlon", "bestalt",
+    "atype", "ip", "datasize", "maxseenrate", "encodingset",
+    "decrypted",
+    NULL
+};
+
+// Convert a network to a NETWORK_data record for fast transmission
+// The order of this is VERY IMPORTANT.  It HAS TO MATCH the order of the
+// char *[] array of fields.
+void Protocol_Network2Data(const wireless_network *net, NETWORK_data *data) {
+    char tmpstr[128];
+
+    // Reserve fields
+    data->ndvec.reserve(50);
+
+    data->ndvec.push_back(net->bssid.Mac2String());
+
+    snprintf(tmpstr, 128, "%d", (int) net->type);
+    data->ndvec.push_back(tmpstr);
+
+    snprintf(tmpstr, 128, "\001%s\001", net->ssid.length() > 0 ? net->ssid.c_str() : " ");
+    data->ndvec.push_back(tmpstr);
+
+    snprintf(tmpstr, 128, "\001%s\001", net->beacon_info.length() > 0 ? net->beacon_info.c_str() : " ");
+    data->ndvec.push_back(tmpstr);
+
+    snprintf(tmpstr, 128, "%d", net->llc_packets);
+    data->ndvec.push_back(tmpstr);
+
+    snprintf(tmpstr, 128, "%d", net->data_packets);
+    data->ndvec.push_back(tmpstr);
+
+    snprintf(tmpstr, 128, "%d", net->crypt_packets);
+    data->ndvec.push_back(tmpstr);
+
+    snprintf(tmpstr, 128, "%d", net->interesting_packets);
+    data->ndvec.push_back(tmpstr);
+
+    snprintf(tmpstr, 128, "%d", net->channel);
+    data->ndvec.push_back(tmpstr);
+
+    snprintf(tmpstr, 128, "%d", net->wep);
+    data->ndvec.push_back(tmpstr);
+
+    snprintf(tmpstr, 128, "%d", (int) net->first_time);
+    data->ndvec.push_back(tmpstr);
+
+    snprintf(tmpstr, 128, "%d", (int) net->last_time);
+    data->ndvec.push_back(tmpstr);
+
+    snprintf(tmpstr, 128, "%d", (int) net->ipdata.atype);
+    data->ndvec.push_back(tmpstr);
+
+    snprintf(tmpstr, 128, "%hd.%hd.%hd.%hd",
+             net->ipdata.range_ip[0], net->ipdata.range_ip[1],
+             net->ipdata.range_ip[2], net->ipdata.range_ip[3]);
+    data->ndvec.push_back(tmpstr);
+
+    snprintf(tmpstr, 128, "%d", net->gps_fixed);
+    data->ndvec.push_back(tmpstr);
+
+    snprintf(tmpstr, 128, "%f", net->min_lat);
+    data->ndvec.push_back(tmpstr);
+
+    snprintf(tmpstr, 128, "%f", net->min_lon);
+    data->ndvec.push_back(tmpstr);
+
+    snprintf(tmpstr, 128, "%f", net->min_alt);
+    data->ndvec.push_back(tmpstr);
+
+    snprintf(tmpstr, 128, "%f", net->min_spd);
+    data->ndvec.push_back(tmpstr);
+
+    snprintf(tmpstr, 128, "%f", net->max_lat);
+    data->ndvec.push_back(tmpstr);
+
+    snprintf(tmpstr, 128, "%f", net->max_lon);
+    data->ndvec.push_back(tmpstr);
+
+    snprintf(tmpstr, 128, "%f", net->max_alt);
+    data->ndvec.push_back(tmpstr);
+
+    snprintf(tmpstr, 128, "%f", net->max_spd);
+    data->ndvec.push_back(tmpstr);
+
+    snprintf(tmpstr, 128, "%d", net->ipdata.octets);
+    data->ndvec.push_back(tmpstr);
+
+    snprintf(tmpstr, 128, "%d", net->cloaked);
+    data->ndvec.push_back(tmpstr);
+
+    snprintf(tmpstr, 128, "%d", net->beacon);
+    data->ndvec.push_back(tmpstr);
+
+    snprintf(tmpstr, 128, "%2.1f", net->maxrate);
+    data->ndvec.push_back(tmpstr);
+
+    // Deprecated
+    // data->ndvec.push_back(net->manuf_key.Mac2String());
+    data->ndvec.push_back("00:00:00:00:00:00");
+
+    // Deprecated
+    /*
+    snprintf(tmpstr, 128, "%d", net->manuf_score);
+    data->ndvec.push_back(tmpstr);
+    */
+    data->ndvec.push_back("0");
+
+    snprintf(tmpstr, 128, "%d", net->quality);
+    data->ndvec.push_back(tmpstr);
+
+    snprintf(tmpstr, 128, "%d", net->signal);
+    data->ndvec.push_back(tmpstr);
+
+    snprintf(tmpstr, 128, "%d", net->noise);
+    data->ndvec.push_back(tmpstr);
+
+    snprintf(tmpstr, 128, "%d", net->best_quality);
+    data->ndvec.push_back(tmpstr);
+
+    snprintf(tmpstr, 128, "%d", net->best_signal);
+    data->ndvec.push_back(tmpstr);
+
+    snprintf(tmpstr, 128, "%d", net->best_noise);
+    data->ndvec.push_back(tmpstr);
+
+    snprintf(tmpstr, 128, "%f", net->best_lat);
+    data->ndvec.push_back(tmpstr);
+
+    snprintf(tmpstr, 128, "%f", net->best_lon);
+    data->ndvec.push_back(tmpstr);
+
+    snprintf(tmpstr, 128, "%f", net->best_alt);
+    data->ndvec.push_back(tmpstr);
+
+    snprintf(tmpstr, 128, "%f", net->aggregate_lat);
+    data->ndvec.push_back(tmpstr);
+
+    snprintf(tmpstr, 128, "%f", net->aggregate_lon);
+    data->ndvec.push_back(tmpstr);
+
+    snprintf(tmpstr, 128, "%f", net->aggregate_alt);
+    data->ndvec.push_back(tmpstr);
+
+    snprintf(tmpstr, 128, "%ld", net->aggregate_points);
+    data->ndvec.push_back(tmpstr);
+
+    snprintf(tmpstr, 128, "%ld", net->datasize);
+    data->ndvec.push_back(tmpstr);
+
+    snprintf(tmpstr, 128, "%d", net->turbocell_nid);
+    data->ndvec.push_back(tmpstr);
+
+    snprintf(tmpstr, 128, "%d", (int) net->turbocell_mode);
+    data->ndvec.push_back(tmpstr);
+
+    snprintf(tmpstr, 128, "%d", net->turbocell_sat);
+    data->ndvec.push_back(tmpstr);
+
+    snprintf(tmpstr, 128, "%d", net->carrier_set);
+    data->ndvec.push_back(tmpstr);
+
+    snprintf(tmpstr, 128, "%d", net->maxseenrate);
+    data->ndvec.push_back(tmpstr);
+
+    snprintf(tmpstr, 128, "%d", net->encoding_set);
+    data->ndvec.push_back(tmpstr);
+
+    snprintf(tmpstr, 128, "%d", net->decrypted);
+    data->ndvec.push_back(tmpstr);
+
+    snprintf(tmpstr, 128, "%d", net->dupeiv_packets);
+    data->ndvec.push_back(tmpstr);
+
+}
+
+// Network records.  data = NETWORK_data
+int Protocol_NETWORK(PROTO_PARMS) {
+    NETWORK_data *ndata = (NETWORK_data *) data;
+
+    for (unsigned int x = 0; x < field_vec->size(); x++) {
+        unsigned int fnum = (*field_vec)[x];
+        if (fnum >= ndata->ndvec.size()) {
+            out_string = "Unknown field requested.";
+            return -1;
+        } else {
+            out_string += ndata->ndvec[fnum] + " ";
+        }
+    }
+
+    return 1;
+}
+
+void Protocol_Client2Data(const wireless_network *net, const wireless_client *cli, CLIENT_data *data) {
+    char tmpstr[128];
+
+    // Reserve fields
+    data->cdvec.reserve(50);
+
+    data->cdvec.push_back(net->bssid.Mac2String());
+
+    data->cdvec.push_back(cli->mac.Mac2String());
+
+    snprintf(tmpstr, 128, "%d", (int) cli->type);
+    data->cdvec.push_back(tmpstr);
+
+    snprintf(tmpstr, 128, "%d", (int) cli->first_time);
+    data->cdvec.push_back(tmpstr);
+
+    snprintf(tmpstr, 128, "%d", (int) cli->last_time);
+    data->cdvec.push_back(tmpstr);
+
+    // Deprecated
+    // data->cdvec.push_back(cli->manuf_key.Mac2String());
+    data->cdvec.push_back("00:00:00:00:00:00");
+
+    // deprecated
+    /*
+    snprintf(tmpstr, 128, "%d", cli->manuf_score);
+    data->cdvec.push_back(tmpstr);
+    */
+    data->cdvec.push_back("0");
+
+    snprintf(tmpstr, 128, "%d", cli->data_packets);
+    data->cdvec.push_back(tmpstr);
+
+    snprintf(tmpstr, 128, "%d", cli->crypt_packets);
+    data->cdvec.push_back(tmpstr);
+
+    snprintf(tmpstr, 128, "%d", cli->interesting_packets);
+    data->cdvec.push_back(tmpstr);
+
+    snprintf(tmpstr, 128, "%d", cli->gps_fixed);
+    data->cdvec.push_back(tmpstr);
+
+    snprintf(tmpstr, 128, "%f", cli->min_lat);
+    data->cdvec.push_back(tmpstr);
+
+    snprintf(tmpstr, 128, "%f", cli->min_lon);
+    data->cdvec.push_back(tmpstr);
+
+    snprintf(tmpstr, 128, "%f", cli->min_alt);
+    data->cdvec.push_back(tmpstr);
+
+    snprintf(tmpstr, 128, "%f", cli->min_spd);
+    data->cdvec.push_back(tmpstr);
+
+    snprintf(tmpstr, 128, "%f", cli->max_lat);
+    data->cdvec.push_back(tmpstr);
+
+    snprintf(tmpstr, 128, "%f", cli->max_lon);
+    data->cdvec.push_back(tmpstr);
+
+    snprintf(tmpstr, 128, "%f", cli->max_alt);
+    data->cdvec.push_back(tmpstr);
+
+    snprintf(tmpstr, 128, "%f", cli->max_spd);
+    data->cdvec.push_back(tmpstr);
+
+    snprintf(tmpstr, 128, "%f", cli->aggregate_lat);
+    data->cdvec.push_back(tmpstr);
+
+    snprintf(tmpstr, 128, "%f", cli->aggregate_lon);
+    data->cdvec.push_back(tmpstr);
+
+    snprintf(tmpstr, 128, "%f", cli->aggregate_alt);
+    data->cdvec.push_back(tmpstr);
+
+    snprintf(tmpstr, 128, "%ld", cli->aggregate_points);
+    data->cdvec.push_back(tmpstr);
+
+    snprintf(tmpstr, 128, "%2.1f", cli->maxrate);
+    data->cdvec.push_back(tmpstr);
+
+    snprintf(tmpstr, 128, "%d", cli->quality);
+    data->cdvec.push_back(tmpstr);
+
+    snprintf(tmpstr, 128, "%d", cli->signal);
+    data->cdvec.push_back(tmpstr);
+
+    snprintf(tmpstr, 128, "%d", cli->noise);
+    data->cdvec.push_back(tmpstr);
+
+    snprintf(tmpstr, 128, "%d", cli->best_quality);
+    data->cdvec.push_back(tmpstr);
+
+    snprintf(tmpstr, 128, "%d", cli->best_signal);
+    data->cdvec.push_back(tmpstr);
+
+    snprintf(tmpstr, 128, "%d", cli->best_noise);
+    data->cdvec.push_back(tmpstr);
+
+    snprintf(tmpstr, 128, "%f", cli->best_lat);
+    data->cdvec.push_back(tmpstr);
+
+    snprintf(tmpstr, 128, "%f", cli->best_lon);
+    data->cdvec.push_back(tmpstr);
+
+    snprintf(tmpstr, 128, "%f", cli->best_alt);
+    data->cdvec.push_back(tmpstr);
+
+    snprintf(tmpstr, 128, "%d", (int) cli->ipdata.atype);
+    data->cdvec.push_back(tmpstr);
+
+    snprintf(tmpstr, 128, "%hd.%hd.%hd.%hd",
+             cli->ipdata.ip[0], cli->ipdata.ip[1],
+             cli->ipdata.ip[2], cli->ipdata.ip[3]);
+    data->cdvec.push_back(tmpstr);
+
+    snprintf(tmpstr, 128, "%ld", cli->datasize);
+    data->cdvec.push_back(tmpstr);
+
+    snprintf(tmpstr, 128, "%d", cli->maxseenrate);
+    data->cdvec.push_back(tmpstr);
+
+    snprintf(tmpstr, 128, "%d", cli->encoding_set);
+    data->cdvec.push_back(tmpstr);
+
+    snprintf(tmpstr, 128, "%d", cli->decrypted);
+    data->cdvec.push_back(tmpstr);
+
+}
+
+// client records.  data = CLIENT_data
+int Protocol_CLIENT(PROTO_PARMS) {
+    CLIENT_data *cdata = (CLIENT_data *) data;
+
+    for (unsigned int x = 0; x < field_vec->size(); x++) {
+        unsigned int fnum = (*field_vec)[x];
+        if (fnum >= cdata->cdvec.size()) {
+            out_string = "Unknown field requested.";
+            return -1;
+        } else {
+            out_string += cdata->cdvec[fnum] + " ";
+        }
+    }
+
+    return 1;
+}
+
+int Protocol_REMOVE(PROTO_PARMS) {
+    string *str = (string *) data;
+    out_string += *str;
+    return 1;
+}
+
+void Protocol_NETWORK_enable(PROTO_ENABLE_PARMS) {
+#if 0
+    vector<wireless_network *> tracked;
+    tracked = globalreg->packetracker->FetchNetworks();
+
+    for (unsigned int x = 0; x < tracked.size(); x++) {
+        if (tracked[x]->type == network_remove) 
+            continue;
+
+        NETWORK_data ndata;
+        Protocol_Network2Data(tracked[x], &ndata);
+        globalreg->kisnetserver->SendToClient(in_fd, globalreg->net_prot_ref, (void *) &ndata);
+    }
+#endif
+}
+
+void Protocol_CLIENT_enable(PROTO_ENABLE_PARMS) {
+#if 0
+    vector<wireless_network *> tracked;
+    tracked = globalreg->packetracker->FetchNetworks();
+
+    for (unsigned int x = 0; x < tracked.size(); x++) {
+        for (map<mac_addr, wireless_client *>::const_iterator y = tracked[x]->client_map.begin();
+             y != tracked[x]->client_map.end(); ++y) {
+            CLIENT_data cdata;
+            Protocol_Client2Data(tracked[x], y->second, &cdata);
+            globalreg->kisnetserver->SendToClient(in_fd, globalreg->cli_prot_ref, (void *) &cdata);
+        }
+    }
+#endif
+}
+
 // These are both just dropthroughs into the class itself
 int kis_80211_netracker_hook(CHAINCALL_PARMS) {
 	Netracker *auxptr = (Netracker *) auxdata;
@@ -57,6 +472,12 @@ Netracker::Netracker(GlobalRegistry *in_globalreg) {
 				"can't continue\n");
 		exit(1);
 	}
+
+	// Register packet components to tie into our tracker
+	globalreg->pcr_tracker_net_ref = 
+		globalreg->packetchain->RegisterPacketComponent("netracker_network");
+	globalreg->pcr_tracker_cli_ref = 
+		globalreg->packetchain->RegisterPacketComponent("netracker_client");
 
 	// Register the packet hooks with the chain
 	globalreg->packetchain->RegisterHandler(&kis_80211_netracker_hook, this,
@@ -89,14 +510,27 @@ Netracker::Netracker(GlobalRegistry *in_globalreg) {
 		ssid_cache_track = 0;
 	}
 
+	// Register network protocols with the tcp server
+    globalreg->net_prot_ref = 
+		globalreg->kisnetserver->RegisterProtocol("NETWORK", 0, NETWORK_fields_text, 
+												  &Protocol_NETWORK, 
+												  &Protocol_NETWORK_enable);
+    globalreg->cli_prot_ref = 
+		globalreg->kisnetserver->RegisterProtocol("CLIENT", 0, CLIENT_fields_text, 
+												  &Protocol_CLIENT, 
+												  &Protocol_CLIENT_enable);
+    globalreg->rem_prot_ref = 
+		globalreg->kisnetserver->RegisterProtocol("REMOVE", 0, REMOVE_fields_text, 
+												  &Protocol_REMOVE, NULL);
+
 	// TODO:
-	// Register network export components
 	// Register timer events
 	
 }
 
 int Netracker::netracker_chain_handler(kis_packet *in_pack) {
 	tracked_network *net = NULL;
+	char status[STATUS_MAX];
 
 	// Fetch the info from the packet chain data
 	kis_ieee80211_packinfo *packinfo = 
@@ -152,7 +586,7 @@ int Netracker::netracker_chain_handler(kis_packet *in_pack) {
 			packinfo->subtype == packet_sub_beacon) {
 
 			// Find cached SSID if we don't have one
-			if (packinfo->ssid_len == 0) {
+			if (packinfo->ssid_len == 0 || packinfo->ssid_blank) {
 				if (bssid_cloak_map.find(packinfo->bssid_mac) != 
 					bssid_cloak_map.end()) {
 					net->ssid = bssid_cloak_map[packinfo->bssid_mac];
@@ -186,6 +620,17 @@ int Netracker::netracker_chain_handler(kis_packet *in_pack) {
 		// outside of the new network code, obviously
 	}
 
+	// Link it to the packet for future chain elements
+	kis_netracker_netinfo *netpackinfo = new kis_netracker_netinfo;
+	netpackinfo->netref = (void *) net;
+	in_pack->insert(globalreg->pcr_tracker_net_ref, netpackinfo);
+
+	// Update the time
+	net->last_time = time(0);
+
+	// Dirty the network
+	net->dirty = 1;
+
 	// Extract info from the GPS component, if we have one
 	if (gpsinfo != NULL) {
 		net->gpsdata.gps_valid = 1;
@@ -212,7 +657,6 @@ int Netracker::netracker_chain_handler(kis_packet *in_pack) {
 		net->gpsdata.aggregate_lon += gpsinfo->lon;
 		net->gpsdata.aggregate_alt += gpsinfo->alt;
 		net->gpsdata.aggregate_points++;
-
 	}
 
 	// L1 signal info, if our capture source was able to inject any into
@@ -254,7 +698,7 @@ int Netracker::netracker_chain_handler(kis_packet *in_pack) {
 		packinfo->subtype == packet_sub_beacon) {
 		net->beacon_info = string(packinfo->beacon_info);
 
-		if (packinfo->ssid_len != 0) {
+		if (packinfo->ssid_len != 0 && packinfo->ssid_blank != 0) {
 			net->ssid = string(packinfo->ssid);
 		}
 
@@ -269,12 +713,20 @@ int Netracker::netracker_chain_handler(kis_packet *in_pack) {
 		net->beaconrate = packinfo->beacon_interval;
 	}
 
-	// Catch probe responses
+	// Catch probe responses and decloak if they're nonblank
 	if (net->ssid_cloaked != 0 && net->ssid_uncloaked == 0 &&
 		packinfo->type == packet_management &&
 		packinfo->subtype == packet_sub_probe_resp &&
-		packinfo->ssid_len != 0) {
+		packinfo->ssid_len != 0 && packinfo->ssid_blank != 0) {
 
+		net->ssid_uncloaked = 1;
+		net->ssid = packinfo->ssid;
+		// Update the cloak map
+		bssid_cloak_map[net->bssid] = packinfo->ssid;
+
+		snprintf(status, STATUS_MAX, "Discovered SSID \"%s\" for cloaked network %s",
+				 net->ssid.c_str(), net->bssid.Mac2String().c_str());
+		globalreg->messagebus->InjectMessage(status, MSGFLAG_INFO);
 	}
 
 	if (packinfo->type == packet_management ||
@@ -286,7 +738,10 @@ int Netracker::netracker_chain_handler(kis_packet *in_pack) {
 		if (packinfo->encrypted)
 			net->crypt_packets++;
 	}
-	// TODO:  FMSWEAK packets
+
+	// TODO:  
+	//  FMSWEAK packets
+	//  Manuf matching
 
 	return 1;
 }

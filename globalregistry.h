@@ -23,7 +23,7 @@
 
 #include "util.h"
 #include "macaddr.h"
-#include "packet.h"
+// #include "packet.h"
 
 // Pre-defs for all the things we point to
 class MessageBus;
@@ -121,8 +121,9 @@ public:
     int alert_backlog;
 
     // Packet component references we use internally and don't want to keep looking up
-    int pcr_80211_ref, pcr_turbo_ref, pcr_l1_ref, pcr_gps_ref, pcr_linkframe_ref,
-        pcr_80211frame_ref, pcr_mangleframe_ref;
+    int pcr_80211_ref, pcr_turbo_ref, pcr_l1_ref, 
+		pcr_gps_ref, pcr_linkframe_ref, pcr_80211frame_ref, 
+		pcr_mangleframe_ref, pcr_tracker_net_ref, pcr_tracker_cli_ref;
     
     GlobalRegistry() { 
         fatal_condition = 0;
@@ -205,6 +206,8 @@ public:
         pcr_linkframe_ref = -1;
         pcr_80211frame_ref = -1;
         pcr_mangleframe_ref = -1;
+		pcr_tracker_net_ref = -1;
+		pcr_tracker_cli_ref = -1;
     }
 
     // External globals -- allow other things to tie structs to us
