@@ -38,6 +38,7 @@ Licensed under the GPL<br>
 <li>Panels Interface
 <li>Mapping
 <li>Drone Remotes
+<li>Intrusion Detection
 </ol>
 
 <br> <br> <br> <br>
@@ -672,6 +673,87 @@ i	can be connected at will.
 	Any number of drones with any number of sources can be distributed across the target
 	area, with all captured packets being processed by a single Kismet server, stored in a
 	common dump file and passed to a single Snort IDS instance, if desired.
+<li>INTRUSION DETECTION<br>
+	Kismet will examine the headers and payload information of 802.11 traffic,
+	and will generate alerts when it encounters traffic that matches defined
+	attack signatures.  Kismet is unlike other traditional IDS's since it will
+	analyze traffic at the data-link level, instead of just examining properties
+	specific to the IP family of protocols.  Kismet is also capable of anomaly
+	analysis over a defined period of time to detect attacks that cannot be
+	detected with simple per-packet matching patterns.
+	<br>
+	In addition to Kismets link-layer IDS, Kismet can interface with traditional
+	IDS implementations like Snort (www.snort.org) via a named pipe (See the
+	section about configuring Kismet to write to FIFO/Named pipes) to form a
+	complete IDS solution.  Distributed sniffing via Drone Remotes and WEP
+	decoding of known networks lets you monitor your entire wireless coverage
+	area.
+	<br>
+	<ul>
+	<li>NETSTUMBLER<br>
+	Alert on: Netstumbler Probe<br>
+	Alert message: "NetStumbler ($version) probe detected from $source"<br>
+	References: www.netstumbler.com<br>
+	Tool specific: Yes<br>
+	Implemented in: NetStumber 3.22, 3.23, 3.30<br>
+	Details: NetStumbler is a Windows program to perform active discovery of
+		WLAN networks through probe request scanning.  After NetStumbler
+		locates a WLAN, it will probe the AP for "nickname" information.
+		This probe contains a specific payload that will cause Kismet to
+		generate an alert.<br>
+	<li>DEAUTHFLOOD<br>
+	Alert on: Deauthenticate/Disassociate Flood<br>
+	Alert message:  "Deauthenticate/Disassociate flood on $targetbssid"<br>
+	References: 802.11ninja.net, http://home.jwu.edu/jwright/papers/l2-wlan-ids.pdf<br>
+	Tool specific: No<br>
+	Implemented in: AirJack, fata-jack, void11, others<br>
+	Details: By sending deauthenticate or disassociate message to clients or
+			a layer 2 broadcast address with a spoofed source address of the
+			legitimate AP, an attacker can launch a DoS attack against a
+			target network.  This type of attack only lasts as long as the
+			attacker sustains the deauthenticate flood.<br>
+	<li>LUCENTTEST<br>
+	Alert on: Lucent link test<br>
+	Alert message: "Lucent Link Test detected from $clientmac"<br>
+	References: http://www.agere.com/wlan/customercare/ (requires login)<br>
+	Tool specific: Yes<br>
+	Implemented in: Lucent/Orinoco WaveManager site survey software<br>
+	Details: Lucent/Orinoco/Agere/Proxim provides site survey software with
+			their AP's.  This rule will generate an alert when this
+			software is in use.<br>
+	<li>WELLENREITER<br>
+	Alert on: Wellenreiter SSID brute force<br>
+	Alert message: "Wellenreiter probe detected from $clientmac"<br>
+	References: http://home.jwu.edu/jwright/papers/l2-wlan-ids.pdf
+			http://home.jwu.edu/jwright/papers/wlan-mac-spoof.pdf<br>
+	Tool specific: Yes<br>
+	Implemented in: Wellenreiter 1.6, Wellenreiter 1.5<br>
+	Details: Wellenreiter has an option to brute-force the ESSID of a
+			discovered access point by attempting multiple associations
+			from a list of potential SSID's.  Between each association
+			attempt, Wellenreiter will reset the card ESSID to
+			"this_is_used_for_wellenreiter".  Kismet will raise this alert
+			when the SSID "this_is_used_for_wellenreiter" is detected.<br>
+	<li>CHANCHANGE<br>
+	Alert on: Known BSSID changing channel<br>
+	Alert message: "Beacon on $bssid ($ssid) for channel $newchannel, previously detected on channel $oldchannel"<br>
+	Tool specific: No<br>
+	Implemented in: AirJack, others<br>
+	Details: Many attacks attempt to divert clients from a legitimate network to another
+			channel.  This alert is raised when a beacon is seen for a different channel
+			than the one the network was previously communicating on.<br>
+	<li>BCASTDISCON<br>
+	Alert on: Broadcast disassociation or deauthentication packets<br>
+	Alert message: "Broadcast [disassociation|deauthentication] on $bssid"<br>
+	Tool specific: No<br>
+	Implemented in: AirJack, fata-jack, void11, others<br>
+	Details: Many attacks use a broadcast disassociate or deauthenticate packet to 
+			knock all of the users off a network.  This can be a prolonged into a sustained 
+			DOS attack, used to decloak a hidden SSID, or be the precursor of a man in the
+			middle attacks.  Broadcast disassociations are rarely, if ever, legitimate.
+			This alert is raised whenever a broadcast disassociation is seen.<br>
+	<br>
+
 </ol>
 
 </body>
