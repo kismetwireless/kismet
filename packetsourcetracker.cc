@@ -971,14 +971,39 @@ void Packetsourcetracker::ChannelChildLoop() {
                 // be valid - channel change stuff has to be smart enough to test
                 // for null and report an error accordingly if it uses this
                 // data.
+				//
+				// If a channel has more than N consecutive errors, we actually
+				// fail out, send a fatal condition, and die.
                 if ((*meta_packsources[chanpak.meta_num]->prototype->channelcon)
                     (meta_packsources[chanpak.meta_num]->device.c_str(), 
                      chanpak.channel, errstr, 
                      (void *) (meta_packsources[chanpak.meta_num]->capsource)) < 0) {
-                    snprintf(txtbuf, 1024, "%s", errstr);
-                    child_ipc_buffer.push_front(CreateTextPacket(txtbuf, CHANFLAG_FATAL));
-                    continue;
-                }
+
+					meta_packsources[chanpak.meta_num]->consec_errors++;
+
+					if (meta_packsources[chanpak.meta_num]->consec_errors >= 
+						MAX_CONSEC_CHAN_ERR) {
+						// Push an explanation and the final error
+						snprintf(txtbuf, 1024, "Packet source %s (%s) has suffered "
+								 "%d consecutive errors setting the channel.  This "
+								 "most likely means the drivers have become "
+								 "confused.",
+								 meta_packsources[chanpak.meta_num]->name.c_str(),
+								 meta_packsources[chanpak.meta_num]->device.c_str(),
+								 MAX_CONSEC_CHAN_ERR);
+						child_ipc_buffer.push_front(CreateTextPacket(txtbuf, 
+																	 CHANFLAG_NONE));
+
+						snprintf(txtbuf, 1024, "%s", errstr);
+						child_ipc_buffer.push_front(CreateTextPacket(txtbuf, 
+																	 CHANFLAG_FATAL));
+						continue;
+					}
+                } else {
+					// Otherwise reset the error count
+					meta_packsources[chanpak.meta_num]->consec_errors = 0;
+				}
+
 
                 // Acknowledge
                 chanchild_packhdr *ackpak = new chanchild_packhdr;

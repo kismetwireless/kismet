@@ -1,3 +1,7 @@
+Mar 21 2005  devel  Added "consecutive failure" support to card channel control.
+                     For drivers with intermittent failure changing channel,
+                     this will delay Kismet exiting until 5 failures in a row
+                     occur.
 Mar 15 2005  devel  Merged patch from Josh Wright to add PPTP detection of some L3
                      VPNs.  This slightly breaks old-client compatability in that a
                      L3 VPN network will show up as WEP in old clients.

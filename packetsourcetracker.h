@@ -46,6 +46,10 @@
 #define CHANFLAG_NONE     0
 #define CHANFLAG_FATAL    1
 
+// Maximum errors in a row setting the channel before we consider the
+// card dead
+#define MAX_CONSEC_CHAN_ERR	5
+
 // Pre-prototype
 class Packetsourcetracker;
 
@@ -104,6 +108,9 @@ typedef struct {
 
     // Interface settings to store
     void *stored_interface;
+
+	// Error handling
+	int consec_errors;
 } meta_packsource;
 
 class Packetsourcetracker {
