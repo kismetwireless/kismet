@@ -2,7 +2,6 @@ In no particular order:
 	DCF/PCF
 	FH/DS tags
 	cardtype/interface dumps
-	cisco cvs wifi0 ethX:wifiX interface parsing
 	non-rfmon-signal gps logger
 	ipv6
 	server info via protocol
