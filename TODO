@@ -32,6 +32,5 @@ In no particular order:
 	AP uptime extraction
 	strong authentication/SSL of client/server server/drone
 	acpi/apm reporting via server protocol
-	revamp manuf matching to use mac masking
 	linewrap alerts in panelsfront
 	detect dupe packets on multiple input streams
