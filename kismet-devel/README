@@ -262,9 +262,7 @@
                  compressed. File replaying can be slowed down using the
                  '-M' command line option. -M100 is typical.
          6. AR5K
-            Notes: 802.11a doesn't include the channel in the beacon
-            packets. Workarounds will be put into place for this in the
-            future.
+            Notes: 802.11a doesn't put the channel in the beacon headers.
                o 'ar5k': vt_ar5k Linux 802.11a drivers
                  Capture interface: wlanX
                  Notes: The vt_ar5k drivers require the Linux
