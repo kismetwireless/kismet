@@ -114,8 +114,6 @@ protected:
     // Several maps to refer to networks
     map<string, wireless_network *> ssid_map;
     map<string, wireless_network *> bssid_map;
-    // client MAC to BSSID
-    map<string, string> client_map;
 
     // Map BSSID's to SSID for storage and cloaking
     map<string, string> bssid_cloak_map;

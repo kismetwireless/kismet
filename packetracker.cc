@@ -490,19 +490,9 @@ int Packetracker::ProcessDataPacket(packet_info info, wireless_network *net, cha
     string smac = Mac2String(info.source_mac, ':');
 
     // Find the client or make one
-    /*
-    if (net->client_map.find(smac) != client_map.end()) {
-        client = net->client_map[smac];
-
-        printf("Found client: %p\n", client);
-
-        if ((client->type == client_fromds && info.distrib == to_distribution) ||
-            (client->type == client_tods && info.distrib == from_distribution))
-            client->type = client_established;
-
-    } else {
+    if (net->client_map.find(smac) == net->client_map.end()) {
         client = new wireless_client;
-        //net->client_map[smac] = client;
+        net->client_map[smac] = client;
 
         if (info.distrib == from_distribution)
             client->type = client_fromds;
@@ -511,20 +501,30 @@ int Packetracker::ProcessDataPacket(packet_info info, wireless_network *net, cha
         else if (info.distrib == inter_distribution)
             client->type = client_interfs;
 
-            }
-            */
+    } else {
+        client = net->client_map[smac];
 
+        if ((client->type == client_fromds && info.distrib == to_distribution) ||
+            (client->type == client_tods && info.distrib == from_distribution))
+            client->type = client_established;
+    }
+
+    // We modify our client and our network concurrently to save on CPU cycles.
+    // Easier to update them in sync than it is to process the map as a list.
     if (info.encrypted) {
         net->crypt_packets++;
+        client->crypt_packets++;
         num_crypt++;
     }
 
     if (info.interesting) {
-        num_interesting++;
         net->interesting_packets++;
+        client->interesting_packets++;
+        num_interesting++;
     }
 
     net->data_packets++;
+    client->data_packets++;
 
     // Record a cisco device
     if (info.proto.type == proto_cdp) {
@@ -532,7 +532,8 @@ int Packetracker::ProcessDataPacket(packet_info info, wireless_network *net, cha
         num_cisco++;
     }
 
-    // If we're not aware of a dhcp server already, try to find one.
+    unsigned int ipdata_dirty = 0;
+
     if (info.proto.type == proto_dhcp_server && (net->ipdata.atype < address_dhcp ||
                                                  net->ipdata.load_from_store == 1)) {
         // Jackpot, this tells us everything we need to know
