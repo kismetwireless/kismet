@@ -1,5 +1,6 @@
 Mar 27 2004  devel  Fixed Mapblast map source in GPSMap, left Earthamap as the
                      default however.  (Thanks, poptix!)
+                    Fixed mapblast user-scale
 Mar 26 2004  devel  Added feathered scatter plot drawing to gpsmap.  This is
                      VERY slow but produces some nice effects in combination
                      with channel coloring to show saturation in an area.

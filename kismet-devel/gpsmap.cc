@@ -3834,10 +3834,12 @@ int main(int argc, char *argv[]) {
     // Some day this needs to get rewritten to not be using a source that doesn't
     // work anymore as the internal reference point.
     
-    if (((mapsource == MAPSOURCE_TERRA) || (mapsource == MAPSOURCE_TERRATOPO)) && user_scale != 0) {
+    if (((mapsource == MAPSOURCE_TERRA) || 
+         (mapsource == MAPSOURCE_TERRATOPO)) && user_scale != 0) {
         // It's way too much of a kludge to muck with munging the scale around
         if ((user_scale < 10) || (user_scale > 16)) {
-            fprintf(stderr, "FATAL: You must provide a scale with the -s option that is from 10 to 16\n");
+            fprintf(stderr, "FATAL: You must provide a scale with the -s "
+                    "option that is from 10 to 16\n");
             exit(0);
         }
         fetch_scale = user_scale;
@@ -3848,7 +3850,8 @@ int main(int argc, char *argv[]) {
     // {map,user}_scale to the cooresponding element in earthamapscales[].
     if (mapsource == MAPSOURCE_EARTHAMAPS && user_scale != 0) {
         if ((user_scale < 2) || (user_scale > 15)) {
-            fprintf(stderr, "FATAL: You must provide a scale with the -s option that is from 2 to 15\n");
+            fprintf(stderr, "FATAL: You must provide a scale with the -s "
+                    "option that is from 2 to 15\n");
             exit(0);
         }
         fetch_scale = user_scale;
@@ -3968,7 +3971,8 @@ int main(int argc, char *argv[]) {
         int filewidth, fileheight;
 
         if (sscanf(mapname, "map_%f_%f_%ld_%d_%d.gif",
-                   &filelat, &filelon, &filescale, &filewidth, &fileheight) == 5) {
+                   &filelat, &filelon, &filescale, &filewidth, 
+                   &fileheight) == 5) {
             user_lat = filelat;
             user_lon = filelon;
             user_scale = filescale;
@@ -3983,7 +3987,8 @@ int main(int argc, char *argv[]) {
     }
 
     if (user_lat != 0) {
-        fprintf(stderr, "Overriding with user map center (lat/lon): %f x %f\n", user_lat, user_lon);
+        fprintf(stderr, "Overriding with user map center (lat/lon): %f x %f\n",
+                user_lat, user_lon);
 
         map_avg_lat = user_lat;
         map_avg_lon = user_lon;
@@ -3995,13 +4000,13 @@ int main(int argc, char *argv[]) {
     }
 
     if (!usermap) {
-        snprintf(mapname, 1024, "map_%f_%f_%ld_%d_%d.gif", map_avg_lat, map_avg_lon,
-                 map_scale, map_width, map_height);
+        snprintf(mapname, 1024, "map_%f_%f_%ld_%d_%d.gif", map_avg_lat, 
+                 map_avg_lon, map_scale, map_width, map_height);
     }
 
     if (useroutmap == false)
-        snprintf(mapoutname, 1024, "map_%f_%f_%ld_%d_%d.png", map_avg_lat, map_avg_lon,
-                 map_scale, map_width, map_height);
+        snprintf(mapoutname, 1024, "map_%f_%f_%ld_%d_%d.png", map_avg_lat, 
+                 map_avg_lon, map_scale, map_width, map_height);
 
     printf("Loading map into Imagemagick structures.\n");
     strcpy(img_info->filename, mapname);
@@ -4025,20 +4030,21 @@ int main(int argc, char *argv[]) {
         char url[1024];
 
         if (mapsource == MAPSOURCE_MAPBLAST) {
-            snprintf(url, 1024, url_template_mb, map_avg_lat, map_avg_lon, fetch_scale,
-                     map_width, map_height, metric ? "&DU=KM" : "");
+            snprintf(url, 1024, url_template_mb, map_avg_lat, map_avg_lon, 
+                     map_scale, map_width, map_height, 
+                     metric ? "&DU=KM" : "");
         } else if (mapsource == MAPSOURCE_TERRA) {
-            snprintf(url, 1024, url_template_ts, map_avg_lat, map_avg_lon, fetch_scale,
-                     map_width, map_height);
+            snprintf(url, 1024, url_template_ts, map_avg_lat, map_avg_lon, 
+                     fetch_scale, map_width, map_height);
         } else if (mapsource == MAPSOURCE_TERRATOPO) {
-            snprintf(url, 1024, url_template_tt, map_avg_lat, map_avg_lon, fetch_scale,
-                     map_width, map_height);
+            snprintf(url, 1024, url_template_tt, map_avg_lat, map_avg_lon, 
+                     fetch_scale, map_width, map_height);
         } else if (mapsource == MAPSOURCE_TIGER) {
-            snprintf(url, 1024, url_template_ti, map_avg_lat, map_avg_lon, (map_scale / 300000.0),
-                     map_width, map_height);
+            snprintf(url, 1024, url_template_ti, map_avg_lat, map_avg_lon, 
+                     (map_scale / 300000.0), map_width, map_height);
         } else if (mapsource == MAPSOURCE_EARTHAMAPS) {
-            snprintf(url, 1024, url_template_em, mapname, map_avg_lat, map_avg_lon,
-                    map_width, map_height, fetch_scale);
+            snprintf(url, 1024, url_template_em, mapname, map_avg_lat, 
+                     map_avg_lon, map_width, map_height, fetch_scale);
         }
 
         printf("Map url: %s\n", url);
