@@ -1603,7 +1603,6 @@ int main(int argc,char *argv[]) {
                 }
     
                 if (crypt_log) {
-
                     cryptfile->DumpPacket(&info, &header, data);
 
                 }

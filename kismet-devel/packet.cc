@@ -339,12 +339,10 @@ packet_info GetPacketInfo(const pkthdr *header, const u_char *data, packet_parm 
                 if (sum == 1 && (data[ret.header_offset + 2] <= 0x0A ||
                                  data[ret.header_offset + 2] == 0xFF)) {
                     ret.interesting = 1;
-                } else {
-                    if (sum <= 0x0C && (data[ret.header_offset + 2] >= 0xF2 &&
-                                        data[ret.header_offset + 2] <= 0xFE &&
-                                        data[ret.header_offset + 2] != 0xFD))
-                        ret.interesting = 1;
-                }
+                } else if (sum <= 0x0C && (data[ret.header_offset + 2] >= 0xF2 &&
+                                           data[ret.header_offset + 2] <= 0xFE &&
+                                           data[ret.header_offset + 2] != 0xFD))
+                    ret.interesting = 1;
             }
 
         } else if (parm->fuzzy_crypt && (unsigned int) ret.header_offset+9 < header->len) {
