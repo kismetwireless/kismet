@@ -52,6 +52,10 @@ extern "C" {
 // The BSD datalink that doesn't report a sane value
 #define KDLT_BSD802_11 -100
 
+#ifndef DLT_PRISM_HEADER
+#define DLT_PRISM_HEADER        119 /* prism header, not defined on some platforms */
+#endif
+
 #ifndef DLT_IEEE802_11_RADIO
 #define	DLT_IEEE802_11_RADIO	127	/* 802.11 plus WLAN header */
 #endif

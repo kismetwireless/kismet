@@ -1,5 +1,7 @@
 Mar 08 2004  devel  Fixed a segfault with a 0-length macaddr struct (exposed
                      by an empty manuf map file).  No security implications.
+                    Changed ifdef block in pcapsource, added ifndef to 
+                     compensate for pcap on some platforms
 Mar 07 2004  devel  Fixed another bsd compile error
                     Revamped error reporting to print errors to console even
                      when silent if there are no clients.  Should force showing
