@@ -2243,16 +2243,16 @@ int PanelFront::DetailsClientPrinter(void *in_window) {
 
     switch (details_client->type) {
     case client_fromds:
-        snprintf(temp, print_width, "From Distribution (Most likely a wired system)");
+        snprintf(temp, print_width, "From Distribution (AP->Wireless)");
         break;
     case client_tods:
-        snprintf(temp, print_width, "To Distribution (Most likely a wireless system)");
+        snprintf(temp, print_width, "To Distribution (Wireless->AP)");
         break;
     case client_interds:
-        snprintf(temp, print_width, "Intra-distribution");
+        snprintf(temp, print_width, "Intra-distribution (AP->AP)");
         break;
     case client_established:
-        snprintf(temp, print_width, "Established (bidirectional)");
+        snprintf(temp, print_width, "Established (Wireless->AP and AP->Wireless)");
         break;
     case client_unknown:
         snprintf(temp, print_width, "Unknown");
