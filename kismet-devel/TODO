@@ -1,0 +1,32 @@
+In no particular order:
+	DCF/PCF
+	FH/DS tags
+	cardtype/interface dumps
+	cisco cvs wifi0 ethX:wifiX interface parsing
+	non-rfmon-signal gps logger
+	ipv6
+	server info
+	key management
+	server and client plugins
+	strings dumpfile
+	fakeap detection
+	retry ratios
+	gpsmap client-link drawing (dot-line clusters)
+	gpsxml client position/source mac logging
+	power-modified distance logging(?)
+	gpsmap power filtering
+	congestion simulation
+	UI channel hopping control
+	fix csv log
+	display filtering
+	map filtering
+	Multiple host= lines for kismet_client
+	multiserver grouping bugger-up
+	fix compass/heading
+	location beacon info (hostAP mod)
+	alert filtering
+	alert_on config
+		alert on any disauth/death
+	gps satellite plot
+	VPN detection
+	Alerts as forged packets in pipe
