@@ -742,6 +742,10 @@ void Packetracker::ProcessDataPacket(packet_info info, wireless_network *net) {
     wireless_client *client = NULL;
     char status[STATUS_MAX];
 
+	// Blow right out of this if we're funky data non-data frames
+	if (info.type == packet_data && info.subtype != packet_sub_data)
+		return;
+
     // Try to match up orphan probe networks
     wireless_network *pnet = NULL;
 
@@ -979,6 +983,7 @@ void Packetracker::ProcessDataPacket(packet_info info, wireless_network *net) {
     }
 
     if (ipdata_dirty) {
+		// printf("packet %d t %d s %d\n", num_packets, info.type, info.subtype);
         snprintf(status, STATUS_MAX, "Found IP %d.%d.%d.%d for %s::%s via %s",
                  client->ipdata.ip[0], client->ipdata.ip[1],
                  client->ipdata.ip[2], client->ipdata.ip[3],

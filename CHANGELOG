@@ -1,3 +1,4 @@
+Mar 30 2005  devel  Fixed another case of bad IP discovery
 Mar 23 2005  devel  Fixed xml parsing error in expat.cc and new encryption
                      fields.  You'll want to purge your old cache files.
 Mar 22 2005  devel  Changed IP detection algorithms to ignore TCP and UDP frames
