@@ -163,7 +163,7 @@ void GetPacketInfo(const pkthdr *header, const u_char *data,
             fixed_parameters *fixparm = (fixed_parameters *) &msgbuf[24];
 
             //            ret.beacon = ntohl(fixparm->beacon);
-            ret_packinfo->beacon = fixparm->beacon;
+            ret_packinfo->beacon = ktoh16(fixparm->beacon);
 
             ret_packinfo->wep = fixparm->wep;
             ret_packinfo->ap = fixparm->ess;
