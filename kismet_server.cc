@@ -1853,8 +1853,8 @@ int main(int argc,char *argv[]) {
                 packnum++;
 
                 static packet_info info;
-    
-                info = GetPacketInfo(&header, data, &pack_parm);
+
+                GetPacketInfo(&header, data, &pack_parm, &info);
 
                 last_info = info;
 
