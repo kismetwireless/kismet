@@ -28,7 +28,9 @@
 #if (defined(HAVE_IMAGEMAGICK) && defined(HAVE_GPS))
 
 #include <stdio.h>
+#ifdef HAVE_PTHREAD
 #include <pthread.h>
+#endif
 #ifdef HAVE_STDINT_H
 #include <stdint.h>
 #endif
@@ -282,13 +284,15 @@ int color_coding = 0;
 #define COLORCODE_CHANNEL 2
 
 // Threads, locks, and graphs to hold the power
+#ifdef HAVE_PTHREAD
 pthread_t *mapthread;
 pthread_mutex_t power_lock;
 pthread_mutex_t print_lock;
+pthread_mutex_t power_pos_lock;
+#endif
 unsigned int numthreads = 1;
 unsigned int *power_map;
 unsigned int power_pos = 0;
-pthread_mutex_t power_pos_lock;
 int *power_input_map;
 
 // AP and client maps
@@ -1517,7 +1521,7 @@ typedef struct powerline_arg {
     unsigned int threadno;
 };
 
-void *PowerLine(void *arg) { /*FOLD00*/
+void *PowerLine(void *arg) {
     powerline_arg *parg = (powerline_arg *) arg;
     time_t startline;
 
@@ -1527,49 +1531,69 @@ void *PowerLine(void *arg) { /*FOLD00*/
     unsigned int y = 0;
 
     while (y < map_height) {
+#ifdef HAVE_PTHREAD
         pthread_mutex_lock(&power_pos_lock);
+#endif
         y = power_pos * in_res;
         power_pos++;
+#ifdef HAVE_PTHREAD
         pthread_mutex_unlock(&power_pos_lock);
-
+#endif
         if (y >= map_height)
             break;
 
         //    for (unsigned int y = y_offset; y < map_height; y+= (in_res * numthreads)) {
         startline = time(0);
 
+#ifdef HAVE_PTHREAD
         pthread_mutex_lock(&print_lock);
         fprintf(stderr, "Thread %d: crunching interpolation image line %d\n", parg->threadno, y);
         pthread_mutex_unlock(&print_lock);
+#else
+        fprintf(stderr, "Crunching interpolation image line %d\n", y);
+#endif
 
         for (unsigned int x = 0; x < map_width; x+= in_res) {
             unsigned int powr = InverseWeight(x, y, (int) (map_scale/100),
                                               (double) map_scale/PIXELFACT);
 
+#ifdef HAVE_PTHREAD
             pthread_mutex_lock(&power_lock);
+#endif
             power_map[(map_width * y) + x] = powr;
-
+#ifdef HAVE_PTHREAD
             pthread_mutex_unlock(&power_lock);
+#endif
         }
 
         if (verbose) {
+#ifdef HAVE_PTHREAD
             pthread_mutex_lock(&print_lock);
+#endif
             int elapsed = time(0) - startline;
             int complet = elapsed * ((map_height - y) / in_res);
 
             fprintf(stderr, "Completed in %d seconds.  (Estimated: %dh %dm %ds to completion)\n",
                     elapsed, (complet/60)/60, (complet/60) % 60, complet % 60);
+#ifdef HAVE_PTHREAD
             pthread_mutex_unlock(&print_lock);
+#endif
         }
 
     }
 
+#ifdef HAVE_PTHREAD
     pthread_exit((void *) 0);
+#else
+    return NULL;
+#endif
 }
 
 void DrawNetPower(Image *in_img, DrawInfo *in_di) { /*FOLD00*/
     PixelPacket point_clr;
+#ifdef HAVE_PTHREAD
     pthread_attr_t attr;
+#endif
 
     power_map = (unsigned int *) malloc(sizeof(unsigned int) * (map_width * map_height));
     memset(power_map, 0, sizeof(unsigned int) * (map_width * map_height));
@@ -1604,11 +1628,14 @@ void DrawNetPower(Image *in_img, DrawInfo *in_di) { /*FOLD00*/
     }
 
     fprintf(stderr, "Interpolating power into graph points.\n");
+
+    powerline_arg *pargs;
+#ifdef HAVE_PTHREAD
     // Slice the map into pieces and assign it to the threads, averaging high - if it's
     // not evenly divisible the last thread may get less work to do than the others.
     pthread_attr_init(&attr);
     pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_JOINABLE);
-    powerline_arg *pargs = new powerline_arg[numthreads];
+    pargs = new powerline_arg[numthreads];
     for (unsigned int t = 0; t < numthreads; t++) {
         pargs[t].in_res = power_resolution;
         pargs[t].threadno = t;
@@ -1623,6 +1650,15 @@ void DrawNetPower(Image *in_img, DrawInfo *in_di) { /*FOLD00*/
     for (unsigned int t = 0; t < numthreads; t++) {
         pthread_join(mapthread[t], (void **) &thread_status);
     }
+#else
+    // Run one instance of our "thread".  thread number 0, it should just crunch it all
+    pargs = new powerline_arg;
+    pargs->in_res = power_resolution;
+    pargs->threadno = 0;
+
+    PowerLine((void *) pargs);
+#endif
+
 
     fprintf(stderr, "Drawing interpolated power levels to map.\n");
     for (unsigned int y = 0; y < map_height; y += power_resolution) {
@@ -2205,11 +2241,16 @@ int main(int argc, char *argv[]) {
 	case 'i':
             invert_filter = true;
             break;
-	case 'z':
+        case 'z':
+#ifdef HAVE_PTHREAD
             if (sscanf(optarg, "%d", &numthreads) != 1 || numthreads < 1) {
                 fprintf(stderr, "Invalid number of threads.\n");
                 ShortUsage(exec_name);
             }
+#else
+            fprintf(stderr, "PThread support was not compiled.\n");
+            ShortUsage(exec_name);
+#endif
             break;
         case 'D':
             keep_gif = true;
@@ -2520,11 +2561,13 @@ int main(int argc, char *argv[]) {
     num_tracks = 0;
 //    memset(&global_map_avg, 0, sizeof(gps_network));
 
+#ifdef HAVE_PTHREAD
     // Build the threads
     mapthread = (pthread_t *) malloc(sizeof(pthread_t) * numthreads);
     pthread_mutex_init(&power_lock, NULL);
     pthread_mutex_init(&print_lock, NULL);
     pthread_mutex_init(&power_pos_lock, NULL);
+#endif
 
     // Imagemagick stuff
     Image *img = NULL;
@@ -2749,7 +2792,9 @@ int main(int argc, char *argv[]) {
 
     DestroyMagick();
 
+#ifdef HAVE_PTHREAD
     delete mapthread;
+#endif
 
     if (!keep_gif && !usermap) {
         fprintf(stderr, "Unlinking downloaded map.\n");

@@ -1,3 +1,6 @@
+Feb 19 2003  2.9.1  Development has been slow lately.  Sorry.
+                    Removed pthreads requirement for gpsmap.  This should let 
+                     us compile and run on *BSD systems now.
 Feb 09 2003  2.9.1  Added timer scheduler for (future) plugins and WSP100
                      wakeup packets.
                     Merged modified patch from gherlein to issue WSP100 wakeups
