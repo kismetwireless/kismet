@@ -491,7 +491,7 @@ int ChildGpsEvent(Timetracker::timer_event *evt, void *parm) {
 #ifdef HAVE_GPS
     capturesource *csrc = (capturesource *) parm;
 
-    if (csrc->gps->Scan() < 0) {
+    if (csrc->gps_enable == 1 && csrc->gps->Scan() < 0) {
         char txtbuf[1024];
         snprintf(txtbuf, 1024, "capture child %d source %s gps error fetcing data: %s",
                  capchild_global_pid, csrc->name.c_str(), csrc->gps->FetchError());
