@@ -89,10 +89,10 @@ int NCurseFront::DrawDisplay() {
     }
 
     char gpsdata[1024];
-    float lat, lon, alt, spd;
+    float lat, lon, alt, spd, heading;
     int mode;
 
-    client->FetchLoc(&lat, &lon, &alt, &spd, &mode);
+    client->FetchLoc(&lat, &lon, &alt, &spd, &heading, &mode);
 
     if (!(lat == 0 && lon == 0 && alt == 0 && spd == 0 && mode == 0)) {
 

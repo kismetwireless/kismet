@@ -120,7 +120,7 @@ public:
     void RemoveProtocol(string in_protocol);
 
     // Fetch the location
-    int FetchLoc(float *in_lat, float *in_lon, float *in_alt, float *in_spd, int *in_mode);
+    int FetchLoc(float *in_lat, float *in_lon, float *in_alt, float *in_spd, float *in_hed, int *in_mode);
     // Fetch the mode
     int FetchMode() { return mode; }
 
@@ -225,7 +225,7 @@ protected:
 
     // Data sent to us
     // GPS
-    float lat, lon, alt, spd;
+    float lat, lon, alt, spd, heading;
     int mode;
     // Timestampt
     time_t serv_time;

@@ -35,6 +35,7 @@
 #include "tcpclient.h"
 #include "packetracker.h"
 #include "manuf.h"
+#include "gpsd.h"
 
 enum sort_type {
     sort_auto, sort_channel, sort_first, sort_first_dec,
@@ -144,10 +145,6 @@ protected:
     display_network *GroupTagged();
     // Destroy a group
     void DestroyGroup(display_network *in_group);
-
-    double CalcRad(double lat);
-    double EarthDistance(double lat1, double lon1, double lat2, double lon2);
-    double Rad2Deg(double x);
 
     // Tracking groups is a real pain.  We need to know all our active groups,
     // then we need all the bssid to group names that we have stored, then we need

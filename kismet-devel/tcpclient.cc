@@ -28,7 +28,7 @@ TcpClient::TcpClient() {
         "nbsource";
     protocol_default_map["STRING"] = "bssid,sourcemac,text";
     protocol_default_map["KISMET"] = "version,starttime,servername,timestamp";
-    protocol_default_map["GPS"] = "lat,lon,alt,spd,fix";
+    protocol_default_map["GPS"] = "lat,lon,alt,spd,heading,fix";
     protocol_default_map["NETWORK"] = "bssid,type,ssid,beaconinfo,llcpackets,datapackets,cryptpackets,"
         "weakpackets,channel,wep,firsttime,lasttime,atype,rangeip,gpsfixed,minlat,minlon,minalt,minspd,"
         "maxlat,maxlon,maxalt,maxspd,octets,cloaked,beaconrate,maxrate,"
@@ -444,7 +444,7 @@ int TcpClient::ParseData(char *in_data) {
         }
 
     } else if (!strncmp(header, "*GPS", 64)) {
-        if (sscanf(in_data+hdrlen, "%f %f %f %f %d", &lat, &lon, &alt, &spd, &mode) < 5)
+        if (sscanf(in_data+hdrlen, "%f %f %f %f %f %d", &lat, &lon, &alt, &spd, &heading, &mode) < 5)
             return 0;
 
     } else if (!strncmp(header, "*INFO", 64)) {
@@ -620,9 +620,10 @@ time_t TcpClient::FetchServTime() {
     return serv_time;
 }
 
-int TcpClient::FetchLoc(float *in_lat, float *in_lon, float *in_alt, float *in_spd, int *in_mode) {
+int TcpClient::FetchLoc(float *in_lat, float *in_lon, float *in_alt, float *in_spd, float *in_hed, int *in_mode) {
     *in_lat = lat; *in_lon = lon;
     *in_alt = alt; *in_spd = spd;
+    *in_hed = heading;
     *in_mode = mode;
     return mode;
 }
