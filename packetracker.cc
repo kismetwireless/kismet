@@ -929,6 +929,8 @@ void Packetracker::ProcessDataPacket(packet_info info, wireless_network *net) {
     if (info.proto.type == proto_dhcp_server && 
 		(client->ipdata.atype < address_dhcp ||
 		 client->ipdata.load_from_store == 1)) {
+		// DHCP is canonical data for the network, it's pretty safe to trust it
+		
         // If we have a DHCP packet and we didn't before, turn it into a full record
         // in the client and flag us dirty.
         client->ipdata.atype = address_dhcp;
@@ -939,9 +941,12 @@ void Packetracker::ProcessDataPacket(packet_info info, wireless_network *net) {
 
         means = "DHCP";
         ipdata_dirty = 1;
-    } else if (info.proto.type == proto_arp && (client->ipdata.atype < address_arp ||
-                                                client->ipdata.load_from_store == 1) &&
-               info.proto.source_ip[0] != 0x00) {
+	} else if (info.proto.type == proto_arp && (client->ipdata.atype < address_arp ||
+												client->ipdata.load_from_store == 1) 
+			   && info.proto.source_ip[0] != 0x00) {
+		// Arp data is pretty canonical too, unless someone is playing silly buggers
+		// with arp spoofing foreign addresses.
+
         client->ipdata.atype = address_arp;
 
         memcpy(client->ipdata.ip, info.proto.source_ip, 4);
@@ -949,15 +954,24 @@ void Packetracker::ProcessDataPacket(packet_info info, wireless_network *net) {
         ipdata_dirty = 1;
     } else if ((info.proto.type == proto_udp || info.proto.type == proto_netbios ||
 		info.proto.type == proto_iapp) &&
-               (client->ipdata.atype < address_udp || client->ipdata.load_from_store == 1) &&
-               info.proto.source_ip[0] != 0x00) {
+               (client->ipdata.atype < address_udp || 
+				client->ipdata.load_from_store == 1) &&
+			   info.proto.source_ip[0] != 0x00 &&
+			   info.source_mac != net->bssid) {
+		// We only process UDP if its from a client, not the AP to prevent routers
+		// from getting us with foreign addresses
         client->ipdata.atype = address_udp;
         memcpy(client->ipdata.ip, info.proto.source_ip, 4);
         means = "UDP";
         ipdata_dirty = 1;
-    } else if ((info.proto.type == proto_misc_tcp || info.proto.type == proto_netbios_tcp) &&
-               (client->ipdata.atype < address_tcp || client->ipdata.load_from_store == 1) &&
-               info.proto.source_ip[0] != 0x00) {
+    } else if ((info.proto.type == proto_misc_tcp || 
+				info.proto.type == proto_netbios_tcp) &&
+               (client->ipdata.atype < address_tcp || 
+				client->ipdata.load_from_store == 1) &&
+               info.proto.source_ip[0] != 0x00 &&
+			   info.source_mac != net->bssid) {
+		// We only process TCP if its from a client on our network, not the AP, to
+		// prevent AP/Routers from getting us with foreign addresses.
         client->ipdata.atype = address_tcp;
         memcpy(client->ipdata.ip, info.proto.source_ip, 4);
         means = "TCP";

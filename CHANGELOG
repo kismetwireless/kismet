@@ -1,3 +1,7 @@
+Mar 22 2005  devel  Changed IP detection algorithms to ignore TCP and UDP frames
+                     sourced from the AP.  This should avoid most of the IP detection
+                     problems caused by AP/routers which source remote IP data
+                     from the local MAC.
 Mar 21 2005  devel  Added "consecutive failure" support to card channel control.
                      For drivers with intermittent failure changing channel,
                      this will delay Kismet exiting until 5 failures in a row
