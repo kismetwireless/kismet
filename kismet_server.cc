@@ -37,6 +37,7 @@
 #include "wtapfilesource.h"
 #include "wsp100source.h"
 #include "vihasource.h"
+#include "dronesource.h"
 
 #include "dumpfile.h"
 #include "wtapdump.h"
@@ -1320,6 +1321,8 @@ int main(int argc,char *argv[]) {
             csrc->cardtype = card_viha;
         else if (!strcasecmp(sctype, "ar5k"))
             csrc->cardtype = card_ar5k;
+        else if (!strcasecmp(sctype, "drone"))
+            csrc->cardtype= card_drone;
         else {
             fprintf(stderr, "FATAL:  Source %d (%s):  Unknown card type '%s'\n", src, csrc->name.c_str(), sctype);
             exit(1);
@@ -1366,6 +1369,13 @@ int main(int argc,char *argv[]) {
             fprintf(stderr, "FATAL:  Source %d (%s): libwiretap support was not compiled in.\n", src, csrc->name.c_str());
             exit(1);
 #endif
+        } else if (ctype == card_drone) {
+            if (csrc->interface == "") {
+                fprintf(stderr, "FATAL:  Source %d (%s): No capture device specified.\n", src, csrc->name.c_str());
+                exit(1);
+            }
+
+            fprintf(stderr, "Source %d (%s): Defering drone open until priv drop.\n", src, csrc->name.c_str());
 
         } else if (ctype == card_wsp100) {
 #ifdef HAVE_WSP100
@@ -1447,6 +1457,11 @@ int main(int argc,char *argv[]) {
                 fprintf(stderr, "FATAL: Source %d (%s): Wtapfile support was not compiled in.\n", src, csrc->name.c_str());
                 exit(1);
 #endif
+            } else if (ctype == card_drone) {
+                fprintf(stderr, "Source %d (%s): Capturing packets from Drone %s.\n",
+                        src, csrc->name.c_str(), csrc->interface.c_str());
+
+                csrc->source = new DroneSource;
             }
 
             // Open the packet source

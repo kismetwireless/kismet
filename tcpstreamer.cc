@@ -212,6 +212,9 @@ void TcpStreamer::Kill(int in_fd) {
 
 int TcpStreamer::WritePacket(const kis_packet *in_packet) {
 
+    if (in_packet->data == NULL)
+        return 0;
+
     stream_frame_header hdr;
     stream_packet_header packhdr;
 
@@ -235,14 +238,21 @@ int TcpStreamer::WritePacket(const kis_packet *in_packet) {
         if (!FD_ISSET(x, &client_fds))
             continue;
 
-        if (write(x, &hdr, sizeof(hdr)) <= 0) {
+        if (write(x, &hdr, sizeof(struct stream_frame_header)) <= 0) {
             if (errno != EAGAIN && errno != EINTR) {
                 Kill(x);
                 return 0;
             }
         }
 
-        if (write(x, &packhdr, sizeof(packhdr)) <= 0) {
+        if (write(x, &packhdr, sizeof(stream_packet_header)) <= 0) {
+            if (errno != EAGAIN && errno != EINTR) {
+                Kill(x);
+                return 0;
+            }
+        }
+
+        if (write(x, in_packet->data, packhdr.caplen) <= 0) {
             if (errno != EAGAIN && errno != EINTR) {
                 Kill(x);
                 return 0;

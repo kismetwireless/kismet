@@ -443,6 +443,13 @@ int main(int argc, char *argv[]) {
             }
             fprintf(stderr, "NOTICE:  Source %d:  Skipping, cisco cards hop internally.\n", src);
             csrc->cmd_template = NULL;
+        } else if (!strcasecmp(type, "drone")) {
+            if (packet_sources.size() == 1) {
+                fprintf(stderr, "FATAL:  Drone connections don't need to channel hop.\n");
+                exit(1);
+            }
+            fprintf(stderr, "NOTICE:  Source %d:  Skipping, Drone connections don't locally.\n", src);
+            csrc->cmd_template = NULL;
         } else if (!strcasecmp(type, "prism2")) {
             csrc->cmd_template = prism2;
             divisions++;

@@ -159,7 +159,9 @@ for line in `cat $IFFILE`; do
 			;;
 		"generic")
 			echo "Generic card specified, so we do nothing."
-			exit
+			;;
+		"drone")
+			echo "Drone connection specified, so we do nothing."
 			;;
 		"wsp100")
 			echo "Disabling wsp100 device at $DEVICE"
@@ -172,7 +174,6 @@ for line in `cat $IFFILE`; do
 			;;
 		*)
 			echo "Unknown card type '$CARDTYPE'.  Doing nothing."
-			exit	
 			;;
 	esac
 done
