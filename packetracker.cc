@@ -22,6 +22,16 @@
 #include "kismet_server.h"
 #include "packetsignatures.h"
 
+// Aref array indexes
+#define NETSTUMBLER_AREF  0
+#define DEAUTHFLOOD_AREF  1
+#define LUCENTTEST_AREF   2
+#define WELLENREITER_AREF 3
+#define CHANCHANGE_AREF   4
+#define BCASTDISCON_AREF  5
+#define AIRJACKSSID_AREF  6
+#define MAX_AREF          6
+
 Packetracker::Packetracker() {
     alertracker = NULL;
 
@@ -36,8 +46,9 @@ Packetracker::Packetracker() {
 
     filter_export = 0;
 
-    netstumbler_aref = deauthflood_aref = lucenttest_aref = wellenreiter_aref =
-        chanchange_aref = bcastdiscon_aref = -1;
+    arefs = new int[MAX_AREF];
+    for (unsigned int ref = 0; ref < MAX_AREF; ref++)
+        arefs[ref] = -1;
 
 }
 
@@ -47,6 +58,8 @@ Packetracker::~Packetracker() {
             delete network_list[x]->client_vec[y];
         delete network_list[x];
     }
+
+    delete[] arefs;
 }
 
 vector<wireless_network *> Packetracker::FetchNetworks() {
@@ -71,34 +84,31 @@ int Packetracker::EnableAlert(string in_alname, alert_time_unit in_unit,
     string lname = StrLower(in_alname);
     if (lname == "netstumbler") {
         // register netstumbler alert
-        netstumbler_aref = alertracker->RegisterAlert("NETSTUMBLER", in_unit, in_rate, in_burstrate);
-        ret = netstumbler_aref;
+        ret = arefs[NETSTUMBLER_AREF] = alertracker->RegisterAlert("NETSTUMBLER", in_unit, in_rate, in_burstrate);
     } else if (lname == "deauthflood") {
         // register deauth flood
-        deauthflood_aref = alertracker->RegisterAlert("DEAUTHFLOOD", in_unit, in_rate, in_burstrate);
-        ret = deauthflood_aref;
+        ret = arefs[DEAUTHFLOOD_AREF] = alertracker->RegisterAlert("DEAUTHFLOOD", in_unit, in_rate, in_burstrate);
     } else if (lname == "lucenttest") {
         // register lucent test
-        lucenttest_aref = alertracker->RegisterAlert("LUCENTTEST", in_unit, in_rate, in_burstrate);
-        ret = lucenttest_aref;
+        ret = arefs[LUCENTTEST_AREF] = alertracker->RegisterAlert("LUCENTTEST", in_unit, in_rate, in_burstrate);
     } else if (lname == "wellenreiter") {
         // register wellenreiter test
-        wellenreiter_aref = alertracker->RegisterAlert("WELLENREITER", in_unit, in_rate, in_burstrate);
-        ret = wellenreiter_aref;
+        ret = arefs[WELLENREITER_AREF] = alertracker->RegisterAlert("WELLENREITER", in_unit, in_rate, in_burstrate);
     } else if (lname == "chanchange") {
         // register channel changing
-        chanchange_aref = alertracker->RegisterAlert("CHANCHANGE", in_unit, in_rate, in_burstrate);
-        ret = chanchange_aref;
+        ret = arefs[CHANCHANGE_AREF] = alertracker->RegisterAlert("CHANCHANGE", in_unit, in_rate, in_burstrate);
     } else if (lname == "bcastdiscon") {
         // Register broadcast disconnect
-        bcastdiscon_aref = alertracker->RegisterAlert("BCASTDISCON", in_unit, in_rate, in_burstrate);
-        ret = bcastdiscon_aref;
+        ret = arefs[BCASTDISCON_AREF] = alertracker->RegisterAlert("BCASTDISCON", in_unit, in_rate, in_burstrate);
+    } else if (lname == "airjackssid") {
+        // Register airjack SSID alert
+        ret = arefs[AIRJACKSSID_AREF] = alertracker->RegisterAlert("AIRJACKSSID", in_unit, in_rate, in_burstrate);
     } else {
         snprintf(errstr, 1024, "Unknown alert type %s, not processing.", lname.c_str());
         return 0;
     }
 
-    if (ret != -1)
+    if (ret == -1)
         snprintf(errstr, 1024, "Alert '%s' already processed, duplicate.", in_alname.c_str());
 
     return ret;
@@ -372,16 +382,25 @@ void Packetracker::ProcessPacket(packet_info info) {
     if (info.datarate > net->maxseenrate)
         net->maxseenrate = info.datarate;
 
+    if (info.type == packet_management && info.subtype == packet_sub_beacon &&
+        !strncmp(info.ssid, "airjack", SSID_SIZE)) {
+        if (alertracker->PotentialAlert(arefs[AIRJACKSSID_AREF])) {
+            snprintf(status, STATUS_MAX, "Beacon for SSID 'airjack' from %s",
+                     info.source_mac.Mac2String().c_str());
+            alertracker->RaiseAlert(arefs[AIRJACKSSID_AREF], status);
+        }
+    }
+
     if (info.type == packet_management &&
         (info.subtype == packet_sub_disassociation ||
          info.subtype == packet_sub_deauthentication) &&
         info.dest_mac == mac_addr("FF:FF:FF:FF:FF:FF")) {
 
-        if (alertracker->PotentialAlert(bcastdiscon_aref) > 0) {
+        if (alertracker->PotentialAlert(arefs[BCASTDISCON_AREF]) > 0) {
             snprintf(status, STATUS_MAX, "Broadcast %s on %s",
                      info.subtype == packet_sub_disassociation ? "disassociation" : "deauthentication",
                      net->bssid.Mac2String().c_str());
-            alertracker->RaiseAlert(bcastdiscon_aref, status);
+            alertracker->RaiseAlert(arefs[BCASTDISCON_AREF], status);
         }
 
     }
@@ -415,10 +434,10 @@ void Packetracker::ProcessPacket(packet_info info) {
             net->client_disconnects++;
 
             if (net->client_disconnects > 10) {
-                if (alertracker->PotentialAlert(deauthflood_aref) > 0) {
+                if (alertracker->PotentialAlert(arefs[DEAUTHFLOOD_AREF]) > 0) {
                     snprintf(status, STATUS_MAX, "Deauthenticate/Disassociate flood on %s",
                              net->bssid.Mac2String().c_str());
-                    alertracker->RaiseAlert(deauthflood_aref, status);
+                    alertracker->RaiseAlert(arefs[DEAUTHFLOOD_AREF], status);
                 }
             }
         }
@@ -429,11 +448,11 @@ void Packetracker::ProcessPacket(packet_info info) {
             // right channel, raise an alert.
 
             if (net->type == network_ap && info.channel != net->channel && net->channel != 0) {
-                if (alertracker->PotentialAlert(chanchange_aref) > 0) {
+                if (alertracker->PotentialAlert(arefs[CHANCHANGE_AREF]) > 0) {
                     snprintf(status, STATUS_MAX, "Beacon on %s (%s) for channel %d, network previously detected on channel %d",
                              net->bssid.Mac2String().c_str(), net->ssid.c_str(),
                              info.channel, net->channel);
-                    alertracker->RaiseAlert(chanchange_aref, status);
+                    alertracker->RaiseAlert(arefs[CHANCHANGE_AREF], status);
                 }
             }
 
@@ -777,7 +796,7 @@ void Packetracker::ProcessDataPacket(packet_info info, wireless_network *net) {
     } else if (info.proto.type == proto_netstumbler) {
         // Handle netstumbler packets
 
-        if (alertracker->PotentialAlert(netstumbler_aref) > 0) {
+        if (alertracker->PotentialAlert(arefs[NETSTUMBLER_AREF]) > 0) {
             char *nsversion;
 
             switch (info.proto.prototype_extra) {
@@ -797,26 +816,26 @@ void Packetracker::ProcessDataPacket(packet_info info, wireless_network *net) {
 
             snprintf(status, STATUS_MAX, "NetStumbler (%s) probe detected from %s",
                      nsversion, client->mac.Mac2String().c_str());
-            alertracker->RaiseAlert(netstumbler_aref, status);
+            alertracker->RaiseAlert(arefs[NETSTUMBLER_AREF], status);
         }
 
     } else if (info.proto.type == proto_lucenttest) {
         // Handle lucent test packets
 
-        if (alertracker->PotentialAlert(lucenttest_aref) > 0) {
+        if (alertracker->PotentialAlert(arefs[LUCENTTEST_AREF]) > 0) {
             snprintf(status, STATUS_MAX, "Lucent link test detected from %s",
                      client->mac.Mac2String().c_str());
-            alertracker->RaiseAlert(lucenttest_aref, status);
+            alertracker->RaiseAlert(arefs[LUCENTTEST_AREF], status);
         }
 
 
     } else if (info.proto.type == proto_wellenreiter) {
         // Handle wellenreiter packets
 
-        if (alertracker->PotentialAlert(wellenreiter_aref) > 0) {
+        if (alertracker->PotentialAlert(arefs[WELLENREITER_AREF]) > 0) {
             snprintf(status, STATUS_MAX, "Wellenreiter probe detected from %s",
                      client->mac.Mac2String().c_str());
-            alertracker->RaiseAlert(wellenreiter_aref, status);
+            alertracker->RaiseAlert(arefs[WELLENREITER_AREF], status);
         }
 
     }
