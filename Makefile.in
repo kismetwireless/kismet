@@ -61,7 +61,7 @@ NCO	= util.o configfile.o speech.o manuf.o tcpclient.o \
 		gpsd.o getopt.o kismet_client.o 
 NC	= kismet_client
 
-GPSLO = getopt.o util.o configfile.o expat.o manuf.o gpsmap.o
+GPSLO = getopt.o util.o configfile.o expat.o manuf.o gpsmap_samples.o gpsmap.o
 GPSL = gpsmap
 
 # HOPPERO = util.o configfile.o getopt.o kismet_hopper.o
