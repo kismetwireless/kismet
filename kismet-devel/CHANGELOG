@@ -1,4 +1,5 @@
 Sep 22 2002  2.5.2  Minor bugfixes and changes to the panels ui
+                    Fixed installation of man files, added kismet_hopper man
 Sep 21 2002  2.5.2  Tweaked manuf matching code to not find cloaked/wep'd 
                      networks as defaults.
                     Updated makefile and spec file for manuf tag files

@@ -55,6 +55,7 @@ make DESTDIR=$RPM_BUILD_ROOT/ rpm
 /usr/share/man/man1/gpsmap.1.gz
 /usr/share/man/man1/kismet.1.gz
 /usr/share/man/man1/kismet_monitor.1.gz
+/usr/share/man/man1/kismet_hopper.1.gz
 /usr/share/man/man5/kismet.conf.5.gz
 /usr/share/man/man5/kismet_ui.conf.5.gz
 
