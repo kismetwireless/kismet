@@ -1,22 +1,19 @@
-Summary: Kismet is an 802.11b network sniffer and network dissector.
+Summary: Kismet is an 802.11 network sniffer and network dissector.
 Name: kismet
-Version: devel
+Version: 2004.03
 Release: 1
 Group: Networking/Utilities
 Copyright: GPL
 Url: www.kismetwireless.net
-Source: kismet-%{version}.tar.gz
+Source: kismet-%{version}.%{release}.tar.gz
 BuildRoot: %{_tmppath}/%{name}-root
 
 
 %description
-Kismet is an 802.11b network sniffer and network dissector. It is
-capable of sniffing using most wireless cards, automatic network IP
-block detection via UDP, ARP, and DHCP packets, Cisco equipment lists
-via Cisco Discovery Protocol, weak cryptographic packet logging, and
-Ethereal and tcpdump compatible packet dump files. It also includes
-the ability to plot detected networks and estimated network ranges on
-downloaded maps or user supplied image files.
+Kismet is an 802.11 layer2 wireless network detector, sniffer, and
+intrusion detection system.  Kismet will work with any wireless card which
+supports raw monitoring (rfmon) mode, and can sniff 802.11b, 802.11a, and
+802.11g traffic.
 
 
 %prep
@@ -40,25 +37,20 @@ make DESTDIR=$RPM_BUILD_ROOT/ rpm
 
 %files
 %defattr(-,root,root)
-%doc docs/CARD.* docs/DEVEL.* docs/README.*
+%doc README docs/DEVEL.*
 %config /etc/kismet.conf
 %config /etc/kismet_ui.conf
 %config /etc/kismet_drone.conf
 /etc/ap_manuf
 /etc/client_manuf
 /usr/bin/kismet
-/usr/bin/kismet_curses
-/usr/bin/kismet_hopper
-/usr/bin/kismet_monitor
+/usr/bin/kismet_client
 /usr/bin/kismet_drone
-%attr(4755,root,root) /usr/bin/kismet_server
-%attr(4755,root,root) /usr/bin/kismet_drone
-/usr/bin/kismet_unmonitor
+%attr(0755,root,root) /usr/bin/kismet_server
+%attr(0755,root,root) /usr/bin/kismet_drone
 /usr/share/kismet/wav/*.wav
 /usr/share/man/man1/gpsmap.1.gz
 /usr/share/man/man1/kismet.1.gz
-/usr/share/man/man1/kismet_monitor.1.gz
-/usr/share/man/man1/kismet_hopper.1.gz
 /usr/share/man/man1/kismet_drone.1.gz
 /usr/share/man/man5/kismet.conf.5.gz
 /usr/share/man/man5/kismet_ui.conf.5.gz
@@ -71,3 +63,5 @@ make DESTDIR=$RPM_BUILD_ROOT/ rpm
 - Added manuf tag files, additional man files
 * Mon Feb 24 2002 Mike Kershaw <dragorn@kismetwireless.net>
 - Added drone man files and kismet_drone binary
+* Sat Mar 13 2004 Mike Kershaw <dragorn@kismetwireless.net>
+- Updated spec file (finally), removed suid install, updated other info
