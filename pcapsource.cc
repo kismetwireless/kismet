@@ -920,6 +920,15 @@ int monitor_wlanng(const char *in_dev, int initch, char *in_err) {
     // I really didn't want to do this...
     char cmdline[2048];
 
+    // Sanitize the device just to be safe.  The ifconfig should fail if
+    // the device is invalid, but why take risks
+    for (unsigned int x = 0; x < strlen(in_dev); x++) {
+        if (!isalnum(in_dev[x])) {
+            snprintf(in_err, STATUS_MAX, "Invalid device '%s'", in_dev);
+            return -1;
+        }
+    }
+    
     // Bring the device up, zero its ip, and set promisc
     if (Ifconfig_Linux(in_dev, in_err) < 0) 
         return -1;
@@ -951,6 +960,15 @@ int monitor_wlanng(const char *in_dev, int initch, char *in_err) {
 int monitor_wlanng_avs(const char *in_dev, int initch, char *in_err) {
     // I really didn't want to do this...
     char cmdline[2048];
+
+    // Sanitize the device just to be safe.  The ifconfig should fail if
+    // the device is invalid, but why take risks
+    for (unsigned int x = 0; x < strlen(in_dev); x++) {
+        if (!isalnum(in_dev[x])) {
+            snprintf(in_err, STATUS_MAX, "Invalid device '%s'", in_dev);
+            return -1;
+        }
+    }
 
     // Bring the device up, zero its ip, and set promisc
     if (Ifconfig_Linux(in_dev, in_err) < 0) 
@@ -998,6 +1016,15 @@ int monitor_wrt54g(const char *in_dev, int initch, char *in_err) {
 // This should be done programattically...
 int monitor_openbsd_cisco(const char *in_dev, int initch, char *in_err) {
     char cmdline[2048];
+
+    // Sanitize the device just to be safe.  The ifconfig should fail if
+    // the device is invalid, but why take risks
+    for (unsigned int x = 0; x < strlen(in_dev); x++) {
+        if (!isalnum(in_dev[x])) {
+            snprintf(in_err, STATUS_MAX, "Invalid device '%s'", in_dev);
+            return -1;
+        }
+    }
 
     snprintf(cmdline, 2048, "ancontrol -i %s -o 1", in_dev);
     if (ExecSysCmd(cmdline, in_err) < 0)
