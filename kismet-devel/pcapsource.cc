@@ -1204,26 +1204,22 @@ int monitor_wext(const char *in_dev, int initch, char *in_err) {
         return -1;
     }
 
-    if (wrq.u.mode == LINUX_WLEXT_MONITOR) {
-        close(skfd);
-        return 0;
-    }
+    if (wrq.u.mode != LINUX_WLEXT_MONITOR) {
+        // Set it
+        memset(&wrq, 0, sizeof(struct iwreq));
+        strncpy(wrq.ifr_name, in_dev, IFNAMSIZ);
+        wrq.u.mode = LINUX_WLEXT_MONITOR;
 
-    // Set it
-    //
-    memset(&wrq, 0, sizeof(struct iwreq));
-    strncpy(wrq.ifr_name, in_dev, IFNAMSIZ);
-    wrq.u.mode = LINUX_WLEXT_MONITOR;
-
-    if (ioctl(skfd, SIOCSIWMODE, &wrq) < 0) {
-        snprintf(in_err, STATUS_MAX, "Failed to set monitor mode: %s.  This usually "
-                 "means your drivers either do not support monitor mode, or use a "
-                 "different mechanism for getting to it.  Make sure you have a "
-                 "version of your drivers that support monitor mode, and consult "
-                 "the troubleshooting section of the README.", 
-                 strerror(errno));
-        close(skfd);
-        return -1;
+        if (ioctl(skfd, SIOCSIWMODE, &wrq) < 0) {
+            snprintf(in_err, STATUS_MAX, "Failed to set monitor mode: %s.  This usually "
+                     "means your drivers either do not support monitor mode, or use a "
+                     "different mechanism for getting to it.  Make sure you have a "
+                     "version of your drivers that support monitor mode, and consult "
+                     "the troubleshooting section of the README.", 
+                     strerror(errno));
+            close(skfd);
+            return -1;
+        }
     }
     
     // Set the initial channel - if we ever get a pcapsource that needs a hook
