@@ -20,6 +20,30 @@
 #include "networksort.h"
 
 TcpClient::TcpClient() {
+    // Fill in the default protocol stuff
+    protocol_default_map["INFO"] = "networks,packets,crypt,weak,noise,dropped,rate,signal";
+    protocol_default_map["ALERT"] = "sec,usec,header,text";
+    protocol_default_map["PACKET"] = "type,subtype,timesec,encrypted,weak,beaconrate,sourcemac,destmac,bssid,"
+        "ssid,prototype,sourceip,destip,sourceport,destport,nbtype,"
+        "nbsource";
+    protocol_default_map["STRING"] = "bssid,sourcemac,text";
+    protocol_default_map["KISMET"] = "version,starttime,servername,timestamp";
+    protocol_default_map["GPS"] = "lat,lon,alt,spd,fix";
+    protocol_default_map["NETWORK"] = "bssid,type,ssid,beaconinfo,llcpackets,datapackets,cryptpackets,"
+        "weakpackets,channel,wep,firsttime,lasttime,atype,rangeip,gpsfixed,minlat,minlon,minalt,minspd,"
+        "maxlat,maxlon,maxalt,maxspd,octets,cloaked,beaconrate,maxrate,manufkey,manufscore,"
+        "quality,signal,noise,bestquality,bestsignal,bestnoise,bestlat,bestlon,bestalt,"
+        "agglat,agglon,aggalt,aggpoints,datasize,turbocellnid,turbocellmode,turbocellsat,"
+        "carrierset,maxseenrate,encodingset,decrypted";
+    protocol_default_map["CLIENT"] = "bssid,mac,type,firsttime,lasttime,"
+        "manufkey,manufscore,datapackets,cryptpackets,weakpackets,"
+        "gpsfixed,minlat,minlon,minalt,minspd,maxlat,maxlon,maxalt,maxspd,"
+        "agglat,agglon,aggalt,aggpoints,maxrate,quality,signal,noise,"
+        "bestquality,bestsignal,bestnoise,bestlat,bestlon,bestalt,"
+        "atype,ip,datasize,maxseenrate,encodingset,decrypted";
+    protocol_default_map["WEPKEY"] = "origin,bssid,key,encrypted,failed";
+    protocol_default_map["CARD"] = "interface,type,username,channel";
+
     sv_valid = 0;
     client_fd = 0;
 
@@ -658,9 +682,15 @@ int TcpClient::Send(const char *in_data) {
 
 void TcpClient::EnableProtocol(string in_protocol) {
     char data[1024];
+    string fields;
+
+    if (protocol_default_map.find(in_protocol) != protocol_default_map.end())
+        fields = protocol_default_map[in_protocol];
+    else
+        fields = "*";
 
     // We don't care about ACKS or even errors, so we just don't give an ID number
-    snprintf(data, 1024, "!0 ENABLE %s *\n", in_protocol.c_str());
+    snprintf(data, 1024, "!0 ENABLE %s %s\n", in_protocol.c_str(), fields.c_str());
 
     Send(data);
 
