@@ -35,6 +35,8 @@
 #include "util.h"
 
 #ifdef HAVE_LIBPCAP
+// This is such a bad thing to do...
+#include <pcap-int.h>
 
 // I hate libpcap, I really really do.  Stupid callbacks...
 pcap_pkthdr callback_header;
@@ -60,7 +62,13 @@ int PcapSource::OpenSource(const char *dev, card_type ctype) {
     }
 
     errstr[0] = '\0';
-    pd = pcap_open_live(carddev, MAX_PACKET_LEN, 1, 1000, errstr);
+
+    // Handle file sources
+    if (ctype == card_pcapfile) {
+        pd = pcap_open_offline(dev, errstr);
+    } else {
+        pd = pcap_open_live(carddev, MAX_PACKET_LEN, 1, 1000, errstr);
+    }
 
     if (strlen(errstr) > 0)
         return -1; // Error is already in errstr
@@ -99,13 +107,16 @@ int PcapSource::OpenSource(const char *dev, card_type ctype) {
     }
 
 #ifdef HAVE_PCAP_NONBLOCK
-    pcap_setnonblock(pd, 1, errstr);
+    if (cardtype != card_pcapfile)
+        pcap_setnonblock(pd, 1, errstr);
 #elif !defined(SYS_OPENBSD)
     // do something clever  (Thanks to Guy Harris for suggesting this).
-    int save_mode = fcntl(pcap_fileno(pd), F_GETFL, 0);
-    if (fcntl(pcap_fileno(pd), F_SETFL, save_mode | O_NONBLOCK) < 0) {
-        snprintf(errstr, 1024, "fcntl failed, errno %d (%s)",
-                 errno, strerror(errno));
+    if (cardtype != card_pcapfile) {
+        int save_mode = fcntl(pcap_fileno(pd), F_GETFL, 0);
+        if (fcntl(pcap_fileno(pd), F_SETFL, save_mode | O_NONBLOCK) < 0) {
+            snprintf(errstr, 1024, "fcntl failed, errno %d (%s)",
+                     errno, strerror(errno));
+        }
     }
 #endif
 
@@ -163,6 +174,14 @@ int PcapSource::OpenSource(const char *dev, card_type ctype) {
 int PcapSource::CloseSource() {
     pcap_close(pd);
     return 1;
+}
+
+int PcapSource::FetchDescriptor() {
+    // Ugly hack for now
+    if (cardtype == card_pcapfile)
+        return fileno(pd->sf.rfile);
+
+    return pcap_fileno(pd);
 }
 
 void PcapSource::Callback(u_char *bp, const struct pcap_pkthdr *header,

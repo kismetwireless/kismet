@@ -18,10 +18,11 @@
          3. orinoco
          4. wsp100
          5. wtapfile
-         6. ar5k
-         7. drone
-         8. airport (viha)
-         9. acx100
+         6. pcapfile
+         7. ar5k
+         8. drone
+         9. airport (viha)
+        10. acx100
     7. GPS Support
     8. Compiling
     9. Configuration
@@ -286,23 +287,33 @@
          5. WTAPFILE
             Notes: The wtapfile replay ability is primarily useful for
             debugging, however it can also be used to recreate
-            csv/xml/etc files from a saved dump.
+            csv/xml/etc files from a saved dump. Libwiretap has support
+            for more esoteric dumps (which is faily irrelevant) and
+            transparent support for compressed dumpfiles, but requires a
+            compiled source tree of ethereal.
                o 'wtapfile': Kismet wtapfile handler
                  Capture interface: file
                  Notes: The capture interface specifies the path to the
                  dump file. Dumps can be in any format wtaplib
                  understands, which includes files created by Kismet,
                  Ethereal, TCPdump, and others. Files can be gzip
-                 compressed. File replaying can be slowed down using the
-                 '-M' command line option. -M100 is typical.
-         6. AR5K
+                 compressed.
+         6. PCAPFILE
+            Notes: The pcapfile replay is similar to wtapfile but uses
+            libpcap instead of libwiretap.
+               o 'pcapfile': Kismet pcapfile handler
+                 Capture interface: file
+                 Notes: The capture interface specifies the path to the
+                 dump file. Dumps can be any format libpcap understands,
+                 and should have a rfmon wireless encoding.
+         7. AR5K
             Notes: 802.11a doesn't put the channel in the beacon headers.
                o 'ar5k': vt_ar5k Linux 802.11a drivers
                  Capture interface: wlanX
                  Notes: The vt_ar5k drivers require the Linux
                  wireless-tools version 25 or higher. Older versions will
                  not be able to put the cards into monitor mode.
-         7. DRONE REMOTE
+         8. DRONE REMOTE
             Notes: The packets sent by Kismet drones may be filtered by
             the drone itself for content (physical, beacon, etc.).
                o 'drone': Kismet Drone remote
@@ -310,7 +321,7 @@
                  Notes: The capture interface specifies the address of
                  the Kismet drone server and the port on that server
                  which provides packets.
-         8. AIRPORT (VIHA)
+         9. AIRPORT (VIHA)
             Cards: Airport cards under OSX using the Viha drivers
             Notes: Viha only works with the Airport cards, not the
             Airport Extreme cards. Lowlevel PHY reporting is available.
@@ -321,7 +332,7 @@
                  support is for Viha 0.0.1a, but it MAY work with newer
                  versions. Normal OSX drivers will not work in RFMon
                  mode.
-         9. ACX100 (TI 22MBIT)
+        10. ACX100 (TI 22MBIT)
             Cards: 22mbit 802.11b+ cards such as the Dlink 650+
                o 'acx100': ACX100 OSS drivers
                  Capture interface: wlanX

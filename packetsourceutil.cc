@@ -36,6 +36,7 @@ char *card_type_str[] = {
     "generic",
     "wsp100",
     "wtapfile",
+    "pcapfile",
     "viha",
     "ar5k",
     "drone",
@@ -124,6 +125,8 @@ int BindRootSources(vector<capturesource *> *in_capsources, map<string, int> *in
             csrc->cardtype = card_wsp100;
         else if (!strcasecmp(sctype, "wtapfile"))
             csrc->cardtype = card_wtapfile;
+        else if (!strcasecmp(sctype, "pcapfile"))
+            csrc->cardtype = card_pcapfile;
         else if (!strcasecmp(sctype, "viha"))
             csrc->cardtype = card_viha;
         else if (!strcasecmp(sctype, "ar5k"))
@@ -179,6 +182,18 @@ int BindRootSources(vector<capturesource *> *in_capsources, map<string, int> *in
             fprintf(stderr, "Source %d (%s): Defering wtapfile open until priv drop.\n", src, csrc->name.c_str());
 #else
             fprintf(stderr, "FATAL:  Source %d (%s): libwiretap support was not compiled in.\n", src, csrc->name.c_str());
+            exit(1);
+#endif
+        } else if (ctype == card_pcapfile) {
+#ifdef HAVE_LIBPCAP
+            if (csrc->interface == "") {
+                fprintf(stderr, "FATAL:  Source %d (%s): No capture device specified.\n", src, csrc->name.c_str());
+                exit(1);
+            }
+
+            fprintf(stderr, "Source %d (%s): Defering pcapfile open until priv drop.\n", src, csrc->name.c_str());
+#else
+            fprintf(stderr, "FATAL:  Source %d (%s): libpcaptap support was not compiled in.\n", src, csrc->name.c_str());
             exit(1);
 #endif
         } else if (ctype == card_drone) {
@@ -273,6 +288,16 @@ int BindUserSources(vector<capturesource *> *in_capsources, map<string, int> *in
                 csrc->source = new WtapFileSource;
 #else
                 fprintf(stderr, "FATAL: Source %d (%s): Wtapfile support was not compiled in.\n", src, csrc->name.c_str());
+                exit(1);
+#endif
+            } else if (ctype == card_pcapfile) {
+#ifdef HAVE_LIBPCAP
+                fprintf(stderr, "Source %d (%s): Loading packets from dump file %s\n",
+                        src, csrc->name.c_str(), csrc->interface.c_str());
+
+                csrc->source = new PcapSource;
+#else
+                fprintf(stderr, "FATAL: Source %d (%s): libpcap support was not compiled in.\n", src, csrc->name.c_str());
                 exit(1);
 #endif
             } else if (ctype == card_drone) {
