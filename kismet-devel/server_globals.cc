@@ -22,4 +22,5 @@
 int silent;
 time_t start_time;
 unsigned int metric;
+unsigned int track_probenets;
 

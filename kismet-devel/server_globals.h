@@ -26,6 +26,7 @@
 extern int silent;
 extern time_t start_time;
 extern unsigned int metric;
+extern unsigned int track_probenets;
 
 
 #endif
