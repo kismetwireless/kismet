@@ -782,7 +782,7 @@ int main(int argc, char *argv[]) {
 
                             snprintf(text, 100, "New %s network '%s' detected.",
                                      (newnet->wep ? "En-crypted" : "Un-en-crypted"),
-                                     newnet->ssid.c_str());
+                                     newnet->ssid == NOSSID ? "unknown name" : newnet->ssid.c_str());
 
                             speech = SayText(text);
                         }
