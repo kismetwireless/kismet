@@ -1928,7 +1928,7 @@ int main(int argc,char *argv[]) {
     
                     snprintf(text, 100, "New %s network '%s' detected.",
                              (info.wep ? "En-crypted" : "Un-en-crypted"),
-                             info.ssid);
+                             strncmp(info.ssid, NOSSID.c_str(), SSID_SIZE)  ? "unknown name" : info.ssid);
     
                     speech = SayText(text);
                 }

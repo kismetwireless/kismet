@@ -2,6 +2,7 @@ Aug 31 2002  2.5.2  Merged patch from poptix for gpsmap to support terraserver
                      images and to copy support for the new mapblast maps from
                      gpsdrive.
                     Set default ethereal directory to /usr/src/ethereal-0.9.6
+                    Fixed speech error on blank SSID
 Aug 30 2002  2.5.2  Added fixed-parameter support on bigendian systems.  Normal
                      packet detection/dissection should occur on bigendian now.
                     Minor tweaks to packet noise detection
