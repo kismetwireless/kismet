@@ -802,7 +802,7 @@ enum packet_type {
     packet_unknown = -1, // What are we?
     packet_management = 0, // LLC management
     packet_phy = 1, // Physical layer packets, most drivers can't provide these
-    packet_data = 2, // Data frames
+    packet_data = 2 // Data frames
 };
 
 // Subtypes are a little odd because we re-use values depending on the type
