@@ -2724,7 +2724,7 @@ int DrawLegendComposite(vector<gps_network *> in_nets, Image **in_img,
     int avail_width = map_width - text_colwidth;
     
     // Draw the second column
-    if (draw_bounds || draw_range || draw_hull || draw_scatter || draw_center &&
+    if ((draw_bounds || draw_range || draw_hull || draw_scatter || draw_center) &&
         (color_coding == COLORCODE_WEP || color_coding == COLORCODE_CHANNEL)) {
         cur_rowpos = map_height + 5;
 

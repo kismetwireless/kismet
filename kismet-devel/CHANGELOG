@@ -1,5 +1,6 @@
 Jan 02 2004  3.1.0  Fixed association of probe nets
                     Fixed weirdness with now-defunct quality bar
+                    Fixed map legends w/ no network colors and no powerbar
 Jan 01 2004  3.1.0  Added legend drawing to GPSMap, finally
                     Various speedups inside gpsmap
                     Readme updates
