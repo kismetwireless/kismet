@@ -43,24 +43,31 @@ make DESTDIR=$RPM_BUILD_ROOT/ rpm
 %doc docs/CARD.* docs/DEVEL.* docs/README.*
 %config /etc/kismet.conf
 %config /etc/kismet_ui.conf
+%config /etc/kismet_drone.conf
 /etc/ap_manuf
 /etc/client_manuf
 /usr/bin/kismet
 /usr/bin/kismet_curses
 /usr/bin/kismet_hopper
 /usr/bin/kismet_monitor
+/usr/bin/kismet_drone
 %attr(4755,root,root) /usr/bin/kismet_server
+%attr(4755,root,root) /usr/bin/kismet_drone
 /usr/bin/kismet_unmonitor
 /usr/share/kismet/wav/*.wav
 /usr/share/man/man1/gpsmap.1.gz
 /usr/share/man/man1/kismet.1.gz
 /usr/share/man/man1/kismet_monitor.1.gz
 /usr/share/man/man1/kismet_hopper.1.gz
+/usr/share/man/man1/kismet_drone.1.gz
 /usr/share/man/man5/kismet.conf.5.gz
 /usr/share/man/man5/kismet_ui.conf.5.gz
+/usr/share/man/man5/kismet_drone.conf.5.gz
 
 %changelog
 * Wed Aug 21 2002 Jeremiah Johnson <jjohnson@sunrise-linux.com>
 - Initial specfile creation.
 * Sat Sep 21 2002 Mike Kershaw <dragorn@kismetwireless.net>
 - Added manuf tag files, additional man files
+* Mon Feb 24 2002 Mike Kershaw <dragorn@kismetwireless.net>
+- Added drone man files and kismet_drone binary
