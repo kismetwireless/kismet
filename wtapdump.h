@@ -43,8 +43,10 @@ public:
 protected:
     int Common2Wtap(const pkthdr *in_header, const u_char *in_data);
 
+    /*
     char errstr[1024];
     char type[64];
+    */
 
     wtap_pkthdr packet_header;
     u_char packet_data[MAX_PACKET_LEN];

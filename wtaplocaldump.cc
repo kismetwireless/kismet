@@ -32,7 +32,7 @@ int WtapDumpFile::OpenDump(const char *file) {
     beacon_log = 1;
 
     if ((dump_file = fopen(file, "w")) == NULL) {
-        snprintf(errstr, 1024, "Unable to open dump file (%s)", strerror(errno));
+        snprintf(errstr, 1024, "Unable to open dump file %s (%s)", filename, strerror(errno));
         return -1;
     }
 
