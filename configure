@@ -1294,7 +1294,7 @@ ac_compiler_gnu=$ac_cv_c_compiler_gnu
 
 
 # Included pcap directory
-pcapdir="libpcap-2002.12.23"
+pcapdir="libpcap-0.7.2"
 etherealdir="/usr/src/ethereal-0.9.12"
 
 
