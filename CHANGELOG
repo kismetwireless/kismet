@@ -1,4 +1,5 @@
 Feb 24 2003  2.9.1  Added man pages for drone and updated other man pages.
+                    Updated README for drone info
 Feb 23 2003  2.9.1  Spun server timer events into seperate file
                     Created kismet_drone, a 'headless' tcp/ip packet streamer.
                      kismet_drone has all the same capture sources as Kismet

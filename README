@@ -25,6 +25,7 @@
     9. Configuration
    10. Panels Interface
    11. Mapping
+   12. Drone Remotes
        
     1. WHAT IS KISMET
        Kismet is a 802.11 wireless network sniffer - this is different
@@ -34,8 +35,8 @@
        capable of reporting raw packets (rfmon support), which include
        any prism2 based card (Linksys, D-Link, Rangelan, etc), Cisco
        Aironet cards, and Orinoco based cards. Kismet also supports the
-       WSP100 remote sensor by Network Chemistry. Kismet is also able to
-       sniff 802.11a networks using ar5k cards.
+       WSP100 remote sensor by Network Chemistry, and is able to sniff
+       802.11a networks using ar5k cards.
     2. FEATURES
           + Configurable channel hopping
           + IP range detection
@@ -55,6 +56,7 @@
           + Multiplexing of multiple capture sources
           + 802.11b and 802.11a sniffing abilities
           + Data export for external layer3 IDS (such as Snort)
+          + Distributed 'Drone' sniffing
     3. QUICK START
        Detailed information about each of these steps can be found in the
        appropriate section of the documentation.
@@ -268,7 +270,15 @@
                  Notes: The vt_ar5k drivers require the Linux
                  wireless-tools version 25 or higher. Older versions will
                  not be able to put the cards into monitor mode.
-    7. GPS SUPPORT
+    7. DRONE REMOTE
+       Notes: The packets sent by Kismet drones may be filtered by the
+       drone itself for content (physical, beacon, etc.).
+          + 'drone': Kismet Drone remote
+            Capture interface: host:port
+            Notes: The capture interface specifies the address of the
+            Kismet drone server and the port on that server which
+            provides packets.
+    8. GPS SUPPORT
        GPS support is provided via the GPSD daemon, available at
        http://russnelson.com/gpsd/. GPSD is also included with the
        navigation software GPSDrive. Current versions of GPSDrive
@@ -284,7 +294,7 @@
        Some systems have trouble compiling GPSD. The easiest fix is to
        edit em.c and change "#include <sys/time.h>" to "#include
        <time.h>".
-    8. COMPILING & INSTALLATION
+    9. COMPILING & INSTALLATION
        Before configuration and compilation, you should get the following
        packages:
           + ethereal (www.ethereal.com). This is a GREAT sniffer and
@@ -337,7 +347,7 @@
        It is reccomended that you do NOT disable this capability, as
        Kismet is handling potentially hostile foreign data and should not
        have elevated rights to the system.
-    9. CONFIGURATION
+   10. CONFIGURATION
        Kismet is controlled by 2 system-wide config files (by default, in
        /usr/local/etc/). These files use a simple option=value format.
           + kismet.conf
@@ -418,7 +428,7 @@
                  changed via the kismet_ui.conf file any the 'xxxcolor'
                  options. The config file and the man page list all the
                  possible colors and configurable elements.
-   10. PANELS INTERFACE
+   11. PANELS INTERFACE
        Kismet's primary user interface uses the curses extention library,
        panels. Other interfaces i can be connected at will.
           + Basics of the panels interface
@@ -557,7 +567,7 @@
              16. Packets - Number of packets and types of packets seen.
              17. Data - Amount of data transfered through this network
              18. Signal - Current and best signal levels
-   11. MAPPING
+   12. MAPPING
        Gpsmap (which comes with Kismet) takes GPS and network data (.gps
        and .xml files, respectively) and plots them graphically on
        vector, satellite, or user supplied maps.
@@ -587,3 +597,15 @@
             taken.
        More information about gpsmap is available from the man page
        gpsmap(1).
+   13. DRONE REMOTES
+       Kismet is also able to do distributed sniffing of a larger
+       physical area by using Drone remote sniffers. A Kismet drone is
+       essentially a stripped down Kismet sniffer engine which is able to
+       capture data from all the same sources as Kismet itself (as well
+       supporting multiple simultaneous capture sources, mixture of
+       802.11a and 802.11b sources, etc) and provide those packets over a
+       TCP stream on a wired network.
+       Any number of drones with any number of sources can be distributed
+       across the target area, with all captured packets being processed
+       by a single Kismet server, stored in a common dump file and passed
+       to a single Snort IDS instance, if desired.
