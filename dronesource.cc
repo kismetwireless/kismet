@@ -111,6 +111,10 @@ int DroneSource::FetchPacket(kis_packet *packet, uint8_t *data, uint8_t *moddata
         bcount += ret;
     }
 
+    for (unsigned int x = 0; x < sizeof(struct stream_frame_header); x++)
+        printf("%02X ", inbound[x]);
+    printf("\n");
+
     if (fhdr.frame_type == STREAM_FTYPE_VERSION) {
         // Handle the version and generate an error if it's a mismatch
 

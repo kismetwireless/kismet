@@ -1,5 +1,7 @@
 Apr 08 2003  2.9.1  Fixed display grouping code again, now it doesn't kill 
                      groups not active this session.
+                    Fixed stupid ring buffer problem which caused drones to
+                     break on large transmission chunks
 Apr 07 2003  2.9.1  Fixed README numberings
                     Un-broke majorly broken display grouping code.
                     Moved conf files to configure-generated to pick up prefixes

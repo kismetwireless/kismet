@@ -169,7 +169,6 @@ int TcpStreamer::Poll(fd_set& in_rset, fd_set& in_wset)
 
         if (FD_ISSET(x, &in_wset) && FD_ISSET(x, &client_fds)) {
             droneclients[x]->FetchPtr(&dptr, &dlen);
-
             if ((ret = write(x, dptr, dlen)) <= 0) {
                 if (!silent)
                     fprintf(stderr, "WARNING: Killing client fd %d write error %d: %s\n",
@@ -356,6 +355,7 @@ int TcpStreamer::WritePacket(const kis_packet *in_packet) {
     packhdr.gps_alt_mant = (int64_t) kis_hton64(packhdr.gps_alt_mant);
     packhdr.gps_spd = (int16_t) htons(packhdr.gps_spd);
     packhdr.gps_spd_mant = (int64_t) kis_hton64(packhdr.gps_spd_mant);
+
 
     hdr.frame_len = (uint32_t) htonl(sizeof(struct stream_packet_header) + in_packet->caplen);
 
