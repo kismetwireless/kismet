@@ -388,10 +388,9 @@ void SpeechHandler(int *fds, const char *player) {
             harvested = 0;
             if ((sndpid = fork()) == 0) {
                 char spk_call[1024];
-                snprintf(spk_call, 1024, "echo '(SayText \"%s\")' | %s >/dev/null 2>/dev/null",
+                snprintf(spk_call, 1024, "echo \"(SayText \\\"%s\\\")\" | %s >/dev/null 2>/dev/null",
                          data, player);
                 system(spk_call);
-
 
                 exit(0);
             }

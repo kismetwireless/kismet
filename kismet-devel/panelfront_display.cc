@@ -54,6 +54,12 @@ void PanelFront::NetLine(string *in_str, wireless_network *net, const char *name
     else if (sub)
         snprintf(retchr, 4096, "|");
 
+    time_t idle_time;
+    if (sub && net->tcpclient != NULL)
+        idle_time = net->tcpclient->FetchTime() - net->last_time;
+    else
+        idle_time = net->idle_time;
+
     int pos = 2;
     for (unsigned int col = 0; col < column_vec.size(); col++) {
         char element[1024];
@@ -61,9 +67,9 @@ void PanelFront::NetLine(string *in_str, wireless_network *net, const char *name
         main_columns colindex = column_vec[col];
 
         if (colindex == mcol_decay) {
-            if ((net->tcpclient->FetchTime() - net->last_time) < decay)
+            if (idle_time < decay)
                 snprintf(element, 1024, "!");
-            else if ((net->tcpclient->FetchTime() - net->last_time) < (decay * 2))
+            else if (idle_time < (decay * 2))
                 snprintf(element, 1024, ".");
             else
                 snprintf(element, 1024, " ");

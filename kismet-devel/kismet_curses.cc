@@ -270,8 +270,9 @@ void SpeechHandler(int *fds, const char *player) {
             harvested = 0;
             if ((sndpid = fork()) == 0) {
                 char spk_call[1024];
-                snprintf(spk_call, 1024, "echo '(SayText \"%s\")' | %s >/dev/null 2>/dev/null",
+                snprintf(spk_call, 1024, "echo \"(SayText \\\"%s\\\")\" | %s >/dev/null 2>/dev/null",
                          data, player);
+
                 system(spk_call);
 
                 exit(0);
@@ -861,7 +862,7 @@ int main(int argc, char *argv[]) {
                                 else
                                     text = ExpandSpeechString(speech_sentence_unencrypted, newnet, speech_encoding);
 
-                                speech = SayText(MungeToShell(text).c_str());
+                                speech = SayText(text.c_str());
                             }
                         }
                     }

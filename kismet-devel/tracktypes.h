@@ -208,6 +208,7 @@ typedef struct wireless_network {
 
 #ifdef __TCPCLIENT_H__
         tcpclient = NULL;
+        idle_time = 0;
 #endif
     }
 
@@ -296,6 +297,8 @@ typedef struct wireless_network {
     // If we're included in the client, include a reference to the server connection
     // that spawned us
     TcpClient *tcpclient;
+    // And include some records for tracking the time in the virtual group networks
+    time_t idle_time;
 #endif
 
 };
