@@ -137,7 +137,7 @@ unsigned int TcpServer::MergeSet(fd_set in_set, unsigned int in_max,
     return max;
 }
 
-int TcpServer::Poll(fd_set in_rset, fd_set in_wset, fd_set in_eset)
+int TcpServer::Poll(fd_set& in_rset, fd_set& in_wset, fd_set& in_eset)
 {
     if (!sv_valid)
         return -1;
