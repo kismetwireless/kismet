@@ -20,10 +20,11 @@
 
 #include <stdio.h>
 #include <string.h>
-#include <expat.h>
 #include <string>
 
 #ifdef HAVE_EXPAT
+
+#include <expat.h>
 
 #include "tracktypes.h"
 
