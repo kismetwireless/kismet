@@ -151,13 +151,13 @@ int RegisterKismetSources(Packetsourcetracker *sourcetracker) {
     REG_EMPTY_CARD(sourcetracker, "prism2_openbsd");
 #endif
 
-#if defined(HAVE_LIBPCAP) && defined(SYS_FREEBSD)
-    sourcetracker->RegisterPacketsource("radiotap", 1, "IEEE80211ab", 6,
+#if defined(HAVE_LIBPCAP) && defined(SYS_FREEBSD) && defined(HAVE_RADIOTAP)
+    sourcetracker->RegisterPacketsource("radiotap_freebsd", 1, "IEEE80211ab", 6,
                                         pcapsource_radiotap_registrant,
                                         monitor_freebsd, unmonitor_freebsd,
                                         chancontrol_freebsd, 1);
 #else
-    REG_EMPTY_CARD(sourcetracker, "radiotap");
+    REG_EMPTY_CARD(sourcetracker, "radiotap_freebsd");
 #endif
 
 #if defined(HAVE_LIBWIRETAP)
