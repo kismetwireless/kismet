@@ -86,7 +86,7 @@ void CatchShutdown(int sig) {
         gui->EndDisplay();
 
     if (kismet_serv.Valid() == 0)
-        ret = -1;
+        ret = 5;
 
     exit(ret);
 }
