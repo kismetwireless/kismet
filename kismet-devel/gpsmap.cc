@@ -1592,9 +1592,58 @@ void DrawNetCenterText(vector<gps_network *> in_nets, Image *in_img, DrawInfo *i
         if (draw == 0)
             break;
 
-        snprintf(prim, 1024, "gravity %s fill-opacity 100%% stroke-opacity 100%% text %d,%d \"%s\"",
-                 label_gravity_list[label_orientation],
-                 (int) mapx, (int) mapy, text);
+        in_di->text = text;
+        TypeMetric metrics;
+        if (!GetTypeMetrics(in_img, in_di, &metrics))
+            continue;
+
+        // Find the offset we're using
+        int xoff, yoff;
+        switch (label_orientation) {
+        case 0:
+            xoff = -4 + (int) metrics.height / 3;
+            yoff = -4 - (int) metrics.width;
+            break;
+        case 1:
+            xoff = -4 + (int) metrics.height / 3;
+            yoff = 0 - (int) metrics.width / 2;
+            break;
+        case 2:
+            xoff = -4 + (int) metrics.height / 3;
+            yoff = 4;
+            break;
+        case 3:
+            xoff = 0 + (int) metrics.height / 3;
+            yoff = -4 - (int) metrics.width;
+            break;
+        case 4:
+            xoff = 0 + (int) metrics.height / 3;
+            yoff = 0 - (int) metrics.width / 2;
+            break;
+        case 5:
+            xoff = 0 + (int) metrics.height / 3;
+            yoff = 4;
+            break;
+        case 6:
+            xoff = 4 - (int) metrics.height / 3;
+            yoff = -4 - (int) metrics.width / 2;
+            break;
+        case 7:
+            xoff = 4 - (int) metrics.height / 3;
+            yoff = 0 - (int) metrics.width / 2;
+            break;
+        case 8:
+            xoff = 4 - (int) metrics.height / 3;
+            yoff = 4;
+            break;
+        default:
+            xoff = 0 + (int) metrics.height / 3;
+            yoff = 0 - (int) metrics.width / 2;
+            break;
+        }
+
+        snprintf(prim, 1024, "fill-opacity 100%% stroke-opacity 100%% text %d,%d \"%s\"",
+                 (int) mapx + yoff, (int) mapy + xoff, text);
 
         in_di->primitive = strdup(prim);
         DrawImage(in_img, in_di);

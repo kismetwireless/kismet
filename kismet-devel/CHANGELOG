@@ -10,6 +10,7 @@ Sep 09 2002  2.5.2  Fixed longstanding minor bug in mac_addr, failed to zero
                     Added expat.cc handling of blank CDP id's and lucent networks
                     Fixed some channel coloring in gpsmap
                     Added label gravity and other label fixes to gpsmap
+                    Fixed label gravity/orientation
 Sep 08 2002  2.5.2  First iteration of gpsmap rewriting.  Command line args are
                      COMPLETELY changed.  Expect full functionality to return
                      soon.
