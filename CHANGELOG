@@ -1,3 +1,5 @@
+Oct 03 2002  2.7    Fixed bug in default IP range reading
+
 Oct 02 2002  2.6.1  Released 2.6.1 bugfix and security update
 
 Oct 02 2002  2.7    Implemented more secure suid-behavior from reports by

@@ -107,7 +107,8 @@ map<mac_addr, manuf *> ReadManufMap(FILE *in_file, int ap_map) {
                                        &ipr[0], &ipr[1], &ipr[2], &ipr[3]) == 4) {
                                 manf->ipdata.atype = address_factory;
                                 manf->ipdata.octets = 4;
-                                memcpy(manf->ipdata.range_ip, ipr, 4);
+                                for (unsigned int x = 0; x < 4; x++)
+                                    manf->ipdata.range_ip[x] = ipr[x];
                             }
                         }
                     }
