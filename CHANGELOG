@@ -1,6 +1,8 @@
 Jan 15 2003  3.1.0  Fixed data network autogrouping
                     Fixed panels client segfault when viewing details on a 
                      network absorbed into an autogroup
+                    Fixed bug where single-packet new networks sometimes showed
+                     up as having no packets in panels client
 Jan 13 2003  3.1.0  Added more packet sanitizing.  Most invalid management
                      frames now intercepted, data frames still problematic.
                     Merged gpsmap patches from Andrew Knutsen to add labeling
