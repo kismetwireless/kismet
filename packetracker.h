@@ -108,6 +108,7 @@ public:
     void RemoveNetwork(mac_addr in_bssid);
 
 protected:
+    wireless_client *CreateClient(const packet_info *info, wireless_network *net);
     string SanitizeCSV(string in_data);
     string SanitizeXML(string in_data);
 
