@@ -3057,7 +3057,7 @@ int PanelFront::ServerJoinPrinter(void *in_window) {
 int PanelFront::IntroPrinter(void *in_window) {
     kis_window *kwin = (kis_window *) in_window;
 
-    kwin->scrollable = 1;
+    kwin->scrollable = 0;
 
     kwin->text.clear();
 
@@ -3068,6 +3068,13 @@ int PanelFront::IntroPrinter(void *in_window) {
              TIMESTAMP);
     kwin->text.push_back(output);
 
+    int x = 0;
+    while (1) {
+        if (KismetIntroText[x] == NULL)
+            break;
+        kwin->text.push_back(KismetIntroText[x]);
+        x++;
+    }
     
     return TextPrinter(in_window);
 }
