@@ -124,7 +124,6 @@ void SoundHandler(int *fds, const char *player, map<string, string> soundmap) {
     signal(SIGPIPE, PipeHandler);
 
     fd_set rset;
-    fd_set eset;
 
     char data[1024];
 
@@ -134,7 +133,6 @@ void SoundHandler(int *fds, const char *player, map<string, string> soundmap) {
     while (1) {
         FD_ZERO(&rset);
         FD_SET(read_sock, &rset);
-        FD_ZERO(&eset);
         char *end;
 
         memset(data, 0, 1024);
@@ -151,11 +149,7 @@ void SoundHandler(int *fds, const char *player, map<string, string> soundmap) {
         tim.tv_sec = 1;
         tim.tv_usec = 0;
 
-        select(read_sock + 1, &rset, NULL, &eset, &tim);
-
-        // Die and let the other side detect it
-        if (FD_ISSET(read_sock, &eset))
-            exit(1);
+        select(read_sock + 1, &rset, NULL, NULL, &tim);
 
         if (FD_ISSET(read_sock, &rset)) {
             int ret;
@@ -214,7 +208,6 @@ void SpeechHandler(int *fds, const char *player) {
     close(fds[1]);
 
     fd_set rset;
-    fd_set eset;
 
     char data[1024];
 
@@ -224,7 +217,6 @@ void SpeechHandler(int *fds, const char *player) {
     while (1) {
         FD_ZERO(&rset);
         FD_SET(read_sock, &rset);
-        FD_ZERO(&eset);
         //char *end;
 
         memset(data, 0, 1024);
@@ -233,11 +225,7 @@ void SpeechHandler(int *fds, const char *player) {
         tim.tv_sec = 1;
         tim.tv_usec = 0;
 
-        select(read_sock + 1, &rset, NULL, &eset, &tim);
-
-        // Die and let the other side detect it
-        if (FD_ISSET(read_sock, &eset))
-            exit(1);
+        select(read_sock + 1, &rset, NULL, NULL, &tim);
 
         if (harvested == 0) {
             // We consider a wait error to be a sign that the child pid died

@@ -139,13 +139,11 @@ int TcpClient::Poll() {
     int selected;
     fd_set read_set;
     fd_set write_set;
-    fd_set except_set;
 
     FD_ZERO(&read_set);
     FD_SET(client_fd, &read_set);
     FD_ZERO(&write_set);
     FD_SET(client_fd, &write_set);
-    FD_ZERO(&except_set);
 
     struct timeval tim;
 
@@ -153,7 +151,7 @@ int TcpClient::Poll() {
     tim.tv_usec = 0;
 
     // Enter the select loop
-    if ((selected = select(client_fd+1, &read_set, &write_set, &except_set, &tim)) < 0) {
+    if ((selected = select(client_fd+1, &read_set, &write_set, NULL, &tim)) < 0) {
         if (errno != EINTR) {
             snprintf(errstr, 1024, "TcpServer select() returned %d (%s)\n",
                      errno, strerror(errno));
@@ -161,13 +159,6 @@ int TcpClient::Poll() {
             close(client_fd);
             return (-1);
         }
-    }
-
-    if (FD_ISSET(client_fd, &except_set)) {
-        snprintf(errstr, 1024, "Exception on socket.\n");
-        sv_valid = 0;
-        close(client_fd);
-        return(-1);
     }
 
     if (writebuf.length() > 0 && FD_ISSET(client_fd, &write_set)) {
