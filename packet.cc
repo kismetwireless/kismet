@@ -175,7 +175,63 @@ void GetPacketInfo(const pkthdr *header, const u_char *data,
         }
         fixed_parameters *fixparm = (fixed_parameters *) &msgbuf[24];
 
-        if (fc->subtype == 8) {
+        if (fc->subtype == 0) {
+            // association request frame
+            ret_packinfo->wep = fixparm->wep;
+            ret_packinfo->ap = fixparm->ess;
+
+            // Find the offset of tag 0 and fill in the ssid if we got the
+            // tag.
+            if ((tag_offset = GetTagOffset(36, 0, header, data)) > 0) {
+                temp = (msgbuf[tag_offset] & 0xFF) + 1;
+
+                // Protect against malicious packets
+                if (temp <= 32 && tag_offset + 1 + temp < (int) header->len) {
+                    snprintf(ret_packinfo->ssid, temp, "%s", &msgbuf[tag_offset+1]);
+
+                    // Munge it down to printable characters... SSID's can be anything
+                    // but if we can't print them it's not going to be very useful
+                    MungeToPrintable(ret_packinfo->ssid, temp);
+                }
+
+            }
+
+            // Extract the supported rates
+            if ((tag_offset = GetTagOffset(36, 1, header, data)) > 0) {
+                for (int x = 0; x < msgbuf[tag_offset]; x++) {
+                    if (ret_packinfo->maxrate < (msgbuf[tag_offset+1+x] & 0x7F) * 0.5)
+                        ret_packinfo->maxrate = (msgbuf[tag_offset+1+x] & 0x7F) * 0.5;
+                }
+            }
+
+            // Extract the MAC's
+            ret_packinfo->dest_mac = addr0;
+            ret_packinfo->source_mac = addr1;
+            ret_packinfo->bssid_mac = addr2;
+
+            ret_packinfo->type = packet_association_req;
+
+        } else if (fc->subtype == 1) {
+            // association request frame
+            ret_packinfo->wep = fixparm->wep;
+            ret_packinfo->ap = fixparm->ess;
+
+            // Extract the supported rates
+            if ((tag_offset = GetTagOffset(36, 1, header, data)) > 0) {
+                for (int x = 0; x < msgbuf[tag_offset]; x++) {
+                    if (ret_packinfo->maxrate < (msgbuf[tag_offset+1+x] & 0x7F) * 0.5)
+                        ret_packinfo->maxrate = (msgbuf[tag_offset+1+x] & 0x7F) * 0.5;
+                }
+            }
+
+            // Extract the MAC's
+            ret_packinfo->dest_mac = addr0;
+            ret_packinfo->source_mac = addr1;
+            ret_packinfo->bssid_mac = addr2;
+
+            ret_packinfo->type = packet_association_response;
+
+        } else if (fc->subtype == 8) {
             // beacon frame
 
             //            ret.beacon = ntohl(fixparm->beacon);
