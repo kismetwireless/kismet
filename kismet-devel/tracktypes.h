@@ -216,6 +216,8 @@ typedef struct wireless_network {
     wireless_network() {
         type = network_data;
 
+        ssid = NOSSID;
+
         manuf_score = 0;
         manuf_ref = NULL;
 
