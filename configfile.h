@@ -42,12 +42,15 @@ public:
     string FetchOpt(string in_key);
     vector<string> FetchOptVec(string in_key);
 
-    static string ExpandLogPath(string path, string logname, string type, int start, int overwrite = 0);
+    static string ExpandLogPath(string path, string logname, string type, 
+								int start, int overwrite = 0);
     static int ParseFilterLine(string filter_str, macmap<int> *bssid_map,
                                macmap<int> *source_map,
                                macmap<int> *dest_map,
-                               int *bssid_invert, int *source_invert, int *dest_invert);
-    static int ParseAlertLine(string alert_str, string *ret_name, alert_time_unit *ret_limit_unit,
+                               int *bssid_invert, int *source_invert, 
+							   int *dest_invert);
+    static int ParseAlertLine(string alert_str, string *ret_name, 
+							  alert_time_unit *ret_limit_unit,
                               int *ret_limit_rate, int *ret_limit_burst);
 
 protected:
