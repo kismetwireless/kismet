@@ -264,10 +264,12 @@ void CatchShutdown(int sig) {
             close(packet_sources[x]->textpair[0]);
         }
 
+        /*
         if (packet_sources[x]->source != NULL) {
             packet_sources[x]->source->CloseSource();
             delete packet_sources[x]->source;
-        }
+            }
+            */
     }
 
     string termstr = "Kismet server terminating.";
@@ -1389,14 +1391,6 @@ int main(int argc,char *argv[]) {
                     ((source_from_cmd == 0) || (enable_from_cmd == 1)),
                     &timetracker, gps);
 
-    for (unsigned int x = 0; x < packet_sources.size(); x++) {
-        if (packet_sources[x]->source == NULL)
-            continue;
-
-        if (SpawnCapSourceChild(packet_sources[x]) < 0)
-            exit(1);
-    }
-
     // Once the packet source is opened, we shouldn't need special privileges anymore
     // so lets drop to a normal user.  We also don't want to open our logfiles as root
     // if we can avoid it.  Once we've dropped, we'll investigate our sources again and
@@ -1415,14 +1409,6 @@ int main(int argc,char *argv[]) {
     BindUserSources(&packet_sources, &enable_name_map,
                     ((source_from_cmd == 0) || (enable_from_cmd == 1)),
                     &timetracker, gps);
-
-    for (unsigned int x = 0; x < packet_sources.size(); x++) {
-        if (packet_sources[x]->source == NULL)
-            continue;
-
-        if (SpawnCapSourceChild(packet_sources[x]) < 0)
-            exit(1);
-    }
 
     // Set the initial channel
     for (unsigned int x = 0; x < packet_sources.size(); x++) {
@@ -2428,6 +2414,7 @@ int main(int argc,char *argv[]) {
              VERSION_MAJOR, VERSION_MINOR, VERSION_TINY, servername);
     fprintf(stderr, "%s\n", status);
 
+    /*
     for (unsigned int x = 0; x < packet_sources.size(); x++) {
         if (packet_sources[x]->source == NULL)
             continue;
@@ -2436,6 +2423,7 @@ int main(int argc,char *argv[]) {
                  x, packet_sources[x]->name.c_str(), packet_sources[x]->source->FetchType());
         fprintf(stderr, "%s\n", status);
     }
+    */
 
     if (data_log || net_log || crypt_log) {
         snprintf(status, STATUS_MAX, "Logging%s%s%s%s%s%s%s",
