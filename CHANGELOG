@@ -1,5 +1,7 @@
 Mar 25 2003  2.9.1  More streamlining of internal GPS process, proper 
                      preservation of packet timestamp.
+                    Expanded max packet size and added protection for
+                     ssid terminator for turbocel packets.
 Mar 23 2003  2.9.1  Revamped internal GPS handling, minor other tweaks.
                     Added GPS transmission to drone source
 Mar 22 2003  2.9.1  Merged documention from Josh Wright for IDS stuff.
