@@ -1,4 +1,5 @@
 Jun 07 2003  2.9.1  Tweaked kismet_monitor to force snmp version 1 for wsp100
+                    Fixed initial channel argument (Million)
 Jun 06 2003  2.9.1  Implemented wireless-extention IOCTL fetching of current
                      channel for the appropriate capture types.
                     Caught capture sources that don't return valid fd's to the
