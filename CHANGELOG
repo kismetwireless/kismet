@@ -3,6 +3,7 @@ Mar 21 2003  2.9.1  Added CHANCHANGE alert for BSSID's that get a beacon
                     Revamped core tracker status and alert output
                     Added BCASTDISCON alert for broadcast deauth/disassoc
                      attacks.
+                    Fixed stupid typo screwing up the curses client
 Mar 20 2003  2.9.1  Various code cleanups and reorganizations
                     Removed alert filter string, too unwieldy from the code
                      and redundant
