@@ -1,3 +1,4 @@
+Aug 02 2002  2.5.1  Fixed sound playing completely (I hope)
 Aug 01 2002  2.5.1  Added stderr and stdout suppression to the sound playing
                      binary forks
                     Added kill signal to sound and speech pids to stop them
