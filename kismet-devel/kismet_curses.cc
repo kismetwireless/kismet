@@ -216,7 +216,7 @@ void SpeechHandler(int *fds, const char *player) {
         FD_ZERO(&rset);
         FD_SET(read_sock, &rset);
         FD_ZERO(&eset);
-        char *end;
+        //char *end;
 
         memset(data, 0, 1024);
 
@@ -250,10 +250,13 @@ void SpeechHandler(int *fds, const char *player) {
             if (ret < 0)
                 exit(1);
 
-            if ((end = strstr(data, "\n")) == NULL)
+            /* For some reason we're not getting a newline
+             if ((end = strstr(data, "\n")) == NULL)
                 continue;
 
-            end[0] = '\0';
+                end[0] = '\0';
+                */
+
         }
 
         if (data[0] == '\0')
@@ -742,24 +745,24 @@ int main(int argc, char *argv[]) {
     
     
                 if (kismet_serv.FetchNumNetworks() != num_networks) {
-                    if (sound == 1)
+                    if (sound == 1) {
                         sound = PlaySound("new");
+                    }
+
+                    if (speech == 1) {
+                        char text[100];
+    
+                        wireless_network *newnet = kismet_serv.FetchNthRecent(1)[0];
+
+                        snprintf(text, 100, "New %s network '%s' detected.",
+                                 (newnet->wep ? "En-crypted" : "Un-en-crypted"),
+                                 newnet->ssid.c_str());
+
+                        speech = SayText(text);
+                    }
                 }
                 num_networks = kismet_serv.FetchNumNetworks();
 
-                if (kismet_serv.FetchNumNetworks() != num_networks && speech == 1) {
-                    char text[100];
-    
-                    wireless_network *newnet = kismet_serv.FetchNthRecent(1)[0];
-    
-                    snprintf(text, 100, "New %s network '%s' detected.",
-                             (newnet->wep ? "En-crypted" : "Un-en-crypted"),
-                             newnet->ssid.c_str());
-    
-                    speech = SayText(text);
-                }
-
-    
                 if (kismet_serv.FetchNumPackets() != num_packets ) {
                     if (time(0) - last_click >= decay && sound == 1) {
 
