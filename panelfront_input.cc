@@ -576,6 +576,8 @@ int PanelFront::MainClientInput(void *in_window, int in_chr) {
     switch (in_chr) {
     case 'Q':
     case 'q':
+    case 'x':
+    case 'X':
         return 0;
         break;
     case KEY_UP:
@@ -856,6 +858,8 @@ int PanelFront::ServersInput(void *in_window, int in_chr) {
         break;
     case 'q':
     case 'Q':
+    case 'x':
+    case 'X':
         return 0;
         break;
     }
