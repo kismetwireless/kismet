@@ -849,7 +849,7 @@ int main(int argc,char *argv[]) {
     char gpshost[1024];
     int gpsport = -1;
 
-    const char *allowed_hosts = NULL;
+    string allowed_hosts;
     int tcpport = -1;
     int tcpmax;
 
@@ -882,6 +882,8 @@ int main(int argc,char *argv[]) {
     vector<string> source_input_vec;
     int source_from_cmd = 0;
     int enable_from_cmd = 0;
+
+    vector<client_ipblock *> legal_ipblock_vec;
 
     static struct option long_options[] = {   /* options table */
         { "log-title", required_argument, 0, 't' },
@@ -1626,22 +1628,85 @@ int main(int argc,char *argv[]) {
         exit(1);
     }
 
-    if (allowed_hosts == NULL) {
+    if (allowed_hosts.length() == 0) {
         if (conf->FetchOpt("allowedhosts") == "") {
             fprintf(stderr, "FATAL:  No list of allowed hosts.\n");
             exit(1);
         }
 
-        allowed_hosts = strdup(conf->FetchOpt("allowedhosts").c_str());
+        allowed_hosts = conf->FetchOpt("allowedhosts");
     }
 
-    // Make sure allowed hosts is valid
-    for (unsigned int x = 0; x < strlen(allowed_hosts); x++) {
-        if (!isdigit(allowed_hosts[x]) && allowed_hosts[x] != '.' &&
-            allowed_hosts[x] != ',') {
-            fprintf(stderr, "FATAL:  Allowed hosts list should be a list of comma separated IPs.\n");
-            exit(1);
+    // Parse the allowed hosts into the vector
+    unsigned int ahstart = 0;
+    unsigned int ahend = allowed_hosts.find(",");
+
+    int ahdone = 0;
+    while (ahdone == 0) {
+        string hoststr;
+
+        if (ahend == string::npos) {
+            ahend = allowed_hosts.length();
+            ahdone = 1;
         }
+
+        hoststr = allowed_hosts.substr(ahstart, ahend - ahstart);
+        ahstart = ahend + 1;
+        ahend = allowed_hosts.find(",", ahstart);
+
+        client_ipblock *ipb = new client_ipblock;
+
+        // Find the netmask divider, if one exists
+        unsigned int masksplit = hoststr.find("/");
+        if (masksplit == string::npos) {
+            // Handle hosts with no netmask - they're treated as single hosts
+            inet_aton("255.255.255.255", &(ipb->mask));
+
+            if (inet_aton(hoststr.c_str(), &(ipb->network)) == 0) {
+                fprintf(stderr, "FATAL:  Illegal IP address '%s' in allowed hosts list.\n",
+                        hoststr.c_str());
+                exit(1);
+            }
+        } else {
+            // Handle pairs
+            string hosthalf = hoststr.substr(0, masksplit);
+            string maskhalf = hoststr.substr(masksplit + 1, hoststr.length() - (masksplit + 1));
+
+            if (inet_aton(hosthalf.c_str(), &(ipb->network)) == 0) {
+                fprintf(stderr, "FATAL:  Illegal IP address '%s' in allowed hosts list.\n",
+                        hosthalf.c_str());
+                exit(1);
+            }
+
+            int validmask = 1;
+            if (maskhalf.find(".") == string::npos) {
+                // If we have a single number (ie, /24) calculate it and put it into
+                // the mask.
+                long masklong = strtol(maskhalf.c_str(), (char **) NULL, 10);
+
+                if (masklong < 0 || masklong > 32) {
+                    validmask = 0;
+                } else {
+                    if (masklong == 0)
+                        masklong = 32;
+
+                    ipb->mask.s_addr = htonl((-1 << (32 - masklong)));
+                }
+            } else {
+                // We have a dotted quad mask (ie, 255.255.255.0), convert it
+                if (inet_aton(maskhalf.c_str(), &(ipb->mask)) == 0)
+                    validmask = 0;
+            }
+
+            if (validmask == 0) {
+                fprintf(stderr, "FATAL:  Illegal netmask '%s' in allowed hosts list.\n",
+                        maskhalf.c_str());
+                exit(1);
+            }
+        }
+
+        // Add it to our vector
+        legal_ipblock_vec.push_back(ipb);
     }
 
     // Process sound stuff
@@ -2173,10 +2238,18 @@ int main(int argc,char *argv[]) {
         fprintf(stderr, "%s\n", status);
     }
 
-    fprintf(stderr, "Listening on port %d, allowing %s to connect.\n",
-            tcpport, allowed_hosts);
+    fprintf(stderr, "Listening on port %d.\n", tcpport);
+    for (unsigned int ipvi = 0; ipvi < legal_ipblock_vec.size(); ipvi++) {
+        char *netaddr = strdup(inet_ntoa(legal_ipblock_vec[ipvi]->network));
+        char *maskaddr = strdup(inet_ntoa(legal_ipblock_vec[ipvi]->mask));
 
-    if (ui_server.Setup(tcpmax, tcpport, allowed_hosts) < 0) {
+        fprintf(stderr, "Allowing connections from %s/%s\n", netaddr, maskaddr);
+
+        free(netaddr);
+        free(maskaddr);
+    }
+
+    if (ui_server.Setup(tcpmax, tcpport, &legal_ipblock_vec) < 0) {
         fprintf(stderr, "Failed to set up UI server: %s\n", ui_server.FetchError());
         CatchShutdown(-1);
     }

@@ -76,6 +76,14 @@ struct client_opt {
     string wrbuf, cmdbuf;
 };
 
+// Allowed IP information
+struct client_ipblock {
+    // Allowed network
+    in_addr network;
+    // Allowed mask
+    in_addr mask;
+};
+
 // TCP/IP server to push data to the frontend.
 class TcpServer {
 public:
@@ -84,7 +92,7 @@ public:
 
     int Valid() { return sv_valid; };
 
-    int Setup(unsigned int in_max_clients, short int in_port, const char *in_allowed);
+    int Setup(unsigned int in_max_clients, short int in_port, vector<client_ipblock *> *in_ipb);
 
     unsigned int MergeSet(fd_set in_set, unsigned int in_max, fd_set *out_set,
 	    fd_set *outw_set);
@@ -155,7 +163,7 @@ protected:
     short int port;
     char hostname[MAXHOSTNAMELEN];
 
-    const char *allowed;
+    vector<client_ipblock *> *ipblock_vec;
 
     // Socket items
     unsigned int serv_fd;

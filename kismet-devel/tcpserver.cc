@@ -48,10 +48,10 @@ void TcpServer::Shutdown() {
 }
 
 // Bind to a port and optional hostname/interface
-int TcpServer::Setup(unsigned int in_max_clients, short int in_port, const char *in_allowed)
+int TcpServer::Setup(unsigned int in_max_clients, short int in_port, vector<client_ipblock *> *in_ipb)
 {
     max_clients = in_max_clients;
-    allowed = in_allowed;
+    ipblock_vec = in_ipb;
 
     // If we don't have a host to bind to, try to find one
     // Die violently -- If we can't bind a socket, we're useless
@@ -175,9 +175,27 @@ int TcpServer::Accept() {
 
     snprintf(inhost, 16, "%s", inet_ntoa(client_addr.sin_addr));
 
+    /*
     if (!strstr(allowed, inhost)) {
         snprintf(errstr, 1024, "TcpServer accept() connect from untrusted host %s",
                  inhost);
+        close(new_fd);
+        return -1;
+    } else {
+        snprintf(errstr, 1024, "%s", inhost);
+        }
+        */
+
+    int legal_ip = 0;
+    for (unsigned int ibvi = 0; ibvi < ipblock_vec->size(); ibvi++) {
+        if ((client_addr.sin_addr.s_addr & (*ipblock_vec)[ibvi]->mask.s_addr) == (*ipblock_vec)[ibvi]->network.s_addr) {
+            legal_ip = 1;
+            break;
+        }
+    }
+
+    if (legal_ip == 0) {
+        snprintf(errstr, 1024, "TcpServer accept() connect from untrusted host %s", inhost);
         close(new_fd);
         return -1;
     } else {
