@@ -3,6 +3,7 @@ Aug 09 2004  devel  Split ringbuffer and iwconfig stuff into their own files,
                     Fixed 64 bit bugs re-introduced with new util.cc
                     Tweaked string tokenizer for new TCP parsers
                     Applied spelling patches from ESR
+                    Added smart tokenizer
 Aug 06 2004  devel  Fixed gpsmap network count to work with scatter-only plots
 Jul 27 2004  devel  Fixed Imagemagick 6.x (again)
                     Merged gpsmap packet-count filtering patch from 

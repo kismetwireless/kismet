@@ -163,6 +163,35 @@ vector<string> StrTokenize(string in_str, string in_split, int return_partial) {
     return ret;
 }
 
+vector<smart_word_token> SmartStrTokenize(string in_str, string in_split, int return_partial) {
+    size_t begin = 0;
+    size_t end = in_str.find(in_split);
+    vector<smart_word_token> ret;
+    smart_word_token stok;
+
+    if (in_str.length() == 0)
+        return ret;
+    
+    while (end != string::npos) {
+        stok.word = in_str.substr(begin, end-begin);
+        stok.begin = begin;
+        stok.end = end;
+
+        begin = end+1;
+        end = in_str.find(in_split, begin);
+        ret.push_back(stok);
+    }
+
+    if (return_partial && begin != in_str.size()) {
+        stok.word = in_str.substr(begin, in_str.size() - begin);
+        stok.begin = begin;
+        stok.end = in_str.size();
+        ret.push_back(stok);
+    }
+
+    return ret;
+}
+
 vector<string> LineWrap(string in_txt, unsigned int in_hdr_len, unsigned int in_maxlen) {
 	vector<string> ret;
 

@@ -52,6 +52,22 @@ int XtoI(char x);
 int Hex2UChar(unsigned char *in_hex, unsigned char *in_chr);
 
 vector<string> StrTokenize(string in_str, string in_split, int return_partial = 1);
+
+// 'smart' tokenizeing with start/end positions
+typedef struct smart_word_token {
+    string word;
+    size_t begin;
+    size_t end;
+
+    smart_word_token& operator= (const smart_word_token& op) {
+        word = op.word;
+        begin = op.begin;
+        end = op.end;
+        return *this;
+    }
+};
+vector<smart_word_token> SmartStrTokenize(string in_str, string in_split, int return_partial = 1);
+
 vector<string> LineWrap(string in_txt, unsigned int in_hdr_len, unsigned int in_maxlen);
 vector<int> Str2IntVec(string in_text);
 
