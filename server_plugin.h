@@ -21,6 +21,9 @@
 
 #include "config.h"
 
+// Timer slices per second
+#define SERVER_TIMESLICES_SEC 10
+
 typedef struct server_timer_event {
     int timer_id;
 
