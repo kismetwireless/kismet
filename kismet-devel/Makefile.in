@@ -214,15 +214,14 @@ ipkg: $(PS) $(NC) $(HOPPER)
 		cp conf/zaurus_kismet.conf packaging/ipkg/$(ETC)/kismet.conf; \
 		cp conf/zaurus_kismet_ui.conf packaging/ipkg/$(ETC)/kismet_ui.conf; \
 	fi
-	cp scripts/kismet_monitor packaging/ipkg/$(BIN)/ 
-	cp scripts/kismet_unmonitor packaging/ipkg/$(BIN)/
+	@cp scripts/kismet_monitor packaging/ipkg/$(BIN)/ 
+	@cp scripts/kismet_unmonitor packaging/ipkg/$(BIN)/
 	@chmod a+x packaging/ipkg/$(BIN)/*
 	@chown root.root packaging/ipkg -R
-	#	@ipkg-build packaging/ipkg/
 	@echo "Making ipkg..."
 	@mkdir -p packaging/pak
 	@( cd packaging/ipkg/CONTROL; tar zcf ../../pak/control.tar.gz . --exclude=CVS; )
-	@( cd packaging/ipkg/; tar zcf ../../pak/data.tar.gz . --exclude=CVS --exclude=CONTROL; )
+	@( cd packaging/ipkg/; tar zcf ../pak/data.tar.gz . --exclude=CVS --exclude=CONTROL; )
 	@( cd packaging/pak; tar zcf ../../kismet_arm.ipk . ; )
 
 dep:
