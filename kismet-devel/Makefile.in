@@ -161,6 +161,7 @@ commoninstall:
 	@if test "$(GPSLBUILD)" = "$(GPSL)"; then \
 		install -o $(INSTUSR) -g $(INSTGRP) -s -m 755 $(GPSL) $(BIN)/$(GPSL); \
 		echo install -o $(INSTUSR) -g $(INSTGRP) -s -m 755 $(GPSL) $(BIN)/$(GPSL); \
+		echo install -o $(INSTUSR) -g $(INSTGRP) -s -m 755 scripts/gpsmap-helper-earthamaps $(BIN)/gpsmap-helper-earthamaps; \
 		install -o $(INSTUSR) -g $(MANGRP) -m 644 man/gpsmap.1 $(MAN)/man1/gpsmap.1; \
 	fi
 

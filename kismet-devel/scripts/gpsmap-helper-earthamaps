@@ -1,0 +1,97 @@
+#!/usr/bin/perl -w
+
+=begin comment info
+ +-----------------------------------------------------------------------------+
+ | Copyright 2004, Ryan W. Maple
+ | $Id: gpsmap-helper-earthamaps,v 1.1 2004/03/19 20:36:00 dragorn Exp $
+ |
+ | This script is free software; you can redistribute it and/or modify it under
+ | the terms of the GNU General Public License as published by the Free Software
+ | Foundation; either version 2 of the License, or (at your option) any later
+ | version.
+ |
+ | Ryan W. Maple <ryan@guardiandigital.com>
+ |
+ | By using this script you agree to the terms and conditions of Earthamaps.com
+ |
+ +-----------------------------------------------------------------------------+
+=end comment info
+=cut
+
+  # use perl;
+  use HTTP::Cookies;
+  use LWP;
+  use strict;
+
+  #
+  # Local prototypes.
+  #
+  sub USAGE();
+  sub init_cookie_jar($);
+
+  #
+  # Constants
+  #
+  use constant DEBUG		=> 0;
+  use constant EARTHAMAP_FORMAT	=> 'http://esmap1.earthamaps.com:80/map-engine/NetMap.dll?MFCISAPICommand=GeoDraw&maglevel=%d&latitude=%f&longitude=%f&session=%s&width=%d&height=%d&dataID=(null)';
+
+  #
+  # Read our arguments.
+  #
+  my $mapname	= shift || USAGE();
+  my $lat	= shift || USAGE();
+  my $long	= shift || USAGE();
+  my $width	= shift || 1280;
+  my $height	= shift || 1024;
+  my $mag	= shift || 12;
+
+  #
+  # Instantiate our browser (LWP::UserAgent object), and initialize
+  # our cookie jar.
+  #
+  my $browser	= new LWP::UserAgent;
+  init_cookie_jar($browser);
+
+  #
+  # Do our initial GET for our cookie... yummy.
+  #
+  my $response	= $browser->get('http://www.earthamaps.com/');
+
+  #
+  # Extract the x-meta-mapservername header -- we'll need to pass it as
+  # 'session' in our second GET, and build up our second $url.
+  #
+  my $tmp	= $response->{'_headers'}->{'x-meta-mapservername'};
+  my ($session)	= ($tmp =~ m/session=([^\&]+)\&/);
+  my $url	= sprintf(EARTHAMAP_FORMAT, $mag, $lat, $long, $session, $width,
+			  $height);
+
+  #
+  # Get the map and store in $mapname.
+  #
+  print "Fetching URL: $url\n" if (DEBUG);
+  $response	= $browser->get($url);
+  open OUT, ">$mapname"; print OUT $response->{'_content'}; close OUT;
+
+  #
+  # Exit quietly.
+  #
+  print "Wrote: $mapname\n" if (DEBUG);
+  exit 0;
+
+################################################################################
+sub USAGE() {
+  print "Usage: $0 <output> <lat> <long> [<width> <height> <mag>]\n";
+  exit 0;
+}
+
+################################################################################
+sub init_cookie_jar($) {
+  my $ref	= shift;
+  my $cj	= HTTP::Cookies->new(
+	'file'		=> './lwp_cookies.dat',
+	'autosave'	=> 1,
+  );
+
+  return $ref->cookie_jar($cj);
+}
