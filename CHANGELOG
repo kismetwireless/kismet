@@ -1,6 +1,9 @@
 Nov 11 2002  2.7.1  Updated kismet_unmonitor to work with new source format
                     Fixed kismet_curses not terminating sound/speech forks when
                      the initial client connection failed.
+                    Updated kismet_hopper to work with new source format
+                    Added ability to spread across the channel spectrum when
+                     hopping on multiple cards (-d to kismet_hopper)
 Nov 10 2002  2.7.1  Initial support for multiple capture sources on one server.
                      MAJOR CHANGES TO THE CONFIG FILE - READ THE NEW DEFAULT
                      CONFIGS OR THINGS WILL NOT WORK.

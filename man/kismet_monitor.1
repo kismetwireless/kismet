@@ -8,8 +8,7 @@
 .Ar kismet_monitor
 .Op Fl Hh
 .Op Fl f Ar file
-.Op Fl i Ar dev
-.Op Fl t Ar type
+.Op Fl c Ar capture-source
 .Op Fl c Ar channel
 .Op Fl O Ar hopper-options
 .Sh DESCRIPTION
@@ -22,10 +21,8 @@ kismet_hopper to rotate through channels rapidly.
 .Bl -tag -width flag
 .It Fl f
 Use an alternate config file
-.It Fl i
-Use an alternate interface
-.It Fl t
-Use an alternate card type
+.It Fl c
+Override capture source lines (engine,interface,type,name).  Refer to kismet.conf(5) for more information.
 .It Fl c
 Active monitoring mode on a specific channel (default 6)
 .It Fl H
