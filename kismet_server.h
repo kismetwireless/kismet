@@ -31,8 +31,11 @@ string ExpandLogPath(string path, string logname, string type);
 void CatchShutdown(int sig);
 int Usage(char *argv);
 void NetWriteInfo();
-void PlaySound(string player, string sound, map<string, string> soundmap);
-void SayText(string player, string text);
+
+void SoundHandler(int read_sock, const char *player, map<string, string> soundmap);
+int PlaySound(string in_sound);
+int SayText(string in_text);
+
 void NetWriteStatus(char *in_status);
 
 #endif
