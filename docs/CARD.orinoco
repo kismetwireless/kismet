@@ -1,7 +1,7 @@
 Orinoco Cards
 
 Orinoco cards do not support monitoring mode with any standard linux
-drivers, however with the patches from Snax at http://airsnort.shmoo.org
+drivers, however with the patches from Snax at http://airsnort.shmoo.com
 they perform admirably.
 
 Orinoco cards will only monitor a single channel at a time, use of 
