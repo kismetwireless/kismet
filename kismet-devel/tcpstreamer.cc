@@ -217,9 +217,9 @@ int TcpStreamer::WriteVersion(int in_fd) {
     stream_version_packet vpkt;
 
     hdr.frame_type = STREAM_FTYPE_VERSION;
-    hdr.frame_len = sizeof(struct stream_version_packet);
+    hdr.frame_len = (uint32_t) htonl(sizeof(struct stream_version_packet));
 
-    vpkt.drone_version = STREAM_DRONE_VERSION;
+    vpkt.drone_version = (uint16_t) htons(STREAM_DRONE_VERSION);
 
     if (!FD_ISSET(in_fd, &client_fds))
         return 0;
@@ -254,17 +254,20 @@ int TcpStreamer::WritePacket(const kis_packet *in_packet, float in_lat, float in
     // Our one and only current frame type
     hdr.frame_type = STREAM_FTYPE_PACKET;
 
-    packhdr.len = in_packet->len;
-    packhdr.caplen = in_packet->caplen;
-    packhdr.tv_sec = in_packet->ts.tv_sec;
-    packhdr.tv_usec = in_packet->ts.tv_usec;
-    packhdr.quality = in_packet->quality;
-    packhdr.signal = in_packet->signal;
-    packhdr.noise = in_packet->noise;
+    packhdr.len = (uint32_t) htonl(in_packet->len);
+    packhdr.caplen = (uint32_t) htonl(in_packet->caplen);
+    packhdr.tv_sec = (uint64_t) hton64(in_packet->ts.tv_sec);
+    packhdr.tv_usec = (uint64_t) hton64(in_packet->ts.tv_usec);
+    packhdr.quality = (uint16_t) htons(in_packet->quality);
+    packhdr.signal = (uint16_t) htons(in_packet->signal);
+    packhdr.noise = (uint16_t) htons(in_packet->noise);
+    packhdr.error = in_packet->error;
     packhdr.channel = in_packet->channel;
     packhdr.carrier = in_packet->carrier;
+    packhdr.encoding = in_packet->encoding;
+    packhdr.datarate = (uint32_t) htonl(in_packet->datarate);
 
-    hdr.frame_len = sizeof(struct stream_packet_header) + packhdr.caplen;
+    hdr.frame_len = (uint32_t) htonl(sizeof(struct stream_packet_header) + packhdr.caplen);
 
     int nsent = 0;
     for (unsigned int x = serv_fd; x <= max_fd; x++) {
@@ -285,7 +288,7 @@ int TcpStreamer::WritePacket(const kis_packet *in_packet, float in_lat, float in
             }
         }
 
-        if (write(x, in_packet->data, packhdr.caplen) <= 0) {
+        if (write(x, in_packet->data, in_packet->caplen) <= 0) {
             if (errno != EAGAIN && errno != EINTR) {
                 Kill(x);
                 return 0;

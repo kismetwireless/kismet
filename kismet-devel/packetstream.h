@@ -28,7 +28,7 @@
 #include <inttypes.h>
 #endif
 
-#define STREAM_DRONE_VERSION 2
+#define STREAM_DRONE_VERSION 3
 
 #define STREAM_FTYPE_VERSION 1
 #define STREAM_FTYPE_PACKET  2
@@ -53,6 +53,8 @@ typedef struct stream_packet_header {
     uint8_t error __attribute__ ((packed));
     uint8_t channel __attribute__ ((packed));
     uint8_t carrier __attribute__ ((packed));
+    uint8_t encoding __attribute__ ((packed));
+    uint32_t datarate __attribute__ ((packed));
 };
 
 #endif

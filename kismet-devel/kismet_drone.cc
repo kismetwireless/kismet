@@ -659,7 +659,16 @@ int main(int argc, char *argv[]) {
                     // Should always be null, but just in case...
                     if (packet.moddata != NULL)
                         delete[] packet.data;
+                } else if (len < 0) {
+                    // Fail on error
+                    if (!silent) {
+                        fprintf(stderr, "Source %d: %s\n", src, psrc->FetchError());
+                        fprintf(stderr, "Terminating.\n");
+                    }
+
+                    CatchShutdown(-1);
                 }
+
             }
         }
 
