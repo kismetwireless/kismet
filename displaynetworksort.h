@@ -31,7 +31,7 @@ public:
         if (y->type == group_empty)
             return 1;
 
-        if (x->virtnet.last_time > y->virtnet.last_time)
+        if (x->virtnet->last_time > y->virtnet->last_time)
             return 1;
         return 0;
     }
@@ -45,7 +45,7 @@ public:
         if (y->type == group_empty)
             return 1;
 
-        if (x->virtnet.last_time < y->virtnet.last_time)
+        if (x->virtnet->last_time < y->virtnet->last_time)
             return 1;
         return 0;
     }
@@ -60,7 +60,7 @@ public:
         if (y->type == group_empty)
             return 1;
 
-        if (x->virtnet.first_time > y->virtnet.first_time)
+        if (x->virtnet->first_time > y->virtnet->first_time)
             return 1;
         return 0;
     }
@@ -74,7 +74,7 @@ public:
         if (y->type == group_empty)
             return 1;
 
-        if (x->virtnet.first_time < y->virtnet.first_time)
+        if (x->virtnet->first_time < y->virtnet->first_time)
             return 1;
         return 0;
     }
@@ -88,7 +88,7 @@ public:
         if (y->type == group_empty)
             return 1;
 
-        if (y->virtnet.bssid < x->virtnet.bssid)
+        if (y->virtnet->bssid < x->virtnet->bssid)
             return 1;
         return 0;
     }
@@ -102,7 +102,7 @@ public:
         if (y->type == group_empty)
             return 1;
 
-        if (x->virtnet.bssid < y->virtnet.bssid)
+        if (x->virtnet->bssid < y->virtnet->bssid)
             return 1;
         return 0;
     }
@@ -117,7 +117,7 @@ public:
         if (y->type == group_empty)
             return 1;
 
-        if (x->virtnet.ssid > y->virtnet.ssid)
+        if (x->virtnet->ssid > y->virtnet->ssid)
             return 1;
         return 0;
     }
@@ -131,7 +131,7 @@ public:
         if (y->type == group_empty)
             return 1;
 
-        if (x->virtnet.ssid < y->virtnet.ssid)
+        if (x->virtnet->ssid < y->virtnet->ssid)
             return 1;
         return 0;
     }
@@ -145,7 +145,7 @@ public:
         if (y->type == group_empty)
             return 1;
 
-        if (x->virtnet.wep > y->virtnet.wep)
+        if (x->virtnet->wep > y->virtnet->wep)
             return 1;
         return 0;
     }
@@ -159,7 +159,7 @@ public:
         if (y->type == group_empty)
             return 1;
 
-        if (x->virtnet.channel < y->virtnet.channel)
+        if (x->virtnet->channel < y->virtnet->channel)
             return 1;
         return 0;
     }
@@ -173,8 +173,8 @@ public:
         if (y->type == group_empty)
             return 1;
 
-        if ((x->virtnet.llc_packets + x->virtnet.data_packets) <
-            (y->virtnet.llc_packets + y->virtnet.data_packets))
+        if ((x->virtnet->llc_packets + x->virtnet->data_packets) <
+            (y->virtnet->llc_packets + y->virtnet->data_packets))
             return 1;
         return 0;
     }
@@ -188,8 +188,8 @@ public:
         if (y->type == group_empty)
             return 1;
 
-        if ((x->virtnet.llc_packets + x->virtnet.data_packets) >
-            (y->virtnet.llc_packets + y->virtnet.data_packets))
+        if ((x->virtnet->llc_packets + x->virtnet->data_packets) >
+            (y->virtnet->llc_packets + y->virtnet->data_packets))
             return 1;
         return 0;
     }
@@ -203,7 +203,7 @@ public:
         if (y->type == group_empty)
             return 1;
 
-        if (x->virtnet.quality > y->virtnet.quality)
+        if (x->virtnet->quality > y->virtnet->quality)
             return 1;
         return 0;
     }
@@ -217,7 +217,7 @@ public:
         if (y->type == group_empty)
             return 1;
 
-        if (x->virtnet.signal > y->virtnet.signal)
+        if (x->virtnet->signal > y->virtnet->signal)
             return 1;
         return 0;
     }

@@ -26,6 +26,10 @@
 
 #include "packet.h"
 
+#ifndef display_network
+typedef struct display_network;
+#endif
+
 const string NOSSID("<no ssid>");
 
 enum wireless_network_type {
@@ -222,6 +226,7 @@ typedef struct wireless_network {
 #ifdef __TCPCLIENT_H__
         tcpclient = NULL;
         idle_time = 0;
+        dispnet = NULL;
 #endif
 
         uidata = NULL;
@@ -271,14 +276,6 @@ typedef struct wireless_network {
 
     map<string, cdp_packet> cisco_equip;
 
-    /*
-    float gps_lat, gps_lon, gps_alt, gps_spd;
-    int gps_mode;
-
-    float first_lat, first_lon, first_alt, first_spd;
-    int first_mode;
-    */
-
     int gps_fixed;
     float min_lat, min_lon, min_alt, min_spd;
     float max_lat, max_lon, max_alt, max_spd;
@@ -315,6 +312,8 @@ typedef struct wireless_network {
     TcpClient *tcpclient;
     // And include some records for tracking the time in the virtual group networks
     time_t idle_time;
+    // Display network pointer
+    display_network *dispnet;
 #endif
 
     // Generic pointer for frontends to use to track things

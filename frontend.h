@@ -65,7 +65,7 @@ typedef struct display_network {
     // Are we expanded?
     int expanded;
     // our virtual wireless network built out of all our members
-    wireless_network virtnet;
+    wireless_network *virtnet;
     // name
     string name;
     // Identifying tag (bssid of the origional network most likely)

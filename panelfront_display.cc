@@ -504,7 +504,7 @@ int PanelFront::MainNetworkPrinter(void *in_window) {
 
     for (unsigned int i = kwin->start; i < display_vector.size(); i++) {
         last_displayed.push_back(display_vector[i]);
-        wireless_network *net = &display_vector[i]->virtnet;
+        wireless_network *net = display_vector[i]->virtnet;
 
         if (net->manuf_score == manuf_max_score && color)
             wattrset(kwin->win, color_map["factory"].pair);
@@ -531,7 +531,7 @@ int PanelFront::MainNetworkPrinter(void *in_window) {
         // Build the netline for the group or single host and tag it for expansion if
         // appropriate for this sort and group
         NetLine(&netline, net,
-                display_vector[i]->name == "" ? display_vector[i]->virtnet.ssid.c_str() : display_vector[i]->name.c_str(),
+                display_vector[i]->name == "" ? display_vector[i]->virtnet->ssid.c_str() : display_vector[i]->name.c_str(),
                 0,
                 display_vector[i]->type == group_host ? 0 : 1,
                 sortby == sort_auto ? 0 : display_vector[i]->expanded,
@@ -983,7 +983,7 @@ int PanelFront::MainClientPrinter(void *in_window) {
     char sortxt[24];
     sortxt[0] = '\0';
 
-    vector<wireless_client *> display_vector = details_network->virtnet.client_vec;
+    vector<wireless_client *> display_vector = details_network->virtnet->client_vec;
     int drop;
 
     switch (client_sortby) {
@@ -1280,7 +1280,7 @@ int PanelFront::DetailsPrinter(void *in_window) {
         print_width = 1023;
 
     if (details_network->name == "")
-        snprintf(output, print_width, "Name    : %s", details_network->virtnet.ssid.c_str());
+        snprintf(output, print_width, "Name    : %s", details_network->virtnet->ssid.c_str());
     else
         snprintf(output, print_width, "Name    : %s", details_network->name.c_str());
     kwin->text.push_back(output);
@@ -1289,20 +1289,20 @@ int PanelFront::DetailsPrinter(void *in_window) {
         snprintf(output, print_width, "Networks: %d", details_network->networks.size());
         kwin->text.push_back(output);
 
-        if (details_network->virtnet.gps_fixed != -1) {
+        if (details_network->virtnet->gps_fixed != -1) {
             snprintf(output, print_width, "Min Loc : Lat %f Lon %f Alt %f Spd %f",
-                     details_network->virtnet.min_lat, details_network->virtnet.min_lon,
-                     details_network->virtnet.min_alt, details_network->virtnet.min_spd);
+                     details_network->virtnet->min_lat, details_network->virtnet->min_lon,
+                     details_network->virtnet->min_alt, details_network->virtnet->min_spd);
             kwin->text.push_back(output);
             snprintf(output, print_width, "Max Loc : Lat %f Lon %f Alt %f Spd %f",
-                     details_network->virtnet.max_lat, details_network->virtnet.max_lon,
-                     details_network->virtnet.max_alt, details_network->virtnet.max_spd);
+                     details_network->virtnet->max_lat, details_network->virtnet->max_lon,
+                     details_network->virtnet->max_alt, details_network->virtnet->max_spd);
             kwin->text.push_back(output);
 
-            double diagdist = EarthDistance(details_network->virtnet.min_lat,
-                                            details_network->virtnet.min_lon,
-                                            details_network->virtnet.max_lat,
-                                            details_network->virtnet.max_lon);
+            double diagdist = EarthDistance(details_network->virtnet->min_lat,
+                                            details_network->virtnet->min_lon,
+                                            details_network->virtnet->max_lat,
+                                            details_network->virtnet->max_lon);
 
             if (finite(diagdist)) {
                 if (metric) {
@@ -1545,7 +1545,7 @@ int PanelFront::GpsPrinter(void *in_window) {
     char output[1024];
     kwin->text.clear();
 
-    wireless_network dnet = details_network->virtnet;
+    wireless_network *dnet = details_network->virtnet;
 
     int print_width = kwin->print_width;
     if (print_width > 1024)
@@ -1556,7 +1556,7 @@ int PanelFront::GpsPrinter(void *in_window) {
         return TextPrinter(in_window);
     }
 
-    if (dnet.aggregate_points == 0) {
+    if (dnet->aggregate_points == 0) {
         kwin->text.push_back("No GPS data.");
         return TextPrinter(in_window);
     }
@@ -1565,11 +1565,11 @@ int PanelFront::GpsPrinter(void *in_window) {
 
     // We hijack the "selected" field as a toggle
     if (kwin->selected == 1) {
-        center_lat = dnet.best_lat;
-        center_lon = dnet.best_lon;
+        center_lat = dnet->best_lat;
+        center_lon = dnet->best_lon;
     } else {
-        center_lat = dnet.aggregate_lat / dnet.aggregate_points;
-        center_lon = dnet.aggregate_lon / dnet.aggregate_points;
+        center_lat = dnet->aggregate_lat / dnet->aggregate_points;
+        center_lon = dnet->aggregate_lon / dnet->aggregate_points;
     }
 
     // Try to calculate the bearing and distance to the estimated center
@@ -2164,7 +2164,7 @@ int PanelFront::GroupNamePrinter(void *in_window) {
     wattroff(kwin->win, WA_REVERSE);
 
     if (details_network->name == "")
-        snprintf(gname, print_width - 9, "%s", details_network->virtnet.ssid.c_str());
+        snprintf(gname, print_width - 9, "%s", details_network->virtnet->ssid.c_str());
     else
         snprintf(gname, print_width - 9, "%s", details_network->name.c_str());
     mvwaddstr(kwin->win, 3, 2, "Default: ");
