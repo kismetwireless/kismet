@@ -122,9 +122,9 @@ int Packetracker::EnableAlert(string in_alname, alert_time_unit in_unit,
     return ret;
 }
 
-void Packetracker::AddExportFilters(map<mac_addr, int> *bssid_map,
-                                    map<mac_addr, int> *source_map,
-                                    map<mac_addr, int> *dest_map, int *bssid_invert,
+void Packetracker::AddExportFilters(macmap<int> *bssid_map,
+                                    macmap<int> *source_map,
+                                    macmap<int> *dest_map, int *bssid_invert,
                                     int *source_invert, int *dest_invert) {
     filter_export = 1;
     filter_export_bssid = bssid_map;
@@ -311,15 +311,13 @@ void Packetracker::ProcessPacket(packet_info info) {
 
         // Find out what we can from what we know now...
         if (net->type != network_adhoc && net->type != network_probe) {
-            MatchBestManuf(ap_manuf_map, net->bssid, net->ssid, net->channel,
-                           net->wep, net->cloaked,
-                           &net->manuf_key, &net->manuf_score);
+            net->manuf_ref = MatchBestManuf(ap_manuf_map, net->bssid, net->ssid, net->channel,
+                                            net->wep, net->cloaked, &net->manuf_score);
             if (net->manuf_score == manuf_max_score)
-                memcpy(&net->ipdata, &ap_manuf_map[net->manuf_key]->ipdata, sizeof(net_ip_data));
+                memcpy(&net->ipdata, &net->manuf_ref->ipdata, sizeof(net_ip_data));
         } else {
-            MatchBestManuf(client_manuf_map, net->bssid, net->ssid, net->channel,
-                           net->wep, net->cloaked,
-                           &net->manuf_key, &net->manuf_score);
+            net->manuf_ref = MatchBestManuf(client_manuf_map, net->bssid, net->ssid, net->channel,
+                                            net->wep, net->cloaked, &net->manuf_score);
         }
 
         num_networks++;
@@ -487,12 +485,11 @@ void Packetracker::ProcessPacket(packet_info info) {
             // changed state as well
             if (net->channel != info.channel || net->type != network_ap ||
                 (net->ssid != info.ssid && !IsBlank(info.ssid))) {
-                MatchBestManuf(ap_manuf_map, net->bssid, info.ssid, info.channel,
-                               net->wep, net->cloaked,
-                               &net->manuf_key, &net->manuf_score);
+                net->manuf_ref = MatchBestManuf(ap_manuf_map, net->bssid, info.ssid, info.channel,
+                                                net->wep,net->cloaked, &net->manuf_score);
                 // Update our IP range info too if we're a default
                 if (net->manuf_score == manuf_max_score && net->ipdata.atype == address_none)
-                    memcpy(&net->ipdata, &ap_manuf_map[net->manuf_key]->ipdata, sizeof(net_ip_data));
+                    memcpy(&net->ipdata, &net->manuf_ref->ipdata, sizeof(net_ip_data));
             }
 
             if (net->ssid != info.ssid && !IsBlank(info.ssid)) {
@@ -525,12 +522,11 @@ void Packetracker::ProcessPacket(packet_info info) {
                 net->channel = info.channel;
                 net->wep = info.wep;
 
-                MatchBestManuf(ap_manuf_map, net->bssid, net->ssid, net->channel,
-                               net->wep, net->cloaked,
-                               &net->manuf_key, &net->manuf_score);
+                net->manuf_ref = MatchBestManuf(ap_manuf_map, net->bssid, net->ssid, net->channel,
+                                                net->wep, net->cloaked, &net->manuf_score);
                 // Update our IP range info too if we're a default
                 if (net->manuf_score == manuf_max_score && net->ipdata.atype == address_none)
-                    memcpy(&net->ipdata, &ap_manuf_map[net->manuf_key]->ipdata, sizeof(net_ip_data));
+                    memcpy(&net->ipdata, &net->manuf_ref->ipdata, sizeof(net_ip_data));
 
                 bssid_cloak_map[net->bssid] = info.ssid;
 
@@ -542,12 +538,11 @@ void Packetracker::ProcessPacket(packet_info info) {
                 net->ssid = info.ssid;
                 net->wep = info.wep;
 
-                MatchBestManuf(ap_manuf_map, net->bssid, net->ssid, net->channel,
-                               net->wep, net->cloaked,
-                               &net->manuf_key, &net->manuf_score);
+                net->manuf_ref = MatchBestManuf(ap_manuf_map, net->bssid, net->ssid, net->channel,
+                                                net->wep, net->cloaked, &net->manuf_score);
                 // Update our IP range info too if we're a default
                 if (net->manuf_score == manuf_max_score && net->ipdata.atype == address_none)
-                    memcpy(&net->ipdata, &ap_manuf_map[net->manuf_key]->ipdata, sizeof(net_ip_data));
+                    memcpy(&net->ipdata, &net->manuf_ref->ipdata, sizeof(net_ip_data));
             }
 
             // If we have a probe request network, absorb it into the main network
@@ -611,8 +606,8 @@ void Packetracker::ProcessDataPacket(packet_info info, wireless_network *net) {
 
         client->first_time = time(0);
         client->mac = info.source_mac;
-        MatchBestManuf(client_manuf_map, client->mac, "", 0, 0, 0,
-                       &client->manuf_key, &client->manuf_score);
+        client->manuf_ref = MatchBestManuf(client_manuf_map, client->mac, "", 0, 0, 0,
+                                           &client->manuf_score);
 
         client->metric = net->metric;
 
@@ -966,7 +961,7 @@ int Packetracker::WriteNetworks(string in_fname) {
         wireless_network *net = network_list[i];
 
         if (filter_export) {
-            map<mac_addr, int>::iterator fitr = filter_export_bssid->find(net->bssid);
+            macmap<int>::iterator fitr = filter_export_bssid->find(net->bssid);
             // In the list and we've got inverted filtering - kill it
             if (fitr != filter_export_bssid->end() &&
                 *filter_export_bssid_invert == 1)
@@ -1140,7 +1135,7 @@ int Packetracker::WriteCisco(string in_fname) {
             continue;
 
         if (filter_export) {
-            map<mac_addr, int>::iterator fitr = filter_export_bssid->find(net->bssid);
+            macmap<int>::iterator fitr = filter_export_bssid->find(net->bssid);
             // In the list and we've got inverted filtering - kill it
             if (fitr != filter_export_bssid->end() &&
                 *filter_export_bssid_invert == 1)
@@ -1273,7 +1268,7 @@ int Packetracker::WriteCSVNetworks(string in_fname) {
         wireless_network *net = network_list[i];
 
         if (filter_export) {
-            map<mac_addr, int>::iterator fitr = filter_export_bssid->find(net->bssid);
+            macmap<int>::iterator fitr = filter_export_bssid->find(net->bssid);
             // In the list and we've got inverted filtering - kill it
             if (fitr != filter_export_bssid->end() &&
                 *filter_export_bssid_invert == 1)
@@ -1457,7 +1452,7 @@ int Packetracker::WriteXMLNetworks(string in_fname) {
         wireless_network *net = network_list[i];
 
         if (filter_export) {
-            map<mac_addr, int>::iterator fitr = filter_export_bssid->find(net->bssid);
+            macmap<int>::iterator fitr = filter_export_bssid->find(net->bssid);
             // In the list and we've got inverted filtering - kill it
             if (fitr != filter_export_bssid->end() &&
                 *filter_export_bssid_invert == 1)

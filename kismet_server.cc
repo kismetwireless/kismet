@@ -105,7 +105,7 @@ fd_set read_set;
 // Do we allow sending wep keys to the client?
 int client_wepkey_allowed = 0;
 // Wep keys
-map<mac_addr, wep_key_info *> bssid_wep_map;
+macmap<wep_key_info *> bssid_wep_map;
 
 // Pipe file descriptor pairs and fd's
 int soundpair[2];
@@ -132,23 +132,23 @@ KISMET_data kdata;
 
 // Filter maps for the various filter types
 int filter_tracker = 0;
-map<mac_addr, int> filter_tracker_bssid;
-map<mac_addr, int> filter_tracker_source;
-map<mac_addr, int> filter_tracker_dest;
+macmap<int> filter_tracker_bssid;
+macmap<int> filter_tracker_source;
+macmap<int> filter_tracker_dest;
 int filter_tracker_bssid_invert = -1, filter_tracker_source_invert = -1,
     filter_tracker_dest_invert = -1;
 
 int filter_dump = 0;
-map<mac_addr, int> filter_dump_bssid;
-map<mac_addr, int> filter_dump_source;
-map<mac_addr, int> filter_dump_dest;
+macmap<int> filter_dump_bssid;
+macmap<int> filter_dump_source;
+macmap<int> filter_dump_dest;
 int filter_dump_bssid_invert = -1, filter_dump_source_invert = -1,
     filter_dump_dest_invert = -1;
 
 int filter_export = 0;
-map<mac_addr, int> filter_export_bssid;
-map<mac_addr, int> filter_export_source;
-map<mac_addr, int> filter_export_dest;
+macmap<int> filter_export_bssid;
+macmap<int> filter_export_source;
+macmap<int> filter_export_dest;
 int filter_export_bssid_invert = -1, filter_export_source_invert = -1,
     filter_export_dest_invert = -1;
 
@@ -906,8 +906,8 @@ void handle_command(TcpServer *tcps, client_command *cc) {
             return;
         }
 
-        for (map<mac_addr, wep_key_info *>::iterator wkitr = bssid_wep_map.begin();
-             wkitr != bssid_wep_map.end(); ++wkitr) {
+        for (macmap<wep_key_info *>::iterator wkitr = bssid_wep_map.begin();
+             wkitr != bssid_wep_map.end(); wkitr++) {
             tcps->SendToClient(cc->client_fd, wepkey_ref, (void *) wkitr->second);
         }
     } else if (cmdword == "ADDWEPKEY") {
@@ -952,7 +952,7 @@ void handle_command(TcpServer *tcps, client_command *cc) {
         if (bssid_wep_map.find(winfo->bssid) != bssid_wep_map.end())
             delete bssid_wep_map[winfo->bssid];
 
-        bssid_wep_map[winfo->bssid] = winfo;
+        bssid_wep_map.insert(winfo->bssid, winfo);
 
         snprintf(status, 1024, "Added key %s length %d for BSSID %s",
                  cmdword.c_str(), len, winfo->bssid.Mac2String().c_str());
@@ -1549,7 +1549,7 @@ int main(int argc,char *argv[]) {
         keyinfo->len = len;
         memcpy(keyinfo->key, key, sizeof(unsigned char) * WEPKEY_MAX);
 
-        bssid_wep_map[bssid_mac] = keyinfo;
+        bssid_wep_map.insert(bssid_mac, keyinfo);
 
         fprintf(stderr, "Using key %s length %d for BSSID %s\n",
                 rawkey.c_str(), len, bssid_mac.Mac2String().c_str());
@@ -2600,7 +2600,6 @@ int main(int argc,char *argv[]) {
 
     fprintf(stderr, "Gathering packets...\n");
 
-    map<mac_addr, int>::iterator fitr;
     time_t cur_time;
     while (1) {
         fd_set rset, wset;
@@ -2730,7 +2729,7 @@ int main(int argc,char *argv[]) {
                         // Look for the attributes of the packet for each filter address
                         // type.  If filtering is inverted, then lack of a match means
                         // allow the packet
-                        fitr = filter_tracker_bssid.find(info.bssid_mac);
+                        macmap<int>::iterator fitr = filter_tracker_bssid.find(info.bssid_mac);
                         // In the list and we've got inverted filtering - kill it
                         if (fitr != filter_tracker_bssid.end() &&
                             filter_tracker_bssid_invert == 1)
@@ -2869,7 +2868,7 @@ int main(int argc,char *argv[]) {
                         int log_packet = 1;
 
                         if (filter_dump == 1) {
-                            fitr = filter_dump_bssid.find(info.bssid_mac);
+                            macmap<int>::iterator fitr = filter_dump_bssid.find(info.bssid_mac);
                             // In the list and we've got inverted filtering - kill it
                             if (fitr != filter_dump_bssid.end() &&
                                 filter_dump_bssid_invert == 1)

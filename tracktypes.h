@@ -30,6 +30,9 @@
 typedef struct display_network;
 #endif
 
+// Forward definition
+class manuf;
+
 const string NOSSID("<no ssid>");
 
 enum wireless_network_type {
@@ -94,6 +97,7 @@ typedef struct wireless_client {
         last_time = 0;
 
         manuf_score = 0;
+        manuf_ref = NULL;
 
         channel = 0;
         wep = 0;
@@ -145,7 +149,7 @@ typedef struct wireless_client {
 
     // Manufacturer info - mac address key to the manufacturer map and score for
     // easy-default maps
-    mac_addr manuf_key;
+    manuf *manuf_ref;
     int manuf_score;
 
     // Packet counts
@@ -203,6 +207,7 @@ typedef struct wireless_network {
         type = network_data;
 
         manuf_score = 0;
+        manuf_ref = NULL;
 
         memset(&ipdata, 0, sizeof(net_ip_data));
 
@@ -266,7 +271,7 @@ typedef struct wireless_network {
     string beacon_info;
 
     // Manufacturer ID
-    mac_addr manuf_key;
+    manuf *manuf_ref;
     int manuf_score;
 
     // Packet counts

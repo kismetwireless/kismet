@@ -192,21 +192,8 @@ void PanelFront::NetLine(kis_window *in_window, string *in_str, wireless_network
             snprintf(element, 6, "%2.1f", net->maxrate);
             len = 5;
         } else if (colindex == mcol_manuf) {
-            map<mac_addr, manuf *>::const_iterator mitr;
-            int found = 0;
-
-            if (net->type == network_adhoc || net->type == network_probe) {
-                if ((mitr = client_manuf_map.find(net->manuf_key)) != client_manuf_map.end()) {
-                    found = 1;
-                }
-            } else {
-                if ((mitr = ap_manuf_map.find(net->manuf_key)) != ap_manuf_map.end()) {
-                    found = 1;
-                }
-            }
-
-            if (found)
-                snprintf(element, 9, "%s", mitr->second->name.c_str());
+            if (net->manuf_ref != NULL)
+                snprintf(element, 9, "%s", net->manuf_ref->name.c_str());
             else
                 snprintf(element, 9, "Unknown");
 
@@ -941,9 +928,8 @@ void PanelFront::ClientLine(kis_window *in_window, string *in_str, wireless_clie
             snprintf(element, 18, "%s", wclient->mac.Mac2String().c_str());
             len = 17;
         } else if (colind == ccol_manuf) {
-            map<mac_addr, manuf *>::const_iterator mitr;
-            if ((mitr = client_manuf_map.find(wclient->manuf_key)) != client_manuf_map.end()) {
-                snprintf(element, 9, "%s", mitr->second->name.c_str());
+            if (wclient->manuf_ref != NULL) {
+                snprintf(element, 9, "%s", wclient->manuf_ref->name.c_str());
             } else {
                 snprintf(element, 9, "Unknown");
             }
@@ -1506,28 +1492,17 @@ int PanelFront::DetailsPrinter(void *in_window) {
             kwin->text.push_back(output);
         }
 
-        map<mac_addr, manuf *>::const_iterator mitr;
-        int found = 0;
-
-        if (dnet->type == network_adhoc || dnet->type == network_probe) {
-            if ((mitr = client_manuf_map.find(dnet->manuf_key)) != client_manuf_map.end())
-                found = 1;
-        } else {
-            if ((mitr = ap_manuf_map.find(dnet->manuf_key)) != ap_manuf_map.end())
-                found = 1;
-        }
-
-        if (found) {
+        if (dnet->manuf_ref != NULL) {
             snprintf(output, print_width, "Manuf   : %s",
-                     mitr->second->name.c_str());
+                     dnet->manuf_ref->name.c_str());
             kwin->text.push_back(output);
-            if (mitr->second->model != "") {
+            if (dnet->manuf_ref->model != "") {
                 snprintf(output, print_width, "Model   : %s",
-                         mitr->second->model.c_str());
+                         dnet->manuf_ref->model.c_str());
                 kwin->text.push_back(output);
             }
             snprintf(output, print_width, "Matched : %s",
-                     dnet->manuf_key.Mac2String().c_str());
+                     dnet->manuf_ref->mac_tag.MacMask2String().c_str());
             kwin->text.push_back(output);
         } else {
             snprintf(output, print_width, "Manuf   : Unknown");
@@ -2777,18 +2752,17 @@ int PanelFront::DetailsClientPrinter(void *in_window) {
     snprintf(output, print_width, "MAC     : %s", details_client->mac.Mac2String().c_str());
     kwin->text.push_back(output);
 
-    map<mac_addr, manuf *>::const_iterator mitr;
-    if ((mitr = client_manuf_map.find(details_client->manuf_key)) != client_manuf_map.end()) {
+    if (details_client->manuf_ref != NULL) {
         snprintf(output, print_width, "Manuf   : %s",
-                 mitr->second->name.c_str());
+                 details_client->manuf_ref->name.c_str());
         kwin->text.push_back(output);
-        if (mitr->second->model != "") {
+        if (details_client->manuf_ref->model != "") {
             snprintf(output, print_width, "Model   : %s",
-                     mitr->second->model.c_str());
+                     details_client->manuf_ref->model.c_str());
             kwin->text.push_back(output);
         }
         snprintf(output, print_width, "Matched : %s",
-                 details_client->manuf_key.Mac2String().c_str());
+                 details_client->manuf_ref->mac_tag.MacMask2String().c_str());
         kwin->text.push_back(output);
     } else {
         snprintf(output, print_width, "Manuf   : Unknown");

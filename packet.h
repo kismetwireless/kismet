@@ -62,7 +62,7 @@ extern "C" {
 #define SSID_SIZE 32
 
 #define MAC_LEN 6
-#define MAC_STR_LEN (MAC_LEN * 2) + 6
+#define MAC_STR_LEN ((MAC_LEN * 2) + 6)
 
 #define BEACON_INFO_LEN 128
 
@@ -362,7 +362,6 @@ typedef struct proto_info {
 typedef struct mac_addr {
     uint64_t longmac;
     uint64_t longmask;
-    uint8_t bytemask; // Number of octets masked for manuf info, NOT the real mask!
     int error;
 
     // Convert a string mac address to the long-int storage format, with mask conversion
@@ -424,12 +423,10 @@ typedef struct mac_addr {
         longmac = 0;
         longmask = (uint64_t) -1;
         error = 0;
-        bytemask = 0;
     }
 
     mac_addr(const uint8_t *in) {
         longmac = 0;
-        bytemask = 0;
         longmask = (uint64_t) -1;
         error = 0;
 
@@ -438,35 +435,43 @@ typedef struct mac_addr {
     }
 
     mac_addr(const char *in) {
-        bytemask = 0;
         string2long(in);
     }
 
     // Masked MAC compare
     inline bool operator== (const mac_addr& op) const {
+        if (longmask < op.longmask)
+            return ((longmac & longmask) == (op.longmac & longmask));
+
         return ((longmac & op.longmask) == (op.longmac & op.longmask));
     }
 
     // MAC compare
     inline bool operator!= (const mac_addr& op) const {
-        return (longmac == op.longmac);
+        if (longmask < op.longmask)
+            return ((longmac & longmask) != (op.longmac & longmask));
+
+        return ((longmac & op.longmask) != (op.longmac & op.longmask));
     }
 
-    // MAC less-than for STL sorts
+    // mac less-than-eq
+    inline bool operator<=(const mac_addr& op) const {
+        return (longmac & op.longmask) == (op.longmac & op.longmask);
+    }
+
+    // MAC less-than for STL sorts...
     inline bool operator< (const mac_addr& op) const {
         return ((longmac & longmask) < (op.longmac & longmask));
     }
 
-    mac_addr& operator= (mac_addr op) {
+    mac_addr& operator= (const mac_addr& op) {
         longmac = op.longmac;
         longmask = op.longmask;
-        bytemask = op.bytemask;
         error = op.error;
         return *this;
     }
 
-    mac_addr& operator= (char *in) {
-        bytemask = 0;
+    mac_addr& operator= (const char *in) {
         string2long(in);
 
         return *this;
@@ -487,44 +492,279 @@ typedef struct mac_addr {
     }
 
     inline string Mac2String() const {
-        if (bytemask == 0) {
-            char tempstr[MAC_STR_LEN];
+        char tempstr[MAC_STR_LEN];
 
-            snprintf(tempstr, MAC_STR_LEN, "%02X:%02X:%02X:%02X:%02X:%02X",
-                     (*this)[0], (*this)[1], (*this)[2],
-                     (*this)[3], (*this)[4], (*this)[5]);
-            return tempstr;
-        }
-
-        string ret;
-
-        for (unsigned int macbit = 0; macbit < MAC_LEN; macbit++) {
-            char adr[3];
-            if (macbit < bytemask)
-                snprintf(adr, 3, "%02X", (*this)[macbit]);
-            else
-                snprintf(adr, 3, "**");
-
-            ret += adr;
-            ret += ":";
-        }
-
-        return ret;
+        snprintf(tempstr, MAC_STR_LEN, "%02X:%02X:%02X:%02X:%02X:%02X",
+                 (*this)[0], (*this)[1], (*this)[2],
+                 (*this)[3], (*this)[4], (*this)[5]);
+        return tempstr;
     }
 
     inline string MacMask2String() const {
         uint64_t maskedmac = longmac & longmask;
 
-        char tempstr[MAC_STR_LEN];
+        char tempstr[(MAC_STR_LEN * 2) + 1];
 
-        snprintf(tempstr, MAC_STR_LEN, "%02X:%02X:%02X:%02X:%02X:%02X",
+        snprintf(tempstr, (MAC_STR_LEN * 2) + 1, "%02X:%02X:%02X:%02X:%02X:%02X/%02X:%02X:%02X:%02X:%02X:%02X",
                  index64(maskedmac, 0), index64(maskedmac, 1), index64(maskedmac, 2),
-                 index64(maskedmac, 3), index64(maskedmac, 4), index64(maskedmac, 5));
+                 index64(maskedmac, 3), index64(maskedmac, 4), index64(maskedmac, 5),
+                 index64(longmask, 0), index64(longmask, 1), index64(longmask, 2),
+                 index64(longmask, 3), index64(longmask, 4), index64(longmask, 5));
         return tempstr;
     }
 
 };
 
+// A templated container for storing groups of masked mac addresses.  A stl-map will work for single
+// macs, but we need this for smart mask matching on more complex sets.
+// Iterators in this class only work as incremental, because thats all I need right now.
+// This whole thing is really an ugly, ugly kluge, and if I really had any need for it to be
+// more extendable I'd rewrite it to use std::iterator and other good stuff.  But, I don't,
+// it works, and I need to move on to other areas.
+template<class T>
+class macmap {
+protected:
+    typedef struct mask_vec_content {
+        mac_addr mac;
+        T value;
+    };
+
+    typedef struct mask_vec_offsets {
+        unsigned int first;
+        unsigned int last;
+    };
+
+    class SortMaskVec {
+    public:
+        inline bool operator() (const macmap::mask_vec_content x, const macmap::mask_vec_content y) const {
+            return (x.mac < y.mac);
+        }
+    };
+
+public:
+    friend class macmap::iterator;
+
+    // This isn't quite like STL iterators, because I'm too damned lazy to deal with all
+    // the nasty STL hoop-jumping.  This does provide a somewhat-stl-ish interface to
+    // iterating through the singleton and masked maps
+    class iterator {
+        friend class macmap;
+
+    public:
+        iterator(macmap<T> *in_owner) {
+            owner = in_owner;
+
+            if (owner->singleton_map.size() > 0) {
+                singleton_itr = owner->singleton_map.begin();
+                vector_itr = -1;
+                first = singleton_itr->first;
+                second = &(singleton_itr->second);
+            } else if (owner->mask_vec.size() > 0) {
+                singleton_itr = owner->singleton_map.end();
+                vector_itr = 0;
+                first = owner->mask_vec[0].mac;
+                second = &(owner->mask_vec[0].value);
+            } else {
+                singleton_itr = owner->singleton_map.end();
+                vector_itr = owner->mask_vec.size();
+            }
+        }
+
+        // Prefix
+        iterator& operator++() {
+            if (singleton_itr == owner->singleton_map.end()) {
+                if ((++vector_itr) < (int) owner->mask_vec.size()) {
+                    first = owner->mask_vec[vector_itr].mac;
+                    second = &(owner->mask_vec[vector_itr].value);
+                }
+            } else if (++singleton_itr == owner->singleton_map.end()) {
+                if ((++vector_itr) < (int) owner->mask_vec.size()) {
+                    first = owner->mask_vec[vector_itr].mac;
+                    second = &(owner->mask_vec[vector_itr].value);
+                }
+            } else {
+                first = singleton_itr->first;
+                second = &(singleton_itr->second);
+            }
+
+            return *this;
+        }
+
+        // Postfix
+        iterator operator++(int) {
+            iterator tmp = *this;
+            ++*this;
+            return tmp;
+        }
+
+        // equal
+        inline bool operator==(const iterator& op) const {
+            return (singleton_itr == op.singleton_itr) && (vector_itr == op.vector_itr);
+        }
+
+        // not
+        inline bool operator!=(const iterator& op) const {
+            return (singleton_itr != op.singleton_itr) || (vector_itr != op.vector_itr);
+        }
+
+        // pointer fake
+        iterator *operator->() {
+            return this;
+        }
+
+        mac_addr first;
+        T *second;
+
+    protected:
+        void assign(typename map<mac_addr, T>::iterator in_itr) {
+            singleton_itr = in_itr;
+            vector_itr = -1;
+
+            if (in_itr != owner->singleton_map.end()) {
+                first = singleton_itr->first;
+                second = &(singleton_itr->second);
+            }
+        }
+
+        void assign(int in_itr) {
+            singleton_itr = owner->singleton_map.end();
+            vector_itr = in_itr;
+
+            if (in_itr < (int) owner->mask_vec.size()) {
+                first = owner->mask_vec[vector_itr].mac;
+                second = &(owner->mask_vec[vector_itr].value);
+            }
+        }
+
+        typename map<mac_addr, T>::iterator singleton_itr;
+        int vector_itr;
+        macmap<T> *owner;
+    };
+
+    iterator begin() {
+        iterator ret(this);
+
+        return ret;
+    }
+
+    iterator end() {
+        iterator ret(this);
+        ret.singleton_itr = singleton_map.end();
+        ret.vector_itr = mask_vec.size();
+
+        return ret;
+    }
+
+    // This is a very expensive insert but it builds a system that allows
+    // for fast searching, which is where we REALLY need the speed.
+    void insert(mac_addr in_mac, T in_data) {
+        // Single macs go into the singleton map
+        if (in_mac.longmask == (uint64_t) -1) {
+            singleton_map[in_mac] = in_data;
+            return;
+        }
+
+        // Put them into the vector
+        mask_vec_content content;
+        content.mac = in_mac;
+        content.value = in_data;
+        mask_vec.push_back(content);
+
+        reindex();
+    }
+
+    // Do a relatively fast find...
+    iterator find(mac_addr in_mac) {
+        iterator ret(this);
+
+        if (in_mac.longmask == (uint64_t) -1) {
+            // Look in the singleton map... This is very fast.
+            typename map<mac_addr, T>::iterator sitr = singleton_map.find(in_mac);
+            if (sitr != singleton_map.end()) {
+                ret.assign(sitr);
+                return ret;
+            }
+        }
+
+        if (vec_offset_map.find(in_mac) != vec_offset_map.end()) {
+            // We matched a large key in the vector map.  The vector is sorted
+            // in decreasing granularity, so the first one we match we can count
+            // as good and get out of here
+            mask_vec_offsets oft = vec_offset_map[in_mac];
+            for (unsigned int x = oft.last; x >= oft.first; x--) {
+                if (in_mac <= mask_vec[x].mac) {
+                    ret.assign(x);
+                    return ret;
+                }
+            }
+        }
+
+        return end();
+    }
+
+    void erase(mac_addr in_mac) {
+        iterator itr = find(in_mac);
+
+        if (itr == end())
+            return;
+
+        if (itr.singleton_itr != singleton_map.end()) {
+            singleton_map.erase(itr.singleton_itr);
+            reindex();
+            return;
+        }
+
+        if (itr.vector_itr >= 0 && itr.vector_itr < (int) mask_vec.size()) {
+            mask_vec.erase(mask_vec.begin() + itr.vector_itr);
+            reindex();
+            return;
+        }
+
+    }
+
+    inline T& operator[](mac_addr& index) {
+        iterator foo = find(index);
+
+        return *(foo->second);
+    }
+
+    int size() {
+        return singleton_map.size() + mask_vec.size();
+    }
+
+protected:
+    void reindex(void) {
+        // Order it
+        sort(mask_vec.begin(), mask_vec.end(), SortMaskVec());
+
+        // Clear our old map of content
+        vec_offset_map.clear();
+
+        // Split it into offset groups
+        mask_vec_offsets ofst;
+        ofst.last = mask_vec.size() - 1;
+        ofst.first = mask_vec.size() - 1;
+        mac_addr owner = mask_vec[ofst.last].mac;
+        for (unsigned int x = 0; x < mask_vec.size(); x++) {
+            // Masked compare... is it still a subset of us?
+            if (owner != mask_vec[x].mac) {
+                vec_offset_map[owner] = ofst;
+                ofst.first = x;
+                ofst.last = x;
+                owner = mask_vec[x].mac;
+            } else {
+                ofst.last = x;
+            }
+        }
+        // Clean up the last stuff
+        vec_offset_map[owner] = ofst;
+        vec_offset_map[owner] = ofst;
+    }
+
+    map<mac_addr, T> singleton_map;
+    vector<mask_vec_content> mask_vec;
+    map<mac_addr, mask_vec_offsets> vec_offset_map;
+};
 
 // packet conversion and extraction utilities
 // Packet types, these should correspond to the frame header types
@@ -752,10 +992,10 @@ void MungeToPrintable(char *in_data, int max);
 int GetTagOffset(int init_offset, int tagnum, kis_packet *packet,
                  map<int, int> *tag_cache_map);
 void GetPacketInfo(kis_packet *packet, packet_parm *parm, packet_info *ret_packinfo,
-                   map<mac_addr, wep_key_info *> *bssid_wep_map, unsigned char *identity);
+                   macmap<wep_key_info *> *bssid_wep_map, unsigned char *identity);
 void GetProtoInfo(kis_packet *packet, packet_info *in_info);
 void DecryptPacket(kis_packet *packet, packet_info *in_info, 
-                   map<mac_addr, wep_key_info *> *bssid_wep_map, unsigned char *identity);
+                   macmap<wep_key_info *> *bssid_wep_map, unsigned char *identity);
 int MangleDeCryptPacket(const kis_packet *packet, const packet_info *in_info,
                         kis_packet *outpack, uint8_t *data, uint8_t *moddata);
 int MangleFuzzyCryptPacket(const kis_packet *packet, const packet_info *in_info,

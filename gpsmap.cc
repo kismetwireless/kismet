@@ -296,8 +296,8 @@ unsigned int power_pos = 0;
 int *power_input_map;
 
 // AP and client maps
-map<mac_addr, manuf *> ap_manuf_map;
-map<mac_addr, manuf *> client_manuf_map;
+macmap<vector<manuf *> > ap_manuf_map;
+macmap<vector<manuf *> > client_manuf_map;
 
 // Filtered MAC's
 string filter;
@@ -847,17 +847,15 @@ void AssignNetColors() {
         if (color_coding == COLORCODE_WEP) {
             if (map_iter->wnet != NULL) {
                 if (map_iter->wnet->type == network_adhoc || map_iter->wnet->type == network_probe)
-                    MatchBestManuf(client_manuf_map, map_iter->wnet->bssid, map_iter->wnet->ssid,
-                                   map_iter->wnet->channel, map_iter->wnet->wep,
-                                   map_iter->wnet->cloaked,
-                                   &map_iter->wnet->manuf_key,
-                                   &map_iter->wnet->manuf_score);
+                    map_iter->wnet->manuf_ref = MatchBestManuf(client_manuf_map, map_iter->wnet->bssid,
+                                                               map_iter->wnet->ssid, map_iter->wnet->channel,
+                                                               map_iter->wnet->wep, map_iter->wnet->cloaked,
+                                                               &map_iter->wnet->manuf_score);
                 else
-                    MatchBestManuf(ap_manuf_map, map_iter->wnet->bssid, map_iter->wnet->ssid,
-                                   map_iter->wnet->channel, map_iter->wnet->wep,
-                                   map_iter->wnet->cloaked,
-                                   &map_iter->wnet->manuf_key,
-                                   &map_iter->wnet->manuf_score);
+                    map_iter->wnet->manuf_ref = MatchBestManuf(ap_manuf_map, map_iter->wnet->bssid,
+                                                               map_iter->wnet->ssid, map_iter->wnet->channel,
+                                                               map_iter->wnet->wep, map_iter->wnet->cloaked,
+                                                               &map_iter->wnet->manuf_score);
 
                 if (map_iter->wnet->manuf_score == manuf_max_score) {
                     map_iter->color_index = "#0000FF";

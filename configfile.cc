@@ -234,9 +234,9 @@ string ConfigFile::ExpandLogPath(string path, string logname, string type,
     return logtemplate;
 }
 
-int ConfigFile::ParseFilterLine(string filter_str, map<mac_addr, int> *bssid_map,
-                                map<mac_addr, int> *source_map,
-                                map<mac_addr, int> *dest_map,
+int ConfigFile::ParseFilterLine(string filter_str, macmap<int> *bssid_map,
+                                macmap<int> *source_map,
+                                macmap<int> *dest_map,
                                 int *bssid_invert, int *source_invert, int *dest_invert) {
     // Break it into filter terms
     unsigned int parse_pos = 0;
@@ -334,12 +334,13 @@ int ConfigFile::ParseFilterLine(string filter_str, map<mac_addr, int> *bssid_map
             }
 
             // Insert it into the map, we'll look later to see if it's an inversion collision
-            if (address_target & 0x01)
-                (*bssid_map)[mac] = invert;
-            if (address_target & 0x02)
-                (*source_map)[mac] = invert;
-            if (address_target & 0x04)
-                (*dest_map)[mac] = invert;
+            if (address_target & 0x01) {
+                bssid_map->insert(mac, invert);
+            } if (address_target & 0x02) {
+                source_map->insert(mac, invert);
+            } if (address_target & 0x04) {
+                dest_map->insert(mac, invert);
+            }
 
             term_parse_pos = term_end + 1;
 
@@ -350,45 +351,46 @@ int ConfigFile::ParseFilterLine(string filter_str, map<mac_addr, int> *bssid_map
     if (parse_error == 1)
         return -1;
 
-    int inversion_tracker;
-    map<mac_addr, int>::iterator x;
+    int inversion_tracker = -1;
 
-    for (inversion_tracker = -1, x = bssid_map->begin(); x != bssid_map->end(); ++x) {
+    for (macmap<int>::iterator x = bssid_map->begin(); x != bssid_map->end(); x++) {
 
         if (inversion_tracker == -1) {
-            inversion_tracker = x->second;
+            inversion_tracker = *x->second;
             continue;
         }
 
-        if (x->second != inversion_tracker) {
+        if (*x->second != inversion_tracker) {
             fprintf(stderr, "FATAL:  BSSID filter has an illegal mix of normal and inverted addresses.  All addresses must be inverted or standard.\n");
             return -1;
         }
     }
     *bssid_invert = inversion_tracker;
 
-    for (inversion_tracker = -1, x = source_map->begin(); x != source_map->end(); ++x) {
+    inversion_tracker = -1;
+    for (macmap<int>::iterator x = source_map->begin(); x != source_map->end(); x++) {
 
         if (inversion_tracker == -1) {
-            inversion_tracker = x->second;
+            inversion_tracker = *x->second;
             continue;
         }
 
-        if (x->second != inversion_tracker) {
+        if (*x->second != inversion_tracker) {
             fprintf(stderr, "FATAL:  Source filter has an illegal mix of normal and inverted addresses.  All addresses must be inverted or standard.\n");
             return -1;
         }
     }
     *source_invert = inversion_tracker;
 
-    for (inversion_tracker = -1, x = dest_map->begin(); x != dest_map->end(); ++x) {
+    inversion_tracker = -1;
+    for (macmap<int>::iterator x = dest_map->begin(); x != dest_map->end(); x++) {
 
         if (inversion_tracker == -1) {
-            inversion_tracker = x->second;
+            inversion_tracker = *x->second;
             continue;
         }
 
-        if (x->second != inversion_tracker) {
+        if (*x->second != inversion_tracker) {
             fprintf(stderr, "FATAL:  Destination filter has an illegal mix of normal and inverted addresses.  All addresses must be inverted or standard.\n");
             return -1;
         }

@@ -24,33 +24,29 @@
 #include <string>
 #include <vector>
 #include <map>
-#include "tracktypes.h"
 #include "packet.h"
+#include "tracktypes.h"
 
 // What we need to know about a manufacturer
-typedef struct {
+class manuf {
+public:
     string name;
     string model;
 
-    // We play some games with the incoming mac to make this work,
-    // watch out!
     mac_addr mac_tag;
-
     string ssid_default;
     int channel_default;
 
     net_ip_data ipdata;
-
-} manuf;
+};
 
 extern int manuf_max_score;
 
 // Read a manuf file
-map<mac_addr, manuf *> ReadManufMap(FILE *in_file, int ap_map);
+macmap<vector<manuf *> > ReadManufMap(FILE *in_file, int ap_map);
 // Match the best manufacturer given a vector and pertinent info, returning the index to
 // the matching manufacturer and the score in the parameters.  NULL's are acceptable.
-void MatchBestManuf(map<mac_addr, manuf *> in_manuf, mac_addr in_mac, string in_ssid,
-                    int in_channel, int in_wep, int in_cloaked,
-                    mac_addr *manuf_mac, int *manuf_score);
+manuf *MatchBestManuf(macmap<vector<manuf *> > in_manuf, mac_addr in_mac, string in_ssid,
+                      int in_channel, int in_wep, int in_cloaked, int *manuf_score);
 
 #endif

@@ -25,22 +25,39 @@
 
 int manuf_max_score = 8;
 
-map<mac_addr, manuf *> ReadManufMap(FILE *in_file, int ap_map) {
-    map<mac_addr, manuf *> ret;
+macmap<vector<manuf *> > ReadManufMap(FILE *in_file, int ap_map) {
+    macmap<vector<manuf *> > ret;
+    vector<manuf *> rvec;
+
     manuf *manf;
 
+    // Push an unknown record
     manf = new manuf;
     manf->name = "Unknown";
     manf->model = "Unknown";
-    manf->mac_tag = "00:00:00:00:00:00";
     manf->ssid_default = "";
+    manf->mac_tag = "00:00:00:00:00:00";
     manf->channel_default = 0;
     memset(&manf->ipdata, 0, sizeof(net_ip_data));
-    ret[manf->mac_tag] = manf;
+
+    rvec.push_back(manf);
+    ret.insert(manf->mac_tag, rvec);
+
+    int linenum = 0;
 
     // Read from the file
     char dline[8192];
     while (!feof(in_file)) {
+        fgets(dline, 8192, in_file);
+        if (feof(in_file)) break;
+
+        linenum++;
+
+        // Cut the newline
+        dline[strlen(dline) - 1] = '\0';
+
+        vector<string> line_vec = StrTokenize(dline, "\t");
+
         manf = new manuf;
         manf->name = "";
         manf->model = "";
@@ -49,48 +66,15 @@ map<mac_addr, manuf *> ReadManufMap(FILE *in_file, int ap_map) {
         manf->channel_default = 0;
         memset(&manf->ipdata, 0, sizeof(net_ip_data));
 
-        fgets(dline, 8192, in_file);
-        if (feof(in_file)) break;
-
-        char tmac[18];
-        vector<string> line_vec;
-        char *pos = dline;
-        char *nextpos, *nl;
-        while ((nextpos = strchr(pos, '\t')) != NULL) {
-            *nextpos++ = 0;
-            if ((nl = strchr(pos, '\n')) != NULL)
-                *nl = 0;
-            line_vec.push_back(pos);
-            pos = nextpos;
+        // If we're loading a AP manuf map, we handle it this way
+        if (line_vec.size() < 2) {
+            delete manf;
+            continue;
         }
-        if ((nl = strchr(pos, '\n')) != NULL)
-            *nl = 0;
-        line_vec.push_back(pos);
 
         if (ap_map) {
             // If we're loading a AP manuf map, we handle it this way
-
-            // Now convert our vector into the fields for manf... This is ugly as hell
-            // but reasonably efficient, it works, and it only happens once.
-            if (line_vec.size() < 2) {
-                delete manf;
-                continue;
-            }
-
-            // Turn our incoming fragment into a real MAC.  We can cheat and use
-            // snprintf to automatically trim it appropriately.
-            snprintf(tmac, 18, "%s:00:00:00", line_vec[0].c_str());
-            manf->mac_tag = tmac;
-            if (manf->mac_tag.longmac == 0) {
-                delete manf;
-                continue;
-            }
-
-            // Screen out dupes
-            if (ret.find(manf->mac_tag) != ret.end()) {
-                delete manf;
-                continue;
-            }
+            manf->mac_tag = line_vec[0].c_str();
 
             manf->name = line_vec[1];
             if (line_vec.size() >= 3) {
@@ -114,27 +98,31 @@ map<mac_addr, manuf *> ReadManufMap(FILE *in_file, int ap_map) {
                     }
                 }
             }
-            ret[manf->mac_tag] = manf;
-
-        } else {
-            // Otherwise we handle clients this way
-            if (line_vec.size() < 2) {
-                delete manf;
-                continue;
-            }
-
-            snprintf(tmac, 18, "%s:00:00:00", line_vec[0].c_str());
-            manf->mac_tag = tmac;
 
             if (ret.find(manf->mac_tag) != ret.end()) {
-                delete manf;
-                continue;
+                ret[manf->mac_tag].push_back(manf);
+            } else {
+                rvec.clear();
+                rvec.push_back(manf);
+                ret.insert(manf->mac_tag, rvec);
             }
+        } else {
+            // Otherwise we handle clients this way
+
+            manf->mac_tag = line_vec[0].c_str();
 
             manf->name = line_vec[1];
             if (line_vec.size() >= 3)
                 manf->model = line_vec[2];
-            ret[manf->mac_tag] = manf;
+
+            if (ret.find(manf->mac_tag) != ret.end()) {
+                ret[manf->mac_tag].push_back(manf);
+            } else {
+                rvec.clear();
+                rvec.push_back(manf);
+                ret.insert(manf->mac_tag, rvec);
+            }
+
         }
     }
 
@@ -145,60 +133,41 @@ map<mac_addr, manuf *> ReadManufMap(FILE *in_file, int ap_map) {
 // default SSIDs, channel, etc (for access points)
 // Returned in the parameters are the pointers to the best manufacturer record, the
 // score, and the modified mac address which matched it
-void MatchBestManuf(map<mac_addr, manuf *> in_manuf, mac_addr in_mac, string in_ssid,
-                    int in_channel, int in_wep, int in_cloaked,
-                    mac_addr *manuf_mac, int *manuf_score) {
-    mac_addr best_mac;
-    manuf *likely_manuf;
+manuf *MatchBestManuf(macmap<vector<manuf *> > in_manuf, mac_addr in_mac, string in_ssid,
+                      int in_channel, int in_wep, int in_cloaked, int *manuf_score) {
+    manuf *best_manuf = NULL;
+    int best_score = 0;
+    int best_pos = 0;
 
-    // Our incoming MAC sliced into 3 and 4 pairs - it's a lot more efficient to
-    // do this once here than keep doing strcmp's!
-    uint8_t tmac[6];
-    mac_addr mac4, mac3;
-    tmac[0] = in_mac[0];
-    tmac[1] = in_mac[1];
-    tmac[2] = in_mac[2];
-    tmac[3] = in_mac[3];
-    tmac[4] = 0x00;
-    tmac[5] = 0x00;
-    mac4 = tmac;
-    tmac[3] = 0x00;
-    mac3 = tmac;
+    macmap<vector<manuf *> >::iterator mitr = in_manuf.find(in_mac);
 
-    int score = 0;
-
-    // Our best find is a 4-pair MAC, so look for one of those first...
-    map<mac_addr, manuf *>::const_iterator mitr = in_manuf.find(mac4);
     if (mitr != in_manuf.end()) {
-        likely_manuf = mitr->second;
-        best_mac = mac4;
-        score += 6;
-        if (in_ssid != "" && in_ssid == likely_manuf->ssid_default)
-            score += 1;
-        if (in_channel != 0 && in_channel == likely_manuf->channel_default)
-            score += 1;
-        if (in_wep)
-            score -= 1;
-        if (in_cloaked)
-            score -= 1;
-    } else if ((mitr = in_manuf.find(mac3)) != in_manuf.end()) {
-        // If we didn't get a 4-pair, look for a 3-pair to at least give some
-        // inkling of what we are...
-        likely_manuf = mitr->second;
-        best_mac = mac3;
-        score += 6;
-        if (in_ssid != "" && in_ssid == likely_manuf->ssid_default)
-            score += 1;
-        if (in_channel != 0 && in_channel == likely_manuf->channel_default)
-            score += 1;
-        if (in_wep)
-            score -= 1;
-        if (in_cloaked)
-            score -= 1;
+        vector<manuf *> manuf_list = *(mitr->second);
+
+        for (unsigned int x = 0; x < manuf_list.size(); x++) {
+            manuf *likely_manuf = manuf_list[x];
+            int score = 0;
+
+            score += 6;
+            if (in_ssid != "" && in_ssid == likely_manuf->ssid_default)
+                score += 1;
+            if (in_channel != 0 && in_channel == likely_manuf->channel_default)
+                score += 1;
+            if (in_wep)
+                score -= 1;
+            if (in_cloaked)
+                score -= 1;
+
+            if (score > best_score) {
+                best_score = score;
+                best_pos = x;
+                best_manuf = likely_manuf;
+            }
+        }
 
     }
 
-    *manuf_score = score;
-    memcpy(manuf_mac, &best_mac, sizeof(mac_addr));
+    *manuf_score = best_score;
+    return best_manuf;
 }
 
