@@ -1361,21 +1361,22 @@ int monitor_admtek(const char *in_dev, int initch, char *in_err, void **in_if, v
 
         if (Iwconfig_Get_Mode(in_dev, in_err, &ifparm->mode) < 0)
             return -1;
+
+        if (Iwconfig_Get_SSID(in_dev, in_err, ifparm->essid) < 0)
+            return -1;
+    
     } else {
         ifparm->channel = -1;
         ifparm->mode = -1;
     }
 
-    if (Iwconfig_Get_SSID(in_dev, in_err, ifparm->essid) < 0)
-        return -1;
-    
-    if (Iwconfig_Set_SSID(in_dev, in_err, "") < 0)
-        return -1;
-    
     int ret = monitor_wext(in_dev, initch, in_err, in_if, in_ext);
 
     if (ret < 0 && ret != -2)
         return ret;
+
+    if (Iwconfig_Set_SSID(in_dev, in_err, "") < 0)
+        return -1;
     
     return 0;
 }
