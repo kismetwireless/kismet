@@ -1379,6 +1379,12 @@ int PanelFront::PowerPrinter(void *in_window) {
     pbar = (int) (width * pperc);
     nbar = (int) (width * nperc);
 
+    /* assuming that negative levels are dBm */
+    if (pbar < 0)
+        pbar = width + pbar;
+    if (nbar < 0)
+        nbar = width + nbar;
+
     /*
     memset(bar, '=', width);
     memset(bar, 'X', qbar);

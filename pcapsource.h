@@ -177,6 +177,7 @@ typedef struct linux_ifparm {
     int channel;
     int mode;
     int privmode;
+    int prismhdr;
 };
 #endif
 
