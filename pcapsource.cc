@@ -466,7 +466,18 @@ int PcapSourceWext::FetchChannel() {
 }
 
 int PcapSourceWext::FetchSignalLevels(int *in_siglev, int *in_noiselev) {
-    return Iwconfig_Get_Levels(interface.c_str(), errstr, in_siglev, in_noiselev);
+    int raw_siglev, raw_noiselev, ret;
+
+    if ((ret = Iwconfig_Get_Levels(interface.c_str(), errstr, 
+                                   &raw_siglev, &raw_noiselev)) < 0)
+        return ret;
+
+    //return Iwconfig_Get_Levels(interface.c_str(), errstr, in_siglev, in_noiselev);
+
+    (*in_siglev) = abs(raw_siglev);
+    (*in_noiselev) = abs(raw_noiselev);
+
+    return 0;
 }
 
 // Carrier override
