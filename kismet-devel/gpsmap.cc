@@ -2375,7 +2375,7 @@ int Usage(char* argv, int ec = 1) {
            "                                  6       7       8\n"
            "  -k, --draw-legend              Draw map legend\n"
            "  -K, --draw-legend-opacity <o>  Legend opacity [Default: 90]\n"
-           "  -F, --feature-order <order>    String representing the order map features\n"
+           "  -T, --feature-order <order>    String representing the order map features\n"
            "                                  are drawn [Default: 'ptbrhscl']\n"
            "                                  p: interpolated power\n"
            "                                  t: tracks\n"
