@@ -1,4 +1,5 @@
 Jun 18 2003  2.9.1  Actually fixed GPS
+                    Fixed packet/network delta calculations (Sushila)
 Jun 17 2003  2.9.1  Hopefully fixed gps with new packet path
 Jun 15 2003  2.9.1  Fixed to handle ENOBUF cleanly in IPC
                     Rolled in OSX/Viha support from Sushila :)
