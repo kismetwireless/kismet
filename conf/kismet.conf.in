@@ -108,6 +108,7 @@ alert=BCASTDISCON,5/min,4
 alert=CHANCHANGE,5/min,4
 alert=AIRJACKSSID,5/min,2
 alert=PROBENOJOIN,5/min,2
+alert=DISASSOCTRAFFIC,5/min,2
 
 # Known WEP keys to decrypt, bssid,hexkey.  This is only for networks where
 # the keys are already known, and it may impact throughput on slower hardware.

@@ -769,11 +769,28 @@ i	can be connected at will.
 			This alert is raised whenever a broadcast disassociation is seen.<br>
 	<li>AIRJACKSSID<br>
 	Alert on: Beacon for SSID "airjack"<br>
-	Alert message: "Beaconfor SSID 'airjack' from $sourcemac"<br>
+	Alert message: "Beacon for SSID 'airjack' from $sourcemac"<br>
 	Tool specific: Yes<br>
 	Implemented in: AirJack<br>
 	Details: The defcon/blackhat AirJack test code sets the card to beacon as the SSID "airjack" while performing
 			other attacks.  This alert is raised whenever a beacon packet for the SSID "airjack" is seen.<br>
+	<li>PROBENOJOIN<br>
+	Alert on: Clients seen probing and receiving acknowledgements but not participating in a network.
+	Alert message: "Suspicious client $sourcemac - probing networks but never joining."<br>
+	Tool specific: No<br>
+	Implemented in: NetStumbler, other active-probe scanners.<br>
+	Details: Clients which probe continually for networks, are accepted, and never participate are likely to be 
+	stumbler clients looking for networks.  There is a chance of false positives with this detection method, but 
+	it can be effective when watching for stumblers.<br>
+	<li>DISASSOCTRAFFIC<br>
+	Alert on: Traffic from a given source within 10 seconds of a disassociate or deauthenticate.<br>
+	Alert message: "Suspicious traffic on $sourcemac:  Data traffic within 10 seconds of disassociate."<br>
+	Tool specific: No<br>
+	Implemented in: "802.11 Denial-of-Service Attacks: Real Vulnerabilities and Practical Solutions" research paper.<br>
+	Details:  As discussed in the above research paper by Bellardo, J. and Savage, S., a host which legitimately 
+	disassociates or deauthenticates from a network should not be exchanging data immediately thereafter.  Any 
+	client which DOES exchange data within 10 seconds of disassociating from the network should be considered a likely 
+	victim of a disassociate attack.<br>
 	<br>
 
 </ol>

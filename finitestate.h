@@ -89,6 +89,24 @@ protected:
     map<mac_addr, _fsa_element *> bssid_map;
 };
 
+// FSA to look for a disassociate/deauth from a client who then keeps talking.  This is
+// suspicious behavior.  Based on "802.11 Denial-of-Service Attacks:  Real Vulnerabilities
+// and Practical Solutions", Bellardo, J. and Savage, S.
+class DisassocTrafficAutomata : public FiniteAutomata {
+public:
+    DisassocTrafficAutomata(Packetracker *in_ptracker, Alertracker *in_atracker,
+                            alert_time_unit in_unit, int in_rate, int in_burstrate);
+    ~DisassocTrafficAutomata();
+
+    int ProcessPacket(const packet_info *in_info);
+protected:
+    // State 0 - got a disassoc
+    // State 1 - got a deauth
+    map<mac_addr, _fsa_element *> source_map;
+};
+
+#if 0
+// This doesn't really work so we won't use it.
 // Finite state automata to watch sequence numbers
 class SequenceSpoofAutomata : public FiniteAutomata {
 public:
@@ -105,5 +123,6 @@ protected:
 
     map<mac_addr, _fsa_element *> seq_map;
 };
+#endif
 
 #endif
