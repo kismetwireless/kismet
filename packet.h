@@ -64,7 +64,7 @@ extern "C" {
 
 #define BEACON_INFO_LEN 128
 
-// Cribbed from ethereal
+// Cribbed from ethereal, pointer to host endian swap
 #define kptoh16(p) (uint16_t) ((uint16_t) * ((uint8_t *)(p) + 1) << 8 | \
                                (uint16_t) * ((uint8_t *)(p) + 0) << 0)
 
@@ -76,6 +76,23 @@ extern "C" {
                                (uint16_t) * ((uint8_t *)(p) + 2) << 16 | \
                                (uint16_t) * ((uint8_t *)(p) + 1) << 8 | \
                                (uint16_t) * ((uint8_t *)(p) + 0) << 0)
+
+// Inline converters
+#ifdef WORDS_BIGENDIAN
+#define ktoh16(x) ((uint16_t) \
+    ((uint16_t)((x) & 0x00FF) << 8 | \
+    (uint16_t)((x) & 0xFF00) >> 8))
+
+#define ktoh32(x) ((uint32_t) \
+    ((uint32_t)((x) & 0x000000FF) << 24 | \
+    (uint32_t)((x) & 0x0000FF00) << 8 | \
+    (uint32_t)((x) & 0x00FF0000) >> 8 | \
+    (uint32_t)((x) & 0xFF000000) >> 24)
+#else
+#define ktoh16(x) (x)
+#define ktoh32(x) (x)
+#endif
+
 
 // Parmeters to the packet info
 typedef struct packet_parm {
@@ -93,15 +110,41 @@ typedef struct {
     int noise;
 } pkthdr;
 
+#ifdef WORDS_BIGENDIAN
+// Byte ordering for bigendian systems.  Bitwise strcts are so funky.
+typedef struct {
+    unsigned short subtype : 4;
+    unsigned short type : 2;
+    unsigned short version : 2;
+
+    unsigned short order : 1;
+    unsigned short wep : 1;
+    unsigned short more_data : 1;
+    unsigned short power_management : 1;
+
+    unsigned short retry : 1;
+    unsigned short more_fragments : 1;
+    unsigned short from_ds : 1;
+    unsigned short to_ds : 1;
+} frame_control;
+
+typedef struct {
+    unsigned short frag : 12;
+    unsigned short sequence : 4;
+} wireless_fragseq;
+
+#else
 // And 802.11 packet frame header
 typedef struct {
     unsigned short version : 2;
     unsigned short type : 2;
     unsigned short subtype : 4;
+
     unsigned short to_ds : 1;
     unsigned short from_ds : 1;
     unsigned short more_fragments : 1;
     unsigned short retry : 1;
+
     unsigned short power_management : 1;
     unsigned short more_data : 1;
     unsigned short wep : 1;
@@ -112,6 +155,8 @@ typedef struct {
     unsigned short frag : 4;
     unsigned short sequence : 12;
 } wireless_fragseq;
+
+#endif
 
 // A standard frame
 typedef struct {
