@@ -38,7 +38,8 @@
 // Prototype tcpclient class
 class TcpClient;
 
-#include "packetracker.h"
+#include "packet.h"
+#include "tracktypes.h"
 
 #define TCP_SELECT_TIMEOUT 100
 

@@ -152,6 +152,7 @@ protected:
     int lucenttest_aref;
     int wellenreiter_aref;
     int chanchange_aref;
+    int bcastdiscon_aref;
 
 };
 

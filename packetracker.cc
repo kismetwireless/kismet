@@ -37,7 +37,8 @@ Packetracker::Packetracker() {
 
     filter_export = 0;
 
-    netstumbler_aref = deauthflood_aref = lucenttest_aref = wellenreiter_aref = -1;
+    netstumbler_aref = deauthflood_aref = lucenttest_aref = wellenreiter_aref =
+        chanchange_aref = bcastdiscon_aref = -1;
 
 }
 
@@ -93,6 +94,10 @@ int Packetracker::EnableAlert(string in_alname, alert_time_unit in_unit,
         // register channel changing
         chanchange_aref = alertracker->RegisterAlert("CHANCHANGE", in_unit, in_rate, in_burstrate);
         ret = chanchange_aref;
+    } else if (lname == "bcastdiscon") {
+        // Register broadcast disconnect
+        bcastdiscon_aref = alertracker->RegisterAlert("BCASTDISCON", in_unit, in_rate, in_burstrate);
+        ret = bcastdiscon_aref;
     } else {
         snprintf(errstr, 1024, "Unknown alert type %s, not processing.", lname.c_str());
         return 0;
@@ -381,6 +386,20 @@ void Packetracker::ProcessPacket(packet_info info) {
     // Assign the highest seen datarate
     if (info.datarate > net->maxseenrate)
         net->maxseenrate = info.datarate;
+
+    if (info.type == packet_management &&
+        (info.subtype == packet_sub_disassociation ||
+         info.subtype == packet_sub_deauthentication) &&
+        info.dest_mac == mac_addr("FF:FF:FF:FF:FF:FF")) {
+
+        if (alertracker->PotentialAlert(bcastdiscon_aref) > 0) {
+            snprintf(status, STATUS_MAX, "Broadcast %s on %s",
+                     info.subtype == packet_sub_disassociation ? "disassociation" : "deauthentication",
+                     net->bssid.Mac2String().c_str());
+            alertracker->RaiseAlert(bcastdiscon_aref, status);
+        }
+
+    }
 
     if ((info.type == packet_management) || (info.proto.type == proto_iapp)) {
         if (info.type == packet_management)
