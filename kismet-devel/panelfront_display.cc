@@ -703,11 +703,12 @@ int PanelFront::MainNetworkPrinter(void *in_window) {
                 show_spd = spd * 1.4667;
         }
 
-        snprintf(gpsdata, 80, "Lat %.3f Lon %.3f Alt %.1f%c Spd %.3f%s Fix %s",
+        snprintf(gpsdata, 80, "Lat %.3f Lon %.3f Alt %.1f%c Spd %.3f%s Hed %.3f Fix %s",
                  lat, lon, show_alt,
                  metric ? 'm' : 'f',
                  show_spd,
                  spdslow ? (metric ? "m/s" : "f/s") : (metric ? "km/h" : "m/h"),
+                 heading,
                  fixstr);
 
         if (color)
