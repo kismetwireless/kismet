@@ -27,7 +27,7 @@
 #ifdef WORDS_BIGENDIAN
 
 #define kis_hton16(x) (x)
-#define kis_hton16(x) (x)
+#define kis_ntoh16(x) (x)
 
 #define kis_hton32(x) (x)
 #define kis_ntoh32(x) (x)

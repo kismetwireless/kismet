@@ -307,7 +307,7 @@ void GetPacketInfo(kis_packet *packet, packet_info *ret_packinfo,
             memcpy(&temp_ts, fixparm->timestamp, 8);
             // ret_packinfo->timestamp = kis_hton64(temp_ts);
 #ifdef WORDS_BIGENDIAN
-            ret_packinfo = kis_swap64(temp_ts);
+            ret_packinfo->timestamp = kis_swap64(temp_ts);
 #else
             ret_packinfo->timestamp = temp_ts;
 #endif
