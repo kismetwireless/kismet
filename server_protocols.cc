@@ -109,8 +109,9 @@ char *NETWORK_fields_text[] = {
 
 char *CLIENT_fields_text[] = {
     "bssid", "mac", "type", "firsttime", "lasttime",
-    "manufkey", "manufscore", "gpsfixed",
+    "manufkey", "manufscore",
     "datapackets", "cryptpackets", "weakpackets",
+    "gpsfixed",
     "minlat", "minlon", "minalt", "minspd",
     "maxlat", "maxlon", "maxalt", "maxspd",
     "agglat", "agglon", "aggalt", "aggpoints",

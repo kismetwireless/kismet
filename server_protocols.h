@@ -45,8 +45,9 @@ enum NETWORK_fields {
 
 enum CLIENT_fields {
     CLIENT_bssid, CLIENT_mac, CLIENT_type, CLIENT_firsttime, CLIENT_lasttime,
-    CLIENT_manufkey, CLIENT_manufscore, CLIENT_gpsfixed,
+    CLIENT_manufkey, CLIENT_manufscore,
     CLIENT_datapackets, CLIENT_cryptpackets, CLIENT_weakpackets,
+    CLIENT_gpsfixed,
     CLIENT_minlat, CLIENT_minlon, CLIENT_minalt, CLIENT_minspd,
     CLIENT_maxlat, CLIENT_maxlon, CLIENT_maxalt, CLIENT_maxspd,
     CLIENT_agglat, CLIENT_agglon, CLIENT_aggalt, CLIENT_aggpoints,
