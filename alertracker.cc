@@ -133,7 +133,9 @@ int Alertracker::PotentialAlert(int in_ref) {
     return CheckTimes(arec);
 }
 
-int Alertracker::RaiseAlert(int in_ref, string in_text) {
+int Alertracker::RaiseAlert(int in_ref, 
+                            mac_addr bssid, mac_addr source, mac_addr dest, mac_addr other,
+                            string in_text) {
     map<int, alert_rec *>::iterator aritr = alert_ref_map.find(in_ref);
 
     if (aritr == alert_ref_map.end())
@@ -157,8 +159,11 @@ int Alertracker::RaiseAlert(int in_ref, string in_text) {
     adata->usec = tmpstr;
 
     adata->text = in_text;
-
     adata->header = arec->header;
+    adata->bssid = bssid.Mac2String();
+    adata->source = source.Mac2String();
+    adata->dest  = dest.Mac2String();
+    adata->other = other.Mac2String();
 
     arec->burst_sent++;
     if (arec->burst_sent >= arec->limit_burst)

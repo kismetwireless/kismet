@@ -1,3 +1,6 @@
+Jun 10 2004  devel  Expanded alert protocol to carry source, dest, bssid, and
+                     other mac address fields for better programatic handling
+                     of alerts through external clients
 Jun 09 2004  devel  Added BSS timestamp spoof detection - BSSTIMESTAMP alert.
                     Created "None" packet source for default config to stem
                      the new people being confused with cisco errors

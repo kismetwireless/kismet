@@ -34,7 +34,7 @@ char *STATUS_fields_text[] = {
 };
 
 char *ALERT_fields_text[] = {
-    "sec", "usec", "header", "text",
+    "sec", "usec", "header", "bssid", "source", "dest", "other", "text",
     NULL
 };
 
@@ -695,6 +695,18 @@ int Protocol_ALERT(PROTO_PARMS) {
             break;
         case ALERT_usec:
             out_string += adata->usec;
+            break;
+        case ALERT_bssid:
+            out_string += adata->bssid;
+            break;
+        case ALERT_source:
+            out_string += adata->source;
+            break;
+        case ALERT_dest:
+            out_string += adata->dest;
+            break;
+        case ALERT_other:
+            out_string += adata->other;
             break;
         case ALERT_text:
             out_string += string("\001") + adata->text + string("\001");
