@@ -45,24 +45,24 @@ case "$CARDTYPE" in
 		;;
 	"prism2_legacy")
 		echo "Enabling monitor mode for a prism2 card on $DEVICE channel $CHANNEL"
-		ifconfig $DEVICE promisc up
 		wlanctl-ng $DEVICE lnxreq_wlansniff channel=$CHANNEL enable=true
+		ifconfig $DEVICE promisc up
 		;;
 	"prism2")
 		echo "Enabling monitor mode for a pcap prism2 card on $DEVICE channel $CHANNEL"
-		ifconfig $DEVICE promisc up
 		wlanctl-ng $DEVICE lnxreq_ifstate ifstate=enable
 		wlanctl-ng $DEVICE dot11req_mibset mibattribute=dot11PrivacyInvoked=false
 		wlanctl-ng $DEVICE dot11req_mibset mibattribute=dot11ExcludeUnencrypted=false 
 		wlanctl-ng $DEVICE lnxreq_wlansniff channel=$CHANNEL enable=true prismheader=true
+		ifconfig $DEVICE promisc up
 		;;
 	"prism2_avs")
 		echo "Enabling monitor mode for a pcap prism2 card with AVS headers on $DEVICE channel $CHANNEL"
-		ifconfig $DEVICE promisc up
 		wlanctl-ng $DEVICE lnxreq_ifstate ifstate=enable
 		wlanctl-ng $DEVICE dot11req_mibset mibattribute=dot11PrivacyInvoked=false
 		wlanctl-ng $DEVICE dot11req_mibset mibattribute=dot11ExcludeUnencrypted=false 
 		wlanctl-ng $DEVICE lnxreq_wlansniff channel=$CHANNEL prismheader=false wlanheader=true stripfcs=false keepwepflags=false enable=true
+		ifconfig $DEVICE promisc up
 		;;
 	"prism2_bsd")
 		echo "Enabling monitor mode for a prism2 card on $DEVICE channel $CHANNEL using prism2ctl"
