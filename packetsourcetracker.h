@@ -29,6 +29,7 @@
 #include <algorithm>
 #include <string>
 
+#include "globalregistry.h"
 #include "timetracker.h"
 #include "gpsd.h"
 #include "packetsource.h"
@@ -48,18 +49,6 @@
 
 // Pre-prototype
 class Packetsourcetracker;
-
-// Non-class helper functions for each packet source type to handle allocating the
-// class instance of KisPacketSource and to handle changing the channel outside of
-// the instantiated object
-//
-// meta packsources are completed and filled with all relevant information for channel
-// changing before the child process is spawned, eliminating the need to communicate
-// the setup information for the sources over IPC.  There are no non-fatal conditions
-// which would prevent a metasource from having a real correlation.
-typedef KisPacketSource *(*packsource_registrant)(string, string, char *);
-typedef int (*packsource_chcontrol)(const char *, int, char *, void *);
-typedef int (*packsource_monitor)(const char *, int, char *, void **, void *);
 
 // Packet source prototype for building an instance
 typedef struct {
@@ -106,17 +95,68 @@ typedef struct {
     void *stored_interface;
 } meta_packsource;
 
+// Messagebus client to intercept messages from the forked client 
+class Packetcontrolchild_MessageClient : public MessageClient {
+public:
+    Packetcontrolchild_MessageClient(GlobalRegistry *in_globalreg) :
+        MessageClient(in_globalreg) { };
+    void ProcessMessage(string in_msg, int in_flags);
+};
+
+// Channel control event
+int ChannelHopEvent(Timetracker::timer_event *evt, void *parm, GlobalRegistry *globalreg);
+
+// Internal NULL packet source that's always present to remind the users to configure
+// the software
+class NullPacketSource : public KisPacketSource {
+public:
+    NullPacketSource(GlobalRegistry *in_globalreg, string in_name, string in_dev) : 
+        KisPacketSource(in_globalreg, in_name, in_dev) { }
+
+    int OpenSource() {
+        char errstr[STATUS_MAX];
+        snprintf(errstr, 1024, "Please configure at least one packet source.  "
+                 "Kismet will not function if no packet sources are defined in "
+                 "kismet.conf or on the command line.  Please read the README "
+                 "for more information about configuring Kismet.");
+        globalreg->messagebus->InjectMessage(errstr, MSGFLAG_FATAL);
+        globalreg->fatal_condition = 1;
+        return -1;
+    }
+
+    int CloseSource() {
+        return 1;
+    }
+
+    int FetchDescriptor() {
+        return -1;
+    }
+
+    int FetchPacket(kis_packet *packet, uint8_t *data, uint8_t *moddata) {
+        return -1;
+    }
+
+    int FetchChannel() {
+        return -1;
+    }
+};
+KisPacketSource *nullsource_registrant(REGISTRANT_PARMS);
+int unmonitor_nullsource(MONITOR_PARMS);
+
+// Shortcut for registering uncompiled sources
+#define REG_EMPTY_CARD(y) RegisterPacketsource(y, 0, "na", 0, \
+                                               NULL, NULL, NULL, NULL, 0)
+
 class Packetsourcetracker {
 public:
 
-    Packetsourcetracker();
+    Packetsourcetracker(GlobalRegistry *in_globalreg);
     ~Packetsourcetracker();
 
-    // Fetch error conditions
-    char *FetchError() { return errstr; }
-
     // Merge descriptors into a set
-    unsigned int MergeSet(fd_set *in_rset, fd_set *in_wset, unsigned int in_max);
+    unsigned int MergeSet(fd_set in_rset, fd_set in_wset, 
+                          unsigned int in_max_fd,
+                          fd_set *out_rset, fd_set *out_wset);
 
     // Return the pid of the channel control child
     pid_t FetchChildPid() { return chanchild_pid; }
@@ -134,12 +174,6 @@ public:
     // Advance all the sources one channel
     int AdvanceChannel();
 
-    // Register a timer event handler for us to use
-    void AddTimetracker(Timetracker *in_tracker) { timetracker = in_tracker; }
-
-    // Register the GPS server for us to use
-    void AddGpstracker(GPSD *in_gpsd) { gpsd = in_gpsd; }
-    
     // Register a packet prototype source...  Card type string, root binding requirement,
     // function to generate an instance of the source, and function to change channel 
     // for this card type.  This fills out the prototype. Sources that don't hop 
@@ -214,8 +248,7 @@ protected:
         uint16_t channel;
     } chanchild_changepacket;
 
-    GPSD *gpsd;
-    Timetracker *timetracker;
+    GlobalRegistry *globalreg;
     
     char errstr[1024];
 
@@ -223,6 +256,7 @@ protected:
 
     // outbound packets
     list<chanchild_packhdr *> ipc_buffer;
+    list<chanchild_packhdr *> child_ipc_buffer;
     int dataframe_only;
     
     int next_packsource_id;
@@ -244,6 +278,9 @@ protected:
     // Generate a text packet
     chanchild_packhdr *CreateTextPacket(string in_text, int8_t in_flags);
 
+    friend class Packetcontrolchild_MessageClient;
+    friend int ChannelHopEvent(Timetracker::timer_event *evt, 
+                               void *parm, GlobalRegistry *globalreg);
 };
 
 #endif

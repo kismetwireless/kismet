@@ -24,11 +24,8 @@
 #include <time.h>
 #include <sys/time.h>
 
-#include "kismet_server.h"
+#include "globalregistry.h"
 #include "alertracker.h"
-
-// Forward definition for packetracker
-class Packetracker;
 
 // Finite state automata superclass which handles a category of tracking conditions.
 // It's possible that there can be multiple state machines of a single category
@@ -62,16 +59,15 @@ public:
     int FetchAlertRef() { return alertid; }
 
 protected:
-    Alertracker *atracker;
-    Packetracker *ptracker;
+    GlobalRegistry *globalreg;
     int alertid;
 };
 
 // Finite state automata to watch people who probe and never exchange data after an association
 class ProbeNoJoinAutomata : public FiniteAutomata {
 public:
-    ProbeNoJoinAutomata(Packetracker *in_ptracker, Alertracker *in_atracker,
-                        alert_time_unit in_unit, int in_rate, int in_burstrate);
+    ProbeNoJoinAutomata(GlobalRegistry *in_globalreg, alert_time_unit in_unit, 
+                        int in_rate, int in_burstrate);
     ~ProbeNoJoinAutomata();
 
     // States:
@@ -94,8 +90,8 @@ protected:
 // and Practical Solutions", Bellardo, J. and Savage, S.
 class DisassocTrafficAutomata : public FiniteAutomata {
 public:
-    DisassocTrafficAutomata(Packetracker *in_ptracker, Alertracker *in_atracker,
-                            alert_time_unit in_unit, int in_rate, int in_burstrate);
+    DisassocTrafficAutomata(GlobalRegistry *in_globalreg, alert_time_unit in_unit, 
+                        int in_rate, int in_burstrate);
     ~DisassocTrafficAutomata();
 
     int ProcessPacket(const packet_info *in_info);
@@ -122,8 +118,8 @@ public:
         uint64_t bss_timestamp;
     };
 
-    BssTimestampAutomata(Packetracker *in_ptracker, Alertracker *in_atracker,
-                         alert_time_unit in_unit, int in_rate, int in_burstrate);
+    BssTimestampAutomata(GlobalRegistry *in_globalreg, alert_time_unit in_unit, 
+                         int in_rate, int in_burstrate);
     ~BssTimestampAutomata();
 
     int ProcessPacket(const packet_info *in_info);
@@ -136,8 +132,8 @@ protected:
 // IV and ICV
 class WepRebroadcastAutomata : public FiniteAutomata {
 public:
-    WepRebroadcastAutomata(Packetracker *in_ptracker, Alertracker *in_atracker,
-                           alert_time_unit in_unit, int in_rate, int in_burstrate);
+    WepRebroadcastAutomata(GlobalRegistry *in_globalreg, alert_time_unit in_unit, 
+                           int in_rate, int in_burstrate);
     ~WepRebroadcastAutomata();
 
     int ProcessPacket(const packet_info *in_info);

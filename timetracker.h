@@ -29,6 +29,8 @@
 #include <algorithm>
 #include <string>
 
+#include "globalregistry.h"
+
 class Timetracker {
 public:
     typedef struct timer_event {
@@ -44,7 +46,7 @@ public:
         // Event is rescheduled again once it expires, if it's a timesliced event
         int recurring;
 
-        int (*callback)(timer_event *, void *);
+        int (*callback)(timer_event *, void *, GlobalRegistry *);
         void *callback_parm;
     };
 
@@ -61,6 +63,7 @@ public:
     };
 
     Timetracker();
+    Timetracker(GlobalRegistry *in_globalreg);
     ~Timetracker();
 
     // Tick and handle timers
@@ -69,13 +72,16 @@ public:
     // Register an optionally recurring timer.  Slices are 1/100th of a second,
     // the smallest linux can slice without getting into weird calls.
     int RegisterTimer(int in_timeslices, struct timeval *in_trigger,
-                      int in_recurring, int (*in_callback)(timer_event *, void *),
+                      int in_recurring, 
+                      int (*in_callback)(timer_event *, void *, GlobalRegistry *),
                       void *in_parm);
 
     // Remove a timer that's going to execute
     int RemoveTimer(int timer_id);
 
 protected:
+    GlobalRegistry *globalreg;
+
     int next_timer_id;
     map<int, timer_event *> timer_map;
     vector<timer_event *> sorted_timers;

@@ -23,6 +23,7 @@
 #ifdef HAVE_VIHAHEADERS
 
 int VihaSource::OpenSource() {
+    char errstr[STATUS_MAX];
     pthread_t read_loop;
 
     /* Open source */
@@ -34,6 +35,8 @@ int VihaSource::OpenSource() {
     if ( pipe(pipe_fds) < 0 ) {
         snprintf(errstr, 1024, "VihaSource could not create pipe: %d %s",
                  errno, strerror(errno));
+        globalreg->messagebus->InjectMessage(errstr, MSGFLAG_FATAL);
+        globalreg->fatal_condition = 1;
         return -1;
     }
 
@@ -77,6 +80,7 @@ int VihaSource::FetchChannel() {
 }
 
 int VihaSource::FetchPacket(kis_packet *packet, uint8_t *data, uint8_t *moddata) {
+    char errstr[STATUS_MAX];
     int bytes;
     char byte;
 
@@ -94,8 +98,9 @@ int VihaSource::FetchPacket(kis_packet *packet, uint8_t *data, uint8_t *moddata)
     }
 
     if ( frame == NULL ) {
-
         snprintf(errstr, 1024, "Something bad happened, frame was null. -_-");
+        globalreg->messagebus->InjectMessage(errstr, MSGFLAG_FATAL);
+        globalreg->fatal_condition = 1;
 
         bytes = -1;
     }
@@ -116,6 +121,7 @@ int VihaSource::FetchPacket(kis_packet *packet, uint8_t *data, uint8_t *moddata)
 }
 
 int VihaSource::Viha2Common(kis_packet *packet, uint8_t *data, uint8_t *moddata) {
+    char errstr[STATUS_MAX];
     int header_len;
     uint8_t byte;
 
@@ -141,6 +147,8 @@ int VihaSource::Viha2Common(kis_packet *packet, uint8_t *data, uint8_t *moddata)
 
     if ( frame->dataLen + header_len > MAX_PACKET_LEN ) {
         snprintf(errstr, 1024, "Packet was too big. -_-");
+        globalreg->messagebus->InjectMessage(errstr, MSGFLAG_FATAL);
+        globalreg->fatal_condition = 1;
         return -1;
     }
 
@@ -212,15 +220,18 @@ void *ReadPacketLoop(void *vsp) {
     return NULL;
 }
 
-KisPacketSource *vihasource_registrant(string in_name, string in_device,
-                                       char *in_err) {
-    return new VihaSource(in_name, in_device);
+KisPacketSource *vihasource_registrant(REGISTRANT_PARMS) {
+    return new VihaSource(globalreg, in_name, in_device);
 }
 
-int chancontrol_viha(const char *in_dev, int in_ch, char *in_err, void *in_ext) {
+int chancontrol_viha(CHCONTROL_PARMS) {
+    char errstr[STATUS_MAX];
+
     if (in_ext == NULL) {
-        snprintf(in_err, STATUS_MAX, "No reference to vihasource instance to change "
+        snprintf(errstr, STATUS_MAX, "No reference to vihasource instance to change "
                  "channel.");
+        globalreg->messagebus->InjectMessage(errstr, MSGFLAG_FATAL);
+        globalreg->fatal_condition = 1;
         return -1;
     }
 

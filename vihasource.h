@@ -36,7 +36,8 @@
 
 class VihaSource : public KisPacketSource {
 public:
-    VihaSource(string in_name, string in_dev) : KisPacketSource(in_name, in_dev) { }
+    VihaSource(GlobalRegistry *in_globalreg, string in_name, 
+               string in_dev) : KisPacketSource(in_globalreg, in_name, in_dev) { }
 
     int OpenSource();
 
@@ -69,9 +70,8 @@ protected:
 
 // We don't need a monitor function since loading the viha drivers puts us
 // into monitormode automatically
-KisPacketSource *vihasource_registrant(string in_name, string in_device,
-                                       char *in_err);
-int chancontrol_viha(const char *in_dev, int in_ch, char *in_err, void *in_ext);
+KisPacketSource *vihasource_registrant(REGISTRANT_PARMS);
+int chancontrol_viha(CHCONTROL_PARMS);
 
 #endif /* HAVE_VIHAHEADERS */
 

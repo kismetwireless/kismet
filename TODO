@@ -1,23 +1,48 @@
-In no particular order:
-	first-seen-source
-	cardtype/interface dumps
-	non-rfmon-signal gps logger
-	ipv6
-	key management via panels client
-	server and client plugins
-	strings dumpfile
-	fakeap detection
-	retry ratios
-	gpsmap client-link drawing (dot-line clusters)
-	gpsmap coloring/plotting by encoding, carrier, data rate
-	gpsmap font picking
-	gpsmap strongest point plotting
-	congestion simulation
-	Multiple host= lines for kismet_client
-	Alerts as forged packets in pipe
-	VPN detection
-	linkage of seen-on devices to network info
-	AP uptime extraction
-	strong authentication/SSL of client/server server/drone
-	acpi/apm reporting via server protocol
-	detect dupe packets on multiple input streams
+X alertracker globalreg usage
+X     msgbus
+X     netframework
+X globalreg->track_probenets
+X globalreg->start_time
+X globalreg->metric
+X globalreg->alert_backlog 
+X kismet_server main handlecommand portage
+X globalreg proto pointers
+X TIME proto linked to timer
+X kisnetframe globalreg constructor
+X bssid_wep_map
+X hook global config file for enablealert in packetracker
+X move alert string parsing to configfile class
+X hook globalreg into FSA
+X hook filtering into packetracker to globalreg
+X obey fatal_condition in main()
+X kismet protocol messagebus client
+X packetracker messagebus integration
+X alertracker messagebus integration
+X FSA messagebus integration
+X packetracker timer event instead of tick
+X change 1024 to status_len in pcapsource
+X better error messages from iwctl stuff
+  better drone error text
+  new drone client/server code
+  new client code
+X packetsourcetracker messagebus integration
+  handle generating and catching alert text
+  messagebus fatal text gen in all of main
+X move source parsing into packetsourcetracker
+X move internal registration into packetsourcetracker
+  requeue fatal messages on exit
+  terminate should flush ring buffers and sockets
+
+  Packet chain framework
+  ieee802.11 dissect as packet chain module
+  Filtering as packet chain module
+  Logging as packet chain module
+  GPSD complete rewrite
+  rewrite isblank during handler rewrite
+  debuglog as raw logging at head of packet chain
+  modularize sound and speech
+
+  globalreg/messagebus more bits of packetsourcetracker
+  p0f plugin
+  kismet -v should list optional component status
+  detect windowsprobe networks

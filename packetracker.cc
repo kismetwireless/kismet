@@ -16,9 +16,9 @@
     Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 */
 
+#include "configfile.h"
 #include "packetracker.h"
 #include "networksort.h"
-#include "server_globals.h"
 #include "kismet_server.h"
 #include "packetsignatures.h"
 
@@ -33,25 +33,116 @@
 #define NULLPROBERESP_AREF 7
 #define MAX_AREF           8
 
-extern mac_addr broadcast_mac;
+// Periodic tick to handle events.  We expect this once a second.
+int PacketrackerTickEvent(Timetracker::timer_event *evt, void *parm, GlobalRegistry *globalreg) {
+    for (unsigned int x = 0; x < globalreg->packetracker->network_list.size(); x++) {
+        wireless_network *net = globalreg->packetracker->network_list[x];
+
+        // Decay 10 disconnects per second
+        if (net->client_disconnects != 0) {
+            net->client_disconnects -= 10;
+            if (net->client_disconnects < 0)
+                net->client_disconnects = 0;
+        }
+
+    }
+
+    return 1;
+}
 
 Packetracker::Packetracker() {
-    alertracker = NULL;
+    fprintf(stderr, "*** Packetracker::Packetracker() called directly w/ no global registry\n");
+}
+
+Packetracker::Packetracker(GlobalRegistry *in_globalreg) {
+    globalreg = in_globalreg;
 
     num_networks = num_packets = num_dropped = num_noise =
         num_crypt = num_interesting = num_cisco = 0;
 
     errstr[0] = '\0';
 
-    filter_export_bssid = filter_export_source = filter_export_dest = NULL;
-
-    filter_export_bssid_invert = filter_export_source_invert = filter_export_dest_invert = NULL;
-
-    filter_export = 0;
-
+    // Register the timer event to happen once a second
+    globalreg->timetracker->RegisterTimer(SERVER_TIMESLICES_SEC, 
+                                          NULL, 1, &PacketrackerTickEvent, NULL);
+    
     arefs = new int[MAX_AREF];
     for (unsigned int ref = 0; ref < MAX_AREF; ref++)
         arefs[ref] = -1;
+
+    // Fetch all the alerts and process ones we know how to handle
+    for (unsigned int av = 0; 
+         av < globalreg->kismet_config->FetchOptVec("alert").size(); 
+         av++) {
+
+        int ret;
+        string alert_name;
+        alert_time_unit limit_unit;
+        int limit_rate;
+        int limit_burst;
+
+        if (ConfigFile::ParseAlertLine(globalreg->kismet_config->FetchOptVec("alert")[av],
+                                       &alert_name, &limit_unit, &limit_rate, &limit_burst) < 0) {
+            snprintf(errstr, 1024, "Illegal alert enable line '%s' in config file",
+                     globalreg->kismet_config->FetchOptVec("alert")[av].c_str());
+            globalreg->messagebus->InjectMessage(errstr, MSGFLAG_FATAL);
+
+            globalreg->fatal_condition = 1;
+        }
+
+        if (alert_name == "netstumbler") {
+            // register netstumbler alert
+            ret = arefs[NETSTUMBLER_AREF] = 
+                globalreg->alertracker->RegisterAlert("NETSTUMBLER", limit_unit, limit_rate, limit_burst);
+        } else if (alert_name == "deauthflood") {
+            // register deauth flood
+            ret = arefs[DEAUTHFLOOD_AREF] = 
+                globalreg->alertracker->RegisterAlert("DEAUTHFLOOD", limit_unit, limit_rate, limit_burst);
+        } else if (alert_name == "lucenttest") {
+            // register lucent test
+            ret = arefs[LUCENTTEST_AREF] = 
+                globalreg->alertracker->RegisterAlert("LUCENTTEST", limit_unit, limit_rate, limit_burst);
+        } else if (alert_name == "wellenreiter") {
+            // register wellenreiter test
+            ret = arefs[WELLENREITER_AREF] = 
+                globalreg->alertracker->RegisterAlert("WELLENREITER", limit_unit, limit_rate, limit_burst);
+        } else if (alert_name == "chanchange") {
+            // register channel changing
+            ret = arefs[CHANCHANGE_AREF] = 
+                globalreg->alertracker->RegisterAlert("CHANCHANGE", limit_unit, limit_rate, limit_burst);
+        } else if (alert_name == "bcastdiscon") {
+            // Register broadcast disconnect
+            ret = arefs[BCASTDISCON_AREF] = 
+                globalreg->alertracker->RegisterAlert("BCASTDISCON", limit_unit, limit_rate, limit_burst);
+        } else if (alert_name == "airjackssid") {
+            // Register airjack SSID alert
+            ret = arefs[AIRJACKSSID_AREF] = 
+                globalreg->alertracker->RegisterAlert("AIRJACKSSID", limit_unit, limit_rate, limit_burst);
+        } else if (alert_name == "nullproberesp") {
+            // Register 0-len probe response alert
+            ret = arefs[NULLPROBERESP_AREF] = 
+                globalreg->alertracker->RegisterAlert("NULLPROBERESP", limit_unit, limit_rate, limit_burst);
+        } else if (alert_name == "probenojoin") {
+            ProbeNoJoinAutomata *pnja = new ProbeNoJoinAutomata(globalreg, limit_unit, limit_rate, limit_burst);
+            fsa_vec.push_back(pnja);
+            ret = pnja->FetchAlertRef();
+        } else if (alert_name == "disassoctraffic") {
+            DisassocTrafficAutomata *dta = new DisassocTrafficAutomata(globalreg, limit_unit, limit_rate, limit_burst);
+            fsa_vec.push_back(dta);
+            ret = dta->FetchAlertRef();
+        } else if (alert_name == "bsstimestamp") {
+            BssTimestampAutomata *bta = new BssTimestampAutomata(globalreg, limit_unit, limit_rate, limit_burst);
+            fsa_vec.push_back(bta);
+            ret = bta->FetchAlertRef();
+        } else {
+            ret = -2;
+        }
+
+        if (ret == -1) {
+            snprintf(errstr, 1024, "Alert '%s' already processed, duplicate.", alert_name.c_str());
+            globalreg->messagebus->InjectMessage(errstr, MSGFLAG_INFO);
+        }
+    }
 
 }
 
@@ -71,82 +162,6 @@ vector<wireless_network *> Packetracker::FetchNetworks() {
     return ret_vec;
 }
 
-
-void Packetracker::AddAlertracker(Alertracker *in_tracker) {
-    alertracker = in_tracker;
-}
-
-int Packetracker::EnableAlert(string in_alname, alert_time_unit in_unit,
-                              int in_rate, int in_burstrate) {
-    if (alertracker == NULL) {
-        snprintf(errstr, 1024, "No registered alert tracker.");
-        return -1;
-    }
-
-    int ret = -1;
-
-    string lname = StrLower(in_alname);
-    if (lname == "netstumbler") {
-        // register netstumbler alert
-        ret = arefs[NETSTUMBLER_AREF] = alertracker->RegisterAlert("NETSTUMBLER", in_unit, in_rate, in_burstrate);
-    } else if (lname == "deauthflood") {
-        // register deauth flood
-        ret = arefs[DEAUTHFLOOD_AREF] = alertracker->RegisterAlert("DEAUTHFLOOD", in_unit, in_rate, in_burstrate);
-    } else if (lname == "lucenttest") {
-        // register lucent test
-        ret = arefs[LUCENTTEST_AREF] = alertracker->RegisterAlert("LUCENTTEST", in_unit, in_rate, in_burstrate);
-    } else if (lname == "wellenreiter") {
-        // register wellenreiter test
-        ret = arefs[WELLENREITER_AREF] = alertracker->RegisterAlert("WELLENREITER", in_unit, in_rate, in_burstrate);
-    } else if (lname == "chanchange") {
-        // register channel changing
-        ret = arefs[CHANCHANGE_AREF] = alertracker->RegisterAlert("CHANCHANGE", in_unit, in_rate, in_burstrate);
-    } else if (lname == "bcastdiscon") {
-        // Register broadcast disconnect
-        ret = arefs[BCASTDISCON_AREF] = alertracker->RegisterAlert("BCASTDISCON", in_unit, in_rate, in_burstrate);
-    } else if (lname == "airjackssid") {
-        // Register airjack SSID alert
-        ret = arefs[AIRJACKSSID_AREF] = alertracker->RegisterAlert("AIRJACKSSID", in_unit, in_rate, in_burstrate);
-    } else if (lname == "nullproberesp") {
-        // Register 0-len probe response alert
-        ret = arefs[NULLPROBERESP_AREF] = alertracker->RegisterAlert("NULLPROBERESP", in_unit, in_rate, in_burstrate);
-    } else if (lname == "probenojoin") {
-        ProbeNoJoinAutomata *pnja = new ProbeNoJoinAutomata(this, alertracker, in_unit, in_rate, in_burstrate);
-        fsa_vec.push_back(pnja);
-        ret = pnja->FetchAlertRef();
-    } else if (lname == "disassoctraffic") {
-        DisassocTrafficAutomata *dta = new DisassocTrafficAutomata(this, alertracker, in_unit, in_rate, in_burstrate);
-        fsa_vec.push_back(dta);
-        ret = dta->FetchAlertRef();
-    } else if (lname == "bsstimestamp") {
-        BssTimestampAutomata *bta = new BssTimestampAutomata(this, alertracker, in_unit, in_rate, in_burstrate);
-        fsa_vec.push_back(bta);
-        ret = bta->FetchAlertRef();
-    } else {
-        snprintf(errstr, 1024, "Unknown alert type %s, not processing.", lname.c_str());
-        return 0;
-    }
-
-    if (ret == -1)
-        snprintf(errstr, 1024, "Alert '%s' already processed, duplicate.", in_alname.c_str());
-
-    return ret;
-}
-
-void Packetracker::AddExportFilters(macmap<int> *bssid_map,
-                                    macmap<int> *source_map,
-                                    macmap<int> *dest_map, int *bssid_invert,
-                                    int *source_invert, int *dest_invert) {
-    filter_export = 1;
-    filter_export_bssid = bssid_map;
-    filter_export_bssid_invert = bssid_invert;
-    filter_export_source = source_map;
-    filter_export_source_invert = source_invert;
-    filter_export_dest = dest_map;
-    filter_export_dest_invert = dest_invert;
-}
-
-
 // Is a string blank?
 bool Packetracker::IsBlank(const char *s) {
     int len, i;
@@ -156,23 +171,6 @@ bool Packetracker::IsBlank(const char *s) {
         if (' ' != s[i]) { return false; }
     }
     return true;
-}
-
-// Periodic tick to handle events.  We expect this once a second.
-int Packetracker::Tick() {
-    for (unsigned int x = 0; x < network_list.size(); x++) {
-        wireless_network *net = network_list[x];
-
-        // Decay 10 disconnects per second
-        if (net->client_disconnects != 0) {
-            net->client_disconnects -= 10;
-            if (net->client_disconnects < 0)
-                net->client_disconnects = 0;
-        }
-
-    }
-
-    return 1;
 }
 
 wireless_network *Packetracker::MatchNetwork(const packet_info *info) {
@@ -193,7 +191,7 @@ wireless_network *Packetracker::MatchNetwork(const packet_info *info) {
         }
 
     } else if (info->type == packet_management && 
-               info->subtype == packet_sub_probe_req && track_probenets) {
+               info->subtype == packet_sub_probe_req && globalreg->track_probenets) {
         // If it's a probe request, see if we already know who it should belong to
         if (probe_map.find(info->bssid_mac) != probe_map.end()) {
             // info->bssid_mac = probe_map[info->bssid_mac];
@@ -257,7 +255,11 @@ wireless_client *Packetracker::CreateClient(const packet_info *info,
         memcpy(&net->ipdata, &bssid_ip_map[info->source_mac], sizeof(net_ip_data));
     }
 
-    KisLocalNewclient(client, net);
+    if (globalreg->kisnetserver->FetchNumClientRefs(globalreg->net_prot_ref) > 0) {
+        NETWORK_data ndata;
+        Protocol_Network2Data(net, &ndata);
+        globalreg->kisnetserver->SendToAll(globalreg->net_prot_ref, (void *) &ndata);
+    }
 
     return client;
 }
@@ -368,14 +370,14 @@ void Packetracker::ProcessPacket(packet_info info) {
         if (net->type == network_probe) {
             snprintf(status, STATUS_MAX, "Found new probed network \"%s\" bssid %s",
                      net->ssid.c_str(), net->bssid.Mac2String().c_str());
-            KisLocalStatus(status);
+            globalreg->messagebus->InjectMessage(status, MSGFLAG_INFO);
         } else {
             snprintf(status, STATUS_MAX, "Found new network \"%s\" bssid %s WEP %c Ch "
                      "%d @ %.2f mbit",
                      net->ssid.c_str(), net->bssid.Mac2String().c_str(), 
                      net->wep ? 'Y' : 'N',
                      net->channel, net->maxrate);
-            KisLocalStatus(status);
+            globalreg->messagebus->InjectMessage(status, MSGFLAG_INFO);
         }
 
         if (info.gps_fix >= 2) {
@@ -502,25 +504,25 @@ void Packetracker::ProcessPacket(packet_info info) {
 
     if (info.type == packet_management && info.subtype == packet_sub_beacon &&
         !strncmp(info.ssid, "AirJack", SSID_SIZE)) {
-        if (alertracker->PotentialAlert(arefs[AIRJACKSSID_AREF])) {
+        if (globalreg->alertracker->PotentialAlert(arefs[AIRJACKSSID_AREF])) {
             snprintf(status, STATUS_MAX, "Beacon for SSID 'AirJack' from %s",
                      info.source_mac.Mac2String().c_str());
-            alertracker->RaiseAlert(arefs[AIRJACKSSID_AREF], info.source_mac, 
-                                    info.source_mac, 0, 0, info.channel, status);
+            globalreg->alertracker->RaiseAlert(arefs[AIRJACKSSID_AREF], info.source_mac, 
+                                               info.source_mac, 0, 0, info.channel, status);
         }
     }
 
     if (info.type == packet_management &&
         (info.subtype == packet_sub_disassociation ||
          info.subtype == packet_sub_deauthentication) &&
-        info.dest_mac == broadcast_mac) {
+        info.dest_mac == globalreg->broadcast_mac) {
 
-        if (alertracker->PotentialAlert(arefs[BCASTDISCON_AREF]) > 0) {
+        if (globalreg->alertracker->PotentialAlert(arefs[BCASTDISCON_AREF]) > 0) {
             snprintf(status, STATUS_MAX, "Broadcast %s on %s",
                      info.subtype == packet_sub_disassociation ? "disassociation" : "deauthentication",
                      net->bssid.Mac2String().c_str());
-            alertracker->RaiseAlert(arefs[BCASTDISCON_AREF], net->bssid, 
-                                    0, 0, 0, info.channel, status);
+            globalreg->alertracker->RaiseAlert(arefs[BCASTDISCON_AREF], net->bssid, 
+                                               0, 0, 0, info.channel, status);
         }
 
     }
@@ -539,7 +541,7 @@ void Packetracker::ProcessPacket(packet_info info) {
                     net->ssid = info.ssid;
             }
 
-            if (probe_map.find(info.source_mac) != probe_map.end() && track_probenets) {
+            if (probe_map.find(info.source_mac) != probe_map.end() && globalreg->track_probenets) {
                 ProcessDataPacket(info, net);
                 if (newnet == 1)
                     KisLocalNewnet(net);
@@ -557,11 +559,11 @@ void Packetracker::ProcessPacket(packet_info info) {
             net->client_disconnects++;
 
             if (net->client_disconnects > 10) {
-                if (alertracker->PotentialAlert(arefs[DEAUTHFLOOD_AREF]) > 0) {
+                if (globalreg->alertracker->PotentialAlert(arefs[DEAUTHFLOOD_AREF]) > 0) {
                     snprintf(status, STATUS_MAX, "Deauthenticate/Disassociate flood on %s",
                              net->bssid.Mac2String().c_str());
-                    alertracker->RaiseAlert(arefs[DEAUTHFLOOD_AREF], net->bssid, 
-                                            0, 0, 0, info.channel, status);
+                    globalreg->alertracker->RaiseAlert(arefs[DEAUTHFLOOD_AREF], net->bssid, 
+                                                       0, 0, 0, info.channel, status);
                 }
             }
         }
@@ -573,12 +575,12 @@ void Packetracker::ProcessPacket(packet_info info) {
 
             if (net->type == network_ap && info.channel != net->channel &&
                 net->channel != 0 && info.channel != 0) {
-                if (alertracker->PotentialAlert(arefs[CHANCHANGE_AREF]) > 0) {
+                if (globalreg->alertracker->PotentialAlert(arefs[CHANCHANGE_AREF]) > 0) {
                     snprintf(status, STATUS_MAX, "Beacon on %s (%s) for channel %d, network previously detected on channel %d",
                              net->bssid.Mac2String().c_str(), net->ssid.c_str(),
                              info.channel, net->channel);
-                    alertracker->RaiseAlert(arefs[CHANCHANGE_AREF], net->bssid, 
-                                            0, 0, 0, info.channel, status);
+                    globalreg->alertracker->RaiseAlert(arefs[CHANCHANGE_AREF], net->bssid, 
+                                                       0, 0, 0, info.channel, status);
                 }
             }
 
@@ -600,7 +602,7 @@ void Packetracker::ProcessPacket(packet_info info) {
 
                 snprintf(status, STATUS_MAX, "Found SSID \"%s\" for network BSSID %s",
                          net->ssid.c_str(), net->bssid.Mac2String().c_str());
-                KisLocalStatus(status);
+                globalreg->messagebus->InjectMessage(status, MSGFLAG_INFO);
             }
 
             net->channel = info.channel;
@@ -613,11 +615,11 @@ void Packetracker::ProcessPacket(packet_info info) {
         // If it's a probe response with no SSID, something funny is happening, 
         // raise an alert
         if (info.subtype == packet_sub_probe_resp && info.ssid_len == 0) {
-            if (alertracker->PotentialAlert(arefs[NULLPROBERESP_AREF]) > 0) {
+            if (globalreg->alertracker->PotentialAlert(arefs[NULLPROBERESP_AREF]) > 0) {
                 snprintf(status, STATUS_MAX, "Probe response with 0-length SSID "
                          "detected from %s", info.source_mac.Mac2String().c_str());
-                alertracker->RaiseAlert(arefs[NULLPROBERESP_AREF], info.bssid_mac, info.source_mac, 
-                                        info.dest_mac, 0, info.channel, status);
+                globalreg->alertracker->RaiseAlert(arefs[NULLPROBERESP_AREF], info.bssid_mac, info.source_mac, 
+                                                   info.dest_mac, 0, info.channel, status);
             }
         }
 
@@ -647,7 +649,7 @@ void Packetracker::ProcessPacket(packet_info info) {
                 snprintf(status, STATUS_MAX, "Found SSID \"%s\" for cloaked "
                          "network BSSID %s", net->ssid.c_str(), 
                          net->bssid.Mac2String().c_str());
-                KisLocalStatus(status);
+                globalreg->messagebus->InjectMessage(status, MSGFLAG_INFO);
             } else if (info.ssid != bssid_cloak_map[net->bssid]) {
                 bssid_cloak_map[net->bssid] = info.ssid;
                 net->ssid = info.ssid;
@@ -665,7 +667,7 @@ void Packetracker::ProcessPacket(packet_info info) {
             // If we have a probe request network, absorb it into the main network
             //string resp_mac = Mac2String(info.dest_mac, ':');
             //probe_map[resp_mac] = net->bssid;
-            if (track_probenets) {
+            if (globalreg->track_probenets) {
                 probe_map[info.dest_mac] = net->bssid;
 
                 // If we have any networks that match the response already in existance,
@@ -684,7 +686,7 @@ void Packetracker::ProcessPacket(packet_info info) {
                                  "with \"%s\" via probe response.",
                                  pnet->bssid.Mac2String().c_str(),
                                  net->bssid.Mac2String().c_str());
-                        KisLocalStatus(status);
+                        globalreg->messagebus->InjectMessage(status, MSGFLAG_INFO);
 
                         CreateClient(&info, net);
 
@@ -739,7 +741,7 @@ void Packetracker::ProcessDataPacket(packet_info info, wireless_network *net) {
         }
     } 
 
-    if (track_probenets) {
+    if (globalreg->track_probenets) {
         if (bssid_map.find(info.dest_mac) != bssid_map.end()) {
             pnet = bssid_map[info.dest_mac];
             probe_map[info.source_mac] = pnet->bssid;
@@ -760,7 +762,7 @@ void Packetracker::ProcessDataPacket(packet_info info, wireless_network *net) {
                 snprintf(status, STATUS_MAX, "Associated probe network \"%s\" with "
                          "\"%s\" via data.", pnet->bssid.Mac2String().c_str(),
                          net->bssid.Mac2String().c_str());
-                KisLocalStatus(status);
+                globalreg->messagebus->InjectMessage(status, MSGFLAG_INFO);
 
                 CreateClient(&info, net);
 
@@ -932,7 +934,7 @@ void Packetracker::ProcessDataPacket(packet_info info, wireless_network *net) {
                  client->ipdata.ip[0], client->ipdata.ip[1],
                  client->ipdata.ip[2], client->ipdata.ip[3],
                  net->ssid.c_str(), info.source_mac.Mac2String().c_str(), means);
-        KisLocalStatus(status);
+        globalreg->messagebus->InjectMessage(status, MSGFLAG_INFO);
 
         client->ipdata.load_from_store = 0;
 
@@ -961,7 +963,7 @@ void Packetracker::ProcessDataPacket(packet_info info, wireless_network *net) {
     } else if (info.proto.type == proto_netstumbler) {
         // Handle netstumbler packets
 
-        if (alertracker->PotentialAlert(arefs[NETSTUMBLER_AREF]) > 0) {
+        if (globalreg->alertracker->PotentialAlert(arefs[NETSTUMBLER_AREF]) > 0) {
             char *nsversion;
 
             switch (info.proto.prototype_extra) {
@@ -981,17 +983,17 @@ void Packetracker::ProcessDataPacket(packet_info info, wireless_network *net) {
 
             snprintf(status, STATUS_MAX, "NetStumbler (%s) probe detected from %s",
                      nsversion, client->mac.Mac2String().c_str());
-            alertracker->RaiseAlert(arefs[NETSTUMBLER_AREF], 0, client->mac, 
+            globalreg->alertracker->RaiseAlert(arefs[NETSTUMBLER_AREF], 0, client->mac, 
                                     0, 0, info.channel, status);
         }
 
     } else if (info.proto.type == proto_lucenttest) {
         // Handle lucent test packets
 
-        if (alertracker->PotentialAlert(arefs[LUCENTTEST_AREF]) > 0) {
+        if (globalreg->alertracker->PotentialAlert(arefs[LUCENTTEST_AREF]) > 0) {
             snprintf(status, STATUS_MAX, "Lucent link test detected from %s",
                      client->mac.Mac2String().c_str());
-            alertracker->RaiseAlert(arefs[LUCENTTEST_AREF], 0, client->mac, 
+            globalreg->alertracker->RaiseAlert(arefs[LUCENTTEST_AREF], 0, client->mac, 
                                     0, 0, info.channel, status);
         }
 
@@ -999,10 +1001,10 @@ void Packetracker::ProcessDataPacket(packet_info info, wireless_network *net) {
     } else if (info.proto.type == proto_wellenreiter) {
         // Handle wellenreiter packets
 
-        if (alertracker->PotentialAlert(arefs[WELLENREITER_AREF]) > 0) {
+        if (globalreg->alertracker->PotentialAlert(arefs[WELLENREITER_AREF]) > 0) {
             snprintf(status, STATUS_MAX, "Wellenreiter probe detected from %s",
                      client->mac.Mac2String().c_str());
-            alertracker->RaiseAlert(arefs[WELLENREITER_AREF], 0, client->mac, 
+            globalreg->alertracker->RaiseAlert(arefs[WELLENREITER_AREF], 0, client->mac, 
                                     0, 0, info.channel, status);
         }
 
@@ -1071,6 +1073,8 @@ int Packetracker::WriteNetworks(string in_fname) {
     if ((netfile = fopen(in_fname.c_str(), "w+")) == NULL) {
         snprintf(errstr, 1024, "Could not open %s for writing: %s", in_fname.c_str(),
                  strerror(errno));
+        globalreg->messagebus->InjectMessage(errstr, MSGFLAG_FATAL);
+        globalreg->fatal_condition = 1;
         return -1;
     }
 
@@ -1080,6 +1084,8 @@ int Packetracker::WriteNetworks(string in_fname) {
         if (errno != ENOENT) {
             snprintf(errstr, 1024, "Could not unlink temp file %s: %s", fname_temp.c_str(),
                      strerror(errno));
+            globalreg->messagebus->InjectMessage(errstr, MSGFLAG_FATAL);
+            globalreg->fatal_condition = 1;
             return -1;
         }
     }
@@ -1087,6 +1093,8 @@ int Packetracker::WriteNetworks(string in_fname) {
     if ((netfile = fopen(fname_temp.c_str(), "w")) == NULL) {
         snprintf(errstr, 1024, "Could not open %s for writing even though we could unlink it: %s",
                  fname_temp.c_str(), strerror(errno));
+        globalreg->messagebus->InjectMessage(errstr, MSGFLAG_FATAL);
+        globalreg->fatal_condition = 1;
         return -1;
     }
 
@@ -1097,15 +1105,15 @@ int Packetracker::WriteNetworks(string in_fname) {
     for (unsigned int i = 0; i < network_list.size(); i++) {
         wireless_network *net = network_list[i];
 
-        if (filter_export) {
-            macmap<int>::iterator fitr = filter_export_bssid->find(net->bssid);
+        if (globalreg->filter_export) {
+            macmap<int>::iterator fitr = globalreg->filter_export_bssid.find(net->bssid);
             // In the list and we've got inverted filtering - kill it
-            if (fitr != filter_export_bssid->end() &&
-                *filter_export_bssid_invert == 1)
+            if (fitr != globalreg->filter_export_bssid.end() &&
+                globalreg->filter_export_bssid_invert == 1)
                 continue;
             // Not in the list and we've got normal filtering - kill it
-            if (fitr == filter_export_bssid->end() &&
-                *filter_export_bssid_invert == 0)
+            if (fitr == globalreg->filter_export_bssid.end() &&
+                globalreg->filter_export_bssid_invert == 0)
                 continue;
         }
 
@@ -1177,11 +1185,11 @@ int Packetracker::WriteNetworks(string in_fname) {
                     "    Min Loc: Lat %f Lon %f Alt %f Spd %f\n"
                     "    Max Loc: Lat %f Lon %f Alt %f Spd %f\n",
                     net->min_lat, net->min_lon,
-                    metric ? net->min_alt / 3.3 : net->min_alt,
-                    metric ? net->min_spd * 1.6093 : net->min_spd,
+                    globalreg->metric ? net->min_alt / 3.3 : net->min_alt,
+                    globalreg->metric ? net->min_spd * 1.6093 : net->min_spd,
                     net->max_lat, net->max_lon,
-                    metric ? net->max_alt / 3.3 : net->max_alt,
-                    metric ? net->max_spd * 1.6093 : net->max_spd);
+                    globalreg->metric ? net->max_alt / 3.3 : net->max_alt,
+                    globalreg->metric ? net->max_spd * 1.6093 : net->max_spd);
 
         if (net->ipdata.atype == address_dhcp)
             fprintf(netfile, "    Address found via DHCP %d.%d.%d.%d \n",
@@ -1210,6 +1218,8 @@ int Packetracker::WriteNetworks(string in_fname) {
         if (errno != ENOENT) {
             snprintf(errstr, 1024, "Unable to unlink %s even though we could write to it: %s",
                      in_fname.c_str(), strerror(errno));
+            globalreg->messagebus->InjectMessage(errstr, MSGFLAG_FATAL);
+            globalreg->fatal_condition = 1;
             return -1;
         }
     }
@@ -1217,6 +1227,8 @@ int Packetracker::WriteNetworks(string in_fname) {
     if (rename(fname_temp.c_str(), in_fname.c_str()) == -1) {
         snprintf(errstr, 1024, "Unable to rename %s to %s: %s", fname_temp.c_str(), in_fname.c_str(),
                  strerror(errno));
+        globalreg->messagebus->InjectMessage(errstr, MSGFLAG_FATAL);
+        globalreg->fatal_condition = 1;
         return -1;
     }
 
@@ -1232,6 +1244,8 @@ int Packetracker::WriteCisco(string in_fname) {
     if ((netfile = fopen(in_fname.c_str(), "w+")) == NULL) {
         snprintf(errstr, 1024, "Could not open %s for writing: %s", in_fname.c_str(),
                  strerror(errno));
+        globalreg->messagebus->InjectMessage(errstr, MSGFLAG_FATAL);
+        globalreg->fatal_condition = 1;
         return -1;
     }
 
@@ -1241,6 +1255,8 @@ int Packetracker::WriteCisco(string in_fname) {
         if (errno != ENOENT) {
             snprintf(errstr, 1024, "Could not unlink temp file %s: %s", fname_temp.c_str(),
                      strerror(errno));
+            globalreg->messagebus->InjectMessage(errstr, MSGFLAG_FATAL);
+            globalreg->fatal_condition = 1;
             return -1;
         }
     }
@@ -1248,6 +1264,8 @@ int Packetracker::WriteCisco(string in_fname) {
     if ((netfile = fopen(fname_temp.c_str(), "w")) == NULL) {
         snprintf(errstr, 1024, "Could not open %s for writing even though we could unlink it: %s",
                  fname_temp.c_str(), strerror(errno));
+        globalreg->messagebus->InjectMessage(errstr, MSGFLAG_FATAL);
+        globalreg->fatal_condition = 1;
         return -1;
     }
 
@@ -1275,15 +1293,15 @@ int Packetracker::WriteCisco(string in_fname) {
         if (net->cisco_equip.size() == 0)
             continue;
 
-        if (filter_export) {
-            macmap<int>::iterator fitr = filter_export_bssid->find(net->bssid);
+        if (globalreg->filter_export) {
+            macmap<int>::iterator fitr = globalreg->filter_export_bssid.find(net->bssid);
             // In the list and we've got inverted filtering - kill it
-            if (fitr != filter_export_bssid->end() &&
-                *filter_export_bssid_invert == 1)
+            if (fitr != globalreg->filter_export_bssid.end() &&
+                globalreg->filter_export_bssid_invert == 1)
                 continue;
             // Not in the list and we've got normal filtering - kill it
-            if (fitr == filter_export_bssid->end() &&
-                *filter_export_bssid_invert == 0)
+            if (fitr == globalreg->filter_export_bssid.end() &&
+                globalreg->filter_export_bssid_invert == 0)
                 continue;
         }
 
@@ -1321,6 +1339,8 @@ int Packetracker::WriteCisco(string in_fname) {
         if (errno != ENOENT) {
             snprintf(errstr, 1024, "Unable to unlink %s even though we could write to it: %s",
                      in_fname.c_str(), strerror(errno));
+            globalreg->messagebus->InjectMessage(errstr, MSGFLAG_FATAL);
+            globalreg->fatal_condition = 1;
             return -1;
         }
     }
@@ -1328,6 +1348,8 @@ int Packetracker::WriteCisco(string in_fname) {
     if (rename(fname_temp.c_str(), in_fname.c_str()) == -1) {
         snprintf(errstr, 1024, "Unable to rename %s to %s: %s", fname_temp.c_str(), in_fname.c_str(),
                  strerror(errno));
+        globalreg->messagebus->InjectMessage(errstr, MSGFLAG_FATAL);
+        globalreg->fatal_condition = 1;
         return -1;
     }
 
@@ -1361,6 +1383,8 @@ int Packetracker::WriteCSVNetworks(string in_fname) {
     if ((netfile = fopen(in_fname.c_str(), "w+")) == NULL) {
         snprintf(errstr, 1024, "Could not open %s for writing: %s", in_fname.c_str(),
                  strerror(errno));
+        globalreg->messagebus->InjectMessage(errstr, MSGFLAG_FATAL);
+        globalreg->fatal_condition = 1;
         return -1;
     }
 
@@ -1370,6 +1394,8 @@ int Packetracker::WriteCSVNetworks(string in_fname) {
         if (errno != ENOENT) {
             snprintf(errstr, 1024, "Could not unlink temp file %s: %s", fname_temp.c_str(),
                      strerror(errno));
+            globalreg->messagebus->InjectMessage(errstr, MSGFLAG_FATAL);
+            globalreg->fatal_condition = 1;
             return -1;
         }
     }
@@ -1377,6 +1403,8 @@ int Packetracker::WriteCSVNetworks(string in_fname) {
     if ((netfile = fopen(fname_temp.c_str(), "w")) == NULL) {
         snprintf(errstr, 1024, "Could not open %s for writing even though we could unlink it: %s",
                  fname_temp.c_str(), strerror(errno));
+        globalreg->messagebus->InjectMessage(errstr, MSGFLAG_FATAL);
+        globalreg->fatal_condition = 1;
         return -1;
     }
 
@@ -1407,15 +1435,15 @@ int Packetracker::WriteCSVNetworks(string in_fname) {
     for (unsigned int i = 0; i < network_list.size(); i++) {
         wireless_network *net = network_list[i];
 
-        if (filter_export) {
-            macmap<int>::iterator fitr = filter_export_bssid->find(net->bssid);
+        if (globalreg->filter_export) {
+            macmap<int>::iterator fitr = globalreg->filter_export_bssid.find(net->bssid);
             // In the list and we've got inverted filtering - kill it
-            if (fitr != filter_export_bssid->end() &&
-                *filter_export_bssid_invert == 1)
+            if (fitr != globalreg->filter_export_bssid.end() &&
+                globalreg->filter_export_bssid_invert == 1)
                 continue;
             // Not in the list and we've got normal filtering - kill it
-            if (fitr == filter_export_bssid->end() &&
-                *filter_export_bssid_invert == 0)
+            if (fitr == globalreg->filter_export_bssid.end() &&
+                globalreg->filter_export_bssid_invert == 0)
                 continue;
         }
 
@@ -1528,6 +1556,8 @@ int Packetracker::WriteCSVNetworks(string in_fname) {
         if (errno != ENOENT) {
             snprintf(errstr, 1024, "Unable to unlink %s even though we could write to it: %s",
                      in_fname.c_str(), strerror(errno));
+            globalreg->messagebus->InjectMessage(errstr, MSGFLAG_FATAL);
+            globalreg->fatal_condition = 1;
             return -1;
         }
     }
@@ -1535,6 +1565,8 @@ int Packetracker::WriteCSVNetworks(string in_fname) {
     if (rename(fname_temp.c_str(), in_fname.c_str()) == -1) {
         snprintf(errstr, 1024, "Unable to rename %s to %s: %s", fname_temp.c_str(), in_fname.c_str(),
                  strerror(errno));
+        globalreg->messagebus->InjectMessage(errstr, MSGFLAG_FATAL);
+        globalreg->fatal_condition = 1;
         return -1;
     }
 
@@ -1568,6 +1600,8 @@ int Packetracker::WriteXMLNetworks(string in_fname) {
     if ((netfile = fopen(in_fname.c_str(), "w+")) == NULL) {
         snprintf(errstr, 1024, "Could not open %s for writing: %s", in_fname.c_str(),
                  strerror(errno));
+        globalreg->messagebus->InjectMessage(errstr, MSGFLAG_FATAL);
+        globalreg->fatal_condition = 1;
         return -1;
     }
 
@@ -1577,6 +1611,8 @@ int Packetracker::WriteXMLNetworks(string in_fname) {
         if (errno != ENOENT) {
             snprintf(errstr, 1024, "Could not unlink temp file %s: %s", fname_temp.c_str(),
                      strerror(errno));
+            globalreg->messagebus->InjectMessage(errstr, MSGFLAG_FATAL);
+            globalreg->fatal_condition = 1;
             return -1;
         }
     }
@@ -1584,6 +1620,8 @@ int Packetracker::WriteXMLNetworks(string in_fname) {
     if ((netfile = fopen(fname_temp.c_str(), "w")) == NULL) {
         snprintf(errstr, 1024, "Could not open %s for writing even though we could unlink it: %s",
                  fname_temp.c_str(), strerror(errno));
+        globalreg->messagebus->InjectMessage(errstr, MSGFLAG_FATAL);
+        globalreg->fatal_condition = 1;
         return -1;
     }
 
@@ -1603,7 +1641,7 @@ int Packetracker::WriteXMLNetworks(string in_fname) {
     char lt[25];
     char ft[25];
 
-    snprintf(ft, 25, "%s", ctime(&start_time));
+    snprintf(ft, 25, "%s", ctime(&globalreg->start_time));
     time_t cur_time = time(0);
     snprintf(lt, 25, "%s", ctime(&cur_time));
 
@@ -1624,15 +1662,15 @@ int Packetracker::WriteXMLNetworks(string in_fname) {
     for (unsigned int i = 0; i < network_list.size(); i++) {
         wireless_network *net = network_list[i];
 
-        if (filter_export) {
-            macmap<int>::iterator fitr = filter_export_bssid->find(net->bssid);
+        if (globalreg->filter_export) {
+            macmap<int>::iterator fitr = globalreg->filter_export_bssid.find(net->bssid);
             // In the list and we've got inverted filtering - kill it
-            if (fitr != filter_export_bssid->end() &&
-                *filter_export_bssid_invert == 1)
+            if (fitr != globalreg->filter_export_bssid.end() &&
+                globalreg->filter_export_bssid_invert == 1)
                 continue;
             // Not in the list and we've got normal filtering - kill it
-            if (fitr == filter_export_bssid->end() &&
-                *filter_export_bssid_invert == 0)
+            if (fitr == globalreg->filter_export_bssid.end() &&
+                globalreg->filter_export_bssid_invert == 0)
                 continue;
         }
 
@@ -1700,19 +1738,19 @@ int Packetracker::WriteXMLNetworks(string in_fname) {
         fprintf(netfile, "    <datasize>%ld</datasize>\n", net->datasize);
 
         if (net->gps_fixed != -1) {
-            fprintf(netfile, "    <gps-info unit=\"%s\">\n", metric ? "metric" : "english");
+            fprintf(netfile, "    <gps-info unit=\"%s\">\n", globalreg->metric ? "metric" : "english");
             fprintf(netfile, "      <min-lat>%f</min-lat>\n", net->min_lat);
             fprintf(netfile, "      <min-lon>%f</min-lon>\n", net->min_lon);
             fprintf(netfile, "      <min-alt>%f</min-alt>\n",
-                    metric ? net->min_alt / 3.3 : net->min_alt);
+                    globalreg->metric ? net->min_alt / 3.3 : net->min_alt);
             fprintf(netfile, "      <min-spd>%f</min-spd>\n",
-                    metric ? net->min_spd * 1.6093 : net->min_spd);
+                    globalreg->metric ? net->min_spd * 1.6093 : net->min_spd);
             fprintf(netfile, "      <max-lat>%f</max-lat>\n", net->max_lat);
             fprintf(netfile, "      <max-lon>%f</max-lon>\n", net->max_lon);
             fprintf(netfile, "      <max-alt>%f</max-alt>\n",
-                    metric ? net->max_alt / 3.3 : net->max_alt);
+                    globalreg->metric ? net->max_alt / 3.3 : net->max_alt);
             fprintf(netfile, "      <max-spd>%f</max-spd>\n",
-                    metric ? net->max_spd * 1.6093 : net->max_spd);
+                    globalreg->metric ? net->max_spd * 1.6093 : net->max_spd);
             fprintf(netfile, "    </gps-info>\n");
         }
 
@@ -1782,19 +1820,19 @@ int Packetracker::WriteXMLNetworks(string in_fname) {
             fprintf(netfile, "      </client-packets>\n");
 
             if (cli->gps_fixed != -1) {
-                fprintf(netfile, "      <client-gps-info unit=\"%s\">\n", metric ? "metric" : "english");
+                fprintf(netfile, "      <client-gps-info unit=\"%s\">\n", globalreg->metric ? "metric" : "english");
                 fprintf(netfile, "        <client-min-lat>%f</client-min-lat>\n", cli->min_lat);
                 fprintf(netfile, "        <client-min-lon>%f</client-min-lon>\n", cli->min_lon);
                 fprintf(netfile, "        <client-min-alt>%f</client-min-alt>\n",
-                        metric ? cli->min_alt / 3.3 : cli->min_alt);
+                        globalreg->metric ? cli->min_alt / 3.3 : cli->min_alt);
                 fprintf(netfile, "        <client-min-spd>%f</client-min-spd>\n",
-                        metric ? cli->min_spd * 1.6093 : cli->min_spd);
+                        globalreg->metric ? cli->min_spd * 1.6093 : cli->min_spd);
                 fprintf(netfile, "        <client-max-lat>%f</client-max-lat>\n", cli->max_lat);
                 fprintf(netfile, "        <client-max-lon>%f</client-max-lon>\n", cli->max_lon);
                 fprintf(netfile, "        <client-max-alt>%f</client-max-alt>\n",
-                        metric ? cli->max_alt / 3.3 : cli->max_alt);
+                        globalreg->metric ? cli->max_alt / 3.3 : cli->max_alt);
                 fprintf(netfile, "        <client-max-spd>%f</client-max-spd>\n",
-                        metric ? cli->max_spd * 1.6093 : cli->max_spd);
+                        globalreg->metric ? cli->max_spd * 1.6093 : cli->max_spd);
                 fprintf(netfile, "      </client-gps-info>\n");
             }
 
@@ -1879,6 +1917,8 @@ int Packetracker::WriteXMLNetworks(string in_fname) {
         if (errno != ENOENT) {
             snprintf(errstr, 1024, "Unable to unlink %s even though we could write to it: %s",
                      in_fname.c_str(), strerror(errno));
+            globalreg->messagebus->InjectMessage(errstr, MSGFLAG_FATAL);
+            globalreg->fatal_condition = 1;
             return -1;
         }
     }
@@ -1886,6 +1926,8 @@ int Packetracker::WriteXMLNetworks(string in_fname) {
     if (rename(fname_temp.c_str(), in_fname.c_str()) == -1) {
         snprintf(errstr, 1024, "Unable to rename %s to %s: %s", fname_temp.c_str(), in_fname.c_str(),
                  strerror(errno));
+        globalreg->messagebus->InjectMessage(errstr, MSGFLAG_FATAL);
+        globalreg->fatal_condition = 1;
         return -1;
     }
 

@@ -65,17 +65,22 @@ int Wsp100PokeSensor(Timetracker::timer_event *evt, void *call_parm) {
 int Wsp100Source::OpenSource() {
     char listenhost[1024];
     struct hostent *filter_host;
+    char errstr[STATUS_MAX];
 
     // Device is handled as a host:port pair - remote host we accept data
     // from, local port we open to listen for it.  yeah, it's a little weird.
     if (sscanf(interface.c_str(), "%1024[^:]:%hd", listenhost, &port) < 2) {
         snprintf(errstr, 1024, "Couldn't parse host:port: '%s'", 
                  interface.c_str());
+        globalreg->messagebus->InjectMessage(errstr, MSGFLAG_FATAL);
+        globalreg->fatal_condition = 1;
         return -1;
     }
 
     if ((filter_host = gethostbyname(listenhost)) == NULL) {
         snprintf(errstr, 1024, "Couldn't resolve host: '%s'", listenhost);
+        globalreg->messagebus->InjectMessage(errstr, MSGFLAG_FATAL);
+        globalreg->fatal_condition = 1;
         return -1;
     }
 
@@ -84,6 +89,8 @@ int Wsp100Source::OpenSource() {
 
     if ((udp_sock = socket(AF_INET, SOCK_DGRAM, 0)) < 0) {
         snprintf(errstr, 1024, "Couldn't create UDP socket: %s", strerror(errno));
+        globalreg->messagebus->InjectMessage(errstr, MSGFLAG_FATAL);
+        globalreg->fatal_condition = 1;
         return -1;
     }
 
@@ -94,6 +101,8 @@ int Wsp100Source::OpenSource() {
 
     if (bind(udp_sock, (struct sockaddr *) &serv_sockaddr, sizeof(serv_sockaddr)) < 0) {
         snprintf(errstr, 1024, "Couldn't bind to UDP socket: %s", strerror(errno));
+        globalreg->messagebus->InjectMessage(errstr, MSGFLAG_FATAL);
+        globalreg->fatal_condition = 1;
         return -1;
     }
 
@@ -104,8 +113,15 @@ int Wsp100Source::OpenSource() {
     num_packets = 0;
 
     // Register 'poke' events
-    poke_event_id = timetracker->RegisterTimer(TZSP_NULL_PACKET_SLICE, NULL, 1,
-                                               &Wsp100PokeSensor, (void *) this);
+    if (globalreg->timetracker == NULL) {
+        snprintf(errstr, 1024, "WSP100 source cannot register timer events with no timetracker");
+        globalreg->messagebus->InjectMessage(errstr, MSGFLAG_FATAL);
+        globalreg->fatal_condition = 1;
+        return -1;
+    }
+
+    poke_event_id = globalreg->timetracker->RegisterTimer(TZSP_NULL_PACKET_SLICE, NULL, 1,
+                                                          &Wsp100PokeSensor, (void *) this);
 
     return 1;
 }
@@ -116,8 +132,8 @@ int Wsp100Source::CloseSource() {
 
     valid = 0;
 
-    if (timetracker != NULL)
-        timetracker->RemoveTimer(poke_event_id);
+    if (globalreg->timetracker != NULL)
+        globalreg->timetracker->RemoveTimer(poke_event_id);
 
     return 1;
 }
@@ -126,6 +142,7 @@ int Wsp100Source::FetchPacket(kis_packet *packet, uint8_t *data, uint8_t *moddat
     if (valid == 0)
         return 0;
 
+    char errstr[STATUS_MAX];
     struct sockaddr_in cli_sockaddr;
 #ifdef HAVE_SOCKLEN_T
     socklen_t cli_len;
@@ -139,6 +156,8 @@ int Wsp100Source::FetchPacket(kis_packet *packet, uint8_t *data, uint8_t *moddat
                              (struct sockaddr *) &cli_sockaddr, &cli_len)) < 0) {
         if (errno != EINTR) {
             snprintf(errstr, 1024, "recvfrom() error %d (%s)", errno, strerror(errno));
+            globalreg->messagebus->InjectMessage(errstr, MSGFLAG_FATAL);
+            globalreg->fatal_condition = 1;
             return -1;
         }
     }
@@ -250,9 +269,9 @@ int Wsp100Source::Wsp2Common(kis_packet *packet, uint8_t *data, uint8_t *moddata
     packet->modified = 0;
 
     // We use the GPS coordinates of the capturing server
-    if (gpsd != NULL) {
-        gpsd->FetchLoc(&packet->gps_lat, &packet->gps_lon, &packet->gps_alt,
-                       &packet->gps_spd, &packet->gps_heading, &packet->gps_fix);
+    if (globalreg->gpsd != NULL) {
+        globalreg->gpsd->FetchLoc(&packet->gps_lat, &packet->gps_lon, &packet->gps_alt,
+                                  &packet->gps_spd, &packet->gps_heading, &packet->gps_fix);
     }
 
     memcpy(packet->data, data + pos, packet->caplen);
@@ -275,44 +294,52 @@ void Wsp100Source::PokeSensor() {
            sizeof(poke_sockaddr));
 }
 
-KisPacketSource *wsp100source_registrant(string in_name, string in_device,
-                                         char *in_err) {
-    return new Wsp100Source(in_name, in_device);
+KisPacketSource *wsp100source_registrant(REGISTRANT_PARMS) {
+    return new Wsp100Source(globalreg, in_name, in_device);
 }
 
-int monitor_wsp100(const char *in_dev, int initch, char *in_err, void **in_if, void *in_ext) {
+int monitor_wsp100(MONITOR_PARMS) {
     // Split the device
     vector<string> wsp100_bits;
     char cmdline[2048];
+    char errstr[STATUS_MAX];
 
     wsp100_bits = StrTokenize(in_dev, ":");
 
     if (wsp100_bits.size() < 3) {
-        snprintf(in_err, STATUS_MAX, "Malformed wsp100 device string '%s', should be "
+        snprintf(errstr, STATUS_MAX, "Malformed wsp100 device string '%s', should be "
                  "localip:localport:remoteip", in_dev);
+        globalreg->messagebus->InjectMessage(errstr, MSGFLAG_FATAL);
+        globalreg->fatal_condition = 1;
         return -1;
     }
 
     // sanitize it
     for (unsigned int x = 0; x < wsp100_bits[0].size(); x++) {
         if (!isdigit(wsp100_bits[0][x]) && wsp100_bits[0][x] != '.') {
-            snprintf(in_err, STATUS_MAX, "Malformed wsp100 localip '%s', should be "
+            snprintf(errstr, STATUS_MAX, "Malformed wsp100 localip '%s', should be "
                      "x.x.x.x", wsp100_bits[0].c_str());
+            globalreg->messagebus->InjectMessage(errstr, MSGFLAG_FATAL);
+            globalreg->fatal_condition = 1;
             return -1;
         }
     }
     for (unsigned int x = 0; x < wsp100_bits[1].size(); x++) {
         if (!isdigit(wsp100_bits[0][x])) {
-            snprintf(in_err, STATUS_MAX, "Malformed wsp100 localport '%s'",
+            snprintf(errstr, STATUS_MAX, "Malformed wsp100 localport '%s'",
                      wsp100_bits[0].c_str());
+            globalreg->messagebus->InjectMessage(errstr, MSGFLAG_FATAL);
+            globalreg->fatal_condition = 1;
             return -1;
         }
     }
     for (unsigned int x = 0; x < wsp100_bits[2].size(); x++) {
         char bit = wsp100_bits[0][x];
         if (!isalnum(bit) && bit != '.' && bit != '-' && bit != '_') {
-            snprintf(in_err, STATUS_MAX, "Malformed wsp100 remoteip '%s', should be "
+            snprintf(errstr, STATUS_MAX, "Malformed wsp100 remoteip '%s', should be "
                      "x.x.x.x or domain name", wsp100_bits[2].c_str());
+            globalreg->messagebus->InjectMessage(errstr, MSGFLAG_FATAL);
+            globalreg->fatal_condition = 1;
             return -1;
         }
     }
@@ -322,7 +349,9 @@ int monitor_wsp100(const char *in_dev, int initch, char *in_err, void **in_if, v
     snprintf(cmdline, 2048, "snmpset -v1 -c public %s .1.3.6.1.4.1.14422.1.1.5 a %s",
              wsp100_bits[2].c_str(), wsp100_bits[0].c_str());
     if (RunSysCmd(cmdline) < 0) {
-        snprintf(in_err, 1024, "Unable to execute '%s'", cmdline);
+        snprintf(errstr, 1024, "Unable to execute '%s'", cmdline);
+        globalreg->messagebus->InjectMessage(errstr, MSGFLAG_FATAL);
+        globalreg->fatal_condition = 1;
         return -1;
     }
 
@@ -330,7 +359,9 @@ int monitor_wsp100(const char *in_dev, int initch, char *in_err, void **in_if, v
     snprintf(cmdline, 2048, "snmpset -v 1 -c public %s .1.3.6.1.4.1.14422.1.3.1 i %d",
              wsp100_bits[2].c_str(), initch);
     if (RunSysCmd(cmdline) < 0) {
-        snprintf(in_err, 1024, "Unable to execute '%s'", cmdline);
+        snprintf(errstr, 1024, "Unable to execute '%s'", cmdline);
+        globalreg->messagebus->InjectMessage(errstr, MSGFLAG_FATAL);
+        globalreg->fatal_condition = 1;
         return -1;
     }
 
@@ -338,7 +369,9 @@ int monitor_wsp100(const char *in_dev, int initch, char *in_err, void **in_if, v
     snprintf(cmdline, 2048, "snmpset -v 1 -c public %s .1.3.6.1.4.1.14422.1.4.1 i %s",
              wsp100_bits[2].c_str(), wsp100_bits[1].c_str());
     if (RunSysCmd(cmdline) < 0) {
-        snprintf(in_err, 1024, "Unable to execute '%s'", cmdline);
+        snprintf(errstr, 1024, "Unable to execute '%s'", cmdline);
+        globalreg->messagebus->InjectMessage(errstr, MSGFLAG_FATAL);
+        globalreg->fatal_condition = 1;
         return -1;
     }
 
@@ -346,15 +379,17 @@ int monitor_wsp100(const char *in_dev, int initch, char *in_err, void **in_if, v
     snprintf(cmdline, 2038, "snmpset -v 1 -c public %s .1.3.6.1.4.1.14422.1.1.4 i 1",
              wsp100_bits[2].c_str());
     if (RunSysCmd(cmdline) < 0) {
-        snprintf(in_err, 1024, "Unable to execute '%s'", cmdline);
+        snprintf(errstr, 1024, "Unable to execute '%s'", cmdline);
+        globalreg->messagebus->InjectMessage(errstr, MSGFLAG_FATAL);
+        globalreg->fatal_condition = 1;
         return -1;
     }
 
     return 0;
 }
 
-int chancontrol_wsp100(const char *in_dev, int in_ch, char *in_err, void *in_ext) {
-    fprintf(stderr, "Need to implement wsp100 channel change...\n");
+int chancontrol_wsp100(CHCONTROL_PARMS) {
+    globalreg->messagebus->InjectMessage("Need to implement wsp100 channel control", MSGFLAG_INFO);
     return 0;
 }
 

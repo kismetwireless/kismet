@@ -26,6 +26,7 @@
 #ifdef HAVE_LINUX_NETLINK
 
 int Prism2Source::OpenSource() {
+    char errstr[STATUS_MAX];
     channel = 0;
     paused = 0;
 
@@ -37,7 +38,9 @@ int Prism2Source::OpenSource() {
     r = pipe(fds);
 
     if (r < 0) {
-        snprintf(errstr, 1024, "Prism2 open pipe() failed. (%s)", strerror(errno));
+        snprintf(errstr, STATUS_MAX, "Prism2 open pipe() failed. (%s)", strerror(errno));
+        globalreg->messagebus->InjectMessage(errstr, MSGFLAG_FATAL);
+        globalreg->fatal_condition = 1;
         return(-1);
     }
 
@@ -47,7 +50,9 @@ int Prism2Source::OpenSource() {
     fd = socket(PF_NETLINK, SOCK_RAW, MCAST_GRP_SNIFF);
 
     if (fd < 0) {
-        snprintf(errstr, 1024, "Prism2 open socket() failed. (%s)", strerror(errno));
+        snprintf(errstr, STATUS_MAX, "Prism2 open socket() failed. (%s)", strerror(errno));
+        globalreg->messagebus->InjectMessage(errstr, MSGFLAG_FATAL);
+        globalreg->fatal_condition = 1;
         return(-1);
     }
 
@@ -57,7 +62,9 @@ int Prism2Source::OpenSource() {
     addr.nl_groups = MCAST_GRP_SNIFF;
 
     if (bind(fd, (struct sockaddr *) &addr, sizeof(struct sockaddr_nl)) < 0) {
-        snprintf(errstr, 1024, "Prism2 open bind() failed. (%s)", strerror(errno));
+        snprintf(errstr, STATUS_MAX, "Prism2 open bind() failed. (%s)", strerror(errno));
+        globalreg->messagebus->InjectMessage(errstr, MSGFLAG_FATAL);
+        globalreg->fatal_condition = 1;
         return(-1);
     }
 
@@ -72,13 +79,16 @@ int Prism2Source::CloseSource() {
 }
 
 int Prism2Source::FetchPacket(kis_packet *packet, uint8_t *data, uint8_t *moddata) {
+    char errstr[STATUS_MAX];
     fd_set rs;
     int r;
     struct timeval tim;
     struct timeval *ptm;
 
     if (read_sock < 0 || fd < 0) {
-        snprintf(errstr, 1024, "Prism2 fetch failed. (source not open)");
+        snprintf(errstr, STATUS_MAX, "Prism2 fetch failed. (source not open)");
+        globalreg->messagebus->InjectMessage(errstr, MSGFLAG_FATAL);
+        globalreg->fatal_condition = 1;
         return(-1);
     }
 
@@ -97,7 +107,9 @@ int Prism2Source::FetchPacket(kis_packet *packet, uint8_t *data, uint8_t *moddat
     r = select((read_sock > fd) ? read_sock + 1 : fd + 1,
                &rs, NULL, NULL, ptm);
     if (r < 0) {
-        snprintf(errstr, 1024, "Prism2 fetch select() failed. (%s)", strerror(errno));
+        snprintf(errstr, STATUS_MAX, "Prism2 fetch select() failed. (%s)", strerror(errno));
+        globalreg->messagebus->InjectMessage(errstr, MSGFLAG_FATAL);
+        globalreg->fatal_condition = 1;
         return(-1);
     }
     if (r == 0) {
@@ -119,7 +131,9 @@ int Prism2Source::FetchPacket(kis_packet *packet, uint8_t *data, uint8_t *moddat
             if (errno == ENOBUFS)
                 return 0;
 
-            snprintf(errstr, 1024, "Prism2 fetch recv() failed. (%s)", strerror(errno));
+            snprintf(errstr, STATUS_MAX, "Prism2 fetch recv() failed. (%s)", strerror(errno));
+            globalreg->messagebus->InjectMessage(errstr, MSGFLAG_FATAL);
+            globalreg->fatal_condition = 1;
             return -1;
         }
     }
@@ -147,9 +161,9 @@ int Prism2Source::Prism2Common(kis_packet *packet, uint8_t *data, uint8_t *modda
     packet->moddata = moddata;
     packet->modified = 0;
 
-    if (gpsd != NULL) {
-        gpsd->FetchLoc(&packet->gps_lat, &packet->gps_lon, &packet->gps_alt,
-                       &packet->gps_spd, &packet->gps_heading, &packet->gps_fix);
+    if (globalreg->gpsd != NULL) {
+        globalreg->gpsd->FetchLoc(&packet->gps_lat, &packet->gps_lon, &packet->gps_alt,
+                                  &packet->gps_spd, &packet->gps_heading, &packet->gps_fix);
     }
 
     // Trim the FCS
@@ -177,37 +191,44 @@ int Prism2Source::FetchChannel() {
 // ----------------------------------------------------------------------------
 // // Registrant and control functions outside of the class
 
-KisPacketSource *prism2source_registrant(string in_name, string in_device, char *in_err) {
-    return new Prism2Source(in_name, in_device);
+KisPacketSource *prism2source_registrant(REGISTRANT_PARMS) {
+    return new Prism2Source(globalreg, in_name, in_device);
 }
 
-int monitor_wlanng_legacy(const char *in_dev, int initch, char *in_err, void **in_if, void *in_ext) {
-    // I really didn't want to do this...
+int monitor_wlanng_legacy(MONITOR_PARMS) {
+    char errstr[STATUS_MAX];
     char cmdline[2048];
 
     // Bring the device up, zero its ip, and set promisc
-    if (Ifconfig_Delta_Flags(in_dev, in_err, IFF_UP | IFF_RUNNING | IFF_PROMISC) < 0)
+    if (Ifconfig_Delta_Flags(in_dev, errstr, IFF_UP | IFF_RUNNING | IFF_PROMISC) < 0) {
+        globalreg->messagebus->InjectMessage(errstr, MSGFLAG_FATAL);
+        globalreg->fatal_condition = 1;
         return -1;
+    }
 
     // Enable the interface
     snprintf(cmdline, 2048, "wlanctl-ng %s lnxreq_wlansniff channel=%d enable=true", in_dev, initch);
     if (RunSysCmd(cmdline) < 0) {
-        snprintf(in_err, 1024, "Unable to execute '%s'", cmdline);
+        snprintf(errstr, STATUS_MAX, "Unable to execute '%s'", cmdline);
+        globalreg->messagebus->InjectMessage(errstr, MSGFLAG_FATAL);
+        globalreg->fatal_condition = 1;
         return -1;
     }
 
     return 0;
 }
 
-int chancontrol_wlanng_legacy(const char *in_dev, int initch, char *in_err, 
-                              void *in_ext) {
-    // I really didn't want to do this...
+int chancontrol_wlanng_legacy(CHCONTROL_PARMS) {
+    char errstr[STATUS_MAX];
     char cmdline[2048];
 
     // Set the channel
-    snprintf(cmdline, 2048, "wlanctl-ng %s lnxreq_wlansniff channel=%d enable=true >/dev/null 2>/dev/null", in_dev, initch);
+    snprintf(cmdline, 2048, "wlanctl-ng %s lnxreq_wlansniff channel=%d enable=true "
+             ">/dev/null 2>/dev/null", in_dev, in_ch);
     if (RunSysCmd(cmdline) < 0) {
-        snprintf(in_err, 1024, "Unable to execute '%s'", cmdline);
+        snprintf(errstr, STATUS_MAX, "Unable to execute '%s'", cmdline);
+        globalreg->messagebus->InjectMessage(errstr, MSGFLAG_FATAL);
+        globalreg->fatal_condition = 1;
         return -1;
     }
 

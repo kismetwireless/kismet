@@ -19,32 +19,80 @@
 #include "config.h"
 
 #include "alertracker.h"
-#include "server_globals.h"
 #include "kismet_server.h"
 
+char *ALERT_fields_text[] = {
+    "sec", "usec", "header", "bssid", "source", "dest", "other", "channel", "text",
+    NULL
+};
+
+// alert.  data = ALERT_data
+int Protocol_ALERT(PROTO_PARMS) {
+    ALERT_data *adata = (ALERT_data *) data;
+
+    for (unsigned int x = 0; x < field_vec->size(); x++) {
+        switch ((ALERT_fields) (*field_vec)[x]) {
+        case ALERT_header:
+            out_string += adata->header;
+            break;
+        case ALERT_sec:
+            out_string += adata->sec;
+            break;
+        case ALERT_usec:
+            out_string += adata->usec;
+            break;
+        case ALERT_bssid:
+            out_string += adata->bssid;
+            break;
+        case ALERT_source:
+            out_string += adata->source;
+            break;
+        case ALERT_dest:
+            out_string += adata->dest;
+            break;
+        case ALERT_other:
+            out_string += adata->other;
+            break;
+        case ALERT_channel:
+            out_string += adata->channel;
+            break;
+        case ALERT_text:
+            out_string += string("\001") + adata->text + string("\001");
+            break;
+        default:
+            out_string = "Unknown field requested.";
+            return -1;
+            break;
+        }
+
+        out_string += " ";
+    }
+
+    return 1;
+}
+
+void Protocol_ALERT_enable(PROTO_ENABLE_PARMS) {
+    globalreg->alertracker->BlitBacklogged(in_fd);
+}
+
 Alertracker::Alertracker() {
+    fprintf(stderr, "*** Alertracker::Alertracker() called with no global registry.  Bad.\n");
+}
+
+Alertracker::Alertracker(GlobalRegistry *in_globalreg) {
+    globalreg = in_globalreg;
     next_alert_id = 0;
-    max_backlog = 0;
-    server = NULL;
-    protoref = -1;
+
+    // Autoreg the alert protocol
+    globalreg->alr_prot_ref = 
+        globalreg->kisnetserver->RegisterProtocol("ALERT", 0, ALERT_fields_text, 
+                                                  &Protocol_ALERT, &Protocol_ALERT_enable);
 }
 
 Alertracker::~Alertracker() {
     for (map<int, alert_rec *>::iterator x = alert_ref_map.begin();
          x != alert_ref_map.end(); ++x)
         delete x->second;
-}
-
-void Alertracker::AddTcpServer(TcpServer *in_server) {
-    server = in_server;
-}
-
-void Alertracker::AddAlertProtoRef(int in_ref) {
-    protoref = in_ref;
-}
-
-void Alertracker::SetAlertBacklog(int in_max) {
-    max_backlog = in_max;
 }
 
 int Alertracker::RegisterAlert(const char *in_header, alert_time_unit in_unit, int in_rate,
@@ -173,20 +221,24 @@ int Alertracker::RaiseAlert(int in_ref,
         arec->alert_log.push_back(ts);
 
     alert_backlog.push_back(adata);
-    if (alert_backlog.size() > max_backlog) {
+    if ((int) alert_backlog.size() > globalreg->alert_backlog) {
         delete alert_backlog[0];
         alert_backlog.erase(alert_backlog.begin());
     }
 
-    server->SendToAll(protoref, (void *) adata);
-
+    globalreg->kisnetserver->SendToAll(globalreg->alr_prot_ref,
+                                            (void *) adata);
+    
     // Hook main for sounds and whatnot on the server
-    KisLocalAlert(in_text.c_str());
+    globalreg->messagebus->InjectMessage(adata->text, MSGFLAG_ALERT);
 
     return 1;
 }
 
 void Alertracker::BlitBacklogged(int in_fd) {
     for (unsigned int x = 0; x < alert_backlog.size(); x++)
-        server->SendToClient(in_fd, protoref, (void *) alert_backlog[x]);
+        globalreg->kisnetserver->SendToAll(globalreg->alr_prot_ref, 
+                                           (void *) alert_backlog[x]);
+    
+        //server->SendToClient(in_fd, protoref, (void *) alert_backlog[x]);
 }

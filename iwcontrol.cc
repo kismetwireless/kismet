@@ -87,8 +87,8 @@ int Iwconfig_Set_SSID(const char *in_dev, char *errstr, char *in_essid) {
     }
     
     if ((skfd = socket(AF_INET, SOCK_DGRAM, 0)) < 0) {
-        snprintf(errstr, STATUS_MAX, "Failed to create AF_INET DGRAM socket %d:%s", 
-                 errno, strerror(errno));
+        snprintf(errstr, STATUS_MAX, "Failed to create ioctl socket to set SSID on %s: %s", 
+                 in_dev, strerror(errno));
         return -1;
     }
 
@@ -99,8 +99,8 @@ int Iwconfig_Set_SSID(const char *in_dev, char *errstr, char *in_essid) {
     wrq.u.essid.flags = 1;
 
     if (ioctl(skfd, SIOCSIWESSID, &wrq) < 0) {
-        snprintf(errstr, STATUS_MAX, "Failed to set SSID %d:%s", errno, 
-                 strerror(errno));
+        snprintf(errstr, STATUS_MAX, "Failed to set SSID on %s: %s",  
+                 in_dev, strerror(errno));
         close(skfd);
         return -1;
     }
@@ -115,8 +115,8 @@ int Iwconfig_Get_SSID(const char *in_dev, char *errstr, char *in_essid) {
     char essid[IW_ESSID_MAX_SIZE + 1];
 
     if ((skfd = socket(AF_INET, SOCK_DGRAM, 0)) < 0) {
-        snprintf(errstr, STATUS_MAX, "Failed to create AF_INET DGRAM socket %d:%s", 
-                 errno, strerror(errno));
+        snprintf(errstr, STATUS_MAX, "Failed to create socket to fetch SSID on %s: %s", 
+                 in_dev, strerror(errno));
         return -1;
     }
 
@@ -126,14 +126,14 @@ int Iwconfig_Get_SSID(const char *in_dev, char *errstr, char *in_essid) {
     wrq.u.essid.flags = 0;
 
     if (ioctl(skfd, SIOCGIWESSID, &wrq) < 0) {
-        snprintf(errstr, STATUS_MAX, "Failed to get SSID %d:%s", errno, 
-                 strerror(errno));
+        snprintf(errstr, STATUS_MAX, "Failed to fetch SSID from %s: %s", 
+                 in_dev, strerror(errno));
         close(skfd);
         return -1;
     }
 
     snprintf(in_essid, kismin(IW_ESSID_MAX_SIZE, wrq.u.essid.length) + 1, "%s", 
-             wrq.u.essid.pointer);
+             (char *) wrq.u.essid.pointer);
 
     close(skfd);
     return 0;
@@ -144,15 +144,15 @@ int Iwconfig_Get_Name(const char *in_dev, char *errstr, char *in_name) {
     int skfd;
 
     if ((skfd = socket(AF_INET, SOCK_DGRAM, 0)) < 0) {
-        snprintf(errstr, STATUS_MAX, "Failed to create AF_INET DGRAM socket %d:%s", 
-                 errno, strerror(errno));
+        snprintf(errstr, STATUS_MAX, "Failed to create socket to get name on %s: %s",
+                 in_dev, strerror(errno));
         return -1;
     }
 
     strncpy(wrq.ifr_name, in_dev, IFNAMSIZ);
 
     if (ioctl(skfd, SIOCGIWNAME, &wrq) < 0) {
-        snprintf(errstr, STATUS_MAX, "Failed to get NAME %d:%s", errno, 
+        snprintf(errstr, STATUS_MAX, "Failed to get name on %s :%s", in_dev,
                  strerror(errno));
         close(skfd);
         return -1;
@@ -181,8 +181,8 @@ int Iwconfig_Set_IntPriv(const char *in_dev, const char *privcmd,
     memset(priv, 0, sizeof(priv));
 
     if ((skfd = socket(AF_INET, SOCK_DGRAM, 0)) < 0) {
-        snprintf(errstr, STATUS_MAX, "Failed to create AF_INET DGRAM socket %d:%s", 
-                 errno, strerror(errno));
+        snprintf(errstr, STATUS_MAX, "Failed to create socket to set private ioctl on %s: %s",
+                 in_dev, strerror(errno));
         return -1;
     }
 
@@ -194,8 +194,8 @@ int Iwconfig_Set_IntPriv(const char *in_dev, const char *privcmd,
     wrq.u.data.flags = 0;
 
     if (ioctl(skfd, SIOCGIWPRIV, &wrq) < 0) {
-        snprintf(errstr, STATUS_MAX, "Failed to retrieve list of private ioctls %d:%s",
-                 errno, strerror(errno));
+        snprintf(errstr, STATUS_MAX, "Failed to retrieve list of private ioctls on %s: %s",
+                 in_dev, strerror(errno));
         close(skfd);
         return -1;
     }
@@ -204,7 +204,8 @@ int Iwconfig_Set_IntPriv(const char *in_dev, const char *privcmd,
     while ((++pn < wrq.u.data.length) && strcmp(priv[pn].name, privcmd));
 
     if (pn == wrq.u.data.length) {
-        snprintf(errstr, STATUS_MAX, "Unable to find private ioctl '%s'", privcmd);
+        snprintf(errstr, STATUS_MAX, "Unable to find private ioctl '%s' on %s", 
+                 privcmd, in_dev);
         close(skfd);
         return -2;
     }
@@ -218,7 +219,8 @@ int Iwconfig_Set_IntPriv(const char *in_dev, const char *privcmd,
                                              (priv[j].get_args != priv[pn].get_args)));
         
         if (j == wrq.u.data.length) {
-            snprintf(errstr, STATUS_MAX, "Unable to find subioctl '%s'", privcmd);
+            snprintf(errstr, STATUS_MAX, "Unable to find subioctl '%s' on %s", 
+                     privcmd, in_dev);
             close(skfd);
             return -2;
         }
@@ -231,15 +233,15 @@ int Iwconfig_Set_IntPriv(const char *in_dev, const char *privcmd,
     // Make sure its an iwpriv we can set
     if (priv[pn].set_args & IW_PRIV_TYPE_MASK == 0 ||
         priv[pn].set_args & IW_PRIV_SIZE_MASK == 0) {
-        snprintf(errstr, STATUS_MAX, "Unable to set values for private ioctl '%s'", 
-                 privcmd);
+        snprintf(errstr, STATUS_MAX, "Unable to set values for private ioctl '%s' on %s", 
+                 privcmd, in_dev);
         close(skfd);
         return -1;
     }
   
     if ((priv[pn].set_args & IW_PRIV_TYPE_MASK) != IW_PRIV_TYPE_INT) {
-        snprintf(errstr, STATUS_MAX, "'%s' does not accept integer parameters.",
-                 privcmd);
+        snprintf(errstr, STATUS_MAX, "'%s' on %s does not accept integer parameters.",
+                 privcmd, in_dev);
         close(skfd);
         return -1;
     }
@@ -247,7 +249,8 @@ int Iwconfig_Set_IntPriv(const char *in_dev, const char *privcmd,
     // Find out how many arguments it takes and die if we can't handle it
     int nargs = (priv[pn].set_args & IW_PRIV_SIZE_MASK);
     if (nargs > 2) {
-        snprintf(errstr, STATUS_MAX, "Private ioctl expects more than 2 arguments.");
+        snprintf(errstr, STATUS_MAX, "Private ioctl '%s' on %s expects more than "
+                 "2 arguments.", privcmd, in_dev);
         close(skfd);
         return -1;
     }
@@ -278,8 +281,8 @@ int Iwconfig_Set_IntPriv(const char *in_dev, const char *privcmd,
 
     // Actually do it.
     if (ioctl(skfd, priv[pn].cmd, &wrq) < 0) {
-        snprintf(errstr, STATUS_MAX, "Failed to set private ioctl '%s': %s",
-                 privcmd, strerror(errno));
+        snprintf(errstr, STATUS_MAX, "Failed to set private ioctl '%s' on %s: %s",
+                 privcmd, in_dev, strerror(errno));
         close(skfd);
         return -1;
     }
@@ -300,8 +303,8 @@ int Iwconfig_Get_IntPriv(const char *in_dev, const char *privcmd,
     memset(priv, 0, sizeof(priv));
 
     if ((skfd = socket(AF_INET, SOCK_DGRAM, 0)) < 0) {
-        snprintf(errstr, STATUS_MAX, "Failed to create AF_INET DGRAM socket %d:%s", 
-                 errno, strerror(errno));
+        snprintf(errstr, STATUS_MAX, "Failed to create socket to fetch private ioctl on %s: %s",
+                 in_dev, strerror(errno));
         return -1;
     }
 
@@ -313,8 +316,8 @@ int Iwconfig_Get_IntPriv(const char *in_dev, const char *privcmd,
     wrq.u.data.flags = 0;
 
     if (ioctl(skfd, SIOCGIWPRIV, &wrq) < 0) {
-        snprintf(errstr, STATUS_MAX, "Failed to retrieve list of private ioctls %d:%s",
-                 errno, strerror(errno));
+        snprintf(errstr, STATUS_MAX, "Failed to retrieve list of private ioctls on %s: %s",
+                 in_dev, strerror(errno));
         close(skfd);
         return -1;
     }
@@ -323,7 +326,8 @@ int Iwconfig_Get_IntPriv(const char *in_dev, const char *privcmd,
     while ((++pn < wrq.u.data.length) && strcmp(priv[pn].name, privcmd));
 
     if (pn == wrq.u.data.length) {
-        snprintf(errstr, STATUS_MAX, "Unable to find private ioctl '%s'", privcmd);
+        snprintf(errstr, STATUS_MAX, "Unable to find private ioctl '%s' on %s", 
+                 privcmd, in_dev);
         close(skfd);
         return -2;
     }
@@ -337,7 +341,8 @@ int Iwconfig_Get_IntPriv(const char *in_dev, const char *privcmd,
                                              (priv[j].get_args != priv[pn].get_args)));
         
         if (j == wrq.u.data.length) {
-            snprintf(errstr, STATUS_MAX, "Unable to find subioctl '%s'", privcmd);
+            snprintf(errstr, STATUS_MAX, "Unable to find subioctl '%s' on %s", 
+                     privcmd, in_dev);
             close(skfd);
             return -2;
         }
@@ -350,15 +355,15 @@ int Iwconfig_Get_IntPriv(const char *in_dev, const char *privcmd,
     // Make sure its an iwpriv we can set
     if (priv[pn].get_args & IW_PRIV_TYPE_MASK == 0 ||
         priv[pn].get_args & IW_PRIV_SIZE_MASK == 0) {
-        snprintf(errstr, STATUS_MAX, "Unable to get values for private ioctl '%s'", 
-                 privcmd);
+        snprintf(errstr, STATUS_MAX, "Unable to get values for private ioctl '%s' on %s", 
+                 privcmd, in_dev);
         close(skfd);
         return -1;
     }
   
     if ((priv[pn].get_args & IW_PRIV_TYPE_MASK) != IW_PRIV_TYPE_INT) {
-        snprintf(errstr, STATUS_MAX, "'%s' does not return integer parameters.",
-                 privcmd);
+        snprintf(errstr, STATUS_MAX, "Private ioctl '%s' on %s does not return "
+                 "integer parameters.", privcmd, in_dev);
         close(skfd);
         return -1;
     }
@@ -366,7 +371,8 @@ int Iwconfig_Get_IntPriv(const char *in_dev, const char *privcmd,
     // Find out how many arguments it takes and die if we can't handle it
     int nargs = (priv[pn].get_args & IW_PRIV_SIZE_MASK);
     if (nargs > 1) {
-        snprintf(errstr, STATUS_MAX, "Private ioctl returns more than 1 parameter and we can't handle that.");
+        snprintf(errstr, STATUS_MAX, "Private ioctl '%s' on %s returns more than 1 "
+                 "parameter and we can't handle that at the moment.", privcmd, in_dev);
         close(skfd);
         return -1;
     }
@@ -393,8 +399,8 @@ int Iwconfig_Get_IntPriv(const char *in_dev, const char *privcmd,
 
     // Actually do it.
     if (ioctl(skfd, priv[pn].cmd, &wrq) < 0) {
-        snprintf(errstr, STATUS_MAX, "Failed to call get private ioctl '%s': %s",
-                 privcmd, strerror(errno));
+        snprintf(errstr, STATUS_MAX, "Failed to call get private ioctl '%s' on %s: %s",
+                 privcmd, in_dev, strerror(errno));
         close(skfd);
         return -1;
     }

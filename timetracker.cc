@@ -23,6 +23,11 @@
 #include "timetracker.h"
 
 Timetracker::Timetracker() {
+    fprintf(stderr, "Timetracker::Timetracker() called with no globalreg\n");
+}
+
+Timetracker::Timetracker(GlobalRegistry *in_globalreg) {
+    globalreg = in_globalreg;
     next_timer_id = 0;
 }
 
@@ -48,7 +53,7 @@ int Timetracker::Tick() {
 
         // Call the function with the given parameters
         int ret;
-        ret = (*evt->callback)(evt, evt->callback_parm);
+        ret = (*evt->callback)(evt, evt->callback_parm, globalreg);
 
         if (ret > 0 && evt->timeslices != -1 && evt->recurring) {
             evt->schedule_tm.tv_sec = cur_tm.tv_sec;
@@ -73,7 +78,8 @@ int Timetracker::Tick() {
 }
 
 int Timetracker::RegisterTimer(int in_timeslices, struct timeval *in_trigger,
-                               int in_recurring, int (*in_callback)(timer_event *, void *),
+                               int in_recurring, 
+                               int (*in_callback)(timer_event *, void *, GlobalRegistry *),
                                void *in_parm) {
     timer_event *evt = new timer_event;
 

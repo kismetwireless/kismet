@@ -49,7 +49,8 @@ int Wsp100PokeSensor(Timetracker::timer_event *evt, void *call_parm);
 
 class Wsp100Source : public KisPacketSource {
 public:
-    Wsp100Source(string in_name, string in_dev) : KisPacketSource(in_name, in_dev) { }
+    Wsp100Source(GlobalRegistry *in_globalreg, string in_name, 
+                 string in_dev) : KisPacketSource(in_globalreg, in_name, in_dev) { }
 
     int OpenSource();
 
@@ -83,10 +84,9 @@ protected:
 };
 
 // Registrant bits
-KisPacketSource *wsp100source_registrant(string in_name, string in_device,
-                                         char *in_err);
-int monitor_wsp100(const char *in_dev, int initch, char *in_err, void **in_if, void *in_ext);
-int chancontrol_wsp100(const char *in_dev, int in_ch, char *in_err, void *in_ext);
+KisPacketSource *wsp100source_registrant(REGISTRANT_PARMS);
+int monitor_wsp100(MONITOR_PARMS);
+int chancontrol_wsp100(CHCONTROL_PARMS);
 
 // wsp100
 #endif

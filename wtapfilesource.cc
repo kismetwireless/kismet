@@ -23,6 +23,7 @@
 int WtapFileSource::OpenSource() {
     paused = 0;
     int err;
+    char errstr[STATUS_MAX];
 
     char *unconst = strdup(interface.c_str());
 
@@ -36,6 +37,8 @@ int WtapFileSource::OpenSource() {
     if (packfile == NULL) {
         snprintf(errstr, 1024, "Wtap file source unable to open %s: %s",
                  unconst, strerror(err));
+        globalreg->messagebus->InjectMessage(errstr, MSGFLAG_FATAL);
+        globalreg->fatal_condition = 1;
         free(unconst);
         return -1;
     }
@@ -48,6 +51,8 @@ int WtapFileSource::OpenSource() {
         wtap_file_encap(packfile) != WTAP_ENCAP_IEEE_802_11_WITH_RADIO) {
         snprintf(errstr, 1024, "Wtap file '%s' not an 802.11 encapsulation.", 
                  interface.c_str());
+        globalreg->messagebus->InjectMessage(errstr, MSGFLAG_FATAL);
+        globalreg->fatal_condition = 1;
         return -1;
     }
 
@@ -77,6 +82,8 @@ int WtapFileSource::FetchPacket(kis_packet *packet, uint8_t *data, uint8_t *modd
 #endif
     {
         snprintf(errstr, 1024, "Wtap file source failed to read packet.");
+        globalreg->messagebus->InjectMessage(errstr, MSGFLAG_FATAL);
+        globalreg->fatal_condition = 1;
         return -1;
     }
 
@@ -84,6 +91,8 @@ int WtapFileSource::FetchPacket(kis_packet *packet, uint8_t *data, uint8_t *modd
 
     if (packet_header == NULL) {
         snprintf(errstr, 1024, "Wtap file source failed to read header.\n");
+        globalreg->messagebus->InjectMessage(errstr, MSGFLAG_FATAL);
+        globalreg->fatal_condition = 1;
         return -1;
     }
 
@@ -91,6 +100,8 @@ int WtapFileSource::FetchPacket(kis_packet *packet, uint8_t *data, uint8_t *modd
 
     if (packet_data == NULL) {
         snprintf(errstr, 1024, "Wtap file source failed to read data.\n");
+        globalreg->messagebus->InjectMessage(errstr, MSGFLAG_FATAL);
+        globalreg->fatal_condition = 1;
         return -1;
     }
 
@@ -141,9 +152,8 @@ int WtapFileSource::Wtap2Common(kis_packet *packet, uint8_t *data, uint8_t *modd
 }
 
 // Nonclass registrant
-KisPacketSource *wtapfilesource_registrant(string in_name, string in_device,
-                                           char *in_err) {
-    return new WtapFileSource(in_name, in_device);
+KisPacketSource *wtapfilesource_registrant(REGISTRANT_PARMS) {
+    return new WtapFileSource(globalreg, in_name, in_device);
 }
 
 #endif

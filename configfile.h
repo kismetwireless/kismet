@@ -32,11 +32,11 @@
 #include <map>
 #include <vector>
 
-#include "packet.h"
+#include "macaddr.h"
+#include "alertracker.h"
 
 class ConfigFile {
 public:
-
     int ParseConfig(const char *in_fname);
     string FetchOpt(string in_key);
     vector<string> FetchOptVec(string in_key);
@@ -46,6 +46,8 @@ public:
                                macmap<int> *source_map,
                                macmap<int> *dest_map,
                                int *bssid_invert, int *source_invert, int *dest_invert);
+    static int ParseAlertLine(string alert_str, string *ret_name, alert_time_unit *ret_limit_unit,
+                              int *ret_limit_rate, int *ret_limit_burst);
 
 protected:
     map<string, vector<string> > config_map;

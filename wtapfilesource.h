@@ -32,7 +32,8 @@ extern "C" {
 
 class WtapFileSource : public KisPacketSource {
 public:
-    WtapFileSource(string in_name, string in_dev) : KisPacketSource(in_name, in_dev) { }
+    WtapFileSource(GlobalRegistry *in_globalreg, string in_name, 
+                   string in_dev) : KisPacketSource(in_globalreg, in_name, in_dev) { }
 
     int OpenSource();
     int CloseSource();
@@ -56,8 +57,7 @@ protected:
 };
 
 // Registrant only.  There aren't any channel or monitor controls.
-KisPacketSource *wtapfilesource_registrant(string in_name, string in_device, 
-                                           char *in_err);
+KisPacketSource *wtapfilesource_registrant(REGISTRANT_PARMS);
 
 #endif
 

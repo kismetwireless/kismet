@@ -101,9 +101,9 @@ u_char callback_data[MAX_PACKET_LEN];
 
 // Open a source
 int PcapSource::OpenSource() {
-    channel = 0;
+    char errstr[STATUS_MAX] = "";
 
-    errstr[0] = '\0';
+    channel = 0;
 
     char *unconst = strdup(interface.c_str());
 
@@ -111,8 +111,11 @@ int PcapSource::OpenSource() {
 
     free(unconst);
 
-    if (strlen(errstr) > 0)
+    if (strlen(errstr) > 0) {
+        globalreg->messagebus->InjectMessage(errstr, MSGFLAG_FATAL);
+        globalreg->fatal_condition = 1;
         return -1; // Error is already in errstr
+    }
 
     paused = 0;
 
@@ -129,13 +132,16 @@ int PcapSource::OpenSource() {
     // do something clever  (Thanks to Guy Harris for suggesting this).
     int save_mode = fcntl(pcap_get_selectable_fd(pd), F_GETFL, 0);
     if (fcntl(pcap_get_selectable_fd(pd), F_SETFL, save_mode | O_NONBLOCK) < 0) {
-        snprintf(errstr, 1024, "fcntl failed, errno %d (%s)",
+        snprintf(errstr, STATUS_MAX, "fcntl failed, errno %d (%s)",
                  errno, strerror(errno));
     }
 #endif
 
-    if (strlen(errstr) > 0)
+    if (strlen(errstr) > 0) {
+        globalreg->messagebus->InjectMessage(errstr, MSGFLAG_FATAL);
+        globalreg->fatal_condition = 1;
         return -1; // Ditto
+    }
     
     return 1;
 }
@@ -161,28 +167,31 @@ int PcapSource::FetchSignalLevels(int *in_siglev, int *in_noiselev) {
 
 // Errorcheck the datalink type
 int PcapSource::DatalinkType() {
+    char errstr[STATUS_MAX] = "";
     datalink_type = pcap_datalink(pd);
 
     // Blow up if we're not valid 802.11 headers
 #if (defined(SYS_FREEBSD) || defined(SYS_OPENBSD))
     if (datalink_type == DLT_EN10MB) {
-        fprintf(stderr, "WARNING:  pcap reports link type of EN10MB but we'll fake "
-                "it on BSD.\n"
-                "This may not work the way we want it to.\n");
+        snprintf(errstr, STATUS_MAX, "pcap reports link type of EN10MB but we'll fake it on BSD. "
+                "This may not work the way we want it to.");
+        globalreg->messagebus->InjectMessage(errstr, MSGFLAG_ERROR);
 #if (defined(SYS_FREEBSD) || defined(SYS_NETBSD) && !defined(HAVE_RADIOTAP))
-        fprintf(stderr, "WARNING:  Some Free- and Net- BSD drivers do not report "
-                "rfmon packets\n"
-                "correctly.  Kismet will probably not run correctly.  For better\n"
-                "support, you should upgrade to a version of *BSD with Radiotap.\n");
+        snprintf(errstr, STATUS_MAX, "Some free- and net- BSD drivers do not report rfmon "
+                 "packets correctly.  Kismet may not run correctly.  For better support, "
+                 "you should upgrade to a version of BSD with radiotap support.");
+        globalreg->messagebus->InjectMessage(errstr, MSGFLAG_ERROR);
 #endif
         datalink_type = KDLT_BSD802_11;
     }
 #else
     if (datalink_type == DLT_EN10MB) {
-        snprintf(errstr, 1024, "pcap reported netlink type 1 (EN10MB) for %s.  "
+        snprintf(errstr, STATUS_MAX, "pcap reported netlink type 1 (EN10MB) for %s.  "
                  "This probably means you're not in RFMON mode or your drivers are "
                  "reporting a bad value.  Make sure you have the correct drivers "
                  "and that entering monitor mode succeeded.", interface.c_str());
+        globalreg->messagebus->InjectMessage(errstr, MSGFLAG_FATAL);
+        globalreg->fatal_condition = 1;
         return -1;
     }
 #endif
@@ -190,8 +199,10 @@ int PcapSource::DatalinkType() {
     // Little hack to give an intelligent error report for radiotap
 #ifndef HAVE_RADIOTAP
     if (datalink_type == DLT_IEEE802_11_RADIO) {
-        snprintf(errstr, 1024, "FATAL: Radiotap link type reported but radiotap "
+        snprintf(errstr, STATUS_MAX, "FATAL: Radiotap link type reported but radiotap "
                  "support was not compiled into Kismet.");
+        globalreg->messagebus->InjectMessage(errstr, MSGFLAG_FATAL);
+        globalreg->fatal_condition = 1;
         return -1;
     }
 #endif
@@ -199,8 +210,9 @@ int PcapSource::DatalinkType() {
     if (datalink_type != KDLT_BSD802_11 && datalink_type != DLT_IEEE802_11 &&
         datalink_type != DLT_PRISM_HEADER &&
         datalink_type != DLT_IEEE802_11_RADIO) {
-        fprintf(stderr, "WARNING:  Unknown link type %d reported.  Continuing on "
-                "blindly...\n", datalink_type);
+        snprintf(errstr, STATUS_MAX, "Unknown link type %d reported.  Continuing on "
+                 "blindly and hoping we get something useful...\n", datalink_type);
+        globalreg->messagebus->InjectMessage(errstr, MSGFLAG_ERROR);
     }
 
     return 1;
@@ -223,7 +235,7 @@ void PcapSource::Callback(u_char *bp, const struct pcap_pkthdr *header,
 
 int PcapSource::FetchPacket(kis_packet *packet, uint8_t *data, uint8_t *moddata) {
     int ret;
-    //unsigned char *udata = '\0';
+    char errstr[STATUS_MAX] = "";
 
     if ((ret = pcap_dispatch(pd, 1, PcapSource::Callback, NULL)) < 0) {
         // Is the interface still here and just not running?  Lets give a more intelligent
@@ -236,14 +248,17 @@ int PcapSource::FetchPacket(kis_packet *packet, uint8_t *data, uint8_t *moddata)
         // Are we able to fetch the interface, and is it running?
         ret = Ifconfig_Get_Flags(interface.c_str(), errstr, &flags);
         if (ret >= 0 && (flags & IFF_UP) == 0) {
-            snprintf(errstr, 1024, "Reading packet from pcap failed, interface is no longer up.  Usually this "
+            snprintf(errstr, STATUS_MAX, "Reading packet from pcap failed, interface is no longer up.  Usually this "
                      "happens when a DHCP client times out and turns off the interface.  See the Troubleshooting "
                      "section of the README for more information.");
         } else {
 #endif
-            snprintf(errstr, 1024, "Reading packet from pcap failed, interface no longer available.");
+            snprintf(errstr, STATUS_MAX, "Reading packet from pcap failed, interface no longer available.");
 #ifdef SYS_LINUX
         }
+
+        globalreg->messagebus->InjectMessage(errstr, MSGFLAG_FATAL);
+        globalreg->fatal_condition = 1;
         return -1;
 #endif
     }
@@ -275,9 +290,9 @@ int PcapSource::ManglePacket(kis_packet *packet, uint8_t *data, uint8_t *moddata
     packet->moddata = moddata;
     packet->modified = 0;
 
-    if (gpsd != NULL) {
-        gpsd->FetchLoc(&packet->gps_lat, &packet->gps_lon, &packet->gps_alt,
-                       &packet->gps_spd, &packet->gps_heading, &packet->gps_fix);
+    if (globalreg->gpsd != NULL) {
+        globalreg->gpsd->FetchLoc(&packet->gps_lat, &packet->gps_lon, &packet->gps_alt,
+                                  &packet->gps_spd, &packet->gps_heading, &packet->gps_fix);
     }
 
     if (datalink_type == DLT_PRISM_HEADER) {
@@ -313,6 +328,7 @@ int PcapSource::ManglePacket(kis_packet *packet, uint8_t *data, uint8_t *moddata
 int PcapSource::Prism2KisPack(kis_packet *packet, uint8_t *data, uint8_t *moddata) {
     int header_found = 0;
     int callback_offset = 0;
+    char errstr[STATUS_MAX] = "";
 
     // See if we have an AVS wlan header...
     avs_80211_1_header *v1hdr = (avs_80211_1_header *) callback_data;
@@ -320,7 +336,8 @@ int PcapSource::Prism2KisPack(kis_packet *packet, uint8_t *data, uint8_t *moddat
         ntohl(v1hdr->version) == 0x80211001 && header_found == 0) {
 
         if (ntohl(v1hdr->length) > callback_header.caplen) {
-            snprintf(errstr, 1024, "pcap prism2 converter got corrupted AVS header length");
+            snprintf(errstr, STATUS_MAX, "pcap prism2 converter got corrupted AVS header length");
+            globalreg->messagebus->InjectMessage(errstr, MSGFLAG_ERROR);
             packet->len = 0;
             packet->caplen = 0;
             return 0;
@@ -406,7 +423,8 @@ int PcapSource::Prism2KisPack(kis_packet *packet, uint8_t *data, uint8_t *moddat
     }
 
     if (header_found == 0) {
-        snprintf(errstr, 1024, "pcap prism2 convverter saw undersized capture frame");
+        snprintf(errstr, STATUS_MAX, "pcap prism2 convverter saw undersized capture frame");
+        globalreg->messagebus->InjectMessage(errstr, MSGFLAG_ERROR);
         packet->len = 0;
         packet->caplen = 0;
         return 0;
@@ -420,10 +438,12 @@ int PcapSource::Prism2KisPack(kis_packet *packet, uint8_t *data, uint8_t *moddat
 
 int PcapSource::BSD2KisPack(kis_packet *packet, uint8_t *data, uint8_t *moddata) {
     int callback_offset = 0;
+    char errstr[STATUS_MAX];
 
     // Process our hacked in BSD type
     if (callback_header.caplen < sizeof(bsd_80211_header)) {
-        snprintf(errstr, 1024, "pcap bsd converter saw undersized capture frame for bsd header.");
+        snprintf(errstr, STATUS_MAX, "pcap bsd converter saw undersized capture frame for bsd header.");
+        globalreg->messagebus->InjectMessage(errstr, MSGFLAG_ERROR);
         packet->len = 0;
         packet->caplen = 0;
         return 0;
@@ -708,13 +728,15 @@ int PcapSource::FetchChannel() {
 // Open an offline file with pcap
 int PcapSourceFile::OpenSource() {
     channel = 0;
-
-    errstr[0] = '\0';
+    char errstr[STATUS_MAX] = "";
 
     pd = pcap_open_offline(interface.c_str(), errstr);
 
-    if (strlen(errstr) > 0)
+    if (strlen(errstr) > 0) {
+        globalreg->messagebus->InjectMessage(errstr, MSGFLAG_FATAL);
+        globalreg->fatal_condition = 1;
         return -1; // Error is already in errstr
+    }
 
     paused = 0;
 
@@ -742,15 +764,19 @@ int PcapSourceFile::FetchChannel() {
 
 int PcapSourceFile::FetchPacket(kis_packet *packet, uint8_t *data, uint8_t *moddata) {
     int ret;
-    //unsigned char *udata = '\0';
+    char errstr[STATUS_MAX] = "";
 
     ret = pcap_dispatch(pd, 1, PcapSource::Callback, NULL);
 
     if (ret < 0) {
-        snprintf(errstr, 1024, "Pcap Get Packet pcap_dispatch() failed");
+        snprintf(errstr, STATUS_MAX, "Pcap Get Packet pcap_dispatch() failed");
+        globalreg->messagebus->InjectMessage(errstr, MSGFLAG_FATAL);
+        globalreg->fatal_condition = 1;
         return -1;
     } else if (ret == 0) {
-        snprintf(errstr, 1024, "Pcap file reached end of capture.");
+        snprintf(errstr, STATUS_MAX, "Pcap file reached end of capture.");
+        globalreg->messagebus->InjectMessage(errstr, MSGFLAG_FATAL);
+        globalreg->fatal_condition = 1;
         return -1;
     }
 
@@ -772,16 +798,27 @@ int PcapSourceFile::FetchPacket(kis_packet *packet, uint8_t *data, uint8_t *modd
 #ifdef HAVE_LINUX_WIRELESS
 // Simple alias to our ifcontrol interface
 int PcapSourceWext::FetchChannel() {
-    // Use wireless extensions to get the channel
-    return Iwconfig_Get_Channel(interface.c_str(), errstr);
+    char errstr[STATUS_MAX] = "";
+
+    // Failure to fetch a channel isn't necessarily a fatal error
+    if (Iwconfig_Get_Channel(interface.c_str(), errstr) < 0) {
+        globalreg->messagebus->InjectMessage(errstr, MSGFLAG_ERROR);
+        return -1;
+    }
+
+    return 1;
 }
 
 int PcapSourceWext::FetchSignalLevels(int *in_siglev, int *in_noiselev) {
     int raw_siglev, raw_noiselev, ret;
+    char errstr[STATUS_MAX] = "";
 
+    // Failure to fetch signal levels isn't an automatic fatal condition
     if ((ret = Iwconfig_Get_Levels(interface.c_str(), errstr, 
-                                   &raw_siglev, &raw_noiselev)) < 0)
-        return ret;
+                                   &raw_siglev, &raw_noiselev)) < 0) {
+        globalreg->messagebus->InjectMessage(errstr, MSGFLAG_ERROR);
+        return -1;
+    }
 
     (*in_siglev) = raw_siglev;
     (*in_noiselev) = raw_noiselev;
@@ -808,7 +845,14 @@ carrier_type PcapSource11G::IEEE80211Carrier() {
 int PcapSourceWlanng::FetchChannel() {
     // Use wireless extensions to get the channel if we can
 #ifdef HAVE_LINUX_WIRELESS
-    return Iwconfig_Get_Channel(interface.c_str(), errstr);
+    char errstr[STATUS_MAX] = "";
+
+    if (Iwconfig_Get_Channel(interface.c_str(), errstr) < 0) {
+        globalreg->messagebus->InjectMessage(errstr, MSGFLAG_ERROR);
+        return -1;
+    }
+    
+    return 0;
 #else
     return last_channel;
 #endif
@@ -817,10 +861,12 @@ int PcapSourceWlanng::FetchChannel() {
 // Handle badly formed jumbo packets from the drivers
 int PcapSourceWrt54g::FetchPacket(kis_packet *packet, uint8_t *data, uint8_t *moddata) {
     int ret;
-    //unsigned char *udata = '\0';
+    char errstr[STATUS_MAX] = "";
 
     if ((ret = pcap_dispatch(pd, 1, PcapSource::Callback, NULL)) < 0) {
-        snprintf(errstr, 1024, "Pcap Get Packet pcap_dispatch() failed");
+        snprintf(errstr, STATUS_MAX, "Pcap Get Packet pcap_dispatch() failed");
+        globalreg->messagebus->InjectMessage(errstr, MSGFLAG_FATAL);
+        globalreg->fatal_condition = 1;
         return -1;
     }
 
@@ -866,10 +912,13 @@ int PcapSourceOpenBSDPrism::FetchChannel() {
     struct wi_req wreq;                                                     
     struct ifreq ifr;                                                       
     int skfd;
+    char errstr[STATUS_MAX] = "";
 
 	if ((skfd = socket(AF_INET, SOCK_DGRAM, 0)) < 0) {
-		snprintf(errstr, 1024, "Failed to create AF_INET socket: %s",
+		snprintf(errstr, STATUS_MAX, "Failed to create AF_INET socket: %s",
                  strerror(errno));
+        globalreg->messagebus->InjectMessage(errstr, MSGFLAG_FATAL);
+        globalreg->fatal_condition = 1;
 		return -1;
 	}
 
@@ -883,8 +932,10 @@ int PcapSourceOpenBSDPrism::FetchChannel() {
 
 	if (ioctl(skfd, SIOCGWAVELAN, &ifr) < 0) {
         close(skfd);
-		snprintf(errstr, 1024, "Channel set ioctl failed: %s",
+		snprintf(errstr, STATUS_MAX, "Channel set ioctl failed: %s",
                  strerror(errno));
+        globalreg->messagebus->InjectMessage(errstr, MSGFLAG_FATAL);
+        globalreg->fatal_condition = 1;
 		return -1;
 	}
 
@@ -896,16 +947,19 @@ int PcapSourceOpenBSDPrism::FetchChannel() {
 #ifdef HAVE_RADIOTAP
 int PcapSourceRadiotap::OpenSource() {
     // XXX this is a hack to avoid duplicating code
+    char errstr[STATUS_MAX] = "";
     int s = PcapSource::OpenSource();
     if (s < 0)
-	return s;
+        return s;
     if (!CheckForDLT(DLT_IEEE802_11_RADIO)) {
-	snprintf(errstr, 1024, "No support for radiotap data link");
-	return -1;
+        snprintf(errstr, STATUS_MAX, "No support for radiotap data link");
+        globalreg->messagebus->InjectMessage(errstr, MSGFLAG_FATAL);
+        globalreg->fatal_condition = 1;
+        return -1;
     } else {
-	(void) pcap_set_datalink(pd, DLT_IEEE802_11_RADIO);
-	datalink_type = DLT_IEEE802_11_RADIO;
-	return s;
+        (void) pcap_set_datalink(pd, DLT_IEEE802_11_RADIO);
+        datalink_type = DLT_IEEE802_11_RADIO;
+        return s;
     }
 }
 
@@ -928,120 +982,132 @@ bool PcapSourceRadiotap::CheckForDLT(int dlt)
 // ----------------------------------------------------------------------------
 // Registrant and control functions outside of the class
 
-KisPacketSource *pcapsource_registrant(string in_name, string in_device,
-                                       char *in_err) {
-    return new PcapSource(in_name, in_device);
+KisPacketSource *pcapsource_registrant(REGISTRANT_PARMS) {
+    return new PcapSource(globalreg, in_name, in_device);
 }
 
-KisPacketSource *pcapsource_file_registrant(string in_name, string in_device,
-                                            char *in_err) {
-    return new PcapSourceFile(in_name, in_device);
+KisPacketSource *pcapsource_file_registrant(REGISTRANT_PARMS) {
+    return new PcapSourceFile(globalreg, in_name, in_device);
 }
 
 #ifdef HAVE_LINUX_WIRELESS
-KisPacketSource *pcapsource_wext_registrant(string in_name, string in_device, 
-                                            char *in_err) {
-    return new PcapSourceWext(in_name, in_device);
+KisPacketSource *pcapsource_wext_registrant(REGISTRANT_PARMS) {
+    return new PcapSourceWext(globalreg, in_name, in_device);
 }
 
-KisPacketSource *pcapsource_wextfcs_registrant(string in_name, string in_device,
-                                               char *in_err) {
-    return new PcapSourceWextFCS(in_name, in_device);
+KisPacketSource *pcapsource_wextfcs_registrant(REGISTRANT_PARMS) {
+    return new PcapSourceWextFCS(globalreg, in_name, in_device);
 }
 
-KisPacketSource *pcapsource_ciscowifix_registrant(string in_name, string in_device, char *in_err) {
+KisPacketSource *pcapsource_ciscowifix_registrant(REGISTRANT_PARMS) {
+    char errstr[STATUS_MAX] = "";
+
     vector<string> devbits = StrTokenize(in_device, ":");
 
     if (devbits.size() < 2) {
-        snprintf(in_err, STATUS_MAX, "Invalid device pair '%s'", in_device.c_str());
+        snprintf(errstr, STATUS_MAX, "Invalid device pair '%s'", in_device.c_str());
+        globalreg->messagebus->InjectMessage(errstr, MSGFLAG_ERROR);
         return NULL;
     }
 
-    return new PcapSourceWext(in_name, devbits[1]);
+    return new PcapSourceWext(globalreg, in_name, devbits[1]);
 }
 
-KisPacketSource *pcapsource_11g_registrant(string in_name, string in_device,
-                                           char *in_err) {
-    return new PcapSource11G(in_name, in_device);
+KisPacketSource *pcapsource_11g_registrant(REGISTRANT_PARMS) {
+    return new PcapSource11G(globalreg, in_name, in_device);
 }
 
-KisPacketSource *pcapsource_11gfcs_registrant(string in_name, string in_device,
-                                              char *in_err) {
-    return new PcapSource11GFCS(in_name, in_device);
+KisPacketSource *pcapsource_11gfcs_registrant(REGISTRANT_PARMS) {
+    return new PcapSource11GFCS(globalreg, in_name, in_device);
 }
 
 #endif
 
 #ifdef SYS_LINUX
-KisPacketSource *pcapsource_wlanng_registrant(string in_name, string in_device,
-                                              char *in_err) {
-    return new PcapSourceWlanng(in_name, in_device);
+KisPacketSource *pcapsource_wlanng_registrant(REGISTRANT_PARMS) {
+    return new PcapSourceWlanng(globalreg, in_name, in_device);
 }
 
-KisPacketSource *pcapsource_wrt54g_registrant(string in_name, string in_device,
-                                              char *in_err) {
-    return new PcapSourceWrt54g(in_name, in_device);
+KisPacketSource *pcapsource_wrt54g_registrant(REGISTRANT_PARMS) {
+    return new PcapSourceWrt54g(globalreg, in_name, in_device);
 }
 #endif
 
 #ifdef SYS_OPENBSD
-KisPacketSource *pcapsource_openbsdprism2_registrant(string in_name, string in_device,
-                                                     char *in_err) {
-    return new PcapSourceOpenBSDPrism(in_name, in_device);
+KisPacketSource *pcapsource_openbsdprism2_registrant(REGISTRANT_PARMS) {
+    return new PcapSourceOpenBSDPrism(globalreg, in_name, in_device);
 }
 #endif
 
 #ifdef HAVE_RADIOTAP
-KisPacketSource *pcapsource_radiotap_registrant(string in_name, string in_device,
-                                                     char *in_err) {
-    return new PcapSourceRadiotap(in_name, in_device);
+KisPacketSource *pcapsource_radiotap_registrant(REGISTRANT_PARMS) {
+    return new PcapSourceRadiotap(globalreg, in_name, in_device);
 }
 #endif
 
-int unmonitor_pcapfile(const char *in_dev, int initch, char *in_err, void **in_if, void *in_ext) {
+int unmonitor_pcapfile(MONITOR_PARMS) {
     return 0;
 }
 
 // Monitor commands
 #ifdef HAVE_LINUX_WIRELESS
 // Cisco uses its own config file in /proc to control modes
-int monitor_cisco(const char *in_dev, int initch, char *in_err, void **in_if, void *in_ext) {
+int monitor_cisco(MONITOR_PARMS) {
     FILE *cisco_config;
     char cisco_path[128];
+    char errstr[STATUS_MAX];
 
     linux_ifparm *ifparm = (linux_ifparm *) malloc(sizeof(linux_ifparm));
     (*in_if) = ifparm;
 
-    if (Ifconfig_Get_Flags(in_dev, in_err, &ifparm->flags) < 0) {
+    if (Ifconfig_Get_Flags(in_dev, errstr, &ifparm->flags) < 0) {
+        globalreg->messagebus->InjectMessage(errstr, MSGFLAG_FATAL);
+        globalreg->fatal_condition = 1;
         return -1;
     }
 
-    if (Iwconfig_Get_SSID(in_dev, in_err, ifparm->essid) < 0)
+    if (Iwconfig_Get_SSID(in_dev, errstr, ifparm->essid) < 0) {
+        globalreg->messagebus->InjectMessage(errstr, MSGFLAG_FATAL);
+        globalreg->fatal_condition = 1;
         return -1;
+    }
 
-    if ((ifparm->channel = Iwconfig_Get_Channel(in_dev, in_err)) < 0)
+    if ((ifparm->channel = Iwconfig_Get_Channel(in_dev, errstr)) < 0) {
+        globalreg->messagebus->InjectMessage(errstr, MSGFLAG_FATAL);
+        globalreg->fatal_condition = 1;
         return -1;
+    }
 
-    if (Iwconfig_Get_Mode(in_dev, in_err, &ifparm->mode) < 0)
+    if (Iwconfig_Get_Mode(in_dev, errstr, &ifparm->mode) < 0) {
+        globalreg->messagebus->InjectMessage(errstr, MSGFLAG_FATAL);
+        globalreg->fatal_condition = 1;
         return -1;
+    }
 
-    if (Ifconfig_Delta_Flags(in_dev, in_err, IFF_UP | IFF_RUNNING | IFF_PROMISC) < 0)
+    if (Ifconfig_Delta_Flags(in_dev, errstr, IFF_UP | IFF_RUNNING | IFF_PROMISC) < 0) {
+        globalreg->messagebus->InjectMessage(errstr, MSGFLAG_FATAL);
+        globalreg->fatal_condition = 1;
         return -1;
-
-    // Try the iwpriv
-    if (Iwconfig_Set_IntPriv(in_dev, "setRFMonitor", 1, 0, in_err) >= 0) {
-        return 0;
     }
 
     // Zero the ssid - nonfatal
-    Iwconfig_Set_SSID(in_dev, in_err, NULL);
+    Iwconfig_Set_SSID(in_dev, errstr, NULL);
    
+    // Try the iwpriv
+    if (Iwconfig_Set_IntPriv(in_dev, "setRFMonitor", 1, 0, errstr) >= 0) {
+        snprintf(errstr, STATUS_MAX, "Cisco monitor mode found with new setRFMonitor private control");
+        globalreg->messagebus->InjectMessage(errstr, MSGFLAG_INFO);
+        return 0;
+    }
+
     // Build the proc control path
     snprintf(cisco_path, 128, "/proc/driver/aironet/%s/Config", in_dev);
 
     if ((cisco_config = fopen(cisco_path, "w")) == NULL) {
-        snprintf(in_err, STATUS_MAX, "Unable to open cisco control file '%s' %d:%s",
-                 cisco_path, errno, strerror(errno));
+        snprintf(errstr, STATUS_MAX, "Unable to open cisco control file '%s': %s",
+                 cisco_path, strerror(errno));
+        globalreg->messagebus->InjectMessage(errstr, MSGFLAG_FATAL);
+        globalreg->fatal_condition = 1;
         return -1;
     }
 
@@ -1056,24 +1122,30 @@ int monitor_cisco(const char *in_dev, int initch, char *in_err, void **in_if, vo
     return 0;
 }
 
-int unmonitor_cisco(const char *in_dev, int initch, char *in_err, void **in_if, void *in_ext) {
+int unmonitor_cisco(MONITOR_PARMS) {
     linux_ifparm *ifparm = (linux_ifparm *) (*in_if);
     int ret = -1;
+    char errstr[STATUS_MAX];
 
     // Try the iwpriv
-    if (Iwconfig_Set_IntPriv(in_dev, "setRFMonitor", 0, 0, in_err) >= 0) {
+    if (Iwconfig_Set_IntPriv(in_dev, "setRFMonitor", 0, 0, errstr) >= 0) {
         // If we're the new drivers, unmonitor
-        if (Ifconfig_Set_Flags(in_dev, in_err, ifparm->flags) < 0) {
+        if (Ifconfig_Set_Flags(in_dev, errstr, ifparm->flags) < 0) {
+            globalreg->messagebus->InjectMessage(errstr, MSGFLAG_ERROR);
             return -1;
         }
 
         // Reset the SSID since monitor mode nukes it
-        if (Iwconfig_Set_SSID(in_dev, in_err, ifparm->essid) < 0)
+        if (Iwconfig_Set_SSID(in_dev, errstr, ifparm->essid) < 0) {
+            globalreg->messagebus->InjectMessage(errstr, MSGFLAG_ERROR);
             return -1;
+        }
 
         if (ifparm->channel > 0) {
-            if (Iwconfig_Set_Channel(in_dev, ifparm->channel, in_err) < 0)
+            if (Iwconfig_Set_Channel(in_dev, ifparm->channel, errstr) < 0) {
+                globalreg->messagebus->InjectMessage(errstr, MSGFLAG_ERROR);
                 return -1;
+            }
         }
 
         ret = 1;
@@ -1088,34 +1160,46 @@ int unmonitor_cisco(const char *in_dev, int initch, char *in_err, void **in_if, 
 //
 // I was doing this with ioctls but that seems to cause lockups while
 // this method doesn't.  I don't think I like these drivers.
-int monitor_cisco_wifix(const char *in_dev, int initch, char *in_err, void **in_if, void *in_ext) {
+int monitor_cisco_wifix(MONITOR_PARMS) {
     FILE *cisco_config;
     char cisco_path[128];
     vector<string> devbits = StrTokenize(in_dev, ":");
+    char errstr[STATUS_MAX];
 
     if (devbits.size() < 2) {
-        snprintf(in_err, STATUS_MAX, "Invalid device pair '%s'", in_dev);
+        snprintf(errstr, STATUS_MAX, "Invalid device pair '%s'", in_dev);
+        globalreg->messagebus->InjectMessage(errstr, MSGFLAG_FATAL);
+        globalreg->fatal_condition = 1;
         return -1;
     }
 
     // Bring the device up, zero its ip, and set promisc
-    if (Ifconfig_Delta_Flags(devbits[0].c_str(), in_err, 
-                             IFF_UP | IFF_RUNNING | IFF_PROMISC) < 0)
+    if (Ifconfig_Delta_Flags(devbits[0].c_str(), errstr, 
+                             IFF_UP | IFF_RUNNING | IFF_PROMISC) < 0) {
+        globalreg->messagebus->InjectMessage(errstr, MSGFLAG_FATAL);
+        globalreg->fatal_condition = 1;
         return -1;
-    if (Ifconfig_Delta_Flags(devbits[1].c_str(), in_err, 
-                             IFF_UP | IFF_RUNNING | IFF_PROMISC) < 0)
+    }
+
+    if (Ifconfig_Delta_Flags(devbits[1].c_str(), errstr, 
+                             IFF_UP | IFF_RUNNING | IFF_PROMISC) < 0) {
+        globalreg->messagebus->InjectMessage(errstr, MSGFLAG_FATAL);
+        globalreg->fatal_condition = 1;
         return -1;
+    }
 
     // Zero the ssid, nonfatally
-    Iwconfig_Set_SSID(devbits[0].c_str(), in_err, NULL);
-    Iwconfig_Set_SSID(devbits[1].c_str(), in_err, NULL);
+    Iwconfig_Set_SSID(devbits[0].c_str(), errstr, NULL);
+    Iwconfig_Set_SSID(devbits[1].c_str(), errstr, NULL);
     
     // Build the proc control path
     snprintf(cisco_path, 128, "/proc/driver/aironet/%s/Config", devbits[0].c_str());
 
     if ((cisco_config = fopen(cisco_path, "w")) == NULL) {
-        snprintf(in_err, STATUS_MAX, "Unable to open cisco control file '%s' %d:%s",
-                 cisco_path, errno, strerror(errno));
+        snprintf(errstr, STATUS_MAX, "Unable to open cisco control file '%s': %s",
+                 cisco_path, strerror(errno));
+        globalreg->messagebus->InjectMessage(errstr, MSGFLAG_FATAL);
+        globalreg->fatal_condition = 1;
         return -1;
     }
 
@@ -1131,25 +1215,35 @@ int monitor_cisco_wifix(const char *in_dev, int initch, char *in_err, void **in_
 }
 
 // Hostap uses iwpriv and iwcontrol settings to control monitor mode
-int monitor_hostap(const char *in_dev, int initch, char *in_err, void **in_if, void *in_ext) {
+int monitor_hostap(MONITOR_PARMS) {
     int ret;
+    char errstr[STATUS_MAX];
   
     // Allocate a tracking record for the interface settings and remember our
     // setup
     linux_ifparm *ifparm = (linux_ifparm *) malloc(sizeof(linux_ifparm));
     (*in_if) = ifparm;
 
-    if (Ifconfig_Get_Flags(in_dev, in_err, &ifparm->flags) < 0)
+    if (Ifconfig_Get_Flags(in_dev, errstr, &ifparm->flags) < 0) {
+        globalreg->messagebus->InjectMessage(errstr, MSGFLAG_FATAL);
+        globalreg->fatal_condition = 1;
         return -1;
+    }
 
     // Don't try to fetch the channel or mode if we're not configured to be up,
     // hostap doesn't like this.  silly hostap.
     if ((ifparm->flags & IFF_UP)) {
-        if ((ifparm->channel = Iwconfig_Get_Channel(in_dev, in_err)) < 0)
+        if ((ifparm->channel = Iwconfig_Get_Channel(in_dev, errstr)) < 0) {
+            globalreg->messagebus->InjectMessage(errstr, MSGFLAG_FATAL);
+            globalreg->fatal_condition = 1;
             return -1;
+        }
 
-        if (Iwconfig_Get_Mode(in_dev, in_err, &ifparm->mode) < 0)
+        if (Iwconfig_Get_Mode(in_dev, errstr, &ifparm->mode) < 0) {
+            globalreg->messagebus->InjectMessage(errstr, MSGFLAG_FATAL);
+            globalreg->fatal_condition = 1;
             return -1;
+        }
     } else {
         ifparm->channel = -1;
         ifparm->mode = -1;
@@ -1158,41 +1252,50 @@ int monitor_hostap(const char *in_dev, int initch, char *in_err, void **in_if, v
     // Try to use the iwpriv command to set monitor mode.  Some versions of
     // hostap require this, some don't, so don't fail on the monitor ioctl
     // if we can't find it, it might get removed in the future.
-    if ((ret = Iwconfig_Set_IntPriv(in_dev, "monitor", 3, 0, in_err)) < 0) {
-        if (ret != -2)
+    if ((ret = Iwconfig_Set_IntPriv(in_dev, "monitor", 3, 0, errstr)) < 0) {
+        if (ret != -2) {
+            globalreg->messagebus->InjectMessage(errstr, MSGFLAG_FATAL);
+            globalreg->fatal_condition = 1;
             return -1;
+        }
     }
    
-    // Try to set wext monitor mode.  We're good if one of these succeeds...
-    if (monitor_wext(in_dev, initch, in_err, in_if, in_ext) < 0 && ret < 0)
+    if (monitor_wext(globalreg, in_dev, initch, in_if, in_ext, errstr) < 0 && ret < 0) {
+        globalreg->messagebus->InjectMessage(errstr, MSGFLAG_FATAL);
+        globalreg->fatal_condition = 1;
         return -1;
+    }
 
-    // If we didn't set wext mode, set the channel manually
-    if (chancontrol_wext(in_dev, initch, in_err, NULL) < 0)
+    if (chancontrol_wext(globalreg, in_dev, initch, NULL) < 0) {
         return -1;
+    }
 
     return 0;
 }
 
-int unmonitor_hostap(const char *in_dev, int initch, char *in_err, void **in_if, void *in_ext) {
+int unmonitor_hostap(MONITOR_PARMS) {
+    char errstr[STATUS_MAX];
 
     // Restore the IP settings
     linux_ifparm *ifparm = (linux_ifparm *) (*in_if);
 
-    if (Ifconfig_Set_Flags(in_dev, in_err, ifparm->flags) < 0) {
+    if (Ifconfig_Set_Flags(in_dev, errstr, ifparm->flags) < 0) {
+        globalreg->messagebus->InjectMessage(errstr, MSGFLAG_ERROR);
         return -1;
     }
 
     if (ifparm->channel > 0) {
-        if (Iwconfig_Set_Channel(in_dev, ifparm->channel, in_err) < 0)
+        if (Iwconfig_Set_Channel(in_dev, ifparm->channel, errstr) < 0) {
+            globalreg->messagebus->InjectMessage(errstr, MSGFLAG_ERROR);
             return -1;
+        }
     }
 
     // Ignore errors from both of these, since one might fail with other versions
     // of hostap
-    Iwconfig_Set_IntPriv(in_dev, "monitor", 0, 0, in_err);
+    Iwconfig_Set_IntPriv(in_dev, "monitor", 0, 0, errstr);
     if (ifparm->mode > 0) {
-        Iwconfig_Set_Mode(in_dev, in_err, ifparm->mode);
+        Iwconfig_Set_Mode(in_dev, errstr, ifparm->mode);
     }
 
     free(ifparm);
@@ -1201,27 +1304,39 @@ int unmonitor_hostap(const char *in_dev, int initch, char *in_err, void **in_if,
 }
 
 // Orinoco uses iwpriv and iwcontrol settings to control monitor mode
-int monitor_orinoco(const char *in_dev, int initch, char *in_err, void **in_if, void *in_ext) {
+int monitor_orinoco(MONITOR_PARMS) {
     int ret;
+    char errstr[STATUS_MAX];
     
     // Allocate a tracking record for the interface settings and remember our
     // setup
     linux_ifparm *ifparm = (linux_ifparm *) malloc(sizeof(linux_ifparm));
     (*in_if) = ifparm;
     
-    if (Ifconfig_Get_Flags(in_dev, in_err, &ifparm->flags) < 0) {
+    if (Ifconfig_Get_Flags(in_dev, errstr, &ifparm->flags) < 0) {
+        globalreg->messagebus->InjectMessage(errstr, MSGFLAG_FATAL);
+        globalreg->fatal_condition = 1;
         return -1;
     }
 
-    if ((ifparm->channel = Iwconfig_Get_Channel(in_dev, in_err)) < 0)
+    if ((ifparm->channel = Iwconfig_Get_Channel(in_dev, errstr)) < 0) {
+        globalreg->messagebus->InjectMessage(errstr, MSGFLAG_FATAL);
+        globalreg->fatal_condition = 1;
         return -1;
+    }
 
-    if (Iwconfig_Get_Mode(in_dev, in_err, &ifparm->mode) < 0)
+    if (Iwconfig_Get_Mode(in_dev, errstr, &ifparm->mode) < 0) {
+        globalreg->messagebus->InjectMessage(errstr, MSGFLAG_FATAL);
+        globalreg->fatal_condition = 1;
         return -1;
+    }
 
     // Bring the device up and set promisc
-    if (Ifconfig_Delta_Flags(in_dev, in_err, IFF_UP | IFF_RUNNING | IFF_PROMISC) < 0)
+    if (Ifconfig_Delta_Flags(in_dev, errstr, IFF_UP | IFF_RUNNING | IFF_PROMISC) < 0) {
+        globalreg->messagebus->InjectMessage(errstr, MSGFLAG_FATAL);
+        globalreg->fatal_condition = 1;
         return -1;
+    }
 
     // Socket lowpower cards seem to need a little time for the firmware to settle
     // down between these calls, so we'll just sleep for everyone.  It won't hurt
@@ -1229,49 +1344,56 @@ int monitor_orinoco(const char *in_dev, int initch, char *in_err, void **in_if, 
     usleep(5000);
 
     // Set monitor mode with iwpriv for orinoco_cs 0.13 with Snax patches
-    if ((ret = Iwconfig_Set_IntPriv(in_dev, "monitor", 1, initch, in_err)) < 0) {
-        if (ret != -2)
+    if ((ret = Iwconfig_Set_IntPriv(in_dev, "monitor", 1, initch, errstr)) < 0) {
+        if (ret != -2) {
+            globalreg->messagebus->InjectMessage(errstr, MSGFLAG_FATAL);
+            globalreg->fatal_condition = 1;
             return -1;
+        }
     }
 
     // Try to turn on my patches to the new orinoco drivers to give us some signal
     // levels if they're available.  We don't care if we fail at this.
     if (ret < 0) {
         usleep(5000);
-        Iwconfig_Set_IntPriv(in_dev, "set_prismheader", 2, 0, in_err);
+        Iwconfig_Set_IntPriv(in_dev, "set_prismheader", 2, 0, errstr);
     }
    
     usleep(5000);
     // Try to set wext monitor mode.  We're good if one of these succeeds...
-    if (ret < 0 && monitor_wext(in_dev, initch, in_err, in_if, in_ext) < 0) {
-        snprintf(in_err, 1024, "Could not find 'monitor' private ioctl or use "
+    if (ret < 0 && monitor_wext(globalreg, in_dev, initch, in_if, in_ext, errstr) < 0) {
+        snprintf(errstr, STATUS_MAX, "Could not find 'monitor' private ioctl or use "
                  "the newer style 'mode monitor' command.  This typically means "
                  "that the drivers have not been patched or the "
                  "correct drivers are being loaded. See the troubleshooting "
                  "section of the README for more information.");
+        globalreg->messagebus->InjectMessage(errstr, MSGFLAG_FATAL);
+        globalreg->fatal_condition = 1;
         return -1;
     }
 
     usleep(5000);
     // If we didn't use iwpriv, set the channel directly
-    if (ret < 0 && chancontrol_wext(in_dev, initch, in_err, NULL) < 0)
+    if (ret < 0 && chancontrol_wext(globalreg, in_dev, initch, NULL) < 0) 
         return -1;
     
     return 0;
 }
 
-int unmonitor_orinoco(const char *in_dev, int initch, char *in_err, void **in_if, void *in_ext) {
+int unmonitor_orinoco(MONITOR_PARMS) {
     // Restore the IP settings
     linux_ifparm *ifparm = (linux_ifparm *) (*in_if);
+    char errstr[STATUS_MAX];
 
-    if (Ifconfig_Set_Flags(in_dev, in_err, ifparm->flags) < 0) {
+    if (Ifconfig_Set_Flags(in_dev, errstr, ifparm->flags) < 0) {
+        globalreg->messagebus->InjectMessage(errstr, MSGFLAG_ERROR);
         return -1;
     }
 
     // Ignore errors from both of these, since one might fail with other versions
     // of orinoco_cs
-    Iwconfig_Set_IntPriv(in_dev, "monitor", 0, ifparm->channel, in_err);
-    Iwconfig_Set_Mode(in_dev, in_err, ifparm->mode);
+    Iwconfig_Set_IntPriv(in_dev, "monitor", 0, ifparm->channel, errstr);
+    Iwconfig_Set_Mode(in_dev, errstr, ifparm->mode);
 
     free(ifparm);
 
@@ -1280,158 +1402,228 @@ int unmonitor_orinoco(const char *in_dev, int initch, char *in_err, void **in_if
 }
 
 // Acx100 uses the packhdr iwpriv control to set link state, rest is normal
-int monitor_acx100(const char *in_dev, int initch, char *in_err, void **in_if, void *in_ext) {
+int monitor_acx100(MONITOR_PARMS) {
     int ret;
+    char errstr[STATUS_MAX];
 
     // Allocate a tracking record for the interface settings and remember our
     // setup
     linux_ifparm *ifparm = (linux_ifparm *) malloc(sizeof(linux_ifparm));
     (*in_if) = ifparm;
 
-    if (Ifconfig_Get_Flags(in_dev, in_err, &ifparm->flags) < 0) {
+    if (Ifconfig_Get_Flags(in_dev, errstr, &ifparm->flags) < 0) {
+        globalreg->messagebus->InjectMessage(errstr, MSGFLAG_FATAL);
+        globalreg->fatal_condition = 1;
         return -1;
     }
 
-    if (Iwconfig_Get_SSID(in_dev, in_err, ifparm->essid) < 0)
+    if (Iwconfig_Get_SSID(in_dev, errstr, ifparm->essid) < 0) {
+        globalreg->messagebus->InjectMessage(errstr, MSGFLAG_FATAL);
+        globalreg->fatal_condition = 1;
         return -1;
+    }
 
-    if ((ifparm->channel = Iwconfig_Get_Channel(in_dev, in_err)) < 0)
+    if ((ifparm->channel = Iwconfig_Get_Channel(in_dev, errstr)) < 0) {
+        globalreg->messagebus->InjectMessage(errstr, MSGFLAG_FATAL);
+        globalreg->fatal_condition = 1;
         return -1;
+    }
 
-    if (Iwconfig_Get_Mode(in_dev, in_err, &ifparm->mode) < 0)
+    if (Iwconfig_Get_Mode(in_dev, errstr, &ifparm->mode) < 0) {
+        globalreg->messagebus->InjectMessage(errstr, MSGFLAG_FATAL);
+        globalreg->fatal_condition = 1;
         return -1;
+    }
 
     // it looks like an orinoco now, apparently
-    if ((ret = Iwconfig_Set_IntPriv(in_dev, "monitor", 1, initch, in_err)) < 0) {
-        if (ret == -2)
-            snprintf(in_err, 1024, "Could not find 'monitor' private ioctl "
+    if ((ret = Iwconfig_Set_IntPriv(in_dev, "monitor", 1, initch, errstr)) < 0) {
+        if (ret == -2) 
+            snprintf(errstr, STATUS_MAX, "Could not find 'monitor' private ioctl "
                      "Make sure you have the latest ACX100 development release.");
+        globalreg->messagebus->InjectMessage(errstr, MSGFLAG_FATAL);
+        globalreg->fatal_condition = 1;
         return -1;
     }
 
-    if (chancontrol_wext(in_dev, initch, in_err, NULL) < 0)
+    if (chancontrol_wext(globalreg, in_dev, initch, NULL) < 0)
         return -1;
 
     return 0;
 }
 
-int unmonitor_acx100(const char *in_dev, int initch, char *in_err, void **in_if, void *in_ext) {
+int unmonitor_acx100(MONITOR_PARMS) {
     // Restore the IP settings
     linux_ifparm *ifparm = (linux_ifparm *) (*in_if);
+    char errstr[STATUS_MAX];
 
-    if (Ifconfig_Set_Flags(in_dev, in_err, ifparm->flags) < 0) {
+    if (Ifconfig_Set_Flags(in_dev, errstr, ifparm->flags) < 0) {
+        globalreg->messagebus->InjectMessage(errstr, MSGFLAG_ERROR);
         return -1;
     }
 
-    Iwconfig_Set_IntPriv(in_dev, "monitor", 0, ifparm->channel, in_err);
-    Iwconfig_Set_Mode(in_dev, in_err, ifparm->mode);
+    Iwconfig_Set_IntPriv(in_dev, "monitor", 0, ifparm->channel, errstr);
+    Iwconfig_Set_Mode(in_dev, errstr, ifparm->mode);
 
-    if (Iwconfig_Set_SSID(in_dev, in_err, ifparm->essid) < 0)
+    if (Iwconfig_Set_SSID(in_dev, errstr, ifparm->essid) < 0) {
+        globalreg->messagebus->InjectMessage(errstr, MSGFLAG_ERROR);
         return -1;
+    }
     
     free(ifparm);
 
     return 1;
 }
 
-int monitor_admtek(const char *in_dev, int initch, char *in_err, void **in_if, void *in_ext) {
+int monitor_admtek(MONITOR_PARMS) {
     // Allocate a tracking record for the interface settings and remember our
     // setup
     linux_ifparm *ifparm = (linux_ifparm *) malloc(sizeof(linux_ifparm));
     (*in_if) = ifparm;
+    char errstr[STATUS_MAX];
 
     // Try to figure out the name so we know if we have fcs bytes or not
     char iwname[IFNAMSIZ+1];
-    if (Iwconfig_Get_Name(in_dev, in_err, iwname) < 0)
+    if (Iwconfig_Get_Name(in_dev, errstr, iwname) < 0) {
+        globalreg->messagebus->InjectMessage(errstr, MSGFLAG_FATAL);
+        globalreg->fatal_condition = 1;
         return -1;
+    }
 
     if (strncmp(iwname, "IEEE 802.11b", IFNAMSIZ) == 0) {
         // Looks like the GPL driver, we need to adjust the fcsbytes
         PcapSource *psrc = (PcapSource *) in_ext;
         psrc->fcsbytes = 4;
+        snprintf(errstr, STATUS_MAX, "ADMTek looks like GPL driver, assuming 4 bytes FCS");
+        globalreg->messagebus->InjectMessage(errstr, MSGFLAG_INFO);
     }
 
-    if (Ifconfig_Get_Flags(in_dev, in_err, &ifparm->flags) < 0) {
+    if (Ifconfig_Get_Flags(in_dev, errstr, &ifparm->flags) < 0) {
+        globalreg->messagebus->InjectMessage(errstr, MSGFLAG_FATAL);
+        globalreg->fatal_condition = 1;
         return -1;
     }
 
     if ((ifparm->flags & IFF_UP)) {
-        if ((ifparm->channel = Iwconfig_Get_Channel(in_dev, in_err)) < 0)
+        if ((ifparm->channel = Iwconfig_Get_Channel(in_dev, errstr)) < 0) {
+            globalreg->messagebus->InjectMessage(errstr, MSGFLAG_FATAL);
+            globalreg->fatal_condition = 1;
             return -1;
+        }
 
-        if (Iwconfig_Get_Mode(in_dev, in_err, &ifparm->mode) < 0)
+        if (Iwconfig_Get_Mode(in_dev, errstr, &ifparm->mode) < 0) {
+            globalreg->messagebus->InjectMessage(errstr, MSGFLAG_FATAL);
+            globalreg->fatal_condition = 1;
             return -1;
+        }
 
-        if (Iwconfig_Get_SSID(in_dev, in_err, ifparm->essid) < 0)
+        if (Iwconfig_Get_SSID(in_dev, errstr, ifparm->essid) < 0) {
+            globalreg->messagebus->InjectMessage(errstr, MSGFLAG_FATAL);
+            globalreg->fatal_condition = 1;
             return -1;
+        }
     
     } else {
         ifparm->channel = -1;
         ifparm->mode = -1;
     }
 
-    int ret = monitor_wext(in_dev, initch, in_err, in_if, in_ext);
+    // What's going on here?  Come back and check it later.
 
-    if (ret < 0 && ret != -2)
+    int ret = monitor_wext(globalreg, in_dev, initch, in_if, in_ext, errstr);
+
+    if (ret < 0 && ret != -2) {
+        globalreg->messagebus->InjectMessage(errstr, MSGFLAG_FATAL);
+        globalreg->fatal_condition = 1;
         return ret;
+    }
 
-    if (Iwconfig_Set_SSID(in_dev, in_err, "") < 0)
+    if (Iwconfig_Set_SSID(in_dev, errstr, "") < 0) {
+        globalreg->messagebus->InjectMessage(errstr, MSGFLAG_FATAL);
+        globalreg->fatal_condition = 1;
         return -1;
+    }
     
     return 0;
 }
 
-int unmonitor_admtek(const char *in_dev, int initch, char *in_err, void **in_if, void *in_ext) {
+int unmonitor_admtek(MONITOR_PARMS) {
     linux_ifparm *ifparm = (linux_ifparm *) (*in_if);
+    char errstr[STATUS_MAX];
 
-    if (unmonitor_wext(in_dev, initch, in_err, in_if, in_ext))
+    if (unmonitor_wext(globalreg, in_dev, initch, in_if, in_ext)) {
         return -1;
+    }
 
-    if (Iwconfig_Set_SSID(in_dev, in_err, ifparm->essid) < 0)
+    if (Iwconfig_Set_SSID(in_dev, errstr, ifparm->essid) < 0) {
+        globalreg->messagebus->InjectMessage(errstr, MSGFLAG_ERROR);
         return -1;
+    }
    
     return 1;
 }
 // vtar5k iwpriv control to set link state, rest is normal
-int monitor_vtar5k(const char *in_dev, int initch, char *in_err, void **in_if, void *in_ext) {
+int monitor_vtar5k(MONITOR_PARMS) {
+    char errstr[STATUS_MAX];
+
     // Set the prism iwpriv control to 1
-    if (Iwconfig_Set_IntPriv(in_dev, "prism", 1, 0, in_err) < 0) {
+    if (Iwconfig_Set_IntPriv(in_dev, "prism", 1, 0, errstr) < 0) {
+        globalreg->messagebus->InjectMessage(errstr, MSGFLAG_FATAL);
+        globalreg->fatal_condition = 1;
         return -1;
     }
     
     // The rest is standard wireless extensions
-    if (monitor_wext(in_dev, initch, in_err, in_if, in_ext) < 0)
+    if (monitor_wext(globalreg, in_dev, initch, in_if, in_ext, errstr) < 0) {
+        globalreg->messagebus->InjectMessage(errstr, MSGFLAG_FATAL);
+        globalreg->fatal_condition = 1;
         return -1;
+    }
 
     return 0;
 }
 
 // Madwifi stuff uses iwpriv mode
-int monitor_madwifi_a(const char *in_dev, int initch, char *in_err, void **in_if, void *in_ext) {
+int monitor_madwifi_a(MONITOR_PARMS) {
+    char errstr[STATUS_MAX];
+
     // Allocate a tracking record for the interface settings and remember our
     // setup
     linux_ifparm *ifparm = (linux_ifparm *) malloc(sizeof(linux_ifparm));
     (*in_if) = ifparm;
 
-    if (Ifconfig_Get_Flags(in_dev, in_err, &ifparm->flags) < 0) {
+    if (Ifconfig_Get_Flags(in_dev, errstr, &ifparm->flags) < 0) {
+        globalreg->messagebus->InjectMessage(errstr, MSGFLAG_FATAL);
+        globalreg->fatal_condition = 1;
         return -1;
     }
 
-    if ((ifparm->channel = Iwconfig_Get_Channel(in_dev, in_err)) < 0)
+    if ((ifparm->channel = Iwconfig_Get_Channel(in_dev, errstr)) < 0) {
+        globalreg->messagebus->InjectMessage(errstr, MSGFLAG_FATAL);
+        globalreg->fatal_condition = 1;
         return -1;
+    }
 
-    if (Iwconfig_Get_Mode(in_dev, in_err, &ifparm->mode) < 0)
+    if (Iwconfig_Get_Mode(in_dev, errstr, &ifparm->mode) < 0) {
+        globalreg->messagebus->InjectMessage(errstr, MSGFLAG_FATAL);
+        globalreg->fatal_condition = 1;
         return -1;
+    }
 
-    if (Iwconfig_Get_IntPriv(in_dev, "get_mode", &ifparm->privmode, in_err) < 0)
+    if (Iwconfig_Get_IntPriv(in_dev, "get_mode", &ifparm->privmode, errstr) < 0) {
+        globalreg->messagebus->InjectMessage(errstr, MSGFLAG_FATAL);
+        globalreg->fatal_condition = 1;
         return -1;
+    }
     
-    if (Iwconfig_Set_IntPriv(in_dev, "mode", 1, 0, in_err) < 0)
+    if (Iwconfig_Set_IntPriv(in_dev, "mode", 1, 0, errstr) < 0) {
+        globalreg->messagebus->InjectMessage(errstr, MSGFLAG_FATAL);
+        globalreg->fatal_condition = 1;
         return -1;
+    }
 
     // The rest is standard wireless extensions
-    if (monitor_wext(in_dev, initch, in_err, in_if, in_ext) < 0) {
-        snprintf(in_err, STATUS_MAX, "Unable to enter monitor mode.  This can happen if "
+    if (monitor_wext(globalreg, in_dev, initch, in_if, in_ext, errstr) < 0) {
+        snprintf(errstr, STATUS_MAX, "Unable to enter monitor mode.  This can happen if "
                  "you are not using the CVS madwifi drivers or if your kernel version is "
                  "older than 2.4.23.  Make sure you are running a current driver release "
                  "and kernel version.  See the troubleshooting section of the README for "
@@ -1442,180 +1634,258 @@ int monitor_madwifi_a(const char *in_dev, int initch, char *in_err, void **in_if
     return 0;
 }
 
-int monitor_madwifi_b(const char *in_dev, int initch, char *in_err, void **in_if, void *in_ext) {
+int monitor_madwifi_b(MONITOR_PARMS) {
     // Allocate a tracking record for the interface settings and remember our
     // setup
     linux_ifparm *ifparm = (linux_ifparm *) malloc(sizeof(linux_ifparm));
     (*in_if) = ifparm;
+    char errstr[STATUS_MAX];
 
-    if (Ifconfig_Get_Flags(in_dev, in_err, &ifparm->flags) < 0) {
+    if (Ifconfig_Get_Flags(in_dev, errstr, &ifparm->flags) < 0) {
+        globalreg->messagebus->InjectMessage(errstr, MSGFLAG_FATAL);
+        globalreg->fatal_condition = 1;
         return -1;
     }
 
-    if ((ifparm->channel = Iwconfig_Get_Channel(in_dev, in_err)) < 0)
+    if ((ifparm->channel = Iwconfig_Get_Channel(in_dev, errstr)) < 0)
+        globalreg->messagebus->InjectMessage(errstr, MSGFLAG_FATAL);
+        globalreg->fatal_condition = 1;
         return -1;
 
-    if (Iwconfig_Get_Mode(in_dev, in_err, &ifparm->mode) < 0)
+    if (Iwconfig_Get_Mode(in_dev, errstr, &ifparm->mode) < 0) {
+        globalreg->messagebus->InjectMessage(errstr, MSGFLAG_FATAL);
+        globalreg->fatal_condition = 1;
         return -1;
+    }
 
-    if (Iwconfig_Get_IntPriv(in_dev, "get_mode", &ifparm->privmode, in_err) < 0)
+    if (Iwconfig_Get_IntPriv(in_dev, "get_mode", &ifparm->privmode, errstr) < 0) {
+        globalreg->messagebus->InjectMessage(errstr, MSGFLAG_FATAL);
+        globalreg->fatal_condition = 1;
         return -1;
+    }
     
-    if (Iwconfig_Set_IntPriv(in_dev, "mode", 2, 0, in_err) < 0)
+    if (Iwconfig_Set_IntPriv(in_dev, "mode", 2, 0, errstr) < 0) {
+        globalreg->messagebus->InjectMessage(errstr, MSGFLAG_FATAL);
+        globalreg->fatal_condition = 1;
         return -1;
+    }
 
     // The rest is standard wireless extensions
-    if (monitor_wext(in_dev, initch, in_err, in_if, in_ext) < 0)
+    if (monitor_wext(globalreg, in_dev, initch, in_if, in_ext, errstr) < 0) {
+        globalreg->messagebus->InjectMessage(errstr, MSGFLAG_FATAL);
+        globalreg->fatal_condition = 1;
         return -1;
+    }
 
     return 0;
 }
 
-int monitor_madwifi_g(const char *in_dev, int initch, char *in_err, void **in_if, void *in_ext) {
-    // Allocate a tracking record for the interface settings and remember our
-    // setup
+int monitor_madwifi_g(MONITOR_PARMS) {
+    char errstr[STATUS_MAX];
     linux_ifparm *ifparm = (linux_ifparm *) malloc(sizeof(linux_ifparm));
     (*in_if) = ifparm;
 
-    if (Ifconfig_Get_Flags(in_dev, in_err, &ifparm->flags) < 0) {
+    if (Ifconfig_Get_Flags(in_dev, errstr, &ifparm->flags) < 0) {
+        globalreg->messagebus->InjectMessage(errstr, MSGFLAG_FATAL);
+        globalreg->fatal_condition = 1;
         return -1;
     }
 
-    if ((ifparm->channel = Iwconfig_Get_Channel(in_dev, in_err)) < 0)
+    if ((ifparm->channel = Iwconfig_Get_Channel(in_dev, errstr)) < 0) {
+        globalreg->messagebus->InjectMessage(errstr, MSGFLAG_FATAL);
+        globalreg->fatal_condition = 1;
         return -1;
+    }
 
-    if (Iwconfig_Get_Mode(in_dev, in_err, &ifparm->mode) < 0)
+    if (Iwconfig_Get_Mode(in_dev, errstr, &ifparm->mode) < 0) {
+        globalreg->messagebus->InjectMessage(errstr, MSGFLAG_FATAL);
+        globalreg->fatal_condition = 1;
         return -1;
+    }
 
-    if (Iwconfig_Get_IntPriv(in_dev, "get_mode", &ifparm->privmode, in_err) < 0)
+    if (Iwconfig_Get_IntPriv(in_dev, "get_mode", &ifparm->privmode, errstr) < 0) {
+        globalreg->messagebus->InjectMessage(errstr, MSGFLAG_FATAL);
+        globalreg->fatal_condition = 1;
         return -1;
+    }
     
-    if (Iwconfig_Set_IntPriv(in_dev, "mode", 3, 0, in_err) < 0)
+    if (Iwconfig_Set_IntPriv(in_dev, "mode", 3, 0, errstr) < 0) {
+        globalreg->messagebus->InjectMessage(errstr, MSGFLAG_FATAL);
+        globalreg->fatal_condition = 1;
         return -1;
+    }
 
     // The rest is standard wireless extensions
-    if (monitor_wext(in_dev, initch, in_err, in_if, in_ext) < 0)
+    if (monitor_wext(globalreg, in_dev, initch, in_if, in_ext, errstr) < 0) {
+        globalreg->messagebus->InjectMessage(errstr, MSGFLAG_FATAL);
+        globalreg->fatal_condition = 1;
         return -1;
+    }
 
     return 0;
 }
 
-int monitor_madwifi_comb(const char *in_dev, int initch, char *in_err, void **in_if, void *in_ext) {
-    // Allocate a tracking record for the interface settings and remember our
-    // setup
+int monitor_madwifi_comb(MONITOR_PARMS) {
+    char errstr[STATUS_MAX];
     linux_ifparm *ifparm = (linux_ifparm *) malloc(sizeof(linux_ifparm));
     (*in_if) = ifparm;
 
-    if (Ifconfig_Get_Flags(in_dev, in_err, &ifparm->flags) < 0) {
+    if (Ifconfig_Get_Flags(in_dev, errstr, &ifparm->flags) < 0) {
+        globalreg->messagebus->InjectMessage(errstr, MSGFLAG_FATAL);
+        globalreg->fatal_condition = 1;
         return -1;
     }
 
-    if ((ifparm->channel = Iwconfig_Get_Channel(in_dev, in_err)) < 0)
+    if ((ifparm->channel = Iwconfig_Get_Channel(in_dev, errstr)) < 0) {
+        globalreg->messagebus->InjectMessage(errstr, MSGFLAG_FATAL);
+        globalreg->fatal_condition = 1;
         return -1;
+    }
 
-    if (Iwconfig_Get_Mode(in_dev, in_err, &ifparm->mode) < 0)
+    if (Iwconfig_Get_Mode(in_dev, errstr, &ifparm->mode) < 0) {
+        globalreg->messagebus->InjectMessage(errstr, MSGFLAG_FATAL);
+        globalreg->fatal_condition = 1;
         return -1;
+    }
 
-    if (Iwconfig_Get_IntPriv(in_dev, "get_mode", &ifparm->privmode, in_err) < 0)
+    if (Iwconfig_Get_IntPriv(in_dev, "get_mode", &ifparm->privmode, errstr) < 0) {
+        globalreg->messagebus->InjectMessage(errstr, MSGFLAG_FATAL);
+        globalreg->fatal_condition = 1;
         return -1;
+    }
     
-    if (Iwconfig_Set_IntPriv(in_dev, "mode", 0, 0, in_err) < 0)
+    if (Iwconfig_Set_IntPriv(in_dev, "mode", 0, 0, errstr) < 0) {
+        globalreg->messagebus->InjectMessage(errstr, MSGFLAG_FATAL);
+        globalreg->fatal_condition = 1;
         return -1;
+    }
 
     // The rest is standard wireless extensions
-    if (monitor_wext(in_dev, initch, in_err, in_if, in_ext) < 0)
+    if (monitor_wext(globalreg, in_dev, initch, in_if, in_ext, errstr) < 0) {
+        globalreg->messagebus->InjectMessage(errstr, MSGFLAG_FATAL);
+        globalreg->fatal_condition = 1;
         return -1;
+    }
 
     return 0;
 }
 
 // Unmonitor madwifi (shared)
-int unmonitor_madwifi(const char *in_dev, int initch, char *in_err, void **in_if, void *in_ext) {
-    // Restore the stored mode
+int unmonitor_madwifi(MONITOR_PARMS) {
+    char errstr[STATUS_MAX];
     linux_ifparm *ifparm = (linux_ifparm *) (*in_if);
 
-    if (Iwconfig_Set_IntPriv(in_dev, "mode", ifparm->privmode, 0, in_err) < 0) {
+    if (Iwconfig_Set_IntPriv(in_dev, "mode", ifparm->privmode, 0, errstr) < 0) {
+        globalreg->messagebus->InjectMessage(errstr, MSGFLAG_ERROR);
         return -1;
     }
 
     // Call the standard unmonitor
-    return unmonitor_wext(in_dev, initch, in_err, in_if, in_ext);
+    return unmonitor_wext(globalreg, in_dev, initch, in_if, in_ext);
 }
 
 // Call the standard monitor but ignore error codes since channel
 // setting won't work.  This is a temp kluge.
-int monitor_prism54g(const char *in_dev, int initch, char *in_err, void **in_if, void *in_ext) {
-    // Allocate a tracking record for the interface settings and remember our
-    // setup
+int monitor_prism54g(MONITOR_PARMS) {
+    char errstr[STATUS_MAX];
     linux_ifparm *ifparm = (linux_ifparm *) malloc(sizeof(linux_ifparm));
     (*in_if) = ifparm;
 
-    if (Ifconfig_Get_Flags(in_dev, in_err, &ifparm->flags) < 0) {
+    if (Ifconfig_Get_Flags(in_dev, errstr, &ifparm->flags) < 0) {
+        globalreg->messagebus->InjectMessage(errstr, MSGFLAG_FATAL);
+        globalreg->fatal_condition = 1;
         return -1;
     }
 
     // Remember monitor header setting if we can
-    if (Iwconfig_Get_IntPriv(in_dev, "get_prismhdr", &ifparm->prismhdr, in_err) >= 0) {
+    if (Iwconfig_Get_IntPriv(in_dev, "get_prismhdr", &ifparm->prismhdr, errstr) >= 0) {
         // Select AVS monitor header
-        if (Iwconfig_Set_IntPriv(in_dev, "set_prismhdr", 1, 0, in_err) < 0)
+        if (Iwconfig_Set_IntPriv(in_dev, "set_prismhdr", 1, 0, errstr) < 0) {
+            globalreg->messagebus->InjectMessage(errstr, MSGFLAG_FATAL);
+            globalreg->fatal_condition = 1;
             return -1;
+        }
     } else {
         ifparm->prismhdr = -1;
     }
 
-    if ((ifparm->channel = Iwconfig_Get_Channel(in_dev, in_err)) < 0)
+    if ((ifparm->channel = Iwconfig_Get_Channel(in_dev, errstr)) < 0) {
+        globalreg->messagebus->InjectMessage(errstr, MSGFLAG_FATAL);
+        globalreg->fatal_condition = 1;
         return -1;
+    }
 
-    if (Iwconfig_Get_Mode(in_dev, in_err, &ifparm->mode) < 0)
+    if (Iwconfig_Get_Mode(in_dev, errstr, &ifparm->mode) < 0) {
+        globalreg->messagebus->InjectMessage(errstr, MSGFLAG_FATAL);
+        globalreg->fatal_condition = 1;
         return -1;
+    }
 
     // Call the normal monitor mode
-    return (monitor_wext(in_dev, initch, in_err, in_if, in_ext));
+    if (monitor_wext(globalreg, in_dev, initch, in_if, in_ext, errstr) < 0) {
+        globalreg->messagebus->InjectMessage(errstr, MSGFLAG_FATAL);
+        globalreg->fatal_condition = 1;
+        return -1;
+    }
 
+    return 1;
 }
 
-int unmonitor_prism54g(const char *in_dev, int initch, char *in_err, void **in_if, void *in_ext) {
-    // Restore initial monitor header
+int unmonitor_prism54g(MONITOR_PARMS) {
+    char errstr[STATUS_MAX];
     linux_ifparm *ifparm = (linux_ifparm *) (*in_if);
 
     if (ifparm->prismhdr >= 0)
-        Iwconfig_Set_IntPriv(in_dev, "set_prismhdr", ifparm->prismhdr, 0, in_err);
+        Iwconfig_Set_IntPriv(in_dev, "set_prismhdr", ifparm->prismhdr, 0, errstr);
 
-    return unmonitor_wext(in_dev, initch, in_err, in_if, in_ext);
+    return unmonitor_wext(globalreg, in_dev, initch, in_if, in_ext);
 }
 
-int monitor_ipw2100(const char *in_dev, int initch, char *in_err, void **in_if, void *in_ext) {
-    // Allocate a tracking record for the interface settings and remember our
-    // setup
+int monitor_ipw2100(MONITOR_PARMS) {
+    char errstr[STATUS_MAX];
     linux_ifparm *ifparm = (linux_ifparm *) malloc(sizeof(linux_ifparm));
     (*in_if) = ifparm;
 
-    if (Ifconfig_Get_Flags(in_dev, in_err, &ifparm->flags) < 0) {
+    if (Ifconfig_Get_Flags(in_dev, errstr, &ifparm->flags) < 0) {
+        globalreg->messagebus->InjectMessage(errstr, MSGFLAG_FATAL);
+        globalreg->fatal_condition = 1;
         return -1;
     }
 
-    if ((ifparm->channel = Iwconfig_Get_Channel(in_dev, in_err)) < 0)
+    if ((ifparm->channel = Iwconfig_Get_Channel(in_dev, errstr)) < 0) {
+        globalreg->messagebus->InjectMessage(errstr, MSGFLAG_FATAL);
+        globalreg->fatal_condition = 1;
         return -1;
+    }
 
-    if (Iwconfig_Get_Mode(in_dev, in_err, &ifparm->mode) < 0)
+    if (Iwconfig_Get_Mode(in_dev, errstr, &ifparm->mode) < 0) {
+        globalreg->messagebus->InjectMessage(errstr, MSGFLAG_FATAL);
+        globalreg->fatal_condition = 1;
         return -1;
+    }
 
-    // Call the normal monitor mode
-    return (monitor_wext(in_dev, initch, in_err, in_if, in_ext));
+    if (monitor_wext(globalreg, in_dev, initch, in_if, in_ext, errstr) < 0) {
+        globalreg->messagebus->InjectMessage(errstr, MSGFLAG_FATAL);
+        globalreg->fatal_condition = 1;
+        return -1;
+    }
+
+    return 1;
 }
 
-int unmonitor_ipw2100(const char *in_dev, int initch, char *in_err, void **in_if, void *in_ext) {
-    // Restore initial monitor header
-    // linux_ifparm *ifparm = (linux_ifparm *) (*in_if);
-
+int unmonitor_ipw2100(MONITOR_PARMS) {
+    char errstr[STATUS_MAX];
     linux_ifparm *ifparm = (linux_ifparm *) (*in_if);
 
-    if (Ifconfig_Set_Flags(in_dev, in_err, ifparm->flags) < 0) {
+    if (Ifconfig_Set_Flags(in_dev, errstr, ifparm->flags) < 0) {
+        globalreg->messagebus->InjectMessage(errstr, MSGFLAG_ERROR);
         return -1;
     }
 
-    if (Iwconfig_Set_Mode(in_dev, in_err, ifparm->mode) < 0)
+    if (Iwconfig_Set_Mode(in_dev, errstr, ifparm->mode) < 0) {
+        globalreg->messagebus->InjectMessage(errstr, MSGFLAG_ERROR);
         return -1;
+    }
 
     free(ifparm);
 
@@ -1623,7 +1893,7 @@ int unmonitor_ipw2100(const char *in_dev, int initch, char *in_err, void **in_if
 }
 
 // "standard" wireless extension monitor mode
-int monitor_wext(const char *in_dev, int initch, char *in_err, void **in_if, void *in_ext) {
+int monitor_wext(MONITOR_PARMS, char *in_err) {
     int mode;
 
     // Bring the device up, zero its ip, and set promisc
@@ -1650,29 +1920,34 @@ int monitor_wext(const char *in_dev, int initch, char *in_err, void **in_if, voi
     
     // Set the initial channel - if we ever get a pcapsource that needs a hook
     // back into the class, this will have to be rewritten
-    if (chancontrol_wext(in_dev, initch, in_err, NULL) < 0) {
+    if (chancontrol_wext(globalreg, in_dev, initch, NULL) < 0) {
         return -2;
     }
     
     return 0;
 }
 
-int unmonitor_wext(const char *in_dev, int initch, char *in_err, void **in_if, void *in_ext) {
-    // Restore the IP settings
+int unmonitor_wext(MONITOR_PARMS) {
+    char errstr[STATUS_MAX];
     linux_ifparm *ifparm = (linux_ifparm *) (*in_if);
 
-    if (Ifconfig_Set_Flags(in_dev, in_err, ifparm->flags) < 0) {
+    if (Ifconfig_Set_Flags(in_dev, errstr, ifparm->flags) < 0) {
+        globalreg->messagebus->InjectMessage(errstr, MSGFLAG_ERROR);
         return -1;
     }
 
     if (ifparm->mode >= 0) {
-        if (Iwconfig_Set_Mode(in_dev, in_err, ifparm->mode) < 0)
+        if (Iwconfig_Set_Mode(in_dev, errstr, ifparm->mode) < 0) {
+            globalreg->messagebus->InjectMessage(errstr, MSGFLAG_ERROR);
             return -1;
+        }
     }
 
     if (ifparm->channel > 0) {
-        if (Iwconfig_Set_Channel(in_dev, ifparm->channel, in_err) < 0)
+        if (Iwconfig_Set_Channel(in_dev, ifparm->channel, errstr) < 0) {
+            globalreg->messagebus->InjectMessage(errstr, MSGFLAG_ERROR);
             return -1;
+        }
     }
     
     free(ifparm);
@@ -1684,7 +1959,8 @@ int unmonitor_wext(const char *in_dev, int initch, char *in_err, void **in_if, v
 
 #ifdef SYS_LINUX
 // wlan-ng modern standard
-int monitor_wlanng(const char *in_dev, int initch, char *in_err, void **in_if, void *in_ext) {
+int monitor_wlanng(MONITOR_PARMS) {
+    char errstr[STATUS_MAX];
     // I really didn't want to do this...
     char cmdline[2048];
 
@@ -1692,18 +1968,25 @@ int monitor_wlanng(const char *in_dev, int initch, char *in_err, void **in_if, v
     // the device is invalid, but why take risks
     for (unsigned int x = 0; x < strlen(in_dev); x++) {
         if (!isalnum(in_dev[x])) {
-            snprintf(in_err, STATUS_MAX, "Invalid device '%s'", in_dev);
+            snprintf(errstr, STATUS_MAX, "Invalid device '%s'", in_dev);
+            globalreg->messagebus->InjectMessage(errstr, MSGFLAG_FATAL);
+            globalreg->fatal_condition = 1;
             return -1;
         }
     }
     
-    if (Ifconfig_Delta_Flags(in_dev, in_err, IFF_UP | IFF_RUNNING | IFF_PROMISC) < 0)
+    if (Ifconfig_Delta_Flags(in_dev, errstr, IFF_UP | IFF_RUNNING | IFF_PROMISC) < 0) {
+        globalreg->messagebus->InjectMessage(errstr, MSGFLAG_FATAL);
+        globalreg->fatal_condition = 1;
         return -1;
+    }
 
     // Enable the interface
     snprintf(cmdline, 2048, "wlanctl-ng %s lnxreq_ifstate ifstate=enable >/dev/null 2>/dev/null", in_dev);
     if (RunSysCmd(cmdline) < 0) {
-        snprintf(in_err, 1024, "Unable to execute '%s'", cmdline);
+        snprintf(errstr, STATUS_MAX, "Unable to execute '%s'", cmdline);
+        globalreg->messagebus->InjectMessage(errstr, MSGFLAG_FATAL);
+        globalreg->fatal_condition = 1;
         return -1;
     }
 
@@ -1711,7 +1994,9 @@ int monitor_wlanng(const char *in_dev, int initch, char *in_err, void **in_if, v
     snprintf(cmdline, 2048, "wlanctl-ng %s dot11req_mibset "
              "mibattribute=dot11PrivacyInvoked=false >/dev/null 2>/dev/null", in_dev);
     if (RunSysCmd(cmdline) < 0) {
-        snprintf(in_err, 1024, "Unable to execute '%s'", cmdline);
+        snprintf(errstr, STATUS_MAX, "Unable to execute '%s'", cmdline);
+        globalreg->messagebus->InjectMessage(errstr, MSGFLAG_FATAL);
+        globalreg->fatal_condition = 1;
         return -1;
     }
 
@@ -1719,7 +2004,9 @@ int monitor_wlanng(const char *in_dev, int initch, char *in_err, void **in_if, v
     snprintf(cmdline, 2048, "wlanctl-ng %s dot11req_mibset "
              "mibattribute=dot11ExcludeUnencrypted=false >/dev/null 2>/dev/null", in_dev);
     if (RunSysCmd(cmdline) < 0) {
-        snprintf(in_err, 1024, "Unable to execute '%s'", cmdline);
+        snprintf(errstr, 1024, "Unable to execute '%s'", cmdline);
+        globalreg->messagebus->InjectMessage(errstr, MSGFLAG_FATAL);
+        globalreg->fatal_condition = 1;
         return -1;
     }
 
@@ -1727,7 +2014,9 @@ int monitor_wlanng(const char *in_dev, int initch, char *in_err, void **in_if, v
     snprintf(cmdline, 2048, "wlanctl-ng %s lnxreq_wlansniff channel=%d "
              "enable=true prismheader=true >/dev/null 2>/dev/null", in_dev, initch);
     if (RunSysCmd(cmdline) < 0) {
-        snprintf(in_err, 1024, "Unable to execute '%s'", cmdline);
+        snprintf(errstr, STATUS_MAX, "Unable to execute '%s'", cmdline);
+        globalreg->messagebus->InjectMessage(errstr, MSGFLAG_FATAL);
+        globalreg->fatal_condition = 1;
         return -1;
     }
     
@@ -1735,26 +2024,33 @@ int monitor_wlanng(const char *in_dev, int initch, char *in_err, void **in_if, v
 }
 
 // wlan-ng avs
-int monitor_wlanng_avs(const char *in_dev, int initch, char *in_err, void **in_if, void *in_ext) {
-    // I really didn't want to do this...
+int monitor_wlanng_avs(MONITOR_PARMS) {
+    char errstr[STATUS_MAX];
     char cmdline[2048];
 
     // Sanitize the device just to be safe.  The ifconfig should fail if
     // the device is invalid, but why take risks
     for (unsigned int x = 0; x < strlen(in_dev); x++) {
         if (!isalnum(in_dev[x])) {
-            snprintf(in_err, STATUS_MAX, "Invalid device '%s'", in_dev);
+            snprintf(errstr, STATUS_MAX, "Invalid device '%s'", in_dev);
+            globalreg->messagebus->InjectMessage(errstr, MSGFLAG_FATAL);
+            globalreg->fatal_condition = 1;
             return -1;
         }
     }
 
-    if (Ifconfig_Delta_Flags(in_dev, in_err, IFF_UP | IFF_RUNNING | IFF_PROMISC) < 0)
+    if (Ifconfig_Delta_Flags(in_dev, errstr, IFF_UP | IFF_RUNNING | IFF_PROMISC) < 0) {
+        globalreg->messagebus->InjectMessage(errstr, MSGFLAG_FATAL);
+        globalreg->fatal_condition = 1;
         return -1;
+    }
 
     // Enable the interface
     snprintf(cmdline, 2048, "wlanctl-ng %s lnxreq_ifstate ifstate=enable >/dev/null 2>/dev/null", in_dev);
     if (RunSysCmd(cmdline) < 0) {
-        snprintf(in_err, 1024, "Unable to execute '%s'", cmdline);
+        snprintf(errstr, 1024, "Unable to execute '%s'", cmdline);
+        globalreg->messagebus->InjectMessage(errstr, MSGFLAG_FATAL);
+        globalreg->fatal_condition = 1;
         return -1;
     }
 
@@ -1762,7 +2058,9 @@ int monitor_wlanng_avs(const char *in_dev, int initch, char *in_err, void **in_i
     snprintf(cmdline, 2048, "wlanctl-ng %s dot11req_mibset "
              "mibattribute=dot11PrivacyInvoked=false >/dev/null 2>/dev/null", in_dev);
     if (RunSysCmd(cmdline) < 0) {
-        snprintf(in_err, 1024, "Unable to execute '%s'", cmdline);
+        snprintf(errstr, 1024, "Unable to execute '%s'", cmdline);
+        globalreg->messagebus->InjectMessage(errstr, MSGFLAG_FATAL);
+        globalreg->fatal_condition = 1;
         return -1;
     }
 
@@ -1770,7 +2068,7 @@ int monitor_wlanng_avs(const char *in_dev, int initch, char *in_err, void **in_i
     snprintf(cmdline, 2048, "wlanctl-ng %s dot11req_mibset "
              "mibattribute=dot11ExcludeUnencrypted=false >/dev/null 2>/dev/null", in_dev);
     if (RunSysCmd(cmdline) < 0) {
-        snprintf(in_err, 1024, "Unable to execute '%s'", cmdline);
+        snprintf(errstr, STATUS_MAX, "Unable to execute '%s'", cmdline);
         return -1;
     }
 
@@ -1778,19 +2076,24 @@ int monitor_wlanng_avs(const char *in_dev, int initch, char *in_err, void **in_i
     snprintf(cmdline, 2048, "wlanctl-ng %s lnxreq_wlansniff channel=%d prismheader=false "
              "wlanheader=true stripfcs=false keepwepflags=false enable=true >/dev/null 2>/dev/null", in_dev, initch);
     if (RunSysCmd(cmdline) < 0) {
-        snprintf(in_err, 1024, "Unable to execute '%s'", cmdline);
+        snprintf(errstr, 1024, "Unable to execute '%s'", cmdline);
+        globalreg->messagebus->InjectMessage(errstr, MSGFLAG_FATAL);
+        globalreg->fatal_condition = 1;
         return -1;
     }
     
     return 0;
 }
 
-int monitor_wrt54g(const char *in_dev, int initch, char *in_err, void **in_if, void *in_ext) {
+int monitor_wrt54g(MONITOR_PARMS) {
+    char errstr[STATUS_MAX];
     char cmdline[2048];
 
     snprintf(cmdline, 2048, "/usr/sbin/wl monitor 1");
     if (RunSysCmd(cmdline) < 0) {
-        snprintf(in_err, 1024, "Unable to execute '%s'", cmdline);
+        snprintf(errstr, 1024, "Unable to execute '%s'", cmdline);
+        globalreg->messagebus->InjectMessage(errstr, MSGFLAG_FATAL);
+        globalreg->fatal_condition = 1;
         return -1;
     }
 
@@ -1801,66 +2104,83 @@ int monitor_wrt54g(const char *in_dev, int initch, char *in_err, void **in_if, v
 
 #ifdef SYS_OPENBSD
 // This should be done programattically...
-int monitor_openbsd_cisco(const char *in_dev, int initch, char *in_err, void **in_if, void *in_ext) {
+int monitor_openbsd_cisco(MONITOR_PARMS) {
+    char errstr[STATUS_MAX];
     char cmdline[2048];
 
     // Sanitize the device just to be safe.  The ifconfig should fail if
     // the device is invalid, but why take risks
     for (unsigned int x = 0; x < strlen(in_dev); x++) {
         if (!isalnum(in_dev[x])) {
-            snprintf(in_err, STATUS_MAX, "Invalid device '%s'", in_dev);
+            snprintf(errstr, STATUS_MAX, "Invalid device '%s'", in_dev);
+            globalreg->messagebus->InjectMessage(errstr, MSGFLAG_FATAL);
+            globalreg->fatal_condition = 1;
             return -1;
         }
     }
 
     snprintf(cmdline, 2048, "ancontrol -i %s -o 1", in_dev);
     if (RunSysCmd(cmdline) < 0) {
-        snprintf(in_err, 1024, "Unable to execute '%s'", cmdline);
+        snprintf(errstr, STATUS_MAX, "Unable to execute '%s'", cmdline);
+        globalreg->messagebus->InjectMessage(errstr, MSGFLAG_FATAL);
+        globalreg->fatal_condition = 1;
         return -1;
     }
 
     snprintf(cmdline, 2048, "ancontrol -i %s -p 1", in_dev);
     if (RunSysCmd(cmdline) < 0) {
-        snprintf(in_err, 1024, "Unable to execute '%s'", cmdline);
+        snprintf(errstr, STATUS_MAX, "Unable to execute '%s'", cmdline);
+        globalreg->messagebus->InjectMessage(errstr, MSGFLAG_FATAL);
+        globalreg->fatal_condition = 1;
         return -1;
     }
 
     snprintf(cmdline, 2048, "ancontrol -i %s -M 7", in_dev);
     if (RunSysCmd(cmdline) < 0) {
-        snprintf(in_err, 1024, "Unable to execute '%s'", cmdline);
+        snprintf(errstr, STATUS_MAX, "Unable to execute '%s'", cmdline);
+        globalreg->messagebus->InjectMessage(errstr, MSGFLAG_FATAL);
+        globalreg->fatal_condition = 1;
         return -1;
     }
     
     return 0;
 }
 
-int monitor_openbsd_prism2(const char *in_dev, int initch, char *in_err, void **in_if, void *in_ext) {
+int monitor_openbsd_prism2(MONITOR_PARMS) {
+    char errstr[STATUS_MAX];
     struct wi_req wreq;
     struct ifreq ifr;
     int s, flags;
 
     s = socket(AF_INET, SOCK_DGRAM, 0);
     if (s == -1) {
-        snprintf(in_err, 1024, "Failed to create AF_INET socket: %s",
-                 strerror(errno));
+        snprintf(errstr, 1024, "Failed to create socket to set monitor mode on %s: %s",
+                 in_dev, strerror(errno));
+        globalreg->messagebus->InjectMessage(errstr, MSGFLAG_FATAL);
+        globalreg->fatal_condition = 1;
         return -1;
     }
     //Make sure our interface is up
     strlcpy(ifr.ifr_name, in_dev, sizeof(ifr.ifr_name));
     if (ioctl(s, SIOCGIFFLAGS, (caddr_t)&ifr) == -1) {
         close(s);
-        snprintf(in_err, 1024, "Failed to get interface flags: %s",
+        snprintf(errstr, 1024, "Failed to get interface flags: %s",
                  strerror(errno));
+        globalreg->messagebus->InjectMessage(errstr, MSGFLAG_FATAL);
+        globalreg->fatal_condition = 1;
         return -1;
     }
+
     flags = ifr.ifr_flags;
     if ((flags & IFF_UP) == 0) {
         ifr.ifr_flags = (flags | IFF_UP);
         strlcpy(ifr.ifr_name, in_dev, sizeof(ifr.ifr_name));
         if (ioctl(s, SIOCSIFFLAGS, (caddr_t)&ifr) == -1) {
             close(s);
-            snprintf(in_err, 1024, "Failed to ioctl interface up: %s",
+            snprintf(errstr, 1024, "Failed to ioctl interface up: %s",
                      strerror(errno));
+            globalreg->messagebus->InjectMessage(errstr, MSGFLAG_FATAL);
+            globalreg->fatal_condition = 1;
             return -1;
         }
         usleep(5000); // Allow interface to settle
@@ -1878,8 +2198,10 @@ int monitor_openbsd_prism2(const char *in_dev, int initch, char *in_err, void **
 
     if (ioctl(s, SIOCSPRISM2DEBUG, &ifr) < 0) {
         close(s);
-        snprintf(in_err, 1024, "Channel set ioctl failed: %s",
+        snprintf(errstr, 1024, "Channel set ioctl failed: %s",
                  strerror(errno));
+        globalreg->messagebus->InjectMessage(errstr, MSGFLAG_FATAL);
+        globalreg->fatal_condition = 1;
         return -1;
     }
 
@@ -1891,8 +2213,10 @@ int monitor_openbsd_prism2(const char *in_dev, int initch, char *in_err, void **
 
     if (ioctl(s, SIOCSWAVELAN, &ifr) < 0) {
         close(s);
-        snprintf(in_err, 1024, "Power management ioctl failed: %s",
+        snprintf(errstr, 1024, "Power management ioctl failed: %s",
                  strerror(errno));
+        globalreg->messagebus->InjectMessage(errstr, MSGFLAG_FATAL);
+        globalreg->fatal_condition = 1;
         return -1;
     }
 
@@ -1904,8 +2228,10 @@ int monitor_openbsd_prism2(const char *in_dev, int initch, char *in_err, void **
 
     if (ioctl(s, SIOCSWAVELAN, &ifr) < 0) {
         close(s);
-        snprintf(in_err, 1024, "AP Density ioctl failed: %s",
+        snprintf(errstr, 1024, "AP Density ioctl failed: %s",
                  strerror(errno));
+        globalreg->messagebus->InjectMessage(errstr, MSGFLAG_FATAL);
+        globalreg->fatal_condition = 1;
         return -1;
     }
 
@@ -1917,8 +2243,10 @@ int monitor_openbsd_prism2(const char *in_dev, int initch, char *in_err, void **
 
     if (ioctl(s, SIOCSWAVELAN, &ifr) < 0) {
         close(s);
-        snprintf(in_err, 1024, "Driver processing ioctl failed: %s",
+        snprintf(errstr, 1024, "Driver processing ioctl failed: %s",
                  strerror(errno));
+        globalreg->messagebus->InjectMessage(errstr, MSGFLAG_FATAL);
+        globalreg->fatal_condition = 1;
         return -1;
     }
 
@@ -1930,8 +2258,10 @@ int monitor_openbsd_prism2(const char *in_dev, int initch, char *in_err, void **
 
     if (ioctl(s, SIOCSWAVELAN, &ifr) < 0) {
         close(s);
-        snprintf(in_err, 1024, "Roaming disable ioctl failed: %s",
+        snprintf(errstr, 1024, "Roaming disable ioctl failed: %s",
                  strerror(errno));
+        globalreg->messagebus->InjectMessage(errstr, MSGFLAG_FATAL);
+        globalreg->fatal_condition = 1;
         return -1;
     }
 
@@ -1943,8 +2273,10 @@ int monitor_openbsd_prism2(const char *in_dev, int initch, char *in_err, void **
 
     if (ioctl(s, SIOCSPRISM2DEBUG, &ifr) < 0) {
         close(s);
-        snprintf(in_err, 1024, "Monitor mode ioctl failed: %s",
+        snprintf(errstr, 1024, "Monitor mode ioctl failed: %s",
                  strerror(errno));
+        globalreg->messagebus->InjectMessage(errstr, MSGFLAG_FATAL);
+        globalreg->fatal_condition = 1;
         return -1;
     }
 
@@ -1957,25 +2289,36 @@ int monitor_openbsd_prism2(const char *in_dev, int initch, char *in_err, void **
 // Channel change commands
 #ifdef HAVE_LINUX_WIRELESS
 // Generic wireless "iwconfig channel x" 
-int chancontrol_wext(const char *in_dev, int in_ch, char *in_err, void *in_ext) {
-    return(Iwconfig_Set_Channel(in_dev, in_ch, in_err));
+int chancontrol_wext(CHCONTROL_PARMS) {
+    char errstr[STATUS_MAX];
+
+    if (Iwconfig_Set_Channel(in_dev, in_ch, errstr) < 0) {
+        globalreg->messagebus->InjectMessage(errstr, MSGFLAG_FATAL);
+        globalreg->fatal_condition = 1;
+        return -1;
+    }
+
+    return 1;
 }
 
 // Use iwpriv to control the channel for orinoco
-int chancontrol_orinoco(const char *in_dev, int in_ch, char *in_err, void *in_ext) {
+int chancontrol_orinoco(CHCONTROL_PARMS) {
+    char errstr[STATUS_MAX];
     int ret;
     PcapSourceWext *source = (PcapSourceWext *) in_ext;
  
     // Learn how to control our channel
     if (source->modern_chancontrol == -1) {
-        if ((ret = Iwconfig_Set_IntPriv(in_dev, "monitor", 1, in_ch, in_err)) == -2) {
-	  usleep(5000);
-            if (Iwconfig_Set_Channel(in_dev, in_ch, in_err) < 0) {
-                snprintf(in_err, 1024, "Could not find 'monitor' private ioctl or use "
-                         "the newer style 'channel X' command.  This typically means "
+        if ((ret = Iwconfig_Set_IntPriv(in_dev, "monitor", 1, in_ch, errstr)) == -2) {
+            usleep(5000);
+            if (Iwconfig_Set_Channel(in_dev, in_ch, errstr) < 0) {
+                snprintf(errstr, STATUS_MAX, "Could not find 'monitor' private ioctl or use "
+                         "the 'channel X' command.  This typically means "
                          "that the drivers have not been patched or the "
                          "correct drivers are being loaded. See the troubleshooting "
                          "section of the README for more information.");
+                globalreg->messagebus->InjectMessage(errstr, MSGFLAG_FATAL);
+                globalreg->fatal_condition = 1;
                 return -1;
             }
             source->modern_chancontrol = 1;
@@ -1989,12 +2332,15 @@ int chancontrol_orinoco(const char *in_dev, int in_ch, char *in_err, void *in_ex
     
     if (source->modern_chancontrol == 0) {
         // Set the monitor mode iwpriv controls.  Explain more if we fail on monitor.
-        if ((ret = Iwconfig_Set_IntPriv(in_dev, "monitor", 1, in_ch, in_err)) < 0) {
-            if (ret == -2) 
-                snprintf(in_err, 1024, "Could not find 'monitor' private ioctl.  This "
+        if ((ret = Iwconfig_Set_IntPriv(in_dev, "monitor", 1, in_ch, errstr)) < 0) {
+            if (ret == -2)  {
+                snprintf(errstr, STATUS_MAX, "Could not find 'monitor' private ioctl.  This "
                          "typically means that the drivers have not been patched or the "
                          "patched drivers are being loaded.  See the troubleshooting "
                          "section of the README for more information.");
+                globalreg->messagebus->InjectMessage(errstr, MSGFLAG_FATAL);
+                globalreg->fatal_condition = 1;
+            }
             return -1;
         }
 
@@ -2002,39 +2348,44 @@ int chancontrol_orinoco(const char *in_dev, int in_ch, char *in_err, void *in_ex
         return 0;
     } 
 
-    // Otherwise use iwconfig to set the channel
-    return(Iwconfig_Set_Channel(in_dev, in_ch, in_err));
+    if (Iwconfig_Set_Channel(in_dev, in_ch, errstr) < 0) {
+        globalreg->messagebus->InjectMessage(errstr, MSGFLAG_FATAL);
+        globalreg->fatal_condition = 1;
+        return -1;
+    }
+
+    return 1;
 }
 
 // Madwifi needs to change modes accordinly
-int chancontrol_madwifi_ab(const char *in_dev, int in_ch, char *in_err, void *in_ext) {
-    /*
-    if (in_ch > 0 && in_ch <= 14) {
-        if (Iwconfig_Set_IntPriv(in_dev, "mode", 2, 0, in_err) < 0)
-            return -1;
-    } else {
-        if (Iwconfig_Set_IntPriv(in_dev, "mode", 1, 0, in_err) < 0)
-            return -1;
-    }
-    */
-    return chancontrol_wext(in_dev, in_ch, in_err, in_ext);
+int chancontrol_madwifi_ab(CHCONTROL_PARMS) {
+    return chancontrol_wext(globalreg, in_dev, in_ch, in_ext);
 }
 
-int chancontrol_madwifi_ag(const char *in_dev, int in_ch, char *in_err, void *in_ext) {
+int chancontrol_madwifi_ag(CHCONTROL_PARMS) {
+    char errstr[STATUS_MAX];
     if (in_ch > 0 && in_ch <= 14) {
-        if (Iwconfig_Set_IntPriv(in_dev, "mode", 3, 0, in_err) < 0)
+        if (Iwconfig_Set_IntPriv(in_dev, "mode", 3, 0, errstr) < 0) {
+            globalreg->messagebus->InjectMessage(errstr, MSGFLAG_FATAL);
+            globalreg->fatal_condition = 1;
             return -1;
+        }
     } else {
-        if (Iwconfig_Set_IntPriv(in_dev, "mode", 1, 0, in_err) < 0)
+        if (Iwconfig_Set_IntPriv(in_dev, "mode", 1, 0, errstr) < 0) {
+            globalreg->messagebus->InjectMessage(errstr, MSGFLAG_FATAL);
+            globalreg->fatal_condition = 1;
             return -1;
+        }
     }
 
-    return chancontrol_wext(in_dev, in_ch, in_err, in_ext);
+    return chancontrol_wext(globalreg, in_dev, in_ch, in_ext);
 }
 
-int chancontrol_prism54g(const char *in_dev, int in_ch, char *in_err, void *in_ext) {
+int chancontrol_prism54g(CHCONTROL_PARMS) {
     // Run the wireless extention stuff and scrap the error codes
-    chancontrol_wext(in_dev, in_ch, in_err, in_ext);
+    char errstr[STATUS_MAX];
+
+    Iwconfig_Set_Channel(in_dev, in_ch, errstr);
 
     return 0;
 }
@@ -2042,15 +2393,16 @@ int chancontrol_prism54g(const char *in_dev, int in_ch, char *in_err, void *in_e
 #endif
 
 #ifdef SYS_LINUX
-int chancontrol_wlanng(const char *in_dev, int in_ch, char *in_err, void *in_ext) {
-    // I really didn't want to do this...
+int chancontrol_wlanng(CHCONTROL_PARMS) {
+    char errstr[STATUS_MAX];
     char cmdline[2048];
 
-    // Turn on rfmon on the initial channel
     snprintf(cmdline, 2048, "wlanctl-ng %s lnxreq_wlansniff channel=%d enable=true "
              "prismheader=true >/dev/null 2>&1", in_dev, in_ch);
     if (RunSysCmd(cmdline) < 0) {
-        snprintf(in_err, 1024, "Unable to execute '%s'", cmdline);
+        snprintf(errstr, STATUS_MAX, "Unable to execute '%s'", cmdline);
+        globalreg->messagebus->InjectMessage(errstr, MSGFLAG_FATAL);
+        globalreg->fatal_condition = 1;
         return -1;
     }
 
@@ -2062,8 +2414,8 @@ int chancontrol_wlanng(const char *in_dev, int in_ch, char *in_err, void *in_ext
     return 0;
 }
 
-int chancontrol_wlanng_avs(const char *in_dev, int in_ch, char *in_err, void *in_ext) {
-    // I really didn't want to do this...
+int chancontrol_wlanng_avs(CHCONTROL_PARMS) {
+    char errstr[STATUS_MAX];
     char cmdline[2048];
 
     // Turn on rfmon on the initial channel
@@ -2072,7 +2424,9 @@ int chancontrol_wlanng_avs(const char *in_dev, int in_ch, char *in_err, void *in
              "enable=true >/dev/null 2>&1", in_dev, in_ch);
 
     if (RunSysCmd(cmdline) < 0) {
-        snprintf(in_err, 1024, "Unable to execute '%s'", cmdline);
+        snprintf(errstr, STATUS_MAX, "Unable to execute '%s'", cmdline);
+        globalreg->messagebus->InjectMessage(errstr, MSGFLAG_FATAL);
+        globalreg->fatal_condition = 1;
         return -1;
     }
 
@@ -2086,9 +2440,8 @@ int chancontrol_wlanng_avs(const char *in_dev, int in_ch, char *in_err, void *in
 #endif
 
 #ifdef SYS_OPENBSD
-int chancontrol_openbsd_prism2(const char *in_dev, int in_ch, char *in_err, 
-                               void *in_ext) {
-
+int chancontrol_openbsd_prism2(CHCONTROL_PARMS) {
+    char errstr[STATUS_MAX];
 	struct wi_req		wreq;
 	struct ifreq		ifr;
 	int		s;
@@ -2104,14 +2457,18 @@ int chancontrol_openbsd_prism2(const char *in_dev, int in_ch, char *in_err,
 
 	s = socket(AF_INET, SOCK_DGRAM, 0);
 	if (s == -1) {
-		snprintf(in_err, 1024, "Failed to create AF_INET socket: %s",
+		snprintf(errstr, STATUS_MAX, "Failed to create AF_INET socket: %s",
                  strerror(errno));
+        globalreg->messagebus->InjectMessage(errstr, MSGFLAG_FATAL);
+        globalreg->fatal_condition = 1;
 		return -1;
 	}
 
 	if (ioctl(s, SIOCSPRISM2DEBUG, &ifr) < 0) {
         close(s);
-		snprintf(in_err, 1024, "Channel set ioctl failed: %s", strerror(errno));
+		snprintf(errstr, STATUS_MAX, "Channel set ioctl failed: %s", strerror(errno));
+        globalreg->messagebus->InjectMessage(errstr, MSGFLAG_FATAL);
+        globalreg->fatal_condition = 1;
 		return -1;
 	}
 
@@ -2344,23 +2701,29 @@ bool FreeBSD::chancontrol(int in_ch) {
 	return true;
 }
 
-int monitor_freebsd(const char *in_dev, int initch, char *in_err, void **in_if, void *in_ext) {
+int monitor_freebsd(MONITOR_PARMS) {
+    char errstr[STATUS_MAX];
     FreeBSD *bsd = new FreeBSD(in_dev);
     if (!bsd->monitor_enable(initch)) {
-        strcpy(in_err, bsd->geterror());
-	delete bsd;
+        strncpy(errstr, bsd->geterror(), STATUS_MAX);
+        delete bsd;
+        globalreg->messagebus->InjectMessage(errstr, MSGFLAG_FATAL);
+        globalreg->fatal_condition = 1;
         return -1;
     } else {
-	*(FreeBSD **)in_if = bsd;
+        *(FreeBSD **)in_if = bsd;
         return 0;
     }
 }
 
-int unmonitor_freebsd(const char *in_dev, int initch, char *in_err, void **in_if, void *in_ext) {
+int unmonitor_freebsd(MONITOR_PARMS) {
+    char errstr[STATUS_MAX];
+
     FreeBSD *bsd = *(FreeBSD **)in_if;
     if (!bsd->monitor_reset(initch)) {
-        strcpy(in_err, bsd->geterror());
+        strncpy(errstr, bsd->geterror(), STATUS_MAX);
         delete bsd;
+        globalreg->messagebus->InjectMessage(errstr, MSGFLAG_ERROR);
         return -1;
     } else {
         delete bsd;
@@ -2368,13 +2731,17 @@ int unmonitor_freebsd(const char *in_dev, int initch, char *in_err, void **in_if
     }
 }
 
-int chancontrol_freebsd(const char *in_dev, int in_ch, char *in_err, void *in_ext) {
+int chancontrol_freebsd(CHCONTROL_PARMS) {
+    char errstr[STATUS_MAX];
+
     FreeBSD bsd(in_dev);
     if (!bsd.chancontrol(in_ch)) {
-	strcpy(in_err, bsd.geterror());
-	return -1;
+        strncpy(errstr, bsd.geterror(), STATUS_MAX);
+        globalreg->messagebus->InjectMessage(errstr, MSGFLAG_FATAL);
+        globalreg->fatal_condition = 1;
+        return -1;
     } else {
-	return 0;
+        return 0;
     }
 }
 #endif /* SYS_FREEBSD */

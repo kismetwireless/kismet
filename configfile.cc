@@ -412,3 +412,49 @@ int ConfigFile::ParseFilterLine(string filter_str, macmap<int> *bssid_map,
     return 1;
 }
 
+int ConfigFile::ParseAlertLine(string alert_str, string *ret_name, alert_time_unit *ret_limit_unit,
+                               int *ret_limit_rate, int *ret_limit_burst) {
+    vector<string> tokens = StrTokenize(alert_str, ",");
+
+    if (tokens.size() < 2 || tokens.size() > 3) {
+        return -1;
+    }
+
+    (*ret_name) = StrLower(tokens[0]);
+
+    vector<string> units = StrTokenize(tokens[1], "/");
+
+    if (units.size() == 1) {
+        (*ret_limit_unit) = sat_minute;
+        if (sscanf(units[0].c_str(), "%d", ret_limit_rate) != 1) {
+            return -1;
+        }
+    } else {
+        if (sscanf(units[0].c_str(), "%d", ret_limit_rate) != 1) {
+            return -1;
+        }
+
+        if (units[1] == "sec" || units[1] == "second")
+            (*ret_limit_unit) = sat_second;
+        else if (units[1] == "min" || units[1] == "minute")
+            (*ret_limit_unit) = sat_minute;
+        else if (units[1] == "hour")
+            (*ret_limit_unit) = sat_hour;
+        else if (units[1] == "day")
+            (*ret_limit_unit) = sat_day;
+        else {
+            return -1;
+        }
+    }
+
+    if (tokens.size() == 2) {
+        (*ret_limit_burst) = 5;
+    } else {
+        if (sscanf(tokens[2].c_str(), "%d", ret_limit_burst) != 1) {
+            return -1;
+        }
+    }
+
+    return 1;
+}
+

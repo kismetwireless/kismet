@@ -37,12 +37,10 @@
 #define MAXHOSTNAMELEN 64
 #endif
 
-// This needs to be rewritten to spin correctly and read data into a buffer and
-// then return full packets.
-
 class DroneSource : public KisPacketSource {
 public:
-    DroneSource(string in_name, string in_dev) : KisPacketSource(in_name, in_dev) { }
+    DroneSource(GlobalRegistry *in_globalreg, string in_name, string in_dev) : 
+        KisPacketSource(in_globalreg, in_name, in_dev) { }
 
     int OpenSource();
 
@@ -82,11 +80,9 @@ protected:
 };
 
 // Nothing but a registrant for us
-KisPacketSource *dronesource_registrant(string in_name, string in_device,
-                                        char *in_err);
+KisPacketSource *dronesource_registrant(REGISTRANT_PARMS);
 
-int unmonitor_dronesource(const char *in_dev, int initch, 
-                          char *in_err, void **in_if, void *in_ext);
+int unmonitor_dronesource(MONITOR_PARMS);
 
 // ifdef
 #endif

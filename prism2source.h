@@ -51,7 +51,8 @@
 
 class Prism2Source : public KisPacketSource {
 public:
-    Prism2Source(string in_name, string in_dev) : KisPacketSource(in_name, in_dev) { }
+    Prism2Source(GlobalRegistry *in_globalreg, string in_name, string in_dev) : 
+        KisPacketSource(in_globalreg, in_name, in_dev) { }
 
     int OpenSource();
     int CloseSource();
@@ -97,10 +98,9 @@ protected:
     uint8_t buffer[MAX_PACKET_LEN];
 };
 
-KisPacketSource *prism2source_registrant(string in_name, string in_device, char *in_err);
-int monitor_wlanng_legacy(const char *in_dev, int initch, char *in_err, void **in_if, void *in_ext);
-int chancontrol_wlanng_legacy(const char *in_dev, int initch, char *in_err, 
-                              void *in_ext);
+KisPacketSource *prism2source_registrant(REGISTRANT_PARMS);
+int monitor_wlanng_legacy(MONITOR_PARMS);
+int chancontrol_wlanng_legacy(CHCONTROL_PARMS);
 
 #endif
 

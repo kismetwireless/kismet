@@ -24,27 +24,45 @@
 #include <string>
 #include <errno.h>
 
+#include "globalregistry.h"
+#include "messagebus.h"
 #include "packet.h"
 #include "timetracker.h"
 #include "gpsd.h"
 
 // All packetsources need to provide out-of-class functions for the 
 // packetsourcetracker class
+
+// Non-class helper functions for each packet source type to handle allocating the
+// class instance of KisPacketSource and to handle changing the channel outside of
+// the instantiated object
 //
-// typedef KisPacketSource *(*packsource_registrant)(string, string);
-// typedef int (*packsource_chcontrol)(char *, int, char *);
-// typedef int (*packsource_monitor)(char *, int, char *);
+// meta packsources are completed and filled with all relevant information for channel
+// changing before the child process is spawned, eliminating the need to communicate
+// the setup information for the sources over IPC.  There are no non-fatal conditions
+// which would prevent a metasource from having a real correlation.
+class KisPacketSource;
+
+#define REGISTRANT_PARMS GlobalRegistry *globalreg, string in_name, string in_device
+typedef KisPacketSource *(*packsource_registrant)(REGISTRANT_PARMS);
+
+#define CHCONTROL_PARMS GlobalRegistry *globalreg, const char *in_dev, \
+                            int in_ch, void *in_ext
+typedef int (*packsource_chcontrol)(CHCONTROL_PARMS);
+
+#define MONITOR_PARMS GlobalRegistry *globalreg, const char *in_dev, \
+                            int initch, void **in_if, void *in_ext
+typedef int (*packsource_monitor)(MONITOR_PARMS);
 
 // Packet capture source superclass
 class KisPacketSource {
 public:
-    KisPacketSource(string in_name, string in_dev) {
+    KisPacketSource(GlobalRegistry *in_globalreg, string in_name, string in_dev) {
         name = in_name;
         interface = in_dev;
 
-        gpsd = NULL;
-        timetracker = NULL;
-
+        globalreg = in_globalreg;
+        
         fcsbytes = 0;
     }
 
@@ -63,15 +81,6 @@ public:
 
     // Get a packet from the medium
     virtual int FetchPacket(kis_packet *packet, uint8_t *data, uint8_t *moddata) = 0;
-
-    // Register a timer event handler for us to use
-    void AddTimetracker(Timetracker *in_tracker) { timetracker = in_tracker; }
-
-    // Register the GPS server for us to use
-    void AddGpstracker(GPSD *in_gpsd) { gpsd = in_gpsd; }
-
-    // Get the error
-    char *FetchError() { return(errstr); }
 
     // Get the name
     const char *FetchName() { return(name.c_str()); }
@@ -106,11 +115,7 @@ protected:
         return fcsbytes;
     }
 
-    // Global tracking pointers
-    Timetracker *timetracker;
-    GPSD *gpsd;
-
-    char errstr[1024];
+    GlobalRegistry *globalreg;
 
     int paused;
 
@@ -126,7 +131,6 @@ protected:
 
     // Current channel, if we don't fetch it live
     int channel;
-
 };
 
 

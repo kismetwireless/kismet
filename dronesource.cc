@@ -23,11 +23,14 @@
 
 int DroneSource::OpenSource() {
     char listenhost[1024];
+    char errstr[STATUS_MAX];
 
     // Device is handled as a host:port pair - remote host we accept data
     // from, local port we open to listen for it.  yeah, it's a little weird.
     if (sscanf(interface.c_str(), "%1024[^:]:%hd", listenhost, &port) < 2) {
-        snprintf(errstr, 1024, "Couldn't parse host:port: '%s'", interface.c_str());
+        snprintf(errstr, 1024, "Drone server couldn't parse host:port: '%s'", interface.c_str());
+        globalreg->messagebus->InjectMessage(errstr, MSGFLAG_FATAL);
+        globalreg->fatal_condition = 1;
         return -1;
     }
 
@@ -35,6 +38,8 @@ int DroneSource::OpenSource() {
     // valid
     if ((drone_host = gethostbyname(listenhost)) == NULL) {
         snprintf(errstr, 1024, "Could not resolve host \"%s\"\n", listenhost);
+        globalreg->messagebus->InjectMessage(errstr, MSGFLAG_FATAL);
+        globalreg->fatal_condition = 1;
         return (-1);
     }
 
@@ -50,6 +55,8 @@ int DroneSource::OpenSource() {
 
     if ((drone_fd = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
         snprintf(errstr, 1024, "socket() failed %d (%s)\n", errno, strerror(errno));
+        globalreg->messagebus->InjectMessage(errstr, MSGFLAG_FATAL);
+        globalreg->fatal_condition = 1;
         return (-2);
     }
 
@@ -60,12 +67,16 @@ int DroneSource::OpenSource() {
 
     if (bind(drone_fd, (struct sockaddr *) &local_sock, sizeof(local_sock)) < 0) {
         snprintf(errstr, 1024, "bind() failed %d (%s)\n", errno, strerror(errno));
+        globalreg->messagebus->InjectMessage(errstr, MSGFLAG_FATAL);
+        globalreg->fatal_condition = 1;
         return (-3);
     }
 
     // Connect
     if (connect(drone_fd, (struct sockaddr *) &drone_sock, sizeof(drone_sock)) < 0) {
         snprintf(errstr, 1024, "connect() failed %d (%s)\n", errno, strerror(errno));
+        globalreg->messagebus->InjectMessage(errstr, MSGFLAG_FATAL);
+        globalreg->fatal_condition = 1;
         return (-4);
     }
 
@@ -101,6 +112,7 @@ int DroneSource::FetchPacket(kis_packet *packet, uint8_t *data, uint8_t *moddata
     fd_set rset;
     struct timeval tm;
     unsigned int offset = 0;
+    char errstr[STATUS_MAX];
 
     // Read more of our frame header if we need to
     if (stream_recv_bytes < sizeof(struct stream_frame_header)) {
@@ -109,6 +121,8 @@ int DroneSource::FetchPacket(kis_packet *packet, uint8_t *data, uint8_t *moddata
              (ssize_t) sizeof(struct stream_frame_header) - stream_recv_bytes)) < 0) {
             snprintf(errstr, STATUS_MAX, "drone read() error getting frame header %d:%s",
                      errno, strerror(errno));
+            globalreg->messagebus->InjectMessage(errstr, MSGFLAG_FATAL);
+            globalreg->fatal_condition = 1;
             return -1;
         }
         stream_recv_bytes += ret;
@@ -138,6 +152,8 @@ int DroneSource::FetchPacket(kis_packet *packet, uint8_t *data, uint8_t *moddata
 
             if (resyncs > 20) {
                 snprintf(errstr, 1024, "too many resync attempts, something is wrong.");
+                globalreg->messagebus->InjectMessage(errstr, MSGFLAG_FATAL);
+                globalreg->fatal_condition = 1;
                 return -1;
             }
 
@@ -150,6 +166,8 @@ int DroneSource::FetchPacket(kis_packet *packet, uint8_t *data, uint8_t *moddata
                 snprintf(errstr, 1024, "write() error attempting to flush "
                          "packet stream: %d %s",
                          errno, strerror(errno));
+                globalreg->messagebus->InjectMessage(errstr, MSGFLAG_FATAL);
+                globalreg->fatal_condition = 1;
                 return -1;
             }
 
@@ -186,6 +204,8 @@ int DroneSource::FetchPacket(kis_packet *packet, uint8_t *data, uint8_t *moddata
 
             snprintf(errstr, STATUS_MAX, "drone read() error getting version "
                      "packet %d:%s", errno, strerror(errno));
+            globalreg->messagebus->InjectMessage(errstr, MSGFLAG_FATAL);
+            globalreg->fatal_condition = 1;
             return -1;
         }
         stream_recv_bytes += ret;
@@ -198,6 +218,8 @@ int DroneSource::FetchPacket(kis_packet *packet, uint8_t *data, uint8_t *moddata
         if (ntohs(vpkt.drone_version) != STREAM_DRONE_VERSION) {
             snprintf(errstr, 1024, "version mismatch:  Drone sending version %d, "
                      "expected %d.", ntohs(vpkt.drone_version), STREAM_DRONE_VERSION);
+            globalreg->messagebus->InjectMessage(errstr, MSGFLAG_FATAL);
+            globalreg->fatal_condition = 1;
             return -1;
         }
 
@@ -216,6 +238,8 @@ int DroneSource::FetchPacket(kis_packet *packet, uint8_t *data, uint8_t *moddata
         // Bail if we have a frame header too small for a packet of any sort
         if (ntohl(fhdr.frame_len) <= sizeof(struct stream_packet_header)) {
             snprintf(errstr, 1024, "frame too small to hold a packet.");
+            globalreg->messagebus->InjectMessage(errstr, MSGFLAG_FATAL);
+            globalreg->fatal_condition = 1;
             return -1;
         }
 
@@ -225,6 +249,8 @@ int DroneSource::FetchPacket(kis_packet *packet, uint8_t *data, uint8_t *moddata
                         (stream_recv_bytes - offset))) < 0) {
             snprintf(errstr, STATUS_MAX, "drone read() error getting packet "
                      "header %d:%s", errno, strerror(errno));
+            globalreg->messagebus->InjectMessage(errstr, MSGFLAG_FATAL);
+            globalreg->fatal_condition = 1;
             return -1;
         }
         stream_recv_bytes += ret;
@@ -236,16 +262,22 @@ int DroneSource::FetchPacket(kis_packet *packet, uint8_t *data, uint8_t *moddata
         if (ntohs(phdr.drone_version) != STREAM_DRONE_VERSION) {
             snprintf(errstr, 1024, "version mismatch:  Drone sending version %d, "
                      "expected %d.", ntohs(phdr.drone_version), STREAM_DRONE_VERSION);
+            globalreg->messagebus->InjectMessage(errstr, MSGFLAG_FATAL);
+            globalreg->fatal_condition = 1;
             return -1;
         }
 
         if (ntohl(phdr.caplen) <= 0 || ntohl(phdr.len) <= 0) {
             snprintf(errstr, 1024, "drone sent us a 0-length packet.");
+            globalreg->messagebus->InjectMessage(errstr, MSGFLAG_FATAL);
+            globalreg->fatal_condition = 1;
             return -1;
         }
 
         if (ntohl(phdr.caplen) > MAX_PACKET_LEN || ntohl(phdr.len) > MAX_PACKET_LEN) {
             snprintf(errstr, 1024, "drone sent us an oversized packet.");
+            globalreg->messagebus->InjectMessage(errstr, MSGFLAG_FATAL);
+            globalreg->fatal_condition = 1;
             return -1;
         }
 
@@ -273,6 +305,8 @@ int DroneSource::FetchPacket(kis_packet *packet, uint8_t *data, uint8_t *moddata
                         (ssize_t) plen - (stream_recv_bytes - offset))) < 0) {
             snprintf(errstr, STATUS_MAX, "drone read() error getting packet "
                      "header %d:%s", errno, strerror(errno));
+            globalreg->messagebus->InjectMessage(errstr, MSGFLAG_FATAL);
+            globalreg->fatal_condition = 1;
             return -1;
         }
         stream_recv_bytes += ret;
@@ -304,6 +338,8 @@ int DroneSource::FetchPacket(kis_packet *packet, uint8_t *data, uint8_t *moddata
         fhdr.frame_type != STREAM_FTYPE_VERSION) {
         // Bail if we don't know the packet type
         snprintf(errstr, 1024, "unknown frame type %d", fhdr.frame_type);
+        globalreg->messagebus->InjectMessage(errstr, MSGFLAG_FATAL);
+        globalreg->fatal_condition = 1;
 
         // debug
         for (unsigned int x = 0; x < sizeof(struct stream_frame_header); x++) {
@@ -356,13 +392,11 @@ int DroneSource::Drone2Common(kis_packet *packet, uint8_t *data, uint8_t *moddat
     return 1;
 }
 
-KisPacketSource *dronesource_registrant(string in_name, string in_device,
-                                        char *in_err) {
-    return new DroneSource(in_name, in_device);
+KisPacketSource *dronesource_registrant(REGISTRANT_PARMS) {
+    return new DroneSource(globalreg, in_name, in_device);
 }
 
-int unmonitor_dronesource(const char *in_dev, int initch, 
-                          char *in_err, void **in_if, void *in_ext) {
+int unmonitor_dronesource(MONITOR_PARMS) {
     return 0;
 }
 

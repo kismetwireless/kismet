@@ -19,15 +19,378 @@
 #include "config.h"
 
 #include "util.h"
+#include "prism2source.h"
+#include "pcapsource.h"
+#include "wtapfilesource.h"
+#include "wsp100source.h"
+#include "vihasource.h"
+#include "dronesource.h"
 #include "packetsourcetracker.h"
+#include "configfile.h"
 
-Packetsourcetracker::Packetsourcetracker() {
+void Packetcontrolchild_MessageClient::ProcessMessage(string in_msg, int in_flags) {
+    // Redirect stuff into the protocol to talk to the parent control
+
+    int chflag = CHANFLAG_NONE;
+
+    if (in_flags & MSGFLAG_LOCAL)
+        return;
+
+    if (in_flags & MSGFLAG_FATAL)
+        chflag = CHANFLAG_FATAL;
+    
+    // This is a godawfully ugly call
+    globalreg->sourcetracker->child_ipc_buffer.push_front(globalreg->sourcetracker->CreateTextPacket(in_msg, chflag));
+}
+
+// Handle channel hopping... this is actually really simple.
+int ChannelHopEvent(Timetracker::timer_event *evt, void *parm, GlobalRegistry *globalreg) {
+    // Just call advancechannel
+    globalreg->sourcetracker->AdvanceChannel();
+    
+    return 1;
+}
+
+KisPacketSource *nullsource_registrant(REGISTRANT_PARMS) {
+    return new NullPacketSource(globalreg, in_name, in_device);
+}
+
+int unmonitor_nullsource(MONITOR_PARMS) {
+    return 0;
+}
+
+Packetsourcetracker::Packetsourcetracker(GlobalRegistry *in_globalreg) {
+    globalreg = in_globalreg;
     next_packsource_id = 0;
     next_meta_id = 0;
-    gpsd = NULL;
-    timetracker = NULL;
     chanchild_pid = 0;
     sockpair[0] = sockpair[1] = 0;
+
+    // Register all our packet sources
+    // RegisterPacketsource(name, root, channelset, init channel, register,
+    // monitor, unmonitor, channelchanger)
+    //
+    // We register sources we known about but didn't compile support for as
+    // NULL so we can report a sensible error if someone tries to use it
+    // 
+    // Plugins will go here after null sources, somehow
+ 
+    // Null source
+    RegisterPacketsource("none", 0, "na", 0,
+                         nullsource_registrant,
+                         NULL, unmonitor_nullsource, NULL, 0);
+
+    // Drone
+    RegisterPacketsource("kismet_drone", 0, "na", 0,
+                         dronesource_registrant,
+                         NULL, unmonitor_dronesource, NULL, 0);
+
+    // pcap supported sources 
+#ifdef HAVE_LIBPCAP
+    // pcapfile doesn't have channel or monitor controls
+    RegisterPacketsource("pcapfile", 0, "na", 0,
+                         pcapsource_file_registrant,
+                         NULL, unmonitor_pcapfile, NULL, 0);
+#else
+    REG_EMPTY_CARD("pcapfile");
+#endif
+
+#if defined(HAVE_LIBPCAP) && defined(HAVE_LINUX_WIRELESS)
+    // Linux wext-driven cards
+    RegisterPacketsource("cisco", 1, "IEEE80211b", 6,
+                         pcapsource_wext_registrant,
+                         monitor_cisco, unmonitor_cisco, 
+                         chancontrol_wext, 1);
+    RegisterPacketsource("cisco_wifix", 1, "IEEE80211b", 6,
+                         pcapsource_ciscowifix_registrant,
+                         monitor_cisco_wifix, NULL, NULL, 1);
+    RegisterPacketsource("hostap", 1, "IEEE80211b", 6,
+                         pcapsource_wext_registrant,
+                         monitor_hostap, unmonitor_hostap, 
+                         chancontrol_wext, 1);
+    RegisterPacketsource("orinoco", 1, "IEEE80211b", 6,
+                         pcapsource_wext_registrant,
+                         monitor_orinoco, unmonitor_orinoco, 
+                         chancontrol_orinoco, 1);
+    RegisterPacketsource("orinoco_14", 1, "IEEE80211b", 6,
+                         pcapsource_wext_registrant,
+                         monitor_orinoco, unmonitor_orinoco,
+                         chancontrol_orinoco, 1);
+    RegisterPacketsource("acx100", 1, "IEEE80211b", 6,
+                         pcapsource_wextfcs_registrant,
+                         monitor_acx100, unmonitor_acx100, 
+                         chancontrol_wext, 1);
+    RegisterPacketsource("admtek", 1, "IEEE80211b", 6,
+                         pcapsource_wext_registrant,
+                         monitor_admtek, unmonitor_admtek,
+                         chancontrol_wext, 1);
+    RegisterPacketsource("vtar5k", 1, "IEEE80211a", 36,
+                         pcapsource_wext_registrant,
+                         monitor_vtar5k, NULL, chancontrol_wext, 1);
+
+    RegisterPacketsource("madwifi_a", 1, "IEEE80211a", 36,
+                         pcapsource_wextfcs_registrant,
+                         monitor_madwifi_a, unmonitor_madwifi, 
+                         chancontrol_wext, 1);
+    RegisterPacketsource("madwifi_b", 1, "IEEE80211b", 6,
+                         pcapsource_wextfcs_registrant,
+                         monitor_madwifi_b, unmonitor_madwifi, 
+                         chancontrol_wext, 1);
+    RegisterPacketsource("madwifi_g", 1, "IEEE80211g", 6,
+                         pcapsource_11gfcs_registrant,
+                         monitor_madwifi_g, unmonitor_madwifi, 
+                         chancontrol_wext, 1);
+    RegisterPacketsource("madwifi_ab", 1, "IEEE80211ab", 6,
+                         pcapsource_wextfcs_registrant,
+                         monitor_madwifi_comb, unmonitor_madwifi, 
+                         chancontrol_madwifi_ab, 1);
+    RegisterPacketsource("madwifi_ag", 1, "IEEE80211ab", 6,
+                         pcapsource_11gfcs_registrant,
+                         monitor_madwifi_comb, unmonitor_madwifi, 
+                         chancontrol_madwifi_ag, 1);
+
+    RegisterPacketsource("prism54g", 1, "IEEE80211g", 6,
+                         pcapsource_11g_registrant,
+                         monitor_prism54g, unmonitor_prism54g,
+                         chancontrol_prism54g, 1);
+
+    RegisterPacketsource("wlanng_wext", 1, "IEEE80211b", 6,
+                         pcapsource_wlanng_registrant,
+                         monitor_wlanng_avs, NULL,
+                         chancontrol_wext, 1);
+
+    RegisterPacketsource("ipw2100", 1, "IEEE80211b", 6,
+                         pcapsource_wext_registrant,
+                         monitor_ipw2100, unmonitor_ipw2100,
+                         chancontrol_wext, 1);
+
+#else
+    // Register the linuxwireless pcap stuff as null
+    REG_EMPTY_CARD("cisco");
+    REG_EMPTY_CARD("cisco_wifix");
+    REG_EMPTY_CARD("hostap");
+    REG_EMPTY_CARD("orinoco");
+    REG_EMPTY_CARD("acx100");
+    REG_EMPTY_CARD("vtar5k");
+
+    REG_EMPTY_CARD("madwifi_a");
+    REG_EMPTY_CARD("madwifi_b");
+    REG_EMPTY_CARD("madwifi_g");
+    REG_EMPTY_CARD("madwifi_ab");
+    REG_EMPTY_CARD("madwifi_ag");
+
+    REG_EMPTY_CARD("prism54g");
+
+    REG_EMPTY_CARD("ipw2100");
+
+    REG_EMPTY_CARD("wlanng_wext");
+#endif
+
+#if defined(HAVE_LIBPCAP) && defined(SYS_LINUX)
+    RegisterPacketsource("wlanng", 1, "IEEE80211b", 6,
+                         pcapsource_wlanng_registrant,
+                         monitor_wlanng, NULL, chancontrol_wlanng, 1);
+    RegisterPacketsource("wlanng_avs", 1, "IEEE80211b", 6,
+                         pcapsource_wlanng_registrant,
+                         monitor_wlanng_avs, NULL,
+                         chancontrol_wlanng_avs, 1);
+    RegisterPacketsource("wrt54g", 1, "na", 0,
+                         pcapsource_wrt54g_registrant,
+                         monitor_wrt54g, NULL, NULL, 0);
+#else
+    REG_EMPTY_CARD("wlanng");
+    REG_EMPTY_CARD("wlanng_avs");
+    REG_EMPTY_CARD("wrt54g");
+#endif
+
+#if defined(SYS_LINUX) && defined(HAVE_LINUX_NETLINK)
+    RegisterPacketsource("wlanng_legacy", 1, "IEEE80211b", 6,
+                         prism2source_registrant,
+                         monitor_wlanng_legacy, NULL,
+                         chancontrol_wlanng_legacy, 1);
+#else
+    REG_EMPTY_CARD("wlanng_legacy");
+#endif
+
+#if defined(HAVE_LIBPCAP) && defined(SYS_OPENBSD)
+    RegisterPacketsource("cisco_openbsd", 1, "IEEE80211b", 6,
+                         pcapsource_registrant,
+                         monitor_openbsd_cisco, NULL, NULL, 1);
+    RegisterPacketsource("prism2_openbsd", 1, "IEEE80211b", 6,
+                         pcapsource_openbsdprism2_registrant,
+                         monitor_openbsd_prism2, NULL,
+                         chancontrol_openbsd_prism2, 1);
+#else
+    REG_EMPTY_CARD("cisco_openbsd");
+    REG_EMPTY_CARD("prism2_openbsd");
+#endif
+
+#if defined(HAVE_LIBPCAP) && defined(SYS_FREEBSD) && defined(HAVE_RADIOTAP)
+    RegisterPacketsource("radiotap_fbsd_ab", 1, "IEEE80211ab", 6,
+                         pcapsource_radiotap_registrant,
+                         monitor_freebsd, unmonitor_freebsd,
+                         chancontrol_freebsd, 1);
+    RegisterPacketsource("radiotap_fbsd_a",1, "IEEE80211a", 6,
+                         pcapsource_radiotap_registrant,
+                         monitor_freebsd, unmonitor_freebsd,
+                         chancontrol_freebsd, 1);
+    RegisterPacketsource("radiotap_fbsd_b",1, "IEEE80211b", 6,
+                         pcapsource_radiotap_registrant,
+                         monitor_freebsd, unmonitor_freebsd,
+                         chancontrol_freebsd, 1);
+#else
+    REG_EMPTY_CARD("radiotap_fbsd_ab");
+    REG_EMPTY_CARD("radiotap_fbsd_a");
+    REG_EMPTY_CARD("radiotap_fbsd_b");
+#endif
+
+#if defined(HAVE_LIBWIRETAP)
+    RegisterPacketsource("wtapfile", 0, "na", 0,
+                         wtapfilesource_registrant,
+                         NULL, NULL, NULL, 0);
+#else
+    REG_EMPTY_CARD("wtapfile");
+#endif
+
+#if defined(HAVE_WSP100)
+    RegisterPacketsource("wsp100", 0, "IEEE80211b", 6,
+                         wsp100source_registrant,
+                         monitor_wsp100, NULL, chancontrol_wsp100, 0);
+#else
+    REG_EMPTY_CARD("wsp100");
+#endif
+
+#if defined(HAVE_VIHAHEADERS)
+    RegisterPacketsource("viha", 1, "IEEE80211b", 6,
+                         vihasource_registrant,
+                         NULL, NULL, chancontrol_viha, 0);
+#else
+    REG_EMPTY_CARD("viha");
+#endif
+    
+    // Default channels
+    vector<string> defaultchannel_vec;
+    // Custom channel lists for sources
+    vector<string> src_customchannel_vec;
+
+    // Read all of our packet sources, tokenize the input and then start opening
+    // them.
+
+    if (globalreg->named_sources.length() == 0) {
+        globalreg->named_sources = globalreg->kismet_config->FetchOpt("enablesources");
+    }
+
+    // Tell them if we're enabling everything
+    if (globalreg->named_sources.length() == 0) {
+        globalreg->messagebus->InjectMessage("No specific sources named, all sources defined "
+                                             "in kismet.conf will be enabled.", MSGFLAG_INFO);
+    }
+
+    // Read the config file if we didn't get any sources on the command line
+    if (globalreg->source_input_vec.size() == 0)
+        globalreg->source_input_vec = globalreg->kismet_config->FetchOptVec("source");
+
+    // Now look at our channel options
+    if (globalreg->channel_hop == -1) {
+        if (globalreg->kismet_config->FetchOpt("channelhop") == "true") {
+            globalreg->messagebus->InjectMessage("Enabling channel hopping", MSGFLAG_INFO);
+            globalreg->channel_hop = 1;
+        } else {
+            globalreg->messagebus->InjectMessage("Disabling channel hopping", MSGFLAG_INFO);
+            globalreg->channel_hop = 0;
+        }
+    }
+
+    if (globalreg->channel_hop == 1) {
+        if (globalreg->kismet_config->FetchOpt("channelsplit") == "true") {
+            globalreg->messagebus->InjectMessage("Enabling channel splitting", MSGFLAG_INFO);
+            globalreg->channel_split = 1;
+        } else {
+            globalreg->messagebus->InjectMessage("Disabling channel splitting", MSGFLAG_INFO);
+            globalreg->channel_split = 0;
+        }
+
+        if (globalreg->kismet_config->FetchOpt("channelvelocity") != "") {
+            if (sscanf(globalreg->kismet_config->FetchOpt("channelvelocity").c_str(), "%d", 
+                       &globalreg->channel_velocity) != 1) {
+                snprintf(errstr, STATUS_MAX, "Illegal config file value '%s' for channelvelocity, "
+                         "must be an integer",
+                         globalreg->kismet_config->FetchOpt("channelvelocity").c_str());
+                globalreg->messagebus->InjectMessage(errstr, MSGFLAG_FATAL);
+                globalreg->fatal_condition = 1;
+                return;
+            }
+
+            if (globalreg->channel_velocity < 1 || globalreg->channel_velocity > 10) {
+                globalreg->messagebus->InjectMessage("Illegal value for channelvelocity, must be "
+                                                     "between 1 and 10", MSGFLAG_FATAL);
+                globalreg->fatal_condition = 1;
+                return;
+            }
+        }
+
+        if (globalreg->kismet_config->FetchOpt("channeldwell") != "") {
+            if (sscanf(globalreg->kismet_config->FetchOpt("channeldwell").c_str(), "%d",
+                       &globalreg->channel_dwell) != 1) {
+
+                snprintf(errstr, STATUS_MAX, "Illegal config file value '%s' for channeldwell, "
+                         "must be an integer",
+                         globalreg->kismet_config->FetchOpt("channelvelocity").c_str());
+                globalreg->messagebus->InjectMessage(errstr, MSGFLAG_FATAL);
+                globalreg->fatal_condition = 1;
+                return;
+            }
+        }
+
+        // Fetch the vector of default channels
+        defaultchannel_vec = globalreg->kismet_config->FetchOptVec("defaultchannels");
+        if (defaultchannel_vec.size() == 0) {
+            globalreg->messagebus->InjectMessage("Could not find any defaultchannels config lines "
+                                                 "and channel hopping was requested.  Something is "
+                                                 "broken in the config file.", MSGFLAG_FATAL);
+            globalreg->fatal_condition = 1;
+            return;
+        }
+
+        // Fetch custom channels for individual sources
+        src_customchannel_vec = globalreg->kismet_config->FetchOptVec("sourcechannels");
+    }
+
+    // Register our default channels
+    if (RegisterDefaultChannels(&defaultchannel_vec) < 0) {
+        return;
+    }
+
+    // This could be done better with globalregistry and messagebus, but for 
+    // now it'll work
+    
+    // Turn all our config data into meta packsources, or fail...  If we're
+    // passing the sources from the command line, we enable them all, so we
+    // null the named_sources string
+    int old_chhop = globalreg->channel_hop;
+    if (ProcessCardList(globalreg->source_from_cmd ? "" : globalreg->named_sources, 
+                        &globalreg->source_input_vec, &src_customchannel_vec, 
+                        &globalreg->src_initchannel_vec,
+                        globalreg->channel_hop, globalreg->channel_split) < 0) {
+        return;
+    }
+
+    // This would only change if we're channel hopping and processcardlist had
+    // to turn it off because nothing supports it, so print a notice...
+    if (old_chhop != globalreg->channel_hop)
+        globalreg->messagebus->InjectMessage("Disabling channel hopping, no enabled "
+                                             "sources are able to set channels.",
+                                             MSGFLAG_INFO);
+
+    if (globalreg->channel_hop) {
+        if (globalreg->channel_dwell)
+            globalreg->timetracker->RegisterTimer(SERVER_TIMESLICES_SEC * globalreg->channel_dwell, NULL, 1, 
+                                                  &ChannelHopEvent, NULL);
+        else
+            globalreg->timetracker->RegisterTimer(SERVER_TIMESLICES_SEC / globalreg->channel_velocity, 
+                                                  NULL, 1, &ChannelHopEvent, NULL);
+    }
+    
 }
 
 Packetsourcetracker::~Packetsourcetracker() {
@@ -36,27 +399,34 @@ Packetsourcetracker::~Packetsourcetracker() {
         delete x->second;
 }
 
-unsigned int Packetsourcetracker::MergeSet(fd_set *in_rset, fd_set *in_wset,
-                                           unsigned int in_max) {
+unsigned int Packetsourcetracker::MergeSet(fd_set in_rset, fd_set in_wset, 
+                                           unsigned int in_max_fd,
+                                           fd_set *out_rset, fd_set *out_wset) {
+    unsigned int max = in_max_fd;
 
-    unsigned int max = in_max;
+    for (unsigned int x = 0; x < in_max_fd; x++) {
+        if (FD_ISSET(x, &in_rset))
+            FD_SET(x, out_rset);
+        if (FD_ISSET(x, &in_wset))
+            FD_SET(x, out_wset);
+    }
 
     if (chanchild_pid != 0) {
-        if (in_max < (unsigned int) sockpair[1])
+        if (in_max_fd < (unsigned int) sockpair[1])
             max = sockpair[1];
 
         // Set the read sock all the time
-        FD_SET(sockpair[1], in_rset);
+        FD_SET(sockpair[1], out_rset);
 
         // Set it for writing if we have some queued
         if (ipc_buffer.size() > 0)
-            FD_SET(sockpair[1], in_wset);
+            FD_SET(sockpair[1], out_wset);
     }
 
     for (unsigned int metc = 0; metc < meta_packsources.size(); metc++) {
         meta_packsource *meta = meta_packsources[metc];
 
-        FD_SET(meta->capsource->FetchDescriptor(), in_rset);
+        FD_SET(meta->capsource->FetchDescriptor(), out_rset);
         if (meta->capsource->FetchDescriptor() > (int) max)
             max = meta->capsource->FetchDescriptor();
     }
@@ -83,6 +453,8 @@ int Packetsourcetracker::Poll(fd_set *in_rset, fd_set *in_wset) {
                         break;
                     } else {
                         snprintf(errstr, 1024, "ipc header send() failed: %d:%s", errno, strerror(errno));
+                        globalreg->messagebus->InjectMessage(errstr, MSGFLAG_FATAL);
+                        globalreg->fatal_condition = 1;
                         return -1;
                     }
                 } 
@@ -96,6 +468,8 @@ int Packetsourcetracker::Poll(fd_set *in_rset, fd_set *in_wset) {
                         break;
                     } else {
                         snprintf(errstr, 1024, "ipc content send() failed: %d:%s", errno, strerror(errno));
+                        globalreg->messagebus->InjectMessage(errstr, MSGFLAG_FATAL);
+                        globalreg->fatal_condition = 1;
                         return -1;
                     }
                 }
@@ -114,6 +488,8 @@ int Packetsourcetracker::Poll(fd_set *in_rset, fd_set *in_wset) {
     if (FD_ISSET(sockpair[1], in_rset)) {
         if (recv(sockpair[1], &in_pak, sizeof(chanchild_packhdr) - sizeof(void *), 0) < 0) {
             snprintf(errstr, 1024, "header recv() error: %d:%s", errno, strerror(errno));
+            globalreg->messagebus->InjectMessage(errstr, MSGFLAG_FATAL);
+            globalreg->fatal_condition = 1;
             return -1;
         }
 
@@ -121,6 +497,8 @@ int Packetsourcetracker::Poll(fd_set *in_rset, fd_set *in_wset) {
         if (in_pak.sentinel != CHANSENTINEL) {
             snprintf(errstr, 1024, "Got packet from channel control with invalid "
                      "sentinel.");
+            globalreg->messagebus->InjectMessage(errstr, MSGFLAG_FATAL);
+            globalreg->fatal_condition = 1;
             return 1;
         }
 
@@ -137,6 +515,8 @@ int Packetsourcetracker::Poll(fd_set *in_rset, fd_set *in_wset) {
 
         if (recv(sockpair[1], data, in_pak.datalen, 0) < 0) {
             snprintf(errstr, 1024, "data recv() error: %d:%s", errno, strerror(errno));
+            globalreg->messagebus->InjectMessage(errstr, MSGFLAG_FATAL);
+            globalreg->fatal_condition = 1;
             return -1;
         }
 
@@ -145,6 +525,8 @@ int Packetsourcetracker::Poll(fd_set *in_rset, fd_set *in_wset) {
             // Data should be an 8bit uint with the meta number.
             if (data[0] >= meta_packsources.size()) {
                 snprintf(errstr, 1024, "illegal command ack for meta number %d", data[0]);
+                globalreg->messagebus->InjectMessage(errstr, MSGFLAG_FATAL);
+                globalreg->fatal_condition = 1;
                 return -1;
             }
 
@@ -161,9 +543,13 @@ int Packetsourcetracker::Poll(fd_set *in_rset, fd_set *in_wset) {
 
             free(data);
 
-            // Fatal packets return a fatal condition
-            if (in_pak.flags & CHANFLAG_FATAL)
-                return -1;
+            // Fatal packets return a fatal condition 
+            if (in_pak.flags & CHANFLAG_FATAL) {
+                globalreg->messagebus->InjectMessage(errstr, MSGFLAG_FATAL);
+                globalreg->fatal_condition = 1;
+            } else {
+                globalreg->messagebus->InjectMessage(errstr, MSGFLAG_INFO);
+            }
 
             return 1;
         }
@@ -186,17 +572,15 @@ int Packetsourcetracker::SetChannel(int in_ch, meta_packsource *in_meta) {
         return 0;
 
 #ifndef HAVE_SUID
-    int ret = (*in_meta->prototype->channelcon)(in_meta->device.c_str(),
-                                                in_ch, errstr, 
-                                                (void *) in_meta->capsource);
+    int ret = (*in_meta->prototype->channelcon)(globalreg, in_meta->device.c_str(),
+                                                in_ch, (void *) in_meta->capsource);
     if (ret < 0)
         return ret;
 #else
     if (in_meta->prototype->child_control == 0) {
         int ret;
-        ret = (*in_meta->prototype->channelcon)(in_meta->device.c_str(),
-                                                in_ch, errstr,
-                                                (void *) in_meta->capsource);
+        ret = (*in_meta->prototype->channelcon)(globalreg, in_meta->device.c_str(),
+                                                in_ch, (void *) in_meta->capsource);
         if (ret < 0)
             return ret;
     }
@@ -210,6 +594,8 @@ int Packetsourcetracker::SetChannel(int in_ch, meta_packsource *in_meta) {
     if (data == NULL) {
         snprintf(errstr, STATUS_MAX, "Could not allocate data struct for "
                  "changing channels: %s", strerror(errno));
+        globalreg->messagebus->InjectMessage(errstr, MSGFLAG_FATAL);
+        globalreg->fatal_condition = 1;
         return -1;
     }
     memset(data, 0, sizeof(chanchild_changepacket));
@@ -312,6 +698,8 @@ int Packetsourcetracker::RegisterDefaultChannels(vector<string> *in_defchannels)
         if (tokens.size() < 2) {
             snprintf(errstr, 1024, "Illegal default channel line '%s'", 
                      (*in_defchannels)[sc].c_str());
+            globalreg->messagebus->InjectMessage(errstr, MSGFLAG_FATAL);
+            globalreg->fatal_condition = 1;
             return -1;
         }
 
@@ -320,13 +708,17 @@ int Packetsourcetracker::RegisterDefaultChannels(vector<string> *in_defchannels)
         if (channel_bits.size() == 0) {
             snprintf(errstr, 1024, "Illegal channel list '%s' in default channel "
                      "line '%s'", tokens[1].c_str(), (*in_defchannels)[sc].c_str());
+            globalreg->messagebus->InjectMessage(errstr, MSGFLAG_FATAL);
+            globalreg->fatal_condition = 1;
             return -1;
         }
 
         if (defaultch_map.find(StrLower(tokens[0])) != defaultch_map.end()) {
             snprintf(errstr, 1024, "Already have defaults for type '%s'",
                      tokens[0].c_str());
-            return-1;
+            globalreg->messagebus->InjectMessage(errstr, MSGFLAG_FATAL);
+            globalreg->fatal_condition = 1;
+            return -1;
         }
 
         defaultch_map[StrLower(tokens[0])] = channel_bits;
@@ -405,6 +797,8 @@ int Packetsourcetracker::ProcessCardList(string in_enableline,
         if (sscanf((*in_initchannels)[0].c_str(), "%d", &tmpchan) != 1) {
             snprintf(errstr, 1024, "Illegal initial channel '%s'", 
                      (*in_initchannels)[0].c_str());
+            globalreg->messagebus->InjectMessage(errstr, MSGFLAG_FATAL);
+            globalreg->fatal_condition = 1;
             return -1;
         }
 
@@ -417,6 +811,8 @@ int Packetsourcetracker::ProcessCardList(string in_enableline,
             if (tokens.size() < 2) {
                 snprintf(errstr, 1024, "Illegal initial channel '%s'", 
                          (*in_initchannels)[nic].c_str());
+                globalreg->messagebus->InjectMessage(errstr, MSGFLAG_FATAL);
+                globalreg->fatal_condition = 1;
                 return -1;
             }
 
@@ -424,6 +820,8 @@ int Packetsourcetracker::ProcessCardList(string in_enableline,
             if (sscanf(tokens[1].c_str(), "%d", &tmpchan) != 1) {
                 snprintf(errstr, 1024, "Illegal initial channel '%s'", 
                          (*in_initchannels)[nic].c_str());
+                globalreg->messagebus->InjectMessage(errstr, MSGFLAG_FATAL);
+                globalreg->fatal_condition = 1;
                 return -1;
             }
 
@@ -448,6 +846,8 @@ int Packetsourcetracker::ProcessCardList(string in_enableline,
 
         if (tokens.size() < 2) {
             snprintf(errstr, 1024, "Illegal sourcechannel line '%s'", (*in_sourcechannels)[sc].c_str());
+            globalreg->messagebus->InjectMessage(errstr, MSGFLAG_FATAL);
+            globalreg->fatal_condition = 1;
             return -1;
         }
 
@@ -457,6 +857,8 @@ int Packetsourcetracker::ProcessCardList(string in_enableline,
         if (chan_channel_bits.size() == 0) {
             snprintf(errstr, 1024, "Illegal channel list '%s' in sourcechannel line '%s'", 
                      tokens[1].c_str(), (*in_sourcechannels)[sc].c_str());
+            globalreg->messagebus->InjectMessage(errstr, MSGFLAG_FATAL);
+            globalreg->fatal_condition = 1;
             return -1;
         }
 
@@ -469,6 +871,8 @@ int Packetsourcetracker::ProcessCardList(string in_enableline,
                 chan_cap_seqid_map.end()) {
                 snprintf(errstr, 1024, "Capture source '%s' assigned multiple channel sequences.",
                          chan_capsource_bits[cap].c_str());
+                globalreg->messagebus->InjectMessage(errstr, MSGFLAG_FATAL);
+                globalreg->fatal_condition = 1;
                 return -1;
             }
 
@@ -489,6 +893,8 @@ int Packetsourcetracker::ProcessCardList(string in_enableline,
 
         if (tokens.size() < 3) {
             snprintf(errstr, 1024, "Illegal card source line '%s'", (*in_cardlines)[cl].c_str());
+            globalreg->messagebus->InjectMessage(errstr, MSGFLAG_FATAL);
+            globalreg->fatal_condition = 1;
             return -1;
         }
 
@@ -496,6 +902,8 @@ int Packetsourcetracker::ProcessCardList(string in_enableline,
         if (cardtype_map.find(StrLower(tokens[0])) == cardtype_map.end()) {
             snprintf(errstr, 1024, "Unknown capture source type '%s' in source '%s'", 
                      tokens[0].c_str(), (*in_cardlines)[cl].c_str());
+            globalreg->messagebus->InjectMessage(errstr, MSGFLAG_FATAL);
+            globalreg->fatal_condition = 1;
             return -1;
         }
 
@@ -504,6 +912,8 @@ int Packetsourcetracker::ProcessCardList(string in_enableline,
             snprintf(errstr, 1024, "Support for capture source type '%s' was not built.  "
                      "Check the output from 'configure' for more information about why it might "
                      "not have been compiled in.", tokens[0].c_str());
+            globalreg->messagebus->InjectMessage(errstr, MSGFLAG_FATAL);
+            globalreg->fatal_condition = 1;
             return -1;
         }
 
@@ -514,6 +924,8 @@ int Packetsourcetracker::ProcessCardList(string in_enableline,
                 snprintf(errstr, 1024, "Illegal initial channel '%s' specified on "
                          "the sourceline for '%s'", tokens[3].c_str(), 
                          tokens[0].c_str());
+                globalreg->messagebus->InjectMessage(errstr, MSGFLAG_FATAL);
+                globalreg->fatal_condition = 1;
                 return -1;
             }
         }
@@ -570,6 +982,8 @@ int Packetsourcetracker::ProcessCardList(string in_enableline,
                     snprintf(errstr, 1024, "Channel set assigned to capsource %s, "
                              "which cannot channel hop.",
                              meta->name.c_str());
+                    globalreg->messagebus->InjectMessage(errstr, MSGFLAG_FATAL);
+                    globalreg->fatal_condition = 1;
                     return -1;
                 }
 
@@ -627,6 +1041,8 @@ int Packetsourcetracker::ProcessCardList(string in_enableline,
         snprintf(errstr, STATUS_MAX, "No packsources were enabled.  Make sure that "
                  "if you use an enablesource line that you specify the correct "
                  "sources.");
+        globalreg->messagebus->InjectMessage(errstr, MSGFLAG_FATAL);
+        globalreg->fatal_condition = 1;
         return -1;
     }
 
@@ -649,47 +1065,44 @@ int Packetsourcetracker::BindSources(int in_root) {
         // Call the registrant to allocate a packet source ... nasty little error
         // handler but it works.
         errstr[0] = '\0';
-        meta->capsource = (*meta->prototype->registrant)(meta->name, meta->device, errstr);
+        meta->capsource = (*meta->prototype->registrant)(globalreg, meta->name, meta->device);
 
         if (meta->capsource == NULL) {
-            if (strlen(errstr) == 0)
-                snprintf(errstr, 1024, "Unable to create source instance for source '%s'",
-                         meta->name.c_str());
+            snprintf(errstr, 1024, "Unable to create source instance for source '%s'",
+                     meta->name.c_str());
+            globalreg->messagebus->InjectMessage(errstr, MSGFLAG_FATAL);
+            globalreg->fatal_condition = 1;
             return -1;
         }
 
         // Enable monitor mode
         int ret = 0;
         if (meta->prototype->monitor_enable != NULL) {
-            fprintf(stderr, "Source %d (%s): Enabling monitor mode for %s source "
-                    "interface %s channel %d...\n",
+            snprintf(errstr, STATUS_MAX, "Source %d (%s): Enabling monitor mode for %s source "
+                    "interface %s channel %d...",
                     x, meta->name.c_str(), meta->prototype->cardtype.c_str(), 
                     meta->device.c_str(), meta->cur_ch);
+            globalreg->messagebus->InjectMessage(errstr, MSGFLAG_INFO);
 
-            ret = (*meta->prototype->monitor_enable)(meta->device.c_str(), 
-                                                     meta->cur_ch, errstr,
-                                                     &meta->stored_interface,
+            ret = (*meta->prototype->monitor_enable)(globalreg, meta->device.c_str(), 
+                                                     meta->cur_ch, &meta->stored_interface,
                                                      (void *) meta->capsource);
         }
 
         if (ret < 0) {
-            // Errstr gets filled out by the monitor command via reference argument
+            // Monitor enable dealt with printing stuff
             return -1;
         }
 
         // Add it to the live sources vector
         live_packsources.push_back(meta->capsource);
         
-        // Register the trackers with it
-        meta->capsource->AddTimetracker(timetracker);
-        meta->capsource->AddGpstracker(gpsd);
-       
         // Open it
-        fprintf(stderr, "Source %d (%s): Opening %s source interface %s...\n",
+        snprintf(errstr, STATUS_MAX, "Source %d (%s): Opening %s source interface %s...",
                 x, meta->name.c_str(), meta->prototype->cardtype.c_str(), meta->device.c_str());
+        globalreg->messagebus->InjectMessage(errstr, MSGFLAG_INFO);
         if (meta->capsource->OpenSource() < 0) {
             meta->valid = 0;
-            snprintf(errstr, 1024, "%s", meta->capsource->FetchError());
             return -1;
         }
 
@@ -766,29 +1179,26 @@ int Packetsourcetracker::CloseSources() {
         if (meta->prototype->monitor_disable != NULL) {
             int umon_ret = 0;
             if ((umon_ret = 
-                 (*meta->prototype->monitor_disable)(meta->device.c_str(), 0, 
-                                                     errstr, 
+                 (*meta->prototype->monitor_disable)(globalreg, meta->device.c_str(), 0, 
                                                      &meta->stored_interface,
                                                      (void *) meta->capsource)) < 0) {
-                fprintf(stderr, "WARNING: Error disabling monitor mode: %s\n",
-                        errstr);
-                fprintf(stderr, 
-                        "WARNING: %s (%s) left in an unknown state.  You may need to "
-                        "manually\n"
-                        "         restart or reconfigure it for normal operation.\n",
-                        meta->name.c_str(), meta->device.c_str());
+                snprintf(errstr, STATUS_MAX, "Unable to cleanly disable monitor mode.");
+                globalreg->messagebus->InjectMessage(errstr, MSGFLAG_ERROR);
+                snprintf(errstr, STATUS_MAX, "%s (%s) left in an unknown state.  "
+                         "You may need to manually restart or reconfigure it for "
+                         "normal operation.", meta->name.c_str(), meta->device.c_str());
+                globalreg->messagebus->InjectMessage(errstr, MSGFLAG_ERROR);
             }
 
             // return 0 if we want to be quiet
             if (umon_ret != 0)
                 talk = 1;
         } else {
-            fprintf(stderr, 
-                    "WARNING: %s (%s) unable to exit monitor mode automatically.  "
-                    "You may\n"
-                    "         need to manually restart the device and reconfigure it "
-                    "for normal\n"
-                    "         operation.", meta->name.c_str(), meta->device.c_str());
+            snprintf(errstr, STATUS_MAX, "%s (%s) unable to exit monitor mode "
+                     "automatically. You may need to manually restart the device "
+                     "and reconfigure it for normal operation.", 
+                     meta->name.c_str(), meta->device.c_str()); 
+            globalreg->messagebus->InjectMessage(errstr, MSGFLAG_ERROR);
         }
 
     }
@@ -836,6 +1246,11 @@ int Packetsourcetracker::SpawnChannelChild() {
         fprintf(stderr, "FATAL:  Unable to create child process for channel control.\n");
         return -1;
     } else if (chanchild_pid == 0) {
+        // Kluge a new messagebus into the childs global registry
+        globalreg->messagebus = new MessageBus;
+        Packetcontrolchild_MessageClient *pccmc = new Packetcontrolchild_MessageClient(globalreg);
+        globalreg->messagebus->RegisterClient(pccmc, MSGFLAG_ALL);
+        
         // Spawn the child loop code
         ChannelChildLoop();
         exit(0);
@@ -888,7 +1303,6 @@ void ChanChildSignal(int sig) {
 
 // Handle reading channel change requests and driving them
 void Packetsourcetracker::ChannelChildLoop() {
-    list<chanchild_packhdr *> child_ipc_buffer;
     fd_set rset, wset;
     int child_dataframe_only = 0;
     char txtbuf[1024];
@@ -972,8 +1386,8 @@ void Packetsourcetracker::ChannelChildLoop() {
                 // for null and report an error accordingly if it uses this
                 // data.
                 if ((*meta_packsources[chanpak.meta_num]->prototype->channelcon)
-                    (meta_packsources[chanpak.meta_num]->device.c_str(), 
-                     chanpak.channel, errstr, 
+                    (globalreg, meta_packsources[chanpak.meta_num]->device.c_str(), 
+                     chanpak.channel, 
                      (void *) (meta_packsources[chanpak.meta_num]->capsource)) < 0) {
                     snprintf(txtbuf, 1024, "%s", errstr);
                     child_ipc_buffer.push_front(CreateTextPacket(txtbuf, CHANFLAG_FATAL));

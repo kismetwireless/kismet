@@ -25,26 +25,42 @@
 #include <string>
 #include <vector>
 
+#include "globalregistry.h"
+
 // Message flags for queuing data
 #define MSGFLAG_NONE    0
 #define MSGFLAG_DEBUG   1
 #define MSGFLAG_INFO    2
 #define MSGFLAG_ERROR   4
-#define MSGFLAG_FATAL   8
+#define MSGFLAG_ALERT   8
+#define MSGFLAG_FATAL   16
 // Don't propogate it past local display systems
-#define MSGFLAG_LOCAL   16
+#define MSGFLAG_LOCAL   32
 #define MSGFLAG_ALL     (MSGFLAG_DEBUG | MSGFLAG_INFO | \
-                         MSGFLAG_ERROR | MSGFLAG_FATAL)
+                         MSGFLAG_ERROR | MSGFLAG_ALERT | \
+                         MSGFLAG_FATAL)
 
 // A subscriber to the message bus.  It subscribes with a mask of 
 // what messages it wants to handle
 class MessageClient {
 public:
+    MessageClient() {
+        fprintf(stderr, "*** MessageClient::MessageClient() called with no global registry\n");
+    }
+
+    MessageClient(GlobalRegistry *in_globalreg) {
+        globalreg = in_globalreg;
+    }
+
     virtual void ProcessMessage(string in_msg, int in_flags) = 0;
+protected:
+    GlobalRegistry *globalreg;
 };
 
 class StdoutMessageClient : public MessageClient {
 public:
+    StdoutMessageClient(GlobalRegistry *in_globalreg) :
+        MessageClient(in_globalreg) { }
     void ProcessMessage(string in_msg, int in_flags);
 };
 

@@ -29,8 +29,22 @@
 #include <algorithm>
 #include <string>
 
+#include "globalregistry.h"
 #include "tcpserver.h"
-#include "server_protocols.h"
+#include "kis_netframe.h"
+
+enum ALERT_fields {
+    ALERT_sec, ALERT_usec, ALERT_header, ALERT_bssid, ALERT_source,
+    ALERT_dest, ALERT_other, ALERT_channel, ALERT_text
+};
+extern char *ALERT_fields_text[];
+
+typedef struct ALERT_data {
+    string header, sec, usec, bssid, source, dest, other, channel, text;
+};
+
+int Protocol_ALERT(PROTO_PARMS); // ALERT_data
+void Protocol_ALERT_enable(PROTO_ENABLE_PARMS);
 
 static const int alert_time_unit_conv[] = {
     1, 60, 3600, 86400
@@ -62,14 +76,8 @@ public:
     };
 
     Alertracker();
+    Alertracker(GlobalRegistry *in_globalreg);
     ~Alertracker();
-
-    // Tell us where to send packets
-    void AddTcpServer(TcpServer *in_server);
-    // Tell us the protocol ref
-    void AddAlertProtoRef(int in_ref);
-    // Set the alert backlog
-    void SetAlertBacklog(int in_backlog);
 
     // Register an alert and get an alert reference number back.
     int RegisterAlert(const char *in_header, alert_time_unit in_unit, int in_rate,
@@ -93,15 +101,13 @@ protected:
     // Check and age times
     int CheckTimes(alert_rec *arec);
 
-    TcpServer *server;
-    int protoref;
+    GlobalRegistry *globalreg;
 
     int next_alert_id;
 
     map<string, int> alert_name_map;
     map<int, alert_rec *> alert_ref_map;
 
-    unsigned int max_backlog;
     vector<ALERT_data *> alert_backlog;
 
 };

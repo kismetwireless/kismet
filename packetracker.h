@@ -36,32 +36,23 @@
 #include "manuf.h"
 #include "alertracker.h"
 #include "finitestate.h"
+#include "globalregistry.h"
+
+int PacketrackerTickEvent(Timetracker::timer_event *evt, void *parm, GlobalRegistry *globalreg);
 
 class Packetracker {
 public:
     Packetracker();
+    Packetracker(GlobalRegistry *in_globalreg);
     ~Packetracker();
 
     // Do regular maintenance
     int Tick();
 
-    // Get the error
-    char *FetchError() { return errstr; }
-
-    // Set up the alert handler
-    void AddAlertracker(Alertracker *in_tracker);
-    // Pass in enabled alerts from the config file
-    int EnableAlert(string in_alname, alert_time_unit in_unit,
-                    int in_rate, int in_burstrate);
-
-    // Set up filters
-    void AddExportFilters(macmap<int> *bssid_map, macmap<int> *source_map,
-                          macmap<int> *dest_map, int *bssid_invert,
-                          int *source_invert, int *dest_invert);
-
-    // Set up filtering - removed.  we do this in the server now before processing
-    // anything else.
-    //    void AddFilter(string in_filter) { filter = in_filter; }
+    // Register global infra
+    void RegisterGlobals(GlobalRegistry *in_reg) {
+        globalreg = in_reg;
+    }
 
     // Packet tracker stuff
     void ProcessPacket(packet_info info);
@@ -108,13 +99,13 @@ public:
     void RemoveNetwork(mac_addr in_bssid);
 
 protected:
+    GlobalRegistry *globalreg;
+
     wireless_client *CreateClient(const packet_info *info, wireless_network *net);
     string SanitizeCSV(string in_data);
     string SanitizeXML(string in_data);
 
     char errstr[1024];
-
-    Alertracker *alertracker;
 
     int num_networks, num_packets, num_dropped, num_noise,
         num_crypt, num_interesting, num_cisco;
@@ -141,18 +132,12 @@ protected:
     // Finite state trackers
     vector<FiniteAutomata *> fsa_vec;
 
-    // Filters
-    macmap<int> *filter_export_bssid;
-    int *filter_export_bssid_invert;
-    macmap<int> *filter_export_source;
-    int *filter_export_source_invert;
-    macmap<int> *filter_export_dest;
-    int *filter_export_dest_invert;
-    int filter_export;
-
     // Alert references
     int *arefs;
 
+    // Be friends with our timer event
+    friend int PacketrackerTickEvent(Timetracker::timer_event *evt, 
+                                     void *parm, GlobalRegistry *globalreg);
 };
 
 #endif
