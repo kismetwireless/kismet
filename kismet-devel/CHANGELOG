@@ -1,5 +1,7 @@
 Jun 11 2003  2.9.1  I hate IPC.  Replaced entire stream-pipe IPC core with
                      unix dgram sockets and it works much better.
+                    Added IPC command acks to throttle channel hopping if the
+                     card can't support changing as quickly as requested.
 Jun 10 2003  2.9.1  Yet more work on the IPC.  More issues resolved.
                     Added code to silence capchildren if server it silent
 Jun 09 2003  2.9.1  Tweaked configure to strip debugging symbols from OSX

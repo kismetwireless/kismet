@@ -56,6 +56,7 @@ typedef struct capturesource {
     packet_parm packparm;
     int childpair[2];
     pid_t childpid;
+    int cmd_ack;
     int alive;
     vector<int> channels;
     int ch_pos;
@@ -90,9 +91,10 @@ int ParseSetChannels(vector<string> *in_sourcechanlines, vector<capturesource *>
 #define CAPSENTINEL      0xDECAFBAD
 
 // What type of frame it is in the child datagram
-#define CAPPACK_COMMAND  0
-#define CAPPACK_PACKET   1
-#define CAPPACK_TEXT     2
+#define CAPPACK_COMMAND  1
+#define CAPPACK_PACKET   2
+#define CAPPACK_TEXT     3
+#define CAPPACK_CMDACK   4
 
 // What sort of extra info can we carry with the text?
 #define CAPFLAG_NONE     0

@@ -828,6 +828,10 @@ int ChannelHopEvent(Timetracker::timer_event *evt, void *parm) {
         if (packet_sources[x]->childpid <= 0 || packet_sources[x]->ch_hop == 0)
             continue;
 
+        // Don't hop if a command is pending
+        if (packet_sources[x]->cmd_ack == 0)
+            continue;
+
         SendChildCommand(packet_sources[x], packet_sources[x]->channels[packet_sources[x]->ch_pos++]);
 
         // Wrap the channel sequence
@@ -2677,7 +2681,9 @@ int main(int argc,char *argv[]) {
 
                 ret = FetchChildBlock(packet_sources[src]->childpair[1], &packet, data, moddata, &chtxt);
 
-                if (ret == CAPPACK_TEXT && chtxt != "") {
+                if (ret == CAPPACK_CMDACK) {
+                    packet_sources[src]->cmd_ack = 1;
+                } else if (ret == CAPPACK_TEXT && chtxt != "") {
                     if (!silent)
                         fprintf(stderr, "%s\n", chtxt.c_str());
                     NetWriteStatus(chtxt.c_str());
