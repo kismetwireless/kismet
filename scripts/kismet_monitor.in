@@ -3,6 +3,8 @@
 prefix=@prefix@
 ETC=@sysconfdir@
 
+GREP_OPTIONS=""
+
 CHANNEL=6
 CARDTYPE=""
 CONFIGFILE="$ETC/kismet.conf"

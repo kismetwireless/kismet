@@ -3,6 +3,8 @@
 prefix=@prefix@
 ETC=@sysconfdir@
 
+GREP_OPTIONS=""
+
 set -m
 
 gui=`grep -e "^gui=" $ETC/kismet_ui.conf | cut -d= -f2 | tr -d " \t"`
