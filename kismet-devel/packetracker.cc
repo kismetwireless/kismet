@@ -1375,7 +1375,7 @@ int Packetracker::WriteCSVNetworks(string in_fname) {
                 "%d;%s;%s;%s;%s;"
                 "%d;%s;%s;%s;"
                 "%2.1f;%ld;%d;"
-                "%d;%d;%d;%d;%d"
+                "%d;%d;%d;%d;%d;"
                 "%s;%s;%s;%s;"
                 "%d;%d;%d;"
                 "%f;%f;%f;%f;"
