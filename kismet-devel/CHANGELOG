@@ -1,3 +1,4 @@
+Jan 23 2003  3.1.0  Added packsource channel locking to server protocol
 Jan 22 2003  3.1.0  Added channel hopping status to CARD field
                     Added '*' to panelfront channel display when source is
                      hopping

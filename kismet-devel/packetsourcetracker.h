@@ -113,8 +113,7 @@ public:
     char *FetchError() { return errstr; }
 
     // Merge descriptors into a set
-    unsigned int Packetsourcetracker::MergeSet(fd_set *in_rset, fd_set *in_wset,
-                                               unsigned int in_max);
+    unsigned int MergeSet(fd_set *in_rset, fd_set *in_wset, unsigned int in_max);
 
     // Return the pid of the channel control child
     pid_t FetchChildPid() { return chanchild_pid; }
