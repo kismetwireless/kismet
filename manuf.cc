@@ -63,6 +63,7 @@ const uint8_t breezecom_tag[] = {0x00, 0x10, 0xE7};
 const uint8_t xerox_tag[] = {0x00, 0x00, 0xAA};
 const uint8_t zcom_tag[] = {0x00, 0x60, 0xB3};
 const uint8_t senao_tag[] = {0x00, 0x02, 0x6F};
+const uint8_t belkin_tag[] = {0x00, 0x30, 0xBD};
 
 const net_ip_data linksys_ip = {
     address_factory,
@@ -104,6 +105,16 @@ const net_ip_data dlink_ip = {
     0
 };
 
+const net_ip_data belkin_ip = {
+    address_factory,
+    3,
+    { 192, 168, 2, 0 } ,
+    { 255, 255, 255, 0 },
+    { 0, 0, 0, 0 },
+    { 192, 168, 2, 1 },
+    0
+};
+
 // Don't forget to update the count at the bottom when you change this!!
 const manuf manuf_list[] = {
     { "3com Airconnect", "3com", tcom_tag, 3, "comcomcom", 0, 0, 0, NULL },
@@ -118,6 +129,7 @@ const manuf manuf_list[] = {
     { "Aironet BRxxxx", "Aironet", aironet_tag, 3, "2", 0, 0, 0, NULL },
     { "Aironet BRxxxx", "Aironet", aironet_tag, 3, "tsunami", 0, 0, 0, NULL },
     { "Baystack 650/660", "Baystack", baystack_tag, 3, "Default SSID", 1, 0, 0, NULL },
+    { "Belkin F5D6230-3/F5D6020", "Belkin", belkin_tag, 3, "WLAN", 11, 0, 0, &belkin_ip },
     { "BreezeCom", "Breezecom", breezecom_tag, 3, "", 0, 0, 0, NULL },
     { "Cabletron", "Cabletron", cabletron_tag, 3, "", 0, 0, 0, NULL },
     { "Cisco", "Cisco", cisco_tag, 3, "", 0, 0, 0, NULL },
@@ -166,7 +178,7 @@ const manuf manuf_list[] = {
     { "ZYXEL Prestige 316", "ZYXEL", delta_tag, 3, "Wireless", 6, 0, 0, NULL },
 };
 
-const int manuf_num = 58;
+const int manuf_num = 59;
 const int manuf_max_score = 9;
 
 
