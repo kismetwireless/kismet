@@ -2934,14 +2934,14 @@ int PanelFront::ServersPrinter(void *in_window) {
     mvwaddstr(kwin->win, 1, 3, "Server                    Port  Name            Status");
     if (color)
         wattrset(kwin->win, color_map["text"].pair);
-
+/*
     if (kwin->start >= (int) context_list.size())
         kwin->start = 0;
     if (kwin->selected < kwin->start)
         kwin->selected = 0;
     if (kwin->selected > (kwin->max_display - 1))
         kwin->selected = kwin->max_display - 1;
-
+*/
     int voffset = 2;
     int num = 0;
 
@@ -2951,7 +2951,7 @@ int PanelFront::ServersPrinter(void *in_window) {
         w = 1023;
 
     for (int x = (int) kwin->start; x < (int) context_list.size() &&
-         x < kwin->max_display - 1; x++, num++) {
+         num < kwin->max_display - 1; x++, num++) {
 
         if (color)
             wattrset(kwin->win, color_map["text"].pair);

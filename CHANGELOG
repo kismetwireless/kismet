@@ -8,6 +8,8 @@ Jan 22 2003  3.1.0  Added channel hopping status to CARD field
                      'showintro=false'
                     Added 'trackprobenets' config option to turn off following
                      probe responses and tracking probenets.
+                    Merged patch from Anton fixing issues with scrolling the 
+                     list of servers
 Jan 21 2003  3.1.0  Fixed embarassingly stupid bug in panels probe/data
                      autogroup, minor efficiency improvements as well
                     Removed debug printing on corrupt dronesource packets
