@@ -1,4 +1,6 @@
 Feb 01 2003  2.9.1  Merged patch from Pedro to fix memory faults on some BSDs.
+                    Added ability to include subconfig files (containing, for
+                     example, WEP keys)
 Jan 31 2003  2.9.1  Merged new patch from Anton for power-level scatter plots.
 Jan 27 2003  2.9.1  Merged patch for gpsmap power-level scatter plots
 Jan 26 2003  2.9.1  Started 2.9.1 devel cycle

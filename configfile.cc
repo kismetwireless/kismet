@@ -179,7 +179,15 @@ int ConfigFile::ParseConfig(const char *in_fname) {
                 continue;
             }
 
-            config_map[StrLower(directive)].push_back(value);
+            // Handling including files
+            if (directive == "include") {
+                printf("Including sub-config file: %s\n", value.c_str());
+
+                if (ParseConfig(value.c_str()) < 0)
+                    return -1;
+            } else {
+                config_map[StrLower(directive)].push_back(value);
+            }
         }
     }
 
