@@ -256,6 +256,8 @@ int mapsource = 0;
 #define MAPSOURCE_MAPBLAST   0
 #define MAPSOURCE_MAPPOINT   1
 #define MAPSOURCE_TERRA      2
+#define MAPSOURCE_TIGER      3
+
 // Interpolation resolution
 int power_resolution = 5;
 // Interpolation colors
@@ -275,7 +277,6 @@ int color_coding = 0;
 #define COLORCODE_NONE    0
 #define COLORCODE_WEP     1
 #define COLORCODE_CHANNEL 2
-#define MAPSOURCE_TIGER 3 
 
 // Threads, locks, and graphs to hold the power
 pthread_t *mapthread;
