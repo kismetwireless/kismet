@@ -30,6 +30,43 @@
 #include "dronesource.h"
 #include "packetsourcetracker.h"
 
+// Null packet source for default config
+class NullPacketSource : public KisPacketSource {
+public:
+    NullPacketSource(string in_name, string in_dev) : 
+        KisPacketSource(in_name, in_dev) { }
+
+    int OpenSource() {
+        snprintf(errstr, 1024, "Please configure at least one packet source.  "
+                 "Kismet will not function if no packet sources are defined in "
+                 "kismet.conf or on the command line.  Please read the README "
+                 "for more information about configuring Kismet.");
+        return -1;
+    }
+
+    int CloseSource() {
+        return 1;
+    }
+
+    int FetchDescriptor() {
+        return -1;
+    }
+
+    int FetchPacket(kis_packet *packet, uint8_t *data, uint8_t *moddata) {
+        return -1;
+    }
+
+    int FetchChannel() {
+        return -1;
+    }
+};
+
+KisPacketSource *nullsource_registrant(string in_name, string in_device, 
+                                       char *in_err);
+
+int unmonitor_nullsource(const char *in_dev, int initch, 
+                         char *in_err, void **in_if);
+
 // Shortcut for registering uncompiled sources
 #define REG_EMPTY_CARD(x, y) x->RegisterPacketsource(y, 0, "na", 0, \
                                                      NULL, NULL, NULL, NULL, 0)

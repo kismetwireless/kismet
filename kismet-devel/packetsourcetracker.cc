@@ -763,9 +763,11 @@ int Packetsourcetracker::CloseSources() {
 
         // Unmonitor if we can
         if (meta->prototype->monitor_disable != NULL) {
-            if ((*meta->prototype->monitor_disable)(meta->device.c_str(), 0, 
-                                                    errstr, 
-                                                    &meta->stored_interface) < 0) {
+            int umon_ret = 0;
+            if ((umon_ret = 
+                 (*meta->prototype->monitor_disable)(meta->device.c_str(), 0, 
+                                                     errstr, 
+                                                     &meta->stored_interface)) < 0) {
                 fprintf(stderr, "WARNING: Error disabling monitor mode: %s\n",
                         errstr);
                 fprintf(stderr, 
@@ -774,7 +776,10 @@ int Packetsourcetracker::CloseSources() {
                         "         restart or reconfigure it for normal operation.\n",
                         meta->name.c_str(), meta->device.c_str());
             }
-            talk = 1;
+
+            // return 0 if we want to be quiet
+            if (umon_ret != 0)
+                talk = 1;
         } else {
             fprintf(stderr, 
                     "WARNING: %s (%s) unable to exit monitor mode automatically.  "

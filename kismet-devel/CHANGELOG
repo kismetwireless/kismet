@@ -1,4 +1,10 @@
 Jun 09 2004  devel  Added BSS timestamp spoof detection - BSSTIMESTAMP alert.
+                    Created "None" packet source for default config to stem
+                     the new people being confused with cisco errors
+                    Modified packetsource unmonitor_ code to not print warnings
+                     about not leaving monitor mode cleanly if not relevant for
+                     all active packetsources (ie, pcapfile and drones don't
+                     warn about trying to disable rfmon)
 Jun 06 2004  devel  Merged patch from Michael Scherer to fix gcc3.4 compiling
 May 30 2004  devel  Fixed docs for OpenBSD
                     Merged patch from KW which should fix the problems on 64bit

@@ -4,7 +4,7 @@
 # not continually reading --help!
 
 # Version of Kismet config
-version=2004.04.devel-a
+version=2004.04.devel-b
 
 # Name of server (Purely for organiational purposes)
 servername=Kismet
@@ -17,9 +17,8 @@ suiduser=your_user_here
 # Card types and required drivers are listed in the README.
 # The initial channel is optional, if hopping is not enabled it can be used
 # to set the channel the interface listens on.
-source=cisco,eth0,ciscosource
-# An example source line with an initial channel:
-# source=orinoco,eth0,silver,11
+# YOU MUST CHANGE THIS TO BE THE SOURCE YOU WANT TO USE
+source=none,none,addme
 
 # Comma-separated list of sources to enable.  This is only needed if you defined
 # multiple sources and only want to enable some of them.  By default, all defined
