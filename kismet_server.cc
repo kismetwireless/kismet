@@ -603,9 +603,6 @@ void NetWriteInfo() {
     static int last_packnum = globalregistry->packetracker->FetchNumPackets();
     vector<wireless_network *> tracked;
 
-    int tim = time(0);
-    globalregistry->kisnetserver->SendToAll(globalregistry->tim_prot_ref, &tim);
-
     char tmpstr[32];
 
 #ifdef HAVE_GPS
