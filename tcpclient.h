@@ -87,6 +87,7 @@ public:
 
     int FetchMajor() { return major; }
     int FetchMinor() { return minor; }
+    int FetchTiny() { return tiny; }
     time_t FetchStart() { return start_time; }
     time_t FetchTime() { return serv_time; }
 
@@ -149,7 +150,7 @@ protected:
     int num_networks, num_packets, num_crypt,
         num_interesting, num_noise, num_dropped;
 
-    int major, minor;
+    int major, minor, tiny;
     time_t start_time;
 
     int power, quality, noise;

@@ -30,7 +30,7 @@ TcpClient::TcpClient() {
         num_noise = num_dropped = 0;
 
     start_time = 0;
-    major = minor = 0;
+    major = minor = tiny = 0;
 
     power = quality = noise = 0;
 
@@ -233,8 +233,8 @@ int TcpClient::ParseData(char *in_data) {
         snprintf(errstr, 1024, "Server has terminated.\n");
         return -1;
     } else if (!strncmp(header, "*KISMET", 64)) {
-        if (sscanf(in_data+hdrlen, "%d.%d %d",
-                   &major, &minor, (int *) &start_time) < 1)
+        if (sscanf(in_data+hdrlen, "%d.%d.%d %d",
+                   &major, &minor, &tiny, (int *) &start_time) < 1)
             return 0;
     } else if (!strncmp(header, "*TIME", 64)) {
         if (sscanf(in_data+hdrlen, "%d", (int *) &serv_time) < 1)
