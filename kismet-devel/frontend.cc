@@ -395,8 +395,15 @@ void Frontend::UpdateGroups() {
 
 }
 
+// Clean out all the associated groups when we change what servers we listen to.
+// Keep all the association data, just wipe the contents so the next Populate
+// fills us in with good data.
 void Frontend::PurgeGroups() {
-
+    map<mac_addr, display_network *>::iterator x;
+    while ((x = group_assignment_map.begin()) != group_assignment_map.end()) {
+        delete(x->second);
+        group_assignment_map.erase(x);
+    }
 }
 
 display_network *Frontend::GroupTagged() {
