@@ -27,7 +27,11 @@ Packetracker::Packetracker() {
         num_crypt = num_interesting = num_cisco = 0;
 
     errstr[0] = '\0';
+}
 
+Packetracker::~Packetracker() {
+    for (unsigned int x = 0; x < network_list.size(); x++)
+        delete network_list[x];
 }
 
 void Packetracker::AddGPS(GPSD *in_gps) {

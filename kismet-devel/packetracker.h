@@ -43,6 +43,7 @@ extern unsigned int metric;
 class Packetracker {
 public:
     Packetracker();
+    ~Packetracker();
 
     // Get the error
     char *FetchError() { return errstr; }
