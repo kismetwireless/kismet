@@ -3772,6 +3772,7 @@ int main(int argc, char *argv[]) {
         ShortUsage(exec_name);
     }
 
+    /*
     if ((map_width > 1280 || map_height > 1024) && 
         mapsource == MAPSOURCE_MAPBLAST) {
         fprintf(stderr, "WARNING:  Maximum Mapblast image size is 1024x1280.  "
@@ -3779,6 +3780,7 @@ int main(int argc, char *argv[]) {
         map_width = 1024;
         map_height = 1280;
     }
+    */
 
     if (feather_scatter == 1 && scatter_resolution < 3) {
         fprintf(stderr, "WARNING: Scatter resolution must be at least 3 "
