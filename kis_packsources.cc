@@ -92,7 +92,7 @@ int RegisterKismetSources(Packetsourcetracker *sourcetracker) {
 
     sourcetracker->RegisterPacketsource("wlanng_wext", 1, "IEEE80211b", 6,
                                         pcapsource_wlanng_registrant,
-                                        monitor_wlanng_avs, unmonitor_wlanng_avs,
+                                        monitor_wlanng_avs, NULL,
                                         chancontrol_wext, 1);
 
 #else
@@ -121,7 +121,7 @@ int RegisterKismetSources(Packetsourcetracker *sourcetracker) {
                                        monitor_wlanng, NULL, chancontrol_wlanng, 1);
     sourcetracker->RegisterPacketsource("wlanng_avs", 1, "IEEE80211b", 6,
                                        pcapsource_wlanng_registrant,
-                                       monitor_wlanng_avs, unmonitor_wlanng_avs,
+                                       monitor_wlanng_avs, NULL,
                                        chancontrol_wlanng_avs, 1);
     sourcetracker->RegisterPacketsource("wrt54g", 1, "na", 0,
                                         pcapsource_wrt54g_registrant,

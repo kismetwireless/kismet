@@ -1454,15 +1454,6 @@ int monitor_wlanng_avs(const char *in_dev, int initch, char *in_err, void **in_i
     // I really didn't want to do this...
     char cmdline[2048];
 
-    // Allocate a tracking record for the interface settings and remember our
-    // setup
-    linux_ifparm *ifparm = (linux_ifparm *) malloc(sizeof(linux_ifparm));
-    (*in_if) = ifparm;
-
-    if (Ifconfig_Get_Flags(in_dev, in_err, &ifparm->flags) < 0) {
-        return -1;
-    }
-
     // Sanitize the device just to be safe.  The ifconfig should fail if
     // the device is invalid, but why take risks
     for (unsigned int x = 0; x < strlen(in_dev); x++) {
@@ -1498,19 +1489,6 @@ int monitor_wlanng_avs(const char *in_dev, int initch, char *in_err, void **in_i
     if (ExecSysCmd(cmdline, in_err) < 0)
         return -1;
     
-    return 0;
-}
-
-int unmonitor_wlanng_avs(const char *in_dev, int initch, char *in_err, void **in_if) {
-    // Restore the IP settings
-    linux_ifparm *ifparm = (linux_ifparm *) (*in_if);
-
-    if (Ifconfig_Set_Flags(in_dev, in_err, ifparm->flags) < 0) {
-        return -1;
-    }
-
-    free(ifparm);
-
     return 0;
 }
 
