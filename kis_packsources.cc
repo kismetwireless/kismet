@@ -81,10 +81,17 @@ int RegisterKismetSources(Packetsourcetracker *sourcetracker) {
                                         pcapsource_11g_registrant,
                                         monitor_madwifi_comb, NULL, 
                                         chancontrol_madwifi_ag);
+
     sourcetracker->RegisterPacketsource("prism54g", 1, "IEEE80211g", 6,
                                         pcapsource_11g_registrant,
                                         monitor_prism54g, NULL,
                                         chancontrol_prism54g);
+
+    sourcetracker->RegisterPacketsource("wlanng_wext", 1, "IEEE80211b", 6,
+                                        pcapsource_wext_registrant,
+                                        monitor_wlanng_avs, NULL,
+                                        chancontrol_wext);
+
 #else
     // Register the linuxwireless pcap stuff as null
     REG_EMPTY_CARD(sourcetracker, "cisco");

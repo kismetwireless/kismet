@@ -5,6 +5,8 @@ Dec 10 2003  3.1.0  Put a second try for setting the channel via wireless
                      in a circle instead of square (much nicer looking)
                     Modified gpsmap power interpolation to scale the distance
                      pixels are examined in based on map size.
+                    Added wlanng_wext card type for testing wlan-ng with 
+                     wireless extension support
 Dec 09 2003  3.1.0  Fixed prism54g override of channel change failure in
                      entering monitor mode.
                     Added more useful error messages to kismet_server
