@@ -4,6 +4,7 @@ Apr 02 2004  devel  Fixed bug in gpsmap cache that assigned the same id to all
                     Various other -pedantic cleanups
                     Flagged networks as dirty after a sort op to force a 
                      resort even when disconnected
+                    Made gpsmap cache creation errors nonfatal
 Mar 31 2004  devel  Fixed gpsmap cache error reporting mistake
                     Changed 'best signal' and 'best noise' stuff to handle dBm
                     Fixed signal recording for wext
