@@ -294,7 +294,7 @@ void GetPacketInfo(kis_packet *packet, packet_info *ret_packinfo,
                                        &tag_cache_map)) > 0) {
             found_ssid_tag = 1;
             temp = (packet->data[tag_offset] & 0xFF);
-            ret_packinfo->ssid_len = 0;
+            ret_packinfo->ssid_len = temp;
             // Protect against malicious packets
             if (temp == 0) {
                 // do nothing for 0-length ssid's
