@@ -1452,6 +1452,7 @@ void PanelFront::AddPrefs(map<string, string> in_prefs) {
         color_map["factory"] = ColorParse(prefs["factorycolor"]);
         color_map["open"] = ColorParse(prefs["opencolor"]);
         color_map["monitor"] = ColorParse(prefs["monitorcolor"]);
+        color_map["cloak"] = ColorParse(prefs["cloakcolor"]);
     }
 
 }
