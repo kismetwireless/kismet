@@ -170,52 +170,12 @@ or
 filter_dump=BSSID(00:04:20:00:00:00/24)
 
 .SH CARD TYPES AND MULTIPLE CAPTURE SOURCES
-Card type - Specifies the type of device.  It can be one of:
-.PP
-cisco - Cisco card with Linux Kernel drivers
-.PP
-cisco_cvs - Cisco card with CVS Linux drivers
-.PP
-cisco_bsd - Cisco on *BSD
-.PP
-prism2 - Prism2 using wlan-ng drivers with pcap support (all current versions support pcap)
-.PP
-prism2_hostap - Prism2 using hostap drivers
-.PP
-prism2_legacy - Prism2 using wlan-ng drivers without pcap support (0.1.9)
-.PP
-prism2_bsd - Prism2 on *BSD
-.PP
-prism2_avs - Prism2 using wlan-ng 0.2.0 or newer drivers which support the AVS packet header
-with improved radio information.
-.PP
-orinoco - Orinoco cards using Snax's patched driers
-.PP
-generic - Generic card with no specific support.  You will have to put this into monitor mode yourself!
-.PP
-wsp100 - WSP100 embedded remote sensor.
-.PP
-wtapfile - Saved file of packets readable by libwiretap
-.PP
-pcapfile - Saved file of packets readable by libpcap
-.PP
-ar5k - AR5K-based 802.11a cards using the vt_ar5k drivers.
-.PP
-drone - Kismet remote drone.
-.PP
-viha - Viha OSX Airport drivers.
-.PP
-acx100 - ACX100 22mbit 802.11b+ cards.
-.PP
-.PP
-Capture interface - Specifies the network interface Kismet will watch for packets to come in on.  Typically "ethX" or "wlanX".  For the WSP100 capture engine, the WSP100 device sends packets via a UDP stream, so the capture interface should be in the form of host:port where 'host' is the WSP100 and 'port' is the local UDP port that it will send data to.  For Drone remote capture sources, the capture interface should be in the form of host:port where 'host' is the Drone remote and 'port' is the Drone remote port.  CVS Cisco drivers split the interface into 2 components, ethX and wifiX. They may not be the same, so for cisco_cvs the card type specifies ethX:wifiX
-.PP
-Capture Name - The name Kismet uses for this capture source.  This is the name used to specify what sources to enable.
+The list of card sources and the chipsets they support can be found in the README file.
 .PP
 To enable multiple sources, specify a source line for each and then use the
 enablesources line to enable them.  For example:
 .RS
-source=prism2,wlan0,prism
+source=wlanng_avs,wlan0,prism
 .PP
 source=cisco,eth0,cisco
 .RE
