@@ -117,7 +117,16 @@ enum carrier_type {
     carrier_80211b,
     carrier_80211a,
     carrier_80211g,
-    carrier_80211
+    carrier_80211fhss,
+    carrier_80211dsss
+};
+
+// Packet encoding info - how are packets encoded?
+enum encoding_type {
+    encoding_unknown,
+    encoding_cck,
+    encoding_pbcc,
+    encoding_ofdm
 };
 
 // Very similar to pcap_pkthdr and wtap_pkthdr.  This is our
@@ -134,6 +143,8 @@ typedef struct {
     uint8_t *data;              // Raw packet data
     uint8_t *moddata;           // Modified packet data
     carrier_type carrier;       // Signal carrier
+    encoding_type encoding;     // Signal encoding
+    int datarate;               // Data rate in units of 100 kbps
 } kis_packet;
 
 #ifdef WORDS_BIGENDIAN
@@ -653,6 +664,10 @@ typedef struct {
     int interesting;
     // What carrier brought us this packet?
     carrier_type carrier;
+    // What encoding?
+    encoding_type encoding;
+    // What data rate?
+    int datarate;
 
     mac_addr source_mac;
     mac_addr dest_mac;

@@ -1,0 +1,205 @@
+<?xml version="1.0" encoding="ISO-8859-1"?>
+
+<!-- Kismet network/cisco dump DTD
+     version 1.6.1
+     dragorn@kismetwireless.net
+-->
+
+<!ELEMENT detection-run ( wireless-network* )>
+	<!ATTLIST detection-run kismet-version CDATA "na"
+			  start-time CDATA "na"
+              end-time CDATA "na">
+<!ELEMENT wireless-network ( SSID?,BSSID?,info?,channel?,maxrate?,packets?,gps-info?,ip-address?,datasize?,wireless-client*,cisco* )>
+	<!ATTLIST wireless-network number CDATA "0"
+              type ( infrastructure | ad-hoc | probe | data | turbocell | unknown ) "unknown"
+	          wep ( true | false ) "false"
+	          cloaked ( true | false ) "false"
+	          first-time CDATA "na"
+	          last-time CDATA "na">
+<!ELEMENT SSID (#PCDATA)>
+<!ELEMENT BSSID (#PCDATA)>
+<!ELEMENT info (#PCDATA)>
+<!ELEMENT channel (#PCDATA)>
+<!ELEMENT maxrate (#PCDATA)>
+<!ELEMENT packets (LLC,data,crypt,weak,total)>
+	<!ELEMENT LLC (#PCDATA)>
+	<!ELEMENT data (#PCDATA)>
+	<!ELEMENT crypt (#PCDATA)>
+	<!ELEMENT weak (#PCDATA)>
+	<!ELEMENT total (#PCDATA)>
+<!ELEMENT gps-info (min-lat?,min-lon?,min-alt?,min-spd?,max-lat?,max-lon?,max-alt?,max-spd?)>
+	<!ATTLIST gps-info unit ( english | metric ) "english">
+	<!ELEMENT min-lat (#PCDATA)>
+	<!ELEMENT min-lon (#PCDATA)>
+	<!ELEMENT min-alt (#PCDATA)>
+	<!ELEMENT min-spd (#PCDATA)>
+	<!ELEMENT max-lat (#PCDATA)>
+	<!ELEMENT max-lon (#PCDATA)>
+	<!ELEMENT max-alt (#PCDATA)>
+	<!ELEMENT max-spd (#PCDATA)>
+<!ELEMENT ip-address (ip-range)>
+	<!ATTLIST ip-address type (none | arp | udp | tcp | dhcp) "none">
+<!ELEMENT ip-range (#PCDATA)>
+<!ELEMENT datasize (#PCDATA)>
+<!ELEMENT wireless-client (client-mac?,client-channel?,client-packets?,client-gps-info?,client-maxrate?,client-datasize?,client-ip-address?)>
+	<!ATTLIST wireless-client number CDATA "0"
+			  type ( fromds | tods | interds | established | unknown ) "unknown"
+			  wep (true | false ) "false"
+			  first-time CDATA "na"
+			  last-time CDATA "na">
+	<!ELEMENT client-mac (#PCDATA)>
+	<!ELEMENT client-packets (LLC,data,crypt,weak,total)>
+		<!ELEMENT client-data (#PCDATA)>
+		<!ELEMENT client-crypt (#PCDATA)>
+		<!ELEMENT client-weak (#PCDATA)>
+	<!ELEMENT client-gps-info (client-min-lat?,client-min-lon?,client-min-alt?,client-min-spd?,client-max-lat?,client-max-lon?,client-max-alt?,client-max-spd?)>
+		<!ATTLIST client-gps-info unit ( english | metric ) "english">
+		<!ELEMENT client-min-lat (#PCDATA)>
+		<!ELEMENT client-min-lon (#PCDATA)>
+		<!ELEMENT client-min-alt (#PCDATA)>
+		<!ELEMENT client-min-spd (#PCDATA)>
+		<!ELEMENT client-max-lat (#PCDATA)>
+		<!ELEMENT client-max-lon (#PCDATA)>
+		<!ELEMENT client-max-alt (#PCDATA)>
+		<!ELEMENT client-max-spd (#PCDATA)>
+	<!ELEMENT client-datasize (#PCDATA)>
+	<!ELEMENT client-ip-address (#PCDATA)>
+		<!ATTLIST client-ip-address type (none | arp | udp | tcp | dhcp) "none">
+<!ELEMENT cisco (cdp-device-id,cdp-capability,cdp-interface,cdp-ip,cdp-platform,cdp-software)>
+	<!ATTLIST cisco number CDATA "0">
+	<!ELEMENT cdp-device-id (#PCDATA)>
+	<!ELEMENT cdp-capability EMPTY>
+		<!ATTLIST cdp-capability level1 (true | false) "false"
+		          igmp-forward (true | false) "false"
+		          netlayer (true | false) "false"
+		          level2-switching (true | false) "false"
+		          level2-sourceroute (true | false) "false"
+		          level2-transparent (true | false) "false"
+		          level3-routing (true | false) "false">
+	<!ELEMENT cdp-interface (#PCDATA)>
+	<!ELEMENT cdp-ip (#PCDATA)>
+	<!ELEMENT cdp-platform (#PCDATA)>
+	<!ELEMENT cdp-software (#PCDATA)>
+
+<!--
+     Copied from HTML 3.2 DTD, with modifications (removed CDATA)
+     http://www.w3.org/TR/REC-html32.html#dtd
+     =============== BEGIN ===================
+-->
+<!-- 
+     Character Entities for ISO Latin-1
+     
+     (C) International Organization for Standardization 1986
+     Permission to copy in any form is granted for use with
+     conforming SGML systems and applications as defined in
+     ISO 8879, provided this notice is included in all copies.
+     This has been extended for use with HTML to cover the full
+     set of codes in the range 160-255 decimal.
+-->
+<!-- Character entity set. Typical invocation:
+     <!ENTITY % ISOlat1 PUBLIC
+       "ISO 8879-1986//ENTITIES Added Latin 1//EN//HTML">
+     %ISOlat1;
+-->
+    <!ENTITY nbsp   "&#160;"> <!-- no-break space -->
+    <!ENTITY iexcl  "&#161;"> <!-- inverted exclamation mark -->
+    <!ENTITY cent   "&#162;"> <!-- cent sign -->
+    <!ENTITY pound  "&#163;"> <!-- pound sterling sign -->
+    <!ENTITY curren "&#164;"> <!-- general currency sign -->
+    <!ENTITY yen    "&#165;"> <!-- yen sign -->
+    <!ENTITY brvbar "&#166;"> <!-- broken (vertical) bar -->
+    <!ENTITY sect   "&#167;"> <!-- section sign -->
+    <!ENTITY uml    "&#168;"> <!-- umlaut (dieresis) -->
+    <!ENTITY copy   "&#169;"> <!-- copyright sign -->
+    <!ENTITY ordf   "&#170;"> <!-- ordinal indicator, feminine -->
+    <!ENTITY laquo  "&#171;"> <!-- angle quotation mark, left -->
+    <!ENTITY not    "&#172;"> <!-- not sign -->
+    <!ENTITY shy    "&#173;"> <!-- soft hyphen -->
+    <!ENTITY reg    "&#174;"> <!-- registered sign -->
+    <!ENTITY macr   "&#175;"> <!-- macron -->
+    <!ENTITY deg    "&#176;"> <!-- degree sign -->
+    <!ENTITY plusmn "&#177;"> <!-- plus-or-minus sign -->
+    <!ENTITY sup2   "&#178;"> <!-- superscript two -->
+    <!ENTITY sup3   "&#179;"> <!-- superscript three -->
+    <!ENTITY acute  "&#180;"> <!-- acute accent -->
+    <!ENTITY micro  "&#181;"> <!-- micro sign -->
+    <!ENTITY para   "&#182;"> <!-- pilcrow (paragraph sign) -->
+    <!ENTITY middot "&#183;"> <!-- middle dot -->
+    <!ENTITY cedil  "&#184;"> <!-- cedilla -->
+    <!ENTITY sup1   "&#185;"> <!-- superscript one -->
+    <!ENTITY ordm   "&#186;"> <!-- ordinal indicator, masculine -->
+    <!ENTITY raquo  "&#187;"> <!-- angle quotation mark, right -->
+    <!ENTITY frac14 "&#188;"> <!-- fraction one-quarter -->
+    <!ENTITY frac12 "&#189;"> <!-- fraction one-half -->
+    <!ENTITY frac34 "&#190;"> <!-- fraction three-quarters -->
+    <!ENTITY iquest "&#191;"> <!-- inverted question mark -->
+    <!ENTITY Agrave "&#192;"> <!-- capital A, grave accent -->
+    <!ENTITY Aacute "&#193;"> <!-- capital A, acute accent -->
+    <!ENTITY Acirc  "&#194;"> <!-- capital A, circumflex accent -->
+    <!ENTITY Atilde "&#195;"> <!-- capital A, tilde -->
+    <!ENTITY Auml   "&#196;"> <!-- capital A, dieresis or umlaut mark -->
+    <!ENTITY Aring  "&#197;"> <!-- capital A, ring -->
+    <!ENTITY AElig  "&#198;"> <!-- capital AE diphthong (ligature) -->
+    <!ENTITY Ccedil "&#199;"> <!-- capital C, cedilla -->
+    <!ENTITY Egrave "&#200;"> <!-- capital E, grave accent -->
+    <!ENTITY Eacute "&#201;"> <!-- capital E, acute accent -->
+    <!ENTITY Ecirc  "&#202;"> <!-- capital E, circumflex accent -->
+    <!ENTITY Euml   "&#203;"> <!-- capital E, dieresis or umlaut mark -->
+    <!ENTITY Igrave "&#204;"> <!-- capital I, grave accent -->
+    <!ENTITY Iacute "&#205;"> <!-- capital I, acute accent -->
+    <!ENTITY Icirc  "&#206;"> <!-- capital I, circumflex accent -->
+    <!ENTITY Iuml   "&#207;"> <!-- capital I, dieresis or umlaut mark -->
+    <!ENTITY ETH    "&#208;"> <!-- capital Eth, Icelandic -->
+    <!ENTITY Ntilde "&#209;"> <!-- capital N, tilde -->
+    <!ENTITY Ograve "&#210;"> <!-- capital O, grave accent -->
+    <!ENTITY Oacute "&#211;"> <!-- capital O, acute accent -->
+    <!ENTITY Ocirc  "&#212;"> <!-- capital O, circumflex accent -->
+    <!ENTITY Otilde "&#213;"> <!-- capital O, tilde -->
+    <!ENTITY Ouml   "&#214;"> <!-- capital O, dieresis or umlaut mark -->
+    <!ENTITY times  "&#215;"> <!-- multiply sign -->
+    <!ENTITY Oslash "&#216;"> <!-- capital O, slash -->
+    <!ENTITY Ugrave "&#217;"> <!-- capital U, grave accent -->
+    <!ENTITY Uacute "&#218;"> <!-- capital U, acute accent -->
+    <!ENTITY Ucirc  "&#219;"> <!-- capital U, circumflex accent -->
+    <!ENTITY Uuml   "&#220;"> <!-- capital U, dieresis or umlaut mark -->
+    <!ENTITY Yacute "&#221;"> <!-- capital Y, acute accent -->
+    <!ENTITY THORN  "&#222;"> <!-- capital THORN, Icelandic -->
+    <!ENTITY szlig  "&#223;"> <!-- small sharp s, German (sz ligature) -->
+    <!ENTITY agrave "&#224;"> <!-- small a, grave accent -->
+    <!ENTITY aacute "&#225;"> <!-- small a, acute accent -->
+    <!ENTITY acirc  "&#226;"> <!-- small a, circumflex accent -->
+    <!ENTITY atilde "&#227;"> <!-- small a, tilde -->
+    <!ENTITY auml   "&#228;"> <!-- small a, dieresis or umlaut mark -->
+    <!ENTITY aring  "&#229;"> <!-- small a, ring -->
+    <!ENTITY aelig  "&#230;"> <!-- small ae diphthong (ligature) -->
+    <!ENTITY ccedil "&#231;"> <!-- small c, cedilla -->
+    <!ENTITY egrave "&#232;"> <!-- small e, grave accent -->
+    <!ENTITY eacute "&#233;"> <!-- small e, acute accent -->
+    <!ENTITY ecirc  "&#234;"> <!-- small e, circumflex accent -->
+    <!ENTITY euml   "&#235;"> <!-- small e, dieresis or umlaut mark -->
+    <!ENTITY igrave "&#236;"> <!-- small i, grave accent -->
+    <!ENTITY iacute "&#237;"> <!-- small i, acute accent -->
+    <!ENTITY icirc  "&#238;"> <!-- small i, circumflex accent -->
+    <!ENTITY iuml   "&#239;"> <!-- small i, dieresis or umlaut mark -->
+    <!ENTITY eth    "&#240;"> <!-- small eth, Icelandic -->
+    <!ENTITY ntilde "&#241;"> <!-- small n, tilde -->
+    <!ENTITY ograve "&#242;"> <!-- small o, grave accent -->
+    <!ENTITY oacute "&#243;"> <!-- small o, acute accent -->
+    <!ENTITY ocirc  "&#244;"> <!-- small o, circumflex accent -->
+    <!ENTITY otilde "&#245;"> <!-- small o, tilde -->
+    <!ENTITY ouml   "&#246;"> <!-- small o, dieresis or umlaut mark -->
+    <!ENTITY divide "&#247;"> <!-- divide sign -->
+    <!ENTITY oslash "&#248;"> <!-- small o, slash -->
+    <!ENTITY ugrave "&#249;"> <!-- small u, grave accent -->
+    <!ENTITY uacute "&#250;"> <!-- small u, acute accent -->
+    <!ENTITY ucirc  "&#251;"> <!-- small u, circumflex accent -->
+    <!ENTITY uuml   "&#252;"> <!-- small u, dieresis or umlaut mark -->
+    <!ENTITY yacute "&#253;"> <!-- small y, acute accent -->
+    <!ENTITY thorn  "&#254;"> <!-- small thorn, Icelandic -->
+    <!ENTITY yuml   "&#255;"> <!-- small y, dieresis or umlaut mark -->
+    
+<!--
+     Copied from HTML 3.2 DTD, with modifications (removed CDATA)
+     http://www.w3.org/TR/REC-html32.html#dtd
+     ================= END ===================
+-->

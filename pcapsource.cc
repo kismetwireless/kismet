@@ -164,8 +164,9 @@ int PcapSource::Pcap2Common(kis_packet *packet) {
 
             switch (ntohl(v1hdr->phytype)) {
             case 1:
+                packet->carrier = carrier_80211fhss;
             case 2:
-                packet->carrier = carrier_80211;
+                packet->carrier = carrier_80211dsss;
                 break;
             case 4:
             case 5:
@@ -183,6 +184,9 @@ int PcapSource::Pcap2Common(kis_packet *packet) {
                 break;
             }
 
+            packet->encoding = (encoding_type) ntohl(v1hdr->encoding);
+
+            packet->datarate = (int) ntohl(v1hdr->datarate);
         }
 
         // See if we have a prism2 header

@@ -294,7 +294,7 @@ int TcpClient::ParseData(char *in_data) {
                          "%d %d %d %d %d %d %d %d %d %hd.%hd.%hd.%hd "
                          "%d %f %f %f %f %f %f %f %f %d %d %d %f %17s %d %d %d %d %d %d %d %f %f %f "
                          "%lf %lf %lf %ld %ld"
-                         "%d %d %d %d",
+                         "%d %d %d %d %d %d",
                          (int *) &net->type, ssid, beacon,
                          &net->llc_packets, &net->data_packets, &net->crypt_packets, &net->interesting_packets,
                          &net->channel, &net->wep, (int *) &net->first_time, (int *) &net->last_time,
@@ -310,9 +310,9 @@ int TcpClient::ParseData(char *in_data) {
                          &net->aggregate_lat, &net->aggregate_lon, &net->aggregate_alt,
                          &net->aggregate_points, &net->datasize,
                          &net->turbocell_nid, (int *) &net->turbocell_mode, &net->turbocell_sat,
-                         &net->carrier_set);
+                         &net->carrier_set, &net->maxseenrate, &net->encoding_set);
 
-        if (scanned < 46) {
+        if (scanned < 48) {
             // fprintf(stderr, "Flubbed network, discarding...\n");
             delete net;
             return 0;
@@ -370,7 +370,7 @@ int TcpClient::ParseData(char *in_data) {
         scanned = sscanf(in_data+hdrlen+36, "%d %d %d %17s %d %d %d %d %d "
                          "%f %f %f %f %f %f %f %f %lf %lf "
                          "%lf %ld %f %d %d %d %d %d %d %d "
-                         "%f %f %f %d %hd.%hd.%hd.%hd %ld",
+                         "%f %f %f %d %hd.%hd.%hd.%hd %ld %d %d",
                          (int *) &client->type,
                          (int *) &client->first_time, (int *) &client->last_time,
                          manuf_str, &client->manuf_score,
@@ -386,9 +386,9 @@ int TcpClient::ParseData(char *in_data) {
                          &client->best_quality, &client->best_signal, &client->best_noise,
                          &client->best_lat, &client->best_lon, &client->best_alt,
                          (int *) &client->ipdata.atype, &ip[0], &ip[1], &ip[2], &ip[3],
-                         &client->datasize);
+                         &client->datasize, &client->maxseenrate, &client->encoding_set);
 
-        if (scanned < 37) {
+        if (scanned < 39) {
             if (nclient)
                 delete client;
             return 0;

@@ -5,16 +5,17 @@ In no particular order:
 	cisco cvs wifi0 ethX:wifiX interface parsing
 	non-rfmon-signal gps logger
 	ipv6
-	server info
-	key management
+	server info via protocol
+	key management via panels client
 	server and client plugins
 	strings dumpfile
 	fakeap detection
 	retry ratios
 	gpsmap client-link drawing (dot-line clusters)
 	gpsxml client position/source mac logging
-	power-modified distance logging(?)
 	gpsmap power filtering
+	gpsmap coloring/plotting by encoding, carrier, data rate
+	power-modified distance logging(?)
 	congestion simulation
 	UI channel hopping control
 	fix csv log
@@ -27,12 +28,17 @@ In no particular order:
 	alert filtering
 	alert_on config
 		alert on any disauth/death
+		alert on channel change
+		alert on ssid change
 	Alerts as forged packets in pipe
-	gps satellite plot
+	gps satellite plot in client
 	VPN detection
 	endian-safe drones
 	linkage of seen-on devices to network info
 	horizontal column scrolling in UI
-	kismet_client perl module
+	kismet_client perl module (org/kyzoku/others)
 	track WEP key decrypt/failure rates for supplied keys
 	mangle-packet dumpfile
+		mangle fuzzy encryption
+	do something smarter with RSSI signal levels from AVS headers
+	do something smarter in expat.cc with carriers, encodings, etc
