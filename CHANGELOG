@@ -1,6 +1,8 @@
 Jul 23 2003  2.9.1  Fixed vihasource gps call
                     Updated gpsd.h to use inttypes.h if present
                     Updated panel compass to (hopefully) be not broken now.
+                    Merged patch from tz to fix trimming last 4 bytes of 
+                     decrypt-mangled packets.
 Jul 22 2003  2.9.1  Integrated not-broken heading code from gkismet to do 
                      software heading calcs.  Hopefully I didn't break it. Fix
                      to compass coming soon.
