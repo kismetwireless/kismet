@@ -1001,6 +1001,10 @@ int Packetracker::WriteNetworks(FILE *in_file) {
             snprintf(type, 15, "probe");
         else if (net->type == network_data)
             snprintf(type, 15, "data");
+        else if (net->type == network_lor)
+            snprintf(type, 15, "lucent");
+        else
+            snprintf(type, 15, "unknown");
 
 
         fprintf(in_file, "Network %d: \"%s\" BSSID: \"%s\"\n"
@@ -1175,6 +1179,10 @@ int Packetracker::WriteCSVNetworks(FILE *in_file) {
             snprintf(type, 15, "probe");
         else if (net->type == network_data)
             snprintf(type, 15, "data");
+        else if (net->type == network_lor)
+            snprintf(type, 15, "lucent");
+        else
+            snprintf(type, 15, "unknown");
 
 
         fprintf(in_file, "%d;%s;%s;%s;%s;%02d;%2.1f;%s;%d;%d;%d;%d;%d;%s;%s;%d;%d;%d;",
@@ -1295,6 +1303,10 @@ int Packetracker::WriteXMLNetworks(FILE *in_file) {
             snprintf(type, 15, "probe");
         else if (net->type == network_data)
             snprintf(type, 15, "data");
+        else if (net->type == network_lor)
+            snprintf(type, 15, "lucent");
+        else
+            snprintf(type, 15, "unknown");
 
         fprintf(in_file, "  <wireless-network number=\"%d\" type=\"%s\" wep=\"%s\" cloaked=\"%s\" first-time=\"%s\" last-time=\"%s\">\n",
                 netnum, type, net->wep ? "true" : "false", net->cloaked ? "true" : "false",
