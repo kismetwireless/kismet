@@ -37,17 +37,17 @@ public:
 
     int FetchDescriptor() { return wtap_fd(packfile); }
 
-    int FetchPacket(pkthdr *in_header, u_char *in_data);
+    int FetchPacket(kis_packet *packet);
 
     static void Callback(u_char *bp, const struct pcap_pkthdr *header,
                          const u_char *data);
 
 protected:
-    int Wtap2Common(pkthdr *in_header, u_char *in_data);
+    int Wtap2Common(kis_packet *packet);
 
     struct wtap *packfile;
     const struct wtap_pkthdr *packet_header;
-    const u_char *packet_data;
+    const uint8_t *packet_data;
 
 };
 

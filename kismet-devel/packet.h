@@ -106,12 +106,14 @@ typedef struct packet_parm {
 typedef struct {
     unsigned int len;		// The amount of data we've actually got
     unsigned int caplen;	// The amount of data originally captured
-    struct timeval ts;
-    int quality;
-    int signal;
-    int noise;
+    struct timeval ts;          // Capture timestamp
+    int quality;                // Signal quality
+    int signal;                 // Signal strength
+    int noise;                  // Noise level
     int error;                  // Capture source told us this was a bad packet
-} pkthdr;
+    uint8_t *data;              // Raw packet data
+    uint8_t *moddata;           // Modified packet data
+} kis_packet;
 
 #ifdef WORDS_BIGENDIAN
 // Byte ordering for bigendian systems.  Bitwise strcts are so funky.
@@ -550,18 +552,15 @@ typedef struct {
 void MungeToPrintable(char *in_data, int max);
 
 // Info extraction functions
-int GetTagOffset(int init_offset, int tagnum, const pkthdr *header,
-                 const u_char *data, map<int, int> *tag_cache_map);
-void GetPacketInfo(const pkthdr *header, u_char *data,
-                   packet_parm *parm, packet_info *ret_packinfo,
+int GetTagOffset(int init_offset, int tagnum, kis_packet *packet,
+                 map<int, int> *tag_cache_map);
+void GetPacketInfo(kis_packet *packet, packet_parm *parm, packet_info *ret_packinfo,
                    map<mac_addr, wep_key_info *> *bssid_wep_map, unsigned char *identity);
-void GetProtoInfo(packet_info *in_info, const pkthdr *header,
-                  const u_char *in_data, proto_info *ret_protoinfo);
-void DecryptPacket(packet_info *in_info, const pkthdr *header,
-                   u_char *in_data, map<mac_addr, wep_key_info *> *bssid_wep_map,
-                   unsigned char *identity);
+void GetProtoInfo(kis_packet *packet, packet_info *in_info);
+void DecryptPacket(kis_packet *packet, packet_info *in_info, 
+                   map<mac_addr, wep_key_info *> *bssid_wep_map, unsigned char *identity);
 
-vector<string> GetPacketStrings(const packet_info *in_info, const pkthdr *header, const u_char *in_data);
+vector<string> GetPacketStrings(const packet_info *in_info, kis_packet *packet);
 
 #endif
 

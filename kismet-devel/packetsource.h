@@ -51,7 +51,7 @@ public:
     virtual int FetchDescriptor() = 0;
 
     // Get a packet from the medium
-    virtual int FetchPacket(pkthdr *in_header, u_char *in_data) = 0;
+    virtual int FetchPacket(kis_packet *packet) = 0;
 
     // Say what we are
     char *FetchType() { return(type); };
@@ -67,14 +67,15 @@ public:
 
 protected:
     char errstr[1024];
-    pkthdr header;
-    u_char data[MAX_PACKET_LEN];
+    /*
+     pkthdr header;
+     u_char data[MAX_PACKET_LEN];
+     */
     int paused;
 
     char type[64];
 
     card_type cardtype;
-
 };
 
 #endif

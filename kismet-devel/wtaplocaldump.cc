@@ -80,8 +80,7 @@ int WtapDumpFile::CloseDump() {
     return num_dumped;
 }
 
-int WtapDumpFile::DumpPacket(const packet_info *in_info, const pkthdr *in_header,
-                             const u_char *in_data) {
+int WtapDumpFile::DumpPacket(const packet_info *in_info, const kis_packet *packet) {
 
     if ((in_info->type == packet_management && in_info->subtype == packet_sub_beacon) && beacon_log == 0) {
         map<mac_addr, string>::iterator blm = beacon_logged_map.find(in_info->bssid_mac);
@@ -99,10 +98,10 @@ int WtapDumpFile::DumpPacket(const packet_info *in_info, const pkthdr *in_header
     unsigned int nwritten;
 
     // Convert it to a pcap header
-    packhdr.ts_sec = in_header->ts.tv_sec;
-    packhdr.ts_usec = in_header->ts.tv_usec;
-    packhdr.incl_len = in_header->len;
-    packhdr.orig_len = in_header->len;
+    packhdr.ts_sec = packet->ts.tv_sec;
+    packhdr.ts_usec = packet->ts.tv_usec;
+    packhdr.incl_len = packet->caplen;
+    packhdr.orig_len = packet->caplen;
 
     nwritten = fwrite(&packhdr, 1, sizeof(pcaprec_hdr), dump_file);
     if (nwritten != sizeof(pcaprec_hdr)) {
@@ -114,7 +113,7 @@ int WtapDumpFile::DumpPacket(const packet_info *in_info, const pkthdr *in_header
         return -1;
     }
 
-    nwritten = fwrite(in_data, 1, packhdr.incl_len, dump_file);
+    nwritten = fwrite(packet->data, 1, packhdr.incl_len, dump_file);
     if (nwritten != packhdr.incl_len) {
         if (nwritten == 0 && ferror(dump_file))
             snprintf(errstr, 1024, "Unable to write pcap packet (%s)", strerror(errno));
@@ -123,7 +122,6 @@ int WtapDumpFile::DumpPacket(const packet_info *in_info, const pkthdr *in_header
 
         return -1;
     }
-
 
     num_dumped++;
 

@@ -88,7 +88,7 @@ int Wsp100Source::CloseSource() {
     return 1;
 }
 
-int Wsp100Source::FetchPacket(pkthdr *in_header, u_char *in_data) {
+int Wsp100Source::FetchPacket(kis_packet *packet) {
     if (valid == 0)
         return 0;
 
@@ -131,16 +131,15 @@ int Wsp100Source::FetchPacket(pkthdr *in_header, u_char *in_data) {
     if (cli_sockaddr.sin_addr.s_addr != filter_addr.s_addr)
         return 0;
 
-    if (paused || Wsp2Common(in_header, in_data) == 0) {
+    if (paused || Wsp2Common(packet) == 0) {
         return 0;
     }
 
-    return(in_header->len);
+    return(packet->caplen);
 }
 
-int Wsp100Source::Wsp2Common(pkthdr *in_header, u_char *in_data) {
-    memset(in_header, 0, sizeof(pkthdr));
-    memset(in_data, 0, MAX_PACKET_LEN);
+int Wsp100Source::Wsp2Common(kis_packet *packet) {
+    memset(packet, 0, sizeof(kis_packet));
 
     uint16_t datalink_type = 0;
     datalink_type = kptoh16(&data[2]);
@@ -165,11 +164,11 @@ int Wsp100Source::Wsp2Common(pkthdr *in_header, u_char *in_data) {
             break;
         case WSP100_TAG_RADIO_SIGNAL:
             len = data[pos++];
-            in_header->signal = data[pos];
+            packet->signal = data[pos];
             break;
         case WSP100_TAG_RADIO_NOISE:
             len = data[pos++];
-            in_header->noise = data[pos];
+            packet->noise = data[pos];
             break;
         case WSP100_TAG_RADIO_RATE:
             // We don't handle the rate yet
@@ -186,7 +185,7 @@ int Wsp100Source::Wsp2Common(pkthdr *in_header, u_char *in_data) {
              in_header->ts.tv_sec = time_sec;
              */
 
-            gettimeofday(&in_header->ts, NULL);
+            gettimeofday(&packet->ts, NULL);
 
             break;
         case WSP100_TAG_RADIO_MSG:
@@ -204,7 +203,7 @@ int Wsp100Source::Wsp2Common(pkthdr *in_header, u_char *in_data) {
             break;
         case WSP100_TAG_RADIO_FCSERR:
             len = data[pos++];
-            in_header->error = data[pos];
+            packet->error = data[pos];
             break;
         case WSP100_TAG_RADIO_CHANNEL:
             // We get this off the other data inside the packets so we ignore this...
@@ -222,9 +221,11 @@ int Wsp100Source::Wsp2Common(pkthdr *in_header, u_char *in_data) {
             break;
     }
 
-    in_header->len = read_len - pos;
-    in_header->caplen = read_len - pos;
-    memcpy(in_data, &data[pos], in_header->len);
+    packet->caplen = read_len - pos;
+    packet->len = packet->caplen;
+
+    packet->data = new uint8_t[packet->caplen];
+    memcpy(packet->data, data + pos, packet->caplen);
 
     return 1;
 

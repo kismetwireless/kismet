@@ -70,7 +70,7 @@ int Prism2Source::CloseSource() {
     return 1;
 }
 
-int Prism2Source::FetchPacket(pkthdr *in_header, u_char *in_data) {
+int Prism2Source::FetchPacket(kis_packet *packet) {
     fd_set rs;
     int r;
     struct timeval tim;
@@ -125,32 +125,31 @@ int Prism2Source::FetchPacket(pkthdr *in_header, u_char *in_data) {
 
     if (paused) return 0;
 
-    Prism2Common(in_header, in_data);
+    Prism2Common(packet);
 
-    return(in_header->len);
+    return(packet->caplen);
 }
 
-int Prism2Source::Prism2Common(pkthdr *in_header, u_char *in_data) {
+int Prism2Source::Prism2Common(kis_packet *packet) {
+    memset(packet, 0, sizeof(kis_packet));
+
     sniff_packet_t *sniff_info = (sniff_packet_t *) buffer;
 
-    gettimeofday(&in_header->ts, NULL);
+    gettimeofday(&packet->ts, NULL);
 
-    // Ignore the checksum bytes (the last 4) that the prism2 code puts on it.
-    in_header->caplen = sniff_info->frmlen.data - 4;
-
-    if (sniff_info->frmlen.data - 4 > MAX_PACKET_LEN)
-        in_header->len = MAX_PACKET_LEN;
-    else
-        in_header->len = sniff_info->frmlen.data - 4;
+    packet->caplen = min(sniff_info->frmlen.data, (uint32_t) MAX_PACKET_LEN);
+    packet->len = packet->caplen;
 
     // Copy the quality out of the prism2 header
-    in_header->quality = sniff_info->sq.data;
-    in_header->signal = sniff_info->signal.data;
-    in_header->noise = sniff_info->noise.data;
+    packet->quality = sniff_info->sq.data;
+    packet->signal = sniff_info->signal.data;
+    packet->noise = sniff_info->noise.data;
 
     int offset = sizeof(sniff_packet_t);
 
-    memcpy(in_data, &buffer[offset], in_header->len);
+    packet->data = new uint8_t[packet->caplen];
+    memcpy(packet->data, &buffer[offset], packet->caplen);
+    packet->moddata = NULL;
 
     return 1;
 }

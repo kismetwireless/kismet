@@ -49,11 +49,11 @@ public:
 
     int FetchDescriptor() { return udp_sock; }
 
-    int FetchPacket(pkthdr *in_header, u_char *in_data);
+    int FetchPacket(kis_packet *packet);
 
 protected:
 
-    int Wsp2Common(pkthdr *in_header, u_char *in_data);
+    int Wsp2Common(kis_packet *packet);
 
     short int port;
     int udp_sock;
@@ -62,6 +62,8 @@ protected:
 
     struct sockaddr_in serv_sockaddr;
     in_addr filter_addr;
+
+    uint8_t data[MAX_PACKET_LEN];
 
 };
 
