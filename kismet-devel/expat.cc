@@ -790,6 +790,8 @@ double XMLFetchNetworkVersion() {
 
 // point we're building
 gps_point *building_point;
+int building_point_valid = 1;
+int point_id = 0;
 
 // Vector of points
 vector<gps_point *> ptvec;
@@ -859,10 +861,20 @@ static void xpat_gps_start(void *data, const char *el, const char **attr) {
                     if (sscanf(attr[i+1], "%f", &building_point->lat) < 1)
                         fprintf(stderr, "WARNING:  Illegal value '%s' on gps-point lat\n",
                                 attr[i+1]);
+                    if (building_point->lat < -180 || building_point->lat > 180) {
+                        fprintf(stderr, "WARNING:  Illegal numerical lat '%f' on gps-point, skipping.\n",
+                                building_point->lat);
+                        building_point_valid = 0;
+                    }
                 } else if (strcasecmp(attr[i], "lon") == 0) {
                     if (sscanf(attr[i+1], "%f", &building_point->lon) < 1)
                         fprintf(stderr, "WARNING:  Illegal value '%s' on gps-point lon\n",
                                 attr[i+1]);
+                    if (building_point->lon < -180 || building_point->lon > 180) {
+                        fprintf(stderr, "WARNING:  Illegal numerical lon '%f' on gps-point, skipping.\n",
+                                building_point->lon);
+                        building_point_valid = 0;
+                    }
                 } else if (strcasecmp(attr[i], "alt") == 0) {
                     if (sscanf(attr[i+1], "%f", &building_point->alt) < 1)
                         fprintf(stderr, "WARNING:  Illegal value '%s' on gps-point alt\n",
@@ -913,9 +925,16 @@ static void xpat_gps_end(void *data, const char *el) {
         gpsnode = gps_node_run;
     } else if (gpsnode == gps_node_point) {
         gpsnode = gps_node_run;
-        ptvec.push_back(building_point);
+        if (building_point_valid == 0) {
+            // Skip this point, its corrupted
+            delete building_point;
+        } else {
+            ptvec.push_back(building_point);
+        }
         building_point = new gps_point;
+        building_point_valid = 1;
         memset(building_point, 0, sizeof(gps_point));
+        building_point->id = point_id++;
     }
 
 }
@@ -945,6 +964,7 @@ vector<gps_point *> XMLFetchGpsList(FILE *in_file) {
     XML_SetCharacterDataHandler(p, xpat_gps_string);
 
     building_point = new gps_point;
+    building_point_valid = 1;
     memset(building_point, 0, sizeof(gps_point));
 
     for (;;) {
