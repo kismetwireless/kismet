@@ -719,7 +719,7 @@ int PanelFront::MainInfoPrinter(void *in_window) {
     else
         mvwaddstr(infowin, LINES-statheight-2, 2, "Discon");
 
-    time_t elapsed = client->FetchTime() - start_time;
+    time_t elapsed = server_time - start_time;
     snprintf(info, infowidth-2, "%02d%02d%02d",
              (int) (elapsed / 60) / 60, (int) (elapsed / 60) % 60,
              (int) elapsed % 60);
