@@ -1,4 +1,5 @@
 Oct 22 2002  2.7.1  Various off-by-one errors in panelfront fixed (Million)
+                    Merged hostap patches to monitor and unmonitor (Jaques)
 
 Oct 20 2002  2.7.1  Moved devel to 2.7.1
 
