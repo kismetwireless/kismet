@@ -1,3 +1,4 @@
+Dec 23 2003  3.1.0  Added DupeIV display to panels client
 Dec 22 2003  3.1.0  Increased max wep key size to 32 hex pairs
                     Fixed gpsmap dupeiv
                     Revamped gpsmap power level colormap assignment

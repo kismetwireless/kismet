@@ -1641,6 +1641,8 @@ int PanelFront::DetailsPrinter(void *in_window) {
         kwin->text.push_back(output);
         snprintf(output, print_width, "  Weak    : %d", dnet->interesting_packets);
         kwin->text.push_back(output);
+        snprintf(output, print_width, "  Dupe IV : %d", dnet->dupeiv_packets);
+        kwin->text.push_back(output);
 
         // Calculate the bytes
         if (dnet->datasize < 1024) // Less than 1k gets raw bytes
