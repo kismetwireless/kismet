@@ -430,7 +430,7 @@ void SpeechHandler(int *fds, const char *player) {
         FD_ZERO(&rset);
         FD_SET(read_sock, &rset);
         FD_ZERO(&eset);
-        char *end;
+        //char *end;
 
         memset(data, 0, 1024);
 
@@ -464,10 +464,12 @@ void SpeechHandler(int *fds, const char *player) {
             if (ret < 0)
                 exit(1);
 
+            /*
             if ((end = strstr(data, "\n")) == NULL)
                 continue;
 
-            end[0] = '\0';
+                end[0] = '\0';
+                */
         }
 
         if (data[0] == '\0')
