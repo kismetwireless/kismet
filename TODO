@@ -1,6 +1,5 @@
 In no particular order:
     GPSMap should use libcurl
-	reconnect to gpsd
 	first-seen-source
 	DCF/PCF
 	FH/DS tags

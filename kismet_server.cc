@@ -74,11 +74,11 @@ const char *pid_base = "kismet_server.pid";
 // Some globals for command line options
 char *configfile = NULL;
 int no_log = 0, noise_log = 0, data_log = 0, net_log = 0, crypt_log = 0, cisco_log = 0,
-    gps_log = -1, gps_enable = 1, csv_log = 0, xml_log = 0, ssid_cloak_track = 0, ip_track = 0,
-    waypoint = 0, fifo = 0, corrupt_log = 0;
+    gps_log = -1, gps_enable = 1, csv_log = 0, xml_log = 0, ssid_cloak_track = 0, 
+    ip_track = 0, waypoint = 0, fifo = 0, corrupt_log = 0;
 string logname, dumplogfile, netlogfile, cryptlogfile, ciscologfile,
-    gpslogfile, csvlogfile, xmllogfile, ssidtrackfile, configdir, iptrackfile, waypointfile,
-    fifofile;
+    gpslogfile, csvlogfile, xmllogfile, ssidtrackfile, configdir, iptrackfile, 
+    waypointfile, fifofile;
 FILE *ssid_file = NULL, *ip_file = NULL, *waypoint_file = NULL, *pid_file = NULL;
 
 DumpFile *dumpfile, *cryptfile;
@@ -93,6 +93,10 @@ GPSD *gps = NULL;
 #ifdef HAVE_GPS
 int gpsmode = 0;
 GPSDump gpsdump;
+
+// Last time we tried to reconnect to the gps
+time_t last_gpsd_reconnect = 0;
+int gpsd_reconnect_attempt = 0;
 #endif
 
 FifoDumpFile fifodump;
@@ -742,18 +746,55 @@ int GpsEvent(Timetracker::timer_event *evt, void *parm) {
 
     // The GPS only provides us a new update once per second we might
     // as well only update it here once a second
+
+    // If we're disconnected, try to reconnect.
+    if (gpsd_reconnect_attempt > 0) {
+        // Increment the time between connection attempts
+        if (last_gpsd_reconnect + ((gpsd_reconnect_attempt - 1) * 2) < time(0)) {
+            if (gps->OpenGPSD() < 0) {
+                last_gpsd_reconnect = time(0);
+
+                if (gpsd_reconnect_attempt < 11)
+                    gpsd_reconnect_attempt++;
+
+                snprintf(status, STATUS_MAX, "Unable to reconnect to GPSD, trying "
+                         "again in %d seconds.", ((gpsd_reconnect_attempt - 1) * 2));
+                if (!silent)
+                    fprintf(stderr, "WARNING: %s\n", status);
+
+                NetWriteStatus(status);
+
+                return 1;
+            } else {
+                gpsd_reconnect_attempt = 0;
+
+                snprintf(status, STATUS_MAX, "Reopened connection to GPSD");
+                if (!silent)
+                    fprintf(stderr, "NOTICE: %s\n", status);
+
+                NetWriteStatus(status);
+            }
+        } else {
+            // Don't process more if we haven't woken up yet
+            return 1;
+        }
+
+    }
+    
     if (gps_enable) {
         int gpsret;
         gpsret = gps->Scan();
+
         if (gpsret < 0) {
             snprintf(status, STATUS_MAX, "GPS error requesting data: %s",
                      gps->FetchError());
 
             if (!silent)
-                fprintf(stderr, "%s\n", gps->FetchError());
+                fprintf(stderr, "WARNING: %s\n", status);
 
             NetWriteStatus(status);
-            gps_enable = 0;
+
+            gpsd_reconnect_attempt = 1;
         }
 
         if (gpsret == 0 && gpsmode != 0) {
@@ -2439,6 +2480,8 @@ int main(int argc,char *argv[]) {
                     gpshost, gpsport);
 
             gpsmode = gps->FetchMode();
+
+            last_gpsd_reconnect = time(0);
         }
     }
 #endif
