@@ -283,7 +283,8 @@ void Frontend::UpdateGroups() {
 
             if (wnet->ipdata.atype > address_none) {
                 int oct;
-                for (oct = 0; oct < dnet->virtnet.ipdata.octets && oct < wnet->ipdata.octets && oct < 4; oct++) {
+                for (oct = 0; oct < dnet->virtnet.ipdata.octets &&
+                     oct < wnet->ipdata.octets && oct < 4; oct++) {
                     if (dnet->virtnet.ipdata.range_ip[oct] == 0 &&
                         wnet->ipdata.range_ip[oct] != 0)
                         dnet->virtnet.ipdata.range_ip[oct] = wnet->ipdata.range_ip[oct];
