@@ -60,6 +60,7 @@ void Frontend::PopulateGroups(TcpClient *in_client) {
             continue;
 
         int newgroup = 0;
+        int persistent = 0;
         display_network *group;
         string grouptag;
 
@@ -68,11 +69,14 @@ void Frontend::PopulateGroups(TcpClient *in_client) {
         if (bsgmitr != bssid_group_map.end()) {
             grouptag = bsgmitr->second;
 
-            // And see if the group has been created
-            if (group_tag_map.find(grouptag) == group_tag_map.end())
+            // And see if the group has been created - if it asn't and it's a group we knew
+            // about before, then we make a new persistent group
+            if (group_tag_map.find(grouptag) == group_tag_map.end()) {
                 newgroup = 1;
-            else
+                persistent = 1;
+            } else {
                 group = group_tag_map[grouptag];
+            }
         } else {
             // Tell them to make a group, set the bssid as the tag and the SSID
             // as the name of the group
@@ -99,7 +103,7 @@ void Frontend::PopulateGroups(TcpClient *in_client) {
             group->type = group_host;
             group->tagged = 0;
             group->expanded = 0;
-            group->persistent = 0;
+            group->persistent = persistent;
             group->virtnet = NULL;
 
             // Register it
@@ -473,6 +477,9 @@ void Frontend::DestroyGroup(display_network *in_group) {
         map<mac_addr, string>::iterator bsgmitr = bssid_group_map.find(snet->bssid);
         if (bsgmitr != bssid_group_map.end())
             bssid_group_map.erase(bsgmitr);
+
+        // Remove our assignment
+        snet->dispnet = NULL;
     }
 
     // We've unassigned all the sub networks, so remove us from the tag map
@@ -542,27 +549,24 @@ void Frontend::WriteGroupMap(FILE *in_file) {
     map<string, int> saved_groups;
 
     snprintf(format, 64, "GROUP: %%.%ds %%.1024s\n", MAC_STR_LEN);
-    // We're pretty selective here.  IF they don't exist in the group assignment
-    // map, save them on the assumption they're an old record that didn't get activated
-    // this run.  Otherwise, if they're not a group or if they don't have a custom name,
-    // don't save them.
-    for (map<string, string>::iterator x = group_name_map.begin();
-         x != group_name_map.end(); ++x) {
 
-        if (group_tag_map.find(x->first) != group_tag_map.end()) {
-            if (group_tag_map[x->first]->virtnet == NULL)
-                continue;
+    for (unsigned int x = 0; x < group_vec.size(); x++) {
+        display_network *dnet = group_vec[x];
 
-            if (group_tag_map[x->first]->persistent == 0)
-                continue;
+        // Don't save non-persistent groups
+        if (dnet->persistent == 0)
+            continue;
 
-            if (group_tag_map[x->first]->type != group_bundle &&
-                group_tag_map[x->first]->name == group_tag_map[x->first]->virtnet->ssid)
-                continue;
-        }
+        // Don't save null virtnet
+        if (dnet->virtnet == NULL)
+            continue;
 
-        saved_groups[x->first] = 1;
-        fprintf(in_file, format, x->first.c_str(), x->second.c_str());
+        // Don't save single-network groups that don't have custom names
+        if (dnet->type != group_bundle && dnet->name == dnet->virtnet->ssid)
+            continue;
+
+        saved_groups[dnet->tag] = 1;
+        fprintf(in_file, format, dnet->tag.c_str(), dnet->name.c_str());
     }
 
     snprintf(format, 64, "LINK: %%.%ds %%.%ds\n", MAC_STR_LEN, MAC_STR_LEN);
