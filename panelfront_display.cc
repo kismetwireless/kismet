@@ -3079,4 +3079,9 @@ int PanelFront::IntroPrinter(void *in_window) {
     return TextPrinter(in_window);
 }
 
+int PanelFront::ChanlockPrinter(void *in_window) {
+
+    return 1;
+}
+
 #endif

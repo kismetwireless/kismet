@@ -206,6 +206,8 @@ public:
 
     wireless_network *FetchLastNewNetwork() { return last_new_network; }
 
+    void SendRaw(const char *in_cmd);
+
 protected:
     char errstr[1024];
     char status[STATUS_MAX];

@@ -962,6 +962,13 @@ void handle_command(TcpServer *tcps, client_command *cc) {
         if (chvalid == 0) {
             out_error += "invalid chanlock request - illegal channel for this source";
             tcps->SendToClient(cc->client_fd, error_ref, (void *) &out_error);
+
+            snprintf(status, 1024, "WARNING: %d not in channel list for '%s', not "
+                     "locking.", chnum, meta->name.c_str());
+            NetWriteStatus(status);
+            if (!silent)
+                fprintf(stderr, "%s\n", status);
+
             return;
         }
 

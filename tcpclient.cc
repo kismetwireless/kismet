@@ -689,6 +689,14 @@ int TcpClient::Send(const char *in_data) {
     return 1;
 }
 
+void TcpClient::SendRaw(const char *in_data) {
+    char data[1024];
+
+    // We on't really care about acks or errors...
+    snprintf(data, 1024, "!0 %s\n", in_data);
+    Send(data);
+}
+
 void TcpClient::EnableProtocol(string in_protocol) {
     char data[1024];
     string fields;
