@@ -1,5 +1,7 @@
 Jan 15 2003  2.9.0  Fixed up netxml more
                     Added logging of client maxrate to netxml
+                    Merged GPSMap patch from Anton Rager to do power level
+                     coloring for scatter plots (-a -q#).
 Jan 11 2003  2.9.0  Cleaned up MungeToShell to be more restrictive for passing
                      text to Festival.
                     Merged metric display patch from Peter Sturm

@@ -134,6 +134,9 @@ char *label_gravity_list[] = {
     "southwest", "south", "southeast"
 };
 
+int scatter_power;
+int power_max_threshold;
+
 // Tracker internals
 int sample_points;
 
@@ -1859,6 +1862,10 @@ void DrawNetCenterText(vector<gps_network *> in_nets, Image *in_img, DrawInfo *i
 
 
 void DrawNetScatterPlot(vector<gps_network *> in_nets, Image *in_img, DrawInfo *in_di) { /*FOLD00*/
+    int z;
+    int power_level;
+    int power_index;
+
     for (unsigned int x = 0; x < in_nets.size(); x++) {
         gps_network *map_iter = in_nets[x];
 
@@ -1891,40 +1898,67 @@ void DrawNetScatterPlot(vector<gps_network *> in_nets, Image *in_img, DrawInfo *
             dim[a] = b;
         }
 
-        PixelPacket netclr;
+        if ( scatter_power == 0) {
+            // If regular network based coloring, go ahead and set network color
+            PixelPacket netclr;
 
-        ExceptionInfo excep;
-        GetExceptionInfo(&excep);
-        QueryColorDatabase(map_iter->color_index.c_str(), &netclr, &excep);
-        if (excep.severity != UndefinedException) {
-            CatchException(&excep);
-            break;
+            ExceptionInfo excep;
+            GetExceptionInfo(&excep);
+            QueryColorDatabase(map_iter->color_index.c_str(), &netclr, &excep);
+            if (excep.severity != UndefinedException) {
+                CatchException(&excep);
+                break;
+            }
+
+            in_di->fill = netclr;
         }
 
-	in_di->fill = netclr;
+        z = 0; // ATR - Counter for getting signal from structure
+        for (map<string, string>::const_iterator y = dim.begin(); y != dim.end(); ++y) {
+            if (scatter_power == 1) {
+                // if power based coloring, determine and set color for each scatter point
+                gps_point *pt = map_iter->points[z];
+                z++;
 
-	for (map<string, string>::const_iterator y = dim.begin(); y != dim.end(); ++y) {
-	       char mm1[64];
-	       memset(mm1, 0, sizeof(char)*64);
-	       char mm2[64];
-	       memset(mm2, 0, sizeof(char)*64);
-	       y->first.copy(mm1, string::npos);
-	       y->second.copy(mm2, string::npos);
+                power_level = (int) pt->signal;
 
-		char prim[1024];
+                if (power_level == 0) {
+                    //sig is really something above zero or we wouldn't get a packet ;)
+                    power_level++;
+                }
 
-		snprintf(prim, 1024, "fill-opacity %d%% stroke-opacity %d%% circle %s %s", 
-			scatter_opacity, scatter_opacity, mm1, mm2);
+                power_index = power_level / (power_max_threshold/power_steps);
 
-		in_di->primitive = prim;
-                DrawImage(in_img, in_di);
-                GetImageException(in_img, &im_exception);
-                if (im_exception.severity != UndefinedException) {
-                    CatchException(&im_exception);
+                //printf("Power %d : Color Index %d\n",power_level, power_index); // debug
+
+                PixelPacket netclr;
+
+                ExceptionInfo excep;
+                GetExceptionInfo(&excep);
+
+                // ATR - Get color based on signal power
+                QueryColorDatabase(power_colors[power_index], &netclr, &excep);
+                if (excep.severity != UndefinedException) {
+                    CatchException(&excep);
                     break;
                 }
-	       
-	}
+                in_di->fill = netclr;
+            }
+
+            char prim[1024];
+
+            snprintf(prim, 1024, "fill-opacity %d%% stroke-opacity %d%% circle %s %s",
+                     scatter_opacity, scatter_opacity, y->first.c_str(), y->second.c_str());
+
+            in_di->primitive = prim;
+            DrawImage(in_img, in_di);
+            GetImageException(in_img, &im_exception);
+            if (im_exception.severity != UndefinedException) {
+                CatchException(&im_exception);
+                break;
+            }
+
+        }
 
     }
 
@@ -2252,6 +2286,13 @@ int main(int argc, char *argv[]) {
                     fprintf(stderr, "Invalid interpolated power color set\n");
                     ShortUsage(exec_name);
                 }
+
+                // ATR - set vars for scatter plot
+                scatter_power = 1;
+                power_max_threshold = power_max/2;
+                // static coded value for now - signal power seems to be below 128
+                // ATR -end
+
                 if (icolor == 0) {
                     power_steps = power_steps_Orig;
                     power_colors = powercolors_Orig;
