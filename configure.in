@@ -93,6 +93,8 @@ else
     esac
 fi
 
+CXXFLAGS="$CXXFLAGS $CFLAGS"
+
 AC_CONFIG_SRCDIR([kismet_server.cc])
 AC_CONFIG_HEADER([config.h])
 
@@ -366,7 +368,7 @@ AC_ARG_ENABLE(syspcap,
 		AC_SUBST(pcaplib)
 
 		CPPFLAGS="$CPPFLAGS -I$pcapdir"
-		CXXFLAGS="$CPPFLAGS -I$pcapdir"
+		#CXXFLAGS="$CPPFLAGS -I$pcapdir"
 		AC_DEFINE(HAVE_LIBPCAP, 1, libpcap packet capture lib)
 		pcap=yes
 	fi
@@ -460,8 +462,9 @@ if test $want_ethereal = yes; then
 	AC_MSG_CHECKING(for usable wiretap in $ethereal_dir/wiretap)
 	save_cppflags="$CPPFLAGS"
 	CPPFLAGS="$CPPFLAGS `glib-config --cflags glib` -I$ethereal_dir/wiretap"
-	save_cxxflags="$CXXFLAGS"
-	CXXFLAGS="$CXXFLAGS `glib-config --cflags glib` -I$ethereal_dir/wiretap"
+	#CPPFLAGS="$CPPFLAGS `glib-config --cflags glib` -I$ethereal_dir/wiretap"
+	#save_cxxflags="$CXXFLAGS"
+	#CXXFLAGS="$CXXFLAGS `glib-config --cflags glib` -I$ethereal_dir/wiretap"
 	save_libs="$LIBS"
 	LIBS="$LIBS -lz `glib-config --libs glib` -L$ethereal_dir/wiretap -lwiretap"
 
@@ -524,7 +527,7 @@ if test $want_ethereal = yes; then
 		want_ethereal="no"
 		AC_MSG_WARN([*** No useable wiretap found in $ethereal_dir.  Make sure this directory is correct and that you have configured and compiled Ethereal in this directory.  While Kismet will function without wiretap, it will limit the log reading and writing abilities. ***])
 		CPPFLAGS="$save_cppflags"
-		CXXFLAGS="$save_cxxflags"
+		#CXXFLAGS="$save_cxxflags"
    		LIBS="$save_libs"
 		AC_DEFINE(USE_LOCAL_DUMP, 1, Use local dumper code)
     	local=yes
@@ -589,15 +592,28 @@ elif test $magickconfig = "no"; then
 elif test $wget = "no"; then
 	AC_MSG_WARN(*** Missing wget (or it is not in the path).  gpsmap will not be build. ***)
 else
+	#CPPFLAGS="$CPPFLAGS `Magick-config --cppflags` -I`Magick-config --prefix`/include"
 	CPPFLAGS="$CPPFLAGS `Magick-config --cppflags`"
 	CXXFLAGS="$CXXFLAGS `Magick-config --cflags`"
-	LDFLAGS="$CXXFLAGS `Magick-config --ldflags`"
-	LIBS="$CXXFLAGS `Magick-config --libs`"
-	AC_CHECK_HEADER(magick/api.h,
+	#CXXFLAGS="$CXXFLAGS `Magick-config --cflags` -I`Magick-config --prefix`/include"
+	LDFLAGS="$LDFLAGS `Magick-config --ldflags`"
+	LIBS="`Magick-config --libs`"
+	AC_CHECK_HEADER(magick/api.h, magickhdr="yes", magickhdr="no")
+	if test "$magickhdr" = "no"; then
+		oldcppflags2="$CPPFLAGS"
+		CPPFLAGS="$CPPFLAGS -I`Magick-config --prefix`/include";
+		AC_CHECK_HEADER(magick/api.h, magickhdr="yes", magickhdr="no")
+		if test "$magickhdr" = "no"; then
+			CPPFLAGS="$oldcppflags2";
+			AC_MSG_WARN(*** Missing ImageMagick.  gpsmap will not be built. ***)
+		fi
+	fi
+
+	if test "$magickhdr" = "yes"; then
 		AC_CHECK_LIB([Magick], [WriteImage],
-	    	AC_DEFINE(HAVE_IMAGEMAGICK, 1, Imagemagick image library) gpslc="\$(GPSL)",
-				AC_MSG_WARN(*** Missing Imagemagick (or Imagemagick is not recent enough).  gpsmap will not be built. ***)),
-			AC_MSG_WARN(*** Missing Imagemagick (or Imagemagick is not recent enough).  gpsmap will not be built. ***))
+	   		AC_DEFINE(HAVE_IMAGEMAGICK, 1, Imagemagick image library) gpslc="\$(GPSL)",
+			AC_MSG_WARN(*** Missing Imagemagick.  gpsmap will not be built. ***))
+	fi
 fi
 CPPFLAGS="$save_cppflags"
 CXXFLAGS="$save_cxxflags"
@@ -629,7 +645,6 @@ AC_CHECK_HEADER(pthread.h,
 		AC_DEFINE(HAVE_PTHREAD, 1, pthread threading library),
 		AC_MSG_WARN(*** Disabling gpsmap because threads support not present. ***)),
 	AC_MSG_WARN(*** Disabling gpsmap because threads support not present. ***))
-
 
 AC_SUBST(gpslc)
 
