@@ -821,7 +821,8 @@ int PanelFront::ServersInput(void *in_window, int in_chr) {
             kwin->start--;
         break;
     case KEY_DOWN:
-        if ((kwin->selected + kwin->start) < kwin->end)
+        if ((kwin->selected + kwin->start) == (int) context_list.size() - 1) {
+	} else if ((kwin->selected + kwin->start) < kwin->end)
             kwin->selected++;
         else if (kwin->end < ((int) context_list.size() - 1))
             kwin->start++;
@@ -906,8 +907,6 @@ int PanelFront::ServersInput(void *in_window, int in_chr) {
 }
 
 int PanelFront::IntroInput(void *in_window, int in_chr) {
-    kis_window *kwin = (kis_window *) in_window;
-
     switch (in_chr) {
     case 'x':
     case 'X':
