@@ -317,11 +317,10 @@ int NetXmlCisco2Struct(wireless_network *in_net, cdp_packet *in_cdp) {
 //    net_node_cdp_platform, net_node_cdp_software,
 
     if (XMLIsBlank(xmlstrnodes[net_node_cdp_device_id])) {
-        fprintf(stderr, "WARNING:  Blank cdp device-id, skipping rest of network.\n");
-        return -1;
-    } else {
-        snprintf(in_cdp->dev_id, 128, "%s", xmlstrnodes[net_node_cdp_device_id].c_str());
+        fprintf(stderr, "WARNING:  Blank cdp device-id\n");
     }
+
+    snprintf(in_cdp->dev_id, 128, "%s", xmlstrnodes[net_node_cdp_device_id].c_str());
 
     if (XMLIsBlank(xmlstrnodes[net_node_cdp_interface]))
         in_cdp->interface[0] = '\0';
@@ -393,6 +392,10 @@ static void xpat_net_start(void *data, const char *el, const char **attr) {
                     else if (strcasecmp(attr[i+1], "probe") == 0)
                         building_net->type = network_probe;
                     else if (strcasecmp(attr[i+1], "data") == 0)
+                        building_net->type = network_data;
+                    else if (strcasecmp(attr[i+1], "lucent") == 0)
+                        building_net->type = network_lor;
+                    else if (strcasecmp(attr[i+1], "unknown") == 0)
                         building_net->type = network_data;
                     else {
                         fprintf(stderr, "WARNING:  Illegal type '%s' on wireless-network\n",
