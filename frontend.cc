@@ -21,10 +21,10 @@
 #include <math.h>
 #include "frontend.h"
 
-void Frontend::PopulateGroups() {
+void Frontend::PopulateGroups(TcpClient *in_client) {
     vector<wireless_network *> clientlist;
 
-    clientlist = client->FetchNetworkList();
+    clientlist = in_client->FetchNetworkList();
 
     // Convert the list
     for (unsigned int x = 0; x < clientlist.size(); x++) {
@@ -58,7 +58,7 @@ void Frontend::PopulateGroups() {
                 }
             }
 
-            client->RemoveNetwork(net->bssid);
+            in_client->RemoveNetwork(net->bssid);
 
             continue;
         }
@@ -381,6 +381,10 @@ void Frontend::UpdateGroups() {
     for (list<display_network *>::iterator x = discard.begin(); x != discard.end(); ++x) {
         DestroyGroup(*x);
     }
+
+}
+
+void Frontend::PurgeGroups() {
 
 }
 

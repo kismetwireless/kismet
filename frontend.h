@@ -125,9 +125,11 @@ protected:
 
     // Populate groups with data from the client -- fetch all the networks and put
     // them in the groups they should be in
-    void PopulateGroups();
+    void PopulateGroups(TcpClient *in_client);
     // Update our groups.  This controls how group aggregate data gets generated.
     void UpdateGroups();
+    // Purge groups (primarily for when client focus changes)
+    void PurgeGroups();
     // Group all the tagged networks
     display_network *GroupTagged();
     // Destroy a group

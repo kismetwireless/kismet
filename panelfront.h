@@ -168,13 +168,15 @@ protected:
         server_context() {
             client = NULL;
             quality = power = noise = 0;
+
+            /*
             details_network = NULL;
             details_client = NULL;
+            last_draw_size = last_client_draw_size = 0;
+            */
 
             lat = lon = spd = alt = last_lat = last_lon = last_spd = last_alt = 0;
             fix = last_fix = 0;
-
-            last_draw_size = last_client_draw_size = 0;
 
             max_packet_rate = 0;
 
@@ -191,10 +193,16 @@ protected:
 
         int quality, power, noise;
 
+        /*
         display_network *details_network;
         wireless_client *details_client;
         vector<display_network *> last_displayed;
         vector<wireless_client *> last_client_displayed;
+
+        // Size of the group vec the last time we drew it
+        int last_draw_size;
+        int last_client_draw_size;
+        */
 
         vector<int> packet_history;
 
@@ -202,10 +210,6 @@ protected:
         int fix;
         float last_lat, last_lon, last_spd, last_alt;
         int last_fix;
-
-        // Size of the group vec the last time we drew it
-        int last_draw_size;
-        int last_client_draw_size;
 
         // Statistics
         int max_packet_rate;

@@ -1104,6 +1104,7 @@ void DrawNetCircles(vector<gps_network *> in_nets, Image *in_img, DrawInfo *in_d
         if (map_iter->diagonal_distance > horiz_throttle)
             continue;
 
+        /*
         // Figure x, y of min on our hypothetical map
         double mapx, mapy;
 
@@ -1128,6 +1129,34 @@ void DrawNetCircles(vector<gps_network *> in_nets, Image *in_img, DrawInfo *in_d
                (double) map_scale/PIXELFACT, map_avg_lat, map_avg_lon);
 
         // printf("  Endpt   : %dx%d\n", (int) endx, (int) endy);
+        */
+
+        // Find the average distance to all the points in the network and use it as
+        // the radius
+        if (map_iter->points.size() == 0)
+            continue;
+
+        double mapx, mapy, endx, endy;
+        calcxy (&mapx, &mapy, map_iter->avg_lat, map_iter->avg_lon,
+                (double) map_scale/PIXELFACT, map_avg_lat, map_avg_lon);
+
+        double distavg = 0;
+        for (unsigned int y = 0; y < map_iter->points.size(); y++) {
+            gps_point *pt = map_iter->points[y];
+
+            double ptx, pty;
+            calcxy(&ptx, &pty, pt->lat, pt->lon, (double) map_scale/PIXELFACT,
+                   map_avg_lat, map_avg_lon);
+
+            distavg += labs((long) geom_distance(mapx, mapy, ptx, pty));
+        }
+        distavg = distavg / map_iter->points.size();
+
+        if (!finite(distavg))
+            break;
+
+        endx = mapx + distavg;
+        endy = mapy + distavg;
 
         PixelPacket netclr;
 
