@@ -7,6 +7,8 @@ BIN=@bindir@
 
 GREP_OPTIONS=""
 
+export PATH=/sbin:/usr/sbin:$PATH
+
 CHANNEL=6
 
 if test "$#" -lt 2; then
@@ -17,7 +19,7 @@ fi
 
 CARDTYPE=$2
 DEVICE=$1
-	
+
 case "$CARDTYPE" in
 	"cisco")
 		echo "Enabling monitor mode for a cisco card on $DEVICE"
