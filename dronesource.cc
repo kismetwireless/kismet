@@ -140,16 +140,16 @@ int DroneSource::FetchPacket(kis_packet *packet) {
             return -1;
         }
 
-        if (vpkt.drone_version != STREAM_DRONE_VERSION) {
+        if (ntohs(vpkt.drone_version) != STREAM_DRONE_VERSION) {
             snprintf(errstr, 1024, "version mismatch:  Drone sending version %d, expected %d.",
-                     vpkt.drone_version, STREAM_DRONE_VERSION);
+                     ntohl(vpkt.drone_version), STREAM_DRONE_VERSION);
             return -1;
         }
 
         return 0;
     } else if (fhdr.frame_type == STREAM_FTYPE_PACKET) {
         // Bail if we have a frame header too small for a packet of any sort
-        if (fhdr.frame_len <= sizeof(struct stream_packet_header)) {
+        if (ntohl(fhdr.frame_len) <= sizeof(struct stream_packet_header)) {
             snprintf(errstr, 1024, "frame too small to hold a packet.");
             return -1;
         }
@@ -161,17 +161,17 @@ int DroneSource::FetchPacket(kis_packet *packet) {
             return -1;
         }
 
-        if (phdr.caplen <= 0)
+        if (ntohl(phdr.caplen) <= 0)
             return 0;
 
-        if (phdr.caplen > MAX_PACKET_LEN)
-            phdr.caplen = MAX_PACKET_LEN;
-        if (phdr.len > MAX_PACKET_LEN)
-            phdr.len = MAX_PACKET_LEN;
+        if (ntohl(phdr.caplen) > MAX_PACKET_LEN)
+            phdr.caplen = (uint32_t) htonl(MAX_PACKET_LEN);
+        if (ntohl(phdr.len) > MAX_PACKET_LEN)
+            phdr.len = (uint32_t) htonl(MAX_PACKET_LEN);
 
         // Finally, fetch the indicated packet data.
         int ret;
-        if ((ret = read(drone_fd, data, phdr.caplen)) < (ssize_t) phdr.caplen) {
+        if ((ret = read(drone_fd, data, ntohl(phdr.caplen))) < (ssize_t) ntohl(phdr.caplen)) {
             snprintf(errstr, 1024, "%d short read() getting packet content: %d (%s)",
                      ret, errno, strerror(errno));
             return -1;
@@ -193,15 +193,18 @@ int DroneSource::FetchPacket(kis_packet *packet) {
 }
 
 int DroneSource::Drone2Common(kis_packet *packet) {
-    packet->len = phdr.len;
-    packet->caplen = phdr.caplen;
-    packet->ts.tv_sec = phdr.tv_sec;
-    packet->ts.tv_usec = phdr.tv_usec;
-    packet->quality = phdr.quality;
-    packet->signal = phdr.signal;
-    packet->noise = phdr.noise;
+    packet->len = (uint32_t) ntohl(phdr.len);
+    packet->caplen = (uint32_t) ntohl(phdr.caplen);
+    packet->ts.tv_sec = (uint64_t) ntoh64(phdr.tv_sec);
+    packet->ts.tv_usec = (uint64_t) ntoh64(phdr.tv_usec);
+    packet->quality = (uint16_t) ntohs(phdr.quality);
+    packet->signal = (uint16_t) ntohs(phdr.signal);
+    packet->noise = (uint16_t) ntohs(phdr.noise);
     packet->channel = phdr.channel;
     packet->carrier = (carrier_type) phdr.carrier;
+    packet->error = phdr.error;
+    packet->encoding = (encoding_type) phdr.encoding;
+    packet->datarate = (uint32_t) ntohl(phdr.datarate);
 
     packet->data = new uint8_t[packet->caplen];
 
