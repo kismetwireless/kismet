@@ -170,7 +170,8 @@ case "$CARDTYPE" in
 		;;
 	"prism2_hostap")
 		echo "Enabling monitor mode for a hostap prism2 card on $DEVICE channel $CHANNEL"
-		iwpriv $DEVICE monitor 3
+		prism2_param $DEVICE monitor_type 1
+		iwconfig $DEVICE mode monitor
 		iwconfig $DEVICE channel $CHANNEL
 		ifconfig $DEVICE promisc up
 		;;
