@@ -1,3 +1,4 @@
+Jul 22 2002  2.5    Fixed manuf count bug
 Jul 21 2002  2.5    Added IPX dissection
                     Added range calculations to network details
                     Fixed mintor bug in GPS coordinate assignment
