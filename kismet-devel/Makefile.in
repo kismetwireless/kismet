@@ -142,7 +142,7 @@ commoninstall:
 	install -o $(INSTUSR) -g $(INSTGRP) -m 755 scripts/kismet_unmonitor $(BIN)/kismet_unmonitor
 	mkdir -p $(MAN)/man1
 	install -o $(INSTUSR) -g $(MANGRP) -m 644 man/kismet.1 $(MAN)/man1/kismet.1
-	install -o $(INSTUSR) -g $(MANGRP) -m 644 man/kismet_monitor.1 $(MAN)/man1/kismet_monitor.1
+	# install -o $(INSTUSR) -g $(MANGRP) -m 644 man/kismet_monitor.1 $(MAN)/man1/kismet_monitor.1
 	# install -o $(INSTUSR) -g $(MANGRP) -m 644 man/kismet_hopper.1 $(MAN)/man1/kismet_hopper.1
 	install -o $(INSTUSR) -g $(MANGRP) -m 644 man/kismet_drone.1 $(MAN)/man1/kismet_drone.1
 	mkdir -p $(MAN)/man5
