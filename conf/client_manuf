@@ -100,17 +100,17 @@
 00:A0:F8:2E	Symbol	Spectrum24
 00:E0:29:9E	OEM	OEM
 08:00:46:0A	Sony	PCWA-C100
-00:A0:04	3Com Unknown		0	
-00:90:D1	SMC Unknown	WLAN	11	
-00:80:C6	SOHOware Unknown		0	
-00:60:1D	Orinoco Unknown		0	
-00:50:DA	3Com Unknown		0	
-00:40:96	Cisco Unknown		0	
-00:40:26	Buffalo Unknown		0	
-00:30:BD	Belkin Unknown		0	
-00:30:65	Apple Unknown		0	
-00:0A:8A	Cisco Unknown		0	
-00:06:25	Linksys Unknown	linksys	6	192.168.1.1
-00:05:5D	D-Link Unknown	default	6	
-00:04:5A	Linksys Unknown	linksys	6	192.168.1.1
-00:01:24	SMC Unknown	default	6	192.168.2.1
+00:A0:04	3Com	Unknown		0	
+00:90:D1	SMC	Unknown	WLAN	11	
+00:80:C6	SOHOware	Unknown		0	
+00:60:1D	Orinoco	Unknown		0	
+00:50:DA	3Com	Unknown		0	
+00:40:96	Cisco	Unknown		0	
+00:40:26	Buffalo	Unknown		0	
+00:30:BD	Belkin	Unknown		0	
+00:30:65	Apple	Unknown		0	
+00:0A:8A	Cisco	Unknown		0	
+00:06:25	Linksys	Unknown	linksys	6	192.168.1.1
+00:05:5D	D-Link	Unknown	default	6	
+00:04:5A	Linksys	Unknown	linksys	6	192.168.1.1
+00:01:24	SMC	Unknown	default	6	192.168.2.1

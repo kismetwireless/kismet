@@ -22,17 +22,17 @@
 00:90:D1:01	SMC	SMC2652W	WLAN	11	
 00:90:D1:01	SMC	SMC2682W	BRIDGE	11	
 00:A0:04:98	3Com	3CRWE51196		0	
-00:A0:04	3Com Unknown		0	
-00:90:D1	SMC Unknown	WLAN	11	
-00:80:C6	SOHOware Unknown		0	
-00:60:1D	Orinoco Unknown		0	
-00:50:DA	3Com Unknown		0	
-00:40:96	Cisco Unknown		0	
-00:40:26	Buffalo Unknown		0	
-00:30:BD	Belkin Unknown		0	
-00:30:65	Apple Unknown		0	
-00:0A:8A	Cisco Unknown		0	
-00:06:25	Linksys Unknown	linksys	6	192.168.1.1
-00:05:5D	D-Link Unknown	default	6	
-00:04:5A	Linksys Unknown	linksys	6	192.168.1.1
-00:01:24	SMC Unknown	default	6	192.168.2.1
+00:A0:04	3Com	Unknown		0	
+00:90:D1	SMC	Unknown	WLAN	11	
+00:80:C6	SOHOware	Unknown		0	
+00:60:1D	Orinoco	Unknown		0	
+00:50:DA	3Com	Unknown		0	
+00:40:96	Cisco	Unknown		0	
+00:40:26	Buffalo	Unknown		0	
+00:30:BD	Belkin	Unknown		0	
+00:30:65	Apple	Unknown		0	
+00:0A:8A	Cisco	Unknown		0	
+00:06:25	Linksys	Unknown	linksys	6	192.168.1.1
+00:05:5D	D-Link	Unknown	default	6	
+00:04:5A	Linksys	Unknown	linksys	6	192.168.1.1
+00:01:24	SMC	Unknown	default	6	192.168.2.1
