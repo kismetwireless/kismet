@@ -77,7 +77,19 @@ public:
     typedef struct string_info {
         mac_addr bssid;
         mac_addr source;
+        timeval string_ts;
         string text;
+    };
+
+    // Sort strings by alert time
+    class SortStrings {
+    public:
+        inline bool operator() (const TcpClient::string_info x, const TcpClient::string_info y) const {
+            if ((x.string_ts.tv_sec > y.string_ts.tv_sec) ||
+                ((x.string_ts.tv_sec== y.string_ts.tv_sec) && (x.string_ts.tv_usec > y.string_ts.tv_usec)))
+                return 1;
+            return 0;
+        }
     };
 
     TcpClient();
