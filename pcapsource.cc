@@ -761,14 +761,14 @@ int PcapSource11GFCS::FCSBytes() {
     return 4;
 }
 
+#endif
+
+#ifdef SYS_LINUX
 // FCS bytes for wlanng
 int PcapSourceWlanng::FCSBytes() {
     return 4;
 }
 
-#endif
-
-#ifdef SYS_LINUX
 // The wrt54g seems to put a fcs on it
 int PcapSourceWrt54g::FCSBytes() {
     return 4;
@@ -942,13 +942,13 @@ KisPacketSource *pcapsource_11gfcs_registrant(string in_name, string in_device,
     return new PcapSource11GFCS(in_name, in_device);
 }
 
+#endif
+
+#ifdef SYS_LINUX
 KisPacketSource *pcapsource_wlanng_registrant(string in_name, string in_device,
                                               char *in_err) {
     return new PcapSourceWlanng(in_name, in_device);
 }
-#endif
-
-#ifdef SYS_LINUX
 KisPacketSource *pcapsource_wrt54g_registrant(string in_name, string in_device,
                                               char *in_err) {
     return new PcapSourceWrt54g(in_name, in_device);

@@ -199,18 +199,19 @@ public:
 protected:
     int FCSBytes();
 };
-
-// Override fcs controls to add 4 bytes on wlanng
-class PcapSourceWlanng : public PcapSourceWext {
-public:
-    PcapSourceWlanng(string in_name, string in_dev) :
-        PcapSourceWext(in_name, in_dev) { }
-protected:
-    int FCSBytes();
-};
 #endif
 
 #ifdef SYS_LINUX
+// Override fcs controls to add 4 bytes on wlanng
+class PcapSourceWlanng : public PcapSource {
+public:
+    PcapSourceWlanng(string in_name, string in_dev) :
+        PcapSource(in_name, in_dev) { }
+protected:
+    // Signal levels are pulled from the prism2 or avs headers so leave that as 0
+    int FCSBytes();
+};
+
 // Override packet fetching logic on this one to discard jumbo corrupt packets
 // that it likes to generate
 class PcapSourceWrt54g : public PcapSource {
@@ -291,11 +292,11 @@ KisPacketSource *pcapsource_11g_registrant(string in_name, string in_device,
                                            char *in_err);
 KisPacketSource *pcapsource_11gfcs_registrant(string in_name, string in_device,
                                               char *in_err);
-KisPacketSource *pcapsource_wlanng_registrant(string in_name, string in_device,
-                                              char *in_err);
 #endif
 
 #ifdef SYS_LINUX
+KisPacketSource *pcapsource_wlanng_registrant(string in_name, string in_device,
+                                              char *in_err);
 KisPacketSource *pcapsource_wrt54g_registrant(string in_name, string in_device,
                                               char *in_err);
 #endif
