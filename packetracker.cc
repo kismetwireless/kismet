@@ -895,8 +895,8 @@ void Packetracker::ProcessDataPacket(packet_info info, wireless_network *net) {
 		client->crypt_set |= ((int) crypt_leap);
 		net->crypt_set |= ((int) crypt_leap);
 	} else if (info.proto.type == proto_ttls) {
-		client->crypt_set |= ((int) crypt_leap);
-		net->crypt_set |= ((int) crypt_leap);
+		client->crypt_set |= ((int) crypt_ttls);
+		net->crypt_set |= ((int) crypt_ttls);
 	} else if (info.proto.type == proto_tls) {
 		client->crypt_set |= ((int) crypt_tls);
 		net->crypt_set |= ((int) crypt_tls);
