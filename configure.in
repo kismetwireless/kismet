@@ -703,7 +703,7 @@ fi
 # Check for libgmp
 if test "$wantgps" = "yes"; then
 	gmpl=no
-    AC_CHECK_HEADER([stdint.h],
+    AC_CHECK_HEADER([gmp.h],
 		AC_DEFINE(HAVE_GMP, 1, GMP math library) gmpl=yes,
 		AC_MSG_WARN(*** Missing GMP math library.  gpsmap will not be built. ***))
 else

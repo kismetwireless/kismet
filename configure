@@ -6836,18 +6836,18 @@ fi
 # Check for libgmp
 if test "$wantgps" = "yes"; then
 	gmpl=no
-    if test "${ac_cv_header_stdint_h+set}" = set; then
-  echo "$as_me:$LINENO: checking for stdint.h" >&5
-echo $ECHO_N "checking for stdint.h... $ECHO_C" >&6
-if test "${ac_cv_header_stdint_h+set}" = set; then
+    if test "${ac_cv_header_gmp_h+set}" = set; then
+  echo "$as_me:$LINENO: checking for gmp.h" >&5
+echo $ECHO_N "checking for gmp.h... $ECHO_C" >&6
+if test "${ac_cv_header_gmp_h+set}" = set; then
   echo $ECHO_N "(cached) $ECHO_C" >&6
 fi
-echo "$as_me:$LINENO: result: $ac_cv_header_stdint_h" >&5
-echo "${ECHO_T}$ac_cv_header_stdint_h" >&6
+echo "$as_me:$LINENO: result: $ac_cv_header_gmp_h" >&5
+echo "${ECHO_T}$ac_cv_header_gmp_h" >&6
 else
   # Is the header compilable?
-echo "$as_me:$LINENO: checking stdint.h usability" >&5
-echo $ECHO_N "checking stdint.h usability... $ECHO_C" >&6
+echo "$as_me:$LINENO: checking gmp.h usability" >&5
+echo $ECHO_N "checking gmp.h usability... $ECHO_C" >&6
 cat >conftest.$ac_ext <<_ACEOF
 #line $LINENO "configure"
 /* confdefs.h.  */
@@ -6856,7 +6856,7 @@ cat confdefs.h >>conftest.$ac_ext
 cat >>conftest.$ac_ext <<_ACEOF
 /* end confdefs.h.  */
 $ac_includes_default
-#include <stdint.h>
+#include <gmp.h>
 _ACEOF
 rm -f conftest.$ac_objext
 if { (eval echo "$as_me:$LINENO: \"$ac_compile\"") >&5
@@ -6882,8 +6882,8 @@ echo "$as_me:$LINENO: result: $ac_header_compiler" >&5
 echo "${ECHO_T}$ac_header_compiler" >&6
 
 # Is the header present?
-echo "$as_me:$LINENO: checking stdint.h presence" >&5
-echo $ECHO_N "checking stdint.h presence... $ECHO_C" >&6
+echo "$as_me:$LINENO: checking gmp.h presence" >&5
+echo $ECHO_N "checking gmp.h presence... $ECHO_C" >&6
 cat >conftest.$ac_ext <<_ACEOF
 #line $LINENO "configure"
 /* confdefs.h.  */
@@ -6891,7 +6891,7 @@ _ACEOF
 cat confdefs.h >>conftest.$ac_ext
 cat >>conftest.$ac_ext <<_ACEOF
 /* end confdefs.h.  */
-#include <stdint.h>
+#include <gmp.h>
 _ACEOF
 if { (eval echo "$as_me:$LINENO: \"$ac_cpp conftest.$ac_ext\"") >&5
   (eval $ac_cpp conftest.$ac_ext) 2>conftest.er1
@@ -6924,10 +6924,10 @@ echo "${ECHO_T}$ac_header_preproc" >&6
 # So?  What about this header?
 case $ac_header_compiler:$ac_header_preproc in
   yes:no )
-    { echo "$as_me:$LINENO: WARNING: stdint.h: accepted by the compiler, rejected by the preprocessor!" >&5
-echo "$as_me: WARNING: stdint.h: accepted by the compiler, rejected by the preprocessor!" >&2;}
-    { echo "$as_me:$LINENO: WARNING: stdint.h: proceeding with the preprocessor's result" >&5
-echo "$as_me: WARNING: stdint.h: proceeding with the preprocessor's result" >&2;}
+    { echo "$as_me:$LINENO: WARNING: gmp.h: accepted by the compiler, rejected by the preprocessor!" >&5
+echo "$as_me: WARNING: gmp.h: accepted by the compiler, rejected by the preprocessor!" >&2;}
+    { echo "$as_me:$LINENO: WARNING: gmp.h: proceeding with the preprocessor's result" >&5
+echo "$as_me: WARNING: gmp.h: proceeding with the preprocessor's result" >&2;}
     (
       cat <<\_ASBOX
 ## ------------------------------------ ##
@@ -6938,12 +6938,12 @@ _ASBOX
       sed "s/^/$as_me: WARNING:     /" >&2
     ;;
   no:yes )
-    { echo "$as_me:$LINENO: WARNING: stdint.h: present but cannot be compiled" >&5
-echo "$as_me: WARNING: stdint.h: present but cannot be compiled" >&2;}
-    { echo "$as_me:$LINENO: WARNING: stdint.h: check for missing prerequisite headers?" >&5
-echo "$as_me: WARNING: stdint.h: check for missing prerequisite headers?" >&2;}
-    { echo "$as_me:$LINENO: WARNING: stdint.h: proceeding with the preprocessor's result" >&5
-echo "$as_me: WARNING: stdint.h: proceeding with the preprocessor's result" >&2;}
+    { echo "$as_me:$LINENO: WARNING: gmp.h: present but cannot be compiled" >&5
+echo "$as_me: WARNING: gmp.h: present but cannot be compiled" >&2;}
+    { echo "$as_me:$LINENO: WARNING: gmp.h: check for missing prerequisite headers?" >&5
+echo "$as_me: WARNING: gmp.h: check for missing prerequisite headers?" >&2;}
+    { echo "$as_me:$LINENO: WARNING: gmp.h: proceeding with the preprocessor's result" >&5
+echo "$as_me: WARNING: gmp.h: proceeding with the preprocessor's result" >&2;}
     (
       cat <<\_ASBOX
 ## ------------------------------------ ##
@@ -6954,18 +6954,18 @@ _ASBOX
       sed "s/^/$as_me: WARNING:     /" >&2
     ;;
 esac
-echo "$as_me:$LINENO: checking for stdint.h" >&5
-echo $ECHO_N "checking for stdint.h... $ECHO_C" >&6
-if test "${ac_cv_header_stdint_h+set}" = set; then
+echo "$as_me:$LINENO: checking for gmp.h" >&5
+echo $ECHO_N "checking for gmp.h... $ECHO_C" >&6
+if test "${ac_cv_header_gmp_h+set}" = set; then
   echo $ECHO_N "(cached) $ECHO_C" >&6
 else
-  ac_cv_header_stdint_h=$ac_header_preproc
+  ac_cv_header_gmp_h=$ac_header_preproc
 fi
-echo "$as_me:$LINENO: result: $ac_cv_header_stdint_h" >&5
-echo "${ECHO_T}$ac_cv_header_stdint_h" >&6
+echo "$as_me:$LINENO: result: $ac_cv_header_gmp_h" >&5
+echo "${ECHO_T}$ac_cv_header_gmp_h" >&6
 
 fi
-if test $ac_cv_header_stdint_h = yes; then
+if test $ac_cv_header_gmp_h = yes; then
 
 cat >>confdefs.h <<\_ACEOF
 #define HAVE_GMP 1
