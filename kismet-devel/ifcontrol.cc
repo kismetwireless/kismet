@@ -105,6 +105,8 @@ int Iwconfig_Set_IntPriv(const char *in_dev, const char *privcmd,
     int subcmd = 0;
     int offset = 0;
 
+    memset(priv, 0, sizeof(priv));
+
     if ((skfd = socket(AF_INET, SOCK_DGRAM, 0)) < 0) {
         snprintf(errstr, STATUS_MAX, "Failed to create AF_INET DGRAM socket %d:%s", 
                  errno, strerror(errno));

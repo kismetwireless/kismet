@@ -317,7 +317,10 @@ int Packetsourcetracker::RegisterDefaultChannels(vector<string> *in_defchannels)
         defaultch_map[StrLower(tokens[0])] = channel_bits;
 
     }
-    
+    // Default channels for non-hopping types
+    vector<int> no_channel;
+    no_channel.push_back(0);
+    defaultch_map["na"] = no_channel;
     return 1;
 }
 
@@ -660,7 +663,8 @@ int Packetsourcetracker::SetTypeParms(string in_types, packet_parm in_parm) {
         meta_packsource *meta = meta_packsources[metc];
         
         for (unsigned int ctype = 0; ctype < tokens.size(); ctype++) {
-            if (StrLower(meta->prototype->cardtype) == StrLower(tokens[ctype]) &&
+            if ((StrLower(meta->prototype->cardtype) == StrLower(tokens[ctype]) ||
+                StrLower(tokens[ctype]) == "all") &&
                 meta->capsource != NULL) {
                 meta->capsource->SetPackparm(in_parm);
                 break;
@@ -866,6 +870,7 @@ void Packetsourcetracker::ChannelChildLoop() {
                 // Acknowledge
                 chanchild_packhdr *ackpak = new chanchild_packhdr;
 
+                memset(ackpak, 0, sizeof(chanchild_packhdr));
                 ackpak->sentinel = CHANSENTINEL;
                 ackpak->packtype = CHANPACK_CMDACK;
                 ackpak->flags = CHANFLAG_NONE;
@@ -922,6 +927,7 @@ void Packetsourcetracker::ChannelChildLoop() {
 Packetsourcetracker::chanchild_packhdr *Packetsourcetracker::CreateTextPacket(string in_text, int8_t in_flags) {
     chanchild_packhdr *ret = new chanchild_packhdr;
 
+    memset(ret, 0, sizeof(chanchild_packhdr));
     ret->sentinel = CHANSENTINEL;
     ret->packtype = CHANPACK_TEXT;
     ret->flags = in_flags;

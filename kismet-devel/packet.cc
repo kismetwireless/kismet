@@ -131,7 +131,7 @@ int GetTagOffset(int init_offset, int tagnum, kis_packet *packet,
 
     while (1) {
         // Are we over the packet length?
-        if (cur_offset > (uint8_t) packet->len) {
+        if (cur_offset >= (uint8_t) packet->len) {
             return -1;
         }
 
@@ -299,7 +299,8 @@ void GetPacketInfo(kis_packet *packet, packet_info *ret_packinfo,
             if (temp == 0) {
                 // do nothing for 0-length ssid's
             } else if (temp <= 32 && (tag_offset + 1 + temp) < (int) packet->len) {
-                snprintf(ret_packinfo->ssid, temp + 1, "%s", &packet->data[tag_offset+1]);
+                memcpy(ret_packinfo->ssid, &packet->data[tag_offset+1], temp);
+                ret_packinfo->ssid[temp] = '\0';
                 // Munge it down to printable characters... SSID's can be anything
                 // but if we can't print them it's not going to be very useful
                 MungeToPrintable(ret_packinfo->ssid, temp);

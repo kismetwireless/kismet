@@ -50,7 +50,12 @@ int RegisterKismetSources(Packetsourcetracker *sourcetracker) {
                                        monitor_cisco, NULL, NULL, 1);
     sourcetracker->RegisterPacketsource("cisco_wifix", 1, "IEEE80211b", 6,
                                        pcapsource_ciscowifix_registrant,
-                                       monitor_cisco_wifix, NULL, chancontrol_wext, 1);
+                                       monitor_cisco_wifix, NULL, NULL, 1);
+
+    sourcetracker->RegisterPacketsource("cisco_wext", 1, "IEEE80211b", 6,
+                                        pcapsource_ciscowifix_registrant,
+                                        monitor_wext, NULL, chancontrol_wext, 1);
+
     sourcetracker->RegisterPacketsource("hostap", 1, "IEEE80211b", 6,
                                        pcapsource_wext_registrant,
                                        monitor_hostap, NULL, chancontrol_wext, 1);
