@@ -255,9 +255,15 @@ int Wsp100Source::Wsp2Common(kis_packet *packet, uint8_t *data, uint8_t *moddata
 }
 
 void Wsp100Source::PokeSensor() {
-    uint32_t null_frame = TZSP_NULL_PACKET;
-    sendto(udp_sock, &null_frame, sizeof(null_frame), 0, (struct sockaddr *) &serv_sockaddr,
-           sizeof(struct sockaddr));
+    struct sockaddr_in poke_sockaddr;
+    uint8_t null_frame[4] = TZSP_NULL_PACKET;
+
+    memset(&poke_sockaddr, 0, sizeof(poke_sockaddr));
+    poke_sockaddr.sin_family = AF_INET;
+    poke_sockaddr.sin_addr.s_addr = filter_addr.s_addr;
+    poke_sockaddr.sin_port = htons(TZSP_PORT);
+    sendto(udp_sock, &null_frame, sizeof(null_frame), 0, (struct sockaddr *) &poke_sockaddr,
+           sizeof(poke_sockaddr));
 }
 
 int Wsp100Source::SetChannel(unsigned int chan) {
