@@ -63,6 +63,22 @@ int RegisterKismetSources(Packetsourcetracker *sourcetracker) {
     sourcetracker->RegisterPacketsource("vtar5k", 1, "IEEE80211a", 36,
                                        pcapsource_wext_registrant,
                                        monitor_vtar5k, NULL, chancontrol_wext);
+
+    sourcetracker->RegisterPacketsource("madwifi_a", 1, "IEEE80211a", 6,
+                                        pcapsource_wext_registrant,
+                                        monitor_madwifi_a, NULL, chancontrol_wext);
+    sourcetracker->RegisterPacketsource("madwifi_b", 1, "IEEE80211b", 6,
+                                        pcapsource_wext_registrant,
+                                        monitor_madwifi_b, NULL, chancontrol_wext);
+    sourcetracker->RegisterPacketsource("madwifi_g", 1, "IEEE80211g", 6,
+                                        pcapsource_madwifig_registrant,
+                                        monitor_madwifi_g, NULL, chancontrol_wext);
+    sourcetracker->RegisterPacketsource("madwifi_ab", 1, "IEEE80211ab", 6,
+                                        pcapsource_wext_registrant,
+                                        monitor_madwifi_comb, NULL, chancontrol_wext);
+    sourcetracker->RegisterPacketsource("madwifi_ag", 1, "IEEE80211ab", 6,
+                                        pcapsource_madwifig_registrant,
+                                        monitor_madwifi_comb, NULL, chancontrol_wext);
 #else
     // Register the linuxwireless pcap stuff as null
     REG_EMPTY_CARD(sourcetracker, "cisco");
@@ -71,6 +87,12 @@ int RegisterKismetSources(Packetsourcetracker *sourcetracker) {
     REG_EMPTY_CARD(sourcetracker, "orinoco");
     REG_EMPTY_CARD(sourcetracker, "acx100");
     REG_EMPTY_CARD(sourcetracker, "vtar5k");
+
+    REG_EMPTY_CARD(sourcetracker, "madwifi_a");
+    REG_EMPTY_CARD(sourcetracker, "madwifi_b");
+    REG_EMPTY_CARD(sourcetracker, "madwifi_g");
+    REG_EMPTY_CARD(sourcetracker, "madwifi_ab");
+    REG_EMPTY_CARD(sourcetracker, "madwifi_ag");
 #endif
 
 #if defined(HAVE_LIBPCAP) && defined(SYS_LINUX)

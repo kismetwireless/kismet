@@ -95,14 +95,15 @@ int Iwconfig_Blank_SSID(const char *in_dev, char *errstr) {
 // A return of -2 means no privctl found that matches, so that the caller
 // can return a more detailed failure message
 //
-// This DOES NOT handle sub-ioctls.  I've never seen them used.  If this
-// blows up some day on some driver, I'll fix it.
+// Code largely taken from wireless_tools
 int Iwconfig_Set_IntPriv(const char *in_dev, const char *privcmd, 
                          int val1, int val2, char *errstr) {
     struct iwreq wrq;
     int skfd;
     struct iw_priv_args priv[IW_MAX_PRIV_DEF];
     u_char buffer[4096];
+    int subcmd = 0;
+    int offset = 0;
 
     if ((skfd = socket(AF_INET, SOCK_DGRAM, 0)) < 0) {
         snprintf(errstr, STATUS_MAX, "Failed to create AF_INET DGRAM socket %d:%s", 
@@ -128,17 +129,42 @@ int Iwconfig_Set_IntPriv(const char *in_dev, const char *privcmd,
     while ((++pn < wrq.u.data.length) && strcmp(priv[pn].name, privcmd));
 
     if (pn == wrq.u.data.length) {
-        snprintf(errstr, STATUS_MAX, "Unable to find private ioctl '%s' %d:%s",
-                 privcmd, errno, strerror(errno));
+        snprintf(errstr, STATUS_MAX, "Unable to find private ioctl '%s'", privcmd);
         close(skfd);
         return -2;
+    }
+
+    // Find subcmds, as if this isn't ugly enough already
+    if (priv[pn].cmd < SIOCDEVPRIVATE) {
+        int j = -1;
+
+        while ((++j < wrq.u.data.length) && ((priv[j].name[0] != '\0') ||
+                                             (priv[j].set_args != priv[pn].set_args) ||
+                                             (priv[j].get_args != priv[pn].get_args)));
+        
+        if (j == wrq.u.data.length) {
+            snprintf(errstr, STATUS_MAX, "Unable to find subioctl '%s'", privcmd);
+            close(skfd);
+            return -2;
+        }
+
+        subcmd = priv[pn].cmd;
+        offset = sizeof(__u32);
+        pn = j;
     }
 
     // Make sure its an iwpriv we can set
     if (priv[pn].set_args & IW_PRIV_TYPE_MASK == 0 ||
         priv[pn].set_args & IW_PRIV_SIZE_MASK == 0) {
-        snprintf(errstr, STATUS_MAX, "Unable to set values for private ioctl '%s'", privcmd);
+        snprintf(errstr, STATUS_MAX, "Unable to set values for private ioctl '%s'", 
+                 privcmd);
         close(skfd);
+        return -1;
+    }
+  
+    if ((priv[pn].set_args & IW_PRIV_TYPE_MASK) != IW_PRIV_TYPE_INT) {
+        snprintf(errstr, STATUS_MAX, "'%s' does not accept integer parameters.",
+                 privcmd);
         return -1;
     }
     
@@ -164,8 +190,10 @@ int Iwconfig_Set_IntPriv(const char *in_dev, const char *privcmd,
     // This is also simplified from what iwpriv.c does, because we don't
     // need to worry about get-no-set ioctls
     if ((priv[pn].set_args & IW_PRIV_SIZE_FIXED) &&
-        ((sizeof(__u32) * nargs) <= IFNAMSIZ)) {
-        memcpy(wrq.u.name, buffer, IFNAMSIZ);
+        ((sizeof(__u32) * nargs) + offset <= IFNAMSIZ)) {
+        if (offset)
+            wrq.u.mode = subcmd;
+        memcpy(wrq.u.name + offset, buffer, IFNAMSIZ - offset);
     } else {
         wrq.u.data.pointer = (caddr_t) buffer;
         wrq.u.data.flags = 0;
