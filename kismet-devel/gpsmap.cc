@@ -2414,7 +2414,7 @@ int main(int argc, char *argv[]) {
     };
     int option_index;
 
-    bool usermap = false, useroutmap = false;
+    bool usermap = false, useroutmap = false, filemap = false;
 
     power_steps = power_steps_Math;
     power_colors = powercolors_Math;
@@ -2914,12 +2914,14 @@ int main(int argc, char *argv[]) {
         printf("Loading map into Imagemagick structures.\n");
         strcpy(img_info->filename, mapname);
         img = ReadImage(img_info, &im_exception);
-    }
 
-    if (img == (Image *) NULL) {
-        fprintf(stderr, "FATAL:  ImageMagick error:\n");
-        MagickError(im_exception.severity, im_exception.reason, im_exception.description);
-        exit(0);
+        if (img == (Image *) NULL) {
+            fprintf(stderr, "FATAL:  ImageMagick error:\n");
+            MagickError(im_exception.severity, im_exception.reason, im_exception.description);
+            exit(0);
+        }
+    } else {
+        filemap = true;
     }
 
     strcpy(img_info->filename, mapoutname);
@@ -3022,7 +3024,7 @@ int main(int argc, char *argv[]) {
     delete[] mapthread;
 #endif
 
-    if (!keep_gif && !usermap) {
+    if (!keep_gif && !usermap && !filemap) {
         fprintf(stderr, "Unlinking downloaded map.\n");
         unlink(mapname);
     }
