@@ -1,3 +1,5 @@
+Dec 29 2002  2.8.0a Released 2.8.0a with minor bugfixes and updates.
+
 Dec 29 2002  2.9.0  Fixed default Zaurus config
                     Added unlinking of kismet_curses to the install target
 Dec 28 2002  2.9.0  Fixed silly error in kismet_monitor script
