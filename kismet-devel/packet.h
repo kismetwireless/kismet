@@ -79,6 +79,15 @@ extern "C" {
                                (uint32_t) * ((uint8_t *)(p) + 2) << 8 | \
                                (uint32_t) * ((uint8_t *)(p) + 3) << 0)
 
+#define kptoh64(p) (uint64_t) ((uint64_t) * ((uint8_t *)(p) + 7) << 56 | \
+                               (uint64_t) * ((uint8_t *)(p) + 6) << 48 | \
+                               (uint64_t) * ((uint8_t *)(p) + 5) << 40 | \
+                               (uint64_t) * ((uint8_t *)(p) + 4) << 32 | \
+                               (uint64_t) * ((uint8_t *)(p) + 3) << 24 | \
+                               (uint64_t) * ((uint8_t *)(p) + 2) << 16 | \
+                               (uint64_t) * ((uint8_t *)(p) + 1) << 8 | \
+                               (uint64_t) * ((uint8_t *)(p) + 0) << 0)
+
 // Inline converters
 #ifdef WORDS_BIGENDIAN
 #define ktoh16(x) ((uint16_t) \
@@ -540,6 +549,7 @@ typedef struct {
 
     double maxrate;
 
+    uint64_t timestamp;
     int sequence_number;
     int frag_number;
 
