@@ -1,0 +1,39 @@
+.Dd July 2002
+.Dt KISMET_HOPPER 1
+.Os "Kismet"
+.Sh NAME
+.Nm kismet_hopper
+.Nd Wireless sniffing and monitoring
+.Sh SYNOPSIS
+.Ar kismet_hopper
+.Op Fl hn
+.Op Fl f Ar file
+.Op Fl i Ar dev
+.Op Fl t Ar type
+.Op Fl s Ar hop-sequence
+.Op Fl v Ar velocity
+.Sh DESCRIPTION
+kismet_hopper is a component of kismet
+which changes the channel a wireless card is tuned to several times a second to
+enable monitoring across all of the channels in 802.11b.
+.Sh OPTIONS
+.Bl -tag -width flag
+.It Fl f
+Use an alternate config file
+.It Fl i
+Use an alternate interface
+.It Fl t
+Use an alternate card type
+.It Fl n
+Use international channels (1-14) instead of US channels (1-12)
+.It Fl s
+Use a custom hop sequence instead of the default.  When making a hop sequence, 
+remember that ajacent channels overlap.
+.It Fl v
+Use a custom hop velocity (channels per second).  Many cards exhibit problems under
+high hop velocities.
+.It Fl h
+Help
+.El
+.Sh SEE ALSO
+kismet.conf(5), kismet_ui.conf(5), gpsmap(1), kismet(1), kismet_monitor(1)
