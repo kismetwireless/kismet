@@ -908,4 +908,22 @@ Licensed under the GPL
        slip past.
        There isn't a really good solution to this, but you can turn on the
        'autogroup_data' option in kismet_ui.conf to make them less intrusive.
+
+    Q: What are the signal and noise levels measured in?
+    A: Depends on the drivers.  Firmware.  Modes.  In other words, who knows.
+       Most cards and drivers don't do very well measuring signal levels in 
+       rfmon.  Some, like Cisco, don't even give us a per-packet signal level.
+       To make matters worse, signal levels are often quite binary - rarely
+       will a signal dwindle to 10 or 20 as you tavel away from the source.
+       Beyond a certian point the radio is unable to assemble a packet out of 
+       the weak signal, and it will simply dissapear.
+       Generally speaking, a signal level of 200 is better than a signal level
+       of 100, but individually the numbers don't have much relevance.  They
+       can be useful for coloring the maps as "better" and "worse", but thats
+       about the most you should use them for.
+
+    Q: What happens when I ask a question thats already answered here?
+    A: I'll probably be rude to you and tell you go to go read the docs. 
+       But of course everyone already read the docs all the way to the end,
+       right?
        
