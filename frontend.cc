@@ -32,8 +32,9 @@ void Frontend::PopulateGroups() {
 
         // Handle networks tagged for removal
         if (net->type == network_remove) {
-            if (group_assignment_map.find(net->bssid) != group_assignment_map.end()) {
-                display_network *ganet = group_assignment_map[net->bssid];
+            map<mac_addr, display_network *>::iterator gamitr = group_assignment_map.find(net->bssid);
+            if (gamitr != group_assignment_map.end()) {
+                display_network *ganet = gamitr->second;
 
                 // Otherwise we have to unlink it and track it down
                 for (unsigned int y = 0; y < ganet->networks.size(); y++) {
@@ -71,8 +72,9 @@ void Frontend::PopulateGroups() {
         string grouptag;
 
         // If they haven't been assigned, see if they belong to a group we know about
-        if (bssid_group_map.find(net->bssid) != bssid_group_map.end()) {
-            grouptag = bssid_group_map[net->bssid];
+        map<mac_addr, string>::iterator bsgmitr = bssid_group_map.find(net->bssid);
+        if (bsgmitr != bssid_group_map.end()) {
+            grouptag = bsgmitr->second;
 
             // And see if the group has been created
             if (group_tag_map.find(grouptag) == group_tag_map.end())
@@ -90,8 +92,9 @@ void Frontend::PopulateGroups() {
         if (newgroup) {
             group = new display_network;
 
-            if (group_name_map.find(grouptag) != group_name_map.end()) {
-                group->name = group_name_map[grouptag];
+            map<string, string>::iterator gnmitr = group_name_map.find(grouptag);
+            if (gnmitr != group_name_map.end()) {
+                group->name = gnmitr->second;
             } else {
                 group->name = net->ssid;
                 group_name_map[grouptag] = net->ssid;
