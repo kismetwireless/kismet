@@ -261,6 +261,14 @@ void GetPacketInfo(kis_packet *packet, packet_info *ret_packinfo,
 
         ret_packinfo->distrib = no_distribution;
 
+        // Throw away large management frames that don't make any sense.  512b is 
+        // an arbitrary number to pick, but this should keep some drivers from messing
+        // with us
+        if (packet->caplen > 512) {
+            ret_packinfo->corrupt = 1;
+            return;
+        }
+
         // Short handling of probe reqs since they don't have a fixed parameters
         // field
         fixed_parameters *fixparm;
@@ -450,6 +458,13 @@ void GetPacketInfo(kis_packet *packet, packet_info *ret_packinfo,
 
     } else if (fc->type == 1) {
         ret_packinfo->type = packet_phy;
+
+        // Throw away large phy packets just like we throw away large management.
+        // Phy stuff is all really small, so we set the limit smaller.
+        if (packet->caplen > 128) {
+            ret_packinfo->corrupt = 1;
+            return;
+        }
 
         ret_packinfo->distrib = no_distribution;
 
