@@ -435,7 +435,8 @@ int IMStringWidth(const char *psztext, Image *in_img, DrawInfo *in_di) {
     GetExceptionInfo(&ex);
     if (!GetTypeMetrics(in_img, in_di, &metrics)) {
         GetImageException(in_img, &ex);
-        fprintf(stderr, "stringwidth... %s %s\n", ex.reason, ex.description);
+        fprintf(stderr, "stringheight.. %s %s\n", ex.reason, ex.description);
+        return 0;
     }
 
     in_di->text = NULL;
@@ -452,6 +453,7 @@ int IMStringHeight(const char *psztext, Image *in_img, DrawInfo *in_di) {
     if (!GetTypeMetrics(in_img, in_di, &metrics)) {
         GetImageException(in_img, &ex);
         fprintf(stderr, "stringwidth... %s %s\n", ex.reason, ex.description);
+        return 0;
     }
 
     in_di->text = NULL;
@@ -714,13 +716,14 @@ int ProcessGPSFile(char *in_fname) {
 #else
     file_points = XMLFetchGpsList(gpsf);
 #endif
-    if (file_points.size() == 0) {
+    file_samples = file_points.size();
+
+    if (file_samples == 0) {
         fprintf(stderr, "WARNING:  No sample points found in '%s'.\n", in_fname);
+        return 0;
     }
 
     // We handle the points themselves after we handle the network component
-
-    file_samples = file_points.size();
 
 #ifdef HAVE_LIBZ
     gzclose(gpsfz);
@@ -741,11 +744,14 @@ int ProcessGPSFile(char *in_fname) {
     string comp;
 
     if ((comp = XMLFetchGpsNetfile()) != "") {
-        fprintf(stderr, "NOTICE:  Reading associated network file, '%s'\n", XMLFetchGpsNetfile().c_str());
+        if (verbose)
+            fprintf(stderr, "NOTICE:  Reading associated network file, '%s'\n", 
+                    XMLFetchGpsNetfile().c_str());
 #ifdef HAVE_LIBZ
         if ((gpsfz = gzopen(XMLFetchGpsNetfile().c_str(), "r")) == NULL) {
-            fprintf(stderr, "WARNING:  Could not open associated network xml file '%s'.\n",
-                    XMLFetchGpsNetfile().c_str());
+            if (verbose)
+                fprintf(stderr, "WARNING:  Could not open associated network "
+                        "xml file '%s'.\n", XMLFetchGpsNetfile().c_str());
         } else {
             foundnetfile = 1;
         }
@@ -757,8 +763,9 @@ int ProcessGPSFile(char *in_fname) {
             comp += ".gz";
 
             if ((gpsfz = gzopen(comp.c_str(), "r")) == NULL) {
-                fprintf(stderr, "WARNING:  Could not open compressed network xml file '%s'\n",
-                        comp.c_str());
+                if (verbose)
+                    fprintf(stderr, "WARNING:  Could not open compressed network "
+                            "xml file '%s'\n", comp.c_str());
             } else {
                 foundnetfile = 1;
             }
@@ -793,8 +800,9 @@ int ProcessGPSFile(char *in_fname) {
 
             if (comp != origxmlfile) {
                 if ((gpsfz = gzopen(comp.c_str(), "r")) == NULL) {
-                    fprintf(stderr, "WARNING:  Could not open network xml file relocated to %s\n",
-                            comp.c_str());
+                    if (verbose)
+                        fprintf(stderr, "WARNING:  Could not open network xml file "
+                                "relocated to %s\n", comp.c_str());
                 } else {
                     foundnetfile = 1;
                 }
@@ -803,8 +811,10 @@ int ProcessGPSFile(char *in_fname) {
                 if (foundnetfile == 0) {
                     comp += ".gz";
                     if ((gpsfz = gzopen(comp.c_str(), "r")) == NULL) {
-                        fprintf(stderr, "WARNING:  Could not open compressed network xml file relocated to %s\n",
-                                comp.c_str());
+                        if (verbose)
+                            fprintf(stderr, "WARNING:  Could not open compressed "
+                                    "network xml file relocated to %s\n",
+                                    comp.c_str());
                     } else {
                         foundnetfile = 1;
                     }
@@ -814,8 +824,9 @@ int ProcessGPSFile(char *in_fname) {
 
 #else
         if ((gpsf = fopen(XMLFetchGpsNetfile().c_str(), "r")) == NULL) {
-            fprintf(stderr, "WARNING:  Could not open associated network xml file '%s'\n",
-                    XMLFetchGpsNetfile().c_str());
+            if (verbose)
+                fprintf(stderr, "WARNING:  Could not open associated network "
+                        "xml file '%s'\n", XMLFetchGpsNetfile().c_str());
         } else {
             foundnetfile = 1;
         }
@@ -851,8 +862,9 @@ int ProcessGPSFile(char *in_fname) {
 
             if (comp != origxmlfile) {
                 if ((gpsf = fopen(comp.c_str(), "r")) == NULL) {
-                    fprintf(stderr, "WARNING:  Could not open network xml file relocated to %s\n",
-                            comp.c_str());
+                    if (verbose)
+                        fprintf(stderr, "WARNING:  Could not open network xml file "
+                                "relocated to %s\n", comp.c_str());
                 } else {
                     foundnetfile = 1;
                 }
@@ -863,9 +875,11 @@ int ProcessGPSFile(char *in_fname) {
 #endif
 
         if (foundnetfile) {
-            fprintf(stderr, "NOTICE:  Opened associated network xml file '%s'\n", comp.c_str());
+            fprintf(stderr, "NOTICE:  Opened associated network xml file '%s'\n", 
+                    comp.c_str());
 
-            fprintf(stderr, "NOTICE:  Processing network XML file.\n");
+            if (verbose)
+                fprintf(stderr, "NOTICE:  Processing network XML file.\n");
 
             vector<wireless_network *> file_networks;
 #ifdef HAVE_LIBZ
@@ -901,13 +915,17 @@ int ProcessGPSFile(char *in_fname) {
     }
     
     // Sanitize the data and build the map of points we don't look at
-    fprintf(stderr, "NOTICE:  Sanitizing %d sample points...\n", file_points.size());
+    if (verbose)
+        fprintf(stderr, "NOTICE:  Sanitizing %d sample points...\n", 
+                file_points.size());
     SanitizeSamplePoints(file_points, &file_screen);
 
     for (unsigned int i = 0; i < file_points.size(); i++) {
         if (file_screen.find(file_points[i]->id) != file_screen.end()) {
-            fprintf(stderr, "Removing invalid point %f,%f id %d from consideration...\n",
-                    file_points[i]->lat, file_points[i]->lon, file_points[i]->id);
+            if (verbose)
+                fprintf(stderr, "Removing invalid point %f,%f id %d from "
+                        "consideration...\n", file_points[i]->lat, 
+                        file_points[i]->lon, file_points[i]->id);
             continue;
         }
 
@@ -1063,7 +1081,7 @@ void ProcessNetData(int in_printstats) {
         }
     }
 
-    printf("Processing %d networks.\n", (int) bssid_gpsnet_map.size());
+    printf("Processing %d raw networks.\n", (int) bssid_gpsnet_map.size());
 
     for (map<string, gps_network *>::const_iterator x = bssid_gpsnet_map.begin();
          x != bssid_gpsnet_map.end(); ++x) {
@@ -1127,8 +1145,8 @@ void ProcessNetData(int in_printstats) {
         map_iter->avg_spd = avg_spd;
 
         if ((map_iter->diagonal_distance * 3.3) > (20 * 5280))
-            printf("WARNING:  Network %s [%s] has range greater than 20 miles, this may be a glitch "
-                   "you want to filter.\n", 
+            printf("WARNING:  Network %s [%s] has range greater than 20 miles, this "
+                   "may be a glitch you want to filter.\n", 
                    map_iter->wnet == NULL ? "Unknown" : map_iter->wnet->ssid.c_str(),
                    map_iter->bssid.c_str());
         

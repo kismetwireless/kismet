@@ -39,6 +39,9 @@
 
 #define BUFFSIZE    8192
 
+// Defined in gpsmap.cc
+extern int verbose;
+
 // Reading buffer
 char Buff[BUFFSIZE];
 
@@ -163,14 +166,16 @@ int NetXmlStr2Struct(wireless_network *in_net) {
         in_net->ssid = xmlstrnodes[net_node_wn_SSID];
 
     if (XMLIsBlank(xmlstrnodes[net_node_wn_BSSID])) {
-        fprintf(stderr, "WARNING:  Invalid (blank) BSSID, rest of network will not be processed.\n");
+        if (verbose)
+            fprintf(stderr, "WARNING:  Invalid (blank) BSSID, rest of network will not be processed.\n");
         return -1;
     } else {
         in_net->bssid = xmlstrnodes[net_node_wn_BSSID].c_str();
 
         if (in_net->bssid.longmac == 0) {
-            fprintf(stderr, "WARNING:  Illegal BSSID '%s', skipping rest of network.\n",
-                    xmlstrnodes[net_node_wn_BSSID].c_str());
+            if (verbose)
+                fprintf(stderr, "WARNING:  Illegal BSSID '%s', skipping rest of network.\n",
+                        xmlstrnodes[net_node_wn_BSSID].c_str());
             return -1;
         }
     }
@@ -181,95 +186,110 @@ int NetXmlStr2Struct(wireless_network *in_net) {
         in_net->beacon_info = xmlstrnodes[net_node_wn_info];
 
     if (sscanf(xmlstrnodes[net_node_wn_channel].c_str(), "%d", &in_net->channel) < 1) {
-        fprintf(stderr, "WARNING:  Illegal channel '%s', skipping rest of network.\n",
-                xmlstrnodes[net_node_wn_channel].c_str());
+        if (verbose)
+            fprintf(stderr, "WARNING:  Illegal channel '%s', skipping rest of network.\n",
+                    xmlstrnodes[net_node_wn_channel].c_str());
         return -1;
     }
 
     if (sscanf(xmlstrnodes[net_node_wn_maxrate].c_str(), "%f", (float *) &in_net->maxrate) < 1) {
-        fprintf(stderr, "WARNING:  Illegal maxrate '%s', skipping rest of network.\n",
-                xmlstrnodes[net_node_wn_maxrate].c_str());
+        if (verbose)
+            fprintf(stderr, "WARNING:  Illegal maxrate '%s', skipping rest of network.\n",
+                    xmlstrnodes[net_node_wn_maxrate].c_str());
         return -1;
     }
 
     if (sscanf(xmlstrnodes[net_node_pk_LLC].c_str(), "%d", &in_net->llc_packets) < 1) {
-        fprintf(stderr, "WARNING:  Illegal LLC packet count '%s', skipping rest of network.\n",
-                xmlstrnodes[net_node_pk_LLC].c_str());
+        if (verbose)
+            fprintf(stderr, "WARNING:  Illegal LLC packet count '%s', skipping rest of network.\n",
+                    xmlstrnodes[net_node_pk_LLC].c_str());
         return -1;
     }
 
     if (sscanf(xmlstrnodes[net_node_pk_data].c_str(), "%d", &in_net->data_packets) < 1) {
-        fprintf(stderr, "WARNING:  Illegal data packet count '%s', skipping rest of network.\n",
-                xmlstrnodes[net_node_pk_data].c_str());
+        if (verbose)
+            fprintf(stderr, "WARNING:  Illegal data packet count '%s', skipping rest of network.\n",
+                    xmlstrnodes[net_node_pk_data].c_str());
         return -1;
     }
 
     if (sscanf(xmlstrnodes[net_node_pk_crypt].c_str(), "%d", &in_net->crypt_packets) < 1) {
-        fprintf(stderr, "WARNING:  Illegal crypt packet count '%s', skipping rest of network.\n",
-                xmlstrnodes[net_node_pk_crypt].c_str());
+        if (verbose)
+            fprintf(stderr, "WARNING:  Illegal crypt packet count '%s', skipping rest of network.\n",
+                    xmlstrnodes[net_node_pk_crypt].c_str());
         return -1;
     }
 
     if (sscanf(xmlstrnodes[net_node_pk_weak].c_str(), "%d", &in_net->interesting_packets) < 1) {
-        fprintf(stderr, "WARNING:  Illegal weak packet count '%s', skipping rest of network.\n",
-                xmlstrnodes[net_node_pk_weak].c_str());
+        if (verbose)
+            fprintf(stderr, "WARNING:  Illegal weak packet count '%s', skipping rest of network.\n",
+                    xmlstrnodes[net_node_pk_weak].c_str());
         return -1;
     }
 
     if (xmlstrnodes[net_node_pk_dupeiv].length() > 0) {
         if (sscanf(xmlstrnodes[net_node_pk_dupeiv].c_str(), "%d", &in_net->dupeiv_packets) < 1) {
-            fprintf(stderr, "WARNING:  Illegal dupeiv packet count '%s', skipping rest of network.\n",
-                    xmlstrnodes[net_node_pk_dupeiv].c_str());
+            if (verbose)
+                fprintf(stderr, "WARNING:  Illegal dupeiv packet count '%s', skipping rest of network.\n",
+                        xmlstrnodes[net_node_pk_dupeiv].c_str());
             return -1;
         }
     }
 
     if (in_net->gps_fixed && xmlstrnodes[net_node_gps_min_lat] != "") {
         if (sscanf(xmlstrnodes[net_node_gps_min_lat].c_str(), "%f", &in_net->min_lat) < 1) {
-            fprintf(stderr, "WARNING:  Illegal min lat '%s', skipping rest of network.\n",
-                    xmlstrnodes[net_node_gps_min_lat].c_str());
+            if (verbose)
+                fprintf(stderr, "WARNING:  Illegal min lat '%s', skipping rest of network.\n",
+                        xmlstrnodes[net_node_gps_min_lat].c_str());
             return -1;
         }
 
         if (sscanf(xmlstrnodes[net_node_gps_max_lat].c_str(), "%f", &in_net->max_lat) < 1) {
-            fprintf(stderr, "WARNING:  Illegal max lat '%s', skipping rest of network.\n",
-                    xmlstrnodes[net_node_gps_max_lat].c_str());
+            if (verbose)
+                fprintf(stderr, "WARNING:  Illegal max lat '%s', skipping rest of network.\n",
+                        xmlstrnodes[net_node_gps_max_lat].c_str());
             return -1;
         }
 
         if (sscanf(xmlstrnodes[net_node_gps_min_lon].c_str(), "%f", &in_net->min_lon) < 1) {
-            fprintf(stderr, "WARNING:  Illegal min lon '%s', skipping rest of network.\n",
-                    xmlstrnodes[net_node_gps_min_lon].c_str());
+            if (verbose)
+                fprintf(stderr, "WARNING:  Illegal min lon '%s', skipping rest of network.\n",
+                        xmlstrnodes[net_node_gps_min_lon].c_str());
             return -1;
         }
 
         if (sscanf(xmlstrnodes[net_node_gps_max_lon].c_str(), "%f", &in_net->max_lon) < 1) {
-            fprintf(stderr, "WARNING:  Illegal max lon '%s', skipping rest of network.\n",
-                    xmlstrnodes[net_node_gps_max_lon].c_str());
+            if (verbose)
+                fprintf(stderr, "WARNING:  Illegal max lon '%s', skipping rest of network.\n",
+                        xmlstrnodes[net_node_gps_max_lon].c_str());
             return -1;
         }
 
         if (sscanf(xmlstrnodes[net_node_gps_min_alt].c_str(), "%f", &in_net->min_alt) < 1) {
-            fprintf(stderr, "WARNING:  Illegal min alt '%s', skipping rest of network.\n",
-                    xmlstrnodes[net_node_gps_min_alt].c_str());
+            if (verbose)
+                fprintf(stderr, "WARNING:  Illegal min alt '%s', skipping rest of network.\n",
+                        xmlstrnodes[net_node_gps_min_alt].c_str());
             return -1;
         }
 
         if (sscanf(xmlstrnodes[net_node_gps_max_alt].c_str(), "%f", &in_net->max_alt) < 1) {
-            fprintf(stderr, "WARNING:  Illegal max alt '%s', skipping rest of network.\n",
-                    xmlstrnodes[net_node_gps_max_alt].c_str());
+            if (verbose)
+                fprintf(stderr, "WARNING:  Illegal max alt '%s', skipping rest of network.\n",
+                        xmlstrnodes[net_node_gps_max_alt].c_str());
             return -1;
         }
 
         if (sscanf(xmlstrnodes[net_node_gps_min_spd].c_str(), "%f", &in_net->min_spd) < 1) {
-            fprintf(stderr, "WARNING:  Illegal min spd in '%s', skipping rest of network.\n",
-                    xmlstrnodes[net_node_gps_min_spd].c_str());
+            if (verbose)
+                fprintf(stderr, "WARNING:  Illegal min spd in '%s', skipping rest of network.\n",
+                        xmlstrnodes[net_node_gps_min_spd].c_str());
             return -1;
         }
 
         if (sscanf(xmlstrnodes[net_node_gps_max_spd].c_str(), "%f", &in_net->max_spd) < 1) {
-            fprintf(stderr, "WARNING:  Illegal max spd in '%s', skipping test of network.\n",
-                    xmlstrnodes[net_node_gps_max_spd].c_str());
+            if (verbose)
+                fprintf(stderr, "WARNING:  Illegal max spd in '%s', skipping test of network.\n",
+                        xmlstrnodes[net_node_gps_max_spd].c_str());
             return -1;
         }
     }
@@ -280,8 +300,9 @@ int NetXmlStr2Struct(wireless_network *in_net) {
         short int ip[4];
         if (sscanf(xmlstrnodes[net_node_ip_range].c_str(), "%hd.%hd.%hd.%hd",
                    &ip[0], &ip[1], &ip[2], &ip[3]) < 4) {
-            fprintf(stderr, "WARNING:  Illegal ip-range '%s', skipping rest of network.\n",
-                    xmlstrnodes[net_node_ip_range].c_str());
+            if (verbose)
+                fprintf(stderr, "WARNING:  Illegal ip-range '%s', skipping rest of network.\n",
+                        xmlstrnodes[net_node_ip_range].c_str());
             return -1;
         }
 
@@ -299,7 +320,8 @@ int NetXmlStr2Struct(wireless_network *in_net) {
 int NetXmlCisco2Struct(wireless_network *in_net, cdp_packet *in_cdp) {
 
     if (XMLIsBlank(xmlstrnodes[net_node_cdp_device_id])) {
-        fprintf(stderr, "WARNING:  Blank cdp device-id\n");
+        if (verbose)
+            fprintf(stderr, "WARNING:  Blank cdp device-id\n");
     }
 
     snprintf(in_cdp->dev_id, 128, "%s", xmlstrnodes[net_node_cdp_device_id].c_str());
@@ -315,8 +337,9 @@ int NetXmlCisco2Struct(wireless_network *in_net, cdp_packet *in_cdp) {
         if (sscanf(xmlstrnodes[net_node_cdp_ip].c_str(), "%d.%d.%d.%d",
                    (unsigned int *) &in_cdp->ip[0], (unsigned int *) &in_cdp->ip[1],
                    (unsigned int *) &in_cdp->ip[2], (unsigned int *) &in_cdp->ip[3]) < 4) {
-            fprintf(stderr, "WARNING:  Illegal cdp-ip '%s', skipping rest of network.\n",
-                    xmlstrnodes[net_node_cdp_ip].c_str());
+            if (verbose)
+                fprintf(stderr, "WARNING:  Illegal cdp-ip '%s', skipping rest of network.\n",
+                        xmlstrnodes[net_node_cdp_ip].c_str());
             return -1;
         }
     }
@@ -773,7 +796,7 @@ vector<wireless_network *> XMLFetchNetworkList(FILE *in_file) {
 #endif
 
         if (! XML_Parse(p, Buff, len, done)) {
-            fprintf(stderr, "Parse error at line %d:\n%s\n",
+            fprintf(stderr, "Parse error at line %d: %s\n",
                     XML_GetCurrentLineNumber(p),
                     XML_ErrorString(XML_GetErrorCode(p)));
             return netvec;
@@ -853,66 +876,81 @@ static void xpat_gps_start(void *data, const char *el, const char **attr) {
             for (int i = 0; attr[i]; i += 2) {
                 if (strcasecmp(attr[i], "bssid") == 0) {
                     if (sscanf(attr[i+1], "%s", building_point->bssid) < 1)
-                        fprintf(stderr, "WARNING:  Illegal value '%s' on gps-point bssid\n",
+                        if (verbose)
+                            fprintf(stderr, "WARNING:  Illegal value '%s' on gps-point bssid\n",
                                 attr[i+1]);
                 } else if (strcasecmp(attr[i], "source") == 0) {
                     if (sscanf(attr[i+1], "%s", building_point->source) < 1)
-                        fprintf(stderr, "WARNING:  Illegal value '%s' on gps-point source\n",
+                        if (verbose)
+                            fprintf(stderr, "WARNING:  Illegal value '%s' on gps-point source\n",
                                 attr[i+1]);
                 } else if (strcasecmp(attr[i], "time-sec") == 0) {
                     if (sscanf(attr[i+1], "%ld", &building_point->tv_sec) < 1)
-                        fprintf(stderr, "WARNING:  Illegal value '%s' on gps-point time-sec\n",
-                                attr[i+1]);
+                        if (verbose)
+                            fprintf(stderr, "WARNING:  Illegal value '%s' on gps-point time-sec\n",
+                                    attr[i+1]);
                 } else if (strcasecmp(attr[i], "time-usec") == 0) {
                     if (sscanf(attr[i+1], "%ld", &building_point->tv_usec) < 1)
-                        fprintf(stderr, "WARNING:  Illegal value '%s' on gps-point time-usec\n",
-                                attr[i+1]);
+                        if (verbose)
+                            fprintf(stderr, "WARNING:  Illegal value '%s' on gps-point time-usec\n",
+                                    attr[i+1]);
                 } else if (strcasecmp(attr[i], "lat") == 0) {
                     if (sscanf(attr[i+1], "%f", &building_point->lat) < 1)
-                        fprintf(stderr, "WARNING:  Illegal value '%s' on gps-point lat\n",
-                                attr[i+1]);
+                        if (verbose)
+                            fprintf(stderr, "WARNING:  Illegal value '%s' on gps-point lat\n",
+                                    attr[i+1]);
                     if (building_point->lat < -180 || building_point->lat > 180) {
-                        fprintf(stderr, "WARNING:  Illegal numerical lat '%f' on gps-point, skipping.\n",
-                                building_point->lat);
+                        if (verbose)
+                            fprintf(stderr, "WARNING:  Illegal numerical lat '%f' on gps-point, skipping.\n",
+                                    building_point->lat);
                         building_point_valid = 0;
                     }
                 } else if (strcasecmp(attr[i], "lon") == 0) {
                     if (sscanf(attr[i+1], "%f", &building_point->lon) < 1)
-                        fprintf(stderr, "WARNING:  Illegal value '%s' on gps-point lon\n",
-                                attr[i+1]);
+                        if (verbose)
+                            fprintf(stderr, "WARNING:  Illegal value '%s' on gps-point lon\n",
+                                    attr[i+1]);
                     if (building_point->lon < -180 || building_point->lon > 180) {
-                        fprintf(stderr, "WARNING:  Illegal numerical lon '%f' on gps-point, skipping.\n",
-                                building_point->lon);
+                        if (verbose)
+                            fprintf(stderr, "WARNING:  Illegal numerical lon '%f' on gps-point, skipping.\n",
+                                    building_point->lon);
                         building_point_valid = 0;
                     }
                 } else if (strcasecmp(attr[i], "alt") == 0) {
                     if (sscanf(attr[i+1], "%f", &building_point->alt) < 1)
-                        fprintf(stderr, "WARNING:  Illegal value '%s' on gps-point alt\n",
-                                attr[i+1]);
+                        if (verbose)
+                            fprintf(stderr, "WARNING:  Illegal value '%s' on gps-point alt\n",
+                                    attr[i+1]);
                 } else if (strcasecmp(attr[i], "heading") == 0) {
                     if (sscanf(attr[i+1], "%f", &building_point->heading) < 1)
-                        fprintf(stderr, "WARNING:  Illegal value '%s' on gps-point heading\n",
-                                attr[i+1]);
+                        if (verbose)
+                            fprintf(stderr, "WARNING:  Illegal value '%s' on gps-point heading\n",
+                                    attr[i+1]);
                 } else if (strcasecmp(attr[i], "spd") == 0) {
                     if (sscanf(attr[i+1], "%f", &building_point->spd) < 1)
-                        fprintf(stderr, "WARNING:  Illegal value '%s' on gps-point spd\n",
-                                attr[i+1]);
+                        if (verbose)
+                            fprintf(stderr, "WARNING:  Illegal value '%s' on gps-point spd\n",
+                                    attr[i+1]);
                 } else if (strcasecmp(attr[i], "fix") == 0) {
                     if (sscanf(attr[i+1], "%d", &building_point->fix) < 1)
-                        fprintf(stderr, "WARNING:  Illegal value '%s' on gps-point fix\n",
-                                attr[i+1]);
+                        if (verbose)
+                            fprintf(stderr, "WARNING:  Illegal value '%s' on gps-point fix\n",
+                                    attr[i+1]);
                 } else if (strcasecmp(attr[i], "signal") == 0) {
                     if (sscanf(attr[i+1], "%d", &building_point->signal) < 1)
-                        fprintf(stderr, "WARNING:  Illegal value '%s' on gps-point signal\n",
-                                attr[i+1]);
+                        if (verbose)
+                            fprintf(stderr, "WARNING:  Illegal value '%s' on gps-point signal\n",
+                                    attr[i+1]);
                 } else if (strcasecmp(attr[i], "quality") == 0) {
                     if (sscanf(attr[i+1], "%d", &building_point->quality) < 1)
-                        fprintf(stderr, "WARNING:  Illegal value '%s' on gps-point quality\n",
-                                attr[i+1]);
+                        if (verbose)
+                            fprintf(stderr, "WARNING:  Illegal value '%s' on gps-point quality\n",
+                                    attr[i+1]);
                 } else if (strcasecmp(attr[i], "noise") == 0) {
                     if (sscanf(attr[i+1], "%d", &building_point->noise) < 1)
-                        fprintf(stderr, "WARNING:  Illegal value '%s' on gps-point noise\n",
-                                attr[i+1]);
+                        if (verbose)
+                            fprintf(stderr, "WARNING:  Illegal value '%s' on gps-point noise\n",
+                                    attr[i+1]);
                 } else {
                     fprintf(stderr, "WARNING:  Illegal attribute '%s' on gps-point\n",
                             attr[i]);
@@ -1002,7 +1040,7 @@ vector<gps_point *> XMLFetchGpsList(FILE *in_file) {
 #endif
 
         if (! XML_Parse(p, Buff, len, done)) {
-            fprintf(stderr, "WARNING: Parse error at line %d:\n%s\n",
+            fprintf(stderr, "WARNING: Parse error at line %d: %s\n",
                     XML_GetCurrentLineNumber(p),
                     XML_ErrorString(XML_GetErrorCode(p)));
             return ptvec;
