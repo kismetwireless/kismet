@@ -26,22 +26,3 @@
 // Instance of the time tracker
 Timetracker timetracker;
 
-vector<ALERT_data *> pending_alerts;
-vector<ALERT_data *> past_alerts;
-
-void QueueAlert(const char *in_alert) {
-    ALERT_data *adata = new ALERT_data;
-    char tmpstr[128];
-    timeval ts;
-    gettimeofday(&ts, NULL);
-
-    snprintf(tmpstr, 128, "%ld", (long int) ts.tv_sec);
-    adata->sec = tmpstr;
-
-    snprintf(tmpstr, 128, "%ld", (long int) ts.tv_usec);
-    adata->usec = tmpstr;
-
-    adata->text = in_alert;
-
-    pending_alerts.push_back(adata);
-}

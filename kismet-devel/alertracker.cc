@@ -43,7 +43,7 @@ void Alertracker::SetAlertBacklog(int in_max) {
     max_backlog = in_max;
 }
 
-int Alertracker::RegisterAlert(string in_header, alert_time_unit in_unit, int in_rate,
+int Alertracker::RegisterAlert(const char *in_header, alert_time_unit in_unit, int in_rate,
                                int in_burst) {
 
     // Bail if this header is registered
@@ -73,13 +73,20 @@ int Alertracker::FetchAlertRef(string in_header) {
 }
 
 int Alertracker::CheckTimes(alert_rec *arec) {
-    // Have we hit the burst limit?  If not, we'll be find to send.
-    if (arec->burst_sent < arec->limit_burst)
+    // Is this alert rate-limited?
+    if (arec->limit_rate == 0) {
         return 1;
+    }
+
+    // Have we hit the burst limit?  If not, we'll be find to send.
+    if (arec->burst_sent < arec->limit_burst) {
+        return 1;
+    }
 
     // If we're past the burst but we don't have anything in the log...
-    if (arec->alert_log.size() == 0)
+    if (arec->alert_log.size() == 0) {
         return 1;
+    }
 
     struct timeval now;
     gettimeofday(&now, NULL);
@@ -89,10 +96,12 @@ int Alertracker::CheckTimes(alert_rec *arec) {
     while (arec->alert_log.size() > 0) {
         struct timeval *rec_tm = arec->alert_log.front();
 
-        if (rec_tm->tv_sec > (now.tv_sec - alert_time_unit_conv[arec->limit_unit]))
+        if (rec_tm->tv_sec < (now.tv_sec - alert_time_unit_conv[arec->limit_unit])) {
+            delete arec->alert_log.front();
             arec->alert_log.pop_front();
-        else
+        } else {
             break;
+        }
     }
 
     // Zero the burst counter if we haven't had any traffic within the
@@ -131,7 +140,33 @@ int Alertracker::RaiseAlert(int in_ref, string in_text) {
     if (CheckTimes(arec) != 1)
         return 0;
 
+    ALERT_data *adata = new ALERT_data;
 
+    char tmpstr[128];
+    timeval *ts = new timeval;
+    gettimeofday(ts, NULL);
+
+    snprintf(tmpstr, 128, "%ld", (long int) ts->tv_sec);
+    adata->sec = tmpstr;
+
+    snprintf(tmpstr, 128, "%ld", (long int) ts->tv_usec);
+    adata->usec = tmpstr;
+
+    adata->text = in_text;
+
+    adata->header = arec->header;
+
+    arec->burst_sent++;
+    if (arec->burst_sent >= arec->limit_burst)
+        arec->alert_log.push_back(ts);
+
+    alert_backlog.push_back(adata);
+    if (alert_backlog.size() > max_backlog) {
+        delete alert_backlog[0];
+        alert_backlog.erase(alert_backlog.begin());
+    }
+
+    server->SendToAll(protoref, (void *) adata);
 
     return 1;
 }

@@ -1,3 +1,6 @@
+Mar 18 2003  2.9.1  Fixed new alert logic, added alert fields to the config
+                     file, started moving existing alerts to new alert
+                     logic.
 Mar 17 2003  2.9.1  Worked on new alert throttling framework.  Alerts are 
                      probably broken right now for the client.
 Mar 16 2003  2.9.1  Switched (returned) to statically allocated packet buffers

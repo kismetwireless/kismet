@@ -226,7 +226,6 @@ typedef struct wireless_network {
         best_quality = best_signal = best_noise = 0;
         best_lat = best_lon = best_alt = 0;
 
-        alertmap = 0;
         client_disconnects = 0;
         sequence = 0;
 
@@ -321,8 +320,6 @@ typedef struct wireless_network {
     vector<wireless_client *> client_vec;
 
     // State tracking stuff
-    // Bitmap of alerts we've raised
-    uint32_t alertmap;
     // Number of client disconnects (decayed per second by packetracker::tick)
     int client_disconnects;
     // Last sequence value

@@ -36,12 +36,12 @@ static const int alert_time_unit_conv[] = {
     1, 60, 3600, 86400
 };
 
+enum alert_time_unit {
+    sat_second, sat_minute, sat_hour, sat_day
+};
+
 class Alertracker {
 public:
-    enum alert_time_unit {
-        sat_second, sat_minute, sat_hour, sat_day
-    };
-
     // A registered alert type
     typedef struct alert_rec {
         int ref_index;
@@ -61,12 +61,6 @@ public:
         list<struct timeval *> alert_log;
     };
 
-    typedef struct alert_event {
-        struct timeval ts;
-        string text;
-        int type;
-    };
-
     Alertracker();
     ~Alertracker();
 
@@ -78,7 +72,7 @@ public:
     void SetAlertBacklog(int in_backlog);
 
     // Register an alert and get an alert reference number back.
-    int RegisterAlert(string in_header, alert_time_unit in_unit, int in_rate,
+    int RegisterAlert(const char *in_header, alert_time_unit in_unit, int in_rate,
                       int in_burst);
 
     // Find a reference from a name
@@ -105,7 +99,7 @@ protected:
     map<string, int> alert_name_map;
     map<int, alert_rec *> alert_ref_map;
 
-    int max_backlog;
+    unsigned int max_backlog;
     vector<ALERT_data *> alert_backlog;
 
 };
