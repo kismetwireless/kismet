@@ -1,23 +1,200 @@
-  new kismet client code
-  better drone error text
-  new drone client/server code
-  handle generating and catching alert text
-  move gpstracklog into gpsdump
-  move speech and sound playing into packetracker module
+From background-static Mon Sep 27 14:15:46 EDT 2004
+Message-Id: <riot.20040927141546.8>
+Date: Mon Sep 27 14:15:46 EDT 2004
+Status: RO
+X-Riot-Version: 1ds-20040924
 
-  Packet chain framework
-  ieee802.11 dissect as packet chain module
-  Filtering as packet chain module
-  Logging as packet chain module
-  move packet protocol printing into packetchain modules
-  Move config filehandling to gpsd
-  rewrite isblank during handler rewrite
-  debuglog as raw logging at head of packet chain
-  move dumpmax to logfile code
+General Re-org
+From background-static Mon Sep 27 14:21:00 EDT 2004
+Message-Id: <riot.20040927142100.9>
+Date: Mon Sep 27 14:21:00 EDT 2004
+Status: RO
+X-Riot-Version: 1ds-20040924
+In-Reply-To: <riot.20040927141546.8>
 
-  globalreg/messagebus more bits of packetsourcetracker
-  p0f plugin
-  kismet -v should list optional component status
-  detect windowsprobe networks
+Speech and sound moved to packetracker
+From background-static Mon Sep 27 14:22:44 EDT 2004
+Message-Id: <riot.20040927142244.10>
+Date: Mon Sep 27 14:22:44 EDT 2004
+Status: RO
+X-Riot-Version: 1ds-20040924
+In-Reply-To: <riot.20040927141546.8>
 
-  log plugins register logtype via string reference
+GPS tracklog as timer in gpsdump
+From background-static Mon Sep 27 00:14:46 EDT 2004
+Message-Id: <riot.20040927001446.1>
+Date: Mon Sep 27 00:14:46 EDT 2004
+Status: RO
+X-Riot-Version: 1ds-20040924
+
+New kismet client code
+From background-static Mon Sep 27 14:14:14 EDT 2004
+Message-Id: <riot.20040927141414.7>
+Date: Mon Sep 27 14:14:14 EDT 2004
+Status: RO
+X-Riot-Version: 1ds-20040924
+In-Reply-To: <riot.20040927001446.1>
+
+Clean up sorting code to use less CPU
+From background-static Mon Sep 27 00:15:08 EDT 2004
+Message-Id: <riot.20040927001508.2>
+Date: Mon Sep 27 00:15:08 EDT 2004
+Status: RO
+X-Riot-Version: 1ds-20040924
+In-Reply-To: <riot.20040927001446.1>
+
+Port existing protocol to tcpclient code
+From background-static Mon Sep 27 01:15:55 EDT 2004
+Message-Id: <riot.20040927011555.2>
+Date: Mon Sep 27 01:15:55 EDT 2004
+Status: RO
+X-Riot-Version: 1ds-20040924
+In-Reply-To: <riot.20040927001446.1>
+
+Apply off-by-one protocol fixes
+
+--- tcpclient.cc.orig   Sun Sep  5 21:44:35 2004
++++ tcpclient.cc        Sun Sep  5 22:20:24 2004
+@@ -540,7 +540,7 @@ int TcpClient::ParseData(char *in_data)
+         char atype[128];
+         alert_info alrm;
+         long int in_tv_sec, in_tv_usec;
+-        if (sscanf(in_data+hdrlen, "%ld %ld %128s \001%2047[^\001]\001\n", 
+&in_tv_sec,
++        if (sscanf(in_data+hdrlen, "%ld %ld %127s \001%2047[^\001]\001\n", 
+&in_tv_sec,
+                    &in_tv_usec, atype, alrmstr) < 3)
+             return 0;
+         alrm.alert_ts.tv_sec = in_tv_sec;
+@@ -618,7 +618,7 @@ int TcpClient::ParseData(char *in_data)
+         int cinfo_packets;
+         int cinfo_hopping;
+
+-        if (sscanf(in_data+hdrlen, "%64s %64s \001%128[^\001]\001 %d %d %d 
+%d\n",
++        if (sscanf(in_data+hdrlen, "%63s %63s \001%128[^\001]\001 %d %d %d 
+%d\n",
+                    cinfo_interface, cinfo_type, cinfo_username, 
+&cinfo_channel,
+                    &cinfo_id, &cinfo_packets, &cinfo_hopping) < 7)
+             return 0;
+
+From background-static Mon Sep 27 00:15:20 EDT 2004
+Message-Id: <riot.20040927001520.3>
+Date: Mon Sep 27 00:15:20 EDT 2004
+Status: RO
+X-Riot-Version: 1ds-20040924
+
+New drone code
+From background-static Mon Sep 27 00:17:09 EDT 2004
+Message-Id: <riot.20040927001709.4>
+Date: Mon Sep 27 00:17:09 EDT 2004
+Status: RO
+X-Riot-Version: 1ds-20040924
+In-Reply-To: <riot.20040927001520.3>
+
+Port drone core to tcpserver/tcpclient generic core
+From background-static Mon Sep 27 01:16:49 EDT 2004
+Message-Id: <riot.20040927011649.3>
+Date: Mon Sep 27 01:16:49 EDT 2004
+Status: RO
+X-Riot-Version: 1ds-20040924
+In-Reply-To: <riot.20040927001520.3>
+
+Implement drone passwords
+
+Plaintext w/ explanation
+stunnel/sshtunnel examples
+From background-static Mon Sep 27 01:17:10 EDT 2004
+Message-Id: <riot.20040927011710.4>
+Date: Mon Sep 27 01:17:10 EDT 2004
+Status: RO
+X-Riot-Version: 1ds-20040924
+In-Reply-To: <riot.20040927001520.3>
+
+Migrate tcpserver code for drone to kismet_server, implement drones as push tech
+From background-static Mon Sep 27 01:17:24 EDT 2004
+Message-Id: <riot.20040927011724.5>
+Date: Mon Sep 27 01:17:24 EDT 2004
+Status: RO
+X-Riot-Version: 1ds-20040924
+In-Reply-To: <riot.20040927001520.3>
+
+Implement UDP layer to push tech
+From background-static Mon Sep 27 14:13:10 EDT 2004
+Message-Id: <riot.20040927141310.5>
+Date: Mon Sep 27 14:13:10 EDT 2004
+Status: RO
+X-Riot-Version: 1ds-20040924
+In-Reply-To: <riot.20040927001520.3>
+
+Better error reporting
+From background-static Mon Sep 27 01:13:04 EDT 2004
+Message-Id: <riot.20040927011304.1>
+Date: Mon Sep 27 01:13:04 EDT 2004
+Status: RO
+X-Riot-Version: 1ds-20040924
+
+New packet chain code
+From background-static Mon Sep 27 01:13:17 EDT 2004
+Message-Id: <riot.20040927011317.2>
+Date: Mon Sep 27 01:13:17 EDT 2004
+Status: RO
+X-Riot-Version: 1ds-20040924
+In-Reply-To: <riot.20040927011304.1>
+
+Rewrite packetracker
+From background-static Mon Sep 27 01:13:26 EDT 2004
+Message-Id: <riot.20040927011326.3>
+Date: Mon Sep 27 01:13:26 EDT 2004
+Status: RO
+X-Riot-Version: 1ds-20040924
+In-Reply-To: <riot.20040927011304.1>
+
+Rewrite IEEE packet decoder
+
+Don't use structs for dissection
+less-strict checking on headers to handle unknown FCS?
+FCS as separate chunk from lowlevel driver
+From background-static Mon Sep 27 01:37:00 EDT 2004
+Message-Id: <riot.20040927013700.1>
+Date: Mon Sep 27 01:37:00 EDT 2004
+Status: RO
+X-Riot-Version: 1ds-20040924
+In-Reply-To: <riot.20040927011304.1>
+
+Move logfiles into packet chain
+
+Move config parsing of log options into logfile code
+From background-static Mon Sep 27 01:37:09 EDT 2004
+Message-Id: <riot.20040927013709.2>
+Date: Mon Sep 27 01:37:09 EDT 2004
+Status: RO
+X-Riot-Version: 1ds-20040924
+In-Reply-To: <riot.20040927011304.1>
+
+Move filering into packet chain
+From background-static Mon Sep 27 14:14:01 EDT 2004
+Message-Id: <riot.20040927141401.6>
+Date: Mon Sep 27 14:14:01 EDT 2004
+Status: RO
+X-Riot-Version: 1ds-20040924
+In-Reply-To: <riot.20040927011304.1>
+
+Replace awful ISBLANK stuff
+From background-static Mon Sep 27 14:25:30 EDT 2004
+Message-Id: <riot.20040927142530.1>
+Date: Mon Sep 27 14:25:30 EDT 2004
+Status: RO
+X-Riot-Version: 1ds-20040924
+In-Reply-To: <riot.20040927011304.1>
+
+New rawlog/debuglog as first item in packet chain
+From background-static Mon Sep 27 14:25:55 EDT 2004
+Message-Id: <riot.20040927142555.2>
+Date: Mon Sep 27 14:25:55 EDT 2004
+Status: RO
+X-Riot-Version: 1ds-20040924
+In-Reply-To: <riot.20040927011304.1>
+
+Dumpmax config value removed or moved to log code
