@@ -488,7 +488,8 @@ int TcpClient::ParseData(char *in_data) {
             return 0;
         return CLIENT_NOTIFY;
     } else if (!strncmp(header, "*ERROR", 64)) {
-        if (sscanf(in_data+hdrlen, "%1023[^\n]\n", status) != 1)
+        int discard;
+        if (sscanf(in_data+hdrlen, "%d %1023[^\n]\n", discard, status) != 2)
             return 0;
         return CLIENT_NOTIFY;
     } else if (!strncmp(header, "*ALERT", 64)) {

@@ -1,3 +1,5 @@
+Dec 14 2002  2.7.1  Added client-controlled WEP decryption keys
+                    Fixed ERROR protocol handling in tcplclient
 Dec 13 2002  2.7.1  Added ERROR protocol handling to tcpclient
 Dec 11 2002  2.7.1  Merged more hopper patches from Anders Gustafsson
                     Fixed tcpserver client line order
