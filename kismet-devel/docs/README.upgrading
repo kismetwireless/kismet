@@ -1,0 +1,15 @@
+Upgrading to 2.4
+
+Kismet 2.4 has added several configure options and consolidated the monitor
+script.  It is vital that the configfiles are updated with the new options,
+and that the correct 'cardtype' option is set in kismet.conf.
+
+prism_monitor and cisco_monitor have been phased out in favor of kismet_monitor
+which uses the cardtype option to determine how to enable monitor mode.  
+'kismet-monitor -h' will display all the possible options for kismet_monitor. 
+The unmonitor scripts have been moved to kismet_unmonitor.
+
+GPS datafiles are now written in a XML format.  GPSMap expects the files to be
+in this new format.  kismet2xml in the extras/ folder will convert old binary
+GPS files to the new XML format.
+

@@ -1,0 +1,48 @@
+HOME	= @srcdir@
+CXX	= @CXX@
+CC	= @CC@
+LD	= @CXX@
+LDFLAGS	= @LDFLAGS@
+LIBS	= @LIBS@
+CFLAGS	= @CPPFLAGS@ 
+CXXFLAGS = -Wall @CXXFLAGS@
+CPPFLAGS = @CPPFLAGS@ -I../
+SUID	= @suid@
+
+prefix = @prefix@
+exec_prefix = @exec_prefix@
+ETC	= @sysconfdir@
+BIN	= @bindir@
+SHARE = @datadir@/kismet/
+WAV = ${SHARE}/wav/
+
+CWGDO = kismet2cwgd.o ../expat.o
+CWGD = kismet2cwgd
+
+XMLO = kismet2xml.o
+XML = kismet2xml
+
+all:	$(XML) 
+
+$(CWGD):	$(CWGDO)
+	$(LD) $(LDFLAGS) -o $(CWGD) $(CWGDO) $(LIBS) -lexpat
+
+$(XML):		$(XMLO)
+	$(LD) $(LDFLAGS) -o $(XML) $(XMLO) $(LIBS)
+
+clean:
+	@-rm -f *.o
+	@-rm -f $(CWGD)
+
+distclean:
+	@-make clean
+	@-rm -f *~
+	@-rm -f Makefile
+
+.c.o:	$(DEPEND)
+	$(CC) $(CFLAGS) -c $*.c -o $@ 
+
+.cc.o:	$(DEPEND)
+	$(CXX) $(CPPFLAGS) $(CXXFLAGS) -c $*.cc -o $@ 
+
+.SUFFIXES: .c .cc .o

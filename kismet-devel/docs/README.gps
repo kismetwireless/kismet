@@ -1,0 +1,23 @@
+GPS Support
+
+GPS support is provided via the GPSD utility, available at 
+http://russnelson.com/gpsd/.  GPSD is included with gpsdrive 1.17, but 
+versions earlier than 1.17 have a non-standard gpsd which will not work
+correctly with Kismet.
+
+Why gpsd?
+gpsd provides network-accessable GPS data from a wide variety of 
+GPS recievers.  Kismet can use local gpsd OR gpsd monitoring 
+a GPS reciever on a different host (of course, if this host isn't
+near you, and if wireless is your only networking, this won't
+work very well.)
+
+gpsd compilation
+gpsd has trouble compiling sometimes.  The easiest fix is to edit
+em.c and change "#include <sys/time.h>" to "#include <time.h>".
+
+gps dumpfile
+Kismet will write a XML logfile of the location of all the packets seen
+and a continual update of the GPS position.  The gpsmap program will
+plot this file.
+

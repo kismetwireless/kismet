@@ -1,0 +1,31 @@
+Pcap Packet Engine
+
+libpcap is the generic capture library used by tcpdump and ethereal, among
+others.  Most cards in Linux and BSD now work with the standard libpcap
+interface.  Cisco, patched orinoco, and current wlan-ng drivers all 
+report via the pcap engine.
+
+A version of the libpcap library which supports wireless and prism2 wireless
+datalink types is included with Kismet.  If you *really* want to use the
+system-level libpcap, pass --enable-syspcap to configure.  This is NOT 
+reccomended, because the libpcap included with most distributions is not
+current enough to support the wireless network cards.
+
+While multiple cards work with the libpcap, each has its own method of
+activating monitoring mode, and several report extra information in the 
+packet headers.  It is important to specify the correct card type in
+kismet.conf:
+cisco       - Cisco cards under Linux
+cisco_cvs   - Cisco cards under Linux with the beta CVS drivers
+cisco_bsd   - Cisco cards under BSD
+prism2_pcap - Prism/2 card with current wlan-ng drivers
+prism2_bsd  - Prism/2 card under BSD
+orinoco     - Patched orinoco card under Linux
+orinoco_bsd - Orinoco card under BSD
+generic     - Attempt to use an unknown card as a pcap device
+
+The latest wlan-ng drivers can be found at
+http://www.linux-wlan.com/
+and the latest patches to the Orinoco drivers can be found at
+http://airsnort.shmoo.com/
+

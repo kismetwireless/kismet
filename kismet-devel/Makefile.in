@@ -1,0 +1,259 @@
+# PrismDump/AirSnort combo
+
+# Where is ethereal?  We need this for the wiretap lib (basically an updated
+# libpcap)
+#ETHER	= /usr/src/ethereal-0.9.0
+#PCAP    = 1
+
+INSTGRP = @instgrp@
+MANGRP = @mangrp@
+
+ZAURUS = @zaurus@
+
+PCAPDIR = @pcapdir@
+PCAPLIB = @pcaplib@
+PCAPLNK = @pcaplnk@
+
+HOME	= @srcdir@
+CXX	= @CXX@
+CC	= @CC@
+LD	= @CXX@
+LDFLAGS	= @LDFLAGS@
+LIBS	= @LIBS@
+CFLAGS	= @CPPFLAGS@
+CXXFLAGS = -O2 -Wall @CXXFLAGS@
+CPPFLAGS = @CPPFLAGS@
+SUID	= @suid@
+
+prefix = @prefix@
+exec_prefix = @exec_prefix@
+ETC	= @sysconfdir@
+BIN	= @bindir@
+SHARE = @datadir@/kismet/
+MAN = @mandir@
+WAV = ${SHARE}/wav/
+
+DEPEND	= .depend
+
+# Objects
+PSO	= configfile.o packet.o \
+		prism2source.o pcapsource.o wtapfilesource.o genericsource.o \
+		wtapdump.o wtaplocaldump.o gpsdump.o airsnortdump.o \
+		gpsd.o packetracker.o manuf.o \
+		getopt.o \
+		tcpserver.o kismet_server.o 
+PS	= kismet_server
+
+NCO	= configfile.o manuf.o tcpclient.o frontend.o cursesfront.o panelfront.o \
+		getopt.o kismet_curses.o 
+NC	= kismet_curses
+
+GPSLO = getopt.o configfile.o expat.o manuf.o gpsmap.o
+GPSL = gpsmap
+
+HOPPERO = configfile.o getopt.o kismet_hopper.o
+HOPPER = kismet_hopper
+
+BUZZER = extra/buzzme/buzzme
+
+GPSLBUILD=@gpslc@
+ZAURUSBUILD=@zbuild@
+
+all:	$(DEPEND) $(PS) $(NC) $(GPSLBUILD) $(HOPPER) $(ZAURUSBUILD)
+
+$(PS):	$(PSO) $(PCAPLIB)
+	$(LD) $(LDFLAGS) -o $(PS) $(PSO) $(PCAPLIB) $(LIBS) $(PCAPLNK)
+
+$(NC):	$(NCO)
+	$(LD) $(LDFLAGS) -o $(NC) $(NCO) $(LIBS)
+
+$(GPSL):	$(GPSLO)
+	$(LD) $(LDFLAGS) -o $(GPSL) $(GPSLO) $(LIBS) `Magick-config --cflags --cppflags --ldflags` `Magick-config --libs` -lpthread -lexpat
+
+$(HOPPER):	$(HOPPERO)
+	$(LD) $(LDFLAGS) -o $(HOPPER) $(HOPPERO)
+
+$(BUZZER):	
+	@( cd extra/buzzme; make; ) ; 
+
+$(PCAPDIR)/libpcap.a:	
+	@( cd $(PCAPDIR); make )
+
+checkconfig:
+	@if test "`grep version= conf/kismet.conf | cut -f 2 -d=`" != "`grep version= $(ETC)/kismet.conf | cut -f 2 -d=`"; then \
+		echo "The configuration file has been updated.  It is STRONGLY reccomended "; \
+		echo "that you run 'make forceinstall' to overwrite your configuration file,"; \
+		echo "and then edit it to match your setup.  Installed version is `grep version= $(ETC)/kismet.conf | cut -f 2 -d=`, "; \
+		echo "latest version is `grep version= conf/kismet.conf | cut -f 2 -d=`"; \
+	fi
+
+checkuiconfig:
+	@if test "`grep version= conf/kismet_ui.conf | cut -f 2 -d=`" != "`grep version= $(ETC)/kismet_ui.conf | cut -f 2 -d=`"; then \
+		echo "The UI configuration file has been updated.  It is STRONGLY reccomended "; \
+		echo "that you run 'make forceinstall' to overwrite your configuration file,"; \
+		echo "and then edit it to match your setup.  Installed version is `grep version= $(ETC)/kismet_ui.conf | cut -f 2 -d=`, "; \
+		echo "latest version is `grep version= conf/kismet_ui.conf | cut -f 2 -d=`"; \
+	fi
+
+install: $(PS) $(HOPPER) $(NC) $(GPSLBUILD) $(ZAURUSBUILD)
+	@if test "$(SUID)" = "yes"; then \
+		install -o root -g $(INSTGRP) -m 4755 -s $(PS) $(BIN)/$(PS); \
+		echo install -o root -g $(INSTGRP) -m 4755 $(PS) $(BIN)/$(PS); \
+	else \
+		install -o root -g $(INSTGRP) -s -m 755 $(PS) $(BIN)/$(PS); \
+		echo install -o root -g $(INSTGRP) -s -m 755 $(PS) $(BIN)/$(PS); \
+	fi
+	install -o root -g $(INSTGRP) -m 755 scripts/kismet $(BIN)/kismet
+	install -o root -g $(INSTGRP) -s -m 755 $(NC) $(BIN)/$(NC)
+	install -o root -g $(INSTGRP) -s -m 755 $(HOPPER) $(BIN)/$(HOPPER)
+	@if test "$(ZAURUS)" = "yes"; then \
+		install -o root -g $(INSTGRP) -s -m 755 $(BUZZER) $(BIN)/buzzme; \
+		echo install -o root -g $(INSTGRP) -s -m 755 $(BUZZER) $(BIN)/buzzme; \
+	fi
+	@if test "$(GPSLBUILD)" = "$(GPSL)"; then \
+		install -o root -g $(INSTGRP) -s -m 755 $(GPSL) $(BIN)/$(GPSL); \
+		echo install -o root -g $(INSTGRP) -s -m 755 $(GPSL) $(BIN)/$(GPSL); \
+	fi
+	install -o root -g $(INSTGRP) -m 755 scripts/kismet_monitor $(BIN)/kismet_monitor
+	install -o root -g $(INSTGRP) -m 755 scripts/kismet_unmonitor $(BIN)/kismet_unmonitor
+	mkdir -p $(MAN)/man1
+	install -o root -g $(MANGRP) -m 644 man/kismet.1 $(MAN)/man1/kismet.1
+	install -o root -g $(MANGRP) -m 644 man/gpsmap.1 $(MAN)/man1/gpsmap.1
+	mkdir -p $(WAV)
+	install -o root -g $(INSTGRP) wav/new_network.wav $(WAV)/new_network.wav
+	install -o root -g $(INSTGRP) wav/traffic.wav $(WAV)/traffic.wav
+	install -o root -g $(INSTGRP) wav/junk_traffic.wav $(WAV)/junk_traffic.wav
+	@echo "Installed kismet into $(BIN)/."
+	@if test -f $(ETC)/kismet.conf; then \
+		make checkconfig; \
+    else \
+		install -o root -g $(INSTGRP) conf/kismet.conf $(ETC)/kismet.conf;  \
+		echo install -o root -g $(INSTGRP) conf/kismet.conf $(ETC)/kismet.conf;  \
+		echo "Installed config into $(ETC)/kismet.conf."; \
+	fi
+
+	@if test -f $(ETC)/kismet_ui.conf; then \
+		make checkuiconfig; \
+	else \
+		install -o root -g $(INSTGRP) conf/kismet_ui.conf $(ETC)/kismet_ui.conf;  \
+		echo install -o root -g $(INSTGRP) conf/kismet_ui.conf $(ETC)/kismet_ui.conf;  \
+		echo "Installed UI config into $(ETC)/kismet_ui.conf."; \
+	fi
+
+	@echo "If you have not already, read the docs in docs/ and edit"
+	@echo "$(ETC)/kismet.conf to configure it for your system.  If you do not"
+	@echo "configure this, Kismet will NOT run properly!"
+                
+forceinstall: $(PS)
+	install -o root -g $(INSTGRP) conf/kismet.conf $(ETC)/kismet.conf;  \
+		echo "Installed config into $(ETC)/kismet.conf."; 
+	install -o root -g $(INSTGRP) conf/kismet_ui.conf $(ETC)/kismet_ui.conf;  \
+		echo "Installed UI config into $(ETC)/kismet_ui.conf."; 
+
+	@if test "$(SUID)" = "yes"; then \
+		install -o root -g $(INSTGRP) -m 4755 -s $(PS) $(BIN)/$(PS); \
+		echo install -o root -g $(INSTGRP) -m 4755 -s $(PS) $(BIN)/$(PS); \
+	else \
+		install -o root -g $(INSTGRP) -s -m 755 $(PS) $(BIN)/$(PS); \
+		echo install -o root -g $(INSTGRP) -s -m 755 $(PS) $(BIN)/$(PS); \
+	fi
+	install -o root -g $(INSTGRP) -m 755 scripts/kismet $(BIN)/kismet
+	install -o root -g $(INSTGRP) -s -m 755 $(NC) $(BIN)/$(NC)
+	install -o root -g $(INSTGRP) -s -m 755 $(HOPPER) $(BIN)/$(HOPPER)
+	@if test "$(ZAURUS)" = "yes"; then \
+		install -o root -g $(INSTGRP) -s -m 755 $(BUZZER) $(BIN)/buzzme; \
+		echo install -o root -g $(INSTGRP) -s -m 755 $(BUZZER) $(BIN)/buzzme; \
+	fi
+	@if test "$(GPSLBUILD)" = "$(GPSL)"; then \
+		install -o root -g $(INSTGRP) -s -m 755 $(GPSL) $(BIN)/$(GPSL); \
+		echo install -o root -g $(INSTGRP) -s -m 755 $(GPSL) $(BIN)/$(GPSL); \
+	fi
+	install -o root -g $(INSTGRP) -m 755 scripts/kismet_monitor $(BIN)/kismet_monitor
+	install -o root -g $(INSTGRP) -m 755 scripts/kismet_unmonitor $(BIN)/kismet_unmonitor
+	mkdir -p $(MAN)/man1
+	install -o root -g $(MANGRP) -m 644 man/kismet.1 $(MAN)/man1/kismet.1
+	install -o root -g $(MANGRP) -m 644 man/gpsmap.1 $(MAN)/man1/gpsmap.1
+	mkdir -p $(WAV)
+	install -o root -g $(INSTGRP) wav/new_network.wav $(WAV)/new_network.wav
+	install -o root -g $(INSTGRP) wav/traffic.wav $(WAV)/traffic.wav
+	install -o root -g $(INSTGRP) wav/junk_traffic.wav $(WAV)/junk_traffic.wav
+	@echo "Installed kismet into $(BIN)/."
+	@echo "If you have not already, read the docs in docs/ and edit"
+	@echo "$(ETC)/kismet.conf to configure it for your system.  If you do not"
+	@echo "configure this, Kismet will NOT run properly!"
+
+clean:
+	@-rm -f *.o
+	@-rm -f $(PS)
+	@-rm -f $(NC)
+	@-rm -f $(GPSL)
+	@-rm -f $(HOPPER)
+	@-( cd extra/buzzme; make clean )
+	@-( cd $(PCAPDIR); make clean )
+
+distclean:
+	@-make clean
+	@-rm -f *~
+	@-rm -f $(DEPEND)
+	@-rm -f config.status
+	@-rm -f config.h
+	@-rm -f config.log
+	@-rm -rf packaging/ipkg/usr 
+	@-rm -rf *.ipk
+	@-rm -f scripts/kismet
+	@-rm -f scripts/kismet_monitor
+	@-rm -f scripts/kismet_unmonitor
+	@-( cd extra/; make distclean )
+	@-( cd extra/buzzme; make distclean )
+	@-( cd $(PCAPDIR); make distclean )
+	@-rm -f Makefile
+
+arm: $(PS) $(NC) $(HOPPER) $(ZBUILD)
+	@echo "ARM toolset built."
+
+ipkg: $(PS) $(NC) $(HOPPER)
+	@if test "`whoami`" != "root"; then echo "Warning:  You are not root.  The ipkg will probably not be what you want."; fi
+	@mkdir -p packaging/ipkg/$(ETC)
+	@mkdir -p packaging/ipkg/$(BIN)
+	@arm-linux-strip $(PS)
+	@arm-linux-strip $(NC)
+	@arm-linux-strip $(HOPPER)
+	@cp $(PS) packaging/ipkg/$(BIN)/$(PS)
+	@cp $(NC) packaging/ipkg/$(BIN)/$(NC)
+	@cp scripts/kismet packaging/ipkg/$(BIN)/kismet
+	@cp $(HOPPER) packaging/ipkg/$(BIN)/$(HOPPER)
+	@cp conf/kismet.conf packaging/ipkg/$(ETC)/kismet.conf
+	@cp conf/kismet_ui.conf packaging/ipkg/$(ETC)/kismet_ui.conf
+	@if test "$(ZAURUS)" = "yes"; then \
+		cp $(BUZZER) packaging/ipkg/$(BIN)/buzzme; \
+		cp conf/zaurus_kismet.conf packaging/ipkg/$(ETC)/kismet.conf; \
+		cp conf/zaurus_kismet_ui.conf packaging/ipkg/$(ETC)/kismet_ui.conf; \
+	fi
+	cp scripts/kismet_monitor packaging/ipkg/$(BIN)/ 
+	cp scripts/kismet_unmonitor packaging/ipkg/$(BIN)/
+	@chmod a+x packaging/ipkg/$(BIN)/*
+	@chown root.root packaging/ipkg -R
+	@ipkg-build packaging/ipkg/
+
+dep:
+	@make depend
+
+depend:
+	@make $(DEPEND)
+
+$(DEPEND):
+	@-rm -f $(DEPEND)
+	@echo "Generating dependencies... "
+	@echo > $(DEPEND)
+	@$(CXX) $(CFLAGS) -MM \
+		`echo $(PSO) $(HOPPERO) $(GPSLO) $(NCO) | sed -e "s/\.o/\.cc/g"` >> $(DEPEND)
+
+include $(DEPEND)
+
+.c.o:	$(DEPEND)
+	$(CC) $(CFLAGS) -c $*.c -o $@ 
+
+.cc.o:	$(DEPEND)
+	$(CXX) $(CPPFLAGS) $(CXXFLAGS) -c $*.cc -o $@ 
+
+.SUFFIXES: .c .cc .o

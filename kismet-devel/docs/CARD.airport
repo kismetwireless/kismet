@@ -1,0 +1,10 @@
+Airport Cards
+
+In theory, Airport cards can work in Linux using a patched wavelan driver
+(see CARD.orinoco), but I have not tested it.
+
+Under OSX, there is no way of which I am aware to enable monitor mode.
+
+The OSX wirelessdriver project (http://wirelessdriver.sourceforge.net) does
+not currectly support airport cards.
+

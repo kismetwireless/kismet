@@ -1,0 +1,11 @@
+Group map files
+
+The group map controls how groups are created at startup.  This is used by the
+UI to save groups from one execution to the next.  It's very very basic - each
+line is one of the following formats:
+
+GROUP: <TAG> <Name>
+LINK: <BSSID> <TAG>
+
+Tags take the form of BSSIDs (XX:XX:XX:XX:XX:XX) and must be unique.
+
