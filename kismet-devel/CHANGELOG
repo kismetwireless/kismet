@@ -1,3 +1,4 @@
+Aug 03 2002  2.5.1  Fixed include order in expat.cc
 Aug 02 2002  2.5.1  Fixed sound playing completely (I hope)
                     Squished segfault-on-quit due to improper deleting of 
                      objects
