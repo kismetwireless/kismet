@@ -569,7 +569,7 @@ int TcpClient::ParseData(char *in_data) {
         char cinfo_username[128];
         int cinfo_channel;
 
-        if (sscanf(in_data+hdrlen, "%64s %64s \001%128s[^\001]\001 %d\n",
+        if (sscanf(in_data+hdrlen, "%64s %64s \001%128[^\001]\001 %d\n",
                    cinfo_interface, cinfo_type, cinfo_username, &cinfo_channel) < 4)
             return 0;
 

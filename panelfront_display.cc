@@ -785,6 +785,45 @@ int PanelFront::MainInfoPrinter(void *in_window) {
         mvwaddstr(infowin, 14, 2, info);
     }
 
+    // Draw card info if we can fit it
+    if (kwin->max_display > 16) {
+        // if we're in here we can always fit one
+        vector<TcpClient::card_info *> cardlist = client->FetchCardList();
+
+        int nlines = cardlist.size() * 2;
+
+        // Trim the list of cards if we have to...  trim out as many cards that don't channel
+        // hop as we need to
+        if (14 + nlines > kwin->max_display) {
+            for (unsigned int trimc = 0; trimc < cardlist.size() && 14 + nlines > kwin->max_display; trimc++) {
+                if (cardlist[trimc]->channel == 0) {
+                    cardlist.erase(cardlist.begin() + trimc);
+                    trimc--;
+                    nlines -= 2;
+                }
+            }
+        }
+
+        // Did we get enough?
+        if (14 + nlines > kwin->max_display) {
+            while (cardlist.size() >= 1 && 14 + nlines > kwin->max_display) {
+                cardlist.erase(cardlist.begin());
+                nlines -= 2;
+            }
+        }
+
+        // Draw
+        for (unsigned int cardc = 0; cardc < cardlist.size(); cardc++) {
+            int pos = kwin->max_display - ((cardlist.size() - cardc) * 2);
+            snprintf(info, kwin->print_width, "%*s", kwin->print_width-1,
+                     cardlist[cardc]->username.c_str());
+            mvwaddstr(infowin, pos, 2, info);
+            snprintf(info, kwin->print_width, "Ch: %2d", cardlist[cardc]->channel);
+            mvwaddstr(infowin, pos + 1, 2, info);
+        }
+
+    }
+
     if (client->Valid())
         mvwaddstr(infowin, LINES-statheight-2, 2, "Elapsd");
     else
