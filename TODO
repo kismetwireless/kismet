@@ -34,4 +34,3 @@ In no particular order:
 	denote networks with keys in UI
 	strong authentication/SSL of client/server server/drone
 	acpi/apm reporting via server protocol
-	fix grouping in panels
