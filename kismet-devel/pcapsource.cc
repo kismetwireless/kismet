@@ -1112,11 +1112,18 @@ int monitor_hostap(const char *in_dev, int initch, char *in_err, void **in_if) {
     if (Ifconfig_Get_Flags(in_dev, in_err, &ifparm->flags) < 0)
         return -1;
 
-    if ((ifparm->channel = Iwconfig_Get_Channel(in_dev, in_err)) < 0)
-        return -1;
+    // Don't try to fetch the channel or mode if we're not configured to be up,
+    // hostap doesn't like this.  silly hostap.
+    if ((ifparm->flags & IFF_UP)) {
+        if ((ifparm->channel = Iwconfig_Get_Channel(in_dev, in_err)) < 0)
+            return -1;
 
-    if (Iwconfig_Get_Mode(in_dev, in_err, &ifparm->mode) < 0)
-        return -1;
+        if (Iwconfig_Get_Mode(in_dev, in_err, &ifparm->mode) < 0)
+            return -1;
+    } else {
+        ifparm->channel = -1;
+        ifparm->mode = -1;
+    }
     
     // Try to use the iwpriv command to set monitor mode.  Some versions of
     // hostap require this, some don't, so don't fail on the monitor ioctl
@@ -1146,13 +1153,17 @@ int unmonitor_hostap(const char *in_dev, int initch, char *in_err, void **in_if)
         return -1;
     }
 
-    if (Iwconfig_Set_Channel(in_dev, ifparm->channel, in_err) < 0)
-        return -1;
+    if (ifparm->channel > 0) {
+        if (Iwconfig_Set_Channel(in_dev, ifparm->channel, in_err) < 0)
+            return -1;
+    }
 
     // Ignore errors from both of these, since one might fail with other versions
     // of hostap
     Iwconfig_Set_IntPriv(in_dev, "monitor", 0, 0, in_err);
-    Iwconfig_Set_Mode(in_dev, in_err, ifparm->mode);
+    if (ifparm->mode > 0) {
+        Iwconfig_Set_Mode(in_dev, in_err, ifparm->mode);
+    }
 
     free(ifparm);
 
