@@ -92,6 +92,7 @@ public:
     int FetchNumInteresting() { return num_interesting; }
     int FetchNumNoise() { return num_noise; }
     int FetchNumDropped() { return num_dropped; }
+    int FetchPacketRate() { return packet_rate; }
 
     int FetchMajor() { return major; }
     int FetchMinor() { return minor; }
@@ -166,7 +167,7 @@ protected:
     vector<wireless_network *> net_map_vec;
 
     int num_networks, num_packets, num_crypt,
-        num_interesting, num_noise, num_dropped;
+        num_interesting, num_noise, num_dropped, packet_rate;
 
     int major, minor, tiny;
     time_t start_time;

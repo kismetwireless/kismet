@@ -458,6 +458,7 @@ int SayText(string in_text) {
 
 void NetWriteInfo() {
     static time_t last_write = time(0);
+    static int last_packnum = tracker.FetchNumPackets();
     vector<wireless_network *> tracked;
     char output[2048];
 
@@ -493,11 +494,14 @@ void NetWriteInfo() {
     else
         snprintf(power_output, 16, "0 0 0");
 
-    snprintf(output, 2048, "*INFO: %d %d %d %d %d %d %s %d",
+    snprintf(output, 2048, "*INFO: %d %d %d %d %d %d %d %s %d",
              tracker.FetchNumNetworks(), tracker.FetchNumPackets(),
              tracker.FetchNumCrypt(), tracker.FetchNumInteresting(),
              tracker.FetchNumNoise(), tracker.FetchNumDropped() + localdropnum,
+             tracker.FetchNumPackets() - last_packnum,
              power_output, CHANNEL_MAX);
+
+    last_packnum = tracker.FetchNumPackets();
 
     char munge[2048];
     for (unsigned int x = 0; x < CHANNEL_MAX; x++) {

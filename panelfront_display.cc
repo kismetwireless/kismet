@@ -719,13 +719,8 @@ int PanelFront::MainInfoPrinter(void *in_window) {
     }
 
     if (kwin->max_display > 14) {
-        unsigned int pktsec = 0;
-        // This should never be, but we'll check to be sure
-        if (packet_history.size() >= 2)
-            pktsec = packet_history[packet_history.size() - 1] -
-                packet_history[packet_history.size() - 2];
         mvwaddstr(infowin, 13, 2, "Pkts/s");
-        snprintf(info, kwin->print_width, "%*d", kwin->print_width-1, pktsec);
+        snprintf(info, kwin->print_width, "%*d", kwin->print_width-1, client->FetchPacketRate());
         mvwaddstr(infowin, 14, 2, info);
     }
 
