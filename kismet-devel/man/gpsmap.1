@@ -8,7 +8,7 @@
 .fam C
 \fBgpsmap\fP [\fB-hviNIDVGMtbruapek\fP] [\fB-g\fP \fIconfig-file\fP] [\fB-o\fP \fIoutput-file\fP]
 [\fB-f\fP \fIfilter-list\fP] [\fB-F\fP \fIfilter-type-list\fP] [\fB-z\fP \fInumthreads\fP] [\fB-S\fP \fImapsource\fP] [\fB-c\fP \fIcoords\fP] [\fB-s\fP \fIscale\fP]
-[\fB-m\fP \fIusermap\fP] [\fB-d\fP \fImapsize\fP] [\fB-n\fP \fInetcolors\fP] [\fB-O\fP \fIoffset\fP] [\fB-R\fP \fIrange-opacity\fP] [\fB-K\fP \fIbounds-opacity\fP]
+[\fB-m\fP \fIusermap\fP] [\fB-d\fP \fImapsize\fP] [\fB-n\fP \fInetcolors\fP] [\fB-O\fP \fIoffset\fP] [\fB-R\fP \fIrange-opacity\fP] [\fIfeather-range\fP] [\fB-K\fP \fIbounds-opacity\fP]
 [\fB-U\fP \fIhull-opacity\fP] [\fB-A\fP \fIscatter-opacity\fP] [\fB-B\fP \fIscatter-size\fP]
 [\fB-Z\fP \fIdraw-power-zoom\fI] 
 [\fB-P\fP \fIpower-opacity\fP] [\fB-Q\fP \fIpower-res\fP] [\fB-q\fP \fIpower-colors\fP] [\fB-E\fP \fIcenter-opacity\fP]
@@ -134,6 +134,10 @@ Draw estimated range circles
 .B
 \fB-R\fP, \fB--draw\fP-\fBrange-opacity\fP OPACITY
 Opacity to draw range circles with.  Default: 70
+.TP
+.B
+\fB--feather-range\fP
+Feather the range circles out into transparency
 .TP
 .B
 \fB-u\fP, \fB--draw-hull\fP
