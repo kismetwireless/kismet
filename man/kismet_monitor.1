@@ -13,18 +13,11 @@
 .Op Fl c Ar channel
 .Op Fl O Ar hopper-options
 .Sh DESCRIPTION
-.Nm kismet_monitor
-is a component of 
-.Nm kismet
-which places a wireless card into rfmonitor mode.  rfmon reports the raw packets
-seen by the card so that 
-.Nm
-kismet
-can do passive monitoring.  kismet_monitor can optionally start the channel
-hopper
-.Nm
-kismet_hopper
-to rotate through channels rapidly.
+kismet_monitor is a component of 
+kismet which places a wireless card into rfmonitor mode.  rfmon reports the raw packets
+seen by the card so that kismet can do passive monitoring.  
+kismet_monitor can optionally start the channel hopper
+kismet_hopper to rotate through channels rapidly.
 .Sh OPTIONS
 .Bl -tag -width flag
 .It Fl f
@@ -36,12 +29,10 @@ Use an alternate card type
 .It Fl c
 Active monitoring mode on a specific channel (default 6)
 .It Fl H
-Spawn 
-.Nm kismet_hopper
-to rotate between channels.
+Spawn kismet_hopper to rotate between channels.
 .It Fl O
-Pass extra command options to 
-.Nm kismet_hopper
+Pass extra command options to kismet_hopper
+.It Gl v
 Print version
 .It Fl h
 Help
