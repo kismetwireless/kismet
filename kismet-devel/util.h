@@ -70,7 +70,7 @@ public:
     // Fetch the longest continual piece of data
     void FetchPtr(uint8_t **in_dptr, int *in_len);
     // Flag bytes as read.  Will only flag as many bytes are available
-    void MarkRead(uint8_t in_len);
+    void MarkRead(int in_len);
 protected:
     int ring_len;
     uint8_t *ring_data;

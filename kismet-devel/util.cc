@@ -231,7 +231,7 @@ void KisRingBuffer::FetchPtr(uint8_t **in_dataptr, int *in_len) {
     *in_dataptr = ring_rptr;
 }
 
-void KisRingBuffer::MarkRead(uint8_t in_len) {
+void KisRingBuffer::MarkRead(int in_len) {
     // Will we loop the array?
     if ((ring_rptr + in_len) >= (ring_data + ring_len)) {
         // How much comes off the length before we wrap?
