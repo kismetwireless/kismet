@@ -454,6 +454,10 @@ void GetPacketInfo(kis_packet *packet, packet_parm *parm, packet_info *ret_packi
             ret_packinfo->dest_mac = addr0;
             ret_packinfo->source_mac = addr1;
             ret_packinfo->bssid_mac = addr2;
+
+            if (ret_packinfo->bssid_mac.longmac == 0)
+                ret_packinfo->bssid_mac = ret_packinfo->source_mac;
+
             ret_packinfo->header_offset = 24;
             break;
         case from_distribution:
