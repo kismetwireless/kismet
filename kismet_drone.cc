@@ -375,6 +375,12 @@ int main(int argc, char *argv[]) {
         // Open the GPS
         gps = new GPSD(gpshost, gpsport);
 
+        // Lock GPS position
+        if (conf->FetchOpt("gpsmodelock") == "true") {
+            fprintf(stderr, "Enabling GPS position lock override (broken GPS unit reports 0 always)\n");
+            gps->SetOptions(GPSD_OPT_FORCEMODE);
+        }
+
         if (gps->OpenGPSD() < 0) {
             fprintf(stderr, "%s\n", gps->FetchError());
 

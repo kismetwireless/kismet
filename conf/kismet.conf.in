@@ -4,7 +4,7 @@
 # not continually reading --help!
 
 # Version of Kismet config
-version=2.9.1j
+version=2.9.1k
 
 # Name of server (Purely for organiational purposes)
 servername=Kismet
@@ -125,6 +125,10 @@ maxclients=5
 gps=true
 # Host:port that GPSD is running on.  This can be localhost OR remote!
 gpshost=localhost:2947
+# Do we lock the mode?  This overrides coordinates of lock "0", which will
+# generate some bad information until you get a GPS lock, but it will 
+# fix problems with GPS units with broken NMEA that report lock 0
+gpsmodelock=false
 
 # Packet filtering options:
 # filter_tracker - Packets filtered from the tracker are not processed or
