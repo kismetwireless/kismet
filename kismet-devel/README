@@ -895,4 +895,17 @@ Licensed under the GPL
        TV if you're channel surfing.  If you need to see all of the data from 
        a single network, you'll need to disable hopping or lock Kismet onto the
        network you want to watch.
+
+    Q: Why do I get a lot of nonsense networks, or lots of networks that only
+       have one data packet?
+    A: Some drivers (currently the worst offenders are wrt54g, madwifi, and
+       some versions of prism54) toss up garbage packets sometimes.  Usually
+       these are chunks of valid frames, several valid frames mangled together,
+       valid frames with extra noise before them, etc.  Kismet does the best
+       it can to screen these out, but if the packet headers look like a 
+       data frame it will usually get past - management frames can be 
+       rigorously validated, but data frames could contain anything so they
+       slip past.
+       There isn't a really good solution to this, but you can turn on the
+       'autogroup_data' option in kismet_ui.conf to make them less intrusive.
        
