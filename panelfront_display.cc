@@ -27,8 +27,8 @@
 
 // This argument list is getting increasingly nasty, hopefully I'll be able to
 // come back and clean all this up
-string PanelFront::NetLine(wireless_network *net, const char *name, int sub,
-                           int group, int expanded, int tagged) {
+void PanelFront::NetLine(string *in_str, wireless_network *net, const char *name, int sub,
+                         int group, int expanded, int tagged) {
     char retchr[4096];
     char tmpchr[4096];
 
@@ -234,9 +234,7 @@ string PanelFront::NetLine(wireless_network *net, const char *name, int sub,
         pos += len + 1;
     }
 
-    string ret = retchr;
-
-    return ret;
+    *in_str = retchr;
 }
 
 
@@ -457,7 +455,27 @@ int PanelFront::MainNetworkPrinter(void *in_window) {
 
     }
 
-    //cutoff = 0;
+    // Figure out if we need to reposition the selected highlight...  It's
+    // quicker to iterate twice.
+    int calcnum = 0, calclines = 0;
+    for (unsigned int i = kwin->start; i < display_vector.size(); i++) {
+        calcnum++;
+        calclines++;
+
+        if (sortby == sort_auto || display_vector[i]->type != group_bundle ||
+            display_vector[i]->expanded == 0)
+            continue;
+
+        calclines += display_vector[i]->networks.size();
+
+        if (calclines > kwin->max_display)
+            break;
+    }
+
+    // Move the selected line to the end of the window if the new display we're
+    // about to draw would bump it off the end
+    if (kwin->selected > calcnum)
+        kwin->selected = calcnum;
 
     for (unsigned int i = kwin->start; i < display_vector.size(); i++) {
 
@@ -492,12 +510,12 @@ int PanelFront::MainNetworkPrinter(void *in_window) {
 
         // Build the netline for the group or single host and tag it for expansion if
         // appropriate for this sort and group
-        netline = NetLine(net,
-                          display_vector[i]->name == "" ? display_vector[i]->virtnet.ssid.c_str() : display_vector[i]->name.c_str(),
-                          0,
-                          display_vector[i]->type == group_host ? 0 : 1,
-                          sortby == sort_auto ? 0 : display_vector[i]->expanded,
-                          display_vector[i]->tagged);
+        NetLine(&netline, net,
+                display_vector[i]->name == "" ? display_vector[i]->virtnet.ssid.c_str() : display_vector[i]->name.c_str(),
+                0,
+                display_vector[i]->type == group_host ? 0 : 1,
+                sortby == sort_auto ? 0 : display_vector[i]->expanded,
+                display_vector[i]->tagged);
 
         mvwaddstr(netwin, num+voffset, 1, netline.c_str());
 
@@ -569,7 +587,7 @@ int PanelFront::MainNetworkPrinter(void *in_window) {
         for (unsigned int y = 0; y < sortsub.size(); y++) {
             net = display_vector[i]->networks[y];
 
-            netline = NetLine(net, net->ssid.c_str(), 1, 0, 0, 0);
+            NetLine(&netline, net, net->ssid.c_str(), 1, 0, 0, 0);
 
             if (net->manuf_score == manuf_max_score && color)
                 wattrset(kwin->win, color_map["factory"].pair);
@@ -593,15 +611,6 @@ int PanelFront::MainNetworkPrinter(void *in_window) {
 
         if (num > kwin->max_display)
             break;
-    }
-
-    // This is inefficient but we already did all the calculations with expanded
-    // groups so there isn't a better way.  If somehow with the new drawing our
-    // selected line ends up past the end of the screen, force it to the end.
-    if ((kwin->start + kwin->selected) > kwin->end) {
-        kwin->selected = kwin->end - kwin->start;
-        MainNetworkPrinter(in_window);
-        return 1;
     }
 
     last_draw_size = group_vec.size();
