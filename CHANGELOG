@@ -1,6 +1,8 @@
 Aug 12 2002  2.5.2  Passing of card type param to packet sources
                     BSD cisco handing of additional 2 bytes in the middle of
                      the packet (WHY are those there?)
+                    BSD prism2 handling of additional bytes in the middle of
+                     the packet
 Aug 08 2002  2.5.2  More fixes to the expat include order to eliminate errors
                      on some systems.
                     BSD include fixes for detecting wtaplib and tweaks to the

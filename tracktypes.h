@@ -72,6 +72,7 @@ enum client_type {
     client_unknown,
     client_fromds,
     client_tods,
+    client_interfs,
     client_established
 };
 
@@ -103,9 +104,6 @@ typedef struct wireless_client {
     }
 
     client_type type;
-
-    // Owning network
-    string bssid;
 
     time_t first_time;
     time_t last_time;
