@@ -689,11 +689,11 @@ Licensed under the GPL
 13. Drone Remotes
 
     Remote Kismet drones are designed to turn Kismet into a stationary, 
-    distibuted IDS system.  Each remote drone can use any number of packet
-    sources supported by Kismet, and reports the packets over a wired ethernet
-    connection.  Drones are optimized for minimal CPU requirements, and should
-    run on almost any hardware.
-
+    distibuted IDS system.  Drones support all of the capture sources Kismet
+    supports, and can have multiple cards per drone.  Drones capture wireless
+    data and report it over a secondary connection (typically wired ethernet),
+    and have very minimal hardware requirements.
+    
     Each drone in the network can be configured for independent channel 
     hopping, and even different 802.11 standards (such as one drone monitoring
     802.11a and one monitoring 802.11b).
@@ -702,6 +702,11 @@ Licensed under the GPL
     provide a single dump file and alert system.  Using wep decrpytion and a 
     named pipe output ('fifo' config file option), wireless traffic from around
     an installation can be sent to snort (or other layer3 IDS).
+
+    To start using drones, set up a kismet_drone on the system with a wireless
+    card, using the kismet_drone.conf file.  Then configure Kismet to have a 
+    kismet_drone cardsource pointing to that host, start kismet_server, and
+    use whatever client you like to connect to it.
 
 14. Alerts and Intrusion Detection
 
