@@ -1131,6 +1131,18 @@ int unmonitor_hostap(const char *in_dev, int initch, char *in_err, void **in_if)
 int monitor_orinoco(const char *in_dev, int initch, char *in_err, void **in_if) {
     int ret;
     
+    // Allocate a tracking record for the interface settings and remember our
+    // setup
+    linux_ifparm *ifparm = (linux_ifparm *) malloc(sizeof(linux_ifparm));
+    (*in_if) = ifparm;
+    if (Ifconfig_Get_Linux(in_dev, in_err, &ifparm->ifaddr, &ifparm->dstaddr,
+                           &ifparm->broadaddr, &ifparm->maskaddr, &ifparm->flags) < 0) {
+        return -1;
+    }
+
+    if (Iwconfig_Get_SSID(in_dev, in_err, ifparm->essid) < 0)
+        return -1;
+
     // Bring the device up, zero its ip, and set promisc
     if (Ifconfig_Set_Linux(in_dev, in_err, NULL, NULL, NULL, NULL, 0) < 0) 
         return -1;
@@ -1159,8 +1171,48 @@ int monitor_orinoco(const char *in_dev, int initch, char *in_err, void **in_if) 
     return 0;
 }
 
+int unmonitor_orinoco(const char *in_dev, int initch, char *in_err, void **in_if) {
+    // Restore the IP settings
+    linux_ifparm *ifparm = (linux_ifparm *) (*in_if);
+
+    if (Ifconfig_Set_Linux(in_dev, in_err, &ifparm->ifaddr, &ifparm->dstaddr,
+                           &ifparm->broadaddr, &ifparm->maskaddr, ifparm->flags) < 0) {
+        return -1;
+    }
+
+    if (Iwconfig_Set_IntPriv(in_dev, "monitor", 0, 0, in_err) < 0) {
+        return -1;
+    }
+
+    if (Iwconfig_Set_SSID(in_dev, in_err, ifparm->essid) < 0)
+        return -1;
+    
+    free(ifparm);
+
+    return 0;
+
+}
+
 // Acx100 uses the packhdr iwpriv control to set link state, rest is normal
 int monitor_acx100(const char *in_dev, int initch, char *in_err, void **in_if) {
+    // Allocate a tracking record for the interface settings and remember our
+    // setup
+    linux_ifparm *ifparm = (linux_ifparm *) malloc(sizeof(linux_ifparm));
+    (*in_if) = ifparm;
+    if (Ifconfig_Get_Linux(in_dev, in_err, &ifparm->ifaddr, &ifparm->dstaddr,
+                           &ifparm->broadaddr, &ifparm->maskaddr, &ifparm->flags) < 0) {
+        return -1;
+    }
+
+    if (Iwconfig_Get_SSID(in_dev, in_err, ifparm->essid) < 0)
+        return -1;
+
+    if ((ifparm->channel = Iwconfig_Get_Channel(in_dev, in_err)) < 0)
+        return -1;
+
+    if (Iwconfig_Get_Mode(in_dev, in_err, &ifparm->mode) < 0)
+        return -1;
+
     // Set the packhdr iwpriv control to 1
     if (Iwconfig_Set_IntPriv(in_dev, "packhdr", 1, 0, in_err) < 0) {
         return -1;
@@ -1171,6 +1223,14 @@ int monitor_acx100(const char *in_dev, int initch, char *in_err, void **in_if) {
         return -1;
 
     return 0;
+}
+
+int unmonitor_acx100(const char *in_dev, int initch, char *in_err, void **in_if) {
+    if (Iwconfig_Set_IntPriv(in_dev, "packhdr", 0, 0, in_err) < 0) {
+        return -1;
+    }
+
+    return unmonitor_wext(in_dev, initch, in_err, in_if);
 }
 
 // vtar5k iwpriv control to set link state, rest is normal
