@@ -7,7 +7,7 @@ Licensed under the GPL
 2.  Feature Overview
 3.  Typical Uses
 4.  Required Libraries/Utilities
-5.  Security
+5.  Suidroot & Security
 6.  Upgrading From Previous Versions
 7.  Operating Systems
 8.  Capture Sources
@@ -121,7 +121,7 @@ Licensed under the GPL
       If you do not need to replay compressed dumps, you don't need a compiled
       copy of Ethereal.
 
-5.  Security
+5.  Suidroot & Security
 
     In order to configure the wireless card for rfmon and start the packet
     capture, Kismet needs root access.  As soon as root access is no longer
@@ -146,12 +146,6 @@ Licensed under the GPL
       have been config file changes, changes to the names of capture types,
       and various other mayhem.  Be sure to upgrade your config file or things
       will definitely not work how you expect them to.
-
-    Upgrading to Kismet 3.0:
-      Kismet 3.0.x revamps major portions of the Kismet architecture, including
-      a new alert system, integrated hopper and monitor scripts, and numerous
-      config file changes.  All users will need to upgrade to the latest config
-      files or Kismet will not work properly.
 
 7.  Operating Systems
 
@@ -197,14 +191,20 @@ Licensed under the GPL
 
       MacOSX is supported for Airport (classic) cards only, using the Viha
       drivers at http://www.dopesquad.net/security/.  There are no rfmon
-      drivers available for Airport Extreme cards or other cards under OSX.
+      drivers available for Airport Extreme cards currently.
+
+      Other third-party drivers may support rfmon for other pcmcia and usb
+      cards under OSX - let me know if your drivers support rfmon, and I'll
+      add support in Kismet.
 
     - Win32 (Cygwin)
       Known supported cards: WSP100, Drone, wtapfile, pcapfile
 
       Win32 ONLY works with remote captures.  There are no public rfmon drivers
       for win32, and no reports of any in development.  Kismet on Win32
-      requires cygwin for Posix utilities.
+      requires cygwin for the Posix layer.
+
+      Don't use win32 if you want to capture data natively.
 
 8.  Capture Sources
     
@@ -382,11 +382,16 @@ Licensed under the GPL
 
     'ac_cv_linux_vers=foo ./configure --with-pcap=linux ...'
 
-10.  Configuration
+10. Configuration
 
-    
+    Kismet is controlled by 2 primary configuration files:
+    kismet.conf controls the server backend, and kismet_ui.conf controls the
+    panels user interface.  By default, these files are in /usr/local/etc/.
+    Remote drone servers use a third file, kismet_drone.conf.
 
-11.  Troubleshooting
+    Kismet configuration files are a simple 'variable=value' format.
+
+11. Troubleshooting
     
     Some common problems with Kismet have easy solutions:
 
