@@ -815,8 +815,13 @@ fi
 LIBS="$LIBS -lstdc++"
 
 AC_SUBST(threadlib)
-	
+
+# Update the companion to this...
+if test "$gpslc"x != "x"; then
+    gpslco="\$(GPSLO)"
+fi
 AC_SUBST(gpslc)
+AC_SUBST(gpslco)
 
 sharedatadir=$datadir
 sharedatadir=`(

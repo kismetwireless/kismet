@@ -310,7 +310,7 @@ ac_includes_default="\
 #endif"
 
 ac_subdirs_all="$ac_subdirs_all $pcapdir"
-ac_subst_vars='SHELL PATH_SEPARATOR PACKAGE_NAME PACKAGE_TARNAME PACKAGE_VERSION PACKAGE_STRING PACKAGE_BUGREPORT exec_prefix prefix program_transform_name bindir sbindir libexecdir datadir sysconfdir sharedstatedir localstatedir libdir includedir oldincludedir infodir mandir build_alias host_alias target_alias DEFS ECHO_C ECHO_N ECHO_T LIBS pcapdir build build_cpu build_vendor build_os host host_cpu host_vendor host_os CC CFLAGS LDFLAGS CPPFLAGS ac_ct_CC EXEEXT OBJEXT CXX CXXFLAGS ac_ct_CXX INSTALL_PROGRAM INSTALL_SCRIPT INSTALL_DATA SET_MAKE CPP EGREP LIBOBJS instgrp mangrp CLIBS wantnetlink wantwireless wantpcap pcaplib pcaplnk subdirs pcap suid zaurus zbuild local glib wget magickconfig threadlib gpslc sharedatadir LTLIBOBJS'
+ac_subst_vars='SHELL PATH_SEPARATOR PACKAGE_NAME PACKAGE_TARNAME PACKAGE_VERSION PACKAGE_STRING PACKAGE_BUGREPORT exec_prefix prefix program_transform_name bindir sbindir libexecdir datadir sysconfdir sharedstatedir localstatedir libdir includedir oldincludedir infodir mandir build_alias host_alias target_alias DEFS ECHO_C ECHO_N ECHO_T LIBS pcapdir build build_cpu build_vendor build_os host host_cpu host_vendor host_os CC CFLAGS LDFLAGS CPPFLAGS ac_ct_CC EXEEXT OBJEXT CXX CXXFLAGS ac_ct_CXX INSTALL_PROGRAM INSTALL_SCRIPT INSTALL_DATA SET_MAKE CPP EGREP LIBOBJS instgrp mangrp CLIBS wantnetlink wantwireless wantpcap pcaplib pcaplnk subdirs pcap suid zaurus zbuild local glib wget magickconfig threadlib gpslc gpslco sharedatadir LTLIBOBJS'
 ac_subst_files=''
 
 # Initialize some variables set by options.
@@ -8061,6 +8061,11 @@ LIBS="$LIBS -lstdc++"
 
 
 
+# Update the companion to this...
+if test "$gpslc"x != "x"; then
+    gpslco="\$(GPSLO)"
+fi
+
 
 
 sharedatadir=$datadir
@@ -8734,6 +8739,7 @@ s,@wget@,$wget,;t t
 s,@magickconfig@,$magickconfig,;t t
 s,@threadlib@,$threadlib,;t t
 s,@gpslc@,$gpslc,;t t
+s,@gpslco@,$gpslco,;t t
 s,@sharedatadir@,$sharedatadir,;t t
 s,@LTLIBOBJS@,$LTLIBOBJS,;t t
 CEOF

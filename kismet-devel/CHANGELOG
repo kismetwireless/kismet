@@ -3,6 +3,8 @@ Mar 17 2004  devel  Tweaked gpsmap to error out on no sample points
                     Changed monitor mode controls to not nuke most SSIDs since
                      drivers don't seem to mind anymore, also updated prism54
                      and fixed a compile warning on acx100
+                    Tweaked configure/makefiles to not allow 'make gpsmap' if
+                     it wasn't enabled by configure
 Mar 16 2004  devel  Tweaked acx100 source to match acx's new orinoco-esque
                      method
 Mar 15 2004  devel  Finished gpsxml-sanitize, util takes a xml files and prints
