@@ -16,12 +16,6 @@
     Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 */
 
-// Extract a GPS coordinates dump and list it
-
-// Map fetcher
-// Map: http://www.mapblast.com/gif?&CT=41.711632:-73.932541:25000&IC=&W=1280&H=1024&FAM=mblast&LB=
-// lat, lon, zoom
-
 #include "config.h"
 
 // Prevent make dep warnings
@@ -62,31 +56,56 @@
 #define PIXELFACT 2817.947378
 
 #define square(x) ((x)*(x))
+
 // Global constant values
 const char *config_base = "kismet.conf";
-// &L = USA for the USA, EUR appears to be generic for Europe, EUR0809 for other parts of Europe.. if you get it wrong your map will be very bland =)
-// default to USA, probably want to change this. -- poptix
-const char url_template_mp[] = "http://msrvmaps.mappoint.net/isapi/MSMap.dll?ID=3XNsF.&C=%f,%f&L=USA&CV=1&A=%ld&S=%d,%d&O=0.000000,0.000000&MS=0&P=|5748|";
+
+// Not all these work anymore, but left for people who kept gifs and want to still
+// plot on top of them.  We won't download new ones.
+#define MAPSOURCE_MIN        0
+#define MAPSOURCE_MAPBLAST   0
+#define MAPSOURCE_MAPPOINT   1
+#define MAPSOURCE_TERRA      2
+#define MAPSOURCE_TIGER      3
+#define MAPSOURCE_EARTHAMAPS 4
+#define MAPSOURCE_MAX        4
+
+// Broken map sources...  Damn vendors changing.
+// Mappoint
+// const char url_template_mp[] = "http://msrvmaps.mappoint.net/isapi/MSMap.dll?ID=3XNsF.&C=%f,%f&L=USA&CV=1&A=%ld&S=%d,%d&O=0.000000,0.000000&MS=0&P=|5748|";
+// Mapblast
+// const char url_template_mb[] = "http://www.vicinity.com/gif?&CT=%f:%f:%ld&IC=&W=%d&H=%d&FAM=myblast&LB=%s";
+
+// Terraserver photo-maps
 const char url_template_ts[] = "http://terraservice.net/GetImageArea.ashx?t=1&lat=%f&lon=%f&s=%ld&w=%d&h=%d";
-const char url_template_mb[] = "http://www.vicinity.com/gif?&CT=%f:%f:%ld&IC=&W=%d&H=%d&FAM=myblast&LB=%s";
-// Freaking mapblast changed again...
-// const char url_template_mb[] = "http://www.mapblast.com/myblastd/MakeMap.d?&CT=%f:%f:%ld&IC=&W=%d&H=%d&FAM=myblast&LB=%s";
+// Tiger census vector maps
 const char url_template_ti[] = "http://tiger.census.gov/cgi-bin/mapper/map.gif?lat=%f&lon=%f&wid=0.001&ht=%f&iwd=%d&iht=%d&on=majroads&on=places&on=shorelin&on=streets&on=interstate&on=statehwy&on=ushwy&on=water&tlevel=-&tvar=-&tmeth=i";
+// Earthamaps need a perl helper script to get data because of cookies
+const char url_template_em[] = "gpsmap-helper-earthamaps %s %f %f %d %d %ld";
 
+// Download template for sources that we fetch using wget
 const char download_template[] = "wget \"%s\" -O %s";
-// Decay from absolute blue for multiple tracks
-const uint8_t track_decay = 0x1F;
-// distance (in feet) before we throttle a network and discard it
-const unsigned int horiz_throttle = 75000;
 
-// Image scales we use
+// Image scales we try to autofetch
 long int scales[] = { 1000, 2000, 5000, 10000, 20000, 30000, 50000, 60000, 
     70000, 75000, 80000, 85000, 90000, 95000, 100000, 125000, 150000, 200000, 
     300000, 500000, 750000, 1000000, 2000000, 3000000, 4000000, 5000000, 
     6000000, 7000000, 8000000, 9000000, 10000000, 15000000,
-    20000000, 25000000, 30000000, 35000000, 40000000, 0 };
+    20000000, 25000000, 30000000, 35000000, 40000000, -1 };
+
 // Terraserver scales for conversion to mapblast scales
-long int terrascales[] = { 2757, 5512, 11024, 22048, 44096, 88182, 176384 };
+long int terrascales[] = { 2757, 5512, 11024, 22048, 44096, 88182, 176384, -1 };
+
+// Earthamap scales turned into our mapblast scales
+// (metersscale / 42 * PIXELFACT)
+long int earthamapscales[] = {
+    0, 0, 32393191, 16196595, 8098298, 4319092, 2159546, 1079773, 539887,
+    215955, 107977, 53989, 26994, 14315, 7158, 3579, -1 };
+
+// Decay from absolute blue for multiple tracks
+const uint8_t track_decay = 0x1F;
+// distance (in feet) before we throttle a network and discard it
+const unsigned int horiz_throttle = 75000;
 
 // Image colors
 const char *netcolors[] = {
@@ -320,11 +339,7 @@ int convert_greyscale = 1, keep_gif = 0, verbose = 0, label_orientation = 7;
 int draw_x_offset = 0, draw_y_offset = 0;
 
 // Map source
-int mapsource = 0;
-#define MAPSOURCE_MAPBLAST   0
-#define MAPSOURCE_MAPPOINT   1
-#define MAPSOURCE_TERRA      2
-#define MAPSOURCE_TIGER      3
+int mapsource = 4;
 
 // Interpolation resolution
 int power_resolution = 5;
@@ -386,7 +401,8 @@ double earth_distance(double lat1, double lon1, double lat2, double lon2);
 double calcR (double lat);
 void calcxy (double *posx, double *posy, double lat, double lon, double pixelfact, 
              double zero_lat, double zero_long);
-long int BestMapScale(double tlat, double tlon, double blat, double blon);
+int BestMapScale(long int *in_mapscale, long int *in_fetchscale, double tlat, 
+        double tlon, double blat, double blon);
 int ProcessGPSFile(char *in_fname);
 void AssignNetColors();
 void MergeNetData(vector<wireless_network *> in_netdata);
@@ -1227,34 +1243,91 @@ void calcxy (double *posx, double *posy, double lat, double lon, double pixelfac
 }
 
 // Find the best map scale for the 'rectangle' tlat,tlon
-long int BestMapScale(double tlat, double tlon, double blat, double blon) { /*FOLD00*/
-    for (int x = 0; scales[x] != 0; x++) {
-        double mapx, mapy;
-        double map2x, map2y;
+// This is a bit klugey and should be done better in the future.
+int BestMapScale(long int *in_mapscale, long int *in_fetchscale, 
+        double tlat, double tlon, double blat, double blon) { 
+    double mapx, mapy;
+    double map2x, map2y;
 
-        /*
-        calcxy (&mapx, &mapy, global_map_avg.max_lat, global_map_avg.max_lon,
-                (double) scales[x]/PIXELFACT, map_avg_lat, map_avg_lon);
-                */
+    if (mapsource == MAPSOURCE_TERRA) {
+        for (int x = 0; terrascales[x] != -1; x++) {
+            calcxy(&mapx, &mapy, tlat, tlon, 
+                    (double) terrascales[x]/PIXELFACT, 
+                    map_avg_lat, map_avg_lon);
+            calcxy(&map2x, &map2y, blat, blon, 
+                    (double) terrascales[x]/PIXELFACT, 
+                    map_avg_lat, map_avg_lon);
 
+            if ((mapx < 0 || mapx > map_width || mapy < 0 || 
+                        mapy > map_height) ||
+                    (map2x < 0 || map2x > map_width || 
+                     map2y < 0 || map2y > map_height)) {
+                continue;
+            } else {
+                (*in_mapscale) = terrascales[x];
+                (*in_fetchscale) = x + 10;
+                return 1;
+            }
+        }
+        return -1;
+    }
+
+    if (mapsource == MAPSOURCE_EARTHAMAPS) {
+        // Find how many scales we have
+        int nscales;
+        for (nscales = 0; earthamapscales[nscales] != -1; nscales++) 
+            ; // Nothing
+
+        for (int x = (nscales - 1); x > 1; x--) {
+            calcxy(&mapx, &mapy, tlat, tlon, 
+                    (double) earthamapscales[x]/PIXELFACT, 
+                    map_avg_lat, map_avg_lon);
+            calcxy(&map2x, &map2y, blat, blon, 
+                    (double) earthamapscales[x]/PIXELFACT, 
+                    map_avg_lat, map_avg_lon);
+
+            if ((mapx < 0 || mapx > map_width || mapy < 0 || 
+                        mapy > map_height) ||
+                    (map2x < 0 || map2x > map_width || 
+                     map2y < 0 || map2y > map_height)) {
+                continue;
+            } else {
+                (*in_mapscale) = earthamapscales[x];
+                (*in_fetchscale) = x;
+                return 1;
+            }
+        }
+
+        return -1;
+    }
+
+    // Mapblast style scale finding
+    for (int x = 0; scales[x] != -1; x++) {
         calcxy(&mapx, &mapy, tlat, tlon, (double) scales[x]/PIXELFACT, map_avg_lat, map_avg_lon);
         calcxy(&map2x, &map2y, blat, blon, (double) scales[x]/PIXELFACT, map_avg_lat, map_avg_lon);
 
         if ((mapx < 0 || mapx > map_width || mapy < 0 || mapy > map_height) ||
-            (map2x < 0 || map2x > map_width || map2y < 0 || map2y > map_height)) {
+                (map2x < 0 || map2x > map_width || map2y < 0 || map2y > map_height)) {
             continue;
         } else {
             // Fudge the scale by 10% for extreme ranges
-            if (scales[x] >= 1000000 && scales[x] < 20000000)
-                return (long) (scales[x] + (scales[x] * 0.10));
-            if (scales[x] >= 20000000)
-                return (long) (scales[x] + (scales[x] * 0.15));
+            if (scales[x] >= 1000000 && scales[x] < 20000000) {
+                (*in_mapscale) = (long) (scales[x] + (scales[x] * 0.10)); 
+            } else if (scales[x] >= 20000000) {
+                (*in_mapscale) = (long) (scales[x] + (scales[x] * 0.15));
+            } else {
+                (*in_mapscale) = scales[x];
+            }
 
-            return scales[x];
+            (*in_fetchscale) = (*in_mapscale);
+
+            return 1;
         }
+
+        return -1;
     }
 
-    return 0;
+    return -1;
 }
 
 // This new distance macro does not use the pow function, for 2 we can simply multiply
@@ -2578,6 +2651,7 @@ int DrawLegendComposite(vector<gps_network *> in_nets, Image **in_img,
     }
     cur_rowpos += tx_height + 2;
 
+    /*
     snprintf(text, 1024, "Total networks  : %d\n", in_nets.size());
     tx_height = IMStringHeight(text, leg_img, leg_di);
 
@@ -2592,7 +2666,7 @@ int DrawLegendComposite(vector<gps_network *> in_nets, Image **in_img,
         return -1;
     }
     cur_rowpos += tx_height + 2;
-   
+    */ 
 
     snprintf(text, 1024, "Visible networks: %d\n", drawn_net_map.size());
     tx_height = IMStringHeight(text, leg_img, leg_di);
@@ -2994,11 +3068,12 @@ int Usage(char* argv, int ec = 1) {
            "  -z, --threads <num>            Number of simultaneous threads used for\n"
            "                                  complex operations [Default: 1]\n"
            "  -N, --pure-avg-center          Use old pure-average network center finding\n"
-           "  -S, --map-source <#>           Source to download maps from [Default: 0]\n"
-           "                                  0 MapBlast (vector)\n"
-           "                                  1 MapPoint (vector)\n"
+           "  -S, --map-source <#>           Source to download maps from [Default: 4]\n"
+           "                                  0 MapBlast (BROKEN)\n"
+           "                                  1 MapPoint (BROKEN)\n"
            "                                  2 TerraServer (photo)\n"
            "                                  3 Tiger US Census (vector)\n"
+           "                                  4 EarthaMaps (vector)\n"
            "  -D, --keep-gif                 Keep the downloaded map\n"
            "  -V, --version                  GPSMap version\n"
            "\nImage options\n"
@@ -3203,7 +3278,7 @@ int main(int argc, char *argv[]) {
             }
             break;
         case 'S':
-            if (sscanf(optarg, "%d", &mapsource) != 1 || mapsource < 0 || mapsource > 3) {
+            if (sscanf(optarg, "%d", &mapsource) != 1 || mapsource < MAPSOURCE_MIN || mapsource > MAPSOURCE_MAX) {
                 fprintf(stderr, "Invalid map source.\n");
                 ShortUsage(exec_name);
             }
@@ -3477,14 +3552,29 @@ int main(int argc, char *argv[]) {
         exit(1);
     }
 
-    if (mapsource == MAPSOURCE_TERRA) {
-    // It's way too much of a kludge to muck with munging the scale around
+    // Mangle user scales for other sources into our internal map-blasty scales.
+    // Some day this needs to get rewritten to not be using a source that doesn't
+    // work anymore as the internal reference point.
+    
+    if (mapsource == MAPSOURCE_TERRA && user_scale != 0) {
+        // It's way too much of a kludge to muck with munging the scale around
         if ((user_scale < 10) || (user_scale > 16)) {
             fprintf(stderr, "FATAL: You must provide a scale with the -s option that is from 10 to 16\n");
             exit(0);
         }
         fetch_scale = user_scale;
         map_scale = user_scale = terrascales[(user_scale - 10)];
+    }
+
+    // Require the user to specify a scale between 2 and 15, then set
+    // {map,user}_scale to the cooresponding element in earthamapscales[].
+    if (mapsource == MAPSOURCE_EARTHAMAPS && user_scale != 0) {
+        if ((user_scale < 2) || (user_scale > 15)) {
+            fprintf(stderr, "FATAL: You must provide a scale with the -s option that is from 2 to 15\n");
+            exit(0);
+        }
+        fetch_scale = user_scale;
+        map_scale   = user_scale = earthamapscales[user_scale];
     }
 
     if (ap_manuf_name != NULL) {
@@ -3573,8 +3663,13 @@ int main(int argc, char *argv[]) {
     map_avg_lon = (double) (global_map_avg.min_lon + global_map_avg.max_lon) / 2;
 
     // Fit the whole map
-    map_scale = BestMapScale(global_map_avg.min_lat, global_map_avg.min_lon,
-                             global_map_avg.max_lat, global_map_avg.max_lon);
+    if (BestMapScale(&map_scale, &fetch_scale, global_map_avg.min_lat, 
+                global_map_avg.min_lon, global_map_avg.max_lat, 
+                global_map_avg.max_lon) < 0) {
+        fprintf(stderr, "Could not find a suitable scale for the sample points. "
+                "Please manually provide a scale with the -s option.\n");
+        exit(1);
+    }
 
     fprintf(stderr, "Map image scale: %ld\n", map_scale);
     fprintf(stderr, "Minimum Corner (lat/lon): %f x %f\n", global_map_avg.min_lat,
@@ -3631,34 +3726,46 @@ int main(int argc, char *argv[]) {
 
     if (img == (Image *) NULL) {
         if (usermap) {
-            printf("Unable to load '%s'\n", mapname);
+            fprintf(stderr, "Unable to load '%s'\n", mapname);
             exit(1);
         }
 
+        if (mapsource == MAPSOURCE_MAPBLAST || mapsource == MAPSOURCE_MAPPOINT) {
+            fprintf(stderr, "The source you selected is known to be broken.  Support "
+                    "remains for this source only if previously downloaded maps are "
+                    "available, because the map vendor has changed their interface in "
+                    "a way that prevents gpsmap from getting the images.\n");
+            exit(1);
+        }
+        
         char url[1024];
 
         if (mapsource == MAPSOURCE_TERRA) {
             snprintf(url, 1024, url_template_ts, map_avg_lat, map_avg_lon, fetch_scale,
                      map_width, map_height);
-        } else if (mapsource == MAPSOURCE_MAPBLAST) {
-            fetch_scale = map_scale;
-            snprintf(url, 1024, url_template_mb, map_avg_lat, map_avg_lon, fetch_scale,
-                     map_width, map_height, metric ? "&DU=KM" : "");
-        } else if (mapsource == MAPSOURCE_MAPPOINT) {
-            fetch_scale = (long) (map_scale / 1378.6);
-            snprintf(url, 1024, url_template_mp, map_avg_lat, map_avg_lon, fetch_scale,
-                     map_width, map_height);
         } else if (mapsource == MAPSOURCE_TIGER) {
             snprintf(url, 1024, url_template_ti, map_avg_lat, map_avg_lon, (map_scale / 300000.0),
                      map_width, map_height);
+        } else if (mapsource == MAPSOURCE_EARTHAMAPS) {
+            snprintf(url, 1024, url_template_em, mapname, map_avg_lat, map_avg_lon,
+                    map_width, map_height, fetch_scale);
         }
 
         printf("Map url: %s\n", url);
         printf("Fetching map...\n");
 
-        char geturl[1024];
-        snprintf(geturl, 1024, download_template, url, mapname);
-        system(geturl);
+        if (mapsource == MAPSOURCE_EARTHAMAPS) {
+            int retval	= system(url);
+
+            if (retval != 0) {
+                fprintf(stderr, "Could not run %s: %s\n", url, strerror(retval));
+                exit(1);
+            }
+        } else {
+            char geturl[1024];
+            snprintf(geturl, 1024, download_template, url, mapname);
+            system(geturl);
+        }
 
         printf("Loading map into Imagemagick structures.\n");
         strcpy(img_info->filename, mapname);

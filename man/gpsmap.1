@@ -67,7 +67,7 @@ sample points.
 .TP
 .B
 \fB-S\fP, \fB--map-source\fP SOURCE
-Source to download maps from (0 = Mapblast; 1 = MapPoint; 2 = Terraserver; 3 = Tiger Census).  Default: 0
+Source to download maps from (0 = Mapblast (broken); 1 = MapPoint(broken); 2 = Terraserver; 3 = Tiger Census; 4 = Earthamap).  Default: 4
 .TP
 .B
 \fB-D\fP, \fB--keep-gif\fP
@@ -236,6 +236,12 @@ center and the orientation.
 Draws a legend on the bottom of the map with the coordinates, scale, total sampled
 networks, networks visible on the current plot, and dynamic information based on the
 plots selected and the network color methods requested.
+.SH BUGS
+While not technically a bug, sources 0 and 1 (Mapblast and MapPoint) are nonfunctional. 
+The vendors have changed their serivice in such a way that it is impossible to download 
+the map images from them.  GPSMap still supports these sources, but ONLY for predownloaded 
+images that may have been kept previously.  Attempts to use these sources when a user map
+is not available will fail.
 .SH SEE ALSO
 \fBkismet\fP(1)
 .SH AUTHOR
