@@ -4,7 +4,7 @@
 # not continually reading --help!
 
 # Version of Kismet config
-version=Feb.04.01a
+version=2004.03.devel.a
 
 # Name of server (Purely for organiational purposes)
 servername=Kismet
@@ -12,15 +12,22 @@ servername=Kismet
 # User to setid to (should be your normal user)
 suiduser=your_user_here
 
-# Docs to come soon, see kis_packsources.cc for now for all the card types
+# Sources are defined as:
+# source=cardtype,interface,name[,initialchannel]
+# Card types and required drivers are listed in the README.
+# The initial channel is optional, if hopping is not enabled it can be used
+# to set the channel the interface listens on.
 source=cisco,eth0,ciscosource
 # Other common source configs:
 # source=prism2,wlan0,prism2source
 # source=prism2_avs,wlan0,newprism2source
 # source=orinoco,eth0,orinocosource
+# An example source line with an initial channel:
+# source=orinoco,eth0,silver,11
 
-# Comma-separated list of sources to enable.  This is only needed if you wish 
-# to selectively enable multiple sources.
+# Comma-separated list of sources to enable.  This is only needed if you defined
+# multiple sources and only want to enable some of them.  By default, all defined
+# sources are enabled.
 # For example:
 # enablesources=prismsource,ciscosource
 

@@ -4,6 +4,8 @@ Mar 13 2004  devel  Updated readme, added client column lists
                      center finding code
                     Moved fifodump out of logging, fifo will still happen with
                      '-n' now
+                    Added fourth optional parameter to source= config lines to
+                     set the initial channel
 Mar 12 2004  devel  Changed sound exec to dup2 /dev/null instead of closing
                      stdout and stderr, should prevent sox being mad about
                      not having output paths
