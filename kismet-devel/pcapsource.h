@@ -169,6 +169,18 @@ protected:
 };
 #endif
 
+#ifdef SYS_LINUX
+// Override packet fetching logic on this one to discard jumbo corrupt packets
+// that it likes to generate
+class PcapSourceWrt54g : public PcapSource {
+public:
+    PcapSourceWrt54g(string in_name, string in_dev) : PcapSource(in_name, in_dev) { }
+    int FetchPacket(kis_packet *packet, uint8_t *data, uint8_t *moddata);
+protected:
+    carrier_type IEEE80211Carrier();
+};
+#endif
+
 #ifdef SYS_OPENBSD
 class PcapSourceOpenBSDPrism : public PcapSource {
 public:
@@ -193,6 +205,11 @@ KisPacketSource *pcapsource_ciscowifix_registrant(string in_name, string in_devi
                                                   char *in_err);
 KisPacketSource *pcapsource_11g_registrant(string in_name, string in_device,
                                            char *in_err);
+#endif
+
+#ifdef SYS_LINUX
+KisPacketSource *pcapsource_wrt54g_registrant(string in_name, string in_device,
+                                              char *in_err);
 #endif
 
 #ifdef SYS_OPENBSD

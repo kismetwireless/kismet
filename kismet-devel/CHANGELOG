@@ -11,6 +11,9 @@ Dec 09 2003  3.1.0  Fixed prism54g override of channel change failure in
                     Modified gpsmap power interpolation to get signal levels
                      from network sample points instead of tracklog.  This
                      also enables filtering of interpolation graphs.
+                    Modified wrt54g packet source to discard max_cap_len 
+                     packets which get spawned by the linksys in monitor
+                     while people are associated.
 Dec 08 2003  3.1.0  Fixed util.h to include math.h outside of the wext
                      ifdef.
                     Removed mentions of signal quality from the panels client.
