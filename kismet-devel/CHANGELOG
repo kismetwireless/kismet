@@ -1,6 +1,7 @@
 Nov 10 2002  2.7.1  Initial support for multiple capture sources on one server.
                      MAJOR CHANGES TO THE CONFIG FILE - READ THE NEW DEFAULT
                      CONFIGS OR THINGS WILL NOT WORK.
+                    Fixed kismet_monitor to work with the new source format
 Nov 09 2002  2.7.1  Added ability to name servers via the "servername" 
                      config file.
                     Fixed bug which included networks flagged by the tracker
