@@ -363,6 +363,8 @@ int TcpClient::ParseData(char *in_data) {
 
         if (net_map.find(bssid) != net_map.end())
             net_map[bssid]->client_map[client->mac] = client;
+        else
+            delete client;
 
     } else if (!strncmp(header, "*REMOVE", 64)) {
 
