@@ -489,6 +489,7 @@ void CapSourceChild(capturesource *csrc) {
     fd_set wset;
     int active = 0;
     int diseased = 0;
+    int write_dataframe_only = 0;
     pid_t mypid = getpid();
 
     // Assign globals for signal handler
@@ -553,21 +554,42 @@ void CapSourceChild(capturesource *csrc) {
         // Write out a packet
         if (FD_ISSET(csrc->childpair[0], &wset) && packet_buf.size() > 0) {
             capchild_packhdr *pak = packet_buf.front();
-            packet_buf.pop_front();
 
-            // Send the packet header
-            if (send(csrc->childpair[0], pak, sizeof(capchild_packhdr) - sizeof(void *), 0) < 0) {
-                fprintf(stderr, "FATAL:  capture child %d send() error sending packhdr %d (%s)\n",
-                        mypid, errno, strerror(errno));
-                exit(1);
+            // Send the packet header if we're writing a full packet
+            if (write_dataframe_only == 0) {
+                if (send(csrc->childpair[0], pak, sizeof(capchild_packhdr) - sizeof(void *), 0) < 0) {
+                    if (errno == ENOBUFS) {
+                        // If we couldn't fit the header into the pipe buffer, jump out and leave the
+                        // frame in our queue.  It'll just get picked up next time.
+                        // This is bad but its better than a ton of nested ifs
+                        goto endpackpipewrite;
+                    } else {
+                        fprintf(stderr, "FATAL:  capture child %d send() error sending packhdr %d (%s)\n",
+                                mypid, errno, strerror(errno));
+                        exit(1);
+                    }
+                }
             }
 
             // Send the data
             if (send(csrc->childpair[0], pak->data, pak->datalen, 0) < 0) {
-                fprintf(stderr, "FATAL:  capture child %d send() error sending pack data %d (%s)\n",
-                        mypid, errno, strerror(errno));
-                exit(1);
+                // If we can't fit it, flag dataframe only and jump out of writing.  We'll finish it
+                // next time...
+                if (errno == ENOBUFS) {
+                    write_dataframe_only = 1;
+                    goto endpackpipewrite;
+                } else {
+                    fprintf(stderr, "FATAL:  capture child %d send() error sending pack data %d (%s)\n",
+                            mypid, errno, strerror(errno));
+                    exit(1);
+                }
             }
+
+            // We wrote fine
+            write_dataframe_only = 0;
+
+            // Get us out of the local buffer
+            packet_buf.pop_front();
 
             // Delete the data - this needs to be a free because of strdup
             free(pak->data);
@@ -575,6 +597,9 @@ void CapSourceChild(capturesource *csrc) {
             delete pak;
 
         }
+
+        // This is bad and evil
+    endpackpipewrite: ;
 
         // grab a packet and write it down the pipe
         if (FD_ISSET(csrc->source->FetchDescriptor(), &rset)) {
