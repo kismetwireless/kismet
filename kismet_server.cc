@@ -1206,10 +1206,15 @@ int main(int argc,char *argv[]) {
         // For any unopened soruces...
         if (csrc->source == NULL) {
             if (!strcasecmp(captype, "wtapfile")) {
+#ifdef HAVE_WTAPFILE
                 fprintf(stderr, "Source %d: Loading packets from dump file %s\n",
                        src, csrc->interface.c_str());
 
                 csrc->source = new WtapFileSource;
+#else
+                fprintf(stderr, "FATAL: Source %d: Wtapfile support was not compiled in.\n", src);
+                exit(1);
+#endif
             }
 
             // Open the packet source
