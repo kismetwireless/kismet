@@ -234,7 +234,7 @@ int PanelFront::MainNetworkPrinter(void *in_window) {
     kis_window *kwin = (kis_window *) in_window;
     WINDOW *netwin = kwin->win;
 
-    unsigned int drop;
+    int drop;
 
     // One:  Get our new data from the client
     PopulateGroups();
@@ -259,7 +259,7 @@ int PanelFront::MainNetworkPrinter(void *in_window) {
         drop = display_vector.size() - kwin->max_display - 1;
 
         if (drop > 0) {
-            if (drop > display_vector.size())
+            if (drop > (int) display_vector.size())
                 drop = display_vector.size();
 
             display_vector.erase(display_vector.begin(), display_vector.begin() + drop);
@@ -935,7 +935,7 @@ int PanelFront::MainClientPrinter(void *in_window) {
     sortxt[0] = '\0';
 
     vector<wireless_client *> display_vector = details_network->virtnet.client_vec;
-    unsigned int drop;
+    int drop;
 
     switch (client_sortby) {
     case client_sort_auto:
@@ -950,7 +950,7 @@ int PanelFront::MainClientPrinter(void *in_window) {
         drop = display_vector.size() - kwin->max_display - 1;
 
         if (drop > 0) {
-            if (drop > display_vector.size())
+            if (drop > (int) display_vector.size())
                 drop = display_vector.size();
 
             display_vector.erase(display_vector.begin(), display_vector.begin() + drop);
@@ -1088,6 +1088,10 @@ int PanelFront::TextPrinter(void *in_window) {
     unsigned int x;
 
     char *txt = new char[kwin->print_width + 1];
+
+    if (kwin->start + x > kwin->text.size())
+        return 1;
+
     for (x = 0; x + kwin->start < kwin->text.size() &&
          x < (unsigned int) kwin->max_display; x++) {
         snprintf(txt, kwin->print_width + 1, "%s", kwin->text[x+kwin->start].c_str());
