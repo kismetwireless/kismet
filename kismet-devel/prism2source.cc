@@ -185,7 +185,7 @@ int monitor_wlanng_legacy(const char *in_dev, int initch, char *in_err, void **i
     char cmdline[2048];
 
     // Bring the device up, zero its ip, and set promisc
-    if (Ifconfig_Set_Linux(in_dev, in_err, NULL, NULL, NULL, NULL, 0) < 0)
+    if (Ifconfig_Delta_Flags(in_dev, in_err, IFF_UP | IFF_RUNNING | IFF_PROMISC) < 0)
         return -1;
 
     // Enable the interface

@@ -45,6 +45,11 @@
 #include "util.h"
 
 #ifdef SYS_LINUX
+int Ifconfig_Set_Flags(const char *in_dev, char *errstr, short flags);
+int Ifconfig_Delta_Flags(const char *in_dev, char *errstr, short flags);
+int Ifconfig_Get_Flags(const char *in_dev, char *errstr, short *flags);
+
+#if 0
 // Bring up an interface in promisc mode with no IP in linux
 int Ifconfig_Set_Linux(const char *in_dev, char *errstr, 
                        struct sockaddr_in *ifaddr, 
@@ -59,6 +64,8 @@ int Ifconfig_Get_Linux(const char *in_dev, char *errstr,
                        struct sockaddr_in *broadaddr, 
                        struct sockaddr_in *maskaddr, 
                        short *flags);
+#endif
+
 #endif
 
 #ifdef HAVE_LINUX_WIRELESS

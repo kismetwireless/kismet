@@ -986,8 +986,7 @@ int monitor_cisco(const char *in_dev, int initch, char *in_err, void **in_if) {
     FILE *cisco_config;
     char cisco_path[128];
 
-    // Bring the device up, zero its ip, and set promisc
-    if (Ifconfig_Set_Linux(in_dev, in_err, NULL, NULL, NULL, NULL, 0) < 0)
+    if (Ifconfig_Delta_Flags(in_dev, in_err, IFF_UP | IFF_RUNNING | IFF_PROMISC) < 0)
         return -1;
 
     // Zero the ssid
@@ -1029,9 +1028,11 @@ int monitor_cisco_wifix(const char *in_dev, int initch, char *in_err, void **in_
     }
 
     // Bring the device up, zero its ip, and set promisc
-    if (Ifconfig_Set_Linux(devbits[0].c_str(), in_err, NULL, NULL, NULL, NULL, 0) < 0)
+    if (Ifconfig_Delta_Flags(devbits[0].c_str(), in_err, 
+                             IFF_UP | IFF_RUNNING | IFF_PROMISC) < 0)
         return -1;
-    if (Ifconfig_Set_Linux(devbits[1].c_str(), in_err, NULL, NULL, NULL, NULL, 0) < 0)
+    if (Ifconfig_Delta_Flags(devbits[1].c_str(), in_err, 
+                             IFF_UP | IFF_RUNNING | IFF_PROMISC) < 0)
         return -1;
 
     // Zero the ssid
@@ -1068,10 +1069,9 @@ int monitor_hostap(const char *in_dev, int initch, char *in_err, void **in_if) {
     // setup
     linux_ifparm *ifparm = (linux_ifparm *) malloc(sizeof(linux_ifparm));
     (*in_if) = ifparm;
-    if (Ifconfig_Get_Linux(in_dev, in_err, &ifparm->ifaddr, &ifparm->dstaddr,
-                           &ifparm->broadaddr, &ifparm->maskaddr, &ifparm->flags) < 0) {
+
+    if (Ifconfig_Get_Flags(in_dev, in_err, &ifparm->flags) < 0)
         return -1;
-    }
 
     if (Iwconfig_Get_SSID(in_dev, in_err, ifparm->essid) < 0)
         return -1;
@@ -1106,8 +1106,7 @@ int unmonitor_hostap(const char *in_dev, int initch, char *in_err, void **in_if)
     // Restore the IP settings
     linux_ifparm *ifparm = (linux_ifparm *) (*in_if);
 
-    if (Ifconfig_Set_Linux(in_dev, in_err, &ifparm->ifaddr, &ifparm->dstaddr,
-                           &ifparm->broadaddr, &ifparm->maskaddr, ifparm->flags) < 0) {
+    if (Ifconfig_Set_Flags(in_dev, in_err, ifparm->flags) < 0) {
         return -1;
     }
 
@@ -1135,8 +1134,8 @@ int monitor_orinoco(const char *in_dev, int initch, char *in_err, void **in_if) 
     // setup
     linux_ifparm *ifparm = (linux_ifparm *) malloc(sizeof(linux_ifparm));
     (*in_if) = ifparm;
-    if (Ifconfig_Get_Linux(in_dev, in_err, &ifparm->ifaddr, &ifparm->dstaddr,
-                           &ifparm->broadaddr, &ifparm->maskaddr, &ifparm->flags) < 0) {
+    
+    if (Ifconfig_Get_Flags(in_dev, in_err, &ifparm->flags) < 0) {
         return -1;
     }
 
@@ -1144,7 +1143,7 @@ int monitor_orinoco(const char *in_dev, int initch, char *in_err, void **in_if) 
         return -1;
 
     // Bring the device up, zero its ip, and set promisc
-    if (Ifconfig_Set_Linux(in_dev, in_err, NULL, NULL, NULL, NULL, 0) < 0) 
+    if (Ifconfig_Delta_Flags(in_dev, in_err, IFF_UP | IFF_RUNNING | IFF_PROMISC) < 0)
         return -1;
 
     // Zero the ssid
@@ -1175,8 +1174,7 @@ int unmonitor_orinoco(const char *in_dev, int initch, char *in_err, void **in_if
     // Restore the IP settings
     linux_ifparm *ifparm = (linux_ifparm *) (*in_if);
 
-    if (Ifconfig_Set_Linux(in_dev, in_err, &ifparm->ifaddr, &ifparm->dstaddr,
-                           &ifparm->broadaddr, &ifparm->maskaddr, ifparm->flags) < 0) {
+    if (Ifconfig_Set_Flags(in_dev, in_err, ifparm->flags) < 0) {
         return -1;
     }
 
@@ -1199,8 +1197,8 @@ int monitor_acx100(const char *in_dev, int initch, char *in_err, void **in_if) {
     // setup
     linux_ifparm *ifparm = (linux_ifparm *) malloc(sizeof(linux_ifparm));
     (*in_if) = ifparm;
-    if (Ifconfig_Get_Linux(in_dev, in_err, &ifparm->ifaddr, &ifparm->dstaddr,
-                           &ifparm->broadaddr, &ifparm->maskaddr, &ifparm->flags) < 0) {
+
+    if (Ifconfig_Get_Flags(in_dev, in_err, &ifparm->flags) < 0) {
         return -1;
     }
 
@@ -1299,8 +1297,8 @@ int monitor_prism54g(const char *in_dev, int initch, char *in_err, void **in_if)
     // setup
     linux_ifparm *ifparm = (linux_ifparm *) malloc(sizeof(linux_ifparm));
     (*in_if) = ifparm;
-    if (Ifconfig_Get_Linux(in_dev, in_err, &ifparm->ifaddr, &ifparm->dstaddr,
-                           &ifparm->broadaddr, &ifparm->maskaddr, &ifparm->flags) < 0) {
+
+    if (Ifconfig_Get_Flags(in_dev, in_err, &ifparm->flags) < 0) {
         return -1;
     }
 
@@ -1331,7 +1329,7 @@ int monitor_wext(const char *in_dev, int initch, char *in_err, void **in_if) {
     int skfd;
 
     // Bring the device up, zero its ip, and set promisc
-    if (Ifconfig_Set_Linux(in_dev, in_err, NULL, NULL, NULL, NULL, 0) < 0) 
+    if (Ifconfig_Delta_Flags(in_dev, in_err, IFF_UP | IFF_RUNNING | IFF_PROMISC) < 0)
         return -1;
 
     // Zero the ssid
@@ -1390,8 +1388,7 @@ int unmonitor_wext(const char *in_dev, int initch, char *in_err, void **in_if) {
     // Restore the IP settings
     linux_ifparm *ifparm = (linux_ifparm *) (*in_if);
 
-    if (Ifconfig_Set_Linux(in_dev, in_err, &ifparm->ifaddr, &ifparm->dstaddr,
-                           &ifparm->broadaddr, &ifparm->maskaddr, ifparm->flags) < 0) {
+    if (Ifconfig_Set_Flags(in_dev, in_err, ifparm->flags) < 0) {
         return -1;
     }
 
@@ -1426,8 +1423,7 @@ int monitor_wlanng(const char *in_dev, int initch, char *in_err, void **in_if) {
         }
     }
     
-    // Bring the device up, zero its ip, and set promisc
-    if (Ifconfig_Set_Linux(in_dev, in_err, NULL, NULL, NULL, NULL, 0) < 0) 
+    if (Ifconfig_Delta_Flags(in_dev, in_err, IFF_UP | IFF_RUNNING | IFF_PROMISC) < 0)
         return -1;
 
     // Enable the interface
@@ -1462,8 +1458,8 @@ int monitor_wlanng_avs(const char *in_dev, int initch, char *in_err, void **in_i
     // setup
     linux_ifparm *ifparm = (linux_ifparm *) malloc(sizeof(linux_ifparm));
     (*in_if) = ifparm;
-    if (Ifconfig_Get_Linux(in_dev, in_err, &ifparm->ifaddr, &ifparm->dstaddr,
-                           &ifparm->broadaddr, &ifparm->maskaddr, &ifparm->flags) < 0) {
+
+    if (Ifconfig_Get_Flags(in_dev, in_err, &ifparm->flags) < 0) {
         return -1;
     }
 
@@ -1476,8 +1472,7 @@ int monitor_wlanng_avs(const char *in_dev, int initch, char *in_err, void **in_i
         }
     }
 
-    // Bring the device up, zero its ip, and set promisc
-    if (Ifconfig_Set_Linux(in_dev, in_err, NULL, NULL, NULL, NULL, 0) < 0) 
+    if (Ifconfig_Delta_Flags(in_dev, in_err, IFF_UP | IFF_RUNNING | IFF_PROMISC) < 0)
         return -1;
 
     // Enable the interface
@@ -1510,8 +1505,7 @@ int unmonitor_wlanng_avs(const char *in_dev, int initch, char *in_err, void **in
     // Restore the IP settings
     linux_ifparm *ifparm = (linux_ifparm *) (*in_if);
 
-    if (Ifconfig_Set_Linux(in_dev, in_err, &ifparm->ifaddr, &ifparm->dstaddr,
-                           &ifparm->broadaddr, &ifparm->maskaddr, ifparm->flags) < 0) {
+    if (Ifconfig_Set_Flags(in_dev, in_err, ifparm->flags) < 0) {
         return -1;
     }
 

@@ -20,6 +20,8 @@
 #include "ifcontrol.h"
 
 #ifdef SYS_LINUX
+
+#if 0
 int Ifconfig_Set_Linux(const char *in_dev, char *errstr, 
                        struct sockaddr_in *ifaddr, 
                        struct sockaddr_in *dstaddr, 
@@ -168,6 +170,71 @@ int Ifconfig_Get_Linux(const char *in_dev, char *errstr,
     close(skfd);
     return 0;
 }
+#endif
+
+int Ifconfig_Set_Flags(const char *in_dev, char *errstr, short flags) {
+    struct ifreq ifr;
+    int skfd;
+
+    if ((skfd = socket(AF_INET, SOCK_DGRAM, 0)) < 0) {
+        snprintf(errstr, STATUS_MAX, "Failed to create AF_INET DGRAM socket. %d:%s",
+                 errno, strerror(errno));
+        return -1;
+    }
+
+    // Fetch interface flags
+    strncpy(ifr.ifr_name, in_dev, IFNAMSIZ);
+    ifr.ifr_flags = flags;
+    if (ioctl(skfd, SIOCSIFFLAGS, &ifr) < 0) {
+        snprintf(errstr, STATUS_MAX, "Unknown interface %s: %s", 
+                 in_dev, strerror(errno));
+        close(skfd);
+        return -1;
+    }
+
+    close(skfd);
+
+    return 0;
+}
+
+int Ifconfig_Get_Flags(const char *in_dev, char *errstr, short *flags) {
+    struct ifreq ifr;
+    int skfd;
+
+    if ((skfd = socket(AF_INET, SOCK_DGRAM, 0)) < 0) {
+        snprintf(errstr, STATUS_MAX, "Failed to create AF_INET DGRAM socket. %d:%s",
+                 errno, strerror(errno));
+        return -1;
+    }
+
+    // Fetch interface flags
+    strncpy(ifr.ifr_name, in_dev, IFNAMSIZ);
+    if (ioctl(skfd, SIOCGIFFLAGS, &ifr) < 0) {
+        snprintf(errstr, STATUS_MAX, "Unknown interface %s: %s", 
+                 in_dev, strerror(errno));
+        close(skfd);
+        return -1;
+    }
+
+    (*flags) = ifr.ifr_flags;
+
+    close(skfd);
+
+    return 0;
+}
+
+int Ifconfig_Delta_Flags(const char *in_dev, char *errstr, short flags) {
+    int ret;
+    short rflags;
+
+    if ((ret = Ifconfig_Get_Flags(in_dev, errstr, &rflags)) < 0)
+        return ret;
+
+    rflags |= flags;
+
+    return Ifconfig_Set_Flags(in_dev, errstr, rflags);
+}
+
 #endif
 
 #ifdef HAVE_LINUX_WIRELESS
