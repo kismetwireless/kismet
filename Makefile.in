@@ -39,7 +39,7 @@ WAV = ${SHARE}/wav/
 DEPEND	= .depend
 
 # Objects
-PSO	= configfile.o speech.o packet.o \
+PSO	= util.o configfile.o speech.o packet.o \
 		prism2source.o pcapsource.o wtapfilesource.o wsp100source.o \
 			dronesource.o vihasource.o capturesourceutil.o \
 		wtapdump.o wtaplocaldump.o gpsdump.o airsnortdump.o fifodump.o \
@@ -49,21 +49,22 @@ PSO	= configfile.o speech.o packet.o \
 		tcpserver.o server_protocols.o server_globals.o kismet_server.o 
 PS	= kismet_server
 
-DRONEO = configfile.o getopt.o packet.o tcpstreamer.o \
+DRONEO = util.o configfile.o getopt.o packet.o tcpstreamer.o \
 			prism2source.o pcapsource.o wtapfilesource.o wsp100source.o \
 				dronesource.o vihasource.o capturesourceutil.o \
 			alertracker.o timetracker.o gpsd.o server_globals.o kismet_drone.o
 DRONE = kismet_drone
 
-NCO	= configfile.o speech.o manuf.o tcpclient.o frontend.o cursesfront.o \
+NCO	= util.o configfile.o speech.o manuf.o tcpclient.o \
+		frontend.o cursesfront.o \
 		panelfront.o panelfront_display.o panelfront_input.o \
 		getopt.o kismet_client.o 
 NC	= kismet_client
 
-GPSLO = getopt.o configfile.o expat.o manuf.o gpsmap.o
+GPSLO = getopt.o util.o configfile.o expat.o manuf.o gpsmap.o
 GPSL = gpsmap
 
-HOPPERO = configfile.o getopt.o kismet_hopper.o
+HOPPERO = util.o configfile.o getopt.o kismet_hopper.o
 HOPPER = kismet_hopper
 
 BUZZER = extra/buzzme/buzzme
