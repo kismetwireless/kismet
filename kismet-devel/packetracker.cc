@@ -1328,7 +1328,7 @@ int Packetracker::WriteXMLNetworks(FILE *in_file) {
     vector<wireless_network *> bssid_vec;
 
     fprintf(in_file, "<?xml version=\"1.0\" encoding=\"ISO-8859-1\"?>\n");
-    fprintf(in_file, "<!DOCTYPE detection-run SYSTEM \"http://kismetwireless.net/kismet-1.4.dtd\">\n");
+    fprintf(in_file, "<!DOCTYPE detection-run SYSTEM \"http://kismetwireless.net/kismet-1.5.dtd\">\n");
 
     fprintf(in_file, "\n\n");
 
