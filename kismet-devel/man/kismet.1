@@ -14,8 +14,7 @@
 .Op Fl nqs
 .Op Fl t Ar title
 .Op Fl f Ar config-file
-.Op Fl c Ar capture-type
-.Op Fl i Ar capture-interface
+.Op Fl c Ar capture-source
 .Op Fl l Ar log-types
 .Op Fl d Ar dump-type
 .Op Fl m Ar max-packets-per-file
@@ -88,9 +87,7 @@ Disable all logging
 .It Fl f
 Use an alternate config file
 .It Fl c
-Override capture type (pcap, prism2, generic, wtapfile)
-.It Fl i
-Override capture interface
+Override capture source lines (engine,interface,type,name).  Refer to kismet.conf(5) for more information.
 .It Fl l
 Override logging types, comma seperated (dump, cisco, weak, csv, xml, gps)
 .It Fl m
