@@ -184,7 +184,7 @@ protected:
             last_draw_size = last_client_draw_size = 0;
             */
 
-            lat = lon = spd = alt = last_lat = last_lon = last_spd = last_alt = 0;
+            lat = lon = spd = alt = last_lat = last_lon = last_spd = last_alt = last_heading = 0;
             fix = last_fix = 0;
 
             max_packet_rate = 0;
@@ -215,9 +215,9 @@ protected:
 
         vector<int> packet_history;
 
-        float lat, lon, spd, alt;
+        float lat, lon, spd, alt, heading;
         int fix;
-        float last_lat, last_lon, last_spd, last_alt;
+        float last_lat, last_lon, last_spd, last_alt, last_heading;
         int last_fix;
 
         // Statistics
@@ -362,9 +362,9 @@ protected:
 
     vector<int> packet_history;
 
-    float lat, lon, spd, alt;
+    float lat, lon, spd, alt, heading;
     int fix;
-    float last_lat, last_lon, last_spd, last_alt;
+    float last_lat, last_lon, last_spd, last_alt, last_heading;
     int last_fix;
 
     // Size of the group vec the last time we drew it

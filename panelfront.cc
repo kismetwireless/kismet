@@ -412,9 +412,9 @@ PanelFront::PanelFront() {
 
     max_packet_rate = 0;
 
-    lat = lon = alt = spd = 0;
+    lat = lon = alt = spd = heading = 0;
     fix = 0;
-    last_lat = last_lon = last_alt = last_spd = 0;
+    last_lat = last_lon = last_alt = last_spd = last_heading = 0;
     last_fix = 0;
 
     num_networks = num_packets = num_crypt = num_interesting = num_noise =
@@ -1049,12 +1049,25 @@ void PanelFront::UpdateContexts() {
             continue;
 
         // Update GPS
-        con->last_lat = con->lat;
-        con->last_lon = con->lon;
-        con->last_spd = con->spd;
-        con->last_alt = con->alt;
-        con->last_fix = con->fix;
-        con->client->FetchLoc(&con->lat, &con->lon, &con->alt, &con->spd, &con->fix);
+        float newlat, newlon, newalt, newspd, newheading;
+        int newfix;
+        con->client->FetchLoc(&newlat, &newlon, &newalt, &newspd, &newheading, &newfix);
+
+        if (GPSD::EarthDistance(newlat, newlon, last_lat, last_lon) > 10) {
+            con->last_lat = con->lat;
+            con->last_lon = con->lon;
+            con->last_spd = con->spd;
+            con->last_alt = con->alt;
+            con->last_fix = con->fix;
+            con->last_heading = con->heading;
+        }
+
+        con->lat = newlat;
+        con->lon = newlon;
+        con->alt = newalt;
+        con->spd = newspd;
+        con->heading = newheading;
+        con->fix = newfix;
 
         // Update quality
         con->quality = con->client->FetchQuality();
@@ -1072,12 +1085,14 @@ void PanelFront::UpdateContexts() {
             lon = con->lon;
             alt = con->alt;
             spd = con->spd;
+            heading = con->heading;
             fix = con->fix;
 
             last_lat = con->last_lat;
             last_lon = con->last_lon;
             last_alt = con->last_alt;
             last_spd = con->last_spd;
+            last_heading = con->last_heading;
             last_fix = con->last_fix;
 
             quality = con->quality;

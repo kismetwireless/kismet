@@ -22,7 +22,6 @@ In no particular order:
 	map filtering
 	Multiple host= lines for kismet_client
 	multiserver grouping bugger-up
-	fix compass/heading
 	Alerts as forged packets in pipe
 	gps satellite plot in client
 	VPN detection

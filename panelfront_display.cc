@@ -1382,10 +1382,10 @@ int PanelFront::DetailsPrinter(void *in_window) {
                      metric ? details_network->virtnet->max_spd * 1.6093 : details_network->virtnet->max_spd);
             kwin->text.push_back(output);
 
-            double diagdist = EarthDistance(details_network->virtnet->min_lat,
-                                            details_network->virtnet->min_lon,
-                                            details_network->virtnet->max_lat,
-                                            details_network->virtnet->max_lon);
+            double diagdist = GPSD::EarthDistance(details_network->virtnet->min_lat,
+                                                  details_network->virtnet->min_lon,
+                                                  details_network->virtnet->max_lat,
+                                                  details_network->virtnet->max_lon);
 
             if (finite(diagdist)) {
                 if (metric) {
@@ -1683,8 +1683,8 @@ int PanelFront::DetailsPrinter(void *in_window) {
             kwin->text.push_back(output);
 
 
-            double diagdist = EarthDistance(dnet->min_lat, dnet->min_lon,
-                                            dnet->max_lat, dnet->max_lon);
+            double diagdist = GPSD::EarthDistance(dnet->min_lat, dnet->min_lon,
+                                                  dnet->max_lat, dnet->max_lon);
 
             if (finite(diagdist)) {
                 if (metric) {
@@ -1742,47 +1742,14 @@ int PanelFront::GpsPrinter(void *in_window) {
         center_lon = dnet->aggregate_lon / dnet->aggregate_points;
     }
 
-    // Try to calculate the bearing and distance to the estimated center
-    // Liberally stolen from gpsdrive - math is scary! >:P
+    // Get bearing to the center
+    float center_angle = GPSD::CalcHeading(lat, lon, center_lat, center_lon);
 
-    float R = CalcRad(lat);
-
-    float tx = (2 * R * M_PI / 360) * cos(M_PI * lat / 180.0) * (last_lon - lon);
-    float ty = (2 * R * M_PI / 360) * (last_lat - lat);
-
-    float base_angle = atan(tx/ty);
-    if (finite(base_angle)) {
-        if (ty < 0)
-            base_angle += M_PI;
-        if (base_angle >= (2 * M_PI))
-            base_angle -= 2 * M_PI;
-        if (base_angle < 0)
-            base_angle += 2 * M_PI;
-        base_angle = base_angle * 180 / M_PI;
-    } else {
-        base_angle = 0;
-    }
-
-    tx = (2 * R * M_PI / 360) * cos(M_PI * lat / 180.0) * (center_lon - lon);
-    ty = (2 * R * M_PI / 360) * (center_lat - lat);
-    float center_angle = atan(tx/ty);
-    if (finite(center_angle)) {
-        if (ty < 0)
-            center_angle += M_PI;
-        if (center_angle >= (2 * M_PI))
-            center_angle -= 2 * M_PI;
-        if (center_angle < 0)
-            center_angle += 2 * M_PI;
-        center_angle = center_angle * 180 / M_PI;
-    } else {
-        center_angle = 0;
-    }
-
-    float difference_angle = base_angle - center_angle;
+    float difference_angle = heading - center_angle;
     if (difference_angle < 0)
         difference_angle += 360;
 
-    double diagdist = EarthDistance(lat, lon, center_lat, center_lon);
+    double diagdist = GPSD::EarthDistance(lat, lon, center_lat, center_lon);
 
     // Now we know everything - where we are, where we are headed, where we SHOULD be headed
     // to get to the supposed center of the network, how far it is, and the orientation on our
@@ -1875,7 +1842,7 @@ int PanelFront::GpsPrinter(void *in_window) {
     snprintf(output, print_width, "%-22s%s", textfrag, compass[1]);
     kwin->text.push_back(output);
 
-    snprintf(textfrag, 23, " %.2f*", base_angle);
+    snprintf(textfrag, 23, " %.2f*", heading);
     snprintf(output, print_width, "%-22s%s", textfrag, compass[2]);
     kwin->text.push_back(output);
 
@@ -2827,10 +2794,10 @@ int PanelFront::DetailsClientPrinter(void *in_window) {
                  metric ? details_client->max_spd * 1.6093 : details_client->max_spd);
         kwin->text.push_back(output);
 
-        double diagdist = EarthDistance(details_client->min_lat,
-                                        details_client->min_lon,
-                                        details_client->max_lat,
-                                        details_client->max_lon);
+        double diagdist = GPSD::EarthDistance(details_client->min_lat,
+                                              details_client->min_lon,
+                                              details_client->max_lat,
+                                              details_client->max_lon);
 
         if (finite(diagdist)) {
             if (metric) {
