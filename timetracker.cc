@@ -18,18 +18,18 @@
 
 #include "timetracker.h"
 
-TimeTracker::TimeTracker() {
+Timetracker::Timetracker() {
     next_timer_id = 0;
 }
 
-TimeTracker::~TimeTracker() {
+Timetracker::~Timetracker() {
     // Free the events
     for (map<int, timer_event *>::iterator x = timer_map.begin();
          x != timer_map.end(); ++x)
         delete x->second;
 }
 
-int TimeTracker::Tick() {
+int Timetracker::Tick() {
     // Handle scheduled events
     struct timeval cur_tm;
     gettimeofday(&cur_tm, NULL);
@@ -62,7 +62,7 @@ int TimeTracker::Tick() {
     return 1;
 }
 
-int TimeTracker::RegisterTimer(int in_timeslices, struct timeval *in_trigger,
+int Timetracker::RegisterTimer(int in_timeslices, struct timeval *in_trigger,
                                int in_recurring, int (*in_callback)(timer_event *, void *),
                                void *in_parm) {
     timer_event *evt = new timer_event;
@@ -89,7 +89,7 @@ int TimeTracker::RegisterTimer(int in_timeslices, struct timeval *in_trigger,
     return evt->timer_id;
 }
 
-int TimeTracker::RemoveTimer(int in_timerid) {
+int Timetracker::RemoveTimer(int in_timerid) {
     map<int, timer_event *>::iterator itr;
 
     itr = timer_map.find(in_timerid);

@@ -34,7 +34,7 @@
 // Timer slices per second
 #define SERVER_TIMESLICES_SEC 10
 
-class TimeTracker {
+class Timetracker {
 public:
     typedef struct timer_event {
         int timer_id;
@@ -53,8 +53,8 @@ public:
         void *callback_parm;
     };
 
-    TimeTracker();
-    ~TimeTracker();
+    Timetracker();
+    ~Timetracker();
 
     // Tick and handle timers
     int Tick();

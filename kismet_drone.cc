@@ -80,7 +80,7 @@ void CatchShutdown(int sig) {
     exit(0);
 }
 
-int GpsEvent(TimeTracker::timer_event *evt, void *parm) {
+int GpsEvent(Timetracker::timer_event *evt, void *parm) {
 #ifdef HAVE_GPS
     // The GPS only provides us a new update once per second we might
     // as well only update it here once a second

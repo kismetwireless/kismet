@@ -49,7 +49,7 @@
 #include <fcntl.h>
 
 // Straight-C callback
-int Wsp100PokeSensor(TimeTracker::timer_event *evt, void *call_parm) {
+int Wsp100PokeSensor(Timetracker::timer_event *evt, void *call_parm) {
     // Poke it
     ((Wsp100Source *) call_parm)->PokeSensor();
 

@@ -26,7 +26,7 @@
 #include <map>
 #include <list>
 
-extern TimeTracker timetracker;
+extern Timetracker timetracker;
 
 enum server_alert_time_unit {
     sat_second, sat_minute, sat_hour, sat_day
