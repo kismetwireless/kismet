@@ -508,10 +508,17 @@ void Frontend::ReadGroupMap(FILE *in_file) {
     char dline[8192];
 
     char type[6];
+    /*
     char parm1[MAC_STR_LEN];
     short int bssid_in[MAC_LEN];
     uint8_t bssid[MAC_LEN];
     char parm2[1024];
+    */
+
+    char parm1[MAC_STR_LEN];
+    char parm2[1024];
+    mac_addr bssid;
+
 
     // We have two formats:
     // GROUP: TAG NAME
@@ -533,14 +540,9 @@ void Frontend::ReadGroupMap(FILE *in_file) {
         if (!strncmp(type, "GROUP", 64)) {
             group_name_map[parm1] = parm2;
         } else if (!strncmp(type, "LINK", 64)) {
-            if (sscanf(parm1, "%hd:%hd:%hd:%hd:%hd:%hd",
-                       &bssid_in[0], &bssid_in[1], &bssid_in[2],
-                       &bssid_in[3], &bssid_in[4], &bssid_in[5]) < 6)
+            bssid = parm1;
+            if (bssid.longmac == 0)
                 continue;
-
-            for (int x = 0; x < MAC_LEN; x++)
-                bssid[x] = bssid_in[x];
-
             bssid_group_map[bssid] = parm2;
         }
 
