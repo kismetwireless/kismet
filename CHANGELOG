@@ -1,3 +1,5 @@
+Oct 23 2002  2.7.1  Fixed horribly stupid bug in AP->AP packet handling in
+                     packetracker.cc (Caught by Mike Mackenzie)
 Oct 22 2002  2.7.1  Various off-by-one errors in panelfront fixed (Million)
                     Merged hostap patches to monitor and unmonitor (Jaques)
 
