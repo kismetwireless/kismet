@@ -1,3 +1,4 @@
+Apr 10 2003  2.9.1  Changed 'kismet' script to use install paths to components
 Apr 08 2003  2.9.1  Fixed display grouping code again, now it doesn't kill 
                      groups not active this session.
                     Fixed stupid ring buffer problem which caused drones to
