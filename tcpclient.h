@@ -70,6 +70,8 @@ public:
 
     int Connect(short int in_port, char *in_host);
 
+    void Disconnect();
+
     int FetchDescriptor() { return client_fd; }
 
     int Poll();

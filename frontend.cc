@@ -399,11 +399,14 @@ void Frontend::UpdateGroups() {
 // Keep all the association data, just wipe the contents so the next Populate
 // fills us in with good data.
 void Frontend::PurgeGroups() {
+
     map<mac_addr, display_network *>::iterator x;
-    while ((x = group_assignment_map.begin()) != group_assignment_map.end()) {
-        delete(x->second);
-        group_assignment_map.erase(x);
+    for (x = group_assignment_map.begin(); x != group_assignment_map.end(); ++x) {
+        x->second->networks.clear();
     }
+
+    group_assignment_map.clear();
+
 }
 
 display_network *Frontend::GroupTagged() {
