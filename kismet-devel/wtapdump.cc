@@ -17,6 +17,7 @@
 */
 
 #include "wtapdump.h"
+#include <errno.h>
 
 #if (defined(HAVE_LIBWIRETAP) && !defined(USE_LOCAL_DUMP))
 
@@ -31,7 +32,8 @@ int WtapDumpFile::OpenDump(const char *file) {
                                2344, &wtap_error);
 
     if (!dump_file) {
-        snprintf(errstr, 1024, "Unable to open wtap dump file: %s", filename);
+        snprintf(errstr, 1024, "Unable to open wtap dump file: %s (%s)", filename,
+                strerror(errno));
         return -1;
     }
 
