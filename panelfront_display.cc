@@ -1354,8 +1354,8 @@ int PanelFront::PowerPrinter(void *in_window) {
     nse = noise;
 
     if (pwr == 0 && nse == 0) {
-        mvwaddstr(kwin->win, 2, 2, "Server did not report card power levels.");
-        mvwaddstr(kwin->win, 3, 2, "No card information is available.");
+        mvwaddstr(kwin->win, 2, 2, "Server is not reporting card power levels.");
+        mvwaddstr(kwin->win, 3, 2, "No signal information is available.");
         return 1;
     }
 
