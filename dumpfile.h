@@ -21,6 +21,7 @@
 
 #include "config.h"
 
+#include <string>
 #include <map>
 
 #include "packet.h"
@@ -61,7 +62,8 @@ protected:
 
     int num_dumped;
     int beacon_log;
-    map<mac_addr, int> beacon_logged_map;
+
+    map<mac_addr, string> beacon_logged_map;
 
 };
 

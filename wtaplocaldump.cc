@@ -84,9 +84,10 @@ int WtapDumpFile::DumpPacket(const packet_info *in_info, const pkthdr *in_header
                              const u_char *in_data) {
 
     if ((in_info->type == packet_management && in_info->subtype == packet_sub_beacon) && beacon_log == 0) {
-        if (beacon_logged_map.find(in_info->bssid_mac) == beacon_logged_map.end()) {
-            beacon_logged_map[in_info->bssid_mac] = 1;
-        } else {
+        map<mac_addr, string>::iterator blm = beacon_logged_map.find(in_info->bssid_mac);
+        if (blm == beacon_logged_map.end()) {
+            beacon_logged_map[in_info->bssid_mac] = in_info->ssid;
+        } else if (blm->second == in_info->ssid) {
             return 1;
         }
     }
