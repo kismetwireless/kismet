@@ -223,6 +223,7 @@ typedef struct proto_info {
 typedef struct mac_addr {
     uint8_t mac[MAC_LEN];
     uint64_t longmac;
+    uint8_t mask;
 
     void struc2long() {
         for (int x = 0; x < MAC_LEN; x++)
@@ -232,11 +233,13 @@ typedef struct mac_addr {
     mac_addr() {
         memset(mac, 0, MAC_LEN);
         longmac = 0;
+        mask = 0;
     }
 
     mac_addr(const uint8_t *in) {
         for (int x = 0; x < MAC_LEN; x++)
             mac[x] = in[x];
+        mask = 0;
         struc2long();
     }
 
@@ -249,6 +252,7 @@ typedef struct mac_addr {
             for (int x = 0; x < MAC_LEN; x++)
                 mac[x] = bs_in[x];
         }
+        mask = 0;
         struc2long();
     }
 
@@ -294,12 +298,28 @@ typedef struct mac_addr {
     }
 
     string Mac2String() const {
-        char tempstr[MAC_STR_LEN];
+        if (mask == 0) {
+            char tempstr[MAC_STR_LEN];
 
-        snprintf(tempstr, MAC_STR_LEN, "%02X:%02X:%02X:%02X:%02X:%02X",
-                 mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
+            snprintf(tempstr, MAC_STR_LEN, "%02X:%02X:%02X:%02X:%02X:%02X",
+                     mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
+            return tempstr;
+        }
 
-        return tempstr;
+        string ret;
+
+        for (unsigned int macbit = 0; macbit < MAC_LEN; macbit++) {
+            char adr[3];
+            if (macbit < mask)
+                snprintf(adr, 3, "%02X", mac[macbit]);
+            else
+                snprintf(adr, 3, "**");
+
+            ret += adr;
+            ret += ":";
+        }
+
+        return ret;
     }
 
 };

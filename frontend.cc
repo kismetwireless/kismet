@@ -332,20 +332,23 @@ void Frontend::UpdateGroups() {
 
         }
 
+
+        dnet->virtnet.bssid.mask = bssid_matched;
+
+        /*
         // Convert the masked semi-mac into something that looks real
         for (unsigned int macbit = 0; macbit < MAC_LEN; macbit++) {
-            char adr[3];
+        char adr[3];
             if (macbit < bssid_matched)
                 snprintf(adr, 3, "%02X", dnet->virtnet.bssid[macbit]);
             else
                 snprintf(adr, 3, "**");
 
-            /*
             dnet->virtnet.bssid += adr;
             dnet->virtnet.bssid += ":";
-            */
 
-        }
+            }
+            */
 
         MatchBestManuf(&dnet->virtnet, 0);
 
