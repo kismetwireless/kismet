@@ -693,6 +693,17 @@ int monitor_madwifi_comb(const char *in_dev, int initch, char *in_err) {
     return 0;
 }
 
+// Call the standard monitor but ignore error codes since channel
+// setting won't work.  This is a temp kluge.
+int monitor_prism54g(const char *in_dev, int initch, char *in_err) {
+    int ret = monitor_wext(in_dev, initch, in_err);
+
+    if (ret < 0 && ret != -2)
+        return ret;
+    
+    return 0;
+}
+
 // "standard" wireless extension monitor mode
 int monitor_wext(const char *in_dev, int initch, char *in_err) {
     struct iwreq wrq;
@@ -751,7 +762,7 @@ int monitor_wext(const char *in_dev, int initch, char *in_err) {
     // back into the class, this will have to be rewritten
     if (chancontrol_wext(in_dev, initch, in_err, NULL) < 0) {
         close(skfd);
-        return -1;
+        return -2;
     }
     
     close(skfd);
