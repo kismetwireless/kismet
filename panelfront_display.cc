@@ -1832,11 +1832,41 @@ int PanelFront::PackPrinter(void *in_window) {
 
     if (kwin->paused != 0) {
         mvwaddstr(kwin->win, 0, kwin->win->_maxx - 10, "Paused");
-
         return TextPrinter(in_window);
     }
 
-    vector<packet_info> packinfo = client->FetchPackInfos();
+    if (kwin->toggle1 == 0)
+        mvwaddstr(kwin->win, 0, kwin->win->_maxx - 10, "All");
+    else
+        mvwaddstr(kwin->win, 0, kwin->win->_maxx - 10, "Tagged");
+
+    vector<packet_info> packinfo;
+    packinfo.reserve(100);
+
+    //= client->FetchPackInfos();
+
+    for (unsigned int x = 0; x < context_list.size(); x++) {
+        if (context_list[x]->tagged == 1 && context_list[x]->client != NULL) {
+            vector<packet_info> cli_packs = context_list[x]->client->FetchPackInfos();
+            for (unsigned int stng = 0; stng < cli_packs.size(); stng++) {
+                // Only add tagged networks if we care about that.
+                map<mac_addr, display_network *>::iterator gamitr;
+                gamitr = group_assignment_map.find(cli_packs[stng].bssid_mac);
+                if (gamitr == group_assignment_map.end())
+                    continue;
+                if (kwin->toggle1 == 1 && gamitr->second->tagged == 0)
+                    continue;
+
+                packinfo.push_back(cli_packs[stng]);
+            }
+        }
+    }
+
+    clear_dump = 0;
+
+    // Sort them
+    sort(packinfo.begin(), packinfo.end(), SortPacketInfos());
+
 
     // Print the single-character lines
     int singles = 0;

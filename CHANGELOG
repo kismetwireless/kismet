@@ -2,6 +2,9 @@ Jan 22 2003  2.9.0  Hopefully nipped speech/sound doubling bug.
                     Happy linux world!
                     Added ability to show string dumps from tagged networks
                      only
+                    Fixed packet type to work with multiple clients
+                    Added ability to show packet types from tagged networks
+                     only
 Jan 19 2003  2.9.0  Added support for 802.11a (152-bit) WEP
 Jan 16 2003  2.9.0  Updated expat.cc to handle the 'carrier' attribute
 Jan 15 2003  2.9.0  Fixed up netxml more
