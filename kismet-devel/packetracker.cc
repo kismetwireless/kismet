@@ -1262,7 +1262,7 @@ int Packetracker::WriteXMLNetworks(string in_fname) {
     //vector<wireless_network *> bssid_vec;
 
     fprintf(netfile, "<?xml version=\"1.0\" encoding=\"ISO-8859-1\"?>\n");
-    fprintf(netfile, "<!DOCTYPE detection-run SYSTEM \"http://kismetwireless.net/kismet-1.5.dtd\">\n");
+    fprintf(netfile, "<!DOCTYPE detection-run SYSTEM \"http://kismetwireless.net/kismet-1.6.dtd\">\n");
 
     fprintf(netfile, "\n\n");
 
@@ -1328,6 +1328,8 @@ int Packetracker::WriteXMLNetworks(string in_fname) {
                 (net->llc_packets + net->data_packets));
         fprintf(netfile, "    </packets>\n");
 
+        fprintf(netfile, "    <datasize>%ld</datasize>\n", net->datasize);
+
         if (net->gps_fixed != -1) {
             fprintf(netfile, "    <gps-info unit=\"%s\">\n", metric ? "metric" : "english");
             fprintf(netfile, "      <min-lat>%f</min-lat>\n", net->min_lat);
@@ -1335,7 +1337,7 @@ int Packetracker::WriteXMLNetworks(string in_fname) {
             fprintf(netfile, "      <min-alt>%f</min-alt>\n",
                     metric ? net->min_alt / 3.3 : net->min_alt);
             fprintf(netfile, "      <min-spd>%f</min-spd>\n",
-                    metric ? net->min_alt * 1.6093 : net->min_spd);
+                    metric ? net->min_spd * 1.6093 : net->min_spd);
             fprintf(netfile, "      <max-lat>%f</max-lat>\n", net->max_lat);
             fprintf(netfile, "      <max-lon>%f</max-lon>\n", net->max_lon);
             fprintf(netfile, "      <max-alt>%f</max-alt>\n",
@@ -1373,10 +1375,89 @@ int Packetracker::WriteXMLNetworks(string in_fname) {
         }
         netnum++;
 
-        if (net->cisco_equip.size() == 0) {
-        	fprintf(netfile, "  </wireless-network>\n");
-            continue;
-		}
+        int clinum = 1;
+        for (unsigned int cltr = 0; cltr < net->client_vec.size(); cltr++) {
+            wireless_client *cli = net->client_vec[cltr];
+
+            char *clitype;
+            switch (cli->type) {
+            case client_fromds:
+                clitype = "fromds";
+                break;
+            case client_tods:
+                clitype = "tods";
+                break;
+            case client_interds:
+                clitype = "interds";
+                break;
+            case client_established:
+                clitype = "established";
+                break;
+            default:
+                clitype = "unknown";
+                break;
+            }
+
+            snprintf(lt, 25, "%s", ctime(&cli->last_time));
+            snprintf(ft, 25, "%s", ctime(&cli->first_time));
+
+            fprintf(netfile, "    <wireless-client number=\"%d\" type=\"%s\" "
+                    "wep=\"%s\" first-time=\"%s\" last-time=\"%s\">\n",
+                    clinum, clitype, cli->wep ? "true" : "false", ft, lt);
+
+            fprintf(netfile, "      <client-packets>\n");
+            fprintf(netfile, "        <client-data>%d</client-data>\n", cli->data_packets);
+            fprintf(netfile, "        <client-crypt>%d</client-crypt>\n", cli->crypt_packets);
+            fprintf(netfile, "        <client-weak>%d</client-weak>\n", cli->interesting_packets);
+            fprintf(netfile, "      </client-packets>\n");
+
+            if (cli->gps_fixed != -1) {
+                fprintf(netfile, "      <client-gps-info unit=\"%s\">\n", metric ? "metric" : "english");
+                fprintf(netfile, "        <client-min-lat>%f</client-min-lat>\n", cli->min_lat);
+                fprintf(netfile, "        <client-min-lon>%f</client-min-lon>\n", cli->min_lon);
+                fprintf(netfile, "        <client-min-alt>%f</client-min-alt>\n",
+                        metric ? cli->min_alt / 3.3 : cli->min_alt);
+                fprintf(netfile, "        <client-min-spd>%f</min-spd>\n",
+                        metric ? cli->min_spd * 1.6093 : cli->min_spd);
+                fprintf(netfile, "        <client-max-lat>%f</client-max-lat>\n", cli->max_lat);
+                fprintf(netfile, "        <client-max-lon>%f</client-max-lon>\n", cli->max_lon);
+                fprintf(netfile, "        <client-max-alt>%f</client-max-alt>\n",
+                        metric ? cli->max_alt / 3.3 : cli->max_alt);
+                fprintf(netfile, "        <client-max-spd>%f</client-max-spd>\n",
+                        metric ? cli->max_spd * 1.6093 : cli->max_spd);
+                fprintf(netfile, "      </client-gps-info>\n");
+            }
+
+            fprintf(netfile, "      <client-datasize>%ld</client-datasize>\n", cli->datasize);
+
+            if (cli->ipdata.atype > address_factory) {
+                char *addrtype;
+                switch (cli->ipdata.atype) {
+                case address_dhcp:
+                    addrtype = "dhcp";
+                    break;
+                case address_arp:
+                    addrtype = "arp";
+                    break;
+                case address_udp:
+                    addrtype = "udp";
+                    break;
+                case address_tcp:
+                    addrtype = "tcp";
+                    break;
+                default:
+                    addrtype = "unknown";
+                    break;
+                }
+
+                fprintf(netfile, "      <client-ip-address type=\"%s\">%hd.%hd.%hd.%hd</client-ip-address>\n",
+                        addrtype, cli->ipdata.ip[0], cli->ipdata.ip[1], cli->ipdata.ip[2], cli->ipdata.ip[3]);
+            }
+
+            fprintf(netfile, "    </wireless-client>\n");
+
+            clinum++;
+        }
 
         int devnum = 1;
         for (map<string, cdp_packet>::const_iterator x = net->cisco_equip.begin();
