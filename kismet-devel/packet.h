@@ -57,7 +57,7 @@ extern "C" {
 }
 
 #define DEVNAME_LEN 16
-#define MAX_PACKET_LEN 8192
+#define MAX_PACKET_LEN 2048
 
 #define SSID_SIZE 32
 
