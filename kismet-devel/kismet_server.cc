@@ -757,6 +757,7 @@ int main(int argc,char *argv[]) {
     int gpsmode = 0;
 
     string filter;
+    vector<mac_addr> filter_vec;
 
     int datainterval = 0;
 
@@ -1698,7 +1699,29 @@ int main(int argc,char *argv[]) {
     if (filter != "") {
         fprintf(stderr, "Filtering MAC addresses: %s\n",
                 filter.c_str());
-        //tracker.AddFilter(filter);
+
+        int fdone = 0;
+        unsigned int fstart = 0;
+        unsigned int fend = filter.find(",", fstart);
+        while (fdone == 0) {
+            if (fend == string::npos) {
+                fend = filter.length();
+                fdone = 1;
+            }
+
+            string faddr = filter.substr(fstart, fend-fstart);
+            fstart = fend+1;
+            fend = filter.find(",", fstart);
+
+            mac_addr fmaddr = faddr.c_str();
+            if (fmaddr.error) {
+                fprintf(stderr, "FATAL:  Invalid filter address %s.\n", faddr.c_str());
+                exit(1);
+            }
+
+            filter_vec.push_back(fmaddr);
+        }
+
     }
 
     if (conf->FetchOpt("beaconlog") == "false") {
@@ -2063,13 +2086,14 @@ int main(int argc,char *argv[]) {
                     last_info = info;
 
                     // Discard it if we're filtering it
-                    if (filter.find(info.bssid_mac.Mac2String().c_str()) != string::npos) {
-                        localdropnum++;
+                    for (unsigned int fcount = 0; fcount < filter_vec.size(); fcount++) {
+                        if (filter_vec[fcount] == info.bssid_mac) {
+                            localdropnum++;
 
-                        // don't ever do this.  ever.  (but it really is the most efficient way
-                        // of getting from here to there, so....)
-                        goto end_packprocess;
-
+                            // don't ever do this.  ever.  (but it really is the most efficient way
+                            // of getting from here to there, so....)
+                            goto end_packprocess;
+                        }
                     }
 
                     // Handle the per-channel signal power levels
