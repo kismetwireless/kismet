@@ -189,20 +189,9 @@ int Packetracker::ProcessPacket(packet_info info, char *in_status) {
         return(0);
     }
 
-    // bssid_mac = Mac2String(info.bssid_mac, ':');
-
-    // Are we in the map?
-    int map_not_found = bssid_map.find(info.bssid_mac) == bssid_map.end();
-//    printf("bssid %s %llx thinks %d\n", info.bssid_mac.Mac2String().c_str(), info.bssid_mac.longmac, map_not_found);
-
     // If it's a broadcast (From and To DS == 1) try to match it to an existing
     // network
-    if (info.type == packet_ap_broadcast && map_not_found) {
-        /*
-        string ts_mac, fs_mac;
-        ts_mac = Mac2String(info.source_mac, ':');
-        fs_mac = Mac2String(info.dest_mac, ':');
-        */
+    if (info.type == packet_ap_broadcast && bssid_map.find(info.bssid_mac) == bssid_map.end()) {
         if (bssid_map.find(info.source_mac) != bssid_map.end()) {
             info.bssid_mac = info.source_mac;
         } else if (bssid_map.find(info.dest_mac) != bssid_map.end()) {
@@ -211,21 +200,12 @@ int Packetracker::ProcessPacket(packet_info info, char *in_status) {
             num_dropped++;
             return(0);
         }
-
-        // bssid_mac = Mac2String(info.bssid_mac, ':');
     }
 
     if (info.bssid_mac == NUL_MAC) {
         num_dropped++;
         return(0);
     }
-
-    /*
-    if (bssid_mac == "00:00:00:00:00:00") {
-        num_dropped++;
-        return(0);
-        }
-        */
 
     // If it's a probe request, see if we already know who it should belong to
     if (info.type == packet_probe_req) {
@@ -237,7 +217,7 @@ int Packetracker::ProcessPacket(packet_info info, char *in_status) {
     // Find out if we have this network -- Every network that actually
     // gets added has a bssid, so we'll use that to search.  We've filtered
     // everything else out by this point so we're safe to just work off bssid
-    if (map_not_found) {
+    if (bssid_map.find(info.bssid_mac) == bssid_map.end()) {
         // Make a network for them
         net = new wireless_network;
 
