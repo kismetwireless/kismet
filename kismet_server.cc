@@ -2740,7 +2740,7 @@ int main(int argc,char *argv[]) {
     timetracker.RegisterTimer(SERVER_TIMESLICES_SEC, NULL, 1, &GpsEvent, NULL);
 #endif
     // Sync the data files if requested
-    if (datainterval > 0)
+    if (datainterval > 0 && no_log == 0)
         timetracker.RegisterTimer(datainterval * SERVER_TIMESLICES_SEC, NULL, 1, &ExportSyncEvent, NULL);
     // Write waypoints if requested
     if (waypoint)
