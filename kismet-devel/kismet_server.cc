@@ -594,12 +594,12 @@ void NetWriteNew(int in_fd) {
         // bssid type ssid info llc data crypt interesting channel wep first_time
         // last_time address_type range_ip mask
         // lat lon alt spd fix firstlat firstlon firstalt firstspd firstfix
-        ui_server.SendToAll(output);
+        ui_server.Send(in_fd, output);
 
         for (map<mac_addr, wireless_client *>::const_iterator y = tracked[x]->client_map.begin();
              y != tracked[x]->client_map.end(); ++y) {
             snprintf(output, 2048, "*CLIENT: %.2000s\n", Packetracker::Client2String(tracked[x], y->second).c_str());
-            ui_server.SendToAll(output);
+            ui_server.Send(in_fd, output);
         }
 
         //if (tracked[x]->bssid.size() <= 0)
@@ -612,12 +612,12 @@ void NetWriteNew(int in_fd) {
 
             snprintf(output, 2048, "*CISCO %s %.2000s\n",
                      tracked[x]->bssid.Mac2String().c_str(), Packetracker::CDP2String(&cdp).c_str());
-            ui_server.SendToAll(output);
+            ui_server.Send(in_fd, output);
         }
     }
 
     for (unsigned int x = 0; x < past_alerts.size(); x++)
-        ui_server.SendToAll(past_alerts[x].c_str());
+        ui_server.Send(in_fd, past_alerts[x].c_str());
 
 }
 
