@@ -188,8 +188,10 @@ wtapfile - Saved file of packets readable by libwiretap
 .PP
 ar5k - AR5K-based 802.11a cards using the vt_ar5k drivers.
 .PP
+drone - Kismet remote drone.
 .PP
-Capture interface - Specifies the network interface Kismet will watch for packets to come in on.  Typically "ethX" or "wlanX".  For the WSP100 capture engine, the WSP100 device sends packets via a UDP stream, so the capture interface should be in the form of host:port where 'host' is the WSP100 and 'port' is the local UDP port that it will send data to.
+.PP
+Capture interface - Specifies the network interface Kismet will watch for packets to come in on.  Typically "ethX" or "wlanX".  For the WSP100 capture engine, the WSP100 device sends packets via a UDP stream, so the capture interface should be in the form of host:port where 'host' is the WSP100 and 'port' is the local UDP port that it will send data to.  For Drone remote capture sources, the capture interface should be in the form of host:port where 'host' is the Drone remote and 'port' is the Drone remote port.
 .PP
 Capture Name - The name Kismet uses for this capture source.  This is the name used to specify what sources to enable.
 .PP
@@ -272,4 +274,4 @@ This will often result in some false positives, but the overall
 effect may be more desireable, depending on your situation.
 
 .SH SEE ALSO
-\fBkismet_ui.conf\fP(5), \fBgpsmap\fP(1), \fBkismet\fP(1), \fBkismet_monitor\fP(1), \fBkismet_hopper\fP(1)
+\fBkismet_ui.conf\fP(5), \fBkismet_drone.conf\fP(5), \fBgpsmap\fP(1), \fBkismet\fP(1), \fBkismet_monitor\fP(1), \fBkismet_hopper\fP(1), \fBkismet_drone\fP(1)
