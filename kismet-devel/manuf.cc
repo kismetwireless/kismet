@@ -126,6 +126,7 @@ macmap<vector<manuf *> > ReadManufMap(FILE *in_file, int ap_map) {
         }
     }
 
+    ret.reindex();
     return ret;
 }
 

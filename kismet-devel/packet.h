@@ -673,7 +673,7 @@ public:
         content.value = in_data;
         mask_vec.push_back(content);
 
-        reindex();
+//        reindex();
     }
 
     // Do a relatively fast find...
@@ -743,7 +743,6 @@ public:
         return singleton_map.size() + mask_vec.size();
     }
 
-protected:
     void reindex(void) {
         // Order it
         sort(mask_vec.begin(), mask_vec.end(), SortMaskVec());
@@ -772,6 +771,7 @@ protected:
         vec_offset_map[owner] = ofst;
     }
 
+protected:
     map<mac_addr, T> singleton_map;
     vector<mask_vec_content> mask_vec;
     map<mac_addr, mask_vec_offsets> vec_offset_map;
