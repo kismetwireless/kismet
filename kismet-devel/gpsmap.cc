@@ -1047,11 +1047,14 @@ void DrawNetTracks(Image *in_img, DrawInfo *in_di) { /*FOLD00*/
                      track_width,
                      prev_tx, prev_ty, track_vec[vec][x].x, track_vec[vec][x].y);
 
-            in_di->primitive = strdup(prim);
+            //in_di->primitive = strdup(prim);
+            in_di->primitive = prim;
             DrawImage(in_img, in_di);
             GetImageException(in_img, &im_exception);
-            if (im_exception.severity != UndefinedException)
+            if (im_exception.severity != UndefinedException) {
                 CatchException(&im_exception);
+                break;
+            }
 
             prev_tx = track_vec[vec][x].x;
             prev_ty = track_vec[vec][x].y;
@@ -1114,12 +1117,13 @@ void DrawNetCircles(vector<gps_network *> in_nets, Image *in_img, DrawInfo *in_d
         snprintf(prim, 1024, "fill-opacity %d%% stroke-opacity %d%% circle %d,%d %d,%d",
                  range_opacity, range_opacity, (int) mapx, (int) mapy, (int) endx, (int) endy);
 
-        in_di->primitive = strdup(prim);
+        in_di->primitive = prim;
         DrawImage(in_img, in_di);
         GetImageException(in_img, &im_exception);
-        if (im_exception.severity != UndefinedException)
+        if (im_exception.severity != UndefinedException) {
             CatchException(&im_exception);
-
+            break;
+        }
     }
 }
 
@@ -1247,11 +1251,13 @@ void DrawNetHull(vector<gps_network *> in_nets, Image *in_img, DrawInfo *in_di) 
 
 	//printf("%s\n", prim);
 	
-        in_di->primitive = strdup(prim);
+        in_di->primitive = prim;
         DrawImage(in_img, in_di);
         GetImageException(in_img, &im_exception);
-        if (im_exception.severity != UndefinedException)
+        if (im_exception.severity != UndefinedException) {
             CatchException(&im_exception);
+            break;
+        }
 
     }
 
@@ -1318,11 +1324,13 @@ void DrawNetBoundRects(vector<gps_network *> in_nets, Image *in_img, DrawInfo *i
         //in_fill, (int) tlx, (int) tly, (int) brx, (int) bry);
 
 
-        in_di->primitive = strdup(prim);
+        in_di->primitive = prim;
         DrawImage(in_img, in_di);
         GetImageException(in_img, &im_exception);
-        if (im_exception.severity != UndefinedException)
+        if (im_exception.severity != UndefinedException) {
             CatchException(&im_exception);
+            break;
+        }
 
         /*
         //d = sqrt[(x1-x2)^2 + (y1-y2)^2]
@@ -1501,12 +1509,13 @@ void DrawNetPower(Image *in_img, DrawInfo *in_di) { /*FOLD00*/
                 //snprintf(prim, 1024, "fill-opacity %d%% stroke-opacity %d%% stroke-width 1 rectangle %d,%d %d,%d",
                 //         draw_opacity, draw_opacity, x, y, r, b);
 
-                in_di->primitive = strdup(prim);
+                in_di->primitive = prim;
                 DrawImage(in_img, in_di);
                 GetImageException(in_img, &im_exception);
-                if (im_exception.severity != UndefinedException)
+                if (im_exception.severity != UndefinedException) {
                     CatchException(&im_exception);
-
+                    break;
+                }
             }
         }
 
@@ -1555,11 +1564,13 @@ void DrawNetCenterDot(vector<gps_network *> in_nets, Image *in_img, DrawInfo *in
 
         snprintf(prim, 1024, "fill-opacity 100%% stroke-opacity 100%% circle %d,%d %d,%d",
                  (int) mapx, (int) mapy, (int) endx, (int) endy);
-        in_di->primitive = strdup(prim);
+        in_di->primitive = prim;
         DrawImage(in_img, in_di);
         GetImageException(in_img, &im_exception);
-        if (im_exception.severity != UndefinedException)
+        if (im_exception.severity != UndefinedException) {
             CatchException(&im_exception);
+            break;
+        }
 
     }
 }
@@ -1599,11 +1610,16 @@ void DrawNetCenterText(vector<gps_network *> in_nets, Image *in_img, DrawInfo *i
 
         char text[1024];
         text[0] = '\0';
+
+        // Do we not have a draw condition at all, so we stop doing this
         int draw = 0;
+        // Do we just not have a draw condition for this network
+        int thisdraw = 0;
 
         if (network_labels.find("bssid") != string::npos) {
             snprintf(text, 1024, "%s ", map_iter->bssid.c_str());
             draw = 1;
+            thisdraw = 1;
         }
 
         if (network_labels.find("name") != string::npos) {
@@ -1611,17 +1627,31 @@ void DrawNetCenterText(vector<gps_network *> in_nets, Image *in_img, DrawInfo *i
                 char text2[1024];
                 snprintf(text2, 1024, "%s%s", text, map_iter->wnet->ssid.c_str());
                 strncpy(text, text2, 1024);
+                thisdraw = 1;
             }
             draw = 1;
         }
 
+        if (thisdraw == 0)
+            continue;
+
         if (draw == 0)
             break;
 
+        // Catch this just in case since
+        if (strlen(text) == 0)
+            continue;
+
         in_di->text = text;
         TypeMetric metrics;
-        if (!GetTypeMetrics(in_img, in_di, &metrics))
+        if (!GetTypeMetrics(in_img, in_di, &metrics)) {
+            GetImageException(in_img, &im_exception);
+            if (im_exception.severity != UndefinedException) {
+                CatchException(&im_exception);
+                break;
+            }
             continue;
+        }
 
         // Find the offset we're using
         int xoff, yoff;
@@ -1671,11 +1701,13 @@ void DrawNetCenterText(vector<gps_network *> in_nets, Image *in_img, DrawInfo *i
         snprintf(prim, 1024, "fill-opacity 100%% stroke-opacity 100%% text %d,%d \"%s\"",
                  (int) mapx + yoff, (int) mapy + xoff, text);
 
-        in_di->primitive = strdup(prim);
+        in_di->primitive = prim;
         DrawImage(in_img, in_di);
         GetImageException(in_img, &im_exception);
-        if (im_exception.severity != UndefinedException)
+        if (im_exception.severity != UndefinedException) {
             CatchException(&im_exception);
+            break;
+        }
     }
 }
 
@@ -1739,11 +1771,13 @@ void DrawNetScatterPlot(vector<gps_network *> in_nets, Image *in_img, DrawInfo *
 		snprintf(prim, 1024, "fill-opacity %d%% stroke-opacity %d%% circle %s %s", 
 			scatter_opacity, scatter_opacity, mm1, mm2);
 
-		in_di->primitive = strdup(prim);
+		in_di->primitive = prim;
                 DrawImage(in_img, in_di);
                 GetImageException(in_img, &im_exception);
-                if (im_exception.severity != UndefinedException)
+                if (im_exception.severity != UndefinedException) {
                     CatchException(&im_exception);
+                    break;
+                }
 	       
 	}
 
@@ -2300,8 +2334,6 @@ int main(int argc, char *argv[]) {
     strcpy(img_info->filename, mapoutname);
     strcpy(img->filename, mapoutname);
 
-    di = CloneDrawInfo(img_info, NULL);
-
     // Convert it to greyscale and then back to color
     if (convert_greyscale) {
         fprintf(stderr, "Converting map to greyscale.\n");
@@ -2322,6 +2354,7 @@ int main(int argc, char *argv[]) {
         gpsnetvec.push_back(x->second);
     }
 
+    di = CloneDrawInfo(img_info, NULL);
     for (unsigned int x = 0; x < draw_feature_order.length(); x++) {
         switch (draw_feature_order[x]) {
         case 'p':
@@ -2381,6 +2414,10 @@ int main(int argc, char *argv[]) {
             break;
         };
     }
+
+    // Make sure our DI has a clean primitive, since all of the other assignments were
+    // local variables
+    di->primitive = strdup("");
 
     WriteImage(img_info, img);
 
