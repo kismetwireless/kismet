@@ -1,3 +1,4 @@
+Jan 16 2003  2.9.0  Updated expat.cc to handle the 'carrier' attribute
 Jan 15 2003  2.9.0  Fixed up netxml more
                     Added logging of client maxrate to netxml
                     Merged GPSMap patch from Anton Rager to do power level

@@ -391,6 +391,8 @@ static void xpat_net_start(void *data, const char *el, const char **attr) {
                     building_net->first_time = XMLAsc2Time(attr[i+1]);
                 } else if (strcasecmp(attr[i], "last-time") == 0) {
                     building_net->last_time = XMLAsc2Time(attr[i+1]);
+                } else if (strcasecmp(attr[i], "carrier") == 0) {
+                    // We need to do something smarter with this
                 } else {
                     fprintf(stderr, "WARNING:  Illegal attribute '%s' on wireless-network\n",
                             attr[i]);
