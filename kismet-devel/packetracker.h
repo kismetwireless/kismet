@@ -61,12 +61,12 @@ public:
     void AddGPS(GPSD *in_gps);
 
     // Set up filters
-    void AddAlertFilters(const map<mac_addr, int> *bssid_map, const map<mac_addr, int> *source_map,
-                         const map<mac_addr, int> *dest_map, const int *bssid_invert,
-                         const int *source_invert, const int *dest_invert);
-    void AddExportFilters(const map<mac_addr, int> *bssid_map, const map<mac_addr, int> *source_map,
-                         const map<mac_addr, int> *dest_map, const int *bssid_invert,
-                         const int *source_invert, const int *dest_invert);
+    void AddAlertFilters(map<mac_addr, int> *bssid_map, map<mac_addr, int> *source_map,
+                         map<mac_addr, int> *dest_map, int *bssid_invert,
+                         int *source_invert, int *dest_invert);
+    void AddExportFilters(map<mac_addr, int> *bssid_map, map<mac_addr, int> *source_map,
+                          map<mac_addr, int> *dest_map, int *bssid_invert,
+                          int *source_invert, int *dest_invert);
 
 
     // Set up filtering - removed.  we do this in the server now before processing
@@ -148,19 +148,21 @@ protected:
     map<mac_addr, manuf *> client_manuf_map;
 
     // Filters
-    const map<mac_addr, int> *filter_alert_bssid;
-    const int *filter_alert_bssid_invert;
-    const map<mac_addr, int> *filter_alert_source;
-    const int *filter_alert_source_invert;
-    const map<mac_addr, int> *filter_alert_dest;
-    const int *filter_alert_dest_invert;
+    map<mac_addr, int> *filter_alert_bssid;
+    int *filter_alert_bssid_invert;
+    map<mac_addr, int> *filter_alert_source;
+    int *filter_alert_source_invert;
+    map<mac_addr, int> *filter_alert_dest;
+    int *filter_alert_dest_invert;
+    int filter_alert;
 
-    const map<mac_addr, int> *filter_export_bssid;
-    const int *filter_export_bssid_invert;
-    const map<mac_addr, int> *filter_export_source;
-    const int *filter_export_source_invert;
-    const map<mac_addr, int> *filter_export_dest;
-    const int *filter_export_dest_invert;
+    map<mac_addr, int> *filter_export_bssid;
+    int *filter_export_bssid_invert;
+    map<mac_addr, int> *filter_export_source;
+    int *filter_export_source_invert;
+    map<mac_addr, int> *filter_export_dest;
+    int *filter_export_dest_invert;
+    int filter_export;
 
 };
 

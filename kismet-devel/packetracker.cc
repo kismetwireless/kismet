@@ -41,6 +41,9 @@ Packetracker::Packetracker() {
 
     filter_alert_bssid_invert = filter_alert_source_invert = filter_alert_dest_invert =
         filter_export_bssid_invert = filter_export_source_invert = filter_export_dest_invert = NULL;
+
+    filter_export = filter_alert = 0;
+
 }
 
 Packetracker::~Packetracker() {
@@ -61,10 +64,11 @@ vector<wireless_network *> Packetracker::FetchNetworks() {
     return ret_vec;
 }
 
-void Packetracker::AddAlertFilters(const map<mac_addr, int> *bssid_map,
-                                   const map<mac_addr, int> *source_map,
-                                   const map<mac_addr, int> *dest_map, const int *bssid_invert,
-                                   const int *source_invert, const int *dest_invert) {
+void Packetracker::AddAlertFilters(map<mac_addr, int> *bssid_map,
+                                   map<mac_addr, int> *source_map,
+                                   map<mac_addr, int> *dest_map, int *bssid_invert,
+                                   int *source_invert, int *dest_invert) {
+    filter_alert = 1;
     filter_alert_bssid = bssid_map;
     filter_alert_bssid_invert = bssid_invert;
     filter_alert_source = source_map;
@@ -73,10 +77,11 @@ void Packetracker::AddAlertFilters(const map<mac_addr, int> *bssid_map,
     filter_alert_dest_invert = dest_invert;
 }
 
-void Packetracker::AddExportFilters(const map<mac_addr, int> *bssid_map,
-                                    const map<mac_addr, int> *source_map,
-                                    const map<mac_addr, int> *dest_map, const int *bssid_invert,
-                                    const int *source_invert, const int *dest_invert) {
+void Packetracker::AddExportFilters(map<mac_addr, int> *bssid_map,
+                                    map<mac_addr, int> *source_map,
+                                    map<mac_addr, int> *dest_map, int *bssid_invert,
+                                    int *source_invert, int *dest_invert) {
+    filter_export = 1;
     filter_export_bssid = bssid_map;
     filter_export_bssid_invert = bssid_invert;
     filter_export_source = source_map;
@@ -883,6 +888,18 @@ int Packetracker::WriteNetworks(string in_fname) {
     for (unsigned int i = 0; i < network_list.size(); i++) {
         wireless_network *net = network_list[i];
 
+        if (filter_export) {
+            map<mac_addr, int>::iterator fitr = filter_export_bssid->find(net->bssid);
+            // In the list and we've got inverted filtering - kill it
+            if (fitr != filter_export_bssid->end() &&
+                *filter_export_bssid_invert == 1)
+                continue;
+            // Not in the list and we've got normal filtering - kill it
+            if (fitr == filter_export_bssid->end() &&
+                *filter_export_bssid_invert == 0)
+                continue;
+        }
+
         char lt[25];
         char ft[25];
 
@@ -1043,6 +1060,17 @@ int Packetracker::WriteCisco(string in_fname) {
         if (net->cisco_equip.size() == 0)
             continue;
 
+        if (filter_export) {
+            map<mac_addr, int>::iterator fitr = filter_export_bssid->find(net->bssid);
+            // In the list and we've got inverted filtering - kill it
+            if (fitr != filter_export_bssid->end() &&
+                *filter_export_bssid_invert == 1)
+                continue;
+            // Not in the list and we've got normal filtering - kill it
+            if (fitr == filter_export_bssid->end() &&
+                *filter_export_bssid_invert == 0)
+                continue;
+        }
 
         fprintf(netfile, "Network: \"%s\" BSSID: \"%s\"\n",
                 net->ssid.c_str(), net->bssid.Mac2String().c_str());
@@ -1164,6 +1192,18 @@ int Packetracker::WriteCSVNetworks(string in_fname) {
 
     for (unsigned int i = 0; i < network_list.size(); i++) {
         wireless_network *net = network_list[i];
+
+        if (filter_export) {
+            map<mac_addr, int>::iterator fitr = filter_export_bssid->find(net->bssid);
+            // In the list and we've got inverted filtering - kill it
+            if (fitr != filter_export_bssid->end() &&
+                *filter_export_bssid_invert == 1)
+                continue;
+            // Not in the list and we've got normal filtering - kill it
+            if (fitr == filter_export_bssid->end() &&
+                *filter_export_bssid_invert == 0)
+                continue;
+        }
 
         char lt[25];
         char ft[25];
@@ -1336,6 +1376,18 @@ int Packetracker::WriteXMLNetworks(string in_fname) {
 
     for (unsigned int i = 0; i < network_list.size(); i++) {
         wireless_network *net = network_list[i];
+
+        if (filter_export) {
+            map<mac_addr, int>::iterator fitr = filter_export_bssid->find(net->bssid);
+            // In the list and we've got inverted filtering - kill it
+            if (fitr != filter_export_bssid->end() &&
+                *filter_export_bssid_invert == 1)
+                continue;
+            // Not in the list and we've got normal filtering - kill it
+            if (fitr == filter_export_bssid->end() &&
+                *filter_export_bssid_invert == 0)
+                continue;
+        }
 
         snprintf(lt, 25, "%s", ctime(&net->last_time));
         snprintf(ft, 25, "%s", ctime(&net->first_time));
