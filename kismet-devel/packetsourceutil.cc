@@ -562,13 +562,15 @@ void CapSourceChild(capturesource *csrc) {
     // Turn off the child gps until it gets enabled
     csrc->gps_enable = 0;
 
+    // Make us noisy until explicity told to be quiet
+    silent = 0;
+
     // Try to open the child...
     if (csrc->source->OpenSource(csrc->interface.c_str(), csrc->cardtype) < 0) {
         snprintf(txtbuf, 1024, "FATAL: capture child %d (%s): %s", mypid, csrc->name.c_str(),
                  csrc->source->FetchError());
         packet_buf.push_front(CapSourceText(txtbuf, CAPFLAG_FATAL));
         diseased = 1;
-        active = 0;
     } else {
         fprintf(stderr, "Capture child %d (%s): Capturing packets from %s\n",
                 mypid, csrc->name.c_str(), csrc->source->FetchType());
