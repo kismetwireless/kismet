@@ -72,7 +72,7 @@ BUZZER = extra/buzzme/buzzme
 GPSLBUILD=@gpslc@
 ZAURUSBUILD=@zbuild@
 
-all:	$(DEPEND) $(PS) $(DRONE) $(NC) $(GPSLBUILD) $(ZAURUSBUILD)
+all:	$(DEPEND) $(PS) $(DRONE) $(NC) $(GPSLBUILD) $(ZAURUSBUILD) Makefile
 
 $(PS):	$(PSO) $(PCAPLIB)
 	$(LD) $(LDFLAGS) -o $(PS) $(PSO) $(PCAPLIB) $(LIBS) $(PCAPLNK)
@@ -95,6 +95,9 @@ $(BUZZER):
 $(PCAPDIR)/libpcap.a:	
 	@( cd $(PCAPDIR); $(MAKE); )
 
+Makefile: Makefile.in configure
+	@-./config.status --recheck
+	
 checkconfig:
 	@if test "`grep version= conf/kismet.conf | cut -f 2 -d=`" != "`grep version= $(ETC)/kismet.conf | cut -f 2 -d=`"; then \
 		echo "The configuration file has been updated.  It is STRONGLY reccomended "; \
