@@ -791,8 +791,8 @@ int main(int argc, char *argv[]) {
         rset = read_set;
 
         struct timeval tim;
-        tim.tv_sec = 1;
-        tim.tv_usec = 0;
+        tim.tv_sec = 0;
+        tim.tv_usec = 500000;
 
         if (select(max_fd + 1, &rset, NULL, NULL, &tim) < 0) {
             if (errno != EINTR) {
