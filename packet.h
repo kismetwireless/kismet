@@ -658,6 +658,21 @@ public:
         return ret;
     }
 
+    // The caller will rebuild the index before using us...
+    void fast_insert(mac_addr in_mac, T in_data) {
+        // Single macs go into the singleton map
+        if (in_mac.longmask == (uint64_t) -1) {
+            singleton_map[in_mac] = in_data;
+            return;
+        }
+
+        // Put them into the vector
+        mask_vec_content content;
+        content.mac = in_mac;
+        content.value = in_data;
+        mask_vec.push_back(content);
+    }
+    
     // This is a very expensive insert but it builds a system that allows
     // for fast searching, which is where we REALLY need the speed.
     void insert(mac_addr in_mac, T in_data) {
@@ -673,7 +688,7 @@ public:
         content.value = in_data;
         mask_vec.push_back(content);
 
-//        reindex();
+        reindex();
     }
 
     // Do a relatively fast find...

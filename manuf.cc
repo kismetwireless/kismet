@@ -41,7 +41,7 @@ macmap<vector<manuf *> > ReadManufMap(FILE *in_file, int ap_map) {
     memset(&manf->ipdata, 0, sizeof(net_ip_data));
 
     rvec.push_back(manf);
-    ret.insert(manf->mac_tag, rvec);
+    ret.fast_insert(manf->mac_tag, rvec);
 
     int linenum = 0;
 
@@ -104,7 +104,7 @@ macmap<vector<manuf *> > ReadManufMap(FILE *in_file, int ap_map) {
             } else {
                 rvec.clear();
                 rvec.push_back(manf);
-                ret.insert(manf->mac_tag, rvec);
+                ret.fast_insert(manf->mac_tag, rvec);
             }
         } else {
             // Otherwise we handle clients this way
@@ -120,7 +120,7 @@ macmap<vector<manuf *> > ReadManufMap(FILE *in_file, int ap_map) {
             } else {
                 rvec.clear();
                 rvec.push_back(manf);
-                ret.insert(manf->mac_tag, rvec);
+                ret.fast_insert(manf->mac_tag, rvec);
             }
 
         }
