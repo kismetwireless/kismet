@@ -2,6 +2,9 @@ Mar 31 2004  devel  Fixed gpsmap cache error reporting mistake
                     Changed 'best signal' and 'best noise' stuff to handle dBm
                     Fixed signal recording for wext
                     Changed text in panel signal window slightly
+                    Fixed gpsmap to count actual valid samples instead of all
+                     samples in a file when determining if any samples were
+                     collected
 Mar 30 2004  devel  Tentative support for calculating SNR from signal levels
                      in dBm for Kismet and gpsmap
 Mar 29 2004  devel  Removed size restriction testing for now, let the remote

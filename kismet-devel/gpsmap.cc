@@ -1136,9 +1136,9 @@ int ProcessGPSFile(char *in_fname) {
     }
 
     if (verbose)
-        fprintf(stderr, "%s contains %d samples.\n", in_fname, file_samples);
+        fprintf(stderr, "%s contains %d valid samples.\n", in_fname, file_points.size());
 
-    sample_points += file_samples;
+    sample_points += file_points.size();
 
     return 1;
 }
