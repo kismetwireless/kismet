@@ -73,7 +73,7 @@ GPSLBUILD=@gpslc@
 GPSLBUILDO=@gpslco@
 ZAURUSBUILD=@zbuild@
 
-all:	$(DEPEND) $(PS) $(DRONE) $(NC) $(GPSLBUILD) $(ZAURUSBUILD) Makefile
+all:	Makefile $(DEPEND) $(PS) $(DRONE) $(NC) $(GPSLBUILD) $(ZAURUSBUILD)
 
 $(PS):	$(PSO) $(PCAPLIB)
 	$(LD) $(LDFLAGS) -o $(PS) $(PSO) $(PCAPLIB) $(LIBS) $(PCAPLNK)
@@ -101,7 +101,7 @@ $(PCAPDIR)/libpcap.a:
 	@( cd $(PCAPDIR); $(MAKE); )
 
 Makefile: Makefile.in configure
-	@-./config.status 
+	@-echo "'Makefile.in' or 'configure' are more current than this Makefile.  You should re-run 'configure'."
 	
 checkconfig:
 	@if test "`grep version= conf/kismet.conf | cut -f 2 -d=`" != "`grep version= $(ETC)/kismet.conf | cut -f 2 -d=`"; then \
