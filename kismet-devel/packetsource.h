@@ -44,7 +44,8 @@ enum card_type {
     card_viha,
     card_ar5k,
     card_drone,
-    card_prism2_avs
+    card_prism2_avs,
+    card_acx100
 };
 
 // Packet capture source superclass

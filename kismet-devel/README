@@ -21,6 +21,7 @@
          6. ar5k
          7. drone
          8. airport (viha)
+         9. acx100
     7. GPS Support
     8. Compiling
     9. Configuration
@@ -320,6 +321,12 @@
                  support is for Viha 0.0.1a, but it MAY work with newer
                  versions. Normal OSX drivers will not work in RFMon
                  mode.
+         9. ACX100 (TI 22MBIT)
+            Cards: 22mbit 802.11b+ cards such as the Dlink 650+
+               o 'acx100': ACX100 OSS drivers
+                 Capture interface: wlanX
+                 Notes: Drivers available from
+                 http://acx100.sourceforge.net.
     7. GPS SUPPORT
        GPS support is provided via the GPSD daemon, available at
        http://russnelson.com/gpsd/. GPSD is also included with the
