@@ -111,8 +111,12 @@ int GPSD::Scan() {
     char buf[1024];
     int ret;
 
-    if (sock < 0)
+    if (sock < 0) {
+        lat = lon = alt = spd = 0;
+        mode = 0;
+        hed = 0;
         return -1;
+    }
 
     // Read as much as we have
     ret = read(sock, buf, 1024);

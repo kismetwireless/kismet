@@ -4,6 +4,8 @@ Dec 24 2003  3.1.0  More README updates
                     Actually fixed FCS
                     Fixed statically defined wepkey size that introduced
                      failures, actually merged wep key resize into config.h.in
+                    Removed stray debug string
+                    Added GPSD reconnect code
 Dec 23 2003  3.1.0  Added DupeIV display to panels client
 Dec 22 2003  3.1.0  Increased max wep key size to 32 hex pairs
                     Fixed gpsmap dupeiv
