@@ -233,6 +233,9 @@ else
 	AC_MSG_RESULT([int])
 fi
 
+# Do we have large file support?
+AC_SYS_LARGEFILE
+
 AC_MSG_CHECKING([for group 'root'])
 if test "`grep -e ^root: /etc/group`" = ""; then
 	AC_MSG_RESULT([no.  Using 'wheel'])
