@@ -6,7 +6,7 @@
 .SH SYNOPSIS
 .nf
 .fam C
-\fBgpsmap\fP [\fB-hviIDVGMtbruapek\fP] [\fB-g\fP \fIconfig-file\fP] [\fB-o\fP \fIoutput-file\fP]
+\fBgpsmap\fP [\fB-hviNIDVGMtbruapek\fP] [\fB-g\fP \fIconfig-file\fP] [\fB-o\fP \fIoutput-file\fP]
 [\fB-f\fP \fIfilter-list\fP] [\fB-F\fP \fIfilter-type-list\fP] [\fB-z\fP \fInumthreads\fP] [\fB-S\fP \fImapsource\fP] [\fB-c\fP \fIcoords\fP] [\fB-s\fP \fIscale\fP]
 [\fB-m\fP \fIusermap\fP] [\fB-d\fP \fImapsize\fP] [\fB-n\fP \fInetcolors\fP] [\fB-O\fP \fIoffset\fP] [\fB-R\fP \fIrange-opacity\fP]
 [\fB-U\fP \fIhull-opacity\fP] [\fB-A\fP \fIscatter-opacity\fP] [\fB-B\fP \fIscatter-size\fP]
@@ -58,6 +58,12 @@ Process only MACs and types  specified in the filter list
 .B
 \fB-z\fP, \fB--threads\fP NUM
 Spawn NUM threads for power interpolation calculations
+.TP
+.B
+\fB-N\fP, \fB--pure-avg-center\fP
+Use old pure-average center to guess the center of a network by averaging all of the
+sample points, instead of the new code which tries to find the most relevant cluster of
+sample points.
 .TP
 .B
 \fB-S\fP, \fB--map-source\fP SOURCE

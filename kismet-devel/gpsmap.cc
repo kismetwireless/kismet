@@ -186,6 +186,9 @@ char *label_gravity_list[] = {
 int scatter_power;
 int power_zoom;
 
+// Average all the sample points or try to be smart?
+int pure_center_average = 0;
+
 // Tracker internals
 int sample_points;
 
@@ -1208,8 +1211,18 @@ void ProcessNetData(int in_printstats) {
         mpf_init(alon);
 
         vector<gps_point *> relvec;
-        relvec = RelevantCenterPoints(map_iter->points);
-        map_iter->center_points = relvec;
+
+        // We need this for interpolation as well as center averaging... 
+        // calculate it and assign it
+        if (pure_center_average == 0 || draw_power) 
+            map_iter->center_points = RelevantCenterPoints(map_iter->points);
+      
+        // Do we average all the points or use the new smarter relevance
+        if (pure_center_average == 0)
+            relvec = map_iter->center_points;
+        else
+            relvec = map_iter->points;
+
         for (unsigned int y = 0; y < relvec.size(); y++) {
             mpf_t lat, lon;
             mpf_init_set_d(lat, relvec[y]->lat);
@@ -3224,6 +3237,7 @@ int Usage(char* argv, int ec = 1) {
            "  -I, --invert-typefilter        Invert type filtering\n"
            "  -z, --threads <num>            Number of simultaneous threads used for\n"
            "                                  complex operations [Default: 1]\n"
+           "  -N, --pure-avg-center          Use old pure-average network center finding\n"
            "  -S, --map-source <#>           Source to download maps from [Default: 0]\n"
            "                                  0 MapBlast (vector)\n"
            "                                  1 MapPoint (vector)\n"
@@ -3347,6 +3361,7 @@ int main(int argc, char *argv[]) {
            {"draw-label-orient", required_argument, 0, 'L'},
            {"draw-legend", no_argument, 0, 'k'},
            {"feature-order", required_argument, 0, 'T'},
+           {"pure-avg-center", no_argument, 0, 'N'},
            { 0, 0, 0, 0 }
     };
     int option_index;
@@ -3377,7 +3392,7 @@ int main(int argc, char *argv[]) {
 
     while(1) {
         int r = getopt_long(argc, argv,
-                            "hvg:S:o:f:iF:Iz:DVc:s:m:d:n:GMO:tY:brR:uU:aA:B:pP:Z:q:Q:eE:H:l:L:kT:",
+                            "hvg:S:o:f:iF:Iz:DVc:s:m:d:n:GMO:tY:brR:uU:aA:B:pP:Z:q:Q:eE:H:l:L:kT:N",
                             long_options, &option_index);
 
         if (r < 0) break;
@@ -3456,6 +3471,11 @@ int main(int argc, char *argv[]) {
             break;
         case 'D':
             keep_gif = true;
+            break;
+        case 'N':
+            pure_center_average = 1;
+            fprintf(stderr, "Using old-style pure averaging to find network "
+                    "center instead of new smarter centering code.");
             break;
         case 'V':
             printf("GPSMap v%s.%s.%s\n", VERSION_MAJOR, VERSION_MINOR, VERSION_TINY);
