@@ -698,7 +698,7 @@ void PanelFront::SetMainColumns(string in_columns) {
 void PanelFront::SetClientColumns(string in_columns) {
     vector<string> tokens = StrTokenize(in_columns, ",");
 
-    column_vec.clear();
+    client_column_vec.clear();
 
     for (unsigned int x = 0; x < tokens.size(); x++)
         client_column_vec.push_back(Token2ClientColumn(tokens[x]));
