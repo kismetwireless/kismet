@@ -950,19 +950,21 @@ int PanelFront::DetailsPrinter(void *in_window) {
                                         details_network->virtnet.max_lat,
                                         details_network->virtnet.max_lon);
 
-        if (metric) {
-            if (diagdist < 1000)
-                snprintf(output, print_width, "Range    : %f meters", diagdist);
-            else
-                snprintf(output, print_width, "Range   : %f kilometers", diagdist / 1000);
-        } else {
-            diagdist *= 3.3;
-            if (diagdist < 5280)
-                snprintf(output, print_width, "Range   : %f feet", diagdist);
-            else
-                snprintf(output, print_width, "Range   : %f miles", diagdist / 5280);
+        if (finite(diagdist)) {
+            if (metric) {
+                if (diagdist < 1000)
+                    snprintf(output, print_width, "Range    : %f meters", diagdist);
+                else
+                    snprintf(output, print_width, "Range   : %f kilometers", diagdist / 1000);
+            } else {
+                diagdist *= 3.3;
+                if (diagdist < 5280)
+                    snprintf(output, print_width, "Range   : %f feet", diagdist);
+                else
+                    snprintf(output, print_width, "Range   : %f miles", diagdist / 5280);
+            }
+            kwin->text.push_back(output);
         }
-        kwin->text.push_back(output);
     }
 
     kwin->text.push_back("");
@@ -1130,22 +1132,25 @@ int PanelFront::DetailsPrinter(void *in_window) {
                      dnet->max_alt, dnet->max_spd);
             kwin->text.push_back(output);
 
+
             double diagdist = EarthDistance(dnet->min_lat, dnet->min_lon,
                                             dnet->max_lat, dnet->max_lon);
 
-            if (metric) {
-                if (diagdist < 1000)
-                    snprintf(output, print_width, "Range    : %f meters", diagdist);
-                else
-                    snprintf(output, print_width, "Range   : %f kilometers", diagdist / 1000);
-            } else {
-                diagdist *= 3.3;
-                if (diagdist < 5280)
-                    snprintf(output, print_width, "Range   : %f feet", diagdist);
-                else
-                    snprintf(output, print_width, "Range   : %f miles", diagdist / 5280);
+            if (finite(diagdist)) {
+                if (metric) {
+                    if (diagdist < 1000)
+                        snprintf(output, print_width, "Range    : %f meters", diagdist);
+                    else
+                        snprintf(output, print_width, "Range   : %f kilometers", diagdist / 1000);
+                } else {
+                    diagdist *= 3.3;
+                    if (diagdist < 5280)
+                        snprintf(output, print_width, "Range   : %f feet", diagdist);
+                    else
+                        snprintf(output, print_width, "Range   : %f miles", diagdist / 5280);
+                }
+                kwin->text.push_back(output);
             }
-            kwin->text.push_back(output);
         }
     }
 
