@@ -712,8 +712,8 @@ void PanelFront::SpawnHelp(char **in_helptext) {
 
     if (width + 5 > COLS)
         width = COLS - 5;
-    if (height + 2 > LINES)
-        height = LINES - 2;
+    if (height + 5 > LINES)
+        height = LINES - 5;
 
     // Resize our text to fit our max possible width and cache it
     char *resize = new char[width+1];
