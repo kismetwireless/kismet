@@ -98,7 +98,8 @@ enum CISCO_fields {
 };
 
 enum KISMET_fields {
-    KISMET_version, KISMET_starttime, KISMET_servername, KISMET_timestamp
+    KISMET_version, KISMET_starttime, KISMET_servername, KISMET_timestamp,
+    KISMET_chanhop
 };
 
 enum PROTOCOLS_fields {

@@ -2,6 +2,8 @@ Feb 01 2004  3.1.0  Fixed broken channel stuff in wlanng to use stored last
                      channel if wext isn't available.
                     Added source picking window for channel locking on multiple
                      sources
+                    Added smarter channel hopping setup, added server hopping
+                     status to KISMET protocol
 Jan 31 2004  3.1.0  wlanng no longer depends on wireless extentions
 Jan 28 2004  3.1.0  Panels client now scrolls to next network after tagging
                     Fixed changelog dates (Thanks Alexander...)

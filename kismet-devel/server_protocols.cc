@@ -20,6 +20,7 @@
 #include "packetsource.h"
 #include "packetsourcetracker.h"
 #include "server_protocols.h"
+#include "server_globals.h"
 
 char *INFO_fields_text[] = {
     "networks", "packets", "crypt", "weak",
@@ -57,7 +58,7 @@ char *CISCO_fields_text[] = {
 };
 
 char *KISMET_fields_text[] = {
-    "version", "starttime", "servername", "timestamp",
+    "version", "starttime", "servername", "timestamp", "channelhop",
     NULL
 };
 
@@ -165,6 +166,12 @@ int Protocol_KISMET(PROTO_PARMS) {
             break;
         case KISMET_timestamp:
             out_string += kdata->timestamp;
+            break;
+        case KISMET_chanhop:
+            if (channel_hop == 0)
+                out_string += "0";
+            else
+                out_string += "1";
             break;
         default:
             out_string = "Unknown field requested.";

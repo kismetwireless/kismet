@@ -202,6 +202,8 @@ int datainterval = 0;
 
 string logtemplate;
 
+int channel_hop;
+
 // Handle writing all the files out and optionally unlinking the empties
 void WriteDatafiles(int in_shutdown) {
     // If we're on our way out make one last write of the network stuff - this
@@ -949,6 +951,13 @@ void handle_command(TcpServer *tcps, client_command *cc) {
             return;
         }
 
+        // See if the meta can control channel
+        if (meta->prototype->channelcon == NULL) {
+            out_error += "invalid chanlock request, source cannot change channel";
+            tcps->SendToClient(cc->client_fd, error_ref, (void *) &out_error);
+            return;
+        }
+
         // See if the requested channel is in the list of valid channels for this
         // source...
         int chvalid = 0;
@@ -1001,6 +1010,13 @@ void handle_command(TcpServer *tcps, client_command *cc) {
         meta_packsource *meta;
         if ((meta = sourcetracker.FetchMetaID(metanum)) == NULL) {
             out_error += "invalid chanhop request, unknown meta id";
+            tcps->SendToClient(cc->client_fd, error_ref, (void *) &out_error);
+            return;
+        }
+
+        // See if the meta can control channel
+        if (meta->prototype->channelcon == NULL) {
+            out_error += "invalid chanlock request, source cannot change channel";
             tcps->SendToClient(cc->client_fd, error_ref, (void *) &out_error);
             return;
         }
@@ -1993,7 +2009,7 @@ int main(int argc,char *argv[]) {
     for (unsigned int wi = 0; wi < 256; wi++)
         wep_identity[wi] = wi;
 
-    int channel_hop = -1;
+    channel_hop = -1;
     int channel_velocity = 1;
     int channel_split = 0;
 
@@ -2407,6 +2423,7 @@ int main(int argc,char *argv[]) {
     // Turn all our config data into meta packsources, or fail...  If we're
     // passing the sources from the command line, we enable them all, so we
     // null the named_sources string
+    int old_chhop = channel_hop;
     if (sourcetracker.ProcessCardList(source_from_cmd ? "" : named_sources, 
                                       &source_input_vec, &src_customchannel_vec, 
                                       &src_initchannel_vec,
@@ -2414,7 +2431,12 @@ int main(int argc,char *argv[]) {
         fprintf(stderr, "FATAL: %s\n", sourcetracker.FetchError());
         exit(1);
     }
-        
+
+    // This would only change if we're channel hopping and processcardlist had
+    // to turn it off because nothing supports it, so print a notice...
+    if (old_chhop != channel_hop)
+        fprintf(stderr, "NOTICE: Disabling channel hopping, no enabled sources "
+                "are able to change channel.\n");
     
     // Now enable root sources...
     setreuid(0, 0);

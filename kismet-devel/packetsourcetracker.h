@@ -180,7 +180,7 @@ public:
     int ProcessCardList(string in_enableline, vector<string> *in_cardlines, 
                         vector<string> *in_sourcechannels, 
                         vector<string> *in_initchannels,
-                        int in_chhop, int in_chsplit);
+                        int& in_chhop, int in_chsplit);
 
     // Bind to sources.  in_root == 1 when binding root sources, obviosuly
     int BindSources(int in_root);
