@@ -352,7 +352,8 @@ void Frontend::UpdateGroups() {
         }
 
         dnet->virtnet.bssid.mask = bssid_matched;
-        MatchBestManuf(&dnet->virtnet, 0);
+        MatchBestManuf(client_manuf_map, dnet->virtnet.bssid, dnet->virtnet.ssid,
+                       dnet->virtnet.channel, &dnet->virtnet.manuf_key, &dnet->virtnet.manuf_score);
 
         // convert our map into a vector
         for (map<mac_addr, wireless_client *>::iterator cli = dnet->virtnet.client_map.begin();
@@ -575,6 +576,15 @@ void Frontend::WriteGroupMap(FILE *in_file) {
 
     return;
 }
+
+void Frontend::ReadAPManufMap(FILE *in_file) {
+    ap_manuf_map = ReadManufMap(in_file, 1);
+}
+
+void Frontend::ReadClientManufMap(FILE *in_file) {
+    client_manuf_map = ReadManufMap(in_file, 0);
+}
+
 
 /* Earth Distance and CalcRad stolen from gpsdrive.  Finds the distance between
  two points. */

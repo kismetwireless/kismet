@@ -58,14 +58,9 @@ string Packetracker::Net2String(wireless_network *in_net) {
     string ret;
     char output[2048];
 
-    /*
-     snprintf(output, 2048, "%s %d \001%s\001 \001%s\001 %d %d %d %d %d %d %d %d %d "
-             "%d.%d.%d.%d %d.%d.%d.%d %d.%d.%d.%d %d %f %f %f %f %f %f %f %f %d %d %d %2.1f "
-             "%d %d %d %d %d %d %d %d %f %f %f %f %f %f %ld",
-             */
     snprintf(output, 2048, "%s %d \001%s\001 \001%s\001 %d %d %d %d %d %d %d %d %d "
              "%d.%d.%d.%d %d %f %f %f %f %f %f %f %f %d %d %d %2.1f "
-             "%d %d %d %d %d %d %d %d %f %f %f %f %f %f %ld",
+             "%s %d %d %d %d %d %d %d %f %f %f %f %f %f %ld",
              in_net->bssid.Mac2String().c_str(),
              (int) in_net->type,
              in_net->ssid.size() > 0 ? in_net->ssid.c_str() : "\002",
@@ -77,12 +72,6 @@ string Packetracker::Net2String(wireless_network *in_net) {
              (int) in_net->ipdata.atype,
              in_net->ipdata.range_ip[0], in_net->ipdata.range_ip[1],
              in_net->ipdata.range_ip[2], in_net->ipdata.range_ip[3],
-             /*
-             in_net->ipdata.mask[0], in_net->ipdata.mask[1],
-             in_net->ipdata.mask[2], in_net->ipdata.mask[3],
-             in_net->ipdata.gate_ip[0], in_net->ipdata.gate_ip[1],
-             in_net->ipdata.gate_ip[2], in_net->ipdata.gate_ip[3],
-             */
 
              in_net->gps_fixed,
              in_net->min_lat, in_net->min_lon, in_net->min_alt, in_net->min_spd,
@@ -91,7 +80,7 @@ string Packetracker::Net2String(wireless_network *in_net) {
              in_net->ipdata.octets,
              in_net->cloaked, in_net->beacon, in_net->maxrate,
 
-             in_net->manuf_id, in_net->manuf_score,
+             in_net->manuf_key.Mac2String().c_str(), in_net->manuf_score,
 	     
              in_net->quality, in_net->signal, in_net->noise,
              in_net->best_quality, in_net->best_signal, in_net->best_noise,
@@ -110,7 +99,7 @@ string Packetracker::Client2String(wireless_network *net, wireless_client *clien
     char output[2048];
 
     snprintf(output, 2048,
-             "%s %s %d %d %d %d %d %d %d %d %d "
+             "%s %s %d %d %d %s %d %d %d %d %d "
              "%f %f %f %f %f %f %f %f %f %f "
              "%f %ld %2.1f %d %d %d %d %d %d %d "
              "%f %f %f %d %d.%d.%d.%d",
@@ -118,7 +107,7 @@ string Packetracker::Client2String(wireless_network *net, wireless_client *clien
              client->mac.Mac2String().c_str(),
              client->type,
              (int) client->first_time, (int) client->last_time,
-             client->manuf_id, client->manuf_score,
+             client->manuf_key.Mac2String().c_str(), client->manuf_score,
              client->data_packets, client->crypt_packets, client->interesting_packets,
              client->gps_fixed, client->min_lat, client->min_lon, client->min_alt, client->min_spd,
              client->max_lat, client->max_lon, client->max_alt, client->max_spd,
@@ -313,8 +302,6 @@ int Packetracker::ProcessPacket(packet_info info, char *in_status) {
                      net->channel, net->maxrate);
         }
 
-        MatchBestManuf(net, 1);
-
         if (gps != NULL) {
             gps->FetchLoc(&lat, &lon, &alt, &spd, &fix);
 
@@ -331,6 +318,17 @@ int Packetracker::ProcessPacket(packet_info info, char *in_status) {
                 net->aggregate_points = 1;
             }
 
+        }
+
+        // Find out what we can from what we know now...
+        if (net->type != network_adhoc && net->type != network_probe) {
+            MatchBestManuf(ap_manuf_map, net->bssid, net->ssid, net->channel,
+                           &net->manuf_key, &net->manuf_score);
+            if (net->manuf_score == manuf_max_score)
+                memcpy(&net->ipdata, &ap_manuf_map[net->manuf_key]->ipdata, sizeof(net_ip_data));
+        } else {
+            MatchBestManuf(client_manuf_map, net->bssid, net->ssid, net->channel,
+                           &net->manuf_key, &net->manuf_score);
         }
 
         num_networks++;
@@ -453,7 +451,13 @@ int Packetracker::ProcessPacket(packet_info info, char *in_status) {
             if (net->ssid != NOSSID && net->ssid != info.ssid && !IsBlank(info.ssid)) {
                 net->ssid = info.ssid;
                 bssid_cloak_map[net->bssid] = info.ssid;
-                MatchBestManuf(net, 1);
+
+                MatchBestManuf(ap_manuf_map, net->bssid, net->ssid, net->channel,
+                               &net->manuf_key, &net->manuf_score);
+                // Update our IP range info too if we're a default
+                if (net->manuf_score == manuf_max_score && net->ipdata.atype == address_none)
+                    memcpy(&net->ipdata, &ap_manuf_map[net->manuf_key]->ipdata, sizeof(net_ip_data));
+
             } else if (net->ssid == NOSSID && strlen(info.ssid) > 0 && !IsBlank(info.ssid)) {
                 net->ssid = info.ssid;
 
@@ -468,12 +472,29 @@ int Packetracker::ProcessPacket(packet_info info, char *in_status) {
                              net->ssid.c_str(), net->bssid.Mac2String().c_str());
                 }
 
-                MatchBestManuf(net, 1);
+                MatchBestManuf(ap_manuf_map, net->bssid, net->ssid, net->channel,
+                               &net->manuf_key, &net->manuf_score);
+                // Update our IP range info too if we're a default
+                if (net->manuf_score == manuf_max_score && net->ipdata.atype == address_none)
+                    memcpy(&net->ipdata, &ap_manuf_map[net->manuf_key]->ipdata, sizeof(net_ip_data));
+
                 ret = TRACKER_NOTICE;
+            }
+
+            // If we're updating the network record, update the manufacturer info -
+            // if we just "became" an AP or if we've changed channel, we may have
+            // changed state as well
+            if (net->channel != info.channel || net->type != network_ap) {
+                MatchBestManuf(ap_manuf_map, net->bssid, net->ssid, info.channel,
+                               &net->manuf_key, &net->manuf_score);
+                // Update our IP range info too if we're a default
+                if (net->manuf_score == manuf_max_score && net->ipdata.atype == address_none)
+                    memcpy(&net->ipdata, &ap_manuf_map[net->manuf_key]->ipdata, sizeof(net_ip_data));
             }
 
             net->channel = info.channel;
             net->wep = info.wep;
+
             net->type = network_ap;
         }
 
@@ -490,12 +511,16 @@ int Packetracker::ProcessPacket(packet_info info, char *in_status) {
                 net->channel = info.channel;
                 net->wep = info.wep;
 
+                MatchBestManuf(ap_manuf_map, net->bssid, net->ssid, net->channel,
+                               &net->manuf_key, &net->manuf_score);
+                // Update our IP range info too if we're a default
+                if (net->manuf_score == manuf_max_score && net->ipdata.atype == address_none)
+                    memcpy(&net->ipdata, &ap_manuf_map[net->manuf_key]->ipdata, sizeof(net_ip_data));
+
                 bssid_cloak_map[net->bssid] = info.ssid;
 
                 snprintf(in_status, STATUS_MAX, "Found SSID \"%s\" for cloaked network BSSID %s",
                          net->ssid.c_str(), net->bssid.Mac2String().c_str());
-
-                MatchBestManuf(net, 1);
 
                 ret = TRACKER_NOTICE;
             } else if (info.ssid != bssid_cloak_map[net->bssid]) {
@@ -503,7 +528,11 @@ int Packetracker::ProcessPacket(packet_info info, char *in_status) {
                 net->ssid = info.ssid;
                 net->wep = info.wep;
 
-                MatchBestManuf(net, 1);
+                MatchBestManuf(ap_manuf_map, net->bssid, net->ssid, net->channel,
+                               &net->manuf_key, &net->manuf_score);
+                // Update our IP range info too if we're a default
+                if (net->manuf_score == manuf_max_score && net->ipdata.atype == address_none)
+                    memcpy(&net->ipdata, &ap_manuf_map[net->manuf_key]->ipdata, sizeof(net_ip_data));
             }
 
             // If we have a probe request network, absorb it into the main network
@@ -571,7 +600,8 @@ int Packetracker::ProcessDataPacket(packet_info info, wireless_network *net, cha
 
         client->first_time = time(0);
         client->mac = info.source_mac;
-        MatchBestClientManuf(client, 1);
+        MatchBestManuf(client_manuf_map, client->mac, "", 0,
+                       &client->manuf_key, &client->manuf_score);
 
         client->metric = net->metric;
 
@@ -1533,6 +1563,15 @@ void Packetracker::WriteIPMap(FILE *in_file) {
     }
 
     return;
+}
+
+// These are just dropthroughs to the manuf stuff
+void Packetracker::ReadAPManufMap(FILE *in_file) {
+    ap_manuf_map = ReadManufMap(in_file, 1);
+}
+
+void Packetracker::ReadClientManufMap(FILE *in_file) {
+    client_manuf_map = ReadManufMap(in_file, 0);
 }
 
 void Packetracker::RemoveNetwork(mac_addr in_bssid) {

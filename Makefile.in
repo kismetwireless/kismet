@@ -129,6 +129,8 @@ commoninstall:
 	install -o $(INSTUSR) -g $(INSTGRP) -m 644 wav/traffic.wav $(WAV)/traffic.wav
 	install -o $(INSTUSR) -g $(INSTGRP) -m 644 wav/junk_traffic.wav $(WAV)/junk_traffic.wav
 	install -o $(INSTUSR) -g $(INSTGRP) -m 644 wav/alert.wav $(WAV)/alert.wav
+	install -o $(INSTUSR) -g $(INSTGRP) -m 644 conf/ap_manuf $(ETC)/ap_manuf; 
+	install -o $(INSTUSR) -g $(INSTGRP) -m 644 conf/client_manuf $(ETC)/client_manuf; 
 
 install: $(PS) $(HOPPER) $(NC) $(GPSLBUILD) $(ZAURUSBUILD)
 	$(MAKE) -e commoninstall

@@ -89,7 +89,6 @@ typedef struct wireless_client {
         first_time = 0;
         last_time = 0;
 
-        manuf_id = -1;
         manuf_score = 0;
 
         channel = 0;
@@ -125,8 +124,9 @@ typedef struct wireless_client {
     int channel;
     int wep;
 
-    // Manufacturer ID
-    int manuf_id;
+    // Manufacturer info - mac address key to the manufacturer map and score for
+    // easy-default maps
+    mac_addr manuf_key;
     int manuf_score;
 
     // Packet counts
@@ -161,7 +161,6 @@ typedef struct wireless_network {
     wireless_network() {
         type = network_data;
 
-        manuf_id = -1;
         manuf_score = 0;
 
         memset(&ipdata, 0, sizeof(net_ip_data));
@@ -206,7 +205,7 @@ typedef struct wireless_network {
     string beacon_info;
 
     // Manufacturer ID
-    int manuf_id;
+    mac_addr manuf_key;
     int manuf_score;
 
     // Packet counts

@@ -22,31 +22,34 @@
 #include "config.h"
 
 #include <string>
+#include <vector>
+#include <map>
 #include "tracktypes.h"
+#include "packet.h"
 
 // What we need to know about a manufacturer
 typedef struct {
     string name;
-    string short_manuf;
+    string model;
 
-    const uint8_t *mac_tag;
-    unsigned int tag_len;
+    // We play some games with the incoming mac to make this work,
+    // watch out!
+    mac_addr mac_tag;
 
     string ssid_default;
     int channel_default;
-    int wep_default;
-    int cloaked_default;
 
-    const net_ip_data *ipdata;
+    net_ip_data ipdata;
 
 } manuf;
 
-extern const manuf manuf_list[];
+extern int manuf_max_score;
 
-extern const int manuf_num;
-extern const int manuf_max_score;
-
-int MatchBestManuf(wireless_network *in_net, int in_set);
-int MatchBestClientManuf(wireless_client *in_cli, int in_set);
+// Read a manuf file
+map<mac_addr, manuf *> ReadManufMap(FILE *in_file, int ap_map);
+// Match the best manufacturer given a vector and pertinent info, returning the index to
+// the matching manufacturer and the score in the parameters.  NULL's are acceptable.
+void MatchBestManuf(map<mac_addr, manuf *> in_manuf, mac_addr in_mac, string in_ssid,
+                    int in_channel, mac_addr *manuf_mac, int *manuf_score);
 
 #endif

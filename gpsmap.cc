@@ -290,6 +290,10 @@ unsigned int power_pos = 0;
 pthread_mutex_t power_pos_lock;
 int *power_input_map;
 
+// AP and client maps
+map<mac_addr, manuf *> ap_manuf_map;
+map<mac_addr, manuf *> client_manuf_map;
+
 // Filtered MAC's
 string filter;
 int invert_filter = 0;
@@ -738,7 +742,15 @@ void AssignNetColors() {
 
         if (color_coding == COLORCODE_WEP) {
             if (map_iter->wnet != NULL) {
-                MatchBestManuf(map_iter->wnet, 1);
+                if (map_iter->wnet->type == network_adhoc || map_iter->wnet->type == network_probe)
+                    MatchBestManuf(client_manuf_map, map_iter->wnet->bssid, map_iter->wnet->ssid,
+                                   map_iter->wnet->channel, &map_iter->wnet->manuf_key,
+                                   &map_iter->wnet->manuf_score);
+                else
+                    MatchBestManuf(ap_manuf_map, map_iter->wnet->bssid, map_iter->wnet->ssid,
+                                   map_iter->wnet->channel, &map_iter->wnet->manuf_key,
+                                   &map_iter->wnet->manuf_score);
+
                 if (map_iter->wnet->manuf_score == manuf_max_score) {
                     map_iter->color_index = "#0000FF";
                 } else if (map_iter->wnet->wep) {
@@ -1882,7 +1894,10 @@ int main(int argc, char *argv[]) {
     char mapoutname[1024];
 
     bool metric = false;
-    
+
+    char *ap_manuf_name = NULL, *client_manuf_name = NULL;
+    FILE *manuf_data;
+
     static struct option long_options[] = {   /* options table */
            {"help", no_argument, 0, 'h'},
            {"verbose", no_argument, 0, 'v'},
@@ -2183,7 +2198,7 @@ int main(int argc, char *argv[]) {
     // Parse the config and load all the values from it and/or our command
     // line options.  This is a little soupy but it does the trick.
     if (conf.ParseConfig(configfile) < 0) {
-        fprintf(stderr, "WARNING:  Couldn't open config file '%s'.  Will continue anyway.\n",
+        fprintf(stderr, "WARNING:  Couldn't open config file '%s'.  Will continue anyway, but MAC filtering and manufacturer detection will be disabled\n",
                 configfile);
         configfile = NULL;
     }
@@ -2195,6 +2210,19 @@ int main(int argc, char *argv[]) {
                 printf("NOTICE:  Filtering MAC addresses: %s\n", filter.c_str());
             }
         }
+
+        if (conf.FetchOpt("ap_manuf") != "") {
+            ap_manuf_name = strdup(conf.FetchOpt("ap_manuf").c_str());
+        } else {
+            fprintf(stderr, "WARNING:  No ap_manuf file specified, AP manufacturers and defaults will not be detected.\n");
+        }
+
+        if (conf.FetchOpt("client_manuf") != "") {
+            client_manuf_name = strdup(conf.FetchOpt("client_manuf").c_str());
+        } else {
+            fprintf(stderr, "WARNING:  No client_manuf file specified.  Client manufacturers will not be detected.\n");
+        }
+
     }
 
     // Catch a null-draw condition
@@ -2212,6 +2240,33 @@ int main(int argc, char *argv[]) {
         fetch_scale = user_scale;
         map_scale = user_scale = terrascales[(user_scale - 10)];
     }
+
+    if (ap_manuf_name != NULL) {
+        if ((manuf_data = fopen(ap_manuf_name, "r")) == NULL) {
+            fprintf(stderr, "WARNING:  Unable to open '%s' for reading (%s), AP manufacturers and defaults will not be detected.\n",
+                    ap_manuf_name, strerror(errno));
+        } else {
+            fprintf(stderr, "Reading AP manufacturer data and defaults from %s\n", ap_manuf_name);
+            ap_manuf_map = ReadManufMap(manuf_data, 1);
+            fclose(manuf_data);
+        }
+
+        free(ap_manuf_name);
+    }
+
+    if (client_manuf_name != NULL) {
+        if ((manuf_data = fopen(client_manuf_name, "r")) == NULL) {
+            fprintf(stderr, "WARNING:  Unable to open '%s' for reading (%s), client manufacturers will not be detected.\n",
+                    client_manuf_name, strerror(errno));
+        } else {
+            fprintf(stderr, "Reading client manufacturer data and defaults from %s\n", client_manuf_name);
+            client_manuf_map = ReadManufMap(manuf_data, 1);
+            fclose(manuf_data);
+        }
+
+        free(client_manuf_name);
+    }
+
 
     // Initialize stuff
     num_tracks = 0;

@@ -587,7 +587,6 @@ static void xpat_net_end(void *data, const char *el) {
         building_net = new wireless_network;
         building_net->gps_fixed = 0;
         building_net->manuf_score = 0;
-        building_net->manuf_id = 0;
         // And clear the strings
         for (int i = 0; i < net_node_numnodes; i++)
             xmlstrnodes[i] = "";
@@ -643,7 +642,6 @@ vector<wireless_network *> XMLFetchNetworkList(FILE *in_file) {
     building_net = new wireless_network;
     building_net->gps_fixed = 0;
     building_net->manuf_score = 0;
-    building_net->manuf_id = 0;
     building_cdp = new cdp_packet;
 
     for (;;) {
