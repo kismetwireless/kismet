@@ -258,7 +258,7 @@ int TcpClient::ParseData(char *in_data) {
                          &net.aggregate_lat, &net.aggregate_lon, &net.aggregate_alt,
                          &net.aggregate_points);
 
-        if (scanned < 50) {
+        if (scanned < 47) {
             //fprintf(stderr, "Flubbed network, discarding...\n");
             return 0;
         }
