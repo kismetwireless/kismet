@@ -140,8 +140,9 @@ int GetTagOffsets(int init_offset, uint8_t *packet, map<int, int> *tag_cache_map
     return 0;
 }
 
+// This needs to be optimized and it needs to not use casting to do its magic
 int kis_80211_dissector(CHAINCALL_PARMS) {
-    // Extrack data, bail if it doesn't exist, make a local copy of what we're
+    // Extract data, bail if it doesn't exist, make a local copy of what we're
     // inserting into the frame.
     kis_ieee_80211_packinfo *packinfo;
     kis_datachunk *chunk = in_pack->fetch(globalreg->pcr_80211frame_ref);
@@ -228,17 +229,16 @@ int kis_80211_dissector(CHAINCALL_PARMS) {
 
             // Pull the fixparm ibss info
             if (fixparm->ess == 0 && fixparm->ibss == 1) {
-                ret_packinfo->distrib = adhoc_distribution;
+                packinfo->distrib = adhoc_distribution;
             }
 
             // Pull the fixparm timestamp
             uint64_t temp_ts;
             memcpy(&temp_ts, fixparm->timestamp, 8);
-            // ret_packinfo->timestamp = kis_hton64(temp_ts);
 #ifdef WORDS_BIGENDIAN
-            ret_packinfo = kis_swap64(temp_ts);
+            packinfo = kis_swap64(temp_ts);
 #else
-            ret_packinfo->timestamp = temp_ts;
+            packinfo->timestamp = temp_ts;
 #endif
         }
 
