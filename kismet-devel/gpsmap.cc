@@ -57,11 +57,6 @@
 #define MINOR 5
 #define TINY  2
 
-// looky looky, image magick changed their api!
-#if MagickLibVersion < 0x0545
-#define OldMagickLib
-#endif
-
 /* Mapscale / pixelfact is meter / pixel */
 #define PIXELFACT 2817.947378
 
@@ -986,14 +981,8 @@ void DrawNetTracks(Image *in_img, DrawInfo *in_di) { /*FOLD00*/
         // Generate the color we're drawing with
         snprintf(color_str, 8, "#%02X%02X%02X", track_r, track_g, track_b);
 
-#ifdef OldMagickLib
-	QueryColorDatabase(color_str, &track_clr);
-#else
-	{
 	ExceptionInfo excep;
 	QueryColorDatabase(color_str, &track_clr, &excep);
-	}
-#endif
 
         in_di->stroke = track_clr;
 
@@ -1114,14 +1103,8 @@ void DrawNetCircles(vector<gps_network *> in_nets, Image *in_img, DrawInfo *in_d
 
         PixelPacket netclr;
 
-#ifdef OldMagickLib
-        QueryColorDatabase(map_iter->color_index.c_str(), &netclr);
-#else
-	{
-            ExceptionInfo excep;
-            QueryColorDatabase(map_iter->color_index.c_str(), &netclr, &excep);
-	}
-#endif
+        ExceptionInfo excep;
+        QueryColorDatabase(map_iter->color_index.c_str(), &netclr, &excep);
 
         in_di->fill = netclr;
         in_di->stroke = netclr;
@@ -1237,14 +1220,8 @@ void DrawNetHull(vector<gps_network *> in_nets, Image *in_img, DrawInfo *in_di) 
 
         PixelPacket netclr;
 
-#ifdef OldMagickLib
-	QueryColorDatabase(map_iter->color_index.c_str(), &netclr);
-#else
-	{
 	ExceptionInfo excep;
  	QueryColorDatabase(map_iter->color_index.c_str(), &netclr, &excep);
-	}
-#endif
 
         in_di->fill = netclr;
 
@@ -1318,14 +1295,10 @@ void DrawNetBoundRects(vector<gps_network *> in_nets, Image *in_img, DrawInfo *i
 
         if (in_fill) {
             PixelPacket netclr;
-#ifdef OldMagickLib
-	QueryColorDatabase(map_iter->color_index.c_str(), &netclr);
-#else
-	{
-	ExceptionInfo excep;
-	QueryColorDatabase(map_iter->color_index.c_str(), &netclr, &excep);
-	}
-#endif
+
+            ExceptionInfo excep;
+            QueryColorDatabase(map_iter->color_index.c_str(), &netclr, &excep);
+
             in_di->fill = netclr;
         }
 
@@ -1493,14 +1466,8 @@ void DrawNetPower(Image *in_img, DrawInfo *in_di) { /*FOLD00*/
                 if (power_index >= power_steps)
                     power_index = power_steps - 1;
 
-#ifdef OldMagickLib
-		QueryColorDatabase(power_colors[power_index], &point_clr);
-#else
-		{
-		ExceptionInfo excep;
-		QueryColorDatabase(power_colors[power_index], &point_clr, &excep);
-		}
-#endif
+                ExceptionInfo excep;
+                QueryColorDatabase(power_colors[power_index], &point_clr, &excep);
 
                 in_di->stroke = point_clr;
                 in_di->fill = point_clr;
@@ -1563,14 +1530,10 @@ void DrawNetCenterDot(vector<gps_network *> in_nets, Image *in_img, DrawInfo *in
         // printf("  Endpt   : %dx%d\n", (int) endx, (int) endy);
 
         PixelPacket netclr;
-#ifdef OldMagickLib
-	QueryColorDatabase(map_iter->color_index.c_str(), &netclr);
-#else
-	{
-            ExceptionInfo excep;
-            QueryColorDatabase(map_iter->color_index.c_str(), &netclr, &excep);
-	}
-#endif
+
+        ExceptionInfo excep;
+        QueryColorDatabase(map_iter->color_index.c_str(), &netclr, &excep);
+
         in_di->fill = netclr;
         in_di->stroke = netclr;
 
@@ -1610,14 +1573,8 @@ void DrawNetCenterText(vector<gps_network *> in_nets, Image *in_img, DrawInfo *i
 
         char prim[1024];
 
-#ifdef OldMagickLib
-        QueryColorDatabase("#000000", &netclr);
-#else
-        {
-            ExceptionInfo excep;
-            QueryColorDatabase("#000000", &netclr, &excep);
-        }
-#endif
+        ExceptionInfo excep;
+        QueryColorDatabase("#000000", &netclr, &excep);
 
         in_di->fill = netclr;
         in_di->stroke = netclr;
@@ -1761,14 +1718,8 @@ void DrawNetScatterPlot(vector<gps_network *> in_nets, Image *in_img, DrawInfo *
 
         PixelPacket netclr;
 
-#ifdef OldMagickLib
-	QueryColorDatabase(map_iter->color_index.c_str(), &netclr);
-#else
-	{
-	ExceptionInfo excep;
-	QueryColorDatabase(map_iter->color_index.c_str(), &netclr, &excep);
-	}
-#endif
+        ExceptionInfo excep;
+        QueryColorDatabase(map_iter->color_index.c_str(), &netclr, &excep);
 
 	in_di->fill = netclr;
 

@@ -561,14 +561,30 @@ else
 	expatl=no
 fi
 
+magickold=no
+
 # Check for imagemagick
 save_cppflags="$CPPFLAGS"
 save_cxxflags="$CXXFLAGS"
 save_libs="$LIBS"
 save_ldflags="$LDFLAGS"
-AC_CHECK_PROG(magickconfig, [Magick-config --version], yes, no)
 AC_CHECK_PROG(wget, [wget --version], yes, no)
-if test $magickconfig = "no"; then
+AC_CHECK_PROG(magickconfig, [Magick-config --version], yes, no)
+
+if test "$magickconfig" = "yes"; then
+	magickversion=`Magick-config --version`
+	magickmajor=`echo $magickversion | cut -d '.' -f 1`
+	magickminor=`echo $magickversion | cut -d '.' -f 2`
+	magicktiny=`echo $magickversion | cut -d '.' -f 3`
+
+	if test "$magickmajor" -lt 5 -o "$magickminor" -lt 4 -o "$magicktiny" -lt 7; then
+		magickold="true"
+	fi
+fi
+
+if test $magickold = "yes"; then
+		AC_MSG_WARN(*** Old version of ImageMagick ($magickversion) found.  Please upgrade to 5.4.7 or newer.  gpsmap will not be built. ***)
+elif test $magickconfig = "no"; then
 	AC_MSG_WARN(*** Missing Magick-config (or it is not in the path).  gpsmap will not be built. ***)
 elif test $wget = "no"; then
 	AC_MSG_WARN(*** Missing wget (or it is not in the path).  gpsmap will not be build. ***)
@@ -582,17 +598,6 @@ else
 	    	AC_DEFINE(HAVE_IMAGEMAGICK, 1, Imagemagick image library) gpslc="\$(GPSL)",
 				AC_MSG_WARN(*** Missing Imagemagick (or Imagemagick is not recent enough).  gpsmap will not be built. ***)),
 			AC_MSG_WARN(*** Missing Imagemagick (or Imagemagick is not recent enough).  gpsmap will not be built. ***))
-	if test "$gpslc" != "" ; then
-		magickversion=`Magick-config --version`
-		magickmajor=`echo $magickversion | cut -d '.' -f 1`
-		magickminor=`echo $magickversion | cut -d '.' -f 2`
-		magicktiny=`echo $magickversion | cut -d '.' -f 3`
-
-		if test "$magickmajor" -lt 5 -o "$magickminor" -lt 4 -o "$magicktiny" -lt 4; then
-			AC_MSG_WARN(*** Old version of ImageMagick ($magickversion) found.  This may cause problems.  Building anyway. ***)
-			magickold="true"
-		fi
-	fi
 fi
 CPPFLAGS="$save_cppflags"
 CXXFLAGS="$save_cxxflags"
@@ -719,9 +724,6 @@ if test "$gpslc" = ""; then
 	echo "no"
 else
 	echo "yes ($magickversion)"
-	if test "$magickold" = "yes"; then
-		echo "        WARNING:  Old version of ImageMagick."
-    fi
 fi
 echo -n "         Expat Library: "
 if test "$expatl" = "no"; then
