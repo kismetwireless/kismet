@@ -1,3 +1,5 @@
+Dec 07 2003  3.1.0  Tweaked prism2 packet mangling to preserve ICV on packets
+                     that don't come in with a FCS set.
 Dec 06 2003  3.1.0  Fixed Makefile looking for monitor/unmonitor scripts
                     Added viha registrant (oops)
                     Added most of the infrastructure for MadWifi support but

@@ -223,8 +223,25 @@ int PcapSource::Prism2KisPack(kis_packet *packet, uint8_t *data, uint8_t *moddat
 
         header_found = 1;
 
+        // Nasty hack to strip FCS if its all 0xFF that some drivers put in.
+        // Find a better way to do this.
+        int fcs = 0;
+        if (memcmp((uint32_t *) &callback_data[kismin(callback_header.caplen, 
+                                                      (uint32_t) MAX_PACKET_LEN) - 4], 
+                   "\xFF\xFF\xFF\xFF", 4) == 0) {
+            fcs = 4;
+        } 
+
+        // Subtract the packet FCS since kismet doesn't do anything terribly bright
+        // with it right now
+        packet->caplen = kismin(callback_header.caplen - ntohl(v1hdr->length) - fcs, 
+                                (uint32_t) MAX_PACKET_LEN);
+        packet->len = packet->caplen;
+
+        /*
         packet->caplen = kismin(callback_header.caplen - 4 - ntohl(v1hdr->length), (uint32_t) MAX_PACKET_LEN);
         packet->len = packet->caplen;
+        */
 
         callback_offset = ntohl(v1hdr->length);
 
@@ -269,10 +286,20 @@ int PcapSource::Prism2KisPack(kis_packet *packet, uint8_t *data, uint8_t *moddat
 
         header_found = 1;
 
+        // Nasty hack to strip FCS if its all 0xFF that some drivers put in.
+        // Find a better way to do this.
+        int fcs = 0;
+        if (memcmp((uint32_t *) &callback_data[kismin(p2head->frmlen.data, 
+                                                      (uint32_t) MAX_PACKET_LEN) - 4], 
+                   "\xFF\xFF\xFF\xFF", 4) == 0) {
+            fcs = 4;
+        } 
+
         // Subtract the packet FCS since kismet doesn't do anything terribly bright
         // with it right now
-        packet->caplen = kismin(p2head->frmlen.data - 4, (uint32_t) MAX_PACKET_LEN);
+        packet->caplen = kismin(p2head->frmlen.data - fcs, (uint32_t) MAX_PACKET_LEN);
         packet->len = packet->caplen;
+
 
         // Set our offset for extracting the actual data
         callback_offset = sizeof(wlan_ng_prism2_header);
