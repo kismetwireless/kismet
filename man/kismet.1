@@ -1,4 +1,4 @@
-.Dd June 2002
+.Dd April 2004
 .Dt KISMET 1
 .Os "Kismet"
 .Sh NAME
@@ -31,17 +31,20 @@
 .Op Fl g Ar gui-type
 .Op Fl c Ar display-columns
 .Sh DESCRIPTION
-.Nm kismet
-is an 802.11b wireless network sniffer.  It is capable of sniffing using 
-almost any wireless card supported by Linux, including cards based on the
-Prism/2 chipset with the wlan-ng driver (Compaq, Linksys, D-Link, and more),
-cards based on the Lucent chipset (Orinoco) with the patched orinoco 
-driver, cards using the Aironet chipset (Cisco) supported by the kernel
-Aironet drivers, and limited support for cards that do not support RF Monitoring.
+.Nm Kismet
+is an 802.11 layer2 wireless network detector, sniffer, and
+intrusion detection system.  Kismet will work with any wireless card which
+supports raw monitoring (rfmon) mode, and can sniff 802.11b, 802.11a, and
+802.11g traffic.
+
+Kismet identifies networks by passively collecting packets and detecting
+standard named networks, detecting (and given time, decloaking) hidden
+networks, and infering the presence of nonbeaconing networks via data
+traffic.
 .br
 .Nm kismet
 supports logging to the wtapfile packet format (readable by tcpdump and
-ethereal) and saves detected network informat as plaintext, XSV, and XML.
+ethereal) and saves detected network informat as plaintext, CSV, and XML.
 .Nm kismet
 is capable of using any GPS supported by
 .Nm gpsd
@@ -57,23 +60,11 @@ and
 .Nm kismet
 handles automatically starting kismet_server and kismet_client.
 .br
-IT IS IMPERATIVE THAT YOU PLACE YOUR CARD IN RFMON MODE BEFORE STARTING 
-KISMET OR YOU WILL NOT SEE ANY TRAFFIC.  Your card can be placed into 
-monitor mode by configuring
-.Nm kismet
-for your card and running 
-.Nm kismet_monitor
-as root.
-.Pp
 .Nm kismet
 is installed as suid-root by default.  It will drop privs to the user
 specified in 
 .Nm kismet.conf
-immediately after binding to the capture source.
-.Nm kismet_monitor
-must be run as root, as it modifies the state of the wireless card.
-.Nm kismet
-can be run as any user due to the aforementioned privilege drop.
+immediately after binding and configuring the capture source.
 
 .Sh KISMET_SERVER
 .Nm kismet_server
