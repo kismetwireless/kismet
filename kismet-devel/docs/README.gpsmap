@@ -1,65 +1,47 @@
 GPS Map
 
-The GPS mapper is very much a work in progress.  It takes GPS dump
-files and extracts the information to build a graphical representation
-of the data samples.
+gpsmap takes GPS and network data from the GPS and Network XML logs and plots
+networks graphically on user-supplied, vector, or satellite maps.
 
-It would not be possible were it not for the GPL program ``gpsdrive'', 
+gpsmap would not be possible were it not for the GPL program ``gpsdrive'', 
 from which I liberally "borrowed" code to convert gps coordinates to 
 map pixel coordinates.
 
-Imagemagick
-GPSMap uses ImageMagick to process the image data and draw the png image.
-5.4.x or newer is required.
-UPDATE:  Due to some bugs found in ImageMagick, 5.4.3-11 or higher is
-STRONGLY recomended.  Earlier versions may segfault when calculating 
-maps.
-
-GPSMap features
-* Automatic map scaling and download (from mapblast)
-* Movement track drawing (map trails)
-* Network extreme rectangles (outermost detected ranges)
-* Estimated range circles (averaged samples and guessed ranges)
-* Interpolated power graphing (Only meaningful in specific situations)
-* Aggregation of data from multiple gps dump files
+gpsmap uses ImageMagick to process the image data and draw the png image.
+ImageMagick-5.4.7 or newer is required due to changes in the ImageMagick
+API.  The latest ImageMagick is available at http://www.imagemagick.org
 
 Usage
-``gpsmap --help'' will list all of the options for GPSMap, which control the 
-output drawn and various attributes of the drawing system.
+'gpsmap --help' will list all of the options for GPSMap, which control the 
+output drawn and various attributes of the drawing system. 
 
+Drawing methods
 Track drawing
-Track mode draws the travel path logged from the GPS.  This is represented 
-by a blue line across the map.  Multiple GPS files have shading differences 
-in each of the tracks.
+  Draws a blue track along the traveled path, based on the track data saved 
+  by Kismet.
 
-Range circle drawing
-Range circles are calculated by finding the extreme sample points, finding 
-the average center, and finding the shortest extreme as the radius of the 
-circle.  This is the most accurate of the estimated drawing methods, but it 
-is of course only an estimation.
+Bounding Rectangle
+  Draws the bounding rectangle around the extreme points of each network.
 
-Color selection is simply a rotating list of colors for now.
+Range Circle
+  Estimates the range of a network based on the average center and the distance
+  to the closest extreme corner.  Not exact, but often useful for estimating the
+  range of the network.
 
-Bounding rectangle drawing
-Bounding rectagles are the extreme lat and lon of each network (calculated 
-independently, not as a pair).  They are used in several other drawing methods. 
- 
-Center dot drawing
-Draws a dot at the average center of the network.  Good for showing the 
-distribution of networks over a very large map area.
+Convex Hull
+  Convex hull of all sample points for each network.  This will display the exact
+  detected range of the networks.
 
-Interpolated power drawing
-Interpolated power graphing takes known sample points and uses inverse-distance
-weighted interpolation to find the signal strength of the unknown areas.
-For a reliable graph, typical wardriving data is NOT GOOD.  Try to get as 
-much coverage as possible - a grid surrounding and including the sample point
-yields the best results.  Interpolated power graphing has been completely 
-recoded in recent (2.2+) versions, improving speed to a level that should make
-it useable.
+Scatter Plot
+  Draws a dot for every detected packet point.
 
-Network hull drawing
-Each network is drawn as a convex hull of all the detected poinys.
+Power Interpolation
+  By far the most CPU intensive, power interpolation forms a grid over the image
+  and attempts to interpolate the power for points that aren't directly sampled.
+  For this graph to be a reasonable representation of reality, samples around
+  the entire area, preferably forming a grid or mesh, should be taken.
 
-Scatter plot
-Draws a dot at each point a packet is detected
+Network Center
+  Simply draw a dot in the averaged center of each network
+
 

@@ -35,8 +35,6 @@ bssid     - network BSSID (MAC of AP)
 info      - network info flag (set by cisco APs)
 flags     - status flags (arp, dhcp, udp, and number of octets detected)
 ip        - detected IP range of network
-mask      - detected netmask of network
-gateway   - detected gateway of network
 maxrate   - maximum rate supported by network (mbits/sec)
 manuf     - manufacturer
 signal    - network signal power level
@@ -112,7 +110,7 @@ Key  Action
 * Important note on selecting networks
 The default sorting method used by the Panels interface is Autofit.  This fits
 as many currently active networks on the display as possible, and does not 
-scroll.  ALL NETWORK SELECTION, TAGGING, GROUPING, SCROLLING, AND SO ON IS 
+scroll.  ALL NETWORK SELECTION, TAGGING, GROUPING, SCROLLING, ETC IS 
 DISABLED IN AUTOFIT MODE.  Sort the network display by one of the other methods
 to select and group networks.  Autofit mode changes the location of networks 
 too frequently make selecting a single network realistic.
@@ -163,4 +161,7 @@ Displays the packet types seen, and dissects some common protocols.
 * Follow network center
 Displays a compass and bearing to the average network center or the point with
 the strongest signal.
+
+* Warnings
+Displays warnings about detected netstumblers or suspicious traffic
 

@@ -9,4 +9,5 @@ kismetcsv.sql - MySQL template for importing CSV network output.
 kismet2xml - Utility to convert older binary GPS datafiles to the new XML.
 buzzme - Utility by Jim Murff (jmurff@pacbell.net) to use the piezzo buzzer
          on a Sharp Zaurus.
+manuf_update.sh - Grab the latest manufacturer fingerprints from unbolted.net
 
