@@ -169,6 +169,14 @@ protected:
 };
 #endif
 
+#ifdef SYS_OPENBSD
+class PcapSourceOpenBSDPrism : public PcapSource {
+public:
+    PcapSourceOpenBSDPrism(string in_name, string in_dev) :
+        PcapSource(in_name, in_dev) { }
+    int FetchChannel();
+};
+#endif
 
 // ----------------------------------------------------------------------------
 // Registrant and control functions
@@ -185,6 +193,11 @@ KisPacketSource *pcapsource_ciscowifix_registrant(string in_name, string in_devi
                                                   char *in_err);
 KisPacketSource *pcapsource_11g_registrant(string in_name, string in_device,
                                            char *in_err);
+#endif
+
+#ifdef SYS_OPENBSD
+KisPacketSource *pcapsource_openbsdprism2_registrant(string in_name, string in_device,
+                                                     char *in_err);
 #endif
 
 // Monitor activation

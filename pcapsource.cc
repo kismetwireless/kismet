@@ -31,6 +31,13 @@
 #include <linux/wireless.h>
 #endif
 
+#ifdef SYS_OPENBSD
+#include <net/if.h>
+#include <netinet/in.h>
+#include <netinet/if_ether.h>
+#include <dev/ic/if_wi_ieee.h>
+#endif
+
 #include "pcapsource.h"
 #include "util.h"
 
@@ -353,15 +360,25 @@ int PcapSource::BSD2KisPack(kis_packet *packet, uint8_t *data, uint8_t *moddata)
 
     // Set our offset
     callback_offset = sizeof(bsd_80211_header);
-
-    if ((callback_offset + packet->caplen) > 26) {
-        // The cisco BSD drivers seem to insert 2 bytes of crap
-
+    if ((callback_offset + packet->caplen) > 68) {
+        // 802.11 header
         memcpy(packet->data, callback_data + callback_offset, 24);
-        memcpy(packet->data + 24, callback_data + callback_offset + 26, packet->caplen - 26);
 
-        packet->len -= 2;
-        packet->caplen -= 2;
+        // Adjust for driver appended snap and 802.3 headers
+        if (packet->data[0] > 0x08) {
+            packet->len -= 8;
+            packet->caplen -= 8;
+            memcpy(packet->data + 24, callback_data + callback_offset + 46, packet->caplen - 16);
+
+        } else {
+
+            memcpy(packet->data + 24, callback_data + callback_offset + 46, packet->caplen - 60);
+        }
+
+	// skip driver appended prism header
+        packet->len -= 14;
+        packet->caplen -= 14;
+
     } else {
         memcpy(packet->data, callback_data + callback_offset, packet->caplen);
     }
@@ -452,6 +469,38 @@ carrier_type PcapSource11G::IEEE80211Carrier() {
 }
 #endif
 
+#ifdef SYS_OPENBSD
+int PcapSourceOpenBSDPrism::FetchChannel() {
+    struct wi_req wreq;                                                     
+    struct ifreq ifr;                                                       
+    int skfd;
+
+	if ((skfd = socket(AF_INET, SOCK_DGRAM, 0)) < 0) {
+		snprintf(in_err, 1024, "Failed to create AF_INET socket: %s",
+                 strerror(errno));
+		return -1;
+	}
+
+    bzero((char *)&wreq, sizeof(wreq));                                     
+    wreq.wi_len = WI_MAX_DATALEN;                                           
+    wreq.wi_type = WI_RID_CURRENT_CHAN; 
+
+    bzero((char *)&ifr, sizeof(ifr));                                       
+    strlcpy(ifr.ifr_name, device.c_str(), sizeof(ifr.ifr_name));                       
+    ifr.ifr_data = (caddr_t)&wreq;                                          
+
+	if (ioctl(skfd, SIOCGWAVELAN, &ifr) < 0) {
+		snprintf(in_err, 1024, "Channel set ioctl failed: %s",
+                 strerror(errno));
+		return -1;
+	}
+
+    chan = wreq.wi_val[0];                                                  
+
+    return chan;
+}
+#endif
+
 // ----------------------------------------------------------------------------
 // Registrant and control functions outside of the class
 
@@ -485,6 +534,13 @@ KisPacketSource *pcapsource_ciscowifix_registrant(string in_name, string in_devi
 KisPacketSource *pcapsource_11g_registrant(string in_name, string in_device,
                                            char *in_err) {
     return new PcapSource11G(in_name, in_device);
+}
+#endif
+
+#ifdef SYS_OPENBSD
+KisPacketSource *pcapsource_openbsdprism2_registrant(string in_name, string in_device,
+                                                     char *in_err) {
+    return new PcapSourceOpenBSDPrism(in_name, in-device);
 }
 #endif
 
@@ -876,15 +932,94 @@ int monitor_openbsd_cisco(const char *in_dev, int initch, char *in_err) {
 }
 
 int monitor_openbsd_prism2(const char *in_dev, int initch, char *in_err) {
-    char cmdline[2048];
 
-    snprintf(cmdline, 2048, "prism2ctl %s -m", in_dev);
-    if (ExecSysCmd(cmdline, in_err) < 0)
-        return -1;
+	struct wi_req		wreq;
+	struct ifreq		ifr;
 
-    snprintf(cmdline, 2048, "prism2ctl %s -f %d", in_dev, initch);
-    if (ExecSysCmd(cmdline, in_err) < 0)
-        return -1;
+	int	s = socket(AF_INET, SOCK_DGRAM, 0);
+	if (s == -1) {
+		snprintf(in_err, 1024, "Failed to create AF_INET socket: %s",
+                 strerror(errno));
+		return -1;
+	}
+
+	// Set our initial channel
+	bzero((char *)&wreq, sizeof(wreq));
+	wreq.wi_len = WI_MAX_DATALEN;
+	wreq.wi_type = WI_DEBUG_CHAN;
+	wreq.wi_val[0] = htole16(initch);
+
+	bzero((char *)&ifr, sizeof(ifr));
+	strlcpy(ifr.ifr_name, in_dev, sizeof(ifr.ifr_name));
+	ifr.ifr_data = (caddr_t)&wreq;
+
+	if (ioctl(s, SIOCSPRISM2DEBUG, &ifr) < 0) {
+		snprintf(in_err, 1024, "Channel set ioctl failed: %s",
+                 strerror(errno));
+		return -1;
+	}
+
+	// Disable power managment
+	bzero((char *)&wreq, sizeof(wreq));
+	wreq.wi_len = WI_MAX_DATALEN;
+	wreq.wi_type = WI_RID_PM_ENABLED;
+	wreq.wi_val[0] = 0;
+
+	if (ioctl(s, SIOCSWAVELAN, &ifr) < 0) {
+		snprintf(in_err, 1024, "Power management ioctl failed: %s",
+                 strerror(errno));
+		return -1;
+	}
+
+	// Lower AP density, better radio threshold settings?
+	bzero((char *)&wreq, sizeof(wreq));
+	wreq.wi_len = WI_MAX_DATALEN;
+	wreq.wi_type = WI_RID_SYSTEM_SCALE;
+	wreq.wi_val[0] = 1;
+
+	if (ioctl(s, SIOCSWAVELAN, &ifr) < 0) {
+		snprintf(in_err, 1024, "AP Density ioctl failed: %s",
+                 strerror(errno));
+		return -1;
+	}
+
+	// Enable driver processing of 802.11b frames
+	bzero((char *)&wreq, sizeof(wreq));
+	wreq.wi_len = WI_MAX_DATALEN;
+	wreq.wi_type = WI_RID_PROCFRAME;
+	wreq.wi_val[0] = 1;
+
+	if (ioctl(s, SIOCSWAVELAN, &ifr) < 0) {
+		snprintf(in_err, 1024, "Driver processing ioctl failed: %s",
+                 strerror(errno));
+		return -1;
+	}
+
+	// Disable roaming, we don't want the card to probe
+	bzero((char *)&wreq, sizeof(wreq));
+	wreq.wi_len = WI_MAX_DATALEN;
+	wreq.wi_type = WI_RID_ROAMING_MODE;
+	wreq.wi_val[0] = 3;
+
+	if (ioctl(s, SIOCSWAVELAN, &ifr) < 0) {
+		snprintf(in_err, 1024, "Roaming disable ioctl failed: %s",
+                 strerror(errno));
+		return -1;
+	}
+
+	// Enable monitor mode
+	bzero((char *)&wreq, sizeof(wreq));
+	wreq.wi_len = WI_MAX_DATALEN;
+	wreq.wi_type = WI_DEBUG_MONITOR;
+	wreq.wi_val[0] = 1;
+
+	if (ioctl(s, SIOCSPRISM2DEBUG, &ifr) < 0) {
+		snprintf(in_err, 1024, "Monitor mode ioctl failed: %s",
+                 strerror(errno));
+		return -1;
+	}
+
+        close(s);
 
     return 0;
 }
@@ -985,16 +1120,37 @@ int chancontrol_wlanng_avs(const char *in_dev, int in_ch, char *in_err, void *in
 #ifdef SYS_OPENBSD
 int chancontrol_openbsd_prism2(const char *in_dev, int in_ch, char *in_err, 
                                void *in_ext) {
-    char cmdline[2048];
 
-    snprintf(cmdline, 2048, "prism2ctl %s -f %d", in_dev, initch);
-    if (ExecSysCmd(cmdline, in_err) < 0)
-        return -1;
+	struct wi_req		wreq;
+	struct ifreq		ifr;
+	int		s;
 
-    return 0;
+	bzero((char *)&wreq, sizeof(wreq));
+	wreq.wi_len = WI_MAX_DATALEN;
+	wreq.wi_type = WI_DEBUG_CHAN;
+	wreq.wi_val[0] = htole16(in_ch);
+
+	bzero((char *)&ifr, sizeof(ifr));
+	strlcpy(ifr.ifr_name, in_dev, sizeof(ifr.ifr_name));
+	ifr.ifr_data = (caddr_t)&wreq;
+
+	s = socket(AF_INET, SOCK_DGRAM, 0);
+	if (s == -1) {
+		snprintf(in_err, 1024, "Failed to create AF_INET socket: %s",
+                 strerror(errno));
+		return -1;
+	}
+
+	if (ioctl(s, SIOCSPRISM2DEBUG, &ifr) < 0) {
+		snprintf(in_err, 1024, "Channel set ioctl failed: %s", strerror(errno));
+		return -1;
+	}
+
+	close(s);
+
+	return 0;
 }
 #endif
-
 
 #endif
 

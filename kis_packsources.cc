@@ -133,7 +133,7 @@ int RegisterKismetSources(Packetsourcetracker *sourcetracker) {
                                        pcapsource_registrant,
                                        monitor_openbsd_cisco, NULL, NULL);
     sourcetracker->RegisterPacketsource("prism2_openbsd", 1, "IEEE80211b", 6,
-                                       pcapsource_registrant,
+                                       pcapsource_openbsdprism2_registrant,
                                        monitor_openbsd_prism2, NULL,
                                        chancontrol_openbsd_prism2);
 #else
