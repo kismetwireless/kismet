@@ -85,6 +85,18 @@ int PanelFront::MainInput(void *in_window, int in_chr) {
             WriteStatus("Cannot scroll in autofit sort mode.");
         }
         break;
+    case ' ':
+        if (sortby != sort_auto && last_displayed.size() > 0) {
+            if (last_displayed[kwin->selected]->type == group_bundle) {
+                if (last_displayed[kwin->selected]->expanded == 1)
+                    last_displayed[kwin->selected]->expanded = 0;
+                else
+                    last_displayed[kwin->selected]->expanded = 1;
+            }
+        } else {
+            WriteStatus("Cannot expand groups in autofit sort mode.");
+        }
+        break;
     case '+':
         if (sortby != sort_auto && last_displayed.size() > 0) {
             if (last_displayed[kwin->selected]->type == group_bundle)

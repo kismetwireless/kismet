@@ -1,3 +1,6 @@
+May 21 2003  2.9.1  First major rewrite to the packet path.  kismet_monitor
+                     and kismet_hopper are still required.  See blog entry 
+                     for more details.
 May 18 2003  2.9.1  Added -fno-stack-prot to openbsd cflags
                     Fixed various DTD bits out of whack, uploaded devel DTDs
 May 13 2003  2.9.1  Removed inline from packetracker MatchNetwork to make 

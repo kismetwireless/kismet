@@ -42,6 +42,8 @@ public:
     static void Callback(u_char *bp, const struct pcap_pkthdr *header,
                          const u_char *data);
 
+    int SetChannel(unsigned int chan);
+
 protected:
     int Wtap2Common(kis_packet *packet, uint8_t *data, uint8_t *moddata);
 

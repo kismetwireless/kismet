@@ -242,4 +242,9 @@ int DroneSource::Drone2Common(kis_packet *packet, uint8_t *data, uint8_t *moddat
     return 1;
 }
 
+int DroneSource::SetChannel(unsigned int chan) {
+
+    return 1;
+}
+
 
