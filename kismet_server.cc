@@ -84,6 +84,7 @@ packet_info last_info;
 int decay;
 unsigned int metric;
 channel_power channel_graph[CHANNEL_MAX];
+char *servername = NULL;
 
 fd_set read_set;
 
@@ -567,8 +568,8 @@ void NetWriteAlert(char *in_alert) {
 
 void NetWriteNew(int in_fd) {
     char output[2048];
-    snprintf(output, 2048, "*KISMET: %d.%d.%d %d\n",
-             VERSION_MAJOR, VERSION_MINOR, VERSION_TINY, (int) start_time);
+    snprintf(output, 2048, "*KISMET: %d.%d.%d %d \001%s\001\n",
+             VERSION_MAJOR, VERSION_MINOR, VERSION_TINY, (int) start_time, servername);
     ui_server.Send(in_fd, output);
 
     vector<wireless_network *> tracked;
@@ -704,6 +705,7 @@ int Usage(char *argv) {
            "  -p, --port <port>            TCPIP server port for GUI connections\n"
            "  -a, --allowed-hosts <hosts>  Comma seperated list of hosts allowed to connect\n"
            "  -s, --silent                 Don't send any output to console.\n"
+           "  -N, --server-name            Server name\n"
            "  -v, --version                Kismet version\n"
            "  -h, --help                   What do you think you're reading?\n");
     exit(1);
@@ -771,6 +773,7 @@ int main(int argc,char *argv[]) {
         { "gps", required_argument, 0, 'g' },
         { "port", required_argument, 0, 'p' },
         { "allowed-hosts", required_argument, 0, 'a' },
+        { "server-name", required_argument, 0, 'N' },
         { "help", no_argument, 0, 'h' },
         { "version", no_argument, 0, 'v' },
         { "silent", no_argument, 0, 's' },
@@ -798,7 +801,7 @@ int main(int argc,char *argv[]) {
 
 
     while(1) {
-        int r = getopt_long(argc, argv, "d:M:t:nf:c:i:l:m:g:a:p:qhvs",
+        int r = getopt_long(argc, argv, "d:M:t:nf:c:i:l:m:g:a:p:N:qhvs",
                             long_options, &option_index);
         if (r < 0) break;
         switch(r) {
@@ -882,6 +885,10 @@ int main(int argc,char *argv[]) {
         case 'a':
             // Allowed
             allowed_hosts = optarg;
+            break;
+        case 'N':
+            // Servername
+            servername = optarg;
             break;
         case 'q':
             // Quiet
@@ -1117,6 +1124,16 @@ int main(int argc,char *argv[]) {
 #endif
 
     // Now parse the rest of our options
+    // ---------------
+    // WE ARE NOW RUNNING AS THE TARGET UID IF POSSIBLE
+
+    if (servername == NULL) {
+        if (conf.FetchOpt("servername") != "") {
+            servername = strdup(conf.FetchOpt("servername").c_str());
+        } else {
+            servername = strdup("Unnamed");
+        }
+    }
 
     if (conf.FetchOpt("configdir") != "") {
         configdir = conf.ExpandLogPath(conf.FetchOpt("configdir"), "", "", 0, 1);
@@ -1455,7 +1472,6 @@ int main(int argc,char *argv[]) {
             close(speechpair[0]);
         }
     }
-
 
     // Grab the filtering
     filter = conf.FetchOpt("macfilter");
@@ -1797,7 +1813,8 @@ int main(int argc,char *argv[]) {
 
     }
 
-    snprintf(status, STATUS_MAX, "Kismet %d.%d.%d", VERSION_MAJOR, VERSION_MINOR, VERSION_TINY);
+    snprintf(status, STATUS_MAX, "Kismet %d.%d.%d (%s)",
+             VERSION_MAJOR, VERSION_MINOR, VERSION_TINY, servername);
     fprintf(stderr, "%s\n", status);
 
     snprintf(status, STATUS_MAX, "Capturing packets from %s",

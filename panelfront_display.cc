@@ -2564,7 +2564,7 @@ int PanelFront::ServersPrinter(void *in_window) {
 
     if (color)
         wattrset(kwin->win, color_map["title"].pair);
-    mvwaddstr(kwin->win, 1, 3, "Server                    Port  Status");
+    mvwaddstr(kwin->win, 1, 3, "Server                    Port  Name            Status");
     if (color)
         wattrset(kwin->win, color_map["text"].pair);
 
@@ -2605,13 +2605,14 @@ int PanelFront::ServersPrinter(void *in_window) {
             type = ' ';
 
         if (context_list[x]->client) {
-            snprintf(line, w, "%c %-25s %-5d %-12s",
+            snprintf(line, w, "%c %-25s %-5d %-15s %-12s",
                      type, context_list[x]->client->FetchHost(),
                      context_list[x]->client->FetchPort(),
+                     context_list[x]->client->FetchServername().c_str(),
                      context_list[x]->client->Valid() ? "Connected" : "Disconnected");
         } else {
-            snprintf(line, w, "- %-25s %-5d %-12s",
-                     "INVALID", 0, "Invalid");
+            snprintf(line, w, "- %-25s %-5d %-15s %-12s",
+                     "INVALID", 0, "INVALID", "Invalid");
         }
 
         mvwaddstr(kwin->win, num+voffset, 1, line);

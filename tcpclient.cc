@@ -46,6 +46,8 @@ TcpClient::TcpClient() {
 
     last_new_network = 0;
 
+    servername[0] = '\0';
+
 }
 
 TcpClient::~TcpClient() {
@@ -247,8 +249,9 @@ int TcpClient::ParseData(char *in_data) {
         snprintf(errstr, 1024, "Server has terminated.\n");
         return -1;
     } else if (!strncmp(header, "*KISMET", 64)) {
-        if (sscanf(in_data+hdrlen, "%d.%d.%d %d",
-                   &major, &minor, &tiny, (int *) &start_time) < 1)
+        // This test is deliberately allowing servername to be blank
+        if (sscanf(in_data+hdrlen, "%d.%d.%d %d \001%32[^\001]\001",
+                   &major, &minor, &tiny, (int *) &start_time, servername) < 4)
             return 0;
     } else if (!strncmp(header, "*TIME", 64)) {
         if (sscanf(in_data+hdrlen, "%d", (int *) &serv_time) < 1)

@@ -22,6 +22,7 @@
 .Op Fl g Ar gpshost:port
 .Op Fl p Ar listen-port
 .Op Fl a Ar allowed-hosts
+.Op Fl N Ar server-name
 .Pp
 .Ar kismet_client
 .Op Fl qr
@@ -104,6 +105,8 @@ Override port to listen on for clients
 Override list of client IPs (comma seperated) allowed to connect
 .It Fl s
 Run in silent mode (no console status information)
+.It Fl N
+Override server name for this instance of Kismet
 .It Fl v
 Print version
 .It Fl h

@@ -1,3 +1,5 @@
+Nov 09 2002  2.7.1  Added ability to name servers via the "servername" 
+                     config file.
 Nov 08 2002  2.7.1  Deprecated the "generic" capture source (not to be confused
                      with the generic card type)
 Nov 07 2002  2.7.1  Various errno cleanups throughout the source

@@ -95,6 +95,8 @@ public:
 
     char *FetchError() { return errstr; }
 
+    string FetchServername() { return servername; }
+
     int FetchNumNetworks() { return num_networks; }
     int FetchNumPackets() { return num_packets; }
     int FetchNumCrypt() { return num_crypt; }
@@ -207,6 +209,8 @@ protected:
     channel_power channel_graph[CHANNEL_MAX];
 
     string writebuf;
+
+    char servername[32];
 
 };
 
