@@ -224,6 +224,8 @@ int PcapSource::FetchPacket(kis_packet *packet, uint8_t *data, uint8_t *moddata)
         short flags = 0;
         int ret = 0;
 
+        // Stupid hack around *BSD - do something better with this when more awake.
+#if (!defined(SYS_NETBSD) && !defined(SYS_OPENBSD) && !defined(SYS_FREEBSD))
         // Are we able to fetch the interface, and is it running?
         ret = Ifconfig_Get_Flags(interface.c_str(), errstr, &flags);
         if (ret >= 0 && (flags & IFF_UP) == 0) {
@@ -231,10 +233,13 @@ int PcapSource::FetchPacket(kis_packet *packet, uint8_t *data, uint8_t *moddata)
                      "happens when a DHCP client times out and turns off the interface.  See the Troubleshooting "
                      "section of the README for more information.");
         } else {
+#endif
             snprintf(errstr, 1024, "Reading packet from pcap failed, interface no longer available.");
+#if (!defined(SYS_NETBSD) && !defined(SYS_OPENBSD) && !defined(SYS_FREEBSD))
         }
         return -1;
     }
+#endif
 
     if (ret == 0)
         return 0;
