@@ -964,7 +964,7 @@ int main(int argc,char *argv[]) {
     real_uid = getuid();
 
     if (conf->FetchOpt("suiduser") != "") {
-        suid_user = conf->FetchOpt("suiduser").c_str();
+        suid_user = strdup(conf->FetchOpt("suiduser").c_str());
         if ((pwordent = getpwnam(suid_user)) == NULL) {
             fprintf(stderr, "FATAL:  Could not find user '%s' for dropping priviledges.\n", suid_user);
             fprintf(stderr, "        Make sure you have a valid user set for 'suiduser' in your config.\n");
@@ -1277,7 +1277,7 @@ int main(int argc,char *argv[]) {
                 fprintf(stderr, "FATAL:  No default log name in config and no log name provided on the command line.\n");
                 exit(1);
             }
-            logname = conf->FetchOpt("logdefault").c_str();
+            logname = strdup(conf->FetchOpt("logdefault").c_str());
         }
 
         if (logtypes == NULL) {
@@ -1285,7 +1285,7 @@ int main(int argc,char *argv[]) {
                 fprintf(stderr, "FATAL:  No log types in config and none provided on the command line.\n");
                 exit(1);
             }
-            logtypes = conf->FetchOpt("logtypes").c_str();
+            logtypes = strdup(conf->FetchOpt("logtypes").c_str());
         }
 
         if (conf->FetchOpt("noiselog") == "true")
@@ -1317,7 +1317,7 @@ int main(int argc,char *argv[]) {
             }
 
             if (conf->FetchOpt("dumptype") != "" && dumptype == NULL)
-                dumptype = conf->FetchOpt("dumptype").c_str();
+                dumptype = strdup(conf->FetchOpt("dumptype").c_str());
 
             if (!strcasecmp(dumptype, "wiretap")) {
                 dumpfile = new WtapDumpFile;
@@ -1439,7 +1439,7 @@ int main(int argc,char *argv[]) {
             exit(1);
         }
 
-        allowed_hosts = conf->FetchOpt("allowedhosts").c_str();
+        allowed_hosts = strdup(conf->FetchOpt("allowedhosts").c_str());
     }
 
     // Make sure allowed hosts is valid
@@ -1485,7 +1485,7 @@ int main(int argc,char *argv[]) {
     /* Modified by Andrew Etter 15/9/02 */
     if (conf->FetchOpt("speech") == "true" && speech == -1) {
         if (conf->FetchOpt("festival") != "") {
-            festival = conf->FetchOpt("festival").c_str();
+            festival = strdup(conf->FetchOpt("festival").c_str());
             speech = 1;
 
             string speechtype = conf->FetchOpt("speech_type");
@@ -1846,7 +1846,7 @@ int main(int argc,char *argv[]) {
     }
 #endif
 
-    const char *fuzzengines = conf->FetchOpt("fuzzycrypt").c_str();
+    char *fuzzengines = strdup(conf->FetchOpt("fuzzycrypt").c_str());
     for (unsigned int x = 0; x < packet_sources.size(); x++) {
         if (strstr(fuzzengines, packet_sources[x]->engine.c_str()) ||
             strncmp(fuzzengines, "all", 3) == 0)
@@ -1854,6 +1854,7 @@ int main(int argc,char *argv[]) {
         else
             packet_sources[x]->packparm.fuzzy_crypt = 0;
     }
+    free(fuzzengines);
 
     // Delete the conf stuff
     delete conf;

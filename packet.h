@@ -528,6 +528,8 @@ typedef struct {
 
     int duration;
 
+    int datasize;
+
 } packet_info;
 
 // ----------------------------------
