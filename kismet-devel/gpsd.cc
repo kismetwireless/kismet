@@ -25,6 +25,7 @@ GPSD::GPSD(char *in_host, int in_port) {
     sock = -1;
     lat = lon = alt = spd = hed = 0;
     mode = -1;
+    last_lat = last_lon = last_hed = 0;
 
     sock = -1;
     errstr[0] = '\0';
@@ -155,9 +156,17 @@ int GPSD::Scan() {
         return 0;
     }
 
-    // Maybe calc this live in the future?
-    if (scanret == 5)
-        hed = 0;
+    if (scanret == 5) {
+        // Calculate the heading
+        hed = last_hed;
+    }
+
+    // Update the last lat and heading if we've moved more than 10 meters
+    if (EarthDistance(lat, lon, last_lat, last_lon) > 10) {
+        last_hed = CalcHeading(lat, lon, last_lat, last_lon);
+        last_lat = lat;
+        last_lon = lon;
+    }
 
     spd = spd * (6076.12 / 5280);
 
@@ -192,6 +201,99 @@ int GPSD::FetchLoc(float *in_lat, float *in_lon, float *in_alt, float *in_spd, f
     *in_hed = hed;
 
     return mode;
+}
+
+float GPSD::CalcHeading(float in_lat, float in_lon, float in_lat2, float in_lon2) {
+    double r = CalcRad((double) in_lat2);
+    double lat1 = Deg2Rad((double) in_lat);
+    double lon1 = Deg2Rad((double) in_lon);
+    double lat2 = Deg2Rad((double) in_lat2);
+    double lon2 = Deg2Rad((double) in_lon2);
+
+    double angle = 0;
+
+    if (lat1 == lat2) {
+        if (lon2 > lon1) {
+            angle = M_PI/2;
+        } else if (lon2 < lon1) {
+            angle = 3 * M_PI / 2;
+        } else {
+            return 0;
+        }
+    } else if (lon1 == lon2) {
+        if (lat2 > lat1) {
+            angle = 0;
+        } else if (lat2 < lat1) {
+            angle = M_PI;
+        }
+    } else {
+        double tx = r * cos(lat1) * (lon2 - lon1);
+        double ty = r * (lat2 - lat1);
+        angle = atan(tx/ty);
+
+        if (ty < 0) {
+            angle += M_PI;
+        }
+
+        if (angle >= (2 * M_PI)) {
+            angle -= (2 * M_PI);
+        }
+
+        if (angle < 0) {
+            angle += 2 * M_PI;
+        }
+
+    }
+
+    return (float) Rad2Deg(angle);
+}
+
+double GPSD::Rad2Deg(double x) {
+    return x*M_PI/180.0;
+}
+
+double GPSD::Deg2Rad(double x) {
+    return 180/(x*M_PI);
+}
+
+double GPSD::EarthDistance(double in_lat, double in_lon, double in_lat2, double in_lon2) {
+    double x1 = CalcRad(in_lat) * cos(Rad2Deg(in_lon)) * sin(Rad2Deg(90-in_lat));
+    double x2 = CalcRad(in_lat2) * cos(Rad2Deg(in_lon2)) * sin(Rad2Deg(90-in_lat2));
+    double y1 = CalcRad(in_lat) * sin(Rad2Deg(in_lon)) * sin(Rad2Deg(90-in_lat));
+    double y2 = CalcRad(in_lat2) * sin(Rad2Deg(in_lon2)) * sin(Rad2Deg(90-in_lat2));
+    double z1 = CalcRad(in_lat) * cos(Rad2Deg(90-in_lat));
+    double z2 = CalcRad(in_lat2) * cos(Rad2Deg(90-in_lat2));
+    double a = acos((x1*x2 + y1*y2 + z1*z2)/pow(CalcRad((double) (in_lat+in_lat2)/2),2));
+    return CalcRad((double) (in_lat+in_lat2) / 2) * a;
+}
+
+double GPSD::CalcRad(double lat) {
+    double a = 6378.137, r, sc, x, y, z;
+    double e2 = 0.081082 * 0.081082;
+    /*
+     the radius of curvature of an ellipsoidal Earth in the plane of the
+     meridian is given by
+
+     R' = a * (1 - e^2) / (1 - e^2 * (sin(lat))^2)^(3/2)
+
+     where a is the equatorial radius,
+     b is the polar radius, and
+     e is the eccentricity of the ellipsoid = sqrt(1 - b^2/a^2)
+
+     a = 6378 km (3963 mi) Equatorial radius (surface to center distance)
+     b = 6356.752 km (3950 mi) Polar radius (surface to center distance)
+     e = 0.081082 Eccentricity
+     */
+
+    lat = lat * M_PI / 180.0;
+    sc = sin (lat);
+    x = a * (1.0 - e2);
+    z = 1.0 - e2 * sc * sc;
+    y = pow (z, 1.5);
+    r = x / y;
+
+    r = r * 1000.0;
+    return r;
 }
 
 #endif
