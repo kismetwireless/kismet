@@ -33,3 +33,4 @@ In no particular order:
 	endian-safe drones
 	linkage of seen-on devices to network info
 	horizontal column scrolling in UI
+	kismet_client perl module
