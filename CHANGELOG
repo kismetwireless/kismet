@@ -3,6 +3,8 @@ Mar 20 2004  devel  Fixed gpsmap trying to autoscale even with user scales
                      on current prism54 drivers
                     Merged patch from Scott Taylor for translucent bounding
                      rects in gpsmap
+                    Merged another patch from Scott for using terraserver
+                     topo maps
 Mar 19 2004  devel  Merged earthamap map source support from Ryan Maple
                     Added autoscale map selection to Earthamap and Terraserver
                     Marked Mapblast and Mappoint sources as defunct

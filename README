@@ -663,9 +663,10 @@ Licensed under the GPL
     GPSMap currently can use maps from:
         MapBlast    (Vector) (Broken, read warning)
         MapPoint    (Vector) (Broken, read warning)
-        Terraserver (Sattellite Photo)
+        Terraserver (Satellite Photo)
         Tiger       (Vector) (US Census data)
         Earthamap   (Vector) (Requires perl)
+        Terraserver Topo (Vector-ish) 
        
     Due to changes in the map websites, MapBlast and MapPoint cannot be used
     with new maps.  These sources are left in GPSMap only for plotting 
