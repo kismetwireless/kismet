@@ -469,6 +469,50 @@ carrier_type PcapSource11G::IEEE80211Carrier() {
 }
 #endif
 
+#ifdef SYS_LINUX
+int PcapSourceWrt54g::FetchPacket(kis_packet *packet, uint8_t *data, uint8_t *moddata) {
+    int ret;
+    //unsigned char *udata = '\0';
+
+    if ((ret = pcap_dispatch(pd, 1, PcapSource::Callback, NULL)) < 0) {
+        snprintf(errstr, 1024, "Pcap Get Packet pcap_dispatch() failed");
+        return -1;
+    }
+
+    if (ret == 0)
+        return 0;
+
+    if (paused || ManglePacket(packet, data, moddata) == 0) {
+        return 0;
+    }
+
+    // Junk packets that are too big, this is the only real way to detect crap
+    // packets...
+    if (packet->caplen == MAX_PACKET_LEN) {
+        printf("debug - dropping large wrt54g packet\n");
+        return 0;
+    }
+    
+    num_packets++;
+
+    // Set the parameters
+    packet->parm = parameters;
+    
+    return(packet->caplen);
+}
+
+carrier_type PcapSourceWrt54g::IEEE80211Carrier() {
+    int ch = FetchChannel();
+
+    if (ch > 0 && ch <= 14)
+        return carrier_80211g;
+    else if (ch > 34)
+        return carrier_80211a;
+
+    return carrier_unknown;
+}
+#endif
+
 #ifdef SYS_OPENBSD
 int PcapSourceOpenBSDPrism::FetchChannel() {
     struct wi_req wreq;                                                     
@@ -534,6 +578,13 @@ KisPacketSource *pcapsource_ciscowifix_registrant(string in_name, string in_devi
 KisPacketSource *pcapsource_11g_registrant(string in_name, string in_device,
                                            char *in_err) {
     return new PcapSource11G(in_name, in_device);
+}
+#endif
+
+#ifdef SYS_LINUX
+KisPacketSource *pcapsource_wrt54g_registrant(string in_name, string in_device,
+                                              char *in_err) {
+    return new PcapSourceWrt54g(in_name, in_device);
 }
 #endif
 
