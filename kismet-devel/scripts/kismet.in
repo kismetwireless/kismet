@@ -53,9 +53,11 @@ sleep 1
 echo "Starting UI..."
 kismet_curses $client
 
-kill $servpid
-
-wait %-
+if test "$?" = "0"; then
+	echo "Killing server..."
+	kill $servpid
+	wait %-
+fi
 
 echo "Terminating..."
 

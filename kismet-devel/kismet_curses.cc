@@ -81,10 +81,14 @@ void CatchShutdown(int sig) {
         }
     }
 
+    int ret = 0;
     if (gui != NULL && sig != SIGHUP)
         gui->EndDisplay();
 
-    exit(0);
+    if (kismet_serv.Valid() == 0)
+        ret = -1;
+
+    exit(ret);
 }
 
 int Usage(char *argv) {
