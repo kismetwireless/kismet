@@ -518,18 +518,17 @@ int SayText(string in_text) {
     return 1;
 }
 
-void KisLocalAlert(ALERT_data *adat) {
+void KisLocalAlert(const char *in_text) {
     time_t now = time(0);
     if (!silent)
-        fprintf(stderr, "ALERT %.24s %s %s\n", ctime(&now),
-                adat->header.c_str(), adat->text.c_str());
+        fprintf(stderr, "ALERT %.24s %s\n", ctime(&now), in_text);
 
     if (sound == 1)
         sound = PlaySound("alert");
 
 }
 
-void KisLocalStatus(char *in_status) {
+void KisLocalStatus(const char *in_status) {
     time_t now = time(0);
     if (!silent)
         fprintf(stderr, "%.24s %s\n", ctime(&now), in_status);
@@ -657,7 +656,7 @@ void NetWriteInfo() {
 
 }
 
-void NetWriteStatus(char *in_status) {
+void NetWriteStatus(const char *in_status) {
     string str = in_status;
     ui_server.SendToAll(status_ref, (void *) &str);
 }

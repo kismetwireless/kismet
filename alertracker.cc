@@ -173,7 +173,7 @@ int Alertracker::RaiseAlert(int in_ref, string in_text) {
     server->SendToAll(protoref, (void *) adata);
 
     // Hook main for sounds and whatnot on the server
-    KisLocalAlert(adata);
+    KisLocalAlert(in_text.c_str());
 
     return 1;
 }

@@ -25,13 +25,12 @@
 #include <string>
 
 #include "tcpserver.h"
-#include "server_protocols.h"
 
 void WriteDatafiles(int in_shutdown);
 void CatchShutdown(int sig);
 int Usage(char *argv);
 void handle_command(TcpServer *tcps, client_command *cc);
-void NetWriteStatus(char *in_status);
+void NetWriteStatus(const char *in_status);
 void NetWriteInfo();
 int SayText(string in_text);
 int PlaySound(string in_sound);
@@ -40,7 +39,7 @@ void SoundHandler(int *fds, const char *player, map<string, string> soundmap);
 void ProtocolAlertEnable(int in_fd);
 void ProtocolNetworkEnable(int in_fd);
 void ProtocolClientEnable(int in_fd);
-void KisLocalAlert(ALERT_data *adat);
-void KisLocalStatus(char *in_status);
+void KisLocalAlert(const char *in_text);
+void KisLocalStatus(const char *in_status);
 
 #endif
