@@ -61,9 +61,8 @@ int GenericSource::FetchPacket(pkthdr *in_header, u_char *in_data) {
 
     if (paused) return 0;
 
-    if ((ret = GetGenericInfo()) < 0) {
+    if ((ret = GetGenericInfo()) < 0)
         return -1;
-    }
 
     if (ret != 0) {
         Generic2Common(in_header, in_data);

@@ -30,7 +30,7 @@ int GPSDump::OpenDump(const char *in_fname, const char *in_netfname) {
     if ((gpsf = fopen(in_fname, "wb")) == NULL) {
         snprintf(errstr, 1024, "GPSDump unable to open file: %s",
                  strerror(errno));
-        return errno;
+        return -1;
     }
 
     fname = in_fname;
