@@ -1,5 +1,7 @@
 Mar 13 2004  devel  Updated readme, added client column lists
                     Added unmonitor support for madwifi
+                    Added switch to gpsmap to use old pure-average network 
+                     center finding code
 Mar 12 2004  devel  Changed sound exec to dup2 /dev/null instead of closing
                      stdout and stderr, should prevent sox being mad about
                      not having output paths
