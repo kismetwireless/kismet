@@ -513,6 +513,7 @@ int PanelFront::InitDisplay(int in_decay, time_t in_start) {
     net_win->selected = 0;
     net_win->max_display = net_win->win->_maxy - 3;
     net_win->print_width = net_win->win->_maxx - 2;
+    net_win->col_start = net_win->col_selected = net_win->col_end = 0;
     nodelay(net_win->win, true);
     keypad(net_win->win, true);
     move_panel(net_win->pan, 0, 0);
@@ -524,6 +525,7 @@ int PanelFront::InitDisplay(int in_decay, time_t in_start) {
     info_win->title = "Info";
     info_win->max_display = info_win->win->_maxy - 2;
     info_win->print_width = info_win->win->_maxx - 2;
+    info_win->col_start = info_win->col_selected = info_win->col_end = 0;
     nodelay(info_win->win, true);
     keypad(info_win->win, true);
     move_panel(info_win->pan, 0, COLS-infowidth);
@@ -535,6 +537,7 @@ int PanelFront::InitDisplay(int in_decay, time_t in_start) {
     stat_win->title = "Status";
     stat_win->max_display = stat_win->win->_maxy - 2;
     stat_win->print_width = stat_win->win->_maxx - 2;
+    stat_win->col_start = stat_win->col_selected = stat_win->col_end = 0;
     nodelay(stat_win->win, true);
     keypad(stat_win->win, true);
     scrollok(stat_win->win, 1);
