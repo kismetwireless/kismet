@@ -420,12 +420,12 @@ int main(int argc, char *argv[]) {
     // If we haven't gotten a command line config option...
     if (configfile == NULL) {
         configfile = (char *) malloc(1024*sizeof(char));
-        snprintf(configfile, 1024, "%s/%s", SYSCONF_LOC, config_base);
+        snprintf(configfile, 1024, "%s/%s", getenv("KISMET_CONF") != NULL ? getenv("KISMET_CONF") : SYSCONF_LOC, config_base);
     }
 
     if (uiconfigfile == NULL) {
         uiconfigfile = (char *) malloc(1024*sizeof(char));
-        snprintf(uiconfigfile, 1024, "%s/%s", SYSCONF_LOC, uiconfig_base);
+        snprintf(uiconfigfile, 1024, "%s/%s", getenv("KISMET_CONF") != NULL ? getenv("KISMET_CONF") : SYSCONF_LOC, uiconfig_base);
     }
 
     // Parse the config and load all the values from it and/or our command
@@ -732,7 +732,7 @@ int main(int argc, char *argv[]) {
         char pathname[1024];
 
         if (strchr(ap_manuf_name, '/') == NULL)
-            snprintf(pathname, 1024, "%s/%s", SYSCONF_LOC, ap_manuf_name);
+            snprintf(pathname, 1024, "%s/%s", getenv("KISMET_CONF") != NULL ? getenv("KISMET_CONF") : SYSCONF_LOC, ap_manuf_name);
         else
             snprintf(pathname, 1024, "%s", ap_manuf_name);
 
@@ -752,7 +752,7 @@ int main(int argc, char *argv[]) {
         char pathname[1024];
 
         if (strchr(client_manuf_name, '/') == NULL)
-            snprintf(pathname, 1024, "%s/%s", SYSCONF_LOC, client_manuf_name);
+            snprintf(pathname, 1024, "%s/%s", getenv("KISMET_CONF") != NULL ? getenv("KISMET_CONF") : SYSCONF_LOC, client_manuf_name);
         else
             snprintf(pathname, 1024, "%s", client_manuf_name);
 
