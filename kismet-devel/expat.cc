@@ -259,37 +259,55 @@ int NetXmlStr2Struct(wireless_network *in_net) {
     if (XMLIsBlank(xmlstrnodes[net_node_ip_range])) {
         memset(&in_net->ipdata.range_ip, 0, sizeof(uint8_t) * 4);
     } else {
-        if (sscanf(xmlstrnodes[net_node_ip_range].c_str(), "%d.%d.%d.%d",
-                   (unsigned int *) &in_net->ipdata.range_ip[0], (unsigned int *) &in_net->ipdata.range_ip[1],
-                   (unsigned int *) &in_net->ipdata.range_ip[2], (unsigned int *) &in_net->ipdata.range_ip[3]) < 4) {
+        short int ip[4];
+        if (sscanf(xmlstrnodes[net_node_ip_range].c_str(), "%hd.%hd.%hd.%hd",
+                   &ip[0], &ip[1], &ip[2], &ip[3]) < 4) {
             fprintf(stderr, "WARNING:  Illegal ip-range '%s', skipping rest of network.\n",
                     xmlstrnodes[net_node_ip_range].c_str());
             return -1;
         }
+
+        in_net->ipdata.range_ip[0] = ip[0];
+        in_net->ipdata.range_ip[1] = ip[1];
+        in_net->ipdata.range_ip[2] = ip[2];
+        in_net->ipdata.range_ip[3] = ip[3];
+
     }
 
     if (XMLIsBlank(xmlstrnodes[net_node_ip_mask])) {
         memset(&in_net->ipdata.mask, 0, sizeof(uint8_t) * 4);
     } else {
-        if (sscanf(xmlstrnodes[net_node_ip_mask].c_str(), "%d.%d.%d.%d",
-                   (unsigned int *) &in_net->ipdata.mask[0], (unsigned int *) &in_net->ipdata.mask[1],
-                   (unsigned int *) &in_net->ipdata.mask[2], (unsigned int *) &in_net->ipdata.mask[3]) < 4) {
+        short int mask[4];
+        if (sscanf(xmlstrnodes[net_node_ip_mask].c_str(), "%hd.%hd.%hd.%hd",
+                   &mask[0], &mask[1], &mask[2], &mask[3]) < 4) {
             fprintf(stderr, "WARNING:  Illegal ip-mask '%s', skipping rest of network.\n",
                     xmlstrnodes[net_node_ip_mask].c_str());
             return -1;
         }
+
+        in_net->ipdata.mask[0] = mask[0];
+        in_net->ipdata.mask[1] = mask[1];
+        in_net->ipdata.mask[2] = mask[2];
+        in_net->ipdata.mask[3] = mask[3];
+
     }
 
     if (XMLIsBlank(xmlstrnodes[net_node_ip_gateway])) {
         memset(&in_net->ipdata.gate_ip, 0, sizeof(uint8_t) * 4);
     } else {
-        if (sscanf(xmlstrnodes[net_node_ip_gateway].c_str(), "%d.%d.%d.%d",
-                   (unsigned int *) &in_net->ipdata.gate_ip[0], (unsigned int *) &in_net->ipdata.gate_ip[1],
-                   (unsigned int *) &in_net->ipdata.gate_ip[2], (unsigned int *) &in_net->ipdata.gate_ip[3]) < 4) {
+        short int gate[4];
+        if (sscanf(xmlstrnodes[net_node_ip_gateway].c_str(), "%hd.%hd.%hd.%hd",
+                   &gate[0], &gate[1], &gate[2], &gate[3]) < 4) {
             fprintf(stderr, "WARNING:  Illegal ip-gate '%s', skipping rest of network.\n",
                     xmlstrnodes[net_node_ip_gateway].c_str());
             return -1;
         }
+
+        in_net->ipdata.gate_ip[0] = gate[0];
+        in_net->ipdata.gate_ip[1] = gate[1];
+        in_net->ipdata.gate_ip[2] = gate[2];
+        in_net->ipdata.gate_ip[3] = gate[3];
+
     }
 
     return 1;
