@@ -28,34 +28,26 @@
 
 // Munge input to shell-safe
 void MungeToShell(char *in_data, int max) {
-    for (int i = 0; i < max; i++) {
-        // space
-        if (in_data[i] == 32)
-            continue;
+    int i, j;
 
-        // " to :
-        if (in_data[i] >= 34 && in_data[i] <= 58)
-            continue;
+    for (i = 0, j = 0; i < max, j < max; i++) {
+        if (in_data[i] == '\0')
+            break;
 
-        // =
-        if (in_data[i] == 61)
-            continue;
+        if (isalnum(in_data[i]) || isspace(in_data[i]) ||
+            in_data[i] == '=' || in_data[i] == '-' || in_data[i] == '_' ||
+            in_data[i] == '.' || in_data[i] == ',') {
 
-        if (in_data[i] >= 63 && in_data[i] <= 90)
-            continue;
-
-        if (in_data[i] == 95)
-            continue;
-
-        if (in_data[i] >= 97 && in_data[i] <= 122)
-            continue;
-
-        if (in_data[i] == 126)
-            continue;
-
-        in_data[i] = '\0';
-        break;
+            if (j == i) {
+                j++;
+            } else {
+                in_data[j++] = in_data[i];
+            }
+        }
     }
+
+    in_data[j] = '\0';
+
 }
 
 // Quick wrapper to save us time in other code
