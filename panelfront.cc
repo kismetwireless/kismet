@@ -722,7 +722,10 @@ void PanelFront::SetClientColumns(string in_columns) {
 }
 
 int PanelFront::WriteStatus(string status) {
-    stat_win->text.push_back(status);
+    vector<string> wrapped = LineWrap(status, 4, stat_win->print_width);
+
+    for (unsigned int wrx = 0; wrx < wrapped.size(); wrx++)
+        stat_win->text.push_back(wrapped[wrx]);
 
     tainted = 1;
 

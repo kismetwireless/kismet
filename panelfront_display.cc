@@ -2698,14 +2698,18 @@ int PanelFront::AlertPrinter(void *in_window) {
 
     char output[1024];
     for (unsigned int x = 0; x < alerts.size(); x++) {
+        vector<string> wrapped;
         if (kwin->toggle0 == 0) {
             // If we print the date
             snprintf(output, 1024, "%.24s - %s", ctime((const time_t *) &alerts[x].alert_ts.tv_sec),
                      alerts[x].alert_text.c_str());
-            kwin->text.push_back(output);
+            wrapped = LineWrap(output, 4, kwin->print_width);
         } else {
-            kwin->text.push_back(alerts[x].alert_text);
+            wrapped = LineWrap(alerts[x].alert_text, 4, kwin->print_width);
         }
+
+        for (unsigned int wrx = 0; wrx < wrapped.size(); wrx++)
+            kwin->text.push_back(wrapped[wrx]);
     }
 
     return TextPrinter(in_window);
