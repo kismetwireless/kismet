@@ -81,7 +81,7 @@ public:
     int CloseDump(int in_unlink);
 
     int DumpPacket(packet_info *in_packinfo);
-    int DumpTrack(GPSD *in_gps);
+    int DumpTrack(GPSDClient *in_gps);
 
 protected:
     int num_packets;

@@ -92,7 +92,7 @@ int GPSDump::DumpPacket(packet_info *in_packinfo) {
     return 1;
 }
 
-int GPSDump::DumpTrack(GPSD *in_gps) {
+int GPSDump::DumpTrack(GPSDClient *in_gps) {
     float lat, lon, alt, spd, hed;
     int fix;
 

@@ -59,6 +59,10 @@ public:
     virtual int Connect(const char *in_remotehost, short int in_port);
 
 protected:
+    virtual int Validate() {
+        return 1;
+    }
+
     virtual int ReadBytes();
     virtual int WriteBytes();
 };

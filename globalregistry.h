@@ -31,7 +31,7 @@ class Packetsourcetracker;
 class Packetracker;
 class Alertracker;
 class Timetracker;
-class GPSD;
+class GPSDClient;
 class KisNetFramework;
 class ConfigFile;
 
@@ -48,7 +48,7 @@ public:
     Packetracker *packetracker;
     Alertracker *alertracker;
     Timetracker *timetracker;
-    GPSD *gpsd;
+    GPSDClient *gpsd;
     KisNetFramework *kisnetserver;
     ConfigFile *kismet_config;
 
@@ -67,6 +67,8 @@ public:
     vector<string> src_initchannel_vec;
     int source_from_cmd;
 
+    int gps_enable;
+    
     unsigned int silent;
     unsigned int metric;
     unsigned int track_probenets;
@@ -124,6 +126,8 @@ public:
 
         start_time = time(0);
         timestamp = start_time;
+
+        gps_enable = -1;
 
         channel_hop = -1;
         channel_split = 0;

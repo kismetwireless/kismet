@@ -101,7 +101,7 @@ public:
 
 protected:
     // Validate a connection
-    virtual int Validate(int in_fd) = 0;
+    virtual int Validate() = 0;
    
     // Read pending bytes from whereever into the ringbuffer
     virtual int ReadBytes() = 0;

@@ -58,7 +58,7 @@
 #include "fifodump.h"
 #include "gpsdump.h"
 
-#include "gpsd.h"
+#include "gpsdclient.h"
 
 #include "speech.h"
 
@@ -134,12 +134,7 @@ int packnum = 0, localdropnum = 0;
 
 
 #ifdef HAVE_GPS
-int gpsmode = 0;
 GPSDump gpsdump;
-
-// Last time we tried to reconnect to the gps
-time_t last_gpsd_reconnect = 0;
-int gpsd_reconnect_attempt = 0;
 #endif
 
 FifoDumpFile fifodump;
@@ -729,82 +724,6 @@ void NetWriteInfo() {
 
     }
 
-}
-
-int GpsEvent(Timetracker::timer_event *evt, void *parm, GlobalRegistry *globalreg) {
-#ifdef HAVE_GPS
-    char status[STATUS_MAX];
-
-    // The GPS only provides us a new update once per second we might
-    // as well only update it here once a second
-
-    // If we're disconnected, try to reconnect.
-    if (gpsd_reconnect_attempt > 0) {
-        // Increment the time between connection attempts
-        if (last_gpsd_reconnect + ((gpsd_reconnect_attempt - 1) * 2) < time(0)) {
-            if (globalregistry->gpsd->OpenGPSD() < 0) {
-                last_gpsd_reconnect = time(0);
-
-                if (gpsd_reconnect_attempt < 11)
-                    gpsd_reconnect_attempt++;
-
-                snprintf(status, STATUS_MAX, "Unable to reconnect to GPSD, trying "
-                         "again in %d seconds.", ((gpsd_reconnect_attempt - 1) * 2));
-
-                globalregistry->messagebus->InjectMessage(status, MSGFLAG_ERROR);
-
-                return 1;
-            } else {
-                gpsd_reconnect_attempt = 0;
-
-                snprintf(status, STATUS_MAX, "Reopened connection to GPSD");
-                globalregistry->messagebus->InjectMessage(status, MSGFLAG_ERROR);
-            }
-        } else {
-            // Don't process more if we haven't woken up yet
-            return 1;
-        }
-
-    }
-    
-    if (gps_enable) {
-        int gpsret;
-        gpsret = globalregistry->gpsd->Scan();
-
-        if (gpsret < 0) {
-            snprintf(status, STATUS_MAX, "GPS error requesting data: %s",
-                     globalregistry->gpsd->FetchError());
-
-            globalregistry->messagebus->InjectMessage(status, MSGFLAG_ERROR);
-
-            gpsd_reconnect_attempt = 1;
-        }
-
-        if (gpsret == 0 && gpsmode != 0) {
-            globalregistry->messagebus->InjectMessage("GPS reciever lost signal", MSGFLAG_INFO);
-
-            if (sound == 1)
-                sound = PlaySound("gpslost");
-
-            gpsmode = 0;
-        } else if (gpsret != 0 && gpsmode == 0) {
-            globalregistry->messagebus->InjectMessage("GPS reciever aquired signal", MSGFLAG_INFO);
-
-            if (sound == 1)
-                sound = PlaySound("gpslock");
-
-            gpsmode = 1;
-        }
-    }
-
-    if (gps_log == 1 && gpsmode != 0 && globalregistry->gpsd != NULL) {
-        gpsdump.DumpTrack(globalregistry->gpsd);
-    }
-
-    // We want to be rescheduled
-    return 1;
-#endif
-    return 0;
 }
 
 // Simple redirect to the network info drawer.  We don't want to change 
@@ -1911,44 +1830,7 @@ int main(int argc,char *argv[]) {
 
     // And we're done
     fclose(pid_file);
-            
-
-#ifdef HAVE_GPS
-    // Set up the GPS object to give to the children
-    if (gpsport == -1 && gps_enable) {
-        if (conf->FetchOpt("gps") == "true") {
-            if (sscanf(conf->FetchOpt("gpshost").c_str(), "%1024[^:]:%d", gpshost, 
-                       &gpsport) != 2) {
-                globalregistry->messagebus->InjectMessage("Invalid GPS host in config, host:port required",
-                                                          MSGFLAG_FATAL);
-                ErrorShutdown();
-            }
-
-            gps_enable = 1;
-        } else {
-            gps_enable = 0;
-            gps_log = 0;
-        }
-    }
-
-    if (gps_enable == 1) {
-        globalregistry->gpsd = new GPSD(gpshost, gpsport);
-
-        // Lock GPS position
-        if (conf->FetchOpt("gpsmodelock") == "true") {
-            globalregistry->messagebus->InjectMessage("Enabling GPS position information override "
-                                                      "(override broken GPS units that always report 0 "
-                                                      "in the NMEA stream)",
-                                                      MSGFLAG_INFO);
-            globalregistry->gpsd->SetOptions(GPSD_OPT_FORCEMODE);
-        }
-
-    } else {
-        gps_log = 0;
-    }
-
-#endif
-
+    
     // Build the sourcetracker components
     globalregistry->sourcetracker = new Packetsourcetracker(globalregistry);
 
@@ -2243,24 +2125,7 @@ int main(int argc,char *argv[]) {
     }
 
 #ifdef HAVE_GPS
-    if (gps_enable) {
-        // Open the GPS
-        if (globalregistry->gpsd->OpenGPSD() < 0) {
-            globalregistry->messagebus->InjectMessage(globalregistry->gpsd->FetchError(),
-                                                      MSGFLAG_FATAL);
-
-            gps_enable = 0;
-            gps_log = 0;
-        } else {
-            snprintf(errstr, STATUS_MAX, "Opened GPS connection to %s port %d",
-                    gpshost, gpsport);
-            globalregistry->messagebus->InjectMessage(errstr, MSGFLAG_INFO);
-
-            gpsmode = globalregistry->gpsd->FetchMode();
-
-            last_gpsd_reconnect = time(0);
-        }
-    }
+    globalregistry->gpsd = new GPSDClient(globalregistry);
 #endif
 
     // Turn on the server
@@ -2278,10 +2143,6 @@ int main(int argc,char *argv[]) {
 
     // Write network info and tick the tracker once per second
     globalregistry->timetracker->RegisterTimer(SERVER_TIMESLICES_SEC, NULL, 1, &NetWriteEvent, NULL);
-#ifdef HAVE_GPS
-    // Update GPS coordinates and handle signal loss if defined
-    globalregistry->timetracker->RegisterTimer(SERVER_TIMESLICES_SEC, NULL, 1, &GpsEvent, NULL);
-#endif
     // Sync the data files if requested
     if (datainterval > 0 && no_log == 0)
         globalregistry->timetracker->RegisterTimer(datainterval * SERVER_TIMESLICES_SEC, NULL, 1, &ExportSyncEvent, NULL);
@@ -2310,6 +2171,9 @@ int main(int argc,char *argv[]) {
         // Merge fd's from the server and the packetsources
         max_fd = globalregistry->sourcetracker->MergeSet(rset, wset, max_fd, &rset, &wset);
         max_fd = kistcpserver->MergeSet(rset, wset, max_fd, &rset, &wset);
+#ifdef HAVE_GPS
+        max_fd = globalregistry->gpsd->MergeSet(rset, wset, max_fd, &rset, &wset);
+#endif
 
         struct timeval tm;
         tm.tv_sec = 0;
@@ -2324,6 +2188,11 @@ int main(int argc,char *argv[]) {
             }
         }
 
+#ifdef HAVE_GPS
+        if (globalregistry->gpsd->Poll(rset, wset) < 0 || globalregistry->fatal_condition)
+            CatchShutdown(-1);
+#endif
+        
         if (kistcpserver->Poll(rset, wset) < 0 || globalregistry->fatal_condition)
             CatchShutdown(-1);
 

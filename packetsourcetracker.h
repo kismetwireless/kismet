@@ -31,7 +31,7 @@
 
 #include "globalregistry.h"
 #include "timetracker.h"
-#include "gpsd.h"
+#include "gpsdclient.h"
 #include "packetsource.h"
 
 // Sentinel for starting a new packet

@@ -1,13 +1,13 @@
-  new client code
+  new kismet client code
   better drone error text
   new drone client/server code
   handle generating and catching alert text
+  move gpstracklog into gpsdump
 
   Packet chain framework
   ieee802.11 dissect as packet chain module
   Filtering as packet chain module
   Logging as packet chain module
-  GPSD complete rewrite
   Move config filehandling to gpsd
   rewrite isblank during handler rewrite
   debuglog as raw logging at head of packet chain

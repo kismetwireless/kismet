@@ -28,7 +28,7 @@
 #include "messagebus.h"
 #include "packet.h"
 #include "timetracker.h"
-#include "gpsd.h"
+#include "gpsdclient.h"
 
 // All packetsources need to provide out-of-class functions for the 
 // packetsourcetracker class

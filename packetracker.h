@@ -30,7 +30,7 @@
 #include <string>
 
 #include "util.h"
-#include "gpsd.h"
+#include "gpsdclient.h"
 #include "packet.h"
 #include "tracktypes.h"
 #include "manuf.h"
