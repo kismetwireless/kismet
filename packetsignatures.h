@@ -54,11 +54,6 @@ const uint8_t NETSTUMBLER_322_SIGNATURE[] = {0x46, 0x6C, 0x75};
 const uint8_t NETSTUMBLER_330_SIGNATURE[] = {0x20, 0x20, 0x20};
 const uint8_t NETSTUMBLER_OFFSET = 12;
 
-// gstsearch exploit
-const uint8_t GSTSEARCH_SIGNATURE[] = {0x67, 0x73, 0x74, 0x73};
-const uint8_t GSTSEARCH_OFFSET = 47;
-const short int GSTSEARCH_PORT = 27155;
-
 // Lucent link test signatures
 const uint8_t LUCENT_TEST_SIGNATURE[] = {0x00, 0x01, 0x02, 0x03};
 const uint8_t LUCENT_OFFSET = 12;

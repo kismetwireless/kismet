@@ -807,18 +807,8 @@ void GetProtoInfo(kis_packet *packet, packet_info *in_info) {
         memcpy(ret_protoinfo->source_ip, (const uint8_t *) &data[in_info->header_offset + IP_OFFSET + 3], 4);
         memcpy(ret_protoinfo->dest_ip, (const uint8_t *) &data[in_info->header_offset + IP_OFFSET + 7], 4);
 
-        if (ret_protoinfo->dport == GSTSEARCH_PORT) {
-            // GSTSEARCH exploit
-            if (memcmp(&data[in_info->header_offset + GSTSEARCH_OFFSET], GSTSEARCH_SIGNATURE,
-                       sizeof(GSTSEARCH_SIGNATURE)) == 0) {
-                ret_protoinfo->type = proto_gstsearch;
-
-                return;
-            }
-        }
-
-	else if (ret_protoinfo->sport == IAPP_PORT && ret_protoinfo->dport == IAPP_PORT) {
-	    iapp_header *ih = (iapp_header *) &data[in_info->header_offset + IAPP_OFFSET];
+        if (ret_protoinfo->sport == IAPP_PORT && ret_protoinfo->dport == IAPP_PORT) {
+            iapp_header *ih = (iapp_header *) &data[in_info->header_offset + IAPP_OFFSET];
 	    uint8_t *pdu = &data[in_info->header_offset + IAPP_OFFSET + sizeof(iapp_header)];
 
 	    if (ih->iapp_version != 1)

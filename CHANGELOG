@@ -1,6 +1,8 @@
 Mar 20 2003  2.9.1  Various code cleanups and reorganizations
                     Removed alert filter string, too unwieldy from the code
                      and redundant
+                    Migrated rest of alerts to new alert backend, removed
+                     GSTSRCH alert (should be in L3 IDS like snort)
 Mar 18 2003  2.9.1  Fixed new alert logic, added alert fields to the config
                      file, started moving existing alerts to new alert
                      logic.
