@@ -303,6 +303,14 @@ Licensed under the GPL
       responds to it.  Sometimes this isn't the desired behavior, by setting
       'trackprobenets' to 'false', probe requests will always remain separate.
 
+    * Channel delays.  Currently the easiest way to get Kismet to spend more 
+      time on part of the channel hop list is to include that channel multiple
+      times.  A hop list of "1,3,6,6,6,9,11" would spend 3 times as long on
+      channel 6 as on the other channels.  Channels can be repeated 
+      throughout the list, as well, for example "6,1,6,3,6,9,6,11" would have
+      a similar effect while providing more frequent monitoring of other 
+      channels.
+
 9.  Ncurses/Panels Interface
 
     The ncurses/panels interface is the default frontend provided with Kismet.
