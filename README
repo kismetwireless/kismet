@@ -383,10 +383,10 @@ Licensed under the GPL
 
     - OpenBSD
       Known supported cards: Prism2, WSP100, Drone, wtapfile, pcapfile
-    
-      Thanks to the efforts of Pedro la Peu, the Prism2 drivers as of OpenBSD
-      3.2 support a standard rfmon, performance with other drivers may be
-      varied.
+   
+      OpenBSD 3.2 and newer report standard frames from the Prism2 drivers. 
+      Thanks to the efforts of Pedro la Peu, Kismet works fully with prism2
+      cards under OpenBSD.  Performance with other cards may be varied.
 
     - FreeBSD
       Known supported cards: Atheros, Prism2, WSP100, Drone, wtapfile, pcapfile
