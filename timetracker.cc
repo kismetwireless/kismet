@@ -54,7 +54,12 @@ int Timetracker::Tick() {
             evt->schedule_tm.tv_sec = cur_tm.tv_sec;
             evt->schedule_tm.tv_usec = cur_tm.tv_usec;
             evt->trigger_tm.tv_sec = evt->schedule_tm.tv_sec + (evt->timeslices / 10);
-            evt->trigger_tm.tv_usec = evt->schedule_tm.tv_usec + (evt->timeslices % 10);
+            evt->trigger_tm.tv_usec = evt->schedule_tm.tv_usec + (100000 * (evt->timeslices % 10));
+
+            if (evt->trigger_tm.tv_usec > 999999) {
+                evt->trigger_tm.tv_usec = evt->trigger_tm.tv_usec - 1000000;
+                evt->trigger_tm.tv_sec++;
+            }
 
             // Resort the list
             sort(sorted_timers.begin(), sorted_timers.end(), SortTimerEventsTrigger());
