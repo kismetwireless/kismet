@@ -54,6 +54,9 @@ public:
 
     virtual int CloseSource() = 0;
 
+    // Change the channel
+    virtual int SetChannel(unsigned int chan) = 0;
+
     // Get the FD of our packet source
     virtual int FetchDescriptor() = 0;
 

@@ -41,6 +41,11 @@ typedef struct capturesource {
     string scardtype;
     card_type cardtype;
     packet_parm packparm;
+    int childpair[2];
+    int servpair[2];
+    int textpair[2];
+    pid_t childpid;
+    int alive;
 };
 
 map<string, int> ParseEnableLine(string in_named);

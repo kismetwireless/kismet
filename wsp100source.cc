@@ -260,5 +260,11 @@ void Wsp100Source::PokeSensor() {
            sizeof(struct sockaddr));
 }
 
+int Wsp100Source::SetChannel(unsigned int chan) {
+
+    return 1;
+}
+
+
 // wsp100
 #endif

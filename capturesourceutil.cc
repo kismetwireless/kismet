@@ -48,6 +48,7 @@ int ParseCardLines(vector<string> *in_lines, vector<capturesource *> *in_sources
         newsource->interface = optlist[1];
         newsource->name = optlist[2];
         memset(&newsource->packparm, 0, sizeof(packet_parm));
+        newsource->childpid = 0;
 
         in_sources->push_back(newsource);
     }

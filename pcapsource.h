@@ -60,6 +60,8 @@ public:
     static void Callback(u_char *bp, const struct pcap_pkthdr *header,
                          const u_char *in_data);
 
+    int SetChannel(unsigned int chan);
+
 protected:
     // Prism 802.11 headers from wlan-ng tacked on to the beginning of a
     // pcap packet... Snagged from the wlan-ng source

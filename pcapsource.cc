@@ -348,5 +348,10 @@ int PcapSource::Pcap2Common(kis_packet *packet, uint8_t *data, uint8_t *moddata)
     return 1;
 }
 
+int PcapSource::SetChannel(unsigned int chan) {
+
+    return 1;
+}
+
 #endif
 

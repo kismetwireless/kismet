@@ -58,6 +58,8 @@ public:
 
     void PokeSensor();
 
+    int SetChannel(unsigned int chan);
+
 protected:
 
     int Wsp2Common(kis_packet *packet, uint8_t *data, uint8_t *moddata);

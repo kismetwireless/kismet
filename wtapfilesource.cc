@@ -120,6 +120,11 @@ int WtapFileSource::Wtap2Common(kis_packet *packet, uint8_t *data, uint8_t *modd
     return 1;
 }
 
+int WtapFileSource::SetChannel(unsigned int chan) {
+
+    return 1;
+}
+
 
 #endif
 

@@ -55,6 +55,8 @@ public:
 
     int FetchPacket(kis_packet *packet, uint8_t *data, uint8_t *moddata);
 
+    int SetChannel(unsigned int chan);
+
 protected:
     int Prism2Common(kis_packet *packet, uint8_t *data, uint8_t *moddata);
 

@@ -161,6 +161,21 @@ typedef struct _alert_enable {
     int limit_burst;
 };
 
+// Not the best place to put the defines but they're only relevant here
+// negative numbers are commands, positive numbers are a channel set.  All commands are
+// one byte.
+#define CAPCMD_NULL      0   // Don't do anything, just something to see if the pipe is still there
+#define CAPCMD_ACTIVATE -1   // Start watching the sniffer
+#define CAPCMD_FLUSH    -2   // Flush the ring buffer and loose any packets we have
+#define CAPCMD_TXTFLUSH -3   // Flush text buffer
+#define CAPCMD_SILENT   -4   // Enable silence (no stdout output)
+#define CAPCMD_DIE      -5   // Close the source and die
+#define CAPCMD_PAUSE    -6   // Pause
+#define CAPCMD_RESUME   -7   // Resume
+
+// Sentinel for starting a new packet
+#define CAPSENTINEL     0xDECAFBAD
+
 // Handle writing all the files out and optionally unlinking the empties
 void WriteDatafiles(int in_shutdown) {
     // If we're on our way out make one last write of the network stuff - this
@@ -252,10 +267,14 @@ void WriteDatafiles(int in_shutdown) {
 // Catch our interrupt
 void CatchShutdown(int sig) {
     for (unsigned int x = 0; x < packet_sources.size(); x++) {
+        if (packet_sources[x]->alive) {
+            int8_t child_cmd = CAPCMD_DIE;
+            write(packet_sources[x]->servpair[1], &child_cmd, 1);
+        }
+
         if (packet_sources[x]->source != NULL) {
             packet_sources[x]->source->CloseSource();
             delete packet_sources[x]->source;
-            delete packet_sources[x];
         }
     }
 
@@ -302,6 +321,14 @@ void CatchShutdown(int sig) {
         kill(soundpid, 9);
     if (speechpid > 0)
         kill(speechpid, 9);
+
+    // Kill any child sniffers still around
+    for (unsigned int x = 0; x < packet_sources.size(); x++) {
+        if (packet_sources[x]->alive) {
+            kill(packet_sources[x]->childpid, 9);
+        }
+        delete packet_sources[x];
+    }
 
     exit(0);
 }
@@ -811,8 +838,10 @@ void handle_command(TcpServer *tcps, client_command *cc) {
     if (cmdword == "PAUSE") {
         if (packet_sources.size() > 0) {
             for (unsigned int x = 0; x < packet_sources.size(); x++) {
-                if (packet_sources[x]->source != NULL)
-                    packet_sources[x]->source->Pause();
+                if (packet_sources[x]->alive) {
+                    int8_t child_cmd = CAPCMD_PAUSE;
+                    write(packet_sources[x]->servpair[1], &child_cmd, 1);
+                }
             }
 
             snprintf(status, 1024, "Pausing packet sources per request of client %d", cc->client_fd);
@@ -823,8 +852,11 @@ void handle_command(TcpServer *tcps, client_command *cc) {
     } else if (cmdword == "RESUME") {
         if (packet_sources.size() > 0) {
             for (unsigned int x = 0; x < packet_sources.size(); x++) {
-                if (packet_sources[x]->source != NULL)
-                    packet_sources[x]->source->Resume();
+                if (packet_sources[x]->alive) {
+                    int8_t child_cmd = CAPCMD_RESUME;
+                    write(packet_sources[x]->servpair[1], &child_cmd, 1);
+                }
+
             }
 
             snprintf(status, 1024, "Resuming packet sources per request of client %d", cc->client_fd);
@@ -958,6 +990,413 @@ int Usage(char *argv) {
            "  -v, --version                Kismet version\n"
            "  -h, --help                   What do you think you're reading?\n");
     exit(1);
+}
+
+// Push a string of text out into the ring buffer for OOB-reporting to the server
+void CapSourceText(string in_text, KisRingBuffer *in_buf) {
+    uint32_t sentinel = CAPSENTINEL;
+
+    // Can we fit it into the buffer?  We don't care about trailing null, but we
+    // do add 2 bytes for length and 4 bytes for the sentinel
+    if (in_buf->InsertDummy(6 + in_text.length()) == 0) {
+        if (!silent)
+            fprintf(stderr, "WARNING: capture child text buffer full.\n");
+        return;
+    }
+
+    uint16_t len = in_text.length();
+
+    in_buf->InsertData((uint8_t *) &sentinel, 4);
+    in_buf->InsertData((uint8_t *) &len, 2);
+    in_buf->InsertData((uint8_t *) in_text.c_str(), len);
+
+    if (!silent)
+        fprintf(stderr, "%s\n", in_text.c_str());
+
+}
+
+// Handle doing things as a child
+void CapSourceChild(capturesource *csrc) {
+    char txtbuf[1024];
+    fd_set rset;
+    int diseased = 0;
+    int active = 0;
+    pid_t mypid = getpid();
+    uint32_t sentinel = CAPSENTINEL;
+
+    // Make a large ring buffer of packet bits
+    KisRingBuffer *ringbuf = new KisRingBuffer(MAX_PACKET_LEN * 50);
+
+    // Make a less large ring buffer for text
+    KisRingBuffer *txtringbuf = new KisRingBuffer(1024 * 10);
+
+    // We don't write to the server pair
+    close(csrc->servpair[1]);
+    // We don't read from the child pair
+    close(csrc->childpair[0]);
+    // and we don't read from the text stream
+    close(csrc->textpair[0]);
+
+    while (1) {
+        int max_fd = 0;
+
+        FD_ZERO(&rset);
+
+        // A diseased child (ew?) is one who is just waiting to send out the text msg buffer
+        // and die... so don't look at commands, don't look at capture sources, and don't
+        // try to write any packets.
+        if (!diseased) {
+            // Read FD for server sending us commands...
+            FD_SET(csrc->servpair[0], &rset);
+            if (csrc->servpair[0] > max_fd)
+                max_fd = csrc->servpair[0];
+
+            // only look at capsource if we're active, and try to slow us down if we're filling
+            // the ring buffer.
+            if (active && csrc->source->FetchDescriptor() != 0 && ringbuf->InsertDummy(MAX_PACKET_LEN / 2)) {
+                FD_SET(csrc->source->FetchDescriptor(), &rset);
+
+                if (csrc->source->FetchDescriptor() > max_fd)
+                    max_fd = csrc->source->FetchDescriptor();
+            }
+        }
+
+        uint8_t *dptr;
+        int dlen, ret;
+
+        // Write out a text ring buffer if we can
+        if (txtringbuf->FetchLen() != 0) {
+            dptr = NULL;
+
+            txtringbuf->FetchPtr(&dptr, &dlen);
+
+            if ((ret = write(csrc->textpair[1], dptr, dlen)) <= 0) {
+                fprintf(stderr, "FATAL:  capture child %d text write error %d (%s)\n", mypid, errno, strerror(errno));
+                exit(1);
+            }
+
+            txtringbuf->MarkRead(ret);
+        }
+
+        // if we're diseased and we delivered all our messages, go to the great bitbucked in the sky
+        if (diseased && txtringbuf->FetchLen() == 0) {
+            if (!silent)
+                fprintf(stderr, "Child %d terminating.\n", mypid);
+
+            close(csrc->servpair[0]);
+            close(csrc->childpair[1]);
+            close(csrc->textpair[1]);
+
+            exit(1);
+        }
+
+        // If we're not diseased, keep doing things.
+
+        // Write out data from the packet ring buffer if we can
+
+        if (ringbuf->FetchLen() != 0) {
+            dptr = NULL;
+
+            ringbuf->FetchPtr(&dptr, &dlen);
+
+            if ((ret = write(csrc->childpair[1], dptr, dlen)) <= 0) {
+                snprintf(txtbuf, 1024, "FATAL:  capture child %d packet write error %d (%s)",
+                         mypid, errno, strerror(errno));
+                CapSourceText(txtbuf, txtringbuf);
+                diseased = 1;
+            }
+
+            ringbuf->MarkRead(ret);
+        }
+
+
+        // Capture drones don't do things regularly, only when told, so we can sit in a
+        // select() forever until something happens
+        if (select(max_fd + 1, &rset, NULL, NULL, NULL) < 0) {
+            fprintf(stderr, "FATAL: capture child %d select() error %d (%s)\n", mypid, errno, strerror(errno));
+            exit(1);
+        }
+
+        // Obey commands coming in
+        if (FD_ISSET(csrc->servpair[0], &rset)) {
+            int8_t cmd;
+
+            if (read(csrc->servpair[0], &cmd, 1) < 0) {
+                fprintf(stderr, "FATAL:  capture child %d command read() error %d (%s)", mypid, errno, strerror(errno));
+                exit(1);
+            }
+
+            if (cmd == CAPCMD_ACTIVATE) {
+                active = 1;
+            } else if (cmd == CAPCMD_NULL) {
+                // nothing
+            } else if (cmd == CAPCMD_FLUSH) {
+                delete ringbuf;
+                ringbuf = new KisRingBuffer(MAX_PACKET_LEN * 50);
+                snprintf(txtbuf, 1024, "WARNING:  capture child %d packet buffer flushed by server.", mypid);
+                CapSourceText(txtbuf, txtringbuf);
+            } else if (cmd == CAPCMD_TXTFLUSH) {
+                delete txtringbuf;
+                txtringbuf = new KisRingBuffer(1024 * 10);
+                snprintf(txtbuf, 1024, "WARNING:  capture child %d text buffer flushed by server.", mypid);
+                CapSourceText(txtbuf, txtringbuf);
+            } else if (cmd == CAPCMD_SILENT) {
+                silent = 1;
+            } else if (cmd == CAPCMD_DIE) {
+                csrc->source->CloseSource();
+                exit(1);
+            } else if (cmd == CAPCMD_PAUSE) {
+                csrc->source->Pause();
+            } else if (cmd == CAPCMD_RESUME) {
+                csrc->source->Resume();
+            } else if (cmd > 0) {
+                // do a channel set
+            } else {
+                snprintf(txtbuf, 1024, "WARNING:  capture child unknown command %d", cmd);
+                CapSourceText(txtbuf, txtringbuf);
+            }
+
+        }
+        
+        // grab a packet and write it down the pipe
+        if (FD_ISSET(csrc->source->FetchDescriptor(), &rset)) {
+            kis_packet packet;
+            uint8_t data[MAX_PACKET_LEN];
+            uint8_t moddata[MAX_PACKET_LEN];
+
+            int len;
+
+            len = csrc->source->FetchPacket(&packet, data, moddata);
+
+            if (len < 0) {
+                snprintf(txtbuf, 1024, "FATAL: capture child %d source %s: %s", mypid, csrc->name.c_str(),
+                         csrc->source->FetchError());
+                CapSourceText(txtbuf, txtringbuf);
+                diseased = 1;
+            }
+
+            // Can we fit the sentinel + header + packet?
+            if (ringbuf->InsertDummy(sizeof(kis_packet) + packet.len + 4) == 0) {
+                snprintf(txtbuf, 1024, "WARNING:  capture child %d write packet buffer full, dropped packet", mypid);
+                CapSourceText(txtbuf, txtringbuf);
+                continue;
+            }
+
+            ringbuf->InsertData((uint8_t *) &sentinel, 4);
+            ringbuf->InsertData((uint8_t *) &packet, sizeof(kis_packet));
+            ringbuf->InsertData((uint8_t *) data, packet.len);
+        }
+
+    }
+}
+
+// Make a pipe and split off a child process
+int SpawnCapSourceChild(capturesource *csrc) {
+    pid_t cpid;
+
+    if (csrc->childpid != 0)
+        return 0;
+
+    if (pipe(csrc->childpair) == -1) {
+        fprintf(stderr, "FATAL:  Unable to create child pipe for capture source.\n");
+        return -1;
+    }
+
+    if (pipe(csrc->servpair) == -1) {
+        fprintf(stderr, "FATAL:  Unable to create server pipe for capture source.\n");
+        return -1;
+    }
+
+    if (pipe(csrc->textpair) == -1) {
+        fprintf(stderr, "FATAL:  Unable to create text pipe for capture source.\n");
+        return -1;
+    }
+
+    if ((cpid = fork()) < 0) {
+        fprintf(stderr, "FATAL:  Unable to create child process for capture source.\n");
+        return -1;
+    } else if (cpid == 0) {
+        // Go off handle being a drone child
+        CapSourceChild(csrc);
+    }
+
+    csrc->childpid = cpid;
+
+    fprintf(stderr, "Source %s: Created child capture process %d\n", csrc->name.c_str(), cpid);
+
+    // We don't write to the child pair
+    close(csrc->childpair[1]);
+    // We don't read from the server pair
+    close(csrc->servpair[0]);
+    // and we don't write to the text stream
+    close(csrc->textpair[1]);
+
+    // Go back to doing things
+    return 1;
+}
+
+int FetchChildPacket(int in_fd, kis_packet *packet, uint8_t *data, uint8_t *moddata) {
+    char status[STATUS_MAX];
+    unsigned int bcount;
+    uint32_t sentinel;
+    uint8_t *inbound;
+
+    bcount = 0;
+    inbound = (uint8_t *) &sentinel;
+    while (bcount < 4) {
+        int ret = 0;
+
+        if ((ret = read(in_fd, &inbound[bcount], 4 - bcount)) < 0) {
+            snprintf(status, STATUS_MAX, "WARNING: read() error getting packet sentinel: %d %s",
+                     errno, strerror(errno));
+
+            if (!silent)
+                fprintf(stderr, "%s\n", status);
+
+            NetWriteStatus(status);
+
+            return -1;
+        }
+
+        bcount += ret;
+    }
+
+    // If we didn't get a packet sentinel we have a problem, so return a signifier and try to resync
+    // the packet ring
+    if (sentinel != CAPSENTINEL) {
+        return -2;
+    }
+
+    bcount = 0;
+    inbound = (uint8_t *) packet;
+    while (bcount < sizeof(kis_packet)) {
+        int ret = 0;
+
+        if ((ret = read(in_fd, &inbound[bcount], sizeof(kis_packet) - bcount)) < 0) {
+            snprintf(status, STATUS_MAX, "WARNING: read() error getting packet header: %d %s",
+                     errno, strerror(errno));
+
+            if (!silent)
+                fprintf(stderr, "%s\n", status);
+
+            NetWriteStatus(status);
+
+            return -1;
+        }
+
+        bcount += ret;
+    }
+
+    // Fill in the packet pointers
+    packet->data = data;
+    packet->moddata = moddata;
+
+    bcount = 0;
+    inbound = data;
+    while (bcount < packet->len) {
+        int ret = 0;
+
+        if ((ret = read(in_fd, &inbound[bcount], packet->len - bcount)) < 0) {
+            snprintf(status, STATUS_MAX, "WARNING: read() error getting packet content: %d %s",
+                     errno, strerror(errno));
+
+            if (!silent)
+                fprintf(stderr, "%s\n", status);
+
+            NetWriteStatus(status);
+
+            return -1;
+        }
+
+        bcount += ret;
+    }
+
+    return packet->len;
+}
+
+int FetchChildText(int in_fd) {
+    char status[STATUS_MAX];
+    unsigned int bcount;
+    uint32_t sentinel;
+    uint16_t size;
+    uint8_t *inbound;
+
+    bcount = 0;
+    inbound = (uint8_t *) &sentinel;
+    while (bcount < 4) {
+        int ret = 0;
+
+        if ((ret = read(in_fd, &inbound[bcount], 4 - bcount)) < 0) {
+            snprintf(status, STATUS_MAX, "WARNING: read() error getting text sentinel: %d %s",
+                     errno, strerror(errno));
+
+            if (!silent)
+                fprintf(stderr, "%s\n", status);
+
+            NetWriteStatus(status);
+
+            return -1;
+        }
+
+        bcount += ret;
+    }
+
+    // If we didn't get a packet sentinel we have a problem, so return a signifier and try to resync
+    // the packet ring
+    if (sentinel != CAPSENTINEL) {
+        return -2;
+    }
+
+    bcount = 0;
+    inbound = (uint8_t *) &size;
+    while (bcount < 2) {
+        int ret = 0;
+
+        if ((ret = read(in_fd, &inbound[bcount], 2 - bcount)) < 0) {
+            snprintf(status, STATUS_MAX, "WARNING: read() error getting text size: %d %s",
+                     errno, strerror(errno));
+
+            if (!silent)
+                fprintf(stderr, "%s\n", status);
+
+            NetWriteStatus(status);
+
+            return -1;
+        }
+
+        bcount += ret;
+    }
+
+    bcount = 0;
+    inbound = new uint8_t[size + 1];
+    while (bcount < size) {
+        int ret = 0;
+
+        if ((ret = read(in_fd, &inbound[bcount], size - bcount)) < 0) {
+            snprintf(status, STATUS_MAX, "WARNING: read() error getting text content: %d %s",
+                     errno, strerror(errno));
+
+            if (!silent)
+                fprintf(stderr, "%s\n", status);
+
+            NetWriteStatus(status);
+
+            delete[] inbound;
+            return -1;
+        }
+
+        bcount += ret;
+    }
+
+    inbound[bcount] = '\0';
+
+    if (!silent)
+        fprintf(stderr, "%s\n", (char *) inbound);
+    NetWriteStatus((char *) inbound);
+
+    delete[] inbound;
+
+    return 1;
 }
 
 int main(int argc,char *argv[]) {
@@ -1285,6 +1724,14 @@ int main(int argc,char *argv[]) {
                     ((source_from_cmd == 0) || (enable_from_cmd == 1)),
                     &timetracker, gps);
 
+    for (unsigned int x = 0; x < packet_sources.size(); x++) {
+        if (packet_sources[x]->source == NULL)
+            continue;
+
+        if (SpawnCapSourceChild(packet_sources[x]) < 0)
+            exit(1);
+    }
+
     // Once the packet source is opened, we shouldn't need special privileges anymore
     // so lets drop to a normal user.  We also don't want to open our logfiles as root
     // if we can avoid it.  Once we've dropped, we'll investigate our sources again and
@@ -1303,6 +1750,14 @@ int main(int argc,char *argv[]) {
     BindUserSources(&packet_sources, &enable_name_map,
                     ((source_from_cmd == 0) || (enable_from_cmd == 1)),
                     &timetracker, gps);
+
+    for (unsigned int x = 0; x < packet_sources.size(); x++) {
+        if (packet_sources[x]->source == NULL)
+            continue;
+
+        if (SpawnCapSourceChild(packet_sources[x]) < 0)
+            exit(1);
+    }
 
     // See if we tried to enable something that didn't exist
     if (enable_name_map.size() == 0) {
@@ -2415,12 +2870,26 @@ int main(int argc,char *argv[]) {
         if (packet_sources[x]->source == NULL)
             continue;
 
-        int source_descrip = packet_sources[x]->source->FetchDescriptor();
-        if (source_descrip > 0) {
-            FD_SET(source_descrip, &read_set);
-            if (source_descrip > max_fd)
-                max_fd = source_descrip;
+        FD_SET(packet_sources[x]->childpair[0], &read_set);
+
+        if (packet_sources[x]->childpair[0] > max_fd)
+            max_fd = packet_sources[x]->childpair[0];
+
+        FD_SET(packet_sources[x]->textpair[0], &read_set);
+
+        if (packet_sources[x]->textpair[0] > max_fd)
+            max_fd = packet_sources[x]->textpair[0];
+
+        // Activate the source
+        int8_t child_cmd = CAPCMD_ACTIVATE;
+        if (write(packet_sources[x]->servpair[1], &child_cmd, 1) < 1) {
+            fprintf(stderr, "FATAL: Could not write activate command to source %s.\n",
+                    packet_sources[x]->name.c_str());
+            exit(1);
         }
+
+        packet_sources[x]->alive = 1;
+
     }
 
     map<mac_addr, int>::iterator fitr;
@@ -2476,23 +2945,36 @@ int main(int argc,char *argv[]) {
             if (packet_sources[src]->source == NULL)
                 continue;
 
-            KisPacketSource *psrc = packet_sources[src]->source;
+            // Ping them
+            int8_t child_cmd = CAPCMD_NULL;
 
-            // Jump through hoops to handle generic packet source
-            int process_packet_source = 0;
-            if (psrc->FetchDescriptor() < 0) {
-                process_packet_source = 1;
-            } else {
-                if (FD_ISSET(psrc->FetchDescriptor(), &rset)) {
-                    process_packet_source = 1;
+            if (write(packet_sources[src]->servpair[1], &child_cmd, 1) < 0) {
+                snprintf(status, STATUS_MAX,
+                         "Source %d (%s): Command pipe shut down.", src, packet_sources[src]->name.c_str());
+                NetWriteStatus(status);
+
+                packet_sources[src]->alive = 0;
+
+                if (!silent) {
+                    fprintf(stderr, "%s\n", status);
+                    fprintf(stderr, "Terminating.\n");
                 }
+
+                CatchShutdown(-1);
             }
 
-            if (process_packet_source) {
+            if (FD_ISSET(packet_sources[src]->textpair[0], &rset)) {
+                int len;
+                len = FetchChildText(packet_sources[src]->textpair[0]);
+            }
+
+            if (FD_ISSET(packet_sources[src]->childpair[0], &rset)) {
                 int len;
 
                 // Capture the packet from whatever device
-                len = psrc->FetchPacket(&packet, data, moddata);
+                // len = psrc->FetchPacket(&packet, data, moddata);
+
+                len = FetchChildPacket(packet_sources[src]->childpair[0], &packet, data, moddata);
 
                 // Handle a packet
                 if (len > 0) {
@@ -2699,12 +3181,14 @@ int main(int argc,char *argv[]) {
 
                 } else if (len < 0) {
                     // Fail on error
+                    /*
                     if (!silent) {
                         fprintf(stderr, "Source %d: %s\n", src, psrc->FetchError());
                         fprintf(stderr, "Terminating.\n");
-                    }
+                        }
 
-                    NetWriteStatus(psrc->FetchError());
+                        NetWriteStatus(psrc->FetchError());
+                        */
                     CatchShutdown(-1);
                 }
             } // End processing new packets

@@ -163,4 +163,10 @@ int Prism2Source::Prism2Common(kis_packet *packet, uint8_t *data, uint8_t *modda
     return 1;
 }
 
+int Prism2Source::SetChannel(unsigned int chan) {
+
+    return 1;
+}
+
+
 #endif
