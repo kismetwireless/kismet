@@ -41,8 +41,9 @@
 #define WSP100_TAG_RADIO_FCSERR   0x11   // FCS error in packet
 #define WSP100_TAG_RADIO_CHANNEL  0x12   // Channel, unsigned
 
-#define TZSP_NULL_PACKET          0x01C40000 // for TZSP v1 at least
-#define TZSP_NULL_PACKET_SLICE    15 * SERVER_TIMESLICES_SEC  // must be less than 32, and consists of timer slices (100000us)
+#define TZSP_PORT                 0x9090 // UDP port to send TZSP packets to
+#define TZSP_NULL_PACKET          {1,4,0,0} // Keepalive packet
+#define TZSP_NULL_PACKET_SLICE    5 * SERVER_TIMESLICES_SEC  // must be less than 32, and consists of timer slices (100000us)
 
 int Wsp100PokeSensor(Timetracker::timer_event *evt, void *call_parm);
 
