@@ -1,4 +1,5 @@
 Oct 25 2004  devel  Fixed 2 errors on bigendian in "stable-devel"
+                    Fixed hanging socket on gpsd reconnect
 Sep 08 2004  devel  Fixed earthdistance math w/ info from ESR for network 
                      distance guessing during live capture
 Sep 01 2004  devel  Split up packet.h into endian and macaddr files in prep

@@ -47,6 +47,9 @@ char *GPSD::FetchError() {
 }
 
 int GPSD::OpenGPSD() {
+    if (sock)
+        close(sock);
+
     // Find our host
     h = gethostbyname(host);
     if (h == NULL) {
