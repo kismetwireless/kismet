@@ -62,6 +62,17 @@ monitor mode by configuring
 .Nm kismet
 for your card and running 
 .Nm kismet_monitor
+as root.
+.Pp
+.Nm kismet
+is installed as suid-root by default.  It will drop privs to the user
+specified in 
+.Nm kismet.conf
+immediately after binding to the capture source.
+.Nm kismet_monitor
+must be run as root, as it modifies the state of the wireless card.
+.Nm kismet
+can be run as any user due to the aforementioned privilege drop.
 
 .Sh KISMET_SERVER
 .Nm kismet_server
@@ -70,7 +81,7 @@ captures, dissects, and logs packets and GPS data.  It is capable of running in
 be connected to a single server.
 .Bl -tag -width flag
 .It Fl t
-Set the title used for the %t field of the logfile template (Default: Kimset)
+Set the title used for the %t field of the logfile template (Default: Kismet)
 .It Fl n
 Disable all logging
 .It Fl f
