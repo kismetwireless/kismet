@@ -270,7 +270,6 @@ enum protocol_info_type {
     proto_netstumbler,
     proto_lucenttest,
     proto_wellenreiter,
-    proto_gstsearch,
     proto_iapp
 };
 

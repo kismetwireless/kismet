@@ -774,11 +774,7 @@ int Packetracker::ProcessDataPacket(packet_info info, wireless_network *net, cha
     } else if (info.proto.type == proto_netstumbler) {
         // Handle netstumbler packets
 
-        // Only raise an alert when we haven't raised one for this client
-        // before.
-        /*
-        if ((net->alertmap & RAISED_NETSTUMBLER_ALERT) == 0) {
-            net->alertmap |= RAISED_NETSTUMBLER_ALERT;
+        if (alertracker->PotentialAlert(netstumbler_aref) > 0) {
             char *nsversion;
 
             switch (info.proto.prototype_extra) {
@@ -800,49 +796,35 @@ int Packetracker::ProcessDataPacket(packet_info info, wireless_network *net, cha
                      nsversion, client->mac.Mac2String().c_str());
 
             ret = TRACKER_ALERT;
-            }
-            */
+
+            alertracker->RaiseAlert(netstumbler_aref, in_status);
+        }
 
     } else if (info.proto.type == proto_lucenttest) {
         // Handle lucent test packets
 
-        // only raise a status when we ahven't raised one before
-        /*
-        if ((net->alertmap & RAISED_LUCENT_ALERT) == 0) {
-            net->alertmap |= RAISED_LUCENT_ALERT;
-
+        if (alertracker->PotentialAlert(lucenttest_aref) > 0) {
             snprintf(in_status, STATUS_MAX, "Lucent link test detected from %s",
                      client->mac.Mac2String().c_str());
 
             ret = TRACKER_ALERT;
-            }
-            */
+
+            alertracker->RaiseAlert(lucenttest_aref, in_status);
+        }
+
+
     } else if (info.proto.type == proto_wellenreiter) {
         // Handle wellenreiter packets
-        /*
-        if ((net->alertmap & RAISED_WELLENREITER_ALERT) == 0) {
-            net->alertmap |= RAISED_WELLENREITER_ALERT;
 
+        if (alertracker->PotentialAlert(wellenreiter_aref) > 0) {
             snprintf(in_status, STATUS_MAX, "Wellenreiter probe detected from %s",
                      client->mac.Mac2String().c_str());
 
             ret = TRACKER_ALERT;
-            }
-            */
-    } else if (info.proto.type == proto_gstsearch) {
-        // Handle gstsearch exploits
-        /*
-        if ((net->alertmap & RAISED_GSTSEARCH_ALERT) == 0) {
-            net->alertmap |= RAISED_GSTSEARCH_ALERT;
 
-            snprintf(in_status, STATUS_MAX, "gstsearch AP exploit attempt detected from %hd.%hd.%hd.%hd (%s)",
-                     info.proto.source_ip[0], info.proto.source_ip[1],
-                     info.proto.source_ip[2], info.proto.source_ip[3],
-                     client->mac.Mac2String().c_str());
+            alertracker->RaiseAlert(wellenreiter_aref, in_status);
+        }
 
-            ret = TRACKER_ALERT;
-            }
-            */
     }
 
     return ret;
