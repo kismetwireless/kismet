@@ -38,7 +38,8 @@ enum card_type {
     card_wtapfile,
     card_viha,
     card_ar5k,
-    card_drone
+    card_drone,
+    card_prism2_avs
 };
 
 // Packet capture source superclass

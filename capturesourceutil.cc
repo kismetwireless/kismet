@@ -129,7 +129,9 @@ int BindRootSources(vector<capturesource *> *in_capsources, map<string, int> *in
         else if (!strcasecmp(sctype, "ar5k"))
             csrc->cardtype = card_ar5k;
         else if (!strcasecmp(sctype, "drone"))
-            csrc->cardtype= card_drone;
+            csrc->cardtype = card_drone;
+        else if (!strcasecmp(sctype, "prism2_avs"))
+            csrc->cardtype = card_prism2_avs;
         else {
             fprintf(stderr, "FATAL:  Source %d (%s):  Unknown card type '%s'\n", src, csrc->name.c_str(), sctype);
             exit(1);
@@ -149,7 +151,8 @@ int BindRootSources(vector<capturesource *> *in_capsources, map<string, int> *in
 #endif
         } else if (ctype == card_cisco || ctype == card_cisco_cvs || ctype == card_cisco_bsd ||
                    ctype == card_prism2 || ctype == card_prism2_bsd || ctype == card_prism2_hostap ||
-                   ctype == card_orinoco || ctype == card_generic || ctype == card_ar5k) {
+                   ctype == card_orinoco || ctype == card_generic || ctype == card_ar5k ||
+                   ctype == card_prism2_avs) {
 #ifdef HAVE_LIBPCAP
             if (csrc->interface == "") {
                 fprintf(stderr, "FATAL:  Source %d (%s): No capture device specified.\n", src, csrc->name.c_str());

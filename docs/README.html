@@ -243,6 +243,13 @@ and many more new features.<br>
 		such as data-ack and request-to-send.  Logging of these can be controlled with
 		the 'phylog' option.
 		<br>
+		<li>'prism2_avs':  Wlan-ng 0.2.0 and higher.<br>
+		Capture interface:  wlanX<br>
+		Notes:  Wlan-ng 0.2.0 introduces a new capture header with MUCH more information
+		from the radio.  Kismet doesn't entirely take advantage of these new headers
+		yet, but wherever possible, use the prism2_avs capture source.  As Wlan-ng 0.2.0+
+		becomes more widely adopted, prism2_avs will become the default prism2 behavior.
+		<br>
 		<li>'prism2_legacy':  Legacy wlan-ng drivers (0.1.13 and earlier)<br>
 		Capture interface:  wlanX<br>
 		Notes:  All users able to do so should upgrade their wlan-ng drivers to a newer
