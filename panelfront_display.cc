@@ -2182,9 +2182,6 @@ int PanelFront::StatsPrinter(void *in_window) {
         if (context_list[x]->tagged == 1 && context_list[x]->client != NULL) {
             vector<wireless_network *> netlist = context_list[x]->client->FetchNetworkList();
 
-            snprintf(output, print_width, "Fetched: %d", netlist.size());
-            details_text.push_back(output);
-
             // Summarize the network data
             for (unsigned int x = 0; x < netlist.size(); x++) {
                 if (netlist[x]->channel > 0 && netlist[x]->channel < CHANNEL_MAX) {

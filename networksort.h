@@ -33,7 +33,7 @@ public:
 
 class SortLastTimeLT {
 public:
-    bool operator() (const wireless_network *x, const wireless_network *y) const {
+    inline bool operator() (const wireless_network *x, const wireless_network *y) const {
         if (x->last_time < y->last_time)
             return 1;
         return 0;
@@ -43,7 +43,7 @@ public:
 
 class SortFirstTime {
 public:
-    bool operator() (const wireless_network *x, const wireless_network *y) const {
+    inline bool operator() (const wireless_network *x, const wireless_network *y) const {
         if (x->first_time > y->first_time)
             return 1;
         return 0;
@@ -52,7 +52,7 @@ public:
 
 class SortFirstTimeLT {
 public:
-    bool operator() (const wireless_network *x, const wireless_network *y) const {
+    inline bool operator() (const wireless_network *x, const wireless_network *y) const {
         if (x->first_time < y->first_time)
             return 1;
         return 0;
@@ -61,7 +61,7 @@ public:
 
 class SortBSSID {
 public:
-    bool operator() (const wireless_network *x, const wireless_network *y) const {
+    inline bool operator() (const wireless_network *x, const wireless_network *y) const {
         if (y->bssid < x->bssid)
             return 1;
         return 0;
@@ -70,7 +70,7 @@ public:
 
 class SortBSSIDLT {
 public:
-    bool operator() (const wireless_network *x, const wireless_network *y) const {
+    inline bool operator() (const wireless_network *x, const wireless_network *y) const {
         if (x->bssid < y->bssid)
             return 1;
         return 0;
@@ -80,7 +80,7 @@ public:
 
 class SortSSID {
 public:
-    bool operator() (const wireless_network *x, const wireless_network *y) const {
+    inline bool operator() (const wireless_network *x, const wireless_network *y) const {
         if (x->ssid > y->ssid)
             return 1;
         return 0;
@@ -89,7 +89,7 @@ public:
 
 class SortSSIDLT {
 public:
-    bool operator() (const wireless_network *x, const wireless_network *y) const {
+    inline bool operator() (const wireless_network *x, const wireless_network *y) const {
         if (x->ssid < y->ssid)
             return 1;
         return 0;
@@ -98,7 +98,7 @@ public:
 
 class SortWEP {
 public:
-    bool operator() (const wireless_network *x, const wireless_network *y) const {
+    inline bool operator() (const wireless_network *x, const wireless_network *y) const {
         if (x->wep > y->wep)
             return 1;
         return 0;
@@ -107,7 +107,7 @@ public:
 
 class SortChannel {
 public:
-    bool operator() (const wireless_network *x, const wireless_network *y) const {
+    inline bool operator() (const wireless_network *x, const wireless_network *y) const {
         if (x->channel < y->channel)
             return 1;
         return 0;
@@ -116,7 +116,7 @@ public:
 
 class SortPacketsLT {
 public:
-    bool operator() (const wireless_network *x, const wireless_network *y) const {
+    inline bool operator() (const wireless_network *x, const wireless_network *y) const {
         if ((x->llc_packets + x->data_packets) <
             (y->llc_packets + y->data_packets))
             return 1;
@@ -126,7 +126,7 @@ public:
 
 class SortPackets {
 public:
-    bool operator() (const wireless_network *x, const wireless_network *y) const {
+    inline bool operator() (const wireless_network *x, const wireless_network *y) const {
         if ((x->llc_packets + x->data_packets) >
             (y->llc_packets + y->data_packets))
             return 1;
@@ -136,7 +136,7 @@ public:
 
 class SortQuality {
 public:
-    bool operator() (const wireless_network *x, const wireless_network *y) const {
+    inline bool operator() (const wireless_network *x, const wireless_network *y) const {
         if (x->quality > y->quality)
             return 1;
         return 0;
@@ -145,7 +145,7 @@ public:
 
 class SortSignal {
 public:
-    bool operator() (const wireless_network *x, const wireless_network *y) const {
+    inline bool operator() (const wireless_network *x, const wireless_network *y) const {
         if (x->signal > y->signal)
             return 1;
         return 0;

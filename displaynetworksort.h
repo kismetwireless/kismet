@@ -25,7 +25,7 @@
 
 class DisplaySortLastTime {
 public:
-    bool operator() (const display_network *x, const display_network *y) const {
+    inline bool operator() (const display_network *x, const display_network *y) const {
         if (x->type == group_empty)
             return 0;
         if (y->type == group_empty)
@@ -39,7 +39,7 @@ public:
 
 class DisplaySortLastTimeLT {
 public:
-    bool operator() (const display_network *x, const display_network *y) const {
+    inline bool operator() (const display_network *x, const display_network *y) const {
         if (x->type == group_empty)
             return 0;
         if (y->type == group_empty)
@@ -54,7 +54,7 @@ public:
 
 class DisplaySortFirstTime {
 public:
-    bool operator() (const display_network *x, const display_network *y) const {
+    inline bool operator() (const display_network *x, const display_network *y) const {
         if (x->type == group_empty)
             return 0;
         if (y->type == group_empty)
@@ -68,7 +68,7 @@ public:
 
 class DisplaySortFirstTimeLT {
 public:
-    bool operator() (const display_network *x, const display_network *y) const {
+    inline bool operator() (const display_network *x, const display_network *y) const {
         if (x->type == group_empty)
             return 0;
         if (y->type == group_empty)
@@ -82,7 +82,7 @@ public:
 
 class DisplaySortBSSID {
 public:
-    bool operator() (const display_network *x, const display_network *y) const {
+    inline bool operator() (const display_network *x, const display_network *y) const {
         if (x->type == group_empty)
             return 0;
         if (y->type == group_empty)
@@ -96,7 +96,7 @@ public:
 
 class DisplaySortBSSIDLT {
 public:
-    bool operator() (const display_network *x, const display_network *y) const {
+    inline bool operator() (const display_network *x, const display_network *y) const {
         if (x->type == group_empty)
             return 0;
         if (y->type == group_empty)
@@ -111,7 +111,7 @@ public:
 
 class DisplaySortSSID {
 public:
-    bool operator() (const display_network *x, const display_network *y) const {
+    inline bool operator() (const display_network *x, const display_network *y) const {
         if (x->type == group_empty)
             return 0;
         if (y->type == group_empty)
@@ -125,7 +125,7 @@ public:
 
 class DisplaySortSSIDLT {
 public:
-    bool operator() (const display_network *x, const display_network *y) const {
+    inline bool operator() (const display_network *x, const display_network *y) const {
         if (x->type == group_empty)
             return 0;
         if (y->type == group_empty)
@@ -139,7 +139,7 @@ public:
 
 class DisplaySortWEP {
 public:
-    bool operator() (const display_network *x, const display_network *y) const {
+    inline bool operator() (const display_network *x, const display_network *y) const {
         if (x->type == group_empty)
             return 0;
         if (y->type == group_empty)
@@ -153,7 +153,7 @@ public:
 
 class DisplaySortChannel {
 public:
-    bool operator() (const display_network *x, const display_network *y) const {
+    inline bool operator() (const display_network *x, const display_network *y) const {
         if (x->type == group_empty)
             return 0;
         if (y->type == group_empty)
@@ -167,7 +167,7 @@ public:
 
 class DisplaySortPacketsLT {
 public:
-    bool operator() (const display_network *x, const display_network *y) const {
+    inline bool operator() (const display_network *x, const display_network *y) const {
         if (x->type == group_empty)
             return 0;
         if (y->type == group_empty)
@@ -182,7 +182,7 @@ public:
 
 class DisplaySortPackets {
 public:
-    bool operator() (const display_network *x, const display_network *y) const {
+    inline bool operator() (const display_network *x, const display_network *y) const {
         if (x->type == group_empty)
             return 0;
         if (y->type == group_empty)
@@ -197,7 +197,7 @@ public:
 
 class DisplaySortQuality {
 public:
-    bool operator() (const display_network *x, const display_network *y) const {
+    inline bool operator() (const display_network *x, const display_network *y) const {
         if (x->type == group_empty)
             return 0;
         if (y->type == group_empty)
@@ -211,7 +211,7 @@ public:
 
 class DisplaySortSignal {
 public:
-    bool operator() (const display_network *x, const display_network *y) const {
+    inline bool operator() (const display_network *x, const display_network *y) const {
         if (x->type == group_empty)
             return 0;
         if (y->type == group_empty)
@@ -225,7 +225,7 @@ public:
 
 class ClientSortLastTime {
 public:
-    bool operator() (const wireless_client *x, const wireless_client *y) const {
+    inline bool operator() (const wireless_client *x, const wireless_client *y) const {
         if (x->last_time > y->last_time)
             return 1;
         return 0;
@@ -234,7 +234,7 @@ public:
 
 class ClientSortLastTimeLT {
 public:
-    bool operator() (const wireless_client *x, const wireless_client *y) const {
+    inline bool operator() (const wireless_client *x, const wireless_client *y) const {
         if (x->last_time < y->last_time)
             return 1;
         return 0;
@@ -244,7 +244,7 @@ public:
 
 class ClientSortFirstTime {
 public:
-    bool operator() (const wireless_client *x, const wireless_client *y) const {
+    inline bool operator() (const wireless_client *x, const wireless_client *y) const {
         if (x->first_time > y->first_time)
             return 1;
         return 0;
@@ -253,7 +253,7 @@ public:
 
 class ClientSortFirstTimeLT {
 public:
-    bool operator() (const wireless_client *x, const wireless_client *y) const {
+    inline bool operator() (const wireless_client *x, const wireless_client *y) const {
         if (x->first_time < y->first_time)
             return 1;
         return 0;
@@ -263,7 +263,7 @@ public:
 
 class ClientSortMAC {
 public:
-    bool operator() (const wireless_client *x, const wireless_client *y) const {
+    inline bool operator() (const wireless_client *x, const wireless_client *y) const {
         if (y->mac < x->mac)
             return 1;
         return 0;
@@ -272,7 +272,7 @@ public:
 
 class ClientSortMACLT {
 public:
-    bool operator() (const wireless_client *x, const wireless_client *y) const {
+    inline bool operator() (const wireless_client *x, const wireless_client *y) const {
         if (x->mac < y->mac)
             return 1;
         return 0;
@@ -281,7 +281,7 @@ public:
 
 class ClientSortWEP {
 public:
-    bool operator() (const wireless_client *x, const wireless_client *y) const {
+    inline bool operator() (const wireless_client *x, const wireless_client *y) const {
         if (x->wep > y->wep)
             return 1;
         return 0;
@@ -290,7 +290,7 @@ public:
 
 class ClientSortChannel {
 public:
-    bool operator() (const wireless_client *x, const wireless_client *y) const {
+    inline bool operator() (const wireless_client *x, const wireless_client *y) const {
         if (x->channel < y->channel)
             return 1;
         return 0;
@@ -299,7 +299,7 @@ public:
 
 class ClientSortPacketsLT {
 public:
-    bool operator() (const wireless_client *x, const wireless_client *y) const {
+    inline bool operator() (const wireless_client *x, const wireless_client *y) const {
         if (x->data_packets < y->data_packets)
             return 1;
         return 0;
@@ -308,7 +308,7 @@ public:
 
 class ClientSortPackets {
 public:
-    bool operator() (const wireless_client *x, const wireless_client *y) const {
+    inline bool operator() (const wireless_client *x, const wireless_client *y) const {
         if (x->data_packets > y->data_packets)
             return 1;
         return 0;
@@ -317,7 +317,7 @@ public:
 
 class ClientSortQuality {
 public:
-    bool operator() (const wireless_client *x, const wireless_client *y) const {
+    inline bool operator() (const wireless_client *x, const wireless_client *y) const {
         if (x->quality > y->quality)
             return 1;
         return 0;
@@ -326,7 +326,7 @@ public:
 
 class ClientSortSignal {
 public:
-    bool operator() (const wireless_client *x, const wireless_client *y) const {
+    inline bool operator() (const wireless_client *x, const wireless_client *y) const {
         if (x->signal > y->signal)
             return 1;
         return 0;
