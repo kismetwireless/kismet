@@ -2,6 +2,9 @@ Dec 02 2002  2.7.1  Tweaked how frontend handles group naming to be faster
                      and to handle changing SSID's gracefully.
                     Changed configfile parser to allow multiple options of the
                      same type.
+                    Revamped source handling again.  Multiple sources are now
+                     defined by multiple 'source=' lines in the config, and
+                     optionally enabled by name via the 'enablesources=' line.
 Dec 01 2002  2.7.1  Internal modifications to the frontend power display
                     Tweaked byte count details
                     Updated turbocell code

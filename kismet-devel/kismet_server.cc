@@ -703,14 +703,15 @@ int Usage(char *argv) {
            "  -n, --no-logging             No logging (only process packets)\n"
            "  -f, --config-file <file>     Use alternate config file\n"
            "  -c, --capture-source <src>   Packet capture source line (type,interface,name)\n"
-           "  -l, --log-types <types>      Comma seperated list of types to log,\n"
+           "  -C, --enable-capture-sources Comma separated list of named packet sources to use.\n"
+           "  -l, --log-types <types>      Comma separated list of types to log,\n"
            "                                (ie, dump,cisco,weak,network,gps)\n"
            "  -d, --dump-type <type>       Dumpfile type (wiretap)\n"
            "  -m, --max-packets <num>      Maximum number of packets before starting new dump\n"
            "  -q, --quiet                  Don't play sounds\n"
            "  -g, --gps <host:port>        GPS server (host:port or off)\n"
            "  -p, --port <port>            TCPIP server port for GUI connections\n"
-           "  -a, --allowed-hosts <hosts>  Comma seperated list of hosts allowed to connect\n"
+           "  -a, --allowed-hosts <hosts>  Comma separated list of hosts allowed to connect\n"
            "  -s, --silent                 Don't send any output to console.\n"
            "  -N, --server-name            Server name\n"
            "  -v, --version                Kismet version\n"
@@ -767,13 +768,17 @@ int main(int argc,char *argv[]) {
     char *client_manuf_name = NULL, *ap_manuf_name = NULL;
 
     // For commandline and file sources
+    string named_sources;
     vector<string> source_input_vec;
+    int source_from_cmd = 0;
+    int enable_from_cmd = 0;
 
     static struct option long_options[] = {   /* options table */
         { "log-title", required_argument, 0, 't' },
         { "no-logging", no_argument, 0, 'n' },
         { "config-file", required_argument, 0, 'f' },
         { "capture-source", required_argument, 0, 'c' },
+        { "enable-capture-sources", required_argument, 0, 'C' },
         { "log-types", required_argument, 0, 'l' },
         { "dump-type", required_argument, 0, 'd' },
         { "max-packets", required_argument, 0, 'm' },
@@ -799,7 +804,7 @@ int main(int argc,char *argv[]) {
     signal(SIGPIPE, SIG_IGN);
 
     while(1) {
-        int r = getopt_long(argc, argv, "d:M:t:nf:c:l:m:g:a:p:N:qhvs",
+        int r = getopt_long(argc, argv, "d:M:t:nf:c:C:l:m:g:a:p:N:qhvs",
                             long_options, &option_index);
         if (r < 0) break;
         switch(r) {
@@ -832,6 +837,13 @@ int main(int argc,char *argv[]) {
         case 'c':
             // Capture type
             source_input_vec.push_back(optarg);
+            source_from_cmd = 1;
+            break;
+        case 'C':
+            // Named sources
+            named_sources = optarg;
+            enable_from_cmd = 1;
+            fprintf(stderr, "Using specified capture sources: %s\n", named_sources.c_str());
             break;
         case 'l':
             // Log types
@@ -972,18 +984,43 @@ int main(int argc,char *argv[]) {
     // Read all of our packet sources, tokenize the input and then start opening
     // them.
 
+    if (named_sources.length() == 0) {
+        named_sources = conf->FetchOpt("enablesources");
+    }
+
+    // Parse the enabled sources into a map
+    map<string, int> enable_name_map;
+
+    unsigned int begin = 0;
+    unsigned int end = named_sources.find(",");
+    int done = 0;
+
+    // Tell them if we're enabling everything
+    if (named_sources.length() == 0)
+        fprintf(stderr, "NOTICE:  No enable sources specified, all sources will be enabled.\n");
+
+    // Command line sources override the enable line, unless we also got an enable line
+    // from the command line too.
+    if ((source_from_cmd == 0 || enable_from_cmd == 1) && named_sources.length() > 0) {
+        while (done == 0) {
+            if (end == string::npos) {
+                end = named_sources.length();
+                done = 1;
+            }
+
+            string ensrc = named_sources.substr(begin, end-begin);
+            begin = end+1;
+            end = named_sources.find(",", begin);
+
+            enable_name_map[StrLower(ensrc)] = 0;
+        }
+    }
+
     string sourceopt;
 
     // Read the config file if we didn't get any sources on the command line
-    if (source_input_vec.size() == 0) {
-        int sourcenum = 0;
-        char sourcestr[16];
-
-        while (snprintf(sourcestr, 16, "source%d", sourcenum++) &&
-               (sourceopt = conf->FetchOpt(sourcestr)) != "") {
-            source_input_vec.push_back(sourceopt);
-        }
-    }
+    if (source_input_vec.size() == 0)
+        source_input_vec = conf->FetchOptVec("source");
 
     if (source_input_vec.size() == 0) {
         fprintf(stderr, "FATAL:  No valid packet sources defined in config or passed on command line.\n");
@@ -994,8 +1031,8 @@ int main(int argc,char *argv[]) {
     for (unsigned int x = 0; x < source_input_vec.size(); x++) {
         sourceopt = source_input_vec[x];
 
-        unsigned int begin = 0;
-        unsigned int end = sourceopt.find(",");
+        begin = 0;
+        end = sourceopt.find(",");
         vector<string> optlist;
 
         while (end != string::npos) {
@@ -1028,6 +1065,17 @@ int main(int argc,char *argv[]) {
     for (unsigned int src = 0; src < packet_sources.size(); src++) {
         capturesource *csrc = packet_sources[src];
 
+        // If we didn't get sources on the command line or if we have a forced enable
+        // on the command line, check to see if we should enable this source.  If we just
+        // skip it it keeps a NULL capturesource pointer and gets ignored in the code.
+        if ((source_from_cmd == 0 || enable_from_cmd == 1) &&
+            (enable_name_map.find(StrLower(csrc->name)) == enable_name_map.end() &&
+             named_sources.length() != 0)) {
+            continue;
+        }
+
+        enable_name_map[StrLower(csrc->name)] = 1;
+
         // Figure out the card type
         const char *sctype = csrc->scardtype.c_str();
 
@@ -1054,7 +1102,7 @@ int main(int argc,char *argv[]) {
         else if (!strcasecmp(sctype, "wtapfile"))
             csrc->cardtype = card_wtapfile;
         else {
-            fprintf(stderr, "FATAL:  Unknown card type '%s'\n", sctype);
+            fprintf(stderr, "FATAL:  Source %d (%s):  Unknown card type '%s'\n", src, csrc->name.c_str(), sctype);
             exit(1);
         }
 
@@ -1063,11 +1111,11 @@ int main(int argc,char *argv[]) {
 
         if (ctype == card_prism2_legacy) {
 #ifdef HAVE_LINUX_NETLINK
-            fprintf(stderr, "Source %d: Using prism2 to capture packets.\n", src);
+            fprintf(stderr, "Source %d (%s): Using prism2 to capture packets.\n", src, csrc->name.c_str());
 
             csrc->source = new Prism2Source;
 #else
-            fprintf(stderr, "FATAL:  Source %d: Linux netlink support was not compiled in.\n", src);
+            fprintf(stderr, "FATAL:  Source %d (%s): Linux netlink support was not compiled in.\n", src, csrc->name.c_str());
             exit(1);
 #endif
         } else if (ctype == card_cisco || ctype == card_cisco_cvs || ctype == card_cisco_bsd ||
@@ -1075,55 +1123,55 @@ int main(int argc,char *argv[]) {
                    ctype == card_orinoco || ctype == card_generic) {
 #ifdef HAVE_LIBPCAP
             if (csrc->interface == "") {
-                fprintf(stderr, "FATAL:  Source %d: No capture device specified.\n", src);
+                fprintf(stderr, "FATAL:  Source %d (%s): No capture device specified.\n", src, csrc->name.c_str());
                 exit(1);
             }
 
-            fprintf(stderr, "Source %d: Using pcap to capture packets from %s\n",
-                    src, csrc->interface.c_str());
+            fprintf(stderr, "Source %d (%s): Using pcap to capture packets from %s\n",
+                    src, csrc->name.c_str(), csrc->interface.c_str());
 
             csrc->source = new PcapSource;
 #else
-            fprintf(stderr, "FATAL:  Source %d: Pcap support was not compiled in.\n", src);
+            fprintf(stderr, "FATAL:  Source %d (%s): Pcap support was not compiled in.\n", src, csrc->name.c_str());
             exit(1);
 #endif
         } else if (ctype == card_wtapfile) {
 #ifdef HAVE_LIBWIRETAP
             if (csrc->interface == "") {
-                fprintf(stderr, "FATAL:  Source %d: No capture device specified.\n", src);
+                fprintf(stderr, "FATAL:  Source %d (%s): No capture device specified.\n", src, csrc->name.c_str());
                 exit(1);
             }
 
-            fprintf(stderr, "Source %d: Defering wtapfile open until priv drop.\n", src);
+            fprintf(stderr, "Source %d (%s): Defering wtapfile open until priv drop.\n", src, csrc->name.c_str());
 #else
-            fprintf(stderr, "FATAL:  Source %d: libwiretap support was not compiled in.\n", src);
+            fprintf(stderr, "FATAL:  Source %d (%s): libwiretap support was not compiled in.\n", src, csrc->name.c_str());
             exit(1);
 #endif
 
         } else if (ctype == card_wsp100) {
 #ifdef HAVE_WSP100
             if (csrc->interface == "") {
-                fprintf(stderr, "FATAL:  Source %d: No capture device specified.\n", src);
+                fprintf(stderr, "FATAL:  Source %d (%s): No capture device specified.\n", src, csrc->name.c_str());
                 exit(1);
             }
 
-            fprintf(stderr, "Source %d: Using WSP100 to capture packets from %s.\n",
-                   src, csrc->interface.c_str());
+            fprintf(stderr, "Source %d (%s): Using WSP100 to capture packets from %s.\n",
+                   src, csrc->name.c_str(), csrc->interface.c_str());
 
             csrc->source = new Wsp100Source;
 #else
-            fprintf(stderr, "FATAL:  Source %d: WSP100 support was not compiled in.\n", src);
+            fprintf(stderr, "FATAL:  Source %d (%s): WSP100 support was not compiled in.\n", src, csrc->name.c_str());
             exit(1);
 #endif
         } else {
-            fprintf(stderr, "FATAL:  Source %d: Unhandled card type %s\n", src, csrc->scardtype.c_str());
+            fprintf(stderr, "FATAL:  Source %d (%s): Unhandled card type %s\n", src, csrc->name.c_str(), csrc->scardtype.c_str());
             exit(1);
         }
 
         // Open the packet source
         if (csrc->source != NULL)
             if (csrc->source->OpenSource(csrc->interface.c_str(), csrc->cardtype) < 0) {
-                fprintf(stderr, "FATAL: Source %d: %s\n", src, csrc->source->FetchError());
+                fprintf(stderr, "FATAL: Source %d (%s): %s\n", src, csrc->name.c_str(), csrc->source->FetchError());
                 exit(1);
             }
     }
@@ -1150,14 +1198,24 @@ int main(int argc,char *argv[]) {
 
         // For any unopened soruces...
         if (csrc->source == NULL) {
+
+            // Again, see if we should enable anything
+            if ((source_from_cmd == 0 || enable_from_cmd == 1) &&
+                (enable_name_map.find(StrLower(csrc->name)) == enable_name_map.end() &&
+                 named_sources.length() != 0)) {
+                continue;
+            }
+
+            enable_name_map[StrLower(csrc->name)] = 1;
+
             if (ctype == card_wtapfile) {
 #ifdef HAVE_LIBWIRETAP
-                fprintf(stderr, "Source %d: Loading packets from dump file %s\n",
-                       src, csrc->interface.c_str());
+                fprintf(stderr, "Source %d (%s): Loading packets from dump file %s\n",
+                       src, csrc->name.c_str(), csrc->interface.c_str());
 
                 csrc->source = new WtapFileSource;
 #else
-                fprintf(stderr, "FATAL: Source %d: Wtapfile support was not compiled in.\n", src);
+                fprintf(stderr, "FATAL: Source %d (%s): Wtapfile support was not compiled in.\n", src, csrc->name.c_str());
                 exit(1);
 #endif
             }
@@ -1165,11 +1223,28 @@ int main(int argc,char *argv[]) {
             // Open the packet source
             if (csrc->source != NULL)
                 if (csrc->source->OpenSource(csrc->interface.c_str(), csrc->cardtype) < 0) {
-                    fprintf(stderr, "FATAL: Source %d: %s\n", src, csrc->source->FetchError());
+                    fprintf(stderr, "FATAL: Source %d (%s): %s\n", src, csrc->name.c_str(), csrc->source->FetchError());
                     exit(1);
                 }
         }
     }
+
+    // See if we tried to enable something that didn't exist
+    if (enable_name_map.size() == 0) {
+        fprintf(stderr, "FATAL:  No sources were enabled.  Check your source lines in your config file\n"
+                "        and on the command line.\n");
+        exit(1);
+    }
+
+    for (map<string, int>::iterator enmitr = enable_name_map.begin();
+         enmitr != enable_name_map.end(); ++enmitr) {
+        if (enmitr->second == 0) {
+            fprintf(stderr, "FATAL:  No source with the name '%s' was found.  Check your source and enable\n"
+                    "        lines in your configfile and on the command line.\n", enmitr->first.c_str());
+            exit(1);
+        }
+    }
+
 
     // Now parse the rest of our options
     // ---------------
@@ -1396,7 +1471,7 @@ int main(int argc,char *argv[]) {
     for (unsigned int x = 0; x < strlen(allowed_hosts); x++) {
         if (!isdigit(allowed_hosts[x]) && allowed_hosts[x] != '.' &&
             allowed_hosts[x] != ',') {
-            fprintf(stderr, "FATAL:  Allowed hosts list should be a list of comma seperated IPs.\n");
+            fprintf(stderr, "FATAL:  Allowed hosts list should be a list of comma separated IPs.\n");
             exit(1);
         }
     }
@@ -1820,6 +1895,9 @@ int main(int argc,char *argv[]) {
 
     char *fuzzengines = strdup(conf->FetchOpt("fuzzycrypt").c_str());
     for (unsigned int x = 0; x < packet_sources.size(); x++) {
+        if (packet_sources[x]->source == NULL)
+            continue;
+
         if (strstr(fuzzengines, packet_sources[x]->scardtype.c_str()) ||
             strncmp(fuzzengines, "all", 3) == 0)
             packet_sources[x]->packparm.fuzzy_crypt = 1;
@@ -1899,8 +1977,11 @@ int main(int argc,char *argv[]) {
     fprintf(stderr, "%s\n", status);
 
     for (unsigned int x = 0; x < packet_sources.size(); x++) {
-        snprintf(status, STATUS_MAX, "Source %d: Capturing packets from %s (%s)",
-                 x, packet_sources[x]->source->FetchType(), packet_sources[x]->name.c_str());
+        if (packet_sources[x]->source == NULL)
+            continue;
+
+        snprintf(status, STATUS_MAX, "Source %d (%s): Capturing packets from %s",
+                 x, packet_sources[x]->name.c_str(), packet_sources[x]->source->FetchType());
         fprintf(stderr, "%s\n", status);
     }
 
@@ -1995,6 +2076,9 @@ int main(int argc,char *argv[]) {
     FD_SET(ui_descrip, &read_set);
 
     for (unsigned int x = 0; x < packet_sources.size(); x++) {
+        if (packet_sources[x]->source == NULL)
+            continue;
+
         int source_descrip = packet_sources[x]->source->FetchDescriptor();
         if (source_descrip > 0) {
             FD_SET(source_descrip, &read_set);
@@ -2054,6 +2138,9 @@ int main(int argc,char *argv[]) {
         }
 
         for (unsigned int src = 0; src < packet_sources.size(); src++) {
+            if (packet_sources[src]->source == NULL)
+                continue;
+
             PacketSource *psrc = packet_sources[src]->source;
 
             // Jump through hoops to handle generic packet source

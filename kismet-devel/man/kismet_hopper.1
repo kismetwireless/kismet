@@ -9,6 +9,7 @@
 .Op Fl hnd
 .Op Fl f Ar file
 .Op Fl c Ar capture-source
+.Op Fl C Ar enable-capture-sources
 .Op Fl s Ar hop-sequence
 .Op Fl v Ar velocity
 .Sh DESCRIPTION
@@ -20,7 +21,9 @@ enable monitoring across all of the channels in 802.11b.
 .It Fl f
 Use an alternate config file
 .It Fl c
-Override capture source lines (type,interface,name).  Refer to kismet.conf(5) for more information.
+Override capture source lines (type,interface,name).  Refer to kismet.conf(5) for more information. Multiple capture source options can be specified for multiple sources.  All sources provided here are automatically enabled unless an enable list is also supplied.
+.It Fl C
+Comma-separated list to override what capture sources are enabled.
 .It Fl d
 Divide the channel spectrum among multiple cards
 .It Fl n
