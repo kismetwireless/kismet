@@ -5,10 +5,11 @@
      dragorn@kismetwireless.net
 -->
 
-<!ELEMENT detection-run ( wireless-network* )>
+<!ELEMENT detection-run ( comment?,wireless-network* )>
 	<!ATTLIST detection-run kismet-version CDATA "na"
 			  start-time CDATA "na"
               end-time CDATA "na">
+<!ELEMENT comment (#PCDATA)>
 <!ELEMENT wireless-network ( SSID?,BSSID?,info?,channel?,maxrate?,maxseenrate?,carrier*,encoding*,packets?,gps-info?,ip-address?,datasize?,wireless-client*,cisco* )>
 	<!ATTLIST wireless-network number CDATA "0"
               type ( infrastructure | ad-hoc | probe | data | turbocell | unknown ) "unknown"

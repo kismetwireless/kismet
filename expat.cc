@@ -56,6 +56,7 @@ time_t net_run_start, net_run_end;
 enum net_xml_node {
     net_node_none,
     net_node_detection_run,
+    net_node_comment,
     net_node_wireless_network,
     net_node_wn_expired, // An expired XML tag we don't use anymore
     net_node_wn_SSID, net_node_wn_BSSID, net_node_wn_info,
@@ -353,7 +354,9 @@ static void xpat_net_start(void *data, const char *el, const char **attr) {
             fprintf(stderr, "WARNING: Illegal tag '%s' at base level\n", el);
         }
     } else if (netnode == net_node_detection_run) {
-        if (strcasecmp(el, "wireless-network") == 0) {
+        if (strcasecmp(el, "comment") == 0) {
+            netnode = net_node_comment;
+        } else if (strcasecmp(el, "wireless-network") == 0) {
             netnode = net_node_wireless_network;
 
             for (int i = 0; attr[i]; i += 2) {
@@ -656,6 +659,8 @@ static void xpat_net_end(void *data, const char *el) {
     // I hate expat.
     if (netnode == net_node_detection_run)
         netnode = net_node_none;
+    else if (netnode == net_node_comment)
+        netnode = net_node_detection_run;
     else if (netnode == net_node_wireless_network) {
         // Push our data into the network
         NetXmlStr2Struct(building_net);
@@ -796,6 +801,7 @@ time_t gps_run_start;
 enum gps_xml_node {
     gps_node_none,
     gps_node_run,
+    gps_node_comment,
     gps_node_netfile,
     gps_node_point
 };
@@ -828,6 +834,8 @@ static void xpat_gps_start(void *data, const char *el, const char **attr) {
     } else if (gpsnode == gps_node_run) {
         if (strcasecmp(el, "network-file") == 0) {
             gpsnode = gps_node_netfile;
+        } else if (strcasecmp(el, "comment") == 0) {
+            gpsnode = gps_node_comment;
         } else if (strcasecmp(el, "gps-point") == 0) {
             gpsnode = gps_node_point;
             for (int i = 0; attr[i]; i += 2) {
@@ -896,6 +904,8 @@ static void xpat_gps_end(void *data, const char *el) {
     if (gpsnode == gps_node_run) {
         gpsnode = gps_node_none;
     } else if (gpsnode == gps_node_netfile) {
+        gpsnode = gps_node_run;
+    } else if (gpsnode == gps_node_comment) {
         gpsnode = gps_node_run;
     } else if (gpsnode == gps_node_point) {
         gpsnode = gps_node_run;

@@ -5,9 +5,11 @@
      dragorn@kismetwireless.net
 -->
 
-<!ELEMENT gps-run ( network-file? gps-point*)>
+<!ELEMENT gps-run ( comment?,network-file?,gps-point* )>
 	<!ATTLIST gps-run gps-version CDATA "na"
 			  start-time CDATA "na">
+
+<!ELEMENT comment (#PCDATA)>
 
 <!ELEMENT network-file (#PCDATA)>
 
