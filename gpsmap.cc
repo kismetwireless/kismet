@@ -616,6 +616,7 @@ int DrawFeatherCircle(int in_width, Image *in_img, int in_xpos, int in_ypos,
         return -1;
     }
 
+    alpha_img->matte = (MagickBooleanType)false;
     // Draw a simple color over the entire base and let the alpha channel
     // control where it gets drawn
     base_di->fill = circlecolor;
@@ -2368,6 +2369,14 @@ void DrawNetCenterText(vector<gps_network *> in_nets, Image *in_img, DrawInfo *i
     for (unsigned int x = 0; x < in_nets.size(); x++) {
         gps_network *map_iter = in_nets[x];
 
+        map_iter->label.x = 0;
+        map_iter->label.y = 0;
+        map_iter->label.w = 0;
+        map_iter->label.h = 0;
+    }
+    for (unsigned int x = 0; x < in_nets.size(); x++) {
+        gps_network *map_iter = in_nets[x];
+
         // Skip networks w/ no determined coordinates
         if (map_iter->max_lat == 90)
             continue;
@@ -2521,27 +2530,27 @@ void DrawNetCenterText(vector<gps_network *> in_nets, Image *in_img, DrawInfo *i
             break;
         }
 
-	map_iter->label.x = (int) mapx + yoff;
-	map_iter->label.y = (int) mapy + xoff;
-	map_iter->label.h = (int) metrics.height;
-	map_iter->label.w = (int) metrics.width;
+        map_iter->label.x = (int) mapx + yoff;
+        map_iter->label.y = (int) mapy + xoff;
+        map_iter->label.h = (int) metrics.height;
+        map_iter->label.w = (int) metrics.width;
 
-	while (1) {
-	    unsigned int y;
-	    for (y = 0; y < x; y++) {
-		gps_network *map_iter1 = in_nets[y];
-		if ((map_iter1->label.x + map_iter1->label.w > map_iter->label.x)
-		 && (map_iter1->label.x < map_iter->label.x + map_iter->label.w)
-		 && (map_iter1->label.y + map_iter1->label.h > map_iter->label.y)
-		 && (map_iter1->label.y < map_iter->label.y + map_iter->label.h)) {
-			map_iter->label.y = map_iter1->label.y + map_iter1->label.h;
-			break;
-		}
-	    }
-	    if (x == y) break;
-	}
+        while (1) {
+            unsigned int y;
+            for (y = 0; y < x; y++) {
+                gps_network *map_iter1 = in_nets[y];
+                if ((map_iter1->label.x + map_iter1->label.w > map_iter->label.x)
+                 && (map_iter1->label.x < map_iter->label.x + map_iter->label.w)
+                 && (map_iter1->label.y + map_iter1->label.h > map_iter->label.y)
+                 && (map_iter1->label.y < map_iter->label.y + map_iter->label.h)) {
+                    map_iter->label.y = map_iter1->label.y + map_iter1->label.h;
+                    break;
+                }
+            }
+            if (x == y) break;
+        }
 
-        snprintf(prim, 1024, "fill-opacity 100%% stroke-opacity 100%% text %d,%d \"%s\"",
+        snprintf(prim, 1024, "fill-opacity 100%% stroke-opacity 0%% text %d,%d \"%s\"",
                  map_iter->label.x, map_iter->label.y, text);
 
         in_di->primitive = prim;
@@ -4287,6 +4296,7 @@ int main(int argc, char *argv[]) {
             CatchException(&excep);
             return -1;
         }
+        alpha_img->matte = (MagickBooleanType)false;
 
         // Composite the alpha and new map images
         // base is now the map with the new alpha channel
