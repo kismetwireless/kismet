@@ -7,6 +7,7 @@ Sep 09 2002  2.5.2  Fixed longstanding minor bug in mac_addr, failed to zero
                     Fixed gpsmap default output name
                     Fixed gpsmap tracking
                     Removed track opacity option due to imagemagick limitations
+                    Added expat.cc handling of blank CDP id's and lucent networks
 Sep 08 2002  2.5.2  First iteration of gpsmap rewriting.  Command line args are
                      COMPLETELY changed.  Expect full functionality to return
                      soon.
