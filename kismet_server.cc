@@ -342,15 +342,6 @@ void CatchShutdown(int sig) {
     exit(0);
 }
 
-void KisLocalNewnet(const wireless_network *in_net) {
-    if (globalregistry->kisnetserver->FetchNumClients() < 1)
-        return;
-
-    NETWORK_data ndata;
-    Protocol_Network2Data(in_net, &ndata);
-    globalregistry->kisnetserver->SendToAll(globalregistry->net_prot_ref, (void *) &ndata);
-}
-
 void NetWriteInfo() {
     // If we have no clients, don't do this at all, it's expensive
     if (globalregistry->kisnetserver->FetchNumClients() < 1)

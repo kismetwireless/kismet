@@ -293,6 +293,7 @@ int Protocol_INFO(PROTO_PARMS) {
         switch ((INFO_fields) (*field_vec)[x]) {
         case INFO_networks:
             out_string += idata->networks;
+            printf("debug - req'd networks, pos %d, networks '%s'\n", x, idata->networks.c_str());
             break;
         case INFO_packets:
             out_string += idata->packets;
@@ -956,7 +957,7 @@ int Clicmd_ENABLE(CLIENT_PARMS) {
         }
     } else {
         vector<string> field_vec = StrTokenize(((*parsedcmdline)[1]).word, ",");
-        for (unsigned int x = 1; x < field_vec.size(); x++) {
+        for (unsigned int x = 0; x < field_vec.size(); x++) {
             map<string, int>::iterator fitr = 
                 prot->field_map.find(StrLower(field_vec[x]));
 

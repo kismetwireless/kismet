@@ -52,6 +52,7 @@ int PacketrackerTickEvent(Timetracker::timer_event *evt, void *parm, GlobalRegis
 
 Packetracker::Packetracker() {
     fprintf(stderr, "*** Packetracker::Packetracker() called directly w/ no global registry\n");
+    globalreg = NULL;
 }
 
 Packetracker::Packetracker(GlobalRegistry *in_globalreg) {
@@ -310,10 +311,10 @@ wireless_client *Packetracker::CreateClient(const packet_info *info,
         memcpy(&net->ipdata, &bssid_ip_map[info->source_mac], sizeof(net_ip_data));
     }
 
-    if (globalreg->kisnetserver->FetchNumClientRefs(globalreg->net_prot_ref) > 0) {
-        NETWORK_data ndata;
-        Protocol_Network2Data(net, &ndata);
-        globalreg->kisnetserver->SendToAll(globalreg->net_prot_ref, (void *) &ndata);
+    if (globalreg->kisnetserver->FetchNumClientRefs(globalreg->cli_prot_ref) > 0) {
+        CLIENT_data cdata;
+        Protocol_Client2Data(net, client, &cdata);
+        globalreg->kisnetserver->SendToAll(globalreg->cli_prot_ref, (void *) &cdata);
     }
 
     return client;
@@ -433,6 +434,13 @@ void Packetracker::ProcessPacket(packet_info info) {
                      net->wep ? 'Y' : 'N',
                      net->channel, net->maxrate);
             globalreg->messagebus->InjectMessage(status, MSGFLAG_INFO);
+        }
+
+        // Do this so counts on 1-packet networks are correct
+        if (globalreg->kisnetserver->FetchNumClientRefs(globalreg->net_prot_ref)) {
+            NETWORK_data ndata;
+            Protocol_Network2Data(net, &ndata);
+            globalreg->kisnetserver->SendToAll(globalreg->net_prot_ref, (void *) &ndata);
         }
 
         if (info.gps_fix >= 2) {
@@ -598,8 +606,11 @@ void Packetracker::ProcessPacket(packet_info info) {
 
             if (probe_map.find(info.source_mac) != probe_map.end() && globalreg->track_probenets) {
                 ProcessDataPacket(info, net);
-                if (newnet == 1)
-                    KisLocalNewnet(net);
+                if (newnet == 1 && globalreg->kisnetserver->FetchNumClientRefs(globalreg->net_prot_ref)) {
+                    NETWORK_data ndata;
+                    Protocol_Network2Data(net, &ndata);
+                    globalreg->kisnetserver->SendToAll(globalreg->net_prot_ref, (void *) &ndata);
+                }
                 return;
             }
         }
@@ -768,7 +779,11 @@ void Packetracker::ProcessPacket(packet_info info) {
     } // data packet
 
     if (newnet == 1) {
-        KisLocalNewnet(net);
+        if (globalreg->kisnetserver->FetchNumClientRefs(globalreg->net_prot_ref)) {
+            NETWORK_data ndata;
+            Protocol_Network2Data(net, &ndata);
+            globalreg->kisnetserver->SendToAll(globalreg->net_prot_ref, (void *) &ndata);
+        }
 
         // Put it in itself as a client... I don't like defining the client 
         // all the way down here, but it does need to have the network in the

@@ -1,3 +1,5 @@
+Sep 22 2004  devel  Fixed parsing of enable lines that caused the first field
+                     to be dropped
 Sep 21 2004  devel  Removed spurious debug string
                     Fixed handling '*' and '\r' as final characters of a string
                     Fixed version in protocol
