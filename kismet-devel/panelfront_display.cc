@@ -677,40 +677,40 @@ int PanelFront::MainInfoPrinter(void *in_window) {
     char info[kwin->print_width];
 
     mvwaddstr(infowin, 1, 2, "Ntwrks");
-    snprintf(info, kwin->print_width, "%*d", kwin->print_width-1, client->FetchNumNetworks());
+    snprintf(info, kwin->print_width, "%*d", kwin->print_width-1, num_networks);
     mvwaddstr(infowin, 2, 2, info);
 
     mvwaddstr(infowin, 3, 2, "Pckets");
-    snprintf(info, kwin->print_width, "%*d", kwin->print_width-1, client->FetchNumPackets());
+    snprintf(info, kwin->print_width, "%*d", kwin->print_width-1, num_packets);
     mvwaddstr(infowin, 4, 2, info);
 
     if (kwin->max_display > 6) {
         mvwaddstr(infowin, 5, 2, "Cryptd");
-        snprintf(info, kwin->print_width, "%*d", kwin->print_width-1, client->FetchNumCrypt());
+        snprintf(info, kwin->print_width, "%*d", kwin->print_width-1, num_crypt);
         mvwaddstr(infowin, 6, 2, info);
     }
 
     if (kwin->max_display > 8) {
         mvwaddstr(infowin, 7, 2, "  Weak");
-        snprintf(info, kwin->print_width, "%*d", kwin->print_width-1, client->FetchNumInteresting());
+        snprintf(info, kwin->print_width, "%*d", kwin->print_width-1, num_interesting);
         mvwaddstr(infowin, 8, 2, info);
     }
 
     if (kwin->max_display > 10) {
         mvwaddstr(infowin, 9, 2, " Noise");
-        snprintf(info, kwin->print_width, "%*d", kwin->print_width-1, client->FetchNumNoise());
+        snprintf(info, kwin->print_width, "%*d", kwin->print_width-1, num_noise);
         mvwaddstr(infowin, 10, 2, info);
     }
 
     if (kwin->max_display > 12) {
         mvwaddstr(infowin, 11, 2, "Discrd");
-        snprintf(info, kwin->print_width, "%*d", kwin->print_width-1, client->FetchNumDropped());
+        snprintf(info, kwin->print_width, "%*d", kwin->print_width-1, num_dropped);
         mvwaddstr(infowin, 12, 2, info);
     }
 
     if (kwin->max_display > 14) {
         mvwaddstr(infowin, 13, 2, "Pkts/s");
-        snprintf(info, kwin->print_width, "%*d", kwin->print_width-1, client->FetchPacketRate());
+        snprintf(info, kwin->print_width, "%*d", kwin->print_width-1, packet_rate);
         mvwaddstr(infowin, 14, 2, info);
     }
 
@@ -1153,9 +1153,9 @@ int PanelFront::PowerPrinter(void *in_window) {
 
     int qual, pwr, nse;
 
-    qual = client->FetchQuality();
-    pwr = client->FetchPower();
-    nse = client->FetchNoise();
+    qual = quality;
+    pwr = power;
+    nse = noise;
 
     if (qual == -1 && pwr == -1 && nse == -1) {
         mvwaddstr(kwin->win, 2, 2, "Server did not report card power levels.");
@@ -1978,7 +1978,7 @@ int PanelFront::StatsPrinter(void *in_window) {
     snprintf(output, print_width, "Start   : %.24s", ctime((const time_t *) &start_time));
     details_text.push_back(output);
 
-    snprintf(output, print_width, "Networks: %d", client->FetchNumNetworks());
+    snprintf(output, print_width, "Networks: %d", num_networks);
     details_text.push_back(output);
 
     vector<wireless_network *> netlist = client->FetchNetworkList();
@@ -2004,21 +2004,19 @@ int PanelFront::StatsPrinter(void *in_window) {
     }
 
     snprintf(output, print_width, " Encrypted: %d (%d%%)", wep_count,
-             client->FetchNumNetworks() > 0 ?
-             (int) (((double) wep_count / client->FetchNumNetworks()) * 100) : 0);
+             num_networks > 0 ?
+             (int) (((double) wep_count / num_networks) * 100) : 0);
     details_text.push_back(output);
 
     snprintf(output, print_width, " Default  : %d (%d%%)", vuln_count,
-             client->FetchNumNetworks() > 0 ?
-             (int) (((double) vuln_count / client->FetchNumNetworks()) * 100) : 0);
+             num_networks > 0 ?
+             (int) (((double) vuln_count / num_networks) * 100) : 0);
     details_text.push_back(output);
 
-    snprintf(output, print_width, "Total packets: %d",
-             client->FetchNumPackets());
+    snprintf(output, print_width, "Total packets: %d", num_packets);
     details_text.push_back(output);
 
-    snprintf(output, print_width, "Max. Packet Rate: %d packets/sec",
-             max_packet_rate);
+    snprintf(output, print_width, "Max. Packet Rate: %d packets/sec", max_packet_rate);
     details_text.push_back(output);
 
     snprintf(output, print_width, "Channel Usage:");
@@ -2051,11 +2049,11 @@ int PanelFront::StatsPrinter(void *in_window) {
 
             snprintf(output, print_width, "%s %02d: %3d (%02d%%) | %02d: %3d (%02d%%)",
                      line, vdraw, channelperc[vdraw-1],
-                     client->FetchNumNetworks() > 0 ?
-                     (int) (((double) channelperc[vdraw-1] / client->FetchNumNetworks()) * 100) : 0,
+                     num_networks > 0 ?
+                     (int) (((double) channelperc[vdraw-1] / num_networks) * 100) : 0,
                      vdraw+1, channelperc[vdraw],
-                     client->FetchNumNetworks() > 0 ?
-                     (int) (((double) channelperc[vdraw] / client->FetchNumNetworks()) * 100) : 0);
+                     num_networks > 0 ?
+                     (int) (((double) channelperc[vdraw] / num_networks) * 100) : 0);
             vdraw += 2;
             details_text.push_back(output);
         }
@@ -2076,8 +2074,8 @@ int PanelFront::StatsPrinter(void *in_window) {
         for (unsigned int x = 0; x < CHANNEL_MAX; x++) {
             snprintf(line, print_width, "%s %02d: %3d (%2d%%)",
                      output, x+1, channelperc[x],
-                     client->FetchNumNetworks() > 0 ?
-                     (int) (((double) channelperc[x] / client->FetchNumNetworks()) * 100) : 0);
+                     num_networks > 0 ?
+                     (int) (((double) channelperc[x] / num_networks) * 100) : 0);
             strncpy(output, line, 1024);
 
             if ((x+1) % netchunk == 0) {

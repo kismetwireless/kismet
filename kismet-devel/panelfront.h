@@ -84,8 +84,11 @@ extern unsigned int metric;
 class PanelFront : public Frontend {
 public:
     PanelFront();
+    virtual ~PanelFront();
 
     void AddPrefs(map<string, string> in_prefs);
+
+    void AddClient(TcpClient *in_client);
 
     int ParseArgs(int argc, char *argv[]) { return 0; }
 
@@ -159,6 +162,50 @@ protected:
 
     // All the windows
     list<kis_window *> window_list;
+
+    // Server context records for multiple servers
+    typedef struct server_context {
+        TcpClient *client;
+
+        // Context records for all the servers that are grouped with this one, if
+        // it's actually a group
+        vector<server_context *> contexts;
+
+        int quality, power, noise;
+
+        display_network *details_network;
+        wireless_client *details_client;
+        vector<display_network *> last_displayed;
+        vector<wireless_client *> last_client_displayed;
+
+        vector<int> packet_history;
+
+        float lat, lon, spd, alt;
+        int fix;
+        float last_lat, last_lon, last_spd, last_alt;
+        int last_fix;
+
+        // Size of the group vec the last time we drew it
+        int last_draw_size;
+        int last_client_draw_size;
+
+        // Statistics
+        int max_packet_rate;
+
+        int num_networks, num_packets, num_crypt, num_interesting,
+            num_noise, num_dropped, packet_rate;
+
+    };
+
+    // Update a context on the tick function
+    void UpdateContext(server_context *con);
+    // Load a saved context into the active context
+    void LoadContext(server_context *in_context);
+    // Load a subset of the context - quick and easy way to update from groups and
+    // networks.
+    void LoadSubContext(server_context *in_context);
+    // Store the active context into a saved context
+    void StoreContext(server_context *in_context);
 
     // Printers for our main 3 panels... This pulls MOST of this out of class globals,
     // but not quite all.
@@ -266,13 +313,10 @@ protected:
     vector<display_network *> last_displayed;
     vector<wireless_client *> last_client_displayed;
 
+    int num_networks, num_packets, num_crypt, num_interesting, num_noise, num_dropped,
+        packet_rate;
+
     int hsize, vsize;
-
-    // Map of bssid's to display groups
-    //map<string, display_network *> bssidgroup_map;
-
-    // Map of BSSID's to custom names
-    //map<string, string> bssidname_map;
 
     int old_sound;
     int old_speech;
@@ -296,9 +340,7 @@ protected:
     unsigned int bat_available;
     unsigned int bat_ac;
     unsigned int bat_charging;
-#ifdef HAVE_ACPI
     unsigned int bat_full_capacity;
-#endif
 
     // Statistics
     int max_packet_rate;
@@ -315,6 +357,10 @@ protected:
     kis_window *cur_window;
 
     map<string, color_pair> color_map;
+
+    // Current context so we can update multiple servers at once
+    server_context *context;
+    vector<server_context *> context_list;
 
 };
 

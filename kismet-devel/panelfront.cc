@@ -347,6 +347,28 @@ PanelFront::PanelFront() {
     last_lat = last_lon = last_alt = last_spd = 0;
     last_fix = 0;
 
+    num_networks = num_packets = num_crypt = num_interesting = num_noise =
+        num_dropped = packet_rate = 0;
+
+    context = NULL;
+}
+
+PanelFront::~PanelFront() {
+    // Delete the dynamically allocated contexts
+    for (unsigned int x = 0; x < context_list.size(); x++)
+        delete context_list[x];
+}
+
+void PanelFront::AddClient(TcpClient *in_client) {
+    server_context *new_context = new server_context;
+    new_context->client = in_client;
+    context_list.push_back(new_context);
+
+    if (context == NULL) {
+        client = in_client;
+        StoreContext(new_context);
+        context = new_context;
+    }
 }
 
 int PanelFront::InitDisplay(int in_decay, time_t in_start) {
@@ -880,32 +902,96 @@ int PanelFront::Poll() {
     return ret;
 }
 
+void PanelFront::UpdateContext(server_context *con) {
+    if (con->client != NULL) {
+        // Update GPS
+        con->last_lat = con->lat;
+        con->last_lon = con->lon;
+        con->last_spd = con->spd;
+        con->last_alt = con->alt;
+        con->last_fix = con->fix;
+        con->client->FetchLoc(&con->lat, &con->lon, &con->alt, &con->spd, &con->fix);
+
+        // Update packet rate
+        int rate = con->client->FetchNumPackets() - con->client->FetchNumDropped();
+        int adjrate = con->client->FetchPacketRate();
+        if (adjrate > con->max_packet_rate)
+            con->max_packet_rate = adjrate;
+        con->packet_history.push_back(rate);
+        if (con->packet_history.size() > (60 * 5))
+            con->packet_history.erase(con->packet_history.begin());
+
+        con->num_networks = con->client->FetchNumNetworks();
+        con->num_packets = con->client->FetchNumPackets();
+        con->num_crypt = con->client->FetchNumCrypt();
+        con->num_interesting = con->client->FetchNumInteresting();
+        con->num_noise = con->client->FetchNumNoise();
+        con->num_dropped = con->client->FetchNumDropped();
+        con->packet_rate = con->client->FetchPacketRate();
+
+        con->quality = con->client->FetchQuality();
+        con->power = con->client->FetchPower();
+        con->noise = con->client->FetchNoise();
+
+    } else {
+        // Update all the subnetworks
+        for (unsigned int x = 0; x < con->contexts.size(); x++)
+            UpdateContext(con->contexts[x]);
+
+        // Groups don't get GPS info
+        con->lat = con->lon = con->alt = con->spd = 0;
+        con->fix = 0;
+        con->last_lat = con->last_lon = con->last_alt = con->last_spd = 0;
+        con->last_fix = 0;
+
+        // Groups don't get signal info
+        con->quality = con->power = con->noise = 0;
+
+        con->num_networks = 0;
+        con->num_packets = 0;
+        con->num_crypt = 0;
+        con->num_interesting = 0;
+        con->num_noise = 0;
+        con->num_dropped = 0;
+        con->packet_rate = 0;
+
+        int aggrate = 0; int aggadjrate = 0;
+        for (unsigned int y = 0; y < con->contexts.size(); y++) {
+            server_context *scon = con->contexts[y];
+
+            // Aggregate packet and network numbers
+            con->num_networks += scon->num_networks;
+            con->num_packets += scon->num_packets;
+            con->num_crypt += scon->num_crypt;
+            con->num_interesting += scon->num_interesting;
+            con->num_noise += scon->num_noise;
+            con->num_dropped += scon->num_dropped;
+            con->packet_rate += scon->packet_rate;
+
+            // Aggregate packet rate
+            aggrate += scon->packet_history[scon->packet_history.size() - 1];
+            aggadjrate += con->client->FetchPacketRate();
+        }
+
+        // Update the aggregate packet rates and aggregate max rate
+        if (aggadjrate > con->max_packet_rate)
+            con->max_packet_rate = aggadjrate;
+        con->packet_history.push_back(aggrate);
+        if (con->packet_history.size() > (60 * 5))
+            con->packet_history.erase(con->packet_history.begin());
+    }
+}
+
 int PanelFront::Tick() {
     // We should be getting a 1-second tick - secondary to a draw event, because
     // we can cause our own draw events which wouldn't necessarily be a good thing
 
-    last_lat = lat; last_lon = lon;
-    last_spd = spd; last_alt = alt;
-    last_fix = fix;
+    // Update all the contexts
+    for (unsigned int x = 0; x < context_list.size(); x++)
+        UpdateContext(context_list[x]);
 
-    client->FetchLoc(&lat, &lon, &alt, &spd, &fix);
-
-
-    // Pull our packet count, store it, and bounce if we're
-    // holding more than 5 minutes worth.
-
-    int rate = client->FetchNumPackets() - client->FetchNumDropped();
-
-    int adjrate = client->FetchPacketRate();
-    if (adjrate > max_packet_rate)
-        max_packet_rate = adjrate;
-
-
-    packet_history.push_back(rate);
-
-    if (packet_history.size() > (60 * 5))
-        packet_history.erase(packet_history.begin());
-
+    // Now do a subload to copy our updated current context over
+    LoadSubContext(context);
 
     // Now fetch the APM data (if so desired)
     if (monitor_bat) {
@@ -1080,5 +1166,97 @@ PanelFront::color_pair PanelFront::ColorParse(string in_color) {
     return ret;
 }
 
+void PanelFront::LoadContext(server_context *in_context) {
+    if (in_context == NULL)
+        return;
+
+    client = in_context->client;
+    quality = in_context->quality;
+    power = in_context->power;
+    noise = in_context->noise;
+    details_network = in_context->details_network;
+    details_client = in_context->details_client;
+    last_displayed = in_context->last_displayed;
+    last_client_displayed = in_context->last_client_displayed;
+    packet_history = in_context->packet_history;
+    lat = in_context->lat;
+    lon = in_context->lon;
+    alt = in_context->alt;
+    spd = in_context->spd;
+    fix = in_context->fix;
+    last_lat = in_context->last_lat;
+    last_lon = in_context->last_lon;
+    last_alt = in_context->last_alt;
+    last_spd = in_context->last_spd;
+    last_fix = in_context->last_fix;
+    last_draw_size = in_context->last_draw_size;
+    last_client_draw_size = in_context->last_client_draw_size;
+    max_packet_rate = in_context->max_packet_rate;
+    max_packet_rate = in_context->max_packet_rate;
+    num_networks = in_context->num_networks;
+    num_packets = in_context->num_packets;
+    num_crypt = in_context->num_crypt;
+    num_interesting = in_context->num_interesting;
+    num_noise = in_context->num_noise;
+    num_dropped = in_context->num_dropped;
+    packet_rate = in_context->packet_rate;
+    context = in_context;
+}
+
+void PanelFront::LoadSubContext(server_context *in_context) {
+    if (in_context == NULL)
+        return;
+
+    packet_history = in_context->packet_history;
+    quality = in_context->quality;
+    power = in_context->power;
+    noise = in_context->noise;
+    lat = in_context->lat;
+    lon = in_context->lon;
+    alt = in_context->alt;
+    spd = in_context->spd;
+    fix = in_context->fix;
+    last_lat = in_context->last_lat;
+    last_lon = in_context->last_lon;
+    last_alt = in_context->last_alt;
+    last_spd = in_context->last_spd;
+    last_fix = in_context->last_fix;
+    max_packet_rate = in_context->max_packet_rate;
+    num_networks = in_context->num_networks;
+    num_packets = in_context->num_packets;
+    num_crypt = in_context->num_crypt;
+    num_interesting = in_context->num_interesting;
+    num_noise = in_context->num_noise;
+    num_dropped = in_context->num_dropped;
+    packet_rate = in_context->packet_rate;
+}
+
+void PanelFront::StoreContext(server_context *in_context) {
+    if (in_context == NULL)
+        return;
+
+    // Some of this is automatically updated by the updatecontext code so
+    // it isn't recorded here
+    in_context->client = client;
+    in_context->quality = quality;
+    in_context->power = power;
+    in_context->noise = noise;
+    in_context->details_network = details_network;
+    in_context->details_client = details_client;
+    in_context->last_displayed = last_displayed;
+    in_context->last_client_displayed = last_client_displayed;
+    in_context->packet_history = packet_history;
+    in_context->lat = lat;
+    in_context->lon = lon;
+    in_context->alt = alt;
+    in_context->spd = spd;
+    in_context->last_lat = last_lat;
+    in_context->last_lon = last_lon;
+    in_context->last_spd = last_spd;
+    in_context->last_alt = last_alt;
+    in_context->last_fix = last_fix;
+    in_context->last_draw_size = last_draw_size;
+    in_context->last_client_draw_size = last_client_draw_size;
+}
 
 #endif
