@@ -298,10 +298,14 @@ int main(int argc, char *argv[]) {
     for (unsigned int src = 0; src < packet_sources.size(); src++) {
         char *type = packet_sources[src]->cardtype;
 
-        if ((!strcasecmp(type, "cisco") || !strcasecmp(type, "cisco_bsd")) &&
-            packet_sources.size() == 1) {
-            fprintf(stderr, "FATAL:  Cisco cards don't need to channel hop.\n");
-            exit(1);
+        if (!strcasecmp(type, "cisco") || !strcasecmp(type, "cisco_bsd") ||
+            !strcasecmp(type, "cisco_cvs")) {
+            if (packet_sources.size() == 1) {
+                fprintf(stderr, "FATAL:  Cisco cards don't need to channel hop.\n");
+                exit(1);
+            }
+            fprintf(stderr, "NOTICE:  Source %d:  Skipping, cisco cards hop internally.\n", src);
+            packet_sources[src]->cmd_template = NULL;
         } else if (!strcasecmp(type, "prism2")) {
             packet_sources[src]->cmd_template = prism2;
             divisions++;
@@ -393,8 +397,9 @@ int main(int argc, char *argv[]) {
     }
 
     for (unsigned int src = 0; src < packet_sources.size(); src++)
-        fprintf(stderr, "%s - Source %d - Channel hopping (%s) on interface %s\n",
-                argv[0], src, channame, packet_sources[src]->interface);
+        if (packet_sources[src]->cmd_template != NULL)
+            fprintf(stderr, "%s - Source %d - Channel hopping (%s) on interface %s\n",
+                    argv[0], src, channame, packet_sources[src]->interface);
 
     char cmd[1024];
     int statime = 0;
