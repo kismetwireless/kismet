@@ -752,6 +752,13 @@ i	can be connected at will.
 			DOS attack, used to decloak a hidden SSID, or be the precursor of a man in the
 			middle attacks.  Broadcast disassociations are rarely, if ever, legitimate.
 			This alert is raised whenever a broadcast disassociation is seen.<br>
+	<li>AIRJACKSSID<br>
+	Alert on: Beacon for SSID "airjack"<br>
+	Alert message: "Beaconfor SSID 'airjack' from $sourcemac"<br>
+	Tool specific: Yes<br>
+	Implemented in: AirJack<br>
+	Details: The defcon/blackhat AirJack test code sets the card to beacon as the SSID "airjack" while performing
+			other attacks.  This alert is raised whenever a beacon packet for the SSID "airjack" is seen.<br>
 	<br>
 
 </ol>

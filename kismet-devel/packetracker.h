@@ -144,12 +144,7 @@ protected:
     int filter_export;
 
     // Alert references
-    int netstumbler_aref;
-    int deauthflood_aref;
-    int lucenttest_aref;
-    int wellenreiter_aref;
-    int chanchange_aref;
-    int bcastdiscon_aref;
+    int *arefs;
 
 };
 

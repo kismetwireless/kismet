@@ -711,3 +711,12 @@
             in the middle attacks. Broadcast disassociations are rarely,
             if ever, legitimate. This alert is raised whenever a
             broadcast disassociation is seen.
+          + AIRJACKSSID
+            Alert on: Beacon for SSID "airjack"
+            Alert message: "Beaconfor SSID 'airjack' from $sourcemac"
+            Tool specific: Yes
+            Implemented in: AirJack
+            Details: The defcon/blackhat AirJack test code sets the card
+            to beacon as the SSID "airjack" while performing other
+            attacks. This alert is raised whenever a beacon packet for
+            the SSID "airjack" is seen.
