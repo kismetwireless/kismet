@@ -101,6 +101,21 @@ void GetPacketInfo(const pkthdr *header, const u_char *data,
     if (ret_packinfo == NULL)
         return;
 
+    frame_control *fc = (frame_control *) data;
+
+    uint16_t duration = 0;
+
+    // 18 bytes of normal address ranges
+    uint8_t *addr0;
+    uint8_t *addr1;
+    uint8_t *addr2;
+
+    // 2 bytes of sequence and fragment counts
+    wireless_fragseq *sequence;
+
+    // And an optional 6 bytes of address range for ds=0x3 packets
+    uint8_t *addr3;
+
     //numpack++;
 
     // Zero the entire struct
@@ -134,16 +149,19 @@ void GetPacketInfo(const pkthdr *header, const u_char *data,
         return;
     }
 
-    frame_control *fc = (frame_control *) data;
-    wireless_frame *frame = (wireless_frame *) &data[2];
+    // Endian swap the 2 byte duration from a pointer
+    duration = kptoh16(&data[2]);
 
-    // Endian swap the 2 byte duration
-    ret_packinfo->duration = ktoh16(frame->duration);
+    addr0 = (uint8_t *) &data[4];
+    addr1 = (uint8_t *) &data[10];
+    addr2 = (uint8_t *) &data[16];
+    sequence = (wireless_fragseq *) &data[22];
+    addr3 = (uint8_t *) &data[24];
 
     // Fill in packet sequence and frag info... Neither takes a full byte so we don't
     // swap them
-    ret_packinfo->sequence_number = frame->sequence.sequence;
-    ret_packinfo->frag_number = frame->sequence.frag;
+    ret_packinfo->sequence_number = sequence->sequence;
+    ret_packinfo->frag_number = sequence->frag;
 
     int tag_offset = 0;
 
@@ -213,9 +231,9 @@ void GetPacketInfo(const pkthdr *header, const u_char *data,
 
 
             // Extract the MAC's
-            ret_packinfo->dest_mac = frame->addr0;
-            ret_packinfo->source_mac = frame->addr1;
-            ret_packinfo->bssid_mac = frame->addr2;
+            ret_packinfo->dest_mac = addr0;
+            ret_packinfo->source_mac = addr1;
+            ret_packinfo->bssid_mac = addr2;
 
             ret_packinfo->type = packet_beacon;
 
@@ -239,8 +257,8 @@ void GetPacketInfo(const pkthdr *header, const u_char *data,
                 }
             }
 
-            ret_packinfo->source_mac = frame->addr1;
-            ret_packinfo->bssid_mac = frame->addr1;
+            ret_packinfo->source_mac = addr1;
+            ret_packinfo->bssid_mac = addr1;
 
             ret_packinfo->type = packet_probe_req;
 
@@ -258,9 +276,9 @@ void GetPacketInfo(const pkthdr *header, const u_char *data,
                 }
             }
 
-            ret_packinfo->dest_mac = frame->addr0;
-            ret_packinfo->source_mac = frame->addr1;
-            ret_packinfo->bssid_mac = frame->addr2;
+            ret_packinfo->dest_mac = addr0;
+            ret_packinfo->source_mac = addr1;
+            ret_packinfo->bssid_mac = addr2;
 
             // First byte of offsets
             ret_packinfo->header_offset = 24;
@@ -278,17 +296,17 @@ void GetPacketInfo(const pkthdr *header, const u_char *data,
                 }
             }
 
-            ret_packinfo->dest_mac = frame->addr0;
-            ret_packinfo->source_mac = frame->addr1;
-            ret_packinfo->bssid_mac = frame->addr2;
+            ret_packinfo->dest_mac = addr0;
+            ret_packinfo->source_mac = addr1;
+            ret_packinfo->bssid_mac = addr2;
 
         } else if (fc->subtype == 10) {
             // Disassociation
             ret_packinfo->type = packet_disassociation;
 
-            ret_packinfo->dest_mac = frame->addr0;
-            ret_packinfo->source_mac = frame->addr1;
-            ret_packinfo->bssid_mac = frame->addr2;
+            ret_packinfo->dest_mac = addr0;
+            ret_packinfo->source_mac = addr1;
+            ret_packinfo->bssid_mac = addr2;
 
             uint16_t rcode;
             memcpy(&rcode, (const char *) &msgbuf[24], 2);
@@ -298,9 +316,9 @@ void GetPacketInfo(const pkthdr *header, const u_char *data,
             // deauth
             ret_packinfo->type = packet_deauth;
 
-            ret_packinfo->dest_mac = frame->addr0;
-            ret_packinfo->source_mac = frame->addr1;
-            ret_packinfo->bssid_mac = frame->addr2;
+            ret_packinfo->dest_mac = addr0;
+            ret_packinfo->source_mac = addr1;
+            ret_packinfo->bssid_mac = addr2;
 
             uint16_t rcode;
             memcpy(&rcode, (const char *) &msgbuf[24], 2);
@@ -316,9 +334,9 @@ void GetPacketInfo(const pkthdr *header, const u_char *data,
             // Adhoc's get specially typed and their BSSID is set to
             // their source (I can't think of anything more reasonable
             // to do with them)
-            ret_packinfo->dest_mac = frame->addr0;
-            ret_packinfo->source_mac = frame->addr1;
-            ret_packinfo->bssid_mac = frame->addr1;
+            ret_packinfo->dest_mac = addr0;
+            ret_packinfo->source_mac = addr1;
+            ret_packinfo->bssid_mac = addr1;
 
             // No distribution flags
 
@@ -327,9 +345,9 @@ void GetPacketInfo(const pkthdr *header, const u_char *data,
 
             ret_packinfo->type = packet_adhoc_data;
         } else if (fc->to_ds == 0 && fc->from_ds == 1) {
-            ret_packinfo->dest_mac = frame->addr0;
-            ret_packinfo->bssid_mac = frame->addr1;
-            ret_packinfo->source_mac = frame->addr2;
+            ret_packinfo->dest_mac = addr0;
+            ret_packinfo->bssid_mac = addr1;
+            ret_packinfo->source_mac = addr2;
 
             ret_packinfo->distrib = from_distribution;
 
@@ -337,9 +355,9 @@ void GetPacketInfo(const pkthdr *header, const u_char *data,
             ret_packinfo->header_offset = 24;
 
         } else if (fc->to_ds == 1 && fc->from_ds == 0) {
-            ret_packinfo->bssid_mac = frame->addr0;
-            ret_packinfo->source_mac = frame->addr1;
-            ret_packinfo->dest_mac = frame->addr2;
+            ret_packinfo->bssid_mac = addr0;
+            ret_packinfo->source_mac = addr1;
+            ret_packinfo->dest_mac = addr2;
 
             ret_packinfo->distrib = to_distribution;
 
@@ -351,9 +369,15 @@ void GetPacketInfo(const pkthdr *header, const u_char *data,
             // Source is a special offset to the source
             // Dest is the reciever address
 
-            ret_packinfo->bssid_mac = frame->addr1;
-            ret_packinfo->source_mac = frame->addr3;
-            ret_packinfo->dest_mac = frame->addr0;
+            // If we aren't long enough to hold a intra-ds packet, bail
+            if (header->len < 30) {
+                ret_packinfo->type = packet_noise;
+                return;
+            }
+
+            ret_packinfo->bssid_mac = addr1;
+            ret_packinfo->source_mac = addr3;
+            ret_packinfo->dest_mac = addr0;
 
             ret_packinfo->distrib = inter_distribution;
 
