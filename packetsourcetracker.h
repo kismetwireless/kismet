@@ -127,6 +127,8 @@ public:
     meta_packsource *FetchMetaID(int in_id);
     // Set the channel
     int SetChannel(int in_ch, meta_packsource *in_meta);
+    // Control if a metasource hops or not
+    int SetHopping(int in_hopping, meta_packsource *in_meta);
     // Advance all the sources one channel
     int AdvanceChannel();
 

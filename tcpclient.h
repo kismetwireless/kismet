@@ -100,6 +100,7 @@ public:
         int channel;
         int id;
         int packets;
+        int hopping;
     };
 
     TcpClient();
