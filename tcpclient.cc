@@ -275,11 +275,7 @@ int TcpClient::ParseData(char *in_data) {
         } else {
             net = new wireless_network;
             net->bssid = bssid;
-            net_map[bssid] = net;
             net->tcpclient = this;
-
-            net_map_vec.push_back(net);
-            last_new_network = net;
         }
 
         scanned = sscanf(in_data+hdrlen+18, "%d \001%255[^\001]\001 \001%255[^\001]\001 "
@@ -303,8 +299,13 @@ int TcpClient::ParseData(char *in_data) {
 
         if (scanned < 44) {
             // fprintf(stderr, "Flubbed network, discarding...\n");
+            delete net;
             return 0;
         }
+
+        net_map[bssid] = net;
+        net_map_vec.push_back(net);
+        last_new_network = net;
 
         if (ssid[0] != '\002')
             net->ssid = ssid;
@@ -347,8 +348,10 @@ int TcpClient::ParseData(char *in_data) {
                          &client->best_lat, &client->best_lon, &client->best_alt,
                          (int *) &client->ipdata.atype, &ip[0], &ip[1], &ip[2], &ip[3]);
 
-        if (scanned < 38)
+        if (scanned < 38) {
+            delete client;
             return 0;
+        }
 
         bssid = bssid_str;
         client->mac = cmac_str;
