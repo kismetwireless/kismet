@@ -37,6 +37,7 @@
 #ifdef HAVE_INTTYPES_H
 #include <inttypes.h>
 #endif
+#include <algorithm>
 #include <string>
 #include <vector>
 #include <map>
@@ -542,12 +543,10 @@ protected:
     };
 
 public:
-    friend class macmap::iterator;
-
     // This isn't quite like STL iterators, because I'm too damned lazy to deal with all
     // the nasty STL hoop-jumping.  This does provide a somewhat-stl-ish interface to
     // iterating through the singleton and masked maps
-    class iterator {
+    friend class iterator {
         friend class macmap;
 
     public:
