@@ -1851,7 +1851,7 @@ int PanelFront::PackPrinter(void *in_window) {
 
         data += " ";
 
-        if ((x+1) % (kwin->print_width - 1) == 0) {
+        if ((x + 1) % (kwin->print_width - 1) == 0) {
             kwin->text.push_back(data);
             data.erase();
             singles++;
