@@ -1,4 +1,5 @@
 Jun 04 2003  2.9.1  Implemented dronesource buffer resyncs
+                    Updated kismet_drone to use new forked packet paths
 Jun 03 2003  2.9.1  Stubbed FetchChannel
                     Fixed include in PanelFront for OSX
                     Added CXX and LD flags for Viha
