@@ -451,6 +451,7 @@ PanelFront::~PanelFront() {
 void PanelFront::UpdateGroups() {
     int auto_pgroup = 0;
     int auto_dgroup = 0;
+    int move_details = 0;
 
     if (prefs["autogroup_probe"] == "true") 
         auto_pgroup = 1;
@@ -472,10 +473,9 @@ void PanelFront::UpdateGroups() {
             if (auto_pgroup && dnet->networks[0]->type == network_probe && 
                 dnet != probe_group) {
                 probevec.push_back(dnet);
-            }
-
-            if (auto_dgroup && dnet->networks[0]->type == network_data && 
-                dnet != data_group) {
+            } else if (auto_dgroup && dnet != data_group &&
+                       (dnet->networks[0]->type == network_data ||
+                        dnet->networks[0]->llc_packets == 0)) {
                 datavec.push_back(dnet);
             }
                 
@@ -489,19 +489,35 @@ void PanelFront::UpdateGroups() {
                     probe_group = CreateGroup(0, "autogroup_probe", "Probe Networks");
                 }
 
+                if (dnet == details_network)
+                    move_details = 1;
+
                 probe_group = AddToGroup(probe_group, dnet);
+
+                if (move_details == 1) {
+                    move_details = 0;
+                    details_network = probe_group;
+                }
             }
         }
 
         if (datavec.size() > 1) {
-            for (unsigned int x = 0; x < probevec.size(); x++) {
+            for (unsigned int x = 0; x < datavec.size(); x++) {
                 display_network *dnet = datavec[x];
 
                 if (data_group == NULL) {
                     data_group = CreateGroup(0, "autogroup_data", "Data Networks");
                 }
 
+                if (dnet == details_network)
+                    move_details = 1;
+
                 data_group = AddToGroup(data_group, dnet);
+
+                if (move_details == 1) {
+                    move_details = 0;
+                    details_network = data_group;
+                }
             }
 
         }
