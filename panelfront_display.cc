@@ -2308,8 +2308,8 @@ int PanelFront::PackPrinter(void *in_window) {
                 case proto_dhcp_server:
                     srcserv = getservbyport(htons(packinfo[x].proto.sport), "udp");
                     dstserv = getservbyport(htons(packinfo[x].proto.dport), "udp");
-                    sprintf(srcport, "%d", packinfo[x].proto.sport);
-                    sprintf(dstport, "%d", packinfo[x].proto.dport);
+                    snprintf(srcport, 12, "%d", packinfo[x].proto.sport);
+                    snprintf(dstport, 12, "%d", packinfo[x].proto.dport);
 
                     snprintf(dsubtype, 1024, "UDP %d.%d.%d.%d:%s->%d.%d.%d.%d:%s",
                              packinfo[x].proto.source_ip[0], packinfo[x].proto.source_ip[1],
@@ -2323,8 +2323,8 @@ int PanelFront::PackPrinter(void *in_window) {
                 case proto_misc_tcp:
                     srcserv = getservbyport(htons(packinfo[x].proto.sport), "tcp");
                     dstserv = getservbyport(htons(packinfo[x].proto.dport), "tcp");
-                    sprintf(srcport, "%d", packinfo[x].proto.sport);
-                    sprintf(dstport, "%d", packinfo[x].proto.dport);
+                    snprintf(srcport, 12, "%d", packinfo[x].proto.sport);
+                    snprintf(dstport, 12, "%d", packinfo[x].proto.dport);
                     snprintf(dsubtype, 1024, "TCP %d.%d.%d.%d:%s->%d.%d.%d.%d:%s",
                              packinfo[x].proto.source_ip[0], packinfo[x].proto.source_ip[1],
                              packinfo[x].proto.source_ip[2], packinfo[x].proto.source_ip[3],
@@ -3085,7 +3085,7 @@ int PanelFront::ServerJoinPrinter(void *in_window) {
     int port = -1;
     char msg[1024];
 
-    if (sscanf(targclient, "%1024[^:]:%d", host, &port) != 2) {
+    if (sscanf(targclient, "%1023[^:]:%d", host, &port) != 2) {
         snprintf(msg, 1024, "Illegal server '%s'.", targclient);
         WriteStatus(msg);
         return 0;

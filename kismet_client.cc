@@ -593,7 +593,7 @@ int main(int argc, char *argv[]) {
         fprintf(stderr, "WARNING:  No client_manuf file specified.  Client manufacturers will not be detected.\n");
     }
 
-    if (sscanf(server, "%1024[^:]:%d", guihost, &guiport) != 2) {
+    if (sscanf(server, "%1023[^:]:%d", guihost, &guiport) != 2) {
         fprintf(stderr, "FATAL:  Invalid server (%s) specified (host:port required)\n",
                server);
         exit(1);

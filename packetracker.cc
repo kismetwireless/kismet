@@ -1903,7 +1903,7 @@ void Packetracker::ReadSSIDMap(FILE *in_file) {
 
         if (feof(in_file)) break;
 
-        if (sscanf(dline, "%17s %1024[^\n]\n",
+        if (sscanf(dline, "%17s %1023[^\n]\n",
                    bssid_str, name) < 2)
             continue;
 

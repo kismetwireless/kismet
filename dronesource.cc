@@ -26,7 +26,7 @@ int DroneSource::OpenSource() {
 
     // Device is handled as a host:port pair - remote host we accept data
     // from, local port we open to listen for it.  yeah, it's a little weird.
-    if (sscanf(interface.c_str(), "%1024[^:]:%hd", listenhost, &port) < 2) {
+    if (sscanf(interface.c_str(), "%1023[^:]:%hd", listenhost, &port) < 2) {
         snprintf(errstr, 1024, "Couldn't parse host:port: '%s'", interface.c_str());
         return -1;
     }

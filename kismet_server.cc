@@ -2138,7 +2138,7 @@ int main(int argc,char *argv[]) {
                 gps_enable = 0;
             }
 #ifdef HAVE_GPS
-            else if (sscanf(optarg, "%1024[^:]:%d", gpshost, &gpsport) < 2) {
+            else if (sscanf(optarg, "%1023[^:]:%d", gpshost, &gpsport) < 2) {
                 fprintf(stderr, "Invalid GPS host '%s' (host:port or off required)\n",
                        optarg);
                 gps_enable = 1;
@@ -2333,7 +2333,7 @@ int main(int argc,char *argv[]) {
     // Set up the GPS object to give to the children
     if (gpsport == -1 && gps_enable) {
         if (conf->FetchOpt("gps") == "true") {
-            if (sscanf(conf->FetchOpt("gpshost").c_str(), "%1024[^:]:%d", gpshost, 
+            if (sscanf(conf->FetchOpt("gpshost").c_str(), "%1023[^:]:%d", gpshost, 
                        &gpsport) != 2) {
                 fprintf(stderr, "Invalid GPS host in config (host:port required)\n");
                 exit(1);

@@ -540,7 +540,7 @@ int TcpClient::ParseData(char *in_data) {
         char atype[128];
         alert_info alrm;
         long int in_tv_sec, in_tv_usec;
-        if (sscanf(in_data+hdrlen, "%ld %ld %128s \001%2047[^\001]\001\n", &in_tv_sec,
+        if (sscanf(in_data+hdrlen, "%ld %ld %127s \001%2047[^\001]\001\n", &in_tv_sec,
                    &in_tv_usec, atype, alrmstr) < 3)
             return 0;
         alrm.alert_ts.tv_sec = in_tv_sec;
@@ -618,7 +618,7 @@ int TcpClient::ParseData(char *in_data) {
         int cinfo_packets;
         int cinfo_hopping;
 
-        if (sscanf(in_data+hdrlen, "%64s %64s \001%128[^\001]\001 %d %d %d %d\n",
+        if (sscanf(in_data+hdrlen, "%63s %63s \001%127[^\001]\001 %d %d %d %d\n",
                    cinfo_interface, cinfo_type, cinfo_username, &cinfo_channel,
                    &cinfo_id, &cinfo_packets, &cinfo_hopping) < 7)
             return 0;

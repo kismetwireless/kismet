@@ -1,11 +1,13 @@
+Mar 07 2005  devel  Merged patch from Chris Kuethe cleaning up some possible
+                     over-by-one string parsing and to remove two warnings.
 Feb 08 2005  devel  Merged patch from Mindfab to potentially resolve some of the
                      problems with gpsd reconnecting.  Untested at the moment
                      since I don't have my GPS handy.
 Feb 06 2005  devel  Merged patch from Delicious Nougat to handle binding only
                      to the specified address for TCP servers, vs. INADDR_ANY.
-					 Currently left in the config to bind to localhost only,
-					 I've not yet decided if this will be the default for the
-					 next release or if the default will be ANY.
+                    Currently left in the config to bind to localhost only,
+                     I've not yet decided if this will be the default for the
+                     next release or if the default will be ANY.
 Feb 03 2005  devel  Added support for the rt2x00 11b and 11g cards for the
                      drivers to be released shortly
 Jan 26 2005  devel  Added typedef for MagickBooleanType on old IM libs

@@ -360,7 +360,7 @@ int main(int argc, char *argv[]) {
 
 #ifdef HAVE_GPS
     if (conf->FetchOpt("gps") == "true") {
-        if (sscanf(conf->FetchOpt("gpshost").c_str(), "%1024[^:]:%d", gpshost, &gpsport) != 2) {
+        if (sscanf(conf->FetchOpt("gpshost").c_str(), "%1023[^:]:%d", gpshost, &gpsport) != 2) {
             fprintf(stderr, "Invalid GPS host in config (host:port required)\n");
             exit(1);
         }
