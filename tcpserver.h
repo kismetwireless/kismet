@@ -36,6 +36,12 @@
 #include <fcntl.h>
 #include <errno.h>
 #include <map>
+#include <vector>
+
+#include "configfile.h"
+
+// Protocol parameters
+#define PROTO_PARMS string& out_string, const vector<int> *field_vec, const void *data
 
 #define TCP_SELECT_TIMEOUT 100
 
@@ -50,48 +56,27 @@ struct client_command {
     string cmd;
 };
 
+typedef struct server_protocol {
+    int ref_index;
+    string header;
+    int required;
+    // Double-listed (burns a little extra ram but not much) to make mapping requested
+    // fields fast.
+    map<string, int> field_map;
+    vector<string> field_vec;
+    int (*printer)(PROTO_PARMS);
+    void (*enable)(int);
+};
+
 // Client options
 struct client_opt {
-    client_opt() {
-        send_strings = 0;
-        send_packtype = 0;
-    }
+    // Map of sentence references to field lists
+    map<int, vector<int> > protocols;
 
-    bool operator== (const client_opt& op) const {
-        if (send_strings != op.send_strings)
-            return 0;
-        if (send_packtype != op.send_packtype)
-            return 0;
-
-        return 1;
-    }
-
-    bool operator!= (const client_opt& op) const {
-        if (send_strings != op.send_strings)
-            return 1;
-        if (send_packtype != op.send_packtype)
-            return 1;
-
-        return 0;
-    }
-
-    bool operator>= (const client_opt& op) const {
-        if ((op.send_strings == -1 && send_strings == op.send_strings) &&
-            (op.send_packtype == -1 && send_packtype == op.send_packtype))
-            return 1;
-
-        return 0;
-    }
-
-    int send_strings;
-    int send_packtype;
-
+    string wrbuf, cmdbuf;
 };
 
 // TCP/IP server to push data to the frontend.
-// Mostly stolen from my Dominia code... I knew that would come in
-// useful someday in a real context.
-
 class TcpServer {
 public:
     TcpServer();
@@ -108,16 +93,15 @@ public:
 
     void Kill(int in_fd);
 
-    void Stale(int in_fd);
-
     int Poll(fd_set& in_rset, fd_set& in_wset);
 
-    void Send(int in_fd, const char *in_data);
-
-    void SendToAll(const char *in_data);
-
-    // Send masked based on the client options
-    void SendToAllOpts(const char *in_data, client_opt in_optmask);
+    // Send to a specific client, if they support that refnum
+    int SendToClient(int in_fd, int in_refnum, const void *in_data);
+    // Send to all clients that support the refnum
+    int SendToAll(int in_refnum, const void *in_data);
+    // Use a little bit of indirecton to allow kismet_server to trigger sending
+    // capabilities after it sends our KISMET headers
+    int SendMainProtocols(int in_fd, int proto_ref);
 
     void Shutdown();
 
@@ -126,11 +110,39 @@ public:
     inline int isClient(int fd) { return FD_ISSET(fd, &client_fds); }
     int HandleClient(int fd, client_command *c, fd_set *rds, fd_set *wrs);
 
-    int GetClientOpts(int in_client, client_opt *in_opt);
-    int SetClientOpts(int in_client, client_opt in_opt);
+    // Register an output sentence.  This needs:
+    // * A header (ie, NETWORK)
+    // * A NULL-terminated array of fields
+    // * A pointer to a printer that takes a void * and a vector of field numbers
+    //   and outputs a c++ string
+    // * An optional pointer to a function that takes the file descriptor of a client
+    //   that triggers whatever events should happen the the client enables this kind
+    //   of protocol.  (ie, send all networks when the client enables the *NETWORK
+    //   protocol)
+    // It returns the index number of the sentence added.
+    int RegisterProtocol(string in_header, int in_required, char **in_fields,
+                         int (*in_printer)(PROTO_PARMS),
+                         void (*in_enable)(int));
+    int FetchProtocolRef(string in_header);
+    // How many clients are using this protocol type?
+    int FetchNumClientRefs(int in_refnum);
 
 protected:
+    void AddProtocolClient(int in_fd, int in_refnum, vector<int> in_fields);
+    void DelProtocolClient(int in_fd, int in_refnum);
+
+    int RawSend(int in_fd, const char *in_data);
     int Accept();
+    int HandleInternalCommand(client_command *in_command);
+
+    // Map of reference numbers to sentences
+    map<int, server_protocol *> protocol_map;
+    // Map of headers to reference numbers
+    map<string, int> ref_map;
+    // Protocols clients are required to support
+    vector<int> required_protocols;
+    // Map of protocols to the number of clients using them
+    map<int, int> client_mapped_protocols;
 
     char errstr[1024];
 
@@ -153,14 +165,10 @@ protected:
     fd_set server_fds;
 
     fd_set client_fds;
-    fd_set stale_fds;
 
     unsigned int max_fd;
 
-    map<int, string> client_cmdbuf;
-    map<int, string> client_wrbuf;
-    map<int, client_opt> client_optmap;
-
+    map<int, client_opt *> client_optmap;
 };
 
 #endif

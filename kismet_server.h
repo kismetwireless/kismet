@@ -36,6 +36,10 @@ int SayText(string in_text);
 void NetWriteInfo();
 void NetWriteStatus(char *in_status);
 void NetWriteAlert(char *in_alert);
-void NetWriteNew(int in_fd);
+
+void ProtocolAlertEnable(int in_fd);
+void ProtocolNetworkEnable(int in_fd);
+void ProtocolClientEnable(int in_fd);
+
 
 #endif

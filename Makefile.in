@@ -27,7 +27,7 @@ LDFLAGS	= @LDFLAGS@
 LIBS	= @LIBS@
 CLIBS   = @CLIBS@
 CFLAGS	= @CPPFLAGS@
-CXXFLAGS = -O2 -Wall -DVERSION_MAJOR=$(VERSION_MAJOR) -DVERSION_MINOR=$(VERSION_MINOR) -DVERSION_TINY=$(VERSION_TINY) @CXXFLAGS@
+CXXFLAGS = -O2 -Wall -DVERSION_MAJOR=$(VERSION_MAJOR) -DVERSION_MINOR=$(VERSION_MINOR) -DVERSION_TINY=$(VERSION_TINY) -DTIMESTAMP=\"`cat TIMESTAMP`\" @CXXFLAGS@
 CPPFLAGS = @CPPFLAGS@
 SUID	= @suid@
 
@@ -47,7 +47,7 @@ PSO	= configfile.o speech.o packet.o \
 		wtapdump.o wtaplocaldump.o gpsdump.o airsnortdump.o \
 		gpsd.o packetracker.o manuf.o \
 		getopt.o \
-		tcpserver.o kismet_server.o 
+		tcpserver.o server_protocols.o kismet_server.o 
 PS	= kismet_server
 
 NCO	= configfile.o speech.o manuf.o tcpclient.o frontend.o cursesfront.o \

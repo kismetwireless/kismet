@@ -63,6 +63,12 @@ public:
         string alert_text;
     };
 
+    typedef struct string_info {
+        mac_addr bssid;
+        mac_addr source;
+        string text;
+    };
+
     TcpClient();
     ~TcpClient();
 
@@ -76,7 +82,11 @@ public:
 
     int Poll();
 
-    int Send(const char *in_data);
+    // Enable a protocol - this lets clients based off our code pick what protocols they
+    // support.
+    void EnableProtocol(string in_protocol);
+    // Disable a protocol
+    void RemoveProtocol(string in_protocol);
 
     // Fetch the location
     int FetchLoc(float *in_lat, float *in_lon, float *in_alt, float *in_spd, int *in_mode);
@@ -117,6 +127,7 @@ public:
     int FetchMajor() { return major; }
     int FetchMinor() { return minor; }
     int FetchTiny() { return tiny; }
+    char *FetchBuild() { return build; }
     time_t FetchStart() { return start_time; }
     time_t FetchTime() { return serv_time; }
 
@@ -134,7 +145,7 @@ public:
         if (strings.size() > maxstrings)
             strings.erase(strings.begin(), strings.begin() + (strings.size() - maxstrings));
     }
-    vector<string> FetchStrings() { return strings; }
+    vector<string_info> FetchStrings() { return strings; }
     void ClearStrings() { strings.clear(); }
 
     int GetMaxPackInfos() { return maxpackinfos; }
@@ -163,6 +174,7 @@ protected:
     char errstr[1024];
     char status[STATUS_MAX];
 
+    int Send(const char *in_data);
     int ParseData(char *in_data);
 
     // Active server
@@ -196,13 +208,14 @@ protected:
         old_num_interesting, old_num_noise, old_num_dropped, old_packet_rate;
 
     int major, minor, tiny;
+    char build[24];
     time_t start_time;
 
     int power, quality, noise;
 
     unsigned int maxstrings, maxpackinfos, maxalerts;
 
-    vector<string> strings;
+    vector<string_info> strings;
     vector<packet_info> packinfos;
     vector<alert_info> alerts;
 

@@ -49,7 +49,7 @@ class NCurseFront : public Frontend {
 public:
     NCurseFront();
 
-    void AddClient(TcpClient *in_client) { client = in_client; }
+    void AddClient(TcpClient *in_client);
 
     void FetchClients(vector<TcpClient *> *in_vec) {
         in_vec->clear();
