@@ -2862,9 +2862,13 @@ int main(int argc,char *argv[]) {
                                 NetWriteStatus(dumpfile->FetchError());
                                 fprintf(stderr, "FATAL: %s\n", dumpfile->FetchError());
                                 CatchShutdown(-1);
-                            } else if (ret == 0) {
+                            } 
+                            
+                            /*
+                              else if (ret == 0) {
                                 localdropnum++;
                             }
+                            */
 
                             log_packnum = dumpfile->FetchDumped();
                         }
