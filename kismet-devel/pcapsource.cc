@@ -173,6 +173,12 @@ int PcapSource::Pcap2Common(pkthdr *in_header, u_char *in_data) {
         else
             in_header->len = callback_header.caplen;
 
+        bsd_80211_header *bsdhead = (bsd_80211_header *) callback_data;
+        in_header->signal = bsdhead->wi_signal;
+
+        // No noise level so quality = percentage of max signal level
+        in_header->quality = (in_header->signal * 100) / 256;
+
         // Adjust to take out the BSD header
 
         // Set our offset
