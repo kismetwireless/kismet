@@ -61,8 +61,50 @@ typedef KisPacketSource *(*packsource_registrant)(string, string, char *);
 typedef int (*packsource_chcontrol)(const char *, int, char *, void *);
 typedef int (*packsource_monitor)(const char *, int, char *);
 
+// Packet source prototype for building an instance
+typedef struct {
+    int id;
+    string cardtype;
+    int root_required;
+    string default_channelset;
+    int initial_channel;
+    packsource_registrant registrant;
+    packsource_monitor monitor_enable;
+    packsource_monitor monitor_disable;
+    packsource_chcontrol channelcon;
+    int child_control;
+} packsource_protorec;
+
+// Meta packetsource for handling created packetsources, channel control, etc
+// Needs to contain all the information needed to control the packetsource without
+// having a valid instance of that packetsource - the root channel control process
+// has to be able to control sources not opened until user-time
+typedef struct {
+    int id;
+
+    // Channel control
+    int cmd_ack;
+    int channel_seqid;
+    vector<int> channels;
+    int ch_pos;
+    int ch_hop;
+    int cur_ch; 
+
+    // Capsource prototype
+    packsource_protorec *prototype;
+
+    // Capsource name
+    string name;
+    // Card device
+    string device;
+
+    // Actual packetsource
+    KisPacketSource *capsource;
+} meta_packsource;
+
 class Packetsourcetracker {
 public:
+
     Packetsourcetracker();
     ~Packetsourcetracker();
 
@@ -80,6 +122,10 @@ public:
     // Text gets put in errstr with a return code > 0.
     int Poll(fd_set *in_rset, fd_set *in_wset);
 
+    // Fetch a meta record for an id
+    meta_packsource *FetchMetaID(int in_id);
+    // Set the channel
+    int SetChannel(int in_ch, meta_packsource *in_meta);
     // Advance all the sources one channel
     int AdvanceChannel();
 
@@ -116,6 +162,7 @@ public:
     // Return a vector of packet sources for other things to process with (this should be
     // self-contained in the future, probably)
     vector<KisPacketSource *> FetchSourceVec();
+    vector<meta_packsource *> FetchMetaSourceVec();
    
     // Build the meta-packsource records from the requested configs provided either 
     // by the config file or the command line options.  
@@ -145,47 +192,6 @@ public:
     int CloseSources();
 
 protected:
-    // Packet source prototype for building an instance
-    typedef struct {
-        int id;
-        string cardtype;
-        int root_required;
-        string default_channelset;
-        int initial_channel;
-        packsource_registrant registrant;
-        packsource_monitor monitor_enable;
-        packsource_monitor monitor_disable;
-        packsource_chcontrol channelcon;
-        int child_control;
-    } packsource_protorec;
-
-    // Meta packetsource for handling created packetsources, channel control, etc
-    // Needs to contain all the information needed to control the packetsource without
-    // having a valid instance of that packetsource - the root channel control process
-    // has to be able to control sources not opened until user-time
-    typedef struct {
-        int id;
-
-        // Channel control
-        int cmd_ack;
-        int channel_seqid;
-        vector<int> channels;
-        int ch_pos;
-        int ch_hop;
-        int cur_ch; 
-
-        // Capsource prototype
-        packsource_protorec *prototype;
-
-        // Capsource name
-        string name;
-        // Card device
-        string device;
-
-        // Actual packetsource
-        KisPacketSource *capsource;
-    } meta_packsource;
-
     // IPC packet header - All is sent besides the data pointer
     typedef struct {
         uint32_t sentinel;

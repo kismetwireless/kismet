@@ -131,7 +131,7 @@ enum WEPKEY_fields {
 };
 
 enum CARD_fields {
-    CARD_interface, CARD_type, CARD_username, CARD_channel
+    CARD_interface, CARD_type, CARD_username, CARD_channel, CARD_id, CARD_packets
 };
 
 // Builtin client/server field contents

@@ -623,10 +623,13 @@ void Packetracker::ProcessDataPacket(packet_info info, wireless_network *net) {
     // Try to match up orphan probe networks
     wireless_network *pnet = NULL;
 
-    if (bssid_map.find(info.dest_mac) != bssid_map.end())
+    if (bssid_map.find(info.dest_mac) != bssid_map.end()) {
         pnet = bssid_map[info.dest_mac];
-    else if (bssid_map.find(info.source_mac) != bssid_map.end())
+        probe_map[info.source_mac] = pnet->bssid;
+    } else if (bssid_map.find(info.source_mac) != bssid_map.end()) { 
         pnet = bssid_map[info.source_mac];
+        probe_map[info.dest_mac] = pnet->bssid;
+    }
 
     if (pnet != NULL) {
         if (pnet->type == network_probe) {

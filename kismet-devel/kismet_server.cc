@@ -577,7 +577,7 @@ void NetWriteInfo() {
         return;
 
     // Send card info
-    vector<KisPacketSource *> packet_sources = sourcetracker.FetchSourceVec();
+    vector<meta_packsource *> packet_sources = sourcetracker.FetchMetaSourceVec();
     for (unsigned int src = 0; src < packet_sources.size(); src++) {
         ui_server.SendToAll(card_ref, (void *) packet_sources[src]);
     }
