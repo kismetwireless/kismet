@@ -104,6 +104,18 @@ int PcapSource::OpenSource(const char *dev, card_type ctype) {
     if (strlen(errstr) > 0)
         return -1; // Ditto
 
+    // Set up the ioctl stuff for pcap cards that work via the ioctl extentions
+#ifdef HAVE_LINUX_WIRELESS
+    if (ctype == card_prism2 || ctype == card_prism2_hostap || ctype == card_orinoco) {
+
+    }
+
+    // Prism2avs puts the hardware channel into the headers
+    // Cisco is uncontrollable for channel
+    // ar5k puts the hardware channel into the headers
+
+#endif
+
     num_packets = 0;
 
     snprintf(errstr, 1024, "Pcap Source opened %s", dev);
@@ -396,6 +408,12 @@ int PcapSource::SetChannel(unsigned int chan) {
     }
 
     return ret;
+}
+
+int PcapSource::FetchChannel() {
+
+
+    return 0;
 }
 
 #endif

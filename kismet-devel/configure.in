@@ -151,7 +151,7 @@ AC_STRUCT_TM
 AC_HEADER_STDC
 AC_TYPE_SIGNAL
 AC_FUNC_STAT
-AC_CHECK_FUNCS([gettimeofday memset select socket strcasecmp strftime strstr])
+AC_CHECK_FUNCS([gettimeofday memset select socket strcasecmp strftime strstr getopt_long])
 
 # Look for something to define standard int types
 stdint=yes
@@ -203,7 +203,7 @@ else
 fi
 AC_SUBST(instgrp)
 
-AC_MSG_CHECKING([for grouo 'man'])
+AC_MSG_CHECKING([for group 'man'])
 if test "`grep -e ^man: /etc/group`" = ""; then
 	AC_MSG_RESULT([no.  Using '$instgrp'])
 	mangrp="$instgrp"
@@ -448,8 +448,13 @@ AC_ARG_ENABLE(viha,
 	want_viha=yes, want_viha=no)
 if test $want_viha = "yes"; then
 	AC_CHECK_HEADERS([WiFi/WLPacketSource.h WiFi/WLFrame.h WiFi/IEEE80211Frame.h WiFi/WFException.h], 
-		AC_DEFINE(HAVE_VIHAHEADERS, 1, Viha headers are there), 
+		AC_DEFINE(HAVE_VIHAHEADERS, 1, Viha headers are there) foundviha=yes, 
 		AC_MSG_ERROR(Missing required viha headers.  Did you install the Viha drivers?))
+# Enable the ldflags and cxx flags if we found it...
+	if test $foundviha = "yes"; then
+		CXXFLAGS="$CXXFLAGS -framework WiFi"
+		LDFLAGS="$LDFLAGS -framework WiFi"
+	fi
 fi
 
 wsp100=no

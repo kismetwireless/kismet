@@ -61,6 +61,9 @@ public:
 
     int SetChannel(unsigned int chan);
 
+    // Just return 0 right now
+    int FetchChannel() { return 0; }
+
 protected:
 
     int Wsp2Common(kis_packet *packet, uint8_t *data, uint8_t *moddata);

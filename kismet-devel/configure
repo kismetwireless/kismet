@@ -4257,7 +4257,8 @@ fi
 
 
 
-for ac_func in gettimeofday memset select socket strcasecmp strftime strstr
+
+for ac_func in gettimeofday memset select socket strcasecmp strftime strstr getopt_long
 do
 as_ac_var=`echo "ac_cv_func_$ac_func" | $as_tr_sh`
 echo "$as_me:$LINENO: checking for $ac_func" >&5
@@ -4713,8 +4714,8 @@ echo "${ECHO_T}yes" >&6
 fi
 
 
-echo "$as_me:$LINENO: checking for grouo 'man'" >&5
-echo $ECHO_N "checking for grouo 'man'... $ECHO_C" >&6
+echo "$as_me:$LINENO: checking for group 'man'" >&5
+echo $ECHO_N "checking for group 'man'... $ECHO_C" >&6
 if test "`grep -e ^man: /etc/group`" = ""; then
 	echo "$as_me:$LINENO: result: no.  Using '$instgrp'" >&5
 echo "${ECHO_T}no.  Using '$instgrp'" >&6
@@ -6066,7 +6067,7 @@ _ACEOF
 cat >>confdefs.h <<\_ACEOF
 #define HAVE_VIHAHEADERS 1
 _ACEOF
-
+ foundviha=yes
 else
   { { echo "$as_me:$LINENO: error: Missing required viha headers.  Did you install the Viha drivers?" >&5
 echo "$as_me: error: Missing required viha headers.  Did you install the Viha drivers?" >&2;}
@@ -6075,6 +6076,11 @@ fi
 
 done
 
+# Enable the ldflags and cxx flags if we found it...
+	if test $foundviha = "yes"; then
+		CXXFLAGS="$CXXFLAGS -framework WiFi"
+		LDFLAGS="$LDFLAGS -framework WiFi"
+	fi
 fi
 
 wsp100=no

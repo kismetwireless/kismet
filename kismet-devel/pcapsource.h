@@ -62,6 +62,8 @@ public:
 
     int SetChannel(unsigned int chan);
 
+    int FetchChannel();
+
 protected:
     // Prism 802.11 headers from wlan-ng tacked on to the beginning of a
     // pcap packet... Snagged from the wlan-ng source
@@ -129,6 +131,12 @@ protected:
 
     // What kind of netlink is it
     int datalink_type;
+
+    // Linux wireless ioctl stuff
+#ifdef HAVE_LINUX_WIRELESS
+    int ioctl_sock;
+#endif
+
 };
 
 #endif
