@@ -43,6 +43,41 @@ signal    - network signal power level
 quality   - network signal quality percentage
 noise     - network signal noise level
 
+Client columns control the display for clients on a network or group.  
+Currently support client columns are:
+
+decay     - indicates traffic within the last (decay) seconds (default: 3)
+type      - indicates the type of the client
+mac       - MAC of client
+manuf     - manufacturer
+data      - total number of data packets
+crypt     - number of encrypted packets
+weak      - number of cryptographically weak packets
+maxrate   - maximum transfer rate of client (if a probe was detected)
+ip        - IP of client (if detected)
+signal    - network signal power level
+quality   - network quality level
+noise     - network noise level
+
+* Network and Client Types
+Several types of networks and clients are tracked.
+Network/Group types:
+  P       Probe request - no associated connection yet
+  A       Access point - standard wireless network
+  H       Ad-hoc - point-to-point wireless network
+  O       Lucent - Lucent Outdoor Router network
+  G       Group - Group of wireless networks
+  D       Data - Data only network with no control packets.
+
+Client types:
+  F       From DS - client broadcast from wireless distribution system
+  T       To DS - client transmitted over the wireless to the distribution 
+          system
+  I       Intra DS - client is a node of the distribution system talking to
+          another node in the distribution system
+  E       Established - client has been seen entering and leaving the DS
+  -       Unknown - client is in an unknown state
+
 * Interacting with the Panels UI
 The panels interface is very simple to use.  Pressing 'h' will spawn a popup
 help window.  'x' or 'q' will close any popup window.
