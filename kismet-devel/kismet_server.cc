@@ -2375,7 +2375,7 @@ int main(int argc,char *argv[]) {
                     }
 
                     // Extract and send string info to clients if any are requesting it
-                    if (info.type == packet_data && info.encrypted == 0 &&
+                    if (info.type == packet_data && (info.encrypted == 0 || info.decoded == 1) &&
                         ui_server.FetchNumClientRefs(string_ref) > 0) {
                         vector<string> strlist;
                         STRING_data sdata;
