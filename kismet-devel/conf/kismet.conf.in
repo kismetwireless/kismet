@@ -4,7 +4,7 @@
 # not continually reading --help!
 
 # Version of Kismet config
-version=2.9.1l
+version=2.9.1j
 
 # Name of server (Purely for organiational purposes)
 servername=Kismet
@@ -84,6 +84,10 @@ splitchannels=true
 # list:
 # 80211bchannels=1,7,13,2,8,3,14,9,4,10,5,11,6,12
 80211achannels=36,40,44,48,52,56,60,64
+# Depending on your card and drivers, this is a list of every 802.11a channel.
+# Most won't support all of these, so you'll have to tweak it to what your
+# system supports.
+# 80211achannels=36,40,44,48,52,56,60,64,100,104,108,112,116,120,124,128,132,136,140,149,153,157,161,184,188,192,196,200,204,208,212,216 
 
 # Fine-tuning channel hopping control:
 # The sourcechannels option can be used to set the channel hopping for 
