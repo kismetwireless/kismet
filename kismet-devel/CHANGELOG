@@ -3,6 +3,7 @@ Dec 22 2002  2.7.1  Fixed multiserver alert displays in panels frontend
                      actual advertised BSSID, but this may result in a creeping
                      list of networks as the firmware changes its bssid
                      continually.
+                    Fixed very stupid pointer math which caused several issues
 Dec 20 2002  2.7.1  Fixed turbocell ssid's not being munged
 Dec 19 2002  2.7.1  Fixed gps point logging of PHY packets
 Dec 17 2002  2.7.1  Fixed kismet_hopper on systems with old wireless extention

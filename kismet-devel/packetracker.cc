@@ -166,13 +166,13 @@ int Packetracker::ProcessPacket(packet_info info, char *in_status) {
 
         net->channel = info.channel;
 
-        if (info.ess == 1)
-            net->type = network_ap;
 
         if (info.type == packet_management && info.subtype == packet_sub_probe_req)
             net->type = network_probe;
         else if (info.distrib == adhoc_distribution)
             net->type = network_adhoc;
+        else
+            net->type = network_ap;
 
         net->wep = info.wep;
 
@@ -376,7 +376,8 @@ int Packetracker::ProcessPacket(packet_info info, char *in_status) {
             net->channel = info.channel;
             net->wep = info.wep;
 
-            net->type = network_ap;
+            if (info.distrib != adhoc_distribution)
+                net->type = network_ap;
         }
 
 

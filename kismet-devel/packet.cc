@@ -208,13 +208,13 @@ void GetPacketInfo(kis_packet *packet, packet_parm *parm, packet_info *ret_packi
     }
 
     // Endian swap the 2 byte duration from a pointer
-    duration = kptoh16(packet->data + 2);
+    duration = kptoh16(&packet->data[2]);
 
-    addr0 = packet->data + 4;
-    addr1 = packet->data + 10;
-    addr2 = packet->data + 16;
-    sequence = (wireless_fragseq *) packet->data + 22;
-    addr3 = packet->data + 24;
+    addr0 = &packet->data[4];
+    addr1 = &packet->data[10];
+    addr2 = &packet->data[16];
+    sequence = (wireless_fragseq *) &packet->data[22];
+    addr3 = &packet->data[24];
 
     // Fill in packet sequence and frag info... Neither takes a full byte so we don't
     // swap them
@@ -236,6 +236,8 @@ void GetPacketInfo(kis_packet *packet, packet_parm *parm, packet_info *ret_packi
     if (fc->type == 0) {
         ret_packinfo->type = packet_management;
 
+        ret_packinfo->distrib = no_distribution;
+
         // Short handling of probe reqs since they don't have a fixed parameters
         // field
         fixed_parameters *fixparm;
@@ -244,12 +246,13 @@ void GetPacketInfo(kis_packet *packet, packet_parm *parm, packet_info *ret_packi
             fixparm = NULL;
         } else {
             ret_packinfo->header_offset = 36;
-            fixparm = (fixed_parameters *) packet->data + 24;
+            fixparm = (fixed_parameters *) &packet->data[24];
             ret_packinfo->wep = fixparm->wep;
 
             // Pull the fixparm ibss info
-            if (fixparm->ess == 0 && fixparm->ibss == 1)
+            if (fixparm->ess == 0 && fixparm->ibss == 1) {
                 ret_packinfo->distrib = adhoc_distribution;
+            }
         }
 
         map<int, int> tag_cache_map;
@@ -1025,7 +1028,7 @@ void DecryptPacket(kis_packet *packet, packet_info *in_info,
     uint8_t icv[4];
 
     // Copy out the icv for our crc check
-    memcpy(icv, packet->data + packet->len - 4, 4);
+    memcpy(icv, &packet->data[packet->len - 4], 4);
 
     for (unsigned int dpos = in_info->header_offset + 4; dpos < packet->len - 4; dpos++) {
         kba = (kba + 1) & 0xFF;
