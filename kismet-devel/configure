@@ -5846,7 +5846,11 @@ if test $ac_cv_header_pcap_h = yes; then
 cat >>confdefs.h <<\_ACEOF
 #define HAVE_PCAP_H 1
 _ACEOF
-,
+ foundsyspcaph=yes
+fi
+
+
+		    if test $foundsyspcaph != yes; then
 				if test "${ac_cv_header_pcap_pcap_h+set}" = set; then
   echo "$as_me:$LINENO: checking for pcap/pcap.h" >&5
 echo $ECHO_N "checking for pcap/pcap.h... $ECHO_C" >&6
@@ -5993,10 +5997,7 @@ echo "$as_me: error: found libpcap but unable to find pcap.h" >&2;}
 fi
 
 
-fi
-
-
-
+		    fi
 		# Look for the new PCAP stuff
 		echo "$as_me:$LINENO: checking for pcap_setnonblock in -lpcap" >&5
 echo $ECHO_N "checking for pcap_setnonblock in -lpcap... $ECHO_C" >&6
