@@ -2,6 +2,8 @@ May 13 2004  devel  See, I haven't abandoned you all, just been really busy
                     Kluged out compile errors on some vendor-modified kernels
                      that include ethtool.h in wireless.h
                     Updated config file version and took out defunct examples
+                    Fixed the rest of the compile errors on some kernels, 
+                     with luck
 Apr 22 2004  devel  Fixed initial-channel -I arg for single named sources
 Apr 10 2004  devel  New devel cycle
 Apr 07 2004 2004-04 Released 2004-04R1.
