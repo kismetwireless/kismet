@@ -125,8 +125,9 @@ commoninstall:
 	install -o $(INSTUSR) -g $(MANGRP) -m 644 man/kismet.1 $(MAN)/man1/kismet.1
 	install -o $(INSTUSR) -g $(MANGRP) -m 644 man/gpsmap.1 $(MAN)/man1/gpsmap.1
 	install -o $(INSTUSR) -g $(MANGRP) -m 644 man/gpsmap.1 $(MAN)/man1/kismet_monitor.1
-	install -o $(INSTUSR) -g $(MANGRP) -m 644 man/gpsmap.1 $(MAN)/man1/kismet.conf.5
-	install -o $(INSTUSR) -g $(MANGRP) -m 644 man/gpsmap.1 $(MAN)/man1/kismet_ui.conf.5
+	mkdir -p $(MAN)/man5
+	install -o $(INSTUSR) -g $(MANGRP) -m 644 man/gpsmap.1 $(MAN)/man5/kismet.conf.5
+	install -o $(INSTUSR) -g $(MANGRP) -m 644 man/gpsmap.1 $(MAN)/man5/kismet_ui.conf.5
 	mkdir -p $(WAV)
 	install -o $(INSTUSR) -g $(INSTGRP) -m 644 wav/new_network.wav $(WAV)/new_network.wav
 	install -o $(INSTUSR) -g $(INSTGRP) -m 644 wav/traffic.wav $(WAV)/traffic.wav
