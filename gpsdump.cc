@@ -79,13 +79,13 @@ int GPSDump::DumpPacket(packet_info *in_packinfo) {
 
     fprintf(gpsf, "    <gps-point bssid=\"%s\" source=\"%s\" time-sec=\"%ld\" time-usec=\"%ld\" "
             "lat=\"%f\" lon=\"%f\" alt=\"%f\" spd=\"%f\" heading=\"%f\" fix=\"%d\" "
-            "signal=\"%d\" quality=\"%d\" noise=\"%d\"/>\n",
+            "signal=\"%d\" noise=\"%d\"/>\n",
             in_packinfo->bssid_mac.Mac2String().c_str(),
             in_packinfo->source_mac.Mac2String().c_str(),
             (long int) in_packinfo->ts.tv_sec, (long int) in_packinfo->ts.tv_usec,
             in_packinfo->gps_lat, in_packinfo->gps_lon, in_packinfo->gps_alt,
             in_packinfo->gps_spd, in_packinfo->gps_heading, in_packinfo->gps_fix,
-            in_packinfo->signal, in_packinfo->quality, in_packinfo->noise);
+            in_packinfo->signal, in_packinfo->noise);
 
     num_packets++;
 
