@@ -321,7 +321,7 @@ void SoundHandler(int *fds, const char *player, map<string, string> soundmap) {
 
             // We'll die off if we get a read error, and we'll let kismet on the
             // other side detact that it died
-            if (ret < 0)
+            if (ret <= 0 && (errno != EAGAIN && errno != EPIPE))
                 exit(1);
 
             if ((end = strstr(data, "\n")) == NULL)
@@ -408,7 +408,7 @@ void SpeechHandler(int *fds, const char *player) {
 
             // We'll die off if we get a read error, and we'll let kismet on the
             // other side detact that it died
-            if (ret < 0)
+            if (ret <= 0 && (errno != EAGAIN && errno != EPIPE))
                 exit(1);
 
             data[ret] = '\0';
