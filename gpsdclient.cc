@@ -102,9 +102,10 @@ GPSDClient::GPSDClient(GlobalRegistry *in_globalreg) : ClientFramework(in_global
     
     if (globalreg->kismet_config->FetchOpt("gps") == "true") {
         char temphost[128];
-        if (sscanf(globalreg->kismet_config->FetchOpt("gpshost").c_str(), "%128[^:]:%d", 
-                   temphost, &port) != 2) {
-            globalreg->messagebus->InjectMessage("Invalid GPS host in config, host:port required",
+        if (sscanf(globalreg->kismet_config->FetchOpt("gpshost").c_str(), 
+				   "%128[^:]:%d", temphost, &port) != 2) {
+            globalreg->messagebus->InjectMessage("Invalid GPS host in config, "
+												 "host:port required",
                                                  MSGFLAG_FATAL);
             globalreg->fatal_condition = 1;
             return;
@@ -113,23 +114,27 @@ GPSDClient::GPSDClient(GlobalRegistry *in_globalreg) : ClientFramework(in_global
 
         // Lock GPS position
         if (globalreg->kismet_config->FetchOpt("gpsmodelock") == "true") {
-            globalreg->messagebus->InjectMessage("Enabling GPS position information override "
-                                                 "(override broken GPS units that always report 0 "
+            globalreg->messagebus->InjectMessage("Enabling GPS position information "
+												 "override (override broken GPS "
+												 "units that always report 0 "
                                                  "in the NMEA stream)", MSGFLAG_INFO);
             SetOptions(GPSD_OPT_FORCEMODE);
         }
 
         if (globalreg->kismet_config->FetchOpt("gpsreconnect") == "true") {
-            globalreg->messagebus->InjectMessage("Enabling reconnection to the GPSD server "
-                                                 "if the link is lost", MSGFLAG_INFO);
+            globalreg->messagebus->InjectMessage("Enabling reconnection to the GPSD "
+												 "server if the link is lost", 
+												 MSGFLAG_INFO);
             reconnect_attempt = 0;
         }
 
         if (tcpcli->Connect(host, port) < 0) {
-            globalreg->messagebus->InjectMessage("Could not create initial connection to "
-                                                 "the GPSD server", MSGFLAG_ERROR);
+            globalreg->messagebus->InjectMessage("Could not create initial "
+												 "connection to the GPSD server", 
+												 MSGFLAG_ERROR);
             if (reconnect_attempt < 0) {
-                globalreg->messagebus->InjectMessage("GPSD Reconnection not enabled, disabling GPS", MSGFLAG_ERROR);
+                globalreg->messagebus->InjectMessage("GPSD Reconnection not enabled, "
+													 "disabling GPS", MSGFLAG_ERROR);
                 globalreg->gps_enable = 0;
                 return;
             }
@@ -140,8 +145,10 @@ GPSDClient::GPSDClient(GlobalRegistry *in_globalreg) : ClientFramework(in_global
         }
 
         // Spawn the tick event
-        gpseventid = globalreg->timetracker->RegisterTimer(SERVER_TIMESLICES_SEC, 
-                                                           NULL, 1, &GpsInjectEvent, (void *) this);
+        gpseventid = 
+			globalreg->timetracker->RegisterTimer(SERVER_TIMESLICES_SEC, 
+												  NULL, 1, &GpsInjectEvent, 
+												  (void *) this);
 
         globalreg->gps_enable = 1;
 
@@ -153,8 +160,9 @@ GPSDClient::GPSDClient(GlobalRegistry *in_globalreg) : ClientFramework(in_global
         globalreg->gps_enable = 0;
     }
 
-    globalreg->gps_prot_ref = globalreg->kisnetserver->RegisterProtocol("GPS", 0, GPS_fields_text, 
-                                                                        &Protocol_GPS, NULL);
+    globalreg->gps_prot_ref = 
+		globalreg->kisnetserver->RegisterProtocol("GPS", 0, GPS_fields_text, 
+												  &Protocol_GPS, NULL);
 }
 
 GPSDClient::~GPSDClient() {
