@@ -181,10 +181,14 @@ int TcpClient::Poll() {
 
     //    while (1) {
     if (fgets(data, 2048, clientf) == NULL) {
+        /*
         if (errno != 0)
-            printf("errno %d %s ferror %d\n", errno, sys_errlist[errno], ferror(clientf));
+            snprintf(errstr, 1024, "Errno %d %s ferror %d\n",
+            errno, sys_errlist[errno], ferror(clientf));
+            */
+
         if (errno != 0 && errno != EAGAIN) {
-            snprintf(errstr, 1024, "Read error %d (%s)\n",
+            snprintf(errstr, 1024, "Read error %d (%s), closing the connection.",
                      errno, sys_errlist[errno]);
             sv_valid = 0;
             close(client_fd);
