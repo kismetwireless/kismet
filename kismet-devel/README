@@ -390,7 +390,7 @@ Licensed under the GPL
 
     - Linux (Intel, PPC, MIPS, X-Scale, Arm, etc)
       Known supported cards: ACX100, ADMTek, Atheros, Cisco, Prism2, Orinoco, 
-      WSP100, Drone, wtapfile, pcapfile, wrt54g
+      WSP100, Drone, wtapfile, pcapfile, wrt54g, ipw2100
 
       Kismet will work with any distribution of Linux.  Currently, Linux is the
       reccomended platform for running Kismet because it has the largest
@@ -500,6 +500,15 @@ Licensed under the GPL
                      modes.  The HostAP drivers seem to change how they go
                      into monitor mode fairly often, but this source should 
                      manage to get them going.
+
+    ipw2100         Intel/Centrino      Linux       ipw2100-0.44+
+                    http://ipw2100.sourceforge.net/
+                    Capture interface:  'ethX'
+                    The Linux IPW2100/Centrino drivers for 802.11b cards
+                    now support rfmon, so heres support for them.  They act
+                    more or less like any other wireless interface would.
+                    THIS IS NOT FOR WINDOWS OR FOR SYSTEMS USING NDISWRAPPER
+                    OR LINUXANT.
 
     kismet_drone    n/a                 Any         n/a
                     Capture interface:  'dronehost:port'  
@@ -639,8 +648,6 @@ Licensed under the GPL
                      libwiretap support.
 
     Chipsets known to NOT WORK:
-     Intel Centrino     - Intel has recently released linux-native drivers for
-                          Centrino, but they don't support rfmon.
      Broadcom           - No linux drivers, only useable with ndiswrapper or
                           linuxant wrappers around windows drivers.
      Airport Extreme    - Really a Broadcom, with no rfmon in the OSX drivers.

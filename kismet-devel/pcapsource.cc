@@ -1518,6 +1518,33 @@ int unmonitor_prism54g(const char *in_dev, int initch, char *in_err, void **in_i
     return unmonitor_wext(in_dev, initch, in_err, in_if);
 }
 
+int monitor_ipw2100(const char *in_dev, int initch, char *in_err, void **in_if) {
+    // Allocate a tracking record for the interface settings and remember our
+    // setup
+    linux_ifparm *ifparm = (linux_ifparm *) malloc(sizeof(linux_ifparm));
+    (*in_if) = ifparm;
+
+    if (Ifconfig_Get_Flags(in_dev, in_err, &ifparm->flags) < 0) {
+        return -1;
+    }
+
+    if ((ifparm->channel = Iwconfig_Get_Channel(in_dev, in_err)) < 0)
+        return -1;
+
+    if (Iwconfig_Get_Mode(in_dev, in_err, &ifparm->mode) < 0)
+        return -1;
+
+    // Call the normal monitor mode
+    return (monitor_wext(in_dev, initch, in_err, in_if));
+}
+
+int unmonitor_ipw2100(const char *in_dev, int initch, char *in_err, void **in_if) {
+    // Restore initial monitor header
+    linux_ifparm *ifparm = (linux_ifparm *) (*in_if);
+
+    return unmonitor_wext(in_dev, initch, in_err, in_if);
+}
+
 // "standard" wireless extension monitor mode
 int monitor_wext(const char *in_dev, int initch, char *in_err, void **in_if) {
     int mode;
