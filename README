@@ -293,10 +293,9 @@ Licensed under the GPL
       and other options.
 
     * Probe tracking.  By default, Kismet tracks probe requests and responses,
-      and attempts to join a probe request network with the network that 
+      and attempts to combine a probe request network with the network that 
       responds to it.  Sometimes this isn't the desired behavior, by setting
-      'trackprobenets' to 'false', probe request networks will always remain
-      separate.
+      'trackprobenets' to 'false', probe requests will always remain separate.
 
 9.  Ncurses/Panels Interface
 
@@ -317,6 +316,48 @@ Licensed under the GPL
 
     Other clients for Kismet are available from the links page on the Kismet
     website.
+
+    All information about a network is contained in the network details window,
+    and the following columns can be turned on in the main display:
+      bssid     BSSID (MAC address) of the network
+      channel   Last-advertised channel for network
+      clients   Number of clients (unique MACs) seen on network
+      crypt     Number of encrypted packets
+      data      Number of data packets
+      decay     Displays '!' or '.' based on network activity
+      dupeiv    Number of packets with duplicate IVs seen  
+      flags     Network status flags (Address size, decrypted, etc)
+      info      Extra AP info included by some manufacturers
+      ip        Detected/guessed IP of the network
+      llc       Number of LLC packets
+      manuf     Manufacturer, if matched
+      maxrate   Maximum supported rate as advertised by AP
+      name      Name of the network or group
+      noise     Last seen noise level
+      packets   Total number of packets
+      shortname Shortened name of the network or group for small displays
+      shortssid Shortened SSID for small displays
+      signal    Last seen signal level
+      signalbar Graphical representation of signal level
+      size      Amount of data transfered on network
+      ssid      SSID/ESSID of the network or group
+      type      Network type (Probe, Adhoc, Infra, etc)
+      weak      Number of packets which appear to have weak IVs
+      wep       WEP status (does network indicate it uses WEP)
+
+    The clients window has a similar selection of columns which can be enabled:
+      crypt     Number of encrypted data packets transfered by client
+      data      Number of data packets transfered by client
+      decay     Displays '!', '.', or ' ' based on network activity
+      ip        Last seen IP used by client
+      mac       MAC address of client  
+      manuf     Manufactuer of client (if known)
+      maxrate   Maximum rate client seen transfering
+      noise     Last seen noise level of client
+      signal    Last seen signal level of client
+      size      Amount of data transfered by client  
+      type      Type of client (Established, To-DS, From-DS, etc)
+      weak      Number of packets which appear to have weak IVs
       
 10. Operating Systems
 
