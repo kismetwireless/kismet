@@ -160,6 +160,9 @@ int GPSD::Scan() {
         return 0;
     }
 
+    spd = spd * (6076.12 / 5280);
+    alt = alt * 3.3;
+
     // Blow up on nonsensical values
     if (finite(lat) == 0 || finite(lon) == 0 || finite(alt) == 0 ||
         finite(spd) == 0 || spd < 0 || spd > 150) {
@@ -186,10 +189,6 @@ int GPSD::Scan() {
             last_lon = lon;
         }
     }
-
-    spd = spd * (6076.12 / 5280);
-
-    alt = alt * 3.3;
 
     // Override mode
     if ((options & GPSD_OPT_FORCEMODE) && mode == 0)
