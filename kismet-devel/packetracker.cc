@@ -630,11 +630,16 @@ int Packetracker::ProcessDataPacket(packet_info info, wireless_network *net, cha
 
         }
 
+        // Classify the client.  We'll call no-distrib packets (lucent)
+        // inter-distrib clients since it's not an end-user bridge into the
+        // network, it's a lucent AP talking to another one.
         if (info.distrib == from_distribution)
             client->type = client_fromds;
         else if (info.distrib == to_distribution)
             client->type = client_tods;
         else if (info.distrib == inter_distribution)
+            client->type = client_interds;
+        else if (info.distrib == no_distribution)
             client->type = client_interds;
 
     } else {
