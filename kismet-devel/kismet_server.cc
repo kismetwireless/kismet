@@ -3048,8 +3048,9 @@ int main(int argc,char *argv[]) {
                         if (log_packet == 1) {
                             int ret = dumpfile->DumpPacket(&info, &packet);
                             if (ret < 0) {
-                                NetWriteStatus(dumpfile->FetchError());
-                                fprintf(stderr, "FATAL: %s\n", dumpfile->FetchError());
+                                snprintf(status, STATUS_MAX, "FATAL: %s", dumpfile->FetchError());
+                                fprintf(stderr, "%s\n", status);
+                                NetWriteStatus(status);
                                 CatchShutdown(-1);
                             } 
                             
