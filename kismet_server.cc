@@ -142,7 +142,6 @@ FifoDumpFile fifodump;
 packet_info last_info;
 int decay;
 channel_power channel_graph[CHANNEL_MAX];
-char *servername = NULL;
 
 fd_set read_set;
 
@@ -615,11 +614,9 @@ int ProcessBulkConf(ConfigFile *conf) {
         globalregistry->client_wepkey_allowed = 1;
     }
 
-    if (servername == NULL) {
-        if (conf->FetchOpt("servername") != "") {
-            servername = strdup(conf->FetchOpt("servername").c_str());
-        } else {
-            servername = strdup("Unnamed");
+    if (globalregistry->servername == "") {
+        if ((globalregistry->servername = conf->FetchOpt("servername")) == "") {
+            globalregistry->servername = "Unnamed";
         }
     }
 
@@ -1283,7 +1280,7 @@ int main(int argc,char *argv[]) {
             break;
         case 'N':
             // Servername
-            servername = optarg;
+            globalregistry->servername = string(optarg);
             break;
         case 'v':
             // version
@@ -1500,6 +1497,12 @@ int main(int argc,char *argv[]) {
     // Grab the rest of our config options
     ProcessBulkConf(conf);
 
+    // Blat out the version
+    snprintf(status, STATUS_MAX, "Kismet %s.%s.%s (%s)",
+             VERSION_MAJOR, VERSION_MINOR, VERSION_TINY, globalregistry->servername.c_str());
+    globalregistry->messagebus->InjectMessage(status, MSGFLAG_INFO);
+
+
     // Parse out the tcp kismet client stuff
     if (kistcpport == -1) {
         if (conf->FetchOpt("tcpport") == "") {
@@ -1709,10 +1712,6 @@ int main(int argc,char *argv[]) {
         globalregistry->messagebus->InjectMessage(errstr, MSGFLAG_INFO);
 
     }
-
-    snprintf(status, STATUS_MAX, "Kismet %s.%s.%s (%s)",
-             VERSION_MAJOR, VERSION_MINOR, VERSION_TINY, servername);
-    globalregistry->messagebus->InjectMessage(status, MSGFLAG_INFO);
 
     if (data_log || net_log || crypt_log) {
         snprintf(status, STATUS_MAX, "Logging%s%s%s%s%s%s%s",

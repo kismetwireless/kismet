@@ -56,7 +56,6 @@ public:
     SpeechControl *speechctl;
     SoundControl *soundctl;
 
-    string version;
     time_t start_time;
     string servername;
     time_t timestamp;

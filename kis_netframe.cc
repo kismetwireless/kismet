@@ -154,7 +154,7 @@ int Protocol_KISMET(PROTO_PARMS) {
             out_string += kdata->starttime;
             break;
         case KISMET_servername:
-            out_string += kdata->servername;
+            out_string += "\001" + kdata->servername + "\001";
             break;
         case KISMET_timestamp:
             out_string += kdata->timestamp;
@@ -1347,9 +1347,9 @@ int KisNetFramework::Accept(int in_fd) {
     snprintf(temp, 512, "%u", (unsigned int) globalreg->start_time);
     kdat.starttime = string(temp);
     kdat.servername = globalreg->servername;
-    snprintf(temp, 512, "%u", (unsigned int) time(0));
-    kdat.timestamp = string(temp);
-    kdat.newversion = globalreg->version;
+    kdat.timestamp = string(TIMESTAMP);
+    snprintf(temp, 512, "%s.%s.%s", VERSION_MAJOR, VERSION_MINOR, VERSION_TINY);
+    kdat.newversion = string(temp);
    
     SendToClient(in_fd, globalreg->kis_prot_ref, (void *) &kdat);
   
