@@ -105,8 +105,18 @@ typedef struct wireless_client {
         data_packets = crypt_packets = interesting_packets = 0;
 
         gps_fixed = -1;
-        min_lat = min_lon = min_alt = min_spd = 0;
-        max_lat = max_lon = max_alt = max_spd = 0;
+
+        /* by setting the min to the highest possible values in the range and
+         max to the lowest we ensure that the data is correct */
+        min_lat = 90;
+        max_lat = -90;
+        min_lon = 180;
+        max_lon = -180;
+
+        /* since these are not limited, we just set to 0 */
+        min_alt = min_spd = 0;
+        max_alt = max_spd = 0;
+
         aggregate_lat = aggregate_lon = aggregate_alt = 0;
         aggregate_points = 0;
 
@@ -225,8 +235,17 @@ typedef struct wireless_network {
         listed = 0;
 
         gps_fixed = -1;
-        min_lat = min_lon = min_alt = min_spd = 0;
-        max_lat = max_lon = max_alt = max_spd = 0;
+
+        /* by setting the min to the highest possible values in the range and
+         max to the lowest we ensure that the data is correct */
+        min_lat = 90;
+        max_lat = -90;
+        min_lon = 180;
+        max_lon = -180;
+
+        /* since these are not limited, we just set to 0 */
+        min_alt = min_spd = 0;
+        max_alt = max_spd = 0;
 
         aggregate_lat = aggregate_lon = aggregate_alt = 0;
         aggregate_points = 0;
