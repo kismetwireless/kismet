@@ -1,16 +1,19 @@
-Jan 28 2003  3.1.0  Panels client now scrolls to next network after tagging
-Jan 27 2003  3.1.0  Modified internals to packet source handling to allow for
+Jan 28 2004  3.1.0  Panels client now scrolls to next network after tagging
+                    Fixed changelog dates (Thanks Alexander...)
+                    Added a dirty flag to tcpclient networks listing to save
+                     on CPU usage when the network list isn't actually changing
+Jan 27 2004  3.1.0  Modified internals to packet source handling to allow for
                      restoring card details on sources that support it
                     Merged patch from Pedro for more OpenBSD stuff
                     Merged patch from Sam for more radiotap support on freebsd.
                      Pending a patch to the MadWifi drivers, this should bring
                      functional support for FreeBSD.
-Jan 26 2003  3.1.0  Fixed FCS byte trimming for MadWifi, this should fix Kismet
+Jan 26 2004  3.1.0  Fixed FCS byte trimming for MadWifi, this should fix Kismet
                      discarding most packets as invalid (Thanks, Anton)
                     Fixed monitor_wext not setting the initial channel if the
                      card is already in monitor mode (Thanks, Anton)
                     Merged additional patches from Sam for FreeBSD/Radiotap
-Jan 25 2003  3.1.0  Long-asked for, the panels client is now able to lock
+Jan 25 2004  3.1.0  Long-asked for, the panels client is now able to lock
                      onto the channel of a selected network and stop 
                      hopping.  'L' to lock, 'H' to hop.  Currently only works
                      with a single capture source, multisource support to 
@@ -19,13 +22,13 @@ Jan 25 2003  3.1.0  Long-asked for, the panels client is now able to lock
                      wtapfile
                     Merged patch from Pedro to fix bringing an interface up in
                      OpenBSD
-Jan 24 2003  3.1.0  Merged patch from Ray Essick to add an alternate date 
+Jan 24 2004  3.1.0  Merged patch from Ray Essick to add an alternate date 
                      format to the logfile naming format
                     Unitialized variable fix in panels client
-Jan 23 2003  3.1.0  Added packsource channel locking to server protocol
+Jan 23 2004  3.1.0  Added packsource channel locking to server protocol
                     First-run merge of FreeBSD Radiotap support from Sam
                      Leffler
-Jan 22 2003  3.1.0  Added channel hopping status to CARD field
+Jan 22 2004  3.1.0  Added channel hopping status to CARD field
                     Added '*' to panelfront channel display when source is
                      hopping
                     Fixed probe and data autogroups from being created for
@@ -37,25 +40,25 @@ Jan 22 2003  3.1.0  Added channel hopping status to CARD field
                      probe responses and tracking probenets.
                     Merged patch from Anton fixing issues with scrolling the 
                      list of servers
-Jan 21 2003  3.1.0  Fixed embarassingly stupid bug in panels probe/data
+Jan 21 2004  3.1.0  Fixed embarassingly stupid bug in panels probe/data
                      autogroup, minor efficiency improvements as well
                     Removed debug printing on corrupt dronesource packets
                     Made probed networks clients of themselves
                     Minor speed update to packet tracking
                     Added setgid to setuid privdropping, leaving us as gid0 is
                      also bad.
-Jan 17 2003  3.1.0  Tweaked empty SSID assignment (again)
+Jan 17 2004  3.1.0  Tweaked empty SSID assignment (again)
                     Forced wext-fetched signal levels to abs values
                     Fixed initialization of client sort value in panels
                     Moved group updates into population code in panels
                     Added --gui long-option to kismet_client
-Jan 16 2003  3.1.0  Fixed offset mangling in probe request parsing
-Jan 15 2003  3.1.0  Fixed data network autogrouping
+Jan 16 2004  3.1.0  Fixed offset mangling in probe request parsing
+Jan 15 2004  3.1.0  Fixed data network autogrouping
                     Fixed panels client segfault when viewing details on a 
                      network absorbed into an autogroup
                     Fixed bug where single-packet new networks sometimes showed
                      up as having no packets in panels client
-Jan 13 2003  3.1.0  Added more packet sanitizing.  Most invalid management
+Jan 13 2004  3.1.0  Added more packet sanitizing.  Most invalid management
                      frames now intercepted, data frames still problematic.
                     Merged gpsmap patches from Andrew Knutsen to add labeling
                      of manufacturer and beacon info, avoid overlapping network
@@ -67,17 +70,17 @@ Jan 13 2003  3.1.0  Added more packet sanitizing.  Most invalid management
                     Added validation checks before calling Packetsource::Close,
                      fixes segfault for invalid pcapfile opens
                     Improved probed network integration code
-Jan 12 2003  3.1.0  Fixed stupid word-transposition in default config, should
+Jan 12 2004  3.1.0  Fixed stupid word-transposition in default config, should
                      be channelsplit not splitchannels.
-Jan 10 2003  3.1.0  Started implementing wsp100 snmp calls in new framework
+Jan 10 2004  3.1.0  Started implementing wsp100 snmp calls in new framework
                     Added sanity checks to ExecSysCmd() calls in pcapsource
                     Added coloring of decloaked networks to panelfront
-Jan 09 2003  3.1.0  Merged patch from Bjarke Pedersen for different sounds for
+Jan 09 2004  3.1.0  Merged patch from Bjarke Pedersen for different sounds for
                      new wepped networks
-Jan 07 2003  3.1.0  Fixed more wep keysize bugs
-Jan 04 2003  3.1.0  Changed probe network autogrouping to not group when there
+Jan 07 2004  3.1.0  Fixed more wep keysize bugs
+Jan 04 2004  3.1.0  Changed probe network autogrouping to not group when there
                      is only 1 probe network
-Jan 03 2003  3.1.0  Fixed nullproberesp alert
+Jan 03 2004  3.1.0  Fixed nullproberesp alert
                     Fixed segfault if acpi/ACAD/ not found
                     Merged patch from Million adding more ACPI support
                     Merged patch from Million with numerous variable init

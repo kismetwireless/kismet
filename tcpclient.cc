@@ -72,6 +72,8 @@ TcpClient::TcpClient() {
 
     servername[0] = '\0';
 
+    network_dirty = 0;
+
 }
 
 TcpClient::~TcpClient() {
@@ -317,25 +319,27 @@ int TcpClient::ParseData(char *in_data) {
 
         scanned = sscanf(in_data+hdrlen+18, "%d \001%255[^\001]\001 \001%255[^\001]\001 "
                          "%d %d %d %d %d %d %d %d %d %hd.%hd.%hd.%hd "
-                         "%d %f %f %f %f %f %f %f %f %d %d %d %f %d %d %d %d %d %d %f %f %f "
+                         "%d %f %f %f %f %f %f %f %f %d %d %d %f %d %d %d %d %d %d %f "
+                         "%f %f "
                          "%lf %lf %lf %ld %ld"
                          "%d %d %d %d %d %d %d %d",
                          (int *) &net->type, ssid, beacon,
-                         &net->llc_packets, &net->data_packets, &net->crypt_packets, &net->interesting_packets,
-                         &net->channel, &net->wep, (int *) &net->first_time, (int *) &net->last_time,
-                         (int *) &net->ipdata.atype, &range[0], &range[1], &range[2], &range[3],
-                         &net->gps_fixed, &net->min_lat, &net->min_lon, &net->min_alt, &net->min_spd,
-                         &net->max_lat, &net->max_lon, &net->max_alt, &net->max_spd,
-                         &net->ipdata.octets, &net->cloaked, &net->beacon,
-                         &maxrate,
-                         &net->quality, &net->signal, &net->noise,
-                         &net->best_quality, &net->best_signal, &net->best_noise,
+                         &net->llc_packets, &net->data_packets, &net->crypt_packets, 
+                         &net->interesting_packets, &net->channel, &net->wep, 
+                         (int *) &net->first_time, (int *) &net->last_time,
+                         (int *) &net->ipdata.atype, &range[0], &range[1], &range[2], 
+                         &range[3], &net->gps_fixed, &net->min_lat, &net->min_lon, 
+                         &net->min_alt, &net->min_spd, &net->max_lat, &net->max_lon, 
+                         &net->max_alt, &net->max_spd, &net->ipdata.octets, 
+                         &net->cloaked, &net->beacon, &maxrate, &net->quality, 
+                         &net->signal, &net->noise, &net->best_quality, 
+                         &net->best_signal, &net->best_noise,
                          &net->best_lat, &net->best_lon, &net->best_alt,
                          &net->aggregate_lat, &net->aggregate_lon, &net->aggregate_alt,
                          &net->aggregate_points, &net->datasize,
-                         &net->turbocell_nid, (int *) &net->turbocell_mode, &net->turbocell_sat,
-                         &net->carrier_set, &net->maxseenrate, &net->encoding_set,
-                         &net->decrypted, &net->dupeiv_packets);
+                         &net->turbocell_nid, (int *) &net->turbocell_mode, 
+                         &net->turbocell_sat, &net->carrier_set, &net->maxseenrate, 
+                         &net->encoding_set, &net->decrypted, &net->dupeiv_packets);
 
         if (scanned < 47) {
             // fprintf(stderr, "Flubbed network, discarding...\n");
@@ -343,6 +347,9 @@ int TcpClient::ParseData(char *in_data) {
             return 0;
         }
 
+        // Set the network list as dirty
+        network_dirty = 1;
+        
         if (newnet == 1) {
             net_map[bssid] = net;
             net_map_vec.push_back(net);
@@ -379,7 +386,8 @@ int TcpClient::ParseData(char *in_data) {
         map<mac_addr, wireless_network *>::iterator nmi = net_map.find(bssid);
         if (nmi != net_map.end()) {
             cmac = cmac_str;
-            map<mac_addr, wireless_client *>::iterator wci = nmi->second->client_map.find(cmac);
+            map<mac_addr, wireless_client *>::iterator wci = 
+                nmi->second->client_map.find(cmac);
             if (wci != nmi->second->client_map.end()) {
                 client = wci->second;
             } else {
@@ -417,6 +425,9 @@ int TcpClient::ParseData(char *in_data) {
             return 0;
         }
 
+        // Set the network list to be dirty
+        network_dirty = 1;
+        
         bssid = bssid_str;
         client->mac = cmac;
         client->maxrate = maxrate;
@@ -648,6 +659,7 @@ vector<TcpClient::card_info *> TcpClient::FetchCardList() {
 }
 
 vector<wireless_network *> TcpClient::FetchNetworkList() {
+    network_dirty = 0;
     return net_map_vec;
 }
 
@@ -726,5 +738,9 @@ void TcpClient::RemoveProtocol(string in_protocol) {
     map<string, int>::iterator pritr = protocol_map.find(in_protocol);
     if (pritr != protocol_map.end())
         protocol_map.erase(pritr);
+}
+
+int TcpClient::FetchNetworkDirty() {
+    return network_dirty;
 }
 
