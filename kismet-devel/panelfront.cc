@@ -253,6 +253,7 @@ char *KismetHelpDump[] = {
     " Key   Action",
     "  c    Clear string window",
     "  p    Pause scrolling",
+    "  t    Toggle display of alert condition timestamp",
     "  q    Close popup",
     NULL
 };

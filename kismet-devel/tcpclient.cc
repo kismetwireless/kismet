@@ -513,6 +513,8 @@ int TcpClient::ParseData(char *in_data) {
         if (sscanf(in_data+hdrlen, "%17s %17s %2047[^\n]\n", bssid_str, source_str, netstr) != 3)
             return 0;
 
+        gettimeofday(&strng.string_ts, NULL);
+
         strng.bssid = bssid_str;
         strng.source = source_str;
 

@@ -350,7 +350,13 @@ int PanelFront::DumpInput(void *in_window, int in_chr) {
         else
             kwin->paused = 1;
         break;
-
+    case 't':
+    case 'T':
+        if (kwin->toggle0 == 0)
+            kwin->toggle0 = 1;
+        else
+            kwin->toggle0 = 0;
+        break;
     case 'c':
     case 'C':
         if (!kwin->paused)

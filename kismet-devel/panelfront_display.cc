@@ -2200,18 +2200,44 @@ int PanelFront::DumpPrinter(void *in_window) {
     kis_window *kwin = (kis_window *) in_window;
 
     vector<TcpClient::string_info> strinf;
+    strinf.reserve(100);
 
-    if (client->GetMaxStrings() != kwin->max_display)
-        client->SetMaxStrings(kwin->max_display);
+    if (kwin->paused != 0) {
+        mvwaddstr(kwin->win, 0, kwin->win->_maxx - 10, "Paused");
+        return TextPrinter(in_window);
+    }
 
-    if (clear_dump) {
-        client->ClearStrings();
-        kwin->text.clear();
-        clear_dump = 0;
-    } else if (!kwin->paused) {
-        strinf = client->FetchStrings();
-        for (unsigned int x = 0; x < strinf.size(); x++)
+
+    for (unsigned int x = 0; x < context_list.size(); x++) {
+        if (context_list[x]->tagged == 1 && context_list[x]->client != NULL) {
+            if (clear_dump) {
+                client->ClearStrings();
+                kwin->text.clear();
+            } else {
+                vector<TcpClient::string_info> cli_strings = context_list[x]->client->FetchStrings();
+                for (unsigned int stng = 0; stng < cli_strings.size(); stng++)
+                    strinf.push_back(cli_strings[stng]);
+            }
+        }
+    }
+
+    clear_dump = 0;
+
+    // Sort them
+    sort(strinf.begin(), strinf.end(), TcpClient::SortStrings());
+
+    kwin->text.clear();
+
+    char output[1024];
+    for (unsigned int x = 0; x < strinf.size(); x++) {
+        if (kwin->toggle0 == 1) {
+            // If we print the date
+            snprintf(output, 1024, "%.24s - %s", ctime((const time_t *) &strinf[x].string_ts.tv_sec),
+                     strinf[x].text.c_str());
+            kwin->text.push_back(output);
+        } else {
             kwin->text.push_back(strinf[x].text);
+        }
     }
 
     if (kwin->paused != 0) {
@@ -2519,6 +2545,11 @@ int PanelFront::AlertPrinter(void *in_window) {
 
     kwin->scrollable = 1;
 
+    if (kwin->paused != 0) {
+        mvwaddstr(kwin->win, 0, kwin->win->_maxx - 10, "Paused");
+        return TextPrinter(in_window);
+    }
+
     vector<TcpClient::alert_info> alerts;
     alerts.reserve(100);
 
@@ -2546,10 +2577,6 @@ int PanelFront::AlertPrinter(void *in_window) {
         } else {
             kwin->text.push_back(alerts[x].alert_text);
         }
-    }
-
-    if (kwin->paused != 0) {
-        mvwaddstr(kwin->win, 0, kwin->win->_maxx - 10, "Paused");
     }
 
     return TextPrinter(in_window);
