@@ -25,6 +25,7 @@ int WtapDumpFile::OpenDump(const char *file) {
     snprintf(filename, 1024, "%s", file);
 
     num_dumped = 0;
+    beacon_log = 1;
 
     dump_file = wtap_dump_open(file, WTAP_FILE_PCAP, WTAP_ENCAP_IEEE_802_11,
                                2344, &wtap_error);
@@ -45,6 +46,14 @@ int WtapDumpFile::CloseDump() {
 
 int WtapDumpFile::DumpPacket(const packet_info *in_info, const pkthdr *in_header,
                              const u_char *in_data) {
+
+    if (in_info->type == packet_beacon && beacon_log == 0) {
+        if (beacon_logged_map.find(in_info->bssid_mac) == beacon_logged_map.end()) {
+            beacon_logged_map[in_info->bssid_mac] = 1;
+        } else {
+            return 1;
+        }
+    }
 
     Common2Wtap(in_header, in_data);
 

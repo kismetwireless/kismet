@@ -1674,6 +1674,8 @@ int main(int argc,char *argv[]) {
             exit(1);
         }
 
+        dumpfile->SetBeaconLog(beacon_log);
+
         fprintf(stderr, "Dump file format: %s\n", dumpfile->FetchType());
     }
 
@@ -1981,11 +1983,7 @@ int main(int argc,char *argv[]) {
                 PlaySound(sndplay, "new", wav_map);
                 */
 
-                if (data_log &&
-                    !(info.type == packet_noise && noise_log == 1) &&
-                    !(info.type == packet_beacon && beacon_log == 0)) {
-                    log_packnum++;
-
+                if (data_log && !(info.type == packet_noise && noise_log == 1)) {
                     if (limit_logs && log_packnum > limit_logs) {
                         dumpfile->CloseDump();
 
@@ -1996,6 +1994,8 @@ int main(int argc,char *argv[]) {
                             CatchShutdown(-1);
                         }
 
+                        dumpfile->SetBeaconLog(beacon_log);
+
                         snprintf(status, STATUS_MAX, "Opened new packet log file %s",
                                  dumplogfile.c_str());
 
@@ -2003,11 +2003,10 @@ int main(int argc,char *argv[]) {
                             fprintf(stderr, "%s\n", status);
 
                         NetWriteStatus(status);
-    
-                        log_packnum = 0;
                     }
 
                     dumpfile->DumpPacket(&info, &header, data);
+                    log_packnum = dumpfile->FetchDumped();
                 }
     
                 if (crypt_log) {
