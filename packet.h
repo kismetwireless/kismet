@@ -21,6 +21,7 @@
 
 #include "config.h"
 
+#include <stdio.h>
 #include <ctype.h>
 #include <sys/time.h>
 #include <sys/resource.h>
