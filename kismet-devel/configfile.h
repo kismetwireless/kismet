@@ -44,7 +44,7 @@ public:
     int ParseConfig(const char *in_fname);
     string FetchOpt(string in_key);
 
-    string ExpandLogPath(string path, string logname, string type, int start, int overwrite = 0);
+    static string ExpandLogPath(string path, string logname, string type, int start, int overwrite = 0);
 
 protected:
     map<string, string> config_map;

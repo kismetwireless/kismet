@@ -271,8 +271,8 @@ int main(int argc, char *argv[]) {
         newsource->interface = strdup(optlist[1].c_str());
         newsource->cardtype = strdup(optlist[2].c_str());
         newsource->chanpos = 0;
-
         packet_sources.push_back(newsource);
+        optlist.clear();
     }
 
     for (unsigned int src = 0; src < packet_sources.size(); src++) {
@@ -303,11 +303,12 @@ int main(int argc, char *argv[]) {
         }
 
         free(type);
+        source_input_vec.clear();
     }
 
     // Free up the memory
     delete conf;
-
+    conf = NULL;
 
     if ((pidfile = fopen(pidpath, "w")) == NULL) {
         fprintf(stderr, "FATAL:  Could not open PID file '%s' for writing.\n", pidpath);
