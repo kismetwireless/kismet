@@ -97,7 +97,7 @@ protected:
 };
 
 KisPacketSource *prism2source_registrant(string in_name, string in_device, char *in_err);
-int monitor_wlanng_legacy(const char *in_dev, int initch, char *in_err, void *in_if);
+int monitor_wlanng_legacy(const char *in_dev, int initch, char *in_err, void **in_if);
 int chancontrol_wlanng_legacy(const char *in_dev, int initch, char *in_err, 
                               void *in_ext);
 

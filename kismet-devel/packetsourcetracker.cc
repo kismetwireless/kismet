@@ -648,7 +648,7 @@ int Packetsourcetracker::BindSources(int in_root) {
 
             ret = (*meta->prototype->monitor_enable)(meta->device.c_str(), 
                                                      meta->cur_ch, errstr,
-                                                     meta->stored_interface);
+                                                     &meta->stored_interface);
         }
 
         if (ret < 0) {
@@ -730,7 +730,8 @@ int Packetsourcetracker::CloseSources() {
         // turn into something that checks caps later...
         if (uid != 0 && meta->prototype->root_required != 0)
             continue;
-        
+
+        printf("debug - closing source %d uid %d\n", metc, uid);
         // close if we can
         if (meta->valid)
             meta->capsource->CloseSource();
@@ -742,8 +743,9 @@ int Packetsourcetracker::CloseSources() {
 
         // unmonitor - we don't care about errors.
         if (meta->prototype->monitor_disable != NULL) {
+            printf("debug - monitor disable not null\n");
             (*meta->prototype->monitor_disable)(meta->device.c_str(), 0, 
-                                                errstr, meta->stored_interface);
+                                                errstr, &meta->stored_interface);
         }
 
     }
