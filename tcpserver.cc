@@ -119,10 +119,12 @@ unsigned int TcpServer::MergeSet(fd_set in_set, unsigned int in_max,
     FD_ZERO(out_set);
     FD_ZERO(outw_set);
 
-    if (in_max < max_fd)
+    if (in_max < max_fd) {
         max = max_fd;
-    else
+    } else {
         max = in_max;
+        max_fd = max;
+    }
 
     for (unsigned int x = 0; x <= max; x++) {
         if (FD_ISSET(x, &in_set) || FD_ISSET(x, &server_fds)) {

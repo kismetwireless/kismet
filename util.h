@@ -22,6 +22,12 @@
 #include "config.h"
 
 #include <stdio.h>
+#ifdef HAVE_STDINT_H
+#include <stdint.h>
+#endif
+#ifdef HAVE_INTTYPES_H
+#include <inttypes.h>
+#endif
 #include <unistd.h>
 #include <sys/stat.h>
 #include <sys/types.h>
@@ -45,5 +51,27 @@ int XtoI(char x);
 int Hex2UChar(unsigned char *in_hex, unsigned char *in_chr);
 
 vector<string> StrTokenize(string in_str, string in_split);
+
+class KisRingBuffer {
+public:
+    KisRingBuffer(int in_size);
+    ~KisRingBuffer();
+
+    // See if an insert would succeed (for multi-stage inserts that must
+    // all succeed
+    int InsertDummy(int in_len);
+    // Add data to the ring buffer
+    int InsertData(uint8_t *in_data, int in_len);
+    // Fetch the length of the longest continual piece of data
+    int FetchLen();
+    // Fetch the longest continual piece of data
+    void FetchPtr(uint8_t **in_dptr, int *in_len);
+    // Flag bytes as read.  Will only flag as many bytes are available
+    void MarkRead(uint8_t in_len);
+protected:
+    int ring_len;
+    uint8_t *ring_data;
+    uint8_t *ring_rptr, *ring_wptr;
+};
 
 #endif

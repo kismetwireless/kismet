@@ -38,6 +38,7 @@
 #include <map>
 #include <vector>
 
+#include "util.h"
 #include "packet.h"
 #include "packetstream.h"
 #include "server_globals.h"
@@ -46,6 +47,7 @@
 #define MAXHOSTNAMELEN 64
 #endif
 
+#define RING_LEN (MAX_PACKET_LEN * 8)
 
 class TcpStreamer {
 public:
@@ -81,18 +83,15 @@ public:
 protected:
     int Accept();
 
-    map<string, int> ref_map;
-    // Protocols clients are required to support
-    vector<int> required_protocols;
-    // Map of protocols to the number of clients using them
-    map<int, int> client_mapped_protocols;
-
     char errstr[1024];
 
     // Active server
     int sv_valid;
 
     unsigned int max_clients;
+
+    // Clients to be written out to
+    map<int, KisRingBuffer *> droneclients;
 
     // Server info
     short int port;

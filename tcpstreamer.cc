@@ -118,15 +118,20 @@ unsigned int TcpStreamer::MergeSet(fd_set in_set, unsigned int in_max,
     FD_ZERO(out_set);
     FD_ZERO(outw_set);
 
-    if (in_max < max_fd)
+    if (in_max < max_fd) {
         max = max_fd;
-    else
+    } else {
         max = in_max;
+        max_fd = max;
+    }
 
     for (unsigned int x = 0; x <= max; x++) {
         if (FD_ISSET(x, &in_set) || FD_ISSET(x, &server_fds)) {
             FD_SET(x, out_set);
-	}
+        }
+        if (FD_ISSET(x, &client_fds) && droneclients[x]->FetchLen() != 0) {
+            FD_SET(x, outw_set);
+        }
     }
 
     return max;
@@ -137,10 +142,46 @@ int TcpStreamer::Poll(fd_set& in_rset, fd_set& in_wset)
     if (!sv_valid)
         return -1;
 
+    // Look for new FD's
     int accept_fd = 0;
     if (FD_ISSET(serv_fd, &in_rset))
         if ((accept_fd = Accept()) < 0)
             return -1;
+
+    // Write queued data from our ring buffers out and kill anything
+    // that complains about it
+    uint8_t *dptr = NULL;
+    int dlen, ret;
+    for (unsigned int x = 0; x <= max_fd; x++) {
+        // Soak any data in the read buffer
+        if (FD_ISSET(x, &in_rset) && FD_ISSET(x, &client_fds)) {
+            char buf[128];
+            ret = read(x, buf, 128);
+            if (ret <= 0 && (errno != EAGAIN && errno != EPIPE)) {
+                if (!silent)
+                    fprintf(stderr, "WARNING: Killing client fd %d read error %d: %s\n",
+                            x, errno, strerror(errno));
+
+                Kill(x);
+                return 0;
+            }
+        }
+
+        if (FD_ISSET(x, &in_wset) && FD_ISSET(x, &client_fds)) {
+            droneclients[x]->FetchPtr(&dptr, &dlen);
+
+            if ((ret = write(x, dptr, dlen)) <= 0) {
+                if (!silent)
+                    fprintf(stderr, "WARNING: Killing client fd %d write error %d: %s\n",
+                            x, errno, strerror(errno));
+
+                Kill(x);
+                continue;
+            } else {
+                droneclients[x]->MarkRead(ret);
+            }
+        }
+    }
 
     return accept_fd;
 }
@@ -201,6 +242,9 @@ int TcpStreamer::Accept() {
     FD_SET(new_fd, &server_fds);
     FD_SET(new_fd, &client_fds);
 
+    // Allocate a ring buffer
+    droneclients[new_fd] = new KisRingBuffer(RING_LEN);
+
     WriteVersion(new_fd);
 
     return new_fd;
@@ -208,10 +252,16 @@ int TcpStreamer::Accept() {
 
 // Kill a connection
 void TcpStreamer::Kill(int in_fd) {
+    // remove us from the fd lists
     FD_CLR(in_fd, &server_fds);
     FD_CLR(in_fd, &client_fds);
+
+    // Close the fd
     if (in_fd)
         close(in_fd);
+
+    // Kill the ring buffer
+    delete droneclients[in_fd];
 }
 
 int TcpStreamer::WriteVersion(int in_fd) {
@@ -224,20 +274,37 @@ int TcpStreamer::WriteVersion(int in_fd) {
     vpkt.drone_version = (uint16_t) htons(STREAM_DRONE_VERSION);
 
     if (!FD_ISSET(in_fd, &client_fds))
-        return 0;
+        return -1;
 
-    if (write(in_fd, &hdr, sizeof(struct stream_frame_header)) <= 0) {
-        if (errno != EAGAIN && errno != EINTR) {
-            Kill(in_fd);
-            return 0;
-        }
+    // See if we have room in the ring and drop out if we don't
+    if (droneclients[in_fd]->InsertDummy(sizeof(struct stream_frame_header) +
+                                         sizeof(struct stream_version_packet)) == 0) {
+        if (!silent)
+            fprintf(stderr, "WARNING: Client fd %d ring buffer full, version packet dropped.\n",
+                    in_fd);
+
+        return 0;
     }
 
-    if (write(in_fd, &vpkt, sizeof(struct stream_version_packet)) <= 0) {
-        if (errno != EAGAIN && errno != EINTR) {
-            Kill(in_fd);
-            return 0;
-        }
+    // Add the data to the ring
+    if (droneclients[in_fd]->InsertData((uint8_t *) &hdr,
+                                        sizeof(struct stream_frame_header)) == 0) {
+        if (!silent)
+            fprintf(stderr, "WARNING: Client fd %d failed to insert data into ring buffer, killing.\n",
+                    in_fd);
+
+        Kill(in_fd);
+        return -1;
+    }
+
+    if (droneclients[in_fd]->InsertData((uint8_t *) &vpkt,
+                                        sizeof(struct stream_version_packet)) == 0) {
+        if (!silent)
+            fprintf(stderr, "WARNING: Client fd %d failed to insert data into ring buffer, killing.\n",
+                    in_fd);
+
+        Kill(in_fd);
+        return -1;
     }
 
     return 1;
@@ -280,27 +347,44 @@ int TcpStreamer::WritePacket(const kis_packet *in_packet, float in_lat, float in
         if (!FD_ISSET(x, &client_fds))
             continue;
 
-        if (write(x, &hdr, sizeof(struct stream_frame_header)) <= 0) {
-            if (errno != EAGAIN && errno != EINTR) {
-                Kill(x);
-                return 0;
-            }
+        // See if we have room in the ring and drop out if we don't
+        if (droneclients[x]->InsertDummy(sizeof(struct stream_frame_header) +
+                                         sizeof(stream_packet_header) +
+                                         in_packet->caplen) == 0) {
+            if (!silent)
+                fprintf(stderr, "WARNING: Client fd %d ring buffer full, packet dropped.\n",
+                        x);
+            continue;
         }
 
-        if (write(x, &packhdr, sizeof(stream_packet_header)) <= 0) {
-            if (errno != EAGAIN && errno != EINTR) {
-                Kill(x);
-                return 0;
-            }
+        if (droneclients[x]->InsertData((uint8_t *) &hdr,
+                                        sizeof(struct stream_frame_header)) == 0) {
+            if (!silent)
+                fprintf(stderr, "WARNING: Client fd %d failed to insert data into ring buffer, killing.\n",
+                        x);
+            Kill(x);
+            continue;
         }
 
-        if (write(x, in_packet->data, in_packet->caplen) <= 0) {
-            if (errno != EAGAIN && errno != EINTR) {
-                Kill(x);
-                return 0;
-            }
+        if (droneclients[x]->InsertData((uint8_t *) &packhdr,
+                                        sizeof(stream_packet_header)) == 0) {
+            if (!silent)
+                fprintf(stderr, "WARNING: Client fd %d failed to insert data into ring buffer, killing.\n",
+                        x);
+            Kill(x);
+            continue;
         }
 
+        if (droneclients[x]->InsertData((uint8_t *) in_packet->data,
+                                        in_packet->caplen) == 0) {
+            if (!silent)
+                fprintf(stderr, "WARNING: Client fd %d failed to insert data into ring buffer, killing.\n",
+                        x);
+            Kill(x);
+            continue;
+        }
+
+        nsent++;
     }
 
     return nsent;
