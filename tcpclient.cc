@@ -31,7 +31,7 @@ TcpClient::TcpClient() {
         "channelhop,newversion";
     protocol_default_map["GPS"] = "lat,lon,alt,spd,heading,fix";
     protocol_default_map["NETWORK"] = "bssid,type,ssid,beaconinfo,llcpackets,datapackets,cryptpackets,"
-        "weakpackets,channel,cryptset,firsttime,lasttime,atype,rangeip,gpsfixed,minlat,minlon,minalt,minspd,"
+        "weakpackets,channel,wep,firsttime,lasttime,atype,rangeip,gpsfixed,minlat,minlon,minalt,minspd,"
         "maxlat,maxlon,maxalt,maxspd,octets,cloaked,beaconrate,maxrate,"
         "quality,signal,noise,bestquality,bestsignal,bestnoise,bestlat,bestlon,bestalt,"
         "agglat,agglon,aggalt,aggpoints,datasize,turbocellnid,turbocellmode,turbocellsat,"
@@ -41,7 +41,7 @@ TcpClient::TcpClient() {
         "gpsfixed,minlat,minlon,minalt,minspd,maxlat,maxlon,maxalt,maxspd,"
         "agglat,agglon,aggalt,aggpoints,maxrate,quality,signal,noise,"
         "bestquality,bestsignal,bestnoise,bestlat,bestlon,bestalt,"
-        "atype,ip,datasize,maxseenrate,encodingset,decrypted,cryptset";
+        "atype,ip,datasize,maxseenrate,encodingset,decrypted,wep";
     protocol_default_map["WEPKEY"] = "origin,bssid,key,encrypted,failed";
     protocol_default_map["CARD"] = "interface,type,username,channel,id,packets,hopping";
 

@@ -108,7 +108,7 @@ char *NETWORK_fields_text[] = {
     "datasize",
     "turbocellnid", "turbocellmode", "turbocellsat",
     "carrierset", "maxseenrate", "encodingset",
-    "decrypted", "dupeivpackets", "cryptset",
+    "decrypted", "dupeivpackets", 
     NULL
 };
 
@@ -125,7 +125,7 @@ char *CLIENT_fields_text[] = {
     "bestquality", "bestsignal", "bestnoise",
     "bestlat", "bestlon", "bestalt",
     "atype", "ip", "datasize", "maxseenrate", "encodingset",
-    "decrypted", "wep", "cryptset",
+    "decrypted", "wep", 
     NULL
 };
 
@@ -515,8 +515,6 @@ void Protocol_Network2Data(const wireless_network *net, NETWORK_data *data) {
     snprintf(tmpstr, 128, "%d", net->dupeiv_packets);
     data->ndvec.push_back(tmpstr);
 
-    snprintf(tmpstr, 128, "%d", net->crypt_set);
-    data->ndvec.push_back(tmpstr);
 }
 
 // Network records.  data = NETWORK_data
@@ -662,9 +660,6 @@ void Protocol_Client2Data(const wireless_network *net, const wireless_client *cl
     data->cdvec.push_back(tmpstr);
 
     snprintf(tmpstr, 128, "%d", cli->decrypted);
-    data->cdvec.push_back(tmpstr);
-
-    snprintf(tmpstr, 128, "%d", cli->crypt_set);
     data->cdvec.push_back(tmpstr);
 
     snprintf(tmpstr, 128, "%d", cli->crypt_set);

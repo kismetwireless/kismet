@@ -1,3 +1,5 @@
+Mar 13 2005  devel  Reverted crypt_set to push out 'wep' protocol field for 
+                     backwards compatability.  Same data, old field name.
 Mar 10 2005  devel  Merged long-delayed patch from Josh Wright to add detection
                      for LEAP, TLS, TTLS, PEAP, and ISAKMP exchanges in networks.
                     Expanded "wep" attribute to "cryptset".  WEP is still reported
