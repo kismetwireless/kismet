@@ -50,6 +50,7 @@ extern int silent;
 #endif
 
 #define RING_LEN (MAX_PACKET_LEN * 8)
+// #define RING_LEN (MAX_PACKET_LEN)
 
 // Allowed IP information
 struct client_ipblock {

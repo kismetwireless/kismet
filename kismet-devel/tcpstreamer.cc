@@ -167,7 +167,7 @@ int TcpStreamer::Poll(fd_set& in_rset, fd_set& in_wset)
             }
 
             if (ret == 1) {
-                printf("-- debug - got flush request for client stream.\n");
+                // printf("-- debug - got flush request for client stream.\n");
                 if (buf == STREAM_COMMAND_FLUSH) {
                     // Flush this ring buffer, loose all packets queued
                     delete droneclients[x];
@@ -180,13 +180,16 @@ int TcpStreamer::Poll(fd_set& in_rset, fd_set& in_wset)
             droneclients[x]->FetchPtr(&dptr, &dlen);
 
             // debug
-            printf("got %d from ring: ", dlen);
+            // printf("got %d from ring: ", dlen);
+            /*
             int pos;
             for (pos = 0; pos < dlen && pos < 10; pos++)
                 printf("%02X ", dptr[pos]);
             printf(" ... ");
+
             for (pos = kismax(pos, dlen - 10); pos < dlen; pos++)
                 printf("%02X ", dptr[pos]);
+                */
             
             if ((ret = write(x, dptr, dlen)) <= 0) {
                 if (!silent)
@@ -196,7 +199,7 @@ int TcpStreamer::Poll(fd_set& in_rset, fd_set& in_wset)
                 Kill(x);
                 continue;
             } else {
-                printf(" wrote %d\n", ret);
+                // printf(" wrote %d\n", ret);
                 droneclients[x]->MarkRead(ret);
             }
         }
