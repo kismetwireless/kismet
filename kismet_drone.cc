@@ -138,9 +138,12 @@ int main(int argc, char *argv[]) {
     char gpshost[1024];
     int gpsport = -1;
 
+    /*
     int beacon_stream = 1;
     int phy_stream = 1;
-    map<mac_addr, string> beacon_logged_map;
+     map<mac_addr, string> beacon_logged_map;
+     */
+
     // We don't actually use this but we need it for calls
     map<mac_addr, wep_key_info *> bssid_wep_map;
 
@@ -474,6 +477,7 @@ int main(int argc, char *argv[]) {
         legal_ipblock_vec.push_back(ipb);
     }
 
+    /*
     if (conf->FetchOpt("beaconstream") == "false") {
         beacon_stream = 0;
         fprintf(stderr, "Filtering beacon packets.\n");
@@ -482,7 +486,8 @@ int main(int argc, char *argv[]) {
     if (conf->FetchOpt("phystream") == "false") {
         phy_stream = 0;
         fprintf(stderr, "Filtering PHY layer packets.\n");
-    }
+        }
+        */
 
 #ifdef HAVE_GPS
     if (conf->FetchOpt("gps") == "true") {
@@ -625,7 +630,8 @@ int main(int argc, char *argv[]) {
 
                 // Handle a packet
                 if (len > 0) {
-                    if (beacon_stream == 0 || phy_stream == 0) {
+                    /*
+                     if (beacon_stream == 0 || phy_stream == 0) {
                         static packet_info info;
                         GetPacketInfo(&packet, &packet_sources[src]->packparm, &info,
                                       &bssid_wep_map, NULL);
@@ -639,10 +645,10 @@ int main(int argc, char *argv[]) {
                                 delete[] packet.data;
                                 continue;
                             }
-                        } else if (info.type == packet_phy && phy_stream == 0) {
-                            delete[] packet.data;
-                            continue;
-                        }
+                            } else
+                        if (info.type == packet_phy && phy_stream == 0)
+                        continue;
+                        */
                     }
 
 #ifdef HAVE_GPS
