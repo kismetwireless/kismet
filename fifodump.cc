@@ -136,6 +136,8 @@ int FifoDumpFile::DumpPacket(const packet_info *in_info, const kis_packet *packe
         // delete the new packet if needed
         if (mangled == 1) {
             delete[] dump_packet->data;
+            if (dump_packet->moddata != NULL)
+                delete[] dump_packet->moddata;
             delete dump_packet;
         }
 
@@ -152,6 +154,8 @@ int FifoDumpFile::DumpPacket(const packet_info *in_info, const kis_packet *packe
         // delete the new packet if needed
         if (mangled == 1) {
             delete[] dump_packet->data;
+            if (dump_packet->moddata != NULL)
+                delete[] dump_packet->moddata;
             delete dump_packet;
         }
 
@@ -161,6 +165,8 @@ int FifoDumpFile::DumpPacket(const packet_info *in_info, const kis_packet *packe
     // delete the new packet if needed
     if (mangled == 1) {
         delete[] dump_packet->data;
+        if (dump_packet->moddata != NULL)
+            delete[] dump_packet->moddata;
         delete dump_packet;
     }
 
