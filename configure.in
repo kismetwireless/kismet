@@ -413,12 +413,7 @@ else
 	AC_MSG_WARN(*** Not installing setuid capabilities.  It is more secure to install Kismet as setuid-capable so it can drop privileges.  Please consult the README file. ***)
 fi
 
-# Enable viha by default on osx
-if test "$darwin" = "yes"; then
-	want_viha=yes
-else
-	want_viha=no
-fi
+want_viha=no
 AC_ARG_ENABLE(viha,
 [  --enable-viha           enable the Viha capture engine for Mac OSX],
 	want_viha=yes, want_viha=no)
