@@ -1281,8 +1281,6 @@ KisNetFramework::KisNetFramework(GlobalRegistry *in_globalreg) {
                                                &Protocol_CLIENT, &Protocol_CLIENT_enable);
     // This has been broken for a long time now
     // RegisterProtocol("CISCO", 0, CISCO_fields_text, &Protocol_CISCO, NULL);
-    globalreg->gps_prot_ref = RegisterProtocol("GPS", 0, GPS_fields_text, 
-                                               &Protocol_GPS, NULL);
     globalreg->ifo_prot_ref = RegisterProtocol("INFO", 0, INFO_fields_text, 
                                                &Protocol_INFO, NULL);
     globalreg->net_prot_ref = RegisterProtocol("NETWORK", 0, NETWORK_fields_text, 
