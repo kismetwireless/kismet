@@ -488,8 +488,11 @@ int Packetracker::ProcessDataPacket(packet_info info, wireless_network *net, cha
     wireless_client *client = NULL;
 
     // Handle lucent outdoor routers
-    if (net->type == network_data && info.proto.type == proto_lor)
+    if (net->type == network_data && info.proto.type == proto_lor) {
+        net->cloaked = 1;
+        net->ssid = "Lucent Outdoor Router";
         net->type = network_lor;
+    }
 
     string smac = Mac2String(info.source_mac, ':');
 
