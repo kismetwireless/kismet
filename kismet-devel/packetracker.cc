@@ -636,6 +636,10 @@ void Packetracker::ProcessDataPacket(packet_info info, wireless_network *net) {
         else if (info.distrib == no_distribution)
             client->type = client_interds;
 
+        if (bssid_ip_map.find(info.source_mac) != bssid_ip_map.end()) {
+            memcpy(&net->ipdata, &bssid_ip_map[info.source_mac], sizeof(net_ip_data));
+        }
+
         KisLocalNewclient(client, net);
 
     } else {
@@ -1824,6 +1828,21 @@ void Packetracker::WriteIPMap(FILE *in_file) {
                 x->second.atype, x->second.octets,
                 x->second.range_ip[0], x->second.range_ip[1],
                 x->second.range_ip[2], x->second.range_ip[3]);
+    }
+
+    for (unsigned int x = 0; x < network_list.size(); x++) {
+        for (unsigned int y = 0; y < network_list[x]->client_vec.size(); y++) {
+            wireless_client *cli = network_list[x]->client_vec[y];
+
+            if (cli->ipdata.atype <= address_factory)
+                continue;
+
+            fprintf(in_file, "%s %d %d %hd %hd %hd %hd\n",
+                    cli->mac.Mac2String().c_str(),
+                    cli->ipdata.atype, cli->ipdata.octets,
+                    cli->ipdata.ip[0], cli->ipdata.ip[1],
+                    cli->ipdata.ip[2], cli->ipdata.ip[3]);
+        }
     }
 
     return;
