@@ -385,6 +385,12 @@ void DrawNetScatterPlot(vector<gps_network *> in_nets, Image *in_img, DrawInfo *
 class PointSortLon {
 public:
     inline bool operator() (const gps_point *x, const gps_point *y) const {
+        if (isnan(x->lon))
+            return 1;
+
+        if (isnan(y->lon))
+            return 0;
+
         if (x->lon < y->lon)
             return 1;
         return 0;
@@ -395,6 +401,12 @@ public:
 class PointSortLat {
 public:
     inline bool operator() (const gps_point *x, const gps_point *y) const {
+        if (isnan(x->lat))
+            return 1;
+
+        if (isnan(y->lon))
+            return 0;
+
         if (x->lat < y->lat)
             return 1;
         return 0;
@@ -471,35 +483,35 @@ void SanitizeSamplePoints(vector<gps_point *> in_samples, map<int,int> *dead_sam
         return;
 
     // Sort the networks
-    sort(lat_samples.begin(), lat_samples.end(), PointSortLat());
-    sort(lon_samples.begin(), lon_samples.end(), PointSortLon());
+    stable_sort(lat_samples.begin(), lat_samples.end(), PointSortLat());
+    stable_sort(lon_samples.begin(), lon_samples.end(), PointSortLon());
 
     // Lets make the assumption that half our sample points can't be crap....
-    unsigned int slice_point = 0;
-    for (unsigned int pos = lat_samples.size() / 2; pos > 0; pos--) {
+    int slice_point = -1;
+    for (unsigned int pos = 0; pos < (lat_samples.size() / 2) + 1; pos++) {
         float lat_offset = lat_samples[pos + 1]->lat - lat_samples[pos]->lat;
 
         // Slice if we have a major break, it can only get worse from here...
         if (lat_offset > 0.5 || lat_offset < -0.5) {
             /*
-            printf("Major lat break at pos %d in sorted lats, %f,%f id %d\n",
-            pos, lat_samples[pos]->lat, lat_samples[pos]->lon, lat_samples[pos]->id);
+              printf("Major lat break at pos %d in sorted lats, %f,%f id %d\n",
+                pos, lat_samples[pos]->lat, lat_samples[pos]->lon, lat_samples[pos]->id);
             */
             slice_point = pos;
             break;
         }
     }
 
-    if (slice_point != 0) {
-        for (unsigned int pos = 0; pos <= slice_point; pos++) {
+    if (slice_point != -1) {
+        for (unsigned int pos = 0; pos <= (unsigned int) slice_point; pos++) {
             //printf("Discarding point lat violation %f,%f %d...\n", lat_samples[pos]->lat, lat_samples[pos]->lon, lat_samples[pos]->id);
             (*dead_sample_ids)[lat_samples[pos]->id] = 1;
         }
     }
 
     // Now for the upper bounds of the lat...
-    slice_point = 0;
-    for (unsigned int pos = lat_samples.size() / 2; pos < lat_samples.size(); pos++) {
+    slice_point = -1;
+    for (unsigned int pos = (lat_samples.size() / 2) - 1; pos < lat_samples.size(); pos++) {
         float lat_offset = lat_samples[pos - 1]->lat - lat_samples[pos]->lat;
 
         // Slice if we have a major break, it can only get worse from here...
@@ -513,7 +525,7 @@ void SanitizeSamplePoints(vector<gps_point *> in_samples, map<int,int> *dead_sam
         }
     }
 
-    if (slice_point != 0) {
+    if (slice_point != -1) {
         for (unsigned int pos = slice_point; pos < lat_samples.size(); pos++) {
             //printf("Discarding point lat violation %f,%f %d...\n", lat_samples[pos]->lat, lat_samples[pos]->lon, lat_samples[pos]->id);
             (*dead_sample_ids)[lat_samples[pos]->id] = 1;
@@ -522,8 +534,8 @@ void SanitizeSamplePoints(vector<gps_point *> in_samples, map<int,int> *dead_sam
 
 
     // Now for the lon...
-    slice_point = 0;
-    for (unsigned int pos = lon_samples.size() / 2; pos > 0; pos--) {
+    slice_point = -1;
+    for (unsigned int pos = 0; pos < (lon_samples.size() / 2) + 1; pos++) {
         float lon_offset = lon_samples[pos + 1]->lon - lon_samples[pos]->lon;
 
         // Slice if we have a major break, it can only get worse from here...
@@ -537,15 +549,15 @@ void SanitizeSamplePoints(vector<gps_point *> in_samples, map<int,int> *dead_sam
         }
     }
 
-    if (slice_point != 0) {
-        for (unsigned int pos = 0; pos <= slice_point; pos++) {
+    if (slice_point != -1) {
+        for (unsigned int pos = 0; pos <= (unsigned int) slice_point; pos++) {
             // printf("Discarding point lon violation %f,%f %d...\n", lon_samples[pos]->lon, lon_samples[pos]->lon, lon_samples[pos]->id);
             (*dead_sample_ids)[lon_samples[pos]->id] = 1;
         }
     }
 
     // Now for the lon upper bound...
-    slice_point = 0;
+    slice_point = -1;
     for (unsigned int pos = lon_samples.size() / 2; pos < lon_samples.size(); pos++) {
         float lon_offset = lon_samples[pos - 1]->lon - lon_samples[pos]->lon;
 
@@ -560,7 +572,7 @@ void SanitizeSamplePoints(vector<gps_point *> in_samples, map<int,int> *dead_sam
         }
     }
 
-    if (slice_point != 0) {
+    if (slice_point != -1) {
         for (unsigned int pos = slice_point; pos < lon_samples.size(); pos++) {
             // printf("Discarding point lon violation %f,%f %d...\n", lon_samples[pos]->lon, lon_samples[pos]->lon, lon_samples[pos]->id);
             (*dead_sample_ids)[lon_samples[pos]->id] = 1;
@@ -835,17 +847,28 @@ int ProcessGPSFile(char *in_fname) {
     int last_power = 0;
     int power_count = 0;
 
+    // Bail if we don't have enough samples to make it worth it.
+    if (file_points.size() < 50) {
+        fprintf(stderr, "WARNING:  Skipping file '%s', too few sample points to get "
+                "valid data.\n", in_fname);
+        return 1;
+    }
+    
     // Sanitize the data and build the map of points we don't look at
     fprintf(stderr, "NOTICE:  Sanitizing %d sample points...\n", file_points.size());
     SanitizeSamplePoints(file_points, &file_screen);
 
     for (unsigned int i = 0; i < file_points.size(); i++) {
-
         if (file_screen.find(file_points[i]->id) != file_screen.end()) {
             fprintf(stderr, "Removing invalid point %f,%f id %d from consideration...\n",
                     file_points[i]->lat, file_points[i]->lon, file_points[i]->id);
             continue;
         }
+
+        if (file_points[i]->lat == 0) {
+            printf("We let a lat 0.000 get by in %s\n", in_fname);
+        }
+
 
         // All we have to do here is push the points into the network (and make them
         // one if it doesn't exist).  We crunch all the data points in ProcessNetData
