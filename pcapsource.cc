@@ -141,7 +141,9 @@ int PcapSource::Pcap2Common(kis_packet *packet) {
 
         wlan_ng_prism2_header *p2head = (wlan_ng_prism2_header *) callback_data;
 
-        packet->caplen = min(p2head->frmlen.data, (uint32_t) MAX_PACKET_LEN);
+        // Subtract the packet FCS since kismet doesn't do anything terribly bright
+        // with it right now
+        packet->caplen = min(p2head->frmlen.data - 4, (uint32_t) MAX_PACKET_LEN);
         packet->len = packet->caplen;
 
         // Set our offset for extracting the actual data

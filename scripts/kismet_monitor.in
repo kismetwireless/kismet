@@ -174,6 +174,9 @@ for line in `cat $IFFILE`; do
 		"prism2")
 			echo "Enabling monitor mode for a pcap prism2 card on $DEVICE channel $CHANNEL"
 			ifconfig $DEVICE promisc up
+			wlanctl-ng $DEVICE lnxreq_ifstate ifstate=enable
+			wlanctl-ng $DEVICE dot11req_mibset mibattribute=dot11PrivacyInvoked=false
+			wlanctl-ng $DEVICE dot11req_mibset mibattribute=dot11ExcludeUnencrypted=false 
 			wlanctl-ng $DEVICE lnxreq_wlansniff channel=$CHANNEL enable=true prismheader=true
 			;;
 		"prism2_bsd")
