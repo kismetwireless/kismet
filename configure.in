@@ -113,8 +113,6 @@ fi
 
 CXXFLAGS="$CXXFLAGS $CFLAGS"
 
-LIBS="-lstdc++"
-
 AC_CONFIG_SRCDIR([kismet_server.cc])
 AC_CONFIG_HEADER([config.h])
 
@@ -761,6 +759,8 @@ if test "$pthr" = "no"; then
 else
 	threadlib="-lpthread"
 fi
+
+LIBS="$LIBS -lstdc++"
 
 AC_SUBST(threadlib)
 	
