@@ -203,6 +203,11 @@ wireless_network *Packetracker::MatchNetwork(const packet_info *info) {
 
 wireless_client *Packetracker::CreateClient(const packet_info *info, 
                                             wireless_network *net) {
+
+    map<mac_addr, wireless_client *>::iterator cmi;
+    if ((cmi = net->client_map.find(info->source_mac)) != net->client_map.end())
+        return cmi->second;
+        
     wireless_client *client = new wireless_client;
 
     // Add it to the map
@@ -328,12 +333,13 @@ void Packetracker::ProcessPacket(packet_info info) {
         net->channel = info.channel;
 
 
-        if (info.type == packet_management && info.subtype == packet_sub_probe_req)
+        if (info.type == packet_management && info.subtype == packet_sub_probe_req) {
             net->type = network_probe;
-        else if (info.distrib == adhoc_distribution)
+        } else if (info.distrib == adhoc_distribution) {
             net->type = network_adhoc;
-        else
+        } else {
             net->type = network_ap;
+        }
 
         net->wep = info.wep;
 
@@ -688,8 +694,15 @@ void Packetracker::ProcessPacket(packet_info info) {
 
     } // data packet
 
-    if (newnet == 1)
+    if (newnet == 1) {
         KisLocalNewnet(net);
+
+        // Put it in itself as a client... I don't like defining the client 
+        // all the way down here, but it does need to have the network in the
+        // client records first, so....  such it goes.
+        if (net->type == network_probe)
+            CreateClient(&info, net);
+    }
 
     return;
 }
