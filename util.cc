@@ -234,7 +234,7 @@ int IEEE80211Ch[] = {
 };
 
 int FloatChan2Int(float in_chan) {
-    int mod_chan = (int) roundf(in_chan / 1000000);
+    int mod_chan = (int) rintf(in_chan / 1000000);
     int x = 0;
 
     while (IEEE80211Freq[x] != -1) {
