@@ -25,8 +25,8 @@
 
 // Munge text down to printable characters only
 void MungeToPrintable(char *in_data, int max) {
-    char *temp = new char[max];
-    strncpy(temp, in_data, max);
+    unsigned char *temp = new unsigned char[max];
+    strncpy((char *) temp, in_data, max);
     // Make sure we terminate this just in case
 
     int i, j;
@@ -513,8 +513,11 @@ void GetPacketInfo(const pkthdr *header, u_char *data,
 
         }
 
-        // Knock 4 bytes off for the size
-        ret_packinfo->datasize = header->len - ret_packinfo->header_offset - 4;
+        // Knock 8 bytes off the data size of encrypted packets for the
+        // wep IV and check
+        int datasize = header->len - ret_packinfo->header_offset - 8;
+        if (datasize > 0)
+            ret_packinfo->datasize = datasize;
 
         // De-wep if we have any keys
         if (ret_packinfo->encrypted && bssid_wep_map->size() != 0)
