@@ -72,7 +72,7 @@ const char *config_base = "kismet.conf";
 // Some globals for command line options
 char *configfile = NULL;
 int no_log = 0, noise_log = 0, data_log = 0, net_log = 0, crypt_log = 0, cisco_log = 0,
-    gps_log = 0, gps_enable = 1, csv_log = 0, xml_log = 0, ssid_cloak_track = 0, ip_track = 0,
+    gps_log = -1, gps_enable = 1, csv_log = 0, xml_log = 0, ssid_cloak_track = 0, ip_track = 0,
     waypoint = 0, fifo = 0;
 string logname, dumplogfile, netlogfile, cryptlogfile, ciscologfile,
     gpslogfile, csvlogfile, xmllogfile, ssidtrackfile, configdir, iptrackfile, waypointfile,
@@ -778,7 +778,7 @@ int GpsEvent(Timetracker::timer_event *evt, void *parm) {
         }
     }
 
-    if (gps_log && gps != NULL) {
+    if (gps_log && gpsmode != 0 && gps != NULL) {
         gpsdump.DumpTrack(gps);
     }
 
@@ -1353,25 +1353,14 @@ int main(int argc,char *argv[]) {
             fprintf(stderr, "%s\n", gps->FetchError());
 
             gps_enable = 0;
-            if (gps_log)
-                fprintf(stderr, "Disabling GPS logging.\n");
             gps_log = 0;
         } else {
             fprintf(stderr, "Opened GPS connection to %s port %d\n",
                     gpshost, gpsport);
 
             gpsmode = gps->FetchMode();
-
-            if (gps_log) {
-                if (gpsdump.OpenDump(gpslogfile.c_str(), xmllogfile.c_str()) < 0) {
-                    fprintf(stderr, "FATAL: GPS dump error: %s\n", gpsdump.FetchError());
-                    exit(1);
-                }
-            }
         }
     } else {
-        if (gps_log)
-            fprintf(stderr, "Disabling GPS logging.\n");
         gps_log = 0;
     }
 
@@ -1721,12 +1710,15 @@ int main(int argc,char *argv[]) {
 
         if (strstr(logtypes, "gps")) {
 #ifdef HAVE_GPS
+            if (gps_log == 0) {
+                fprintf(stderr, "WARNING:  Disabling GPS logging.\n");
+            } else {
+                gps_log = 1;
 
-            gps_log = 1;
-
-            if (conf->FetchOpt("logtemplate") == "") {
-                fprintf(stderr, "FATAL:  Logging (gps coordinates) enabled but no logtemplate given in config.\n");
-                exit(1);
+                if (conf->FetchOpt("logtemplate") == "") {
+                    fprintf(stderr, "FATAL:  Logging (gps coordinates) enabled but no logtemplate given in config.\n");
+                    exit(1);
+                }
             }
 #else
 
@@ -2330,6 +2322,16 @@ int main(int argc,char *argv[]) {
 
         fprintf(stderr, "Dump file format: %s\n", dumpfile->FetchType());
     }
+
+#ifdef HAVE_GPS
+    if (gps_enable && gps_log) {
+        if (gpsdump.OpenDump(gpslogfile.c_str(), xmllogfile.c_str()) < 0) {
+            fprintf(stderr, "FATAL: GPS dump error: %s\n", gpsdump.FetchError());
+            exit(1);
+        }
+    }
+#endif
+
 
     // Open our files first to make sure we can, we'll unlink the empties later.
     FILE *testfile = NULL;
