@@ -422,14 +422,14 @@ int Packetracker::ProcessPacket(packet_info info, char *in_status) {
             net->beacon_info = info.beacon_info;
         }
 
-        if (info.type == packet_deauth) {
+        if (info.type == packet_deauth || info.type == packet_disassociation) {
             net->client_disconnects++;
 
             if (net->client_disconnects > 10) {
                 if ((net->alertmap & RAISED_DEAUTHFLOOD_ALERT) == 0) {
                     net->alertmap |= RAISED_DEAUTHFLOOD_ALERT;
 
-                    snprintf(in_status, STATUS_MAX, "Deauth/Disassociate flood on %s",
+                    snprintf(in_status, STATUS_MAX, "Deauthenticate/Disassociate flood on %s",
                              net->bssid.Mac2String().c_str());
                     return TRACKER_ALERT;
                 }
