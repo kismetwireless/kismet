@@ -131,6 +131,15 @@ int RegisterKismetSources(Packetsourcetracker *sourcetracker) {
                                         monitor_ipw2100, unmonitor_ipw2100,
                                         chancontrol_ipw2100, 1);
 
+    sourcetracker->RegisterPacketsource("rt2400", 1, "IEEE80211b", 6,
+                                        pcapsource_wext_registrant,
+                                        monitor_wext, unmonitor_wext,
+                                        chancontrol_wext, 1);
+    sourcetracker->RegisterPacketsource("rt2500", 1, "IEEE80211g", 6,
+                                        pcapsource_11g_registrant,
+                                        monitor_wext, unmonitor_wext,
+                                        chancontrol_wext, 1);
+
 #else
     // Register the linuxwireless pcap stuff as null
     REG_EMPTY_CARD(sourcetracker, "cisco");

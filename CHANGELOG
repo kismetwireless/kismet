@@ -1,3 +1,5 @@
+Feb 03 2005  devel  Added support for the rt2x00 11b and 11g cards for the
+                     drivers to be released shortly
 Jan 26 2005  devel  Added typedef for MagickBooleanType on old IM libs
 Jan 17 2005  devel  Updated ipkg spec
                     Changed configure to accept --with-linuxheaders for 

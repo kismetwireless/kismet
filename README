@@ -390,7 +390,8 @@ Licensed under the GPL
 
     - Linux (Intel, PPC, MIPS, X-Scale, Arm, etc)
       Known supported cards: Atmel_USB, ACX100, ADMTek, Atheros, Cisco, Prism2, 
-       Orinoco, WSP100, Drone, wtapfile, pcapfile, wrt54g, ipw2100
+       Orinoco, WSP100, Drone, wtapfile, pcapfile, wrt54g, ipw2100, rt2400,
+       rt2500
 
       Kismet will work with any distribution of Linux.  Currently, Linux is the
       recommended platform for running Kismet because it has the largest
@@ -622,6 +623,18 @@ Licensed under the GPL
                     FreeBSD 802.11b cards (or dual-band on 11b channels only)
                      with radiotap headers (Currently Atheros or Prism2)
 
+    rt2400          Realtek 2400 11b    Linux       rt2400-gpl
+                    Capture interface:  'ethX'
+                    http://rt2x00.serialmonkey.com/
+                    Realtek 2400 802.11b cards using the serialmonkey GPL'd 
+                     Realtek drivers.  Must use 1.2.2 beta 2 or newer drivers.
+
+    rt2500          Realtek 2500 11b    Linux       rt2500-gpl
+                    Capture interface:  'ethX'
+                    http://rt2x00.serialmonkey.com/
+                    Realtek 2500 802.11g cards using the serialmonkey GPL'd 
+                     Realtek drivers.  Must use 1.1.0 beta 2 or newer drivers.
+
     viha            Airport             OSX         viha
                     http://www.dopesquad.net/security/
                     Capture interface:  'enX'
@@ -679,8 +692,6 @@ Licensed under the GPL
      Airport Extreme    - Really a Broadcom, with no rfmon in the OSX drivers.
      Atmel              - There is a hack for pseudo-monitor in USB.  There is
                           currently no equivalent hack for PCMCIA.
-     Realtek            - Cards seem to be primarily software-driven, no
-                          support in the drivers.
      HermesII           - Proxim successor to the Orinoco/HermesI.  No support
                           yet in the drivers, may be available in the future.
      ipw2200            - Intel 2200 802.11g/Centrino-G cards.  Similar to the
