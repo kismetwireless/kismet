@@ -416,7 +416,7 @@ int Packetracker::ProcessPacket(packet_info info, char *in_status) {
 
         // If it's a probe request shortcut to handling it like a client once we've
         // established what network it belongs to
-        if (info.type == packet_probe_req) {
+        if (info.type == packet_probe_req && net->type != network_ap) {
             if (net->ssid != info.ssid) {
                 if (IsBlank(info.ssid))
                     net->ssid = NOSSID;
