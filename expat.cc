@@ -950,6 +950,9 @@ vector<gps_point *> XMLFetchGpsList(gzFile in_file) {
 #else
 vector<gps_point *> XMLFetchGpsList(FILE *in_file) {
 #endif
+
+    gpsnode = gps_node_none;
+
     // Clear out the network vector
     ptvec.clear();
     netfile = "";
@@ -974,7 +977,7 @@ vector<gps_point *> XMLFetchGpsList(FILE *in_file) {
 #ifdef HAVE_LIBZ
         len = gzread(in_file, Buff, BUFFSIZE-2);
         if (len < 0 && errno < 0) {
-            fprintf(stderr, "Read error\n");
+            fprintf(stderr, "WARNING: Read error\n");
             return ptvec;
         }
         Buff[len+1] = '\0';
@@ -982,14 +985,14 @@ vector<gps_point *> XMLFetchGpsList(FILE *in_file) {
 #else
         len = fread(Buff, 1, BUFFSIZE, in_file);
         if (ferror(in_file)) {
-            fprintf(stderr, "Read error\n");
+            fprintf(stderr, "WARNING: Read error\n");
             return ptvec;
         }
         done = feof(in_file);
 #endif
 
         if (! XML_Parse(p, Buff, len, done)) {
-            fprintf(stderr, "Parse error at line %d:\n%s\n",
+            fprintf(stderr, "WARNING: Parse error at line %d:\n%s\n",
                     XML_GetCurrentLineNumber(p),
                     XML_ErrorString(XML_GetErrorCode(p)));
             return ptvec;

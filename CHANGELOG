@@ -1,3 +1,5 @@
+Oct 31 2003  3.1.0  Fixed parsing of multiple sequential gpsxml files
+                    Fixed multiple gpsmap quirks leading to bad plotting
 Oct 20 2003  3.1.0  Fixed double-allocation of imagemagick background records
                      when loading from a file (gpsmap)
                     No longer unlink base map file after generating map when
