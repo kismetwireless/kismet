@@ -2592,6 +2592,8 @@ void DrawNetScatterPlot(vector<gps_network *> in_nets, Image *in_img, DrawInfo *
                 (mapx > map_width && mapy > map_height))
                 continue;
 
+            drawn_net_map[map_iter->bssid.c_str()] = map_iter;
+
             char mm1[64];
             snprintf(mm1, 64, "%d,%d", (int) mapx, (int) mapy);
             char mm2[64];
