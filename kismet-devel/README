@@ -466,8 +466,16 @@ Licensed under the GPL
                     Capture interface:  'ethX'
                     The standard orinoco_cs drivers do not support monitor mode
                      but they work well after being patched with the above.
-                    As of Feb, 2004, the CVS tree of orinoco_cs contains 
-                     monitor mode.
+                    As of Feb, 2004, the CVS tree and 2.6 kernels include 
+                     monitor mode, but require the new orinoco source.
+
+    orinoco_14      Lucent, Orinoco     Linux       Orinoco 0.14+, Kernel 2.6+
+                    https://savannah.nongnu.org/projects/orinoco/
+                    Capture interface:  'ethX'
+                    The new orinoco_cs drivers changed things subtly, but
+                     at least they include rfmon without patching.
+                    Patches to enable signal level reporting are available on
+                     the kismet download site.
 
     pcapfile        n/a                 Any         n/a
                     Capture interface:  '/path/to/file' 
