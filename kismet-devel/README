@@ -281,15 +281,15 @@
                  Notes: The vt_ar5k drivers require the Linux
                  wireless-tools version 25 or higher. Older versions will
                  not be able to put the cards into monitor mode.
-    7. DRONE REMOTE
-       Notes: The packets sent by Kismet drones may be filtered by the
-       drone itself for content (physical, beacon, etc.).
-          + 'drone': Kismet Drone remote
-            Capture interface: host:port
-            Notes: The capture interface specifies the address of the
-            Kismet drone server and the port on that server which
-            provides packets.
-    8. GPS SUPPORT
+         7. DRONE REMOTE
+            Notes: The packets sent by Kismet drones may be filtered by
+            the drone itself for content (physical, beacon, etc.).
+               o 'drone': Kismet Drone remote
+                 Capture interface: host:port
+                 Notes: The capture interface specifies the address of
+                 the Kismet drone server and the port on that server
+                 which provides packets.
+    7. GPS SUPPORT
        GPS support is provided via the GPSD daemon, available at
        http://russnelson.com/gpsd/. GPSD is also included with the
        navigation software GPSDrive. Current versions of GPSDrive
@@ -305,7 +305,7 @@
        Some systems have trouble compiling GPSD. The easiest fix is to
        edit em.c and change "#include <sys/time.h>" to "#include
        <time.h>".
-    9. COMPILING & INSTALLATION
+    8. COMPILING & INSTALLATION
        Before configuration and compilation, you should get the following
        packages:
           + ethereal (www.ethereal.com). This is a GREAT sniffer and
@@ -358,7 +358,7 @@
        It is reccomended that you do NOT disable this capability, as
        Kismet is handling potentially hostile foreign data and should not
        have elevated rights to the system.
-   10. CONFIGURATION
+    9. CONFIGURATION
        Kismet is controlled by 2 system-wide config files (by default, in
        /usr/local/etc/). These files use a simple option=value format.
           + kismet.conf
@@ -439,7 +439,7 @@
                  changed via the kismet_ui.conf file any the 'xxxcolor'
                  options. The config file and the man page list all the
                  possible colors and configurable elements.
-   11. PANELS INTERFACE
+   10. PANELS INTERFACE
        Kismet's primary user interface uses the curses extention library,
        panels. Other interfaces i can be connected at will.
           + Basics of the panels interface
@@ -581,7 +581,7 @@
              16. Packets - Number of packets and types of packets seen.
              17. Data - Amount of data transfered through this network
              18. Signal - Current and best signal levels
-   12. MAPPING
+   11. MAPPING
        Gpsmap (which comes with Kismet) takes GPS and network data (.gps
        and .xml files, respectively) and plots them graphically on
        vector, satellite, or user supplied maps.
@@ -611,7 +611,7 @@
             taken.
        More information about gpsmap is available from the man page
        gpsmap(1).
-   13. DRONE REMOTES
+   12. DRONE REMOTES
        Kismet is also able to do distributed sniffing of a larger
        physical area by using Drone remote sniffers. A Kismet drone is
        essentially a stripped down Kismet sniffer engine which is able to
@@ -623,7 +623,7 @@
        across the target area, with all captured packets being processed
        by a single Kismet server, stored in a common dump file and passed
        to a single Snort IDS instance, if desired.
-   14. INTRUSION DETECTION
+   13. INTRUSION DETECTION
        Kismet will examine the headers and payload information of 802.11
        traffic, and will generate alerts when it encounters traffic that
        matches defined attack signatures. Kismet is unlike other
