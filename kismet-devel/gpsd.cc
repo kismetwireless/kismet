@@ -138,10 +138,14 @@ int GPSD::Scan() {
     char *live;
 
     if ((live = strstr(data, "GPSD,")) == NULL) {
+        return 1;
+
+        /* Suppress error handling for now
         lat = lon = spd = alt = 0;
         mode = 0;
 
         return 0;
+        */
     }
 
     //GPSD,P=41.711592 -73.931137,A=49.500000,V=0.000000,M=1
