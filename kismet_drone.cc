@@ -231,8 +231,6 @@ int main(int argc, char *argv[]) {
     };
     int option_index;
 
-    char status[STATUS_MAX];
-
     // Catch the interrupt handler to shut down
     signal(SIGINT, CatchShutdown);
     signal(SIGTERM, CatchShutdown);
