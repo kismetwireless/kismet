@@ -340,7 +340,7 @@ int main(int argc, char *argv[]) {
 
     const char *reqgui = NULL;
 
-    const char *sndplay = NULL;
+    string sndplay;
     const char *festival = NULL;
 
     const char *columns = NULL;
@@ -514,8 +514,11 @@ int main(int argc, char *argv[]) {
 
     if (gui_conf.FetchOpt("sound") == "true" && sound == -1) {
         if (gui_conf.FetchOpt("soundplay") != "") {
-            sndplay = gui_conf.FetchOpt("soundplay").c_str();
+            sndplay = gui_conf.FetchOpt("soundplay");
             sound = 1;
+
+            if (gui_conf.FetchOpt("soundopts") != "")
+                sndplay += " " + gui_conf.FetchOpt("soundopts");
 
             if (gui_conf.FetchOpt("sound_new") != "")
                 wav_map["new"] = gui_conf.FetchOpt("sound_new");
@@ -604,7 +607,7 @@ int main(int argc, char *argv[]) {
                 fprintf(stderr, "WARNING:  Unable to fork for audio.  Disabling sound.\n");
                 sound = 0;
             } else if (soundpid == 0) {
-                SoundHandler(soundpair, sndplay, wav_map);
+                SoundHandler(soundpair, sndplay.c_str(), wav_map);
                 exit(0);
             }
 

@@ -748,7 +748,8 @@ int main(int argc,char *argv[]) {
     int limit_logs = 0;
     char status[STATUS_MAX];
 
-    const char *sndplay = NULL;
+    //const char *sndplay = NULL;
+    string sndplay;
     int sound = -1;
 
     const char *festival = NULL;
@@ -1346,7 +1347,11 @@ int main(int argc,char *argv[]) {
     // Process sound stuff
     if (conf.FetchOpt("sound") == "true" && sound == -1) {
         if (conf.FetchOpt("soundplay") != "") {
-            sndplay = conf.FetchOpt("soundplay").c_str();
+            sndplay = conf.FetchOpt("soundplay");
+
+            if (conf.FetchOpt("soundopts") != "")
+                sndplay += " " + conf.FetchOpt("soundopts");
+
             sound = 1;
 
             if (conf.FetchOpt("sound_new") != "")
@@ -1398,7 +1403,7 @@ int main(int argc,char *argv[]) {
                 fprintf(stderr, "WARNING:  Unable to fork for audio.  Disabling sound.\n");
                 sound = 0;
             } else if (soundpid == 0) {
-                SoundHandler(soundpair, sndplay, wav_map);
+                SoundHandler(soundpair, sndplay.c_str(), wav_map);
                 exit(0);
             }
 
