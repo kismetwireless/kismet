@@ -650,7 +650,7 @@ vector<wireless_network *> XMLFetchNetworkList(FILE *in_file) {
 
 #ifdef HAVE_LIBZ
         len = gzread(in_file, Buff, BUFFSIZE-2);
-        if (errno < 0) {
+        if (len < 0 && errno < 0) {
             fprintf(stderr, "Read error\n");
             return netvec;
         }
@@ -843,7 +843,7 @@ vector<gps_point *> XMLFetchGpsList(FILE *in_file) {
 
 #ifdef HAVE_LIBZ
         len = gzread(in_file, Buff, BUFFSIZE-2);
-        if (errno < 0) {
+        if (len < 0 && errno < 0) {
             fprintf(stderr, "Read error\n");
             return ptvec;
         }

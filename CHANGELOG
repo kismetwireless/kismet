@@ -1,3 +1,4 @@
+Nov 07 2002  2.7.1  Various errno cleanups throughout the source
 Nov 06 2002  2.7.1  Fixed timestamp and capture-level noise packet reporting
                      for wsp100
                     Fixed panelfront packet type dumps
