@@ -122,7 +122,7 @@ vector<capturesource *> packet_sources;
 int kismet_ref = -1, network_ref = -1, client_ref = -1, gps_ref = -1, time_ref = -1, error_ref = -1,
     info_ref = -1, cisco_ref = -1, terminate_ref = -1, remove_ref = -1, capability_ref = -1,
     protocols_ref = -1, status_ref = -1, alert_ref = -1, packet_ref = -1, string_ref = -1,
-    ack_ref = -1, wepkey_ref;
+    ack_ref = -1, wepkey_ref = -1, card_ref = -1;
 
 // Reference number for our kismet-server alert
 int kissrv_aref = -1;
@@ -583,6 +583,14 @@ void NetWriteInfo() {
     // If we have no clients, don't do this at all, it's expensive
     if (ui_server.FetchNumClients() < 1)
         return;
+
+    // Send card info
+    for (unsigned int src = 0; src < packet_sources.size(); src++) {
+        if (packet_sources[src]->alive == 0)
+            continue;
+
+        ui_server.SendToAll(card_ref, (void *) packet_sources[src]);
+    }
 
     static time_t last_write = time(0);
     static int last_packnum = tracker.FetchNumPackets();
@@ -2480,6 +2488,8 @@ int main(int argc,char *argv[]) {
                                             &Protocol_STRING, NULL);
     wepkey_ref = ui_server.RegisterProtocol("WEPKEY", 0, WEPKEY_fields_text,
                                             &Protocol_WEPKEY, NULL);
+    card_ref = ui_server.RegisterProtocol("CARD", 0, CARD_fields_text,
+                                          &Protocol_CARD, NULL);
 
     // Register our own alert with no throttling
     kissrv_aref = alertracker.RegisterAlert("KISMET", sat_day, 0, 0);
@@ -2582,9 +2592,13 @@ int main(int argc,char *argv[]) {
 
         SendChildCommand(packet_sources[x], CAPCMD_ACTIVATE);
 
+        fprintf(stderr, "Enabling packet source %d (%s)...\n", x, packet_sources[x]->name.c_str());
+
         packet_sources[x]->alive = 1;
 
     }
+
+    fprintf(stderr, "Gathering packets...\n");
 
     map<mac_addr, int>::iterator fitr;
     time_t cur_time;
@@ -2689,6 +2703,8 @@ int main(int argc,char *argv[]) {
 
                 if (ret == CAPPACK_CMDACK) {
                     packet_sources[src]->cmd_ack = 1;
+                    if (data[0] > 0)
+                        packet_sources[src]->cur_ch = data[0];
                 } else if (ret == CAPPACK_TEXT && chtxt != "") {
                     if (!silent)
                         fprintf(stderr, "%s\n", chtxt.c_str());
@@ -2696,6 +2712,9 @@ int main(int argc,char *argv[]) {
                 } else if (ret == CAPPACK_PACKET && packet.len > 0) {
                     // Handle a packet
                     packnum++;
+
+                    // Set the channel
+                    packet_sources[src]->cur_ch = packet.channel;
 
                     static packet_info info;
 

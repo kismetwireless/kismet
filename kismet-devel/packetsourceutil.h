@@ -61,6 +61,7 @@ typedef struct capturesource {
     vector<int> channels;
     int ch_pos;
     int ch_hop;
+    int cur_ch;
     list<capchild_packhdr *> cmd_buf;
     GPSD *gps;
     int gps_enable;

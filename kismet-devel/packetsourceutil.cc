@@ -497,6 +497,7 @@ int ChildGpsEvent(Timetracker::timer_event *evt, void *parm) {
                  capchild_global_pid, csrc->name.c_str(), csrc->gps->FetchError());
         packet_buf.push_front(CapSourceText(txtbuf, CAPFLAG_NONE));
         csrc->gps_enable = 0;
+        return 0;
     }
 
     // We want to be rescheduled
@@ -737,6 +738,7 @@ void CapSourceChild(capturesource *csrc) {
             ackpak->flags = CAPFLAG_NONE;
             ackpak->datalen = 1;
             ackpak->data = (uint8_t *) malloc(1);
+            ackpak->data[0] = cmd;
             packet_buf.push_back(ackpak);
 
         }
@@ -826,9 +828,12 @@ int FetchChildBlock(int in_fd, kis_packet *packet, uint8_t *data, uint8_t *modda
 
     ret = pak.packtype;
 
-    // Handle reading packets - we have the kis_packet struct and then the data
-    // also assmble the pointers
-    if (pak.packtype == CAPPACK_PACKET) {
+    if (pak.packtype == CAPPACK_CMDACK) {
+        // Put the cmd ack into the data
+        data[0] = pak.data[0];
+    } else if (pak.packtype == CAPPACK_PACKET) {
+        // Handle reading packets - we have the kis_packet struct and then the data
+        // also assmble the pointers
         memcpy(packet, pak.data, sizeof(kis_packet));
         memcpy(data, &pak.data[sizeof(kis_packet)], packet->len);
         packet->data = data;
