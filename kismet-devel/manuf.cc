@@ -187,10 +187,10 @@ int MatchBestManuf(wireless_network *in_net, int in_set) { /*FOLD00*/
                     tagmatch = 0;
                     break;
                 }
-
-                if (tagmatch)
-                    score += 5;
             }
+
+            if (tagmatch)
+                score += 5;
         }
 
         if (in_net->ssid == manuf_list[x].ssid_default && manuf_list[x].ssid_default != "")
@@ -208,6 +208,8 @@ int MatchBestManuf(wireless_network *in_net, int in_set) { /*FOLD00*/
         if (score > best_score && score >= 5) {
             best_score = score;
             best_match = x;
+            if (best_score == manuf_max_score)
+                break;
         }
 
     }
