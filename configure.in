@@ -478,16 +478,18 @@ else
 fi
 
 
+	
+AC_ARG_ENABLE(viha,
+[  --enable-viha           enable the Viha capture engine for Mac OSX],
+	want_viha=yes, want_viha=no)
+
 if test "$darwin" = yes; then
 	AC_MSG_WARN([*** Enabling Viha by default because we're compiling under OSX ***]);
 	want_viha=yes;
 else
 	want_viha=no;
 fi
-	
-AC_ARG_ENABLE(viha,
-[  --enable-viha           enable the Viha capture engine for Mac OSX],
-	want_viha=yes, want_viha=no)
+
 if test $want_viha = "yes"; then
 	AC_CHECK_HEADERS([WiFi/WLPacketSource.h WiFi/WLFrame.h WiFi/IEEE80211Frame.h WiFi/WFException.h], 
 		AC_DEFINE(HAVE_VIHAHEADERS, 1, Viha headers are there) foundviha=yes, 
