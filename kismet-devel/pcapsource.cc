@@ -169,7 +169,7 @@ int PcapSource::Pcap2Common(pkthdr *in_header, u_char *in_data) {
         if (callback_header.caplen - sizeof(bsd_80211_header) > MAX_PACKET_LEN)
             in_header->len = MAX_PACKET_LEN;
         else
-            in_header->len = callback_header.caplen - sizeof(bsd_80211_header);
+            in_header->len = callback_header.caplen;
 
         // Adjust to take out the BSD header
 
