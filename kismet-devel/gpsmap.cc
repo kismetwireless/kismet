@@ -242,7 +242,7 @@ int draw_track = 0, draw_bounds = 0, draw_range = 0, draw_power = 0,
     draw_hull = 0, draw_scatter = 0, draw_legend = 0, draw_center = 0, draw_label = 0;
 int track_opacity = 100, /* no bounds opacity */ range_opacity = 70, power_opacity = 70,
     hull_opacity = 70, scatter_opacity = 100, legend_opacity = 90, center_opacity = 100, label_opacity = 100;
-int convert_greyscale = 0, keep_gif = 0, verbose = 0;
+int convert_greyscale = 1, keep_gif = 0, verbose = 0;
 
 // Offsets for drawing from what we calculated
 int draw_x_offset = 0, draw_y_offset = 0;
@@ -1018,8 +1018,8 @@ void DrawNetTracks(Image *in_img, DrawInfo *in_di) { /*FOLD00*/
                        }
                        */
 
-            snprintf(prim, 1024, "stroke-width %d line %d,%d %d,%d",
-                     track_width,
+            snprintf(prim, 1024, "fill-opacity %d%% stroke-opacity %d%% stroke-width %d line %d,%d %d,%d",
+                     track_opacity, track_opacity, track_width,
                      prev_tx, prev_ty, track_vec[vec][x].x, track_vec[vec][x].y);
 
             in_di->primitive = strdup(prim);
