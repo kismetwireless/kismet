@@ -150,11 +150,11 @@ for line in `cat $IFFILE`; do
 			DEVICE2=`echo $DEVICE | cut -f 2 -d:`;
 # 			DEVICE2=`echo $DEVICE | sed -e 's/wifi/eth/'`
 			iwconfig $DEVICE1 essid off
-			echo "Modifying device $DEVICE2"
-			echo "Mode: r" > /proc/driver/aironet/$DEVICE2/Config
-			echo "Mode: y" > /proc/driver/aironet/$DEVICE2/Config
-			echo "XmitPower: 1" > /proc/driver/aironet/$DEVICE2/Config
-			ifconfig $DEVICE1 promisc up
+#			echo "Modifying device $DEVICE1"
+			echo "Mode: r" > /proc/driver/aironet/$DEVICE1/Config
+			echo "Mode: y" > /proc/driver/aironet/$DEVICE1/Config
+			echo "XmitPower: 1" > /proc/driver/aironet/$DEVICE1/Config
+			ifconfig $DEVICE2 promisc up
 #			if test "$HOPPER" = "yes"; then
 #				echo "Cisco cards use an internal channel hopper, disabling kismet_hopper."
 #				HOPPER="no"

@@ -126,11 +126,12 @@ for line in `cat $IFFILE`; do
 			DEVICE1=`echo $DEVICE | cut -f 1 -d:`;
 			DEVICE2=`echo $DEVICE | cut -f 2 -d:`;
 #			DEVICE2=`echo $DEVICE | sed -e 's/wifi/eth/'`
-			echo "Modifying device $DEVICE2"
+#			echo "Modifying device $DEVICE2"
 			iwconfig $DEVICE1 essid ""
-			echo "Mode: i" > /proc/driver/aironet/$DEVICE2/Config
-			echo "XmitPower: 100" > /proc/driver/aironet/$DEVICE2/Config
+			echo "Mode: i" > /proc/driver/aironet/$DEVICE1/Config
+			echo "XmitPower: 100" > /proc/driver/aironet/$DEVICE1/Config
 			ifconfig $DEVICE1 -promisc up
+			ifconfig $DEVICE2 down
 			;;
 		"cisco_bsd")
 			echo "No unmonitor script for cisco_bsd"
