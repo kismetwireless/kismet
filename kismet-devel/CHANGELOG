@@ -1,4 +1,6 @@
 Mar 28 2003  2.9.1  Updated configure to look for ethereal 0.9.10
+                    Updated configure to work with autoconfig 2.57... stupid
+                     autoconf 2.57 broke things that shouldn't have been broke.
 Mar 25 2003  2.9.1  More streamlining of internal GPS process, proper 
                      preservation of packet timestamp.
                     Expanded max packet size and added protection for
