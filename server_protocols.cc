@@ -18,6 +18,7 @@
 
 #include <stdio.h>
 #include "server_protocols.h"
+#include "packetsourceutil.h"
 
 char *INFO_fields_text[] = {
     "networks", "packets", "crypt", "weak",
@@ -136,6 +137,11 @@ char *ACK_fields_text[] = {
 
 char *WEPKEY_fields_text[] = {
     "origin", "bssid", "key", "encrypted", "failed",
+    NULL
+};
+
+char *CARD_fields_text[] = {
+    "interface", "type", "username", "channel",
     NULL
 };
 
@@ -816,3 +822,31 @@ int Protocol_WEPKEY(PROTO_PARMS) {
     return 1;
 }
 
+int Protocol_CARD(PROTO_PARMS) {
+    capturesource *csrc = (capturesource *) data;
+    char tmp[32];
+
+    for (unsigned int x = 0; x < field_vec->size(); x++) {
+        switch ((CARD_fields) (*field_vec)[x]) {
+        case CARD_interface:
+            out_string += csrc->interface;
+            break;
+        case CARD_type:
+            snprintf(tmp, 32, "%s", card_type_str[csrc->cardtype]);
+            out_string += tmp;
+            break;
+        case CARD_username:
+            snprintf(tmp, 32, "\001%s\001", csrc->name.c_str());
+            out_string += tmp;
+            break;
+        case CARD_channel:
+            snprintf(tmp, 32, "%d", csrc->cur_ch);
+            out_string += tmp;
+            break;
+        }
+
+        out_string += " ";
+    }
+
+    return 1;
+}

@@ -128,6 +128,10 @@ enum WEPKEY_fields {
     WEPKEY_origin, WEPKEY_bssid, WEPKEY_key, WEPKEY_decrypted, WEPKEY_failed
 };
 
+enum CARD_fields {
+    CARD_interface, CARD_type, CARD_username, CARD_channel
+};
+
 // Builtin client/server field contents
 extern char *KISMET_fields_text[];
 extern char *CAPABILITY_fields_text[];
@@ -147,6 +151,7 @@ extern char *STRING_fields_text[];
 extern char *TERMINATE_fields_text[];
 extern char *CISCO_fields_text[];
 extern char *WEPKEY_fields_text[];
+extern char *CARD_fields_text[];
 
 // Client/server protocol data structures.  These get passed as void *'s to each of the
 // protocol functions.
@@ -210,5 +215,6 @@ void Protocol_Packet2Data(const packet_info *info, PACKET_data *data);
 int Protocol_PACKET(PROTO_PARMS); // PACKET_data
 int Protocol_STRING(PROTO_PARMS); // STRING_data
 int Protocol_WEPKEY(PROTO_PARMS); // wep_key_info
+int Protocol_CARD(PROTO_PARMS); // captype
 
 #endif
