@@ -19,7 +19,7 @@
 
 /* system min isn't reliable */
 #define kismin(x,y) ((x) < (y) ? (x) : (y))
-#define kismax(x,y) ((x) < (y) ? (x) : (y))
+#define kismax(x,y) ((x) > (y) ? (x) : (y))
 
 // Timer slices per second
 #define SERVER_TIMESLICES_SEC 10

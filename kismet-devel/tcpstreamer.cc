@@ -196,7 +196,7 @@ int TcpStreamer::Poll(fd_set& in_rset, fd_set& in_wset)
                 Kill(x);
                 continue;
             } else {
-                printf(" ...  wrote %d\n", ret);
+                printf(" wrote %d\n", ret);
                 droneclients[x]->MarkRead(ret);
             }
         }
