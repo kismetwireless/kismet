@@ -47,6 +47,11 @@ PSO	= configfile.o speech.o packet.o \
 		tcpserver.o server_protocols.o server_plugin.o kismet_server.o 
 PS	= kismet_server
 
+DRONEO = configfile.o getopt.o tcpstreamer.o \
+			prism2source.o pcapsource.o wtapfilesource.o wsp100source.o vihasource.o \
+			server_plugin.o kismet_drone.o
+DRONE = kismet_drone
+
 NCO	= configfile.o speech.o manuf.o tcpclient.o frontend.o cursesfront.o \
 		panelfront.o panelfront_display.o panelfront_input.o \
 		getopt.o kismet_client.o 
@@ -63,10 +68,13 @@ BUZZER = extra/buzzme/buzzme
 GPSLBUILD=@gpslc@
 ZAURUSBUILD=@zbuild@
 
-all:	$(DEPEND) $(PS) $(NC) $(GPSLBUILD) $(HOPPER) $(ZAURUSBUILD)
+all:	$(DEPEND) $(PS) $(DRONE) $(NC) $(GPSLBUILD) $(HOPPER) $(ZAURUSBUILD)
 
 $(PS):	$(PSO) $(PCAPLIB)
 	$(LD) $(LDFLAGS) -o $(PS) $(PSO) $(PCAPLIB) $(LIBS) $(PCAPLNK)
+
+$(DRONE):	$(DRONEO) $(PCAPLIB)
+	$(LD) $(LDFLAGS) -o $(DRONE) $(DRONEO) $(PCAPLIB) $(LIBS) $(PCAPLNK)
 
 $(NC):	$(NCO)
 	$(LD) $(LDFLAGS) -o $(NC) $(NCO) $(LIBS) $(CLIBS)
@@ -91,6 +99,14 @@ checkconfig:
 		echo "latest version is `grep version= conf/kismet.conf | cut -f 2 -d=`"; \
 	fi
 
+checkdroneconfig:
+	@if test "`grep version= conf/kismet_drone.conf | cut -f 2 -d=`" != "`grep version= $(ETC)/kismet_drone.conf | cut -f 2 -d=`"; then \
+		echo "The drone configuration file has been updated.  It is STRONGLY reccomended "; \
+		echo "that you run 'make forceinstall' to overwrite your configuration file,"; \
+		echo "and then edit it to match your setup.  Installed version is `grep version= $(ETC)/kismet_drone.conf | cut -f 2 -d=`, "; \
+		echo "latest version is `grep version= conf/kismet_drone.conf | cut -f 2 -d=`"; \
+	fi
+
 checkuiconfig:
 	@if test "`grep version= conf/kismet_ui.conf | cut -f 2 -d=`" != "`grep version= $(ETC)/kismet_ui.conf | cut -f 2 -d=`"; then \
 		echo "The UI configuration file has been updated.  It is STRONGLY reccomended "; \
@@ -102,6 +118,7 @@ checkuiconfig:
 commoninstall:
 	mkdir -p $(ETC)
 	mkdir -p $(BIN)
+
 	@if test "$(SUID)" = "yes"; then \
 		install -o $(INSTUSR) -g $(INSTGRP) -m 4755 -s $(PS) $(BIN)/$(PS); \
 		echo install -o $(INSTUSR) -g $(INSTGRP) -m 4755 -s $(PS) $(BIN)/$(PS); \
@@ -109,6 +126,15 @@ commoninstall:
 		install -o $(INSTUSR) -g $(INSTGRP) -s -m 755 $(PS) $(BIN)/$(PS); \
 		echo install -o $(INSTUSR) -g $(INSTGRP) -s -m 755 $(PS) $(BIN)/$(PS); \
 	fi
+
+	@if test "$(SUID)" = "yes"; then \
+		install -o $(INSTUSR) -g $(INSTGRP) -m 4755 -s $(DRONE) $(BIN)/$(DRONE); \
+		echo install -o $(INSTUSR) -g $(INSTGRP) -m 4755 -s $(DRONE) $(BIN)/$(DRONE); \
+	else \
+		install -o $(INSTUSR) -g $(INSTGRP) -s -m 755 $(DRONE) $(BIN)/$(DRONE); \
+		echo install -o $(INSTUSR) -g $(INSTGRP) -s -m 755 $(DRONE) $(BIN)/$(DRONE); \
+	fi
+
 	install -o $(INSTUSR) -g $(INSTGRP) -m 755 scripts/kismet $(BIN)/kismet
 	install -o $(INSTUSR) -g $(INSTGRP) -s -m 755 $(NC) $(BIN)/$(NC)
 	install -o $(INSTUSR) -g $(INSTGRP) -s -m 755 $(HOPPER) $(BIN)/$(HOPPER)
@@ -145,7 +171,7 @@ commoninstall:
 		rm $(BIN)/kismet_curses; \
 	fi
 
-install: $(PS) $(HOPPER) $(NC) $(GPSLBUILD) $(ZAURUSBUILD)
+install: $(PS) $(DRONE) $(HOPPER) $(NC) $(GPSLBUILD) $(ZAURUSBUILD)
 	$(MAKE) -e commoninstall
 	@if test -f $(ETC)/kismet.conf; then \
 		$(MAKE) -e checkconfig; \
@@ -153,6 +179,13 @@ install: $(PS) $(HOPPER) $(NC) $(GPSLBUILD) $(ZAURUSBUILD)
 		install -o $(INSTUSR) -g $(INSTGRP) -m 644 conf/kismet.conf $(ETC)/kismet.conf;  \
 		echo install -o $(INSTUSR) -g $(INSTGRP) -m 644 conf/kismet.conf $(ETC)/kismet.conf;  \
 		echo "Installed config into $(ETC)/kismet.conf."; \
+	fi
+	@if test -f $(ETC)/kismet_drone.conf; then \
+		$(MAKE) -e checkconfig; \
+    else \
+		install -o $(INSTUSR) -g $(INSTGRP) -m 644 conf/kismet_drone.conf $(ETC)/kismet_drone.conf;  \
+		echo install -o $(INSTUSR) -g $(INSTGRP) -m 644 conf/kismet_drone.conf $(ETC)/kismet_drone.conf;  \
+		echo "Installed drone config into $(ETC)/kismet_drone.conf."; \
 	fi
 	@if test -f $(ETC)/kismet_ui.conf; then \
 		$(MAKE) -e checkuiconfig; \
@@ -170,6 +203,8 @@ forceinstall: $(PS)
 	$(MAKE) -e commoninstall
 	install -o $(INSTUSR) -g $(INSTGRP) -m 644 conf/kismet.conf $(ETC)/kismet.conf;  \
 		echo "Installed config into $(ETC)/kismet.conf."; 
+	install -o $(INSTUSR) -g $(INSTGRP) -m 644 conf/kismet_drone.conf $(ETC)/kismet_drone.conf;  \
+		echo "Installed drone config into $(ETC)/kismet_drone.conf."; 
 	install -o $(INSTUSR) -g $(INSTGRP) -m 644 conf/kismet_ui.conf $(ETC)/kismet_ui.conf;  \
 		echo "Installed UI config into $(ETC)/kismet_ui.conf."; 
 	@echo "Installed kismet into $(BIN)/."
@@ -185,6 +220,7 @@ rpm:
 clean:
 	@-rm -f *.o
 	@-rm -f $(PS)
+	@-rm -f $(DRONE)
 	@-rm -f $(NC)
 	@-rm -f $(GPSL)
 	@-rm -f $(HOPPER)
@@ -256,7 +292,7 @@ $(DEPEND):
 	@echo "Generating dependencies... "
 	@echo > $(DEPEND)
 	@$(CXX) $(CFLAGS) -MM \
-		`echo $(PSO) $(HOPPERO) $(GPSLO) $(NCO) | sed -e "s/\.o/\.cc/g"` >> $(DEPEND)
+		`echo $(PSO) $(DRONEO) $(HOPPERO) $(GPSLO) $(NCO) | sed -e "s/\.o/\.cc/g"` >> $(DEPEND)
 
 include $(DEPEND)
 
