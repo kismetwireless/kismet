@@ -44,7 +44,7 @@ PSO	= configfile.o speech.o packet.o \
 		wtapdump.o wtaplocaldump.o gpsdump.o airsnortdump.o fifodump.o \
 		gpsd.o packetracker.o manuf.o \
 		getopt.o \
-		tcpserver.o server_protocols.o kismet_server.o 
+		tcpserver.o server_protocols.o server_plugin.o kismet_server.o 
 PS	= kismet_server
 
 NCO	= configfile.o speech.o manuf.o tcpclient.o frontend.o cursesfront.o \
