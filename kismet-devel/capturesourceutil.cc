@@ -56,7 +56,7 @@ int ParseCardLines(vector<string> *in_lines, vector<capturesource *> *in_sources
 }
 
 int BindRootSources(vector<capturesource *> *in_capsources, map<string, int> *in_enable,
-                   int filter_enable, Timetracker *in_tracker) {
+                   int filter_enable, Timetracker *in_tracker, GPSD *in_gpsd) {
     // Now loop through each of the sources - parse the engines, interfaces, types.
     // Open any that need to be opened as root.
     for (unsigned int src = 0; src < in_capsources->size(); src++) {
@@ -198,6 +198,7 @@ int BindRootSources(vector<capturesource *> *in_capsources, map<string, int> *in
                 exit(1);
             }
             csrc->source->AddTimetracker(in_tracker);
+            csrc->source->AddGpstracker(in_gpsd);
         }
     }
 
@@ -206,7 +207,7 @@ int BindRootSources(vector<capturesource *> *in_capsources, map<string, int> *in
 }
 
 int BindUserSources(vector<capturesource *> *in_capsources, map<string, int> *in_enable,
-                    int filter_enable, Timetracker *in_tracker) {
+                    int filter_enable, Timetracker *in_tracker, GPSD *in_gpsd) {
     for (unsigned int src = 0; src < in_capsources->size(); src++) {
         capturesource *csrc = (*in_capsources)[src];
 
@@ -247,6 +248,7 @@ int BindUserSources(vector<capturesource *> *in_capsources, map<string, int> *in
                     exit(1);
                 }
                 csrc->source->AddTimetracker(in_tracker);
+                csrc->source->AddGpstracker(in_gpsd);
             }
         }
     }

@@ -169,6 +169,11 @@ typedef struct {
     carrier_type carrier;       // Signal carrier
     encoding_type encoding;     // Signal encoding
     int datarate;               // Data rate in units of 100 kbps
+    float gps_lat;              // GPS coordinates
+    float gps_lon;
+    float gps_alt;
+    float gps_spd;
+    int gps_fix;
 } kis_packet;
 
 #ifdef WORDS_BIGENDIAN
@@ -723,6 +728,10 @@ typedef struct {
     int turbocell_nid;
     turbocell_type turbocell_mode;
     int turbocell_sat;
+
+    // Location info
+    float gps_lat, gps_lon, gps_alt, gps_spd;
+    int gps_fix;
 
 } packet_info;
 

@@ -19,8 +19,11 @@
 #ifndef __PACKETSOURCE_H__
 #define __PACKETSOURCE_H__
 
+#include "config.h"
+
 #include "packet.h"
 #include "timetracker.h"
+#include "gpsd.h"
 
 // Card type, for some capture sources which require it
 enum card_type {
@@ -60,6 +63,9 @@ public:
     // Register a timer event handler for us to use
     void AddTimetracker(Timetracker *in_tracker) { timetracker = in_tracker; }
 
+    // Register the GPS server for us to use
+    void AddGpstracker(GPSD *in_gpsd) { gpsd = in_gpsd; }
+
     // Say what we are
     char *FetchType() { return(type); };
 
@@ -74,6 +80,7 @@ public:
 
 protected:
     Timetracker *timetracker;
+    GPSD *gpsd;
 
     char errstr[1024];
 

@@ -83,8 +83,7 @@ public:
 
     inline int isClient(int fd) { return FD_ISSET(fd, &client_fds); }
 
-    int WritePacket(const kis_packet *in_packet, float in_lat, float in_lon,
-                    float in_alt, float in_spd, int in_mode);
+    int WritePacket(const kis_packet *in_packet);
     int WriteVersion(int in_fd);
 
     // How many clients are connected?

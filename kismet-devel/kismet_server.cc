@@ -87,8 +87,8 @@ Packetracker tracker;
 Alertracker alertracker;
 Timetracker timetracker;
 
+GPSD *gps = NULL;
 #ifdef HAVE_GPS
-GPSD gps;
 int gpsmode = 0;
 GPSDump gpsdump;
 #endif
@@ -557,7 +557,7 @@ void NetWriteInfo() {
         float lat, lon, alt, spd;
         int mode;
 
-        gps.FetchLoc(&lat, &lon, &alt, &spd, &mode);
+        gps->FetchLoc(&lat, &lon, &alt, &spd, &mode);
 
         snprintf(tmpstr, 32, "%f", lat);
         gdata.lat = tmpstr;
@@ -704,13 +704,13 @@ int GpsEvent(Timetracker::timer_event *evt, void *parm) {
     // as well only update it here once a second
     if (gps_enable) {
         int gpsret;
-        gpsret = gps.Scan();
+        gpsret = gps->Scan();
         if (gpsret < 0) {
             snprintf(status, STATUS_MAX, "GPS error fetching data: %s",
-                     gps.FetchError());
+                     gps->FetchError());
 
             if (!silent)
-                fprintf(stderr, "%s\n", gps.FetchError());
+                fprintf(stderr, "%s\n", gps->FetchError());
 
             NetWriteStatus(status);
             gps_enable = 0;
@@ -1221,6 +1221,11 @@ int main(int argc,char *argv[]) {
         exit(1);
     }
 
+    // Create a GPS object
+#ifdef HAVE_GPS
+    gps = new GPSD;
+#endif
+
     // Read all of our packet sources, tokenize the input and then start opening
     // them.
 
@@ -1260,9 +1265,10 @@ int main(int argc,char *argv[]) {
     source_input_vec.clear();
 
     // Now enable root sources...  BindRoot will terminate if it fails
+
     BindRootSources(&packet_sources, &enable_name_map,
                     ((source_from_cmd == 0) || (enable_from_cmd == 1)),
-                    &timetracker);
+                    &timetracker, gps);
 
     // Once the packet source is opened, we shouldn't need special privileges anymore
     // so lets drop to a normal user.  We also don't want to open our logfiles as root
@@ -1281,7 +1287,7 @@ int main(int argc,char *argv[]) {
 
     BindUserSources(&packet_sources, &enable_name_map,
                     ((source_from_cmd == 0) || (enable_from_cmd == 1)),
-                    &timetracker);
+                    &timetracker, gps);
 
     // See if we tried to enable something that didn't exist
     if (enable_name_map.size() == 0) {
@@ -2103,8 +2109,8 @@ int main(int argc,char *argv[]) {
 
     if (gps_enable == 1) {
         // Open the GPS
-        if (gps.OpenGPSD(gpshost, gpsport) < 0) {
-            fprintf(stderr, "%s\n", gps.FetchError());
+        if (gps->OpenGPSD(gpshost, gpsport) < 0) {
+            fprintf(stderr, "%s\n", gps->FetchError());
 
             gps_enable = 0;
             if (gps_log)
@@ -2114,10 +2120,9 @@ int main(int argc,char *argv[]) {
             fprintf(stderr, "Opened GPS connection to %s port %d\n",
                     gpshost, gpsport);
 
-            gpsmode = gps.FetchMode();
+            gpsmode = gps->FetchMode();
 
-            tracker.AddGPS(&gps);
-            gpsdump.AddGPS(&gps);
+            gpsdump.AddGPS(gps);
 
             if (gps_log) {
                 if (gpsdump.OpenDump(gpslogfile.c_str(), xmllogfile.c_str()) < 0) {

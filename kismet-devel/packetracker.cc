@@ -23,7 +23,6 @@
 #include "packetsignatures.h"
 
 Packetracker::Packetracker() {
-    gps = NULL;
     alertracker = NULL;
 
     num_networks = num_packets = num_dropped = num_noise =
@@ -48,10 +47,6 @@ Packetracker::~Packetracker() {
             delete network_list[x]->client_vec[y];
         delete network_list[x];
     }
-}
-
-void Packetracker::AddGPS(GPSD *in_gps) {
-    gps = in_gps;
 }
 
 vector<wireless_network *> Packetracker::FetchNetworks() {
@@ -157,10 +152,6 @@ void Packetracker::ProcessPacket(packet_info info) {
     char status[STATUS_MAX];
 
     // string bssid_mac;
-
-    // GPS info
-    float lat = 0, lon = 0, alt = 0, spd = 0;
-    int fix = 0;
 
     num_packets++;
 
@@ -272,22 +263,18 @@ void Packetracker::ProcessPacket(packet_info info) {
             KisLocalStatus(status);
         }
 
-        if (gps != NULL) {
-            gps->FetchLoc(&lat, &lon, &alt, &spd, &fix);
 
-            if (fix >= 2) {
-                net->gps_fixed = fix;
-                net->min_lat = net->max_lat = lat;
-                net->min_lon = net->max_lon = lon;
-                net->min_alt = net->max_alt = alt;
-                net->min_spd = net->max_spd = spd;
+        if (info.gps_fix >= 2) {
+            net->gps_fixed = info.gps_fix;
+            net->min_lat = net->max_lat = info.gps_lat;
+            net->min_lon = net->max_lon = info.gps_lon;
+            net->min_alt = net->max_alt = info.gps_alt;
+            net->min_spd = net->max_spd = info.gps_spd;
 
-                net->aggregate_lat = lat;
-                net->aggregate_lon = lon;
-                net->aggregate_alt = alt;
-                net->aggregate_points = 1;
-            }
-
+            net->aggregate_lat = info.gps_lat;
+            net->aggregate_lon = info.gps_lon;
+            net->aggregate_alt = info.gps_alt;
+            net->aggregate_points = 1;
         }
 
         // Find out what we can from what we know now...
@@ -326,10 +313,10 @@ void Packetracker::ProcessPacket(packet_info info) {
 
         if (info.signal > net->best_signal) {
             net->best_signal = info.signal;
-            if (gps != NULL && fix >= 2) {
-                net->best_lat = lat;
-                net->best_lon = lon;
-                net->best_alt = alt;
+            if (info.gps_fix >= 2) {
+                net->best_lat = info.gps_lat;
+                net->best_lon = info.gps_lon;
+                net->best_alt = info.gps_alt;
             }
         }
 
@@ -338,41 +325,39 @@ void Packetracker::ProcessPacket(packet_info info) {
             net->best_noise = info.noise;
     }
 
-    if (gps != NULL) {
-        gps->FetchLoc(&lat, &lon, &alt, &spd, &fix);
-
-        if (fix > 1) {
-            net->aggregate_lat += lat;
-            net->aggregate_lon += lon;
-            net->aggregate_alt += alt;
+    if (info.gps_fix >= 2) {
+        // Don't aggregate slow-moving packets to prevent average "pulling"..
+        if (info.gps_spd <= 0.3) {
+            net->aggregate_lat += info.gps_lat;
+            net->aggregate_lon += info.gps_lon;
+            net->aggregate_alt += info.gps_alt;
             net->aggregate_points += 1;
-
-            net->gps_fixed = fix;
-
-            if (lat < net->min_lat || net->min_lat == 0)
-                net->min_lat = lat;
-            else if (lat > net->max_lat)
-                net->max_lat = lat;
-
-            if (lon < net->min_lon || net->min_lon == 0)
-                net->min_lon = lon;
-            else if (lon > net->max_lon)
-                net->max_lon = lon;
-
-            if (alt < net->min_alt || net->min_alt == 0)
-                net->min_alt = alt;
-            else if (alt > net->max_alt)
-                net->max_alt = alt;
-
-            if (spd < net->min_spd || net->min_spd == 0)
-                net->min_spd = spd;
-            else if (spd > net->max_spd)
-                net->max_spd = spd;
-
-        } else {
-            net->gps_fixed = 0;
         }
 
+        net->gps_fixed = info.gps_fix;
+
+        if (info.gps_lat < net->min_lat || net->min_lat == 0)
+            net->min_lat = info.gps_lat;
+        else if (info.gps_lat > net->max_lat)
+            net->max_lat = info.gps_lat;
+
+        if (info.gps_lon < net->min_lon || net->min_lon == 0)
+            net->min_lon = info.gps_lon;
+        else if (info.gps_lon > net->max_lon)
+            net->max_lon = info.gps_lon;
+
+        if (info.gps_alt < net->min_alt || net->min_alt == 0)
+            net->min_alt = info.gps_alt;
+        else if (info.gps_alt > net->max_alt)
+            net->max_alt = info.gps_alt;
+
+        if (info.gps_spd < net->min_spd || net->min_spd == 0)
+            net->min_spd = info.gps_spd;
+        else if (info.gps_spd > net->max_spd)
+            net->max_spd = info.gps_spd;
+
+    } else {
+        net->gps_fixed = 0;
     }
 
     // Assign the carrier types in this network.  There will likely be only one, but you
@@ -570,10 +555,6 @@ void Packetracker::ProcessDataPacket(packet_info info, wireless_network *net) {
     wireless_client *client = NULL;
     char status[STATUS_MAX];
 
-    // GPS info
-    float lat = 0, lon = 0, alt = 0, spd = 0;
-    int fix = 0;
-
     // Find the client or make one
     if (net->client_map.find(info.source_mac) == net->client_map.end()) {
         client = new wireless_client;
@@ -590,22 +571,17 @@ void Packetracker::ProcessDataPacket(packet_info info, wireless_network *net) {
 
         client->metric = net->metric;
 
-        if (gps != NULL) {
-            gps->FetchLoc(&lat, &lon, &alt, &spd, &fix);
+        if (info.gps_fix >= 2) {
+            client->gps_fixed = info.gps_fix;
+            client->min_lat = client->max_lat = info.gps_lat;
+            client->min_lon = client->max_lon = info.gps_lon;
+            client->min_alt = client->max_alt = info.gps_alt;
+            client->min_spd = client->max_spd = info.gps_spd;
 
-            if (fix >= 2) {
-                client->gps_fixed = fix;
-                client->min_lat = client->max_lat = lat;
-                client->min_lon = client->max_lon = lon;
-                client->min_alt = client->max_alt = alt;
-                client->min_spd = client->max_spd = spd;
-
-                client->aggregate_lat = lat;
-                client->aggregate_lon = lon;
-                client->aggregate_alt = alt;
-                client->aggregate_points = 1;
-            }
-
+            client->aggregate_lat = info.gps_lat;
+            client->aggregate_lon = info.gps_lon;
+            client->aggregate_alt = info.gps_alt;
+            client->aggregate_points = 1;
         }
 
         // Classify the client.  We'll call no-distrib packets (lucent)
@@ -629,40 +605,38 @@ void Packetracker::ProcessDataPacket(packet_info info, wireless_network *net) {
         }
     }
 
-    if (gps != NULL) {
-        gps->FetchLoc(&lat, &lon, &alt, &spd, &fix);
-
-        if (fix > 1) {
-            client->aggregate_lat += lat;
-            client->aggregate_lon += lon;
-            client->aggregate_alt += alt;
+    if (info.gps_fix >= 2) {
+        if (info.gps_spd <= 0.3) {
+            client->aggregate_lat += info.gps_lat;
+            client->aggregate_lon += info.gps_lon;
+            client->aggregate_alt += info.gps_alt;
             client->aggregate_points += 1;
-
-            client->gps_fixed = fix;
-
-            if (lat < client->min_lat || client->min_lat == 0)
-                client->min_lat = lat;
-            else if (lat > client->max_lat)
-                client->max_lat = lat;
-
-            if (lon < client->min_lon || client->min_lon == 0)
-                client->min_lon = lon;
-            else if (lon > client->max_lon)
-                client->max_lon = lon;
-
-            if (alt < client->min_alt || client->min_alt == 0)
-                client->min_alt = alt;
-            else if (alt > client->max_alt)
-                client->max_alt = alt;
-
-            if (spd < client->min_spd || client->min_spd == 0)
-                client->min_spd = spd;
-            else if (spd > client->max_spd)
-                client->max_spd = spd;
-
-        } else {
-            client->gps_fixed = 0;
         }
+
+        client->gps_fixed = info.gps_fix;
+
+        if (info.gps_lat < client->min_lat || client->min_lat == 0)
+            client->min_lat = info.gps_lat;
+        else if (info.gps_lat > client->max_lat)
+            client->max_lat = info.gps_lat;
+
+        if (info.gps_lon < client->min_lon || client->min_lon == 0)
+            client->min_lon = info.gps_lon;
+        else if (info.gps_lon > client->max_lon)
+            client->max_lon = info.gps_lon;
+
+        if (info.gps_alt < client->min_alt || client->min_alt == 0)
+            client->min_alt = info.gps_alt;
+        else if (info.gps_alt > client->max_alt)
+            client->max_alt = info.gps_alt;
+
+        if (info.gps_spd < client->min_spd || client->min_spd == 0)
+            client->min_spd = info.gps_spd;
+        else if (info.gps_spd > client->max_spd)
+            client->max_spd = info.gps_spd;
+
+    } else {
+        client->gps_fixed = 0;
     }
 
     if (info.quality >= 0 && info.signal >= 0) {
@@ -673,10 +647,10 @@ void Packetracker::ProcessDataPacket(packet_info info, wireless_network *net) {
 
         if (info.signal > client->best_signal) {
             client->best_signal = info.signal;
-            if (gps != NULL && fix >= 2) {
-                client->best_lat = lat;
-                client->best_lon = lon;
-                client->best_alt = alt;
+            if (info.gps_fix >= 2) {
+                client->best_lat = info.gps_lat;
+                client->best_lon = info.gps_lon;
+                client->best_alt = info.gps_alt;
             }
         }
 
