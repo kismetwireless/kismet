@@ -99,6 +99,79 @@ int ProbeNoJoinAutomata::ProcessPacket(const packet_info *in_info) {
     return 0;
 }
 
+DisassocTrafficAutomata::DisassocTrafficAutomata(Packetracker *in_ptracker, Alertracker *in_atracker,
+                        alert_time_unit in_unit, int in_rate, int in_burstrate) {
+    atracker = in_atracker;
+    ptracker = in_ptracker;
+    alertid = atracker->RegisterAlert("DISASSOCTRAFFIC", in_unit, in_rate, in_burstrate);
+}
+
+DisassocTrafficAutomata::~DisassocTrafficAutomata() {
+
+}
+
+int DisassocTrafficAutomata::ProcessPacket(const packet_info *in_info) {
+    _fsa_element *elem;
+    map<mac_addr, _fsa_element *>::iterator iter;
+    char atext[STATUS_MAX];
+
+    if (in_info->type == packet_management && in_info->subtype == packet_sub_disassociation) {
+        iter = source_map.find(in_info->source_mac);
+
+        if (iter == source_map.end()) {
+            elem = new _fsa_element;
+            source_map[in_info->source_mac] = elem;
+            elem->counter = 0;
+        } else {
+            elem = iter->second;
+        }
+
+        elem->state = 0;
+        gettimeofday(&elem->last_time, NULL);
+    } else if (in_info->type == packet_management && in_info->subtype == packet_sub_deauthentication) {
+        iter = source_map.find(in_info->source_mac);
+
+        if (iter == source_map.end()) {
+            elem = new _fsa_element;
+            source_map[in_info->source_mac] = elem;
+            elem->counter = 0;
+        } else {
+            elem = iter->second;
+        }
+
+        elem->state = 1;
+        gettimeofday(&elem->last_time, NULL);
+    } else if (in_info->type == packet_data) {
+        iter = source_map.find(in_info->source_mac);
+
+        if (iter == source_map.end())
+            return 0;
+
+        elem = iter->second;
+
+        struct timeval tv;
+        gettimeofday(&tv, NULL);
+
+        // Raise an alert if someone is exchanging data w/in 10 seconds of disassociating or deauthenticating
+        if (tv.tv_sec - elem->last_time.tv_sec < 10) {
+            elem->counter++;
+
+            snprintf(atext, STATUS_MAX, "Suspicious traffic on %s.  Data traffic within 10 seconds of disassociate.",
+                     in_info->source_mac.Mac2String().c_str());
+            atracker->RaiseAlert(alertid, atext);
+
+            return 1;
+        } else {
+            delete[] iter->second;
+            source_map.erase(iter);
+        }
+
+    }
+
+    return 0;
+}
+
+#if 0
 SequenceSpoofAutomata::SequenceSpoofAutomata(Packetracker *in_ptracker, Alertracker *in_atracker,
                                              alert_time_unit in_unit, int in_rate, int in_burstrate) {
     atracker = in_atracker;
@@ -163,4 +236,4 @@ int SequenceSpoofAutomata::ProcessPacket(const packet_info *in_info) {
 
     return ret;
 }
-
+#endif

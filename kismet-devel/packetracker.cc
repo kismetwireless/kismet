@@ -107,10 +107,10 @@ int Packetracker::EnableAlert(string in_alname, alert_time_unit in_unit,
         ProbeNoJoinAutomata *pnja = new ProbeNoJoinAutomata(this, alertracker, in_unit, in_rate, in_burstrate);
         fsa_vec.push_back(pnja);
         ret = pnja->FetchAlertRef();
-    } else if (lname == "sequencespoof") {
-        SequenceSpoofAutomata *sqa = new SequenceSpoofAutomata(this, alertracker, in_unit, in_rate, in_burstrate);
-        fsa_vec.push_back(sqa);
-        ret = sqa->FetchAlertRef();
+    } else if (lname == "disassoctraffic") {
+        DisassocTrafficAutomata *dta = new DisassocTrafficAutomata(this, alertracker, in_unit, in_rate, in_burstrate);
+        fsa_vec.push_back(dta);
+        ret = dta->FetchAlertRef();
     } else {
         snprintf(errstr, 1024, "Unknown alert type %s, not processing.", lname.c_str());
         return 0;

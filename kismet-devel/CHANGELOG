@@ -1,3 +1,7 @@
+May 24 2003  2.9.1  Removed sequence spoof detector (for now) since it didn't
+                     do much useful
+                    Added disassociate/deauth spoof detector
+                    Documented other alerts
 May 23 2003  2.9.1  Added drone server-side flush/resync
                     Added pcap and prism2_legacy engine channel control
                     Fixed makefile running checkconfig twice and
