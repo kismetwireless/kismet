@@ -121,7 +121,7 @@ void WriteDatafiles(int in_shutdown) {
                 fclose(net_file);
         } else if (in_shutdown) {
             fclose(net_file);
-            fprintf(stderr, "NOTICE: Didn't detect any networks, unlinking network dump.\n");
+            fprintf(stderr, "NOTICE: Didn't detect any networks, unlinking network list.\n");
             unlink(netlogfile.c_str());
         }
     }
@@ -175,10 +175,10 @@ void CatchShutdown(int sig) {
     gui->EndDisplay();
     */
 
-    if (packsource != NULL)
+    if (packsource != NULL) {
         packsource->CloseSource();
-
-    delete packsource;
+        delete packsource;
+    }
 
     ui_server.SendToAll("*TERMINATE: Kismet server terminating.\n");
 
@@ -195,7 +195,7 @@ void CatchShutdown(int sig) {
             unlink(dumpfile->FetchFilename());
         }
 
-        delete dumpfile;
+        // delete dumpfile;
     }
 
     if (crypt_log) {
@@ -206,7 +206,7 @@ void CatchShutdown(int sig) {
             unlink(cryptlogfile.c_str());
         }
 
-        delete cryptfile;
+        // delete cryptfile;
     }
 
 #ifdef HAVE_GPS

@@ -41,7 +41,7 @@ int AirsnortDumpFile::CloseDump() {
 
     snprintf(errstr, 1024, "%s", dumper->FetchError());
 
-    delete dumper;
+//    delete dumper;
 
     return ret;
 }
