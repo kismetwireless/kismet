@@ -937,7 +937,7 @@ int chancontrol_wlanng(const char *in_dev, int in_ch, char *in_err, void *in_ext
 
     // Turn on rfmon on the initial channel
     snprintf(cmdline, 2048, "wlanctl-ng %s lnxreq_wlansniff channel=%d enable=true "
-             "prismheader=true", in_dev, in_ch);
+             "prismheader=true >/dev/null 2>&1", in_dev, in_ch);
     if (ExecSysCmd(cmdline, in_err) < 0)
         return -1;
     
@@ -952,7 +952,7 @@ int chancontrol_wlanng_avs(const char *in_dev, int in_ch, char *in_err, void *in
     // Turn on rfmon on the initial channel
     snprintf(cmdline, 2048, "wlanctl-ng %s lnxreq_wlansniff channel=%d "
              "prismheader=false wlanheader=true stripfcs=false keepwepflags=false "
-             "enable=true", in_dev, in_ch);
+             "enable=true >/dev/null 2>&1", in_dev, in_ch);
     if (ExecSysCmd(cmdline, in_err) < 0)
         return -1;
     
