@@ -3,6 +3,9 @@ Mar 20 2003  2.9.1  Various code cleanups and reorganizations
                      and redundant
                     Migrated rest of alerts to new alert backend, removed
                      GSTSRCH alert (should be in L3 IDS like snort)
+                    Fixed lots of CVS errors of mis-added files
+                    Reduced internal packet buffer to 2048.  Minor memory
+                     savings.
 Mar 18 2003  2.9.1  Fixed new alert logic, added alert fields to the config
                      file, started moving existing alerts to new alert
                      logic.
