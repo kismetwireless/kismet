@@ -1,6 +1,7 @@
 Dec 01 2002  2.7.1  Internal modifications to the frontend power display
                     Tweaked byte count details
                     Updated turbocell code
+                    Updated frontend to handle turbocell ssid changes
 Nov 30 2002  2.7.1  Fixed kismet_hopper for cisco_cvs
 Nov 29 2002  2.7.1  Changed client back to only updating once per second - 
                      massive speed improvements.
