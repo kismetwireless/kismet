@@ -99,7 +99,7 @@ enum CISCO_fields {
 
 enum KISMET_fields {
     KISMET_version, KISMET_starttime, KISMET_servername, KISMET_timestamp,
-    KISMET_chanhop
+    KISMET_chanhop, KISMET_newversion
 };
 
 enum PROTOCOLS_fields {
@@ -168,6 +168,7 @@ typedef struct KISMET_data {
     string starttime;
     string servername;
     string timestamp;
+    string newversion;
 };
 
 typedef struct GPS_data {

@@ -1,3 +1,7 @@
+Feb 09 2004  devel  Changed major-minor-tiny designation to new versioning
+                     scheme, Month-Year-Release# to match the new versioning
+                     scheme.  *KISMET protocol now carries 'newversion' field,
+                     everyone writing their own clients should update to this.
 Feb 06 2004  3.1.0  Added warning for unmonitor mode
 Feb 04 2004  3.1.0  Merged more diffs from Pedro to fix the stackprot alerts on
                      OpenBSD

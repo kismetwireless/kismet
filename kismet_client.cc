@@ -394,7 +394,7 @@ int main(int argc, char *argv[]) {
             reqgui = strdup(optarg);
             break;
         case 'v':
-            fprintf(stderr, "Kismet curses %d.%d.%d\n", VERSION_MAJOR, VERSION_MINOR, VERSION_TINY);
+            fprintf(stderr, "Kismet curses %s.%s.%s\n", VERSION_MAJOR, VERSION_MINOR, VERSION_TINY);
             break;
         case 's':
             server = optarg;
@@ -697,7 +697,7 @@ int main(int argc, char *argv[]) {
         sleep(1);
     }
 
-    fprintf(stderr, " found.\nConnected to Kismet server %d.%d.%d on %s:%d\n",
+    fprintf(stderr, " found.\nConnected to Kismet server %s.%s.%s on %s:%d\n",
             kismet_serv.FetchMajor(), kismet_serv.FetchMinor(), kismet_serv.FetchTiny(),
             guihost, guiport);
 
@@ -784,7 +784,7 @@ int main(int argc, char *argv[]) {
 
     gui->InitDisplay(decay, serv_start);
 
-    snprintf(status, STATUS_MAX, "Connected to Kismet server version %d.%d.%d build %s on %s:%d",
+    snprintf(status, STATUS_MAX, "Connected to Kismet server version %s.%s.%s build %s on %s:%d",
              kismet_serv.FetchMajor(), kismet_serv.FetchMinor(), kismet_serv.FetchTiny(),
              kismet_serv.FetchBuild(), guihost, guiport);
     gui->WriteStatus(status);

@@ -3093,7 +3093,7 @@ int PanelFront::IntroPrinter(void *in_window) {
 
     char output[1024];
 
-    snprintf(output, 1024, "Kismet-Client %d.%d.%d build %s",
+    snprintf(output, 1024, "Kismet-Client %s.%s.%s build %s",
              VERSION_MAJOR, VERSION_MINOR, VERSION_TINY,
              TIMESTAMP);
     kwin->text.push_back(output);

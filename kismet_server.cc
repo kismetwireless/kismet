@@ -2161,7 +2161,7 @@ int main(int argc,char *argv[]) {
             break;
         case 'v':
             // version
-            fprintf(stderr, "Kismet %d.%d.%d\n", VERSION_MAJOR, VERSION_MINOR, VERSION_TINY);
+            fprintf(stderr, "Kismet %s.%s.%s\n", VERSION_MAJOR, VERSION_MINOR, VERSION_TINY);
             exit(0);
             break;
         case 'x':
@@ -2569,7 +2569,7 @@ int main(int argc,char *argv[]) {
 
     }
 
-    snprintf(status, STATUS_MAX, "Kismet %d.%d.%d (%s)",
+    snprintf(status, STATUS_MAX, "Kismet %s.%s.%s (%s)",
              VERSION_MAJOR, VERSION_MINOR, VERSION_TINY, servername);
     fprintf(stderr, "%s\n", status);
 
@@ -2742,8 +2742,10 @@ int main(int argc,char *argv[]) {
 
     // Hijack the status char* for some temp work and fill in our server data record
     // for sending to new clients.
-    snprintf(status, 1024, "%d.%d.%d", VERSION_MAJOR, VERSION_MINOR, VERSION_TINY);
-    kdata.version = status;
+    // Fill in the old version so we don't break other clients
+    kdata.version = "0.0.0";
+    snprintf(status, 1024, "%s.%s.%s", VERSION_MAJOR, VERSION_MINOR, VERSION_TINY);
+    kdata.newversion = status;
     snprintf(status, 1024, "%d", (int) start_time);
     kdata.starttime = status;
     snprintf(status, 1024, "\001%s\001", servername);
