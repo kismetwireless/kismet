@@ -1,4 +1,14 @@
 Generic Linux Packet Engine
+
+* NOTE - The generic packet capture engine is now deprecated.  
+  Essentially all supported wireless cards in Linux now support rfmon, and few
+  support wireless extentions consistently enough for this source to work.
+
+* NOTE 2 - Do not confuse this with the generic CARD TYPE.  The generic CARD
+  TYPE is useful when you have a rfmon capable pcap capable card which is not
+  yet supported in kismet_monitor.  The generic SOURCE was for 
+  non-rfmon-capable cards in Linux.
+
 WARNING!  The generic engine, unlike any other capture engine, generates
 observeable, active probe requests!
 

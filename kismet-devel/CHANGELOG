@@ -1,3 +1,5 @@
+Nov 08 2002  2.7.1  Deprecated the "generic" capture source (not to be confused
+                     with the generic card type)
 Nov 07 2002  2.7.1  Various errno cleanups throughout the source
                     Updated beacon logging to log beacons with new SSIDs
                     Fixed nasty memory leak in tcpclient

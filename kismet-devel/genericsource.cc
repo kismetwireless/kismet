@@ -27,7 +27,7 @@
 #ifdef HAVE_LINUX_WIRELESS
 
 int GenericSource::OpenSource(const char *dev, card_type ctype) {
-    snprintf(type, 64, "generic ssid source");
+    snprintf(type, 64, "generic ssid source (DEFUNCT)");
 
     strncpy(interface, dev, 64);
 
