@@ -1,7 +1,7 @@
 # Kismet GUI config file
 
 # Version of Kismet config
-version=2.8.1
+version=2.9.1a
 
 # Gui type to use
 # Valid types: curses, panel
@@ -25,17 +25,17 @@ soundplay=/usr/bin/play
 # Optional parameters to pass to the player
 # soundopts=--volume=.3
 # New network found
-sound_new=/usr/local/share/kismet/wav/new_network.wav
+sound_new=@sharedatadir@/kismet/wav/new_network.wav
 # Network traffic sound
-sound_traffic=/usr/local/share/kismet/wav/traffic.wav
+sound_traffic=@sharedatadir@/kismet/wav/traffic.wav
 # Network junk traffic found
-sound_junktraffic=/usr/local/share/kismet/wav/junk_traffic.wav
+sound_junktraffic=@sharedatadir@/kismet/wav/junk_traffic.wav
 # GPS lock aquired sound
-# sound_gpslock=/usr/local/share/kismet/wav/foo.wav
+# sound_gpslock=@sharedatadir@/kismet/wav/foo.wav
 # GPS lock lost sound
-# sound_gpslost=/usr/local/share/kismet/wav/bar.wav
+# sound_gpslost=@sharedatadir@/kismet/wav/bar.wav
 # Alert sound
-sound_alert=/usr/local/share/kismet/wav/alert.wav
+sound_alert=@sharedatadir@/kismet/wav/alert.wav
 
 # Display battery status?
 apm=true

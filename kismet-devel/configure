@@ -310,7 +310,7 @@ ac_includes_default="\
 #endif"
 
 ac_subdirs_all="$ac_subdirs_all $pcapdir"
-ac_subst_vars='SHELL PATH_SEPARATOR PACKAGE_NAME PACKAGE_TARNAME PACKAGE_VERSION PACKAGE_STRING PACKAGE_BUGREPORT exec_prefix prefix program_transform_name bindir sbindir libexecdir datadir sysconfdir sharedstatedir localstatedir libdir includedir oldincludedir infodir mandir build_alias host_alias target_alias DEFS ECHO_C ECHO_N ECHO_T LIBS pcapdir build build_cpu build_vendor build_os host host_cpu host_vendor host_os CC CFLAGS LDFLAGS CPPFLAGS ac_ct_CC EXEEXT OBJEXT CXX CXXFLAGS ac_ct_CXX INSTALL_PROGRAM INSTALL_SCRIPT INSTALL_DATA SET_MAKE CPP EGREP LIBOBJS instgrp mangrp CLIBS wantnetlink wantwireless wantpcap pcaplib pcaplnk subdirs pcap suid zaurus zbuild local glib wget magickconfig threadlib gpslc LTLIBOBJS'
+ac_subst_vars='SHELL PATH_SEPARATOR PACKAGE_NAME PACKAGE_TARNAME PACKAGE_VERSION PACKAGE_STRING PACKAGE_BUGREPORT exec_prefix prefix program_transform_name bindir sbindir libexecdir datadir sysconfdir sharedstatedir localstatedir libdir includedir oldincludedir infodir mandir build_alias host_alias target_alias DEFS ECHO_C ECHO_N ECHO_T LIBS pcapdir build build_cpu build_vendor build_os host host_cpu host_vendor host_os CC CFLAGS LDFLAGS CPPFLAGS ac_ct_CC EXEEXT OBJEXT CXX CXXFLAGS ac_ct_CXX INSTALL_PROGRAM INSTALL_SCRIPT INSTALL_DATA SET_MAKE CPP EGREP LIBOBJS instgrp mangrp CLIBS wantnetlink wantwireless wantpcap pcaplib pcaplnk subdirs pcap suid zaurus zbuild local glib wget magickconfig threadlib gpslc sharedatadir LTLIBOBJS'
 ac_subst_files=''
 
 # Initialize some variables set by options.
@@ -7212,8 +7212,16 @@ fi
 
 
 
+sharedatadir=$datadir
+sharedatadir=`(
+    test "$prefix" = NONE && prefix=$ac_default_prefix
+    test "$exec_prefix" = NONE && exec_prefix=${prefix}
+    eval echo "$sharedatadir"
+)`
+sharedatadir=${sharedatadir}
 
-                                                            ac_config_files="$ac_config_files Makefile scripts/kismet scripts/kismet_monitor scripts/kismet_unmonitor extra/buzzme/Makefile extra/Makefile"
+
+                                                                                ac_config_files="$ac_config_files Makefile scripts/kismet scripts/kismet_monitor scripts/kismet_unmonitor extra/buzzme/Makefile extra/Makefile conf/kismet.conf conf/kismet_ui.conf"
 
 cat >confcache <<\_ACEOF
 # This file is a shell script that caches the results of configure
@@ -7745,6 +7753,8 @@ do
   "scripts/kismet_unmonitor" ) CONFIG_FILES="$CONFIG_FILES scripts/kismet_unmonitor" ;;
   "extra/buzzme/Makefile" ) CONFIG_FILES="$CONFIG_FILES extra/buzzme/Makefile" ;;
   "extra/Makefile" ) CONFIG_FILES="$CONFIG_FILES extra/Makefile" ;;
+  "conf/kismet.conf" ) CONFIG_FILES="$CONFIG_FILES conf/kismet.conf" ;;
+  "conf/kismet_ui.conf" ) CONFIG_FILES="$CONFIG_FILES conf/kismet_ui.conf" ;;
   "config.h" ) CONFIG_HEADERS="$CONFIG_HEADERS config.h" ;;
   *) { { echo "$as_me:$LINENO: error: invalid argument: $ac_config_target" >&5
 echo "$as_me: error: invalid argument: $ac_config_target" >&2;}
@@ -7875,6 +7885,7 @@ s,@wget@,$wget,;t t
 s,@magickconfig@,$magickconfig,;t t
 s,@threadlib@,$threadlib,;t t
 s,@gpslc@,$gpslc,;t t
+s,@sharedatadir@,$sharedatadir,;t t
 s,@LTLIBOBJS@,$LTLIBOBJS,;t t
 CEOF
 

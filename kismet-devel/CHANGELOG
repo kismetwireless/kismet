@@ -1,5 +1,6 @@
 Apr 07 2003  2.9.1  Fixed README numberings
                     Un-broke majorly broken display grouping code.
+                    Moved conf files to configure-generated to pick up prefixes
 Apr 06 2003  2.9.1  Merged panelfront_display patch from Faust:
                      Tweaks to elapsed time display
                      Changed status panel scrolling
