@@ -33,7 +33,8 @@ void CatchShutdown(int sig);
 int Usage(char *argv);
 void NetWriteInfo();
 
-void SoundHandler(int read_sock, const char *player, map<string, string> soundmap);
+void SoundHandler(int *fds, const char *player, map<string, string> soundmap);
+void SpeechHandler(int *fds, const char *player);
 int PlaySound(string in_sound);
 int SayText(string in_text);
 

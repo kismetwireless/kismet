@@ -218,9 +218,9 @@ void CatchShutdown(int sig) {
 #endif
 
     // Kill our sound players
-    if (soundpid != -1)
+    if (soundpid > 0)
         kill(soundpid, 9);
-    if (speechpid != -1)
+    if (speechpid > 0)
         kill(speechpid, 9);
 
     exit(0);
@@ -323,7 +323,10 @@ void NetWriteInfo() {
 }
 
 // Subprocess sound handler
-void SoundHandler(int read_sock, const char *player, map<string, string> soundmap) {
+void SoundHandler(int *fds, const char *player, map<string, string> soundmap) {
+    int read_sock = fds[0];
+    close(fds[1]);
+
     fd_set rset;
     fd_set eset;
 
@@ -403,7 +406,10 @@ void SoundHandler(int read_sock, const char *player, map<string, string> soundma
 }
 
 // Subprocess speech handler
-void SpeechHandler(int read_sock, const char *player) {
+void SpeechHandler(int *fds, const char *player) {
+    int read_sock = fds[0];
+    close(fds[1]);
+
     fd_set rset;
     fd_set eset;
 
@@ -1228,21 +1234,33 @@ int main(int argc,char *argv[]) {
             fprintf(stderr, "WARNING:  Unable to create pipe for audio.  Disabling sound.\n");
             sound = 0;
         } else {
-            pid_t forkpid = fork();
+            soundpid = fork();
 
-            if (forkpid < 0) {
+            if (soundpid < 0) {
                 fprintf(stderr, "WARNING:  Unable to fork for audio.  Disabling sound.\n");
                 sound = 0;
-            } else if (forkpid == 0) {
-                SoundHandler(soundpair[0], sndplay, wav_map);
+            } else if (soundpid == 0) {
+                SoundHandler(soundpair, sndplay, wav_map);
                 exit(0);
             }
         }
     }
 
     if (speech) {
+        if (pipe(speechpair) == -1) {
+            fprintf(stderr, "WARNING:  Unable to create pipe for speech.  Disabling speech.\n");
+            speech = 0;
+        } else {
+            speechpid = fork();
 
-
+            if (speechpid < 0) {
+                fprintf(stderr, "WARNING:  Unable to fork for speech.  Disabling speech.\n");
+                speech = 0;
+            } else if (speechpid == 0) {
+                SpeechHandler(speechpair, festival);
+                exit(0);
+            }
+        }
     }
 
 
