@@ -66,7 +66,7 @@ string Packetracker::Net2String(wireless_network *in_net) {
 
     snprintf(output, 2048, "%s %d \001%s\001 \001%s\001 %d %d %d %d %d %d %d %d %d "
              "%d.%d.%d.%d %d.%d.%d.%d %d.%d.%d.%d %d %f %f %f %f %f %f %f %f %d %d %d %2.1f "
-             "%d %d %d %d %d %A %A %A %ld",
+             "%d %d %d %d %d %d %d %d %A %A %A %ld",
              in_net->bssid.size() > 0 ? in_net->bssid.c_str() : "\002",
              (int) in_net->type,
              in_net->ssid.size() > 0 ? in_net->ssid.c_str() : "\002",
@@ -93,6 +93,7 @@ string Packetracker::Net2String(wireless_network *in_net) {
              in_net->manuf_id, in_net->manuf_score,
 	     
              in_net->quality, in_net->signal, in_net->noise,
+             in_net->best_quality, in_net->best_signal, in_net->best_noise,
 
              in_net->aggregate_lat, in_net->aggregate_lon, in_net->aggregate_alt,
              in_net->aggregate_points);
@@ -302,9 +303,17 @@ int Packetracker::ProcessPacket(packet_info info, char *in_status) {
 
     net->last_time = time(0);
 
-    net->quality = info.quality;
-    net->signal = info.signal;
-    net->noise = info.noise;
+    if (info.quality >= 0 && info.signal >= 0) {
+        net->quality = info.quality;
+        if (info.quality > net->best_quality)
+            net->best_quality = info.quality;
+        net->signal = info.signal;
+        if (info.signal > net->best_signal)
+            net->best_signal = info.signal;
+        net->noise = info.noise;
+        if ((info.noise < net->best_noise && info.noise != 0) || net->best_noise == 0)
+            net->best_noise = info.noise;
+    }
 
     if (gps != NULL) {
         float lat, lon, alt, spd;
@@ -791,7 +800,7 @@ int Packetracker::WriteCSVNetworks(FILE *in_file) {
     sort(bssid_vec.begin(), bssid_vec.end(), SortFirstTimeLT());
 
     fprintf(in_file, "Network;NetType;ESSID;BSSID;Info;Channel;Maxrate;WEP;LLC;Data;Crypt;Weak;Total;"
-			"First;Last;"
+			"First;Last;BestQuality;BestSignal;BestNoise;"
             "GPSMinLat;GPSMinLon;GPSMinAlt;GPSMinSpd;"
             "GPSMaxLat;GPSMaxLon;GPSMaxAlt;GPSMaxSpd;"
             "DHCP;DHCPNetmask;DHCPGateway;ARP;UDP;TCP;\r\n");
@@ -816,7 +825,7 @@ int Packetracker::WriteCSVNetworks(FILE *in_file) {
             snprintf(type, 15, "data");
 
 
-        fprintf(in_file, "%d;%s;%s;%s;%s;%02d;%2.1f;%s;%d;%d;%d;%d;%d;%s;%s;",
+        fprintf(in_file, "%d;%s;%s;%s;%s;%02d;%2.1f;%s;%d;%d;%d;%d;%d;%s;%s;%d;%d;%d;",
                 netnum, type,
                 SanitizeCSV(net->ssid).c_str(), net->bssid.c_str(),
                 net->beacon_info == "" ? "None" : SanitizeCSV(net->beacon_info).c_str(),
@@ -826,7 +835,8 @@ int Packetracker::WriteCSVNetworks(FILE *in_file) {
                 net->llc_packets, net->data_packets,
                 net->crypt_packets, net->interesting_packets,
                 (net->llc_packets + net->data_packets),
-                ft, lt);
+                ft, lt,
+                net->best_quality, net->best_signal, net->best_noise);
 
         if (net->gps_fixed != -1) {
             fprintf(in_file,

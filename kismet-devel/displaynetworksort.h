@@ -195,6 +195,34 @@ public:
     }
 };
 
+class DisplaySortQuality {
+public:
+    bool operator() (const display_network *x, const display_network *y) const {
+        if (x->type == group_empty)
+            return 0;
+        if (y->type == group_empty)
+            return 1;
+
+        if (x->virtnet.quality > y->virtnet.quality)
+            return 1;
+        return 0;
+    }
+};
+
+class DisplaySortSignal {
+public:
+    bool operator() (const display_network *x, const display_network *y) const {
+        if (x->type == group_empty)
+            return 0;
+        if (y->type == group_empty)
+            return 1;
+
+        if (x->virtnet.signal > y->virtnet.signal)
+            return 1;
+        return 0;
+    }
+};
+
 
 #endif
 

@@ -255,7 +255,8 @@ int TcpClient::ParseData(char *in_data) {
 
         scanned = sscanf(in_data+hdrlen, "%17s %d \001%255[^\001]\001 \001%255[^\001]\001 "
                          "%d %d %d %d %d %d %d %d %d %hd.%hd.%hd.%hd %hd.%hd.%hd.%hd %hd.%hd.%hd.%hd "
-                         "%d %f %f %f %f %f %f %f %f %d %d %d %f %d %d %d %d %d %lA %lA %lA %ld",
+                         "%d %f %f %f %f %f %f %f %f %d %d %d %f %d %d %d %d %d %d %d %d "
+                         "%lA %lA %lA %ld",
                          bssid, (int *) &net.type, ssid, beacon,
                          &net.llc_packets, &net.data_packets, &net.crypt_packets, &net.interesting_packets,
                          &net.channel, &net.wep, (int *) &net.first_time, (int *) &net.last_time,
@@ -273,10 +274,11 @@ int TcpClient::ParseData(char *in_data) {
                          &maxrate,
                          &net.manuf_id, &net.manuf_score,
                          &net.quality, &net.signal, &net.noise,
+                         &net.best_quality, &net.best_signal, &net.best_noise,
                          &net.aggregate_lat, &net.aggregate_lon, &net.aggregate_alt,
                          &net.aggregate_points);
 
-        if (scanned < 47) {
+        if (scanned < 50) {
             //fprintf(stderr, "Flubbed network, discarding...\n");
             return 0;
         }
