@@ -71,18 +71,6 @@ int DroneSource::OpenSource(const char *dev, card_type ctype) {
         return (-4);
     }
 
-    /*
-    int save_mode = fcntl(drone_fd, F_GETFL, 0);
-    if (save_mode == -1) {
-        snprintf(errstr, 1024, "failed fcntl get %d (%s)\n", errno, strerror(errno));
-        return (-5);
-    }
-    if (fcntl(drone_fd, F_SETFL, save_mode | O_NONBLOCK) < 0) {
-        snprintf(errstr, 1024, "failed fcntl set %d (%s)\n", errno, strerror(errno));
-        return (-6);
-        }
-        */
-
     paused = 0;
 
     valid = 1;
@@ -103,29 +91,23 @@ int DroneSource::FetchPacket(kis_packet *packet) {
     if (valid == 0)
         return 0;
 
-    fd_set rset;
-    FD_ZERO(&rset);
-    FD_SET(drone_fd, &rset);
-
-    struct timeval tm;
-    tm.tv_sec = 0;
-    tm.tv_usec = 0;
-
-    if (select(drone_fd + 1, &rset, NULL, NULL, &tm) < 0) {
-        if (errno != EINTR) {
-            snprintf(errstr, 1024, "select() error %d (%s)", errno, strerror(errno));
-            return -1;
-        }
-    }
-
-    if (!FD_ISSET(drone_fd, &rset))
-        return 0;
+    unsigned int bcount;
+    uint8_t *inbound;
 
     // Fetch the frame header
-    if (read(drone_fd, &fhdr, sizeof(struct stream_frame_header)) < (ssize_t) sizeof(struct stream_frame_header)) {
-        snprintf(errstr, 1024, "short read() getting frame header: %d (%s)",
-                 errno, strerror(errno));
-        return -1;
+    bcount = 0;
+    inbound = (uint8_t *) &fhdr;
+    while (bcount < sizeof(struct stream_frame_header)) {
+        int ret = 0;
+
+        if ((ret = read(drone_fd, &inbound[bcount],
+                        (ssize_t) sizeof(struct stream_frame_header) - bcount)) < 0) {
+            snprintf(errstr, 1024, "read() error getting frame header: %d %s",
+                     errno, strerror(errno));
+            return -1;
+        }
+
+        bcount += ret;
     }
 
     if (fhdr.frame_type == STREAM_FTYPE_VERSION) {
@@ -133,11 +115,19 @@ int DroneSource::FetchPacket(kis_packet *packet) {
 
         stream_version_packet vpkt;
 
-        if (read(drone_fd, &vpkt, sizeof(struct stream_version_packet)) <
-            (ssize_t) sizeof(struct stream_version_packet)) {
-            snprintf(errstr, 1024, "short read() getting version packet: %d (%s)",
-                     errno, strerror(errno));
-            return -1;
+        bcount = 0;
+        inbound = (uint8_t *) &vpkt;
+        while (bcount < sizeof(struct stream_version_packet)) {
+            int ret = 0;
+
+            if ((ret = read(drone_fd, &inbound[bcount],
+                            (ssize_t) sizeof(struct stream_version_packet) - bcount)) < 0) {
+                snprintf(errstr, 1024, "read() error getting version packet: %d %s",
+                         errno, strerror(errno));
+                return -1;
+            }
+
+            bcount += ret;
         }
 
         if (ntohs(vpkt.drone_version) != STREAM_DRONE_VERSION) {
@@ -155,10 +145,20 @@ int DroneSource::FetchPacket(kis_packet *packet) {
         }
 
         // Fetch the packet header
-        if (read(drone_fd, &phdr, sizeof(struct stream_packet_header)) < (ssize_t) sizeof(stream_packet_header)) {
-            snprintf(errstr, 1024, "short read() getting packet header: %d (%s)",
-                     errno, strerror(errno));
-            return -1;
+
+        bcount = 0;
+        inbound = (uint8_t *) &phdr;
+        while (bcount < sizeof(struct stream_packet_header)) {
+            int ret = 0;
+
+            if ((ret = read(drone_fd, &inbound[bcount],
+                            (ssize_t) sizeof(struct stream_packet_header) - bcount)) < 0) {
+                snprintf(errstr, 1024, "read() error getting packet header: %d %s",
+                         errno, strerror(errno));
+                return -1;
+            }
+
+            bcount += ret;
         }
 
         if (ntohs(phdr.drone_version) != STREAM_DRONE_VERSION) {
@@ -177,11 +177,17 @@ int DroneSource::FetchPacket(kis_packet *packet) {
             phdr.len = (uint32_t) htonl(MAX_PACKET_LEN);
 
         // Finally, fetch the indicated packet data.
-        int ret;
-        if ((ret = read(drone_fd, data, ntohl(phdr.caplen))) < (ssize_t) ntohl(phdr.caplen)) {
-            snprintf(errstr, 1024, "%d short read() getting packet content: %d (%s)",
-                     ret, errno, strerror(errno));
-            return -1;
+        bcount = 0;
+        while (bcount < ntohl(phdr.caplen)) {
+            int ret = 0;
+
+            if ((ret = read(drone_fd, &data[bcount], ntohl(phdr.caplen) - bcount)) < 0) {
+                snprintf(errstr, 1024, "read() error getting packet content: %d %s",
+                         errno, strerror(errno));
+                return -1;
+            }
+
+            bcount += ret;
         }
 
         if (paused || Drone2Common(packet) == 0) {
