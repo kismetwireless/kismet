@@ -2166,10 +2166,11 @@ int PanelFront::StatsPrinter(void *in_window) {
     snprintf(output, print_width, "Start   : %.24s", ctime((const time_t *) &start_time));
     details_text.push_back(output);
 
-    snprintf(output, print_width, "Networks: %d", num_networks);
+    snprintf(output, print_width, "Servers : %d", context_list.size());
     details_text.push_back(output);
 
-    vector<wireless_network *> netlist = client->FetchNetworkList();
+    snprintf(output, print_width, "Networks: %d", num_networks);
+    details_text.push_back(output);
 
     int wep_count = 0, vuln_count = 0;
     int channelperc[CHANNEL_MAX];
@@ -2177,18 +2178,27 @@ int PanelFront::StatsPrinter(void *in_window) {
 
     memset(channelperc, 0, sizeof(int) * CHANNEL_MAX);
 
-    // Summarize the network data
-    for (unsigned int x = 0; x < netlist.size(); x++) {
-        if (netlist[x]->channel > 0 && netlist[x]->channel < CHANNEL_MAX) {
-            int perc = ++channelperc[netlist[x]->channel - 1];
-            if (perc > maxch)
-                maxch = perc;
-        }
+    for (unsigned int x = 0; x < context_list.size(); x++) {
+        if (context_list[x]->tagged == 1 && context_list[x]->client != NULL) {
+            vector<wireless_network *> netlist = context_list[x]->client->FetchNetworkList();
 
-        if (netlist[x]->wep)
-            wep_count++;
-        if (netlist[x]->manuf_score == manuf_max_score)
-            vuln_count++;
+            snprintf(output, print_width, "Fetched: %d", netlist.size());
+            details_text.push_back(output);
+
+            // Summarize the network data
+            for (unsigned int x = 0; x < netlist.size(); x++) {
+                if (netlist[x]->channel > 0 && netlist[x]->channel < CHANNEL_MAX) {
+                    int perc = ++channelperc[netlist[x]->channel - 1];
+                    if (perc > maxch)
+                        maxch = perc;
+                }
+
+                if (netlist[x]->wep)
+                    wep_count++;
+                if (netlist[x]->manuf_score == manuf_max_score)
+                    vuln_count++;
+            }
+        }
     }
 
     snprintf(output, print_width, " Encrypted: %d (%d%%)", wep_count,
