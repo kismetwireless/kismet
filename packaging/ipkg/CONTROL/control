@@ -1,8 +1,0 @@
-Package: kismet
-Section: extras
-Priority: optional
-Version: 2.6.0
-Architecture: arm
-Depends: libstdc++2.10-glibc2.2
-Maintainer: Mike Kershaw <dragorn@nerv-un.net>
-Description: 802.11b network sniffer and analyser
