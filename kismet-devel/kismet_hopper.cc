@@ -153,7 +153,7 @@ void defaulthopper(struct capturesource *csrc, int chan) {
 }
 
 void orinocohopper(struct capturesource *csrc, int chan) {
-#ifdef HAVE_LINUX_WIRELESS
+#if defined(HAVE_LINUX_WIRELESS) && defined(HAVE_LINUX_WIRELESS22)
     int fd;
     struct iwreq ireq;  //for Orinoco
     int *ptr;

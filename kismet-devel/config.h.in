@@ -54,6 +54,9 @@
 /* Linux wireless extentions present */
 #undef HAVE_LINUX_WIRELESS
 
+/* Linux wireless extentions v22 or better present */
+#undef HAVE_LINUX_WIRELESS22
+
 /* Define if you have the `memset' function. */
 #undef HAVE_MEMSET
 
