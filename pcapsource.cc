@@ -925,7 +925,7 @@ int monitor_wlanng(const char *in_dev, int initch, char *in_err) {
         return -1;
 
     // Enable the interface
-    snprintf(cmdline, 2048, "wlanctl-ng %s lnxreq_ifstate ifstate=enable >/dev/null 2>dev/null", in_dev);
+    snprintf(cmdline, 2048, "wlanctl-ng %s lnxreq_ifstate ifstate=enable >/dev/null 2>/dev/null", in_dev);
     if (ExecSysCmd(cmdline, in_err) < 0)
         return -1;
 
