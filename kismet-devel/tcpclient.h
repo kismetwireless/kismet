@@ -264,6 +264,9 @@ protected:
     // Protocols we have enabled so that we can replay them on a reconnect
     map<string, int> protocol_map;
 
+    // Fields we enable (what we know how to parse)
+    map<string, string> protocol_default_map;
+
 };
 
 #endif
