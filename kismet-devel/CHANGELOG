@@ -1,3 +1,5 @@
+Feb 09 2003  devel  New devel cylcle started
+                    Added check of new makefile.in and configure to makefile
 Feb 09 2004 Feb0401 Released successor to 3.x with new versioning scheme. Enjoy
                      the new stable release, hopefully beginning a more monthly
                      release schedule.  Everyone should upgrade to this release
