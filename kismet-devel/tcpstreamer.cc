@@ -157,7 +157,7 @@ int TcpStreamer::Poll(fd_set& in_rset, fd_set& in_wset)
         if (FD_ISSET(x, &in_rset) && FD_ISSET(x, &client_fds)) {
             char buf[128];
             ret = read(x, buf, 128);
-            if (ret <= 0 && (errno != EAGAIN && errno != EPIPE)) {
+            if (ret <= 0 && errno != EAGAIN) {
                 if (!silent)
                     fprintf(stderr, "WARNING: Killing client fd %d read error %d: %s\n",
                             x, errno, strerror(errno));
