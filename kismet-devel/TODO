@@ -35,4 +35,3 @@ In no particular order:
 	AP uptime extraction
 	Restucture core code for less duplication
 	getopt problems on freebsd5
-	add -mCPU compile-time options
