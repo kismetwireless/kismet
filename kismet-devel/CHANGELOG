@@ -1,6 +1,9 @@
 Mar 11 2004  devel  Made blanking SSID during entering monitor mode a nonfatal
                      condition.  Should alleviate difficulties with some
                      drivers (prism54, maybe cisco)
+                    Added large-file checking and defines, should overcome the
+                     2GB file size limit on systems that support it
+                    Changed versioning (again) - YYYY-MM-Release.
 Mar 10 2004  devel  Fixed a segfault in the client command protocol
                     Improved error reporting for madwifi monitor mode
 Mar 08 2004  devel  Fixed a segfault with a 0-length macaddr struct (exposed
