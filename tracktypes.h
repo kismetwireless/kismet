@@ -163,6 +163,10 @@ typedef struct wireless_client {
     // that spawned us
     TcpClient *tcpclient;
 #endif
+
+    // Generic pointer for frontends to use to track things
+    void *uidata;
+
 };
 
 // A network
