@@ -1,5 +1,8 @@
 Nov 09 2002  2.7.1  Added ability to name servers via the "servername" 
                      config file.
+                    Fixed bug which included networks flagged by the tracker
+                     for removal in XML/CSV/etc
+                    Improved XML/CSV/etc export speed
 Nov 08 2002  2.7.1  Deprecated the "generic" capture source (not to be confused
                      with the generic card type)
 Nov 07 2002  2.7.1  Various errno cleanups throughout the source
