@@ -411,8 +411,6 @@ int Packetracker::ProcessPacket(packet_info info, char *in_status) {
     if (info.type != packet_data && info.type != packet_ap_broadcast &&
         info.type != packet_adhoc_data) {
 
-        net->llc_packets++;
-
         // If it's a probe request shortcut to handling it like a client once we've
         // established what network it belongs to
         if (info.type == packet_probe_req) {
@@ -427,6 +425,7 @@ int Packetracker::ProcessPacket(packet_info info, char *in_status) {
             return ret;
         }
 
+        net->llc_packets++;
 
         if (info.type == packet_beacon && strlen(info.beacon_info) != 0 &&
             IsBlank(net->beacon_info.c_str())) {
