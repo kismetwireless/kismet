@@ -265,6 +265,7 @@ public:
     bool monitor_reset(int initch);
     bool chancontrol(int in_ch);
 
+    bool getmediaopt(int& options, int& mode);
     bool setmediaopt(int options, int mode);
     bool getifflags(int& flags);
     bool setifflags(int value);
@@ -276,6 +277,10 @@ private:
     bool checksocket();
 
     int s;
+    int prev_flags;
+    int prev_options;
+    int prev_mode;
+    int prev_chan;
     char errstr[256];
     string ifname;
 };
@@ -287,7 +292,6 @@ public:
     PcapSourceRadiotap(string in_name, string in_dev) :
         PcapSource(in_name, in_dev) { }
     int OpenSource();
-    int FetchChannel();
 protected:
     bool CheckForDLT(int dlt);
 };

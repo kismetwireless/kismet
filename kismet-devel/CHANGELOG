@@ -1,3 +1,10 @@
+Feb 22 2004  devel  Merged FreeBSD patch from Sam (with some changes):
+                     * Renamed to radiotap_fbsd_X (me.  radiotap_freebsd_x was
+                       just getting kind of silly to type.)
+                     * Split source into ab/a/b, like MadWifi
+                     * Trimmed out redundant/unused FetchChannel()
+                     * Workaround for varargs for legible error messages
+                     * Save and restore interface settings
 Feb 20 2004  devel  Added tentative support for the orinoco_cs CVS drivers as
                      part of the existing orinoco source
                     Merged patch from Deker to fix inverse bssid filtering
