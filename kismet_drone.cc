@@ -120,6 +120,12 @@ int Usage(char *argv) {
 int main(int argc, char *argv[]) {
     exec_name = argv[0];
 
+    // Packet and contents
+    kis_packet packet;
+    uint8_t data[MAX_PACKET_LEN];
+    uint8_t moddata[MAX_PACKET_LEN];
+
+
     char *configfile = NULL;
     char *servername = NULL;
 
@@ -612,12 +618,10 @@ int main(int argc, char *argv[]) {
             }
 
             if (process_packet_source) {
-                kis_packet packet;
-
                 int len;
 
                 // Capture the packet from whatever device
-                len = psrc->FetchPacket(&packet);
+                len = psrc->FetchPacket(&packet, data, moddata);
 
                 // Handle a packet
                 if (len > 0) {
@@ -654,11 +658,6 @@ int main(int argc, char *argv[]) {
                         CatchShutdown(-1);
                     }
 
-                    if (packet.data != NULL)
-                        delete[] packet.data;
-                    // Should always be null, but just in case...
-                    if (packet.moddata != NULL)
-                        delete[] packet.data;
                 } else if (len < 0) {
                     // Fail on error
                     if (!silent) {

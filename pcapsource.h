@@ -55,7 +55,7 @@ public:
 
     int FetchDescriptor() { return pcap_fileno(pd); }
 
-    int FetchPacket(kis_packet *packet);
+    int FetchPacket(kis_packet *packet, uint8_t *data, uint8_t *moddata);
 
     static void Callback(u_char *bp, const struct pcap_pkthdr *header,
                          const u_char *in_data);
@@ -119,7 +119,7 @@ protected:
         uint32_t encoding;
     } avs_80211_1_header;
 
-    int Pcap2Common(kis_packet *packet);
+    int Pcap2Common(kis_packet *packet, uint8_t *data, uint8_t *moddata);
 
     pcap_t *pd;
 

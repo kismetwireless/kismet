@@ -118,30 +118,9 @@ int Wsp100Source::CloseSource() {
     return 1;
 }
 
-int Wsp100Source::FetchPacket(kis_packet *packet) {
+int Wsp100Source::FetchPacket(kis_packet *packet, uint8_t *data, uint8_t *moddata) {
     if (valid == 0)
         return 0;
-
-    /*
-    fd_set rset;
-    FD_ZERO(&rset);
-    FD_SET(udp_sock, &rset);
-
-    struct timeval tm;
-    tm.tv_sec = 0;
-    tm.tv_usec = 0;
-
-    if (select(udp_sock + 1, &rset, NULL, NULL, &tm) < 0) {
-        if (errno != EINTR) {
-            snprintf(errstr, 1024, "select() error %d (%s)", errno, strerror(errno));
-            return -1;
-        }
-    }
-
-    if (!FD_ISSET(udp_sock, &rset))
-    return 0;
-
-    */
 
     struct sockaddr_in cli_sockaddr;
 #ifdef HAVE_SOCKLEN_T
@@ -164,14 +143,14 @@ int Wsp100Source::FetchPacket(kis_packet *packet) {
     if (cli_sockaddr.sin_addr.s_addr != filter_addr.s_addr)
         return 0;
 
-    if (paused || Wsp2Common(packet) == 0) {
+    if (paused || Wsp2Common(packet, data, moddata) == 0) {
         return 0;
     }
 
     return(packet->caplen);
 }
 
-int Wsp100Source::Wsp2Common(kis_packet *packet) {
+int Wsp100Source::Wsp2Common(kis_packet *packet, uint8_t *data, uint8_t *moddata) {
     memset(packet, 0, sizeof(kis_packet));
 
     uint16_t datalink_type = 0;
@@ -257,7 +236,10 @@ int Wsp100Source::Wsp2Common(kis_packet *packet) {
     packet->caplen = read_len - pos;
     packet->len = packet->caplen;
 
-    packet->data = new uint8_t[packet->caplen];
+    packet->data = data;
+    packet->moddata = moddata;
+    packet->modified = 0;
+
     memcpy(packet->data, data + pos, packet->caplen);
 
     packet->carrier = carrier_80211b;

@@ -50,7 +50,7 @@ int WtapFileSource::CloseSource() {
     return 1;
 }
 
-int WtapFileSource::FetchPacket(kis_packet *packet) {
+int WtapFileSource::FetchPacket(kis_packet *packet, uint8_t *data, uint8_t *moddata) {
     int err;
     long int offset;
 
@@ -81,13 +81,13 @@ int WtapFileSource::FetchPacket(kis_packet *packet) {
     if (paused)
         return 0;
 
-    Wtap2Common(packet);
+    Wtap2Common(packet, data, moddata);
 
     return(packet->caplen);
 
 }
 
-int WtapFileSource::Wtap2Common(kis_packet *packet) {
+int WtapFileSource::Wtap2Common(kis_packet *packet, uint8_t *data, uint8_t *moddata) {
     memset(packet, 0, sizeof(kis_packet));
 
     packet->caplen = kismin(packet_header->caplen, (uint32_t) MAX_PACKET_LEN);
@@ -100,7 +100,9 @@ int WtapFileSource::Wtap2Common(kis_packet *packet) {
     packet->ts.tv_sec = packet_header->ts.tv_sec;
     packet->ts.tv_usec = packet_header->ts.tv_usec;
 
-    packet->data = new uint8_t[packet->caplen];
+    packet->data = data;
+    packet->moddata = moddata;
+    packet->modified = 0;
 
     memcpy(packet->data, packet_data, packet->caplen);
 

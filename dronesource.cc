@@ -87,7 +87,7 @@ int DroneSource::CloseSource() {
     return 1;
 }
 
-int DroneSource::FetchPacket(kis_packet *packet) {
+int DroneSource::FetchPacket(kis_packet *packet, uint8_t *data, uint8_t *moddata) {
     if (valid == 0)
         return 0;
 
@@ -190,7 +190,7 @@ int DroneSource::FetchPacket(kis_packet *packet) {
             bcount += ret;
         }
 
-        if (paused || Drone2Common(packet) == 0) {
+        if (paused || Drone2Common(packet, data, moddata) == 0) {
             return 0;
         }
 
@@ -205,7 +205,7 @@ int DroneSource::FetchPacket(kis_packet *packet) {
     return 0;
 }
 
-int DroneSource::Drone2Common(kis_packet *packet) {
+int DroneSource::Drone2Common(kis_packet *packet, uint8_t *data, uint8_t *moddata) {
     memset(packet, 0, sizeof(kis_packet));
 
     packet->len = (uint32_t) ntohl(phdr.len);
@@ -221,8 +221,9 @@ int DroneSource::Drone2Common(kis_packet *packet) {
     packet->encoding = (encoding_type) phdr.encoding;
     packet->datarate = (uint32_t) ntohl(phdr.datarate);
 
-    packet->data = new uint8_t[packet->caplen];
-    packet->moddata = NULL;
+    packet->data = data;
+    packet->moddata = moddata;
+    packet->modified = 0;
 
     memcpy(packet->data, data, packet->caplen);
 

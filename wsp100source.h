@@ -55,13 +55,13 @@ public:
 
     int FetchDescriptor() { return udp_sock; }
 
-    int FetchPacket(kis_packet *packet);
+    int FetchPacket(kis_packet *packet, uint8_t *data, uint8_t *moddata);
 
     void PokeSensor();
 
 protected:
 
-    int Wsp2Common(kis_packet *packet);
+    int Wsp2Common(kis_packet *packet, uint8_t *data, uint8_t *moddata);
 
     short int port;
     int udp_sock;

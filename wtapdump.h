@@ -51,6 +51,10 @@ protected:
     wtap_pkthdr packet_header;
     u_char packet_data[MAX_PACKET_LEN];
 
+    uint8_t mangle_data[MAX_PACKET_LEN];
+    uint8_t mangle_moddata[MAX_PACKET_LEN];
+    kis_packet mangle_packet;
+
     wtap_dumper *dump_file;
     int wtap_error;
 

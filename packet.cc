@@ -620,7 +620,7 @@ void GetProtoInfo(kis_packet *packet, packet_info *in_info) {
     uint8_t *data;
     // Grab the modified data if there is any, and use the normal data otherwise.
     // This lets us handle dewepped data
-    if (packet->moddata != NULL)
+    if (packet->modified != 0)
         data = packet->moddata;
     else
         data = packet->data;
@@ -1026,7 +1026,7 @@ vector<string> GetPacketStrings(const packet_info *in_info, const kis_packet *pa
 
     // Get our modified data if we have it
     uint8_t *data;
-    if (packet->moddata != NULL)
+    if (packet->modified != 0)
         data = packet->moddata;
     else
         data = packet->data;
@@ -1090,9 +1090,6 @@ void DecryptPacket(kis_packet *packet, packet_info *in_info,
         keyblock[kbb] = oldkey;
     }
 
-    // Allocate moddata.  We should be the first ones touching this field.
-    // WARNING - If ANYTHING allocates this field before now, it will leak memory!
-    packet->moddata = new uint8_t[packet->caplen];
     // Copy the packet headers
     memcpy(packet->moddata, packet->data, in_info->header_offset + 4);
 
@@ -1143,10 +1140,10 @@ void DecryptPacket(kis_packet *packet, packet_info *in_info,
     // If the CRC check failed, delete the moddata, set it to null, and don't change the
     // length
     if (crcfailure == 1) {
-        delete[] packet->moddata;
-        packet->moddata = NULL;
+        packet->modified = 0;
         bwmitr->second->failed++;
     } else {
+        packet->modified = 1;
         // Skip the IV and don't count the ICV
         in_info->header_offset += 4;
         packet->len -= 4;
@@ -1155,15 +1152,14 @@ void DecryptPacket(kis_packet *packet, packet_info *in_info,
     }
 }
 
-// Convert a crypted packet into an unencrypted packet.
+// Convert a crypted packet into an unencrypted packet with data and moddata fields
+// set accordingly.
 // Calling function is responsible for deleting the returned packet
-// and the contents of the returned packet.
 // We turn the packet into an "un-modified" packet for logging
-kis_packet *MangleDeCryptPacket(const kis_packet *packet, const packet_info *in_info) {
-    if (in_info->decoded == 0 || packet->error != 0 || packet->moddata == NULL)
-        return NULL;
-
-    kis_packet *outpack = new kis_packet;
+int MangleDeCryptPacket(const kis_packet *packet, const packet_info *in_info,
+                        kis_packet *outpack, uint8_t *data, uint8_t *moddata) {
+    if (in_info->decoded == 0 || packet->error != 0 || packet->modified == 0)
+        return 0;
 
     // Remove the WEP header
     outpack->ts.tv_sec = packet->ts.tv_sec;
@@ -1178,10 +1174,12 @@ kis_packet *MangleDeCryptPacket(const kis_packet *packet, const packet_info *in_
     outpack->carrier = packet->carrier;
     outpack->encoding = packet->encoding;
     outpack->datarate = packet->datarate;
-    outpack->moddata = NULL;
+
+    outpack->data = data;
+    outpack->moddata = moddata;
+    outpack->modified = 0;
 
     // Copy the decrypted data, skipping the wep header and dropping the crc32 off the end
-    outpack->data = new uint8_t[outpack->len];
     memcpy((void *) outpack->data, (void *) packet->moddata, in_info->header_offset - 4);
     memcpy((void *) &outpack->data[in_info->header_offset - 4],
            (void *) &packet->moddata[in_info->header_offset],
@@ -1191,15 +1189,14 @@ kis_packet *MangleDeCryptPacket(const kis_packet *packet, const packet_info *in_
     frame_control *fc = (frame_control *) outpack->data;
     fc->wep = 0;
 
-    return outpack;
+    return outpack->len;
 }
 
 // Mangle a fuzzy packet into a "really encrypted" packet
-kis_packet *MangleFuzzyCryptPacket(const kis_packet *packet, const packet_info *in_info) {
+int MangleFuzzyCryptPacket(const kis_packet *packet, const packet_info *in_info,
+                           kis_packet *outpack, uint8_t *data, uint8_t *moddata) {
     if (in_info->fuzzy == 0 || packet->error != 0)
-        return NULL;
-
-    kis_packet *outpack = new kis_packet;
+        return 0;
 
     // Remove the WEP header
     outpack->ts.tv_sec = packet->ts.tv_sec;
@@ -1215,22 +1212,23 @@ kis_packet *MangleFuzzyCryptPacket(const kis_packet *packet, const packet_info *
     outpack->encoding = packet->encoding;
     outpack->datarate = packet->datarate;
 
+    outpack->data = data;
+    outpack->moddata = moddata;
+    outpack->modified = packet->modified;
+
     // Copy the encrypted data
-    outpack->data = new uint8_t[outpack->len];
     memcpy((void *) outpack->data, (void *) packet->data, outpack->len);
 
     // Copy any decrypted data
-    if (packet->moddata != NULL) {
-        outpack->moddata = new uint8_t[outpack->len];
+    if (packet->modified != 0) {
         memcpy((void *) outpack->moddata, (void *) packet->moddata, outpack->len);
-    } else {
-        outpack->moddata = NULL;
     }
 
-    // Twiddle the frame control bit to set us to be really encrypted
+    // Twiddle the frame control bit in the encrypted data to set us to be really encrypted
     frame_control *fc = (frame_control *) outpack->data;
     fc->wep = 1;
 
-    return outpack;
+    return outpack->len;
+
 }
 

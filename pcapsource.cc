@@ -104,7 +104,7 @@ void PcapSource::Callback(u_char *bp, const struct pcap_pkthdr *header,
     memcpy(callback_data, in_data, header->len);
 }
 
-int PcapSource::FetchPacket(kis_packet *packet) {
+int PcapSource::FetchPacket(kis_packet *packet, uint8_t *data, uint8_t *moddata) {
     int ret;
     //unsigned char *udata = '\0';
 
@@ -116,19 +116,23 @@ int PcapSource::FetchPacket(kis_packet *packet) {
     if (ret == 0)
         return 0;
 
-    if (paused || Pcap2Common(packet) == 0) {
+    if (paused || Pcap2Common(packet, data, moddata) == 0) {
         return 0;
     }
 
     return(packet->caplen);
 }
 
-int PcapSource::Pcap2Common(kis_packet *packet) {
+int PcapSource::Pcap2Common(kis_packet *packet, uint8_t *data, uint8_t *moddata) {
     memset(packet, 0, sizeof(kis_packet));
 
     int callback_offset = 0;
 
     packet->ts = callback_header.ts;
+
+    packet->data = data;
+    packet->moddata = moddata;
+    packet->modified = 0;
 
     // Get the power from the datalink headers if we can, otherwise use proc/wireless
     if (datalink_type == DLT_PRISM_HEADER) {
@@ -292,8 +296,6 @@ int PcapSource::Pcap2Common(kis_packet *packet) {
         packet->len -= 2;
         packet->caplen -= 2;
 
-        packet->data = new uint8_t[packet->caplen];
-
         memcpy(packet->data, callback_data + callback_offset, 24);
         memcpy(packet->data + 24, callback_data + callback_offset + 26, packet->caplen - 26);
 
@@ -301,8 +303,6 @@ int PcapSource::Pcap2Common(kis_packet *packet) {
         // skip driver appended prism header
         packet->len -= 14;
         packet->caplen -= 14;
-
-        packet->data = new uint8_t[packet->caplen];
 
         // 802.11 header
         memcpy(packet->data, callback_data + callback_offset, 24);
@@ -321,8 +321,6 @@ int PcapSource::Pcap2Common(kis_packet *packet) {
     } else {
         // Otherwise we don't do anything or we don't have enough of a packet to do anything
         // with.
-        packet->data = new uint8_t[packet->caplen];
-
         memcpy(packet->data, callback_data + callback_offset, packet->caplen);
     }
 
