@@ -33,7 +33,6 @@ In no particular order:
 	Alerts as forged packets in pipe
 	gps satellite plot in client
 	VPN detection
-	endian-safe drones
 	linkage of seen-on devices to network info
 	horizontal column scrolling in UI
 	kismet_client perl module (org/kyzoku/others)
