@@ -1318,7 +1318,7 @@ double WeightAlgo(int start_x, int start_y, int in_x, int in_y, double in_fuzz, 
 //            printf("power map at %d,%d has val %d max %d,%d\n", cury, curx,
 //                   power_input_map[(map_width * cury) + curx], max_x, max_y);
 
-            double h = geom_distance(start_x, start_y, curx, cury);
+            double h = geom_distance(start_x, start_y, curx, cury) * 1.2;
             if (h > r)
                 r = h;
         }
@@ -1352,7 +1352,8 @@ double WeightAlgo(int start_x, int start_y, int in_x, int in_y, double in_fuzz, 
 int InverseWeight(int in_x, int in_y, int in_fuzz, double in_scale) { /*FOLD00*/
     int min_x = 0, min_y = 0;
     int max_x = map_width, max_y = map_height;
-    int offset = (int) (in_fuzz/in_scale);
+
+    int offset = (int)(100 * (double) (1 / in_scale));
 
     // Moved the abort to here, so we don't need to do the downward things
     if (offset == 0)
@@ -1377,6 +1378,15 @@ int InverseWeight(int in_x, int in_y, int in_fuzz, double in_scale) { /*FOLD00*/
 
     for (int cury = min_y; cury < max_y; cury++) {
         for (int curx = min_x; curx < max_x; curx++) {
+            // Round out the distance we calc in...  Store some stuff to make
+            // math faster
+            double ldist = sqrt(((in_x - curx)*(in_x - curx)) +
+                    ((in_y - cury)*(in_y - cury)));
+
+            if ((int) ldist > offset) {
+                continue;
+            }
+            
             if (power_input_map[(map_width * cury) + curx] < 0)
                 continue;
 
@@ -1850,7 +1860,7 @@ void *PowerLine(void *arg) {
 #endif
 
         for (unsigned int x = 0; x < map_width; x+= in_res) {
-            unsigned int powr = InverseWeight(x, y, (int) (map_scale/100),
+            unsigned int powr = InverseWeight(x, y, (int) (map_scale/200),
                                               (double) map_scale/PIXELFACT);
 
 #ifdef HAVE_PTHREAD
@@ -1901,6 +1911,8 @@ void DrawNetPower(vector<gps_network *> in_nets, Image *in_img,
     power_input_map = new int [map_width * map_height];
     memset(power_input_map, -1, sizeof(int) * (map_width * map_height));
 
+    int lowest = 255;
+
     for (unsigned int x = 0; x < in_nets.size(); x++) {
         gps_network *map_iter = in_nets[x];
 
@@ -1925,9 +1937,19 @@ void DrawNetPower(vector<gps_network *> in_nets, Image *in_img,
             if (power_input_map[(map_width * cury) + curx] < 
                 map_iter->points[y]->signal && map_iter->points[y]->signal != 0) {
                 power_input_map[(map_width * cury) + curx] = map_iter->points[y]->signal;
+                if (map_iter->points[y]->signal < lowest)
+                    lowest = map_iter->points[y]->signal;
             }
         }
 
+    }
+
+    // Attempt to normalize the data somewhat
+    for (unsigned int v = 0; v < map_height; v++) {
+        for (unsigned int h = 0; h < map_width; h++) {
+            if (power_input_map[(map_width * v) + h] != 0)
+                power_input_map[(map_width * v) + h] -= lowest;
+        }
     }
 
 #if 0
