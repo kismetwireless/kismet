@@ -53,10 +53,10 @@ int AirsnortDumpFile::DumpPacket(const packet_info *in_info, const pkthdr *in_he
 
     // Is it a beacon?  Do we know about this network?  Log it if we don't.
     if (in_info->type == packet_beacon) {
-        if (bssid_dumped_map.find(Packetracker::Mac2String((uint8_t *) in_info->bssid_mac, ':')) == bssid_dumped_map.end()) {
+        if (bssid_dumped_map.find(in_info->bssid_mac) == bssid_dumped_map.end()) {
             // We only count weak packets as logged, not the headers
 
-            bssid_dumped_map[Packetracker::Mac2String((uint8_t *) in_info->bssid_mac, ':')] = 1;
+            bssid_dumped_map[in_info->bssid_mac] = 1;
 
             ret = dumper->DumpPacket(in_info, in_header, in_data);
             snprintf(errstr, 1024, "%s", dumper->FetchError());

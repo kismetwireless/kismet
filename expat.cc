@@ -154,12 +154,9 @@ int NetXmlStr2Struct(wireless_network *in_net) {
         fprintf(stderr, "WARNING:  Invalid (blank) BSSID, rest of network will not be processed.\n");
         return -1;
     } else {
-        in_net->bssid = xmlstrnodes[net_node_wn_BSSID];
+        in_net->bssid = xmlstrnodes[net_node_wn_BSSID].c_str();
 
-        if (sscanf(xmlstrnodes[net_node_wn_BSSID].c_str(), "%02X:%02X:%02X:%02X:%02X:%02X",
-                   (unsigned int *) &in_net->bssid_raw[0], (unsigned int *) &in_net->bssid_raw[1],
-                   (unsigned int *) &in_net->bssid_raw[2], (unsigned int *) &in_net->bssid_raw[3],
-                   (unsigned int *) &in_net->bssid_raw[4], (unsigned int *) &in_net->bssid_raw[5]) < 6) {
+        if (in_net->bssid.longmac == 0) {
             fprintf(stderr, "WARNING:  Illegal BSSID '%s', skipping rest of network.\n",
                     xmlstrnodes[net_node_wn_BSSID].c_str());
             return -1;

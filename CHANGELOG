@@ -1,3 +1,4 @@
+Aug 24 2002  2.5.2  Fixed major problems introduced with yesterdays speed boost
 Aug 23 2002  2.5.2  Doubled (or more) the speed of packet tracking via 
                      suggestions from Million
                     Incorporated speed boosts into tcpclient and frontend

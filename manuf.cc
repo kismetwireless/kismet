@@ -180,9 +180,18 @@ int MatchBestManuf(wireless_network *in_net, int in_set) { /*FOLD00*/
     for (int x = 0; x < manuf_num; x++) {
         int score = 0;
 
-        if (manuf_list[x].tag_len > 0)
-            if (memcmp(in_net->bssid_raw, manuf_list[x].mac_tag, manuf_list[x].tag_len) == 0)
-                score += 5;
+        if (manuf_list[x].tag_len > 0) {
+            int tagmatch = 1;
+            for (unsigned int y = 0; y < manuf_list[x].tag_len; y++) {
+                if (in_net->bssid[y] != manuf_list[x].mac_tag[y]) {
+                    tagmatch = 0;
+                    break;
+                }
+
+                if (tagmatch)
+                    score += 5;
+            }
+        }
 
         if (in_net->ssid == manuf_list[x].ssid_default && manuf_list[x].ssid_default != "")
             score += 1;

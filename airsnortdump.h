@@ -44,7 +44,7 @@ protected:
 
     DumpFile *dumper;
 
-    map<string, int> bssid_dumped_map;
+    map<mac_addr, int> bssid_dumped_map;
 
 };
 

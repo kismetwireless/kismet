@@ -140,7 +140,7 @@ string PanelFront::NetLine(wireless_network *net, const char *name, int sub,
             snprintf(element, 7, "%6d", net->data_packets + net->llc_packets);
             len = 6;
         } else if (column_vec[col] == "bssid") {
-            snprintf(element, 18, "%s", net->bssid.c_str());
+            snprintf(element, 18, "%s", net->bssid.Mac2String().c_str());
             len = 17;
         } else if (column_vec[col] == "info") {
             snprintf(element, 16, "%s", net->beacon_info.c_str());
@@ -1001,7 +1001,7 @@ int PanelFront::DetailsPrinter(void *in_window) {
             kwin->text.push_back(output);
         }
 
-        snprintf(output, print_width, "BSSID   : %s", dnet->bssid.c_str());
+        snprintf(output, print_width, "BSSID   : %s", dnet->bssid.Mac2String().c_str());
         kwin->text.push_back(output);
     
         snprintf(output, print_width, "Max Rate: %2.1f", dnet->maxrate);
@@ -1443,13 +1443,13 @@ int PanelFront::PackPrinter(void *in_window) {
         case packet_beacon:
             snprintf(cdata, 1024, "%.8s %s BEACON '%s'",
                      ctime(&packinfo[x].time) + 11,
-                     Mac2String(packinfo[x].bssid_mac, ':').c_str(),
+                     packinfo[x].bssid_mac.Mac2String().c_str(),
                      packinfo[x].ssid);
             break;
         case packet_probe_req:
             snprintf(cdata, 1024, "%.8s %s PROBE-REQ '%s'",
                      ctime(&packinfo[x].time) + 11,
-                     Mac2String(packinfo[x].source_mac, ':').c_str(),
+                     packinfo[x].source_mac.Mac2String().c_str(),
                      packinfo[x].ssid);
             break;
         case packet_data:
@@ -1536,36 +1536,36 @@ int PanelFront::PackPrinter(void *in_window) {
 
             snprintf(cdata, 1024, "%.8s %s %s %s",
                      ctime(&packinfo[x].time) + 11,
-                     Mac2String(packinfo[x].bssid_mac, ':').c_str(),
+                     packinfo[x].bssid_mac.Mac2String().c_str(),
                      dtype, dsubtype);
             break;
         case packet_adhoc:
             snprintf(cdata, 1024, "%.8s %s ADHOC '%s'",
                      ctime(&packinfo[x].time) + 11,
-                     Mac2String(packinfo[x].bssid_mac, ':').c_str(),
+                     packinfo[x].bssid_mac.Mac2String().c_str(),
                      packinfo[x].ssid);
             break;
         case packet_probe_response:
             snprintf(cdata, 1024, "%.8s %s PROBE RESPONSE '%s'",
                      ctime(&packinfo[x].time) + 11,
-                     Mac2String(packinfo[x].bssid_mac, ':').c_str(),
+                     packinfo[x].bssid_mac.Mac2String().c_str(),
                      packinfo[x].ssid);
             break;
         case packet_noise:
             snprintf(cdata, 1024, "%.8s %s NOISE",
                      ctime(&packinfo[x].time) + 11,
-                     Mac2String(packinfo[x].bssid_mac, ':').c_str());
+                     packinfo[x].bssid_mac.Mac2String().c_str());
             break;
         case packet_reassociation:
             snprintf(cdata, 1024, "%.8s %s REASSOCIATION '%s'",
                      ctime(&packinfo[x].time) + 11,
-                     Mac2String(packinfo[x].bssid_mac, ':').c_str(),
+                     packinfo[x].bssid_mac.Mac2String().c_str(),
                      packinfo[x].ssid);
             break;
         default:
             snprintf(cdata, 1024, "%.8s %s UNKNOWN",
                      ctime(&packinfo[x].time) + 11,
-                     Mac2String(packinfo[x].bssid_mac, ':').c_str());
+                     packinfo[x].bssid_mac.Mac2String().c_str());
             break;
         }
 

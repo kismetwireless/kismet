@@ -26,8 +26,6 @@
 
 #include "packet.h"
 
-#define MAC_STR_LEN (MAC_LEN * 2) + 6
-
 const string NOSSID("<no ssid>");
 
 enum wireless_network_type {
@@ -83,7 +81,6 @@ enum client_type {
 typedef struct wireless_client {
     wireless_client() {
         type = client_unknown;
-        memset(raw_mac, 0, MAC_LEN);
 
         first_time = 0;
         last_time = 0;
@@ -116,8 +113,7 @@ typedef struct wireless_client {
     time_t last_time;
 
     // MAC of client
-    string mac;
-    uint8_t raw_mac[MAC_LEN];
+    mac_addr mac;
 
     // Manufacturer ID
     int manuf_id;
@@ -158,7 +154,6 @@ typedef struct wireless_network {
         manuf_id = -1;
         manuf_score = 0;
 
-        memset(bssid_raw, 0, MAC_LEN);
         memset(&ipdata, 0, sizeof(net_ip_data));
 
         llc_packets = data_packets = crypt_packets = interesting_packets = 0;
@@ -210,9 +205,8 @@ typedef struct wireless_network {
     //uint8_t bssid[MAC_LEN];
     int channel;
     int wep;
-    string bssid;
 
-    uint8_t bssid_raw[MAC_LEN];
+    mac_addr bssid;
 
     // Are we a cloaked SSID?
     int cloaked;
@@ -261,7 +255,7 @@ typedef struct wireless_network {
     int best_quality, best_signal, best_noise;
     float best_lat, best_lon, best_alt;
 
-    map<string, wireless_client *> client_map;
+    map<mac_addr, wireless_client *> client_map;
 
 };
 

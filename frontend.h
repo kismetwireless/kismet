@@ -103,7 +103,7 @@ public:
     void ReadGroupMap(FILE *in_file);
     void WriteGroupMap(FILE *in_file);
 
-    void RemoveGroup(string in_bssid);
+    void RemoveGroup(mac_addr in_bssid);
 
 protected:
     int decay;
@@ -112,8 +112,6 @@ protected:
     time_t start_time;
 
     TcpClient *client;
-
-    string Mac2String(uint8_t *mac, char seperator);
 
     // Populate groups with data from the client -- fetch all the networks and put
     // them in the groups they should be in
@@ -142,7 +140,7 @@ protected:
     vector<display_network *> group_vec;
 
     // Mapping of potential BSSID's to group tags so we know WHERE to put someone
-    map<uint8_t *, string, STLMacComp> bssid_group_map;
+    map<mac_addr, string> bssid_group_map;
 
     // Map of group tag to group name
     map<string, string> group_name_map;
@@ -152,7 +150,7 @@ protected:
 
     // Mapping of BSSID's to groups we've assigned them to, so we can quickly
     // add someone to a group if they're not there yet
-    map<uint8_t *, display_network *, STLMacComp> group_assignment_map;
+    map<mac_addr, display_network *> group_assignment_map;
 
     map<string, string> prefs;
 

@@ -32,7 +32,7 @@ Packetracker::Packetracker() {
 
 Packetracker::~Packetracker() {
     for (unsigned int x = 0; x < network_list.size(); x++) {
-        for (map<string, wireless_client *, STLMacComp>::iterator y = network_list[x]->client_map.begin();
+        for (map<mac_addr, wireless_client *>::iterator y = network_list[x]->client_map.begin();
              y != network_list[x]->client_map.end(); ++y)
             delete y->second;
         delete network_list[x];
@@ -49,25 +49,6 @@ vector<wireless_network *> Packetracker::FetchNetworks() {
     return ret_vec;
 }
 
-// Return the string literal
-// This is a really inefficient way of doing this, but I'm tired right now.
-string Packetracker::Mac2String(uint8_t *mac, char seperator) {
-    char tempstr[MAC_STR_LEN];
-
-    // There must be a better way to do this...
-    if (seperator != '\0')
-        snprintf(tempstr, MAC_STR_LEN, "%02X%c%02X%c%02X%c%02X%c%02X%c%02X",
-                 mac[0], seperator, mac[1], seperator, mac[2], seperator,
-                 mac[3], seperator, mac[4], seperator, mac[5]);
-    else
-        snprintf(tempstr, MAC_STR_LEN, "%02X%02X%02X%02X%02X%02X",
-                 mac[0], mac[1], mac[2],
-                 mac[3], mac[4], mac[5]);
-
-    string temp = tempstr;
-    return temp;
-}
-
 // Convert a net to string
 string Packetracker::Net2String(wireless_network *in_net) {
     string ret;
@@ -76,7 +57,7 @@ string Packetracker::Net2String(wireless_network *in_net) {
     snprintf(output, 2048, "%s %d \001%s\001 \001%s\001 %d %d %d %d %d %d %d %d %d "
              "%d.%d.%d.%d %d.%d.%d.%d %d.%d.%d.%d %d %f %f %f %f %f %f %f %f %d %d %d %2.1f "
              "%d %d %d %d %d %d %d %d %f %f %f %f %f %f %ld",
-             in_net->bssid.size() > 0 ? in_net->bssid.c_str() : "\002",
+             in_net->bssid.Mac2String().c_str(),
              (int) in_net->type,
              in_net->ssid.size() > 0 ? in_net->ssid.c_str() : "\002",
              in_net->beacon_info.size() > 0 ? in_net->beacon_info.c_str() : "\002",
@@ -122,8 +103,8 @@ string Packetracker::Client2String(wireless_network *net, wireless_client *clien
              "%f %f %f %f %f %f %f %f %f %f "
              "%f %ld %2.1f %d %d %d %d %d %d %d "
              "%f %f %f %d %d.%d.%d.%d",
-             net->bssid.c_str(),
-             client->mac.c_str(),
+             net->bssid.Mac2String().c_str(),
+             client->mac.Mac2String().c_str(),
              client->type,
              (int) client->first_time, (int) client->last_time,
              client->manuf_id, client->manuf_score,
@@ -212,6 +193,7 @@ int Packetracker::ProcessPacket(packet_info info, char *in_status) {
 
     // Are we in the map?
     int map_not_found = bssid_map.find(info.bssid_mac) == bssid_map.end();
+//    printf("bssid %s %llx thinks %d\n", info.bssid_mac.Mac2String().c_str(), info.bssid_mac.longmac, map_not_found);
 
     // If it's a broadcast (From and To DS == 1) try to match it to an existing
     // network
@@ -222,9 +204,9 @@ int Packetracker::ProcessPacket(packet_info info, char *in_status) {
         fs_mac = Mac2String(info.dest_mac, ':');
         */
         if (bssid_map.find(info.source_mac) != bssid_map.end()) {
-            memcpy(info.bssid_mac, info.source_mac, MAC_LEN);
+            info.bssid_mac = info.source_mac;
         } else if (bssid_map.find(info.dest_mac) != bssid_map.end()) {
-            memcpy(info.bssid_mac, info.dest_mac, MAC_LEN);
+            info.bssid_mac = info.dest_mac;
         } else {
             num_dropped++;
             return(0);
@@ -233,7 +215,7 @@ int Packetracker::ProcessPacket(packet_info info, char *in_status) {
         // bssid_mac = Mac2String(info.bssid_mac, ':');
     }
 
-    if (memcmp(info.bssid_mac, NUL_MAC, sizeof(NUL_MAC)) == 0) {
+    if (info.bssid_mac == NUL_MAC) {
         num_dropped++;
         return(0);
     }
@@ -248,8 +230,7 @@ int Packetracker::ProcessPacket(packet_info info, char *in_status) {
     // If it's a probe request, see if we already know who it should belong to
     if (info.type == packet_probe_req) {
         if (probe_map.find(info.bssid_mac) != probe_map.end())
-            memcpy(info.bssid_mac, probe_map[info.bssid_mac], sizeof(info.bssid_mac));
-        //bssid_mac = probe_map[bssid_mac];
+            info.bssid_mac = probe_map[info.bssid_mac];
     }
 
 
@@ -257,11 +238,8 @@ int Packetracker::ProcessPacket(packet_info info, char *in_status) {
     // gets added has a bssid, so we'll use that to search.  We've filtered
     // everything else out by this point so we're safe to just work off bssid
     if (map_not_found) {
-
         // Make a network for them
         net = new wireless_network;
-
-        memcpy(net->bssid_raw, info.bssid_mac, MAC_LEN);
 
         if (bssid_ip_map.find(info.bssid_mac) != bssid_ip_map.end())
             memcpy(&net->ipdata, &bssid_ip_map[info.bssid_mac], sizeof(net_ip_data));
@@ -287,6 +265,8 @@ int Packetracker::ProcessPacket(packet_info info, char *in_status) {
             bssid_cloak_map[info.bssid_mac] = info.ssid;
         }
 
+        net->bssid = info.bssid_mac;
+
         net->channel = info.channel;
 
         if (info.ap == 1)
@@ -299,7 +279,7 @@ int Packetracker::ProcessPacket(packet_info info, char *in_status) {
 
         net->beacon = info.beacon;
 
-        net->bssid = Mac2String(info.bssid_mac, ':');
+        //net->bssid = Mac2String(info.bssid_mac, ':');
 
         // Put us in the master list
         network_list.push_back(net);
@@ -314,10 +294,10 @@ int Packetracker::ProcessPacket(packet_info info, char *in_status) {
 
         if (net->type == network_probe) {
             snprintf(in_status, STATUS_MAX, "Found new probed network bssid %s",
-                     net->bssid.c_str());
+                     net->bssid.Mac2String().c_str());
         } else {
             snprintf(in_status, STATUS_MAX, "Found new network \"%s\" bssid %s WEP %c Ch %d @ %.2f mbit",
-                     net->ssid.c_str(), net->bssid.c_str(), net->wep ? 'Y' : 'N',
+                     net->ssid.c_str(), net->bssid.Mac2String().c_str(), net->wep ? 'Y' : 'N',
                      net->channel, net->maxrate);
         }
 
@@ -343,14 +323,16 @@ int Packetracker::ProcessPacket(packet_info info, char *in_status) {
 
         num_networks++;
 
-        // And add us to all the maps
-        bssid_map[net->bssid_raw] = net;
-        // ssid_map[net->ssid] = net;
+        // And add us to the map
+  //      printf("Setting %s to %p\n", net->bssid.Mac2String().c_str(), net);
+        bssid_map[net->bssid] = net;
 
         // Return 1 if we make a new network entry
         ret = TRACKER_NEW;
     } else {
+//        printf("We think we have %s, looking it up.\n", info.bssid_mac.Mac2String().c_str());
         net = bssid_map[info.bssid_mac];
+//        printf("We got %p for net %s\n", net, info.bssid_mac.Mac2String().c_str());
         if (net->listed == 0) {
             network_list.push_back(net);
             net->listed = 1;
@@ -437,20 +419,20 @@ int Packetracker::ProcessPacket(packet_info info, char *in_status) {
             // Update if they changed their SSID
             if (net->ssid != NOSSID && net->ssid != info.ssid && !IsBlank(info.ssid)) {
                 net->ssid = info.ssid;
-                bssid_cloak_map[net->bssid_raw] = info.ssid;
+                bssid_cloak_map[net->bssid] = info.ssid;
                 MatchBestManuf(net, 1);
             } else if (net->ssid == NOSSID && strlen(info.ssid) > 0 && !IsBlank(info.ssid)) {
                 net->ssid = info.ssid;
 
-                bssid_cloak_map[net->bssid_raw] = info.ssid;
+                bssid_cloak_map[net->bssid] = info.ssid;
 
                 if (net->type == network_ap) {
                     net->cloaked = 1;
                     snprintf(in_status, STATUS_MAX, "Found SSID \"%s\" for cloaked network BSSID %s",
-                             net->ssid.c_str(), net->bssid.c_str());
+                             net->ssid.c_str(), net->bssid.Mac2String().c_str());
                 } else {
                     snprintf(in_status, STATUS_MAX, "Found SSID \"%s\" for network BSSID %s",
-                             net->ssid.c_str(), net->bssid.c_str());
+                             net->ssid.c_str(), net->bssid.Mac2String().c_str());
                 }
 
                 MatchBestManuf(net, 1);
@@ -475,16 +457,16 @@ int Packetracker::ProcessPacket(packet_info info, char *in_status) {
                 net->channel = info.channel;
                 net->wep = info.wep;
 
-                bssid_cloak_map[net->bssid_raw] = info.ssid;
+                bssid_cloak_map[net->bssid] = info.ssid;
 
                 snprintf(in_status, STATUS_MAX, "Found SSID \"%s\" for cloaked network BSSID %s",
-                         net->ssid.c_str(), net->bssid.c_str());
+                         net->ssid.c_str(), net->bssid.Mac2String().c_str());
 
                 MatchBestManuf(net, 1);
 
                 ret = TRACKER_NOTICE;
-            } else if (info.ssid != bssid_cloak_map[net->bssid_raw]) {
-                bssid_cloak_map[net->bssid_raw] = info.ssid;
+            } else if (info.ssid != bssid_cloak_map[net->bssid]) {
+                bssid_cloak_map[net->bssid] = info.ssid;
                 net->ssid = info.ssid;
                 net->wep = info.wep;
 
@@ -494,7 +476,7 @@ int Packetracker::ProcessPacket(packet_info info, char *in_status) {
             // If we have a probe request network, absorb it into the main network
             //string resp_mac = Mac2String(info.dest_mac, ':');
             //probe_map[resp_mac] = net->bssid;
-            probe_map[info.dest_mac] = net->bssid_raw;
+            probe_map[info.dest_mac] = net->bssid;
 
             // If we have any networks that match the response already in existance,
             // we should add them to the main network and kill them off
@@ -510,7 +492,7 @@ int Packetracker::ProcessPacket(packet_info info, char *in_status) {
                     pnet->last_time = time(0);
 
                     snprintf(in_status, STATUS_MAX, "Associated probe network \"%s\".",
-                             pnet->bssid.c_str());
+                             pnet->bssid.Mac2String().c_str());
 
                     num_networks--;
 
@@ -547,16 +529,13 @@ int Packetracker::ProcessDataPacket(packet_info info, wireless_network *net, cha
     float lat = 0, lon = 0, alt = 0, spd = 0;
     int fix = 0;
 
-    string smac = Mac2String(info.source_mac, ':');
-
     // Find the client or make one
-    if (net->client_map.find(smac) == net->client_map.end()) {
+    if (net->client_map.find(info.source_mac) == net->client_map.end()) {
         client = new wireless_client;
-        net->client_map[smac] = client;
+        net->client_map[info.source_mac] = client;
 
         client->first_time = time(0);
-        client->mac = smac;
-        memcpy(client->raw_mac, info.source_mac, MAC_LEN);
+        client->mac = info.source_mac;
 
         client->metric = net->metric;
 
@@ -586,7 +565,7 @@ int Packetracker::ProcessDataPacket(packet_info info, wireless_network *net, cha
             client->type = client_interfs;
 
     } else {
-        client = net->client_map[smac];
+        client = net->client_map[info.source_mac];
 
         if ((client->type == client_fromds && info.distrib == to_distribution) ||
             (client->type == client_tods && info.distrib == from_distribution)) {
@@ -728,7 +707,7 @@ int Packetracker::ProcessDataPacket(packet_info info, wireless_network *net, cha
         snprintf(in_status, STATUS_MAX, "Found IP %d.%d.%d.%d for %s::%s via %s",
                  client->ipdata.ip[0], client->ipdata.ip[1],
                  client->ipdata.ip[2], client->ipdata.ip[3],
-                 net->ssid.c_str(), smac.c_str(), means);
+                 net->ssid.c_str(), info.source_mac.Mac2String().c_str(), means);
 
         client->ipdata.load_from_store = 0;
 
@@ -746,11 +725,11 @@ int Packetracker::ProcessDataPacket(packet_info info, wireless_network *net, cha
 
         // Only raise an alert when we haven't raised one for this client
         // before.
-        if (netstumbler_map.find(client->raw_mac) == netstumbler_map.end()) {
-            netstumbler_map[client->raw_mac] = client;
+        if (netstumbler_map.find(client->mac) == netstumbler_map.end()) {
+            netstumbler_map[client->mac] = client;
 
             snprintf(in_status, STATUS_MAX, "NetStumbler probe detected from %s",
-                     client->mac.c_str());
+                     client->mac.Mac2String().c_str());
 
             ret = TRACKER_ALERT;
         }
@@ -773,7 +752,7 @@ void Packetracker::UpdateIpdata(wireless_network *net) {
     if (net->ipdata.atype != address_factory)
         memset(&net->ipdata, 0, sizeof(net->ipdata));
 
-    for (map<string, wireless_client *>::iterator x = net->client_map.begin();
+    for (map<mac_addr, wireless_client *>::iterator x = net->client_map.begin();
          x != net->client_map.end(); ++x) {
         client = x->second;
 
@@ -978,7 +957,7 @@ int Packetracker::WriteNetworks(FILE *in_file) {
     vector<wireless_network *> bssid_vec;
 
     // Convert the map to a vector and sort it
-    for (map<uint8_t *, wireless_network *, STLMacComp>::const_iterator i = bssid_map.begin();
+    for (map<mac_addr, wireless_network *>::const_iterator i = bssid_map.begin();
          i != bssid_map.end(); ++i)
         bssid_vec.push_back(i->second);
 
@@ -1019,7 +998,7 @@ int Packetracker::WriteNetworks(FILE *in_file) {
                 "    First    : \"%s\"\n"
                 "    Last     : \"%s\"\n",
                 netnum,
-                net->ssid.c_str(), net->bssid.c_str(), type,
+                net->ssid.c_str(), net->bssid.Mac2String().c_str(), type,
                 net->beacon_info == "" ? "None" : net->beacon_info.c_str(),
                 net->channel, net->wep ? "Yes" : "No",
                 net->maxrate,
@@ -1077,7 +1056,7 @@ int Packetracker::WriteCisco(FILE *in_file) {
     vector<wireless_network *> bssid_vec;
 
     // Convert the map to a vector and sort it
-    for (map<uint8_t *, wireless_network *, STLMacComp>::const_iterator i = bssid_map.begin();
+    for (map<mac_addr, wireless_network *>::const_iterator i = bssid_map.begin();
          i != bssid_map.end(); ++i)
         bssid_vec.push_back(i->second);
 
@@ -1091,7 +1070,7 @@ int Packetracker::WriteCisco(FILE *in_file) {
 
 
         fprintf(in_file, "Network: \"%s\" BSSID: \"%s\"\n",
-                net->ssid.c_str(), net->bssid.c_str());
+                net->ssid.c_str(), net->bssid.Mac2String().c_str());
 
         int devnum = 1;
         for (map<string, cdp_packet>::const_iterator x = net->cisco_equip.begin();
@@ -1147,7 +1126,7 @@ int Packetracker::WriteCSVNetworks(FILE *in_file) {
     vector<wireless_network *> bssid_vec;
 
     // Convert the map to a vector and sort it
-    for (map<uint8_t *, wireless_network *, STLMacComp>::const_iterator i = bssid_map.begin();
+    for (map<mac_addr, wireless_network *>::const_iterator i = bssid_map.begin();
          i != bssid_map.end(); ++i)
         bssid_vec.push_back(i->second);
 
@@ -1181,7 +1160,7 @@ int Packetracker::WriteCSVNetworks(FILE *in_file) {
 
         fprintf(in_file, "%d;%s;%s;%s;%s;%02d;%2.1f;%s;%d;%d;%d;%d;%d;%s;%s;%d;%d;%d;",
                 netnum, type,
-                SanitizeCSV(net->ssid).c_str(), net->bssid.c_str(),
+                SanitizeCSV(net->ssid).c_str(), net->bssid.Mac2String().c_str(),
                 net->beacon_info == "" ? "None" : SanitizeCSV(net->beacon_info).c_str(),
                 net->channel, 
                 net->maxrate,
@@ -1276,7 +1255,7 @@ int Packetracker::WriteXMLNetworks(FILE *in_file) {
             MAJOR, MINOR, ft, lt);
 
     // Convert the map to a vector and sort it
-    for (map<uint8_t *, wireless_network *, STLMacComp>::const_iterator i = bssid_map.begin();
+    for (map<mac_addr, wireless_network *>::const_iterator i = bssid_map.begin();
          i != bssid_map.end(); ++i)
         bssid_vec.push_back(i->second);
 
@@ -1305,7 +1284,7 @@ int Packetracker::WriteXMLNetworks(FILE *in_file) {
         if (net->ssid != NOSSID)
             fprintf(in_file, "    <SSID>%s</SSID>\n", SanitizeXML(net->ssid).c_str());
 
-        fprintf(in_file, "    <BSSID>%s</BSSID>\n", net->bssid.c_str());
+        fprintf(in_file, "    <BSSID>%s</BSSID>\n", net->bssid.Mac2String().c_str());
         if (net->beacon_info != "")
             fprintf(in_file, "    <info>%s</info>\n", SanitizeXML(net->beacon_info).c_str());
         fprintf(in_file, "    <channel>%d</channel>\n", net->channel);
@@ -1455,9 +1434,9 @@ void Packetracker::WriteSSIDMap(FILE *in_file) {
     char format[64];
     snprintf(format, 64, "%%.%ds %%.%ds\n", MAC_STR_LEN, SSID_SIZE);
 
-    for (map<uint8_t *, string, STLMacComp>::iterator x = bssid_cloak_map.begin();
+    for (map<mac_addr, string>::iterator x = bssid_cloak_map.begin();
          x != bssid_cloak_map.end(); ++x)
-        fprintf(in_file, format, Mac2String(x->first, ':').c_str(), x->second.c_str());
+        fprintf(in_file, format, x->first.Mac2String().c_str(), x->second.c_str());
 
     return;
 }
@@ -1521,10 +1500,10 @@ void Packetracker::WriteIPMap(FILE *in_file) {
     snprintf(format, 64, "%%.%ds %%d %%d %%hd %%hd %%hd %%hd %%hd %%hd %%hd %%hd %%hd %%hd %%hd %%hd\n",
             MAC_STR_LEN);
 
-    for (map<uint8_t *, net_ip_data, STLMacComp>::iterator x = bssid_ip_map.begin();
+    for (map<mac_addr, net_ip_data>::iterator x = bssid_ip_map.begin();
          x != bssid_ip_map.end(); ++x)
         fprintf(in_file, format,
-                Mac2String(x->first, ':').c_str(),
+                x->first.Mac2String().c_str(),
                 x->second.atype, x->second.octets,
                 x->second.range_ip[0], x->second.range_ip[1],
                 x->second.range_ip[2], x->second.range_ip[3],
@@ -1536,7 +1515,7 @@ void Packetracker::WriteIPMap(FILE *in_file) {
     return;
 }
 
-void Packetracker::RemoveNetwork(string in_bssid) {
+void Packetracker::RemoveNetwork(mac_addr in_bssid) {
     for (unsigned int x = 0; x < network_list.size(); x++) {
         if (network_list[x]->bssid == in_bssid) {
             network_list.erase(network_list.begin() + x);
@@ -1552,14 +1531,14 @@ int Packetracker::WriteGpsdriveWaypt(FILE *in_file) {
     ftruncate(fileno(in_file), 0);
 
     // Convert the map to a vector and sort it
-    for (map<uint8_t *, wireless_network *, STLMacComp>::const_iterator i = bssid_map.begin();
+    for (map<mac_addr, wireless_network *>::const_iterator i = bssid_map.begin();
          i != bssid_map.end(); ++i) {
         wireless_network *net = i->second;
 
         float lat, lon;
         lat = (net->min_lat + net->max_lat) / 2;
         lon = (net->min_lon + net->max_lon) / 2;
-        fprintf(in_file, "%s\t%f  %f\n", net->bssid.c_str(), lat, lon);
+        fprintf(in_file, "%s\t%f  %f\n", net->bssid.Mac2String().c_str(), lat, lon);
     }
 
     fflush(in_file);
@@ -1575,9 +1554,9 @@ string Packetracker::Packet2String(const packet_info *in_info) {
     snprintf(ret, 2048, "%d %d %d %d %d %s %s %s \001%s\001 ",
              in_info->type, (int) in_info->time, in_info->encrypted,
              in_info->interesting, in_info->beacon,
-             Mac2String((uint8_t *) in_info->source_mac, ':').c_str(),
-             Mac2String((uint8_t *) in_info->dest_mac, ':').c_str(),
-             Mac2String((uint8_t *) in_info->bssid_mac, ':').c_str(),
+             in_info->source_mac.Mac2String().c_str(),
+             in_info->dest_mac.Mac2String().c_str(),
+             in_info->bssid_mac.Mac2String().c_str(),
              strlen(in_info->ssid) == 0 ? " " : in_info->ssid);
     rets += ret;
 
