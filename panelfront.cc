@@ -1720,84 +1720,104 @@ int PanelFront::GpsPrinter(void *in_window) {
     // to get to the supposed center of the network, how far it is, and the orientation on our
     // compass to get to it.  Time to start drawing our output.
 
-    char compass[7][10];
-    memset(compass, 0, sizeof(char) * 7 * 10);
+    char compass[5][10];
+    memset(compass, 0, sizeof(char) * 5 * 10);
+
+    // |  41.12345x-74.12345     .-|-/    |
+    // | Bearing:               /  |/ \   |
+    // |  123.23 degrees       |   O   |  |
+    // |                        \   \ /   |
+    // | Estimated center:       '---\    |
+
 
     // Find the orientation on our compass:
     if (difference_angle > 330 && difference_angle <= 22) {
-        snprintf(compass[0], 10, "    |    ");
-        snprintf(compass[1], 10, "    |    ");
-        snprintf(compass[2], 10, "    |    ");
-        snprintf(compass[3], 10, "    O    ");
+        snprintf(compass[0], 10, "  .-|-.  ");
+        snprintf(compass[1], 10, " /  |  \\ ");
+        snprintf(compass[2], 10, "|   O   |");
+        snprintf(compass[3], 10, " \\     / ");
+        snprintf(compass[4], 10, "  '---'  ");
     } else if (difference_angle > 22 && difference_angle <= 66) {
-        snprintf(compass[0], 10, "       / ");
-        snprintf(compass[1], 10, "      /  ");
-        snprintf(compass[2], 10, "     /   ");
-        snprintf(compass[3], 10, "    O    ");
+        snprintf(compass[0], 10, "  .---/  ");
+        snprintf(compass[1], 10, " /   / \\ ");
+        snprintf(compass[2], 10, "|   O   |");
+        snprintf(compass[3], 10, " \\     / ");
+        snprintf(compass[4], 10, "  '---'  ");
     } else if (difference_angle > 66 && difference_angle <= 110) {
-        snprintf(compass[3], 10, "    O----");
+        snprintf(compass[0], 10, "  .---.  ");
+        snprintf(compass[1], 10, " /     \\ ");
+        snprintf(compass[2], 10, "|   O----");
+        snprintf(compass[3], 10, " \\     / ");
+        snprintf(compass[4], 10, "  '---'  ");
     } else if (difference_angle > 110 && difference_angle <= 154) {
-        snprintf(compass[3], 10, "    O    ");
-        snprintf(compass[4], 10, "     \\   ");
-        snprintf(compass[5], 10, "      \\  ");
-        snprintf(compass[6], 10, "       \\ ");
+        snprintf(compass[0], 10, "  .---.  ");
+        snprintf(compass[1], 10, " /     \\ ");
+        snprintf(compass[2], 10, "|   O   |");
+        snprintf(compass[3], 10, " \\   \\ / ");
+        snprintf(compass[4], 10, "  '---\\  ");
     } else if (difference_angle > 154 && difference_angle <= 198) {
-        snprintf(compass[3], 10, "    O    ");
-        snprintf(compass[4], 10, "    |    ");
-        snprintf(compass[5], 10, "    |    ");
-        snprintf(compass[6], 10, "    |    ");
+        snprintf(compass[0], 10, "  .---.  ");
+        snprintf(compass[1], 10, " /     \\ ");
+        snprintf(compass[2], 10, "|   O   |");
+        snprintf(compass[3], 10, " \\  |  / ");
+        snprintf(compass[4], 10, "  '-|-'  ");
     } else if (difference_angle > 198 && difference_angle <= 242) {
-        snprintf(compass[3], 10, "    O    ");
-        snprintf(compass[4], 10, "   /     ");
-        snprintf(compass[5], 10, "  /      ");
-        snprintf(compass[6], 10, " /       ");
+        snprintf(compass[0], 10, "  .---.  ");
+        snprintf(compass[1], 10, " /     \\ ");
+        snprintf(compass[2], 10, "|   O   |");
+        snprintf(compass[3], 10, " \\ /   / ");
+        snprintf(compass[4], 10, "  /---'  ");
     } else if (difference_angle > 242 && difference_angle <= 286) {
-        snprintf(compass[3], 10, "----O    ");
+        snprintf(compass[0], 10, "  .---.  ");
+        snprintf(compass[1], 10, " /     \\ ");
+        snprintf(compass[2], 10, "----O   |");
+        snprintf(compass[3], 10, " \\     / ");
+        snprintf(compass[4], 10, "  '---'  ");
     } else if (difference_angle > 286 && difference_angle <= 330) {
-        snprintf(compass[0], 10, " \\       ");
-        snprintf(compass[1], 10, "  \\      ");
-        snprintf(compass[2], 10, "   \\     ");
-        snprintf(compass[3], 10, "    O    ");
+        snprintf(compass[0], 10, "  \\---.  ");
+        snprintf(compass[1], 10, " / \\   \\ ");
+        snprintf(compass[2], 10, "|   O   |");
+        snprintf(compass[3], 10, " \\     / ");
+        snprintf(compass[4], 10, "  '---'  ");
+
     }
 
     // - Network GPS ---------------------|
-    // | Current:               \     /   |
-    // |  41.12345x-74.12345     \   /    |
-    // | Bearing:                 \ /     |
-    // |  123.23 degrees       ----O----  |
-    // |                           |\     |
-    // | Estimated center:         | \    |
-    // | -73.12345x43.12345        |  \   |
+    // | Current:                         |
+    // |  41.12345x-74.12345     .-|-.    |
+    // | Bearing:               /  |  \   |
+    // |  123.23 degrees       |   O   |  |
+    // |                        \   \ /   |
+    // | Estimated center:       '---\    |
+    // | -73.12345x43.12345               |
     // |                        120 feet  |
     // ------------------------------------
     char textfrag[23];
 
-    snprintf(textfrag, 23, "Current:");
-    snprintf(output, print_width, "%-22s%s", textfrag, compass[0]);
+    snprintf(output, print_width, "Current:");
     kwin->text.push_back(output);
 
     snprintf(textfrag, 23, "%.3fx%.3f", lat, lon);
-    snprintf(output, print_width, "%-22s%s", textfrag, compass[1]);
+    snprintf(output, print_width, "%-22s%s", textfrag, compass[0]);
     kwin->text.push_back(output);
 
     snprintf(textfrag, 23, " Bearing:");
-    snprintf(output, print_width, "%-22s%s", textfrag, compass[2]);
+    snprintf(output, print_width, "%-22s%s", textfrag, compass[1]);
     kwin->text.push_back(output);
 
     snprintf(textfrag, 23, " %.2f degrees", base_angle);
-    snprintf(output, print_width, "%-22s%s", textfrag, compass[3]);
+    snprintf(output, print_width, "%-22s%s", textfrag, compass[2]);
     kwin->text.push_back(output);
 
     snprintf(textfrag, 23, " ");
-    snprintf(output, print_width, "%-22s%s", textfrag, compass[4]);
+    snprintf(output, print_width, "%-22s%s", textfrag, compass[3]);
     kwin->text.push_back(output);
 
     snprintf(textfrag, 23, "Estimated Center:");
-    snprintf(output, print_width, "%-22s%s", textfrag, compass[5]);
+    snprintf(output, print_width, "%-22s%s", textfrag, compass[4]);
     kwin->text.push_back(output);
 
-    snprintf(textfrag, 23, "%.3fx%.3f", center_lat, center_lon);
-    snprintf(output, print_width, "%-22s%s", textfrag, compass[6]);
+    snprintf(output, print_width, "%.3fx%.3f", center_lat, center_lon);
     kwin->text.push_back(output);
 
     if (metric) {
