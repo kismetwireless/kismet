@@ -1,812 +1,440 @@
-   KISMET 3.0.1
-   Mike Kershaw <dragorn@kismetwireless.net>
-   http://www.kismetwireless.net
-   Licensed under the GPL
-    1. What is Kismet
-    2. Features
-    3. Quick Start
-    4. Upgrading
-    5. Supported Operating Systems
-         1. Linux
-         2. Linux-ARM
-         3. BSD
-         4. Win32 (Cygwin)
-         5. MacOS X
-    6. Supported Card Types
-         1. cisco
-         2. prism2
-         3. orinoco
-         4. wsp100
-         5. wtapfile
-         6. pcapfile
-         7. ar5k
-         8. drone
-         9. airport (viha)
-        10. acx100
-    7. GPS Support
-    8. Compiling
-    9. Configuration
-   10. Panels Interface
-   11. Mapping
-   12. Drone Remotes
-   13. Intrusion Detection
+Kismet 3.0.1
+Mike Kershaw <dragorn@kismetwireless.net>
+http://www.kismetwireless.net
+Licensed under the GPL
 
-    1. WHAT IS KISMET
-       Kismet is a 802.11 wireless network sniffer - this is different
-       from a normal network sniffer (such as Ethereal or tcpdump)
-       because it separates and identifies different wireless networks in
-       the area. Kismet works with any 802.11b wireless card which is
-       capable of reporting raw packets (rfmon support), which include
-       any prism2 based card (Linksys, D-Link, Rangelan, etc), Cisco
-       Aironet cards, and Orinoco based cards. Kismet also supports the
-       WSP100 remote sensor by Network Chemistry, and is able to sniff
-       802.11a networks using ar5k cards.
-    2. FEATURES
-          + Configurable channel hopping
-          + IP range detection
-          + Cisco product detection via CDP
-          + Ethereal/tcpdump compatable file logging
-          + Airsnort-compatable "interesting" (cryptographically weak)
-            logging
-          + Hidden SSID decloaking
-          + Grouping and custom naming of networks
-          + Multiple clients viewing a single capture stream
-          + Graphical mapping of data (gpsmap)
-          + Cross-platform support (handheld linux and BSD)
-          + Manufacturer and model identification
-          + Detection of default access point configurations
-          + Detection of Netstumbler and Wellenreiter clients
-          + Runtime decoding of WEP packets
-          + Multiplexing of multiple capture sources
-          + 802.11b and 802.11a sniffing abilities
-          + Data export for external layer3 IDS (such as Snort)
-          + Distributed 'Drone' sniffing
-    3. QUICK START
-       Detailed information about each of these steps can be found in the
-       appropriate section of the documentation.
-         1. Compile Kismet (./configure, make dep, make)
-         2. Install Kismet (make install). By default, Kismet installs
-            without suid-root ability. This requires you to start Kismet
-            as root so that it can enable monitor mode and control
-            channels. Kismet CAN be installed as suid-root (make
-            suidinstall) which allows you to start it as a normal user,
-            HOWEVER this will allow any user on your system to stop the
-            wireless connection. Do NOT install Kismet suid-root if you
-            have untrusted users on your system.
-         3. Configure kismet.conf and kismet_ui.conf for your card and
-            setup. Make sure to put a valid, non-root user as the
-            'suiduser' option. This user is the account kismet will run
-            as once it has attached to the capture source. Most users
-            will want to also edit the "logtemplate" field and put an
-            absolute path to a directory that the suiduser has write
-            permission to.
-         4. Run 'kismet' as root (if installed normally) or simply run
-            'kismet' as any user if you installed it suid-root. Kismet
-            will place the specified cards into rfmonitor mode and begin.
-    4. UPGRADING
-       Upgrading to 2.9-devel and beyond
-       Kismet-devel revamps major parts of Kismet. There is a new alert
-       system, and the hopper and monitor scripts have been absorbed into
-       Kismet itself and no longer need to be started seperately. All
-       users will need to read the documentation for how to install
-       Kismet as a normal or a suid binary, and all users will need to
-       upgrade to the new config files for alerts, hopping, etc to work
-       correctly.
-       Upgrading to 2.8
-       Kismet 2.8 adds support for several features, which necessitate
-       changing the configure file. All users should install Kismet with
-       'make forceinstall' and reconfigure it accordingly.
-       New options include runtime WEP decoding, multiple sources,
-       multiple servers under one client, and many more new features.
-    5. SUPPORTED OPERATING SYSTEMS
-         1. Linux
-            Kismet was developed primarily on Linux, and should work on
-            any distribution.
-            Kismet should compile with gcc 2.95.x and gcc 3.2.
-            Kismet is endian-clean and should compile on little (intel)
-            and big (powerpc) endian systems. It also works on ARM-based
-            systems (Ipaq and Zaurus) and SH3 (Jornada) handhelds.
-         2. Linux-ARM
-             Zaurus Installation
-                 Nearly all CF form-factor wireless cards are Prism/2
-                 based. As of this writing, the version of wlan-ng
-                 shipped with the Zaurus only supports the 'prism2' card
-                 type. A seperate package is provided with pcap support
-                 for OpenZaurus installs, which use HostAP and the
-                 prism_hostap card type.
-             Ipaq Installation
-                 Depending on the version of the Familiar distribution
-                 installed on your Ipaq, the version of the wlan-ng
-                 drivers may not support sniffing. If you get errors that
-                 enabling monitor mode is not supported, you'll need to
-                 update your Familiar install or compile them yourself in
-                 a cross-build environment.
-                 As of Familiar 0.5.3, Lucent/Orinoco cards do not
-                 support RFMON (PF_PACKET) and as such, cannot be used
-                 with Kismet without patching. As of 8/28/02, Jamey Hicks
-                 who maintains the Familiar distribution promises future
-                 releases of Familiar will include Snax's patch for the
-                 orinoco_cs drivers.
-                 Familiar users with Cisco cards will need to set their
-                 kismet.conf file to use a cardtype of "cisco_cvs", with
-                 a capinterface of "ethX:wifiX".
-                 Some Familiar installs also do not include the latest
-                 ncurses and panels libraries - these can be obtained
-                 from the Skif cluster (telnet to ipaq3.handhelds.org and
-                 copy the /lib/libpanel.so.5 and /lib/libncurses.so.5.0
-                 files to your ipaq). You may also need to install the
-                 GNU stdc++ libraries by running "ipkg install
-                 libstdc++2.01-glibc2.2".
-                 Configure your card just as you would on an intel system
-                 - with the PCMCIA sleeve, all the standard cards
-                 function and must be configured as they would be on any
-                 other system.
-             Compiling it yourself
-                 Pass the appropriate cross-build to configure, I use
-                 './configure --host=arm-linux --disable-pcap
-                 --enable-zaurus --disable-setuid'
-                 to build for the Zaurus, and
-                 'ac_cv_linux_vers=2.4.16 ./configure --host=arm-linux
-                 --with-pcap=linux --disable-setuid'
-                 to build for the iPaq. Set ac_cv_linux_vers accordingly
-                 to match your system.
-                 Some versions of GCC appear to generate incorrect
-                 alignments when optimization is turned on. If you
-                 experience bus errors under arm, try removing the -O2
-                 from the CXXFLAGS in the Makefile and recompiling.
-                 I used the Zaurus cross-build environment from
-                 http://www.lart.tudelft.nl/lartware/compile-tools/ and
-                 the Skif cluster environment for Ipaq.
-         3. BSD
-            Kismet should configure and compile cleanly on *BSD.
-            Due to problems with the wireless drivers in FreeBSD and
-            NetBSD, Kismet may not perform well or at all. Thanks to the
-            efforts of Pedro la Peu, Kismet WILL function without
-            problems on OpenBSD 3.2 with prism/2 cards.
-            The lions share of drivers supporting rfmon are available
-            only for Linux, so for general use, using Linux to run Kismet
-            is highly reccomended. Some driver maintainers for the BSD
-            variants have expressed no interest in providing support for
-            monitoring tools, so it is unknown when useful drivers for
-            rfmon will be available.
-            The standard './configure' script should detect your OS and
-            configure itself accordingly. It is vital that you use
-            'gmake' instead of 'make' to compile however -- most *BSD
-            make's do NOT like the GNU makefile format very much.
-            I'm definitely NOT a BSD expert. If you experience problems,
-            probably the best course to take is to report them to the
-            mailing list (wireless@kismetwireless.net).
-         4. Win32 (Cygwin)
-            The Kismet panels frontend will compile and run under Cygwin
-            on win32.
-            The Kismet server will work under cygwin with the wsp100
-            source or the drone remote source. No other sources can
-            currently be used because no publicly available drivers for
-            win32 can support rfmon.
-            To compile Kismet under win32, use:
-            ./configure --disable-pcap --without-ethereal --disable-gps
-            --disable-wireless --disable-netlink --disable-suid-root
-            --enable-wsp100
-         5. MacOS X
-            Kismet will work with Airport (but not Airport Extreme due to
-            a lack of drivers) under MacOS X.
-            To compile Kismet under OSX, download the Viha drivers
-            (http://www.dopesquad.net/security/) and install them, then
-            run configure and compile as normal.
-            Kismet should operate normally inside OSX.
-    6. SUPPORTED CARD TYPES
-         1. CISCO
-            Cards: Aironet 340, Aironet 350
-            Notes: Cisco cards use an internal firmware channel hopper.
-            kismet_hopper is not needed, and with all current drivers,
-            user-controlled channel hopping is not possible.
-               o 'cisco': Linux kernel 2.4.10 through 2.4.19
-                 Capture interface: ethX
-                 Notes: Built-in Linux kernel drivers for the aironet
-                 cards (airo and airo_cs). These are, currently, the most
-                 reliable drivers to use.
-               o 'cisco_cvs': Linux kernel 2.4.20, sourceforge.net CVS
-                 driver release
-                 Capture interface: ethX:wifiX
-                 Notes: The new drivers use the interface ethX for normal
-                 operation and wifiX for raw packet capturing. The
-                 interface for Kismet should be set to wifiX. These
-                 drivers have a history of locking up under high loads
-                 and when entering/leaving rfmon mode.
-               o 'cisco_bsd': BSD 'an' drivers
-                 Capture interface: anX
-                 Notes: The 'an' drivers do not report the linktype or
-                 packets reliably under most BSD versions. Performance
-                 may be varied.
-         2. PRISM/2
-            Cards: Prism/2 based PCMCIA, PCI, PLX, Compact Flash, and USB
-            cards by a variety of manufacturers, including Linksys,
-            D-Link, Zoom, Demarctech, Microsoft, and many others.
-            Notes: Prism/2 users should use kismet_hopper to channel hop.
-            WARNING: The 22mbit cards made by manufacturers such as
-            D-Link (labeled as 650+ among others) are NOT Prism/2 based.
-            They use a proprietary TI chipset, which is currently NOT
-            supported by any drivers in Linux or BSD, and cannot be used.
-            Additionally, recent PCI cards by Linksys and others use a
-            Broadcom chipset instead of Prism/2, which is not supported.
-               o 'prism2': Wlan-ng 0.1.14 and higher.
-                 Capture interface: wlanX
-                 Notes: Recent wlan-ng development drivers report PHY
-                 (physical layer) packets such as data-ack and
-                 request-to-send. Logging of these can be controlled with
-                 the 'phylog' option.
-               o 'prism2_avs': Wlan-ng 0.2.0 and higher.
-                 Capture interface: wlanX
-                 Notes: Wlan-ng 0.2.0 introduces a new capture header
-                 with MUCH more information from the radio. Kismet
-                 doesn't entirely take advantage of these new headers
-                 yet, but wherever possible, use the prism2_avs capture
-                 source. As Wlan-ng 0.2.0+ becomes more widely adopted,
-                 prism2_avs will become the default prism2 behavior.
-               o 'prism2_legacy': Legacy wlan-ng drivers (0.1.13 and
-                 earlier)
-                 Capture interface: wlanX
-                 Notes: All users able to do so should upgrade their
-                 wlan-ng drivers to a newer version. For those forced to
-                 use the older drivers, prism2_legacy uses the
-                 linux-netlink-socket capture interface.
-               o 'prism2_hostap': hostap
-                 Capture interface: wlanX
-                 Notes: The hostap drivers appear to frequently change
-                 the commands used to place them into monitor mode. When
-                 in doubt, consult the hostap documentation.
-               o 'prism2_bsd': BSD Prism/2 drivers
-                 Notes: OpenBSD 3.2 has Prism/2 drivers which correctly
-                 report the link type and packets. Other BSD versions
-                 have, at best, mixed results.
-         3. ORINOCO
-            Cards: Lucent orinoco based cards such as the WaveLAN series
-            and by some reports Airport.
-            Notes: Apple Airport cards are reported to also work with
-            these drivers with some effort. kismet_hopper handles channel
-            hopping. Currently, no BSD drivers exist which are capable of
-            doing rfmon mode.
-               o 'orinoco': Patched Linux orinoco drivers
-                 Capture interface: ethX
-                 Notes: Drivers must be patched with the rfmon patches at
-                 http://airsnort.shmoo.com. Unpatched drivers will not
-                 work in rfmon mode.
-         4. WSP100
-            Device: WSP100 Remote Sniffer from Network Chemistry
-            Notes: The WSP100 remote sensor is a SNMP-controlled embedded
-            device that reports packets via a UDP stream. This should
-            work on ANY platform including Win32 (cygwin), Max OS X,
-            Linux, BSD, and anywhere else you can get Kismet to compile.
-            kismet_hopper will configure the wsp100 firmware for internal
-            channel hopping.
-               o 'wsp100': Kismet UDP handler
-                 Capture interface: host:port
-                 Notes: The capture interface specifies the address of
-                 the wsp100 unit and the port to send the UDP packet
-                 stream to.
-         5. WTAPFILE
-            Notes: The wtapfile replay ability is primarily useful for
-            debugging, however it can also be used to recreate
-            csv/xml/etc files from a saved dump. Libwiretap has support
-            for more esoteric dumps (which is faily irrelevant) and
-            transparent support for compressed dumpfiles, but requires a
-            compiled source tree of ethereal.
-               o 'wtapfile': Kismet wtapfile handler
-                 Capture interface: file
-                 Notes: The capture interface specifies the path to the
-                 dump file. Dumps can be in any format wtaplib
-                 understands, which includes files created by Kismet,
-                 Ethereal, TCPdump, and others. Files can be gzip
-                 compressed.
-         6. PCAPFILE
-            Notes: The pcapfile replay is similar to wtapfile but uses
-            libpcap instead of libwiretap.
-               o 'pcapfile': Kismet pcapfile handler
-                 Capture interface: file
-                 Notes: The capture interface specifies the path to the
-                 dump file. Dumps can be any format libpcap understands,
-                 and should have a rfmon wireless encoding.
-         7. AR5K
-            Notes: 802.11a doesn't put the channel in the beacon headers.
-               o 'ar5k': vt_ar5k Linux 802.11a drivers
-                 Capture interface: wlanX
-                 Notes: The vt_ar5k drivers require the Linux
-                 wireless-tools version 25 or higher. Older versions will
-                 not be able to put the cards into monitor mode.
-         8. DRONE REMOTE
-            Notes: The packets sent by Kismet drones may be filtered by
-            the drone itself for content (physical, beacon, etc.).
-               o 'drone': Kismet Drone remote
-                 Capture interface: host:port
-                 Notes: The capture interface specifies the address of
-                 the Kismet drone server and the port on that server
-                 which provides packets.
-         9. AIRPORT (VIHA)
-            Cards: Airport cards under OSX using the Viha drivers
-            Notes: Viha only works with the Airport cards, not the
-            Airport Extreme cards. Lowlevel PHY reporting is available.
-               o 'viha': OSX Viha drivers
-                 Capture interface: enX
-                 Notes: Drivers available from
-                 http://www.dopesquad.net/security/. Current Kismet
-                 support is for Viha 0.0.1a, but it MAY work with newer
-                 versions. Normal OSX drivers will not work in RFMon
-                 mode.
-        10. ACX100 (TI 22MBIT)
-            Cards: 22mbit 802.11b+ cards such as the Dlink 650+
-               o 'acx100': ACX100 OSS drivers
-                 Capture interface: wlanX
-                 Notes: Drivers available from
-                 http://acx100.sourceforge.net.
-    7. GPS SUPPORT
-       GPS support is provided via the GPSD daemon, available at
-       http://russnelson.com/gpsd/. GPSD is also included with the
-       navigation software GPSDrive. Current versions of GPSDrive
-       distribute a GPSD which will work with Kismet, however earlier
-       versions (1.17 and earlier) did not.
-       GPSD provides network accessable GPS data from a wide variety of
-       GPS recievers, including Garmin, Magellan, and more. Kismet can
-       use a GPSD running on the local server or on a remote host
-       (assuming that there is a wired connection to that host).
-       Kismet will write an XML logfile of the travel path taken and the
-       packets seen. The gpsmap program that comes with Kismet will plot
-       these files to a graphical map.
-       Some systems have trouble compiling GPSD. The easiest fix is to
-       edit em.c and change "#include <sys/time.h>" to "#include
-       <time.h>".
-    8. COMPILING & INSTALLATION
-       Before configuration and compilation, you should get the following
-       packages:
-          + ethereal (www.ethereal.com). This is a GREAT sniffer and
-            capture reader, and will be invaluable to you for processing
-            dump files. Kismet will also use Ethereal's wiretap packet
-            library for dumping and reading dumpfiles if it is available.
-          + gpsdrive (http://www.kraftvoll.at/software/). This program
-            does real-time street mapping and other useful GPS things,
-            and includes gpsd, the daemon Kismet interfaces to for GPS
-            support. Alternatively, you can get just the daemon from
-            http://russnelson.com/gpsd/. This is NOT required for
-            compilation but you need the gpsd daemon running for GPS
-            logging when you go to run Kismet. New versions of GPSdrive
-            will interface directly with Kismet and plot access points
-            realtime. See the GPSDrive documentation for more details.
-         1. Run the ./configure script. This will find as much as
-            possible about your system. Most configuration options are
-            autodetected, you should only need to override them for
-            custom compilations if you are attempting to save space (such
-            as for a handheld). Useful configuration options include:
-            --disable-curses disable curses UI
-            --disable-panel disable ncurses panel extentions
-            --disable-gps disable GPS support
-            --disable-netlink disable linux netlink socket capture
-            (prism2/orinoco patched)
-            --disable-wireless disable linux kernel wireless extentions
-            --disable-pcap disable libpcap capture support
-            --enable-syspcap use system libpcap (not reccomended)
-            --disable-setuid disable suid capabilities (not reccomended)
-            --enable-wsp100 enable WSP100 remote sensor capture device
-            --enable-zaurus enable some extra stuff (like piezzo buzzer)
-            for Zaurus
-            --enable-local-dumper force use of local dumper code even if
-            ethereal is present
-            --with-ethereal=DIR support ethereal wiretap for logs
-            --without-ethereal disable support for ethereal wiretap
-            --enable-acpi Enable linux-kernel ACPI support
-         2. Run 'make dep' and 'make install'
-         3. Edit kismet.conf (default install path,
-            /usr/local/etc/kismet.conf) to set your logging type and
-            preferences.
-         4. Edit kismet_ui.conf (default install path,
-            /usr/local/etc/kismet_ui.conf) to set your interface
-            preferences.
-       Unless you specify --disable-setuid, Kismet will be installed as
-       suid-root. Immediately after binding to the capture source, it
-       will drop root privileges and run as the user specified in the
-       config file. This suid behavior will occur when kismet is run as
-       root or as the user specified in the config file.
-       It is reccomended that you do NOT disable this capability, as
-       Kismet is handling potentially hostile foreign data and should not
-       have elevated rights to the system.
-    9. CONFIGURATION
-       Kismet is controlled by 2 system-wide config files (by default, in
-       /usr/local/etc/). These files use a simple option=value format.
-          + kismet.conf
-            kismet.conf controls the behavior of the server itself,
-            including capture sources, logging, GPS support, etc. All of
-            the options are documented inside the file, as well as in the
-            man page kismet.conf(5).
-               o Configuring capture sources
-                 Kismet capture sources define the type of device and the
-                 interface that Kismet will listen for packets on. Most
-                 systems will only have one capture source, but Kismet
-                 can support any number of simultaneous captures. The
-                 data captured from multiple interfaces will be
-                 multiplexed to a single dump file. Sources can be passed
-                 on the command line, but are primarily controlled by
-                 'source' lines in kismet.conf.
-                 Each source line consists of the type, interface, and
-                 name, separated by commas.
-                 source=cisco,eth0,Cisco
-                 defines a cisco card on interface eth0 named 'Cisco',
-                 source=prism2,wlan0,Prism
-                 defines a prism2 card using the wlan-ng drivers on
-                 interface wlan0 named 'Prism'.
-                 If multiple sources are defined, all will be enabled by
-                 default, unless an "enablesources" option is given.
-               o Configuring fuzzy encryption
-                 Not all capture sources report the WEP flags on incoming
-                 packets correctly. Fuzzy encryption detection attempts
-                 to classify packets by matching known LLC types and
-                 treating unknown packets as encrypted.
-                 Don't use fuzzy encryption unless your drivers report
-                 encrpyted packets as unencrypted.
-               o Filtering packet logs
-                 What packets are logged to the dump file can be filtered
-                 using the 'noiselog', 'beaconlog', and 'phylog' options
-                 in kismet.conf.
-                 Disabling noise logging discards any packets classified
-                 as noise - spurious packets from some drivers, packets
-                 which are too short to contain the data they claim, etc.
-                 Disabling beacon logging discards all but one beacon
-                 packet per network seen. Additional beacon packets may
-                 be logged if the advertised SSID changes.
-                 Disabling phy logging discards physical layer packets
-                 such as data acks which some drivers report.
-               o Decrypting wep on-the-fly
-                 Kismet supports decrypting WEP as packets are captured.
-                 This enables Kismet to extract clients, IP ranges, and
-                 alert conditions out of WEP-enabled traffic. WEP keys
-                 are set via the "wepkey" option. Multiple wepkey options
-                 can be set to decrypt different networks. Each wepkey
-                 line should be the bssid and the hex key, for example:
-                 wepkey=00:FE:ED:BE:EF:00,00:11:22:33:44
-                 WEP keys can be 5 hex pairs (40-bit) or 13 hex pairs
-                 (128-bit)
-               o Using an external IDS
-                 By configuring a FIFO named pipe (fifo="..." in
-                 kismet.conf), Kismet will create the specified pipe and
-                 write the data packets to it. If a packet can be
-                 decrypted with a known key, it will be modified and
-                 written as an unencrypted packet to the FIFO.
-                 External IDS programs (such as Snort) should be
-                 instructed to read packets from a file or pipe.
-                 When writing packets to a FIFO pipe, Kismet will pause
-                 during the startup procedure until an external utility
-                 opens the pipe for reading.
-          + kismet_ui.conf
-            kismet_ui.conf controls the behavior of the user interface -
-            colors, columns, default server, etc. All of the options are
-            documented inside the file, as well as in kismet_ui.conf(5).
-               o Changing columns
-                 The informational columns the Kismet panels interface
-                 (default) uses can be changed by the 'columns' option
-                 for the main network display and the 'clientcolumns'
-                 option for the client display in kismet_ui.conf. A
-                 complete list of columns is in the man page.
-               o Changing colors
-                 Nearly all the elements of the Kismet interface can be
-                 changed via the kismet_ui.conf file any the 'xxxcolor'
-                 options. The config file and the man page list all the
-                 possible colors and configurable elements.
-   10. PANELS INTERFACE
-       Kismet's primary user interface uses the curses extention library,
-       panels. Other interfaces i can be connected at will.
-          + Basics of the panels interface
-            The panels interface is divided into three primary panels:
-              1. Network display view
-                 The network display panel shows all the networks which
-                 have been discovered. This list can be sorted and
-                 manipulated.
-              2. Information view
-                 The information panel shows the total number of packets,
-                 current packet rate, amount of time the capture has been
-                 running, etc.
-              3. Status view
-                 The status panel scrolls information and status events.
-                 Alerts appear in this panel, as well as in the alert
-                 popup.
-            In addition to these three primary panels, additional popup
-            windows can be requested to display detailed information
-            about a network, overall statistics, rename a network group,
-            and a number of other operations.
-          + Interacting with Kismet
-               o 'e' - Open popup window of Kismet servers. This lets you
-                 simultaneously monitor two or more Kismet servers on
-                 different hosts.
-               o 'z' - Zoom network display panel to full screen (or
-                 return it to normal size if it is already zoomed)
-               o 'm' - Mute sound and speech if they are enabled (or
-                 unmute them if they were previously silenced). You must
-                 have sound or speech enabled in your config to be able
-                 to mute or unmute them.
-               o 't' - Tag (or untag) the current network
-               o 'g' - Group currently tagged networks
-               o 'u' - Ungroup current group
-               o 'c' - Open client popup window to display clients in the
-                 selected network
-               o 'n' - Rename selected network or group
-               o 'i' - Display detailed information about the current
-                 network or group
-               o 's' - Sort the network list differently
-               o 'l' - Show signal/power/noise levels if the card reports
-                 them
-               o 'd' - Instruct the server to start extracting printable
-                 strings from the packet stream and display them.
-               o 'r' - Display bar graph of the packet rate.
-               o 'a' - Show statistics about packet counts and channel
-                 allocation.
-               o 'p' - Display packet types as they are recieved.
-               o 'f' - Follow the estimated center of a network and
-                 display a compass
-               o 'w' - Display all previous alerts and warnings.
-            A description of the current window and a list of what
-            options are available can always be requested by pressing 'h'
-            (Help).
-          + Selecting a network
-            The default sort order for the display is designed to
-            automatically reorder the networks to display as many active
-            networks as possible on the screen. When in autofit mode,
-            selecting an indifidual network is disabled. Use the sort
-            function to sort networks in a stable order.
-            If more columns of information are requested than can fit on
-            the current screen, the left and right arrow keys can be used
-            to shift the columns.
-          + Network types
-            Tracked networks may be one of several types:
-              1. P - Probe request - A client card searching for a
-                 network with no association
-              2. A - Access point - standard wireless network
-              3. H - Ad-hoc - point-to-point wireless network
-              4. T - Turbocell - Turbocell (aka Karlnet and Lucent
-                 Outdoor Router)
-              5. G - Group - Group of wireless networks
-              6. D - Data - Data only network with no control packets.
-          + Network details
-            The details panel lists more information than can be
-            displayed in the limited space available for the list of all
-            networks.
-            Group information:
-              1. Name - Custom name (or ssid) of the network or group
-              2. Networks - Number of networks in the group
-              3. Min Loc - Minimum geographic location
-              4. Max Loc - Maximum geographic location
-              5. Range - Range of group
-            Network information:
-              1. SSID - SSID of the network
-              2. Server - Which Kismet server reported this network
-              3. BSSID - BSSID
-              4. Manuf - Manufacturer based on BSSID MAC
-              5. Model - Hardware model, if a match was found
-              6. Matched - Portion of the BSSID MAC used to match to
-                 manuf/model
-              7. Max rate - Maximum data rate supported by this network
-              8. First - Time of first packet seen for this network
-              9. Latest - Time of latest packet seen for this network
-             10. Clients - Number of client systems seen in this network
-             11. Type - Network type
-             12. Info - Optional informational field in some
-                 manufacturers beacon packets
-             13. Channel - Channel network is operating on
-             14. WEP - WEP encryption enabled on this network
-             15. Beacon - Beacon rate
-             16. Packets - Number of packets and types of packets seen.
-             17. Data - Amount of data transfered through this network
-             18. Signal - Current and best signal levels
-             19. IP - Aggregate IP range detected for this network
-             20. Min Loc - Minimum geographic location
-             21. Max Loc - Maximum geographic location
-             22. Range - Range of network
-          + Client types
-            Tracked clients may be one of several types:
-              1. F - From DS - client broadcast from wireless
-                 distribution system
-              2. T - To DS - client transmitted over the wireless to the
-                 distribution system
-              3. I - Intra DS - client is a node of the distribution
-                 system talking to another node in the distribution
-                 system
-              4. E - Established - client has been seen entering and
-                 leaving the DS
-          + Client details
-            The client details panel lists more information than can be
-            displayed in the limited space available for the list of all
-            networks.
-              1. Type - Network type
-              2. Server - Which Kismet server reported this client
-              3. MAC - MAC address of the client
-              4. Manuf - Manufacturer based on MAC
-              5. Model - Hardware model, if a match was found
-              6. Matched - Portion of the MAC used to match to
-                 manuf/model
-              7. First - Time of first packet seen for this client
-              8. Latest - Time of latest packet seen for this client
-              9. Max rate - Maximum data rate supported by this client
-             10. Channel - Channel client is operating on
-             11. WEP - WEP encryption enabled on this client
-             12. IP - Aggregate IP range detected for this client
-             13. Min Loc - Minimum geographic location
-             14. Max Loc - Maximum geographic location
-             15. Range - Range of client
-             16. Packets - Number of packets and types of packets seen.
-             17. Data - Amount of data transfered through this network
-             18. Signal - Current and best signal levels
-   11. MAPPING
-       Gpsmap (which comes with Kismet) takes GPS and network data (.gps
-       and .xml files, respectively) and plots them graphically on
-       vector, satellite, or user supplied maps.
-       Gpsmap supports several drawing methods:
-         1. Track drawing
-            Draws a track along the traveled path, based on the saved
-            track data.
-         2. Bounding rectangle
-            Draws the bounding rectangle around the extreme points of
-            each network.
-         3. Range circle
-            Draws the estimated range of a network as a circle around the
-            center point.
-         4. Convex hull
-            Draws the convex hull of the network (smallest polygon which
-            covers all network points)
-         5. Scatter plot
-            Draws a point for every logged packet
-         6. Center dot
-            Draws a point in the estimated center of each network
-         7. Interpolated power
-            By far the most CPU intensive, power interpolation forms a
-            grid over the image and attempts to interpolate the power for
-            points that aren't directly sampled. For this graph to be a
-            reasonable representation of reality, samples around the
-            entire area, preferably forming a grid or mesh, should be
-            taken.
-       More information about gpsmap is available from the man page
-       gpsmap(1).
-   12. DRONE REMOTES
-       Kismet is also able to do distributed sniffing of a larger
-       physical area by using Drone remote sniffers. A Kismet drone is
-       essentially a stripped down Kismet sniffer engine which is able to
-       capture data from all the same sources as Kismet itself (as well
-       supporting multiple simultaneous capture sources, mixture of
-       802.11a and 802.11b sources, etc) and provide those packets over a
-       TCP stream on a wired network.
-       Any number of drones with any number of sources can be distributed
-       across the target area, with all captured packets being processed
-       by a single Kismet server, stored in a common dump file and passed
-       to a single Snort IDS instance, if desired.
-   13. INTRUSION DETECTION
-       Kismet will examine the headers and payload information of 802.11
-       traffic, and will generate alerts when it encounters traffic that
-       matches defined attack signatures. Kismet is unlike other
-       traditional IDS's since it will analyze traffic at the data-link
-       level, instead of just examining properties specific to the IP
-       family of protocols. Kismet is also capable of anomaly analysis
-       over a defined period of time to detect attacks that cannot be
-       detected with simple per-packet matching patterns.
-       In addition to Kismets link-layer IDS, Kismet can interface with
-       traditional IDS implementations like Snort (www.snort.org) via a
-       named pipe (See the section about configuring Kismet to write to
-       FIFO/Named pipes) to form a complete IDS solution. Distributed
-       sniffing via Drone Remotes and WEP decoding of known networks lets
-       you monitor your entire wireless coverage area.
-          + NETSTUMBLER
-            Alert on: Netstumbler Probe
-            Alert message: "NetStumbler ($version) probe detected from
-            $source"
-            References: www.netstumbler.com
-            Tool specific: Yes
-            Implemented in: NetStumber 3.22, 3.23, 3.30
-            Details: NetStumbler is a Windows program to perform active
-            discovery of WLAN networks through probe request scanning.
-            After NetStumbler locates a WLAN, it will probe the AP for
-            "nickname" information. This probe contains a specific
-            payload that will cause Kismet to generate an alert.
-          + DEAUTHFLOOD
-            Alert on: Deauthenticate/Disassociate Flood
-            Alert message: "Deauthenticate/Disassociate flood on
-            $targetbssid"
-            References: 802.11ninja.net,
-            http://home.jwu.edu/jwright/papers/l2-wlan-ids.pdf
-            Tool specific: No
-            Implemented in: AirJack, fata-jack, void11, others
-            Details: By sending deauthenticate or disassociate message to
-            clients or a layer 2 broadcast address with a spoofed source
-            address of the legitimate AP, an attacker can launch a DoS
-            attack against a target network. This type of attack only
-            lasts as long as the attacker sustains the deauthenticate
-            flood.
-          + LUCENTTEST
-            Alert on: Lucent link test
-            Alert message: "Lucent Link Test detected from $clientmac"
-            References: http://www.agere.com/wlan/customercare/ (requires
-            login)
-            Tool specific: Yes
-            Implemented in: Lucent/Orinoco WaveManager site survey
-            software
-            Details: Lucent/Orinoco/Agere/Proxim provides site survey
-            software with their AP's. This rule will generate an alert
-            when this software is in use.
-          + WELLENREITER
-            Alert on: Wellenreiter SSID brute force
-            Alert message: "Wellenreiter probe detected from $clientmac"
-            References:
-            http://home.jwu.edu/jwright/papers/l2-wlan-ids.pdf
-            http://home.jwu.edu/jwright/papers/wlan-mac-spoof.pdf
-            Tool specific: Yes
-            Implemented in: Wellenreiter 1.6, Wellenreiter 1.5
-            Details: Wellenreiter has an option to brute-force the ESSID
-            of a discovered access point by attempting multiple
-            associations from a list of potential SSID's. Between each
-            association attempt, Wellenreiter will reset the card ESSID
-            to "this_is_used_for_wellenreiter". Kismet will raise this
-            alert when the SSID "this_is_used_for_wellenreiter" is
-            detected.
-          + CHANCHANGE
-            Alert on: Known BSSID changing channel
-            Alert message: "Beacon on $bssid ($ssid) for channel
-            $newchannel, previously detected on channel $oldchannel"
-            Tool specific: No
-            Implemented in: AirJack, others
-            Details: Many attacks attempt to divert clients from a
-            legitimate network to another channel. This alert is raised
-            when a beacon is seen for a different channel than the one
-            the network was previously communicating on.
-          + BCASTDISCON
-            Alert on: Broadcast disassociation or deauthentication
-            packets
-            Alert message: "Broadcast [disassociation|deauthentication]
-            on $bssid"
-            Tool specific: No
-            Implemented in: AirJack, fata-jack, void11, others
-            Details: Many attacks use a broadcast disassociate or
-            deauthenticate packet to knock all of the users off a
-            network. This can be a prolonged into a sustained DOS attack,
-            used to decloak a hidden SSID, or be the precursor of a man
-            in the middle attacks. Broadcast disassociations are rarely,
-            if ever, legitimate. This alert is raised whenever a
-            broadcast disassociation is seen.
-          + AIRJACKSSID
-            Alert on: Beacon for SSID "airjack"
-            Alert message: "Beacon for SSID 'airjack' from $sourcemac"
-            Tool specific: Yes
-            Implemented in: AirJack
-            Details: The defcon/blackhat AirJack test code sets the card
-            to beacon as the SSID "airjack" while performing other
-            attacks. This alert is raised whenever a beacon packet for
-            the SSID "airjack" is seen.
-          + PROBENOJOIN
-            Alert on: Clients seen probing and receiving acknowledgements
-            but not participating in a network. Alert message:
-            "Suspicious client $sourcemac - probing networks but never
-            joining."
-            Tool specific: No
-            Implemented in: NetStumbler, other active-probe scanners.
-            Details: Clients which probe continually for networks, are
-            accepted, and never participate are likely to be stumbler
-            clients looking for networks. There is a chance of false
-            positives with this detection method, but it can be effective
-            when watching for stumblers.
-          + DISASSOCTRAFFIC
-            Alert on: Traffic from a given source within 10 seconds of a
-            disassociate or deauthenticate.
-            Alert message: "Suspicious traffic on $sourcemac: Data
-            traffic within 10 seconds of disassociate."
-            Tool specific: No
-            Implemented in: "802.11 Denial-of-Service Attacks: Real
-            Vulnerabilities and Practical Solutions" research paper.
-            Details: As discussed in the above research paper by
-            Bellardo, J. and Savage, S., a host which legitimately
-            disassociates or deauthenticates from a network should not be
-            exchanging data immediately thereafter. Any client which DOES
-            exchange data within 10 seconds of disassociating from the
-            network should be considered a likely victim of a
-            disassociate attack.
-          + NOPROBERESP
-            Alert on: Probe response packet with no ssid or ssid field
-            length 0.
-            Alert message: "Probe response with 0-length SSID detected
-            from $sourcemac"
-            Tool specific: No
-            Implemented in: PoC code, Georgia Institute of Tech reseach
-            paper
-            Details: Many firmwares (prism2, prism2.5, orinoco, airport)
-            will crash when expecting and receiving a probe response
-            packet with the SSID tagged parameter length set to 0.
+1.  What is Kismet
+2.  Feature Overview
+3.  Typical Uses
+4.  Required Libraries/Utilities
+5.  Security
+6.  Upgrading From Previous Versions
+7.  Operating Systems
+8.  Capture Sources
+9.  Compiling
+10. Configuration
+11. Troubleshooting
+12. Panels Interface
+13. Network Mapping
+14. Drone Remotes
+15. Intrusion Detection
+
+1.  What is Kismet
+
+    Kismet is an 802.11 layer2 wireless network detector, sniffer, and
+    intrusion detection system.  Kismet will work with any wireless card which
+    support raw monitoring (rfmon) mode, and can sniff 802.11b, 802.11a, and
+    802.11g traffic.  Kismet is fully passive and undetectable when in
+    operation. Kismet automatically tracks all networks in range and is able to
+    detect (or infer) hidden networks, attack attempts, find rogue access
+    points, and find unauthorised users.
+
+2.  Feature Overview
+
+    Kismet has many features useful in different situations for monitoring
+    wireless networks:
+
+    - Ethereal/Tcpdump compatable data logging
+    - Airsnort compatible weak-iv packet logging
+    - Network IP range detection
+    - Built-in channel hopping and multicard split channel hopping
+    - Hidden network SSID decloaking
+    - Graphical mapping of networks
+    - Client/Server architecture allows multiple clients to view a single
+      Kismet server simultaneously
+    - Manufacturer and model identification of access points and clients
+    - Detection of known default access point configurations
+    - Runtime decoding of WEP packets for known networks
+    - Named pipe output for integration with other tools, such as a layer3 IDS
+      like Snort
+    - Multiplexing of multiple simultaneous capture sources on a single Kismet
+      instance
+    - Distributed remote drone sniffing
+    - XML output
+    - Over 20 supported packet sources
+
+3.  Typical Uses
+
+    Common applications Kismet is useful for:
+
+    - Wardriving:  Mobile detection of wireless networks, logging and mapping
+      of network location, WEP, etc.
+    - Site survey:  Monitoring and graphing signal strength and location.
+    - Distributed IDS:  Multiple Remote Drone sniffers distributed throughout
+      an installation monitored by a single server, possibly combined with a
+      layer3 IDS like Snort.
+    - Rogue AP Detection:  Stationary or mobile sniffers to enforce site policy
+      against rogue access points.
+
+4.  Required Libraries
+
+    Kismet is primary self-contained, however for some features it requires
+    some external libraries or utilities.
+
+    - GPSD (any version): http://russnelson.com/gpsd/ 
+      REQUIRED for GPS support
+   
+      GPSD is a daemon which listens on a serial port for GPS data, parses it,
+      and makes it available via a TCP socket.  Kismet can use a GPSD on the
+      local system, or if there is a wired ethernet connection available it can
+      use a gps on a remote host.  
+
+      The latest versions of GPSD fix compile issues which occured on some
+      systems and it's highly reccomended you get the latest.
+
+      GPSDrive distributes an alternate version of GPSD, which should work with
+      Kismet.
+
+    - Imagemagick (5.4.7+): http://www.imagemagick.org/
+      REQUIRED for gpsmap map generation
+
+      Imagemagick is a graphics generation library which can read and write in
+      almost any format.  Kismet requires a recent version of Imagemagick due
+      to IMs frequently changing API.  If you do not plan to use gpsmap, you
+      can skip this library.
+
+    - Expat (??): ??
+      REQUIRED for gpsmap map generation
+
+      Expat is an XML processing library.  Kismet requires this for parsing
+      netxml and gpsxml output logs.  If you do not plan to use gpsmap, you can
+      skip this library.
+
+      Some versions of Expat included in distributions or other system
+      utilities (ie, XFree86-cvs) contain errors that make it impossible to
+      compile expat.h.  Make sure you have the latest stable Expat version, and
+      remove offending duplicate headers if necessary.
+
+    - Ethereal (any): http://www.ethereal.com
+      RQUIRED for wtapfile capture replay
+
+      Ethereal is the premier packet dissector.  The packet dump logs Kismet
+      creates can be opened in Ethereal for further examination.  Kismet uses
+      libwiretap from Ethereal for saving packet dump files and replaying
+      stored dumps, however Kismet has a builtin dump writer and can replay
+      pcap files using libpcap.  
+
+      Kismet requires a compiled copy of the Ethereal source available to link
+      the libwiretap library.  By default the configure script will look in
+      /usr/src/ for this.
+
+      If you do not need to replay compressed dumps, you don't need a compiled
+      copy of Ethereal.
+
+5.  Security
+
+    In order to configure the wireless card for rfmon and start the packet
+    capture, Kismet needs root access.  As soon as root access is no longer
+    required, Kismet drops to a designated user so that potentially hostile
+    remote data isn't processed as root.
+
+    If channel hopping is enabled, Kismet forks and retains one process as
+    root for changing the channel of the capture sources.
+
+    For Kismet to have root access, it can be installed two different ways:
+    - Normal installation via 'make install' requires Kismet be started as
+      root.  
+    - Suid-root installation via 'make suidinstall'.  DO NOT INSTALL KISMET
+      SUID-ROOT IF YOU HAVE OTHER USERS ON YOUR SYSTEM.  Suid-root installation
+      will allow unprivileged users to set the wireless card to rfmon (breaking
+      any connections using wireless) and capture data.
+   
+6.  Upgrading from Previous Versions
+
+    Upgrading to Kismet 3.1+:
+      Kismet 3.1 has significantly changed how Kismet operates again.  There
+      have been config file changes, changes to the names of capture types,
+      and various other mayhem.  Be sure to upgrade your config file or things
+      will definitely not work how you expect them to.
+
+    Upgrading to Kismet 3.0:
+      Kismet 3.0.x revamps major portions of the Kismet architecture, including
+      a new alert system, integrated hopper and monitor scripts, and numerous
+      config file changes.  All users will need to upgrade to the latest config
+      files or Kismet will not work properly.
+
+7.  Operating Systems
+
+    Kismet will work (at some level) on any operating system which has Posix
+    compatibility, however for it to do native packet capturing it needs
+    drivers which are capable of reporting packets in rfmon.  Remote sources
+    such as WSP100 or Drones can be used on any platform you can get Kismet to
+    compile on.
+
+    - Linux (Intel, PPC, MIPS, X-Scale, Arm, etc)
+      Known supported cards: ACX100, Atheros, Cisco, Prism2, Orinoco, WSP100,
+      Drone, wtapfile, pcapfile, wrt54g
+
+      Kismet will work with any distribution of Linux.  Currently, Linux is the
+      reccomended platform for running Kismet because it has the largest
+      selection of rfmon capable drivers.
+
+    - OpenBSD
+      Known supported cards: Prism2, WSP100, Drone, wtapfile, pcapfile
+    
+      Thanks to the efforts of Pedro la Peu, OpenBSD is the best supported of
+      the BSD variants.  The Prism2 drivers as of OpenBSD
+      3.2 support a standard rfmon, performance with other drivers may be
+      varied.
+
+    - FreeBSD
+      Known supported cards: WSP100, Drone, wtapfile, pcapfile
+      
+      FreeBSD seems to have broken wireless drivers for most cards which claim
+      to have rfmon support but return scrambled data.  
+
+      FreeBSD-current is beginning to unify the driver interface and monitor
+      mode, so hopefully it can become better supported in the future.
+
+    - NetBSD
+      Known supported cards: WSP100, Drone, wtapfile, pcapfile
+    
+      There have been no reports positive or negative about NetBSD drivers.
+      Please email if you have them working.
+
+    - MacOSX
+      Known supported cards: Airport, WSP100, Drone, wtapfile, pcapfile
+
+      MacOSX is supported for Airport (classic) cards only, using the Viha
+      drivers at http://www.dopesquad.net/security/.  There are no rfmon
+      drivers available for Airport Extreme cards or other cards under OSX.
+
+    - Win32 (Cygwin)
+      Known supported cards: WSP100, Drone, wtapfile, pcapfile
+
+      Win32 ONLY works with remote captures.  There are no public rfmon drivers
+      for win32, and no reports of any in development.  Kismet on Win32
+      requires cygwin for Posix utilities.
+
+8.  Capture Sources
+    
+    A capture source in Kismet is anything which provides packets to the Kismet
+    engine.  Capture sources define the underlying engine needed to capture
+    data from the interface, how to change channel, and how to enter rfmon
+    mode.
+
+    Source type     Cards               OS          Driver
+    --------------- ------------------- ----------- -------------------------
+    acx100          TI ACX100           Linux       ACX100
+                    http://acx100.sourceforge.net/
+                    Capture interface:  'ethX'
+                    ACX100 drivers handle the 22mbit cards branded by DLink
+                    and others.
+
+    cisco           Aironet 340,350     Linux       Kernel 2.4.10 - 2.4.19
+                    Capture interface:  'ethX'  
+                    Standard Cisco cards in Linux.  Works only with
+                    the Linux kernel drivers, not the drivers found on
+                    cisco.com or pcmcia-cs.
+
+    cisco_wifix     Aironet 340,350     Linux       Kernel 2.4.20+, CVS  
+                    http://sourceforge.net/projects/airo-linux/  
+                    Capture interface:  'ethX:wifiX'
+                    Kernel 2.4.20+ and CVS drivers use ethX for normal mode
+                    and wifiX for monitor mode.  Kismet needs to know both
+                    devices, which may not necessarily be the same number,
+                    for example 'eth1:wifi0'.
+                    Linux kernel 2.4.20 and 2.4.21 have highly unstable cisco
+                    drivers and should be avoided.
+
+    cisco_openbsd   Aironet 340,350     OpenBSD     Kernel
+                    Capture interface:  'anX'  
+                    OpenBSD cisco drivers are not fully supported currently,
+                    but may become so.  Packet capture probably will not
+                    work correctly.
+
+    hostap          Prism/2             Linux       HostAP 0.4
+                    http://hostap.epitest.fi/
+                    Capture interface:  'wlanX'  
+                    HostAP drivers drive the Prism/2 chipset in access point
+                    mode, but also can drive the cards in client and monitor
+                    modes.  The HostAP drivers seem to change how they go
+                    into monitor mode fairly often, but this source should 
+                    manage to get them going.
+
+    kismet_drone    n/a                 Any         n/a
+                    Capture interface:  'dronehost:port'  
+                    The remote drone capture source connects to a Kismet
+                    drone and proceses the packets.  Refer to the Remote 
+                    Drone section of the README for more details about how
+                    to set up a drone.
+
+    madwifi_a       Atheros             Linux       madwifi-cvs
+                    http://sourceforge.net/projects/madwifi/
+                    Capture interface:  'athX'
+                    Madwifi drivers in 802.11a-only mode. 
+
+    madwifi_b       Atheros             Linux       madwifi-cvs
+                    http://sourceforge.net/projects/madwifi/
+                    Capture interface:  'athX'
+                    Madwifi drivers in 802.11b-only mode. 
+
+    madwifi_g       Atheros             Linux       madwifi-cvs
+                    http://sourceforge.net/projects/madwifi/
+                    Capture interface:  'athX'
+                    Madwifi drivers in 802.11g-only mode.  This will, 
+                    obviously, also see 11b networks.
+
+    madwifi_ab      Atheros             Linux       madwifi-cvs
+                    http://sourceforge.net/projects/madwifi/
+                    Capture interface:  'athX'
+                    Madwifi drivers in 802.11a and 802.11b combo mode.  This
+                    will seamlessly switch between bands during channel 
+                    hopping.
+
+    madwifi_ag      Atheros             Linux       madwifi-cvs
+                    http://sourceforge.net/projects/madwifi/
+                    Capture interface:  'athX'
+                    Madwifi drivers in 802.11a and 802.11g combo mode.  This
+                    will seamlessly switch between bands during channel 
+                    hopping.
+
+    orinoco         Lucent, Orinoco     Linux       Patched orinoco_cs
+                    http://airsnort.shmoo.com/orinocoinfo.html
+                    Capture interface:  'ethX'
+                    The standard orinoco_cs drivers do not support monitor mode
+                    but they work well after being patched with the above.
+
+    pcapfile        n/a                 Any         n/a
+                    Capture interface:  '/path/to/file' 
+                    The pcapfile capture source feeds a stored 802.11-encap
+                    dump file through the Kismet engine again.  This can be
+                    useful for debugging or rescanning old logs for 
+                    alert conditions.  Pcapfile sources are only available
+                    if Kismet was compiled with libpcap support.
+
+    prism_openbsd   Prism/2             OpenBSD     Kernel
+                    Capture interface:  'wiX'
+                    Full support for Prism2 under OpenBSD
+
+    prism54g        PrismGT             Linux       prism54
+                    http://www.prism54.org
+                    Capture interface:  'ethX'
+                    PrismGT 802.11g drivers supporting monitor mode.
+
+    viha            Airport             OSX         viha
+                    http://www.dopesquad.net/security/
+                    Capture interface:  'enX'
+                    Monitor mode support for Airport under OSX.  Does not
+                    support Airport Extreme.
+
+    vtar5k          Atheros 802.11a     Linux       vtar5k
+                    http://team.vantronix.net/ar5k/
+                    vtar5k drivers handle some Atheros 802.11a cards.  Chances
+                    are you'll have better luck with madwifi drivers.
+
+    wlanng_legacy   Prism/2             Linux       wlan-ng 0.1.3 and earlier
+                    http://www.linux-wlan.com/
+                    Capture interface:  'wlanX'
+                    Old wlan-ng drivers didn't support pcap capturing and
+                    use a netlink socket to the kernel.  These are still in
+                    use on some embedded systems (like the Zaurus).
+
+    wlanng          Prism/2             Linux       wlan-ng 0.1.4 - 0.1.9
+                    http://www.linux-wlan.com/
+                    Capture interface:  'wlanX'  
+                    Wlan-ng prism2 drivers prior to the AVS headers.
+
+    wlanng_avs      Prism/2             Linux       wlan-ng 0.2.0+
+                    http://www.linux-wlan.com/
+                    Capture interface:  'wlanX'
+                    Newer wlan-ng drivers support a new header type and 
+                    slightly different monitor commands to report wepped
+                    packets.
+
+    wrt54g          Linksys WRT54G      Linux       linksys
+                    http://seattlewireless.net/index.cgi/LinksysWrt54g  
+                    Capture interface:  'ethX'
+                    Support for the drivers found in the embedded Linux 
+                    inside the Linksys WRT54G (and probably other APs using
+                    the same firmware).
+
+    wsp100          NetChem WSP100      Any         n/a
+                    http://networkchemistry.com/
+                    Capture interface:  'host:port'
+                    The WSP100 is an embedded device which reports 802.11
+                    packets over UDP.
+
+    wtapfile        n/a                 Any         n/a
+                    Capture interface:  '/path/to/file'  
+                    Wtapfile sources are the same as pcapfile sources but
+                    they use the Ethereal libwiretap loader.  libwiretap can
+                    automatically decompress gzipped files, etc.  Wtapfile
+                    sources are only available if Kismet was compiled with
+                    libwiretap support.
+9.  Compiling
+    
+    Compiling should be fairly straightforward.  It uses the normal configure
+    scripts found in most open source projects, and should build with any
+    modern version of gcc.
+
+    1.  Download any libraries and external utilities needed
+    2.  Run './configure' with any special options you want (see
+        './configure --help')
+    3.  Run 'make' or 'gmake'
+    4.  Run 'make install' or 'make suidinstall' - SEE THE SECURITY SECTION
+        OF THE README BEFORE INSTALLING KISMET SUIDROOT!
+
+    Crosscompiling Kismet can sometimes have problems with the libpcap 
+    autoconf scripts not being able to detect the kernel type and version
+    of the target system.  Overriding the configuration script variables
+    and passing extra configuration options can fix this:
+
+    'ac_cv_linux_vers=foo ./configure --with-pcap=linux ...'
+
+10.  Configuration
+
+    
+
+11.  Troubleshooting
+    
+    Some common problems with Kismet have easy solutions:
+
+    PROBLEM: Fatal errors about old configuration file values
+      Kismet has evolved over time.  This has made changes to the config files
+      necessary, and obsoleted old options.  Kismet will automatically detect 
+      old config files and alert on them.
+    FIX: Upgrade your config files.  'make forceinstall' or 'forcesuidinstall'
+      will replace old files, or you can copy the config file from the conf/
+      directory manually and update it for your configuration.
+
+    PROBLEM: Fatal error about being unable to find the suiduser
+      Kismet drops the privileges of the main packet processor to a specified
+      user for security - handling hostile remote data as root is just a bad
+      idea.  If a nonexistent user is specified, Kismet will bail.
+    FIX: Set a valid user as the suiduser config variable.  If you're sure you
+      don't want privilege dropping, you can run configure with the 
+      '--disable-setuid' option, but this is NOT reccomended for most users.
+
+    PROBLEM: Fatal error about specifying a uid-0 target for suiduser
+      Kismet needs to drop out of root for security purposes.  If you tell it
+      that the user to switch to is 'root' (or another uid-0 user, if you
+      happened to make one), it can't do this.
+    FIX:  See fix above for errors about finding the suiduser.
+
+    PROBLEM: Fatal error enabling monitor mode, 'monitor' ioctl not available
+      Some capture sources use a private ioctl, 'monitor', to enable rfmon.
+      If Kismet is unable to find this ioctl, it means that the wrong 
+      interface was specified, the wrong capture type is being used, or 
+      most commonly, the drivers you are using have not been patched or the
+      patched drivers are not being loaded.
+      Be sure to download any patches needed for the drivers you are using, 
+      and make sure that no other copies of those drivers exist in your
+      /lib/modules/kern-version/ directory.  You may need to restart pcmcia-cs
+      if your wireless card was already running when you installed the patched
+      drivers.
+    FIX: Provide the correct interface and ensure that the patched drivers are
+      loaded.
+
+    PROBLEM: Fatal error about being unable to open a file for writing
+      The most common cause of this problem is that the suiduser you specified
+      for Kismet to drop to does not have rights to write to the directory 
+      Kismet is trying to log to.
+      If you did not modify the 'logtemplate' configuration file variable, 
+      Kismet defaults to the current directory for saving logs.  You can set
+      an explicit path in the logtemplate variable to put your logs in the same
+      place every time.
+    FIX: Start Kismet from a directory that the suiduser can write to, or set
+      the logtemplate variable to always put the logs in a directory the 
+      suiduser can write to.
+

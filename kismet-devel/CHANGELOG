@@ -1,6 +1,7 @@
 Dec 11 2003  3.1.0  Put casting and malloc testing into channel change packet
                     Added gpsd/timetracker NULL initialization to packetsource 
                     Fixed various quirks exposed by Valgrind
+                    Updated README, partially
 Dec 10 2003  3.1.0  Put a second try for setting the channel via wireless
                      extensions for some cards that fail on the first ioctl
                      but can recover (madwifi)
