@@ -36,6 +36,7 @@ Licensed under the GPL<br>
 <li>Configuration
 <li>Panels Interface
 <li>Mapping
+<li>Drone Remotes
 </ol>
 
 <br> <br> <br> <br>
@@ -48,8 +49,8 @@ sniffer (such as Ethereal or tcpdump) because it separates and identifies differ
 wireless networks in the area.  Kismet works with any 802.11b wireless card which is capable of
 reporting raw packets (rfmon support), which include any prism2 based card (Linksys,
 D-Link, Rangelan, etc), Cisco Aironet cards, and Orinoco based cards.  Kismet also
-supports the WSP100 remote sensor by Network Chemistry.  Kismet is also able to sniff
-802.11a networks using ar5k cards.
+supports the WSP100 remote sensor by Network Chemistry, and is able to sniff 802.11a 
+networks using ar5k cards.
 <br>
 <li>FEATURES
 <br>
@@ -71,6 +72,7 @@ supports the WSP100 remote sensor by Network Chemistry.  Kismet is also able to 
 <li>Multiplexing of multiple capture sources
 <li>802.11b and 802.11a sniffing abilities
 <li>Data export for external layer3 IDS (such as Snort)
+<li>Distributed 'Drone' sniffing
 </ul>
 <br>
 
@@ -307,6 +309,17 @@ and many more new features.<br>
 		higher.  Older versions will not be able to put the cards into monitor mode.
 		<br>
 	</ol>
+	<li>DRONE REMOTE
+	<br>
+	Notes:  The packets sent by Kismet drones may be filtered by the drone itself for
+	content (physical, beacon, etc.).
+	<ul>
+		<li>'drone': Kismet Drone remote<br>
+		Capture interface: host:port<br>
+		Notes:  The capture interface specifies the address of the Kismet drone server and
+		the port on that server which provides packets.
+		<br>
+	</ul>
 <li>GPS SUPPORT
 <br>
 GPS support is provided via the GPSD daemon, available at http://russnelson.com/gpsd/.  
@@ -640,6 +653,16 @@ i	can be connected at will.
 		the entire area, preferably forming a grid or mesh, should be taken.
 	</ol>
 	More information about gpsmap is available from the man page gpsmap(1).
+<li>DRONE REMOTES<br>
+	Kismet is also able to do distributed sniffing of a larger physical area by using
+	Drone remote sniffers.  A Kismet drone is essentially a stripped down Kismet sniffer
+	engine which is able to capture data from all the same sources as Kismet itself (as well
+	supporting multiple simultaneous capture sources, mixture of 802.11a and 802.11b 
+	sources, etc) and provide those packets over a TCP stream on a wired network.
+	<br>
+	Any number of drones with any number of sources can be distributed across the target
+	area, with all captured packets being processed by a single Kismet server, stored in a
+	common dump file and passed to a single Snort IDS instance, if desired.
 </ol>
 
 </body>
