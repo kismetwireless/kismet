@@ -1,3 +1,13 @@
+Apr 02 2005 2005-04 Released 2005-04-R1.  Primarily a bugfix release, but with
+                     some new features, including:
+                     GPSD reconnection fixes
+                     LEAP/TKIP/EAP/WPA/PPTP detection
+                     Better momentary card failure handling on channel control
+                     Various compile-time issues with ImageMagick APIs
+                     String handling cleanup
+                     Major fixes to IP guessing
+                     rt2x00 support
+                     Interface binding
 Mar 30 2005  devel  Fixed another case of bad IP discovery
 Mar 23 2005  devel  Fixed xml parsing error in expat.cc and new encryption
                      fields.  You'll want to purge your old cache files.
