@@ -88,7 +88,7 @@ public:
         if (y->type == group_empty)
             return 1;
 
-        if (x->virtnet.bssid > y->virtnet.bssid)
+        if (y->virtnet.bssid < x->virtnet.bssid)
             return 1;
         return 0;
     }

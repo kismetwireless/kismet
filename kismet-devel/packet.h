@@ -286,7 +286,7 @@ typedef struct mac_addr {
         return *this;
     }
 
-    const short int& operator[] (const int& index) const {
+    const uint8_t& operator[] (const int& index) const {
         int mdex = index;
         if (index < 0 || index > MAC_LEN)
             mdex = 0;
