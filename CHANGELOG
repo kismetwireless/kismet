@@ -1,5 +1,6 @@
 Jan 11 2003  2.9.0  Cleaned up MungeToShell to be more restrictive for passing
                      text to Festival.
+                    Merged metric display patch from Peter Sturm
 Jan 10 2003  2.9.0  Added carrier to network and netxml
 Jan 07 2003  2.9.0  Added support for 802.11a (ar5k cardtype, via Reyk Floeters
                      drivers at http://team.vantronix.net/ar5k/.  Make sure you

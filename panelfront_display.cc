@@ -1303,11 +1303,13 @@ int PanelFront::DetailsPrinter(void *in_window) {
         if (details_network->virtnet->gps_fixed != -1) {
             snprintf(output, print_width, "Min Loc : Lat %f Lon %f Alt %f Spd %f",
                      details_network->virtnet->min_lat, details_network->virtnet->min_lon,
-                     details_network->virtnet->min_alt, details_network->virtnet->min_spd);
+                     metric ? details_network->virtnet->min_alt / 3.3 : details_network->virtnet->min_alt,
+                     metric ? details_network->virtnet->min_spd * 1.6093 : details_network->virtnet->min_spd);
             kwin->text.push_back(output);
             snprintf(output, print_width, "Max Loc : Lat %f Lon %f Alt %f Spd %f",
                      details_network->virtnet->max_lat, details_network->virtnet->max_lon,
-                     details_network->virtnet->max_alt, details_network->virtnet->max_spd);
+                     metric ? details_network->virtnet->max_alt / 3.3 : details_network->virtnet->max_alt,
+                     metric ? details_network->virtnet->max_spd * 1.6093 : details_network->virtnet->max_spd);
             kwin->text.push_back(output);
 
             double diagdist = EarthDistance(details_network->virtnet->min_lat,
@@ -1582,11 +1584,13 @@ int PanelFront::DetailsPrinter(void *in_window) {
         if (dnet->gps_fixed != -1) {
             snprintf(output, print_width, "Min Loc : Lat %f Lon %f Alt %f Spd %f",
                      dnet->min_lat, dnet->min_lon,
-                     dnet->min_alt, dnet->min_spd);
+                     metric ? dnet->min_alt / 3.3 : dnet->min_alt,
+                     metric ? dnet->min_spd * 1.6093 : dnet->min_spd);
             kwin->text.push_back(output);
             snprintf(output, print_width, "Max Loc : Lat %f Lon %f Alt %f Spd %f",
                      dnet->max_lat, dnet->max_lon,
-                     dnet->max_alt, dnet->max_spd);
+                     metric ? dnet->max_alt / 3.3 : dnet->max_alt,
+                     metric ? dnet->max_spd * 1.6093 : dnet->max_spd);
             kwin->text.push_back(output);
 
 
@@ -2630,11 +2634,13 @@ int PanelFront::DetailsClientPrinter(void *in_window) {
 
         snprintf(output, print_width, "Min Loc : Lat %f Lon %f Alt %f Spd %f",
                  details_client->min_lat, details_client->min_lon,
-                 details_client->min_alt, details_client->min_spd);
+                 metric ? details_client->min_alt / 3.3 : details_client->min_alt,
+                 metric ? details_client->min_spd * 1.6093 : details_client->min_spd);
         kwin->text.push_back(output);
         snprintf(output, print_width, "Max Loc : Lat %f Lon %f Alt %f Spd %f",
                  details_client->max_lat, details_client->max_lon,
-                 details_client->max_alt, details_client->max_spd);
+                 metric ? details_client->max_alt / 3.3 : details_client->max_alt,
+                 metric ? details_client->max_spd * 1.6093 : details_client->max_spd);
         kwin->text.push_back(output);
 
         double diagdist = EarthDistance(details_client->min_lat,
