@@ -25,7 +25,7 @@
 #include "config.h"
 
 // Prevent make dep warnings
-#if (defined(HAVE_IMAGEMAGICK) && defined(HAVE_GPS))
+#if (defined(HAVE_IMAGEMAGICK) && defined(HAVE_GPS) && defined(HAVE_GMP))
 
 #include <stdio.h>
 #ifdef HAVE_PTHREAD
@@ -38,6 +38,7 @@
 #include <inttypes.h>
 #endif
 #include <math.h>
+#include <gmp.h>
 #include <time.h>
 #include "getopt.h"
 #include <unistd.h>
@@ -58,6 +59,9 @@
 
 /* Mapscale / pixelfact is meter / pixel */
 #define PIXELFACT 2817.947378
+
+/* offset amount for relevance-finding */
+#define CHUNK_DIFF 0.00004
 
 #define square(x) ((x)*(x))
 // Global constant values
@@ -1070,6 +1074,98 @@ int ProcessGPSFile(char *in_fname) {
     return 1;
 }
 
+/* A chunk of points */
+typedef struct {
+    int start;
+    int end;
+} relptrecord;
+
+/* This tries to chunk the network into groups of points so that we can
+ * pick the most concentrated chunk to do the average center with */
+vector<gps_point *> RelevantCenterPoints(vector<gps_point *> in_samples) {
+    vector<gps_point *> lat_samples = in_samples;
+    vector<gps_point *> lon_samples = in_samples;
+    vector<gps_point *> retvec;
+    map<int, int> union_samples;
+
+    /* Bounce right back */
+    if (in_samples.size() < 30)
+        return in_samples;
+
+    stable_sort(lat_samples.begin(), lat_samples.end(), PointSortLat());
+    stable_sort(lon_samples.begin(), lon_samples.end(), PointSortLon());
+
+    vector<relptrecord> rel_chunks;
+    relptrecord rec;
+    int largest = 0;
+    int largestlen = 0;
+
+    /* Build the lat relevant list */
+    rec.start = 0;
+    rec.end = 0;
+
+    for (unsigned int x = 1; x < lat_samples.size(); x++) {
+        if (lat_samples[x]->lat - lat_samples[x-1]->lat > CHUNK_DIFF) {
+            rec.end = x;
+            rel_chunks.push_back(rec);
+            rec.start = x+1;
+        }
+    }
+    rec.end = lat_samples.size() - 1;
+    rel_chunks.push_back(rec);
+
+    for (unsigned int x = 0; x < rel_chunks.size(); x++) {
+        int len = rel_chunks[x].end - rel_chunks[x].start;
+        if (largestlen < len) {
+            largestlen = len;
+            largest = x;
+        }
+    }
+
+    /* Set the map count to 1 for each element id */
+    for (unsigned int x = rel_chunks[largest].start; 
+            x <= (unsigned int) rel_chunks[largest].end; x++)  {
+        union_samples[lat_samples[x]->id] = 1;
+    }
+
+    /* Now do it again for lon */
+    rec.start = 0;
+    rec.end = 0;
+
+    for (unsigned int x = 1; x < lon_samples.size(); x++) {
+        if (lon_samples[x]->lon - lon_samples[x-1]->lon > CHUNK_DIFF) {
+            rec.end = x;
+            rel_chunks.push_back(rec);
+            rec.start = x+1;
+        }
+    }
+    rec.end = lon_samples.size() - 1;
+    rel_chunks.push_back(rec);
+
+    largestlen = 0;
+    largest = 0;
+    for (unsigned int x = 0; x < rel_chunks.size(); x++) {
+        int len = rel_chunks[x].end - rel_chunks[x].start;
+        if (largestlen < len) {
+            largestlen = len;
+            largest = x;
+        }
+    }
+
+    /* Add the union points to the return vector */
+    for (unsigned int x = rel_chunks[largest].start; 
+            x <= (unsigned int) rel_chunks[largest].end; x++)  {
+        map<int, int>::iterator itr = union_samples.find(lon_samples[x]->id);
+        if (itr != union_samples.end())
+            retvec.push_back(lon_samples[x]);
+    }
+
+    // Bail if we didn't get enough to make sense
+    if (retvec.size() < 30)
+        return in_samples;
+    
+    return retvec;
+}
 // Do all the math
 void ProcessNetData(int in_printstats) {
     // Convert the tracks to x,y
@@ -1091,6 +1187,8 @@ void ProcessNetData(int in_printstats) {
 
     printf("Processing %d raw networks.\n", (int) bssid_gpsnet_map.size());
 
+    mpf_set_default_prec(256);
+
     for (map<string, gps_network *>::const_iterator x = bssid_gpsnet_map.begin();
          x != bssid_gpsnet_map.end(); ++x) {
 
@@ -1102,19 +1200,48 @@ void ProcessNetData(int in_printstats) {
             continue;
         }
 
+        // Intelligent center guessing
+        mpf_t alat;
+        mpf_t alon;
+
+        mpf_init(alat);
+        mpf_init(alon);
+
+        vector<gps_point *> relvec;
+        relvec = RelevantCenterPoints(map_iter->points);
+        for (unsigned int y = 0; y < relvec.size(); y++) {
+            mpf_t lat, lon;
+            mpf_init_set_d(lat, relvec[y]->lat);
+            mpf_init_set_d(lon, relvec[y]->lon);
+
+            mpf_add(alat, alat, lat);
+            mpf_add(alon, alon, lon);
+            
+            map_iter->avg_alt += relvec[y]->alt;
+            map_iter->avg_spd += relvec[y]->spd;
+        }
+
+        mpf_div_ui(alat, alat, relvec.size());
+        mpf_div_ui(alon, alon, relvec.size());
+
+        double avg_lat = mpf_get_d(alat);
+        double avg_lon = mpf_get_d(alon);
+        
+        float avg_alt = (float) (map_iter->avg_alt / relvec.size());
+        float avg_spd = (float) (map_iter->avg_spd / relvec.size());
+
+        map_iter->avg_lat = avg_lat;
+        map_iter->avg_lon = avg_lon;
+        map_iter->avg_alt = avg_alt;
+        map_iter->avg_spd = avg_spd;
+
         // Calculate the min/max and average sizes of this network
         for (unsigned int y = 0; y < map_iter->points.size(); y++) {
             float lat = map_iter->points[y]->lat;
             float lon = map_iter->points[y]->lon;
             float alt = map_iter->points[y]->alt;
-            float spd = map_iter->points[y]->spd;
 
             //printf("Got %f %f %f %f\n", lat, lon, alt, spd);
-
-            map_iter->avg_lat += lat;
-            map_iter->avg_lon += lon;
-            map_iter->avg_alt += alt;
-            map_iter->avg_spd += spd;
             map_iter->count++;
 
             // Enter the max/min values
@@ -1137,20 +1264,10 @@ void ProcessNetData(int in_printstats) {
                 map_iter->min_alt = alt;
         }
 
-        map_iter->diagonal_distance = earth_distance(map_iter->max_lat, map_iter->max_lon,
-                                                    map_iter->min_lat, map_iter->min_lon);
+        map_iter->diagonal_distance = earth_distance(map_iter->max_lat, 
+                map_iter->max_lon, map_iter->min_lat, map_iter->min_lon);
 
         map_iter->altitude_distance = map_iter->max_alt - map_iter->min_alt;
-
-        double avg_lat = (double) map_iter->avg_lat / map_iter->count;
-        double avg_lon = (double) map_iter->avg_lon / map_iter->count;
-        double avg_alt = (double) map_iter->avg_alt / map_iter->count;
-        double avg_spd = (double) map_iter->avg_spd / map_iter->count;
-
-        map_iter->avg_lat = avg_lat;
-        map_iter->avg_lon = avg_lon;
-        map_iter->avg_alt = avg_alt;
-        map_iter->avg_spd = avg_spd;
 
         if ((map_iter->diagonal_distance * 3.3) > (20 * 5280))
             printf("WARNING:  Network %s [%s] has range greater than 20 miles, this "
@@ -1655,13 +1772,24 @@ void DrawNetCircles(vector<gps_network *> in_nets, Image *in_img, DrawInfo *in_d
         endx = mapx + distavg;
         endy = mapy + distavg;
 
+        /*
+        double tlx = mapx - distavg;
+        double tly = mapy - distavg;
+
+        if (((tlx < 0 && tly < 0) && (endx < 0 && endy < 0)) ||
+            ((tlx > map_width && tly > map_height) &&
+             (endx > map_width && endy > map_height))) {
+            continue;
+        }
+        */
+
         if (!(((mapx - distavg > 0 && mapx - distavg < map_width) &&
                (mapy - distavg > 0 && mapy - distavg < map_width)) &&
               ((endx > 0 && endx < map_height) &&
                (endy > 0 && endy < map_height)))) {
             continue;
         } 
-
+        
         drawn_net_map[map_iter->bssid.c_str()] = map_iter;
         
         PixelPacket netclr;

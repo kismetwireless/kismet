@@ -145,6 +145,13 @@ Licensed under the GPL
       compile expat.h.  Make sure you have the latest stable Expat version, and
       remove offending duplicate headers if necessary.
 
+    - GMP: http://www.swox.com/gmp/
+      REQUIRED for gpsmap map generation
+
+      GMP is an arbitrary-precision math library.  Kismet needs this for high
+      precision math functions when calculating graphics in gpsmap.  If you
+      do not plan to use gpsmap, you can skip this.
+
     - Ethereal (any): http://www.ethereal.com
       REQUIRED for wtapfile capture replay
 

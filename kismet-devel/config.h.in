@@ -27,6 +27,9 @@
 /* Define to 1 if you have the `gettimeofday' function. */
 #undef HAVE_GETTIMEOFDAY
 
+/* GMP math library */
+#undef HAVE_GMP
+
 /* GPS support will be built. */
 #undef HAVE_GPS
 

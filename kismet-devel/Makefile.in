@@ -84,7 +84,7 @@ $(NC):	$(NCO)
 	$(LD) $(LDFLAGS) -o $(NC) $(NCO) $(LIBS) $(CLIBS)
 
 $(GPSL):	$(GPSLO)
-	$(LD) $(LDFLAGS) -o $(GPSL) $(GPSLO) $(LIBS) `Magick-config --cflags --cppflags --ldflags` `Magick-config --libs` $(THREADL) -lexpat
+	$(LD) $(LDFLAGS) -o $(GPSL) $(GPSLO) $(LIBS) `Magick-config --cflags --cppflags --ldflags` `Magick-config --libs` $(THREADL) -lexpat -lgmp
 
 #$(HOPPER):	$(HOPPERO)
 #	$(LD) $(LDFLAGS) -o $(HOPPER) $(HOPPERO)
