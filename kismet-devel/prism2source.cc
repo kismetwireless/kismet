@@ -152,7 +152,8 @@ int Prism2Source::Prism2Common(kis_packet *packet, uint8_t *data, uint8_t *modda
                        &packet->gps_spd, &packet->gps_heading, &packet->gps_fix);
     }
 
-    packet->caplen = kismin(sniff_info->frmlen.data, (uint32_t) MAX_PACKET_LEN);
+    // Trim the FCS
+    packet->caplen = kismin(sniff_info->frmlen.data - 4, (uint32_t) MAX_PACKET_LEN);
     packet->len = packet->caplen;
 
     // Copy the radio levels out
@@ -202,7 +203,7 @@ int chancontrol_wlanng_legacy(const char *in_dev, int initch, char *in_err,
     char cmdline[2048];
 
     // Set the channel
-    snprintf(cmdline, 2048, "wlanctl-ng %s lnxreq_wlansniff channel=%d enable=true", in_dev, initch);
+    snprintf(cmdline, 2048, "wlanctl-ng %s lnxreq_wlansniff channel=%d enable=true >/dev/null 2>/dev/null", in_dev, initch);
     if (ExecSysCmd(cmdline, in_err) < 0)
         return -1;
 
