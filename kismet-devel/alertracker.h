@@ -82,7 +82,9 @@ public:
     int PotentialAlert(int in_ref);
 
     // Raise an alert
-    int RaiseAlert(int in_ref, string in_text);
+    int RaiseAlert(int in_ref, 
+                   mac_addr bssid, mac_addr source, mac_addr dest, mac_addr other,
+                   string in_text);
 
     // Send backlogged alerts
     void BlitBacklogged(int in_fd);

@@ -439,6 +439,12 @@ typedef struct mac_addr {
             longmac |= (uint64_t) in[x] << ((MAC_LEN - x - 1) * 8);
     }
 
+    mac_addr(int) {
+        longmac = 0;
+        longmask = (uint64_t) -1;
+        error = 0;
+    }
+
     mac_addr(const char *in) {
         string2long(in);
     }

@@ -70,7 +70,7 @@ int ProbeNoJoinAutomata::ProcessPacket(const packet_info *in_info) {
                 char atext[STATUS_MAX];
                 snprintf(atext, STATUS_MAX, "Suspicious client %s - probing networks but never participating.",
                          iter->first.Mac2String().c_str());
-                atracker->RaiseAlert(alertid, atext);
+                atracker->RaiseAlert(alertid, 0, iter->first, 0, 0, atext);
             }
 
         }
@@ -158,7 +158,7 @@ int DisassocTrafficAutomata::ProcessPacket(const packet_info *in_info) {
 
             snprintf(atext, STATUS_MAX, "Suspicious traffic on %s.  Data traffic within 10 seconds of disassociate.",
                      in_info->source_mac.Mac2String().c_str());
-            atracker->RaiseAlert(alertid, atext);
+            atracker->RaiseAlert(alertid, in_info->bssid_mac, in_info->source_mac, 0, 0, atext);
 
             return 1;
         } else {
@@ -211,7 +211,7 @@ int BssTimestampAutomata::ProcessPacket(const packet_info *in_info) {
                      "- got %llx, expected %llx - this could indicate AP spoofing",
                      in_info->bssid_mac.Mac2String().c_str(), in_info->timestamp,
                      elem->bss_timestamp);
-            atracker->RaiseAlert(alertid, atext);
+            atracker->RaiseAlert(alertid, in_info->bssid_mac, 0, 0, 0, atext);
 
             // Reset so we don't keep thrashing here
             elem->counter = 0;
