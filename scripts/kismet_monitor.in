@@ -199,13 +199,13 @@ case "$CARDTYPE" in
 		WSPPORT=`echo $DEVICE | cut -f 2 -d:`;
 
 		# sensor::loghostaddress
-		snmpset $WSPDEVICE public .1.3.6.1.4.1.14422.1.1.5 a $HOSTIP
+		snmpset -c public $WSPDEVICE .1.3.6.1.4.1.14422.1.1.5 a $HOSTIP
 		# sensor::channel
-		snmpset $WSPDEVICE public .1.3.6.1.4.1.14422.1.3.1 i $CHANNEL
+		snmpset -c public $WSPDEVICE .1.3.6.1.4.1.14422.1.3.1 i $CHANNEL
 		# sensor::serverport
-		snmpset $WSPDEVICE public .1.3.6.1.4.1.14422.1.4.1 i $WSPPORT
+		snmpset -c public $WSPDEVICE .1.3.6.1.4.1.14422.1.4.1 i $WSPPORT
 		# sensor::running
-		snmpset $WSPDEVICE public .1.3.6.1.4.1.14422.1.1.4 i 1
+		snmpset -c public $WSPDEVICE .1.3.6.1.4.1.14422.1.1.4 i 1
 		;;
 	*)
 		echo "Unknown card type '$CARDTYPE'.  Doing nothing."
