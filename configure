@@ -5624,12 +5624,6 @@ else
   wantpcap=yes
 fi;
 
-if test "$darwin" = yes; then
-	{ echo "$as_me:$LINENO: WARNING: *** Disabling pcap because we're building under OSX. ***" >&5
-echo "$as_me: WARNING: *** Disabling pcap because we're building under OSX. ***" >&2;};
-	wantpcap=no;
-fi
-
 
 
 if test $wantpcap = yes; then
@@ -6080,7 +6074,15 @@ fi
 subdirs="$subdirs $pcapdir"
 
 
-		pcaplib="$pcapdir/libpcap.a"
+		if test "$darwin" = yes; then
+			pcaplib=""
+			pcaplnk="-L$pcapdir -lpcap"
+		else
+			pcaplib="$pcapdir/libpcap.a"
+			pcaplnk=""
+		fi
+
+
 
 
 		CPPFLAGS="$CPPFLAGS -I$pcapdir"
