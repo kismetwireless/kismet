@@ -161,6 +161,9 @@ void Frontend::UpdateGroups() {
         dnet->virtnet.maxrate = 0;
         dnet->virtnet.quality = dnet->virtnet.signal = dnet->virtnet.noise = 0;
 
+        dnet->virtnet.aggregate_lat = dnet->virtnet.aggregate_lon = dnet->virtnet.aggregate_alt = 0;
+        dnet->virtnet.aggregate_points = 0;
+
         memcpy(dnet->virtnet.bssid_raw, dnet->networks[0]->bssid_raw, MAC_LEN);
         unsigned int bssid_matched = MAC_LEN;
 
@@ -193,6 +196,14 @@ void Frontend::UpdateGroups() {
                     dnet->virtnet.quality = wnet->quality;
                     dnet->virtnet.noise = wnet->noise;
                 }
+            }
+
+            // Aggregate the GPS data
+            if (wnet->aggregate_points > 0) {
+                dnet->virtnet.aggregate_lat += wnet->aggregate_lat;
+                dnet->virtnet.aggregate_lon += wnet->aggregate_lon;
+                dnet->virtnet.aggregate_alt += wnet->aggregate_alt;
+                dnet->virtnet.aggregate_points += wnet->aggregate_points;
             }
 
             // Aggregate the packets

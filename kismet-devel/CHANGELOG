@@ -1,3 +1,5 @@
+Jul 24 2002  2.5    Added network/group center calculations and distance/
+                     bearing to network center to panels ('f').
 Jul 22 2002  2.5    Fixed manuf count bug
                     Added velocity option for kismet_hopper (-v) to change
                      the rate of channel skipping.

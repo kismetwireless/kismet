@@ -48,7 +48,7 @@ string Packetracker::Net2String(wireless_network *in_net) {
 
     snprintf(output, 2048, "%s %d \001%s\001 \001%s\001 %d %d %d %d %d %d %d %d %d "
              "%d.%d.%d.%d %d.%d.%d.%d %d.%d.%d.%d %d %f %f %f %f %f %f %f %f %d %d %d %2.1f "
-             "%d %d %d %d %d",
+             "%d %d %d %d %d %A %A %A %ld",
              in_net->bssid.size() > 0 ? in_net->bssid.c_str() : "\002",
              (int) in_net->type,
              in_net->ssid.size() > 0 ? in_net->ssid.c_str() : "\002",
@@ -74,7 +74,10 @@ string Packetracker::Net2String(wireless_network *in_net) {
 
              in_net->manuf_id, in_net->manuf_score,
 	     
-	     in_net->quality, in_net->signal, in_net->noise);
+             in_net->quality, in_net->signal, in_net->noise,
+
+             in_net->aggregate_lat, in_net->aggregate_lon, in_net->aggregate_alt,
+             in_net->aggregate_points);
 
     ret = output;
 
@@ -253,6 +256,11 @@ int Packetracker::ProcessPacket(packet_info info, char *in_status) {
                 net->min_lon = net->max_lon = lon;
                 net->min_alt = net->max_alt = alt;
                 net->min_spd = net->max_spd = spd;
+
+                net->aggregate_lat = lat;
+                net->aggregate_lon = lon;
+                net->aggregate_alt = alt;
+                net->aggregate_points = 1;
             }
 
         }
@@ -287,6 +295,11 @@ int Packetracker::ProcessPacket(packet_info info, char *in_status) {
         gps->FetchLoc(&lat, &lon, &alt, &spd, &fix);
 
         if (fix > 1) {
+            net->aggregate_lat += lat;
+            net->aggregate_lon += lon;
+            net->aggregate_alt += alt;
+            net->aggregate_points += 1;
+
             net->gps_fixed = fix;
 
             if (lat < net->min_lat || net->min_lat == 0)

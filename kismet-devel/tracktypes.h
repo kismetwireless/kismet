@@ -78,6 +78,9 @@ typedef struct wireless_network {
         min_lat = min_lon = min_alt = min_spd = 0;
         max_lat = max_lon = max_alt = max_spd = 0;
 
+        aggregate_lat = aggregate_lon = aggregate_alt = 0;
+        aggregate_points = 0;
+
         maxrate = 0;
 
         metric = 0;
@@ -140,6 +143,10 @@ typedef struct wireless_network {
     int gps_fixed;
     float min_lat, min_lon, min_alt, min_spd;
     float max_lat, max_lon, max_alt, max_spd;
+
+    // Averaged center position
+    double aggregate_lat, aggregate_lon, aggregate_alt;
+    long aggregate_points;
 
     // How fast we can go
     double maxrate;

@@ -27,6 +27,7 @@ char *KismetHelpText[] = {
     "   r   Packet rate graph",
     "   a   Statistics",
     "   p   Dump packet type",
+    "   f   Follow network center",
     "   x   Close popup window",
     "",
     "   Q   Quit",
@@ -54,6 +55,7 @@ char *KismetHelpTextNarrow[] = {
     "   r   Packet rate graph",
     "   a   Statistics",
     "   p   Dump packet type",
+    "   f   Follow network",
     "   x   Close popup window",
     "",
     "   q   Quit",
@@ -114,6 +116,16 @@ char *KismetHelpRate[] = {
     "KISMET PACKET RATE",
     "This panel displays a moving graph of the rate at which",
     "packets are seen.  The graph covers the last 5 minutes.",
+    " Key   Action",
+    "  q    Close popup",
+    NULL
+};
+
+char *KismetHelpGps[] = {
+    "KISMET NETWORK FOLLOW",
+    "This panel estimates the center of a network, the current",
+    "direction of travel, and the direction of the network center",
+    "and distance relative to the current direction of movement.",
     " Key   Action",
     "  q    Close popup",
     NULL
@@ -196,6 +208,11 @@ PanelFront::PanelFront() {
         packet_history.push_back(0);
 
     max_packet_rate = 0;
+
+    lat = lon = alt = spd = 0;
+    fix = 0;
+    last_lat = last_lon = last_alt = last_spd = 0;
+    last_fix = 0;
 
 }
 
@@ -634,6 +651,7 @@ void PanelFront::SpawnWindow(string in_title, panel_printer in_print, key_handle
     kwin->end = 0;
     kwin->selected = 0;
     kwin->paused = 0;
+    kwin->scrollable = 0;
 
     if (in_x == -1 || in_x + 2 > LINES)
         if (LINES < 10) {
@@ -772,6 +790,12 @@ int PanelFront::Poll() {
         DestroyWindow(cur_window);
 
     cur_window = window_list.back();
+
+    last_lat = lat; last_lon = lon;
+    last_spd = spd; last_alt = alt;
+    last_fix = fix;
+
+    client->FetchLoc(&lat, &lon, &alt, &spd, &fix);
 
     DrawDisplay();
 
@@ -1147,28 +1171,30 @@ int PanelFront::MainNetworkPrinter(void *in_window) {
 #ifdef HAVE_GPS
     char gpsdata[80];
 //    if (gps != NULL) {
-    float lat, lon, alt, spd;
+    /*
+     float lat, lon, alt, spd;
     int mode;
 
     client->FetchLoc(&lat, &lon, &alt, &spd, &mode);
+    */
 
-    if (!(lat == 0 && lon == 0 && alt == 0 && spd == 0 && mode == 0)) {
+    if (!(lat == 0 && lon == 0 && alt == 0 && spd == 0 && fix == 0)) {
 
-        char fix[16];
+        char fixstr[16];
 
         if (metric) {
             alt = alt / 3.3;
             spd = spd * 1.6093;
         }
 
-        if (mode == -1)
-            snprintf(fix, 16, "No signal");
-        else if (mode == 2)
-            snprintf(fix, 5, "2D");
-        else if (mode == 3)
-            snprintf(fix, 5, "3D");
+        if (fix == -1)
+            snprintf(fixstr, 16, "No signal");
+        else if (fix == 2)
+            snprintf(fixstr, 5, "2D");
+        else if (fix == 3)
+            snprintf(fixstr, 5, "3D");
         else
-            snprintf(fix, 5, "NONE");
+            snprintf(fixstr, 5, "NONE");
 
         // Convert if we're less than a mile/hr or kilom/hr
         int spdslow = 0;
@@ -1185,7 +1211,7 @@ int PanelFront::MainNetworkPrinter(void *in_window) {
                  metric ? 'm' : 'f',
                  spd,
                  spdslow ? (metric ? "m/h" : "f/s") : (metric ? "km/h" : "m/h"),
-                 fix);
+                 fixstr);
 
         if (color)
             wattrset(kwin->win, color_map["monitor"].pair);
@@ -1329,12 +1355,14 @@ int PanelFront::TextPrinter(void *in_window) {
 
     kwin->end = x+kwin->start;
 
-    if (kwin->start != 0) {
-        mvwaddstr(kwin->win, 0, kwin->win->_maxx - 10, "(-) Up");
-    }
+    if (kwin->scrollable) {
+        if (kwin->start != 0) {
+            mvwaddstr(kwin->win, 0, kwin->win->_maxx - 10, "(-) Up");
+        }
 
-    if (kwin->end < (int) (kwin->text.size() - 1)) {
-        mvwaddstr(kwin->win, kwin->win->_maxy, kwin->win->_maxx - 10, "(+) Down");
+        if (kwin->end < (int) (kwin->text.size() - 1)) {
+            mvwaddstr(kwin->win, kwin->win->_maxy, kwin->win->_maxx - 10, "(+) Down");
+        }
     }
 
     return 1;
@@ -1431,6 +1459,8 @@ int PanelFront::PowerPrinter(void *in_window) {
 // Details
 int PanelFront::DetailsPrinter(void *in_window) {
     kis_window *kwin = (kis_window *) in_window;
+
+    kwin->scrollable = 1;
 
     char output[1024];
     kwin->text.clear();
@@ -1600,7 +1630,7 @@ int PanelFront::DetailsPrinter(void *in_window) {
 
             if (metric) {
                 if (diagdist < 1000)
-                    snprintf(output, print_width, "Range   : %f meters", diagdist);
+                    snprintf(output, print_width, "Range    : %f meters", diagdist);
                 else
                     snprintf(output, print_width, "Range   : %f kilometers", diagdist / 1000);
             } else {
@@ -1615,6 +1645,176 @@ int PanelFront::DetailsPrinter(void *in_window) {
     }
 
     // Now we just use the text printer to handle the rest for us
+
+    return TextPrinter(in_window);
+}
+
+int PanelFront::GpsPrinter(void *in_window) {
+    kis_window *kwin = (kis_window *) in_window;
+
+    char output[1024];
+    kwin->text.clear();
+
+    wireless_network dnet = details_network->virtnet;
+
+    int print_width = kwin->print_width;
+    if (print_width > 1024)
+        print_width = 1024;
+
+    if (print_width < 32) {
+        kwin->text.push_back("Display not wide enough");
+        return TextPrinter(in_window);
+    }
+
+    if (dnet.aggregate_points == 0) {
+        kwin->text.push_back("No GPS data.");
+        return TextPrinter(in_window);
+    }
+
+    float center_lat = dnet.aggregate_lat / dnet.aggregate_points;
+    float center_lon = dnet.aggregate_lon / dnet.aggregate_points;
+
+    // Try to calculate the bearing and distance to the estimated center
+    // Liberally stolen from gpsdrive - math is scary! >:P
+
+    float R = CalcRad(lat);
+
+    float tx = (2 * R * M_PI / 360) * cos(M_PI * lat / 180.0) * (last_lon - lon);
+    float ty = (2 * R * M_PI / 360) * (last_lat - lat);
+
+    float base_angle = atan(tx/ty);
+    if (finite(base_angle)) {
+        if (ty < 0)
+            base_angle += M_PI;
+        if (base_angle >= (2 * M_PI))
+            base_angle -= 2 * M_PI;
+        if (base_angle < 0)
+            base_angle += 2 * M_PI;
+        base_angle = base_angle * 180 / M_PI;
+    } else {
+        base_angle = 0;
+    }
+
+    tx = (2 * R * M_PI / 360) * cos(M_PI * lat / 180.0) * (center_lon - lon);
+    ty = (2 * R * M_PI / 360) * (center_lat - lat);
+    float center_angle = atan(tx/ty);
+    if (finite(center_angle)) {
+        if (ty < 0)
+            center_angle += M_PI;
+        if (center_angle >= (2 * M_PI))
+            center_angle -= 2 * M_PI;
+        if (center_angle < 0)
+            center_angle += 2 * M_PI;
+        center_angle = center_angle * 180 / M_PI;
+    } else {
+        center_angle = 0;
+    }
+
+    float difference_angle = base_angle - center_angle;
+    if (difference_angle < 0)
+        difference_angle += 360;
+
+    double diagdist = EarthDistance(lat, lon, center_lat, center_lon);
+
+    // Now we know everything - where we are, where we are headed, where we SHOULD be headed
+    // to get to the supposed center of the network, how far it is, and the orientation on our
+    // compass to get to it.  Time to start drawing our output.
+
+    char compass[7][10];
+    memset(compass, 0, sizeof(char) * 7 * 10);
+
+    // Find the orientation on our compass:
+    if (difference_angle > 330 && difference_angle <= 22) {
+        snprintf(compass[0], 10, "    |    ");
+        snprintf(compass[1], 10, "    |    ");
+        snprintf(compass[2], 10, "    |    ");
+        snprintf(compass[3], 10, "    O    ");
+    } else if (difference_angle > 22 && difference_angle <= 66) {
+        snprintf(compass[0], 10, "       / ");
+        snprintf(compass[1], 10, "      /  ");
+        snprintf(compass[2], 10, "     /   ");
+        snprintf(compass[3], 10, "    O    ");
+    } else if (difference_angle > 66 && difference_angle <= 110) {
+        snprintf(compass[3], 10, "    O----");
+    } else if (difference_angle > 110 && difference_angle <= 154) {
+        snprintf(compass[3], 10, "    O    ");
+        snprintf(compass[4], 10, "     \\   ");
+        snprintf(compass[5], 10, "      \\  ");
+        snprintf(compass[6], 10, "       \\ ");
+    } else if (difference_angle > 154 && difference_angle <= 198) {
+        snprintf(compass[3], 10, "    O    ");
+        snprintf(compass[4], 10, "    |    ");
+        snprintf(compass[5], 10, "    |    ");
+        snprintf(compass[6], 10, "    |    ");
+    } else if (difference_angle > 198 && difference_angle <= 242) {
+        snprintf(compass[3], 10, "    O    ");
+        snprintf(compass[4], 10, "   /     ");
+        snprintf(compass[5], 10, "  /      ");
+        snprintf(compass[6], 10, " /       ");
+    } else if (difference_angle > 242 && difference_angle <= 286) {
+        snprintf(compass[3], 10, "----O    ");
+    } else if (difference_angle > 286 && difference_angle <= 330) {
+        snprintf(compass[0], 10, " \\       ");
+        snprintf(compass[1], 10, "  \\      ");
+        snprintf(compass[2], 10, "   \\     ");
+        snprintf(compass[3], 10, "    O    ");
+    }
+
+    // - Network GPS ---------------------|
+    // | Current:               \     /   |
+    // |  41.12345x-74.12345     \   /    |
+    // | Bearing:                 \ /     |
+    // |  123.23 degrees       ----O----  |
+    // |                           |\     |
+    // | Estimated center:         | \    |
+    // | -73.12345x43.12345        |  \   |
+    // |                        120 feet  |
+    // ------------------------------------
+    char textfrag[23];
+
+    snprintf(textfrag, 23, "Current:");
+    snprintf(output, print_width, "%-22s%s", textfrag, compass[0]);
+    kwin->text.push_back(output);
+
+    snprintf(textfrag, 23, "%.3fx%.3f", lat, lon);
+    snprintf(output, print_width, "%-22s%s", textfrag, compass[1]);
+    kwin->text.push_back(output);
+
+    snprintf(textfrag, 23, " Bearing:");
+    snprintf(output, print_width, "%-22s%s", textfrag, compass[2]);
+    kwin->text.push_back(output);
+
+    snprintf(textfrag, 23, " %.2f degrees", base_angle);
+    snprintf(output, print_width, "%-22s%s", textfrag, compass[3]);
+    kwin->text.push_back(output);
+
+    snprintf(textfrag, 23, " ");
+    snprintf(output, print_width, "%-22s%s", textfrag, compass[4]);
+    kwin->text.push_back(output);
+
+    snprintf(textfrag, 23, "Estimated Center:");
+    snprintf(output, print_width, "%-22s%s", textfrag, compass[5]);
+    kwin->text.push_back(output);
+
+    snprintf(textfrag, 23, "%.3fx%.3f", center_lat, center_lon);
+    snprintf(output, print_width, "%-22s%s", textfrag, compass[6]);
+    kwin->text.push_back(output);
+
+    if (metric) {
+        if (diagdist < 1000)
+            snprintf(textfrag, 23, "%.2f m", diagdist);
+        else
+            snprintf(textfrag, 23, "%.2f km", diagdist / 1000);
+    } else {
+        diagdist *= 3.3;
+        if (diagdist < 5280)
+            snprintf(textfrag, 23, "%.2f ft", diagdist);
+        else
+            snprintf(textfrag, 23, "%.2f mi", diagdist / 5280);
+    }
+
+    snprintf(output, print_width, "%-22s%s", "", textfrag);
+    kwin->text.push_back(output);
 
     return TextPrinter(in_window);
 }
@@ -1911,6 +2111,8 @@ int PanelFront::GroupNamePrinter(void *in_window) {
 
 int PanelFront::StatsPrinter(void *in_window) {
     kis_window *kwin = (kis_window *) in_window;
+
+    kwin->scrollable = 1;
 
     vector<string> details_text;
     char output[1024];
@@ -2287,6 +2489,15 @@ int PanelFront::MainInput(void *in_window, int in_chr) {
 
         SpawnWindow("Packet Types", &PanelFront::PackPrinter, &PanelFront::PackInput);
         break;
+    case 'f':
+    case 'F':
+        if (sortby != sort_auto && last_displayed.size() > 0) {
+            details_network = last_displayed[kwin->selected];
+            SpawnWindow("Network Location", &PanelFront::GpsPrinter, &PanelFront::GpsInput, 8, 34);
+        } else {
+            WriteStatus("Cannot view network GPS info in autofit sort mode.");
+        }
+        break;
     case 'm':
     case 'M':
         MuteToggle();
@@ -2479,6 +2690,23 @@ int PanelFront::PowerInput(void *in_window, int in_chr) {
     case 'h':
     case 'H':
         SpawnHelp(KismetHelpPower);
+        break;
+    case 'x':
+    case 'X':
+    case 'q':
+    case 'Q':
+        return 0;
+        break;
+    }
+
+    return 1;
+}
+
+int PanelFront::GpsInput(void *in_window, int in_chr) {
+    switch (in_chr) {
+    case 'h':
+    case 'H':
+        SpawnHelp(KismetHelpGps);
         break;
     case 'x':
     case 'X':

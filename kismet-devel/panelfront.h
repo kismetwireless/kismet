@@ -98,6 +98,8 @@ protected:
         int print_width;
         // Paused
         int paused;
+        // Are we scrollable?
+        int scrollable;
 
         // Text, if we store it seperately
         vector<string> text;
@@ -123,6 +125,7 @@ protected:
     int RatePrinter(void *in_window);
     int StatsPrinter(void *in_window);
     int PackPrinter(void *in_window);
+    int GpsPrinter(void *in_window);
 
     // Keyboard handlers
     int MainInput(void *in_window, int in_chr);
@@ -136,6 +139,7 @@ protected:
     int PackInput(void *in_window, int in_chr);
     // Help has a generic handler
     int TextInput(void *in_window, int in_chr);
+    int GpsInput(void *in_window, int in_chr);
 
     // Spawn a generic popup
     void SpawnWindow(string in_title, panel_printer in_print, key_handler in_input,
@@ -191,6 +195,11 @@ protected:
     int muted;
 
     vector<int> packet_history;
+
+    float lat, lon, spd, alt;
+    int fix;
+    float last_lat, last_lon, last_spd, last_alt;
+    int last_fix;
 
     // Size of the group vec the last time we drew it
     int last_draw_size;
