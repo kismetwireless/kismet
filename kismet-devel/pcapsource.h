@@ -49,6 +49,10 @@ extern "C" {
 // The BSD datalink that doesn't report a sane value
 #define KDLT_BSD802_11 -100
 
+#ifndef DLT_IEEE802_11_RADIO
+#define	DLT_IEEE802_11_RADIO	127	/* 802.11 plus WLAN header */
+#endif
+
 // Generic pcapsource
 class PcapSource : public KisPacketSource {
 public:
@@ -138,6 +142,10 @@ protected:
     int Prism2KisPack(kis_packet *packet, uint8_t *data, uint8_t *moddata);
     // Mangle a BSD header
     int BSD2KisPack(kis_packet *packet, uint8_t *data, uint8_t *moddata);
+    // Mangle a radiotap header
+#ifdef HAVE_RADIOTAP
+    int Radiotap2KisPack(kis_packet *packet, uint8_t *data, uint8_t *moddata);
+#endif
     
     pcap_t *pd;
     int datalink_type;
@@ -206,6 +214,42 @@ public:
 };
 #endif
 
+#if (defined(SYS_FREEBSD) && defined(HAVE_RADIOTAP))
+class FreeBSD {
+public:
+    FreeBSD(const char *ifname);
+    virtual ~FreeBSD();
+
+    const char *geterror() const;
+
+    bool monitor_enable(int initch);
+    bool monitor_reset(int initch);
+    bool chancontrol(int in_ch);
+
+    bool setmediaopt(int options, int mode);
+    bool setifflags(int value);
+    bool get80211(int type, int *val, int len, u_int8_t *data);
+    bool set80211(int type, int val, int len, u_int8_t *data);
+private:
+    void perror(const char *, ...);
+    void seterror(const char *, ...);
+    bool checksocket();
+
+    int s;
+    char errstr[256];
+    char ifname[80];
+};
+#endif
+
+#ifdef HAVE_RADIOTAP
+class PcapSourceRadiotap : public PcapSource {
+public:
+    PcapSourceRadiotap(string in_name, string in_dev) :
+        PcapSource(in_name, in_dev) { }
+    int FetchChannel();
+};
+#endif
+
 // ----------------------------------------------------------------------------
 // Registrant and control functions
 KisPacketSource *pcapsource_registrant(string in_name, string in_device,
@@ -233,6 +277,11 @@ KisPacketSource *pcapsource_wrt54g_registrant(string in_name, string in_device,
 #ifdef SYS_OPENBSD
 KisPacketSource *pcapsource_openbsdprism2_registrant(string in_name, string in_device,
                                                      char *in_err);
+#endif
+
+#ifdef HAVE_RADIOTAP
+KisPacketSource *pcapsource_radiotap_registrant(string in_name, string in_device,
+                                                char *in_err);
 #endif
 
 // Monitor activation
@@ -303,6 +352,12 @@ int chancontrol_wlanng_avs(const char *in_dev, int in_ch, char *in_err, void *in
 // openbsd prism2 controls
 int chancontrol_openbsd_prism2(const char *in_dev, int in_ch, char *in_err, 
                                void *in_ext);
+#endif
+
+#if (defined(SYS_FREEBSD) && defined(HAVE_RADIOTAP))
+int monitor_freebsd(const char *in_dev, int initch, char *in_err);
+int unmonitor_freebsd(const char *in_dev, int initch, char *in_err);
+int chancontrol_freebsd(const char *in_dev, int in_ch, char *in_err, void *in_ext);
 #endif
 
 

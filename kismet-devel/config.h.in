@@ -81,6 +81,9 @@
 /* pthread threading library */
 #undef HAVE_PTHREAD
 
+/* radiotap packet headers */
+#undef HAVE_RADIOTAP
+
 /* Define to 1 if you have the `select' function. */
 #undef HAVE_SELECT
 
