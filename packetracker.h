@@ -92,7 +92,7 @@ public:
     int FetchNumCisco() { return num_cisco; }
 
     static string Net2String(wireless_network *in_net);
-    static string Client2String(wireless_client *in_client);
+    static string Client2String(wireless_network *in_net, wireless_client *in_client);
     static string CDP2String(cdp_packet *in_cdp);
     static string Packet2String(const packet_info *in_info);
 

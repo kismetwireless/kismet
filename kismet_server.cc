@@ -307,6 +307,12 @@ void NetWriteInfo() {
         if (tracked[x]->bssid.size() <= 0)
             continue;
 
+        for (map<string, wireless_client *>::const_iterator y = tracked[x]->client_map.begin();
+             y != tracked[x]->client_map.end(); ++y) {
+            snprintf(output, 2048, "*CLIENT: %.2000s\n", Packetracker::Client2String(tracked[x], y->second).c_str());
+            ui_server.SendToAll(output);
+        }
+
         for (map<string, cdp_packet>::const_iterator y = tracked[x]->cisco_equip.begin();
              y != tracked[x]->cisco_equip.end(); ++y) {
 
@@ -564,6 +570,12 @@ void NetWriteNew(int in_fd) {
         // last_time address_type range_ip mask
         // lat lon alt spd fix firstlat firstlon firstalt firstspd firstfix
         ui_server.SendToAll(output);
+
+        for (map<string, wireless_client *>::const_iterator y = tracked[x]->client_map.begin();
+             y != tracked[x]->client_map.end(); ++y) {
+            snprintf(output, 2048, "*CLIENT: %.2000s\n", Packetracker::Client2String(tracked[x], y->second).c_str());
+            ui_server.SendToAll(output);
+        }
 
         if (tracked[x]->bssid.size() <= 0)
             continue;

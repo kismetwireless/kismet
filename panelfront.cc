@@ -688,7 +688,7 @@ int PanelFront::Tick() {
 #ifndef HAVE_ACPI
         // Lifted from gkrellm's battery monitor
         FILE *apm;
-        int ac_line_status, battery_status, flag, percentage, time;
+        int ac_line_status, battery_status, flag, percentage, apm_time;
         char units[32];
 
         if ((apm = fopen("/proc/apm", "r")) == NULL) {
@@ -702,7 +702,7 @@ int PanelFront::Tick() {
             fclose(apm);
 
             sscanf(buf, "%*s %*d.%*d %*x %x %x %x %d%% %d %s\n", &ac_line_status,
-                   &battery_status, &flag, &percentage, &time, units);
+                   &battery_status, &flag, &percentage, &apm_time, units);
 
             if ((flag & 0x80) == 0 && battery_status != 0xFF)
                 bat_available = 1;
@@ -720,7 +720,11 @@ int PanelFront::Tick() {
                 bat_charging = 0;
 
             bat_percentage = percentage;
-            bat_time = time;
+
+            if (apm_time == -1)
+                bat_time = 0;
+            else
+                bat_time = apm_time;
 
             if (!strncmp(units, "min", 32))
                 bat_time *= 60;
@@ -759,8 +763,7 @@ int PanelFront::Tick() {
                 bat_time = int((float(bat_full_capacity - remain) / rate) * 3600);
             else
                 bat_time = int((float(remain) / rate) * 3600);
-        }
-        else {
+        } else {
             bat_ac = 0;
             bat_percentage = 0;
             bat_time = 0;
