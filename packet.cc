@@ -236,8 +236,21 @@ void GetPacketInfo(kis_packet *packet, packet_parm *parm, packet_info *ret_packi
             ret_packinfo->header_offset = 36;
             fixparm = (fixed_parameters *) packet->data + 24;
             ret_packinfo->wep = fixparm->wep;
-            ret_packinfo->ess = fixparm->ess;
+
+            // Pull the fixparm ibss info
+            if (fixparm->ess == 0 && fixparm->ibss == 0)
+                ret_packinfo->distrib = adhoc_distribution;
         }
+
+        // Assign the direction this packet is going in
+        if ((fc->to_ds == 0 && fc->from_ds == 0) || ret_packinfo->distrib == adhoc_distribution)
+            ret_packinfo->distrib = adhoc_distribution;
+        else if (fc->to_ds == 0 && fc->from_ds == 1)
+            ret_packinfo->distrib = from_distribution;
+        else if (fc->to_ds == 1 && fc->from_ds == 0)
+            ret_packinfo->distrib = to_distribution;
+        else if (fc->to_ds == 1 && fc->from_ds == 1)
+            ret_packinfo->distrib = inter_distribution;
 
         map<int, int> tag_cache_map;
 
@@ -281,16 +294,12 @@ void GetPacketInfo(kis_packet *packet, packet_parm *parm, packet_info *ret_packi
             ret_packinfo->source_mac = addr1;
             ret_packinfo->bssid_mac = addr2;
 
-            ret_packinfo->distrib = to_distribution;
-
         } else if (fc->subtype == 1) {
             ret_packinfo->subtype = packet_sub_association_resp;
 
             ret_packinfo->dest_mac = addr0;
             ret_packinfo->source_mac = addr1;
             ret_packinfo->bssid_mac = addr2;
-
-            ret_packinfo->distrib = from_distribution;
 
         } else if (fc->subtype == 2) {
             ret_packinfo->subtype = packet_sub_reassociation_req;
@@ -299,8 +308,6 @@ void GetPacketInfo(kis_packet *packet, packet_parm *parm, packet_info *ret_packi
             ret_packinfo->source_mac = addr1;
             ret_packinfo->bssid_mac = addr2;
 
-            ret_packinfo->distrib = to_distribution;
-
         } else if (fc->subtype == 3) {
             ret_packinfo->subtype = packet_sub_reassociation_resp;
 
@@ -308,15 +315,11 @@ void GetPacketInfo(kis_packet *packet, packet_parm *parm, packet_info *ret_packi
             ret_packinfo->source_mac = addr1;
             ret_packinfo->bssid_mac = addr2;
 
-            ret_packinfo->distrib = from_distribution;
-
         } else if (fc->subtype == 4) {
             ret_packinfo->subtype = packet_sub_probe_req;
 
             ret_packinfo->source_mac = addr1;
             ret_packinfo->bssid_mac = addr1;
-
-            ret_packinfo->distrib = to_distribution;
 
             // Catch wellenreiter probes
             if (!strncmp(ret_packinfo->ssid, "this_is_used_for_wellenreiter", 32)) {
@@ -330,13 +333,14 @@ void GetPacketInfo(kis_packet *packet, packet_parm *parm, packet_info *ret_packi
             ret_packinfo->source_mac = addr1;
             ret_packinfo->bssid_mac = addr2;
 
-            ret_packinfo->distrib = from_distribution;
-
+            /*
             if (ret_packinfo->ess == 0) {
-                // Weird adhoc beacon where the BSSID isn't 'right' so we use the source instead.
+                // A lot of cards seem to rotate through adhoc BSSID's, so we use the source
+                // instead
                 ret_packinfo->bssid_mac = ret_packinfo->source_mac;
                 ret_packinfo->distrib = adhoc_distribution;
-            }
+                }
+                */
 
         } else if (fc->subtype == 8) {
             ret_packinfo->subtype = packet_sub_beacon;
@@ -358,13 +362,13 @@ void GetPacketInfo(kis_packet *packet, packet_parm *parm, packet_info *ret_packi
             ret_packinfo->source_mac = addr1;
             ret_packinfo->bssid_mac = addr2;
 
-            ret_packinfo->distrib = from_distribution;
-
+            /*
             if (ret_packinfo->ess == 0) {
                 // Weird adhoc beacon where the BSSID isn't 'right' so we use the source instead.
                 ret_packinfo->bssid_mac = ret_packinfo->source_mac;
                 ret_packinfo->distrib = adhoc_distribution;
-            }
+                }
+                */
         } else if (fc->subtype == 9) {
             // I'm not positive this is the right handling of atim packets.  Do something
             // smarter in the future
@@ -383,8 +387,6 @@ void GetPacketInfo(kis_packet *packet, packet_parm *parm, packet_info *ret_packi
             ret_packinfo->source_mac = addr1;
             ret_packinfo->bssid_mac = addr2;
 
-            ret_packinfo->distrib = from_distribution;
-
             uint16_t rcode;
             memcpy(&rcode, (const char *) &packet->data[24], 2);
 
@@ -397,8 +399,6 @@ void GetPacketInfo(kis_packet *packet, packet_parm *parm, packet_info *ret_packi
             ret_packinfo->source_mac = addr1;
             ret_packinfo->bssid_mac = addr2;
 
-            ret_packinfo->distrib = from_distribution;
-
             uint16_t rcode;
             memcpy(&rcode, (const char *) &packet->data[24], 2);
 
@@ -410,8 +410,6 @@ void GetPacketInfo(kis_packet *packet, packet_parm *parm, packet_info *ret_packi
             ret_packinfo->dest_mac = addr0;
             ret_packinfo->source_mac = addr1;
             ret_packinfo->bssid_mac = addr2;
-
-            ret_packinfo->distrib = from_distribution;
 
             uint16_t rcode;
             memcpy(&rcode, (const char *) &packet->data[24], 2);
@@ -451,44 +449,26 @@ void GetPacketInfo(kis_packet *packet, packet_parm *parm, packet_info *ret_packi
         ret_packinfo->type = packet_data;
 
         // Extract ID's
-        if (fc->to_ds == 0 && fc->from_ds == 0) {
-            // Adhoc's get specially typed and their BSSID is set to
-            // their source (I can't think of anything more reasonable
-            // to do with them)
+        switch (ret_packinfo->distrib) {
+        case adhoc_distribution:
             ret_packinfo->dest_mac = addr0;
             ret_packinfo->source_mac = addr1;
-            ret_packinfo->bssid_mac = addr1;
-
-            ret_packinfo->distrib = adhoc_distribution;
-
-            // First byte of offsets
+            ret_packinfo->bssid_mac = addr2;
             ret_packinfo->header_offset = 24;
-
-        } else if (fc->to_ds == 0 && fc->from_ds == 1) {
+            break;
+        case from_distribution:
             ret_packinfo->dest_mac = addr0;
             ret_packinfo->bssid_mac = addr1;
             ret_packinfo->source_mac = addr2;
-
-            ret_packinfo->distrib = from_distribution;
-
-            // First byte of offsets
             ret_packinfo->header_offset = 24;
-
-        } else if (fc->to_ds == 1 && fc->from_ds == 0) {
+            break;
+        case to_distribution:
             ret_packinfo->bssid_mac = addr0;
             ret_packinfo->source_mac = addr1;
             ret_packinfo->dest_mac = addr2;
-
-            ret_packinfo->distrib = to_distribution;
-
-            // First byte of offsets
             ret_packinfo->header_offset = 24;
-
-        } else if (fc->to_ds == 1 && fc->from_ds == 1) {
-            // AP->AP
-            // Source is a special offset to the source
-            // Dest is the reciever address
-
+            break;
+        case inter_distribution:
             // If we aren't long enough to hold a intra-ds packet, bail
             if (packet->len < 30) {
                 ret_packinfo->type = packet_noise;
@@ -503,6 +483,11 @@ void GetPacketInfo(kis_packet *packet, packet_parm *parm, packet_info *ret_packi
 
             // First byte of offsets
             ret_packinfo->header_offset = 30;
+            break;
+        default:
+            ret_packinfo->type = packet_noise;
+            return;
+            break;
         }
 
         // Detect encrypted frames
@@ -729,9 +714,6 @@ void GetProtoInfo(kis_packet *packet, packet_info *in_info) {
     // This isn't an 'else' because we want to try to handle it if it looked like a netstumbler
     // but wasn't.
     if (in_info->dest_mac == LOR_MAC) {
-        /* This gets confused with STP, so we just rely on that one multicast now. ||
-         (in_info->distrib == no_distribution && in_info->dest_mac[0] == 1)) {
-         */
         // First thing we do is see if the destination matches the multicast for
         // lucent outdoor routers, or if we're a multicast with no BSSID.  This should
         // be indicative of being a lucent outdoor router
