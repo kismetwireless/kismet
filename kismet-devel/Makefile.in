@@ -96,7 +96,7 @@ $(PCAPDIR)/libpcap.a:
 	@( cd $(PCAPDIR); $(MAKE); )
 
 Makefile: Makefile.in configure
-	@-./config.status --recheck
+	@-./config.status 
 	
 checkconfig:
 	@if test "`grep version= conf/kismet.conf | cut -f 2 -d=`" != "`grep version= $(ETC)/kismet.conf | cut -f 2 -d=`"; then \
