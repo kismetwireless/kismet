@@ -3,6 +3,7 @@ Jul 20 2002  2.4.5  Dropped 2.4.5 release from current development code.
 
 Jul 30 2002  2.5    Fixed window sizing on small screens and caught possible
                      segfaults.
+                    Added permissions to wav and config files (from debian)
 Jul 29 2002  2.5    Handled exception fds in sound and speech
                     Killed more minor memory leaks
                     Fixed memory offset on the ipmap loading, should fix the
