@@ -1331,6 +1331,24 @@ int PanelFront::DetailsPrinter(void *in_window) {
                 kwin->text.push_back(output);
             }
         }
+
+        if (details_network->virtnet->carrier_set & (1 << (int) carrier_80211b)) {
+            snprintf(output, print_width, "Carrier : IEEE 802.11b");
+            kwin->text.push_back(output);
+        }
+        if (details_network->virtnet->carrier_set & (1 << (int) carrier_80211a)) {
+            snprintf(output, print_width, "Carrier : IEEE 802.11a");
+            kwin->text.push_back(output);
+        }
+        if (details_network->virtnet->carrier_set & (1 << (int) carrier_80211g)) {
+            snprintf(output, print_width, "Carrier : IEEE 802.11g");
+            kwin->text.push_back(output);
+        }
+        if (details_network->virtnet->carrier_set & (1 << (int) carrier_80211)) {
+            snprintf(output, print_width, "Carrier : IEEE 802.11");
+            kwin->text.push_back(output);
+        }
+
     }
 
     kwin->text.push_back("");
@@ -1363,6 +1381,24 @@ int PanelFront::DetailsPrinter(void *in_window) {
 
         snprintf(output, print_width, "BSSID   : %s", dnet->bssid.Mac2String().c_str());
         kwin->text.push_back(output);
+
+        if (dnet->carrier_set & (1 << (int) carrier_80211b)) {
+            snprintf(output, print_width, "Carrier : IEEE 802.11b");
+            kwin->text.push_back(output);
+        }
+        if (dnet->carrier_set & (1 << (int) carrier_80211a)) {
+            snprintf(output, print_width, "Carrier : IEEE 802.11a");
+            kwin->text.push_back(output);
+        }
+        if (dnet->carrier_set & (1 << (int) carrier_80211g)) {
+            snprintf(output, print_width, "Carrier : IEEE 802.11g");
+            kwin->text.push_back(output);
+        }
+        if (dnet->carrier_set & (1 << (int) carrier_80211)) {
+            snprintf(output, print_width, "Carrier : IEEE 802.11");
+            kwin->text.push_back(output);
+        }
+
 
         map<mac_addr, manuf *>::const_iterator mitr;
         int found = 0;

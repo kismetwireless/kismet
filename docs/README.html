@@ -4,7 +4,7 @@
 </head>
 <body>
 
-<b>KISMET 2.8.0</b><br>
+<b>KISMET 2.9.0</b><br>
 Mike Kershaw &lt;dragorn@kismetwireless.net&gt;<br>
 http://www.kismetwireless.net<br>
 Licensed under the GPL<br>
@@ -29,6 +29,7 @@ Licensed under the GPL<br>
 	<li>orinoco
 	<li>wsp100
 	<li>wtapfile
+	<li>ar5k
 	</ol>
 <li>GPS Support
 <li>Compiling
@@ -42,17 +43,17 @@ Licensed under the GPL<br>
 <ol>
 <li>WHAT IS KISMET
 <br>
-Kismet is a 802.11b wireless network sniffer - this is different from a normal network 
+Kismet is a 802.11 wireless network sniffer - this is different from a normal network 
 sniffer (such as Ethereal or tcpdump) because it separates and identifies different
-wireless networks in the area.  Kismet works with any wireless card which is capable of
+wireless networks in the area.  Kismet works with any 802.11b wireless card which is capable of
 reporting raw packets (rfmon support), which include any prism2 based card (Linksys,
 D-Link, Rangelan, etc), Cisco Aironet cards, and Orinoco based cards.  Kismet also
-supports the WSP100 remote sensor by Network Chemistry.
+supports the WSP100 remote sensor by Network Chemistry.  Kismet is also able to sniff
+802.11a networks using ar5k cards.
 <br>
 <li>FEATURES
 <br>
 <ul>
-<li>Multiple packet sources
 <li>Channel hopping
 <li>IP block detection
 <li>Cisco product detection via CDP
@@ -68,6 +69,7 @@ supports the WSP100 remote sensor by Network Chemistry.
 <li>Detection of Netstumbler clients
 <li>Runtime decoding of WEP packets
 <li>Multiplexing of multiple capture sources
+<li>802.11b and 802.11a sniffing abilities
 </ul>
 <br>
 
@@ -294,6 +296,16 @@ and many more new features.<br>
 		using the '-M' command line option.  -M100 is typical.
 		<br>
 	</ul>
+	<li>AR5K
+	<br>
+	Notes:  802.11a doesn't include the channel in the beacon packets.  Workarounds will be
+	put into place for this in the future.
+	<ul>
+        <li>'ar5k':  vt_ar5k Linux 802.11a drivers<br>
+        Capture interface:  wlanX<br>
+		Notes:  The vt_ar5k drivers require the Linux wireless-tools version 25 or
+		higher.  Older versions will not be able to put the cards into monitor mode.
+		<br>
 	</ol>
 <li>GPS SUPPORT
 <br>

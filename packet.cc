@@ -192,6 +192,14 @@ void GetPacketInfo(kis_packet *packet, packet_parm *parm, packet_info *ret_packi
     ret_packinfo->signal = packet->signal;
     ret_packinfo->noise = packet->noise;
 
+    // Assign the carrier
+    ret_packinfo->carrier = packet->carrier;
+
+    // Assign a hardware channel if we're on an 802.11a carrier since the beacon doesn't
+    // carry that tag
+    if (packet->carrier == carrier_80211a)
+        ret_packinfo->channel = packet->channel;
+
     // Temp pointer into the packet guts
     uint8_t temp;
 
@@ -282,7 +290,8 @@ void GetPacketInfo(kis_packet *packet, packet_parm *parm, packet_info *ret_packi
             }
         }
 
-        // Find the offset of flag 3 and get the channel
+        // Find the offset of flag 3 and get the channel.   802.11a doesn't have this tag
+        // so we use the hardware channel, assigned at the beginning of GetPacketInfo
         if ((tag_offset = GetTagOffset(ret_packinfo->header_offset, 3, packet, &tag_cache_map)) > 0) {
             // Extract the channel from the next byte (GetTagOffset returns
             // us on the size byte)

@@ -36,7 +36,8 @@ enum card_type {
     card_generic,
     card_wsp100,
     card_wtapfile,
-    card_viha
+    card_viha,
+    card_ar5k
 };
 
 // Packet capture source superclass

@@ -1,5 +1,5 @@
 
-   KISMET 2.8.0
+   KISMET 2.9.0
    Mike Kershaw <dragorn@kismetwireless.net>
    http://www.kismetwireless.net
    Licensed under the GPL
@@ -19,6 +19,7 @@
          3. orinoco
          4. wsp100
          5. wtapfile
+         6. ar5k
     7. GPS Support
     8. Compiling
     9. Configuration
@@ -26,16 +27,16 @@
    11. Mapping
        
     1. WHAT IS KISMET
-       Kismet is a 802.11b wireless network sniffer - this is different
+       Kismet is a 802.11 wireless network sniffer - this is different
        from a normal network sniffer (such as Ethereal or tcpdump)
        because it separates and identifies different wireless networks in
-       the area. Kismet works with any wireless card which is capable of
-       reporting raw packets (rfmon support), which include any prism2
-       based card (Linksys, D-Link, Rangelan, etc), Cisco Aironet cards,
-       and Orinoco based cards. Kismet also supports the WSP100 remote
-       sensor by Network Chemistry.
+       the area. Kismet works with any 802.11b wireless card which is
+       capable of reporting raw packets (rfmon support), which include
+       any prism2 based card (Linksys, D-Link, Rangelan, etc), Cisco
+       Aironet cards, and Orinoco based cards. Kismet also supports the
+       WSP100 remote sensor by Network Chemistry. Kismet is also able to
+       sniff 802.11a networks using ar5k cards.
     2. FEATURES
-          + Multiple packet sources
           + Channel hopping
           + IP block detection
           + Cisco product detection via CDP
@@ -52,6 +53,7 @@
           + Detection of Netstumbler clients
           + Runtime decoding of WEP packets
           + Multiplexing of multiple capture sources
+          + 802.11b and 802.11a sniffing abilities
     3. QUICK START
        Detailed information about each of these steps can be found in the
        appropriate section of the documentation.
@@ -258,6 +260,15 @@
                  Ethereal, TCPdump, and others. Files can be gzip
                  compressed. File replaying can be slowed down using the
                  '-M' command line option. -M100 is typical.
+         6. AR5K
+            Notes: 802.11a doesn't include the channel in the beacon
+            packets. Workarounds will be put into place for this in the
+            future.
+               o 'ar5k': vt_ar5k Linux 802.11a drivers
+                 Capture interface: wlanX
+                 Notes: The vt_ar5k drivers require the Linux
+                 wireless-tools version 25 or higher. Older versions will
+                 not be able to put the cards into monitor mode.
     7. GPS SUPPORT
        GPS support is provided via the GPSD daemon, available at
        http://russnelson.com/gpsd/. GPSD is also included with the

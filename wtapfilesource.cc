@@ -104,6 +104,9 @@ int WtapFileSource::Wtap2Common(kis_packet *packet) {
 
     memcpy(packet->data, packet_data, packet->caplen);
 
+    // We assume all packets are 802.11b for now
+    packet->carrier = carrier_80211b;
+
     return 1;
 }
 

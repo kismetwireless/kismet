@@ -44,6 +44,7 @@ typedef void (*hopfunction)(struct capturesource *, int chan);
 typedef struct capturesource {
     char *name;
     char *interface;
+    int *chanlist;
     int chanpos;
     char *cardtype;
     const char *cmd_template;
@@ -55,6 +56,7 @@ typedef struct capturesource {
 #define prism2_bsd "prism2ctl %s -f %d >/dev/null"
 #define prism2_hostap "iwconfig %s channel %d >/dev/null"
 #define orinoco "iwpriv %s monitor 1 %d >/dev/null"
+#define ar5k "iwconfig %s channel %d >/dev/null"
 
 // This one is nonstandard, but then, the wsp100 is in general.  We push channelhop, channel mask,
 // and hop speed then stop
@@ -68,6 +70,7 @@ const char *config_base = "kismet.conf";
 // Channel rotations to maximize hopping for US and international frequencies
 int us_channels[] = {1, 6, 11, 2, 7, 3, 8, 4, 9, 5, 10, -1};
 int intl_channels[] = {1, 7, 13, 2, 8, 3, 14, 9, 4, 10, 5, 11, 6, 12, -1};
+int us_80211a_channels[] = {36, 40, 44, 48, 52, 56, 60, 64, -1};
 
 int *parse_hopseq(char* param) {
     int *result;
@@ -105,11 +108,15 @@ int *parse_hopseq(char* param) {
     result = (int *) malloc(sizeof(int) * (assemble.size() + 1));
 
     for (unsigned int x = 0; x < assemble.size(); x++) {
+        /*
+        We allow any channel now, to accomodate a and g
+
         if (assemble[x] < 1 || assemble[x] > 14) {
             fprintf(stderr, "Illegal custom channel %d - valid channels are 1-14.\n",
                     assemble[x]);
             exit(1);
-        }
+            }
+            */
         result[x] = assemble[x];
     }
 
@@ -127,6 +134,7 @@ int Usage(char *argv) {
            "  -C, --enable-capture-sources Comma separated list of named packet sources to use.\n"
            "  -n, --international          Use international channels (1-14)\n"
            "  -s, --hopsequence            Use given hop sequence (comma separated list)\n"
+           "  -S, --hopsequence-80211a     Use given hop sequence for 802.11a cards\n"
            "  -v, --velocity               Hopping velocity (hops per second)\n"
 	   "  -p, --progress               Show hopping progress\n"
            "  -h, --help                   What do you think you're reading?\n");
@@ -185,10 +193,8 @@ void orinocohopper(struct capturesource *csrc, int chan) {
     return;
 }
 
-
-
 int main(int argc, char *argv[]) {
-    int *chanlist;
+    int *bchanlist, *achanlist;
     char *configfile = NULL;
     char *channame = "United States";
     struct stat fstat;
@@ -213,6 +219,7 @@ int main(int argc, char *argv[]) {
         { "capture-source", required_argument, 0, 'c' },
         { "enable-capture-sources", required_argument, 0, 'C' },
         { "hopsequence", required_argument, 0, 's' },
+        { "hopsequence-80211a", required_argument, 0, 'S' },
         { "velocity", required_argument, 0, 'v' },
         { "divide-channels", no_argument, 0, 'd' },
 	{ "progress", no_argument, 0, 'p' },
@@ -227,12 +234,14 @@ int main(int argc, char *argv[]) {
 
     int divide = 0;
     int divisions = 0;
+    int adivisions = 0;
     int progress = 0;
 
-    chanlist = us_channels;
+    bchanlist = us_channels;
+    achanlist = us_80211a_channels;
     int option_index;
     while(1) {
-        int r = getopt_long(argc, argv, "f:nc:C:s:v:hdp",
+        int r = getopt_long(argc, argv, "f:nc:C:s:S:v:hdp",
                             long_options, &option_index);
         if (r < 0) break;
 
@@ -241,7 +250,7 @@ int main(int argc, char *argv[]) {
             configfile = optarg;
             break;
         case 'n':
-            chanlist = intl_channels;
+            bchanlist = intl_channels;
 	    channame = "International";
             break;
         case 'v':
@@ -251,9 +260,15 @@ int main(int argc, char *argv[]) {
             }
             break;
 	case 's':
-            chanlist = parse_hopseq(optarg);
+            bchanlist = parse_hopseq(optarg);
             channame = "Custom channels";
-            if (!chanlist)
+            if (!bchanlist)
+                exit(1);
+            break;
+        case 'S':
+            achanlist = parse_hopseq(optarg);
+            channame = "Custom channels";
+            if (!achanlist)
                 exit(1);
             break;
         case 'c':
@@ -393,6 +408,7 @@ int main(int argc, char *argv[]) {
         newsource->cardtype = strdup(optlist[0].c_str());
         newsource->interface = strdup(optlist[1].c_str());
         newsource->name = strdup(optlist[2].c_str());
+        newsource->chanlist = bchanlist;
         newsource->chanpos = 0;
         newsource->func = NULL;
         newsource->cmd_template = NULL;
@@ -443,6 +459,11 @@ int main(int argc, char *argv[]) {
 	    csrc->func = orinocohopper;
             csrc->cmd_template = orinoco;
             divisions++;
+        } else if (!strcasecmp(type, "ar5k")) {
+            fprintf(stderr, "NOTICE:  ar5k source, using 802.11a chanlist.\n");
+            csrc->chanlist = achanlist;
+            csrc->cmd_template = ar5k;
+            adivisions++;
         } else if (!strcasecmp(type, "wsp100")) {
             // We just process this one immediately - it's annoying that it's a special
             // case, but it's so different from anything else...
@@ -452,7 +473,7 @@ int main(int argc, char *argv[]) {
             // Convert the channels into a bitmap
             int chans = 0;
             int chind = 0;
-            while (chanlist[chind] != -1)
+            while (bchanlist[chind] != -1)
                 chans |= ( 1 << chind++ );
 
             char cmd[1024];
@@ -532,17 +553,36 @@ int main(int argc, char *argv[]) {
 
     if (divide && divisions > 1) {
         int nchannels = 0;
-        while (chanlist[nchannels++] != -1) ;
+        while (bchanlist[nchannels++] != -1) ;
         int enabledsrc = 0;
         fprintf(stderr, "Dividing %d channels into %d segments.\n", nchannels, divisions);
         for (unsigned int ofst = 0; ofst < packet_sources.size(); ofst++) {
             if (packet_sources[ofst]->func == NULL)
                 continue;
+            if (packet_sources[ofst]->chanlist != bchanlist)
+                continue;
             packet_sources[ofst]->chanpos = (nchannels / divisions) * enabledsrc;
-            printf("Source %d starting at offset %d\n", ofst, packet_sources[ofst]->chanpos);
+            printf("Source %d starting at 802.11b offset %d\n", ofst, packet_sources[ofst]->chanpos);
             enabledsrc++;
         }
     }
+
+    if (divide && adivisions > 1) {
+        int nchannels = 0;
+        while (achanlist[nchannels++] != -1) ;
+        int enabledsrc = 0;
+        fprintf(stderr, "Dividing %d channels into %d segments.\n", nchannels, divisions);
+        for (unsigned int ofst = 0; ofst < packet_sources.size(); ofst++) {
+            if (packet_sources[ofst]->func == NULL)
+                continue;
+            if (packet_sources[ofst]->chanlist != achanlist)
+                continue;
+            packet_sources[ofst]->chanpos = (nchannels / divisions) * enabledsrc;
+            printf("Source %d starting at 802.11a offset %d\n", ofst, packet_sources[ofst]->chanpos);
+            enabledsrc++;
+        }
+    }
+
 
     for (unsigned int src = 0; src < packet_sources.size(); src++)
         if (packet_sources[src]->func != NULL)
@@ -568,12 +608,12 @@ int main(int argc, char *argv[]) {
                 continue;
 
 	    if (progress)
-		printf(" %d", chanlist[csrc->chanpos]);
+		printf(" %d", csrc->chanlist[csrc->chanpos]);
 
-	    csrc->func(csrc, chanlist[csrc->chanpos]);
+	    csrc->func(csrc, csrc->chanlist[csrc->chanpos]);
 
 	    csrc->chanpos++;
-	    if (chanlist[csrc->chanpos] == -1)
+	    if (csrc->chanlist[csrc->chanpos] == -1)
 		csrc->chanpos = 0;
         }
 
