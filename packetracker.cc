@@ -1504,6 +1504,8 @@ int Packetracker::WriteGpsdriveWaypt(FILE *in_file) {
         fprintf(in_file, "%s\t%f  %f\n", net->bssid.c_str(), lat, lon);
     }
 
+    fflush(in_file);
+
     return 1;
 }
 
