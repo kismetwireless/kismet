@@ -423,6 +423,8 @@ int chancontrol_madwifi_ag(const char *in_dev, int in_ch, char *in_err, void *in
 // Prism54 apparently returns a fail code on an iwconfig channel change but
 // then works so we need to override the wext failure code
 int chancontrol_prism54g(const char *in_dev, int in_ch, char *in_err, void *in_ext);
+// We need a delay in it like orinoco, apparently
+int chancontrol_ipw2100(const char *in_dev, int in_ch, char *in_err, void *in_ext);
 #endif
 
 #ifdef SYS_LINUX

@@ -2039,6 +2039,19 @@ int chancontrol_prism54g(const char *in_dev, int in_ch, char *in_err, void *in_e
     return 0;
 }
 
+int chancontrol_ipw2100(const char *in_dev, int in_ch, char *in_err, void *in_ext) {
+    // Introduce a slight delay to let the driver settle, a la orinoco.  I don't
+    // like doing this at all since it introduces hiccups into the channel control
+    // process, but....
+
+    int ret = 0;
+
+    ret = chancontrol_wext(in_dev, in_ch, in_err, in_ext);
+    usleep(5000);
+
+    return ret;
+}
+
 #endif
 
 #ifdef SYS_LINUX

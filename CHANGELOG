@@ -1,3 +1,6 @@
+Nov 16 2004  devel  Fixed compiler warning in iwconfig.cc
+                    Added microsleep delay to ipw2100 channel control function
+                     to try to alleviate driver errors
 Nov 15 2004  devel  Tweaked includes in ringbuf.h to handle stdint.h correctly
 Nov 04 2004  devel  Tweaked macaddr.h again to try to appease different gcc
                      versions.
