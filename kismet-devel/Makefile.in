@@ -61,7 +61,8 @@ NCO	= util.o configfile.o speech.o manuf.o tcpclient.o \
 		gpsd.o getopt.o kismet_client.o 
 NC	= kismet_client
 
-GPSLO = getopt.o util.o configfile.o expat.o manuf.o gpsmap_samples.o gpsmap.o
+GPSLO = getopt.o util.o configfile.o expat.o manuf.o \
+		gpsmap_cache.o gpsmap_samples.o gpsmap.o
 GPSL = gpsmap
 
 # HOPPERO = util.o configfile.o getopt.o kismet_hopper.o
@@ -88,6 +89,7 @@ $(GPSL):	$(GPSLBUILDO)
 	@if test "$(GPSLBUILD)"x = "x"; then \
 		echo "Gpsmap cannot be built, check the output of configure"; \
 	else \
+		echo $(LD) $(LDFLAGS) -o $(GPSL) $(GPSLO) $(LIBS) `Magick-config --cflags --cppflags --ldflags` `Magick-config --libs` $(THREADL) -lexpat -lgmp; \
 		$(LD) $(LDFLAGS) -o $(GPSL) $(GPSLO) $(LIBS) `Magick-config --cflags --cppflags --ldflags` `Magick-config --libs` $(THREADL) -lexpat -lgmp; \
 	fi
 

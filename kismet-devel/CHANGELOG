@@ -1,3 +1,6 @@
+Mar 25 2004  devel  Added binary caching to gpsmap, this more than doubles
+                     the speed of gpsmap when repeatedly processing the same
+                     sets of XML data.
 Mar 23 2004  devel  Tweaked gpsmap channel color allocation
                     Tweaked legend drawing to scale to US 11 channels if
                      there are no networks on higher channels.  This makes
