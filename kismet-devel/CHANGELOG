@@ -1,3 +1,4 @@
+Sep 22 2002  2.5.2  Minor bugfixes and changes to the panels ui
 Sep 21 2002  2.5.2  Tweaked manuf matching code to not find cloaked/wep'd 
                      networks as defaults.
                     Updated makefile and spec file for manuf tag files
