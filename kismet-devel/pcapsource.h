@@ -53,7 +53,7 @@ public:
     int OpenSource(const char *dev, card_type ctype);
     int CloseSource();
 
-    int FetchDescriptor() { return pcap_fileno(pd); }
+    int FetchDescriptor();
 
     int FetchPacket(kis_packet *packet, uint8_t *data, uint8_t *moddata);
 

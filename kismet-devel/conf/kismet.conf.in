@@ -4,7 +4,7 @@
 # not continually reading --help!
 
 # Version of Kismet config
-version=3.0.1b
+version=3.0.1c
 
 # Name of server (Purely for organiational purposes)
 servername=Kismet
@@ -28,6 +28,7 @@ suiduser=your_user_here
 #                      to put this into monitor mode yourself!
 #     wsp100        - WSP100 embedded remote sensor.  
 #     wtapfile      - Saved file of packets readable by libwiretap
+#     pcapfile      - Saved file of packets readable by libpcap
 #     ar5k          - ar5k 802.11a using the vt_ar5k drivers
 #     drone         - Kismet remote drone
 #     viha          - Mac OSX Airport drivers

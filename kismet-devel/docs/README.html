@@ -29,6 +29,7 @@ Licensed under the GPL<br>
 	<li>orinoco
 	<li>wsp100
 	<li>wtapfile
+	<li>pcapfile
 	<li>ar5k
 	<li>drone
 	<li>airport (viha)
@@ -314,14 +315,25 @@ and many more new features.<br>
 	<li>WTAPFILE
 	<br>
 	Notes:  The wtapfile replay ability is primarily useful for debugging, however it can also
-	be used to recreate csv/xml/etc files from a saved dump.
+	be used to recreate csv/xml/etc files from a saved dump.  Libwiretap has support for more
+	esoteric dumps (which is faily irrelevant) and transparent support for compressed dumpfiles,
+	but requires a compiled source tree of ethereal.
 	<ul>
 		<li>'wtapfile':  Kismet wtapfile handler<br>
 		Capture interface:  file<br>
 		Notes:  The capture interface specifies the path to the dump file.  Dumps can be
 		in any format wtaplib understands, which includes files created by Kismet, Ethereal,
-		TCPdump, and others.  Files can be gzip compressed.  File replaying can be slowed down
-		using the '-M' command line option.  -M100 is typical.
+		TCPdump, and others.  Files can be gzip compressed.  
+		<br>
+	</ul>
+	<li>PCAPFILE
+	<br>
+	Notes:  The pcapfile replay is similar to wtapfile but uses libpcap instead of libwiretap.
+	<ul>
+		<li>'pcapfile': Kismet pcapfile handler<br>
+		Capture interface: file<br>
+		Notes: The capture interface specifies the path to the dump file.  Dumps can be any
+		format libpcap understands, and should have a rfmon wireless encoding.
 		<br>
 	</ul>
 	<li>AR5K

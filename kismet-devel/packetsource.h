@@ -41,6 +41,7 @@ enum card_type {
     card_generic,
     card_wsp100,
     card_wtapfile,
+    card_pcapfile,
     card_viha,
     card_ar5k,
     card_drone,
