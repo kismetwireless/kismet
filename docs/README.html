@@ -135,7 +135,7 @@ and many more new features.<br>
 		Familiar will include Snax's patch for the orinoco_cs drivers.
 		<br>
 		Familiar users with Cisco cards will need to set their kismet.conf file to use
-		a cardtype of "cisco_cvs", with a capinterface of "wifi0".
+		a cardtype of "cisco_cvs", with a capinterface of "ethX:wifiX".
 		<br>
 		Some Familiar installs also do not include the latest ncurses and panels
 		libraries - these can be obtained from the Skif cluster (telnet to
@@ -216,7 +216,7 @@ and many more new features.<br>
 		are, currently, the most reliable drivers to use.<br>
 		<br>
 		<li>'cisco_cvs': Linux kernel 2.4.20, sourceforge.net CVS driver release<br>
-		Capture interface:  wifiX<br>
+		Capture interface:  ethX:wifiX<br>
 		Notes:  The new drivers use the interface ethX for normal operation and wifiX for
 		raw packet capturing.  The interface for Kismet should be set to wifiX.  These drivers
 		have a history of locking up under high loads and when entering/leaving rfmon mode.

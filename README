@@ -1,4 +1,3 @@
-
    KISMET 2.9.0
    Mike Kershaw <dragorn@kismetwireless.net>
    http://www.kismetwireless.net
@@ -28,7 +27,7 @@
    11. Mapping
    12. Drone Remotes
    13. Intrusion Detection
-       
+
     1. WHAT IS KISMET
        Kismet is a 802.11 wireless network sniffer - this is different
        from a normal network sniffer (such as Ethereal or tcpdump)
@@ -111,7 +110,7 @@
                  orinoco_cs drivers.
                  Familiar users with Cisco cards will need to set their
                  kismet.conf file to use a cardtype of "cisco_cvs", with
-                 a capinterface of "wifi0".
+                 a capinterface of "ethX:wifiX".
                  Some Familiar installs also do not include the latest
                  ncurses and panels libraries - these can be obtained
                  from the Skif cluster (telnet to ipaq3.handhelds.org and
@@ -186,7 +185,7 @@
                  reliable drivers to use.
                o 'cisco_cvs': Linux kernel 2.4.20, sourceforge.net CVS
                  driver release
-                 Capture interface: wifiX
+                 Capture interface: ethX:wifiX
                  Notes: The new drivers use the interface ethX for normal
                  operation and wifiX for raw packet capturing. The
                  interface for Kismet should be set to wifiX. These

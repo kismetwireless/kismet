@@ -24,6 +24,7 @@
 #include <time.h>
 
 #include "pcapsource.h"
+#include "util.h"
 
 #ifdef HAVE_LIBPCAP
 
@@ -38,7 +39,18 @@ int PcapSource::OpenSource(const char *dev, card_type ctype) {
     snprintf(type, 64, "libpcap device %s", dev);
 
     char unconst_dev[64];
-    snprintf(unconst_dev, 64, "%s", dev);
+
+    // Split off the wifiX interface
+    if (ctype == card_cisco_cvs) {
+        vector<string> devbits = StrTokenize(dev, ":");
+        if (devbits.size() < 2) {
+            snprintf(errstr, 1024, "Misformed cisco_cvs interface '%s', correct form is 'ethX:wifiX'", dev);
+            return -1;
+        }
+        snprintf(unconst_dev, 64, "%s", devbits[1].c_str());
+    } else {
+        snprintf(unconst_dev, 64, "%s", dev);
+    }
 
     errstr[0] = '\0';
     pd = pcap_open_live(unconst_dev, MAX_PACKET_LEN, 1, 1000, errstr);

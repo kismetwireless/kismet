@@ -123,12 +123,14 @@ for line in `cat $IFFILE`; do
 			;;
 		"cisco_cvs")
 			echo "Disabling monitor mode for a cisco card on $DEVICE"
-			DEVICE2=`echo $DEVICE | sed -e 's/wifi/eth/'`
+			DEVICE1=`echo $DEVICE | cut -f 1 -d:`;
+			DEVICE2=`echo $DEVICE | cut -f 2 -d:`;
+#			DEVICE2=`echo $DEVICE | sed -e 's/wifi/eth/'`
 			echo "Modifying device $DEVICE2"
-			iwconfig $DEVICE essid ""
+			iwconfig $DEVICE1 essid ""
 			echo "Mode: i" > /proc/driver/aironet/$DEVICE2/Config
 			echo "XmitPower: 100" > /proc/driver/aironet/$DEVICE2/Config
-			ifconfig $DEVICE -promisc up
+			ifconfig $DEVICE1 -promisc up
 			;;
 		"cisco_bsd")
 			echo "No unmonitor script for cisco_bsd"
