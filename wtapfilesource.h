@@ -30,7 +30,7 @@ extern "C" {
 #include "wtap.h"
 }
 
-class WtapFileSource : public PacketSource {
+class WtapFileSource : public KisPacketSource {
 public:
     int OpenSource(const char *dev, card_type ctype);
     int CloseSource();

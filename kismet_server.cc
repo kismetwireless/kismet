@@ -71,7 +71,7 @@ void ProtocolNetworkEnable(int in_fd);
 void ProtocolClientEnable(int in_fd);
 
 typedef struct capturesource {
-    PacketSource *source;
+    KisPacketSource *source;
     string name;
     string interface;
     string scardtype;
@@ -2161,7 +2161,7 @@ int main(int argc,char *argv[]) {
             if (packet_sources[src]->source == NULL)
                 continue;
 
-            PacketSource *psrc = packet_sources[src]->source;
+            KisPacketSource *psrc = packet_sources[src]->source;
 
             // Jump through hoops to handle generic packet source
             int process_packet_source = 0;
