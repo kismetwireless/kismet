@@ -8,7 +8,7 @@
 .fam C
 \fBgpsmap\fP [\fB-hviNIDVGMtbruapek\fP] [\fB-g\fP \fIconfig-file\fP] [\fB-o\fP \fIoutput-file\fP]
 [\fB-f\fP \fIfilter-list\fP] [\fB-F\fP \fIfilter-type-list\fP] [\fB-z\fP \fInumthreads\fP] [\fB-S\fP \fImapsource\fP] [\fB-c\fP \fIcoords\fP] [\fB-s\fP \fIscale\fP]
-[\fB-m\fP \fIusermap\fP] [\fB-d\fP \fImapsize\fP] [\fB-n\fP \fInetcolors\fP] [\fB-O\fP \fIoffset\fP] [\fB-R\fP \fIrange-opacity\fP]
+[\fB-m\fP \fIusermap\fP] [\fB-d\fP \fImapsize\fP] [\fB-n\fP \fInetcolors\fP] [\fB-O\fP \fIoffset\fP] [\fB-R\fP \fIrange-opacity\fP] [\fB-K\fP \fIbounds-opacity\fP]
 [\fB-U\fP \fIhull-opacity\fP] [\fB-A\fP \fIscatter-opacity\fP] [\fB-B\fP \fIscatter-size\fP]
 [\fB-Z\fP \fIdraw-power-zoom\fI] 
 [\fB-P\fP \fIpower-opacity\fP] [\fB-Q\fP \fIpower-res\fP] [\fB-q\fP \fIpower-colors\fP] [\fB-E\fP \fIcenter-opacity\fP]
@@ -116,12 +116,16 @@ Offset map by XOFF,YOFF pixels.
 Draw travel track
 .TP
 .B
-\fB-Y\fP, \fB--draw-track-width\fP
+\fB-Y\fP, \fB--draw-track-width\fP WIDTH
 Travel track width.  Default: 3
 .TP
 .B
 \fB-b\fP, \fB--draw-bounds\fP
 Draw network bounding box
+.TP
+.B
+\fB-K\fP, \fB--draw-bounds-opacity\fP OPACITY
+Opacity to draw bounding boxes with.  Default: 10
 .TP
 .B
 \fB-r\fP, \fB--draw-range\fP

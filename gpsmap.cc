@@ -331,7 +331,8 @@ const int legend_height = 100;
 int draw_track = 0, draw_bounds = 0, draw_range = 0, draw_power = 0,
     draw_hull = 0, draw_scatter = 0, draw_legend = 0, draw_center = 0, draw_label = 0;
 int track_opacity = 100, /* no bounds opacity */ range_opacity = 70, power_opacity = 70,
-    hull_opacity = 70, scatter_opacity = 100, center_opacity = 100, label_opacity = 100;
+    hull_opacity = 70, scatter_opacity = 100, center_opacity = 100, label_opacity = 100,
+    bounds_opacity = 10;
 int track_width = 3;
 int convert_greyscale = 1, keep_gif = 0, verbose = 0, label_orientation = 7;
 
@@ -1828,6 +1829,8 @@ void DrawNetBoundRects(vector<gps_network *> in_nets, Image *in_img, DrawInfo *i
         } 
         drawn_net_map[map_iter->bssid.c_str()] = map_iter;
 
+        char prim[1024];
+
         if (in_fill) {
             PixelPacket netclr;
 
@@ -1840,16 +1843,12 @@ void DrawNetBoundRects(vector<gps_network *> in_nets, Image *in_img, DrawInfo *i
             }
 
             in_di->fill = netclr;
-        }
-
-        char prim[1024];
-
+            snprintf(prim, 1024, "fill-opacity %d%% rectangle %d,%d %d,%d",
+                 in_fill, (int) mapx, (int) mapy, (int) endx, (int) endy);
+        } else {
         snprintf(prim, 1024, "stroke black fill-opacity %d%% rectangle %d,%d %d,%d",
                  in_fill, (int) mapx, (int) mapy, (int) endx, (int) endy);
-
-        //snprintf(prim, 1024, "fill-opacity %d%% rectangle %d,%d %d,%d",
-        //in_fill, (int) tlx, (int) tly, (int) brx, (int) bry);
-
+	}
 
         in_di->primitive = prim;
         DrawImage(in_img, in_di);
@@ -3110,6 +3109,7 @@ int Usage(char* argv, int ec = 1) {
            "  -t, --draw-track               Draw travel track\n"
            "  -Y, --draw-track-width <w>     travel track width [Default: 3] \n"
            "  -b, --draw-bounds              Draw network bounding box\n"
+           "  -K, --draw-bounds-opacity <o>  Bounding box opacity [Default: 10]\n"
            "  -r, --draw-range               Draw estimaged range circles\n"
            "  -R, --draw-range-opacity <o>   Range circle opacity [Default: 70]\n"
            "  -u, --draw-hull                Draw convex hull of data points\n"
@@ -3192,6 +3192,7 @@ int main(int argc, char *argv[]) {
            */
            {"draw-track-width", required_argument, 0, 'Y'},
            {"draw-bounds", no_argument, 0, 'b'},
+           {"draw-bounds-opacity", required_argument, 0, 'K'},
            {"draw-range", no_argument, 0, 'r'},
            {"draw-range-opacity", required_argument, 0, 'R'},
            {"draw-hull", no_argument, 0, 'u'},
@@ -3242,7 +3243,7 @@ int main(int argc, char *argv[]) {
 
     while(1) {
         int r = getopt_long(argc, argv,
-                            "hvg:S:o:f:iF:Iz:DVc:s:m:d:n:GMO:tY:brR:uU:aA:B:pP:Z:q:Q:eE:H:l:L:kT:N",
+                            "hvg:S:o:f:iF:Iz:DVc:s:m:d:n:GMO:tY:brR:uU:aA:B:pP:Z:q:Q:eE:H:l:L:kT:NK:",
                             long_options, &option_index);
 
         if (r < 0) break;
@@ -3392,6 +3393,12 @@ int main(int argc, char *argv[]) {
             break;
         case 'b':
             draw_bounds = true;
+            break;
+        case 'K':
+            if (sscanf(optarg, "%d", &bounds_opacity) != 1 || bounds_opacity < 0 || bounds_opacity > 100) {
+                fprintf(stderr, "Invalid bounds opacity.\n");
+                ShortUsage(exec_name);
+            }
             break;
         case 'r':
             draw_range = true;
@@ -3872,7 +3879,7 @@ int main(int argc, char *argv[]) {
         case 'b':
             if (draw_bounds) {
                 fprintf(stderr, "Calculating and drawing bounding rectangles...\n");
-                DrawNetBoundRects(gpsnetvec, img, di, 0);
+                DrawNetBoundRects(gpsnetvec, img, di, bounds_opacity);
             }
             break;
         case 'r':
