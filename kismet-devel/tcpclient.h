@@ -208,6 +208,8 @@ public:
 
     void SendRaw(const char *in_cmd);
 
+    int FetchNetworkDirty();
+
 protected:
     char errstr[1024];
     char status[STATUS_MAX];
@@ -271,6 +273,8 @@ protected:
 
     // Fields we enable (what we know how to parse)
     map<string, string> protocol_default_map;
+
+    int network_dirty;
 
 };
 

@@ -264,7 +264,8 @@ int PanelFront::MainNetworkPrinter(void *in_window) {
 
     // One:  Get our new data from the clients we have tagged
     for (unsigned int x = 0; x < context_list.size(); x++) {
-        if (context_list[x]->tagged == 1 && context_list[x]->client != NULL)
+        if (context_list[x]->tagged == 1 && context_list[x]->client != NULL &&
+            context_list[x]->client->FetchNetworkDirty())
             PopulateGroups(context_list[x]->client);
     }
     // Two:  Recalculate all our agregate data
