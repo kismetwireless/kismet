@@ -101,8 +101,10 @@ int FifoDumpFile::CloseDump() {
 }
 
 int FifoDumpFile::DumpPacket(const packet_info *in_info, const kis_packet *packet) {
+    /*
     if (in_info->type != packet_data)
-        return 0;
+    return 0;
+    */
 
     kis_packet *dump_packet;
 
