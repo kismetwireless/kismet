@@ -2,6 +2,8 @@ Jul 26 2002  2.5    Tweaked altitude handling, should report the right value.
                     Added best signal quality tracking
                     Added signal quality display to the network details panel
                     Added sorting by signal quality and power
+                    Rolled in patch to monitor and hopper to work with the
+                     Prism2 HostAP drivers (Andreas Oberritter)
 Jul 25 2002  2.5    Fixed bugs in the airsnort logger that discarded weak
                      ap->ap data packets and weak adhoc data packets.
                     Added GPL license headers to all source files
