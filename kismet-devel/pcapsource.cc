@@ -869,14 +869,42 @@ int PcapSourceOpenBSDPrism::FetchChannel() {
 #ifdef HAVE_RADIOTAP
 int PcapSourceRadiotap::FetchChannel() {
 #ifdef SYS_FREEBSD
-	FreeBSD bsd(interface.c_str());
-	int c;
-	return bsd.get80211(IEEE80211_IOC_CHANNEL, &c, 0, NULL) ? c : -1;
+    FreeBSD bsd(interface.c_str());
+    int c;
+    return bsd.get80211(IEEE80211_IOC_CHANNEL, c, 0, NULL) ? c : -1;
 #elif __linux__
 	// use wireless extensions - implement this in the future -drag
 #else
 #error	"No support for your operating system"
 #endif
+}
+
+int PcapSourceRadiotap::OpenSource() {
+    int s = PcapSource::OpenSource();
+    if (s < 0)
+	return s;
+    if (!CheckForDLT(DLT_IEEE802_11_RADIO)) {
+	snprintf(errstr, 1024, "No support for radiotap data link");
+	return -1;
+    } else {
+	(void) pcap_set_datalink(pd, DLT_IEEE802_11_RADIO);
+	return s;
+    }
+}
+
+// Check for data link type support
+bool PcapSource::CheckForDLT(int dlt)
+{
+    bool found = false;
+    int i, n, *dl;
+    n = pcap_list_datalinks(pd, &dl);
+    for (i = 0; i < n; i++)
+	if (dl[i] == dlt) {
+	    found = true;
+	    break;
+	}
+    free(dl);
+    return found;
 }
 #endif
 
@@ -1372,7 +1400,6 @@ int monitor_openbsd_prism2(const char *in_dev, int initch, char *in_err) {
                  strerror(errno));
         return -1;
     }
-
     //Make sure our interface is up
     strlcpy(ifr.ifr_name, in_dev, sizeof(ifr.ifr_name));
     if (ioctl(s, SIOCGIFFLAGS, (caddr_t)&ifr) == -1) {
@@ -1381,7 +1408,6 @@ int monitor_openbsd_prism2(const char *in_dev, int initch, char *in_err) {
                  strerror(errno));
         return -1;
     }
-
     flags = ifr.ifr_flags;
     if ((flags & IFF_UP) == 0) {
         ifr.ifr_flags = (flags | IFF_UP);
@@ -1613,8 +1639,7 @@ int chancontrol_openbsd_prism2(const char *in_dev, int in_ch, char *in_err,
 #endif
 
 #ifdef SYS_FREEBSD
-FreeBSD::FreeBSD(const char *name) {
-    strncpy(ifname, name, sizeof(ifname));
+FreeBSD::FreeBSD(const char *name) : ifname(name) {
     s = -1;
 }
 
@@ -1667,7 +1692,7 @@ bool FreeBSD::setmediaopt(int options, int mode) {
         return false;
 
     memset(&ifmr, 0, sizeof(ifmr));
-    strncpy(ifmr.ifm_name, ifname, sizeof(ifmr.ifm_name));
+    strncpy(ifmr.ifm_name, ifname.c_str(), sizeof(ifmr.ifm_name));
 
     /*
      * We must go through the motions of reading all
@@ -1675,11 +1700,11 @@ bool FreeBSD::setmediaopt(int options, int mode) {
      * the current media type and the top-level type.
      */
     if (ioctl(s, SIOCGIFMEDIA, (caddr_t)&ifmr) < 0) {
-        perror("%s: cannot get ifmedia", ifname);
+        perror("%s: cannot get ifmedia", ifname.c_str());
         return false;
     }
     if (ifmr.ifm_count == 0) {
-        seterror("%s: no media types?", ifname);
+        seterror("%s: no media types?", ifname.c_str());
         return false;
     }
     mwords = new int[ifmr.ifm_count];
@@ -1689,85 +1714,92 @@ bool FreeBSD::setmediaopt(int options, int mode) {
     }
     ifmr.ifm_ulist = mwords;
     if (ioctl(s, SIOCGIFMEDIA, (caddr_t)&ifmr) < 0) {
-        perror("%s: cannot get ifmedia", ifname);
+        perror("%s: cannot get ifmedia", ifname.c_str());
         return false;
     }
     delete mwords;
 
-    strncpy(ifr.ifr_name, ifname, sizeof(ifr.ifr_name));
-    ifr.ifr_media = ifmr.ifm_current;
-    if (options < 0) {
-        options = -options;
-        ifr.ifr_media &= ~options;
-    } else
-        ifr.ifr_media |= options;
-    ifr.ifr_media = (ifr.ifr_media &~ IFM_OMASK) | IFM_TYPE_OPTIONS(mode);
+    memset(&ifr, 0, sizeof(ifr));
+    strncpy(ifr.ifr_name, ifname.c_str(), sizeof(ifr.ifr_name));
+    ifr.ifr_media = (ifmr.ifm_current &~ IFM_OMASK) | options;
+    ifr.ifr_media = (ifr.ifr_media &~ IFM_MMASK) | IFM_MAKEMODE(mode);
 
     if (ioctl(s, SIOCSIFMEDIA, (caddr_t)&ifr) < 0) {
-        perror("%s: cannot set ifmedia", ifname);
+        perror("%s: cannot set ifmedia", ifname.c_str());
         return false;
     }
     return true;
 }
 
-bool FreeBSD::get80211(int type, int *val, int len, u_int8_t *data) {
+bool FreeBSD::get80211(int type, int& val, int len, u_int8_t *data) {
+    struct ieee80211req ireq;
+
     if (!checksocket())
         return false;
-    struct ieee80211req ireq;
     memset(&ireq, 0, sizeof(ireq));
-    strncpy(ireq.i_name, ifname, sizeof(ireq.i_name));
+    strncpy(ireq.i_name, ifname.c_str(), sizeof(ireq.i_name));
     ireq.i_type = type;
     ireq.i_len = len;
     ireq.i_data = data;
     if (ioctl(s, SIOCG80211, &ireq) < 0) {
-        perror("%s: SIOCG80211 ioctl failed", ifname);
+        perror("%s: SIOCG80211 ioctl failed", ifname.c_str());
         return false;
     }
-    *val = ireq.i_val;
+    val = ireq.i_val;
     return true;
 }
 
 bool FreeBSD::set80211(int type, int val, int len, u_int8_t *data) {
-	struct ieee80211req ireq;
+    struct ieee80211req ireq;
 
-	if (!checksocket())
-		return false;
-	memset(&ireq, 0, sizeof(ireq));
-	strncpy(ireq.i_name, ifname, sizeof(ireq.i_name));
-	ireq.i_type = type;
-	ireq.i_val = val;
-	ireq.i_len = len;
-	ireq.i_data = data;
-	if (ioctl(s, SIOCS80211, &ireq) < 0) {
-		perror("%s: SIOCS80211 ioctl failed", ifname);
-		return false;
-	}
-	return true;
+    if (!checksocket())
+	return false;
+    memset(&ireq, 0, sizeof(ireq));
+    strncpy(ireq.i_name, ifname.c_str(), sizeof(ireq.i_name));
+    ireq.i_type = type;
+    ireq.i_val = val;
+    ireq.i_len = len;
+    ireq.i_data = data;
+    if (ioctl(s, SIOCS80211, &ireq) < 0) {
+	perror("%s: SIOCS80211 ioctl failed", ifname.c_str());
+	return false;
+    }
+    return true;
+}
+
+bool FreeBSD::getifflags(int& flags) {
+    struct ifreq ifr;
+
+    if (!checksocket())
+        return false;
+
+    strncpy(ifr.ifr_name, ifname.c_str(), sizeof (ifr.ifr_name));
+    if (ioctl(s, SIOCGIFFLAGS, (caddr_t)&ifr) < 0) {
+        perror("%s: SIOCGIFFLAGS ioctl failed", ifname.c_str());
+        return false;
+    }
+    flags = (ifr.ifr_flags & 0xffff) | (ifr.ifr_flagshigh << 16);
+    return true;
 }
 
 bool FreeBSD::setifflags(int value) {
     struct ifreq ifr;
     int flags;
 
-    if (!checksocket())
+    if (!getifflags(flags))
         return false;
-
-    strncpy(ifr.ifr_name, ifname, sizeof (ifr.ifr_name));
-    if (ioctl(s, SIOCGIFFLAGS, (caddr_t)&ifr) < 0) {
-        perror("%s: SIOCGIFFLAGS ioctl failed", ifname);
-        return false;
-    }
-    flags = (ifr.ifr_flags & 0xffff) | (ifr.ifr_flagshigh << 16);
 
     if (value < 0) {
         value = -value;
         flags &= ~value;
     } else
         flags |= value;
+    memset(&ifr, 0, sizeof(ifr));
+    strncpy(ifr.ifr_name, ifname.c_str(), sizeof (ifr.ifr_name));
     ifr.ifr_flags = flags & 0xffff;
     ifr.ifr_flagshigh = flags >> 16;
     if (ioctl(s, SIOCSIFFLAGS, (caddr_t)&ifr) < 0) {
-        perror("%s: SIOCSIFFLAGS ioctl failed", ifname);
+        perror("%s: SIOCSIFFLAGS ioctl failed", ifname.c_str());
         return false;
     }
     return true;
@@ -1775,14 +1807,15 @@ bool FreeBSD::setifflags(int value) {
 
 bool FreeBSD::monitor_enable(int initch) {
     /*
-     * Enter monitor mode, enable promiscuous reception,
-     * and set the specified channel.
+     * Enter monitor mode, set the specified channel,
+     * enable promiscuous reception, and force the
+     * interface up since otherwise bpf won't work.
      */
     if (!setmediaopt(IFM_IEEE80211_MONITOR, IFM_AUTO))
         return false;
-    if (!setifflags(IFF_PPROMISC))
-        return false;
     if (!set80211(IEEE80211_IOC_CHANNEL, initch, 0, NULL))
+        return false;
+    if (!setifflags(IFF_PPROMISC | IFF_UP))
         return false;
     return true;
 }
@@ -1791,12 +1824,13 @@ bool FreeBSD::monitor_reset(int initch) {
     (void) setifflags(-IFF_PPROMISC);
     /* NB: reset the current channel before switching modes */
     (void) set80211(IEEE80211_IOC_CHANNEL, initch, 0, NULL);
-    (void) setmediaopt(-IFM_IEEE80211_MONITOR, IFM_AUTO);
+    /* XXX restore previous options/operating mode */
+    (void) setmediaopt(0, IFM_AUTO);
     return true;
 }
 
 bool FreeBSD::chancontrol(int in_ch) {
-	return set80211(IEEE80211_IOC_CHANNEL, in_ch, 0, NULL);
+    return set80211(IEEE80211_IOC_CHANNEL, in_ch, 0, NULL);
 }
 
 int monitor_freebsd(const char *in_dev, int initch, char *in_err) {
@@ -1810,22 +1844,22 @@ int monitor_freebsd(const char *in_dev, int initch, char *in_err) {
 }
 
 int unmonitor_freebsd(const char *in_dev, int initch, char *in_err) {
-	FreeBSD bsd(in_dev);
-	if (!bsd.monitor_reset(initch)) {
-		strcpy(in_err, bsd.geterror());
-		return -1;
-	} else {
-		return 0;
+    FreeBSD bsd(in_dev);
+    if (!bsd.monitor_reset(initch)) {
+	strcpy(in_err, bsd.geterror());
+	return -1;
+    } else {
+	return 0;
     }
 }
 
 int chancontrol_freebsd(const char *in_dev, int in_ch, char *in_err, void *in_ext) {
-	FreeBSD bsd(in_dev);
-	if (!bsd.chancontrol(in_ch)) {
-		strcpy(in_err, bsd.geterror());
-		return -1;
-	} else {
-		return 0;
+    FreeBSD bsd(in_dev);
+    if (!bsd.chancontrol(in_ch)) {
+	strcpy(in_err, bsd.geterror());
+	return -1;
+    } else {
+	return 0;
     }
 }
 #endif /* SYS_FREEBSD */

@@ -18,7 +18,7 @@
  * WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED WARRANTIES OF
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * @(#) $Header: /home/dragorn/src/CVS/kismet/kismet-devel/tcpdump-extract.h,v 1.1 2004/01/24 07:03:38 dragorn Exp $ (LBL)
+ * @(#) $Header: /home/dragorn/src/CVS/kismet/kismet-devel/tcpdump-extract.h,v 1.2 2004/01/26 19:28:48 dragorn Exp $ (LBL)
  */
 
 /* Network to host order macros */
@@ -96,3 +96,12 @@ typedef struct {
 		     (u_int32_t)*((const u_int8_t *)(p) + 2) << 16 | \
 		     (u_int32_t)*((const u_int8_t *)(p) + 1) << 8 | \
 		     (u_int32_t)*((const u_int8_t *)(p) + 0)))
+#define EXTRACT_LE_64BITS(p) \
+	((u_int64_t)((u_int64_t)*((const u_int8_t *)(p) + 7) << 56 | \
+		     (u_int64_t)*((const u_int8_t *)(p) + 6) << 48 | \
+		     (u_int64_t)*((const u_int8_t *)(p) + 5) << 40 | \
+		     (u_int64_t)*((const u_int8_t *)(p) + 4) << 32 | \
+	             (u_int64_t)*((const u_int8_t *)(p) + 3) << 24 | \
+		     (u_int64_t)*((const u_int8_t *)(p) + 2) << 16 | \
+		     (u_int64_t)*((const u_int8_t *)(p) + 1) << 8 | \
+		     (u_int64_t)*((const u_int8_t *)(p) + 0)))
