@@ -238,7 +238,8 @@ int Iwconfig_Get_SSID(const char *in_dev, char *errstr, char *in_essid) {
         return -1;
     }
 
-    snprintf(in_essid, IW_ESSID_MAX_SIZE+1, "%s", wrq.u.essid.pointer);
+    snprintf(in_essid, kismin(IW_ESSID_MAX_SIZE, wrq.u.essid.length) + 1, "%s", 
+             wrq.u.essid.pointer);
 
     close(skfd);
     return 0;
