@@ -41,6 +41,9 @@ public:
     KisPacketSource(string in_name, string in_dev) {
         name = in_name;
         interface = in_dev;
+
+        gpsd = NULL;
+        timetracker = NULL;
     }
 
     virtual ~KisPacketSource() { };
