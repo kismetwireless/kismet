@@ -348,8 +348,9 @@ int Packetracker::ProcessPacket(packet_info info, char *in_status) {
     // never know...
     net->carrier_set |= (1 << (int) info.carrier);
 
-    if (info.type == packet_management) {
-        net->llc_packets++;
+    if ((info.type == packet_management) || (info.proto.type == proto_iapp)) {
+        if (info.type == packet_management)
+            net->llc_packets++;
 
         // If it's a probe request shortcut to handling it like a client once we've
         // established what network it belongs to
@@ -425,7 +426,8 @@ int Packetracker::ProcessPacket(packet_info info, char *in_status) {
         // With "closed" networks, this is our chance to see the real ssid.
         // (Thanks to Jason Luther <jason@ixid.net> for this "closed network" detection)
         if ((info.subtype == packet_sub_probe_resp ||
-             info.subtype == packet_sub_reassociation_resp) && !IsBlank(info.ssid)) {
+             info.subtype == packet_sub_reassociation_resp ||
+	     info.proto.type == proto_iapp) && !IsBlank(info.ssid)) {
 
             if (net->ssid == NOSSID) {
                 net->cloaked = 1;
@@ -492,8 +494,9 @@ int Packetracker::ProcessPacket(packet_info info, char *in_status) {
             net->type = network_adhoc;
         }
 
-    } else {
-
+    }
+    
+    if (info.type != packet_management) {
         // Process data packets
 
         // We feed them into the data packet processor along with the network
@@ -684,7 +687,8 @@ int Packetracker::ProcessDataPacket(packet_info info, wireless_network *net, cha
         memcpy(client->ipdata.ip, info.proto.source_ip, 4);
         means = "ARP";
         ipdata_dirty = 1;
-    } else if ((info.proto.type == proto_udp || info.proto.type == proto_netbios) &&
+    } else if ((info.proto.type == proto_udp || info.proto.type == proto_netbios ||
+		info.proto.type == proto_iapp) &&
                (client->ipdata.atype < address_udp || client->ipdata.load_from_store == 1) &&
                info.proto.source_ip[0] != 0x00) {
         client->ipdata.atype = address_udp;
