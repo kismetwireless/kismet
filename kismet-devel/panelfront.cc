@@ -968,8 +968,9 @@ void PanelFront::ZoomNetworks() {
     DrawDisplay();
 }
 
-void PanelFront::SpawnWindow(string in_title, panel_printer in_print, key_handler in_input,
-                             int in_x, int in_y) {
+PanelFront::kis_window *PanelFront::SpawnWindow(string in_title, panel_printer in_print, 
+                                                key_handler in_input, int in_x, 
+                                                int in_y) {
     kis_window *kwin = new kis_window;
 
     kwin->title = in_title;
@@ -1011,7 +1012,7 @@ void PanelFront::SpawnWindow(string in_title, panel_printer in_print, key_handle
     if (kwin->win == NULL) {
         WriteStatus("Error making window");
         delete kwin;
-        return;
+        return NULL;
     }
 
     kwin->pan = new_panel(kwin->win);
@@ -1023,6 +1024,7 @@ void PanelFront::SpawnWindow(string in_title, panel_printer in_print, key_handle
     window_list.push_back(kwin);
     cur_window = kwin;
     DrawDisplay();
+    return kwin;
 }
 
 // Spawn a text helpbox with the included help stuff

@@ -27,6 +27,7 @@
 
 int PanelFront::MainInput(void *in_window, int in_chr) {
     kis_window *kwin = (kis_window *) in_window;
+    kis_window *clwin = NULL;
     int nactivec = 0;
 
     switch (in_chr) {
@@ -146,8 +147,11 @@ int PanelFront::MainInput(void *in_window, int in_chr) {
                 context->client->SendRaw(rawstr);
             } else {
                 // Pop open the window to pick
-                SpawnWindow("Channel Lock",
-                            &PanelFront::ChanlockPrinter, &PanelFront::ChanlockInput);
+                clwin = SpawnWindow("Channel Lock",
+                                    &PanelFront::ChanlockPrinter, 
+                                    &PanelFront::ChanlockInput,
+                                    5, 36);
+                clwin->toggle0 = 0;
             }
         } else {
             WriteStatus("Cannot lock channels to a network in autofit mode.  Sort "
@@ -170,14 +174,18 @@ int PanelFront::MainInput(void *in_window, int in_chr) {
             context->client->SendRaw("CHANHOP 0");
         } else {
             // Pop open the window to pick
-            SpawnWindow("Channel Lock",
-                        &PanelFront::ChanlockPrinter, &PanelFront::ChanlockInput);
+            clwin = SpawnWindow("Channel Hop",
+                                &PanelFront::ChanlockPrinter, 
+                                &PanelFront::ChanlockInput,
+                                5, 36);
+            clwin->toggle0 = 1;
         }
 
         break;
     case 'i':
     case 'I':
     case KEY_ENTER:
+    case 10:
         if (sortby != sort_auto &&  last_displayed.size() > 0) {
             details_network = last_displayed[kwin->selected];
             SpawnWindow("Network Details",
@@ -742,6 +750,7 @@ int PanelFront::MainClientInput(void *in_window, int in_chr) {
     case 'i':
     case 'I':
     case KEY_ENTER:
+    case 10:
         if (client_sortby != client_sort_auto && last_client_displayed.size() > 0) {
             details_client = last_client_displayed[kwin->selected];
             SpawnWindow("Client Details",
@@ -989,7 +998,55 @@ int PanelFront::IntroInput(void *in_window, int in_chr) {
 }
 
 int PanelFront::ChanlockInput(void *in_window, int in_chr) {
+    kis_window *kwin = (kis_window *) in_window;
+    char rawstr[25];
+    char msg[1024];
+
     switch (in_chr) {
+    case KEY_UP:
+        if (kwin->selected > 0) 
+            kwin->selected--;
+        else if (kwin->selected == 0 && kwin->start > 0)
+            kwin->start--;
+        break;
+    case KEY_DOWN:
+        if ((kwin->selected + kwin->start) == (int) context_cardlist.size() - 1) {
+        } else if ((kwin->selected + kwin->start) < kwin->end)
+            kwin->selected++;
+        else if (kwin->end < ((int) context_cardlist.size() - 1))
+            kwin->start++;
+        break;
+    case KEY_ENTER:
+    case 10:
+        if ((kwin->start + kwin->selected) < (int) context_cardlist.size()) {
+            // server_context *con = context_list[kwin->start + kwin->selected];
+            cardinfo_context ctx = context_cardlist[kwin->start + kwin->selected];
+
+            if (kwin->toggle0 == 0) {
+                snprintf(rawstr, 25, "CHANLOCK %d %d",
+                         ctx.cardinfo->id,
+                         details_network->virtnet->channel);
+            } else {
+                snprintf(rawstr, 25, "CHANHOP %d",
+                         ctx.cardinfo->id);
+            }
+
+            if (ctx.context->client == NULL) {
+                snprintf(msg, 1024, "Server %s (%s:%d) dissapeared on us...",
+                         ctx.context->client->FetchServername().c_str(),
+                         ctx.context->client->FetchHost(), 
+                         ctx.context->client->FetchPort());
+                WriteStatus(msg);
+                return 0;
+            }
+
+            ctx.context->client->SendRaw(rawstr);
+            return 0;
+        }
+        snprintf(msg, 1024, "debug - something funny... %d %d %d",
+                 kwin->start, kwin->selected, context_cardlist.size());
+        WriteStatus(msg);
+        break;
     case 'x':
     case 'X':
     case 'q':

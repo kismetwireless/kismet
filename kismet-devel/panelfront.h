@@ -238,6 +238,12 @@ protected:
         int primary;
     };
 
+    // Context-aware cardinfo
+    typedef struct cardinfo_context {
+        server_context *context;
+        TcpClient::card_info *cardinfo;
+    };
+
     // Semi-override of update groups
     void UpdateGroups();
     void DestroyGroup(display_network *in_group);
@@ -305,8 +311,8 @@ protected:
     int ChanlockInput(void *in_window, int in_chr);
 
     // Spawn a generic popup
-    void SpawnWindow(string in_title, panel_printer in_print, key_handler in_input,
-                    int in_x = -1, int in_y = -1);
+    kis_window *SpawnWindow(string in_title, panel_printer in_print, 
+                            key_handler in_input, int in_x = -1, int in_y = -1);
 
     // Spawn a help popup
     void SpawnHelp(char **in_helptext);
@@ -428,6 +434,8 @@ protected:
     vector<display_network *> past_display_vec;
     char main_sortxt[24];
     int localnets_dirty;
+
+    vector<cardinfo_context> context_cardlist;
 
 };
 
