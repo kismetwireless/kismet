@@ -7453,6 +7453,14 @@ sharedatadir=`(
 sharedatadir=${sharedatadir}
 
 
+if test "$darwin" = "yes"; then
+	{ echo "$as_me:$LINENO: WARNING: *** Turning off debugging symbols - OSX gcc sometimes blows up strangely with it on. ***" >&5
+echo "$as_me: WARNING: *** Turning off debugging symbols - OSX gcc sometimes blows up strangely with it on. ***" >&2;};
+	CXXFLAGS=`echo $CXXFLAGS | sed -e 's/-g \t\n//g'`
+	CFLAGS=`echo $CFLAGS | sed -e 's/-g \t\n//g'`
+	CPPFLAGS=`echo $CPPFLAGS | sed -e 's/-g \t\n//g'`
+fi
+
                                                                                 ac_config_files="$ac_config_files Makefile scripts/kismet scripts/kismet_monitor scripts/kismet_unmonitor extra/buzzme/Makefile extra/Makefile conf/kismet.conf conf/kismet_ui.conf"
 
 cat >confcache <<\_ACEOF

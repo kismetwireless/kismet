@@ -750,6 +750,13 @@ sharedatadir=`(
 sharedatadir=${sharedatadir}
 AC_SUBST(sharedatadir)
 
+if test "$darwin" = "yes"; then
+	AC_MSG_WARN(*** Turning off debugging symbols - OSX gcc sometimes blows up strangely with it on. ***);
+	CXXFLAGS=`echo $CXXFLAGS | sed -e 's/-g[ \t\n]//g'`
+	CFLAGS=`echo $CFLAGS | sed -e 's/-g[ \t\n]//g'`
+	CPPFLAGS=`echo $CPPFLAGS | sed -e 's/-g[ \t\n]//g'`
+fi
+	
 AC_CONFIG_FILES([Makefile scripts/kismet scripts/kismet_monitor scripts/kismet_unmonitor extra/buzzme/Makefile extra/Makefile conf/kismet.conf conf/kismet_ui.conf])
 AC_OUTPUT
 
