@@ -3,6 +3,7 @@ Aug 29 2002  2.5.2  Fixed reassociation subtype
                     Started fixing support for bigendian systems.  Initial
                      packet type dissection and network detection should
                      work.
+                    Added netstumbler 3.30 detection (     Intentionally blank)
 Aug 28 2002  2.5.2  Merged diff from jwright to the ARM docs to alleviate some
                      questions and problems.
                     More speed improvements to panelfront

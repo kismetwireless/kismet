@@ -481,14 +481,19 @@ void GetProtoInfo(const packet_info *in_info, const pkthdr *header,
                       sizeof(NETSTUMBLER_LLC_SIGNATURE)) == 0) {
 
             // If we have a LLC packet that looks like a netstumbler...
-            if (memcmp(&data[in_info->header_offset + NETSTUMBER_OFFSET], NETSTUMBLER_322_SIGNATURE,
+            if (memcmp(&data[in_info->header_offset + NETSTUMBLER_OFFSET], NETSTUMBLER_322_SIGNATURE,
                        sizeof(NETSTUMBLER_322_SIGNATURE)) == 0) {
                 // Netstumbler 322 says Flurble gronk bloopit, bnip Frundletrune
                 ret_protoinfo->type = proto_netstumbler;
                 return;
-            } else if (memcmp(&data[in_info->header_offset + NETSTUMBER_OFFSET], NETSTUMBLER_323_SIGNATURE,
+            } else if (memcmp(&data[in_info->header_offset + NETSTUMBLER_OFFSET], NETSTUMBLER_323_SIGNATURE,
                               sizeof(NETSTUMBLER_323_SIGNATURE)) == 0) {
                 // Netstumbler 323 says All your 802.11b are belong to us
+                ret_protoinfo->type = proto_netstumbler;
+                return;
+            } else if (memcmp(&data[in_info->header_offset + NETSTUMBLER_OFFSET], NETSTUMBLER_330_SIGNATURE,
+                              sizeof(NETSTUMBLER_330_SIGNATURE)) == 0) {
+                // Netstumbler 330 says           Intentionally left blank
                 ret_protoinfo->type = proto_netstumbler;
                 return;
             }
