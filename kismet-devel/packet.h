@@ -295,8 +295,10 @@ void MungeToPrintable(char *in_data, int max);
 
 // Info extraction functions
 int GetTagOffset(int init_offset, int tagnum, const pkthdr *header, const u_char *data);
-packet_info GetPacketInfo(const pkthdr *header, const u_char *data, packet_parm *parm);
-proto_info GetProtoInfo(const packet_info *in_info, const pkthdr *header, const u_char *in_data);
+void GetPacketInfo(const pkthdr *header, const u_char *data,
+                   packet_parm *parm, packet_info *ret_packinfo);
+void GetProtoInfo(const packet_info *in_info, const pkthdr *header,
+                  const u_char *in_data, proto_info *ret_protoinfo);
 
 vector<string> GetPacketStrings(const packet_info *in_info, const pkthdr *header, const u_char *in_data);
 
