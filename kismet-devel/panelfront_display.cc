@@ -491,7 +491,7 @@ int PanelFront::MainNetworkPrinter(void *in_window) {
             memset(bar, ' ', 1024);
             int w = kwin->print_width;
             if (w >= 1024)
-                w = 1024;
+                w = 1023;
             bar[w] = '\0';
             mvwaddstr(netwin, num+voffset, 2, bar);
         }
@@ -1049,7 +1049,7 @@ int PanelFront::MainClientPrinter(void *in_window) {
             memset(bar, ' ', 1024);
             int w = kwin->print_width;
             if (w >= 1024)
-                w = 1024;
+                w = 1023;
             bar[w] = '\0';
             mvwaddstr(kwin->win, num+voffset, 1, bar);
         }
@@ -1239,7 +1239,7 @@ int PanelFront::DetailsPrinter(void *in_window) {
 
     int print_width = kwin->print_width;
     if (print_width > 1024)
-        print_width = 1024;
+        print_width = 1023;
 
     if (details_network->name == "")
         snprintf(output, print_width, "Name    : %s", details_network->virtnet.ssid.c_str());
@@ -1500,7 +1500,7 @@ int PanelFront::GpsPrinter(void *in_window) {
 
     int print_width = kwin->print_width;
     if (print_width > 1024)
-        print_width = 1024;
+        print_width = 1023;
 
     if (print_width < 32) {
         kwin->text.push_back("Display not wide enough");
@@ -2252,7 +2252,7 @@ int PanelFront::DetailsClientPrinter(void *in_window) {
 
     int print_width = kwin->print_width;
     if (print_width > 1024)
-        print_width = 1024;
+        print_width = 1023;
 
     switch (details_client->type) {
     case client_fromds:
