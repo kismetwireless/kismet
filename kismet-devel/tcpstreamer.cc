@@ -187,6 +187,13 @@ int TcpStreamer::Accept() {
         snprintf(errstr, 1024, "%s", inhost);
     }
 
+    if (FetchNumClients() >= (int) max_clients) {
+        snprintf(errstr, 1024, "TcpStreamer accept() max clients already connected, rejecting %s",
+                 inhost);
+        close(new_fd);
+        return -1;
+    }
+
     if (new_fd > max_fd)
         max_fd = new_fd;
 
@@ -303,4 +310,16 @@ int TcpStreamer::WritePacket(const kis_packet *in_packet, float in_lat, float in
 
     return nsent;
 }
+
+int TcpStreamer::FetchNumClients() {
+    int num = 0;
+
+    for (unsigned int x = serv_fd + 1; x <= max_fd; x++) {
+        if (!FD_ISSET(x, &client_fds))
+            num++;
+    }
+
+    return num;
+}
+
 

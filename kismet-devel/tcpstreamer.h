@@ -82,6 +82,9 @@ public:
                     float in_alt, float in_spd, int in_mode);
     int WriteVersion(int in_fd);
 
+    // How many clients are connected?
+    int FetchNumClients();
+
 protected:
     int Accept();
 
