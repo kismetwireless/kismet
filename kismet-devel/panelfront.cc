@@ -459,6 +459,7 @@ void PanelFront::AddClient(TcpClient *in_client) {
     in_client->EnableProtocol("REMOVE");
     in_client->EnableProtocol("ALERT");
     in_client->EnableProtocol("STATUS");
+    in_client->EnableProtocol("CARD");
 }
 
 void PanelFront::FetchClients(vector<TcpClient *> *in_vec) {
