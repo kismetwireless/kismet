@@ -230,8 +230,30 @@ void PanelFront::NetLine(string *in_str, wireless_network *net, const char *name
             else // Display in MB
                 snprintf(element, 6, "%4ldM", net->datasize/1024/1024);
             len = 5;
-        }
-
+        } else if (colindex == mcol_signalbar) {
+            if (net->best_signal > 0) {
+                int sx = (int)((double)(idle_time < (decay * 2) ? net->signal : 0) / net->best_signal * 15);
+                char sg[16];
+                memset(sg, '=', 15);
+                memset(sg, 'X', sx);
+                sg[15] = '\0';
+                snprintf(element, 16, "%s", sg);
+            } else
+                snprintf(element, 1024, "===============");
+            len = 15;
+        } else if (colindex == mcol_qualitybar) {
+            if (net->best_quality > 0) {
+                int sx = (int)((double)(idle_time < (decay * 2) ? net->quality : 0) / net->best_quality * 15);
+                char sg[16];
+                memset(sg, '=', 15);
+                memset(sg, 'X', sx);
+                sg[15] = '\0';
+                snprintf(element, 16, "%s", sg);
+            } else
+                snprintf(element, 1024, "===============");
+            len = 15;
+	}
+	
         if (pos + len > print_width)
             break;
 
@@ -445,6 +467,12 @@ int PanelFront::MainNetworkPrinter(void *in_window) {
         } else if (colind == mcol_datasize) {
             snprintf(title, 1024, " Size");
             len = 5;
+        } else if (colind == mcol_signalbar) {
+            snprintf(title, 1024, "SignalGraph");
+            len = 15;
+        } else if (colind == mcol_qualitybar) {
+            snprintf(title, 1024, "QualityGraph");
+            len = 15;
         } else {
             len = -1;
         }
