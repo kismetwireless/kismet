@@ -391,7 +391,7 @@ pthread_mutex_t power_lock;
 pthread_mutex_t print_lock;
 pthread_mutex_t power_pos_lock;
 #endif
-unsigned int numthreads = 1;
+int numthreads = 1;
 int *power_map;
 unsigned int power_pos = 0;
 int *power_input_map;
@@ -2187,7 +2187,7 @@ void DrawNetPower(vector<gps_network *> in_nets, Image *in_img,
     pthread_attr_init(&attr);
     pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_JOINABLE);
     pargs = new powerline_arg[numthreads];
-    for (unsigned int t = 0; t < numthreads; t++) {
+    for (int t = 0; t < numthreads; t++) {
         pargs[t].in_res = power_resolution;
         pargs[t].threadno = t;
 
@@ -2198,7 +2198,7 @@ void DrawNetPower(vector<gps_network *> in_nets, Image *in_img,
 
     // Now wait for the threads to complete and come back
     int thread_status;
-    for (unsigned int t = 0; t < numthreads; t++) {
+    for (int t = 0; t < numthreads; t++) {
         pthread_join(mapthread[t], (void **) &thread_status);
     }
 #else
@@ -2226,7 +2226,7 @@ void DrawNetPower(vector<gps_network *> in_nets, Image *in_img,
 
     fprintf(stderr, "Preparing colormap.\n");
     // Doing this here saves us another ~ 1mio operations
-    PixelPacket colormap[power_steps];
+    PixelPacket *colormap = new PixelPacket[power_steps];
     ExceptionInfo ex;
     GetExceptionInfo(&ex);
     for ( int i = 0; i < power_steps; i++) {
@@ -2294,6 +2294,7 @@ void DrawNetPower(vector<gps_network *> in_nets, Image *in_img,
 
     delete[] power_map;
     delete[] power_input_map;
+    delete[] colormap;
     delete point_template;
     delete rect_template;
 }
@@ -3487,6 +3488,8 @@ int main(int argc, char *argv[]) {
 
     mpf_set_default_prec(256);
 
+    int scantmp1, scantmp2;
+
     while(1) {
         int r = getopt_long(argc, argv,
                             "hvg:S:o:f:iF:Iz:DVc:s:m:d:n:GMO:tY:brR:uU:aA:B:pP:Z:q:Q:eE:H:l:L:kT:NK:",
@@ -3596,10 +3599,12 @@ int main(int argc, char *argv[]) {
             usermap = true;
             break;
        	case 'd':
-            if (sscanf(optarg, "%d,%d", &map_width, &map_height) != 2 || map_width < 0 || map_height < 0) {
+            if (sscanf(optarg, "%d,%d", &scantmp1, &scantmp2) != 2 || scantmp1 < 0 || scantmp2 < 0) {
                 fprintf(stderr, "Invalid custom map size.\n");
                 ShortUsage(exec_name);
             }
+            map_width = scantmp1;
+            map_height = scantmp2;
             usersize = 1;
             break;
         case 'n':
