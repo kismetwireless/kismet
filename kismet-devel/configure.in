@@ -589,21 +589,6 @@ else
     local=yes
 fi
 
-acpi=no
-AC_ARG_ENABLE(acpi,
-[  --enable-acpi           Use ACPI instead of APM],
-    acpi=yes, acpi=no)
-
-if test $acpi = "yes" -a "`cat /proc/acpi/info 2> /dev/null`" == ""; then
-	AC_MSG_WARN(*** ACPI enabled but /proc/acpi/info not found ***)
-	acpi=no
-fi
-
-if test $acpi = yes ; then
-	AC_DEFINE(HAVE_ACPI, 1, Use ACPI)
-fi
-AC_SUBST(acpi)
-
 # gpsmap checks
 
 # Check for expat
@@ -841,12 +826,6 @@ else
 fi
 echo -n "           GPS support: "
 if test "$wantgps" = "yes"; then
-	echo "yes"
-else
-	echo "no"
-fi
-echo -n "          ACPI support: "
-if test "$acpi" = "yes"; then
 	echo "yes"
 else
 	echo "no"

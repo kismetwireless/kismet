@@ -34,3 +34,4 @@ In no particular order:
 	getopt problems on freebsd5
 	denote networks with keys in UI
 	strong authentication/SSL of client/server server/drone
+	acpi/apm reporting via server protocol

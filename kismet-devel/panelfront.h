@@ -372,6 +372,7 @@ protected:
     int last_client_draw_size;
 
     // Battery monitoring states
+    unsigned int use_acpi;
     unsigned int monitor_bat;
     unsigned int bat_percentage;
     unsigned int bat_time;
