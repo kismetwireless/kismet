@@ -10,10 +10,16 @@ GREP_OPTIONS=""
 set -m
 
 gui=`grep -e "^gui=" ${ETC}/kismet_ui.conf | cut -d= -f2 | tr -d " \t"`
+piddir=`grep -e "^piddir=" ${ETC}/kismet.conf | cut -d= -f2 | tr -d " \t"`
 
 if test "$gui" = ""; then
-	echo "No gui specified in ${ETC}/kismet.conf.  Please specify one!"
+	echo "No gui specified in ${ETC}/kismet_ui.conf.  Please specify one!"
 	exit
+fi
+
+if test "$piddir" = ""; then
+    echo "No piddir specified in ${ETC}/kismet.conf.  Please specify one!"
+    exit
 fi
 
 mode="server"
@@ -52,8 +58,15 @@ ${BIN}/kismet_server --silent $server &
 
 servpid=$!
 
-echo "Waiting for server to finish starting before startuing UI..."
+echo "Waiting for server to start before startuing UI..."
 sleep 4
+
+kill -0 $servpid 2>/dev/null
+if test "$?" != "0" ; then
+    # Don't print anything here so that users don't get confused, just die and let
+    # them read the server fatal errors
+    exit 1
+fi
 
 echo "Starting UI..."
 ${BIN}/kismet_client $client
@@ -64,34 +77,8 @@ if test "$?" != "5"; then
 	wait %-
 fi
 
-echo "Client exited, terminating..."
-
-if test -f "/var/run/kismet_hopper.pid"; then
-	HOPPERPID=`cat /var/run/kismet_hopper.pid`
-	echo "Shutting down kismet_hopper..."
-	# Stupid race condition gymnastics...
-	# Make a temp file then move it to the target file to avoid symlinks
-	CNTFILE=`mktemp /tmp/kishopper.XXXXXX`
-	mv ${CNTFILE} /tmp/kismet_hopper.control
-
-	WAITTIME=0
-	while test "${WAITTIME}" -le 5; do
-		if test ! -f /var/run/kismet_hopper.pid; then
-			break
-		fi
-		sleep 1
-		WAITTIME=$((${WAITTIME}+1))
-	done
-
-	if test "${WAITTIME}" -gt 5; then
-		echo "kismet_hopper pid ${HOPPERPID} didn't seem to die cleanly as requested "
-		echo "within 5 seconds.  You'll have to find it and kill it yourself if its"
-		echo "still running."
-	fi
-
-	rm /tmp/kismet_hopper.control
-fi
-
-echo "Done.  Run kismet_unmonitor or eject and re-insert your card (or restart your"
-echo " pcmcia services) to return your card to normal operation."
+echo "Kismet exited."
+echo "If you are using a pcmcia wireless card, eject and reinsert your card to "
+echo "return to normal operation, otherwise remove and reinsert your wireless driver "
+echo "modules to resume normal operation."
 

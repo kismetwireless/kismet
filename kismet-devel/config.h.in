@@ -160,6 +160,9 @@
 /* wtap_read takes two int * parameters */
 #undef HAVE_WTAPREAD_INTINT
 
+/* system state directory */
+#undef LOCALSTATE_DIR
+
 /* Define to 1 if `lstat' dereferences a symlink specified with a trailing
    slash. */
 #undef LSTAT_FOLLOWS_SLASHED_SYMLINK
@@ -236,7 +239,7 @@
 
 /* system min isn't reliable */
 #define kismin(x,y) ((x) < (y) ? (x) : (y))
-#define kismax(x,y) ((x) < (y) ? (x) : (y))
+#define kismax(x,y) ((x) > (y) ? (x) : (y))
 
 // Timer slices per second
 #define SERVER_TIMESLICES_SEC 10

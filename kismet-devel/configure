@@ -3069,6 +3069,18 @@ cat >>confdefs.h <<_ACEOF
 _ACEOF
 
 
+LOCALSTATE_DIR=$localstatedir
+LOCALSTATE_DIR=`(
+                 test "$prefix" = NONE && prefix=$ac_default_prefix
+                 test "$exec_prefix" = NONE && exec_prefix=${prefix}
+                 eval echo "$LOCALSTATE_DIR"
+                )`
+
+cat >>confdefs.h <<_ACEOF
+#define LOCALSTATE_DIR "$LOCALSTATE_DIR"
+_ACEOF
+
+
 BIN_DIR=$bindir
 BIN_DIR=`(
     test "$prefix" = NONE && prefix=$ac_default_prefix
