@@ -45,7 +45,11 @@ int AirsnortDumpFile::DumpPacket(const packet_info *in_info, const pkthdr *in_he
     }
 
     // Is it weak?  Always log them, and add it to our count
-    if (in_info->type == packet_data && in_info->interesting == 1) {
+        if ((in_info->type == packet_data ||
+             in_info->type == packet_adhoc_data ||
+             in_info->type == packet_ap_broadcast) &&
+            in_info->interesting == 1) {
+
         num_dumped++;
 
         ret = dumper->DumpPacket(in_info, in_header, in_data);
