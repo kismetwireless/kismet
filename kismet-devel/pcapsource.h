@@ -180,8 +180,14 @@ typedef struct linux_ifparm {
 #ifdef HAVE_LINUX_WIRELESS
 class PcapSourceWext : public PcapSource {
 public:
-    PcapSourceWext(string in_name, string in_dev) : PcapSource(in_name, in_dev) { }
+    PcapSourceWext(string in_name, string in_dev) : PcapSource(in_name, in_dev) { 
+        modern_chancontrol = -1;
+    }
     int FetchChannel();
+
+    // Small tracker var for intelligent channel control in orinoco.  I don't want to make
+    // a new class for 1 int
+    int modern_chancontrol;
 protected:
     int FetchSignalLevels(int *in_siglev, int *in_noiselev);
 };

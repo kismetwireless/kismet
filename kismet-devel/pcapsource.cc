@@ -1146,6 +1146,9 @@ int monitor_orinoco(const char *in_dev, int initch, char *in_err, void **in_if) 
     if ((ifparm->channel = Iwconfig_Get_Channel(in_dev, in_err)) < 0)
         return -1;
 
+    if (Iwconfig_Get_Mode(in_dev, in_err, &ifparm->mode) < 0)
+        return -1;
+
     // Bring the device up, zero its ip, and set promisc
     if (Ifconfig_Delta_Flags(in_dev, in_err, IFF_UP | IFF_RUNNING | IFF_PROMISC) < 0)
         return -1;
@@ -1676,20 +1679,42 @@ int chancontrol_wext(const char *in_dev, int in_ch, char *in_err, void *in_ext) 
 // Use iwpriv to control the channel for orinoco
 int chancontrol_orinoco(const char *in_dev, int in_ch, char *in_err, void *in_ext) {
     int ret;
-    
-    // Set the monitor mode iwpriv controls.  Explain more if we fail on monitor.
-    if ((ret = Iwconfig_Set_IntPriv(in_dev, "monitor", 1, in_ch, in_err)) < 0) {
-        if (ret == -2) 
-            snprintf(in_err, 1024, "Could not find 'monitor' private ioctl.  This "
-                     "typically means that the drivers have not been patched or the "
-                     "patched drivers are being loaded.  See the troubleshooting "
-                     "section of the README for more information.");
-        return -1;
-    }
+    PcapSourceWext *source = (PcapSourceWext *) in_ext;
+  
+    // Learn how to control our channel
+    if (source->modern_chancontrol == -1) {
+        if ((ret = Iwconfig_Set_IntPriv(in_dev, "monitor", 1, in_ch, in_err)) == -2) {
+            if (Iwconfig_Set_Channel(in_dev, in_ch, in_err) < 0) {
+                snprintf(in_err, 1024, "Could not find 'monitor' private ioctl or use "
+                         "the newer style 'channel X' command.  This typically means "
+                         "that the drivers have not been patched or the "
+                         "correct drivers are being loaded. See the troubleshooting "
+                         "section of the README for more information.");
+                return -1;
+            }
+            source->modern_chancontrol = 1;
+        } else if (ret >= 0) {
+            source->modern_chancontrol = 0;
+        } else {
+            return ret;
+        }
+    } else if (source->modern_chancontrol == 0) {
+        // Set the monitor mode iwpriv controls.  Explain more if we fail on monitor.
+        if ((ret = Iwconfig_Set_IntPriv(in_dev, "monitor", 1, in_ch, in_err)) < 0) {
+            if (ret == -2) 
+                snprintf(in_err, 1024, "Could not find 'monitor' private ioctl.  This "
+                         "typically means that the drivers have not been patched or the "
+                         "patched drivers are being loaded.  See the troubleshooting "
+                         "section of the README for more information.");
+            return -1;
+        }
 
-    // The channel is set by the iwpriv so we're done.
-    
-    return 0;
+        // The channel is set by the iwpriv so we're done.
+        return 0;
+    } 
+
+    // Otherwise use iwconfig to set the channel
+    return(Iwconfig_Set_Channel(in_dev, in_ch, in_err));
 }
 
 // Madwifi needs to change modes accordinly
