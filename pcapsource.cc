@@ -229,7 +229,6 @@ int PcapSource::Prism2KisPack(kis_packet *packet, uint8_t *data, uint8_t *moddat
 
         // We REALLY need to do something smarter about this and handle the RSSI
         // type instead of just copying
-        packet->quality = 0;
         packet->signal = ntohl(v1hdr->ssi_signal);
         packet->noise = ntohl(v1hdr->ssi_noise);
 
@@ -291,6 +290,8 @@ int PcapSource::Prism2KisPack(kis_packet *packet, uint8_t *data, uint8_t *moddat
         packet->caplen = 0;
         return 0;
     }
+
+    memcpy(packet->data, callback_data + callback_offset, packet->caplen);
 
     return 1;
 
@@ -474,6 +475,9 @@ int monitor_cisco(const char *in_dev, int initch, char *in_err) {
 }
 
 // Cisco uses its own config file in /proc to control modes
+//
+// I was doing this with ioctls but that seems to cause lockups while
+// this method doesn't.  I don't think I like these drivers.
 int monitor_cisco_wifix(const char *in_dev, int initch, char *in_err) {
     FILE *cisco_config;
     char cisco_path[128];
@@ -484,47 +488,34 @@ int monitor_cisco_wifix(const char *in_dev, int initch, char *in_err) {
         return -1;
     }
 
-    // Detect if we're already in monitor mode, since it lies to iwext about the
-    // mode...
+    // Bring the device up, zero its ip, and set promisc
+    if (Ifconfig_Linux(devbits[0].c_str(), in_err) < 0)
+        return -1;
+    if (Ifconfig_Linux(devbits[1].c_str(), in_err) < 0)
+        return -1;
+
+    // Zero the ssid
+    if (Iwconfig_Blank_SSID(devbits[0].c_str(), in_err) < 0)
+        return -1;
+    if (Iwconfig_Blank_SSID(devbits[1].c_str(), in_err) < 0)
+        return -1;
+    
+    // Build the proc control path
     snprintf(cisco_path, 128, "/proc/driver/aironet/%s/Config", devbits[0].c_str());
 
-    if ((cisco_config = fopen(cisco_path, "r")) == NULL) {
+    if ((cisco_config = fopen(cisco_path, "w")) == NULL) {
         snprintf(in_err, STATUS_MAX, "Unable to open cisco control file '%s' %d:%s",
                  cisco_path, errno, strerror(errno));
         return -1;
     }
 
-    // Reuse the path var, since we can
-    if (fgets(cisco_path, 128, cisco_config) == NULL) {
-        snprintf(in_err, STATUS_MAX, "Unable to read from cisco control file %d:%s",
-                 errno, strerror(errno));
-        fclose(cisco_config);
-        return -1;
-    }
+    fprintf(cisco_config, "Mode: r\n");
+    fprintf(cisco_config, "Mode: y\n");
+    fprintf(cisco_config, "XmitPower: 1\n");
 
     fclose(cisco_config);
 
-    // This is safe since fgets will give us a terminal and we're comparing against
-    // static
-    if (!strcmp(cisco_path, "Mode: rfmon\n")) {
-        printf("-- debug - not going into rfmon, already there.\n");
-        // Just set up the interface with ifconfig
-        // Bring the device up, zero its ip, and set promisc
-        if (Ifconfig_Linux(devbits[1].c_str(), in_err) < 0)
-            return -1;
-
-        // Zero the ssid
-        if (Iwconfig_Blank_SSID(devbits[1].c_str(), in_err) < 0)
-            return -1;
-
-        return 0;
-    }
-
-    // Use the wireless extensions to set the mode of the ethX interface
-    // Channel set is simply ignored by the current drivers, but the future ones
-    // should be able to do something.  Someday.  I hope.
-    if (monitor_wext(devbits[1].c_str(), initch, in_err) < 0)
-        return -1;
+    // Channel can't be set on cisco with these drivers.
 
     return 0;
 }
