@@ -2034,16 +2034,6 @@ int main(int argc,char *argv[]) {
         }
     }
 
-    if (filter_export)
-        tracker.AddExportFilters(&filter_export_bssid, &filter_export_source, &filter_export_dest,
-                                 &filter_export_bssid_invert, &filter_export_source_invert,
-                                 &filter_export_dest_invert);
-
-    if (filter_alert)
-        tracker.AddExportFilters(&filter_alert_bssid, &filter_alert_source, &filter_alert_dest,
-                                 &filter_alert_bssid_invert, &filter_alert_source_invert,
-                                 &filter_alert_dest_invert);
-
     if (gps_enable == 1) {
         // Open the GPS
         if (gps.OpenGPSD(gpshost, gpsport) < 0) {
@@ -2075,6 +2065,16 @@ int main(int argc,char *argv[]) {
         gps_log = 0;
     }
 #endif
+
+    if (filter_export)
+        tracker.AddExportFilters(&filter_export_bssid, &filter_export_source, &filter_export_dest,
+                                 &filter_export_bssid_invert, &filter_export_source_invert,
+                                 &filter_export_dest_invert);
+
+    if (filter_alert)
+        tracker.AddExportFilters(&filter_alert_bssid, &filter_alert_source, &filter_alert_dest,
+                                 &filter_alert_bssid_invert, &filter_alert_source_invert,
+                                 &filter_alert_dest_invert);
 
     char *fuzzengines = strdup(conf->FetchOpt("fuzzycrypt").c_str());
     for (unsigned int x = 0; x < packet_sources.size(); x++) {
