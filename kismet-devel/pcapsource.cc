@@ -415,24 +415,24 @@ int PcapSource::BSD2KisPack(kis_packet *packet, uint8_t *data, uint8_t *moddata)
  * Convert MHz frequency to IEEE channel number.
  */
 static u_int ieee80211_mhz2ieee(u_int freq, u_int flags) {
-	if (flags & IEEE80211_CHAN_2GHZ) {	/* 2GHz band */
-		if (freq == 2484)
-			return 14;
-		if (freq < 2484)
-			return (freq - 2407) / 5;
-		else
-			return 15 + ((freq - 2512) / 20);
-	} else if (flags & IEEE80211_CHAN_5GHZ) {	/* 5Ghz band */
-		return (freq - 5000) / 5;
-	} else {				/* either, guess */
-		if (freq == 2484)
-			return 14;
-		if (freq < 2484)
-			return (freq - 2407) / 5;
-		if (freq < 5000)
-			return 15 + ((freq - 2512) / 20);
-		return (freq - 5000) / 5;
-	}
+    if (flags & IEEE80211_CHAN_2GHZ) {		/* 2GHz band */
+	if (freq == 2484)
+	    return 14;
+	if (freq < 2484)
+	    return (freq - 2407) / 5;
+	else
+	    return 15 + ((freq - 2512) / 20);
+    } else if (flags & IEEE80211_CHAN_5GHZ) {	/* 5Ghz band */
+	return (freq - 5000) / 5;
+    } else {					/* either, guess */
+	if (freq == 2484)
+	    return 14;
+	if (freq < 2484)
+	    return (freq - 2407) / 5;
+	if (freq < 5000)
+	    return 15 + ((freq - 2512) / 20);
+	return (freq - 5000) / 5;
+    }
 }
 
 /*
@@ -589,7 +589,8 @@ int PcapSource::Radiotap2KisPack(kis_packet *packet, uint8_t *data, uint8_t *mod
                         packet->carrier = carrier_unknown;
                     break;
                 case IEEE80211_RADIOTAP_RATE:
-                    packet->datarate = u.u8;
+		    /* strip basic rate bit & convert to kismet units */
+                    packet->datarate = ((u.u8 &~ 0x80) / 2) * 10;
                     break;
                 case IEEE80211_RADIOTAP_DB_ANTSIGNAL:
                     packet->signal = u.i8;
@@ -866,6 +867,7 @@ int PcapSourceRadiotap::FetchChannel() {
 }
 
 int PcapSourceRadiotap::OpenSource() {
+    // XXX this is a hack to avoid duplicating code
     int s = PcapSource::OpenSource();
     if (s < 0)
 	return s;
@@ -874,12 +876,13 @@ int PcapSourceRadiotap::OpenSource() {
 	return -1;
     } else {
 	(void) pcap_set_datalink(pd, DLT_IEEE802_11_RADIO);
+	datalink_type = DLT_IEEE802_11_RADIO;
 	return s;
     }
 }
 
 // Check for data link type support
-bool PcapSource::CheckForDLT(int dlt)
+bool PcapSourceRadiotap::CheckForDLT(int dlt)
 {
     bool found = false;
     int i, n, *dl;
