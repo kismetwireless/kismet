@@ -1,3 +1,6 @@
+Dec 29 2002  2.9.0  Fixed default Zaurus config
+                    Added unlinking of kismet_curses to the install target
+Dec 28 2002  2.9.0  Fixed silly error in kismet_monitor script
 Dec 27 2002  2.9.0  Added log-dropped packets to the 'discard' packet count.
                     Fixed oddities with kismet_hopper and disabled multiple 
                      sources
