@@ -107,7 +107,7 @@ int GetTagOffset(int init_offset, int tagnum, const pkthdr *header,
 // Get the info from a packet
 void GetPacketInfo(const pkthdr *header, u_char *data,
                    packet_parm *parm, packet_info *ret_packinfo,
-                   map<mac_addr, unsigned char *> *bssid_wep_map, unsigned char *identity) {
+                   map<mac_addr, wep_key_info *> *bssid_wep_map, unsigned char *identity) {
     // Zero the entire struct
     memset(ret_packinfo, 0, sizeof(packet_info));
 
@@ -916,7 +916,7 @@ vector<string> GetPacketStrings(const packet_info *in_info, const pkthdr *header
 
 // Decode WEP for the given packet based on the keys in the bssid_wep_map.
 void DecryptPacket(packet_info *in_info, const pkthdr *header,
-                   u_char *in_data, map<mac_addr, unsigned char *> *bssid_wep_map,
+                   u_char *in_data, map<mac_addr, wep_key_info *> *bssid_wep_map,
                    unsigned char *identity) {
 
     // Bail if we don't have enough for the iv+any real data
@@ -924,7 +924,7 @@ void DecryptPacket(packet_info *in_info, const pkthdr *header,
         return;
 
     // Bail if we don't have a match
-    map<mac_addr, unsigned char *>::iterator bwmitr = bssid_wep_map->find(in_info->bssid_mac);
+    map<mac_addr, wep_key_info *>::iterator bwmitr = bssid_wep_map->find(in_info->bssid_mac);
     if (bwmitr == bssid_wep_map->end())
         return;
 
@@ -938,8 +938,8 @@ void DecryptPacket(packet_info *in_info, const pkthdr *header,
     pwd[2] = in_data[in_info->header_offset + 2];
 
     // Add the supplied password to the key
-    memcpy(pwd + 3, bwmitr->second, 13);
-    int pwdlen = 3 + strlen((const char *) bwmitr->second);
+    memcpy(pwd + 3, bwmitr->second->key, 13);
+    int pwdlen = 3 + bwmitr->second->len;
 
     unsigned char keyblock[256];
     memcpy(keyblock, identity, 256);
@@ -970,7 +970,7 @@ void DecryptPacket(packet_info *in_info, const pkthdr *header,
         in_data[dpos] ^= keyblock[(keyblock[kba] + keyblock[kbb]) & 0xFF];
     }
 
-    in_info->header_offset + 4;
+    in_info->header_offset += 4;
 
     in_info->decoded = 1;
 
