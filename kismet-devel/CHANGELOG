@@ -2,6 +2,8 @@ Dec 23 2002  2.7.1  Kismet is now 1 year old!
                     Updated libpcap version to the current libpcap-devel.
                      Anyone fetching updates from CVS should use the -P flag to
                      prune empty directories.
+                    Updated README w/ new documentation, merged most of the docs/
+                     directory into one file.
 Dec 22 2002  2.7.1  Fixed multiserver alert displays in panels frontend
                     Fixed adhoc network handling - it once again uses the 
                      actual advertised BSSID, but this may result in a creeping
