@@ -210,10 +210,11 @@ int Packetracker::ProcessPacket(packet_info info, char *in_status) {
     // If it's a broadcast (From and To DS == 1) try to match it to an existing
     // network
     bsmapitr = bssid_map.find(info.bssid_mac);
+
     if (info.type == packet_ap_broadcast && bsmapitr == bssid_map.end()) {
-        if (bsmapitr != bssid_map.end()) {
+        if ((bsmapitr = bssid_map.find(info.source_mac)) != bssid_map.end()) {
             info.bssid_mac = info.source_mac;
-        } else if (bsmapitr != bssid_map.end()) {
+        } else if ((bsmapitr = bssid_map.find(info.dest_mac)) != bssid_map.end()) {
             info.bssid_mac = info.dest_mac;
         } else {
             num_dropped++;
@@ -235,7 +236,7 @@ int Packetracker::ProcessPacket(packet_info info, char *in_status) {
     // Find out if we have this network -- Every network that actually
     // gets added has a bssid, so we'll use that to search.  We've filtered
     // everything else out by this point so we're safe to just work off bssid
-    if (bssid_map.find(info.bssid_mac) == bssid_map.end()) {
+    if (bsmapitr == bssid_map.end()) {
         // Make a network for them
         net = new wireless_network;
 
