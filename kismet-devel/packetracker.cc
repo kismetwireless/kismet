@@ -1130,13 +1130,21 @@ void Packetracker::ReadIPMap(FILE *in_file) {
 
         memset(&dat, 0, sizeof(net_ip_data));
 
+        short int range[4], mask[4], gate[4];
+
         // Fetch the line and continue if we're invalid...
         if (sscanf(dline, format,
                    bssid, &dat.atype, &dat.octets,
-                   &dat.range_ip[0], &dat.range_ip[1], &dat.range_ip[2], &dat.range_ip[3],
-                   &dat.mask[0], &dat.mask[1], &dat.mask[2], &dat.mask[3],
-                   &dat.gate_ip[0], &dat.gate_ip[1], &dat.gate_ip[2], &dat.gate_ip[3]) < 15)
+                   &range[0], &range[1], &range[2], &range[3],
+                   &mask[0], &mask[1], &mask[2], &mask[3],
+                   &gate[0], &gate[1], &gate[2], &gate[3]) < 15)
             continue;
+
+        for (int x = 0; x < 4; x++) {
+            dat.range_ip[x] = (uint8_t) range[x];
+            dat.mask[x] = (uint8_t) mask[x];
+            dat.gate_ip[x] = (uint8_t) gate[x];
+        }
 
         dat.load_from_store = 1;
 
