@@ -1,3 +1,8 @@
+Jan 25 2003  3.1.0  Long-asked for, the panels client is now able to lock
+                     onto the channel of a selected network and stop 
+                     hopping.  'L' to lock, 'H' to hop.  Currently only works
+                     with a single capture source, multisource support to 
+                     follow soon.
 Jan 24 2003  3.1.0  Merged patch from Ray Essick to add an alternate date 
                      format to the logfile naming format
                     Unitialized variable fix in panels client

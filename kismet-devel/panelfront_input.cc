@@ -27,6 +27,7 @@
 
 int PanelFront::MainInput(void *in_window, int in_chr) {
     kis_window *kwin = (kis_window *) in_window;
+    int nactivec = 0;
 
     switch (in_chr) {
     case 'Q':
@@ -113,6 +114,67 @@ int PanelFront::MainInput(void *in_window, int in_chr) {
             WriteStatus("Cannot collapse groups in autofit sort mode.  Sort by a different method.");
         }
         break;
+    case 'L':
+        if (sortby != sort_auto && last_displayed.size() > 0) {
+            details_network = last_displayed[kwin->selected];
+
+            // Catch crap data
+            if (details_network->virtnet == NULL) {
+                WriteStatus("Cannot lock on a network without a specific channel.");
+                return 1;
+            }
+
+            if (details_network->virtnet->channel == 0) {
+                WriteStatus("Cannot lock on a network without a specific channel.");
+                return 1;
+            }
+
+            // Immediately lock on if we've only got one card.
+            for (unsigned int ci = 0; ci < context_list.size(); ci++)
+                if (context_list[ci]->client != NULL && context_list[ci]->tagged)
+                    nactivec += context_list[ci]->client->FetchCardList().size();
+
+            if (nactivec == 0) {
+                WriteStatus("Cannot lock onto a network channel when there are no "
+                            "active interfaces.");
+                return 1;
+            } else if (nactivec == 1) {
+                // Lock onto the one channel, we'll assume the meta number is 0.
+                char rawstr[25];
+                snprintf(rawstr, 25, "CHANLOCK 0 %d", 
+                         details_network->virtnet->channel);
+                context->client->SendRaw(rawstr);
+            } else {
+                // Pop open the window to pick
+                SpawnWindow("Channel Lock",
+                            &PanelFront::ChanlockPrinter, &PanelFront::ChanlockInput);
+            }
+        } else {
+            WriteStatus("Cannot lock channels to a network in autofit mode.  Sort "
+                        "by a different method.");
+        }
+
+        break;
+    case 'H':
+        // Immediately lock on if we've only got one card.
+        for (unsigned int ci = 0; ci < context_list.size(); ci++)
+            if (context_list[ci]->client != NULL && context_list[ci]->tagged)
+                nactivec += context_list[ci]->client->FetchCardList().size();
+
+        if (nactivec == 0) {
+            WriteStatus("Cannot lock onto a network channel when there are no "
+                        "active interfaces.");
+            return 1;
+        } else if (nactivec == 1) {
+            // Return to hopping, we assume 0
+            context->client->SendRaw("CHANHOP 0");
+        } else {
+            // Pop open the window to pick
+            SpawnWindow("Channel Lock",
+                        &PanelFront::ChanlockPrinter, &PanelFront::ChanlockInput);
+        }
+
+        break;
     case 'i':
     case 'I':
     case KEY_ENTER:
@@ -174,7 +236,6 @@ int PanelFront::MainInput(void *in_window, int in_chr) {
         }
         break;
     case 'h':
-    case 'H':
     case '?':
         if (kwin->win->_maxx < 64)
             SpawnHelp(KismetHelpTextNarrow);
@@ -190,7 +251,6 @@ int PanelFront::MainInput(void *in_window, int in_chr) {
         SpawnWindow("Sort Network", &PanelFront::SortPrinter, &PanelFront::SortInput, SORT_SIZE);
         break;
     case 'l':
-    case 'L':
         SpawnWindow("Wireless Card Power", &PanelFront::PowerPrinter, &PanelFront::PowerInput, 3);
         break;
     case 'd':
@@ -913,6 +973,22 @@ int PanelFront::IntroInput(void *in_window, int in_chr) {
     case 'q':
     case 'Q':
     case ' ':
+        return 0;
+        break;
+    default:
+        return 1;
+        break;
+    }
+
+    return 1;
+}
+
+int PanelFront::ChanlockInput(void *in_window, int in_chr) {
+    switch (in_chr) {
+    case 'x':
+    case 'X':
+    case 'q':
+    case 'Q':
         return 0;
         break;
     default:

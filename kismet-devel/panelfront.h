@@ -276,6 +276,9 @@ protected:
     // Intro stuff
     int IntroPrinter(void *in_window);
 
+    // Channel lock card list
+    int ChanlockPrinter(void *in_window);
+
     // Keyboard handlers
     int MainInput(void *in_window, int in_chr);
     int SortInput(void *in_window, int in_chr);
@@ -299,6 +302,8 @@ protected:
 
     int IntroInput(void *in_window, int in_chr);
 
+    int ChanlockInput(void *in_window, int in_chr);
+
     // Spawn a generic popup
     void SpawnWindow(string in_title, panel_printer in_print, key_handler in_input,
                     int in_x = -1, int in_y = -1);
@@ -315,17 +320,18 @@ protected:
 
     void Details2Vector(wireless_network *in_net);
 
-    void NetLine(kis_window *in_window, string *in_str, wireless_network *net, const char *name, int sub,
-                 int group, int expanded, int tagged);
-    void ClientLine(kis_window *in_window, string *in_str, wireless_client *wclient, int print_width);
+    void NetLine(kis_window *in_window, string *in_str, wireless_network *net, 
+                 const char *name, int sub, int group, int expanded, int tagged);
+    void ClientLine(kis_window *in_window, string *in_str, wireless_client *wclient, 
+                    int print_width);
 
     enum main_columns {
         mcol_unknown = -1,
         mcol_decay, mcol_name, mcol_shortname, mcol_ssid, mcol_shortssid, mcol_type,
         mcol_wep, mcol_channel, mcol_data, mcol_llc, mcol_crypt, mcol_weak, mcol_bssid,
-        mcol_flags, mcol_ip, /* mcol_mask, mcol_gateway, */ mcol_packets, mcol_info, mcol_maxrate,
-        mcol_manuf, mcol_signal, mcol_quality, mcol_noise, mcol_clients, mcol_datasize,
-        mcol_signalbar, mcol_qualitybar, mcol_dupeiv
+        mcol_flags, mcol_ip, /* mcol_mask, mcol_gateway, */ mcol_packets, mcol_info, 
+        mcol_maxrate, mcol_manuf, mcol_signal, mcol_quality, mcol_noise, mcol_clients, 
+        mcol_datasize, mcol_signalbar, mcol_qualitybar, mcol_dupeiv
     };
 
     enum client_columns {
