@@ -156,7 +156,7 @@ int GPSD::Scan() {
 
     spd = spd * (6076.12 / 5280);
 
-    // alt = alt * 3.3;
+    alt = alt * 3.3;
 
     // Zero the buffer
     buf[0] = '\0';
