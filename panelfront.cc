@@ -350,21 +350,80 @@ void PanelFront::RescaleDisplay() {
     move_panel(stat_win->pan, LINES-statheight, 0);
 }
 
-void PanelFront::SetColumns(string in_columns, vector<string> *vec) {
+PanelFront::main_columns PanelFront::Token2MainColumn(string in_token) {
+    if (in_token == "decay") {
+        return mcol_decay;
+    } else if (in_token == "name") {
+        return mcol_name;
+    } else if (in_token == "shortname") {
+        return mcol_shortname;
+    } else if (in_token == "ssid") {
+        return mcol_ssid;
+    } else if (in_token == "shortssid") {
+        return mcol_shortssid;
+    } else if (in_token == "type") {
+        return mcol_type;
+    } else if (in_token == "wep") {
+        return mcol_wep;
+    } else if (in_token == "channel") {
+        return mcol_channel;
+    } else if (in_token == "data") {
+        return mcol_data;
+    } else if (in_token == "llc") {
+        return mcol_llc;
+    } else if (in_token == "crypt") {
+        return mcol_crypt;
+    } else if (in_token == "weak") {
+        return mcol_weak;
+    } else if (in_token == "bssid") {
+        return mcol_bssid;
+    } else if (in_token == "flags") {
+        return mcol_flags;
+    } else if (in_token == "ip") {
+        return mcol_ip;
+    } else if (in_token == "mask") {
+        return mcol_mask;
+    } else if (in_token == "gateway") {
+        return mcol_gateway;
+    } else if (in_token == "packets") {
+        return mcol_packets;
+    } else if (in_token == "info") {
+        return mcol_info;
+    } else if (in_token == "maxrate") {
+        return mcol_maxrate;
+    } else if (in_token == "manuf") {
+        return mcol_manuf;
+    } else if (in_token == "signal") {
+        return mcol_signal;
+    } else if (in_token == "quality") {
+        return mcol_quality;
+    } else if (in_token == "noise") {
+        return mcol_noise;
+    } else if (in_token == "clients") {
+        return mcol_clients;
+    } else {
+        return mcol_unknown;
+    }
+
+    return mcol_unknown;
+
+}
+
+void PanelFront::SetMainColumns(string in_columns) {
     unsigned int begin = 0;
     unsigned int end = in_columns.find(",");
 
-    vec->clear();
+    column_vec.clear();
 
     while (end < in_columns.size()) {
         string opt = in_columns.substr(begin, end-begin);
         begin = end+1;
         end = in_columns.find(",", begin);
 
-        vec->push_back(opt);
+        column_vec.push_back(Token2MainColumn(opt));
     }
 
-    vec->push_back(in_columns.substr(begin, in_columns.size()));
+    column_vec.push_back(Token2MainColumn(in_columns.substr(begin, in_columns.size())));
 }
 
 int PanelFront::WriteStatus(string status) {
@@ -775,8 +834,8 @@ int PanelFront::Tick() {
 void PanelFront::AddPrefs(map<string, string> in_prefs) {
     prefs = in_prefs;
 
-    SetColumns(prefs["columns"], &column_vec);
-    SetColumns(prefs["clientcolumns"], &client_column_vec);
+    SetMainColumns(prefs["columns"]);
+//    SetColumns(prefs["clientcolumns"], &client_column_vec);
 
 #ifdef HAVE_ACPI
     char buf[80];
