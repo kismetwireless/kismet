@@ -7,21 +7,18 @@ CHANNEL=6
 CARDTYPE=""
 CONFIGFILE="$ETC/kismet.conf"
 DEVICE=""
-HOPPER="no"
-HOPOPT=""
 
 while test "$#" -gt 0; do
 	case "$1" in
 	"-h")
-		echo "kismet_unmonitor - places a wireless card into rf-mon mode (if possible)"
-        echo "Most of these options SHOULD be set in your kismet.conf file since kismet"
-        echo "won't work correctly if they aren't, but they can be overriden here."
+		echo "kismet_unmonitor - takes a wireless card out of rf-mon mode (if possible)"
+		echo "Most of these options SHOULD be set in your kismet.conf file since kismet"
+		echo "won't work correctly if they aren't, but they can be overriden here."
 		echo "Usage:"
 		echo "  -f <file>         Use alternate Kismet config file <file>"
 		echo "  -i <dev>          Use interface <dev>"
 		echo "  -t <type>         Use card type <type>"
 		echo "  -c <channel>      Activate on channel <channel> (default 6)"
-		echo "  -O <options>      Extra options to pass to the hopper"
 		echo "  -h                What you're reading now"
 		exit
 		;;
@@ -59,15 +56,6 @@ while test "$#" -gt 0; do
 			exit
 		else
 			CHANNEL=$1
-		fi
-		;;
-	"-O")
-		shift
-		if test "$1" = ""; then
-			echo "No hopper options specified."
-			exit
-		else
-			HOPOPT=$1
 		fi
 		;;
 	*)
@@ -138,11 +126,16 @@ case "$CARDTYPE" in
 		;;
 	"prism2_pcap")
 		echo "Disabling monitor mode for a pcap prism2 card on $DEVICE"
-		ifconfig $DEVICE promisc up
-		wlanctl-ng $DEVICE lnxreq_wlansniff channel=$CHANNEL enable=true prismheader=true
+		ifconfig $DEVICE -promisc up
+		wlanctl-ng $DEVICE lnxreq_wlansniff channel=$CHANNEL enable=false
 		;;
 	"prism2_bsd")
 		echo "No unmonitor script for prism2_bsd"
+		;;
+	"prism2_hostap")
+		echo "Disabling monitor mode for a hostap prism2 card on $DEVICE"
+		iwpriv $DEVICE monitor 0
+		ifconfig $DEVICE -promisc up
 		;;
 	"orinoco")
 		echo "Disabling monitor mode for an orinoco card on $DEVICE"

@@ -14,8 +14,8 @@ while test "$#" -gt 0; do
 	case "$1" in
 	"-h")
 		echo "kismet_monitor - places a wireless card into rf-mon mode (if possible)"
-        echo "Most of these options SHOULD be set in your kismet.conf file since kismet"
-        echo "won't work correctly if they aren't, but they can be overriden here."
+		echo "Most of these options SHOULD be set in your kismet.conf file since kismet"
+		echo "won't work correctly if they aren't, but they can be overriden here."
 		echo "Usage:"
 		echo "  -f <file>         Use alternate Kismet config file <file>"
 		echo "  -i <dev>          Use interface <dev>"
@@ -167,6 +167,12 @@ case "$CARDTYPE" in
 		echo "Enabling monitor mode for a prism2 card on $DEVICE channel $CHANNEL using prism2ctl"
 		prism2ctl $DEVICE -m 
 		prism2ctl $DEVICE -f $CHANNEL
+		;;
+	"prism2_hostap")
+		echo "Enabling monitor mode for a hostap prism2 card on $DEVICE channel $CHANNEL"
+		iwpriv $DEVICE monitor 3
+		iwconfig $DEVICE channel $CHANNEL
+		ifconfig $DEVICE promisc up
 		;;
 	"orinoco")
 		echo "Enabling monitor mode for an orinoco card on $DEVICE channel $CHANNEL"

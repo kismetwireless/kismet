@@ -36,6 +36,7 @@ char *exec_name;
 #define prism2 "wlanctl-ng %s lnxreq_wlansniff channel=%d enable=true"
 #define prism2_pcap "wlanctl-ng %s lnxreq_wlansniff channel=%d enable=true prismheader=true"
 #define prism2_bsd "prism2ctl %s -f %d"
+#define prism2_hostap "iwconfig %s channel %d"
 #define orinoco "iwpriv %s monitor 1 %d"
 
 #define pidpath "/var/run/kismet_hopper.pid"
@@ -232,6 +233,9 @@ int main(int argc, char *argv[]) {
     } else if (!strcasecmp(type, "prism2_bsd")) {
         label = "prism2 BSD";
         cmd_template = prism2_bsd;
+    } else if (!strcasecmp(type, "prism2_hostap")) {
+        label = "prism2 hostap";
+	cmd_template = prism2_hostap;
     } else if (!strcasecmp(type, "orinoco")) {
         label = "orinoco";
         cmd_template = orinoco;
