@@ -205,7 +205,8 @@ protected:
 
     void Details2Vector(wireless_network *in_net);
 
-    string NetLine(wireless_network *net, const char *name, int sub, int group, int expanded, int tagged);
+    void NetLine(string *in_str, wireless_network *net, const char *name, int sub,
+                 int group, int expanded, int tagged);
 
     void SetColumns(string in_columns, vector<string> *vec);
 
