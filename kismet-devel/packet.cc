@@ -105,8 +105,9 @@ int GetTagOffset(int init_offset, int tagnum, const pkthdr *header,
 }
 
 // Get the info from a packet
-void GetPacketInfo(const pkthdr *header, const u_char *data,
-                   packet_parm *parm, packet_info *ret_packinfo) {
+void GetPacketInfo(const pkthdr *header, u_char *data,
+                   packet_parm *parm, packet_info *ret_packinfo,
+                   map<mac_addr, unsigned char *> *bssid_wep_map, unsigned char *identity) {
     // Zero the entire struct
     memset(ret_packinfo, 0, sizeof(packet_info));
 
@@ -459,10 +460,11 @@ void GetPacketInfo(const pkthdr *header, const u_char *data,
             ret_packinfo->header_offset = 30;
         }
 
-        ret_packinfo->datasize = header->len - ret_packinfo->header_offset;
-
         // Detect encrypted frames
-        if (fc->wep) {
+        if (fc->wep &&
+            (*((unsigned short *) &data[ret_packinfo->header_offset]) != 0xAAAA ||
+             data[ret_packinfo->header_offset + 1] & 0x40)) {
+
             ret_packinfo->encrypted = 1;
 
             // Match the range of cryptographically weak packets and let us
@@ -494,14 +496,31 @@ void GetPacketInfo(const pkthdr *header, const u_char *data,
                 data[ret_packinfo->header_offset] != 0xF0 && data[ret_packinfo->header_offset] != 0xE0)
                 ret_packinfo->encrypted = 1;
 
-            if (data[ret_packinfo->header_offset] >= 3 && data[ret_packinfo->header_offset] < 16 &&
-                data[ret_packinfo->header_offset + 1] == 255) {
+            unsigned int sum;
+            if (data[ret_packinfo->header_offset+1] == 255 && data[ret_packinfo->header_offset] > 2 &&
+                data[ret_packinfo->header_offset] < 16) {
                 ret_packinfo->interesting = 1;
-                ret_packinfo->encrypted = 1;
+            } else {
+                sum = data[ret_packinfo->header_offset] + data[ret_packinfo->header_offset+1];
+                if (sum == 1 && (data[ret_packinfo->header_offset + 2] <= 0x0A ||
+                                 data[ret_packinfo->header_offset + 2] == 0xFF)) {
+                    ret_packinfo->interesting = 1;
+                } else if (sum <= 0x0C && (data[ret_packinfo->header_offset + 2] >= 0xF2 &&
+                                           data[ret_packinfo->header_offset + 2] <= 0xFE &&
+                                           data[ret_packinfo->header_offset + 2] != 0xFD))
+                    ret_packinfo->interesting = 1;
             }
+
         }
 
-        if (!ret_packinfo->encrypted)
+        // Knock 4 bytes off for the size
+        ret_packinfo->datasize = header->len - ret_packinfo->header_offset - 4;
+
+        // De-wep if we have any keys
+        if (ret_packinfo->encrypted && bssid_wep_map->size() != 0)
+            DecryptPacket(ret_packinfo, header, data, bssid_wep_map, identity);
+
+        if (ret_packinfo->encrypted == 0 || ret_packinfo->decoded == 1)
             GetProtoInfo(ret_packinfo, header, data, &ret_packinfo->proto);
 
         // Collect the subtypes - we probably want to do something better with thse
@@ -893,4 +912,66 @@ vector<string> GetPacketStrings(const packet_info *in_info, const pkthdr *header
     }
 
     return ret;
+}
+
+// Decode WEP for the given packet based on the keys in the bssid_wep_map.
+void DecryptPacket(packet_info *in_info, const pkthdr *header,
+                   u_char *in_data, map<mac_addr, unsigned char *> *bssid_wep_map,
+                   unsigned char *identity) {
+
+    // Bail if we don't have enough for the iv+any real data
+    if ((int) header->len - in_info->header_offset <= 4)
+        return;
+
+    // Bail if we don't have a match
+    map<mac_addr, unsigned char *>::iterator bwmitr = bssid_wep_map->find(in_info->bssid_mac);
+    if (bwmitr == bssid_wep_map->end())
+        return;
+
+    // Our password field
+    char pwd[16];
+    memset(pwd, 0, 16);
+
+    // Add the WEP IV to the key
+    pwd[0] = in_data[in_info->header_offset];
+    pwd[1] = in_data[in_info->header_offset + 1];
+    pwd[2] = in_data[in_info->header_offset + 2];
+
+    // Add the supplied password to the key
+    memcpy(pwd + 3, bwmitr->second, 13);
+    int pwdlen = 3 + strlen((const char *) bwmitr->second);
+
+    unsigned char keyblock[256];
+    memcpy(keyblock, identity, 256);
+
+    int kba = 0, kbb = 0;
+
+    // Prepare the key block
+
+    for (kba = 0; kba < 256; kba++) {
+        kbb = (kbb + keyblock[kba] + pwd[kba % pwdlen]) & 0xff;
+
+        unsigned char oldkey = keyblock[kba];
+        keyblock[kba] = keyblock[kbb];
+        keyblock[kbb] = oldkey;
+    }
+
+    // decrypt the data payload
+    kba = kbb = 0;
+
+    for (unsigned int dpos = in_info->header_offset + 4; dpos < header->len; dpos++) {
+        kba = (kba + 1) & 0xFF;
+        kbb = (kbb + keyblock[kba]) & 0xFF;
+
+        unsigned char oldkey = keyblock[kba];
+        keyblock[kba] = keyblock[kbb];
+        keyblock[kbb] = oldkey;
+
+        in_data[dpos] ^= keyblock[(keyblock[kba] + keyblock[kbb]) & 0xFF];
+    }
+
+    in_info->header_offset + 4;
+
+    in_info->decoded = 1;
+
 }

@@ -1,3 +1,8 @@
+Dec 10 2002  2.7.1  Fixed some packet dissection and wep/interesting detection
+                     bugs with fuzzy encryption mode
+                    Added (broken) WEP decoding.  Right now this is just a 
+                     bit-blender, I'm not sure it's going to give you ANYTHING
+                     useful and it's not user-controllable yet.
 Dec 05 2002  2.7.1  Fixed wsp100 cygwin header
                     Started adding viha support.  VIHA SUPPORT DOES NOT WORK
                      CURRENTLY.

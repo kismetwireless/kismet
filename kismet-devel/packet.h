@@ -502,6 +502,8 @@ typedef struct {
     int channel;
     // Is this encrypted?
     int encrypted;
+    // Did we decode it?
+    int decoded;
     // Is it weak crypto?
     int interesting;
 
@@ -543,10 +545,14 @@ void MungeToPrintable(char *in_data, int max);
 // Info extraction functions
 int GetTagOffset(int init_offset, int tagnum, const pkthdr *header,
                  const u_char *data, map<int, int> *tag_cache_map);
-void GetPacketInfo(const pkthdr *header, const u_char *data,
-                   packet_parm *parm, packet_info *ret_packinfo);
+void GetPacketInfo(const pkthdr *header, u_char *data,
+                   packet_parm *parm, packet_info *ret_packinfo,
+                   map<mac_addr, unsigned char *> *bssid_wep_map, unsigned char *identity);
 void GetProtoInfo(packet_info *in_info, const pkthdr *header,
                   const u_char *in_data, proto_info *ret_protoinfo);
+void DecryptPacket(packet_info *in_info, const pkthdr *header,
+                   u_char *in_data, map<mac_addr, unsigned char *> *bssid_wep_map,
+                   unsigned char *identity);
 
 vector<string> GetPacketStrings(const packet_info *in_info, const pkthdr *header, const u_char *in_data);
 
