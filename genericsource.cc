@@ -66,13 +66,6 @@ int GenericSource::FetchPacket(pkthdr *in_header, u_char *in_data) {
     }
 
     if (ret != 0) {
-        /*
-         fprintf(stderr, "Got ssid: %s\n", essid);
-         fprintf(stderr, "Got bssid mac: %02X%02X%02X%02X%02X%02X\n",
-         mac[0], mac[1], mac[2],
-         mac[3], mac[4], mac[5]);
-         */
-
         Generic2Common(in_header, in_data);
     }
 
@@ -288,17 +281,6 @@ int GenericSource::GetGenericInfo() {
 
     // Copy the MAC into our local records
     memcpy(mac, wrq.u.ap_addr.sa_data, MAC_LEN);
-
-    /*
-    // Get the network mode
-    if (ioctl(sock, SIOCGIWMODE, &wrq) < 0) {
-        snprintf(errstr, 1024, "Generic source SIOCGIWMODE failed: %s", strerror(errno));
-        return -1;
-    }
-
-    mode = wrq.u.mode;
-
-    */
 
     return 1;
 

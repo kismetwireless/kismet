@@ -70,8 +70,6 @@ int TcpClient::Connect(short int in_port, char *in_host) {
            client_host->h_length);
     client_sock.sin_port = htons(in_port);
 
-
-    // Debug("Server::Setup calling socket()");
     if ((client_fd = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
         snprintf(errstr, 1024, "TcpClient socket() failed %d (%s)\n",
                  errno, sys_errlist[errno]);
@@ -142,7 +140,6 @@ int TcpClient::Poll() {
     tim.tv_usec = 0;
 
     // Enter the select loop
-    //Debug("Server::Poll() - Calling select()");
     if ((selected = select(client_fd+1, &read_set, &write_set, &except_set, &tim)) < 0) {
         if (errno != EINTR) {
             snprintf(errstr, 1024, "TcpServer select() returned %d (%s)\n",
@@ -204,8 +201,6 @@ int TcpClient::Poll() {
         return (0);
     }
 
-    //fprintf(stderr, "Got: '%s'\n", data);
-
     if (strlen(data) < 2)
         return 0;
 
@@ -237,18 +232,13 @@ int TcpClient::ParseData(char *in_data) {
     char bssid_str[18];
     mac_addr bssid;
 
-    // fprintf(stderr, "About to parse: '%s'\n", in_data);
-
     if (sscanf(in_data, "%64[^:]", header) < 1) {
-        //fprintf(stderr, "Failed to find header key...\n");
         return 0;
     }
 
     unsigned int hdrlen = strlen(header) + 2;
     if (hdrlen >= strlen(in_data))
         return 0;
-
-    // fprintf(stderr, "%ld We think we got header: '%s'\n", this, header);
 
     if (!strncmp(header, "*TERMINATE", 64)) {
         sv_valid = 0;
@@ -262,9 +252,6 @@ int TcpClient::ParseData(char *in_data) {
         if (sscanf(in_data+hdrlen, "%d", (int *) &serv_time) < 1)
             return 0;
 
-        /*
-         printf("Time header %d\n", (int) serv_time);
-         */
     } else if (!strncmp(header, "*NETWORK", 64)) {
         wireless_network *net;
 
@@ -272,9 +259,6 @@ int TcpClient::ParseData(char *in_data) {
 
         char ssid[256], beacon[256];
         short int range[4];
-        /*
-         , mask[4], gate[4];
-         */
 
         float maxrate;
 
@@ -300,17 +284,8 @@ int TcpClient::ParseData(char *in_data) {
                          &net->llc_packets, &net->data_packets, &net->crypt_packets, &net->interesting_packets,
                          &net->channel, &net->wep, (int *) &net->first_time, (int *) &net->last_time,
                          (int *) &net->ipdata.atype, &range[0], &range[1], &range[2], &range[3],
-                         /*
-                         &mask[0], &mask[1], &mask[2], &mask[3],
-                         &gate[0], &gate[1], &gate[2], &gate[3],
-                         */
                          &net->gps_fixed, &net->min_lat, &net->min_lon, &net->min_alt, &net->min_spd,
                          &net->max_lat, &net->max_lon, &net->max_alt, &net->max_spd,
-                         /*
-                         &net->gps_lat, &net->gps_lon, &net->gps_alt, &net->gps_spd, &net->gps_mode,
-                         &net->first_lat, &net->first_lon, &net->first_alt, &net->first_spd,
-                         &net->first_mode,
-                         */
                          &net->ipdata.octets, &net->cloaked, &net->beacon,
                          &maxrate,
                          &net->manuf_id, &net->manuf_score,
@@ -331,23 +306,9 @@ int TcpClient::ParseData(char *in_data) {
             net->beacon_info = beacon;
         for (int x = 0; x < 4; x++) {
             net->ipdata.range_ip[x] = (uint8_t) range[x];
-            /*
-            net->ipdata.mask[x] = (uint8_t) mask[x];
-            net->ipdata.gate_ip[x] = (uint8_t) gate[x];
-            */
         }
 
         net->maxrate = maxrate;
-
-        /*
-        fprintf(stderr, "Netmap size is now:  %d\n", net_map.size());
-        fprintf(stderr, "dealing with net %s\n", ssid);
-        fprintf(stderr, "Set net %02X:%02X:%02X:%02X:%02X:%02X %s\n",
-                net->bssid_raw[0], net->bssid_raw[1], net->bssid_raw[2],
-                net->bssid_raw[3], net->bssid_raw[4], net->bssid_raw[5],
-                net_map[net->bssid_raw].ssid.c_str());
-                */
-
     } else if (!strncmp(header, "*CLIENT", 64)) {
         short int ip[4];
 
@@ -532,18 +493,6 @@ int TcpClient::FetchLoc(float *in_lat, float *in_lon, float *in_alt, float *in_s
 }
 
 vector<wireless_network *> TcpClient::FetchNetworkList() {
-    /*
-    vector<wireless_network *> retvec;
-
-    for (map<uint8_t *, wireless_network *, STLMacComp>::iterator x = net_map.begin(); x != net_map.end(); ++x) {
-        retvec.push_back(x->second);
-    }
-
-    return retvec;
-    */
-
-//    fprintf(stderr, "map: %d vec: %d\n", net_map.size(), net_map_vec.size());
-
     return net_map_vec;
 }
 

@@ -143,8 +143,6 @@ int Prism2Source::Prism2Common(pkthdr *in_header, u_char *in_data) {
     else
         in_header->len = sniff_info->frmlen.data - 4;
 
-    //    in_header->pkt_encap = WTAP_ENCAP_IEEE_802_11;
-
     // Copy the quality out of the prism2 header
     in_header->quality = sniff_info->sq.data;
     in_header->signal = sniff_info->signal.data;

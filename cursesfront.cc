@@ -64,7 +64,6 @@ int NCurseFront::DrawDisplay() {
 
     box(netborder, '|', '-');
     mvwaddstr(netborder, 0, 2, "Networks");
-    //    mvwaddstr(netborder, 1, 2, "  SSID                        T W Ch BSSID             Pckts");
     if (COLS < 80) {
         // Do a short identifier
         mvwaddstr(netborder, 1, 2, "  SSID          T W Ch Data LLC");
@@ -74,7 +73,6 @@ int NCurseFront::DrawDisplay() {
     }
 
     char gpsdata[1024];
-//    if (gps != NULL) {
     float lat, lon, alt, spd;
     int mode;
 
@@ -97,8 +95,6 @@ int NCurseFront::DrawDisplay() {
                  lat, lon, alt, spd, fix);
 
         mvwaddstr(netborder, LINES-statheight-1, 2, gpsdata);
-
-        // fprintf(stderr, "found: %f %f %f %f\n", lat, lon, alt, spd);
 
     }
 
@@ -248,13 +244,6 @@ int NCurseFront::DrawDisplay() {
                      ' ',
                      ' ');
             mvwaddstr(netwin, num, pos, statstr);
-
-            /*
-             mvwaddstr(netwin, num, 38, net->bssid.c_str());
-
-             snprintf(statstr, 5, "%d", (net->data_packets + net->llc_packets));
-             mvwaddstr(netwin, num, 56, statstr);
-             */
         }
 
         if (num++ > LINES-3-statheight)

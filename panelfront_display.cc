@@ -210,10 +210,6 @@ void PanelFront::NetLine(string *in_str, wireless_network *net, const char *name
 
         strncpy(retchr, tmpchr, 4096);
 
-//        snprintf(retchr, 4096, "%*s %s", (-1) * pos, retchr, element);
-
-//        mvwaddstr(netwin, num+voffset, pos, element);
-
         pos += len + 1;
     }
 
@@ -233,8 +229,6 @@ int PanelFront::MainNetworkPrinter(void *in_window) {
     UpdateGroups();
     // Three: Copy it to our own local vector so we can sort it.
     vector<display_network *> display_vector = group_vec;
-
-    //vector<wireless_network *> network_vector = client->FetchNetworkList();
 
     char sortxt[24];
     sortxt[0] = '\0';
@@ -330,10 +324,6 @@ int PanelFront::MainNetworkPrinter(void *in_window) {
         break;
     }
 
-//    last_displayed.erase(last_displayed.begin(), last_displayed.begin() + last_displayed.size());
-//    last_displayed = display_vector;
-    //    last_displayed = network_vector;
-
     last_displayed.clear();
 
     int num = 0;
@@ -392,14 +382,6 @@ int PanelFront::MainNetworkPrinter(void *in_window) {
         } else if (colind == mcol_ip) {
             snprintf(title, 1024, "IP Range");
             len = 15;
-            /*
-             } else if (colind == mcol_mask) {
-             snprintf(title, 1024, "IP Mask");
-             len = 15;
-             } else if (colind == mcol_gateway) {
-             snprintf(title, 1024, "IP Gateway");
-             len = 15;
-            */
         } else if (colind == mcol_packets) {
             snprintf(title, 1024, "Packts");
             len = 6;
@@ -464,11 +446,6 @@ int PanelFront::MainNetworkPrinter(void *in_window) {
         kwin->selected = calcnum;
 
     for (unsigned int i = kwin->start; i < display_vector.size(); i++) {
-
-        /*
-        if (display_vector[i]->networks.size() == 0)
-        continue;
-        */
 
         last_displayed.push_back(display_vector[i]);
 
@@ -619,13 +596,6 @@ int PanelFront::MainNetworkPrinter(void *in_window) {
 
 #ifdef HAVE_GPS
     char gpsdata[80];
-//    if (gps != NULL) {
-    /*
-     float lat, lon, alt, spd;
-    int mode;
-
-    client->FetchLoc(&lat, &lon, &alt, &spd, &mode);
-    */
 
     if (!(lat == 0 && lon == 0 && alt == 0 && spd == 0 && fix == 0)) {
 
@@ -667,8 +637,6 @@ int PanelFront::MainNetworkPrinter(void *in_window) {
         mvwaddstr(netwin, netwin->_maxy, 2, gpsdata);
         if (color)
             wattrset(kwin->win, color_map["text"].pair);
-
-        // fprintf(stderr, "found: %f %f %f %f\n", lat, lon, alt, spd);
 
     }
 #endif
@@ -1083,7 +1051,6 @@ int PanelFront::MainClientPrinter(void *in_window) {
         mvwaddstr(kwin->win, 0, kwin->win->_maxx - 10, "(-) Up");
     }
 
-//    fprintf(stderr, "max: %d (%d) num: %d start: %d size: %d end: %d selected %d\n", kwin->max_display, kwin->max_display - voffset, num, kwin->start, display_vector.size(), kwin->end, kwin->selected);
     if (kwin->end < (int) (display_vector.size() - 1) && client_sortby != client_sort_auto) {
         mvwaddstr(kwin->win, kwin->win->_maxy,
                   kwin->win->_maxx - 10, "(+) Down");
@@ -1422,21 +1389,6 @@ int PanelFront::DetailsPrinter(void *in_window) {
                      dnet->ipdata.range_ip[0], dnet->ipdata.range_ip[1],
                      dnet->ipdata.range_ip[2], dnet->ipdata.range_ip[3]);
             kwin->text.push_back(output);
-
-            /*
-            if (dnet->ipdata.atype == address_dhcp || dnet->ipdata.atype == address_factory) {
-                snprintf(output, print_width, "Netmask : %d.%d.%d.%d",
-                         dnet->ipdata.mask[0], dnet->ipdata.mask[1],
-                         dnet->ipdata.mask[2], dnet->ipdata.mask[3]);
-                kwin->text.push_back(output);
-    
-                snprintf(output, print_width, "Gateway : %d.%d.%d.%d",
-                        dnet->ipdata.gate_ip[0], dnet->ipdata.gate_ip[1],
-                        dnet->ipdata.gate_ip[2], dnet->ipdata.gate_ip[3]);
-                kwin->text.push_back(output);
-                }
-                */
-    
         }
     
         if (dnet->gps_fixed != -1) {
@@ -1905,12 +1857,6 @@ int PanelFront::DumpPrinter(void *in_window) {
     } else if (!kwin->paused) {
         kwin->text = client->FetchStrings();
     }
-
-    /*
-    if (kwin->text.size() > (unsigned) kwin->max_display)
-        kwin->text.erase(kwin->text.begin(), kwin->text.begin() +
-        (kwin->text.size() - kwin->max_display));
-        */
 
     if (kwin->paused != 0) {
         mvwaddstr(kwin->win, 0, kwin->win->_maxx - 10, "Paused");

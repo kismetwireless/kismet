@@ -54,34 +54,13 @@ int TcpServer::Setup(unsigned int in_max_clients, short int in_port, const char 
     allowed = in_allowed;
 
     // If we don't have a host to bind to, try to find one
-    /*
-     if (in_host == NULL) {
-     */
     // Die violently -- If we can't bind a socket, we're useless
     if (gethostname(hostname, MAXHOSTNAMELEN) < 0) {
         snprintf(errstr, 1024, "TcpServer gethostname() failed: %s", strerror(errno));
         return (-1);
     }
-    /*
-    } else {
-        // Use the one provided
-        strncpy(hostname, in_host, MAXHOSTNAMELEN);
-        }
-        */
-
     // Copy the port to our local data
     port = in_port;
-
-    /*
-     * We never actually use the hostname.
-     *
-    // Resolve the hostname we were given/found to see if it's actually
-    // valid
-    if ((serv_host = gethostbyname(hostname)) == NULL) {
-        snprintf(errstr, 1024, "TcpServer gethostbyname() failed: %s", strerror(errno));
-        return (-2);
-    }
-     */
 
     // Set up our socket
     bzero(&serv_sock, sizeof(serv_sock));
@@ -116,9 +95,7 @@ int TcpServer::Setup(unsigned int in_max_clients, short int in_port, const char 
     }
 
     // Zero the FD's
-    // Debug("Server::Setup zero-ing FD sets");
     FD_ZERO(&server_fds);
-//    FD_ZERO(&read_fds);
     FD_ZERO(&except_fds);
     FD_ZERO(&client_fds);
     FD_ZERO(&stale_fds);
@@ -164,31 +141,6 @@ int TcpServer::Poll(fd_set in_rset, fd_set in_wset, fd_set in_eset)
 {
     if (!sv_valid)
         return -1;
-
-    // int selected;
-
-    /*
-    // Initialze our FD's
-    read_fds = server_fds;
-
-    struct timeval tm;
-//    tm.tv_sec = TCP_SELECT_TIMEOUT / 1000;
-//    tm.tv_usec = (TCP_SELECT_TIMEOUT % 1000) * 1000;
-
-    tm.tv_sec = 0;
-    tm.tv_usec = 0;
-
-    // Enter the select loop
-    //Debug("Server::Poll() - Calling select()");
-    if ((selected = select(max_fd+1, &read_fds, NULL, &except_fds, &tm)) < 0) {
-        // Set selected to 0 if we were interrupted
-        if (errno != EINTR) {
-            snprintf(errstr, 1024, "TcpServer select() failed: %s",
-                     strerror(errno));
-            return (-1);
-        }
-        }
-        */
 
     int accept_fd = 0;
     if (FD_ISSET(serv_fd, &in_rset))
@@ -286,12 +238,6 @@ void TcpServer::Send(int in_fd, const char *in_data) {
     }
     client_wrbuf[in_fd] += in_data;
 
-    /*
-    if (client_wrbuf[in_fd].length() > (1<<20)) {
-    //    printf("We're killing on a send for wrbuf length\n");
-    //    Kill(in_fd);
-    }
-    */
 }
 
 void TcpServer::SendToAll(const char *in_data) {

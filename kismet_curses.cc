@@ -260,13 +260,6 @@ void SpeechHandler(int *fds, const char *player) {
 
             data[ret] = '\0';
 
-            /* For some reason we're not getting a newline
-             if ((end = strstr(data, "\n")) == NULL)
-                continue;
-
-                end[0] = '\0';
-                */
-
         }
 
         if (data[0] == '\0')
@@ -277,15 +270,6 @@ void SpeechHandler(int *fds, const char *player) {
         if (harvested == 1) {
             harvested = 0;
             if ((sndpid = fork()) == 0) {
-                /*
-                FILE *sayf;
-
-                if ((sayf = popen(player, "w")) != NULL) {
-                    fprintf(sayf, "(SayText %s)\n", data);
-                    pclose(sayf);
-                    }
-                    */
-
                 char spk_call[1024];
                 snprintf(spk_call, 1024, "echo '(SayText \"%s\")' | %s >/dev/null 2>/dev/null",
                          data, player);
@@ -715,16 +699,6 @@ int main(int argc, char *argv[]) {
 	prefs["acpistatefile"] = gui_conf.FetchOpt("acpistatefile");
 	prefs["acpiinfofile"] = gui_conf.FetchOpt("acpiinfofile");
 #endif
-
-    /*
-#if defined(HAVE_LIBPANEL) && defined(HAVE_LIBNCURSES) && defined(BUILD_PANEL)
-    // I don't like how this is done
-    if (guitype == gui_panel) {
-        PanelFront *pgui = (PanelFront *) gui;
-        pgui->SetColumns(columns);
-    }
-    #endif
-    */
 
     gui->AddPrefs(prefs);
 

@@ -145,7 +145,6 @@ int PanelFront::MainInput(void *in_window, int in_chr) {
             SpawnHelp(KismetHelpTextNarrow);
         else
             SpawnHelp(KismetHelpText);
-        //SpawnPopup("Kismet Help", &PanelFront::PrintKismetHelp, HELP_SIZE);
         break;
     case 'z':
     case 'Z':
