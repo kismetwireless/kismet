@@ -1024,8 +1024,8 @@ void DrawNetTracks(Image *in_img, DrawInfo *in_di) { /*FOLD00*/
                        */
 
             // fill-opacity %d%% stroke-opacity %d%%
-            snprintf(prim, 1024, "stroke-opacity %d%% stroke-width %d line %d,%d %d,%d",
-                     track_opacity, track_width, /* track_opacity,*/
+            snprintf(prim, 1024, "stroke-width %d line %d,%d %d,%d",
+                     track_width, /* track_opacity,*/
                      prev_tx, prev_ty, track_vec[vec][x].x, track_vec[vec][x].y);
 
             in_di->primitive = strdup(prim);
@@ -1669,7 +1669,9 @@ int Usage(char* argv, int ec = 1) {
            "  -O, --offset <x,y>             Offset drawn features by x,y pixles\n"
            "\nDraw options\n"
            "  -t, --draw-track               Draw travel track\n"
-           "  -T, --draw-track-opacity <o>   Travel track opacity [Default: 100]\n"
+           /*
+            "  -T, --draw-track-opacity <o>   Travel track opacity [Default: 100]\n"
+            */
            "  -b, --draw-bounds              Draw network bounding box\n"
            "  -r, --draw-range               Draw estimaged range circles\n"
            "  -R, --draw-range-opacity <o>   Range circle opacity [Default: 70]\n"
@@ -1736,7 +1738,9 @@ int main(int argc, char *argv[]) {
            {"metric", no_argument, 0, 'M'},
            {"offset", required_argument, 0, 'O'},
            {"draw-track", no_argument, 0, 't'},
-           {"draw-track-opacity", required_argument, 0, 'T'},
+           /*
+            {"draw-track-opacity", required_argument, 0, 'T'},
+            */
            {"draw-bounds", no_argument, 0, 'b'},
            {"draw-range", no_argument, 0, 'r'},
            {"draw-range-opacity", required_argument, 0, 'R'},
@@ -1779,7 +1783,7 @@ int main(int argc, char *argv[]) {
 
     while(1) {
         int r = getopt_long(argc, argv,
-                            "hvg:S:o:f:iz:DVc:s:m:d:n:GMO:tT:brR:uU:aA:B:pP:q:Q:eE:H:l:kK:F:",
+                            "hvg:S:o:f:iz:DVc:s:m:d:n:GMO:tbrR:uU:aA:B:pP:q:Q:eE:H:l:kK:F:",
                             long_options, &option_index);
 
         if (r < 0) break;
@@ -1867,12 +1871,14 @@ int main(int argc, char *argv[]) {
         case 't':
             draw_track = true;
             break;
+            /*
         case 'T':
             if (sscanf(optarg, "%d", &track_opacity) != 1 || track_opacity < 0 || track_opacity > 100) {
                 fprintf(stderr, "Invalid track opacity.\n");
                 Usage(exec_name);
             }
             break;
+            */
         case 'b':
             draw_bounds = true;
             break;
