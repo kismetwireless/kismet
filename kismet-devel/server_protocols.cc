@@ -715,6 +715,7 @@ int Protocol_STRING(PROTO_PARMS) {
             break;
         case STRING_text:
             out_string += sdata->text;
+            break;
         default:
             out_string = "Unknown field requested.";
             return -1;
