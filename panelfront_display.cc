@@ -2269,7 +2269,7 @@ int PanelFront::PackPrinter(void *in_window) {
             break;
         }
 
-        snprintf(cdata, 1024, "%.8s - %s %s", ctime(&packinfo[x].time)+11,
+        snprintf(cdata, 1024, "%.8s - %s %s", ctime(&packinfo[x].ts.tv_sec)+11,
                  packinfo[x].source_mac.Mac2String().c_str(), ptype.c_str());
 
         kwin->text.push_back(cdata);
