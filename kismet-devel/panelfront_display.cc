@@ -705,10 +705,11 @@ int PanelFront::MainNetworkPrinter(void *in_window) {
     }
 
 #ifdef HAVE_GPS
-    char gpsdata[80];
+
 
     if (!(lat == 0 && lon == 0 && alt == 0 && spd == 0 && fix == 0)) {
 
+        char gpsdata[80];
         char fixstr[16];
         float show_alt = alt;
         float show_spd = spd;
