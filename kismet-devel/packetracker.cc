@@ -1417,7 +1417,7 @@ int Packetracker::WriteXMLNetworks(string in_fname) {
                 fprintf(netfile, "        <client-min-lon>%f</client-min-lon>\n", cli->min_lon);
                 fprintf(netfile, "        <client-min-alt>%f</client-min-alt>\n",
                         metric ? cli->min_alt / 3.3 : cli->min_alt);
-                fprintf(netfile, "        <client-min-spd>%f</min-spd>\n",
+                fprintf(netfile, "        <client-min-spd>%f</client-min-spd>\n",
                         metric ? cli->min_spd * 1.6093 : cli->min_spd);
                 fprintf(netfile, "        <client-max-lat>%f</client-max-lat>\n", cli->max_lat);
                 fprintf(netfile, "        <client-max-lon>%f</client-max-lon>\n", cli->max_lon);
