@@ -1132,7 +1132,7 @@ int PanelFront::SortPrinter(void *in_window) {
     return 1;
 }
 
-int PanelFront::ClientSortPrinter(void *in_window) {
+int PanelFront::SortClientPrinter(void *in_window) {
     kis_window *kwin = (kis_window *) in_window;
 
     int x = 0;
@@ -2224,5 +2224,139 @@ int PanelFront::AlertPrinter(void *in_window) {
     return TextPrinter(in_window);
 }
 
+int PanelFront::DetailsClientPrinter(void *in_window) {
+    kis_window *kwin = (kis_window *) in_window;
+
+    kwin->scrollable = 1;
+
+    char output[1024];
+    char temp[1024];
+    kwin->text.clear();
+
+    int print_width = kwin->print_width;
+    if (print_width > 1024)
+        print_width = 1024;
+
+    switch (details_client->type) {
+    case client_fromds:
+        snprintf(temp, print_width, "From Distribution");
+        break;
+    case client_tods:
+        snprintf(temp, print_width, "To Distribution");
+        break;
+    case client_interds:
+        snprintf(temp, print_width, "Intra-distribution");
+        break;
+    case client_established:
+        snprintf(temp, print_width, "Established (bidirectional)");
+        break;
+    case client_unknown:
+        snprintf(temp, print_width, "Unknown");
+        break;
+    }
+
+    snprintf(output, print_width, "Type    : %s", temp);
+    kwin->text.push_back(output);
+    snprintf(output, print_width, "First   : %.24s", ctime((const time_t *) &details_client->first_time));
+    kwin->text.push_back(output);
+    snprintf(output, print_width, "Latest  : %.24s", ctime((const time_t *) &details_client->last_time));
+    kwin->text.push_back(output);
+    snprintf(output, print_width, "Max Rate: %2.1f", details_client->maxrate);
+    kwin->text.push_back(output);
+    snprintf(output, print_width, "Channel : %d", details_client->channel);
+    kwin->text.push_back(output);
+    snprintf(output, print_width, "WEP     : %s", details_client->wep ? "Yes" : "No");
+    kwin->text.push_back(output);
+
+    if (details_client->gps_fixed != -1) {
+        kwin->text.push_back("");
+
+        snprintf(output, print_width, "Min Loc : Lat %f Lon %f Alt %f Spd %f",
+                 details_client->min_lat, details_client->min_lon,
+                 details_client->min_alt, details_client->min_spd);
+        kwin->text.push_back(output);
+        snprintf(output, print_width, "Max Loc : Lat %f Lon %f Alt %f Spd %f",
+                 details_client->max_lat, details_client->max_lon,
+                 details_client->max_alt, details_client->max_spd);
+        kwin->text.push_back(output);
+
+        double diagdist = EarthDistance(details_client->min_lat,
+                                        details_client->min_lon,
+                                        details_client->max_lat,
+                                        details_client->max_lon);
+
+        if (finite(diagdist)) {
+            if (metric) {
+                if (diagdist < 1000)
+                    snprintf(output, print_width, "Range    : %f meters", diagdist);
+                else
+                    snprintf(output, print_width, "Range   : %f kilometers", diagdist / 1000);
+            } else {
+                diagdist *= 3.3;
+                if (diagdist < 5280)
+                    snprintf(output, print_width, "Range   : %f feet", diagdist);
+                else
+                    snprintf(output, print_width, "Range   : %f miles", diagdist / 5280);
+            }
+            kwin->text.push_back(output);
+        }
+
+        kwin->text.push_back("");
+    }
+
+    snprintf(output, print_width, "Packets :");
+    kwin->text.push_back(output);
+    snprintf(output, print_width, "  Data    : %d", details_client->data_packets);
+    kwin->text.push_back(output);
+    snprintf(output, print_width, "  Crypt   : %d", details_client->crypt_packets);
+    kwin->text.push_back(output);
+    snprintf(output, print_width, "  Weak    : %d", details_client->interesting_packets);
+    kwin->text.push_back(output);
+    snprintf(output, print_width, "Signal  :");
+    kwin->text.push_back(output);
+    snprintf(output, print_width, "  Quality : %d (best %d)",
+             details_client->quality, details_client->best_quality);
+    kwin->text.push_back(output);
+    snprintf(output, print_width, "  Power   : %d (best %d)",
+             details_client->signal, details_client->best_signal);
+    kwin->text.push_back(output);
+    snprintf(output, print_width, "  Noise   : %d (best %d)",
+             details_client->noise, details_client->best_noise);
+    kwin->text.push_back(output);
+
+    switch (details_client->ipdata.atype) {
+        case address_none:
+            snprintf(output, print_width, "IP Type : None detected");
+            break;
+        case address_factory:
+            snprintf(output, print_width, "IP Type : Factory default");
+            break;
+        case address_udp:
+            snprintf(output, print_width, "IP Type : UDP (%d octets)", details_client->ipdata.octets);
+            break;
+        case address_tcp:
+            snprintf(output, print_width, "IP Type : TCP (%d octets)", details_client->ipdata.octets);
+            break;
+        case address_arp:
+            snprintf(output, print_width, "IP Type : ARP (%d octets)", details_client->ipdata.octets);
+            break;
+        case address_dhcp:
+            snprintf(output, print_width, "IP Type : DHCP");
+            break;
+        case address_group:
+            snprintf(output, print_width, "IP Type : Group (aggregate)");
+            break;
+        }
+        kwin->text.push_back(output);
+    
+    if (details_client->ipdata.atype != address_none) {
+        snprintf(output, print_width, "IP      : %d.%d.%d.%d",
+                 details_client->ipdata.ip[0], details_client->ipdata.ip[1],
+                 details_client->ipdata.ip[2], details_client->ipdata.ip[3]);
+        kwin->text.push_back(output);
+    }
+
+    return TextPrinter(in_window);
+}
 
 #endif
