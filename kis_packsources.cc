@@ -65,20 +65,20 @@ int RegisterKismetSources(Packetsourcetracker *sourcetracker) {
                                        monitor_vtar5k, NULL, chancontrol_wext, 1);
 
     sourcetracker->RegisterPacketsource("madwifi_a", 1, "IEEE80211a", 36,
-                                        pcapsource_madwifi_registrant,
+                                        pcapsource_wext_registrant,
                                         monitor_madwifi_a, NULL, chancontrol_wext, 1);
     sourcetracker->RegisterPacketsource("madwifi_b", 1, "IEEE80211b", 6,
-                                        pcapsource_madwifi_registrant,
+                                        pcapsource_wext_registrant,
                                         monitor_madwifi_b, NULL, chancontrol_wext, 1);
     sourcetracker->RegisterPacketsource("madwifi_g", 1, "IEEE80211g", 6,
-                                        pcapsource_madwifig_registrant,
+                                        pcapsource_11g_registrant,
                                         monitor_madwifi_g, NULL, chancontrol_wext, 1);
     sourcetracker->RegisterPacketsource("madwifi_ab", 1, "IEEE80211ab", 6,
-                                        pcapsource_madwifi_registrant,
+                                        pcapsource_wext_registrant,
                                         monitor_madwifi_comb, NULL, 
                                         chancontrol_madwifi_ab, 1);
     sourcetracker->RegisterPacketsource("madwifi_ag", 1, "IEEE80211ab", 6,
-                                        pcapsource_madwifig_registrant,
+                                        pcapsource_11g_registrant,
                                         monitor_madwifi_comb, NULL, 
                                         chancontrol_madwifi_ag, 1);
 
@@ -88,7 +88,7 @@ int RegisterKismetSources(Packetsourcetracker *sourcetracker) {
                                         chancontrol_prism54g, 1);
 
     sourcetracker->RegisterPacketsource("wlanng_wext", 1, "IEEE80211b", 6,
-                                        pcapsource_wext_registrant,
+                                        pcapsource_wlanng_registrant,
                                         monitor_wlanng_avs, NULL,
                                         chancontrol_wext, 1);
 
