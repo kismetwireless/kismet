@@ -1,3 +1,5 @@
+Dec 12 2003  3.1.0  Added sourcename to the packet protocol and transmission
+                     of sourcename via drone->server.  This breaks old drones.
 Dec 11 2003  3.1.0  Put casting and malloc testing into channel change packet
                     Added gpsd/timetracker NULL initialization to packetsource 
                     Fixed various quirks exposed by Valgrind

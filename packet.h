@@ -168,7 +168,7 @@ typedef struct {
     int modified;               // Has moddata been populated?
     uint8_t *data;              // Raw packet data
     uint8_t *moddata;           // Modified packet data
-    char *sourcename;           // Name of the source that generated the data
+    char sourcename[32];        // Name of the source that generated the data
     carrier_type carrier;       // Signal carrier
     encoding_type encoding;     // Signal encoding
     int datarate;               // Data rate in units of 100 kbps
@@ -922,6 +922,9 @@ typedef struct {
 
     // SSID
     char ssid[SSID_SIZE+1];
+
+    // Source name
+    char sourcename[32];
 
     // Where did it come from?
     distribution_type distrib;

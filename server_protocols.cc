@@ -41,7 +41,7 @@ char *PACKET_fields_text[] = {
     "weak", "beaconrate", "sourcemac", "destmac",
     "bssid", "ssid", "prototype", "sourceip",
     "destip", "sourceport", "destport", "nbtype",
-    "nbsource",
+    "nbsource", "sourcename",
     NULL
 };
 
@@ -753,6 +753,10 @@ void Protocol_Packet2Data(const packet_info *info, PACKET_data *data) {
     data->pdvec.push_back(tmpstr);
 
     snprintf(tmpstr, 128, "\001%s\001", strlen(info->proto.netbios_source) == 0 ? " " : info->proto.netbios_source);
+    data->pdvec.push_back(tmpstr);
+
+    snprintf(tmpstr, 128, "\001%s\001", strlen(info->sourcename) == 0 ? " " :
+             info->sourcename);
     data->pdvec.push_back(tmpstr);
 
 }

@@ -347,6 +347,8 @@ int DroneSource::Drone2Common(kis_packet *packet, uint8_t *data, uint8_t *moddat
     packet->moddata = moddata;
     packet->modified = 0;
 
+    memcpy(packet->sourcename, phdr.sourcename, 32);
+
     memcpy(packet->data, databuf, packet->caplen);
 
     return 1;
