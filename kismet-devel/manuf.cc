@@ -144,7 +144,7 @@ const manuf manuf_list[] = {
     { "ZYXEL Prestige 316", "ZYXEL", delta_tag, 3, "Wireless", 6, 0, 0, NULL },
 };
 
-const int manuf_num = 55;
+const int manuf_num = 56;
 const int manuf_max_score = 9;
 
 
