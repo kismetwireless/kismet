@@ -1,5 +1,6 @@
 Mar 13 2003  2.9.1  Removed redundant select() in several capture sources
                     Fixed drone capture source dropping dead under high loads
+                    Fixed wtaplocaldump compile errors
 Mar 10 2003  2.9.1  Tweaked wtaplocaldump endian headers
 Mar 09 2003  2.9.1  Fixed stupidity in fuzzy mangling
                     Started new alert code framework

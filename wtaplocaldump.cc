@@ -109,10 +109,10 @@ int WtapDumpFile::DumpPacket(const packet_info *in_info, const kis_packet *packe
     unsigned int nwritten;
 
     // Convert it to a pcap header
-    packhdr.ts_sec = kis_packet->ts.tv_sec;
-    packhdr.ts_usec = kis_packet->ts.tv_usec;
-    packhdr.incl_len = kis_packet->caplen;
-    packhdr.orig_len = kis_packet->caplen;
+    packhdr.ts_sec = dump_packet->ts.tv_sec;
+    packhdr.ts_usec = dump_packet->ts.tv_usec;
+    packhdr.incl_len = dump_packet->caplen;
+    packhdr.orig_len = dump_packet->caplen;
 
     nwritten = fwrite(&packhdr, 1, sizeof(pcaprec_hdr), dump_file);
     if (nwritten != sizeof(pcaprec_hdr)) {
@@ -131,7 +131,7 @@ int WtapDumpFile::DumpPacket(const packet_info *in_info, const kis_packet *packe
         return -1;
     }
 
-    nwritten = fwrite(kis_packet->data, 1, packhdr.incl_len, dump_file);
+    nwritten = fwrite(dump_packet->data, 1, packhdr.incl_len, dump_file);
     if (nwritten != packhdr.incl_len) {
         if (nwritten == 0 && ferror(dump_file))
             snprintf(errstr, 1024, "Unable to write pcap packet (%s)", strerror(errno));
