@@ -28,7 +28,7 @@
 #include <WiFi/IEEE80211Frame.h>
 #include <WiFi/WFException.h>
 
-class VihaSource : public PacketSource {
+class VihaSource : public KisPacketSource {
 public:
     int OpenSource(const char *dev, card_type ctype);
 

@@ -46,7 +46,7 @@
 #define MCAST_GRP_SNIFF 2
 #define PRISM_ERR_TIMEOUT -2
 
-class Prism2Source : public PacketSource {
+class Prism2Source : public KisPacketSource {
 public:
     int OpenSource(const char *dev, card_type ctype);
     int CloseSource();

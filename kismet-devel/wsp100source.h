@@ -41,7 +41,7 @@
 #define WSP100_TAG_RADIO_FCSERR   0x11   // FCS error in packet
 #define WSP100_TAG_RADIO_CHANNEL  0x12   // Channel, unsigned
 
-class Wsp100Source : public PacketSource {
+class Wsp100Source : public KisPacketSource {
 public:
     int OpenSource(const char *dev, card_type ctype);
 

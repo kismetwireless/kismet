@@ -48,7 +48,7 @@ extern "C" {
 // The BSD datalink that doesn't report a sane value
 #define KDLT_BSD802_11 -100
 
-class PcapSource : public PacketSource {
+class PcapSource : public KisPacketSource {
 public:
     int OpenSource(const char *dev, card_type ctype);
     int CloseSource();

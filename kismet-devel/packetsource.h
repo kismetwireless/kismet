@@ -40,7 +40,7 @@ enum card_type {
 };
 
 // Packet capture source superclass
-class PacketSource {
+class KisPacketSource {
 public:
     // Open the packet source
     virtual int OpenSource(const char *dev, card_type ctype) = 0;
