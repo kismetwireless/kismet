@@ -391,6 +391,12 @@ int PanelFront::DrawDisplay() {
          x != window_list.end(); ++x) {
         kis_window *kwin = *x;
 
+        if (kwin->win == NULL || kwin->pan == NULL) {
+            WriteStatus("Something is wrong with the window list");
+            remove.push_back(kwin);
+            continue;
+        }
+
         werase(kwin->win);
         if (color)
             wattrset(kwin->win, color_map["border"].pair);
@@ -698,6 +704,12 @@ void PanelFront::SpawnWindow(string in_title, panel_printer in_print, key_handle
     kwin->print_width = in_y - 3;
 
     kwin->win = newwin(in_x, in_y, 0, 0);
+    if (kwin->win == NULL) {
+        WriteStatus("Error making window");
+        delete kwin;
+        return;
+    }
+
     kwin->pan = new_panel(kwin->win);
     nodelay(kwin->win, true);
     keypad(kwin->win, true);
@@ -740,9 +752,9 @@ void PanelFront::SpawnHelp(char **in_helptext) {
     height = x - 1;
 
     if (width + 5 > COLS)
-        width = COLS - 4;
+        width = COLS - 5;
     if (height + 2 > LINES)
-        height = LINES - 1;
+        height = LINES - 2;
 
     // Resize our text to fit our max possible width and cache it
     char *resize = new char[width+1];
@@ -763,6 +775,12 @@ void PanelFront::SpawnHelp(char **in_helptext) {
     kwin->print_width = width - 3;
 
     kwin->win = newwin(height, width, 0, 0);
+    if (kwin->win == NULL) {
+        WriteStatus("Error making window.");
+        delete kwin;
+        return;
+    }
+
     kwin->pan = new_panel(kwin->win);
     nodelay(kwin->win, true);
     keypad(kwin->win, true);
@@ -771,8 +789,8 @@ void PanelFront::SpawnHelp(char **in_helptext) {
     show_panel(kwin->pan);
     window_list.push_back(kwin);
     cur_window = kwin;
-    DrawDisplay();
 
+    DrawDisplay();
 }
 
 void PanelFront::DestroyWindow(kis_window *in_win) {
@@ -2531,7 +2549,10 @@ int PanelFront::MainInput(void *in_window, int in_chr) {
         break;
     case 'h':
     case 'H':
-        SpawnHelp(KismetHelpText);
+        if (kwin->win->_maxx < 64)
+            SpawnHelp(KismetHelpTextNarrow);
+        else
+            SpawnHelp(KismetHelpText);
         //SpawnPopup("Kismet Help", &PanelFront::PrintKismetHelp, HELP_SIZE);
         break;
     case 'z':
