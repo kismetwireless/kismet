@@ -722,6 +722,7 @@ int Packetsourcetracker::SetTypeParms(string in_types, packet_parm in_parm) {
 
 int Packetsourcetracker::CloseSources() {
     uid_t uid = getuid();
+    int talk = 0;
 
     for (unsigned int metc = 0; metc < meta_packsources.size(); metc++) {
         meta_packsource *meta = meta_packsources[metc];
@@ -752,7 +753,8 @@ int Packetsourcetracker::CloseSources() {
                         "manually\n"
                         "         restart or reconfigure it for normal operation.\n",
                         meta->name.c_str(), meta->device.c_str());
-            } 
+            }
+            talk = 1;
         } else {
             fprintf(stderr, 
                     "WARNING: %s (%s) unable to exit monitor mode automatically.  "
@@ -762,6 +764,14 @@ int Packetsourcetracker::CloseSources() {
                     "         operation.", meta->name.c_str(), meta->device.c_str());
         }
 
+    }
+
+    if (talk == 1) {
+        fprintf(stderr, "WARNING: Sometimes cards don't always come out "
+                "of monitor mode\n"
+                "         cleanly.  If your card is not fully working, you "
+                "may need to\n"
+                "         restart or reconfigure it for normal operation.\n");
     }
 
     return 1;
