@@ -391,6 +391,25 @@ Licensed under the GPL
 
     Kismet configuration files are a simple 'variable=value' format.
 
+    Key kismet.conf configuration variables:
+
+        Conf Variable    Usage
+        ---------------  ------------------------------------------------------
+        version          Version of Kismet config.  Users shouldn't need to 
+                         change this.       
+        servername       Name of Kismet server, for use in setting up multiple 
+                         servers.
+        source           Defines a Kismet source.  Each source provides packets
+                         to Kismet.  Format is 'sourcetype,interface,name'.
+                         Multiple sources can be defined with multiple 'source'
+                         lines.
+        suiduser         User Kismet drops to after binding to root sources.
+        channelhop       Controls if Kismet hops channels or stays on the
+                         initial channel.  (True or False)  
+        channelvelocity  Number of hops per second  
+        splitchannels    Divide position in the channel sequence between 
+                         sources.  
+
 11. Troubleshooting
     
     Some common problems with Kismet have easy solutions:
