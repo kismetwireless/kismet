@@ -188,12 +188,27 @@ float Pair2Float(int16_t primary, int64_t mantissa) {
 
 #ifdef HAVE_LINUX_WIRELESS
 // Also cribbed from wireless tools
+
 float IWFreq2Float(iwreq *inreq) {
     return ((float) inreq->u.freq.m) * pow(10,inreq->u.freq.e);
 }
 #endif
 
+// 80211b frequencies to channels
+int IEEE80211bFreq[] = {
+    14,
+    2412, 2417, 2422, 2427, 2432,
+    2437, 2442, 2447, 2452, 2457,
+    2462, 2467, 2472, 2484
+};
+
 int FloatChan2Int(float in_chan) {
+    float mod_chan = in_chan / 1000000;
+    if (mod_chan >= 2412 && mod_chan <= 2484) {
+        for (int x = 1; x < IEEE80211bFreq[0]; x++)
+            if (mod_chan == IEEE80211bFreq[x])
+                return x;
+    }
     return 0;
 }
 
