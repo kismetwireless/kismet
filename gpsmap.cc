@@ -726,7 +726,8 @@ void AssignNetColors() {
 
         if (color_coding == COLORCODE_WEP) {
             if (map_iter->wnet != NULL) {
-                if (MatchBestManuf(map_iter->wnet, 0) == manuf_max_score) {
+                MatchBestManuf(map_iter->wnet, 1);
+                if (map_iter->wnet->manuf_score == manuf_max_score) {
                     map_iter->color_index = "#0000FF";
                 } else if (map_iter->wnet->wep) {
                     map_iter->color_index = "#FF0000";

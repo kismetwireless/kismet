@@ -5,6 +5,7 @@ Sep 10 2002  2.5.2  Added more imagemagick exception catching/handling
                     Added extracting of size/scale from user map file names
                      in gpsmap.
                     Added two more manuf fingerprints from pr00f.
+                    Fixed factory default network coloring in gpsmap
 Sep 09 2002  2.5.2  Fixed longstanding minor bug in mac_addr, failed to zero
                      longmac in some situations leading to map collisions.
                     Fixed gpsmap not reading netxml files with libz
