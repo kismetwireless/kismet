@@ -6291,7 +6291,7 @@ done
 
 # Enable the ldflags and cxx flags if we found it...
 	if test $foundviha = "yes"; then
-		LDFLAGS="$LDFLAGS -framework IOKit"
+		LDFLAGS="$LDFLAGS -framework WiFi"
 	fi
 fi
 
