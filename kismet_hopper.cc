@@ -31,9 +31,6 @@ const char *config_base = "kismet.conf";
 int us_channels[] = {1, 6, 11, 2, 7, 3, 8, 4, 12, 9, 5, 10, -1};
 int intl_channels[] = {1, 7, 13, 2, 8, 3, 14, 9, 4, 10, 5, 11, 6, 12, -1};
 
-// 1/3 of 1 second per channel.  This will sync from the GPS speed in the future.
-const unsigned long interval = 333333;
-
 int *parse_hopseq(char* param) {
     int *result;
     char *pos;
@@ -91,6 +88,7 @@ int Usage(char *argv) {
            "  -t, --type <type>            Use alternate card type\n"
            "  -n, --international          Use international channels (1-14)\n"
            "  -s, --hopsequence            Use given hop sequence\n"
+           "  -v, --velocity               Hopping velocity (hops per second)\n"
            "  -h, --help                   What do you think you're reading?\n");
     exit(1);
 }
@@ -117,6 +115,9 @@ int main(int argc, char *argv[]) {
 
     exec_name = argv[0];
 
+    unsigned long interval;
+    int freq = 3;
+
     if (stat(pidpath, &fstat) == 0) {
         fprintf(stderr, "Detected pid file '%s'.  Make sure another instance of kismet_hopper\n"
                 "isn't running, and remove this file.", pidpath);
@@ -129,13 +130,14 @@ int main(int argc, char *argv[]) {
         { "interface", required_argument, 0, 'i' },
         { "type", required_argument, 0, 't' },
         { "hopsequence", required_argument, 0, 's' },
+        { "velocity", required_argument, 0, 'v' },
         { 0, 0, 0, 0}
     };
 
     chanlist = us_channels;
     int option_index;
     while(1) {
-        int r = getopt_long(argc, argv, "f:ni:s:t:",
+        int r = getopt_long(argc, argv, "f:ni:s:t:v:",
                             long_options, &option_index);
         if (r < 0) break;
 
@@ -152,6 +154,12 @@ int main(int argc, char *argv[]) {
             break;
         case 't':
             type = optarg;
+            break;
+        case 'v':
+            if (sscanf(optarg, "%d", &freq) != 1) {
+                fprintf(stderr, "Invalid number for channels-per-second\n");
+                Usage(argv[0]);
+            }
             break;
 	case 's':
             chanlist = parse_hopseq(optarg);
@@ -232,6 +240,23 @@ int main(int argc, char *argv[]) {
     signal(SIGTERM, CatchShutdown);
     signal(SIGHUP, CatchShutdown);
     signal(SIGPIPE, SIG_IGN);
+
+    if (freq == 0) {
+        fprintf(stderr, "No point in hopping 0 channels.  Setting velocity to 1.\n");
+        freq = 3;
+    } else if (freq > 10) {
+        if (freq > 100) {
+            fprintf(stderr, "Cannot hop more than 100 channels per second, setting velocity to 100\n");
+            freq = 100;
+        } else {
+            fprintf(stderr, "WARNING: Velocities over 10 are not reccomended and may cause problems.\n");
+        }
+    }
+
+    interval = 1000000 / freq;
+    fprintf(stderr, "Hopping %d channel%sper second (%ld microseconds per channel)\n",
+            freq, freq > 1 ? "s " : " ", interval);
+
 
     fprintf(stderr, "%s - Channel hopping (%s) on interface %s as a %s card.\n",
             argv[0], channame, interface, label);
