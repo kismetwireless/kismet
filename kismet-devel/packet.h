@@ -133,6 +133,26 @@ typedef struct {
     unsigned short sequence : 4;
 } wireless_fragseq;
 
+typedef struct {
+    uint8_t timestamp[8];
+
+    // This field must be converted to host-endian before being used
+    unsigned int beacon : 16;
+
+    unsigned short agility : 1;
+    unsigned short pbcc : 1;
+    unsigned short short_preamble : 1;
+    unsigned short wep : 1;
+
+    unsigned short unused2 : 1;
+    unsigned short unused1 : 1;
+    unsigned short ibss : 1;
+    unsigned short ess : 1;
+
+    unsigned int coordinator : 8;
+
+} fixed_parameters;
+
 #else
 // And 802.11 packet frame header
 typedef struct {
@@ -156,6 +176,26 @@ typedef struct {
     unsigned short sequence : 12;
 } wireless_fragseq;
 
+typedef struct {
+    uint8_t timestamp[8];
+
+    // This field must be converted to host-endian before being used
+    unsigned int beacon : 16;
+
+    unsigned short ess : 1;
+    unsigned short ibss : 1;
+    unsigned short unused1 : 1;
+    unsigned short unused2 : 1;
+
+    unsigned short wep : 1;
+    unsigned short short_preamble : 1;
+    unsigned short pbcc : 1;
+    unsigned short agility : 1;
+
+    unsigned int coordinator : 8;
+} fixed_parameters;
+
+
 #endif
 
 // A standard frame
@@ -178,20 +218,6 @@ typedef struct {
     uint8_t addr3[6];
 
 } wireless_frame;
-
-typedef struct {
-    uint8_t timestamp[8];
-    unsigned int beacon : 16;
-    unsigned short ess : 1;
-    unsigned short ibss : 1;
-    unsigned short unused1 : 1;
-    unsigned short unused2 : 1;
-    unsigned short wep : 1;
-    unsigned short short_preamble : 1;
-    unsigned short pbcc : 1;
-    unsigned short agility : 1;
-    unsigned int coordinator : 8;
-} fixed_parameters;
 
 enum protocol_info_type {
     proto_unknown,
