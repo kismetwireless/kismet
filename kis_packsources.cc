@@ -92,6 +92,12 @@ int RegisterKismetSources(Packetsourcetracker *sourcetracker) {
                                         monitor_wlanng_avs, NULL,
                                         chancontrol_wext);
 
+    sourcetracker->RegisterPacketsource("wlanng", 1, "IEEE80211b", 6,
+                                       pcapsource_wext_registrant,
+                                       monitor_wlanng, NULL, chancontrol_wlanng);
+    sourcetracker->RegisterPacketsource("wlanng_avs", 1, "IEEE80211b", 6,
+                                       pcapsource_wext_registrant,
+                                       monitor_wlanng_avs, NULL, chancontrol_wlanng_avs);
 #else
     // Register the linuxwireless pcap stuff as null
     REG_EMPTY_CARD(sourcetracker, "cisco");
@@ -108,21 +114,17 @@ int RegisterKismetSources(Packetsourcetracker *sourcetracker) {
     REG_EMPTY_CARD(sourcetracker, "madwifi_ag");
 
     REG_EMPTY_CARD(sourcetracker, "prism54g");
+
+    REG_EMPTY_CARD(sourcetracker, "wlanng_wext");
+    REG_EMPTY_CARD(sourcetracker, "wlanng");
+    REG_EMPTY_CARD(sourcetracker, "wlanng_avs");
 #endif
 
 #if defined(HAVE_LIBPCAP) && defined(SYS_LINUX)
-    sourcetracker->RegisterPacketsource("wlanng", 1, "IEEE80211b", 6,
-                                       pcapsource_wext_registrant,
-                                       monitor_wlanng, NULL, chancontrol_wlanng);
-    sourcetracker->RegisterPacketsource("wlanng_avs", 1, "IEEE80211b", 6,
-                                       pcapsource_wext_registrant,
-                                       monitor_wlanng_avs, NULL, chancontrol_wlanng_avs);
     sourcetracker->RegisterPacketsource("wrt54g", 1, "na", 0,
                                         pcapsource_wrt54g_registrant,
                                         monitor_wrt54g, NULL, NULL);
 #else
-    REG_EMPTY_CARD(sourcetracker, "wlanng");
-    REG_EMPTY_CARD(sourcetracker, "wlanng_avs");
     REG_EMPTY_CARD(sourcetracker, "wrt54g");
 #endif
 
