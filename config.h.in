@@ -54,9 +54,6 @@
 /* Define if you have the `memset' function. */
 #undef HAVE_MEMSET
 
-/* Define if you have the <netinet/in.h> header file. */
-#undef HAVE_NETINET_IN_H
-
 /* pcap/pcap.h */
 #undef HAVE_PCAPPCAP_H
 

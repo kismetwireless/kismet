@@ -109,7 +109,7 @@ AC_DEFINE_UNQUOTED(SYSCONF_LOC, "$CONFFILE_DIR", system config directory)
 AC_C_BIGENDIAN
 
 # Checks for header files.
-AC_CHECK_HEADERS([errno.h netinet/in.h stdlib.h string.h sys/socket.h sys/time.h sys/wait.h unistd.h sys/types.h], 
+AC_CHECK_HEADERS([errno.h stdlib.h string.h sys/socket.h sys/time.h sys/wait.h unistd.h sys/types.h], 
 	AC_DEFINE(HAVE_SYSHEADERS, 1, System headers are there), 
 	AC_MSG_ERROR(Missing required system header))
 
@@ -295,7 +295,8 @@ if test "$wireless" = "yes"; then
     AC_MSG_CHECKING(that linux/wireless.h is what we expect)
     AC_TRY_LINK([
         #include <stdio.h>
-        #include <netinet/in.h>
+		#include <sys/types.h>
+		#include <netinet/in.h>
         #include <sys/resource.h>
 		#include <linux/wireless.h>
     ],
@@ -487,7 +488,6 @@ if test $want_ethereal = yes; then
 		AC_MSG_CHECKING(for wtap_read parameters)
     	AC_TRY_LINK([
         	#include <stdio.h>
-        	#include <netinet/in.h>
 			#include <sys/types.h>
 			#include <netinet/in.h>
       		#include "wtap.h"
