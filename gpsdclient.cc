@@ -91,6 +91,10 @@ GPSDClient::GPSDClient(GlobalRegistry *in_globalreg) : ClientFramework(in_global
     RegisterNetworkClient(tcpcli);
     tcpcli->RegisterClientFramework(this);
 
+	// Register GPS packet info components
+	globalreg->pcr_gps_ref =
+		globalreg->packetchain->RegisterPacketComponent("gps");
+	
     gpseventid = -1;
 
     reconnect_attempt = -1;

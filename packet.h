@@ -419,21 +419,5 @@ public:
     int datarate;
 };
 
-// GPS coordinates
-class kis_gps_packinfo : public packet_component {
-public:
-	kis_gps_packinfo() {
-		lat = lon = alt = spd = heading = -1000;
-		gps_fix = 0;
-	}
-
-    double lat;
-    double lon;
-    double alt;
-    double spd;
-    double heading;
-    int gps_fix;
-};
-
 #endif
 

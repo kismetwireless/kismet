@@ -32,6 +32,7 @@
 #include "packetchain.h"
 #include "netracker.h"
 #include "packet.h"
+#include "gpsdclient.h"
 
 // TCP server hooks
 char *NETWORK_fields_text[] = {

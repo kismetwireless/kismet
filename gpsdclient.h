@@ -47,6 +47,22 @@ typedef struct GPS_data {
 
 int Protocol_GPS(PROTO_PARMS);
 
+// GPS info linked into each packet
+class kis_gps_packinfo : public packet_component {
+public:
+	kis_gps_packinfo() {
+		lat = lon = alt = spd = heading = -1000;
+		gps_fix = 0;
+	}
+
+    double lat;
+    double lon;
+    double alt;
+    double spd;
+    double heading;
+    int gps_fix;
+};
+
 class GPSDClient : public ClientFramework {
 public:
     GPSDClient();
