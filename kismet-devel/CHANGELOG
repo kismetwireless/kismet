@@ -1,5 +1,6 @@
 Dec 24 2002  2.7.1  Added writing of client info to the XML file, updated the
                      Kismet DTD.
+                    Updated conf files to 2.8.0
 Dec 23 2002  2.7.1  Kismet is now 1 year old!
                     Updated libpcap version to the current libpcap-devel.
                      Anyone fetching updates from CVS should use the -P flag to
