@@ -474,6 +474,7 @@ int Iwconfig_Get_Levels(const char *in_dev, char *in_err, int *level, int *noise
     if (stats.qual.level <= range.max_qual.level) {
         *level = 0;
         *noise = 0;
+        close(skfd);
         return 0;
     }
 
