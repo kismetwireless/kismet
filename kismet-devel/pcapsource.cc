@@ -440,7 +440,7 @@ int PcapSourceWext::FetchChannel() {
 }
 
 // Carrier override
-carrier_type PcapSourceMadwifiG::IEEE80211Carrier() {
+carrier_type PcapSource11G::IEEE80211Carrier() {
     int ch = FetchChannel();
 
     if (ch > 0 && ch <= 14)
@@ -482,9 +482,9 @@ KisPacketSource *pcapsource_ciscowifix_registrant(string in_name, string in_devi
     return new PcapSourceWext(in_name, devbits[1]);
 }
 
-KisPacketSource *pcapsource_madwifig_registrant(string in_name, string in_device,
-                                                char *in_err) {
-    return new PcapSourceMadwifiG(in_name, in_device);
+KisPacketSource *pcapsource_11g_registrant(string in_name, string in_device,
+                                           char *in_err) {
+    return new PcapSource11G(in_name, in_device);
 }
 #endif
 
@@ -926,7 +926,12 @@ int chancontrol_madwifi_ag(const char *in_dev, int in_ch, char *in_err, void *in
     return chancontrol_wext(in_dev, in_ch, in_err, in_ext);
 }
 
+int chancontrol_prism54g(const char *in_dev, int in_ch, char *in_err, void *in_ext) {
+    // Run the wireless extention stuff and scrap the error codes
+    chancontrol_wext(in_dev, in_ch, in_err, in_ext);
 
+    return 0;
+}
 
 #endif
 

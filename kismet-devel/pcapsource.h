@@ -159,11 +159,10 @@ public:
     int FetchChannel();
 };
 
-// Override madwifi stuff for g-carrier.  A and B can be handled normally,
-// so this just gets used for 'g' and 'ag'
-class PcapSourceMadwifiG : public PcapSourceWext {
+// Override carrier detection for 11g cards like madwifi and prism54g.
+class PcapSource11G : public PcapSourceWext {
 public:
-    PcapSourceMadwifiG(string in_name, string in_dev) : 
+    PcapSource11G(string in_name, string in_dev) : 
         PcapSourceWext(in_name, in_dev) { }
 protected:
     carrier_type IEEE80211Carrier();
@@ -184,8 +183,8 @@ KisPacketSource *pcapsource_wext_registrant(string in_name, string in_device,
                                             char *in_err);
 KisPacketSource *pcapsource_ciscowifix_registrant(string in_name, string in_device, 
                                                   char *in_err);
-KisPacketSource *pcapsource_madwifig_registrant(string in_name, string in_device,
-                                                char *in_err);
+KisPacketSource *pcapsource_11g_registrant(string in_name, string in_device,
+                                           char *in_err);
 #endif
 
 // Monitor activation
@@ -239,6 +238,9 @@ int chancontrol_orinoco(const char *in_dev, int in_ch, char *in_err, void *in_ex
 // Madwifi needs to set mode
 int chancontrol_madwifi_ab(const char *in_dev, int in_ch, char *in_err, void *in_ext);
 int chancontrol_madwifi_ag(const char *in_dev, int in_ch, char *in_err, void *in_ext);
+// Prism54 apparently returns a fail code on an iwconfig channel change but
+// then works so we need to override the wext failure code
+int chancontrol_prism54g(const char *in_dev, int in_ch, char *in_err, void *in_ext);
 #endif
 
 #ifdef SYS_LINUX
