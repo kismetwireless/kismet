@@ -30,7 +30,8 @@ int AirsnortDumpFile::OpenDump(const char *file) {
     int ret;
     ret = dumper->OpenDump(file);
 
-    snprintf(errstr, 1024, "%s", dumper->FetchError());
+    if (ret < 0)
+        snprintf(errstr, 1024, "%s", dumper->FetchError());
 
     return ret;
 }
@@ -39,7 +40,8 @@ int AirsnortDumpFile::CloseDump() {
     int ret;
     ret = dumper->CloseDump();
 
-    snprintf(errstr, 1024, "%s", dumper->FetchError());
+    if (ret < 0)
+        snprintf(errstr, 1024, "%s", dumper->FetchError());
 
 //    delete dumper;
 
@@ -58,7 +60,8 @@ int AirsnortDumpFile::DumpPacket(const packet_info *in_info, const kis_packet *p
             bssid_dumped_map[in_info->bssid_mac] = 1;
 
             ret = dumper->DumpPacket(in_info, packet);
-            snprintf(errstr, 1024, "%s", dumper->FetchError());
+            if (ret < 0)
+                snprintf(errstr, 1024, "%s", dumper->FetchError());
             return ret;
         }
     }
@@ -68,7 +71,8 @@ int AirsnortDumpFile::DumpPacket(const packet_info *in_info, const kis_packet *p
         num_dumped++;
 
         ret = dumper->DumpPacket(in_info, packet);
-        snprintf(errstr, 1024, "%s", dumper->FetchError());
+        if (ret < 0)
+            snprintf(errstr, 1024, "%s", dumper->FetchError());
         return ret;
     }
 

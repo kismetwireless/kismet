@@ -31,7 +31,7 @@
 #define BCASTDISCON_AREF   5
 #define AIRJACKSSID_AREF   6
 #define NULLPROBERESP_AREF 7
-#define MAX_AREF           7
+#define MAX_AREF           8
 
 Packetracker::Packetracker() {
     alertracker = NULL;
