@@ -3,6 +3,7 @@ Jan 28 2004  3.1.0  Panels client now scrolls to next network after tagging
                     Added a dirty flag to tcpclient networks listing to save
                      on CPU usage when the network list isn't actually changing
                     Improved use of the dirty flag to conserve cpu
+                    Fixed init of a variable in panels
 Jan 27 2004  3.1.0  Modified internals to packet source handling to allow for
                      restoring card details on sources that support it
                     Merged patch from Pedro for more OpenBSD stuff

@@ -410,6 +410,7 @@ PanelFront::PanelFront() {
 
     sortby = sort_auto;
     client_sortby = client_sort_auto;
+    snprintf(main_sortxt, 24, "(Autofit)");
 
     client = NULL;
 
@@ -1571,3 +1572,4 @@ PanelFront::color_pair PanelFront::ColorParse(string in_color) {
 }
 
 #endif
+
