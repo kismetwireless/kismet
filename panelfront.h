@@ -62,9 +62,6 @@ extern char *KismetHelpDetails[];
 extern char *KismetSortText[];
 extern char *KismetSortTextNarrow[];
 #define SORT_SIZE 10
-extern char *KismetClientSortText[];
-extern char *KismetClientSortTextNarrow[];
-#define CLIENT_SORT_SIZE 8
 extern char *KismetHelpPower[];
 extern char *KismetHelpRate[];
 extern char *KismetHelpGps[];
@@ -72,6 +69,12 @@ extern char *KismetHelpStats[];
 extern char *KismetHelpDump[];
 extern char *KismetHelpPack[];
 extern char *KismetHelpAlert[];
+
+extern char *KismetClientHelpText[];
+extern char *KismetClientHelpDetails[];
+extern char *KismetClientSortText[];
+extern char *KismetClientSortTextNarrow[];
+#define CLIENT_SORT_SIZE 8
 
 // These are in the kismet_curses.cc main code
 extern int sound;
@@ -304,6 +307,9 @@ protected:
     kis_window *net_win;
     kis_window *info_win;
     kis_window *stat_win;
+
+    // This one is transient but we need to cheat
+    kis_window *client_win;
 
     // Current one
     kis_window *cur_window;

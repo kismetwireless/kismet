@@ -71,15 +71,6 @@ char *KismetHelpText[] = {
     "  G       Group - Group of wireless networks",
     "  D       Data - Data only network with no control packets.",
     "",
-    "Client types:",
-    "  F       From DS - client broadcast from wireless distribution system",
-    "  T       To DS - client transmitted over the wireless to the",
-    "          distribution system",
-    "  I       Intra DS - client is a node of the distribution system talking",
-    "          to another node in the distribution system",
-    "  E       Established - client has been seen entering and leaving the DS",
-    "  -       Unknown - client is in an unknown state",
-    "",
     "Status flags give a brief overview about information discovered on the",
     "network.",
     "  F    Vulnerable factory configuration.  Many people don't bother to",
@@ -143,6 +134,7 @@ char *KismetHelpDetails[] = {
     " Key   Action",
     " Up    Scroll list up",
     " Down  Scroll list down",
+    "  c    Display clients for network or group",
     "  n    Display next network or group",
     "  p    Display previous network or group",
     "  q    Close popup",
@@ -286,6 +278,47 @@ char *KismetHelpAlert[] = {
     "  q    Close popup",
     NULL
 };
+
+char *KismetClientHelpText[] = {
+    "KISMET CLIENT LIST",
+    "QUICK REFERENCE",
+    "  Key  Action",
+    "   s   Sort list of clients",
+    "   i   Detailed info on selected client",
+    "   n   Display next network or group",
+    "   p   Display previous network or group",
+    "   q   Quit client list",
+    "",
+    "This panel lists all the clients known to be associated with a selected",
+    "wireless network.  Clients can be other wireless nodes or systems on the",
+    "wired network with traffic bridged to the wireless.  Client types are",
+    "shown as:",
+    "  F       From DS - client broadcast from wireless distribution system.",
+    "          These clients are typically wired systems.",
+    "  T       To DS - client transmitted over the wireless to the",
+    "          distribution system.  These clients are typically wireless nodes",
+    "  I       Intra DS - client is a node of the distribution system talking",
+    "          to another node in the distribution system",
+    "  E       Established - client has been seen entering and leaving the DS.",
+    "          These are typically wireless nodes.",
+    "  -       Unknown - client is in an unknown state",
+    NULL,
+};
+
+char *KismetClientHelpDetails[] = {
+    "CLIENT DETAILS",
+    "This panel lists in depth information about",
+    "the selected client, which may or may not be",
+    "available in the normal columns display.",
+    " Key   Action",
+    " Up    Scroll list up",
+    " Down  Scroll list down",
+    "  n    Display next client",
+    "  p    Display previous client",
+    "  q    Close popup",
+    NULL
+};
+
 
 PanelFront::PanelFront() {
     errstr[0] = '\0';

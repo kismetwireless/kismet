@@ -381,6 +381,10 @@ int PanelFront::DetailsInput(void *in_window, int in_chr) {
         details_network = last_displayed[net_win->selected];
         return ret;
         break;
+    case 'c':
+    case 'C':
+        SpawnWindow("Client List", &PanelFront::MainClientPrinter, &PanelFront::MainClientInput);
+        break;
     default:
         return TextInput(in_window, in_chr);
         break;
@@ -540,6 +544,7 @@ int PanelFront::AlertInput(void *in_window, int in_chr) {
 
 int PanelFront::MainClientInput(void *in_window, int in_chr) {
     kis_window *kwin = (kis_window *) in_window;
+    int ret;
 
     switch (in_chr) {
     case 'Q':
@@ -590,6 +595,21 @@ int PanelFront::MainClientInput(void *in_window, int in_chr) {
         } else {
             WriteStatus("Cannot view details in autofit sort mode.");
         }
+        break;
+    case 'n':
+        // Nasty hack but it works
+        ret = (this->*net_win->input)(net_win, KEY_DOWN);
+        details_network = last_displayed[net_win->selected];
+        return ret;
+        break;
+    case 'p':
+        ret = (this->*net_win->input)(net_win, KEY_UP);
+        details_network = last_displayed[net_win->selected];
+        return ret;
+        break;
+    case 'h':
+    case 'H':
+        SpawnHelp(KismetClientHelpText);
         break;
     default:
         return 1;
@@ -673,21 +693,19 @@ int PanelFront::DetailsClientInput(void *in_window, int in_chr) {
     switch (in_chr) {
     case 'h':
     case 'H':
-        SpawnHelp(KismetHelpDetails);
+        SpawnHelp(KismetClientHelpDetails);
         break;
-        /*
     case 'n':
         // Nasty hack but it works
-        ret = (this->*net_win->input)(net_win, KEY_DOWN);
-        details_network = last_displayed[net_win->selected];
+        ret = (this->*client_win->input)(client_win, KEY_DOWN);
+        details_client = last_client_displayed[client_win->selected];
         return ret;
         break;
     case 'p':
-        ret = (this->*net_win->input)(net_win, KEY_UP);
-        details_network = last_displayed[net_win->selected];
+        ret = (this->*client_win->input)(client_win, KEY_UP);
+        details_client = last_client_displayed[client_win->selected];
         return ret;
         break;
-        */
     default:
         return TextInput(in_window, in_chr);
         break;

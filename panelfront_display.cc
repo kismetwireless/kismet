@@ -879,6 +879,8 @@ void PanelFront::ClientLine(string *in_str, wireless_client *wclient, int print_
 int PanelFront::MainClientPrinter(void *in_window) {
     kis_window *kwin = (kis_window *) in_window;
 
+    client_win = kwin;
+
     int pos = 2;
     for (unsigned int col = 0; col < client_column_vec.size(); col++) {
         char title[1024];
@@ -1033,6 +1035,7 @@ int PanelFront::MainClientPrinter(void *in_window) {
         kwin->selected = kwin->max_display - voffset;
     }
 
+    last_client_displayed.clear();
     for (unsigned int i = kwin->start; i < display_vector.size(); i++) {
         last_client_displayed.push_back(display_vector[i]);
 
@@ -2261,11 +2264,17 @@ int PanelFront::DetailsClientPrinter(void *in_window) {
     kwin->text.push_back(output);
     snprintf(output, print_width, "Latest  : %.24s", ctime((const time_t *) &details_client->last_time));
     kwin->text.push_back(output);
+    snprintf(output, print_width, "MAC     : %s", details_client->mac.Mac2String().c_str());
+    kwin->text.push_back(output);
     snprintf(output, print_width, "Max Rate: %2.1f", details_client->maxrate);
     kwin->text.push_back(output);
     snprintf(output, print_width, "Channel : %d", details_client->channel);
     kwin->text.push_back(output);
     snprintf(output, print_width, "WEP     : %s", details_client->wep ? "Yes" : "No");
+    kwin->text.push_back(output);
+    snprintf(output, print_width, "IP      : %d.%d.%d.%d",
+             details_client->ipdata.ip[0], details_client->ipdata.ip[1],
+             details_client->ipdata.ip[2], details_client->ipdata.ip[3]);
     kwin->text.push_back(output);
 
     if (details_client->gps_fixed != -1) {
@@ -2323,38 +2332,6 @@ int PanelFront::DetailsClientPrinter(void *in_window) {
     snprintf(output, print_width, "  Noise   : %d (best %d)",
              details_client->noise, details_client->best_noise);
     kwin->text.push_back(output);
-
-    switch (details_client->ipdata.atype) {
-        case address_none:
-            snprintf(output, print_width, "IP Type : None detected");
-            break;
-        case address_factory:
-            snprintf(output, print_width, "IP Type : Factory default");
-            break;
-        case address_udp:
-            snprintf(output, print_width, "IP Type : UDP (%d octets)", details_client->ipdata.octets);
-            break;
-        case address_tcp:
-            snprintf(output, print_width, "IP Type : TCP (%d octets)", details_client->ipdata.octets);
-            break;
-        case address_arp:
-            snprintf(output, print_width, "IP Type : ARP (%d octets)", details_client->ipdata.octets);
-            break;
-        case address_dhcp:
-            snprintf(output, print_width, "IP Type : DHCP");
-            break;
-        case address_group:
-            snprintf(output, print_width, "IP Type : Group (aggregate)");
-            break;
-        }
-        kwin->text.push_back(output);
-    
-    if (details_client->ipdata.atype != address_none) {
-        snprintf(output, print_width, "IP      : %d.%d.%d.%d",
-                 details_client->ipdata.ip[0], details_client->ipdata.ip[1],
-                 details_client->ipdata.ip[2], details_client->ipdata.ip[3]);
-        kwin->text.push_back(output);
-    }
 
     return TextPrinter(in_window);
 }
