@@ -2957,11 +2957,12 @@ int PanelFront::Tick() {
 
     // Now fetch the APM data (if so desired)
     if (monitor_bat) {
-        FILE *apm;
 #ifdef SYS_LINUX
-        // Lifted from gkrellm's battery monitor
         char buf[128];
 
+#ifndef HAVE_ACPI
+        // Lifted from gkrellm's battery monitor
+        FILE *apm;
         int ac_line_status, battery_status, flag, percentage, time;
         char units[32];
 
@@ -2999,6 +3000,48 @@ int PanelFront::Tick() {
             if (!strncmp(units, "min", 32))
                 bat_time *= 60;
         }
+#else // ACPI
+		FILE *acpi;
+		int rate = 1, remain = 0, current = 0;
+		bat_available = 0;
+        if ((acpi = fopen(prefs["acpistatefile"].c_str(), "r")) != NULL) {
+			while (fgets(buf, 128, acpi))
+			{
+				if (strncmp(buf, "present:", 8 ) == 0)
+				{
+					// No information for this battery
+					if (strstr(buf, "no" ))
+						break;
+					else
+						bat_available = 1;
+				}
+				else if (strncmp(buf, "charging state:", 15) == 0)
+				{
+					// the space makes it different than discharging
+					if (strstr(buf, " charging" ))
+					bat_charging = 1;
+				}
+				else if (strncmp(buf, "present rate:", 13) == 0)
+					rate = atoi(buf + 25);
+				else if (strncmp(buf, "remaining capacity:", 19) == 0)
+					remain = atoi(buf + 25);
+				else if (strncmp(buf, "present voltage:", 17) == 0)
+					current = atoi(buf + 25);
+			}
+            fclose(acpi);
+			bat_percentage = int((float(remain) / bat_full_capacity) * 100);
+			if (bat_charging)
+				bat_time = int((float(bat_full_capacity - remain) / rate) * 3600);
+			else
+				bat_time = int((float(remain) / rate) * 3600);
+        }
+		else {
+			bat_ac = 0;
+			bat_percentage = 0;
+			bat_time = 0;
+			bat_charging = 0;
+		}
+#endif
 #endif
     }
 
@@ -3028,6 +3071,17 @@ void PanelFront::AddPrefs(map<string, string> in_prefs) {
 
     SetColumns(prefs["columns"]);
 
+#ifdef HAVE_ACPI
+	char buf[80];
+	FILE *info = fopen(prefs["acpiinfofile"].c_str(), "r");
+	bat_full_capacity = 3000; // Avoid div by zero by guessing, however unlikely to be right
+	if ( info != NULL ) {
+		while (fgets(buf, sizeof(buf), info) != NULL)
+			if (1 == sscanf(buf, "last full capacity:      %d mWh", &bat_full_capacity)) 
+				break;
+		fclose(info);
+	}
+#endif
     if (prefs["apm"] == "true")
         monitor_bat = 1;
     else

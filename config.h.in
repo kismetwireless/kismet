@@ -6,6 +6,9 @@
 /* Build panel UI */
 #undef BUILD_PANEL
 
+/* Use ACPI */
+#undef HAVE_ACPI
+
 /* AssumeDefaultColors present */
 #undef HAVE_ASSUME_DEFAULT_COLORS
 
