@@ -343,18 +343,30 @@ void SoundHandler(int *fds, const char *player, map<string, string> soundmap) {
 
         memset(data, 0, 1024);
 
-        select(read_sock + 1, &rset, NULL, &eset, NULL);
+        struct timeval tm;
+        tm.tv_sec = 1;
+        tm.tv_usec = 0;
+
+        select(read_sock + 1, &rset, NULL, &eset, &tm);
 
         // Die and let the other side detect it
         if (FD_ISSET(read_sock, &eset))
             exit(1);
 
+        if (harvested == 0) {
+            // We consider a wait error to be a sign that the child pid died
+            // so we flag it as harvested and keep on going
+            pid_t harvestpid = waitpid(sndpid, NULL, WNOHANG);
+            if (harvestpid == -1 || harvestpid == sndpid)
+                harvested = 1;
+        }
+
         if (FD_ISSET(read_sock, &rset)) {
             int ret;
             ret = read(read_sock, data, 1024);
 
-            if (ret == 0)
-                continue;
+            if (ret <= 0 || errno != 0)
+                exit(1);
 
             // We'll die off if we get a read error, and we'll let kismet on the
             // other side detact that it died
@@ -367,13 +379,9 @@ void SoundHandler(int *fds, const char *player, map<string, string> soundmap) {
             end[0] = '\0';
         }
 
-        if (harvested == 0) {
-            // We consider a wait error to be a sign that the child pid died
-            // so we flag it as harvested and keep on going
-            pid_t harvestpid = waitpid(sndpid, NULL, WNOHANG);
-            if (harvestpid == -1 || harvestpid == sndpid)
-                harvested = 1;
-        }
+        if (data[0] == '\0')
+            continue;
+
 
         // If we've harvested the process, spawn a new one and watch it
         // instead.  Otherwise, we just let go of the data we read
@@ -426,7 +434,19 @@ void SpeechHandler(int *fds, const char *player) {
 
         memset(data, 0, 1024);
 
-        select(read_sock + 1, &rset, NULL, &eset, NULL);
+        if (harvested == 0) {
+            // We consider a wait error to be a sign that the child pid died
+            // so we flag it as harvested and keep on going
+            pid_t harvestpid = waitpid(sndpid, NULL, WNOHANG);
+            if (harvestpid == -1 || harvestpid == sndpid)
+                harvested = 1;
+        }
+
+        struct timeval tm;
+        tm.tv_sec = 1;
+        tm.tv_usec = 0;
+
+        select(read_sock + 1, &rset, NULL, &eset, &tm);
 
         // Die and let the other side detect it
         if (FD_ISSET(read_sock, &eset))
@@ -436,8 +456,8 @@ void SpeechHandler(int *fds, const char *player) {
             int ret;
             ret = read(read_sock, data, 1024);
 
-            if (ret == 0)
-                continue;
+            if (ret <= 0 || errno != 0)
+                exit(1);
 
             // We'll die off if we get a read error, and we'll let kismet on the
             // other side detact that it died
@@ -450,13 +470,8 @@ void SpeechHandler(int *fds, const char *player) {
             end[0] = '\0';
         }
 
-        if (harvested == 0) {
-            // We consider a wait error to be a sign that the child pid died
-            // so we flag it as harvested and keep on going
-            pid_t harvestpid = waitpid(sndpid, NULL, WNOHANG);
-            if (harvestpid == -1 || harvestpid == sndpid)
-                harvested = 1;
-        }
+        if (data[0] == '\0')
+            continue;
 
         // If we've harvested the process, spawn a new one and watch it
         // instead.  Otherwise, we just let go of the data we read
