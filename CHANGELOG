@@ -11,6 +11,7 @@ Feb 04 2004  3.1.0  Merged more diffs from Pedro to fix the stackprot alerts on
                      places the onus on the drivers to Do The Right Thing, but
                      makes my life a lot easier for restoring card states.
                     Added unmonitor support for orinoco, acx100
+                    Revamped ifconfig internals to only process flags
 Feb 02 2004  3.1.0  Tweaked probe req handling to assign to_ds
                     Changed panels channel display to show --- for uncontrolled
                      source channels

@@ -168,10 +168,6 @@ public:
 #ifdef SYS_LINUX
 // What we need to track on a linux interface to restore the settings
 typedef struct linux_ifparm {
-    struct sockaddr_in ifaddr; 
-    struct sockaddr_in dstaddr; 
-    struct sockaddr_in broadaddr; 
-    struct sockaddr_in maskaddr; 
     short flags;
     char essid[MAX_SSID_LEN + 1];
     int channel;
