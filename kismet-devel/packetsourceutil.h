@@ -24,6 +24,7 @@
 #include <string>
 #include <vector>
 #include <map>
+#include <list>
 
 #include "timetracker.h"
 #include "packetsource.h"
@@ -36,6 +37,16 @@
 #include "util.h"
 #include "server_globals.h"
 
+// IPC frame.  We define it up here since we need it for the capturesource
+// We don't transmit data* but we need it locally
+typedef struct capchild_packhdr {
+    uint32_t sentinel;
+    int8_t packtype;
+    int8_t flags;
+    int32_t datalen;
+    uint8_t *data;
+};
+
 typedef struct capturesource {
     KisPacketSource *source;
     string name;
@@ -44,13 +55,12 @@ typedef struct capturesource {
     card_type cardtype;
     packet_parm packparm;
     int childpair[2];
-    int servpair[2];
-    int textpair[2];
     pid_t childpid;
     int alive;
     vector<int> channels;
     int ch_pos;
     int ch_hop;
+    list<capchild_packhdr *> cmd_buf;
 };
 
 map<string, int> ParseEnableLine(string in_named);
@@ -77,12 +87,19 @@ int ParseSetChannels(vector<string> *in_sourcechanlines, vector<capturesource *>
 #define CAPCMD_RESUME   -7   // Resume
 
 // Sentinel for starting a new packet
-#define CAPSENTINEL     0xDECAFBAD
+#define CAPSENTINEL      0xDECAFBAD
 
-void CapSourceText(string in_text, KisRingBuffer *in_buf);
-void CapSourceChild(capturesource *csrc);
+// What type of frame it is in the child datagram
+#define CAPPACK_COMMAND  0
+#define CAPPACK_PACKET   1
+#define CAPPACK_TEXT     2
+
+// What sort of extra info can we carry with the text?
+#define CAPFLAG_NONE     0
+#define CAPFLAG_FATAL    1
+
 int SpawnCapSourceChild(capturesource *csrc);
-int FetchChildPacket(int in_fd, kis_packet *packet, uint8_t *data, uint8_t *moddata, string *in_text);
-int FetchChildText(int in_fd, string *in_text);
+int SendChildCommand(capturesource *csrc, int in_cmd);
+int FetchChildBlock(int in_fd, kis_packet *packet, uint8_t *data, uint8_t *moddata, string *in_text);
 
 #endif
