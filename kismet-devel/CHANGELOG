@@ -1,4 +1,5 @@
 May 01 2003  2.9.1  Integrated FSA alerts with packetracker code.
+                    Internal changes to packetracker api
 Apr 29 2003  2.9.1  First iteration of stateful packet inspection added - 
                      detection of probe-only clients who never join a network
 Apr 24 2003  2.9.1  Tweaked cisco_cvs monitor scripts
