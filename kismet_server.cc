@@ -2093,6 +2093,7 @@ int main(int argc,char *argv[]) {
     struct passwd *pwordent;
     const char *suid_user;
     uid_t suid_id, real_uid;
+    gid_t suid_gid;
 
     real_uid = getuid();
 
@@ -2107,6 +2108,7 @@ int main(int argc,char *argv[]) {
             exit(1);
         } else {
             suid_id = pwordent->pw_uid;
+            suid_gid = pwordent->pw_gid;
 
             if (suid_id == 0) {
                 // If we're suiding to root...
@@ -2125,7 +2127,8 @@ int main(int argc,char *argv[]) {
             }
 
 
-            fprintf(stderr, "Will drop privs to %s (%d)\n", suid_user, suid_id);
+            fprintf(stderr, "Will drop privs to %s (%d) gid %d\n", suid_user, 
+                    suid_id, suid_gid);
         }
     } else {
         fprintf(stderr, "FATAL:  No 'suiduser' option in the config file.\n");
@@ -2335,12 +2338,17 @@ int main(int argc,char *argv[]) {
     // logfiles as root if we can avoid it.  Once we've dropped, we'll investigate our
     // sources again and open any defered
 #ifdef HAVE_SUID
+    if (setgid(suid_gid) < 0) {
+        fprintf(stderr, "FATAL:  setgid() to %d failed.\n", suid_gid);
+        exit(1);
+    }
+
     if (setuid(suid_id) < 0) {
         fprintf(stderr, "FATAL:  setuid() to %s (%d) failed.\n", suid_user, suid_id);
         exit(1);
-    } else {
-        fprintf(stderr, "Dropped privs to %s (%d)\n", suid_user, suid_id);
-    }
+    } 
+
+    fprintf(stderr, "Dropped privs to %s (%d) gid %d\n", suid_user, suid_id, suid_gid);
 #endif
 
     // WE ARE NOW RUNNING AS THE TARGET UID
