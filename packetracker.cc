@@ -419,10 +419,7 @@ void Packetracker::ProcessPacket(packet_info info) {
     if (info.source_mac == net->bssid)
         net->last_sequence = info.sequence_number;
 
-    if (info.quality >= 0 && info.signal >= 0) {
-        net->quality = info.quality;
-        if (info.quality > net->best_quality)
-            net->best_quality = info.quality;
+    if (info.noise != 0 && info.signal != 0) {
         net->signal = info.signal;
 
         if (info.signal > net->best_signal) {
@@ -435,7 +432,9 @@ void Packetracker::ProcessPacket(packet_info info) {
         }
 
         net->noise = info.noise;
-        if ((info.noise < net->best_noise && info.noise != 0) || net->best_noise == 0)
+
+        // Record the "best" (aka 'worst') noise level
+        if (info.noise > net->best_noise || net->best_noise == 0)
             net->best_noise = info.noise;
     }
 
