@@ -24,7 +24,6 @@ In no particular order:
 	multiserver grouping bugger-up
 	fix compass/heading
 	location beacon info (hostAP mod)
-	alert filtering
 	Alerts as forged packets in pipe
 	gps satellite plot in client
 	VPN detection
