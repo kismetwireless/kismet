@@ -1,5 +1,7 @@
 Jun 09 2003  2.9.1  Tweaked configure to strip debugging symbols from OSX
                      OSX builds.  Some OSX gcc's are broken.
+                    Worked on capchild IPC more.  Maybe this will finally fix
+                     blocking and multisource issues.
 Jun 08 2003  2.9.1  Tweaked kismet_monitor to set PATH var for suidinstalls
                     Tweaked IPC code to try to prevent blocking lockups.
                     Revamped packetsource opening in capchildren.
