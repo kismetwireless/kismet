@@ -1563,7 +1563,18 @@ int unmonitor_ipw2100(const char *in_dev, int initch, char *in_err, void **in_if
     // Restore initial monitor header
     // linux_ifparm *ifparm = (linux_ifparm *) (*in_if);
 
-    return unmonitor_wext(in_dev, initch, in_err, in_if);
+    linux_ifparm *ifparm = (linux_ifparm *) (*in_if);
+
+    if (Ifconfig_Set_Flags(in_dev, in_err, ifparm->flags) < 0) {
+        return -1;
+    }
+
+    if (Iwconfig_Set_Mode(in_dev, in_err, ifparm->mode) < 0)
+        return -1;
+
+    free(ifparm);
+
+    return 1;
 }
 
 // "standard" wireless extension monitor mode

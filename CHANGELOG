@@ -1,3 +1,5 @@
+Jul 14 2004  devel  Merged patch from Sebastian to clean up ipw2100 behavior a
+                     bit more
 Jul 12 2004  devel  Fixed Imagemagick support for 6.x
 Jun 25 2004  devel  Removed net/bpf.h since it isn't needed and isn't present
                      in some systems
