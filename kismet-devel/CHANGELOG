@@ -3,6 +3,9 @@ Dec 21 2003  3.1.0  Added discarding of large management and phy frames as an
                      drivers.
                     Fixed errors in sourcetracker when child processes aren't
                      used
+                    Fixed display of card levels in panel client
+                    Fixed fetching of signal levels from cisco cards (for
+                     whatever thats worth since they lie)
 Dec 19 2003  3.1.0  Changed some viha stuff, maybe fixed some problems.
                     Made child channel control spawning far more intelligent
                     Merged viha into root process, forced disable of setuid
