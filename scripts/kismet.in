@@ -1,16 +1,18 @@
 #!/bin/sh
 
 prefix=@prefix@
+exec_prefix=@exec_prefix@
 ETC=@sysconfdir@
+BIN=@bindir@
 
 GREP_OPTIONS=""
 
 set -m
 
-gui=`grep -e "^gui=" $ETC/kismet_ui.conf | cut -d= -f2 | tr -d " \t"`
+gui=`grep -e "^gui=" ${ETC}/kismet_ui.conf | cut -d= -f2 | tr -d " \t"`
 
 if test "$gui" = ""; then
-	echo "No gui specified in $ETC/kismet.conf.  Please specify one!"
+	echo "No gui specified in ${ETC}/kismet.conf.  Please specify one!"
 	exit
 fi
 
@@ -46,14 +48,14 @@ else
 fi
 
 echo "Starting server..."
-kismet_server --silent $server &
+${BIN}/kismet_server --silent $server &
 
 servpid=$!
 
 sleep 1
 
 echo "Starting UI..."
-kismet_client $client
+${BIN}/kismet_client $client
 
 if test "$?" != "5"; then
 	echo "Killing server..."
@@ -61,7 +63,7 @@ if test "$?" != "5"; then
 	wait %-
 fi
 
-echo "Terminating..."
+echo "Client exited, terminating..."
 
 if test -f "/var/run/kismet_hopper.pid"; then
 	HOPPERPID=`cat /var/run/kismet_hopper.pid`
@@ -69,19 +71,19 @@ if test -f "/var/run/kismet_hopper.pid"; then
 	# Stupid race condition gymnastics...
 	# Make a temp file then move it to the target file to avoid symlinks
 	CNTFILE=`mktemp /tmp/kishopper.XXXXXX`
-	mv $CNTFILE /tmp/kismet_hopper.control
+	mv ${CNTFILE} /tmp/kismet_hopper.control
 
 	WAITTIME=0
-	while test "$WAITTIME" -le 5; do
+	while test "${WAITTIME}" -le 5; do
 		if test ! -f /var/run/kismet_hopper.pid; then
 			break
 		fi
 		sleep 1
-		WAITTIME=$(($WAITTIME+1))
+		WAITTIME=$((${WAITTIME}+1))
 	done
 
-	if test "$WAITTIME" -gt 5; then
-		echo "kismet_hopper pid $HOPPERPID didn't seem to die cleanly as requested "
+	if test "${WAITTIME}" -gt 5; then
+		echo "kismet_hopper pid ${HOPPERPID} didn't seem to die cleanly as requested "
 		echo "within 5 seconds.  You'll have to find it and kill it yourself if its"
 		echo "still running."
 	fi
