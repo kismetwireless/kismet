@@ -40,7 +40,7 @@ fi
 if test "$client" = ""; then
 	echo "Client options:  none"
 else
-	echo "Server options:  $client"
+	echo "Client options:  $client"
 fi
 
 echo "Starting server..."
