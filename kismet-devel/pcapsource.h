@@ -125,15 +125,15 @@ protected:
     } avs_80211_1_header;
 
     // Carrier setting
-    carrier_type IEEE80211Carrier();
+    virtual carrier_type IEEE80211Carrier();
     // Datalink checker
-    int DatalinkType();
+    virtual int DatalinkType();
     // FCS byte checker (override)
-    int FCSBytes();
+    virtual int FCSBytes();
     // Signal level fetcher
-    int FetchSignalLevels(int *in_siglev, int *in_noiselev);
+    virtual int FetchSignalLevels(int *in_siglev, int *in_noiselev);
     // Mangler
-    int ManglePacket(kis_packet *packet, uint8_t *data, uint8_t *moddata);
+    virtual int ManglePacket(kis_packet *packet, uint8_t *data, uint8_t *moddata);
     // Mangle a prism2 datalink to a kismet packet
     int Prism2KisPack(kis_packet *packet, uint8_t *data, uint8_t *moddata);
     // Mangle a BSD header
