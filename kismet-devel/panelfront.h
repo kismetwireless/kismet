@@ -165,11 +165,29 @@ protected:
 
     // Server context records for multiple servers
     typedef struct server_context {
-        TcpClient *client;
+        server_context() {
+            client = NULL;
+            quality = power = noise = 0;
+            details_network = NULL;
+            details_client = NULL;
 
-        // Context records for all the servers that are grouped with this one, if
-        // it's actually a group
-        vector<server_context *> contexts;
+            lat = lon = spd = alt = last_lat = last_lon = last_spd = last_alt = 0;
+            fix = last_fix = 0;
+
+            last_draw_size = last_client_draw_size = 0;
+
+            max_packet_rate = 0;
+
+            num_networks = num_packets = num_crypt = num_interesting =
+                num_noise = num_dropped = packet_rate = 0;
+
+            server_time = 0;
+
+            tagged = 0;
+            primary = 0;
+        }
+
+        TcpClient *client;
 
         int quality, power, noise;
 
@@ -197,17 +215,14 @@ protected:
 
         time_t server_time;
 
+        // Is this tagged for display?
+        int tagged;
+        // Is this the primary network?  (where we get GPS and quality info from)
+        int primary;
     };
 
     // Update a context on the tick function
-    void UpdateContext(server_context *con);
-    // Load a saved context into the active context
-    void LoadContext(server_context *in_context);
-    // Load a subset of the context - quick and easy way to update from groups and
-    // networks.
-    void LoadSubContext(server_context *in_context);
-    // Store the active context into a saved context
-    void StoreContext(server_context *in_context);
+    void UpdateContexts();
 
     // Printers for our main 3 panels... This pulls MOST of this out of class globals,
     // but not quite all.

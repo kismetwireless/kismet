@@ -367,8 +367,9 @@ void PanelFront::AddClient(TcpClient *in_client) {
 
     if (context == NULL) {
         client = in_client;
-        StoreContext(new_context);
         context = new_context;
+        context->primary = 1;
+        context->tagged = 1;
     }
 }
 
@@ -903,8 +904,30 @@ int PanelFront::Poll() {
     return ret;
 }
 
-void PanelFront::UpdateContext(server_context *con) {
-    if (con->client != NULL) {
+void PanelFront::UpdateContexts() {
+    lat = lon = alt = spd = 0;
+    fix = 0;
+    last_lat = last_lon = last_alt = last_spd = 0;
+    last_fix = 0;
+
+    quality = power = noise = 0;
+
+    num_networks = 0;
+    num_packets = 0;
+    num_crypt = 0;
+    num_interesting = 0;
+    num_noise = 0;
+    num_dropped = 0;
+    packet_rate = 0;
+
+    int aggrate = 0; int aggadjrate = 0;
+
+    for (unsigned int x = 0; x < context_list.size(); x++) {
+        server_context *con = context_list[x];
+
+        if (con->client == NULL)
+            continue;
+
         // Update GPS
         con->last_lat = con->lat;
         con->last_lon = con->lon;
@@ -913,15 +936,49 @@ void PanelFront::UpdateContext(server_context *con) {
         con->last_fix = con->fix;
         con->client->FetchLoc(&con->lat, &con->lon, &con->alt, &con->spd, &con->fix);
 
+        // Update quality
+        con->quality = con->client->FetchQuality();
+        con->power = con->client->FetchPower();
+        con->noise = con->client->FetchNoise();
+
+        // Update time
+        con->server_time = con->client->FetchTime();
+
+        if (con->primary == 1) {
+            // Bring the primary contexts info into our class settings
+            client = con->client;
+
+            lat = con->lat;
+            lon = con->lon;
+            alt = con->alt;
+            spd = con->spd;
+            fix = con->fix;
+
+            last_lat = con->last_lat;
+            last_lon = con->last_lon;
+            last_alt = con->last_alt;
+            last_spd = con->last_spd;
+            last_fix = con->last_fix;
+
+            quality = con->quality;
+            power = con->power;
+            noise = con->noise;
+
+            server_time = con->server_time;
+        }
+
+
         // Update packet rate
         int rate = con->client->FetchNumPackets() - con->client->FetchNumDropped();
         int adjrate = con->client->FetchPacketRate();
+
         if (adjrate > con->max_packet_rate)
             con->max_packet_rate = adjrate;
         con->packet_history.push_back(rate);
         if (con->packet_history.size() > (60 * 5))
             con->packet_history.erase(con->packet_history.begin());
 
+        // Update other info
         con->num_networks = con->client->FetchNumNetworks();
         con->num_packets = con->client->FetchNumPackets();
         con->num_crypt = con->client->FetchNumCrypt();
@@ -930,59 +987,28 @@ void PanelFront::UpdateContext(server_context *con) {
         con->num_dropped = con->client->FetchNumDropped();
         con->packet_rate = con->client->FetchPacketRate();
 
-        con->quality = con->client->FetchQuality();
-        con->power = con->client->FetchPower();
-        con->noise = con->client->FetchNoise();
+        if (con->tagged) {
+            // combine tagged info
+            aggrate += rate;
+            aggadjrate += adjrate;
 
-        con->server_time = con->client->FetchTime();
-
-    } else {
-        // Update all the subnetworks
-        for (unsigned int x = 0; x < con->contexts.size(); x++)
-            UpdateContext(con->contexts[x]);
-
-        // Groups don't get GPS info
-        con->lat = con->lon = con->alt = con->spd = 0;
-        con->fix = 0;
-        con->last_lat = con->last_lon = con->last_alt = con->last_spd = 0;
-        con->last_fix = 0;
-
-        // Groups don't get signal info
-        con->quality = con->power = con->noise = 0;
-
-        con->num_networks = 0;
-        con->num_packets = 0;
-        con->num_crypt = 0;
-        con->num_interesting = 0;
-        con->num_noise = 0;
-        con->num_dropped = 0;
-        con->packet_rate = 0;
-
-        int aggrate = 0; int aggadjrate = 0;
-        for (unsigned int y = 0; y < con->contexts.size(); y++) {
-            server_context *scon = con->contexts[y];
-
-            // Aggregate packet and network numbers
-            con->num_networks += scon->num_networks;
-            con->num_packets += scon->num_packets;
-            con->num_crypt += scon->num_crypt;
-            con->num_interesting += scon->num_interesting;
-            con->num_noise += scon->num_noise;
-            con->num_dropped += scon->num_dropped;
-            con->packet_rate += scon->packet_rate;
-
-            // Aggregate packet rate
-            aggrate += scon->packet_history[scon->packet_history.size() - 1];
-            aggadjrate += con->client->FetchPacketRate();
+            num_networks += con->num_networks;
+            num_packets += con->num_packets;
+            num_crypt += con->num_crypt;
+            num_interesting += con->num_interesting;
+            num_noise += con->num_noise;
+            num_dropped += con->num_dropped;
         }
 
-        // Update the aggregate packet rates and aggregate max rate
-        if (aggadjrate > con->max_packet_rate)
-            con->max_packet_rate = aggadjrate;
-        con->packet_history.push_back(aggrate);
-        if (con->packet_history.size() > (60 * 5))
-            con->packet_history.erase(con->packet_history.begin());
     }
+
+    packet_rate = aggadjrate;
+    if (aggadjrate > max_packet_rate)
+        max_packet_rate = aggadjrate;
+    packet_history.push_back(aggrate);
+    if (packet_history.size() > (60 * 5))
+        packet_history.erase(packet_history.begin());
+
 }
 
 int PanelFront::Tick() {
@@ -990,11 +1016,7 @@ int PanelFront::Tick() {
     // we can cause our own draw events which wouldn't necessarily be a good thing
 
     // Update all the contexts
-    for (unsigned int x = 0; x < context_list.size(); x++)
-        UpdateContext(context_list[x]);
-
-    // Now do a subload to copy our updated current context over
-    LoadSubContext(context);
+    UpdateContexts();
 
     // Now fetch the APM data (if so desired)
     if (monitor_bat) {
@@ -1208,6 +1230,7 @@ PanelFront::color_pair PanelFront::ColorParse(string in_color) {
     return ret;
 }
 
+/*
 void PanelFront::LoadContext(server_context *in_context) {
     if (in_context == NULL)
         return;
@@ -1302,6 +1325,7 @@ void PanelFront::StoreContext(server_context *in_context) {
     in_context->last_draw_size = last_draw_size;
     in_context->last_client_draw_size = last_client_draw_size;
     in_context->server_time = server_time;
-}
+    }
+    */
 
 #endif
