@@ -405,7 +405,7 @@ typedef struct mac_addr {
 // packet conversion and extraction utilities
 // Packet types
 enum packet_info_type {
-    packet_unknown, packet_beacon, packet_probe_req, packet_data,
+    packet_unknown, packet_beacon, packet_probe_req, packet_data, packet_ack,
     packet_ap_broadcast, packet_adhoc, packet_adhoc_data,
     packet_noise, packet_probe_response, packet_reassociation,
     packet_auth, packet_deauth, packet_disassociation, packet_association_req,

@@ -391,6 +391,11 @@ void GetPacketInfo(const pkthdr *header, const u_char *data,
 
             ret_packinfo->reason_code = rcode;
         }
+    } else if (fc->type == 1) {
+        ret_packinfo->type = packet_ack;
+
+        ret_packinfo->dest_mac = addr0;
+
     } else if (fc->type == 2) {
         // Data packets
         ret_packinfo->type = packet_data;
