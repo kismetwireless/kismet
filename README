@@ -470,7 +470,7 @@ Licensed under the GPL
     atmel_usb       Atmel-USB           Linux       Berlios-Atmel
                     http://at76c503a.berlios.de/
                     Capture interface:  'wlanX'
-                    These drivers work ONLY on USB cards (Sorry, no pcmcia
+                    These drivers work ONLY on USB cards (Sorry, no PCMCIA
                      support).  Monitor mode support is limited and "faked"
                      by bypassing part of the firmware and parsing packets
                      directly, and is likely to not report all of the 
@@ -678,7 +678,7 @@ Licensed under the GPL
                           linuxant wrappers around windows drivers.
      Airport Extreme    - Really a Broadcom, with no rfmon in the OSX drivers.
      Atmel              - There is a hack for pseudo-monitor in USB.  There is
-                          currently no equivalent hack for pcmcia.
+                          currently no equivalent hack for PCMCIA.
      Realtek            - Cards seem to be primarily software-driven, no
                           support in the drivers.
      HermesII           - Proxim successor to the Orinoco/HermesI.  No support
