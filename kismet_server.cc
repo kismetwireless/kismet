@@ -1330,6 +1330,51 @@ int main(int argc,char *argv[]) {
     // Create a GPS object
 #ifdef HAVE_GPS
     gps = new GPSD;
+
+    // Now lets open the GPS host if specified... I don't like to do this here but we need to to give the
+    // capchildren the gps
+    if (gpsport == -1 && gps_enable) {
+        if (conf->FetchOpt("gps") == "true") {
+            if (sscanf(conf->FetchOpt("gpshost").c_str(), "%1024[^:]:%d", gpshost, &gpsport) != 2) {
+                fprintf(stderr, "Invalid GPS host in config (host:port required)\n");
+                exit(1);
+            }
+
+            gps_enable = 1;
+        } else {
+            gps_enable = 0;
+            gps_log = 0;
+        }
+    }
+
+    if (gps_enable == 1) {
+        // Open the GPS
+        if (gps->OpenGPSD(gpshost, gpsport) < 0) {
+            fprintf(stderr, "%s\n", gps->FetchError());
+
+            gps_enable = 0;
+            if (gps_log)
+                fprintf(stderr, "Disabling GPS logging.\n");
+            gps_log = 0;
+        } else {
+            fprintf(stderr, "Opened GPS connection to %s port %d\n",
+                    gpshost, gpsport);
+
+            gpsmode = gps->FetchMode();
+
+            if (gps_log) {
+                if (gpsdump.OpenDump(gpslogfile.c_str(), xmllogfile.c_str()) < 0) {
+                    fprintf(stderr, "FATAL: GPS dump error: %s\n", gpsdump.FetchError());
+                    exit(1);
+                }
+            }
+        }
+    } else {
+        if (gps_log)
+            fprintf(stderr, "Disabling GPS logging.\n");
+        gps_log = 0;
+    }
+
 #endif
 
     // Read all of our packet sources, tokenize the input and then start opening
@@ -2251,51 +2296,6 @@ int main(int argc,char *argv[]) {
         free(client_manuf_name);
     }
 
-    // Now lets open the GPS host if specified
-#ifdef HAVE_GPS
-    if (gpsport == -1 && gps_enable) {
-        if (conf->FetchOpt("gps") == "true") {
-            if (sscanf(conf->FetchOpt("gpshost").c_str(), "%1024[^:]:%d", gpshost, &gpsport) != 2) {
-                fprintf(stderr, "Invalid GPS host in config (host:port required)\n");
-                exit(1);
-            }
-
-            gps_enable = 1;
-        } else {
-            gps_enable = 0;
-            gps_log = 0;
-        }
-    }
-
-    if (gps_enable == 1) {
-        // Open the GPS
-        if (gps->OpenGPSD(gpshost, gpsport) < 0) {
-            fprintf(stderr, "%s\n", gps->FetchError());
-
-            gps_enable = 0;
-            if (gps_log)
-                fprintf(stderr, "Disabling GPS logging.\n");
-            gps_log = 0;
-        } else {
-            fprintf(stderr, "Opened GPS connection to %s port %d\n",
-                    gpshost, gpsport);
-
-            gpsmode = gps->FetchMode();
-
-            if (gps_log) {
-                if (gpsdump.OpenDump(gpslogfile.c_str(), xmllogfile.c_str()) < 0) {
-                    fprintf(stderr, "FATAL: GPS dump error: %s\n", gpsdump.FetchError());
-                    exit(1);
-                }
-            }
-        }
-    } else {
-        if (gps_log)
-            fprintf(stderr, "Disabling GPS logging.\n");
-        gps_log = 0;
-    }
-#endif
-
     if (filter_export)
         tracker.AddExportFilters(&filter_export_bssid, &filter_export_source, &filter_export_dest,
                                  &filter_export_bssid_invert, &filter_export_source_invert,
@@ -2572,8 +2572,12 @@ int main(int argc,char *argv[]) {
 
         if (silent)
             SendChildCommand(packet_sources[x], CAPCMD_SILENT);
+#ifdef HAVE_GPS
+        if (gps_enable == 1)
+            SendChildCommand(packet_sources[x], CAPCMD_GPSENABLE);
+#endif
+        // Activate the source and gps
 
-        // Activate the source
         SendChildCommand(packet_sources[x], CAPCMD_ACTIVATE);
 
         packet_sources[x]->alive = 1;

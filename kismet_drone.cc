@@ -361,6 +361,36 @@ int main(int argc, char *argv[]) {
     fprintf(stderr, "Suid priv-dropping disabled.  This may not be secure.\n");
 #endif
 
+#ifdef HAVE_GPS
+    if (conf->FetchOpt("gps") == "true") {
+        if (sscanf(conf->FetchOpt("gpshost").c_str(), "%1024[^:]:%d", gpshost, &gpsport) != 2) {
+            fprintf(stderr, "Invalid GPS host in config (host:port required)\n");
+            exit(1);
+        }
+
+        gps_enable = 1;
+    } else {
+            gps_enable = 0;
+    }
+
+    if (gps_enable == 1) {
+        // Open the GPS
+        if (gps->OpenGPSD(gpshost, gpsport) < 0) {
+            fprintf(stderr, "%s\n", gps->FetchError());
+
+            gps_enable = 0;
+        } else {
+            fprintf(stderr, "Opened GPS connection to %s port %d\n",
+                    gpshost, gpsport);
+
+        }
+    }
+
+    // Update GPS coordinates and handle signal loss if defined
+    timetracker.RegisterTimer(SERVER_TIMESLICES_SEC, NULL, 1, &GpsEvent, NULL);
+
+#endif
+
     // Read all of our packet sources, tokenize the input and then start opening
     // them.
 
@@ -611,36 +641,6 @@ int main(int argc, char *argv[]) {
         // Add it to our vector
         legal_ipblock_vec.push_back(ipb);
     }
-
-#ifdef HAVE_GPS
-    if (conf->FetchOpt("gps") == "true") {
-        if (sscanf(conf->FetchOpt("gpshost").c_str(), "%1024[^:]:%d", gpshost, &gpsport) != 2) {
-            fprintf(stderr, "Invalid GPS host in config (host:port required)\n");
-            exit(1);
-        }
-
-        gps_enable = 1;
-    } else {
-            gps_enable = 0;
-    }
-
-    if (gps_enable == 1) {
-        // Open the GPS
-        if (gps->OpenGPSD(gpshost, gpsport) < 0) {
-            fprintf(stderr, "%s\n", gps->FetchError());
-
-            gps_enable = 0;
-        } else {
-            fprintf(stderr, "Opened GPS connection to %s port %d\n",
-                    gpshost, gpsport);
-
-        }
-    }
-
-    // Update GPS coordinates and handle signal loss if defined
-    timetracker.RegisterTimer(SERVER_TIMESLICES_SEC, NULL, 1, &GpsEvent, NULL);
-
-#endif
 
     // Channel hop if requested
     if (channel_hop)

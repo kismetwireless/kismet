@@ -231,6 +231,8 @@ int BindRootSources(vector<capturesource *> *in_capsources, map<string, int> *in
 
             csrc->source->AddTimetracker(in_tracker);
             csrc->source->AddGpstracker(in_gpsd);
+            csrc->gps = in_gpsd;
+            csrc->gps_enable = 0;
 
             if (SpawnCapSourceChild(csrc) < 0)
                 exit(1);
@@ -292,6 +294,8 @@ int BindUserSources(vector<capturesource *> *in_capsources, map<string, int> *in
 
                 csrc->source->AddTimetracker(in_tracker);
                 csrc->source->AddGpstracker(in_gpsd);
+                csrc->gps = in_gpsd;
+                csrc->gps_enable = 0;
 
                 if (SpawnCapSourceChild(csrc) < 0)
                     exit(1);
@@ -454,6 +458,7 @@ int ParseSetChannels(vector<string> *in_sourcechanlines, vector<capturesource *>
 // Nasty middle-of-file global - these are just to let the signal catcher know who we are
 pid_t capchild_global_pid;
 capturesource *capchild_global_capturesource;
+list<capchild_packhdr *> packet_buf;
 
 // Push a string of text out into the ring buffer for OOB-reporting to the server
 capchild_packhdr *CapSourceText(string in_text, int8_t in_flags) {
@@ -482,6 +487,25 @@ void CapSourceInterruptSignal(int sig) {
     return;
 }
 
+int ChildGpsEvent(Timetracker::timer_event *evt, void *parm) {
+#ifdef HAVE_GPS
+    capturesource *csrc = (capturesource *) parm;
+
+    if (csrc->gps->Scan() < 0) {
+        char txtbuf[1024];
+        snprintf(txtbuf, 1024, "capture child %d source %s gps error fetcing data: %s",
+                 capchild_global_pid, csrc->name.c_str(), csrc->gps->FetchError());
+        packet_buf.push_front(CapSourceText(txtbuf, CAPFLAG_NONE));
+        csrc->gps_enable = 0;
+    }
+
+    // We want to be rescheduled
+    return 1;
+#endif
+    return 0;
+}
+
+
 // Handle doing things as a child
 void CapSourceChild(capturesource *csrc) {
     char txtbuf[1024];
@@ -491,6 +515,7 @@ void CapSourceChild(capturesource *csrc) {
     int diseased = 0;
     int write_dataframe_only = 0;
     pid_t mypid = getpid();
+    Timetracker timetracker;
 
     // Assign globals for signal handler
     capchild_global_pid = mypid;
@@ -501,8 +526,6 @@ void CapSourceChild(capturesource *csrc) {
     signal(SIGHUP, SIG_IGN);
     signal(SIGPIPE, CapSourceInterruptSignal);
 
-    list<capchild_packhdr *> packet_buf;
-
     // Try to open the child...
     if (csrc->source->OpenSource(csrc->interface.c_str(), csrc->cardtype) < 0) {
         fprintf(stderr, "FATAL: Capture child %d (%s): %s\n", mypid, csrc->name.c_str(), csrc->source->FetchError());
@@ -511,6 +534,10 @@ void CapSourceChild(capturesource *csrc) {
 
     fprintf(stderr, "Capture child %d (%s): Capturing packets from %s\n",
             mypid, csrc->name.c_str(), csrc->source->FetchType());
+
+#ifdef HAVE_GPS
+    timetracker.RegisterTimer(SERVER_TIMESLICES_SEC, NULL, 1, &ChildGpsEvent, (void *) csrc);
+#endif
 
     while (1) {
         int max_fd = 0;
@@ -543,13 +570,19 @@ void CapSourceChild(capturesource *csrc) {
             exit(1);
         }
 
+        struct timeval tm;
+        tm.tv_sec = 0;
+        tm.tv_usec = 100000;
+
         // go look for stuff
-        if (select(max_fd + 1, &rset, &wset, NULL, NULL) < 0) {
+        if (select(max_fd + 1, &rset, &wset, NULL, &tm) < 0) {
             csrc->source->CloseSource();
 
             fprintf(stderr, "FATAL:  capture child %d select() error %d (%s)\n", mypid, errno, strerror(errno));
             exit(1);
         }
+
+        timetracker.Tick();
 
         // Write out a packet
         if (FD_ISSET(csrc->childpair[0], &wset) && packet_buf.size() > 0) {
@@ -682,6 +715,8 @@ void CapSourceChild(capturesource *csrc) {
                 csrc->source->Pause();
             } else if (cmd == CAPCMD_RESUME) {
                 csrc->source->Resume();
+            } else if (cmd == CAPCMD_GPSENABLE) {
+                csrc->gps_enable = 1;
             } else if (cmd > 0) {
                 // do a channel set
                 if (csrc->source->SetChannel(cmd) < 0) {
