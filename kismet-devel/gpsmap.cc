@@ -121,6 +121,7 @@ const char *netcolors[] = {
 };
 
 // Channel colors
+/*
 char *channelcolors[] = {
     "#FF0000", "#FF8000", "#FFFF00",
     "#80FF00", "#00FF00", "#00FF80",
@@ -128,6 +129,13 @@ char *channelcolors[] = {
     "#8000FF", "#FF00FF", "#FF0080",
     "#808080", "#CCCCCC"
 };
+*/
+char *channelcolors[] = { 
+    "#FF0000", "#FF6000", "#A08000", 
+    "#80A000", "#60FF00", "#00FF00", 
+    "#00FF60", "#00A080", "#0080A0", 
+    "#0060FF", "#0000FF", "#808080",
+    "#CCCCCC", "#00FFFF" };
 int channelcolor_max = 14;
 
 // Origional
@@ -402,6 +410,9 @@ ExceptionInfo im_exception;
 // Signal levels
 int signal_lowest = 255;
 int signal_highest = -255;
+
+// Highest channel we've seen for plotting colors
+int maxseen_channel = 0;
 
 // Forward prototypes
 string Mac2String(uint8_t *mac, char seperator);
@@ -1139,6 +1150,10 @@ void AssignNetColors() {
                 if (map_iter->wnet->channel < 1 || map_iter->wnet->channel > 14) {
                     map_iter->color_index = channelcolors[0];
                 } else {
+                    // Track the highest network channel we've seen
+                    if (map_iter->wnet->channel > maxseen_channel)
+                        maxseen_channel = map_iter->wnet->channel;
+
                     map_iter->color_index = channelcolors[map_iter->wnet->channel - 1];
                 }
             } else {
@@ -2677,6 +2692,11 @@ int DrawLegendComposite(vector<gps_network *> in_nets, Image **in_img,
         return -1;
     }
 
+    // Set the max channel to 11 if we don't have extended channels
+    // this makes the graph nicer
+    if (maxseen_channel <= 11)
+        channelcolor_max = 11;
+    
     char text[1024];
 
     QueryColorDatabase("#FFFFFF", &textclr, &im_exception);
