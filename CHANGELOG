@@ -1,3 +1,6 @@
+Mar 15 2005  devel  Merged patch from Josh Wright to add PPTP detection of some L3
+                     VPNs.  This slightly breaks old-client compatability in that a
+                     L3 VPN network will show up as WEP in old clients.
 Mar 13 2005  devel  Reverted crypt_set to push out 'wep' protocol field for 
                      backwards compatability.  Same data, old field name.
 Mar 10 2005  devel  Merged long-delayed patch from Josh Wright to add detection

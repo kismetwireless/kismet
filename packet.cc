@@ -1207,6 +1207,12 @@ void GetProtoInfo(kis_packet *packet, packet_info *in_info) {
         memcpy(ret_protoinfo->source_ip, (const uint8_t *) &data[in_info->header_offset + IP_OFFSET + 3], 4);
         memcpy(ret_protoinfo->dest_ip, (const uint8_t *) &data[in_info->header_offset + IP_OFFSET + 7], 4);
 
+        // Check for PPTP traffic
+        if (ret_protoinfo->type == proto_misc_tcp &&
+        (ret_protoinfo->dport == PPTP_PORT || ret_protoinfo->sport == PPTP_PORT)) {
+            ret_protoinfo->type = proto_pptp;
+        }
+
     }
 
 

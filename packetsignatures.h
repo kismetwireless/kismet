@@ -114,5 +114,7 @@ const uint8_t ISAKMP_EXCH_TRANS = 6;
 const uint8_t ISAKMP_EXCH_QUICK = 32;
 const uint8_t ISAKMP_EXCH_NEWGRP = 33;
 
+// PPTP
+const uint16_t PPTP_PORT = 1723;
 
 #endif

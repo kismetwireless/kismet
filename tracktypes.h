@@ -99,7 +99,8 @@ enum crypt_type {
 	crypt_ttls = 256,
 	crypt_tls = 512,
 	crypt_peap = 1024,
-	crypt_isakmp = 2048
+	crypt_isakmp = 2048,
+    crypt_pptp = 4096
 };
 
 // Client info

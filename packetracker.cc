@@ -909,7 +909,10 @@ void Packetracker::ProcessDataPacket(packet_info info, wireless_network *net) {
 	} else if (info.proto.type == proto_isakmp) {
 		client->crypt_set |= ((int) crypt_isakmp & (int) crypt_layer3);
 		net->crypt_set |= ((int) crypt_isakmp & (int) crypt_layer3);
-	}
+	} else if (info.proto.type == proto_pptp) {
+        client->crypt_set |= ((int) crypt_pptp & (int) crypt_layer3);
+        net->crypt_set |= ((int) crypt_pptp);
+    }
 
     if (info.datarate > client->maxseenrate)
         client->maxseenrate = info.datarate;
@@ -1064,6 +1067,13 @@ void Packetracker::ProcessDataPacket(packet_info info, wireless_network *net) {
         snprintf(status, STATUS_MAX, "%s Traffic - %s - from %s", eaptype, eapcode, 
             info.source_mac.Mac2String().c_str());
         KisLocalStatus(status);
+/* Prints too many status entries - annoying
+    } else if (info.proto.type == proto_pptp) {
+        // Handle PPTP traffic
+        snprintf(status, STATUS_MAX, "PPTP Traffic from %s", 
+            info.source_mac.Mac2String().c_str());
+        KisLocalStatus(status);
+*/
 
     } else if (info.proto.type == proto_isakmp) {
         // Handle ISAKMP traffic
@@ -1294,6 +1304,8 @@ int Packetracker::WriteNetworks(string in_fname) {
 			crypt += "PEAP ";
 		if (net->crypt_set & crypt_isakmp)
 			crypt += "ISAKMP ";
+        if (net->crypt_set & crypt_pptp)
+            crypt += "PPTP ";
 
 		if (crypt.length() == 0)
 			crypt = "Unknown";
@@ -1682,6 +1694,11 @@ int Packetracker::WriteCSVNetworks(string in_fname) {
 				crypt += ",";
 			crypt += "ISAKMP";
 		}
+		if (net->crypt_set & crypt_pptp) {
+			if (crypt != "")
+				crypt += ",";
+			crypt += "PPTP";
+		}
 
 		if (crypt.length() == 0)
 			crypt = "Unknown";
@@ -1903,6 +1920,9 @@ int Packetracker::WriteXMLNetworks(string in_fname) {
 			fprintf(netfile, "    <encryption>PEAP</encryption>\n");
 		if (net->crypt_set & crypt_isakmp)
 			fprintf(netfile, "    <encryption>ISAKMP</encryption>\n");
+		if (net->crypt_set & crypt_pptp)
+			fprintf(netfile, "    <encryption>PPTP</encryption>\n");
+            
 
         fprintf(netfile, "    <packets>\n");
         fprintf(netfile, "      <LLC>%d</LLC>\n", net->llc_packets);
@@ -2016,6 +2036,8 @@ int Packetracker::WriteXMLNetworks(string in_fname) {
 			fprintf(netfile, "      <client-encryption>PEAP</client-encryption>\n");
 		if (net->crypt_set & crypt_isakmp)
 			fprintf(netfile, "      <client-encryption>ISAKMP</client-encryption>\n");
+		if (net->crypt_set & crypt_pptp)
+			fprintf(netfile, "      <client-encryption>PPTP</client-encryption>\n");
 
             if (cli->gps_fixed != -1) {
                 fprintf(netfile, "      <client-gps-info unit=\"%s\">\n", metric ? "metric" : "english");

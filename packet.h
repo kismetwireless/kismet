@@ -212,6 +212,7 @@ enum protocol_info_type {
     proto_tls,
     proto_peap,
     proto_isakmp,
+    proto_pptp,
 };
 
 enum protocol_netbios_type {
