@@ -468,27 +468,28 @@ void PanelFront::UpdateGroups() {
         for (unsigned int x = 0; x < group_vec.size(); x++) {
             display_network *dnet = group_vec[x];
 
-            if (dnet->networks.size() != 1)
+            if (dnet->networks.size() != 1) {
                 continue;
+            }
 
-            if (auto_pgroup && dnet->networks[0]->type == network_probe && 
+            if (auto_pgroup && dnet->virtnet->type == network_probe && 
                 dnet != probe_group) {
                 probevec.push_back(dnet);
             } else if (auto_dgroup && dnet != data_group &&
-                       (dnet->networks[0]->type == network_data ||
-                        dnet->networks[0]->llc_packets == 0)) {
+                       (dnet->virtnet->type == network_data ||
+                        dnet->virtnet->llc_packets == 0)) {
                 datavec.push_back(dnet);
             }
                 
         }
 
-        if (probevec.size() > 1) {
+        if (probevec.size() > 0) {
+            if (probe_group == NULL) {
+                probe_group = CreateGroup(0, "autogroup_probe", "Probe Networks");
+            }
+
             for (unsigned int x = 0; x < probevec.size(); x++) {
                 display_network *dnet = probevec[x];
-
-                if (probe_group == NULL) {
-                    probe_group = CreateGroup(0, "autogroup_probe", "Probe Networks");
-                }
 
                 if (dnet == details_network)
                     move_details = 1;
@@ -502,13 +503,13 @@ void PanelFront::UpdateGroups() {
             }
         }
 
-        if (datavec.size() > 1) {
+        if (datavec.size() > 0) {
+            if (data_group == NULL) {
+                data_group = CreateGroup(0, "autogroup_data", "Data Networks");
+            }
+
             for (unsigned int x = 0; x < datavec.size(); x++) {
                 display_network *dnet = datavec[x];
-
-                if (data_group == NULL) {
-                    data_group = CreateGroup(0, "autogroup_data", "Data Networks");
-                }
 
                 if (dnet == details_network)
                     move_details = 1;

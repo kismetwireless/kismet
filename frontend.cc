@@ -43,7 +43,7 @@ void Frontend::PopulateGroups(TcpClient *in_client) {
                     }
                 }
 
-                if (ganet->type == group_host) {
+                if (ganet->networks.size() == 0) {
                     DestroyGroup(ganet);
                 } else {
                     group_assignment_map.erase(group_assignment_map.find(net->bssid));
@@ -104,7 +104,7 @@ void Frontend::PopulateGroups(TcpClient *in_client) {
             group->tagged = 0;
             group->expanded = 0;
             group->persistent = persistent;
-            group->virtnet = NULL;
+            group->virtnet = net;
 
             // Register it
             group_tag_map[group->tag] = group;
@@ -115,6 +115,7 @@ void Frontend::PopulateGroups(TcpClient *in_client) {
 
         // Push the network onto the group and change the type if needed
         group->networks.push_back(net);
+
         if (group->networks.size() > 1)
             group->type = group_bundle;
         else
