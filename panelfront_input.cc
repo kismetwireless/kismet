@@ -577,8 +577,19 @@ int PanelFront::MainClientInput(void *in_window, int in_chr) {
         break;
     case 's':
     case 'S':
-        SpawnWindow("Sort Clients", &PanelFront::ClientSortPrinter,
-                    &PanelFront::ClientSortInput, CLIENT_SORT_SIZE);
+        SpawnWindow("Sort Clients", &PanelFront::SortClientPrinter,
+                    &PanelFront::SortClientInput, CLIENT_SORT_SIZE);
+        break;
+    case 'i':
+    case 'I':
+    case KEY_ENTER:
+        if (client_sortby != client_sort_auto && last_client_displayed.size() > 0) {
+            details_client = last_client_displayed[kwin->selected];
+            SpawnWindow("Client Details",
+                        &PanelFront::DetailsClientPrinter, &PanelFront::DetailsClientInput);
+        } else {
+            WriteStatus("Cannot view details in autofit sort mode.");
+        }
         break;
     default:
         return 1;
@@ -588,7 +599,7 @@ int PanelFront::MainClientInput(void *in_window, int in_chr) {
     return 1;
 }
 
-int PanelFront::ClientSortInput(void *in_window, int in_chr) {
+int PanelFront::SortClientInput(void *in_window, int in_chr) {
     switch (in_chr) {
     case 'a':
     case 'A':
@@ -655,6 +666,34 @@ int PanelFront::ClientSortInput(void *in_window, int in_chr) {
 
     // We don't have anything that doesn't kill the window for the key event
     return 0;
+}
+
+int PanelFront::DetailsClientInput(void *in_window, int in_chr) {
+    int ret;
+    switch (in_chr) {
+    case 'h':
+    case 'H':
+        SpawnHelp(KismetHelpDetails);
+        break;
+        /*
+    case 'n':
+        // Nasty hack but it works
+        ret = (this->*net_win->input)(net_win, KEY_DOWN);
+        details_network = last_displayed[net_win->selected];
+        return ret;
+        break;
+    case 'p':
+        ret = (this->*net_win->input)(net_win, KEY_UP);
+        details_network = last_displayed[net_win->selected];
+        return ret;
+        break;
+        */
+    default:
+        return TextInput(in_window, in_chr);
+        break;
+    }
+
+    return 1;
 }
 
 

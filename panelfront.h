@@ -163,13 +163,10 @@ protected:
     int MainInfoPrinter(void *in_window);
     int MainStatusPrinter(void *in_window);
 
-    int MainClientPrinter(void *in_window);
-
     // Just print the stored text
     int TextPrinter(void *in_window);
     // Various popups that generate stuff dynamically
     int SortPrinter(void *in_window);
-    int ClientSortPrinter(void *in_window);
     int PowerPrinter(void *in_window);
     int DetailsPrinter(void *in_window);
     int DumpPrinter(void *in_window);
@@ -180,13 +177,13 @@ protected:
     int GpsPrinter(void *in_window);
     int AlertPrinter(void *in_window);
 
+    int MainClientPrinter(void *in_window);
+    int SortClientPrinter(void *in_window);
+    int DetailsClientPrinter(void *in_window);
+
     // Keyboard handlers
     int MainInput(void *in_window, int in_chr);
-
-    int MainClientInput(void *in_window, int in_chr);
-
     int SortInput(void *in_window, int in_chr);
-    int ClientSortInput(void *in_window, int in_chr);
     int PowerInput(void *in_window, int in_chr);
     int DetailsInput(void *in_window, int in_chr);
     int DumpInput(void *in_window, int in_chr);
@@ -198,6 +195,11 @@ protected:
     int TextInput(void *in_window, int in_chr);
     int GpsInput(void *in_window, int in_chr);
     int AlertInput(void *in_window, int in_chr);
+
+    int MainClientInput(void *in_window, int in_chr);
+    int SortClientInput(void *in_window, int in_chr);
+    int DetailsClientInput(void *in_window, int in_chr);
+
 
     // Spawn a generic popup
     void SpawnWindow(string in_title, panel_printer in_print, key_handler in_input,
