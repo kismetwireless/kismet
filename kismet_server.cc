@@ -1801,7 +1801,7 @@ int main(int argc,char *argv[]) {
 
     if (ui_server.Setup(tcpmax, tcpport, allowed_hosts) < 0) {
         fprintf(stderr, "Failed to set up UI server: %s\n", ui_server.FetchError());
-        exit(1);
+        CatchShutdown(-1);
     }
 
 
