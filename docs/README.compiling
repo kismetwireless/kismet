@@ -33,6 +33,7 @@ Before configuration and compilation, you should get the following packages:
                           present
   --with-ethereal=DIR     support ethereal wiretap for logs 
   --without-ethereal      disable support for ethereal wiretap
+  --enable-acpi           Enable linux-kernel ACPI support
 
 2. Run 'make dep' and 'make install'
 3. Edit kismet.conf (default install path, /usr/local/etc/kismet.conf)
@@ -42,7 +43,7 @@ Before configuration and compilation, you should get the following packages:
 
 It is reccomended that you install Kismet suid-root.  In general, it is 
 actually more secure to run it in this fashion, because it will drop root privs
-and run as the user you start it as immediately after binding to the packet
+and run as the user you specify immediately after binding to the packet
 source, or before opening a wtapfile source.  After privs are dropped it will
 do packet dissection as a user program, which is much more secure than doing 
 it as root.
