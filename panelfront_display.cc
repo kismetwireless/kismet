@@ -1425,6 +1425,17 @@ int PanelFront::DetailsPrinter(void *in_window) {
         snprintf(output, print_width, "  Weak    : %d", dnet->interesting_packets);
         kwin->text.push_back(output);
 
+        // Calculate the bytes
+        if (dnet->datasize < 1024) // Less than 1k gets raw bytes
+            snprintf(output, print_width, "Data    : %ldB", dnet->datasize);
+        else if (dnet->datasize < 1048576) // Less than 1 meg gets mb
+            snprintf(output, print_width, "Data    : %ldk (%ldB)",
+                     dnet->datasize/1024, dnet->datasize);
+        else // Display in MB
+            snprintf(output, print_width, "Data    : %ldM (%ldB)",
+                     dnet->datasize/1024/1024, dnet->datasize);
+        kwin->text.push_back(output);
+
         snprintf(output, print_width, "Signal  :");
         kwin->text.push_back(output);
         snprintf(output, print_width, "  Quality : %d (best %d)",
@@ -2546,6 +2557,19 @@ int PanelFront::DetailsClientPrinter(void *in_window) {
     kwin->text.push_back(output);
     snprintf(output, print_width, "  Weak    : %d", details_client->interesting_packets);
     kwin->text.push_back(output);
+
+    // Calculate the bytes
+    if (details_client->datasize < 1024) // Less than 1k gets raw bytes
+        snprintf(output, print_width, "Data    : %ldB", details_client->datasize);
+    else if (details_client->datasize < 1048576) // Less than 1 meg gets mb
+        snprintf(output, print_width, "Data    : %ldk (%ldB)",
+                 details_client->datasize/1024, details_client->datasize);
+    else // Display in MB
+        snprintf(output, print_width, "Data    : %ldM (%ldB)",
+                 details_client->datasize/1024/1024, details_client->datasize);
+    kwin->text.push_back(output);
+
+
     snprintf(output, print_width, "Signal  :");
     kwin->text.push_back(output);
     snprintf(output, print_width, "  Quality : %d (best %d)",

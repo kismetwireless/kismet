@@ -335,18 +335,40 @@ int TcpClient::ParseData(char *in_data) {
     } else if (!strncmp(header, "*CLIENT", 64)) {
         short int ip[4];
 
+        mac_addr cmac;
         char cmac_str[18];
         char manuf_str[18];
 
         int scanned;
         float maxrate;
-        wireless_client *client = new wireless_client;
 
-        scanned = sscanf(in_data+hdrlen, "%17s %17s %d %d %d %17s %d %d %d %d %d "
+        // Find the bssid and mac so we can fill in our client or make a new one
+        if (sscanf(in_data+hdrlen, "%17s %17s", bssid_str, cmac_str) != 2)
+            return 0;
+
+        bssid = bssid_str;
+        wireless_client *client = NULL;
+        int nclient = 0;
+
+        map<mac_addr, wireless_network *>::iterator nmi = net_map.find(bssid);
+        if (nmi != net_map.end()) {
+            cmac = cmac_str;
+            map<mac_addr, wireless_client *>::iterator wci = nmi->second->client_map.find(cmac);
+            if (wci != nmi->second->client_map.end()) {
+                client = wci->second;
+            } else {
+                nclient = 1;
+                client = new wireless_client;
+            }
+        } else {
+            return 0;
+        }
+
+        scanned = sscanf(in_data+hdrlen+36, "%d %d %d %17s %d %d %d %d %d "
                          "%f %f %f %f %f %f %f %f %lf %lf "
                          "%lf %ld %f %d %d %d %d %d %d %d "
                          "%f %f %f %d %hd.%hd.%hd.%hd %ld",
-                         bssid_str, cmac_str, (int *) &client->type,
+                         (int *) &client->type,
                          (int *) &client->first_time, (int *) &client->last_time,
                          manuf_str, &client->manuf_score,
                          &client->data_packets, &client->crypt_packets,
@@ -363,13 +385,14 @@ int TcpClient::ParseData(char *in_data) {
                          (int *) &client->ipdata.atype, &ip[0], &ip[1], &ip[2], &ip[3],
                          &client->datasize);
 
-        if (scanned < 39) {
-            delete client;
+        if (scanned < 37) {
+            if (nclient)
+                delete client;
             return 0;
         }
 
         bssid = bssid_str;
-        client->mac = cmac_str;
+        client->mac = cmac;
         client->maxrate = maxrate;
 
         client->manuf_key = manuf_str;
@@ -379,17 +402,9 @@ int TcpClient::ParseData(char *in_data) {
         for (unsigned int x = 0; x < 4; x++)
             client->ipdata.ip[x] = ip[x];
 
-        map<mac_addr, wireless_network *>::iterator nmi = net_map.find(bssid);
-        if (nmi != net_map.end()) {
-            map<mac_addr, wireless_client *>::iterator wci = nmi->second->client_map.find(client->mac);
-            if (wci != nmi->second->client_map.end()) {
-                delete wci->second;
-                wci->second = client;
-            } else {
-                nmi->second->client_map[client->mac] = client;
-            }
-        } else {
-            delete client;
+        // Add it to the map, if its a new client.
+        if (nclient) {
+            net_map[bssid]->client_map[cmac] = client;
         }
 
     } else if (!strncmp(header, "*REMOVE", 64)) {
