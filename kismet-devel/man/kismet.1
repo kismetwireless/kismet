@@ -81,6 +81,12 @@ captures, dissects, and logs packets and GPS data.  It is capable of running in
 `headless' mode with no display.  Multiple clients (on multiple computers) can
 be connected to a single server.
 .Bl -tag -width flag
+.It Fl I
+Set the initial channel for a channel source (source:channel)
+.It Fl x
+Forcibly enable the channel hopper
+.It Fl X
+Forcibly disable the channel hopper
 .It Fl t
 Set the title used for the %t field of the logfile template (Default: Kismet)
 .It Fl n
@@ -141,4 +147,4 @@ Help
 reads GPS and Network XML datafiles and plots networks on downloaded maps or
 user-supplied images (such as sattellite photos).
 .Sh SEE ALSO
-kismet_monitor(1), kismet_hopper(1), kismet_drone(1), gpsmap(1), kismet.conf(5), kismet_ui.conf(5), kismet_drone.conf(5)
+kismet_drone(1), gpsmap(1), kismet.conf(5), kismet_ui.conf(5), kismet_drone.conf(5)
