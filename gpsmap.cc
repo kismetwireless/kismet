@@ -75,8 +75,9 @@ const char *config_base = "kismet.conf";
 // Broken map sources...  Damn vendors changing.
 // Mappoint
 // const char url_template_mp[] = "http://msrvmaps.mappoint.net/isapi/MSMap.dll?ID=3XNsF.&C=%f,%f&L=USA&CV=1&A=%ld&S=%d,%d&O=0.000000,0.000000&MS=0&P=|5748|";
+
 // Mapblast
-// const char url_template_mb[] = "http://www.vicinity.com/gif?&CT=%f:%f:%ld&IC=&W=%d&H=%d&FAM=myblast&LB=%s";
+const char url_template_mb[] = "http://go.vicinity.com/homedepotvd/MakeMap.d?&CT=%f:%f:%ld&IC=&W=%d&H=%d&FAM=mblast&LB=%s";
 
 // Terraserver photo-maps and topo maps
 const char url_template_ts[] = "http://terraservice.net/GetImageArea.ashx?t=1&lat=%f&lon=%f&s=%ld&w=%d&h=%d";
@@ -1505,11 +1506,14 @@ int BestMapScale(long int *in_mapscale, long int *in_fetchscale,
 
     // Mapblast style scale finding
     for (int x = 0; scales[x] != -1; x++) {
-        calcxy(&mapx, &mapy, tlat, tlon, (double) scales[x]/PIXELFACT, map_avg_lat, map_avg_lon);
-        calcxy(&map2x, &map2y, blat, blon, (double) scales[x]/PIXELFACT, map_avg_lat, map_avg_lon);
+        calcxy(&mapx, &mapy, tlat, tlon, (double) scales[x]/PIXELFACT, 
+               map_avg_lat, map_avg_lon);
+        calcxy(&map2x, &map2y, blat, blon, (double) scales[x]/PIXELFACT, 
+               map_avg_lat, map_avg_lon);
 
         if ((mapx < 0 || mapx > map_width || mapy < 0 || mapy > map_height) ||
-                (map2x < 0 || map2x > map_width || map2y < 0 || map2y > map_height)) {
+                (map2x < 0 || map2x > map_width || map2y < 0 || 
+                 map2y > map_height)) {
             continue;
         } else {
             // Fudge the scale by 10% for extreme ranges
@@ -3297,7 +3301,7 @@ int Usage(char* argv, int ec = 1) {
            "                                  complex operations [Default: 1]\n"
            "  -N, --pure-avg-center          Use old pure-average network center finding\n"
            "  -S, --map-source <#>           Source to download maps from [Default: 4]\n"
-           "                                  0 MapBlast (BROKEN)\n"
+           "                                  0 MapBlast\n"
            "                                  1 MapPoint (BROKEN)\n"
            "                                  2 TerraServer (photo)\n"
            "                                  3 Tiger US Census (vector)\n"
@@ -3768,8 +3772,10 @@ int main(int argc, char *argv[]) {
         ShortUsage(exec_name);
     }
 
-    if ((map_width > 1280 || map_height > 1024) && mapsource == MAPSOURCE_MAPBLAST) {
-        fprintf(stderr, "WARNING:  Maximum Mapblast image size is 1024x1280.  Adjusting.\n");
+    if ((map_width > 1280 || map_height > 1024) && 
+        mapsource == MAPSOURCE_MAPBLAST) {
+        fprintf(stderr, "WARNING:  Maximum Mapblast image size is 1024x1280.  "
+                "Adjusting.\n");
         map_width = 1024;
         map_height = 1280;
     }
@@ -4007,17 +4013,21 @@ int main(int argc, char *argv[]) {
             exit(1);
         }
 
-        if (mapsource == MAPSOURCE_MAPBLAST || mapsource == MAPSOURCE_MAPPOINT) {
-            fprintf(stderr, "The source you selected is known to be broken.  Support "
-                    "remains for this source only if previously downloaded maps are "
-                    "available, because the map vendor has changed their interface in "
-                    "a way that prevents gpsmap from getting the images.\n");
+        if (mapsource == MAPSOURCE_MAPPOINT) {
+            fprintf(stderr, "The source you selected is known to be broken.  "
+                    "Support remains for this source only if previously "
+                    "downloaded maps are available, because the map vendor has "
+                    "changed their interface in a way that prevents gpsmap "
+                    "from getting the images.\n");
             exit(1);
         }
         
         char url[1024];
 
-        if (mapsource == MAPSOURCE_TERRA) {
+        if (mapsource == MAPSOURCE_MAPBLAST) {
+            snprintf(url, 1024, url_template_mb, map_avg_lat, map_avg_lon, fetch_scale,
+                     map_width, map_height, metric ? "&DU=KM" : "");
+        } else if (mapsource == MAPSOURCE_TERRA) {
             snprintf(url, 1024, url_template_ts, map_avg_lat, map_avg_lon, fetch_scale,
                      map_width, map_height);
         } else if (mapsource == MAPSOURCE_TERRATOPO) {
