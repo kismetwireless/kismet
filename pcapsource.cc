@@ -47,6 +47,33 @@
 // This should be generic but we'll leave it fbsd only right now -drag
 #ifdef HAVE_RADIOTAP
 #include <net80211/ieee80211_radiotap.h>
+
+// Hack around some headers that don't seem to define all of these
+#ifndef IEEE80211_CHAN_TURBO
+#define IEEE80211_CHAN_TURBO    0x0010  /* Turbo channel */
+#endif
+#ifndef IEEE80211_CHAN_CCK
+#define IEEE80211_CHAN_CCK      0x0020  /* CCK channel */ 
+#endif
+#ifndef IEEE80211_CHAN_OFDM
+#define IEEE80211_CHAN_OFDM     0x0040  /* OFDM channel */
+#endif
+#ifndef IEEE80211_CHAN_2GHZ
+#define IEEE80211_CHAN_2GHZ     0x0080  /* 2 GHz spectrum channel. */
+#endif
+#ifndef IEEE80211_CHAN_5GHZ
+#define IEEE80211_CHAN_5GHZ     0x0100  /* 5 GHz spectrum channel */
+#endif
+#ifndef IEEE80211_CHAN_PASSIVE
+#define IEEE80211_CHAN_PASSIVE  0x0200  /* Only passive scan allowed */
+#endif
+#ifndef IEEE80211_CHAN_DYN
+#define IEEE80211_CHAN_DYN      0x0400  /* Dynamic CCK-OFDM channel */
+#endif
+#ifndef IEEE80211_CHAN_GFSK
+#define IEEE80211_CHAN_GFSK     0x0800  /* GFSK channel (FHSS PHY) */
+#endif
+
 #include "tcpdump-extract.h"
 #include <stdarg.h>
 #endif
