@@ -135,7 +135,7 @@ char *ACK_fields_text[] = {
 };
 
 char *WEPKEY_fields_text[] = {
-    "origin", "bssid", "key",
+    "origin", "bssid", "key", "encrypted", "failed",
     NULL
 };
 
@@ -772,7 +772,7 @@ int Protocol_STRING(PROTO_PARMS) {
 // wep keys.  data = wep_key_info
 int Protocol_WEPKEY(PROTO_PARMS) {
     wep_key_info *winfo = (wep_key_info *) data;
-    char wdstr[3];
+    char wdstr[10];
 
     for (unsigned int x = 0; x < field_vec->size(); x++) {
         switch ((WEPKEY_fields) (*field_vec)[x]) {
@@ -792,6 +792,14 @@ int Protocol_WEPKEY(PROTO_PARMS) {
                 if (kpos < (WEPKEY_MAX - 1) && kpos < (winfo->len - 1))
                     out_string += ":";
             }
+            break;
+        case WEPKEY_decrypted:
+            snprintf(wdstr, 10, "%d", winfo->decrypted);
+            out_string += wdstr;
+            break;
+        case WEPKEY_failed:
+            snprintf(wdstr, 10, "%d", winfo->failed);
+            out_string += wdstr;
             break;
         default:
             out_string = "Unknown field requested.";

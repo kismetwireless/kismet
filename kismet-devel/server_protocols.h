@@ -125,7 +125,7 @@ enum INFO_fields {
 };
 
 enum WEPKEY_fields {
-    WEPKEY_origin, WEPKEY_bssid, WEPKEY_key
+    WEPKEY_origin, WEPKEY_bssid, WEPKEY_key, WEPKEY_decrypted, WEPKEY_failed
 };
 
 // Builtin client/server field contents

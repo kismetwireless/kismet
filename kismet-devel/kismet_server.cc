@@ -1328,6 +1328,8 @@ int main(int argc,char *argv[]) {
         wep_key_info *keyinfo = new wep_key_info;
         keyinfo->bssid = bssid_mac;
         keyinfo->fragile = 0;
+        keyinfo->decrypted = 0;
+        keyinfo->failed = 0;
         keyinfo->len = len;
         memcpy(keyinfo->key, key, sizeof(unsigned char) * WEPKEY_MAX);
 
