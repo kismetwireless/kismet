@@ -1,3 +1,5 @@
+Feb 04 2004  3.1.0  Merged more diffs from Pedro to fix the stackprot alerts on
+                     OpenBSD
 Feb 02 2004  3.1.0  Tweaked probe req handling to assign to_ds
                     Changed panels channel display to show --- for uncontrolled
                      source channels
