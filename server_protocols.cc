@@ -31,7 +31,7 @@ char *STATUS_fields_text[] = {
 };
 
 char *ALERT_fields_text[] = {
-    "sec", "usec", "text",
+    "header" "sec", "usec", "text",
     NULL
 };
 
@@ -644,6 +644,9 @@ int Protocol_ALERT(PROTO_PARMS) {
 
     for (unsigned int x = 0; x < field_vec->size(); x++) {
         switch ((ALERT_fields) (*field_vec)[x]) {
+        case ALERT_header:
+            out_string += adata->header;
+            break;
         case ALERT_sec:
             out_string += adata->sec;
             break;
