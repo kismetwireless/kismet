@@ -6,7 +6,7 @@ Building
 Configure using the following options:
 
 ./configure --disable-pcap --without-ethereal --disable-gps --disable-wireless \
-  --disable-netlink --disable-suid-root
+  --disable-netlink --disable-suid-root --enable-wsp100
   
 Configuration
 -------------
