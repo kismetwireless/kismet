@@ -456,6 +456,7 @@ int TcpClient::ParseData(char *in_data) {
         memset(&packinfo, 0, sizeof(packet_info));
         char smac[18], dmac[18], bmac[18];
         short int sip[4], dip[4];
+        int sport, dport;
 
         if (sscanf(in_data+hdrlen, "%d %d %d %d %d %17s %17s %17s "
                    "\001%32[^\001]\001 %d %hd.%hd.%hd.%hd %hd.%hd.%hd.%hd %d %d %d "
@@ -467,13 +468,16 @@ int TcpClient::ParseData(char *in_data) {
                    packinfo.ssid,
                    (int *) &packinfo.proto.type,
                    &sip[0], &sip[1], &sip[2], &sip[3], &dip[0], &dip[1], &dip[2], &dip[3],
-                   (int *) &packinfo.proto.sport, (int *) &packinfo.proto.dport,
+                   (int *) &sport, (int *) &dport,
                    (int *) &packinfo.proto.nbtype, packinfo.proto.netbios_source) < 22)
             return 0;
 
         packinfo.source_mac = smac;
         packinfo.dest_mac = dmac;
         packinfo.bssid_mac = bmac;
+
+        packinfo.proto.sport = sport;
+        packinfo.proto.dport = dport;
 
         for (unsigned int x = 0; x < 4; x++) {
             packinfo.proto.source_ip[x] = sip[x];
