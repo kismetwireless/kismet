@@ -353,11 +353,11 @@ macmap<vector<manuf *> > ap_manuf_map;
 macmap<vector<manuf *> > client_manuf_map;
 
 // Filtered MAC's
-string filter;
 int invert_filter = 0;
+macmap<int> filter_map;
 
 // Filtered types
-string type_filter;
+map<wireless_network_type, int> type_filter_map;
 int invert_type_filter;
 
 // Exception/error catching
@@ -915,13 +915,22 @@ int ProcessGPSFile(char *in_fname) {
         // one if it doesn't exist).  We crunch all the data points in ProcessNetData
         gps_network *gnet = NULL;
 
-        // Don't process filtered macs at all.
+            /*
         if (filter.length() != 0)
             if (((invert_filter == 0 && filter.find(file_points[i]->bssid) != string::npos) ||
                  (invert_filter == 1 && filter.find(file_points[i]->bssid) == string::npos)) &&
                 strncmp(file_points[i]->bssid, gps_track_bssid, MAC_STR_LEN) != 0) {
-                continue;
-            }
+                */
+
+        // Don't process filtered macs at all.
+        //macmap<int>::iterator fitr = 
+        //    filter_map.find(mac_addr(file_points[i]->bssid));
+        if ((invert_filter == 0 && 
+             filter_map.find(file_points[i]->bssid) != filter_map.end()) ||
+            (invert_filter == 1 && 
+             filter_map.find(file_points[i]->bssid) != filter_map.end())) {
+            continue;
+        }
 
         // Don't process unfixed points at all
         if (file_points[i]->fix < 2)
@@ -993,12 +1002,19 @@ int ProcessGPSFile(char *in_fname) {
                 gnet->wnet = bssid_net_map[file_points[i]->bssid];
 
                 // Set filter bit as we create it
+                /*
                 if (type_filter.length() != 0)
                     if (((invert_type_filter == 0 && type_filter.find(NetType2String(gnet->wnet->type)) != string::npos) ||
                          (invert_type_filter == 1 && type_filter.find(NetType2String(gnet->wnet->type)) == string::npos))) {
                         gnet->filtered = 1;;
                     }
-
+                    */
+                if ((invert_type_filter == 0 && 
+                     type_filter_map.find(gnet->wnet->type) != type_filter_map.end()) ||
+                    (invert_type_filter == 1 &&
+                     type_filter_map.find(gnet->wnet->type) == type_filter_map.end())) {
+                    gnet->filtered = 1;
+                }
 
             } else {
                 gnet->wnet = NULL;
@@ -1620,7 +1636,7 @@ void DrawNetCircles(vector<gps_network *> in_nets, Image *in_img, DrawInfo *in_d
             continue;
         } 
 
-        drawn_net_map[mac_addr(map_iter->bssid.c_str())] = map_iter;
+        drawn_net_map[map_iter->bssid.c_str()] = map_iter;
         
         PixelPacket netclr;
 
@@ -1675,7 +1691,7 @@ void DrawNetHull(vector<gps_network *> in_nets, Image *in_img, DrawInfo *in_di) 
 
             // This is faily inefficient but what the hell.
             if ((mapx > 0 && mapx < map_width) || (mapy > 0 && mapy < map_height))
-                drawn_net_map[mac_addr(map_iter->bssid.c_str())] = map_iter;
+                drawn_net_map[map_iter->bssid.c_str()] = map_iter;
 
             char mm1[64];
             snprintf(mm1, 64, "%d,%d", (int) mapx, (int) mapy);
@@ -1835,7 +1851,7 @@ void DrawNetBoundRects(vector<gps_network *> in_nets, Image *in_img, DrawInfo *i
                (bry > 0 && bry < map_height)))) {
             continue;
         } 
-        drawn_net_map[mac_addr(map_iter->bssid.c_str())] = map_iter;
+        drawn_net_map[map_iter->bssid.c_str()] = map_iter;
 
         if (in_fill) {
             PixelPacket netclr;
@@ -2185,7 +2201,7 @@ void DrawNetCenterDot(vector<gps_network *> in_nets, Image *in_img, DrawInfo *in
         if (!((mapx > 0 && mapx < map_width) || (mapy > 0 && mapy < map_height)))
             continue;
 
-        drawn_net_map[mac_addr(map_iter->bssid.c_str())] = map_iter;
+        drawn_net_map[map_iter->bssid.c_str()] = map_iter;
 
         double endx, endy;
         endx = mapx + center_resolution;
@@ -3162,9 +3178,14 @@ int main(int argc, char *argv[]) {
 
     char *configfile = NULL;
 
+    vector<string> opttok;
+    mac_addr fm;
+    string toklow;
+    wireless_network_type wt;
+
     while(1) {
         int r = getopt_long(argc, argv,
-                            "hvg:S:o:f:iF:Iz:DVc:s:m:d:n:GMO:tY:brR:uU:aA:B:pP:Z:q:Q:eE:H:l:L:k:T:",
+                            "hvg:S:o:f:iF:Iz:DVc:s:m:d:n:GMO:tY:brR:uU:aA:B:pP:Z:q:Q:eE:H:l:L:kT:",
                             long_options, &option_index);
 
         if (r < 0) break;
@@ -3184,10 +3205,39 @@ int main(int argc, char *argv[]) {
             useroutmap = true;
             break;
         case 'f':
-            filter = optarg;
+            opttok = StrTokenize(optarg, ",");
+            for (unsigned int tv = 0; tv < opttok.size(); tv++) {
+                fm = opttok[tv].c_str();
+                if (fm.error) {
+                    ShortUsage(exec_name);
+                }
+
+                filter_map.insert(fm, 1);
+            }
             break;
         case 'F':
-            type_filter = optarg;
+            opttok = StrTokenize(optarg, ",");
+            for (unsigned int tv = 0; tv < opttok.size(); tv++) {
+                toklow = StrLower(opttok[tv]);
+
+                if (toklow == "ap" || toklow == "accesspoint")
+                    wt = network_ap;
+                else if (toklow == "adhoc" || toklow == "ad-hoc")
+                    wt = network_adhoc;
+                else if (toklow == "probe")
+                    wt = network_probe;
+                else if (toklow == "turbocell" || toklow == "turbo-cell")
+                    wt = network_turbocell;
+                else if (toklow == "data")
+                    wt = network_data;
+                else {
+                    fprintf(stderr, "Invalid network type in filter, '%s'\n",
+                            opttok[tv].c_str());
+                    ShortUsage(exec_name);
+                }
+
+                type_filter_map[wt] = 1;
+            }
             break;
         case 'S':
             if (sscanf(optarg, "%d", &mapsource) != 1 || mapsource < 0 || mapsource > 3) {
@@ -3195,11 +3245,11 @@ int main(int argc, char *argv[]) {
                 ShortUsage(exec_name);
             }
             break;
-	case 'i':
-            invert_filter = true;
+        case 'i':
+            invert_filter = 1;
             break;
         case 'I':
-            invert_type_filter = true;
+            invert_type_filter = 1;
              break;
         case 'z':
 #ifdef HAVE_PTHREAD
@@ -3439,13 +3489,6 @@ int main(int argc, char *argv[]) {
     }
 
     if (configfile != NULL) {
-        if (filter.length() == 0) {
-            if (conf.FetchOpt("macfilter") != "") {
-                filter = conf.FetchOpt("macfilter");
-                printf("NOTICE:  Filtering MAC addresses: %s\n", filter.c_str());
-            }
-        }
-
         if (conf.FetchOpt("ap_manuf") != "") {
             ap_manuf_name = strdup(conf.FetchOpt("ap_manuf").c_str());
         } else {
@@ -3461,7 +3504,7 @@ int main(int argc, char *argv[]) {
     }
 
     // Catch a null-draw condition
-    if (invert_filter == 1 && filter.length() == 0) {
+    if (invert_filter == 1 && filter_map.size() == 0) {
         fprintf(stderr, "FATAL:  Inverse filtering requested but no MAC's given to draw.\n");
         exit(1);
     }
