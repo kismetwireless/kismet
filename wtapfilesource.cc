@@ -104,6 +104,14 @@ int WtapFileSource::Wtap2Common(kis_packet *packet, uint8_t *data, uint8_t *modd
     packet->moddata = moddata;
     packet->modified = 0;
 
+    // We don't use GPS for wtapfiles
+    /*
+    if (gpsd != NULL) {
+        gps->FetchLoc(&packet->gps_lat, &packet->gps_lon, &packet->gps_alt,
+                      &packet->gps_spd, &packet->gps_fix);
+    }
+    */
+
     memcpy(packet->data, packet_data, packet->caplen);
 
     // We assume all packets are 802.11b for now

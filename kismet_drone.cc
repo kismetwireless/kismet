@@ -52,8 +52,8 @@ char *exec_name;
 
 const char *config_base = "kismet_drone.conf";
 
+GPSD *gps = NULL;
 #ifdef HAVE_GPS
-GPSD gps;
 int gpsmode = 0;
 int gps_enable = 0;
 #endif
@@ -85,11 +85,11 @@ int GpsEvent(Timetracker::timer_event *evt, void *parm) {
     // as well only update it here once a second
     if (gps_enable) {
         int gpsret;
-        gpsret = gps.Scan();
+        gpsret = gps->Scan();
         if (gpsret < 0) {
             if (!silent)
                 fprintf(stderr, "GPS error fetching data: %s\n",
-                        gps.FetchError());
+                        gps->FetchError());
 
             gps_enable = 0;
         }
@@ -140,6 +140,8 @@ int main(int argc, char *argv[]) {
 #ifdef HAVE_GPS
     char gpshost[1024];
     int gpsport = -1;
+
+    gps = new GPSD;
 #endif
 
     /*
@@ -328,7 +330,7 @@ int main(int argc, char *argv[]) {
     // Now enable root sources...  BindRoot will terminate if it fails
     BindRootSources(&packet_sources, &enable_name_map,
                     ((source_from_cmd == 0) || (enable_from_cmd == 1)),
-                    &timetracker);
+                    &timetracker, gps);
 
     // Once the packet source is opened, we shouldn't need special privileges anymore
     // so lets drop to a normal user.  We also don't want to open our logfiles as root
@@ -347,7 +349,7 @@ int main(int argc, char *argv[]) {
 
     BindUserSources(&packet_sources, &enable_name_map,
                     ((source_from_cmd == 0) || (enable_from_cmd == 1)),
-                    &timetracker);
+                    &timetracker, gps);
 
     // See if we tried to enable something that didn't exist
     if (enable_name_map.size() == 0) {
@@ -509,8 +511,8 @@ int main(int argc, char *argv[]) {
 
     if (gps_enable == 1) {
         // Open the GPS
-        if (gps.OpenGPSD(gpshost, gpsport) < 0) {
-            fprintf(stderr, "%s\n", gps.FetchError());
+        if (gps->OpenGPSD(gpshost, gpsport) < 0) {
+            fprintf(stderr, "%s\n", gps->FetchError());
 
             gps_enable = 0;
         } else {
@@ -577,9 +579,6 @@ int main(int argc, char *argv[]) {
         }
     }
 
-    float lat, lon, alt, spd;
-    int mode;
-
     while (1) {
         fd_set rset, wset;
 
@@ -637,14 +636,7 @@ int main(int argc, char *argv[]) {
                 // Handle a packet
                 if (len > 0) {
 
-#ifdef HAVE_GPS
-                    gps.FetchLoc(&lat, &lon, &alt, &spd, &mode);
-#else
-                    lat = lon = alt = spd = 0;
-                    mode = -1;
-#endif
-
-                    if (streamer.WritePacket(&packet, lat, lon, alt, spd, mode) < 0) {
+                    if (streamer.WritePacket(&packet) < 0) {
                         fprintf(stderr, "FATAL:  Error writing packet to streamer: %s\n",
                                 streamer.FetchError());
                         CatchShutdown(-1);

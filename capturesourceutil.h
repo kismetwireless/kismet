@@ -47,9 +47,9 @@ map<string, int> ParseEnableLine(string in_named);
 int ParseCardLines(vector<string> *in_lines, vector<capturesource *> *in_capsources);
 int BindRootSources(vector<capturesource *> *in_capsources,
                     map<string, int> *in_enable, int filter_enable,
-                    Timetracker *in_tracker);
+                    Timetracker *in_tracker, GPSD *in_gps);
 int BindUserSources(vector<capturesource *> *in_capsources,
                     map<string, int> *in_enable, int filter_enable,
-                    Timetracker *in_tracker);
+                    Timetracker *in_tracker, GPSD *in_gps);
 
 #endif

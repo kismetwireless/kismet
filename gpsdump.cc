@@ -81,10 +81,9 @@ int GPSDump::DumpPacket(packet_info *in_packinfo) {
     timeval ts;
     gettimeofday(&ts, NULL);
 
-    // Split the floats
-    gps->FetchLoc(&lat, &lon, &alt, &spd, &fix);
-
     if (in_packinfo == NULL) {
+        gps->FetchLoc(&lat, &lon, &alt, &spd, &fix);
+
         int sig = 0, qual = 0, noise = 0;
 
         if (time(0) - last_info.time < decay && last_info.quality != -1) {
@@ -101,6 +100,12 @@ int GPSDump::DumpPacket(packet_info *in_packinfo) {
                 lat, lon, alt, spd, fix,
                 sig, qual, noise);
     } else {
+        lat = in_packinfo->gps_lat;
+        lon = in_packinfo->gps_lon;
+        alt = in_packinfo->gps_alt;
+        spd = in_packinfo->gps_spd;
+        fix = in_packinfo->gps_fix;
+
         fprintf(gpsf, "    <gps-point bssid=\"%s\" source=\"%s\" time-sec=\"%ld\" time-usec=\"%ld\" "
                 "lat=\"%f\" lon=\"%f\" alt=\"%f\" spd=\"%f\" fix=\"%d\" "
                 "signal=\"%d\" quality=\"%d\" noise=\"%d\"/>\n",

@@ -197,6 +197,13 @@ void GetPacketInfo(kis_packet *packet, packet_parm *parm, packet_info *ret_packi
     ret_packinfo->encoding = packet->encoding;
     ret_packinfo->datarate = packet->datarate;
 
+    // Assign the location info
+    ret_packinfo->gps_lat = packet->gps_lat;
+    ret_packinfo->gps_lon = packet->gps_lon;
+    ret_packinfo->gps_alt = packet->gps_alt;
+    ret_packinfo->gps_spd = packet->gps_spd;
+    ret_packinfo->gps_fix = packet->gps_fix;
+
     // Assign a hardware channel if we're on an 802.11a carrier since the beacon doesn't
     // carry that tag
     if (packet->carrier == carrier_80211a)

@@ -47,8 +47,6 @@ public:
     // Get the error
     char *FetchError() { return errstr; }
 
-    // Set up the gps
-    void AddGPS(GPSD *in_gps);
     // Set up the alert handler
     void AddAlertracker(Alertracker *in_tracker);
     // Pass in enabled alerts from the config file
@@ -111,7 +109,6 @@ protected:
     string SanitizeXML(string in_data);
 
     char errstr[1024];
-    GPSD *gps;
 
     Alertracker *alertracker;
 
