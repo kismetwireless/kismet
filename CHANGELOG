@@ -1,6 +1,7 @@
+Mar 21 2004  devel  Additional tweaks to prism54 avs monitoring
 Mar 20 2004  devel  Fixed gpsmap trying to autoscale even with user scales
-                    Merged patch from Antonio Burriel to enable AVS headers
-                     on current prism54 drivers
+                    Merged patch from Antonio Eugenio Burriel to enable AVS 
+                     headers on current prism54 drivers
                     Merged patch from Scott Taylor for translucent bounding
                      rects in gpsmap
                     Merged another patch from Scott for using terraserver
