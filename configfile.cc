@@ -136,6 +136,8 @@ int ConfigFile::ParseConfig(const char *in_fname) {
         }
     }
 
+    fclose(configf);
+
     return 1;
 }
 

@@ -178,6 +178,8 @@ void CatchShutdown(int sig) {
     if (packsource != NULL)
         packsource->CloseSource();
 
+    delete packsource;
+
     ui_server.SendToAll("*TERMINATE: Kismet server terminating.\n");
 
     ui_server.Shutdown();
@@ -192,6 +194,8 @@ void CatchShutdown(int sig) {
             fprintf(stderr, "NOTICE: Didn't capture any packets, unlinking dump file\n");
             unlink(dumpfile->FetchFilename());
         }
+
+        delete dumpfile;
     }
 
     if (crypt_log) {
@@ -201,6 +205,8 @@ void CatchShutdown(int sig) {
             fprintf(stderr, "NOTICE: Didn't see any weak encryption packets, unlinking weak file\n");
             unlink(cryptlogfile.c_str());
         }
+
+        delete cryptfile;
     }
 
 #ifdef HAVE_GPS
@@ -681,8 +687,6 @@ int main(int argc,char *argv[]) {
 
     int beacon_log = 1;
 
-    cryptfile = new AirsnortDumpFile;
-
     static struct option long_options[] = {   /* options table */
         { "log-title", required_argument, 0, 't' },
         { "no-logging", no_argument, 0, 'n' },
@@ -838,6 +842,8 @@ int main(int argc,char *argv[]) {
     if (conf.ParseConfig(configfile) < 0) {
         exit(1);
     }
+
+    free(configfile);
 
     if (conf.FetchOpt("configdir") != "") {
         configdir = conf.ExpandLogPath(conf.FetchOpt("configdir"), "", "", 0, 1);
@@ -1505,6 +1511,8 @@ int main(int argc,char *argv[]) {
 
     // Crypt log stays open like the dump log for continual writing
     if (crypt_log) {
+        cryptfile = new AirsnortDumpFile;
+
         if (cryptfile->OpenDump(cryptlogfile.c_str()) < 0) {
             fprintf(stderr, "FATAL: %s\n", cryptfile->FetchError());
             exit(1);
