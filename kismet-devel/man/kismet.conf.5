@@ -201,6 +201,10 @@ ar5k - AR5K-based 802.11a cards using the vt_ar5k drivers.
 .PP
 drone - Kismet remote drone.
 .PP
+viha - Viha OSX Airport drivers.
+.PP
+acx100 - ACX100 22mbit 802.11b+ cards.
+.PP
 .PP
 Capture interface - Specifies the network interface Kismet will watch for packets to come in on.  Typically "ethX" or "wlanX".  For the WSP100 capture engine, the WSP100 device sends packets via a UDP stream, so the capture interface should be in the form of host:port where 'host' is the WSP100 and 'port' is the local UDP port that it will send data to.  For Drone remote capture sources, the capture interface should be in the form of host:port where 'host' is the Drone remote and 'port' is the Drone remote port.  CVS Cisco drivers split the interface into 2 components, ethX and wifiX. They may not be the same, so for cisco_cvs the card type specifies ethX:wifiX
 .PP
