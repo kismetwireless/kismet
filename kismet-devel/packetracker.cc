@@ -457,9 +457,10 @@ void Packetracker::ProcessPacket(packet_info info) {
                     net->ssid = info.ssid;
             }
 
-            ProcessDataPacket(info, net);
-
-            return;
+            if (probe_map.find(info.source_mac) != probe_map.end()) {
+                ProcessDataPacket(info, net);
+                return;
+            }
         }
 
         if (info.subtype == packet_sub_beacon && strlen(info.beacon_info) != 0 &&
@@ -587,7 +588,7 @@ void Packetracker::ProcessPacket(packet_info info) {
                     pnet->last_time = time(0);
 
                     snprintf(status, STATUS_MAX, "Associated probe network \"%s\" "
-                             "with \"%s\".",
+                             "with \"%s\" via probe response.",
                              pnet->bssid.Mac2String().c_str(),
                              net->bssid.Mac2String().c_str());
                     KisLocalStatus(status);
@@ -623,6 +624,15 @@ void Packetracker::ProcessDataPacket(packet_info info, wireless_network *net) {
     // Try to match up orphan probe networks
     wireless_network *pnet = NULL;
 
+    if (info.type == packet_management && info.subtype == packet_sub_probe_req) {
+        if (probe_map.find(info.source_mac) != probe_map.end()) {
+            info.dest_mac = probe_map[info.source_mac];
+            info.bssid_mac = info.dest_mac;
+        } else {
+            return;
+        }
+    } 
+
     if (bssid_map.find(info.dest_mac) != bssid_map.end()) {
         pnet = bssid_map[info.dest_mac];
         probe_map[info.source_mac] = pnet->bssid;
@@ -641,8 +651,8 @@ void Packetracker::ProcessDataPacket(packet_info info, wireless_network *net) {
             pnet->type = network_remove;
             pnet->last_time = time(0);
 
-            snprintf(status, STATUS_MAX, "Associated probe network \"%s\" with \"%s\".",
-                     pnet->bssid.Mac2String().c_str(),
+            snprintf(status, STATUS_MAX, "Associated probe network \"%s\" with "
+                     "\"%s\" via data.", pnet->bssid.Mac2String().c_str(),
                      net->bssid.Mac2String().c_str());
             KisLocalStatus(status);
 

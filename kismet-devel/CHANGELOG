@@ -1,3 +1,4 @@
+Jan 02 2004  3.1.0  Fixed association of probe nets
 Jan 01 2004  3.1.0  Added legend drawing to GPSMap, finally
                     Various speedups inside gpsmap
                     Readme updates
