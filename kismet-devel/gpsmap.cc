@@ -78,10 +78,11 @@ const uint8_t track_decay = 0x1F;
 const unsigned int horiz_throttle = 75000;
 
 // Image scales we use
-long int scales[] = { 1000, 2000, 5000, 10000, 20000, 30000, 50000, 60000, 70000, 75000, 80000,
-85000, 90000, 95000, 100000, 125000, 150000, 200000, 300000, 500000, 750000, 1000000, 2000000,
-3000000, 4000000, 5000000, 6000000, 7000000, 8000000, 9000000, 10000000, 15000000,
-20000000, 25000000, 30000000, 35000000, 40000000, 0 };
+long int scales[] = { 1000, 2000, 5000, 10000, 20000, 30000, 50000, 60000, 
+    70000, 75000, 80000, 85000, 90000, 95000, 100000, 125000, 150000, 200000, 
+    300000, 500000, 750000, 1000000, 2000000, 3000000, 4000000, 5000000, 
+    6000000, 7000000, 8000000, 9000000, 10000000, 15000000,
+    20000000, 25000000, 30000000, 35000000, 40000000, 0 };
 // Terraserver scales for conversion to mapblast scales
 long int terrascales[] = { 2757, 5512, 11024, 22048, 44096, 88182, 176384 };
 
@@ -377,16 +378,18 @@ void UpdateGlobalCoords(float in_lat, float in_lon, float in_alt);
 double rad2deg(double x);
 double earth_distance(double lat1, double lon1, double lat2, double lon2);
 double calcR (double lat);
-void calcxy (double *posx, double *posy, double lat, double lon, double pixelfact, /*FOLD00*/
+void calcxy (double *posx, double *posy, double lat, double lon, double pixelfact, 
              double zero_lat, double zero_long);
 long int BestMapScale(double tlat, double tlon, double blat, double blon);
 int ProcessGPSFile(char *in_fname);
 void AssignNetColors();
 void MergeNetData(vector<wireless_network *> in_netdata);
 void ProcessNetData(int in_printstats);
-void DrawNetTracks(vector< vector<track_data> > in_tracks, Image *in_img, DrawInfo *in_di);
+void DrawNetTracks(vector< vector<track_data> > in_tracks, Image *in_img, 
+                   DrawInfo *in_di);
 void DrawNetCircles(vector<gps_network *> in_nets, Image *in_img, DrawInfo *in_di);
-void DrawNetBoundRects(vector<gps_network *> in_nets, Image *in_img, DrawInfo *in_di, int in_fill);
+void DrawNetBoundRects(vector<gps_network *> in_nets, Image *in_img, 
+                       DrawInfo *in_di, int in_fill);
 void DrawNetCenterDot(vector<gps_network *> in_nets, Image *in_img, DrawInfo *in_di);
 int InverseWeight(int in_x, int in_y, int in_fuzz, double in_scale);
 void DrawNetPower(vector<gps_network *> in_nets, Image *in_img, DrawInfo *in_di);
@@ -636,7 +639,8 @@ void MergeNetData(vector<wireless_network *> in_netdata) {
     for (unsigned int x = 0; x < in_netdata.size(); x++) {
         wireless_network *inet = in_netdata[x];
 
-        map<mac_addr, wireless_network *>::iterator bnmi = bssid_net_map.find(inet->bssid);
+        map<mac_addr, wireless_network *>::iterator bnmi = 
+            bssid_net_map.find(inet->bssid);
         if (bnmi != bssid_net_map.end()) {
             wireless_network *onet = bnmi->second;
 
