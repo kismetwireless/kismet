@@ -236,8 +236,11 @@ int PanelFront::MainNetworkPrinter(void *in_window) {
 
     int drop;
 
-    // One:  Get our new data from the client
-    PopulateGroups();
+    // One:  Get our new data from the clients we have tagged
+    for (unsigned int x = 0; x < context_list.size(); x++) {
+        if (context_list[x]->tagged == 1 && context_list[x]->client != NULL)
+            PopulateGroups(context_list[x]->client);
+    }
     // Two:  Recalculate all our agregate data
     UpdateGroups();
     // Three: Copy it to our own local vector so we can sort it.
