@@ -37,6 +37,7 @@ char *KismetHelpText[] = {
     "   g   Group tagged networks",
     "   u   Ungroup current group",
     "   c   Show clients in current network",
+    "  +/-  Expand/collapse groups",
     "  ^L   Force a screen redraw.",
     "",
     "POPUP WINDOWS",
