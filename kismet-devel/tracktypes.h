@@ -34,6 +34,7 @@ enum wireless_network_type {
     network_ap,
     network_adhoc,
     network_probe,
+    network_lor,
     network_data,
     network_remove
 };
@@ -49,6 +50,8 @@ enum address_type {
 };
 
 // IP info
+// Tracks addresses for networks and clients, with minor duplication
+// for each.
 typedef struct {
     address_type atype;
 
@@ -61,8 +64,8 @@ typedef struct {
     uint8_t mask[4];
     // What's the gateway?
     uint8_t gate_ip[4];
-    // What's the IP of the access point
-    uint8_t ap_ip[4];
+    // What's the ip, if we're a client?
+    uint8_t ip[4];
 
     // Are we loaded from a file?
     int load_from_store;

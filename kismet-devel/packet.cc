@@ -428,7 +428,11 @@ proto_info GetProtoInfo(const packet_info *in_info, const pkthdr *header, const 
         return ret;
         */
 
-    if (memcmp(&data[in_info->header_offset + LLC_OFFSET], CISCO_SIGNATURE,
+    if (memcmp(in_info->dest_mac, LOR_MAC, sizeof(LOR_MAC)) == 0) {
+        // First thing we do is see if the destination matches the multicast for
+        // lucent outdoor routers.
+        ret.type = proto_lor;
+    } else if (memcmp(&data[in_info->header_offset + LLC_OFFSET], CISCO_SIGNATURE,
                sizeof(CISCO_SIGNATURE)) == 0) {
         // CDP
 

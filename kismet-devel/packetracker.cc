@@ -487,6 +487,10 @@ int Packetracker::ProcessDataPacket(packet_info info, wireless_network *net, cha
     int ret = 0;
     wireless_client *client = NULL;
 
+    // Handle lucent outdoor routers
+    if (net->type == network_data && info.proto.type == proto_lor)
+        net->type = network_lor;
+
     string smac = Mac2String(info.source_mac, ':');
 
     // Find the client or make one
@@ -505,8 +509,9 @@ int Packetracker::ProcessDataPacket(packet_info info, wireless_network *net, cha
         client = net->client_map[smac];
 
         if ((client->type == client_fromds && info.distrib == to_distribution) ||
-            (client->type == client_tods && info.distrib == from_distribution))
+            (client->type == client_tods && info.distrib == from_distribution)) {
             client->type = client_established;
+        }
     }
 
     // We modify our client and our network concurrently to save on CPU cycles.
@@ -534,15 +539,68 @@ int Packetracker::ProcessDataPacket(packet_info info, wireless_network *net, cha
 
     unsigned int ipdata_dirty = 0;
 
+    if (info.proto.type == proto_dhcp_server && (client->ipdata.atype < address_dhcp ||
+                                                 client->ipdata.load_from_store == 1)) {
+        // If we have a DHCP packet and we didn't before, turn it into a full record
+        // in the client and flag us dirty.
+        client->ipdata.atype = address_dhcp;
+
+        // We only care about the source in the actual client record, but we need to
+        // record the rest so that we can form a network record
+        memcpy(client->ipdata.ip, info.proto.misc_ip, 4);
+        memcpy(client->ipdata.mask, info.proto.mask, 4);
+        memcpy(client->ipdata.gate_ip, info.proto.gate_ip, 4);
+
+        ipdata_dirty = 1;
+    } else if (info.proto.type == proto_arp && (client->ipdata.atype < address_arp ||
+                                                client->ipdata.load_from_store == 1)) {
+        client->ipdata.atype = address_arp;
+        memcpy(client->ipdata.ip, info.proto.source_ip, 4);
+        memcpy(client->ipdata.range_ip, info.proto.dest_ip, 4);
+        ipdata_dirty = 1;
+    } else if ((info.proto.type == proto_udp || info.proto.type == proto_netbios) &&
+               (client->ipdata.atype < address_udp || client->ipdata.load_from_store == 1)) {
+        client->ipdata.atype = address_udp;
+        memcpy(client->ipdata.ip, info.proto.source_ip, 4);
+        memcpy(client->ipdata.range_ip, info.proto.dest_ip, 4);
+        ipdata_dirty = 1;
+    } else if ((info.proto.type == proto_misc_tcp || info.proto.type == proto_netbios_tcp) &&
+               (client->ipdata.atype < address_tcp || client->ipdata.load_from_store == 1)) {
+        client->ipdata.atype = address_tcp;
+        memcpy(client->ipdata.ip, info.proto.source_ip, 4);
+        memcpy(client->ipdata.range_ip, info.proto.dest_ip, 4);
+        ipdata_dirty = 1;
+    }
+
+    if (ipdata_dirty) {
+        if (net->ipdata.atype < address_dhcp && client->ipdata.atype == address_dhcp) {
+            net->ipdata.atype = address_dhcp;
+
+            memcpy(&client->ipdata, &net->ipdata, sizeof(net->ipdata));
+            net->ipdata.range_ip[0] = net->ipdata.ip[0] & net->ipdata.mask[0];
+            net->ipdata.range_ip[1] = net->ipdata.ip[1] & net->ipdata.mask[1];
+            net->ipdata.range_ip[2] = net->ipdata.ip[2] & net->ipdata.mask[2];
+            net->ipdata.range_ip[3] = net->ipdata.ip[3] & net->ipdata.mask[3];
+
+        } else if (net->ipdata.atype < address_arp && client->ipdata.atype == address_arp) {
+            net->ipdata.atype = address_arp;
+
+        } else if (net->ipdata.atype < address_tcp && client->ipdata.atype == address_tcp) {
+            net->ipdata.atype = address_tcp;
+
+        } else if (net->ipdata.atype < address_udp && client->ipdata.atype == address_udp) {
+            net->ipdata.atype = address_udp;
+
+        }
+
+    }
+
     if (info.proto.type == proto_dhcp_server && (net->ipdata.atype < address_dhcp ||
                                                  net->ipdata.load_from_store == 1)) {
+
         // Jackpot, this tells us everything we need to know
         net->ipdata.atype = address_dhcp;
 
-        net->ipdata.range_ip[0] = info.proto.misc_ip[0] & info.proto.mask[0];
-        net->ipdata.range_ip[1] = info.proto.misc_ip[1] & info.proto.mask[1];
-        net->ipdata.range_ip[2] = info.proto.misc_ip[2] & info.proto.mask[2];
-        net->ipdata.range_ip[3] = info.proto.misc_ip[3] & info.proto.mask[3];
 
         // memcpy(net->range_ip, info.proto.misc_ip, 4);
         memcpy(net->ipdata.mask, info.proto.mask, 4);

@@ -115,6 +115,7 @@ enum protocol_info_type {
     proto_netbios, proto_netbios_tcp,
     proto_ipx,
     proto_ipx_tcp,
+    proto_lor,
 };
 
 enum protocol_netbios_type {
