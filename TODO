@@ -35,3 +35,4 @@ In no particular order:
 	acpi/apm reporting via server protocol
 	revamp manuf matching to use mac masking
 	linewrap alerts in panelsfront
+	detect dupe packets on multiple input streams
