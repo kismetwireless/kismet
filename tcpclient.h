@@ -47,6 +47,9 @@
 #define LEVEL_MAX 255
 #define NOISE_MAX 255
 
+#define CLIENT_NOTIFY  2
+#define CLIENT_ALERT   4
+
 // TCP Client.  Simple nonblocking client to extract network info exported by the
 // Kismet TCP server component and parse it.  Frontends should include this.
 

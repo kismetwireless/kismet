@@ -1,4 +1,8 @@
 Aug 21 2002  2.5.2  Fixed a few minor parsing errors in tcpclient.cc
+                    Speedboosted kismet_curses tcpclient.poll() interpretation
+                    Added alert sound conditions
+                    Added configurable alert backlog in server for low mem/high
+                     alert situations.
 Aug 20 2002  2.5.2  Added skeleton of alert system ('w' in panels interface)
                     ! Added detection of Netstumbler and feeding to the alert
                      system.

@@ -202,8 +202,11 @@ int TcpClient::Poll() {
 
     // Drop out now on a status event so we can get drawn
     int ret = ParseData(data);
+
+    /*
     if (ret == 2)
         return 1;
+        */
 
     return ret;
 }
@@ -445,7 +448,7 @@ int TcpClient::ParseData(char *in_data) {
     } else if (!strncmp(header, "*STATUS", 64)) {
         if (sscanf(in_data+hdrlen, "%1023[^\n]\n", status) != 1)
             return 0;
-        return 2;
+        return CLIENT_NOTIFY;
     } else if (!strncmp(header, "*ALERT", 64)) {
         char alrmstr[2048];
         alert_info alrm;
@@ -457,7 +460,7 @@ int TcpClient::ParseData(char *in_data) {
         if (alerts.size() > maxalerts)
             alerts.erase(alerts.begin());
         snprintf(status, STATUS_MAX, "ALERT: %s", alrmstr);
-        return 2;
+        return CLIENT_ALERT;
     } else if (!strncmp(header, "*STRING", 64)) {
         char netstr[2048];
         if (sscanf(in_data+hdrlen, "%2047[^\n]\n", netstr) != 1)

@@ -95,7 +95,7 @@ pid_t soundpid = -1, speechpid = -1;
 
 // Past alerts
 vector<string> past_alerts;
-unsigned int max_alerts = 20;
+unsigned int max_alerts = 50;
 
 // This/these have to be globals, unfortunately, so that the interrupt
 // handler can shut down logging and write out to disk the network list.
@@ -1276,6 +1276,13 @@ int main(int argc,char *argv[]) {
         }
     }
 
+    if (conf.FetchOpt("alertbacklog") != "") {
+        if (sscanf(conf.FetchOpt("alertbacklog").c_str(), "%d", &max_alerts) != 1) {
+            fprintf(stderr, "FATAL:  Illegal config file value for alert backlog.\n");
+            exit(1);
+        }
+    }
+
     /*
     if (sleepu == 0) {
         if (conf.FetchOpt("microsleep") == "") {
@@ -1339,6 +1346,8 @@ int main(int argc,char *argv[]) {
                 wav_map["gpslock"] = conf.FetchOpt("sound_gpslock");
             if (conf.FetchOpt("sound_gpslost") != "")
                 wav_map["gpslost"] = conf.FetchOpt("sound_gpslost");
+            if (conf.FetchOpt("sound_alert") != "")
+                wav_map["alert"] = conf.FetchOpt("sound_alert");
 
         } else {
             fprintf(stderr, "ERROR:  Sound alerts enabled but no sound playing binary specified.\n");
@@ -1882,6 +1891,7 @@ int main(int argc,char *argv[]) {
 
                     if (process_ret == TRACKER_ALERT) {
                         NetWriteAlert(status);
+                        sound = PlaySound("alert");
                     } else {
                         NetWriteStatus(status);
                     }
