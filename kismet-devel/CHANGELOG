@@ -11,6 +11,7 @@ Nov 25 2002  2.7.1  Enormous rewrite of the client-server protocol.  This will
                     Fixed soundhandler termination conditions
                     Fixed string extraction
                     Fixed error with client handling
+                    Added data size output to details
 Nov 22 2002  2.7.1  Fixed UDP interrupt error
                     Added build version/timestamp for CVS commits
 Nov 17 2002  2.7.1  Merged patch from Chris Waters tweaking the cygwin support
