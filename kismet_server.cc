@@ -217,6 +217,12 @@ void CatchShutdown(int sig) {
 
 #endif
 
+    // Kill our sound players
+    if (soundpid != -1)
+        kill(soundpid, 9);
+    if (speechpid != -1)
+        kill(speechpid, 9);
+
     exit(0);
 }
 
