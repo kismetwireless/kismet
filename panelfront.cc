@@ -393,6 +393,7 @@ PanelFront::PanelFront() {
     errstr[0] = '\0';
 
     sortby = sort_auto;
+    client_sortby = client_sort_auto;
 
     client = NULL;
 
