@@ -853,17 +853,17 @@ if test -n "$ac_init_help"; then
 Optional Features:
   --disable-FEATURE       do not include FEATURE (same as --enable-FEATURE=no)
   --enable-FEATURE[=ARG]  include FEATURE [ARG=yes]
-  --disable-curses        disable curses UI
-  --disable-panel         disable ncurses panel extentions
-  --disable-netlink       disable linux netlink socket capture (prism2/orinoco patched)
-  --disable-wireless      disable linux kernel wireless extentions
-  --disable-pcap          disable libpcap capture support
-  --enable-syspcap        use system libpcap (not recomended)
-  --disable-setuid     disable setuid capability (not recomended)
-  --enable-viha           enable the Viha capture engine for Mac OSX
-  --enable-wsp100         enable support for a WSP100 remote sensor sniffing device
-  --enable-zaurus         enable some extra stuff (like piezzo buzzer) for Zaurus
-  --enable-local-dumper   force use of local dumper code even if ethereal is present
+  --disable-curses        disable libcurses interface
+  --disable-panel         disable libpanels interface
+  --disable-netlink       disable linux netlink socket capture
+  --disable-wireless-extension  Disable linux wireless extensions even if found
+  --disable-pcap          disable libpcap (most sources) capture support
+  --enable-syspcap        use system libpcap (not recommended)
+  --disable-setuid        disable setuid/privdrop ability (not reccomended)
+  --disable-viha          disable MacOSX Viha capture source (OSX only)
+  --disable-wsp100        disable wsp100 remote drone source
+  --enable-zaurus         enable extra utils for Sharp Zaurus (deprecated)
+  --enable-local-dumper   force use of local dump code even if Ethereal is available
 
 Optional Packages:
   --with-PACKAGE[=ARG]    use PACKAGE [ARG=yes]
@@ -4953,15 +4953,13 @@ fi
 
 # Checks for libraries.
 # AC_CHECK_LIB([ibs], [main])
-wantecurses=yes
 # Check whether --enable-curses or --disable-curses was given.
 if test "${enable_curses+set}" = set; then
   enableval="$enable_curses"
-  wantecurses=no
+
 else
   wantecurses=yes
 fi;
-
 buildcurses=no
 if test "$wantecurses" = "yes"; then
 
@@ -4972,11 +4970,10 @@ _ACEOF
 	buildcurses=yes
 fi
 
-wantepanel=yes
 # Check whether --enable-panel or --disable-panel was given.
 if test "${enable_panel+set}" = set; then
   enableval="$enable_panel"
-  wantepanel=no
+
 else
   wantepanel=yes
 fi;
@@ -5364,11 +5361,10 @@ _ACEOF
 #fi
 
 
-wantnetlink=yes
 # Check whether --enable-netlink or --disable-netlink was given.
 if test "${enable_netlink+set}" = set; then
   enableval="$enable_netlink"
-  wantnetlink=no
+
 else
   wantnetlink=yes
 fi;
@@ -5422,21 +5418,20 @@ cat >>confdefs.h <<\_ACEOF
 _ACEOF
  netlink=yes
 else
-  { echo "$as_me:$LINENO: WARNING: *** Missing Linux netlink headers.  Prism2/orinoco source will not be built. ***" >&5
-echo "$as_me: WARNING: *** Missing Linux netlink headers.  Prism2/orinoco source will not be built. ***" >&2;}
+  { echo "$as_me:$LINENO: WARNING: *** Missing Linux netlink headers.  wlanng_legacy source will not be built. ***" >&5
+echo "$as_me: WARNING: *** Missing Linux netlink headers.  wlanng_legacy source will not be built. ***" >&2;}
 fi
 
 
 else
-	{ echo "$as_me:$LINENO: WARNING: *** Compiling without Linux netlink headers.  Prism2/orinoco source will not be built. ***" >&5
-echo "$as_me: WARNING: *** Compiling without Linux netlink headers.  Prism2/orinoco source will not be built. ***" >&2;}
+	{ echo "$as_me:$LINENO: WARNING: *** Compiling without Linux netlink headers.  wlanng_legacy source will not be built. ***" >&5
+echo "$as_me: WARNING: *** Compiling without Linux netlink headers.  wlanng_legacy source will not be built. ***" >&2;}
 fi
 
-wantwireless=yes
-# Check whether --enable-wireless or --disable-wireless was given.
-if test "${enable_wireless+set}" = set; then
-  enableval="$enable_wireless"
-  wantwireless=no
+# Check whether --enable-wireless-extension or --disable-wireless-extension was given.
+if test "${enable_wireless_extension+set}" = set; then
+  enableval="$enable_wireless_extension"
+
 else
   wantwireless=yes
 fi;
@@ -5627,27 +5622,23 @@ _ACEOF
 	fi
 fi
 
-wantpcap=yes
 # Check whether --enable-pcap or --disable-pcap was given.
 if test "${enable_pcap+set}" = set; then
   enableval="$enable_pcap"
-  wantpcap=no
+
 else
   wantpcap=yes
 fi;
 
 
-
 if test $wantpcap = yes; then
 
+syspcap="no"
 # Check whether --enable-syspcap or --disable-syspcap was given.
 if test "${enable_syspcap+set}" = set; then
   enableval="$enable_syspcap"
   syspcap=yes
-else
-  syspcap=no
 fi;
-
 	if test $syspcap = "yes"; then
 		foundsyspcap=no
 		echo "$as_me:$LINENO: checking for pcap_open_live in -lpcap" >&5
@@ -6114,15 +6105,13 @@ echo "$as_me: WARNING: Compiling without libpcap support." >&2;}
 fi
 
 
-suid=yes
 # Check whether --enable-setuid or --disable-setuid was given.
 if test "${enable_setuid+set}" = set; then
   enableval="$enable_setuid"
-  suid=no
+
 else
   suid=yes
 fi;
-
 
 
 if test $suid = yes; then
@@ -6144,21 +6133,23 @@ echo "${ECHO_T}no" >&6
 echo "$as_me: WARNING: *** Not installing setuid capabilities.  It is more secure to install Kismet as setuid-capable so it can drop privileges.  Please consult the README file. ***" >&2;}
 fi
 
-
-
-# Check whether --enable-viha or --disable-viha was given.
-if test "${enable_viha+set}" = set; then
-  enableval="$enable_viha"
-  want_viha=yes
-else
-  want_viha=no
-fi;
-
 if test "$darwin" = yes; then
 	{ echo "$as_me:$LINENO: WARNING: *** Enabling Viha by default because we're compiling under OSX ***" >&5
 echo "$as_me: WARNING: *** Enabling Viha by default because we're compiling under OSX ***" >&2;};
 	want_viha=yes;
 else
+	want_viha=no;
+fi
+
+# Check whether --enable-viha or --disable-viha was given.
+if test "${enable_viha+set}" = set; then
+  enableval="$enable_viha"
+  want_viha=no
+fi;
+
+if test "$darwin" = no -a "$want_viha" = "yes"; then
+	{ echo "$as_me:$LINENO: WARNING: *** Disabling Viha on non-OSX system ***" >&5
+echo "$as_me: WARNING: *** Disabling Viha on non-OSX system ***" >&2;};
 	want_viha=no;
 fi
 
@@ -6322,15 +6313,13 @@ done
 	fi
 fi
 
-wsp100=no
 # Check whether --enable-wsp100 or --disable-wsp100 was given.
 if test "${enable_wsp100+set}" = set; then
   enableval="$enable_wsp100"
-  wsp100=yes
-else
-  wsp100=no
-fi;
 
+else
+  wsp100=yes
+fi;
 if test "$wsp100" = "yes"; then
 
 cat >>confdefs.h <<\_ACEOF
@@ -6344,8 +6333,6 @@ zaurus=no
 if test "${enable_zaurus+set}" = set; then
   enableval="$enable_zaurus"
   zaurus=yes
-else
-  zaurus=no
 fi;
 if test "$zaurus" = "yes" -a "$host_cpu" != "arm"; then
 	{ echo "$as_me:$LINENO: WARNING: *** Zaurus extentions enabled but not building for an Arm CPU ***" >&5
@@ -6357,13 +6344,12 @@ if test "$zaurus" = "yes"; then
 fi
 
 
+
 local=no
 # Check whether --enable-local-dumper or --disable-local-dumper was given.
 if test "${enable_local_dumper+set}" = set; then
   enableval="$enable_local_dumper"
   local=yes
-else
-  local=no
 fi;
 
 
