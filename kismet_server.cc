@@ -1268,12 +1268,12 @@ int ProcessBulkConf(ConfigFile *conf) {
         metric = 1;
     }
 
-    if (!no_log) {
-        if (conf->FetchOpt("fifo") != "") {
-            fifofile = conf->FetchOpt("fifo");
-            fifo = 1;
-        }
+    if (conf->FetchOpt("fifo") != "") {
+        fifofile = conf->FetchOpt("fifo");
+        fifo = 1;
+    }
 
+    if (!no_log) {
         if (logname == "") {
             if (conf->FetchOpt("logdefault") == "") {
                 fprintf(stderr, "FATAL:  No default log name in config and no log name provided on the command line.\n");
