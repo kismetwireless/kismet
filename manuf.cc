@@ -157,7 +157,7 @@ void MatchBestManuf(map<mac_addr, manuf *> in_manuf, mac_addr in_mac, string in_
     tmac[0] = in_mac[0];
     tmac[1] = in_mac[1];
     tmac[2] = in_mac[2];
-    tmac[3] = in_mac[4];
+    tmac[3] = in_mac[3];
     tmac[4] = 0x00;
     tmac[5] = 0x00;
     mac4 = tmac;
@@ -165,6 +165,7 @@ void MatchBestManuf(map<mac_addr, manuf *> in_manuf, mac_addr in_mac, string in_
     mac3 = tmac;
 
     int score = 0;
+
     // Our best find is a 4-pair MAC, so look for one of those first...
     map<mac_addr, manuf *>::const_iterator mitr = in_manuf.find(mac4);
     if (mitr != in_manuf.end()) {

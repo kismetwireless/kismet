@@ -1299,6 +1299,9 @@ int PanelFront::DetailsPrinter(void *in_window) {
             kwin->text.push_back(output);
         }
 
+        snprintf(output, print_width, "BSSID   : %s", dnet->bssid.Mac2String().c_str());
+        kwin->text.push_back(output);
+
         map<mac_addr, manuf *>::const_iterator mitr;
         int found = 0;
 
@@ -1331,9 +1334,6 @@ int PanelFront::DetailsPrinter(void *in_window) {
             snprintf(output, print_width, "     FACTORY CONFIGURATION");
             kwin->text.push_back(output);
         }
-
-        snprintf(output, print_width, "BSSID   : %s", dnet->bssid.Mac2String().c_str());
-        kwin->text.push_back(output);
     
         snprintf(output, print_width, "Max Rate: %2.1f", dnet->maxrate);
         kwin->text.push_back(output);

@@ -4,6 +4,8 @@ Sep 26 2002  2.5.2  Consolidated kismet versioning into the makefile
                     More revisions to packet dissection to eliminate some 
                      compiler stupidity with bitfields.
                     Fixed double-counting of probe packets
+                    Fixed stupid error in manuf matching that prevented model
+                     matches
 Sep 25 2002  2.5.2  More documentation updates
                     Merged patch from Pedro to do signal levels on BSD
                     Tweaked magick version checking
