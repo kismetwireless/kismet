@@ -164,7 +164,7 @@ int Packetracker::Tick() {
     return 1;
 }
 
-inline wireless_network *Packetracker::MatchNetwork(const packet_info *info) {
+wireless_network *Packetracker::MatchNetwork(const packet_info *info) {
     map<mac_addr, wireless_network *>::iterator bsmapitr;
 
     bsmapitr = bssid_map.find(info->bssid_mac);
