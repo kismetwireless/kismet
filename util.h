@@ -35,9 +35,9 @@
 #include <stdlib.h>
 #include <pwd.h>
 #include <ctype.h>
+#include <math.h>
 
 #ifdef HAVE_LINUX_WIRELESS
-#include <math.h>
 #include <sys/ioctl.h>
 #include <sys/socket.h>
 #include <linux/wireless.h>
