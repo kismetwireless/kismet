@@ -1103,9 +1103,6 @@ int monitor_hostap(const char *in_dev, int initch, char *in_err, void **in_if) {
     if (Ifconfig_Get_Flags(in_dev, in_err, &ifparm->flags) < 0)
         return -1;
 
-    if (Iwconfig_Get_SSID(in_dev, in_err, ifparm->essid) < 0)
-        return -1;
-
     if ((ifparm->channel = Iwconfig_Get_Channel(in_dev, in_err)) < 0)
         return -1;
 
@@ -1143,9 +1140,6 @@ int unmonitor_hostap(const char *in_dev, int initch, char *in_err, void **in_if)
     if (Iwconfig_Set_Channel(in_dev, ifparm->channel, in_err) < 0)
         return -1;
 
-    if (Iwconfig_Set_SSID(in_dev, in_err, ifparm->essid) < 0)
-        return -1;
-    
     // Ignore errors from both of these, since one might fail with other versions
     // of hostap
     Iwconfig_Set_IntPriv(in_dev, "monitor", 0, 0, in_err);
@@ -1169,9 +1163,6 @@ int monitor_orinoco(const char *in_dev, int initch, char *in_err, void **in_if) 
         return -1;
     }
 
-    if (Iwconfig_Get_SSID(in_dev, in_err, ifparm->essid) < 0)
-        return -1;
-
     if ((ifparm->channel = Iwconfig_Get_Channel(in_dev, in_err)) < 0)
         return -1;
 
@@ -1181,10 +1172,6 @@ int monitor_orinoco(const char *in_dev, int initch, char *in_err, void **in_if) 
     // Bring the device up and set promisc
     if (Ifconfig_Delta_Flags(in_dev, in_err, IFF_UP | IFF_RUNNING | IFF_PROMISC) < 0)
         return -1;
-
-    // Zero the ssid - nonfatal if we don't succeed, since a lot of things seem to have
-    // issues doing it.
-    Iwconfig_Set_SSID(in_dev, in_err, NULL);
 
     // Socket lowpower cards seem to need a little time for the firmware to settle
     // down between these calls, so we'll just sleep for everyone.  It won't hurt
@@ -1232,9 +1219,6 @@ int unmonitor_orinoco(const char *in_dev, int initch, char *in_err, void **in_if
     Iwconfig_Set_IntPriv(in_dev, "monitor", 0, ifparm->channel, in_err);
     Iwconfig_Set_Mode(in_dev, in_err, ifparm->mode);
 
-    if (Iwconfig_Set_SSID(in_dev, in_err, ifparm->essid) < 0)
-        return -1;
-    
     free(ifparm);
 
     return 0;
@@ -1292,6 +1276,8 @@ int unmonitor_acx100(const char *in_dev, int initch, char *in_err, void **in_if)
         return -1;
     
     free(ifparm);
+
+    return 0;
 }
 
 int monitor_admtek(const char *in_dev, int initch, char *in_err, void **in_if) {
@@ -1306,13 +1292,16 @@ int monitor_admtek(const char *in_dev, int initch, char *in_err, void **in_if) {
 
     if (Iwconfig_Get_SSID(in_dev, in_err, ifparm->essid) < 0)
         return -1;
-
+    
     if ((ifparm->channel = Iwconfig_Get_Channel(in_dev, in_err)) < 0)
         return -1;
 
     if (Iwconfig_Get_Mode(in_dev, in_err, &ifparm->mode) < 0)
         return -1;
 
+    if  (Iwconfig_Set_SSID(in_dev, in_err, "") < 0)
+        return -1;
+    
     int ret = monitor_wext(in_dev, initch, in_err, in_if);
 
     if (ret < 0 && ret != -2)
@@ -1322,7 +1311,15 @@ int monitor_admtek(const char *in_dev, int initch, char *in_err, void **in_if) {
 }
 
 int unmonitor_admtek(const char *in_dev, int initch, char *in_err, void **in_if) {
-    return unmonitor_wext(in_dev, initch, in_err, in_if);
+    linux_ifparm *ifparm = (linux_ifparm *) (*in_if);
+
+    if (unmonitor_wext(in_dev, initch, in_err, in_if))
+        return -1;
+
+    if (Iwconfig_Set_SSID(in_dev, in_err, ifparm->essid) < 0)
+        return -1;
+   
+    return 0;
 }
 // vtar5k iwpriv control to set link state, rest is normal
 int monitor_vtar5k(const char *in_dev, int initch, char *in_err, void **in_if) {
@@ -1348,9 +1345,6 @@ int monitor_madwifi_a(const char *in_dev, int initch, char *in_err, void **in_if
     if (Ifconfig_Get_Flags(in_dev, in_err, &ifparm->flags) < 0) {
         return -1;
     }
-
-    if (Iwconfig_Get_SSID(in_dev, in_err, ifparm->essid) < 0)
-        return -1;
 
     if ((ifparm->channel = Iwconfig_Get_Channel(in_dev, in_err)) < 0)
         return -1;
@@ -1387,9 +1381,6 @@ int monitor_madwifi_b(const char *in_dev, int initch, char *in_err, void **in_if
         return -1;
     }
 
-    if (Iwconfig_Get_SSID(in_dev, in_err, ifparm->essid) < 0)
-        return -1;
-
     if ((ifparm->channel = Iwconfig_Get_Channel(in_dev, in_err)) < 0)
         return -1;
 
@@ -1419,9 +1410,6 @@ int monitor_madwifi_g(const char *in_dev, int initch, char *in_err, void **in_if
         return -1;
     }
 
-    if (Iwconfig_Get_SSID(in_dev, in_err, ifparm->essid) < 0)
-        return -1;
-
     if ((ifparm->channel = Iwconfig_Get_Channel(in_dev, in_err)) < 0)
         return -1;
 
@@ -1450,9 +1438,6 @@ int monitor_madwifi_comb(const char *in_dev, int initch, char *in_err, void **in
     if (Ifconfig_Get_Flags(in_dev, in_err, &ifparm->flags) < 0) {
         return -1;
     }
-
-    if (Iwconfig_Get_SSID(in_dev, in_err, ifparm->essid) < 0)
-        return -1;
 
     if ((ifparm->channel = Iwconfig_Get_Channel(in_dev, in_err)) < 0)
         return -1;
@@ -1498,21 +1483,15 @@ int monitor_prism54g(const char *in_dev, int initch, char *in_err, void **in_if)
         return -1;
     }
 
-    if (Iwconfig_Get_SSID(in_dev, in_err, ifparm->essid) < 0)
-        return -1;
-
     if ((ifparm->channel = Iwconfig_Get_Channel(in_dev, in_err)) < 0)
         return -1;
 
     if (Iwconfig_Get_Mode(in_dev, in_err, &ifparm->mode) < 0)
         return -1;
 
-    int ret = monitor_wext(in_dev, initch, in_err, in_if);
+    // Call the normal monitor mode
+    return (monitor_wext(in_dev, initch, in_err, in_if));
 
-    if (ret < 0 && ret != -2)
-        return ret;
-    
-    return 0;
 }
 
 int unmonitor_prism54g(const char *in_dev, int initch, char *in_err, void **in_if) {
@@ -1521,49 +1500,26 @@ int unmonitor_prism54g(const char *in_dev, int initch, char *in_err, void **in_i
 
 // "standard" wireless extension monitor mode
 int monitor_wext(const char *in_dev, int initch, char *in_err, void **in_if) {
-    struct iwreq wrq;
-    int skfd;
+    int mode;
 
     // Bring the device up, zero its ip, and set promisc
     if (Ifconfig_Delta_Flags(in_dev, in_err, IFF_UP | IFF_RUNNING | IFF_PROMISC) < 0)
         return -1;
 
-    // Zero the ssid - nonfatal
-    Iwconfig_Set_SSID(in_dev, in_err, NULL);
-
-    // Kick it into rfmon mode
-    if ((skfd = socket(AF_INET, SOCK_DGRAM, 0)) < 0) {
-        snprintf(in_err, STATUS_MAX, "Failed to create AF_INET DGRAM socket %d:%s", 
-                 errno, strerror(errno));
-        return -1;
-    }
-
     // Get mode and see if we're already in monitor, don't try to go in
     // if we are (cisco doesn't like rfmon rfmon)
-    memset(&wrq, 0, sizeof(struct iwreq));
-    strncpy(wrq.ifr_name, in_dev, IFNAMSIZ);
-
-    if (ioctl(skfd, SIOCGIWMODE, &wrq) < 0) {
-        snprintf(in_err, STATUS_MAX, "Failed to get mode %d:%s", 
-                 errno, strerror(errno));
-        close(skfd);
+    if (Iwconfig_Get_Mode(in_dev, in_err, &mode) < 0)
         return -1;
-    }
-
-    if (wrq.u.mode != LINUX_WLEXT_MONITOR) {
+    
+    if (mode != LINUX_WLEXT_MONITOR) {
         // Set it
-        memset(&wrq, 0, sizeof(struct iwreq));
-        strncpy(wrq.ifr_name, in_dev, IFNAMSIZ);
-        wrq.u.mode = LINUX_WLEXT_MONITOR;
-
-        if (ioctl(skfd, SIOCSIWMODE, &wrq) < 0) {
+        if (Iwconfig_Set_Mode(in_dev, in_err, LINUX_WLEXT_MONITOR) < 0) {
             snprintf(in_err, STATUS_MAX, "Failed to set monitor mode: %s.  This usually "
                      "means your drivers either do not support monitor mode, or use a "
                      "different mechanism for getting to it.  Make sure you have a "
                      "version of your drivers that support monitor mode, and consult "
                      "the troubleshooting section of the README.", 
                      strerror(errno));
-            close(skfd);
             return -1;
         }
     }
@@ -1571,11 +1527,9 @@ int monitor_wext(const char *in_dev, int initch, char *in_err, void **in_if) {
     // Set the initial channel - if we ever get a pcapsource that needs a hook
     // back into the class, this will have to be rewritten
     if (chancontrol_wext(in_dev, initch, in_err, NULL) < 0) {
-        close(skfd);
         return -2;
     }
     
-    close(skfd);
     return 0;
 }
 
@@ -1591,9 +1545,6 @@ int unmonitor_wext(const char *in_dev, int initch, char *in_err, void **in_if) {
         return -1;
 
     if (Iwconfig_Set_Channel(in_dev, ifparm->channel, in_err) < 0)
-        return -1;
-
-    if (Iwconfig_Set_SSID(in_dev, in_err, ifparm->essid) < 0)
         return -1;
     
     free(ifparm);
