@@ -1,3 +1,6 @@
+Nov 17 2002  2.7.1  Merged patch from Chris Waters tweaking the cygwin support
+                     for WSP100
+                    Fixed WSP100 reporting signal level as quality
 Nov 15 2002  2.7.1  Fixed kismet_monitor calling kismet_hopper for new sources
                     Fixed broke probe_req handling caused by the new packet
                      categorizer.

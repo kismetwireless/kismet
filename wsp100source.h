@@ -64,7 +64,7 @@ protected:
 #define WSP100_TAG_RADIO_TIME     0x0d   // timestamp
 #define WSP100_TAG_RADIO_MSG      0x0e   // packet type, unsigned byte
 #define WSP100_TAG_RADIO_CF       0x0f   // Arrived during CF
-#define WSP100_TAG_RADIO_UNDECR   0x10   // Remote sensor couldn't decode the packet
+#define WSP100_TAG_RADIO_UNDECR   0x10   // Remote sensor couldn't decrypt the packet
 #define WSP100_TAG_RADIO_FCSERR   0x11   // FCS error in packet
 #define WSP100_TAG_RADIO_CHANNEL  0x12   // Channel, unsigned
 
