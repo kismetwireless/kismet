@@ -344,11 +344,16 @@ void MergeNetData(vector<wireless_network *> in_netdata) {
                     onet->type = inet->type;
                 if (inet->ssid != "")
                     onet->ssid = inet->ssid;
-                onet->channel = inet->channel;
+
+                if (inet->channel != 0)
+                    onet->channel = inet->channel;
+
                 if (inet->beacon_info != "")
                     onet->beacon_info = inet->beacon_info;
+
                 if (onet->ipdata.atype < inet->ipdata.atype)
                     memcpy(&onet->ipdata, &inet->ipdata, sizeof(net_ip_data));
+
                 onet->cloaked = inet->cloaked;
                 onet->wep = inet->wep;
             }
