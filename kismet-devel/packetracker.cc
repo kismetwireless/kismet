@@ -316,7 +316,7 @@ int Packetracker::ProcessPacket(packet_info info, char *in_status) {
 
         // If it's a probe request shortcut to handling it like a client once we've
         // established what network it belongs to
-        if (info.subtype == packet_sub_probe_req && net->type != network_ap) {
+        if (info.subtype == packet_sub_probe_req && net->type == network_probe) {
             if (net->ssid != info.ssid) {
                 if (IsBlank(info.ssid))
                     net->ssid = NOSSID;
@@ -384,8 +384,7 @@ int Packetracker::ProcessPacket(packet_info info, char *in_status) {
         // With "closed" networks, this is our chance to see the real ssid.
         // (Thanks to Jason Luther <jason@ixid.net> for this "closed network" detection)
         if ((info.subtype == packet_sub_probe_resp ||
-             info.subtype == packet_sub_reassociation_resp) &&
-            (strlen(info.ssid) > 0) && !IsBlank(info.ssid)) {
+             info.subtype == packet_sub_reassociation_resp) && !IsBlank(info.ssid)) {
 
             if (net->ssid == NOSSID) {
                 net->cloaked = 1;

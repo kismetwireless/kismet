@@ -1,3 +1,6 @@
+Nov 29 2002  2.7.1  Changed client back to only updating once per second - 
+                     massive speed improvements.
+                    Fixed handling of adhoc probe/ssids
 Nov 28 2002  2.7.1  Happy thanksgiving
                     Fixed tcpserver code for tracking the number of clients
                      using a protocol reference to actually have code, not

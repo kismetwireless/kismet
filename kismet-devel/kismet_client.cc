@@ -261,6 +261,7 @@ void SpeechHandler(int *fds, const char *player) {
         if (harvested == 1) {
             harvested = 0;
             if ((sndpid = fork()) == 0) {
+                MungeToShell(data, strlen(data));
                 char spk_call[1024];
                 snprintf(spk_call, 1024, "echo \"(SayText \\\"%s\\\")\" | %s >/dev/null 2>/dev/null",
                          data, player);
@@ -299,7 +300,6 @@ int SayText(string in_text) {
     char snd[1024];
 
     snprintf(snd, 1024, "%s\n", in_text.c_str());
-    MungeToShell(snd, 1024);
 
     if (write(speechpair[1], snd, strlen(snd)) < 0) {
         char status[STATUS_MAX];
@@ -766,6 +766,7 @@ int main(int argc, char *argv[]) {
              kismet_serv.FetchMajor(), kismet_serv.FetchMinor(), kismet_serv.FetchTiny(),
              kismet_serv.FetchBuild(), guihost, guiport);
     gui->WriteStatus(status);
+    gui->DrawDisplay();
 
     int num_networks = 0, num_packets = 0, num_noise = 0, num_dropped = 0;
 
@@ -937,10 +938,6 @@ int main(int argc, char *argv[]) {
             // Force a display event
             gui->DrawDisplay();
             last_draw = time(0);
-        } else {
-            // If we're tainted, update even if it isn't time.  We don't tick since
-            // that only happens once a second.
-            gui->DrawDisplay();
         }
     }
 }
