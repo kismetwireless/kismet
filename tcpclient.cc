@@ -514,11 +514,12 @@ int TcpClient::ParseData(char *in_data) {
         return CLIENT_NOTIFY;
     } else if (!strncmp(header, "*ALERT", 64)) {
         char alrmstr[2048];
+        char atype[128];
         alert_info alrm;
-        if (sscanf(in_data+hdrlen, "%ld %ld \001%2047[^\001]\001", &alrm.alert_ts.tv_sec,
-                   &alrm.alert_ts.tv_usec, alrmstr) < 3)
+        if (sscanf(in_data+hdrlen, "%ld %ld %128s \001%2047[^\001]\001\n", &alrm.alert_ts.tv_sec,
+                   &alrm.alert_ts.tv_usec, atype, alrmstr) < 3)
             return 0;
-        alrm.alert_text = alrmstr;
+        alrm.alert_text = string(atype) + string(" ") + string(alrmstr);
         alerts.push_back(alrm);
         if (alerts.size() > maxalerts)
             alerts.erase(alerts.begin());
