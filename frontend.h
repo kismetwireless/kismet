@@ -39,7 +39,8 @@
 enum sort_type {
     sort_auto, sort_channel, sort_first, sort_first_dec,
     sort_last, sort_last_dec, sort_bssid, sort_bssid_dec,
-    sort_ssid, sort_ssid_dec, sort_wep, sort_packets, sort_packets_dec
+    sort_ssid, sort_ssid_dec, sort_wep, sort_packets, sort_packets_dec,
+    sort_quality, sort_signal,
 };
 
 enum group_type {

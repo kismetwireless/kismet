@@ -103,6 +103,7 @@ char *KismetSortText[] = {
     " b   BSSID                B   BSSID (descending)",
     " s   SSID                 S   SSID (descending)",
     " p   Packet count         P   Packet count (descending)",
+    " q   Signal Quality       Q   Signal power level",
     " w   WEP                  x   Cancel",
     NULL
 };
@@ -115,10 +116,11 @@ char *KismetSortTextNarrow[] = {
     " b  BSSID        B  BSSID (d)",
     " s  SSID         S  SSID (d)",
     " p  Packet count P  Packet count (d)",
+    " q  Quality      Q  Power level",
     " w  WEP          x  Cancel",
     NULL
 };
-#define SORT_SIZE 8
+#define SORT_SIZE 10
 
 char *KismetHelpPower[] = {
     "KISMET POWER",
@@ -914,6 +916,14 @@ int PanelFront::MainNetworkPrinter(void *in_window) {
 
         sort(display_vector.begin(), display_vector.end(), DisplaySortPackets());
         break;
+    case sort_quality:
+        snprintf(sortxt, 24, "(Quality)");
+        sort(display_vector.begin(), display_vector.end(), DisplaySortQuality());
+        break;
+    case sort_signal:
+        snprintf(sortxt, 24, "(Signal)");
+        sort(display_vector.begin(), display_vector.end(), DisplaySortSignal());
+        break;
     }
 
 //    last_displayed.erase(last_displayed.begin(), last_displayed.begin() + last_displayed.size());
@@ -1121,6 +1131,12 @@ int PanelFront::MainNetworkPrinter(void *in_window) {
             break;
         case sort_packets_dec:
             sort(sortsub.begin(), sortsub.end(), SortPackets());
+            break;
+        case sort_quality:
+            sort(sortsub.begin(), sortsub.end(), SortQuality());
+            break;
+        case sort_signal:
+            sort(sortsub.begin(), sortsub.end(), SortSignal());
             break;
         }
 
@@ -1581,7 +1597,19 @@ int PanelFront::DetailsPrinter(void *in_window) {
         kwin->text.push_back(output);
         snprintf(output, print_width, "  Weak    : %d", dnet->interesting_packets);
         kwin->text.push_back(output);
-    
+
+        snprintf(output, print_width, "Signal  :");
+        kwin->text.push_back(output);
+        snprintf(output, print_width, "  Quality : %d (best %d)",
+                 dnet->quality, dnet->best_quality);
+        kwin->text.push_back(output);
+        snprintf(output, print_width, "  Power   : %d (best %d)",
+                 dnet->signal, dnet->best_signal);
+        kwin->text.push_back(output);
+        snprintf(output, print_width, "  Noise   : %d (best %d)",
+                 dnet->noise, dnet->best_noise);
+        kwin->text.push_back(output);
+
         switch (dnet->ipdata.atype) {
         case address_none:
             snprintf(output, print_width, "IP Type : None detected");
@@ -2599,10 +2627,16 @@ int PanelFront::SortInput(void *in_window, int in_chr) {
         sortby = sort_packets_dec;
         WriteStatus("Sorting by packet counts (descending)");
         break;
+    case 'q':
+        sortby = sort_quality;
+        WriteStatus("Sorting by signal quality");
+        break;
+    case 'Q':
+        sortby = sort_signal;
+        WriteStatus("Sorting by signal strength");
+        break;
     case 'x':
     case 'X':
-    case 'q':
-    case 'Q':
         break;
     default:
         beep();

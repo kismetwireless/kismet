@@ -134,6 +134,23 @@ public:
     }
 };
 
+class SortQuality {
+public:
+    bool operator() (const wireless_network *x, const wireless_network *y) const {
+        if (x->quality > y->quality)
+            return 1;
+        return 0;
+    }
+};
+
+class SortSignal {
+public:
+    bool operator() (const wireless_network *x, const wireless_network *y) const {
+        if (x->signal > y->signal)
+            return 1;
+        return 0;
+    }
+};
 
 #endif
 
