@@ -1293,6 +1293,7 @@ ac_compiler_gnu=$ac_cv_c_compiler_gnu
 
 
 
+
 # Included pcap directory
 pcapdir="libpcap-2002.12.23"
 
@@ -5139,26 +5140,20 @@ fi;
 
 if test $wantnetlink = yes; then
 netlink=no
-if test "${ac_cv_header_linux_netlink_h+set}" = set; then
-  echo "$as_me:$LINENO: checking for linux/netlink.h" >&5
+echo "$as_me:$LINENO: checking for linux/netlink.h" >&5
 echo $ECHO_N "checking for linux/netlink.h... $ECHO_C" >&6
 if test "${ac_cv_header_linux_netlink_h+set}" = set; then
   echo $ECHO_N "(cached) $ECHO_C" >&6
-fi
-echo "$as_me:$LINENO: result: $ac_cv_header_linux_netlink_h" >&5
-echo "${ECHO_T}$ac_cv_header_linux_netlink_h" >&6
 else
-  # Is the header compilable?
-echo "$as_me:$LINENO: checking linux/netlink.h usability" >&5
-echo $ECHO_N "checking linux/netlink.h usability... $ECHO_C" >&6
-cat >conftest.$ac_ext <<_ACEOF
+  cat >conftest.$ac_ext <<_ACEOF
 #line $LINENO "configure"
 /* confdefs.h.  */
 _ACEOF
 cat confdefs.h >>conftest.$ac_ext
 cat >>conftest.$ac_ext <<_ACEOF
 /* end confdefs.h.  */
-$ac_includes_default
+#include <linux/socket.h>
+
 #include <linux/netlink.h>
 _ACEOF
 rm -f conftest.$ac_objext
@@ -5173,101 +5168,17 @@ if { (eval echo "$as_me:$LINENO: \"$ac_compile\"") >&5
   ac_status=$?
   echo "$as_me:$LINENO: \$? = $ac_status" >&5
   (exit $ac_status); }; }; then
-  ac_header_compiler=yes
+  ac_cv_header_linux_netlink_h=yes
 else
   echo "$as_me: failed program was:" >&5
 sed 's/^/| /' conftest.$ac_ext >&5
 
-ac_header_compiler=no
+ac_cv_header_linux_netlink_h=no
 fi
 rm -f conftest.$ac_objext conftest.$ac_ext
-echo "$as_me:$LINENO: result: $ac_header_compiler" >&5
-echo "${ECHO_T}$ac_header_compiler" >&6
-
-# Is the header present?
-echo "$as_me:$LINENO: checking linux/netlink.h presence" >&5
-echo $ECHO_N "checking linux/netlink.h presence... $ECHO_C" >&6
-cat >conftest.$ac_ext <<_ACEOF
-#line $LINENO "configure"
-/* confdefs.h.  */
-_ACEOF
-cat confdefs.h >>conftest.$ac_ext
-cat >>conftest.$ac_ext <<_ACEOF
-/* end confdefs.h.  */
-#include <linux/netlink.h>
-_ACEOF
-if { (eval echo "$as_me:$LINENO: \"$ac_cpp conftest.$ac_ext\"") >&5
-  (eval $ac_cpp conftest.$ac_ext) 2>conftest.er1
-  ac_status=$?
-  grep -v '^ *+' conftest.er1 >conftest.err
-  rm -f conftest.er1
-  cat conftest.err >&5
-  echo "$as_me:$LINENO: \$? = $ac_status" >&5
-  (exit $ac_status); } >/dev/null; then
-  if test -s conftest.err; then
-    ac_cpp_err=$ac_c_preproc_warn_flag
-  else
-    ac_cpp_err=
-  fi
-else
-  ac_cpp_err=yes
-fi
-if test -z "$ac_cpp_err"; then
-  ac_header_preproc=yes
-else
-  echo "$as_me: failed program was:" >&5
-sed 's/^/| /' conftest.$ac_ext >&5
-
-  ac_header_preproc=no
-fi
-rm -f conftest.err conftest.$ac_ext
-echo "$as_me:$LINENO: result: $ac_header_preproc" >&5
-echo "${ECHO_T}$ac_header_preproc" >&6
-
-# So?  What about this header?
-case $ac_header_compiler:$ac_header_preproc in
-  yes:no )
-    { echo "$as_me:$LINENO: WARNING: linux/netlink.h: accepted by the compiler, rejected by the preprocessor!" >&5
-echo "$as_me: WARNING: linux/netlink.h: accepted by the compiler, rejected by the preprocessor!" >&2;}
-    { echo "$as_me:$LINENO: WARNING: linux/netlink.h: proceeding with the preprocessor's result" >&5
-echo "$as_me: WARNING: linux/netlink.h: proceeding with the preprocessor's result" >&2;}
-    (
-      cat <<\_ASBOX
-## ------------------------------------ ##
-## Report this to bug-autoconf@gnu.org. ##
-## ------------------------------------ ##
-_ASBOX
-    ) |
-      sed "s/^/$as_me: WARNING:     /" >&2
-    ;;
-  no:yes )
-    { echo "$as_me:$LINENO: WARNING: linux/netlink.h: present but cannot be compiled" >&5
-echo "$as_me: WARNING: linux/netlink.h: present but cannot be compiled" >&2;}
-    { echo "$as_me:$LINENO: WARNING: linux/netlink.h: check for missing prerequisite headers?" >&5
-echo "$as_me: WARNING: linux/netlink.h: check for missing prerequisite headers?" >&2;}
-    { echo "$as_me:$LINENO: WARNING: linux/netlink.h: proceeding with the preprocessor's result" >&5
-echo "$as_me: WARNING: linux/netlink.h: proceeding with the preprocessor's result" >&2;}
-    (
-      cat <<\_ASBOX
-## ------------------------------------ ##
-## Report this to bug-autoconf@gnu.org. ##
-## ------------------------------------ ##
-_ASBOX
-    ) |
-      sed "s/^/$as_me: WARNING:     /" >&2
-    ;;
-esac
-echo "$as_me:$LINENO: checking for linux/netlink.h" >&5
-echo $ECHO_N "checking for linux/netlink.h... $ECHO_C" >&6
-if test "${ac_cv_header_linux_netlink_h+set}" = set; then
-  echo $ECHO_N "(cached) $ECHO_C" >&6
-else
-  ac_cv_header_linux_netlink_h=$ac_header_preproc
 fi
 echo "$as_me:$LINENO: result: $ac_cv_header_linux_netlink_h" >&5
 echo "${ECHO_T}$ac_cv_header_linux_netlink_h" >&6
-
-fi
 if test $ac_cv_header_linux_netlink_h = yes; then
 
 cat >>confdefs.h <<\_ACEOF
@@ -5297,26 +5208,20 @@ fi;
 
 if test $wantwireless = yes; then
 wireless=no
-if test "${ac_cv_header_linux_wireless_h+set}" = set; then
-  echo "$as_me:$LINENO: checking for linux/wireless.h" >&5
+echo "$as_me:$LINENO: checking for linux/wireless.h" >&5
 echo $ECHO_N "checking for linux/wireless.h... $ECHO_C" >&6
 if test "${ac_cv_header_linux_wireless_h+set}" = set; then
   echo $ECHO_N "(cached) $ECHO_C" >&6
-fi
-echo "$as_me:$LINENO: result: $ac_cv_header_linux_wireless_h" >&5
-echo "${ECHO_T}$ac_cv_header_linux_wireless_h" >&6
 else
-  # Is the header compilable?
-echo "$as_me:$LINENO: checking linux/wireless.h usability" >&5
-echo $ECHO_N "checking linux/wireless.h usability... $ECHO_C" >&6
-cat >conftest.$ac_ext <<_ACEOF
+  cat >conftest.$ac_ext <<_ACEOF
 #line $LINENO "configure"
 /* confdefs.h.  */
 _ACEOF
 cat confdefs.h >>conftest.$ac_ext
 cat >>conftest.$ac_ext <<_ACEOF
 /* end confdefs.h.  */
-$ac_includes_default
+#include <linux/socket.h>
+
 #include <linux/wireless.h>
 _ACEOF
 rm -f conftest.$ac_objext
@@ -5331,101 +5236,17 @@ if { (eval echo "$as_me:$LINENO: \"$ac_compile\"") >&5
   ac_status=$?
   echo "$as_me:$LINENO: \$? = $ac_status" >&5
   (exit $ac_status); }; }; then
-  ac_header_compiler=yes
+  ac_cv_header_linux_wireless_h=yes
 else
   echo "$as_me: failed program was:" >&5
 sed 's/^/| /' conftest.$ac_ext >&5
 
-ac_header_compiler=no
+ac_cv_header_linux_wireless_h=no
 fi
 rm -f conftest.$ac_objext conftest.$ac_ext
-echo "$as_me:$LINENO: result: $ac_header_compiler" >&5
-echo "${ECHO_T}$ac_header_compiler" >&6
-
-# Is the header present?
-echo "$as_me:$LINENO: checking linux/wireless.h presence" >&5
-echo $ECHO_N "checking linux/wireless.h presence... $ECHO_C" >&6
-cat >conftest.$ac_ext <<_ACEOF
-#line $LINENO "configure"
-/* confdefs.h.  */
-_ACEOF
-cat confdefs.h >>conftest.$ac_ext
-cat >>conftest.$ac_ext <<_ACEOF
-/* end confdefs.h.  */
-#include <linux/wireless.h>
-_ACEOF
-if { (eval echo "$as_me:$LINENO: \"$ac_cpp conftest.$ac_ext\"") >&5
-  (eval $ac_cpp conftest.$ac_ext) 2>conftest.er1
-  ac_status=$?
-  grep -v '^ *+' conftest.er1 >conftest.err
-  rm -f conftest.er1
-  cat conftest.err >&5
-  echo "$as_me:$LINENO: \$? = $ac_status" >&5
-  (exit $ac_status); } >/dev/null; then
-  if test -s conftest.err; then
-    ac_cpp_err=$ac_c_preproc_warn_flag
-  else
-    ac_cpp_err=
-  fi
-else
-  ac_cpp_err=yes
-fi
-if test -z "$ac_cpp_err"; then
-  ac_header_preproc=yes
-else
-  echo "$as_me: failed program was:" >&5
-sed 's/^/| /' conftest.$ac_ext >&5
-
-  ac_header_preproc=no
-fi
-rm -f conftest.err conftest.$ac_ext
-echo "$as_me:$LINENO: result: $ac_header_preproc" >&5
-echo "${ECHO_T}$ac_header_preproc" >&6
-
-# So?  What about this header?
-case $ac_header_compiler:$ac_header_preproc in
-  yes:no )
-    { echo "$as_me:$LINENO: WARNING: linux/wireless.h: accepted by the compiler, rejected by the preprocessor!" >&5
-echo "$as_me: WARNING: linux/wireless.h: accepted by the compiler, rejected by the preprocessor!" >&2;}
-    { echo "$as_me:$LINENO: WARNING: linux/wireless.h: proceeding with the preprocessor's result" >&5
-echo "$as_me: WARNING: linux/wireless.h: proceeding with the preprocessor's result" >&2;}
-    (
-      cat <<\_ASBOX
-## ------------------------------------ ##
-## Report this to bug-autoconf@gnu.org. ##
-## ------------------------------------ ##
-_ASBOX
-    ) |
-      sed "s/^/$as_me: WARNING:     /" >&2
-    ;;
-  no:yes )
-    { echo "$as_me:$LINENO: WARNING: linux/wireless.h: present but cannot be compiled" >&5
-echo "$as_me: WARNING: linux/wireless.h: present but cannot be compiled" >&2;}
-    { echo "$as_me:$LINENO: WARNING: linux/wireless.h: check for missing prerequisite headers?" >&5
-echo "$as_me: WARNING: linux/wireless.h: check for missing prerequisite headers?" >&2;}
-    { echo "$as_me:$LINENO: WARNING: linux/wireless.h: proceeding with the preprocessor's result" >&5
-echo "$as_me: WARNING: linux/wireless.h: proceeding with the preprocessor's result" >&2;}
-    (
-      cat <<\_ASBOX
-## ------------------------------------ ##
-## Report this to bug-autoconf@gnu.org. ##
-## ------------------------------------ ##
-_ASBOX
-    ) |
-      sed "s/^/$as_me: WARNING:     /" >&2
-    ;;
-esac
-echo "$as_me:$LINENO: checking for linux/wireless.h" >&5
-echo $ECHO_N "checking for linux/wireless.h... $ECHO_C" >&6
-if test "${ac_cv_header_linux_wireless_h+set}" = set; then
-  echo $ECHO_N "(cached) $ECHO_C" >&6
-else
-  ac_cv_header_linux_wireless_h=$ac_header_preproc
 fi
 echo "$as_me:$LINENO: result: $ac_cv_header_linux_wireless_h" >&5
 echo "${ECHO_T}$ac_cv_header_linux_wireless_h" >&6
-
-fi
 if test $ac_cv_header_linux_wireless_h = yes; then
   wireless=yes
 else
@@ -5796,9 +5617,8 @@ if test $ac_cv_header_pcap_h = yes; then
 cat >>confdefs.h <<\_ACEOF
 #define HAVE_PCAP_H 1
 _ACEOF
-
-else
-  if test "${ac_cv_header_pcap_pcap_h+set}" = set; then
+,
+				if test "${ac_cv_header_pcap_pcap_h+set}" = set; then
   echo "$as_me:$LINENO: checking for pcap/pcap.h" >&5
 echo $ECHO_N "checking for pcap/pcap.h... $ECHO_C" >&6
 if test "${ac_cv_header_pcap_pcap_h+set}" = set; then
@@ -5885,10 +5705,7 @@ echo "${ECHO_T}$ac_header_preproc" >&6
 
 # So?  What about this header?
 case $ac_header_compiler:$ac_header_preproc in
-  yes:no
-fi
-
-
+  yes:no )
     { echo "$as_me:$LINENO: WARNING: pcap/pcap.h: accepted by the compiler, rejected by the preprocessor!" >&5
 echo "$as_me: WARNING: pcap/pcap.h: accepted by the compiler, rejected by the preprocessor!" >&2;}
     { echo "$as_me:$LINENO: WARNING: pcap/pcap.h: proceeding with the preprocessor's result" >&5
@@ -5946,7 +5763,10 @@ echo "$as_me: error: found libpcap but unable to find pcap.h" >&2;}
    { (exit 1); exit 1; }; }
 fi
 
-)
+
+fi
+
+
 
 		# Look for the new PCAP stuff
 		echo "$as_me:$LINENO: checking for pcap_setnonblock in -lpcap" >&5

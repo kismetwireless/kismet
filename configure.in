@@ -1,7 +1,8 @@
 # Process this file with autoconf to produce a configure script.
-AC_INIT(kismet.h)
+AC_INIT
+AC_CONFIG_SRCDIR([kismet.h])
 
-AC_PREREQ(2.13)
+AC_PREREQ(2.57)
 
 # Included pcap directory
 pcapdir="libpcap-2002.12.23"
@@ -164,20 +165,17 @@ fi
 
 # How does accept() work on this system?
 AC_MSG_CHECKING([for accept() addrlen type])
-AC_TRY_LINK([
+AC_LINK_IFELSE([AC_LANG_PROGRAM([[
 		#include <stdio.h>
 		#include <sys/types.h>
 		#include <sys/socket.h>
-		],
-		[
+		]], [[
 		int s;
 		struct sockaddr *addr;
 		socklen_t *addrlen;
 
 		accept(s, addr, addrlen);
-		],
-		accept_socklen=yes,
-		accept_socklen=no)
+		]])],[accept_socklen=yes],[accept_socklen=no])
 if test $accept_socklen = "yes"; then
 	AC_MSG_RESULT([socklen_t])
 	AC_DEFINE(HAVE_SOCKLEN_T, 1, accept() takes type socklen_t for addrlen)
@@ -288,11 +286,12 @@ AC_SUBST(wantnetlink)
 
 if test $wantnetlink = yes; then
 netlink=no
-AC_CHECK_HEADER(linux/netlink.h,
-	AC_DEFINE(HAVE_LINUX_NETLINK, 1, Linux netlink socket capture present) netlink=yes,
-	AC_MSG_WARN(*** Missing Linux netlink headers.  Prism2/orinoco source will not be built. ***))
+AC_CHECK_HEADER([linux/netlink.h],
+	[AC_DEFINE(HAVE_LINUX_NETLINK, 1, Linux netlink socket capture present) netlink=yes],
+	[AC_MSG_WARN([*** Missing Linux netlink headers.  Prism2/orinoco source will not be built. ***])],
+	[#include <linux/socket.h>])
 else
-	AC_MSG_WARN(*** Compiling without Linux netlink headers.  Prism2/orinoco source will not be built. ***)
+	AC_MSG_WARN([*** Compiling without Linux netlink headers.  Prism2/orinoco source will not be built. ***])
 fi
 
 wantwireless=yes
@@ -303,29 +302,27 @@ AC_SUBST(wantwireless)
 
 if test $wantwireless = yes; then
 wireless=no
-AC_CHECK_HEADER(linux/wireless.h,
-	wireless=yes,
-	AC_MSG_WARN(*** Missing Linux Wireless kernel extentions.  Wavelan/generic source will not be built. ***))
+AC_CHECK_HEADER([linux/wireless.h],
+	[wireless=yes],
+	[AC_MSG_WARN([*** Missing Linux Wireless kernel extentions.  Wavelan/generic source will not be built. ***])],
+	[#include <linux/socket.h>])
 else
 	AC_MSG_WARN(*** Compiling without Linux Wireless kernel extentions.  Wavelan/generic source will not be built. ***) 
 fi
 
 if test "$wireless" = "yes"; then
     AC_MSG_CHECKING(that linux/wireless.h is what we expect)
-    AC_TRY_LINK([
+    AC_LINK_IFELSE([AC_LANG_PROGRAM([[
         #include <stdio.h>
 		#include <sys/types.h>
 		#include <netinet/in.h>
         #include <sys/resource.h>
 		#include <linux/wireless.h>
-    ],
-    [
+    ]], [[
 		struct iwreq wrq;
 
 		wrq.u.essid.flags = 0;
-    ],
-    wireless=yes,
-    wireless=no)
+    ]])],[wireless=yes],[wireless=no])
 
 	if test "$wireless" = "no"; then
 		AC_MSG_RESULT(no)
@@ -336,26 +333,23 @@ if test "$wireless" = "yes"; then
 		# Check if we have 22+ (SIOCIWFIRSTPRIV) support
 		wireless22=no
 		AC_MSG_CHECKING(that wireless extentions support SIOCIWFIRSTPRIV)
-    	AC_TRY_LINK([
+    	AC_LINK_IFELSE([AC_LANG_PROGRAM([[
         	#include <stdio.h>
 			#include <sys/types.h>
 			#include <netinet/in.h>
         	#include <sys/resource.h>
 			#include <linux/wireless.h>
-    	],
-    	[
+    	]], [[
 			int x;
 			x = SIOCIWFIRSTPRIV;
-	    ],
-	    wireless22=yes,
-	    wireless22=no)
+	    ]])],[wireless22=yes],[wireless22=no])
 
 		if test "$wireless22" = "no"; then
 			AC_MSG_RESULT(no)
-			AC_MSG_WARN(*** Your wireless extentions version is old.  You may want to consider upgrading.  kismet_hopper will use iwpriv instead of ioctl controls for orinoco cards. ***);
+			AC_MSG_WARN([*** Your wireless extentions version is old.  You may want to consider upgrading.  kismet_hopper will use iwpriv instead of ioctl controls for orinoco cards. ***]);
 		else
 			AC_MSG_RESULT(yes)
-			AC_DEFINE(HAVE_LINUX_WIRELESS22, 1, Linux wireless extentions v22 or better present)
+			AC_DEFINE(HAVE_LINUX_WIRELESS22, 1, [Linux wireless extentions v22 or better present])
 		fi
 
 	fi
@@ -384,10 +378,10 @@ AC_ARG_ENABLE(syspcap,
 		if test $foundsyspcap = yes; then
 		## if we don't have a pcap.h, do a search for pcap/pcap.h
 		AC_CHECK_HEADER([pcap.h],
-			AC_DEFINE(HAVE_PCAP_H, 1, libpcap header), 
+			[AC_DEFINE(HAVE_PCAP_H, 1, libpcap header), 
 				AC_CHECK_HEADER([pcap/pcap.h], 
-					AC_DEFINE(HAVE_PCAP_H, 1, libpcap header) AC_DEFINE(HAVE_PCAPPCAP_H, 1, pcap/pcap.h),
-					AC_MSG_ERROR(found libpcap but unable to find pcap.h)))
+					[AC_DEFINE(HAVE_PCAP_H, 1, libpcap header) AC_DEFINE(HAVE_PCAPPCAP_H, 1, pcap/pcap.h)],
+					AC_MSG_ERROR([found libpcap but unable to find pcap.h]))])
 
 		# Look for the new PCAP stuff
 		AC_CHECK_LIB([pcap], [pcap_setnonblock],
@@ -529,20 +523,17 @@ if test $want_ethereal = yes; then
 	save_libs="$LIBS"
 	LIBS="$LIBS -lz `glib-config --libs glib` -L$ethereal_dir/wiretap -lwiretap"
 
-    AC_TRY_LINK([
+    AC_LINK_IFELSE([AC_LANG_PROGRAM([[
 		#include <stdio.h>
 		#include <sys/types.h>
 		#include <sys/time.h>
 		#include "wtap.h"
-		],
-		[
+		]], [[
 	const char *filename = "autoconf test";
 	int err;
 
 	wtap_open_offline(filename, &err, 0);
-		],
-		wtap_valid=yes,
-		wtap_valid=no)
+		]])],[wtap_valid=yes],[wtap_valid=no])
 
     if test "$wtap_valid" = yes ; then
         AC_MSG_RESULT(yes)
@@ -551,21 +542,18 @@ if test $want_ethereal = yes; then
 		AC_DEFINE(HAVE_LIBZ, 1, Zlib compression library)
 
 		AC_MSG_CHECKING(for wtap_read parameters)
-    	AC_TRY_LINK([
+    	AC_LINK_IFELSE([AC_LANG_PROGRAM([[
         	#include <stdio.h>
 			#include <sys/types.h>
 			#include <netinet/in.h>
       		#include "wtap.h"
-       	],
-        [
+       	]], [[
     		int err;
 			struct wtap *packfile;
 			long *offset;
 
     		wtap_read(packfile, &err, offset);
-        ],
-        wtap_intint=no,
-        wtap_intint=yes)
+        ]])],[wtap_intint=no],[wtap_intint=yes])
 
 		if test "$wtap_intint" = yes ; then
 			AC_MSG_RESULT([struct wtap *, int *, int *])
