@@ -1014,7 +1014,7 @@ int Packetracker::WriteNetworks(string in_fname) {
 
     int netnum = 1;
 
-    sort(network_list.begin(), network_list.end(), SortFirstTimeLT());
+    stable_sort(network_list.begin(), network_list.end(), SortFirstTimeLT());
 
     for (unsigned int i = 0; i < network_list.size(); i++) {
         wireless_network *net = network_list[i];
@@ -1186,10 +1186,10 @@ int Packetracker::WriteCisco(string in_fname) {
          i != bssid_map.end(); ++i)
         bssid_vec.push_back(i->second);
 
-        sort(bssid_vec.begin(), bssid_vec.end(), SortFirstTimeLT());
+        stable_sort(bssid_vec.begin(), bssid_vec.end(), SortFirstTimeLT());
         */
 
-    sort(network_list.begin(), network_list.end(), SortFirstTimeLT());
+    stable_sort(network_list.begin(), network_list.end(), SortFirstTimeLT());
 
     for (unsigned int i = 0; i < network_list.size(); i++) {
         wireless_network *net = network_list[i];
@@ -1316,7 +1316,7 @@ int Packetracker::WriteCSVNetworks(string in_fname) {
          i != bssid_map.end(); ++i)
         bssid_vec.push_back(i->second);
 
-        sort(bssid_vec.begin(), bssid_vec.end(), SortFirstTimeLT());
+        stable_sort(bssid_vec.begin(), bssid_vec.end(), SortFirstTimeLT());
         */
 
     fprintf(netfile, "Network;NetType;ESSID;BSSID;Info;Channel;Cloaked;WEP;Decrypted;MaxRate;MaxSeenRate;Beacon;"
@@ -1324,7 +1324,7 @@ int Packetracker::WriteCSVNetworks(string in_fname) {
             "GPSMinLat;GPSMinLon;GPSMinAlt;GPSMinSpd;GPSMaxLat;GPSMaxLon;GPSMaxAlt;GPSMaxSpd;"
             "GPSBestLat;GPSBestLon;GPSBestAlt;DataSize;IPType;IP;\n\r");
 
-    sort(network_list.begin(), network_list.end(), SortFirstTimeLT());
+    stable_sort(network_list.begin(), network_list.end(), SortFirstTimeLT());
 
     for (unsigned int i = 0; i < network_list.size(); i++) {
         wireless_network *net = network_list[i];
@@ -1537,10 +1537,10 @@ int Packetracker::WriteXMLNetworks(string in_fname) {
          i != bssid_map.end(); ++i)
         bssid_vec.push_back(i->second);
 
-        sort(bssid_vec.begin(), bssid_vec.end(), SortFirstTimeLT());
+        stable_sort(bssid_vec.begin(), bssid_vec.end(), SortFirstTimeLT());
         */
 
-    sort(network_list.begin(), network_list.end(), SortFirstTimeLT());
+    stable_sort(network_list.begin(), network_list.end(), SortFirstTimeLT());
 
     for (unsigned int i = 0; i < network_list.size(); i++) {
         wireless_network *net = network_list[i];

@@ -653,7 +653,7 @@ vector<wireless_network *> TcpClient::FetchNthRecent(unsigned int n) {
     // This is much easier now that we use vectors.  We're already ordered
     // by time since we're inserted in order, so we can just erase...
     // XXX
-    sort(vec.begin(), vec.end(), SortLastTimeLT());
+    stable_sort(vec.begin(), vec.end(), SortLastTimeLT());
 
     int drop = vec.size() - n;
 
@@ -661,7 +661,7 @@ vector<wireless_network *> TcpClient::FetchNthRecent(unsigned int n) {
         vec.erase(vec.begin(), vec.begin() + drop);
     }
 
-    sort(vec.begin(), vec.end(), SortFirstTimeLT());
+    stable_sort(vec.begin(), vec.end(), SortFirstTimeLT());
 
     return vec;
 }

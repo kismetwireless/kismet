@@ -1715,7 +1715,7 @@ void DrawNetHull(vector<gps_network *> in_nets, Image *in_img, DrawInfo *in_di) 
 	for (map<string, hullPoint>::const_iterator i = dim.begin(); i != dim.end(); ++i) {
 		pts.push_back(i->second);
 	}
-	sort(pts.begin(), pts.end());
+	stable_sort(pts.begin(), pts.end());
 
 	//start point for the hull
 	hullPoint start = pts[0];
@@ -1727,7 +1727,7 @@ void DrawNetHull(vector<gps_network *> in_nets, Image *in_img, DrawInfo *in_di) 
 	}
 
 	//sort against angle
-	sort(pts.begin(), pts.end(), hullPoint() );
+	stable_sort(pts.begin(), pts.end(), hullPoint() );
 
 	//build the hull
 	vector<hullPoint> hull;
