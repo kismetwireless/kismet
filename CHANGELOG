@@ -1,4 +1,5 @@
 Jul 11 2003  2.9.1  Fixed initialization of some fields in kis_win in panels
+                    Merged patch from Ron for openbsd APM battery support
 Jul 09 2003  2.9.1  Tweaked configure script to disable pcap and enable viha on
                      OSX installs.
                     Added line wrapping to alerts and status window
