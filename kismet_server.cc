@@ -1353,9 +1353,9 @@ int main(int argc,char *argv[]) {
 
 #ifdef HAVE_SUID
     struct passwd *pwordent;
-    const char *suid_user;
-    uid_t suid_id, real_uid;
-    gid_t suid_gid;
+    const char *suid_user = NULL;
+    uid_t suid_id = 0, real_uid = 0;
+    gid_t suid_gid = 0;
 
     real_uid = getuid();
 
