@@ -2,6 +2,9 @@ Oct 13 2002  2.7    Segfault fix in panel frontend groups, various other minor
                      bugfixes in client and multiserver code.
                     Added control-L to redraw the entire screen in the panels
                      frontend (good for drawing corruption).
+                    Added better searching for related netxml files - gpsmap 
+                     will look in the same directory as the gps file.  This
+                     should make relocating GPS files much easier.
 Oct 12 2002  2.7    Tweaked gpsmap range-circle calculation to use average
                      distances to all network points from the average center.
 Oct 05 2002  2.7    Merged gpsmap by ge0 to allow setting track width
