@@ -1483,6 +1483,13 @@ int monitor_prism54g(const char *in_dev, int initch, char *in_err, void **in_if)
         return -1;
     }
 
+    // Remember monitor header setting if we can
+    if (!Iwconfig_Get_IntPriv(in_dev, "get_prismhdr", &ifparm->prismhdr, in_err) < 0) {
+        // Select AVS monitor header
+        if (Iwconfig_Set_IntPriv(in_dev, "set_prismhdr", 1, 0, in_err) < 0)
+            return -1;
+    }
+
     if ((ifparm->channel = Iwconfig_Get_Channel(in_dev, in_err)) < 0)
         return -1;
 
@@ -1495,6 +1502,11 @@ int monitor_prism54g(const char *in_dev, int initch, char *in_err, void **in_if)
 }
 
 int unmonitor_prism54g(const char *in_dev, int initch, char *in_err, void **in_if) {
+    // Restore initial monitor header
+    linux_ifparm *ifparm = (linux_ifparm *) (*in_if);
+
+    Iwconfig_Set_IntPriv(in_dev, "set_prismhdr", ifparm->prismhdr, 0, in_err);
+
     return unmonitor_wext(in_dev, initch, in_err, in_if);
 }
 
