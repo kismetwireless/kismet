@@ -428,9 +428,11 @@ proto_info GetProtoInfo(const packet_info *in_info, const pkthdr *header, const 
         return ret;
         */
 
-    if (memcmp(in_info->dest_mac, LOR_MAC, sizeof(LOR_MAC)) == 0) {
+    if (memcmp(in_info->dest_mac, LOR_MAC, sizeof(LOR_MAC)) == 0 ||
+        (in_info->distrib == no_distribution && in_info->dest_mac[0] == 1)) {
         // First thing we do is see if the destination matches the multicast for
-        // lucent outdoor routers.
+        // lucent outdoor routers, or if we're a multicast with no BSSID.  This should
+        // be indicative of being a lucent outdoor router
         ret.type = proto_lor;
     } else if (memcmp(&data[in_info->header_offset + LLC_OFFSET], CISCO_SIGNATURE,
                sizeof(CISCO_SIGNATURE)) == 0) {
