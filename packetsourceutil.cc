@@ -394,7 +394,8 @@ int ParseSetChannels(vector<string> *in_sourcechanlines, vector<capturesource *>
         // Lets figure out what card type they are and assign the right thing
         if (cap_seqid_map.find(csrc->name) == cap_seqid_map.end()) {
             if (csrc->cardtype == card_drone || csrc->cardtype == card_unspecified ||
-                csrc->cardtype == card_generic) {
+                csrc->cardtype == card_generic || csrc->cardtype == card_cisco ||
+                csrc->cardtype == card_cisco_cvs) {
                 // non-hopping cap types
                 continue;
             } else if (csrc->cardtype == card_ar5k) {
