@@ -267,7 +267,8 @@ int PanelFront::MainNetworkPrinter(void *in_window) {
     // One:  Get our new data from the clients we have tagged
     for (unsigned int x = 0; x < context_list.size(); x++) {
         if (context_list[x]->tagged == 1 && context_list[x]->client != NULL &&
-            context_list[x]->client->FetchNetworkDirty())
+            (context_list[x]->client->FetchNetworkDirty() ||
+             past_display_vec.size() == 0 || localnets_dirty))
             dirty = 1;
             PopulateGroups(context_list[x]->client);
     }
