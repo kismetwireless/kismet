@@ -54,22 +54,23 @@ supports the WSP100 remote sensor by Network Chemistry.  Kismet is also able to 
 <li>FEATURES
 <br>
 <ul>
-<li>Channel hopping
-<li>IP block detection
+<li>Configurable channel hopping
+<li>IP range detection
 <li>Cisco product detection via CDP
 <li>Ethereal/tcpdump compatable file logging
 <li>Airsnort-compatable "interesting" (cryptographically weak) logging
 <li>Hidden SSID decloaking
-<li>Grouping and custom naming of SSIDs
+<li>Grouping and custom naming of networks
 <li>Multiple clients viewing a single capture stream
 <li>Graphical mapping of data (gpsmap)
 <li>Cross-platform support (handheld linux and BSD)
-<li>Manufacturer identification
+<li>Manufacturer and model identification
 <li>Detection of default access point configurations 
-<li>Detection of Netstumbler clients
+<li>Detection of Netstumbler and Wellenreiter clients
 <li>Runtime decoding of WEP packets
 <li>Multiplexing of multiple capture sources
 <li>802.11b and 802.11a sniffing abilities
+<li>Data export for external layer3 IDS (such as Snort)
 </ul>
 <br>
 
@@ -450,6 +451,14 @@ files use a simple option=value format.<br>
 	Each wepkey line should be the bssid and the hex key, for example:<br>
 	wepkey=00:FE:ED:BE:EF:00,00:11:22:33:44<br>
 	WEP keys can be 5 hex pairs (40-bit) or 13 hex pairs (128-bit)<br>
+	<li>Using an external IDS<br>
+	By configuring a FIFO named pipe (fifo="..." in kismet.conf), Kismet will create the
+	specified pipe and write the data packets to it.  If a packet can be decrypted with a
+	known key, it will be modified and written as an unencrypted packet to the FIFO.<br>
+	External IDS programs (such as Snort) should be instructed to read packets from a file
+	or pipe.<br>
+	When writing packets to a FIFO pipe, Kismet will pause during the startup procedure until
+	an external utility opens the pipe for reading.<br>
 	</ul>
 	<li>kismet_ui.conf<br>
 	kismet_ui.conf controls the behavior of the user interface - colors, columns, default
