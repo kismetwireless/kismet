@@ -160,6 +160,15 @@ int GPSD::Scan() {
         return 0;
     }
 
+    // Blow up on nonsensical values
+    if (finite(lat) == 0 || finite(lon) == 0 || finite(alt) == 0 ||
+        finite(spd) == 0 || spd < 0 || spd > 150) {
+        lat = lon = spd = alt = hed = 0;
+        mode = 0;
+
+        return 0;
+    }
+
     if (last_lat == 0 && last_lon == 0) {
         last_lat = lat;
         last_lon = lon;
