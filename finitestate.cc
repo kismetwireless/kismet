@@ -19,10 +19,13 @@
 #include "config.h"
 
 #include "finitestate.h"
+#include "packetracker.h"
 #include "util.h"
 
-ProbeNoJoinAutomata::ProbeNoJoinAutomata(Alertracker *in_tracker, alert_time_unit in_unit, int in_rate, int in_burstrate) {
-    atracker = in_tracker;
+ProbeNoJoinAutomata::ProbeNoJoinAutomata(Packetracker *in_ptracker, Alertracker *in_atracker,
+                                         alert_time_unit in_unit, int in_rate, int in_burstrate) {
+    atracker = in_atracker;
+    ptracker = in_ptracker;
     alertid = atracker->RegisterAlert("PROBENOJOIN", in_unit, in_rate, in_burstrate);
 }
 
@@ -96,8 +99,10 @@ int ProbeNoJoinAutomata::ProcessPacket(const packet_info *in_info) {
     return 0;
 }
 
-SequenceSpoofAutomata::SequenceSpoofAutomata(Alertracker *in_tracker, alert_time_unit in_unit, int in_rate, int in_burstrate) {
-    atracker = in_tracker;
+SequenceSpoofAutomata::SequenceSpoofAutomata(Packetracker *in_ptracker, Alertracker *in_atracker,
+                                             alert_time_unit in_unit, int in_rate, int in_burstrate) {
+    atracker = in_atracker;
+    ptracker = in_ptracker;
     alertid = atracker->RegisterAlert("SEQUENCESPOOF", in_unit, in_rate, in_burstrate);
 }
 

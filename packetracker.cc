@@ -104,11 +104,11 @@ int Packetracker::EnableAlert(string in_alname, alert_time_unit in_unit,
         // Register airjack SSID alert
         ret = arefs[AIRJACKSSID_AREF] = alertracker->RegisterAlert("AIRJACKSSID", in_unit, in_rate, in_burstrate);
     } else if (lname == "probenojoin") {
-        ProbeNoJoinAutomata *pnja = new ProbeNoJoinAutomata(alertracker, in_unit, in_rate, in_burstrate);
+        ProbeNoJoinAutomata *pnja = new ProbeNoJoinAutomata(this, alertracker, in_unit, in_rate, in_burstrate);
         fsa_vec.push_back(pnja);
         ret = pnja->FetchAlertRef();
     } else if (lname == "sequencespoof") {
-        SequenceSpoofAutomata *sqa = new SequenceSpoofAutomata(alertracker, in_unit, in_rate, in_burstrate);
+        SequenceSpoofAutomata *sqa = new SequenceSpoofAutomata(this, alertracker, in_unit, in_rate, in_burstrate);
         fsa_vec.push_back(sqa);
         ret = sqa->FetchAlertRef();
     } else {
@@ -164,9 +164,39 @@ int Packetracker::Tick() {
     return 1;
 }
 
+inline wireless_network *Packetracker::MatchNetwork(packet_info *info) {
+    map<mac_addr, wireless_network *>::iterator bsmapitr;
+
+    bsmapitr = bssid_map.find(info->bssid_mac);
+
+    // If it's a broadcast (From and To DS == 1) try to match it to an existing network
+    if ((info->type == packet_data && info->subtype == packet_sub_data) &&
+        info->distrib == inter_distribution && bsmapitr == bssid_map.end()) {
+
+        if ((bsmapitr = bssid_map.find(info->source_mac)) != bssid_map.end()) {
+            info->bssid_mac = info->source_mac;
+            bsmapitr = bssid_map.find(info->bssid_mac);
+        } else if ((bsmapitr = bssid_map.find(info->dest_mac)) != bssid_map.end()) {
+            info->bssid_mac = info->dest_mac;
+            bsmapitr = bssid_map.find(info->bssid_mac);
+        }
+
+    } else if (info->type == packet_management && info->subtype == packet_sub_probe_req) {
+        // If it's a probe request, see if we already know who it should belong to
+        if (probe_map.find(info->bssid_mac) != probe_map.end()) {
+            info->bssid_mac = probe_map[info->bssid_mac];
+            bsmapitr = bssid_map.find(info->bssid_mac);
+        }
+    }
+
+    if (bsmapitr != bssid_map.end())
+        return bsmapitr->second;
+
+    return NULL;
+}
+
 void Packetracker::ProcessPacket(packet_info info) {
     wireless_network *net;
-    map<mac_addr, wireless_network *>::iterator bsmapitr;
     char status[STATUS_MAX];
 
     // string bssid_mac;
@@ -190,32 +220,12 @@ void Packetracker::ProcessPacket(packet_info info) {
         return;
     }
 
-    bsmapitr = bssid_map.find(info.bssid_mac);
-
-    // If it's a broadcast (From and To DS == 1) try to match it to an existing network
-    if ((info.type == packet_data && info.subtype == packet_sub_data) &&
-        info.distrib == inter_distribution && bsmapitr == bssid_map.end()) {
-
-        if ((bsmapitr = bssid_map.find(info.source_mac)) != bssid_map.end()) {
-            info.bssid_mac = info.source_mac;
-            bsmapitr = bssid_map.find(info.bssid_mac);
-        } else if ((bsmapitr = bssid_map.find(info.dest_mac)) != bssid_map.end()) {
-            info.bssid_mac = info.dest_mac;
-            bsmapitr = bssid_map.find(info.bssid_mac);
-        }
-
-    } else if (info.type == packet_management && info.subtype == packet_sub_probe_req) {
-        // If it's a probe request, see if we already know who it should belong to
-        if (probe_map.find(info.bssid_mac) != probe_map.end()) {
-            info.bssid_mac = probe_map[info.bssid_mac];
-            bsmapitr = bssid_map.find(info.bssid_mac);
-        }
-    }
+    net = MatchNetwork(&info);
 
     // Find out if we have this network -- Every network that actually
     // gets added has a bssid, so we'll use that to search.  We've filtered
     // everything else out by this point so we're safe to just work off bssid
-    if (bsmapitr == bssid_map.end()) {
+    if (net == NULL) {
         // Make a network for them
         net = new wireless_network;
 
@@ -320,7 +330,6 @@ void Packetracker::ProcessPacket(packet_info info) {
         bssid_map[net->bssid] = net;
 
     } else {
-        net = bssid_map[info.bssid_mac];
         if (net->listed == 0) {
             network_list.push_back(net);
             net->listed = 1;

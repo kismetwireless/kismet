@@ -27,6 +27,9 @@
 #include "kismet_server.h"
 #include "alertracker.h"
 
+// Forward definition for packetracker
+class Packetracker;
+
 // Finite state automata superclass which handles a category of tracking conditions.
 // It's possible that there can be multiple state machines of a single category
 // (ie, tracking multiple potential quesitionable MACs); the FiniteAutomata is
@@ -60,13 +63,15 @@ public:
 
 protected:
     Alertracker *atracker;
+    Packetracker *ptracker;
     int alertid;
 };
 
 // Finite state automata to watch people who probe and never exchange data after an association
 class ProbeNoJoinAutomata : public FiniteAutomata {
 public:
-    ProbeNoJoinAutomata(Alertracker *in_tracker, alert_time_unit in_unit, int in_rate, int in_burstrate);
+    ProbeNoJoinAutomata(Packetracker *in_ptracker, Alertracker *in_atracker,
+                        alert_time_unit in_unit, int in_rate, int in_burstrate);
     ~ProbeNoJoinAutomata();
 
     // States:
@@ -87,7 +92,8 @@ protected:
 // Finite state automata to watch sequence numbers
 class SequenceSpoofAutomata : public FiniteAutomata {
 public:
-    SequenceSpoofAutomata(Alertracker *in_tracker, alert_time_unit in_unit, int in_rate, int in_burstrate);
+    SequenceSpoofAutomata(Packetracker *in_ptracker, Alertracker *in_atracker,
+                          alert_time_unit in_unit, int in_rate, int in_burstrate);
     ~SequenceSpoofAutomata();
 
     int ProcessPacket(const packet_info *in_info);
