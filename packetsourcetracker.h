@@ -81,6 +81,7 @@ typedef struct {
 // has to be able to control sources not opened until user-time
 typedef struct {
     int id;
+    int valid;
 
     // Channel control
     int cmd_ack;

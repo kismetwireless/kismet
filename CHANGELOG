@@ -7,6 +7,8 @@ Jan 13 2003  3.1.0  Added more packet sanitizing.  Most invalid management
                      manufacturer list into the Kismet manuf file.
                     Tweaked mac_map to separate insert and fast_insert
                     Added autogrouping data-only networks
+                    Added validation checks before calling Packetsource::Close,
+                     fixes segfault for invalid pcapfile opens
 Jan 12 2003  3.1.0  Fixed stupid word-transposition in default config, should
                      be channelsplit not splitchannels.
 Jan 10 2003  3.1.0  Started implementing wsp100 snmp calls in new framework

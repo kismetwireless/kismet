@@ -492,6 +492,7 @@ int Packetsourcetracker::ProcessCardList(string in_enableline,
 
             meta_packsource *meta = new meta_packsource;
             meta->id = next_meta_id++;
+            meta->valid = 0;
             meta->cmd_ack = 1;
             meta->prototype = cardtype_map[StrLower(tokens[0])];
             meta->name = tokens[2];
@@ -626,9 +627,12 @@ int Packetsourcetracker::BindSources(int in_root) {
         fprintf(stderr, "Source %d (%s): Opening %s source interface %s...\n",
                 x, meta->name.c_str(), meta->prototype->cardtype.c_str(), meta->device.c_str());
         if (meta->capsource->OpenSource() < 0) {
+            meta->valid = 0;
             snprintf(errstr, 1024, "%s", meta->capsource->FetchError());
             return -1;
         }
+
+        meta->valid = 1;
 
     }
 
@@ -681,7 +685,8 @@ int Packetsourcetracker::CloseSources() {
         meta_packsource *meta = meta_packsources[metc];
       
         // close
-        meta->capsource->CloseSource();
+        if (meta->valid)
+            meta->capsource->CloseSource();
         
         // delete
         delete meta->capsource;
