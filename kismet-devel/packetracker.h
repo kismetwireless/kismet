@@ -163,6 +163,7 @@ protected:
     int deauthflood_aref;
     int lucenttest_aref;
     int wellenreiter_aref;
+    int chanchange_aref;
 
 };
 

@@ -88,6 +88,10 @@ int Packetracker::EnableAlert(string in_alname, alert_time_unit in_unit,
         // register wellenreiter test
         wellenreiter_aref = alertracker->RegisterAlert("WELLENREITER", in_unit, in_rate, in_burstrate);
         ret = wellenreiter_aref;
+    } else if (lname == "chanchange") {
+        // register channel changing
+        chanchange_aref = alertracker->RegisterAlert("CHANCHANGE", in_unit, in_rate, in_burstrate);
+        ret = chanchange_aref;
     } else {
         snprintf(errstr, 1024, "Unknown alert type %s, not processing.", lname.c_str());
         return 0;
@@ -420,6 +424,19 @@ int Packetracker::ProcessPacket(packet_info info, char *in_status) {
 
         // Update the ssid record if we got a beacon for a data network
         if (info.subtype == packet_sub_beacon) {
+            // If we have a beacon for an established AP network and it's not the
+            // right channel, raise an alert.
+
+            if (net->type == network_ap && info.channel != net->channel) {
+                if (alertracker->PotentialAlert(chanchange_aref) > 0) {
+                    snprintf(in_status, STATUS_MAX, "Beacon on %s (%s) for channel %d, network previously detected on channel %d",
+                             net->bssid.Mac2String().c_str(), net->ssid.c_str(),
+                             info.channel, net->channel);
+                    alertracker->RaiseAlert(chanchange_aref, in_status);
+                    ret = TRACKER_ALERT;
+                }
+            }
+
             // If we're updating the network record, update the manufacturer info -
             // if we just "became" an AP or if we've changed channel, we may have
             // changed state as well
