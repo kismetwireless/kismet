@@ -714,8 +714,19 @@ int main(int argc, char *argv[]) {
         if (packet_sources[x]->textpair[0] > max_fd)
             max_fd = packet_sources[x]->textpair[0];
 
+        int8_t child_cmd;
+        // set it as silent if requested
+        child_cmd = CAPCMD_SILENT;
+        if (silent) {
+            if (write(packet_sources[x]->servpair[1], &child_cmd, 1) < 1) {
+                fprintf(stderr, "FATAL: Could not write activate command to source %s.\n",
+                        packet_sources[x]->name.c_str());
+                exit(1);
+            }
+        }
+
         // Activate the source
-        int8_t child_cmd = CAPCMD_ACTIVATE;
+        child_cmd = CAPCMD_ACTIVATE;
         if (write(packet_sources[x]->servpair[1], &child_cmd, 1) < 1) {
             fprintf(stderr, "FATAL: Could not write activate command to source %s.\n",
                     packet_sources[x]->name.c_str());
