@@ -43,7 +43,8 @@ PSO	= configfile.o speech.o packet.o \
 		prism2source.o pcapsource.o wtapfilesource.o wsp100source.o \
 			dronesource.o vihasource.o capturesourceutil.o \
 		wtapdump.o wtaplocaldump.o gpsdump.o airsnortdump.o fifodump.o \
-		gpsd.o packetracker.o manuf.o \
+		gpsd.o manuf.o \
+		packetracker.o timetracker.o \
 		getopt.o \
 		tcpserver.o server_protocols.o server_plugin.o kismet_server.o 
 PS	= kismet_server
@@ -51,6 +52,7 @@ PS	= kismet_server
 DRONEO = configfile.o getopt.o packet.o tcpstreamer.o \
 			prism2source.o pcapsource.o wtapfilesource.o wsp100source.o \
 				dronesource.o vihasource.o capturesourceutil.o \
+			timetracker.o \
 			server_plugin.o gpsd.o kismet_drone.o
 DRONE = kismet_drone
 

@@ -43,6 +43,9 @@
 #include "gpsd.h"
 #include "tcpstreamer.h"
 #include "configfile.h"
+
+#include "timetracker.h"
+
 #include "server_plugin.h"
 
 #ifndef exec_name
@@ -77,7 +80,7 @@ void CatchShutdown(int sig) {
     exit(0);
 }
 
-int GpsEvent(server_timer_event *evt, void *parm) {
+int GpsEvent(TimeTracker::timer_event *evt, void *parm) {
 #ifdef HAVE_GPS
     // The GPS only provides us a new update once per second we might
     // as well only update it here once a second
@@ -515,7 +518,7 @@ int main(int argc, char *argv[]) {
     }
 
     // Update GPS coordinates and handle signal loss if defined
-    RegisterServerTimer(SERVER_TIMESLICES_SEC, NULL, 1, &GpsEvent, NULL);
+    timetracker.RegisterTimer(SERVER_TIMESLICES_SEC, NULL, 1, &GpsEvent, NULL);
 
 #endif
 
@@ -648,8 +651,8 @@ int main(int argc, char *argv[]) {
                             } else
                         if (info.type == packet_phy && phy_stream == 0)
                         continue;
+                        }
                         */
-                    }
 
 #ifdef HAVE_GPS
                     gps.FetchLoc(&lat, &lon, &alt, &spd, &mode);
@@ -677,34 +680,7 @@ int main(int argc, char *argv[]) {
             }
         }
 
-        // Handle scheduled events
-        struct timeval cur_tm;
-        gettimeofday(&cur_tm, NULL);
-        for (map<int, server_timer_event *>::iterator evtitr = timer_map.begin();
-             evtitr != timer_map.end(); ++evtitr) {
-            server_timer_event *evt = evtitr->second;
-
-            if ((evt->trigger_tm.tv_sec < cur_tm.tv_sec) ||
-                (evt->trigger_tm.tv_sec == cur_tm.tv_sec &&
-                 evt->trigger_tm.tv_usec < cur_tm.tv_usec)) {
-
-                // Call the function with the given parameters
-                int ret;
-                ret = (*evt->callback)(evt, evt->callback_parm);
-
-                if (ret > 0 && evt->timeslices != -1 && evt->recurring) {
-                    evt->schedule_tm.tv_sec = cur_tm.tv_sec;
-                    evt->schedule_tm.tv_usec = cur_tm.tv_usec;
-                    evt->trigger_tm.tv_sec = evt->schedule_tm.tv_sec + (evt->timeslices / 10);
-                    evt->trigger_tm.tv_usec = evt->schedule_tm.tv_usec + (evt->timeslices % 10);
-                } else {
-                    delete evt;
-                    timer_map.erase(evtitr);
-                }
-
-            }
-
-        }
+        timetracker.Tick();
 
     }
 
