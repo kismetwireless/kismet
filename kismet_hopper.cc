@@ -46,6 +46,10 @@ typedef struct capturesource {
 #define prism2_hostap "iwconfig %s channel %d"
 #define orinoco "iwpriv %s monitor 1 %d"
 
+// This one is nonstandard, but then, the wsp100 is in general.  We push channelhop, channel mask,
+// and hop speed then stop
+#define wsp100 "snmpset -c public %s .1.3.6.1.4.1.14422.1.3.13 i 1 .1.3.6.1.4.1.14422.1.3.15 i %d .1.3.6.1.4.1.14422.1.3.14 i %ld"
+
 #define pidpath "/var/run/kismet_hopper.pid"
 #define conpath "/tmp/kismet_hopper.control"
 
@@ -230,6 +234,22 @@ int main(int argc, char *argv[]) {
 
     string sourceopt;
 
+    if (freq == 0) {
+        fprintf(stderr, "No point in hopping 0 channels.  Setting velocity to 1.\n");
+        freq = 3;
+    } else if (freq > 10) {
+        if (freq > 100) {
+            fprintf(stderr, "Cannot hop more than 100 channels per second, setting velocity to 100\n");
+            freq = 100;
+        } else {
+            fprintf(stderr, "WARNING: Velocities over 10 are not reccomended and may cause problems.\n");
+        }
+    }
+
+    interval = 1000000 / freq;
+    fprintf(stderr, "Hopping %d channel%sper second (%ld microseconds per channel)\n",
+            freq, freq > 1 ? "s " : " ", interval);
+
     // Read the config file if we didn't get any sources on the command line
     if (source_input_vec.size() == 0) {
         int sourcenum = 0;
@@ -297,6 +317,44 @@ int main(int argc, char *argv[]) {
         } else if (!strcasecmp(type, "orinoco")) {
             packet_sources[src]->cmd_template = orinoco;
             divisions++;
+        } else if (!strcasecmp(type, "wsp100")) {
+            // We just process this one immediately - it's annoying that it's a special
+            // case, but it's so different from anything else...
+
+            fprintf(stderr, "NOTICE:  Source %d: Setting wsp100 hopping immediately.\n", src);
+
+            // Convert the channels into a bitmap
+            int chans = 0;
+            int chind = 0;
+            while (chanlist[chind] != -1)
+                chans |= ( 1 << chind++ );
+
+            char cmd[1024];
+            char iface[64];
+
+            if (sscanf(packet_sources[src]->interface, "%64[^:]:", iface) < 1) {
+                fprintf(stderr, "FATAL:  Source %d: Could not parse host from interface.\n", src);
+                exit(0);
+            }
+
+            snprintf(cmd, 1024, wsp100, iface, chans, (interval/100));
+
+            FILE *pgsock;
+
+            if ((pgsock = popen(cmd, "r")) < 0) {
+                fprintf(stderr, "Fatal:  Source %d: Could not popen ``%s''.  Aborting.\n", src, cmd);
+                exit(0);
+            }
+
+            pclose(pgsock);
+
+            // Exit if we only have this one thing
+            if (source_input_vec.size() == 1) {
+                fprintf(stderr, "NOTICE:  Terminating hopper after setting hop modes on wsp100.  No other devices.\n");
+                exit(0);
+            }
+
+            packet_sources[src]->cmd_template = NULL;
         } else {
             fprintf(stderr, "FATAL: Source %d: Unknown card type '%s'.\n", src, type);
             exit(1);
@@ -324,22 +382,6 @@ int main(int argc, char *argv[]) {
     signal(SIGHUP, CatchShutdown);
     signal(SIGPIPE, SIG_IGN);
 
-    if (freq == 0) {
-        fprintf(stderr, "No point in hopping 0 channels.  Setting velocity to 1.\n");
-        freq = 3;
-    } else if (freq > 10) {
-        if (freq > 100) {
-            fprintf(stderr, "Cannot hop more than 100 channels per second, setting velocity to 100\n");
-            freq = 100;
-        } else {
-            fprintf(stderr, "WARNING: Velocities over 10 are not reccomended and may cause problems.\n");
-        }
-    }
-
-    interval = 1000000 / freq;
-    fprintf(stderr, "Hopping %d channel%sper second (%ld microseconds per channel)\n",
-            freq, freq > 1 ? "s " : " ", interval);
-
     if (divide && divisions > 1) {
         int nchannels = 0;
         while (chanlist[nchannels++] != -1) ;
@@ -366,6 +408,9 @@ int main(int argc, char *argv[]) {
         }
 
         for (unsigned int src = 0; src < packet_sources.size(); src++) {
+            if (packet_sources[src] == NULL)
+                continue;
+
             capturesource *csrc = packet_sources[src];
             snprintf(cmd, 1024, csrc->cmd_template, csrc->interface, chanlist[csrc->chanpos++]);
 
@@ -373,7 +418,7 @@ int main(int argc, char *argv[]) {
                 csrc->chanpos = 0;
 
             if ((pgsock = popen(cmd, "r")) < 0) {
-                fprintf(stderr, "Could not popen ``%s''.  Aborting.\n", cmd);
+                fprintf(stderr, "FATAL:  Source %d: Could not popen ``%s''.  Aborting.\n", src, cmd);
                 exit(0);
             }
 
