@@ -232,7 +232,7 @@ int chancontrol_viha(const char *in_dev, int in_ch, char *in_err, void *in_ext) 
     // hook into the instance to change channel.  This is really not good, but 
     // I can't figure out how to avoid it.  This is the only source type we have
     // to do this for, but it makes us change the code for all of them.
-    ((VihaSource *) in_ext)->LocalSetChannel(in_ch, in_err);
+    return ((VihaSource *) in_ext)->LocalSetChannel(in_ch, in_err);
 }
 
 #endif
