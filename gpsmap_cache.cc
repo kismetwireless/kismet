@@ -240,7 +240,7 @@ int WriteGpsCacheFile(const char *in_gpsfname,
         if (mkdir(cachefname, S_IRUSR | S_IWUSR | S_IXUSR) < 0) {
             fprintf(stderr, "FATAL: Could not make cache dir, %s\n",
                     strerror(errno));
-            exit(1);
+            return -1;
         }
     }
     
@@ -278,7 +278,8 @@ int WriteGpsCacheFile(const char *in_gpsfname,
         gzclose(cachefile);
         fprintf(stderr, "FATAL:  Error writing to cache %s: %s\n",
                 cachefname, strerror(errno));
-        exit(1);
+        unlink(cachefname);
+        return -1;
     }
 #else
     if (fwrite(&fheader, sizeof(gpscache_header), 1, cachefile) < 
@@ -286,7 +287,8 @@ int WriteGpsCacheFile(const char *in_gpsfname,
         fclose(cachefile);
         fprintf(stderr, "FATAL:  Error writing to cache %s: %s\n",
                 cachefname, strerror(errno));
-        exit(1);
+        unlink(cachefname);
+        return -1;
     }
 #endif
 
@@ -323,6 +325,7 @@ int WriteGpsCacheFile(const char *in_gpsfname,
             gzclose(cachefile);
             fprintf(stderr, "FATAL:  Error writing to cache %s: %s\n",
                     cachefname, strerror(errno));
+            unlink(cachefname);
             return -1;
         }
 #else
@@ -331,6 +334,7 @@ int WriteGpsCacheFile(const char *in_gpsfname,
             fclose(cachefile);
             fprintf(stderr, "FATAL:  Error writing to cache %s: %s\n",
                     cachefname, strerror(errno));
+            unlink(cachefname);
             return -1;
         }
 #endif
@@ -360,6 +364,7 @@ int WriteGpsCacheFile(const char *in_gpsfname,
             gzclose(cachefile);
             fprintf(stderr, "FATAL:  Error writing to cache %s: %s\n",
                     cachefname, strerror(errno));
+            unlink(cachefname);
             return -1;
         }
 #else
@@ -368,6 +373,7 @@ int WriteGpsCacheFile(const char *in_gpsfname,
             fclose(cachefile);
             fprintf(stderr, "FATAL:  Error writing to cache %s: %s\n",
                     cachefname, strerror(errno));
+            unlink(cachefname);
             return -1;
         }
 #endif
