@@ -1,6 +1,8 @@
 Jul 21 2003  2.9.1  Added gpsmodelock config file option to override a gps lock
                      of 0.  This will override broken GPS units that always 
                      report no lock via gpsd.
+                    Added heading support for GPS units with magnetic compasses.
+                     This requires a patched gpsd, patch is in extra/
 Jul 20 2003  2.9.1  Revamped how GPS is handled, should fix problems of it
                      losing locks constantly.
 Jul 17 2003  2.9.1  Added full 802.11a channel list to kismet.conf

@@ -1,0 +1,83 @@
+diff -ur gpsdrive-1.32/src/gpsd.c gpsdrive-1.32-heading/src/gpsd.c
+--- gpsdrive-1.32/src/gpsd.c	2003-01-23 06:05:34.000000000 -0800
++++ gpsdrive-1.32-heading/src/gpsd.c	2003-07-21 11:47:53.000000000 -0700
+@@ -663,6 +663,10 @@
+ 	      sprintf (reply + strlen (reply), ",R=1");
+ 	    }
+ 	  break;
++	case 'H':
++	case 'h':
++	  sprintf (reply + strlen (reply), ",H=%.5f", gNMEAdata.heading);
++	  break;
+ 	case 'S':
+ 	case 's':
+ 	  sprintf (reply + strlen (reply), ",S=%d", gNMEAdata.status);
+diff -ur gpsdrive-1.32/src/nmea.h gpsdrive-1.32-heading/src/nmea.h
+--- gpsdrive-1.32/src/nmea.h	2002-09-25 03:04:52.000000000 -0700
++++ gpsdrive-1.32-heading/src/nmea.h	2003-07-18 19:52:25.000000000 -0700
+@@ -4,6 +4,7 @@
+ #define GPGSA "GPGSA"
+ #define GPGSV "GPGSV"
+ #define GPRMC "GPRMC"
++#define HCHDG "HCHDG"
+ #define PRWIZCH "PRWIZCH"
+ 
+ struct OUTDATA {
+@@ -76,6 +77,8 @@
+     int seen[12];
+ 
+     int valid[12];		/* signal valid */
++
++    double heading; 
+ };
+ 
+ #define C_LATLON	1
+@@ -84,6 +87,7 @@
+ 
+ /* prototypes */
+ extern void doNMEA(short refNum);
++extern void processHCHDG(char *sentence);
+ extern void processGPRMC(char *sentence);
+ extern void processGPGGA(char *sentence);
+ extern void processGPGSV(char *sentence);
+diff -ur gpsdrive-1.32/src/nmea_parse.c gpsdrive-1.32-heading/src/nmea_parse.c
+--- gpsdrive-1.32/src/nmea_parse.c	2002-09-25 03:04:52.000000000 -0700
++++ gpsdrive-1.32-heading/src/nmea_parse.c	2003-07-19 14:27:19.000000000 -0700
+@@ -14,6 +14,25 @@
+ #endif
+ /* ----------------------------------------------------------------------- */
+ 
++
++/* HCHDG format:
++ * $HCHDG,heading,<no data>,<no data>,deviation
++ * sentence = 'HCHDG,51.8,,,13.0,E*27'
++ */
++void processHCHDG(char *sentence) {
++   int    i, rv;
++   double heading;
++
++   rv = sscanf( field( sentence, 1 ), "%lg", &heading );
++   if( rv != 1 ) {
++      return; /* don't set anything */
++   }
++
++   gNMEAdata.heading = heading;
++
++   return;
++}
++
+ /*
+    The time field in the GPRMC sentence is in the format hhmmss;
+    the date field is in the format ddmmyy. The output will
+diff -ur gpsdrive-1.32/src/tm.c gpsdrive-1.32-heading/src/tm.c
+--- gpsdrive-1.32/src/tm.c	2002-06-28 17:23:18.000000000 -0700
++++ gpsdrive-1.32-heading/src/tm.c	2003-07-19 14:08:25.000000000 -0700
+@@ -27,6 +27,8 @@
+     if (checksum(sentence)) {
+ 	if (strncmp(GPRMC, sentence, 5) == 0) {
+ 	    processGPRMC(sentence);
++	} else if (strncmp(HCHDG, sentence, 5) == 0) {
++	    processHCHDG(sentence);
+ 	} else if (strncmp(GPGGA, sentence, 5) == 0) {
+ 	    processGPGGA(sentence);
+ 	} else if (strncmp(GPGSA, sentence, 5) == 0) {

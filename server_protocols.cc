@@ -81,7 +81,7 @@ char *TERMINATE_fields_text[] = {
 };
 
 char *GPS_fields_text[] = {
-    "lat", "lon", "alt", "spd", "fix",
+    "lat", "lon", "alt", "spd", "heading", "fix",
     NULL
 };
 
@@ -260,6 +260,9 @@ int Protocol_GPS(PROTO_PARMS) {
             break;
         case GPS_spd:
             out_string += gdata->spd;
+            break;
+        case GPS_heading:
+            out_string += gdata->heading;
             break;
         case GPS_fix:
             out_string += gdata->mode;

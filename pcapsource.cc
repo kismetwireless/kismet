@@ -205,7 +205,7 @@ int PcapSource::Pcap2Common(kis_packet *packet, uint8_t *data, uint8_t *moddata)
 
     if (gpsd != NULL) {
         gpsd->FetchLoc(&packet->gps_lat, &packet->gps_lon, &packet->gps_alt,
-                       &packet->gps_spd, &packet->gps_fix);
+                       &packet->gps_spd, &packet->gps_heading, &packet->gps_fix);
     }
 
     // Get the power from the datalink headers if we can, otherwise use proc/wireless

@@ -203,6 +203,7 @@ void GetPacketInfo(kis_packet *packet, packet_parm *parm, packet_info *ret_packi
     ret_packinfo->gps_lon = packet->gps_lon;
     ret_packinfo->gps_alt = packet->gps_alt;
     ret_packinfo->gps_spd = packet->gps_spd;
+    ret_packinfo->gps_heading = packet->gps_heading;
     ret_packinfo->gps_fix = packet->gps_fix;
 
     // Assign a hardware channel if we're on an 802.11a carrier since the beacon doesn't

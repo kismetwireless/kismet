@@ -22,6 +22,7 @@
 			  lon CDATA "0.00"
 			  alt CDATA "0.00"
               spd CDATA "0.00"
+			  heading CDATA "0.00"
               fix CDATA "0"
               signal CDATA "0"
               quality CDATA "0"

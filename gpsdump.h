@@ -60,6 +60,7 @@ typedef struct {
     float lon;
     float alt;
     float spd;
+    float heading;
 
     int fix;
 

@@ -118,7 +118,7 @@ enum TERMINATE_fields {
 };
 
 enum GPS_fields {
-    GPS_lat, GPS_lon, GPS_alt, GPS_spd, GPS_fix
+    GPS_lat, GPS_lon, GPS_alt, GPS_spd, GPS_heading, GPS_fix
 };
 
 enum INFO_fields {
@@ -169,7 +169,7 @@ typedef struct KISMET_data {
 };
 
 typedef struct GPS_data {
-    string lat, lon, alt, spd, mode;
+    string lat, lon, alt, spd, heading, mode;
 };
 
 typedef struct INFO_data {

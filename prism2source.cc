@@ -150,7 +150,7 @@ int Prism2Source::Prism2Common(kis_packet *packet, uint8_t *data, uint8_t *modda
 
     if (gpsd != NULL) {
         gpsd->FetchLoc(&packet->gps_lat, &packet->gps_lon, &packet->gps_alt,
-                       &packet->gps_spd, &packet->gps_fix);
+                       &packet->gps_spd, &packet->gps_heading, &packet->gps_fix);
     }
 
     packet->caplen = kismin(sniff_info->frmlen.data, (uint32_t) MAX_PACKET_LEN);
