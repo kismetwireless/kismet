@@ -279,7 +279,7 @@ int TcpClient::ParseData(char *in_data) {
         } else {
             net = new wireless_network;
             net->bssid = bssid;
-            net->client = this;
+            net->tcpclient = this;
             net_map[bssid] = net;
             net_map_vec.push_back(net);
             last_new_network = net;
@@ -358,6 +358,8 @@ int TcpClient::ParseData(char *in_data) {
         client->maxrate = maxrate;
 
         client->manuf_key = manuf_str;
+
+        client->tcpclient = this;
 
         for (unsigned int x = 0; x < 4; x++)
             client->ipdata.ip[x] = ip[x];
