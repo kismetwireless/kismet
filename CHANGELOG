@@ -1,3 +1,5 @@
+Oct 13 2002  2.7    Segfault fix in panel frontend groups, various other minor
+                     bugfixes in client and multiserver code.
 Oct 12 2002  2.7    Tweaked gpsmap range-circle calculation to use average
                      distances to all network points from the average center.
 Oct 05 2002  2.7    Merged gpsmap by ge0 to allow setting track width

@@ -36,6 +36,7 @@ char *KismetHelpText[] = {
     "   g   Group tagged networks",
     "   u   Ungroup current group",
     "   c   Show clients in current network",
+    "  ^L   Force a screen redraw.",
     "",
     "POPUP WINDOWS",
     "   h   Help (What you're looking at now)",
@@ -890,6 +891,21 @@ int PanelFront::Poll() {
 
     if ((ch = wgetch(cur_window->win)) == ERR)
         return 0;
+
+    // fprintf(stderr, "Got: %d (%c)\n", ch, ch);
+
+    // Catch the redraw event ^L
+    if (ch == 12) {
+        fprintf(stderr, "We got a refresh key...\n");
+        for (list<kis_window *>::iterator x = window_list.begin();
+             x != window_list.end(); ++x) {
+            kis_window *kwin = *x;
+
+            redrawwin(kwin->win);
+
+            return 0;
+        }
+    }
 
     int ret;
     ret = (this->*cur_window->input)(cur_window, ch);

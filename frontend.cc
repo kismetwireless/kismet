@@ -127,7 +127,7 @@ void Frontend::PopulateGroups(TcpClient *in_client) {
 
 void Frontend::UpdateGroups() {
     list<display_network *> discard;
-    time_t curtime = time(0);
+    time_t curtime = 0;
 
     for (unsigned int x = 0; x < group_vec.size(); x++) {
         display_network *dnet = group_vec[x];
@@ -142,6 +142,10 @@ void Frontend::UpdateGroups() {
         // or if, somehow, we're a subhost
         if (dnet->type == group_host || dnet->type == group_sub) {
             dnet->virtnet = *dnet->networks[0];
+
+            curtime = dnet->virtnet.tcpclient->FetchTime();
+
+            dnet->virtnet.idle_time = curtime - dnet->virtnet.last_time;
 
             dnet->virtnet.client_vec.clear();
             for (map<mac_addr, wireless_client *>::iterator cli = dnet->virtnet.client_map.begin();
@@ -170,7 +174,6 @@ void Frontend::UpdateGroups() {
                 dnet->virtnet.quality = 0;
                 dnet->virtnet.noise = 0;
             }
-
 
             continue;
         }
@@ -209,10 +212,14 @@ void Frontend::UpdateGroups() {
 
         dnet->virtnet.client_vec.clear();
 
+        dnet->virtnet.idle_time = 0;
+
         unsigned int bssid_matched = MAC_LEN;
 
         for (unsigned int y = 0; y < dnet->networks.size(); y++) {
             wireless_network *wnet = dnet->networks[y];
+
+            curtime = wnet->tcpclient->FetchTime();
 
             // Mask the bssid out
             for (unsigned int mask = 0; mask < bssid_matched; mask++) {
@@ -229,6 +236,10 @@ void Frontend::UpdateGroups() {
             // If we don't have beacon info, get the first one we encounter
             if (dnet->virtnet.beacon_info == "" && wnet->beacon_info != "")
                 dnet->virtnet.beacon_info = wnet->beacon_info;
+
+            if ((curtime - wnet->last_time) < dnet->virtnet.idle_time ||
+                dnet->virtnet.idle_time == 0)
+                dnet->virtnet.idle_time = curtime - wnet->last_time;
 
             // Take the highest overall signal and power levels.  Noise just
             // tags along for the ride.  Only do this if the network has been touched
