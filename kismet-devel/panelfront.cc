@@ -1281,8 +1281,8 @@ int PanelFront::Tick() {
                     else
                         bat_ac = 0;
                 }
+                fclose(acad);
             }
-            fclose(acad);
 
             while (batteries != NULL && ((info_timer % info_res) == 0) && ((this_battery = readdir(batteries)) != NULL)) {
                 if (this_battery->d_name[0] == '.')
