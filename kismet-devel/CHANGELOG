@@ -1,3 +1,4 @@
+Jan 31 2004  3.1.0  wlanng no longer depends on wireless extentions
 Jan 28 2004  3.1.0  Panels client now scrolls to next network after tagging
                     Fixed changelog dates (Thanks Alexander...)
                     Added a dirty flag to tcpclient networks listing to save
