@@ -113,10 +113,28 @@ SequenceSpoofAutomata::~SequenceSpoofAutomata() {
 int SequenceSpoofAutomata::ProcessPacket(const packet_info *in_info) {
     // Only sequence-track beacons (for now)
     int ret = 0;
-    /*
-    if (in_info->type != packet_management && in_info->subtype != packet_sub_beacon)
+    char atext[STATUS_MAX];
+
+    if (in_info->type != packet_management || in_info->subtype != packet_sub_beacon)
         return 0;
 
+    // See if we know about this network
+    wireless_network *net = ptracker->MatchNetwork(in_info);
+
+    if (net != NULL) {
+        // If we found a network for this packet, see if it's got a sequence mismatch.
+        // remember we modulo the sequence by 4096, so we won't worry about a sequence drop
+        // if the network used to be near the wraparound
+        if (net->last_sequence < 4000 && net->last_sequence != 0 &&
+            (in_info->sequence_number < net->last_sequence)) {
+            snprintf(atext, STATUS_MAX, "Suspicious sequence change - %s %d to %d.  Possible spoof attempt.",
+                     net->bssid.Mac2String().c_str(), net->last_sequence, in_info->sequence_number);
+            atracker->RaiseAlert(alertid, atext);
+        }
+
+    }
+
+    /*
     // Try to match the mac addr to an existing network
     map<mac_adder, _fsa_element *>::iterator iter;
 

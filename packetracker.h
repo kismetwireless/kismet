@@ -72,7 +72,7 @@ public:
     // Get all the networks
     vector<wireless_network *> FetchNetworks();
 
-    inline wireless_network *MatchNetwork(packet_info *in_packet);
+    inline wireless_network *MatchNetwork(const packet_info *in_packet);
 
     int WriteNetworks(string in_fname);
     int WriteCSVNetworks(string in_fname);
