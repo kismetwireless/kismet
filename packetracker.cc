@@ -106,9 +106,6 @@ int Packetracker::ProcessPacket(packet_info info, char *in_status) {
         // We unceremoniously junk phy layer packets for now too
         num_dropped++;
         return(0);
-    } else if (info.bssid_mac.longmac == 0) {
-        num_dropped++;
-        return(0);
     }
 
     bsmapitr = bssid_map.find(info.bssid_mac);
