@@ -1,3 +1,10 @@
+Jan 26 2003  2.8.1  Released 2.8.1 with bugfixes and updates, including:
+                     802.11a support
+                     XML Updates
+                     GPSMap updates
+                     Speech/Sound updates
+                     Speech shellcode security updates
+
 Jan 26 2003  2.9.0  Updated manufacturer files with latest unbolted.net info
 Jan 22 2003  2.9.0  Hopefully nipped speech/sound doubling bug.
                     Happy linux world!
