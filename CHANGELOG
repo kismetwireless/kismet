@@ -1,3 +1,7 @@
+Jan 17 2005  devel  Updated ipkg spec
+                    Changed configure to accept --with-linuxheaders for 
+                     cross-compiling with a different kernel header path
+                     than the current /lib/modules/...
 Jan 13 2005 2005-01 Released 2005-01-R1.  Not the major rewrite yet, sorry,
                     pushed out for the CHIP magazine CD.  Minor bugfixes and 
                     general updates:

@@ -870,6 +870,7 @@ Optional Features:
 Optional Packages:
   --with-PACKAGE[=ARG]    use PACKAGE [ARG=yes]
   --without-PACKAGE       do not use PACKAGE (same as --with-PACKAGE=no)
+  --with-linuxheaders=DIR     Custom location of the Linux kernel headers
   --with-ethereal=DIR     support ethereal wiretap for replaying logs
   --without-ethereal        disable support for ethereal wiretap]
 
@@ -6074,6 +6075,25 @@ _ACEOF
 #fi
 
 
+# Check whether --with-linuxheaders or --without-linuxheaders was given.
+if test "${with_linuxheaders+set}" = set; then
+  withval="$with_linuxheaders"
+
+    if test $withval = no; then
+        CPPFLAGS="$CPPFLAGS -I/lib/modules/$(uname -r)/build/include/"
+    elif test $withval = yes; then
+        CPPFLAGS="$CPPFLAGS -I/lib/modules/$(uname -r)/build/include/"
+    else
+        CPPFLAGS="$CPPFLAGS -I$withval"
+        custom_headerloc = $withval
+    fi
+
+else
+
+        CPPFLAGS="$CPPFLAGS -I/lib/modules/$(uname -r)/build/include/"
+
+fi;
+
 # Check whether --enable-netlink or --disable-netlink was given.
 if test "${enable_netlink+set}" = set; then
   enableval="$enable_netlink"
@@ -6223,12 +6243,6 @@ echo "$as_me: WARNING: *** Compiling without Linux Wireless kernel extentions.  
 fi
 
 if test "$wireless" = "yes"; then
-    # If we're compiling under linux and we need the wireless extentions,
-    # then we should try to look in the current kernel module build dir, too.
-    if test "$linux" = "yes"; then
-        CPPFLAGS="$CPPFLAGS -I/lib/modules/$(uname -r)/build/include/"
-    fi
-
     echo "$as_me:$LINENO: checking that linux/wireless.h is what we expect" >&5
 echo $ECHO_N "checking that linux/wireless.h is what we expect... $ECHO_C" >&6
     cat >conftest.$ac_ext <<_ACEOF

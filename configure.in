@@ -324,6 +324,20 @@ AC_DEFINE(HAVE_GPS, 1, GPS support will be built.)
 #	AC_DEFINE(HAVE_GPS, 1, GPS support will be built.)
 #fi
 
+AC_ARG_WITH(linuxheaders,
+[  --with-linuxheaders[=DIR]     Custom location of the Linux kernel headers ],
+[
+    if test $withval = no; then
+        CPPFLAGS="$CPPFLAGS -I/lib/modules/$(uname -r)/build/include/"   
+    elif test $withval = yes; then
+        CPPFLAGS="$CPPFLAGS -I/lib/modules/$(uname -r)/build/include/"   
+    else
+        CPPFLAGS="$CPPFLAGS -I$withval"   
+        custom_headerloc = $withval
+    fi
+],[
+        CPPFLAGS="$CPPFLAGS -I/lib/modules/$(uname -r)/build/include/"   
+])
 
 AC_ARG_ENABLE(netlink, [  --disable-netlink       disable linux netlink socket capture],,wantnetlink=yes)
 AC_SUBST(wantnetlink)
@@ -353,12 +367,6 @@ else
 fi
 
 if test "$wireless" = "yes"; then
-    # If we're compiling under linux and we need the wireless extentions,
-    # then we should try to look in the current kernel module build dir, too.
-    if test "$linux" = "yes"; then
-        CPPFLAGS="$CPPFLAGS -I/lib/modules/$(uname -r)/build/include/"   
-    fi
-
     AC_MSG_CHECKING(that linux/wireless.h is what we expect)
     AC_LINK_IFELSE([AC_LANG_PROGRAM([[
         #include <stdio.h>
