@@ -678,6 +678,9 @@ int Packetracker::ProcessDataPacket(packet_info info, wireless_network *net, cha
             char turbossid[32];
             snprintf(turbossid, 32, "Turbocell: %d %s", info.turbocell_nid, info.ssid);
             net->ssid = turbossid;
+            net->turbocell_mode = info.turbocell_mode;
+            net->turbocell_sat = info.turbocell_sat;
+            net->turbocell_nid = info.turbocell_nid;
         } else {
             net->ssid = "Turbocell: Unknown";
         }
