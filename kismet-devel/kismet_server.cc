@@ -714,6 +714,7 @@ int Usage(char *argv) {
 int main(int argc,char *argv[]) {
     exec_name = argv[0];
 
+    client_command cmd;
     int sleepu = 0;
     time_t last_draw = time(0);
     time_t last_write = time(0);
@@ -1844,8 +1845,7 @@ int main(int argc,char *argv[]) {
         }
 
 	for(x = 0; x <= max_fd; ++x) {
-            client_command cmd;
-            if (ui_server.HandleClient(x, &cmd, &rset, &wset)) {
+            if (ui_server.isClient(x) && ui_server.HandleClient(x, &cmd, &rset, &wset)) {
                 handle_command(&ui_server, &cmd);
             }
 	}
@@ -2124,5 +2124,3 @@ int main(int argc,char *argv[]) {
 
     CatchShutdown(-1);
 }
-
-
