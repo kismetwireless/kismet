@@ -61,11 +61,19 @@ void MungeToPrintable(char *in_data, int max) {
 
 // Returns a pointer in the data block to the size byte of the desired
 // tag.
-int GetTagOffset(int init_offset, int tagnum, const pkthdr *header, const u_char *data) {
+int GetTagOffset(int init_offset, int tagnum, const pkthdr *header,
+                 const u_char *data, map<int, int> *tag_cache_map) {
     int cur_tag = 0;
     // Initial offset is 36, that's the first tag
     int cur_offset = init_offset;
     uint8_t len;
+
+    // If we've found the tag before when we were going through looking
+    // for something else, return it directly.
+    map<int, int>::iterator itr = tag_cache_map->find(tagnum);
+    if (itr != tag_cache_map->end()) {
+        return itr->second;
+    }
 
     while (1) {
         // Are we over the packet length?
@@ -75,6 +83,9 @@ int GetTagOffset(int init_offset, int tagnum, const pkthdr *header, const u_char
 
         // Read the tag we're on and bail out if we're done
         cur_tag = (int) data[cur_offset];
+
+        (*tag_cache_map)[cur_tag] = cur_offset + 1;
+
         if (cur_tag == tagnum) {
             cur_offset++;
             break;
@@ -133,7 +144,9 @@ void GetPacketInfo(const pkthdr *header, const u_char *data,
     // Temp pointer into the packet guts
     uint8_t temp;
 
+    // We'll set these manually as we go
     ret_packinfo->type = packet_unknown;
+    ret_packinfo->subtype = packet_sub_unknown;
     ret_packinfo->distrib = no_distribution;
 
     // Raw test to see if it's just noise
@@ -142,9 +155,9 @@ void GetPacketInfo(const pkthdr *header, const u_char *data,
         return;
     }
 
-    // If we don't even have enough to make up an 802.11 frame, bail
-    // as a garbage packet
-    if (header->len < 24) {
+    // If we don't have enough to make up an 802.11 frame and we're not a PHY layer frame,
+    // count us as noise and bail
+    if (header->len < 24 && fc->type != 1) {
         ret_packinfo->type = packet_noise;
         return;
     }
@@ -175,144 +188,98 @@ void GetPacketInfo(const pkthdr *header, const u_char *data,
         }
         fixed_parameters *fixparm = (fixed_parameters *) &msgbuf[24];
 
+        ret_packinfo->type = packet_management;
+
+        ret_packinfo->wep = fixparm->wep;
+        ret_packinfo->ess = fixparm->ess;
+
+        map<int, int> tag_cache_map;
+
+        // Extract various tags from the packet
+        if ((tag_offset = GetTagOffset(36, 0, header, data, &tag_cache_map)) > 0) {
+            temp = (msgbuf[tag_offset] & 0xFF) + 1;
+            // Protect against malicious packets
+            if (temp <= 32 && tag_offset + 1 + temp < (int) header->len) {
+                snprintf(ret_packinfo->ssid, temp, "%s", &msgbuf[tag_offset+1]);
+                // Munge it down to printable characters... SSID's can be anything
+                // but if we can't print them it's not going to be very useful
+                MungeToPrintable(ret_packinfo->ssid, temp);
+            } else {
+                ret_packinfo->type = packet_noise;
+                return;
+            }
+        }
+
+        // Extract the supported rates
+        if ((tag_offset = GetTagOffset(36, 1, header, data, &tag_cache_map)) > 0) {
+            for (int x = 0; x < msgbuf[tag_offset]; x++) {
+                if (ret_packinfo->maxrate < (msgbuf[tag_offset+1+x] & 0x7F) * 0.5)
+                    ret_packinfo->maxrate = (msgbuf[tag_offset+1+x] & 0x7F) * 0.5;
+            }
+        }
+
+        // Find the offset of flag 3 and get the channel
+        if ((tag_offset = GetTagOffset(36, 3, header, data, &tag_cache_map)) > 0) {
+            // Extract the channel from the next byte (GetTagOffset returns
+            // us on the size byte)
+            temp = msgbuf[tag_offset+1];
+            ret_packinfo->channel = (int) temp;
+        }
+
+        // Extract the CISCO beacon info
+        if ((tag_offset = GetTagOffset(36, 133, header, data, &tag_cache_map)) > 0) {
+            if ((unsigned) tag_offset + 11 < header->len) {
+                snprintf(ret_packinfo->beacon_info, BEACON_INFO_LEN, "%s", &msgbuf[tag_offset+11]);
+                MungeToPrintable(ret_packinfo->beacon_info, BEACON_INFO_LEN);
+            } else {
+                ret_packinfo->type = packet_noise;
+                return;
+            }
+        }
+
         if (fc->subtype == 0) {
-            // association request frame
-            ret_packinfo->wep = fixparm->wep;
-            ret_packinfo->ap = fixparm->ess;
+            ret_packinfo->subtype = packet_sub_association_req;
 
-            // Find the offset of tag 0 and fill in the ssid if we got the
-            // tag.
-            if ((tag_offset = GetTagOffset(36, 0, header, data)) > 0) {
-                temp = (msgbuf[tag_offset] & 0xFF) + 1;
-
-                // Protect against malicious packets
-                if (temp <= 32 && tag_offset + 1 + temp < (int) header->len) {
-                    snprintf(ret_packinfo->ssid, temp, "%s", &msgbuf[tag_offset+1]);
-
-                    // Munge it down to printable characters... SSID's can be anything
-                    // but if we can't print them it's not going to be very useful
-                    MungeToPrintable(ret_packinfo->ssid, temp);
-                }
-
-            }
-
-            // Extract the supported rates
-            if ((tag_offset = GetTagOffset(36, 1, header, data)) > 0) {
-                for (int x = 0; x < msgbuf[tag_offset]; x++) {
-                    if (ret_packinfo->maxrate < (msgbuf[tag_offset+1+x] & 0x7F) * 0.5)
-                        ret_packinfo->maxrate = (msgbuf[tag_offset+1+x] & 0x7F) * 0.5;
-                }
-            }
-
-            // Extract the MAC's
             ret_packinfo->dest_mac = addr0;
             ret_packinfo->source_mac = addr1;
             ret_packinfo->bssid_mac = addr2;
 
-            ret_packinfo->type = packet_association_req;
+            ret_packinfo->distrib = to_distribution;
 
         } else if (fc->subtype == 1) {
-            // association request frame
-            ret_packinfo->wep = fixparm->wep;
-            ret_packinfo->ap = fixparm->ess;
+            ret_packinfo->subtype = packet_sub_association_resp;
 
-            // Extract the supported rates
-            if ((tag_offset = GetTagOffset(36, 1, header, data)) > 0) {
-                for (int x = 0; x < msgbuf[tag_offset]; x++) {
-                    if (ret_packinfo->maxrate < (msgbuf[tag_offset+1+x] & 0x7F) * 0.5)
-                        ret_packinfo->maxrate = (msgbuf[tag_offset+1+x] & 0x7F) * 0.5;
-                }
-            }
-
-            // Extract the MAC's
             ret_packinfo->dest_mac = addr0;
             ret_packinfo->source_mac = addr1;
             ret_packinfo->bssid_mac = addr2;
 
-            ret_packinfo->type = packet_association_response;
+            ret_packinfo->distrib = from_distribution;
 
-        } else if (fc->subtype == 8) {
-            // beacon frame
+        } else if (fc->subtype == 2) {
+            ret_packinfo->subtype = packet_sub_reassociation_req;
 
-            //            ret.beacon = ntohl(fixparm->beacon);
-            ret_packinfo->beacon = ktoh16(fixparm->beacon);
-
-            ret_packinfo->wep = fixparm->wep;
-            ret_packinfo->ap = fixparm->ess;
-
-            // Find the offset of tag 0 and fill in the ssid if we got the
-            // tag.
-            if ((tag_offset = GetTagOffset(36, 0, header, data)) > 0) {
-                temp = (msgbuf[tag_offset] & 0xFF) + 1;
-
-                // Protect against malicious packets
-                if (temp <= 32 && tag_offset + 1 + temp < (int) header->len) {
-                    snprintf(ret_packinfo->ssid, temp, "%s", &msgbuf[tag_offset+1]);
-
-                    // Munge it down to printable characters... SSID's can be anything
-                    // but if we can't print them it's not going to be very useful
-                    MungeToPrintable(ret_packinfo->ssid, temp);
-                }
-
-            }
-
-            // Find the offset of flag 3 and get the channel
-            if ((tag_offset = GetTagOffset(36, 3, header, data)) > 0) {
-                // Extract the channel from the next byte (GetTagOffset returns
-                // us on the size byte)
-                temp = msgbuf[tag_offset+1];
-                ret_packinfo->channel = (int) temp;
-            }
-
-            // Extract the CISCO beacon info
-            if ((tag_offset = GetTagOffset(36, 133, header, data)) > 0) {
-                if ((unsigned) tag_offset + 11 < header->len) {
-                    snprintf(ret_packinfo->beacon_info, BEACON_INFO_LEN, "%s", &msgbuf[tag_offset+11]);
-                    MungeToPrintable(ret_packinfo->beacon_info, BEACON_INFO_LEN);
-                } else {
-                    ret_packinfo->type = packet_noise;
-                }
-            }
-
-            // Extract the supported rates
-            if ((tag_offset = GetTagOffset(36, 1, header, data)) > 0) {
-                for (int x = 0; x < msgbuf[tag_offset]; x++) {
-                    if (ret_packinfo->maxrate < (msgbuf[tag_offset+1+x] & 0x7F) * 0.5)
-                        ret_packinfo->maxrate = (msgbuf[tag_offset+1+x] & 0x7F) * 0.5;
-                }
-            }
-
-            // Extract the MAC's
             ret_packinfo->dest_mac = addr0;
             ret_packinfo->source_mac = addr1;
             ret_packinfo->bssid_mac = addr2;
 
-            ret_packinfo->type = packet_beacon;
+            ret_packinfo->distrib = to_distribution;
 
-            if (ret_packinfo->ap == 0) {
-                // Weird adhoc beacon where the BSSID isn't 'right' so we use the source instead.
-                ret_packinfo->bssid_mac = ret_packinfo->source_mac;
-                ret_packinfo->type = packet_adhoc;
-            }
+        } else if (fc->subtype == 3) {
+            ret_packinfo->subtype = packet_sub_reassociation_resp;
+
+            ret_packinfo->dest_mac = addr0;
+            ret_packinfo->source_mac = addr1;
+            ret_packinfo->bssid_mac = addr2;
+
+            ret_packinfo->distrib = from_distribution;
 
         } else if (fc->subtype == 4) {
-            // Probe req
-            if ((tag_offset = GetTagOffset(24, 0, header, data)) > 0) {
-                temp = (msgbuf[tag_offset] & 0xFF) + 1;
-
-                if (temp <= 32 && tag_offset + 1 + temp < (int) header->len) {
-                    snprintf(ret_packinfo->ssid, temp, "%s", &msgbuf[tag_offset+1]);
-                    // Munge us to printable
-                    MungeToPrintable(ret_packinfo->ssid, temp);
-                } else {
-                    ret_packinfo->type = packet_noise;
-                }
-            }
+            ret_packinfo->subtype = packet_sub_probe_req;
 
             ret_packinfo->source_mac = addr1;
             ret_packinfo->bssid_mac = addr1;
 
-            ret_packinfo->type = packet_probe_req;
+            ret_packinfo->distrib = to_distribution;
 
             // Catch wellenreiter probes
             if (!strncmp(ret_packinfo->ssid, "this_is_used_for_wellenreiter", 32)) {
@@ -320,84 +287,122 @@ void GetPacketInfo(const pkthdr *header, const u_char *data,
             }
 
         } else if (fc->subtype == 5) {
-            ret_packinfo->type = packet_probe_response;
-
-            if ((tag_offset = GetTagOffset(36, 0, header, data)) > 0) {
-                temp = (msgbuf[tag_offset] & 0xFF) + 1;
-
-                if (temp <= 32 && tag_offset + 1 + temp < (int) header->len) {
-                    snprintf(ret_packinfo->ssid, temp, "%s", &msgbuf[tag_offset+1]);
-                    MungeToPrintable(ret_packinfo->ssid, temp);
-                } else {
-                    ret_packinfo->type = packet_noise;
-                }
-            }
+            ret_packinfo->subtype = packet_sub_probe_resp;
 
             ret_packinfo->dest_mac = addr0;
             ret_packinfo->source_mac = addr1;
             ret_packinfo->bssid_mac = addr2;
 
-            ret_packinfo->wep = fixparm->wep;
-            ret_packinfo->ap = fixparm->ess;
+            ret_packinfo->distrib = from_distribution;
 
-            if (ret_packinfo->ap == 0) {
+            if (ret_packinfo->ess == 0) {
                 // Weird adhoc beacon where the BSSID isn't 'right' so we use the source instead.
                 ret_packinfo->bssid_mac = ret_packinfo->source_mac;
-                ret_packinfo->type = packet_adhoc;
+                ret_packinfo->distrib = adhoc_distribution;
             }
 
             // First byte of offsets
             ret_packinfo->header_offset = 24;
-        } else if (fc->subtype == 3) {
-            ret_packinfo->type = packet_reassociation;
 
-            if ((tag_offset = GetTagOffset(36, 0, header, data)) > 0) {
-                temp = (msgbuf[tag_offset] & 0xFF) + 1;
+        } else if (fc->subtype == 8) {
+            ret_packinfo->subtype = packet_sub_beacon;
 
-                if (temp <= 32 && tag_offset + 1 + temp < (int) header->len) {
-                    snprintf(ret_packinfo->ssid, temp, "%s", &msgbuf[tag_offset+1]);
-                    MungeToPrintable(ret_packinfo->ssid, temp);
-                } else {
-                    ret_packinfo->type = packet_noise;
-                }
-            }
+            ret_packinfo->beacon = ktoh16(fixparm->beacon);
 
             ret_packinfo->dest_mac = addr0;
             ret_packinfo->source_mac = addr1;
             ret_packinfo->bssid_mac = addr2;
+
+            ret_packinfo->distrib = from_distribution;
+
+            if (ret_packinfo->ess == 0) {
+                // Weird adhoc beacon where the BSSID isn't 'right' so we use the source instead.
+                ret_packinfo->bssid_mac = ret_packinfo->source_mac;
+                ret_packinfo->distrib = adhoc_distribution;
+            }
+        } else if (fc->subtype == 9) {
+            // I'm not positive this is the right handling of atim packets.  Do something
+            // smarter in the future
+            ret_packinfo->subtype = packet_sub_atim;
+
+            ret_packinfo->dest_mac = addr0;
+            ret_packinfo->source_mac = addr1;
+            ret_packinfo->bssid_mac = addr2;
+
+            ret_packinfo->distrib = no_distribution;
 
         } else if (fc->subtype == 10) {
-            // Disassociation
-            ret_packinfo->type = packet_disassociation;
+            ret_packinfo->subtype = packet_sub_disassociation;
 
             ret_packinfo->dest_mac = addr0;
             ret_packinfo->source_mac = addr1;
             ret_packinfo->bssid_mac = addr2;
 
+            ret_packinfo->distrib = from_distribution;
+
             uint16_t rcode;
             memcpy(&rcode, (const char *) &msgbuf[24], 2);
 
             ret_packinfo->reason_code = rcode;
+
+        } else if (fc->subtype == 11) {
+            ret_packinfo->subtype = packet_sub_authentication;
+
+            ret_packinfo->dest_mac = addr0;
+            ret_packinfo->source_mac = addr1;
+            ret_packinfo->bssid_mac = addr2;
+
+            ret_packinfo->distrib = from_distribution;
+
+            uint16_t rcode;
+            memcpy(&rcode, (const char *) &msgbuf[24], 2);
+
+            ret_packinfo->reason_code = rcode;
+
         } else if (fc->subtype == 12) {
-            // deauth
-            ret_packinfo->type = packet_deauth;
+            ret_packinfo->subtype = packet_sub_deauthentication;
 
             ret_packinfo->dest_mac = addr0;
             ret_packinfo->source_mac = addr1;
             ret_packinfo->bssid_mac = addr2;
 
+            ret_packinfo->distrib = from_distribution;
+
             uint16_t rcode;
             memcpy(&rcode, (const char *) &msgbuf[24], 2);
 
             ret_packinfo->reason_code = rcode;
+        } else {
+            ret_packinfo->subtype = packet_sub_unknown;
         }
-    } else if (fc->type == 1) {
-        ret_packinfo->type = packet_ack;
 
-        ret_packinfo->dest_mac = addr0;
+    } else if (fc->type == 1) {
+        ret_packinfo->type = packet_phy;
+
+        ret_packinfo->distrib = no_distribution;
+
+        if (fc->subtype == 11) {
+            ret_packinfo->subtype = packet_sub_rts;
+
+        } else if (fc->subtype == 12) {
+            ret_packinfo->subtype = packet_sub_cts;
+
+        } else if (fc->subtype == 13) {
+            ret_packinfo->subtype = packet_sub_ack;
+
+            ret_packinfo->dest_mac = addr0;
+
+        } else if (fc->subtype == 14) {
+            ret_packinfo->subtype = packet_sub_cf_end;
+
+        } else if (fc->subtype == 15) {
+            ret_packinfo->subtype = packet_sub_cf_end_ack;
+
+        } else {
+            ret_packinfo->subtype = packet_sub_unknown;
+        }
 
     } else if (fc->type == 2) {
-        // Data packets
         ret_packinfo->type = packet_data;
 
         // Extract ID's
@@ -409,12 +414,11 @@ void GetPacketInfo(const pkthdr *header, const u_char *data,
             ret_packinfo->source_mac = addr1;
             ret_packinfo->bssid_mac = addr1;
 
-            // No distribution flags
+            ret_packinfo->distrib = adhoc_distribution;
 
             // First byte of offsets
             ret_packinfo->header_offset = 24;
 
-            ret_packinfo->type = packet_adhoc_data;
         } else if (fc->to_ds == 0 && fc->from_ds == 1) {
             ret_packinfo->dest_mac = addr0;
             ret_packinfo->bssid_mac = addr1;
@@ -454,8 +458,6 @@ void GetPacketInfo(const pkthdr *header, const u_char *data,
 
             // First byte of offsets
             ret_packinfo->header_offset = 30;
-
-            ret_packinfo->type = packet_ap_broadcast;
         }
 
         // Detect encrypted frames
@@ -498,23 +500,42 @@ void GetPacketInfo(const pkthdr *header, const u_char *data,
             }
         }
 
-        if (!ret_packinfo->encrypted && (ret_packinfo->type == packet_data || ret_packinfo->type == packet_adhoc_data ||
-                               ret_packinfo->type == packet_ap_broadcast))
+        if (!ret_packinfo->encrypted)
             GetProtoInfo(ret_packinfo, header, data, &ret_packinfo->proto);
+
+        // Collect the subtypes - we probably want to do something better with thse
+        // in the future
+        if (fc->subtype == 0) {
+            ret_packinfo->subtype = packet_sub_data;
+
+        } else if (fc->subtype == 1) {
+            ret_packinfo->subtype = packet_sub_data_cf_ack;
+
+        } else if (fc->subtype == 2) {
+            ret_packinfo->subtype = packet_sub_data_cf_poll;
+
+        } else if (fc->subtype == 3) {
+            ret_packinfo->subtype = packet_sub_data_cf_ack_poll;
+
+        } else if (fc->subtype == 4) {
+            ret_packinfo->subtype = packet_sub_data_null;
+
+        } else if (fc->subtype == 5) {
+            ret_packinfo->subtype = packet_sub_cf_ack;
+
+        } else if (fc->subtype == 6) {
+            ret_packinfo->subtype = packet_sub_cf_ack_poll;
+
+        } else {
+            ret_packinfo->subtype = packet_sub_unknown;
+        }
     }
 
     // Do a little sanity checking on the BSSID
-    for (int x = 0; x < MAC_LEN; x++) {
-        if (ret_packinfo->bssid_mac[x] > 0xFF ||
-            ret_packinfo->source_mac[x] > 0xFF ||
-            ret_packinfo->dest_mac[x] > 0xFF) {
-
-            //printf("noise packet, invalid mac\n");
-
-            ret_packinfo->type = packet_noise;
-            break;
-        }
-    }
+    if (ret_packinfo->bssid_mac.error == 1 ||
+        ret_packinfo->source_mac.error == 1 ||
+        ret_packinfo->dest_mac.error == 1)
+        ret_packinfo->type = packet_noise;
 
 }
 

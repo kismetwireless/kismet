@@ -472,10 +472,11 @@ int TcpClient::ParseData(char *in_data) {
         short int sip[4], dip[4];
         int sport, dport;
 
-        if (sscanf(in_data+hdrlen, "%d %d %d %d %d %17s %17s %17s "
+        if (sscanf(in_data+hdrlen, "%d %d %d %d %d %d %17s %17s %17s "
                    "\001%32[^\001]\001 %d %hd.%hd.%hd.%hd %hd.%hd.%hd.%hd %d %d %d "
                    "\001%16[^\001]\001\n",
                    (int *) &packinfo.type,
+                   (int *) &packinfo.subtype,
                    (int *) &packinfo.time,
                    &packinfo.encrypted, &packinfo.interesting, &packinfo.beacon,
                    smac, dmac, bmac,

@@ -1728,46 +1728,128 @@ int PanelFront::PackPrinter(void *in_window) {
     int singles = 0;
     kwin->text.clear();
     string data;
+    string ptype;
+    char cdata[1024];
+    char dsubtype[1024], srcport[12], dstport[12];
+    struct servent *srcserv, *dstserv;
+
     for (unsigned int x = 0; x < packinfo.size(); x++) {
         switch(packinfo[x].type) {
-        case packet_beacon:
-            data += "B";
+        case packet_noise:
+            data += "N ";
             break;
-        case packet_probe_req:
-            data += "r";
+        case packet_unknown:
+            data += "U ";
+            break;
+        case packet_management:
+            data += "M";
+
+            switch (packinfo[x].subtype) {
+            case packet_sub_association_req:
+                data += "a";
+                break;
+            case packet_sub_association_resp:
+                data += "A";
+                break;
+            case packet_sub_reassociation_req:
+                data += "r";
+                break;
+            case packet_sub_reassociation_resp:
+                data += "R";
+                break;
+            case packet_sub_probe_req:
+                data += "p";
+                break;
+            case packet_sub_probe_resp:
+                data += "P";
+                break;
+            case packet_sub_beacon:
+                data += "B";
+                break;
+            case packet_sub_atim:
+                data += "M";
+                break;
+            case packet_sub_disassociation:
+                data += "D";
+                break;
+            case packet_sub_authentication:
+                data += "t";
+                break;
+            case packet_sub_deauthentication:
+                data += "T";
+                break;
+            default:
+                data += "?";
+                break;
+            }
+            ptype += ")";
+
+            break;
+        case packet_phy:
+            data += "P";
+
+            switch (packinfo[x].subtype) {
+            case packet_sub_rts:
+                data += "t";
+                break;
+            case packet_sub_cts:
+                data += "T";
+                break;
+            case packet_sub_ack:
+                data += "A";
+                break;
+            case packet_sub_cf_end:
+                data += "c";
+                break;
+            case packet_sub_cf_end_ack:
+                data += "C";
+                break;
+            default:
+                data += "?";
+                break;
+            }
+
+            ptype += ")";
+
             break;
         case packet_data:
-        case packet_ap_broadcast:
-            if (packinfo[x].encrypted && !packinfo[x].interesting)
-                data += "e";
-            else if (packinfo[x].interesting)
-                data += "w";
-            else
-                data += "d";
-            break;
-        case packet_adhoc:
-        case packet_adhoc_data:
-            data += "a";
-            break;
-        case packet_probe_response:
-            data += "R";
-            break;
-        case packet_noise:
-            data += "n";
-            break;
-        case packet_reassociation:
-            data += "s";
-            break;
-        case packet_association_req:
-            data += "a";
-            break;
-        case packet_association_response:
-            data += "A";
+            data += "D";
+            ptype += "DATA (";
+
+            switch (packinfo[x].subtype) {
+            case packet_sub_data:
+                data += "D";
+                break;
+            case packet_sub_data_cf_ack:
+                data += "c";
+                break;
+            case packet_sub_data_cf_poll:
+                data += "p";
+                break;
+            case packet_sub_data_cf_ack_poll:
+                data += "P";
+                break;
+            case packet_sub_data_null:
+                data += "N";
+                break;
+            case packet_sub_cf_ack:
+                data += "a";
+                break;
+            case packet_sub_cf_ack_poll:
+                data += "A";
+                break;
+            default:
+                data += "?";
+                break;
+            }
+
             break;
         default:
-            data += "?";
+            data += "U ";
             break;
         }
+
+        data += " ";
 
         if ((x+1) % (kwin->print_width - 1) == 0) {
             kwin->text.push_back(data);
@@ -1786,59 +1868,126 @@ int PanelFront::PackPrinter(void *in_window) {
     if ((unsigned int) (kwin->max_display + (kwin->max_display / 4)) < packinfo.size())
         start = packinfo.size() - kwin->max_display + (kwin->max_display / 4);
 
-    char cdata[1024];
-    char *dtype = "";
-    char dsubtype[1024], srcport[12], dstport[12];
-    struct servent *srcserv, *dstserv;
     for (unsigned int x = start; x < packinfo.size(); x++) {
-        snprintf(cdata, 1024, "%.8s - Packet", ctime(&packinfo[x].time)+11);
         switch(packinfo[x].type) {
-        case packet_beacon:
-            snprintf(cdata, 1024, "%.8s %s BEACON '%s'",
-                     ctime(&packinfo[x].time) + 11,
-                     packinfo[x].bssid_mac.Mac2String().c_str(),
-                     packinfo[x].ssid);
+        case packet_noise:
+            ptype = "NOISE";
             break;
-        case packet_probe_req:
-            snprintf(cdata, 1024, "%.8s %s PROBE-REQ '%s'",
-                     ctime(&packinfo[x].time) + 11,
-                     packinfo[x].source_mac.Mac2String().c_str(),
-                     packinfo[x].ssid);
+        case packet_unknown:
+            ptype = "UNKNOWN";
+            break;
+        case packet_management:
+            ptype = "MANAGEMENT (";
+
+            switch (packinfo[x].subtype) {
+            case packet_sub_association_req:
+                ptype += "Association Request ";
+                ptype += packinfo[x].ssid;
+                break;
+            case packet_sub_association_resp:
+                ptype += "Association Response ";
+                ptype += packinfo[x].ssid;
+                break;
+            case packet_sub_reassociation_req:
+                ptype += "Reassociation Request ";
+                ptype += packinfo[x].ssid;
+                break;
+            case packet_sub_reassociation_resp:
+                ptype += "Reassociation Response ";
+                ptype += packinfo[x].ssid;
+                break;
+            case packet_sub_probe_req:
+                ptype += "Probe Request ";
+                ptype += packinfo[x].ssid;
+                break;
+            case packet_sub_probe_resp:
+                ptype += "Probe Response ";
+                ptype += packinfo[x].ssid;
+                break;
+            case packet_sub_beacon:
+                ptype += "Beacon ";
+                ptype += packinfo[x].ssid;
+                break;
+            case packet_sub_atim:
+                ptype += "ATIM";
+                break;
+            case packet_sub_disassociation:
+                ptype += "Disassociation";
+                break;
+            case packet_sub_authentication:
+                ptype += "Authentication";
+                break;
+            case packet_sub_deauthentication:
+                ptype += "Deauthentication";
+                break;
+            default:
+                ptype += "Unknown";
+                break;
+            }
+            ptype += ")";
+
+            break;
+        case packet_phy:
+            ptype = "PHY (";
+
+            switch (packinfo[x].subtype) {
+            case packet_sub_rts:
+                ptype += "Ready To Send";
+                break;
+            case packet_sub_cts:
+                ptype += "Clear To Send";
+                break;
+            case packet_sub_ack:
+                ptype += "Data Ack";
+                break;
+            case packet_sub_cf_end:
+                ptype += "CF End";
+                break;
+            case packet_sub_cf_end_ack:
+                ptype += "CF End+Ack";
+                break;
+            default:
+                ptype += "Unknown";
+                break;
+            }
+
+            ptype += ")";
+
             break;
         case packet_data:
-        case packet_ap_broadcast:
-        case packet_adhoc_data:
-            dsubtype[0] = '\0';
+            ptype = "DATA (";
 
-            if (packinfo[x].encrypted && !packinfo[x].interesting) {
-                dtype = "ENCRYPTED DATA";
-            } else if (packinfo[x].interesting) {
-                dtype = "ENCRYPTED DATA (WEAK)";
-            } else {
-                dtype = "DATA";
+            switch (packinfo[x].subtype) {
+            case packet_sub_data:
+                if (packinfo[x].interesting)
+                    ptype += "Weak ";
+                if (packinfo[x].encrypted)
+                    ptype += "Encrypted ";
+
                 switch (packinfo[x].proto.type) {
                 case proto_netbios:
                 case proto_netbios_tcp:
-                    dtype = "NETBIOS";
+                    ptype += "NETBIOS ";
                     switch (packinfo[x].proto.nbtype) {
                     case proto_netbios_host:
-                        snprintf(dsubtype, 1024, "HOST '%s'",
-                                 packinfo[x].proto.netbios_source);
+                        ptype += "HOST ";
+                        ptype += packinfo[x].proto.netbios_source;
                         break;
                     case proto_netbios_master:
-                        snprintf(dsubtype, 1024, "MASTER '%s'",
-                                  packinfo[x].proto.netbios_source);
+                        ptype += "MASTER ";
+                        ptype += packinfo[x].proto.netbios_source;
                         break;
                     case proto_netbios_domain:
-                        snprintf(dsubtype, 1024, "DOMAIN '%s'",
-                                 packinfo[x].proto.netbios_source);
+                        ptype += "DOMAIN ";
+                        ptype += packinfo[x].proto.netbios_source;
                         break;
                     case proto_netbios_query:
-                        snprintf(dsubtype, 1024, "QUERY '%s'",
-                                 packinfo[x].proto.netbios_source);
+                        ptype += "QUERY ";
+                        ptype += packinfo[x].proto.netbios_source;
                         break;
                     case proto_netbios_pdcquery:
-                        snprintf(dsubtype, 1024, "PDC QUERY");
+                        ptype += "PDC QUERY ";
+                        ptype += packinfo[x].proto.netbios_source;
                         break;
                     default:
                         break;
@@ -1858,6 +2007,7 @@ int PanelFront::PackPrinter(void *in_window) {
                              packinfo[x].proto.dest_ip[0], packinfo[x].proto.dest_ip[1],
                              packinfo[x].proto.dest_ip[2], packinfo[x].proto.dest_ip[3],
                              dstserv ? dstserv->s_name : dstport);
+                    ptype += dsubtype;
                     break;
                 case proto_misc_tcp:
                     srcserv = getservbyport(htons(packinfo[x].proto.sport), "tcp");
@@ -1871,6 +2021,7 @@ int PanelFront::PackPrinter(void *in_window) {
                              packinfo[x].proto.dest_ip[0], packinfo[x].proto.dest_ip[1],
                              packinfo[x].proto.dest_ip[2], packinfo[x].proto.dest_ip[3],
                              dstserv ? dstserv->s_name : dstport);
+                    ptype += dsubtype;
                     break;
                 case proto_arp:
                     snprintf(dsubtype, 1024, "ARP %d.%d.%d.%d->%d.%d.%d.%d",
@@ -1878,59 +2029,49 @@ int PanelFront::PackPrinter(void *in_window) {
                              packinfo[x].proto.source_ip[2], packinfo[x].proto.source_ip[3],
                              packinfo[x].proto.dest_ip[0], packinfo[x].proto.dest_ip[1],
                              packinfo[x].proto.dest_ip[2], packinfo[x].proto.dest_ip[3]);
+                    ptype += dsubtype;
                     break;
                 case proto_ipx_tcp:
                     snprintf(dsubtype, 1024, "IPX");
+                    ptype += dsubtype;
                     break;
                 default:
                     break;
                 }
+
+                break;
+            case packet_sub_data_cf_ack:
+                ptype += "Data+CF+Ack";
+                break;
+            case packet_sub_data_cf_poll:
+                ptype += "Data+CF+Poll";
+                break;
+            case packet_sub_data_cf_ack_poll:
+                ptype += "Data+CF+Ack+Poll";
+                break;
+            case packet_sub_data_null:
+                ptype += "Data Null";
+                break;
+            case packet_sub_cf_ack:
+                ptype += "CF Ack";
+                break;
+            case packet_sub_cf_ack_poll:
+                ptype += "CF Ack+Poll";
+                break;
+            default:
+                ptype += "Unknown";
+                break;
             }
 
-            snprintf(cdata, 1024, "%.8s %s %s %s",
-                     ctime(&packinfo[x].time) + 11,
-                     packinfo[x].bssid_mac.Mac2String().c_str(),
-                     dtype, dsubtype);
-            break;
-        case packet_adhoc:
-            snprintf(cdata, 1024, "%.8s %s ADHOC '%s'",
-                     ctime(&packinfo[x].time) + 11,
-                     packinfo[x].bssid_mac.Mac2String().c_str(),
-                     packinfo[x].ssid);
-            break;
-        case packet_probe_response:
-            snprintf(cdata, 1024, "%.8s %s PROBE RESPONSE '%s'",
-                     ctime(&packinfo[x].time) + 11,
-                     packinfo[x].bssid_mac.Mac2String().c_str(),
-                     packinfo[x].ssid);
-            break;
-        case packet_noise:
-            snprintf(cdata, 1024, "%.8s %s NOISE",
-                     ctime(&packinfo[x].time) + 11,
-                     packinfo[x].bssid_mac.Mac2String().c_str());
-            break;
-        case packet_reassociation:
-            snprintf(cdata, 1024, "%.8s %s REASSOCIATION '%s'",
-                     ctime(&packinfo[x].time) + 11,
-                     packinfo[x].source_mac.Mac2String().c_str(),
-                     packinfo[x].ssid);
-            break;
-        case packet_association_req:
-            snprintf(cdata, 1024, "%.8s %s ASSOCIATION '%s'",
-                     ctime(&packinfo[x].time) + 11,
-                     packinfo[x].source_mac.Mac2String().c_str(),
-                     packinfo[x].ssid);
-        case packet_association_response:
-            snprintf(cdata, 1024, "%.8s %s ASSOCIATION RESPONSE",
-                     ctime(&packinfo[x].time) + 11,
-                     packinfo[x].source_mac.Mac2String().c_str());
+            ptype += ")";
+
             break;
         default:
-            snprintf(cdata, 1024, "%.8s %s UNKNOWN",
-                     ctime(&packinfo[x].time) + 11,
-                     packinfo[x].source_mac.Mac2String().c_str());
+            ptype = "UNKNOWN";
             break;
         }
+
+        snprintf(cdata, 1024, "%.8s - %s", ctime(&packinfo[x].time)+11, ptype.c_str());
 
         kwin->text.push_back(cdata);
     }
