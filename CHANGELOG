@@ -1,3 +1,4 @@
+Apr 07 2004  devel  Set gpsmap caching to save empty files
 Apr 06 2004  devel  Fixed ACX100 FCS bytes
 Apr 05 2004  devel  Fixed packet count bug in csv
 Apr 04 2004  devel  Merged patch from Jamie for channel dwelling (multisecond
