@@ -258,6 +258,11 @@ void GetPacketInfo(const pkthdr *header, const u_char *data,
 
             ret_packinfo->type = packet_probe_req;
 
+            // Catch wellenreiter probes
+            if (!strncmp(ret_packinfo->ssid, "this_is_used_for_wellenreiter", 32)) {
+                ret_packinfo->proto.type = proto_wellenreiter;
+            }
+
         } else if (fc->subtype == 5) {
             ret_packinfo->type = packet_probe_response;
 
