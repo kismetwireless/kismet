@@ -292,7 +292,7 @@ int Iwconfig_Get_SSID(const char *in_dev, char *errstr, char *in_essid) {
     wrq.u.essid.flags = 0;
 
     if (ioctl(skfd, SIOCGIWESSID, &wrq) < 0) {
-        snprintf(errstr, STATUS_MAX, "Failed to set SSID %d:%s", errno, 
+        snprintf(errstr, STATUS_MAX, "Failed to get SSID %d:%s", errno, 
                  strerror(errno));
         close(skfd);
         return -1;
