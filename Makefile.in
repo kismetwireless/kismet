@@ -41,12 +41,13 @@ DEPEND	= .depend
 # Objects
 PSO	= util.o ringbuf.o messagebus.o configfile.o getopt.o \
 	  	speech.o ifcontrol.o iwcontrol.o \
+		netframework.o tcpserver.o clinetframework.o tcpclient.o \
+		kis_netframe.o \
 	  	packet.o pcapsource.o prism2source.o wtapfilesource.o wsp100source.o \
 		dronesource.o vihasource.o packetsourcetracker.o \
 		wtapdump.o wtaplocaldump.o gpsdump.o airsnortdump.o fifodump.o \
 		gpsd.o manuf.o \
 		packetracker.o timetracker.o alertracker.o finitestate.o \
-		netframework.o tcpserver.o kis_netframe.o \
 		kismet_server.o 
 PS	= kismet_server
 

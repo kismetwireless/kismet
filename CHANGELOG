@@ -2,6 +2,7 @@ Sep 16 2004  devel  Fixed spurious warning about NetworkServer constructor
                     Removed spurious debug prints from kisnetframe parser
                     Fixed file descriptor zeroing in tcpserver
                     Added ring buffer flushing to tcpserver shutdown
+                    Moved tcpserver parsing back into main since I'm stupid
 Sep 15 2004  devel  Added requeuing of fatal error messages as Kismet terminates
                     Moved configfile manuf handling to packetracker
 Sep 14 2004  devel  Forked to new temporary branch, major updates, see SVN
