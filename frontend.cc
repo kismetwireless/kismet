@@ -146,11 +146,13 @@ void Frontend::UpdateGroups() {
             dnet->virtnet.client_vec.clear();
             for (map<mac_addr, wireless_client *>::iterator cli = dnet->virtnet.client_map.begin();
                  cli != dnet->virtnet.client_map.end(); ++cli) {
+
                 if (curtime - cli->second->last_time > (decay * 2)) {
                     cli->second->signal = 0;
                     cli->second->quality = 0;
                     cli->second->noise = 0;
                 }
+
                 dnet->virtnet.client_vec.push_back(cli->second);
             }
 
@@ -189,8 +191,10 @@ void Frontend::UpdateGroups() {
 
         dnet->virtnet.ipdata.atype = address_none;
         memset(dnet->virtnet.ipdata.range_ip, 0, 4);
+        /*
         memset(dnet->virtnet.ipdata.mask, 0, 4);
         memset(dnet->virtnet.ipdata.gate_ip, 0, 4);
+        */
         dnet->virtnet.ipdata.octets = 4;
         dnet->virtnet.last_time = dnet->virtnet.first_time = 0;
         dnet->virtnet.maxrate = 0;
@@ -351,30 +355,21 @@ void Frontend::UpdateGroups() {
 
         }
 
-
         dnet->virtnet.bssid.mask = bssid_matched;
-
-        /*
-        // Convert the masked semi-mac into something that looks real
-        for (unsigned int macbit = 0; macbit < MAC_LEN; macbit++) {
-        char adr[3];
-            if (macbit < bssid_matched)
-                snprintf(adr, 3, "%02X", dnet->virtnet.bssid[macbit]);
-            else
-                snprintf(adr, 3, "**");
-
-            dnet->virtnet.bssid += adr;
-            dnet->virtnet.bssid += ":";
-
-            }
-            */
-
         MatchBestManuf(&dnet->virtnet, 0);
 
         // convert our map into a vector
         for (map<mac_addr, wireless_client *>::iterator cli = dnet->virtnet.client_map.begin();
-             cli != dnet->virtnet.client_map.end(); ++cli)
+             cli != dnet->virtnet.client_map.end(); ++cli) {
+
+            if (curtime - cli->second->last_time > (decay * 2)) {
+                cli->second->signal = 0;
+                cli->second->quality = 0;
+                cli->second->noise = 0;
+            }
+
             dnet->virtnet.client_vec.push_back(cli->second);
+        }
 
         // Update the group name if it's <no ssid> and the ssid is set
         if (dnet->name == NOSSID && dnet->virtnet.ssid != NOSSID) {

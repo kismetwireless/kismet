@@ -58,10 +58,14 @@ typedef struct {
 
     // What IP range are we using?
     uint8_t range_ip[4];
+
+    /*
     // What netmask are we using?
     uint8_t mask[4];
     // What's the gateway?
     uint8_t gate_ip[4];
+    */
+
     // What's the ip, if we're a client?
     uint8_t ip[4];
 

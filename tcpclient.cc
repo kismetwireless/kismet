@@ -271,7 +271,10 @@ int TcpClient::ParseData(char *in_data) {
         int scanned;
 
         char ssid[256], beacon[256];
-        short int range[4], mask[4], gate[4];
+        short int range[4];
+        /*
+         , mask[4], gate[4];
+         */
 
         float maxrate;
 
@@ -290,15 +293,17 @@ int TcpClient::ParseData(char *in_data) {
         }
 
         scanned = sscanf(in_data+hdrlen+18, "%d \001%255[^\001]\001 \001%255[^\001]\001 "
-                         "%d %d %d %d %d %d %d %d %d %hd.%hd.%hd.%hd %hd.%hd.%hd.%hd %hd.%hd.%hd.%hd "
+                         "%d %d %d %d %d %d %d %d %d %hd.%hd.%hd.%hd "
                          "%d %f %f %f %f %f %f %f %f %d %d %d %f %d %d %d %d %d %d %d %d %f %f %f "
                          "%lf %lf %lf %ld",
                          (int *) &net->type, ssid, beacon,
                          &net->llc_packets, &net->data_packets, &net->crypt_packets, &net->interesting_packets,
                          &net->channel, &net->wep, (int *) &net->first_time, (int *) &net->last_time,
                          (int *) &net->ipdata.atype, &range[0], &range[1], &range[2], &range[3],
+                         /*
                          &mask[0], &mask[1], &mask[2], &mask[3],
                          &gate[0], &gate[1], &gate[2], &gate[3],
+                         */
                          &net->gps_fixed, &net->min_lat, &net->min_lon, &net->min_alt, &net->min_spd,
                          &net->max_lat, &net->max_lon, &net->max_alt, &net->max_spd,
                          /*
@@ -315,7 +320,7 @@ int TcpClient::ParseData(char *in_data) {
                          &net->aggregate_lat, &net->aggregate_lon, &net->aggregate_alt,
                          &net->aggregate_points);
 
-        if (scanned < 52) {
+        if (scanned < 44) {
             // fprintf(stderr, "Flubbed network, discarding...\n");
             return 0;
         }
@@ -326,8 +331,10 @@ int TcpClient::ParseData(char *in_data) {
             net->beacon_info = beacon;
         for (int x = 0; x < 4; x++) {
             net->ipdata.range_ip[x] = (uint8_t) range[x];
+            /*
             net->ipdata.mask[x] = (uint8_t) mask[x];
             net->ipdata.gate_ip[x] = (uint8_t) gate[x];
+            */
         }
 
         net->maxrate = maxrate;

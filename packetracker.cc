@@ -58,8 +58,13 @@ string Packetracker::Net2String(wireless_network *in_net) {
     string ret;
     char output[2048];
 
-    snprintf(output, 2048, "%s %d \001%s\001 \001%s\001 %d %d %d %d %d %d %d %d %d "
+    /*
+     snprintf(output, 2048, "%s %d \001%s\001 \001%s\001 %d %d %d %d %d %d %d %d %d "
              "%d.%d.%d.%d %d.%d.%d.%d %d.%d.%d.%d %d %f %f %f %f %f %f %f %f %d %d %d %2.1f "
+             "%d %d %d %d %d %d %d %d %f %f %f %f %f %f %ld",
+             */
+    snprintf(output, 2048, "%s %d \001%s\001 \001%s\001 %d %d %d %d %d %d %d %d %d "
+             "%d.%d.%d.%d %d %f %f %f %f %f %f %f %f %d %d %d %2.1f "
              "%d %d %d %d %d %d %d %d %f %f %f %f %f %f %ld",
              in_net->bssid.Mac2String().c_str(),
              (int) in_net->type,
@@ -72,10 +77,12 @@ string Packetracker::Net2String(wireless_network *in_net) {
              (int) in_net->ipdata.atype,
              in_net->ipdata.range_ip[0], in_net->ipdata.range_ip[1],
              in_net->ipdata.range_ip[2], in_net->ipdata.range_ip[3],
+             /*
              in_net->ipdata.mask[0], in_net->ipdata.mask[1],
              in_net->ipdata.mask[2], in_net->ipdata.mask[3],
              in_net->ipdata.gate_ip[0], in_net->ipdata.gate_ip[1],
              in_net->ipdata.gate_ip[2], in_net->ipdata.gate_ip[3],
+             */
 
              in_net->gps_fixed,
              in_net->min_lat, in_net->min_lon, in_net->min_alt, in_net->min_spd,
@@ -703,8 +710,10 @@ int Packetracker::ProcessDataPacket(packet_info info, wireless_network *net, cha
         // We only care about the source in the actual client record, but we need to
         // record the rest so that we can form a network record
         memcpy(client->ipdata.ip, info.proto.misc_ip, 4);
+        /*
         memcpy(client->ipdata.mask, info.proto.mask, 4);
         memcpy(client->ipdata.gate_ip, info.proto.gate_ip, 4);
+        */
 
         means = "DHCP";
         ipdata_dirty = 1;
@@ -815,6 +824,7 @@ void Packetracker::UpdateIpdata(wireless_network *net) {
     for (unsigned int y = 0; y < net->client_vec.size(); y++) {
         client = net->client_vec[y];
 
+        /* We don't do anything special with DHCP anymore... for now
         if (net->ipdata.atype < address_dhcp && client->ipdata.atype == address_dhcp) {
             // We've got a DHCP client, this overrides everything else.  Copy the
             // ipdata, calculate the mask, and don't look at any more clients
@@ -824,41 +834,41 @@ void Packetracker::UpdateIpdata(wireless_network *net) {
             net->ipdata.range_ip[2] = net->ipdata.ip[2] & net->ipdata.mask[2];
             net->ipdata.range_ip[3] = net->ipdata.ip[3] & net->ipdata.mask[3];
             break;
-        } else if (net->ipdata.atype < address_dhcp) {
-            // We treat all non-dhcp client addresses equally.  We compare what we have
-            // already (net->ipdata.range_ip) to the client source address to see what the
-            // difference is, and form the new address range.  If the new address range
-            // takes precedence, we set the network address type appropriately.
-            // We favor the IP of the previous clients, for no good reason.
+            } else if (net->ipdata.atype < address_dhcp) {
+            */
+        // We treat all non-dhcp client addresses equally.  We compare what we have
+        // already (net->ipdata.range_ip) to the client source address to see what the
+        // difference is, and form the new address range.  If the new address range
+        // takes precedence, we set the network address type appropriately.
+        // We favor the IP of the previous clients, for no good reason.
 
-            uint8_t new_range[4];
+        uint8_t new_range[4];
 
-            memset(new_range, 0, 4);
+        memset(new_range, 0, 4);
 
-            if (client->ipdata.ip[0] != 0x00) {
-                if (net->ipdata.atype == address_factory) {
-                    memset(&net->ipdata, 0, sizeof(net_ip_data));
-                }
-
-                int oct;
-                for (oct = 0; oct < 4; oct++) {
-                    if (net->ipdata.range_ip[oct] != client->ipdata.ip[oct] &&
-                        net->ipdata.range_ip[oct] != 0x00) {
-                        break;
-                    }
-
-                    new_range[oct] = client->ipdata.ip[oct];
-                }
-
-                if (oct < net->ipdata.octets || net->ipdata.octets == 0) {
-                    net->ipdata.octets = oct;
-                    net->ipdata.atype = client->ipdata.atype;
-                    memcpy(net->ipdata.range_ip, new_range, 4);
-                }
-
+        if (client->ipdata.ip[0] != 0x00) {
+            if (net->ipdata.atype == address_factory) {
+                memset(&net->ipdata, 0, sizeof(net_ip_data));
             }
-        }
 
+            int oct;
+            for (oct = 0; oct < 4; oct++) {
+                if (net->ipdata.range_ip[oct] != client->ipdata.ip[oct] &&
+                    net->ipdata.range_ip[oct] != 0x00) {
+                    break;
+                }
+
+                new_range[oct] = client->ipdata.ip[oct];
+            }
+
+            if (oct < net->ipdata.octets || net->ipdata.octets == 0) {
+                net->ipdata.octets = oct;
+                net->ipdata.atype = client->ipdata.atype;
+                memcpy(net->ipdata.range_ip, new_range, 4);
+                bssid_ip_map[net->bssid] = net->ipdata;
+            }
+
+        }
     }
 
 #if 0
@@ -1084,14 +1094,16 @@ int Packetracker::WriteNetworks(FILE *in_file) {
                     metric ? net->max_spd * 1.6093 : net->max_spd);
 
         if (net->ipdata.atype == address_dhcp)
-            fprintf(in_file, "    Address found via DHCP %d.%d.%d.%d \n"
-                    "      netmask %d.%d.%d.%d gw %d.%d.%d.%d\n",
+            fprintf(in_file, "    Address found via DHCP %d.%d.%d.%d \n",
+                    /*"      netmask %d.%d.%d.%d gw %d.%d.%d.%d\n", */
                     net->ipdata.range_ip[0], net->ipdata.range_ip[1],
-                    net->ipdata.range_ip[2], net->ipdata.range_ip[3],
+                    net->ipdata.range_ip[2], net->ipdata.range_ip[3]
+                    /*
                     net->ipdata.mask[0], net->ipdata.mask[1],
                     net->ipdata.mask[2], net->ipdata.mask[3],
                     net->ipdata.gate_ip[0], net->ipdata.gate_ip[1],
-                    net->ipdata.gate_ip[2], net->ipdata.gate_ip[3]);
+                    net->ipdata.gate_ip[2], net->ipdata.gate_ip[3] */
+                   );
         else if (net->ipdata.atype == address_arp)
             fprintf(in_file, "    Address found via ARP %d.%d.%d.%d\n",
                     net->ipdata.range_ip[0], net->ipdata.range_ip[1],
@@ -1199,7 +1211,7 @@ int Packetracker::WriteCSVNetworks(FILE *in_file) {
 			"First;Last;BestQuality;BestSignal;BestNoise;"
             "GPSMinLat;GPSMinLon;GPSMinAlt;GPSMinSpd;"
             "GPSMaxLat;GPSMaxLon;GPSMaxAlt;GPSMaxSpd;"
-            "DHCP;DHCPNetmask;DHCPGateway;ARP;UDP;TCP;\r\n");
+            "DHCP;ARP;UDP;TCP;\r\n");
 
     for (unsigned int i = 0; i < bssid_vec.size(); i++) {
         wireless_network *net = bssid_vec[i];
@@ -1253,13 +1265,17 @@ int Packetracker::WriteCSVNetworks(FILE *in_file) {
         }
 
         if (net->ipdata.atype == address_dhcp)
-            fprintf(in_file, "%d.%d.%d.%d;%d.%d.%d.%d;%d.%d.%d.%d;;;;\r\n",
+/*            fprintf(in_file, "%d.%d.%d.%d;%d.%d.%d.%d;%d.%d.%d.%d;;;;\r\n", */
+            fprintf(in_file, "%d.%d.%d.%d;;;;\r\n",
                     net->ipdata.range_ip[0], net->ipdata.range_ip[1],
-                    net->ipdata.range_ip[2], net->ipdata.range_ip[3],
+                    net->ipdata.range_ip[2], net->ipdata.range_ip[3]
+                    /*
                     net->ipdata.mask[0], net->ipdata.mask[1],
                     net->ipdata.mask[2], net->ipdata.mask[3],
                     net->ipdata.gate_ip[0], net->ipdata.gate_ip[1],
-                    net->ipdata.gate_ip[2], net->ipdata.gate_ip[3]);
+                    net->ipdata.gate_ip[2], net->ipdata.gate_ip[3]
+                    */
+                   );
         else if (net->ipdata.atype == address_arp)
             fprintf(in_file, ";;;%d.%d.%d.%d;;;\r\n",
                     net->ipdata.range_ip[0], net->ipdata.range_ip[1],
@@ -1386,6 +1402,34 @@ int Packetracker::WriteXMLNetworks(FILE *in_file) {
             fprintf(in_file, "    </gps-info>\n");
         }
 
+        if (net->ipdata.atype > address_factory) {
+            char *addrtype;
+            switch (net->ipdata.atype) {
+            case address_dhcp:
+                addrtype = "dhcp";
+                break;
+            case address_arp:
+                addrtype = "arp";
+                break;
+            case address_udp:
+                addrtype = "udp";
+                break;
+            case address_tcp:
+                addrtype = "tcp";
+                break;
+            default:
+                addrtype = "unknown";
+                break;
+            }
+
+            fprintf(in_file, "    <ip-address type=\"%s\">\n", addrtype);
+            fprintf(in_file, "      <ip-range>%d.%d.%d.%d</ip-range>\n",
+                    net->ipdata.range_ip[0], net->ipdata.range_ip[1],
+                    net->ipdata.range_ip[2], net->ipdata.range_ip[3]);
+            fprintf(in_file, "    </ip-address>\n");
+        }
+
+        /*
         if (net->ipdata.atype == address_dhcp) {
             fprintf(in_file, "    <ip-address type=\"dhcp\">\n");
             fprintf(in_file, "      <ip-range>%d.%d.%d.%d</ip-range>\n",
@@ -1416,7 +1460,8 @@ int Packetracker::WriteXMLNetworks(FILE *in_file) {
                     net->ipdata.range_ip[0], net->ipdata.range_ip[1],
                     net->ipdata.range_ip[2], net->ipdata.range_ip[3]);
             fprintf(in_file, "    </ip-address>\n");
-        }
+            }
+            */
 
         netnum++;
 
@@ -1513,21 +1558,29 @@ void Packetracker::ReadIPMap(FILE *in_file) {
 
         memset(&dat, 0, sizeof(net_ip_data));
 
-        short int range[4], mask[4], gate[4];
+        short int range[4];
+        /*
+         , mask[4], gate[4];
+         */
 
         // Fetch the line and continue if we're invalid...
-        if (sscanf(dline, "%17s %d %d %hd %hd %hd %hd %hd %hd %hd %hd %hd %hd %hd %hd",
+        if (sscanf(dline, "%17s %d %d %hd %hd %hd %hd",
                    bssid_str,
                    (int *) &dat.atype, &dat.octets,
-                   &range[0], &range[1], &range[2], &range[3],
+                   &range[0], &range[1], &range[2], &range[3]
+                   /*
                    &mask[0], &mask[1], &mask[2], &mask[3],
-                   &gate[0], &gate[1], &gate[2], &gate[3]) < 15)
+                   &gate[0], &gate[1], &gate[2], &gate[3]
+                   */
+                  ) < 15)
             continue;
 
         for (int x = 0; x < 4; x++) {
             dat.range_ip[x] = (uint8_t) range[x];
+            /*
             dat.mask[x] = (uint8_t) mask[x];
             dat.gate_ip[x] = (uint8_t) gate[x];
+            */
         }
 
         dat.load_from_store = 1;
@@ -1545,21 +1598,31 @@ void Packetracker::WriteIPMap(FILE *in_file) {
     fseek(in_file, 0L, SEEK_SET);
     ftruncate(fileno(in_file), 0);
 
+    /*
     char format[64];
     snprintf(format, 64, "%%.%ds %%d %%d %%hd %%hd %%hd %%hd %%hd %%hd %%hd %%hd %%hd %%hd %%hd %%hd\n",
-            MAC_STR_LEN);
+    MAC_STR_LEN);
+    */
 
     for (map<mac_addr, net_ip_data>::iterator x = bssid_ip_map.begin();
-         x != bssid_ip_map.end(); ++x)
-        fprintf(in_file, format,
+         x != bssid_ip_map.end(); ++x) {
+
+        if (x->second.atype <= address_factory || x->second.octets == 0)
+            continue;
+
+        fprintf(in_file, "%s %d %d %hd %hd %hd %hd\n",
                 x->first.Mac2String().c_str(),
                 x->second.atype, x->second.octets,
                 x->second.range_ip[0], x->second.range_ip[1],
-                x->second.range_ip[2], x->second.range_ip[3],
+                x->second.range_ip[2], x->second.range_ip[3]
+                /*
                 x->second.mask[0], x->second.mask[1],
                 x->second.mask[2], x->second.mask[3],
                 x->second.gate_ip[0], x->second.gate_ip[1],
-                x->second.gate_ip[2], x->second.gate_ip[3]);
+                x->second.gate_ip[2], x->second.gate_ip[3]
+                */
+               );
+    }
 
     return;
 }

@@ -272,6 +272,7 @@ int NetXmlStr2Struct(wireless_network *in_net) {
 
     }
 
+    /*
     if (XMLIsBlank(xmlstrnodes[net_node_ip_mask])) {
         memset(&in_net->ipdata.mask, 0, sizeof(uint8_t) * 4);
     } else {
@@ -306,7 +307,8 @@ int NetXmlStr2Struct(wireless_network *in_net) {
         in_net->ipdata.gate_ip[2] = gate[2];
         in_net->ipdata.gate_ip[3] = gate[3];
 
-    }
+        }
+        */
 
     return 1;
 }
