@@ -58,6 +58,9 @@ int WtapDumpFile::DumpPacket(const packet_info *in_info, const pkthdr *in_header
         }
     }
 
+    if (in_info->type == packet_phy && phy_log == 0)
+        return 1;
+
     Common2Wtap(in_header, in_data);
 
     wtap_dump(dump_file, &packet_header, NULL, packet_data, &wtap_error);

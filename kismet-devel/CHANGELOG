@@ -5,6 +5,7 @@ Dec 02 2002  2.7.1  Tweaked how frontend handles group naming to be faster
                     Revamped source handling again.  Multiple sources are now
                      defined by multiple 'source=' lines in the config, and
                      optionally enabled by name via the 'enablesources=' line.
+                    Added filtering of PHY-layer packets from the dump file.
 Dec 01 2002  2.7.1  Internal modifications to the frontend power display
                     Tweaked byte count details
                     Updated turbocell code

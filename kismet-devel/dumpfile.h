@@ -42,6 +42,8 @@ public:
 
     // Do we log beacons?
     void SetBeaconLog(int in_log) { beacon_log = in_log; };
+    // Do we log phy-layer stuff?
+    void SetPhyLog(int in_log) { phy_log = in_log; };
 
     // Get the number of packets
     int FetchDumped() { return(num_dumped); };
@@ -62,6 +64,7 @@ protected:
 
     int num_dumped;
     int beacon_log;
+    int phy_log;
 
     map<mac_addr, string> beacon_logged_map;
 

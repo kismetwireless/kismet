@@ -68,7 +68,7 @@ source=cisco,eth0,cisco
 .PP
 .RE
 .PP
-"enablesources" - Comma-separated list of source names (defined previously in the source lines) to enable.  This is only needed if you wish to selectively enable multiple sources.  For example:
+"enablesources" (string) Comma-separated list of source names (defined previously in the source lines) to enable.  This is only needed if you wish to selectively enable multiple sources.  For example:
 .RS
 enablesources=prism
 .PP
@@ -137,6 +137,10 @@ configuration directory.
 .PP
 "beaconlog" (true|false) Do we log beacon packets?  If beacon logging is turned off,
 one beacon per network will be logged.
+.PP
+"phylog" (true|false) Do we log PHY physical layer packets?  These can greatly increse
+the size of a logfile with little gain.  Not every packet source reports PHY
+packets.
 .PP
 "fuzzycrypt" (true|false) Comma-separated list of card types we use fuzzy
 encryption detection on.
