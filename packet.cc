@@ -953,7 +953,7 @@ void GetProtoInfo(kis_packet *packet, packet_info *in_info) {
 }
 
 // Pull all the printable data out
-vector<string> GetPacketStrings(const packet_info *in_info, kis_packet *packet) {
+vector<string> GetPacketStrings(const packet_info *in_info, const kis_packet *packet) {
     char str[MAX_PACKET_LEN];
     memset(str, 0, MAX_PACKET_LEN);
     vector<string> ret;
@@ -1086,4 +1086,41 @@ void DecryptPacket(kis_packet *packet, packet_info *in_info,
 
         in_info->decoded = 1;
     }
+}
+
+// Convert a crypted packet into an unencrypted packet.
+// Calling function is responsible for deleting the returned packet
+// and the contents of the returned packet.
+// We turn the packet into an "un-modified" packet for logging
+kis_packet *MangleCryptPacket(const kis_packet *packet, const packet_info *in_info) {
+    if (in_info->decoded == 0 || packet->error != 0 || packet->moddata == NULL)
+        return NULL;
+
+    kis_packet *outpack = new kis_packet;
+
+    // Remove the WEP header
+    outpack->ts.tv_sec = packet->ts.tv_sec;
+    outpack->ts.tv_usec = packet->ts.tv_usec;
+    outpack->len = packet->len - 4;
+    outpack->caplen = outpack->len;
+    outpack->quality = packet->quality;
+    outpack->signal = packet->signal;
+    outpack->noise = packet->noise;
+    outpack->error = 0;
+    outpack->channel = packet->channel;
+    outpack->carrier = packet->carrier;
+    outpack->moddata = NULL;
+
+    // Copy the decrypted data, skipping the wep header and dropping the crc32 off the end
+    outpack->data = new uint8_t[outpack->len];
+    memcpy((void *) outpack->data, (void *) packet->moddata, in_info->header_offset - 4);
+    memcpy((void *) &outpack->data[in_info->header_offset - 4],
+           (void *) &packet->moddata[in_info->header_offset],
+           outpack->len - in_info->header_offset);
+
+    // Twiddle the frame control bit
+    frame_control *fc = (frame_control *) outpack->data;
+    fc->wep = 0;
+
+    return outpack;
 }
