@@ -6,6 +6,8 @@ Dec 06 2003  3.1.0  Fixed Makefile looking for monitor/unmonitor scripts
                     Added madwifi support.  However, the latest madwifi release
                      appears to not have monitor mode...
                     Fixed dual-arg iwpriv calls (ie, orinoco)
+                    Fixed MadWifi support, all madwifi sources should be
+                     functioning.
 Dec 05 2003  3.1.0  First major CVS update in a while.  Most everything should
                      be working but documentation is a little sketchy about the
                      new setup.  Refer to kis_packsources.cc to see what your

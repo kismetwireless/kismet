@@ -234,6 +234,9 @@ int monitor_openbsd_prism2(const char *in_dev, int initch, char *in_err);
 int chancontrol_wext(const char *in_dev, int in_ch, char *in_err, void *in_ext);
 // Orinoco iwpriv control
 int chancontrol_orinoco(const char *in_dev, int in_ch, char *in_err, void *in_ext);
+// Madwifi needs to set mode
+int chancontrol_madwifi_ab(const char *in_dev, int in_ch, char *in_err, void *in_ext);
+int chancontrol_madwifi_ag(const char *in_dev, int in_ch, char *in_err, void *in_ext);
 #endif
 
 #ifdef SYS_LINUX

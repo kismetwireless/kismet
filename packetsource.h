@@ -68,6 +68,12 @@ public:
     // Get the error
     char *FetchError() { return(errstr); }
 
+    // Get the name
+    const char *FetchName() { return(name.c_str()); }
+
+    // Get the interface
+    const char *FetchInterface() { return(interface.c_str()); }
+
     // Fetch number of packets
     int FetchNumPackets() { return num_packets; }
 
