@@ -640,6 +640,12 @@ PanelFront::main_columns PanelFront::Token2MainColumn(string in_token) {
         return mcol_clients;
     } else if (in_token == "size") {
         return mcol_datasize;
+    } else if (in_token == "signalbar") {
+        return mcol_signalbar;
+    } else if (in_token == "qualitybar") {
+        return mcol_qualitybar;
+//    } else if (in_token == "noisebar") {
+//        return mcol_noisebar;
     } else {
         return mcol_unknown;
     }
