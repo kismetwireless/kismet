@@ -1078,6 +1078,9 @@ int monitor_hostap(const char *in_dev, int initch, char *in_err, void **in_if) {
 
     if ((ifparm->channel = Iwconfig_Get_Channel(in_dev, in_err)) < 0)
         return -1;
+
+    if (Iwconfig_Get_Mode(in_dev, in_err, &ifparm->mode) < 0)
+        return -1;
     
     // Try to use the iwpriv command to set monitor mode.  Some versions of
     // hostap require this, some don't, so don't fail on the monitor ioctl
@@ -1108,10 +1111,10 @@ int unmonitor_hostap(const char *in_dev, int initch, char *in_err, void **in_if)
         return -1;
     }
 
-    // Restore normal mode with iwpriv for now
-    if (Iwconfig_Set_IntPriv(in_dev, "monitor", 0, 0, in_err) < 0) {
-        return -1;
-    }
+    // Ignore errors from both of these, since one might fail with other versions
+    // of hostap
+    Iwconfig_Set_IntPriv(in_dev, "monitor", 0, 0, in_err);
+    Iwconfig_Set_Mode(in_dev, in_err, ifparm->mode);
 
     if (Iwconfig_Set_Channel(in_dev, ifparm->channel, in_err) < 0)
         return -1;
