@@ -32,7 +32,7 @@ Packetracker::Packetracker() {
 
 Packetracker::~Packetracker() {
     for (unsigned int x = 0; x < network_list.size(); x++) {
-        for (map<string, wireless_client *>::iterator y = network_list[x]->client_map.begin();
+        for (map<string, wireless_client *, STLMacComp>::iterator y = network_list[x]->client_map.begin();
              y != network_list[x]->client_map.end(); ++y)
             delete y->second;
         delete network_list[x];
@@ -210,9 +210,12 @@ int Packetracker::ProcessPacket(packet_info info, char *in_status) {
 
     // bssid_mac = Mac2String(info.bssid_mac, ':');
 
+    // Are we in the map?
+    int map_not_found = bssid_map.find(info.bssid_mac) == bssid_map.end();
+
     // If it's a broadcast (From and To DS == 1) try to match it to an existing
     // network
-    if (info.type == packet_ap_broadcast && bssid_map.find(info.bssid_mac) == bssid_map.end()) {
+    if (info.type == packet_ap_broadcast && map_not_found) {
         /*
         string ts_mac, fs_mac;
         ts_mac = Mac2String(info.source_mac, ':');
@@ -253,7 +256,7 @@ int Packetracker::ProcessPacket(packet_info info, char *in_status) {
     // Find out if we have this network -- Every network that actually
     // gets added has a bssid, so we'll use that to search.  We've filtered
     // everything else out by this point so we're safe to just work off bssid
-    if (bssid_map.find(info.bssid_mac) == bssid_map.end()) {
+    if (map_not_found) {
 
         // Make a network for them
         net = new wireless_network;
@@ -975,7 +978,7 @@ int Packetracker::WriteNetworks(FILE *in_file) {
     vector<wireless_network *> bssid_vec;
 
     // Convert the map to a vector and sort it
-    for (map<uint8_t *, wireless_network *>::const_iterator i = bssid_map.begin();
+    for (map<uint8_t *, wireless_network *, STLMacComp>::const_iterator i = bssid_map.begin();
          i != bssid_map.end(); ++i)
         bssid_vec.push_back(i->second);
 
@@ -1074,7 +1077,7 @@ int Packetracker::WriteCisco(FILE *in_file) {
     vector<wireless_network *> bssid_vec;
 
     // Convert the map to a vector and sort it
-    for (map<uint8_t *, wireless_network *>::const_iterator i = bssid_map.begin();
+    for (map<uint8_t *, wireless_network *, STLMacComp>::const_iterator i = bssid_map.begin();
          i != bssid_map.end(); ++i)
         bssid_vec.push_back(i->second);
 
@@ -1144,7 +1147,7 @@ int Packetracker::WriteCSVNetworks(FILE *in_file) {
     vector<wireless_network *> bssid_vec;
 
     // Convert the map to a vector and sort it
-    for (map<uint8_t *, wireless_network *>::const_iterator i = bssid_map.begin();
+    for (map<uint8_t *, wireless_network *, STLMacComp>::const_iterator i = bssid_map.begin();
          i != bssid_map.end(); ++i)
         bssid_vec.push_back(i->second);
 
@@ -1273,7 +1276,7 @@ int Packetracker::WriteXMLNetworks(FILE *in_file) {
             MAJOR, MINOR, ft, lt);
 
     // Convert the map to a vector and sort it
-    for (map<uint8_t *, wireless_network *>::const_iterator i = bssid_map.begin();
+    for (map<uint8_t *, wireless_network *, STLMacComp>::const_iterator i = bssid_map.begin();
          i != bssid_map.end(); ++i)
         bssid_vec.push_back(i->second);
 
@@ -1452,7 +1455,7 @@ void Packetracker::WriteSSIDMap(FILE *in_file) {
     char format[64];
     snprintf(format, 64, "%%.%ds %%.%ds\n", MAC_STR_LEN, SSID_SIZE);
 
-    for (map<uint8_t *, string>::iterator x = bssid_cloak_map.begin();
+    for (map<uint8_t *, string, STLMacComp>::iterator x = bssid_cloak_map.begin();
          x != bssid_cloak_map.end(); ++x)
         fprintf(in_file, format, Mac2String(x->first, ':').c_str(), x->second.c_str());
 
@@ -1518,7 +1521,7 @@ void Packetracker::WriteIPMap(FILE *in_file) {
     snprintf(format, 64, "%%.%ds %%d %%d %%hd %%hd %%hd %%hd %%hd %%hd %%hd %%hd %%hd %%hd %%hd %%hd\n",
             MAC_STR_LEN);
 
-    for (map<uint8_t *, net_ip_data>::iterator x = bssid_ip_map.begin();
+    for (map<uint8_t *, net_ip_data, STLMacComp>::iterator x = bssid_ip_map.begin();
          x != bssid_ip_map.end(); ++x)
         fprintf(in_file, format,
                 Mac2String(x->first, ':').c_str(),
@@ -1549,7 +1552,7 @@ int Packetracker::WriteGpsdriveWaypt(FILE *in_file) {
     ftruncate(fileno(in_file), 0);
 
     // Convert the map to a vector and sort it
-    for (map<uint8_t *, wireless_network *>::const_iterator i = bssid_map.begin();
+    for (map<uint8_t *, wireless_network *, STLMacComp>::const_iterator i = bssid_map.begin();
          i != bssid_map.end(); ++i) {
         wireless_network *net = i->second;
 

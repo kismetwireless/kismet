@@ -213,24 +213,6 @@ char *KismetHelpAlert[] = {
     NULL
 };
 
-string PanelFront::Mac2String(uint8_t *mac, char seperator) {
-    char tempstr[MAC_STR_LEN];
-
-    // There must be a better way to do this...
-    if (seperator != '\0')
-        snprintf(tempstr, MAC_STR_LEN, "%02X%c%02X%c%02X%c%02X%c%02X%c%02X",
-                 mac[0], seperator, mac[1], seperator, mac[2], seperator,
-                 mac[3], seperator, mac[4], seperator, mac[5]);
-    else
-        snprintf(tempstr, MAC_STR_LEN, "%02X%02X%02X%02X%02X%02X",
-                 mac[0], mac[1], mac[2],
-                 mac[3], mac[4], mac[5]);
-
-    string temp = tempstr;
-    return temp;
-}
-
-
 PanelFront::PanelFront() {
     errstr[0] = '\0';
 

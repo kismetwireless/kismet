@@ -113,6 +113,8 @@ protected:
 
     TcpClient *client;
 
+    string Mac2String(uint8_t *mac, char seperator);
+
     // Populate groups with data from the client -- fetch all the networks and put
     // them in the groups they should be in
     void PopulateGroups();
@@ -140,7 +142,7 @@ protected:
     vector<display_network *> group_vec;
 
     // Mapping of potential BSSID's to group tags so we know WHERE to put someone
-    map<string, string> bssid_group_map;
+    map<uint8_t *, string, STLMacComp> bssid_group_map;
 
     // Map of group tag to group name
     map<string, string> group_name_map;
@@ -150,7 +152,7 @@ protected:
 
     // Mapping of BSSID's to groups we've assigned them to, so we can quickly
     // add someone to a group if they're not there yet
-    map<string, display_network *> group_assignment_map;
+    map<uint8_t *, display_network *, STLMacComp> group_assignment_map;
 
     map<string, string> prefs;
 

@@ -211,13 +211,16 @@ int TcpClient::Poll() {
     return ret;
 }
 
-void TcpClient::RemoveNetwork(string in_bssid) {
+void TcpClient::RemoveNetwork(uint8_t *in_bssid) {
     if (net_map.find(in_bssid) != net_map.end())
         net_map.erase(net_map.find(in_bssid));
 }
 
 int TcpClient::ParseData(char *in_data) {
     char header[65];
+
+    uint8_t bssid[MAC_LEN];
+    unsigned int bssid_in[MAC_LEN];
 
     // fprintf(stderr, "About to parse: '%s'\n", in_data);
 
@@ -248,98 +251,111 @@ int TcpClient::ParseData(char *in_data) {
          printf("Time header %d\n", (int) serv_time);
          */
     } else if (!strncmp(header, "*NETWORK", 64)) {
-        wireless_network net;
+        wireless_network *net;
 
         int scanned;
 
-        char bssid[18], ssid[256], beacon[256];
+        char bssid_str[18], ssid[256], beacon[256];
         short int range[4], mask[4], gate[4];
 
         float maxrate;
 
-        scanned = sscanf(in_data+hdrlen, "%17s %d \001%255[^\001]\001 \001%255[^\001]\001 "
+        if (sscanf(in_data+hdrlen, "%17s", bssid_str) != 1)
+            return 0;
+
+        sscanf(bssid_str, "%02X:%02X:%02X:%02X:%02X:%02X",
+               &bssid_in[0], &bssid_in[1], &bssid_in[2],
+               &bssid_in[3], &bssid_in[4], &bssid_in[5]);
+
+        for (int x = 0; x < MAC_LEN; x++)
+            bssid[x] = bssid_in[x];
+
+
+        if (net_map.find(bssid) != net_map.end()) {
+            net = net_map[bssid];
+        } else {
+            net = new wireless_network;
+            memcpy(net->bssid_raw, bssid, MAC_LEN);
+            net->bssid = bssid_str;
+        }
+
+        scanned = sscanf(in_data+hdrlen+18, "%d \001%255[^\001]\001 \001%255[^\001]\001 "
                          "%d %d %d %d %d %d %d %d %d %hd.%hd.%hd.%hd %hd.%hd.%hd.%hd %hd.%hd.%hd.%hd "
                          "%d %f %f %f %f %f %f %f %f %d %d %d %f %d %d %d %d %d %d %d %d %f %f %f "
                          "%lf %lf %lf %ld",
-                         bssid, (int *) &net.type, ssid, beacon,
-                         &net.llc_packets, &net.data_packets, &net.crypt_packets, &net.interesting_packets,
-                         &net.channel, &net.wep, (int *) &net.first_time, (int *) &net.last_time,
-                         (int *) &net.ipdata.atype, &range[0], &range[1], &range[2], &range[3],
+                         (int *) &net->type, ssid, beacon,
+                         &net->llc_packets, &net->data_packets, &net->crypt_packets, &net->interesting_packets,
+                         &net->channel, &net->wep, (int *) &net->first_time, (int *) &net->last_time,
+                         (int *) &net->ipdata.atype, &range[0], &range[1], &range[2], &range[3],
                          &mask[0], &mask[1], &mask[2], &mask[3],
                          &gate[0], &gate[1], &gate[2], &gate[3],
-                         &net.gps_fixed, &net.min_lat, &net.min_lon, &net.min_alt, &net.min_spd,
-                         &net.max_lat, &net.max_lon, &net.max_alt, &net.max_spd,
+                         &net->gps_fixed, &net->min_lat, &net->min_lon, &net->min_alt, &net->min_spd,
+                         &net->max_lat, &net->max_lon, &net->max_alt, &net->max_spd,
                          /*
-                         &net.gps_lat, &net.gps_lon, &net.gps_alt, &net.gps_spd, &net.gps_mode,
-                         &net.first_lat, &net.first_lon, &net.first_alt, &net.first_spd,
-                         &net.first_mode,
+                         &net->gps_lat, &net->gps_lon, &net->gps_alt, &net->gps_spd, &net->gps_mode,
+                         &net->first_lat, &net->first_lon, &net->first_alt, &net->first_spd,
+                         &net->first_mode,
                          */
-                         &net.ipdata.octets, &net.cloaked, &net.beacon,
+                         &net->ipdata.octets, &net->cloaked, &net->beacon,
                          &maxrate,
-                         &net.manuf_id, &net.manuf_score,
-                         &net.quality, &net.signal, &net.noise,
-                         &net.best_quality, &net.best_signal, &net.best_noise,
-                         &net.best_lat, &net.best_lon, &net.best_alt,
-                         &net.aggregate_lat, &net.aggregate_lon, &net.aggregate_alt,
-                         &net.aggregate_points);
+                         &net->manuf_id, &net->manuf_score,
+                         &net->quality, &net->signal, &net->noise,
+                         &net->best_quality, &net->best_signal, &net->best_noise,
+                         &net->best_lat, &net->best_lon, &net->best_alt,
+                         &net->aggregate_lat, &net->aggregate_lon, &net->aggregate_alt,
+                         &net->aggregate_points);
 
-        if (scanned < 53) {
+        if (scanned < 52) {
             //fprintf(stderr, "Flubbed network, discarding...\n");
             return 0;
         }
 
-        // Alignment issues on some platforms make this necessary
-        unsigned int rawmac0, rawmac1, rawmac2, rawmac3, rawmac4, rawmac5;
-
-        sscanf(bssid, "%02X:%02X:%02X:%02X:%02X:%02X",
-               &rawmac0, &rawmac1, &rawmac2,
-               &rawmac3, &rawmac4, &rawmac5);
-
-        net.bssid_raw[0] = rawmac0;
-        net.bssid_raw[1] = rawmac1;
-        net.bssid_raw[2] = rawmac2;
-        net.bssid_raw[3] = rawmac3;
-        net.bssid_raw[4] = rawmac4;
-        net.bssid_raw[5] = rawmac5;
-
         /*
         sscanf(bssid, "%02X:%02X:%02X:%02X:%02X:%02X",
-               (unsigned int *) &net.bssid_raw[0], (unsigned int *) &net.bssid_raw[1],
-               (unsigned int *) &net.bssid_raw[2], (unsigned int *) &net.bssid_raw[3],
-               (unsigned int *) &net.bssid_raw[4], (unsigned int *) &net.bssid_raw[5]);
+               (unsigned int *) &net->bssid_raw[0], (unsigned int *) &net->bssid_raw[1],
+               (unsigned int *) &net->bssid_raw[2], (unsigned int *) &net->bssid_raw[3],
+               (unsigned int *) &net->bssid_raw[4], (unsigned int *) &net->bssid_raw[5]);
                */
 
-        net.bssid = bssid;
         if (ssid[0] != '\002')
-            net.ssid = ssid;
+            net->ssid = ssid;
         if (beacon[0] != '\002')
-            net.beacon_info = beacon;
+            net->beacon_info = beacon;
         for (int x = 0; x < 4; x++) {
-            net.ipdata.range_ip[x] = (uint8_t) range[x];
-            net.ipdata.mask[x] = (uint8_t) mask[x];
-            net.ipdata.gate_ip[x] = (uint8_t) gate[x];
+            net->ipdata.range_ip[x] = (uint8_t) range[x];
+            net->ipdata.mask[x] = (uint8_t) mask[x];
+            net->ipdata.gate_ip[x] = (uint8_t) gate[x];
         }
 
-        net.maxrate = maxrate;
+        net->maxrate = maxrate;
 
-        net_map[net.bssid] = net;
+        net_map[net->bssid_raw] = net;
 
-        // fprintf(stderr, "dealing with net %s\n", ssid);
-        // fprintf(stderr, "Set net %s\n", net_map[net.bssid].ssid.c_str());
+
+        /*
+        fprintf(stderr, "Netmap size is now:  %d\n", net_map.size());
+        fprintf(stderr, "dealing with net %s\n", ssid);
+        fprintf(stderr, "Set net %02X:%02X:%02X:%02X:%02X:%02X %s\n",
+                net->bssid_raw[0], net->bssid_raw[1], net->bssid_raw[2],
+                net->bssid_raw[3], net->bssid_raw[4], net->bssid_raw[5],
+                net_map[net->bssid_raw].ssid.c_str());
+                */
 
     } else if (!strncmp(header, "*CLIENT", 64)) {
         short int ip[4];
-        char bssid[18];
         char mac[18];
         int scanned;
         float maxrate;
         wireless_client *client = new wireless_client;
 
-        scanned = sscanf(in_data+hdrlen, "%17s %17s %d %d %d %d %d %d %d %d %d "
+        scanned = sscanf(in_data+hdrlen, "%02X:%02X:%02X:%02X:%02X:%02X "
+                         "%17s %d %d %d %d %d %d %d %d %d "
                          "%f %f %f %f %f %f %f %f %lf %lf "
                          "%lf %ld %f %d %d %d %d %d %d %d "
                          "%f %f %f %d %hd.%hd.%hd.%hd",
-                         bssid, mac, (int *) &client->type,
+                         &bssid_in[0], &bssid_in[1], &bssid_in[2],
+                         &bssid_in[3], &bssid_in[4], &bssid_in[5],
+                         mac, (int *) &client->type,
                          (int *) &client->first_time, (int *) &client->last_time,
                          (int *) &client->manuf_id, &client->manuf_score,
                          &client->data_packets, &client->crypt_packets,
@@ -355,10 +371,10 @@ int TcpClient::ParseData(char *in_data) {
                          &client->best_lat, &client->best_lon, &client->best_alt,
                          (int *) &client->ipdata.atype, &ip[0], &ip[1], &ip[2], &ip[3]);
 
-        if (scanned < 38)
+        if (scanned < 43)
             return 0;
 
-        client->mac = bssid;
+        client->mac = mac;
         client->maxrate = maxrate;
 
         // Alignment issues on some platforms make this necessary
@@ -375,23 +391,29 @@ int TcpClient::ParseData(char *in_data) {
         client->raw_mac[4] = rawmac4;
         client->raw_mac[5] = rawmac5;
 
+        for (int x = 0; x < MAC_LEN; x++)
+            bssid[x] = bssid_in[x];
+
         for (unsigned int x = 0; x < 4; x++)
             client->ipdata.ip[x] = ip[x];
 
         if (net_map.find(bssid) != net_map.end())
-            net_map[bssid].client_map[mac] = client;
+            net_map[bssid]->client_map[mac] = client;
 
     } else if (!strncmp(header, "*REMOVE", 64)) {
 
         // If we get a remove request flag it to die and the group code will
         // destroy it after ungrouping it
-
-        char bssid[MAC_STR_LEN];
-        if (sscanf(in_data+hdrlen, "%17s", bssid) < 1)
+        if (sscanf(in_data+hdrlen, "%02X:%02X:%02X:%02X:%02X:%02X",
+                   &bssid_in[0], &bssid_in[1], &bssid_in[2],
+                   &bssid_in[3], &bssid_in[4], &bssid_in[5]) < 6)
             return 0;
 
+        for (int x = 0; x < MAC_LEN; x++)
+            bssid[x] = bssid_in[x];
+
         if (net_map.find(bssid) != net_map.end()) {
-            net_map[bssid].type = network_remove;
+            net_map[bssid]->type = network_remove;
         }
 
     } else if (!strncmp(header, "*GPS", 64)) {
@@ -423,16 +445,17 @@ int TcpClient::ParseData(char *in_data) {
     } else if (!strncmp(header, "*CISCO", 64)) {
         cdp_packet cdp;
         memset(&cdp, 0, sizeof(cdp_packet));
-        char bssid[18];
         int cap0, cap1, cap2, cap3, cap4, cap5, cap6;
         short int cdpip[4];
 
-        if (sscanf(in_data+hdrlen, "%17s \001%s\001 %hd.%hd.%hd.%hd \001%s\001 "
+        if (sscanf(in_data+hdrlen, "%02X:%02X:%02X:%02X:%02X:%02X \001%s\001 %hd.%hd.%hd.%hd \001%s\001 "
                    "%d:%d:%d:%d;%d;%d;%d \001%s\001 \001%s\001\n",
-                   bssid, cdp.dev_id,
+                   &bssid_in[0], &bssid_in[1], &bssid_in[2],
+                   &bssid_in[3], &bssid_in[4], &bssid_in[5],
+                   cdp.dev_id,
                    &cdpip[0], &cdpip[1], &cdpip[2], &cdpip[3],
                    cdp.interface, &cap0, &cap1, &cap2, &cap3, &cap4, &cap5, &cap6,
-                   cdp.software, cdp.platform) < 16)
+                   cdp.software, cdp.platform) < 20)
             return 0;
 
         cdp.ip[0] = cdpip[0];
@@ -440,10 +463,13 @@ int TcpClient::ParseData(char *in_data) {
         cdp.ip[2] = cdpip[2];
         cdp.ip[3] = cdpip[3];
 
+        for (int x = 0; x < MAC_LEN; x++)
+            bssid[x] = bssid_in[x];
+
         if (net_map.find(bssid) == net_map.end())
             return 0;
 
-        net_map[bssid].cisco_equip[cdp.dev_id] = cdp;
+        net_map[bssid]->cisco_equip[cdp.dev_id] = cdp;
 
     } else if (!strncmp(header, "*STATUS", 64)) {
         if (sscanf(in_data+hdrlen, "%1023[^\n]\n", status) != 1)
@@ -528,8 +554,8 @@ int TcpClient::FetchLoc(float *in_lat, float *in_lon, float *in_alt, float *in_s
 vector<wireless_network *> TcpClient::FetchNetworkList() {
     vector<wireless_network *> retvec;
 
-    for (map<string, wireless_network>::iterator x = net_map.begin(); x != net_map.end(); ++x) {
-        retvec.push_back(&x->second);
+    for (map<uint8_t *, wireless_network *, STLMacComp>::iterator x = net_map.begin(); x != net_map.end(); ++x) {
+        retvec.push_back(x->second);
     }
 
     return retvec;

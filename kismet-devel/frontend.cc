@@ -21,6 +21,24 @@
 #include <math.h>
 #include "frontend.h"
 
+string Frontend::Mac2String(uint8_t *mac, char seperator) {
+    char tempstr[MAC_STR_LEN];
+
+    // There must be a better way to do this...
+    if (seperator != '\0')
+        snprintf(tempstr, MAC_STR_LEN, "%02X%c%02X%c%02X%c%02X%c%02X%c%02X",
+                 mac[0], seperator, mac[1], seperator, mac[2], seperator,
+                 mac[3], seperator, mac[4], seperator, mac[5]);
+    else
+        snprintf(tempstr, MAC_STR_LEN, "%02X%02X%02X%02X%02X%02X",
+                 mac[0], mac[1], mac[2],
+                 mac[3], mac[4], mac[5]);
+
+    string temp = tempstr;
+    return temp;
+}
+
+
 void Frontend::PopulateGroups() {
     vector<wireless_network *> clientlist;
 
@@ -32,36 +50,35 @@ void Frontend::PopulateGroups() {
 
         // Handle networks tagged for removal
         if (net->type == network_remove) {
-
-            if (group_assignment_map.find(net->bssid) != group_assignment_map.end()) {
+            if (group_assignment_map.find(net->bssid_raw) != group_assignment_map.end()) {
                 // Otherwise we have to unlink it and track it down
-                for (unsigned int y = 0; y < group_assignment_map[net->bssid]->networks.size(); y++) {
-                    if (group_assignment_map[net->bssid]->networks[y] == net) {
-                        group_assignment_map[net->bssid]->networks.erase(group_assignment_map[net->bssid]->networks.begin() + y);
+                for (unsigned int y = 0; y < group_assignment_map[net->bssid_raw]->networks.size(); y++) {
+                    if (group_assignment_map[net->bssid_raw]->networks[y] == net) {
+                        group_assignment_map[net->bssid_raw]->networks.erase(group_assignment_map[net->bssid_raw]->networks.begin() + y);
                         break;
                     }
                 }
 
                 // So far so good.  Now we see if we're supposed to be in any other networks,
                 // and remove the reference
-                if (bssid_group_map.find(net->bssid) != bssid_group_map.end()) {
-                    bssid_group_map.erase(bssid_group_map.find(net->bssid));
+                if (bssid_group_map.find(net->bssid_raw) != bssid_group_map.end()) {
+                    bssid_group_map.erase(bssid_group_map.find(net->bssid_raw));
                 }
 
-                if (group_assignment_map[net->bssid]->type == group_host) {
-                    DestroyGroup(group_assignment_map[net->bssid]);
+                if (group_assignment_map[net->bssid_raw]->type == group_host) {
+                    DestroyGroup(group_assignment_map[net->bssid_raw]);
                 } else {
-                    group_assignment_map.erase(group_assignment_map.find(net->bssid));
+                    group_assignment_map.erase(group_assignment_map.find(net->bssid_raw));
                 }
             }
 
-            client->RemoveNetwork(net->bssid);
+            client->RemoveNetwork(net->bssid_raw);
 
             continue;
         }
 
         // Now, see if we've been assigned, if we have we can just keep going
-        if (group_assignment_map.find(net->bssid) != group_assignment_map.end())
+        if (group_assignment_map.find(net->bssid_raw) != group_assignment_map.end())
             continue;
 
         int newgroup = 0;
@@ -69,8 +86,8 @@ void Frontend::PopulateGroups() {
         string grouptag;
 
         // If they haven't been assigned, see if they belong to a group we know about
-        if (bssid_group_map.find(net->bssid) != bssid_group_map.end()) {
-            grouptag = bssid_group_map[net->bssid];
+        if (bssid_group_map.find(net->bssid_raw) != bssid_group_map.end()) {
+            grouptag = bssid_group_map[net->bssid_raw];
 
             // And see if the group has been created
             if (group_tag_map.find(grouptag) == group_tag_map.end())
@@ -102,7 +119,7 @@ void Frontend::PopulateGroups() {
 
             // Register it
             group_tag_map[group->tag] = group;
-            bssid_group_map[net->bssid] = group->tag;
+            bssid_group_map[net->bssid_raw] = group->tag;
             // Push it into our main vector
             group_vec.push_back(group);
         }
@@ -115,7 +132,7 @@ void Frontend::PopulateGroups() {
             group->type = group_host;
 
         // Register that we're known
-        group_assignment_map[net->bssid] = group;
+        group_assignment_map[net->bssid_raw] = group;
     }
 
 }
@@ -271,7 +288,7 @@ void Frontend::UpdateGroups() {
             dnet->virtnet.interesting_packets += wnet->interesting_packets;
 
             // Add all the clients
-            for (map<string, wireless_client *>::iterator cli = wnet->client_map.begin();
+            for (map<string, wireless_client *, STLMacComp>::iterator cli = wnet->client_map.begin();
                  cli != wnet->client_map.end(); ++cli)
                 dnet->virtnet.client_map[cli->second->mac] = cli->second;
 
@@ -384,19 +401,19 @@ display_network *Frontend::GroupTagged() {
             wireless_network *snet = dnet->networks[y];
 
             // Destroy our assignment
-            if (group_assignment_map.find(snet->bssid) != group_assignment_map.end())
-                group_assignment_map.erase(group_assignment_map.find(snet->bssid));
+            if (group_assignment_map.find(snet->bssid_raw) != group_assignment_map.end())
+                group_assignment_map.erase(group_assignment_map.find(snet->bssid_raw));
 
             // So far so good.  Now we see if we're supposed to be in any other networks,
             // and remove the reference
-            if (bssid_group_map.find(snet->bssid) != bssid_group_map.end())
-                bssid_group_map.erase(bssid_group_map.find(snet->bssid));
+            if (bssid_group_map.find(snet->bssid_raw) != bssid_group_map.end())
+                bssid_group_map.erase(bssid_group_map.find(snet->bssid_raw));
 
             // Now we tell them we belong to the new network
-            bssid_group_map[snet->bssid] = core->tag;
+            bssid_group_map[snet->bssid_raw] = core->tag;
 
             // Register that we're assigned...
-            group_assignment_map[snet->bssid] = core;
+            group_assignment_map[snet->bssid_raw] = core;
 
             // And add us to the core network list
             core->networks.push_back(snet);
@@ -404,7 +421,7 @@ display_network *Frontend::GroupTagged() {
 
         // Now we find all the pointers to this network from networks that aren't
         // currently live, and move them.  This keeps us from breaking grouping.
-        for (map<string, string>::iterator iter = bssid_group_map.begin();
+        for (map<uint8_t *, string, STLMacComp>::iterator iter = bssid_group_map.begin();
              iter != bssid_group_map.end(); ++iter) {
             if (iter->second == dnet->tag)
                 bssid_group_map[iter->first] = core->tag;
@@ -446,13 +463,13 @@ void Frontend::DestroyGroup(display_network *in_group) {
         wireless_network *snet = in_group->networks[x];
 
         // Destroy our assignment
-        if (group_assignment_map.find(snet->bssid) != group_assignment_map.end())
-            group_assignment_map.erase(group_assignment_map.find(snet->bssid));
+        if (group_assignment_map.find(snet->bssid_raw) != group_assignment_map.end())
+            group_assignment_map.erase(group_assignment_map.find(snet->bssid_raw));
 
         // So far so good.  Now we see if we're supposed to be in any other networks,
         // and remove the reference
-        if (bssid_group_map.find(snet->bssid) != bssid_group_map.end())
-            bssid_group_map.erase(bssid_group_map.find(snet->bssid));
+        if (bssid_group_map.find(snet->bssid_raw) != bssid_group_map.end())
+            bssid_group_map.erase(bssid_group_map.find(snet->bssid_raw));
     }
 
     // We've unassigned all the sub networks, so remove us from the tag map
@@ -476,6 +493,8 @@ void Frontend::ReadGroupMap(FILE *in_file) {
 
     char type[6];
     char parm1[MAC_STR_LEN];
+    short int bssid_in[MAC_LEN];
+    uint8_t bssid[MAC_LEN];
     char parm2[1024];
 
     // We have two formats:
@@ -498,7 +517,15 @@ void Frontend::ReadGroupMap(FILE *in_file) {
         if (!strncmp(type, "GROUP", 64)) {
             group_name_map[parm1] = parm2;
         } else if (!strncmp(type, "LINK", 64)) {
-            bssid_group_map[parm1] = parm2;
+            if (sscanf(parm1, "%hd:%hd:%hd:%hd:%hd:%hd",
+                       &bssid_in[0], &bssid_in[1], &bssid_in[2],
+                       &bssid_in[3], &bssid_in[4], &bssid_in[5]) < 6)
+                continue;
+
+            for (int x = 0; x < MAC_LEN; x++)
+                bssid[x] = bssid_in[x];
+
+            bssid_group_map[bssid] = parm2;
         }
 
     }
@@ -530,11 +557,11 @@ void Frontend::WriteGroupMap(FILE *in_file) {
     }
 
     snprintf(format, 64, "LINK: %%.%ds %%.%ds\n", MAC_STR_LEN, MAC_STR_LEN);
-    for (map<string, string>::iterator x = bssid_group_map.begin();
+    for (map<uint8_t *, string, STLMacComp>::iterator x = bssid_group_map.begin();
          x != bssid_group_map.end(); ++x) {
 
         if (saved_groups.find(x->second) != saved_groups.end())
-            fprintf(in_file, format, x->first.c_str(), x->second.c_str());
+            fprintf(in_file, format, Mac2String(x->first, ':').c_str(), x->second.c_str());
     }
 
 
