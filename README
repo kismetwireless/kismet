@@ -1,4 +1,4 @@
-Kismet Feb-2004-01
+Kismet 2004-04-01
 Mike Kershaw <dragorn@kismetwireless.net>
 http://www.kismetwireless.net
 Licensed under the GPL
@@ -290,7 +290,10 @@ Licensed under the GPL
 
       Multiple filters can be chained together on one line with a ','.
       'filter_tracker=ANY(..),BSSID(!...)'
-     
+
+    * Including subconfig files.  By using 'include=...' other files can be
+      included into the Kismet config, with filtering, WEP keys, etc.
+      
     * MAC address masking.  Nearly any directive which takes a MAC address
       (such as filters, WEP keys, etc) can take a masked address.  MAC masking
       works the same as netmask in TCP/IP, for example
