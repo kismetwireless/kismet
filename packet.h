@@ -84,8 +84,8 @@ enum ieee_80211_subtype {
 
 // distribution directions
 enum ieee_80211_disttype {
-    no_distribution, from_distribution, to_distribution, 
-    inter_distribution, adhoc_distribution
+    distrib_unknown, distrib_from, distrib_to,
+    distrib_inter, distrib_adhoc
 };
 
 // Signalling layer info - what protocol are we seeing data on?
@@ -311,6 +311,34 @@ public:
 // Info from the IEEE 802.11 frame headers for kismet
 class kis_ieee80211_packinfo : public packet_component {
 public:
+    kis_ieee80211_packinfo() {
+        corrupt = 0;
+        header_offset = 0;
+        type = packet_unknown;
+        subtype = packet_sub_unknown;
+        mgt_reason_code = 0;
+        ssid_len = 0;
+        source_mac = mac_addr(0);
+        dest_mac = mac_addr(0);
+        bssid_mac = mac_addr(0);
+        other_mac = mac_addr(0);
+        distrib = distrib_unknown;
+        wep = 0;
+        fuzzywep = 0;
+        ess = 0;
+        channel = 0;
+        encrypted = 0;
+        beacon_interval = 0;
+        beacon_info[0] = '\0';
+        ivset = 0;
+        maxrate = 0;
+        timestamp = 0;
+        sequence_number = 0;
+        frag_number = 0;
+        duration = 0;
+        datasize = 0;
+    }
+
     // Corrupt 802.11 frame
     int corrupt;
    
@@ -366,6 +394,13 @@ public:
 // Layer 1 radio info record for kismet
 class kis_layer1_packinfo : public packet_component {
 public:
+	kis_layer1_packinfo() {
+		quality = signal = noise = 0;
+		carrier = carrier_unknown;
+		encoding = encoding_unknown;
+		datarate = 0;
+	}
+
     // Connection info
     int quality;
     int signal;
@@ -379,18 +414,23 @@ public:
 
     // What data rate?
     int datarate;
-} kis_layer1_packinfo;
+};
 
 // GPS coordinates
 class kis_gps_packinfo : public packet_component {
 public:
-    float lat;
-    float lon;
-    float alt;
-    float spd;
-    float heading;
+	kis_gps_packinfo() {
+		lat = lon = alt = spd = heading = -1000;
+		gps_fix = 0;
+	}
+
+    double lat;
+    double lon;
+    double alt;
+    double spd;
+    double heading;
     int gps_fix;
-} kis_gps_packinfo;
+};
 
 #endif
 

@@ -71,10 +71,10 @@
 
 #define CHAINCALL_PARMS GlobalRegistry *globalreg, void *auxdata, kis_packet *in_pack
 
-class PacketChain {
+class Packetchain {
 public:
-    PacketChain();
-    PacketChain(GlobalRegistry *in_globalreg);
+    Packetchain();
+    Packetchain(GlobalRegistry *in_globalreg);
 
     int RegisterPacketComponent(string in_component);
     int RemovePacketComponent(int in_id);
@@ -88,11 +88,11 @@ public:
  
     // Callback and information 
     typedef int (*pc_callback)(CHAINCALL_PARMS);
-    typedef pc_link {
+    typedef struct {
         int priority;
-        pc_callback callback;
+		Packetchain::pc_callback callback;
         void *auxdata;
-    }
+    } pc_link;
 
     // Register a callback, aux data, a chain to put it in, and the priority 
     int RegisterHandler(pc_callback in_cb, void *in_aux, int in_chain, int in_prio);
@@ -108,17 +108,17 @@ protected:
 
     // These two chains get called after a packet is generated and
     // before the final destruction, respectively
-    vector<PacketChain::pc_link *> genesis_chain;
-    vector<PacketChain::pc_link *> destruction_chain;
+    vector<Packetchain::pc_link *> genesis_chain;
+    vector<Packetchain::pc_link *> destruction_chain;
 
     // Core chain components
-    vector<PacketChain::pc_link *> postcap_chain;
-    vector<PacketChain::pc_link *> llcdissect_chain;
-    vector<PacketChain::pc_link *> filter_chain;
-    vector<PacketChain::pc_link *> decrypt_chain;
-    vector<PacketChain::pc_link *> datadissect_chain;
-    vector<PacketChain::pc_link *> classifier_chain;
-    vector<PacketChain::pc_link *> logging_chain;
+    vector<Packetchain::pc_link *> postcap_chain;
+    vector<Packetchain::pc_link *> llcdissect_chain;
+    vector<Packetchain::pc_link *> filter_chain;
+    vector<Packetchain::pc_link *> decrypt_chain;
+    vector<Packetchain::pc_link *> datadissect_chain;
+    vector<Packetchain::pc_link *> classifier_chain;
+    vector<Packetchain::pc_link *> logging_chain;
 };
 
 #endif

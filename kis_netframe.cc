@@ -669,7 +669,9 @@ int Protocol_CLIENT(PROTO_PARMS) {
     return 1;
 }
 
-void Protocol_Packet2Data(const packet_info *info, PACKET_data *data) {
+void Protocol_Packet2Data(const kis_packet *info, PACKET_data *data) {
+	// Broken for now
+#if 0
     char tmpstr[128];
 
     // Reserve
@@ -730,7 +732,7 @@ void Protocol_Packet2Data(const packet_info *info, PACKET_data *data) {
     snprintf(tmpstr, 128, "\001%s\001", strlen(info->sourcename) == 0 ? " " :
              info->sourcename);
     data->pdvec.push_back(tmpstr);
-
+#endif
 }
 
 // packet records.  data = PACKET_data

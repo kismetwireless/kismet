@@ -29,6 +29,40 @@ X-Riot-Version: 1ds-20040924
 In-Reply-To: <riot.20040927141546.8>
 
 GPS tracklog as timer in gpsdump
+
+Pending logger as packetstream element
+From background-static Fri Dec 10 10:52:14 EST 2004
+Message-Id: <riot.20041210105214.1>
+Date: Fri Dec 10 10:52:14 EST 2004
+Status: RO
+X-Riot-Version: 1ds-20040924
+In-Reply-To: <riot.20040927141546.8>
+
+Notification of capabilities of source (SNR, etc)
+From background-static Fri Dec 10 10:58:08 EST 2004
+Message-Id: <riot.20041210105808.1>
+Date: Fri Dec 10 10:58:08 EST 2004
+Status: RO
+X-Riot-Version: 1ds-20040924
+In-Reply-To: <riot.20040927141546.8>
+
+Per-client weak tracking
+From background-static Sun Jan 23 02:35:49 EST 2005
+Message-Id: <riot.20050123023549.1>
+Date: Sun Jan 23 02:35:49 EST 2005
+Status: RO
+X-Riot-Version: 1ds-20040924
+In-Reply-To: <riot.20040927141546.8>
+
+Cause kismet_server to fork-exec kismet_client bound to a local socket unless told otherwise
+From background-static Sun Feb  6 16:32:19 EST 2005
+Message-Id: <riot.20050206163219.1>
+Date: Sun Feb  6 16:32:19 EST 2005
+Status: RO
+X-Riot-Version: 1ds-20040924
+In-Reply-To: <riot.20040927141546.8>
+
+Merge bind-addr patch into tcp server base
 From background-static Mon Sep 27 00:14:46 EDT 2004
 Message-Id: <riot.20040927001446.1>
 Date: Mon Sep 27 00:14:46 EDT 2004
@@ -43,7 +77,8 @@ Status: RO
 X-Riot-Version: 1ds-20040924
 In-Reply-To: <riot.20040927001446.1>
 
-Clean up sorting code to use less CPU
+Optimize sorting code/dirtying code to only resort when the modified
+data would cause a resort
 From background-static Mon Sep 27 00:15:08 EDT 2004
 Message-Id: <riot.20040927001508.2>
 Date: Mon Sep 27 00:15:08 EDT 2004
@@ -176,6 +211,25 @@ X-Riot-Version: 1ds-20040924
 In-Reply-To: <riot.20040927011304.1>
 
 Rewrite packetracker
+
+Notes:
+decrypted field rolled into crypt bitfield as crypt_decoded
+snr and gpsdata granted independent components
+is a hook to tcpclient and uidata still applicable here?  Taken out for now.
+
+Lightweight hooks into packetchain trigger full handling inside
+ netracker class
+
+Import tracker file reading/writing
+
+From background-static Sun Jan  9 18:01:15 EST 2005
+Message-Id: <riot.20050109180115.3>
+Date: Sun Jan  9 18:01:15 EST 2005
+Status: RO
+X-Riot-Version: 1ds-20040924
+In-Reply-To: <riot.20040927011304.1>
+
+Fix FMSweak and other interesting frame detection and re-integrate
 From background-static Mon Sep 27 01:13:26 EDT 2004
 Message-Id: <riot.20040927011326.3>
 Date: Mon Sep 27 01:13:26 EDT 2004
@@ -183,9 +237,9 @@ Status: RO
 X-Riot-Version: 1ds-20040924
 In-Reply-To: <riot.20040927011304.1>
 
-Rewrite IEEE packet decoder
+Rewrite IEEE packet decoder (partially done)
 
-Don't use structs for dissection
+Don't use structs for dissection (ugh)
 less-strict checking on headers to handle unknown FCS?
 FCS as separate chunk from lowlevel driver
 From background-static Mon Sep 27 01:37:00 EDT 2004
@@ -213,7 +267,7 @@ Status: RO
 X-Riot-Version: 1ds-20040924
 In-Reply-To: <riot.20040927011304.1>
 
-Replace awful ISBLANK stuff
+Replace awful ISBLANK stuff (partial)
 From background-static Mon Sep 27 14:25:30 EDT 2004
 Message-Id: <riot.20040927142530.1>
 Date: Mon Sep 27 14:25:30 EDT 2004
@@ -230,3 +284,19 @@ X-Riot-Version: 1ds-20040924
 In-Reply-To: <riot.20040927011304.1>
 
 Dumpmax config value removed or moved to log code
+From background-static Sun Jan  9 14:58:41 EST 2005
+Message-Id: <riot.20050109145841.1>
+Date: Sun Jan  9 14:58:41 EST 2005
+Status: RO
+X-Riot-Version: 1ds-20040924
+In-Reply-To: <riot.20040927011304.1>
+
+Add config file variable to control tracking unique IVs
+From background-static Sun Jan  9 15:03:04 EST 2005
+Message-Id: <riot.20050109150304.2>
+Date: Sun Jan  9 15:03:04 EST 2005
+Status: RO
+X-Riot-Version: 1ds-20040924
+In-Reply-To: <riot.20040927011304.1>
+
+Move *NETWORK code into packetracker as a timer event

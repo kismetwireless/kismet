@@ -207,7 +207,7 @@ int Protocol_NETWORK(PROTO_PARMS); // NETWORK_data
 void Protocol_Client2Data(const wireless_network *net, const wireless_client *cli, CLIENT_data *data); // Convert a client
 int Protocol_CLIENT(PROTO_PARMS); // CLIENT_data
 int Protocol_STATUS(PROTO_PARMS); // string
-void Protocol_Packet2Data(const packet_info *info, PACKET_data *data);
+void Protocol_Packet2Data(const kis_packet *info, PACKET_data *data);
 int Protocol_PACKET(PROTO_PARMS); // PACKET_data
 int Protocol_STRING(PROTO_PARMS); // STRING_data
 int Protocol_WEPKEY(PROTO_PARMS); // wep_key_info

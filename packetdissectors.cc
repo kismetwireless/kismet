@@ -171,7 +171,7 @@ int kis_80211_dissector(CHAINCALL_PARMS) {
     // We'll fill these in as we go
     packinfo->type = packet_unknown;
     packinfo->subtype = packet_sub_unknown;
-    packinfo->distrib = no_distribution;
+    packinfo->distrib = distrib_none;
 
     // Endian swap the duration  ** Optimize this in the future **
     memcpy(&duration, &(chunk->data[2]), 2);
@@ -193,19 +193,19 @@ int kis_80211_dissector(CHAINCALL_PARMS) {
 
     // Assign the distribution direction this packet is traveling
     if (fc->to_ds == 0 && fc->from_ds == 0)
-        packinfo->distrib = adhoc_distribution;
+        packinfo->distrib = distrib_adhoc; 
     else if (fc->to_ds == 0 && fc->from_ds == 1)
-        packinfo->distrib = from_distribution;
+        packinfo->distrib = distrib_from;
     else if (fc->to_ds == 1 && fc->from_ds == 0)
-        packinfo->distrib = to_distribution;
+        packinfo->distrib = distrib_to;
     else if (fc->to_ds == 1 && fc->from_ds == 1)
-        packinfo->distrib = inter_distribution;
+        packinfo->distrib = distrib_inter;
 
     // Rip apart management frames
     if (fc->type == 0) {
         packinfo->type = packet_management;
 
-        packinfo->distrib = no_distribution;
+        packinfo->distrib = distrib_none;
 
         // Throw away large management frames that don't make any sense.  512b is 
         // an arbitrary number to pick, but this should keep some drivers from messing
@@ -229,7 +229,7 @@ int kis_80211_dissector(CHAINCALL_PARMS) {
 
             // Pull the fixparm ibss info
             if (fixparm->ess == 0 && fixparm->ibss == 1) {
-                packinfo->distrib = adhoc_distribution;
+                packinfo->distrib = distrib_adhoc;
             }
 
             // Pull the fixparm timestamp
@@ -342,7 +342,7 @@ int kis_80211_dissector(CHAINCALL_PARMS) {
         } else if (fc->subtype == 4) {
             packinfo->subtype = packet_sub_probe_req;
 
-            packinfo->distrib = to_distribution;
+            packinfo->distrib = distrib_to;
             
             packinfo->source_mac = addr1;
             packinfo->bssid_mac = addr1;
@@ -420,7 +420,7 @@ int kis_80211_dissector(CHAINCALL_PARMS) {
             packinfo->source_mac = addr1;
             packinfo->bssid_mac = addr2;
 
-            packinfo->distrib = no_distribution;
+            packinfo->distrib = distrib_none;
 
         } else if (fc->subtype == 10) {
             packinfo->subtype = packet_sub_disassociation;
@@ -471,7 +471,7 @@ int kis_80211_dissector(CHAINCALL_PARMS) {
             return 0;
         }
 
-        packinfo->distrib = no_distribution;
+        packinfo->distrib = distrib_none;
 
         if (fc->subtype == 11) {
             packinfo->subtype = packet_sub_rts;
@@ -532,7 +532,7 @@ int kis_80211_dissector(CHAINCALL_PARMS) {
 
         // Extract ID's
         switch (packinfo->distrib) {
-        case adhoc_distribution:
+        case distrib_adhoc:
             packinfo->dest_mac = addr0;
             packinfo->source_mac = addr1;
             packinfo->bssid_mac = addr2;
@@ -542,19 +542,19 @@ int kis_80211_dissector(CHAINCALL_PARMS) {
 
             packinfo->header_offset = 24;
             break;
-        case from_distribution:
+        case distrib_from:
             packinfo->dest_mac = addr0;
             packinfo->bssid_mac = addr1;
             packinfo->source_mac = addr2;
             packinfo->header_offset = 24;
             break;
-        case to_distribution:
+        case distrib_to:
             packinfo->bssid_mac = addr0;
             packinfo->source_mac = addr1;
             packinfo->dest_mac = addr2;
             packinfo->header_offset = 24;
             break;
-        case inter_distribution:
+        case distrib_none:
             // If we aren't long enough to hold a intra-ds packet, bail
             if (chunk->length < 30) {
                 packinfo->corrupt = 1;

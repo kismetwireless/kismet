@@ -28,7 +28,7 @@
 // Pre-defs for all the things we point to
 class MessageBus;
 class Packetsourcetracker;
-class Packetracker;
+class Netracker;
 class Packetchain;
 class Alertracker;
 class Timetracker;
@@ -50,7 +50,7 @@ public:
     
     MessageBus *messagebus;
     Packetsourcetracker *sourcetracker;
-    Packetracker *packetracker;
+    Netracker *netracker;
     Packetchain *packetchain;
     Alertracker *alertracker;
     Timetracker *timetracker;
@@ -131,7 +131,8 @@ public:
 
         messagebus = NULL;
         sourcetracker = NULL;
-        packetracker = NULL;
+		netracker = NULL;
+		packetchain = NULL;
         alertracker = NULL;
         timetracker = NULL;
         gpsd = NULL;

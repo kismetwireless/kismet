@@ -25,28 +25,28 @@
 #include <inttypes.h>
 #endif
 
-#include "packetchain.h"
+#include "Packetchain.h"
 
 class SortLinkPriority {
 public:
-    inline bool operator() (const PacketChain::pc_link *x, 
-                            const PacketChain::pc_link *y) const {
+    inline bool operator() (const Packetchain::pc_link *x, 
+                            const Packetchain::pc_link *y) const {
         if (x->priority > y->priority)
             return 1;
         return 0;
     }
 };
 
-PacketChain::PacketChain() {
+Packetchain::Packetchain() {
     fprintf(stderr, "Packetchain() called with no globalregistry\n");
 }
 
-PacketChain::PacketChain(GlobalRegistry *in_globalreg) {
+Packetchain::Packetchain(GlobalRegistry *in_globalreg) {
     globalreg = in_globalreg;
     next_componentid = 1;
 }
 
-int PacketChain::RegisterPacketComponent(string in_component) {
+int Packetchain::RegisterPacketComponent(string in_component) {
     if (component_str_map.find(StrLower(in_component)) != component_str_map.end()) {
         return -1;
     }
@@ -59,7 +59,7 @@ int PacketChain::RegisterPacketComponent(string in_component) {
     return num;
 }
 
-int PacketChain::RemovePacketComponent(int in_id) {
+int Packetchain::RemovePacketComponent(int in_id) {
     string str;
 
     if (component_id_map.find(in_id) != component_id_map.end()) {
@@ -73,7 +73,7 @@ int PacketChain::RemovePacketComponent(int in_id) {
     return 1;
 }
 
-kis_packet PacketChain::GeneratePacket() {
+kis_packet Packetchain::GeneratePacket() {
     kis_packet *newpack = new kis_packet;
     pc_link *pcl;
 
@@ -92,7 +92,7 @@ kis_packet PacketChain::GeneratePacket() {
     return newpack;
 }
 
-int PacketChain::ProcessPacket(kis_packet *in_pack) {
+int Packetchain::ProcessPacket(kis_packet *in_pack) {
     // Run it through every chain vector, ignoring error codes
 
     pc_link *pcl;
@@ -123,7 +123,7 @@ int PacketChain::ProcessPacket(kis_packet *in_pack) {
     return 1;
 }
 
-void PacketChain::DestroyPacket(kis_packet *in_pack) {
+void Packetchain::DestroyPacket(kis_packet *in_pack) {
     pc_link *pcl;
 
     // Push it through the destructors if there are any, we don't care
@@ -142,12 +142,12 @@ void PacketChain::DestroyPacket(kis_packet *in_pack) {
 
 }
 
-int PacketChain::RegisterHandler(pc_callback in_cb, void *in_aux, 
+int Packetchain::RegisterHandler(pc_callback in_cb, void *in_aux, 
                                  int in_chain, int in_prio) {
     pc_link *link = NULL;
     
     if (in_prio > 1000) {
-        globalreg->messagebus->InjectMessage("PacketChain::RegisterHandler requested "
+        globalreg->messagebus->InjectMessage("Packetchain::RegisterHandler requested "
                                              "priority greater than 1000", MSGFLAG_ERROR);
         return -1;
     }
@@ -206,7 +206,7 @@ int PacketChain::RegisterHandler(pc_callback in_cb, void *in_aux,
 
         default:
             delete link;
-            globalreg->messagebus->InjectMessage("PacketChain::RegisterHandler requested "
+            globalreg->messagebus->InjectMessage("Packetchain::RegisterHandler requested "
                                                  "unknown chain", MSGFLAG_ERROR);
             return -1;
     }
