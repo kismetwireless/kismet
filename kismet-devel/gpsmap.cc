@@ -252,7 +252,7 @@ int draw_track = 0, draw_bounds = 0, draw_range = 0, draw_power = 0,
     draw_hull = 0, draw_scatter = 0, draw_legend = 0, draw_center = 0, draw_label = 0;
 int track_opacity = 100, /* no bounds opacity */ range_opacity = 70, power_opacity = 70,
     hull_opacity = 70, scatter_opacity = 100, legend_opacity = 90, center_opacity = 100, label_opacity = 100;
-int convert_greyscale = 1, keep_gif = 0, verbose = 0, label_orientation = 0;
+int convert_greyscale = 1, keep_gif = 0, verbose = 0, label_orientation = 7;
 
 // Offsets for drawing from what we calculated
 int draw_x_offset = 0, draw_y_offset = 0;
@@ -1773,7 +1773,7 @@ int Usage(char* argv, int ec = 1) {
            "  -H, --draw-center-size <s>     Center dot at radius size <s> [Default: 2]\n"
            "  -l, --draw-labels <list>       Draw network labels, comma-seperated list\n"
            "                                  (bssid, name)\n"
-           "  -L, --draw-label-orient <o>    Label orientation [Default: 0]\n"
+           "  -L, --draw-label-orient <o>    Label orientation [Default: 7]\n"
            "                                  0       1       2\n"
            "                                  3       4       5\n"
            "                                  6       7       8\n"
