@@ -55,37 +55,33 @@
 
 #define MAJOR 2
 #define MINOR 5
+#define TINY  2
 
 // looky looky, image magick changed their api!
 #if MagickLibVersion < 0x0545
 #define OldMagickLib
 #endif
 
+// Global constant values
 const char *config_base = "kismet.conf";
-
 // &L = USA for the USA, EUR appears to be generic for Europe, EUR0809 for other parts of Europe.. if you get it wrong your map will be very bland =)
 // default to USA, probably want to change this. -- poptix
 const char url_template_mp[] = "http://msrvmaps.mappoint.net/isapi/MSMap.dll?ID=3XNsF.&C=%f,%f&L=USA&CV=1&A=%ld&S=%d,%d&O=0.000000,0.000000&MS=0&P=|5748|";
 const char url_template_ts[] = "http://terraservice.net/GetImageArea.ashx?t=1&lat=%f&lon=%f&s=%ld&w=%d&h=%d";
 const char url_template_mb[] = "http://www.mapblast.com/myblastd/MakeMap.d?&CT=%f:%f:%ld&IC=&W=%d&H=%d&FAM=myblast&LB=%s";
-
 const char download_template[] = "wget \"%s\" -O %s";
-
 // Decay from absolute blue for multiple tracks
 const uint8_t track_decay = 0x1F;
 // Width of the track
 const unsigned int track_width = 3;
-
 // distance (in feet) before we throttle a network and discard it
 const unsigned int horiz_throttle = 75000;
-//const unsigned int horiz_throttle = 850;
 
 // Image scales we use
 long int scales[] = { 1000, 2000, 5000, 10000, 20000, 30000, 50000, 60000, 70000, 75000, 80000,
 85000, 90000, 95000, 100000, 125000, 150000, 200000, 300000, 500000, 750000, 1000000, 2000000,
 3000000, 4000000, 5000000, 6000000, 7000000, 8000000, 9000000, 10000000, 15000000,
 20000000, 25000000, 30000000, 35000000, 40000000, 0 };
-
 // Terraserver scales for conversion to mapblast scales
 long int terrascales[] = { 2757, 5512, 11024, 22048, 44096, 88182, 176384 };
 
@@ -99,10 +95,6 @@ const char *netcolors[] = {
     "#001E96", "#008E96", "#00963E", "#529600",
     "#968C00", "#963700", NULL
 };
-
-// strength colors
-char **powercolors;
-int power_steps;
 
 // Channel colors
 char *channelcolors[] = {
@@ -121,7 +113,6 @@ char *powercolors_Orig[] = {
     "#FA00FF"
 };
 const int power_steps_Orig = 10;
-
 // Math progression
 char *powercolors_Math[] = {
     "#FF0000", "#FF8000", "#FFFF00",
@@ -130,7 +121,6 @@ char *powercolors_Math[] = {
     "#8000FF", "#FF00FF", "#FF0080"
 };
 const int power_steps_Math = 12;
-
 // Weather Radar
 char *powercolors_Radar[] = {
     "#50E350", "#39C339", "#208420",
@@ -138,27 +128,13 @@ char *powercolors_Radar[] = {
     "#E61E1E", "#B31A17", "#811610",
 };
 const int power_steps_Radar = 9;
-
+// Maximum power reported
 const int power_max = 255;
-//const double power_constant = -2;
-unsigned int map_width = 1280;
-unsigned int map_height = 1024;
 
-int draw_opacity, draw_track, draw_bounds, draw_range, draw_interpolated, draw_hull, draw_scatter,
-    draw_legend, convert_greyscale, keep_gif, draw_center, center_dot, verbose, interpolation_res;
-
-int alternatemap = 0;
-
+// Tracker internals
 int sample_points;
 
-// points .. replaced by gpspoint
-/*
-struct point {
-	double x, y, z;
-        };
-        */
-
-// don't ask
+// Convex hull point
 struct hullPoint {
 	int x, y;
 	double angle;
@@ -174,7 +150,7 @@ bool hullPoint::operator< (const hullPoint& op) const {
 	return y < op.y;
 }
 
-bool hullPoint::operator() (const hullPoint& a, const hullPoint& b) const { /*FOLD00*/
+bool hullPoint::operator() (const hullPoint& a, const hullPoint& b) const {
 	if (a.angle == b.angle) {
 		if (a.x == b.x) {
 			return a.y < b.y;
@@ -247,14 +223,54 @@ unsigned int num_tracks = 0;
 vector< vector<track_data> > track_vec;
 // Global average for map scaling
 gps_network global_map_avg;
-// Mapquest map scale
-long scale;
-// Expedia scale =/
-long scale2;
-// Center lat/lon for map
-double map_avg_lat, map_avg_lon;
+
 // Do we have any power data?
 int power_data;
+
+// Map scape
+long map_scale;
+// Center lat/lon for map
+double map_avg_lat, map_avg_lon;
+
+
+// User options and defaults
+unsigned int map_width = 1280;
+unsigned int map_height = 1024;
+
+// Drawing features and opacity
+int draw_track = 0, draw_bounds = 0, draw_range = 0, draw_power = 0,
+    draw_hull = 0, draw_scatter = 0, draw_legend = 0, draw_center = 0, draw_label = 0;
+int track_opacity = 100, /* no bounds opacity */ range_opacity = 70, power_opacity = 70,
+    hull_opacity = 70, scatter_opacity = 100, legend_opacity = 90, center_opacity = 100, label_opacity = 100;
+int convert_greyscale = 0, keep_gif = 0, verbose = 0;
+
+// Offsets for drawing from what we calculated
+int draw_x_offset = 0, draw_y_offset = 0;
+
+// Map source
+int mapsource = 0;
+#define MAPSOURCE_MAPBLAST   0
+#define MAPSOURCE_MAPPOINT   1
+#define MAPSOURCE_TERRA      2
+// Interpolation resolution
+int power_resolution = 5;
+// Interpolation colors
+// strength colors
+char **power_colors = NULL;
+int power_steps = 0;
+// Center resolution (size of circle)
+int center_resolution = 2;
+// Scatter resolution
+int scatter_resolution = 2;
+// Labels to draw
+string network_labels;
+// Order to draw in
+string draw_feature_order;
+// Color coding (1 = wep, 2 = channel)
+int color_coding = 0;
+#define COLORCODE_NONE    0
+#define COLORCODE_WEP     1
+#define COLORCODE_CHANNEL 2
 
 // Threads, locks, and graphs to hold the power
 pthread_t *mapthread;
@@ -270,12 +286,6 @@ int *power_input_map;
 string filter;
 int invert_filter = 0;
 
-// color by wep instead of random
-int color_wep = 0;
-// Color by channel instead of random
-int color_channel = 0;
-
- /*FOLD00*/
 // Forward prototypes
 string Mac2String(uint8_t *mac, char seperator);
 double rad2deg(double x);
@@ -288,17 +298,15 @@ int ProcessGPSFile(char *in_fname);
 void AssignNetColors();
 void MergeNetData(vector<wireless_network *> in_netdata);
 void ProcessNetData(int in_printstats);
-void DrawNetTracks(Image *in_img, DrawInfo *in_di);
-void DrawNetCircles(Image *in_img, DrawInfo *in_di);
-void DrawNetBoundRects(Image *in_img, DrawInfo *in_di, int in_fill);
-void DrawLegend(Image *in_img, DrawInfo *in_di);
-void DrawNetCenterDot(Image *in_img, DrawInfo *in_di, int in_dotsize);
+void DrawNetTracks(vector< vector<track_data> > in_tracks, Image *in_img, DrawInfo *in_di);
+void DrawNetCircles(vector<gps_network *> in_nets, Image *in_img, DrawInfo *in_di);
+void DrawNetBoundRects(vector<gps_network *> in_nets, Image *in_img, DrawInfo *in_di, int in_fill);
+void DrawLegend(vector<gps_network *> in_nets, Image *in_img, DrawInfo *in_di);
+void DrawNetCenterDot(vector<gps_network *> in_nets, Image *in_img, DrawInfo *in_di);
 int InverseWeight(int in_x, int in_y, int in_fuzz, double in_scale);
 void DrawNetPower(Image *in_img, DrawInfo *in_di);
-void DrawNetHull(Image *in_img, DrawInfo *in_di);
-void DrawNetScatterPlot(Image *in_img, DrawInfo *in_di, int in_dotsize);
-
-//forward here
+void DrawNetHull(vector<gps_network *> in_nets, Image *in_img, DrawInfo *in_di);
+void DrawNetScatterPlot(vector<gps_network *> in_nets, Image *in_img, DrawInfo *in_di);
 
 string Mac2String(uint8_t *mac, char seperator) { /*FOLD00*/
     char tempstr[MAC_STR_LEN];
@@ -315,238 +323,6 @@ string Mac2String(uint8_t *mac, char seperator) { /*FOLD00*/
 
     string temp = tempstr;
     return temp;
-}
- /*FOLD00*/
-
-// Faust Code to convert rad to deg and find the distance between two points
-// on the globe.  Thanks, Faust.
-//const float M_PI = 3.14159;
-double rad2deg(double x) { /*FOLD00*/
-     return x*M_PI/180.0;
-}
-
-double earth_distance(double lat1, double lon1, double lat2, double lon2) { /*FOLD00*/
-    /*
-    const double radius = 6378150.0; //meters
-
-    //convert to rads
-    double x1 = radius * cos(rad2deg(lon1)) * sin(rad2deg(90-lat1));
-    double x2 = radius * cos(rad2deg(lon2)) * sin(rad2deg(90-lat2));
-    double y1 = radius * sin(rad2deg(lon1)) * sin(rad2deg(90-lat1));
-    double y2 = radius * sin(rad2deg(lon2)) * sin(rad2deg(90-lat2));
-    double z1 = radius * cos(rad2deg(90-lat1));
-    double z2 = radius * cos(rad2deg(90-lat2));
-    double a = acos((x1*x2 + y1*y2 + z1*z2)/pow(radius,2));
-    return radius * a;
-    */
-
-    double x1 = calcR(lat1) * cos(rad2deg(lon1)) * sin(rad2deg(90-lat1));
-    double x2 = calcR(lat2) * cos(rad2deg(lon2)) * sin(rad2deg(90-lat2));
-    double y1 = calcR(lat1) * sin(rad2deg(lon1)) * sin(rad2deg(90-lat1));
-    double y2 = calcR(lat2) * sin(rad2deg(lon2)) * sin(rad2deg(90-lat2));
-    double z1 = calcR(lat1) * cos(rad2deg(90-lat1));
-    double z2 = calcR(lat2) * cos(rad2deg(90-lat2));
-    double a = acos((x1*x2 + y1*y2 + z1*z2)/pow(calcR((double) (lat1+lat2)/2),2));
-    return calcR((double) (lat1+lat2) / 2) * a;
-}
-
-//#ifdef 0
-// I'm still working on this...
-
-// Lifted from gpsdrive 1.7
-// CalcR gets the radius of the earth at a particular latitude
-// calcxy finds the x and y positions on a 1280x1024 image of a certian scale
-//  centered on a given lat/lon.
-
-// This pulls the "real radius" of a lat, instead of a global guesstimate
-double calcR (double lat) /*FOLD00*/
-{
-    double a = 6378.137, r, sc, x, y, z;
-    double e2 = 0.081082 * 0.081082;
-    /*
-     the radius of curvature of an ellipsoidal Earth in the plane of the
-     meridian is given by
-
-     R' = a * (1 - e^2) / (1 - e^2 * (sin(lat))^2)^(3/2)
-
-     where a is the equatorial radius,
-     b is the polar radius, and
-     e is the eccentricity of the ellipsoid = sqrt(1 - b^2/a^2)
-
-     a = 6378 km (3963 mi) Equatorial radius (surface to center distance)
-     b = 6356.752 km (3950 mi) Polar radius (surface to center distance)
-     e = 0.081082 Eccentricity
-     */
-
-    lat = lat * M_PI / 180.0;
-    sc = sin (lat);
-    x = a * (1.0 - e2);
-    z = 1.0 - e2 * sc * sc;
-    y = pow (z, 1.5);
-    r = x / y;
-
-    r = r * 1000.0;
-    return r;
-}
-
-/* Mapscale / pixelfact is meter / pixel */
-#define PIXELFACT 2817.947378
-
-void calcxy (double *posx, double *posy, double lat, double lon, double pixelfact, /*FOLD00*/
-        double zero_lat, double zero_long)
-{
-    double dif;
-
-    *posx = (calcR(lat) * M_PI / 180.0) * cos (M_PI * lat / 180.0) * (lon - zero_long);
-
-    *posx = (map_width/2) + *posx / pixelfact;
-    //*posx = *posx - xoff;
-
-    *posy = (calcR(lat) * M_PI / 180.0) * (lat - zero_lat);
-
-    dif = calcR(lat) * (1 - (cos ((M_PI * (lon - zero_long)) / 180.0)));
-
-    *posy = *posy + dif / 1.85;
-    *posy = (map_height/2) - *posy / pixelfact;
-    //*posy = *posy - yoff;
-}
-//#endif
-
-// Find the best map scale for the 'rectangle' tlat,tlon blat,blon
-long int BestMapScale(double tlat, double tlon, double blat, double blon) { /*FOLD00*/
-    for (int x = 0; scales[x] != 0; x++) {
-        /*
-        if (((double) (scales[x] / PIXELFACT) * map_width > width) &&
-            ((double) (scales[x] / PIXELFACT) * map_height > height))
-            return scales[x];
-            */
-
-        double mapx, mapy;
-        calcxy (&mapx, &mapy, global_map_avg.max_lat, global_map_avg.max_lon,
-                (double) scales[x]/PIXELFACT, map_avg_lat, map_avg_lon);
-
-        if (mapx < 0 || mapx > map_width || mapy < 0 || mapy > map_height)
-            continue;
-        else {
-            // Fudge the scale by 10% for extreme ranges
-            if (scales[x] >= 1000000 && scales[x] < 20000000)
-                return (long) (scales[x] + (scales[x] * 0.10));
-            if (scales[x] >= 20000000)
-                return (long) (scales[x] + (scales[x] * 0.15));
-
-            return scales[x];
-        }
-    }
-
-    return 0;
-}
-
-#define geom_distance(a, b, x, y) sqrt(pow((double) (a) - (double) (x), 2) + pow((double) (b) - (double) (y), 2))
-
-// Frank and Nielson's improved weighting algorithm
-double WeightAlgo(int start_x, int start_y, int in_x, int in_y, double in_fuzz, double in_scale) { /*FOLD00*/
-
-    // Step 1:  Find 'r', the distance to the farthest interpolation point
-    int min_x = 0, min_y = 0;
-    int max_x = map_width, max_y = map_height;
-    int offset = (int) (in_fuzz/in_scale);
-
-    if (start_x - offset > min_x)
-        min_x = start_x - offset;
-    if (start_y - offset > min_y)
-        min_y = start_y - offset;
-    if (start_x + offset < max_x)
-        max_x = start_x + offset;
-    if (start_y + offset < max_y)
-        max_y = start_y + offset;
-
-
-    printf("startx %d starty %d inx %d iny %d\n", start_x, start_y, in_x, in_y);
-
-    // Find the farthest sample point in this set
-    double r = 0;
-    for (int cury = min_y; cury < max_y; cury++) {
-        for (int curx = min_x; curx < max_x; curx++) {
-            if (power_input_map[(map_width * cury) + curx] < 0)
-                continue;
-
-//            printf("power map at %d,%d has val %d max %d,%d\n", cury, curx,
-//                   power_input_map[(map_width * cury) + curx], max_x, max_y);
-
-            double h = geom_distance(start_x, start_y, curx, cury);
-            if (h > r)
-                r = h;
-        }
-    }
-
-    // Construct the 'top half' of the weight function:
-    double hi = geom_distance(start_x, start_y, in_x, in_y);
-    double top_func = pow( ((r - hi)/(r * hi)), 2);
-
-    double bot_sum = 0;
-    // Construct the 'bottom half' of the weight function
-    for (int cury = min_y; cury < max_y; cury++) {
-        for (int curx = min_x; curx < max_x; curx++) {
-            if (power_input_map[(map_width * cury) + curx] < 0)
-                continue;
-
-            double hj = geom_distance(start_x, start_y, curx, cury) * 1.8;
-
-            bot_sum += pow( ((r - hj)/(r * hj)), 2);
-        }
-    }
-
-    // Put it all together and return the influence
-    double weight = top_func/bot_sum;
-
-    return weight;
-}
- /*FOLD00*/
-
-// Inverse weight calculations -- Shepard's with Frank and Nielson's improved weight
-// algorithm
-int InverseWeight(int in_x, int in_y, int in_fuzz, double in_scale) { /*FOLD00*/
-
-//    fprintf(stderr, "Getting power on %d %d\n", in_x, in_y);
-
-
-    int min_x = 0, min_y = 0;
-    int max_x = map_width, max_y = map_height;
-    int offset = (int) (in_fuzz/in_scale);
-
-    if (in_x - offset > min_x)
-        min_x = in_x - offset;
-    if (in_y - offset > min_y)
-        min_y = in_y - offset;
-    if (in_x + offset < max_x)
-        max_x = in_x + offset;
-    if (in_y + offset < max_y)
-        max_y = in_y + offset;
-
-    /*
-    fprintf(stderr, "influenced by %d range, %d %d from %d %d to %d %d\n",
-            offset, in_x, in_y, min_x, min_y, max_x, max_y);
-            */
-
-    if (offset == 0)
-        return 0;
-
-    double power_sum = 0;
-
-    for (int cury = min_y; cury < max_y; cury++) {
-        for (int curx = min_x; curx < max_x; curx++) {
-
-            if (power_input_map[(map_width * cury) + curx] < 0)
-                continue;
-
-            power_sum += WeightAlgo(in_x, in_y, curx, cury, in_fuzz, in_scale) *
-                power_input_map[(map_width * cury) + curx];
-
-        }
-    }
-
-    return (int) power_sum;
-
 }
 
 void MergeNetData(vector<wireless_network *> in_netdata) {
@@ -586,7 +362,7 @@ void MergeNetData(vector<wireless_network *> in_netdata) {
     }
 }
 
-int ProcessGPSFile(char *in_fname) { /*FOLD00*/
+int ProcessGPSFile(char *in_fname) {
     int file_samples = 0;
 
 #ifdef HAVE_LIBZ
@@ -808,15 +584,219 @@ int ProcessGPSFile(char *in_fname) { /*FOLD00*/
     return 1;
 }
 
+
+// Faust Code to convert rad to deg and find the distance between two points
+// on the globe.  Thanks, Faust.
+//const float M_PI = 3.14159;
+double rad2deg(double x) { /*FOLD00*/
+     return x*M_PI/180.0;
+}
+
+double earth_distance(double lat1, double lon1, double lat2, double lon2) { /*FOLD00*/
+
+    double x1 = calcR(lat1) * cos(rad2deg(lon1)) * sin(rad2deg(90-lat1));
+    double x2 = calcR(lat2) * cos(rad2deg(lon2)) * sin(rad2deg(90-lat2));
+    double y1 = calcR(lat1) * sin(rad2deg(lon1)) * sin(rad2deg(90-lat1));
+    double y2 = calcR(lat2) * sin(rad2deg(lon2)) * sin(rad2deg(90-lat2));
+    double z1 = calcR(lat1) * cos(rad2deg(90-lat1));
+    double z2 = calcR(lat2) * cos(rad2deg(90-lat2));
+    double a = acos((x1*x2 + y1*y2 + z1*z2)/pow(calcR((double) (lat1+lat2)/2),2));
+    return calcR((double) (lat1+lat2) / 2) * a;
+}
+
+// Lifted from gpsdrive 1.7
+// CalcR gets the radius of the earth at a particular latitude
+// calcxy finds the x and y positions on a 1280x1024 image of a certian scale
+//  centered on a given lat/lon.
+
+// This pulls the "real radius" of a lat, instead of a global guesstimate
+double calcR (double lat) /*FOLD00*/
+{
+    double a = 6378.137, r, sc, x, y, z;
+    double e2 = 0.081082 * 0.081082;
+    /*
+     the radius of curvature of an ellipsoidal Earth in the plane of the
+     meridian is given by
+
+     R' = a * (1 - e^2) / (1 - e^2 * (sin(lat))^2)^(3/2)
+
+     where a is the equatorial radius,
+     b is the polar radius, and
+     e is the eccentricity of the ellipsoid = sqrt(1 - b^2/a^2)
+
+     a = 6378 km (3963 mi) Equatorial radius (surface to center distance)
+     b = 6356.752 km (3950 mi) Polar radius (surface to center distance)
+     e = 0.081082 Eccentricity
+     */
+
+    lat = lat * M_PI / 180.0;
+    sc = sin (lat);
+    x = a * (1.0 - e2);
+    z = 1.0 - e2 * sc * sc;
+    y = pow (z, 1.5);
+    r = x / y;
+
+    r = r * 1000.0;
+    return r;
+}
+
+/* Mapscale / pixelfact is meter / pixel */
+#define PIXELFACT 2817.947378
+
+void calcxy (double *posx, double *posy, double lat, double lon, double pixelfact, /*FOLD00*/
+        double zero_lat, double zero_long) {
+    double dif;
+
+    *posx = (calcR(lat) * M_PI / 180.0) * cos (M_PI * lat / 180.0) * (lon - zero_long);
+
+    *posx = (map_width/2) + *posx / pixelfact;
+    //*posx = *posx - xoff;
+
+    *posy = (calcR(lat) * M_PI / 180.0) * (lat - zero_lat);
+
+    dif = calcR(lat) * (1 - (cos ((M_PI * (lon - zero_long)) / 180.0)));
+
+    *posy = *posy + dif / 1.85;
+    *posy = (map_height/2) - *posy / pixelfact;
+    //*posy = *posy - yoff;
+}
+//#endif
+
+// Find the best map scale for the 'rectangle' tlat,tlon blat,blon
+long int BestMapScale(double tlat, double tlon, double blat, double blon) { /*FOLD00*/
+    for (int x = 0; scales[x] != 0; x++) {
+        double mapx, mapy;
+        calcxy (&mapx, &mapy, global_map_avg.max_lat, global_map_avg.max_lon,
+                (double) scales[x]/PIXELFACT, map_avg_lat, map_avg_lon);
+
+        if (mapx < 0 || mapx > map_width || mapy < 0 || mapy > map_height)
+            continue;
+        else {
+            // Fudge the scale by 10% for extreme ranges
+            if (scales[x] >= 1000000 && scales[x] < 20000000)
+                return (long) (scales[x] + (scales[x] * 0.10));
+            if (scales[x] >= 20000000)
+                return (long) (scales[x] + (scales[x] * 0.15));
+
+            return scales[x];
+        }
+    }
+
+    return 0;
+}
+
+#define geom_distance(a, b, x, y) sqrt(pow((double) (a) - (double) (x), 2) + pow((double) (b) - (double) (y), 2))
+
+// Frank and Nielson's improved weighting algorithm
+double WeightAlgo(int start_x, int start_y, int in_x, int in_y, double in_fuzz, double in_scale) { /*FOLD00*/
+
+    // Step 1:  Find 'r', the distance to the farthest interpolation point
+    int min_x = 0, min_y = 0;
+    int max_x = map_width, max_y = map_height;
+    int offset = (int) (in_fuzz/in_scale);
+
+    if (start_x - offset > min_x)
+        min_x = start_x - offset;
+    if (start_y - offset > min_y)
+        min_y = start_y - offset;
+    if (start_x + offset < max_x)
+        max_x = start_x + offset;
+    if (start_y + offset < max_y)
+        max_y = start_y + offset;
+
+
+//    printf("startx %d starty %d inx %d iny %d\n", start_x, start_y, in_x, in_y);
+
+    // Find the farthest sample point in this set
+    double r = 0;
+    for (int cury = min_y; cury < max_y; cury++) {
+        for (int curx = min_x; curx < max_x; curx++) {
+            if (power_input_map[(map_width * cury) + curx] < 0)
+                continue;
+
+//            printf("power map at %d,%d has val %d max %d,%d\n", cury, curx,
+//                   power_input_map[(map_width * cury) + curx], max_x, max_y);
+
+            double h = geom_distance(start_x, start_y, curx, cury);
+            if (h > r)
+                r = h;
+        }
+    }
+
+    // Construct the 'top half' of the weight function:
+    double hi = geom_distance(start_x, start_y, in_x, in_y);
+    double top_func = pow( ((r - hi)/(r * hi)), 2);
+
+    double bot_sum = 0;
+    // Construct the 'bottom half' of the weight function
+    for (int cury = min_y; cury < max_y; cury++) {
+        for (int curx = min_x; curx < max_x; curx++) {
+            if (power_input_map[(map_width * cury) + curx] < 0)
+                continue;
+
+            double hj = geom_distance(start_x, start_y, curx, cury) * 1.8;
+
+            bot_sum += pow( ((r - hj)/(r * hj)), 2);
+        }
+    }
+
+    // Put it all together and return the influence
+    double weight = top_func/bot_sum;
+
+    return weight;
+}
+
+// Inverse weight calculations -- Shepard's with Frank and Nielson's improved weight
+// algorithm
+int InverseWeight(int in_x, int in_y, int in_fuzz, double in_scale) { /*FOLD00*/
+    int min_x = 0, min_y = 0;
+    int max_x = map_width, max_y = map_height;
+    int offset = (int) (in_fuzz/in_scale);
+
+    if (in_x - offset > min_x)
+        min_x = in_x - offset;
+    if (in_y - offset > min_y)
+        min_y = in_y - offset;
+    if (in_x + offset < max_x)
+        max_x = in_x + offset;
+    if (in_y + offset < max_y)
+        max_y = in_y + offset;
+
+    /*
+    fprintf(stderr, "influenced by %d range, %d %d from %d %d to %d %d\n",
+            offset, in_x, in_y, min_x, min_y, max_x, max_y);
+            */
+
+    if (offset == 0)
+        return 0;
+
+    double power_sum = 0;
+
+    for (int cury = min_y; cury < max_y; cury++) {
+        for (int curx = min_x; curx < max_x; curx++) {
+
+            if (power_input_map[(map_width * cury) + curx] < 0)
+                continue;
+
+            power_sum += WeightAlgo(in_x, in_y, curx, cury, in_fuzz, in_scale) *
+                power_input_map[(map_width * cury) + curx];
+
+        }
+    }
+
+    return (int) power_sum;
+
+}
+
 // Do all the math
 void ProcessNetData(int in_printstats) { /*FOLD00*/
     // Convert the tracks to x,y
-    if (draw_track != 0 || draw_interpolated != 0) {
+    if (draw_track != 0 || draw_power != 0) {
         for (unsigned int vec = 0; vec < track_vec.size(); vec++) {
             for (unsigned int x = 0; x < track_vec[vec].size(); x++) {
                 double track_tx, track_ty;
                 calcxy(&track_tx, &track_ty, track_vec[vec][x].lat, track_vec[vec][x].lon,
-                       (double) scale/PIXELFACT, map_avg_lat, map_avg_lon);
+                       (double) map_scale/PIXELFACT, map_avg_lat, map_avg_lon);
 
                 track_vec[vec][x].x = (int) track_tx;
                 track_vec[vec][x].y = (int) track_ty;
@@ -925,7 +905,7 @@ void AssignNetColors() { /*FOLD00*/
 
         gps_network *map_iter = x->second;
 
-        if (color_wep) {
+        if (color_coding == COLORCODE_WEP) {
             if (map_iter->wnet != NULL) {
                 if (MatchBestManuf(map_iter->wnet, 0) == manuf_max_score) {
                     map_iter->color_index = "#0000FF";
@@ -937,7 +917,7 @@ void AssignNetColors() { /*FOLD00*/
             } else {
                 map_iter->color_index = "#00FF00";
             }
-        } else if (color_channel) {
+        } else if (color_coding == COLORCODE_CHANNEL) {
             if (map_iter->wnet != NULL) {
                 if (map_iter->wnet->channel < 1 || map_iter->wnet->channel > 14) {
                     map_iter->color_index = "#000000";
@@ -1051,11 +1031,9 @@ void DrawNetTracks(Image *in_img, DrawInfo *in_di) { /*FOLD00*/
     }
 }
 
-void DrawNetCircles(Image *in_img, DrawInfo *in_di) { /*FOLD00*/
-    for (map<string, gps_network *>::const_iterator x = bssid_gpsnet_map.begin();
-         x != bssid_gpsnet_map.end(); ++x) {
-
-        gps_network *map_iter = x->second;
+void DrawNetCircles(vector<gps_network *> in_nets, Image *in_img, DrawInfo *in_di) { /*FOLD00*/
+    for (unsigned int x = 0; x < in_nets.size(); x++) {
+        gps_network *map_iter = in_nets[x];
 
         // Skip networks w/ no determined coordinates
         if (map_iter->max_lat == 0)
@@ -1068,7 +1046,7 @@ void DrawNetCircles(Image *in_img, DrawInfo *in_di) { /*FOLD00*/
         double mapx, mapy;
 
         calcxy (&mapx, &mapy, map_iter->avg_lat, map_iter->avg_lon,
-                (double) scale/PIXELFACT, map_avg_lat, map_avg_lon);
+                (double) map_scale/PIXELFACT, map_avg_lat, map_avg_lon);
 
         double end_lat, end_lon;
 
@@ -1085,7 +1063,7 @@ void DrawNetCircles(Image *in_img, DrawInfo *in_di) { /*FOLD00*/
 
         double endx, endy;
         calcxy(&endx, &endy, end_lat, end_lon,
-               (double) scale/PIXELFACT, map_avg_lat, map_avg_lon);
+               (double) map_scale/PIXELFACT, map_avg_lat, map_avg_lon);
 
         // printf("  Endpt   : %dx%d\n", (int) endx, (int) endy);
 
@@ -1106,7 +1084,7 @@ void DrawNetCircles(Image *in_img, DrawInfo *in_di) { /*FOLD00*/
         char prim[1024];
 
         snprintf(prim, 1024, "fill-opacity %d%% stroke-opacity %d%% circle %d,%d %d,%d",
-                 draw_opacity, draw_opacity, (int) mapx, (int) mapy, (int) endx, (int) endy);
+                 range_opacity, range_opacity, (int) mapx, (int) mapy, (int) endx, (int) endy);
 
         in_di->primitive = strdup(prim);
         DrawImage(in_img, in_di);
@@ -1117,11 +1095,9 @@ double clockwize( int x0, int y0, int x1, int y1, int x2, int y2) { /*FOLD00*/
 	return ( x2 - x0 ) * ( y1 - y0 ) - ( x1 - x0 ) * ( y2 - y0 );
 }
 
-void DrawNetHull(Image *in_img, DrawInfo *in_di) { /*FOLD00*/
-    for (map<string, gps_network *>::const_iterator x = bssid_gpsnet_map.begin();
-         x != bssid_gpsnet_map.end(); ++x) {
-
-        gps_network *map_iter = x->second;
+void DrawNetHull(vector<gps_network *> in_nets, Image *in_img, DrawInfo *in_di) { /*FOLD00*/
+    for (unsigned int x = 0; x < in_nets.size(); x++) {
+        gps_network *map_iter = in_nets[x];
 
         // Skip networks w/ no determined coordinates
         if (map_iter->max_lat == 0)
@@ -1136,7 +1112,7 @@ void DrawNetHull(Image *in_img, DrawInfo *in_di) { /*FOLD00*/
             double mapx, mapy;
 
             calcxy (&mapx, &mapy, pt->lat, pt->lon,
-                    (double) scale/PIXELFACT, map_avg_lat, map_avg_lon);
+                    (double) map_scale/PIXELFACT, map_avg_lat, map_avg_lon);
 
             char mm1[64];
             snprintf(mm1, 64, "%d,%d", (int) mapx, (int) mapy);
@@ -1235,7 +1211,7 @@ void DrawNetHull(Image *in_img, DrawInfo *in_di) { /*FOLD00*/
 
 	char prim[2048];
         snprintf(prim, 1024, "fill-opacity %d%% stroke-opacity %d%% polygon %s",
-                 draw_opacity, draw_opacity, pstr2);
+                 hull_opacity, hull_opacity, pstr2);
 
 	//printf("%s\n", prim);
 	
@@ -1245,11 +1221,10 @@ void DrawNetHull(Image *in_img, DrawInfo *in_di) { /*FOLD00*/
 
 }
 
-void DrawNetBoundRects(Image *in_img, DrawInfo *in_di, int in_fill) { /*FOLD00*/
-    for (map<string, gps_network *>::const_iterator x = bssid_gpsnet_map.begin();
-         x != bssid_gpsnet_map.end(); ++x) {
-
-        gps_network *map_iter = x->second;
+void DrawNetBoundRects(vector<gps_network *> in_nets, Image *in_img, DrawInfo *in_di, /*FOLD00*/
+                       int in_fill) {
+    for (unsigned int x = 0; x < in_nets.size(); x++) {
+        gps_network *map_iter = in_nets[x];
 
         // Skip networks w/ no determined coordinates
         if (map_iter->max_lat == 0)
@@ -1261,11 +1236,11 @@ void DrawNetBoundRects(Image *in_img, DrawInfo *in_di, int in_fill) { /*FOLD00*/
         // Figure x, y of min on our hypothetical map
         double mapx, mapy;
         calcxy (&mapx, &mapy, map_iter->max_lat, map_iter->max_lon,
-                (double) scale/PIXELFACT, map_avg_lat, map_avg_lon);
+                (double) map_scale/PIXELFACT, map_avg_lat, map_avg_lon);
 
         double endx, endy;
         calcxy(&endx, &endy, map_iter->min_lat, map_iter->min_lon,
-               (double) scale/PIXELFACT, map_avg_lat, map_avg_lon);
+               (double) map_scale/PIXELFACT, map_avg_lat, map_avg_lon);
 
         double tlx, tly, brx, bry;
 
@@ -1359,7 +1334,8 @@ void *PowerLine(void *arg) { /*FOLD00*/
         pthread_mutex_unlock(&print_lock);
 
         for (unsigned int x = 0; x < map_width; x+= in_res) {
-            unsigned int powr = InverseWeight(x, y, (int) (scale/100), (double) scale/PIXELFACT);
+            unsigned int powr = InverseWeight(x, y, (int) (map_scale/100),
+                                              (double) map_scale/PIXELFACT);
 
             pthread_mutex_lock(&power_lock);
             power_map[(map_width * y) + x] = powr;
@@ -1382,7 +1358,7 @@ void *PowerLine(void *arg) { /*FOLD00*/
     pthread_exit((void *) 0);
 }
 
-void DrawNetPower(Image *in_img, DrawInfo *in_di, int in_res) { /*FOLD00*/
+void DrawNetPower(Image *in_img, DrawInfo *in_di) { /*FOLD00*/
     PixelPacket point_clr;
     pthread_attr_t attr;
 
@@ -1425,7 +1401,7 @@ void DrawNetPower(Image *in_img, DrawInfo *in_di, int in_res) { /*FOLD00*/
     pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_JOINABLE);
     powerline_arg *pargs = new powerline_arg[numthreads];
     for (unsigned int t = 0; t < numthreads; t++) {
-        pargs[t].in_res = in_res;
+        pargs[t].in_res = power_resolution;
         pargs[t].threadno = t;
 
         pthread_create(&mapthread[t], &attr, PowerLine, (void *) &pargs[t]);
@@ -1440,8 +1416,8 @@ void DrawNetPower(Image *in_img, DrawInfo *in_di, int in_res) { /*FOLD00*/
     }
 
     fprintf(stderr, "Drawing interpolated power levels to map.\n");
-    for (unsigned int y = 0; y < map_height; y += in_res) {
-        for (unsigned int x = 0; x < map_width; x += in_res) {
+    for (unsigned int y = 0; y < map_height; y += power_resolution) {
+        for (unsigned int x = 0; x < map_width; x += power_resolution) {
             //            int powr = InverseWeight(x, y, 200, (double) scale/PIXELFACT);
             int powr = power_map[(map_width * y) + x];
 
@@ -1457,11 +1433,11 @@ void DrawNetPower(Image *in_img, DrawInfo *in_di, int in_res) { /*FOLD00*/
                     power_index = power_steps - 1;
 
 #ifdef OldMagickLib
-		QueryColorDatabase(powercolors[power_index], &point_clr);
+		QueryColorDatabase(power_colors[power_index], &point_clr);
 #else
 		{
 		ExceptionInfo excep;
-		QueryColorDatabase(powercolors[power_index], &point_clr, &excep);
+		QueryColorDatabase(power_colors[power_index], &point_clr, &excep);
 		}
 #endif
 
@@ -1472,14 +1448,14 @@ void DrawNetPower(Image *in_img, DrawInfo *in_di, int in_res) { /*FOLD00*/
 
                 int b, r;
 
-                if (in_res == 1) {
+                if (power_resolution == 1) {
                     snprintf(prim, 1024, "fill-opacity %d%% stroke-opacity %d%% stroke-width 0 point %d,%d",
-                         draw_opacity, draw_opacity, x, y);
+                         power_opacity, power_opacity, x, y);
                 } else {
-                    r = x + in_res - 1;
-                    b = y + in_res - 1;
+                    r = x + power_resolution - 1;
+                    b = y + power_resolution - 1;
                     snprintf(prim, 1024, "fill-opacity %d%% stroke-opacity %d%% stroke-width 0 rectangle %d,%d %d,%d",
-                         draw_opacity, draw_opacity, x, y, r, b);
+                         power_opacity, power_opacity, x, y, r, b);
                 }
 
                 //printf("%d,%d power %d\n", x, y, powr);
@@ -1497,11 +1473,9 @@ void DrawNetPower(Image *in_img, DrawInfo *in_di, int in_res) { /*FOLD00*/
     delete power_map;
 }
 
-void DrawNetCenterDot(Image *in_img, DrawInfo *in_di, int in_dotsize) {
-    for (map<string, gps_network *>::const_iterator x = bssid_gpsnet_map.begin();
-         x != bssid_gpsnet_map.end(); ++x) {
-
-        gps_network *map_iter = x->second;
+void DrawNetCenterDot(vector<gps_network *> in_nets, Image *in_img, DrawInfo *in_di) {
+    for (unsigned int x = 0; x < in_nets.size(); x++) {
+        gps_network *map_iter = in_nets[x];
 
         // Skip networks w/ no determined coordinates
         if (map_iter->max_lat == 0)
@@ -1515,11 +1489,11 @@ void DrawNetCenterDot(Image *in_img, DrawInfo *in_di, int in_dotsize) {
         double mapx, mapy;
 
         calcxy (&mapx, &mapy, map_iter->avg_lat, map_iter->avg_lon,
-                (double) scale/PIXELFACT, map_avg_lat, map_avg_lon);
+                (double) map_scale/PIXELFACT, map_avg_lat, map_avg_lon);
 
         double endx, endy;
-        endx = mapx + in_dotsize;
-        endy = mapy + in_dotsize;
+        endx = mapx + center_resolution;
+        endy = mapy + center_resolution;
 
         // printf("  Endpt   : %dx%d\n", (int) endx, (int) endy);
 
@@ -1544,11 +1518,9 @@ void DrawNetCenterDot(Image *in_img, DrawInfo *in_di, int in_dotsize) {
     }
 }
 
-void DrawNetCenterText(Image *in_img, DrawInfo *in_di, int in_textmode) {
-    for (map<string, gps_network *>::const_iterator x = bssid_gpsnet_map.begin();
-         x != bssid_gpsnet_map.end(); ++x) {
-
-        gps_network *map_iter = x->second;
+void DrawNetCenterText(vector<gps_network *> in_nets, Image *in_img, DrawInfo *in_di, int in_textmode) {
+    for (unsigned int x = 0; x < in_nets.size(); x++) {
+        gps_network *map_iter = in_nets[x];
 
         // Skip networks w/ no determined coordinates
         if (map_iter->max_lat == 0)
@@ -1561,7 +1533,7 @@ void DrawNetCenterText(Image *in_img, DrawInfo *in_di, int in_textmode) {
         double mapx, mapy;
 
         calcxy (&mapx, &mapy, map_iter->avg_lat, map_iter->avg_lon,
-                (double) scale/PIXELFACT, map_avg_lat, map_avg_lon);
+                (double) map_scale/PIXELFACT, map_avg_lat, map_avg_lon);
 
         PixelPacket netclr;
 
@@ -1590,11 +1562,9 @@ void DrawNetCenterText(Image *in_img, DrawInfo *in_di, int in_textmode) {
 }
 
 
-void DrawNetScatterPlot(Image *in_img, DrawInfo *in_di, int in_dotsize) { /*FOLD00*/
-    for (map<string, gps_network *>::const_iterator x = bssid_gpsnet_map.begin();
-         x != bssid_gpsnet_map.end(); ++x) {
-
-        gps_network *map_iter = x->second;
+void DrawNetScatterPlot(vector<gps_network *> in_nets, Image *in_img, DrawInfo *in_di) { /*FOLD00*/
+    for (unsigned int x = 0; x < in_nets.size(); x++) {
+        gps_network *map_iter = in_nets[x];
 
         // Skip networks w/ no determined coordinates
         if (map_iter->max_lat == 0)
@@ -1609,11 +1579,12 @@ void DrawNetScatterPlot(Image *in_img, DrawInfo *in_di, int in_dotsize) { /*FOLD
             gps_point *pt = map_iter->points[y];
 
             double mapx, mapy;
-            calcxy (&mapx, &mapy, pt->lat, pt->lon, (double) scale/PIXELFACT, map_avg_lat, map_avg_lon);
+            calcxy (&mapx, &mapy, pt->lat, pt->lon, (double) map_scale/PIXELFACT,
+                    map_avg_lat, map_avg_lon);
 
             double endx, endy;
-            endx = mapx + in_dotsize;
-            endy = mapy + in_dotsize;
+            endx = mapx + scatter_resolution;
+            endy = mapy + scatter_resolution;
 
             char mm1[64];
             snprintf(mm1, 64, "%d,%d", (int) mapx, (int) mapy);
@@ -1648,7 +1619,7 @@ void DrawNetScatterPlot(Image *in_img, DrawInfo *in_di, int in_dotsize) { /*FOLD
 		char prim[1024];
 
 		snprintf(prim, 1024, "fill-opacity %d%% stroke-opacity %d%% circle %s %s", 
-			draw_opacity, draw_opacity, mm1, mm2);
+			scatter_opacity, scatter_opacity, mm1, mm2);
 
 		in_di->primitive = strdup(prim);
 		DrawImage(in_img, in_di);
@@ -1659,285 +1630,354 @@ void DrawNetScatterPlot(Image *in_img, DrawInfo *in_di, int in_dotsize) { /*FOLD
 
 }
 
-
-void Usage(char *argv, int ec = 1) { /*FOLD00*/
+int Usage(char* argv, int ec = 1) { 
     printf("Usage: %s [OPTION] <GPS files>\n", argv);
     printf(
-           "  -c, --coords <x,y,s>         Force map center at x,y of scale s\n"
-	   "  -S, --scale <s>              Force scale to be s\n"
-           "  -u, --user-image-size <x,y>  Custom map size\n"
-           "  -m, --user-map <map>         Use custom map instead of downloading\n"
-           "  -t, --disable-draw-track     Disable drawing travel track\n"
-           "  -b, --draw-bounds            Draw bounding rectangles\n"
-           "  -r, --disable-draw-range     Disable drawing estimated range circles\n"
-           "  -w, --color-wep              Color based on WEP instead of progressive\n"
-           "  -N, --color-channel          Color based on network channel\n"
-           "  -H, --draw-hull              Draw hull of data points\n"
-           "  -p, --draw-scatter-plot      Draw network data points\n"
-           "  -i, --draw-interpolated      Draw interpolated power\n"
-           "  -s, --interpolated-size      Resolution to interpolate with\n"
-           "  -C, --interpolated-color     Alternate interpolated power color set\n"
-           "                               1 is a gradiant though RGB colorspace (12 colors)\n"
-           "                               2 is weathermap radar style (9 colors)\n"
-           "  -d, --draw-center-dot        Draw a dot at the center of the network range\n"
-           "  -D, --dot-size <size>        Point size for center dot and scatter plot\n"
-           "                               [Default: 3]\n"
-           "  -L, --label <types>          Label points.  Comma seperated list of label data,\n"
-           "                                (bssid, ssid)\n"
-           "  -O, --opacity <num>          Opacity of drawn elements [Default: 70]\n"
-           "  -g, --no-greyscale           Don't convert map to greyscale\n"
-           "  -k, --keep-gif               Keep the downloaded GIF\n"
-           "  -T, --threads <num>          Number of simultaneous threads used for complex\n"
-           "                               operations\n"
-           "  -M, --metric                 Fetch metric-titled map\n"
-           "  -A, --alternatemap           Alternate map source, 1 for Mapblast, 2 for TerraServer (aerial photos, you must provide a scale between 10 and 16)\n"
-           "  -F, --filter <MAC list>      Comma-seperated ALL CAPS list of MAC's to filter\n"
-           "  -I, --invert-filter          Invert filtering (ONLY draw filtered MAC's)\n"
-           "  -v, --verbose                Verbose output while running\n"
-           "  -o, --output <filename>      Output .png file\n"
-           "  -f, --config-file <file>     Alternate config file\n"
-           "  -V, --version                GPSMap version\n"
-           "  -h, --help                   What do you think you're reading?\n");
+    //      12345678901234567890123456789012345678901234567890123456789012345678901234567890
+           "  -h, --help                     What do you think you're reading?\n"
+           "  -v, --verbose                  Verbose output while running\n"
+           "  -g, --config-file <file>       Alternate config file\n"
+           "  -o, --output <filename>        Image output file\n"
+           "  -f, --filter <MAC list>        Comma-seperated ALL CAPS list of MAC's\n"
+           "                                  to filter\n"
+           "  -i, --invert-filter            Invert filtering (ONLY draw filtered MAC's)\n"
+           "  -z, --threads <num>            Number of simultaneous threads used for\n"
+           "                                  complex operations [Default: 1]\n"
+           "  -S, --map-source <#>           Source to download maps from [Default: 0]\n"
+           "                                  0 MapBlast (vector)\n"
+           "                                  1 MapPoint (vector)\n"
+           "                                  2 TerraServer (photo)\n"
+           "  -D, --keep-gif                 Keep the downloaded map\n"
+           "  -V, --version                  GPSMap version\n"
+           "\nImage options\n"
+           "  -c, --coords <lat,lon>         Force map center at lat,lon\n"
+           "  -s, --scale <s>                Force map scale at s\n"
+           "  -m, --user-map <map>           Use custom map instead of downloading\n"
+           "  -d, --map-size <x,y>           Download map at size x,y\n"
+           "  -n, --network-colors <c>       Network drawing colors [Default: 0]\n"
+           "                                  0 is random colors\n"
+           "                                  1 is color based on WEP status\n"
+           "                                  2 is color based on network channel\n"
+           "  -G, --no-greyscale             Don't convert map to greyscale\n"
+           "  -M, --metric                   Fetch metric-titled map\n"
+           "  -O, --offset <x,y>             Offset drawn features by x,y pixles\n"
+           "\nDraw options\n"
+           "  -t, --draw-track               Draw travel track\n"
+           "  -T, --draw-track-opacity <o>   Travel track opacity [Default: 100]\n"
+           "  -b, --draw-bounds              Draw network bounding box\n"
+           "  -r, --draw-range               Draw estimaged range circles\n"
+           "  -R, --draw-range-opacity <o>   Range circle opacity [Default: 70]\n"
+           "  -u, --draw-hull                Draw convex hull of data points\n"
+           "  -U, --draw-hull-opacity <o>    Convex hull opacity [Default: 70]\n"
+           "  -a, --draw-scatter             Draw scatter plot of data points\n"
+           "  -A, --draw-scatter-opacity <o> Scatter plot opacity [Default: 100]\n"
+           "  -B, --draw-scatter-size <s>    Draw scatter at radius size <s> [Default: 2]\n"
+           "  -p, --draw-power               Draw interpolated network power\n"
+           "  -P, --draw-power-opacity <o>   Interpolated power opacity [Default: 70]\n"
+           "  -Q, --draw-power-res <res>     Interpolated power resolution [Default: 5]\n"
+           "  -q, --draw-power-colors <c>    Interpolated power color set [Default: 0]\n"
+           "                                  0 is a ramp though RGB colorspace (12 colors)\n"
+           "                                  1 is the origional color set (10 colors)\n"
+           "                                  2 is weathermap radar style (9 colors)\n"
+           "  -e, --draw-center              Draw dot at center of network range\n"
+           "  -E, --draw-center-opacity <o>  Center dot opacity [Default: 100]\n"
+           "  -H, --draw-center-size <s>     Center dot at radius size <s> [Default: 2]\n"
+           "  -l, --draw-lables <list>       Draw network labels, comma-seperated list\n"
+           "                                  (bssid, ssid)\n"
+           "  -k, --draw-legend              Draw map legend\n"
+           "  -K, --draw-legend-opacity <o>  Legend opacity [Default: 90]\n"
+           "  -F, --feature-order <order>    String representing the order map features\n"
+           "                                  are drawn [Default: 'ptbrhscl']\n"
+           "                                  p: interpolated power\n"
+           "                                  t: tracks\n"
+           "                                  b: bounds\n"
+           "                                  r: range circles\n"
+           "                                  h: convex hulls\n"
+           "                                  s: scatter plot\n"
+           "                                  c: center dot\n"
+           "                                  l: labels\n"
+          );
     exit(ec);
 }
 
 char *exec_name;
 
-int main(int argc, char *argv[]) { /*FOLD00*/
-    exec_name = argv[0];
+int main(int argc, char *argv[]) { 
+    char* exec_name = argv[0];
 
     char mapname[1024];
     char mapoutname[1024];
-    unsigned int metric = 0;
 
+    bool metric = false;
+    
     static struct option long_options[] = {   /* options table */
-        { "disable-draw-track", no_argument, 0, 't' },
-        { "scale", required_argument, 0, 'S' },
-        { "draw-bounds", no_argument, 0, 'b' },
-        { "disable-draw-range", no_argument, 0, 'r' },
-        { "draw-interpolated", no_argument, 0, 'i' },
-        { "interpolated-size", required_argument, 0, 's' },
-        { "disable-draw-legend", no_argument, 0, 'l' },
-        { "net-colors", required_argument, 0, 'c' },
-        { "output", required_argument, 0, 'o' },
-        { "opacity", required_argument, 0, 'O' },
-        { "no-greyscale", no_argument, 0, 'g' },
-        { "keep-gif", no_argument, 0, 'k' },
-        { "user-image-size", required_argument, 0, 'u' },
-        { "user-map", required_argument, 0, 'm' },
-        { "quiet", no_argument, 0, 'q' },
-        { "threads", required_argument, 0, 'T' },
-        { "help", no_argument, 0, 'h' },
-        { "verbose", no_argument, 0, 'v' },
-        { "version", no_argument, 0, 'V' },
-        { "draw-center-dot", no_argument, 0, 'd' },
-        { "interpolated-color", required_argument, 0, 'C' },
-        { "metric", no_argument, 0, 'M' },
-        { "alternatemap", required_argument, 0, 'A' },
-        { "draw-hull", no_argument, 0, 'H' },
-        { "draw-scatter-plot", no_argument, 0, 'p' },
-        { "dot-size", required_argument, 0, 'D' },
-        { "filter", required_argument, 0, 'F' },
-        { "invert-filter", no_argument, 0, 'I' },
-        { "config-file", required_argument, 0, 'f' },
-        { "color-wep", no_argument, 0, 'w' },
-        { "color-channel", no_argument, 0, 'N' },
-        { "label", required_argument, 0, 'L' },
-        { 0, 0, 0, 0 }
+           {"help", no_argument, 0, 'h'},
+           {"verbose", no_argument, 0, 'v'},
+           {"config-file", required_argument, 0, 'g'},
+           {"map-source", required_argument, 0, 'S'},
+           {"output", required_argument, 0, 'o'},
+           {"filter", required_argument, 0, 'f'},
+           {"invert-filter", no_argument, 0, 'i'},
+           {"threads", required_argument, 0, 'z'},
+           {"keep-gif", no_argument, 0, 'D'},
+           {"version", no_argument, 0, 'V'},
+           {"coords", required_argument, 0, 'c'},
+           {"scale", required_argument, 0, 's'},
+           {"user-map", required_argument, 0, 'm'},
+           {"map-size", required_argument, 0, 'd'},
+           {"network-colors", required_argument, 0, 'n'},
+           {"no-greyscale", no_argument, 0, 'G'},
+           {"metric", no_argument, 0, 'M'},
+           {"offset", required_argument, 0, 'O'},
+           {"draw-track", no_argument, 0, 't'},
+           {"draw-track-opacity", required_argument, 0, 'T'},
+           {"draw-bounds", no_argument, 0, 'b'},
+           {"draw-range", no_argument, 0, 'r'},
+           {"draw-range-opacity", required_argument, 0, 'R'},
+           {"draw-hull", no_argument, 0, 'u'},
+           {"draw-hull-opacity", required_argument, 0, 'U'},
+           {"draw-scatter", no_argument, 0, 'a'},
+           {"draw-scatter-opacity", required_argument, 0, 'A'},
+           {"draw-scatter-size", required_argument, 0, 'B'},
+           {"draw-power", no_argument, 0, 'p'},
+           {"draw-power-opacity", required_argument, 0, 'P'},
+           {"draw-power-res", required_argument, 0, 'Q'},
+           {"draw-power-colors", required_argument, 0, 'q'},
+           {"draw-center", no_argument, 0, 'e'},
+           {"draw-center-opacity", required_argument, 0, 'E'},
+           {"draw-center-size", required_argument, 0, 'H'},
+           {"draw-lables", required_argument, 0, 'l'},	
+           {"draw-legend", no_argument, 0, 'k'},
+           {"draw-legend-opacity", required_argument, 0, 'K'},
+           {"feature-order", required_argument, 0, 'F'},
+           { 0, 0, 0, 0 }
     };
     int option_index;
 
-    int usermap = 0;
-    memset(mapname, 0, 1024);
-    memset(mapoutname, 0, 1024);
+    bool usermap = false;
 
-    draw_track = 1;
-    draw_bounds = 0;
-    draw_range = 1;
-    draw_interpolated = 0;
-    draw_legend = 1;
-    convert_greyscale = 1;
-    keep_gif = 0;
-    draw_center = 0;
-    center_dot = 3;
-    draw_opacity = 70;
-    verbose = 0;
-    power_data = 0;
-    interpolation_res = 2;
-    power_steps = power_steps_Orig;
-    powercolors = powercolors_Orig;
-    draw_hull = 0;
+    power_steps = power_steps_Math;
+    power_colors = powercolors_Math;
 
-    float user_lat, user_lon;
+    float user_lat = 0, user_lon = 0;
+    bool user_latlon = false;
     long user_scale = 0;
 
-    user_lat = user_lon = 0;
+    long fetch_scale = 0;
 
     sample_points = 0;
 
     char *configfile = NULL;
 
-    int label = 0;
+    string label;
 
     while(1) {
-        int r = getopt_long(argc, argv, "S:A:T:tbrils:c:o:m:O:gqu:hvdkC:MHVpD:f:IwL:N",
+        int r = getopt_long(argc, argv,
+                            "hvg:S:o:f:iz:DVc:s:m:d:n:GMO:tT:brR:uU:aA:B:pP:q:Q:eE:H:l:kK:F:",
                             long_options, &option_index);
 
         if (r < 0) break;
 
         switch(r) {
-        case 't':
-            draw_track = 0;
+        case 'h':
+            Usage(exec_name, 0);
             break;
-        case 'b':
-            draw_bounds = 1;
+        case 'v':
+            verbose = true;
             break;
-        case 'r':
-            draw_range = 0;
-            break;
-        case 'i':
-            draw_interpolated = 1;
-            break;
-        case 's':
-            if (sscanf(optarg, "%d", &interpolation_res) != 1) {
-                fprintf(stderr, "Invalid interpolation resolution.\n");
-                Usage(argv[0]);
-            }
-
-            if (interpolation_res <= 0) {
-                fprintf(stderr, "Interpolation resolution must be 1 or higher.  Setting to 2.\n");
-                interpolation_res = 2;
-            }
-
-            break;
-        case 'l':
-            draw_legend = 0;
-            break;
-	case 'S':
-	    if (sscanf(optarg, "%ld", &user_scale) != 1) {
-		    fprintf(stderr, "Invalid custom scale.\n");
-		    Usage(argv[0]);
-	    }
-	    break;
-	case 'c':
-            if (sscanf(optarg, "%f,%f,%ld", &user_lat, &user_lon,
-                       &user_scale) != 3) {
-                fprintf(stderr, "Invalid custom map coordinates.\n");
-                Usage(argv[0]);
-            }
-            break;
-        case 'u':
-            if (sscanf(optarg, "%d,%d", &map_width, &map_height) != 2) {
-                fprintf(stderr, "Invalid custom map size.\n");
-                Usage(argv[0]);
-            }
-            break;
-        case 'm':
-            snprintf(mapname, 1024, "%s", optarg);
-            usermap = 1;
-            break;
-        case 'A':
-	    if (sscanf(optarg, "%d", &alternatemap) != 1) {
-		    fprintf(stderr, "Invalid map server.\n");
-		    Usage(argv[0]);
-	    }
-            break;
-        case 'M':
-            metric = 1;
+        case 'g':
+            configfile = optarg;
             break;
         case 'o':
             snprintf(mapoutname, 1024, "%s", optarg);
             break;
-        case 'T':
-            if (sscanf(optarg, "%d", &numthreads) != 1) {
-                fprintf(stderr, "Invalid number of threads.\n");
-                Usage(argv[0]);
+        case 'f':
+            filter = optarg;
+            break;
+        case 'S':
+            if (sscanf(optarg, "%d", &mapsource) != 1 || mapsource < 0 || mapsource > 3) {
+                fprintf(stderr, "Invalid map source.\n");
+                Usage(exec_name);
             }
             break;
-        case 'O':
-            if (sscanf(optarg, "%d", &draw_opacity) != 1) {
-                fprintf(stderr, "Invalid opacity.\n");
-                Usage(argv[0]);
+	case 'i':
+            invert_filter = true;
+            break;
+	case 'z':
+            if (sscanf(optarg, "%d", &numthreads) != 1 || numthreads < 1) {
+                fprintf(stderr, "Invalid number of threads.\n");
+                Usage(exec_name);
             }
             break;
         case 'D':
-            if (sscanf(optarg, "%d", &center_dot) != 1) {
-                fprintf(stderr, "Invalid center dot size.\n");
-                Usage(argv[0]);
+            keep_gif = true;
+            break;
+        case 'V':
+            printf("GPSMap v%i.%i.%i\n", MAJOR, MINOR, TINY);
+            exit(0);
+            break;
+        case 'c':
+            if (sscanf(optarg, "%f,%f", &user_lat, &user_lon) != 2) {
+                fprintf(stderr, "Invalid custom map coordinates.\n");
+                Usage(exec_name);
+            }
+            user_latlon = true;
+            break;
+        case 's':
+            if (sscanf(optarg, "%ld", &user_scale) != 1) {
+                fprintf(stderr, "Invalid custom map scale.\n");
+                Usage(exec_name);
             }
             break;
-        case 'd':
-            draw_center = 1;
+        case 'm':
+            snprintf(mapname, 1024, "%s", optarg);
+            usermap = true;
             break;
-        case 'g':
-            convert_greyscale = 0;
+       	case 'd':
+            if (sscanf(optarg, "%d,%d", &map_width, &map_height) != 2 || map_width < 0 || map_height < 0) {
+                fprintf(stderr, "Invalid custom map size.\n");
+                Usage(exec_name);
+            }
             break;
-        case 'v':
-            verbose = 1;
+        case 'n':
+            if (sscanf(optarg, "%d", &color_coding) !=1 || color_coding < 0 || color_coding > 2) {
+                fprintf(stderr, "Invalid network color set\n");
+                Usage(exec_name);
+            }
             break;
-        case 'k':
-            keep_gif = 1;
+        case 'G':
+            convert_greyscale = false;
             break;
-        case 'C':
+        case 'M':
+            metric = true;
+            break;
+        case 'O':
+            if (sscanf(optarg, "%d,%d", &draw_x_offset, &draw_y_offset) != 2) {
+                fprintf(stderr, "Invalid drawing offset.\n");
+                Usage(exec_name);
+            }
+            break;
+        case 't':
+            draw_track = true;
+            break;
+        case 'T':
+            if (sscanf(optarg, "%d", &track_opacity) != 1 || track_opacity < 0 || track_opacity > 100) {
+                fprintf(stderr, "Invalid track opacity.\n");
+                Usage(exec_name);
+            }
+            break;
+        case 'b':
+            draw_bounds = true;
+            break;
+        case 'r':
+            draw_range = true;
+            break;
+        case 'R':
+            if (sscanf(optarg, "%d", &range_opacity) != 1 || range_opacity < 0 || range_opacity > 100) {
+                fprintf(stderr, "Invalid range opacity.\n");
+                Usage(exec_name);
+            }
+            break;
+        case 'u':
+            draw_hull = true;
+            break;
+        case 'U':
+            if (sscanf(optarg, "%d", &hull_opacity) != 1 || hull_opacity < 0 || hull_opacity > 100) {
+                fprintf(stderr, "Invalid convex hull opacity.\n");
+                Usage(exec_name);
+            }
+            break;
+        case 'a':
+            draw_scatter = true;
+            break;
+        case 'A':
+            if (sscanf(optarg, "%d", &scatter_opacity) != 1 || scatter_opacity < 0 || scatter_opacity > 100) {
+                fprintf(stderr, "Invalid scatter plot opacity.\n");
+                Usage(exec_name);
+            }
+            break;
+        case 'B':
+            if (sscanf(optarg, "%d", &scatter_resolution) != 1 || scatter_resolution < 1) {
+                fprintf(stderr, "Invalid scatter plot size.\n");
+                Usage(exec_name);
+            }
+            break;
+        case 'p':
+            draw_power = true;
+            break;
+        case 'P':
+            if (sscanf(optarg, "%d", &power_opacity) != 1 || power_opacity < 0 || power_opacity > 100) {
+                fprintf(stderr, "Invalid interpolated power opacity.\n");
+                Usage(exec_name);
+            }
+            break;
+        case 'Q':
+            if (sscanf(optarg, "%d", &power_resolution) != 1 || power_resolution < 1) {
+                fprintf(stderr, "Invalid interpolated power resolution.\n");
+                Usage(exec_name);
+            }
+            break;
+        case 'q':
             {
-            int icolor;
-            if (sscanf(optarg, "%d", &icolor) !=1) {
-                fprintf(stderr, "Invalid interpolation color set\n");
-                Usage(argv[0]);
+                int icolor;
+                if (sscanf(optarg, "%d", &icolor) !=1 || icolor < 0 || icolor > 2) {
+                    fprintf(stderr, "Invalid interpolated power color set\n");
+                    Usage(exec_name);
+                }
+                if (icolor == 0) {
+                    power_steps = power_steps_Orig;
+                    power_colors = powercolors_Orig;
+                } else if (icolor == 2) {
+                    power_steps = power_steps_Radar;
+                    power_colors = powercolors_Radar;
+                }
             }
-            if (icolor == 1) {
-   		power_steps = power_steps_Math;
-    		powercolors = powercolors_Math;
-            } else if (icolor == 2) {
-   		power_steps = power_steps_Radar;
-    		powercolors = powercolors_Radar;
-            }
+            break;
+        case 'e':
+            draw_center = true;
+            break;
+        case 'E':
+            if (sscanf(optarg, "%d", &center_opacity) != 1 || center_opacity < 0 || center_opacity > 100) {
+                fprintf(stderr, "Invalid center dot opacity.\n");
+                Usage(exec_name);
             }
             break;
         case 'H':
-            draw_hull = 1;
+            if (sscanf(optarg, "%d", &center_resolution) != 1 || center_resolution < 1) {
+                fprintf(stderr, "Invalid center dot size.\n");
+                Usage(exec_name);
+            }
+            break;
+        case 'l':
+            label = optarg;
+            break;
+        case 'k':
+            draw_legend = true;
+            break;
+        case 'K':
+            if (sscanf(optarg, "%d", &legend_opacity) != 1 || legend_opacity < 0 || legend_opacity > 100) {
+                fprintf(stderr, "Invalid map legend opacity.\n");
+                Usage(exec_name);
+            }
             break;
         case 'F':
-            filter = optarg;
-            printf("NOTICE:  Filtering MAC addresses: %s\n", optarg);
-            break;
-        case 'I':
-            invert_filter = 1;
-            printf("NOTICE:  Inverting MAC address filter.\n");
-            break;
-        case 'f':
-            configfile = optarg;
-            printf("NOTICE:  Using alternate config file %s\n", optarg);
-            break;
-        case 'p':
-            draw_scatter = 1;
-            break;
-        case 'w':
-            printf("NOTICE:  Coloring based on WEP/Default\n");
-            color_wep = 1;
-            break;
-        case 'N':
-            printf("NOTICE:  Coloring based on network channel\n");
-            color_channel = 1;
-            break;
-        case 'L':
-            if (strstr(optarg, "bssid"))
-                label |= 1;
-            if (strstr(optarg, "ssid"))
-                label |= 2;
-            break;
-        case 'h':
-            Usage(argv[0], 0);
-            break;
-        case 'V':
-            printf("GPSMap v%i.%i\n", MAJOR, MINOR);
-            exit(0);
-            break;
-        default:
-            Usage(argv[0]);
+            draw_feature_order = optarg;
             break;
         }
     }
+
+    if (verbose) {
+        // start up messages
+    }
+
+    // sanity checks
+
+    // no dump files
+    if (optind == argc) {
+        fprintf(stderr, "FATAL:  Must provide at least one dump file.\n");
+        Usage(argv[0]);
+    }
+
 
     ConfigFile conf;
 
@@ -1970,16 +2010,14 @@ int main(int argc, char *argv[]) { /*FOLD00*/
         exit(1);
     }
 
+    if (mapsource == MAPSOURCE_TERRA) {
     // It's way too much of a kludge to muck with munging the scale around
-    if (alternatemap == 2) {
-	if ((user_scale < 10) || (user_scale > 16)) {
-		fprintf(stderr, "FATAL: You must provide a scale with the -A option that is from 10 to 16\n");
-		exit(0);
-	}
-	scale2 = user_scale;
-	user_scale = terrascales[(scale2 - 10)];
+        if ((user_scale < 10) || (user_scale > 16)) {
+            fprintf(stderr, "FATAL: You must provide a scale with the -s option that is from 10 to 16\n");
+            exit(0);
+        }
+        fetch_scale = terrascales[(user_scale - 10)];
     }
-
 
     // Initialize stuff
     num_tracks = 0;
@@ -2021,10 +2059,10 @@ int main(int argc, char *argv[]) { /*FOLD00*/
     map_avg_lon = (double) (global_map_avg.min_lon + global_map_avg.max_lon) / 2;
 
     // Fit the whole map
-    scale = BestMapScale(global_map_avg.min_lat, global_map_avg.min_lon,
-                         global_map_avg.max_lat, global_map_avg.max_lon);
+    map_scale = BestMapScale(global_map_avg.min_lat, global_map_avg.min_lon,
+                             global_map_avg.max_lat, global_map_avg.max_lon);
 
-    fprintf(stderr, "Map image scale: %ld\n", scale);
+    fprintf(stderr, "Map image scale: %ld\n", map_scale);
     fprintf(stderr, "Minimum Corner (lat/lon): %f x %f\n", global_map_avg.min_lat,
             global_map_avg.min_lon);
     fprintf(stderr, "Maximum Corner (lat/lon): %f x %f\n", global_map_avg.max_lat,
@@ -2033,8 +2071,7 @@ int main(int argc, char *argv[]) { /*FOLD00*/
 
     if (user_scale != 0) {
         fprintf(stderr, "Overriding with user scale: %ld\n", user_scale);
-        
-	scale = user_scale;
+        map_scale = user_scale;
     }
 
     if (user_lat != 0) {
@@ -2044,19 +2081,19 @@ int main(int argc, char *argv[]) { /*FOLD00*/
         map_avg_lon = user_lon;
     }
 
-    if (scale == 0) {
+    if (map_scale == 0) {
         fprintf(stderr, "Unable to find a map at any scale to fit the data.\n");
         exit(0);
     }
 
     if (!usermap) {
         snprintf(mapname, 1024, "map_%f_%f_%ld_%d_%d.gif", map_avg_lat, map_avg_lon,
-                 scale, map_width, map_height);
+                 map_scale, map_width, map_height);
     }
 
     if (mapoutname[0] == '\0')
         snprintf(mapoutname, 1024, "map_%f_%f_%ld_%d_%d.png", map_avg_lat, map_avg_lon,
-                 scale, map_width, map_height);
+                 map_scale, map_width, map_height);
 
     printf("Loading map into Imagemagick structures.\n");
     strcpy(img_info->filename, mapname);
@@ -2070,15 +2107,16 @@ int main(int argc, char *argv[]) { /*FOLD00*/
 
         char url[1024];
 
-	if (alternatemap == 2) {
-            snprintf(url, 1024, url_template_ts, map_avg_lat, map_avg_lon, scale2,
+        if (mapsource == MAPSOURCE_TERRA) {
+            snprintf(url, 1024, url_template_ts, map_avg_lat, map_avg_lon, fetch_scale,
                      map_width, map_height);
-        } else if (alternatemap == 1) {
-            snprintf(url, 1024, url_template_mb, map_avg_lat, map_avg_lon, scale,
+        } else if (mapsource == MAPSOURCE_MAPBLAST) {
+            fetch_scale = map_scale;
+            snprintf(url, 1024, url_template_mb, map_avg_lat, map_avg_lon, fetch_scale,
                      map_width, map_height, metric ? "&DU=KM" : "");
-        } else {
-            scale2 = (long) (scale / 1378.6);
-            snprintf(url, 1024, url_template_mp, map_avg_lat, map_avg_lon, scale2,
+        } else if (mapsource == MAPSOURCE_MAPPOINT) {
+            fetch_scale = (long) (map_scale / 1378.6);
+            snprintf(url, 1024, url_template_mp, map_avg_lat, map_avg_lon, fetch_scale,
                      map_width, map_height);
         }
         printf("Map url: %s\n", url);
@@ -2117,48 +2155,55 @@ int main(int argc, char *argv[]) { /*FOLD00*/
     fprintf(stderr, "Assigning network colors...\n");
     AssignNetColors();
 
+    // Build a vector.  This can become a selected list in the future.
+    vector<gps_network *> gpsnetvec;
+    for (map<string, gps_network *>::iterator x = bssid_gpsnet_map.begin();
+         x != bssid_gpsnet_map.end(); ++x) {
+        gpsnetvec.push_back(x->second);
+    }
+
     if (draw_track) {
         fprintf(stderr, "Drawing track coordinates...\n");
         DrawNetTracks(img, di);
     }
 
     if (draw_scatter) {
-        fprintf(stderr, "Drawing scatter plot, dot size %d...\n", center_dot);
-        DrawNetScatterPlot(img, di, center_dot);
+        fprintf(stderr, "Drawing scatter plot, dot size %d...\n", scatter_resolution);
+        DrawNetScatterPlot(gpsnetvec, img, di);
     }
 
-    if (draw_interpolated && power_data == 0) {
+    if (draw_power && power_data == 0) {
         fprintf(stderr, "ERROR:  Interpolated power drawing requested, but none of the GPS datafiles being\n"
                 "processed have power data.  Not doing interpolated graphing.\n");
-    } else if (draw_interpolated) {
+    } else if (draw_power) {
         fprintf(stderr, "Drawing network power interpolations...\n");
 
-        DrawNetPower(img, di, interpolation_res);
+        DrawNetPower(img, di);
     }
 
     if (draw_range) {
         fprintf(stderr, "Calculating and drawing network circles...\n");
-        DrawNetCircles(img, di);
+        DrawNetCircles(gpsnetvec, img, di);
     }
 
     if (draw_hull) {
 	fprintf(stderr, "Calculating and drawing network hulls...\n");
-	DrawNetHull(img, di);
+	DrawNetHull(gpsnetvec, img, di);
     }
 
     if (draw_bounds) {
         fprintf(stderr, "Calculating and drawing bounding rectangles...\n");
-        DrawNetBoundRects(img, di, 0);
+        DrawNetBoundRects(gpsnetvec, img, di, 0);
     }
 
     if (draw_center) {
-        fprintf(stderr, "Drawing center dot, size %d...\n", center_dot);
-        DrawNetCenterDot(img, di, center_dot);
+        fprintf(stderr, "Drawing center dot, size %d...\n", center_resolution);
+        DrawNetCenterDot(gpsnetvec, img, di);
     }
 
-    if (label) {
+    if (draw_label) {
         fprintf(stderr, "Labeling networks...\n");
-        DrawNetCenterText(img, di, label);
+        DrawNetCenterText(gpsnetvec, img, di, 0);
     }
 
     WriteImage(img_info, img);
