@@ -1932,7 +1932,9 @@ int main(int argc,char *argv[]) {
                                                                     logname, "dump", 0);
 
                             if (dumpfile->OpenDump(dumplogfile.c_str()) < 0) {
-                                perror("Unable to open new dump file");
+                                globalregistry->messagebus->InjectMessage("Unable to open new dump file",
+                                                                          MSGFLAG_FATAL);
+                                globalregistry->fatal_condition = -1;
                                 CatchShutdown(-1);
                             }
 
