@@ -29,7 +29,6 @@ In no particular order:
 	VPN detection
 	linkage of seen-on devices to network info
 	horizontal column scrolling in UI
-	kismet_client perl module (org/kyzoku/others)
 	do something smarter with RSSI signal levels from AVS headers
 	do something smarter in expat.cc with carriers, encodings, etc
 	AP uptime extraction
