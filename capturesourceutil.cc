@@ -81,7 +81,8 @@ int ParseCardLines(vector<string> *in_lines, vector<capturesource *> *in_sources
     return 1;
 }
 
-int BindRootSources(vector<capturesource *> *in_capsources, map<string, int> *in_enable) {
+int BindRootSources(vector<capturesource *> *in_capsources, map<string, int> *in_enable,
+                   int filter_enable) {
     // Now loop through each of the sources - parse the engines, interfaces, types.
     // Open any that need to be opened as root.
     for (unsigned int src = 0; src < in_capsources->size(); src++) {
@@ -90,7 +91,7 @@ int BindRootSources(vector<capturesource *> *in_capsources, map<string, int> *in
         // If we didn't get sources on the command line or if we have a forced enable
         // on the command line, check to see if we should enable this source.  If we just
         // skip it it keeps a NULL capturesource pointer and gets ignored in the code.
-        if (in_enable != NULL) {
+        if (filter_enable) {
             if (in_enable->find(StrLower(csrc->name)) == in_enable->end() &&
                 in_enable->size() != 0)
             continue;
@@ -225,7 +226,8 @@ int BindRootSources(vector<capturesource *> *in_capsources, map<string, int> *in
     return 1;
 }
 
-int BindUserSources(vector<capturesource *> *in_capsources, map<string, int> *in_enable) {
+int BindUserSources(vector<capturesource *> *in_capsources, map<string, int> *in_enable,
+                   int filter_enable) {
     for (unsigned int src = 0; src < in_capsources->size(); src++) {
         capturesource *csrc = (*in_capsources)[src];
 
@@ -234,7 +236,7 @@ int BindUserSources(vector<capturesource *> *in_capsources, map<string, int> *in
         // For any unopened sources...
         if (csrc->source == NULL) {
 
-            if (in_enable != NULL) {
+            if (filter_enable) {
                 if (in_enable->find(StrLower(csrc->name)) == in_enable->end() &&
                     in_enable->size() != 0)
                     continue;
