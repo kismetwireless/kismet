@@ -94,6 +94,28 @@ typedef struct {
     unsigned short order : 1;
 } frame_control;
 
+// A standard frame
+typedef struct {
+    // 2 byte frame control
+    frame_control fc;
+
+    // 2 byte duration
+    uint16_t duration;
+
+    // 18 bytes of normal address ranges
+    uint8_t addr0[6];
+    uint8_t addr1[6];
+    uint8_t addr2[6];
+
+    // 2 bytes of sequence and fragment counts
+    unsigned short frag : 4;
+    unsigned short sequence : 12;
+
+    // And an optional 6 bytes of address range for ds=0x3 packets
+    uint8_t addr3[6];
+
+} wireless_frame;
+
 typedef struct {
     uint8_t timestamp[8];
     unsigned int beacon : 16;
@@ -202,7 +224,8 @@ typedef struct proto_info {
 enum packet_info_type {
     packet_unknown, packet_beacon, packet_probe_req, packet_data,
     packet_ap_broadcast, packet_adhoc, packet_adhoc_data,
-    packet_noise, packet_probe_response, packet_reassociation
+    packet_noise, packet_probe_response, packet_reassociation,
+    packet_auth, packet_deauth
 };
 
 // distribution directions
@@ -214,6 +237,9 @@ enum distribution_type {
 typedef struct {
     // Packet info type
     packet_info_type type;
+
+    // reason code for some management protocols
+    int reason_code;
 
     // Timestamp.  Second precision is fine.
     time_t time;
@@ -257,6 +283,9 @@ typedef struct {
     proto_info proto;
 
     double maxrate;
+
+    int sequence_number;
+    int frag_number;
 
 } packet_info;
 

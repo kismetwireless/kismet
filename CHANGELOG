@@ -6,6 +6,9 @@ Aug 21 2002  2.5.2  Fixed a few minor parsing errors in tcpclient.cc
                     Added alert wav file to install
                     Fixed alert sound breaking the UI when sound was disabled
                     Added alert window help and toggle to display/hide timestamps
+                    Rewrote 802.11 frame header dissection
+                    Added extraction of fragment and sequence number
+                    Added detection of deauthentication packets
 Aug 20 2002  2.5.2  Added skeleton of alert system ('w' in panels interface)
                     ! Added detection of Netstumbler and feeding to the alert
                      system.
