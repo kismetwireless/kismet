@@ -34,3 +34,5 @@ In no particular order:
 	linkage of seen-on devices to network info
 	horizontal column scrolling in UI
 	kismet_client perl module
+	track WEP key decrypt/failure rates for supplied keys
+	mangle-packet dumpfile
