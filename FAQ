@@ -31,6 +31,7 @@ Kismet Frequently Asked Questions
 * Kismet says "No 'suiduser' option in the config file" and exits
 * Where do the manufacturer fingerprints come from?
 * I use a non-english language system, and gpsmap isn't working.
+* What's the story with *BSD?
 
 Q: How do I convert older binary GPS files to the new XML format?
 A: Use the utility "kismet2xml" in the extras/ directory.
@@ -191,4 +192,17 @@ example, 0,5 instead of 0.5).  This causes the URL which is being fetched
 to be incorrect.  This is most easily fixed with the LC_NUMERIC environment
 variable.  Launch gpsmap with:
 LC_NUMERIC="posix" gpsmap ... ...
+
+Q: What's the story with *BSD?
+A: The various flavors of BSD have very differing levels of drivers that 
+support rfmon correctly.  OpenBSD supports prism2 cards cleanly, and if you
+insist on using a BSD variant, go with OpenBSD.  The state of the OpenBSD
+cisco and orinoco drivers is unknown.  The other BSD variants have minimal
+rfmon support for any of the major chipsets, and typically have expressed 
+little interest in modifying the drivers to be compatable with monitoring
+tools like Kismet, Ethereal, Airsnort, etc.
+All told, the best system for rfmon-capable drivers for running Kismet is
+Linux - nearly all the chipsets are supported with rfmon functionality, and
+the packet streams are consistent.
+
 
