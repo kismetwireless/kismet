@@ -1,3 +1,26 @@
+Feb 09 2004 Feb0401 Released successor to 3.x with new versioning scheme. Enjoy
+                     the new stable release, hopefully beginning a more monthly
+                     release schedule.  Everyone should upgrade to this release
+                     and don't forget to look at the readme for changes in card
+                     source name.  New toys in this release:
+                     * Rewritten packet engine, tens of times faster than 3.x,
+                       migrated monitor mode and channel change to ioctl calls
+                       for greater speed and efficiency
+                     * Support for FreeBSD radiotap
+                     * Improved OpenBSD support
+                     * Support for running kismet on WRT54G aps
+                     * Support for Prism54 and Madwifi
+                     * Fixed remote drones
+                     * Unmonitor support
+                     * Improved error handling and return codes
+                     * Vastly improved gpsmap data filtering
+                     * Gpsmap legend drawing, bugs in multiple gpsxml file
+                       parsing, allocation bugs, 
+                     * Much improved packet dissection and validation, 
+                       duplicate IV detection
+                     * Countless other bug fixes to protocol consistency, 
+                       OSX support, variable initialization, CSV output, and
+                       more.
 Feb 09 2004  devel  Changed major-minor-tiny designation to new versioning
                      scheme, Month-Year-Release# to match the new versioning
                      scheme.  *KISMET protocol now carries 'newversion' field,
