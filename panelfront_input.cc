@@ -177,7 +177,7 @@ int PanelFront::MainInput(void *in_window, int in_chr) {
         break;
     case 'a':
     case 'A':
-        SpawnWindow("Statistics", &PanelFront::StatsPrinter, &PanelFront::StatsInput, 18, 65);
+        SpawnWindow("Statistics", &PanelFront::StatsPrinter, &PanelFront::StatsInput, 19, 65);
         break;
     case 'p':
     case 'P':

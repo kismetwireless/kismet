@@ -2014,6 +2014,10 @@ int PanelFront::StatsPrinter(void *in_window) {
              (int) (((double) vuln_count / client->FetchNumNetworks()) * 100) : 0);
     details_text.push_back(output);
 
+    snprintf(output, print_width, "Total packets: %d",
+             client->FetchNumPackets());
+    details_text.push_back(output);
+
     snprintf(output, print_width, "Max. Packet Rate: %d packets/sec",
              max_packet_rate);
     details_text.push_back(output);
