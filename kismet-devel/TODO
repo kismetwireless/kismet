@@ -14,6 +14,7 @@ In no particular order:
 	gpsmap coloring/plotting by encoding, carrier, data rate
 	gpsmap legend drawing
 	gpsmap font picking
+	gpsmap strongest point plotting
 	congestion simulation
 	UI channel hopping control
 	fix csv log
