@@ -123,6 +123,7 @@ public:
 
     char *FetchError() { return errstr; }
 
+    inline int isClient(int fd) { return FD_ISSET(fd, &client_fds); }
     int HandleClient(int fd, client_command *c, fd_set *rds, fd_set *wrs);
 
     int GetClientOpts(int in_client, client_opt *in_opt);
