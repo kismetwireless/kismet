@@ -1043,9 +1043,6 @@ int PanelFront::ChanlockInput(void *in_window, int in_chr) {
             ctx.context->client->SendRaw(rawstr);
             return 0;
         }
-        snprintf(msg, 1024, "debug - something funny... %d %d %d",
-                 kwin->start, kwin->selected, context_cardlist.size());
-        WriteStatus(msg);
         break;
     case 'x':
     case 'X':
