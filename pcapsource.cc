@@ -191,6 +191,7 @@ int PcapSource::ManglePacket(kis_packet *packet, uint8_t *data, uint8_t *moddata
         packet->caplen = kismin(callback_header.caplen, (uint32_t) MAX_PACKET_LEN);
         packet->len = packet->caplen;
         memcpy(packet->data, callback_data, packet->caplen);
+        ret = 1;
     }
 
     // Fetch the channel if we know how and it hasn't been filled in already
