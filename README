@@ -18,6 +18,7 @@ Licensed under the GPL
 13. Drone Remotes
 14. Intrusion Detection
 15. Troubleshooting
+16. Frequently Asked Questions
 
 1.  What is Kismet
 
@@ -757,3 +758,46 @@ Licensed under the GPL
     FIX: Set your TERM environment variable to something libcurses has support
      for.  'vt100' is usually a good choice.
 
+16. Frequently Asked Questions
+
+    Q: Where did the name Kismet come from?
+    A: The word itself means Fate or Destiny.  While I wish I could make up
+       some smart comment about picking it because Kismet will ultimately 
+       uncovery every active wireless network in the area, really I just needed
+       a name and was clicking through a thesaurus and liked the sound.
+
+    Q: Is there anything illegal about Kismet?
+    A: In and of itself, there should be nothing illegal about Kismet, and its
+       no different than any other network capture tool.
+       Note, however:
+        - Recording data from networks for which you do not have permission may
+          be considered an illegal wiretap.
+        - Using networks you do not have permission to use may be considered
+          theft of service.
+        - Don't be stupid using Kismet.
+        - If you are stupid, I'm not responsible.
+
+    Q: Why is rfmon different from promiscuous mode, and why can't you just use
+       promisc?
+    A: In the wired world, promiscuous mode turns off the filtering mechanism 
+       in your network card, causing it to pass all packets to the operating
+       system.  With most drivers, it means the same thing in the wireless 
+       world, -BUT- it only applies to the network you are currently associated
+       with, and it only passes the packets as 802.3/Ethernet-II.  This means
+       no 802.11 headers, no 802.11 management frames, and nothing from 
+       networks other than the one you're associated with.
+       Rfmon is a special mode that reports all packets the wireless card sees,
+       including management packets and packets from any network the radio can
+       see.
+       Kismet can't just use promisc mode because it won't be able to gather
+       information about the networks, and would only be able to get data from
+       the network you've already joined.
+
+    Q: Does Kismet work differently than NetStumbler?
+    A: Absolutely.  Netstumbler (and MiniStumbler, and others) work by querying
+       the firmware of the card for networks the card has seen.  While this
+       method is obviously able to detect networks in the area, it is noisy
+       (people can see you're running NetStumbler), it can't decloak hidden
+       networks, and it can't record data.
+
+    
