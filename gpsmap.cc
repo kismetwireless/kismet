@@ -1015,8 +1015,10 @@ void DrawNetTracks(Image *in_img, DrawInfo *in_di) { /*FOLD00*/
             if (((unsigned int) prev_tx > map_width && (unsigned int) prev_ty > map_height &&
                  track_vec[vec][x].x > map_width && track_vec[vec][x].y > map_height) ||
                 (prev_tx < 0 && prev_ty < 0 &&
-                 track_vec[vec][x].x < 0 && track_vec[vec][x].y < 0))
+                 track_vec[vec][x].x < 0 && track_vec[vec][x].y < 0)) {
+
                 continue;
+            }
 
             // If the track jumps more than 50 meters in 1 second, assume we had a
             // problem and restart the track at the next position
@@ -2155,8 +2157,8 @@ int main(int argc, char *argv[]) {
             fprintf(stderr, "FATAL: You must provide a scale with the -s option that is from 10 to 16\n");
             exit(0);
         }
-        map_scale = terrascales[(user_scale - 10)];
         fetch_scale = user_scale;
+        map_scale = user_scale = terrascales[(user_scale - 10)];
     }
 
     // Initialize stuff
