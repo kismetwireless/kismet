@@ -2450,7 +2450,8 @@ int main(int argc,char *argv[]) {
                     int process_ret;
 
 #ifdef HAVE_GPS
-                    if (gps_log && info.type != packet_noise && info.type != packet_unknown) {
+                    if (gps_log && info.type != packet_noise && info.type != packet_unknown &&
+                        info.type != packet_phy) {
                         process_ret = gpsdump.DumpPacket(&info);
                         if (process_ret < 0) {
                             snprintf(status, STATUS_MAX, "%s", gpsdump.FetchError());

@@ -1,3 +1,4 @@
+Dec 19 2002  2.7.1  Fixed gps point logging of PHY packets
 Dec 17 2002  2.7.1  Fixed kismet_hopper on systems with old wireless extention
                      versions.
                     Revamped packet capture stream.  Live-decoded wep packets
