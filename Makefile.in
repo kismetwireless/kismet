@@ -5,6 +5,10 @@
 #ETHER	= /usr/src/ethereal-0.9.0
 #PCAP    = 1
 
+VERSION_MAJOR	= 2
+VERSION_MINOR	= 6
+VERSION_TINY	= 0
+
 INSTGRP ?= "@instgrp@"
 MANGRP ?= "@mangrp@"
 INSTUSR ?= "root"
@@ -23,7 +27,7 @@ LDFLAGS	= @LDFLAGS@
 LIBS	= @LIBS@
 CLIBS   = @CLIBS@
 CFLAGS	= @CPPFLAGS@
-CXXFLAGS = -O2 -Wall @CXXFLAGS@
+CXXFLAGS = -O2 -Wall -DVERSION_MAJOR=$(VERSION_MAJOR) -DVERSION_MINOR=$(VERSION_MINOR) -DVERSION_TINY=$(VERSION_TINY) @CXXFLAGS@
 CPPFLAGS = @CPPFLAGS@
 SUID	= @suid@
 
@@ -213,8 +217,8 @@ ipkg: $(PS) $(NC) $(HOPPER)
 	@arm-linux-strip $(HOPPER)
 	@cp $(PS) packaging/ipkg/$(BIN)/$(PS)
 	@cp $(NC) packaging/ipkg/$(BIN)/$(NC)
-	@cp scripts/kismet packaging/ipkg/$(BIN)/kismet
 	@cp $(HOPPER) packaging/ipkg/$(BIN)/$(HOPPER)
+	@cp scripts/kismet packaging/ipkg/$(BIN)/kismet
 	@cp conf/kismet.conf packaging/ipkg/$(ETC)/kismet.conf
 	@cp conf/kismet_ui.conf packaging/ipkg/$(ETC)/kismet_ui.conf
 	@cp conf/ap_manuf packaging/ipkg/$(ETC)/ap_manuf
@@ -229,10 +233,13 @@ ipkg: $(PS) $(NC) $(HOPPER)
 	@chmod a+x packaging/ipkg/$(BIN)/*
 	@chown root.root packaging/ipkg -R
 	@echo "Making ipkg..."
+	@rm -rf packaging/pak
 	@mkdir -p packaging/pak
-	@( cd packaging/ipkg/CONTROL; tar zcf ../../pak/control.tar.gz . --exclude=CVS; )
-	@( cd packaging/ipkg/; tar zcf ../pak/data.tar.gz . --exclude=CVS --exclude=CONTROL; )
-	@( cd packaging/pak; tar zcf ../../kismet_arm.ipk . ; )
+	@( cd packaging/ipkg/CONTROL; tar cf ../../pak/control.tar ./control; )
+	@( cd packaging/ipkg/; tar cf ../pak/data.tar ./usr; )
+	@( cd packaging/pak; gzip control.tar; gzip data.tar; tar cf ../../kismet_arm.tar ./control.tar.gz ./data.tar.gz; )
+	@( gzip -c kismet_arm.tar > kismet_$(VERSION_MAJOR).$(VERSION_MINOR).$(VERSION_TINY)_arm.ipk; rm kismet_arm.tar; )
+
 
 dep:
 	@$(MAKE) depend

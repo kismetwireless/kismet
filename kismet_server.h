@@ -24,10 +24,6 @@
 #include <map>
 #include <string>
 
-#define MAJOR 2
-#define MINOR 5
-#define TINY  2
-
 string ExpandLogPath(string path, string logname, string type);
 void CatchShutdown(int sig);
 int Usage(char *argv);

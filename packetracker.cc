@@ -1339,8 +1339,8 @@ int Packetracker::WriteXMLNetworks(FILE *in_file) {
     time_t cur_time = time(0);
     snprintf(lt, 25, "%s", ctime(&cur_time));
 
-    fprintf(in_file, "<detection-run kismet-version=\"%d.%d\" start-time=\"%s\" end-time=\"%s\">\n",
-            MAJOR, MINOR, ft, lt);
+    fprintf(in_file, "<detection-run kismet-version=\"%d.%d.%d\" start-time=\"%s\" end-time=\"%s\">\n",
+            VERSION_MAJOR, VERSION_MINOR, VERSION_TINY, ft, lt);
 
     // Convert the map to a vector and sort it
     for (map<mac_addr, wireless_network *>::const_iterator i = bssid_map.begin();
