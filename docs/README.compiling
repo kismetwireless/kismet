@@ -27,6 +27,7 @@ Before configuration and compilation, you should get the following packages:
   --disable-pcap          disable libpcap capture support
   --enable-syspcap        use system libpcap (not reccomended)
   --disable-setuid        disable suid capabilities (not reccomended)
+  --enable-wsp100         enable WSP100 remote sensor capture device
   --enable-zaurus         enable some extra stuff (like piezzo buzzer) for 
                           Zaurus
   --enable-local-dumper   force use of local dumper code even if ethereal is 

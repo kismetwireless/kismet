@@ -63,7 +63,8 @@ int TcpServer::Setup(unsigned int in_max_clients, short int in_port, const char 
     port = in_port;
 
     // Set up our socket
-    bzero(&serv_sock, sizeof(serv_sock));
+    //bzero(&serv_sock, sizeof(serv_sock));
+    memset(&serv_sock, 0, sizeof(serv_sock));
     serv_sock.sin_family = AF_INET;
     serv_sock.sin_addr.s_addr = htonl(INADDR_ANY);
     serv_sock.sin_port = htons(port);
@@ -166,7 +167,8 @@ int TcpServer::Accept()
     int client_len;
 #endif
 
-    bzero(&client_addr, sizeof(struct sockaddr_in));
+    //bzero(&client_addr, sizeof(struct sockaddr_in));
+    memset(&client_addr, 0, sizeof(struct sockaddr_in));
 
     client_len = sizeof(struct sockaddr_in);
 

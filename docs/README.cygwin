@@ -1,0 +1,19 @@
+Building and Running Kismet under Windows/cygwin
+
+Building
+--------
+
+Configure using the following options:
+
+./configure --disable-pcap --without-ethereal --disable-gps --disable-wireless \
+  --disable-netlink --disable-suid-root
+  
+Configuration
+-------------
+
+Specify the MAC address of the sensor for the capinterface parameter in 
+kismet.conf. e.g.
+
+capinterface=00:06:25:02:A8:A2
+
+

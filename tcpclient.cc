@@ -66,7 +66,8 @@ int TcpClient::Connect(short int in_port, char *in_host) {
     strncpy(hostname, in_host, MAXHOSTNAMELEN);
 
     // Set up our socket
-    bzero(&client_sock, sizeof(client_sock));
+    //bzero(&client_sock, sizeof(client_sock));
+    memset(&client_sock, 0, sizeof(client_sock));
     client_sock.sin_family = client_host->h_addrtype;
     memcpy((char *) &client_sock.sin_addr.s_addr, client_host->h_addr_list[0],
            client_host->h_length);
