@@ -77,13 +77,16 @@ int RegisterKismetSources(Packetsourcetracker *sourcetracker) {
     sourcetracker->RegisterPacketsource("wlanng", 1, "IEEE80211b", 6,
                                        pcapsource_registrant,
                                        monitor_wlanng, NULL, chancontrol_wlanng);
-    sourcetracker->RegisterPacketsource("wlanng_avs",1, "IEEE80211b", 6,
+    sourcetracker->RegisterPacketsource("wlanng_avs", 1, "IEEE80211b", 6,
                                        pcapsource_registrant,
                                        monitor_wlanng_avs, NULL, chancontrol_wlanng_avs);
-
+    sourcetracker->RegisterPacketsource("wrt54g", 1, "na", 0,
+                                        pcapsource_registrant,
+                                        monitor_wrt54g, NULL, NULL);
 #else
     REG_EMPTY_CARD(sourcetracker, "wlanng");
     REG_EMPTY_CARD(sourcetracker, "wlanng_avs");
+    REG_EMPTY_CARD(sourcetracker, "wrt54g");
 #endif
 
 #if defined(HAVE_LIBPCAP) && defined(SYS_OPENBSD)

@@ -7,6 +7,8 @@ Dec 05 2003  3.1.0  First major CVS update in a while.  Most everything should
                      Expect it to be very noisy until I finish it.
                     Viha support is untested - I'm not sure the new channel
                      control/packstream code will work, so let me know.
+                    Added 'wrt54g' card type for embedded drones on linksys
+                     routers.  More on this project later.
 Dec 04 2003  3.1.0  Major refactoring of core code:
                      * Rewrite of core packet stream code
                      * 10-15 times speed increase in packet processing
