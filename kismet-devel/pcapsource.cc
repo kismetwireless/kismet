@@ -739,6 +739,10 @@ int PcapSourceWext::FetchChannel() {
     return Iwconfig_Get_Channel(interface.c_str(), errstr);
 }
 
+int PcapSourceWextFCS::FCSBytes() {
+    return 4;
+}
+
 int PcapSourceWext::FetchSignalLevels(int *in_siglev, int *in_noiselev) {
     int raw_siglev, raw_noiselev, ret;
 
@@ -764,6 +768,10 @@ carrier_type PcapSource11G::IEEE80211Carrier() {
         return carrier_80211a;
 
     return carrier_unknown;
+}
+
+int PcapSource11GFCS::FCSBytes() {
+    return 4;
 }
 
 // FCS bytes for wlanng
@@ -891,6 +899,11 @@ KisPacketSource *pcapsource_wext_registrant(string in_name, string in_device,
     return new PcapSourceWext(in_name, in_device);
 }
 
+KisPacketSource *pcapsource_wextfcs_registrant(string in_name, string in_device,
+                                               char *in_err) {
+    return new PcapSourceWextFCS(in_name, in_device);
+}
+
 KisPacketSource *pcapsource_ciscowifix_registrant(string in_name, string in_device, char *in_err) {
     vector<string> devbits = StrTokenize(in_device, ":");
 
@@ -905,6 +918,11 @@ KisPacketSource *pcapsource_ciscowifix_registrant(string in_name, string in_devi
 KisPacketSource *pcapsource_11g_registrant(string in_name, string in_device,
                                            char *in_err) {
     return new PcapSource11G(in_name, in_device);
+}
+
+KisPacketSource *pcapsource_11gfcs_registrant(string in_name, string in_device,
+                                              char *in_err) {
+    return new PcapSource11GFCS(in_name, in_device);
 }
 
 KisPacketSource *pcapsource_wlanng_registrant(string in_name, string in_device,

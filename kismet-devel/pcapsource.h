@@ -173,6 +173,15 @@ protected:
     int FetchSignalLevels(int *in_siglev, int *in_noiselev);
 };
 
+// FCS trimming for wext cards
+class PcapSourceWextFCS : public PcapSourceWext {
+public:
+    PcapSourceWextFCS(string in_name, string in_dev) :
+        PcapSourceWext(in_name, in_dev) { }
+protected:
+    int FCSBytes();
+};
+
 // Override carrier detection for 11g cards like madwifi and prism54g.
 class PcapSource11G : public PcapSourceWext {
 public:
@@ -180,6 +189,15 @@ public:
         PcapSourceWext(in_name, in_dev) { }
 protected:
     carrier_type IEEE80211Carrier();
+};
+
+// Override madwifi 11g for FCS
+class PcapSource11GFCS : public PcapSource11G {
+public:
+    PcapSource11GFCS(string in_name, string in_dev) :
+        PcapSource11G(in_name, in_dev) { }
+protected:
+    int FCSBytes();
 };
 
 // Override fcs controls to add 4 bytes on wlanng
@@ -261,10 +279,14 @@ KisPacketSource *pcapsource_file_registrant(string in_name, string in_device,
 #ifdef HAVE_LINUX_WIRELESS
 KisPacketSource *pcapsource_wext_registrant(string in_name, string in_device, 
                                             char *in_err);
+KisPacketSource *pcapsource_wextfcs_registrant(string in_name, string in_device,
+                                               char *in_err);
 KisPacketSource *pcapsource_ciscowifix_registrant(string in_name, string in_device, 
                                                   char *in_err);
 KisPacketSource *pcapsource_11g_registrant(string in_name, string in_device,
                                            char *in_err);
+KisPacketSource *pcapsource_11gfcs_registrant(string in_name, string in_device,
+                                              char *in_err);
 KisPacketSource *pcapsource_wlanng_registrant(string in_name, string in_device,
                                               char *in_err);
 #endif

@@ -1,3 +1,5 @@
+Jan 26 2003  3.1.0  Fixed FCS byte trimming for MadWifi, this should fix Kismet
+                     discarding most packets as invalid (Thanks, Anton)
 Jan 25 2003  3.1.0  Long-asked for, the panels client is now able to lock
                      onto the channel of a selected network and stop 
                      hopping.  'L' to lock, 'H' to hop.  Currently only works
