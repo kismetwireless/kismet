@@ -139,6 +139,10 @@ int RegisterKismetSources(Packetsourcetracker *sourcetracker) {
                                         pcapsource_11g_registrant,
                                         monitor_wext, unmonitor_wext,
                                         chancontrol_wext, 1);
+    sourcetracker->RegisterPacketsource("rt8180", 1, "IEEE80211b", 6,
+                                        pcapsource_wext_registrant,
+                                        monitor_wext, unmonitor_wext,
+                                        chancontrol_wext, 1);
 
 #else
     // Register the linuxwireless pcap stuff as null

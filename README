@@ -408,7 +408,7 @@ Licensed under the GPL
     - Linux (Intel, PPC, MIPS, X-Scale, Arm, etc)
       Known supported cards: Atmel_USB, ACX100, ADMTek, Atheros, Cisco, Prism2, 
        Orinoco, WSP100, Drone, wtapfile, pcapfile, wrt54g, ipw2100, rt2400,
-       rt2500
+       rt2500, rt8180
 
       Kismet will work with any distribution of Linux.  Currently, Linux is the
       recommended platform for running Kismet because it has the largest
@@ -646,11 +646,17 @@ Licensed under the GPL
                     Realtek 2400 802.11b cards using the serialmonkey GPL'd 
                      Realtek drivers.  Must use 1.2.2 beta 2 or newer drivers.
 
-    rt2500          Realtek 2500 11b    Linux       rt2500-gpl
+    rt2500          Realtek 2500 11g    Linux       rt2500-gpl
                     Capture interface:  'ethX'
                     http://rt2x00.serialmonkey.com/
                     Realtek 2500 802.11g cards using the serialmonkey GPL'd 
                      Realtek drivers.  Must use 1.1.0 beta 2 or newer drivers.
+
+    rt8180          Realtek 8180 11b    Linux       rtl8180-sa2400
+                    Capture interface:  'ethX'
+                    http://rtl8180-sa2400.sourceforge.net/
+                    Realtek 8180 based cards (there seem to be an awful lot of
+                     them) using the GPL drivers.
 
     viha            Airport             OSX         viha
                     http://www.dopesquad.net/security/
