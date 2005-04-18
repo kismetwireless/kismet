@@ -5,6 +5,8 @@ Apr 18 2005  devel  Changed WPA detection to only trigger when the WEP flag is a
                     Tentatively changed docs to call rt2x00 'ralink' instead of
                      'realtek', though I still haven't seen anything to prove it
                      one way or the other.
+                    Tweaked gpsmap to handle WPA w/ no WEP as non-wep (plotting
+                     data the same as its handled in -devel now)
 Apr 09 2005  devel  Added RT8180 capture support
 Apr 02 2005 2005-04 Released 2005-04-R1.  Primarily a bugfix release, but with
                      some new features, including:

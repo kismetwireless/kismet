@@ -2776,7 +2776,9 @@ int DrawLegendComposite(vector<gps_network *> in_nets, Image **in_img,
         if (map_iter->wnet->manuf_score == manuf_max_score) {
             default_nets++;
         } else if (map_iter->wnet->crypt_set) {
-            wepped_nets++;
+			// Handle WPA only and no wep
+			if (map_iter->wnet->crypt_set != crypt_wpa)
+				wepped_nets++;
         } else {
             unwepped_nets++;
         }
