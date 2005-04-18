@@ -1,3 +1,10 @@
+Apr 18 2005  devel  Changed WPA detection to only trigger when the WEP flag is also
+                     set.  APs advertise WPA capability even when encryption isn't
+                     turned on, it seems reasonable to cloak that if it isn't 
+                     actually being used.
+                    Tentatively changed docs to call rt2x00 'ralink' instead of
+                     'realtek', though I still haven't seen anything to prove it
+                     one way or the other.
 Apr 09 2005  devel  Added RT8180 capture support
 Apr 02 2005 2005-04 Released 2005-04-R1.  Primarily a bugfix release, but with
                      some new features, including:

@@ -461,8 +461,9 @@ void GetPacketInfo(kis_packet *packet, packet_info *ret_packinfo,
             }
 
 			// Extract WPA info
-			if ((tcitr = tag_cache_map.find(221)) != tag_cache_map.end()) {
-				// Assume we have WPA at all right now
+			if ((tcitr = tag_cache_map.find(221)) != tag_cache_map.end() &&
+				ret_packinfo->wep) {
+				// Assume WPA if we have that tagparm and WEP is turned on
 				ret_packinfo->wpa = 1;
 			}
 
