@@ -18,6 +18,7 @@
 
 #include "config.h"
 #include "util.h"
+#include "endian_magic.h"
 #include "packet.h"
 #include "droneproto.h"
 #include "kis_droneframe.h"

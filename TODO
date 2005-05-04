@@ -63,6 +63,34 @@ X-Riot-Version: 1ds-20040924
 In-Reply-To: <riot.20040927141546.8>
 
 Merge bind-addr patch into tcp server base
+From background-static Thu Feb 17 21:31:39 EST 2005
+Message-Id: <riot.20050217213139.1>
+Date: Thu Feb 17 21:31:39 EST 2005
+Status: RO
+X-Riot-Version: 1ds-20040924
+In-Reply-To: <riot.20040927141546.8>
+
+Alertracker rewriting
+
+Fix alertracker to accept different units for in rate and in burst
+Migrate configfile parsing to alertracker
+Migrate network export to alertracker
+From background-static Tue Feb 22 00:54:14 EST 2005
+Message-Id: <riot.20050222005414.1>
+Date: Tue Feb 22 00:54:14 EST 2005
+Status: RO
+X-Riot-Version: 1ds-20040924
+In-Reply-To: <riot.20040927141546.8>
+
+Merge fixes from ids_alert_logger to tcpclient core
+From background-static Sat Apr 23 17:31:29 EDT 2005
+Message-Id: <riot.20050423173129.1>
+Date: Sat Apr 23 17:31:29 EDT 2005
+Status: RO
+X-Riot-Version: 1ds-20040924
+In-Reply-To: <riot.20040927141546.8>
+
+Merge WPA detectors from stable
 From background-static Mon Sep 27 00:14:46 EDT 2004
 Message-Id: <riot.20040927001446.1>
 Date: Mon Sep 27 00:14:46 EDT 2004
@@ -218,7 +246,7 @@ Status: RO
 X-Riot-Version: 1ds-20040924
 In-Reply-To: <riot.20040927011304.1>
 
-Rewrite packetracker
+Rewrite packetracker into netracker
 
 Notes:
 decrypted field rolled into crypt bitfield as crypt_decoded

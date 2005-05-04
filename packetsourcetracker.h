@@ -62,6 +62,9 @@ typedef struct {
     packsource_monitor monitor_disable;
     packsource_chcontrol channelcon;
     int child_control;
+	// Failure tracking to allow conditional failing
+	int n_failures;
+	time_t last_failure;
 } packsource_protorec;
 
 // Meta packetsource for handling created packetsources, channel control, etc
@@ -101,6 +104,19 @@ public:
     Packetcontrolchild_MessageClient(GlobalRegistry *in_globalreg) :
         MessageClient(in_globalreg) { };
     void ProcessMessage(string in_msg, int in_flags);
+};
+
+// Packetchain reference for packet sources to be attached to the 
+// item captured
+class kis_ref_capsource {
+public:
+	KisPacketSource *ref_source;
+
+	kis_ref_capsource() {
+		ref_source = NULL;
+	}
+
+	~kis_ref_capsource() { };
 };
 
 // Channel control event

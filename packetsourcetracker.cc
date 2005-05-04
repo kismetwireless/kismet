@@ -956,6 +956,7 @@ int Packetsourcetracker::ProcessCardList(string in_enableline,
             meta->stored_interface = NULL;
             meta->ch_pos = 0;
             meta->cur_ch = 0;
+			meta->consev_errors = 0;
             // Hopping is turned on in any source that has a channel control pointer.
             // This isn't controlling if kismet hops in general, only if this source
             // changes channel when Kismet decides to channel hop.
@@ -1090,14 +1091,15 @@ int Packetsourcetracker::BindSources(int in_root) {
         // Enable monitor mode
         int ret = 0;
         if (meta->prototype->monitor_enable != NULL) {
-            snprintf(errstr, STATUS_MAX, "Source %d (%s): Enabling monitor mode for %s source "
-                    "interface %s channel %d...",
+            snprintf(errstr, STATUS_MAX, "Source %d (%s): Enabling monitor mode for "
+					 "%s source interface %s channel %d...",
                     x, meta->name.c_str(), meta->prototype->cardtype.c_str(), 
                     meta->device.c_str(), meta->cur_ch);
             globalreg->messagebus->InjectMessage(errstr, MSGFLAG_INFO);
 
             ret = (*meta->prototype->monitor_enable)(globalreg, meta->device.c_str(), 
-                                                     meta->cur_ch, &meta->stored_interface,
+                                                     meta->cur_ch, 
+													 &meta->stored_interface,
                                                      (void *) meta->capsource);
         }
 
@@ -1191,14 +1193,17 @@ int Packetsourcetracker::CloseSources() {
         if (meta->prototype->monitor_disable != NULL) {
             int umon_ret = 0;
             if ((umon_ret = 
-                 (*meta->prototype->monitor_disable)(globalreg, meta->device.c_str(), 0, 
+                 (*meta->prototype->monitor_disable)(globalreg, 
+													 meta->device.c_str(), 0, 
                                                      &meta->stored_interface,
                                                      (void *) meta->capsource)) < 0) {
-                snprintf(errstr, STATUS_MAX, "Unable to cleanly disable monitor mode.");
+                snprintf(errstr, STATUS_MAX, "Unable to cleanly disable "
+						 "monitor mode.");
                 globalreg->messagebus->InjectMessage(errstr, MSGFLAG_ERROR);
                 snprintf(errstr, STATUS_MAX, "%s (%s) left in an unknown state.  "
                          "You may need to manually restart or reconfigure it for "
-                         "normal operation.", meta->name.c_str(), meta->device.c_str());
+                         "normal operation.", meta->name.c_str(), 
+						 meta->device.c_str());
                 globalreg->messagebus->InjectMessage(errstr, MSGFLAG_ERROR);
             }
 
@@ -1248,19 +1253,21 @@ int Packetsourcetracker::SpawnChannelChild() {
     
     // Generate socket pair before we split
     if (socketpair(PF_UNIX, SOCK_DGRAM, 0, sockpair) < 0) {
-        fprintf(stderr, "FATAL:  Unable to create child socket pair for channel control: %d, %s\n",
-                errno, strerror(errno));
+        fprintf(stderr, "FATAL:  Unable to create child socket pair for "
+				"channel control: %d, %s\n", errno, strerror(errno));
         return -1;
     }
 
     // Fork
     if ((chanchild_pid = fork()) < 0) {
-        fprintf(stderr, "FATAL:  Unable to create child process for channel control.\n");
+        fprintf(stderr, "FATAL:  Unable to create child process for "
+				"channel control.\n");
         return -1;
     } else if (chanchild_pid == 0) {
         // Kluge a new messagebus into the childs global registry
         globalreg->messagebus = new MessageBus;
-        Packetcontrolchild_MessageClient *pccmc = new Packetcontrolchild_MessageClient(globalreg);
+        Packetcontrolchild_MessageClient *pccmc = 
+			new Packetcontrolchild_MessageClient(globalreg);
         globalreg->messagebus->RegisterClient(pccmc, MSGFLAG_ALL);
         
         // Spawn the child loop code
@@ -1355,7 +1362,8 @@ void Packetsourcetracker::ChannelChildLoop() {
             chanchild_packhdr pak;
             int ret;
 
-            if ((ret = recv(sockpair[0], &pak, sizeof(chanchild_packhdr) - sizeof(void *), 0)) < 0) {
+            if ((ret = recv(sockpair[0], &pak, sizeof(chanchild_packhdr) - 
+							sizeof(void *), 0)) < 0) {
                 exit(1);
             }
 
@@ -1385,8 +1393,10 @@ void Packetsourcetracker::ChannelChildLoop() {
 
                 // Sanity check
                 if (chanpak.meta_num >= meta_packsources.size()) {
-                    snprintf(txtbuf, 1024, "Channel control got illegal metasource number %d", chanpak.meta_num);
-                    child_ipc_buffer.push_front(CreateTextPacket(txtbuf, CHANFLAG_NONE));
+                    snprintf(txtbuf, 1024, "Channel control got illegal metasource "
+							 "number %d", chanpak.meta_num);
+                    child_ipc_buffer.push_front(CreateTextPacket(txtbuf, 
+																 CHANFLAG_NONE));
                     continue;
                 }
 
@@ -1399,14 +1409,37 @@ void Packetsourcetracker::ChannelChildLoop() {
                 // be valid - channel change stuff has to be smart enough to test
                 // for null and report an error accordingly if it uses this
                 // data.
+				//
+				// If a channel has more than N consecutive errors, we actually
+				// fail out, send a fatal condition, and die.
                 if ((*meta_packsources[chanpak.meta_num]->prototype->channelcon)
                     (globalreg, meta_packsources[chanpak.meta_num]->device.c_str(), 
                      chanpak.channel, 
                      (void *) (meta_packsources[chanpak.meta_num]->capsource)) < 0) {
-                    snprintf(txtbuf, 1024, "%s", errstr);
-                    child_ipc_buffer.push_front(CreateTextPacket(txtbuf, CHANFLAG_FATAL));
-                    continue;
-                }
+
+					meta->consec_errors++;
+
+					if (meta->consec_errors >= MAX_CONSEC_CHAN_ERR) {
+						// Push an explanation and the final error
+						snprintf(txtbuf, 1024, "Packet source %s (%s) has suffered "
+								 "%d consecutive errors setting the channel.  This "
+								 "most likely means the drivers have become "
+								 "confused.",
+								 meta_packsources[chanpak.meta_num]->name.c_str(),
+								 meta_packsources[chanpak.meta_num]->device.c_str(),
+								 MAX_CONSEC_CHAN_ERR);
+						child_ipc_buffer.push_front(CreateTextPacket(txtbuf, 
+																	 CHANFLAG_NONE));
+
+						snprintf(txtbuf, 1024, "%s", errstr);
+						child_ipc_buffer.push_front(CreateTextPacket(txtbuf, 
+																	 CHANFLAG_FATAL));
+						continue;
+					}
+                } else {
+					// Otherwise reset the error count
+					meta->consec_errors = 0;
+				}
 
                 // Acknowledge
                 chanchild_packhdr *ackpak = new chanchild_packhdr;

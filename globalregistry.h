@@ -38,7 +38,15 @@ class ConfigFile;
 class SpeechControl;
 class SoundControl;
 
-struct wep_key_info;
+// Info from the config file about the wep keys to try
+typedef struct {
+    int fragile;
+    mac_addr bssid;
+    unsigned char key[WEPKEY_MAX];
+    unsigned int len;
+    unsigned int decrypted;
+    unsigned int failed;
+} wep_key_info;
 
 // Global registry of references to tracker objects and preferences.  This 
 // should supplant the masses of globals and externs we'd otherwise need.
@@ -90,10 +98,6 @@ public:
         sta_prot_ref, ifo_prot_ref, rem_prot_ref, pkt_prot_ref,
         str_prot_ref;
 
-    // WEP stuff
-    unsigned int client_wepkey_allowed;
-    macmap<wep_key_info *> bssid_wep_map;
-
     // Filter maps for the various filter types
     int filter_tracker;
     macmap<int> filter_tracker_bssid;
@@ -119,6 +123,11 @@ public:
     mac_addr broadcast_mac;
 
     int alert_backlog;
+
+	// wep key info.  Someone else needs to fill this in
+	macmap<wep_key_info *> bssid_wep_map;
+	// Do we allow clients to get wepkeys?
+	int client_wepkey_allowed;
 
     // Packet component references we use internally and don't want to keep looking up
     int pcr_80211_ref, pcr_turbo_ref, pcr_l1_ref, 
@@ -177,8 +186,6 @@ public:
         rem_prot_ref = -1;
         pkt_prot_ref = -1;
         str_prot_ref = -1;
-
-        client_wepkey_allowed = 0;
 
         filter_tracker = 0;
         filter_tracker_bssid_invert = -1;

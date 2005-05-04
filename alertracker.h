@@ -65,6 +65,8 @@ public:
         alert_time_unit limit_unit;
         // Alerts per unit
         int limit_rate;
+		// Units burst is measured in
+		alert_time_unit burst_unit;
         // Alerts sent before limiting takes hold
         int limit_burst;
 

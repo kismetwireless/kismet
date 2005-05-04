@@ -21,7 +21,7 @@
 #include "packet.h"
 #include "packetsourcetracker.h"
 #include "alertracker.h"
-#include "packetracker.h"
+#include "packetchain.h"
 #include "kis_netframe.h"
 
 char *KISMET_fields_text[] = {

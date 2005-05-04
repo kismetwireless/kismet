@@ -33,204 +33,13 @@
 #include <vector>
 #include <map>
 
-#ifndef SSID_SIZE
-#define SSID_SIZE 32
-#endif
+#include "macaddr.h"
+#include "packet_ieee80211.h"
 
-#ifndef BEACON_INFO_LEN
-#define BEACON_INFO_LEN 128
-#endif
-
-// packet conversion and extraction utilities
-// Packet types, these should correspond to the frame header types
-enum ieee_80211_type {
-    packet_noise = -2,  // We're too short or otherwise corrupted
-    packet_unknown = -1, // What are we?
-    packet_management = 0, // LLC management
-    packet_phy = 1, // Physical layer packets, most drivers can't provide these
-    packet_data = 2 // Data frames
-};
-
-// Subtypes are a little odd because we re-use values depending on the type
-enum ieee_80211_subtype {
-    packet_sub_unknown = -1,
-    // Management subtypes
-    packet_sub_association_req = 0,
-    packet_sub_association_resp = 1,
-    packet_sub_reassociation_req = 2,
-    packet_sub_reassociation_resp = 3,
-    packet_sub_probe_req = 4,
-    packet_sub_probe_resp = 5,
-    packet_sub_beacon = 8,
-    packet_sub_atim = 9,
-    packet_sub_disassociation = 10,
-    packet_sub_authentication = 11,
-    packet_sub_deauthentication = 12,
-    // Phy subtypes
-    packet_sub_rts = 11,
-    packet_sub_cts = 12,
-    packet_sub_ack = 13,
-    packet_sub_cf_end = 14,
-    packet_sub_cf_end_ack = 15,
-    // Data subtypes
-    packet_sub_data = 0,
-    packet_sub_data_cf_ack = 1,
-    packet_sub_data_cf_poll = 2,
-    packet_sub_data_cf_ack_poll = 3,
-    packet_sub_data_null = 4,
-    packet_sub_cf_ack = 5,
-    packet_sub_cf_ack_poll = 6
-};
-
-// distribution directions
-enum ieee_80211_disttype {
-    distrib_unknown, distrib_from, distrib_to,
-    distrib_inter, distrib_adhoc
-};
-
-// Signalling layer info - what protocol are we seeing data on?
-// Not all of these types are currently supported, of course
-enum phy_carrier_type {
-    carrier_unknown,
-    carrier_80211b,
-    carrier_80211bplus,
-    carrier_80211a,
-    carrier_80211g,
-    carrier_80211fhss,
-    carrier_80211dsss
-};
-
-// Packet encoding info - how are packets encoded?
-enum phy_encoding_type {
-    encoding_unknown,
-    encoding_cck,
-    encoding_pbcc,
-    encoding_ofdm
-};
-
-// CDP -- This gives us a lot of info about the location of the AP if they're
-// on a cisco backend network
-typedef struct {
-    unsigned int : 8 __attribute__ ((packed));
-    unsigned int : 8 __attribute__ ((packed));
-
-    unsigned int : 8 __attribute__ ((packed));
-    unsigned int : 1 __attribute__ ((packed));
-    unsigned int level1 : 1 __attribute__ ((packed));
-    unsigned int igmp_forward : 1 __attribute__ ((packed));
-    unsigned int nlp : 1 __attribute__ ((packed));
-    unsigned int level2_switching : 1 __attribute__ ((packed));
-    unsigned int level2_sourceroute : 1 __attribute__ ((packed));
-    unsigned int level2_transparent : 1 __attribute__ ((packed));
-    unsigned int level3 : 1 __attribute__ ((packed));
-} cdp_capabilities;
-
-typedef struct {
-    char dev_id[128];
-    uint8_t ip[4];
-    char interface[128];
-    cdp_capabilities cap;
-    char software[512];
-    char platform[128];
-} cdp_packet;
-
-// Turbocell modes
-enum turbocell_type {
-    turbocell_unknown,
-    turbocell_ispbase, // 0xA0
-    turbocell_pollbase, // 0x80
-    turbocell_nonpollbase, // 0x00
-    turbocell_base // 0x40
-};
-
-// Deciphering by casting.  This is bad, and non portable, and we need to not
-// do it in the future but for now it'll work until we redo it with bitmanip
-#ifdef WORDS_BIGENDIAN
-// Byte ordering for bigendian systems.  Bitwise strcts are so funky.
-typedef struct {
-    unsigned short subtype : 4 __attribute__ ((packed));
-    unsigned short type : 2 __attribute__ ((packed));
-    unsigned short version : 2 __attribute__ ((packed));
-
-    unsigned short order : 1 __attribute__ ((packed));
-    unsigned short wep : 1 __attribute__ ((packed));
-    unsigned short more_data : 1 __attribute__ ((packed));
-    unsigned short power_management : 1 __attribute__ ((packed));
-
-    unsigned short retry : 1 __attribute__ ((packed));
-    unsigned short more_fragments : 1 __attribute__ ((packed));
-    unsigned short from_ds : 1 __attribute__ ((packed));
-    unsigned short to_ds : 1 __attribute__ ((packed));
-} frame_control;
-
-typedef struct {
-    unsigned short frag : 12 __attribute__ ((packed));
-    unsigned short sequence : 4 __attribute__ ((packed));
-} wireless_fragseq;
-
-typedef struct {
-    uint8_t timestamp[8];
-
-    // This field must be converted to host-endian before being used
-    unsigned int beacon : 16 __attribute__ ((packed));
-
-    unsigned short agility : 1 __attribute__ ((packed));
-    unsigned short pbcc : 1 __attribute__ ((packed));
-    unsigned short short_preamble : 1 __attribute__ ((packed));
-    unsigned short wep : 1 __attribute__ ((packed));
-
-    unsigned short unused2 : 1 __attribute__ ((packed));
-    unsigned short unused1 : 1 __attribute__ ((packed));
-    unsigned short ibss : 1 __attribute__ ((packed));
-    unsigned short ess : 1 __attribute__ ((packed));
-
-    unsigned int coordinator : 8 __attribute__ ((packed));
-
-} fixed_parameters;
-
-#else
-// And 802.11 packet frame header
-typedef struct {
-    unsigned short version : 2 __attribute__ ((packed));
-    unsigned short type : 2 __attribute__ ((packed));
-    unsigned short subtype : 4 __attribute__ ((packed));
-
-    unsigned short to_ds : 1 __attribute__ ((packed));
-    unsigned short from_ds : 1 __attribute__ ((packed));
-    unsigned short more_fragments : 1 __attribute__ ((packed));
-    unsigned short retry : 1 __attribute__ ((packed));
-
-    unsigned short power_management : 1 __attribute__ ((packed));
-    unsigned short more_data : 1 __attribute__ ((packed));
-    unsigned short wep : 1 __attribute__ ((packed));
-    unsigned short order : 1 __attribute__ ((packed));
-} frame_control;
-
-typedef struct {
-    unsigned short frag : 4 __attribute__ ((packed));
-    unsigned short sequence : 12 __attribute__ ((packed));
-} wireless_fragseq;
-
-typedef struct {
-    uint8_t timestamp[8];
-
-    // This field must be converted to host-endian before being used
-    unsigned int beacon : 16 __attribute__ ((packed));
-
-    unsigned short ess : 1 __attribute__ ((packed));
-    unsigned short ibss : 1 __attribute__ ((packed));
-    unsigned short unused1 : 1 __attribute__ ((packed));
-    unsigned short unused2 : 1 __attribute__ ((packed));
-
-    unsigned short wep : 1 __attribute__ ((packed));
-    unsigned short short_preamble : 1 __attribute__ ((packed));
-    unsigned short pbcc : 1 __attribute__ ((packed));
-    unsigned short agility : 1 __attribute__ ((packed));
-
-    unsigned int coordinator : 8 __attribute__ ((packed));
-} fixed_parameters;
-
-#endif
+// This is the main switch for how big the vector is.  If something ever starts
+// bumping up against this we'll need to increase it, but that'll slow down 
+// generating a packet (slightly) so I'm leaving it relatively low.
+#define MAX_PACKET_COMPONENTS	64
 
 // High-level packet component so that we can provide our own destructors
 class packet_component {
@@ -247,47 +56,57 @@ public:
     // Do we know this is in error from the capture source
     // itself?
     int error;
+
+	// Actual vector of bits in the packet
+	vector<packet_component *> content_vec;
    
     // Init stuff
     kis_packet() {
         error = 0;
+
+		// Stock and init the content vector
+		content_vec.reserve(64);
+		for (unsigned int y = 0; y < MAX_PACKET_COMPONENTS; y++)
+			content_vec.push_back(NULL);
     }
 
     ~kis_packet() {
         // Delete everything we contain when we die.  I hope whomever put
         // it there expected this.
-        for (map<int, packet_component *>::iterator it = content_map.begin();
-             it != content_map.end(); ++it) {
-            delete it->second;
+		for (unsigned int y = 0; y < MAX_PACKET_COMPONENTS; y++) {
+			if (content_vec[y] != NULL)
+				delete content_vec[y];
         }
     }
-    
-    // Internal dynamic component management elements
-    map<int, packet_component *> content_map;
-    inline void insert(const int index, packet_component *data) {
-        content_map[index] = data;
+   
+    inline void insert(const unsigned int index, packet_component *data) {
+		if (index >= MAX_PACKET_COMPONENTS)
+			return;
+        content_vec[index] = data;
     }
-    inline void *fetch(const int index) {
-        return (*this)[index];
+    inline void *fetch(const unsigned int index) {
+		if (index >= MAX_PACKET_COMPONENTS)
+			return NULL;
+
+		return content_vec[index];
     }
-    inline void erase(const int index) {
-        map<int, packet_component *>::iterator it = content_map.find(index);
+    inline void erase(const unsigned int index) {
+		if (index >= MAX_PACKET_COMPONENTS)
+			return;
 
         // Delete it if we can - both from our array and from 
         // memory.  Whatever inserted it had better expect this
         // to happen or it will be very unhappy
-        if (it != content_map.end()) {
-            delete it->second;
-            content_map.erase(it);
+		if (content_vec[index] != NULL) {
+			delete content_vec[index];
+			content_vec[index] = NULL;
         }
     }
-    inline packet_component *operator[] (const int& index) const {
-        map<int, packet_component *>::const_iterator it = content_map.find(index);
+    inline packet_component *operator[] (const unsigned int& index) const {
+		if (index >= MAX_PACKET_COMPONENTS)
+			return NULL;
 
-        if (it != content_map.end())
-            return it->second;
-            
-        return NULL;
+		return content_vec[index];
     }
 };
 

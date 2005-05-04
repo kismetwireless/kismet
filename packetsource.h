@@ -54,6 +54,12 @@ typedef int (*packsource_chcontrol)(CHCONTROL_PARMS);
                             int initch, void **in_if, void *in_ext
 typedef int (*packsource_monitor)(MONITOR_PARMS);
 
+// Parmeters to the packet info.  These get set by the packet source controller
+// so they need to go here
+typedef struct packet_parm {
+    int fuzzy_crypt;
+};
+
 // Packet capture source superclass
 class KisPacketSource {
 public:
