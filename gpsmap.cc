@@ -1604,15 +1604,15 @@ int InverseWeight(int in_x, int in_y, int in_fuzz, double in_scale) { /*FOLD00*/
     weight_point_rec wprec;
     for (int cury = min_y; cury < max_y; cury++) {
         for (int curx = min_x; curx < max_x; curx++) {
+            if (power_input_map[(map_width * cury) + curx] <= 0)
+                continue;
+
             double ldist = sqrt(((in_x - curx)*(in_x - curx)) +
                     ((in_y - cury)*(in_y - cury)));
 
             if ((int) ldist > offset)
                 continue;
             
-            if (power_input_map[(map_width * cury) + curx] <= 0)
-                continue;
-
             if (maxdist < ldist)
                 maxdist = ldist;
 
