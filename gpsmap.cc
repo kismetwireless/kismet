@@ -1628,10 +1628,12 @@ int InverseWeight(int in_x, int in_y, int in_fuzz, double in_scale) { /*FOLD00*/
         return 0;
 
     // Find the sum of all distances for the bottom half of the eq
+#if 0
     double bottom_sum = 0;
     for (unsigned int x = 0; x < wpvec.size(); x++) 
         bottom_sum += square((maxdist - wpvec[x].ldist)/
                 (maxdist * wpvec[x].ldist));
+#endif
 
     // Now get the weighting and add all the points
     for (unsigned int x = 0; x < wpvec.size(); x++)
