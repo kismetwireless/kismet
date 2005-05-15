@@ -304,7 +304,8 @@ void Packetracker::ProcessPacket(packet_info info) {
         if (info.type == packet_management && 
             (info.subtype == packet_sub_beacon ||
              info.subtype == packet_sub_probe_req ||
-             info.subtype == packet_sub_probe_resp)) {
+             info.subtype == packet_sub_probe_resp ||
+			 info.subtype == packet_sub_authentication)) {
 
             if (IsBlank(info.ssid)) {
                 if (bssid_cloak_map.find(info.bssid_mac) != bssid_cloak_map.end()) {
@@ -374,6 +375,7 @@ void Packetracker::ProcessPacket(packet_info info) {
                      net->ssid.c_str(), net->bssid.Mac2String().c_str());
             KisLocalStatus(status);
         } else {
+			printf("debug - pack %d\n", num_packets);
             snprintf(status, STATUS_MAX, "Found new network \"%s\" bssid %s WEP %c Ch "
                      "%d @ %.2f mbit",
                      net->ssid.c_str(), net->bssid.Mac2String().c_str(), 

@@ -1,3 +1,6 @@
+May 15 2005  devel  Added auth frames to the probe network classifier (auth to
+                     unknown network creates a probe net, auth to known network
+                     acts normally)
 May 06 2005  devel  Fixed another glaring inefficiency in gpsmap, providing an
                      order of magnitude speed boost to interpolated power calcs.
 May 05 2005  devel  Fixed a bunch of ops that didn't need to be done in inverse
