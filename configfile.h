@@ -49,9 +49,6 @@ public:
                                macmap<int> *dest_map,
                                int *bssid_invert, int *source_invert, 
 							   int *dest_invert);
-    static int ParseAlertLine(string alert_str, string *ret_name, 
-							  alert_time_unit *ret_limit_unit,
-                              int *ret_limit_rate, int *ret_limit_burst);
 
 protected:
     map<string, vector<string> > config_map;

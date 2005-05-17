@@ -50,6 +50,9 @@ typedef struct {
 
 // Global registry of references to tracker objects and preferences.  This 
 // should supplant the masses of globals and externs we'd otherwise need.
+// 
+// Really this just just a big ugly hack to do globals without looking like
+// we're doing globals, but it's a lot nicer for maintenance at least.
 class GlobalRegistry {
 public:
     // Fatal terminate condition, as soon as we detect this in the main code we

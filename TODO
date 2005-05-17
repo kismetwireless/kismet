@@ -75,6 +75,7 @@ Alertracker rewriting
 Fix alertracker to accept different units for in rate and in burst
 Migrate configfile parsing to alertracker
 Migrate network export to alertracker
+Handle blitting backlogged alerts to a specific connection
 From background-static Tue Feb 22 00:54:14 EST 2005
 Message-Id: <riot.20050222005414.1>
 Date: Tue Feb 22 00:54:14 EST 2005
@@ -91,6 +92,95 @@ X-Riot-Version: 1ds-20040924
 In-Reply-To: <riot.20040927141546.8>
 
 Merge WPA detectors from stable
+From background-static Thu May  5 16:26:02 EDT 2005
+Message-Id: <riot.20050505162602.1>
+Date: Thu May  5 16:26:02 EDT 2005
+Status: RO
+X-Riot-Version: 1ds-20040924
+In-Reply-To: <riot.20040927141546.8>
+
+Retransmit rate
+From background-static Thu May  5 16:26:12 EDT 2005
+Message-Id: <riot.20050505162612.2>
+Date: Thu May  5 16:26:12 EDT 2005
+Status: RO
+X-Riot-Version: 1ds-20040924
+In-Reply-To: <riot.20040927141546.8>
+
+Breakdown of clients bitrates (if possible)
+From background-static Thu May  5 16:26:19 EDT 2005
+Message-Id: <riot.20050505162619.3>
+Date: Thu May  5 16:26:19 EDT 2005
+Status: RO
+X-Riot-Version: 1ds-20040924
+In-Reply-To: <riot.20040927141546.8>
+
+FCS error rate (if possible)
+From background-static Thu May 12 13:41:39 EDT 2005
+Message-Id: <riot.20050512134139.1>
+Date: Thu May 12 13:41:39 EDT 2005
+Status: RO
+X-Riot-Version: 1ds-20040924
+In-Reply-To: <riot.20040927141546.8>
+
+Basic + extended rates
+From background-static Sun May 15 00:25:47 EDT 2005
+Message-Id: <riot.20050515002547.1>
+Date: Sun May 15 00:25:47 EDT 2005
+Status: RO
+X-Riot-Version: 1ds-20040924
+In-Reply-To: <riot.20040927141546.8>
+
+Port -stable handling of authentication packets
+From background-static Sun May 15 14:48:25 EDT 2005
+Message-Id: <riot.20050515144825.2>
+Date: Sun May 15 14:48:25 EDT 2005
+Status: RO
+X-Riot-Version: 1ds-20040924
+In-Reply-To: <riot.20040927141546.8>
+
+realtime breakdown of packet types
+decloaked percentage
+From background-static Sun May 15 14:52:20 EDT 2005
+Message-Id: <riot.20050515145220.3>
+Date: Sun May 15 14:52:20 EDT 2005
+Status: RO
+X-Riot-Version: 1ds-20040924
+In-Reply-To: <riot.20040927141546.8>
+
+Allow alerts to parse state options like channel hopping
+From background-static Sun May 15 15:24:58 EDT 2005
+Message-Id: <riot.20050515152458.4>
+Date: Sun May 15 15:24:58 EDT 2005
+Status: RO
+X-Riot-Version: 1ds-20040924
+In-Reply-To: <riot.20040927141546.8>
+
+Fix GPS heading code (steal from gpsdrive)
+From background-static Sun May 15 15:32:07 EDT 2005
+Message-Id: <riot.20050515153207.5>
+Date: Sun May 15 15:32:07 EDT 2005
+Status: RO
+X-Riot-Version: 1ds-20040924
+In-Reply-To: <riot.20040927141546.8>
+
+panels client battery shouldn't display time when on AC
+From background-static Mon May 16 17:54:46 EDT 2005
+Message-Id: <riot.20050516175446.1>
+Date: Mon May 16 17:54:46 EDT 2005
+Status: RO
+X-Riot-Version: 1ds-20040924
+In-Reply-To: <riot.20040927141546.8>
+
+Fix data after disassoc IDS to check for data from AP
+From background-static Tue May 17 09:49:07 EDT 2005
+Message-Id: <riot.20050517094907.2>
+Date: Tue May 17 09:49:07 EDT 2005
+Status: RO
+X-Riot-Version: 1ds-20040924
+In-Reply-To: <riot.20040927141546.8>
+
+Fix gpsdclient to use packetchain
 From background-static Mon Sep 27 00:14:46 EDT 2004
 Message-Id: <riot.20040927001446.1>
 Date: Mon Sep 27 00:14:46 EDT 2004

@@ -72,9 +72,12 @@ public:
 
         // How many alerts have been sent burst-mode (decremented once per unit)
         int burst_sent;
+		// How many have we sent in total?
+		int total_sent;
 
-        // List of times we sent an alert... to handle throttling
-        list<struct timeval *> alert_log;
+		// Last time we sent an alert, to tell if we can reset the burst or
+		// rate counters
+		time_t time_last;
     };
 
     Alertracker();
@@ -83,7 +86,7 @@ public:
 
     // Register an alert and get an alert reference number back.
     int RegisterAlert(const char *in_header, alert_time_unit in_unit, int in_rate,
-                      int in_burst);
+                      alert_time_unit in_burstunit, int in_burst);
 
     // Find a reference from a name
     int FetchAlertRef(string in_header);
@@ -99,9 +102,19 @@ public:
     // Send backlogged alerts
     void BlitBacklogged(int in_fd);
 
+	// Load an alert reference from a config file (not tied only to the
+	// kismet conf in globalreg)
+	int ParseAlertStr(string alert_str, string *ret_name, 
+					  alert_time_unit *ret_limit_unit, int *ret_limit_rate,
+					  alert_time_unit *ret_limit_burst, int *ret_burst_rate);
+
+
 protected:
     // Check and age times
     int CheckTimes(alert_rec *arec);
+
+	// Parse a foo/bar rate/unit option
+	int ParseRateUnit(string in_ru, alert_time_unit *ret_unit, int *ret_rate);
 
     GlobalRegistry *globalreg;
 
