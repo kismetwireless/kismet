@@ -511,7 +511,9 @@ int Clicmd_CAPABILITY(CLIENT_PARMS) {
         return -1;
     }
 
-    globalreg->kisnetserver->SendToClient(in_clid, globalreg->cap_prot_ref, (void *) prot);
+    globalreg->kisnetserver->SendToClient(in_clid, 
+										  globalreg->netproto_map[PROTO_REF_CLIENT],
+										  (void *) prot);
     
     return 1;
 }
@@ -818,7 +820,8 @@ void KisNetframe_MessageClient::ProcessMessage(string in_msg, int in_flags) {
 
     // Dispatch it out to the clients
     string tmp = msg;
-    globalreg->kisnetserver->SendToAll(globalreg->sta_prot_ref, (void *) &tmp);
+    globalreg->kisnetserver->SendToAll(globalreg->netproto_map[PROTO_REF_STATUS], 
+									   (void *) &tmp);
 
 }
 
@@ -827,7 +830,8 @@ int KisNetFrame_TimeEvent(Timetracker::timer_event *evt, void *parm, GlobalRegis
     // always exists.  If this isn't the case, we'll fail horribly.
     time_t curtime = time(0);
 
-    globalreg->kisnetserver->SendToAll(globalreg->tim_prot_ref, (void *) &curtime);
+    globalreg->kisnetserver->SendToAll(globalreg->netproto_map[PROTO_REF_TIME], 
+									   (void *) &curtime);
     
     return 1;
 }
@@ -848,38 +852,45 @@ KisNetFramework::KisNetFramework(GlobalRegistry *in_globalreg) {
     // Register the core Kismet protocols
 
     // Protocols we REQUIRE all clients to support
-    globalreg->kis_prot_ref = RegisterProtocol("KISMET", 1, KISMET_fields_text,
-                                               &Protocol_KISMET, NULL);
-    globalreg->err_prot_ref = RegisterProtocol("ERROR", 1, ERROR_fields_text,
-                                               &Protocol_ERROR, NULL);
-    globalreg->ack_prot_ref = RegisterProtocol("ACK", 1, ACK_fields_text,
-                                               &Protocol_ACK, NULL);
-    globalreg->pro_prot_ref = RegisterProtocol("PROTOCOLS", 1, PROTOCOLS_fields_text,
-                                               &Protocol_PROTOCOLS, NULL);
-    globalreg->cap_prot_ref = RegisterProtocol("CAPABILITY", 1, CAPABILITY_fields_text,
-                                               &Protocol_CAPABILITY, NULL);
-    globalreg->trm_prot_ref = RegisterProtocol("TERMINATE", 1, TERMINATE_fields_text,
-                                               &Protocol_TERMINATE, NULL);
-    globalreg->tim_prot_ref = RegisterProtocol("TIME", 1, TIME_fields_text,
-                                               &Protocol_TIME, NULL);
+	globalreg->netproto_map[PROTO_REF_KISMET] =
+		RegisterProtocol("KISMET", 1, KISMET_fields_text, &Protocol_KISMET, NULL);
+	globalreg->netproto_map[PROTO_REF_ERROR] =
+		RegisterProtocol("ERROR", 1, ERROR_fields_text, &Protocol_ERROR, NULL);
+	globalreg->netproto_map[PROTO_REF_ACK] =
+		RegisterProtocol("ACK", 1, ACK_fields_text, &Protocol_ACK, NULL);
+	globalreg->netproto_map[PROTO_REF_PROTOCOL] =
+		RegisterProtocol("PROTOCOLS", 1, PROTOCOLS_fields_text,
+						 &Protocol_PROTOCOLS, NULL);
+	globalreg->netproto_map[PROTO_REF_CAPABILITY] =
+		RegisterProtocol("CAPABILITY", 1, CAPABILITY_fields_text,
+						 &Protocol_CAPABILITY, NULL);
+	globalreg->netproto_map[PROTO_REF_TERMINATE] =
+		RegisterProtocol("TERMINATE", 1, TERMINATE_fields_text,
+						 &Protocol_TERMINATE, NULL);
+	globalreg->netproto_map[PROTO_REF_TIME] =
+		RegisterProtocol("TIME", 1, TIME_fields_text, &Protocol_TIME, NULL);
 
     // Other protocols
     
     // Alert ref done in alertracker
 
-    globalreg->crd_prot_ref = RegisterProtocol("CARD", 0, CARD_fields_text, 
-                                               &Protocol_CARD, NULL);
+	globalreg->netproto_map[PROTO_REF_CARD] =
+		RegisterProtocol("CARD", 0, CARD_fields_text, 
+						 &Protocol_CARD, NULL);
     // This has been broken for a long time now
     // RegisterProtocol("CISCO", 0, CISCO_fields_text, &Protocol_CISCO, NULL);
-    globalreg->ifo_prot_ref = RegisterProtocol("INFO", 0, INFO_fields_text, 
-                                               &Protocol_INFO, NULL);
-    globalreg->pkt_prot_ref = RegisterProtocol("PACKET", 0, PACKET_fields_text, 
-                                               &Protocol_PACKET, NULL);
-    globalreg->sta_prot_ref = RegisterProtocol("STATUS", 0, STATUS_fields_text, 
-                                               &Protocol_STATUS, NULL);
-    globalreg->str_prot_ref = RegisterProtocol("STRING", 0, STRING_fields_text, 
-                                               &Protocol_STRING, NULL);
-    RegisterProtocol("WEPKEY", 0, WEPKEY_fields_text, &Protocol_WEPKEY, NULL);
+	globalreg->netproto_map[PROTO_REF_INFO] =
+		RegisterProtocol("INFO", 0, INFO_fields_text, 
+						 &Protocol_INFO, NULL);
+	globalreg->netproto_map[PROTO_REF_PACKET] =
+		RegisterProtocol("PACKET", 0, PACKET_fields_text, &Protocol_PACKET, NULL);
+	globalreg->netproto_map[PROTO_REF_STATUS] =
+		RegisterProtocol("STATUS", 0, STATUS_fields_text, &Protocol_STATUS, NULL);
+	globalreg->netproto_map[PROTO_REF_STRING] =
+		RegisterProtocol("STRING", 0, STRING_fields_text, 
+						 &Protocol_STRING, NULL);
+	globalreg->netproto_map[PROTO_REF_WEPKEY] =
+		RegisterProtocol("WEPKEY", 0, WEPKEY_fields_text, &Protocol_WEPKEY, NULL);
 
     // Kismet builtin client commands
     RegisterClientCommand("CAPABILITY", &Clicmd_CAPABILITY);
@@ -938,10 +949,12 @@ int KisNetFramework::Accept(int in_fd) {
     snprintf(temp, 512, "%s.%s.%s", VERSION_MAJOR, VERSION_MINOR, VERSION_TINY);
     kdat.newversion = string(temp);
    
-    SendToClient(in_fd, globalreg->kis_prot_ref, (void *) &kdat);
+    SendToClient(in_fd, globalreg->netproto_map[PROTO_REF_KISMET], 
+				 (void *) &kdat);
   
     // Protocols
-    SendToClient(in_fd, globalreg->pro_prot_ref, (void *) &protocol_map);
+    SendToClient(in_fd, globalreg->netproto_map[PROTO_REF_PROTOCOL], 
+				 (void *) &protocol_map);
     
     return 1;
 }
@@ -1011,14 +1024,17 @@ int KisNetFramework::ParseData(int in_fd) {
             // Call the processor and return error conditions and ack
             if ((*ccitr->second)(in_fd, this, globalreg, errstr, fullcmd, &cmdtoks) < 0) {
                 rdat.resptext = string(errstr);
-                SendToClient(in_fd, globalreg->err_prot_ref, (void *) &rdat);
+                SendToClient(in_fd, globalreg->netproto_map[PROTO_REF_ERROR], 
+							 (void *) &rdat);
             } else {
                 rdat.resptext = string("OK");
-                SendToClient(in_fd, globalreg->ack_prot_ref, (void *) &rdat);
+                SendToClient(in_fd, globalreg->netproto_map[PROTO_REF_ACK], 
+							 (void *) &rdat);
             }
         } else {
             rdat.resptext = string("NO SUCH COMMAND");
-            SendToClient(in_fd, globalreg->ack_prot_ref, (void *) &rdat);
+            SendToClient(in_fd, globalreg->netproto_map[PROTO_REF_ERROR], 
+						 (void *) &rdat);
         }
 
     }

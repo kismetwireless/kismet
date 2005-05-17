@@ -475,9 +475,9 @@ Netracker::Netracker(GlobalRegistry *in_globalreg) {
 	}
 
 	// Register packet components to tie into our tracker
-	globalreg->pcr_tracker_net_ref = 
+	globalreg->packetcomp_map[PACK_COMP_TRACKERNET] =
 		globalreg->packetchain->RegisterPacketComponent("netracker_network");
-	globalreg->pcr_tracker_cli_ref = 
+	globalreg->packetcomp_map[PACK_COMP_TRACKERCLIENT] =
 		globalreg->packetchain->RegisterPacketComponent("netracker_client");
 
 	// Register the packet hooks with the chain
@@ -512,15 +512,15 @@ Netracker::Netracker(GlobalRegistry *in_globalreg) {
 	}
 
 	// Register network protocols with the tcp server
-    globalreg->net_prot_ref = 
+	globalreg->netproto_map[PROTO_REF_NETWORK] =
 		globalreg->kisnetserver->RegisterProtocol("NETWORK", 0, NETWORK_fields_text, 
 												  &Protocol_NETWORK, 
 												  &Protocol_NETWORK_enable);
-    globalreg->cli_prot_ref = 
+	globalreg->netproto_map[PROTO_REF_CLIENT] =
 		globalreg->kisnetserver->RegisterProtocol("CLIENT", 0, CLIENT_fields_text, 
 												  &Protocol_CLIENT, 
 												  &Protocol_CLIENT_enable);
-    globalreg->rem_prot_ref = 
+	globalreg->netproto_map[PROTO_REF_PROTOCOL] =
 		globalreg->kisnetserver->RegisterProtocol("REMOVE", 0, REMOVE_fields_text, 
 												  &Protocol_REMOVE, NULL);
 
@@ -534,12 +534,12 @@ int Netracker::netracker_chain_handler(kis_packet *in_pack) {
 	char status[STATUS_MAX];
 
 	// Fetch the info from the packet chain data
-	kis_ieee80211_packinfo *packinfo = 
-		(kis_ieee80211_packinfo *) in_pack->fetch(globalreg->pcr_80211_ref);
-	kis_gps_packinfo *gpsinfo = 
-		(kis_gps_packinfo *) in_pack->fetch(globalreg->pcr_gps_ref);
-	kis_layer1_packinfo *l1info = 
-		(kis_layer1_packinfo *) in_pack->fetch(globalreg->pcr_l1_ref);
+	kis_ieee80211_packinfo *packinfo = (kis_ieee80211_packinfo *) 
+		in_pack->fetch(globalreg->packetcomp_map[PACK_COMP_80211]);
+	kis_gps_packinfo *gpsinfo = (kis_gps_packinfo *) 
+		in_pack->fetch(globalreg->packetcomp_map[PACK_COMP_GPS]);
+	kis_layer1_packinfo *l1info = (kis_layer1_packinfo *) 
+		in_pack->fetch(globalreg->packetcomp_map[PACK_COMP_LAYER1]);
 
 	// No 802.11 info, we don't handle it.
 	if (packinfo == NULL) {
@@ -624,7 +624,7 @@ int Netracker::netracker_chain_handler(kis_packet *in_pack) {
 	// Link it to the packet for future chain elements
 	kis_netracker_netinfo *netpackinfo = new kis_netracker_netinfo;
 	netpackinfo->netref = net;
-	in_pack->insert(globalreg->pcr_tracker_net_ref, netpackinfo);
+	in_pack->insert(globalreg->packetcomp_map[PACK_COMP_TRACKERNET], netpackinfo);
 
 	// Update the time
 	net->last_time = time(0);

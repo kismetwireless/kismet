@@ -72,9 +72,9 @@ In-Reply-To: <riot.20040927141546.8>
 
 Alertracker rewriting
 
-Fix alertracker to accept different units for in rate and in burst
+X Fix alertracker to accept different units for in rate and in burst
 Migrate configfile parsing to alertracker
-Migrate network export to alertracker
+X Migrate network export to alertracker
 Handle blitting backlogged alerts to a specific connection
 From background-static Tue Feb 22 00:54:14 EST 2005
 Message-Id: <riot.20050222005414.1>
@@ -181,6 +181,22 @@ X-Riot-Version: 1ds-20040924
 In-Reply-To: <riot.20040927141546.8>
 
 Fix gpsdclient to use packetchain
+From background-static Tue May 17 12:20:32 EDT 2005
+Message-Id: <riot.20050517122032.1>
+Date: Tue May 17 12:20:32 EDT 2005
+Status: RO
+X-Riot-Version: 1ds-20040924
+In-Reply-To: <riot.20040927141546.8>
+
+Move towards classes containing refs internally
+From background-static Tue May 17 12:30:15 EDT 2005
+Message-Id: <riot.20050517123015.2>
+Date: Tue May 17 12:30:15 EDT 2005
+Status: RO
+X-Riot-Version: 1ds-20040924
+In-Reply-To: <riot.20040927141546.8>
+
+Fix network and client enable backlog pushing
 From background-static Mon Sep 27 00:14:46 EDT 2004
 Message-Id: <riot.20040927001446.1>
 Date: Mon Sep 27 00:14:46 EDT 2004

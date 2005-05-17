@@ -26,6 +26,7 @@
 #include "clinetframework.h"
 #include "tcpclient.h"
 #include "kis_netframe.h"
+#include "packetchain.h"
 
 // Options
 #define GPSD_OPT_FORCEMODE    1
@@ -63,6 +64,9 @@ public:
     int gps_fix;
 };
 
+// Packetchain hook to add GPS data
+int kis_gpspack_hook(CHAINCALL_PARMS);
+
 class GPSDClient : public ClientFramework {
 public:
     GPSDClient();
@@ -91,17 +95,20 @@ public:
     }
 
     // Fetch a location
-    int FetchLoc(float *in_lat, float *in_lon, float *in_alt, float *in_spd, float *in_hed, int *mode);
+    int FetchLoc(double *in_lat, double *in_lon, double *in_alt, double *in_spd, 
+				 double *in_hed, int *mode);
 
     // Fetch mode
     int FetchMode() { return mode; }
 
     // Various GPS transformations
-    static float CalcHeading(float in_lat, float in_lon, float in_lat2, float in_lon2);
+    static double CalcHeading(double in_lat, double in_lon, 
+							  double in_lat2, double in_lon2);
     static double CalcRad(double lat);
     static double Rad2Deg(double x);
     static double Deg2Rad(double x);
-    static double EarthDistance(double in_lat, double in_lon, double in_lat2, double in_lon2);
+    static double EarthDistance(double in_lat, double in_lon, 
+								double in_lat2, double in_lon2);
 
 protected:
     TcpClient *tcpcli;
@@ -113,17 +120,20 @@ protected:
     int reconnect_attempt;
     time_t last_disconnect;
 
-    float lat, lon, alt, spd, hed;
+    double lat, lon, alt, spd, hed;
     int mode;
 
     int gpseventid;
 
     // Last location used for softheading calcs
-    float last_lat, last_lon, last_hed;
+    double last_lat, last_lon, last_hed;
 
     // Reconnect local trigger
     int Reconnect();
     int InjectCommand();
+
+	// network proto ref
+	int gps_proto_ref;
     
     friend int GpsInjectEvent(Timetracker::timer_event *evt, void *parm, 
                               GlobalRegistry *globalreg);

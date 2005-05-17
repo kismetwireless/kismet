@@ -97,10 +97,17 @@ Alertracker::Alertracker(GlobalRegistry *in_globalreg) {
     }
     
     // Autoreg the alert protocol
-    globalreg->alr_prot_ref = 
+    net_alert_ref = 
         globalreg->kisnetserver->RegisterProtocol("ALERT", 0, ALERT_fields_text, 
                                                   &Protocol_ALERT, 
 												  &Protocol_ALERT_enable);
+
+	// Register a KISMET alert type with no rate restrictions
+	globalreg->alertref_map[ALERT_REF_KISMET] =
+		RegisterAlert("KISMET", sat_day, 0, sat_day, 0);
+
+	// Parse config file vector of all alerts
+
 }
 
 Alertracker::~Alertracker() {
@@ -240,8 +247,7 @@ int Alertracker::RaiseAlert(int in_ref,
         alert_backlog.erase(alert_backlog.begin());
     }
 
-    globalreg->kisnetserver->SendToAll(globalreg->alr_prot_ref,
-                                            (void *) adata);
+    globalreg->kisnetserver->SendToAll(net_alert_ref, (void *) adata);
     
     // Hook main for sounds and whatnot on the server
     globalreg->messagebus->InjectMessage(adata->text, MSGFLAG_ALERT);
@@ -251,8 +257,7 @@ int Alertracker::RaiseAlert(int in_ref,
 
 void Alertracker::BlitBacklogged(int in_fd) {
     for (unsigned int x = 0; x < alert_backlog.size(); x++)
-        globalreg->kisnetserver->SendToAll(globalreg->alr_prot_ref, 
-                                           (void *) alert_backlog[x]);
+        globalreg->kisnetserver->SendToAll(net_alert_ref, (void *) alert_backlog[x]);
         //server->SendToClient(in_fd, protoref, (void *) alert_backlog[x]);
 }
 

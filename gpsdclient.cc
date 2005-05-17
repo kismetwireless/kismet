@@ -21,6 +21,7 @@
 #include "configfile.h"
 #include "speechcontrol.h"
 #include "soundcontrol.h"
+#include "packetchain.h"
 
 #ifdef HAVE_GPS
 
@@ -76,6 +77,18 @@ int GpsInjectEvent(Timetracker::timer_event *evt, void *parm,
     return 1;
 }
 
+int kis_gpspack_hook(CHAINCALL_PARMS) {
+	// Simple packet insertion of current GPS coordinates
+	kis_gps_packinfo *gpsdat = new kis_gps_packinfo;
+
+	globalreg->gpsd->FetchLoc(&(gpsdat->lat), &(gpsdat->lon), &(gpsdat->alt),
+							  &(gpsdat->spd), &(gpsdat->heading), &(gpsdat->gps_fix));
+	
+	in_pack->insert(globalreg->packetcomp_map[PACK_COMP_GPS], gpsdat);
+
+	return 1;
+}
+
 GPSDClient::GPSDClient() {
     fprintf(stderr, "*** gpsdclient called with no global registry reference\n");
     globalreg = NULL;
@@ -92,7 +105,7 @@ GPSDClient::GPSDClient(GlobalRegistry *in_globalreg) : ClientFramework(in_global
     tcpcli->RegisterClientFramework(this);
 
 	// Register GPS packet info components
-	globalreg->pcr_gps_ref =
+	globalreg->packetcomp_map[PACK_COMP_GPS] =
 		globalreg->packetchain->RegisterPacketComponent("gps");
 	
     gpseventid = -1;
@@ -164,9 +177,18 @@ GPSDClient::GPSDClient(GlobalRegistry *in_globalreg) : ClientFramework(in_global
         globalreg->gps_enable = 0;
     }
 
-    globalreg->gps_prot_ref = 
+	// Register the network protocol
+	gps_proto_ref = 
 		globalreg->kisnetserver->RegisterProtocol("GPS", 0, GPS_fields_text, 
 												  &Protocol_GPS, NULL);
+
+	// Register the gps component and packetchain hooks to include it
+	globalreg->packetcomp_map[PACK_COMP_GPS] =
+		globalreg->packetchain->RegisterPacketComponent("gps");
+	globalreg->packetchain->RegisterHandler(&kis_gpspack_hook, this,
+											CHAINPOS_POSTCAP, -100);
+
+	
 }
 
 GPSDClient::~GPSDClient() {
@@ -256,7 +278,7 @@ int GPSDClient::ParseData() {
         return 0;
     }
 
-    float in_lat, in_lon, in_spd, in_alt, in_hed;
+    double in_lat, in_lon, in_spd, in_alt, in_hed;
     int in_mode, set_pos = 0, set_spd = 0, set_alt = 0,
         set_hed = 0, set_mode = 0, newgpsd_invalid = 0;
     
@@ -270,13 +292,14 @@ int GPSDClient::ParseData() {
         // Try to not error out entirely and just throw up an error about
         // not being able to understand it
         if (lintok.size() < 1) {
-            globalreg->messagebus->InjectMessage("GPSDClient unable to parse string from GPSD",
-                                                 MSGFLAG_ERROR);
+            globalreg->messagebus->InjectMessage("GPSDClient unable to parse string "
+												 "from GPSD", MSGFLAG_ERROR);
             return 0;
         }
 
         if (lintok[0] != "GPSD") {
-            globalreg->messagebus->InjectMessage("GPSDClient unable to parse string from GPSD, no 'GPSD' header",
+            globalreg->messagebus->InjectMessage("GPSDClient unable to parse string "
+												 "from GPSD, no 'GPSD' header",
                                                  MSGFLAG_ERROR);
             return 0;
         }
@@ -286,7 +309,8 @@ int GPSDClient::ParseData() {
             vector<string> values = StrTokenize(lintok[x], "=");
             
             if (values.size() != 2) {
-                globalreg->messagebus->InjectMessage("GPSDClient unable to parse string from GPSD",
+                globalreg->messagebus->InjectMessage("GPSDClient unable to parse "
+													 "string from GPSD",
                                                      MSGFLAG_ERROR);
                 return 0;
             }
@@ -294,9 +318,11 @@ int GPSDClient::ParseData() {
             if (values[0] == "P") {
                 if (values[1] == "?") {
                     newgpsd_invalid = 1;
-                } else if (sscanf(values[1].c_str(), "%f %f", &in_lat, &in_lon) != 2) {
+                } else if (sscanf(values[1].c_str(), "%lf %lf", 
+								  &in_lat, &in_lon) != 2) {
                     in_lat = in_lon = -1;
-                    globalreg->messagebus->InjectMessage("GPSDClient unable to parse string from GPSD",
+                    globalreg->messagebus->InjectMessage("GPSDClient unable to parse "
+														 "string from GPSD",
                                                          MSGFLAG_ERROR);
                     return 0;
                 }
@@ -306,9 +332,10 @@ int GPSDClient::ParseData() {
             if (values[0] == "A") {
                 if (values[1] == "?") {
                     newgpsd_invalid = 1;
-                } else if (sscanf(values[1].c_str(), "%f", &in_alt) != 1) {
+                } else if (sscanf(values[1].c_str(), "%lf", &in_alt) != 1) {
                     in_alt = -1;
-                    globalreg->messagebus->InjectMessage("GPSDClient unable to parse string from GPSD",
+                    globalreg->messagebus->InjectMessage("GPSDClient unable to parse "
+														 "string from GPSD",
                                                          MSGFLAG_ERROR);
                     return 0;
                 }
@@ -318,9 +345,10 @@ int GPSDClient::ParseData() {
             if (values[0] == "V") {
                 if (values[1] == "?") {
                     newgpsd_invalid = 1;
-                } else if (sscanf(values[1].c_str(), "%f", &in_spd) != 1) {
+                } else if (sscanf(values[1].c_str(), "%lf", &in_spd) != 1) {
                     in_spd = -1;
-                    globalreg->messagebus->InjectMessage("GPSDClient unable to parse string from GPSD",
+                    globalreg->messagebus->InjectMessage("GPSDClient unable to parse "
+														 "string from GPSD",
                                                          MSGFLAG_ERROR);
                     return 0;
                 }
@@ -330,9 +358,10 @@ int GPSDClient::ParseData() {
             if (values[0] == "H") {
                 if (values[1] == "?") {
                     newgpsd_invalid = 1;
-                } else if (sscanf(values[1].c_str(), "%f", &in_hed) != 1) {
+                } else if (sscanf(values[1].c_str(), "%lf", &in_hed) != 1) {
                     in_hed = -1;
-                    globalreg->messagebus->InjectMessage("GPSDClient unable to parse string from GPSD",
+                    globalreg->messagebus->InjectMessage("GPSDClient unable to parse "
+														 "string from GPSD",
                                                          MSGFLAG_ERROR);
                     return 0;
                 }
@@ -344,7 +373,8 @@ int GPSDClient::ParseData() {
                     newgpsd_invalid = 1;
                 } else if (sscanf(values[1].c_str(), "%d", &in_mode) != 1) {
                     in_mode = -1;
-                    globalreg->messagebus->InjectMessage("GPSDClient unable to parse string from GPSD",
+                    globalreg->messagebus->InjectMessage("GPSDClient unable to parse "
+														 "string from GPSD",
                                                          MSGFLAG_ERROR);
                     return 0;
                 }
@@ -398,27 +428,26 @@ int GPSDClient::ParseData() {
     // Send it to the client
     GPS_data gdata;
 
-    snprintf(errstr, 32, "%f", lat);
+    snprintf(errstr, 32, "%lf", lat);
     gdata.lat = errstr;
-    snprintf(errstr, 32, "%f", lon);
+    snprintf(errstr, 32, "%lf", lon);
     gdata.lon = errstr;
-    snprintf(errstr, 32, "%f", alt);
+    snprintf(errstr, 32, "%lf", alt);
     gdata.alt = errstr;
-    snprintf(errstr, 32, "%f", spd);
+    snprintf(errstr, 32, "%lf", spd);
     gdata.spd = errstr;
-    snprintf(errstr, 32, "%f", hed);
+    snprintf(errstr, 32, "%lf", hed);
     gdata.heading = errstr;
     snprintf(errstr, 32, "%d", mode);
     gdata.mode = errstr;
 
-    globalreg->kisnetserver->SendToAll(globalreg->gps_prot_ref, 
-                                       (void *) &gdata);
+    globalreg->kisnetserver->SendToAll(gps_proto_ref, (void *) &gdata);
 
     return 1;
 }
 
-int GPSDClient::FetchLoc(float *in_lat, float *in_lon, float *in_alt, 
-                         float *in_spd, float *in_hed, int *in_mode) {
+int GPSDClient::FetchLoc(double *in_lat, double *in_lon, double *in_alt, 
+                         double *in_spd, double *in_hed, int *in_mode) {
     *in_lat = lat;
     *in_lon = lon;
     *in_alt = alt;
@@ -429,15 +458,16 @@ int GPSDClient::FetchLoc(float *in_lat, float *in_lon, float *in_alt,
     return mode;
 }
 
-float GPSDClient::CalcHeading(float in_lat, float in_lon, float in_lat2, float in_lon2) {
-    float r = CalcRad((float) in_lat2);
+double GPSDClient::CalcHeading(double in_lat, double in_lon, double in_lat2, 
+							   double in_lon2) {
+    double r = CalcRad((double) in_lat2);
 
-    float lat1 = Deg2Rad((float) in_lat);
-    float lon1 = Deg2Rad((float) in_lon);
-    float lat2 = Deg2Rad((float) in_lat2);
-    float lon2 = Deg2Rad((float) in_lon2);
+    double lat1 = Deg2Rad((double) in_lat);
+    double lon1 = Deg2Rad((double) in_lon);
+    double lat2 = Deg2Rad((double) in_lat2);
+    double lon2 = Deg2Rad((double) in_lon2);
 
-    float angle = 0;
+    double angle = 0;
 
     if (lat1 == lat2) {
         if (lon2 > lon1) {
@@ -454,8 +484,8 @@ float GPSDClient::CalcHeading(float in_lat, float in_lon, float in_lat2, float i
             angle = M_PI;
         }
     } else {
-        float tx = r * cos((double) lat1) * (lon2 - lon1);
-        float ty = r * (lat2 - lat1);
+        double tx = r * cos((double) lat1) * (lon2 - lon1);
+        double ty = r * (lat2 - lat1);
         angle = atan((double) (tx/ty));
 
         if (ty < 0) {
@@ -472,7 +502,7 @@ float GPSDClient::CalcHeading(float in_lat, float in_lon, float in_lat2, float i
 
     }
 
-    return (float) Rad2Deg(angle);
+    return (double) Rad2Deg(angle);
 }
 
 double GPSDClient::Rad2Deg(double x) {

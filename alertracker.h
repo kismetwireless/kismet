@@ -127,6 +127,8 @@ protected:
 
     int num_backlog;
 
+	int net_alert_ref;
+
 };
 
 #endif

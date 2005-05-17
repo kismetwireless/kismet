@@ -38,6 +38,47 @@ class ConfigFile;
 class SpeechControl;
 class SoundControl;
 
+// These are the offsets into the array of protocol references, not
+// the reference itself.
+// tcpserver protocol numbers for all the builtin protocols kismet
+// uses and needs to refer to internally.  Modules are on their own
+// for tracking this.
+#define PROTO_REF_KISMET		0
+#define PROTO_REF_ERROR			1
+#define PROTO_REF_ACK			2
+#define PROTO_REF_PROTOCOL		3
+#define PROTO_REF_CAPABILITY	4
+#define PROTO_REF_TERMINATE		5
+#define PROTO_REF_TIME			6
+#define PROTO_REF_NETWORK		7
+#define PROTO_REF_CLIENT		8
+#define PROTO_REF_CARD			9
+#define PROTO_REF_GPS			10
+#define PROTO_REF_ALERT			11
+#define PROTO_REF_STATUS		12
+#define PROTO_REF_INFO			13
+#define PROTO_REF_REMOVE		14
+#define PROTO_REF_PACKET		15
+#define PROTO_REF_STRING		16
+#define PROTO_REF_WEPKEY		17
+#define PROTO_REF_MAX			18
+
+// Same game, packet component references
+#define PACK_COMP_80211			0
+#define PACK_COMP_TURBOCELL		1
+#define PACK_COMP_LAYER1		2
+#define PACK_COMP_GPS			3
+#define PACK_COMP_LINKFRAME		4
+#define PACK_COMP_80211FRAME	5
+#define PACK_COMP_MANGLEFRAME	6
+#define PACK_COMP_TRACKERNET	7
+#define PACK_COMP_TRACKERCLIENT	8
+#define PACK_COMP_MAX			9
+
+// Same game again, with alerts that internal things need to generate
+#define ALERT_REF_KISMET		0
+#define ALERT_REF_MAX			1
+
 // Info from the config file about the wep keys to try
 typedef struct {
     int fragile;
@@ -95,11 +136,7 @@ public:
     unsigned int track_probenets;
 
     // Protocol references we don't want to keep looking up
-    int kis_prot_ref, err_prot_ref, ack_prot_ref, pro_prot_ref, 
-        cap_prot_ref, trm_prot_ref, tim_prot_ref, net_prot_ref,
-        cli_prot_ref, crd_prot_ref, gps_prot_ref, alr_prot_ref,
-        sta_prot_ref, ifo_prot_ref, rem_prot_ref, pkt_prot_ref,
-        str_prot_ref;
+	int netproto_map[PROTO_REF_MAX];
 
     // Filter maps for the various filter types
     int filter_tracker;
@@ -133,9 +170,10 @@ public:
 	int client_wepkey_allowed;
 
     // Packet component references we use internally and don't want to keep looking up
-    int pcr_80211_ref, pcr_turbo_ref, pcr_l1_ref, 
-		pcr_gps_ref, pcr_linkframe_ref, pcr_80211frame_ref, 
-		pcr_mangleframe_ref, pcr_tracker_net_ref, pcr_tracker_cli_ref;
+	int packetcomp_map[PACK_COMP_MAX];
+
+	// Alert references
+	int alertref_map[ALERT_REF_MAX];
     
     GlobalRegistry() { 
         fatal_condition = 0;
@@ -172,23 +210,8 @@ public:
         metric = 0;
         track_probenets = 1;
 
-        kis_prot_ref = -1;
-        err_prot_ref = -1;
-        ack_prot_ref = -1;
-        pro_prot_ref = -1;
-        cap_prot_ref = -1;
-        trm_prot_ref = -1;
-        tim_prot_ref = -1;
-        net_prot_ref = -1;
-        cli_prot_ref = -1;
-        crd_prot_ref = -1;
-        gps_prot_ref = -1;
-        alr_prot_ref = -1;
-        sta_prot_ref = -1;
-        ifo_prot_ref = -1;
-        rem_prot_ref = -1;
-        pkt_prot_ref = -1;
-        str_prot_ref = -1;
+		for (int x = 0; x < PROTO_REF_MAX; x++)
+			netproto_map[x] = -1;
 
         filter_tracker = 0;
         filter_tracker_bssid_invert = -1;
@@ -209,15 +232,12 @@ public:
 
         alert_backlog = 0;
 
-        pcr_80211_ref = -1;
-        pcr_turbo_ref = -1;
-        pcr_l1_ref = -1;
-        pcr_gps_ref = -1;
-        pcr_linkframe_ref = -1;
-        pcr_80211frame_ref = -1;
-        pcr_mangleframe_ref = -1;
-		pcr_tracker_net_ref = -1;
-		pcr_tracker_cli_ref = -1;
+		for (unsigned int x = 0; x < PACK_COMP_MAX; x++)
+			packetcomp_map[x] = -1;
+
+		for (unsigned int x = 0; x < ALERT_REF_MAX; x++)
+			alertref_map[x] = -1;
+
     }
 
     // External globals -- allow other things to tie structs to us
