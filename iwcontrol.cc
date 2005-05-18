@@ -45,6 +45,9 @@ void IwFloat2Freq(double in_val, struct iw_freq *out_freq) {
 }
 
 int FloatChan2Int(float in_chan) {
+	if (in_chan > 0 && in_chan < 165)
+		return (int) in_chan;
+	
     int mod_chan = (int) rintf(in_chan / 1000000);
     int x = 0;
     // 80211b frequencies to channels
@@ -496,6 +499,7 @@ int Iwconfig_Get_Channel(const char *in_dev, char *in_err) {
     }
 
     close(skfd);
+
     return (FloatChan2Int(IwFreq2Float(&wrq)));
 }
 
