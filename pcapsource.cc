@@ -1622,6 +1622,53 @@ int unmonitor_ipw2100(const char *in_dev, int initch, char *in_err, void **in_if
     return 1;
 }
 
+int monitor_ipw2200(const char *in_dev, int initch, char *in_err, 
+					void **in_if, void *in_ext) {
+    // Allocate a tracking record for the interface settings and remember our
+    // setup
+    linux_ifparm *ifparm = (linux_ifparm *) malloc(sizeof(linux_ifparm));
+    (*in_if) = ifparm;
+
+    if (Ifconfig_Get_Flags(in_dev, in_err, &ifparm->flags) < 0) {
+        return -1;
+    }
+
+    if ((ifparm->channel = Iwconfig_Get_Channel(in_dev, in_err)) < 0)
+        return -1;
+
+    if (Iwconfig_Get_Mode(in_dev, in_err, &ifparm->mode) < 0)
+        return -1;
+
+    // Call the normal monitor mode
+    return (monitor_wext(in_dev, initch, in_err, in_if, in_ext));
+}
+
+int unmonitor_ipw2200(const char *in_dev, int initch, char *in_err, 
+					  void **in_if, void *in_ext) {
+    // Restore initial monitor header
+    // linux_ifparm *ifparm = (linux_ifparm *) (*in_if);
+
+    linux_ifparm *ifparm = (linux_ifparm *) (*in_if);
+
+	// Do a software reset of the card if we're trying to come out of monitor
+	// mode.  This is sad that it needs it.
+	if (ifparm->mode != LINUX_WLEXT_MONITOR) {
+		if (Iwconfig_Set_IntPriv(in_dev, "sw_reset", 0, 0, in_err) < 0) 
+			return -1;
+	}
+
+    if (Ifconfig_Set_Flags(in_dev, in_err, ifparm->flags) < 0) {
+        return -1;
+    }
+
+    if (Iwconfig_Set_Mode(in_dev, in_err, ifparm->mode) < 0)
+        return -1;
+
+    free(ifparm);
+
+    return 1;
+}
+
 // "standard" wireless extension monitor mode
 int monitor_wext(const char *in_dev, int initch, char *in_err, void **in_if, void *in_ext) {
     int mode;
@@ -2048,6 +2095,16 @@ int chancontrol_ipw2100(const char *in_dev, int in_ch, char *in_err, void *in_ex
 
     ret = chancontrol_wext(in_dev, in_ch, in_err, in_ext);
     usleep(5000);
+
+    return ret;
+}
+
+int chancontrol_ipw2200(const char *in_dev, int in_ch, char *in_err, void *in_ext) {
+	// Lets see if this really needs the channel change delay like the 2100 did
+    int ret = 0;
+
+    ret = chancontrol_wext(in_dev, in_ch, in_err, in_ext);
+    // usleep(5000);
 
     return ret;
 }

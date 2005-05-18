@@ -387,6 +387,8 @@ int unmonitor_prism54g(const char *in_dev, int initch, char *in_err, void **in_i
 // Centrino
 int monitor_ipw2100(const char *in_dev, int initch, char *in_err, void **in_if, void *in_ext);
 int unmonitor_ipw2100(const char *in_dev, int initch, char *in_err, void **in_if, void *in_ext);
+int monitor_ipw2200(const char *in_dev, int initch, char *in_err, void **in_if, void *in_ext);
+int unmonitor_ipw2200(const char *in_dev, int initch, char *in_err, void **in_if, void *in_ext);
 // "Standard" wext monitor sequence - mostly a helper for other functions
 // since most cards that use wext still have custom initialization that
 // needs to be done.
@@ -425,6 +427,7 @@ int chancontrol_madwifi_ag(const char *in_dev, int in_ch, char *in_err, void *in
 int chancontrol_prism54g(const char *in_dev, int in_ch, char *in_err, void *in_ext);
 // We need a delay in it like orinoco, apparently
 int chancontrol_ipw2100(const char *in_dev, int in_ch, char *in_err, void *in_ext);
+int chancontrol_ipw2200(const char *in_dev, int in_ch, char *in_err, void *in_ext);
 #endif
 
 #ifdef SYS_LINUX

@@ -375,7 +375,7 @@ void Packetracker::ProcessPacket(packet_info info) {
                      net->ssid.c_str(), net->bssid.Mac2String().c_str());
             KisLocalStatus(status);
         } else {
-			printf("debug - pack %d\n", num_packets);
+			// printf("debug - pack %d\n", num_packets);
             snprintf(status, STATUS_MAX, "Found new network \"%s\" bssid %s WEP %c Ch "
                      "%d @ %.2f mbit",
                      net->ssid.c_str(), net->bssid.Mac2String().c_str(), 
@@ -984,7 +984,8 @@ void Packetracker::ProcessDataPacket(packet_info info, wireless_network *net) {
         ipdata_dirty = 1;
     }
 
-    if (ipdata_dirty) {
+	// Don't get the IP ranges if the network is encrypted
+    if (ipdata_dirty && net->crypt_set == 0) {
 		// printf("packet %d t %d s %d\n", num_packets, info.type, info.subtype);
         snprintf(status, STATUS_MAX, "Found IP %d.%d.%d.%d for %s::%s via %s",
                  client->ipdata.ip[0], client->ipdata.ip[1],

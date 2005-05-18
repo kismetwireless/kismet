@@ -1,3 +1,10 @@
+May 17 2005  devel  Added ipw2200 support with temporary sw_reset support to try
+                     to come out of monitor mode.  You'll need the 1.0.4 drivers
+                     and new firmware, and you can force a reset of the card by
+                     reloading the drivers
+                    Added ipw2200 to fuzzy crypt list
+                    Tweaked IP detection to not attempt to process IPs for any
+                     packet associated with an encrypted network
 May 15 2005  devel  Added auth frames to the probe network classifier (auth to
                      unknown network creates a probe net, auth to known network
                      acts normally)
