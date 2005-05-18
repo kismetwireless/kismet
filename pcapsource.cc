@@ -1650,19 +1650,16 @@ int unmonitor_ipw2200(const char *in_dev, int initch, char *in_err,
 
     linux_ifparm *ifparm = (linux_ifparm *) (*in_if);
 
-	// Do a software reset of the card if we're trying to come out of monitor
-	// mode.  This is sad that it needs it.
-	if (ifparm->mode != LINUX_WLEXT_MONITOR) {
-		if (Iwconfig_Set_IntPriv(in_dev, "sw_reset", 0, 0, in_err) < 0) 
-			return -1;
-	}
-
     if (Ifconfig_Set_Flags(in_dev, in_err, ifparm->flags) < 0) {
         return -1;
     }
 
     if (Iwconfig_Set_Mode(in_dev, in_err, ifparm->mode) < 0)
         return -1;
+
+	// James says this wants to be set to channel 0 for proper scanning operation
+	if (Iwconfig_Set_Channel(in_dev, 0, in_err) < 0)
+		return -1;
 
     free(ifparm);
 

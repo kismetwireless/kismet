@@ -493,8 +493,12 @@ Licensed under the GPL
                      by bypassing part of the firmware and parsing packets
                      directly, and is likely to not report all of the 
                      frames.
-                     This card MAY BROADCAST while in rfmon, rendering the
+                    This card MAY BROADCAST while in rfmon, rendering the
                      sniffer visible.
+                    It appears that this card may be only formatting the 
+                     beacons as an 802.11 stream, which means you likely
+                     will not see data frames, rendering most IDS functions,
+                     IP discovery, and data logging unavailable.
 
     cisco           Aironet 340,350     Linux       Kernel 2.4.10 - 2.4.19
                     Capture interface:  'ethX'  
@@ -546,18 +550,16 @@ Licensed under the GPL
                     The Linux IPW2100/Centrino drivers for 802.11b cards
                     now support rfmon, so here's support for them.  They act
                     more or less like any other wireless interface would.
-                    THIS IS NOT FOR WINDOWS OR FOR SYSTEMS USING NDISWRAPPER
-                    OR LINUXANT.
+                    THIS IS NOT FOR WINDOWS OR FOR LINUX SYSTEMS USING 
+                    NDISWRAPPER OR LINUXANT.
 
     ipw2200         Intel/Centrino      Linux       ipw2200-1.0.4+
                     http://ipw2200.sourceforge.net/
                     Capture interface:  'ethX'
                     The Linux IPW2200/Centrino drivers for 802.11bg cards
-                    support rfmon as of 1.0.4 and firmware 2.3.  Currently
-                    they don't seem to come out of rfmon cleanly, but you can
-                    unload and reload the drivers to get control back.
-                    THIS IS NOT FOR WINDOWS OR FOR SYSTEMS USING NDISWRAPPER
-                    OR LINUXANT.
+                    support rfmon as of 1.0.4 and firmware 2.3.  
+                    THIS IS NOT FOR WINDOWS OR FOR LINUX SYSTEMS USING 
+                    NDISWRAPPER OR LINUXANT.
 
     kismet_drone    n/a                 Any         n/a
                     Capture interface:  'dronehost:port'  
@@ -727,9 +729,6 @@ Licensed under the GPL
                           currently no equivalent hack for PCMCIA.
      HermesII           - Proxim successor to the Orinoco/HermesI.  No support
                           yet in the drivers, may be available in the future.
-     ipw2200            - Intel 2200 802.11g/Centrino-G cards.  Similar to the
-                          ipw2100s, but the drivers currently do NOT support
-                          monitor mode.  Once they do, support will be added.
 
 12. Graphical Network Mapping
 
