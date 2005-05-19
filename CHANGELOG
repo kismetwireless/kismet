@@ -4,6 +4,7 @@ May 18 2005  devel  Backed out my BROKEN ipw2200 sw_reset and followed James'
                     Fixed FloatChan2Int not handling absolute channels from the
                      driver layer.  I thought I'd merged a patch from someone to
                      do just this, but...
+                    Dropped packet counter no longer includes phy frames
 May 17 2005  devel  Added ipw2200 support with temporary sw_reset support to try
                      to come out of monitor mode.  You'll need the 1.0.4 drivers
                      and new firmware, and you can force a reset of the card by

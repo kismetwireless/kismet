@@ -281,10 +281,13 @@ void Packetracker::ProcessPacket(packet_info info) {
         num_dropped++;
         num_noise++;
         return;
-    } else if (info.type == packet_unknown || info.type == packet_phy) {
-        // If we didn't know what it was junk it
-        // We unceremoniously junk phy layer packets for now too
-        num_dropped++;
+    } else if (info.type == packet_unknown) {
+		// UNknown frames get dropped and counted
+		num_dropped++;
+		return;
+	} else if (info.type == packet_phy) {
+        // We unceremoniously junk phy layer packets for now too but
+		// don't count them as dropped
         return;
     }
 
