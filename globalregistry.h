@@ -38,8 +38,7 @@ class ConfigFile;
 class SpeechControl;
 class SoundControl;
 // We need these for the vectors of subservices to poll
-class ClientFramework;
-class ServerFramework;
+class Pollable;
 
 // These are the offsets into the array of protocol references, not
 // the reference itself.
@@ -116,9 +115,9 @@ public:
     SpeechControl *speechctl;
     SoundControl *soundctl;
 
-	// Vectors of subservices we poll
-	vector<ClientFramework *> subsys_client_vec;
-	vector<ServerFramework *> subsys_server_vec;
+	// Vector of pollable subservices for main()...  You should use the util 
+	// functions for this, but main needs to be able to see it directly
+	vector<Pollable *> subsys_pollable_vec;
 	
     time_t start_time;
     string servername;
@@ -278,30 +277,15 @@ public:
         return 1;
     }
 
-	int RegisterClientSubsys(ClientFramework *in_subcli) {
-		subsys_client_vec.push_back(in_subcli);
+	int RegisterPollableSubsys(Pollable *in_subcli) {
+		subsys_pollable_vec.push_back(in_subcli);
 		return 1;
 	}
 
-	int RegisterServerSubsys(ServerFramework *in_subsrv) {
-		subsys_server_vec.push_back(in_subsrv);
-		return 1;
-	}
-
-	int RemoveClientSubsys(ClientFramework *in_subcli) {
-		for (unsigned int x = 0; x < subsys_client_vec.size(); x++) {
-			if (subsys_client_vec[x] == in_subcli) {
-				subsys_client_vec.erase(subsys_client_vec.begin() + x);
-				return 1;
-			}
-		}
-		return 0;
-	}
-
-	int RemoveServerSubsys(ServerFramework *in_subsrv) {
-		for (unsigned int x = 0; x < subsys_server_vec.size(); x++) {
-			if (subsys_server_vec[x] == in_subsrv) {
-				subsys_server_vec.erase(subsys_server_vec.begin() + x);
+	int RemovePollableSubsys(Pollable *in_subcli) {
+		for (unsigned int x = 0; x < subsys_pollable_vec.size(); x++) {
+			if (subsys_pollable_vec[x] == in_subcli) {
+				subsys_pollable_vec.erase(subsys_pollable_vec.begin() + x);
 				return 1;
 			}
 		}

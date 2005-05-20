@@ -189,7 +189,7 @@ GPSDClient::GPSDClient(GlobalRegistry *in_globalreg) : ClientFramework(in_global
 											CHAINPOS_POSTCAP, -100);
 
 	// Register the TCP component of the GPS system with the main service loop
-	globalreg->RegisterClientSubsys(this);
+	globalreg->RegisterPollableSubsys(this);
 
 	
 }
@@ -199,7 +199,7 @@ GPSDClient::~GPSDClient() {
         globalreg->timetracker->RemoveTimer(gpseventid);
 
 	// Unregister ourselves from the main tcp service loop
-	globalreg->RemoveClientSubsys(this);
+	globalreg->RemovePollableSubsys(this);
 	
     if (tcpcli != NULL) {
         tcpcli->KillConnection();

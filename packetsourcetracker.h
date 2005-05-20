@@ -33,6 +33,7 @@
 #include "timetracker.h"
 #include "gpsdclient.h"
 #include "packetsource.h"
+#include "pollable.h"
 
 // Sentinel for starting a new packet
 #define CHANSENTINEL      0xDECAFBAD
@@ -120,7 +121,8 @@ public:
 };
 
 // Channel control event
-int ChannelHopEvent(Timetracker::timer_event *evt, void *parm, GlobalRegistry *globalreg);
+int ChannelHopEvent(Timetracker::timer_event *evt, void *parm, 
+					GlobalRegistry *globalreg);
 
 // Internal NULL packet source that's always present to remind the users to configure
 // the software
@@ -163,7 +165,7 @@ int unmonitor_nullsource(MONITOR_PARMS);
 #define REG_EMPTY_CARD(y) RegisterPacketsource(y, 0, "na", 0, \
                                                NULL, NULL, NULL, NULL, 0)
 
-class Packetsourcetracker {
+class Packetsourcetracker : public Pollable {
 public:
 
     Packetsourcetracker(GlobalRegistry *in_globalreg);

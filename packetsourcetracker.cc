@@ -401,10 +401,15 @@ Packetsourcetracker::Packetsourcetracker(GlobalRegistry *in_globalreg) {
             globalreg->timetracker->RegisterTimer(SERVER_TIMESLICES_SEC / globalreg->channel_velocity, 
                                                   NULL, 1, &ChannelHopEvent, NULL);
     }
+
+	// Register the packetsourcetracker as a pollable subsystem
+	globalreg->RegisterPollableSubsys(this);
     
 }
 
 Packetsourcetracker::~Packetsourcetracker() {
+	globalreg->RemovePollableSubsys(this);
+
     for (map<string, packsource_protorec *>::iterator x = cardtype_map.begin();
          x != cardtype_map.end(); ++x)
         delete x->second;

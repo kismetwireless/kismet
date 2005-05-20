@@ -42,6 +42,7 @@
 #include "timetracker.h"
 #include "globalregistry.h"
 #include "ringbuf.h"
+#include "pollable.h"
 
 // Basic superclass frameworks for network clients.  Same basic sctructure
 // as the server framework
@@ -51,7 +52,7 @@ class NetworkClient;
 class ClientFramework;
 
 // Skeleton for a network server
-class NetworkClient {
+class NetworkClient : public Pollable {
 public:
     NetworkClient();
     NetworkClient(GlobalRegistry *in_globalreg);
@@ -124,7 +125,7 @@ protected:
 };
 
 // Skeleton to a protocol interface
-class ClientFramework {
+class ClientFramework : public Pollable {
 public:
     ClientFramework() {
         globalreg = NULL;
