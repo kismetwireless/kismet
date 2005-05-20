@@ -261,7 +261,7 @@ int PcapSource::FetchPacket(kis_packet *packet, uint8_t *data, uint8_t *moddata)
     snprintf(packet->sourcename, 32, "%s", name.c_str());
     
     // Set the parameters
-    packet->parm = parameters;
+    memcpy(&packet->parm, &parameters, sizeof(packet_parm));
     
     return(packet->caplen);
 }
@@ -764,7 +764,7 @@ int PcapSourceFile::FetchPacket(kis_packet *packet, uint8_t *data, uint8_t *modd
     snprintf(packet->sourcename, 32, "%s", name.c_str());
     
     // Set the parameters
-    packet->parm = parameters;
+    memcpy(&packet->parm, &parameters, sizeof(packet_parm));
     
     return(packet->caplen);
 }
@@ -844,7 +844,7 @@ int PcapSourceWrt54g::FetchPacket(kis_packet *packet, uint8_t *data, uint8_t *mo
     snprintf(packet->sourcename, 32, "%s", name.c_str());
     
     // Set the parameters
-    packet->parm = parameters;
+    memcpy(&packet->parm, &parameters, sizeof(packet_parm));
     
     return(packet->caplen);
 }

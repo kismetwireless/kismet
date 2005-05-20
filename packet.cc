@@ -673,7 +673,8 @@ void GetPacketInfo(kis_packet *packet, packet_info *ret_packinfo,
 
             ret_packinfo->encrypted = 1;
         } else if (packet->parm.fuzzy_crypt && 
-                   (unsigned int) ret_packinfo->header_offset+9 < packet->len) {
+				   packet->len > (unsigned int) (ret_packinfo->header_offset + 9) &&
+				   (unsigned int) ret_packinfo->header_offset+9 < packet->len) {
             // Do a fuzzy data compare... if it's not:
             // 0xAA - IP LLC
             // 0x42 - I forgot.

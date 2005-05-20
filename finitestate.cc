@@ -163,7 +163,7 @@ int DisassocTrafficAutomata::ProcessPacket(const packet_info *in_info) {
 
             return 1;
         } else {
-            delete[] iter->second;
+            delete iter->second;
             source_map.erase(iter);
         }
 
