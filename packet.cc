@@ -118,7 +118,8 @@ void MungeToPrintable(char *in_data, int max) {
 
 // Returns a pointer in the data block to the size byte of the desired
 // tag.
-int GetTagOffsets(int init_offset, kis_packet *packet, map<int, int> *tag_cache_map) {
+int GetTagOffsets(int init_offset, kis_packet *packet, 
+				  map<int, vector<int> > *tag_cache_map) {
     int cur_tag = 0;
     // Initial offset is 36, that's the first tag
     int cur_offset = init_offset;
@@ -148,16 +149,9 @@ int GetTagOffsets(int init_offset, kis_packet *packet, map<int, int> *tag_cache_
                 return -1;
             }
 
-            (*tag_cache_map)[cur_tag] = cur_offset + 1;
-
-            /*
-               if (cur_tag == tagnum) {
-               cur_offset++;
-               break;
-               } else if (cur_tag > tagnum) {
-               return -1;
-               }
-               */
+            // (*tag_cache_map)[cur_tag] = cur_offset + 1;
+			
+            (*tag_cache_map)[cur_tag].push_back(cur_offset + 1);
 
             // Jump the length+length byte, this should put us at the next tag
             // number.
@@ -313,8 +307,8 @@ void GetPacketInfo(kis_packet *packet, packet_info *ret_packinfo,
 #endif
         }
 
-        map<int, int> tag_cache_map;
-        map<int, int>::iterator tcitr;
+        map<int, vector<int> > tag_cache_map;
+        map<int, vector<int> >::iterator tcitr;
 
         // Extract various tags from the packet
         int found_ssid_tag = 0;
@@ -331,7 +325,7 @@ void GetPacketInfo(kis_packet *packet, packet_info *ret_packinfo,
             }
       
             if ((tcitr = tag_cache_map.find(0)) != tag_cache_map.end()) {
-                tag_offset = tcitr->second;
+                tag_offset = tcitr->second[0];
 
                 found_ssid_tag = 1;
                 temp = (packet->data[tag_offset] & 0xFF);
@@ -356,7 +350,7 @@ void GetPacketInfo(kis_packet *packet, packet_info *ret_packinfo,
 
             // Extract the supported rates
             if ((tcitr = tag_cache_map.find(1)) != tag_cache_map.end()) {
-                tag_offset = tcitr->second;
+                tag_offset = tcitr->second[0];
 
                 found_rate_tag = 1;
                 for (int x = 0; x < packet->data[tag_offset]; x++) {
@@ -371,7 +365,7 @@ void GetPacketInfo(kis_packet *packet, packet_info *ret_packinfo,
             // this tag so we use the hardware channel, assigned at the beginning of 
             // GetPacketInfo
             if ((tcitr = tag_cache_map.find(3)) != tag_cache_map.end()) {
-                tag_offset = tcitr->second;
+                tag_offset = tcitr->second[0];
                 found_channel_tag = 1;
                 // Extract the channel from the next byte (GetTagOffset returns
                 // us on the size byte)
@@ -448,7 +442,7 @@ void GetPacketInfo(kis_packet *packet, packet_info *ret_packinfo,
 
             // Extract the CISC.O beacon info
             if ((tcitr = tag_cache_map.find(133)) != tag_cache_map.end()) {
-                tag_offset = tcitr->second;
+                tag_offset = tcitr->second[0];
 
                 if ((unsigned) tag_offset + 11 < packet->len) {
                     snprintf(ret_packinfo->beacon_info, BEACON_INFO_LEN, "%s", &packet->data[tag_offset+11]);
@@ -460,20 +454,23 @@ void GetPacketInfo(kis_packet *packet, packet_info *ret_packinfo,
                 }
             }
 
-			// Extract WPA info
+			// Extract WPA info -- we have to look at all the tags
 			if ((tcitr = tag_cache_map.find(221)) != tag_cache_map.end() &&
-
 				ret_packinfo->wep) {
 				// Lets do a smarter test of WPA since APs like to send crap
 				// tagged frames too
 				// ret_packinfo->wpa = 1;
-                tag_offset = tcitr->second;
-                temp = (packet->data[tag_offset] & 0xFF);
+				for (unsigned int tagct = 0; tagct < tcitr->second.size(); tagct++) {
+					tag_offset = tcitr->second[tagct];
+					temp = (packet->data[tag_offset] & 0xFF);
 
-				if (temp > 4 && 
-					memcmp(&(packet->data[tag_offset+1]), WPA_TAGPARM_SIGNATURE,
-						   sizeof(WPA_TAGPARM_SIGNATURE)) == 0) 
-					ret_packinfo->wpa = 1;
+					if (temp > 4 && 
+						memcmp(&(packet->data[tag_offset+1]), WPA_TAGPARM_SIGNATURE,
+							   sizeof(WPA_TAGPARM_SIGNATURE)) == 0) {
+						ret_packinfo->wpa = 1;
+						break;
+					}
+				}
 			}
 
             ret_packinfo->dest_mac = addr0;
