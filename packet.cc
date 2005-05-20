@@ -462,9 +462,18 @@ void GetPacketInfo(kis_packet *packet, packet_info *ret_packinfo,
 
 			// Extract WPA info
 			if ((tcitr = tag_cache_map.find(221)) != tag_cache_map.end() &&
+
 				ret_packinfo->wep) {
-				// Assume WPA if we have that tagparm and WEP is turned on
-				ret_packinfo->wpa = 1;
+				// Lets do a smarter test of WPA since APs like to send crap
+				// tagged frames too
+				// ret_packinfo->wpa = 1;
+                tag_offset = tcitr->second;
+                temp = (packet->data[tag_offset] & 0xFF);
+
+				if (temp > 4 && 
+					memcmp(&(packet->data[tag_offset+1]), WPA_TAGPARM_SIGNATURE,
+						   sizeof(WPA_TAGPARM_SIGNATURE)) == 0) 
+					ret_packinfo->wpa = 1;
 			}
 
             ret_packinfo->dest_mac = addr0;
