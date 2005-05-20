@@ -155,6 +155,7 @@ public:
         timestamp = 0;
         sequence_number = 0;
         frag_number = 0;
+		fragmented = 0;
         duration = 0;
         datasize = 0;
     }
@@ -207,6 +208,7 @@ public:
     uint64_t timestamp;
     int sequence_number;
     int frag_number;
+	int fragmented;
 
     int duration;
 

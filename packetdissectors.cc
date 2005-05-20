@@ -189,6 +189,9 @@ int kis_80211_dissector(CHAINCALL_PARMS) {
     packinfo->sequence_number = sequence->sequence;
     packinfo->frag_number = sequence->frag;
 
+	if (fc->more_fragments)
+		packinfo->fragmented = 1;
+
     int tag_offset = 0;
 
     // Assign the distribution direction this packet is traveling

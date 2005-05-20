@@ -26,14 +26,18 @@ float IwFreq2Float(iwreq *inreq) {
 }
 
 void IwFloat2Freq(double in_val, struct iw_freq *out_freq) {
+	if (in_val <= 165) {
+        out_freq->m = (uint32_t) in_val;            
+        out_freq->e = 0;
+		return;
+	}
+
     out_freq->e = (short) (floor(log10(in_val)));
-    if(out_freq->e > 8)              
-    {  
+    if(out_freq->e > 8) {  
         out_freq->m = ((long) (floor(in_val / pow(10,out_freq->e - 6)))) * 100; 
         out_freq->e -= 8;
     }  
-    else 
-    {  
+    else {  
         out_freq->m = (uint32_t) in_val;            
         out_freq->e = 0;
     }  
