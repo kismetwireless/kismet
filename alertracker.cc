@@ -183,8 +183,6 @@ int Alertracker::RaiseAlert(int in_ref,
     // Hook main for sounds and whatnot on the server
     KisLocalAlert(in_text.c_str());
 
-	delete ts;
-
     return 1;
 }
 

@@ -656,6 +656,7 @@ void GetPacketInfo(kis_packet *packet, packet_info *ret_packinfo,
             break;
         default:
             ret_packinfo->corrupt = 1;
+			ret_packinfo->header_offset = 0;
             return;
             break;
         }
@@ -673,15 +674,16 @@ void GetPacketInfo(kis_packet *packet, packet_info *ret_packinfo,
 
             ret_packinfo->encrypted = 1;
         } else if (packet->parm.fuzzy_crypt && 
-				   packet->len > (unsigned int) (ret_packinfo->header_offset + 9) &&
 				   (unsigned int) ret_packinfo->header_offset+9 < packet->len) {
             // Do a fuzzy data compare... if it's not:
             // 0xAA - IP LLC
             // 0x42 - I forgot.
             // 0xF0 - Netbios
             // 0xE0 - IPX
-            if (packet->data[ret_packinfo->header_offset] != 0xAA && packet->data[ret_packinfo->header_offset] != 0x42 &&
-                packet->data[ret_packinfo->header_offset] != 0xF0 && packet->data[ret_packinfo->header_offset] != 0xE0) {
+            if (packet->data[ret_packinfo->header_offset] != 0xAA && 
+				packet->data[ret_packinfo->header_offset] != 0x42 &&
+                packet->data[ret_packinfo->header_offset] != 0xF0 && 
+				packet->data[ret_packinfo->header_offset] != 0xE0) {
                 ret_packinfo->encrypted = 1;
                 ret_packinfo->fuzzy = 1;
             }

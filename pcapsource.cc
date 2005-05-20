@@ -758,14 +758,15 @@ int PcapSourceFile::FetchPacket(kis_packet *packet, uint8_t *data, uint8_t *modd
         return 0;
     }
 
-    num_packets++;
-
     // Set the name
     snprintf(packet->sourcename, 32, "%s", name.c_str());
     
     // Set the parameters
-    memcpy(&packet->parm, &parameters, sizeof(packet_parm));
+    memcpy(&(packet->parm), &parameters, sizeof(packet_parm));
     
+
+    num_packets++;
+
     return(packet->caplen);
 }
 

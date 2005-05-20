@@ -732,7 +732,6 @@ int Packetsourcetracker::SetTypeParms(string in_types, packet_parm in_parm) {
                 StrLower(tokens[ctype]) == "all") &&
                 meta->capsource != NULL) {
                 meta->capsource->SetPackparm(in_parm);
-                break;
             }
         }
 
