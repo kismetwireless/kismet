@@ -1,3 +1,5 @@
+May 21 2005  devel  Fixed panels client displaying garbage data for battery
+                     percentage while charging
 May 20 2005  devel  Fixed up WPA more to handle multiple tag 221 instances
 May 19 2005  devel  Changed WPA detection to use more of the tagged parm to
                      determine the encryption, should prevent false positives

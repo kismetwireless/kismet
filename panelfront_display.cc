@@ -911,13 +911,22 @@ int PanelFront::MainStatusPrinter(void *in_window) {
         char batdata[80];
 
         if (bat_available) {
-            snprintf(batdata, 80, "Battery: %s%s%d%% %0dh%0dm%0ds",
-                     bat_ac ? "AC " : "",
-                     bat_charging ? "charging " : "",
-                     bat_percentage,
-                     (int) (bat_time / 60) / 60,
-                     (int) (bat_time / 60) % 60,
-                     (int) (bat_time % 60));
+			if (bat_ac) {
+				// Don't print the percentage/time if we're on AC and
+				// charging, things don't look right
+				snprintf(batdata, 80, "Battery: %s%s%d%%",
+						 bat_ac ? "AC " : "",
+						 bat_charging ? "charging " : "",
+						 bat_percentage);
+			} else {
+				snprintf(batdata, 80, "Battery: %s%s%d%% %0dh%0dm%0ds",
+						 bat_ac ? "AC " : "",
+						 bat_charging ? "charging " : "",
+						 bat_percentage,
+						 (int) (bat_time / 60) / 60,
+						 (int) (bat_time / 60) % 60,
+						 (int) (bat_time % 60));
+			}
         } else {
             snprintf(batdata, 80, "Battery: unavailable%s",
                      bat_ac ? ", AC power" : "");
