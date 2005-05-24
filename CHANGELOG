@@ -1,3 +1,6 @@
+May 24 2005  devel  Fixed configure on RH and other distros that modify it so
+                     you can't use kernel headers
+                    Copied latest automake config.sub and config.guess
 May 21 2005  devel  Fixed panels client displaying garbage data for battery
                      percentage while charging
 May 20 2005  devel  Fixed up WPA more to handle multiple tag 221 instances

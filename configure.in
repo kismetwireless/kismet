@@ -325,19 +325,16 @@ AC_DEFINE(HAVE_GPS, 1, GPS support will be built.)
 #fi
 
 AC_ARG_WITH(linuxheaders,
-[  --with-linuxheaders[=DIR]     Custom location of the Linux kernel headers ],
+[  --with-linuxheaders[=DIR]     Custom location of the Linux kernel headers if the glibc copies are insufficient ],
 [
-    if test $withval = no; then
-        CPPFLAGS="$CPPFLAGS -I/lib/modules/$(uname -r)/build/include/"   
-    elif test $withval = yes; then
-        CPPFLAGS="$CPPFLAGS -I/lib/modules/$(uname -r)/build/include/"   
-    else
+    if test "$withval" != no -a "$withval" != "yes"; then
         CPPFLAGS="$CPPFLAGS -I$withval"   
-        custom_headerloc = $withval
     fi
-],[
-        CPPFLAGS="$CPPFLAGS -I/lib/modules/$(uname -r)/build/include/"   
 ])
+
+# ,[
+#         CPPFLAGS="$CPPFLAGS -I/lib/modules/$(uname -r)/build/include/"   
+# ])
 
 AC_ARG_ENABLE(netlink, [  --disable-netlink       disable linux netlink socket capture],,wantnetlink=yes)
 AC_SUBST(wantnetlink)
