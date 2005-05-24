@@ -39,15 +39,9 @@ NetworkServer::~NetworkServer() {
 
 }
 
-unsigned int NetworkServer::MergeSet(fd_set in_rset, fd_set in_wset,
-                                     unsigned int in_max_fd,
-                                     fd_set *out_rset, fd_set *out_wset) {
+unsigned int NetworkServer::MergeSet(unsigned int in_max_fd, fd_set *out_rset, 
+									 fd_set *out_wset) {
     unsigned int max;
-
-    /* Uhh this is bad.
-    FD_ZERO(out_rset);
-    FD_ZERO(out_wset);
-    */
 
     if (in_max_fd < max_fd) {
         max = max_fd;
@@ -60,12 +54,11 @@ unsigned int NetworkServer::MergeSet(fd_set in_rset, fd_set in_wset,
     
     for (unsigned int x = 0; x <= max; x++) {
         // Incoming read or our own clients
-        if (FD_ISSET(x, &in_rset) || FD_ISSET(x, &server_fdset))
+        if (FD_ISSET(x, &server_fdset))
             FD_SET(x, out_rset);
         // Incoming write or any clients with a pending write ring
-        if (FD_ISSET(x, &in_wset) || 
-            (write_buf_map.find(x) != write_buf_map.end() &&
-             write_buf_map[x]->FetchLen() > 0))
+        if (write_buf_map.find(x) != write_buf_map.end() && 
+			write_buf_map[x]->FetchLen() > 0)
             FD_SET(x, out_wset);
     }
    
@@ -165,7 +158,7 @@ int NetworkServer::FlushRings() {
         FD_ZERO(&rset);
         FD_ZERO(&wset);
        
-        max = MergeSet(rset, wset, max, &rset, &wset);
+        max = MergeSet(max, &rset, &wset);
 
         struct timeval tm;
         tm.tv_sec = 0;

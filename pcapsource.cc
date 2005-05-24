@@ -147,7 +147,7 @@ int PcapSource::OpenSource() {
 }
 
 // Datalink, override as appropriate
-carrier_type PcapSource::IEEE80211Carrier() {
+phy_carrier_type PcapSource::IEEE80211Carrier() {
     int ch = FetchChannel();
 
     if (ch > 0 && ch <= 14)
@@ -233,13 +233,13 @@ void PcapSource::Callback(u_char *bp, const struct pcap_pkthdr *header,
     memcpy(callback_data, in_data, kismin(header->len, MAX_PACKET_LEN));
 }
 
-int PcapSource::FetchPacket(kis_packet *packet, uint8_t *data, uint8_t *moddata) {
+int PcapSource::Poll() {
     int ret;
     char errstr[STATUS_MAX] = "";
 
     if ((ret = pcap_dispatch(pd, 1, PcapSource::Callback, NULL)) < 0) {
-        // Is the interface still here and just not running?  Lets give a more intelligent
-        // error if that looks to be the case.
+        // Is the interface still here and just not running?  Lets give a more 
+		// intelligent error if that looks to be the case.
         int ret = 0;
 
         // Do something smarter here in the future
@@ -248,12 +248,14 @@ int PcapSource::FetchPacket(kis_packet *packet, uint8_t *data, uint8_t *moddata)
         // Are we able to fetch the interface, and is it running?
         ret = Ifconfig_Get_Flags(interface.c_str(), errstr, &flags);
         if (ret >= 0 && (flags & IFF_UP) == 0) {
-            snprintf(errstr, STATUS_MAX, "Reading packet from pcap failed, interface is no longer up.  Usually this "
-                     "happens when a DHCP client times out and turns off the interface.  See the Troubleshooting "
-                     "section of the README for more information.");
+            snprintf(errstr, STATUS_MAX, "Reading packet from pcap failed, interface "
+					 "is no longer up.  Usually this happens when a DHCP client "
+					 "times out and turns off the interface.  See the "
+					 "Troubleshooting section of the README for more information.");
         } else {
 #endif
-            snprintf(errstr, STATUS_MAX, "Reading packet from pcap failed, interface no longer available.");
+            snprintf(errstr, STATUS_MAX, "Reading packet from pcap failed, "
+					 "interface no longer available.");
 #ifdef SYS_LINUX
         }
 
@@ -827,7 +829,7 @@ int PcapSourceWext::FetchSignalLevels(int *in_siglev, int *in_noiselev) {
 }
 
 // Carrier override
-carrier_type PcapSource11G::IEEE80211Carrier() {
+phy_carrier_type PcapSource11G::IEEE80211Carrier() {
     int ch = FetchChannel();
 
     if (ch > 0 && ch <= 14)
@@ -895,7 +897,7 @@ int PcapSourceWrt54g::FetchPacket(kis_packet *packet, uint8_t *data, uint8_t *mo
     return(packet->caplen);
 }
 
-carrier_type PcapSourceWrt54g::IEEE80211Carrier() {
+phy_carrier_type PcapSourceWrt54g::IEEE80211Carrier() {
     int ch = FetchChannel();
 
     if (ch > 0 && ch <= 14)

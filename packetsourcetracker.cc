@@ -415,17 +415,9 @@ Packetsourcetracker::~Packetsourcetracker() {
         delete x->second;
 }
 
-unsigned int Packetsourcetracker::MergeSet(fd_set in_rset, fd_set in_wset, 
-                                           unsigned int in_max_fd,
-                                           fd_set *out_rset, fd_set *out_wset) {
+unsigned int Packetsourcetracker::MergeSet(unsigned int in_max_fd, fd_set *out_rset, 
+										   fd_set *out_wset) {
     unsigned int max = in_max_fd;
-
-    for (unsigned int x = 0; x < in_max_fd; x++) {
-        if (FD_ISSET(x, &in_rset))
-            FD_SET(x, out_rset);
-        if (FD_ISSET(x, &in_wset))
-            FD_SET(x, out_wset);
-    }
 
     if (chanchild_pid != 0) {
         if (in_max_fd < (unsigned int) sockpair[1])
@@ -441,10 +433,14 @@ unsigned int Packetsourcetracker::MergeSet(fd_set in_rset, fd_set in_wset,
 
     for (unsigned int metc = 0; metc < meta_packsources.size(); metc++) {
         meta_packsource *meta = meta_packsources[metc];
+		int capd = meta->capsource->FetchDescriptor();
 
-        FD_SET(meta->capsource->FetchDescriptor(), out_rset);
-        if (meta->capsource->FetchDescriptor() > (int) max)
-            max = meta->capsource->FetchDescriptor();
+		if (capd < 0)
+			continue;
+
+        FD_SET(capd, out_rset);
+        if (capd > (int) max)
+            max = capd;
     }
 
     return max;
@@ -464,11 +460,13 @@ int Packetsourcetracker::Poll(fd_set *in_rset, fd_set *in_wset) {
 
             // Send the header if we didn't already
             if (dataframe_only == 0) {
-                if (send(sockpair[1], pak, sizeof(chanchild_packhdr) - sizeof(void *), 0) < 0) {
+                if (send(sockpair[1], pak, 
+						 sizeof(chanchild_packhdr) - sizeof(void *), 0) < 0) {
                     if (errno == ENOBUFS) {
                         break;
                     } else {
-                        snprintf(errstr, 1024, "ipc header send() failed: %d:%s", errno, strerror(errno));
+                        snprintf(errstr, 1024, "ipc header send() failed: %s", 
+								 strerror(errno));
                         globalreg->messagebus->InjectMessage(errstr, MSGFLAG_FATAL);
                         globalreg->fatal_condition = 1;
                         return -1;
@@ -483,7 +481,8 @@ int Packetsourcetracker::Poll(fd_set *in_rset, fd_set *in_wset) {
                         dataframe_only = 1;
                         break;
                     } else {
-                        snprintf(errstr, 1024, "ipc content send() failed: %d:%s", errno, strerror(errno));
+                        snprintf(errstr, 1024, "ipc content send() failed: %s", 
+								 strerror(errno));
                         globalreg->messagebus->InjectMessage(errstr, MSGFLAG_FATAL);
                         globalreg->fatal_condition = 1;
                         return -1;
@@ -503,8 +502,9 @@ int Packetsourcetracker::Poll(fd_set *in_rset, fd_set *in_wset) {
     
     // Read responses from the capture child
     if (FD_ISSET(sockpair[1], in_rset)) {
-        if (recv(sockpair[1], &in_pak, sizeof(chanchild_packhdr) - sizeof(void *), 0) < 0) {
-            snprintf(errstr, 1024, "header recv() error: %d:%s", errno, strerror(errno));
+        if (recv(sockpair[1], &in_pak, 
+				 sizeof(chanchild_packhdr) - sizeof(void *), 0) < 0) {
+            snprintf(errstr, 1024, "header recv() error: %s", strerror(errno));
             globalreg->messagebus->InjectMessage(errstr, MSGFLAG_FATAL);
             globalreg->fatal_condition = 1;
             return -1;
@@ -531,7 +531,7 @@ int Packetsourcetracker::Poll(fd_set *in_rset, fd_set *in_wset) {
         data = (uint8_t *) malloc(sizeof(uint8_t) * (in_pak.datalen + 1));
 
         if (recv(sockpair[1], data, in_pak.datalen, 0) < 0) {
-            snprintf(errstr, 1024, "data recv() error: %d:%s", errno, strerror(errno));
+            snprintf(errstr, 1024, "data recv() error: %s", strerror(errno));
             globalreg->messagebus->InjectMessage(errstr, MSGFLAG_FATAL);
             globalreg->fatal_condition = 1;
             return -1;
@@ -541,7 +541,8 @@ int Packetsourcetracker::Poll(fd_set *in_rset, fd_set *in_wset) {
         if (in_pak.packtype == CHANPACK_CMDACK) {
             // Data should be an 8bit uint with the meta number.
             if (data[0] >= meta_packsources.size()) {
-                snprintf(errstr, 1024, "illegal command ack for meta number %d", data[0]);
+                snprintf(errstr, 1024, "illegal command ack for meta number %d", 
+						 data[0]);
                 globalreg->messagebus->InjectMessage(errstr, MSGFLAG_FATAL);
                 globalreg->fatal_condition = 1;
                 return -1;

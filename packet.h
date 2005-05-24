@@ -41,6 +41,9 @@
 // generating a packet (slightly) so I'm leaving it relatively low.
 #define MAX_PACKET_COMPONENTS	64
 
+// Maximum length of a frame
+#define MAX_PACKET_LEN			8192
+
 // High-level packet component so that we can provide our own destructors
 class packet_component {
 public:

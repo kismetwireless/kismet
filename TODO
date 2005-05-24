@@ -205,6 +205,14 @@ X-Riot-Version: 1ds-20040924
 In-Reply-To: <riot.20040927141546.8>
 
 Fragment reassembly
+From background-static Thu May 19 23:27:16 EDT 2005
+Message-Id: <riot.20050519232716.4>
+Date: Thu May 19 23:27:16 EDT 2005
+Status: RO
+X-Riot-Version: 1ds-20040924
+In-Reply-To: <riot.20040927141546.8>
+
+Import fixes to kismet-stable memory leaks and init
 From background-static Mon Sep 27 00:14:46 EDT 2004
 Message-Id: <riot.20040927001446.1>
 Date: Mon Sep 27 00:14:46 EDT 2004

@@ -28,6 +28,7 @@
 #ifdef HAVE_LIBPCAP
 
 #include "packet.h"
+#include "packet_ieee80211.h"
 #include "packetsource.h"
 #include "ifcontrol.h"
 #include "iwcontrol.h"
@@ -67,17 +68,17 @@ public:
     PcapSource(GlobalRegistry *in_globalreg, string in_name, string in_dev) : 
         KisPacketSource(in_globalreg, in_name, in_dev) { }
 
-    int OpenSource();
-    int CloseSource();
+    virtual int OpenSource();
+    virtual int CloseSource();
 
-    int FetchDescriptor();
+    virtual int FetchDescriptor();
 
-    int FetchPacket(kis_packet *packet, uint8_t *data, uint8_t *moddata);
+	virtual int Poll();
 
     static void Callback(u_char *bp, const struct pcap_pkthdr *header,
                          const u_char *in_data);
 
-    int FetchChannel();
+    virtual int FetchChannel();
 protected:
     // Prism 802.11 headers from wlan-ng tacked on to the beginning of a
     // pcap packet... Snagged from the wlan-ng source
@@ -138,7 +139,7 @@ protected:
     } avs_80211_1_header;
 
     // Carrier setting
-    virtual carrier_type IEEE80211Carrier();
+    virtual phy_carrier_type IEEE80211Carrier();
     // Datalink checker
     virtual int DatalinkType();
     // Signal level fetcher
@@ -168,10 +169,9 @@ class PcapSourceFile : public PcapSource {
 public:
     PcapSourceFile(GlobalRegistry *in_globalreg, string in_name, string in_dev) : 
         PcapSource(in_globalreg, in_name, in_dev) { }
-    int OpenSource();
-    int FetchPacket(kis_packet *packet, uint8_t *data, uint8_t *moddata);
-    // int FetchDescriptor();
-    int FetchChannel();
+    virtual int OpenSource();
+	virtual int Poll();
+    virtual int FetchChannel();
 };
 
 #ifdef SYS_LINUX
@@ -219,7 +219,7 @@ public:
     PcapSource11G(GlobalRegistry *in_globalreg, string in_name, string in_dev) : 
         PcapSourceWext(in_globalreg, in_name, in_dev) { }
 protected:
-    carrier_type IEEE80211Carrier();
+    phy_carrier_type IEEE80211Carrier();
 };
 
 // Override madwifi 11g for FCS
@@ -257,9 +257,9 @@ public:
         PcapSource(in_globalreg, in_name, in_dev) { 
         fcsbytes = 4;
     }
-    int FetchPacket(kis_packet *packet, uint8_t *data, uint8_t *moddata);
+	virtual int Poll();
 protected:
-    carrier_type IEEE80211Carrier();
+    virtual phy_carrier_type IEEE80211Carrier();
 };
 #endif
 

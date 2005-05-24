@@ -35,9 +35,8 @@ NetworkClient::~NetworkClient() {
     KillConnection();
 }
 
-unsigned int NetworkClient::MergeSet(fd_set in_rset, fd_set in_wset, 
-                                     unsigned int in_max_fd,
-                                     fd_set *out_rset, fd_set *out_wset) {
+unsigned int NetworkClient::MergeSet(unsigned int in_max_fd, fd_set *out_rset, 
+									 fd_set *out_wset) {
     unsigned int max;
 
     /*
@@ -50,13 +49,6 @@ unsigned int NetworkClient::MergeSet(fd_set in_rset, fd_set in_wset,
         max = cli_fd;
     else
         max = in_max_fd;
-
-    for (unsigned int x = 0; x <= max; x++) {
-        if (FD_ISSET(x, &in_rset))
-            FD_SET(x, out_rset);
-        if (FD_ISSET(x, &in_wset))
-            FD_SET(x, out_wset);
-    }
 
     if (cl_valid) {
         FD_SET(cli_fd, out_rset);
@@ -119,7 +111,7 @@ int NetworkClient::FlushRings() {
         FD_ZERO(&rset);
         FD_ZERO(&wset);
        
-        max = MergeSet(rset, wset, max, &rset, &wset);
+        max = MergeSet(max, &rset, &wset);
 
         struct timeval tm;
         tm.tv_sec = 0;

@@ -42,11 +42,9 @@ public:
     virtual ~KismetClient();
 
     // Hooks so we can override straight to the TCP core
-    virtual unsigned int MergeSet(fd_set in_rset, fd_set in_wset, 
-                                  unsigned int in_max_fd,
-                                  fd_set *out_rset, fd_set *out_wset) {
-        return netclient->MergeSet(in_rset, in_wset, in_max_fd,
-                                   out_rset, out_wset);
+    virtual unsigned int MergeSet(unsigned int in_max_fd, fd_set *out_rset, 
+								  fd_set *out_wset) {
+        return netclient->MergeSet(in_max_fd, out_rset, out_wset);
     }
 
     virtual int Poll(fd_set& in_rset, fd_set& in_wset) {

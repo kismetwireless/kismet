@@ -143,7 +143,7 @@ kis_packet Packetchain::GeneratePacket() {
     kis_packet *newpack = new kis_packet;
     pc_link *pcl;
 
-    // Run the frame through the genesis chain incase anyhting
+    // Run the frame through the genesis chain incase anything
     // needs to add something at the beginning
     for (unsigned int x = 0; x < genesis_chain.size(); x++) {
         pcl = genesis_chain[x];

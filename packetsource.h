@@ -57,10 +57,16 @@ typedef int (*packsource_monitor)(MONITOR_PARMS);
 // Parmeters to the packet info.  These get set by the packet source controller
 // so they need to go here
 typedef struct packet_parm {
+	packet_parm() {
+		fuzzy_crypt = 0;
+	}
+
     int fuzzy_crypt;
 };
 
-// Packet capture source superclass
+// Packet capture source superclass ...  Not part of Pollable, because the
+// packetsourcetracker aggregates us into the descriptors and handles actual
+// polling
 class KisPacketSource {
 public:
     KisPacketSource(GlobalRegistry *in_globalreg, string in_name, string in_dev) {
@@ -85,9 +91,9 @@ public:
     // Get the FD of our packet source
     virtual int FetchDescriptor() = 0;
 
-    // Get a packet from the medium
-    virtual int FetchPacket(kis_packet *packet, uint8_t *data, uint8_t *moddata) = 0;
-
+	// Trigger a fetch of a pending packet and inject it into the packet chain
+	virtual int Poll() = 0;
+	
     // Get the name
     const char *FetchName() { return(name.c_str()); }
 

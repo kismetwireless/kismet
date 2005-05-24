@@ -172,9 +172,8 @@ public:
     ~Packetsourcetracker();
 
     // Merge descriptors into a set
-    unsigned int MergeSet(fd_set in_rset, fd_set in_wset, 
-                          unsigned int in_max_fd,
-                          fd_set *out_rset, fd_set *out_wset);
+    unsigned int MergeSet(unsigned int in_max_fd, fd_set *out_rset, 
+						  fd_set *out_wset);
 
     // Return the pid of the channel control child
     pid_t FetchChildPid() { return chanchild_pid; }

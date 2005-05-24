@@ -19,6 +19,7 @@
 #include <stdio.h>
 #include <ctype.h>
 #include "packet.h"
+#include "packet_ieee80211.h"
 #include "packetsignatures.h"
 
 // Handly little global so that it only has to do the ascii->mac_addr transform once

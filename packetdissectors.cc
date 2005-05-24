@@ -90,7 +90,8 @@ static const uint32_t wep_crc32_table[256] = {
 
 // Returns a pointer in the data block to the size byte of the desired tag, with the 
 // tag offsets cached
-int GetTagOffsets(int init_offset, uint8_t *packet, map<int, int> *tag_cache_map) {
+int GetTagOffsets(int init_offset, kis_packet *packet, 
+				  map<int, vector<int> > *tag_cache_map) {
     int cur_tag = 0;
     // Initial offset is 36, that's the first tag
     int cur_offset = init_offset;
@@ -120,16 +121,9 @@ int GetTagOffsets(int init_offset, uint8_t *packet, map<int, int> *tag_cache_map
                 return -1;
             }
 
-            (*tag_cache_map)[cur_tag] = cur_offset + 1;
-
-            /*
-               if (cur_tag == tagnum) {
-               cur_offset++;
-               break;
-               } else if (cur_tag > tagnum) {
-               return -1;
-               }
-               */
+            // (*tag_cache_map)[cur_tag] = cur_offset + 1;
+			
+            (*tag_cache_map)[cur_tag].push_back(cur_offset + 1);
 
             // Jump the length+length byte, this should put us at the next tag
             // number.
@@ -245,8 +239,8 @@ int kis_80211_dissector(CHAINCALL_PARMS) {
 #endif
         }
 
-        map<int, int> tag_cache_map;
-        map<int, int>::iterator tcitr;
+        map<int, vector<int> > tag_cache_map;
+        map<int, vector<int> >::iterator tcitr;
 
         // Extract various tags from the packet
         int found_ssid_tag = 0;
@@ -263,7 +257,7 @@ int kis_80211_dissector(CHAINCALL_PARMS) {
             }
       
             if ((tcitr = tag_cache_map.find(0)) != tag_cache_map.end()) {
-                tag_offset = tcitr->second;
+                tag_offset = tcitr->second[0];
 
                 found_ssid_tag = 1;
                 temp = (packet->data[tag_offset] & 0xFF);
@@ -292,7 +286,7 @@ int kis_80211_dissector(CHAINCALL_PARMS) {
 
             // Extract the supported rates
             if ((tcitr = tag_cache_map.find(1)) != tag_cache_map.end()) {
-                tag_offset = tcitr->second;
+                tag_offset = tcitr->second[0];
 
                 found_rate_tag = 1;
                 for (int x = 0; x < chunk->data[tag_offset]; x++) {
@@ -307,7 +301,7 @@ int kis_80211_dissector(CHAINCALL_PARMS) {
             // this tag so we use the hardware channel, assigned at the beginning of 
             // GetPacketInfo
             if ((tcitr = tag_cache_map.find(3)) != tag_cache_map.end()) {
-                tag_offset = tcitr->second;
+                tag_offset = tcitr->second[0];
                 found_channel_tag = 1;
                 // Extract the channel from the next byte (GetTagOffset returns
                 // us on the size byte)
@@ -382,7 +376,7 @@ int kis_80211_dissector(CHAINCALL_PARMS) {
 
             // Extract the CISC.O beacon info
             if ((tcitr = tag_cache_map.find(133)) != tag_cache_map.end()) {
-                tag_offset = tcitr->second;
+                tag_offset = tcitr->second[0];
 
                 if ((unsigned) tag_offset + 11 < chunk->length) {
                     snprintf(packinfo->beacon_info, BEACON_INFO_LEN, "%s", &(chunk->data[tag_offset+11]));
