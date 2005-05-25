@@ -1113,7 +1113,8 @@ int monitor_cisco_wifix(const char *in_dev, int initch, char *in_err, void **in_
     vector<string> devbits = StrTokenize(in_dev, ":");
 
     if (devbits.size() < 2) {
-        snprintf(in_err, STATUS_MAX, "Invalid device pair '%s'", in_dev);
+        snprintf(in_err, STATUS_MAX, "Invalid device pair '%s'.  Proper device "
+				 "for cisco_wifix is eth?:wifi?.", in_dev);
         return -1;
     }
 

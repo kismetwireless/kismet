@@ -1,4 +1,5 @@
 May 25 2005  devel  configure changes for openbsd (pedro)
+                    tweaked cisci_wifix error message
 May 24 2005  devel  Fixed configure on RH and other distros that modify it so
                      you can't use kernel headers
                     Copied latest automake config.sub and config.guess
