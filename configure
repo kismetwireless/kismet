@@ -6227,14 +6227,14 @@ echo "${ECHO_T}$ac_cv_header_linux_wireless_h" >&6
 if test $ac_cv_header_linux_wireless_h = yes; then
   wireless=yes
 else
-  { echo "$as_me:$LINENO: WARNING: *** Missing Linux Wireless kernel extentions.  Wavelan/generic source will not be built. ***" >&5
-echo "$as_me: WARNING: *** Missing Linux Wireless kernel extentions.  Wavelan/generic source will not be built. ***" >&2;}
+  { echo "$as_me:$LINENO: WARNING: *** Missing Linux Wireless kernel extentions.  The majority of packet sources on Linux require this support and will not work without it.  Make sure your kernel header packages are installed.  If all else fails, try the --with-linuxheaders directive. ***" >&5
+echo "$as_me: WARNING: *** Missing Linux Wireless kernel extentions.  The majority of packet sources on Linux require this support and will not work without it.  Make sure your kernel header packages are installed.  If all else fails, try the --with-linuxheaders directive. ***" >&2;}
 fi
 
 
 else
-	{ echo "$as_me:$LINENO: WARNING: *** Compiling without Linux Wireless kernel extentions.  Wavelan/generic source will not be built. ***" >&5
-echo "$as_me: WARNING: *** Compiling without Linux Wireless kernel extentions.  Wavelan/generic source will not be built. ***" >&2;}
+	{ echo "$as_me:$LINENO: WARNING: *** Missing Linux Wireless kernel extentions.  The majority of packet sources on Linux require this support and will not work without it.  Make sure your kernel header packages are installed.  If all else fails" >&5
+echo "$as_me: WARNING: *** Missing Linux Wireless kernel extentions.  The majority of packet sources on Linux require this support and will not work without it.  Make sure your kernel header packages are installed.  If all else fails" >&2;}
 fi
 
 if test "$wireless" = "yes"; then

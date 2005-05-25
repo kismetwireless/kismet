@@ -357,10 +357,10 @@ if test $wantwireless = yes; then
 wireless=no
 AC_CHECK_HEADER([linux/wireless.h],
 	[wireless=yes],
-	[AC_MSG_WARN([*** Missing Linux Wireless kernel extentions.  Wavelan/generic source will not be built. ***])],
+	[AC_MSG_WARN([*** Missing Linux Wireless kernel extentions.  The majority of packet sources on Linux require this support and will not work without it.  Make sure your kernel header packages are installed.  If all else fails, try the --with-linuxheaders directive. ***])],
 	[#include <linux/socket.h>])
 else
-	AC_MSG_WARN(*** Compiling without Linux Wireless kernel extentions.  Wavelan/generic source will not be built. ***) 
+	AC_MSG_WARN(*** Missing Linux Wireless kernel extentions.  The majority of packet sources on Linux require this support and will not work without it.  Make sure your kernel header packages are installed.  If all else fails, try the --with-linuxheaders directive. ***)
 fi
 
 if test "$wireless" = "yes"; then
