@@ -167,6 +167,11 @@ int RegisterKismetSources(Packetsourcetracker *sourcetracker) {
     REG_EMPTY_CARD(sourcetracker, "prism54g");
 
     REG_EMPTY_CARD(sourcetracker, "ipw2100");
+    REG_EMPTY_CARD(sourcetracker, "ipw2200");
+
+    REG_EMPTY_CARD(sourcetracker, "rt2400");
+    REG_EMPTY_CARD(sourcetracker, "rt2500");
+    REG_EMPTY_CARD(sourcetracker, "rt8180");
 
     REG_EMPTY_CARD(sourcetracker, "wlanng_wext");
 #endif
