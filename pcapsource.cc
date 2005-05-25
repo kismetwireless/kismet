@@ -2121,7 +2121,9 @@ int chancontrol_ipw2200(const char *in_dev, int in_ch, char *in_err, void *in_ex
     int ret = 0;
 
     ret = chancontrol_wext(in_dev, in_ch, in_err, in_ext);
-    // usleep(5000);
+	// Drop a tiny sleep in here to let the channel set settle, otherwise we
+	// run the risk of the card freaking out
+	usleep(7000);
 
     return ret;
 }
