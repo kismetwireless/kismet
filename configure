@@ -6907,8 +6907,8 @@ echo "$as_me: WARNING: Compiling without libpcap support." >&2;}
 fi
 
 
-echo "$as_me:$LINENO: checking that linux/wireless.h is what we expect" >&5
-echo $ECHO_N "checking that linux/wireless.h is what we expect... $ECHO_C" >&6
+echo "$as_me:$LINENO: checking for radiotap support" >&5
+echo $ECHO_N "checking for radiotap support... $ECHO_C" >&6
 cat >conftest.$ac_ext <<_ACEOF
 /* confdefs.h.  */
 _ACEOF
@@ -6920,7 +6920,6 @@ cat >>conftest.$ac_ext <<_ACEOF
     #include <sys/socket.h>
     #include <net/if.h>
     #include <net/if_media.h>
-    #include <net80211/ieee80211_ioctl.h>
     #include <net80211/ieee80211_radiotap.h>
 
 int
