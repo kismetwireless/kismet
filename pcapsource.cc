@@ -38,21 +38,29 @@ typedef unsigned long u64;
 #include <linux/wireless.h>
 #endif
 
-#ifdef SYS_OPENBSD
+#if defined(SYS_OPENBSD) || defined(SYS_NETBSD)
+#include <sys/socket.h>
 #include <net/if.h>
+#include <net/if_media.h>
 #include <netinet/in.h>
 #include <netinet/if_ether.h>
 #include <dev/ic/if_wi_ieee.h>
+
+#ifdef HAVE_RADIOTAP
+#include <net80211/ieee80211.h>
+#endif
+
 #endif
 
 #ifdef SYS_FREEBSD
 #include <sys/socket.h>
 #include <net/if.h>
 #include <net/if_media.h>
-#include <net80211/ieee80211_ioctl.h>
 
-// This should be generic but we'll leave it fbsd only right now -drag
+#endif
+
 #ifdef HAVE_RADIOTAP
+#include <net80211/ieee80211_ioctl.h>
 #include <net80211/ieee80211_radiotap.h>
 
 // Hack around some headers that don't seem to define all of these
@@ -85,8 +93,6 @@ typedef unsigned long u64;
 #include <stdarg.h>
 #endif
 
-#endif
-
 #include "pcapsource.h"
 #include "util.h"
 
@@ -108,6 +114,12 @@ int PcapSource::OpenSource() {
     char *unconst = strdup(interface.c_str());
 
     pd = pcap_open_live(unconst, MAX_PACKET_LEN, 1, 1000, errstr);
+
+    #if defined (SYS_OPENBSD) || defined(SYS_NETBSD) && defined(HAVE_RADIOTAP)
+    /* Request desired DLT on multi-DLT systems that default to EN10MB. We do this
+       later anyway but doing it here ensures we have the desired DLT from the get go. */
+     pcap_set_datalink(pd, DLT_IEEE802_11_RADIO);
+    #endif
 
     free(unconst);
 
@@ -164,7 +176,7 @@ int PcapSource::DatalinkType() {
     datalink_type = pcap_datalink(pd);
 
     // Blow up if we're not valid 802.11 headers
-#if (defined(SYS_FREEBSD) || defined(SYS_OPENBSD))
+#if (defined(SYS_FREEBSD) || defined(SYS_OPENBSD)) || defined(SYS_NETBSD)
     if (datalink_type == DLT_EN10MB) {
         fprintf(stderr, "WARNING:  pcap reports link type of EN10MB but we'll fake "
                 "it on BSD.\n"
@@ -581,6 +593,12 @@ int PcapSource::Radiotap2KisPack(kis_packet *packet, uint8_t *data, uint8_t *mod
                 (bit0 + BITNO_32(present ^ next_present));
 
             switch (bit) {
+#if 0
+                case IEEE80211_RADIOTAP_FCS:
+                    packet->caplen = packet->caplen - 4;
+                    packet->len = packet->caplen;
+                    break;
+#endif 
                 case IEEE80211_RADIOTAP_FLAGS:
                 case IEEE80211_RADIOTAP_RATE:
                 case IEEE80211_RADIOTAP_DB_ANTSIGNAL:
@@ -2189,21 +2207,21 @@ int chancontrol_openbsd_prism2(const char *in_dev, int in_ch, char *in_err,
 }
 #endif
 
-#ifdef SYS_FREEBSD
-FreeBSD::FreeBSD(const char *name) : ifname(name) {
+#ifdef HAVE_RADIOTAP
+RadiotapBSD::RadiotapBSD(const char *name) : ifname(name) {
     s = -1;
 }
 
-FreeBSD::~FreeBSD() {
+RadiotapBSD::~RadiotapBSD() {
     if (s >= 0)
         close(s);
 }
 
-const char *FreeBSD::geterror() const {
+const char *RadiotapBSD::geterror() const {
 	return errstr;
 }
 
-void FreeBSD::perror(const char *fmt, ...) {
+void RadiotapBSD::perror(const char *fmt, ...) {
 	char *cp;
 
 	snprintf(errstr, sizeof(errstr), "%s: ", ifname.c_str());
@@ -2216,14 +2234,14 @@ void FreeBSD::perror(const char *fmt, ...) {
 	snprintf(cp, sizeof(errstr) - (cp - errstr), ": %s", strerror(errno));
 }
 
-void FreeBSD::seterror(const char *fmt, ...) {
+void RadiotapBSD::seterror(const char *fmt, ...) {
 	va_list ap;
 	va_start(ap, fmt);
 	vsnprintf(errstr, sizeof(errstr), fmt, ap);
 	va_end(ap);
 }
 
-bool FreeBSD::checksocket() {
+bool RadiotapBSD::checksocket() {
     if (s < 0) {
         s = socket(AF_INET, SOCK_DGRAM, 0);
         if (s < 0) {
@@ -2234,7 +2252,7 @@ bool FreeBSD::checksocket() {
     return true;
 }
 
-bool FreeBSD::getmediaopt(int& options, int& mode) {
+bool RadiotapBSD::getmediaopt(int& options, int& mode) {
     struct ifmediareq ifmr;
 
     if (!checksocket())
@@ -2257,7 +2275,7 @@ bool FreeBSD::getmediaopt(int& options, int& mode) {
     return true;
 }
 
-bool FreeBSD::setmediaopt(int options, int mode) {
+bool RadiotapBSD::setmediaopt(int options, int mode) {
     struct ifmediareq ifmr;
     struct ifreq ifr;
     int *mwords;
@@ -2305,7 +2323,44 @@ bool FreeBSD::setmediaopt(int options, int mode) {
     return true;
 }
 
-bool FreeBSD::get80211(int type, int& val, int len, u_int8_t *data) {
+#if defined(SYS_OPENBSD) || defined(SYS_NETBSD)
+
+     /* A simple 802.11 ioctl replacement for OpenBSD/NetBSD
+        Only used for channel set/get.
+        This should be re-written to be *BSD agnostic.  */
+
+bool RadiotapBSD::get80211(int type, int& val, int len, u_int8_t *data) {
+    struct ieee80211chanreq channel;
+
+    if (!checksocket())
+        return false;
+    memset(&channel, 0, sizeof(channel));
+    strlcpy(channel.i_name, ifname.c_str(), sizeof(channel.i_name));
+    if (ioctl(s, SIOCG80211CHANNEL, (caddr_t)&channel) < 0) {
+        perror("SIOCG80211CHANNEL ioctl failed");
+        return false;
+    }
+    val = channel.i_channel;
+    return true;
+}
+
+bool RadiotapBSD::set80211(int type, int val, int len, u_int8_t *data) {
+    struct ieee80211chanreq channel;
+
+    if (!checksocket())
+        return false;
+    strlcpy(channel.i_name, ifname.c_str(), sizeof(channel.i_name));
+    channel.i_channel = (u_int16_t)val;
+    if (ioctl(s, SIOCS80211CHANNEL, (caddr_t)&channel) == -1) {
+        perror("SIOCS80211CHANNEL ioctl failed");
+        return false;
+    }
+    return true;
+}
+
+#elif defined(SYS_FREEBSD) /* FreeBSD has a generic 802.11 ioctl */
+
+bool RadiotapBSD::get80211(int type, int& val, int len, u_int8_t *data) {
     struct ieee80211req ireq;
 
     if (!checksocket())
@@ -2323,7 +2378,7 @@ bool FreeBSD::get80211(int type, int& val, int len, u_int8_t *data) {
     return true;
 }
 
-bool FreeBSD::set80211(int type, int val, int len, u_int8_t *data) {
+bool RadiotapBSD::set80211(int type, int val, int len, u_int8_t *data) {
     struct ieee80211req ireq;
 
     if (!checksocket())
@@ -2337,7 +2392,9 @@ bool FreeBSD::set80211(int type, int val, int len, u_int8_t *data) {
     return (ioctl(s, SIOCS80211, &ireq) >= 0);
 }
 
-bool FreeBSD::getifflags(int& flags) {
+#endif
+
+bool RadiotapBSD::getifflags(int& flags) {
     struct ifreq ifr;
 
     if (!checksocket())
@@ -2348,11 +2405,15 @@ bool FreeBSD::getifflags(int& flags) {
         perror("SIOCGIFFLAGS ioctl failed");
         return false;
     }
+#if defined(SYS_FREEBSD)
     flags = (ifr.ifr_flags & 0xffff) | (ifr.ifr_flagshigh << 16);
+#elif defined(SYS_OPENBSD) || defined(SYS_NETBSD)
+    flags = ifr.ifr_flags;
+#endif
     return true;
 }
 
-bool FreeBSD::setifflags(int flags) {
+bool RadiotapBSD::setifflags(int flags) {
     struct ifreq ifr;
 
     if (!checksocket())
@@ -2360,8 +2421,12 @@ bool FreeBSD::setifflags(int flags) {
 
     memset(&ifr, 0, sizeof(ifr));
     strncpy(ifr.ifr_name, ifname.c_str(), sizeof (ifr.ifr_name));
+#if defined(SYS_FREEBSD)
     ifr.ifr_flags = flags & 0xffff;
     ifr.ifr_flagshigh = flags >> 16;
+#elif defined(SYS_OPENBSD) || (SYS_NETBSD)
+    ifr.ifr_flags = flags;
+#endif
     if (ioctl(s, SIOCSIFFLAGS, (caddr_t)&ifr) < 0) {
         perror("SIOCSIFFLAGS ioctl failed");
         return false;
@@ -2369,7 +2434,7 @@ bool FreeBSD::setifflags(int flags) {
     return true;
 }
 
-bool FreeBSD::monitor_enable(int initch) {
+bool RadiotapBSD::monitor_enable(int initch) {
     /*
      * Collect current state.
      */
@@ -2388,7 +2453,11 @@ bool FreeBSD::monitor_enable(int initch) {
 	(void) setmediaopt(prev_options, prev_mode);
         return false;
     }
+#if defined(SYS_FREEBSD)
     if (!setifflags(prev_flags | IFF_PPROMISC | IFF_UP)) {
+#elif defined(SYS_OPENBSD) || defined(SYS_NETBSD)
+    if (!setifflags(prev_flags | IFF_PROMISC | IFF_UP)) {
+#endif
 	(void) set80211(IEEE80211_IOC_CHANNEL, prev_chan, 0, NULL);
 	(void) setmediaopt(prev_options, prev_mode);
         return false;
@@ -2396,7 +2465,7 @@ bool FreeBSD::monitor_enable(int initch) {
     return true;
 }
 
-bool FreeBSD::monitor_reset(int initch) {
+bool RadiotapBSD::monitor_reset(int initch) {
     (void) setifflags(prev_flags);
     /* NB: reset the current channel before switching modes */
     (void) set80211(IEEE80211_IOC_CHANNEL, prev_chan, 0, NULL);
@@ -2404,7 +2473,7 @@ bool FreeBSD::monitor_reset(int initch) {
     return true;
 }
 
-bool FreeBSD::chancontrol(int in_ch) {
+bool RadiotapBSD::chancontrol(int in_ch) {
     if (!set80211(IEEE80211_IOC_CHANNEL, in_ch, 0, NULL)) {
 	perror("failed to set channel %u", in_ch);
 	return false;
@@ -2412,20 +2481,20 @@ bool FreeBSD::chancontrol(int in_ch) {
 	return true;
 }
 
-int monitor_freebsd(const char *in_dev, int initch, char *in_err, void **in_if, void *in_ext) {
-    FreeBSD *bsd = new FreeBSD(in_dev);
+int monitor_bsd(const char *in_dev, int initch, char *in_err, void **in_if, void *in_ext) {
+    RadiotapBSD *bsd = new RadiotapBSD(in_dev);
     if (!bsd->monitor_enable(initch)) {
         strcpy(in_err, bsd->geterror());
 	delete bsd;
         return -1;
     } else {
-	*(FreeBSD **)in_if = bsd;
+	*(RadiotapBSD **)in_if = bsd;
         return 0;
     }
 }
 
-int unmonitor_freebsd(const char *in_dev, int initch, char *in_err, void **in_if, void *in_ext) {
-    FreeBSD *bsd = *(FreeBSD **)in_if;
+int unmonitor_bsd(const char *in_dev, int initch, char *in_err, void **in_if, void *in_ext) {
+    RadiotapBSD *bsd = *(RadiotapBSD **)in_if;
     if (!bsd->monitor_reset(initch)) {
         strcpy(in_err, bsd->geterror());
         delete bsd;
@@ -2436,8 +2505,8 @@ int unmonitor_freebsd(const char *in_dev, int initch, char *in_err, void **in_if
     }
 }
 
-int chancontrol_freebsd(const char *in_dev, int in_ch, char *in_err, void *in_ext) {
-    FreeBSD bsd(in_dev);
+int chancontrol_bsd(const char *in_dev, int in_ch, char *in_err, void *in_ext) {
+    RadiotapBSD bsd(in_dev);
     if (!bsd.chancontrol(in_ch)) {
 	strcpy(in_err, bsd.geterror());
 	return -1;
@@ -2445,7 +2514,7 @@ int chancontrol_freebsd(const char *in_dev, int in_ch, char *in_err, void *in_ex
 	return 0;
     }
 }
-#endif /* SYS_FREEBSD */
+#endif /* HAVE_RADIOTAP */
 
 #endif
 

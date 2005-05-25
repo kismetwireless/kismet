@@ -210,23 +210,23 @@ int RegisterKismetSources(Packetsourcetracker *sourcetracker) {
     REG_EMPTY_CARD(sourcetracker, "prism2_openbsd");
 #endif
 
-#if defined(HAVE_LIBPCAP) && defined(SYS_FREEBSD) && defined(HAVE_RADIOTAP)
-    sourcetracker->RegisterPacketsource("radiotap_fbsd_ab", 1, "IEEE80211ab", 6,
+#if defined(HAVE_LIBPCAP) && defined(HAVE_RADIOTAP)
+    sourcetracker->RegisterPacketsource("radiotap_bsd_ab", 1, "IEEE80211ab", 6,
                                         pcapsource_radiotap_registrant,
-                                        monitor_freebsd, unmonitor_freebsd,
-                                        chancontrol_freebsd, 1);
-    sourcetracker->RegisterPacketsource("radiotap_fbsd_a",1, "IEEE80211a", 6,
+                                        monitor_bsd, unmonitor_bsd,
+                                        chancontrol_bsd, 1);
+    sourcetracker->RegisterPacketsource("radiotap_bsd_a",1, "IEEE80211a", 6,
                                         pcapsource_radiotap_registrant,
-                                        monitor_freebsd, unmonitor_freebsd,
-                                        chancontrol_freebsd, 1);
-    sourcetracker->RegisterPacketsource("radiotap_fbsd_b",1, "IEEE80211b", 6,
+                                        monitor_bsd, unmonitor_bsd,
+                                        chancontrol_bsd, 1);
+    sourcetracker->RegisterPacketsource("radiotap_bsd_b",1, "IEEE80211b", 6,
                                         pcapsource_radiotap_registrant,
-                                        monitor_freebsd, unmonitor_freebsd,
-                                        chancontrol_freebsd, 1);
+                                        monitor_bsd, unmonitor_bsd,
+                                        chancontrol_bsd, 1);
 #else
-    REG_EMPTY_CARD(sourcetracker, "radiotap_fbsd_ab");
-    REG_EMPTY_CARD(sourcetracker, "radiotap_fbsd_a");
-    REG_EMPTY_CARD(sourcetracker, "radiotap_fbsd_b");
+    REG_EMPTY_CARD(sourcetracker, "radiotap_bsd_ab");
+    REG_EMPTY_CARD(sourcetracker, "radiotap_bsd_a");
+    REG_EMPTY_CARD(sourcetracker, "radiotap_bsd_b");
 #endif
 
 #if defined(HAVE_LIBWIRETAP)

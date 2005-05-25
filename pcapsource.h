@@ -61,6 +61,11 @@ extern "C" {
 #define	DLT_IEEE802_11_RADIO	127	/* 802.11 plus WLAN header */
 #endif
 
+#ifndef IEEE80211_IOC_CHANNEL
+#define IEEE80211_IOC_CHANNEL 0
+#endif
+
+
 // Generic pcapsource
 class PcapSource : public KisPacketSource {
 public:
@@ -270,11 +275,11 @@ public:
 };
 #endif
 
-#if (defined(SYS_FREEBSD) && defined(HAVE_RADIOTAP))
-class FreeBSD {
+#ifdef HAVE_RADIOTAP
+class RadiotapBSD {
 public:
-    FreeBSD(const char *ifname);
-    virtual ~FreeBSD();
+    RadiotapBSD(const char *ifname);
+    virtual ~RadiotapBSD();
 
     const char *geterror() const;
 
@@ -301,9 +306,7 @@ private:
     char errstr[256];
     string ifname;
 };
-#endif
 
-#ifdef HAVE_RADIOTAP
 class PcapSourceRadiotap : public PcapSource {
 public:
     PcapSourceRadiotap(string in_name, string in_dev) :
@@ -442,10 +445,10 @@ int chancontrol_openbsd_prism2(const char *in_dev, int in_ch, char *in_err,
                                void *in_ext);
 #endif
 
-#if (defined(SYS_FREEBSD) && defined(HAVE_RADIOTAP))
-int monitor_freebsd(const char *in_dev, int initch, char *in_err, void **in_if, void *in_ext);
-int unmonitor_freebsd(const char *in_dev, int initch, char *in_err, void **in_if, void *in_ext);
-int chancontrol_freebsd(const char *in_dev, int in_ch, char *in_err, void *in_ext);
+#ifdef HAVE_RADIOTAP
+int monitor_bsd(const char *in_dev, int initch, char *in_err, void **in_if, void *in_ext);
+int unmonitor_bsd(const char *in_dev, int initch, char *in_err, void **in_if, void *in_ext);
+int chancontrol_bsd(const char *in_dev, int in_ch, char *in_err, void *in_ext);
 #endif
 
 
