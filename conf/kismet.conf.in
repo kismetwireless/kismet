@@ -139,17 +139,17 @@ gpsmodelock=false
 # limit the number of alerts to 10 per minute.
 # A throttle rate of 0 disables throttling of the alert.
 # See the README for a list of alert types.
-alert=NETSTUMBLER,5/min,2
-alert=WELLENREITER,5/min,2
-alert=LUCENTTEST,5/min,2
-alert=DEAUTHFLOOD,5/min,4
-alert=BCASTDISCON,5/min,4
-alert=CHANCHANGE,5/min,4
-alert=AIRJACKSSID,5/min,2
-alert=PROBENOJOIN,5/min,2
-alert=DISASSOCTRAFFIC,5/min,2
-alert=NULLPROBERESP,5/min,5
-alert=BSSTIMESTAMP,5/min,5
+alert=NETSTUMBLER,10/min,1/sec
+alert=WELLENREITER,10/min,1/sec
+alert=LUCENTTEST,10/min,1/sec
+alert=DEAUTHFLOOD,10/min,2/sec
+alert=BCASTDISCON,10/min,2/sec
+alert=CHANCHANGE,5/min,1/sec
+alert=AIRJACKSSID,5/min,1/sec
+alert=PROBENOJOIN,10/min,1/sec
+alert=DISASSOCTRAFFIC,10/min,1/sec
+alert=NULLPROBERESP,10/min,1/sec
+alert=BSSTIMESTAMP,10/min,1/sec
 
 # Known WEP keys to decrypt, bssid,hexkey.  This is only for networks where
 # the keys are already known, and it may impact throughput on slower hardware.

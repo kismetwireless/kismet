@@ -51,14 +51,19 @@ public:
         alert_time_unit limit_unit;
         // Alerts per unit
         int limit_rate;
+		// Units burst is measured in
+		alert_time_unit burst_unit;
         // Alerts sent before limiting takes hold
         int limit_burst;
 
         // How many alerts have been sent burst-mode (decremented once per unit)
         int burst_sent;
+		// How many have we sent in total?
+		int total_sent;
 
-        // List of times we sent an alert... to handle throttling
-        list<struct timeval *> alert_log;
+		// Last time we sent an alert, to tell if we can reset the burst or
+		// rate counters
+		time_t time_last;
     };
 
     Alertracker();
@@ -73,7 +78,7 @@ public:
 
     // Register an alert and get an alert reference number back.
     int RegisterAlert(const char *in_header, alert_time_unit in_unit, int in_rate,
-                      int in_burst);
+                      alert_time_unit in_burstunit, int in_burst);
 
     // Find a reference from a name
     int FetchAlertRef(string in_header);

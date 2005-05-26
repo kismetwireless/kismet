@@ -162,6 +162,7 @@ int filter_export_bssid_invert = -1, filter_export_source_invert = -1,
 typedef struct _alert_enable {
     string alert_name;
     alert_time_unit limit_unit;
+	alert_time_unit burst_unit;
     int limit_rate;
     int limit_burst;
 };
@@ -1178,6 +1179,40 @@ int Usage(char *argv) {
     exit(1);
 }
 
+// Split up a rate/unit string into real values
+int ParseAlertRateUnit(string in_ru, alert_time_unit *ret_unit,
+					   int *ret_rate) {
+	vector<string> units = StrTokenize(in_ru, "/");
+
+	if (units.size() == 1) {
+		// Unit is per minute if not specified
+		(*ret_unit) = sat_minute;
+	} else {
+		// Parse the string unit
+		if (units[1] == "sec" || units[1] == "second") {
+			(*ret_unit) = sat_second;
+		} else if (units[1] == "min" || units[1] == "minute") {
+			(*ret_unit) = sat_minute;
+		} else if (units[1] == "hr" || units[1] == "hour") { 
+			(*ret_unit) = sat_hour;
+		} else if (units[1] == "day") {
+			(*ret_unit) = sat_day;
+		} else {
+			fprintf(stderr, "Invalid time unit for alert rate '%s'\n",
+					units[1].c_str());
+			return -1;
+		}
+	}
+
+	// Get the number
+	if (sscanf(units[0].c_str(), "%d", ret_rate) != 1) {
+		fprintf(stderr, "Invalid rate '%s' for alert\n", units[0].c_str());
+		return -1;
+	}
+
+	return 1;
+}
+
 // Moved here to make compiling this file take less memory.  Can be broken down more
 // in the future.
 int ProcessBulkConf(ConfigFile *conf) {
@@ -1697,54 +1732,29 @@ int ProcessBulkConf(ConfigFile *conf) {
         vector<string> tokens = StrTokenize(conf->FetchOptVec("alert")[av], ",");
         _alert_enable aven;
 
-        if (tokens.size() < 2 || tokens.size() > 3) {
-            fprintf(stderr, "FATAL:  Invalid alert line: %s\n", conf->FetchOptVec("alert")[av].c_str());
-            ErrorShutdown();
-        }
+		if (tokens.size() != 3) {
+			fprintf(stderr, "FATAL: Malformed limits for alert '%s'\n", 
+					conf->FetchOptVec("alert")[av].c_str());
+			ErrorShutdown();
+		}
 
-        aven.alert_name = tokens[0];
+		aven.alert_name = StrLower(tokens[0]);
 
-        vector<string> units = StrTokenize(tokens[1], "/");
+		if (ParseAlertRateUnit(StrLower(tokens[1]), 
+							   &(aven.limit_unit), &(aven.limit_rate)) != 1 ||
+			ParseAlertRateUnit(StrLower(tokens[2]),
+							   &(aven.burst_unit), &(aven.limit_burst)) != 1) { 
+			fprintf(stderr, "FATAL: Malformed limits for alert '%s'\n",
+					conf->FetchOptVec("alert")[av].c_str());
+			ErrorShutdown();
+		}
 
-        if (units.size() == 1) {
-            aven.limit_unit = sat_minute;
-            if (sscanf(units[0].c_str(), "%d", &aven.limit_rate) != 1) {
-                fprintf(stderr, "FATAL:  Invalid limit rate: %s\n",
-                        conf->FetchOptVec("alert")[av].c_str());
-                ErrorShutdown();
-            }
-        } else {
-            if (sscanf(units[0].c_str(), "%d", &aven.limit_rate) != 1) {
-                fprintf(stderr, "FATAL:  Invalid limit rate: %s\n",
-                        conf->FetchOptVec("alert")[av].c_str());
-                ErrorShutdown();
-            }
-
-            if (units[1] == "sec" || units[1] == "second")
-                aven.limit_unit = sat_second;
-            else if (units[1] == "min" || units[1] == "minute")
-                aven.limit_unit = sat_minute;
-            else if (units[1] == "hour")
-                aven.limit_unit = sat_hour;
-            else if (units[1] == "day")
-                aven.limit_unit = sat_day;
-            else {
-                fprintf(stderr, "FATAL:  Invalid time unit in alert line: %s\n",
-                        conf->FetchOptVec("alert")[av].c_str());
-                ErrorShutdown();
-            }
-        }
-
-        if (tokens.size() == 2) {
-            aven.limit_burst = 5;
-        } else {
-            if (sscanf(tokens[2].c_str(), "%d", &aven.limit_burst) != 1) {
-                fprintf(stderr, "FATAL:  Invalid time unit in alert line: %s\n",
-                        conf->FetchOptVec("alert")[av].c_str());
-                ErrorShutdown();
-            }
-
-        }
+		if (aven.burst_unit > aven.limit_unit) {
+			fprintf(stderr, "FATAL: Alert burst time unit must be <= alert "
+					"limit time unit for alert '%s'\n",
+					conf->FetchOptVec("alert")[av].c_str());
+			ErrorShutdown();
+		}
 
         alert_enable_vec.push_back(aven);
     }
@@ -2714,7 +2724,7 @@ int main(int argc,char *argv[]) {
                                           &Protocol_CARD, NULL);
 
     // Register our own alert with no throttling
-    kissrv_aref = alertracker.RegisterAlert("KISMET", sat_day, 0, 0);
+    kissrv_aref = alertracker.RegisterAlert("KISMET", sat_day, 0, sat_day, 0);
     // Set the backlog
     alertracker.SetAlertBacklog(max_alerts);
     // Populate the alert engine
@@ -2730,6 +2740,7 @@ int main(int argc,char *argv[]) {
         int ret = tracker.EnableAlert(alert_enable_vec[alvec].alert_name,
                                       alert_enable_vec[alvec].limit_unit,
                                       alert_enable_vec[alvec].limit_rate,
+									  alert_enable_vec[alvec].burst_unit,
                                       alert_enable_vec[alvec].limit_burst);
 
         // Then process the return value

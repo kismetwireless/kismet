@@ -104,6 +104,12 @@ Licensed under the GPL
       Kismet now supports the ipw2200 card with monitor mode.  If you use this
       card, make sure you add the ipw2200 source to the 'fuzzycrypt' line
       in your config file.
+
+      Kismet also now supports limiting alert burst rate time units, new
+      default alert values are in the example kismet.conf and alerts may
+      now be of the form:
+        alert=NAME,limit/unit,burst/unit
+        alert=FOO,10/min,1/sec
     
     Upgrading to Kismet 3.1+:
       Kismet 3.1 has significantly changed how Kismet operates again.  There
@@ -306,7 +312,8 @@ Licensed under the GPL
 
     * IDS alert rates can be controlled via the 'alert' directive, which 
       specifies the alert type, rate per timeframe (ie, 5/min), and the burst
-      limits.  These controls are similar to the iptables limit controls.
+      rate per timeframe (ie, 1/sec). These controls are similar to the 
+      iptables limit controls.
 
     * Networks with known WEP keys can be decrypted in realtime with the 
       'wepkey' directive, which specifies a BSSID (or bssid mask) and the

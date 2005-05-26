@@ -77,7 +77,8 @@ void Packetracker::AddAlertracker(Alertracker *in_tracker) {
 }
 
 int Packetracker::EnableAlert(string in_alname, alert_time_unit in_unit,
-                              int in_rate, int in_burstrate) {
+                              int in_rate, alert_time_unit in_bunit, 
+							  int in_burstrate) {
     if (alertracker == NULL) {
         snprintf(errstr, 1024, "No registered alert tracker.");
         return -1;
@@ -88,38 +89,60 @@ int Packetracker::EnableAlert(string in_alname, alert_time_unit in_unit,
     string lname = StrLower(in_alname);
     if (lname == "netstumbler") {
         // register netstumbler alert
-        ret = arefs[NETSTUMBLER_AREF] = alertracker->RegisterAlert("NETSTUMBLER", in_unit, in_rate, in_burstrate);
+        ret = arefs[NETSTUMBLER_AREF] = 
+			alertracker->RegisterAlert("NETSTUMBLER", in_unit, in_rate, 
+									   in_bunit, in_burstrate);
     } else if (lname == "deauthflood") {
         // register deauth flood
-        ret = arefs[DEAUTHFLOOD_AREF] = alertracker->RegisterAlert("DEAUTHFLOOD", in_unit, in_rate, in_burstrate);
+        ret = arefs[DEAUTHFLOOD_AREF] = 
+			alertracker->RegisterAlert("DEAUTHFLOOD", in_unit, in_rate, 
+									   in_bunit, in_burstrate);
     } else if (lname == "lucenttest") {
         // register lucent test
-        ret = arefs[LUCENTTEST_AREF] = alertracker->RegisterAlert("LUCENTTEST", in_unit, in_rate, in_burstrate);
+        ret = arefs[LUCENTTEST_AREF] = 
+			alertracker->RegisterAlert("LUCENTTEST", in_unit, in_rate, 
+									   in_bunit, in_burstrate);
     } else if (lname == "wellenreiter") {
         // register wellenreiter test
-        ret = arefs[WELLENREITER_AREF] = alertracker->RegisterAlert("WELLENREITER", in_unit, in_rate, in_burstrate);
+        ret = arefs[WELLENREITER_AREF] = 
+			alertracker->RegisterAlert("WELLENREITER", in_unit, in_rate, 
+									   in_bunit, in_burstrate);
     } else if (lname == "chanchange") {
         // register channel changing
-        ret = arefs[CHANCHANGE_AREF] = alertracker->RegisterAlert("CHANCHANGE", in_unit, in_rate, in_burstrate);
+        ret = arefs[CHANCHANGE_AREF] = 
+			alertracker->RegisterAlert("CHANCHANGE", in_unit, in_rate, 
+									   in_bunit, in_burstrate);
     } else if (lname == "bcastdiscon") {
         // Register broadcast disconnect
-        ret = arefs[BCASTDISCON_AREF] = alertracker->RegisterAlert("BCASTDISCON", in_unit, in_rate, in_burstrate);
+        ret = arefs[BCASTDISCON_AREF] = 
+			alertracker->RegisterAlert("BCASTDISCON", in_unit, in_rate, 
+									   in_bunit, in_burstrate);
     } else if (lname == "airjackssid") {
         // Register airjack SSID alert
-        ret = arefs[AIRJACKSSID_AREF] = alertracker->RegisterAlert("AIRJACKSSID", in_unit, in_rate, in_burstrate);
+        ret = arefs[AIRJACKSSID_AREF] = 
+			alertracker->RegisterAlert("AIRJACKSSID", in_unit, in_rate, 
+									   in_bunit, in_burstrate);
     } else if (lname == "nullproberesp") {
         // Register 0-len probe response alert
-        ret = arefs[NULLPROBERESP_AREF] = alertracker->RegisterAlert("NULLPROBERESP", in_unit, in_rate, in_burstrate);
+        ret = arefs[NULLPROBERESP_AREF] = 
+			alertracker->RegisterAlert("NULLPROBERESP", in_unit, in_rate, 
+									   in_bunit, in_burstrate);
     } else if (lname == "probenojoin") {
-        ProbeNoJoinAutomata *pnja = new ProbeNoJoinAutomata(this, alertracker, in_unit, in_rate, in_burstrate);
+        ProbeNoJoinAutomata *pnja = 
+			new ProbeNoJoinAutomata(this, alertracker, in_unit, in_rate, 
+									in_bunit, in_burstrate);
         fsa_vec.push_back(pnja);
         ret = pnja->FetchAlertRef();
     } else if (lname == "disassoctraffic") {
-        DisassocTrafficAutomata *dta = new DisassocTrafficAutomata(this, alertracker, in_unit, in_rate, in_burstrate);
+        DisassocTrafficAutomata *dta = 
+			new DisassocTrafficAutomata(this, alertracker, in_unit, in_rate, 
+										in_bunit, in_burstrate);
         fsa_vec.push_back(dta);
         ret = dta->FetchAlertRef();
     } else if (lname == "bsstimestamp") {
-        BssTimestampAutomata *bta = new BssTimestampAutomata(this, alertracker, in_unit, in_rate, in_burstrate);
+        BssTimestampAutomata *bta = 
+			new BssTimestampAutomata(this, alertracker, in_unit, in_rate, 
+									 in_bunit, in_burstrate);
         fsa_vec.push_back(bta);
         ret = bta->FetchAlertRef();
     } else {

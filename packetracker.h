@@ -52,7 +52,7 @@ public:
     void AddAlertracker(Alertracker *in_tracker);
     // Pass in enabled alerts from the config file
     int EnableAlert(string in_alname, alert_time_unit in_unit,
-                    int in_rate, int in_burstrate);
+                    int in_rate, alert_time_unit in_bunit, int in_burstrate);
 
     // Set up filters
     void AddExportFilters(macmap<int> *bssid_map, macmap<int> *source_map,
