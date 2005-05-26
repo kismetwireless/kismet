@@ -129,14 +129,13 @@ gpsmodelock=false
 # filter_export=...
 
 # Alerts to be reported and the throttling rates.
-# alert=name,throttle/unit,burst
+# alert=name,throttle/unit,burst/unit
 # The throttle/unit describes the number of alerts of this type that are
 # sent per time unit.  Valid time units are second, minute, hour, and day.
-# Burst describes the number of alerts sent before throttling takes place.
+# Burst rates control the number of packets sent at a time
 # For example:
-# alert=FOO,10/min,5
-# Would allow 5 alerts through before throttling is enabled, and will then
-# limit the number of alerts to 10 per minute.
+# alert=FOO,10/min,5/sec
+# Would allow 5 alerts per second, and 10 alerts total per minute.
 # A throttle rate of 0 disables throttling of the alert.
 # See the README for a list of alert types.
 alert=NETSTUMBLER,10/min,1/sec
