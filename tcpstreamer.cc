@@ -30,6 +30,8 @@ TcpStreamer::TcpStreamer()
     serv_fd = 0;
 
     max_fd = 0;
+
+	gpsd = NULL;
 }
 
 TcpStreamer::~TcpStreamer()
@@ -285,6 +287,10 @@ int TcpStreamer::WriteVersion(int in_fd) {
     hdr.frame_len = (uint32_t) htonl(sizeof(struct stream_version_packet));
 
     vpkt.drone_version = (uint16_t) htons(STREAM_DRONE_VERSION);
+	if (gpsd != NULL)
+		vpkt.gps_enabled = 1;
+	else
+		vpkt.gps_enabled = 0;
 
     if (!FD_ISSET(in_fd, &client_fds))
         return -1;

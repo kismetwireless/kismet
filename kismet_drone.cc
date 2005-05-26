@@ -394,6 +394,9 @@ int main(int argc, char *argv[]) {
     // Update GPS coordinates and handle signal loss if defined
     timetracker.RegisterTimer(SERVER_TIMESLICES_SEC, NULL, 1, &GpsEvent, NULL);
 
+	// Add the GPS to the tcpstreamer
+	streamer.AddGpstracker(gps);
+
 #endif
 
     // Register the gps and timetracker with the sourcetracker

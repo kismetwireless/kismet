@@ -4,21 +4,23 @@ http://www.kismetwireless.net
 Licensed under the GPL
 
 1.  What is Kismet
-2.  Feature Overview
-3.  Typical Uses
-4.  Upgrading From Previous Versions
-5.  Suidroot & Security
-6.  Required Libraries & Utilities
-7.  Compiling
-8.  Configuration
-9.  Panels Interface
-10. Operating Systems
-11. Capture Sources
-12. Graphical Network Mapping
-13. Drone Remotes
-14. Intrusion Detection
-15. Troubleshooting
-16. Frequently Asked Questions
+2.  Quick Start
+3.  Feature Overview
+4.  Typical Uses
+5.  Upgrading From Previous Versions
+6.  Suidroot & Security
+7.  Required Libraries & Utilities
+8.  Compiling
+9.  Configuration
+10. Panels Interface
+11. Operating Systems
+12. Capture Sources
+13. Graphical Network Mapping
+14. Drone Remotes
+15. Intrusion Detection
+16. Reporting Bugs
+17. Troubleshooting
+18. Frequently Asked Questions
 
 1.  What is Kismet
 
@@ -32,7 +34,34 @@ Licensed under the GPL
     networks, and infering the presence of nonbeaconing networks via data
     traffic.
 
-2.  Feature Overview
+2.  Quick Start
+
+    PLEASE read the full manual, but for the impatient, here is the BARE
+    MINIMUM needed to get Kismet working:
+
+    * Download Kismet from http://www.kismetwireless.net/download.shtml
+    * Run ``./configure''.  Pay attention to the output!  If Kismet cannot
+      find all the headers and libraries it needs, it won't be able to do
+      many things.
+    * Compile Kismet with ``make''
+    * Install Kismet with either ``make install'' or ``make suidinstall''.
+      YOU MUST READ THE SECTION OF THIS README NAMED "SUID INSTALLATION &
+      SECURITY" OR YOUR SYSTEM MAY BE MADE VULNERABLE!!
+    * Edit the config file (standardly in "/usr/local/etc/kismet.conf")
+    * Set the user Kismet will drop privileges to by changing the "suiduser"
+      configuration option.
+    * Set the capture source by changing the "source" configuration option.
+      FOR A LIST OF VALID CAPTURE SOURCES, SEE THE SECTION OF THIS README
+      CALLED "CAPTURE SOURCES".  The capture source you should use depends
+      on the operating system and driver that your wireless card uses.
+    * Add an absolute path to the "logtemplate" configuration option if you
+      want Kismet to always log to the same directory instead of the directory
+      you start it in.
+
+    * Run ``kismet''.  You may need to start Kismet as root.
+    * READ THE REST OF THIS README
+
+3.  Feature Overview
 
     Kismet has many features useful in different situations for monitoring
     wireless networks:
@@ -56,7 +85,7 @@ Licensed under the GPL
     - XML output
     - Over 20 supported card types
 
-3.  Typical Uses
+4.  Typical Uses
 
     Common applications Kismet is useful for:
 
@@ -69,15 +98,20 @@ Licensed under the GPL
     - Rogue AP Detection:  Stationary or mobile sniffers to enforce site policy
       against rogue access points.
 
-4.  Upgrading from Previous Versions
+5.  Upgrading from Previous Versions
 
+    Upgrading to Kismet 2005-05-R1 from previous versions:
+      Kismet now supports the ipw2200 card with monitor mode.  If you use this
+      card, make sure you add the ipw2200 source to the 'fuzzycrypt' line
+      in your config file.
+    
     Upgrading to Kismet 3.1+:
       Kismet 3.1 has significantly changed how Kismet operates again.  There
       have been config file changes, changes to the names of capture types,
       and various other mayhem.  Be sure to upgrade your config file or things
       will definitely not work how you expect them to.
 
-5.  Suidroot & Security
+6.  Suidroot & Security
 
     In order to configure the wireless card for rfmon and start the packet
     capture, Kismet needs root access.  As soon as root access is no longer
@@ -106,7 +140,7 @@ Licensed under the GPL
     users on your system, install kismet normally and 'su' to root before
     starting it.
 
-6.  Required Libraries & Utilities
+7.  Required Libraries & Utilities
 
     Kismet is primary self-contained, however for some features it requires
     some external libraries or utilities.
@@ -168,7 +202,7 @@ Licensed under the GPL
       If you do not need to replay compressed dumps or dumps with other 
       encodings (such as Airopeek), you don't need wtapfile.
 
-7.  Compiling
+8.  Compiling
     
     Compiling should be fairly straightforward.  It uses the normal configure
     scripts found in most open-source projects, and should build with any
@@ -192,7 +226,7 @@ Licensed under the GPL
     FreeBSD users should configure kismet to use the systemwide pcap, which
     supports multiple DLT types, with --enable-syspcap
 
-8.  Configuration
+9.  Configuration
 
     Kismet is controlled by 2 primary configuration files:
     kismet.conf controls the server backend, and kismet_ui.conf controls the
@@ -333,7 +367,7 @@ Licensed under the GPL
     Which is to say, all traffic not from 00..55 and not from 00..66 will
     be considered.
 
-9.  Ncurses/Panels Interface
+10. Ncurses/Panels Interface
 
     The ncurses/panels interface is the default frontend provided with Kismet.
     
@@ -397,7 +431,7 @@ Licensed under the GPL
       type      Type of client (Established, To-DS, From-DS, etc)
       weak      Number of packets which appear to have weak IVs
       
-10. Operating Systems
+11. Operating Systems
 
     Kismet will work (at some level) on any operating system which has POSIX
     compatibility, however for it to do native packet capturing it needs
@@ -457,7 +491,7 @@ Licensed under the GPL
 
       Don't use win32 if you want to capture data natively.
 
-11. Capture Sources
+12. Capture Sources
     
     A capture source in Kismet is anything which provides packets to the Kismet
     engine.  Capture sources define the underlying engine needed to capture
@@ -729,8 +763,10 @@ Licensed under the GPL
                           currently no equivalent hack for PCMCIA.
      HermesII           - Proxim successor to the Orinoco/HermesI.  No support
                           yet in the drivers, may be available in the future.
+     ndiswrapper        - Anything using ndiswrapper is using WINDOWS drivers
+                          AND CAN NOT BE USED WITH KISMET.
 
-12. Graphical Network Mapping
+13. Graphical Network Mapping
 
     Kismet provides a tool for drawing networks overlaid on downloaded maps
     called 'gpsmap'.  Gpsmap reads the netxml and gpsxml files, sanitizes the
@@ -781,7 +817,7 @@ Licensed under the GPL
     other programs.  GPSMap cleans the data set automatically, reprocessing the
     gpsxml files is only needed if they are to be used in third-party programs.
 
-13. Drone Remotes
+14. Drone Remotes
 
     Remote Kismet drones are designed to turn Kismet into a stationary, 
     distibuted IDS system.  Drones support all of the capture sources Kismet
@@ -800,10 +836,14 @@ Licensed under the GPL
 
     To start using drones, set up a kismet_drone on the system with a wireless
     card, using the kismet_drone.conf file.  Then configure Kismet to have a 
-    kismet_drone cardsource pointing to that host, start kismet_server, and
-    use whatever client you like to connect to it.
+    kismet_drone capsource pointing to that host, start kismet_server, and
+    use whatever client you like to connect to Kismet.
 
-14. Alerts and Intrusion Detection
+    If a GPS is enabled on the drone, packets recieved from the drone will use
+    that GPS for positioning information.  If the GPS is not enabled, then the
+    GPS connected to the Kismet server will be used.
+
+15. Alerts and Intrusion Detection
 
     Kismet will provide alerts based on fingerprints (specific netstumbler
     versions, other specific attacks) and trends (unusual probes, excessive
@@ -948,8 +988,35 @@ Licensed under the GPL
                       an access point.
                       This alert contains flap-detection to minimise false
                       positives caused by random bogons and AP recycling.
+   
+16. Reporting Bugs
+
+    Bugs happen, and I'm sure some are still in the code.  To make a useful
+    bug report:
+
+    * Check the "Troubleshooting" section to make sure it's not a known
+      user error
+    * Check the development CHANGELOG to make sure it hasn't already been
+      fixed in -devel.  http://svn.kismetwireless.net/code/trunk/CHANGELOG
     
-15. Troubleshooting
+    If the bug appears to be tied to specific packets:
+
+    * Start Kismet
+    * Use TCPDump to get a capture of the packets outside of Kismet, until
+      Kismet crashes.  (``tcpdump -i foo0 -w crashlog.dump'')
+    * Run the capture through Kismet:  Does it still crash?  (use the 
+      pcapfile capture type)  ``kismet_server -c pcapfile,/path/to/dump,foo''
+    * Send me the dump file and the info
+
+    If the bug happens otherwise:
+
+    * Recompile Kismet from source and don't use ``make install''.  The install
+      scripts strip debugging info from the binaries that we need.
+    * Run Kismet inside gdb (``gdb ./kismet_server'' or ``gdb ./kismet_client'')
+    * When it crashes, get a backtrace:  ``bt'' in gdb
+    * Send me the info
+
+17. Troubleshooting
     
     Some common problems with Kismet have easy solutions:
 
@@ -1073,7 +1140,7 @@ Licensed under the GPL
      Additonally, you need kernel 2.4.23 or newer because of wireless extension
      dependencies.  Make sure to upgrade your drivers and kernel.
 
-16. Frequently Asked Questions
+18. Frequently Asked Questions
 
     Q: Where did the name Kismet come from?
     A: The word itself means Fate or Destiny.  While I wish I could make up

@@ -4,9 +4,9 @@
 # not continually reading --help!
 
 # Version of Kismet config
-version=2005.01.R1a
+version=2005.05.R1
 
-# Name of server (Purely for organiational purposes)
+# Name of server (Purely for organizational purposes)
 servername=Kismet
 
 # User to setid to (should be your normal user)

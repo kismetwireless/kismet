@@ -42,6 +42,7 @@
 #include "ringbuf.h"
 #include "packet.h"
 #include "packetstream.h"
+#include "gpsd.h"
 
 // Global in kismet_drone.cc
 extern int silent;
@@ -74,6 +75,9 @@ public:
 	    fd_set *outw_set);
 
     int FetchDescriptor() { return serv_fd; }
+
+    // Register the GPS server for us to use
+    void AddGpstracker(GPSD *in_gpsd) { gpsd = in_gpsd; }
 
     void Kill(int in_fd);
 
@@ -120,6 +124,8 @@ protected:
     fd_set client_fds;
 
     unsigned int max_fd;
+
+	GPSD *gpsd;
 };
 
 #endif

@@ -28,7 +28,7 @@
 #include <inttypes.h>
 #endif
 
-#define STREAM_DRONE_VERSION 8
+#define STREAM_DRONE_VERSION 9
 
 #define STREAM_SENTINEL      0xDECAFBAD
 
@@ -45,6 +45,7 @@ typedef struct stream_frame_header {
 
 typedef struct stream_version_packet {
     uint16_t drone_version;
+	uint8_t gps_enabled;
 };
 
 typedef struct stream_packet_header {
