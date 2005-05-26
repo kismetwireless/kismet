@@ -279,25 +279,25 @@ int PanelFront::MainNetworkPrinter(void *in_window) {
 
     int dirty = 0;
 
-    // One:  Get our new data from the clients we have tagged
+    // Get our new data from the clients we have tagged
     for (unsigned int x = 0; x < context_list.size(); x++) {
         if (context_list[x]->tagged == 1 && context_list[x]->client != NULL &&
             (context_list[x]->client->FetchNetworkDirty() ||
-             past_display_vec.size() == 0 || localnets_dirty))
-            dirty = 1;
-            PopulateGroups(context_list[x]->client);
+             past_display_vec.size() == 0 || localnets_dirty)) {
+			dirty = 1;
+			PopulateGroups(context_list[x]->client);
+		}
     }
-    // Two:  Recalculate all our agregate data
-    // UpdateGroups();
-
     
-    // Three: Copy it to our own local vector so we can sort it.
+    // Copy it to our own local vector so we can sort it.
     vector<display_network *> display_vector;
        
     // resort of we're dirty
     if (dirty == 0) {
         display_vector = past_display_vec;
     } else {
+		UpdateGroups();
+
         display_vector = group_vec;
 
         main_sortxt[0] = '\0';
@@ -1136,7 +1136,10 @@ int PanelFront::MainClientPrinter(void *in_window) {
     char sortxt[24];
     sortxt[0] = '\0';
 
-    vector<wireless_client *> display_vector = details_network->virtnet->client_vec;
+    vector<wireless_client *> display_vector;
+	if (details_network != NULL)
+		display_vector = details_network->virtnet->client_vec;
+
     int drop;
 
     switch (client_sortby) {
@@ -1455,6 +1458,13 @@ int PanelFront::DetailsPrinter(void *in_window) {
     int print_width = kwin->print_width;
     if (print_width > 1024)
         print_width = 1023;
+
+	if (details_network == NULL) {
+		kwin->text.push_back("The network or group being displayed");
+		kwin->text.push_back("has been deleted.  Please select a ");
+		kwin->text.push_back("different network.");
+		return TextPrinter(in_window);
+	}
 
     if (details_network->name == "")
         snprintf(output, print_width, "Name    : %s", details_network->virtnet->ssid.c_str());
@@ -1861,6 +1871,13 @@ int PanelFront::GpsPrinter(void *in_window) {
 
     char output[1024];
     kwin->text.clear();
+
+	if (details_network == NULL) {
+		kwin->text.push_back("The network or group being displayed");
+		kwin->text.push_back("has been deleted.  Please select a ");
+		kwin->text.push_back("different network.");
+		return TextPrinter(in_window);
+	}
 
     wireless_network *dnet = details_network->virtnet;
 

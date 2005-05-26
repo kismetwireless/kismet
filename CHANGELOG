@@ -5,6 +5,11 @@ May 26 2005  devel  Moved to drone protocol 9.  Drone GPS status is now carried
                     Updated README and some error messages
                     Took default carrier type out of packet reporting since it
                      could give bad info
+                    Fixed several segfaults in kismet_client caused by groups
+                     or networks being auto-deleted (like probe_networks being 
+                     merged)
+                    Sped up kismet_client a fair bit (only recalculate groups
+                     when we need to)
 May 25 2005  devel  Configure changes for openbsd (pedro)
                     Tweaked cisci_wifix error message
                     Introduced a slight delay into the channel control process

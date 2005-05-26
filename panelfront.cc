@@ -551,6 +551,11 @@ void PanelFront::UpdateGroups() {
 }
 
 void PanelFront::DestroyGroup(display_network *in_group) {
+	// Handle when we destroy the details stuff
+	if (in_group == details_network) {
+		details_network = NULL;
+	}
+
     // Handle when we destroy the probe group
     if (in_group == probe_group) {
         probe_group = NULL;
@@ -558,6 +563,8 @@ void PanelFront::DestroyGroup(display_network *in_group) {
         data_group = NULL;
     }
 
+	localnets_dirty = 1;
+	
     Frontend::DestroyGroup(in_group);
 }
 

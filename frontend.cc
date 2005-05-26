@@ -127,7 +127,7 @@ void Frontend::PopulateGroups(TcpClient *in_client) {
     }
 
     // Update us
-    UpdateGroups();
+    // UpdateGroups();
 
 }
 
