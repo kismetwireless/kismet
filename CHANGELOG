@@ -3,6 +3,8 @@ May 26 2005  devel  Moved to drone protocol 9.  Drone GPS status is now carried
                      it will be used for coordinates, if it is not, the server GPS
                      will be used.
                     Updated README and some error messages
+                    Took default carrier type out of packet reporting since it
+                     could give bad info
 May 25 2005  devel  Configure changes for openbsd (pedro)
                     Tweaked cisci_wifix error message
                     Introduced a slight delay into the channel control process

@@ -315,9 +315,12 @@ int PcapSource::ManglePacket(kis_packet *packet, uint8_t *data, uint8_t *moddata
     if (packet->channel == 0)
         packet->channel = FetchChannel();
 
+#if 0
+	// Maybe this isn't a great idea
     if (packet->carrier == carrier_unknown)
         packet->carrier = IEEE80211Carrier();
-    
+#endif
+
     return ret;
 
 }
