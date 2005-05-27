@@ -291,13 +291,13 @@ int PanelFront::MainNetworkPrinter(void *in_window) {
     
     // Copy it to our own local vector so we can sort it.
     vector<display_network *> display_vector;
+
+	UpdateGroups();
        
     // resort of we're dirty
     if (dirty == 0) {
         display_vector = past_display_vec;
     } else {
-		UpdateGroups();
-
         display_vector = group_vec;
 
         main_sortxt[0] = '\0';

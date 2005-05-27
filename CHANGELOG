@@ -13,6 +13,9 @@ May 26 2005  devel  Moved to drone protocol 9.  Drone GPS status is now carried
                     Merged burst-rate-unit alert support from newcore-devel.
                      You can now set a timeunit for burstrates of alerts, ie
                      10/min burst of 1/sec.
+                    Reverted UpdateNetworks() in panelfront so that it would
+                     update idle dieoff correctly again
+                    Fixed minor bug in pcapsource avs parsing
 May 25 2005  devel  Configure changes for openbsd (pedro)
                     Tweaked cisci_wifix error message
                     Introduced a slight delay into the channel control process

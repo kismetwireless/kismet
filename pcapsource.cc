@@ -369,6 +369,7 @@ int PcapSource::Prism2KisPack(kis_packet *packet, uint8_t *data, uint8_t *moddat
         switch (ntohl(v1hdr->phytype)) {
             case 1:
                 packet->carrier = carrier_80211fhss;
+				break;
             case 2:
                 packet->carrier = carrier_80211dsss;
                 break;
