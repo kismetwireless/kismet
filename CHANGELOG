@@ -1,3 +1,4 @@
+May 27 2005  devel  Merged README updates and OpenBSD updates from Pedro
 May 26 2005  devel  Moved to drone protocol 9.  Drone GPS status is now carried
                      in the version packet.  If GPS is enabled on the drone,
                      it will be used for coordinates, if it is not, the server GPS

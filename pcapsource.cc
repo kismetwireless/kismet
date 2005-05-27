@@ -240,7 +240,7 @@ int PcapSource::FetchPacket(kis_packet *packet, uint8_t *data, uint8_t *moddata)
     if ((ret = pcap_dispatch(pd, 1, PcapSource::Callback, NULL)) < 0) {
         // Is the interface still here and just not running?  Lets give a more intelligent
         // error if that looks to be the case.
-        int ret = 0;
+        ret = 0;
 
         // Do something smarter here in the future
 #ifdef SYS_LINUX

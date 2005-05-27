@@ -456,11 +456,16 @@ Licensed under the GPL
       selection of rfmon capable drivers.
 
     - OpenBSD
-      Known supported cards: Prism2, WSP100, Drone, wtapfile, pcapfile
-   
+      Known supported cards: Prism2, Atheros, IPW2100/2200, Ralink, 
+      Realtek RTL8180L, WSP100, Drone, wtapfile, pcapfile
+  
+      OpenBSD 3.7 and newer includes a software 802.11 stack and the Radiotap
+      packet header format. Any cards using the net80211 stack that support
+      monitor mode should work with Kismet.
+ 
       OpenBSD 3.2 and newer report standard frames from the Prism2 drivers. 
       Thanks to the efforts of Pedro la Peu, Kismet works fully with prism2
-      cards under OpenBSD.  Performance with other cards may vary.
+      cards under OpenBSD. 
 
     - FreeBSD
       Known supported cards: Atheros, Prism2, WSP100, Drone, wtapfile, pcapfile
@@ -477,6 +482,10 @@ Licensed under the GPL
     
       There have been no reports positive or negative about NetBSD drivers.
       Please email if you have them working.
+
+      NetBSD is moving towards (or already has) Radiotap header support.  If
+      your card is supported under a current NetBSD version with radiotap,
+      it should work with the radiotap_bsd_x sources.
 
     - MacOSX
       Known supported cards: Airport, WSP100, Drone, wtapfile, pcapfile
@@ -677,21 +686,19 @@ Licensed under the GPL
                     Capture interface:  'ethX'
                     PrismGT 802.11g drivers supporting monitor mode.
 
-    radiotap_fbsd_ab Atheros             FreeBSD     Kernel
-                     Capture interface:  'athX'
-                     FreeBSD dual-band cards with radiotap headers (currently
-                      only Atheros)
+    radiotap_bsd_ab Radiotap            BSD         Kernel
+                    Capture interface:  various
+                    Dual-band cards with radiotap headers.
 
-    radiotap_fbsd_a Atheros             FreeBSD     Kernel
-                    Capture interface:  'athX'
-                    FreeBSD 802.11a cards (or dual-band on 11a channels only)
-                     with radiotap headers (currently only Atheros)
+    radiotap_bsd_a Radiotap              BSD        Kernel
+                    Capture interface:  various
+                    802.11a cards (or dual-band on 11a channels only) with 
+                     radiotap headers. 
 
-    radiotap_fbsd_b Atheros             FreeBSD     Kernel
-                    Capture interface:  'athX'
-                    Capture interface:  'wiX'
-                    FreeBSD 802.11b cards (or dual-band on 11b channels only)
-                     with radiotap headers (Currently Atheros or Prism2)
+    radiotap_bsd_b Radiotap             BSD         Kernel
+                    Capture interface:  various
+                    802.11b/g cards (or dual-band on 11b channels only) with
+                     radiotap headers. 
 
     rt2400          Ralink 2400 11b     Linux       rt2400-gpl
                     Capture interface:  'ethX'
