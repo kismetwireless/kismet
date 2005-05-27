@@ -961,8 +961,10 @@ int PcapSourceRadiotap::FetchChannel() {
     strlcpy(channel.i_name, interface.c_str(), sizeof(channel.i_name));
     if (ioctl(s, SIOCG80211CHANNEL, (caddr_t)&channel) < 0) {
         perror("SIOCG80211CHANNEL ioctl failed");
+		close(s);
         return false;
     }
+	close(s);
    return channel.i_channel;
 }   
 
