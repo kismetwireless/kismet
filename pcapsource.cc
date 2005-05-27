@@ -557,6 +557,10 @@ int PcapSource::Radiotap2KisPack(kis_packet *packet, uint8_t *data, uint8_t *mod
     enum ieee80211_radiotap_type bit;
     int bit0;
     const u_char *iter;
+	// do we cut the FCS?  this is influenced by the radiotap headers and 
+	// by the class fcsbytes value in case of forced fcs settings (like openbsd
+	// atheros at the moment)
+	int fcs_cut = 0;
 
     if (callback_header.caplen < sizeof(*hdr)) {
         packet->len = 0;
@@ -597,12 +601,9 @@ int PcapSource::Radiotap2KisPack(kis_packet *packet, uint8_t *data, uint8_t *mod
                 (bit0 + BITNO_32(present ^ next_present));
 
             switch (bit) {
-#if 0
                 case IEEE80211_RADIOTAP_FCS:
-                    packet->caplen = packet->caplen - 4;
-                    packet->len = packet->caplen;
+					fcs_cut = 4;
                     break;
-#endif 
                 case IEEE80211_RADIOTAP_FLAGS:
                 case IEEE80211_RADIOTAP_RATE:
                 case IEEE80211_RADIOTAP_DB_ANTSIGNAL:
@@ -708,9 +709,13 @@ int PcapSource::Radiotap2KisPack(kis_packet *packet, uint8_t *data, uint8_t *mod
         }
     }
 
+	/* Check the fcs for the source */
+	if (FCSBytes() != 0)
+		fcs_cut = FCSBytes();
+
     /* copy data down over radiotap header */
-    packet->caplen -= hdr->it_len;
-    packet->len -= hdr->it_len;
+    packet->caplen -= (hdr->it_len + fcs_cut);
+    packet->len -= (hdr->it_len + fcs_cut);
     memcpy(packet->data, callback_data + hdr->it_len, packet->caplen);
 
     return 1;
@@ -2511,21 +2516,29 @@ bool RadiotapBSD::chancontrol(int in_ch) {
 }
 
 int monitor_bsd(const char *in_dev, int initch, char *in_err, void **in_if, void *in_ext) {
-    RadiotapBSD *bsd = new RadiotapBSD(in_dev);
-    if (!bsd->monitor_enable(initch)) {
-        strcpy(in_err, bsd->geterror());
-	delete bsd;
-        return -1;
-    } else {
-	*(RadiotapBSD **)in_if = bsd;
-        return 0;
-    }
+	RadiotapBSD *bsd = new RadiotapBSD(in_dev);
+	if (!bsd->monitor_enable(initch)) {
+		strlcpy(in_err, bsd->geterror(), 1024);
+		delete bsd;
+		return -1;
+	} else {
+		*(RadiotapBSD **)in_if = bsd;
+#ifdef SYS_OPENBSD
+		// Temporary hack around OpenBSD atheros drivers not including FCS in
+		// the radiotap headers
+		if (strncmp(in_dev, "ath", 3) == 0) {
+			PcapSource *psrc = (PcapSource *) in_ext;
+			psrc->fcsbytes = 4;
+		}
+#endif
+		return 0;
+	}
 }
 
 int unmonitor_bsd(const char *in_dev, int initch, char *in_err, void **in_if, void *in_ext) {
     RadiotapBSD *bsd = *(RadiotapBSD **)in_if;
     if (!bsd->monitor_reset(initch)) {
-        strcpy(in_err, bsd->geterror());
+        strlcpy(in_err, bsd->geterror(), 1024);
         delete bsd;
         return -1;
     } else {
@@ -2537,7 +2550,7 @@ int unmonitor_bsd(const char *in_dev, int initch, char *in_err, void **in_if, vo
 int chancontrol_bsd(const char *in_dev, int in_ch, char *in_err, void *in_ext) {
     RadiotapBSD bsd(in_dev);
     if (!bsd.chancontrol(in_ch)) {
-	strcpy(in_err, bsd.geterror());
+	strlcpy(in_err, bsd.geterror(), 1024);
 	return -1;
     } else {
 	return 0;
