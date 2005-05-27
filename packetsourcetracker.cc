@@ -577,11 +577,16 @@ int Packetsourcetracker::ProcessCardList(string in_enableline,
                 chan_seqid_count_map[meta->channel_seqid]++;
             } else if (chan_cap_seqid_map.find(StrLower(meta->prototype->default_channelset)) 
                        != chan_cap_seqid_map.end()) {
-
                 meta->channel_seqid = 
                     chan_cap_seqid_map[StrLower(meta->prototype->default_channelset)];
                 chan_seqid_count_map[meta->channel_seqid]++;
-            }
+            } else {
+				snprintf(errstr, 1024, "Unable to find default channel set %s or "
+						 "specific channel sets for source %s",
+						 meta->prototype->default_channelset.c_str(),
+						 meta->name.c_str());
+				return -1;
+			}
                         
             meta_packsources.push_back(meta);
         }

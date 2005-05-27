@@ -1,5 +1,10 @@
 May 27 2005  devel  Merged README updates and OpenBSD updates from Pedro
                     Merged OpenBSD channel display from pedro
+                    Added ipw2915 packet source for centrinto a/g cards.
+                     Same as the 2200, just has the default channels set to 
+                     include 11a.
+                    Fixed sigfpu failure if the default channel sets are
+                     missing
 May 26 2005  devel  Moved to drone protocol 9.  Drone GPS status is now carried
                      in the version packet.  If GPS is enabled on the drone,
                      it will be used for coordinates, if it is not, the server GPS
