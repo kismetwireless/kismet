@@ -312,6 +312,7 @@ public:
     PcapSourceRadiotap(string in_name, string in_dev) :
         PcapSource(in_name, in_dev) { }
     int OpenSource();
+    int FetchChannel();
 protected:
     bool CheckForDLT(int dlt);
 };

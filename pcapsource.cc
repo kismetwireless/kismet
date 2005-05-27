@@ -946,6 +946,26 @@ bool PcapSourceRadiotap::CheckForDLT(int dlt)
     free(dl);
     return found;
 }
+
+int PcapSourceRadiotap::FetchChannel() {
+    struct ieee80211chanreq channel;
+    int s;
+    
+    if ((s = socket(AF_INET, SOCK_DGRAM, 0)) < 0) {
+        snprintf(errstr, 1024, "Failed to create AF_INET socket: %s",
+        strerror(errno));
+        return false;
+    }
+
+    memset(&channel, 0, sizeof(channel));
+    strlcpy(channel.i_name, interface.c_str(), sizeof(channel.i_name));
+    if (ioctl(s, SIOCG80211CHANNEL, (caddr_t)&channel) < 0) {
+        perror("SIOCG80211CHANNEL ioctl failed");
+        return false;
+    }
+   return channel.i_channel;
+}   
+
 #endif
 
 // ----------------------------------------------------------------------------
