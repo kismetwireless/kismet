@@ -49,6 +49,7 @@ char *uiconfigfile;
 char *server = NULL;
 int sound = -1;
 int speech = -1;
+int flite = 0;
 int speech_encoding = 0;
 string speech_sentence_encrypted, speech_sentence_unencrypted;
 unsigned int metric = 0;
@@ -275,8 +276,9 @@ void SpeechHandler(int *fds, const char *player) {
                 // Make sure it's shell-clean
                 MungeToShell(data, strlen(data));
                 char spk_call[1024];
-                snprintf(spk_call, 1024, "echo \"(SayText \\\"%s\\\")\" | %s >/dev/null 2>/dev/null",
-                         data, player);
+                snprintf(spk_call, 1024, "echo \"(%s \\\"%s\\\")\" | %s "
+						 ">/dev/null 2>/dev/null",
+						 flite ? "SayText " : "", data, player);
 
                 system(spk_call);
 
@@ -548,6 +550,9 @@ int main(int argc, char *argv[]) {
         if (gui_conf->FetchOpt("festival") != "") {
             festival = strdup(gui_conf->FetchOpt("festival").c_str());
             speech = 1;
+
+			if (gui_conf->FetchOpt("flite") == "true")
+				flite = 1;
 
             string speechtype = gui_conf->FetchOpt("speech_type");
 

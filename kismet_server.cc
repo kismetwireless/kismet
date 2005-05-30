@@ -186,6 +186,7 @@ string sndplay;
 
 const char *festival = NULL;
 int speech = -1;
+int flite = 0;
 int speech_encoding = 0;
 string speech_sentence_encrypted, speech_sentence_unencrypted;
 
@@ -529,8 +530,9 @@ void SpeechHandler(int *fds, const char *player) {
                 // Make sure it's shell-clean
                 MungeToShell(data, strlen(data));
                 char spk_call[1024];
-                snprintf(spk_call, 1024, "echo \"(SayText \\\"%s\\\")\" | %s >/dev/null 2>/dev/null",
-                         data, player);
+                snprintf(spk_call, 1024, "echo \"(%s\\\"%s\\\")\" | %s "
+						 ">/dev/null 2>/dev/null",
+						 flite ? "SayText " : "", data, player);
                 system(spk_call);
 
                 exit(0);
@@ -1609,6 +1611,9 @@ int ProcessBulkConf(ConfigFile *conf) {
         if (conf->FetchOpt("festival") != "") {
             festival = strdup(conf->FetchOpt("festival").c_str());
             speech = 1;
+		
+			if (conf->FetchOpt("flite") == "true")
+				flite = 1;
 
             string speechtype = conf->FetchOpt("speech_type");
 

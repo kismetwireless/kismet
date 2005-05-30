@@ -190,6 +190,8 @@ sound_alert=@sharedatadir@/kismet/wav/alert.wav
 speech=false
 # Server's path to Festival
 festival=/usr/bin/festival
+# Are we using festival lite?
+flite=false
 # How do we speak?  Valid options:
 # speech    Normal speech
 # nato      NATO spellings (alpha, bravo, charlie)
