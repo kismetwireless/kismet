@@ -55,8 +55,9 @@ apm=true
 speech=false
 # Where is festival located for the GUI?
 festival=/usr/bin/festival
-# Are we using festival light?
-flight=false
+# Are we using festival light?  If so, point the above "festival" path to the
+# "flite" binary.
+flite=false
 # How do we speak?  Valid options:
 # speech    Normal speech
 # nato      NATO spellings (alpha, bravo, charlie)

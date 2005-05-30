@@ -190,7 +190,8 @@ sound_alert=@sharedatadir@/kismet/wav/alert.wav
 speech=false
 # Server's path to Festival
 festival=/usr/bin/festival
-# Are we using festival lite?
+# Are we using festival lite?  If so, set the above "festival" path to also
+# point to the "flite" binary
 flite=false
 # How do we speak?  Valid options:
 # speech    Normal speech
