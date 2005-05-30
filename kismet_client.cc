@@ -278,7 +278,7 @@ void SpeechHandler(int *fds, const char *player) {
                 char spk_call[1024];
                 snprintf(spk_call, 1024, "echo \"(%s\\\"%s\\\")\" | %s "
 						 ">/dev/null 2>/dev/null",
-						 flite ? "SayText " : "", data, player);
+						 flite ? "": "SayText ", data, player);
 
                 system(spk_call);
 
