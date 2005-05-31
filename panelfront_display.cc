@@ -238,10 +238,18 @@ void PanelFront::NetLine(kis_window *in_window, string *in_str, wireless_network
                         sx = (int) (double) (100 / abs(net->signal)) * 15;
                 } else if (idle_time < (decay * 2)) {
                     // Extract the signal percentage of the best signal seen
-                    sx = (int)((double)(idle_time < (decay * 2) ? net->signal : 0) / net->best_signal * 15);
+                    sx = (int)((double)(idle_time < (decay * 2) ? net->signal : 0) / 
+							   net->best_signal * 15);
                 }
 
                 char sg[16];
+
+				// Boundscheck sx
+				if (sx < 0)
+					sx = 0;
+				else if (sx > 15)
+					sx = 15;
+
                 memset(sg, 'X', sx);
                 memset(sg + sx, '=', 15 - sx);
                 sg[15] = '\0';
@@ -1410,6 +1418,13 @@ int PanelFront::PowerPrinter(void *in_window) {
 
     // We need to do this for SNR bars and power bars
     pbar = (int) (width * pperc);
+
+	// Boundscheck
+	if (pbar < 0)
+		pbar = 0;
+	else if (pbar > width)
+		pbar = width;
+
     memset(bar, 'X', pbar);
     memset(bar + pbar, '=', width - pbar);
     bar[width] = '\0';
@@ -1417,6 +1432,11 @@ int PanelFront::PowerPrinter(void *in_window) {
     if (snr == -1) {
         nbar = (int) (width * nperc);
 
+		if (nbar < 0)
+			nbar = 0;
+		else if (nbar > width)
+			nbar = width;
+		
         mvwaddstr(kwin->win, 2, 2, "P:");
         mvwaddstr(kwin->win, 2, 5, bar);
 

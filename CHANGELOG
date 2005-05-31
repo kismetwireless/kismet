@@ -1,3 +1,6 @@
+May 31 2005  devel  Fixed segfault condition in kismet_client caused by the 
+                     "powerbar" column or "Signal Levels" window and funny
+                     signal levels
 May 30 2005  devel  Added 'flite' config parameter for 'festival lite', if
                      using flite instead of festival, set it to true
                     Fixed client signal/noise levels in kismet_client
