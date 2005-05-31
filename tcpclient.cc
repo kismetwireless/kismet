@@ -410,7 +410,7 @@ int TcpClient::ParseData(char *in_data) {
 
         scanned = sscanf(in_data+hdrlen+36, "%d %d %d %d %d %d %d "
                          "%f %f %f %f %f %f %f %f %lf %lf "
-                         "%lf %ld %f %d %d %d %d %d %d %d "
+                         "%lf %ld %f %d %d %d %d %d %d "
                          "%f %f %f %d %hd.%hd.%hd.%hd %ld %d %d %d %d",
                          (int *) &client->type,
                          (int *) &client->first_time, (int *) &client->last_time,
@@ -419,11 +419,12 @@ int TcpClient::ParseData(char *in_data) {
                          &client->gps_fixed, &client->min_lat, &client->min_lon,
                          &client->min_alt, &client->min_spd,
                          &client->max_lat, &client->max_lon, &client->max_alt,
-                         &client->max_spd, &client->aggregate_lat, &client->aggregate_lon,
+                         &client->max_spd, &client->aggregate_lat, 
+						 &client->aggregate_lon,
                          &client->aggregate_alt, &client->aggregate_points,
-                         &maxrate, &client->metric,
-                         &client->quality, &client->signal, &client->noise,
-                         &client->best_quality, &client->best_signal, &client->best_noise,
+                         &maxrate, &client->quality, &client->signal, &client->noise,
+                         &client->best_quality, &client->best_signal, 
+						 &client->best_noise,
                          &client->best_lat, &client->best_lon, &client->best_alt,
                          (int *) &client->ipdata.atype, &ip[0], &ip[1], &ip[2], &ip[3],
                          &client->datasize, &client->maxseenrate, &client->encoding_set,

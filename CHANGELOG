@@ -1,5 +1,6 @@
 May 30 2005  devel  Added 'flite' config parameter for 'festival lite', if
                      using flite instead of festival, set it to true
+                    Fixed client signal/noise levels in kismet_client
 May 27 2005  devel  Merged README updates and OpenBSD updates from Pedro
                     Merged OpenBSD channel display from pedro
                     Added ipw2915 packet source for centrinto a/g cards.
