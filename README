@@ -471,11 +471,14 @@ Licensed under the GPL
   
       OpenBSD 3.7 and newer includes a software 802.11 stack and the Radiotap
       packet header format. Any cards using the net80211 stack that support
-      monitor mode should work with Kismet.
+      monitor mode should work with Kismet via the radiotap_bsd_x capture
+      sources.
  
       OpenBSD 3.2 and newer report standard frames from the Prism2 drivers. 
       Thanks to the efforts of Pedro la Peu, Kismet works fully with prism2
-      cards under OpenBSD. 
+      cards under OpenBSD.  The prism2_openbsd and cisco_openbsd capture
+      sources should not be used, on current OpenBSD installs use the 
+      radiotap_bsd_x sources.
 
     - FreeBSD
       Known supported cards: Atheros, Prism2, WSP100, Drone, wtapfile, pcapfile
@@ -594,6 +597,8 @@ Licensed under the GPL
                     OpenBSD cisco drivers are not fully supported currently,
                      but may become so.  Packet capture probably will not
                      work correctly.
+                    For current OpenBSD releases you should try the 
+                     radiotap_bsd_b capture source, NOT this one.
 
     hostap          Prism/2             Linux       HostAP 0.4
                     http://hostap.epitest.fi/
@@ -697,7 +702,10 @@ Licensed under the GPL
 
     prism2_openbsd  Prism/2             OpenBSD     Kernel
                     Capture interface:  'wiX'
-                    Full support for Prism2 under OpenBSD
+                    Full support for Prism2 under older OpenBSD releases.
+                     This is deprecated, for current OpenBSD releases you
+                     should use the radiotap_bsd_b capture type for full
+                     support.
 
     prism54g        PrismGT             Linux       prism54
                     http://www.prism54.org
