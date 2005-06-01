@@ -1248,9 +1248,11 @@ void Packetracker::UpdateIpdata(wireless_network *net) {
         memset(new_range, 0, 4);
 
         if (client->ipdata.ip[0] != 0x00) {
+			/*
             if (net->ipdata.atype == address_factory) {
                 memset(&net->ipdata, 0, sizeof(net_ip_data));
             }
+			*/
 
             int oct;
             for (oct = 0; oct < 4; oct++) {
@@ -1262,13 +1264,13 @@ void Packetracker::UpdateIpdata(wireless_network *net) {
                 new_range[oct] = client->ipdata.ip[oct];
             }
 
-            if (oct < net->ipdata.octets || net->ipdata.octets == 0) {
+            if ((oct < net->ipdata.octets || net->ipdata.octets == 0) &&
+				client->ipdata.atype > net->ipdata.atype) {
                 net->ipdata.octets = oct;
                 net->ipdata.atype = client->ipdata.atype;
                 memcpy(net->ipdata.range_ip, new_range, 4);
                 bssid_ip_map[net->bssid] = net->ipdata;
             }
-
         }
     }
 }
