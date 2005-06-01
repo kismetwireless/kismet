@@ -1,6 +1,10 @@
 May 31 2005  devel  Fixed segfault condition in kismet_client caused by the 
                      "powerbar" column or "Signal Levels" window and funny
                      signal levels
+                    Added "netfuzzycrypt" option, defaulted to true.  This uses
+                     the network classifier to force a fuzzy encryption on
+                     unencrypted data frames classified as part of an encrypted
+                     network.
 May 30 2005  devel  Added 'flite' config parameter for 'festival lite', if
                      using flite instead of festival, set it to true
                     Fixed client signal/noise levels in kismet_client

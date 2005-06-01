@@ -4,7 +4,7 @@
 # not continually reading --help!
 
 # Version of Kismet config
-version=2005.05.R1
+version=2005.06.R1
 
 # Name of server (Purely for organizational purposes)
 servername=Kismet
@@ -267,6 +267,12 @@ mangledatalog=true
 # valid option: Comma seperated list of card types to perform fuzzy detection 
 #  on, or 'all'
 fuzzycrypt=wtapfile,wlanng,wlanng_legacy,wlanng_avs,hostap,wlanng_wext,ipw2200,ipw2915
+
+# Do we use network-classifier fuzzy-crypt detection?  This means we expect 
+# packets that are associated with an encrypted network to be encrypted too, 
+# and we process them by the same fuzzy compare. 
+# This essentially replaces the fuzzycrypt per-source option.
+netfuzzycrypt=true
 
 # What type of dump do we generate? 
 # valid option: "wiretap" 

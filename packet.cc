@@ -666,79 +666,30 @@ void GetPacketInfo(kis_packet *packet, packet_info *ret_packinfo,
 
         // Detect encrypted frames
         if (fc->wep &&
-            (*((unsigned short *) &packet->data[ret_packinfo->header_offset]) != 0xAAAA ||
-             packet->data[ret_packinfo->header_offset + 1] & 0x40)) {
-
+			(*((unsigned short *) &packet->data[ret_packinfo->header_offset]) != 
+			 0xAAAA || packet->data[ret_packinfo->header_offset + 1] & 0x40)) {
             ret_packinfo->encrypted = 1;
-        } else if (packet->parm.fuzzy_crypt && 
-				   (unsigned int) ret_packinfo->header_offset+9 < packet->len) {
-            // Do a fuzzy data compare... if it's not:
-            // 0xAA - IP LLC
-            // 0x42 - I forgot.
-            // 0xF0 - Netbios
-            // 0xE0 - IPX
-            if (packet->data[ret_packinfo->header_offset] != 0xAA && 
-				packet->data[ret_packinfo->header_offset] != 0x42 &&
-                packet->data[ret_packinfo->header_offset] != 0xF0 && 
-				packet->data[ret_packinfo->header_offset] != 0xE0) {
-                ret_packinfo->encrypted = 1;
-                ret_packinfo->fuzzy = 1;
-            }
-        }
+		}
 
-        if (ret_packinfo->encrypted) {
-            // Match the range of cryptographically weak packets and let us
-            // know.
+		// If we're known encrypted or if we want to be fuzzycrypt detected, 
+		// process the crypto info.  Otherwise we don't.  Cryptoinfo might
+		// later be processed again if we're doing network-classification
+		// wep detection
+		if (ret_packinfo->encrypted || packet->parm.fuzzy_crypt)
+			ProcessPacketCrypto(packet, ret_packinfo, bssid_wep_map, identity);
 
-            // New detection method from Airsnort 2.0, should be much better.
-            unsigned int sum;
-            if (packet->data[ret_packinfo->header_offset+1] == 255 && packet->data[ret_packinfo->header_offset] > 2 &&
-                packet->data[ret_packinfo->header_offset] < 16) {
-                ret_packinfo->interesting = 1;
-            } else {
-                sum = packet->data[ret_packinfo->header_offset] + packet->data[ret_packinfo->header_offset+1];
-                if (sum == 1 && (packet->data[ret_packinfo->header_offset + 2] <= 0x0A ||
-                                 packet->data[ret_packinfo->header_offset + 2] == 0xFF)) {
-                    ret_packinfo->interesting = 1;
-                } else if (sum <= 0x0C && (packet->data[ret_packinfo->header_offset + 2] >= 0xF2 &&
-                                           packet->data[ret_packinfo->header_offset + 2] <= 0xFE &&
-                                           packet->data[ret_packinfo->header_offset + 2] != 0xFD))
-                    ret_packinfo->interesting = 1;
-            }
-
-            // Knock 8 bytes off the data size of encrypted packets for the
-            // wep IV and check
-            datasize = ret_packinfo->datasize - 8;
-            if (datasize > 0)
-                ret_packinfo->datasize = datasize;
-            else
-                ret_packinfo->datasize = 0;
-
-            if (ret_packinfo->encrypted) {
-                // De-wep if we have any keys
-                if (bssid_wep_map->size() != 0)
-                    DecryptPacket(packet, ret_packinfo, bssid_wep_map, identity);
-
-                // Record the IV in the info
-                memcpy(&ret_packinfo->ivset, 
-                       &packet->data[ret_packinfo->header_offset], 4);
-            }
-
-        }
-
+		// Extract the tcp layer info
         if (ret_packinfo->encrypted == 0 || ret_packinfo->decoded == 1)
             GetProtoInfo(packet, ret_packinfo);
 
     } else {
-        // If we didn't figure out what it was yet, test it for cisco noise.  If the first
-        // four bytes are 0xFF, bail
+        // If we didn't figure out what it was yet, test it for cisco noise.  
+		// If the first four bytes are 0xFF, bail
         uint32_t fox = ~0;
         if (memcmp(packet->data, &fox, 4) == 0) {
             ret_packinfo->type = packet_noise;
             return;
         }
-
-
     }
 
     // Do a little sanity checking on the BSSID
@@ -748,6 +699,73 @@ void GetPacketInfo(kis_packet *packet, packet_info *ret_packinfo,
         ret_packinfo->corrupt = 1;
     }
 
+}
+
+// Handle detecting crypted packets and decoding them
+void ProcessPacketCrypto(kis_packet *packet, packet_info *ret_packinfo,
+						 macmap<wep_key_info *> *bssid_wep_map,
+						 unsigned char *identity) {
+	int datasize = ret_packinfo->datasize;
+
+	if (ret_packinfo->encrypted == 0 && 
+		(unsigned int) ret_packinfo->header_offset+9 < packet->len) {
+		// Do a fuzzy data compare... if it's not:
+		// 0xAA - IP LLC
+		// 0x42 - I forgot.
+		// 0xF0 - Netbios
+		// 0xE0 - IPX
+		if (packet->data[ret_packinfo->header_offset] != 0xAA && 
+			packet->data[ret_packinfo->header_offset] != 0x42 &&
+			packet->data[ret_packinfo->header_offset] != 0xF0 && 
+			packet->data[ret_packinfo->header_offset] != 0xE0) {
+			ret_packinfo->encrypted = 1;
+			ret_packinfo->fuzzy = 1;
+		}
+	}
+
+	if (ret_packinfo->encrypted) {
+		// Match the range of cryptographically weak packets and let us
+		// know.
+
+		// New detection method from Airsnort 2.0, should be much better.
+		unsigned int sum;
+		if (packet->data[ret_packinfo->header_offset+1] == 255 && 
+			packet->data[ret_packinfo->header_offset] > 2 &&
+			packet->data[ret_packinfo->header_offset] < 16) {
+			ret_packinfo->interesting = 1;
+		} else {
+			sum = packet->data[ret_packinfo->header_offset] + 
+				packet->data[ret_packinfo->header_offset+1];
+			if (sum == 1 && 
+				(packet->data[ret_packinfo->header_offset + 2] <= 0x0A ||
+				 packet->data[ret_packinfo->header_offset + 2] == 0xFF)) {
+				ret_packinfo->interesting = 1;
+			} else if (sum <= 0x0C && 
+					   (packet->data[ret_packinfo->header_offset + 2] >= 0xF2 &&
+						packet->data[ret_packinfo->header_offset + 2] <= 0xFE &&
+						packet->data[ret_packinfo->header_offset + 2] != 0xFD))
+				ret_packinfo->interesting = 1;
+		}
+
+		// Knock 8 bytes off the data size of encrypted packets for the
+		// wep IV and check
+		datasize = ret_packinfo->datasize - 8;
+		if (datasize > 0)
+			ret_packinfo->datasize = datasize;
+		else
+			ret_packinfo->datasize = 0;
+
+		if (ret_packinfo->encrypted) {
+			// De-wep if we have any keys
+			if (bssid_wep_map->size() != 0)
+				DecryptPacket(packet, ret_packinfo, bssid_wep_map, identity);
+
+			// Record the IV in the info
+			memcpy(&ret_packinfo->ivset, 
+				   &packet->data[ret_packinfo->header_offset], 4);
+		}
+
+	}
 }
 
 void GetProtoInfo(kis_packet *packet, packet_info *in_info) {

@@ -63,9 +63,15 @@ public:
     // anything else.
     //    void AddFilter(string in_filter) { filter = in_filter; }
 
-    // Packet tracker stuff
-    void ProcessPacket(packet_info info);
-    void ProcessDataPacket(packet_info info, wireless_network *net);
+    // Packet tracker stuff -- kluged up to handle processing wep after the
+	// network classifier
+    void ProcessPacket(kis_packet *packet, packet_info *info,
+					   macmap<wep_key_info *> *bssid_wep_map,
+					   unsigned char *identity);
+    void ProcessDataPacket(kis_packet *packet, packet_info *info, 
+						   wireless_network *net,
+						   macmap<wep_key_info *> *bssid_wep_map,
+						   unsigned char *identity);
 
     void UpdateIpdata(wireless_network *net);
 

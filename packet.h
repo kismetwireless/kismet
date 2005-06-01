@@ -561,6 +561,9 @@ int GetTagOffset(int init_offset, int tagnum, kis_packet *packet,
                  map<int, vector<int> > *tag_cache_map);
 void GetPacketInfo(kis_packet *packet, packet_info *ret_packinfo,
                    macmap<wep_key_info *> *bssid_wep_map, unsigned char *identity);
+void ProcessPacketCrypto(kis_packet *packet, packet_info *ret_packinfo,
+						 macmap<wep_key_info *> *bssid_wep_map,
+						 unsigned char *identity);
 void GetProtoInfo(kis_packet *packet, packet_info *in_info);
 void DecryptPacket(kis_packet *packet, packet_info *in_info, 
                    macmap<wep_key_info *> *bssid_wep_map, unsigned char *identity);

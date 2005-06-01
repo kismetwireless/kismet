@@ -100,10 +100,13 @@ Licensed under the GPL
 
 5.  Upgrading from Previous Versions
 
-    Upgrading to Kismet 2005-05-R1 from previous versions:
+    Upgrading to Kismet 2005-06-R1 from previous versions:
       Kismet now supports the ipw2200 card with monitor mode.  If you use this
       card, make sure you add the ipw2200 source to the 'fuzzycrypt' line
       in your config file.  (The same applies to ipw2915)
+
+      Alternately, you can enable the "netfuzzycrypt" option to force fuzzy
+       packet detection based on the network encryption.
 
       Kismet also now supports limiting alert burst rate time units, new
       default alert values are in the example kismet.conf and alerts may
@@ -353,6 +356,13 @@ Licensed under the GPL
       throughout the list, as well, for example "6,1,6,3,6,9,6,11" would have
       a similar effect while providing more frequent monitoring of other 
       channels.
+
+    * Fuzzy encryption detection.  Not all drivers properly set the WEP flag
+      on encrypted packets.  As of 2005-06-R1, Kismet automatically attempts to
+      manually determine if a packet contains encrypted data if it is part of
+      a network which advertises encryption.  This behavior can be turned off
+      via the "netfuzzycrypt" option, and it can be enabled for specific 
+      capture types via the "fuzzycrypt" config option.
 
     Filtering syntax:
 

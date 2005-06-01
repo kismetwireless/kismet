@@ -207,6 +207,11 @@ string logtemplate;
 
 int channel_hop;
 
+// More globals!  Sure!  Why not!  This will all go away in newcore anyhow
+// Do we use the network classifier to determine if a data frame should be
+// tested as encrypted?
+int netcryptdetect = 0;
+
 // Handle writing all the files out and optionally unlinking the empties
 void WriteDatafiles(int in_shutdown) {
     // If we're on our way out make one last write of the network stuff - this
@@ -2010,6 +2015,12 @@ int ProcessBulkConf(ConfigFile *conf) {
 
     sourcetracker.SetTypeParms(conf->FetchOpt("fuzzycrypt"), fuzzparms);
 
+	// Fetch the netcryptdetect value
+	if (conf->FetchOpt("netfuzzycrypt") == "true") {
+		fprintf(stderr, "Using network-classifier based data encryption detection\n");
+		netcryptdetect = 1;
+	}
+
     return 1;
 }
 
@@ -2961,7 +2972,9 @@ int main(int argc,char *argv[]) {
                     }
 #endif
 
-                    tracker.ProcessPacket(info);
+                    // tracker.ProcessPacket(info);
+                    tracker.ProcessPacket(&packet, &info, &bssid_wep_map, 
+										  wep_identity);
 
                     if (tracker.FetchNumNetworks() > num_networks) {
                         if (sound == 1)
