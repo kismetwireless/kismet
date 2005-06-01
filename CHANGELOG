@@ -7,6 +7,7 @@ May 31 2005  devel  Fixed segfault condition in kismet_client caused by the
                      network.
                     More fixes to IP handling -- client aggregation works
                      better now when finding a network IP
+                    Fixed sigfpu/channel sets for real
 May 30 2005  devel  Added 'flite' config parameter for 'festival lite', if
                      using flite instead of festival, set it to true
                     Fixed client signal/noise levels in kismet_client
