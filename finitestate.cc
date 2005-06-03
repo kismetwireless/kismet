@@ -202,11 +202,13 @@ int BssTimestampAutomata::ProcessPacket(const packet_info *in_info) {
     char atext[1024];
 
     // Don't track BSS timestamp for non-beacon frames or for adhoc networks
-    if (in_info->timestamp == 0 || in_info->type != packet_management || 
-        in_info->subtype != packet_sub_beacon || in_info->distrib == adhoc_distribution)
+    if (in_info->type != packet_management || 
+		in_info->subtype != packet_sub_beacon || 
+		in_info->distrib == adhoc_distribution)
         return 0;
 
-    macmap<BssTimestampAutomata::_bs_fsa_element *>::iterator iter = bss_map.find(in_info->bssid_mac);
+    macmap<BssTimestampAutomata::_bs_fsa_element *>::iterator iter = 
+		bss_map.find(in_info->bssid_mac);
     if (iter == bss_map.end()) {
         elem = new _bs_fsa_element;
         elem->bss_timestamp = in_info->timestamp;
@@ -224,7 +226,8 @@ int BssTimestampAutomata::ProcessPacket(const packet_info *in_info) {
                      "- got %llx, expected %llx - this could indicate AP spoofing",
                      in_info->bssid_mac.Mac2String().c_str(), in_info->timestamp,
                      elem->bss_timestamp);
-            atracker->RaiseAlert(alertid, in_info->bssid_mac, 0, 0, 0, in_info->channel, atext);
+            atracker->RaiseAlert(alertid, in_info->bssid_mac, 0, 0, 0, 
+								 in_info->channel, atext);
 
             // Reset so we don't keep thrashing here
             elem->counter = 0;

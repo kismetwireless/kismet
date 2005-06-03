@@ -1,3 +1,4 @@
+Jun 02 2005  devel  Removed theoretical loophole in bss-timestamp finitestate
 Jun 01 2005  devel  README changes
 May 31 2005  devel  Fixed segfault condition in kismet_client caused by the 
                      "powerbar" column or "Signal Levels" window and funny
