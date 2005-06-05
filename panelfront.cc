@@ -1354,11 +1354,13 @@ int PanelFront::Tick() {
 
             ac_adapters = opendir("/proc/acpi/ac_adapter");
 
-            while (ac_adapters != NULL && ((info_timer % info_res) == 0) && ((this_adapter = readdir(ac_adapters)) != NULL)) {
+            while (ac_adapters != NULL && ((info_timer % info_res) == 0) && 
+				   ((this_adapter = readdir(ac_adapters)) != NULL)) {
                 if (this_adapter->d_name[0] == '.')
                     continue;
                 // safe overloaded use of battery_state path var
-                snprintf(battery_state, sizeof(battery_state), "/proc/acpi/ac_adapter/%s/state", this_adapter->d_name);
+                snprintf(battery_state, sizeof(battery_state), 
+						 "/proc/acpi/ac_adapter/%s/state", this_adapter->d_name);
                 if ((acpi = fopen(battery_state, "r")) == NULL)
                     continue;
                 if (acpi != NULL) {
@@ -1389,10 +1391,12 @@ int PanelFront::Tick() {
                 total_remain = total_cap = 0;
             }
 
-            while (batteries != NULL && ((info_timer % info_res) == 0) && ((this_battery = readdir(batteries)) != NULL)) {
+            while (batteries != NULL && ((info_timer % info_res) == 0) && 
+				   ((this_battery = readdir(batteries)) != NULL)) {
                 if (this_battery->d_name[0] == '.')
                     continue;
-                snprintf(battery_state, sizeof(battery_state), "/proc/acpi/battery/%s/state", this_battery->d_name);
+                snprintf(battery_state, sizeof(battery_state), 
+						 "/proc/acpi/battery/%s/state", this_battery->d_name);
                 if ((acpi = fopen(battery_state, "r")) == NULL)
                     continue;
                 while (fgets(buf, 128, acpi))
@@ -1422,14 +1426,15 @@ int PanelFront::Tick() {
                 total_cap += bat_full_capacity[batno];
                 fclose(acpi);
                 if (bat_charging)
-                    bat_time += int((float(bat_full_capacity[batno] - remain) / rate) * 3600);
+                    bat_time += int((float(bat_full_capacity[batno] - remain) / 
+									 rate) * 3600);
                 else
                     bat_time += int((float(remain) / rate) * 3600);
                 batno++;
             }
             if (total_cap > 0)
-            bat_percentage = int((float(total_remain) / total_cap) * 100);
-            info_timer++;
+				bat_percentage = int((float(total_remain) / total_cap) * 100);
+			info_timer++;
 
             if (batteries != NULL)
                 closedir(batteries);
@@ -1437,50 +1442,51 @@ int PanelFront::Tick() {
 
 #elif defined(SYS_OPENBSD)
 
-               struct apm_power_info api;
-               int apmfd;
+		struct apm_power_info api;
+		int apmfd;
 
-               if ((apmfd = open("/dev/apm", O_RDONLY)) < 0) {
-                       bat_available = 0;
-                       WriteStatus("Unable to open /dev/apm\n");
-                       return 1;
-               } else if (ioctl(apmfd, APM_IOC_GETPOWER, &api) < 0) {
-                       bat_available = 0;
-                       WriteStatus("Apm ioctl failed\n");
-                       return 1;
-               } else {
-                       close(apmfd);
-                       switch(api.battery_state) {
-                       case APM_BATT_UNKNOWN:
-                               bat_available = 0;
-                       case APM_BATTERY_ABSENT:
-                               bat_available = 0;
-                       default:
-                               bat_available = 1;
-                       }
-                       if (bat_available == 1) {
-                               bat_percentage = (int)api.battery_life;
-                               bat_time = (int)api.minutes_left;
-                               if (api.battery_state == APM_BATT_CHARGING) {
-                                       bat_ac = 1;
-                                       bat_charging = 1;
-                               } else {
-                                       switch (api.ac_state) {
-                                       case APM_AC_ON:
-                                               bat_ac = 1;
-                                               if (bat_percentage < 100) {
-                                                       bat_charging = 1;
-                                               } else {
-                                                       bat_charging = 0;
-                                               }
-                                       break;
-                                       default:
-                                               bat_ac = 0;
-                                               bat_charging = 0;
-                                       }
-                               }
-                       }
-               }
+		if ((apmfd = open("/dev/apm", O_RDONLY)) < 0) {
+			bat_available = 0;
+			WriteStatus("Unable to open /dev/apm\n");
+			return 1;
+		} else if (ioctl(apmfd, APM_IOC_GETPOWER, &api) < 0) {
+			bat_available = 0;
+			WriteStatus("Apm ioctl failed\n");
+			close(apmfd);
+			return 1;
+		} else {
+			close(apmfd);
+			switch(api.battery_state) {
+				case APM_BATT_UNKNOWN:
+					bat_available = 0;
+				case APM_BATTERY_ABSENT:
+					bat_available = 0;
+				default:
+					bat_available = 1;
+			}
+			if (bat_available == 1) {
+				bat_percentage = (int)api.battery_life;
+				bat_time = (int)api.minutes_left;
+				if (api.battery_state == APM_BATT_CHARGING) {
+					bat_ac = 1;
+					bat_charging = 1;
+				} else {
+					switch (api.ac_state) {
+						case APM_AC_ON:
+							bat_ac = 1;
+							if (bat_percentage < 100) {
+								bat_charging = 1;
+							} else {
+								bat_charging = 0;
+							}
+							break;
+						default:
+							bat_ac = 0;
+							bat_charging = 0;
+					}
+				}
+			}
+		}
 #endif
     }
 

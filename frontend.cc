@@ -149,7 +149,9 @@ void Frontend::UpdateGroups() {
         if (dnet->type == group_host || dnet->type == group_sub) {
             dnet->virtnet = dnet->networks[0];
 
-            curtime = dnet->virtnet->tcpclient->FetchTime();
+			if (dnet->virtnet->tcpclient != NULL && 
+				dnet->virtnet->tcpclient->Valid()) 
+				curtime = dnet->virtnet->tcpclient->FetchTime();
 
             dnet->virtnet->idle_time = curtime - dnet->virtnet->last_time;
 
@@ -197,7 +199,9 @@ void Frontend::UpdateGroups() {
         for (unsigned int y = 0; y < dnet->networks.size(); y++) {
             wireless_network *wnet = dnet->networks[y];
 
-            curtime = wnet->tcpclient->FetchTime();
+			// safety net this
+			if (wnet->tcpclient != NULL && wnet->tcpclient->Valid())
+				curtime = wnet->tcpclient->FetchTime();
 
             // Mask the bssid out
             for (unsigned int mask = 0; mask < bssid_matched; mask++) {
