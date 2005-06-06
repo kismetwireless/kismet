@@ -1,5 +1,7 @@
 Jun 05 2005  devel  Fixed segfault on some conditions in kismet_client
                      group management code
+                    Fixed segfaults in tcpclient code and corrupted protocol
+                     lines (non-exploitable)
 Jun 03 2005  devel  Minor code format changes, possible fd-exhaustion bug on 
                      OpenBSD fixed
 Jun 02 2005  devel  Removed theoretical loophole in bss-timestamp finitestate
