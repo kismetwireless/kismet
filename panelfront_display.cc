@@ -1726,7 +1726,7 @@ int PanelFront::DetailsPrinter(void *in_window) {
     
         snprintf(output, print_width, "Channel : %d", dnet->channel);
         kwin->text.push_back(output);
-        snprintf(output, print_width, "WEP     : %s", dnet->crypt_set ? "Yes" : "No");
+        snprintf(output, print_width, "Privacy : %s", dnet->crypt_set ? "Yes" : "No");
         kwin->text.push_back(output);
 
 		string crypt;
@@ -2951,7 +2951,7 @@ int PanelFront::DetailsClientPrinter(void *in_window) {
 
     snprintf(output, print_width, "Channel : %d", details_client->channel);
     kwin->text.push_back(output);
-    snprintf(output, print_width, "WEP     : %s", 
+    snprintf(output, print_width, "Privacy : %s", 
 			 details_client->crypt_set ? "Yes" : "No");
     kwin->text.push_back(output);
 	
