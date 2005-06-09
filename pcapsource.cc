@@ -404,9 +404,18 @@ int PcapSource::Prism2KisPack(kis_packet *packet, uint8_t *data, uint8_t *moddat
         // Get the FCS
         int fcs = FCSBytes();
 
+        if (p2head->frmlen.data > callback_header.caplen) {
+            snprintf(errstr, 1024, "pcap prism2 converter got corrupted AVS "
+					 "header length");
+            packet->len = 0;
+            packet->caplen = 0;
+            return 0;
+        }
+
         // Subtract the packet FCS since kismet doesn't do anything terribly bright
         // with it right now
-        packet->caplen = kismin(p2head->frmlen.data - fcs, (uint32_t) MAX_PACKET_LEN);
+        packet->caplen = kismin(packet->caplen - sizeof(wlan_ng_prism2_header) - fcs,
+								(uint32_t) MAX_PACKET_LEN);
         packet->len = packet->caplen;
 
 
