@@ -215,6 +215,8 @@ fi
 
 # How does accept() work on this system?
 AC_MSG_CHECKING([for accept() addrlen type])
+OCFL="$CFLAGS"
+CFLAGS="-Werror $CFLAGS"
 AC_LINK_IFELSE([AC_LANG_PROGRAM([[
 		#include <stdio.h>
 		#include <sys/types.h>
@@ -232,6 +234,7 @@ if test $accept_socklen = "yes"; then
 else
 	AC_MSG_RESULT([int])
 fi
+CFLAGS="$OCFL"
 
 # Do we have large file support?
 AC_SYS_LARGEFILE

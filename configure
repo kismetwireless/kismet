@@ -5156,6 +5156,8 @@ fi
 # How does accept() work on this system?
 echo "$as_me:$LINENO: checking for accept() addrlen type" >&5
 echo $ECHO_N "checking for accept() addrlen type... $ECHO_C" >&6
+OCFL="$CFLAGS"
+CFLAGS="-Werror $CFLAGS"
 cat >conftest.$ac_ext <<_ACEOF
 /* confdefs.h.  */
 _ACEOF
@@ -5224,6 +5226,7 @@ else
 	echo "$as_me:$LINENO: result: int" >&5
 echo "${ECHO_T}int" >&6
 fi
+CFLAGS="$OCFL"
 
 # Do we have large file support?
 # Check whether --enable-largefile or --disable-largefile was given.

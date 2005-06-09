@@ -1,4 +1,6 @@
 Jun 08 2005  devel  Tweaked prism2 pcap header length handling for extra safety
+                    Tweaked configure to error out on socklen_t properly on
+                     cygwin
 Jun 05 2005  devel  Fixed segfault on some conditions in kismet_client
                      group management code
                     Fixed segfaults in tcpclient code and corrupted protocol
