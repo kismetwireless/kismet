@@ -962,25 +962,13 @@ bool PcapSourceRadiotap::CheckForDLT(int dlt)
 }
 
 int PcapSourceRadiotap::FetchChannel() {
-    struct ieee80211chanreq channel;
-    int s;
-    
-    if ((s = socket(AF_INET, SOCK_DGRAM, 0)) < 0) {
-        snprintf(errstr, 1024, "Failed to create AF_INET socket: %s",
-        strerror(errno));
-        return false;
+    int chan;
+    RadiotapBSD bsd(interface.c_str());
+    if (!bsd.get80211(IEEE80211_IOC_CHANNEL, chan, 0, NULL)) {
+        return -1;
     }
-
-    memset(&channel, 0, sizeof(channel));
-    strlcpy(channel.i_name, interface.c_str(), sizeof(channel.i_name));
-    if (ioctl(s, SIOCG80211CHANNEL, (caddr_t)&channel) < 0) {
-        perror("SIOCG80211CHANNEL ioctl failed");
-		close(s);
-        return false;
-    }
-	close(s);
-   return channel.i_channel;
-}   
+    return chan;
+}
 
 #endif
 
