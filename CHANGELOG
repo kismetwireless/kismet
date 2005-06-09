@@ -1,3 +1,4 @@
+Jun 09 2005  devel  Fixed stupid error introduced last night in new prism2 code
 Jun 08 2005  devel  Tweaked prism2 pcap header length handling for extra safety
                     Tweaked configure to error out on socklen_t properly on
                      cygwin

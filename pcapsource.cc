@@ -414,10 +414,10 @@ int PcapSource::Prism2KisPack(kis_packet *packet, uint8_t *data, uint8_t *moddat
 
         // Subtract the packet FCS since kismet doesn't do anything terribly bright
         // with it right now
-        packet->caplen = kismin(packet->caplen - sizeof(wlan_ng_prism2_header) - fcs,
+        packet->caplen = kismin(callback_header.caplen - 
+								sizeof(wlan_ng_prism2_header) - fcs,
 								(uint32_t) MAX_PACKET_LEN);
         packet->len = packet->caplen;
-
 
         // Set our offset for extracting the actual data
         callback_offset = sizeof(wlan_ng_prism2_header);
