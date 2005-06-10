@@ -458,6 +458,7 @@ PanelFront::PanelFront() {
 
     probe_group = NULL;
     data_group = NULL;
+	adhoc_group = NULL;
     details_network = NULL;
     server_time = 0;
     bat_ac = 0;
@@ -477,6 +478,7 @@ PanelFront::~PanelFront() {
 void PanelFront::UpdateGroups() {
     int auto_pgroup = 0;
     int auto_dgroup = 0;
+	int auto_agroup = 0;
     int move_details = 0;
 
     localnets_dirty = 0;
@@ -485,12 +487,15 @@ void PanelFront::UpdateGroups() {
         auto_pgroup = 1;
     if (prefs["autogroup_data"] == "true") 
         auto_dgroup = 1;
+	if (prefs["autogroup_adhoc"] == "true")
+		auto_agroup = 1;
 
-    // Try to autogroup probe networks
-    if (auto_pgroup || auto_dgroup) {
+    // Try to autogroup probe, data, and adhoc networks
+    if (auto_pgroup || auto_dgroup || auto_agroup) {
         // Count the probes
         vector<display_network *> probevec;
         vector<display_network *> datavec;
+		vector<display_network *> advec;
 
         for (unsigned int x = 0; x < group_vec.size(); x++) {
             display_network *dnet = group_vec[x];
@@ -506,8 +511,10 @@ void PanelFront::UpdateGroups() {
                        (dnet->virtnet->type == network_data ||
                         dnet->virtnet->llc_packets == 0)) {
                 datavec.push_back(dnet);
-            }
-                
+            } else if (auto_agroup && dnet != adhoc_group &&
+					   (dnet->virtnet->type == network_adhoc)) {
+				advec.push_back(dnet);
+			}
         }
 
         if (probevec.size() > 0 && !(probevec.size() == 1 && probe_group == NULL)) {
@@ -548,8 +555,27 @@ void PanelFront::UpdateGroups() {
                     details_network = data_group;
                 }
             }
-
         }
+
+		if (advec.size() > 0 && !(advec.size() == 1 && adhoc_group == NULL)) {
+			if (adhoc_group == NULL) {
+				adhoc_group = CreateGroup(0, "autogroup_adhoc", "Adhoc networks");
+			}
+
+			for (unsigned int x = 0; x < advec.size(); x++) {
+				display_network *dnet = advec[x];
+
+				if (dnet == details_network)
+					move_details = 1;
+
+				adhoc_group = AddToGroup(adhoc_group, dnet);
+
+				if (move_details == 1) {
+					move_details = 0;
+					details_network = adhoc_group;
+				}
+			}
+		}
     }
 
     // Call our generic parent update... is this bad form?  It works, anyhow.
@@ -567,7 +593,9 @@ void PanelFront::DestroyGroup(display_network *in_group) {
         probe_group = NULL;
     } else if (in_group == data_group) {
         data_group = NULL;
-    }
+    } else if (in_group == adhoc_group) {
+		adhoc_group = NULL;
+	}
 
 	localnets_dirty = 1;
 	

@@ -1,4 +1,4 @@
-Kismet 2005-04-R1
+Kismet 2005-06-R1
 Mike Kershaw <dragorn@kismetwireless.net>
 http://www.kismetwireless.net
 Licensed under the GPL
@@ -1326,6 +1326,12 @@ Licensed under the GPL
        Kismet uses.  This will make Kismet take a LOT more ram and a moderate
        increase in CPU to store and search the expanded list.  If your hardware
        can handle it, by all means, but not recommended for lowpower systems.
+
+    Q: What if configure can't find the wiretap headers?
+    A: Make sure you installed the kernel-headers package for your distro.
+       Barring that, find the location of your kernel headers, and pass 
+       configure the directory with:
+       ./configure --with-linuxheaders=/path/to/headers
 
     Q: What happens when I ask a question thats already answered here?
     A: I'll probably be rude to you and tell you to go read the docs. 

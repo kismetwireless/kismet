@@ -373,6 +373,7 @@ protected:
 
     display_network *probe_group;
     display_network *data_group;
+	display_network *adhoc_group;
     display_network *details_network;
     wireless_client *details_client;
     vector<display_network *> last_displayed;

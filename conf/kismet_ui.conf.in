@@ -47,6 +47,8 @@ sound_alert=@sharedatadir@/kismet/wav/alert.wav
 autogroup_probe=true
 # Do we autogroup data-only networks?
 autogroup_data=true
+# Do we autogroup adhoc networks?
+autogroup_adhoc=true
 
 # Display battery status?
 apm=true

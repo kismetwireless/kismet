@@ -723,6 +723,9 @@ int main(int argc, char *argv[]) {
     if (gui_conf->FetchOpt("autogroup_data") == "true")
         prefs["autogroup_data"] = "true";
 
+	if (gui_conf->FetchOpt("autogroup_adhoc") == "true")
+		prefs["autogroup_adhoc"] = "true";
+
     prefs["simpleborders"] = gui_conf->FetchOpt("simpleborders");
 
     prefs["color"] = gui_conf->FetchOpt("color");
