@@ -900,7 +900,7 @@ void PanelFront::SetClientColumns(string in_columns) {
 }
 
 int PanelFront::WriteStatus(string status) {
-    vector<string> wrapped = LineWrap(status, 4, stat_win->print_width);
+    vector<string> wrapped = LineWrap(status, 4, stat_win->print_width - 1);
 
     for (unsigned int wrx = 0; wrx < wrapped.size(); wrx++)
         stat_win->text.push_back(wrapped[wrx]);

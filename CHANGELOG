@@ -1,3 +1,10 @@
+Jun 11 2005  devel  Fixed compile error on wsp100 capture type, but I suspect
+                     the capture source has other problems still.
+                    Updated README, added some FAQs in the silly hope someone
+                     will read them.
+                    Fixed minor linewrap issues in display
+                    Fixed minor rate graph issue where it overflowed the box,
+                     still sometimes looks too small
 Jun 09 2005  devel  Fixed stupid error introduced last night in new prism2 code
                     Merged patch from Pedro for fbsd compat
                     Changed net/cli info 'WEP' to 'Privacy'

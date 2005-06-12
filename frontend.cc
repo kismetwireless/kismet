@@ -191,7 +191,7 @@ void Frontend::UpdateGroups() {
         }
 
         // Otherwise we need to destroy the old virtual network and make a new one
-        if (dnet->virtnet != dnet->networks[0])
+        if (dnet->virtnet != NULL && dnet->virtnet != dnet->networks[0])
             delete dnet->virtnet;
         dnet->virtnet = new wireless_network;
 

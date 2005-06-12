@@ -54,6 +54,8 @@ Licensed under the GPL
       FOR A LIST OF VALID CAPTURE SOURCES, SEE THE SECTION OF THIS README
       CALLED "CAPTURE SOURCES".  The capture source you should use depends
       on the operating system and driver that your wireless card uses.
+      USE THE PROPER CAPTURE SOURCE.  No permanent harm will come from using
+      the wrong one, but you won't get the optimal behavior.
     * Add an absolute path to the "logtemplate" configuration option if you
       want Kismet to always log to the same directory instead of the directory
       you start it in.
@@ -784,7 +786,10 @@ Licensed under the GPL
                     http://networkchemistry.com/
                     Capture interface:  'host:port'
                     The WSP100 is an embedded device which reports 802.11
-                     packets over UDP.
+                     packets over UDP.  The wsp100 capture source is 
+                     (generally) system agnostic, however over time it has
+                     been less maintained than others.  If you'd like to
+                     send me patches for this, please let me know.
 
     wtapfile        n/a                 Any         n/a
                     Capture interface:  '/path/to/file'  
@@ -1294,6 +1299,10 @@ Licensed under the GPL
        Third, make sure you installed the libstdc++/g++ packages.  Configure 
         will erroneously blame libncurses if the linkage with libstdc++ fails.
 
+    Q: Configure failed on something else
+    A: Look at config.log and see why it failed.  Sometimes packages don't
+       properly define all their dependencies and linking fails.
+
     Q: Compiling fails on OSX with undefined variables in pcapsource.cc
     A: Re-run configure with --without-pcap to bypass this.  Viha doesn't use
        pcap, so you won't lose functionality.
@@ -1327,11 +1336,29 @@ Licensed under the GPL
        increase in CPU to store and search the expanded list.  If your hardware
        can handle it, by all means, but not recommended for lowpower systems.
 
-    Q: What if configure can't find the wiretap headers?
+    Q: What if configure can't find the linux wireless headers?
     A: Make sure you installed the kernel-headers package for your distro.
        Barring that, find the location of your kernel headers, and pass 
        configure the directory with:
        ./configure --with-linuxheaders=/path/to/headers
+
+    Q: Do I need wiretap support?
+    A: Not really.  Wiretap is only for specific situations (reading compressed
+       packets, or reading packets captured by some different system like
+       aironet.  Generally speaking, you can just use the pcapfile capture type
+       which is included with libpcap.
+
+    Q: What cards work in *BSD?
+    A: Any card with radiotap support should work in any of the BSD variants
+       (Net, Open, or Free).  Check your kernel docs and consider upgrading
+       to the latest release to get more radiotap.  With the exclusion of 
+       OpenBSD, non-radiotap devices are not supported.
+       If you want to add support for a non-radiotap card, contact me over
+       email or IRC and I can help explain it.
+
+    Q: I want to port Kismet to (X) or I want to support card (Y)
+    A: Kismet is designed to be fairly modular.  Contact me over IRC or email
+       and I can explain what parts need to be changed.
 
     Q: What happens when I ask a question thats already answered here?
     A: I'll probably be rude to you and tell you to go read the docs. 

@@ -2732,16 +2732,39 @@ int PanelFront::RatePrinter(void *in_window) {
 
 
     // Tentative width
-    unsigned int graph_width = kwin->print_width - 4;
-    unsigned int graph_height = kwin->max_display - 4;
     const int unsigned graph_hoffset = 7;
     const int unsigned graph_voffset = 2;
+    unsigned int graph_width = kwin->print_width - graph_hoffset - 2;
+	unsigned int ngraph_width;
+    unsigned int graph_height = kwin->max_display - 6;
 
     // Divide it into chunks and average the delta's
-    unsigned int chunksize = (unsigned int) ceil((double) packet_history.size() / graph_width);
+    unsigned int chunksize = (unsigned int) ceil((double) packet_history.size() / 
+												 graph_width);
 
     // Now resize the graph to fit our sample data cleanly
-    graph_width = packet_history.size() / chunksize;
+	
+	// Undersize instead of oversize if we have to
+	while ((packet_history.size() / chunksize) > graph_width && chunksize > 0) {
+		chunksize--;
+	}
+
+    ngraph_width = packet_history.size() / chunksize;
+
+#if 0
+	broke for now
+	// Resize the window if appropriate
+	if (ngraph_width < (graph_width - 3)) {
+		wresize(kwin->win, kwin->win->_maxy, ngraph_width + graph_hoffset + 4);
+		replace_panel(kwin->pan, kwin->win);
+		kwin->print_width = kwin->win->_maxx - 2;
+		DrawDisplay();
+		return 1;
+	}
+#endif
+
+	graph_width = ngraph_width;
+
 
     // Don't bother if we're too small
     if (graph_width <= 20 || graph_height <= 5) {
@@ -2787,7 +2810,8 @@ int PanelFront::RatePrinter(void *in_window) {
         for (unsigned int x = 0; x < graph_height; x++) {
             memset(graphstring, '\0', graph_width+1);
 
-            for (unsigned int y = 0; y < averaged_history.size() && y < graph_width; y++) {
+            for (unsigned int y = 0; y < averaged_history.size() && y < 
+				 graph_width; y++) {
                 if (averaged_history[y] >= (graph_height - x))
                     graphstring[y] = 'X';
                 else
@@ -2854,9 +2878,9 @@ int PanelFront::AlertPrinter(void *in_window) {
             // If we print the date
             snprintf(output, 1024, "%.24s - %s", ctime((const time_t *) &alerts[x].alert_ts.tv_sec),
                      alerts[x].alert_text.c_str());
-            wrapped = LineWrap(output, 4, kwin->print_width);
+            wrapped = LineWrap(output, 4, kwin->print_width - 1);
         } else {
-            wrapped = LineWrap(alerts[x].alert_text, 4, kwin->print_width);
+            wrapped = LineWrap(alerts[x].alert_text, 4, kwin->print_width - 1);
         }
 
         for (unsigned int wrx = 0; wrx < wrapped.size(); wrx++)
