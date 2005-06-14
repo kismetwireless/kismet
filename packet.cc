@@ -415,7 +415,7 @@ void GetPacketInfo(kis_packet *packet, packet_info *ret_packinfo,
                 ret_packinfo->corrupt = 1;
 
             // Catch wellenreiter probes
-            if (!strncmp(ret_packinfo->ssid, "this_is_used_for_wellenreiter", 32)) {
+            if (!strncmp(ret_packinfo->ssid, "this_is_used_for_wellenreiter", 29)) {
                 ret_packinfo->proto.type = proto_wellenreiter;
             }
 

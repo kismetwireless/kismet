@@ -285,7 +285,6 @@ int FetchSysLoadAvg(uint8_t *in_avgmaj, uint8_t *in_avgmin) {
     short unsigned int tmaj, tmin;
 
     if ((lf = fopen("/proc/loadavg", "r")) == NULL) {
-        fclose(lf);
         return -1;
     }
 

@@ -2599,13 +2599,14 @@ int PanelFront::StatsPrinter(void *in_window) {
 
     int wep_count = 0, vuln_count = 0;
     int channelperc[CHANNEL_MAX];
-    int maxch = 0;
+    int maxch = 1;
 
     memset(channelperc, 0, sizeof(int) * CHANNEL_MAX);
 
     for (unsigned int x = 0; x < context_list.size(); x++) {
         if (context_list[x]->tagged == 1 && context_list[x]->client != NULL) {
-            vector<wireless_network *> netlist = context_list[x]->client->FetchNetworkList();
+            vector<wireless_network *> netlist = 
+				context_list[x]->client->FetchNetworkList();
 
             // Summarize the network data
             for (unsigned int x = 0; x < netlist.size(); x++) {
@@ -2745,7 +2746,7 @@ int PanelFront::RatePrinter(void *in_window) {
     // Now resize the graph to fit our sample data cleanly
 	
 	// Undersize instead of oversize if we have to
-	while ((packet_history.size() / chunksize) > graph_width && chunksize > 0) {
+	while (chunksize > 0 && (packet_history.size() / chunksize) > graph_width) {
 		chunksize--;
 	}
 
@@ -2776,6 +2777,7 @@ int PanelFront::RatePrinter(void *in_window) {
 
     unsigned int chunk = 0;
     unsigned int chunkcount = 0;
+
     for (unsigned int x = 1; x < packet_history.size(); x++) {
         if (packet_history[x-1] != 0) {
             unsigned int delta = packet_history[x] - packet_history[x-1];
@@ -2795,6 +2797,9 @@ int PanelFront::RatePrinter(void *in_window) {
             chunkcount = 0;
         }
     }
+
+	if (avg_max < 1)
+		avg_max = 1;
 
     // convert averaged_history to percentages of height
     for (unsigned int x = 0; x < averaged_history.size(); x++) {

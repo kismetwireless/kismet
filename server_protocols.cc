@@ -394,7 +394,7 @@ void Protocol_Network2Data(const wireless_network *net, NETWORK_data *data) {
     snprintf(tmpstr, 128, "%d", (int) net->ipdata.atype);
     data->ndvec.push_back(tmpstr);
 
-    snprintf(tmpstr, 128, "%hd.%hd.%hd.%hd",
+    snprintf(tmpstr, 128, "%hu.%hu.%hu.%hu",
              net->ipdata.range_ip[0], net->ipdata.range_ip[1],
              net->ipdata.range_ip[2], net->ipdata.range_ip[3]);
     data->ndvec.push_back(tmpstr);
@@ -645,7 +645,7 @@ void Protocol_Client2Data(const wireless_network *net, const wireless_client *cl
     snprintf(tmpstr, 128, "%d", (int) cli->ipdata.atype);
     data->cdvec.push_back(tmpstr);
 
-    snprintf(tmpstr, 128, "%hd.%hd.%hd.%hd",
+    snprintf(tmpstr, 128, "%hu.%hu.%hu.%hu",
              cli->ipdata.ip[0], cli->ipdata.ip[1],
              cli->ipdata.ip[2], cli->ipdata.ip[3]);
     data->cdvec.push_back(tmpstr);
@@ -765,12 +765,12 @@ void Protocol_Packet2Data(const packet_info *info, PACKET_data *data) {
     snprintf(tmpstr, 128, "%d", (int) info->proto.type);
     data->pdvec.push_back(tmpstr);
 
-    snprintf(tmpstr, 128, "%hd.%hd.%hd.%hd",
+    snprintf(tmpstr, 128, "%hu.%hu.%hu.%hu",
              info->proto.source_ip[0], info->proto.source_ip[1],
              info->proto.source_ip[2], info->proto.source_ip[3]);
     data->pdvec.push_back(tmpstr);
 
-    snprintf(tmpstr, 128, "%hd.%hd.%hd.%hd",
+    snprintf(tmpstr, 128, "%hu.%hu.%hu.%hu",
              info->proto.dest_ip[0], info->proto.dest_ip[1],
              info->proto.dest_ip[2], info->proto.dest_ip[3]);
     data->pdvec.push_back(tmpstr);

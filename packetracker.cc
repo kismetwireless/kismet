@@ -1787,7 +1787,7 @@ int Packetracker::WriteCSVNetworks(string in_fname) {
                 "%f;%f;%f;%f;"
                 "%f;%f;%f;"
                 "%ld;%s;"
-                "%hd.%hd.%hd.%hd;\n\r",
+                "%hu.%hu.%hu.%hu;\n\r",
                 netnum, type, SanitizeCSV(net->ssid).c_str(), 
 				net->bssid.Mac2String().c_str(), 
 				SanitizeCSV(net->beacon_info).c_str(),
@@ -2162,7 +2162,7 @@ int Packetracker::WriteXMLNetworks(string in_fname) {
                     break;
                 }
 
-                fprintf(netfile, "      <client-ip-address type=\"%s\">%hd.%hd.%hd.%hd</client-ip-address>\n",
+                fprintf(netfile, "      <client-ip-address type=\"%s\">%hu.%hu.%hu.%hu</client-ip-address>\n",
                         addrtype, cli->ipdata.ip[0], cli->ipdata.ip[1], cli->ipdata.ip[2], cli->ipdata.ip[3]);
             }
 
@@ -2326,7 +2326,7 @@ void Packetracker::WriteIPMap(FILE *in_file) {
         if (x->second.atype <= address_factory || x->second.octets == 0)
             continue;
 
-        fprintf(in_file, "%s %d %d %hd %hd %hd %hd\n",
+        fprintf(in_file, "%s %d %d %hu %hu %hu %hu\n",
                 x->first.Mac2String().c_str(),
                 x->second.atype, x->second.octets,
                 x->second.range_ip[0], x->second.range_ip[1],
@@ -2340,7 +2340,7 @@ void Packetracker::WriteIPMap(FILE *in_file) {
             if (cli->ipdata.atype <= address_factory)
                 continue;
 
-            fprintf(in_file, "%s %d %d %hd %hd %hd %hd\n",
+            fprintf(in_file, "%s %d %d %hu %hu %hu %hu\n",
                     cli->mac.Mac2String().c_str(),
                     cli->ipdata.atype, cli->ipdata.octets,
                     cli->ipdata.ip[0], cli->ipdata.ip[1],

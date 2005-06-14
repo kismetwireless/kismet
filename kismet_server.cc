@@ -222,7 +222,7 @@ void WriteDatafiles(int in_shutdown) {
         if (ssid_file)
             tracker.WriteSSIDMap(ssid_file);
 
-        if (in_shutdown)
+        if (in_shutdown && ssid_file)
             fclose(ssid_file);
     }
 
@@ -230,7 +230,7 @@ void WriteDatafiles(int in_shutdown) {
         if (ip_file)
             tracker.WriteIPMap(ip_file);
 
-        if (in_shutdown)
+        if (in_shutdown && ip_file)
             fclose(ip_file);
     }
 

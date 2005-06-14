@@ -1,3 +1,5 @@
+Jun 13 2005  devel  Fixed a pile of little broken parts of code thanks to a
+                     pass through a static code analyser
 Jun 11 2005  devel  Fixed compile error on wsp100 capture type, but I suspect
                      the capture source has other problems still.
                     Updated README, added some FAQs in the silly hope someone

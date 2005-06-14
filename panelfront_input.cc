@@ -1033,10 +1033,7 @@ int PanelFront::ChanlockInput(void *in_window, int in_chr) {
             }
 
             if (ctx.context->client == NULL) {
-                snprintf(msg, 1024, "Server %s (%s:%d) dissapeared on us...",
-                         ctx.context->client->FetchServername().c_str(),
-                         ctx.context->client->FetchHost(), 
-                         ctx.context->client->FetchPort());
+                snprintf(msg, 1024, "Server dissapeared on us...");
                 WriteStatus(msg);
                 return 0;
             }
