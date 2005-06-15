@@ -14,7 +14,8 @@ suiduser=your_user_here
 
 # Sources are defined as:
 # source=sourcetype,interface,name[,initialchannel]
-# Source types and required drivers are listed in the README.
+# Source types and required drivers are listed in the README under the
+# CAPTURE SOURCES section.
 # The initial channel is optional, if hopping is not enabled it can be used
 # to set the channel the interface listens on.
 # YOU MUST CHANGE THIS TO BE THE SOURCE YOU WANT TO USE
