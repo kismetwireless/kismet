@@ -19,6 +19,11 @@
 #include "config.h"
 #include "gpsd.h"
 
+#include <string>
+#include <vector>
+
+#include "util.h"
+
 #ifdef HAVE_GPS
 
 GPSD::GPSD(char *in_host, int in_port) {
@@ -159,12 +164,12 @@ int GPSD::Scan() {
     strncpy(data, concat, 1024);
 
     char *live;
-    int scanret;
 
     if ((live = strstr(data, "GPSD,")) == NULL) {
         return 1;
     }
 
+#if 0
 	// PAVMH (NAVLOCK,BU303) ->
 	// GPSD,P=41.711592 -73.931137,A=49.500000,V=0.000000,M=x,M=x
     if ((scanret = sscanf(live, "GPSD,P=%f %f,A=%f,V=%f,M=%d,H=%f",
@@ -177,55 +182,116 @@ int GPSD::Scan() {
         return 0;
     }
 
-    spd = spd * (6076.12 / 5280);
-    alt = alt * 3.3;
+#endif
 
-    // Blow up on nonsensical values
-    if (finite(lat) == 0 || finite(lon) == 0 || finite(alt) == 0 ||
-        finite(spd) == 0 || spd < 0 || spd > 150) {
-        lat = lon = spd = alt = hed = 0;
-        mode = 0;
+	// Use the newcore method of doing things -- tokenize and process
+	double in_lat, in_lon, in_spd, in_alt, in_hed;
+	int in_mode, set_pos = 0, set_spd = 0, set_alt = 0,
+		set_hed = 0, set_mode = 0;
 
-        return 0;
-    }
+	vector<string> lintok = StrTokenize(live, ",");
+
+	if (lintok.size() < 1) {
+		// printf("debug - size < 1 for line tokens\n");
+		// Zero the buffer
+		buf[0] = '\0';
+		data[0] = '\0';
+		return 0;
+	}
+
+	if (lintok[0] != "GPSD") {
+		// printf("debug - no gpsd header, '%s'\n", lintok[0].c_str());
+		// Zero the buffer
+		buf[0] = '\0';
+		data[0] = '\0';
+		return 0;
+	}
+
+	for (unsigned int it = 1; it < lintok.size(); it++) {
+		vector<string> values = StrTokenize(lintok[it], "=");
+
+		if (values.size() != 2) {
+			// printf("debug - invalid value size\n");
+			buf[0] = '\0';
+			data[0] = '\0';
+			return 0;
+		}
+
+		
+		if (values[0] == "P") {
+			if (values[1] == "?") {
+				set_pos = -1;
+			} else if (sscanf(values[1].c_str(), "%lf %lf", 
+							  &in_lat, &in_lon) == 2) {
+				set_pos = 1;        
+			}
+		} else if (values[0] == "A") {
+			if (values[1] == "?") {
+				set_alt = -1;
+			} else if (sscanf(values[1].c_str(), "%lf", &in_alt) == 1) {
+				set_alt = 1;
+			}
+		} else if (values[0] == "V") {
+			if (values[1] == "?") {
+				set_spd = -1;
+			} else if (sscanf(values[1].c_str(), "%lf", &in_spd) == 1) {
+				set_spd = 1;
+			}
+		} else if (values[0] == "H") {
+			if (values[1] == "?") {
+				set_hed = -1;
+			} else if (sscanf(values[1].c_str(), "%lf", &in_hed) == 1) {
+				set_hed = 1;
+			}
+		} else if (values[0] == "M") {
+			if (values[1] == "?") {
+				set_mode = -1;
+			} else if (sscanf(values[1].c_str(), "%d", &in_mode) == 1) {
+				set_mode = 1;
+			}
+		}
+	}
 
     if (last_lat == 0 && last_lon == 0) {
         last_lat = lat;
         last_lon = lon;
     }
 
-    if (scanret == 5) {
-        // Calculate the heading
-        hed = last_hed;
-
-        // Update the last lat and heading if we've moved more than 10 meters
-        if (EarthDistance(lat, lon, last_lat, last_lon) > 10) {
-            hed = CalcHeading(lat, lon, last_lat, last_lon);
-
-            last_lat = lat;
-            last_lon = lon;
-        }
-    }
-
     // Override mode
-    if ((options & GPSD_OPT_FORCEMODE) && mode == 0)
-        mode = 2;
+    if ((options & GPSD_OPT_FORCEMODE) && set_mode != 1) {
+        set_mode = 1;
+		in_mode = 2;
+	}
+
+	// Set the position if it was valid
+	if (set_pos == 1 && set_mode == 1 && in_mode >= 2) {
+		lat = in_lat;
+		lon = in_lon;
+		mode = in_mode;
+	}
+
+	if (set_alt == 1 && set_mode == 1 && in_mode >= 3) {
+		alt = in_alt * 3.3;
+	}
+
+	if (set_spd == 1 && set_mode == 1 && in_mode >= 2) {
+		spd = in_spd * (6076.12 / 5280);
+	}
+
+	if (set_hed == 1 && set_mode == 1 && in_mode >= 2) {
+		last_hed = hed;
+		hed = in_hed;
+	} else if (set_mode == 1 && in_mode >= 2 && 
+			   EarthDistance(lat, lon, last_lat, last_lon) > 10) {
+		hed = CalcHeading(lat, lon, last_lat, last_lon);
+
+		last_lat = lat;
+		last_lon = lon;
+	}
 
     // Zero the buffer
     buf[0] = '\0';
     data[0] = '\0';
-
-    // And reissue a command
-	/*
-    if (write(sock, gpsd_command, sizeof(gpsd_command)) < 0) {
-        if (errno != EAGAIN) {
-            snprintf(errstr, 1024, "GPSD error while writing data: %s", 
-					 strerror(errno));
-            CloseGPSD();
-            return -1;
-        }
-    }
-	*/
 
     return 1;
 }

@@ -77,3 +77,9 @@
 00:0C:41:00:00:00/FF:FF:FF:00:00:00	Linksys	Unknown	linksys	6	192.168.1.1
 00:04:E2:00:00:00/FF:FF:FF:00:00:00	SMC	Unknown	SMC	6	192.168.2.1
 00:06:25:00:00:00/FF:FF:FF:00:00:00	Linksys	Unknown	linksys-g	6	192.168.1.1
+00:09:5B:00:00:00/FF:FF:FF:00:00:00	Netgear	Unknown	NETGEAR	11	192.168.0.1
+00:12:17:00:00:00/FF:FF:FF:00:00:00	Linksys	Unknown	linksys	6	192.168.1.1
+00:13:10:00:00:00/FF:FF:FF:00:00:00	Linksys	Unknown	linksys	6	192.168.1.1
+00:06:25:00:00:00/FF:FF:FF:00:00:00	Linksys	Unknown	linksys	6	192.168.1.1
+00:0F:3D:00:00:00/FF:FF:FF:00:00:00	D-Link	Unknown	default	6	192.168.0.1
+00:90:4C:00:00:00/FF:FF:FF:00:00:00	Netgear/Epigram	Unknown	NETGEAR	11	192.168.0.1
