@@ -1526,15 +1526,15 @@ int PanelFront::DetailsPrinter(void *in_window) {
                 if (finite(diagdist)) {
                     if (metric) {
                         if (diagdist < 1000)
-                            snprintf(output, print_width, "Range    : %f meters", diagdist);
+                            snprintf(output, print_width, "Range    : %.3f meters", diagdist);
                         else
-                            snprintf(output, print_width, "Range   : %f kilometers", diagdist / 1000);
+                            snprintf(output, print_width, "Range   : %.3f kilometers", diagdist / 1000);
                     } else {
                         diagdist *= 3.3;
                         if (diagdist < 5280)
-                            snprintf(output, print_width, "Range   : %f feet", diagdist);
+                            snprintf(output, print_width, "Range   : %.3f feet", diagdist);
                         else
-                            snprintf(output, print_width, "Range   : %f miles", diagdist / 5280);
+                            snprintf(output, print_width, "Range   : %.3f miles", diagdist / 5280);
                     }
                     kwin->text.push_back(output);
                 }
@@ -1927,7 +1927,7 @@ int PanelFront::GpsPrinter(void *in_window) {
     }
 
     // Get bearing to the center
-    float center_angle = GPSD::CalcHeading(lat, lon, center_lat, center_lon);
+    float center_angle = GPSD::CalcHeading(center_lat, center_lon, lat, lon);
 
     float difference_angle = heading - center_angle;
     if (difference_angle < 0)

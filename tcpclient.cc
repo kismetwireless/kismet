@@ -476,6 +476,10 @@ int TcpClient::ParseData(char *in_data) {
 		net->best_lat = best_lat;
 		net->best_lon = best_lon;
 		net->best_alt = best_alt;
+		net->aggregate_points = aggregate_points;
+		net->aggregate_lat = aggregate_lat;
+		net->aggregate_lon = aggregate_lon;
+		net->aggregate_alt = aggregate_alt;
 		net->datasize = datasize;
 		net->dupeiv_packets = dupeiv_packets;
 		net->decrypted = decrypted;
@@ -623,6 +627,10 @@ int TcpClient::ParseData(char *in_data) {
 		client->best_lat = best_lat;
 		client->best_lon = best_lon;
 		client->best_alt = best_alt;
+		client->aggregate_lat = aggregate_lat;
+		client->aggregate_lon = aggregate_lon;
+		client->aggregate_alt = aggregate_alt;
+		client->aggregate_points = aggregate_points;
 		client->datasize = datasize;
 		client->decrypted = decrypted;
 

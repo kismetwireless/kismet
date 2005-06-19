@@ -1,6 +1,11 @@
 Jun 18 2005  devel  Updated AP manuf/defaults info
                     Rewrote GPSD handling to be more like newcore, to correctly
                      handle error conditions with ESRs new GPSD code
+                    Rewrote distance and heading code to (hopefully) clear
+                     up some bugs
+                    Fixed 'follow gps' in client (broken in -devel only)
+                    Fixed 'follow network' heading calculations in client
+                    Fixed range to only show 3 significant digits in client
 Jun 13 2005  devel  Fixed a pile of little broken parts of code thanks to a
                      pass through a static code analyser
 Jun 11 2005  devel  Fixed compile error on wsp100 capture type, but I suspect

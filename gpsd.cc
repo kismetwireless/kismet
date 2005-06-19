@@ -308,8 +308,37 @@ int GPSD::FetchLoc(float *in_lat, float *in_lon, float *in_alt, float *in_spd, f
 }
 
 float GPSD::CalcHeading(float in_lat, float in_lon, float in_lat2, float in_lon2) {
+	/* Liberally stolen from gpsdrives heading calculations */
+
     float r = CalcRad((float) in_lat2);
 
+	float dir = 0.0;
+
+	float tx =
+		(2 * r * M_PI / 360) * cos (M_PI * in_lat / 180.0) *
+		(in_lon - in_lon2);
+	float ty = (2 * r * M_PI / 360) * (in_lat - in_lat2);
+
+	if (((fabs(tx)) > 4.0) || (((fabs(ty)) > 4.0))) {
+		if (ty == 0) {
+			dir = 0.0;
+		} else {
+			dir = atan(tx / ty);
+		}
+
+		if (!finite(dir))
+			dir = 0.0;
+		if (ty < 0)
+			dir = M_PI + dir;
+		if (dir >= (2 * M_PI))
+			dir -= 2 * M_PI;
+		if (dir < 0)
+			dir += 2 * M_PI;
+	}
+
+    return (float) Rad2Deg(dir);
+	
+#if 0
     float lat1 = Deg2Rad((float) in_lat);
     float lon1 = Deg2Rad((float) in_lon);
     float lat2 = Deg2Rad((float) in_lat2);
@@ -317,6 +346,7 @@ float GPSD::CalcHeading(float in_lat, float in_lon, float in_lat2, float in_lon2
 
     float angle = 0;
 
+	
     if (lat1 == lat2) {
         if (lon2 > lon1) {
             angle = M_PI/2;
@@ -351,6 +381,7 @@ float GPSD::CalcHeading(float in_lat, float in_lon, float in_lat2, float in_lon2
     }
 
     return (float) Rad2Deg(angle);
+#endif
 }
 
 double GPSD::Rad2Deg(double x) {
@@ -361,7 +392,9 @@ double GPSD::Deg2Rad(double x) {
     return 180/(x*M_PI);
 }
 
-double GPSD::EarthDistance(double in_lat, double in_lon, double in_lat2, double in_lon2) {
+double GPSD::EarthDistance(double in_lat, double in_lon, double in_lat2, 
+						   double in_lon2) {
+#if 0
     double x1 = CalcRad(in_lat) * cos(Deg2Rad(in_lon)) * sin(Deg2Rad(90-in_lat));
     double x2 = CalcRad(in_lat2) * cos(Deg2Rad(in_lon2)) * sin(Deg2Rad(90-in_lat2));
     double y1 = CalcRad(in_lat) * sin(Deg2Rad(in_lon)) * sin(Deg2Rad(90-in_lat));
@@ -370,6 +403,23 @@ double GPSD::EarthDistance(double in_lat, double in_lon, double in_lat2, double 
     double z2 = CalcRad(in_lat2) * cos(Deg2Rad(90-in_lat2));
     double a = acos((x1*x2 + y1*y2 + z1*z2)/pow(CalcRad((double) (in_lat+in_lat2)/2),2));
     return CalcRad((double) (in_lat+in_lat2) / 2) * a;
+#endif
+
+	double x1 = in_lat * M_PI / 180;
+	double y1 = in_lon * M_PI / 180;
+	double x2 = in_lat2 * M_PI / 180;
+	double y2 = in_lon2 * M_PI / 180;
+
+	double dist = 0;
+
+	if (x1 != x2 && y1 != y2) {
+		dist = sin(x1) * sin(x2) + cos(x1) * cos(x2) * cos(y2 - y1);
+
+		dist = CalcRad((double) (in_lat + in_lat2) / 2) * 
+			(-1 * atan(dist / sqrt(1 - dist * dist)) + M_PI / 2);
+	}
+
+	return dist;
 }
 
 double GPSD::CalcRad(double lat) {
