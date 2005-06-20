@@ -257,17 +257,21 @@ int GPSD::Scan() {
         last_lon = lon;
     }
 
-    // Override mode
+    // Override mode && clean up the mode var
     if ((options & GPSD_OPT_FORCEMODE) && set_mode != 1) {
         set_mode = 1;
 		in_mode = 2;
+	} else if (set_mode != 1) {
+		in_mode = 0;
 	}
+
+	// We always get this one
+	mode = in_mode;
 
 	// Set the position if it was valid
 	if (set_pos == 1 && set_mode == 1 && in_mode >= 2) {
 		lat = in_lat;
 		lon = in_lon;
-		mode = in_mode;
 	}
 
 	if (set_alt == 1 && set_mode == 1 && in_mode >= 3) {
