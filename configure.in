@@ -5,7 +5,7 @@ AC_CONFIG_SRCDIR([kismet.h])
 AC_PREREQ(2.57)
 
 # Included pcap directory
-pcapdir="libpcap-0.8.3"
+pcapdir="libpcap-0.9.1-kis"
 etherealdir="/usr/src/ethereal-0.9.12"
 AC_SUBST(pcapdir)
 

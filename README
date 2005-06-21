@@ -1184,6 +1184,11 @@ Licensed under the GPL
      Additonally, you need kernel 2.4.23 or newer because of wireless extension
      dependencies.  Make sure to upgrade your drivers and kernel.
 
+    PROBLEM: Kismet can't compile, there are errors about pcap_parse
+    FIX:  Your flex/lex/bison/yacc tools are broken or missing.  Make sure you
+     install them.  libpcap cannot compile without them.  Newer releases of
+     Kismet patch libpcap to not generate filter code at all.
+
 18. Frequently Asked Questions
 
     Q: Where did the name Kismet come from?
@@ -1359,6 +1364,12 @@ Licensed under the GPL
     Q: I want to port Kismet to (X) or I want to support card (Y)
     A: Kismet is designed to be fairly modular.  Contact me over IRC or email
        and I can explain what parts need to be changed.
+
+    Q: Why do you include your own libpcap?
+    A: Originally it was because the version included with distributions was
+       not up to date and couldn't handle the 802.11 linktypes.  Now it is
+       because Kismet patches libpcap to not generate filter code, resulting
+       in a significant reduction in the size of the compiled binaries.
 
     Q: What happens when I ask a question thats already answered here?
     A: I'll probably be rude to you and tell you to go read the docs. 

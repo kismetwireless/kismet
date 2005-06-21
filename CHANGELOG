@@ -1,4 +1,7 @@
 Jun 20 2005  devel  Fixed condition where gps mode wasn't updated 
+                    Updated to libpcap 0.9.1-kis
+                    Patched libpcap to not include filtering code.  Kismet
+                     doesn't use it, and its 100k of binary we can drop
 Jun 19 2005  devel  Added more wireless vendors to the manuf map
 Jun 18 2005  devel  Updated AP manuf/defaults info
                     Rewrote GPSD handling to be more like newcore, to correctly
