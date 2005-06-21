@@ -568,7 +568,7 @@ int PcapSource::Radiotap2KisPack(kis_packet *packet, uint8_t *data, uint8_t *mod
     const u_char *iter;
 	// do we cut the FCS?  this is influenced by the radiotap headers and 
 	// by the class fcsbytes value in case of forced fcs settings (like openbsd
-	// atheros at the moment)
+	// atheros and Ralink USB at the moment)
 	int fcs_cut = 0;
 
     if (callback_header.caplen < sizeof(*hdr)) {
@@ -920,7 +920,7 @@ int PcapSourceOpenBSDPrism::FetchChannel() {
 
 	if (ioctl(skfd, SIOCGWAVELAN, &ifr) < 0) {
         close(skfd);
-		snprintf(errstr, 1024, "Channel set ioctl failed: %s",
+		snprintf(errstr, 1024, "Channel get ioctl failed: %s",
                  strerror(errno));
 		return -1;
 	}
@@ -1985,10 +1985,9 @@ int monitor_openbsd_prism2(const char *in_dev, int initch, char *in_err, void **
         close(s);
         snprintf(in_err, 1024, "Power management ioctl failed: %s",
                  strerror(errno));
-        return -1;
     }
 
-    // Lower AP density, better radio threshold settings?
+    // Lower AP density, better radio threshold settings? 
     bzero((char *)&wreq, sizeof(wreq));
     wreq.wi_len = WI_MAX_DATALEN;
     wreq.wi_type = WI_RID_SYSTEM_SCALE;
@@ -1998,7 +1997,6 @@ int monitor_openbsd_prism2(const char *in_dev, int initch, char *in_err, void **
         close(s);
         snprintf(in_err, 1024, "AP Density ioctl failed: %s",
                  strerror(errno));
-        return -1;
     }
 
     // Enable driver processing of 802.11b frames
@@ -2024,7 +2022,6 @@ int monitor_openbsd_prism2(const char *in_dev, int initch, char *in_err, void **
         close(s);
         snprintf(in_err, 1024, "Roaming disable ioctl failed: %s",
                  strerror(errno));
-        return -1;
     }
 
     // Enable monitor mode
@@ -2521,9 +2518,9 @@ int monitor_bsd(const char *in_dev, int initch, char *in_err, void **in_if, void
 	} else {
 		*(RadiotapBSD **)in_if = bsd;
 #ifdef SYS_OPENBSD
-		// Temporary hack around OpenBSD atheros drivers not including FCS in
-		// the radiotap headers
-		if (strncmp(in_dev, "ath", 3) == 0) {
+		// Temporary hack around OpenBSD drivers not standardising on whether FCS
+		// bytes are appended, nor having any method to indicate their presence. 
+		if (strncmp(in_dev, "ath", 3) == 0 || strncmp(in_dev, "ural", 4) == 0) {
 			PcapSource *psrc = (PcapSource *) in_ext;
 			psrc->fcsbytes = 4;
 		}

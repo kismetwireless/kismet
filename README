@@ -468,13 +468,14 @@ Licensed under the GPL
       selection of rfmon capable drivers.
 
     - OpenBSD
-      Known supported cards: Prism2, Atheros, IPW2100/2200, Ralink, 
-      Realtek RTL8180L, WSP100, Drone, wtapfile, pcapfile
+      Known supported cards: Prism2 (wi), Atheros (ath), Intel 2200/2225/2915
+      (iwi), Intel 2100 (ipw), Ralink (ral and ural), Realtek RTL8180L (rtw),
+      WSP100, Drone, wtapfile, pcapfile.
   
       OpenBSD 3.7 and newer includes a software 802.11 stack and the Radiotap
-      packet header format. Any cards using the net80211 stack that support
+      packet header format. Any cards that use the 802.11 stack and support
       monitor mode should work with Kismet via the radiotap_bsd_x capture
-      sources.
+      sources. For best results OpenBSD -current is recommended.
  
       OpenBSD 3.2 and newer report standard frames from the Prism2 drivers. 
       Thanks to the efforts of Pedro la Peu, Kismet works fully with prism2
