@@ -20,6 +20,7 @@
 #include "os-proto.h"
 #endif
 
+int no_optimize = 1;
 
 int
 install_bpf_program(pcap_t *p, struct bpf_program *fp) {
