@@ -364,7 +364,7 @@ int ignore_under_count = 0, ignore_under_distance = 0;
 int draw_x_offset = 0, draw_y_offset = 0;
 
 // Map source
-int mapsource = 4;
+int mapsource = -1;
 
 // Interpolation resolution
 int power_resolution = 5;
@@ -3340,13 +3340,13 @@ int Usage(char* argv, int ec = 1) {
            "  -z, --threads <num>            Number of simultaneous threads used for\n"
            "                                  complex operations [Default: 1]\n"
            "  -N, --pure-avg-center          Use old pure-average network center finding\n"
-           "  -S, --map-source <#>           Source to download maps from [Default: 4]\n"
+           "  -S, --map-source <#>           Source to download maps from [Default: -1]\n"
            "                                 -1 Null map (blank background image)\n"
-           "                                  0 MapBlast\n"
-           "                                  1 MapPoint (BROKEN)\n"
+           "                                  0 MapBlast (UNAVAILABLE)\n"
+           "                                  1 MapPoint (UNAVAILABLE)\n"
            "                                  2 TerraServer (photo)\n"
            "                                  3 Tiger US Census (vector)\n"
-           "                                  4 EarthaMaps (vector)\n"
+           "                                  4 EarthaMaps (vector, UNAVAILABLE)\n"
            "                                  5 TerraServer (topo)\n"
            "  -D, --keep-gif                 Keep the downloaded map\n"
            "  -V, --version                  GPSMap version\n"

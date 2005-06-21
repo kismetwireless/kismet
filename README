@@ -833,29 +833,33 @@ Licensed under the GPL
           power ranges, network center, etc.
 
     'gpsmap --help' lists all of the switches for enabling different map 
-    overlays.
+    overlays, map sources, and coloring options.  The default map source
+    is a blank image.
 
     GPSMap currently can use maps from:
         NullMap     (Blank white background)
-        MapBlast    (Vector) 
+        MapBlast    (Vector) (Broken)
         MapPoint    (Vector) (Broken, read warning)
         Terraserver (Satellite Photo)
         Tiger       (Vector) (US Census data)
-        Earthamap   (Vector) (Requires perl)
+        Earthamap   (Vector) (Requires perl) (Broken)
         Terraserver Topo (Vector-ish) 
        
-    Due to changes in the map websites, MapPoint cannot be used with new maps.  
-    These sources are left in GPSMap only for plotting previously kept map 
-    images, and they will fail if they are selected and a user map is not 
-    available.
-
-    Earthamap map fetching requires prefetching a cookie from the website. This
-    is automated through the gpsmap-helper-earthamaps script, which requires
-    Perl, HTTP::Cookies, and Perl::LWP to be installed.
+    Due to changes in the map websites (or their removal by vendors or 
+    corporate buyouts), many map sources no longer work.  These mapsources
+    are marked as "Broken" or "Unavailable".  They have been left in GPSMap
+    solely to enable easy plotting on previously saved map images.  These
+    will FAIL if they are selected and a user map is not also provided.
 
     All of these map sources rely on external data.  By using them, you agree
     to whatever terms and conditions the map provider requires.  Visit the
-    map providers website for these conditions.
+    map providers website for these conditions.  It is highly probable that
+    re-use of maps from vendors, in noncommercial or commercial situations,
+    is against the terms of service.
+
+    Plotting against non-vendor maps is possible by determining the equivalent
+    scaling mechanism and setting the appropriate map type.  Typically this 
+    must be done via trial and error.
     
     The extras/ directory contains an additional utility, 'gpsxml-sanitize',
     for cleaning invalid sample points out of the gpsxml data files for use in
