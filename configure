@@ -866,6 +866,7 @@ Optional Features:
   --disable-wsp100        disable wsp100 remote drone source
   --enable-zaurus         enable extra utils for Sharp Zaurus (deprecated)
   --enable-local-dumper   force use of local dump code even if Ethereal is available
+  --disable-optimization        disable -Ox gcc optimization
 
 Optional Packages:
   --with-PACKAGE[=ARG]    use PACKAGE [ARG=yes]
@@ -8358,6 +8359,18 @@ fi
 if test "$gpslc" != ""; then
 	CPPFLAGS="$CPPFLAGS `Magick-config --cppflags`"
 	CXXFLAGS="$CXXFLAGS `Magick-config --cflags`"
+fi
+
+# Check whether --enable-optimization or --disable-optimization was given.
+if test "${enable_optimization+set}" = set; then
+  enableval="$enable_optimization"
+
+else
+  wantopto=yes
+fi;
+if test "$wantopto" != "yes"; then
+	CPPFLAGS=`echo $CPPFLAGS | sed -e 's/-O.//g'`
+	CXXFLAGS=`echo $CXXFLAGS | sed -e 's/-O.//g'`
 fi
 
 if test "$libz" = "no" -a "$gpslc" != ""; then

@@ -1,6 +1,7 @@
 Jun 21 2005  devel  Merged patches from Pedro for OpenBSD ralink, prism2, and
                      readme
                     Deprecated broken gpsmap sources and set default to blank
+                    Added "--disable-optimization" flag to turn off -Ox
 Jun 20 2005  devel  Fixed condition where gps mode wasn't updated 
                     Updated to libpcap 0.9.1-kis
                     Patched libpcap to not include filtering code.  Kismet
