@@ -786,9 +786,13 @@ Licensed under the GPL
     wrt54g          Linksys WRT54G      Linux       linksys
                     http://seattlewireless.net/index.cgi/LinksysWrt54g  
                     Capture interface:  'ethX'
+                    Capture interface:  'ethX:prismX'
                     Support for the drivers found in the embedded Linux 
                      inside the Linksys WRT54G (and probably other APs using
                      the same firmware).
+                    Newer firmwares (such as OpenWRT) use the prism0 device
+                     for monitor mode data.  On these firmwares, specify both
+                     interfaces (wrt54g,eth1:prism0,foo)
 
     wsp100          NetChem WSP100      Any         n/a
                     http://networkchemistry.com/

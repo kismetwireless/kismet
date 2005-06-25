@@ -1027,7 +1027,13 @@ KisPacketSource *pcapsource_wlanng_registrant(string in_name, string in_device,
 
 KisPacketSource *pcapsource_wrt54g_registrant(string in_name, string in_device,
                                               char *in_err) {
-    return new PcapSourceWrt54g(in_name, in_device);
+    vector<string> devbits = StrTokenize(in_device, ":");
+
+    if (devbits.size() < 2) {
+		return new PcapSourceWrt54g(in_name, in_device);
+    }
+
+	return new PcapSourceWrt54g(in_name, devbits[1]);
 }
 #endif
 
@@ -1877,16 +1883,43 @@ int monitor_wlanng_avs(const char *in_dev, int initch, char *in_err, void **in_i
     return 0;
 }
 
-int monitor_wrt54g(const char *in_dev, int initch, char *in_err, void **in_if, void *in_ext) {
+int monitor_wrt54g(const char *in_dev, int initch, char *in_err, void **in_if, 
+				   void *in_ext) {
     char cmdline[2048];
+	int mode;
 
-    snprintf(cmdline, 2048, "/usr/sbin/wl monitor 1");
-    if (RunSysCmd(cmdline) < 0) {
-        snprintf(in_err, 1024, "Unable to execute '%s'", cmdline);
-        return -1;
-    }
+    vector<string> devbits = StrTokenize(in_dev, ":");
 
-    return 0;
+    if (devbits.size() < 2) {
+		snprintf(cmdline, 2048, "/usr/sbin/wl monitor 1");
+		if (RunSysCmd(cmdline) < 0) {
+			snprintf(in_err, 1024, "Unable to execute '%s'", cmdline);
+			return -1;
+		}
+    } else {
+		// Bring the device up, zero its ip, and set promisc
+		if (Ifconfig_Delta_Flags(devbits[0].c_str(), in_err, IFF_UP | 
+								 IFF_RUNNING | IFF_PROMISC) < 0)
+			return -1;
+
+		// Get mode and see if we're already in monitor, don't try to go in
+		// if we are (cisco doesn't like rfmon rfmon)
+		if (Iwconfig_Get_Mode(devbits[0].c_str(), in_err, &mode) < 0)
+			return -1;
+
+		if (mode != LINUX_WLEXT_MONITOR) {
+			// Set it
+			if (Iwconfig_Set_Mode(devbits[0].c_str(), in_err, 
+								  LINUX_WLEXT_MONITOR) < 0) {
+				snprintf(in_err, STATUS_MAX, "Unable to set iwconfig monitor "
+						 "mode.  If you are using an older wrt54g, try specifying "
+						 "only the ethernet device, not ethX:prismX");
+				return -1;
+			}
+		}
+	}
+
+	return 1;
 }
 
 #endif

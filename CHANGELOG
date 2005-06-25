@@ -1,3 +1,6 @@
+Jun 25 2005  devel  Added support for new wrt54g revisions/firmwares that use
+                     prism0 for monitor data.  Set your capture type to
+                     wrt54g,eth1:prism0,foo
 Jun 21 2005 2005-06 Released 2005-06-R1.  Major code improvements and bugfixes,
                      including:
                      OpenBSD radiotap support
