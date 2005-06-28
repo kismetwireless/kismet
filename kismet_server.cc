@@ -2978,14 +2978,15 @@ int main(int argc,char *argv[]) {
 
                     if (tracker.FetchNumNetworks() > num_networks) {
                         if (sound == 1)
-                            if (info.wep && wav_map.find("new_wep") != wav_map.end())
+                            if (info.crypt_set && 
+								wav_map.find("new_wep") != wav_map.end())
                                 sound = PlaySound("new_wep");
                             else
                                 sound = PlaySound("new");
                         if (speech == 1) {
                             string text;
 
-                            if (info.wep)
+                            if (info.crypt_set)
                                 text = ExpandSpeechString(speech_sentence_encrypted, &info, 
                                                           speech_encoding);
                             else

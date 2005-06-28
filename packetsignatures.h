@@ -61,6 +61,7 @@ const uint8_t LUCENT_OFFSET = 12;
 const uint8_t CISCO_SIGNATURE[] = {0x00, 0x00, 0x0C, 0x20, 0x00};
 
 const uint8_t WPA_TAGPARM_SIGNATURE[] = {0x00, 0x50, 0xF2, 0x01};
+const uint8_t RSN_AES_TAGPARM_SIGNATURE[] = {0x01, 0x00, 0x00, 0x0F, 0xAC, 0x04};
 
 const uint8_t DOT1X_PROTO[] = {0x88, 0x8e};
 const uint8_t DOT1X_OFFSET = LLC_UI_OFFSET + 5;

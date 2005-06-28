@@ -377,12 +377,6 @@ void Packetracker::ProcessPacket(kis_packet *packet, packet_info *info,
             net->type = network_ap;
         }
 
-		if (info->wep)
-			net->crypt_set |= crypt_wep;
-
-		if (info->wpa)
-			net->crypt_set |= crypt_wpa;
-
         net->beacon = info->beacon;
 
         //net->bssid = Mac2String(info->bssid_mac, ':');
@@ -454,6 +448,15 @@ void Packetracker::ProcessPacket(kis_packet *packet, packet_info *info,
             net->listed = 1;
         }
     }
+
+	if (info->crypt_set & crypt_wep)
+		net->crypt_set |= crypt_wep;
+
+	if (info->crypt_set & crypt_wpa)
+		net->crypt_set |= crypt_wpa;
+
+	if (info->crypt_set & crypt_wpa2aes)
+		net->crypt_set |= crypt_wpa2aes;
 
     net->last_time = time(0);
 
@@ -647,8 +650,8 @@ void Packetracker::ProcessPacket(kis_packet *packet, packet_info *info,
             }
 
             net->channel = info->channel;
-			
-			if (info->wep)
+		
+			if (info->crypt_set & crypt_wep)
 				net->crypt_set |= (int) crypt_wep;
 
             if (info->distrib != adhoc_distribution)
@@ -678,7 +681,7 @@ void Packetracker::ProcessPacket(kis_packet *packet, packet_info *info,
                 net->ssid = info->ssid;
                 net->channel = info->channel;
 
-				if (info->wep)
+				if (info->crypt_set & crypt_wep)
 					net->crypt_set |= (int) crypt_wep;
 
                 net->manuf_ref = MatchBestManuf(ap_manuf_map, net->bssid, net->ssid, 
@@ -699,7 +702,7 @@ void Packetracker::ProcessPacket(kis_packet *packet, packet_info *info,
                 bssid_cloak_map[net->bssid] = info->ssid;
                 net->ssid = info->ssid;
 				
-				if (info->wep)
+				if (info->crypt_set & crypt_wep)
 					net->crypt_set |= (int) crypt_wep;
 
                 net->manuf_ref = MatchBestManuf(ap_manuf_map, net->bssid, net->ssid, 
@@ -1365,6 +1368,8 @@ int Packetracker::WriteNetworks(string in_fname) {
 			crypt += "WEP ";
 		if (net->crypt_set & crypt_wpa)
 			crypt += "WPA ";
+		if (net->crypt_set & crypt_wpa2aes)
+			crypt += "WPA2-AES ";
 		if (net->crypt_set & crypt_layer3)
 			crypt += "Layer3 ";
 		if (net->crypt_set & crypt_leap)
@@ -1737,6 +1742,11 @@ int Packetracker::WriteCSVNetworks(string in_fname) {
 				crypt += ",";
 			crypt += "WPA";
 		}
+		if (net->crypt_set & crypt_wpa2aes) {
+			if (crypt != "")
+				crypt += ",";
+			crypt += "WPA2-AES";
+		}
 		if (net->crypt_set & crypt_layer3) {
 			if (crypt != "")
 				crypt += ",";
@@ -1981,6 +1991,8 @@ int Packetracker::WriteXMLNetworks(string in_fname) {
 			fprintf(netfile, "    <encryption>WEP</encryption>\n");
 		if (net->crypt_set & crypt_wpa)
 			fprintf(netfile, "    <encryption>WPA</encryption>\n");
+		if (net->crypt_set & crypt_wpa2aes)
+			fprintf(netfile, "    <encryption>WPA2-AES</encryption>\n");
 		if (net->crypt_set & crypt_layer3)
 			fprintf(netfile, "    <encryption>Layer3</encryption>\n");
 		if (net->crypt_set & crypt_leap)
@@ -2097,6 +2109,8 @@ int Packetracker::WriteXMLNetworks(string in_fname) {
 			fprintf(netfile, "      <client-encryption>WEP</client-encryption>\n");
 		if (net->crypt_set & crypt_wpa)
 			fprintf(netfile, "      <client-encryption>WPA</client-encryption>\n");
+		if (net->crypt_set & crypt_wpa2aes)
+			fprintf(netfile, "      <client-encryption>WPA2-AES</client-encryption>\n");
 		if (net->crypt_set & crypt_layer3)
 			fprintf(netfile, "      <client-encryption>Layer3</client-encryption>\n");
 		if (net->crypt_set & crypt_leap)

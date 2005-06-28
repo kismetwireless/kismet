@@ -289,7 +289,8 @@ void GetPacketInfo(kis_packet *packet, packet_info *ret_packinfo,
         } else {
             ret_packinfo->header_offset = 36;
             fixparm = (fixed_parameters *) &packet->data[24];
-            ret_packinfo->wep = fixparm->wep;
+			if (fixparm->wep)
+				(int) ret_packinfo->crypt_set |= crypt_wep;
 
             // Pull the fixparm ibss info
             if (fixparm->ess == 0 && fixparm->ibss == 1) {
@@ -455,8 +456,24 @@ void GetPacketInfo(kis_packet *packet, packet_info *ret_packinfo,
             }
 
 			// Extract WPA info -- we have to look at all the tags
+			if ((tcitr = tag_cache_map.find(48)) != tag_cache_map.end() &&
+				(ret_packinfo->crypt_set & crypt_wep)) {
+				for (unsigned int tagct = 0; tagct < tcitr->second.size(); tagct++) {
+					tag_offset = tcitr->second[tagct];
+					temp = (packet->data[tag_offset] & 0xFF);
+
+					if (temp > 6 && 
+						memcmp(&(packet->data[tag_offset+1]), 
+							   RSN_AES_TAGPARM_SIGNATURE,
+							   sizeof(RSN_AES_TAGPARM_SIGNATURE)) == 0) {
+						(int) ret_packinfo->crypt_set |= crypt_wpa2aes;
+						break;
+					}
+				}
+			}
+
 			if ((tcitr = tag_cache_map.find(221)) != tag_cache_map.end() &&
-				ret_packinfo->wep) {
+				(ret_packinfo->crypt_set & crypt_wep)) {
 				// Lets do a smarter test of WPA since APs like to send crap
 				// tagged frames too
 				// ret_packinfo->wpa = 1;
@@ -467,7 +484,7 @@ void GetPacketInfo(kis_packet *packet, packet_info *ret_packinfo,
 					if (temp > 4 && 
 						memcmp(&(packet->data[tag_offset+1]), WPA_TAGPARM_SIGNATURE,
 							   sizeof(WPA_TAGPARM_SIGNATURE)) == 0) {
-						ret_packinfo->wpa = 1;
+						(int) ret_packinfo->crypt_set |= crypt_wpa;
 						break;
 					}
 				}
@@ -1085,7 +1102,8 @@ void GetProtoInfo(kis_packet *packet, packet_info *in_info) {
 					case iapp_pdu_capability:
 						if (pdu_len != 1)
 							break;
-						in_info->wep = !!(pdu[3] & iapp_cap_wep);
+						if (!!(pdu[3] & iapp_cap_wep))
+							(int) in_info->crypt_set |= crypt_wep;
 						break;
 					case iapp_pdu_announceint:
 						break;

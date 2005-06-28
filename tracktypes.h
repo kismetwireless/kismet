@@ -88,21 +88,6 @@ enum client_type {
     client_established
 };
 
-enum crypt_type {
-	crypt_none = 0,
-	crypt_unknown = 1,
-	crypt_wep = 2,
-	crypt_layer3 = 4,
-	// ...
-	crypt_wpa = 64,
-	crypt_leap = 128,
-	crypt_ttls = 256,
-	crypt_tls = 512,
-	crypt_peap = 1024,
-	crypt_isakmp = 2048,
-    crypt_pptp = 4096
-};
-
 // Client info
 typedef struct wireless_client {
     wireless_client() {

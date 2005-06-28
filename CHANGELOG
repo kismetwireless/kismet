@@ -1,3 +1,5 @@
+Jun 28 2005  devel  Fixed WPA reporting when the first packet isn't WPA
+                    Added WPA2-AES detection
 Jun 25 2005  devel  Added support for new wrt54g revisions/firmwares that use
                      prism0 for monitor data.  Set your capture type to
                      wrt54g,eth1:prism0,foo

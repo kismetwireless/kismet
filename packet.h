@@ -451,6 +451,22 @@ typedef struct {
     unsigned pdu_len : 16 __attribute__ ((packed));
 } iapp_pdu_header;
 
+enum crypt_type {
+	crypt_none = 0,
+	crypt_unknown = 1,
+	crypt_wep = 2,
+	crypt_layer3 = 4,
+	// ...
+	crypt_wpa = 64,
+	crypt_leap = 128,
+	crypt_ttls = 256,
+	crypt_tls = 512,
+	crypt_peap = 1024,
+	crypt_isakmp = 2048,
+    crypt_pptp = 4096,
+	crypt_wpa2aes = 8192
+};
+
 // Info about a packet
 typedef struct {
     // Packet info type
@@ -481,10 +497,10 @@ typedef struct {
 
     // Where did it come from?
     distribution_type distrib;
-    // Is wep enabled?
-    int wep;
-	// Is WPA enabled?
-	int wpa;
+
+	// What crypt set is used?
+	crypt_type crypt_set;
+
     // Was the encryption detection fuzzy?
     int fuzzy;
     // Was it flagged as ess? (ap)
