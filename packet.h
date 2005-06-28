@@ -456,15 +456,21 @@ enum crypt_type {
 	crypt_unknown = 1,
 	crypt_wep = 2,
 	crypt_layer3 = 4,
-	// ...
+	// Derived from WPA headers
+	crypt_wep40 = 8,
+	crypt_wep104 = 16,
+	crypt_tkip = 32,
 	crypt_wpa = 64,
-	crypt_leap = 128,
-	crypt_ttls = 256,
-	crypt_tls = 512,
-	crypt_peap = 1024,
-	crypt_isakmp = 2048,
-    crypt_pptp = 4096,
-	crypt_wpa2aes = 8192
+	crypt_psk = 128,
+	crypt_aes_ocb = 256,
+	crypt_aes_ccm = 512,
+	// Derived from data traffic
+	crypt_leap = 1024,
+	crypt_ttls = 2048,
+	crypt_tls = 4096,
+	crypt_peap = 8192,
+	crypt_isakmp = 16384,
+    crypt_pptp = 32768
 };
 
 // Info about a packet

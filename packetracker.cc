@@ -402,7 +402,7 @@ void Packetracker::ProcessPacket(kis_packet *packet, packet_info *info,
             KisLocalStatus(status);
         } else {
 			// printf("debug - pack %d\n", num_packets);
-            snprintf(status, STATUS_MAX, "Found new network \"%s\" bssid %s WEP %c Ch "
+            snprintf(status, STATUS_MAX, "Found new network \"%s\" bssid %s Crypt %c Ch "
                      "%d @ %.2f mbit",
                      net->ssid.c_str(), net->bssid.Mac2String().c_str(), 
                      net->crypt_set ? 'Y' : 'N',
@@ -449,14 +449,8 @@ void Packetracker::ProcessPacket(kis_packet *packet, packet_info *info,
         }
     }
 
-	if (info->crypt_set & crypt_wep)
-		net->crypt_set |= crypt_wep;
-
-	if (info->crypt_set & crypt_wpa)
-		net->crypt_set |= crypt_wpa;
-
-	if (info->crypt_set & crypt_wpa2aes)
-		net->crypt_set |= crypt_wpa2aes;
+	if (info->crypt_set)
+		net->crypt_set |= (int) info->crypt_set;
 
     net->last_time = time(0);
 
@@ -1366,12 +1360,22 @@ int Packetracker::WriteNetworks(string in_fname) {
 			crypt = "None";
 		if (net->crypt_set & crypt_wep)
 			crypt += "WEP ";
-		if (net->crypt_set & crypt_wpa)
-			crypt += "WPA ";
-		if (net->crypt_set & crypt_wpa2aes)
-			crypt += "WPA2-AES ";
 		if (net->crypt_set & crypt_layer3)
 			crypt += "Layer3 ";
+		if (net->crypt_set & crypt_wep40)
+			crypt += "WEP40 ";
+		if (net->crypt_set & crypt_wep104)
+			crypt += "WEP104 ";
+		if (net->crypt_set & crypt_tkip)
+			crypt += "TKIP ";
+		if (net->crypt_set & crypt_wpa)
+			crypt += "WPA ";
+		if (net->crypt_set & crypt_psk)
+			crypt += "PSK ";
+		if (net->crypt_set & crypt_aes_ocb)
+			crypt += "AES-OCB ";
+		if (net->crypt_set & crypt_aes_ccm)
+			crypt += "AES-CCM ";
 		if (net->crypt_set & crypt_leap)
 			crypt += "LEAP ";
 		if (net->crypt_set & crypt_ttls)
@@ -1382,8 +1386,8 @@ int Packetracker::WriteNetworks(string in_fname) {
 			crypt += "PEAP ";
 		if (net->crypt_set & crypt_isakmp)
 			crypt += "ISAKMP ";
-        if (net->crypt_set & crypt_pptp)
-            crypt += "PPTP ";
+		if (net->crypt_set & crypt_pptp)
+			crypt += "PPTP ";
 
 		if (crypt.length() == 0)
 			crypt = "Unknown";
@@ -1737,20 +1741,45 @@ int Packetracker::WriteCSVNetworks(string in_fname) {
 				crypt += ",";
 			crypt += "WEP";
 		}
+		if (net->crypt_set & crypt_layer3) {
+			if (crypt != "")
+				crypt += ",";
+			crypt += "Layer3";
+		}
+		if (net->crypt_set & crypt_wep40) {
+			if (crypt != "")
+				crypt += ",";
+			crypt += "WEP40";
+		}
+		if (net->crypt_set & crypt_wep104) {
+			if (crypt != "")
+				crypt += ",";
+			crypt += "WEP104";
+		}
+		if (net->crypt_set & crypt_tkip) {
+			if (crypt != "")
+				crypt += ",";
+			crypt += "TKIP";
+		}
 		if (net->crypt_set & crypt_wpa) {
 			if (crypt != "")
 				crypt += ",";
 			crypt += "WPA";
 		}
-		if (net->crypt_set & crypt_wpa2aes) {
+		if (net->crypt_set & crypt_psk) {
 			if (crypt != "")
 				crypt += ",";
-			crypt += "WPA2-AES";
+			crypt += "PSK";
 		}
-		if (net->crypt_set & crypt_layer3) {
+		if (net->crypt_set & crypt_aes_ocb) {
 			if (crypt != "")
 				crypt += ",";
-			crypt += "Layer3";
+			crypt += "AES-OCB";
+		}
+		if (net->crypt_set & crypt_aes_ccm) {
+			if (crypt != "")
+				crypt += ",";
+			crypt += "AES-CCM";
 		}
 		if (net->crypt_set & crypt_leap) {
 			if (crypt != "")
@@ -1989,12 +2018,22 @@ int Packetracker::WriteXMLNetworks(string in_fname) {
 			fprintf(netfile, "    <encryption>None</encryption>\n");
 		if (net->crypt_set & crypt_wep)
 			fprintf(netfile, "    <encryption>WEP</encryption>\n");
-		if (net->crypt_set & crypt_wpa)
-			fprintf(netfile, "    <encryption>WPA</encryption>\n");
-		if (net->crypt_set & crypt_wpa2aes)
-			fprintf(netfile, "    <encryption>WPA2-AES</encryption>\n");
 		if (net->crypt_set & crypt_layer3)
 			fprintf(netfile, "    <encryption>Layer3</encryption>\n");
+		if (net->crypt_set & crypt_wep40)
+			fprintf(netfile, "    <encryption>WEP40</encryption>\n");
+		if (net->crypt_set & crypt_wep104)
+			fprintf(netfile, "    <encryption>WEP104</encryption>\n");
+		if (net->crypt_set & crypt_tkip)
+			fprintf(netfile, "    <encryption>TKIP</encryption>\n");
+		if (net->crypt_set & crypt_wpa)
+			fprintf(netfile, "    <encryption>WPA</encryption>\n");
+		if (net->crypt_set & crypt_psk)
+			fprintf(netfile, "    <encryption>PSK</encryption>\n");
+		if (net->crypt_set & crypt_aes_ocb)
+			fprintf(netfile, "    <encryption>AES-OCB</encryption>\n");
+		if (net->crypt_set & crypt_aes_ccm)
+			fprintf(netfile, "    <encryption>AES-CCM</encryption>\n");
 		if (net->crypt_set & crypt_leap)
 			fprintf(netfile, "    <encryption>LEAP</encryption>\n");
 		if (net->crypt_set & crypt_ttls)
@@ -2007,7 +2046,6 @@ int Packetracker::WriteXMLNetworks(string in_fname) {
 			fprintf(netfile, "    <encryption>ISAKMP</encryption>\n");
 		if (net->crypt_set & crypt_pptp)
 			fprintf(netfile, "    <encryption>PPTP</encryption>\n");
-            
 
         fprintf(netfile, "    <packets>\n");
         fprintf(netfile, "      <LLC>%d</LLC>\n", net->llc_packets);
@@ -2103,27 +2141,37 @@ int Packetracker::WriteXMLNetworks(string in_fname) {
             fprintf(netfile, "        <client-weak>%d</client-weak>\n", cli->interesting_packets);
             fprintf(netfile, "      </client-packets>\n");
 
-		if (net->crypt_set == 0)
+		if (cli->crypt_set == 0)
 			fprintf(netfile, "      <client-encryption>None</client-encryption>\n");
-		if (net->crypt_set & crypt_wep)
+		if (cli->crypt_set & crypt_wep)
 			fprintf(netfile, "      <client-encryption>WEP</client-encryption>\n");
-		if (net->crypt_set & crypt_wpa)
-			fprintf(netfile, "      <client-encryption>WPA</client-encryption>\n");
-		if (net->crypt_set & crypt_wpa2aes)
-			fprintf(netfile, "      <client-encryption>WPA2-AES</client-encryption>\n");
-		if (net->crypt_set & crypt_layer3)
+		if (cli->crypt_set & crypt_layer3)
 			fprintf(netfile, "      <client-encryption>Layer3</client-encryption>\n");
-		if (net->crypt_set & crypt_leap)
+		if (cli->crypt_set & crypt_wep40)
+			fprintf(netfile, "      <client-encryption>WEP40</client-encryption>\n");
+		if (cli->crypt_set & crypt_wep104)
+			fprintf(netfile, "      <client-encryption>WEP104</client-encryption>\n");
+		if (cli->crypt_set & crypt_tkip)
+			fprintf(netfile, "      <client-encryption>TKIP</client-encryption>\n");
+		if (cli->crypt_set & crypt_wpa)
+			fprintf(netfile, "      <client-encryption>WPA</client-encryption>\n");
+		if (cli->crypt_set & crypt_psk)
+			fprintf(netfile, "      <client-encryption>PSK</client-encryption>\n");
+		if (cli->crypt_set & crypt_aes_ocb)
+			fprintf(netfile, "      <client-encryption>AES-OCB</client-encryption>\n");
+		if (cli->crypt_set & crypt_aes_ccm)
+			fprintf(netfile, "      <client-encryption>AES-CCM</client-encryption>\n");
+		if (cli->crypt_set & crypt_leap)
 			fprintf(netfile, "      <client-encryption>LEAP</client-encryption>\n");
-		if (net->crypt_set & crypt_ttls)
+		if (cli->crypt_set & crypt_ttls)
 			fprintf(netfile, "      <client-encryption>TTLS</client-encryption>\n");
-		if (net->crypt_set & crypt_tls)
+		if (cli->crypt_set & crypt_tls)
 			fprintf(netfile, "      <client-encryption>TLS</client-encryption>\n");
-		if (net->crypt_set & crypt_peap)
+		if (cli->crypt_set & crypt_peap)
 			fprintf(netfile, "      <client-encryption>PEAP</client-encryption>\n");
-		if (net->crypt_set & crypt_isakmp)
+		if (cli->crypt_set & crypt_isakmp)
 			fprintf(netfile, "      <client-encryption>ISAKMP</client-encryption>\n");
-		if (net->crypt_set & crypt_pptp)
+		if (cli->crypt_set & crypt_pptp)
 			fprintf(netfile, "      <client-encryption>PPTP</client-encryption>\n");
 
             if (cli->gps_fixed != -1) {

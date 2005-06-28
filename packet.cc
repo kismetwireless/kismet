@@ -162,6 +162,52 @@ int GetTagOffsets(int init_offset, kis_packet *packet,
     return 0;
 }
 
+int WPACipherConv(uint8_t cipher_index) {
+	int ret = crypt_wpa;
+
+	switch (cipher_index) {
+		case 1:
+			ret |= crypt_wep40;
+			break;
+		case 2:
+			ret |= crypt_tkip;
+			break;
+		case 3:
+			ret |= crypt_aes_ocb;
+			break;
+		case 4:
+			ret |= crypt_aes_ccm;
+			break;
+		case 5:
+			ret |= crypt_wep104;
+			break;
+		default:
+			ret = 0;
+			break;
+	}
+
+	return ret;
+}
+
+int WPAKeyMgtConv(uint8_t mgt_index) {
+	int ret = crypt_wpa;
+
+	switch (mgt_index) {
+		case 1:
+			ret |= crypt_wpa;
+			break;
+		case 2:
+			ret |= crypt_psk;
+			break;
+		default:
+			ret = 0;
+			break;
+	}
+
+	return ret;
+}
+
+
 // Get the info from a packet
 static int dissect_packet_num = 0;
 void GetPacketInfo(kis_packet *packet, packet_info *ret_packinfo,
@@ -455,6 +501,129 @@ void GetPacketInfo(kis_packet *packet, packet_info *ret_packinfo,
                 }
             }
 
+			// WPA frame matching if we have the privacy bit set
+			if ((ret_packinfo->crypt_set & crypt_wep)) {
+				// Liberally borrowed from Ethereal
+				if ((tcitr = tag_cache_map.find(221)) != tag_cache_map.end()) {
+					for (unsigned int tagct = 0; tagct < tcitr->second.size(); 
+						 tagct++) {
+						tag_offset = tcitr->second[tagct];
+						unsigned int tag_orig = tag_offset + 1;
+						unsigned int taglen = (packet->data[tag_offset] & 0xFF);
+						unsigned int offt = 0;
+
+						if (tag_orig + taglen > packet->len) {
+							ret_packinfo->corrupt = 1;
+							return;
+						}
+
+						// Match 221 tag header for WPA
+						if (taglen < 6 || memcmp(&(packet->data[tag_orig + offt]), 
+												 WPA_OUI, sizeof(WPA_OUI)))
+							continue;
+
+						offt += 6;
+
+						// Match WPA multicast suite
+						if (offt + 4 > taglen || 
+							memcmp(&(packet->data[tag_orig + offt]), WPA_OUI,
+								   sizeof(WPA_OUI)))
+							continue;
+
+						(int) ret_packinfo->crypt_set |= 
+							WPACipherConv(packet->data[tag_orig + offt + 3]);
+
+						// We don't care about parsing the number of ciphers,
+						// we'll just iterate, so skip the cipher number
+						offt += 6;
+
+						// Match WPA unicast components
+						while (offt + 4 <= taglen) {
+							if (memcmp(&(packet->data[tag_orig + offt]), 
+									  WPA_OUI, sizeof(WPA_OUI)) == 0) {
+								(int) ret_packinfo->crypt_set |= 
+									WPACipherConv(packet->data[tag_orig + offt + 3]);
+								offt += 4;
+							} else {
+								break;
+							}
+						}
+
+						// Match auth key components
+						offt += 2;
+						while (offt + 4 <= taglen) {
+							if (memcmp(&(packet->data[tag_orig + offt]), 
+									  WPA_OUI, sizeof(WPA_OUI)) == 0) {
+								(int) ret_packinfo->crypt_set |= 
+									WPACipherConv(packet->data[tag_orig + offt + 3]);
+								offt += 4;
+							} else {
+								break;
+							}
+						}
+					}
+				} /* 221 */
+
+				// Match tag 48 RSN WPA2
+				if ((tcitr = tag_cache_map.find(48)) != tag_cache_map.end()) {
+					for (unsigned int tagct = 0; tagct < tcitr->second.size(); 
+						 tagct++) {
+						tag_offset = tcitr->second[tagct];
+						unsigned int tag_orig = tag_offset + 1;
+						unsigned int taglen = (packet->data[tag_offset] & 0xFF);
+						unsigned int offt = 0;
+
+						if (tag_orig + taglen > packet->len || taglen < 6) {
+							ret_packinfo->corrupt = 1;
+							return;
+						}
+
+						// Skip version
+						offt += 2;
+
+						// Match multicast
+						if (offt + 3 > taglen ||
+							memcmp(&(packet->data[tag_orig + offt]), RSN_OUI,
+								   sizeof(RSN_OUI))) {
+							ret_packinfo->corrupt = 1;
+							return;
+						}
+						(int) ret_packinfo->crypt_set |= 
+							WPACipherConv(packet->data[tag_orig + offt + 3]);
+						offt += 4;
+
+						// We don't care about unicast number
+						offt += 2;
+
+						while (offt + 4 <= taglen) {
+							if (memcmp(&(packet->data[tag_orig + offt]), 
+									  RSN_OUI, sizeof(RSN_OUI)) == 0) {
+								(int) ret_packinfo->crypt_set |= 
+									WPACipherConv(packet->data[tag_orig + offt + 3]);
+								offt += 4;
+							} else {
+								break;
+							}
+						}
+
+						// We don't care about authkey number
+						offt += 2;
+
+						while (offt + 4 <= taglen) {
+							if (memcmp(&(packet->data[tag_orig + offt]), 
+									  RSN_OUI, sizeof(RSN_OUI)) == 0) {
+								(int) ret_packinfo->crypt_set |= 
+									WPAKeyMgtConv(packet->data[tag_orig + offt + 3]);
+								offt += 4;
+							} else {
+								break;
+							}
+						}
+					}
+				} /* 48 */
+			}
+
+# if 0
 			// Extract WPA info -- we have to look at all the tags
 			if ((tcitr = tag_cache_map.find(48)) != tag_cache_map.end() &&
 				(ret_packinfo->crypt_set & crypt_wep)) {
@@ -471,24 +640,7 @@ void GetPacketInfo(kis_packet *packet, packet_info *ret_packinfo,
 					}
 				}
 			}
-
-			if ((tcitr = tag_cache_map.find(221)) != tag_cache_map.end() &&
-				(ret_packinfo->crypt_set & crypt_wep)) {
-				// Lets do a smarter test of WPA since APs like to send crap
-				// tagged frames too
-				// ret_packinfo->wpa = 1;
-				for (unsigned int tagct = 0; tagct < tcitr->second.size(); tagct++) {
-					tag_offset = tcitr->second[tagct];
-					temp = (packet->data[tag_offset] & 0xFF);
-
-					if (temp > 4 && 
-						memcmp(&(packet->data[tag_offset+1]), WPA_TAGPARM_SIGNATURE,
-							   sizeof(WPA_TAGPARM_SIGNATURE)) == 0) {
-						(int) ret_packinfo->crypt_set |= crypt_wpa;
-						break;
-					}
-				}
-			}
+#endif
 
             ret_packinfo->dest_mac = addr0;
             ret_packinfo->source_mac = addr1;

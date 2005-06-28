@@ -1734,12 +1734,22 @@ int PanelFront::DetailsPrinter(void *in_window) {
 			crypt = "None";
 		if (dnet->crypt_set & crypt_wep)
 			crypt += "WEP ";
-		if (dnet->crypt_set & crypt_wpa)
-			crypt += "WPA ";
-		if (dnet->crypt_set & crypt_wpa2aes)
-			crypt += "WPA2-AES ";
 		if (dnet->crypt_set & crypt_layer3)
 			crypt += "Layer3 ";
+		if (dnet->crypt_set & crypt_wep40)
+			crypt += "WEP40 ";
+		if (dnet->crypt_set & crypt_wep104)
+			crypt += "WEP104 ";
+		if (dnet->crypt_set & crypt_tkip)
+			crypt += "TKIP ";
+		if (dnet->crypt_set & crypt_wpa)
+			crypt += "WPA ";
+		if (dnet->crypt_set & crypt_psk)
+			crypt += "PSK ";
+		if (dnet->crypt_set & crypt_aes_ocb)
+			crypt += "AES-OCB ";
+		if (dnet->crypt_set & crypt_aes_ccm)
+			crypt += "AES-CCM ";
 		if (dnet->crypt_set & crypt_leap)
 			crypt += "LEAP ";
 		if (dnet->crypt_set & crypt_ttls)
@@ -1750,8 +1760,8 @@ int PanelFront::DetailsPrinter(void *in_window) {
 			crypt += "PEAP ";
 		if (dnet->crypt_set & crypt_isakmp)
 			crypt += "ISAKMP ";
-        if (dnet->crypt_set & crypt_pptp)
-            crypt += "PPTP ";
+		if (dnet->crypt_set & crypt_pptp)
+			crypt += "PPTP ";
 		if (crypt.length() == 0)
 			crypt = "Unknown";
 		snprintf(output, print_width, "Encrypt : %s", crypt.c_str());
@@ -2991,12 +3001,22 @@ int PanelFront::DetailsClientPrinter(void *in_window) {
 		crypt = "None";
 	if (details_client->crypt_set & crypt_wep)
 		crypt += "WEP ";
-	if (details_client->crypt_set & crypt_wpa)
-		crypt += "WPA ";
-	if (details_client->crypt_set & crypt_wpa2aes)
-		crypt += "WPA2AES ";
 	if (details_client->crypt_set & crypt_layer3)
 		crypt += "Layer3 ";
+	if (details_client->crypt_set & crypt_wep40)
+		crypt += "WEP40 ";
+	if (details_client->crypt_set & crypt_wep104)
+		crypt += "WEP104 ";
+	if (details_client->crypt_set & crypt_tkip)
+		crypt += "TKIP ";
+	if (details_client->crypt_set & crypt_wpa)
+		crypt += "WPA ";
+	if (details_client->crypt_set & crypt_psk)
+		crypt += "PSK ";
+	if (details_client->crypt_set & crypt_aes_ocb)
+		crypt += "AES-OCB ";
+	if (details_client->crypt_set & crypt_aes_ccm)
+		crypt += "AES-CCM ";
 	if (details_client->crypt_set & crypt_leap)
 		crypt += "LEAP ";
 	if (details_client->crypt_set & crypt_ttls)
