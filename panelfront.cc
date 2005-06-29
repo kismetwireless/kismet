@@ -428,6 +428,8 @@ PanelFront::PanelFront() {
 
     muted = 0;
 
+	auto_agroup = auto_pgroup = auto_dgroup = 0;
+
     // Push blanks into the RRD history vector
     packet_history.reserve(60 * 5);
     for (unsigned int x = 0; x < (60 * 5); x++)
@@ -507,11 +509,7 @@ void PanelFront::PopulateGroups(TcpClient *in_client) {
 		// network vec and add them all if we need to
 		if (auto_pgroup && probevec.size() + probe_group->networks.size()) {
 			for (unsigned int x = 0; x < probevec.size(); x++) {
-
-				probe_group->networks.push_back(probevec[x]);
-				probevec[x]->dispnet = probe_group;
-				probe_group->type = group_bundle;
-				group_assignment_map[probevec[x]->bssid] = probe_group;
+				probe_group = AddToGroup(probe_group, probevec[x]);
 			}
 		}
 
@@ -523,11 +521,7 @@ void PanelFront::PopulateGroups(TcpClient *in_client) {
 		// network vec and add them all if we need to
 		if (auto_dgroup && datavec.size() + data_group->networks.size()) {
 			for (unsigned int x = 0; x < datavec.size(); x++) {
-
-				data_group->networks.push_back(datavec[x]);
-				datavec[x]->dispnet = data_group;
-				data_group->type = group_bundle;
-				group_assignment_map[datavec[x]->bssid] = data_group;
+				data_group = AddToGroup(data_group, datavec[x]);
 			}
 		}
 
@@ -539,11 +533,7 @@ void PanelFront::PopulateGroups(TcpClient *in_client) {
 		// network vec and add them all if we need to
 		if (auto_agroup && advec.size() + adhoc_group->networks.size()) {
 			for (unsigned int x = 0; x < advec.size(); x++) {
-
-				adhoc_group->networks.push_back(advec[x]);
-				advec[x]->dispnet = adhoc_group;
-				adhoc_group->type = group_bundle;
-				group_assignment_map[advec[x]->bssid] = adhoc_group;
+				adhoc_group = AddToGroup(adhoc_group, advec[x]);
 			}
 		}
 	}

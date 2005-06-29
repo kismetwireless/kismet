@@ -526,6 +526,53 @@ display_network *Frontend::AddToGroup(display_network *core,
 
 }
 
+// Add a display network to a specific core group
+display_network *Frontend::AddToGroup(display_network *core, 
+									  wireless_network *merger) {
+	if (core == NULL)
+		return NULL;
+	if (merger == NULL)
+		return core;
+
+	// Destroy the assignment if one exists of the old network
+	map<mac_addr, display_network *>::iterator gamitr =
+		group_assignment_map.find(merger->bssid);
+	if (gamitr != group_assignment_map.end()) {
+		group_assignment_map.erase(gamitr);
+	}
+
+	// Look for any historical networks we think we're supposed to
+	// be part of, and remove the reference
+	map<mac_addr, string>::iterator bsgmitr =
+		bssid_group_map.find(merger->bssid);
+	if (bsgmitr != bssid_group_map.end()) {
+		bssid_group_map.erase(bsgmitr);
+	}
+
+	// Now register us into the historical and current maps
+	bssid_group_map[merger->bssid] = core->tag;
+	group_assignment_map[merger->bssid] = core;
+
+	// Assign the display network
+	merger->dispnet = core;
+
+	// Update the virtnet
+	if (core->virtnet == NULL) {
+		core->virtnet = new wireless_network;
+		*(core->virtnet) = *(merger);
+	}
+
+	// And add us to the core network list
+	core->networks.push_back(merger);
+
+	if (core->networks.size() > 1) {
+		core->type = group_bundle;
+	} else {
+		core->type = group_host;
+	}
+
+    return core;
+}
 
 display_network *Frontend::GroupTagged() {
     display_network *core = NULL;
