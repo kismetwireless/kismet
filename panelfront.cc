@@ -570,6 +570,11 @@ void PanelFront::UpdateGroups() {
                 continue;
             }
 
+			if (dnet->virtnet == NULL) {
+				dnet->virtnet = new wireless_network;
+				*(dnet->virtnet) = *(dnet->networks[0]);
+			}
+
             if (auto_pgroup && dnet->virtnet->type == network_probe && 
                 dnet != probe_group) {
                 probevec.push_back(dnet);
