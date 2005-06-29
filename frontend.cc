@@ -425,6 +425,7 @@ display_network *Frontend::CreateGroup(int in_persistent, string in_tag, string 
     core->name = in_name;
     core->expanded = 0;
     core->type = group_host;
+	core->virtnet = NULL;
 
     // Register it
     group_tag_map[core->tag] = core;
