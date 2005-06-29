@@ -336,7 +336,7 @@ void GetPacketInfo(kis_packet *packet, packet_info *ret_packinfo,
             ret_packinfo->header_offset = 36;
             fixparm = (fixed_parameters *) &packet->data[24];
 			if (fixparm->wep)
-				(int) ret_packinfo->crypt_set |= crypt_wep;
+				ret_packinfo->crypt_set |= crypt_wep;
 
             // Pull the fixparm ibss info
             if (fixparm->ess == 0 && fixparm->ibss == 1) {
@@ -530,7 +530,7 @@ void GetPacketInfo(kis_packet *packet, packet_info *ret_packinfo,
 								   sizeof(WPA_OUI)))
 							continue;
 
-						(int) ret_packinfo->crypt_set |= 
+						ret_packinfo->crypt_set |= 
 							WPACipherConv(packet->data[tag_orig + offt + 3]);
 
 						// We don't care about parsing the number of ciphers,
@@ -541,7 +541,7 @@ void GetPacketInfo(kis_packet *packet, packet_info *ret_packinfo,
 						while (offt + 4 <= taglen) {
 							if (memcmp(&(packet->data[tag_orig + offt]), 
 									  WPA_OUI, sizeof(WPA_OUI)) == 0) {
-								(int) ret_packinfo->crypt_set |= 
+								ret_packinfo->crypt_set |= 
 									WPACipherConv(packet->data[tag_orig + offt + 3]);
 								offt += 4;
 							} else {
@@ -554,7 +554,7 @@ void GetPacketInfo(kis_packet *packet, packet_info *ret_packinfo,
 						while (offt + 4 <= taglen) {
 							if (memcmp(&(packet->data[tag_orig + offt]), 
 									  WPA_OUI, sizeof(WPA_OUI)) == 0) {
-								(int) ret_packinfo->crypt_set |= 
+								ret_packinfo->crypt_set |= 
 									WPACipherConv(packet->data[tag_orig + offt + 3]);
 								offt += 4;
 							} else {
@@ -588,7 +588,7 @@ void GetPacketInfo(kis_packet *packet, packet_info *ret_packinfo,
 							ret_packinfo->corrupt = 1;
 							return;
 						}
-						(int) ret_packinfo->crypt_set |= 
+						ret_packinfo->crypt_set |= 
 							WPACipherConv(packet->data[tag_orig + offt + 3]);
 						offt += 4;
 
@@ -598,7 +598,7 @@ void GetPacketInfo(kis_packet *packet, packet_info *ret_packinfo,
 						while (offt + 4 <= taglen) {
 							if (memcmp(&(packet->data[tag_orig + offt]), 
 									  RSN_OUI, sizeof(RSN_OUI)) == 0) {
-								(int) ret_packinfo->crypt_set |= 
+								ret_packinfo->crypt_set |= 
 									WPACipherConv(packet->data[tag_orig + offt + 3]);
 								offt += 4;
 							} else {
@@ -612,7 +612,7 @@ void GetPacketInfo(kis_packet *packet, packet_info *ret_packinfo,
 						while (offt + 4 <= taglen) {
 							if (memcmp(&(packet->data[tag_orig + offt]), 
 									  RSN_OUI, sizeof(RSN_OUI)) == 0) {
-								(int) ret_packinfo->crypt_set |= 
+								ret_packinfo->crypt_set |= 
 									WPAKeyMgtConv(packet->data[tag_orig + offt + 3]);
 								offt += 4;
 							} else {
@@ -1255,7 +1255,7 @@ void GetProtoInfo(kis_packet *packet, packet_info *in_info) {
 						if (pdu_len != 1)
 							break;
 						if (!!(pdu[3] & iapp_cap_wep))
-							(int) in_info->crypt_set |= crypt_wep;
+							in_info->crypt_set |= crypt_wep;
 						break;
 					case iapp_pdu_announceint:
 						break;

@@ -505,7 +505,7 @@ typedef struct {
     distribution_type distrib;
 
 	// What crypt set is used?
-	crypt_type crypt_set;
+	int crypt_set;
 
     // Was the encryption detection fuzzy?
     int fuzzy;
