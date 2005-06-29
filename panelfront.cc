@@ -475,20 +475,86 @@ PanelFront::~PanelFront() {
         delete context_list[x];
 }
 
+void PanelFront::PopulateGroups(TcpClient *in_client) {
+	vector<wireless_network *> clientlist;
+	vector<wireless_network *> probevec;
+	vector<wireless_network *> datavec;
+	vector<wireless_network *> advec;
+
+	if (auto_pgroup || auto_dgroup || auto_agroup) {
+		clientlist = in_client->FetchNetworkList();
+		
+		for (unsigned int x = 0; x < clientlist.size(); x++) {
+			wireless_network *net = clientlist[x];
+
+			if (net->dispnet != NULL)
+				continue;
+
+			if (net->type == network_probe && auto_pgroup) {
+				probevec.push_back(net);
+			} else if (net->type == network_adhoc && auto_agroup) {
+				advec.push_back(net);
+			} else if (net->type == network_data && auto_dgroup) {
+				datavec.push_back(net);
+			}
+		}
+
+		// Build the group if we need to
+		if (probe_group == NULL && auto_pgroup) {
+			probe_group = CreateGroup(0, "autogroup_probe", "Probe Networks");
+		}
+		// If we group, compare the size of the group and the size of the
+		// network vec and add them all if we need to
+		if (auto_pgroup && probevec.size() + probe_group->networks.size()) {
+			for (unsigned int x = 0; x < probevec.size(); x++) {
+
+				probe_group->networks.push_back(probevec[x]);
+				probevec[x]->dispnet = probe_group;
+				probe_group->type = group_bundle;
+				group_assignment_map[probevec[x]->bssid] = probe_group;
+			}
+		}
+
+		// Build the group if we need to
+		if (data_group == NULL && auto_dgroup) {
+			data_group = CreateGroup(0, "autogroup_data", "Data Networks");
+		}
+		// If we group, compare the size of the group and the size of the
+		// network vec and add them all if we need to
+		if (auto_dgroup && datavec.size() + data_group->networks.size()) {
+			for (unsigned int x = 0; x < datavec.size(); x++) {
+
+				data_group->networks.push_back(datavec[x]);
+				datavec[x]->dispnet = data_group;
+				data_group->type = group_bundle;
+				group_assignment_map[datavec[x]->bssid] = data_group;
+			}
+		}
+
+		// Build the group if we need to
+		if (adhoc_group == NULL && auto_agroup) {
+			adhoc_group = CreateGroup(0, "autogroup_adhoc", "Adhoc Networks");
+		}
+		// If we group, compare the size of the group and the size of the
+		// network vec and add them all if we need to
+		if (auto_agroup && advec.size() + adhoc_group->networks.size()) {
+			for (unsigned int x = 0; x < advec.size(); x++) {
+
+				adhoc_group->networks.push_back(advec[x]);
+				advec[x]->dispnet = adhoc_group;
+				adhoc_group->type = group_bundle;
+				group_assignment_map[advec[x]->bssid] = adhoc_group;
+			}
+		}
+	}
+
+	Frontend::PopulateGroups(in_client);
+}
+
 void PanelFront::UpdateGroups() {
-    int auto_pgroup = 0;
-    int auto_dgroup = 0;
-	int auto_agroup = 0;
     int move_details = 0;
 
     localnets_dirty = 0;
-
-    if (prefs["autogroup_probe"] == "true") 
-        auto_pgroup = 1;
-    if (prefs["autogroup_data"] == "true") 
-        auto_dgroup = 1;
-	if (prefs["autogroup_adhoc"] == "true")
-		auto_agroup = 1;
 
     // Try to autogroup probe, data, and adhoc networks
     if (auto_pgroup || auto_dgroup || auto_agroup) {
@@ -517,7 +583,7 @@ void PanelFront::UpdateGroups() {
 			}
         }
 
-        if (probevec.size() > 0 && !(probevec.size() == 1 && probe_group == NULL)) {
+		if (probevec.size() > 1) {
             if (probe_group == NULL) {
                 probe_group = CreateGroup(0, "autogroup_probe", "Probe Networks");
             }
@@ -537,7 +603,7 @@ void PanelFront::UpdateGroups() {
             }
         }
 
-        if (datavec.size() > 0 && !(datavec.size() == 1 && data_group == NULL)) {
+		if (datavec.size() > 1) {
             if (data_group == NULL) {
                 data_group = CreateGroup(0, "autogroup_data", "Data Networks");
             }
@@ -557,7 +623,7 @@ void PanelFront::UpdateGroups() {
             }
         }
 
-		if (advec.size() > 0 && !(advec.size() == 1 && adhoc_group == NULL)) {
+		if (advec.size() > 1) {
 			if (adhoc_group == NULL) {
 				adhoc_group = CreateGroup(0, "autogroup_adhoc", "Adhoc networks");
 			}
@@ -1532,6 +1598,13 @@ void PanelFront::AddPrefs(map<string, string> in_prefs) {
 
     SetMainColumns(prefs["columns"]);
     SetClientColumns(prefs["clientcolumns"]);
+
+    if (prefs["autogroup_probe"] == "true") 
+        auto_pgroup = 1;
+    if (prefs["autogroup_data"] == "true") 
+        auto_dgroup = 1;
+	if (prefs["autogroup_adhoc"] == "true")
+		auto_agroup = 1;
 
     if (use_acpi) {
         char buf[80];

@@ -196,6 +196,13 @@ int PanelFront::MainInput(void *in_window, int in_chr) {
     case 't':
     case 'T':
         if (sortby != sort_auto && last_displayed.size() > 0) {
+			if (last_displayed[kwin->selected] == probe_group ||
+				last_displayed[kwin->selected] == data_group ||
+				last_displayed[kwin->selected] == adhoc_group) {
+				MainInput(in_window, KEY_DOWN);
+				break;
+			}
+
             if (last_displayed[kwin->selected]->tagged)
                 last_displayed[kwin->selected]->tagged = 0;
             else

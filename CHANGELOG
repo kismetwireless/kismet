@@ -4,6 +4,11 @@ Jun 28 2005  devel  Fixed WPA reporting when the first packet isn't WPA
                     Added WEP40, WEP104, TKIP, PSK, AES-OCB and AES-CCM
                      detection
                     Fixed gcc-3.4.x compilation
+                    Tweaked client for slightly better performance
+                    Fixed issue where re-grouping an auto-group led to 
+                     Bad Things in the client
+                    Rewrote chunks of group management code, possibly resolving
+                     lurking segfault in client
 Jun 25 2005  devel  Added support for new wrt54g revisions/firmwares that use
                      prism0 for monitor data.  Set your capture type to
                      wrt54g,eth1:prism0,foo
