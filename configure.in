@@ -64,6 +64,10 @@ then
 		AC_MSG_RESULT(none needed)
 		AC_DEFINE(SYS_OPENBSD, 1, Compiling for OpenBSD)
 		;;
+	netbsd*)
+		AC_MSG_RESULT(none needed)
+		AC_DEFINE(SYS_NETBSD, 1, Compiling for NetBSD)
+		;;
 	cygwin*)
 		AC_MSG_RESULT(none needed)
 		AC_DEFINE(SYS_CYGWIN, 1, Compiling for Cygwin)
@@ -99,8 +103,12 @@ else
         AC_DEFINE(SYS_FREEBSD, 1, Compiling for FreeBSD)
         ;;
     openbsd*)
-       AC_MSG_RESULT(none needed)
+        AC_MSG_RESULT(none needed)
         AC_DEFINE(SYS_OPENBSD, 1, Compiling for OpenBSD)
+        ;;
+    netbsd*)
+        AC_MSG_RESULT(none needed)
+        AC_DEFINE(SYS_NETBSD, 1, Compiling for NetBSD)
         ;;
 	cygwin*)
 		AC_MSG_RESULT(none needed)

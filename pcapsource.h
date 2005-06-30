@@ -61,6 +61,11 @@ extern "C" {
 #define	DLT_IEEE802_11_RADIO	127	/* 802.11 plus WLAN header */
 #endif
 
+// Extension to radiotap header not yet included in all BSD's
+#ifndef IEEE80211_RADIOTAP_F_FCS
+#define IEEE80211_RADIOTAP_F_FCS        0x10    /* frame includes FCS */
+#endif
+
 #ifndef IEEE80211_IOC_CHANNEL
 #define IEEE80211_IOC_CHANNEL 0
 #endif

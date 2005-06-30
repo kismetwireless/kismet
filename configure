@@ -3106,6 +3106,15 @@ cat >>confdefs.h <<\_ACEOF
 _ACEOF
 
 		;;
+	netbsd*)
+		echo "$as_me:$LINENO: result: none needed" >&5
+echo "${ECHO_T}none needed" >&6
+
+cat >>confdefs.h <<\_ACEOF
+#define SYS_NETBSD 1
+_ACEOF
+
+		;;
 	cygwin*)
 		echo "$as_me:$LINENO: result: none needed" >&5
 echo "${ECHO_T}none needed" >&6
@@ -3159,11 +3168,20 @@ _ACEOF
 
         ;;
     openbsd*)
-       echo "$as_me:$LINENO: result: none needed" >&5
+        echo "$as_me:$LINENO: result: none needed" >&5
 echo "${ECHO_T}none needed" >&6
 
 cat >>confdefs.h <<\_ACEOF
 #define SYS_OPENBSD 1
+_ACEOF
+
+        ;;
+    netbsd*)
+        echo "$as_me:$LINENO: result: none needed" >&5
+echo "${ECHO_T}none needed" >&6
+
+cat >>confdefs.h <<\_ACEOF
+#define SYS_NETBSD 1
 _ACEOF
 
         ;;

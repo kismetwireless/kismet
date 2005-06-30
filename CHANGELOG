@@ -1,3 +1,5 @@
+Jun 30 2005  devel  Merged OpenBSD config patches and RADIOTAP_F_FCS patches
+                     from Pedro
 Jun 28 2005  devel  Fixed WPA reporting when the first packet isn't WPA
                     Added WPA2-AES detection
                     Rewrote WPA detection to do full WPA header decoding
