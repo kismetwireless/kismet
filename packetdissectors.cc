@@ -136,15 +136,23 @@ int GetTagOffsets(int init_offset, kis_packet *packet,
 
 // This needs to be optimized and it needs to not use casting to do its magic
 int kis_80211_dissector(CHAINCALL_PARMS) {
+	if (in_pack->error)
+		return 0;
+
     // Extract data, bail if it doesn't exist, make a local copy of what we're
     // inserting into the frame.
     kis_ieee_80211_packinfo *packinfo;
-    kis_datachunk *chunk = in_pack->fetch(globalreg->pcr_80211frame_ref);
+    kis_datachunk *chunk = 
+		in_pack->fetch(globalreg->packetcomp_map[PACK_COMP_LINKFRAME]);
 
     // If we don't have enough data to figure out what we are, if we don't
     // have any packet data, or if we're known to be in error, bail out.
-    if (chunk == NULL || in_pack->error)
-        return 0;
+    if (chunk == NULL) {
+		chunk = in_pack->fetch(globalreg->packetcomp_map[PACK_COMP_LINKFRAME]);
+		if (chunk == NULL) {
+			return 0;
+		}
+	}
 
     if (chunk->length < 24)
         return 0;

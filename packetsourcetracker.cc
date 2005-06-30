@@ -68,6 +68,19 @@ Packetsourcetracker::Packetsourcetracker(GlobalRegistry *in_globalreg) {
 
     dataframe_only = 0;
 
+	// Register our packet components 
+	// back-refer to the capsource so we can get names and parameters
+	globalreg->packetcomp_map[PACK_COMP_KISCAPSRC] =
+		globalreg->packetchain->RegisterPacketComponent("KISCAPSRC");
+	// Basic packet chunks everyone needs
+	globalreg->packetcomp_map[PACK_COMP_RADIODATA] =
+		globalreg->packetchain->RegisterPacketComponent("RADIODATA");
+	globalreg->packetcomp_map[PACK_COMP_LINKFRAME] =
+		globalreg->packetchain->RegisterPacketComponent("LINKFRAME");
+	globalreg->packetcomp_map[PACK_COMP_80211FRAME] =
+		globalreg->packetchain->RegisterPacketComponent("80211FRAME");
+	
+
     // Register all our packet sources
     // RegisterPacketsource(name, root, channelset, init channel, register,
     // monitor, unmonitor, channelchanger)

@@ -125,7 +125,7 @@ public:
     }
 
     ~kis_datachunk() {
-        delete data;
+        delete[] data;
         length = 0;
     }
 };
@@ -222,14 +222,17 @@ public:
 class kis_layer1_packinfo : public packet_component {
 public:
 	kis_layer1_packinfo() {
-		quality = signal = noise = 0;
+		signal = noise = 0;
 		carrier = carrier_unknown;
 		encoding = encoding_unknown;
 		datarate = 0;
+		channel = 0;
 	}
 
+	// Channel packet seen on
+	int channel;
+
     // Connection info
-    int quality;
     int signal;
     int noise;
 

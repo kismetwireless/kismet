@@ -68,7 +68,7 @@ class Pollable;
 // Same game, packet component references
 #define PACK_COMP_80211			0
 #define PACK_COMP_TURBOCELL		1
-#define PACK_COMP_LAYER1		2
+#define PACK_COMP_RADIODATA		2
 #define PACK_COMP_GPS			3
 #define PACK_COMP_LINKFRAME		4
 #define PACK_COMP_80211FRAME	5

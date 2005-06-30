@@ -5,7 +5,7 @@ AC_CONFIG_SRCDIR([kismet.h])
 AC_PREREQ(2.57)
 
 # Included pcap directory
-pcapdir="libpcap-0.8.3"
+pcapdir="libpcap-0.9.1-kis"
 etherealdir="/usr/src/ethereal-0.9.12"
 AC_SUBST(pcapdir)
 
@@ -215,6 +215,8 @@ fi
 
 # How does accept() work on this system?
 AC_MSG_CHECKING([for accept() addrlen type])
+OCFL="$CFLAGS"
+CFLAGS="-Werror $CFLAGS"
 AC_LINK_IFELSE([AC_LANG_PROGRAM([[
 		#include <stdio.h>
 		#include <sys/types.h>
@@ -232,6 +234,7 @@ if test $accept_socklen = "yes"; then
 else
 	AC_MSG_RESULT([int])
 fi
+CFLAGS="$OCFL"
 
 # Do we have large file support?
 AC_SYS_LARGEFILE
@@ -324,6 +327,17 @@ AC_DEFINE(HAVE_GPS, 1, GPS support will be built.)
 #	AC_DEFINE(HAVE_GPS, 1, GPS support will be built.)
 #fi
 
+AC_ARG_WITH(linuxheaders,
+[  --with-linuxheaders[=DIR]     Custom location of the Linux kernel headers if the glibc copies are insufficient ],
+[
+    if test "$withval" != no -a "$withval" != "yes"; then
+        CPPFLAGS="$CPPFLAGS -I$withval"   
+    fi
+])
+
+# ,[
+#         CPPFLAGS="$CPPFLAGS -I/lib/modules/$(uname -r)/build/include/"   
+# ])
 
 AC_ARG_ENABLE(netlink, [  --disable-netlink       disable linux netlink socket capture],,wantnetlink=yes)
 AC_SUBST(wantnetlink)
@@ -346,19 +360,13 @@ if test $wantwireless = yes; then
 wireless=no
 AC_CHECK_HEADER([linux/wireless.h],
 	[wireless=yes],
-	[AC_MSG_WARN([*** Missing Linux Wireless kernel extentions.  Wavelan/generic source will not be built. ***])],
+	[AC_MSG_WARN([*** Missing Linux Wireless kernel extentions.  The majority of packet sources on Linux require this support and will not work without it.  Make sure your kernel header packages are installed.  If all else fails, try the --with-linuxheaders directive. ***])],
 	[#include <linux/socket.h>])
 else
-	AC_MSG_WARN(*** Compiling without Linux Wireless kernel extentions.  Wavelan/generic source will not be built. ***) 
+	AC_MSG_WARN(*** Missing Linux Wireless kernel extentions.  The majority of packet sources on Linux require this support and will not work without it.  Make sure your kernel header packages are installed.  If all else fails, try the --with-linuxheaders directive. ***)
 fi
 
 if test "$wireless" = "yes"; then
-    # If we're compiling under linux and we need the wireless extentions,
-    # then we should try to look in the current kernel module build dir, too.
-    if test "$linux" = "yes"; then
-        CPPFLAGS="$CPPFLAGS -I/lib/modules/\`uname -r\`/build/include/"   
-    fi
-
     AC_MSG_CHECKING(that linux/wireless.h is what we expect)
     AC_LINK_IFELSE([AC_LANG_PROGRAM([[
         #include <stdio.h>
@@ -465,13 +473,12 @@ else
 fi
 AC_SUBST(pcap)
 
-AC_MSG_CHECKING(that linux/wireless.h is what we expect)
+AC_MSG_CHECKING(for radiotap support)
 AC_LINK_IFELSE([AC_LANG_PROGRAM([[
     #include <stdio.h>
     #include <sys/socket.h>
     #include <net/if.h>
     #include <net/if_media.h>
-    #include <net80211/ieee80211_ioctl.h>
     #include <net80211/ieee80211_radiotap.h>
 ]], [[
 
@@ -791,6 +798,12 @@ fi
 if test "$gpslc" != ""; then
 	CPPFLAGS="$CPPFLAGS `Magick-config --cppflags`"
 	CXXFLAGS="$CXXFLAGS `Magick-config --cflags`"
+fi
+
+AC_ARG_ENABLE(optimization, [  --disable-optimization        disable -Ox gcc optimization],,wantopto=yes)
+if test "$wantopto" != "yes"; then
+	CPPFLAGS=`echo $CPPFLAGS | sed -e 's/-O.//g'`
+	CXXFLAGS=`echo $CXXFLAGS | sed -e 's/-O.//g'`
 fi
 
 if test "$libz" = "no" -a "$gpslc" != ""; then

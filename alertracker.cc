@@ -179,7 +179,7 @@ int Alertracker::CheckTimes(alert_rec *arec) {
 
 	// If the last time we sent anything was longer than the burst rate, we can
 	// reset the burst to 0
-	if (arec->time_last < (now.tv_sec - alert_time_unit_conv[arec->limit_burst])) {
+	if (arec->time_last < (now.tv_sec - alert_time_unit_conv[arec->burst_unit])) {
 		arec->burst_sent = 0;
 	}
 

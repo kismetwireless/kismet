@@ -866,10 +866,12 @@ Optional Features:
   --disable-wsp100        disable wsp100 remote drone source
   --enable-zaurus         enable extra utils for Sharp Zaurus (deprecated)
   --enable-local-dumper   force use of local dump code even if Ethereal is available
+  --disable-optimization        disable -Ox gcc optimization
 
 Optional Packages:
   --with-PACKAGE[=ARG]    use PACKAGE [ARG=yes]
   --without-PACKAGE       do not use PACKAGE (same as --with-PACKAGE=no)
+  --with-linuxheaders=DIR     Custom location of the Linux kernel headers if the glibc copies are insufficient
   --with-ethereal=DIR     support ethereal wiretap for replaying logs
   --without-ethereal        disable support for ethereal wiretap]
 
@@ -1327,7 +1329,7 @@ ac_compiler_gnu=$ac_cv_c_compiler_gnu
 
 
 # Included pcap directory
-pcapdir="libpcap-0.8.3"
+pcapdir="libpcap-0.9.1-kis"
 etherealdir="/usr/src/ethereal-0.9.12"
 
 
@@ -5155,6 +5157,8 @@ fi
 # How does accept() work on this system?
 echo "$as_me:$LINENO: checking for accept() addrlen type" >&5
 echo $ECHO_N "checking for accept() addrlen type... $ECHO_C" >&6
+OCFL="$CFLAGS"
+CFLAGS="-Werror $CFLAGS"
 cat >conftest.$ac_ext <<_ACEOF
 /* confdefs.h.  */
 _ACEOF
@@ -5223,6 +5227,7 @@ else
 	echo "$as_me:$LINENO: result: int" >&5
 echo "${ECHO_T}int" >&6
 fi
+CFLAGS="$OCFL"
 
 # Do we have large file support?
 # Check whether --enable-largefile or --disable-largefile was given.
@@ -6074,6 +6079,20 @@ _ACEOF
 #fi
 
 
+# Check whether --with-linuxheaders or --without-linuxheaders was given.
+if test "${with_linuxheaders+set}" = set; then
+  withval="$with_linuxheaders"
+
+    if test "$withval" != no -a "$withval" != "yes"; then
+        CPPFLAGS="$CPPFLAGS -I$withval"
+    fi
+
+fi;
+
+# ,[
+#         CPPFLAGS="$CPPFLAGS -I/lib/modules/$(uname -r)/build/include/"
+# ])
+
 # Check whether --enable-netlink or --disable-netlink was given.
 if test "${enable_netlink+set}" = set; then
   enableval="$enable_netlink"
@@ -6212,23 +6231,17 @@ echo "${ECHO_T}$ac_cv_header_linux_wireless_h" >&6
 if test $ac_cv_header_linux_wireless_h = yes; then
   wireless=yes
 else
-  { echo "$as_me:$LINENO: WARNING: *** Missing Linux Wireless kernel extentions.  Wavelan/generic source will not be built. ***" >&5
-echo "$as_me: WARNING: *** Missing Linux Wireless kernel extentions.  Wavelan/generic source will not be built. ***" >&2;}
+  { echo "$as_me:$LINENO: WARNING: *** Missing Linux Wireless kernel extentions.  The majority of packet sources on Linux require this support and will not work without it.  Make sure your kernel header packages are installed.  If all else fails, try the --with-linuxheaders directive. ***" >&5
+echo "$as_me: WARNING: *** Missing Linux Wireless kernel extentions.  The majority of packet sources on Linux require this support and will not work without it.  Make sure your kernel header packages are installed.  If all else fails, try the --with-linuxheaders directive. ***" >&2;}
 fi
 
 
 else
-	{ echo "$as_me:$LINENO: WARNING: *** Compiling without Linux Wireless kernel extentions.  Wavelan/generic source will not be built. ***" >&5
-echo "$as_me: WARNING: *** Compiling without Linux Wireless kernel extentions.  Wavelan/generic source will not be built. ***" >&2;}
+	{ echo "$as_me:$LINENO: WARNING: *** Missing Linux Wireless kernel extentions.  The majority of packet sources on Linux require this support and will not work without it.  Make sure your kernel header packages are installed.  If all else fails" >&5
+echo "$as_me: WARNING: *** Missing Linux Wireless kernel extentions.  The majority of packet sources on Linux require this support and will not work without it.  Make sure your kernel header packages are installed.  If all else fails" >&2;}
 fi
 
 if test "$wireless" = "yes"; then
-    # If we're compiling under linux and we need the wireless extentions,
-    # then we should try to look in the current kernel module build dir, too.
-    if test "$linux" = "yes"; then
-        CPPFLAGS="$CPPFLAGS -I/lib/modules/\`uname -r\`/build/include/"
-    fi
-
     echo "$as_me:$LINENO: checking that linux/wireless.h is what we expect" >&5
 echo $ECHO_N "checking that linux/wireless.h is what we expect... $ECHO_C" >&6
     cat >conftest.$ac_ext <<_ACEOF
@@ -6898,8 +6911,8 @@ echo "$as_me: WARNING: Compiling without libpcap support." >&2;}
 fi
 
 
-echo "$as_me:$LINENO: checking that linux/wireless.h is what we expect" >&5
-echo $ECHO_N "checking that linux/wireless.h is what we expect... $ECHO_C" >&6
+echo "$as_me:$LINENO: checking for radiotap support" >&5
+echo $ECHO_N "checking for radiotap support... $ECHO_C" >&6
 cat >conftest.$ac_ext <<_ACEOF
 /* confdefs.h.  */
 _ACEOF
@@ -6911,7 +6924,6 @@ cat >>conftest.$ac_ext <<_ACEOF
     #include <sys/socket.h>
     #include <net/if.h>
     #include <net/if_media.h>
-    #include <net80211/ieee80211_ioctl.h>
     #include <net80211/ieee80211_radiotap.h>
 
 int
@@ -8347,6 +8359,18 @@ fi
 if test "$gpslc" != ""; then
 	CPPFLAGS="$CPPFLAGS `Magick-config --cppflags`"
 	CXXFLAGS="$CXXFLAGS `Magick-config --cflags`"
+fi
+
+# Check whether --enable-optimization or --disable-optimization was given.
+if test "${enable_optimization+set}" = set; then
+  enableval="$enable_optimization"
+
+else
+  wantopto=yes
+fi;
+if test "$wantopto" != "yes"; then
+	CPPFLAGS=`echo $CPPFLAGS | sed -e 's/-O.//g'`
+	CXXFLAGS=`echo $CXXFLAGS | sed -e 's/-O.//g'`
 fi
 
 if test "$libz" = "no" -a "$gpslc" != ""; then

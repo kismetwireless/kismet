@@ -109,7 +109,7 @@ public:
 
 // Packetchain reference for packet sources to be attached to the 
 // item captured
-class kis_ref_capsource {
+class kis_ref_capsource : public packet_component {
 public:
 	KisPacketSource *ref_source;
 

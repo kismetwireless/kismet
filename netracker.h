@@ -188,16 +188,16 @@ public:
 		signal_data() {
 			// These all go to 0 since we don't know if it'll be positive or
 			// negative
-			last_quality = last_signal = last_noise = 0;
-			max_quality = max_signal = max_noise = 0;
+			last_signal = last_noise = 0;
+			max_signal = max_noise = 0;
 
 			peak_lat = peak_lon = peak_alt = 0;
 
 			maxseenrate = 0;
 		}
 
-		int last_quality, last_signal, last_noise;
-		int max_quality, max_signal, max_noise;
+		int last_signal, last_noise;
+		int max_signal, max_noise;
 		// Peak locations
 		double peak_lat, peak_lon, peak_alt;
 

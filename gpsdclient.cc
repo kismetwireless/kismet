@@ -334,6 +334,7 @@ int GPSDClient::ParseData() {
                     return 0;
                 }
                 set_pos = 1;        
+				continue;
             }
 
             if (values[0] == "A") {
@@ -347,6 +348,7 @@ int GPSDClient::ParseData() {
                     return 0;
                 }
                 set_alt = 1;
+				continue;
             }
 
             if (values[0] == "V") {
@@ -360,6 +362,7 @@ int GPSDClient::ParseData() {
                     return 0;
                 }
                 set_spd = 1;
+				continue;
             }
 
             if (values[0] == "H") {
@@ -373,6 +376,7 @@ int GPSDClient::ParseData() {
                     return 0;
                 }
                 set_hed = 1;
+				continue;
             }
 
             if (values[0] == "M") {
@@ -386,6 +390,7 @@ int GPSDClient::ParseData() {
                     return 0;
                 }
                 set_mode = 1;
+				continue;
             }
         }
     }

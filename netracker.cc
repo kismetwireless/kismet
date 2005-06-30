@@ -179,16 +179,10 @@ void Protocol_Network2Data(const wireless_network *net, NETWORK_data *data) {
     */
     data->ndvec.push_back("0");
 
-    snprintf(tmpstr, 128, "%d", net->quality);
-    data->ndvec.push_back(tmpstr);
-
     snprintf(tmpstr, 128, "%d", net->signal);
     data->ndvec.push_back(tmpstr);
 
     snprintf(tmpstr, 128, "%d", net->noise);
-    data->ndvec.push_back(tmpstr);
-
-    snprintf(tmpstr, 128, "%d", net->best_quality);
     data->ndvec.push_back(tmpstr);
 
     snprintf(tmpstr, 128, "%d", net->best_signal);
@@ -345,16 +339,10 @@ void Protocol_Client2Data(const wireless_network *net, const wireless_client *cl
     snprintf(tmpstr, 128, "%2.1f", cli->maxrate);
     data->cdvec.push_back(tmpstr);
 
-    snprintf(tmpstr, 128, "%d", cli->quality);
-    data->cdvec.push_back(tmpstr);
-
     snprintf(tmpstr, 128, "%d", cli->signal);
     data->cdvec.push_back(tmpstr);
 
     snprintf(tmpstr, 128, "%d", cli->noise);
-    data->cdvec.push_back(tmpstr);
-
-    snprintf(tmpstr, 128, "%d", cli->best_quality);
     data->cdvec.push_back(tmpstr);
 
     snprintf(tmpstr, 128, "%d", cli->best_signal);
@@ -539,7 +527,7 @@ int Netracker::netracker_chain_handler(kis_packet *in_pack) {
 	kis_gps_packinfo *gpsinfo = (kis_gps_packinfo *) 
 		in_pack->fetch(globalreg->packetcomp_map[PACK_COMP_GPS]);
 	kis_layer1_packinfo *l1info = (kis_layer1_packinfo *) 
-		in_pack->fetch(globalreg->packetcomp_map[PACK_COMP_LAYER1]);
+		in_pack->fetch(globalreg->packetcomp_map[PACK_COMP_RADIODATA]);
 
 	// No 802.11 info, we don't handle it.
 	if (packinfo == NULL) {
@@ -663,13 +651,8 @@ int Netracker::netracker_chain_handler(kis_packet *in_pack) {
 	// L1 signal info, if our capture source was able to inject any into
 	// the packet.
 	if (l1info != NULL) {
-		net->snrdata.last_quality = l1info->quality;
 		net->snrdata.last_signal = l1info->signal;
 		net->snrdata.last_noise = l1info->noise;
-
-		if (l1info->quality > net->snrdata.max_quality) {
-			net->snrdata.max_quality = l1info->quality;
-		}
 
 		if (l1info->noise > net->snrdata.max_noise) {
 			net->snrdata.max_noise = l1info->noise;
