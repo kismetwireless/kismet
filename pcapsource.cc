@@ -89,6 +89,7 @@ typedef unsigned long u64;
 
 #include "pcapsource.h"
 #include "util.h"
+#include "packetsourcetracker.h"
 
 #ifdef HAVE_LIBPCAP
 
@@ -268,216 +269,190 @@ int PcapSource::Poll() {
     if (ret == 0)
         return 0;
 
-    if (paused || ManglePacket(packet, data, moddata) == 0) {
+	kis_packet *newpack = globalreg->packetchain->GeneratePacket();
+
+    if (paused || ManglePacket(newpack) == 0) {
+		globalreg->packetchain->DestroyPacket(newpack);
         return 0;
     }
 
     num_packets++;
 
-    // Set the name
-    snprintf(packet->sourcename, 32, "%s", name.c_str());
-    
-    // Set the parameters
-    packet->parm = parameters;
-    
-    return(packet->caplen);
+	// Set the source (this replaces setting the name and parameters)
+	kis_ref_capsource *csrc_ref = new kis_ref_capsource;
+	csrc_ref->ref_source = this;
+	newpack->insert(globalreg->packetcomp_map[PACK_COMP_KISCAPSRC], csrc_ref);
+
+	// Inject it into the packetchain
+	globalreg->packetchain->ProcessPacket(newpack);
+	// Packetchain handles destroying it at the end, we're done with it now
+
+	return 1;
 }
 
-int PcapSource::ManglePacket(kis_packet *packet, uint8_t *data, uint8_t *moddata) {
+int PcapSource::ManglePacket(kis_packet *packet) {
     int ret = 0;
-    memset(packet, 0, sizeof(kis_packet));
-    
-    packet->ts = callback_header.ts;
-    packet->data = data;
-    packet->moddata = moddata;
-    packet->modified = 0;
 
-    if (globalreg->gpsd != NULL) {
-        globalreg->gpsd->FetchLoc(&packet->gps_lat, &packet->gps_lon, &packet->gps_alt,
-                                  &packet->gps_spd, &packet->gps_heading, &packet->gps_fix);
-    }
+	// Get the timestamp
+	packet->ts = callback_header.ts;
+	
+	// Add the link-layer raw data
+	kis_datachunk *linkchunk = new kis_datachunk;
+	linkchunk->data = new uint8_t[callback_header.caplen];
+	linkchunk->length = kismin(callback_header.caplen, (uint32_t) MAX_PACKET_LEN);
+	memcpy(linkchunk->data, callback_data, linkchunk->length);
+	packet->insert(globalreg->packetcomp_map[PACK_COMP_LINKFRAME], linkchunk);
 
     if (datalink_type == DLT_PRISM_HEADER) {
-        ret = Prism2KisPack(packet, data, moddata);
-    } else if (datalink_type == KDLT_BSD802_11) {
-        ret = BSD2KisPack(packet, data, moddata);
+        ret = Prism2KisPack(packet);
 #ifdef HAVE_RADIOTAP
     } else if (datalink_type == DLT_IEEE802_11_RADIO) {
         ret = Radiotap2KisPack(packet, data, moddata);
 #endif
-    } else {
+    } 
+
+#if 0
+	// Otherwise we don't have to do anything -- if the packet has only a LINKFRAME
+	// we can use that in place of the 80211FRAME everywhere else, since they're the
+	// same type.
+	else {
         packet->caplen = kismin(callback_header.caplen, (uint32_t) MAX_PACKET_LEN);
         packet->len = packet->caplen;
         memcpy(packet->data, callback_data, packet->caplen);
         ret = 1;
     }
+#endif
 
-    // Fetch the signal levels if we know how and it hasn't been already
-    if (packet->signal == 0 && packet->noise == 0)
-        FetchSignalLevels(&(packet->signal), &(packet->noise));
-    
-    // Fetch the channel if we know how and it hasn't been filled in already
-    if (packet->channel == 0)
-        packet->channel = FetchChannel();
+	if (ret < 0)
+		return ret;
 
-    if (packet->carrier == carrier_unknown)
-        packet->carrier = IEEE80211Carrier();
+	// Build a layer1 signal record if we don't have anything else
+	kis_layer1_packinfo *radiodata = (kis_layer1_packinfo *) 
+		packet->fetch(globalreg->packetcomp_map[PACK_COMP_RADIODATA]);
+
+	if (radiodata == NULL) {
+		radiodata = new kis_layer1_packinfo;
+		packet->insert(globalreg->packetcomp_map[PACK_COMP_RADIODATA], radiodata);
+	}
+
+	// Fetch the signal levels if we know how and it hasn't been already.
+	if (radiodata->signal == 0 && radiodata->noise == 0)
+		FetchSignalLevels(&(radiodata->signal), &(radiodata->noise));
+
+	// Fetch the channel if we know how and it hasn't been filled in already
+	if (radiodata->channel == 0)
+		radiodata->channel = FetchChannel();
     
     return ret;
 
 }
 
-int PcapSource::Prism2KisPack(kis_packet *packet, uint8_t *data, uint8_t *moddata) {
-    int header_found = 0;
+int PcapSource::Prism2KisPack(kis_packet *packet) {
     int callback_offset = 0;
     char errstr[STATUS_MAX] = "";
+
+	// Make a datachunk for the reformatted frame
+	kis_datachunk *eight11chunk = NULL;
+	kis_layer1_packinfo *radioheader = NULL;
 
     // See if we have an AVS wlan header...
     avs_80211_1_header *v1hdr = (avs_80211_1_header *) callback_data;
     if (callback_header.caplen >= sizeof(avs_80211_1_header) &&
-        ntohl(v1hdr->version) == 0x80211001 && header_found == 0) {
+        ntohl(v1hdr->version) == 0x80211001 && radioheader == NULL) {
 
         if (ntohl(v1hdr->length) > callback_header.caplen) {
-            snprintf(errstr, STATUS_MAX, "pcap prism2 converter got corrupted AVS header length");
+            snprintf(errstr, STATUS_MAX, "pcap prism2 converter got corrupted "
+					 "AVS header length");
             globalreg->messagebus->InjectMessage(errstr, MSGFLAG_ERROR);
-            packet->len = 0;
-            packet->caplen = 0;
             return 0;
         }
 
-        header_found = 1;
+		eight11chunk = new kis_datachunk;
+		radioheader = new kis_layer1_packinfo;
 
         // Get the FCS for this subclass
         int fcs = FCSBytes();
 
         // Subtract the packet FCS since kismet doesn't do anything terribly bright
-        // with it right now
-        packet->caplen = kismin(callback_header.caplen - ntohl(v1hdr->length) - fcs, 
-                                (uint32_t) MAX_PACKET_LEN);
-        packet->len = packet->caplen;
-
-        /*
-        packet->caplen = kismin(callback_header.caplen - 4 - ntohl(v1hdr->length), (uint32_t) MAX_PACKET_LEN);
-        packet->len = packet->caplen;
-        */
-
+        // with it right now, also subtract the avs header
+		eight11chunk->length = kismin((callback_header.caplen - ntohl(v1hdr->length) -
+									  fcs), (uint32_t) MAX_PACKET_LEN);
         callback_offset = ntohl(v1hdr->length);
 
         // We REALLY need to do something smarter about this and handle the RSSI
         // type instead of just copying
-        packet->signal = ntohl(v1hdr->ssi_signal);
-        packet->noise = ntohl(v1hdr->ssi_noise);
-
-        packet->channel = ntohl(v1hdr->channel);
+		radioheader->signal = ntohl(v1hdr->ssi_signal);
+		radioheader->noise = ntohl(v1hdr->ssi_noise);
+		radioheader->channel = ntohl(v1hdr->channel);
 
         switch (ntohl(v1hdr->phytype)) {
             case 1:
-                packet->carrier = carrier_80211fhss;
+				radioheader->carrier = carrier_80211fhss;
+				break;
             case 2:
-                packet->carrier = carrier_80211dsss;
+                radioheader->carrier = carrier_80211dsss;
                 break;
             case 4:
             case 5:
-                packet->carrier = carrier_80211b;
+                radioheader->carrier = carrier_80211b;
                 break;
             case 6:
             case 7:
-                packet->carrier = carrier_80211g;
+                radioheader->carrier = carrier_80211g;
                 break;
             case 8:
-                packet->carrier = carrier_80211a;
+                radioheader->carrier = carrier_80211a;
                 break;
             default:
-                packet->carrier = carrier_unknown;
+                radioheader->carrier = carrier_unknown;
                 break;
         }
 
-        packet->encoding = (encoding_type) ntohl(v1hdr->encoding);
+        radioheader->encoding = (phy_encoding_type) ntohl(v1hdr->encoding);
 
-        packet->datarate = (int) ntohl(v1hdr->datarate);
+        radioheader->datarate = (int) ntohl(v1hdr->datarate);
     }
 
     // See if we have a prism2 header
     wlan_ng_prism2_header *p2head = (wlan_ng_prism2_header *) callback_data;
     if (callback_header.caplen >= sizeof(wlan_ng_prism2_header) &&
-        header_found == 0) {
+        radioheader == NULL) {
 
-        header_found = 1;
+		eight11chunk = new kis_datachunk;
+		radioheader = new kis_layer1_packinfo;
 
         // Get the FCS
         int fcs = FCSBytes();
 
         // Subtract the packet FCS since kismet doesn't do anything terribly bright
         // with it right now
-        packet->caplen = kismin(p2head->frmlen.data - fcs, (uint32_t) MAX_PACKET_LEN);
-        packet->len = packet->caplen;
-
+        eight11chunk->length = kismin((p2head->frmlen.data - fcs), 
+									   (uint32_t) MAX_PACKET_LEN);
 
         // Set our offset for extracting the actual data
         callback_offset = sizeof(wlan_ng_prism2_header);
 
-        // packet->quality = p2head->sq.data;
-        packet->signal = p2head->signal.data;
-        packet->noise = p2head->noise.data;
+        radioheader->signal = p2head->signal.data;
+        radioheader->noise = p2head->noise.data;
 
-        packet->channel = p2head->channel.data;
-
+        radioheader->channel = p2head->channel.data;
     }
 
-    if (header_found == 0) {
-        snprintf(errstr, STATUS_MAX, "pcap prism2 convverter saw undersized capture frame");
+    if (radioheader == NULL) {
+        snprintf(errstr, STATUS_MAX, "pcap prism2 convverter saw undersized "
+				 "capture frame (PRISM80211 linktype, no prism headers)");
         globalreg->messagebus->InjectMessage(errstr, MSGFLAG_ERROR);
-        packet->len = 0;
-        packet->caplen = 0;
         return 0;
     }
 
-    memcpy(packet->data, callback_data + callback_offset, packet->caplen);
+	eight11chunk->data = new uint8_t[eight11chunk->length];
+    memcpy(eight11chunk->data, callback_data + callback_offset, eight11chunk->length);
+
+	packet->insert(globalreg->packetcomp_map[PACK_COMP_RADIODATA], radioheader);
+	packet->insert(globalreg->packetcomp_map[PACK_COMP_80211FRAME], eight11chunk);
 
     return 1;
 
-}
-
-int PcapSource::BSD2KisPack(kis_packet *packet, uint8_t *data, uint8_t *moddata) {
-    int callback_offset = 0;
-    char errstr[STATUS_MAX];
-
-    // Process our hacked in BSD type
-    if (callback_header.caplen < sizeof(bsd_80211_header)) {
-        snprintf(errstr, STATUS_MAX, "pcap bsd converter saw undersized capture frame for bsd header.");
-        globalreg->messagebus->InjectMessage(errstr, MSGFLAG_ERROR);
-        packet->len = 0;
-        packet->caplen = 0;
-        return 0;
-    }
-
-    packet->caplen = kismin(callback_header.caplen - sizeof(bsd_80211_header), 
-                            (uint32_t) MAX_PACKET_LEN);
-    packet->len = packet->caplen;
-
-    bsd_80211_header *bsdhead = (bsd_80211_header *) callback_data;
-
-    packet->signal = bsdhead->wi_signal;
-    packet->noise = bsdhead->wi_silence;
-
-    // Set our offset
-    callback_offset = sizeof(bsd_80211_header);
-    memcpy(packet->data, callback_data + callback_offset, 24);
-
-    // Adjust for driver appended headers
-    if (packet->data[0] > 0x08) {
-        packet->len -= 22;
-        packet->caplen -= 22;
-        memcpy(packet->data + 24, callback_data + callback_offset + 46, 
-               packet->caplen - 2);
-    } else {
-        packet->len -= 30;
-        packet->caplen -= 30;
-        memcpy(packet->data + 24, callback_data + callback_offset + 46, 
-               packet->caplen - 2);
-    }
-
-    return 1;
 }
 
 #ifdef HAVE_RADIOTAP
@@ -764,7 +739,7 @@ int PcapSourceFile::FetchChannel() {
     return 0;
 }
 
-int PcapSourceFile::FetchPacket(kis_packet *packet, uint8_t *data, uint8_t *moddata) {
+int PcapSourceFile::Poll() {
     int ret;
     char errstr[STATUS_MAX] = "";
 
@@ -782,19 +757,21 @@ int PcapSourceFile::FetchPacket(kis_packet *packet, uint8_t *data, uint8_t *modd
         return -1;
     }
 
-    if (paused || ManglePacket(packet, data, moddata) == 0) {
+	kis_packet *newpack = globalreg->packetchain->GeneratePacket();
+
+    if (paused || ManglePacket(newpack) == 0) {
         return 0;
     }
 
     num_packets++;
 
-    // Set the name
-    snprintf(packet->sourcename, 32, "%s", name.c_str());
-    
-    // Set the parameters
-    packet->parm = parameters;
-    
-    return(packet->caplen);
+	kis_ref_capsource *csrc_ref = new kis_ref_capsource;
+	csrc_ref->ref_source = this;
+	newpack->insert(globalreg->packetcomp_map[PACK_COMP_KISCAPSRC], csrc_ref);
+
+	globalreg->packetchain->ProcessPacket(newpack);
+
+	return 1;
 }
 
 #ifdef HAVE_LINUX_WIRELESS
@@ -861,7 +838,7 @@ int PcapSourceWlanng::FetchChannel() {
 }
 
 // Handle badly formed jumbo packets from the drivers
-int PcapSourceWrt54g::FetchPacket(kis_packet *packet, uint8_t *data, uint8_t *moddata) {
+int PcapSourceWrt54g::Poll() {
     int ret;
     char errstr[STATUS_MAX] = "";
 
@@ -875,26 +852,26 @@ int PcapSourceWrt54g::FetchPacket(kis_packet *packet, uint8_t *data, uint8_t *mo
     if (ret == 0)
         return 0;
 
-    if (paused || ManglePacket(packet, data, moddata) == 0) {
-        return 0;
-    }
-
     // Junk packets that are too big, this is the only real way to detect crap
     // packets...
-    if (packet->caplen == MAX_PACKET_LEN) {
-        // printf("debug - dropping large wrt54g packet\n");
+	if (callback_header.caplen == MAX_PACKET_LEN)
+		return 0;
+
+	kis_packet *newpack = globalreg->packetchain->GeneratePacket();
+
+    if (paused || ManglePacket(newpack) == 0) {
         return 0;
     }
     
     num_packets++;
 
-    // Set the name
-    snprintf(packet->sourcename, 32, "%s", name.c_str());
-    
-    // Set the parameters
-    packet->parm = parameters;
-    
-    return(packet->caplen);
+	kis_ref_capsource *csrc_ref = new kis_ref_capsource;
+	csrc_ref->ref_source = this;
+	newpack->insert(globalreg->packetcomp_map[PACK_COMP_KISCAPSRC], csrc_ref);
+
+	globalreg->packetchain->ProcessPacket(newpack);
+
+	return 1;
 }
 
 phy_carrier_type PcapSourceWrt54g::IEEE80211Carrier() {
@@ -2399,7 +2376,7 @@ int chancontrol_ipw2100(CHCONTROL_PARMS) {
 
     int ret = 0;
 
-    ret = chancontrol_wext(in_dev, in_ch, in_err, in_ext);
+    ret = chancontrol_wext(globalreg, in_dev, in_ch, in_ext);
     usleep(5000);
 
     return ret;

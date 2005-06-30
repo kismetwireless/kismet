@@ -145,11 +145,9 @@ protected:
     // Signal level fetcher
     virtual int FetchSignalLevels(int *in_siglev, int *in_noiselev);
     // Mangler
-    virtual int ManglePacket(kis_packet *packet, uint8_t *data, uint8_t *moddata);
+    virtual int ManglePacket(kis_packet *packet);
     // Mangle a prism2 datalink to a kismet packet
-    int Prism2KisPack(kis_packet *packet, uint8_t *data, uint8_t *moddata);
-    // Mangle a BSD header
-    int BSD2KisPack(kis_packet *packet, uint8_t *data, uint8_t *moddata);
+    int Prism2KisPack(kis_packet *packet);
     // Mangle a radiotap header
 #ifdef HAVE_RADIOTAP
     int Radiotap2KisPack(kis_packet *packet, uint8_t *data, uint8_t *moddata);
