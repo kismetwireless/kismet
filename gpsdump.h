@@ -23,8 +23,6 @@
 
 #include "config.h"
 
-#ifdef HAVE_GPS
-
 #include <stdio.h>
 #include <errno.h>
 #include <string.h>
@@ -90,7 +88,5 @@ protected:
     char errstr[1024];
 
 };
-
-#endif
 
 #endif

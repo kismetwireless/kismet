@@ -19,7 +19,7 @@
 #include "config.h"
 
 // Prevent make dep warnings
-#if (defined(HAVE_IMAGEMAGICK) && defined(HAVE_GPS) && defined(HAVE_GMP))
+#if (defined(HAVE_IMAGEMAGICK) && defined(HAVE_GMP))
 
 #include <stdio.h>
 #ifdef HAVE_PTHREAD

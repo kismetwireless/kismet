@@ -483,12 +483,12 @@ Licensed under the GPL
       sources will soon be deprecated, if possible use the radiotap_bsd_x
       capture sources.
 
-      The OpenBSD gcc toolchain appears to sometimes have trouble with 
-      resource starvation compiling Kismet with optimization turned on.  If
-      you experience problems running out of memory compiling Kismet, either
-      edit the Makefile and remove the -Ox lines from the CPP and CXX flags,
-      or run configure with the --disable-optimization parameter and re-run
-      make.
+      There have been some reports of the OpenBSD gcc toolchain failing when
+      debugging symbols and optimization are turned on (-g and -O#).  If you
+      experience problems compiling Kismet on OpenBSD where GCC runs out of
+      memory, either edit the Makefile and remove the -Ox and -g options from
+      CPPFLAGS and CXXFLAGS, or run configure with the --disable-optimization
+      parameter, run gmake clean, and then gmake again.
 
     - FreeBSD
       Known supported cards: Atheros, Prism2, WSP100, Drone, wtapfile, pcapfile

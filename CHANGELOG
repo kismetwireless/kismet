@@ -1,3 +1,8 @@
+Jul 08 2005  devel  Merged stage1 of patches from Pedro for configure to allow
+                     disabling all gpsmap tests and compilation
+                    Removed HAVE_GPS ifdefs from the code, since the option
+                     was no longer supported and removing the def caused
+                     compile time errors
 Jun 30 2005  devel  Merged OpenBSD config patches and RADIOTAP_F_FCS patches
                      from Pedro
 Jun 28 2005  devel  Fixed WPA reporting when the first packet isn't WPA

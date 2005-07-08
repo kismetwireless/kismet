@@ -36,8 +36,6 @@
 #include <inttypes.h>
 #endif
 
-#ifdef HAVE_GPS
-
 // gpsd return looks like
 // SEND: PAVM
 // RECV: GPSD,P=41.711378 -73.931428,A=42.500000,V=0.000000,M=1
@@ -109,36 +107,5 @@ protected:
     uint32_t options;
   
 };
-
-#else
-
-class GPSD {
-public:
-    GPSD(char *, int) { };
-    ~GPSD(void) { };
-
-    char *FetchError() { return NULL; };
-
-    // Open gpsd on host, port
-    int OpenGPSD() { return -1; }
-    // Close it
-    int CloseGPSD() { return 0; }
-
-    void SetOptions(uint32_t) { return; }
-
-    // Scan the GPSD so we can return instantly when someone asks for it
-    int Scan() { return -1; }
-
-    // Fetch a location
-    int FetchLoc(float *in_lat, float *in_lon, float *in_alt, float *in_spd, float *in_hed, int *mode) {
-        return -1;
-    }
-
-    // Fetch mode
-    int FetchMode() { return 0; }
-  
-};
-
-#endif
 
 #endif

@@ -24,8 +24,6 @@
 
 #include "util.h"
 
-#ifdef HAVE_GPS
-
 GPSD::GPSD(char *in_host, int in_port) {
     sock = -1;
     lat = lon = alt = spd = hed = 0;
@@ -455,4 +453,3 @@ double GPSD::CalcRad(double lat) {
     return r;
 }
 
-#endif

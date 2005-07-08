@@ -54,10 +54,8 @@ char *exec_name;
 const char *config_base = "kismet_drone.conf";
 
 GPSD *gps = NULL;
-#ifdef HAVE_GPS
 int gpsmode = 0;
 int gps_enable = 0;
-#endif
 
 // Timetracker
 Timetracker timetracker;
@@ -84,7 +82,6 @@ void CatchShutdown(int sig) {
 }
 
 int GpsEvent(Timetracker::timer_event *evt, void *parm) {
-#ifdef HAVE_GPS
     // The GPS only provides us a new update once per second we might
     // as well only update it here once a second
     if (gps_enable) {
@@ -102,8 +99,6 @@ int GpsEvent(Timetracker::timer_event *evt, void *parm) {
 
     // We want to be rescheduled
     return 1;
-#endif
-    return 0;
 }
 
 // Handle channel hopping... this is actually really simple.
@@ -153,10 +148,8 @@ int main(int argc, char *argv[]) {
 
     TcpStreamer streamer;
 
-#ifdef HAVE_GPS
     char gpshost[1024];
     int gpsport = -1;
-#endif
 
     int channel_hop = -1;
     int channel_velocity = 1;
@@ -358,7 +351,6 @@ int main(int argc, char *argv[]) {
         exit(1);
     }
 
-#ifdef HAVE_GPS
     if (conf->FetchOpt("gps") == "true") {
         if (sscanf(conf->FetchOpt("gpshost").c_str(), "%1023[^:]:%d", gpshost, &gpsport) != 2) {
             fprintf(stderr, "Invalid GPS host in config (host:port required)\n");
@@ -396,8 +388,6 @@ int main(int argc, char *argv[]) {
 
 	// Add the GPS to the tcpstreamer
 	streamer.AddGpstracker(gps);
-
-#endif
 
     // Register the gps and timetracker with the sourcetracker
     sourcetracker.AddGpstracker(gps);

@@ -90,14 +90,12 @@ Alertracker alertracker;
 Timetracker timetracker;
 
 GPSD *gps = NULL;
-#ifdef HAVE_GPS
 int gpsmode = 0;
 GPSDump gpsdump;
 
 // Last time we tried to reconnect to the gps
 time_t last_gpsd_reconnect = 0;
 int gpsd_reconnect_attempt = 0;
-#endif
 
 FifoDumpFile fifodump;
 TcpServer ui_server;
@@ -171,10 +169,8 @@ typedef struct _alert_enable {
 const char *logtypes = NULL, *dumptype = NULL;
 int limit_logs = 0;
 
-#ifdef HAVE_GPS
 char gpshost[1024];
 int gpsport = -1;
-#endif
 
 string allowed_hosts;
 string bind_addr;
@@ -351,13 +347,10 @@ void CatchShutdown(int sig) {
         // delete cryptfile;
     }
 
-#ifdef HAVE_GPS
     if (gps_log == 1) {
         if (gpsdump.CloseDump(1) < 0)
             fprintf(stderr, "Didn't log any GPS coordinates, unlinking gps file\n");
     }
-
-#endif
 
     // Kill our sound players
     if (soundpid > 0)
@@ -645,7 +638,6 @@ void NetWriteInfo() {
 
     char tmpstr[32];
 
-#ifdef HAVE_GPS
     GPS_data gdata;
 
     if (gps_enable) {
@@ -676,7 +668,6 @@ void NetWriteInfo() {
     }
 
     ui_server.SendToAll(gps_ref, (void *) &gdata);
-#endif
 
     INFO_data idata;
     snprintf(tmpstr, 32, "%d", tracker.FetchNumNetworks());
@@ -799,7 +790,6 @@ void ProtocolClientEnable(int in_fd) {
 }
 
 int GpsEvent(Timetracker::timer_event *evt, void *parm) {
-#ifdef HAVE_GPS
     char status[STATUS_MAX];
 
     // The GPS only provides us a new update once per second we might
@@ -873,8 +863,6 @@ int GpsEvent(Timetracker::timer_event *evt, void *parm) {
 
     // We want to be rescheduled
     return 1;
-#endif
-    return 0;
 }
 
 // Simple redirect to the network info drawer.  We don't want to change netwriteinfo to a
@@ -1300,7 +1288,6 @@ int ProcessBulkConf(ConfigFile *conf) {
     }
 
 
-#ifdef HAVE_GPS
     if (conf->FetchOpt("waypoints") == "true") {
         if(conf->FetchOpt("waypointdata") == "") {
             fprintf(stderr, "WARNING:  Waypoint logging requested but no waypoint data file given.\n"
@@ -1312,7 +1299,6 @@ int ProcessBulkConf(ConfigFile *conf) {
         }
 
     }
-#endif
 
     if (conf->FetchOpt("metric") == "true") {
         fprintf(stderr, "Using metric measurements.\n");
@@ -1433,7 +1419,6 @@ int ProcessBulkConf(ConfigFile *conf) {
         }
 
         if (strstr(logtypes, "gps")) {
-#ifdef HAVE_GPS
             if (gps_log == 0) {
                 fprintf(stderr, "WARNING:  Disabling GPS logging.\n");
             } else {
@@ -1444,12 +1429,6 @@ int ProcessBulkConf(ConfigFile *conf) {
                     ErrorShutdown();
                 }
             }
-#else
-
-            fprintf(stderr, "WARNING:  GPS logging requested but GPS support was not included.\n"
-                    "          GPS logging will be disabled.\n");
-            gps_log = 0;
-#endif
 
         }
 
@@ -1833,7 +1812,6 @@ int ProcessBulkConf(ConfigFile *conf) {
 
     }
 
-#ifdef HAVE_GPS
     if (waypoint) {
         if ((waypoint_file = fopen(waypointfile.c_str(), "a")) == NULL) {
             fprintf(stderr, "WARNING:  Could not open waypoint file '%s' for writing: %s\n",
@@ -1841,7 +1819,6 @@ int ProcessBulkConf(ConfigFile *conf) {
             waypoint = 0;
         }
     }
-#endif
 
     // Create all the logs and title/number them appropriately
     // We need to save this for after we toast the conf record
@@ -1890,14 +1867,12 @@ int ProcessBulkConf(ConfigFile *conf) {
                 continue;
         }
 
-#ifdef HAVE_GPS
         if (gps_log == 1) {
             gpslogfile = conf->ExpandLogPath(conf->FetchOpt("logtemplate"), logname, "gps", run_num);
 
             if (gpslogfile == "")
                 continue;
         }
-#endif
 
         // if we made it this far we're cool -- all the logfiles we're writing to matched
         // this number
@@ -1927,10 +1902,8 @@ int ProcessBulkConf(ConfigFile *conf) {
     if (cisco_log)
         fprintf(stderr, "Logging cisco product information to %s\n", ciscologfile.c_str());
 
-#ifdef HAVE_GPS
     if (gps_log == 1)
         fprintf(stderr, "Logging gps coordinates to %s\n", gpslogfile.c_str());
-#endif
 
     if (data_log)
         fprintf(stderr, "Logging data to %s\n", dumplogfile.c_str());
@@ -2164,21 +2137,12 @@ int main(int argc,char *argv[]) {
             if (strcmp(optarg, "off") == 0) {
                 gps_enable = 0;
             }
-#ifdef HAVE_GPS
             else if (sscanf(optarg, "%1023[^:]:%d", gpshost, &gpsport) < 2) {
                 fprintf(stderr, "Invalid GPS host '%s' (host:port or off required)\n",
                        optarg);
                 gps_enable = 1;
                 Usage(argv[0]);
             }
-#else
-            else {
-                fprintf(stderr, "WARNING:  GPS requested but gps support was not included.  GPS\n"
-                        "          logging will be disabled.\n");
-                gps_enable = 0;
-                exit(1);
-            }
-#endif
             break;
         case 'p':
             // Port
@@ -2356,7 +2320,6 @@ int main(int argc,char *argv[]) {
     fclose(pid_file);
             
 
-#ifdef HAVE_GPS
     // Set up the GPS object to give to the children
     if (gpsport == -1 && gps_enable) {
         if (conf->FetchOpt("gps") == "true") {
@@ -2386,8 +2349,6 @@ int main(int argc,char *argv[]) {
     } else {
         gps_log = 0;
     }
-
-#endif
 
     // Register the gps and timetracker with the sourcetracker
     sourcetracker.AddGpstracker(gps);
@@ -2557,15 +2518,12 @@ int main(int argc,char *argv[]) {
         fprintf(stderr, "Dump file format: %s\n", dumpfile->FetchType());
     }
 
-#ifdef HAVE_GPS
     if (gps_enable && gps_log == 1) {
         if (gpsdump.OpenDump(gpslogfile.c_str(), xmllogfile.c_str()) < 0) {
             fprintf(stderr, "FATAL: GPS dump error: %s\n", gpsdump.FetchError());
             ErrorShutdown();
         }
     }
-#endif
-
 
     // Open our files first to make sure we can, we'll unlink the empties later.
     FILE *testfile = NULL;
@@ -2663,7 +2621,6 @@ int main(int argc,char *argv[]) {
         }
     }
 
-#ifdef HAVE_GPS
     if (gps_enable) {
         // Open the GPS
         if (gps->OpenGPSD() < 0) {
@@ -2680,7 +2637,6 @@ int main(int argc,char *argv[]) {
             last_gpsd_reconnect = time(0);
         }
     }
-#endif
 
     fprintf(stderr, "Listening on port %d.\n", tcpport);
     for (unsigned int ipvi = 0; ipvi < legal_ipblock_vec.size(); ipvi++) {
@@ -2778,10 +2734,8 @@ int main(int argc,char *argv[]) {
     // Write network info and tick the tracker once per second
     timetracker.RegisterTimer(SERVER_TIMESLICES_SEC, NULL, 1, &NetWriteEvent, NULL);
     timetracker.RegisterTimer(SERVER_TIMESLICES_SEC, NULL, 1, &TrackerTickEvent, NULL);
-#ifdef HAVE_GPS
     // Update GPS coordinates and handle signal loss if defined
     timetracker.RegisterTimer(SERVER_TIMESLICES_SEC, NULL, 1, &GpsEvent, NULL);
-#endif
     // Sync the data files if requested
     if (datainterval > 0 && no_log == 0)
         timetracker.RegisterTimer(datainterval * SERVER_TIMESLICES_SEC, NULL, 1, &ExportSyncEvent, NULL);
@@ -2960,7 +2914,6 @@ int main(int argc,char *argv[]) {
 
                     }
 
-#ifdef HAVE_GPS
                     if (gps_log == 1 && info.type != packet_noise && 
                         info.type != packet_unknown && info.type != packet_phy && 
                         info.corrupt == 0) {
@@ -2970,7 +2923,6 @@ int main(int argc,char *argv[]) {
                                 fprintf(stderr, "%s\n", status);
                         }
                     }
-#endif
 
                     // tracker.ProcessPacket(info);
                     tracker.ProcessPacket(&packet, &info, &bssid_wep_map, 
