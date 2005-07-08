@@ -497,8 +497,9 @@ Licensed under the GPL
       to Sam Leffler, Kismet supports the radiotap headers and should work with
       current FreeBSD systems.
 
-      FreeBSD users should configure with the --enable-syspcap to get mutlidlt
-      support.
+      FreeBSD users should configure with the --enable-syspcap option to get 
+      multidlt support from the system-wide libpcap library instead of the
+      bundled one.
 
     - NetBSD
       Known supported cards: WSP100, Drone, wtapfile, pcapfile
