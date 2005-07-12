@@ -30,28 +30,39 @@
 #include "timetracker.h"
 #include "gpsdclient.h"
 
-// All packetsources need to provide out-of-class functions for the 
-// packetsourcetracker class
+/*
+ * How packet sources, helper functions, and packetsourcetrackers work:
+ *
+ * The packet source is responsible for getting packets from (foo) and
+ * injecting them into the packet stream.
+ *
+ * The packetsourcetracker is responsible for parsing the config file,
+ * registering packet sources, controlling channel hopping, etc.
+ *
+ * The helper functions are needed for entering monitor mode (or whatever
+ * other configuration the source needs equivalent to monitor mode) and for
+ * changing channel.
+ *
+ * Channel control may be done via IPC with the channel-control process 
+ * running as root, which will not have a copy of the full packet source
+ * class, which is why they're not integrated.
+ *
+ * meta_packsource records are completed with the relevant information for
+ * channel and monitor control for the channel control client
+ *
+ */
 
-// Non-class helper functions for each packet source type to handle allocating the
-// class instance of KisPacketSource and to handle changing the channel outside of
-// the instantiated object
-//
-// meta packsources are completed and filled with all relevant information for channel
-// changing before the child process is spawned, eliminating the need to communicate
-// the setup information for the sources over IPC.  There are no non-fatal conditions
-// which would prevent a metasource from having a real correlation.
 class KisPacketSource;
 
 #define REGISTRANT_PARMS GlobalRegistry *globalreg, string in_name, string in_device
 typedef KisPacketSource *(*packsource_registrant)(REGISTRANT_PARMS);
 
 #define CHCONTROL_PARMS GlobalRegistry *globalreg, const char *in_dev, \
-                            int in_ch, void *in_ext
+	int in_ch, void *in_ext
 typedef int (*packsource_chcontrol)(CHCONTROL_PARMS);
 
 #define MONITOR_PARMS GlobalRegistry *globalreg, const char *in_dev, \
-                            int initch, void **in_if, void *in_ext
+	int initch, void **in_if, void *in_ext
 typedef int (*packsource_monitor)(MONITOR_PARMS);
 
 // Parmeters to the packet info.  These get set by the packet source controller
@@ -76,6 +87,7 @@ public:
         globalreg = in_globalreg;
         
         fcsbytes = 0;
+		carrier_set = 0;
     }
 
     virtual ~KisPacketSource() { };
@@ -88,7 +100,7 @@ public:
     // Get the channel
     virtual int FetchChannel() = 0;
 
-    // Get the FD of our packet source
+	// Get a pollable file descriptor
     virtual int FetchDescriptor() = 0;
 
 	// Trigger a fetch of a pending packet and inject it into the packet chain
@@ -109,24 +121,13 @@ public:
     // Stop ignoring incoming packets
     void Resume() { paused = 0; };
 
-    // Set packet parameters
-    void SetPackparm(packet_parm in_parameters) {
-        parameters = in_parameters;
-    }
+	void SetFCSBytes(int in_bytes) { fcsbytes = in_bytes; }
 
-    // Get packet parameters
-    packet_parm GetPackparm() {
-        return parameters;
-    }
+	int FetchCarrierSet() { return carrier_set; }
 
-    // Bytes in the FCS - public so monitor can write it
-    int fcsbytes;
+	void SetCarrierSet(int in_set) { carrier_set = in_set; }
+
 protected:
-    // Get the bytes in the fcs
-    virtual int FCSBytes() {
-        return fcsbytes;
-    }
-
     GlobalRegistry *globalreg;
 
     int paused;
@@ -135,15 +136,20 @@ protected:
     string name;
     string interface;
 
-    // Various parameters we track
-    packet_parm parameters;
+    // Bytes in the FCS - public so monitor can write it
+    int fcsbytes;
 
     // Total packets
     unsigned int num_packets;
 
-    // Current channel, if we don't fetch it live
+    // Current channel, if we don't fetch it live.  This really means
+	// "last channel we set"
     int channel;
+
+	// Set of carrier types
+	int carrier_set;
+	
 };
 
-
 #endif
+
