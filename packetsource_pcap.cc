@@ -38,9 +38,9 @@ typedef unsigned long u64;
 #include <linux/wireless.h>
 #endif
 
-#include "pcapsource.h"
 #include "util.h"
 #include "packetsourcetracker.h"
+#include "packetsource_pcap.h"
 
 #ifdef HAVE_LIBPCAP
 
@@ -53,7 +53,7 @@ pcap_pkthdr callback_header;
 u_char callback_data[MAX_PACKET_LEN];
 
 int PacketSource_Pcap::OpenSource() {
-	char errstr[STASTUS_MAX] = "";
+	char errstr[STATUS_MAX] = "";
 	channel = 0;
 	char *unconst = strdup(interface.c_str());
 	
@@ -151,14 +151,6 @@ int PacketSource_Pcap::DatalinkType() {
     return 1;
 }
 
-// Signal levels
-int PacketSource_Pcap::FetchSignalLevels(int *in_siglev, int *in_noiselev) {
-	// Stub to do nothing
-    *in_siglev = 0;
-    *in_noiselev = 0;
-    return 0;
-}
-
 int PacketSource_Pcap::FetchDescriptor() {
 	if (pd != NULL)
 		return pcap_get_selectable_fd(pd);
@@ -166,11 +158,11 @@ int PacketSource_Pcap::FetchDescriptor() {
 	return -1;
 }
 
-int PacketSource_Pcap::Pcap_Callback(u_char *bp, const struct pcap_Pkthdr *header,
-									 const u_char *in_data) {
+void PacketSource_Pcap::Pcap_Callback(u_char *bp, const struct pcap_pkthdr *header,
+									  const u_char *in_data) {
 	// Copy into the globals
 	memcpy(&callback_header, header, sizeof(pcap_pkthdr));
-	memcpy(callback_data, in-data, kismin(header->len, MAX_PACKET_LEN));
+	memcpy(callback_data, in_data, kismin(header->len, MAX_PACKET_LEN));
 }
 
 int PacketSource_Pcap::Poll() {
@@ -193,7 +185,7 @@ int PacketSource_Pcap::Poll() {
 		} else {
 #endif
 			snprintf(errstr, STATUS_MAX, "Reading packet from pcap interface %s "
-					 "failed, interface is no longer available.");
+					 "failed, interface is no longer available.", interface.c_str());
 #ifdef SYS_LINUX
 		}
 #endif
@@ -220,7 +212,7 @@ int PacketSource_Pcap::Poll() {
 	// Set the source (this replaces setting the name and parameters)
 	kis_ref_capsource *csrc_ref = new kis_ref_capsource;
 	csrc_ref->ref_source = this;
-	newpack->insert(globalreg->packetcomp_map[PACK_COMP_KISCAPSRC], csrc_ref);
+	newpack->insert(_PCM(PACK_COMP_KISCAPSRC), csrc_ref);
 
 	// Inject it into the packetchain
 	globalreg->packetchain->ProcessPacket(newpack);
@@ -242,10 +234,10 @@ int PacketSource_Pcap::ManglePacket(kis_packet *packet) {
 	linkchunk->data = new uint8_t[callback_header.caplen];
 	linkchunk->length = kismin(callback_header.caplen, (uint32_t) MAX_PACKET_LEN);
 	memcpy(linkchunk->data, callback_data, linkchunk->length);
-	packet->insert(globalreg->packetcomp_map[PACK_COMP_LINKFRAME], linkchunk);
+	packet->insert(_PCM(PACK_COMP_LINKFRAME), linkchunk);
 
 	if (datalink_type == DLT_PRISM_HEADER) {
-		ret = Prism2KisPack(kis_packet *packet);
+		ret = Prism2KisPack(packet);
 #ifdef HAVE_RADIOTAP
 	} else if (datalink_type == DLT_IEEE802_11_RADIO) {
 		ret = Radiotap2KisPack(packet, data, moddata);
@@ -260,14 +252,18 @@ int PacketSource_Pcap::ManglePacket(kis_packet *packet) {
 	if (ret < 0)
 		return ret;
 
+	// Pull the radio data
+	FetchRadioData(packet);
+
+#if 0
 	// Build a signalling layer record if we don't have one from the prism
 	// headers.  If we can, anyhow.
 	kis_layer1_packinfo *radiodata = (kis_layer1_packinfo *) 
-		packet->fetch(globalreg->packetcomp_map[PACK_COMP_RADIODATA]);
+		packet->fetch(_PCM(PACK_COMP_RADIODATA));
 
 	if (radiodata == NULL) {
 		radiodata = new kis_layer1_packinfo;
-		packet->insert(globalreg->packetcomp_map[PACK_COMP_RADIODATA], radiodata);
+		packet->insert(_PCM(PACK_COMP_RADIODATA), radiodata);
 	}
 
 	// Fetch the signal levels if we know how and it hasn't been already.
@@ -277,6 +273,7 @@ int PacketSource_Pcap::ManglePacket(kis_packet *packet) {
 	// Fetch the channel if we know how and it hasn't been filled in already
 	if (radiodata->channel == 0)
 		radiodata->channel = FetchChannel();
+#endif
     
     return ret;
 }
@@ -304,13 +301,10 @@ int PacketSource_Pcap::Prism2KisPack(kis_packet *packet) {
 		eight11chunk = new kis_datachunk;
 		radioheader = new kis_layer1_packinfo;
 
-        // Get the FCS for this subclass
-        int fcs = FCSBytes();
-
         // Subtract the packet FCS since kismet doesn't do anything terribly bright
         // with it right now, also subtract the avs header
 		eight11chunk->length = kismin((callback_header.caplen - ntohl(v1hdr->length) -
-									  fcs), (uint32_t) MAX_PACKET_LEN);
+									  fcsbytes), (uint32_t) MAX_PACKET_LEN);
         callback_offset = ntohl(v1hdr->length);
 
         // We REALLY need to do something smarter about this and handle the RSSI
@@ -355,12 +349,9 @@ int PacketSource_Pcap::Prism2KisPack(kis_packet *packet) {
 		eight11chunk = new kis_datachunk;
 		radioheader = new kis_layer1_packinfo;
 
-        // Get the FCS
-        int fcs = FCSBytes();
-
         // Subtract the packet FCS since kismet doesn't do anything terribly bright
         // with it right now
-        eight11chunk->length = kismin((p2head->frmlen.data - fcs), 
+        eight11chunk->length = kismin((p2head->frmlen.data - fcsbytes), 
 									   (uint32_t) MAX_PACKET_LEN);
 
         // Set our offset for extracting the actual data
@@ -382,9 +373,71 @@ int PacketSource_Pcap::Prism2KisPack(kis_packet *packet) {
 	eight11chunk->data = new uint8_t[eight11chunk->length];
     memcpy(eight11chunk->data, callback_data + callback_offset, eight11chunk->length);
 
-	packet->insert(globalreg->packetcomp_map[PACK_COMP_RADIODATA], radioheader);
-	packet->insert(globalreg->packetcomp_map[PACK_COMP_80211FRAME], eight11chunk);
+	packet->insert(_PCM(PACK_COMP_RADIODATA), radioheader);
+	packet->insert(_PCM(PACK_COMP_80211FRAME), eight11chunk);
 
     return 1;
 }
+
+int PacketSource_Pcap::FetchChannel() {
+	return 0;
+}
+
+int PacketSource_Pcapfile::OpenSource() {
+	channel = 0;
+	char errstr[STATUS_MAX] = "";
+
+	// Open the file offline and bounce out the error
+	pd = pcap_open_offline(interface.c_str(), errstr);
+	if (strlen(errstr) > 0) {
+		globalreg->messagebus->InjectMessage(errstr, MSGFLAG_FATAL);
+		globalreg->fatal_condition = 1;
+		return -1;
+	}
+
+	paused = 0;
+
+	num_packets = 0;
+
+	if (DatalinkType() < 0)
+		return -1;
+	
+	return 1;
+}
+
+int PacketSource_Pcapfile::Poll() {
+	int ret;
+
+	ret = pcap_dispatch(pd, 1, PacketSource_Pcapfile::Pcap_Callback, NULL);
+
+	if (ret < 0) {
+		globalreg->messagebus->InjectMessage("Pcap failed to get the next packet",
+											 MSGFLAG_FATAL);
+		globalreg->fatal_condition = 1;
+		return -1;
+	} else if (ret == 0) {
+		globalreg->messagebus->InjectMessage("Pcap file reached end of capture",
+											 MSGFLAG_FATAL);
+		globalreg->fatal_condition = 1;
+		return -1;
+	}
+
+	kis_packet *newpack = globalreg->packetchain->GeneratePacket();
+
+	if (paused || ManglePacket(newpack) == 0) {
+		return 0;
+	}
+
+	num_packets++;
+
+	kis_ref_capsource *csrc_ref = new kis_ref_capsource;
+	csrc_ref->ref_source = this;
+	newpack->insert(_PCM(PACK_COMP_KISCAPSRC), csrc_ref);
+
+	globalreg->packetchain->ProcessPacket(newpack);
+
+	return 1;
+}
+
+#endif
 

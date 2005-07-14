@@ -84,7 +84,7 @@ int kis_gpspack_hook(CHAINCALL_PARMS) {
 	globalreg->gpsd->FetchLoc(&(gpsdat->lat), &(gpsdat->lon), &(gpsdat->alt),
 							  &(gpsdat->spd), &(gpsdat->heading), &(gpsdat->gps_fix));
 	
-	in_pack->insert(globalreg->packetcomp_map[PACK_COMP_GPS], gpsdat);
+	in_pack->insert(_PCM(PACK_COMP_GPS), gpsdat);
 
 	return 1;
 }
@@ -105,7 +105,7 @@ GPSDClient::GPSDClient(GlobalRegistry *in_globalreg) : ClientFramework(in_global
     tcpcli->RegisterClientFramework(this);
 
 	// Register GPS packet info components
-	globalreg->packetcomp_map[PACK_COMP_GPS] =
+	_PCM(PACK_COMP_GPS) =
 		globalreg->packetchain->RegisterPacketComponent("gps");
 	
     gpseventid = -1;
@@ -183,7 +183,7 @@ GPSDClient::GPSDClient(GlobalRegistry *in_globalreg) : ClientFramework(in_global
 												  &Protocol_GPS, NULL);
 
 	// Register the gps component and packetchain hooks to include it
-	globalreg->packetcomp_map[PACK_COMP_GPS] =
+	_PCM(PACK_COMP_GPS) =
 		globalreg->packetchain->RegisterPacketComponent("gps");
 	globalreg->packetchain->RegisterHandler(&kis_gpspack_hook, this,
 											CHAINPOS_POSTCAP, -100);

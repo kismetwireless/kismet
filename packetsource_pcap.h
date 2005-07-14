@@ -38,7 +38,6 @@
 #include "packet_ieee80211.h"
 #include "packetsource.h"
 #include "ifcontrol.h"
-#include "iwcontrol.h"
 
 extern "C" {
 #ifndef HAVE_PCAPPCAP_H
@@ -61,8 +60,11 @@ extern "C" {
 #endif
 
 #ifndef DLT_IEEE802_11_RADIO	
-#define DLT_IEEE802_11_RADIO	127
+#define DLT_IEEE802_11_RADIO 127
 #endif
+
+// Define kluged local linktype for BSD lame-mode
+#define KDLT_BSD802_11		-100
 
 // Prism 802.11 headers from wlan-ng tacked on to the beginning of a
 // pcap packet... Snagged from the wlan-ng source
@@ -126,24 +128,23 @@ class PacketSource_Pcap : public KisPacketSource {
 public:
 	// Standard interface for capturesource
 	PacketSource_Pcap(GlobalRegistry *in_globalreg, string in_name, string in_dev) :
-		KisPacketSource(in_globalreg, in_name, in_dev) { }
+		KisPacketSource(in_globalreg, in_name, in_dev) { 
+			// Nothing special here
+		}
 
 	virtual int OpenSource();
 	virtual int CloseSource();
 
-	virtal int FetchDescriptor();
+	virtual int FetchDescriptor();
 
 	virtual int Poll();
 
 	static void Pcap_Callback(u_char *bp, const struct pcap_pkthdr *header,
 							  const u_char *in_data);
 
-	virtual int FetchChannel;
+	virtual int FetchChannel();
 
 protected:
-	// Fetch signal levels
-	virtual int FetchSignalLevels(int *in_siglev, int *in_noiselev);
-
 	// Mangle linkheaders off a frame, etc
 	virtual int ManglePacket(kis_packet *packet);
 
@@ -159,6 +160,7 @@ protected:
 
 	pcap_t *pd;
 	int datalink_type;
+	int fcsbytes;
 };	
 
 class PacketSource_Pcapfile : public PacketSource_Pcap {
@@ -169,6 +171,13 @@ public:
 	virtual int OpenSource();
 	virtual int Poll();
 	virtual int FetchChannel();
+protected:
+	// Do nothing here, we don't have an independent radio data fetch,
+	// we're just filling in the virtual
+	virtual void FetchRadioData() { };
 };
 
+#endif /* have_libpcap */
+
+#endif
 

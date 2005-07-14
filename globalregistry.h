@@ -82,6 +82,11 @@ class Pollable;
 #define ALERT_REF_KISMET		0
 #define ALERT_REF_MAX			1
 
+// Define some macros (ew) to shortcut into the vectors we had to build for
+// fast access.  Kids, don't try this at home.
+#define _PCM(x)		globalreg->packetcomp_map[(x)]
+#define _NPM(x)		globalreg->netproto_map[(x)]
+
 // Info from the config file about the wep keys to try
 typedef struct {
     int fragile;

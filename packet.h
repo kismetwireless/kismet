@@ -227,8 +227,13 @@ public:
 		encoding = encoding_unknown;
 		datarate = 0;
 		channel = 0;
+		accuracy = 0;
 	}
 
+	// How "accurate" are we?  Higher == better.  Nothing uses this yet
+	// but we might as well track it here.
+	int accuracy;
+	
 	// Channel packet seen on
 	int channel;
 

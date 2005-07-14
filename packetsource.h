@@ -90,7 +90,7 @@ public:
 		carrier_set = 0;
     }
 
-    virtual ~KisPacketSource() { };
+    virtual ~KisPacketSource() { }
 
     // Open the packet source
     virtual int OpenSource() = 0;
@@ -98,7 +98,7 @@ public:
     virtual int CloseSource() = 0;
 
     // Get the channel
-    virtual int FetchChannel() = 0;
+    virtual int FetchChannel() { return 0; }
 
 	// Get a pollable file descriptor
     virtual int FetchDescriptor() = 0;
@@ -128,6 +128,8 @@ public:
 	void SetCarrierSet(int in_set) { carrier_set = in_set; }
 
 protected:
+	virtual void FetchRadioData(kis_packet *in_packet) = 0;
+
     GlobalRegistry *globalreg;
 
     int paused;
