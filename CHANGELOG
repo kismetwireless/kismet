@@ -1,3 +1,6 @@
+Jul 19 2005  devel  Moved radiotap support to work on Linux as well, to coincide
+                     with my ieee80211/ipw2200 patches to bring radiotap over.
+                     A bit of a kluge, but sufficient for now.
 Jul 08 2005  devel  Merged stage1 of patches from Pedro for configure to allow
                      disabling all gpsmap tests and compilation
                     Removed HAVE_GPS ifdefs from the code, since the option

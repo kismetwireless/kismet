@@ -3097,6 +3097,7 @@ cat >>confdefs.h <<\_ACEOF
 #define SYS_FREEBSD 1
 _ACEOF
 
+		bsd="yes"
 		;;
 	openbsd*)
 		echo "$as_me:$LINENO: result: none needed" >&5
@@ -3106,6 +3107,7 @@ cat >>confdefs.h <<\_ACEOF
 #define SYS_OPENBSD 1
 _ACEOF
 
+		bsd="yes"
 		;;
 	netbsd*)
 		echo "$as_me:$LINENO: result: none needed" >&5
@@ -3115,6 +3117,7 @@ cat >>confdefs.h <<\_ACEOF
 #define SYS_NETBSD 1
 _ACEOF
 
+		bsd="yes"
 		;;
 	cygwin*)
 		echo "$as_me:$LINENO: result: none needed" >&5
@@ -3167,6 +3170,7 @@ cat >>confdefs.h <<\_ACEOF
 #define SYS_FREEBSD 1
 _ACEOF
 
+		bsd="yes"
         ;;
     openbsd*)
         echo "$as_me:$LINENO: result: none needed" >&5
@@ -3176,6 +3180,7 @@ cat >>confdefs.h <<\_ACEOF
 #define SYS_OPENBSD 1
 _ACEOF
 
+		bsd="yes"
         ;;
     netbsd*)
         echo "$as_me:$LINENO: result: none needed" >&5
@@ -3185,6 +3190,7 @@ cat >>confdefs.h <<\_ACEOF
 #define SYS_NETBSD 1
 _ACEOF
 
+		bsd="yes"
         ;;
 	cygwin*)
 		echo "$as_me:$LINENO: result: none needed" >&5
@@ -6916,20 +6922,21 @@ echo "$as_me: WARNING: Compiling without libpcap support." >&2;}
 fi
 
 
-echo "$as_me:$LINENO: checking for radiotap support" >&5
-echo $ECHO_N "checking for radiotap support... $ECHO_C" >&6
-cat >conftest.$ac_ext <<_ACEOF
+if test "$bsd" = yes; then
+	echo "$as_me:$LINENO: checking for net80211/radiotap support" >&5
+echo $ECHO_N "checking for net80211/radiotap support... $ECHO_C" >&6
+	cat >conftest.$ac_ext <<_ACEOF
 /* confdefs.h.  */
 _ACEOF
 cat confdefs.h >>conftest.$ac_ext
 cat >>conftest.$ac_ext <<_ACEOF
 /* end confdefs.h.  */
 
-    #include <stdio.h>
-    #include <sys/socket.h>
-    #include <net/if.h>
-    #include <net/if_media.h>
-    #include <net80211/ieee80211_radiotap.h>
+	    #include <stdio.h>
+	    #include <sys/socket.h>
+	    #include <net/if.h>
+	    #include <net/if_media.h>
+	    #include <net80211/ieee80211_radiotap.h>
 
 int
 main ()
@@ -6972,6 +6979,12 @@ radiotap=no
 fi
 rm -f conftest.err conftest.$ac_objext \
       conftest$ac_exeext conftest.$ac_ext
+
+else
+	{ echo "$as_me:$LINENO: WARNING: Using local radiotap support on a non-bsd system" >&5
+echo "$as_me: WARNING: Using local radiotap support on a non-bsd system" >&2;}
+	radiotap=yes
+fi
 
 if test "$radiotap" = yes; then
 

@@ -1128,6 +1128,13 @@ static void map_arphrd_to_dlt(pcap_t *handle, int arptype, int cooked_ok)
 		handle->linktype = DLT_PRISM_HEADER;
 		break;
 
+#ifndef ARPHRD_IEEE80211_RADIOTAP /* new */
+#define ARPHRD_IEEE80211_RADIOTAP 803
+#endif
+	case ARPHRD_IEEE80211_RADIOTAP:
+		handle->linktype = DLT_IEEE802_11_RADIO;
+		break;
+
 	case ARPHRD_PPP:
 		/*
 		 * Some PPP code in the kernel supplies no link-layer

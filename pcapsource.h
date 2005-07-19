@@ -280,7 +280,7 @@ public:
 };
 #endif
 
-#ifdef HAVE_RADIOTAP
+#if (defined(HAVE_RADIOTAP) && (defined(SYS_NETBSD) || defined(SYS_OPENBSD) || defined(SYS_FREEBSD)))
 class RadiotapBSD {
 public:
     RadiotapBSD(const char *ifname);
@@ -451,7 +451,7 @@ int chancontrol_openbsd_prism2(const char *in_dev, int in_ch, char *in_err,
                                void *in_ext);
 #endif
 
-#ifdef HAVE_RADIOTAP
+#if (defined(HAVE_RADIOTAP) && (defined(SYS_NETBSD) || defined(SYS_OPENBSD) || defined(SYS_FREEBSD)))
 int monitor_bsd(const char *in_dev, int initch, char *in_err, void **in_if, void *in_ext);
 int unmonitor_bsd(const char *in_dev, int initch, char *in_err, void **in_if, void *in_ext);
 int chancontrol_bsd(const char *in_dev, int in_ch, char *in_err, void *in_ext);

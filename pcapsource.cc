@@ -57,12 +57,19 @@ typedef unsigned long u64;
 #include <net/if.h>
 #include <net/if_media.h>
 
-#endif
-
 #ifdef HAVE_RADIOTAP
 #include <net80211/ieee80211_ioctl.h>
 #include <net80211/ieee80211_radiotap.h>
+#endif
 
+#endif
+
+#if (defined(SYS_LINUX) && defined(HAVE_RADIOTAP))
+// We have to use a local include for now
+#include "linux_ieee80211_radiotap.h"
+#endif
+
+#ifdef HAVE_RADIOTAP
 // Hack around some headers that don't seem to define all of these
 #ifndef IEEE80211_CHAN_TURBO
 #define IEEE80211_CHAN_TURBO    0x0010  /* Turbo channel */
@@ -642,7 +649,6 @@ int PcapSource::Radiotap2KisPack(kis_packet *packet, uint8_t *data, uint8_t *mod
                      * size we do not know, so we cannot
                      * proceed.
                      */
-                    printf("[0x%08x] ", next_present);
                     next_present = 0;
                     continue;
             }
@@ -931,7 +937,7 @@ int PcapSourceOpenBSDPrism::FetchChannel() {
 }
 #endif
 
-#ifdef HAVE_RADIOTAP
+#if (defined(HAVE_RADIOTAP) && (defined(SYS_NETBSD) || defined(SYS_OPENBSD) || defined(SYS_FREEBSD)))
 int PcapSourceRadiotap::OpenSource() {
     // XXX this is a hack to avoid duplicating code
     int s = PcapSource::OpenSource();
@@ -1045,7 +1051,7 @@ KisPacketSource *pcapsource_openbsdprism2_registrant(string in_name, string in_d
 }
 #endif
 
-#ifdef HAVE_RADIOTAP
+#if (defined(HAVE_RADIOTAP) && (defined(SYS_NETBSD) || defined(SYS_OPENBSD) || defined(SYS_FREEBSD)))
 KisPacketSource *pcapsource_radiotap_registrant(string in_name, string in_device,
                                                      char *in_err) {
     return new PcapSourceRadiotap(in_name, in_device);
@@ -2269,7 +2275,7 @@ int chancontrol_openbsd_prism2(const char *in_dev, int in_ch, char *in_err,
 }
 #endif
 
-#ifdef HAVE_RADIOTAP
+#if (defined(HAVE_RADIOTAP) && (defined(SYS_NETBSD) || defined(SYS_OPENBSD) || defined(SYS_FREEBSD)))
 RadiotapBSD::RadiotapBSD(const char *name) : ifname(name) {
     s = -1;
 }

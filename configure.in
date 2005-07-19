@@ -59,14 +59,17 @@ then
 	freebsd*)
 		AC_MSG_RESULT(none needed)
 		AC_DEFINE(SYS_FREEBSD, 1, Compiling for FreeBSD)
+		bsd="yes"
 		;;
 	openbsd*)
 		AC_MSG_RESULT(none needed)
 		AC_DEFINE(SYS_OPENBSD, 1, Compiling for OpenBSD)
+		bsd="yes"
 		;;
 	netbsd*)
 		AC_MSG_RESULT(none needed)
 		AC_DEFINE(SYS_NETBSD, 1, Compiling for NetBSD)
+		bsd="yes"
 		;;
 	cygwin*)
 		AC_MSG_RESULT(none needed)
@@ -101,14 +104,17 @@ else
     freebsd*)
         AC_MSG_RESULT(none needed)
         AC_DEFINE(SYS_FREEBSD, 1, Compiling for FreeBSD)
+		bsd="yes"
         ;;
     openbsd*)
         AC_MSG_RESULT(none needed)
         AC_DEFINE(SYS_OPENBSD, 1, Compiling for OpenBSD)
+		bsd="yes"
         ;;
     netbsd*)
         AC_MSG_RESULT(none needed)
         AC_DEFINE(SYS_NETBSD, 1, Compiling for NetBSD)
+		bsd="yes"
         ;;
 	cygwin*)
 		AC_MSG_RESULT(none needed)
@@ -471,16 +477,22 @@ else
 fi
 AC_SUBST(pcap)
 
-AC_MSG_CHECKING(for radiotap support)
-AC_LINK_IFELSE([AC_LANG_PROGRAM([[
-    #include <stdio.h>
-    #include <sys/socket.h>
-    #include <net/if.h>
-    #include <net/if_media.h>
-    #include <net80211/ieee80211_radiotap.h>
-]], [[
-
-]])],[radiotap=yes],[radiotap=no])
+if test "$bsd" = yes; then
+	AC_MSG_CHECKING(for net80211/radiotap support)
+	AC_LINK_IFELSE([AC_LANG_PROGRAM([[
+	    #include <stdio.h>
+	    #include <sys/socket.h>
+	    #include <net/if.h>
+	    #include <net/if_media.h>
+	    #include <net80211/ieee80211_radiotap.h>
+	]], [[
+	
+	]])],[radiotap=yes],[radiotap=no])
+	
+else
+	AC_MSG_WARN(Using local radiotap support on a non-bsd system)
+	radiotap=yes
+fi
 
 if test "$radiotap" = yes; then
     AC_DEFINE(HAVE_RADIOTAP, 1, radiotap packet headers)
