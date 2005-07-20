@@ -330,6 +330,7 @@ int PcapSource::ManglePacket(kis_packet *packet, uint8_t *data, uint8_t *moddata
 
     return ret;
 
+
 }
 
 int PcapSource::Prism2KisPack(kis_packet *packet, uint8_t *data, uint8_t *moddata) {
@@ -621,6 +622,8 @@ int PcapSource::Radiotap2KisPack(kis_packet *packet, uint8_t *data, uint8_t *mod
                 case IEEE80211_RADIOTAP_RATE:
                 case IEEE80211_RADIOTAP_DB_ANTSIGNAL:
                 case IEEE80211_RADIOTAP_DB_ANTNOISE:
+                case IEEE80211_RADIOTAP_DBM_ANTSIGNAL:
+                case IEEE80211_RADIOTAP_DBM_ANTNOISE:
                 case IEEE80211_RADIOTAP_ANTENNA:
                     u.u8 = *iter++;
                     break;
@@ -681,6 +684,12 @@ int PcapSource::Radiotap2KisPack(kis_packet *packet, uint8_t *data, uint8_t *mod
                 case IEEE80211_RADIOTAP_DB_ANTNOISE:
                     packet->noise = u.i8;
                     break;
+				case IEEE80211_RADIOTAP_DBM_ANTSIGNAL:
+					packet->signal = u.i8;
+					break;
+				case IEEE80211_RADIOTAP_DBM_ANTNOISE:
+					packet->noise = u.i8;
+					break;
                 case IEEE80211_RADIOTAP_FLAGS:
                     if (u.u8 & IEEE80211_RADIOTAP_F_FCS)
                          fcs_cut = 4;

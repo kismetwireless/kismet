@@ -1,3 +1,4 @@
+Jul 20 2005  devel  Added Radiotap DBM_x field support
 Jul 19 2005  devel  Moved radiotap support to work on Linux as well, to coincide
                      with my ieee80211/ipw2200 patches to bring radiotap over.
                      A bit of a kluge, but sufficient for now.
