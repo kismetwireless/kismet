@@ -1,3 +1,18 @@
+Jul 19 2005 2005-07 Packaged 2005-07-BSD.  This is essentially a pre-release of
+                     2005-07-R1 to make it into the BSD ports system before they
+                     close accepting new submissions.  This WILL work on Linux,
+                     however you might as well get 2005-07-R1 when I release that
+                     in a little while.
+                    This is expected to be functionally the same as 2005-07-R1,
+                     except it will not have Linux Radiotap support.
+                    Updated components include:
+                     WPA detection
+                     WPA2 detection
+                     OpenBSD updates
+                     FreeBSD updates
+                     Fixed gcc-3.4.x
+                     Slightly better client performance
+                     Segfaults fixed in client grouping code
 Jul 08 2005  devel  Merged stage1 of patches from Pedro for configure to allow
                      disabling all gpsmap tests and compilation
                     Removed HAVE_GPS ifdefs from the code, since the option
