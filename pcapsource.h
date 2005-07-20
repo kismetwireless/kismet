@@ -61,6 +61,16 @@ extern "C" {
 #define	DLT_IEEE802_11_RADIO	127	/* 802.11 plus WLAN header */
 #endif
 
+// Extension to radiotap header not yet included in all BSD's
+#ifndef IEEE80211_RADIOTAP_F_FCS
+#define IEEE80211_RADIOTAP_F_FCS        0x10    /* frame includes FCS */
+#endif
+
+#ifndef IEEE80211_IOC_CHANNEL
+#define IEEE80211_IOC_CHANNEL 0
+#endif
+
+
 // Generic pcapsource
 class PcapSource : public KisPacketSource {
 public:
@@ -270,11 +280,11 @@ public:
 };
 #endif
 
-#if (defined(SYS_FREEBSD) && defined(HAVE_RADIOTAP))
-class FreeBSD {
+#ifdef HAVE_RADIOTAP
+class RadiotapBSD {
 public:
-    FreeBSD(const char *ifname);
-    virtual ~FreeBSD();
+    RadiotapBSD(const char *ifname);
+    virtual ~RadiotapBSD();
 
     const char *geterror() const;
 
@@ -301,14 +311,13 @@ private:
     char errstr[256];
     string ifname;
 };
-#endif
 
-#ifdef HAVE_RADIOTAP
 class PcapSourceRadiotap : public PcapSource {
 public:
     PcapSourceRadiotap(string in_name, string in_dev) :
         PcapSource(in_name, in_dev) { }
     int OpenSource();
+    int FetchChannel();
 protected:
     bool CheckForDLT(int dlt);
 };
@@ -387,6 +396,8 @@ int unmonitor_prism54g(const char *in_dev, int initch, char *in_err, void **in_i
 // Centrino
 int monitor_ipw2100(const char *in_dev, int initch, char *in_err, void **in_if, void *in_ext);
 int unmonitor_ipw2100(const char *in_dev, int initch, char *in_err, void **in_if, void *in_ext);
+int monitor_ipw2200(const char *in_dev, int initch, char *in_err, void **in_if, void *in_ext);
+int unmonitor_ipw2200(const char *in_dev, int initch, char *in_err, void **in_if, void *in_ext);
 // "Standard" wext monitor sequence - mostly a helper for other functions
 // since most cards that use wext still have custom initialization that
 // needs to be done.
@@ -423,6 +434,9 @@ int chancontrol_madwifi_ag(const char *in_dev, int in_ch, char *in_err, void *in
 // Prism54 apparently returns a fail code on an iwconfig channel change but
 // then works so we need to override the wext failure code
 int chancontrol_prism54g(const char *in_dev, int in_ch, char *in_err, void *in_ext);
+// We need a delay in it like orinoco, apparently
+int chancontrol_ipw2100(const char *in_dev, int in_ch, char *in_err, void *in_ext);
+int chancontrol_ipw2200(const char *in_dev, int in_ch, char *in_err, void *in_ext);
 #endif
 
 #ifdef SYS_LINUX
@@ -437,10 +451,10 @@ int chancontrol_openbsd_prism2(const char *in_dev, int in_ch, char *in_err,
                                void *in_ext);
 #endif
 
-#if (defined(SYS_FREEBSD) && defined(HAVE_RADIOTAP))
-int monitor_freebsd(const char *in_dev, int initch, char *in_err, void **in_if, void *in_ext);
-int unmonitor_freebsd(const char *in_dev, int initch, char *in_err, void **in_if, void *in_ext);
-int chancontrol_freebsd(const char *in_dev, int in_ch, char *in_err, void *in_ext);
+#ifdef HAVE_RADIOTAP
+int monitor_bsd(const char *in_dev, int initch, char *in_err, void **in_if, void *in_ext);
+int unmonitor_bsd(const char *in_dev, int initch, char *in_err, void **in_if, void *in_ext);
+int chancontrol_bsd(const char *in_dev, int in_ch, char *in_err, void *in_ext);
 #endif
 
 

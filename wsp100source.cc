@@ -163,7 +163,8 @@ int Wsp100Source::Wsp2Common(kis_packet *packet, uint8_t *data, uint8_t *moddata
     memset(packet, 0, sizeof(kis_packet));
 
     uint16_t datalink_type = 0;
-    datalink_type = kptoh16(&data[2]);
+	memcpy(&datalink_type, &(data[2]), 2);
+	datalink_type = kis_ntoh16(datalink_type);
 
     if (datalink_type != KWTAP_ENCAP_IEEE_802_11) {
         return 0;

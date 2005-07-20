@@ -19,6 +19,11 @@
 #include "config.h"
 #include "iwcontrol.h"
 
+// We need this to make uclibc happy since they don't even have rintf...
+#ifndef rintf
+#define rintf(x) (float) rint((double) (x))
+#endif
+
 #ifdef HAVE_LINUX_WIRELESS
 
 float IwFreq2Float(iwreq *inreq) {
@@ -26,20 +31,26 @@ float IwFreq2Float(iwreq *inreq) {
 }
 
 void IwFloat2Freq(double in_val, struct iw_freq *out_freq) {
+	if (in_val <= 165) {
+		out_freq->m = (uint32_t) in_val;
+		out_freq->e = 0;
+		return;
+	}
+
     out_freq->e = (short) (floor(log10(in_val)));
-    if(out_freq->e > 8)              
-    {  
+    if(out_freq->e > 8) {  
         out_freq->m = ((long) (floor(in_val / pow(10,out_freq->e - 6)))) * 100; 
         out_freq->e -= 8;
-    }  
-    else 
-    {  
+    } else {  
         out_freq->m = (uint32_t) in_val;            
         out_freq->e = 0;
     }  
 }
 
 int FloatChan2Int(float in_chan) {
+	if (in_chan > 0 && in_chan <= 165)
+		return (int) in_chan;
+	
     int mod_chan = (int) rintf(in_chan / 1000000);
     int x = 0;
     // 80211b frequencies to channels
@@ -133,7 +144,7 @@ int Iwconfig_Get_SSID(const char *in_dev, char *errstr, char *in_essid) {
     }
 
     snprintf(in_essid, kismin(IW_ESSID_MAX_SIZE, wrq.u.essid.length) + 1, "%s", 
-             wrq.u.essid.pointer);
+             (char *) wrq.u.essid.pointer);
 
     close(skfd);
     return 0;
@@ -229,8 +240,8 @@ int Iwconfig_Set_IntPriv(const char *in_dev, const char *privcmd,
     }
 
     // Make sure its an iwpriv we can set
-    if (priv[pn].set_args & IW_PRIV_TYPE_MASK == 0 ||
-        priv[pn].set_args & IW_PRIV_SIZE_MASK == 0) {
+    if ((priv[pn].set_args & IW_PRIV_TYPE_MASK) == 0 ||
+        (priv[pn].set_args & IW_PRIV_SIZE_MASK) == 0) {
         snprintf(errstr, STATUS_MAX, "Unable to set values for private ioctl '%s'", 
                  privcmd);
         close(skfd);
@@ -348,8 +359,8 @@ int Iwconfig_Get_IntPriv(const char *in_dev, const char *privcmd,
     }
 
     // Make sure its an iwpriv we can set
-    if (priv[pn].get_args & IW_PRIV_TYPE_MASK == 0 ||
-        priv[pn].get_args & IW_PRIV_SIZE_MASK == 0) {
+    if ((priv[pn].get_args & IW_PRIV_TYPE_MASK) == 0 ||
+        (priv[pn].get_args & IW_PRIV_SIZE_MASK) == 0) {
         snprintf(errstr, STATUS_MAX, "Unable to get values for private ioctl '%s'", 
                  privcmd);
         close(skfd);
@@ -491,6 +502,7 @@ int Iwconfig_Get_Channel(const char *in_dev, char *in_err) {
     }
 
     close(skfd);
+
     return (FloatChan2Int(IwFreq2Float(&wrq)));
 }
 

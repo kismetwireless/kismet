@@ -118,7 +118,8 @@ void MungeToPrintable(char *in_data, int max) {
 
 // Returns a pointer in the data block to the size byte of the desired
 // tag.
-int GetTagOffsets(int init_offset, kis_packet *packet, map<int, int> *tag_cache_map) {
+int GetTagOffsets(int init_offset, kis_packet *packet, 
+				  map<int, vector<int> > *tag_cache_map) {
     int cur_tag = 0;
     // Initial offset is 36, that's the first tag
     int cur_offset = init_offset;
@@ -148,16 +149,9 @@ int GetTagOffsets(int init_offset, kis_packet *packet, map<int, int> *tag_cache_
                 return -1;
             }
 
-            (*tag_cache_map)[cur_tag] = cur_offset + 1;
-
-            /*
-               if (cur_tag == tagnum) {
-               cur_offset++;
-               break;
-               } else if (cur_tag > tagnum) {
-               return -1;
-               }
-               */
+            // (*tag_cache_map)[cur_tag] = cur_offset + 1;
+			
+            (*tag_cache_map)[cur_tag].push_back(cur_offset + 1);
 
             // Jump the length+length byte, this should put us at the next tag
             // number.
@@ -168,12 +162,58 @@ int GetTagOffsets(int init_offset, kis_packet *packet, map<int, int> *tag_cache_
     return 0;
 }
 
+int WPACipherConv(uint8_t cipher_index) {
+	int ret = crypt_wpa;
+
+	switch (cipher_index) {
+		case 1:
+			ret |= crypt_wep40;
+			break;
+		case 2:
+			ret |= crypt_tkip;
+			break;
+		case 3:
+			ret |= crypt_aes_ocb;
+			break;
+		case 4:
+			ret |= crypt_aes_ccm;
+			break;
+		case 5:
+			ret |= crypt_wep104;
+			break;
+		default:
+			ret = 0;
+			break;
+	}
+
+	return ret;
+}
+
+int WPAKeyMgtConv(uint8_t mgt_index) {
+	int ret = crypt_wpa;
+
+	switch (mgt_index) {
+		case 1:
+			ret |= crypt_wpa;
+			break;
+		case 2:
+			ret |= crypt_psk;
+			break;
+		default:
+			ret = 0;
+			break;
+	}
+
+	return ret;
+}
+
+
 // Get the info from a packet
+static int dissect_packet_num = 0;
 void GetPacketInfo(kis_packet *packet, packet_info *ret_packinfo,
                    macmap<wep_key_info *> *bssid_wep_map, unsigned char *identity) {
-    static int packet_num = 0;
 
-    packet_num++;
+    dissect_packet_num++;
 
     //printf("debug - packet %d\n", packet_num);
     
@@ -295,7 +335,8 @@ void GetPacketInfo(kis_packet *packet, packet_info *ret_packinfo,
         } else {
             ret_packinfo->header_offset = 36;
             fixparm = (fixed_parameters *) &packet->data[24];
-            ret_packinfo->wep = fixparm->wep;
+			if (fixparm->wep)
+				ret_packinfo->crypt_set |= crypt_wep;
 
             // Pull the fixparm ibss info
             if (fixparm->ess == 0 && fixparm->ibss == 1) {
@@ -313,8 +354,8 @@ void GetPacketInfo(kis_packet *packet, packet_info *ret_packinfo,
 #endif
         }
 
-        map<int, int> tag_cache_map;
-        map<int, int>::iterator tcitr;
+        map<int, vector<int> > tag_cache_map;
+        map<int, vector<int> >::iterator tcitr;
 
         // Extract various tags from the packet
         int found_ssid_tag = 0;
@@ -331,7 +372,7 @@ void GetPacketInfo(kis_packet *packet, packet_info *ret_packinfo,
             }
       
             if ((tcitr = tag_cache_map.find(0)) != tag_cache_map.end()) {
-                tag_offset = tcitr->second;
+                tag_offset = tcitr->second[0];
 
                 found_ssid_tag = 1;
                 temp = (packet->data[tag_offset] & 0xFF);
@@ -356,7 +397,7 @@ void GetPacketInfo(kis_packet *packet, packet_info *ret_packinfo,
 
             // Extract the supported rates
             if ((tcitr = tag_cache_map.find(1)) != tag_cache_map.end()) {
-                tag_offset = tcitr->second;
+                tag_offset = tcitr->second[0];
 
                 found_rate_tag = 1;
                 for (int x = 0; x < packet->data[tag_offset]; x++) {
@@ -371,7 +412,7 @@ void GetPacketInfo(kis_packet *packet, packet_info *ret_packinfo,
             // this tag so we use the hardware channel, assigned at the beginning of 
             // GetPacketInfo
             if ((tcitr = tag_cache_map.find(3)) != tag_cache_map.end()) {
-                tag_offset = tcitr->second;
+                tag_offset = tcitr->second[0];
                 found_channel_tag = 1;
                 // Extract the channel from the next byte (GetTagOffset returns
                 // us on the size byte)
@@ -421,7 +462,7 @@ void GetPacketInfo(kis_packet *packet, packet_info *ret_packinfo,
                 ret_packinfo->corrupt = 1;
 
             // Catch wellenreiter probes
-            if (!strncmp(ret_packinfo->ssid, "this_is_used_for_wellenreiter", 32)) {
+            if (!strncmp(ret_packinfo->ssid, "this_is_used_for_wellenreiter", 29)) {
                 ret_packinfo->proto.type = proto_wellenreiter;
             }
 
@@ -448,7 +489,7 @@ void GetPacketInfo(kis_packet *packet, packet_info *ret_packinfo,
 
             // Extract the CISC.O beacon info
             if ((tcitr = tag_cache_map.find(133)) != tag_cache_map.end()) {
-                tag_offset = tcitr->second;
+                tag_offset = tcitr->second[0];
 
                 if ((unsigned) tag_offset + 11 < packet->len) {
                     snprintf(ret_packinfo->beacon_info, BEACON_INFO_LEN, "%s", &packet->data[tag_offset+11]);
@@ -459,6 +500,147 @@ void GetPacketInfo(kis_packet *packet, packet_info *ret_packinfo,
                     return;
                 }
             }
+
+			// WPA frame matching if we have the privacy bit set
+			if ((ret_packinfo->crypt_set & crypt_wep)) {
+				// Liberally borrowed from Ethereal
+				if ((tcitr = tag_cache_map.find(221)) != tag_cache_map.end()) {
+					for (unsigned int tagct = 0; tagct < tcitr->second.size(); 
+						 tagct++) {
+						tag_offset = tcitr->second[tagct];
+						unsigned int tag_orig = tag_offset + 1;
+						unsigned int taglen = (packet->data[tag_offset] & 0xFF);
+						unsigned int offt = 0;
+
+						if (tag_orig + taglen > packet->len) {
+							ret_packinfo->corrupt = 1;
+							return;
+						}
+
+						// Match 221 tag header for WPA
+						if (taglen < 6 || memcmp(&(packet->data[tag_orig + offt]), 
+												 WPA_OUI, sizeof(WPA_OUI)))
+							continue;
+
+						offt += 6;
+
+						// Match WPA multicast suite
+						if (offt + 4 > taglen || 
+							memcmp(&(packet->data[tag_orig + offt]), WPA_OUI,
+								   sizeof(WPA_OUI)))
+							continue;
+
+						ret_packinfo->crypt_set |= 
+							WPACipherConv(packet->data[tag_orig + offt + 3]);
+
+						// We don't care about parsing the number of ciphers,
+						// we'll just iterate, so skip the cipher number
+						offt += 6;
+
+						// Match WPA unicast components
+						while (offt + 4 <= taglen) {
+							if (memcmp(&(packet->data[tag_orig + offt]), 
+									  WPA_OUI, sizeof(WPA_OUI)) == 0) {
+								ret_packinfo->crypt_set |= 
+									WPACipherConv(packet->data[tag_orig + offt + 3]);
+								offt += 4;
+							} else {
+								break;
+							}
+						}
+
+						// Match auth key components
+						offt += 2;
+						while (offt + 4 <= taglen) {
+							if (memcmp(&(packet->data[tag_orig + offt]), 
+									  WPA_OUI, sizeof(WPA_OUI)) == 0) {
+								ret_packinfo->crypt_set |= 
+									WPACipherConv(packet->data[tag_orig + offt + 3]);
+								offt += 4;
+							} else {
+								break;
+							}
+						}
+					}
+				} /* 221 */
+
+				// Match tag 48 RSN WPA2
+				if ((tcitr = tag_cache_map.find(48)) != tag_cache_map.end()) {
+					for (unsigned int tagct = 0; tagct < tcitr->second.size(); 
+						 tagct++) {
+						tag_offset = tcitr->second[tagct];
+						unsigned int tag_orig = tag_offset + 1;
+						unsigned int taglen = (packet->data[tag_offset] & 0xFF);
+						unsigned int offt = 0;
+
+						if (tag_orig + taglen > packet->len || taglen < 6) {
+							ret_packinfo->corrupt = 1;
+							return;
+						}
+
+						// Skip version
+						offt += 2;
+
+						// Match multicast
+						if (offt + 3 > taglen ||
+							memcmp(&(packet->data[tag_orig + offt]), RSN_OUI,
+								   sizeof(RSN_OUI))) {
+							ret_packinfo->corrupt = 1;
+							return;
+						}
+						ret_packinfo->crypt_set |= 
+							WPACipherConv(packet->data[tag_orig + offt + 3]);
+						offt += 4;
+
+						// We don't care about unicast number
+						offt += 2;
+
+						while (offt + 4 <= taglen) {
+							if (memcmp(&(packet->data[tag_orig + offt]), 
+									  RSN_OUI, sizeof(RSN_OUI)) == 0) {
+								ret_packinfo->crypt_set |= 
+									WPACipherConv(packet->data[tag_orig + offt + 3]);
+								offt += 4;
+							} else {
+								break;
+							}
+						}
+
+						// We don't care about authkey number
+						offt += 2;
+
+						while (offt + 4 <= taglen) {
+							if (memcmp(&(packet->data[tag_orig + offt]), 
+									  RSN_OUI, sizeof(RSN_OUI)) == 0) {
+								ret_packinfo->crypt_set |= 
+									WPAKeyMgtConv(packet->data[tag_orig + offt + 3]);
+								offt += 4;
+							} else {
+								break;
+							}
+						}
+					}
+				} /* 48 */
+			}
+
+# if 0
+			// Extract WPA info -- we have to look at all the tags
+			if ((tcitr = tag_cache_map.find(48)) != tag_cache_map.end() &&
+				(ret_packinfo->crypt_set & crypt_wep)) {
+				for (unsigned int tagct = 0; tagct < tcitr->second.size(); tagct++) {
+					tag_offset = tcitr->second[tagct];
+					temp = (packet->data[tag_offset] & 0xFF);
+
+					if (temp > 6 && 
+						memcmp(&(packet->data[tag_offset+1]), 
+							   RSN_AES_TAGPARM_SIGNATURE,
+							   sizeof(RSN_AES_TAGPARM_SIGNATURE)) == 0) {
+						(int) ret_packinfo->crypt_set |= crypt_wpa2aes;
+						break;
+					}
+				}
+			}
+#endif
 
             ret_packinfo->dest_mac = addr0;
             ret_packinfo->source_mac = addr1;
@@ -640,83 +822,43 @@ void GetPacketInfo(kis_packet *packet, packet_info *ret_packinfo,
             break;
         default:
             ret_packinfo->corrupt = 1;
+			ret_packinfo->header_offset = 0;
             return;
             break;
         }
 
+		// If we're special data frame types bail now
+		if (ret_packinfo->subtype != packet_sub_data) {
+			ret_packinfo->datasize = 0;
+			return;
+		}
+
         // Detect encrypted frames
         if (fc->wep &&
-            (*((unsigned short *) &packet->data[ret_packinfo->header_offset]) != 0xAAAA ||
-             packet->data[ret_packinfo->header_offset + 1] & 0x40)) {
-
+			(*((unsigned short *) &packet->data[ret_packinfo->header_offset]) != 
+			 0xAAAA || packet->data[ret_packinfo->header_offset + 1] & 0x40)) {
             ret_packinfo->encrypted = 1;
-        } else if (packet->parm.fuzzy_crypt && 
-                   (unsigned int) ret_packinfo->header_offset+9 < packet->len) {
-            // Do a fuzzy data compare... if it's not:
-            // 0xAA - IP LLC
-            // 0x42 - I forgot.
-            // 0xF0 - Netbios
-            // 0xE0 - IPX
-            if (packet->data[ret_packinfo->header_offset] != 0xAA && packet->data[ret_packinfo->header_offset] != 0x42 &&
-                packet->data[ret_packinfo->header_offset] != 0xF0 && packet->data[ret_packinfo->header_offset] != 0xE0) {
-                ret_packinfo->encrypted = 1;
-                ret_packinfo->fuzzy = 1;
-            }
-        }
+		}
 
-        if (ret_packinfo->encrypted) {
-            // Match the range of cryptographically weak packets and let us
-            // know.
+		// If we're known encrypted or if we want to be fuzzycrypt detected, 
+		// process the crypto info.  Otherwise we don't.  Cryptoinfo might
+		// later be processed again if we're doing network-classification
+		// wep detection
+		if (ret_packinfo->encrypted || packet->parm.fuzzy_crypt)
+			ProcessPacketCrypto(packet, ret_packinfo, bssid_wep_map, identity);
 
-            // New detection method from Airsnort 2.0, should be much better.
-            unsigned int sum;
-            if (packet->data[ret_packinfo->header_offset+1] == 255 && packet->data[ret_packinfo->header_offset] > 2 &&
-                packet->data[ret_packinfo->header_offset] < 16) {
-                ret_packinfo->interesting = 1;
-            } else {
-                sum = packet->data[ret_packinfo->header_offset] + packet->data[ret_packinfo->header_offset+1];
-                if (sum == 1 && (packet->data[ret_packinfo->header_offset + 2] <= 0x0A ||
-                                 packet->data[ret_packinfo->header_offset + 2] == 0xFF)) {
-                    ret_packinfo->interesting = 1;
-                } else if (sum <= 0x0C && (packet->data[ret_packinfo->header_offset + 2] >= 0xF2 &&
-                                           packet->data[ret_packinfo->header_offset + 2] <= 0xFE &&
-                                           packet->data[ret_packinfo->header_offset + 2] != 0xFD))
-                    ret_packinfo->interesting = 1;
-            }
-
-            // Knock 8 bytes off the data size of encrypted packets for the
-            // wep IV and check
-            datasize = ret_packinfo->datasize - 8;
-            if (datasize > 0)
-                ret_packinfo->datasize = datasize;
-            else
-                ret_packinfo->datasize = 0;
-
-            if (ret_packinfo->encrypted) {
-                // De-wep if we have any keys
-                if (bssid_wep_map->size() != 0)
-                    DecryptPacket(packet, ret_packinfo, bssid_wep_map, identity);
-
-                // Record the IV in the info
-                memcpy(&ret_packinfo->ivset, 
-                       &packet->data[ret_packinfo->header_offset], 4);
-            }
-
-        }
-
+		// Extract the tcp layer info
         if (ret_packinfo->encrypted == 0 || ret_packinfo->decoded == 1)
             GetProtoInfo(packet, ret_packinfo);
 
     } else {
-        // If we didn't figure out what it was yet, test it for cisco noise.  If the first
-        // four bytes are 0xFF, bail
+        // If we didn't figure out what it was yet, test it for cisco noise.  
+		// If the first four bytes are 0xFF, bail
         uint32_t fox = ~0;
         if (memcmp(packet->data, &fox, 4) == 0) {
             ret_packinfo->type = packet_noise;
             return;
         }
-
-
     }
 
     // Do a little sanity checking on the BSSID
@@ -726,6 +868,73 @@ void GetPacketInfo(kis_packet *packet, packet_info *ret_packinfo,
         ret_packinfo->corrupt = 1;
     }
 
+}
+
+// Handle detecting crypted packets and decoding them
+void ProcessPacketCrypto(kis_packet *packet, packet_info *ret_packinfo,
+						 macmap<wep_key_info *> *bssid_wep_map,
+						 unsigned char *identity) {
+	int datasize = ret_packinfo->datasize;
+
+	if (ret_packinfo->encrypted == 0 && 
+		(unsigned int) ret_packinfo->header_offset+9 < packet->len) {
+		// Do a fuzzy data compare... if it's not:
+		// 0xAA - IP LLC
+		// 0x42 - I forgot.
+		// 0xF0 - Netbios
+		// 0xE0 - IPX
+		if (packet->data[ret_packinfo->header_offset] != 0xAA && 
+			packet->data[ret_packinfo->header_offset] != 0x42 &&
+			packet->data[ret_packinfo->header_offset] != 0xF0 && 
+			packet->data[ret_packinfo->header_offset] != 0xE0) {
+			ret_packinfo->encrypted = 1;
+			ret_packinfo->fuzzy = 1;
+		}
+	}
+
+	if (ret_packinfo->encrypted) {
+		// Match the range of cryptographically weak packets and let us
+		// know.
+
+		// New detection method from Airsnort 2.0, should be much better.
+		unsigned int sum;
+		if (packet->data[ret_packinfo->header_offset+1] == 255 && 
+			packet->data[ret_packinfo->header_offset] > 2 &&
+			packet->data[ret_packinfo->header_offset] < 16) {
+			ret_packinfo->interesting = 1;
+		} else {
+			sum = packet->data[ret_packinfo->header_offset] + 
+				packet->data[ret_packinfo->header_offset+1];
+			if (sum == 1 && 
+				(packet->data[ret_packinfo->header_offset + 2] <= 0x0A ||
+				 packet->data[ret_packinfo->header_offset + 2] == 0xFF)) {
+				ret_packinfo->interesting = 1;
+			} else if (sum <= 0x0C && 
+					   (packet->data[ret_packinfo->header_offset + 2] >= 0xF2 &&
+						packet->data[ret_packinfo->header_offset + 2] <= 0xFE &&
+						packet->data[ret_packinfo->header_offset + 2] != 0xFD))
+				ret_packinfo->interesting = 1;
+		}
+
+		// Knock 8 bytes off the data size of encrypted packets for the
+		// wep IV and check
+		datasize = ret_packinfo->datasize - 8;
+		if (datasize > 0)
+			ret_packinfo->datasize = datasize;
+		else
+			ret_packinfo->datasize = 0;
+
+		if (ret_packinfo->encrypted) {
+			// De-wep if we have any keys
+			if (bssid_wep_map->size() != 0)
+				DecryptPacket(packet, ret_packinfo, bssid_wep_map, identity);
+
+			// Record the IV in the info
+			memcpy(&ret_packinfo->ivset, 
+				   &packet->data[ret_packinfo->header_offset], 4);
+		}
+
+	}
 }
 
 void GetProtoInfo(kis_packet *packet, packet_info *in_info) {
@@ -834,7 +1043,55 @@ void GetProtoInfo(kis_packet *packet, packet_info *in_info) {
 
             ret_protoinfo->type = proto_cdp;
             return;
+
+        } else if (memcmp(&data[in_info->header_offset + LLC_UI_OFFSET + 3], DOT1X_PROTO, 
+            sizeof(DOT1X_PROTO)) == 0) {
+                           
+            // 802.1X frame - let's find out if it's LEAP
+
+            // Make sure it's an EAP packet
+            unsigned int offset = in_info->header_offset + DOT1X_OFFSET;
+            struct dot1x_header *dot1x_ptr = (struct dot1x_header *)&data[offset];
+            if (dot1x_ptr->version == 1 && dot1x_ptr->type == 0 &&
+                (packet->len > (sizeof(dot1x_header) + offset))) {
+
+                // Check out EAP characteristics
+                offset = offset + EAP_OFFSET;
+                struct eap_packet *eap_ptr = (struct eap_packet *)&data[offset];
+                // code can be 1-4 for request, response, success or failure, respectively
+                if ( (eap_ptr->code > 0 || eap_ptr->code < 5) && 
+                    (packet->len > (sizeof(eap_packet) + offset)) ) {
+                    switch(eap_ptr->type) {
+                        case EAP_TYPE_LEAP:
+                            ret_protoinfo->type = proto_leap;
+                            ret_protoinfo->prototype_extra = eap_ptr->code;
+                            return;
+                            break;
+                        case EAP_TYPE_TLS:
+                            ret_protoinfo->type = proto_tls;
+                            ret_protoinfo->prototype_extra = eap_ptr->code;
+                            return;
+                            break;
+                        case EAP_TYPE_TTLS:
+                            ret_protoinfo->type = proto_ttls;
+                            ret_protoinfo->prototype_extra = eap_ptr->code;
+                            return;
+                            break;
+                        case EAP_TYPE_PEAP:
+                            ret_protoinfo->type = proto_peap;
+                            ret_protoinfo->prototype_extra = eap_ptr->code;
+                            return;
+                            break;
+                        default:
+                            ret_protoinfo->type = proto_unknown;
+                            return;
+                            break;
+                    }
+                }
+            }
         }
+
+
     }
 
     // This isn't an 'else' because we want to try to handle it if it looked like a netstumbler
@@ -900,6 +1157,16 @@ void GetProtoInfo(kis_packet *packet, packet_info *in_info) {
             }
         }
 
+	} else if (memcmp(&data[in_info->header_offset + ARP_OFFSET], ARP_SIGNATURE,
+					  sizeof(ARP_SIGNATURE)) == 0) {
+		// ARP
+		// printf("debug - arp frame %d\n", dissect_packet_num);
+		ret_protoinfo->type = proto_arp;
+
+		memcpy(ret_protoinfo->source_ip, (const uint8_t *) 
+			   &data[in_info->header_offset + ARP_OFFSET + 16], 4);
+		memcpy(ret_protoinfo->misc_ip, (const uint8_t *) 
+			   &data[in_info->header_offset + ARP_OFFSET + 26], 4);
     } else if (memcmp(&data[in_info->header_offset + LLC_OFFSET], NETBIOS_SIGNATURE,
                           sizeof(NETBIOS_SIGNATURE)) == 0) {
         ret_protoinfo->type = proto_netbios;
@@ -919,209 +1186,226 @@ void GetProtoInfo(kis_packet *packet, packet_info *in_info) {
             // Netbios domain announcement
             ret_protoinfo->nbtype = proto_netbios_domain;
         }
-
     } else if (memcmp(&data[in_info->header_offset + LLC_OFFSET], IPX_SIGNATURE,
                       sizeof(IPX_SIGNATURE)) == 0) {
         // IPX packet
-        ret_protoinfo->type = proto_ipx_tcp;
-    } else if (memcmp(&data[in_info->header_offset + IP_OFFSET], UDP_SIGNATURE,
-                      sizeof(UDP_SIGNATURE)) == 0) {
-        // UDP
-        ret_protoinfo->type = proto_udp;
+		ret_protoinfo->type = proto_ipx_tcp;
+	} else if (memcmp(&data[in_info->header_offset + IP_OFFSET], UDP_SIGNATURE,
+					  sizeof(UDP_SIGNATURE)) == 0) {
+		// UDP
+		ret_protoinfo->type = proto_udp;
+		// printf("debug - high-level UDP match packet %d\n", dissect_packet_num);
 
-        uint16_t d, s;
+		uint16_t d, s;
 
-        memcpy(&s, (uint16_t *) &data[in_info->header_offset + UDP_OFFSET], 2);
-        memcpy(&d, (uint16_t *) &data[in_info->header_offset + UDP_OFFSET + 2], 2);
+		memcpy(&s, (uint16_t *) &data[in_info->header_offset + UDP_OFFSET], 2);
+		memcpy(&d, (uint16_t *) &data[in_info->header_offset + UDP_OFFSET + 2], 2);
 
-        ret_protoinfo->sport = ntohs((unsigned short int) s);
-        ret_protoinfo->dport = ntohs((unsigned short int) d);
+		ret_protoinfo->sport = ntohs((unsigned short int) s);
+		ret_protoinfo->dport = ntohs((unsigned short int) d);
 
-        memcpy(ret_protoinfo->source_ip, (const uint8_t *) &data[in_info->header_offset + IP_OFFSET + 3], 4);
-        memcpy(ret_protoinfo->dest_ip, (const uint8_t *) &data[in_info->header_offset + IP_OFFSET + 7], 4);
+		memcpy(ret_protoinfo->source_ip, 
+			   (const uint8_t *) &data[in_info->header_offset + IP_OFFSET + 3], 4);
+		memcpy(ret_protoinfo->dest_ip, 
+			   (const uint8_t *) &data[in_info->header_offset + IP_OFFSET + 7], 4);
 
-        if (ret_protoinfo->sport == IAPP_PORT && ret_protoinfo->dport == IAPP_PORT) {
-            iapp_header *ih = (iapp_header *) &data[in_info->header_offset + IAPP_OFFSET];
-	    uint8_t *pdu = &data[in_info->header_offset + IAPP_OFFSET + sizeof(iapp_header)];
 
-	    if (ih->iapp_version != 1)
-		return;
+		if (ret_protoinfo->sport == IAPP_PORT && ret_protoinfo->dport == IAPP_PORT) {
+			iapp_header *ih = 
+				(iapp_header *) &data[in_info->header_offset + IAPP_OFFSET];
+			uint8_t *pdu = 
+				&data[in_info->header_offset + IAPP_OFFSET + sizeof(iapp_header)];
 
-	    switch (ih->iapp_type) {
-	    case iapp_announce_request:
-	    case iapp_announce_response:
-	    case iapp_handover_request:
-	    case iapp_handover_response:
-		break;
-	    default:
-		return;
-	    }
+			if (ih->iapp_version != 1)
+				return;
 
-	    ret_protoinfo->type = proto_iapp;
+			switch (ih->iapp_type) {
+				case iapp_announce_request:
+				case iapp_announce_response:
+				case iapp_handover_request:
+				case iapp_handover_response:
+					break;
+				default:
+					return;
+			}
 
-	    while (pdu < &data[packet->len - 1]) {
-		iapp_pdu_header *ph = (iapp_pdu_header *) pdu;
-		uint16_t pdu_len = ntohs(ph->pdu_len);
-		
-		switch (ph->pdu_type) {
-		case iapp_pdu_ssid:
-			if (pdu_len > SSID_SIZE)
-				break;
-			memcpy(in_info->ssid, &pdu[3], pdu_len);
-			in_info->ssid[pdu_len] = '\0';
-			break;
-		case iapp_pdu_bssid:
-			if (pdu_len != MAC_LEN)
-				break;
-			in_info->bssid_mac = mac_addr(&pdu[3]);
-			break;
-		case iapp_pdu_oldbssid:
-			break;
-		case iapp_pdu_msaddr:
-			break;
-		case iapp_pdu_capability:
-			if (pdu_len != 1)
-				break;
-			in_info->wep = !!(pdu[3] & iapp_cap_wep);
-			break;
-		case iapp_pdu_announceint:
-			break;
-		case iapp_pdu_hotimeout:
-			break;
-		case iapp_pdu_messageid:
-			break;
-		case iapp_pdu_phytype:
-			break;
-		case iapp_pdu_regdomain:
-			break;
-		case iapp_pdu_channel:
-			if (pdu_len != 1)
-				break;
-			in_info->channel = pdu[3];
-			break;
-		case iapp_pdu_beaconint:
-			if (pdu_len != 2)
-				break;
-			in_info->beacon = (pdu[3] << 8) | pdu[4];
-			break;
-		case iapp_pdu_ouiident:
-			break;
-		case iapp_pdu_authinfo:
-			break;
-		default:
-			break;
+			ret_protoinfo->type = proto_iapp;
+
+			while (pdu < &data[packet->len - 1]) {
+				iapp_pdu_header *ph = (iapp_pdu_header *) pdu;
+				uint16_t pdu_len = ntohs(ph->pdu_len);
+
+				switch (ph->pdu_type) {
+					case iapp_pdu_ssid:
+						if (pdu_len > SSID_SIZE)
+							break;
+						memcpy(in_info->ssid, &pdu[3], pdu_len);
+						in_info->ssid[pdu_len] = '\0';
+						break;
+					case iapp_pdu_bssid:
+						if (pdu_len != MAC_LEN)
+							break;
+						in_info->bssid_mac = mac_addr(&pdu[3]);
+						break;
+					case iapp_pdu_oldbssid:
+						break;
+					case iapp_pdu_msaddr:
+						break;
+					case iapp_pdu_capability:
+						if (pdu_len != 1)
+							break;
+						if (!!(pdu[3] & iapp_cap_wep))
+							in_info->crypt_set |= crypt_wep;
+						break;
+					case iapp_pdu_announceint:
+						break;
+					case iapp_pdu_hotimeout:
+						break;
+					case iapp_pdu_messageid:
+						break;
+					case iapp_pdu_phytype:
+						break;
+					case iapp_pdu_regdomain:
+						break;
+					case iapp_pdu_channel:
+						if (pdu_len != 1)
+							break;
+						in_info->channel = pdu[3];
+						break;
+					case iapp_pdu_beaconint:
+						if (pdu_len != 2)
+							break;
+						in_info->beacon = (pdu[3] << 8) | pdu[4];
+						break;
+					case iapp_pdu_ouiident:
+						break;
+					case iapp_pdu_authinfo:
+						break;
+					default:
+						break;
+				}
+
+				pdu += pdu_len + 3;
+			}
 		}
 
-		pdu += pdu_len + 3;
-	    }
-	}
+		else if (ret_protoinfo->sport == 138 && ret_protoinfo->dport == 138) {
+			// netbios
 
-	else if (ret_protoinfo->sport == 138 && ret_protoinfo->dport == 138) {
-            // netbios
+			ret_protoinfo->type = proto_netbios_tcp;
 
-            ret_protoinfo->type = proto_netbios_tcp;
+			uint8_t nb_command = data[in_info->header_offset + NETBIOS_TCP_OFFSET];
+			if (nb_command == 0x01) {
+				// Netbios browser announcement
+				ret_protoinfo->nbtype = proto_netbios_host;
+				snprintf(ret_protoinfo->netbios_source, 17, "%s",
+						 &data[in_info->header_offset + NETBIOS_TCP_OFFSET + 6]);
+			} else if (nb_command == 0x0F) {
+				// Netbios srver announcement
+				ret_protoinfo->nbtype = proto_netbios_master;
+				snprintf(ret_protoinfo->netbios_source, 17, "%s",
+						 &data[in_info->header_offset + NETBIOS_TCP_OFFSET + 6]);
+			} else if (nb_command == 0x0C) {
+				// Netbios domain announcement
+				ret_protoinfo->nbtype = proto_netbios_domain;
+			}
 
-            uint8_t nb_command = data[in_info->header_offset + NETBIOS_TCP_OFFSET];
-            if (nb_command == 0x01) {
-                // Netbios browser announcement
-                ret_protoinfo->nbtype = proto_netbios_host;
-                snprintf(ret_protoinfo->netbios_source, 17, "%s",
-                         &data[in_info->header_offset + NETBIOS_TCP_OFFSET + 6]);
-            } else if (nb_command == 0x0F) {
-                // Netbios srver announcement
-                ret_protoinfo->nbtype = proto_netbios_master;
-                snprintf(ret_protoinfo->netbios_source, 17, "%s",
-                         &data[in_info->header_offset + NETBIOS_TCP_OFFSET + 6]);
-            } else if (nb_command == 0x0C) {
-                // Netbios domain announcement
-                ret_protoinfo->nbtype = proto_netbios_domain;
+		} else if (ret_protoinfo->sport == 137 && ret_protoinfo->dport == 137) {
+			ret_protoinfo->type = proto_netbios_tcp;
+
+			if (data[in_info->header_offset + UDP_OFFSET + 10] == 0x01 &&
+				data[in_info->header_offset + UDP_OFFSET + 11] == 0x10) {
+				ret_protoinfo->nbtype = proto_netbios_query;
+
+				unsigned int offset = in_info->header_offset + UDP_OFFSET + 21;
+
+				if (offset < packet->len && offset + 32 < packet->len) {
+					ret_protoinfo->type = proto_netbios_tcp;
+					for (unsigned int x = 0; x < 32; x += 2) {
+						uint8_t fchr = data[offset+x];
+						uint8_t schr = data[offset+x+1];
+
+						if (fchr < 'A' || fchr > 'Z' ||
+							schr < 'A' || schr > 'Z') {
+							ret_protoinfo->type = proto_udp;
+							ret_protoinfo->netbios_source[0] = '\0';
+							break;
+						}
+
+						fchr -= 'A';
+						ret_protoinfo->netbios_source[x/2] = fchr << 4;
+						schr -= 'A';
+						ret_protoinfo->netbios_source[x/2] |= schr;
+					}
+
+					ret_protoinfo->netbios_source[17] = '\0';
+				}
+			}
+
+		} else if (memcmp(&data[in_info->header_offset + DHCPD_OFFSET], 
+						  DHCPD_SIGNATURE, sizeof(DHCPD_SIGNATURE)) == 0) {
+
+			// DHCP server responding
+			ret_protoinfo->type = proto_dhcp_server;
+
+			// Now we go through all the options until we find options 1, 3, and 53
+			// netmask.
+			unsigned int offset = in_info->header_offset + DHCPD_OFFSET + 252;
+
+
+			while (offset < packet->len) {
+				if (data[offset] == 0x01) {
+					// netmask
+
+					// Bail out of we're a "boring" dhcp ack
+					if (data[offset+2] == 0x00) {
+						ret_protoinfo->type = proto_udp;
+						break;
+					}
+
+					memcpy(ret_protoinfo->mask, &data[offset+2], 4);
+				} else if (data[offset] == 0x03) {
+					// gateway
+
+					// Bail out of we're a "boring" dhcp ack
+					if (data[offset+2] == 0x00) {
+						ret_protoinfo->type = proto_udp;
+						break;
+					}
+
+					memcpy(ret_protoinfo->gate_ip, &data[offset+2], 4);
+				} else if (data[offset] == 0x35) {
+					// We're a DHCP ACK packet
+					if (data[offset+2] != 0x05) {
+						ret_protoinfo->type = proto_udp;
+						break;
+					} else {
+						// Now rip straight to the heart of it and get the offered
+						// IP from the BOOTP segment
+						memcpy(ret_protoinfo->misc_ip, 
+							   (const uint8_t *) &data[in_info->header_offset + 
+							   DHCPD_OFFSET + 28], 4);
+					}
+				}
+				offset += data[offset+1]+2;
+			}
+
+			// Check for ISAKMP traffic
+        } else if (ret_protoinfo->type == proto_udp &&
+				   (ret_protoinfo->sport == ISAKMP_PORT || 
+					ret_protoinfo->dport == ISAKMP_PORT)) {
+
+            unsigned int offset = in_info->header_offset + ISAKMP_OFFSET;
+            // Don't read past the packet size
+            if (packet->len >= (offset + sizeof(struct isakmp_packet))) {
+                struct isakmp_packet *isakmp_ptr = 
+					(struct isakmp_packet *)&data[offset];
+                ret_protoinfo->type = proto_isakmp;
+                ret_protoinfo->prototype_extra = isakmp_ptr->exchtype;
             }
 
-        } else if (ret_protoinfo->sport == 137 && ret_protoinfo->dport == 137) {
-            ret_protoinfo->type = proto_netbios_tcp;
-
-            if (data[in_info->header_offset + UDP_OFFSET + 10] == 0x01 &&
-                data[in_info->header_offset + UDP_OFFSET + 11] == 0x10) {
-                ret_protoinfo->nbtype = proto_netbios_query;
-
-                unsigned int offset = in_info->header_offset + UDP_OFFSET + 21;
-
-                if (offset < packet->len && offset + 32 < packet->len) {
-                    ret_protoinfo->type = proto_netbios_tcp;
-                    for (unsigned int x = 0; x < 32; x += 2) {
-                        uint8_t fchr = data[offset+x];
-                        uint8_t schr = data[offset+x+1];
-
-                        if (fchr < 'A' || fchr > 'Z' ||
-                            schr < 'A' || schr > 'Z') {
-                            ret_protoinfo->type = proto_udp;
-                            ret_protoinfo->netbios_source[0] = '\0';
-                            break;
-                        }
-
-                        fchr -= 'A';
-                        ret_protoinfo->netbios_source[x/2] = fchr << 4;
-                        schr -= 'A';
-                        ret_protoinfo->netbios_source[x/2] |= schr;
-                    }
-
-                    ret_protoinfo->netbios_source[17] = '\0';
-                }
-            }
-
-        } else if (memcmp(&data[in_info->header_offset + DHCPD_OFFSET], DHCPD_SIGNATURE,
-                          sizeof(DHCPD_SIGNATURE)) == 0) {
-
-            // DHCP server responding
-            ret_protoinfo->type = proto_dhcp_server;
-
-            // Now we go through all the options until we find options 1, 3, and 53
-            // netmask.
-            unsigned int offset = in_info->header_offset + DHCPD_OFFSET + 252;
-
-
-            while (offset < packet->len) {
-                if (data[offset] == 0x01) {
-                    // netmask
-
-                    // Bail out of we're a "boring" dhcp ack
-                    if (data[offset+2] == 0x00) {
-                        ret_protoinfo->type = proto_udp;
-                        break;
-                    }
-
-                    memcpy(ret_protoinfo->mask, &data[offset+2], 4);
-                } else if (data[offset] == 0x03) {
-                    // gateway
-
-                    // Bail out of we're a "boring" dhcp ack
-                    if (data[offset+2] == 0x00) {
-                        ret_protoinfo->type = proto_udp;
-                        break;
-                    }
-
-                    memcpy(ret_protoinfo->gate_ip, &data[offset+2], 4);
-                } else if (data[offset] == 0x35) {
-                    // We're a DHCP ACK packet
-                    if (data[offset+2] != 0x05) {
-                        ret_protoinfo->type = proto_udp;
-                        break;
-                    } else {
-                        // Now rip straight to the heart of it and get the offered
-                        // IP from the BOOTP segment
-                        memcpy(ret_protoinfo->misc_ip, (const uint8_t *) &data[in_info->header_offset + DHCPD_OFFSET + 28], 4);
-                    }
-                }
-                offset += data[offset+1]+2;
-            }
         }
-    } else if (memcmp(&data[in_info->header_offset + ARP_OFFSET], ARP_SIGNATURE,
-               sizeof(ARP_SIGNATURE)) == 0) {
-        // ARP
-        ret_protoinfo->type = proto_arp;
 
-        memcpy(ret_protoinfo->source_ip, (const uint8_t *) &data[in_info->header_offset + ARP_OFFSET + 16], 4);
-        memcpy(ret_protoinfo->misc_ip, (const uint8_t *) &data[in_info->header_offset + ARP_OFFSET + 26], 4);
     } else if (memcmp(&data[in_info->header_offset + IP_OFFSET], TCP_SIGNATURE,
                       sizeof(TCP_SIGNATURE)) == 0) {
         // TCP
@@ -1135,10 +1419,20 @@ void GetProtoInfo(kis_packet *packet, packet_info *in_info) {
         ret_protoinfo->sport = ntohs((unsigned short int) s);
         ret_protoinfo->dport = ntohs((unsigned short int) d);
 
-        memcpy(ret_protoinfo->source_ip, (const uint8_t *) &data[in_info->header_offset + IP_OFFSET + 3], 4);
-        memcpy(ret_protoinfo->dest_ip, (const uint8_t *) &data[in_info->header_offset + IP_OFFSET + 7], 4);
+        memcpy(ret_protoinfo->source_ip, 
+			   (const uint8_t *) &data[in_info->header_offset + IP_OFFSET + 3], 4);
+        memcpy(ret_protoinfo->dest_ip, 
+			   (const uint8_t *) &data[in_info->header_offset + IP_OFFSET + 7], 4);
+
+        // Check for PPTP traffic
+        if (ret_protoinfo->type == proto_misc_tcp &&
+        (ret_protoinfo->dport == PPTP_PORT || ret_protoinfo->sport == PPTP_PORT)) {
+            ret_protoinfo->type = proto_pptp;
+        }
 
     }
+
+
 }
 
 // Pull all the printable data out

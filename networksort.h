@@ -99,7 +99,7 @@ public:
 class SortWEP {
 public:
     inline bool operator() (const wireless_network *x, const wireless_network *y) const {
-        if (x->wep > y->wep)
+        if (x->crypt_set > y->crypt_set)
             return 1;
         return 0;
     }

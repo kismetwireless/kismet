@@ -136,7 +136,7 @@ int ReadGpsCacheFile(const char *in_gpsfname,
         wnet->crypt_packets = cnet.crypt_packets;
         wnet->interesting_packets = cnet.interesting_packets;
         wnet->channel = cnet.channel;
-        wnet->wep = cnet.wep;
+        wnet->crypt_set = cnet.wep;
         wnet->last_time = cnet.last_time;
         wnet->first_time = cnet.first_time;
         wnet->beacon = cnet.beacon;
@@ -307,7 +307,7 @@ int WriteGpsCacheFile(const char *in_gpsfname,
         cnet.crypt_packets = wnet->crypt_packets;
         cnet.interesting_packets = wnet->interesting_packets;
         cnet.channel = wnet->channel;
-        cnet.wep = wnet->wep;
+        cnet.wep = wnet->crypt_set;
         cnet.last_time = wnet->last_time;
         cnet.first_time = wnet->first_time;
         cnet.beacon = wnet->beacon;

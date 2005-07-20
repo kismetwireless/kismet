@@ -64,7 +64,7 @@ enum net_xml_node {
     net_node_wn_expired, // An expired XML tag we don't use anymore
     net_node_wn_SSID, net_node_wn_BSSID, net_node_wn_info,
     net_node_wn_channel, net_node_wn_maxrate, net_node_wn_maxseenrate,
-    net_node_wn_carrier, net_node_wn_encoding, net_node_wn_datasize,
+    net_node_wn_carrier, net_node_wn_encoding, net_node_wn_encryption, net_node_wn_datasize,
     net_node_packdata,
     net_node_pk_LLC, net_node_pk_data, net_node_pk_crypt, net_node_pk_weak, net_node_pk_total, net_node_pk_dupeiv,
     net_node_gpsdata,
@@ -78,9 +78,9 @@ enum net_xml_node {
     net_node_cdp_platform, net_node_cdp_software,
     net_node_wireless_client,
     net_node_wc_mac, net_node_wc_datasize, net_node_wc_maxrate, net_node_wc_maxseenrate,
-    net_node_wc_encoding, net_node_wc_channel,
+    net_node_wc_encoding, net_node_wc_channel, net_node_wc_encryption,
     net_node_wc_ip_address,
-    net_node_wc_packdata,
+    net_node_wc_packdata, 
     net_node_wc_pk_data, net_node_wc_pk_crypt, net_node_wc_pk_weak,
     net_node_wc_gpsdata,
     net_node_wc_gps_min_lat, net_node_wc_gps_max_lat, net_node_wc_gps_min_lon, net_node_wc_gps_max_lon,
@@ -380,7 +380,6 @@ static void xpat_net_start(void *data, const char *el, const char **attr) {
                 }
 
             }
-
         } else {
             fprintf(stderr, "WARNING: Illegal tag '%s' at base level\n", el);
         }
@@ -415,9 +414,9 @@ static void xpat_net_start(void *data, const char *el, const char **attr) {
                     ; // do nothing about the number
                 else if (strcasecmp(attr[i], "wep") == 0) {
                     if (strcasecmp(attr[i+1], "true") == 0)
-                        building_net->wep = 1;
-                    else
-                        building_net->wep = 0;
+						building_net->crypt_set |= (int) crypt_wep;
+					else
+                        building_net->crypt_set = crypt_none;
                 } else if (strcasecmp(attr[i], "cloaked") == 0) {
                     if (strcasecmp(attr[i+1], "true") == 0)
                         building_net->cloaked = 1;
@@ -454,6 +453,9 @@ static void xpat_net_start(void *data, const char *el, const char **attr) {
             netnode = net_node_wn_carrier;
         } else if (strcasecmp(el, "encoding") == 0) {
             netnode = net_node_wn_encoding;
+		} else if (strcasecmp(el, "encryption") == 0) {
+			// We need to do something smarter
+			netnode = net_node_wn_encryption;
         } else if (strcasecmp(el, "packets") == 0) {
             netnode = net_node_packdata;
         } else if (strcasecmp(el, "datasize") == 0) {
@@ -634,6 +636,8 @@ static void xpat_net_start(void *data, const char *el, const char **attr) {
         // We don't parse client data for now
         if (strcasecmp(el, "client-datasize") == 0)
             netnode = net_node_wc_datasize;
+        else if (strcasecmp(el, "client-encryption") == 0)
+			netnode = net_node_wc_encryption;
         else if (strcasecmp(el, "client-mac") == 0)
             netnode = net_node_wc_mac;
         else if (strcasecmp(el, "client-ip-address") == 0)
@@ -682,6 +686,9 @@ static void xpat_net_start(void *data, const char *el, const char **attr) {
         } else {
             fprintf(stderr, "WARNING: Illegal tag '%s' in client-packets\n", el);
         }
+	} else if (netnode == net_node_wc_encryption) {
+		// Do something smarter here.
+		;
     } else {
         fprintf(stderr, "WARNING: Illegal tag '%s' in unknown state %d.\n", el, netnode);
     }

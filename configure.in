@@ -5,7 +5,7 @@ AC_CONFIG_SRCDIR([kismet.h])
 AC_PREREQ(2.57)
 
 # Included pcap directory
-pcapdir="libpcap-0.8.3"
+pcapdir="libpcap-0.9.1-kis"
 etherealdir="/usr/src/ethereal-0.9.12"
 AC_SUBST(pcapdir)
 
@@ -64,6 +64,10 @@ then
 		AC_MSG_RESULT(none needed)
 		AC_DEFINE(SYS_OPENBSD, 1, Compiling for OpenBSD)
 		;;
+	netbsd*)
+		AC_MSG_RESULT(none needed)
+		AC_DEFINE(SYS_NETBSD, 1, Compiling for NetBSD)
+		;;
 	cygwin*)
 		AC_MSG_RESULT(none needed)
 		AC_DEFINE(SYS_CYGWIN, 1, Compiling for Cygwin)
@@ -99,8 +103,12 @@ else
         AC_DEFINE(SYS_FREEBSD, 1, Compiling for FreeBSD)
         ;;
     openbsd*)
-       AC_MSG_RESULT(none needed)
+        AC_MSG_RESULT(none needed)
         AC_DEFINE(SYS_OPENBSD, 1, Compiling for OpenBSD)
+        ;;
+    netbsd*)
+        AC_MSG_RESULT(none needed)
+        AC_DEFINE(SYS_NETBSD, 1, Compiling for NetBSD)
         ;;
 	cygwin*)
 		AC_MSG_RESULT(none needed)
@@ -215,6 +223,8 @@ fi
 
 # How does accept() work on this system?
 AC_MSG_CHECKING([for accept() addrlen type])
+OCFL="$CFLAGS"
+CFLAGS="-Werror $CFLAGS"
 AC_LINK_IFELSE([AC_LANG_PROGRAM([[
 		#include <stdio.h>
 		#include <sys/types.h>
@@ -225,6 +235,7 @@ AC_LINK_IFELSE([AC_LANG_PROGRAM([[
 		socklen_t *addrlen;
 
 		accept(s, addr, addrlen);
+		return 0;
 		]])],[accept_socklen=yes],[accept_socklen=no])
 if test $accept_socklen = "yes"; then
 	AC_MSG_RESULT([socklen_t])
@@ -232,6 +243,7 @@ if test $accept_socklen = "yes"; then
 else
 	AC_MSG_RESULT([int])
 fi
+CFLAGS="$OCFL"
 
 # Do we have large file support?
 AC_SYS_LARGEFILE
@@ -313,17 +325,17 @@ else
 fi
 AC_SUBST(CLIBS)
 
-wantgps=yes
-AC_DEFINE(HAVE_GPS, 1, GPS support will be built.)
-#AC_ARG_ENABLE(gps,
-#[  --disable-gps           disable GPS support],
-#	wantgps=no, wantgps=yes)
-#if test "$wantgps" = "no"; then
-#	AC_MSG_WARN(*** GPS support will not be built. ***)
-#else
-#	AC_DEFINE(HAVE_GPS, 1, GPS support will be built.)
-#fi
+AC_ARG_WITH(linuxheaders,
+[  --with-linuxheaders[=DIR]     Custom location of the Linux kernel headers if the glibc copies are insufficient ],
+[
+    if test "$withval" != no -a "$withval" != "yes"; then
+        CPPFLAGS="$CPPFLAGS -I$withval"   
+    fi
+])
 
+# ,[
+#         CPPFLAGS="$CPPFLAGS -I/lib/modules/$(uname -r)/build/include/"   
+# ])
 
 AC_ARG_ENABLE(netlink, [  --disable-netlink       disable linux netlink socket capture],,wantnetlink=yes)
 AC_SUBST(wantnetlink)
@@ -346,19 +358,13 @@ if test $wantwireless = yes; then
 wireless=no
 AC_CHECK_HEADER([linux/wireless.h],
 	[wireless=yes],
-	[AC_MSG_WARN([*** Missing Linux Wireless kernel extentions.  Wavelan/generic source will not be built. ***])],
+	[AC_MSG_WARN([*** Missing Linux Wireless kernel extentions.  The majority of packet sources on Linux require this support and will not work without it.  Make sure your kernel header packages are installed.  If all else fails, try the --with-linuxheaders directive. ***])],
 	[#include <linux/socket.h>])
 else
-	AC_MSG_WARN(*** Compiling without Linux Wireless kernel extentions.  Wavelan/generic source will not be built. ***) 
+	AC_MSG_WARN(*** Missing Linux Wireless kernel extentions.  The majority of packet sources on Linux require this support and will not work without it.  Make sure your kernel header packages are installed.  If all else fails, try the --with-linuxheaders directive. ***)
 fi
 
 if test "$wireless" = "yes"; then
-    # If we're compiling under linux and we need the wireless extentions,
-    # then we should try to look in the current kernel module build dir, too.
-    if test "$linux" = "yes"; then
-        CPPFLAGS="$CPPFLAGS -I/lib/modules/\`uname -r\`/build/include/"   
-    fi
-
     AC_MSG_CHECKING(that linux/wireless.h is what we expect)
     AC_LINK_IFELSE([AC_LANG_PROGRAM([[
         #include <stdio.h>
@@ -465,13 +471,12 @@ else
 fi
 AC_SUBST(pcap)
 
-AC_MSG_CHECKING(that linux/wireless.h is what we expect)
+AC_MSG_CHECKING(for radiotap support)
 AC_LINK_IFELSE([AC_LANG_PROGRAM([[
     #include <stdio.h>
     #include <sys/socket.h>
     #include <net/if.h>
     #include <net/if_media.h>
-    #include <net80211/ieee80211_ioctl.h>
     #include <net80211/ieee80211_radiotap.h>
 ]], [[
 
@@ -693,135 +698,152 @@ fi
 
 # gpsmap checks
 
-# Check for expat
-if test "$wantgps" = "yes"; then
+# We include GPS handling code regardless, for now.
+AC_DEFINE(HAVE_GPS, 1, GPS support will be built.)
+
+wantgpsmap=yes
+
+AC_ARG_ENABLE(gpsmap,  [  --disable-gpsmap        disable building gpsmap],
+	wantgpsmap=no, wantgpsmap=yes)
+AC_SUBST(wantgpsmap)
+
+if test "$wantgpsmap" = "yes"; then
+
+	# Check for expat
 	expatl=no
 	AC_CHECK_LIB([expat], [XML_GetCurrentLineNumber], 
 		AC_DEFINE(HAVE_EXPAT, 1, Expat XML library) expatl=yes,
 		AC_MSG_WARN(*** Missing Expat XML library.  gpsmap will not be built. ***))
-else
-	expatl=no
-fi
 
-# Check for libgmp
-if test "$wantgps" = "yes"; then
+	# Check for libgmp
 	gmpl=no
-    AC_CHECK_HEADER([gmp.h],
+	AC_CHECK_HEADER([gmp.h],
 		AC_DEFINE(HAVE_GMP, 1, GMP math library) gmpl=yes,
 		AC_MSG_WARN(*** Missing GMP math library.  gpsmap will not be built. ***))
-else
-	gmpl=no
-fi
 
+	# Check for imagemagick
+	magickold=no
 
-magickold=no
+	save_cppflags="$CPPFLAGS"
+	save_cxxflags="$CXXFLAGS"
+	save_libs="$LIBS"
+	save_ldflags="$LDFLAGS"
+	AC_CHECK_PROG(wget, [wget --version], yes, no)
+	AC_CHECK_PROG(magickconfig, [Magick-config --version], yes, no)
 
-# Check for imagemagick
-save_cppflags="$CPPFLAGS"
-save_cxxflags="$CXXFLAGS"
-save_libs="$LIBS"
-save_ldflags="$LDFLAGS"
-AC_CHECK_PROG(wget, [wget --version], yes, no)
-AC_CHECK_PROG(magickconfig, [Magick-config --version], yes, no)
+	if test "$magickconfig" = "yes"; then
+		magickversion=`Magick-config --version`
+		magickmajor=`echo $magickversion | cut -d '.' -f 1`
+		magickminor=`echo $magickversion | cut -d '.' -f 2`
+		magicktiny=`echo $magickversion | cut -d '.' -f 3`
 
-if test "$magickconfig" = "yes"; then
-	magickversion=`Magick-config --version`
-	magickmajor=`echo $magickversion | cut -d '.' -f 1`
-	magickminor=`echo $magickversion | cut -d '.' -f 2`
-	magicktiny=`echo $magickversion | cut -d '.' -f 3`
-
-	if test "$magickmajor" -lt 5; then
-		magickold="yes";
-	elif test "$magickmajor" -eq 5 -a "$magickminor" -lt 4; then
-		magickold="yes";
-	elif test "$magickmajor" -eq 5 -a "$magickminor" -eq 4 -a "$magicktiny" -lt 7; then
-		magickold="yes";
-	fi
-fi
-
-if test $magickold = "yes"; then
-		AC_MSG_WARN(*** Old version of ImageMagick ($magickversion) found.  Please upgrade to 5.4.7 or newer.  gpsmap will not be built. ***)
-elif test $magickconfig = "no"; then
-	AC_MSG_WARN(*** Missing Magick-config (or it is not in the path).  gpsmap will not be built. ***)
-elif test $wget = "no"; then
-	AC_MSG_WARN(*** Missing wget (or it is not in the path).  gpsmap will not be build. ***)
-else
-	#CPPFLAGS="$CPPFLAGS `Magick-config --cppflags` -I`Magick-config --prefix`/include"
-	CPPFLAGS="$CPPFLAGS `Magick-config --cppflags`"
-	CXXFLAGS="$CXXFLAGS `Magick-config --cflags`"
-	#CXXFLAGS="$CXXFLAGS `Magick-config --cflags` -I`Magick-config --prefix`/include"
-	LDFLAGS="$LDFLAGS `Magick-config --ldflags`"
-	LIBS="`Magick-config --libs`"
-	AC_CHECK_HEADER(magick/api.h, magickhdr="yes", magickhdr="no")
-	if test "$magickhdr" = "no"; then
-		oldcppflags2="$CPPFLAGS"
-		CPPFLAGS="$CPPFLAGS -I`Magick-config --prefix`/include";
-		AC_CHECK_HEADER(magick/api.h, magickhdr="yes", magickhdr="no")
-		if test "$magickhdr" = "no"; then
-			CPPFLAGS="$oldcppflags2";
-			AC_MSG_WARN(*** Missing ImageMagick.  gpsmap will not be built. ***)
+		if test "$magickmajor" -lt 5; then
+			magickold="yes";
+		elif test "$magickmajor" -eq 5 -a "$magickminor" -lt 4; then
+			magickold="yes";
+		elif test "$magickmajor" -eq 5 -a "$magickminor" -eq 4 -a "$magicktiny" -lt 7; then
+			magickold="yes";
 		fi
 	fi
 
-	if test "$magickhdr" = "yes"; then
-		AC_CHECK_LIB([Magick], [WriteImage],
-	   		AC_DEFINE(HAVE_IMAGEMAGICK, 1, Imagemagick image library) gpslc="\$(GPSL)",
-			AC_MSG_WARN(*** Missing Imagemagick.  gpsmap will not be built. ***))
-	fi
-fi
-CPPFLAGS="$save_cppflags"
-CXXFLAGS="$save_cxxflags"
-LIBS="$save_libs"
-LDFLAGS="$save_ldflags"
+	if test $magickold = "yes"; then
+		AC_MSG_WARN(*** Old version of ImageMagick ($magickversion) found.  Please upgrade to 5.4.7 or newer.  gpsmap will not be built. ***)
+	elif test $magickconfig = "no"; then
+		AC_MSG_WARN(*** Missing Magick-config (or it is not in the path).  gpsmap will not be built. ***)
+	elif test $wget = "no"; then
+		AC_MSG_WARN(*** Missing wget (or it is not in the path).  gpsmap will not be build. ***)
+	else
+		#CPPFLAGS="$CPPFLAGS `Magick-config --cppflags` -I`Magick-config --prefix`/include"
+		CPPFLAGS="$CPPFLAGS `Magick-config --cppflags`"
+		CXXFLAGS="$CXXFLAGS `Magick-config --cflags`"
+		#CXXFLAGS="$CXXFLAGS `Magick-config --cflags` -I`Magick-config --prefix`/include"
+		LDFLAGS="$LDFLAGS `Magick-config --ldflags`"
+		LIBS="`Magick-config --libs`"
+		AC_CHECK_HEADER(magick/api.h, magickhdr="yes", magickhdr="no")
+		if test "$magickhdr" = "no"; then
+			oldcppflags2="$CPPFLAGS"
+			CPPFLAGS="$CPPFLAGS -I`Magick-config --prefix`/include";
+			AC_CHECK_HEADER(magick/api.h, magickhdr="yes", magickhdr="no")
+			if test "$magickhdr" = "no"; then
+				CPPFLAGS="$oldcppflags2";
+				AC_MSG_WARN(*** Missing ImageMagick.  gpsmap will not be built. ***)
+			fi
+		fi
 
-if test "$expatl" = "no"; then
+		if test "$magickhdr" = "yes"; then
+			AC_CHECK_LIB([Magick], [WriteImage],
+	   			AC_DEFINE(HAVE_IMAGEMAGICK, 1, Imagemagick image library) gpslc="\$(GPSL)",
+				AC_MSG_WARN(*** Missing Imagemagick.  gpsmap will not be built. ***))
+		fi
+	fi
+	CPPFLAGS="$save_cppflags"
+	CXXFLAGS="$save_cxxflags"
+	LIBS="$save_libs"
+	LDFLAGS="$save_ldflags"
+
+	if test "$expatl" = "no"; then
+		if test "$gpslc" != ""; then
+			AC_MSG_WARN(*** Disabling gpsmap because expat was not found. ***)
+			gpslc=""
+		fi
+	fi
+
+	if test "$gmpl" = "no"; then
+		if test "$gpslc" != ""; then
+			AC_MSG_WARN(*** Disabling gpsmap because GMP was not found. ***)
+			gpslc=""
+		fi
+	fi
+
 	if test "$gpslc" != ""; then
-		AC_MSG_WARN(*** Disabling gpsmap because expat was not found. ***)
-		gpslc=""
+		CPPFLAGS="$CPPFLAGS `Magick-config --cppflags`"
+		CXXFLAGS="$CXXFLAGS `Magick-config --cflags`"
 	fi
-fi
 
-if test "$gmpl" = "no"; then
-	if test "$gpslc" != ""; then
-		AC_MSG_WARN(*** Disabling gpsmap because GMP was not found. ***)
-		gpslc=""
+	if test "$libz" = "no" -a "$gpslc" != ""; then
+		AC_CHECK_LIB([z], [gzopen],
+        	AC_DEFINE(HAVE_LIBZ, 1, Libz compression lib) LIBS="$LIBS -lz" libz="yes",
+        	AC_MSG_WARN(Unable to find libz compression))
 	fi
-fi
 
-if test "$gpslc" != ""; then
-	CPPFLAGS="$CPPFLAGS `Magick-config --cppflags`"
-	CXXFLAGS="$CXXFLAGS `Magick-config --cflags`"
-fi
-
-if test "$libz" = "no" -a "$gpslc" != ""; then
-	AC_CHECK_LIB([z], [gzopen],
-        AC_DEFINE(HAVE_LIBZ, 1, Libz compression lib) LIBS="$LIBS -lz" libz="yes",
-        AC_MSG_WARN(Unable to find libz compression))
-fi
-
-AC_CHECK_HEADER(pthread.h,
+	AC_CHECK_HEADER(pthread.h,
 	AC_CHECK_LIB([pthread], [pthread_create],
 		AC_DEFINE(HAVE_PTHREAD, 1, pthread threading library) pthr="yes",
 		pthr="no"),
 	pthr="no")
 
-if test "$pthr" = "no"; then
-	AC_MSG_WARN(*** GPSMap will be built without pthread support. ***);
-	threadlib=""
+	if test "$pthr" = "no"; then
+		AC_MSG_WARN(*** GPSMap will be built without pthread support. ***);
+		threadlib=""
+	else
+		threadlib="-lpthread"
+	fi
+
+	# Update the companion to this...
+	if test "$gpslc"x != "x"; then
+    		gpslco="\$(GPSLO)"
+	fi
+	AC_SUBST(gpslc)
+	AC_SUBST(gpslco)
+
 else
-	threadlib="-lpthread"
+	AC_MSG_WARN(*** --disable-gpsmap was specified. gpsmap will not be built ***)
+	expatl="no"
+	gmpl="no"
+	gpslc=""
+	pthr="no"
+fi
+
+
+AC_ARG_ENABLE(optimization, [  --disable-optimization        disable -Ox gcc optimization],,wantopto=yes)
+if test "$wantopto" != "yes"; then
+	CPPFLAGS=`echo $CPPFLAGS | sed -e 's/-O.//g'`
+	CXXFLAGS=`echo $CXXFLAGS | sed -e 's/-O.//g'`
 fi
 
 LIBS="$LIBS -lstdc++"
 
 AC_SUBST(threadlib)
-
-# Update the companion to this...
-if test "$gpslc"x != "x"; then
-    gpslco="\$(GPSLO)"
-fi
-AC_SUBST(gpslc)
-AC_SUBST(gpslco)
 
 sharedatadir=$datadir
 sharedatadir=`(
@@ -943,25 +965,41 @@ else
 fi
 echo -n "   Imagemagick support: "
 if test "$gpslc" = ""; then
-	echo "no"
+	if test "$wantgpsmap" = "no"; then
+		echo "disabled"
+	else
+		echo "no"
+	fi
 else
 	echo "yes ($magickversion)"
 fi
 echo -n "         Expat Library: "
 if test "$expatl" = "no"; then
-	echo "no"
+	if test "$wantgpsmap" = "no"; then
+		echo "disabled"
+	else
+		echo "no"
+	fi
 else
 	echo "yes"
 fi
 echo -n "           GMP Library: "
 if test "$gmpl" = "no"; then
-    echo "no"
+	if test "$wantgpsmap" = "no"; then
+		echo "disabled"
+	else
+		echo "no"
+	fi
 else
     echo "yes"
 fi
 echo -n "       PThread Support: "
 if test "$pthr" = "no"; then
-	echo "no"
+	if test "$wantgpsmap" = "no"; then
+		echo "disabled"
+	else
+		echo "no"
+	fi
 else
 	echo "yes"
 fi
@@ -969,7 +1007,11 @@ echo -n "      libz compression: "
 if test "$libz" = "yes"; then
 	echo "yes"
 else
-	echo "no"
+	if test "$wantgpsmap" = "no"; then
+		echo "disabled"
+	else	
+		echo "no"
+	fi
 fi
 
 if test "$wireless" != "yes" -a "$linux" = "yes"; then

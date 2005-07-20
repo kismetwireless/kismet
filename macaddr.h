@@ -364,6 +364,8 @@ public:
         macmap<T> *owner;
     };
 
+    friend class macmap<T>::iterator;
+
     iterator begin() {
         iterator ret(this);
 

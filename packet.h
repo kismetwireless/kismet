@@ -206,7 +206,13 @@ enum protocol_info_type {
     proto_netstumbler,
     proto_lucenttest,
     proto_wellenreiter,
-    proto_iapp
+    proto_iapp,
+    proto_leap,
+    proto_ttls,
+    proto_tls,
+    proto_peap,
+    proto_isakmp,
+    proto_pptp,
 };
 
 enum protocol_netbios_type {
@@ -250,6 +256,35 @@ typedef struct {
     unsigned int length : 8 __attribute__ ((packed));
     char data;
 } cdp_element;
+
+// 802.1x Header
+typedef struct dot1x_header {
+    uint8_t    version;
+    uint8_t    type;
+    uint16_t   length;
+} __attribute__ ((packed)) dot1x_header_t;
+
+// EAP Packet header
+typedef struct eap_packet {
+    uint8_t    code; /* 1=request, 2=response, 3=success, 4=failure */
+    uint8_t    identifier; /* Sequential counter, not sure what it's for */
+    uint16_t   length; /* Length of the entire EAP message */
+    uint8_t    type; /* 0x11 for LEAP */
+    /* The fields that follow the type octet are variable, depending on the
+       type and code values.  This information isn't important for us. */
+} __attribute__ ((packed)) eap_packet_t;
+
+// ISAKMP packet header
+typedef struct isakmp_packet {
+    uint8_t    init_cookie[8];
+    uint8_t    resp_cookie[8];
+    uint8_t    next_payload;
+    uint8_t    version;
+    uint8_t    exchtype;
+    uint8_t    flags;
+    uint32_t   messageid;
+    uint32_t   length;
+} __attribute__ ((packed)) isakmp_packet_t;
 
 typedef struct {
     unsigned int type : 8 __attribute__ ((packed));
@@ -416,6 +451,28 @@ typedef struct {
     unsigned pdu_len : 16 __attribute__ ((packed));
 } iapp_pdu_header;
 
+enum crypt_type {
+	crypt_none = 0,
+	crypt_unknown = 1,
+	crypt_wep = 2,
+	crypt_layer3 = 4,
+	// Derived from WPA headers
+	crypt_wep40 = 8,
+	crypt_wep104 = 16,
+	crypt_tkip = 32,
+	crypt_wpa = 64,
+	crypt_psk = 128,
+	crypt_aes_ocb = 256,
+	crypt_aes_ccm = 512,
+	// Derived from data traffic
+	crypt_leap = 1024,
+	crypt_ttls = 2048,
+	crypt_tls = 4096,
+	crypt_peap = 8192,
+	crypt_isakmp = 16384,
+    crypt_pptp = 32768
+};
+
 // Info about a packet
 typedef struct {
     // Packet info type
@@ -446,8 +503,10 @@ typedef struct {
 
     // Where did it come from?
     distribution_type distrib;
-    // Is wep enabled?
-    int wep;
+
+	// What crypt set is used?
+	int crypt_set;
+
     // Was the encryption detection fuzzy?
     int fuzzy;
     // Was it flagged as ess? (ap)
@@ -521,9 +580,12 @@ void MungeToPrintable(char *in_data, int max);
 
 // Info extraction functions
 int GetTagOffset(int init_offset, int tagnum, kis_packet *packet,
-                 map<int, int> *tag_cache_map);
+                 map<int, vector<int> > *tag_cache_map);
 void GetPacketInfo(kis_packet *packet, packet_info *ret_packinfo,
                    macmap<wep_key_info *> *bssid_wep_map, unsigned char *identity);
+void ProcessPacketCrypto(kis_packet *packet, packet_info *ret_packinfo,
+						 macmap<wep_key_info *> *bssid_wep_map,
+						 unsigned char *identity);
 void GetProtoInfo(kis_packet *packet, packet_info *in_info);
 void DecryptPacket(kis_packet *packet, packet_info *in_info, 
                    macmap<wep_key_info *> *bssid_wep_map, unsigned char *identity);

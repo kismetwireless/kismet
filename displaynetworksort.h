@@ -145,7 +145,7 @@ public:
         if (y->type == group_empty)
             return 1;
 
-        if (x->virtnet->wep > y->virtnet->wep)
+        if (x->virtnet->crypt_set > y->virtnet->crypt_set)
             return 1;
         return 0;
     }
@@ -282,7 +282,7 @@ public:
 class ClientSortWEP {
 public:
     inline bool operator() (const wireless_client *x, const wireless_client *y) const {
-        if (x->wep > y->wep)
+        if (x->crypt_set > y->crypt_set)
             return 1;
         return 0;
     }

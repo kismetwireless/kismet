@@ -1,24 +1,26 @@
-Kismet 2004-04-01
+Kismet 2005-06-R1
 Mike Kershaw <dragorn@kismetwireless.net>
 http://www.kismetwireless.net
 Licensed under the GPL
 
 1.  What is Kismet
-2.  Feature Overview
-3.  Typical Uses
-4.  Upgrading From Previous Versions
-5.  Suidroot & Security
-6.  Required Libraries & Utilities
-7.  Compiling
-8.  Configuration
-9.  Panels Interface
-10. Operating Systems
-11. Capture Sources
-12. Graphical Network Mapping
-13. Drone Remotes
-14. Intrusion Detection
-15. Troubleshooting
-16. Frequently Asked Questions
+2.  Quick Start
+3.  Feature Overview
+4.  Typical Uses
+5.  Upgrading From Previous Versions
+6.  Suidroot & Security
+7.  Required Libraries & Utilities
+8.  Compiling
+9.  Configuration
+10. Panels Interface
+11. Operating Systems
+12. Capture Sources
+13. Graphical Network Mapping
+14. Drone Remotes
+15. Intrusion Detection
+16. Reporting Bugs
+17. Troubleshooting
+18. Frequently Asked Questions
 
 1.  What is Kismet
 
@@ -32,7 +34,36 @@ Licensed under the GPL
     networks, and infering the presence of nonbeaconing networks via data
     traffic.
 
-2.  Feature Overview
+2.  Quick Start
+
+    PLEASE read the full manual, but for the impatient, here is the BARE
+    MINIMUM needed to get Kismet working:
+
+    * Download Kismet from http://www.kismetwireless.net/download.shtml
+    * Run ``./configure''.  Pay attention to the output!  If Kismet cannot
+      find all the headers and libraries it needs, it won't be able to do
+      many things.
+    * Compile Kismet with ``make''
+    * Install Kismet with either ``make install'' or ``make suidinstall''.
+      YOU MUST READ THE SECTION OF THIS README NAMED "SUID INSTALLATION &
+      SECURITY" OR YOUR SYSTEM MAY BE MADE VULNERABLE!!
+    * Edit the config file (standardly in "/usr/local/etc/kismet.conf")
+    * Set the user Kismet will drop privileges to by changing the "suiduser"
+      configuration option.
+    * Set the capture source by changing the "source" configuration option.
+      FOR A LIST OF VALID CAPTURE SOURCES, SEE THE SECTION OF THIS README
+      CALLED "CAPTURE SOURCES".  The capture source you should use depends
+      on the operating system and driver that your wireless card uses.
+      USE THE PROPER CAPTURE SOURCE.  No permanent harm will come from using
+      the wrong one, but you won't get the optimal behavior.
+    * Add an absolute path to the "logtemplate" configuration option if you
+      want Kismet to always log to the same directory instead of the directory
+      you start it in.
+
+    * Run ``kismet''.  You may need to start Kismet as root.
+    * READ THE REST OF THIS README
+
+3.  Feature Overview
 
     Kismet has many features useful in different situations for monitoring
     wireless networks:
@@ -56,7 +87,7 @@ Licensed under the GPL
     - XML output
     - Over 20 supported card types
 
-3.  Typical Uses
+4.  Typical Uses
 
     Common applications Kismet is useful for:
 
@@ -69,15 +100,29 @@ Licensed under the GPL
     - Rogue AP Detection:  Stationary or mobile sniffers to enforce site policy
       against rogue access points.
 
-4.  Upgrading from Previous Versions
+5.  Upgrading from Previous Versions
 
+    Upgrading to Kismet 2005-06-R1 from previous versions:
+      Kismet now supports the ipw2200 card with monitor mode.  If you use this
+      card, make sure you add the ipw2200 source to the 'fuzzycrypt' line
+      in your config file.  (The same applies to ipw2915)
+
+      Alternately, you can enable the "netfuzzycrypt" option to force fuzzy
+       packet detection based on the network encryption.
+
+      Kismet also now supports limiting alert burst rate time units, new
+      default alert values are in the example kismet.conf and alerts may
+      now be of the form:
+        alert=NAME,limit/unit,burst/unit
+        alert=FOO,10/min,1/sec
+    
     Upgrading to Kismet 3.1+:
       Kismet 3.1 has significantly changed how Kismet operates again.  There
       have been config file changes, changes to the names of capture types,
       and various other mayhem.  Be sure to upgrade your config file or things
       will definitely not work how you expect them to.
 
-5.  Suidroot & Security
+6.  Suidroot & Security
 
     In order to configure the wireless card for rfmon and start the packet
     capture, Kismet needs root access.  As soon as root access is no longer
@@ -100,13 +145,13 @@ Licensed under the GPL
 
     REMEMBER:  Installing Kismet suid-root is NOT SECURE ON MULTIUSER SYSTEMS.
     Most users of Kismet are likely using single-user laptops or handhelds, 
-    where suidroot is very convienent.  If you have ANY OTHER USERS ON YOUR
+    where suidroot is very convenient.  If you have ANY OTHER USERS ON YOUR
     SYSTEM, suidroot Kismet can be used to shut down the wireless and put
     files where you don't want to allow them to be put.  If you have other
     users on your system, install kismet normally and 'su' to root before
     starting it.
 
-6.  Required Libraries & Utilities
+7.  Required Libraries & Utilities
 
     Kismet is primary self-contained, however for some features it requires
     some external libraries or utilities.
@@ -117,9 +162,9 @@ Licensed under the GPL
       GPSD is a daemon which listens on a serial port for GPS data, parses it,
       and makes it available via a TCP socket.  Kismet can use a GPSD on the
       local system, or if there is a wired ethernet connection available it can
-      use a gps on a remote host.  
+      use a GPS on a remote host.  
 
-      The latest versions of GPSD fix compile issues which occured on some
+      The latest versions of GPSD fix compile issues which occurred on some
       systems and it's highly reccomended you get the latest.
 
       GPSDrive distributes an alternate version of GPSD, which should work with
@@ -130,7 +175,7 @@ Licensed under the GPL
 
       Imagemagick is a graphics generation library which can read and write in
       almost any format.  Kismet requires a recent version of Imagemagick due
-      to IMs frequently changing API.  If you do not plan to use gpsmap, you
+      to IM's frequently changing API.  If you do not plan to use gpsmap, you
       can skip this library.
 
     - Expat (1.95+): http://expat.sourceforge.net/
@@ -168,7 +213,7 @@ Licensed under the GPL
       If you do not need to replay compressed dumps or dumps with other 
       encodings (such as Airopeek), you don't need wtapfile.
 
-7.  Compiling
+8.  Compiling
     
     Compiling should be fairly straightforward.  It uses the normal configure
     scripts found in most open-source projects, and should build with any
@@ -192,14 +237,14 @@ Licensed under the GPL
     FreeBSD users should configure kismet to use the systemwide pcap, which
     supports multiple DLT types, with --enable-syspcap
 
-8.  Configuration
+9.  Configuration
 
     Kismet is controlled by 2 primary configuration files:
     kismet.conf controls the server backend, and kismet_ui.conf controls the
     panels user interface.  By default, these files are in /usr/local/etc/.
     Remote drone servers use a third file, kismet_drone.conf.
 
-    Kismet configuration files are a simple 'variable=value' format.
+    Kismet configuration files are a simple 'directive=value' format.
 
     Basic server configuration:
 
@@ -214,7 +259,7 @@ Licensed under the GPL
         into a single packet log.
         Sources are defined with the 'source' directive.  Source lines are
         defined with 'source=type,interface,name[,channel]'.  See the section
-        'Capture Types' for a list of source types.  The name can be anything
+        'Capture Sources' for a list of source types.  The name can be anything
         that is useful for you to identify what source it is.  The initial
         channel is optional.  If an initial channel is requested on the command
         line it will take precedence.
@@ -267,11 +312,15 @@ Licensed under the GPL
 
     More advanced server configuration:
 
+	* To allow Kismet clients from remote hosts to connect, comment out the 
+	  bind_addr field to default to INADDR_ANY (all network interfaces).
+
     * IDS alert rates can be controlled via the 'alert' directive, which 
       specifies the alert type, rate per timeframe (ie, 5/min), and the burst
-      limits.  These controls are similar to the iptables limit controls.
+      rate per timeframe (ie, 1/sec). These controls are similar to the 
+      iptables limit controls.
 
-    * Networks with known WEP keys can be decrypted realtime with the 
+    * Networks with known WEP keys can be decrypted in realtime with the 
       'wepkey' directive, which specifies a BSSID (or bssid mask) and the
       WEP key.
 
@@ -280,16 +329,8 @@ Licensed under the GPL
       packets are processed at all, logged to dump files, and logged to
       xml/csv/etc files, respectively.
 
-      Once filters are enabled they control what packets are allowed through.
-      To allow all packets NOT specified, invert the filter with '!'.
-
-      Filtering can be done on address types (ANY, SOURCE, DEST, and BSSID),
-      and can be inverted.  For example, to exclude all packets from a given
-      MAC, 'filter_tracker=ANY(!00:11:22:33:44:55)'.  To include only one 
-      network, filter by BSSID - 'filter_tracker=BSSID(00:11:22:33:44:55)'
-
-      Multiple filters can be chained together on one line with a ','.
-      'filter_tracker=ANY(..),BSSID(!...)'
+      See the sub-section "Filtering Syntax" in this section for more 
+      information on filtering.
 
     * Including subconfig files.  By using 'include=...' other files can be
       included into the Kismet config, with filtering, WEP keys, etc.
@@ -318,7 +359,34 @@ Licensed under the GPL
       a similar effect while providing more frequent monitoring of other 
       channels.
 
-9.  Ncurses/Panels Interface
+    * Fuzzy encryption detection.  Not all drivers properly set the WEP flag
+      on encrypted packets.  As of 2005-06-R1, Kismet automatically attempts to
+      manually determine if a packet contains encrypted data if it is part of
+      a network which advertises encryption.  This behavior can be turned off
+      via the "netfuzzycrypt" option, and it can be enabled for specific 
+      capture types via the "fuzzycrypt" config option.
+
+    Filtering syntax:
+
+    Filters are "positive-pass": anything matched by the filter is passed and 
+    all else is excluded.
+
+    Filtering can be done on address types (ANY, SOURCE, DEST, and BSSID).
+
+    To exclude a network with the BSSID AA:BB:CC:DD:EE:FF, the filter would be:
+        filter_tracker=BSSID(!AA:BB:CC:DD:EE:FF)
+
+    MAC addresses can be masked in the same fashion as IP netmasks.  To 
+    match all networks of a certian manufacturer, restrict to the OUI:
+        filter_tracker=BSSID(AA:BB:CC:00:00:00/FF:FF:FF:00:00:00)
+
+    Multiple MAC addresses can be used on the same filter line.  To filter
+    out two known networks from being considered:
+        filter_tracker=BSSID(!00:11:22:33:44:55,!00:11:22:33:44:66)
+    Which is to say, all traffic not from 00..55 and not from 00..66 will
+    be considered.
+
+10. Ncurses/Panels Interface
 
     The ncurses/panels interface is the default frontend provided with Kismet.
     
@@ -345,7 +413,9 @@ Licensed under the GPL
       clients   Number of clients (unique MACs) seen on network
       crypt     Number of encrypted packets
       data      Number of data packets
-      decay     Displays '!' or '.' based on network activity
+      decay     Displays '!' or '.' or blank, based on network activity in the
+                last 'decay' seconds (controlled by the 'decay' variable in the
+                config file)
       dupeiv    Number of packets with duplicate IVs seen  
       flags     Network status flags (Address size, decrypted, etc)
       info      Extra AP info included by some manufacturers
@@ -372,7 +442,7 @@ Licensed under the GPL
       decay     Displays '!', '.', or ' ' based on network activity
       ip        Last seen IP used by client
       mac       MAC address of client  
-      manuf     Manufactuer of client (if known)
+      manuf     Manufacturer of client (if known)
       maxrate   Maximum rate client seen transfering
       noise     Last seen noise level of client
       signal    Last seen signal level of client
@@ -380,28 +450,45 @@ Licensed under the GPL
       type      Type of client (Established, To-DS, From-DS, etc)
       weak      Number of packets which appear to have weak IVs
       
-10. Operating Systems
+11. Operating Systems
 
-    Kismet will work (at some level) on any operating system which has Posix
+    Kismet will work (at some level) on any operating system which has POSIX
     compatibility, however for it to do native packet capturing it needs
     drivers which are capable of reporting packets in rfmon.  Remote sources
     such as WSP100 or Drones can be used on any platform you can get Kismet to
     compile on.
 
     - Linux (Intel, PPC, MIPS, X-Scale, Arm, etc)
-      Known supported cards: ACX100, ADMTek, Atheros, Cisco, Prism2, Orinoco, 
-      WSP100, Drone, wtapfile, pcapfile, wrt54g, ipw2100
+      Known supported cards: Atmel_USB, ACX100, ADMTek, Atheros, Cisco, Prism2, 
+       Orinoco, WSP100, Drone, wtapfile, pcapfile, wrt54g, ipw2100, rt2400,
+       rt2500, rt8180, ipw2200, ipw2915
 
       Kismet will work with any distribution of Linux.  Currently, Linux is the
-      reccomended platform for running Kismet because it has the largest
+      recommended platform for running Kismet because it has the largest
       selection of rfmon capable drivers.
 
     - OpenBSD
-      Known supported cards: Prism2, WSP100, Drone, wtapfile, pcapfile
-   
+      Known supported cards: Prism2 (wi), Atheros (ath), Intel 2200/2225/2915
+      (iwi), Intel 2100 (ipw), Ralink (ral and ural), Realtek RTL8180L (rtw),
+      WSP100, Drone, wtapfile, pcapfile.
+  
+      OpenBSD 3.7 and newer includes a software 802.11 stack and the Radiotap
+      packet header format. Any cards that use the 802.11 stack and support
+      monitor mode should work with Kismet via the radiotap_bsd_x capture
+      sources. For best results OpenBSD -current is recommended.
+ 
       OpenBSD 3.2 and newer report standard frames from the Prism2 drivers. 
       Thanks to the efforts of Pedro la Peu, Kismet works fully with prism2
-      cards under OpenBSD.  Performance with other cards may be varied.
+      cards under OpenBSD.  The prism2_openbsd and cisco_openbsd capture
+      sources will soon be deprecated, if possible use the radiotap_bsd_x
+      capture sources.
+
+      There have been some reports of the OpenBSD gcc toolchain failing when
+      debugging symbols and optimization are turned on (-g and -O#).  If you
+      experience problems compiling Kismet on OpenBSD where GCC runs out of
+      memory, either edit the Makefile and remove the -Ox and -g options from
+      CPPFLAGS and CXXFLAGS, or run configure with the --disable-optimization
+      parameter, run gmake clean, and then gmake again.
 
     - FreeBSD
       Known supported cards: Atheros, Prism2, WSP100, Drone, wtapfile, pcapfile
@@ -410,14 +497,19 @@ Licensed under the GPL
       to Sam Leffler, Kismet supports the radiotap headers and should work with
       current FreeBSD systems.
 
-      FreeBSD users should configure with the --enable-syspcap to get mutlidlt
-      support.
+      FreeBSD users should configure with the --enable-syspcap option to get 
+      multidlt support from the system-wide libpcap library instead of the
+      bundled one.
 
     - NetBSD
       Known supported cards: WSP100, Drone, wtapfile, pcapfile
     
       There have been no reports positive or negative about NetBSD drivers.
       Please email if you have them working.
+
+      NetBSD is moving towards (or already has) Radiotap header support.  If
+      your card is supported under a current NetBSD version with radiotap,
+      it should work with the radiotap_bsd_x sources.
 
     - MacOSX
       Known supported cards: Airport, WSP100, Drone, wtapfile, pcapfile
@@ -426,7 +518,7 @@ Licensed under the GPL
       drivers at http://www.dopesquad.net/security/.  There are no rfmon
       drivers available for Airport Extreme cards currently.
 
-      Other third-party drivers may support rfmon for other pcmcia and usb
+      Other third-party drivers may support rfmon for other PCMCIA and USB
       cards under OSX - let me know if your drivers support rfmon, and I'll
       add support in Kismet.
 
@@ -435,38 +527,63 @@ Licensed under the GPL
 
       Win32 ONLY works with remote captures.  There are no public rfmon drivers
       for win32, and no reports of any in development.  Kismet on Win32
-      requires cygwin for the Posix layer.
+      requires cygwin for the POSIX layer.
 
       Don't use win32 if you want to capture data natively.
 
-11. Capture Sources
+12. Capture Sources
     
     A capture source in Kismet is anything which provides packets to the Kismet
     engine.  Capture sources define the underlying engine needed to capture
     data from the interface, how to change channel, and how to enter rfmon
-    mode.
+    mode.  It is necessary to tell Kismet what specific type of card you use
+    because different drivers often use different methods to report information
+    and enter monitor mode.
 
     Source type     Cards               OS          Driver
     --------------- ------------------- ----------- -------------------------
     acx100          TI ACX100           Linux       ACX100
                     http://acx100.sourceforge.net/
                     Capture interface:  'ethX'
-                    ACX100 drivers handle the 22mbit cards branded by DLink
+                    ACX100 drivers handle the 22mbit cards branded by D-Link
                      and others.
 
     admtek          ADMTek              Linux       ADMTek
-                    http://www.latinsud.com/adm8211/
+                    http://www.latinsud.com/adm8211/        (Patches)
+                    http://aluminum.sourmilk.net/adm8211/   (GPL driver)
                     ADMTek drivers used in many consumer 802.11b cards. With
                      the patches above, quasi-rfmon is possible - these cards
                      appear to be almost entirely software controlled and 
                      always in a rfmon-like state.  This card WILL BROADCAST
                      while in rfmon, rendering the sniffer visible.
+                    The fully GPL drivers are supported, in addition to the 
+                     hacks to the non-free drivers.
+
+    atmel_usb       Atmel-USB           Linux       Berlios-Atmel
+                    http://at76c503a.berlios.de/
+                    Capture interface:  'wlanX'
+                    These drivers work ONLY on USB cards (Sorry, no PCMCIA
+                     support).  Monitor mode support is limited and "faked"
+                     by bypassing part of the firmware and parsing packets
+                     directly, and is likely to not report all of the 
+                     frames.
+                    This card MAY BROADCAST while in rfmon, rendering the
+                     sniffer visible.
+                    It appears that this card may be only formatting the 
+                     beacons as an 802.11 stream, which means you likely
+                     will not see data frames, rendering most IDS functions,
+                     IP discovery, and data logging unavailable.
 
     cisco           Aironet 340,350     Linux       Kernel 2.4.10 - 2.4.19
                     Capture interface:  'ethX'  
                     Standard Cisco cards in Linux.  Works only with
-                     the Linux kernel drivers, not the drivers found on
-                     cisco.com or pcmcia-cs.
+                     the Linux kernel drivers, not the drivers found in
+                     pcmcia-cs.
+                    The drivers found on the cisco.com site can be patched
+                     with the files from the Kismet download site to add
+                     monitor mode with channel control, HOWEVER these drivers
+                     are extremely buggy for normal use and work only with
+                     the 2.4 kernel tree.
                     The cisco drivers currently do not enter rfmon mode 
                      correctly, so channel control is not available.  The
                      firmware will hop to whatever channel it feels like 
@@ -491,6 +608,8 @@ Licensed under the GPL
                     OpenBSD cisco drivers are not fully supported currently,
                      but may become so.  Packet capture probably will not
                      work correctly.
+                    For current OpenBSD releases you should try the 
+                     radiotap_bsd_b capture source, NOT this one.
 
     hostap          Prism/2             Linux       HostAP 0.4
                     http://hostap.epitest.fi/
@@ -505,10 +624,26 @@ Licensed under the GPL
                     http://ipw2100.sourceforge.net/
                     Capture interface:  'ethX'
                     The Linux IPW2100/Centrino drivers for 802.11b cards
-                    now support rfmon, so heres support for them.  They act
+                    now support rfmon, so here's support for them.  They act
                     more or less like any other wireless interface would.
-                    THIS IS NOT FOR WINDOWS OR FOR SYSTEMS USING NDISWRAPPER
-                    OR LINUXANT.
+                    THIS IS NOT FOR WINDOWS OR FOR LINUX SYSTEMS USING 
+                    NDISWRAPPER OR LINUXANT.
+
+    ipw2200         Intel/Centrino      Linux       ipw2200-1.0.4+
+                    http://ipw2200.sourceforge.net/
+                    Capture interface:  'ethX'
+                    The Linux IPW2200/Centrino drivers for 802.11bg cards
+                    support rfmon as of 1.0.4 and firmware 2.3.  
+                    THIS IS NOT FOR WINDOWS OR FOR LINUX SYSTEMS USING 
+                    NDISWRAPPER OR LINUXANT.
+
+    ipw2915         Intel/Centrino      Linux       ipw2200-1.0.4+
+                    http://ipw2200.sourceforge.net/
+                    Capture interface:  'ethX'
+                    The Linux IPW2200/Centrino drivers for 802.11bg cards
+                    support rfmon as of 1.0.4 and firmware 2.3.  
+                    This is the same as ipw2200 but defaults to scanning the
+                    802.11a channel range in addition to 802.11b/g.
 
     kismet_drone    n/a                 Any         n/a
                     Capture interface:  'dronehost:port'  
@@ -550,18 +685,23 @@ Licensed under the GPL
     orinoco         Lucent, Orinoco     Linux       Patched orinoco_cs
                     http://airsnort.shmoo.com/orinocoinfo.html
                     Capture interface:  'ethX'
-                    The standard orinoco_cs drivers do not support monitor mode
-                     but they work well after being patched with the above.
-                    As of Feb, 2004, the CVS tree and 2.6 kernels include 
-                     monitor mode, but require the new orinoco source.
+                    The orinoco-cs drivers do not support monitor mode as-is,
+                     but patches are on the Kismet download site for 
+                     standalone drivers, Linux 2.6 kernel drivers, and 
+                     Linux 2.6.9+ kernel drivers.  These expanded patches fix
+                     several performance issues with previous monitor mode
+                     patches.
 
-    orinoco_14      Lucent, Orinoco     Linux       Orinoco 0.14+, Kernel 2.6+
+    orinoco_14      Lucent, Orinoco     Linux       Orinoco 0.14+
                     https://savannah.nongnu.org/projects/orinoco/
                     Capture interface:  'ethX'
                     The new orinoco_cs drivers changed things subtly, but
                      at least they include rfmon without patching.
                     Patches to enable signal level reporting are available on
                      the kismet download site.
+                    These drivers are NOT CURRENTLY RECCOMENDED.  Once the new
+                     Orinoco drivers have solidified, final patches for 
+                     per-packet stats will be made and this source changed.
 
     pcapfile        n/a                 Any         n/a
                     Capture interface:  '/path/to/file' 
@@ -573,28 +713,46 @@ Licensed under the GPL
 
     prism2_openbsd  Prism/2             OpenBSD     Kernel
                     Capture interface:  'wiX'
-                    Full support for Prism2 under OpenBSD
+                    Full support for Prism2 under older OpenBSD releases.
+                    This should soon be deprecated, if possible use the
+                     radiotap_bsd_b capture type.
 
     prism54g        PrismGT             Linux       prism54
                     http://www.prism54.org
                     Capture interface:  'ethX'
                     PrismGT 802.11g drivers supporting monitor mode.
 
-    radiotap_fbsd_ab Atheros             FreeBSD     Kernel
-                     Capture interface:  'athX'
-                     FreeBSD dual-band cards with radiotap headers (currently
-                      only Atheros)
+    radiotap_bsd_ab Radiotap            BSD         Kernel
+                    Capture interface:  various
+                    Dual-band cards with radiotap headers.
 
-    radiotap_fbsd_a Atheros             FreeBSD     Kernel
-                    Capture interface:  'athX'
-                    FreeBSD 802.11a cards (or dual-band on 11a channels only)
-                     with radiotap headers (currently only Atheros)
+    radiotap_bsd_a Radiotap              BSD        Kernel
+                    Capture interface:  various
+                    802.11a cards (or dual-band on 11a channels only) with 
+                     radiotap headers. 
 
-    radiotap_fbsd_b Atheros             FreeBSD     Kernel
-                    Capture interface:  'athX'
-                    Capture interface:  'wiX'
-                    FreeBSD 802.11b cards (or dual-band on 11b channels only)
-                     with radiotap headers (Currently Atheros or Prism2)
+    radiotap_bsd_b Radiotap             BSD         Kernel
+                    Capture interface:  various
+                    802.11b/g cards (or dual-band on 11b channels only) with
+                     radiotap headers. 
+
+    rt2400          Ralink 2400 11b     Linux       rt2400-gpl
+                    Capture interface:  'ethX'
+                    http://rt2x00.serialmonkey.com/
+                    Ralink 2400 802.11b cards using the serialmonkey GPL'd 
+                     rt2x00 drivers.  Must use 1.2.2 beta 2 or newer drivers.
+
+    rt2500          Ralink 2500 11g     Linux       rt2500-gpl
+                    Capture interface:  'ethX'
+                    http://rt2x00.serialmonkey.com/
+                    Ralink 2500 802.11g cards using the serialmonkey GPL'd 
+                     rt2x00 drivers.  Must use 1.1.0 beta 2 or newer drivers.
+
+    rt8180          Realtek 8180 11b    Linux       rtl8180-sa2400
+                    Capture interface:  'ethX'
+                    http://rtl8180-sa2400.sourceforge.net/
+                    Realtek 8180 based cards (there seem to be an awful lot of
+                     them) using the GPL drivers.
 
     viha            Airport             OSX         viha
                     http://www.dopesquad.net/security/
@@ -629,15 +787,22 @@ Licensed under the GPL
     wrt54g          Linksys WRT54G      Linux       linksys
                     http://seattlewireless.net/index.cgi/LinksysWrt54g  
                     Capture interface:  'ethX'
+                    Capture interface:  'ethX:prismX'
                     Support for the drivers found in the embedded Linux 
                      inside the Linksys WRT54G (and probably other APs using
                      the same firmware).
+                    Newer firmwares (such as OpenWRT) use the prism0 device
+                     for monitor mode data.  On these firmwares, specify both
+                     interfaces (wrt54g,eth1:prism0,foo)
 
     wsp100          NetChem WSP100      Any         n/a
                     http://networkchemistry.com/
                     Capture interface:  'host:port'
                     The WSP100 is an embedded device which reports 802.11
-                     packets over UDP.
+                     packets over UDP.  The wsp100 capture source is 
+                     (generally) system agnostic, however over time it has
+                     been less maintained than others.  If you'd like to
+                     send me patches for this, please let me know.
 
     wtapfile        n/a                 Any         n/a
                     Capture interface:  '/path/to/file'  
@@ -651,14 +816,14 @@ Licensed under the GPL
      Broadcom           - No linux drivers, only useable with ndiswrapper or
                           linuxant wrappers around windows drivers.
      Airport Extreme    - Really a Broadcom, with no rfmon in the OSX drivers.
-     Atmel              - The USB firmware has no rfmon feature.  The pcmcia
-                          firmware -may-, but the drivers don't support it.
-     Realtek            - Cards seem to be primarily software-driven, no
-                          support in the drivers.
+     Atmel              - There is a hack for pseudo-monitor in USB.  There is
+                          currently no equivalent hack for PCMCIA.
      HermesII           - Proxim successor to the Orinoco/HermesI.  No support
                           yet in the drivers, may be available in the future.
+     ndiswrapper        - Anything using ndiswrapper is using WINDOWS drivers
+                          AND CAN NOT BE USED WITH KISMET.
 
-12. Graphical Network Mapping
+13. Graphical Network Mapping
 
     Kismet provides a tool for drawing networks overlaid on downloaded maps
     called 'gpsmap'.  Gpsmap reads the netxml and gpsxml files, sanitizes the
@@ -680,36 +845,40 @@ Licensed under the GPL
           power ranges, network center, etc.
 
     'gpsmap --help' lists all of the switches for enabling different map 
-    overlays.
+    overlays, map sources, and coloring options.  The default map source
+    is a blank image.
 
     GPSMap currently can use maps from:
         NullMap     (Blank white background)
-        MapBlast    (Vector) 
+        MapBlast    (Vector) (Broken)
         MapPoint    (Vector) (Broken, read warning)
         Terraserver (Satellite Photo)
         Tiger       (Vector) (US Census data)
-        Earthamap   (Vector) (Requires perl)
+        Earthamap   (Vector) (Requires perl) (Broken)
         Terraserver Topo (Vector-ish) 
        
-    Due to changes in the map websites, MapPoint cannot be used with new maps.  
-    These sources are left in GPSMap only for plotting previously kept map 
-    images, and they will fail if they are selected and a user map is not 
-    available.
-
-    Earthamap map fetching requires prefetching a cookie from the website. This
-    is automated through the gpsmap-helper-earthamaps script, which requires
-    Perl, HTTP::Cookies, and Perl::LWP to be installed.
+    Due to changes in the map websites (or their removal by vendors or 
+    corporate buyouts), many map sources no longer work.  These mapsources
+    are marked as "Broken" or "Unavailable".  They have been left in GPSMap
+    solely to enable easy plotting on previously saved map images.  These
+    will FAIL if they are selected and a user map is not also provided.
 
     All of these map sources rely on external data.  By using them, you agree
     to whatever terms and conditions the map provider requires.  Visit the
-    map providers website for these conditions.
+    map providers website for these conditions.  It is highly probable that
+    re-use of maps from vendors, in noncommercial or commercial situations,
+    is against the terms of service.
+
+    Plotting against non-vendor maps is possible by determining the equivalent
+    scaling mechanism and setting the appropriate map type.  Typically this 
+    must be done via trial and error.
     
     The extras/ directory contains an additional utility, 'gpsxml-sanitize',
     for cleaning invalid sample points out of the gpsxml data files for use in
     other programs.  GPSMap cleans the data set automatically, reprocessing the
     gpsxml files is only needed if they are to be used in third-party programs.
 
-13. Drone Remotes
+14. Drone Remotes
 
     Remote Kismet drones are designed to turn Kismet into a stationary, 
     distibuted IDS system.  Drones support all of the capture sources Kismet
@@ -728,10 +897,14 @@ Licensed under the GPL
 
     To start using drones, set up a kismet_drone on the system with a wireless
     card, using the kismet_drone.conf file.  Then configure Kismet to have a 
-    kismet_drone cardsource pointing to that host, start kismet_server, and
-    use whatever client you like to connect to it.
+    kismet_drone capsource pointing to that host, start kismet_server, and
+    use whatever client you like to connect to Kismet.
 
-14. Alerts and Intrusion Detection
+    If a GPS is enabled on the drone, packets recieved from the drone will use
+    that GPS for positioning information.  If the GPS is not enabled, then the
+    GPS connected to the Kismet server will be used.
+
+15. Alerts and Intrusion Detection
 
     Kismet will provide alerts based on fingerprints (specific netstumbler
     versions, other specific attacks) and trends (unusual probes, excessive
@@ -748,7 +921,7 @@ Licensed under the GPL
     Alert on:         Netstumbler probe requests
     Alert message:    "Netstumbler ($version) probe detected from ($macsource)"
     Tool-specific:    Yes (Netstumbler 3.22, 3.23, 3.30)
-    References:       http://www.netstumber.com
+    References:       http://www.netstumbler.com
     Details:          In an attempt to disclose the SSID of a network, 
                       Netstumbler sends out unique packets.  This is not done
                       in all situations, but when it is detected the potential
@@ -869,15 +1042,42 @@ Licensed under the GPL
     Alert message:    "Out-of-sequence timestamp on $bssid got $timestamp 
                       expected $timestamp - this could indicate AP spoofing"
     Tool-specific:    No
-    Details:          The BSS timestamp send with beacons and some probe frames
+    Details:          The BSS timestamp sent with beacons and some probe frames
                       cannot be spoofed with standard firmware or drivers even
                       when forging raw frames.  A BSS mismatch is likely an
                       indication of an attempt to spoof the SSID and BSSID of 
                       an access point.
                       This alert contains flap-detection to minimise false
                       positives caused by random bogons and AP recycling.
+   
+16. Reporting Bugs
+
+    Bugs happen, and I'm sure some are still in the code.  To make a useful
+    bug report:
+
+    * Check the "Troubleshooting" section to make sure it's not a known
+      user error
+    * Check the development CHANGELOG to make sure it hasn't already been
+      fixed in -devel.  http://svn.kismetwireless.net/code/trunk/CHANGELOG
     
-15. Troubleshooting
+    If the bug appears to be tied to specific packets:
+
+    * Start Kismet
+    * Use TCPDump to get a capture of the packets outside of Kismet, until
+      Kismet crashes.  (``tcpdump -i foo0 -w crashlog.dump'')
+    * Run the capture through Kismet:  Does it still crash?  (use the 
+      pcapfile capture type)  ``kismet_server -c pcapfile,/path/to/dump,foo''
+    * Send me the dump file and the info
+
+    If the bug happens otherwise:
+
+    * Recompile Kismet from source and don't use ``make install''.  The install
+      scripts strip debugging info from the binaries that we need.
+    * Run Kismet inside gdb (``gdb ./kismet_server'' or ``gdb ./kismet_client'')
+    * When it crashes, get a backtrace:  ``bt'' in gdb
+    * Send me the info
+
+17. Troubleshooting
     
     Some common problems with Kismet have easy solutions:
 
@@ -998,10 +1198,15 @@ Licensed under the GPL
 
     PROBLEM: Kismet can't enter monitor mode using MadWifi
     FIX: The CVS version of the MadWifi drivers are needed for rfmon.  
-     Additonally, you need kernel 2.4.23 or newer because of wireless extention
+     Additonally, you need kernel 2.4.23 or newer because of wireless extension
      dependencies.  Make sure to upgrade your drivers and kernel.
 
-16. Frequently Asked Questions
+    PROBLEM: Kismet can't compile, there are errors about pcap_parse
+    FIX:  Your flex/lex/bison/yacc tools are broken or missing.  Make sure you
+     install them.  libpcap cannot compile without them.  Newer releases of
+     Kismet patch libpcap to not generate filter code at all.
+
+18. Frequently Asked Questions
 
     Q: Where did the name Kismet come from?
     A: The word itself means Fate or Destiny.  While I wish I could make up
@@ -1010,7 +1215,7 @@ Licensed under the GPL
        a name and was clicking through a thesaurus and liked the sound.
 
     Q: Is there anything illegal about Kismet?
-    A: In and of itself, there should be nothing illegal about Kismet, and its
+    A: In and of itself, there should be nothing illegal about Kismet, and it's
        no different than any other network capture tool.
        Note, however:
         - Recording data from networks for which you do not have permission may
@@ -1092,9 +1297,9 @@ Licensed under the GPL
        Most cards and drivers don't do very well measuring signal levels in 
        rfmon.  Some, like Cisco, don't even give us a per-packet signal level.
        To make matters worse, signal levels are often quite binary - rarely
-       will a signal dwindle to 10 or 20 as you tavel away from the source.
-       Beyond a certian point the radio is unable to assemble a packet out of 
-       the weak signal, and it will simply dissapear.
+       will a signal dwindle to 10 or 20 as you travel away from the source.
+       Beyond a certain point the radio is unable to assemble a packet out of 
+       the weak signal, and it will simply disappear.
        Generally speaking, a signal level of 200 is better than a signal level
        of 100, but individually the numbers don't have much relevance.  They
        can be useful for coloring the maps as "better" and "worse", but thats
@@ -1102,7 +1307,7 @@ Licensed under the GPL
 
     Q: Can Kismet be used in a commercial product?
     A: As long as you follow the requirements of the GPL, I can't stop you. 
-       It would certianly be nice if you're using Kismet to make a profit to
+       It would certainly be nice if you're using Kismet to make a profit to
        take a look at my wishlist or make a donation though.
 
     Q: What about plugins?
@@ -1115,6 +1320,10 @@ Licensed under the GPL
         out-of-date library cache that means ld can't find the library.
        Third, make sure you installed the libstdc++/g++ packages.  Configure 
         will erroneously blame libncurses if the linkage with libstdc++ fails.
+
+    Q: Configure failed on something else
+    A: Look at config.log and see why it failed.  Sometimes packages don't
+       properly define all their dependencies and linking fails.
 
     Q: Compiling fails on OSX with undefined variables in pcapsource.cc
     A: Re-run configure with --without-pcap to bypass this.  Viha doesn't use
@@ -1135,7 +1344,7 @@ Licensed under the GPL
     A: GPSMap does some moderately advanced filtering on data points which 
        allows it to sift the data collected and clean out invalid samples.  
        These methods require all of the sample points to be available, however,
-       and won't work during a live capture.  If the gps reports a momentary
+       and won't work during a live capture.  If the GPS reports a momentary
        invalid, but not wholly invalid, sample then Kismet will get confused.
 
     Q: How can I merge multiple capture files into one?
@@ -1147,10 +1356,40 @@ Licensed under the GPL
        standard OUI list (such as that provided with Ethereal) into the format
        Kismet uses.  This will make Kismet take a LOT more ram and a moderate
        increase in CPU to store and search the expanded list.  If your hardware
-       can handle it, by all means, but not reccomended for lowpower systems.
+       can handle it, by all means, but not recommended for lowpower systems.
+
+    Q: What if configure can't find the linux wireless headers?
+    A: Make sure you installed the kernel-headers package for your distro.
+       Barring that, find the location of your kernel headers, and pass 
+       configure the directory with:
+       ./configure --with-linuxheaders=/path/to/headers
+
+    Q: Do I need wiretap support?
+    A: Not really.  Wiretap is only for specific situations (reading compressed
+       packets, or reading packets captured by some different system like
+       aironet.  Generally speaking, you can just use the pcapfile capture type
+       which is included with libpcap.
+
+    Q: What cards work in *BSD?
+    A: Any card with radiotap support should work in any of the BSD variants
+       (Net, Open, or Free).  Check your kernel docs and consider upgrading
+       to the latest release to get more radiotap.  With the exclusion of 
+       OpenBSD, non-radiotap devices are not supported.
+       If you want to add support for a non-radiotap card, contact me over
+       email or IRC and I can help explain it.
+
+    Q: I want to port Kismet to (X) or I want to support card (Y)
+    A: Kismet is designed to be fairly modular.  Contact me over IRC or email
+       and I can explain what parts need to be changed.
+
+    Q: Why do you include your own libpcap?
+    A: Originally it was because the version included with distributions was
+       not up to date and couldn't handle the 802.11 linktypes.  Now it is
+       because Kismet patches libpcap to not generate filter code, resulting
+       in a significant reduction in the size of the compiled binaries.
 
     Q: What happens when I ask a question thats already answered here?
-    A: I'll probably be rude to you and tell you go to go read the docs. 
+    A: I'll probably be rude to you and tell you to go read the docs. 
        But of course everyone already read the docs all the way to the end,
        right?  Right?
        

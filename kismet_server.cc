@@ -90,14 +90,12 @@ Alertracker alertracker;
 Timetracker timetracker;
 
 GPSD *gps = NULL;
-#ifdef HAVE_GPS
 int gpsmode = 0;
 GPSDump gpsdump;
 
 // Last time we tried to reconnect to the gps
 time_t last_gpsd_reconnect = 0;
 int gpsd_reconnect_attempt = 0;
-#endif
 
 FifoDumpFile fifodump;
 TcpServer ui_server;
@@ -162,6 +160,7 @@ int filter_export_bssid_invert = -1, filter_export_source_invert = -1,
 typedef struct _alert_enable {
     string alert_name;
     alert_time_unit limit_unit;
+	alert_time_unit burst_unit;
     int limit_rate;
     int limit_burst;
 };
@@ -170,12 +169,11 @@ typedef struct _alert_enable {
 const char *logtypes = NULL, *dumptype = NULL;
 int limit_logs = 0;
 
-#ifdef HAVE_GPS
 char gpshost[1024];
 int gpsport = -1;
-#endif
 
 string allowed_hosts;
+string bind_addr;
 int tcpport = -1;
 int tcpmax;
 
@@ -184,6 +182,7 @@ string sndplay;
 
 const char *festival = NULL;
 int speech = -1;
+int flite = 0;
 int speech_encoding = 0;
 string speech_sentence_encrypted, speech_sentence_unencrypted;
 
@@ -204,6 +203,11 @@ string logtemplate;
 
 int channel_hop;
 
+// More globals!  Sure!  Why not!  This will all go away in newcore anyhow
+// Do we use the network classifier to determine if a data frame should be
+// tested as encrypted?
+int netcryptdetect = 0;
+
 // Handle writing all the files out and optionally unlinking the empties
 void WriteDatafiles(int in_shutdown) {
     // If we're on our way out make one last write of the network stuff - this
@@ -214,7 +218,7 @@ void WriteDatafiles(int in_shutdown) {
         if (ssid_file)
             tracker.WriteSSIDMap(ssid_file);
 
-        if (in_shutdown)
+        if (in_shutdown && ssid_file)
             fclose(ssid_file);
     }
 
@@ -222,7 +226,7 @@ void WriteDatafiles(int in_shutdown) {
         if (ip_file)
             tracker.WriteIPMap(ip_file);
 
-        if (in_shutdown)
+        if (in_shutdown && ip_file)
             fclose(ip_file);
     }
 
@@ -343,13 +347,10 @@ void CatchShutdown(int sig) {
         // delete cryptfile;
     }
 
-#ifdef HAVE_GPS
     if (gps_log == 1) {
         if (gpsdump.CloseDump(1) < 0)
             fprintf(stderr, "Didn't log any GPS coordinates, unlinking gps file\n");
     }
-
-#endif
 
     // Kill our sound players
     if (soundpid > 0)
@@ -527,8 +528,9 @@ void SpeechHandler(int *fds, const char *player) {
                 // Make sure it's shell-clean
                 MungeToShell(data, strlen(data));
                 char spk_call[1024];
-                snprintf(spk_call, 1024, "echo \"(SayText \\\"%s\\\")\" | %s >/dev/null 2>/dev/null",
-                         data, player);
+                snprintf(spk_call, 1024, "echo \"(%s\\\"%s\\\")\" | %s "
+						 ">/dev/null 2>/dev/null",
+						 flite ? "" : "SayText ", data, player);
                 system(spk_call);
 
                 exit(0);
@@ -636,7 +638,6 @@ void NetWriteInfo() {
 
     char tmpstr[32];
 
-#ifdef HAVE_GPS
     GPS_data gdata;
 
     if (gps_enable) {
@@ -667,7 +668,6 @@ void NetWriteInfo() {
     }
 
     ui_server.SendToAll(gps_ref, (void *) &gdata);
-#endif
 
     INFO_data idata;
     snprintf(tmpstr, 32, "%d", tracker.FetchNumNetworks());
@@ -710,10 +710,7 @@ void NetWriteInfo() {
     tracked = tracker.FetchNetworks();
 
     for (unsigned int x = 0; x < tracked.size(); x++) {
-        // Only send new networks
-        if (tracked[x]->last_time < last_write)
-            continue;
-
+		// Remove networks always get sent
         if (tracked[x]->type == network_remove) {
             string remstr = tracked[x]->bssid.Mac2String();
             ui_server.SendToAll(remove_ref, (void *) &remstr);
@@ -722,6 +719,10 @@ void NetWriteInfo() {
 
             continue;
         }
+
+        // Only send new networks
+        if (tracked[x]->last_time < last_write)
+            continue;
 
         NETWORK_data ndata;
         Protocol_Network2Data(tracked[x], &ndata);
@@ -789,7 +790,6 @@ void ProtocolClientEnable(int in_fd) {
 }
 
 int GpsEvent(Timetracker::timer_event *evt, void *parm) {
-#ifdef HAVE_GPS
     char status[STATUS_MAX];
 
     // The GPS only provides us a new update once per second we might
@@ -802,7 +802,7 @@ int GpsEvent(Timetracker::timer_event *evt, void *parm) {
             if (gps->OpenGPSD() < 0) {
                 last_gpsd_reconnect = time(0);
 
-                if (gpsd_reconnect_attempt < 11)
+                if (gpsd_reconnect_attempt < 20)
                     gpsd_reconnect_attempt++;
 
                 snprintf(status, STATUS_MAX, "Unable to reconnect to GPSD, trying "
@@ -848,8 +848,8 @@ int GpsEvent(Timetracker::timer_event *evt, void *parm) {
 
             gpsmode = 0;
         } else if (gpsret != 0 && gpsmode == 0) {
-            if (!silent || NetWriteStatus("Aquired GPS signal.") == 0)
-                fprintf(stderr, "Aquired GPS signal.\n");
+            if (!silent || NetWriteStatus("Acquired GPS signal.") == 0)
+                fprintf(stderr, "Acquired GPS signal.\n");
             if (sound == 1)
                 sound = PlaySound("gpslock");
 
@@ -863,8 +863,6 @@ int GpsEvent(Timetracker::timer_event *evt, void *parm) {
 
     // We want to be rescheduled
     return 1;
-#endif
-    return 0;
 }
 
 // Simple redirect to the network info drawer.  We don't want to change netwriteinfo to a
@@ -1168,11 +1166,46 @@ int Usage(char *argv) {
            "  -g, --gps <host:port>        GPS server (host:port or off)\n"
            "  -p, --port <port>            TCPIP server port for GUI connections\n"
            "  -a, --allowed-hosts <hosts>  Comma separated list of hosts allowed to connect\n"
+           "  -b, --bind-address <address>    Bind to this address. Default INADDR_ANY\n."
            "  -s, --silent                 Don't send any output to console.\n"
            "  -N, --server-name            Server name\n"
            "  -v, --version                Kismet version\n"
            "  -h, --help                   What do you think you're reading?\n");
     exit(1);
+}
+
+// Split up a rate/unit string into real values
+int ParseAlertRateUnit(string in_ru, alert_time_unit *ret_unit,
+					   int *ret_rate) {
+	vector<string> units = StrTokenize(in_ru, "/");
+
+	if (units.size() == 1) {
+		// Unit is per minute if not specified
+		(*ret_unit) = sat_minute;
+	} else {
+		// Parse the string unit
+		if (units[1] == "sec" || units[1] == "second") {
+			(*ret_unit) = sat_second;
+		} else if (units[1] == "min" || units[1] == "minute") {
+			(*ret_unit) = sat_minute;
+		} else if (units[1] == "hr" || units[1] == "hour") { 
+			(*ret_unit) = sat_hour;
+		} else if (units[1] == "day") {
+			(*ret_unit) = sat_day;
+		} else {
+			fprintf(stderr, "Invalid time unit for alert rate '%s'\n",
+					units[1].c_str());
+			return -1;
+		}
+	}
+
+	// Get the number
+	if (sscanf(units[0].c_str(), "%d", ret_rate) != 1) {
+		fprintf(stderr, "Invalid rate '%s' for alert\n", units[0].c_str());
+		return -1;
+	}
+
+	return 1;
 }
 
 // Moved here to make compiling this file take less memory.  Can be broken down more
@@ -1255,7 +1288,6 @@ int ProcessBulkConf(ConfigFile *conf) {
     }
 
 
-#ifdef HAVE_GPS
     if (conf->FetchOpt("waypoints") == "true") {
         if(conf->FetchOpt("waypointdata") == "") {
             fprintf(stderr, "WARNING:  Waypoint logging requested but no waypoint data file given.\n"
@@ -1267,7 +1299,6 @@ int ProcessBulkConf(ConfigFile *conf) {
         }
 
     }
-#endif
 
     if (conf->FetchOpt("metric") == "true") {
         fprintf(stderr, "Using metric measurements.\n");
@@ -1388,7 +1419,6 @@ int ProcessBulkConf(ConfigFile *conf) {
         }
 
         if (strstr(logtypes, "gps")) {
-#ifdef HAVE_GPS
             if (gps_log == 0) {
                 fprintf(stderr, "WARNING:  Disabling GPS logging.\n");
             } else {
@@ -1399,12 +1429,6 @@ int ProcessBulkConf(ConfigFile *conf) {
                     ErrorShutdown();
                 }
             }
-#else
-
-            fprintf(stderr, "WARNING:  GPS logging requested but GPS support was not included.\n"
-                    "          GPS logging will be disabled.\n");
-            gps_log = 0;
-#endif
 
         }
 
@@ -1457,6 +1481,14 @@ int ProcessBulkConf(ConfigFile *conf) {
         }
 
         allowed_hosts = conf->FetchOpt("allowedhosts");
+    }
+    
+    if (bind_addr.length() == 0) {
+        if (conf->FetchOpt("bindaddress") == "") {
+            fprintf(stderr, "NOTICE: bind address not specified, using INADDR_ANY.\n");
+        }
+
+    bind_addr = conf->FetchOpt("bindaddress");
     }
 
     vector<string> hostsvec = StrTokenize(allowed_hosts, ",");
@@ -1563,6 +1595,9 @@ int ProcessBulkConf(ConfigFile *conf) {
         if (conf->FetchOpt("festival") != "") {
             festival = strdup(conf->FetchOpt("festival").c_str());
             speech = 1;
+		
+			if (conf->FetchOpt("flite") == "true")
+				flite = 1;
 
             string speechtype = conf->FetchOpt("speech_type");
 
@@ -1686,54 +1721,29 @@ int ProcessBulkConf(ConfigFile *conf) {
         vector<string> tokens = StrTokenize(conf->FetchOptVec("alert")[av], ",");
         _alert_enable aven;
 
-        if (tokens.size() < 2 || tokens.size() > 3) {
-            fprintf(stderr, "FATAL:  Invalid alert line: %s\n", conf->FetchOptVec("alert")[av].c_str());
-            ErrorShutdown();
-        }
+		if (tokens.size() != 3) {
+			fprintf(stderr, "FATAL: Malformed limits for alert '%s'\n", 
+					conf->FetchOptVec("alert")[av].c_str());
+			ErrorShutdown();
+		}
 
-        aven.alert_name = tokens[0];
+		aven.alert_name = StrLower(tokens[0]);
 
-        vector<string> units = StrTokenize(tokens[1], "/");
+		if (ParseAlertRateUnit(StrLower(tokens[1]), 
+							   &(aven.limit_unit), &(aven.limit_rate)) != 1 ||
+			ParseAlertRateUnit(StrLower(tokens[2]),
+							   &(aven.burst_unit), &(aven.limit_burst)) != 1) { 
+			fprintf(stderr, "FATAL: Malformed limits for alert '%s'\n",
+					conf->FetchOptVec("alert")[av].c_str());
+			ErrorShutdown();
+		}
 
-        if (units.size() == 1) {
-            aven.limit_unit = sat_minute;
-            if (sscanf(units[0].c_str(), "%d", &aven.limit_rate) != 1) {
-                fprintf(stderr, "FATAL:  Invalid limit rate: %s\n",
-                        conf->FetchOptVec("alert")[av].c_str());
-                ErrorShutdown();
-            }
-        } else {
-            if (sscanf(units[0].c_str(), "%d", &aven.limit_rate) != 1) {
-                fprintf(stderr, "FATAL:  Invalid limit rate: %s\n",
-                        conf->FetchOptVec("alert")[av].c_str());
-                ErrorShutdown();
-            }
-
-            if (units[1] == "sec" || units[1] == "second")
-                aven.limit_unit = sat_second;
-            else if (units[1] == "min" || units[1] == "minute")
-                aven.limit_unit = sat_minute;
-            else if (units[1] == "hour")
-                aven.limit_unit = sat_hour;
-            else if (units[1] == "day")
-                aven.limit_unit = sat_day;
-            else {
-                fprintf(stderr, "FATAL:  Invalid time unit in alert line: %s\n",
-                        conf->FetchOptVec("alert")[av].c_str());
-                ErrorShutdown();
-            }
-        }
-
-        if (tokens.size() == 2) {
-            aven.limit_burst = 5;
-        } else {
-            if (sscanf(tokens[2].c_str(), "%d", &aven.limit_burst) != 1) {
-                fprintf(stderr, "FATAL:  Invalid time unit in alert line: %s\n",
-                        conf->FetchOptVec("alert")[av].c_str());
-                ErrorShutdown();
-            }
-
-        }
+		if (aven.burst_unit > aven.limit_unit) {
+			fprintf(stderr, "FATAL: Alert burst time unit must be <= alert "
+					"limit time unit for alert '%s'\n",
+					conf->FetchOptVec("alert")[av].c_str());
+			ErrorShutdown();
+		}
 
         alert_enable_vec.push_back(aven);
     }
@@ -1802,7 +1812,6 @@ int ProcessBulkConf(ConfigFile *conf) {
 
     }
 
-#ifdef HAVE_GPS
     if (waypoint) {
         if ((waypoint_file = fopen(waypointfile.c_str(), "a")) == NULL) {
             fprintf(stderr, "WARNING:  Could not open waypoint file '%s' for writing: %s\n",
@@ -1810,7 +1819,6 @@ int ProcessBulkConf(ConfigFile *conf) {
             waypoint = 0;
         }
     }
-#endif
 
     // Create all the logs and title/number them appropriately
     // We need to save this for after we toast the conf record
@@ -1859,14 +1867,12 @@ int ProcessBulkConf(ConfigFile *conf) {
                 continue;
         }
 
-#ifdef HAVE_GPS
         if (gps_log == 1) {
             gpslogfile = conf->ExpandLogPath(conf->FetchOpt("logtemplate"), logname, "gps", run_num);
 
             if (gpslogfile == "")
                 continue;
         }
-#endif
 
         // if we made it this far we're cool -- all the logfiles we're writing to matched
         // this number
@@ -1896,10 +1902,8 @@ int ProcessBulkConf(ConfigFile *conf) {
     if (cisco_log)
         fprintf(stderr, "Logging cisco product information to %s\n", ciscologfile.c_str());
 
-#ifdef HAVE_GPS
     if (gps_log == 1)
         fprintf(stderr, "Logging gps coordinates to %s\n", gpslogfile.c_str());
-#endif
 
     if (data_log)
         fprintf(stderr, "Logging data to %s\n", dumplogfile.c_str());
@@ -1984,6 +1988,12 @@ int ProcessBulkConf(ConfigFile *conf) {
 
     sourcetracker.SetTypeParms(conf->FetchOpt("fuzzycrypt"), fuzzparms);
 
+	// Fetch the netcryptdetect value
+	if (conf->FetchOpt("netfuzzycrypt") == "true") {
+		fprintf(stderr, "Using network-classifier based data encryption detection\n");
+		netcryptdetect = 1;
+	}
+
     return 1;
 }
 
@@ -2044,6 +2054,7 @@ int main(int argc,char *argv[]) {
         { "gps", required_argument, 0, 'g' },
         { "port", required_argument, 0, 'p' },
         { "allowed-hosts", required_argument, 0, 'a' },
+        { "bind-address", required_argument, 0, 'b'},
         { "server-name", required_argument, 0, 'N' },
         { "help", no_argument, 0, 'h' },
         { "version", no_argument, 0, 'v' },
@@ -2065,7 +2076,7 @@ int main(int argc,char *argv[]) {
     signal(SIGPIPE, CatchShutdown);
 
     while(1) {
-        int r = getopt_long(argc, argv, "d:M:t:nf:c:C:l:m:g:a:p:N:I:xXqhvs",
+        int r = getopt_long(argc, argv, "d:M:t:nf:c:C:l:m:g:a:b:p:N:I:xXqhvs",
                             long_options, &option_index);
         if (r < 0) break;
         switch(r) {
@@ -2126,21 +2137,12 @@ int main(int argc,char *argv[]) {
             if (strcmp(optarg, "off") == 0) {
                 gps_enable = 0;
             }
-#ifdef HAVE_GPS
-            else if (sscanf(optarg, "%1024[^:]:%d", gpshost, &gpsport) < 2) {
+            else if (sscanf(optarg, "%1023[^:]:%d", gpshost, &gpsport) < 2) {
                 fprintf(stderr, "Invalid GPS host '%s' (host:port or off required)\n",
                        optarg);
                 gps_enable = 1;
                 Usage(argv[0]);
             }
-#else
-            else {
-                fprintf(stderr, "WARNING:  GPS requested but gps support was not included.  GPS\n"
-                        "          logging will be disabled.\n");
-                gps_enable = 0;
-                exit(1);
-            }
-#endif
             break;
         case 'p':
             // Port
@@ -2152,6 +2154,10 @@ int main(int argc,char *argv[]) {
         case 'a':
             // Allowed
             allowed_hosts = string(optarg);
+            break;
+        case 'b':
+            // bind address
+            bind_addr = string(optarg);
             break;
         case 'N':
             // Servername
@@ -2314,11 +2320,10 @@ int main(int argc,char *argv[]) {
     fclose(pid_file);
             
 
-#ifdef HAVE_GPS
     // Set up the GPS object to give to the children
     if (gpsport == -1 && gps_enable) {
         if (conf->FetchOpt("gps") == "true") {
-            if (sscanf(conf->FetchOpt("gpshost").c_str(), "%1024[^:]:%d", gpshost, 
+            if (sscanf(conf->FetchOpt("gpshost").c_str(), "%1023[^:]:%d", gpshost, 
                        &gpsport) != 2) {
                 fprintf(stderr, "Invalid GPS host in config (host:port required)\n");
                 exit(1);
@@ -2344,8 +2349,6 @@ int main(int argc,char *argv[]) {
     } else {
         gps_log = 0;
     }
-
-#endif
 
     // Register the gps and timetracker with the sourcetracker
     sourcetracker.AddGpstracker(gps);
@@ -2411,7 +2414,7 @@ int main(int argc,char *argv[]) {
                          "channeldwell.\n");
                  exit(1);
             }
-	}
+        }
 
         // Fetch the vector of default channels
         defaultchannel_vec = conf->FetchOptVec("defaultchannels");
@@ -2515,15 +2518,12 @@ int main(int argc,char *argv[]) {
         fprintf(stderr, "Dump file format: %s\n", dumpfile->FetchType());
     }
 
-#ifdef HAVE_GPS
     if (gps_enable && gps_log == 1) {
         if (gpsdump.OpenDump(gpslogfile.c_str(), xmllogfile.c_str()) < 0) {
             fprintf(stderr, "FATAL: GPS dump error: %s\n", gpsdump.FetchError());
             ErrorShutdown();
         }
     }
-#endif
-
 
     // Open our files first to make sure we can, we'll unlink the empties later.
     FILE *testfile = NULL;
@@ -2621,7 +2621,6 @@ int main(int argc,char *argv[]) {
         }
     }
 
-#ifdef HAVE_GPS
     if (gps_enable) {
         // Open the GPS
         if (gps->OpenGPSD() < 0) {
@@ -2638,7 +2637,6 @@ int main(int argc,char *argv[]) {
             last_gpsd_reconnect = time(0);
         }
     }
-#endif
 
     fprintf(stderr, "Listening on port %d.\n", tcpport);
     for (unsigned int ipvi = 0; ipvi < legal_ipblock_vec.size(); ipvi++) {
@@ -2651,7 +2649,7 @@ int main(int argc,char *argv[]) {
         free(maskaddr);
     }
 
-    if (ui_server.Setup(tcpmax, tcpport, &legal_ipblock_vec) < 0) {
+    if (ui_server.Setup(tcpmax, bind_addr, tcpport, &legal_ipblock_vec) < 0) {
         fprintf(stderr, "Failed to set up UI server: %s\n", ui_server.FetchError());
         CatchShutdown(-1);
     }
@@ -2698,7 +2696,7 @@ int main(int argc,char *argv[]) {
                                           &Protocol_CARD, NULL);
 
     // Register our own alert with no throttling
-    kissrv_aref = alertracker.RegisterAlert("KISMET", sat_day, 0, 0);
+    kissrv_aref = alertracker.RegisterAlert("KISMET", sat_day, 0, sat_day, 0);
     // Set the backlog
     alertracker.SetAlertBacklog(max_alerts);
     // Populate the alert engine
@@ -2714,6 +2712,7 @@ int main(int argc,char *argv[]) {
         int ret = tracker.EnableAlert(alert_enable_vec[alvec].alert_name,
                                       alert_enable_vec[alvec].limit_unit,
                                       alert_enable_vec[alvec].limit_rate,
+									  alert_enable_vec[alvec].burst_unit,
                                       alert_enable_vec[alvec].limit_burst);
 
         // Then process the return value
@@ -2735,10 +2734,8 @@ int main(int argc,char *argv[]) {
     // Write network info and tick the tracker once per second
     timetracker.RegisterTimer(SERVER_TIMESLICES_SEC, NULL, 1, &NetWriteEvent, NULL);
     timetracker.RegisterTimer(SERVER_TIMESLICES_SEC, NULL, 1, &TrackerTickEvent, NULL);
-#ifdef HAVE_GPS
     // Update GPS coordinates and handle signal loss if defined
     timetracker.RegisterTimer(SERVER_TIMESLICES_SEC, NULL, 1, &GpsEvent, NULL);
-#endif
     // Sync the data files if requested
     if (datainterval > 0 && no_log == 0)
         timetracker.RegisterTimer(datainterval * SERVER_TIMESLICES_SEC, NULL, 1, &ExportSyncEvent, NULL);
@@ -2917,7 +2914,6 @@ int main(int argc,char *argv[]) {
 
                     }
 
-#ifdef HAVE_GPS
                     if (gps_log == 1 && info.type != packet_noise && 
                         info.type != packet_unknown && info.type != packet_phy && 
                         info.corrupt == 0) {
@@ -2927,20 +2923,22 @@ int main(int argc,char *argv[]) {
                                 fprintf(stderr, "%s\n", status);
                         }
                     }
-#endif
 
-                    tracker.ProcessPacket(info);
+                    // tracker.ProcessPacket(info);
+                    tracker.ProcessPacket(&packet, &info, &bssid_wep_map, 
+										  wep_identity);
 
                     if (tracker.FetchNumNetworks() > num_networks) {
                         if (sound == 1)
-                            if (info.wep && wav_map.find("new_wep") != wav_map.end())
+                            if (info.crypt_set && 
+								wav_map.find("new_wep") != wav_map.end())
                                 sound = PlaySound("new_wep");
                             else
                                 sound = PlaySound("new");
                         if (speech == 1) {
                             string text;
 
-                            if (info.wep)
+                            if (info.crypt_set)
                                 text = ExpandSpeechString(speech_sentence_encrypted, &info, 
                                                           speech_encoding);
                             else

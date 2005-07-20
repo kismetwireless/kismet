@@ -47,12 +47,16 @@ void Alertracker::SetAlertBacklog(int in_max) {
     max_backlog = in_max;
 }
 
-int Alertracker::RegisterAlert(const char *in_header, alert_time_unit in_unit, int in_rate,
+int Alertracker::RegisterAlert(const char *in_header, alert_time_unit in_unit, 
+							   int in_rate, alert_time_unit in_burstunit,
                                int in_burst) {
 
     // Bail if this header is registered
     if (alert_name_map.find(in_header) != alert_name_map.end())
         return -1;
+
+	if (in_burstunit > in_unit)
+		return -1;
 
     alert_rec *arec = new alert_rec;
 
@@ -60,6 +64,7 @@ int Alertracker::RegisterAlert(const char *in_header, alert_time_unit in_unit, i
     arec->header = in_header;
     arec->limit_unit = in_unit;
     arec->limit_rate = in_rate;
+	arec->burst_unit = in_burstunit;
     arec->limit_burst = in_burst;
     arec->burst_sent = 0;
 
@@ -77,49 +82,34 @@ int Alertracker::FetchAlertRef(string in_header) {
 }
 
 int Alertracker::CheckTimes(alert_rec *arec) {
-    // Is this alert rate-limited?
+    // Is this alert rate-limited?  If not, shortcut out and send it
     if (arec->limit_rate == 0) {
-        return 1;
-    }
-
-    // Have we hit the burst limit?  If not, we'll be find to send.
-    if (arec->burst_sent < arec->limit_burst) {
-        return 1;
-    }
-
-    // If we're past the burst but we don't have anything in the log...
-    if (arec->alert_log.size() == 0) {
         return 1;
     }
 
     struct timeval now;
     gettimeofday(&now, NULL);
 
-    // Dig down through the list and throw away any old ones floating
-    // on the top.  A record is old if it's more than the limit unit.
-    while (arec->alert_log.size() > 0) {
-        struct timeval *rec_tm = arec->alert_log.front();
+	// If the last time we sent anything was longer than the main rate limit,
+	// then we reset back to empty
+	if (arec->time_last < (now.tv_sec - alert_time_unit_conv[arec->limit_unit])) {
+		arec->total_sent = 0;
+		arec->burst_sent = 0;
+		return 1;
+	}
 
-        if (rec_tm->tv_sec < (now.tv_sec - alert_time_unit_conv[arec->limit_unit])) {
-            delete arec->alert_log.front();
-            arec->alert_log.pop_front();
-        } else {
-            break;
-        }
-    }
+	// If the last time we sent anything was longer than the burst rate, we can
+	// reset the burst to 0
+	if (arec->time_last < (now.tv_sec - alert_time_unit_conv[arec->burst_unit])) {
+		arec->burst_sent = 0;
+	}
 
-    // Zero the burst counter if we haven't had any traffic within the
-    // time unit
-    if (arec->alert_log.size() == 0)
-        arec->burst_sent = 0;
-
-    // Finally, we'll send the alert if the number of alerts w/in the time
-    // unit is less than our limit.
-    if ((int) arec->alert_log.size() < arec->limit_rate)
-        return 1;
+	// If we're under the limit on both, we're good to go
+	if (arec->burst_sent < arec->limit_burst && arec->total_sent < arec->limit_rate) {
+		return 1;
+	}
 
     return 0;
-
 }
 
 int Alertracker::PotentialAlert(int in_ref) {
@@ -133,9 +123,9 @@ int Alertracker::PotentialAlert(int in_ref) {
     return CheckTimes(arec);
 }
 
-int Alertracker::RaiseAlert(int in_ref, 
-                            mac_addr bssid, mac_addr source, mac_addr dest, mac_addr other,
-                            int in_channel, string in_text) {
+int Alertracker::RaiseAlert(int in_ref, mac_addr bssid, mac_addr source, 
+							mac_addr dest, mac_addr other,
+							int in_channel, string in_text) {
     map<int, alert_rec *>::iterator aritr = alert_ref_map.find(in_ref);
 
     if (aritr == alert_ref_map.end())
@@ -168,9 +158,10 @@ int Alertracker::RaiseAlert(int in_ref,
     adata->dest  = dest.Mac2String();
     adata->other = other.Mac2String();
 
+	// Increment and set the timers
     arec->burst_sent++;
-    if (arec->burst_sent >= arec->limit_burst)
-        arec->alert_log.push_back(ts);
+	arec->total_sent++;
+	arec->time_last = time(0);
 
     alert_backlog.push_back(adata);
     if (alert_backlog.size() > max_backlog) {

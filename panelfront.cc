@@ -92,6 +92,12 @@ char *KismetHelpText[] = {
     "  A#   Address range of # octets found via ARP traffic",
     "  D    Address range found via observed DHCP traffic",
     "  W    WEPed network decrypted with user-supplied key",
+	"",
+	"WEP (W) flags show the type of encryption detected on the network.",
+	"  N    No encryption detected",
+	"  Y    Standard WEP encryption",
+	"  O    Other encryption methods detected.  See the network details for",
+	"       more information.",
     "",
     "SELECTING NETWORKS:",
     "The default sorting method is Autofit.  This fits as many currently active",
@@ -422,6 +428,8 @@ PanelFront::PanelFront() {
 
     muted = 0;
 
+	auto_agroup = auto_pgroup = auto_dgroup = 0;
+
     // Push blanks into the RRD history vector
     packet_history.reserve(60 * 5);
     for (unsigned int x = 0; x < (60 * 5); x++)
@@ -452,6 +460,7 @@ PanelFront::PanelFront() {
 
     probe_group = NULL;
     data_group = NULL;
+	adhoc_group = NULL;
     details_network = NULL;
     server_time = 0;
     bat_ac = 0;
@@ -468,23 +477,81 @@ PanelFront::~PanelFront() {
         delete context_list[x];
 }
 
+void PanelFront::PopulateGroups(TcpClient *in_client) {
+	vector<wireless_network *> clientlist;
+	vector<wireless_network *> probevec;
+	vector<wireless_network *> datavec;
+	vector<wireless_network *> advec;
+
+	if (auto_pgroup || auto_dgroup || auto_agroup) {
+		clientlist = in_client->FetchNetworkList();
+		
+		for (unsigned int x = 0; x < clientlist.size(); x++) {
+			wireless_network *net = clientlist[x];
+
+			if (net->dispnet != NULL)
+				continue;
+
+			if (net->type == network_probe && auto_pgroup) {
+				probevec.push_back(net);
+			} else if (net->type == network_adhoc && auto_agroup) {
+				advec.push_back(net);
+			} else if (net->type == network_data && auto_dgroup) {
+				datavec.push_back(net);
+			}
+		}
+
+		// Build the group if we need to
+		if (probe_group == NULL && auto_pgroup) {
+			probe_group = CreateGroup(0, "autogroup_probe", "Probe Networks");
+		}
+		// If we group, compare the size of the group and the size of the
+		// network vec and add them all if we need to
+		if (auto_pgroup && probevec.size() + probe_group->networks.size()) {
+			for (unsigned int x = 0; x < probevec.size(); x++) {
+				probe_group = AddToGroup(probe_group, probevec[x]);
+			}
+		}
+
+		// Build the group if we need to
+		if (data_group == NULL && auto_dgroup) {
+			data_group = CreateGroup(0, "autogroup_data", "Data Networks");
+		}
+		// If we group, compare the size of the group and the size of the
+		// network vec and add them all if we need to
+		if (auto_dgroup && datavec.size() + data_group->networks.size()) {
+			for (unsigned int x = 0; x < datavec.size(); x++) {
+				data_group = AddToGroup(data_group, datavec[x]);
+			}
+		}
+
+		// Build the group if we need to
+		if (adhoc_group == NULL && auto_agroup) {
+			adhoc_group = CreateGroup(0, "autogroup_adhoc", "Adhoc Networks");
+		}
+		// If we group, compare the size of the group and the size of the
+		// network vec and add them all if we need to
+		if (auto_agroup && advec.size() + adhoc_group->networks.size()) {
+			for (unsigned int x = 0; x < advec.size(); x++) {
+				adhoc_group = AddToGroup(adhoc_group, advec[x]);
+			}
+		}
+	}
+
+	Frontend::PopulateGroups(in_client);
+}
+
 void PanelFront::UpdateGroups() {
-    int auto_pgroup = 0;
-    int auto_dgroup = 0;
     int move_details = 0;
 
     localnets_dirty = 0;
 
-    if (prefs["autogroup_probe"] == "true") 
-        auto_pgroup = 1;
-    if (prefs["autogroup_data"] == "true") 
-        auto_dgroup = 1;
-
-    // Try to autogroup probe networks
-    if (auto_pgroup || auto_dgroup) {
+    // Try to autogroup probe, data, and adhoc networks
+    if (auto_pgroup || auto_dgroup || auto_agroup) {
         // Count the probes
         vector<display_network *> probevec;
         vector<display_network *> datavec;
+		vector<display_network *> advec;
 
         for (unsigned int x = 0; x < group_vec.size(); x++) {
             display_network *dnet = group_vec[x];
@@ -493,6 +560,11 @@ void PanelFront::UpdateGroups() {
                 continue;
             }
 
+			if (dnet->virtnet == NULL) {
+				dnet->virtnet = new wireless_network;
+				*(dnet->virtnet) = *(dnet->networks[0]);
+			}
+
             if (auto_pgroup && dnet->virtnet->type == network_probe && 
                 dnet != probe_group) {
                 probevec.push_back(dnet);
@@ -500,11 +572,13 @@ void PanelFront::UpdateGroups() {
                        (dnet->virtnet->type == network_data ||
                         dnet->virtnet->llc_packets == 0)) {
                 datavec.push_back(dnet);
-            }
-                
+            } else if (auto_agroup && dnet != adhoc_group &&
+					   (dnet->virtnet->type == network_adhoc)) {
+				advec.push_back(dnet);
+			}
         }
 
-        if (probevec.size() > 0 && !(probevec.size() == 1 && probe_group == NULL)) {
+		if (probevec.size() > 1) {
             if (probe_group == NULL) {
                 probe_group = CreateGroup(0, "autogroup_probe", "Probe Networks");
             }
@@ -524,7 +598,7 @@ void PanelFront::UpdateGroups() {
             }
         }
 
-        if (datavec.size() > 0 && !(datavec.size() == 1 && data_group == NULL)) {
+		if (datavec.size() > 1) {
             if (data_group == NULL) {
                 data_group = CreateGroup(0, "autogroup_data", "Data Networks");
             }
@@ -542,8 +616,27 @@ void PanelFront::UpdateGroups() {
                     details_network = data_group;
                 }
             }
-
         }
+
+		if (advec.size() > 1) {
+			if (adhoc_group == NULL) {
+				adhoc_group = CreateGroup(0, "autogroup_adhoc", "Adhoc networks");
+			}
+
+			for (unsigned int x = 0; x < advec.size(); x++) {
+				display_network *dnet = advec[x];
+
+				if (dnet == details_network)
+					move_details = 1;
+
+				adhoc_group = AddToGroup(adhoc_group, dnet);
+
+				if (move_details == 1) {
+					move_details = 0;
+					details_network = adhoc_group;
+				}
+			}
+		}
     }
 
     // Call our generic parent update... is this bad form?  It works, anyhow.
@@ -551,13 +644,22 @@ void PanelFront::UpdateGroups() {
 }
 
 void PanelFront::DestroyGroup(display_network *in_group) {
+	// Handle when we destroy the details stuff
+	if (in_group == details_network) {
+		details_network = NULL;
+	}
+
     // Handle when we destroy the probe group
     if (in_group == probe_group) {
         probe_group = NULL;
     } else if (in_group == data_group) {
         data_group = NULL;
-    }
+    } else if (in_group == adhoc_group) {
+		adhoc_group = NULL;
+	}
 
+	localnets_dirty = 1;
+	
     Frontend::DestroyGroup(in_group);
 }
 
@@ -859,7 +961,7 @@ void PanelFront::SetClientColumns(string in_columns) {
 }
 
 int PanelFront::WriteStatus(string status) {
-    vector<string> wrapped = LineWrap(status, 4, stat_win->print_width);
+    vector<string> wrapped = LineWrap(status, 4, stat_win->print_width - 1);
 
     for (unsigned int wrx = 0; wrx < wrapped.size(); wrx++)
         stat_win->text.push_back(wrapped[wrx]);
@@ -1347,11 +1449,13 @@ int PanelFront::Tick() {
 
             ac_adapters = opendir("/proc/acpi/ac_adapter");
 
-            while (ac_adapters != NULL && ((info_timer % info_res) == 0) && ((this_adapter = readdir(ac_adapters)) != NULL)) {
+            while (ac_adapters != NULL && ((info_timer % info_res) == 0) && 
+				   ((this_adapter = readdir(ac_adapters)) != NULL)) {
                 if (this_adapter->d_name[0] == '.')
                     continue;
                 // safe overloaded use of battery_state path var
-                snprintf(battery_state, sizeof(battery_state), "/proc/acpi/ac_adapter/%s/state", this_adapter->d_name);
+                snprintf(battery_state, sizeof(battery_state), 
+						 "/proc/acpi/ac_adapter/%s/state", this_adapter->d_name);
                 if ((acpi = fopen(battery_state, "r")) == NULL)
                     continue;
                 if (acpi != NULL) {
@@ -1382,10 +1486,12 @@ int PanelFront::Tick() {
                 total_remain = total_cap = 0;
             }
 
-            while (batteries != NULL && ((info_timer % info_res) == 0) && ((this_battery = readdir(batteries)) != NULL)) {
+            while (batteries != NULL && ((info_timer % info_res) == 0) && 
+				   ((this_battery = readdir(batteries)) != NULL)) {
                 if (this_battery->d_name[0] == '.')
                     continue;
-                snprintf(battery_state, sizeof(battery_state), "/proc/acpi/battery/%s/state", this_battery->d_name);
+                snprintf(battery_state, sizeof(battery_state), 
+						 "/proc/acpi/battery/%s/state", this_battery->d_name);
                 if ((acpi = fopen(battery_state, "r")) == NULL)
                     continue;
                 while (fgets(buf, 128, acpi))
@@ -1415,14 +1521,15 @@ int PanelFront::Tick() {
                 total_cap += bat_full_capacity[batno];
                 fclose(acpi);
                 if (bat_charging)
-                    bat_time += int((float(bat_full_capacity[batno] - remain) / rate) * 3600);
+                    bat_time += int((float(bat_full_capacity[batno] - remain) / 
+									 rate) * 3600);
                 else
                     bat_time += int((float(remain) / rate) * 3600);
                 batno++;
             }
             if (total_cap > 0)
-            bat_percentage = int((float(total_remain) / total_cap) * 100);
-            info_timer++;
+				bat_percentage = int((float(total_remain) / total_cap) * 100);
+			info_timer++;
 
             if (batteries != NULL)
                 closedir(batteries);
@@ -1430,50 +1537,51 @@ int PanelFront::Tick() {
 
 #elif defined(SYS_OPENBSD)
 
-               struct apm_power_info api;
-               int apmfd;
+		struct apm_power_info api;
+		int apmfd;
 
-               if ((apmfd = open("/dev/apm", O_RDONLY)) < 0) {
-                       bat_available = 0;
-                       WriteStatus("Unable to open /dev/apm\n");
-                       return 1;
-               } else if (ioctl(apmfd, APM_IOC_GETPOWER, &api) < 0) {
-                       bat_available = 0;
-                       WriteStatus("Apm ioctl failed\n");
-                       return 1;
-               } else {
-                       close(apmfd);
-                       switch(api.battery_state) {
-                       case APM_BATT_UNKNOWN:
-                               bat_available = 0;
-                       case APM_BATTERY_ABSENT:
-                               bat_available = 0;
-                       default:
-                               bat_available = 1;
-                       }
-                       if (bat_available == 1) {
-                               bat_percentage = (int)api.battery_life;
-                               bat_time = (int)api.minutes_left;
-                               if (api.battery_state == APM_BATT_CHARGING) {
-                                       bat_ac = 1;
-                                       bat_charging = 1;
-                               } else {
-                                       switch (api.ac_state) {
-                                       case APM_AC_ON:
-                                               bat_ac = 1;
-                                               if (bat_percentage < 100) {
-                                                       bat_charging = 1;
-                                               } else {
-                                                       bat_charging = 0;
-                                               }
-                                       break;
-                                       default:
-                                               bat_ac = 0;
-                                               bat_charging = 0;
-                                       }
-                               }
-                       }
-               }
+		if ((apmfd = open("/dev/apm", O_RDONLY)) < 0) {
+			bat_available = 0;
+			WriteStatus("Unable to open /dev/apm\n");
+			return 1;
+		} else if (ioctl(apmfd, APM_IOC_GETPOWER, &api) < 0) {
+			bat_available = 0;
+			WriteStatus("Apm ioctl failed\n");
+			close(apmfd);
+			return 1;
+		} else {
+			close(apmfd);
+			switch(api.battery_state) {
+				case APM_BATT_UNKNOWN:
+					bat_available = 0;
+				case APM_BATTERY_ABSENT:
+					bat_available = 0;
+				default:
+					bat_available = 1;
+			}
+			if (bat_available == 1) {
+				bat_percentage = (int)api.battery_life;
+				bat_time = (int)api.minutes_left;
+				if (api.battery_state == APM_BATT_CHARGING) {
+					bat_ac = 1;
+					bat_charging = 1;
+				} else {
+					switch (api.ac_state) {
+						case APM_AC_ON:
+							bat_ac = 1;
+							if (bat_percentage < 100) {
+								bat_charging = 1;
+							} else {
+								bat_charging = 0;
+							}
+							break;
+						default:
+							bat_ac = 0;
+							bat_charging = 0;
+					}
+				}
+			}
+		}
 #endif
     }
 
@@ -1485,6 +1593,13 @@ void PanelFront::AddPrefs(map<string, string> in_prefs) {
 
     SetMainColumns(prefs["columns"]);
     SetClientColumns(prefs["clientcolumns"]);
+
+    if (prefs["autogroup_probe"] == "true") 
+        auto_pgroup = 1;
+    if (prefs["autogroup_data"] == "true") 
+        auto_dgroup = 1;
+	if (prefs["autogroup_adhoc"] == "true")
+		auto_agroup = 1;
 
     if (use_acpi) {
         char buf[80];

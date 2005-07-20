@@ -19,8 +19,6 @@
 #include "config.h"
 #include "gpsdump.h"
 
-#ifdef HAVE_GPS
-
 GPSDump::GPSDump() {
     num_packets = 0;
     gpsf = NULL;
@@ -126,5 +124,3 @@ int GPSDump::DumpTrack(GPSD *in_gps) {
     return 1;
 }
 
-
-#endif

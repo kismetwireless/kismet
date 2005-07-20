@@ -128,7 +128,9 @@ void PanelFront::NetLine(kis_window *in_window, string *in_str, wireless_network
 
             len = 1;
         } else if (colindex == mcol_wep) {
-            if (net->wep)
+			if (net->crypt_set > crypt_wep)
+				snprintf(element, 1024, "O");
+			else if (net->crypt_set)
                 snprintf(element, 1024, "Y");
             else
                 snprintf(element, 1024, "N");
@@ -236,10 +238,18 @@ void PanelFront::NetLine(kis_window *in_window, string *in_str, wireless_network
                         sx = (int) (double) (100 / abs(net->signal)) * 15;
                 } else if (idle_time < (decay * 2)) {
                     // Extract the signal percentage of the best signal seen
-                    sx = (int)((double)(idle_time < (decay * 2) ? net->signal : 0) / net->best_signal * 15);
+                    sx = (int)((double)(idle_time < (decay * 2) ? net->signal : 0) / 
+							   net->best_signal * 15);
                 }
 
                 char sg[16];
+
+				// Boundscheck sx
+				if (sx < 0)
+					sx = 0;
+				else if (sx > 15)
+					sx = 15;
+
                 memset(sg, 'X', sx);
                 memset(sg + sx, '=', 15 - sx);
                 sg[15] = '\0';
@@ -277,20 +287,20 @@ int PanelFront::MainNetworkPrinter(void *in_window) {
 
     int dirty = 0;
 
-    // One:  Get our new data from the clients we have tagged
+    // Get our new data from the clients we have tagged
     for (unsigned int x = 0; x < context_list.size(); x++) {
         if (context_list[x]->tagged == 1 && context_list[x]->client != NULL &&
             (context_list[x]->client->FetchNetworkDirty() ||
-             past_display_vec.size() == 0 || localnets_dirty))
-            dirty = 1;
-            PopulateGroups(context_list[x]->client);
+             past_display_vec.size() == 0 || localnets_dirty)) {
+			dirty = 1;
+			PopulateGroups(context_list[x]->client);
+		}
     }
-    // Two:  Recalculate all our agregate data
-    // UpdateGroups();
-
     
-    // Three: Copy it to our own local vector so we can sort it.
+    // Copy it to our own local vector so we can sort it.
     vector<display_network *> display_vector;
+
+	UpdateGroups();
        
     // resort of we're dirty
     if (dirty == 0) {
@@ -573,7 +583,7 @@ int PanelFront::MainNetworkPrinter(void *in_window) {
             wattrset(kwin->win, color_map["factory"].pair);
         else if (net->cloaked && color)
             wattrset(kwin->win, color_map["cloak"].pair);
-        else if (net->wep && color)
+        else if (net->crypt_set && color)
             wattrset(kwin->win, color_map["wep"].pair);
         else if (color)
             wattrset(kwin->win, color_map["open"].pair);
@@ -675,7 +685,7 @@ int PanelFront::MainNetworkPrinter(void *in_window) {
 
             if (net->manuf_score == manuf_max_score && color)
                 wattrset(kwin->win, color_map["factory"].pair);
-            else if (net->wep && color)
+            else if (net->crypt_set && color)
                 wattrset(kwin->win, color_map["wep"].pair);
             else if (color)
                 wattrset(kwin->win, color_map["open"].pair);
@@ -909,13 +919,22 @@ int PanelFront::MainStatusPrinter(void *in_window) {
         char batdata[80];
 
         if (bat_available) {
-            snprintf(batdata, 80, "Battery: %s%s%d%% %0dh%0dm%0ds",
-                     bat_ac ? "AC " : "",
-                     bat_charging ? "charging " : "",
-                     bat_percentage,
-                     (int) (bat_time / 60) / 60,
-                     (int) (bat_time / 60) % 60,
-                     (int) (bat_time % 60));
+			if (bat_ac) {
+				// Don't print the percentage/time if we're on AC and
+				// charging, things don't look right
+				snprintf(batdata, 80, "Battery: %s%s%d%%",
+						 bat_ac ? "AC " : "",
+						 bat_charging ? "charging " : "",
+						 bat_percentage);
+			} else {
+				snprintf(batdata, 80, "Battery: %s%s%d%% %0dh%0dm%0ds",
+						 bat_ac ? "AC " : "",
+						 bat_charging ? "charging " : "",
+						 bat_percentage,
+						 (int) (bat_time / 60) / 60,
+						 (int) (bat_time / 60) % 60,
+						 (int) (bat_time % 60));
+			}
         } else {
             snprintf(batdata, 80, "Battery: unavailable%s",
                      bat_ac ? ", AC power" : "");
@@ -1125,7 +1144,10 @@ int PanelFront::MainClientPrinter(void *in_window) {
     char sortxt[24];
     sortxt[0] = '\0';
 
-    vector<wireless_client *> display_vector = details_network->virtnet->client_vec;
+    vector<wireless_client *> display_vector;
+	if (details_network != NULL)
+		display_vector = details_network->virtnet->client_vec;
+
     int drop;
 
     switch (client_sortby) {
@@ -1396,6 +1418,13 @@ int PanelFront::PowerPrinter(void *in_window) {
 
     // We need to do this for SNR bars and power bars
     pbar = (int) (width * pperc);
+
+	// Boundscheck
+	if (pbar < 0)
+		pbar = 0;
+	else if (pbar > width)
+		pbar = width;
+
     memset(bar, 'X', pbar);
     memset(bar + pbar, '=', width - pbar);
     bar[width] = '\0';
@@ -1403,6 +1432,11 @@ int PanelFront::PowerPrinter(void *in_window) {
     if (snr == -1) {
         nbar = (int) (width * nperc);
 
+		if (nbar < 0)
+			nbar = 0;
+		else if (nbar > width)
+			nbar = width;
+		
         mvwaddstr(kwin->win, 2, 2, "P:");
         mvwaddstr(kwin->win, 2, 5, bar);
 
@@ -1445,6 +1479,13 @@ int PanelFront::DetailsPrinter(void *in_window) {
     if (print_width > 1024)
         print_width = 1023;
 
+	if (details_network == NULL) {
+		kwin->text.push_back("The network or group being displayed");
+		kwin->text.push_back("has been deleted.  Please select a ");
+		kwin->text.push_back("different network.");
+		return TextPrinter(in_window);
+	}
+
     if (details_network->name == "")
         snprintf(output, print_width, "Name    : %s", details_network->virtnet->ssid.c_str());
     else
@@ -1485,15 +1526,15 @@ int PanelFront::DetailsPrinter(void *in_window) {
                 if (finite(diagdist)) {
                     if (metric) {
                         if (diagdist < 1000)
-                            snprintf(output, print_width, "Range    : %f meters", diagdist);
+                            snprintf(output, print_width, "Range    : %.3f meters", diagdist);
                         else
-                            snprintf(output, print_width, "Range   : %f kilometers", diagdist / 1000);
+                            snprintf(output, print_width, "Range   : %.3f kilometers", diagdist / 1000);
                     } else {
                         diagdist *= 3.3;
                         if (diagdist < 5280)
-                            snprintf(output, print_width, "Range   : %f feet", diagdist);
+                            snprintf(output, print_width, "Range   : %.3f feet", diagdist);
                         else
-                            snprintf(output, print_width, "Range   : %f miles", diagdist / 5280);
+                            snprintf(output, print_width, "Range   : %.3f miles", diagdist / 5280);
                     }
                     kwin->text.push_back(output);
                 }
@@ -1641,7 +1682,7 @@ int PanelFront::DetailsPrinter(void *in_window) {
             snprintf(output, print_width, "Type    : Data (no network control traffic)");
             break;
         case network_turbocell:
-            if (dnet->wep)
+            if (dnet->crypt_set)
                 snprintf(output, print_width, "Type    : Turbocell (encrypted)");
             else
                 snprintf(output, print_width, "Type    : Turbocell");
@@ -1651,7 +1692,7 @@ int PanelFront::DetailsPrinter(void *in_window) {
         }
         kwin->text.push_back(output);
 
-        if (dnet->type == network_turbocell && dnet->wep == 0) {
+        if (dnet->type == network_turbocell && dnet->crypt_set == 0) {
             snprintf(output, print_width, "  Net ID  : %d", dnet->turbocell_nid);
             kwin->text.push_back(output);
 
@@ -1685,10 +1726,48 @@ int PanelFront::DetailsPrinter(void *in_window) {
     
         snprintf(output, print_width, "Channel : %d", dnet->channel);
         kwin->text.push_back(output);
-        snprintf(output, print_width, "WEP     : %s", dnet->wep ? "Yes" : "No");
+        snprintf(output, print_width, "Privacy : %s", dnet->crypt_set ? "Yes" : "No");
         kwin->text.push_back(output);
 
-        if (dnet->wep) {
+		string crypt;
+		if (dnet->crypt_set == 0)
+			crypt = "None";
+		if (dnet->crypt_set & crypt_wep)
+			crypt += "WEP ";
+		if (dnet->crypt_set & crypt_layer3)
+			crypt += "Layer3 ";
+		if (dnet->crypt_set & crypt_wep40)
+			crypt += "WEP40 ";
+		if (dnet->crypt_set & crypt_wep104)
+			crypt += "WEP104 ";
+		if (dnet->crypt_set & crypt_tkip)
+			crypt += "TKIP ";
+		if (dnet->crypt_set & crypt_wpa)
+			crypt += "WPA ";
+		if (dnet->crypt_set & crypt_psk)
+			crypt += "PSK ";
+		if (dnet->crypt_set & crypt_aes_ocb)
+			crypt += "AES-OCB ";
+		if (dnet->crypt_set & crypt_aes_ccm)
+			crypt += "AES-CCM ";
+		if (dnet->crypt_set & crypt_leap)
+			crypt += "LEAP ";
+		if (dnet->crypt_set & crypt_ttls)
+			crypt += "TTLS ";
+		if (dnet->crypt_set & crypt_tls)
+			crypt += "TLS ";
+		if (dnet->crypt_set & crypt_peap)
+			crypt += "PEAP ";
+		if (dnet->crypt_set & crypt_isakmp)
+			crypt += "ISAKMP ";
+		if (dnet->crypt_set & crypt_pptp)
+			crypt += "PPTP ";
+		if (crypt.length() == 0)
+			crypt = "Unknown";
+		snprintf(output, print_width, "Encrypt : %s", crypt.c_str());
+		kwin->text.push_back(output);
+
+        if (dnet->crypt_set) {
             snprintf(output, print_width, "Decryptd: %s", dnet->decrypted ? "Yes" : "No");
             kwin->text.push_back(output);
         }
@@ -1825,6 +1904,13 @@ int PanelFront::GpsPrinter(void *in_window) {
     char output[1024];
     kwin->text.clear();
 
+	if (details_network == NULL) {
+		kwin->text.push_back("The network or group being displayed");
+		kwin->text.push_back("has been deleted.  Please select a ");
+		kwin->text.push_back("different network.");
+		return TextPrinter(in_window);
+	}
+
     wireless_network *dnet = details_network->virtnet;
 
     int print_width = kwin->print_width;
@@ -1853,7 +1939,7 @@ int PanelFront::GpsPrinter(void *in_window) {
     }
 
     // Get bearing to the center
-    float center_angle = GPSD::CalcHeading(lat, lon, center_lat, center_lon);
+    float center_angle = GPSD::CalcHeading(center_lat, center_lon, lat, lon);
 
     float difference_angle = heading - center_angle;
     if (difference_angle < 0)
@@ -2308,8 +2394,8 @@ int PanelFront::PackPrinter(void *in_window) {
                 case proto_dhcp_server:
                     srcserv = getservbyport(htons(packinfo[x].proto.sport), "udp");
                     dstserv = getservbyport(htons(packinfo[x].proto.dport), "udp");
-                    sprintf(srcport, "%d", packinfo[x].proto.sport);
-                    sprintf(dstport, "%d", packinfo[x].proto.dport);
+                    snprintf(srcport, 12, "%d", packinfo[x].proto.sport);
+                    snprintf(dstport, 12, "%d", packinfo[x].proto.dport);
 
                     snprintf(dsubtype, 1024, "UDP %d.%d.%d.%d:%s->%d.%d.%d.%d:%s",
                              packinfo[x].proto.source_ip[0], packinfo[x].proto.source_ip[1],
@@ -2323,8 +2409,8 @@ int PanelFront::PackPrinter(void *in_window) {
                 case proto_misc_tcp:
                     srcserv = getservbyport(htons(packinfo[x].proto.sport), "tcp");
                     dstserv = getservbyport(htons(packinfo[x].proto.dport), "tcp");
-                    sprintf(srcport, "%d", packinfo[x].proto.sport);
-                    sprintf(dstport, "%d", packinfo[x].proto.dport);
+                    snprintf(srcport, 12, "%d", packinfo[x].proto.sport);
+                    snprintf(dstport, 12, "%d", packinfo[x].proto.dport);
                     snprintf(dsubtype, 1024, "TCP %d.%d.%d.%d:%s->%d.%d.%d.%d:%s",
                              packinfo[x].proto.source_ip[0], packinfo[x].proto.source_ip[1],
                              packinfo[x].proto.source_ip[2], packinfo[x].proto.source_ip[3],
@@ -2525,13 +2611,14 @@ int PanelFront::StatsPrinter(void *in_window) {
 
     int wep_count = 0, vuln_count = 0;
     int channelperc[CHANNEL_MAX];
-    int maxch = 0;
+    int maxch = 1;
 
     memset(channelperc, 0, sizeof(int) * CHANNEL_MAX);
 
     for (unsigned int x = 0; x < context_list.size(); x++) {
         if (context_list[x]->tagged == 1 && context_list[x]->client != NULL) {
-            vector<wireless_network *> netlist = context_list[x]->client->FetchNetworkList();
+            vector<wireless_network *> netlist = 
+				context_list[x]->client->FetchNetworkList();
 
             // Summarize the network data
             for (unsigned int x = 0; x < netlist.size(); x++) {
@@ -2541,7 +2628,7 @@ int PanelFront::StatsPrinter(void *in_window) {
                         maxch = perc;
                 }
 
-                if (netlist[x]->wep)
+                if (netlist[x]->crypt_set)
                     wep_count++;
                 if (netlist[x]->manuf_score == manuf_max_score)
                     vuln_count++;
@@ -2658,16 +2745,39 @@ int PanelFront::RatePrinter(void *in_window) {
 
 
     // Tentative width
-    unsigned int graph_width = kwin->print_width - 4;
-    unsigned int graph_height = kwin->max_display - 4;
     const int unsigned graph_hoffset = 7;
     const int unsigned graph_voffset = 2;
+    unsigned int graph_width = kwin->print_width - graph_hoffset - 2;
+	unsigned int ngraph_width;
+    unsigned int graph_height = kwin->max_display - 6;
 
     // Divide it into chunks and average the delta's
-    unsigned int chunksize = (unsigned int) ceil((double) packet_history.size() / graph_width);
+    unsigned int chunksize = (unsigned int) ceil((double) packet_history.size() / 
+												 graph_width);
 
     // Now resize the graph to fit our sample data cleanly
-    graph_width = packet_history.size() / chunksize;
+	
+	// Undersize instead of oversize if we have to
+	while (chunksize > 0 && (packet_history.size() / chunksize) > graph_width) {
+		chunksize--;
+	}
+
+    ngraph_width = packet_history.size() / chunksize;
+
+#if 0
+	broke for now
+	// Resize the window if appropriate
+	if (ngraph_width < (graph_width - 3)) {
+		wresize(kwin->win, kwin->win->_maxy, ngraph_width + graph_hoffset + 4);
+		replace_panel(kwin->pan, kwin->win);
+		kwin->print_width = kwin->win->_maxx - 2;
+		DrawDisplay();
+		return 1;
+	}
+#endif
+
+	graph_width = ngraph_width;
+
 
     // Don't bother if we're too small
     if (graph_width <= 20 || graph_height <= 5) {
@@ -2679,6 +2789,7 @@ int PanelFront::RatePrinter(void *in_window) {
 
     unsigned int chunk = 0;
     unsigned int chunkcount = 0;
+
     for (unsigned int x = 1; x < packet_history.size(); x++) {
         if (packet_history[x-1] != 0) {
             unsigned int delta = packet_history[x] - packet_history[x-1];
@@ -2699,6 +2810,9 @@ int PanelFront::RatePrinter(void *in_window) {
         }
     }
 
+	if (avg_max < 1)
+		avg_max = 1;
+
     // convert averaged_history to percentages of height
     for (unsigned int x = 0; x < averaged_history.size(); x++) {
         double perc = (double) averaged_history[x]/avg_max;
@@ -2713,7 +2827,8 @@ int PanelFront::RatePrinter(void *in_window) {
         for (unsigned int x = 0; x < graph_height; x++) {
             memset(graphstring, '\0', graph_width+1);
 
-            for (unsigned int y = 0; y < averaged_history.size() && y < graph_width; y++) {
+            for (unsigned int y = 0; y < averaged_history.size() && y < 
+				 graph_width; y++) {
                 if (averaged_history[y] >= (graph_height - x))
                     graphstring[y] = 'X';
                 else
@@ -2780,9 +2895,9 @@ int PanelFront::AlertPrinter(void *in_window) {
             // If we print the date
             snprintf(output, 1024, "%.24s - %s", ctime((const time_t *) &alerts[x].alert_ts.tv_sec),
                      alerts[x].alert_text.c_str());
-            wrapped = LineWrap(output, 4, kwin->print_width);
+            wrapped = LineWrap(output, 4, kwin->print_width - 1);
         } else {
-            wrapped = LineWrap(alerts[x].alert_text, 4, kwin->print_width);
+            wrapped = LineWrap(alerts[x].alert_text, 4, kwin->print_width - 1);
         }
 
         for (unsigned int wrx = 0; wrx < wrapped.size(); wrx++)
@@ -2877,10 +2992,49 @@ int PanelFront::DetailsClientPrinter(void *in_window) {
 
     snprintf(output, print_width, "Channel : %d", details_client->channel);
     kwin->text.push_back(output);
-    snprintf(output, print_width, "WEP     : %s", details_client->wep ? "Yes" : "No");
+    snprintf(output, print_width, "Privacy : %s", 
+			 details_client->crypt_set ? "Yes" : "No");
+    kwin->text.push_back(output);
+	
+	string crypt;
+	if (details_client->crypt_set == 0)
+		crypt = "None";
+	if (details_client->crypt_set & crypt_wep)
+		crypt += "WEP ";
+	if (details_client->crypt_set & crypt_layer3)
+		crypt += "Layer3 ";
+	if (details_client->crypt_set & crypt_wep40)
+		crypt += "WEP40 ";
+	if (details_client->crypt_set & crypt_wep104)
+		crypt += "WEP104 ";
+	if (details_client->crypt_set & crypt_tkip)
+		crypt += "TKIP ";
+	if (details_client->crypt_set & crypt_wpa)
+		crypt += "WPA ";
+	if (details_client->crypt_set & crypt_psk)
+		crypt += "PSK ";
+	if (details_client->crypt_set & crypt_aes_ocb)
+		crypt += "AES-OCB ";
+	if (details_client->crypt_set & crypt_aes_ccm)
+		crypt += "AES-CCM ";
+	if (details_client->crypt_set & crypt_leap)
+		crypt += "LEAP ";
+	if (details_client->crypt_set & crypt_ttls)
+		crypt += "TTLS ";
+	if (details_client->crypt_set & crypt_tls)
+		crypt += "TLS ";
+	if (details_client->crypt_set & crypt_peap)
+		crypt += "PEAP ";
+	if (details_client->crypt_set & crypt_isakmp)
+		crypt += "ISAKMP ";
+    if (details_client->crypt_set & crypt_pptp)
+        crypt += "PPTP ";
+	if (crypt.length() == 0)
+		crypt = "Unknown";
+    snprintf(output, print_width, "Encrypt : %s", crypt.c_str());
     kwin->text.push_back(output);
 
-    if (details_client->wep) {
+    if (details_client->crypt_set) {
         snprintf(output, print_width, "Decryptd: %s", details_client->decrypted ? "Yes" : "No");
         kwin->text.push_back(output);
     }
@@ -3085,7 +3239,7 @@ int PanelFront::ServerJoinPrinter(void *in_window) {
     int port = -1;
     char msg[1024];
 
-    if (sscanf(targclient, "%1024[^:]:%d", host, &port) != 2) {
+    if (sscanf(targclient, "%1023[^:]:%d", host, &port) != 2) {
         snprintf(msg, 1024, "Illegal server '%s'.", targclient);
         WriteStatus(msg);
         return 0;

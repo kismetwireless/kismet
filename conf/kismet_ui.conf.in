@@ -1,7 +1,7 @@
 # Kismet GUI config file
 
 # Version of Kismet config
-version=Feb.04.01a
+version=2004.10.R1
 
 # Do we show the intro window?
 showintro=true
@@ -47,6 +47,8 @@ sound_alert=@sharedatadir@/kismet/wav/alert.wav
 autogroup_probe=true
 # Do we autogroup data-only networks?
 autogroup_data=true
+# Do we autogroup adhoc networks?
+autogroup_adhoc=true
 
 # Display battery status?
 apm=true
@@ -55,6 +57,9 @@ apm=true
 speech=false
 # Where is festival located for the GUI?
 festival=/usr/bin/festival
+# Are we using festival light?  If so, point the above "festival" path to the
+# "flite" binary.
+flite=false
 # How do we speak?  Valid options:
 # speech    Normal speech
 # nato      NATO spellings (alpha, bravo, charlie)

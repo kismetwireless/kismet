@@ -30,6 +30,8 @@ TcpStreamer::TcpStreamer()
     serv_fd = 0;
 
     max_fd = 0;
+
+	gpsd = NULL;
 }
 
 TcpStreamer::~TcpStreamer()
@@ -47,7 +49,7 @@ void TcpStreamer::Shutdown() {
 }
 
 // Bind to a port and optional hostname/interface
-int TcpStreamer::Setup(unsigned int in_max_clients, short int in_port,
+int TcpStreamer::Setup(unsigned int in_max_clients, string bind_addr, short int in_port,
                        vector<client_ipblock *> *in_ipb) {
     max_clients = in_max_clients;
     ipblock_vec = in_ipb;
@@ -65,7 +67,9 @@ int TcpStreamer::Setup(unsigned int in_max_clients, short int in_port,
     //bzero(&serv_sock, sizeof(serv_sock));
     memset(&serv_sock, 0, sizeof(serv_sock));
     serv_sock.sin_family = AF_INET;
-    serv_sock.sin_addr.s_addr = htonl(INADDR_ANY);
+    if (! inet_pton(AF_INET, bind_addr.c_str(), &serv_sock.sin_addr.s_addr)) {
+        serv_sock.sin_addr.s_addr = htonl(INADDR_ANY);
+    }
     serv_sock.sin_port = htons(port);
 
     // Debug("Server::Setup calling socket()");
@@ -283,6 +287,10 @@ int TcpStreamer::WriteVersion(int in_fd) {
     hdr.frame_len = (uint32_t) htonl(sizeof(struct stream_version_packet));
 
     vpkt.drone_version = (uint16_t) htons(STREAM_DRONE_VERSION);
+	if (gpsd != NULL)
+		vpkt.gps_enabled = 1;
+	else
+		vpkt.gps_enabled = 0;
 
     if (!FD_ISSET(in_fd, &client_fds))
         return -1;

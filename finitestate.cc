@@ -22,11 +22,14 @@
 #include "packetracker.h"
 #include "util.h"
 
-ProbeNoJoinAutomata::ProbeNoJoinAutomata(Packetracker *in_ptracker, Alertracker *in_atracker,
-                                         alert_time_unit in_unit, int in_rate, int in_burstrate) {
+ProbeNoJoinAutomata::ProbeNoJoinAutomata(Packetracker *in_ptracker, 
+										 Alertracker *in_atracker,
+                                         alert_time_unit in_unit, int in_rate, 
+										 alert_time_unit in_bunit, int in_burstrate) {
     atracker = in_atracker;
     ptracker = in_ptracker;
-    alertid = atracker->RegisterAlert("PROBENOJOIN", in_unit, in_rate, in_burstrate);
+    alertid = atracker->RegisterAlert("PROBENOJOIN", in_unit, in_rate, 
+									  in_bunit, in_burstrate);
 }
 
 ProbeNoJoinAutomata::~ProbeNoJoinAutomata() {
@@ -99,11 +102,15 @@ int ProbeNoJoinAutomata::ProcessPacket(const packet_info *in_info) {
     return 0;
 }
 
-DisassocTrafficAutomata::DisassocTrafficAutomata(Packetracker *in_ptracker, Alertracker *in_atracker,
-                        alert_time_unit in_unit, int in_rate, int in_burstrate) {
+DisassocTrafficAutomata::DisassocTrafficAutomata(Packetracker *in_ptracker, 
+												 Alertracker *in_atracker,
+												 alert_time_unit in_unit, int in_rate,
+												 alert_time_unit in_bunit, 
+												 int in_burstrate) {
     atracker = in_atracker;
     ptracker = in_ptracker;
-    alertid = atracker->RegisterAlert("DISASSOCTRAFFIC", in_unit, in_rate, in_burstrate);
+    alertid = atracker->RegisterAlert("DISASSOCTRAFFIC", in_unit, in_rate, 
+									  in_bunit, in_burstrate);
 }
 
 DisassocTrafficAutomata::~DisassocTrafficAutomata() {
@@ -163,7 +170,7 @@ int DisassocTrafficAutomata::ProcessPacket(const packet_info *in_info) {
 
             return 1;
         } else {
-            delete[] iter->second;
+            delete iter->second;
             source_map.erase(iter);
         }
 
@@ -172,11 +179,15 @@ int DisassocTrafficAutomata::ProcessPacket(const packet_info *in_info) {
     return 0;
 }
 
-BssTimestampAutomata::BssTimestampAutomata(Packetracker *in_ptracker, Alertracker *in_atracker,
-                        alert_time_unit in_unit, int in_rate, int in_burstrate) {
+BssTimestampAutomata::BssTimestampAutomata(Packetracker *in_ptracker, 
+										   Alertracker *in_atracker,
+										   alert_time_unit in_unit, int in_rate, 
+										   alert_time_unit in_bunit, 
+										   int in_burstrate) {
     atracker = in_atracker;
     ptracker = in_ptracker;
-    alertid = atracker->RegisterAlert("BSSTIMESTAMP", in_unit, in_rate, in_burstrate);
+    alertid = atracker->RegisterAlert("BSSTIMESTAMP", in_unit, in_rate, 
+									  in_bunit, in_burstrate);
 }
 
 BssTimestampAutomata::~BssTimestampAutomata() {
@@ -191,11 +202,13 @@ int BssTimestampAutomata::ProcessPacket(const packet_info *in_info) {
     char atext[1024];
 
     // Don't track BSS timestamp for non-beacon frames or for adhoc networks
-    if (in_info->timestamp == 0 || in_info->type != packet_management || 
-        in_info->subtype != packet_sub_beacon || in_info->distrib == adhoc_distribution)
+    if (in_info->type != packet_management || 
+		in_info->subtype != packet_sub_beacon || 
+		in_info->distrib == adhoc_distribution)
         return 0;
 
-    macmap<BssTimestampAutomata::_bs_fsa_element *>::iterator iter = bss_map.find(in_info->bssid_mac);
+    macmap<BssTimestampAutomata::_bs_fsa_element *>::iterator iter = 
+		bss_map.find(in_info->bssid_mac);
     if (iter == bss_map.end()) {
         elem = new _bs_fsa_element;
         elem->bss_timestamp = in_info->timestamp;
@@ -213,7 +226,8 @@ int BssTimestampAutomata::ProcessPacket(const packet_info *in_info) {
                      "- got %llx, expected %llx - this could indicate AP spoofing",
                      in_info->bssid_mac.Mac2String().c_str(), in_info->timestamp,
                      elem->bss_timestamp);
-            atracker->RaiseAlert(alertid, in_info->bssid_mac, 0, 0, 0, in_info->channel, atext);
+            atracker->RaiseAlert(alertid, in_info->bssid_mac, 0, 0, 0, 
+								 in_info->channel, atext);
 
             // Reset so we don't keep thrashing here
             elem->counter = 0;
@@ -233,11 +247,15 @@ int BssTimestampAutomata::ProcessPacket(const packet_info *in_info) {
     return 0;
 }
 
-WepRebroadcastAutomata::WepRebroadcastAutomata(Packetracker *in_ptracker, Alertracker *in_atracker,
-                                               alert_time_unit in_unit, int in_rate, int in_burstrate) {
+WepRebroadcastAutomata::WepRebroadcastAutomata(Packetracker *in_ptracker, 
+											   Alertracker *in_atracker,
+                                               alert_time_unit in_unit, int in_rate, 
+											   alert_time_unit in_bunit,
+											   int in_burstrate) {
     atracker = in_atracker;
     ptracker = in_ptracker;
-    alertid = atracker->RegisterAlert("WEPREBROADCAST", in_unit, in_rate, in_burstrate);
+    alertid = atracker->RegisterAlert("WEPREBROADCAST", in_unit, in_rate, 
+									  in_bunit, in_burstrate);
 }
 
 WepRebroadcastAutomata::~WepRebroadcastAutomata() {

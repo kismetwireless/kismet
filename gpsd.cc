@@ -19,7 +19,10 @@
 #include "config.h"
 #include "gpsd.h"
 
-#ifdef HAVE_GPS
+#include <string>
+#include <vector>
+
+#include "util.h"
 
 GPSD::GPSD(char *in_host, int in_port) {
     sock = -1;
@@ -47,6 +50,9 @@ char *GPSD::FetchError() {
 }
 
 int GPSD::OpenGPSD() {
+    if (sock)
+        close(sock);
+
     // Find our host
     h = gethostbyname(host);
     if (h == NULL) {
@@ -72,6 +78,7 @@ int GPSD::OpenGPSD() {
 
     if (bind(sock, (struct sockaddr *) &localaddr, sizeof(localaddr)) < 0) {
         snprintf(errstr, 1024, "GPSD cannot bind port: %s", strerror(errno));
+		CloseGPSD();
         return -1;
     }
 
@@ -123,8 +130,18 @@ int GPSD::Scan() {
     if (ret <= 0 && errno != EAGAIN) {
         snprintf(errstr, 1024, "GPSD error reading data, aborting GPS");
         sock = -1;
-        mode = -1;
+		mode = 0;
         return -1;
+    }
+
+    // And reissue a command
+    if (write(sock, gpsd_command, sizeof(gpsd_command)) < 0) {
+        if (errno != EAGAIN) {
+            snprintf(errstr, 1024, "GPSD error while writing data: %s", 
+					 strerror(errno));
+            CloseGPSD();
+            return -1;
+        }
     }
 
     // Combine it
@@ -136,6 +153,7 @@ int GPSD::Scan() {
     // Instead, we'll munge them together safely, AND we'll catch if we've filled the
     // data buffer last time and still didn't get anything, if we did, we eliminate it
     // and we only work from the new data buffer.
+	// and we only work from the new data buffer
     if (strlen(data) == 1024)
         data[0] = '\0';
 
@@ -144,68 +162,138 @@ int GPSD::Scan() {
     strncpy(data, concat, 1024);
 
     char *live;
-    int scanret;
 
     if ((live = strstr(data, "GPSD,")) == NULL) {
         return 1;
     }
 
-    //GPSD,P=41.711592 -73.931137,A=49.500000,V=0.000000,M=1
+#if 0
+	// PAVMH (NAVLOCK,BU303) ->
+	// GPSD,P=41.711592 -73.931137,A=49.500000,V=0.000000,M=x,M=x
     if ((scanret = sscanf(live, "GPSD,P=%f %f,A=%f,V=%f,M=%d,H=%f",
                &lat, &lon, &alt, &spd, &mode, &hed)) < 5) {
 
         lat = lon = spd = alt = hed = 0;
         mode = 0;
+		data[0] = '\0';
 
         return 0;
     }
 
-    spd = spd * (6076.12 / 5280);
-    alt = alt * 3.3;
+#endif
 
-    // Blow up on nonsensical values
-    if (finite(lat) == 0 || finite(lon) == 0 || finite(alt) == 0 ||
-        finite(spd) == 0 || spd < 0 || spd > 150) {
-        lat = lon = spd = alt = hed = 0;
-        mode = 0;
+	// Use the newcore method of doing things -- tokenize and process
+	double in_lat, in_lon, in_spd, in_alt, in_hed;
+	int in_mode, set_pos = 0, set_spd = 0, set_alt = 0,
+		set_hed = 0, set_mode = 0;
 
-        return 0;
-    }
+	vector<string> lintok = StrTokenize(live, ",");
+
+	if (lintok.size() < 1) {
+		// printf("debug - size < 1 for line tokens\n");
+		// Zero the buffer
+		buf[0] = '\0';
+		data[0] = '\0';
+		return 0;
+	}
+
+	if (lintok[0] != "GPSD") {
+		// printf("debug - no gpsd header, '%s'\n", lintok[0].c_str());
+		// Zero the buffer
+		buf[0] = '\0';
+		data[0] = '\0';
+		return 0;
+	}
+
+	for (unsigned int it = 1; it < lintok.size(); it++) {
+		vector<string> values = StrTokenize(lintok[it], "=");
+
+		if (values.size() != 2) {
+			// printf("debug - invalid value size\n");
+			buf[0] = '\0';
+			data[0] = '\0';
+			return 0;
+		}
+
+		
+		if (values[0] == "P") {
+			if (values[1] == "?") {
+				set_pos = -1;
+			} else if (sscanf(values[1].c_str(), "%lf %lf", 
+							  &in_lat, &in_lon) == 2) {
+				set_pos = 1;        
+			}
+		} else if (values[0] == "A") {
+			if (values[1] == "?") {
+				set_alt = -1;
+			} else if (sscanf(values[1].c_str(), "%lf", &in_alt) == 1) {
+				set_alt = 1;
+			}
+		} else if (values[0] == "V") {
+			if (values[1] == "?") {
+				set_spd = -1;
+			} else if (sscanf(values[1].c_str(), "%lf", &in_spd) == 1) {
+				set_spd = 1;
+			}
+		} else if (values[0] == "H") {
+			if (values[1] == "?") {
+				set_hed = -1;
+			} else if (sscanf(values[1].c_str(), "%lf", &in_hed) == 1) {
+				set_hed = 1;
+			}
+		} else if (values[0] == "M") {
+			if (values[1] == "?") {
+				set_mode = -1;
+			} else if (sscanf(values[1].c_str(), "%d", &in_mode) == 1) {
+				set_mode = 1;
+			}
+		}
+	}
 
     if (last_lat == 0 && last_lon == 0) {
         last_lat = lat;
         last_lon = lon;
     }
 
-    if (scanret == 5) {
-        // Calculate the heading
-        hed = last_hed;
+    // Override mode && clean up the mode var
+    if ((options & GPSD_OPT_FORCEMODE) && set_mode != 1) {
+        set_mode = 1;
+		in_mode = 2;
+	} else if (set_mode != 1) {
+		in_mode = 0;
+	}
 
-        // Update the last lat and heading if we've moved more than 10 meters
-        if (EarthDistance(lat, lon, last_lat, last_lon) > 10) {
-            hed = CalcHeading(lat, lon, last_lat, last_lon);
+	// We always get this one
+	mode = in_mode;
 
-            last_lat = lat;
-            last_lon = lon;
-        }
-    }
+	// Set the position if it was valid
+	if (set_pos == 1 && set_mode == 1 && in_mode >= 2) {
+		lat = in_lat;
+		lon = in_lon;
+	}
 
-    // Override mode
-    if ((options & GPSD_OPT_FORCEMODE) && mode == 0)
-        mode = 2;
+	if (set_alt == 1 && set_mode == 1 && in_mode >= 3) {
+		alt = in_alt * 3.3;
+	}
+
+	if (set_spd == 1 && set_mode == 1 && in_mode >= 2) {
+		spd = in_spd * (6076.12 / 5280);
+	}
+
+	if (set_hed == 1 && set_mode == 1 && in_mode >= 2) {
+		last_hed = hed;
+		hed = in_hed;
+	} else if (set_mode == 1 && in_mode >= 2 && 
+			   EarthDistance(lat, lon, last_lat, last_lon) > 10) {
+		hed = CalcHeading(lat, lon, last_lat, last_lon);
+
+		last_lat = lat;
+		last_lon = lon;
+	}
 
     // Zero the buffer
     buf[0] = '\0';
     data[0] = '\0';
-
-    // And reissue a command
-    if (write(sock, gpsd_command, sizeof(gpsd_command)) < 0) {
-        if (errno != EAGAIN) {
-            snprintf(errstr, 1024, "GPSD error while writing data: %s", strerror(errno));
-            CloseGPSD();
-            return -1;
-        }
-    }
 
     return 1;
 }
@@ -222,8 +310,37 @@ int GPSD::FetchLoc(float *in_lat, float *in_lon, float *in_alt, float *in_spd, f
 }
 
 float GPSD::CalcHeading(float in_lat, float in_lon, float in_lat2, float in_lon2) {
+	/* Liberally stolen from gpsdrives heading calculations */
+
     float r = CalcRad((float) in_lat2);
 
+	float dir = 0.0;
+
+	float tx =
+		(2 * r * M_PI / 360) * cos (M_PI * in_lat / 180.0) *
+		(in_lon - in_lon2);
+	float ty = (2 * r * M_PI / 360) * (in_lat - in_lat2);
+
+	if (((fabs(tx)) > 4.0) || (((fabs(ty)) > 4.0))) {
+		if (ty == 0) {
+			dir = 0.0;
+		} else {
+			dir = atan(tx / ty);
+		}
+
+		if (!finite(dir))
+			dir = 0.0;
+		if (ty < 0)
+			dir = M_PI + dir;
+		if (dir >= (2 * M_PI))
+			dir -= 2 * M_PI;
+		if (dir < 0)
+			dir += 2 * M_PI;
+	}
+
+    return (float) Rad2Deg(dir);
+	
+#if 0
     float lat1 = Deg2Rad((float) in_lat);
     float lon1 = Deg2Rad((float) in_lon);
     float lat2 = Deg2Rad((float) in_lat2);
@@ -231,6 +348,7 @@ float GPSD::CalcHeading(float in_lat, float in_lon, float in_lat2, float in_lon2
 
     float angle = 0;
 
+	
     if (lat1 == lat2) {
         if (lon2 > lon1) {
             angle = M_PI/2;
@@ -265,6 +383,7 @@ float GPSD::CalcHeading(float in_lat, float in_lon, float in_lat2, float in_lon2
     }
 
     return (float) Rad2Deg(angle);
+#endif
 }
 
 double GPSD::Rad2Deg(double x) {
@@ -275,7 +394,9 @@ double GPSD::Deg2Rad(double x) {
     return 180/(x*M_PI);
 }
 
-double GPSD::EarthDistance(double in_lat, double in_lon, double in_lat2, double in_lon2) {
+double GPSD::EarthDistance(double in_lat, double in_lon, double in_lat2, 
+						   double in_lon2) {
+#if 0
     double x1 = CalcRad(in_lat) * cos(Deg2Rad(in_lon)) * sin(Deg2Rad(90-in_lat));
     double x2 = CalcRad(in_lat2) * cos(Deg2Rad(in_lon2)) * sin(Deg2Rad(90-in_lat2));
     double y1 = CalcRad(in_lat) * sin(Deg2Rad(in_lon)) * sin(Deg2Rad(90-in_lat));
@@ -284,6 +405,23 @@ double GPSD::EarthDistance(double in_lat, double in_lon, double in_lat2, double 
     double z2 = CalcRad(in_lat2) * cos(Deg2Rad(90-in_lat2));
     double a = acos((x1*x2 + y1*y2 + z1*z2)/pow(CalcRad((double) (in_lat+in_lat2)/2),2));
     return CalcRad((double) (in_lat+in_lat2) / 2) * a;
+#endif
+
+	double x1 = in_lat * M_PI / 180;
+	double y1 = in_lon * M_PI / 180;
+	double x2 = in_lat2 * M_PI / 180;
+	double y2 = in_lon2 * M_PI / 180;
+
+	double dist = 0;
+
+	if (x1 != x2 && y1 != y2) {
+		dist = sin(x1) * sin(x2) + cos(x1) * cos(x2) * cos(y2 - y1);
+
+		dist = CalcRad((double) (in_lat + in_lat2) / 2) * 
+			(-1 * atan(dist / sqrt(1 - dist * dist)) + M_PI / 2);
+	}
+
+	return dist;
 }
 
 double GPSD::CalcRad(double lat) {
@@ -315,4 +453,3 @@ double GPSD::CalcRad(double lat) {
     return r;
 }
 
-#endif

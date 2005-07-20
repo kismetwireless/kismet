@@ -49,6 +49,7 @@ char *uiconfigfile;
 char *server = NULL;
 int sound = -1;
 int speech = -1;
+int flite = 0;
 int speech_encoding = 0;
 string speech_sentence_encrypted, speech_sentence_unencrypted;
 unsigned int metric = 0;
@@ -275,8 +276,9 @@ void SpeechHandler(int *fds, const char *player) {
                 // Make sure it's shell-clean
                 MungeToShell(data, strlen(data));
                 char spk_call[1024];
-                snprintf(spk_call, 1024, "echo \"(SayText \\\"%s\\\")\" | %s >/dev/null 2>/dev/null",
-                         data, player);
+                snprintf(spk_call, 1024, "echo \"(%s\\\"%s\\\")\" | %s "
+						 ">/dev/null 2>/dev/null",
+						 flite ? "": "SayText ", data, player);
 
                 system(spk_call);
 
@@ -549,6 +551,9 @@ int main(int argc, char *argv[]) {
             festival = strdup(gui_conf->FetchOpt("festival").c_str());
             speech = 1;
 
+			if (gui_conf->FetchOpt("flite") == "true")
+				flite = 1;
+
             string speechtype = gui_conf->FetchOpt("speech_type");
 
             if (!strcasecmp(speechtype.c_str(), "nato"))
@@ -593,7 +598,7 @@ int main(int argc, char *argv[]) {
         fprintf(stderr, "WARNING:  No client_manuf file specified.  Client manufacturers will not be detected.\n");
     }
 
-    if (sscanf(server, "%1024[^:]:%d", guihost, &guiport) != 2) {
+    if (sscanf(server, "%1023[^:]:%d", guihost, &guiport) != 2) {
         fprintf(stderr, "FATAL:  Invalid server (%s) specified (host:port required)\n",
                server);
         exit(1);
@@ -717,6 +722,9 @@ int main(int argc, char *argv[]) {
 
     if (gui_conf->FetchOpt("autogroup_data") == "true")
         prefs["autogroup_data"] = "true";
+
+	if (gui_conf->FetchOpt("autogroup_adhoc") == "true")
+		prefs["autogroup_adhoc"] = "true";
 
     prefs["simpleborders"] = gui_conf->FetchOpt("simpleborders");
 
@@ -902,7 +910,7 @@ int main(int argc, char *argv[]) {
                             wireless_network *newnet = tcpcli->FetchLastNewNetwork();
 
                             if (sound == 1 && newnet != lastspoken) {
-                                if (newnet->wep && 
+                                if (newnet->crypt_set && 
                                     wav_map.find("new_wep") != wav_map.end())
                                     sound = PlaySound("new_wep");
                                 else
@@ -913,7 +921,7 @@ int main(int argc, char *argv[]) {
                                 string text;
 
                                 if (newnet != NULL) {
-                                    if (newnet->wep)
+                                    if (newnet->crypt_set)
                                         text = ExpandSpeechString(speech_sentence_encrypted, newnet, speech_encoding);
                                     else
                                         text = ExpandSpeechString(speech_sentence_unencrypted, newnet, speech_encoding);

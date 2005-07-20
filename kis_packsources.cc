@@ -90,6 +90,10 @@ int RegisterKismetSources(Packetsourcetracker *sourcetracker) {
     sourcetracker->RegisterPacketsource("vtar5k", 1, "IEEE80211a", 36,
                                        pcapsource_wext_registrant,
                                        monitor_vtar5k, NULL, chancontrol_wext, 1);
+    sourcetracker->RegisterPacketsource("atmel_usb", 1, "IEEE80211b", 6,
+                                       pcapsource_wext_registrant,
+                                       monitor_wext, unmonitor_wext, 
+                                       chancontrol_wext, 1);
 
     sourcetracker->RegisterPacketsource("madwifi_a", 1, "IEEE80211a", 36,
                                         pcapsource_wextfcs_registrant,
@@ -125,6 +129,29 @@ int RegisterKismetSources(Packetsourcetracker *sourcetracker) {
     sourcetracker->RegisterPacketsource("ipw2100", 1, "IEEE80211b", 6,
                                         pcapsource_wext_registrant,
                                         monitor_ipw2100, unmonitor_ipw2100,
+                                        chancontrol_ipw2100, 1);
+
+    sourcetracker->RegisterPacketsource("ipw2200", 1, "IEEE80211g", 6,
+                                        pcapsource_wext_registrant,
+                                        monitor_ipw2200, unmonitor_ipw2200,
+                                        chancontrol_ipw2200, 1);
+
+    sourcetracker->RegisterPacketsource("ipw2915", 1, "IEEE80211ab", 6,
+                                        pcapsource_wext_registrant,
+                                        monitor_ipw2200, unmonitor_ipw2200,
+                                        chancontrol_ipw2200, 1);
+
+    sourcetracker->RegisterPacketsource("rt2400", 1, "IEEE80211b", 6,
+                                        pcapsource_wext_registrant,
+                                        monitor_wext, unmonitor_wext,
+                                        chancontrol_wext, 1);
+    sourcetracker->RegisterPacketsource("rt2500", 1, "IEEE80211g", 6,
+                                        pcapsource_11g_registrant,
+                                        monitor_wext, unmonitor_wext,
+                                        chancontrol_wext, 1);
+    sourcetracker->RegisterPacketsource("rt8180", 1, "IEEE80211b", 6,
+                                        pcapsource_wext_registrant,
+                                        monitor_wext, unmonitor_wext,
                                         chancontrol_wext, 1);
 
 #else
@@ -145,6 +172,12 @@ int RegisterKismetSources(Packetsourcetracker *sourcetracker) {
     REG_EMPTY_CARD(sourcetracker, "prism54g");
 
     REG_EMPTY_CARD(sourcetracker, "ipw2100");
+    REG_EMPTY_CARD(sourcetracker, "ipw2200");
+    REG_EMPTY_CARD(sourcetracker, "ipw2915");
+
+    REG_EMPTY_CARD(sourcetracker, "rt2400");
+    REG_EMPTY_CARD(sourcetracker, "rt2500");
+    REG_EMPTY_CARD(sourcetracker, "rt8180");
 
     REG_EMPTY_CARD(sourcetracker, "wlanng_wext");
 #endif
@@ -188,23 +221,23 @@ int RegisterKismetSources(Packetsourcetracker *sourcetracker) {
     REG_EMPTY_CARD(sourcetracker, "prism2_openbsd");
 #endif
 
-#if defined(HAVE_LIBPCAP) && defined(SYS_FREEBSD) && defined(HAVE_RADIOTAP)
-    sourcetracker->RegisterPacketsource("radiotap_fbsd_ab", 1, "IEEE80211ab", 6,
+#if defined(HAVE_LIBPCAP) && defined(HAVE_RADIOTAP)
+    sourcetracker->RegisterPacketsource("radiotap_bsd_ab", 1, "IEEE80211ab", 6,
                                         pcapsource_radiotap_registrant,
-                                        monitor_freebsd, unmonitor_freebsd,
-                                        chancontrol_freebsd, 1);
-    sourcetracker->RegisterPacketsource("radiotap_fbsd_a",1, "IEEE80211a", 6,
+                                        monitor_bsd, unmonitor_bsd,
+                                        chancontrol_bsd, 1);
+    sourcetracker->RegisterPacketsource("radiotap_bsd_a",1, "IEEE80211a", 6,
                                         pcapsource_radiotap_registrant,
-                                        monitor_freebsd, unmonitor_freebsd,
-                                        chancontrol_freebsd, 1);
-    sourcetracker->RegisterPacketsource("radiotap_fbsd_b",1, "IEEE80211b", 6,
+                                        monitor_bsd, unmonitor_bsd,
+                                        chancontrol_bsd, 1);
+    sourcetracker->RegisterPacketsource("radiotap_bsd_b",1, "IEEE80211b", 6,
                                         pcapsource_radiotap_registrant,
-                                        monitor_freebsd, unmonitor_freebsd,
-                                        chancontrol_freebsd, 1);
+                                        monitor_bsd, unmonitor_bsd,
+                                        chancontrol_bsd, 1);
 #else
-    REG_EMPTY_CARD(sourcetracker, "radiotap_fbsd_ab");
-    REG_EMPTY_CARD(sourcetracker, "radiotap_fbsd_a");
-    REG_EMPTY_CARD(sourcetracker, "radiotap_fbsd_b");
+    REG_EMPTY_CARD(sourcetracker, "radiotap_bsd_ab");
+    REG_EMPTY_CARD(sourcetracker, "radiotap_bsd_a");
+    REG_EMPTY_CARD(sourcetracker, "radiotap_bsd_b");
 #endif
 
 #if defined(HAVE_LIBWIRETAP)

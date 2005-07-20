@@ -42,6 +42,7 @@
 #include "ringbuf.h"
 #include "packet.h"
 #include "packetstream.h"
+#include "gpsd.h"
 
 // Global in kismet_drone.cc
 extern int silent;
@@ -68,12 +69,15 @@ public:
 
     int Valid() { return sv_valid; };
 
-    int Setup(unsigned int in_max_clients, short int in_port, vector<client_ipblock *> *in_ipb);
+    int Setup(unsigned int in_max_clients, string bind_addr, short int in_port, vector<client_ipblock *> *in_ipb);
 
     unsigned int MergeSet(fd_set in_set, unsigned int in_max, fd_set *out_set,
 	    fd_set *outw_set);
 
     int FetchDescriptor() { return serv_fd; }
+
+    // Register the GPS server for us to use
+    void AddGpstracker(GPSD *in_gpsd) { gpsd = in_gpsd; }
 
     void Kill(int in_fd);
 
@@ -120,6 +124,8 @@ protected:
     fd_set client_fds;
 
     unsigned int max_fd;
+
+	GPSD *gpsd;
 };
 
 #endif

@@ -58,7 +58,7 @@ enum CLIENT_fields {
     CLIENT_bestquality, CLIENT_bestsignal, CLIENT_bestnoise,
     CLIENT_bestlat, CLIENT_bestlon, CLIENT_bestalt,
     CLIENT_atype, CLIENT_ip, CLIENT_datasize, CLIENT_maxseenrate, CLIENT_encodingset,
-    CLIENT_decrypted
+    CLIENT_decrypted, CLIENT_wep
 };
 
 enum REMOVE_fields {

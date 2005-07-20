@@ -26,7 +26,7 @@ int DroneSource::OpenSource() {
 
     // Device is handled as a host:port pair - remote host we accept data
     // from, local port we open to listen for it.  yeah, it's a little weird.
-    if (sscanf(interface.c_str(), "%1024[^:]:%hd", listenhost, &port) < 2) {
+    if (sscanf(interface.c_str(), "%1023[^:]:%hd", listenhost, &port) < 2) {
         snprintf(errstr, 1024, "Couldn't parse host:port: '%s'", interface.c_str());
         return -1;
     }
@@ -201,6 +201,9 @@ int DroneSource::FetchPacket(kis_packet *packet, uint8_t *data, uint8_t *moddata
             return -1;
         }
 
+		// Grab the GPS info
+		gps_enabled = vpkt.gps_enabled;
+
         stream_recv_bytes = 0;
 
         // printf("debug - version packet valid\n\n");
@@ -333,17 +336,24 @@ int DroneSource::Drone2Common(kis_packet *packet, uint8_t *data, uint8_t *moddat
     packet->encoding = (encoding_type) phdr.encoding;
     packet->datarate = (uint32_t) ntohl(phdr.datarate);
 
-    packet->gps_lat = Pair2Float((int16_t) ntohs(phdr.gps_lat),
-                                 (int64_t) kis_ntoh64(phdr.gps_lat_mant));
-    packet->gps_lon = Pair2Float((int16_t) ntohs(phdr.gps_lon),
-                                 (int64_t) kis_ntoh64(phdr.gps_lon_mant));
-    packet->gps_alt = Pair2Float((int16_t) ntohs(phdr.gps_alt),
-                                 (int64_t) kis_ntoh64(phdr.gps_alt_mant));
-    packet->gps_spd = Pair2Float((int16_t) ntohs(phdr.gps_spd),
-                                 (int64_t) kis_ntoh64(phdr.gps_spd_mant));
-    packet->gps_heading = Pair2Float((int16_t) ntohs(phdr.gps_heading),
-                                     (int64_t) kis_ntoh64(phdr.gps_heading_mant));
-    packet->gps_fix = phdr.gps_fix;
+	if (gps_enabled) {
+		// If the drone is sending us GPS data, use it
+		packet->gps_lat = Pair2Float((int16_t) ntohs(phdr.gps_lat),
+									 (int64_t) kis_ntoh64(phdr.gps_lat_mant));
+		packet->gps_lon = Pair2Float((int16_t) ntohs(phdr.gps_lon),
+									 (int64_t) kis_ntoh64(phdr.gps_lon_mant));
+		packet->gps_alt = Pair2Float((int16_t) ntohs(phdr.gps_alt),
+									 (int64_t) kis_ntoh64(phdr.gps_alt_mant));
+		packet->gps_spd = Pair2Float((int16_t) ntohs(phdr.gps_spd),
+									 (int64_t) kis_ntoh64(phdr.gps_spd_mant));
+		packet->gps_heading = Pair2Float((int16_t) ntohs(phdr.gps_heading),
+										 (int64_t) kis_ntoh64(phdr.gps_heading_mant));
+		packet->gps_fix = phdr.gps_fix;
+	} else if (gpsd != NULL) {
+		// Otherwise, no
+		gpsd->FetchLoc(&packet->gps_lat, &packet->gps_lon, &packet->gps_alt,
+					   &packet->gps_spd, &packet->gps_heading, &packet->gps_fix);
+	}
 
     packet->data = data;
     packet->moddata = moddata;

@@ -532,6 +532,7 @@ int Packetsourcetracker::ProcessCardList(string in_enableline,
             meta->stored_interface = NULL;
             meta->ch_pos = 0;
             meta->cur_ch = 0;
+			meta->channel_seqid = -1;
             // Hopping is turned on in any source that has a channel control pointer.
             // This isn't controlling if kismet hops in general, only if this source
             // changes channel when Kismet decides to channel hop.
@@ -577,11 +578,10 @@ int Packetsourcetracker::ProcessCardList(string in_enableline,
                 chan_seqid_count_map[meta->channel_seqid]++;
             } else if (chan_cap_seqid_map.find(StrLower(meta->prototype->default_channelset)) 
                        != chan_cap_seqid_map.end()) {
-
                 meta->channel_seqid = 
                     chan_cap_seqid_map[StrLower(meta->prototype->default_channelset)];
                 chan_seqid_count_map[meta->channel_seqid]++;
-            }
+			}
                         
             meta_packsources.push_back(meta);
         }
@@ -603,6 +603,15 @@ int Packetsourcetracker::ProcessCardList(string in_enableline,
         for (unsigned int metc = 0; metc < meta_packsources.size(); metc++) {
             meta_packsource *meta = meta_packsources[metc];
 
+			if (chan_seqid_seq_map.find(meta->channel_seqid) == 
+				chan_seqid_seq_map.end()) {
+				snprintf(errstr, 1024, "Unable to find default channel set %s or "
+						 "specific channel sets for source %s",
+						 meta->prototype->default_channelset.c_str(),
+						 meta->name.c_str());
+				return -1;
+			}
+
             meta->channels = chan_seqid_seq_map[meta->channel_seqid];
     
             // Bail if we don't split hop positions
@@ -615,9 +624,9 @@ int Packetsourcetracker::ProcessCardList(string in_enableline,
                 tmp_seqid_assign_map.end())
                 tmp_seqid_assign_map[meta->channel_seqid] = 0;
 
-            meta->ch_pos = (meta->channels.size() / 
-                            chan_seqid_count_map[meta->channel_seqid]) * 
-                tmp_seqid_assign_map[meta->channel_seqid];
+			meta->ch_pos = (meta->channels.size() / 
+							chan_seqid_count_map[meta->channel_seqid]) * 
+				tmp_seqid_assign_map[meta->channel_seqid];
 
             tmp_seqid_assign_map[meta->channel_seqid]++;
         }
@@ -732,7 +741,6 @@ int Packetsourcetracker::SetTypeParms(string in_types, packet_parm in_parm) {
                 StrLower(tokens[ctype]) == "all") &&
                 meta->capsource != NULL) {
                 meta->capsource->SetPackparm(in_parm);
-                break;
             }
         }
 
@@ -971,14 +979,39 @@ void Packetsourcetracker::ChannelChildLoop() {
                 // be valid - channel change stuff has to be smart enough to test
                 // for null and report an error accordingly if it uses this
                 // data.
+				//
+				// If a channel has more than N consecutive errors, we actually
+				// fail out, send a fatal condition, and die.
                 if ((*meta_packsources[chanpak.meta_num]->prototype->channelcon)
                     (meta_packsources[chanpak.meta_num]->device.c_str(), 
                      chanpak.channel, errstr, 
                      (void *) (meta_packsources[chanpak.meta_num]->capsource)) < 0) {
-                    snprintf(txtbuf, 1024, "%s", errstr);
-                    child_ipc_buffer.push_front(CreateTextPacket(txtbuf, CHANFLAG_FATAL));
-                    continue;
-                }
+
+					meta_packsources[chanpak.meta_num]->consec_errors++;
+
+					if (meta_packsources[chanpak.meta_num]->consec_errors >= 
+						MAX_CONSEC_CHAN_ERR) {
+						// Push an explanation and the final error
+						snprintf(txtbuf, 1024, "Packet source %s (%s) has suffered "
+								 "%d consecutive errors setting the channel.  This "
+								 "most likely means the drivers have become "
+								 "confused.",
+								 meta_packsources[chanpak.meta_num]->name.c_str(),
+								 meta_packsources[chanpak.meta_num]->device.c_str(),
+								 MAX_CONSEC_CHAN_ERR);
+						child_ipc_buffer.push_front(CreateTextPacket(txtbuf, 
+																	 CHANFLAG_NONE));
+
+						snprintf(txtbuf, 1024, "%s", errstr);
+						child_ipc_buffer.push_front(CreateTextPacket(txtbuf, 
+																	 CHANFLAG_FATAL));
+						continue;
+					}
+                } else {
+					// Otherwise reset the error count
+					meta_packsources[chanpak.meta_num]->consec_errors = 0;
+				}
+
 
                 // Acknowledge
                 chanchild_packhdr *ackpak = new chanchild_packhdr;

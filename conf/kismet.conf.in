@@ -4,17 +4,18 @@
 # not continually reading --help!
 
 # Version of Kismet config
-version=2004.04.devel-b
+version=2005.06.R1
 
-# Name of server (Purely for organiational purposes)
+# Name of server (Purely for organizational purposes)
 servername=Kismet
 
 # User to setid to (should be your normal user)
 suiduser=your_user_here
 
 # Sources are defined as:
-# source=cardtype,interface,name[,initialchannel]
-# Card types and required drivers are listed in the README.
+# source=sourcetype,interface,name[,initialchannel]
+# Source types and required drivers are listed in the README under the
+# CAPTURE SOURCES section.
 # The initial channel is optional, if hopping is not enabled it can be used
 # to set the channel the interface listens on.
 # YOU MUST CHANGE THIS TO BE THE SOURCE YOU WANT TO USE
@@ -95,6 +96,9 @@ tcpport=2501
 # blocks.  Netmasks can be expressed as dotted quad (/255.255.255.0) or as
 # numbers (/24)
 allowedhosts=127.0.0.1
+# Address to bind to.  Should be an address already configured already on
+# this host, reverts to INADDR_ANY if specified incorrectly.
+bindaddress=127.0.0.1
 # Maximum number of concurrent GUI's
 maxclients=5
 
@@ -126,27 +130,26 @@ gpsmodelock=false
 # filter_export=...
 
 # Alerts to be reported and the throttling rates.
-# alert=name,throttle/unit,burst
+# alert=name,throttle/unit,burst/unit
 # The throttle/unit describes the number of alerts of this type that are
 # sent per time unit.  Valid time units are second, minute, hour, and day.
-# Burst describes the number of alerts sent before throttling takes place.
+# Burst rates control the number of packets sent at a time
 # For example:
-# alert=FOO,10/min,5
-# Would allow 5 alerts through before throttling is enabled, and will then
-# limit the number of alerts to 10 per minute.
+# alert=FOO,10/min,5/sec
+# Would allow 5 alerts per second, and 10 alerts total per minute.
 # A throttle rate of 0 disables throttling of the alert.
 # See the README for a list of alert types.
-alert=NETSTUMBLER,5/min,2
-alert=WELLENREITER,5/min,2
-alert=LUCENTTEST,5/min,2
-alert=DEAUTHFLOOD,5/min,4
-alert=BCASTDISCON,5/min,4
-alert=CHANCHANGE,5/min,4
-alert=AIRJACKSSID,5/min,2
-alert=PROBENOJOIN,5/min,2
-alert=DISASSOCTRAFFIC,5/min,2
-alert=NULLPROBERESP,5/min,5
-alert=BSSTIMESTAMP,5/min,5
+alert=NETSTUMBLER,10/min,1/sec
+alert=WELLENREITER,10/min,1/sec
+alert=LUCENTTEST,10/min,1/sec
+alert=DEAUTHFLOOD,10/min,2/sec
+alert=BCASTDISCON,10/min,2/sec
+alert=CHANCHANGE,5/min,1/sec
+alert=AIRJACKSSID,5/min,1/sec
+alert=PROBENOJOIN,10/min,1/sec
+alert=DISASSOCTRAFFIC,10/min,1/sec
+alert=NULLPROBERESP,10/min,1/sec
+alert=BSSTIMESTAMP,10/min,1/sec
 
 # Known WEP keys to decrypt, bssid,hexkey.  This is only for networks where
 # the keys are already known, and it may impact throughput on slower hardware.
@@ -188,6 +191,9 @@ sound_alert=@sharedatadir@/kismet/wav/alert.wav
 speech=false
 # Server's path to Festival
 festival=/usr/bin/festival
+# Are we using festival lite?  If so, set the above "festival" path to also
+# point to the "flite" binary
+flite=false
 # How do we speak?  Valid options:
 # speech    Normal speech
 # nato      NATO spellings (alpha, bravo, charlie)
@@ -261,7 +267,13 @@ mangledatalog=true
 # frame headers)
 # valid option: Comma seperated list of card types to perform fuzzy detection 
 #  on, or 'all'
-fuzzycrypt=wtapfile,wlanng,wlanng_legacy,wlanng_avs,hostap,wlanng_wext
+fuzzycrypt=wtapfile,wlanng,wlanng_legacy,wlanng_avs,hostap,wlanng_wext,ipw2200,ipw2915
+
+# Do we use network-classifier fuzzy-crypt detection?  This means we expect 
+# packets that are associated with an encrypted network to be encrypted too, 
+# and we process them by the same fuzzy compare. 
+# This essentially replaces the fuzzycrypt per-source option.
+netfuzzycrypt=true
 
 # What type of dump do we generate? 
 # valid option: "wiretap" 

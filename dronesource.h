@@ -79,6 +79,9 @@ protected:
     uint8_t databuf[MAX_PACKET_LEN];
 
     unsigned int resyncing;
+
+	// Is the drone pushing GPS data to us?
+	int gps_enabled;
 };
 
 // Nothing but a registrant for us

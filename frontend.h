@@ -144,9 +144,10 @@ protected:
 
     display_network *CreateGroup(int in_persistent, string in_tag, string in_name);
     display_network *AddToGroup(display_network *core, display_network *merger);
+	display_network *AddToGroup(display_network *core, wireless_network *mnet);
 
     // Group all the tagged networks
-    display_network *GroupTagged();
+    virtual display_network *GroupTagged();
     // Destroy a group
     virtual void DestroyGroup(display_network *in_group);
 

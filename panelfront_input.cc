@@ -196,6 +196,13 @@ int PanelFront::MainInput(void *in_window, int in_chr) {
     case 't':
     case 'T':
         if (sortby != sort_auto && last_displayed.size() > 0) {
+			if (last_displayed[kwin->selected] == probe_group ||
+				last_displayed[kwin->selected] == data_group ||
+				last_displayed[kwin->selected] == adhoc_group) {
+				MainInput(in_window, KEY_DOWN);
+				break;
+			}
+
             if (last_displayed[kwin->selected]->tagged)
                 last_displayed[kwin->selected]->tagged = 0;
             else
@@ -1033,10 +1040,7 @@ int PanelFront::ChanlockInput(void *in_window, int in_chr) {
             }
 
             if (ctx.context->client == NULL) {
-                snprintf(msg, 1024, "Server %s (%s:%d) dissapeared on us...",
-                         ctx.context->client->FetchServername().c_str(),
-                         ctx.context->client->FetchHost(), 
-                         ctx.context->client->FetchPort());
+                snprintf(msg, 1024, "Server dissapeared on us...");
                 WriteStatus(msg);
                 return 0;
             }

@@ -1,6 +1,6 @@
 Summary: Kismet is an 802.11 network sniffer and network dissector.
 Name: kismet
-Version: 2004.03
+Version: 2005.04
 Release: 1
 Group: Networking/Utilities
 Copyright: GPL

@@ -46,6 +46,8 @@ public:
         timetracker = NULL;
 
         fcsbytes = 0;
+
+		parameters.fuzzy_crypt = 0;
     }
 
     virtual ~KisPacketSource() { };
@@ -90,7 +92,7 @@ public:
 
     // Set packet parameters
     void SetPackparm(packet_parm in_parameters) {
-        parameters = in_parameters;
+		parameters.fuzzy_crypt = in_parameters.fuzzy_crypt;
     }
 
     // Get packet parameters

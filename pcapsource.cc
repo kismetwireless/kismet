@@ -38,21 +38,29 @@ typedef unsigned long u64;
 #include <linux/wireless.h>
 #endif
 
-#ifdef SYS_OPENBSD
+#if defined(SYS_OPENBSD) || defined(SYS_NETBSD)
+#include <sys/socket.h>
 #include <net/if.h>
+#include <net/if_media.h>
 #include <netinet/in.h>
 #include <netinet/if_ether.h>
 #include <dev/ic/if_wi_ieee.h>
+
+#ifdef HAVE_RADIOTAP
+#include <net80211/ieee80211.h>
+#endif
+
 #endif
 
 #ifdef SYS_FREEBSD
 #include <sys/socket.h>
 #include <net/if.h>
 #include <net/if_media.h>
-#include <net80211/ieee80211_ioctl.h>
 
-// This should be generic but we'll leave it fbsd only right now -drag
+#endif
+
 #ifdef HAVE_RADIOTAP
+#include <net80211/ieee80211_ioctl.h>
 #include <net80211/ieee80211_radiotap.h>
 
 // Hack around some headers that don't seem to define all of these
@@ -85,8 +93,6 @@ typedef unsigned long u64;
 #include <stdarg.h>
 #endif
 
-#endif
-
 #include "pcapsource.h"
 #include "util.h"
 
@@ -108,6 +114,12 @@ int PcapSource::OpenSource() {
     char *unconst = strdup(interface.c_str());
 
     pd = pcap_open_live(unconst, MAX_PACKET_LEN, 1, 1000, errstr);
+
+    #if defined (SYS_OPENBSD) || defined(SYS_NETBSD) && defined(HAVE_RADIOTAP)
+    /* Request desired DLT on multi-DLT systems that default to EN10MB. We do this
+       later anyway but doing it here ensures we have the desired DLT from the get go. */
+     pcap_set_datalink(pd, DLT_IEEE802_11_RADIO);
+    #endif
 
     free(unconst);
 
@@ -164,7 +176,7 @@ int PcapSource::DatalinkType() {
     datalink_type = pcap_datalink(pd);
 
     // Blow up if we're not valid 802.11 headers
-#if (defined(SYS_FREEBSD) || defined(SYS_OPENBSD))
+#if (defined(SYS_FREEBSD) || defined(SYS_OPENBSD)) || defined(SYS_NETBSD)
     if (datalink_type == DLT_EN10MB) {
         fprintf(stderr, "WARNING:  pcap reports link type of EN10MB but we'll fake "
                 "it on BSD.\n"
@@ -228,7 +240,7 @@ int PcapSource::FetchPacket(kis_packet *packet, uint8_t *data, uint8_t *moddata)
     if ((ret = pcap_dispatch(pd, 1, PcapSource::Callback, NULL)) < 0) {
         // Is the interface still here and just not running?  Lets give a more intelligent
         // error if that looks to be the case.
-        int ret = 0;
+        ret = 0;
 
         // Do something smarter here in the future
 #ifdef SYS_LINUX
@@ -261,7 +273,7 @@ int PcapSource::FetchPacket(kis_packet *packet, uint8_t *data, uint8_t *moddata)
     snprintf(packet->sourcename, 32, "%s", name.c_str());
     
     // Set the parameters
-    packet->parm = parameters;
+    memcpy(&packet->parm, &parameters, sizeof(packet_parm));
     
     return(packet->caplen);
 }
@@ -303,9 +315,12 @@ int PcapSource::ManglePacket(kis_packet *packet, uint8_t *data, uint8_t *moddata
     if (packet->channel == 0)
         packet->channel = FetchChannel();
 
+#if 0
+	// Maybe this isn't a great idea
     if (packet->carrier == carrier_unknown)
         packet->carrier = IEEE80211Carrier();
-    
+#endif
+
     return ret;
 
 }
@@ -354,6 +369,7 @@ int PcapSource::Prism2KisPack(kis_packet *packet, uint8_t *data, uint8_t *moddat
         switch (ntohl(v1hdr->phytype)) {
             case 1:
                 packet->carrier = carrier_80211fhss;
+				break;
             case 2:
                 packet->carrier = carrier_80211dsss;
                 break;
@@ -388,11 +404,20 @@ int PcapSource::Prism2KisPack(kis_packet *packet, uint8_t *data, uint8_t *moddat
         // Get the FCS
         int fcs = FCSBytes();
 
+        if (p2head->frmlen.data > callback_header.caplen) {
+            snprintf(errstr, 1024, "pcap prism2 converter got corrupted AVS "
+					 "header length");
+            packet->len = 0;
+            packet->caplen = 0;
+            return 0;
+        }
+
         // Subtract the packet FCS since kismet doesn't do anything terribly bright
         // with it right now
-        packet->caplen = kismin(p2head->frmlen.data - fcs, (uint32_t) MAX_PACKET_LEN);
+        packet->caplen = kismin(callback_header.caplen - 
+								sizeof(wlan_ng_prism2_header) - fcs,
+								(uint32_t) MAX_PACKET_LEN);
         packet->len = packet->caplen;
-
 
         // Set our offset for extracting the actual data
         callback_offset = sizeof(wlan_ng_prism2_header);
@@ -541,6 +566,10 @@ int PcapSource::Radiotap2KisPack(kis_packet *packet, uint8_t *data, uint8_t *mod
     enum ieee80211_radiotap_type bit;
     int bit0;
     const u_char *iter;
+	// do we cut the FCS?  this is influenced by the radiotap headers and 
+	// by the class fcsbytes value in case of forced fcs settings (like openbsd
+	// atheros and Ralink USB at the moment)
+	int fcs_cut = 0;
 
     if (callback_header.caplen < sizeof(*hdr)) {
         packet->len = 0;
@@ -646,6 +675,10 @@ int PcapSource::Radiotap2KisPack(kis_packet *packet, uint8_t *data, uint8_t *mod
                 case IEEE80211_RADIOTAP_DB_ANTNOISE:
                     packet->noise = u.i8;
                     break;
+                case IEEE80211_RADIOTAP_FLAGS:
+                    if (u.u8 & IEEE80211_RADIOTAP_F_FCS)
+                         fcs_cut = 4;
+                    break;
 #if 0
                 case IEEE80211_RADIOTAP_FHSS:
                     printf("fhset %d fhpat %d ", u.u16 & 0xff,
@@ -686,9 +719,13 @@ int PcapSource::Radiotap2KisPack(kis_packet *packet, uint8_t *data, uint8_t *mod
         }
     }
 
+	/* Check the fcs for the source */
+	if (FCSBytes() != 0)
+		fcs_cut = FCSBytes();
+
     /* copy data down over radiotap header */
-    packet->caplen -= hdr->it_len;
-    packet->len -= hdr->it_len;
+    packet->caplen -= (hdr->it_len + fcs_cut);
+    packet->len -= (hdr->it_len + fcs_cut);
     memcpy(packet->data, callback_data + hdr->it_len, packet->caplen);
 
     return 1;
@@ -758,14 +795,15 @@ int PcapSourceFile::FetchPacket(kis_packet *packet, uint8_t *data, uint8_t *modd
         return 0;
     }
 
-    num_packets++;
-
     // Set the name
     snprintf(packet->sourcename, 32, "%s", name.c_str());
     
     // Set the parameters
-    packet->parm = parameters;
+    memcpy(&(packet->parm), &parameters, sizeof(packet_parm));
     
+
+    num_packets++;
+
     return(packet->caplen);
 }
 
@@ -844,7 +882,7 @@ int PcapSourceWrt54g::FetchPacket(kis_packet *packet, uint8_t *data, uint8_t *mo
     snprintf(packet->sourcename, 32, "%s", name.c_str());
     
     // Set the parameters
-    packet->parm = parameters;
+    memcpy(&packet->parm, &parameters, sizeof(packet_parm));
     
     return(packet->caplen);
 }
@@ -883,7 +921,7 @@ int PcapSourceOpenBSDPrism::FetchChannel() {
 
 	if (ioctl(skfd, SIOCGWAVELAN, &ifr) < 0) {
         close(skfd);
-		snprintf(errstr, 1024, "Channel set ioctl failed: %s",
+		snprintf(errstr, 1024, "Channel get ioctl failed: %s",
                  strerror(errno));
 		return -1;
 	}
@@ -923,6 +961,16 @@ bool PcapSourceRadiotap::CheckForDLT(int dlt)
     free(dl);
     return found;
 }
+
+int PcapSourceRadiotap::FetchChannel() {
+    int chan;
+    RadiotapBSD bsd(interface.c_str());
+    if (!bsd.get80211(IEEE80211_IOC_CHANNEL, chan, 0, NULL)) {
+        return -1;
+    }
+    return chan;
+}
+
 #endif
 
 // ----------------------------------------------------------------------------
@@ -980,7 +1028,13 @@ KisPacketSource *pcapsource_wlanng_registrant(string in_name, string in_device,
 
 KisPacketSource *pcapsource_wrt54g_registrant(string in_name, string in_device,
                                               char *in_err) {
-    return new PcapSourceWrt54g(in_name, in_device);
+    vector<string> devbits = StrTokenize(in_device, ":");
+
+    if (devbits.size() < 2) {
+		return new PcapSourceWrt54g(in_name, in_device);
+    }
+
+	return new PcapSourceWrt54g(in_name, devbits[1]);
 }
 #endif
 
@@ -1094,7 +1148,8 @@ int monitor_cisco_wifix(const char *in_dev, int initch, char *in_err, void **in_
     vector<string> devbits = StrTokenize(in_dev, ":");
 
     if (devbits.size() < 2) {
-        snprintf(in_err, STATUS_MAX, "Invalid device pair '%s'", in_dev);
+        snprintf(in_err, STATUS_MAX, "Invalid device pair '%s'.  Proper device "
+				 "for cisco_wifix is eth?:wifi?.", in_dev);
         return -1;
     }
 
@@ -1622,6 +1677,50 @@ int unmonitor_ipw2100(const char *in_dev, int initch, char *in_err, void **in_if
     return 1;
 }
 
+int monitor_ipw2200(const char *in_dev, int initch, char *in_err, 
+					void **in_if, void *in_ext) {
+    // Allocate a tracking record for the interface settings and remember our
+    // setup
+    linux_ifparm *ifparm = (linux_ifparm *) malloc(sizeof(linux_ifparm));
+    (*in_if) = ifparm;
+
+    if (Ifconfig_Get_Flags(in_dev, in_err, &ifparm->flags) < 0) {
+        return -1;
+    }
+
+    if ((ifparm->channel = Iwconfig_Get_Channel(in_dev, in_err)) < 0)
+        return -1;
+
+    if (Iwconfig_Get_Mode(in_dev, in_err, &ifparm->mode) < 0)
+        return -1;
+
+    // Call the normal monitor mode
+    return (monitor_wext(in_dev, initch, in_err, in_if, in_ext));
+}
+
+int unmonitor_ipw2200(const char *in_dev, int initch, char *in_err, 
+					  void **in_if, void *in_ext) {
+    // Restore initial monitor header
+    // linux_ifparm *ifparm = (linux_ifparm *) (*in_if);
+
+    linux_ifparm *ifparm = (linux_ifparm *) (*in_if);
+
+    if (Ifconfig_Set_Flags(in_dev, in_err, ifparm->flags) < 0) {
+        return -1;
+    }
+
+    if (Iwconfig_Set_Mode(in_dev, in_err, ifparm->mode) < 0)
+        return -1;
+
+	// James says this wants to be set to channel 0 for proper scanning operation
+	if (Iwconfig_Set_Channel(in_dev, 0, in_err) < 0)
+		return -1;
+
+    free(ifparm);
+
+    return 1;
+}
+
 // "standard" wireless extension monitor mode
 int monitor_wext(const char *in_dev, int initch, char *in_err, void **in_if, void *in_ext) {
     int mode;
@@ -1785,16 +1884,43 @@ int monitor_wlanng_avs(const char *in_dev, int initch, char *in_err, void **in_i
     return 0;
 }
 
-int monitor_wrt54g(const char *in_dev, int initch, char *in_err, void **in_if, void *in_ext) {
+int monitor_wrt54g(const char *in_dev, int initch, char *in_err, void **in_if, 
+				   void *in_ext) {
     char cmdline[2048];
+	int mode;
 
-    snprintf(cmdline, 2048, "/usr/sbin/wl monitor 1");
-    if (RunSysCmd(cmdline) < 0) {
-        snprintf(in_err, 1024, "Unable to execute '%s'", cmdline);
-        return -1;
-    }
+    vector<string> devbits = StrTokenize(in_dev, ":");
 
-    return 0;
+    if (devbits.size() < 2) {
+		snprintf(cmdline, 2048, "/usr/sbin/wl monitor 1");
+		if (RunSysCmd(cmdline) < 0) {
+			snprintf(in_err, 1024, "Unable to execute '%s'", cmdline);
+			return -1;
+		}
+    } else {
+		// Bring the device up, zero its ip, and set promisc
+		if (Ifconfig_Delta_Flags(devbits[0].c_str(), in_err, IFF_UP | 
+								 IFF_RUNNING | IFF_PROMISC) < 0)
+			return -1;
+
+		// Get mode and see if we're already in monitor, don't try to go in
+		// if we are (cisco doesn't like rfmon rfmon)
+		if (Iwconfig_Get_Mode(devbits[0].c_str(), in_err, &mode) < 0)
+			return -1;
+
+		if (mode != LINUX_WLEXT_MONITOR) {
+			// Set it
+			if (Iwconfig_Set_Mode(devbits[0].c_str(), in_err, 
+								  LINUX_WLEXT_MONITOR) < 0) {
+				snprintf(in_err, STATUS_MAX, "Unable to set iwconfig monitor "
+						 "mode.  If you are using an older wrt54g, try specifying "
+						 "only the ethernet device, not ethX:prismX");
+				return -1;
+			}
+		}
+	}
+
+	return 1;
 }
 
 #endif
@@ -1893,10 +2019,9 @@ int monitor_openbsd_prism2(const char *in_dev, int initch, char *in_err, void **
         close(s);
         snprintf(in_err, 1024, "Power management ioctl failed: %s",
                  strerror(errno));
-        return -1;
     }
 
-    // Lower AP density, better radio threshold settings?
+    // Lower AP density, better radio threshold settings? 
     bzero((char *)&wreq, sizeof(wreq));
     wreq.wi_len = WI_MAX_DATALEN;
     wreq.wi_type = WI_RID_SYSTEM_SCALE;
@@ -1906,7 +2031,6 @@ int monitor_openbsd_prism2(const char *in_dev, int initch, char *in_err, void **
         close(s);
         snprintf(in_err, 1024, "AP Density ioctl failed: %s",
                  strerror(errno));
-        return -1;
     }
 
     // Enable driver processing of 802.11b frames
@@ -1932,7 +2056,6 @@ int monitor_openbsd_prism2(const char *in_dev, int initch, char *in_err, void **
         close(s);
         snprintf(in_err, 1024, "Roaming disable ioctl failed: %s",
                  strerror(errno));
-        return -1;
     }
 
     // Enable monitor mode
@@ -2039,6 +2162,31 @@ int chancontrol_prism54g(const char *in_dev, int in_ch, char *in_err, void *in_e
     return 0;
 }
 
+int chancontrol_ipw2100(const char *in_dev, int in_ch, char *in_err, void *in_ext) {
+    // Introduce a slight delay to let the driver settle, a la orinoco.  I don't
+    // like doing this at all since it introduces hiccups into the channel control
+    // process, but....
+
+    int ret = 0;
+
+    ret = chancontrol_wext(in_dev, in_ch, in_err, in_ext);
+    usleep(5000);
+
+    return ret;
+}
+
+int chancontrol_ipw2200(const char *in_dev, int in_ch, char *in_err, void *in_ext) {
+	// Lets see if this really needs the channel change delay like the 2100 did
+    int ret = 0;
+
+    ret = chancontrol_wext(in_dev, in_ch, in_err, in_ext);
+	// Drop a tiny sleep in here to let the channel set settle, otherwise we
+	// run the risk of the card freaking out
+	usleep(7000);
+
+    return ret;
+}
+
 #endif
 
 #ifdef SYS_LINUX
@@ -2121,21 +2269,21 @@ int chancontrol_openbsd_prism2(const char *in_dev, int in_ch, char *in_err,
 }
 #endif
 
-#ifdef SYS_FREEBSD
-FreeBSD::FreeBSD(const char *name) : ifname(name) {
+#ifdef HAVE_RADIOTAP
+RadiotapBSD::RadiotapBSD(const char *name) : ifname(name) {
     s = -1;
 }
 
-FreeBSD::~FreeBSD() {
+RadiotapBSD::~RadiotapBSD() {
     if (s >= 0)
         close(s);
 }
 
-const char *FreeBSD::geterror() const {
+const char *RadiotapBSD::geterror() const {
 	return errstr;
 }
 
-void FreeBSD::perror(const char *fmt, ...) {
+void RadiotapBSD::perror(const char *fmt, ...) {
 	char *cp;
 
 	snprintf(errstr, sizeof(errstr), "%s: ", ifname.c_str());
@@ -2148,14 +2296,14 @@ void FreeBSD::perror(const char *fmt, ...) {
 	snprintf(cp, sizeof(errstr) - (cp - errstr), ": %s", strerror(errno));
 }
 
-void FreeBSD::seterror(const char *fmt, ...) {
+void RadiotapBSD::seterror(const char *fmt, ...) {
 	va_list ap;
 	va_start(ap, fmt);
 	vsnprintf(errstr, sizeof(errstr), fmt, ap);
 	va_end(ap);
 }
 
-bool FreeBSD::checksocket() {
+bool RadiotapBSD::checksocket() {
     if (s < 0) {
         s = socket(AF_INET, SOCK_DGRAM, 0);
         if (s < 0) {
@@ -2166,7 +2314,7 @@ bool FreeBSD::checksocket() {
     return true;
 }
 
-bool FreeBSD::getmediaopt(int& options, int& mode) {
+bool RadiotapBSD::getmediaopt(int& options, int& mode) {
     struct ifmediareq ifmr;
 
     if (!checksocket())
@@ -2189,7 +2337,7 @@ bool FreeBSD::getmediaopt(int& options, int& mode) {
     return true;
 }
 
-bool FreeBSD::setmediaopt(int options, int mode) {
+bool RadiotapBSD::setmediaopt(int options, int mode) {
     struct ifmediareq ifmr;
     struct ifreq ifr;
     int *mwords;
@@ -2237,7 +2385,44 @@ bool FreeBSD::setmediaopt(int options, int mode) {
     return true;
 }
 
-bool FreeBSD::get80211(int type, int& val, int len, u_int8_t *data) {
+#if defined(SYS_OPENBSD) || defined(SYS_NETBSD)
+
+     /* A simple 802.11 ioctl replacement for OpenBSD/NetBSD
+        Only used for channel set/get.
+        This should be re-written to be *BSD agnostic.  */
+
+bool RadiotapBSD::get80211(int type, int& val, int len, u_int8_t *data) {
+    struct ieee80211chanreq channel;
+
+    if (!checksocket())
+        return false;
+    memset(&channel, 0, sizeof(channel));
+    strlcpy(channel.i_name, ifname.c_str(), sizeof(channel.i_name));
+    if (ioctl(s, SIOCG80211CHANNEL, (caddr_t)&channel) < 0) {
+        perror("SIOCG80211CHANNEL ioctl failed");
+        return false;
+    }
+    val = channel.i_channel;
+    return true;
+}
+
+bool RadiotapBSD::set80211(int type, int val, int len, u_int8_t *data) {
+    struct ieee80211chanreq channel;
+
+    if (!checksocket())
+        return false;
+    strlcpy(channel.i_name, ifname.c_str(), sizeof(channel.i_name));
+    channel.i_channel = (u_int16_t)val;
+    if (ioctl(s, SIOCS80211CHANNEL, (caddr_t)&channel) == -1) {
+        perror("SIOCS80211CHANNEL ioctl failed");
+        return false;
+    }
+    return true;
+}
+
+#elif defined(SYS_FREEBSD) /* FreeBSD has a generic 802.11 ioctl */
+
+bool RadiotapBSD::get80211(int type, int& val, int len, u_int8_t *data) {
     struct ieee80211req ireq;
 
     if (!checksocket())
@@ -2255,7 +2440,7 @@ bool FreeBSD::get80211(int type, int& val, int len, u_int8_t *data) {
     return true;
 }
 
-bool FreeBSD::set80211(int type, int val, int len, u_int8_t *data) {
+bool RadiotapBSD::set80211(int type, int val, int len, u_int8_t *data) {
     struct ieee80211req ireq;
 
     if (!checksocket())
@@ -2269,7 +2454,9 @@ bool FreeBSD::set80211(int type, int val, int len, u_int8_t *data) {
     return (ioctl(s, SIOCS80211, &ireq) >= 0);
 }
 
-bool FreeBSD::getifflags(int& flags) {
+#endif
+
+bool RadiotapBSD::getifflags(int& flags) {
     struct ifreq ifr;
 
     if (!checksocket())
@@ -2280,11 +2467,15 @@ bool FreeBSD::getifflags(int& flags) {
         perror("SIOCGIFFLAGS ioctl failed");
         return false;
     }
+#if defined(SYS_FREEBSD)
     flags = (ifr.ifr_flags & 0xffff) | (ifr.ifr_flagshigh << 16);
+#elif defined(SYS_OPENBSD) || defined(SYS_NETBSD)
+    flags = ifr.ifr_flags;
+#endif
     return true;
 }
 
-bool FreeBSD::setifflags(int flags) {
+bool RadiotapBSD::setifflags(int flags) {
     struct ifreq ifr;
 
     if (!checksocket())
@@ -2292,8 +2483,12 @@ bool FreeBSD::setifflags(int flags) {
 
     memset(&ifr, 0, sizeof(ifr));
     strncpy(ifr.ifr_name, ifname.c_str(), sizeof (ifr.ifr_name));
+#if defined(SYS_FREEBSD)
     ifr.ifr_flags = flags & 0xffff;
     ifr.ifr_flagshigh = flags >> 16;
+#elif defined(SYS_OPENBSD) || (SYS_NETBSD)
+    ifr.ifr_flags = flags;
+#endif
     if (ioctl(s, SIOCSIFFLAGS, (caddr_t)&ifr) < 0) {
         perror("SIOCSIFFLAGS ioctl failed");
         return false;
@@ -2301,7 +2496,7 @@ bool FreeBSD::setifflags(int flags) {
     return true;
 }
 
-bool FreeBSD::monitor_enable(int initch) {
+bool RadiotapBSD::monitor_enable(int initch) {
     /*
      * Collect current state.
      */
@@ -2320,7 +2515,11 @@ bool FreeBSD::monitor_enable(int initch) {
 	(void) setmediaopt(prev_options, prev_mode);
         return false;
     }
+#if defined(SYS_FREEBSD)
     if (!setifflags(prev_flags | IFF_PPROMISC | IFF_UP)) {
+#elif defined(SYS_OPENBSD) || defined(SYS_NETBSD)
+    if (!setifflags(prev_flags | IFF_PROMISC | IFF_UP)) {
+#endif
 	(void) set80211(IEEE80211_IOC_CHANNEL, prev_chan, 0, NULL);
 	(void) setmediaopt(prev_options, prev_mode);
         return false;
@@ -2328,7 +2527,7 @@ bool FreeBSD::monitor_enable(int initch) {
     return true;
 }
 
-bool FreeBSD::monitor_reset(int initch) {
+bool RadiotapBSD::monitor_reset(int initch) {
     (void) setifflags(prev_flags);
     /* NB: reset the current channel before switching modes */
     (void) set80211(IEEE80211_IOC_CHANNEL, prev_chan, 0, NULL);
@@ -2336,7 +2535,7 @@ bool FreeBSD::monitor_reset(int initch) {
     return true;
 }
 
-bool FreeBSD::chancontrol(int in_ch) {
+bool RadiotapBSD::chancontrol(int in_ch) {
     if (!set80211(IEEE80211_IOC_CHANNEL, in_ch, 0, NULL)) {
 	perror("failed to set channel %u", in_ch);
 	return false;
@@ -2344,22 +2543,30 @@ bool FreeBSD::chancontrol(int in_ch) {
 	return true;
 }
 
-int monitor_freebsd(const char *in_dev, int initch, char *in_err, void **in_if, void *in_ext) {
-    FreeBSD *bsd = new FreeBSD(in_dev);
-    if (!bsd->monitor_enable(initch)) {
-        strcpy(in_err, bsd->geterror());
-	delete bsd;
-        return -1;
-    } else {
-	*(FreeBSD **)in_if = bsd;
-        return 0;
-    }
+int monitor_bsd(const char *in_dev, int initch, char *in_err, void **in_if, void *in_ext) {
+	RadiotapBSD *bsd = new RadiotapBSD(in_dev);
+	if (!bsd->monitor_enable(initch)) {
+		strlcpy(in_err, bsd->geterror(), 1024);
+		delete bsd;
+		return -1;
+	} else {
+		*(RadiotapBSD **)in_if = bsd;
+#ifdef SYS_OPENBSD
+		// Temporary hack around OpenBSD drivers not standardising on whether FCS
+		// bytes are appended, nor having any method to indicate their presence. 
+		if (strncmp(in_dev, "ath", 3) == 0 || strncmp(in_dev, "ural", 4) == 0) {
+			PcapSource *psrc = (PcapSource *) in_ext;
+			psrc->fcsbytes = 4;
+		}
+#endif
+		return 0;
+	}
 }
 
-int unmonitor_freebsd(const char *in_dev, int initch, char *in_err, void **in_if, void *in_ext) {
-    FreeBSD *bsd = *(FreeBSD **)in_if;
+int unmonitor_bsd(const char *in_dev, int initch, char *in_err, void **in_if, void *in_ext) {
+    RadiotapBSD *bsd = *(RadiotapBSD **)in_if;
     if (!bsd->monitor_reset(initch)) {
-        strcpy(in_err, bsd->geterror());
+        strlcpy(in_err, bsd->geterror(), 1024);
         delete bsd;
         return -1;
     } else {
@@ -2368,16 +2575,16 @@ int unmonitor_freebsd(const char *in_dev, int initch, char *in_err, void **in_if
     }
 }
 
-int chancontrol_freebsd(const char *in_dev, int in_ch, char *in_err, void *in_ext) {
-    FreeBSD bsd(in_dev);
+int chancontrol_bsd(const char *in_dev, int in_ch, char *in_err, void *in_ext) {
+    RadiotapBSD bsd(in_dev);
     if (!bsd.chancontrol(in_ch)) {
-	strcpy(in_err, bsd.geterror());
+	strlcpy(in_err, bsd.geterror(), 1024);
 	return -1;
     } else {
 	return 0;
     }
 }
-#endif /* SYS_FREEBSD */
+#endif /* HAVE_RADIOTAP */
 
 #endif
 

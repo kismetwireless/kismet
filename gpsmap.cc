@@ -19,7 +19,7 @@
 #include "config.h"
 
 // Prevent make dep warnings
-#if (defined(HAVE_IMAGEMAGICK) && defined(HAVE_GPS) && defined(HAVE_GMP))
+#if (defined(HAVE_IMAGEMAGICK) && defined(HAVE_GMP))
 
 #include <stdio.h>
 #ifdef HAVE_PTHREAD
@@ -57,6 +57,8 @@
 #if (MagickLibVersion < 0x600)
 #define MagickTrue 1
 #define MagickFalse 0
+
+typedef unsigned int MagickBooleanType;
 #endif
 
 /* Mapscale / pixelfact is meter / pixel */
@@ -362,7 +364,7 @@ int ignore_under_count = 0, ignore_under_distance = 0;
 int draw_x_offset = 0, draw_y_offset = 0;
 
 // Map source
-int mapsource = 4;
+int mapsource = -1;
 
 // Interpolation resolution
 int power_resolution = 5;
@@ -616,6 +618,7 @@ int DrawFeatherCircle(int in_width, Image *in_img, int in_xpos, int in_ypos,
         return -1;
     }
 
+    alpha_img->matte = (MagickBooleanType) false;
     // Draw a simple color over the entire base and let the alpha channel
     // control where it gets drawn
     base_di->fill = circlecolor;
@@ -750,7 +753,7 @@ void MergeNetData(vector<wireless_network *> in_netdata) {
                     onet->beacon_info = inet->beacon_info;
 
                 onet->cloaked = inet->cloaked;
-                onet->wep = inet->wep;
+                onet->crypt_set = inet->crypt_set;
             }
 
             if (onet->first_time < inet->first_time)
@@ -1319,17 +1322,17 @@ void AssignNetColors() {
                 if (map_iter->wnet->type == network_adhoc || map_iter->wnet->type == network_probe)
                     map_iter->wnet->manuf_ref = MatchBestManuf(client_manuf_map, map_iter->wnet->bssid,
                                                                map_iter->wnet->ssid, map_iter->wnet->channel,
-                                                               map_iter->wnet->wep, map_iter->wnet->cloaked,
+                                                               map_iter->wnet->crypt_set, map_iter->wnet->cloaked,
                                                                &map_iter->wnet->manuf_score);
                 else
                     map_iter->wnet->manuf_ref = MatchBestManuf(ap_manuf_map, map_iter->wnet->bssid,
                                                                map_iter->wnet->ssid, map_iter->wnet->channel,
-                                                               map_iter->wnet->wep, map_iter->wnet->cloaked,
+                                                               map_iter->wnet->crypt_set, map_iter->wnet->cloaked,
                                                                &map_iter->wnet->manuf_score);
 
                 if (map_iter->wnet->manuf_score == manuf_max_score) {
                     map_iter->color_index = "#0000FF";
-                } else if (map_iter->wnet->wep) {
+                } else if (map_iter->wnet->crypt_set) {
                     map_iter->color_index = "#FF0000";
                 } else {
                     map_iter->color_index = "#00FF00";
@@ -1601,15 +1604,15 @@ int InverseWeight(int in_x, int in_y, int in_fuzz, double in_scale) { /*FOLD00*/
     weight_point_rec wprec;
     for (int cury = min_y; cury < max_y; cury++) {
         for (int curx = min_x; curx < max_x; curx++) {
+            if (power_input_map[(map_width * cury) + curx] <= 0)
+                continue;
+
             double ldist = sqrt(((in_x - curx)*(in_x - curx)) +
                     ((in_y - cury)*(in_y - cury)));
 
             if ((int) ldist > offset)
                 continue;
             
-            if (power_input_map[(map_width * cury) + curx] <= 0)
-                continue;
-
             if (maxdist < ldist)
                 maxdist = ldist;
 
@@ -1625,10 +1628,12 @@ int InverseWeight(int in_x, int in_y, int in_fuzz, double in_scale) { /*FOLD00*/
         return 0;
 
     // Find the sum of all distances for the bottom half of the eq
+#if 0
     double bottom_sum = 0;
     for (unsigned int x = 0; x < wpvec.size(); x++) 
         bottom_sum += square((maxdist - wpvec[x].ldist)/
                 (maxdist * wpvec[x].ldist));
+#endif
 
     // Now get the weighting and add all the points
     for (unsigned int x = 0; x < wpvec.size(); x++)
@@ -2368,6 +2373,14 @@ void DrawNetCenterText(vector<gps_network *> in_nets, Image *in_img, DrawInfo *i
     for (unsigned int x = 0; x < in_nets.size(); x++) {
         gps_network *map_iter = in_nets[x];
 
+        map_iter->label.x = 0;
+        map_iter->label.y = 0;
+        map_iter->label.w = 0;
+        map_iter->label.h = 0;
+    }
+    for (unsigned int x = 0; x < in_nets.size(); x++) {
+        gps_network *map_iter = in_nets[x];
+
         // Skip networks w/ no determined coordinates
         if (map_iter->max_lat == 90)
             continue;
@@ -2434,7 +2447,7 @@ void DrawNetCenterText(vector<gps_network *> in_nets, Image *in_img, DrawInfo *i
                                                                    map_iter->wnet->bssid,
                                                                    map_iter->wnet->ssid, 
                                                                    map_iter->wnet->channel,
-                                                                   map_iter->wnet->wep, 
+                                                                   map_iter->wnet->crypt_set, 
                                                                    map_iter->wnet->cloaked,
                                                                    &map_iter->wnet->manuf_score);
                         if (map_iter->wnet->manuf_ref) {
@@ -2521,27 +2534,27 @@ void DrawNetCenterText(vector<gps_network *> in_nets, Image *in_img, DrawInfo *i
             break;
         }
 
-	map_iter->label.x = (int) mapx + yoff;
-	map_iter->label.y = (int) mapy + xoff;
-	map_iter->label.h = (int) metrics.height;
-	map_iter->label.w = (int) metrics.width;
+        map_iter->label.x = (int) mapx + yoff;
+        map_iter->label.y = (int) mapy + xoff;
+        map_iter->label.h = (int) metrics.height;
+        map_iter->label.w = (int) metrics.width;
 
-	while (1) {
-	    unsigned int y;
-	    for (y = 0; y < x; y++) {
-		gps_network *map_iter1 = in_nets[y];
-		if ((map_iter1->label.x + map_iter1->label.w > map_iter->label.x)
-		 && (map_iter1->label.x < map_iter->label.x + map_iter->label.w)
-		 && (map_iter1->label.y + map_iter1->label.h > map_iter->label.y)
-		 && (map_iter1->label.y < map_iter->label.y + map_iter->label.h)) {
-			map_iter->label.y = map_iter1->label.y + map_iter1->label.h;
-			break;
-		}
-	    }
-	    if (x == y) break;
-	}
+        while (1) {
+            unsigned int y;
+            for (y = 0; y < x; y++) {
+                gps_network *map_iter1 = in_nets[y];
+                if ((map_iter1->label.x + map_iter1->label.w > map_iter->label.x)
+                 && (map_iter1->label.x < map_iter->label.x + map_iter->label.w)
+                 && (map_iter1->label.y + map_iter1->label.h > map_iter->label.y)
+                 && (map_iter1->label.y < map_iter->label.y + map_iter->label.h)) {
+                    map_iter->label.y = map_iter1->label.y + map_iter1->label.h;
+                    break;
+                }
+            }
+            if (x == y) break;
+        }
 
-        snprintf(prim, 1024, "fill-opacity 100%% stroke-opacity 100%% text %d,%d \"%s\"",
+        snprintf(prim, 1024, "fill-opacity 100%% stroke-opacity 0%% text %d,%d \"%s\"",
                  map_iter->label.x, map_iter->label.y, text);
 
         in_di->primitive = prim;
@@ -2764,8 +2777,10 @@ int DrawLegendComposite(vector<gps_network *> in_nets, Image **in_img,
 
         if (map_iter->wnet->manuf_score == manuf_max_score) {
             default_nets++;
-        } else if (map_iter->wnet->wep) {
-            wepped_nets++;
+        } else if (map_iter->wnet->crypt_set) {
+			// Handle WPA only and no wep
+			if (map_iter->wnet->crypt_set != crypt_wpa)
+				wepped_nets++;
         } else {
             unwepped_nets++;
         }
@@ -3325,13 +3340,13 @@ int Usage(char* argv, int ec = 1) {
            "  -z, --threads <num>            Number of simultaneous threads used for\n"
            "                                  complex operations [Default: 1]\n"
            "  -N, --pure-avg-center          Use old pure-average network center finding\n"
-           "  -S, --map-source <#>           Source to download maps from [Default: 4]\n"
+           "  -S, --map-source <#>           Source to download maps from [Default: -1]\n"
            "                                 -1 Null map (blank background image)\n"
-           "                                  0 MapBlast\n"
-           "                                  1 MapPoint (BROKEN)\n"
+           "                                  0 MapBlast (UNAVAILABLE)\n"
+           "                                  1 MapPoint (UNAVAILABLE)\n"
            "                                  2 TerraServer (photo)\n"
            "                                  3 Tiger US Census (vector)\n"
-           "                                  4 EarthaMaps (vector)\n"
+           "                                  4 EarthaMaps (vector, UNAVAILABLE)\n"
            "                                  5 TerraServer (topo)\n"
            "  -D, --keep-gif                 Keep the downloaded map\n"
            "  -V, --version                  GPSMap version\n"
@@ -4287,6 +4302,7 @@ int main(int argc, char *argv[]) {
             CatchException(&excep);
             return -1;
         }
+        alpha_img->matte = (MagickBooleanType) false;
 
         // Composite the alpha and new map images
         // base is now the map with the new alpha channel

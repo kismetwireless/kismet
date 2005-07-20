@@ -100,7 +100,7 @@ typedef struct wireless_client {
         manuf_ref = NULL;
 
         channel = 0;
-        wep = 0;
+        crypt_set = 0;
 
         data_packets = crypt_packets = interesting_packets = 0;
 
@@ -146,6 +146,58 @@ typedef struct wireless_client {
         decrypted = 0;
     }
 
+#if 0
+	wireless_client& operator= (const wireless_client& op) {
+		type = op.type;
+		first_time = op.first_time;
+		last_time = op.last_time;
+		mac = op.mac;
+		channel = op.channel;
+		crypt_set = op.crypt_set;
+		manuf_ref = op.manuf_ref;
+		manuf_score = op.manuf_score;
+		data_packets = op.data_packets;
+		crypt_packets = op.crypt_packets;
+		interesting_packets = op.interesting_packets;
+		gps_fixed = op.gps_fixed;
+		min_lat = op.min_lat;
+		min_lon = op.min_lon;
+		min_alt = op.min_alt;
+		min_spd = op.min_spd;
+		max_lat = op.max_lat;
+		max_lon = op.max_lon;
+		max_alt = op.max_alt;
+		max_spd = op.max_spd;
+		aggregate_lat = op.aggregate_lat;
+		aggregate_lon = op.aggregate_lon;
+		aggregate_alt = op.aggregate_alt;
+		aggregate_points = op.aggregate_points;
+		maxrate = op.maxrate;
+		maxseenrate = op.maxseenrate;
+		encoding_set = op.encoding_set;
+		metric = op.metric;
+		quality = op.quality;
+		signal = op.signal;
+		noise = op.noise;
+		best_quality = op.best_quality;
+		best_signal = op.best_signal;
+		best_noise = op.best_noise;
+		best_lat = op.best_lat;
+		best_lon = op.best_lon;
+		best_alt = op.best_alt;
+		ipdata = op.ipdata;
+#ifdef __TCP_CLIENT_H__
+		tcpclient = op.tcpclient;
+#endif
+		uidata = op.uidata;
+		datasize = op.datasize;
+		last_sequence = op.last_sequence;
+		decrypted = op.decrypted;
+
+		return *this;
+	}
+#endif
+
     client_type type;
 
     time_t first_time;
@@ -155,7 +207,7 @@ typedef struct wireless_client {
     mac_addr mac;
 
     int channel;
-    int wep;
+    int crypt_set;
 
     // Manufacturer info - mac address key to the manufacturer map and score for
     // easy-default maps
@@ -226,7 +278,7 @@ typedef struct wireless_network {
         llc_packets = data_packets = crypt_packets = interesting_packets = 0;
 
         channel = 0;
-        wep = 0;
+		crypt_set = 0;
 
         cloaked = 0;
 
@@ -289,6 +341,86 @@ typedef struct wireless_network {
 
     }
 
+#if 0
+	wireless_network& operator= (const wireless_network& op) {
+		type = op.type;
+		ssid = op.ssid;
+		beacon_info = op.beacon_info;
+		manuf_ref = op.manuf_ref;
+		manuf_score = op.manuf_score;
+		llc_packets = op.llc_packets;
+		data_packets = op.data_packets;
+		crypt_packets = op.crypt_packets;
+		interesting_packets = op.interesting_packets;
+		channel = op.channel;
+		crypt_set = op.crypt_set;
+		bssid = op.bssid;
+		cloaked = op.cloaked;
+		last_time = op.last_time;
+		first_time = op.first_time;
+		beacon = op.beacon;
+		listed = op.listed;
+		carrier_set = op.carrier_set;
+		encoding_set = op.encoding_set;
+		ipdata = op.ipdata;
+		for (map<string, cdp_packet>::const_iterator x = op.cisco_equip.begin();
+			 x != op.cisco_equip.end(); ++x) {
+			cisco_equip[x->first] = x->second;
+		}
+		gps_fixed = op.gps_fixed;
+		min_lat = op.min_lat;
+		min_lon = op.min_lon;
+		min_alt = op.min_alt;
+		min_spd = op.min_spd;
+		max_lat = op.max_lat;
+		max_lon = op.max_lon;
+		max_alt = op.max_alt;
+		max_spd = op.max_spd;
+		aggregate_lat = op.aggregate_lat;
+		aggregate_lon = op.aggregate_lon;
+		aggregate_alt = op.aggregate_alt;
+		aggregate_points = op.aggregate_points;
+		maxrate = op.maxrate;
+		maxseenrate = op.maxseenrate;
+		metric = op.metric;
+		quality = op.quality;
+		signal = op.signal;
+		noise = op.noise;
+		best_quality = op.best_quality;
+		best_signal = op.best_signal;
+		best_noise = op.best_noise;
+		best_lat = op.best_lat;
+		best_lon = op.best_lon;
+		best_alt = op.best_alt;
+		for (map<mac_addr, wireless_client *>::const_iterator x = 
+			 op.client_map.begin(); x != op.client_map.end(); ++x) {
+			client_map[x->first] = x->second;
+			client_vec.push_back(x->second);
+		}
+		client_disconnects = op.client_disconnects;
+		last_sequence = op.last_sequence;
+#ifdef __TCPCLIENT_H__
+		tcpclient = op.tcpclient;
+		idle_time = op.idle_time;
+		dispnet = op.dispnet;
+#endif
+		uidata = op.uidata;
+		datasize = op.datasize;
+		turbocell_nid = op.turbocell_nid;
+		turbocell_mode = op.turbocell_mode;
+		turbocell_name = op.turbocell_name;
+		decrypted = op.decrypted;
+		for (map<uint32_t, int>::const_iterator x = op.iv_map.begin();
+			 x != op.iv_map.end(); ++x) {
+			iv_map[x->first] = x->second;
+		}
+		dupeiv_packets = op.dupeiv_packets;
+		bss_timestamp = op.bss_timestamp;
+
+		return *this;
+	}
+#endif
+
     wireless_network_type type;
 
     string ssid;
@@ -308,7 +440,7 @@ typedef struct wireless_network {
     // info extracted from packets
     //uint8_t bssid[MAC_LEN];
     int channel;
-    int wep;
+	int crypt_set;
 
     mac_addr bssid;
 

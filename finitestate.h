@@ -71,7 +71,8 @@ protected:
 class ProbeNoJoinAutomata : public FiniteAutomata {
 public:
     ProbeNoJoinAutomata(Packetracker *in_ptracker, Alertracker *in_atracker,
-                        alert_time_unit in_unit, int in_rate, int in_burstrate);
+                        alert_time_unit in_unit, int in_rate, 
+						alert_time_unit in_bunit, int in_burstrate);
     ~ProbeNoJoinAutomata();
 
     // States:
@@ -95,7 +96,8 @@ protected:
 class DisassocTrafficAutomata : public FiniteAutomata {
 public:
     DisassocTrafficAutomata(Packetracker *in_ptracker, Alertracker *in_atracker,
-                            alert_time_unit in_unit, int in_rate, int in_burstrate);
+                            alert_time_unit in_unit, int in_rate, 
+							alert_time_unit in_bunit, int in_burstrate);
     ~DisassocTrafficAutomata();
 
     int ProcessPacket(const packet_info *in_info);
@@ -123,7 +125,8 @@ public:
     };
 
     BssTimestampAutomata(Packetracker *in_ptracker, Alertracker *in_atracker,
-                         alert_time_unit in_unit, int in_rate, int in_burstrate);
+                         alert_time_unit in_unit, int in_rate, 
+						 alert_time_unit in_bunit, int in_burstrate);
     ~BssTimestampAutomata();
 
     int ProcessPacket(const packet_info *in_info);
@@ -137,7 +140,8 @@ protected:
 class WepRebroadcastAutomata : public FiniteAutomata {
 public:
     WepRebroadcastAutomata(Packetracker *in_ptracker, Alertracker *in_atracker,
-                           alert_time_unit in_unit, int in_rate, int in_burstrate);
+                           alert_time_unit in_unit, int in_rate, 
+						   alert_time_unit in_bunit, int in_burstrate);
     ~WepRebroadcastAutomata();
 
     int ProcessPacket(const packet_info *in_info);

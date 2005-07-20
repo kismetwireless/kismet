@@ -104,7 +104,9 @@ void Frontend::PopulateGroups(TcpClient *in_client) {
             group->tagged = 0;
             group->expanded = 0;
             group->persistent = persistent;
-            group->virtnet = net;
+            // group->virtnet = NULL;
+			group->virtnet = new wireless_network;
+			*(group->virtnet) = *(net);
 
             // Register it
             group_tag_map[group->tag] = group;
@@ -127,7 +129,7 @@ void Frontend::PopulateGroups(TcpClient *in_client) {
     }
 
     // Update us
-    UpdateGroups();
+    // UpdateGroups();
 
 }
 
@@ -147,9 +149,16 @@ void Frontend::UpdateGroups() {
         // Groups just get copied over from the first element if we're not a group
         // or if, somehow, we're a subhost
         if (dnet->type == group_host || dnet->type == group_sub) {
-            dnet->virtnet = dnet->networks[0];
+            // dnet->virtnet = dnet->networks[0];
+			if (dnet->virtnet == NULL) {
+				dnet->virtnet = new wireless_network;
+			}
+			*(dnet->virtnet) = *(dnet->networks[0]);
 
-            curtime = dnet->virtnet->tcpclient->FetchTime();
+			if (dnet->virtnet->tcpclient != NULL) {
+				if (dnet->virtnet->tcpclient->Valid()) 
+					curtime = dnet->virtnet->tcpclient->FetchTime();
+			}
 
             dnet->virtnet->idle_time = curtime - dnet->virtnet->last_time;
 
@@ -158,7 +167,7 @@ void Frontend::UpdateGroups() {
                                                           dnet->virtnet->bssid, 
                                                           dnet->virtnet->ssid,
                                                           dnet->virtnet->channel, 
-                                                          dnet->virtnet->wep, 
+                                                          dnet->virtnet->crypt_set, 
                                                           dnet->virtnet->cloaked,
                                                           &dnet->virtnet->manuf_score);
 
@@ -166,18 +175,9 @@ void Frontend::UpdateGroups() {
                  clnum++) {
                 wireless_client *cl = dnet->virtnet->client_vec[clnum];
                 if (cl->manuf_ref == NULL)
-                    cl->manuf_ref = MatchBestManuf(client_manuf_map, cl->mac, "", 0, 0, 0, &cl->manuf_score);
+                    cl->manuf_ref = MatchBestManuf(client_manuf_map, cl->mac, "", 
+												   0, 0, 0, &cl->manuf_score);
             }
-
-            // Update the group name if it's <no ssid> and the ssid is set or if it's a
-            // turbocell network
-            /*
-            if ((dnet->name == NOSSID || dnet->virtnet->type == network_turbocell) &&
-                dnet->virtnet->ssid != NOSSID) {
-                dnet->name = dnet->virtnet->ssid;
-                group_name_map[dnet->tag] = dnet->name;
-                }
-                */
 
             continue;
         }
@@ -188,7 +188,7 @@ void Frontend::UpdateGroups() {
         }
 
         // Otherwise we need to destroy the old virtual network and make a new one
-        if (dnet->virtnet != dnet->networks[0])
+        if (dnet->virtnet != NULL)
             delete dnet->virtnet;
         dnet->virtnet = new wireless_network;
 
@@ -197,7 +197,11 @@ void Frontend::UpdateGroups() {
         for (unsigned int y = 0; y < dnet->networks.size(); y++) {
             wireless_network *wnet = dnet->networks[y];
 
-            curtime = wnet->tcpclient->FetchTime();
+			// safety net this
+			if (wnet->tcpclient != NULL) {
+				if (wnet->tcpclient->Valid())
+					curtime = wnet->tcpclient->FetchTime();
+			}
 
             // Mask the bssid out
             for (unsigned int mask = 0; mask < bssid_matched; mask++) {
@@ -287,8 +291,7 @@ void Frontend::UpdateGroups() {
 
             // Add all the clients
             for (map<mac_addr, wireless_client *>::iterator cli = 
-                 wnet->client_map.begin();
-                 cli != wnet->client_map.end(); ++cli)
+                 wnet->client_map.begin(); cli != wnet->client_map.end(); ++cli)
                 dnet->virtnet->client_map[cli->second->mac] = cli->second;
 
             // Negative the channel if we can't agree.  Any channel takes precedence
@@ -301,10 +304,11 @@ void Frontend::UpdateGroups() {
                 dnet->virtnet->channel = 0;
 
             // If one channel isn't wep'ed, the group isn't wep'd
-            if (dnet->virtnet->wep == -1)
-                dnet->virtnet->wep = wnet->wep;
-            else if (wnet->wep == 0)
-                dnet->virtnet->wep = 0;
+            if (wnet->crypt_set == 0)
+                dnet->virtnet->crypt_set = 0;
+			else
+				dnet->virtnet->crypt_set = (dnet->virtnet->crypt_set &
+											wnet->crypt_set);
 
             // If one channel is cloaked, the group is cloaked
             if (dnet->virtnet->cloaked == -1)
@@ -362,7 +366,7 @@ void Frontend::UpdateGroups() {
         dnet->virtnet->manuf_ref = MatchBestManuf(ap_manuf_map, dnet->virtnet->bssid, 
                                                   dnet->virtnet->ssid,
                                                   dnet->virtnet->channel, 
-                                                  dnet->virtnet->wep, 
+                                                  dnet->virtnet->crypt_set, 
                                                   dnet->virtnet->cloaked,
                                                   &dnet->virtnet->manuf_score);
 
@@ -421,6 +425,7 @@ display_network *Frontend::CreateGroup(int in_persistent, string in_tag, string 
     core->name = in_name;
     core->expanded = 0;
     core->type = group_host;
+	core->virtnet = NULL;
 
     // Register it
     group_tag_map[core->tag] = core;
@@ -431,8 +436,8 @@ display_network *Frontend::CreateGroup(int in_persistent, string in_tag, string 
 }
 
 // Add a display network to a specific core group
-display_network *Frontend::AddToGroup(display_network *core, display_network *merger) {
-
+display_network *Frontend::AddToGroup(display_network *core, 
+									  display_network *merger) {
     // We need to do this nasty loop to find its posiition in the vector
     for (unsigned int x = 0; x < group_vec.size(); x++) {
         display_network *dnet = group_vec[x];
@@ -447,15 +452,19 @@ display_network *Frontend::AddToGroup(display_network *core, display_network *me
             wireless_network *snet = dnet->networks[y];
 
             // Destroy our assignment
-            map<mac_addr, display_network *>::iterator gamitr = group_assignment_map.find(snet->bssid);
-            if (gamitr != group_assignment_map.end())
+            map<mac_addr, display_network *>::iterator gamitr = 
+				group_assignment_map.find(snet->bssid);
+            if (gamitr != group_assignment_map.end()) {
                 group_assignment_map.erase(gamitr);
+			}
 
-            // So far so good.  Now we see if we're supposed to be in any other networks,
-            // and remove the reference
-            map<mac_addr, string>::iterator bsgmitr = bssid_group_map.find(snet->bssid);
-            if (bsgmitr != bssid_group_map.end())
+            // So far so good.  Now we see if we're supposed to be in any 
+			// other networks, and remove the reference
+            map<mac_addr, string>::iterator bsgmitr = 
+				bssid_group_map.find(snet->bssid);
+            if (bsgmitr != bssid_group_map.end()) {
                 bssid_group_map.erase(bsgmitr);
+			}
 
             // Now we tell them we belong to the new network
             bssid_group_map[snet->bssid] = core->tag;
@@ -467,8 +476,16 @@ display_network *Frontend::AddToGroup(display_network *core, display_network *me
             snet->dispnet = core;
 
             // Update our virtnet since updategroups() needs it to be valid...
+			/*
             if (core->networks.size() == 0)
                 core->virtnet = snet;
+				*/
+			if (core->networks.size() == 0) {
+				if (core->virtnet == NULL) {
+					core->virtnet = new wireless_network;
+				}
+				*(core->virtnet) = *(snet);
+			}
 
             // And add us to the core network list
             core->networks.push_back(snet);
@@ -499,17 +516,63 @@ display_network *Frontend::AddToGroup(display_network *core, display_network *me
         break;
     }
 
-    if (core != NULL) {
-        if (core->networks.size() > 1)
-            core->type = group_bundle;
-        else
-            core->type = group_host;
-    }
+	if (core->networks.size() > 1) {
+		core->type = group_bundle;
+	} else {
+		core->type = group_host;
+	}
 
     return core;
 
 }
 
+// Add a display network to a specific core group
+display_network *Frontend::AddToGroup(display_network *core, 
+									  wireless_network *merger) {
+	if (core == NULL)
+		return NULL;
+	if (merger == NULL)
+		return core;
+
+	// Destroy the assignment if one exists of the old network
+	map<mac_addr, display_network *>::iterator gamitr =
+		group_assignment_map.find(merger->bssid);
+	if (gamitr != group_assignment_map.end()) {
+		group_assignment_map.erase(gamitr);
+	}
+
+	// Look for any historical networks we think we're supposed to
+	// be part of, and remove the reference
+	map<mac_addr, string>::iterator bsgmitr =
+		bssid_group_map.find(merger->bssid);
+	if (bsgmitr != bssid_group_map.end()) {
+		bssid_group_map.erase(bsgmitr);
+	}
+
+	// Now register us into the historical and current maps
+	bssid_group_map[merger->bssid] = core->tag;
+	group_assignment_map[merger->bssid] = core;
+
+	// Assign the display network
+	merger->dispnet = core;
+
+	// Update the virtnet
+	if (core->virtnet == NULL) {
+		core->virtnet = new wireless_network;
+		*(core->virtnet) = *(merger);
+	}
+
+	// And add us to the core network list
+	core->networks.push_back(merger);
+
+	if (core->networks.size() > 1) {
+		core->type = group_bundle;
+	} else {
+		core->type = group_host;
+	}
+
+    return core;
+}
 
 display_network *Frontend::GroupTagged() {
     display_network *core = NULL;

@@ -54,10 +54,8 @@ char *exec_name;
 const char *config_base = "kismet_drone.conf";
 
 GPSD *gps = NULL;
-#ifdef HAVE_GPS
 int gpsmode = 0;
 int gps_enable = 0;
-#endif
 
 // Timetracker
 Timetracker timetracker;
@@ -84,7 +82,6 @@ void CatchShutdown(int sig) {
 }
 
 int GpsEvent(Timetracker::timer_event *evt, void *parm) {
-#ifdef HAVE_GPS
     // The GPS only provides us a new update once per second we might
     // as well only update it here once a second
     if (gps_enable) {
@@ -102,8 +99,6 @@ int GpsEvent(Timetracker::timer_event *evt, void *parm) {
 
     // We want to be rescheduled
     return 1;
-#endif
-    return 0;
 }
 
 // Handle channel hopping... this is actually really simple.
@@ -126,6 +121,7 @@ int Usage(char *argv) {
            "  -C, --enable-capture-sources Comma separated list of named packet sources to use.\n"
            "  -p, --port <port>            TCPIP server port for stream connections\n"
            "  -a, --allowed-hosts <hosts>  Comma separated list of hosts allowed to connect\n"
+           "  -b, --bind-address <address>    Bind to this address. Default INADDR_ANY.\n"
            "  -s, --silent                 Don't send any output to console.\n"
            "  -N, --server-name            Server name\n"
            "  -v, --version                Kismet version\n"
@@ -146,16 +142,14 @@ int main(int argc, char *argv[]) {
 
     char status[STATUS_MAX];
     
-    string allowed_hosts;
+    string allowed_hosts, bind_addr;
     int tcpport = -1;
     int tcpmax;
 
     TcpStreamer streamer;
 
-#ifdef HAVE_GPS
     char gpshost[1024];
     int gpsport = -1;
-#endif
 
     int channel_hop = -1;
     int channel_velocity = 1;
@@ -185,6 +179,7 @@ int main(int argc, char *argv[]) {
         { "enable-capture-sources", required_argument, 0, 'C' },
         { "port", required_argument, 0, 'p' },
         { "allowed-hosts", required_argument, 0, 'a' },
+        { "bind-address", required_argument, 0, 'b'},
         { "server-name", required_argument, 0, 'N' },
         { "help", no_argument, 0, 'h' },
         { "version", no_argument, 0, 'v' },
@@ -204,7 +199,7 @@ int main(int argc, char *argv[]) {
     signal(SIGPIPE, SIG_IGN);
 
     while(1) {
-        int r = getopt_long(argc, argv, "f:c:C:p:a:N:hvsI:xXM:",
+        int r = getopt_long(argc, argv, "f:c:C:p:a:b:N:hvsI:xXM:",
                             long_options, &option_index);
         if (r < 0) break;
         switch(r) {
@@ -244,6 +239,9 @@ int main(int argc, char *argv[]) {
         case 'a':
             // Allowed
             allowed_hosts = string(optarg);
+            break;
+        case 'b':
+            bind_addr = string(optarg);
             break;
         case 'N':
             // Servername
@@ -353,9 +351,8 @@ int main(int argc, char *argv[]) {
         exit(1);
     }
 
-#ifdef HAVE_GPS
     if (conf->FetchOpt("gps") == "true") {
-        if (sscanf(conf->FetchOpt("gpshost").c_str(), "%1024[^:]:%d", gpshost, &gpsport) != 2) {
+        if (sscanf(conf->FetchOpt("gpshost").c_str(), "%1023[^:]:%d", gpshost, &gpsport) != 2) {
             fprintf(stderr, "Invalid GPS host in config (host:port required)\n");
             exit(1);
         }
@@ -389,7 +386,8 @@ int main(int argc, char *argv[]) {
     // Update GPS coordinates and handle signal loss if defined
     timetracker.RegisterTimer(SERVER_TIMESLICES_SEC, NULL, 1, &GpsEvent, NULL);
 
-#endif
+	// Add the GPS to the tcpstreamer
+	streamer.AddGpstracker(gps);
 
     // Register the gps and timetracker with the sourcetracker
     sourcetracker.AddGpstracker(gps);
@@ -570,6 +568,16 @@ int main(int argc, char *argv[]) {
         allowed_hosts = conf->FetchOpt("allowedhosts");
     }
 
+    if (bind_addr.length() == 0) {
+        if (conf->FetchOpt("bindaddress") == "") {
+            fprintf(stderr, "NOTICE: bind address not specified, using INADDR_ANY.\n");
+        }
+
+        bind_addr = conf->FetchOpt("bindaddress");
+    }
+        
+    
+
     // Parse the allowed hosts into the vector
     size_t ahstart = 0;
     size_t ahend = allowed_hosts.find(",");
@@ -672,7 +680,7 @@ int main(int argc, char *argv[]) {
         free(maskaddr);
     }
 
-    if (streamer.Setup(tcpmax, tcpport, &legal_ipblock_vec) < 0) {
+    if (streamer.Setup(tcpmax, bind_addr, tcpport, &legal_ipblock_vec) < 0) {
         fprintf(stderr, "Failed to set up stream server: %s\n", streamer.FetchError());
         CatchShutdown(-1);
     }

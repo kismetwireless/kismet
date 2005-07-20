@@ -88,4 +88,7 @@ pid_t ExecSysCmd(char *in_cmd);
 int FetchSysLoadAvg(uint8_t *in_avgmaj, uint8_t *in_avgmin);
 #endif
 
+// Adler-32 checksum
+uint32_t Adler32Checksum(char *buf1, int len);
+
 #endif

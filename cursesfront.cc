@@ -219,7 +219,7 @@ int NCurseFront::DrawDisplay() {
         mvwaddch(netwin, num, pos, type);
         pos += 2;
 
-        mvwaddch(netwin, num, pos, (net->wep == 1) ? 'Y' : 'N');
+        mvwaddch(netwin, num, pos, (net->crypt_set == 1) ? 'Y' : 'N');
         pos += 2;
 
         snprintf(statstr, 3, "%02d", net->channel);

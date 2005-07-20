@@ -245,8 +245,9 @@ protected:
     };
 
     // Semi-override of update groups
-    void UpdateGroups();
-    void DestroyGroup(display_network *in_group);
+    virtual void PopulateGroups(TcpClient *in_client);
+    virtual void UpdateGroups();
+    virtual void DestroyGroup(display_network *in_group);
 
     // Update a context on the tick function
     void UpdateContexts();
@@ -373,6 +374,7 @@ protected:
 
     display_network *probe_group;
     display_network *data_group;
+	display_network *adhoc_group;
     display_network *details_network;
     wireless_client *details_client;
     vector<display_network *> last_displayed;
@@ -436,6 +438,8 @@ protected:
     int localnets_dirty;
 
     vector<cardinfo_context> context_cardlist;
+
+	int auto_pgroup, auto_dgroup, auto_agroup;
 
 };
 

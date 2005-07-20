@@ -41,7 +41,7 @@ TcpClient::TcpClient() {
         "gpsfixed,minlat,minlon,minalt,minspd,maxlat,maxlon,maxalt,maxspd,"
         "agglat,agglon,aggalt,aggpoints,maxrate,quality,signal,noise,"
         "bestquality,bestsignal,bestnoise,bestlat,bestlon,bestalt,"
-        "atype,ip,datasize,maxseenrate,encodingset,decrypted";
+        "atype,ip,datasize,maxseenrate,encodingset,decrypted,wep";
     protocol_default_map["WEPKEY"] = "origin,bssid,key,encrypted,failed";
     protocol_default_map["CARD"] = "interface,type,username,channel,id,packets,hopping";
 
@@ -307,10 +307,73 @@ int TcpClient::ParseData(char *in_data) {
 
         int scanned;
 
-        char ssid[256], beacon[256];
+        char ssid[256], beaconstr[256];
         short int range[4];
+		address_type atype;
+		int octets;
 
-        float maxrate;
+		// Copy of the network info
+		wireless_network_type type;
+
+		// Packet counts
+		int llc_packets;
+		int data_packets;
+		int crypt_packets;
+		int interesting_packets;
+
+		// info extracted from packets
+		//uint8_t bssid[MAC_LEN];
+		int channel;
+		int crypt_set;
+
+		// Are we a cloaked SSID?
+		int cloaked;
+
+		// Last time we saw a packet
+		time_t last_time;
+
+		// First packet
+		time_t first_time;
+
+		// beacon interval
+		int beacon;
+
+		// Bitmask set of carrier types seen in this network
+		int carrier_set;
+		// Bitmask set of encoding types seen in this network
+		int encoding_set;
+
+		int gps_fixed;
+		float min_lat, min_lon, min_alt, min_spd;
+		float max_lat, max_lon, max_alt, max_spd;
+
+		// Averaged center position
+		double aggregate_lat, aggregate_lon, aggregate_alt;
+		long aggregate_points;
+
+		// How fast we can go
+		float maxrate;
+
+		int maxseenrate;
+
+		// Connection information
+		int quality, signal, noise;
+		int best_quality, best_signal, best_noise;
+		float best_lat, best_lon, best_alt;
+
+		// Amount of data, in bytes
+		unsigned long datasize;
+
+		// Turbocell info
+		int turbocell_nid;
+		turbocell_type turbocell_mode;
+		int turbocell_sat;
+
+		// Did we decrypt this network?
+		int decrypted;
+
+		// number of duplicate IV counts
+		int dupeiv_packets;
 
         if (sscanf(in_data+hdrlen, "%17s", bssid_str) != 1)
             return 0;
@@ -327,33 +390,37 @@ int TcpClient::ParseData(char *in_data) {
             newnet = 1;
         }
 
-        scanned = sscanf(in_data+hdrlen+18, "%d \001%255[^\001]\001 \001%255[^\001]\001 "
+        scanned = sscanf(in_data+hdrlen+18, "%d \001%255[^\001]\001 "
+						 "\001%255[^\001]\001 "
                          "%d %d %d %d %d %d %d %d %d %hd.%hd.%hd.%hd "
-                         "%d %f %f %f %f %f %f %f %f %d %d %d %f %d %d %d %d %d %d %f "
-                         "%f %f "
-                         "%lf %lf %lf %ld %ld"
+                         "%d %f %f %f %f %f %f %f %f %d %d %d %f %d %d %d %d %d %d "
+						 "%f %f %f %lf %lf %lf %ld %ld"
                          "%d %d %d %d %d %d %d %d",
-                         (int *) &net->type, ssid, beacon,
-                         &net->llc_packets, &net->data_packets, &net->crypt_packets, 
-                         &net->interesting_packets, &net->channel, &net->wep, 
-                         (int *) &net->first_time, (int *) &net->last_time,
-                         (int *) &net->ipdata.atype, &range[0], &range[1], &range[2], 
-                         &range[3], &net->gps_fixed, &net->min_lat, &net->min_lon, 
-                         &net->min_alt, &net->min_spd, &net->max_lat, &net->max_lon, 
-                         &net->max_alt, &net->max_spd, &net->ipdata.octets, 
-                         &net->cloaked, &net->beacon, &maxrate, &net->quality, 
-                         &net->signal, &net->noise, &net->best_quality, 
-                         &net->best_signal, &net->best_noise,
-                         &net->best_lat, &net->best_lon, &net->best_alt,
-                         &net->aggregate_lat, &net->aggregate_lon, &net->aggregate_alt,
-                         &net->aggregate_points, &net->datasize,
-                         &net->turbocell_nid, (int *) &net->turbocell_mode, 
-                         &net->turbocell_sat, &net->carrier_set, &net->maxseenrate, 
-                         &net->encoding_set, &net->decrypted, &net->dupeiv_packets);
+                         (int *) &type, ssid, beaconstr,
+                         &llc_packets, &data_packets, &crypt_packets, 
+                         &interesting_packets, &channel, &crypt_set, 
+                         (int *) &first_time, (int *) &last_time,
+                         (int *) &atype, &range[0], &range[1], &range[2], 
+                         &range[3], &gps_fixed, &min_lat, &min_lon, 
+                         &min_alt, &min_spd, &max_lat, &max_lon, 
+                         &max_alt, &max_spd, &octets, 
+                         &cloaked, &beacon, &maxrate, &quality, 
+                         &signal, &noise, &best_quality, 
+                         &best_signal, &best_noise,
+                         &best_lat, &best_lon, &best_alt,
+                         &aggregate_lat, &aggregate_lon, &aggregate_alt,
+                         &aggregate_points, &datasize,
+                         &turbocell_nid, (int *) &turbocell_mode, 
+                         &turbocell_sat, &carrier_set, &maxseenrate, 
+                         &encoding_set, &decrypted, &dupeiv_packets);
 
-        if (scanned < 47) {
-            // fprintf(stderr, "Flubbed network, discarding...\n");
-            delete net;
+        if (scanned < 51) {
+            // fprintf(stderr, "Flubbed network, discarding... %s  '%s'\n", bssid_str, in_data);
+			// Can't delete us out of the tracker offhand if we're not a new network,
+			// remove us cleanly.
+			if (newnet == 1)
+				delete net;
+
             return 0;
         }
 
@@ -368,13 +435,54 @@ int TcpClient::ParseData(char *in_data) {
 
         if (ssid[0] != '\002')
             net->ssid = ssid;
-        if (beacon[0] != '\002')
-            net->beacon_info = beacon;
+        if (beaconstr[0] != '\002')
+            net->beacon_info = beaconstr;
+		net->ipdata.atype = atype;
+		net->ipdata.octets = octets;
         for (int x = 0; x < 4; x++) {
             net->ipdata.range_ip[x] = (uint8_t) range[x];
         }
 
+		net->type = type;
+		net->llc_packets = llc_packets;
+		net->data_packets = data_packets;
+		net->crypt_packets = crypt_packets;
+		net->interesting_packets = interesting_packets;
+		net->channel = channel;
+		net->crypt_set = crypt_set;
+		net->cloaked = cloaked;
+		net->last_time = last_time;
+		net->first_time = first_time;
+		net->beacon = beacon;
+		net->carrier_set = carrier_set;
+		net->encoding_set = encoding_set;
+		net->gps_fixed = gps_fixed;
+		net->min_lat = min_lat;
+		net->min_lon = min_lon;
+		net->min_alt = min_alt;
+		net->min_spd = min_spd;
+		net->max_lat = max_lat;
+		net->max_lon = max_lon;
+		net->max_alt = max_alt;
+		net->max_spd = max_spd;
         net->maxrate = maxrate;
+		net->maxseenrate = maxseenrate;
+		net->quality = quality;
+		net->signal = signal;
+		net->noise = noise;
+		net->best_quality = best_quality;
+		net->best_signal = best_signal;
+		net->best_noise = best_noise;
+		net->best_lat = best_lat;
+		net->best_lon = best_lon;
+		net->best_alt = best_alt;
+		net->aggregate_points = aggregate_points;
+		net->aggregate_lat = aggregate_lat;
+		net->aggregate_lon = aggregate_lon;
+		net->aggregate_alt = aggregate_alt;
+		net->datasize = datasize;
+		net->dupeiv_packets = dupeiv_packets;
+		net->decrypted = decrypted;
 
     } else if (!strncmp(header, "*CLIENT", 64)) {
         short int ip[4];
@@ -383,7 +491,49 @@ int TcpClient::ParseData(char *in_data) {
         char cmac_str[18];
 
         int scanned;
-        float maxrate;
+
+		// Copy of all the data we're populating in the client record
+		client_type type;
+
+		time_t first_time;
+		time_t last_time;
+
+		int crypt_set;
+
+		// Packet counts
+		int data_packets;
+		int crypt_packets;
+		int interesting_packets;
+
+		// gps data
+		int gps_fixed;
+		float min_lat, min_lon, min_alt, min_spd;
+		float max_lat, max_lon, max_alt, max_spd;
+		double aggregate_lat, aggregate_lon, aggregate_alt;
+		long aggregate_points;
+
+		// How fast we can go
+		float maxrate;
+		// How fast we've been seen to go, in 100kbs units
+		int maxseenrate;
+
+		// Bitfield set of encoding types seen on this client
+		int encoding_set;
+
+		// Last seen quality for a packet from this client
+		int quality, signal, noise;
+		int best_quality, best_signal, best_noise;
+		float best_lat, best_lon, best_alt;
+
+		// ip data
+		address_type atype;
+
+		// Data passed, in bytes
+		unsigned long datasize;
+
+		// Did we decrypt this client?
+		int decrypted;
+
 
         // Find the bssid and mac so we can fill in our client or make a new one
         if (sscanf(in_data+hdrlen, "%17s %17s", bssid_str, cmac_str) != 2)
@@ -410,26 +560,27 @@ int TcpClient::ParseData(char *in_data) {
 
         scanned = sscanf(in_data+hdrlen+36, "%d %d %d %d %d %d %d "
                          "%f %f %f %f %f %f %f %f %lf %lf "
-                         "%lf %ld %f %d %d %d %d %d %d %d "
-                         "%f %f %f %d %hd.%hd.%hd.%hd %ld %d %d %d",
-                         (int *) &client->type,
-                         (int *) &client->first_time, (int *) &client->last_time,
-                         &client->data_packets, &client->crypt_packets,
-                         &client->interesting_packets,
-                         &client->gps_fixed, &client->min_lat, &client->min_lon,
-                         &client->min_alt, &client->min_spd,
-                         &client->max_lat, &client->max_lon, &client->max_alt,
-                         &client->max_spd, &client->aggregate_lat, &client->aggregate_lon,
-                         &client->aggregate_alt, &client->aggregate_points,
-                         &maxrate, &client->metric,
-                         &client->quality, &client->signal, &client->noise,
-                         &client->best_quality, &client->best_signal, &client->best_noise,
-                         &client->best_lat, &client->best_lon, &client->best_alt,
-                         (int *) &client->ipdata.atype, &ip[0], &ip[1], &ip[2], &ip[3],
-                         &client->datasize, &client->maxseenrate, &client->encoding_set,
-                         &client->decrypted);
+                         "%lf %ld %f %d %d %d %d %d %d "
+                         "%f %f %f %d %hd.%hd.%hd.%hd %ld %d %d %d %d",
+                         (int *) &type,
+                         (int *) &first_time, (int *) &last_time,
+                         &data_packets, &crypt_packets,
+                         &interesting_packets,
+                         &gps_fixed, &min_lat, &min_lon,
+                         &min_alt, &min_spd,
+                         &max_lat, &max_lon, &max_alt,
+                         &max_spd, &aggregate_lat, 
+						 &aggregate_lon,
+                         &aggregate_alt, &aggregate_points,
+                         &maxrate, &quality, &signal, &noise,
+                         &best_quality, &best_signal, 
+						 &best_noise,
+                         &best_lat, &best_lon, &best_alt,
+                         (int *) &atype, &ip[0], &ip[1], &ip[2], &ip[3],
+                         &datasize, &maxseenrate, &encoding_set,
+                         &decrypted, &crypt_set);
 
-        if (scanned < 38) {
+        if (scanned < 39) {
             if (nclient)
                 delete client;
             return 0;
@@ -446,6 +597,42 @@ int TcpClient::ParseData(char *in_data) {
 
         for (unsigned int x = 0; x < 4; x++)
             client->ipdata.ip[x] = ip[x];
+		client->ipdata.atype = atype;
+
+		client->type = type;
+		client->data_packets = data_packets;
+		client->crypt_packets = crypt_packets;
+		client->interesting_packets = interesting_packets;
+		client->crypt_set = crypt_set;
+		client->last_time = last_time;
+		client->first_time = first_time;
+		client->encoding_set = encoding_set;
+		client->gps_fixed = gps_fixed;
+		client->min_lat = min_lat;
+		client->min_lon = min_lon;
+		client->min_alt = min_alt;
+		client->min_spd = min_spd;
+		client->max_lat = max_lat;
+		client->max_lon = max_lon;
+		client->max_alt = max_alt;
+		client->max_spd = max_spd;
+        client->maxrate = maxrate;
+		client->maxseenrate = maxseenrate;
+		client->quality = quality;
+		client->signal = signal;
+		client->noise = noise;
+		client->best_quality = best_quality;
+		client->best_signal = best_signal;
+		client->best_noise = best_noise;
+		client->best_lat = best_lat;
+		client->best_lon = best_lon;
+		client->best_alt = best_alt;
+		client->aggregate_lat = aggregate_lat;
+		client->aggregate_lon = aggregate_lon;
+		client->aggregate_alt = aggregate_alt;
+		client->aggregate_points = aggregate_points;
+		client->datasize = datasize;
+		client->decrypted = decrypted;
 
         // Add it to the map, if its a new client.
         if (nclient) {
@@ -540,7 +727,7 @@ int TcpClient::ParseData(char *in_data) {
         char atype[128];
         alert_info alrm;
         long int in_tv_sec, in_tv_usec;
-        if (sscanf(in_data+hdrlen, "%ld %ld %128s \001%2047[^\001]\001\n", &in_tv_sec,
+        if (sscanf(in_data+hdrlen, "%ld %ld %127s \001%2047[^\001]\001\n", &in_tv_sec,
                    &in_tv_usec, atype, alrmstr) < 3)
             return 0;
         alrm.alert_ts.tv_sec = in_tv_sec;
@@ -618,7 +805,7 @@ int TcpClient::ParseData(char *in_data) {
         int cinfo_packets;
         int cinfo_hopping;
 
-        if (sscanf(in_data+hdrlen, "%64s %64s \001%128[^\001]\001 %d %d %d %d\n",
+        if (sscanf(in_data+hdrlen, "%63s %63s \001%127[^\001]\001 %d %d %d %d\n",
                    cinfo_interface, cinfo_type, cinfo_username, &cinfo_channel,
                    &cinfo_id, &cinfo_packets, &cinfo_hopping) < 7)
             return 0;

@@ -209,6 +209,9 @@
 /* Compiling for Linux OS */
 #undef SYS_LINUX
 
+/* Compiling for NetBSD */
+#undef SYS_NETBSD
+
 /* Compiling for OpenBSD */
 #undef SYS_OPENBSD
 
