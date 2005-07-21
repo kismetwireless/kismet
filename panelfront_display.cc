@@ -1397,8 +1397,8 @@ int PanelFront::PowerPrinter(void *in_window) {
     double pperc = 0, nperc = 0;
     int snr = -1;
 
-    // Do SNR calcs if it looks like dBm
     if (pwr < 0 && nse < 0) {
+		// Do SNR calcs if it looks like dBm
         snr = pwr - nse;
         if (snr < 0)
             snr = 0;
@@ -1409,9 +1409,9 @@ int PanelFront::PowerPrinter(void *in_window) {
         pperc = (double) snr/SNR_MAX;
     } else {
         if (pwr != 0)
-            pperc = (double) abs(pwr)/LEVEL_MAX;
+            pperc = (double) ((double) (LEVEL_MAX - abs(pwr)) / (double) LEVEL_MAX);
         if (nse != 0)
-            nperc = (double) abs(nse)/NOISE_MAX;
+            nperc = (double) ((double) (NOISE_MAX - abs(nse)) / (double) NOISE_MAX);
     }
 
     int pbar = 0, nbar = 0;
