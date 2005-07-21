@@ -1903,27 +1903,34 @@ int monitor_wrt54g(const char *in_dev, int initch, char *in_err, void **in_if,
 				   void *in_ext) {
     char cmdline[2048];
 	int mode;
+	int wlmode = 0;
 
     vector<string> devbits = StrTokenize(in_dev, ":");
 
     if (devbits.size() < 2) {
 		snprintf(cmdline, 2048, "/usr/sbin/wl monitor 1");
 		if (RunSysCmd(cmdline) < 0) {
-			snprintf(in_err, 1024, "Unable to execute '%s'", cmdline);
+			snprintf(in_err, 1024, "Unable to set mode using 'wl monitor 1'.  Some "
+					 "custom firmware images require you to specify the origial "
+					 "device and a new dynamic device and use the iwconfig controls. "
+					 "see the README for how to configure your capture source.");
 			return -1;
 		}
     } else {
-		// Bring the device up, zero its ip, and set promisc
-		if (Ifconfig_Delta_Flags(devbits[0].c_str(), in_err, IFF_UP | 
-								 IFF_RUNNING | IFF_PROMISC) < 0)
-			return -1;
+		// Get the mode ... If this doesn't work, try the old wl method.
+		if (Iwconfig_Get_Mode(devbits[0].c_str(), in_err, &mode) < 0) {
+			fprintf(stderr, "WARNING:  Getting wireless mode via ioctls failed, "
+					"defaulting to trying the 'wl' command.\n");
+			wlmode = 1;
+		}
 
-		// Get mode and see if we're already in monitor, don't try to go in
-		// if we are (cisco doesn't like rfmon rfmon)
-		if (Iwconfig_Get_Mode(devbits[0].c_str(), in_err, &mode) < 0)
-			return -1;
-
-		if (mode != LINUX_WLEXT_MONITOR) {
+		if (wlmode == 1) {
+			snprintf(cmdline, 2048, "/usr/sbin/wl monitor 1");
+			if (RunSysCmd(cmdline) < 0) {
+				snprintf(in_err, 1024, "Unable to execute '%s'", cmdline);
+				return -1;
+			}
+		} else if (mode != LINUX_WLEXT_MONITOR) {
 			// Set it
 			if (Iwconfig_Set_Mode(devbits[0].c_str(), in_err, 
 								  LINUX_WLEXT_MONITOR) < 0) {
