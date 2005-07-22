@@ -461,7 +461,7 @@ void Packetracker::ProcessPacket(kis_packet *packet, packet_info *info,
     if (info->noise != 0 || info->signal != 0) {
         net->signal = info->signal;
 
-        if (info->signal > net->best_signal) {
+        if (info->signal > net->best_signal || net->best_signal == 0) {
             net->best_signal = info->signal;
             if (info->gps_fix >= 2) {
                 net->best_lat = info->gps_lat;
@@ -868,13 +868,10 @@ void Packetracker::ProcessDataPacket(kis_packet *packet, packet_info *info,
         client->gps_fixed = 0;
     }
 
-    if (info->quality >= 0 && info->signal >= 0) {
-        client->quality = info->quality;
-        if (info->quality > client->best_quality)
-            client->best_quality = info->quality;
+    if (info->signal >= 0) {
         client->signal = info->signal;
 
-        if (info->signal > client->best_signal) {
+        if (info->signal > client->best_signal || client->best_signal == 0) {
             client->best_signal = info->signal;
             if (info->gps_fix >= 2) {
                 client->best_lat = info->gps_lat;

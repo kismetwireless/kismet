@@ -2,6 +2,7 @@ Jul 21 2005  devel  Fixed rendering negative signal levels in kismet_client to
                      reflect actual strength properly
                     Changed wrt54g source to try to fall back to 'wl monitor' if
                      the ioctls don't seem to be available
+                    Tweaked best signal handling to deal with negatives better
 Jul 20 2005  devel  Added Radiotap DBM_x field support
 Jul 19 2005  devel  Moved radiotap support to work on Linux as well, to coincide
                      with my ieee80211/ipw2200 patches to bring radiotap over.
