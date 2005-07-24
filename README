@@ -1,4 +1,4 @@
-Kismet 2005-06-R1
+Kismet 2005-07-R1
 Mike Kershaw <dragorn@kismetwireless.net>
 http://www.kismetwireless.net
 Licensed under the GPL
@@ -101,6 +101,11 @@ Licensed under the GPL
       against rogue access points.
 
 5.  Upgrading from Previous Versions
+
+    Upgrading to Kismet 2005-07-R1:
+      Upgrading from 2005-06-R1 should have no changes.
+      For upgrading from previous versions, see the section on upgrading to
+      2005-06-R1 from older releases.
 
     Upgrading to Kismet 2005-06-R1 from previous versions:
       Kismet now supports the ipw2200 card with monitor mode.  If you use this
