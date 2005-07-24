@@ -1,3 +1,22 @@
+Jul 24 2005 2005-07 Released 2005-07-R1.  This is mostly a bugfix and minor
+                     feature enhancement release.  Fixes and additions include:
+                     - Linux Radiotap support
+                     - Wrt54g support on openwrt and (likely) ddwrt
+                     - Radiotap _DBM_x support
+                     - Full WPA/WPA2 detection for WEP40, WEP104, TKIP, PSK,
+                       AES-OCB, AES-CCM, WPA, and WPA2
+                     - Fixes to compilation under some compilers
+                     - Segfault fixes to kismet_client
+                     - OpenBSD fixes and configuration updates
+Jul 21 2005  devel  Fixed rendering negative signal levels in kismet_client to
+                     reflect actual strength properly
+                    Changed wrt54g source to try to fall back to 'wl monitor' if
+                     the ioctls don't seem to be available
+                    Tweaked best signal handling to deal with negatives better
+Jul 20 2005  devel  Added Radiotap DBM_x field support
+Jul 19 2005  devel  Moved radiotap support to work on Linux as well, to coincide
+                     with my ieee80211/ipw2200 patches to bring radiotap over.
+                     A bit of a kluge, but sufficient for now.
 Jul 08 2005  devel  Merged stage1 of patches from Pedro for configure to allow
                      disabling all gpsmap tests and compilation
                     Removed HAVE_GPS ifdefs from the code, since the option

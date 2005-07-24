@@ -57,12 +57,19 @@ typedef unsigned long u64;
 #include <net/if.h>
 #include <net/if_media.h>
 
-#endif
-
 #ifdef HAVE_RADIOTAP
 #include <net80211/ieee80211_ioctl.h>
 #include <net80211/ieee80211_radiotap.h>
+#endif
 
+#endif
+
+#if (defined(SYS_LINUX) && defined(HAVE_RADIOTAP))
+// We have to use a local include for now
+#include "linux_ieee80211_radiotap.h"
+#endif
+
+#ifdef HAVE_RADIOTAP
 // Hack around some headers that don't seem to define all of these
 #ifndef IEEE80211_CHAN_TURBO
 #define IEEE80211_CHAN_TURBO    0x0010  /* Turbo channel */
@@ -322,6 +329,7 @@ int PcapSource::ManglePacket(kis_packet *packet, uint8_t *data, uint8_t *moddata
 #endif
 
     return ret;
+
 
 }
 
@@ -614,6 +622,8 @@ int PcapSource::Radiotap2KisPack(kis_packet *packet, uint8_t *data, uint8_t *mod
                 case IEEE80211_RADIOTAP_RATE:
                 case IEEE80211_RADIOTAP_DB_ANTSIGNAL:
                 case IEEE80211_RADIOTAP_DB_ANTNOISE:
+                case IEEE80211_RADIOTAP_DBM_ANTSIGNAL:
+                case IEEE80211_RADIOTAP_DBM_ANTNOISE:
                 case IEEE80211_RADIOTAP_ANTENNA:
                     u.u8 = *iter++;
                     break;
@@ -642,7 +652,6 @@ int PcapSource::Radiotap2KisPack(kis_packet *packet, uint8_t *data, uint8_t *mod
                      * size we do not know, so we cannot
                      * proceed.
                      */
-                    printf("[0x%08x] ", next_present);
                     next_present = 0;
                     continue;
             }
@@ -675,6 +684,12 @@ int PcapSource::Radiotap2KisPack(kis_packet *packet, uint8_t *data, uint8_t *mod
                 case IEEE80211_RADIOTAP_DB_ANTNOISE:
                     packet->noise = u.i8;
                     break;
+				case IEEE80211_RADIOTAP_DBM_ANTSIGNAL:
+					packet->signal = u.i8;
+					break;
+				case IEEE80211_RADIOTAP_DBM_ANTNOISE:
+					packet->noise = u.i8;
+					break;
                 case IEEE80211_RADIOTAP_FLAGS:
                     if (u.u8 & IEEE80211_RADIOTAP_F_FCS)
                          fcs_cut = 4;
@@ -931,7 +946,7 @@ int PcapSourceOpenBSDPrism::FetchChannel() {
 }
 #endif
 
-#ifdef HAVE_RADIOTAP
+#if (defined(HAVE_RADIOTAP) && (defined(SYS_NETBSD) || defined(SYS_OPENBSD) || defined(SYS_FREEBSD)))
 int PcapSourceRadiotap::OpenSource() {
     // XXX this is a hack to avoid duplicating code
     int s = PcapSource::OpenSource();
@@ -1045,7 +1060,7 @@ KisPacketSource *pcapsource_openbsdprism2_registrant(string in_name, string in_d
 }
 #endif
 
-#ifdef HAVE_RADIOTAP
+#if (defined(HAVE_RADIOTAP) && (defined(SYS_NETBSD) || defined(SYS_OPENBSD) || defined(SYS_FREEBSD)))
 KisPacketSource *pcapsource_radiotap_registrant(string in_name, string in_device,
                                                      char *in_err) {
     return new PcapSourceRadiotap(in_name, in_device);
@@ -1888,27 +1903,34 @@ int monitor_wrt54g(const char *in_dev, int initch, char *in_err, void **in_if,
 				   void *in_ext) {
     char cmdline[2048];
 	int mode;
+	int wlmode = 0;
 
     vector<string> devbits = StrTokenize(in_dev, ":");
 
     if (devbits.size() < 2) {
 		snprintf(cmdline, 2048, "/usr/sbin/wl monitor 1");
 		if (RunSysCmd(cmdline) < 0) {
-			snprintf(in_err, 1024, "Unable to execute '%s'", cmdline);
+			snprintf(in_err, 1024, "Unable to set mode using 'wl monitor 1'.  Some "
+					 "custom firmware images require you to specify the origial "
+					 "device and a new dynamic device and use the iwconfig controls. "
+					 "see the README for how to configure your capture source.");
 			return -1;
 		}
     } else {
-		// Bring the device up, zero its ip, and set promisc
-		if (Ifconfig_Delta_Flags(devbits[0].c_str(), in_err, IFF_UP | 
-								 IFF_RUNNING | IFF_PROMISC) < 0)
-			return -1;
+		// Get the mode ... If this doesn't work, try the old wl method.
+		if (Iwconfig_Get_Mode(devbits[0].c_str(), in_err, &mode) < 0) {
+			fprintf(stderr, "WARNING:  Getting wireless mode via ioctls failed, "
+					"defaulting to trying the 'wl' command.\n");
+			wlmode = 1;
+		}
 
-		// Get mode and see if we're already in monitor, don't try to go in
-		// if we are (cisco doesn't like rfmon rfmon)
-		if (Iwconfig_Get_Mode(devbits[0].c_str(), in_err, &mode) < 0)
-			return -1;
-
-		if (mode != LINUX_WLEXT_MONITOR) {
+		if (wlmode == 1) {
+			snprintf(cmdline, 2048, "/usr/sbin/wl monitor 1");
+			if (RunSysCmd(cmdline) < 0) {
+				snprintf(in_err, 1024, "Unable to execute '%s'", cmdline);
+				return -1;
+			}
+		} else if (mode != LINUX_WLEXT_MONITOR) {
 			// Set it
 			if (Iwconfig_Set_Mode(devbits[0].c_str(), in_err, 
 								  LINUX_WLEXT_MONITOR) < 0) {
@@ -2269,7 +2291,7 @@ int chancontrol_openbsd_prism2(const char *in_dev, int in_ch, char *in_err,
 }
 #endif
 
-#ifdef HAVE_RADIOTAP
+#if (defined(HAVE_RADIOTAP) && (defined(SYS_NETBSD) || defined(SYS_OPENBSD) || defined(SYS_FREEBSD)))
 RadiotapBSD::RadiotapBSD(const char *name) : ifname(name) {
     s = -1;
 }
