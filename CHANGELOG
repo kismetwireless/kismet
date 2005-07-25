@@ -1,3 +1,7 @@
+Jul 25 2005 2005-07 Released 2005-07-R1a source.  These are minor changes to 
+                     fix a last-minute BSD compilation problem, anyone not on
+                     BSD doesn't need to worry about it and there will not be
+                     new binary packages.
 Jul 24 2005 2005-07 Released 2005-07-R1.  This is mostly a bugfix and minor
                      feature enhancement release.  Fixes and additions include:
                      - Linux Radiotap support

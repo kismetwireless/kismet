@@ -48,6 +48,8 @@ typedef unsigned long u64;
 
 #ifdef HAVE_RADIOTAP
 #include <net80211/ieee80211.h>
+#include <net80211/ieee80211_ioctl.h>
+#include <net80211/ieee80211_radiotap.h>
 #endif
 
 #endif
