@@ -27,7 +27,7 @@
 
 #include "config.h"
 
-#if (defined(HAVE_LIBPCAP) && defined(SYS_LINUX))
+#if (defined(HAVE_LIBPCAP) && defined(SYS_LINUX) && defined(HAVE_LINUX_WIRELESS))
 
 #include "packet.h"
 #include "packet_ieee80211.h"
@@ -35,6 +35,12 @@
 #include "packetsource_pcap.h"
 #include "ifcontrol.h"
 #include "iwcontrol.h"
+
+#ifdef HAVE_LINUX_SYS_RADIOTAP
+#include <net/ieee80211_radiotap.h>
+#else
+#include "linux_ieee80211_radiotap.h"
+#endif
 
 // Stuff we need to track to restore later
 typedef struct linux_ifparm {
@@ -65,9 +71,26 @@ protected:
 	virtual void FetchRadioData(kis_packet *in_packet);
 };	
 
-/* All the registrant and control functions */
+// ---------- Registrant Functions
+
+// Standard wireless extension based registrant
 KisPacketSource *packetsource_wext_registrant(REGISTRANT_PARMS);
+// Standard wireless extension with FCS footers
 KisPacketSource *packetsource_wext_fcs_registrant(REGISTRANT_PARMS);
+// Split-source eth1:wifix style registrant
+KisPacketSource *packetsource_wext_split_registrant(REGISTRANT_PARMS);
+// Split-source eth1:wifix style registrant with fcs
+KisPacketSource *packetsource_wext_splitfcs_registrant(REGISTRANT_PARMS);
+
+// ---------- Monitor enter/exit Functions
+
+// Standard wext monitor/unmonitor functions.
+int monitor_wext_std(MONITOR_PARMS);
+int unmonitor_wext_std(MONITOR_PARMS);
+
+// ---------- Channel Manipulation Functions
+
+int chancontrol_wext_std(CHCONTROL_PARMS);
 
 #endif /* have_libpcap && sys_linux */
 

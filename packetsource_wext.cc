@@ -42,7 +42,7 @@ typedef unsigned long u64;
 #include "packetsourcetracker.h"
 #include "packetsource_wext.h"
 
-#if (defined(HAVE_LIBPCAP) && defined(SYS_LINUX))
+#if (defined(HAVE_LIBPCAP) && defined(SYS_LINUX) && defined(HAVE_LINUX_WIRELESS))
 
 int PacketSource_Wext::FetchChannel() {
     char errstr[STATUS_MAX] = "";
@@ -108,6 +108,119 @@ KisPacketSource *packetsource_wext_fcs_registrant(REGISTRANT_PARMS) {
 	PacketSource_Wext *ret = new PacketSource_Wext(globalreg, in_name, in_device);
 	ret->SetFCSBytes(4);
 	return ret;
+}
+
+KisPacketSource *packetsource_wext_split_registrant(REGISTRANT_PARMS) {
+    char errstr[STATUS_MAX] = "";
+
+    vector<string> devbits = StrTokenize(in_device, ":");
+
+    if (devbits.size() < 2) {
+        snprintf(errstr, STATUS_MAX, "Invalid device pair '%s'", in_device.c_str());
+        globalreg->messagebus->InjectMessage(errstr, MSGFLAG_ERROR);
+		globalreg->fatal_condition = 1;
+        return NULL;
+    }
+
+    return new PacketSource_Wext(globalreg, in_name, devbits[1]);
+}
+
+KisPacketSource *packetsource_wext_splitfcs_registrant(REGISTRANT_PARMS) {
+	KisPacketSource *psrc = 
+		packetsource_wext_split_registrant(globalreg, in_name, in_device);
+	psrc->SetFCSBytes(4);
+	return psrc;
+}
+
+/* *********************************************************** */
+/* Monitor enter/exit functions */
+
+int monitor_wext_std(MONITOR_PARMS) {
+	int mode;
+	char errstr[STATUS_MAX];
+	linux_ifparm *ifparm = (linux_ifparm *) malloc(sizeof(linux_ifparm));
+
+	if (Ifconfig_Get_Flags(in_dev, errstr, &ifparm->flags) < 0) {
+		globalreg->messagebus->InjectMessage(errstr, MSGFLAG_ERROR);
+		snprintf(errstr, STATUS_MAX, "Failed to get interface flags for %s, "
+				 "this will probably fully fail in a moment when we try to "
+				 "configure the interface, but we'll try anyhow.", in_dev);
+		globalreg->messagebus->InjectMessage(errstr, MSGFLAG_ERROR);
+	}
+
+	// Bring the interface up, zero its IP, etc
+	if (Ifconfig_Delta_Flags(in_dev, errstr, 
+							 IFF_UP | IFF_RUNNING | IFF_PROMISC) < 0) {
+		globalreg->messagebus->InjectMessage(errstr, MSGFLAG_ERROR);
+		snprintf(errstr, STATUS_MAX, "Failed bringing interface %s up, check "
+				 "your permissions and configuration and consult the README "
+				 "file.", in_dev);
+		globalreg->messagebus->InjectMessage(errstr, MSGFLAG_FATAL);
+		globalreg->fatal_condition = 1;
+		free(ifparm);
+		return -1;
+	}
+
+	// Try to grab the channel
+	if ((ifparm->channel = Iwconfig_Get_Channel(in_dev, errstr)) < 0) {
+		globalreg->messagebus->InjectMessage(errstr, MSGFLAG_ERROR);
+		snprintf(errstr, STATUS_MAX, "Failed to get current channel for %s. "
+				 "This will probably fail in a moment when we try to set the "
+				 "card mode and channel, but we'll keep going incase the "
+				 "drivers are reporting incorrectly.", in_dev);
+		globalreg->messagebus->InjectMessage(errstr, MSGFLAG_ERROR);
+		ifparm->channel = -1;
+	}
+
+	// Try to grab the wireless mode
+	if (Iwconfig_Get_Mode(in_dev, errstr, &(ifparm->mode)) < 0) {
+		globalreg->messagebus->InjectMessage(errstr, MSGFLAG_FATAL);
+		snprintf(errstr, STATUS_MAX, "Failed to get current wireless modes for "
+				 "%s, check your configuration and consult the README "
+				 "file.", in_dev);
+		globalreg->messagebus->InjectMessage(errstr, MSGFLAG_FATAL);
+		globalreg->fatal_condition = 1;
+		free(ifparm);
+		return -1;
+	}
+
+	// Set it to monitor mode if we need to
+	if (ifparm->mode != LINUX_WLEXT_MONITOR) {
+		if (Iwconfig_Set_Mode(in_dev, errstr, LINUX_WLEXT_MONITOR) < 0) {
+			globalreg->messagebus->InjectMessage(errstr, MSGFLAG_FATAL);
+			snprintf(errstr, STATUS_MAX, "Failed to set monitor mode on interface "
+					 "%s.  This usually means your drivers either do not "
+					 "support monitor mode, or use a different mechanism to set "
+					 "monitor mode.  Make sure you have a version of your drivers "
+					 "that supports monitor mode (this may require patching or "
+					 "other special configuration of the driver source) and that "
+					 "you have configured the correct capture source inside "
+					 "Kismet.  Consult the troubleshooting section of the README "
+					 "for more information.", in_dev);
+			globalreg->messagebus->InjectMessage(errstr, MSGFLAG_FATAL);
+			globalreg->fatal_condition = 1;
+			free(ifparm);
+			return -1;
+		}
+	} else {
+		snprintf(errstr, STATUS_MAX, "Interface %s appears to already be in "
+				 "monitor mode, leaving it as it is.", in_dev);
+		globalreg->messagebus->InjectMessage(errstr, MSGFLAG_INFO);
+	}
+
+	(*in_if) = ifparm;
+	
+	// Set the initial channel
+	if (chancontrol_wext_std(globalreg, in_dev, initch, NULL) < 0) {
+		return -2;
+	}
+
+	return 0;
+}
+
+int unmonitor_wext_std(MONITOR_PARMS) {
+
+
 }
 
 #endif

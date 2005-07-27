@@ -80,6 +80,10 @@ float Pair2Float(int16_t primary, int64_t mantissa);
 // Convert a float frequency to a channel number
 int FloatChan2Int(float in_chan);
 
+// Alternate radiotap conversion method, probably should replace FloatChan2Int
+// in the future.
+unsigned int Ieee80211Mhz2IeeeChan(unsigned int frequency, unsigned int rt_flags);
+
 // Run a system command and return the error code.  Caller is responsible for security.
 // Does not fork out
 int RunSysCmd(char *in_cmd);

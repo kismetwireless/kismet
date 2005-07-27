@@ -379,6 +379,278 @@ int PacketSource_Pcap::Prism2KisPack(kis_packet *packet) {
     return 1;
 }
 
+#ifdef HAVE_RADIOTAP
+/*
+ * Convert MHz frequency to IEEE channel number.
+ */
+static u_int ieee80211_mhz2ieee(u_int freq, u_int flags) {
+    if (flags & IEEE80211_CHAN_2GHZ) {		/* 2GHz band */
+	if (freq == 2484)
+	    return 14;
+	if (freq < 2484)
+	    return (freq - 2407) / 5;
+	else
+	    return 15 + ((freq - 2512) / 20);
+    } else if (flags & IEEE80211_CHAN_5GHZ) {	/* 5Ghz band */
+	return (freq - 5000) / 5;
+    } else {					/* either, guess */
+	if (freq == 2484)
+	    return 14;
+	if (freq < 2484)
+	    return (freq - 2407) / 5;
+	if (freq < 5000)
+	    return 15 + ((freq - 2512) / 20);
+	return (freq - 5000) / 5;
+    }
+}
+
+/*
+ * Useful combinations of channel characteristics.
+ */
+#define	IEEE80211_CHAN_FHSS \
+	(IEEE80211_CHAN_2GHZ | IEEE80211_CHAN_GFSK)
+#define	IEEE80211_CHAN_A \
+	(IEEE80211_CHAN_5GHZ | IEEE80211_CHAN_OFDM)
+#define	IEEE80211_CHAN_B \
+	(IEEE80211_CHAN_2GHZ | IEEE80211_CHAN_CCK)
+#define	IEEE80211_CHAN_PUREG \
+	(IEEE80211_CHAN_2GHZ | IEEE80211_CHAN_OFDM)
+#define	IEEE80211_CHAN_G \
+	(IEEE80211_CHAN_2GHZ | IEEE80211_CHAN_DYN)
+#define	IEEE80211_CHAN_T \
+	(IEEE80211_CHAN_5GHZ | IEEE80211_CHAN_OFDM | IEEE80211_CHAN_TURBO)
+
+#define	IEEE80211_IS_CHAN_FHSS(_flags) \
+	((_flags & IEEE80211_CHAN_FHSS) == IEEE80211_CHAN_FHSS)
+#define	IEEE80211_IS_CHAN_A(_flags) \
+	((_flags & IEEE80211_CHAN_A) == IEEE80211_CHAN_A)
+#define	IEEE80211_IS_CHAN_B(_flags) \
+	((_flags & IEEE80211_CHAN_B) == IEEE80211_CHAN_B)
+#define	IEEE80211_IS_CHAN_PUREG(_flags) \
+	((_flags & IEEE80211_CHAN_PUREG) == IEEE80211_CHAN_PUREG)
+#define	IEEE80211_IS_CHAN_G(_flags) \
+	((_flags & IEEE80211_CHAN_G) == IEEE80211_CHAN_G)
+#define	IEEE80211_IS_CHAN_T(_flags) \
+	((_flags & IEEE80211_CHAN_T) == IEEE80211_CHAN_T)
+
+#define BITNO_32(x) (((x) >> 16) ? 16 + BITNO_16((x) >> 16) : BITNO_16((x)))
+#define BITNO_16(x) (((x) >> 8) ? 8 + BITNO_8((x) >> 8) : BITNO_8((x)))
+#define BITNO_8(x) (((x) >> 4) ? 4 + BITNO_4((x) >> 4) : BITNO_4((x)))
+#define BITNO_4(x) (((x) >> 2) ? 2 + BITNO_2((x) >> 2) : BITNO_2((x)))
+#define BITNO_2(x) (((x) & 2) ? 1 : 0)
+#define BIT(n)	(1 << n)
+
+int PacketSource_Pcap::Radiotap2KisPack(kis_packet *packet) {
+	union {
+		int8_t	i8;
+		int16_t	i16;
+		u_int8_t	u8;
+		u_int16_t	u16;
+		u_int32_t	u32;
+		u_int64_t	u64;
+	} u;
+	union {
+		int8_t		i8;
+		int16_t		i16;
+		u_int8_t	u8;
+		u_int16_t	u16;
+		u_int32_t	u32;
+		u_int64_t	u64;
+	} u2;
+
+	struct ieee80211_radiotap_header *hdr;
+	u_int32_t present, next_present;
+	u_int32_t *presentp, *last_presentp;
+	enum ieee80211_radiotap_type bit;
+	int bit0;
+	const u_char *iter;
+	int fcs_cut = 0; // Is the FCS bit set?
+
+	kis_datachunk *eight11chunk = NULL;
+	kis_layer1_packinfo *radioheader = NULL;
+
+    if (callback_header.caplen < sizeof(*hdr)) {
+		snprintf(errstr, STATUS_MAX, "pcap radiotap converter got corrupted "
+				 "Radiotap header length");
+		globalreg->messagebus->InjectMessage(errstr, MSGFLAG_ERROR);
+        return 0;
+    }
+
+	// Assign it to the callback data
+    hdr = (struct ieee80211_radiotap_header *) callback_data;
+    if (callback_header.caplen < hdr->it_len) {
+		snprintf(errstr, STATUS_MAX, "pcap radiotap converter got corrupted "
+				 "Radiotap header length");
+		globalreg->messagebus->InjectMessage(errstr, MSGFLAG_ERROR);
+        return 0;
+    }
+
+    for (last_presentp = &hdr->it_present;
+         (*last_presentp & BIT(IEEE80211_RADIOTAP_EXT)) != 0 &&
+         (u_char*)(last_presentp + 1) <= data + hdr->it_len;
+         last_presentp++);
+
+    /* are there more bitmap extensions than bytes in header? */
+    if ((*last_presentp & BIT(IEEE80211_RADIOTAP_EXT)) != 0) {
+		snprintf(errstr, STATUS_MAX, "pcap radiotap converter got corrupted "
+				 "Radiotap bitmap length");
+		globalreg->messagebus->InjectMessage(errstr, MSGFLAG_ERROR);
+        return 0;
+    }
+
+	eight11chunk = new kis_datachunk;
+	radioheader = new kis_layer1_packinfo;
+	
+    iter = (u_char*)(last_presentp + 1);
+
+    for (bit0 = 0, presentp = &hdr->it_present; presentp <= last_presentp;
+         presentp++, bit0 += 32) {
+        for (present = *presentp; present; present = next_present) {
+            /* clear the least significant bit that is set */
+            next_present = present & (present - 1);
+
+            /* extract the least significant bit that is set */
+            bit = (enum ieee80211_radiotap_type)
+                (bit0 + BITNO_32(present ^ next_present));
+
+            switch (bit) {
+                case IEEE80211_RADIOTAP_FLAGS:
+                case IEEE80211_RADIOTAP_RATE:
+                case IEEE80211_RADIOTAP_DB_ANTSIGNAL:
+                case IEEE80211_RADIOTAP_DB_ANTNOISE:
+                case IEEE80211_RADIOTAP_DBM_ANTSIGNAL:
+                case IEEE80211_RADIOTAP_DBM_ANTNOISE:
+                case IEEE80211_RADIOTAP_ANTENNA:
+                    u.u8 = *iter++;
+                    break;
+                case IEEE80211_RADIOTAP_DBM_TX_POWER:
+                    u.i8 = *iter++;
+                    break;
+                case IEEE80211_RADIOTAP_CHANNEL:
+                    u.u16 = EXTRACT_LE_16BITS(iter);
+                    iter += sizeof(u.u16);
+                    u2.u16 = EXTRACT_LE_16BITS(iter);
+                    iter += sizeof(u2.u16);
+                    break;
+                case IEEE80211_RADIOTAP_FHSS:
+                case IEEE80211_RADIOTAP_LOCK_QUALITY:
+                case IEEE80211_RADIOTAP_TX_ATTENUATION:
+                case IEEE80211_RADIOTAP_DB_TX_ATTENUATION:
+                    u.u16 = EXTRACT_LE_16BITS(iter);
+                    iter += sizeof(u.u16);
+                    break;
+                case IEEE80211_RADIOTAP_TSFT:
+                    u.u64 = EXTRACT_LE_64BITS(iter);
+                    iter += sizeof(u.u64);
+                    break;
+                default:
+                    /* this bit indicates a field whose
+                     * size we do not know, so we cannot
+                     * proceed.
+                     */
+                    next_present = 0;
+                    continue;
+            }
+
+            switch (bit) {
+                case IEEE80211_RADIOTAP_CHANNEL:
+                    radioheader->channel = ieee80211_mhz2ieee(u.u16, u2.u16);
+                    if (IEEE80211_IS_CHAN_FHSS(u2.u16))
+                        radioheader->carrier = carrier_80211dsss;
+                    else if (IEEE80211_IS_CHAN_A(u2.u16))
+                        radioheader->carrier = carrier_80211a;
+                    else if (IEEE80211_IS_CHAN_B(u2.u16))
+                        radioheader->carrier = carrier_80211b;
+                    else if (IEEE80211_IS_CHAN_PUREG(u2.u16))
+                        radioheader->carrier = carrier_80211g;
+                    else if (IEEE80211_IS_CHAN_G(u2.u16))
+                        radioheader->carrier = carrier_80211g;
+                    else if (IEEE80211_IS_CHAN_T(u2.u16))
+                        radioheader->carrier = carrier_80211a;/*XXX*/
+                    else
+                        radioheader->carrier = carrier_unknown;
+                    break;
+                case IEEE80211_RADIOTAP_RATE:
+		    /* strip basic rate bit & convert to kismet units */
+                    radioheader->datarate = ((u.u8 &~ 0x80) / 2) * 10;
+                    break;
+                case IEEE80211_RADIOTAP_DB_ANTSIGNAL:
+                    radioheader->signal = u.i8;
+                    break;
+                case IEEE80211_RADIOTAP_DB_ANTNOISE:
+                    radioheader->noise = u.i8;
+                    break;
+				case IEEE80211_RADIOTAP_DBM_ANTSIGNAL:
+					radioheader->signal = u.i8;
+					break;
+				case IEEE80211_RADIOTAP_DBM_ANTNOISE:
+					radioheader->noise = u.i8;
+					break;
+                case IEEE80211_RADIOTAP_FLAGS:
+                    if (u.u8 & IEEE80211_RADIOTAP_F_FCS)
+                         fcs_cut = 4;
+                    break;
+#if 0
+                case IEEE80211_RADIOTAP_FHSS:
+                    printf("fhset %d fhpat %d ", u.u16 & 0xff,
+                           (u.u16 >> 8) & 0xff);
+                    break;
+                case IEEE80211_RADIOTAP_LOCK_QUALITY:
+                    printf("%u sq ", u.u16);
+                    break;
+                case IEEE80211_RADIOTAP_TX_ATTENUATION:
+                    printf("%d tx power ", -(int)u.u16);
+                    break;
+                case IEEE80211_RADIOTAP_DB_TX_ATTENUATION:
+                    printf("%ddB tx power ", -(int)u.u16);
+                    break;
+                case IEEE80211_RADIOTAP_DBM_TX_POWER:
+                    printf("%ddBm tx power ", u.i8);
+                    break;
+                case IEEE80211_RADIOTAP_FLAGS:
+                    if (u.u8 & IEEE80211_RADIOTAP_F_CFP)
+                        printf("cfp ");
+                    if (u.u8 & IEEE80211_RADIOTAP_F_SHORTPRE)
+                        printf("short preamble ");
+                    if (u.u8 & IEEE80211_RADIOTAP_F_WEP)
+                        printf("wep ");
+                    if (u.u8 & IEEE80211_RADIOTAP_F_FRAG)
+                        printf("fragmented ");
+                    break;
+                case IEEE80211_RADIOTAP_ANTENNA:
+                    printf("antenna %u ", u.u8);
+                    break;
+                case IEEE80211_RADIOTAP_TSFT:
+                    printf("%llus tsft ", u.u64);
+                    break;
+#endif
+                default:
+                    break;
+            }
+        }
+    }
+
+	if (fcs_cut)
+		fcs_cut = fcsbytes;
+
+	eight11chunk->length = callback_header->caplen - hdr->it_len - fcs_cut;
+	eight11chunk->data = new uint8_t[eight11chunk->length];
+	memcpy(eight11chunk->data, callback_data + hdr->it_len, eight11chunk->length);
+
+	packet->insert(_PCM(PACK_COMP_RADIODATA), radioheader);
+	packet->insert(_PCM(PACK_COMP_80211FRAME), eight11chunk);
+
+    return 1;
+}
+#undef BITNO_32
+#undef BITNO_16
+#undef BITNO_8
+#undef BITNO_4
+#undef BITNO_2
+#undef BIT
+
+#endif // HAVE_RADIOTAP
+
 int PacketSource_Pcap::FetchChannel() {
 	return 0;
 }

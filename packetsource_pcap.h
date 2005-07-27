@@ -47,6 +47,44 @@ extern "C" {
 #endif
 }
 
+// Include the BSD radiotap headers... This may be including other bits we
+// don't really need to include here, but I don't know what inter-dependencies
+// they have
+#if defined(SYS_OPENBSD) || defined(SYS_NETBSD)
+#include <sys/socket.h>
+#include <net/if.h>
+#include <net/if_media.h>
+#include <netinet/in.h>
+#include <netinet/if_ether.h>
+#include <dev/ic/if_wi_ieee.h>
+
+#ifdef HAVE_RADIOTAP
+#include <net80211/ieee80211.h>
+#include <net80211/ieee80211_ioctl.h>
+#include <net80211/ieee80211_radiotap.h>
+#endif
+
+#endif // Sys/NetBSD
+
+#ifdef SYS_FREEBSD
+#include <sys/socket.h>
+#include <net/if.h>
+#include <net/if_media.h>
+
+#ifdef HAVE_RADIOTAP
+#include <net80211/ieee80211_ioctl.h>
+#include <net80211/ieee80211_radiotap.h>
+#endif
+
+#endif // FreeBSD
+
+// Include the linux radiotap headers either from local or system copies
+#if (defined(SYS_LINUX) && defined(HAVE_LINUX_SYS_RADIOTAP))
+#include <net/ieee80211_radiotap.h>
+#elif (defined(SYS_LINUX) && defined(HAVE_RADIOTAP))
+#include "linux_ieee80211_radiotap.h"
+#endif
+
 // Maximum SSID length for storing
 #define MAX_STORED_SSID		32
 
@@ -65,6 +103,15 @@ extern "C" {
 
 // Define kluged local linktype for BSD lame-mode
 #define KDLT_BSD802_11		-100
+
+// Extension to radiotap header not yet included in all BSD's
+#ifndef IEEE80211_RADIOTAP_F_FCS
+#define IEEE80211_RADIOTAP_F_FCS        0x10    /* frame includes FCS */
+#endif
+
+#ifndef IEEE80211_IOC_CHANNEL
+#define IEEE80211_IOC_CHANNEL 0
+#endif
 
 // Prism 802.11 headers from wlan-ng tacked on to the beginning of a
 // pcap packet... Snagged from the wlan-ng source
@@ -153,10 +200,8 @@ protected:
 
 	// Mangle Prism2 and AVS frames
 	int Prism2KisPack(kis_packet *packet);
-#ifdef HAVE_RADIOTAP
 	// If we have radiotap headers, mangle those into kis packets
 	int Radiotap2KisPack(kis_packet *packet);
-#endif
 
 	pcap_t *pd;
 	int datalink_type;
