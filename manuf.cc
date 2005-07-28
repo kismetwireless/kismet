@@ -21,7 +21,7 @@
 #include <stdio.h>
 
 #include "manuf.h"
-#include "packetracker.h"
+#include "util.h"
 
 int manuf_max_score = 8;
 

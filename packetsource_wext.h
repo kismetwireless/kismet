@@ -84,11 +84,18 @@ KisPacketSource *packetsource_wext_splitfcs_registrant(REGISTRANT_PARMS);
 
 // ---------- Monitor enter/exit Functions
 
-// Standard wext monitor/unmonitor functions.
+// Standard wext monitor/unmonitor functions that get called by others
+int monitor_wext_core(MONITOR_PARMS, char *errstr);
+int unmonitor_wext_core(MONITOR_PARMS, char *errstr);
+
+// Basic 'mode monitor' functions that should be used for all the modern
+// drivers now.
 int monitor_wext_std(MONITOR_PARMS);
 int unmonitor_wext_std(MONITOR_PARMS);
 
 // ---------- Channel Manipulation Functions
+
+int chancontrol_wext_core(CHCONTROL_PARMS, char *errstr);
 
 int chancontrol_wext_std(CHCONTROL_PARMS);
 

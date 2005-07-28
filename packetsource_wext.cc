@@ -135,9 +135,7 @@ KisPacketSource *packetsource_wext_splitfcs_registrant(REGISTRANT_PARMS) {
 /* *********************************************************** */
 /* Monitor enter/exit functions */
 
-int monitor_wext_std(MONITOR_PARMS) {
-	int mode;
-	char errstr[STATUS_MAX];
+int monitor_wext_core(MONITOR_PARMS, char *errstr) {
 	linux_ifparm *ifparm = (linux_ifparm *) malloc(sizeof(linux_ifparm));
 
 	if (Ifconfig_Get_Flags(in_dev, errstr, &ifparm->flags) < 0) {
@@ -155,8 +153,6 @@ int monitor_wext_std(MONITOR_PARMS) {
 		snprintf(errstr, STATUS_MAX, "Failed bringing interface %s up, check "
 				 "your permissions and configuration and consult the README "
 				 "file.", in_dev);
-		globalreg->messagebus->InjectMessage(errstr, MSGFLAG_FATAL);
-		globalreg->fatal_condition = 1;
 		free(ifparm);
 		return -1;
 	}
@@ -174,12 +170,10 @@ int monitor_wext_std(MONITOR_PARMS) {
 
 	// Try to grab the wireless mode
 	if (Iwconfig_Get_Mode(in_dev, errstr, &(ifparm->mode)) < 0) {
-		globalreg->messagebus->InjectMessage(errstr, MSGFLAG_FATAL);
+		globalreg->messagebus->InjectMessage(errstr, MSGFLAG_ERROR);
 		snprintf(errstr, STATUS_MAX, "Failed to get current wireless modes for "
 				 "%s, check your configuration and consult the README "
 				 "file.", in_dev);
-		globalreg->messagebus->InjectMessage(errstr, MSGFLAG_FATAL);
-		globalreg->fatal_condition = 1;
 		free(ifparm);
 		return -1;
 	}
@@ -187,7 +181,7 @@ int monitor_wext_std(MONITOR_PARMS) {
 	// Set it to monitor mode if we need to
 	if (ifparm->mode != LINUX_WLEXT_MONITOR) {
 		if (Iwconfig_Set_Mode(in_dev, errstr, LINUX_WLEXT_MONITOR) < 0) {
-			globalreg->messagebus->InjectMessage(errstr, MSGFLAG_FATAL);
+			globalreg->messagebus->InjectMessage(errstr, MSGFLAG_ERROR);
 			snprintf(errstr, STATUS_MAX, "Failed to set monitor mode on interface "
 					 "%s.  This usually means your drivers either do not "
 					 "support monitor mode, or use a different mechanism to set "
@@ -197,8 +191,6 @@ int monitor_wext_std(MONITOR_PARMS) {
 					 "you have configured the correct capture source inside "
 					 "Kismet.  Consult the troubleshooting section of the README "
 					 "for more information.", in_dev);
-			globalreg->messagebus->InjectMessage(errstr, MSGFLAG_FATAL);
-			globalreg->fatal_condition = 1;
 			free(ifparm);
 			return -1;
 		}
@@ -218,9 +210,81 @@ int monitor_wext_std(MONITOR_PARMS) {
 	return 0;
 }
 
+int unmonitor_wext_core(MONITOR_PARMS, char *errstr) {
+	linux_ifparm *ifparm = (linux_ifparm *) (*in_if);
+
+	if (ifparm == NULL)
+		return 1;
+
+	// We don't care if this fails
+	chancontrol_wext_std(globalreg, in_dev, ifparm->channel, NULL);
+
+	// We do care if this fails
+	if (Iwconfig_Set_Mode(in_dev, errstr, ifparm->mode) < 0) {
+		globalreg->messagebus->InjectMessage(errstr, MSGFLAG_ERROR);
+		snprintf(errstr, STATUS_MAX, "Failed to set wireless mode to stored value "
+				 "for %s.  It may be left in an unusable state.", in_dev);
+		free(ifparm);
+		return -1;
+	}
+
+	if (Ifconfig_Set_Flags(in_dev, errstr, ifparm->flags) < 0) {
+		globalreg->messagebus->InjectMessage(errstr, MSGFLAG_ERROR);
+		snprintf(errstr, STATUS_MAX, "Failed to set interface flags to stored value "
+				 "for %s.  It may be left in an unusable state.", in_dev);
+		free(ifparm);
+		return -1;
+	}
+
+	free(ifparm);
+	return 1;
+}
+
+int monitor_wext_std(MONITOR_PARMS) {
+	char errstr[STATUS_MAX];
+
+	// Fall through to the primary monitor functon
+	if (monitor_wext_core(globalreg, in_dev, initch, in_if, in_ext, errstr) < 0) {
+		globalreg->messagebus->InjectMessage(errstr, MSGFLAG_FATAL);
+		globalreg->fatal_condition = 1;
+		return -1;
+	}
+
+	return 1;
+}
+
 int unmonitor_wext_std(MONITOR_PARMS) {
+	char errstr[STATUS_MAX];
+
+	// Fall through to the primary monitor functon
+	if (unmonitor_wext_core(globalreg, in_dev, initch, in_if, in_ext, errstr) < 0) {
+		globalreg->messagebus->InjectMessage(errstr, MSGFLAG_FATAL);
+		globalreg->fatal_condition = 1;
+		return -1;
+	}
+
+	return 1;
+}
 
 
+int chancontrol_wext_core(CHCONTROL_PARMS, char *errstr) {
+    if (Iwconfig_Set_Channel(in_dev, in_ch, errstr) < 0) {
+        return -1;
+    }
+
+    return 1;
+}
+
+int chancontrol_wext_std(CHCONTROL_PARMS) {
+	char errstr[STATUS_MAX];
+
+	if (chancontrol_wext_core(globalreg, in_dev, in_ch, in_ext, errstr) < 0) {
+		globalreg->messagebus->InjectMessage(errstr, MSGFLAG_FATAL);
+		globalreg->fatal_condition = 1;
+		return -1;
+	}
+
+	return 1;
 }
 
 #endif

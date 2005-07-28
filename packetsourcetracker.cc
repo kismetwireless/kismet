@@ -19,13 +19,10 @@
 #include "config.h"
 
 #include "util.h"
-#include "prism2source.h"
-#include "pcapsource.h"
-#include "wtapfilesource.h"
-#include "wsp100source.h"
-#include "vihasource.h"
-#include "dronesource.h"
 #include "packetsourcetracker.h"
+#include "packetsource.h"
+#include "packetsource_pcap.h"
+#include "packetsource_wext.h"
 #include "configfile.h"
 
 void Packetcontrolchild_MessageClient::ProcessMessage(string in_msg, int in_flags) {
@@ -95,6 +92,13 @@ Packetsourcetracker::Packetsourcetracker(GlobalRegistry *in_globalreg) {
                          nullsource_registrant,
                          NULL, unmonitor_nullsource, NULL, 0);
 
+	// ipw2200 source
+    RegisterPacketsource("ipw2200", 1, "IEEE80211b", 6,
+                         packetsource_wext_registrant,
+                         monitor_wext_std, unmonitor_wext_std,
+                         chancontrol_wext_std, 1);
+	
+#if 0
     // Drone
     RegisterPacketsource("kismet_drone", 0, "na", 0,
                          dronesource_registrant,
@@ -290,6 +294,7 @@ Packetsourcetracker::Packetsourcetracker(GlobalRegistry *in_globalreg) {
                          NULL, NULL, chancontrol_viha, 0);
 #else
     REG_EMPTY_CARD("viha");
+#endif
 #endif
     
     // Default channels
@@ -975,7 +980,7 @@ int Packetsourcetracker::ProcessCardList(string in_enableline,
             meta->stored_interface = NULL;
             meta->ch_pos = 0;
             meta->cur_ch = 0;
-			meta->consev_errors = 0;
+			meta->consec_errors = 0;
             // Hopping is turned on in any source that has a channel control pointer.
             // This isn't controlling if kismet hops in general, only if this source
             // changes channel when Kismet decides to channel hop.
@@ -1162,26 +1167,6 @@ int Packetsourcetracker::ResumeSources() {
         meta_packsource *meta = meta_packsources[metc];
 
         meta->capsource->Resume();
-    }
-
-    return 1;
-}
-
-int Packetsourcetracker::SetTypeParms(string in_types, packet_parm in_parm) {
-    vector<string> tokens = StrTokenize(in_types, ",");
-
-    for (unsigned int metc = 0; metc < meta_packsources.size(); metc++) {
-        meta_packsource *meta = meta_packsources[metc];
-        
-        for (unsigned int ctype = 0; ctype < tokens.size(); ctype++) {
-            if ((StrLower(meta->prototype->cardtype) == StrLower(tokens[ctype]) ||
-                StrLower(tokens[ctype]) == "all") &&
-                meta->capsource != NULL) {
-                meta->capsource->SetPackparm(in_parm);
-                break;
-            }
-        }
-
     }
 
     return 1;
@@ -1407,7 +1392,8 @@ void Packetsourcetracker::ChannelChildLoop() {
                 chanchild_changepacket chanpak;
 
                 // Just die if we can't receive data
-                if (recv(sockpair[0], &chanpak, sizeof(chanchild_changepacket), 0) < 0)
+                if (recv(sockpair[0], &chanpak, 
+						 sizeof(chanchild_changepacket), 0) < 0)
                     exit(1);
 
                 // Sanity check
@@ -1419,8 +1405,10 @@ void Packetsourcetracker::ChannelChildLoop() {
                     continue;
                 }
 
+				meta_packsource *meta = meta_packsources[chanpak.meta_num];
+
                 // Can this source change the channel?
-                if (meta_packsources[chanpak.meta_num]->prototype->channelcon == NULL)
+                if (meta->prototype->channelcon == NULL)
                     continue;
 
                 // Actually change it and blow up if we failed.
@@ -1431,10 +1419,10 @@ void Packetsourcetracker::ChannelChildLoop() {
 				//
 				// If a channel has more than N consecutive errors, we actually
 				// fail out, send a fatal condition, and die.
-                if ((*meta_packsources[chanpak.meta_num]->prototype->channelcon)
-                    (globalreg, meta_packsources[chanpak.meta_num]->device.c_str(), 
-                     chanpak.channel, 
-                     (void *) (meta_packsources[chanpak.meta_num]->capsource)) < 0) {
+                if ((*meta->prototype->channelcon) 
+					(globalreg, 
+					 meta_packsources[chanpak.meta_num]->device.c_str(), 
+                     chanpak.channel, (void *) (meta->capsource)) < 0) {
 
 					meta->consec_errors++;
 

@@ -48,6 +48,9 @@
 #define CHANFLAG_NONE     0
 #define CHANFLAG_FATAL    1
 
+// Maximum number of consecutive failures before we die
+#define MAX_CONSEC_CHAN_ERR		5
+
 // Pre-prototype
 class Packetsourcetracker;
 
@@ -97,6 +100,9 @@ typedef struct {
 
     // Interface settings to store
     void *stored_interface;
+
+	// Consecutive errors doing something
+	int consec_errors;
 } meta_packsource;
 
 // Messagebus client to intercept messages from the forked client 
@@ -131,7 +137,7 @@ public:
     NullPacketSource(GlobalRegistry *in_globalreg, string in_name, string in_dev) : 
         KisPacketSource(in_globalreg, in_name, in_dev) { }
 
-    int OpenSource() {
+    virtual int OpenSource() {
         char errstr[STATUS_MAX];
         snprintf(errstr, 1024, "Please configure at least one packet source.  "
                  "Kismet will not function if no packet sources are defined in "
@@ -142,22 +148,26 @@ public:
         return -1;
     }
 
-    int CloseSource() {
+    virtual int CloseSource() {
         return 1;
     }
 
-    int FetchDescriptor() {
+    virtual int FetchDescriptor() {
         return -1;
     }
 
-    int FetchPacket(kis_packet *packet, uint8_t *data, uint8_t *moddata) {
+    virtual int FetchChannel() {
         return -1;
     }
 
-    int FetchChannel() {
-        return -1;
-    }
+	virtual int Poll() {
+		return -1;
+	}
+
+protected:
+	virtual void FetchRadioData(kis_packet *in_packet) { }
 };
+
 KisPacketSource *nullsource_registrant(REGISTRANT_PARMS);
 int unmonitor_nullsource(MONITOR_PARMS);
 
@@ -235,10 +245,6 @@ public:
 
     // Bind to sources.  in_root == 1 when binding root sources, obviosuly
     int BindSources(int in_root);
-
-    // Turn on parameters for a vector of card types (kluge for fuzzycrypt,
-    // maybe do this better later...)
-    int SetTypeParms(string in_types, packet_parm in_parm);
 
     // Pause/unpause our sources
     int PauseSources();
