@@ -59,7 +59,7 @@ class NetworkServer : public Pollable {
 public:
     NetworkServer();
     NetworkServer(GlobalRegistry *in_globalreg);
-    virtual ~NetworkServer() = 0;
+    virtual ~NetworkServer() { }
 
     // Register global infra
     virtual void RegisterGlobals(GlobalRegistry *in_reg) {

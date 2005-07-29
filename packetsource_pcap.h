@@ -215,7 +215,6 @@ public:
 		PacketSource_Pcap(in_globalreg, in_name, in_dev) { }
 	virtual int OpenSource();
 	virtual int Poll();
-	virtual int FetchChannel();
 protected:
 	// Do nothing here, we don't have an independent radio data fetch,
 	// we're just filling in the virtual

@@ -41,6 +41,7 @@ typedef unsigned long u64;
 #include "util.h"
 #include "packetsourcetracker.h"
 #include "packetsource_pcap.h"
+#include "tcpdump-extract.h"
 
 #ifdef HAVE_LIBPCAP
 
@@ -90,6 +91,11 @@ int PacketSource_Pcap::OpenSource() {
 		return -1;
 	}
 
+	return 1;
+}
+
+int PacketSource_Pcap::CloseSource() {
+	pcap_close(pd);
 	return 1;
 }
 
@@ -240,7 +246,7 @@ int PacketSource_Pcap::ManglePacket(kis_packet *packet) {
 		ret = Prism2KisPack(packet);
 #ifdef HAVE_RADIOTAP
 	} else if (datalink_type == DLT_IEEE802_11_RADIO) {
-		ret = Radiotap2KisPack(packet, data, moddata);
+		ret = Radiotap2KisPack(packet);
 #endif
 	}
 
@@ -465,6 +471,7 @@ int PacketSource_Pcap::Radiotap2KisPack(kis_packet *packet) {
 	int bit0;
 	const u_char *iter;
 	int fcs_cut = 0; // Is the FCS bit set?
+	char errstr[STATUS_MAX];
 
 	kis_datachunk *eight11chunk = NULL;
 	kis_layer1_packinfo *radioheader = NULL;
@@ -487,7 +494,7 @@ int PacketSource_Pcap::Radiotap2KisPack(kis_packet *packet) {
 
     for (last_presentp = &hdr->it_present;
          (*last_presentp & BIT(IEEE80211_RADIOTAP_EXT)) != 0 &&
-         (u_char*)(last_presentp + 1) <= data + hdr->it_len;
+         (u_char*)(last_presentp + 1) <= callback_data + hdr->it_len;
          last_presentp++);
 
     /* are there more bitmap extensions than bytes in header? */
@@ -633,7 +640,7 @@ int PacketSource_Pcap::Radiotap2KisPack(kis_packet *packet) {
 	if (fcs_cut)
 		fcs_cut = fcsbytes;
 
-	eight11chunk->length = callback_header->caplen - hdr->it_len - fcs_cut;
+	eight11chunk->length = callback_header.caplen - hdr->it_len - fcs_cut;
 	eight11chunk->data = new uint8_t[eight11chunk->length];
 	memcpy(eight11chunk->data, callback_data + hdr->it_len, eight11chunk->length);
 

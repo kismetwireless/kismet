@@ -35,10 +35,6 @@ NetworkServer::NetworkServer(GlobalRegistry *in_reg) {
     srvframework = NULL;
 }
 
-NetworkServer::~NetworkServer() {
-
-}
-
 unsigned int NetworkServer::MergeSet(unsigned int in_max_fd, fd_set *out_rset, 
 									 fd_set *out_wset) {
     unsigned int max;

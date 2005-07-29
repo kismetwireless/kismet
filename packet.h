@@ -47,7 +47,8 @@
 // High-level packet component so that we can provide our own destructors
 class packet_component {
 public:
-    ~packet_component() { };
+    ~packet_component() { self_destruct = 1; };
+	int self_destruct;
 };
 
 // Overall packet container that holds packet information
@@ -77,7 +78,10 @@ public:
         // Delete everything we contain when we die.  I hope whomever put
         // it there expected this.
 		for (unsigned int y = 0; y < MAX_PACKET_COMPONENTS; y++) {
-			if (content_vec[y] != NULL)
+			if (content_vec[y] == NULL)
+				continue;
+
+			if (content_vec[y]->self_destruct)
 				delete content_vec[y];
         }
     }

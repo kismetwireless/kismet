@@ -25,7 +25,10 @@
 #include <inttypes.h>
 #endif
 
-#include "Packetchain.h"
+#include "globalregistry.h"
+#include "messagebus.h"
+#include "configfile.h"
+#include "packetchain.h"
 
 class SortLinkPriority {
 public:
@@ -44,10 +47,11 @@ Packetchain::Packetchain() {
 Packetchain::Packetchain(GlobalRegistry *in_globalreg) {
     globalreg = in_globalreg;
     next_componentid = 1;
+	char errstr[1024];
 
     // Convert the WEP mappings to our real map
     vector<string> raw_wepmap_vec;
-    raw_wepmap_vec = conf->FetchOptVec("wepkey");
+    raw_wepmap_vec = globalreg->kismet_config->FetchOptVec("wepkey");
     for (size_t rwvi = 0; rwvi < raw_wepmap_vec.size(); rwvi++) {
         string wepline = raw_wepmap_vec[rwvi];
 
@@ -55,7 +59,8 @@ Packetchain::Packetchain(GlobalRegistry *in_globalreg) {
         if (rwsplit == string::npos) {
             globalreg->messagebus->InjectMessage("Malformed 'wepkey' option in the "
 												 "config file", MSGFLAG_FATAL);
-            ErrorShutdown();
+			globalreg->fatal_condition = 1;
+			return;
         }
 
         mac_addr bssid_mac = wepline.substr(0, rwsplit).c_str();
@@ -63,7 +68,8 @@ Packetchain::Packetchain(GlobalRegistry *in_globalreg) {
         if (bssid_mac.error == 1) {
             globalreg->messagebus->InjectMessage("Malformed 'wepkey' option in the "
 												 "config file", MSGFLAG_FATAL);
-            ErrorShutdown();
+			globalreg->fatal_condition = 1;
+			return;
         }
 
         string rawkey = wepline.substr(rwsplit + 1, wepline.length() - (rwsplit + 1));
@@ -75,7 +81,8 @@ Packetchain::Packetchain(GlobalRegistry *in_globalreg) {
             snprintf(errstr, STATUS_MAX, "Invalid key '%s' length %d in a wepkey "
 					 "option in the config file.\n", rawkey.c_str(), len);
 			globalreg->messagebus->InjectMessage(errstr, MSGFLAG_FATAL);
-            ErrorShutdown();
+			globalreg->fatal_condition = 1;
+			return;
         }
 
         wep_key_info *keyinfo = new wep_key_info;
@@ -93,10 +100,10 @@ Packetchain::Packetchain(GlobalRegistry *in_globalreg) {
         globalreg->messagebus->InjectMessage(errstr, MSGFLAG_INFO);
     }
 
-    if (conf->FetchOpt("allowkeytransmit") == "true") {
-        globalregistry->messagebus->InjectMessage("Allowing clients to fetch "
+    if (globalreg->kismet_config->FetchOpt("allowkeytransmit") == "true") {
+        globalreg->messagebus->InjectMessage("Allowing clients to fetch "
 												  "WEP keys", MSGFLAG_INFO);
-        globalregistry->client_wepkey_allowed = 1;
+        globalreg->client_wepkey_allowed = 1;
     }
 }
 
@@ -139,7 +146,7 @@ int Packetchain::RemovePacketComponent(int in_id) {
     return 1;
 }
 
-kis_packet Packetchain::GeneratePacket() {
+kis_packet *Packetchain::GeneratePacket() {
     kis_packet *newpack = new kis_packet;
     pc_link *pcl;
 
@@ -163,26 +170,33 @@ int Packetchain::ProcessPacket(kis_packet *in_pack) {
 
     pc_link *pcl;
 
-    for (int x = 0; x < postcap_chain.size() && (pcl = postcap_chain[x]); x++)
-        (*(pcl->callback))(globalreg, pcl->auxdata, newpack);
+    for (unsigned int x = 0; x < postcap_chain.size() && 
+		 (pcl = postcap_chain[x]); x++)
+        (*(pcl->callback))(globalreg, pcl->auxdata, in_pack);
 
-    for (int x = 0; x < llcdissect_chain.size() && (pcl = llcdissect_chain[x]); x++)
-        (*(pcl->callback))(globalreg, pcl->auxdata, newpack);
+    for (unsigned int x = 0; x < llcdissect_chain.size() && 
+		 (pcl = llcdissect_chain[x]); x++)
+        (*(pcl->callback))(globalreg, pcl->auxdata, in_pack);
 
-    for (int x = 0; x < filter_chain.size() && (pcl = filter_chain[x]); x++)
-        (*(pcl->callback))(globalreg, pcl->auxdata, newpack);
+    for (unsigned int x = 0; x < filter_chain.size() && 
+		 (pcl = filter_chain[x]); x++)
+        (*(pcl->callback))(globalreg, pcl->auxdata, in_pack);
 
-    for (int x = 0; x < decrypt_chain.size() && (pcl = decrypt_chain[x]); x++)
-        (*(pcl->callback))(globalreg, pcl->auxdata, newpack);
+    for (unsigned int x = 0; x < decrypt_chain.size() && 
+		 (pcl = decrypt_chain[x]); x++)
+        (*(pcl->callback))(globalreg, pcl->auxdata, in_pack);
 
-    for (int x = 0; x < datadissect_chain.size() && (pcl = datadissect_chain[x]); x++)
-        (*(pcl->callback))(globalreg, pcl->auxdata, newpack);
+    for (unsigned int x = 0; x < datadissect_chain.size() && 
+		 (pcl = datadissect_chain[x]); x++)
+        (*(pcl->callback))(globalreg, pcl->auxdata, in_pack);
 
-    for (int x = 0; x < classifier_chain.size() && (pcl = classifier_chain[x]); x++)
-        (*(pcl->callback))(globalreg, pcl->auxdata, newpack);
+    for (unsigned int x = 0; x < classifier_chain.size() && 
+		 (pcl = classifier_chain[x]); x++)
+        (*(pcl->callback))(globalreg, pcl->auxdata, in_pack);
 
-    for (int x = 0; x < logging_chain.size() && (pcl = logging_chain[x]); x++)
-        (*(pcl->callback))(globalreg, pcl->auxdata, newpack);
+    for (unsigned int x = 0; x < logging_chain.size() && 
+		 (pcl = logging_chain[x]); x++)
+        (*(pcl->callback))(globalreg, pcl->auxdata, in_pack);
 
     DestroyPacket(in_pack);
 
@@ -197,15 +211,10 @@ void Packetchain::DestroyPacket(kis_packet *in_pack) {
     for (unsigned int x = 0; x < destruction_chain.size(); x++) {
         pcl = destruction_chain[x];
    
-        (*(pcl->callback))(globalreg, pcl->auxdata, newpack);
+        (*(pcl->callback))(globalreg, pcl->auxdata, in_pack);
     }
 
-    // Delete anything left if it's meant to self destruct
-    for (map<int, void *>::iterator x = in_pack->content_map.begin();
-         x != in_pack->content_map.end(); ++x) {
-		if (x->second->self_destruct)
-			delete x->second;
-    }
+	delete in_pack;
 
 }
 

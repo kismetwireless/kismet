@@ -56,7 +56,7 @@ class NetworkClient : public Pollable {
 public:
     NetworkClient();
     NetworkClient(GlobalRegistry *in_globalreg);
-    virtual ~NetworkClient() = 0;
+    virtual ~NetworkClient();
 
     // Register a client protocol framework
     virtual void RegisterClientFramework(ClientFramework *in_frm) {

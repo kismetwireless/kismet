@@ -31,9 +31,9 @@
 // loop in main() should be descended from
 class Pollable {
 public:
-	Pollable();
-	Pollable(GlobalRegistry *in_globalreg);
-	virtual ~Pollable() = 0;
+	Pollable() { }
+	Pollable(GlobalRegistry *in_globalreg) { globalreg = in_globalreg; }
+	virtual ~Pollable() { }
 
 	virtual void RegisterGlobals(GlobalRegistry *in_reg) {
 		globalreg = in_reg;
@@ -42,7 +42,7 @@ public:
 	virtual unsigned int MergeSet(unsigned int in_max_fd, fd_set *out_rset, 
 								  fd_set *out_wset) = 0;
 
-	virtual int Poll(fd_set& in_rset, fd_set& in_wset);
+	virtual int Poll(fd_set& in_rset, fd_set& in_wset) = 0;
 
 protected:
 	GlobalRegistry *globalreg;

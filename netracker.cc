@@ -445,7 +445,9 @@ int kis_80211_netracker_hook(CHAINCALL_PARMS) {
 
 int kis_80211_datatracker_hook(CHAINCALL_PARMS) {
 	Netracker *auxptr = (Netracker *) auxdata;
-	return auxptr->datatracker_chain_handler(in_pack);
+	return 0;
+
+	// return auxptr->datatracker_chain_handler(in_pack);
 }
 
 Netracker::Netracker() {
