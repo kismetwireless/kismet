@@ -115,6 +115,17 @@ GPSDClient::GPSDClient(GlobalRegistry *in_globalreg) : ClientFramework(in_global
     mode = 0;
     lat = lon = alt = spd = hed = last_lat = last_lon = last_hed = 0;
 
+	// Register the network protocol
+	gps_proto_ref = 
+		globalreg->kisnetserver->RegisterProtocol("GPS", 0, GPS_fields_text, 
+												  &Protocol_GPS, NULL);
+
+	// Register the gps component and packetchain hooks to include it
+	_PCM(PACK_COMP_GPS) =
+		globalreg->packetchain->RegisterPacketComponent("gps");
+	globalreg->packetchain->RegisterHandler(&kis_gpspack_hook, this,
+											CHAINPOS_POSTCAP, -100);
+
     // Parse the config file and enable the tcpclient
     
     if (globalreg->kismet_config->FetchOpt("gps") == "true") {
@@ -177,21 +188,8 @@ GPSDClient::GPSDClient(GlobalRegistry *in_globalreg) : ClientFramework(in_global
         globalreg->gps_enable = 0;
     }
 
-	// Register the network protocol
-	gps_proto_ref = 
-		globalreg->kisnetserver->RegisterProtocol("GPS", 0, GPS_fields_text, 
-												  &Protocol_GPS, NULL);
-
-	// Register the gps component and packetchain hooks to include it
-	_PCM(PACK_COMP_GPS) =
-		globalreg->packetchain->RegisterPacketComponent("gps");
-	globalreg->packetchain->RegisterHandler(&kis_gpspack_hook, this,
-											CHAINPOS_POSTCAP, -100);
-
 	// Register the TCP component of the GPS system with the main service loop
 	globalreg->RegisterPollableSubsys(this);
-
-	
 }
 
 GPSDClient::~GPSDClient() {

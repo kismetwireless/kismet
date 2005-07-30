@@ -18,6 +18,7 @@
 
 #include "config.h"
 #include "util.h"
+#include "configfile.h"
 #include "packet.h"
 #include "packetsourcetracker.h"
 #include "alertracker.h"
@@ -251,7 +252,6 @@ int Protocol_INFO(PROTO_PARMS) {
         switch ((INFO_fields) (*field_vec)[x]) {
         case INFO_networks:
             out_string += idata->networks;
-            printf("debug - req'd networks, pos %d, networks '%s'\n", x, idata->networks.c_str());
             break;
         case INFO_packets:
             out_string += idata->packets;
@@ -843,10 +843,71 @@ KisNetFramework::KisNetFramework() {
 KisNetFramework::KisNetFramework(GlobalRegistry *in_globalreg) {
     globalreg = in_globalreg;
     netserver = NULL;
+	int port = 0, maxcli = 0;
+	char srv_proto[10], srv_bindhost[128];
+	TcpServer *tcpsrv;
+	char errstr[1024];
+
+	// Parse the config file and get the protocol and port info
+	if (globalreg->kismet_config->FetchOpt("listen") == "") {
+		_MSG("No 'listen' config line defined for the Kismet UI server", 
+			 MSGFLAG_FATAL);
+		globalreg->fatal_condition = 1;
+		return;
+	}
+
+	if (sscanf(globalreg->kismet_config->FetchOpt("listen").c_str(), 
+			   "%10[^:]://%128[^:]:%d", srv_proto, srv_bindhost, &port) != 3) {
+		_MSG("Malformed 'listen' config line defined for the Kismet UI server",
+			 MSGFLAG_FATAL);
+		globalreg->fatal_condition = 1;
+		return;
+	}
+
+	if (globalreg->kismet_config->FetchOpt("maxclients") == "") {
+		_MSG("No 'maxclients' config line defined for the Kismet UI server, "
+			 "defaulting to 5 clients.", MSGFLAG_INFO);
+		maxcli = 5;
+	} else if (sscanf(globalreg->kismet_config->FetchOpt("maxclients").c_str(), 
+					  "%d", &maxcli) != 1) {
+		_MSG("Malformed 'maxclients' config line defined for the Kismet UI server",
+			 MSGFLAG_FATAL);
+		globalreg->fatal_condition = 1;
+	}
+
+	if (globalreg->kismet_config->FetchOpt("allowedhosts") == "") {
+		_MSG("No 'allowedhosts' config line defined for the Kismet UI server",
+			 MSGFLAG_FATAL);
+		globalreg->fatal_condition = 1;
+		return;
+	}
+
+	// We only know how to set up a tcp server right now
+	if (strncasecmp(srv_proto, "tcp", 10) == 0) {
+		tcpsrv = new TcpServer(globalreg);
+		tcpsrv->SetupServer(port, maxcli, srv_bindhost, 
+							globalreg->kismet_config->FetchOpt("allowedhosts"));
+		if (tcpsrv->EnableServer() < 0 || globalreg->fatal_condition) {
+			_MSG("Failed to enable TCP listener for the Kismet UI server",
+				 MSGFLAG_FATAL);
+			globalreg->fatal_condition = 1;
+			return;
+		}
+		tcpsrv->RegisterServerFramework(this);
+		netserver = tcpsrv;
+		snprintf(errstr, 1024, "Created Kismet UI TCP server on port %d",
+				 port);
+		_MSG(errstr, MSGFLAG_INFO);
+	} else {
+		_MSG("Invalid protocol in 'listen' config line for the Kismet UI server",
+			 MSGFLAG_FATAL);
+		globalreg->fatal_condition = 1;
+		return;
+	}
 
     kisnet_msgcli = new KisNetframe_MessageClient(globalreg);
 
-    // Register our message handler
+    // Register our network message handler to feed clients
     globalreg->messagebus->RegisterClient(kisnet_msgcli, MSGFLAG_ALL);
     
     // Register the core Kismet protocols

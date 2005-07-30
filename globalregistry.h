@@ -87,6 +87,9 @@ class Pollable;
 #define _PCM(x)		globalreg->packetcomp_map[(x)]
 #define _NPM(x)		globalreg->netproto_map[(x)]
 
+// Send a msg via gloablreg msgbus
+#define _MSG(x, y)	globalreg->messagebus->InjectMessage((x), (y))
+
 // Info from the config file about the wep keys to try
 typedef struct {
     int fragile;

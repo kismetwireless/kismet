@@ -64,7 +64,7 @@ public:
 
     // Set up the TCP socket and listening
     virtual int SetupServer(short int in_port, unsigned int in_maxcli,
-                            vector<TcpServer::client_ipfilter *> in_filtervec);
+							string in_bindaddr, string in_filterstr);
 
     // Enable server
     virtual int EnableServer();
@@ -109,6 +109,7 @@ protected:
     char hostname[MAXHOSTNAMELEN];
     short int port;
     unsigned int maxcli;
+	string bindaddr;
 
     // Is it configured?
     int sv_configured;

@@ -18,21 +18,23 @@ TcpServer::TcpServer(GlobalRegistry *in_globalreg) : NetworkServer(in_globalreg)
 TcpServer::~TcpServer() {
 }
 
-int TcpServer::SetupServer(short int in_port, unsigned int in_maxcli,
-                           vector<TcpServer::client_ipfilter *> in_filtervec) {
+// Set up the TCP socket and listening
+int TcpServer::SetupServer(short int in_port, unsigned int in_maxcli, 
+						   string in_bindaddr, string in_filterstr) {
     port = in_port;
     maxcli = in_maxcli;
-    ipfilter_vec = in_filtervec;
+	bindaddr = in_bindaddr;
 
     sv_configured = 1;
+
+	globalreg->RegisterPollableSubsys(this);
 
     return 1;
 }
 
 int TcpServer::EnableServer() {
     if (sv_configured == 0) {
-        globalreg->messagebus->InjectMessage("Attempted to enable unconfigured TCP server", 
-                                             MSGFLAG_FATAL);
+        _MSG("Attempted to enable unconfigured TCP server", MSGFLAG_FATAL);
         globalreg->fatal_condition = 1;
         return -1;
     }
@@ -48,6 +50,9 @@ int TcpServer::EnableServer() {
     // Set up socket stuff
     memset(&serv_sock, 0, sizeof(serv_sock));
     serv_sock.sin_family = AF_INET;
+    if (inet_pton(AF_INET, bindaddr.c_str(), &serv_sock.sin_addr.s_addr) == 0) {
+        serv_sock.sin_addr.s_addr = htonl(INADDR_ANY);
+    }
     serv_sock.sin_addr.s_addr = htonl(INADDR_ANY);
     serv_sock.sin_port = htons(port);
 
@@ -198,8 +203,8 @@ int TcpServer::TcpAccept() {
 
     // Bail right now if we have too many connections
     if (FetchNumClients() >= (int) maxcli) {
-        snprintf(errstr, STATUS_MAX, "TCP server maximum clients (%d) already reached.",
-                 maxcli);
+        snprintf(errstr, STATUS_MAX, "TCP server maximum clients (%d) already "
+				 "reached.", maxcli);
         globalreg->messagebus->InjectMessage(errstr, MSGFLAG_ERROR);
         close(new_fd);
         return -1;
@@ -225,8 +230,8 @@ int TcpServer::TcpAccept() {
 }
 
 int TcpServer::Accept() {
-    // Just handle the TCP acceptance stuff
-    return TcpAccept();
+	// Handle the TCP accept stuff
+	return TcpAccept();
 }
 
 int TcpServer::ValidateIPFilter(int in_fd) {

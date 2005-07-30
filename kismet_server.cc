@@ -232,6 +232,52 @@ int main(int argc,char *argv[]) {
 	globalregistry->soundctl = new SoundControl(globalregistry);
 	globalregistry->speechctl = new SpeechControl(globalregistry);
 
+	// Create the basic network/protocol server
+	globalregistry->kisnetserver = new KisNetFramework(globalregistry);
+
+	// Create the packet chain
+	globalregistry->packetchain = new Packetchain(globalregistry);
+
+	// Create the GPS server
+	globalregistry->gpsd = new GPSDClient(globalregistry);
+
+	int max_fd = 0;
+	fd_set rset, wset;
+	struct timeval tm;
+
+	// Core loop
+	while (1) {
+		FD_ZERO(&rset);
+		FD_ZERO(&wset);
+		max_fd = 0;
+
+		// Collect all the pollable descriptors
+		for (unsigned int x = 0; x < globalregistry->subsys_pollable_vec.size(); x++) 
+			max_fd = 
+				globalregistry->subsys_pollable_vec[x]->MergeSet(max_fd, &rset, 
+																 &wset);
+
+		tm.tv_sec = 0;
+		tm.tv_usec = 100000;
+
+		if (select(max_fd + 1, &rset, &wset, NULL, &tm) < 0) {
+			if (errno != EINTR) {
+				snprintf(errstr, STATUS_MAX, "Main select loop failed: %s",
+						 strerror(errno));
+				CatchShutdown(-1);
+			}
+		}
+
+		for (unsigned int x = 0; x < globalregistry->subsys_pollable_vec.size(); 
+			 x++) {
+			if (globalregistry->subsys_pollable_vec[x]->Poll(rset, wset) < 0 &&
+				globalregistry->fatal_condition) {
+				CatchShutdown(-1);
+			}
+		}
+
+		globalregistry->timetracker->Tick();
+	}
 
     CatchShutdown(-1);
 }

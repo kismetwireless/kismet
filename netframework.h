@@ -185,6 +185,21 @@ public:
         netserver = in_nets;
     }
 
+    virtual unsigned int MergeSet(unsigned int in_max_fd, fd_set *out_rset, 
+								  fd_set *out_wset) {
+		if (netserver != NULL)
+			return netserver->MergeSet(in_max_fd, out_rset, out_wset);
+
+		return 0;
+	}
+
+    virtual int Poll(fd_set& in_rset, fd_set& in_wset) {
+		if (netserver != NULL)
+			return netserver->Poll(in_rset, in_wset);
+
+		return 0;
+	}
+
     // Handle new connections
     virtual int Accept(int in_fd) = 0;
 
