@@ -27,6 +27,9 @@
 // Timer slices per second
 #define SERVER_TIMESLICES_SEC 10
 
+// Max chars in SSID
+#define MAX_SSID_LEN    32
+
 /* Namespace */
 using namespace std;
 #define __STL_USE_NAMESPACES
