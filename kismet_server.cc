@@ -148,7 +148,8 @@ void CatchShutdown(int sig) {
 		globalregistry->kisnetserver->SendToAll(globalregistry->netproto_map[PROTO_REF_TERMINATE], (void *) &termstr);
 
 		// Shutdown and flush all the ring buffers
-		fprintf(stderr, "Shutting down Kismet server and flushing client buffers...\n");
+		fprintf(stderr, "Shutting down Kismet server and flushing "
+                "client buffers...\n");
 		globalregistry->kisnetserver->Shutdown();
 	}
 
@@ -160,6 +161,12 @@ void CatchShutdown(int sig) {
 		globalregistry->sourcetracker->ShutdownChannelChild();
 	}
 
+	// Be noisy
+	if (globalregistry->fatal_condition) {
+		fprintf(stderr, "\n*** KISMET HAS ENCOUNTERED A FATAL ERROR AND CANNOT "
+				"CONTINUE.  THE FATAL \n    CONDITIONS WILL BE LISTED. ***\n");
+	}
+    
     // Dump fatal errors again
     if (fqmescli != NULL) 
         fqmescli->DumpFatals();
@@ -195,30 +202,88 @@ int Usage(char *argv) {
     exit(1);
 }
 
+int FindSuidTarget(string in_username, GlobalRegistry *globalreg,
+				   uid_t *ret_uid, gid_t *ret_gid) {
+	struct passwd *pwordent;
+	char *suid_user;
+	uid_t suid_uid, real_uid;
+	gid_t suid_gid;
+	char errstr[1024];
+
+	real_uid = getuid();
+
+	suid_user = strdup(in_username.c_str());
+
+	if ((pwordent = getpwnam(suid_user)) == NULL) {
+		snprintf(errstr, 1024, "Could not find user '%s' for priv-drop.  Make sure "
+				 "you have a valid user set for the 'suiduser' configuration entry "
+				 "and that /etc/passwd is readable.  See the 'Installation & "
+				 "Security' and 'Configuration' sections of the README file for "
+				 "more information.", suid_user);
+		_MSG(errstr, MSGFLAG_FATAL);
+		globalreg->fatal_condition = 1;
+		free(suid_user);
+		return -1;
+	}
+
+	free(suid_user);
+
+	suid_uid = pwordent->pw_uid;
+	suid_gid = pwordent->pw_gid;
+
+	if (suid_uid == 0) {
+		snprintf(errstr, 1024, "Specifying a UID-0 user for the priv-drop is "
+				 "pointless.  See the 'Installation & Security' and "
+				 "'Configuration' sections of the README file for information "
+				 "on how to properly configure Kismet for priv-drop.");
+		_MSG(errstr, MSGFLAG_FATAL);
+		globalreg->fatal_condition = 1;
+		return -1;
+	} else if (suid_uid != real_uid && real_uid != 0) {
+		snprintf(errstr, 1024, "Kismet must be started as root (or as the "
+				 "priv-drop target user) for priv-drop to work properly. "
+				 "See the 'Installation & Security' and 'Configuration' sections "
+				 "of the README file for more information.");
+		_MSG(errstr, MSGFLAG_FATAL);
+		globalreg->fatal_condition = 1;
+		return -1;
+	}
+
+	(*ret_uid) = suid_uid;
+	(*ret_gid) = suid_gid;
+
+	return 1;
+}
+
 int main(int argc,char *argv[]) {
-    exec_name = argv[0];
-    char errstr[STATUS_MAX];
-    char *configfilename = NULL;
+	exec_name = argv[0];
+	char errstr[STATUS_MAX];
+	char *configfilename = NULL;
 	ConfigFile *conf;
+	uid_t suid_uid;
+	gid_t suid_gid;
+	string suiduser;
 
-    // Start filling in key components of the globalregistry
-    globalregistry = new GlobalRegistry;
-    // First order - create our message bus and our client for outputting
-    globalregistry->messagebus = new MessageBus;
- 
-    // Create a smart stdout client and allocate the fatal message client, 
+	// ------ WE MAY BE RUNNING AS ROOT ------
+
+	// Start filling in key components of the globalregistry
+	globalregistry = new GlobalRegistry;
+	// First order - create our message bus and our client for outputting
+	globalregistry->messagebus = new MessageBus;
+
+	// Create a smart stdout client and allocate the fatal message client, 
 	// add them to the messagebus
-    SmartStdoutMessageClient *smartmsgcli = 
+	SmartStdoutMessageClient *smartmsgcli = 
 		new SmartStdoutMessageClient(globalregistry);
-    fqmescli = new FatalQueueMessageClient(globalregistry);
+	fqmescli = new FatalQueueMessageClient(globalregistry);
 
-    globalregistry->messagebus->RegisterClient(fqmescli, MSGFLAG_FATAL);
-    globalregistry->messagebus->RegisterClient(smartmsgcli, MSGFLAG_ALL);
-   
-    // Allocate some other critical stuff
-    globalregistry->timetracker = new Timetracker(globalregistry);
+	globalregistry->messagebus->RegisterClient(fqmescli, MSGFLAG_FATAL);
+	globalregistry->messagebus->RegisterClient(smartmsgcli, MSGFLAG_ALL);
 
-    globalregistry->start_time = time(0);
+	// Allocate some other critical stuff
+	globalregistry->timetracker = new Timetracker(globalregistry);
+
+	globalregistry->start_time = time(0);
 
 	// Open, initial parse, and assign the config file
 	// Fixme
@@ -228,18 +293,97 @@ int main(int argc,char *argv[]) {
 	}
 	globalregistry->kismet_config = conf;
 
+#ifdef HAVE_SUID
+	if (conf->FetchOpt("suiduser") == "") {
+		snprintf(errstr, 1024, "No 'suiduser' directive found in the configuration "
+				 "file.  Please refer to the 'Installation & Security' and "
+				 "'Configuration' sections of the README file for more "
+				 "information.");
+		globalregistry->messagebus->InjectMessage(errstr, MSGFLAG_FATAL);
+		globalregistry->fatal_condition = 1;
+		CatchShutdown(-1);
+	}
+
+	if (FindSuidTarget(conf->FetchOpt("suiduser"), globalregistry,
+					   &suid_uid, &suid_gid) < 0 || globalregistry->fatal_condition) {
+		CatchShutdown(-1);
+	}
+
+#else
+	snprintf(errstr, 1024, "SUID priv-dropping has been DISABLED at compile time. "
+			 "This is NOT reccomended as it may increase the risk to your system "
+			 "from hostile remote data.  Please consult the 'Installation & "
+			 "Security' and 'Configuration' sections of your README file.");
+	globalregistry->messagebus->InjectMessage(errstr, MSGFLAG_WARNING);
+	sleep(1);
+#endif
+
 	// Assign the speech and sound handlers
 	globalregistry->soundctl = new SoundControl(globalregistry);
+	if (globalregistry->fatal_condition)
+		CatchShutdown(-1);
 	globalregistry->speechctl = new SpeechControl(globalregistry);
+	if (globalregistry->fatal_condition)
+		CatchShutdown(-1);
 
 	// Create the basic network/protocol server
 	globalregistry->kisnetserver = new KisNetFramework(globalregistry);
+	if (globalregistry->fatal_condition)
+		CatchShutdown(-1);
 
 	// Create the packet chain
 	globalregistry->packetchain = new Packetchain(globalregistry);
+	if (globalregistry->fatal_condition)
+		CatchShutdown(-1);
+
+	// Create the packetsourcetracker
+	globalregistry->sourcetracker = new Packetsourcetracker(globalregistry);
+	if (globalregistry->fatal_condition)
+		CatchShutdown(-1);
+
+	// Bind sources as root
+	globalregistry->sourcetracker->BindSources(1);
+	if (globalregistry->fatal_condition)
+		CatchShutdown(-1);
+
+	// Create the channel process if necessary
+	globalregistry->sourcetracker->SpawnChannelChild();
+	if (globalregistry->fatal_condition)
+		CatchShutdown(-1);
+
+	// Once the packet source and channel control is opened, we shouldn't need special
+	// privileges anymore so lets drop to a normal user.  We also don't want to open 
+	// our logfiles as root if we can avoid it.  Once we've dropped, we'll 
+	// investigate our sources again and open any defered
+#ifdef HAVE_SUID
+	if (setgid(suid_gid) < 0) {
+		snprintf(errstr, 1024, "Priv-drop to GID %d failed", suid_gid);
+		globalregistry->messagebus->InjectMessage(errstr, MSGFLAG_FATAL);
+		CatchShutdown(-1);
+	}
+
+	if (setuid(suid_uid) < 0) {
+		snprintf(errstr, 1024, "Priv-drop to UID %d failed", suid_uid);
+		globalregistry->messagebus->InjectMessage(errstr, MSGFLAG_FATAL);
+		CatchShutdown(-1);
+	} 
+
+	snprintf(errstr, 1024, "Dropped privs to %s (%d) gid %d", suiduser.c_str(), 
+			 suid_uid, suid_gid);
+	globalregistry->messagebus->InjectMessage(errstr, MSGFLAG_INFO);
+#endif
+
+	// ------ WE ARE NOW RUNNING AS THE TARGET (MAYBE) ------
+
+	// Bind sources as non-root
+	globalregistry->sourcetracker->BindSources(1);
+	if (globalregistry->fatal_condition)
+		CatchShutdown(-1);
 
 	// Create the GPS server
 	globalregistry->gpsd = new GPSDClient(globalregistry);
+	if (globalregistry->fatal_condition)
+		CatchShutdown(-1);
 
 	int max_fd = 0;
 	fd_set rset, wset;
@@ -250,6 +394,9 @@ int main(int argc,char *argv[]) {
 		FD_ZERO(&rset);
 		FD_ZERO(&wset);
 		max_fd = 0;
+
+		if (globalregistry->fatal_condition)
+			CatchShutdown(-1);
 
 		// Collect all the pollable descriptors
 		for (unsigned int x = 0; x < globalregistry->subsys_pollable_vec.size(); x++) 
@@ -279,5 +426,5 @@ int main(int argc,char *argv[]) {
 		globalregistry->timetracker->Tick();
 	}
 
-    CatchShutdown(-1);
+	CatchShutdown(-1);
 }

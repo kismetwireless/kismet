@@ -465,14 +465,14 @@ unsigned int Packetsourcetracker::MergeSet(unsigned int in_max_fd, fd_set *out_r
 }
 
 // Read from the socket and return text if we have any
-int Packetsourcetracker::Poll(fd_set *in_rset, fd_set *in_wset) {
+int Packetsourcetracker::Poll(fd_set& in_rset, fd_set& in_wset) {
     // This should only ever get called when the fd is set so we don't need to do our 
     // own select...
     chanchild_packhdr in_pak;
     uint8_t *data;
 
     // Write packets out if we have them queued, and write as many as we can
-    if (FD_ISSET(sockpair[1], in_wset)) {
+    if (FD_ISSET(sockpair[1], &in_wset)) {
         while (ipc_buffer.size() > 0) {
             chanchild_packhdr *pak = ipc_buffer.front();
 
@@ -519,7 +519,7 @@ int Packetsourcetracker::Poll(fd_set *in_rset, fd_set *in_wset) {
     }
     
     // Read responses from the capture child
-    if (FD_ISSET(sockpair[1], in_rset)) {
+    if (FD_ISSET(sockpair[1], &in_rset)) {
         if (recv(sockpair[1], &in_pak, 
 				 sizeof(chanchild_packhdr) - sizeof(void *), 0) < 0) {
             snprintf(errstr, 1024, "header recv() error: %s", strerror(errno));
@@ -1087,8 +1087,8 @@ int Packetsourcetracker::ProcessCardList(string in_enableline,
 }
 
 int Packetsourcetracker::BindSources(int in_root) {
-    // Walk through all our packet sources and create an instance and opensource all the
-    // ones that require root
+    // Walk through the packet sources and create/open all the ones that we can.
+    // Dual-pass for root and non-root
     for (unsigned int x = 0; x < meta_packsources.size(); x++) {
         meta_packsource *meta = meta_packsources[x];
 
@@ -1102,7 +1102,8 @@ int Packetsourcetracker::BindSources(int in_root) {
         // Call the registrant to allocate a packet source ... nasty little error
         // handler but it works.
         errstr[0] = '\0';
-        meta->capsource = (*meta->prototype->registrant)(globalreg, meta->name, meta->device);
+        meta->capsource = 
+            (*meta->prototype->registrant)(globalreg, meta->name, meta->device);
 
         if (meta->capsource == NULL) {
             snprintf(errstr, 1024, "Unable to create source instance for source '%s'",
@@ -1136,8 +1137,9 @@ int Packetsourcetracker::BindSources(int in_root) {
         live_packsources.push_back(meta->capsource);
         
         // Open it
-        snprintf(errstr, STATUS_MAX, "Source %d (%s): Opening %s source interface %s...",
-                x, meta->name.c_str(), meta->prototype->cardtype.c_str(), meta->device.c_str());
+        snprintf(errstr, STATUS_MAX, "Source %d (%s): Opening %s source "
+                 "interface %s...", x, meta->name.c_str(), 
+                 meta->prototype->cardtype.c_str(), meta->device.c_str());
         globalreg->messagebus->InjectMessage(errstr, MSGFLAG_INFO);
         if (meta->capsource->OpenSource() < 0) {
             meta->valid = 0;

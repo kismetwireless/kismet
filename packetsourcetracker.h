@@ -190,7 +190,7 @@ public:
 
     // Poll the socket for command acks and text.
     // Text gets put in errstr with a return code > 0.
-    int Poll(fd_set *in_rset, fd_set *in_wset);
+    int Poll(fd_set& in_rset, fd_set& in_wset);
 
     // Fetch a meta record for an id
     meta_packsource *FetchMetaID(int in_id);
