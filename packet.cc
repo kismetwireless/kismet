@@ -80,41 +80,25 @@ static const uint32_t wep_crc32_table[256] = {
     0x2d02ef8dL
 };
 
-// Munge text down to printable characters only
+// Munge text down to printable characters only.  Simpler, cleaner munger than
+// before (and more blatant when munging)
 void MungeToPrintable(char *in_data, int max) {
-    unsigned char *temp = new unsigned char[max];
-    strncpy((char *) temp, in_data, max);
-    // Make sure we terminate this just in case
+	string ret;
+	int i;
 
-    int i, j;
+	for (i = 0; i < max; i++) {
+		if ((unsigned char) in_data[i] > 32 && (unsigned char) in_data[i] < 176) {
+			ret += in_data[i];
+		} else {
+			ret += '\\';
+			ret += ((in_data[i] >> 6) & 0x03) + '0';
+			ret += ((in_data[i] >> 3) & 0x07) + '0';
+			ret += ((in_data[i] >> 0) & 0x07) + '0';
+		}
+	}
 
-    for (i = 0, j = 0; i < max && j < max; i++) {
-        if (temp[i] == 0 || temp[i] == '\n') {
-            in_data[j++] = '\0';
-            break;
-        }
-
-        if (temp[i] < 32) {
-            if (temp[i] < 32) {
-                if (j+2 < max) {
-                    // Convert control chars to ^X and so on
-                    in_data[j++] = '^';
-                    in_data[j++] = temp[i] + 64;
-                } else {
-                    break;
-                }
-            }
-        } else if (temp[i] > 126) {
-            // Do nothing
-        } else {
-            in_data[j++] = temp[i];
-        }
-    }
-    in_data[j] = '\0';
-
-    delete[] temp;
+	snprintf(in_data, SSID_SIZE, "%s", ret.c_str());
 }
-
 
 // Returns a pointer in the data block to the size byte of the desired
 // tag.

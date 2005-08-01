@@ -48,7 +48,7 @@
 #define DEVNAME_LEN 16
 #define MAX_PACKET_LEN 10240
 
-#define SSID_SIZE 32
+#define SSID_SIZE 255
 
 #define MAC_LEN 6
 #define MAC_STR_LEN ((MAC_LEN * 2) + 6)

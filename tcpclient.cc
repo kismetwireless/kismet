@@ -307,7 +307,7 @@ int TcpClient::ParseData(char *in_data) {
 
         int scanned;
 
-        char ssid[256], beaconstr[256];
+        char ssid[SSID_SIZE], beaconstr[256];
         short int range[4];
 		address_type atype;
 		int octets;
