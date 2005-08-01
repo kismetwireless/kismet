@@ -265,6 +265,12 @@ int main(int argc,char *argv[]) {
 	string suiduser;
 
 	// ------ WE MAY BE RUNNING AS ROOT ------
+    
+	// Catch the interrupt handler to shut down
+    signal(SIGINT, CatchShutdown);
+    signal(SIGTERM, CatchShutdown);
+    signal(SIGHUP, CatchShutdown);
+    signal(SIGPIPE, CatchShutdown);
 
 	// Start filling in key components of the globalregistry
 	globalregistry = new GlobalRegistry;
@@ -376,7 +382,7 @@ int main(int argc,char *argv[]) {
 	// ------ WE ARE NOW RUNNING AS THE TARGET (MAYBE) ------
 
 	// Bind sources as non-root
-	globalregistry->sourcetracker->BindSources(1);
+	globalregistry->sourcetracker->BindSources(0);
 	if (globalregistry->fatal_condition)
 		CatchShutdown(-1);
 

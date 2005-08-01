@@ -149,7 +149,7 @@ int monitor_wext_core(MONITOR_PARMS, char *errstr) {
 	// Bring the interface up, zero its IP, etc
 	if (Ifconfig_Delta_Flags(in_dev, errstr, 
 							 IFF_UP | IFF_RUNNING | IFF_PROMISC) < 0) {
-		globalreg->messagebus->InjectMessage(errstr, MSGFLAG_ERROR);
+		globalreg->messagebus->InjectMessage(errstr, MSGFLAG_FATAL);
 		snprintf(errstr, STATUS_MAX, "Failed bringing interface %s up, check "
 				 "your permissions and configuration and consult the README "
 				 "file.", in_dev);

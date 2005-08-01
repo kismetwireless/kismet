@@ -591,6 +591,13 @@ int Packetsourcetracker::Poll(fd_set& in_rset, fd_set& in_wset) {
         }
     }
 
+	// Sweep the packet sources
+	for (unsigned int x = 0; x < live_packsources.size(); x++) {
+		if (FD_ISSET(live_packsources[x]->FetchDescriptor(), &in_rset)) {
+			live_packsources[x]->Poll();
+		}
+	}
+
     return 0;
 }
 
@@ -1308,7 +1315,6 @@ int Packetsourcetracker::ShutdownChannelChild() {
     // THIS NEEDS TO BE TIMERED against blocking
     fprintf(stderr, "Sending termination request to channel control child %d...\n",
             chanchild_pid);
-    printf("send term\n");
     send(sockpair[1], &death_packet, sizeof(chanchild_packhdr) - sizeof(void *), 0);
 
     // THIS NEEDS TO BE TIMERED TOO
