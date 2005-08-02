@@ -2,6 +2,7 @@ Aug 01 2005  devel  After hearing about a presentation criticizing handling of
                      unprintable characters in the SSID, modified how SSIDs
                      are munged to printable to make non-standard charachters
                      represented by \OCT (see man ascii)
+                    Tweaked new munger code to handle ' ' better (ttuttle)
 Jul 25 2005 2005-07 Released 2005-07-R1a source.  These are minor changes to 
                      fix a last-minute BSD compilation problem, anyone not on
                      BSD doesn't need to worry about it and there will not be
