@@ -236,9 +236,9 @@ AC_LINK_IFELSE([AC_LANG_PROGRAM([[
 		#include <sys/types.h>
 		#include <sys/socket.h>
 		]], [[
-		int s;
-		struct sockaddr *addr;
-		socklen_t *addrlen;
+		int s = 0;
+		struct sockaddr *addr = NULL;
+		socklen_t *addrlen = NULL;
 
 		accept(s, addr, addrlen);
 		return 0;

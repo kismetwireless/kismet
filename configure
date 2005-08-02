@@ -5199,9 +5199,9 @@ int
 main ()
 {
 
-		int s;
-		struct sockaddr *addr;
-		socklen_t *addrlen;
+		int s = 0;
+		struct sockaddr *addr = NULL;
+		socklen_t *addrlen = NULL;
 
 		accept(s, addr, addrlen);
 		return 0;
