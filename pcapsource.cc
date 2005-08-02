@@ -1907,6 +1907,7 @@ int monitor_wrt54g(const char *in_dev, int initch, char *in_err, void **in_if,
 	int mode;
 	int wlmode = 0;
 
+#ifdef HAVE_LINUX_WIRELESS
     vector<string> devbits = StrTokenize(in_dev, ":");
 
     if (devbits.size() < 2) {
@@ -1943,6 +1944,23 @@ int monitor_wrt54g(const char *in_dev, int initch, char *in_err, void **in_if,
 			}
 		}
 	}
+#else
+	snprintf(cmdline, 2048, "/usr/sbin/wl monitor 1");
+	if (RunSysCmd(cmdline) < 0) {
+		snprintf(in_err, 1024, "Unable to set mode using 'wl monitor 1'.  Some "
+				 "custom firmware images require you to specify the origial "
+				 "device and a new dynamic device and use the iwconfig controls. "
+				 "see the README for how to configure your capture source. "
+				 "Support for wireless extensions was not compiled in, so more "
+				 "advanced modes of setting monitor mode are not available.");
+		return -1;
+	}
+	fprintf(stderr, "WARNING:  Support for wireless extensions was not compiled "
+			"into this binary.  Using the iw* tools to set monitor mode will not "
+			"be available.  This may cause opening the source to fail on some "
+			"firmware versions.  To fix this, make sure wireless extensions are "
+			"available and found by the configure script when building Kismet.");
+#endif
 
 	return 1;
 }

@@ -1,5 +1,7 @@
 Aug 02 2005  devel  Tweaked configure sockaddr_t testing to handle gcc4 being
                      bitchy about initialization
+                    Ifdef'd the wrt54 source to compile when extensions are
+                     are missing and blat out a reasonable warning
 Aug 01 2005  devel  After hearing about a presentation criticizing handling of
                      unprintable characters in the SSID, modified how SSIDs
                      are munged to printable to make non-standard charachters
