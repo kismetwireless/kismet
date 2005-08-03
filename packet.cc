@@ -1400,7 +1400,7 @@ void GetProtoInfo(kis_packet *packet, packet_info *in_info) {
 			unsigned int offset = in_info->header_offset + DHCPD_OFFSET + 252;
 
 
-			while (offset < packet->len) {
+			while ((offset + 1) < packet->len) {
 				if (data[offset] == 0x01) {
 					// netmask
 

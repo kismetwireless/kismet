@@ -2,6 +2,7 @@ Aug 03 2005  devel  Fixed an integer overflow in the CDP protocol processor that
                      at the least could lead to a crash and maybe worse.  Thanks
                      to Stefan Esser @ hardenedphp for pointing this one out.
                     Fixed CDP for CDPv2
+                    Fixed one-off on DHCP protocol parsing (non-security-related)
 Aug 02 2005  devel  Tweaked configure sockaddr_t testing to handle gcc4 being
                      bitchy about initialization
                     Ifdef'd the wrt54 source to compile when extensions are
