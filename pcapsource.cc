@@ -337,7 +337,7 @@ int PcapSource::ManglePacket(kis_packet *packet, uint8_t *data, uint8_t *moddata
 
 int PcapSource::Prism2KisPack(kis_packet *packet, uint8_t *data, uint8_t *moddata) {
     int header_found = 0;
-    int callback_offset = 0;
+    unsigned int callback_offset = 0;
 
     // See if we have an AVS wlan header...
     avs_80211_1_header *v1hdr = (avs_80211_1_header *) callback_data;
@@ -358,6 +358,19 @@ int PcapSource::Prism2KisPack(kis_packet *packet, uint8_t *data, uint8_t *moddat
 
         // Subtract the packet FCS since kismet doesn't do anything terribly bright
         // with it right now
+
+		if (callback_header.caplen < (ntohl(v1hdr->length) + fcs)) {
+			fprintf(stderr, "*** WARNING - Strangeness with prism2 avs v1hdr->length "
+					"and FCS size\n");
+            snprintf(errstr, 1024, "pcap prism2 converter got corrupted AVS "
+					 "header length");
+            packet->len = 0;
+            packet->caplen = 0;
+            return 0;
+        }
+	
+		// This should still be protected since a negative rollover on an unsigned
+		// should go super-positive and overflow the max packet len and get trimmed
         packet->caplen = kismin(callback_header.caplen - ntohl(v1hdr->length) - fcs, 
                                 (uint32_t) MAX_PACKET_LEN);
         packet->len = packet->caplen;
@@ -416,6 +429,17 @@ int PcapSource::Prism2KisPack(kis_packet *packet, uint8_t *data, uint8_t *moddat
 
         if (p2head->frmlen.data > callback_header.caplen) {
             snprintf(errstr, 1024, "pcap prism2 converter got corrupted AVS "
+					 "header length");
+            packet->len = 0;
+            packet->caplen = 0;
+            return 0;
+        }
+
+		// Protect the integers just in case
+		if (callback_header.caplen < (sizeof(wlan_ng_prism2_header) + fcs)) {
+			fprintf(stderr, "*** WARNING - Strangeness with prism2 header len "
+					"and FCS size\n");
+            snprintf(errstr, 1024, "pcap prism2 converter got corrupted prism2 "
 					 "header length");
             packet->len = 0;
             packet->caplen = 0;
