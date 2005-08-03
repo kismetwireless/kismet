@@ -959,33 +959,52 @@ void GetProtoInfo(kis_packet *packet, packet_info *in_info) {
                    sizeof(PROBE_LLC_SIGNATURE)) == 0) {
 
             // If we have a LLC packet that looks like a netstumbler...
-            if (memcmp(&data[in_info->header_offset + NETSTUMBLER_OFFSET], NETSTUMBLER_322_SIGNATURE,
+            if (memcmp(&data[in_info->header_offset + NETSTUMBLER_OFFSET], 
+					   NETSTUMBLER_322_SIGNATURE,
                        sizeof(NETSTUMBLER_322_SIGNATURE)) == 0) {
                 // Netstumbler 322 says Flurble gronk bloopit, bnip Frundletrune
                 ret_protoinfo->type = proto_netstumbler;
                 ret_protoinfo->prototype_extra = 22;
                 return;
-            } else if (memcmp(&data[in_info->header_offset + NETSTUMBLER_OFFSET], NETSTUMBLER_323_SIGNATURE,
+            } else if (memcmp(&data[in_info->header_offset + NETSTUMBLER_OFFSET], 
+							  NETSTUMBLER_323_SIGNATURE,
                               sizeof(NETSTUMBLER_323_SIGNATURE)) == 0) {
                 // Netstumbler 323 says All your 802.11b are belong to us
                 ret_protoinfo->type = proto_netstumbler;
                 ret_protoinfo->prototype_extra = 23;
                 return;
-            } else if (memcmp(&data[in_info->header_offset + NETSTUMBLER_OFFSET], NETSTUMBLER_330_SIGNATURE,
+            } else if (memcmp(&data[in_info->header_offset + NETSTUMBLER_OFFSET], 
+							  NETSTUMBLER_330_SIGNATURE,
                               sizeof(NETSTUMBLER_330_SIGNATURE)) == 0) {
                 // Netstumbler 330 says           Intentionally left blank
                 ret_protoinfo->type = proto_netstumbler;
                 ret_protoinfo->prototype_extra = 30;
                 return;
-            } else if (memcmp(&data[in_info->header_offset + LUCENT_OFFSET], LUCENT_TEST_SIGNATURE,
+            } else if (memcmp(&data[in_info->header_offset + LUCENT_OFFSET], 
+							  LUCENT_TEST_SIGNATURE,
                               sizeof(LUCENT_TEST_SIGNATURE)) == 0) {
                 ret_protoinfo->type = proto_lucenttest;
             }
-        } else if (memcmp(&data[in_info->header_offset + LLC_UI_OFFSET], CISCO_SIGNATURE,
-               sizeof(CISCO_SIGNATURE)) == 0) {
+        } else if (memcmp(&data[in_info->header_offset + LLC_UI_OFFSET], 
+						  CISCO_SIGNATURE, sizeof(CISCO_SIGNATURE)) == 0) {
             // CDP
 
-            unsigned int offset = in_info->header_offset + LLC_UI_OFFSET + 12;
+			// What was this?  I don't know why I used +12.  Test the version,
+			// now.  If it's v2, do what should be right, otherwise leave the
+			// brokenness.
+			if (packet->len < (unsigned int) in_info->header_offset + 
+				LLC_UI_OFFSET + sizeof(CISCO_SIGNATURE)) {
+				return;
+			}
+
+			unsigned int offset = 0;
+
+			if (packet->data[in_info->header_offset + LLC_UI_OFFSET + 
+				sizeof(CISCO_SIGNATURE)] == 2)
+				offset = in_info->header_offset + LLC_UI_OFFSET + 
+					sizeof(CISCO_SIGNATURE) + 4;
+			else
+				offset = in_info->header_offset + LLC_UI_OFFSET + 12;
 
             while (offset < packet->len) {
                 // Make sure that whatever we do, we don't wander off the
@@ -994,22 +1013,21 @@ void GetProtoInfo(kis_packet *packet, packet_info *in_info) {
 
                 cdp_element *elem = (cdp_element *) &data[offset];
 
+				elem->length = kis_ntoh16(elem->length);
+				elem->type = kis_ntoh16(elem->type);
+
                 if (elem->length == 0)
                     break;
 
 				if (offset + elem->length >= packet->len) {
-					in_info->corrupt = 1;
-					fprintf(stderr, "*** Warning - Corrupt CDP frame (possibly an "
-							"exploit attempt.\n");
-					return;
+					break;
 				}
 
                 if (elem->type == 0x01) {
                     // Device id
-					if (elem->length <= 3) {
-						in_info->corrupt = 1;
+					if (elem->length < 3) {
 						fprintf(stderr, "*** Warning - Corrupt CDP frame (possibly "
-								"an exploit attempt.\n");
+								"an exploit attempt. (0x01 frame < 3)\n");
 						return;
 					}
                     snprintf(ret_protoinfo->cdp.dev_id, elem->length-3, "%s", 
@@ -1030,29 +1048,26 @@ void GetProtoInfo(kis_packet *packet, packet_info *in_info) {
                     // }
                 } else if (elem->type == 0x03) {
                     // port id
-					if (elem->length <= 3) {
-						in_info->corrupt = 1;
+					if (elem->length < 3) {
 						fprintf(stderr, "*** Warning - Corrupt CDP frame (possibly "
-								"an exploit attempt.\n");
+								"an exploit attempt. (0x03 frame < 3)\n");
 						return;
 					}
                     snprintf(ret_protoinfo->cdp.interface, elem->length-3, "%s", 
 							 (char *) &elem->data);
                 } else if (elem->type == 0x04) {
                     // capabilities
-					if (elem->length <= 4) {
-						in_info->corrupt = 1;
-						fprintf(stderr, "*** Warning - Corrupt CDP frame (possibly an "
-								"exploit attempt.\n");
+					if (elem->length < 4) {
+						fprintf(stderr, "*** Warning - Corrupt CDP frame (possibly "
+								"an exploit attempt. (0x04 frame < 4)\n");
 						return;
 					}
                     memcpy(&ret_protoinfo->cdp.cap, &elem->data, elem->length-4);
                 } else if (elem->type == 0x05) {
                     // software version
 					if (elem->length <= 3) {
-						in_info->corrupt = 1;
 						fprintf(stderr, "*** Warning - Corrupt CDP frame (possibly "
-								"an exploit attempt.\n");
+								"an exploit attempt. (0x05 frame< 3)\n");
 						return;
 					}
                     snprintf(ret_protoinfo->cdp.software, elem->length-3, "%s", 
@@ -1060,9 +1075,8 @@ void GetProtoInfo(kis_packet *packet, packet_info *in_info) {
                 } else if (elem->type == 0x06) {
                     // Platform
 					if (elem->length <= 3) {
-						in_info->corrupt = 1;
 						fprintf(stderr, "*** Warning - Corrupt CDP frame (possibly "
-								"an exploit attempt.\n");
+								"an exploit attempt. (0x06 frame < 3)\n");
 						return;
 					}
                     snprintf(ret_protoinfo->cdp.platform, elem->length-3, "%s", 

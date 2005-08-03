@@ -248,10 +248,8 @@ typedef struct {
 } cdp_packet;
 
 typedef struct {
-    unsigned int : 8 __attribute__ ((packed));
-    unsigned int type : 8 __attribute__ ((packed));
-    unsigned int : 8 __attribute__ ((packed));
-    unsigned int length : 8 __attribute__ ((packed));
+    unsigned int type : 16 __attribute__ ((packed));
+    unsigned int length : 16 __attribute__ ((packed));
     char data;
 } cdp_element;
 
