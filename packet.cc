@@ -82,11 +82,11 @@ static const uint32_t wep_crc32_table[256] = {
 
 // Munge text down to printable characters only.  Simpler, cleaner munger than
 // before (and more blatant when munging)
-void MungeToPrintable(char *in_data, int max) {
+string MungeToPrintable(char *in_data, int len) {
 	string ret;
 	int i;
 
-	for (i = 0; i < max; i++) {
+	for (i = 0; i < len; i++) {
 		if ((unsigned char) in_data[i] >= 32 && (unsigned char) in_data[i] <= 176) {
 			ret += in_data[i];
 		} else {
@@ -97,7 +97,7 @@ void MungeToPrintable(char *in_data, int max) {
 		}
 	}
 
-	snprintf(in_data, SSID_SIZE, "%s", ret.c_str());
+	return ret;
 }
 
 // Returns a pointer in the data block to the size byte of the desired
@@ -369,7 +369,8 @@ void GetPacketInfo(kis_packet *packet, packet_info *ret_packinfo,
                     ret_packinfo->ssid[temp] = '\0';
                     // Munge it down to printable characters... SSID's can be anything
                     // but if we can't print them it's not going to be very useful
-                    MungeToPrintable(ret_packinfo->ssid, temp);
+					snprintf(ret_packinfo->ssid, SSID_SIZE, "%s",
+							 MungeToPrintable(ret_packinfo->ssid, temp).c_str());
                 } else {
                     // Otherwise we're corrupt, set it and stop processing
                     ret_packinfo->corrupt = 1;
@@ -475,9 +476,14 @@ void GetPacketInfo(kis_packet *packet, packet_info *ret_packinfo,
             if ((tcitr = tag_cache_map.find(133)) != tag_cache_map.end()) {
                 tag_offset = tcitr->second[0];
 
-                if ((unsigned) tag_offset + 11 < packet->len) {
-                    snprintf(ret_packinfo->beacon_info, BEACON_INFO_LEN, "%s", &packet->data[tag_offset+11]);
-                    MungeToPrintable(ret_packinfo->beacon_info, BEACON_INFO_LEN);
+                temp = (packet->data[tag_offset] & 0xFF);
+
+                if ((unsigned) tag_offset + 11 < packet->len && temp < SSID_SIZE) {
+					memcpy(ret_packinfo->beacon_info, 
+						   &packet->data[tag_offset+1], temp);
+					ret_packinfo->beacon_info[temp] = '\0';
+					snprintf(ret_packinfo->beacon_info, SSID_SIZE, "%s",
+						 MungeToPrintable(ret_packinfo->beacon_info, temp).c_str());
                 } else {
                     // Otherwise we're corrupt, bail
                     ret_packinfo->corrupt = 1;
@@ -1120,7 +1126,8 @@ void GetProtoInfo(kis_packet *packet, packet_info *in_info) {
 
             // Get the SSID
             if (packet->len > (unsigned int) (in_info->header_offset + LLC_OFFSET + 26)) {
-                u_char *turbossid = &data[in_info->header_offset + LLC_OFFSET + 26];
+                char *turbossid = (char *) &data[in_info->header_offset + 
+					LLC_OFFSET + 26];
                 if (isprint(turbossid[0])) {
                     // Make sure we get a terminator
                     int turbossidterm = 0;
@@ -1133,9 +1140,10 @@ void GetProtoInfo(kis_packet *packet, packet_info *in_info) {
                         turbossidpos++;
                     }
 
-                    if (turbossidterm) {
-                        snprintf(in_info->ssid, SSID_SIZE, "%s", turbossid);
-                        MungeToPrintable(in_info->ssid, SSID_SIZE);
+					if (turbossidterm) {
+						snprintf(in_info->ssid, SSID_SIZE, "%s",
+								 MungeToPrintable(turbossid, 
+												  turbossidpos).c_str());
                     }
                 }
             }

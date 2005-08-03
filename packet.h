@@ -53,8 +53,6 @@
 #define MAC_LEN 6
 #define MAC_STR_LEN ((MAC_LEN * 2) + 6)
 
-#define BEACON_INFO_LEN 128
-
 // Parmeters to the packet info
 typedef struct packet_parm {
     int fuzzy_crypt;
@@ -534,7 +532,7 @@ typedef struct {
     int beacon;
 
     // Cisco tacks extra info into the beacon.  This is nice.
-    char beacon_info[BEACON_INFO_LEN];
+    char beacon_info[SSID_SIZE+1];
 
     // Offset of the header
     int header_offset;
@@ -576,7 +574,7 @@ typedef struct {
 
 // ----------------------------------
 // String munger
-void MungeToPrintable(char *in_data, int max);
+string MungeToPrintable(char *in_data, int len);
 
 // Info extraction functions
 int GetTagOffset(int init_offset, int tagnum, kis_packet *packet,
