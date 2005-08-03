@@ -997,9 +997,23 @@ void GetProtoInfo(kis_packet *packet, packet_info *in_info) {
                 if (elem->length == 0)
                     break;
 
+				if (offset + elem->length >= packet->len) {
+					in_info->corrupt = 1;
+					fprintf(stderr, "*** Warning - Corrupt CDP frame (possibly an "
+							"exploit attempt.\n");
+					return;
+				}
+
                 if (elem->type == 0x01) {
                     // Device id
-                    snprintf(ret_protoinfo->cdp.dev_id, elem->length-3, "%s", (char *) &elem->data);
+					if (elem->length <= 3) {
+						in_info->corrupt = 1;
+						fprintf(stderr, "*** Warning - Corrupt CDP frame (possibly "
+								"an exploit attempt.\n");
+						return;
+					}
+                    snprintf(ret_protoinfo->cdp.dev_id, elem->length-3, "%s", 
+							 (char *) &elem->data);
                 } else if (elem->type == 0x02) {
                     // IP range
 
@@ -1016,16 +1030,43 @@ void GetProtoInfo(kis_packet *packet, packet_info *in_info) {
                     // }
                 } else if (elem->type == 0x03) {
                     // port id
-                    snprintf(ret_protoinfo->cdp.interface, elem->length-3, "%s", (char *) &elem->data);
+					if (elem->length <= 3) {
+						in_info->corrupt = 1;
+						fprintf(stderr, "*** Warning - Corrupt CDP frame (possibly "
+								"an exploit attempt.\n");
+						return;
+					}
+                    snprintf(ret_protoinfo->cdp.interface, elem->length-3, "%s", 
+							 (char *) &elem->data);
                 } else if (elem->type == 0x04) {
                     // capabilities
+					if (elem->length <= 4) {
+						in_info->corrupt = 1;
+						fprintf(stderr, "*** Warning - Corrupt CDP frame (possibly an "
+								"exploit attempt.\n");
+						return;
+					}
                     memcpy(&ret_protoinfo->cdp.cap, &elem->data, elem->length-4);
                 } else if (elem->type == 0x05) {
                     // software version
-                    snprintf(ret_protoinfo->cdp.software, elem->length-3, "%s", (char *) &elem->data);
+					if (elem->length <= 3) {
+						in_info->corrupt = 1;
+						fprintf(stderr, "*** Warning - Corrupt CDP frame (possibly "
+								"an exploit attempt.\n");
+						return;
+					}
+                    snprintf(ret_protoinfo->cdp.software, elem->length-3, "%s", 
+							 (char *) &elem->data);
                 } else if (elem->type == 0x06) {
                     // Platform
-                    snprintf(ret_protoinfo->cdp.platform, elem->length-3, "%s", (char *) &elem->data);
+					if (elem->length <= 3) {
+						in_info->corrupt = 1;
+						fprintf(stderr, "*** Warning - Corrupt CDP frame (possibly "
+								"an exploit attempt.\n");
+						return;
+					}
+                    snprintf(ret_protoinfo->cdp.platform, elem->length-3, "%s", 
+							 (char *) &elem->data);
                 }
 
                 offset += elem->length;
