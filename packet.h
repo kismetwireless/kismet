@@ -533,7 +533,7 @@ typedef struct {
     char beacon_info[SSID_SIZE+1];
 
     // Offset of the header
-    int header_offset;
+    unsigned int header_offset;
 
     proto_info proto;
 

@@ -817,6 +817,12 @@ void GetPacketInfo(kis_packet *packet, packet_info *ret_packinfo,
             break;
         }
 
+		// Check the header bounds
+		if (packet->len < ret_packinfo->header_offset) {
+			ret_packinfo->corrupt = 1;
+			return;
+		}
+
 		// If we're special data frame types bail now
 		if (ret_packinfo->subtype != packet_sub_data) {
 			ret_packinfo->datasize = 0;
@@ -1149,7 +1155,7 @@ void GetProtoInfo(kis_packet *packet, packet_info *in_info) {
 
         // if it IS a turbocell packet, see if we can dissect it any...  Make sure its long
         // enough to have a SSID.
-        if (in_info->encrypted == 0 && packet->len > (unsigned int) (in_info->header_offset + LLC_OFFSET + 7)) {
+        if (in_info->encrypted == 0 && packet->len > (in_info->header_offset + LLC_OFFSET + 7)) {
             // Get the modes from the LLC header
             uint8_t turbomode = data[in_info->header_offset + LLC_OFFSET + 6];
             switch (turbomode) {
@@ -1180,7 +1186,7 @@ void GetProtoInfo(kis_packet *packet, packet_info *in_info) {
                 in_info->turbocell_sat = 0;
 
             // Get the SSID
-            if (packet->len > (unsigned int) (in_info->header_offset + LLC_OFFSET + 26)) {
+            if (packet->len > (in_info->header_offset + LLC_OFFSET + 26)) {
                 char *turbossid = (char *) &data[in_info->header_offset + 
 					LLC_OFFSET + 26];
                 if (isprint(turbossid[0])) {
@@ -1372,6 +1378,7 @@ void GetProtoInfo(kis_packet *packet, packet_info *in_info) {
 						uint8_t fchr = data[offset+x];
 						uint8_t schr = data[offset+x+1];
 
+						// We're already insulated against non A-Z characters
 						if (fchr < 'A' || fchr > 'Z' ||
 							schr < 'A' || schr > 'Z') {
 							ret_protoinfo->type = proto_udp;
@@ -1623,8 +1630,10 @@ void DecryptPacket(kis_packet *packet, packet_info *in_info,
 // We turn the packet into an "un-modified" packet for logging
 int MangleDeCryptPacket(const kis_packet *packet, const packet_info *in_info,
                         kis_packet *outpack, uint8_t *data, uint8_t *moddata) {
-    if (in_info->decoded == 0 || packet->error != 0 || packet->modified == 0)
-        return 0;
+
+    if (in_info->decoded == 0 || packet->error != 0 || 
+		packet->modified == 0 || in_info->header_offset < 4)
+		return 0;
 
     // Remove the WEP header
     outpack->ts.tv_sec = packet->ts.tv_sec;
@@ -1644,8 +1653,15 @@ int MangleDeCryptPacket(const kis_packet *packet, const packet_info *in_info,
     outpack->moddata = moddata;
     outpack->modified = 0;
 
-    // Copy the decrypted data, skipping the wep header and dropping the crc32 off the end
-    memcpy((void *) outpack->data, (void *) packet->moddata, in_info->header_offset - 4);
+	// Check the length
+	if (outpack->len < (in_info->header_offset - 4)) {
+		return 0;
+	}
+
+    // Copy the decrypted data, skipping the wep header and dropping the crc32 
+	// off the end
+    memcpy((void *) outpack->data, (void *) packet->moddata, 
+		   in_info->header_offset - 4);
     memcpy((void *) &outpack->data[in_info->header_offset - 4],
            (void *) &packet->moddata[in_info->header_offset],
            outpack->len - (in_info->header_offset - 4));

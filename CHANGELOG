@@ -1,3 +1,5 @@
+Aug 04 2005  devel  Added more bounds checking to packet dissectors and protocol
+                     dissectors
 Aug 03 2005  devel  Fixed an integer overflow in the CDP protocol processor that
                      at the least could lead to a crash and maybe worse.  Thanks
                      to Stefan Esser @ hardenedphp for pointing this one out.
