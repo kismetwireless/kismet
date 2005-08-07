@@ -367,10 +367,24 @@ void GetPacketInfo(kis_packet *packet, packet_info *ret_packinfo,
                 } else if (temp <= 32) {
                     memcpy(ret_packinfo->ssid, &packet->data[tag_offset+1], temp);
                     ret_packinfo->ssid[temp] = '\0';
-                    // Munge it down to printable characters... SSID's can be anything
-                    // but if we can't print them it's not going to be very useful
-					snprintf(ret_packinfo->ssid, SSID_SIZE, "%s",
-							 MungeToPrintable(ret_packinfo->ssid, temp).c_str());
+				
+					int zeroed = 1;
+					for (unsigned int sp = 0; sp < temp; sp++) {
+						if (ret_packinfo->ssid[sp] != 0) {
+							zeroed = 0;
+							break;
+						}
+					}
+
+					// If it's all zeroed we don't want to munge it to temp
+					// len (breaks cloaked detection) so we don't.  Otherwise
+					// munge it down to printable characters only.
+					// It's safe to leave a 0-only SSID string un-munged 
+					// obviously since anything using it hits the zed terminator
+					if (zeroed == 0) {
+						snprintf(ret_packinfo->ssid, SSID_SIZE, "%s",
+								 MungeToPrintable(ret_packinfo->ssid, temp).c_str());
+					}
                 } else {
                     // Otherwise we're corrupt, set it and stop processing
                     ret_packinfo->corrupt = 1;

@@ -1,3 +1,6 @@
+Aug 06 2005  devel  Fixed SSID handling for SSIDs with non-zero lengths but
+                     no SSID data (cisco cloaking for one) disagreeing with
+                     the new SSID munger code
 Aug 04 2005  devel  Added more bounds checking to packet dissectors and protocol
                      dissectors
 Aug 03 2005  devel  Fixed an integer overflow in the CDP protocol processor that
