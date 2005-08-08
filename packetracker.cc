@@ -369,6 +369,8 @@ void Packetracker::ProcessPacket(kis_packet *packet, packet_info *info,
 
         net->channel = info->channel;
 
+		net->crypt_set |= (int) info->crypt_set;
+
         if (info->type == packet_management && info->subtype == packet_sub_probe_req) {
             net->type = network_probe;
         } else if (info->distrib == adhoc_distribution) {

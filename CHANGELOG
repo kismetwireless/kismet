@@ -1,3 +1,6 @@
+Aug 07 2005  devel  Fixed new network announcement text thinking a network
+                     was always unencrypted
+                    Tweaked munging to be more efficient
 Aug 06 2005  devel  Fixed SSID handling for SSIDs with non-zero lengths but
                      no SSID data (cisco cloaking for one) disagreeing with
                      the new SSID munger code

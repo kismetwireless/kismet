@@ -365,25 +365,23 @@ void GetPacketInfo(kis_packet *packet, packet_info *ret_packinfo,
                 if (temp == 0) {
                     // do nothing for 0-length ssid's
                 } else if (temp <= 32) {
-                    memcpy(ret_packinfo->ssid, &packet->data[tag_offset+1], temp);
-                    ret_packinfo->ssid[temp] = '\0';
-				
+					// Look for a non-0 length but all zero content SSID used
+					// by some systems for cloaking.  Don't waste time copying
+					// what doesn't need to be copied, and munge the rest into
+					// something safe
 					int zeroed = 1;
 					for (unsigned int sp = 0; sp < temp; sp++) {
-						if (ret_packinfo->ssid[sp] != 0) {
+						if (packet->data[tag_offset + 1 + sp] != 0) {
 							zeroed = 0;
 							break;
 						}
 					}
 
-					// If it's all zeroed we don't want to munge it to temp
-					// len (breaks cloaked detection) so we don't.  Otherwise
-					// munge it down to printable characters only.
-					// It's safe to leave a 0-only SSID string un-munged 
-					// obviously since anything using it hits the zed terminator
 					if (zeroed == 0) {
 						snprintf(ret_packinfo->ssid, SSID_SIZE, "%s",
-								 MungeToPrintable(ret_packinfo->ssid, temp).c_str());
+								 MungeToPrintable((char *)
+												  &(packet->data[tag_offset + 1]), 
+												  temp).c_str());
 					}
                 } else {
                     // Otherwise we're corrupt, set it and stop processing
@@ -489,20 +487,17 @@ void GetPacketInfo(kis_packet *packet, packet_info *ret_packinfo,
             // Extract the CISC.O beacon info
             if ((tcitr = tag_cache_map.find(133)) != tag_cache_map.end()) {
                 tag_offset = tcitr->second[0];
-
                 temp = (packet->data[tag_offset] & 0xFF);
 
-                if ((unsigned) tag_offset + 11 < packet->len && temp < SSID_SIZE) {
-					memcpy(ret_packinfo->beacon_info, 
-						   &packet->data[tag_offset+1], temp);
-					ret_packinfo->beacon_info[temp] = '\0';
-					snprintf(ret_packinfo->beacon_info, SSID_SIZE, "%s",
-						 MungeToPrintable(ret_packinfo->beacon_info, temp).c_str());
-                } else {
-                    // Otherwise we're corrupt, bail
-                    ret_packinfo->corrupt = 1;
-                    return;
+				// Copy and munge the beacon info if it falls w/in our
+				// boundaries
+				if ((unsigned int) (tag_offset + 11) < packet->len && temp >= 11) {
+					snprintf(ret_packinfo->beacon_info, SSID_SIZE,
+						MungeToPrintable((char *) &(packet->data[tag_offset+11]), temp - 11).c_str());
                 }
+
+				// Non-fatal fail since beacon info might not have that
+				// 11 byte leader on it, I don't know
             }
 
 			// WPA frame matching if we have the privacy bit set
