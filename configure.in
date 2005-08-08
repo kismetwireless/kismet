@@ -161,7 +161,7 @@ AC_DEFINE_UNQUOTED(BIN_LOC, "$BIN_DIR", system binary directory)
 AC_C_BIGENDIAN
 
 # Checks for header files.
-AC_CHECK_HEADERS([errno.h stdlib.h string.h sys/socket.h sys/time.h sys/wait.h unistd.h sys/types.h], 
+AC_CHECK_HEADERS([errno.h stdlib.h string.h sys/socket.h sys/time.h sys/wait.h unistd.h sys/types.h netdb.h], 
 	AC_DEFINE(HAVE_SYSHEADERS, 1, System headers are there), 
 	AC_MSG_ERROR(Missing required system header))
 
@@ -233,6 +233,7 @@ OCFL="$CFLAGS"
 CFLAGS="-Werror $CFLAGS"
 AC_LINK_IFELSE([AC_LANG_PROGRAM([[
 		#include <stdio.h>
+		#include <netdb.h>
 		#include <sys/types.h>
 		#include <sys/socket.h>
 		]], [[
@@ -351,7 +352,11 @@ netlink=no
 AC_CHECK_HEADER([linux/netlink.h],
 	[AC_DEFINE(HAVE_LINUX_NETLINK, 1, Linux netlink socket capture present) netlink=yes],
 	[AC_MSG_WARN([*** Missing Linux netlink headers.  wlanng_legacy source will not be built. ***])],
-	[#include <linux/socket.h>])
+	[
+	#include <sys/types.h>
+	#include <netdb.h>
+	#include <linux/socket.h>
+	])
 else
 	AC_MSG_WARN([*** Compiling without Linux netlink headers.  wlanng_legacy source will not be built. ***])
 fi
@@ -365,7 +370,11 @@ wireless=no
 AC_CHECK_HEADER([linux/wireless.h],
 	[wireless=yes],
 	[AC_MSG_WARN([*** Missing Linux Wireless kernel extentions.  The majority of packet sources on Linux require this support and will not work without it.  Make sure your kernel header packages are installed.  If all else fails, try the --with-linuxheaders directive. ***])],
-	[#include <linux/socket.h>])
+	[
+	#include <sys/types.h>
+	#include <netdb.h>
+	#include <linux/socket.h>
+	])
 else
 	AC_MSG_WARN(*** Missing Linux Wireless kernel extentions.  The majority of packet sources on Linux require this support and will not work without it.  Make sure your kernel header packages are installed.  If all else fails, try the --with-linuxheaders directive. ***)
 fi
@@ -375,6 +384,7 @@ if test "$wireless" = "yes"; then
     AC_LINK_IFELSE([AC_LANG_PROGRAM([[
         #include <stdio.h>
 		#include <sys/types.h>
+		#include <netdb.h>
 		#include <netinet/in.h>
         #include <sys/resource.h>
 		#include <linux/wireless.h>
@@ -566,23 +576,23 @@ AC_ARG_ENABLE(local-dumper, [  --enable-local-dumper   force use of local dump c
               local=yes,)
 AC_SUBST(local)
 
-AC_ARG_WITH(ethereal,
-[  --with-ethereal[=DIR]     support ethereal wiretap for replaying logs ]
-  --without-ethereal        disable support for ethereal wiretap],
-[
-    if test $withval = no; then
-        want_ethereal=no
-    elif test $withval = yes; then
-        want_ethereal=yes
-		ethereal_dir=$etherealdir
-    else
-        want_ethereal=yes
-        ethereal_dir=$withval
-    fi
-],[
-    want_ethereal=yes
-    ethereal_dir=$etherealdir
-])
+# AC_ARG_WITH(ethereal,
+# [  --with-ethereal[=DIR]     support ethereal wiretap for replaying logs ]
+#   --without-ethereal        disable support for ethereal wiretap],
+# [
+#     if test $withval = no; then
+#         want_ethereal=no
+#     elif test $withval = yes; then
+#         want_ethereal=yes
+# 		ethereal_dir=$etherealdir
+#     else
+#         want_ethereal=yes
+#         ethereal_dir=$withval
+#     fi
+# ],[
+#     want_ethereal=yes
+#     ethereal_dir=$etherealdir
+# ])
 
 #
 #found_ethereal=no
@@ -597,116 +607,116 @@ AC_ARG_WITH(ethereal,
 
 
 libz="no"
-if test $want_ethereal = yes; then
-
-	AC_CHECK_PROG(glib, [glib-config --version], yes, no)
-	
-	if test $glib = no; then
-		AC_MSG_WARN(Could not find glib-config in $PATH.  glib is required to link to wiretap.)
-		want_ethereal=no
-		local=yes
-	    AC_MSG_WARN([*** Wiretap support disabled.  While Kismet will function without wiretap, it will limit the log reading and writing abilities. ***])
-	    AC_DEFINE(USE_LOCAL_DUMP, 1, Use local dumper code)
-	    local=yes
-	else
-
-	AC_MSG_CHECKING(for usable wiretap with 3 arguments in $ethereal_dir/wiretap)
-	save_cppflags="$CPPFLAGS"
-	CPPFLAGS="$CPPFLAGS `glib-config --cflags glib` -I$ethereal_dir/wiretap"
-	#CPPFLAGS="$CPPFLAGS `glib-config --cflags glib` -I$ethereal_dir/wiretap"
-	#save_cxxflags="$CXXFLAGS"
-	#CXXFLAGS="$CXXFLAGS `glib-config --cflags glib` -I$ethereal_dir/wiretap"
-	save_libs="$LIBS"
-	LIBS="$LIBS -lz `glib-config --libs glib` -L$ethereal_dir/wiretap -lwiretap"
-
-    AC_LINK_IFELSE([AC_LANG_PROGRAM([[
-		#include <stdio.h>
-		#include <sys/types.h>
-		#include <sys/time.h>
-		#include "wtap.h"
-		]], [[
-	const char *filename = "autoconf test";
-	int err;
-
-	wtap_open_offline(filename, &err, 0);
-		]])],[wtap_valid=yes],[wtap_valid=no])
-
-    if test "$wtap_valid" = no ; then
-        AC_MSG_RESULT(no);
-	    AC_MSG_CHECKING(for usable wiretap with 4 arguments in $ethereal_dir/wiretap)
-    	AC_LINK_IFELSE([AC_LANG_PROGRAM([[
-        	#include <stdio.h>
-			#include <sys/types.h>
-			#include <netinet/in.h>
-      		#include "wtap.h"
-       	]], [[
-	const char *filename = "autoconf test";
-	int err;
-
-	wtap_open_offline(filename, &err, 0, 0);
-        ]])],[wtap_argquad=yes],[wtap_argquad=no])
-
-		if test "$wtap_argquad" = yes ; then
-            wtap_valid="yes";
-            AC_DEFINE(HAVE_WTAP_ARGQUAD, 1, wiretap functions takesfour parameters)
-		fi
-    fi
-
-    if test "$wtap_valid" = yes ; then
-        AC_MSG_RESULT(yes)
-        AC_DEFINE(HAVE_LIBWIRETAP, 1, Ethereal wiretap library)
-		libz="yes";
-		AC_DEFINE(HAVE_LIBZ, 1, Zlib compression library)
-
-        if test "$wtap_argquad" = no ; then
-    		AC_MSG_CHECKING(for wtap_read parameters (wtap *, int *, int *))
-        	AC_LINK_IFELSE([AC_LANG_PROGRAM([[
-            	#include <stdio.h>
-    			#include <sys/types.h>
-    			#include <netinet/in.h>
-          		#include "wtap.h"
-           	]], [[
-        		int err;
-    			struct wtap *packfile;
-    			long *offset;
-    
-        		wtap_read(packfile, &err, offset);
-            ]])],[wtap_intint=no],[wtap_intint=yes])
-    
-    		if test "$wtap_intint" = yes ; then
-    			AC_MSG_RESULT([struct wtap *, int *, int *])
-                AC_DEFINE(HAVE_WTAPREAD_INTINT, 1, wtap_read takes two int * parameters)
-    		else
-                AC_MSG_RESULT([struct wtap *, int *, long *])
-            fi
-        fi
-
-		if test $local = yes; then
-		    AC_MSG_CHECKING(for forced local-dumper)
-		    AC_MSG_RESULT(yes)
-		    AC_MSG_WARN(*** Forcing local dumper code instead of wiretap dumper.  ***)
-			AC_DEFINE(USE_LOCAL_DUMP, 1, Force local dumper code)
-		else
-		    AC_MSG_CHECKING(for forced local-dumper)
-		    AC_MSG_RESULT(no)
-		fi
-    else
-        AC_MSG_RESULT(no)
-		want_ethereal="no"
-		AC_MSG_WARN([*** No useable wiretap found in $ethereal_dir.  Make sure this directory is correct and that you have configured and compiled Ethereal in this directory.  While Kismet will function without wiretap, it will limit the log reading and writing abilities. ***])
-		CPPFLAGS="$save_cppflags"
-		#CXXFLAGS="$save_cxxflags"
-   		LIBS="$save_libs"
-		AC_DEFINE(USE_LOCAL_DUMP, 1, Use local dumper code)
-    	local=yes
-    fi
-
-	fi
-else
-	AC_MSG_WARN([*** Wiretap support disabled.  While Kismet will function without wiretap, it will limit the log reading and writing abilities. ***])
-	AC_DEFINE(USE_LOCAL_DUMP, 1, Use local dumper code)
-    local=yes
-fi
+# if test $want_ethereal = yes; then
+# 
+# 	AC_CHECK_PROG(glib, [glib-config --version], yes, no)
+# 	
+# 	if test $glib = no; then
+# 		AC_MSG_WARN(Could not find glib-config in $PATH.  glib is required to link to wiretap.)
+# 		want_ethereal=no
+# 		local=yes
+# 	    AC_MSG_WARN([*** Wiretap support disabled.  While Kismet will function without wiretap, it will limit the log reading and writing abilities. ***])
+# 	    AC_DEFINE(USE_LOCAL_DUMP, 1, Use local dumper code)
+# 	    local=yes
+# 	else
+# 
+# 	AC_MSG_CHECKING(for usable wiretap with 3 arguments in $ethereal_dir/wiretap)
+# 	save_cppflags="$CPPFLAGS"
+# 	CPPFLAGS="$CPPFLAGS `glib-config --cflags glib` -I$ethereal_dir/wiretap"
+# 	#CPPFLAGS="$CPPFLAGS `glib-config --cflags glib` -I$ethereal_dir/wiretap"
+# 	#save_cxxflags="$CXXFLAGS"
+# 	#CXXFLAGS="$CXXFLAGS `glib-config --cflags glib` -I$ethereal_dir/wiretap"
+# 	save_libs="$LIBS"
+# 	LIBS="$LIBS -lz `glib-config --libs glib` -L$ethereal_dir/wiretap -lwiretap"
+# 
+#     AC_LINK_IFELSE([AC_LANG_PROGRAM([[
+# 		#include <stdio.h>
+# 		#include <sys/types.h>
+# 		#include <sys/time.h>
+# 		#include "wtap.h"
+# 		]], [[
+# 	const char *filename = "autoconf test";
+# 	int err;
+# 
+# 	wtap_open_offline(filename, &err, 0);
+# 		]])],[wtap_valid=yes],[wtap_valid=no])
+# 
+#     if test "$wtap_valid" = no ; then
+#         AC_MSG_RESULT(no);
+# 	    AC_MSG_CHECKING(for usable wiretap with 4 arguments in $ethereal_dir/wiretap)
+#     	AC_LINK_IFELSE([AC_LANG_PROGRAM([[
+#         	#include <stdio.h>
+# 			#include <sys/types.h>
+# 			#include <netinet/in.h>
+#       		#include "wtap.h"
+#        	]], [[
+# 	const char *filename = "autoconf test";
+# 	int err;
+# 
+# 	wtap_open_offline(filename, &err, 0, 0);
+#         ]])],[wtap_argquad=yes],[wtap_argquad=no])
+# 
+# 		if test "$wtap_argquad" = yes ; then
+#             wtap_valid="yes";
+#             AC_DEFINE(HAVE_WTAP_ARGQUAD, 1, wiretap functions takesfour parameters)
+# 		fi
+#     fi
+# 
+#     if test "$wtap_valid" = yes ; then
+#         AC_MSG_RESULT(yes)
+#         AC_DEFINE(HAVE_LIBWIRETAP, 1, Ethereal wiretap library)
+# 		libz="yes";
+# 		AC_DEFINE(HAVE_LIBZ, 1, Zlib compression library)
+# 
+#         if test "$wtap_argquad" = no ; then
+#     		AC_MSG_CHECKING(for wtap_read parameters (wtap *, int *, int *))
+#         	AC_LINK_IFELSE([AC_LANG_PROGRAM([[
+#             	#include <stdio.h>
+#     			#include <sys/types.h>
+#     			#include <netinet/in.h>
+#           		#include "wtap.h"
+#            	]], [[
+#         		int err;
+#     			struct wtap *packfile;
+#     			long *offset;
+#     
+#         		wtap_read(packfile, &err, offset);
+#             ]])],[wtap_intint=no],[wtap_intint=yes])
+#     
+#     		if test "$wtap_intint" = yes ; then
+#     			AC_MSG_RESULT([struct wtap *, int *, int *])
+#                 AC_DEFINE(HAVE_WTAPREAD_INTINT, 1, wtap_read takes two int * parameters)
+#     		else
+#                 AC_MSG_RESULT([struct wtap *, int *, long *])
+#             fi
+#         fi
+# 
+# 		if test $local = yes; then
+# 		    AC_MSG_CHECKING(for forced local-dumper)
+# 		    AC_MSG_RESULT(yes)
+# 		    AC_MSG_WARN(*** Forcing local dumper code instead of wiretap dumper.  ***)
+# 			AC_DEFINE(USE_LOCAL_DUMP, 1, Force local dumper code)
+# 		else
+# 		    AC_MSG_CHECKING(for forced local-dumper)
+# 		    AC_MSG_RESULT(no)
+# 		fi
+#     else
+#         AC_MSG_RESULT(no)
+# 		want_ethereal="no"
+# 		AC_MSG_WARN([*** No useable wiretap found in $ethereal_dir.  Make sure this directory is correct and that you have configured and compiled Ethereal in this directory.  While Kismet will function without wiretap, it will limit the log reading and writing abilities. ***])
+# 		CPPFLAGS="$save_cppflags"
+# 		#CXXFLAGS="$save_cxxflags"
+#    		LIBS="$save_libs"
+# 		AC_DEFINE(USE_LOCAL_DUMP, 1, Use local dumper code)
+#     	local=yes
+#     fi
+# 
+# 	fi
+# else
+# 	AC_MSG_WARN([*** Wiretap support disabled.  While Kismet will function without wiretap, it will limit the log reading and writing abilities. ***])
+# 	AC_DEFINE(USE_LOCAL_DUMP, 1, Use local dumper code)
+#     local=yes
+# fi
 
 # gpsmap checks
 
@@ -1028,7 +1038,7 @@ fi
 
 if test "$wireless" != "yes" -a "$linux" = "yes"; then
     echo "*** WARNING ***"
-    echo "Linux Wireless Extentions were not found.  This means that they are not"
+    echo "Linux Wireless Extensions were not found.  This means that they are not"
     echo "turned on in your kernel or that your kernel source include paths on your"
     echo "distribution are broken (namely, that linux/wireless.h didn't exist or"
     echo "was unuseable).  Without wireless extentions, most of the commonly used"

@@ -51,9 +51,6 @@
 /* libpcap packet capture lib */
 #undef HAVE_LIBPCAP
 
-/* Ethereal wiretap library */
-#undef HAVE_LIBWIRETAP
-
 /* Libz compression lib */
 #undef HAVE_LIBZ
 
@@ -71,6 +68,9 @@
 
 /* Define to 1 if you have the `memset' function. */
 #undef HAVE_MEMSET
+
+/* Define to 1 if you have the <netdb.h> header file. */
+#undef HAVE_NETDB_H
 
 /* pcap/pcap.h */
 #undef HAVE_PCAPPCAP_H
@@ -163,12 +163,6 @@
 /* wsp100 remote sensor support */
 #undef HAVE_WSP100
 
-/* wtap_read takes two int * parameters */
-#undef HAVE_WTAPREAD_INTINT
-
-/* wiretap functions takesfour parameters */
-#undef HAVE_WTAP_ARGQUAD
-
 /* system state directory */
 #undef LOCALSTATE_DIR
 
@@ -220,9 +214,6 @@
 
 /* Define to 1 if your <sys/time.h> declares `struct tm'. */
 #undef TM_IN_SYS_TIME
-
-/* Use local dumper code */
-#undef USE_LOCAL_DUMP
 
 /* Define to 1 if your processor stores words with the most significant byte
    first (like Motorola and SPARC, unlike Intel and VAX). */

@@ -311,7 +311,7 @@ ac_includes_default="\
 #endif"
 
 ac_subdirs_all="$ac_subdirs_all $pcapdir"
-ac_subst_vars='SHELL PATH_SEPARATOR PACKAGE_NAME PACKAGE_TARNAME PACKAGE_VERSION PACKAGE_STRING PACKAGE_BUGREPORT exec_prefix prefix program_transform_name bindir sbindir libexecdir datadir sysconfdir sharedstatedir localstatedir libdir includedir oldincludedir infodir mandir build_alias host_alias target_alias DEFS ECHO_C ECHO_N ECHO_T LIBS pcapdir build build_cpu build_vendor build_os host host_cpu host_vendor host_os CC CFLAGS LDFLAGS CPPFLAGS ac_ct_CC EXEEXT OBJEXT CXX CXXFLAGS ac_ct_CXX INSTALL_PROGRAM INSTALL_SCRIPT INSTALL_DATA SET_MAKE CPP EGREP LIBOBJS instgrp mangrp CLIBS wantnetlink wantwireless wantpcap pcaplib pcaplnk subdirs pcap suid zaurus zbuild local glib wantgpsmap wget magickconfig gpslc gpslco threadlib sharedatadir LTLIBOBJS'
+ac_subst_vars='SHELL PATH_SEPARATOR PACKAGE_NAME PACKAGE_TARNAME PACKAGE_VERSION PACKAGE_STRING PACKAGE_BUGREPORT exec_prefix prefix program_transform_name bindir sbindir libexecdir datadir sysconfdir sharedstatedir localstatedir libdir includedir oldincludedir infodir mandir build_alias host_alias target_alias DEFS ECHO_C ECHO_N ECHO_T LIBS pcapdir build build_cpu build_vendor build_os host host_cpu host_vendor host_os CC CFLAGS LDFLAGS CPPFLAGS ac_ct_CC EXEEXT OBJEXT CXX CXXFLAGS ac_ct_CXX INSTALL_PROGRAM INSTALL_SCRIPT INSTALL_DATA SET_MAKE CPP EGREP LIBOBJS instgrp mangrp CLIBS wantnetlink wantwireless wantpcap pcaplib pcaplnk subdirs pcap suid zaurus zbuild local wantgpsmap wget magickconfig gpslc gpslco threadlib sharedatadir LTLIBOBJS'
 ac_subst_files=''
 
 # Initialize some variables set by options.
@@ -873,8 +873,6 @@ Optional Packages:
   --with-PACKAGE[=ARG]    use PACKAGE [ARG=yes]
   --without-PACKAGE       do not use PACKAGE (same as --with-PACKAGE=no)
   --with-linuxheaders=DIR     Custom location of the Linux kernel headers if the glibc copies are insufficient
-  --with-ethereal=DIR     support ethereal wiretap for replaying logs
-  --without-ethereal        disable support for ethereal wiretap]
 
 Some influential environment variables:
   CC          C compiler command
@@ -3748,7 +3746,8 @@ done
 
 
 
-for ac_header in errno.h stdlib.h string.h sys/socket.h sys/time.h sys/wait.h unistd.h sys/types.h
+
+for ac_header in errno.h stdlib.h string.h sys/socket.h sys/time.h sys/wait.h unistd.h sys/types.h netdb.h
 do
 as_ac_Header=`echo "ac_cv_header_$ac_header" | $as_tr_sh`
 if eval "test \"\${$as_ac_Header+set}\" = set"; then
@@ -5192,6 +5191,7 @@ cat >>conftest.$ac_ext <<_ACEOF
 /* end confdefs.h.  */
 
 		#include <stdio.h>
+		#include <netdb.h>
 		#include <sys/types.h>
 		#include <sys/socket.h>
 
@@ -6126,7 +6126,11 @@ _ACEOF
 cat confdefs.h >>conftest.$ac_ext
 cat >>conftest.$ac_ext <<_ACEOF
 /* end confdefs.h.  */
-#include <linux/socket.h>
+
+	#include <sys/types.h>
+	#include <netdb.h>
+	#include <linux/socket.h>
+
 
 #include <linux/netlink.h>
 _ACEOF
@@ -6202,7 +6206,11 @@ _ACEOF
 cat confdefs.h >>conftest.$ac_ext
 cat >>conftest.$ac_ext <<_ACEOF
 /* end confdefs.h.  */
-#include <linux/socket.h>
+
+	#include <sys/types.h>
+	#include <netdb.h>
+	#include <linux/socket.h>
+
 
 #include <linux/wireless.h>
 _ACEOF
@@ -6264,6 +6272,7 @@ cat >>conftest.$ac_ext <<_ACEOF
 
         #include <stdio.h>
 		#include <sys/types.h>
+		#include <netdb.h>
 		#include <netinet/in.h>
         #include <sys/resource.h>
 		#include <linux/wireless.h>
@@ -7260,27 +7269,23 @@ if test "${enable_local_dumper+set}" = set; then
 fi;
 
 
-
-# Check whether --with-ethereal or --without-ethereal was given.
-if test "${with_ethereal+set}" = set; then
-  withval="$with_ethereal"
-
-    if test $withval = no; then
-        want_ethereal=no
-    elif test $withval = yes; then
-        want_ethereal=yes
-		ethereal_dir=$etherealdir
-    else
-        want_ethereal=yes
-        ethereal_dir=$withval
-    fi
-
-else
-
-    want_ethereal=yes
-    ethereal_dir=$etherealdir
-
-fi;
+# AC_ARG_WITH(ethereal,
+# [  --with-ethereal[=DIR]     support ethereal wiretap for replaying logs ]
+#   --without-ethereal        disable support for ethereal wiretap],
+# [
+#     if test $withval = no; then
+#         want_ethereal=no
+#     elif test $withval = yes; then
+#         want_ethereal=yes
+# 		ethereal_dir=$etherealdir
+#     else
+#         want_ethereal=yes
+#         ethereal_dir=$withval
+#     fi
+# ],[
+#     want_ethereal=yes
+#     ethereal_dir=$etherealdir
+# ])
 
 #
 #found_ethereal=no
@@ -7295,335 +7300,116 @@ fi;
 
 
 libz="no"
-if test $want_ethereal = yes; then
-
-	# Extract the first word of "glib-config --version", so it can be a program name with args.
-set dummy glib-config --version; ac_word=$2
-echo "$as_me:$LINENO: checking for $ac_word" >&5
-echo $ECHO_N "checking for $ac_word... $ECHO_C" >&6
-if test "${ac_cv_prog_glib+set}" = set; then
-  echo $ECHO_N "(cached) $ECHO_C" >&6
-else
-  if test -n "$glib"; then
-  ac_cv_prog_glib="$glib" # Let the user override the test.
-else
-as_save_IFS=$IFS; IFS=$PATH_SEPARATOR
-for as_dir in $PATH
-do
-  IFS=$as_save_IFS
-  test -z "$as_dir" && as_dir=.
-  for ac_exec_ext in '' $ac_executable_extensions; do
-  if $as_executable_p "$as_dir/$ac_word$ac_exec_ext"; then
-    ac_cv_prog_glib="yes"
-    echo "$as_me:$LINENO: found $as_dir/$ac_word$ac_exec_ext" >&5
-    break 2
-  fi
-done
-done
-
-  test -z "$ac_cv_prog_glib" && ac_cv_prog_glib="no"
-fi
-fi
-glib=$ac_cv_prog_glib
-if test -n "$glib"; then
-  echo "$as_me:$LINENO: result: $glib" >&5
-echo "${ECHO_T}$glib" >&6
-else
-  echo "$as_me:$LINENO: result: no" >&5
-echo "${ECHO_T}no" >&6
-fi
-
-
-	if test $glib = no; then
-		{ echo "$as_me:$LINENO: WARNING: Could not find glib-config in $PATH.  glib is required to link to wiretap." >&5
-echo "$as_me: WARNING: Could not find glib-config in $PATH.  glib is required to link to wiretap." >&2;}
-		want_ethereal=no
-		local=yes
-	    { echo "$as_me:$LINENO: WARNING: *** Wiretap support disabled.  While Kismet will function without wiretap, it will limit the log reading and writing abilities. ***" >&5
-echo "$as_me: WARNING: *** Wiretap support disabled.  While Kismet will function without wiretap, it will limit the log reading and writing abilities. ***" >&2;}
-
-cat >>confdefs.h <<\_ACEOF
-#define USE_LOCAL_DUMP 1
-_ACEOF
-
-	    local=yes
-	else
-
-	echo "$as_me:$LINENO: checking for usable wiretap with 3 arguments in $ethereal_dir/wiretap" >&5
-echo $ECHO_N "checking for usable wiretap with 3 arguments in $ethereal_dir/wiretap... $ECHO_C" >&6
-	save_cppflags="$CPPFLAGS"
-	CPPFLAGS="$CPPFLAGS `glib-config --cflags glib` -I$ethereal_dir/wiretap"
-	#CPPFLAGS="$CPPFLAGS `glib-config --cflags glib` -I$ethereal_dir/wiretap"
-	#save_cxxflags="$CXXFLAGS"
-	#CXXFLAGS="$CXXFLAGS `glib-config --cflags glib` -I$ethereal_dir/wiretap"
-	save_libs="$LIBS"
-	LIBS="$LIBS -lz `glib-config --libs glib` -L$ethereal_dir/wiretap -lwiretap"
-
-    cat >conftest.$ac_ext <<_ACEOF
-/* confdefs.h.  */
-_ACEOF
-cat confdefs.h >>conftest.$ac_ext
-cat >>conftest.$ac_ext <<_ACEOF
-/* end confdefs.h.  */
-
-		#include <stdio.h>
-		#include <sys/types.h>
-		#include <sys/time.h>
-		#include "wtap.h"
-
-int
-main ()
-{
-
-	const char *filename = "autoconf test";
-	int err;
-
-	wtap_open_offline(filename, &err, 0);
-
-  ;
-  return 0;
-}
-_ACEOF
-rm -f conftest.$ac_objext conftest$ac_exeext
-if { (eval echo "$as_me:$LINENO: \"$ac_link\"") >&5
-  (eval $ac_link) 2>conftest.er1
-  ac_status=$?
-  grep -v '^ *+' conftest.er1 >conftest.err
-  rm -f conftest.er1
-  cat conftest.err >&5
-  echo "$as_me:$LINENO: \$? = $ac_status" >&5
-  (exit $ac_status); } &&
-	 { ac_try='test -z "$ac_c_werror_flag"
-			 || test ! -s conftest.err'
-  { (eval echo "$as_me:$LINENO: \"$ac_try\"") >&5
-  (eval $ac_try) 2>&5
-  ac_status=$?
-  echo "$as_me:$LINENO: \$? = $ac_status" >&5
-  (exit $ac_status); }; } &&
-	 { ac_try='test -s conftest$ac_exeext'
-  { (eval echo "$as_me:$LINENO: \"$ac_try\"") >&5
-  (eval $ac_try) 2>&5
-  ac_status=$?
-  echo "$as_me:$LINENO: \$? = $ac_status" >&5
-  (exit $ac_status); }; }; then
-  wtap_valid=yes
-else
-  echo "$as_me: failed program was:" >&5
-sed 's/^/| /' conftest.$ac_ext >&5
-
-wtap_valid=no
-fi
-rm -f conftest.err conftest.$ac_objext \
-      conftest$ac_exeext conftest.$ac_ext
-
-    if test "$wtap_valid" = no ; then
-        echo "$as_me:$LINENO: result: no" >&5
-echo "${ECHO_T}no" >&6;
-	    echo "$as_me:$LINENO: checking for usable wiretap with 4 arguments in $ethereal_dir/wiretap" >&5
-echo $ECHO_N "checking for usable wiretap with 4 arguments in $ethereal_dir/wiretap... $ECHO_C" >&6
-    	cat >conftest.$ac_ext <<_ACEOF
-/* confdefs.h.  */
-_ACEOF
-cat confdefs.h >>conftest.$ac_ext
-cat >>conftest.$ac_ext <<_ACEOF
-/* end confdefs.h.  */
-
-        	#include <stdio.h>
-			#include <sys/types.h>
-			#include <netinet/in.h>
-      		#include "wtap.h"
-
-int
-main ()
-{
-
-	const char *filename = "autoconf test";
-	int err;
-
-	wtap_open_offline(filename, &err, 0, 0);
-
-  ;
-  return 0;
-}
-_ACEOF
-rm -f conftest.$ac_objext conftest$ac_exeext
-if { (eval echo "$as_me:$LINENO: \"$ac_link\"") >&5
-  (eval $ac_link) 2>conftest.er1
-  ac_status=$?
-  grep -v '^ *+' conftest.er1 >conftest.err
-  rm -f conftest.er1
-  cat conftest.err >&5
-  echo "$as_me:$LINENO: \$? = $ac_status" >&5
-  (exit $ac_status); } &&
-	 { ac_try='test -z "$ac_c_werror_flag"
-			 || test ! -s conftest.err'
-  { (eval echo "$as_me:$LINENO: \"$ac_try\"") >&5
-  (eval $ac_try) 2>&5
-  ac_status=$?
-  echo "$as_me:$LINENO: \$? = $ac_status" >&5
-  (exit $ac_status); }; } &&
-	 { ac_try='test -s conftest$ac_exeext'
-  { (eval echo "$as_me:$LINENO: \"$ac_try\"") >&5
-  (eval $ac_try) 2>&5
-  ac_status=$?
-  echo "$as_me:$LINENO: \$? = $ac_status" >&5
-  (exit $ac_status); }; }; then
-  wtap_argquad=yes
-else
-  echo "$as_me: failed program was:" >&5
-sed 's/^/| /' conftest.$ac_ext >&5
-
-wtap_argquad=no
-fi
-rm -f conftest.err conftest.$ac_objext \
-      conftest$ac_exeext conftest.$ac_ext
-
-		if test "$wtap_argquad" = yes ; then
-            wtap_valid="yes";
-
-cat >>confdefs.h <<\_ACEOF
-#define HAVE_WTAP_ARGQUAD 1
-_ACEOF
-
-		fi
-    fi
-
-    if test "$wtap_valid" = yes ; then
-        echo "$as_me:$LINENO: result: yes" >&5
-echo "${ECHO_T}yes" >&6
-
-cat >>confdefs.h <<\_ACEOF
-#define HAVE_LIBWIRETAP 1
-_ACEOF
-
-		libz="yes";
-
-cat >>confdefs.h <<\_ACEOF
-#define HAVE_LIBZ 1
-_ACEOF
-
-
-        if test "$wtap_argquad" = no ; then
-    		echo "$as_me:$LINENO: checking for wtap_read parameters (wtap *, int *, int *)" >&5
-echo $ECHO_N "checking for wtap_read parameters (wtap *, int *, int *)... $ECHO_C" >&6
-        	cat >conftest.$ac_ext <<_ACEOF
-/* confdefs.h.  */
-_ACEOF
-cat confdefs.h >>conftest.$ac_ext
-cat >>conftest.$ac_ext <<_ACEOF
-/* end confdefs.h.  */
-
-            	#include <stdio.h>
-    			#include <sys/types.h>
-    			#include <netinet/in.h>
-          		#include "wtap.h"
-
-int
-main ()
-{
-
-        		int err;
-    			struct wtap *packfile;
-    			long *offset;
-
-        		wtap_read(packfile, &err, offset);
-
-  ;
-  return 0;
-}
-_ACEOF
-rm -f conftest.$ac_objext conftest$ac_exeext
-if { (eval echo "$as_me:$LINENO: \"$ac_link\"") >&5
-  (eval $ac_link) 2>conftest.er1
-  ac_status=$?
-  grep -v '^ *+' conftest.er1 >conftest.err
-  rm -f conftest.er1
-  cat conftest.err >&5
-  echo "$as_me:$LINENO: \$? = $ac_status" >&5
-  (exit $ac_status); } &&
-	 { ac_try='test -z "$ac_c_werror_flag"
-			 || test ! -s conftest.err'
-  { (eval echo "$as_me:$LINENO: \"$ac_try\"") >&5
-  (eval $ac_try) 2>&5
-  ac_status=$?
-  echo "$as_me:$LINENO: \$? = $ac_status" >&5
-  (exit $ac_status); }; } &&
-	 { ac_try='test -s conftest$ac_exeext'
-  { (eval echo "$as_me:$LINENO: \"$ac_try\"") >&5
-  (eval $ac_try) 2>&5
-  ac_status=$?
-  echo "$as_me:$LINENO: \$? = $ac_status" >&5
-  (exit $ac_status); }; }; then
-  wtap_intint=no
-else
-  echo "$as_me: failed program was:" >&5
-sed 's/^/| /' conftest.$ac_ext >&5
-
-wtap_intint=yes
-fi
-rm -f conftest.err conftest.$ac_objext \
-      conftest$ac_exeext conftest.$ac_ext
-
-    		if test "$wtap_intint" = yes ; then
-    			echo "$as_me:$LINENO: result: struct wtap *, int *, int *" >&5
-echo "${ECHO_T}struct wtap *, int *, int *" >&6
-
-cat >>confdefs.h <<\_ACEOF
-#define HAVE_WTAPREAD_INTINT 1
-_ACEOF
-
-    		else
-                echo "$as_me:$LINENO: result: struct wtap *, int *, long *" >&5
-echo "${ECHO_T}struct wtap *, int *, long *" >&6
-            fi
-        fi
-
-		if test $local = yes; then
-		    echo "$as_me:$LINENO: checking for forced local-dumper" >&5
-echo $ECHO_N "checking for forced local-dumper... $ECHO_C" >&6
-		    echo "$as_me:$LINENO: result: yes" >&5
-echo "${ECHO_T}yes" >&6
-		    { echo "$as_me:$LINENO: WARNING: *** Forcing local dumper code instead of wiretap dumper.  ***" >&5
-echo "$as_me: WARNING: *** Forcing local dumper code instead of wiretap dumper.  ***" >&2;}
-
-cat >>confdefs.h <<\_ACEOF
-#define USE_LOCAL_DUMP 1
-_ACEOF
-
-		else
-		    echo "$as_me:$LINENO: checking for forced local-dumper" >&5
-echo $ECHO_N "checking for forced local-dumper... $ECHO_C" >&6
-		    echo "$as_me:$LINENO: result: no" >&5
-echo "${ECHO_T}no" >&6
-		fi
-    else
-        echo "$as_me:$LINENO: result: no" >&5
-echo "${ECHO_T}no" >&6
-		want_ethereal="no"
-		{ echo "$as_me:$LINENO: WARNING: *** No useable wiretap found in $ethereal_dir.  Make sure this directory is correct and that you have configured and compiled Ethereal in this directory.  While Kismet will function without wiretap, it will limit the log reading and writing abilities. ***" >&5
-echo "$as_me: WARNING: *** No useable wiretap found in $ethereal_dir.  Make sure this directory is correct and that you have configured and compiled Ethereal in this directory.  While Kismet will function without wiretap, it will limit the log reading and writing abilities. ***" >&2;}
-		CPPFLAGS="$save_cppflags"
-		#CXXFLAGS="$save_cxxflags"
-   		LIBS="$save_libs"
-
-cat >>confdefs.h <<\_ACEOF
-#define USE_LOCAL_DUMP 1
-_ACEOF
-
-    	local=yes
-    fi
-
-	fi
-else
-	{ echo "$as_me:$LINENO: WARNING: *** Wiretap support disabled.  While Kismet will function without wiretap, it will limit the log reading and writing abilities. ***" >&5
-echo "$as_me: WARNING: *** Wiretap support disabled.  While Kismet will function without wiretap, it will limit the log reading and writing abilities. ***" >&2;}
-
-cat >>confdefs.h <<\_ACEOF
-#define USE_LOCAL_DUMP 1
-_ACEOF
-
-    local=yes
-fi
+# if test $want_ethereal = yes; then
+#
+# 	AC_CHECK_PROG(glib, [glib-config --version], yes, no)
+#
+# 	if test $glib = no; then
+# 		AC_MSG_WARN(Could not find glib-config in $PATH.  glib is required to link to wiretap.)
+# 		want_ethereal=no
+# 		local=yes
+# 	    AC_MSG_WARN([*** Wiretap support disabled.  While Kismet will function without wiretap, it will limit the log reading and writing abilities. ***])
+# 	    AC_DEFINE(USE_LOCAL_DUMP, 1, Use local dumper code)
+# 	    local=yes
+# 	else
+#
+# 	AC_MSG_CHECKING(for usable wiretap with 3 arguments in $ethereal_dir/wiretap)
+# 	save_cppflags="$CPPFLAGS"
+# 	CPPFLAGS="$CPPFLAGS `glib-config --cflags glib` -I$ethereal_dir/wiretap"
+# 	#CPPFLAGS="$CPPFLAGS `glib-config --cflags glib` -I$ethereal_dir/wiretap"
+# 	#save_cxxflags="$CXXFLAGS"
+# 	#CXXFLAGS="$CXXFLAGS `glib-config --cflags glib` -I$ethereal_dir/wiretap"
+# 	save_libs="$LIBS"
+# 	LIBS="$LIBS -lz `glib-config --libs glib` -L$ethereal_dir/wiretap -lwiretap"
+#
+#     AC_LINK_IFELSE([AC_LANG_PROGRAM([[
+# 		#include <stdio.h>
+# 		#include <sys/types.h>
+# 		#include <sys/time.h>
+# 		#include "wtap.h"
+# 		]], [[
+# 	const char *filename = "autoconf test";
+# 	int err;
+#
+# 	wtap_open_offline(filename, &err, 0);
+# 		]])],[wtap_valid=yes],[wtap_valid=no])
+#
+#     if test "$wtap_valid" = no ; then
+#         AC_MSG_RESULT(no);
+# 	    AC_MSG_CHECKING(for usable wiretap with 4 arguments in $ethereal_dir/wiretap)
+#     	AC_LINK_IFELSE([AC_LANG_PROGRAM([[
+#         	#include <stdio.h>
+# 			#include <sys/types.h>
+# 			#include <netinet/in.h>
+#       		#include "wtap.h"
+#        	]], [[
+# 	const char *filename = "autoconf test";
+# 	int err;
+#
+# 	wtap_open_offline(filename, &err, 0, 0);
+#         ]])],[wtap_argquad=yes],[wtap_argquad=no])
+#
+# 		if test "$wtap_argquad" = yes ; then
+#             wtap_valid="yes";
+#             AC_DEFINE(HAVE_WTAP_ARGQUAD, 1, wiretap functions takesfour parameters)
+# 		fi
+#     fi
+#
+#     if test "$wtap_valid" = yes ; then
+#         AC_MSG_RESULT(yes)
+#         AC_DEFINE(HAVE_LIBWIRETAP, 1, Ethereal wiretap library)
+# 		libz="yes";
+# 		AC_DEFINE(HAVE_LIBZ, 1, Zlib compression library)
+#
+#         if test "$wtap_argquad" = no ; then
+#     		AC_MSG_CHECKING(for wtap_read parameters (wtap *, int *, int *))
+#         	AC_LINK_IFELSE([AC_LANG_PROGRAM([[
+#             	#include <stdio.h>
+#     			#include <sys/types.h>
+#     			#include <netinet/in.h>
+#           		#include "wtap.h"
+#            	]], [[
+#         		int err;
+#     			struct wtap *packfile;
+#     			long *offset;
+#
+#         		wtap_read(packfile, &err, offset);
+#             ]])],[wtap_intint=no],[wtap_intint=yes])
+#
+#     		if test "$wtap_intint" = yes ; then
+#     			AC_MSG_RESULT([struct wtap *, int *, int *])
+#                 AC_DEFINE(HAVE_WTAPREAD_INTINT, 1, wtap_read takes two int * parameters)
+#     		else
+#                 AC_MSG_RESULT([struct wtap *, int *, long *])
+#             fi
+#         fi
+#
+# 		if test $local = yes; then
+# 		    AC_MSG_CHECKING(for forced local-dumper)
+# 		    AC_MSG_RESULT(yes)
+# 		    AC_MSG_WARN(*** Forcing local dumper code instead of wiretap dumper.  ***)
+# 			AC_DEFINE(USE_LOCAL_DUMP, 1, Force local dumper code)
+# 		else
+# 		    AC_MSG_CHECKING(for forced local-dumper)
+# 		    AC_MSG_RESULT(no)
+# 		fi
+#     else
+#         AC_MSG_RESULT(no)
+# 		want_ethereal="no"
+# 		AC_MSG_WARN([*** No useable wiretap found in $ethereal_dir.  Make sure this directory is correct and that you have configured and compiled Ethereal in this directory.  While Kismet will function without wiretap, it will limit the log reading and writing abilities. ***])
+# 		CPPFLAGS="$save_cppflags"
+# 		#CXXFLAGS="$save_cxxflags"
+#    		LIBS="$save_libs"
+# 		AC_DEFINE(USE_LOCAL_DUMP, 1, Use local dumper code)
+#     	local=yes
+#     fi
+#
+# 	fi
+# else
+# 	AC_MSG_WARN([*** Wiretap support disabled.  While Kismet will function without wiretap, it will limit the log reading and writing abilities. ***])
+# 	AC_DEFINE(USE_LOCAL_DUMP, 1, Use local dumper code)
+#     local=yes
+# fi
 
 # gpsmap checks
 
@@ -9394,7 +9180,6 @@ s,@suid@,$suid,;t t
 s,@zaurus@,$zaurus,;t t
 s,@zbuild@,$zbuild,;t t
 s,@local@,$local,;t t
-s,@glib@,$glib,;t t
 s,@wantgpsmap@,$wantgpsmap,;t t
 s,@wget@,$wget,;t t
 s,@magickconfig@,$magickconfig,;t t
@@ -10231,7 +10016,7 @@ fi
 
 if test "$wireless" != "yes" -a "$linux" = "yes"; then
     echo "*** WARNING ***"
-    echo "Linux Wireless Extentions were not found.  This means that they are not"
+    echo "Linux Wireless Extensions were not found.  This means that they are not"
     echo "turned on in your kernel or that your kernel source include paths on your"
     echo "distribution are broken (namely, that linux/wireless.h didn't exist or"
     echo "was unuseable).  Without wireless extentions, most of the commonly used"

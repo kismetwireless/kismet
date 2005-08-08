@@ -1,3 +1,7 @@
+Aug 08 2005  devel  Removed ethereal checking from configure script, too lazy
+                     to remove the source this close to newcore working
+                    Changed tests for using wireless.h from system headers
+                     for some vendor kernels
 Aug 07 2005  devel  Fixed new network announcement text thinking a network
                      was always unencrypted
                     Tweaked munging to be more efficient
