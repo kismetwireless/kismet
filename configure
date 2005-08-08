@@ -7300,6 +7300,12 @@ fi;
 
 
 libz="no"
+
+cat >>confdefs.h <<\_ACEOF
+#define USE_LOCAL_DUMP 1
+_ACEOF
+
+	local=yes
 # if test $want_ethereal = yes; then
 #
 # 	AC_CHECK_PROG(glib, [glib-config --version], yes, no)
@@ -9957,12 +9963,12 @@ if test "$local" = "yes"; then
 else
 	echo "no"
 fi
-echo -n "Using ethereal wiretap: "
-if test "$want_ethereal" = "no"; then
-	echo "no"
-else
-	echo "$ethereal_dir"
-fi
+# echo -n "Using ethereal wiretap: "
+# if test "$want_ethereal" = "no"; then
+# 	echo "no"
+# else
+# 	echo "$ethereal_dir"
+# fi
 echo -n "   Imagemagick support: "
 if test "$gpslc" = ""; then
 	if test "$wantgpsmap" = "no"; then
