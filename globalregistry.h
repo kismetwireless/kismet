@@ -107,6 +107,10 @@ typedef struct {
 // we're doing globals, but it's a lot nicer for maintenance at least.
 class GlobalRegistry {
 public:
+	// argc and argv for modules to allow overrides
+	int argc;
+	char **argv;
+	
     // Fatal terminate condition, as soon as we detect this in the main code we
     // should initiate a shutdown
     int fatal_condition;
@@ -132,20 +136,6 @@ public:
     string servername;
     time_t timestamp;
 
-    // Packetsourcetracker stuff
-    int channel_hop;
-    int channel_split;
-    int channel_dwell;
-    int channel_velocity;
-    string named_sources;
-    vector<string> source_input_vec;
-    vector<string> src_initchannel_vec;
-    int source_from_cmd;
-
-    int gps_enable;
-    int speech_enable;
-    int sound_enable;
-    
     unsigned int silent;
     unsigned int metric;
     unsigned int track_probenets;
@@ -193,6 +183,9 @@ public:
     GlobalRegistry() { 
         fatal_condition = 0;
 
+		argc = 0;
+		argv = NULL;
+
         next_ext_ref = 0;
 
         messagebus = NULL;
@@ -208,19 +201,9 @@ public:
         speechctl = NULL;
         soundctl = NULL;
 
-        start_time = time(0);
-        timestamp = start_time;
+        start_time = 0;
+        timestamp = 0;
 
-        gps_enable = -1;
-        speech_enable = -1;
-        sound_enable = -1;
-
-        channel_hop = -1;
-        channel_split = 0;
-        channel_dwell = 0;
-        channel_velocity = 1;
-        source_from_cmd = 0;
-        
         silent = 0;
         metric = 0;
         track_probenets = 1;

@@ -29,6 +29,8 @@ SoundControl::SoundControl() {
 SoundControl::SoundControl(GlobalRegistry *in_globalreg) {
     globalreg = in_globalreg;
 
+	sound_enable = -1;
+
     if (globalreg->kismet_config->FetchOpt("sound") == "true") {
         if (globalreg->kismet_config->FetchOpt("soundplay") != "") {
             player = globalreg->kismet_config->FetchOpt("soundplay");
@@ -36,7 +38,7 @@ SoundControl::SoundControl(GlobalRegistry *in_globalreg) {
             if (globalreg->kismet_config->FetchOpt("soundopts") != "")
                 player += " " + globalreg->kismet_config->FetchOpt("soundopts");
 
-            globalreg->sound_enable = 1;
+            sound_enable = 1;
 
             if (globalreg->kismet_config->FetchOpt("sound_new") != "")
                 wav_map["new"] = globalreg->kismet_config->FetchOpt("sound_new");
@@ -56,10 +58,10 @@ SoundControl::SoundControl(GlobalRegistry *in_globalreg) {
         } else {
             globalreg->messagebus->InjectMessage("Sound alerts enabled but no sound player specified, "
                                                  "sound will be disabled", MSGFLAG_ERROR);
-            globalreg->sound_enable = 0;
+            sound_enable = 0;
         }
-    } else if (globalreg->sound_enable == -1) {
-        globalreg->sound_enable = 0;
+    } else if (sound_enable == -1) {
+        sound_enable = 0;
     }
     
 }
@@ -71,7 +73,7 @@ SoundControl::~SoundControl() {
 int SoundControl::PlaySound(string in_text) {
     char snd[1024];
 
-    if (globalreg->sound_enable <= 0)
+    if (sound_enable <= 0)
         return 0;
     
     snprintf(snd, 1024, "%s\n", in_text.c_str());
@@ -88,7 +90,7 @@ int SoundControl::PlaySound(string in_text) {
             globalreg->messagebus->InjectMessage("Continued write error after restarting sound "
                                                  "process.  Sound will be disabled.",
                                                  MSGFLAG_ERROR);
-            globalreg->sound_enable = 0;
+            sound_enable = 0;
         }
     }
 
@@ -106,14 +108,14 @@ int SoundControl::SpawnChildProcess() {
     if (pipe(fds) == -1) {
         globalreg->messagebus->InjectMessage("Unable to create pipe for sound.  Disabling sound.",
                                              MSGFLAG_ERROR);
-        globalreg->sound_enable = 0;
+        sound_enable = 0;
     } else {
         childpid = fork();
 
         if (childpid < 0) {
             globalreg->messagebus->InjectMessage("Unable to fork speech control process.  Disabling speech.",
                                                  MSGFLAG_ERROR);
-            globalreg->sound_enable = 0;
+            sound_enable = 0;
         } else if (childpid == 0) {
             SoundChild();
             exit(0);

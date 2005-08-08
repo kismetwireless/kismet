@@ -179,7 +179,7 @@ int NetworkClient::MarkRead(int in_readlen) {
 }
 
 int ClientFramework::Shutdown() {
-    int ret;
+    int ret = 0;
 
     if (netclient != NULL)
         ret = netclient->FlushRings();

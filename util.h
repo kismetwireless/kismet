@@ -44,6 +44,7 @@
 // Munge a string to characters safe for calling in a shell
 void MungeToShell(char *in_data, int max);
 string MungeToShell(string in_data);
+string MungeToPrintable(char *in_data, int max);
 
 string StrLower(string in_str);
 string StrStrip(string in_str);

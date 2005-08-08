@@ -255,8 +255,9 @@ int PacketSource_Pcap::ManglePacket(kis_packet *packet) {
 	// an 80211FRAME elsewhere in the packet decoders (note to self and others:
 	// packet decoders need to process LINKFRAME if no 80211FRAME)
 	
-	if (ret < 0)
+	if (ret < 0) {
 		return ret;
+	}
 
 	// Pull the radio data
 	FetchRadioData(packet);
@@ -280,7 +281,7 @@ int PacketSource_Pcap::ManglePacket(kis_packet *packet) {
 	if (radiodata->channel == 0)
 		radiodata->channel = FetchChannel();
 #endif
-    
+
     return ret;
 }
 
@@ -703,7 +704,7 @@ int PacketSource_Pcapfile::Poll() {
 
 	kis_packet *newpack = globalreg->packetchain->GeneratePacket();
 
-	if (paused || ManglePacket(newpack) == 0) {
+	if (paused || ManglePacket(newpack) < 0) {
 		return 0;
 	}
 
@@ -718,5 +719,14 @@ int PacketSource_Pcapfile::Poll() {
 	return 1;
 }
 
+KisPacketSource *packetsource_pcapfile_registrant(REGISTRANT_PARMS) {
+	PacketSource_Pcapfile *ret = 
+		new PacketSource_Pcapfile(globalreg, in_name, in_device);
+	return ret;
+}
+
+int unmonitor_pcapfile(MONITOR_PARMS) {
+	return 0;
+}
 #endif
 

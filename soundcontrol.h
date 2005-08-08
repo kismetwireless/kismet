@@ -48,6 +48,8 @@ protected:
     void SoundChild();
 
     GlobalRegistry *globalreg;
+
+	int sound_enable;
     
     char errstr[STATUS_MAX];
 

@@ -66,6 +66,26 @@ string MungeToShell(string in_data) {
     return ret;
 }
 
+// Munge text down to printable characters only.  Simpler, cleaner munger than
+// before (and more blatant when munging)
+string MungeToPrintable(char *in_data, int max) {
+	string ret;
+	int i;
+
+	for (i = 0; i < max; i++) {
+		if ((unsigned char) in_data[i] >= 32 && (unsigned char) in_data[i] <= 176) {
+			ret += in_data[i];
+		} else {
+			ret += '\\';
+			ret += ((in_data[i] >> 6) & 0x03) + '0';
+			ret += ((in_data[i] >> 3) & 0x07) + '0';
+			ret += ((in_data[i] >> 0) & 0x07) + '0';
+		}
+	}
+
+	return ret;
+}
+
 string StrLower(string in_str) {
     string thestr = in_str;
     for (unsigned int i = 0; i < thestr.length(); i++)

@@ -55,6 +55,8 @@
 
 #include "gpsdclient.h"
 
+#include "packetdissectors.h"
+
 #ifndef exec_name
 char *exec_name;
 #endif
@@ -263,9 +265,10 @@ int main(int argc,char *argv[]) {
 	uid_t suid_uid;
 	gid_t suid_gid;
 	string suiduser;
+	int option_idx = 0;
 
 	// ------ WE MAY BE RUNNING AS ROOT ------
-    
+	
 	// Catch the interrupt handler to shut down
     signal(SIGINT, CatchShutdown);
     signal(SIGTERM, CatchShutdown);
@@ -274,6 +277,11 @@ int main(int argc,char *argv[]) {
 
 	// Start filling in key components of the globalregistry
 	globalregistry = new GlobalRegistry;
+
+	// Copy for modules
+	globalregistry->argc = argc;
+	globalregistry->argv = argv;
+	
 	// First order - create our message bus and our client for outputting
 	globalregistry->messagebus = new MessageBus;
 
@@ -290,16 +298,48 @@ int main(int argc,char *argv[]) {
 	globalregistry->timetracker = new Timetracker(globalregistry);
 
 	globalregistry->start_time = time(0);
+	globalregistry->timestamp = time(0);
+
+	// Turn off the getopt error reporting
+	opterr = 0;
+
+	// Standard getopt parse run
+	static struct option main_longopt[] = {
+		{ "config-file", required_argument, 0, 'f' },
+		{ 0, 0, 0, 0 }
+	};
+
+	while (1) {
+		int r = getopt_long(argc, argv, 
+							"-f:", 
+							main_longopt, &option_idx);
+		if (r < 0) break;
+		switch (r) {
+			case 'c':
+				configfilename = strdup(optarg);
+				break;
+		}
+	}
 
 	// Open, initial parse, and assign the config file
-	// Fixme
+	if (configfilename == NULL) {
+		configfilename = new char[1024];
+		snprintf(configfilename, 1024, "%s/%s", 
+				 getenv("KISMET_CONF") != NULL ? getenv("KISMET_CONF") : SYSCONF_LOC,
+				 config_base);
+	}
+
+	snprintf(errstr, STATUS_MAX, "Reading from config file %s", configfilename);
+	globalregistry->messagebus->InjectMessage(errstr, MSGFLAG_INFO);
+	
 	conf = new ConfigFile;
-	if (conf->ParseConfig("/usr/local/etc/kismet.conf") < 0) {
+	if (conf->ParseConfig(configfilename) < 0) {
 		exit(1);
 	}
 	globalregistry->kismet_config = conf;
 
 #ifdef HAVE_SUID
+	// Process privdrop critical stuff
 	if (conf->FetchOpt("suiduser") == "") {
 		snprintf(errstr, 1024, "No 'suiduser' directive found in the configuration "
 				 "file.  Please refer to the 'Installation & Security' and "
@@ -386,6 +426,12 @@ int main(int argc,char *argv[]) {
 	if (globalregistry->fatal_condition)
 		CatchShutdown(-1);
 
+	// Register basic chain elements
+	globalregistry->messagebus->InjectMessage("Inserting basic packet dissectors...",
+											  MSGFLAG_INFO);
+	globalregistry->packetchain->RegisterHandler(&kis_80211_dissector, NULL, 
+												 CHAINPOS_LLCDISSECT, -100);
+	
 	// Create the GPS server
 	globalregistry->gpsd = new GPSDClient(globalregistry);
 	if (globalregistry->fatal_condition)

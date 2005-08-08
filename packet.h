@@ -121,7 +121,7 @@ public:
 class kis_datachunk : public packet_component {
 public:
     uint8_t *data;
-    int length;
+    unsigned int length;
    
     kis_datachunk() {
         data = NULL;
@@ -156,7 +156,6 @@ public:
         channel = 0;
         encrypted = 0;
         beacon_interval = 0;
-        beacon_info[0] = '\0';
         ivset = 0;
         maxrate = 0;
         timestamp = 0;
@@ -179,7 +178,8 @@ public:
     uint8_t mgt_reason_code;
     
     // Raw SSID
-    char ssid[SSID_SIZE+1];
+	string ssid;
+	// Length of the SSID header field
     int ssid_len;
 	// Is the SSID empty spaces?
 	int ssid_blank;
@@ -206,7 +206,7 @@ public:
     int beacon_interval;
 
     // Some cisco APs seem to fill in this info field
-    char beacon_info[BEACON_INFO_LEN];
+	string beacon_info;
 
     uint32_t ivset;
 

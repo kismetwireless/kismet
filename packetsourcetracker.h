@@ -177,7 +177,6 @@ int unmonitor_nullsource(MONITOR_PARMS);
 
 class Packetsourcetracker : public Pollable {
 public:
-
     Packetsourcetracker(GlobalRegistry *in_globalreg);
     ~Packetsourcetracker();
 
@@ -201,9 +200,15 @@ public:
     // Advance all the sources one channel
     int AdvanceChannel();
 
-    // Register a packet prototype source...  Card type string, root binding requirement,
-    // function to generate an instance of the source, and function to change channel 
-    // for this card type.  This fills out the prototype. Sources that don't hop 
+	// State fetches
+	int FetchChannelHop() { return channel_hop; }
+	int FetchChannelSplit() { return channel_split; }
+	int FetchChannelDwell() { return channel_dwell; }
+	int FetchChannelVelolcity() { return channel_velocity; }
+
+    // Register a packet prototype source...  Card type string, root binding 
+	// requirement, function to generate an instance of the source, and function to 
+	// change channel.  This fills out the prototype. Sources that don't hop 
     // should request a default channelset of "none"
     // Turning off child control puts the channel changing into the core of the
     // server.  This isn't really a good thing to do, but one source (viha)
@@ -225,8 +230,8 @@ public:
     // Do a clean termination of the channel child (blocking)
     int ShutdownChannelChild();
 
-    // Return a vector of packet sources for other things to process with (this should be
-    // self-contained in the future, probably)
+    // Return a vector of packet sources for other things to process with 
+	// (this should be self-contained in the future, probably)
     vector<KisPacketSource *> FetchSourceVec();
     vector<meta_packsource *> FetchMetaSourceVec();
    
@@ -288,6 +293,12 @@ protected:
     map<string, packsource_protorec *> cardtype_map;
     map<string, vector<int> > defaultch_map;
 
+	// State stuff
+	int channel_hop;
+	int channel_split;
+	int channel_dwell;
+	int channel_velocity;
+	
     // We track this twice so we don't have to convert the meta_packsource into 
     // a packsource vec every loop
     vector<meta_packsource *> meta_packsources;

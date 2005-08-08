@@ -163,7 +163,6 @@ GPSDClient::GPSDClient(GlobalRegistry *in_globalreg) : ClientFramework(in_global
             if (reconnect_attempt < 0) {
                 globalreg->messagebus->InjectMessage("GPSD Reconnection not enabled, "
 													 "disabling GPS", MSGFLAG_ERROR);
-                globalreg->gps_enable = 0;
                 return;
             }
             last_disconnect = time(0);
@@ -178,14 +177,11 @@ GPSDClient::GPSDClient(GlobalRegistry *in_globalreg) : ClientFramework(in_global
 												  NULL, 1, &GpsInjectEvent, 
 												  (void *) this);
 
-        globalreg->gps_enable = 1;
-
         snprintf(errstr, STATUS_MAX, "Using GPSD server on %s:%d", host, port);
         globalreg->messagebus->InjectMessage(errstr, MSGFLAG_INFO);
         
     } else {
         globalreg->messagebus->InjectMessage("GPS support not enabled", MSGFLAG_INFO);
-        globalreg->gps_enable = 0;
     }
 
 	// Register the TCP component of the GPS system with the main service loop
@@ -420,14 +416,10 @@ int GPSDClient::ParseData() {
             mode = 2;
         } else {
             if (mode < 2 && in_mode >= 2) {
-                if (globalreg->speech_enable > 0)
                     globalreg->speechctl->SayText("Got G P S position fix");
-                if (globalreg->sound_enable > 0)
                     globalreg->soundctl->PlaySound("gpslock");
             } else if (mode >= 2 && in_mode < 2) {
-                if (globalreg->speech_enable > 0)
                     globalreg->speechctl->SayText("Lost G P S position fix");
-                if (globalreg->sound_enable > 0)
                     globalreg->soundctl->PlaySound("gpslost");
             }
 

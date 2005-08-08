@@ -57,7 +57,9 @@ protected:
     void SpeechChild();
 
     GlobalRegistry *globalreg;
-    
+ 
+	int speech_enable;
+
     char errstr[STATUS_MAX];
 
     pid_t childpid;

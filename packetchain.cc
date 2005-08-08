@@ -42,6 +42,7 @@ public:
 
 Packetchain::Packetchain() {
     fprintf(stderr, "Packetchain() called with no globalregistry\n");
+	exit(-1);
 }
 
 Packetchain::Packetchain(GlobalRegistry *in_globalreg) {
@@ -167,7 +168,6 @@ kis_packet *Packetchain::GeneratePacket() {
 
 int Packetchain::ProcessPacket(kis_packet *in_pack) {
     // Run it through every chain vector, ignoring error codes
-
     pc_link *pcl;
 
     for (unsigned int x = 0; x < postcap_chain.size() && 

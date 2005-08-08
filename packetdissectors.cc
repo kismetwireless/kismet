@@ -27,7 +27,10 @@
 
 #include <map>
 
+#include "endian_magic.h"
 #include "packetdissectors.h"
+
+#define PROTO_SSID_LEN		32
 
 // Handly little global so that it only has to do the ascii->mac_addr transform once
 mac_addr broadcast_mac = "FF:FF:FF:FF:FF:FF";
@@ -90,15 +93,15 @@ static const uint32_t wep_crc32_table[256] = {
 
 // Returns a pointer in the data block to the size byte of the desired tag, with the 
 // tag offsets cached
-int GetTagOffsets(int init_offset, kis_packet *packet, 
+int GetTagOffsets(unsigned int init_offset, kis_datachunk *in_chunk,
 				  map<int, vector<int> > *tag_cache_map) {
     int cur_tag = 0;
     // Initial offset is 36, that's the first tag
-    int cur_offset = init_offset;
+    unsigned int cur_offset = init_offset;
     uint8_t len;
 
     // Bail on invalid incoming offsets
-    if (init_offset >= (uint8_t) packet->len)
+    if (init_offset >= (uint8_t) in_chunk->length)
         return -1;
     
     // If we haven't parsed the tags for this frame before, parse them all now.
@@ -106,18 +109,18 @@ int GetTagOffsets(int init_offset, kis_packet *packet,
     if (tag_cache_map->size() == 0) {
         while (1) {
             // Are we over the packet length?
-            if (cur_offset >= (uint8_t) packet->len) {
+            if (cur_offset >= (uint8_t) in_chunk->length) {
                 break;
             }
 
             // Read the tag we're on and bail out if we're done
-            cur_tag = (int) packet->data[cur_offset];
+            cur_tag = (int) in_chunk->data[cur_offset];
 
             // Move ahead one byte and read the length.
-            len = (packet->data[cur_offset+1] & 0xFF);
+            len = (in_chunk->data[cur_offset+1] & 0xFF);
 
             // If this is longer than we have...
-            if ((unsigned int) (cur_offset + len + 2) > packet->len) {
+            if ((cur_offset + len + 2) > in_chunk->length) {
                 return -1;
             }
 
@@ -141,25 +144,25 @@ int kis_80211_dissector(CHAINCALL_PARMS) {
 
     // Extract data, bail if it doesn't exist, make a local copy of what we're
     // inserting into the frame.
-    kis_ieee_80211_packinfo *packinfo;
-    kis_datachunk *chunk = 
-		in_pack->fetch(globalreg->packetcomp_map[PACK_COMP_LINKFRAME]);
+    kis_ieee80211_packinfo *packinfo;
+	kis_datachunk *chunk = 
+		(kis_datachunk *) in_pack->fetch(_PCM(PACK_COMP_80211FRAME));
 
-    // If we don't have enough data to figure out what we are, if we don't
-    // have any packet data, or if we're known to be in error, bail out.
-    if (chunk == NULL) {
-		chunk = in_pack->fetch(globalreg->packetcomp_map[PACK_COMP_LINKFRAME]);
+	// If we can't grab an 802.11 chunk, grab the raw link frame
+	if (chunk == NULL) {
+		chunk = (kis_datachunk *) in_pack->fetch(_PCM(PACK_COMP_LINKFRAME));
 		if (chunk == NULL) {
 			return 0;
 		}
 	}
 
+	// Flat-out dump if it's not big enough to be 80211.
     if (chunk->length < 24)
         return 0;
 
-    packinfo = new kis_ieee_80211_packinfo;
+    packinfo = new kis_ieee80211_packinfo;
 
-    frame_control *fc = (frame control *) chunk->data;
+    frame_control *fc = (frame_control *) chunk->data;
 
     uint16_t duration = 0;
 
@@ -173,7 +176,7 @@ int kis_80211_dissector(CHAINCALL_PARMS) {
     // We'll fill these in as we go
     packinfo->type = packet_unknown;
     packinfo->subtype = packet_sub_unknown;
-    packinfo->distrib = distrib_none;
+    packinfo->distrib = distrib_unknown;
 
     // Endian swap the duration  ** Optimize this in the future **
     memcpy(&duration, &(chunk->data[2]), 2);
@@ -194,7 +197,8 @@ int kis_80211_dissector(CHAINCALL_PARMS) {
 	if (fc->more_fragments)
 		packinfo->fragmented = 1;
 
-    int tag_offset = 0;
+    unsigned int tag_offset = 0;
+	unsigned int taglen = 0;
 
     // Assign the distribution direction this packet is traveling
     if (fc->to_ds == 0 && fc->from_ds == 0)
@@ -210,14 +214,14 @@ int kis_80211_dissector(CHAINCALL_PARMS) {
     if (fc->type == 0) {
         packinfo->type = packet_management;
 
-        packinfo->distrib = distrib_none;
+        packinfo->distrib = distrib_unknown;
 
         // Throw away large management frames that don't make any sense.  512b is 
         // an arbitrary number to pick, but this should keep some drivers from messing
         // with us
         if (chunk->length > 512) {
             packinfo->corrupt = 1;
-            in_pack->insert(globalreg->pcr_80211_ref, packinfo);
+            in_pack->insert(_PCM(PACK_COMP_80211), packinfo);
             return 0;
         }
 
@@ -258,34 +262,44 @@ int kis_80211_dissector(CHAINCALL_PARMS) {
         if (fc->subtype == 8 || fc->subtype == 4 || fc->subtype == 5) {
             // This is guaranteed to only give us tags that fit within the packets,
             // so we don't have to do more error checking
-            if (GetTagOffsets(packinfo->header_offset, chunk->data, &tag_cache_map) < 0) {
+            if (GetTagOffsets(packinfo->header_offset, chunk, &tag_cache_map) < 0) {
                 // The frame is corrupt, bail
-                ret_packinfo->corrupt = 1;
-                return;
+                packinfo->corrupt = 1;
+                return 1;
             }
-      
+     
             if ((tcitr = tag_cache_map.find(0)) != tag_cache_map.end()) {
                 tag_offset = tcitr->second[0];
 
                 found_ssid_tag = 1;
-                temp = (packet->data[tag_offset] & 0xFF);
-                packinfo->ssid_len = temp;
+                taglen = (chunk->data[tag_offset] & 0xFF);
+                packinfo->ssid_len = taglen;
+
                 // Protect against malicious packets
-                if (temp == 0) {
+                if (taglen == 0) {
                     // do nothing for 0-length ssid's
-                } else if (temp <= 32) {
-                    memcpy(ret_packinfo->ssid, &packet->data[tag_offset+1], temp);
-                    packinfo->ssid[temp] = '\0';
-					// Test the SSID for blankness
-					packinfo->ssid_blank = IsBlank(packinfo->ssid);
-                    // Munge it down to printable characters... SSID's can be anything
-                    // but if we can't print them it's not going to be very useful
-                    // MungeToPrintable(ret_packinfo->ssid, temp);
-                    // PRINTABLE MUNGING IS NOW THE RESPONSIBILITY OF OTHER CODE
+                } else if (taglen <= PROTO_SSID_LEN) {
+					// Test the SSID for cloaked len!=0 data==0 situation,
+					// then munge it to something printable if it makes sense
+					// to do so
+
+					int zeroed = 1;
+					for (unsigned int sp = 0; sp < taglen; sp++) {
+						if (chunk->data[tag_offset+sp+1] != 0) {
+							zeroed = 0;
+							break;
+						}
+					}
+
+					if (zeroed != 0) {
+						packinfo->ssid = 
+							MungeToPrintable((char *) 
+											 &(chunk->data[tag_offset+1]), taglen);
+					}
                 } else {
                     // Otherwise we're corrupt, set it and stop processing
                     packinfo->corrupt = 1;
-                    in_pack->insert(globalreg->pcr_80211_ref, packinfo);
+                    in_pack->insert(_PCM(PACK_COMP_80211), packinfo);
                     return 0;
                 }
             } else {
@@ -295,9 +309,17 @@ int kis_80211_dissector(CHAINCALL_PARMS) {
             // Extract the supported rates
             if ((tcitr = tag_cache_map.find(1)) != tag_cache_map.end()) {
                 tag_offset = tcitr->second[0];
+                taglen = (chunk->data[tag_offset] & 0xFF);
+
+				if (tag_offset + taglen > chunk->length) {
+                    // Otherwise we're corrupt, set it and stop processing
+                    packinfo->corrupt = 1;
+                    in_pack->insert(_PCM(PACK_COMP_80211), packinfo);
+                    return 0;
+				}
 
                 found_rate_tag = 1;
-                for (int x = 0; x < chunk->data[tag_offset]; x++) {
+                for (unsigned int x = 0; x < taglen; x++) {
                     if (packinfo->maxrate < (chunk->data[tag_offset+1+x] & 
                                              0x7F) * 0.5)
                         packinfo->maxrate = (chunk->data[tag_offset+1+x] & 
@@ -313,8 +335,16 @@ int kis_80211_dissector(CHAINCALL_PARMS) {
                 found_channel_tag = 1;
                 // Extract the channel from the next byte (GetTagOffset returns
                 // us on the size byte)
-                temp = chunk->data[tag_offset+1];
-                packinfo->channel = (int) temp;
+                taglen = (chunk->data[tag_offset] & 0xFF);
+
+				if (tag_offset + taglen > chunk->length) {
+                    // Otherwise we're corrupt, set it and stop processing
+                    packinfo->corrupt = 1;
+                    in_pack->insert(_PCM(PACK_COMP_80211), packinfo);
+                    return 0;
+				}
+				
+                packinfo->channel = (int) (chunk->data[tag_offset+1]);
             }
         }
 
@@ -357,7 +387,7 @@ int kis_80211_dissector(CHAINCALL_PARMS) {
             // Probe req's with no SSID are bad
             if (found_ssid_tag == 0) {
                 packinfo->corrupt = 1;
-                in_pack->insert(globalreg->pcr_80211_ref, packinfo);
+                in_pack->insert(_PCM(PACK_COMP_80211), packinfo);
                 return 0;
             }
 
@@ -370,8 +400,8 @@ int kis_80211_dissector(CHAINCALL_PARMS) {
 
             /*
             if (ret_packinfo->ess == 0) {
-                // A lot of cards seem to rotate through adhoc BSSID's, so we use the source
-                // instead
+                // A lot of cards seem to rotate through adhoc BSSID's, so we use 
+				// the source instead
                 ret_packinfo->bssid_mac = ret_packinfo->source_mac;
                 ret_packinfo->distrib = adhoc_distribution;
                 }
@@ -380,22 +410,23 @@ int kis_80211_dissector(CHAINCALL_PARMS) {
         } else if (fc->subtype == 8) {
             packinfo->subtype = packet_sub_beacon;
 
-            packinfo->beacon = kis_ntoh16(fixparm->beacon);
+            packinfo->beacon_interval = kis_ntoh16(fixparm->beacon);
 
             // Extract the CISC.O beacon info
             if ((tcitr = tag_cache_map.find(133)) != tag_cache_map.end()) {
                 tag_offset = tcitr->second[0];
+                taglen = (chunk->data[tag_offset] & 0xFF);
 
-                if ((unsigned) tag_offset + 11 < chunk->length) {
-                    snprintf(packinfo->beacon_info, BEACON_INFO_LEN, "%s", &(chunk->data[tag_offset+11]));
-                    // Munge this right here since it's just extra info
-                    MungeToPrintable(packinfo->beacon_info, BEACON_INFO_LEN);
-                } else {
-                    // Otherwise we're corrupt, bail
-                    packinfo->corrupt = 1;
-                    in_pack->insert(globalreg->pcr_80211_ref, packinfo);
-                    return 0;
+				// Copy and munge the beacon info if it falls w/in our
+				// boundaries
+				if ((tag_offset + 11) < chunk->length && taglen >= 11) {
+					packinfo->beacon_info = 
+						MungeToPrintable((char *)
+										 &(chunk->data[tag_offset+11]), taglen - 11);
                 }
+
+				// Non-fatal fail since beacon info might not have that
+				// 11 byte leader on it, I don't know
             }
 
             packinfo->dest_mac = addr0;
@@ -413,21 +444,22 @@ int kis_80211_dissector(CHAINCALL_PARMS) {
 
             /*
             if (ret_packinfo->ess == 0) {
-                // Weird adhoc beacon where the BSSID isn't 'right' so we use the source instead.
+                // Weird adhoc beacon where the BSSID isn't 'right' so we use the 
+				// source instead.
                 ret_packinfo->bssid_mac = ret_packinfo->source_mac;
                 ret_packinfo->distrib = adhoc_distribution;
                 }
                 */
         } else if (fc->subtype == 9) {
-            // I'm not positive this is the right handling of atim packets.  Do something
-            // smarter in the future
+            // I'm not positive this is the right handling of atim packets.  
+			// Do something smarter in the future
             packinfo->subtype = packet_sub_atim;
 
             packinfo->dest_mac = addr0;
             packinfo->source_mac = addr1;
             packinfo->bssid_mac = addr2;
 
-            packinfo->distrib = distrib_none;
+            packinfo->distrib = distrib_unknown;
 
         } else if (fc->subtype == 10) {
             packinfo->subtype = packet_sub_disassociation;
@@ -437,9 +469,9 @@ int kis_80211_dissector(CHAINCALL_PARMS) {
             packinfo->bssid_mac = addr2;
 
             uint16_t rcode;
-            memcpy(&rcode, (const char *) &packet->data[24], 2);
+            memcpy(&rcode, (const char *) &(chunk->data[24]), 2);
 
-            packinfo->reason_code = rcode;
+            packinfo->mgt_reason_code = rcode;
 
         } else if (fc->subtype == 11) {
             packinfo->subtype = packet_sub_authentication;
@@ -451,7 +483,7 @@ int kis_80211_dissector(CHAINCALL_PARMS) {
             uint16_t rcode;
             memcpy(&rcode, (const char *) &(chunk->data[24]), 2);
 
-            packinfo->reason_code = rcode;
+            packinfo->mgt_reason_code = rcode;
 
         } else if (fc->subtype == 12) {
             packinfo->subtype = packet_sub_deauthentication;
@@ -463,7 +495,7 @@ int kis_80211_dissector(CHAINCALL_PARMS) {
             uint16_t rcode;
             memcpy(&rcode, (const char *) &(chunk->data[24]), 2);
 
-            packinfo->reason_code = rcode;
+            packinfo->mgt_reason_code = rcode;
         } else {
             packinfo->subtype = packet_sub_unknown;
         }
@@ -474,11 +506,11 @@ int kis_80211_dissector(CHAINCALL_PARMS) {
         // Phy stuff is all really small, so we set the limit smaller.
         if (chunk->length > 128) {
             packinfo->corrupt = 1;
-            in_pack->insert(globalreg->pcr_80211_ref, packinfo);
+			in_pack->insert(_PCM(PACK_COMP_80211), packinfo);
             return 0;
         }
 
-        packinfo->distrib = distrib_none;
+        packinfo->distrib = distrib_unknown;
 
         if (fc->subtype == 11) {
             packinfo->subtype = packet_sub_rts;
@@ -529,11 +561,11 @@ int kis_80211_dissector(CHAINCALL_PARMS) {
         } else {
             packinfo->corrupt = 1;
             packinfo->subtype = packet_sub_unknown;
-            in_pack->insert(globalreg->pcr_80211_ref, packinfo);
+			in_pack->insert(_PCM(PACK_COMP_80211), packinfo);
             return 0;
         }
 
-        int datasize = packet->len - ret_packinfo->header_offset;
+        int datasize = chunk->length - packinfo->header_offset;
         if (datasize > 0)
             packinfo->datasize = datasize;
 
@@ -561,11 +593,11 @@ int kis_80211_dissector(CHAINCALL_PARMS) {
             packinfo->dest_mac = addr2;
             packinfo->header_offset = 24;
             break;
-        case distrib_none:
+        case distrib_unknown:
             // If we aren't long enough to hold a intra-ds packet, bail
             if (chunk->length < 30) {
                 packinfo->corrupt = 1;
-                in_pack->insert(globalreg->pcr_80211_ref, packinfo);
+				in_pack->insert(_PCM(PACK_COMP_80211), packinfo);
                 return 0;
             }
 
@@ -573,21 +605,27 @@ int kis_80211_dissector(CHAINCALL_PARMS) {
             packinfo->source_mac = addr3;
             packinfo->dest_mac = addr0;
 
-            packinfo->distrib = inter_distribution;
+            packinfo->distrib = distrib_inter;
 
             // First byte of offsets
             packinfo->header_offset = 30;
             break;
         default:
             packinfo->corrupt = 1;
-            return;
+			in_pack->insert(_PCM(PACK_COMP_80211), packinfo);
+            return 0;
             break;
         }
+	}
+
+#if 0
+		This will go to live in the data decoders
 
         // Detect encrypted frames
         if (fc->wep &&
-            (*((unsigned short *) &(chunk->data[ret_packinfo->header_offset])) != 0xAAAA ||
-             chunk->data[ret_packinfo->header_offset + 1] & 0x40)) {
+            (*((unsigned short *) 
+			   &(chunk->data[packinfo->header_offset])) != 0xAAAA ||
+             chunk->data[packinfo->header_offset + 1] & 0x40)) {
 
             packinfo->encrypted = 1;
         } else if (packet->parm.fuzzy_crypt && 
@@ -649,6 +687,7 @@ int kis_80211_dissector(CHAINCALL_PARMS) {
             return 0;
         }
     }
+#endif
 
     // Do a little sanity checking on the BSSID
     if (packinfo->bssid_mac.error == 1 ||
@@ -657,12 +696,8 @@ int kis_80211_dissector(CHAINCALL_PARMS) {
         packinfo->corrupt = 1;
     }
 
-    in_pack->insert(globalreg->pcr_80211_ref, packinfo);
+	in_pack->insert(_PCM(PACK_COMP_80211), packinfo);
 
     return 1;
-}
-
-int kis_turbocell_dissector(CHAINCALL_PARMS) {
-
 }
 

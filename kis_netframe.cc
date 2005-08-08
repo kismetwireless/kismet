@@ -24,6 +24,7 @@
 #include "alertracker.h"
 #include "packetchain.h"
 #include "kis_netframe.h"
+#include "getopt.h"
 
 char *KISMET_fields_text[] = {
     "version", "starttime", "servername", "timestamp", "channelhop", "newversion",
@@ -119,7 +120,7 @@ int Protocol_KISMET(PROTO_PARMS) {
             out_string += kdata->timestamp;
             break;
         case KISMET_chanhop:
-            if (globalreg->channel_hop == 0)
+            if (globalreg->sourcetracker->FetchChannelHop() == 0)
                 out_string += "0";
             else
                 out_string += "1";
@@ -847,16 +848,43 @@ KisNetFramework::KisNetFramework(GlobalRegistry *in_globalreg) {
 	char srv_proto[10], srv_bindhost[128];
 	TcpServer *tcpsrv;
 	char errstr[1024];
+	string listenline;
 
-	// Parse the config file and get the protocol and port info
-	if (globalreg->kismet_config->FetchOpt("listen") == "") {
+	// Commandline stuff
+	static struct option netframe_long_options[] = {
+		{ "server-listen", required_argument, 0, 's' },
+		{ 0, 0, 0, 0 }
+	};
+	int option_idx = 0;
+
+	// Hack the extern getopt index
+	optind = 0;
+
+	while (1) {
+		int r = getopt_long(globalreg->argc, globalreg->argv,
+							"-s:",
+							netframe_long_options, &option_idx);
+		if (r < 0) break;
+
+		switch (r) {
+			case 's':
+				listenline = string(optarg);
+				printf("debug: '%s'\n", listenline.c_str());
+				break;
+		}
+	}
+	
+	// Parse the config file and get the protocol and port info...  ah, abusing
+	// evaluation shortcuts
+	if (listenline.length() == 0 && 
+		(listenline = globalreg->kismet_config->FetchOpt("listen")) == "") {
 		_MSG("No 'listen' config line defined for the Kismet UI server", 
 			 MSGFLAG_FATAL);
 		globalreg->fatal_condition = 1;
 		return;
 	}
 
-	if (sscanf(globalreg->kismet_config->FetchOpt("listen").c_str(), 
+	if (sscanf(listenline.c_str(), 
 			   "%10[^:]://%128[^:]:%d", srv_proto, srv_bindhost, &port) != 3) {
 		_MSG("Malformed 'listen' config line defined for the Kismet UI server",
 			 MSGFLAG_FATAL);
@@ -1196,6 +1224,9 @@ int KisNetFramework::SendToClient(int in_fd, int in_refnum, const void *in_data)
 int KisNetFramework::SendToAll(int in_refnum, const void *in_data) {
     vector<int> clvec;
     int nsent = 0;
+
+	if (netserver == NULL)
+		return 0;
 
     netserver->FetchClientVector(&clvec);
 

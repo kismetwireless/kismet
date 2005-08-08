@@ -28,7 +28,7 @@
 #define SERVER_TIMESLICES_SEC 10
 
 // Max chars in SSID
-#define MAX_SSID_LEN    32
+#define MAX_SSID_LEN    255
 
 /* Namespace */
 using namespace std;

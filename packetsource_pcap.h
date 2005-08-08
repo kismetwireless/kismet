@@ -218,8 +218,12 @@ public:
 protected:
 	// Do nothing here, we don't have an independent radio data fetch,
 	// we're just filling in the virtual
-	virtual void FetchRadioData() { };
+	virtual void FetchRadioData(kis_packet *in_packet) { };
 };
+
+// Pcapfile registrant and 0-return unmonitor function
+KisPacketSource *packetsource_pcapfile_registrant(REGISTRANT_PARMS);
+int unmonitor_pcapfile(MONITOR_PARMS);
 
 #endif /* have_libpcap */
 

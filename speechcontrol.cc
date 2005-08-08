@@ -40,13 +40,15 @@ SpeechControl::SpeechControl() {
 SpeechControl::SpeechControl(GlobalRegistry *in_globalreg) {
     globalreg = in_globalreg;
 
+	speech_enable = -1;
+
     speech_encoding = 0;
 
     // Process config file
     if (globalreg->kismet_config->FetchOpt("speech") == "true") {
         if (globalreg->kismet_config->FetchOpt("festival") != "") {
             festival = strdup(globalreg->kismet_config->FetchOpt("festival").c_str());
-            globalreg->speech_enable = 1;
+            speech_enable = 1;
 
             string speechtype = globalreg->kismet_config->FetchOpt("speech_type");
 
@@ -63,7 +65,7 @@ SpeechControl::SpeechControl(GlobalRegistry *in_globalreg) {
                 globalreg->messagebus->InjectMessage("Speech requested but no speech templates given "
                                                      "in the config file.  Speech will be disabled.", 
                                                      MSGFLAG_ERROR);
-                globalreg->speech_enable = 0;
+                speech_enable = 0;
             }
 
             speech_sentence_encrypted = globalreg->kismet_config->FetchOpt("speech_encrypted");
@@ -72,10 +74,10 @@ SpeechControl::SpeechControl(GlobalRegistry *in_globalreg) {
             globalreg->messagebus->InjectMessage("Speech requested but no path to festival has been "
                                                  "specified.  Speech will be disabled",
                                                  MSGFLAG_ERROR);
-            globalreg->speech_enable = 0;
+            speech_enable = 0;
         }
-    } else if (globalreg->speech_enable == -1) {
-        globalreg->speech_enable = 0;
+    } else if (speech_enable == -1) {
+        speech_enable = 0;
     }
     
 }
@@ -87,7 +89,7 @@ SpeechControl::~SpeechControl() {
 int SpeechControl::SayText(string in_text) {
     char snd[1024];
 
-    if (globalreg->speech_enable <= 0)
+    if (speech_enable <= 0)
         return -1;
 
     snprintf(snd, 1024, "%s\n", in_text.c_str());
@@ -105,7 +107,7 @@ int SpeechControl::SayText(string in_text) {
             globalreg->messagebus->InjectMessage("Continued write error after restarting speech "
                                                  "process.  Speech will be disabled.",
                                                  MSGFLAG_ERROR);
-            globalreg->speech_enable = 0;
+            speech_enable = 0;
         }
     }
 
@@ -123,14 +125,14 @@ int SpeechControl::SpawnChildProcess() {
     if (pipe(fds) == -1) {
         globalreg->messagebus->InjectMessage("Unable to create pipe for speech.  Disabling speech.",
                                              MSGFLAG_ERROR);
-        globalreg->speech_enable = 0;
+        speech_enable = 0;
     } else {
         childpid = fork();
 
         if (childpid < 0) {
             globalreg->messagebus->InjectMessage("Unable to fork speech control process.  Disabling speech.",
                                                  MSGFLAG_ERROR);
-            globalreg->speech_enable = 0;
+            speech_enable = 0;
         } else if (childpid == 0) {
             SpeechChild();
             exit(0);
