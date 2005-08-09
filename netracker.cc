@@ -468,6 +468,11 @@ Netracker::Netracker(GlobalRegistry *in_globalreg) {
 		fprintf(stderr, "Netracker() sanity failed, globalreg->netserver is NULL\n");
 		exit(1);
 	}
+	
+	if (globalreg->kismet_config == NULL) {
+		fprintf(stderr, "Netracker() sanity failed, globalreg->config is NULL\n");
+		exit(1);
+	}
 
 	// Register packet components to tie into our tracker
 	_PCM(PACK_COMP_TRACKERNET) =
@@ -481,6 +486,14 @@ Netracker::Netracker(GlobalRegistry *in_globalreg) {
 	globalreg->packetchain->RegisterHandler(&kis_80211_datatracker_hook, this,
 											CHAINPOS_CLASSIFIER, -99);
 
+	if (globalreg->kismet_config->FetchOpt("track_probenets") == "true") {
+		_MSG("Probe network tracking enabled by config file", MSGFLAG_INFO);
+		track_probenets = 1;
+	} else {
+		_MSG("Probe network tracking disabled by config file", MSGFLAG_INFO);
+		track_probenets = 0;
+	}
+	
 	string config_path;
 	if ((config_path = globalreg->kismet_config->FetchOpt("configdir")) != "") {
 		if ((ssid_cache_path = globalreg->kismet_config->FetchOpt("ssidmap")) != "") {
@@ -556,7 +569,7 @@ int Netracker::netracker_chain_handler(kis_packet *in_pack) {
 
 	// Try to map probe reqs into the network they really belong in, if we
 	// track probes, and we don't already have a network for them
-	if (globalreg->track_probenets && 
+	if (track_probenets && 
 		net == NULL &&
 		packinfo->type == packet_management &&
 		packinfo->subtype == packet_sub_probe_req) {

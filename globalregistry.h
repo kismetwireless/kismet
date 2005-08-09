@@ -136,9 +136,7 @@ public:
     string servername;
     time_t timestamp;
 
-    unsigned int silent;
     unsigned int metric;
-    unsigned int track_probenets;
 
     // Protocol references we don't want to keep looking up
 	int netproto_map[PROTO_REF_MAX];
@@ -204,9 +202,7 @@ public:
         start_time = 0;
         timestamp = 0;
 
-        silent = 0;
         metric = 0;
-        track_probenets = 1;
 
 		for (int x = 0; x < PROTO_REF_MAX; x++)
 			netproto_map[x] = -1;

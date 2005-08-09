@@ -370,7 +370,10 @@ protected:
 	int WriteSSIDCache();
 	int ReadIPCache();
 	int WriteIPCache();
-	
+
+	// Associate probes w/ networks
+	int track_probenets;
+
 	// All networks
 	map<mac_addr, Netracker::tracked_network *> tracked_map;
 	// Probe association to network that owns it

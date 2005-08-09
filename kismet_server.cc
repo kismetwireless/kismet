@@ -73,11 +73,11 @@ public:
 };
 
 void SmartStdoutMessageClient::ProcessMessage(string in_msg, int in_flags) {
-    if ((in_flags & MSGFLAG_DEBUG) && !globalreg->silent)
+    if ((in_flags & MSGFLAG_DEBUG))
         fprintf(stdout, "DEBUG: %s\n", in_msg.c_str());
-    else if ((in_flags & MSGFLAG_INFO) && !globalreg->silent)
-        fprintf(stdout, "%s\n", in_msg.c_str());
-    else if ((in_flags & MSGFLAG_ERROR) && !globalreg->silent)
+    else if ((in_flags & MSGFLAG_INFO))
+        fprintf(stdout, "INFO: %s\n", in_msg.c_str());
+    else if ((in_flags & MSGFLAG_ERROR))
         fprintf(stdout, "ERROR: %s\n", in_msg.c_str());
     else if (in_flags & MSGFLAG_FATAL)
         fprintf(stderr, "FATAL: %s\n", in_msg.c_str());
