@@ -465,9 +465,9 @@ Netracker::Netracker(GlobalRegistry *in_globalreg) {
 	}
 
 	// Register packet components to tie into our tracker
-	globalreg->packetcomp_map[PACK_COMP_TRACKERNET] =
+	_PCM(PACK_COMP_TRACKERNET) =
 		globalreg->packetchain->RegisterPacketComponent("netracker_network");
-	globalreg->packetcomp_map[PACK_COMP_TRACKERCLIENT] =
+	_PCM(PACK_COMP_TRACKERCLIENT) =
 		globalreg->packetchain->RegisterPacketComponent("netracker_client");
 
 	// Register the packet hooks with the chain
@@ -481,7 +481,7 @@ Netracker::Netracker(GlobalRegistry *in_globalreg) {
 		if ((ssid_cache_path = globalreg->kismet_config->FetchOpt("ssidmap")) != "") {
 			ssid_cache_path = 
 				globalreg->kismet_config->ExpandLogPath(config_path + ssid_cache_path,
-														"", 0, 1);
+														"", "", 0, 1);
 			ReadSSIDCache();
 		} else {
 			ssid_cache_track = 0;
@@ -490,7 +490,7 @@ Netracker::Netracker(GlobalRegistry *in_globalreg) {
 		if ((ip_cache_path = globalreg->kismet_config->FetchOpt("ipmap")) != "") {
 			ip_cache_path = 
 				globalreg->kismet_config->ExpandLogPath(config_path + ip_cache_path,
-														"", 0, 1);
+														"", "", 0, 1);
 			ReadIPCache();
 		} else {
 			ssid_cache_track = 0;
@@ -525,11 +525,11 @@ int Netracker::netracker_chain_handler(kis_packet *in_pack) {
 
 	// Fetch the info from the packet chain data
 	kis_ieee80211_packinfo *packinfo = (kis_ieee80211_packinfo *) 
-		in_pack->fetch(globalreg->packetcomp_map[PACK_COMP_80211]);
+		in_pack->fetch(_PCM(PACK_COMP_80211));
 	kis_gps_packinfo *gpsinfo = (kis_gps_packinfo *) 
-		in_pack->fetch(globalreg->packetcomp_map[PACK_COMP_GPS]);
+		in_pack->fetch(_PCM(PACK_COMP_GPS));
 	kis_layer1_packinfo *l1info = (kis_layer1_packinfo *) 
-		in_pack->fetch(globalreg->packetcomp_map[PACK_COMP_RADIODATA]);
+		in_pack->fetch(_PCM(PACK_COMP_RADIODATA));
 
 	// No 802.11 info, we don't handle it.
 	if (packinfo == NULL) {
@@ -578,12 +578,12 @@ int Netracker::netracker_chain_handler(kis_packet *in_pack) {
 
 			// Find cached SSID if we don't have one
 			if (packinfo->ssid_len == 0 || packinfo->ssid_blank) {
+				net->ssid_cloaked = 1;
 				if (bssid_cloak_map.find(packinfo->bssid_mac) != 
 					bssid_cloak_map.end()) {
 					net->ssid = bssid_cloak_map[packinfo->bssid_mac];
 					net->ssid_uncloaked = 1;
 				}
-				net->ssid_cloaked = 1;
 			} else {
 				net->ssid = string(packinfo->ssid);
 				net->ssid_cloaked = 0;
@@ -609,6 +609,12 @@ int Netracker::netracker_chain_handler(kis_packet *in_pack) {
 
 		// Everything else needs to change with new frames so we fill it in
 		// outside of the new network code, obviously
+		snprintf(status, STATUS_MAX, "Detected new network '%s' BSSID %s",
+				 (net->ssid_cloaked && !net->ssid_uncloaked) ? 
+				 	"<no ssid>" : net->ssid.c_str(), 
+					net->bssid.Mac2String().c_str());
+
+		_MSG(status, MSGFLAG_INFO);
 	}
 
 	// Link it to the packet for future chain elements

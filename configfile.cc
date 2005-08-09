@@ -174,7 +174,8 @@ string ConfigFile::ExpandLogPath(string path, string logname, string type,
             pw = getpwuid(getuid());
 
             if (pw == NULL) {
-                fprintf(stderr, "ERROR:  Could not explode home directory path, getpwuid() failed.\n");
+                fprintf(stderr, "ERROR:  Could not explode home directory path, "
+						"getpwuid() failed.\n");
                 exit(1);
             }
 
@@ -227,9 +228,9 @@ string ConfigFile::ExpandLogPath(string path, string logname, string type,
 
 
         if (!found) {
-            fprintf(stderr, "ERROR:  Unable to find a logging file within 100 hits.  If you really are\n"
-                    "        logging this many times in 1 day, change log names or edit the \n"
-                    "        source.\n");
+            fprintf(stderr, "ERROR:  Unable to find a logging file within 100 hits. "
+					"If you really are logging this many times in 1 day, change "
+					"log names or edit the source.\n");
             exit(1);
         }
     } else {

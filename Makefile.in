@@ -45,7 +45,7 @@ PSO	= util.o ringbuf.o messagebus.o configfile.o getopt.o \
 	kis_netframe.o gpsdclient.o \
 	packetchain.o packetsource_pcap.o packetsource_wext.o \
 	packetsourcetracker.o alertracker.o timetracker.o \
-	packetdissectors.o \
+	packetdissectors.o netracker.o \
 	kismet_server.o
 
 

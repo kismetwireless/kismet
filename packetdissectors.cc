@@ -291,10 +291,12 @@ int kis_80211_dissector(CHAINCALL_PARMS) {
 						}
 					}
 
-					if (zeroed != 0) {
+					if (zeroed == 0) {
 						packinfo->ssid = 
 							MungeToPrintable((char *) 
 											 &(chunk->data[tag_offset+1]), taglen);
+					} else {
+						packinfo->ssid_blank = 1;
 					}
                 } else {
                     // Otherwise we're corrupt, set it and stop processing

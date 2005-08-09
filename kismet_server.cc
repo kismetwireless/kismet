@@ -56,6 +56,7 @@
 #include "gpsdclient.h"
 
 #include "packetdissectors.h"
+#include "netracker.h"
 
 #ifndef exec_name
 char *exec_name;
@@ -431,9 +432,20 @@ int main(int argc,char *argv[]) {
 											  MSGFLAG_INFO);
 	globalregistry->packetchain->RegisterHandler(&kis_80211_dissector, NULL, 
 												 CHAINPOS_LLCDISSECT, -100);
+	globalregistry->packetcomp_map[PACK_COMP_80211] = 
+		globalregistry->packetchain->RegisterPacketComponent("80211_info");
 	
 	// Create the GPS server
+	globalregistry->messagebus->InjectMessage("Starting GPSD client...",
+											  MSGFLAG_INFO);
 	globalregistry->gpsd = new GPSDClient(globalregistry);
+	if (globalregistry->fatal_condition)
+		CatchShutdown(-1);
+
+	// Create the network tracker
+	globalregistry->messagebus->InjectMessage("Creating network tracker...",
+											  MSGFLAG_INFO);
+	globalregistry->netracker = new Netracker(globalregistry);
 	if (globalregistry->fatal_condition)
 		CatchShutdown(-1);
 
