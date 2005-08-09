@@ -373,7 +373,7 @@ Packetsourcetracker::Packetsourcetracker(GlobalRegistry *in_globalreg) {
     // Read all of our packet sources, tokenize the input and then start opening
     // them.
 
-    if (named_sources.length() == 0) {
+    if (named_sources.length() == 0 && from_cmdline == 0) {
         _MSG("No specific sources named, all sources defined in kismet.conf will "
 			 "be enabled.", MSGFLAG_INFO);
         named_sources = 

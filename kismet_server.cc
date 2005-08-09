@@ -341,7 +341,7 @@ int main(int argc,char *argv[]) {
 
 #ifdef HAVE_SUID
 	// Process privdrop critical stuff
-	if (conf->FetchOpt("suiduser") == "") {
+	if ((suiduser = conf->FetchOpt("suiduser")) == "") {
 		snprintf(errstr, 1024, "No 'suiduser' directive found in the configuration "
 				 "file.  Please refer to the 'Installation & Security' and "
 				 "'Configuration' sections of the README file for more "
@@ -351,7 +351,7 @@ int main(int argc,char *argv[]) {
 		CatchShutdown(-1);
 	}
 
-	if (FindSuidTarget(conf->FetchOpt("suiduser"), globalregistry,
+	if (FindSuidTarget(suiduser, globalregistry,
 					   &suid_uid, &suid_gid) < 0 || globalregistry->fatal_condition) {
 		CatchShutdown(-1);
 	}

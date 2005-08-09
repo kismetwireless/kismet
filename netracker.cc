@@ -464,6 +464,11 @@ Netracker::Netracker(GlobalRegistry *in_globalreg) {
 		exit(1);
 	}
 
+	if (globalreg->kisnetserver == NULL) {
+		fprintf(stderr, "Netracker() sanity failed, globalreg->netserver is NULL\n");
+		exit(1);
+	}
+
 	// Register packet components to tie into our tracker
 	_PCM(PACK_COMP_TRACKERNET) =
 		globalreg->packetchain->RegisterPacketComponent("netracker_network");
