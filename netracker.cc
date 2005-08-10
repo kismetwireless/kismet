@@ -451,7 +451,7 @@ int kis_80211_datatracker_hook(CHAINCALL_PARMS) {
 }
 
 Netracker::Netracker() {
-	fprintf(stderr, "Netracker() called with no global registry\n");
+	fprintf(stderr, "FATAL OOPS: Netracker() called with no global registry\n");
 }
 
 Netracker::Netracker(GlobalRegistry *in_globalreg) {
