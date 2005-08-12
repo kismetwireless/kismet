@@ -16,37 +16,46 @@
     Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 */
 
-#ifndef __DUMPFILE_H__
-#define __DUMPFILE_H__
+#ifndef __DUMPFILE_PCAP_H__
+#define __DUMPFILE_PCAP_H__
 
 #include "config.h"
 
+#ifdef HAVE_LIBPCAP
 #include <stdio.h>
 #include <string>
+
+extern "C" {
+#ifndef HAVE_PCAPPCAP_H
+#include <pcap.h>
+#else
+#include <pcap/pcap.h>
+#endif
+}
 
 #include "globalregistry.h"
 #include "configfile.h"
 #include "messagebus.h"
 #include "packetchain.h"
+#include "dumpfile.h"
 
-class Dumpfile {
+// Hook for grabbing packets
+int dumpfilepcap_chain_hook(CHAINCALL_PARMS);
+
+// Pcap-based packet writer
+class Dumpfile_Pcap : public Dumpfile {
 public:
-	Dumpfile();
-	Dumpfile(GlobalRegistry *in_globalreg);
-	virtual ~Dumpfile() { };
+	Dumpfile_Pcap();
+	Dumpfile_Pcap(GlobalRegistry *in_globalreg);
+	virtual ~Dumpfile_Pcap();
 
-	virtual int chain_handler(kis_packet *in_pack) = 0;
-
-	int FetchNumDumped() { return dumped_frames; }
-
+	virtual int chain_handler(kis_packet *in_pack);
 protected:
-	GlobalRegistry *globalreg;
-	string fname;
-
-	int dumped_frames;
-
-	virtual int ProcessConfigOpt(string in_type);
+	pcap_t *dumpfile;
+	pcap_dumper_t *dumper;
 };
 
-#endif
+#endif /* pcap */
 
+#endif /* __dump... */
+	

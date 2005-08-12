@@ -58,6 +58,9 @@
 #include "packetdissectors.h"
 #include "netracker.h"
 
+#include "dumpfile.h"
+#include "dumpfile_pcap.h"
+
 #ifndef exec_name
 char *exec_name;
 #endif
@@ -162,6 +165,12 @@ void CatchShutdown(int sig) {
 
 		// Shut down the channel control child
 		globalregistry->sourcetracker->ShutdownChannelChild();
+	}
+
+	// Kill all the logfiles
+	fprintf(stderr, "Shutting down log files...\n");
+	for (unsigned int x = 0; x < globalregistry->subsys_dumpfile_vec.size(); x++) {
+		delete globalregistry->subsys_dumpfile_vec[x];
 	}
 
 	// Be noisy
@@ -446,6 +455,11 @@ int main(int argc,char *argv[]) {
 	globalregistry->messagebus->InjectMessage("Creating network tracker...",
 											  MSGFLAG_INFO);
 	globalregistry->netracker = new Netracker(globalregistry);
+	if (globalregistry->fatal_condition)
+		CatchShutdown(-1);
+
+	// Create the dumpfiles
+	globalregistry->RegisterDumpFile(new Dumpfile_Pcap(globalregistry));
 	if (globalregistry->fatal_condition)
 		CatchShutdown(-1);
 

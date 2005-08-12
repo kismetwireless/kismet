@@ -39,6 +39,8 @@ class SpeechControl;
 class SoundControl;
 // We need these for the vectors of subservices to poll
 class Pollable;
+// Vector of dumpfiles to destroy
+class Dumpfile;
 
 // These are the offsets into the array of protocol references, not
 // the reference itself.
@@ -131,6 +133,9 @@ public:
 	// Vector of pollable subservices for main()...  You should use the util 
 	// functions for this, but main needs to be able to see it directly
 	vector<Pollable *> subsys_pollable_vec;
+
+	// Vector of dumpfiles to close cleanly
+	vector<Dumpfile *> subsys_dumpfile_vec;
 	
     time_t start_time;
     string servername;
@@ -274,6 +279,21 @@ public:
 		for (unsigned int x = 0; x < subsys_pollable_vec.size(); x++) {
 			if (subsys_pollable_vec[x] == in_subcli) {
 				subsys_pollable_vec.erase(subsys_pollable_vec.begin() + x);
+				return 1;
+			}
+		}
+		return 0;
+	}
+
+	int RegisterDumpFile(Dumpfile *in_dump) {
+		subsys_dumpfile_vec.push_back(in_dump);
+		return -1;
+	}
+
+	int RemoveDumpFile(Dumpfile *in_dump) {
+		for (unsigned int x = 0; x < subsys_pollable_vec.size(); x++) {
+			if (subsys_dumpfile_vec[x] == in_dump) {
+				subsys_dumpfile_vec.erase(subsys_dumpfile_vec.begin() + x);
 				return 1;
 			}
 		}

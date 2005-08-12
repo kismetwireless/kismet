@@ -47,6 +47,7 @@ int Dumpfile::ProcessConfigOpt(string in_type) {
 	static struct option logfile_long_options[] = {
 		{ "log-types", required_argument, 0, 'T' },
 		{ "log-title", required_argument, 0, 't' },
+		{ "no-logging", no_argument, 0, 'n' },
 		{ 0, 0, 0, 0 }
 	};
 
@@ -61,7 +62,7 @@ int Dumpfile::ProcessConfigOpt(string in_type) {
 
 	while (1) {
 		int r = getopt_long(globalreg->argc, globalreg->argv,
-							"-T:t:", 
+							"-T:t:n", 
 							logfile_long_options, &option_idx);
 		if (r < 0) break;
 		switch (r) {
@@ -70,6 +71,9 @@ int Dumpfile::ProcessConfigOpt(string in_type) {
 				break;
 			case 't':
 				logname = string(optarg);
+				break;
+			case 'n':
+				return 0;
 				break;
 		}
 	}
