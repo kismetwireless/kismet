@@ -121,7 +121,7 @@ int Dumpfile_Pcap::chain_handler(kis_packet *in_pack) {
 	struct pcap_pkthdr wh;
 	wh.ts.tv_sec = in_pack->ts.tv_sec;
 	wh.ts.tv_usec = in_pack->ts.tv_usec;
-	wh.caplen = eight11->length;
+	wh.caplen = wh.len = eight11->length;
 
 	// Dump it
 	pcap_dump((u_char *) dumper, &wh, eight11->data);
