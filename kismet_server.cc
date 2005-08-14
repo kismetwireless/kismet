@@ -60,6 +60,7 @@
 
 #include "dumpfile.h"
 #include "dumpfile_pcap.h"
+#include "dumpfile_gpsxml.h"
 
 #ifndef exec_name
 char *exec_name;
@@ -159,18 +160,18 @@ void CatchShutdown(int sig) {
 		globalregistry->kisnetserver->Shutdown();
 	}
 
+	// Kill all the logfiles
+	fprintf(stderr, "Shutting down log files...\n");
+	for (unsigned int x = 0; x < globalregistry->subsys_dumpfile_vec.size(); x++) {
+		delete globalregistry->subsys_dumpfile_vec[x];
+	}
+
 	if (globalregistry->sourcetracker != NULL) {
 		// Shut down the packet sources
 		globalregistry->sourcetracker->CloseSources();
 
 		// Shut down the channel control child
 		globalregistry->sourcetracker->ShutdownChannelChild();
-	}
-
-	// Kill all the logfiles
-	fprintf(stderr, "Shutting down log files...\n");
-	for (unsigned int x = 0; x < globalregistry->subsys_dumpfile_vec.size(); x++) {
-		delete globalregistry->subsys_dumpfile_vec[x];
 	}
 
 	// Be noisy
@@ -306,9 +307,6 @@ int main(int argc,char *argv[]) {
 
 	// Allocate some other critical stuff
 	globalregistry->timetracker = new Timetracker(globalregistry);
-
-	globalregistry->start_time = time(0);
-	globalregistry->timestamp = time(0);
 
 	// Turn off the getopt error reporting
 	opterr = 0;
@@ -460,6 +458,9 @@ int main(int argc,char *argv[]) {
 
 	// Create the dumpfiles
 	globalregistry->RegisterDumpFile(new Dumpfile_Pcap(globalregistry));
+	if (globalregistry->fatal_condition)
+		CatchShutdown(-1);
+	globalregistry->RegisterDumpFile(new Dumpfile_Gpsxml(globalregistry));
 	if (globalregistry->fatal_condition)
 		CatchShutdown(-1);
 

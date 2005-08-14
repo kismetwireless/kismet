@@ -31,7 +31,6 @@
 
 #include "globalregistry.h"
 #include "packetchain.h"
-#include "manuf.h"
 
 // Cache file versioning
 #define NETRACKER_SSIDCACHE_VERSION 	2
@@ -74,7 +73,7 @@ enum CLIENT_fields {
     CLIENT_bestquality, CLIENT_bestsignal, CLIENT_bestnoise,
     CLIENT_bestlat, CLIENT_bestlon, CLIENT_bestalt,
     CLIENT_atype, CLIENT_ip, CLIENT_datasize, CLIENT_maxseenrate, CLIENT_encodingset,
-    CLIENT_decrypted
+    CLIENT_decrypted, CLIENT_wep
 };
 
 enum REMOVE_fields {
@@ -93,21 +92,6 @@ typedef struct CLIENT_data {
     vector<string> cdvec;
 };
 
-// Convert a network to NET_data
-void Protocol_Network2Data(const wireless_network *net, NETWORK_data *data);  
-// NETWORK_data
-int Protocol_NETWORK(PROTO_PARMS); 
-// Convert a client
-void Protocol_Client2Data(const wireless_network *net, const wireless_client *cli, 
-						  CLIENT_data *data); 
-// CLIENT_data
-int Protocol_CLIENT(PROTO_PARMS); 
-// BSSID
-int Protocol_REMOVE(PROTO_PARMS);
-
-void Protocol_NETWORK_enable(PROTO_ENABLE_PARMS);
-void Protocol_CLIENT_enable(PROTO_ENABLE_PARMS);
-
 // Netracker itself
 class Netracker {
 public:
@@ -123,15 +107,6 @@ public:
 		network_turbocell = 3,
 		network_data = 4,
 		network_remove = 256
-	};
-
-	// Bitmask encryption type
-	enum crypt_type {
-		crypt_none = 0,
-		crypt_wep = 1,
-		crypt_layer3 = 64,
-		crypt_decoded = 128,
-		crypt_unknown = 256
 	};
 
 	enum client_type {
@@ -211,7 +186,7 @@ public:
 			type = network_ap;
 			llc_packets = data_packets = crypt_packets = fmsweak_packets = 0;
 			channel = 0;
-			encryption = 0;
+			cryptset = 0;
 			bssid = mac_addr(0);
 			ssid_cloaked = ssid_uncloaked = 0;
 			last_time = first_time = 0;
@@ -240,7 +215,7 @@ public:
 
 		int channel;
 
-		uint32_t encryption;
+		int cryptset;
 
 		mac_addr bssid;
 
@@ -329,8 +304,10 @@ public:
 
 		// Manufacturer info - MAC address key to the manuf map and score
 		// for easy mapping
+		/*
 		manuf *manuf_ref;
 		int manuf_score;
+		*/
 
 		// Maximum advertised rate during a probe
 		double maxrate;
@@ -386,8 +363,10 @@ protected:
 	map<mac_addr, string> bssid_cloak_map;
 
 	// Manufacturer maps
+	/*
 	macmap<vector<manuf *> > ap_manuf_map;
 	macmap<vector<manuf *> > client_manuf_map;
+	*/
 
 	// Cache files paths and states
 	string ssid_cache_path, ip_cache_path;
@@ -397,6 +376,23 @@ protected:
 	friend int kis_80211_netracker_hook(CHAINCALL_PARMS);
 	friend int kis_80211_datatracker_hook(CHAINCALL_PARMS);
 };
+
+// Convert a network to NET_data
+void Protocol_Network2Data(const Netracker::tracked_network *net, 
+						   NETWORK_data *data);  
+// NETWORK_data
+int Protocol_NETWORK(PROTO_PARMS); 
+// Convert a client
+void Protocol_Client2Data(const Netracker::tracked_network *net, 
+						  const Netracker::tracked_client *cli, 
+						  CLIENT_data *data); 
+// CLIENT_data
+int Protocol_CLIENT(PROTO_PARMS); 
+// BSSID
+int Protocol_REMOVE(PROTO_PARMS);
+
+void Protocol_NETWORK_enable(PROTO_ENABLE_PARMS);
+void Protocol_CLIENT_enable(PROTO_ENABLE_PARMS);
 
 // Hooks into the packet component trackers
 class kis_netracker_netinfo : public packet_component {

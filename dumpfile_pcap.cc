@@ -20,8 +20,6 @@
 
 #ifdef HAVE_LIBPCAP
 
-#include "config.h"
-
 #include <errno.h>
 
 #include "dumpfile_pcap.h"
@@ -49,7 +47,7 @@ Dumpfile_Pcap::Dumpfile_Pcap(GlobalRegistry *in_globalreg) : Dumpfile(in_globalr
 	}
 
 	// Find the file name
-	if (ProcessConfigOpt("pcapdump") <= 0 || globalreg->fatal_condition) {
+	if ((fname = ProcessConfigOpt("pcapdump")) == "" || globalreg->fatal_condition) {
 		return;
 	}
 
@@ -82,6 +80,7 @@ Dumpfile_Pcap::~Dumpfile_Pcap() {
 
 	// Close files
 	if (dumper != NULL) {
+		Flush();
 		pcap_dump_flush(dumper);
 		pcap_dump_close(dumper);
 		opened = 1;
@@ -94,11 +93,17 @@ Dumpfile_Pcap::~Dumpfile_Pcap() {
 	dumper = NULL;
 	dumpfile = NULL;
 
-	// Unregister us
-	globalreg->RemoveDumpFile(this);
-
 	if (opened) 
 		_MSG("Closed pcapdump log file '" + fname + "'", MSGFLAG_INFO);
+}
+
+int Dumpfile_Pcap::Flush() {
+	if (dumper == NULL || dumpfile == NULL)
+		return 0;
+
+	pcap_dump_flush(dumper);
+
+	return 1;
 }
 
 int Dumpfile_Pcap::chain_handler(kis_packet *in_pack) {

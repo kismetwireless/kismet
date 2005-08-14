@@ -35,9 +35,11 @@ public:
 	Dumpfile(GlobalRegistry *in_globalreg);
 	virtual ~Dumpfile() { };
 
-	virtual int chain_handler(kis_packet *in_pack) = 0;
-
+	// Fetch the number of items logged
 	int FetchNumDumped() { return dumped_frames; }
+
+	// Cleanly flush the file to disk
+	virtual int Flush() = 0;
 
 protected:
 	GlobalRegistry *globalreg;
@@ -45,7 +47,7 @@ protected:
 
 	int dumped_frames;
 
-	virtual int ProcessConfigOpt(string in_type);
+	virtual string ProcessConfigOpt(string in_type);
 };
 
 #endif

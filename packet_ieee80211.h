@@ -105,32 +105,6 @@ enum phy_encoding_type {
     encoding_ofdm
 };
 
-// CDP -- This gives us a lot of info about the location of the AP if they're
-// on a cisco backend network
-typedef struct {
-    unsigned int : 8 __attribute__ ((packed));
-    unsigned int : 8 __attribute__ ((packed));
-
-    unsigned int : 8 __attribute__ ((packed));
-    unsigned int : 1 __attribute__ ((packed));
-    unsigned int level1 : 1 __attribute__ ((packed));
-    unsigned int igmp_forward : 1 __attribute__ ((packed));
-    unsigned int nlp : 1 __attribute__ ((packed));
-    unsigned int level2_switching : 1 __attribute__ ((packed));
-    unsigned int level2_sourceroute : 1 __attribute__ ((packed));
-    unsigned int level2_transparent : 1 __attribute__ ((packed));
-    unsigned int level3 : 1 __attribute__ ((packed));
-} cdp_capabilities;
-
-typedef struct {
-    char dev_id[128];
-    uint8_t ip[4];
-    char interface[128];
-    cdp_capabilities cap;
-    char software[512];
-    char platform[128];
-} cdp_packet;
-
 // Turbocell modes
 enum turbocell_type {
     turbocell_unknown,
@@ -138,6 +112,104 @@ enum turbocell_type {
     turbocell_pollbase, // 0x80
     turbocell_nonpollbase, // 0x00
     turbocell_base // 0x40
+};
+
+// IAPP crypt enums
+enum iapp_type {
+    iapp_announce_request = 0,
+    iapp_announce_response = 1,
+    iapp_handover_request = 2,
+    iapp_handover_response = 3
+};
+
+enum iapp_pdu {
+    iapp_pdu_ssid = 0x00,
+    iapp_pdu_bssid = 0x01,
+    iapp_pdu_oldbssid = 0x02,
+    iapp_pdu_msaddr = 0x03,
+    iapp_pdu_capability = 0x04,
+    iapp_pdu_announceint = 0x05,
+    iapp_pdu_hotimeout = 0x06,
+    iapp_pdu_messageid = 0x07,
+    iapp_pdu_phytype = 0x10,
+    iapp_pdu_regdomain = 0x11,
+    iapp_pdu_channel = 0x12,
+    iapp_pdu_beaconint = 0x13,
+    iapp_pdu_ouiident = 0x80,
+    iapp_pdu_authinfo = 0x81
+};
+
+enum iapp_cap {
+    iapp_cap_forwarding = 0x40,
+    iapp_cap_wep = 0x20
+};
+
+enum iapp_phy {
+    iapp_phy_prop = 0x00,
+    iapp_phy_fhss = 0x01,
+    iapp_phy_dsss = 0x02,
+    iapp_phy_ir = 0x03,
+    iapp_phy_ofdm = 0x04
+};
+
+enum iapp_dom {
+    iapp_dom_fcc = 0x10,
+    iapp_dom_ic = 0x20,
+    iapp_dom_etsi = 0x30,
+    iapp_dom_spain = 0x31,
+    iapp_dom_france = 0x32,
+    iapp_dom_mkk = 0x40
+};
+
+enum iapp_auth {
+    iapp_auth_status = 0x01,
+    iapp_auth_username = 0x02,
+    iapp_auth_provname = 0x03,
+    iapp_auth_rxpkts = 0x04,
+    iapp_auth_txpkts = 0x05,
+    iapp_auth_rxbytes = 0x06,
+    iapp_auth_txbytes = 0x07,
+    iapp_auth_logintime = 0x08,
+    iapp_auth_timelimit = 0x09,
+    iapp_auth_vollimit = 0x0a,
+    iapp_auth_acccycle = 0x0b,
+    iapp_auth_rxgwords = 0x0c,
+    iapp_auth_txgwords = 0x0d,
+    iapp_auth_ipaddr = 0x0e,
+    iapp_auth_trailer = 0xff
+};
+
+typedef struct {
+    unsigned iapp_version : 8 __attribute__ ((packed));
+    unsigned iapp_type : 8 __attribute__ ((packed));
+} iapp_header;
+
+typedef struct {
+    unsigned pdu_type : 8 __attribute__ ((packed));
+    unsigned pdu_len : 16 __attribute__ ((packed));
+} iapp_pdu_header;
+
+// Crypt bitfield
+enum crypt_type {
+	crypt_none = 0,
+	crypt_unknown = 1,
+	crypt_wep = 2,
+	crypt_layer3 = 4,
+	// Derived from WPA headers
+	crypt_wep40 = 8,
+	crypt_wep104 = 16,
+	crypt_tkip = 32,
+	crypt_wpa = 64,
+	crypt_psk = 128,
+	crypt_aes_ocb = 256,
+	crypt_aes_ccm = 512,
+	// Derived from data traffic
+	crypt_leap = 1024,
+	crypt_ttls = 2048,
+	crypt_tls = 4096,
+	crypt_peap = 8192,
+	crypt_isakmp = 16384,
+    crypt_pptp = 32768
 };
 
 // Deciphering by casting.  This is bad, and non portable, and we need to not

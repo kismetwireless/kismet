@@ -501,7 +501,8 @@ int Clicmd_CAPABILITY(CLIENT_PARMS) {
 
     if ((cmdref = 
          globalreg->kisnetserver->FetchProtocolRef(((*parsedcmdline)[0]).word)) < 0) {
-        snprintf(errstr, 1024, "Unknown protocol");
+        snprintf(errstr, 1024, "Unknown protocol: '%s'", 
+				 ((*parsedcmdline)[0]).word.c_str());
         return -1;
     }
 
@@ -531,7 +532,8 @@ int Clicmd_ENABLE(CLIENT_PARMS) {
 
     if ((cmdref = 
          globalreg->kisnetserver->FetchProtocolRef(((*parsedcmdline)[0]).word)) < 0) {
-        snprintf(errstr, 1024, "Unknown protocol");
+        snprintf(errstr, 1024, "Unknown protocol: '%s'", 
+				 ((*parsedcmdline)[0]).word.c_str());
         return -1;
     }
 
@@ -582,7 +584,8 @@ int Clicmd_REMOVE(CLIENT_PARMS) {
 
     if ((cmdref = 
          globalreg->kisnetserver->FetchProtocolRef(((*parsedcmdline)[0]).word)) < 0) {
-        snprintf(errstr, 1024, "Unknown protocol: '%s'", ((*parsedcmdline)[0]).word.c_str());
+        snprintf(errstr, 1024, "Unknown protocol: '%s'", 
+				 ((*parsedcmdline)[0]).word.c_str());
         return -1;
     }
 
@@ -1057,8 +1060,9 @@ int KisNetFramework::ParseData(int in_fd) {
     buf = new char[len + 1];
     
     if (netserver->ReadData(in_fd, buf, len, &rlen) < 0) {
-        globalreg->messagebus->InjectMessage("KisNetFramework::ParseData failed to fetch data from "
-                                             "the client.", MSGFLAG_ERROR);
+        globalreg->messagebus->InjectMessage("KisNetFramework::ParseData failed to "
+											 "fetch data from the client.", 
+											 MSGFLAG_ERROR);
         return -1;
     }
     buf[len] = '\0';
@@ -1096,25 +1100,30 @@ int KisNetFramework::ParseData(int in_fd) {
             continue;
         }
 
-        // Nuke the first element of the command tokens (we just pulled it off to get the cmdid)
+        // Nuke the first element of the command tokens (we just pulled it off to 
+		// get the cmdid)
         cmdtoks.erase(cmdtoks.begin());
 
         // Find a command function to deal with this protocol
         CLIRESP_data rdat;
         rdat.cmdid = cmdid;
 
-        map<string, ClientCommand>::iterator ccitr = client_cmd_map.find(StrLower(cmdtoks[0].word));
+        map<string, ClientCommand>::iterator ccitr = 
+			client_cmd_map.find(StrLower(cmdtoks[0].word));
         if (ccitr != client_cmd_map.end()) {
             // Nuke the first word again - we just pulled it off to get the command
             cmdtoks.erase(cmdtoks.begin());
 
-            string fullcmd = inptok[it].substr(cmdtoks[0].end, 
-                                               (inptok[it].length() - cmdtoks[0].end));
+            string fullcmd = 
+				inptok[it].substr(cmdtoks[0].end, (inptok[it].length() - 
+												   cmdtoks[0].end));
             // Call the processor and return error conditions and ack
-            if ((*ccitr->second)(in_fd, this, globalreg, errstr, fullcmd, &cmdtoks) < 0) {
+            if ((*ccitr->second)
+				(in_fd, this, globalreg, errstr, fullcmd, &cmdtoks) < 0) {
                 rdat.resptext = string(errstr);
                 SendToClient(in_fd, globalreg->netproto_map[PROTO_REF_ERROR], 
 							 (void *) &rdat);
+				_MSG("Failed Kismet client command: " + rdat.resptext, MSGFLAG_ERROR);
             } else {
                 rdat.resptext = string("OK");
                 SendToClient(in_fd, globalreg->netproto_map[PROTO_REF_ACK], 

@@ -90,24 +90,20 @@ int kis_gpspack_hook(CHAINCALL_PARMS) {
 }
 
 GPSDClient::GPSDClient() {
-    fprintf(stderr, "*** gpsdclient called with no global registry reference\n");
-    globalreg = NULL;
-    tcpcli = NULL;
+    fprintf(stderr, "FATAL OOPS: gpsdclient called with no globalreg\n");
+	exit(-1);
 }
 
 GPSDClient::GPSDClient(GlobalRegistry *in_globalreg) : ClientFramework(in_globalreg) {
     // The only GPSD connection method we support is a plain 
     // old TCP connection so we can generate it all internally
     tcpcli = new TcpClient(globalreg);
+	netclient = tcpcli;
 
     // Attach it to ourselves and opposite
     RegisterNetworkClient(tcpcli);
     tcpcli->RegisterClientFramework(this);
 
-	// Register GPS packet info components
-	_PCM(PACK_COMP_GPS) =
-		globalreg->packetchain->RegisterPacketComponent("gps");
-	
     gpseventid = -1;
 
     reconnect_attempt = -1;
@@ -173,9 +169,8 @@ GPSDClient::GPSDClient(GlobalRegistry *in_globalreg) : ClientFramework(in_global
 
         // Spawn the tick event
         gpseventid = 
-			globalreg->timetracker->RegisterTimer(SERVER_TIMESLICES_SEC, 
-												  NULL, 1, &GpsInjectEvent, 
-												  (void *) this);
+			globalreg->timetracker->RegisterTimer(SERVER_TIMESLICES_SEC, NULL, 1, 
+												  &GpsInjectEvent, (void *) this);
 
         snprintf(errstr, STATUS_MAX, "Using GPSD server on %s:%d", host, port);
         globalreg->messagebus->InjectMessage(errstr, MSGFLAG_INFO);
@@ -219,14 +214,15 @@ int GPSDClient::Shutdown() {
 
 int GPSDClient::InjectCommand() {
     // Timed backoff up to 30 seconds
-    if (tcpcli->Valid() == 0 && reconnect_attempt &&
+    if (netclient->Valid() == 0 && reconnect_attempt &&
         (time(0) - last_disconnect >= (kismin(reconnect_attempt, 6) * 5))) {
         if (Reconnect() <= 0)
             return 0;
     }
 
-    if (tcpcli->Valid() && tcpcli->WriteData((void *) gpsd_command, strlen(gpsd_command)) < 0 ||
-        globalreg->fatal_condition) {
+    if (netclient->Valid() && netclient->WriteData((void *) gpsd_command, 
+												   strlen(gpsd_command)) < 0 ||
+		globalreg->fatal_condition) {
         last_disconnect = time(0);
         return -1;
     }
@@ -255,23 +251,35 @@ int GPSDClient::ParseData() {
     // New ESR gpsd that changed the protocol:
     // GPSD,P=?,A=?,V=?,M=1
 
-    int len, rlen;
+    int len, rlen, roft = 0;
     char *buf;
     string strbuf;
 
     len = netclient->FetchReadLen();
     buf = new char[len + 1];
-    
+
     if (netclient->ReadData(buf, len, &rlen) < 0) {
-        globalreg->messagebus->InjectMessage("GPSDClient::ParseData failed to fetch data from "
-                                             "the tcp connection.", MSGFLAG_ERROR);
+        globalreg->messagebus->InjectMessage("GPSDClient::ParseData failed to "
+											 "fetch data from the tcp connection.", 
+											 MSGFLAG_ERROR);
         return -1;
     }
-    buf[len] = '\0';
+
+	if (rlen <= 0) {
+		return 0;
+	}
+
+    buf[rlen] = '\0';
+
+	for (roft = 0; roft < rlen; roft++) {
+		if (buf[roft] != 0) {
+			break;
+		}
+	}
 
     // Parse without including partials, so we don't get a fragmented command 
     // out of the buffer
-    vector<string> inptok = StrTokenize(buf, "\n", 0);
+    vector<string> inptok = StrTokenize(buf + roft, "\n", 0);
     delete[] buf;
 
     // Bail on no useful data
@@ -285,7 +293,7 @@ int GPSDClient::ParseData() {
     
     for (unsigned int it = 0; it < inptok.size(); it++) {
         // No matter what we've dealt with this data block
-        netclient->MarkRead(inptok[it].length() + 1);
+        netclient->MarkRead(inptok[it].length() + 1 + roft);
  
         // Split it on the commas
         vector<string> lintok = StrTokenize(inptok[it], ",");
@@ -444,6 +452,16 @@ int GPSDClient::ParseData() {
     gdata.mode = errstr;
 
     globalreg->kisnetserver->SendToAll(gps_proto_ref, (void *) &gdata);
+
+	// Make an empty packet w/ just GPS data for the gpsxml logger to catch
+	kis_packet *newpack = globalreg->packetchain->GeneratePacket();
+	kis_gps_packinfo *gpsdat = new kis_gps_packinfo;
+	newpack->ts.tv_sec = globalreg->timestamp.tv_sec;
+	newpack->ts.tv_usec = globalreg->timestamp.tv_usec;
+	globalreg->gpsd->FetchLoc(&(gpsdat->lat), &(gpsdat->lon), &(gpsdat->alt),
+							  &(gpsdat->spd), &(gpsdat->heading), &(gpsdat->gps_fix));
+	newpack->insert(_PCM(PACK_COMP_GPS), gpsdat);
+	globalreg->packetchain->ProcessPacket(newpack);
 
     return 1;
 }

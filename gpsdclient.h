@@ -34,8 +34,8 @@
 // Our command
 const char gpsd_command[] = "PAVMH\n";
 
-int GpsInjectEvent(Timetracker::timer_event *evt, void *parm, 
-				   GlobalRegistry *globalreg);
+// Command injection and network ticking
+int GpsInjectEvent(TIMEEVENT_PARMS);
 
 enum GPS_fields {
     GPS_lat, GPS_lon, GPS_alt, GPS_spd, GPS_heading, GPS_fix
@@ -133,8 +133,7 @@ protected:
 	// network proto ref
 	int gps_proto_ref;
     
-    friend int GpsInjectEvent(Timetracker::timer_event *evt, void *parm, 
-                              GlobalRegistry *globalreg);
+    friend int GpsInjectEvent(TIMEEVENT_PARMS);
 };
 
 #endif

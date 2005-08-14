@@ -139,7 +139,7 @@ public:
 	
     time_t start_time;
     string servername;
-    time_t timestamp;
+	struct timeval timestamp;
 
     unsigned int metric;
 
@@ -205,7 +205,6 @@ public:
         soundctl = NULL;
 
         start_time = 0;
-        timestamp = 0;
 
         metric = 0;
 

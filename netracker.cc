@@ -73,14 +73,16 @@ char *CLIENT_fields_text[] = {
     "bestquality", "bestsignal", "bestnoise",
     "bestlat", "bestlon", "bestalt",
     "atype", "ip", "datasize", "maxseenrate", "encodingset",
-    "decrypted",
+    "decrypted", "wep",
     NULL
 };
 
 // Convert a network to a NETWORK_data record for fast transmission
 // The order of this is VERY IMPORTANT.  It HAS TO MATCH the order of the
 // char *[] array of fields.
-void Protocol_Network2Data(const wireless_network *net, NETWORK_data *data) {
+void Protocol_Network2Data(const Netracker::tracked_network *net, 
+						   NETWORK_data *data) {
+#if 0
     char tmpstr[128];
 
     // Reserve fields
@@ -91,10 +93,12 @@ void Protocol_Network2Data(const wireless_network *net, NETWORK_data *data) {
     snprintf(tmpstr, 128, "%d", (int) net->type);
     data->ndvec.push_back(tmpstr);
 
-    snprintf(tmpstr, 128, "\001%s\001", net->ssid.length() > 0 ? net->ssid.c_str() : " ");
+    snprintf(tmpstr, 128, "\001%s\001", net->ssid.length() > 0 ? 
+			 net->ssid.c_str() : " ");
     data->ndvec.push_back(tmpstr);
 
-    snprintf(tmpstr, 128, "\001%s\001", net->beacon_info.length() > 0 ? net->beacon_info.c_str() : " ");
+    snprintf(tmpstr, 128, "\001%s\001", net->beacon_info.length() > 0 ? 
+			 net->beacon_info.c_str() : " ");
     data->ndvec.push_back(tmpstr);
 
     snprintf(tmpstr, 128, "%d", net->llc_packets);
@@ -106,13 +110,13 @@ void Protocol_Network2Data(const wireless_network *net, NETWORK_data *data) {
     snprintf(tmpstr, 128, "%d", net->crypt_packets);
     data->ndvec.push_back(tmpstr);
 
-    snprintf(tmpstr, 128, "%d", net->interesting_packets);
+    snprintf(tmpstr, 128, "%d", net->fmsweak_packets);
     data->ndvec.push_back(tmpstr);
 
     snprintf(tmpstr, 128, "%d", net->channel);
     data->ndvec.push_back(tmpstr);
 
-    snprintf(tmpstr, 128, "%d", net->wep);
+    snprintf(tmpstr, 128, "%d", net->cryptset);
     data->ndvec.push_back(tmpstr);
 
     snprintf(tmpstr, 128, "%d", (int) net->first_time);
@@ -238,6 +242,7 @@ void Protocol_Network2Data(const wireless_network *net, NETWORK_data *data) {
 
     snprintf(tmpstr, 128, "%d", net->dupeiv_packets);
     data->ndvec.push_back(tmpstr);
+#endif
 
 }
 
@@ -258,7 +263,9 @@ int Protocol_NETWORK(PROTO_PARMS) {
     return 1;
 }
 
-void Protocol_Client2Data(const wireless_network *net, const wireless_client *cli, CLIENT_data *data) {
+void Protocol_Client2Data(const Netracker::tracked_network *net, 
+						  const Netracker::tracked_client *cli, CLIENT_data *data) {
+#if 0
     char tmpstr[128];
 
     // Reserve fields
@@ -379,6 +386,11 @@ void Protocol_Client2Data(const wireless_network *net, const wireless_client *cl
 
     snprintf(tmpstr, 128, "%d", cli->decrypted);
     data->cdvec.push_back(tmpstr);
+
+	// Crypt set goes here
+	snprintf(tmpstr, 128, "%d", 0);
+	data->cdvec.push_back(tmpstr);
+#endif
 
 }
 
@@ -716,7 +728,7 @@ int Netracker::netracker_chain_handler(kis_packet *in_pack) {
 			net->maxrate = packinfo->maxrate;
 
 		if (packinfo->wep)
-			net->encryption |= crypt_wep;
+			net->cryptset |= crypt_wep;
 
 		net->channel = packinfo->channel;
 

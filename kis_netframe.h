@@ -24,7 +24,7 @@
 #include "util.h"
 #include "messagebus.h"
 #include "netframework.h"
-#include "tracktypes.h"
+#include "packetchain.h"
 
 // Forward prototype
 class KisNetFramework;

@@ -25,7 +25,7 @@
 #include <vector>
 #include <map>
 #include "packet.h"
-#include "tracktypes.h"
+#include "netracker.h"
 
 // What we need to know about a manufacturer
 class manuf {
@@ -37,7 +37,7 @@ public:
     string ssid_default;
     int channel_default;
 
-    net_ip_data ipdata;
+	Netracker::ip_data ipdata;
 };
 
 extern int manuf_max_score;

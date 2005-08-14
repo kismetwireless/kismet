@@ -50,6 +50,7 @@ public:
 	virtual ~Dumpfile_Pcap();
 
 	virtual int chain_handler(kis_packet *in_pack);
+	virtual int Flush();
 protected:
 	pcap_t *dumpfile;
 	pcap_dumper_t *dumper;

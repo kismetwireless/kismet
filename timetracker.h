@@ -31,6 +31,9 @@
 
 #include "globalregistry.h"
 
+#define TIMEEVENT_PARMS Timetracker::timer_event *evt, void *parm, \
+	GlobalRegistry *globalreg
+
 class Timetracker {
 public:
     typedef struct timer_event {

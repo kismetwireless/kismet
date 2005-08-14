@@ -1,0 +1,57 @@
+Kismet Newcore
+
+The existing Kismet codebase has grown from its beginnings.  While it works,
+generally, it has been grown, not designed, and has numerous quirks and 
+poorly implemented parts.
+
+The newcore branch of Kismet is a nearly complete rewrite of the entire
+codebase, focusing on design, maintainablity, and modular code.  A major
+goal of the rewrite is to allow a plugin architecture, which is well 
+under way.
+
+After nearly a year of development, the newcore codebase is finally functional.
+Now that it is standing on its own, development will go much more quickly.
+Major modules are still missing from the code, however they are being filled
+in rapidly.  Like any major rewrite, there will be growing pains as platform
+or interface-specific components are put back into action.
+
+Once newcore has reached an equivalent level of functionality with the 
+stable code branch, it will replace the existing Kismet codebase.
+
+DEVELOPING IN NEWCORE
+
+Some disjointed comments about the design...
+
+Everything in newcore is (primarily) a fully self-contained module.  The module
+can do its own config file parsing, command line argument parsing, etc.
+Modules can (and should) register their own packet components and their
+own network protocols.
+
+The core packet model is the "packet chain".  Packets are created and then
+injected into the chain.  As they pass through the chain, new components
+can be added to them;  For example, most packets will have a raw link data
+component, a 802.11 raw component, a parsed 802.11 information block, and
+a gps data component.
+
+The base event loop is driven by the core single select() and the timetracker
+event module.  All modules which need to participate in the select() event loop
+should be derived from the Pollable class and register themselves with the
+global polling system.
+
+Every module should connect to the GlobalRegistry.  This is a large 
+super-class of variables which takes the place of a messy pile of globals.
+Non-mainline modules can register new tracked components with the global
+registry to share between classes.  The globalreg functions as the main
+tracking system for injecting messages, accessing runtime configuration,
+and communicating with other modules.
+
+The messagebus is a common system for sending information to the user.  A text
+string injected into the messagebus carries flags to indicate the type of
+message.  Subscribers to the messagebus can then display the message, log it
+to a file, queue it for output to stdout on exit, etc.
+
+EXAMPLES
+
+Currently one of the best examples of the newcore design is the GPS client
+module, gpsdclient.[h|cc].  It excercises many of the new methods.
+

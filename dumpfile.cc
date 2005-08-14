@@ -39,9 +39,10 @@ Dumpfile::Dumpfile(GlobalRegistry *in_globalreg) {
 	}
 }
 
-int Dumpfile::ProcessConfigOpt(string in_type) {
+string Dumpfile::ProcessConfigOpt(string in_type) {
 	string logtypes, logtemplate, logname;
 	int option_idx = 0;
+	string retfname;
 
 	// longopts for the packetsourcetracker component
 	static struct option logfile_long_options[] = {
@@ -54,7 +55,7 @@ int Dumpfile::ProcessConfigOpt(string in_type) {
 	if ((logtemplate = globalreg->kismet_config->FetchOpt("logtemplate")) == "") {
 		_MSG("No 'logtemplate' specified in the Kismet config file.", MSGFLAG_FATAL);
 		globalreg->fatal_condition = 1;
-		return -1;
+		return "";
 	}
 	
 	// Hack the extern getopt index
@@ -73,7 +74,7 @@ int Dumpfile::ProcessConfigOpt(string in_type) {
 				logname = string(optarg);
 				break;
 			case 'n':
-				return 0;
+				return "";
 				break;
 		}
 	}
@@ -83,7 +84,7 @@ int Dumpfile::ProcessConfigOpt(string in_type) {
 		_MSG("No 'logdefault' specified on the command line or config file",
 			 MSGFLAG_FATAL);
 		globalreg->fatal_condition = 1;
-		return -1;
+		return "";
 	}
 
 	if (logtypes.length() == 0 &&
@@ -91,7 +92,7 @@ int Dumpfile::ProcessConfigOpt(string in_type) {
 		_MSG("No 'logtypes' specified on the command line or config file", 
 			 MSGFLAG_FATAL);
 		globalreg->fatal_condition = 1;
-		return -1;
+		return "";
 	}
 
 	vector<string> typevec = StrTokenize(StrLower(logtypes), ",");
@@ -106,13 +107,13 @@ int Dumpfile::ProcessConfigOpt(string in_type) {
 	}
 
 	if (active == 0) {
-		return 0;
+		return "";
 	}
 
 	_MSG("Log file type '" + in_type + "' activated.", MSGFLAG_INFO);
 
-	fname = ConfigFile::ExpandLogPath(logtemplate, logname, in_type, 0, 0);
+	retfname = ConfigFile::ExpandLogPath(logtemplate, logname, in_type, 0, 0);
 
-	return 1;
+	return retfname;
 }
 
