@@ -1,3 +1,6 @@
+Aug 14 2005  devel  Added tun/tap virtual interface support for sharing packets
+                    Added patches/ dir and linux kernel patch for tuntap
+                    Fixed stupid timing inversion on channel hop
 Aug 13 2005  devel  Resumed use of CHANGELOG file for newcore development as it
                      is finally on its feet enough
                     Added GPS-only packetchain data injection to gpsdclient

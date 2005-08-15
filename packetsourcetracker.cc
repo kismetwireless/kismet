@@ -485,14 +485,14 @@ Packetsourcetracker::Packetsourcetracker(GlobalRegistry *in_globalreg) {
                                              MSGFLAG_INFO);
 
     if (channel_hop) {
-        if (channel_dwell)
-            globalreg->timetracker->RegisterTimer(SERVER_TIMESLICES_SEC * 
-												  channel_dwell, NULL, 1, 
-                                                  &ChannelHopEvent, NULL);
-        else
+        if (channel_dwell < 1)
             globalreg->timetracker->RegisterTimer(SERVER_TIMESLICES_SEC / 
 												  channel_velocity, 
                                                   NULL, 1, &ChannelHopEvent, NULL);
+        else
+            globalreg->timetracker->RegisterTimer(SERVER_TIMESLICES_SEC * 
+												  channel_dwell, NULL, 1, 
+                                                  &ChannelHopEvent, NULL);
     }
 
 	// Register the packetsourcetracker as a pollable subsystem

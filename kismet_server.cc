@@ -61,6 +61,7 @@
 #include "dumpfile.h"
 #include "dumpfile_pcap.h"
 #include "dumpfile_gpsxml.h"
+#include "dumpfile_tuntap.h"
 
 #ifndef exec_name
 char *exec_name;
@@ -400,6 +401,11 @@ int main(int argc,char *argv[]) {
 	if (globalregistry->fatal_condition)
 		CatchShutdown(-1);
 
+	// Make the tuntap device as root, if we need to
+	globalregistry->RegisterDumpFile(new Dumpfile_Tuntap(globalregistry));
+	if (globalregistry->fatal_condition)
+		CatchShutdown(-1);
+
 	// Create the channel process if necessary
 	globalregistry->sourcetracker->SpawnChannelChild();
 	if (globalregistry->fatal_condition)
@@ -457,6 +463,8 @@ int main(int argc,char *argv[]) {
 		CatchShutdown(-1);
 
 	// Create the dumpfiles
+	globalregistry->messagebus->InjectMessage("Opening dumpfiles...",
+											  MSGFLAG_INFO);
 	globalregistry->RegisterDumpFile(new Dumpfile_Pcap(globalregistry));
 	if (globalregistry->fatal_condition)
 		CatchShutdown(-1);

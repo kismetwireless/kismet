@@ -4,10 +4,10 @@
 # not continually reading --help!
 
 # Version of Kismet config
-version=2004.04.devel-c
+version=2005-newcore
 
 # Name of server (Purely for organiational purposes)
-servername=Kismet
+servername=Kismet_Newcore
 
 # User to setid to (should be your normal user)
 suiduser=your_user_here
@@ -89,8 +89,8 @@ defaultchannels=IEEE80211ab:1,6,11,2,7,3,8,4,9,5,10,36,40,44,48,52,56,60,64
 # them all on the same sourcechannels line:
 # sourcechannels=prism2a,prism2b,prism2c:1,6,11
 
-# Port to serve GUI data
-tcpport=2501
+# Client/server listen config
+listen=tcp://127.0.0.1:2501
 # People allowed to connect, comma seperated IP addresses or network/mask
 # blocks.  Netmasks can be expressed as dotted quad (/255.255.255.0) or as
 # numbers (/24)
@@ -109,6 +109,11 @@ gpsmodelock=false
 # Do we try to reconnect if we lose our link to the GPS, or do we just
 # let it die and be disabled?
 gpsreconnect=true
+
+# Do we export packets over tun/tap virtual interfaces?
+tuntap_export=true
+# What virtual interface do we use
+tuntap_device=tap0
 
 # Packet filtering options:
 # filter_tracker - Packets filtered from the tracker are not processed or
@@ -228,14 +233,7 @@ waypointdata=%h/.gpsdrive/way_kismet.txt
 alertbacklog=50
 
 # File types to log, comma seperated
-# dump    - raw packet dump
-# network - plaintext detected networks
-# csv     - plaintext detected networks in CSV format
-# xml     - XML formatted network and cisco log
-# weak    - weak packets (in airsnort format)
-# cisco   - cisco equipment CDP broadcasts
-# gps     - gps coordinates
-logtypes=dump,network,csv,xml,weak,cisco,gps
+logtypes=pcapdump,network,csv,weak,cisco,gpsxml,netxml
 
 # Do we track probe responses and merge probe networks into their owners?
 # This isn't always desireable, depending on the type of monitoring you're
