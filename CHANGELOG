@@ -1,3 +1,7 @@
+Aug 15 2005  devel  Merged patch from JD Shmidt to add a toggle for gpsdrive
+                     waypoint logging
+                    Merged patch from Sven-Ola Tuecke to add the BSS timestamp
+                     to the panels display
 Aug 08 2005  devel  Removed ethereal checking from configure script, too lazy
                      to remove the source this close to newcore working
                     Changed tests for using wireless.h from system headers

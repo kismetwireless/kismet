@@ -1654,6 +1654,11 @@ int PanelFront::DetailsPrinter(void *in_window) {
         snprintf(output, print_width, "Max Rate: %2.1f", dnet->maxrate);
         kwin->text.push_back(output);
 
+	// Added by Sven-Ola, may need le64_to_cpu()? Also added the bss_tsf
+	// to the kismet tcp protocol used between client and server
+	snprintf(output, print_width, "BSS Time: %llx", dnet->bss_timestamp);
+        kwin->text.push_back(output);
+
         if (dnet->maxseenrate != 0) {
             snprintf(output, print_width, "Max Seen: %ld kbps", (long) dnet->maxseenrate * 100);
             kwin->text.push_back(output);

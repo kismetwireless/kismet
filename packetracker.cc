@@ -37,7 +37,7 @@
 extern mac_addr broadcast_mac;
 
 // Get this out of kismet_server (yeah, yeah, globals bad)
-extern int netcryptdetect;
+extern int netcryptdetect, waypointformat;
 
 Packetracker::Packetracker() {
     alertracker = NULL;
@@ -2452,7 +2452,7 @@ int Packetracker::WriteGpsdriveWaypt(FILE *in_file) {
         float lat, lon;
         lat = (net->min_lat + net->max_lat) / 2;
         lon = (net->min_lon + net->max_lon) / 2;
-        fprintf(in_file, "%s\t%f  %f\n", net->bssid.Mac2String().c_str(), lat, lon);
+        fprintf(in_file, "%s\t%f  %f\n", waypointformat == 1 ? net->ssid.c_str() : net->bssid.Mac2String().c_str(), lat, lon);
     }
 
     fflush(in_file);

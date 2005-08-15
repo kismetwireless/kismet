@@ -222,8 +222,10 @@ metric=false
 # Do we write waypoints for gpsdrive to load?  Note:  This is NOT related to
 # recent versions of GPSDrive's native support of Kismet.
 waypoints=false
-# GPSMap waypoint file.  This WILL be truncated.
+# GPSDrive waypoint file.  This WILL be truncated.
 waypointdata=%h/.gpsdrive/way_kismet.txt
+# Do we want ESSID or BSSID as the waypoint name ?
+waypoint_essid=false
 
 # How many alerts do we backlog for new clients?  Only change this if you have
 # a -very- low memory system and need those extra bytes, or if you have a high

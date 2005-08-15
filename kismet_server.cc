@@ -75,7 +75,7 @@ const char *pid_base = "kismet_server.pid";
 char *configfile = NULL;
 int no_log = 0, noise_log = 0, data_log = 0, net_log = 0, crypt_log = 0, cisco_log = 0,
     gps_log = -1, gps_enable = 1, csv_log = 0, xml_log = 0, ssid_cloak_track = 0, 
-    ip_track = 0, waypoint = 0, fifo = 0, corrupt_log = 0;
+    ip_track = 0, waypoint = 0, waypointformat = 0, fifo = 0, corrupt_log = 0;
 string logname, dumplogfile, netlogfile, cryptlogfile, ciscologfile,
     gpslogfile, csvlogfile, xmllogfile, ssidtrackfile, configdir, iptrackfile, 
     waypointfile, fifofile;
@@ -1297,7 +1297,11 @@ int ProcessBulkConf(ConfigFile *conf) {
             waypointfile = conf->ExpandLogPath(conf->FetchOpt("waypointdata"), "", "", 0, 1);
             waypoint = 1;
         }
-
+        if(conf->FetchOpt("waypoint_essid") == "true") {
+            waypointformat = 1;
+        } else {
+	    waypointformat = 0;
+        }
     }
 
     if (conf->FetchOpt("metric") == "true") {
