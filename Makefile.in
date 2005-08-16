@@ -1,8 +1,8 @@
 # Kismet wireless sniffer
 
 VERSION_MAJOR	= 2005
-VERSION_MINOR	= 07
-VERSION_TINY	= R1a
+VERSION_MINOR	= 08
+VERSION_TINY	= R1
 
 INSTGRP ?= "@instgrp@"
 MANGRP ?= "@mangrp@"

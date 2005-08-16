@@ -1,4 +1,4 @@
-Kismet 2005-07-R1a
+Kismet 2005-08-R1
 Mike Kershaw <dragorn@kismetwireless.net>
 http://www.kismetwireless.net
 Licensed under the GPL
@@ -102,8 +102,10 @@ Licensed under the GPL
 
 5.  Upgrading from Previous Versions
 
-    Upgrading to Kismet 2005-07-R1:
-      Upgrading from 2005-06-R1 should have no changes.
+    Upgrading to Kismet 2005-08-R1:
+      Upgrading from 2005-06-R1 or 2005-07-R1 should have no major changes.
+      See the config file for new settings pertaining to waypoint export.
+
       For upgrading from previous versions, see the section on upgrading to
       2005-06-R1 from older releases.
 
