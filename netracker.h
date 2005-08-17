@@ -46,7 +46,8 @@ enum NETWORK_fields {
     NETWORK_bssid, NETWORK_type, NETWORK_ssid, NETWORK_beaconinfo,
     NETWORK_llcpackets, NETWORK_datapackets, NETWORK_cryptpackets,
     NETWORK_weakpackets, NETWORK_channel, NETWORK_wep, NETWORK_firsttime,
-    NETWORK_lasttime, NETWORK_atype, NETWORK_rangeip, NETWORK_gpsfixed,
+    NETWORK_lasttime, NETWORK_atype, NETWORK_rangeip, NETWORK_netmaskip,
+	NETWORK_gatewayip, NETWORK_gpsfixed,
     NETWORK_minlat, NETWORK_minlon, NETWORK_minalt, NETWORK_minspd,
     NETWORK_maxlat, NETWORK_maxlon, NETWORK_maxalt, NETWORK_maxspd,
     NETWORK_octets, NETWORK_cloaked, NETWORK_beaconrate, NETWORK_maxrate,
@@ -57,7 +58,8 @@ enum NETWORK_fields {
     NETWORK_agglat, NETWORK_agglon, NETWORK_aggalt, NETWORK_aggpoints,
     NETWORK_datasize, NETWORK_tcnid, NETWORK_tcmode, NETWORK_tsat,
     NETWORK_carrierset, NETWORK_maxseenrate, NETWORK_encodingset,
-    NETWORK_decrypted, NETWORK_DUPEIV
+    NETWORK_decrypted, NETWORK_DupeIV,
+	NETWORK_maxfield
 };
 
 enum CLIENT_fields {
@@ -92,6 +94,34 @@ typedef struct CLIENT_data {
     vector<string> cdvec;
 };
 
+// Enums explicitly defined for the ease of client writers
+enum network_type {
+	network_ap = 0,
+	network_adhoc = 1,
+	network_probe = 2,
+	network_turbocell = 3,
+	network_data = 4,
+	network_remove = 256
+};
+
+enum client_type {
+	client_unknown = 0,
+	client_fromds = 1,
+	client_tods = 2,
+	client_interds = 3,
+	client_established = 4
+};
+
+enum ipdata_type {
+	ipdata_unknown = 0,
+	ipdata_factoryguess = 1,
+	ipdata_udp = 2,
+	ipdata_arp = 3,
+	ipdata_tcp = 4,
+	ipdata_dhcp = 5,
+	ipdata_group = 6
+};
+
 // Netracker itself
 class Netracker {
 public:
@@ -99,28 +129,13 @@ public:
 	class tracked_network;
 	class tracked_client;
 
-	// Enums explicitly defined for the ease of client writers
-	enum network_type {
-		network_ap = 0,
-		network_adhoc = 1,
-		network_probe = 2,
-		network_turbocell = 3,
-		network_data = 4,
-		network_remove = 256
-	};
-
-	enum client_type {
-		client_unknown = 0,
-		client_fromds = 1,
-		client_tods = 2,
-		client_interds = 3,
-		client_established = 4
-	};
-
 	typedef struct ip_data {
 		ip_data() {
+			ip_type = ipdata_unknown;
 			ip_addr_block = ip_netmask = ip_gateway = 0;
 		}
+
+		ipdata_type ip_type;
 
 		uint32_t ip_addr_block;
 		uint32_t ip_netmask;
@@ -130,6 +145,7 @@ public:
 			ip_addr_block = in.ip_addr_block;
 			ip_netmask = in.ip_netmask;
 			ip_gateway = in.ip_gateway;
+			ip_type = in.ip_type;
 
 			return *this;
 		}
@@ -202,7 +218,7 @@ public:
 		}
 
 		// What we last saw it as
-		Netracker::network_type type;
+		network_type type;
 
 		string ssid;
 		string beacon_info;
@@ -278,7 +294,7 @@ public:
 		tracked_client();
 
 		// DS detected type
-		Netracker::client_type type;
+		client_type type;
 
 		// timestamps
 		time_t last_time;
@@ -375,11 +391,9 @@ protected:
 	// Let the hooks call directly in
 	friend int kis_80211_netracker_hook(CHAINCALL_PARMS);
 	friend int kis_80211_datatracker_hook(CHAINCALL_PARMS);
+	friend void Protocol_NETWORK_enable(PROTO_ENABLE_PARMS);
 };
 
-// Convert a network to NET_data
-void Protocol_Network2Data(const Netracker::tracked_network *net, 
-						   NETWORK_data *data);  
 // NETWORK_data
 int Protocol_NETWORK(PROTO_PARMS); 
 // Convert a client

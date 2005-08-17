@@ -515,7 +515,7 @@ int Clicmd_CAPABILITY(CLIENT_PARMS) {
 
     globalreg->kisnetserver->SendToClient(in_clid, 
 										  globalreg->netproto_map[PROTO_REF_CLIENT],
-										  (void *) prot);
+										  (void *) prot, NULL);
     
     return 1;
 }
@@ -546,8 +546,8 @@ int Clicmd_ENABLE(CLIENT_PARMS) {
 
     vector<int> numericf;
 
-    // Match * - Rough match, good enough for me to just do the first character, if this
-    // becomes a problem sometime come back to it and do it a better way
+    // Match * - Rough match, good enough for me to just do the first character, 
+	// if this becomes a problem sometime come back to it and do it a better way
     if (((*parsedcmdline)[1]).word[0] == '*') {
         for (unsigned int x = 0; x < prot->field_vec.size(); x++) {
             numericf.push_back(x);
@@ -568,6 +568,9 @@ int Clicmd_ENABLE(CLIENT_PARMS) {
     }
 
     globalreg->kisnetserver->AddProtocolClient(in_clid, cmdref, numericf);
+
+	if (prot->enable != NULL)
+		(*prot->enable)(in_clid, globalreg);
 
     return 1;
 }
@@ -727,7 +730,8 @@ int Clicmd_LISTWEPKEYS(CLIENT_PARMS) {
     
     for (macmap<wep_key_info *>::iterator wkitr = globalreg->bssid_wep_map.begin();
          wkitr != globalreg->bssid_wep_map.end(); wkitr++) {
-        globalreg->kisnetserver->SendToClient(in_clid, wepkey_ref, (void *) wkitr->second);
+        globalreg->kisnetserver->SendToClient(in_clid, wepkey_ref, 
+											  (void *) wkitr->second, NULL);
     }
 
     return 1;
@@ -945,44 +949,44 @@ KisNetFramework::KisNetFramework(GlobalRegistry *in_globalreg) {
 
     // Protocols we REQUIRE all clients to support
 	globalreg->netproto_map[PROTO_REF_KISMET] =
-		RegisterProtocol("KISMET", 1, KISMET_fields_text, &Protocol_KISMET, NULL);
+		RegisterProtocol("KISMET", 1, 0, KISMET_fields_text, &Protocol_KISMET, NULL);
 	globalreg->netproto_map[PROTO_REF_ERROR] =
-		RegisterProtocol("ERROR", 1, ERROR_fields_text, &Protocol_ERROR, NULL);
+		RegisterProtocol("ERROR", 1, 0, ERROR_fields_text, &Protocol_ERROR, NULL);
 	globalreg->netproto_map[PROTO_REF_ACK] =
-		RegisterProtocol("ACK", 1, ACK_fields_text, &Protocol_ACK, NULL);
+		RegisterProtocol("ACK", 1, 0, ACK_fields_text, &Protocol_ACK, NULL);
 	globalreg->netproto_map[PROTO_REF_PROTOCOL] =
-		RegisterProtocol("PROTOCOLS", 1, PROTOCOLS_fields_text,
+		RegisterProtocol("PROTOCOLS", 1, 0, PROTOCOLS_fields_text,
 						 &Protocol_PROTOCOLS, NULL);
 	globalreg->netproto_map[PROTO_REF_CAPABILITY] =
-		RegisterProtocol("CAPABILITY", 1, CAPABILITY_fields_text,
+		RegisterProtocol("CAPABILITY", 1, 0, CAPABILITY_fields_text,
 						 &Protocol_CAPABILITY, NULL);
 	globalreg->netproto_map[PROTO_REF_TERMINATE] =
-		RegisterProtocol("TERMINATE", 1, TERMINATE_fields_text,
+		RegisterProtocol("TERMINATE", 1, 0, TERMINATE_fields_text,
 						 &Protocol_TERMINATE, NULL);
 	globalreg->netproto_map[PROTO_REF_TIME] =
-		RegisterProtocol("TIME", 1, TIME_fields_text, &Protocol_TIME, NULL);
+		RegisterProtocol("TIME", 1, 0, TIME_fields_text, &Protocol_TIME, NULL);
 
     // Other protocols
     
     // Alert ref done in alertracker
 
 	globalreg->netproto_map[PROTO_REF_CARD] =
-		RegisterProtocol("CARD", 0, CARD_fields_text, 
+		RegisterProtocol("CARD", 0, 0, CARD_fields_text, 
 						 &Protocol_CARD, NULL);
     // This has been broken for a long time now
     // RegisterProtocol("CISCO", 0, CISCO_fields_text, &Protocol_CISCO, NULL);
 	globalreg->netproto_map[PROTO_REF_INFO] =
-		RegisterProtocol("INFO", 0, INFO_fields_text, 
+		RegisterProtocol("INFO", 0, 0, INFO_fields_text, 
 						 &Protocol_INFO, NULL);
 	globalreg->netproto_map[PROTO_REF_PACKET] =
-		RegisterProtocol("PACKET", 0, PACKET_fields_text, &Protocol_PACKET, NULL);
+		RegisterProtocol("PACKET", 0, 0, PACKET_fields_text, &Protocol_PACKET, NULL);
 	globalreg->netproto_map[PROTO_REF_STATUS] =
-		RegisterProtocol("STATUS", 0, STATUS_fields_text, &Protocol_STATUS, NULL);
+		RegisterProtocol("STATUS", 0, 0, STATUS_fields_text, &Protocol_STATUS, NULL);
 	globalreg->netproto_map[PROTO_REF_STRING] =
-		RegisterProtocol("STRING", 0, STRING_fields_text, 
+		RegisterProtocol("STRING", 0, 0, STRING_fields_text, 
 						 &Protocol_STRING, NULL);
 	globalreg->netproto_map[PROTO_REF_WEPKEY] =
-		RegisterProtocol("WEPKEY", 0, WEPKEY_fields_text, &Protocol_WEPKEY, NULL);
+		RegisterProtocol("WEPKEY", 0, 0, WEPKEY_fields_text, &Protocol_WEPKEY, NULL);
 
     // Kismet builtin client commands
     RegisterClientCommand("CAPABILITY", &Clicmd_CAPABILITY);
@@ -1042,11 +1046,11 @@ int KisNetFramework::Accept(int in_fd) {
     kdat.newversion = string(temp);
    
     SendToClient(in_fd, globalreg->netproto_map[PROTO_REF_KISMET], 
-				 (void *) &kdat);
+				 (void *) &kdat, NULL);
   
     // Protocols
     SendToClient(in_fd, globalreg->netproto_map[PROTO_REF_PROTOCOL], 
-				 (void *) &protocol_map);
+				 (void *) &protocol_map, NULL);
     
     return 1;
 }
@@ -1122,17 +1126,17 @@ int KisNetFramework::ParseData(int in_fd) {
 				(in_fd, this, globalreg, errstr, fullcmd, &cmdtoks) < 0) {
                 rdat.resptext = string(errstr);
                 SendToClient(in_fd, globalreg->netproto_map[PROTO_REF_ERROR], 
-							 (void *) &rdat);
+							 (void *) &rdat, NULL);
 				_MSG("Failed Kismet client command: " + rdat.resptext, MSGFLAG_ERROR);
             } else {
                 rdat.resptext = string("OK");
                 SendToClient(in_fd, globalreg->netproto_map[PROTO_REF_ACK], 
-							 (void *) &rdat);
+							 (void *) &rdat, NULL);
             }
         } else {
             rdat.resptext = string("NO SUCH COMMAND");
             SendToClient(in_fd, globalreg->netproto_map[PROTO_REF_ERROR], 
-						 (void *) &rdat);
+						 (void *) &rdat, NULL);
         }
 
     }
@@ -1184,11 +1188,13 @@ int KisNetFramework::RegisterClientCommand(string in_cmdword, ClientCommand in_c
 // find are done with integer references.  They're cheap.
 // This takes the struct to be sent and pumps it through the dynamic protocol/field
 // system.
-int KisNetFramework::SendToClient(int in_fd, int in_refnum, const void *in_data) {
+int KisNetFramework::SendToClient(int in_fd, int in_refnum, const void *in_data,
+								  kis_protocol_cache *in_cache) {
     // Make sure this is a valid client
     map<int, client_opt *>::iterator opitr = client_optmap.find(in_fd);
     if (opitr == client_optmap.end()) {
-        snprintf(errstr, 1024, "KisNetFramework::SendToClient illegal client %d.", in_fd);
+        snprintf(errstr, 1024, "KisNetFramework::SendToClient illegal client %d.", 
+				 in_fd);
         globalreg->messagebus->InjectMessage(errstr, MSGFLAG_ERROR);
         return -1;
     }
@@ -1205,15 +1211,24 @@ int KisNetFramework::SendToClient(int in_fd, int in_refnum, const void *in_data)
     // it.
     map<int, server_protocol *>::iterator spitr = protocol_map.find(in_refnum);
     if (spitr == protocol_map.end()) {
-        snprintf(errstr, 1024, "KisNetFramework::SentToClient Protocol %d not registered.", in_refnum);
+        snprintf(errstr, 1024, "KisNetFramework::SendToClient Protocol %d not "
+				 "registered.", in_refnum);
         globalreg->messagebus->InjectMessage(errstr, MSGFLAG_ERROR);
         return -1;
     }
     server_protocol *prot = spitr->second;
 
+	if (prot->cacheable && in_cache == NULL) {
+        snprintf(errstr, 1024, "KisNetFramework::SendToClient protocol %s "
+				 "requires caching but got a NULL cache ref, fix me",
+				 prot->header.c_str());
+        globalreg->messagebus->InjectMessage(errstr, MSGFLAG_ERROR);
+        return -1;
+    }
+
     // Bounce through the printer function
     string fieldtext;
-    if ((*prot->printer)(fieldtext, fieldlist, in_data, globalreg) == -1) {
+    if ((*prot->printer)(fieldtext, fieldlist, in_data, in_cache, globalreg) == -1) {
         snprintf(errstr, 1024, "%s", fieldtext.c_str());
         return -1;
     }
@@ -1237,17 +1252,20 @@ int KisNetFramework::SendToAll(int in_refnum, const void *in_data) {
 	if (netserver == NULL)
 		return 0;
 
+	kis_protocol_cache cache;
+
     netserver->FetchClientVector(&clvec);
 
     for (unsigned int x = 0; x < clvec.size(); x++) {
-        if (SendToClient(clvec[x], in_refnum, in_data) > 0)
+        if (SendToClient(clvec[x], in_refnum, in_data, &cache) > 0)
             nsent++;
     }
 
     return nsent;
 }
 
-int KisNetFramework::RegisterProtocol(string in_header, int in_required, char **in_fields,
+int KisNetFramework::RegisterProtocol(string in_header, int in_required, int in_cache,
+									  char **in_fields,
                                       int (*in_printer)(PROTO_PARMS),
                                       void (*in_enable)(PROTO_ENABLE_PARMS)) {
     // First, see if we're already registered and return a -1 if we are.  You can't
@@ -1283,6 +1301,7 @@ int KisNetFramework::RegisterProtocol(string in_header, int in_required, char **
     sen->printer = in_printer;
     sen->enable = in_enable;
     sen->required = in_required;
+	sen->cacheable = in_cache;
 
     // Put us in the map
     protocol_map[refnum] = sen;

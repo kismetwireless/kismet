@@ -29,6 +29,51 @@
 // Forward prototype
 class KisNetFramework;
 
+// Caching record for sending stuff to multiple clients, gets filled in with
+// what needs to be sent via the protocol pointers
+class kis_protocol_cache {
+public:
+	kis_protocol_cache() {
+		numfields = 0;
+	}
+	~kis_protocol_cache() { }
+	int Filled(int in_f) {
+		if (CacheResize(in_f))
+			return 0;
+		return field_filled[in_f];
+	}
+	void Cache(int in_f, string in_val) {
+		CacheResize(in_f);
+		field_cache[in_f] = in_val;
+		field_filled[in_f] = 1;
+	}
+	string GetCache(int in_f) {
+		if (CacheResize(in_f))
+			return "";
+		return field_cache[in_f];
+	}
+protected:
+	int CacheResize(int in_f) {
+		if (in_f < numfields)
+			return 0;
+
+		field_cache.resize(in_f + 1);
+		field_filled.resize(in_f + 1);
+
+		for (int x = numfields; x < in_f; x++) {
+			field_filled[x] = 0;
+		}
+		
+		numfields = in_f + 1;
+
+		return 1;
+	}
+
+	vector<string> field_cache;
+	vector<int> field_filled;
+	int numfields;
+};
+
 // Client command structure for incoming commands.  Given the ID of the client
 // and the parsed ID of the command, the server framework, the globals, and the
 // remainder of the command line (after cmdid and command itself).  For extra
@@ -40,7 +85,8 @@ typedef int (*ClientCommand)(CLIENT_PARMS);
 
 // Protocol parameters
 #define PROTO_PARMS string& out_string, const vector<int> *field_vec, \
-        const void *data, GlobalRegistry *globalreg
+        const void *data, kis_protocol_cache *cache, \
+		GlobalRegistry *globalreg
 typedef int (*ProtoCallback)(PROTO_PARMS);
 
 #define PROTO_ENABLE_PARMS int in_fd, GlobalRegistry *globalreg
@@ -127,11 +173,10 @@ extern char *STATUS_fields_text[];
 extern char *STRING_fields_text[];
 extern char *WEPKEY_fields_text[];
 
-// Client/server protocol data structures.  These get passed as void *'s to each of the
-// protocol functions.
+// Client/server protocol data structures.  These get passed as void *'s to each 
+// of the protocol functions.
 // These are all done in two main ways - a var for each field, or a vector in the
-// same order as the field names.  For shorter ones, the code is a lot more maintainable
-// to have named vars, for longer ones it just makes sense to use a big ordered vector
+// same order as the field names. 
 
 typedef struct INFO_data {
     string networks, packets, crypt, weak, noise, dropped, rate, signal;
@@ -205,8 +250,9 @@ public:
         int ref_index;
         string header;
         int required;
-        // Double-listed (burns a little extra ram but not much) to make mapping requested
-        // fields fast.
+		int cacheable;
+        // Double-listed (burns a little extra ram but not much) to make 
+		// mapping requested fields fast.
         map<string, int> field_map;
         vector<string> field_vec;
         int (*printer)(PROTO_PARMS);
@@ -222,7 +268,8 @@ public:
     virtual int KillConnection(int in_fd);
 
     // Send a protocol to a specific client
-    int SendToClient(int in_fd, int in_refnum, const void *in_data);
+    int SendToClient(int in_fd, int in_refnum, const void *in_data, 
+					 kis_protocol_cache *in_cache);
     // Send to all clients
     int SendToAll(int in_refnum, const void *in_data);
     
@@ -239,9 +286,10 @@ public:
     //   of protocol.  (ie, send all networks when the client enables the *NETWORK
     //   protocol)
     // It returns the index number of the sentence added.
-    int RegisterProtocol(string in_header, int in_required, char **in_fields,
-                                 int (*in_printer)(PROTO_PARMS),
-                                 void (*in_enable)(PROTO_ENABLE_PARMS));
+    int RegisterProtocol(string in_header, int in_required, int in_cache, 
+						 char **in_fields,
+						 int (*in_printer)(PROTO_PARMS),
+						 void (*in_enable)(PROTO_ENABLE_PARMS));
     int FetchProtocolRef(string in_header);
     KisNetFramework::server_protocol *FetchProtocol(int in_ref);
 

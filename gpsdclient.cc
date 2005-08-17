@@ -113,7 +113,7 @@ GPSDClient::GPSDClient(GlobalRegistry *in_globalreg) : ClientFramework(in_global
 
 	// Register the network protocol
 	gps_proto_ref = 
-		globalreg->kisnetserver->RegisterProtocol("GPS", 0, GPS_fields_text, 
+		globalreg->kisnetserver->RegisterProtocol("GPS", 0, 0, GPS_fields_text, 
 												  &Protocol_GPS, NULL);
 
 	// Register the gps component and packetchain hooks to include it

@@ -25,6 +25,7 @@
 #include <vector>
 #include <algorithm>
 #include <string>
+#include <sstream>
 
 #include "globalregistry.h"
 #include "configfile.h"
@@ -39,7 +40,8 @@ char *NETWORK_fields_text[] = {
     "bssid", "type", "ssid", "beaconinfo",
     "llcpackets", "datapackets", "cryptpackets",
     "weakpackets", "channel", "wep", "firsttime",
-    "lasttime", "atype", "rangeip", "gpsfixed",
+    "lasttime", "atype", "rangeip", "netmaskip",
+	"gatewayip", "gpsfixed",
     "minlat", "minlon", "minalt", "minspd",
     "maxlat", "maxlon", "maxalt", "maxspd",
     "octets", "cloaked", "beaconrate", "maxrate",
@@ -77,187 +79,48 @@ char *CLIENT_fields_text[] = {
     NULL
 };
 
-// Convert a network to a NETWORK_data record for fast transmission
-// The order of this is VERY IMPORTANT.  It HAS TO MATCH the order of the
-// char *[] array of fields.
-void Protocol_Network2Data(const Netracker::tracked_network *net, 
-						   NETWORK_data *data) {
-#if 0
-    char tmpstr[128];
-
-    // Reserve fields
-    data->ndvec.reserve(50);
-
-    data->ndvec.push_back(net->bssid.Mac2String());
-
-    snprintf(tmpstr, 128, "%d", (int) net->type);
-    data->ndvec.push_back(tmpstr);
-
-    snprintf(tmpstr, 128, "\001%s\001", net->ssid.length() > 0 ? 
-			 net->ssid.c_str() : " ");
-    data->ndvec.push_back(tmpstr);
-
-    snprintf(tmpstr, 128, "\001%s\001", net->beacon_info.length() > 0 ? 
-			 net->beacon_info.c_str() : " ");
-    data->ndvec.push_back(tmpstr);
-
-    snprintf(tmpstr, 128, "%d", net->llc_packets);
-    data->ndvec.push_back(tmpstr);
-
-    snprintf(tmpstr, 128, "%d", net->data_packets);
-    data->ndvec.push_back(tmpstr);
-
-    snprintf(tmpstr, 128, "%d", net->crypt_packets);
-    data->ndvec.push_back(tmpstr);
-
-    snprintf(tmpstr, 128, "%d", net->fmsweak_packets);
-    data->ndvec.push_back(tmpstr);
-
-    snprintf(tmpstr, 128, "%d", net->channel);
-    data->ndvec.push_back(tmpstr);
-
-    snprintf(tmpstr, 128, "%d", net->cryptset);
-    data->ndvec.push_back(tmpstr);
-
-    snprintf(tmpstr, 128, "%d", (int) net->first_time);
-    data->ndvec.push_back(tmpstr);
-
-    snprintf(tmpstr, 128, "%d", (int) net->last_time);
-    data->ndvec.push_back(tmpstr);
-
-    snprintf(tmpstr, 128, "%d", (int) net->ipdata.atype);
-    data->ndvec.push_back(tmpstr);
-
-    snprintf(tmpstr, 128, "%hd.%hd.%hd.%hd",
-             net->ipdata.range_ip[0], net->ipdata.range_ip[1],
-             net->ipdata.range_ip[2], net->ipdata.range_ip[3]);
-    data->ndvec.push_back(tmpstr);
-
-    snprintf(tmpstr, 128, "%d", net->gps_fixed);
-    data->ndvec.push_back(tmpstr);
-
-    snprintf(tmpstr, 128, "%f", net->min_lat);
-    data->ndvec.push_back(tmpstr);
-
-    snprintf(tmpstr, 128, "%f", net->min_lon);
-    data->ndvec.push_back(tmpstr);
-
-    snprintf(tmpstr, 128, "%f", net->min_alt);
-    data->ndvec.push_back(tmpstr);
-
-    snprintf(tmpstr, 128, "%f", net->min_spd);
-    data->ndvec.push_back(tmpstr);
-
-    snprintf(tmpstr, 128, "%f", net->max_lat);
-    data->ndvec.push_back(tmpstr);
-
-    snprintf(tmpstr, 128, "%f", net->max_lon);
-    data->ndvec.push_back(tmpstr);
-
-    snprintf(tmpstr, 128, "%f", net->max_alt);
-    data->ndvec.push_back(tmpstr);
-
-    snprintf(tmpstr, 128, "%f", net->max_spd);
-    data->ndvec.push_back(tmpstr);
-
-    snprintf(tmpstr, 128, "%d", net->ipdata.octets);
-    data->ndvec.push_back(tmpstr);
-
-    snprintf(tmpstr, 128, "%d", net->cloaked);
-    data->ndvec.push_back(tmpstr);
-
-    snprintf(tmpstr, 128, "%d", net->beacon);
-    data->ndvec.push_back(tmpstr);
-
-    snprintf(tmpstr, 128, "%2.1f", net->maxrate);
-    data->ndvec.push_back(tmpstr);
-
-    // Deprecated
-    // data->ndvec.push_back(net->manuf_key.Mac2String());
-    data->ndvec.push_back("00:00:00:00:00:00");
-
-    // Deprecated
-    /*
-    snprintf(tmpstr, 128, "%d", net->manuf_score);
-    data->ndvec.push_back(tmpstr);
-    */
-    data->ndvec.push_back("0");
-
-    snprintf(tmpstr, 128, "%d", net->signal);
-    data->ndvec.push_back(tmpstr);
-
-    snprintf(tmpstr, 128, "%d", net->noise);
-    data->ndvec.push_back(tmpstr);
-
-    snprintf(tmpstr, 128, "%d", net->best_signal);
-    data->ndvec.push_back(tmpstr);
-
-    snprintf(tmpstr, 128, "%d", net->best_noise);
-    data->ndvec.push_back(tmpstr);
-
-    snprintf(tmpstr, 128, "%f", net->best_lat);
-    data->ndvec.push_back(tmpstr);
-
-    snprintf(tmpstr, 128, "%f", net->best_lon);
-    data->ndvec.push_back(tmpstr);
-
-    snprintf(tmpstr, 128, "%f", net->best_alt);
-    data->ndvec.push_back(tmpstr);
-
-    snprintf(tmpstr, 128, "%f", net->aggregate_lat);
-    data->ndvec.push_back(tmpstr);
-
-    snprintf(tmpstr, 128, "%f", net->aggregate_lon);
-    data->ndvec.push_back(tmpstr);
-
-    snprintf(tmpstr, 128, "%f", net->aggregate_alt);
-    data->ndvec.push_back(tmpstr);
-
-    snprintf(tmpstr, 128, "%ld", net->aggregate_points);
-    data->ndvec.push_back(tmpstr);
-
-    snprintf(tmpstr, 128, "%ld", net->datasize);
-    data->ndvec.push_back(tmpstr);
-
-    snprintf(tmpstr, 128, "%d", net->turbocell_nid);
-    data->ndvec.push_back(tmpstr);
-
-    snprintf(tmpstr, 128, "%d", (int) net->turbocell_mode);
-    data->ndvec.push_back(tmpstr);
-
-    snprintf(tmpstr, 128, "%d", net->turbocell_sat);
-    data->ndvec.push_back(tmpstr);
-
-    snprintf(tmpstr, 128, "%d", net->carrier_set);
-    data->ndvec.push_back(tmpstr);
-
-    snprintf(tmpstr, 128, "%d", net->maxseenrate);
-    data->ndvec.push_back(tmpstr);
-
-    snprintf(tmpstr, 128, "%d", net->encoding_set);
-    data->ndvec.push_back(tmpstr);
-
-    snprintf(tmpstr, 128, "%d", net->decrypted);
-    data->ndvec.push_back(tmpstr);
-
-    snprintf(tmpstr, 128, "%d", net->dupeiv_packets);
-    data->ndvec.push_back(tmpstr);
-#endif
-
-}
-
 // Network records.  data = NETWORK_data
 int Protocol_NETWORK(PROTO_PARMS) {
-    NETWORK_data *ndata = (NETWORK_data *) data;
+	Netracker::tracked_network *net = (Netracker::tracked_network *) data;
+	ostringstream osstr;
+
+	// Alloc the cache quickly
+	cache->Filled(field_vec->size());
 
     for (unsigned int x = 0; x < field_vec->size(); x++) {
         unsigned int fnum = (*field_vec)[x];
-        if (fnum >= ndata->ndvec.size()) {
+        if (fnum >= NETWORK_maxfield) {
             out_string = "Unknown field requested.";
             return -1;
-        } else {
-            out_string += ndata->ndvec[fnum] + " ";
-        }
+		}
+
+		osstr.str("");
+
+		// Shortcut test the cache once and print/bail immediately
+		if (cache->Filled(fnum)) {
+			out_string += cache->GetCache(fnum) + " ";
+			break;
+		}
+
+		// Fill in the cached element
+		switch(fnum) {
+			case NETWORK_bssid:
+				cache->Cache(fnum, net->bssid.Mac2String());
+				break;
+			case NETWORK_type:
+				osstr << net->type;
+				cache->Cache(fnum, osstr.str());
+				break;
+			case NETWORK_ssid:
+				if (net->ssid_cloaked)
+					cache->Cache(fnum, "\001 \001");
+				else
+					cache->Cache(fnum, "\001" + net->ssid + "\001");
+				break;
+		}
+
+		// print the newly filled in cache
+		out_string += cache->GetCache(fnum) + " ";
     }
 
     return 1;
@@ -418,19 +281,19 @@ int Protocol_REMOVE(PROTO_PARMS) {
 }
 
 void Protocol_NETWORK_enable(PROTO_ENABLE_PARMS) {
-#if 0
-    vector<wireless_network *> tracked;
-    tracked = globalreg->packetracker->FetchNetworks();
-
-    for (unsigned int x = 0; x < tracked.size(); x++) {
-        if (tracked[x]->type == network_remove) 
+	printf("debug - network enable\n");
+	// Bad touch, bad touch!
+	for (Netracker::track_iter x = globalreg->netracker->tracked_map.begin(); 
+		 x != globalreg->netracker->tracked_map.end(); ++x) {
+        if (x->second->type == network_remove) 
             continue;
 
-        NETWORK_data ndata;
-        Protocol_Network2Data(tracked[x], &ndata);
-        globalreg->kisnetserver->SendToClient(in_fd, globalreg->net_prot_ref, (void *) &ndata);
-    }
-#endif
+		// Send with a local cache that just gets thrown away, its only to 1
+		// client so we can't efficiently cache
+		kis_protocol_cache cache;
+		globalreg->kisnetserver->SendToClient(in_fd, _NPM(PROTO_REF_NETWORK),
+											  (void *) x->second, &cache);
+	}
 }
 
 void Protocol_CLIENT_enable(PROTO_ENABLE_PARMS) {
@@ -532,16 +395,19 @@ Netracker::Netracker(GlobalRegistry *in_globalreg) {
 	}
 
 	// Register network protocols with the tcp server
-	globalreg->netproto_map[PROTO_REF_NETWORK] =
-		globalreg->kisnetserver->RegisterProtocol("NETWORK", 0, NETWORK_fields_text, 
+	_NPM(PROTO_REF_NETWORK) =
+		globalreg->kisnetserver->RegisterProtocol("NETWORK", 0, 1, 
+												  NETWORK_fields_text, 
 												  &Protocol_NETWORK, 
 												  &Protocol_NETWORK_enable);
-	globalreg->netproto_map[PROTO_REF_CLIENT] =
-		globalreg->kisnetserver->RegisterProtocol("CLIENT", 0, CLIENT_fields_text, 
+	_NPM(PROTO_REF_CLIENT) =
+		globalreg->kisnetserver->RegisterProtocol("CLIENT", 0, 1,
+												  CLIENT_fields_text, 
 												  &Protocol_CLIENT, 
 												  &Protocol_CLIENT_enable);
-	globalreg->netproto_map[PROTO_REF_PROTOCOL] =
-		globalreg->kisnetserver->RegisterProtocol("REMOVE", 0, REMOVE_fields_text, 
+	_NPM(PROTO_REF_REMOVE) =
+		globalreg->kisnetserver->RegisterProtocol("REMOVE", 0, 1,
+												  REMOVE_fields_text, 
 												  &Protocol_REMOVE, NULL);
 
 	// TODO:
