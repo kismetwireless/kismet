@@ -29,6 +29,7 @@
 
 #include "endian_magic.h"
 #include "packetdissectors.h"
+#include "packetsignatures.h"
 
 #define PROTO_SSID_LEN		32
 
@@ -137,6 +138,53 @@ int GetTagOffsets(unsigned int init_offset, kis_datachunk *in_chunk,
     return 0;
 }
 
+// Convert WPA cipher elements into crypt_set stuff
+int WPACipherConv(uint8_t cipher_index) {
+	int ret = crypt_wpa;
+
+	switch (cipher_index) {
+		case 1:
+			ret |= crypt_wep40;
+			break;
+		case 2:
+			ret |= crypt_tkip;
+			break;
+		case 3:
+			ret |= crypt_aes_ocb;
+			break;
+		case 4:
+			ret |= crypt_aes_ccm;
+			break;
+		case 5:
+			ret |= crypt_wep104;
+			break;
+		default:
+			ret = 0;
+			break;
+	}
+
+	return ret;
+}
+
+// Convert WPA key management elements into crypt_set stuff
+int WPAKeyMgtConv(uint8_t mgt_index) {
+	int ret = crypt_wpa;
+
+	switch (mgt_index) {
+		case 1:
+			ret |= crypt_wpa;
+			break;
+		case 2:
+			ret |= crypt_psk;
+			break;
+		default:
+			ret = 0;
+			break;
+	}
+
+	return ret;
+}
+
 // This needs to be optimized and it needs to not use casting to do its magic
 int kis_80211_dissector(CHAINCALL_PARMS) {
 	if (in_pack->error)
@@ -234,7 +282,8 @@ int kis_80211_dissector(CHAINCALL_PARMS) {
         } else {
             packinfo->header_offset = 36;
             fixparm = (fixed_parameters *) &(chunk->data[24]);
-            packinfo->wep = fixparm->wep;
+			if (fixparm->wep)
+				packinfo->cryptset |= crypt_wep;
 
             // Pull the fixparm ibss info
             if (fixparm->ess == 0 && fixparm->ibss == 1) {
@@ -414,7 +463,7 @@ int kis_80211_dissector(CHAINCALL_PARMS) {
 
             packinfo->beacon_interval = kis_ntoh16(fixparm->beacon);
 
-            // Extract the CISC.O beacon info
+            // Extract the CISCO beacon info
             if ((tcitr = tag_cache_map.find(133)) != tag_cache_map.end()) {
                 tag_offset = tcitr->second[0];
                 taglen = (chunk->data[tag_offset] & 0xFF);
@@ -430,6 +479,130 @@ int kis_80211_dissector(CHAINCALL_PARMS) {
 				// Non-fatal fail since beacon info might not have that
 				// 11 byte leader on it, I don't know
             }
+
+			// WPA frame matching if we have the privacy bit set
+			if ((packinfo->cryptset & crypt_wep)) {
+				// Liberally borrowed from Ethereal
+				if ((tcitr = tag_cache_map.find(221)) != tag_cache_map.end()) {
+					for (unsigned int tagct = 0; tagct < tcitr->second.size(); 
+						 tagct++) {
+						tag_offset = tcitr->second[tagct];
+						unsigned int tag_orig = tag_offset + 1;
+						unsigned int taglen = (chunk->data[tag_offset] & 0xFF);
+						unsigned int offt = 0;
+
+						if (tag_orig + taglen > chunk->length) {
+							packinfo->corrupt = 1;
+							in_pack->insert(_PCM(PACK_COMP_80211), packinfo);
+							return 0;
+						}
+
+						// Match 221 tag header for WPA
+						if (taglen < 6 || memcmp(&(chunk->data[tag_orig + offt]), 
+												 WPA_OUI, sizeof(WPA_OUI)))
+							continue;
+
+						offt += 6;
+
+						// Match WPA multicast suite
+						if (offt + 4 > taglen || 
+							memcmp(&(chunk->data[tag_orig + offt]), WPA_OUI,
+								   sizeof(WPA_OUI)))
+							continue;
+
+						packinfo->cryptset |= 
+							WPACipherConv(chunk->data[tag_orig + offt + 3]);
+
+						// We don't care about parsing the number of ciphers,
+						// we'll just iterate, so skip the cipher number
+						offt += 6;
+
+						// Match WPA unicast components
+						while (offt + 4 <= taglen) {
+							if (memcmp(&(chunk->data[tag_orig + offt]), 
+									  WPA_OUI, sizeof(WPA_OUI)) == 0) {
+								packinfo->cryptset |= 
+									WPACipherConv(chunk->data[tag_orig + offt + 3]);
+								offt += 4;
+							} else {
+								break;
+							}
+						}
+
+						// Match auth key components
+						offt += 2;
+						while (offt + 4 <= taglen) {
+							if (memcmp(&(chunk->data[tag_orig + offt]), 
+									  WPA_OUI, sizeof(WPA_OUI)) == 0) {
+								packinfo->cryptset |= 
+									WPACipherConv(chunk->data[tag_orig + offt + 3]);
+								offt += 4;
+							} else {
+								break;
+							}
+						}
+					}
+				} /* 221 */
+
+				// Match tag 48 RSN WPA2
+				if ((tcitr = tag_cache_map.find(48)) != tag_cache_map.end()) {
+					for (unsigned int tagct = 0; tagct < tcitr->second.size(); 
+						 tagct++) {
+						tag_offset = tcitr->second[tagct];
+						unsigned int tag_orig = tag_offset + 1;
+						unsigned int taglen = (chunk->data[tag_offset] & 0xFF);
+						unsigned int offt = 0;
+
+						if (tag_orig + taglen > chunk->length || taglen < 6) {
+							packinfo->corrupt = 1;
+							in_pack->insert(_PCM(PACK_COMP_80211), packinfo);
+							return 0;
+						}
+
+						// Skip version
+						offt += 2;
+
+						// Match multicast
+						if (offt + 3 > taglen ||
+							memcmp(&(chunk->data[tag_orig + offt]), RSN_OUI,
+								   sizeof(RSN_OUI))) {
+							packinfo->corrupt = 1;
+							return 0;
+						}
+						packinfo->cryptset |= 
+							WPACipherConv(chunk->data[tag_orig + offt + 3]);
+						offt += 4;
+
+						// We don't care about unicast number
+						offt += 2;
+
+						while (offt + 4 <= taglen) {
+							if (memcmp(&(chunk->data[tag_orig + offt]), 
+									  RSN_OUI, sizeof(RSN_OUI)) == 0) {
+								packinfo->cryptset |= 
+									WPACipherConv(chunk->data[tag_orig + offt + 3]);
+								offt += 4;
+							} else {
+								break;
+							}
+						}
+
+						// We don't care about authkey number
+						offt += 2;
+
+						while (offt + 4 <= taglen) {
+							if (memcmp(&(chunk->data[tag_orig + offt]), 
+									  RSN_OUI, sizeof(RSN_OUI)) == 0) {
+								packinfo->cryptset |= 
+									WPAKeyMgtConv(chunk->data[tag_orig + offt + 3]);
+								offt += 4;
+							} else {
+								break;
+							}
+						}
+					}
+				} /* 48 */
+			}
 
             packinfo->dest_mac = addr0;
             packinfo->source_mac = addr1;

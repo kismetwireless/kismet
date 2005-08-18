@@ -560,9 +560,8 @@ int kis_80211_netracker_hook(CHAINCALL_PARMS) {
 
 int kis_80211_datatracker_hook(CHAINCALL_PARMS) {
 	Netracker *auxptr = (Netracker *) auxdata;
-	return 0;
 
-	// return auxptr->datatracker_chain_handler(in_pack);
+	return auxptr->datatracker_chain_handler(in_pack);
 }
 
 Netracker::Netracker() {
@@ -657,6 +656,7 @@ Netracker::Netracker(GlobalRegistry *in_globalreg) {
 
 int Netracker::netracker_chain_handler(kis_packet *in_pack) {
 	tracked_network *net = NULL;
+	int newnetwork = 0;
 	char status[STATUS_MAX];
 
 	// Fetch the info from the packet chain data
@@ -743,14 +743,9 @@ int Netracker::netracker_chain_handler(kis_packet *in_pack) {
 		// Learn it
 		tracked_map[net->bssid] = net;
 
+		newnetwork = 1;
 		// Everything else needs to change with new frames so we fill it in
 		// outside of the new network code, obviously
-		snprintf(status, STATUS_MAX, "Detected new network '%s' BSSID %s",
-				 (net->ssid_cloaked && !net->ssid_uncloaked) ? 
-				 	"<no ssid>" : net->ssid.c_str(), 
-					net->bssid.Mac2String().c_str());
-
-		_MSG(status, MSGFLAG_INFO);
 	}
 
 	// Link it to the packet for future chain elements
@@ -833,8 +828,8 @@ int Netracker::netracker_chain_handler(kis_packet *in_pack) {
 		if (net->maxrate < packinfo->maxrate)
 			net->maxrate = packinfo->maxrate;
 
-		if (packinfo->wep)
-			net->cryptset |= crypt_wep;
+		if (packinfo->cryptset)
+			net->cryptset |= packinfo->cryptset;
 
 		net->channel = packinfo->channel;
 
@@ -852,9 +847,8 @@ int Netracker::netracker_chain_handler(kis_packet *in_pack) {
 		// Update the cloak map
 		bssid_cloak_map[net->bssid] = packinfo->ssid;
 
-		snprintf(status, STATUS_MAX, "Discovered SSID \"%s\" for cloaked network %s",
-				 net->ssid.c_str(), net->bssid.Mac2String().c_str());
-		globalreg->messagebus->InjectMessage(status, MSGFLAG_INFO);
+		_MSG("Discovered SSID \"" + net->ssid + "\" for cloaked network " + 
+			 net->bssid.Mac2String(), MSGFLAG_INFO);
 	}
 
 	if (packinfo->type == packet_management ||
@@ -867,11 +861,24 @@ int Netracker::netracker_chain_handler(kis_packet *in_pack) {
 			net->crypt_packets++;
 	}
 
+	snprintf(status, STATUS_MAX, "Detected new network '%s' BSSID %s",
+			 (net->ssid_cloaked && !net->ssid_uncloaked) ? 
+			 "<no ssid>" : net->ssid.c_str(), 
+			 net->bssid.Mac2String().c_str());
+
+	_MSG(status, MSGFLAG_INFO);
+
 	// TODO:  
 	//  FMSWEAK packets
 	//  Manuf matching
 
 	return 1;
+}
+
+int Netracker::datatracker_chain_handler(kis_packet *in_pack) {
+	// return auxptr->datatracker_chain_handler(in_pack);
+
+	return 0;
 }
 
 int Netracker::ReadSSIDCache() {

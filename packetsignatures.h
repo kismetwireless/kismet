@@ -17,6 +17,7 @@
 */
 
 #ifndef __PACKETSIGNATURES_H__
+#define __PACKETSIGNATURES_H__
 
 #include "config.h"
 #ifdef HAVE_STDINT
@@ -60,6 +61,25 @@ const uint8_t LUCENT_OFFSET = 12;
 
 const uint8_t CISCO_SIGNATURE[] = {0x00, 0x00, 0x0C, 0x20, 0x00};
 
+// WPA/WPA2 identifiers
+const uint8_t WPA_OUI[] = {0x00, 0x50, 0xF2};
+const uint8_t RSN_OUI[] = {0x00, 0x0F, 0xAC};
+
+const uint8_t DOT1X_PROTO[] = {0x88, 0x8e};
+const uint8_t DOT1X_OFFSET = LLC_UI_OFFSET + 5;
+
+const uint8_t EAP_OFFSET = 4;
+
+const uint8_t EAP_CODE_REQUEST = 1;
+const uint8_t EAP_CODE_RESPONSE = 2;
+const uint8_t EAP_CODE_SUCCESS = 3;
+const uint8_t EAP_CODE_FAILURE = 4;
+const uint8_t EAP_TYPE_TLS  = 13;
+const uint8_t EAP_TYPE_LEAP = 17;
+const uint8_t EAP_TYPE_TTLS = 21;
+const uint8_t EAP_TYPE_PEAP = 25;
+
+
 const uint8_t ARP_SIGNATURE[] = {0x08, 0x06};
 const int ARP_OFFSET = 6;
 
@@ -86,5 +106,20 @@ const uint8_t IPX_SIGNATURE[] = {0xE0, 0xE0, 0x03};
 // IAPP
 const int IAPP_OFFSET = 36;
 const uint16_t IAPP_PORT = 2313;
+
+const uint16_t ISAKMP_PORT = 500;
+const uint8_t ISAKMP_OFFSET = UDP_OFFSET + 8;
+const uint8_t ISAKMP_EXCH_NONE = 0;
+const uint8_t ISAKMP_EXCH_BASE = 1;
+const uint8_t ISAKMP_EXCH_IDPROT = 2;
+const uint8_t ISAKMP_EXCH_AUTHONLY = 3;
+const uint8_t ISAKMP_EXCH_AGGRESS = 4;
+const uint8_t ISAKMP_EXCH_INFORM = 5;
+const uint8_t ISAKMP_EXCH_TRANS = 6;
+const uint8_t ISAKMP_EXCH_QUICK = 32;
+const uint8_t ISAKMP_EXCH_NEWGRP = 33;
+
+// PPTP
+const uint16_t PPTP_PORT = 1723;
 
 #endif

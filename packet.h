@@ -150,8 +150,9 @@ public:
         bssid_mac = mac_addr(0);
         other_mac = mac_addr(0);
         distrib = distrib_unknown;
-        wep = 0;
+		cryptset = 0;
         fuzzywep = 0;
+		fmsweak = 0;
         ess = 0;
         channel = 0;
         encrypted = 0;
@@ -191,9 +192,10 @@ public:
     mac_addr other_mac;
     
     ieee_80211_disttype distrib;
-    
-    int wep;
+ 
+	int cryptset;
     int fuzzywep;
+	int fmsweak;
 
     // Was it flagged as ess? (ap)
     int ess;
