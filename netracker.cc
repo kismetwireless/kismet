@@ -117,6 +117,199 @@ int Protocol_NETWORK(PROTO_PARMS) {
 				else
 					cache->Cache(fnum, "\001" + net->ssid + "\001");
 				break;
+			case NETWORK_beaconinfo:
+				if (net->beacon_info.length() == 0)
+					cache->Cache(fnum, "\001 \001");
+				else
+					cache->Cache(fnum, "\001" + net->beacon_info + "\001");
+				break;
+			case NETWORK_llcpackets:
+				osstr << net->llc_packets;
+				cache->Cache(fnum, osstr.str());
+				break;
+			case NETWORK_datapackets:
+				osstr << net->data_packets;
+				cache->Cache(fnum, osstr.str());
+				break;
+			case NETWORK_cryptpackets:
+				osstr << net->crypt_packets;
+				cache->Cache(fnum, osstr.str());
+				break;
+			case NETWORK_weakpackets:
+				osstr << net->fmsweak_packets;
+				cache->Cache(fnum, osstr.str());
+				break;
+			case NETWORK_channel:
+				osstr << net->channel;
+				cache->Cache(fnum, osstr.str());
+				break;
+			case NETWORK_wep:
+				osstr << net->cryptset;
+				cache->Cache(fnum, osstr.str());
+				break;
+			case NETWORK_firsttime:
+				osstr << (int) net->first_time;
+				cache->Cache(fnum, osstr.str());
+				break;
+			case NETWORK_lasttime:
+				osstr << (int) net->last_time;
+				cache->Cache(fnum, osstr.str());
+				break;
+			case NETWORK_atype:
+				osstr << (int) net->guess_ipdata.ip_type;
+				cache->Cache(fnum, osstr.str());
+				break;
+			case NETWORK_rangeip:
+				cache->Cache(fnum, inet_ntoa(net->guess_ipdata.ip_addr_block));
+				break;
+			case NETWORK_netmaskip:
+				cache->Cache(fnum, inet_ntoa(net->guess_ipdata.ip_netmask));
+				break;
+			case NETWORK_gatewayip:
+				cache->Cache(fnum, inet_ntoa(net->guess_ipdata.ip_gateway));
+				break;
+			case NETWORK_gpsfixed:
+				osstr << net->gpsdata.gps_valid;
+				cache->Cache(fnum, osstr.str());
+				break;
+			case NETWORK_minlat:
+				osstr << net->gpsdata.min_lat;
+				cache->Cache(fnum, osstr.str());
+				break;
+			case NETWORK_minlon:
+				osstr << net->gpsdata.min_lon;
+				cache->Cache(fnum, osstr.str());
+				break;
+			case NETWORK_minalt:
+				osstr << net->gpsdata.min_alt;
+				cache->Cache(fnum, osstr.str());
+				break;
+			case NETWORK_minspd:
+				osstr << net->gpsdata.min_spd;
+				cache->Cache(fnum, osstr.str());
+				break;
+			case NETWORK_maxlat:
+				osstr << net->gpsdata.max_lat;
+				cache->Cache(fnum, osstr.str());
+				break;
+			case NETWORK_maxlon:
+				osstr << net->gpsdata.max_lon;
+				cache->Cache(fnum, osstr.str());
+				break;
+			case NETWORK_maxalt:
+				osstr << net->gpsdata.max_alt;
+				cache->Cache(fnum, osstr.str());
+				break;
+			case NETWORK_maxspd:
+				osstr << net->gpsdata.max_spd;
+				cache->Cache(fnum, osstr.str());
+				break;
+			case NETWORK_octets:
+				// Deprecated
+				cache->Cache(fnum, "0");
+				break;
+			case NETWORK_cloaked:
+				if (net->ssid_cloaked)
+					cache->Cache(fnum, "1");
+				else
+					cache->Cache(fnum, "0");
+				break;
+			case NETWORK_beaconrate:
+				osstr << net->beaconrate;
+				cache->Cache(fnum, osstr.str());
+				break;
+			case NETWORK_maxrate:
+				osstr << net->maxrate;
+				cache->Cache(fnum, osstr.str());
+				break;
+			case NETWORK_manufkey:
+			case NETWORK_manufscore:
+				// Deprecated/broken
+				// FIXME manfkey
+				cache->Cache(fnum, "0");
+				break;
+			case NETWORK_quality:
+			case NETWORK_bestquality:
+				// Deprecated
+				cache->Cache(fnum, "0");
+				break;
+			case NETWORK_signal:
+				osstr << net->snrdata.last_signal;
+				cache->Cache(fnum, osstr.str());
+				break;
+			case NETWORK_noise:
+				osstr << net->snrdata.last_noise;
+				cache->Cache(fnum, osstr.str());
+				break;
+			case NETWORK_bestsignal:
+				osstr << net->snrdata.max_signal;
+				cache->Cache(fnum, osstr.str());
+				break;
+			case NETWORK_bestnoise:
+				osstr << net->snrdata.max_noise;
+				cache->Cache(fnum, osstr.str());
+				break;
+			case NETWORK_bestlat:
+				osstr << net->snrdata.peak_lat;
+				cache->Cache(fnum, osstr.str());
+				break;
+			case NETWORK_bestlon:
+				osstr << net->snrdata.peak_lon;
+				cache->Cache(fnum, osstr.str());
+				break;
+			case NETWORK_bestalt:
+				osstr << net->snrdata.peak_alt;
+				cache->Cache(fnum, osstr.str());
+				break;
+			case NETWORK_agglat:
+				osstr << net->gpsdata.aggregate_lat;
+				cache->Cache(fnum, osstr.str());
+				break;
+			case NETWORK_agglon:
+				osstr << net->gpsdata.aggregate_lon;
+				cache->Cache(fnum, osstr.str());
+				break;
+			case NETWORK_aggalt:
+				osstr << net->gpsdata.aggregate_alt;
+				cache->Cache(fnum, osstr.str());
+				break;
+			case NETWORK_aggpoints:
+				osstr << net->gpsdata.aggregate_points;
+				cache->Cache(fnum, osstr.str());
+				break;
+			case NETWORK_datasize:
+				osstr << net->datasize;
+				cache->Cache(fnum, osstr.str());
+				break;
+			case NETWORK_tcnid:
+				// FIXME turbocell
+				cache->Cache(fnum, "\001 \001");
+				break;
+			case NETWORK_tcmode:
+			case NETWORK_tsat:
+				// FIXME turbocell
+				cache->Cache(fnum, "0");
+				break;
+			case NETWORK_carrierset:
+				osstr << net->snrdata.carrierset;
+				cache->Cache(fnum, osstr.str());
+				break;
+			case NETWORK_maxseenrate:
+				osstr << net->snrdata.maxseenrate;
+				cache->Cache(fnum, osstr.str());
+				break;
+			case NETWORK_encodingset:
+				osstr << net->snrdata.encodingset;
+				cache->Cache(fnum, osstr.str());
+				break;
+			case NETWORK_decrypted:
+				osstr << net->decrypted;
+				cache->Cache(fnum, osstr.str());
+				break;
+			case NETWORK_dupeiv:
+				osstr << net->dupeiv_packets;
+				cache->Cache(fnum, osstr.str());
+				break;
 		}
 
 		// print the newly filled in cache
@@ -775,9 +968,9 @@ int Netracker::ReadIPCache() {
 			continue;
 		}
 
-		ipd.ip_addr_block = ipaddr;
-		ipd.ip_netmask = netmask;
-		ipd.ip_gateway = gateway;
+		ipd.ip_addr_block.s_addr = ipaddr;
+		ipd.ip_netmask.s_addr = netmask;
+		ipd.ip_gateway.s_addr = gateway;
 
 		bssid_ip_map[mac] = ipd;
 	} while (!feof(ipf));

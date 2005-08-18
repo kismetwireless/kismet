@@ -28,6 +28,9 @@
 #include <vector>
 #include <algorithm>
 #include <string>
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
 
 #include "globalregistry.h"
 #include "packetchain.h"
@@ -58,7 +61,7 @@ enum NETWORK_fields {
     NETWORK_agglat, NETWORK_agglon, NETWORK_aggalt, NETWORK_aggpoints,
     NETWORK_datasize, NETWORK_tcnid, NETWORK_tcmode, NETWORK_tsat,
     NETWORK_carrierset, NETWORK_maxseenrate, NETWORK_encodingset,
-    NETWORK_decrypted, NETWORK_DupeIV,
+    NETWORK_decrypted, NETWORK_dupeiv,
 	NETWORK_maxfield
 };
 
@@ -132,19 +135,21 @@ public:
 	typedef struct ip_data {
 		ip_data() {
 			ip_type = ipdata_unknown;
-			ip_addr_block = ip_netmask = ip_gateway = 0;
+			ip_addr_block.s_addr = 0;
+			ip_netmask.s_addr = 0;
+			ip_gateway.s_addr = 0;
 		}
 
 		ipdata_type ip_type;
 
-		uint32_t ip_addr_block;
-		uint32_t ip_netmask;
-		uint32_t ip_gateway;
+		in_addr ip_addr_block;
+		in_addr ip_netmask;
+		in_addr ip_gateway;
 
 		ip_data& operator= (const ip_data& in) {
-			ip_addr_block = in.ip_addr_block;
-			ip_netmask = in.ip_netmask;
-			ip_gateway = in.ip_gateway;
+			ip_addr_block.s_addr = in.ip_addr_block.s_addr;
+			ip_netmask.s_addr = in.ip_netmask.s_addr;
+			ip_gateway.s_addr = in.ip_gateway.s_addr;
 			ip_type = in.ip_type;
 
 			return *this;
@@ -185,6 +190,8 @@ public:
 			peak_lat = peak_lon = peak_alt = 0;
 
 			maxseenrate = 0;
+			encodingset = 0;
+			carrierset = 0;
 		}
 
 		int last_signal, last_noise;
@@ -194,6 +201,10 @@ public:
 
 		// Max rate
 		int maxseenrate;
+
+		// Seen encodings
+		uint32_t encodingset;
+		uint32_t carrierset;
 	};
 
 	class tracked_network {
@@ -203,11 +214,12 @@ public:
 			llc_packets = data_packets = crypt_packets = fmsweak_packets = 0;
 			channel = 0;
 			cryptset = 0;
+			decrypted = 0;
 			bssid = mac_addr(0);
 			ssid_cloaked = ssid_uncloaked = 0;
 			last_time = first_time = 0;
 			carrier_set = encoding_set = 0;
-			maxrate = maxseenrate = 0;
+			maxrate = 0;
 			beaconrate = 0;
 			client_disconnects = 0;
 			last_sequence = 0;
@@ -232,6 +244,7 @@ public:
 		int channel;
 
 		int cryptset;
+		int decrypted;
 
 		mac_addr bssid;
 
@@ -256,8 +269,6 @@ public:
 
 		// Maximum advertised rate
 		double maxrate;
-		// Maximum seen rate
-		double maxseenrate;
 		// Beacon interval
 		int beaconrate;
 
@@ -327,8 +338,6 @@ public:
 
 		// Maximum advertised rate during a probe
 		double maxrate;
-		// How cast we've been seen to actually go, in 100kb/s units
-		int maxseenrate;
 
 		// Bitfield of encoding types seen from this client
 		uint32_t encoding_set;
