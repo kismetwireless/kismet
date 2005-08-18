@@ -68,7 +68,7 @@ enum NETWORK_fields {
 enum CLIENT_fields {
     CLIENT_bssid, CLIENT_mac, CLIENT_type, CLIENT_firsttime, CLIENT_lasttime,
     CLIENT_manufkey, CLIENT_manufscore,
-    CLIENT_datapackets, CLIENT_cryptpackets, CLIENT_weakpackets,
+    CLIENT_llcpackets, CLIENT_datapackets, CLIENT_cryptpackets, CLIENT_weakpackets,
     CLIENT_gpsfixed,
     CLIENT_minlat, CLIENT_minlon, CLIENT_minalt, CLIENT_minspd,
     CLIENT_maxlat, CLIENT_maxlon, CLIENT_maxalt, CLIENT_maxspd,
@@ -77,8 +77,10 @@ enum CLIENT_fields {
     CLIENT_quality, CLIENT_signal, CLIENT_noise,
     CLIENT_bestquality, CLIENT_bestsignal, CLIENT_bestnoise,
     CLIENT_bestlat, CLIENT_bestlon, CLIENT_bestalt,
-    CLIENT_atype, CLIENT_ip, CLIENT_datasize, CLIENT_maxseenrate, CLIENT_encodingset,
-    CLIENT_decrypted, CLIENT_wep
+    CLIENT_atype, CLIENT_ip, CLIENT_gatewayip, CLIENT_datasize, CLIENT_maxseenrate, 
+	CLIENT_encodingset, CLIENT_carrierset, CLIENT_decrypted, CLIENT_wep,
+	CLIENT_channel,
+	CLIENT_maxfield
 };
 
 enum REMOVE_fields {
@@ -88,14 +90,6 @@ enum REMOVE_fields {
 extern char *NETWORK_fields_text[];
 extern char *CLIENT_fields_text[];
 extern char *REMOVE_fields_text[];
-
-typedef struct NETWORK_data {
-    vector<string> ndvec;
-};
-
-typedef struct CLIENT_data {
-    vector<string> cdvec;
-};
 
 // Enums explicitly defined for the ease of client writers
 enum network_type {
@@ -218,7 +212,6 @@ public:
 			bssid = mac_addr(0);
 			ssid_cloaked = ssid_uncloaked = 0;
 			last_time = first_time = 0;
-			carrier_set = encoding_set = 0;
 			maxrate = 0;
 			beaconrate = 0;
 			client_disconnects = 0;
@@ -255,11 +248,6 @@ public:
 
 		time_t last_time;
 		time_t first_time;
-
-		// Bitmask set of carrier types seen on the network
-		uint32_t carrier_set;
-		// Bitmask set of encoding types seen on the network
-		uint32_t encoding_set;
 
 		// GPS info
 		Netracker::gps_data gpsdata;
@@ -302,7 +290,16 @@ public:
 
 	class tracked_client {
 	public:
-		tracked_client();
+		tracked_client() {
+			type = client_unknown;
+			last_time = first_time = 0;
+			cryptset = decrypted = 0;
+			channel = 0;
+			llc_packets = data_packets = crypt_packets = fmsweak_packets = 0;
+			maxrate = 0;
+			last_sequence = 0;
+			datasize = 0;
+		}
 
 		// DS detected type
 		client_type type;
@@ -311,17 +308,21 @@ public:
 		time_t last_time;
 		time_t first_time;
 
+		// Crypt and decrypt sets
+		int cryptset;
+		int decrypted;
+
 		// MAC of client
 		mac_addr mac;
+
+		// MAC of network
+		mac_addr bssid;
 
 		// Last seen channel
 		int channel;
 
 		Netracker::gps_data gpsdata;
 		Netracker::signal_data snrdata;
-
-		// Client encryption bitfield
-		uint32_t encryption;
 
 		// Individual packet counts
 		int llc_packets;
@@ -338,9 +339,6 @@ public:
 
 		// Maximum advertised rate during a probe
 		double maxrate;
-
-		// Bitfield of encoding types seen from this client
-		uint32_t encoding_set;
 
 		// Last sequence number seen
 		int last_sequence;
@@ -401,15 +399,10 @@ protected:
 	friend int kis_80211_netracker_hook(CHAINCALL_PARMS);
 	friend int kis_80211_datatracker_hook(CHAINCALL_PARMS);
 	friend void Protocol_NETWORK_enable(PROTO_ENABLE_PARMS);
+	friend void Protocol_CLIENT_enable(PROTO_ENABLE_PARMS);
 };
 
-// NETWORK_data
 int Protocol_NETWORK(PROTO_PARMS); 
-// Convert a client
-void Protocol_Client2Data(const Netracker::tracked_network *net, 
-						  const Netracker::tracked_client *cli, 
-						  CLIENT_data *data); 
-// CLIENT_data
 int Protocol_CLIENT(PROTO_PARMS); 
 // BSSID
 int Protocol_REMOVE(PROTO_PARMS);

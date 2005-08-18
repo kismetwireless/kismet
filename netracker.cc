@@ -65,7 +65,7 @@ char *REMOVE_fields_text[] = {
 char *CLIENT_fields_text[] = {
     "bssid", "mac", "type", "firsttime", "lasttime",
     "manufkey", "manufscore",
-    "datapackets", "cryptpackets", "weakpackets",
+    "llcpackets", "datapackets", "cryptpackets", "weakpackets",
     "gpsfixed",
     "minlat", "minlon", "minalt", "minspd",
     "maxlat", "maxlon", "maxalt", "maxspd",
@@ -74,8 +74,8 @@ char *CLIENT_fields_text[] = {
     "quality", "signal", "noise",
     "bestquality", "bestsignal", "bestnoise",
     "bestlat", "bestlon", "bestalt",
-    "atype", "ip", "datasize", "maxseenrate", "encodingset",
-    "decrypted", "wep",
+    "atype", "ip", "gatewayip", "datasize", "maxseenrate", "encodingset",
+	"carrierset", "decrypted", "wep", "channel",
     NULL
 };
 
@@ -319,149 +319,198 @@ int Protocol_NETWORK(PROTO_PARMS) {
     return 1;
 }
 
-void Protocol_Client2Data(const Netracker::tracked_network *net, 
-						  const Netracker::tracked_client *cli, CLIENT_data *data) {
-#if 0
-    char tmpstr[128];
-
-    // Reserve fields
-    data->cdvec.reserve(50);
-
-    data->cdvec.push_back(net->bssid.Mac2String());
-
-    data->cdvec.push_back(cli->mac.Mac2String());
-
-    snprintf(tmpstr, 128, "%d", (int) cli->type);
-    data->cdvec.push_back(tmpstr);
-
-    snprintf(tmpstr, 128, "%d", (int) cli->first_time);
-    data->cdvec.push_back(tmpstr);
-
-    snprintf(tmpstr, 128, "%d", (int) cli->last_time);
-    data->cdvec.push_back(tmpstr);
-
-    // Deprecated
-    // data->cdvec.push_back(cli->manuf_key.Mac2String());
-    data->cdvec.push_back("00:00:00:00:00:00");
-
-    // deprecated
-    /*
-    snprintf(tmpstr, 128, "%d", cli->manuf_score);
-    data->cdvec.push_back(tmpstr);
-    */
-    data->cdvec.push_back("0");
-
-    snprintf(tmpstr, 128, "%d", cli->data_packets);
-    data->cdvec.push_back(tmpstr);
-
-    snprintf(tmpstr, 128, "%d", cli->crypt_packets);
-    data->cdvec.push_back(tmpstr);
-
-    snprintf(tmpstr, 128, "%d", cli->interesting_packets);
-    data->cdvec.push_back(tmpstr);
-
-    snprintf(tmpstr, 128, "%d", cli->gps_fixed);
-    data->cdvec.push_back(tmpstr);
-
-    snprintf(tmpstr, 128, "%f", cli->min_lat);
-    data->cdvec.push_back(tmpstr);
-
-    snprintf(tmpstr, 128, "%f", cli->min_lon);
-    data->cdvec.push_back(tmpstr);
-
-    snprintf(tmpstr, 128, "%f", cli->min_alt);
-    data->cdvec.push_back(tmpstr);
-
-    snprintf(tmpstr, 128, "%f", cli->min_spd);
-    data->cdvec.push_back(tmpstr);
-
-    snprintf(tmpstr, 128, "%f", cli->max_lat);
-    data->cdvec.push_back(tmpstr);
-
-    snprintf(tmpstr, 128, "%f", cli->max_lon);
-    data->cdvec.push_back(tmpstr);
-
-    snprintf(tmpstr, 128, "%f", cli->max_alt);
-    data->cdvec.push_back(tmpstr);
-
-    snprintf(tmpstr, 128, "%f", cli->max_spd);
-    data->cdvec.push_back(tmpstr);
-
-    snprintf(tmpstr, 128, "%f", cli->aggregate_lat);
-    data->cdvec.push_back(tmpstr);
-
-    snprintf(tmpstr, 128, "%f", cli->aggregate_lon);
-    data->cdvec.push_back(tmpstr);
-
-    snprintf(tmpstr, 128, "%f", cli->aggregate_alt);
-    data->cdvec.push_back(tmpstr);
-
-    snprintf(tmpstr, 128, "%ld", cli->aggregate_points);
-    data->cdvec.push_back(tmpstr);
-
-    snprintf(tmpstr, 128, "%2.1f", cli->maxrate);
-    data->cdvec.push_back(tmpstr);
-
-    snprintf(tmpstr, 128, "%d", cli->signal);
-    data->cdvec.push_back(tmpstr);
-
-    snprintf(tmpstr, 128, "%d", cli->noise);
-    data->cdvec.push_back(tmpstr);
-
-    snprintf(tmpstr, 128, "%d", cli->best_signal);
-    data->cdvec.push_back(tmpstr);
-
-    snprintf(tmpstr, 128, "%d", cli->best_noise);
-    data->cdvec.push_back(tmpstr);
-
-    snprintf(tmpstr, 128, "%f", cli->best_lat);
-    data->cdvec.push_back(tmpstr);
-
-    snprintf(tmpstr, 128, "%f", cli->best_lon);
-    data->cdvec.push_back(tmpstr);
-
-    snprintf(tmpstr, 128, "%f", cli->best_alt);
-    data->cdvec.push_back(tmpstr);
-
-    snprintf(tmpstr, 128, "%d", (int) cli->ipdata.atype);
-    data->cdvec.push_back(tmpstr);
-
-    snprintf(tmpstr, 128, "%hd.%hd.%hd.%hd",
-             cli->ipdata.ip[0], cli->ipdata.ip[1],
-             cli->ipdata.ip[2], cli->ipdata.ip[3]);
-    data->cdvec.push_back(tmpstr);
-
-    snprintf(tmpstr, 128, "%ld", cli->datasize);
-    data->cdvec.push_back(tmpstr);
-
-    snprintf(tmpstr, 128, "%d", cli->maxseenrate);
-    data->cdvec.push_back(tmpstr);
-
-    snprintf(tmpstr, 128, "%d", cli->encoding_set);
-    data->cdvec.push_back(tmpstr);
-
-    snprintf(tmpstr, 128, "%d", cli->decrypted);
-    data->cdvec.push_back(tmpstr);
-
-	// Crypt set goes here
-	snprintf(tmpstr, 128, "%d", 0);
-	data->cdvec.push_back(tmpstr);
-#endif
-
-}
-
 // client records.  data = CLIENT_data
 int Protocol_CLIENT(PROTO_PARMS) {
-    CLIENT_data *cdata = (CLIENT_data *) data;
+	Netracker::tracked_client *cli = (Netracker::tracked_client *) data;
+	ostringstream osstr;
+
+	// Alloc the cache quickly
+	cache->Filled(field_vec->size());
 
     for (unsigned int x = 0; x < field_vec->size(); x++) {
         unsigned int fnum = (*field_vec)[x];
-        if (fnum >= cdata->cdvec.size()) {
+        if (fnum >= CLIENT_maxfield) {
             out_string = "Unknown field requested.";
             return -1;
-        } else {
-            out_string += cdata->cdvec[fnum] + " ";
-        }
+		}
+
+		osstr.str("");
+
+		// Shortcut test the cache once and print/bail immediately
+		if (cache->Filled(fnum)) {
+			out_string += cache->GetCache(fnum) + " ";
+			break;
+		}
+
+		// Fill in the cached element
+		switch(fnum) {
+			case CLIENT_bssid:
+				cache->Cache(fnum, cli->bssid.Mac2String());
+				break;
+			case CLIENT_mac:
+				cache->Cache(fnum, cli->mac.Mac2String());
+				break;
+			case CLIENT_type:
+				osstr << (int) cli->type;
+				cache->Cache(fnum, osstr.str());
+				break;
+			case CLIENT_firsttime:
+				osstr << (int) cli->first_time;
+				cache->Cache(fnum, osstr.str());
+				break;
+			case CLIENT_lasttime:
+				osstr << (int) cli->last_time;
+				cache->Cache(fnum, osstr.str());
+				break;
+			case CLIENT_manufkey:
+			case CLIENT_manufscore:
+				// Deprecated/broken
+				// FIXME manfkey
+				cache->Cache(fnum, "0");
+				break;
+			case CLIENT_llcpackets:
+				osstr << cli->llc_packets;
+				cache->Cache(fnum, osstr.str());
+				break;
+			case CLIENT_datapackets:
+				osstr << cli->data_packets;
+				cache->Cache(fnum, osstr.str());
+				break;
+			case CLIENT_cryptpackets:
+				osstr << cli->crypt_packets;
+				cache->Cache(fnum, osstr.str());
+				break;
+			case CLIENT_weakpackets:
+				osstr << cli->fmsweak_packets;
+				cache->Cache(fnum, osstr.str());
+				break;
+			case CLIENT_gpsfixed:
+				osstr << cli->gpsdata.gps_valid;
+				cache->Cache(fnum, osstr.str());
+				break;
+			case CLIENT_minlat:
+				osstr << cli->gpsdata.min_lat;
+				cache->Cache(fnum, osstr.str());
+				break;
+			case CLIENT_minlon:
+				osstr << cli->gpsdata.min_lon;
+				cache->Cache(fnum, osstr.str());
+				break;
+			case CLIENT_minalt:
+				osstr << cli->gpsdata.min_alt;
+				cache->Cache(fnum, osstr.str());
+				break;
+			case CLIENT_minspd:
+				osstr << cli->gpsdata.min_spd;
+				cache->Cache(fnum, osstr.str());
+				break;
+			case CLIENT_maxlat:
+				osstr << cli->gpsdata.max_lat;
+				cache->Cache(fnum, osstr.str());
+				break;
+			case CLIENT_maxlon:
+				osstr << cli->gpsdata.max_lon;
+				cache->Cache(fnum, osstr.str());
+				break;
+			case CLIENT_maxalt:
+				osstr << cli->gpsdata.max_alt;
+				cache->Cache(fnum, osstr.str());
+				break;
+			case CLIENT_maxspd:
+				osstr << cli->gpsdata.max_spd;
+				cache->Cache(fnum, osstr.str());
+				break;
+			case CLIENT_maxrate:
+				osstr << cli->maxrate;
+				cache->Cache(fnum, osstr.str());
+				break;
+			case CLIENT_quality:
+			case CLIENT_bestquality:
+				// Deprecated
+				cache->Cache(fnum, "0");
+				break;
+			case CLIENT_signal:
+				osstr << cli->snrdata.last_signal;
+				cache->Cache(fnum, osstr.str());
+				break;
+			case CLIENT_noise:
+				osstr << cli->snrdata.last_noise;
+				cache->Cache(fnum, osstr.str());
+				break;
+			case CLIENT_bestsignal:
+				osstr << cli->snrdata.max_signal;
+				cache->Cache(fnum, osstr.str());
+				break;
+			case CLIENT_bestnoise:
+				osstr << cli->snrdata.max_noise;
+				cache->Cache(fnum, osstr.str());
+				break;
+			case CLIENT_bestlat:
+				osstr << cli->snrdata.peak_lat;
+				cache->Cache(fnum, osstr.str());
+				break;
+			case CLIENT_bestlon:
+				osstr << cli->snrdata.peak_lon;
+				cache->Cache(fnum, osstr.str());
+				break;
+			case CLIENT_bestalt:
+				osstr << cli->snrdata.peak_alt;
+				cache->Cache(fnum, osstr.str());
+				break;
+			case CLIENT_agglat:
+				osstr << cli->gpsdata.aggregate_lat;
+				cache->Cache(fnum, osstr.str());
+				break;
+			case CLIENT_agglon:
+				osstr << cli->gpsdata.aggregate_lon;
+				cache->Cache(fnum, osstr.str());
+				break;
+			case CLIENT_aggalt:
+				osstr << cli->gpsdata.aggregate_alt;
+				cache->Cache(fnum, osstr.str());
+				break;
+			case CLIENT_aggpoints:
+				osstr << cli->gpsdata.aggregate_points;
+				cache->Cache(fnum, osstr.str());
+				break;
+			case CLIENT_atype:
+				osstr << (int) cli->guess_ipdata.ip_type;
+				cache->Cache(fnum, osstr.str());
+				break;
+			case CLIENT_ip:
+				cache->Cache(fnum, inet_ntoa(cli->guess_ipdata.ip_addr_block));
+				break;
+			case CLIENT_gatewayip:
+				cache->Cache(fnum, inet_ntoa(cli->guess_ipdata.ip_gateway));
+				break;
+			case CLIENT_datasize:
+				osstr << (int) cli->datasize;
+				cache->Cache(fnum, osstr.str());
+				break;
+			case CLIENT_maxseenrate:
+				osstr << cli->snrdata.maxseenrate;
+				cache->Cache(fnum, osstr.str());
+				break;
+			case CLIENT_encodingset:
+				osstr << cli->snrdata.encodingset;
+				cache->Cache(fnum, osstr.str());
+				break;
+			case CLIENT_decrypted:
+				osstr << cli->decrypted;
+				cache->Cache(fnum, osstr.str());
+				break;
+			case CLIENT_wep:
+				osstr << cli->cryptset;
+				cache->Cache(fnum, osstr.str());
+				break;
+			case CLIENT_channel:
+				osstr << cli->channel;
+				cache->Cache(fnum, osstr.str());
+				break;
+		}
+
+		// print the newly filled in cache
+		out_string += cache->GetCache(fnum) + " ";
     }
 
     return 1;
@@ -474,7 +523,6 @@ int Protocol_REMOVE(PROTO_PARMS) {
 }
 
 void Protocol_NETWORK_enable(PROTO_ENABLE_PARMS) {
-	printf("debug - network enable\n");
 	// Bad touch, bad touch!
 	for (Netracker::track_iter x = globalreg->netracker->tracked_map.begin(); 
 		 x != globalreg->netracker->tracked_map.end(); ++x) {
@@ -490,19 +538,18 @@ void Protocol_NETWORK_enable(PROTO_ENABLE_PARMS) {
 }
 
 void Protocol_CLIENT_enable(PROTO_ENABLE_PARMS) {
-#if 0
-    vector<wireless_network *> tracked;
-    tracked = globalreg->packetracker->FetchNetworks();
+	for (Netracker::track_iter x = globalreg->netracker->tracked_map.begin(); 
+		 x != globalreg->netracker->tracked_map.end(); ++x) {
+        if (x->second->type == network_remove) 
+            continue;
 
-    for (unsigned int x = 0; x < tracked.size(); x++) {
-        for (map<mac_addr, wireless_client *>::const_iterator y = tracked[x]->client_map.begin();
-             y != tracked[x]->client_map.end(); ++y) {
-            CLIENT_data cdata;
-            Protocol_Client2Data(tracked[x], y->second, &cdata);
-            globalreg->kisnetserver->SendToClient(in_fd, globalreg->cli_prot_ref, (void *) &cdata);
-        }
-    }
-#endif
+		for (Netracker::client_iter y = x->second->cli_track_map.begin();
+			 y != x->second->cli_track_map.end(); ++y) {
+			kis_protocol_cache cache;
+			globalreg->kisnetserver->SendToClient(in_fd, _NPM(PROTO_REF_CLIENT),
+												  (void *) y->second, &cache);
+		}
+	}
 }
 
 // These are both just dropthroughs into the class itself
@@ -769,8 +816,8 @@ int Netracker::netracker_chain_handler(kis_packet *in_pack) {
 			net->snrdata.maxseenrate = l1info->datarate;
 
 		// Push in the bits for the carrier and encoding
-		net->carrier_set |= (1 << (int) l1info->carrier);
-		net->encoding_set |= (1 << (int) l1info->encoding);
+		net->snrdata.carrierset |= (1 << (int) l1info->carrier);
+		net->snrdata.encodingset |= (1 << (int) l1info->encoding);
 	}
 
 	// Extract info from beacon frames, they're the only ones we trust to
