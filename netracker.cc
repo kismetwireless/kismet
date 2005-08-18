@@ -861,12 +861,13 @@ int Netracker::netracker_chain_handler(kis_packet *in_pack) {
 			net->crypt_packets++;
 	}
 
-	snprintf(status, STATUS_MAX, "Detected new network '%s' BSSID %s",
-			 (net->ssid_cloaked && !net->ssid_uncloaked) ? 
-			 "<no ssid>" : net->ssid.c_str(), 
-			 net->bssid.Mac2String().c_str());
-
-	_MSG(status, MSGFLAG_INFO);
+	if (newnetwork) {
+		snprintf(status, STATUS_MAX, "Detected new network '%s' BSSID %s",
+				 (net->ssid_cloaked && !net->ssid_uncloaked) ? 
+				 "<no ssid>" : net->ssid.c_str(), 
+				 net->bssid.Mac2String().c_str());
+		_MSG(status, MSGFLAG_INFO);
+	}
 
 	// TODO:  
 	//  FMSWEAK packets

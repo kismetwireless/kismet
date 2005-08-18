@@ -1,4 +1,5 @@
 Aug 18 2005  devel  Restored WPA tag dissection from stable
+                    Fixed over-aggressive "new network detected"
 Aug 17 2005  devel  Started implementing server protocol generic caching to
                      eliminate the use of crummy vector converts of the entire
                      struct
