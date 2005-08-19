@@ -371,10 +371,31 @@ int kis_80211_dissector(CHAINCALL_PARMS) {
 
                 found_rate_tag = 1;
                 for (unsigned int x = 0; x < taglen; x++) {
-                    if (packinfo->maxrate < (chunk->data[tag_offset+1+x] & 
-                                             0x7F) * 0.5)
-                        packinfo->maxrate = (chunk->data[tag_offset+1+x] & 
-                                             0x7F) * 0.5;
+                    if (packinfo->maxrate < 
+						(chunk->data[tag_offset+1+x] & 0x7F) * 0.5)
+                        packinfo->maxrate = 
+							(chunk->data[tag_offset+1+x] & 0x7F) * 0.5;
+                }
+            }
+
+			// And the extended supported rates
+            if ((tcitr = tag_cache_map.find(50)) != tag_cache_map.end()) {
+                tag_offset = tcitr->second[0];
+                taglen = (chunk->data[tag_offset] & 0xFF);
+
+				if (tag_offset + taglen > chunk->length) {
+                    // Otherwise we're corrupt, set it and stop processing
+                    packinfo->corrupt = 1;
+                    in_pack->insert(_PCM(PACK_COMP_80211), packinfo);
+                    return 0;
+				}
+
+                found_rate_tag = 1;
+                for (unsigned int x = 0; x < taglen; x++) {
+                    if (packinfo->maxrate < 
+						(chunk->data[tag_offset+1+x] & 0x7F) * 0.5)
+                        packinfo->maxrate = 
+							(chunk->data[tag_offset+1+x] & 0x7F) * 0.5;
                 }
             }
 
