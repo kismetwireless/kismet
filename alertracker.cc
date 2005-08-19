@@ -20,7 +20,6 @@
 
 #include "alertracker.h"
 #include "configfile.h"
-#include "kismet_server.h"
 
 char *ALERT_fields_text[] = {
     "sec", "usec", "header", "bssid", "source", "dest", "other", "channel", "text",

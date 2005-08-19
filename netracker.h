@@ -34,6 +34,7 @@
 
 #include "globalregistry.h"
 #include "packetchain.h"
+#include "kis_netframe.h"
 
 // Cache file versioning
 #define NETRACKER_SSIDCACHE_VERSION 	2

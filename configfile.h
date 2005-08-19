@@ -34,7 +34,6 @@
 
 #include "globalregistry.h"
 #include "macaddr.h"
-#include "alertracker.h"
 
 class ConfigFile {
 public:
