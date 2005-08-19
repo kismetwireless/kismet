@@ -862,15 +862,17 @@ int Netracker::netracker_chain_handler(kis_packet *in_pack) {
 	}
 
 	if (newnetwork) {
-		snprintf(status, STATUS_MAX, "Detected new network '%s' BSSID %s",
+		snprintf(status, STATUS_MAX, "Detected new network \"%s\", BSSID %s, "
+				 "encryption %s, channel %d, %2.2f mbit",
 				 (net->ssid_cloaked && !net->ssid_uncloaked) ? 
 				 "<no ssid>" : net->ssid.c_str(), 
-				 net->bssid.Mac2String().c_str());
+				 net->bssid.Mac2String().c_str(),
+				 net->cryptset ? "yes" : "no",
+				 net->channel, net->maxrate);
 		_MSG(status, MSGFLAG_INFO);
 	}
 
 	// TODO:  
-	//  FMSWEAK packets
 	//  Manuf matching
 
 	return 1;

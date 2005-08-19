@@ -232,15 +232,17 @@ vector<smart_word_token> SmartStrTokenize(string in_str, string in_split, int re
     return ret;
 }
 
-vector<string> LineWrap(string in_txt, unsigned int in_hdr_len, unsigned int in_maxlen) {
+vector<string> LineWrap(string in_txt, unsigned int in_hdr_len, 
+						unsigned int in_maxlen) {
 	vector<string> ret;
 
 	size_t pos, prev_pos, start, hdroffset;
 	start = hdroffset = 0;
 
-	for (pos = prev_pos = in_txt.find(' ', in_hdr_len); pos != string::npos; pos = in_txt.find(' ', pos + 1)) {
-		if ((hdroffset + pos) - start > in_maxlen) {
-			if (pos - prev_pos > 8) {
+	for (pos = prev_pos = in_txt.find(' ', in_hdr_len); pos != string::npos; 
+		 pos = in_txt.find(' ', pos + 1)) {
+		if ((hdroffset + pos) - start >= in_maxlen) {
+			if (pos - prev_pos > (in_maxlen / 10)) {
 				prev_pos = start + (in_maxlen - hdroffset);
 			}
 
@@ -260,6 +262,19 @@ vector<string> LineWrap(string in_txt, unsigned int in_hdr_len, unsigned int in_
 
 	return ret;
 }
+
+string InLineWrap(string in_txt, unsigned int in_hdr_len, 
+				  unsigned int in_maxlen) {
+	vector<string> raw = LineWrap(in_txt, in_hdr_len, in_maxlen);
+	string ret;
+
+	for (unsigned int x = 0; x < raw.size(); x++) {
+		ret += raw[x] + "\n";
+	}
+
+	return ret;
+}
+
 
 void Float2Pair(float in_float, int16_t *primary, int64_t *mantissa) {
     *primary = (int) in_float;

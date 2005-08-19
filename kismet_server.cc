@@ -79,13 +79,13 @@ public:
 
 void SmartStdoutMessageClient::ProcessMessage(string in_msg, int in_flags) {
     if ((in_flags & MSGFLAG_DEBUG))
-        fprintf(stdout, "DEBUG: %s\n", in_msg.c_str());
+        fprintf(stdout, "DEBUG: %s", InLineWrap(in_msg, 7, 80).c_str());
     else if ((in_flags & MSGFLAG_INFO))
-        fprintf(stdout, "INFO: %s\n", in_msg.c_str());
+        fprintf(stdout, "INFO: %s", InLineWrap(in_msg, 6, 80).c_str());
     else if ((in_flags & MSGFLAG_ERROR))
-        fprintf(stdout, "ERROR: %s\n", in_msg.c_str());
+        fprintf(stdout, "ERROR: %s", InLineWrap(in_msg, 7, 80).c_str());
     else if (in_flags & MSGFLAG_FATAL)
-        fprintf(stderr, "FATAL: %s\n", in_msg.c_str());
+        fprintf(stderr, "FATAL: %s", InLineWrap(in_msg, 7, 80).c_str());
     
     return;
 }

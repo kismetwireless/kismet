@@ -69,6 +69,8 @@ typedef struct smart_word_token {
 };
 vector<smart_word_token> SmartStrTokenize(string in_str, string in_split, int return_partial = 1);
 
+string InLineWrap(string in_txt, unsigned int in_hdr_len,
+				  unsigned int in_max_len);
 vector<string> LineWrap(string in_txt, unsigned int in_hdr_len, 
 						unsigned int in_maxlen);
 vector<int> Str2IntVec(string in_text);
