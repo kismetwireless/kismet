@@ -151,10 +151,13 @@ Alertracker::Alertracker(GlobalRegistry *in_globalreg) {
 		RegisterAlert("KISMET", sat_day, 0, sat_day, 0);
 
 	// Parse config file vector of all alerts
-	// FIXME
+	if (ParseAlertConfig(globalreg->kismet_config) < 0) {
+		_MSG("Failed to parse alert values from Kismet config file", MSGFLAG_FATAL);
+		globalreg->fatal_condition = 1;
+		return;
+	}
 	
 	_MSG("Created alert tracker...", MSGFLAG_INFO);
-
 }
 
 Alertracker::~Alertracker() {
@@ -369,5 +372,37 @@ int Alertracker::ParseRateUnit(string in_ru, alert_time_unit *ret_unit,
 	}
 
 	return 1;
+}
+
+int Alertracker::ParseAlertConfig(ConfigFile *in_conf) {
+	vector<string> clines = in_conf->FetchOptVec("alert");
+
+	for (unsigned int x = 0; x < clines.size(); x++) {
+		alert_conf_rec rec;
+
+		if (ParseAlertStr(clines[x], &(rec.header), &(rec.limit_unit), 
+						  &(rec.limit_rate), &(rec.burst_unit), 
+						  &(rec.limit_burst)) < 0) {
+			_MSG("Invalid alert line in config file: " + clines[x], MSGFLAG_FATAL);
+			globalreg->fatal_condition = 1;
+			return -1;
+		}
+
+		alert_conf_map[StrLower(rec.header)] = rec;
+	}
+
+	return 1;
+}
+
+int Alertracker::ActivateConfiguredAlert(const char *in_header) {
+	string hdr = StrLower(in_header);
+
+	if (alert_conf_map.find(hdr) == alert_conf_map.end()) 
+		return -1;
+
+	alert_conf_rec rec = alert_conf_map[hdr];
+
+	return RegisterAlert(rec.header.c_str(), rec.limit_unit, rec.limit_rate, 
+						 rec.burst_unit, rec.limit_burst);
 }
 

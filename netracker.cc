@@ -573,18 +573,22 @@ Netracker::Netracker(GlobalRegistry *in_globalreg) {
 
 	// Sanity
 	if (globalreg->packetchain == NULL) {
-		fprintf(stderr, "Netracker() Sanity failed, globalreg->packetchain is NULL, "
-				"can't continue\n");
+		fprintf(stderr, "FATAL OOPS:  Netracker called while packetchain is NULL\n");
 		exit(1);
 	}
 
 	if (globalreg->kisnetserver == NULL) {
-		fprintf(stderr, "Netracker() sanity failed, globalreg->netserver is NULL\n");
+		fprintf(stderr, "FATAL OOPS:  Netracker called while netserver is NULL\n");
 		exit(1);
 	}
 	
 	if (globalreg->kismet_config == NULL) {
-		fprintf(stderr, "Netracker() sanity failed, globalreg->config is NULL\n");
+		fprintf(stderr, "FATAL OOPS:  Netracker called while kist_config is NULL\n");
+		exit(1);
+	}
+
+	if (globalreg->alertracker == NULL) {
+		fprintf(stderr, "FATAL OOPS:  Netracker called while alertracker is NULL\n");
 		exit(1);
 	}
 

@@ -396,6 +396,9 @@ protected:
 	string ssid_cache_path, ip_cache_path;
 	int ssid_cache_track, ip_cache_track;
 
+	// Alert references
+	int alert_chan_ref;
+
 	// Let the hooks call directly in
 	friend int kis_80211_netracker_hook(CHAINCALL_PARMS);
 	friend int kis_80211_datatracker_hook(CHAINCALL_PARMS);

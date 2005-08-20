@@ -101,6 +101,16 @@ public:
 		time_t time_last;
     };
 
+	// Simple struct from reading config lines
+	typedef struct alert_conf_rec {
+		string header;
+        alert_time_unit limit_unit;
+        int limit_rate;
+		alert_time_unit burst_unit;
+        int limit_burst;
+	};
+
+
     Alertracker();
     Alertracker(GlobalRegistry *in_globalreg);
     ~Alertracker();
@@ -129,6 +139,12 @@ public:
 					  alert_time_unit *ret_limit_unit, int *ret_limit_rate,
 					  alert_time_unit *ret_limit_burst, int *ret_burst_rate);
 
+	// Load alert rates from a config file...  Called on kismet_config by
+	// default
+	int ParseAlertConfig(ConfigFile *in_conf);
+
+	// Activate a preconfigured alert from a file
+	int ActivateConfiguredAlert(const char *in_header);
 
 protected:
     // Check and age times
@@ -147,6 +163,8 @@ protected:
 	vector<kis_alert_info *> alert_backlog;
 
     int num_backlog;
+
+	map<string, alert_conf_rec> alert_conf_map;
 };
 
 #endif
