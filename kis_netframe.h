@@ -303,6 +303,9 @@ public:
     // How many clients total?
     int FetchNumClients();
 
+	// Usage
+	static void Usage(char *name);
+
 protected:
     // Messagebus client
     KisNetframe_MessageClient *kisnet_msgcli;

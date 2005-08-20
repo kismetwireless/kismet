@@ -216,29 +216,25 @@ void CatchShutdown(int sig) {
 
 int Usage(char *argv) {
     printf("Usage: %s [OPTION]\n", argv);
-    printf("Most (or all) of these options can (and should) be configured via the\n"
-           "kismet.conf global config file, but can be overridden here.\n");
-    printf("  -I, --initial-channel <n:c>  Initial channel to monitor on (default: 6)\n"
-           "                                Format capname:channel\n"
-           "  -x, --force-channel-hop      Forcibly enable the channel hopper\n"
-           "  -X, --force-no-channel-hop   Forcibly disable the channel hopper\n"
-           "  -t, --log-title <title>      Custom log file title\n"
-           "  -n, --no-logging             No logging (only process packets)\n"
-           "  -f, --config-file <file>     Use alternate config file\n"
-           "  -c, --capture-source <src>   Packet capture source line (type,interface,name)\n"
-           "  -C, --enable-capture-sources Comma separated list of named packet sources to use.\n"
-           "  -l, --log-types <types>      Comma separated list of types to log,\n"
-           "                                (ie, dump,cisco,weak,network,gps)\n"
-           "  -d, --dump-type <type>       Dumpfile type (wiretap)\n"
-           "  -m, --max-packets <num>      Maximum number of packets before starting new dump\n"
-           "  -g, --gps <host:port>        GPS server (host:port or off)\n"
-           "  -p, --port <port>            TCPIP server port for GUI connections\n"
-           "  -a, --allowed-hosts <hosts>  Comma separated list of hosts allowed to connect\n"
-           "  -s, --silent                 Don't send any output to console.\n"
-           "  -N, --server-name            Server name\n"
-           "  -v, --version                Kismet version\n"
-           "  -h, --help                   What do you think you're reading?\n");
-    exit(1);
+	printf("Nearly all of these options are run-time overrides for values in the\n"
+		   "kismet.conf configuration file.  Permanent changes should be made to\n"
+		   "the configuration file.\n");
+
+	printf(" *** Generic Options ***\n");
+	printf(" -f, --config-file            Use alternate configuration file\n"
+		   "     --no-line-wrap           Turn of linewrapping of output\n"
+		   "                              (for grep, speed, etc)\n"
+		   " -s, --silent                 Turn off stdout output after setup phase\n"
+		   );
+
+	printf("\n");
+	KisNetFramework::Usage(argv);
+	printf("\n");
+	Dumpfile::Usage(argv);
+	printf("\n");
+	Packetsourcetracker::Usage(argv);
+
+	exit(1);
 }
 
 int FindSuidTarget(string in_username, GlobalRegistry *globalreg,
@@ -345,15 +341,20 @@ int main(int argc,char *argv[]) {
 		{ "config-file", required_argument, 0, 'f' },
 		{ "no-line-wrap", no_argument, 0, 200 },
 		{ "silent", no_argument, 0, 's' },
+		{ "help", no_argument, 0, 'h' },
 		{ 0, 0, 0, 0 }
 	};
 
 	while (1) {
 		int r = getopt_long(argc, argv, 
-							"-f:ls", 
+							"-f:lsh", 
 							main_longopt, &option_idx);
 		if (r < 0) break;
 		switch (r) {
+			case 'h':
+				Usage(argv[0]);
+				exit(1);
+				break;
 			case 'c':
 				configfilename = strdup(optarg);
 				break;

@@ -1,5 +1,6 @@
 Aug 20 2005  devel  Fixed alerts again (parsing enable lines)
                     Restored '-s/--silent' cmd line option for server
+                    Implemented --help and cross-module --help output
 Aug 19 2005  devel  Fixed some header wonkiness
                     Started implementing alert framework (mostly there)
                     Added alert rate parsing from config files

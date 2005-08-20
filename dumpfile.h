@@ -35,6 +35,8 @@ public:
 	Dumpfile(GlobalRegistry *in_globalreg);
 	virtual ~Dumpfile() { };
 
+	static void Usage(char *name);
+
 	// Fetch the number of items logged
 	int FetchNumDumped() { return dumped_frames; }
 

@@ -57,6 +57,18 @@ int unmonitor_nullsource(MONITOR_PARMS) {
     return 0;
 }
 
+void Packetsourcetracker::Usage(char *name) {
+	printf(" *** Packet Capture Source Options ***\n");
+	printf(" -I, --initial-channel        Initial channel for a capture source\n"
+		   "                              (name,channel)\n"
+		   " -X, --channel-hop            Enabled/Disable channel hopping\n"
+		   " -c, --capture-source         Provide a capture source on the command\n"
+		   "                              line that is not present in the config\n"
+		   "                              file (type,interface,name[,channel])\n"
+		   " -C, --enable-capture-sources Enable named capture sources from the\n"
+		   "                              config file (comma-separated list)\n");
+}
+
 Packetsourcetracker::Packetsourcetracker(GlobalRegistry *in_globalreg) {
     globalreg = in_globalreg;
     next_packsource_id = 0;

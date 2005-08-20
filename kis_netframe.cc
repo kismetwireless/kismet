@@ -848,6 +848,11 @@ KisNetFramework::KisNetFramework() {
     fprintf(stderr, "*** KisNetFramework() This constructor should never be called!!\n");
 }
 
+void KisNetFramework::Usage(char *name) {
+	printf(" *** Kismet Client/Server Options ***\n");
+	printf(" -l, --server-listen          Override Kismet server listen options\n");
+}
+
 KisNetFramework::KisNetFramework(GlobalRegistry *in_globalreg) {
     globalreg = in_globalreg;
     netserver = NULL;

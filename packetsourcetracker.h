@@ -258,6 +258,9 @@ public:
     // Release sources, disabling monitor if possible
     int CloseSources();
 
+	// Usage
+	static void Usage(char *name);
+
 protected:
     // IPC packet header - All is sent besides the data pointer
     typedef struct {

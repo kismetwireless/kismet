@@ -39,6 +39,13 @@ Dumpfile::Dumpfile(GlobalRegistry *in_globalreg) {
 	}
 }
 
+void Dumpfile::Usage(char *name) {
+	printf(" *** Dump/Logging Options ***\n");
+	printf(" -T, --log-types              Override activated log types\n"
+		   " -t, --log-title              Override default log title\n"
+		   " -n, --no-logging             Disable logging entirely\n");
+}
+
 string Dumpfile::ProcessConfigOpt(string in_type) {
 	string logtypes, logtemplate, logname;
 	int option_idx = 0;
