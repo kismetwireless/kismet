@@ -1,6 +1,9 @@
 Aug 19 2005  devel  Fixed some header wonkiness
                     Started implementing alert framework (mostly there)
                     Added alert rate parsing from config files
+                    Added --no-line-wrap for grep behavior
+                    Fixed alerts
+                    Activated channel change network alert
 Aug 18 2005  devel  Restored WPA tag dissection from stable
                     Fixed over-aggressive "new network detected"
                     Added linewrap to stdout text and fixed linewrap code

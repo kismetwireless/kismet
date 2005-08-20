@@ -34,6 +34,7 @@
 #include "netracker.h"
 #include "packet.h"
 #include "gpsdclient.h"
+#include "alertracker.h"
 
 // TCP server hooks
 char *NETWORK_fields_text[] = {
@@ -653,6 +654,10 @@ Netracker::Netracker(GlobalRegistry *in_globalreg) {
 												  REMOVE_fields_text, 
 												  &Protocol_REMOVE, NULL);
 
+	// See if we have some alerts to raise
+	alert_chan_ref = 
+		globalreg->alertracker->ActivateConfiguredAlert("CHANCHANGE");
+
 	// TODO:
 	// Register timer events
 	
@@ -834,6 +839,23 @@ int Netracker::netracker_chain_handler(kis_packet *in_pack) {
 
 		if (packinfo->cryptset)
 			net->cryptset |= packinfo->cryptset;
+
+		// Fire off an alert if the channel changes
+		if (alert_chan_ref >= 0 && newnetwork == 0 && 
+			packinfo->channel != 0 && net->channel != packinfo->channel &&
+			globalreg->alertracker->PotentialAlert(alert_chan_ref)) {
+			ostringstream outs;
+
+			outs << "Network BSSID " << net->bssid.Mac2String() << " changed "
+				"channel from " << net->channel << " to " << packinfo->channel;
+
+			globalreg->alertracker->RaiseAlert(alert_chan_ref, in_pack, 
+											   packinfo->bssid_mac, 
+											   packinfo->source_mac, 
+											   packinfo->dest_mac, 
+											   packinfo->other_mac, 
+											   packinfo->channel, outs.str());
+		}
 
 		net->channel = packinfo->channel;
 

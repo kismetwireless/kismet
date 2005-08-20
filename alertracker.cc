@@ -378,17 +378,17 @@ int Alertracker::ParseAlertConfig(ConfigFile *in_conf) {
 	vector<string> clines = in_conf->FetchOptVec("alert");
 
 	for (unsigned int x = 0; x < clines.size(); x++) {
-		alert_conf_rec rec;
+		alert_conf_rec *rec = new alert_conf_rec;
 
-		if (ParseAlertStr(clines[x], &(rec.header), &(rec.limit_unit), 
-						  &(rec.limit_rate), &(rec.burst_unit), 
-						  &(rec.limit_burst)) < 0) {
+		if (ParseAlertStr(clines[x], &(rec->header), &(rec->limit_unit), 
+						  &(rec->limit_rate), &(rec->burst_unit), 
+						  &(rec->limit_burst)) < 0) {
 			_MSG("Invalid alert line in config file: " + clines[x], MSGFLAG_FATAL);
 			globalreg->fatal_condition = 1;
 			return -1;
 		}
 
-		alert_conf_map[StrLower(rec.header)] = rec;
+		alert_conf_map[StrLower(rec->header)] = rec;
 	}
 
 	return 1;
@@ -400,9 +400,9 @@ int Alertracker::ActivateConfiguredAlert(const char *in_header) {
 	if (alert_conf_map.find(hdr) == alert_conf_map.end()) 
 		return -1;
 
-	alert_conf_rec rec = alert_conf_map[hdr];
+	alert_conf_rec *rec = alert_conf_map[hdr];
 
-	return RegisterAlert(rec.header.c_str(), rec.limit_unit, rec.limit_rate, 
-						 rec.burst_unit, rec.limit_burst);
+	return RegisterAlert(rec->header.c_str(), rec->limit_unit, rec->limit_rate, 
+						 rec->burst_unit, rec->limit_burst);
 }
 

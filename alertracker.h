@@ -164,7 +164,7 @@ protected:
 
     int num_backlog;
 
-	map<string, alert_conf_rec> alert_conf_map;
+	map<string, alert_conf_rec *> alert_conf_map;
 };
 
 #endif

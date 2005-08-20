@@ -67,6 +67,9 @@
 char *exec_name;
 #endif
 
+// One of our few globals in this file
+int glob_linewrap = 1;
+
 // Message clients that are attached at the master level
 // Smart standard out client that understands the silence options
 class SmartStdoutMessageClient : public MessageClient {
@@ -78,14 +81,32 @@ public:
 };
 
 void SmartStdoutMessageClient::ProcessMessage(string in_msg, int in_flags) {
-    if ((in_flags & MSGFLAG_DEBUG))
-        fprintf(stdout, "DEBUG: %s", InLineWrap(in_msg, 7, 80).c_str());
-    else if ((in_flags & MSGFLAG_INFO))
-        fprintf(stdout, "INFO: %s", InLineWrap(in_msg, 6, 80).c_str());
-    else if ((in_flags & MSGFLAG_ERROR))
-        fprintf(stdout, "ERROR: %s", InLineWrap(in_msg, 7, 80).c_str());
-    else if (in_flags & MSGFLAG_FATAL)
-        fprintf(stderr, "FATAL: %s", InLineWrap(in_msg, 7, 80).c_str());
+    if ((in_flags & MSGFLAG_DEBUG)) {
+		if (glob_linewrap)
+			fprintf(stdout, "DEBUG: %s", InLineWrap(in_msg, 7, 80).c_str());
+		else
+			fprintf(stdout, "DEBUG: %s\n", in_msg.c_str());
+	} else if ((in_flags & MSGFLAG_INFO)) {
+		if (glob_linewrap)
+			fprintf(stdout, "INFO: %s", InLineWrap(in_msg, 6, 80).c_str());
+		else
+			fprintf(stdout, "INFO: %s\n", in_msg.c_str());
+	} else if ((in_flags & MSGFLAG_ERROR)) {
+		if (glob_linewrap)
+			fprintf(stdout, "ERROR: %s", InLineWrap(in_msg, 7, 80).c_str());
+		else
+			fprintf(stdout, "ERROR: %s\n", in_msg.c_str());
+	} else if ((in_flags & MSGFLAG_ALERT)) {
+		if (glob_linewrap)
+			fprintf(stdout, "ALERT: %s", InLineWrap(in_msg, 7, 80).c_str());
+		else
+			fprintf(stdout, "ALERT: %s\n", in_msg.c_str());
+	} else if (in_flags & MSGFLAG_FATAL) {
+		if (glob_linewrap)
+			fprintf(stderr, "FATAL: %s", InLineWrap(in_msg, 7, 80).c_str());
+		else
+			fprintf(stderr, "FATAL: %s\n", in_msg.c_str());
+	}
     
     return;
 }
@@ -315,17 +336,21 @@ int main(int argc,char *argv[]) {
 	// Standard getopt parse run
 	static struct option main_longopt[] = {
 		{ "config-file", required_argument, 0, 'f' },
+		{ "no-line-wrap", no_argument, 0, 200 },
 		{ 0, 0, 0, 0 }
 	};
 
 	while (1) {
 		int r = getopt_long(argc, argv, 
-							"-f:", 
+							"-f:l", 
 							main_longopt, &option_idx);
 		if (r < 0) break;
 		switch (r) {
 			case 'c':
 				configfilename = strdup(optarg);
+				break;
+			case 200:
+				glob_linewrap = 0;
 				break;
 		}
 	}
