@@ -1,104 +1,149 @@
 /*
-    This file is part of Kismet
+   This file is part of Kismet
 
-    Kismet is free software; you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation; either version 2 of the License, or
-    (at your option) any later version.
+   Kismet is free software; you can redistribute it and/or modify
+   it under the terms of the GNU General Public License as published by
+   the Free Software Foundation; either version 2 of the License, or
+   (at your option) any later version.
 
-    Kismet is distributed in the hope that it will be useful,
-      but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
+   Kismet is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU General Public License for more details.
 
-    You should have received a copy of the GNU General Public License
-    along with Kismet; if not, write to the Free Software
-    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+   You should have received a copy of the GNU General Public License
+   along with Kismet; if not, write to the Free Software
+   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 */
 
 #include "config.h"
+
+#include <string>
+#include <vector>
+#include <sstream>
 
 #include "alertracker.h"
 #include "configfile.h"
 
 char *ALERT_fields_text[] = {
-    "sec", "usec", "header", "bssid", "source", "dest", "other", "channel", "text",
-    NULL
+	"sec", "usec", "header", "bssid", "source", "dest", "other", "channel", "text",
+	NULL
 };
 
 // alert.  data = ALERT_data
 int Protocol_ALERT(PROTO_PARMS) {
-    ALERT_data *adata = (ALERT_data *) data;
+	kis_alert_info *info = (kis_alert_info *) data;
+	ostringstream osstr;
 
-    for (unsigned int x = 0; x < field_vec->size(); x++) {
-        switch ((ALERT_fields) (*field_vec)[x]) {
-        case ALERT_header:
-            out_string += adata->header;
-            break;
-        case ALERT_sec:
-            out_string += adata->sec;
-            break;
-        case ALERT_usec:
-            out_string += adata->usec;
-            break;
-        case ALERT_bssid:
-            out_string += adata->bssid;
-            break;
-        case ALERT_source:
-            out_string += adata->source;
-            break;
-        case ALERT_dest:
-            out_string += adata->dest;
-            break;
-        case ALERT_other:
-            out_string += adata->other;
-            break;
-        case ALERT_channel:
-            out_string += adata->channel;
-            break;
-        case ALERT_text:
-            out_string += string("\001") + adata->text + string("\001");
-            break;
-        default:
-            out_string = "Unknown field requested.";
-            return -1;
-            break;
-        }
+	cache->Filled(field_vec->size());
 
-        out_string += " ";
-    }
+	for (unsigned int x = 0; x < field_vec->size(); x++) {
+		unsigned int fnum = (*field_vec)[x];
 
-    return 1;
+		if (fnum >= ALERT_maxfield) {
+			out_string = "Unknown field requested.";
+			return -1;
+		}
+
+		osstr.str("");
+
+		// Shortcut test the cache once and print/bail immediately
+		if (cache->Filled(fnum)) {
+			out_string += cache->GetCache(fnum) + " ";
+			break;
+		}
+
+		switch(fnum) {
+			case ALERT_header:
+				cache->Cache(fnum, info->header);
+				break;
+			case ALERT_sec:
+				osstr << (int) info->tm.tv_sec;
+				cache->Cache(fnum, osstr.str());
+				break;
+			case ALERT_usec:
+				osstr << (int) info->tm.tv_usec;
+				cache->Cache(fnum, osstr.str());
+				break;
+			case ALERT_bssid:
+				cache->Cache(fnum, info->bssid.Mac2String());
+				break;
+			case ALERT_source:
+				cache->Cache(fnum, info->source.Mac2String());
+				break;
+			case ALERT_dest:
+				cache->Cache(fnum, info->dest.Mac2String());
+				break;
+			case ALERT_other:
+				cache->Cache(fnum, info->other.Mac2String());
+				break;
+			case ALERT_channel:
+				osstr << info->channel;
+				cache->Cache(fnum, osstr.str());
+				break;
+			case ALERT_text:
+				cache->Cache(fnum, "\001" + info->text + "\001");
+				break;
+			default:
+				out_string = "Unknown field requested.";
+				return -1;
+				break;
+		}
+
+		// print the newly filled in cache
+		out_string += cache->GetCache(fnum) + " ";
+	}
+
+	return 1;
 }
 
 void Protocol_ALERT_enable(PROTO_ENABLE_PARMS) {
-    globalreg->alertracker->BlitBacklogged(in_fd);
+	globalreg->alertracker->BlitBacklogged(in_fd);
 }
 
 Alertracker::Alertracker() {
-    fprintf(stderr, "*** Alertracker::Alertracker() called with no global registry.  Bad.\n");
+	fprintf(stderr, "*** Alertracker::Alertracker() called with no global registry.  Bad.\n");
 }
 
 Alertracker::Alertracker(GlobalRegistry *in_globalreg) {
-    globalreg = in_globalreg;
-    next_alert_id = 0;
+	globalreg = in_globalreg;
+	next_alert_id = 0;
 
-    if (globalreg->kismet_config->FetchOpt("alertbacklog") != "") {
-        int scantmp;
-        if (sscanf(globalreg->kismet_config->FetchOpt("alertbacklog").c_str(), 
-                   "%d", &scantmp) != 1 || scantmp < 0) {
-            globalreg->messagebus->InjectMessage("Illegal value for 'alertbacklog' "
+	if (globalreg->kismet_config == NULL) {
+		fprintf(stderr, "FATAL OOPS:  Alertracker called with null config\n");
+		exit(1);
+	}
+
+	if (globalreg->packetchain == NULL) {
+		fprintf(stderr, "FATAL OOPS:  Alertracker called with null packetchain\n");
+		exit(1);
+	}
+
+	if (globalreg->kisnetserver == NULL) {
+		fprintf(stderr, "FATAL OOPS:  Alertracker called with null kisnetserver\n");
+		exit(1);
+	}
+
+	if (globalreg->kismet_config->FetchOpt("alertbacklog") != "") {
+		int scantmp;
+		if (sscanf(globalreg->kismet_config->FetchOpt("alertbacklog").c_str(), 
+				   "%d", &scantmp) != 1 || scantmp < 0) {
+			globalreg->messagebus->InjectMessage("Illegal value for 'alertbacklog' "
 												 "in config file", MSGFLAG_FATAL);
-            globalreg->fatal_condition = 1;
-            return;
-        }
-        num_backlog = scantmp;
-    }
-    
-    // Autoreg the alert protocol
-    net_alert_ref = 
-        globalreg->kisnetserver->RegisterProtocol("ALERT", 0, ALERT_fields_text, 
-                                                  &Protocol_ALERT, 
+			globalreg->fatal_condition = 1;
+			return;
+		}
+		num_backlog = scantmp;
+	}
+
+	// Register the alert component
+	_PCM(PACK_COMP_ALERT) =
+		globalreg->packetchain->RegisterPacketComponent("alert");
+
+	// Register the alert protocol
+	_NPM(PROTO_REF_NETWORK) =
+		globalreg->kisnetserver->RegisterProtocol("ALERT", 0, 1, ALERT_fields_text, 
+												  &Protocol_ALERT, 
 												  &Protocol_ALERT_enable);
 
 	// Register a KISMET alert type with no rate restrictions
@@ -106,26 +151,29 @@ Alertracker::Alertracker(GlobalRegistry *in_globalreg) {
 		RegisterAlert("KISMET", sat_day, 0, sat_day, 0);
 
 	// Parse config file vector of all alerts
+	// FIXME
+	
+	_MSG("Created alert tracker...", MSGFLAG_INFO);
 
 }
 
 Alertracker::~Alertracker() {
-    for (map<int, alert_rec *>::iterator x = alert_ref_map.begin();
-         x != alert_ref_map.end(); ++x)
-        delete x->second;
+	for (map<int, alert_rec *>::iterator x = alert_ref_map.begin();
+		 x != alert_ref_map.end(); ++x)
+		delete x->second;
 }
 
 int Alertracker::RegisterAlert(const char *in_header, alert_time_unit in_unit, 
 							   int in_rate, alert_time_unit in_burstunit,
-                               int in_burst) {
+							   int in_burst) {
 	char err[1024];
 
-    // Bail if this header is registered
-    if (alert_name_map.find(in_header) != alert_name_map.end()) {
+	// Bail if this header is registered
+	if (alert_name_map.find(in_header) != alert_name_map.end()) {
 		snprintf(err, 1024, "RegisterAlert() header already registered '%s'",
 				 in_header);
 		globalreg->messagebus->InjectMessage(err, MSGFLAG_ERROR);
-        return -1;
+		return -1;
 	}
 
 	// Bail if the rates are impossible
@@ -136,37 +184,37 @@ int Alertracker::RegisterAlert(const char *in_header, alert_time_unit in_unit,
 		return -1;
 	}
 
-    alert_rec *arec = new alert_rec;
+	alert_rec *arec = new alert_rec;
 
-    arec->ref_index = next_alert_id++;
-    arec->header = in_header;
-    arec->limit_unit = in_unit;
+	arec->ref_index = next_alert_id++;
+	arec->header = in_header;
+	arec->limit_unit = in_unit;
 	arec->burst_unit = in_burstunit;
-    arec->limit_rate = in_rate;
-    arec->limit_burst = in_burst;
-    arec->burst_sent = 0;
+	arec->limit_rate = in_rate;
+	arec->limit_burst = in_burst;
+	arec->burst_sent = 0;
 
-    alert_name_map[arec->header] = arec->ref_index;
-    alert_ref_map[arec->ref_index] = arec;
+	alert_name_map[arec->header] = arec->ref_index;
+	alert_ref_map[arec->ref_index] = arec;
 
-    return arec->ref_index;
+	return arec->ref_index;
 }
 
-int Alertracker::FetchAlertRef(string in_header) {
-    if (alert_name_map.find(in_header) != alert_name_map.end())
-        return alert_name_map[in_header];
+	int Alertracker::FetchAlertRef(string in_header) {
+		if (alert_name_map.find(in_header) != alert_name_map.end())
+			return alert_name_map[in_header];
 
-    return -1;
-}
+		return -1;
+	}
 
 int Alertracker::CheckTimes(alert_rec *arec) {
-    // Is this alert rate-limited?  If not, shortcut out and send it
-    if (arec->limit_rate == 0) {
-        return 1;
-    }
+	// Is this alert rate-limited?  If not, shortcut out and send it
+	if (arec->limit_rate == 0) {
+		return 1;
+	}
 
-    struct timeval now;
-    gettimeofday(&now, NULL);
+	struct timeval now;
+	gettimeofday(&now, NULL);
 
 	// If the last time we sent anything was longer than the main rate limit,
 	// then we reset back to empty
@@ -186,78 +234,78 @@ int Alertracker::CheckTimes(alert_rec *arec) {
 	if (arec->burst_sent < arec->limit_burst && arec->total_sent < arec->limit_rate)
 		return 1;
 
-    return 0;
+	return 0;
 }
 
 int Alertracker::PotentialAlert(int in_ref) {
-    map<int, alert_rec *>::iterator aritr = alert_ref_map.find(in_ref);
+	map<int, alert_rec *>::iterator aritr = alert_ref_map.find(in_ref);
 
-    if (aritr == alert_ref_map.end())
-        return -1;
+	if (aritr == alert_ref_map.end())
+		return -1;
 
-    alert_rec *arec = aritr->second;
+	alert_rec *arec = aritr->second;
 
-    return CheckTimes(arec);
+	return CheckTimes(arec);
 }
 
-int Alertracker::RaiseAlert(int in_ref, 
-                            mac_addr bssid, mac_addr source, mac_addr dest, 
+int Alertracker::RaiseAlert(int in_ref, kis_packet *in_pack,
+							mac_addr bssid, mac_addr source, mac_addr dest, 
 							mac_addr other, int in_channel, string in_text) {
-    map<int, alert_rec *>::iterator aritr = alert_ref_map.find(in_ref);
+	map<int, alert_rec *>::iterator aritr = alert_ref_map.find(in_ref);
 
-    if (aritr == alert_ref_map.end())
-        return -1;
+	if (aritr == alert_ref_map.end())
+		return -1;
 
-    alert_rec *arec = aritr->second;
+	alert_rec *arec = aritr->second;
 
-    if (CheckTimes(arec) != 1)
-        return 0;
+	if (CheckTimes(arec) != 1)
+		return 0;
 
-    ALERT_data *adata = new ALERT_data;
+	kis_alert_info *info = new kis_alert_info;
 
-    char tmpstr[128];
-    timeval *ts = new timeval;
-    gettimeofday(ts, NULL);
+	info->header = arec->header;
+	gettimeofday(&(info->tm), NULL);
 
-    snprintf(tmpstr, 128, "%ld", (long int) ts->tv_sec);
-    adata->sec = tmpstr;
+	info->bssid = bssid;
+	info->source = source;
+	info->dest  = dest;
+	info->other = other;
 
-    snprintf(tmpstr, 128, "%ld", (long int) ts->tv_usec);
-    adata->usec = tmpstr;
+	info->channel = in_channel;	
 
-    snprintf(tmpstr, 128, "%d", in_channel);
-    adata->channel = tmpstr;
-
-    adata->text = in_text;
-    adata->header = arec->header;
-    adata->bssid = bssid.Mac2String();
-    adata->source = source.Mac2String();
-    adata->dest  = dest.Mac2String();
-    adata->other = other.Mac2String();
+	info->text = in_text;
 
 	// Increment and set the timers
-    arec->burst_sent++;
+	arec->burst_sent++;
 	arec->total_sent++;
 	arec->time_last = time(0);
 
-    alert_backlog.push_back(adata);
-    if ((int) alert_backlog.size() > num_backlog) {
-        delete alert_backlog[0];
-        alert_backlog.erase(alert_backlog.begin());
-    }
+	alert_backlog.push_back(info);
+	if ((int) alert_backlog.size() > num_backlog) {
+		delete alert_backlog[0];
+		alert_backlog.erase(alert_backlog.begin());
+	}
 
-    globalreg->kisnetserver->SendToAll(net_alert_ref, (void *) adata);
-    
-    // Hook main for sounds and whatnot on the server
-    globalreg->messagebus->InjectMessage(adata->text, MSGFLAG_ALERT);
+	// Attach it to the packet
+	in_pack->insert(_PCM(PACK_COMP_ALERT), info);
 
-    return 1;
+	// Send it to the network as an alert
+	globalreg->kisnetserver->SendToAll(_NPM(PROTO_REF_ALERT), (void *) info);
+
+	// Send the text info
+	globalreg->messagebus->InjectMessage((info->header + " " + info->text), 
+										 MSGFLAG_ALERT);
+
+
+	return 1;
 }
 
 void Alertracker::BlitBacklogged(int in_fd) {
-    for (unsigned int x = 0; x < alert_backlog.size(); x++)
-        globalreg->kisnetserver->SendToAll(net_alert_ref, (void *) alert_backlog[x]);
-        //server->SendToClient(in_fd, protoref, (void *) alert_backlog[x]);
+	for (unsigned int x = 0; x < alert_backlog.size(); x++) {
+		kis_protocol_cache cache;
+		globalreg->kisnetserver->SendToClient(in_fd, _NPM(PROTO_REF_ALERT),
+											  (void *) alert_backlog[x], &cache);
+	}
 }
 
 int Alertracker::ParseAlertStr(string alert_str, string *ret_name, 

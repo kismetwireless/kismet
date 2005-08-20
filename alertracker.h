@@ -35,17 +35,36 @@
 #include "timetracker.h"
 #include "kis_netframe.h"
 
+class kis_alert_info : public packet_component {
+public:
+	kis_alert_info() {
+		tm.tv_sec = 0;
+		tm.tv_usec = 0;
+		channel = 0;
+
+		// We do NOT self-destruct because we get cached in the alertracker
+		// for playbacks.  It's responsible for discarding us
+		self_destruct = 0;
+	}
+
+	string header;
+	struct timeval tm;
+	mac_addr bssid;
+	mac_addr source;
+	mac_addr dest;
+	mac_addr other;
+	int channel;
+	string text;
+};
+
 enum ALERT_fields {
     ALERT_sec, ALERT_usec, ALERT_header, ALERT_bssid, ALERT_source,
-    ALERT_dest, ALERT_other, ALERT_channel, ALERT_text
+    ALERT_dest, ALERT_other, ALERT_channel, ALERT_text,
+	ALERT_maxfield
 };
 extern char *ALERT_fields_text[];
 
-typedef struct ALERT_data {
-    string header, sec, usec, bssid, source, dest, other, channel, text;
-};
-
-int Protocol_ALERT(PROTO_PARMS); // ALERT_data
+int Protocol_ALERT(PROTO_PARMS); // kis_alert_info
 void Protocol_ALERT_enable(PROTO_ENABLE_PARMS);
 
 static const int alert_time_unit_conv[] = {
@@ -96,8 +115,8 @@ public:
     // Will an alert succeed?
     int PotentialAlert(int in_ref);
 
-    // Raise an alert
-    int RaiseAlert(int in_ref, 
+    // Raise an alert ...
+    int RaiseAlert(int in_ref, kis_packet *in_pack,
                    mac_addr bssid, mac_addr source, mac_addr dest, mac_addr other,
                    int in_channel, string in_text);
 
@@ -125,12 +144,9 @@ protected:
     map<string, int> alert_name_map;
     map<int, alert_rec *> alert_ref_map;
 
-    vector<ALERT_data *> alert_backlog;
+	vector<kis_alert_info *> alert_backlog;
 
     int num_backlog;
-
-	int net_alert_ref;
-
 };
 
 #endif

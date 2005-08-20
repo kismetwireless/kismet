@@ -1,4 +1,5 @@
 Aug 19 2005  devel  Fixed some header wonkiness
+                    Started implementing alert framework (mostly there)
 Aug 18 2005  devel  Restored WPA tag dissection from stable
                     Fixed over-aggressive "new network detected"
                     Added linewrap to stdout text and fixed linewrap code

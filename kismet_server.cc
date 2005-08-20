@@ -391,6 +391,11 @@ int main(int argc,char *argv[]) {
 	if (globalregistry->fatal_condition)
 		CatchShutdown(-1);
 
+	// Create the alert tracker (this is important so it has to be done as root)
+	globalregistry->alertracker = new Alertracker(globalregistry);
+	if (globalregistry->fatal_condition)
+		CatchShutdown(-1);
+
 	// Create the packetsourcetracker
 	globalregistry->sourcetracker = new Packetsourcetracker(globalregistry);
 	if (globalregistry->fatal_condition)

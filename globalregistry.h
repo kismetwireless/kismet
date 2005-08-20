@@ -78,7 +78,8 @@ class Dumpfile;
 #define PACK_COMP_TRACKERNET	7
 #define PACK_COMP_TRACKERCLIENT	8
 #define PACK_COMP_KISCAPSRC		9
-#define PACK_COMP_MAX			10
+#define PACK_COMP_ALERT			10
+#define PACK_COMP_MAX			11
 
 // Same game again, with alerts that internal things need to generate
 #define ALERT_REF_KISMET		0
