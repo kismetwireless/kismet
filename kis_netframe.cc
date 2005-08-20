@@ -859,7 +859,7 @@ KisNetFramework::KisNetFramework(GlobalRegistry *in_globalreg) {
 
 	// Commandline stuff
 	static struct option netframe_long_options[] = {
-		{ "server-listen", required_argument, 0, 's' },
+		{ "server-listen", required_argument, 0, 'l' },
 		{ 0, 0, 0, 0 }
 	};
 	int option_idx = 0;
@@ -869,12 +869,12 @@ KisNetFramework::KisNetFramework(GlobalRegistry *in_globalreg) {
 
 	while (1) {
 		int r = getopt_long(globalreg->argc, globalreg->argv,
-							"-s:",
+							"-l:",
 							netframe_long_options, &option_idx);
 		if (r < 0) break;
 
 		switch (r) {
-			case 's':
+			case 'l':
 				listenline = string(optarg);
 				printf("debug: '%s'\n", listenline.c_str());
 				break;

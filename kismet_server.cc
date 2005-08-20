@@ -69,6 +69,7 @@ char *exec_name;
 
 // One of our few globals in this file
 int glob_linewrap = 1;
+int glob_silent = 0;
 
 // Message clients that are attached at the master level
 // Smart standard out client that understands the silence options
@@ -81,6 +82,9 @@ public:
 };
 
 void SmartStdoutMessageClient::ProcessMessage(string in_msg, int in_flags) {
+	if (glob_silent)
+		return;
+
     if ((in_flags & MSGFLAG_DEBUG)) {
 		if (glob_linewrap)
 			fprintf(stdout, "DEBUG: %s", InLineWrap(in_msg, 7, 80).c_str());
@@ -333,16 +337,20 @@ int main(int argc,char *argv[]) {
 	// Turn off the getopt error reporting
 	opterr = 0;
 
+	// Timer for silence
+	int local_silent = 0;
+
 	// Standard getopt parse run
 	static struct option main_longopt[] = {
 		{ "config-file", required_argument, 0, 'f' },
 		{ "no-line-wrap", no_argument, 0, 200 },
+		{ "silent", no_argument, 0, 's' },
 		{ 0, 0, 0, 0 }
 	};
 
 	while (1) {
 		int r = getopt_long(argc, argv, 
-							"-f:l", 
+							"-f:ls", 
 							main_longopt, &option_idx);
 		if (r < 0) break;
 		switch (r) {
@@ -351,6 +359,9 @@ int main(int argc,char *argv[]) {
 				break;
 			case 200:
 				glob_linewrap = 0;
+				break;
+			case 's':
+				local_silent = 1;
 				break;
 		}
 	}
@@ -501,6 +512,9 @@ int main(int argc,char *argv[]) {
 	globalregistry->RegisterDumpFile(new Dumpfile_Gpsxml(globalregistry));
 	if (globalregistry->fatal_condition)
 		CatchShutdown(-1);
+
+	// Set the global silence now that we're set up
+	glob_silent = local_silent;
 
 	int max_fd = 0;
 	fd_set rset, wset;

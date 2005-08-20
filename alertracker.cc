@@ -181,7 +181,7 @@ int Alertracker::RegisterAlert(const char *in_header, alert_time_unit in_unit,
 
 	// Bail if the rates are impossible
 	if (in_burstunit > in_unit) {
-		snprintf(err, 1024, "RegisterAlert() header '%s' failed, time unit for "
+		snprintf(err, 1024, "Registering alert '%s' failed, time unit for "
 				 "burst rate must be <= time unit for max rate", in_header);
 		globalreg->messagebus->InjectMessage(err, MSGFLAG_ERROR);
 		return -1;
@@ -327,7 +327,7 @@ int Alertracker::ParseAlertStr(string alert_str, string *ret_name,
 	(*ret_name) = StrLower(tokens[0]);
 
 	if (ParseRateUnit(StrLower(tokens[1]), ret_limit_unit, ret_limit_rate) != 1 ||
-		ParseRateUnit(StrLower(tokens[2]), ret_limit_unit, ret_limit_rate) != 1) {
+		ParseRateUnit(StrLower(tokens[2]), ret_limit_burst, ret_burst_rate) != 1) {
 		snprintf(err, 1024, "Malformed limits for alert '%s'", alert_str.c_str());
 		globalreg->messagebus->InjectMessage(err, MSGFLAG_ERROR);
 		return -1;
