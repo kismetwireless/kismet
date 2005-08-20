@@ -147,7 +147,7 @@ Alertracker::Alertracker(GlobalRegistry *in_globalreg) {
 												  &Protocol_ALERT_enable);
 
 	// Register a KISMET alert type with no rate restrictions
-	globalreg->alertref_map[ALERT_REF_KISMET] =
+	_ARM(ALERT_REF_KISMET) =
 		RegisterAlert("KISMET", sat_day, 0, sat_day, 0);
 
 	// Parse config file vector of all alerts

@@ -89,6 +89,7 @@ class Dumpfile;
 // fast access.  Kids, don't try this at home.
 #define _PCM(x)		globalreg->packetcomp_map[(x)]
 #define _NPM(x)		globalreg->netproto_map[(x)]
+#define _ARM(x)		globalreg->alertref_map[(x)]
 
 // Send a msg via gloablreg msgbus
 #define _MSG(x, y)	globalreg->messagebus->InjectMessage((x), (y))
