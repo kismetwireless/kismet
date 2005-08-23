@@ -262,6 +262,9 @@ public:
     KisNetFramework();
     KisNetFramework(GlobalRegistry *in_globalreg);
     virtual ~KisNetFramework();
+
+	// Activate the setup
+	int Activate();
  
     virtual int Accept(int in_fd);
     virtual int ParseData(int in_fd);
@@ -330,6 +333,9 @@ protected:
 
     // Client options
     map<int, KisNetFramework::client_opt *> client_optmap;
+
+	// Server type (0 = tcp...)
+	int server_type;
 
 };
 

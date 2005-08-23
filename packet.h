@@ -171,7 +171,7 @@ public:
     int corrupt;
    
     // Offset to data components in frame
-    int header_offset;
+    unsigned int header_offset;
     
     ieee_80211_type type;
     ieee_80211_subtype subtype;
@@ -222,6 +222,57 @@ public:
     int duration;
 
     int datasize;
+};
+
+// some protocols we do try to track
+enum kis_protocol_info_type {
+    proto_unknown,
+    proto_udp, 
+	proto_tcp, 
+	proto_arp, 
+	proto_dhcp_offer,
+    proto_cdp,
+    proto_turbocell,
+	proto_netstumbler_probe,
+	proto_lucent_probe,
+    proto_iapp,
+    proto_leap,
+    proto_ttls,
+    proto_tls,
+    proto_peap,
+    proto_isakmp,
+    proto_pptp,
+};
+
+class kis_data_packinfo : public packet_component {
+public:
+	kis_data_packinfo() {
+		proto = proto_unknown;
+		ip_source_port = 0;
+		ip_dest_port = 0;
+		ip_source_addr.s_addr = 0;
+		ip_dest_addr.s_addr = 0;
+		field1 = 0;
+	}
+
+	kis_protocol_info_type proto;
+
+	// IP info, we re-use a subset of the kis_protocol_info_type enum to fill
+	// in where we got our IP data from.  A little klugey, but really no reason
+	// not to do it
+	int ip_source_port;
+	int ip_dest_port;
+	in_addr ip_source_addr;
+	in_addr ip_dest_addr;
+	kis_protocol_info_type ip_type;
+
+	// The two CDP fields we really care about for anything
+	string cdp_dev_id;
+	string cdp_port_id;
+
+	// An extra field that can be filled in
+	int field1;
+
 };
 
 // Layer 1 radio info record for kismet

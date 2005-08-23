@@ -83,6 +83,9 @@ public:
     // Shutdown the entire server
     virtual void Shutdown();
 
+	// Fetch the port #
+	virtual short int FetchPort() { return port; }
+
 protected:
     // Accept the connection TCP-level
     virtual int TcpAccept();

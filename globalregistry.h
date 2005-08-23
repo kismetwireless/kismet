@@ -79,7 +79,8 @@ class Dumpfile;
 #define PACK_COMP_TRACKERCLIENT	8
 #define PACK_COMP_KISCAPSRC		9
 #define PACK_COMP_ALERT			10
-#define PACK_COMP_MAX			11
+#define PACK_COMP_BASICDATA		11
+#define PACK_COMP_MAX			12
 
 // Same game again, with alerts that internal things need to generate
 #define ALERT_REF_KISMET		0
@@ -90,6 +91,9 @@ class Dumpfile;
 #define _PCM(x)		globalreg->packetcomp_map[(x)]
 #define _NPM(x)		globalreg->netproto_map[(x)]
 #define _ARM(x)		globalreg->alertref_map[(x)]
+#define _ALERT(x, y, z, a)	globalreg->alertracker->RaiseAlert((x), (y), \
+	(z)->bssid_mac, (z)->source_mac, (z)->dest_mac, (z)->other_mac, \
+	(z)->channel, (a))
 
 // Send a msg via gloablreg msgbus
 #define _MSG(x, y)	globalreg->messagebus->InjectMessage((x), (y))

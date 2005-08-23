@@ -30,6 +30,8 @@
 #include "endian_magic.h"
 #include "packetdissectors.h"
 #include "packetsignatures.h"
+#include "packetchain.h"
+#include "alertracker.h"
 
 #define PROTO_SSID_LEN		32
 
@@ -92,10 +94,63 @@ static const uint32_t wep_crc32_table[256] = {
     0x2d02ef8dL
 };
 
+// Hooks into the real functions
+int kis_80211_dissector(CHAINCALL_PARMS) {
+	KisBuiltinDissector *auxptr = (KisBuiltinDissector *) auxdata;
+	return auxptr->ieee80211_dissector(in_pack);
+}
+
+int kis_data_dissector(CHAINCALL_PARMS) {
+	KisBuiltinDissector *auxptr = (KisBuiltinDissector *) auxdata;
+	return auxptr->basicdata_dissector(in_pack);
+}
+
+KisBuiltinDissector::KisBuiltinDissector() {
+	fprintf(stderr, "FATAL OOPS:  KisBuiltinDissector called with no globalreg\n");
+	exit(1);
+}
+
+KisBuiltinDissector::KisBuiltinDissector(GlobalRegistry *in_globalreg) {
+	globalreg = in_globalreg;
+
+	if (globalreg->packetchain == NULL) {
+		fprintf(stderr, "FATAL OOPS:  KisBuiltinDissector called before "
+				"packetchain\n");
+		exit(1);
+	}
+
+	if (globalreg->alertracker == NULL) {
+		fprintf(stderr, "FATAL OOPS:  KisBuiltinDissector called before "
+				"alertracker\n");
+		exit(1);
+	}
+
+	// Register the basic stuff
+	globalreg->packetchain->RegisterHandler(&kis_80211_dissector, this,
+											CHAINPOS_LLCDISSECT, -100);
+	globalreg->packetchain->RegisterHandler(&kis_data_dissector, this,
+											CHAINPOS_DATADISSECT, -100);
+
+	_PCM(PACK_COMP_80211) = 
+		globalreg->packetchain->RegisterPacketComponent("IEEE80211_INFO");
+
+	_PCM(PACK_COMP_BASICDATA) = 
+		globalreg->packetchain->RegisterPacketComponent("BASICDATA_INFO");
+
+	netstumbler_aref = 
+		globalreg->alertracker->ActivateConfiguredAlert("NETSTUMBLER");
+	nullproberesp_aref =
+		globalreg->alertracker->ActivateConfiguredAlert("NULLPROBERESP");
+	lucenttest_aref =
+		globalreg->alertracker->ActivateConfiguredAlert("LUCENTTEST");
+
+}
+
 // Returns a pointer in the data block to the size byte of the desired tag, with the 
 // tag offsets cached
-int GetTagOffsets(unsigned int init_offset, kis_datachunk *in_chunk,
-				  map<int, vector<int> > *tag_cache_map) {
+int KisBuiltinDissector::GetIEEETagOffsets(unsigned int init_offset, 
+										kis_datachunk *in_chunk,
+										map<int, vector<int> > *tag_cache_map) {
     int cur_tag = 0;
     // Initial offset is 36, that's the first tag
     unsigned int cur_offset = init_offset;
@@ -139,7 +194,7 @@ int GetTagOffsets(unsigned int init_offset, kis_datachunk *in_chunk,
 }
 
 // Convert WPA cipher elements into crypt_set stuff
-int WPACipherConv(uint8_t cipher_index) {
+int KisBuiltinDissector::WPACipherConv(uint8_t cipher_index) {
 	int ret = crypt_wpa;
 
 	switch (cipher_index) {
@@ -167,7 +222,7 @@ int WPACipherConv(uint8_t cipher_index) {
 }
 
 // Convert WPA key management elements into crypt_set stuff
-int WPAKeyMgtConv(uint8_t mgt_index) {
+int KisBuiltinDissector::WPAKeyMgtConv(uint8_t mgt_index) {
 	int ret = crypt_wpa;
 
 	switch (mgt_index) {
@@ -186,7 +241,7 @@ int WPAKeyMgtConv(uint8_t mgt_index) {
 }
 
 // This needs to be optimized and it needs to not use casting to do its magic
-int kis_80211_dissector(CHAINCALL_PARMS) {
+int KisBuiltinDissector::ieee80211_dissector(kis_packet *in_pack) {
 	if (in_pack->error)
 		return 0;
 
@@ -311,7 +366,8 @@ int kis_80211_dissector(CHAINCALL_PARMS) {
         if (fc->subtype == 8 || fc->subtype == 4 || fc->subtype == 5) {
             // This is guaranteed to only give us tags that fit within the packets,
             // so we don't have to do more error checking
-            if (GetTagOffsets(packinfo->header_offset, chunk, &tag_cache_map) < 0) {
+            if (GetIEEETagOffsets(packinfo->header_offset, chunk, 
+								  &tag_cache_map) < 0) {
                 // The frame is corrupt, bail
                 packinfo->corrupt = 1;
                 return 1;
@@ -895,5 +951,116 @@ int kis_80211_dissector(CHAINCALL_PARMS) {
 	in_pack->insert(_PCM(PACK_COMP_80211), packinfo);
 
     return 1;
+}
+
+int KisBuiltinDissector::basicdata_dissector(kis_packet *in_pack) {
+	kis_data_packinfo *datainfo = NULL;
+
+	if (in_pack->error)
+		return 0;
+
+	// Grab the 80211 info, compare, bail
+    kis_ieee80211_packinfo *packinfo;
+	if ((packinfo = 
+		 (kis_ieee80211_packinfo *) in_pack->fetch(_PCM(PACK_COMP_80211))) == NULL)
+		return 0;
+	if (packinfo->corrupt)
+		return 0;
+	if (packinfo->type != packet_data || packinfo->subtype != packet_sub_data)
+		return 0;
+	
+	// Grab the mangled frame if we have it, then try to grab up the list of
+	// data types and die if we can't get anything
+	kis_datachunk *chunk = 
+		(kis_datachunk *) in_pack->fetch(_PCM(PACK_COMP_MANGLEFRAME));
+
+	if (chunk == NULL) {
+		if ((chunk = 
+			 (kis_datachunk *) in_pack->fetch(_PCM(PACK_COMP_80211FRAME))) == NULL) {
+			if ((chunk = (kis_datachunk *) 
+				 in_pack->fetch(_PCM(PACK_COMP_LINKFRAME))) == NULL) {
+				return 0;
+			}
+		}
+	}
+
+	// Blow up on no content
+    if (packinfo->header_offset > chunk->length)
+        return 0;
+
+	datainfo = new kis_data_packinfo;
+
+	if (chunk->length > packinfo->header_offset + LLC_UI_OFFSET &&
+		memcmp(&(chunk->data[packinfo->header_offset]), LLC_UI_SIGNATURE,
+			   sizeof(LLC_UI_SIGNATURE)) == 0) {
+		// Handle the batch of frames that fall under the LLC UI 0x3 frame
+		if (packinfo->header_offset + LLC_UI_OFFSET + 
+			sizeof(PROBE_LLC_SIGNATURE) < chunk->length && 
+			memcmp(&(chunk->data[packinfo->header_offset + LLC_UI_OFFSET]),
+					 PROBE_LLC_SIGNATURE, sizeof(PROBE_LLC_SIGNATURE)) == 0) {
+
+			// Packets that look like netstumber probes...
+			if (packinfo->header_offset + NETSTUMBLER_OFFSET + 
+				sizeof(NETSTUMBLER_322_SIGNATURE) < chunk->length && 
+				memcmp(&(chunk->data[packinfo->header_offset + NETSTUMBLER_OFFSET]),
+					   NETSTUMBLER_322_SIGNATURE, 
+					   sizeof(NETSTUMBLER_322_SIGNATURE)) == 0) {
+				_ALERT(netstumbler_aref, in_pack, packinfo,
+					   "Detected Netstumbler 3.22 probe");
+				datainfo->proto = proto_netstumbler_probe;
+				datainfo->field1 = 322;
+				in_pack->insert(_PCM(PACK_COMP_BASICDATA), datainfo);
+				return 1;
+			}
+
+			if (packinfo->header_offset + NETSTUMBLER_OFFSET + 
+				sizeof(NETSTUMBLER_323_SIGNATURE) < chunk->length && 
+				memcmp(&(chunk->data[packinfo->header_offset + NETSTUMBLER_OFFSET]),
+					   NETSTUMBLER_323_SIGNATURE, 
+					   sizeof(NETSTUMBLER_323_SIGNATURE)) == 0) {
+				_ALERT(netstumbler_aref, in_pack, packinfo,
+					   "Detected Netstumbler 3.23 probe");
+				datainfo->proto = proto_netstumbler_probe;
+				datainfo->field1 = 323;
+				in_pack->insert(_PCM(PACK_COMP_BASICDATA), datainfo);
+				return 1;
+			}
+
+			if (packinfo->header_offset + NETSTUMBLER_OFFSET + 
+				sizeof(NETSTUMBLER_330_SIGNATURE) < chunk->length && 
+				memcmp(&(chunk->data[packinfo->header_offset + NETSTUMBLER_OFFSET]),
+					   NETSTUMBLER_330_SIGNATURE, 
+					   sizeof(NETSTUMBLER_330_SIGNATURE)) == 0) {
+				_ALERT(netstumbler_aref, in_pack, packinfo,
+					   "Detected Netstumbler 3.30 probe");
+				datainfo->proto = proto_netstumbler_probe;
+				datainfo->field1 = 330;
+				in_pack->insert(_PCM(PACK_COMP_BASICDATA), datainfo);
+				return 1;
+			}
+
+			if (packinfo->header_offset + LUCENT_OFFSET + 
+				sizeof(LUCENT_TEST_SIGNATURE) < chunk->length && 
+				memcmp(&(chunk->data[packinfo->header_offset + LUCENT_OFFSET]),
+					   LUCENT_TEST_SIGNATURE, 
+					   sizeof(LUCENT_TEST_SIGNATURE)) == 0) {
+				_ALERT(lucenttest_aref, in_pack, packinfo,
+					   "Detected Lucent probe/link test");
+				datainfo->proto = proto_lucent_probe;
+				in_pack->insert(_PCM(PACK_COMP_BASICDATA), datainfo);
+				return 1;
+			}
+
+			_ALERT(netstumbler_aref, in_pack, packinfo,
+				   "Detected what looks like a Netstumber probe but didn't "
+				   "match known version fingerprint");
+			datainfo->proto = proto_netstumbler_probe;
+			datainfo->field1 = -1;
+
+		} // LLC_SIGNATURE
+
+	} // LLC_UI
+
+	return 1;
 }
 

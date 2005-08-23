@@ -28,27 +28,49 @@
 #include <inttypes.h>
 #endif
 
+#include <vector>
+#include <string>
+#include <map>
+
+#include "globalregistry.h"
 #include "packetchain.h"
 
-// Various packetchain dissectors that need to do magic
+/*
+ * Basic built-in Kismet dissectors that handle ieee80211 dissection and
+ * data dissection.  This should be instantiated from main() and left alone
+ * for the most part, we're just wrapped in a class so that we can easily track
+ * our alert references and so that main() isn't making a pile of random 
+ * links
+ */
 
-// 802.11 frame dissector
+// Basic dissector hooks
 int kis_80211_dissector(CHAINCALL_PARMS);
-// Karlnet/turbocell dissector
 int kis_turbocell_dissector(CHAINCALL_PARMS);
-// Data frame dissector
 int kis_data_dissector(CHAINCALL_PARMS);
-// String extractor
-int kis_data_string_dissector(CHAINCALL_PARMS);
 
-// Packet decoders
+class KisBuiltinDissector {
+public:
+	KisBuiltinDissector();
+	KisBuiltinDissector(GlobalRegistry *in_globalreg);
+	~KisBuiltinDissector();
 
-// Standard RC4 WEP decoder
-int kis_wep_decoder(CHAINCALL_PARMS);
-// WEP->Normal mangler
-int kis_wep_mangler(CHAINCALL_PARMS);
-// Fuzzy-detected->Normal mangler
-int kis_fuzzy_mangler(CHAINCALL_PARMS);
+	int ieee80211_dissector(kis_packet *in_pack);
+	int basicdata_dissector(kis_packet *in_pack);
+
+	int GetIEEETagOffsets(unsigned int init_offset, kis_datachunk *in_chunk,
+						  map<int, vector<int> > *tag_cache_map);
+
+	int WPACipherConv(uint8_t cipher_index);
+	int WPAKeyMgtConv(uint8_t mgt_index);
+	
+protected:
+	GlobalRegistry *globalreg;
+
+	int netstumbler_aref;
+	int nullproberesp_aref;
+	int lucenttest_aref;
+
+};
 
 #endif
 

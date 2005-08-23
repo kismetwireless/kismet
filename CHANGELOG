@@ -1,3 +1,9 @@
+Aug 22 2005  devel  Fixed opening tcpserver before channel child
+                    Moved packet dissectors into helper class
+                    Moved packet registration and alert stuff into dissector
+                     helper class
+                    Added data dissection framework
+                    Added lucent signatures/detection/alert
 Aug 20 2005  devel  Fixed alerts again (parsing enable lines)
                     Restored '-s/--silent' cmd line option for server
                     Implemented --help and cross-module --help output

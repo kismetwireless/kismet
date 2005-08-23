@@ -833,7 +833,8 @@ void KisNetframe_MessageClient::ProcessMessage(string in_msg, int in_flags) {
 
 }
 
-int KisNetFrame_TimeEvent(Timetracker::timer_event *evt, void *parm, GlobalRegistry *globalreg) {
+int KisNetFrame_TimeEvent(Timetracker::timer_event *evt, void *parm, 
+						  GlobalRegistry *globalreg) {
     // We'll just assume we'll never fail here and that the TIME protocol
     // always exists.  If this isn't the case, we'll fail horribly.
     time_t curtime = time(0);
@@ -859,7 +860,6 @@ KisNetFramework::KisNetFramework(GlobalRegistry *in_globalreg) {
 	int port = 0, maxcli = 0;
 	char srv_proto[10], srv_bindhost[128];
 	TcpServer *tcpsrv;
-	char errstr[1024];
 	string listenline;
 
 	// Commandline stuff
@@ -927,18 +927,10 @@ KisNetFramework::KisNetFramework(GlobalRegistry *in_globalreg) {
 		tcpsrv = new TcpServer(globalreg);
 		tcpsrv->SetupServer(port, maxcli, srv_bindhost, 
 							globalreg->kismet_config->FetchOpt("allowedhosts"));
-		if (tcpsrv->EnableServer() < 0 || globalreg->fatal_condition) {
-			_MSG("Failed to enable TCP listener for the Kismet UI server",
-				 MSGFLAG_FATAL);
-			globalreg->fatal_condition = 1;
-			return;
-		}
-		tcpsrv->RegisterServerFramework(this);
 		netserver = tcpsrv;
-		snprintf(errstr, 1024, "Created Kismet UI TCP server on port %d",
-				 port);
-		_MSG(errstr, MSGFLAG_INFO);
+		server_type = 0;
 	} else {
+		server_type = -1;
 		_MSG("Invalid protocol in 'listen' config line for the Kismet UI server",
 			 MSGFLAG_FATAL);
 		globalreg->fatal_condition = 1;
@@ -1012,7 +1004,32 @@ KisNetFramework::KisNetFramework(GlobalRegistry *in_globalreg) {
     // Register timer events
     globalreg->timetracker->RegisterTimer(SERVER_TIMESLICES_SEC, NULL, 1, 
                                           &KisNetFrame_TimeEvent, NULL);
+}
 
+int KisNetFramework::Activate() {
+	char errstr[1024];
+
+	if (server_type != 0) {
+		_MSG("KisNetFramework unknown server type, something didn't initialize",
+			 MSGFLAG_FATAL);
+		globalreg->fatal_condition = 1;
+		return -1;
+	}
+
+	TcpServer *tcpsrv = (TcpServer *) netserver;
+
+	if (tcpsrv->EnableServer() < 0 || globalreg->fatal_condition) {
+		_MSG("Failed to enable TCP listener for the Kismet UI server",
+			 MSGFLAG_FATAL);
+		globalreg->fatal_condition = 1;
+		return -1;
+	}
+	netserver->RegisterServerFramework(this);
+	snprintf(errstr, 1024, "Created Kismet UI TCP server on port %d", 
+			 tcpsrv->FetchPort());
+	_MSG(errstr, MSGFLAG_INFO);
+
+	return 1;
 }
 
 KisNetFramework::~KisNetFramework() {

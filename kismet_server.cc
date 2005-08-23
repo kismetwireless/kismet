@@ -299,6 +299,7 @@ int main(int argc,char *argv[]) {
 	gid_t suid_gid;
 	string suiduser;
 	int option_idx = 0;
+	KisBuiltinDissector *bid;
 
 	// ------ WE MAY BE RUNNING AS ROOT ------
 	
@@ -403,7 +404,7 @@ int main(int argc,char *argv[]) {
 
 #else
 	snprintf(errstr, 1024, "SUID priv-dropping has been DISABLED at compile time. "
-			 "This is NOT reccomended as it may increase the risk to your system "
+			 "This is NOT reccomended as it can increase the risk to your system "
 			 "from hostile remote data.  Please consult the 'Installation & "
 			 "Security' and 'Configuration' sections of your README file.");
 	globalregistry->messagebus->InjectMessage(errstr, MSGFLAG_WARNING);
@@ -453,6 +454,11 @@ int main(int argc,char *argv[]) {
 	if (globalregistry->fatal_condition)
 		CatchShutdown(-1);
 
+	// Create the basic network/protocol server
+	globalregistry->kisnetserver->Activate();
+	if (globalregistry->fatal_condition)
+		CatchShutdown(-1);
+
 	// Once the packet source and channel control is opened, we shouldn't need special
 	// privileges anymore so lets drop to a normal user.  We also don't want to open 
 	// our logfiles as root if we can avoid it.  Once we've dropped, we'll 
@@ -482,14 +488,14 @@ int main(int argc,char *argv[]) {
 	if (globalregistry->fatal_condition)
 		CatchShutdown(-1);
 
-	// Register basic chain elements
+	// Register basic chain elements...  This is just instantiating a util class.
+	// Nothing else talks to it, so we don't have to care about following it
 	globalregistry->messagebus->InjectMessage("Inserting basic packet dissectors...",
 											  MSGFLAG_INFO);
-	globalregistry->packetchain->RegisterHandler(&kis_80211_dissector, NULL, 
-												 CHAINPOS_LLCDISSECT, -100);
-	globalregistry->packetcomp_map[PACK_COMP_80211] = 
-		globalregistry->packetchain->RegisterPacketComponent("80211_info");
-	
+	bid = new KisBuiltinDissector(globalregistry);
+	if (globalregistry->fatal_condition)
+		CatchShutdown(-1);
+
 	// Create the GPS server
 	globalregistry->messagebus->InjectMessage("Starting GPSD client...",
 											  MSGFLAG_INFO);
