@@ -240,6 +240,7 @@ enum kis_protocol_info_type {
     proto_ttls,
     proto_tls,
     proto_peap,
+	proto_eap_unknown,
     proto_isakmp,
     proto_pptp,
 };

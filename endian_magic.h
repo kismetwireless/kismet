@@ -79,5 +79,26 @@
         (uint64_t)(((uint64_t)(__x) & (uint64_t)0xff00000000000000ULL) >> 56) )); \
 })
 
+// Extract magic, also cribbed from tcpdump/ethereal
+#define kis_extract16(x) \
+	((uint16_t)((uint16_t)*((const uint8_t *)(x) + 0) << 8 | \
+ 	(uint16_t)*((const uint8_t *)(x) + 1))) 
+
+#define kis_extract32(x) \
+	((uint32_t)((uint32_t)*((const uint8_t *)(x) + 0) << 24 | \
+	((uint32_t)((uint32_t)*((const uint8_t *)(x) + 1) << 16 | \
+	((uint32_t)((uint32_t)*((const uint8_t *)(x) + 2) << 8 | \
+ 	(uint32_t)*((const uint8_t *)(x) + 3))) 
+
+#define kis_extract64(x) \
+	((uint64_t)((uint64_t)*((const uint8_t *)(x) + 0) << 56 | \
+	((uint64_t)((uint64_t)*((const uint8_t *)(x) + 1) << 48 | \
+	((uint64_t)((uint64_t)*((const uint8_t *)(x) + 2) << 40 | \
+	((uint64_t)((uint64_t)*((const uint8_t *)(x) + 3) << 32 | \
+	((uint64_t)((uint64_t)*((const uint8_t *)(x) + 4) << 24 | \
+	((uint64_t)((uint64_t)*((const uint8_t *)(x) + 5) << 16 | \
+	((uint64_t)((uint64_t)*((const uint8_t *)(x) + 6) << 8 | \
+ 	(uint64_t)*((const uint8_t *)(x) + 7))) 
+
 #endif
 

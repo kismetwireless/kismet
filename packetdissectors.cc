@@ -1061,6 +1061,69 @@ int KisBuiltinDissector::basicdata_dissector(kis_packet *in_pack) {
 
 	} // LLC_UI
 
+	if (packinfo->header_offset + LLC_UI_OFFSET + 1 + 
+		sizeof(DOT1X_PROTO) < chunk->length && 
+		memcmp(&(chunk->data[packinfo->header_offset + LLC_UI_OFFSET + 3]),
+			   DOT1X_PROTO, sizeof(DOT1X_PROTO)) == 0) {
+		// It's dot1x, is it LEAP?
+		//
+		// Make sure its an EAP socket
+		unsigned int offset = packinfo->header_offset + DOT1X_OFFSET;
+
+		if (offset + 4 >= chunk->length) {
+			delete datainfo;
+			return 0;
+		}
+
+		// Dot1x bits
+		uint8_t dot1x_version = chunk->data[offset];
+		uint8_t dot1x_type = chunk->data[offset + 1];
+		// uint16_t dot1x_length = kis_extract16(&(chunk->data[offset + 2]));
+
+		offset += EAP_OFFSET;
+
+		if (dot1x_version != 1 || dot1x_type != 0 || 
+			offset + 5 >= chunk->length) {
+			delete datainfo;
+			return 0;
+		}
+
+		// Eap bits
+		uint8_t eap_code = chunk->data[offset];
+		// uint8_t eap_id = chunk->data[offset + 1];
+		// uint16_t eap_length = kis_extract16(&(chunk->data[offset + 2]));
+		uint8_t eap_type = chunk->data[4];
+
+		switch (eap_type) {
+			case EAP_TYPE_LEAP:
+				datainfo->proto = proto_leap;
+				datainfo->field1 = eap_code;
+				break;
+			case EAP_TYPE_TLS:
+				datainfo->proto = proto_tls;
+				datainfo->field1 = eap_code;
+				break;
+			case EAP_TYPE_TTLS:
+				datainfo->proto = proto_ttls;
+				datainfo->field1 = eap_code;
+				break;
+			case EAP_TYPE_PEAP:
+				datainfo->proto = proto_peap;
+				datainfo->field1 = eap_code;
+				break;
+			default:
+				datainfo->proto = proto_eap_unknown;
+				break;
+		}
+
+		in_pack->insert(_PCM(PACK_COMP_BASICDATA), datainfo);
+		return 1;
+
+	}
+
+	// Trash the data if we didn't fill it in
+	delete(datainfo);
+
 	return 1;
 }
 
