@@ -1359,6 +1359,14 @@ int KisBuiltinDissector::basicdata_dissector(kis_packet *in_pack) {
 		memcpy(&(datainfo->ip_dest_addr.s_addr),
 			   &(chunk->data[header_offset + IP_OFFSET + 7]), 4);
 
+		datainfo->proto = proto_tcp;
+
+		if (datainfo->ip_source_port == PPTP_PORT || 
+			datainfo->ip_dest_port == PPTP_PORT) {
+			datainfo->proto = proto_pptp;
+			packinfo->cryptset |= crypt_pptp;
+		}
+
 		in_pack->insert(_PCM(PACK_COMP_BASICDATA), datainfo);
 		return 1;
 	} // TCP frame
