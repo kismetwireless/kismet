@@ -988,20 +988,22 @@ int KisBuiltinDissector::basicdata_dissector(kis_packet *in_pack) {
     if (packinfo->header_offset > chunk->length)
         return 0;
 
+	unsigned int header_offset = packinfo->header_offset;
+	
 	datainfo = new kis_data_packinfo;
 
-	if (chunk->length > packinfo->header_offset + LLC_UI_OFFSET + 
+	if (chunk->length > header_offset + LLC_UI_OFFSET + 
 		sizeof(PROBE_LLC_SIGNATURE) && 
-		memcmp(&(chunk->data[packinfo->header_offset]), LLC_UI_SIGNATURE,
+		memcmp(&(chunk->data[header_offset]), LLC_UI_SIGNATURE,
 			   sizeof(LLC_UI_SIGNATURE)) == 0) {
 		// Handle the batch of frames that fall under the LLC UI 0x3 frame
-		if (memcmp(&(chunk->data[packinfo->header_offset + LLC_UI_OFFSET]),
+		if (memcmp(&(chunk->data[header_offset + LLC_UI_OFFSET]),
 				   PROBE_LLC_SIGNATURE, sizeof(PROBE_LLC_SIGNATURE)) == 0) {
 
 			// Packets that look like netstumber probes...
-			if (packinfo->header_offset + NETSTUMBLER_OFFSET + 
+			if (header_offset + NETSTUMBLER_OFFSET + 
 				sizeof(NETSTUMBLER_322_SIGNATURE) < chunk->length && 
-				memcmp(&(chunk->data[packinfo->header_offset + NETSTUMBLER_OFFSET]),
+				memcmp(&(chunk->data[header_offset + NETSTUMBLER_OFFSET]),
 					   NETSTUMBLER_322_SIGNATURE, 
 					   sizeof(NETSTUMBLER_322_SIGNATURE)) == 0) {
 				_ALERT(netstumbler_aref, in_pack, packinfo,
@@ -1012,9 +1014,9 @@ int KisBuiltinDissector::basicdata_dissector(kis_packet *in_pack) {
 				return 1;
 			}
 
-			if (packinfo->header_offset + NETSTUMBLER_OFFSET + 
+			if (header_offset + NETSTUMBLER_OFFSET + 
 				sizeof(NETSTUMBLER_323_SIGNATURE) < chunk->length && 
-				memcmp(&(chunk->data[packinfo->header_offset + NETSTUMBLER_OFFSET]),
+				memcmp(&(chunk->data[header_offset + NETSTUMBLER_OFFSET]),
 					   NETSTUMBLER_323_SIGNATURE, 
 					   sizeof(NETSTUMBLER_323_SIGNATURE)) == 0) {
 				_ALERT(netstumbler_aref, in_pack, packinfo,
@@ -1025,9 +1027,9 @@ int KisBuiltinDissector::basicdata_dissector(kis_packet *in_pack) {
 				return 1;
 			}
 
-			if (packinfo->header_offset + NETSTUMBLER_OFFSET + 
+			if (header_offset + NETSTUMBLER_OFFSET + 
 				sizeof(NETSTUMBLER_330_SIGNATURE) < chunk->length && 
-				memcmp(&(chunk->data[packinfo->header_offset + NETSTUMBLER_OFFSET]),
+				memcmp(&(chunk->data[header_offset + NETSTUMBLER_OFFSET]),
 					   NETSTUMBLER_330_SIGNATURE, 
 					   sizeof(NETSTUMBLER_330_SIGNATURE)) == 0) {
 				_ALERT(netstumbler_aref, in_pack, packinfo,
@@ -1038,9 +1040,9 @@ int KisBuiltinDissector::basicdata_dissector(kis_packet *in_pack) {
 				return 1;
 			}
 
-			if (packinfo->header_offset + LUCENT_OFFSET + 
+			if (header_offset + LUCENT_OFFSET + 
 				sizeof(LUCENT_TEST_SIGNATURE) < chunk->length && 
-				memcmp(&(chunk->data[packinfo->header_offset + LUCENT_OFFSET]),
+				memcmp(&(chunk->data[header_offset + LUCENT_OFFSET]),
 					   LUCENT_TEST_SIGNATURE, 
 					   sizeof(LUCENT_TEST_SIGNATURE)) == 0) {
 				_ALERT(lucenttest_aref, in_pack, packinfo,
@@ -1060,14 +1062,14 @@ int KisBuiltinDissector::basicdata_dissector(kis_packet *in_pack) {
 
 	} // LLC_UI
 
-	if ((packinfo->header_offset + LLC_UI_OFFSET + 1 + 
+	if ((header_offset + LLC_UI_OFFSET + 1 + 
 		 sizeof(DOT1X_PROTO)) < chunk->length && 
-		memcmp(&(chunk->data[packinfo->header_offset + LLC_UI_OFFSET + 3]),
+		memcmp(&(chunk->data[header_offset + LLC_UI_OFFSET + 3]),
 			   DOT1X_PROTO, sizeof(DOT1X_PROTO)) == 0) {
 		// It's dot1x, is it LEAP?
 		//
 		// Make sure its an EAP socket
-		unsigned int offset = packinfo->header_offset + DOT1X_OFFSET;
+		unsigned int offset = header_offset + DOT1X_OFFSET;
 
 		// Dot1x bits
 		uint8_t dot1x_version = chunk->data[offset];
@@ -1092,18 +1094,22 @@ int KisBuiltinDissector::basicdata_dissector(kis_packet *in_pack) {
 			case EAP_TYPE_LEAP:
 				datainfo->proto = proto_leap;
 				datainfo->field1 = eap_code;
+				packinfo->cryptset |= crypt_leap;
 				break;
 			case EAP_TYPE_TLS:
 				datainfo->proto = proto_tls;
 				datainfo->field1 = eap_code;
+				packinfo->cryptset |= crypt_tls;
 				break;
 			case EAP_TYPE_TTLS:
 				datainfo->proto = proto_ttls;
 				datainfo->field1 = eap_code;
+				packinfo->cryptset |= crypt_ttls;
 				break;
 			case EAP_TYPE_PEAP:
 				datainfo->proto = proto_peap;
 				datainfo->field1 = eap_code;
+				packinfo->cryptset |= crypt_peap;
 				break;
 			default:
 				datainfo->proto = proto_eap_unknown;
@@ -1114,47 +1120,47 @@ int KisBuiltinDissector::basicdata_dissector(kis_packet *in_pack) {
 		return 1;
 	}
 
-	if (packinfo->header_offset + ARP_OFFSET + ARP_PACKET_SIZE +
+	if (header_offset + ARP_OFFSET + ARP_PACKET_SIZE +
 		sizeof(ARP_SIGNATURE) < chunk->length && 
-		memcmp(&(chunk->data[packinfo->header_offset + ARP_OFFSET]),
+		memcmp(&(chunk->data[header_offset + ARP_OFFSET]),
 			   ARP_SIGNATURE, sizeof(ARP_SIGNATURE)) == 0) {
 		// If we look like a ARP frame and we're big enough to be an arp 
 		// frame...
 		
 		datainfo->proto = proto_arp;
 		memcpy(&(datainfo->ip_source_addr.s_addr),
-			   &(chunk->data[packinfo->header_offset + 16]), 4);
+			   &(chunk->data[header_offset + 16]), 4);
 		in_pack->insert(_PCM(PACK_COMP_BASICDATA), datainfo);
 		return 1;
 	}
 
-	if (packinfo->header_offset + IP_OFFSET + IP_HEADER_SIZE +
+	if (header_offset + IP_OFFSET + IP_HEADER_SIZE +
 		sizeof(UDP_SIGNATURE) < chunk->length && 
-		memcmp(&(chunk->data[packinfo->header_offset + IP_OFFSET]),
+		memcmp(&(chunk->data[header_offset + IP_OFFSET]),
 			   UDP_SIGNATURE, sizeof(UDP_SIGNATURE)) == 0) {
 
 		// UDP frame...
 		datainfo->ip_source_port = 
-			kis_ntoh16(kis_extract16(&(chunk->data[packinfo->header_offset + 
+			kis_ntoh16(kis_extract16(&(chunk->data[header_offset + 
 									   UDP_OFFSET])));
 		datainfo->ip_dest_port = 
-			kis_ntoh16(kis_extract16(&(chunk->data[packinfo->header_offset + 
+			kis_ntoh16(kis_extract16(&(chunk->data[header_offset + 
 									   UDP_OFFSET + 2])));
 
 		memcpy(&(datainfo->ip_source_addr.s_addr),
-			   &(chunk->data[packinfo->header_offset + IP_OFFSET + 3]), 4);
+			   &(chunk->data[header_offset + IP_OFFSET + 3]), 4);
 		memcpy(&(datainfo->ip_dest_addr.s_addr),
-			   &(chunk->data[packinfo->header_offset + IP_OFFSET + 7]), 4);
+			   &(chunk->data[header_offset + IP_OFFSET + 7]), 4);
 
 		if (datainfo->ip_source_port == IAPP_PORT &&
 			datainfo->ip_dest_port == IAPP_PORT &&
-			(packinfo->header_offset + IAPP_OFFSET + 
+			(header_offset + IAPP_OFFSET + 
 			 IAPP_HEADER_SIZE) < chunk->length) {
 
 			uint8_t iapp_version = 
-				chunk->data[packinfo->header_offset + IAPP_OFFSET];
+				chunk->data[header_offset + IAPP_OFFSET];
 			uint8_t iapp_type =
-				chunk->data[packinfo->header_offset + IAPP_OFFSET + 1];
+				chunk->data[header_offset + IAPP_OFFSET + 1];
 
 			// If we can't understand the iapp version, bail and return the
 			// UDP frame we DID decode
@@ -1176,7 +1182,7 @@ int KisBuiltinDissector::basicdata_dissector(kis_packet *in_pack) {
 					break;
 			}
 
-			unsigned int pdu_offset = packinfo->header_offset + IAPP_OFFSET +
+			unsigned int pdu_offset = header_offset + IAPP_OFFSET +
 				IAPP_HEADER_SIZE;
 
 			while (pdu_offset + IAPP_PDUHEADER_SIZE < chunk->length) {
@@ -1242,12 +1248,12 @@ int KisBuiltinDissector::basicdata_dissector(kis_packet *in_pack) {
 
 		if ((datainfo->ip_source_port == ISAKMP_PORT ||
 			 datainfo->ip_dest_port == ISAKMP_PORT) &&
-			(packinfo->header_offset + ISAKMP_OFFSET + 
+			(header_offset + ISAKMP_OFFSET + 
 			 ISAKMP_PACKET_SIZE) < chunk->length) {
 			
 			datainfo->proto = proto_isakmp;
 			datainfo->field1 = 
-				chunk->data[packinfo->header_offset + ISAKMP_OFFSET + 4];
+				chunk->data[header_offset + ISAKMP_OFFSET + 4];
 
 			packinfo->cryptset |= crypt_isakmp;
 			
@@ -1256,14 +1262,14 @@ int KisBuiltinDissector::basicdata_dissector(kis_packet *in_pack) {
 
 		}
 
-		if ((packinfo->header_offset + DHCPD_OFFSET +
+		if ((header_offset + DHCPD_OFFSET +
 			 sizeof(DHCPD_SIGNATURE)) < chunk->length &&
-			memcmp(&(chunk->data[packinfo->header_offset + DHCPD_OFFSET]),
+			memcmp(&(chunk->data[header_offset + DHCPD_OFFSET]),
 				   DHCPD_SIGNATURE, sizeof(DHCPD_SIGNATURE)) == 0) {
 			datainfo->proto = proto_dhcp_offer;
 
 			// Now we go through the dhcp options until we find 1, 3, and 53
-			unsigned int offset = packinfo->header_offset + DHCPD_OFFSET + 252;
+			unsigned int offset = header_offset + DHCPD_OFFSET + 252;
 
 			while ((offset + 1) < chunk->length) {
 				if (chunk->data[offset] == 0x01) {
