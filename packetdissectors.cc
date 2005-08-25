@@ -1236,10 +1236,85 @@ int KisBuiltinDissector::basicdata_dissector(kis_packet *in_pack) {
 			}
 
 			datainfo->proto = proto_iapp;
+			in_pack->insert(_PCM(PACK_COMP_BASICDATA), datainfo);
+			return 1;
 		} // IAPP port
+
+		if ((packinfo->header_offset + DHCPD_OFFSET +
+			 sizeof(DHCPD_SIGNATURE)) < chunk->length &&
+			memcmp(&(chunk->data[packinfo->header_offset + DHCPD_OFFSET]),
+				   DHCPD_SIGNATURE, sizeof(DHCPD_SIGNATURE)) == 0) {
+			datainfo->proto = proto_dhcp_offer;
+
+			// Now we go through the dhcp options until we find 1, 3, and 53
+			unsigned int offset = packinfo->header_offset + DHCPD_OFFSET + 252;
+
+			while ((offset + 1) < chunk->length) {
+				if (chunk->data[offset] == 0x01) {
+					// netmask
+					// bail if we're a boring DHCP ack w/ no real content
+					if (chunk->data[offset + 2] == 0x00) {
+						datainfo->proto = proto_udp;
+						in_pack->insert(_PCM(PACK_COMP_BASICDATA), datainfo);
+						return 1;
+					}
+
+					// Bail if we're misformed
+					if (offset + 6 >= chunk->length) {
+						delete datainfo;
+						return 0;
+					}
+
+					memcpy(&(datainfo->ip_netmask_addr.s_addr), 
+						   &(chunk->data[offset + 2]), 4);
+				} else if (chunk->data[offset] == 0x03) {
+					// Gateway
+					if (chunk->data[offset + 2] == 0x00) {
+						datainfo->proto = proto_udp;
+						in_pack->insert(_PCM(PACK_COMP_BASICDATA), datainfo);
+						return 1;
+					}
+
+					// Bail if we're misformed
+					if (offset + 6 >= chunk->length) {
+						delete datainfo;
+						return 0;
+					}
+
+					memcpy(&(datainfo->ip_gateway_addr.s_addr), 
+						   &(chunk->data[offset + 2]), 4);
+				} else if (chunk->data[offset] == 0x35) {
+					// Offered addr
+					
+					// Boring
+					if (chunk->data[offset + 2] == 0x00) {
+						datainfo->proto = proto_udp;
+						in_pack->insert(_PCM(PACK_COMP_BASICDATA), datainfo);
+						return 1;
+					}
+
+					// Have to dig all the way into the bootp segment
+					
+					// Bail if we're misformed
+					if (offset + 32 >= chunk->length) {
+						delete datainfo;
+						return 0;
+					}
+
+					memcpy(&(datainfo->ip_dest_addr.s_addr), 
+						   &(chunk->data[offset + 28]), 4);
+				}
+
+				offset += chunk->data[offset + 1] + 2;
+			}
+
+			in_pack->insert(_PCM(PACK_COMP_BASICDATA), datainfo);
+			return 1;
+		} // DHCP
 
 		in_pack->insert(_PCM(PACK_COMP_BASICDATA), datainfo);
 		return 1;
+
 	} // UDP frame
 
 

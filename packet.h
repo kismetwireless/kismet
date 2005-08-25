@@ -253,6 +253,8 @@ public:
 		ip_dest_port = 0;
 		ip_source_addr.s_addr = 0;
 		ip_dest_addr.s_addr = 0;
+		ip_netmask_addr.s_addr = 0;
+		ip_gateway_addr.s_addr = 0;
 		field1 = 0;
 	}
 
@@ -265,6 +267,8 @@ public:
 	int ip_dest_port;
 	in_addr ip_source_addr;
 	in_addr ip_dest_addr;
+	in_addr ip_netmask_addr;
+	in_addr ip_gateway_addr;
 	kis_protocol_info_type ip_type;
 
 	// The two CDP fields we really care about for anything
