@@ -2,6 +2,7 @@ Aug 24 2005  devel  Added constants for IAPP/other data sizes
                     Added ARP ip dissector, generic IP dissector
                     Added IAPP dissector (untested)
                     Added DHCP dissector (untested)
+                    Added ISAKMP dissector (untested)
 Aug 23 2005  devel  Added 16/32/64 bit ptr extractor
                     Added EAP data detection (untested)
 Aug 22 2005  devel  Fixed opening tcpserver before channel child

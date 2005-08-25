@@ -116,6 +116,7 @@ const uint16_t IAPP_PORT = 2313;
 
 const uint16_t ISAKMP_PORT = 500;
 const uint8_t ISAKMP_OFFSET = UDP_OFFSET + 8;
+const unsigned int ISAKMP_PACKET_SIZE = 14;
 const uint8_t ISAKMP_EXCH_NONE = 0;
 const uint8_t ISAKMP_EXCH_BASE = 1;
 const uint8_t ISAKMP_EXCH_IDPROT = 2;

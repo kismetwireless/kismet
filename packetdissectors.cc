@@ -1240,6 +1240,22 @@ int KisBuiltinDissector::basicdata_dissector(kis_packet *in_pack) {
 			return 1;
 		} // IAPP port
 
+		if ((datainfo->ip_source_port == ISAKMP_PORT ||
+			 datainfo->ip_dest_port == ISAKMP_PORT) &&
+			(packinfo->header_offset + ISAKMP_OFFSET + 
+			 ISAKMP_PACKET_SIZE) < chunk->length) {
+			
+			datainfo->proto = proto_isakmp;
+			datainfo->field1 = 
+				chunk->data[packinfo->header_offset + ISAKMP_OFFSET + 4];
+
+			packinfo->cryptset |= crypt_isakmp;
+			
+			in_pack->insert(_PCM(PACK_COMP_BASICDATA), datainfo);
+			return 1;
+
+		}
+
 		if ((packinfo->header_offset + DHCPD_OFFSET +
 			 sizeof(DHCPD_SIGNATURE)) < chunk->length &&
 			memcmp(&(chunk->data[packinfo->header_offset + DHCPD_OFFSET]),
