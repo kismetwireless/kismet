@@ -990,14 +990,13 @@ int KisBuiltinDissector::basicdata_dissector(kis_packet *in_pack) {
 
 	datainfo = new kis_data_packinfo;
 
-	if (chunk->length > packinfo->header_offset + LLC_UI_OFFSET &&
+	if (chunk->length > packinfo->header_offset + LLC_UI_OFFSET + 
+		sizeof(PROBE_LLC_SIGNATURE) && 
 		memcmp(&(chunk->data[packinfo->header_offset]), LLC_UI_SIGNATURE,
 			   sizeof(LLC_UI_SIGNATURE)) == 0) {
 		// Handle the batch of frames that fall under the LLC UI 0x3 frame
-		if (packinfo->header_offset + LLC_UI_OFFSET + 
-			sizeof(PROBE_LLC_SIGNATURE) < chunk->length && 
-			memcmp(&(chunk->data[packinfo->header_offset + LLC_UI_OFFSET]),
-					 PROBE_LLC_SIGNATURE, sizeof(PROBE_LLC_SIGNATURE)) == 0) {
+		if (memcmp(&(chunk->data[packinfo->header_offset + LLC_UI_OFFSET]),
+				   PROBE_LLC_SIGNATURE, sizeof(PROBE_LLC_SIGNATURE)) == 0) {
 
 			// Packets that look like netstumber probes...
 			if (packinfo->header_offset + NETSTUMBLER_OFFSET + 
@@ -1061,19 +1060,14 @@ int KisBuiltinDissector::basicdata_dissector(kis_packet *in_pack) {
 
 	} // LLC_UI
 
-	if (packinfo->header_offset + LLC_UI_OFFSET + 1 + 
-		sizeof(DOT1X_PROTO) < chunk->length && 
+	if ((packinfo->header_offset + LLC_UI_OFFSET + 1 + 
+		 sizeof(DOT1X_PROTO)) < chunk->length && 
 		memcmp(&(chunk->data[packinfo->header_offset + LLC_UI_OFFSET + 3]),
 			   DOT1X_PROTO, sizeof(DOT1X_PROTO)) == 0) {
 		// It's dot1x, is it LEAP?
 		//
 		// Make sure its an EAP socket
 		unsigned int offset = packinfo->header_offset + DOT1X_OFFSET;
-
-		if (offset + 4 >= chunk->length) {
-			delete datainfo;
-			return 0;
-		}
 
 		// Dot1x bits
 		uint8_t dot1x_version = chunk->data[offset];
@@ -1083,7 +1077,7 @@ int KisBuiltinDissector::basicdata_dissector(kis_packet *in_pack) {
 		offset += EAP_OFFSET;
 
 		if (dot1x_version != 1 || dot1x_type != 0 || 
-			offset + 5 >= chunk->length) {
+			offset + EAP_PACKET_SIZE >= chunk->length) {
 			delete datainfo;
 			return 0;
 		}
@@ -1092,7 +1086,7 @@ int KisBuiltinDissector::basicdata_dissector(kis_packet *in_pack) {
 		uint8_t eap_code = chunk->data[offset];
 		// uint8_t eap_id = chunk->data[offset + 1];
 		// uint16_t eap_length = kis_extract16(&(chunk->data[offset + 2]));
-		uint8_t eap_type = chunk->data[4];
+		uint8_t eap_type = chunk->data[offset + 4];
 
 		switch (eap_type) {
 			case EAP_TYPE_LEAP:
@@ -1118,8 +1112,136 @@ int KisBuiltinDissector::basicdata_dissector(kis_packet *in_pack) {
 
 		in_pack->insert(_PCM(PACK_COMP_BASICDATA), datainfo);
 		return 1;
-
 	}
+
+	if (packinfo->header_offset + ARP_OFFSET + ARP_PACKET_SIZE +
+		sizeof(ARP_SIGNATURE) < chunk->length && 
+		memcmp(&(chunk->data[packinfo->header_offset + ARP_OFFSET]),
+			   ARP_SIGNATURE, sizeof(ARP_SIGNATURE)) == 0) {
+		// If we look like a ARP frame and we're big enough to be an arp 
+		// frame...
+		
+		datainfo->proto = proto_arp;
+		memcpy(&(datainfo->ip_source_addr.s_addr),
+			   &(chunk->data[packinfo->header_offset + 16]), 4);
+		in_pack->insert(_PCM(PACK_COMP_BASICDATA), datainfo);
+		return 1;
+	}
+
+	if (packinfo->header_offset + IP_OFFSET + IP_HEADER_SIZE +
+		sizeof(UDP_SIGNATURE) < chunk->length && 
+		memcmp(&(chunk->data[packinfo->header_offset + IP_OFFSET]),
+			   UDP_SIGNATURE, sizeof(UDP_SIGNATURE)) == 0) {
+
+		// UDP frame...
+		datainfo->ip_source_port = 
+			kis_ntoh16(kis_extract16(&(chunk->data[packinfo->header_offset + 
+									   UDP_OFFSET])));
+		datainfo->ip_dest_port = 
+			kis_ntoh16(kis_extract16(&(chunk->data[packinfo->header_offset + 
+									   UDP_OFFSET + 2])));
+
+		memcpy(&(datainfo->ip_source_addr.s_addr),
+			   &(chunk->data[packinfo->header_offset + IP_OFFSET + 3]), 4);
+		memcpy(&(datainfo->ip_dest_addr.s_addr),
+			   &(chunk->data[packinfo->header_offset + IP_OFFSET + 7]), 4);
+
+		if (datainfo->ip_source_port == IAPP_PORT &&
+			datainfo->ip_dest_port == IAPP_PORT &&
+			(packinfo->header_offset + IAPP_OFFSET + 
+			 IAPP_HEADER_SIZE) < chunk->length) {
+
+			uint8_t iapp_version = 
+				chunk->data[packinfo->header_offset + IAPP_OFFSET];
+			uint8_t iapp_type =
+				chunk->data[packinfo->header_offset + IAPP_OFFSET + 1];
+
+			// If we can't understand the iapp version, bail and return the
+			// UDP frame we DID decode
+			if (iapp_version != 1) {
+				in_pack->insert(_PCM(PACK_COMP_BASICDATA), datainfo);
+				return 1;
+			}
+
+			// Same again -- bail on UDP if we can't make sense of this
+			switch (iapp_type) {
+				case iapp_announce_request:
+				case iapp_announce_response:
+				case iapp_handover_request:
+				case iapp_handover_response:
+					break;
+				default:
+					in_pack->insert(_PCM(PACK_COMP_BASICDATA), datainfo);
+					return 1;
+					break;
+			}
+
+			unsigned int pdu_offset = packinfo->header_offset + IAPP_OFFSET +
+				IAPP_HEADER_SIZE;
+
+			while (pdu_offset + IAPP_PDUHEADER_SIZE < chunk->length) {
+				uint8_t *pdu = &(chunk->data[pdu_offset]);
+				uint8_t pdu_type = pdu[0];
+				uint8_t pdu_len = pdu[1];
+
+				// If we have a short/malformed PDU frame, bail
+				if ((pdu_offset + 3 + pdu_len) >= chunk->length) {
+					delete datainfo;
+					return 0;
+				}
+
+				switch (pdu_type) {
+					case iapp_pdu_ssid:
+						if (pdu_len > SSID_SIZE)
+							break;
+
+						packinfo->ssid = 
+							MungeToPrintable((char *) &(pdu[3]), pdu_len);
+						break;
+					case iapp_pdu_bssid:
+						if (pdu_len != MAC_LEN)
+							break;
+
+						packinfo->bssid_mac = mac_addr(&(pdu[3]));
+						break;
+					case iapp_pdu_capability:
+						if (pdu_len != 1)
+							break;
+						if ((pdu[3] & iapp_cap_wep))
+							packinfo->cryptset |= crypt_wep;
+						break;
+					case iapp_pdu_channel:
+						if (pdu_len != 1)
+							break;
+						packinfo->channel = (int) pdu[3];
+						break;
+					case iapp_pdu_beaconint:
+						if (pdu_len != 2)
+							break;
+						packinfo->beacon_interval = (int) ((pdu[3] << 8) | pdu[4]);
+						break;
+					case iapp_pdu_oldbssid:
+					case iapp_pdu_msaddr:
+					case iapp_pdu_announceint:
+					case iapp_pdu_hotimeout:
+					case iapp_pdu_messageid:
+					case iapp_pdu_phytype:
+					case iapp_pdu_regdomain:
+					case iapp_pdu_ouiident:
+					case iapp_pdu_authinfo:
+					default:
+						break;
+				}
+				pdu += pdu_len + 3;
+			}
+
+			datainfo->proto = proto_iapp;
+		} // IAPP port
+
+		in_pack->insert(_PCM(PACK_COMP_BASICDATA), datainfo);
+		return 1;
+	} // UDP frame
+
 
 	// Trash the data if we didn't fill it in
 	delete(datainfo);

@@ -35,10 +35,10 @@ const uint8_t NETS_MAC[] = {0x01, 0x60, 0x1d, 0x00, 0x01, 0x00};
 const uint8_t LLC_UI_SIGNATURE[] = {0xAA, 0xAA, 0x03};
 
 // Offset for the start of the LLC frame
-const int LLC_OFFSET = 0;
+const unsigned int LLC_OFFSET = 0;
 
 // Offset for all LLC-fragment protocols
-const int LLC_UI_OFFSET = 3;
+const unsigned int LLC_UI_OFFSET = 3;
 
 // LLC packets that look like probe info (netstumbler and lucent)
 const uint8_t PROBE_LLC_SIGNATURE[] = {0x00, 0x60, 0x1D};
@@ -67,8 +67,10 @@ const uint8_t RSN_OUI[] = {0x00, 0x0F, 0xAC};
 
 const uint8_t DOT1X_PROTO[] = {0x88, 0x8e};
 const uint8_t DOT1X_OFFSET = LLC_UI_OFFSET + 5;
+const uint8_t DOT1X_HEADER_SIZE = 4;
 
 const uint8_t EAP_OFFSET = 4;
+const uint8_t EAP_PACKET_SIZE = 5;
 
 const uint8_t EAP_CODE_REQUEST = 1;
 const uint8_t EAP_CODE_RESPONSE = 2;
@@ -81,18 +83,20 @@ const uint8_t EAP_TYPE_PEAP = 25;
 
 
 const uint8_t ARP_SIGNATURE[] = {0x08, 0x06};
-const int ARP_OFFSET = 6;
+const unsigned int ARP_OFFSET = 6;
+const uint8_t ARP_PACKET_SIZE = 30;
 
 const uint8_t DHCPD_SIGNATURE[] = {0xFF, 0xFF, 0xFF, 0xFF, 0x00, 0x43, 0x00, 0x44};
-const int DHCPD_OFFSET = 24;
+const unsigned int DHCPD_OFFSET = 24;
 
-const int IP_OFFSET = 17;
+const unsigned int IP_OFFSET = 17;
+const uint8_t IP_HEADER_SIZE = 11;
 
 const uint8_t UDP_SIGNATURE[] = {0x11};
-const int UDP_OFFSET = 28;
+const unsigned int UDP_OFFSET = 28;
 
 const uint8_t TCP_SIGNATURE[] = {0x06};
-const int TCP_OFFSET = 28;
+const unsigned int TCP_OFFSET = 28;
 
 const uint8_t NETBIOS_TCP_OFFSET = 204;
 const uint8_t NETBIOS_OFFSET = 133;
@@ -104,7 +108,10 @@ const uint8_t NETBIOS_SIGNATURE[] = {0xF0, 0xF0, 0x03};
 const uint8_t IPX_SIGNATURE[] = {0xE0, 0xE0, 0x03};
 
 // IAPP
-const int IAPP_OFFSET = 36;
+const unsigned int IAPP_OFFSET = 36;
+const uint8_t IAPP_HEADER_SIZE = 2;
+const uint8_t IAPP_PDUHEADER_SIZE = 3;
+
 const uint16_t IAPP_PORT = 2313;
 
 const uint16_t ISAKMP_PORT = 500;
