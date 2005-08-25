@@ -97,6 +97,7 @@ const unsigned int UDP_OFFSET = 28;
 
 const uint8_t TCP_SIGNATURE[] = {0x06};
 const unsigned int TCP_OFFSET = 28;
+const unsigned int TCP_HEADER_SIZE = 11;
 
 const uint8_t NETBIOS_TCP_OFFSET = 204;
 const uint8_t NETBIOS_OFFSET = 133;

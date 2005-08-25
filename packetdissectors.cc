@@ -1120,8 +1120,8 @@ int KisBuiltinDissector::basicdata_dissector(kis_packet *in_pack) {
 		return 1;
 	}
 
-	if (header_offset + ARP_OFFSET + ARP_PACKET_SIZE +
-		sizeof(ARP_SIGNATURE) < chunk->length && 
+	if (header_offset + kismax(20, ARP_OFFSET + ARP_PACKET_SIZE) < chunk->length && 
+		header_offset + ARP_OFFSET + sizeof(ARP_SIGNATURE) < chunk->length &&
 		memcmp(&(chunk->data[header_offset + ARP_OFFSET]),
 			   ARP_SIGNATURE, sizeof(ARP_SIGNATURE)) == 0) {
 		// If we look like a ARP frame and we're big enough to be an arp 
@@ -1134,8 +1134,9 @@ int KisBuiltinDissector::basicdata_dissector(kis_packet *in_pack) {
 		return 1;
 	}
 
-	if (header_offset + IP_OFFSET + IP_HEADER_SIZE +
-		sizeof(UDP_SIGNATURE) < chunk->length && 
+	if (header_offset + kismax(UDP_OFFSET + 4, 
+							   IP_OFFSET + 11) < chunk->length && 
+		header_offset + IP_OFFSET + sizeof(TCP_SIGNATURE) < chunk->length &&
 		memcmp(&(chunk->data[header_offset + IP_OFFSET]),
 			   UDP_SIGNATURE, sizeof(UDP_SIGNATURE)) == 0) {
 
@@ -1339,6 +1340,28 @@ int KisBuiltinDissector::basicdata_dissector(kis_packet *in_pack) {
 
 	} // UDP frame
 
+	if (header_offset + kismax(TCP_OFFSET + 4, 
+							   IP_OFFSET + TCP_HEADER_SIZE) < chunk->length && 
+		header_offset + IP_OFFSET + sizeof(TCP_SIGNATURE) < chunk->length &&
+		memcmp(&(chunk->data[header_offset + IP_OFFSET]),
+			   TCP_SIGNATURE, sizeof(TCP_SIGNATURE)) == 0) {
+
+		// TCP frame...
+		datainfo->ip_source_port = 
+			kis_ntoh16(kis_extract16(&(chunk->data[header_offset + 
+									   TCP_OFFSET])));
+		datainfo->ip_dest_port = 
+			kis_ntoh16(kis_extract16(&(chunk->data[header_offset + 
+									   TCP_OFFSET + 2])));
+
+		memcpy(&(datainfo->ip_source_addr.s_addr),
+			   &(chunk->data[header_offset + IP_OFFSET + 3]), 4);
+		memcpy(&(datainfo->ip_dest_addr.s_addr),
+			   &(chunk->data[header_offset + IP_OFFSET + 7]), 4);
+
+		in_pack->insert(_PCM(PACK_COMP_BASICDATA), datainfo);
+		return 1;
+	} // TCP frame
 
 	// Trash the data if we didn't fill it in
 	delete(datainfo);
