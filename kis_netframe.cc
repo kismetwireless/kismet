@@ -91,11 +91,6 @@ char *CISCO_fields_text[] = {
     NULL
 };
 
-char *WEPKEY_fields_text[] = {
-    "origin", "bssid", "key", "encrypted", "failed",
-    NULL
-};
-
 char *CARD_fields_text[] = {
     "interface", "type", "username", "channel", "id", "packets", "hopping",
     NULL
@@ -404,50 +399,6 @@ int Protocol_STRING(PROTO_PARMS) {
     return 1;
 }
 
-// wep keys.  data = wep_key_info
-int Protocol_WEPKEY(PROTO_PARMS) {
-    wep_key_info *winfo = (wep_key_info *) data;
-    char wdstr[10];
-
-    for (unsigned int x = 0; x < field_vec->size(); x++) {
-        switch ((WEPKEY_fields) (*field_vec)[x]) {
-        case WEPKEY_origin:
-            if (winfo->fragile == 0)
-                out_string += "0";
-            else
-                out_string += "1";
-            break;
-        case WEPKEY_bssid:
-            out_string += winfo->bssid.Mac2String();
-            break;
-        case WEPKEY_key:
-            for (unsigned int kpos = 0; kpos < WEPKEY_MAX && kpos < winfo->len; kpos++) {
-                snprintf(wdstr, 3, "%02X", (uint8_t) winfo->key[kpos]);
-                out_string += wdstr;
-                if (kpos < (WEPKEY_MAX - 1) && kpos < (winfo->len - 1))
-                    out_string += ":";
-            }
-            break;
-        case WEPKEY_decrypted:
-            snprintf(wdstr, 10, "%d", winfo->decrypted);
-            out_string += wdstr;
-            break;
-        case WEPKEY_failed:
-            snprintf(wdstr, 10, "%d", winfo->failed);
-            out_string += wdstr;
-            break;
-        default:
-            out_string = "Unknown field requested.";
-            return -1;
-            break;
-        }
-
-        out_string += " ";
-    }
-
-    return 1;
-}
-
 int Protocol_CARD(PROTO_PARMS) {
     meta_packsource *csrc = (meta_packsource *) data;
     char tmp[32];
@@ -710,107 +661,6 @@ int Clicmd_RESUME(CLIENT_PARMS) {
     return 1;
 }
 
-int Clicmd_LISTWEPKEYS(CLIENT_PARMS) {
-    if (globalreg->client_wepkey_allowed == 0) {
-        snprintf(errstr, 1024, "Server does not allow clients to fetch keys");
-        return -1;
-    }
-
-    if (globalreg->bssid_wep_map.size() == 0) {
-        snprintf(errstr, 1024, "Server has no WEP keys");
-        return -1;
-    }
-
-    int wepkey_ref = globalreg->kisnetserver->FetchProtocolRef("WEPKEY");
-
-    if (wepkey_ref < 0) {
-        snprintf(errstr, 1024, "Unable to find WEPKEY protocol");
-        return -1;
-    }
-    
-    for (macmap<wep_key_info *>::iterator wkitr = globalreg->bssid_wep_map.begin();
-         wkitr != globalreg->bssid_wep_map.end(); wkitr++) {
-        globalreg->kisnetserver->SendToClient(in_clid, wepkey_ref, 
-											  (void *) wkitr->second, NULL);
-    }
-
-    return 1;
-}
-
-int Clicmd_ADDWEPKEY(CLIENT_PARMS) {
-    if (parsedcmdline->size() != 1) {
-        snprintf(errstr, 1024, "Illegal addwepkey request");
-        return -1;
-    }
-
-    vector<string> keyvec = StrTokenize((*parsedcmdline)[1].word, ",");
-    if (keyvec.size() != 2) {
-        snprintf(errstr, 1024, "Illegal addwepkey request");
-        return -1;
-    }
-
-    wep_key_info *winfo = new wep_key_info;
-    winfo->fragile = 1;
-    winfo->bssid = keyvec[0].c_str();
-
-    if (winfo->bssid.error) {
-        snprintf(errstr, 1024, "Illegal addwepkey bssid");
-        return -1;
-    }
-
-    unsigned char key[WEPKEY_MAX];
-    int len = Hex2UChar((unsigned char *) keyvec[1].c_str(), key);
-
-    winfo->len = len;
-    memcpy(winfo->key, key, sizeof(unsigned char) * WEPKEY_MAX);
-
-    // Replace exiting ones
-    if (globalreg->bssid_wep_map.find(winfo->bssid) != globalreg->bssid_wep_map.end())
-        delete globalreg->bssid_wep_map[winfo->bssid];
-
-    globalreg->bssid_wep_map.insert(winfo->bssid, winfo);
-
-    snprintf(errstr, 1024, "Added key %s length %d for BSSID %s",
-             (*parsedcmdline)[0].word.c_str(), len, winfo->bssid.Mac2String().c_str());
-
-    globalreg->messagebus->InjectMessage(errstr, MSGFLAG_INFO);
-
-    return 1;
-}
-
-int Clicmd_DELWEPKEY(CLIENT_PARMS) {
-    if (globalreg->client_wepkey_allowed == 0) {
-        snprintf(errstr, 1024, "Server does not allow clients to modify keys");
-        return -1;
-    }
-
-    if (parsedcmdline->size() != 1) {
-        snprintf(errstr, 1024, "Illegal delwepkey command");
-        return -1;
-    }
-
-    mac_addr bssid_mac = (*parsedcmdline)[0].word.c_str();
-
-    if (bssid_mac.error) {
-        snprintf(errstr, 1024, "Illegal delwepkey bssid");
-        return -1;
-    }
-
-    if (globalreg->bssid_wep_map.find(bssid_mac) == globalreg->bssid_wep_map.end()) {
-        snprintf(errstr, 1024, "Unknown delwepkey bssid");
-        return -1;
-    }
-
-    delete globalreg->bssid_wep_map[bssid_mac];
-    globalreg->bssid_wep_map.erase(bssid_mac);
-
-    snprintf(errstr, 1024, "Deleted key for BSSID %s", 
-             bssid_mac.Mac2String().c_str());
-    globalreg->messagebus->InjectMessage(errstr, MSGFLAG_INFO);
-
-    return 1;
-}
-
 void KisNetframe_MessageClient::ProcessMessage(string in_msg, int in_flags) {
     char msg[1024];
 
@@ -982,8 +832,6 @@ KisNetFramework::KisNetFramework(GlobalRegistry *in_globalreg) {
 	globalreg->netproto_map[PROTO_REF_STRING] =
 		RegisterProtocol("STRING", 0, 0, STRING_fields_text, 
 						 &Protocol_STRING, NULL);
-	globalreg->netproto_map[PROTO_REF_WEPKEY] =
-		RegisterProtocol("WEPKEY", 0, 0, WEPKEY_fields_text, &Protocol_WEPKEY, NULL);
 
     // Kismet builtin client commands
     RegisterClientCommand("CAPABILITY", &Clicmd_CAPABILITY);

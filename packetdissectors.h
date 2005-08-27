@@ -34,6 +34,7 @@
 
 #include "globalregistry.h"
 #include "packetchain.h"
+#include "macaddr.h"
 
 /*
  * Basic built-in Kismet dissectors that handle ieee80211 dissection and
@@ -48,6 +49,22 @@ int kis_80211_dissector(CHAINCALL_PARMS);
 int kis_turbocell_dissector(CHAINCALL_PARMS);
 int kis_data_dissector(CHAINCALL_PARMS);
 
+// Basic decryptor hooks
+int kis_wep_decryptor(CHAINCALL_PARMS);
+
+// Basic mangler hooks
+int kis_wep_mangler(CHAINCALL_PARMS);
+
+// Wep keys
+typedef struct {
+    int fragile;
+    mac_addr bssid;
+    unsigned char key[WEPKEY_MAX];
+    unsigned int len;
+    unsigned int decrypted;
+    unsigned int failed;
+} wep_key_info;
+
 class KisBuiltinDissector {
 public:
 	KisBuiltinDissector();
@@ -56,6 +73,9 @@ public:
 
 	int ieee80211_dissector(kis_packet *in_pack);
 	int basicdata_dissector(kis_packet *in_pack);
+
+	int wep_data_decryptor(kis_packet *in_pack);
+	int wep_data_mangler(kis_packet *in_pack);
 
 	int GetIEEETagOffsets(unsigned int init_offset, kis_datachunk *in_chunk,
 						  map<int, vector<int> > *tag_cache_map);
@@ -70,6 +90,8 @@ protected:
 	int nullproberesp_aref;
 	int lucenttest_aref;
 
+	int client_wepkey_allowed;
+	macmap<wep_key_info *> wepkeys;
 };
 
 #endif

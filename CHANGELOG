@@ -1,3 +1,5 @@
+Aug 26 2005  devel  Moved wepkey loading code and network protocols into 
+                     packetdissectors.cc/kisbuiltindissector
 Aug 25 2005  devel  Data dissector cleanup, merged packinfo crypset into data
 Aug 24 2005  devel  Added constants for IAPP/other data sizes
                     Added ARP ip dissector, generic IP dissector

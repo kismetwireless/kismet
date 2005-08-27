@@ -48,64 +48,6 @@ Packetchain::Packetchain() {
 Packetchain::Packetchain(GlobalRegistry *in_globalreg) {
     globalreg = in_globalreg;
     next_componentid = 1;
-	char errstr[1024];
-
-    // Convert the WEP mappings to our real map
-    vector<string> raw_wepmap_vec;
-    raw_wepmap_vec = globalreg->kismet_config->FetchOptVec("wepkey");
-    for (size_t rwvi = 0; rwvi < raw_wepmap_vec.size(); rwvi++) {
-        string wepline = raw_wepmap_vec[rwvi];
-
-        size_t rwsplit = wepline.find(",");
-        if (rwsplit == string::npos) {
-            globalreg->messagebus->InjectMessage("Malformed 'wepkey' option in the "
-												 "config file", MSGFLAG_FATAL);
-			globalreg->fatal_condition = 1;
-			return;
-        }
-
-        mac_addr bssid_mac = wepline.substr(0, rwsplit).c_str();
-
-        if (bssid_mac.error == 1) {
-            globalreg->messagebus->InjectMessage("Malformed 'wepkey' option in the "
-												 "config file", MSGFLAG_FATAL);
-			globalreg->fatal_condition = 1;
-			return;
-        }
-
-        string rawkey = wepline.substr(rwsplit + 1, wepline.length() - (rwsplit + 1));
-
-        unsigned char key[WEPKEY_MAX];
-        int len = Hex2UChar((unsigned char *) rawkey.c_str(), key);
-
-        if (len != 5 && len != 13 && len != 16) {
-            snprintf(errstr, STATUS_MAX, "Invalid key '%s' length %d in a wepkey "
-					 "option in the config file.\n", rawkey.c_str(), len);
-			globalreg->messagebus->InjectMessage(errstr, MSGFLAG_FATAL);
-			globalreg->fatal_condition = 1;
-			return;
-        }
-
-        wep_key_info *keyinfo = new wep_key_info;
-        keyinfo->bssid = bssid_mac;
-        keyinfo->fragile = 0;
-        keyinfo->decrypted = 0;
-        keyinfo->failed = 0;
-        keyinfo->len = len;
-        memcpy(keyinfo->key, key, sizeof(unsigned char) * WEPKEY_MAX);
-
-        globalreg->bssid_wep_map.insert(bssid_mac, keyinfo);
-
-        snprintf(errstr, STATUS_MAX, "Using key %s length %d for BSSID %s",
-                rawkey.c_str(), len, bssid_mac.Mac2String().c_str());
-        globalreg->messagebus->InjectMessage(errstr, MSGFLAG_INFO);
-    }
-
-    if (globalreg->kismet_config->FetchOpt("allowkeytransmit") == "true") {
-        globalreg->messagebus->InjectMessage("Allowing clients to fetch "
-												  "WEP keys", MSGFLAG_INFO);
-        globalreg->client_wepkey_allowed = 1;
-    }
 }
 
 int Packetchain::RegisterPacketComponent(string in_component) {

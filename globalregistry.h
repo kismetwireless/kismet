@@ -98,16 +98,6 @@ class Dumpfile;
 // Send a msg via gloablreg msgbus
 #define _MSG(x, y)	globalreg->messagebus->InjectMessage((x), (y))
 
-// Info from the config file about the wep keys to try
-typedef struct {
-    int fragile;
-    mac_addr bssid;
-    unsigned char key[WEPKEY_MAX];
-    unsigned int len;
-    unsigned int decrypted;
-    unsigned int failed;
-} wep_key_info;
-
 // Global registry of references to tracker objects and preferences.  This 
 // should supplant the masses of globals and externs we'd otherwise need.
 // 
@@ -177,11 +167,6 @@ public:
     mac_addr broadcast_mac;
 
     int alert_backlog;
-
-	// wep key info.  Someone else needs to fill this in
-	macmap<wep_key_info *> bssid_wep_map;
-	// Do we allow clients to get wepkeys?
-	int client_wepkey_allowed;
 
     // Packet component references we use internally and don't want to keep looking up
 	int packetcomp_map[PACK_COMP_MAX];

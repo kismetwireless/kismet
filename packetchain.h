@@ -119,11 +119,6 @@ protected:
     vector<Packetchain::pc_link *> datadissect_chain;
     vector<Packetchain::pc_link *> classifier_chain;
     vector<Packetchain::pc_link *> logging_chain;
-
-	// WEP key map for decrypting packets.  Not sure I like it here but what
-	// the hell.
-	macmap<wep_key_info *> bssid_wep_map;
-
 };
 
 #endif
