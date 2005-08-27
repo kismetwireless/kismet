@@ -114,109 +114,6 @@ int clicmd_DELWEPKEY_hook(CLIENT_PARMS) {
 							   parsedcmdline, auxptr);
 }
 
-#if 0
-
-int Clicmd_LISTWEPKEYS(CLIENT_PARMS) {
-    if (globalreg->client_wepkey_allowed == 0) {
-        snprintf(errstr, 1024, "Server does not allow clients to fetch keys");
-        return -1;
-    }
-
-    if (globalreg->bssid_wep_map.size() == 0) {
-        snprintf(errstr, 1024, "Server has no WEP keys");
-        return -1;
-    }
-
-    int wepkey_ref = globalreg->kisnetserver->FetchProtocolRef("WEPKEY");
-
-    if (wepkey_ref < 0) {
-        snprintf(errstr, 1024, "Unable to find WEPKEY protocol");
-        return -1;
-    }
-    
-    for (macmap<wep_key_info *>::iterator wkitr = globalreg->bssid_wep_map.begin();
-         wkitr != globalreg->bssid_wep_map.end(); wkitr++) {
-        globalreg->kisnetserver->SendToClient(in_clid, wepkey_ref, 
-											  (void *) wkitr->second, NULL);
-    }
-
-    return 1;
-}
-
-int Clicmd_ADDWEPKEY(CLIENT_PARMS) {
-    if (parsedcmdline->size() != 1) {
-        snprintf(errstr, 1024, "Illegal addwepkey request");
-        return -1;
-    }
-
-    vector<string> keyvec = StrTokenize((*parsedcmdline)[1].word, ",");
-    if (keyvec.size() != 2) {
-        snprintf(errstr, 1024, "Illegal addwepkey request");
-        return -1;
-    }
-
-    wep_key_info *winfo = new wep_key_info;
-    winfo->fragile = 1;
-    winfo->bssid = keyvec[0].c_str();
-
-    if (winfo->bssid.error) {
-        snprintf(errstr, 1024, "Illegal addwepkey bssid");
-        return -1;
-    }
-
-    unsigned char key[WEPKEY_MAX];
-    int len = Hex2UChar((unsigned char *) keyvec[1].c_str(), key);
-
-    winfo->len = len;
-    memcpy(winfo->key, key, sizeof(unsigned char) * WEPKEY_MAX);
-
-    // Replace exiting ones
-    if (globalreg->bssid_wep_map.find(winfo->bssid) != globalreg->bssid_wep_map.end())
-        delete globalreg->bssid_wep_map[winfo->bssid];
-
-    globalreg->bssid_wep_map.insert(winfo->bssid, winfo);
-
-    snprintf(errstr, 1024, "Added key %s length %d for BSSID %s",
-             (*parsedcmdline)[0].word.c_str(), len, winfo->bssid.Mac2String().c_str());
-
-    globalreg->messagebus->InjectMessage(errstr, MSGFLAG_INFO);
-
-    return 1;
-}
-
-int Clicmd_DELWEPKEY(CLIENT_PARMS) {
-    if (globalreg->client_wepkey_allowed == 0) {
-        snprintf(errstr, 1024, "Server does not allow clients to modify keys");
-        return -1;
-    }
-
-    if (parsedcmdline->size() != 1) {
-        snprintf(errstr, 1024, "Illegal delwepkey command");
-        return -1;
-    }
-
-    mac_addr bssid_mac = (*parsedcmdline)[0].word.c_str();
-
-    if (bssid_mac.error) {
-        snprintf(errstr, 1024, "Illegal delwepkey bssid");
-        return -1;
-    }
-
-    if (globalreg->bssid_wep_map.find(bssid_mac) == globalreg->bssid_wep_map.end()) {
-        snprintf(errstr, 1024, "Unknown delwepkey bssid");
-        return -1;
-    }
-
-    delete globalreg->bssid_wep_map[bssid_mac];
-    globalreg->bssid_wep_map.erase(bssid_mac);
-
-    snprintf(errstr, 1024, "Deleted key for BSSID %s", 
-             bssid_mac.Mac2String().c_str());
-    globalreg->messagebus->InjectMessage(errstr, MSGFLAG_INFO);
-
-    return 1;
-}
-#endif
 
 // CRC32 index for verifying WEP - cribbed from ethereal
 static const uint32_t wep_crc32_table[256] = {
@@ -331,12 +228,19 @@ KisBuiltinDissector::KisBuiltinDissector(GlobalRegistry *in_globalreg) {
 	lucenttest_aref =
 		globalreg->alertracker->ActivateConfiguredAlert("LUCENTTEST");
 
-	// Register network protocols for WEP key transfer
-#if 0
-	_NPM(PROTO_REF_WEPKEY) = 
-		globalreg->RegisterProtocol("WEPKEY", 0, 0, WEPKEY_fields_text, 
-									&Protocol_WEPKEY, NULL);
-#endif
+	// Register network protocols for WEP key transfer commands
+	wepkey_pref =
+		globalreg->kisnetserver->RegisterProtocol("WEPKEY", 0, 0, WEPKEY_fields_text,
+												  &proto_WEPKEY, NULL);
+	globalreg->kisnetserver->RegisterClientCommand("LISTWEPKEYS", 
+												   clicmd_LISTWEPKEYS_hook,
+												   this);
+	globalreg->kisnetserver->RegisterClientCommand("ADDWEPKEY", 
+												   clicmd_ADDWEPKEY_hook,
+												   this);
+	globalreg->kisnetserver->RegisterClientCommand("DELWEPKEY", 
+												   clicmd_DELWEPKEY_hook,
+												   this);
 
     // Convert the WEP mappings to our real map
     vector<string> raw_wepmap_vec;
@@ -1555,15 +1459,140 @@ int KisBuiltinDissector::basicdata_dissector(kis_packet *in_pack) {
 	return 1;
 }
 
+#if 0
+
+int Clicmd_DELWEPKEY(CLIENT_PARMS) {
+    if (globalreg->client_wepkey_allowed == 0) {
+        snprintf(errstr, 1024, "Server does not allow clients to modify keys");
+        return -1;
+    }
+
+    if (parsedcmdline->size() != 1) {
+        snprintf(errstr, 1024, "Illegal delwepkey command");
+        return -1;
+    }
+
+    mac_addr bssid_mac = (*parsedcmdline)[0].word.c_str();
+
+    if (bssid_mac.error) {
+        snprintf(errstr, 1024, "Illegal delwepkey bssid");
+        return -1;
+    }
+
+    if (globalreg->bssid_wep_map.find(bssid_mac) == globalreg->bssid_wep_map.end()) {
+        snprintf(errstr, 1024, "Unknown delwepkey bssid");
+        return -1;
+    }
+
+    delete globalreg->bssid_wep_map[bssid_mac];
+    globalreg->bssid_wep_map.erase(bssid_mac);
+
+    snprintf(errstr, 1024, "Deleted key for BSSID %s", 
+             bssid_mac.Mac2String().c_str());
+    globalreg->messagebus->InjectMessage(errstr, MSGFLAG_INFO);
+
+    return 1;
+}
+#endif
+
 int KisBuiltinDissector::cmd_listwepkeys(CLIENT_PARMS) {
-	return 0;
+    if (client_wepkey_allowed == 0) {
+        snprintf(errstr, 1024, "Server does not allow clients to fetch keys");
+        return -1;
+    }
+
+    if (wepkeys.size() == 0) {
+        snprintf(errstr, 1024, "Server has no WEP keys");
+        return -1;
+    }
+
+    if (wepkey_pref < 0) {
+        snprintf(errstr, 1024, "Unable to find WEPKEY protocol");
+        return -1;
+    }
+    
+    for (macmap<wep_key_info *>::iterator wkitr = wepkeys.begin(); 
+		 wkitr != wepkeys.end(); wkitr++) {
+        globalreg->kisnetserver->SendToClient(in_clid, wepkey_pref, 
+											  (void *) wkitr->second, NULL);
+    }
+
+    return 1;
 }
 
 int KisBuiltinDissector::cmd_addwepkey(CLIENT_PARMS) {
-	return 0;
+    if (parsedcmdline->size() != 1) {
+        snprintf(errstr, 1024, "Illegal addwepkey request");
+        return -1;
+    }
+
+    vector<string> keyvec = StrTokenize((*parsedcmdline)[1].word, ",");
+    if (keyvec.size() != 2) {
+        snprintf(errstr, 1024, "Illegal addwepkey request");
+        return -1;
+    }
+
+    wep_key_info *winfo = new wep_key_info;
+    winfo->fragile = 1;
+    winfo->bssid = keyvec[0].c_str();
+
+    if (winfo->bssid.error) {
+        snprintf(errstr, 1024, "Illegal addwepkey bssid");
+        return -1;
+    }
+
+    unsigned char key[WEPKEY_MAX];
+    int len = Hex2UChar((unsigned char *) keyvec[1].c_str(), key);
+
+    winfo->len = len;
+    memcpy(winfo->key, key, sizeof(unsigned char) * WEPKEY_MAX);
+
+    // Replace exiting ones
+	if (wepkeys.find(winfo->bssid) != wepkeys.end())
+		delete wepkeys[winfo->bssid];
+
+	wepkeys.insert(winfo->bssid, winfo);
+
+    snprintf(errstr, 1024, "Added key %s length %d for BSSID %s",
+             (*parsedcmdline)[0].word.c_str(), len, 
+			 winfo->bssid.Mac2String().c_str());
+
+    _MSG(errstr, MSGFLAG_INFO);
+
+    return 1;
 }
 
 int KisBuiltinDissector::cmd_delwepkey(CLIENT_PARMS) {
+    if (client_wepkey_allowed == 0) {
+        snprintf(errstr, 1024, "Server does not allow clients to modify keys");
+        return -1;
+    }
+
+    if (parsedcmdline->size() != 1) {
+        snprintf(errstr, 1024, "Illegal delwepkey command");
+        return -1;
+    }
+
+    mac_addr bssid_mac = (*parsedcmdline)[0].word.c_str();
+
+    if (bssid_mac.error) {
+        snprintf(errstr, 1024, "Illegal delwepkey bssid");
+        return -1;
+    }
+
+    if (wepkeys.find(bssid_mac) == wepkeys.end()) {
+        snprintf(errstr, 1024, "Unknown delwepkey bssid");
+        return -1;
+    }
+
+    delete wepkeys[bssid_mac];
+    wepkeys.erase(bssid_mac);
+
+    snprintf(errstr, 1024, "Deleted key for BSSID %s", 
+             bssid_mac.Mac2String().c_str());
+    _MSG(errstr, MSGFLAG_INFO);
+
+    return 1;
 	return 0;
 }
 

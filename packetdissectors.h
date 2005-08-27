@@ -107,6 +107,8 @@ protected:
 	int nullproberesp_aref;
 	int lucenttest_aref;
 
+	int wepkey_pref;
+
 	int client_wepkey_allowed;
 	macmap<wep_key_info *> wepkeys;
 
