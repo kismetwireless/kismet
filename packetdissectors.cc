@@ -26,6 +26,8 @@
 #endif
 
 #include <map>
+#include <iomanip>
+#include <sstream>
 
 #include "endian_magic.h"
 #include "packetdissectors.h"
@@ -39,55 +41,80 @@
 // Handly little global so that it only has to do the ascii->mac_addr transform once
 mac_addr broadcast_mac = "FF:FF:FF:FF:FF:FF";
 
-#if 0
 char *WEPKEY_fields_text[] = {
     "origin", "bssid", "key", "encrypted", "failed",
     NULL
 };
 
-// wep keys.  data = wep_key_info
-int Protocol_WEPKEY(PROTO_PARMS) {
-    wep_key_info *winfo = (wep_key_info *) data;
-    char wdstr[10];
+int proto_WEPKEY(PROTO_PARMS) {
+	wep_key_info *winfo = (wep_key_info *) data;
+	ostringstream osstr;
 
-    for (unsigned int x = 0; x < field_vec->size(); x++) {
-        switch ((WEPKEY_fields) (*field_vec)[x]) {
-        case WEPKEY_origin:
-            if (winfo->fragile == 0)
-                out_string += "0";
-            else
-                out_string += "1";
-            break;
-        case WEPKEY_bssid:
-            out_string += winfo->bssid.Mac2String();
-            break;
-        case WEPKEY_key:
-            for (unsigned int kpos = 0; kpos < WEPKEY_MAX && kpos < winfo->len; kpos++) {
-                snprintf(wdstr, 3, "%02X", (uint8_t) winfo->key[kpos]);
-                out_string += wdstr;
-                if (kpos < (WEPKEY_MAX - 1) && kpos < (winfo->len - 1))
-                    out_string += ":";
-            }
-            break;
-        case WEPKEY_decrypted:
-            snprintf(wdstr, 10, "%d", winfo->decrypted);
-            out_string += wdstr;
-            break;
-        case WEPKEY_failed:
-            snprintf(wdstr, 10, "%d", winfo->failed);
-            out_string += wdstr;
-            break;
-        default:
-            out_string = "Unknown field requested.";
-            return -1;
-            break;
-        }
+	// We don't use the cache
+	
+	for (unsigned int x = 0; x < field_vec->size(); x++) {
+		unsigned int fnum = (*field_vec)[x];
 
-        out_string += " ";
-    }
+		osstr.str("");
 
-    return 1;
+		switch (fnum) {
+			case WEPKEY_origin:
+				if (winfo->fragile == 0)
+					out_string += "0";
+				else
+					out_string += "1";
+				break;
+			case WEPKEY_bssid:
+				out_string += winfo->bssid.Mac2String();
+				break;
+			case WEPKEY_key:
+				for (unsigned int kpos = 0; kpos < WEPKEY_MAX && 
+					 kpos < winfo->len; kpos++) {
+					osstr << setprecision(2) << hex << winfo->key[kpos];
+					if (kpos < (WEPKEY_MAX - 1) && kpos < (winfo->len - 1))
+						osstr << ":";
+					out_string += osstr.str();
+				}
+				break;
+			case WEPKEY_decrypted:
+				osstr << winfo->decrypted;
+				out_string += osstr.str();
+				break;
+			case WEPKEY_failed:
+				osstr << winfo->failed;
+				out_string += osstr.str();
+				break;
+			default:
+				out_string = "\001Unknown field requested\001";
+				return -1;
+				break;
+		}
+
+		out_string += " ";
+	}
+
+	return 1;
 }
+
+int clicmd_LISTWEPKEYS_hook(CLIENT_PARMS) {
+	KisBuiltinDissector *di = (KisBuiltinDissector *) auxptr;
+	return di->cmd_listwepkeys(in_clid, framework, globalreg, errstr, cmdline,
+							   parsedcmdline, auxptr);
+}
+
+int clicmd_ADDWEPKEY_hook(CLIENT_PARMS) {
+	KisBuiltinDissector *di = (KisBuiltinDissector *) auxptr;
+	return di->cmd_addwepkey(in_clid, framework, globalreg, errstr, cmdline,
+							   parsedcmdline, auxptr);
+}
+
+int clicmd_DELWEPKEY_hook(CLIENT_PARMS) {
+	KisBuiltinDissector *di = (KisBuiltinDissector *) auxptr;
+	return di->cmd_delwepkey(in_clid, framework, globalreg, errstr, cmdline,
+							   parsedcmdline, auxptr);
+}
+
+#if 0
 
 int Clicmd_LISTWEPKEYS(CLIENT_PARMS) {
     if (globalreg->client_wepkey_allowed == 0) {
@@ -1526,5 +1553,17 @@ int KisBuiltinDissector::basicdata_dissector(kis_packet *in_pack) {
 	delete(datainfo);
 
 	return 1;
+}
+
+int KisBuiltinDissector::cmd_listwepkeys(CLIENT_PARMS) {
+	return 0;
+}
+
+int KisBuiltinDissector::cmd_addwepkey(CLIENT_PARMS) {
+	return 0;
+}
+
+int KisBuiltinDissector::cmd_delwepkey(CLIENT_PARMS) {
+	return 0;
 }
 

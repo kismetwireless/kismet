@@ -1,3 +1,5 @@
+Aug 27 2005  devel  Added auxptr to client command pointers
+                    Moved wepkey code into private functions in kisbuiltindis
 Aug 26 2005  devel  Moved wepkey loading code and network protocols into 
                      packetdissectors.cc/kisbuiltindissector
 Aug 25 2005  devel  Data dissector cleanup, merged packinfo crypset into data

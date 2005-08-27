@@ -834,13 +834,13 @@ KisNetFramework::KisNetFramework(GlobalRegistry *in_globalreg) {
 						 &Protocol_STRING, NULL);
 
     // Kismet builtin client commands
-    RegisterClientCommand("CAPABILITY", &Clicmd_CAPABILITY);
-    RegisterClientCommand("ENABLE", &Clicmd_ENABLE);
-    RegisterClientCommand("REMOVE", &Clicmd_REMOVE);
-    RegisterClientCommand("CHANLOCK", &Clicmd_CHANLOCK);
-    RegisterClientCommand("CHANHOP", &Clicmd_CHANHOP);
-    RegisterClientCommand("PAUSE", &Clicmd_PAUSE);
-    RegisterClientCommand("RESUME", &Clicmd_RESUME);
+    RegisterClientCommand("CAPABILITY", &Clicmd_CAPABILITY, NULL);
+    RegisterClientCommand("ENABLE", &Clicmd_ENABLE, NULL);
+    RegisterClientCommand("REMOVE", &Clicmd_REMOVE, NULL);
+    RegisterClientCommand("CHANLOCK", &Clicmd_CHANLOCK, NULL);
+    RegisterClientCommand("CHANHOP", &Clicmd_CHANHOP, NULL);
+    RegisterClientCommand("PAUSE", &Clicmd_PAUSE, NULL);
+    RegisterClientCommand("RESUME", &Clicmd_RESUME, NULL);
 
     // Sanity check for timetracker
     if (globalreg->timetracker == NULL) {
@@ -982,7 +982,7 @@ int KisNetFramework::ParseData(int in_fd) {
         CLIRESP_data rdat;
         rdat.cmdid = cmdid;
 
-        map<string, ClientCommand>::iterator ccitr = 
+        map<string, KisNetFramework::client_command_rec *>::iterator ccitr = 
 			client_cmd_map.find(StrLower(cmdtoks[0].word));
         if (ccitr != client_cmd_map.end()) {
             // Nuke the first word again - we just pulled it off to get the command
@@ -992,8 +992,9 @@ int KisNetFramework::ParseData(int in_fd) {
 				inptok[it].substr(cmdtoks[0].end, (inptok[it].length() - 
 												   cmdtoks[0].end));
             // Call the processor and return error conditions and ack
-            if ((*ccitr->second)
-				(in_fd, this, globalreg, errstr, fullcmd, &cmdtoks) < 0) {
+            if ((*ccitr->second->cmd)
+				(in_fd, this, globalreg, errstr, fullcmd, &cmdtoks, 
+				 ccitr->second->auxptr) < 0) {
                 rdat.resptext = string(errstr);
                 SendToClient(in_fd, globalreg->netproto_map[PROTO_REF_ERROR], 
 							 (void *) &rdat, NULL);
@@ -1030,7 +1031,8 @@ int KisNetFramework::KillConnection(int in_fd) {
     return 1;
 }
 
-int KisNetFramework::RegisterClientCommand(string in_cmdword, ClientCommand in_cmd) {
+int KisNetFramework::RegisterClientCommand(string in_cmdword, ClientCommand in_cmd,
+										   void *in_auxptr) {
     string lcmd = StrLower(in_cmdword);
 
     if (in_cmdword.length() > 16) {
@@ -1048,7 +1050,11 @@ int KisNetFramework::RegisterClientCommand(string in_cmdword, ClientCommand in_c
         return -1;
     }
 
-    client_cmd_map[lcmd] = in_cmd;
+	client_command_rec *cmdrec = new client_command_rec;
+	cmdrec->cmd = in_cmd;
+	cmdrec->auxptr = in_auxptr;
+
+    client_cmd_map[lcmd] = cmdrec;
 
     return 1;
 }

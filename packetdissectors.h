@@ -33,6 +33,7 @@
 #include <map>
 
 #include "globalregistry.h"
+#include "kis_netframe.h"
 #include "packetchain.h"
 #include "macaddr.h"
 
@@ -43,6 +44,18 @@
  * our alert references and so that main() isn't making a pile of random 
  * links
  */
+
+// Protocol stuff
+enum WEPKEY_fields {
+    WEPKEY_origin, WEPKEY_bssid, WEPKEY_key, WEPKEY_decrypted, WEPKEY_failed
+};
+extern char *WEPKEY_fields_text[];
+
+// Protocol hooks
+int proto_WEPKEY(PROTO_PARMS);
+int clicmd_LISTWEPKEYS_hook(CLIENT_PARMS);
+int clicmd_ADDWEPKEY_hook(CLIENT_PARMS);
+int clicmd_DELWEPKEY_hook(CLIENT_PARMS);
 
 // Basic dissector hooks
 int kis_80211_dissector(CHAINCALL_PARMS);
@@ -82,8 +95,12 @@ public:
 
 	int WPACipherConv(uint8_t cipher_index);
 	int WPAKeyMgtConv(uint8_t mgt_index);
-	
+
 protected:
+	int cmd_listwepkeys(CLIENT_PARMS);
+	int cmd_addwepkey(CLIENT_PARMS);
+	int cmd_delwepkey(CLIENT_PARMS);
+	
 	GlobalRegistry *globalreg;
 
 	int netstumbler_aref;
@@ -92,6 +109,10 @@ protected:
 
 	int client_wepkey_allowed;
 	macmap<wep_key_info *> wepkeys;
+
+	friend int clicmd_LISTWEPKEYS_hook(CLIENT_PARMS);
+	friend int clicmd_ADDWEPKEY_hook(CLIENT_PARMS);
+	friend int clicmd_DELWEPKEY_hook(CLIENT_PARMS);
 };
 
 #endif

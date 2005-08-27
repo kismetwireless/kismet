@@ -80,7 +80,7 @@ protected:
 // fun we pass the cmdline we split apart
 #define CLIENT_PARMS int in_clid, KisNetFramework *framework, \
                      GlobalRegistry *globalreg, char *errstr, string cmdline, \
-                     vector<smart_word_token> *parsedcmdline
+                     vector<smart_word_token> *parsedcmdline, void *auxptr
 typedef int (*ClientCommand)(CLIENT_PARMS);
 
 // Protocol parameters
@@ -148,10 +148,6 @@ enum INFO_fields {
     INFO_noise, INFO_dropped, INFO_rate, INFO_signal
 };
 
-enum WEPKEY_fields {
-    WEPKEY_origin, WEPKEY_bssid, WEPKEY_key, WEPKEY_decrypted, WEPKEY_failed
-};
-
 enum CARD_fields {
     CARD_interface, CARD_type, CARD_username, CARD_channel, CARD_id, CARD_packets,
     CARD_hopping
@@ -171,7 +167,6 @@ extern char *INFO_fields_text[];
 extern char *PACKET_fields_text[];
 extern char *STATUS_fields_text[];
 extern char *STRING_fields_text[];
-extern char *WEPKEY_fields_text[];
 
 // Client/server protocol data structures.  These get passed as void *'s to each 
 // of the protocol functions.
@@ -240,7 +235,8 @@ public:
 };
 
 // Timer events
-int KisNetFrame_TimeEvent(Timetracker::timer_event *evt, void *parm, GlobalRegistry *globalreg);
+int KisNetFrame_TimeEvent(Timetracker::timer_event *evt, void *parm, 
+						  GlobalRegistry *globalreg);
 
 // Kismet server framework for sending data to clients and processing
 // commands from clients
@@ -258,6 +254,11 @@ public:
         int (*printer)(PROTO_PARMS);
         void (*enable)(PROTO_ENABLE_PARMS);
     };
+
+	typedef struct client_command_rec {
+		void *auxptr;
+		ClientCommand cmd;
+	};
 
     KisNetFramework();
     KisNetFramework(GlobalRegistry *in_globalreg);
@@ -277,7 +278,8 @@ public:
     int SendToAll(int in_refnum, const void *in_data);
     
     // Learn a client command
-    int RegisterClientCommand(string in_cmdword, ClientCommand in_cmd);
+    int RegisterClientCommand(string in_cmdword, ClientCommand in_cmd, 
+							  void *in_auxdata);
 
     // Register an output sentence.  This needs:
     // * A header (ie, NETWORK)
@@ -320,7 +322,7 @@ protected:
     };
 
     // Client commands we understand
-    map<string, ClientCommand> client_cmd_map;
+    map<string, KisNetFramework::client_command_rec *> client_cmd_map;
 
     // Map of reference numbers to sentences
     map<int, KisNetFramework::server_protocol *> protocol_map;
