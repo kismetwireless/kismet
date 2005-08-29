@@ -1593,6 +1593,5 @@ int KisBuiltinDissector::cmd_delwepkey(CLIENT_PARMS) {
     _MSG(errstr, MSGFLAG_INFO);
 
     return 1;
-	return 0;
 }
 

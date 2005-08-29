@@ -290,6 +290,16 @@ int FindSuidTarget(string in_username, GlobalRegistry *globalreg,
 	return 1;
 }
 
+int FlushDatafilesEvent(TIMEEVENT_PARMS) {
+	_MSG("Saving data files", MSGFLAG_INFO);
+
+	for (unsigned int x = 0; x < globalreg->subsys_dumpfile_vec.size(); x++) {
+		globalregistry->subsys_dumpfile_vec[x]->Flush();
+	}
+
+	return 1;
+}
+
 int main(int argc,char *argv[]) {
 	exec_name = argv[0];
 	char errstr[STATUS_MAX];
@@ -300,6 +310,7 @@ int main(int argc,char *argv[]) {
 	string suiduser;
 	int option_idx = 0;
 	KisBuiltinDissector *bid;
+	int data_dump = 0;
 
 	// ------ WE MAY BE RUNNING AS ROOT ------
 	
@@ -519,6 +530,26 @@ int main(int argc,char *argv[]) {
 	globalregistry->RegisterDumpFile(new Dumpfile_Gpsxml(globalregistry));
 	if (globalregistry->fatal_condition)
 		CatchShutdown(-1);
+
+	if (conf->FetchOpt("writeinterval") != "") {
+		if (sscanf(conf->FetchOpt("writeinterval").c_str(), "%d", &data_dump) != 1) {
+			data_dump = 0;
+			globalregistry->messagebus->InjectMessage("Failed to parse data write "
+													  "interval from config file",
+													  MSGFLAG_ERROR);
+		}
+	}
+
+	// Set the timer event to flush dumpfiles
+	if (data_dump != 0 &&
+		globalregistry->timetracker->RegisterTimer(SERVER_TIMESLICES_SEC * data_dump,
+												   NULL, 1, 
+												   &FlushDatafilesEvent, NULL) < 0) {
+		globalregistry->messagebus->InjectMessage("Failed to register timer event to "
+												  "sync data files for some reason.", 
+												  MSGFLAG_FATAL);
+		CatchShutdown(-1);
+	}
 
 	// Set the global silence now that we're set up
 	glob_silent = local_silent;
