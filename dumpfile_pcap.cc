@@ -107,17 +107,23 @@ int Dumpfile_Pcap::Flush() {
 }
 
 int Dumpfile_Pcap::chain_handler(kis_packet *in_pack) {
-	kis_datachunk *eight11 = NULL;
 
-	if ((eight11 = 
-		 (kis_datachunk *) in_pack->fetch(_PCM(PACK_COMP_80211FRAME))) == NULL) {
-		if ((eight11 = 
-			(kis_datachunk *) in_pack->fetch(_PCM(PACK_COMP_LINKFRAME))) == NULL) {
-			return 0;
+	// Grab the mangled frame if we have it, then try to grab up the list of
+	// data types and die if we can't get anything
+	kis_datachunk *chunk = 
+		(kis_datachunk *) in_pack->fetch(_PCM(PACK_COMP_MANGLEFRAME));
+
+	if (chunk == NULL) {
+		if ((chunk = 
+			 (kis_datachunk *) in_pack->fetch(_PCM(PACK_COMP_80211FRAME))) == NULL) {
+			if ((chunk = (kis_datachunk *) 
+				 in_pack->fetch(_PCM(PACK_COMP_LINKFRAME))) == NULL) {
+				return 0;
+			}
 		}
 	}
 
-	if (eight11->length < 0 || eight11->length > MAX_PACKET_LEN) {
+	if (chunk->length < 0 || chunk->length > MAX_PACKET_LEN) {
 		_MSG("Weird frame in pcap logger with the wrong size...", MSGFLAG_ERROR);
 		return 0;
 	}
@@ -126,10 +132,10 @@ int Dumpfile_Pcap::chain_handler(kis_packet *in_pack) {
 	struct pcap_pkthdr wh;
 	wh.ts.tv_sec = in_pack->ts.tv_sec;
 	wh.ts.tv_usec = in_pack->ts.tv_usec;
-	wh.caplen = wh.len = eight11->length;
+	wh.caplen = wh.len = chunk->length;
 
 	// Dump it
-	pcap_dump((u_char *) dumper, &wh, eight11->data);
+	pcap_dump((u_char *) dumper, &wh, chunk->data);
 
 	// fprintf(stderr, "%d %d\n", wh.caplen, dumped_frames);
 

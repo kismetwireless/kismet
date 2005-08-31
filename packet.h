@@ -151,6 +151,7 @@ public:
         other_mac = mac_addr(0);
         distrib = distrib_unknown;
 		cryptset = 0;
+		decrypted = 0;
         fuzzywep = 0;
 		fmsweak = 0;
         ess = 0;
@@ -194,6 +195,7 @@ public:
     ieee_80211_disttype distrib;
  
 	int cryptset;
+	int decrypted; // Might as well put this in here?
     int fuzzywep;
 	int fmsweak;
 

@@ -107,10 +107,10 @@ protected:
 	int nullproberesp_aref;
 	int lucenttest_aref;
 
-	int wepkey_pref;
-
 	int client_wepkey_allowed;
 	macmap<wep_key_info *> wepkeys;
+
+	unsigned char wep_identity[256];
 
 	friend int clicmd_LISTWEPKEYS_hook(CLIENT_PARMS);
 	friend int clicmd_ADDWEPKEY_hook(CLIENT_PARMS);

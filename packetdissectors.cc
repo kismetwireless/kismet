@@ -182,6 +182,11 @@ int kis_data_dissector(CHAINCALL_PARMS) {
 	return auxptr->basicdata_dissector(in_pack);
 }
 
+int kis_wep_decryptor(CHAINCALL_PARMS) {
+	KisBuiltinDissector *auxptr = (KisBuiltinDissector *) auxdata;
+	return auxptr->wep_data_decryptor(in_pack);
+}
+
 KisBuiltinDissector::KisBuiltinDissector() {
 	fprintf(stderr, "FATAL OOPS:  KisBuiltinDissector called with no globalreg\n");
 	exit(1);
@@ -210,6 +215,8 @@ KisBuiltinDissector::KisBuiltinDissector(GlobalRegistry *in_globalreg) {
 	}
 
 	// Register the basic stuff
+	globalreg->packetchain->RegisterHandler(&kis_wep_decryptor, this,
+											CHAINPOS_DECRYPT, -100);
 	globalreg->packetchain->RegisterHandler(&kis_80211_dissector, this,
 											CHAINPOS_LLCDISSECT, -100);
 	globalreg->packetchain->RegisterHandler(&kis_data_dissector, this,
@@ -221,6 +228,9 @@ KisBuiltinDissector::KisBuiltinDissector(GlobalRegistry *in_globalreg) {
 	_PCM(PACK_COMP_BASICDATA) = 
 		globalreg->packetchain->RegisterPacketComponent("BASICDATA_INFO");
 
+	_PCM(PACK_COMP_MANGLEFRAME) =
+		globalreg->packetchain->RegisterPacketComponent("MANGLE_FRAME");
+
 	netstumbler_aref = 
 		globalreg->alertracker->ActivateConfiguredAlert("NETSTUMBLER");
 	nullproberesp_aref =
@@ -229,7 +239,7 @@ KisBuiltinDissector::KisBuiltinDissector(GlobalRegistry *in_globalreg) {
 		globalreg->alertracker->ActivateConfiguredAlert("LUCENTTEST");
 
 	// Register network protocols for WEP key transfer commands
-	wepkey_pref =
+	_NPM(PROTO_REF_WEPKEY) =
 		globalreg->kisnetserver->RegisterProtocol("WEPKEY", 0, 0, WEPKEY_fields_text,
 												  &proto_WEPKEY, NULL);
 	globalreg->kisnetserver->RegisterClientCommand("LISTWEPKEYS", 
@@ -297,6 +307,10 @@ KisBuiltinDissector::KisBuiltinDissector(GlobalRegistry *in_globalreg) {
     } else {
 		client_wepkey_allowed = 0;
 	}
+
+	// Build the wep identity
+	for (unsigned int wi = 0; wi < 256; wi++)
+		wep_identity[wi] = wi;
 }
 
 // Returns a pointer in the data block to the size byte of the desired tag, with the 
@@ -1459,41 +1473,139 @@ int KisBuiltinDissector::basicdata_dissector(kis_packet *in_pack) {
 	return 1;
 }
 
-#if 0
+int KisBuiltinDissector::wep_data_decryptor(kis_packet *in_pack) {
+	kis_datachunk *manglechunk = NULL;
 
-int Clicmd_DELWEPKEY(CLIENT_PARMS) {
-    if (globalreg->client_wepkey_allowed == 0) {
-        snprintf(errstr, 1024, "Server does not allow clients to modify keys");
-        return -1;
-    }
+	if (in_pack->error)
+		return 0;
 
-    if (parsedcmdline->size() != 1) {
-        snprintf(errstr, 1024, "Illegal delwepkey command");
-        return -1;
-    }
+	// Grab the 80211 info, compare, bail
+    kis_ieee80211_packinfo *packinfo;
+	if ((packinfo = 
+		 (kis_ieee80211_packinfo *) in_pack->fetch(_PCM(PACK_COMP_80211))) == NULL)
+		return 0;
+	if (packinfo->corrupt)
+		return 0;
+	if (packinfo->type != packet_data || packinfo->subtype != packet_sub_data)
+		return 0;
 
-    mac_addr bssid_mac = (*parsedcmdline)[0].word.c_str();
+	// No need to look at data thats already been decoded
+	if (packinfo->cryptset == 0 || packinfo->decrypted == 1)
+		return 0;
 
-    if (bssid_mac.error) {
-        snprintf(errstr, 1024, "Illegal delwepkey bssid");
-        return -1;
-    }
+	// Grab the 80211 frame, if that doesn't exist, grab the link frame
+	kis_datachunk *chunk = 
+		(kis_datachunk *) in_pack->fetch(_PCM(PACK_COMP_80211FRAME));
 
-    if (globalreg->bssid_wep_map.find(bssid_mac) == globalreg->bssid_wep_map.end()) {
-        snprintf(errstr, 1024, "Unknown delwepkey bssid");
-        return -1;
-    }
+	if (chunk == NULL) {
+		if ((chunk = 
+			 (kis_datachunk *) in_pack->fetch(_PCM(PACK_COMP_LINKFRAME))) == NULL) {
+			return 0;
+		}
+	}
 
-    delete globalreg->bssid_wep_map[bssid_mac];
-    globalreg->bssid_wep_map.erase(bssid_mac);
+	// Bail on size check
+	if (chunk->length < packinfo->header_offset ||
+		chunk->length - packinfo->header_offset <= 8)
+		return 0;
 
-    snprintf(errstr, 1024, "Deleted key for BSSID %s", 
-             bssid_mac.Mac2String().c_str());
-    globalreg->messagebus->InjectMessage(errstr, MSGFLAG_INFO);
+	// Bail if we can't find a key match
+	macmap<wep_key_info *>::iterator bwmitr = wepkeys.find(packinfo->bssid_mac);
+	if (bwmitr == wepkeys.end())
+		return 0;
 
-    return 1;
+	// Password field
+	char pwd[WEPKEY_MAX + 3];
+	memset(pwd, 0, WEPKEY_MAX + 3);
+
+	// Extract the IV and add it to the key
+	pwd[0] = chunk->data[packinfo->header_offset + 0] & 0xFF;
+	pwd[1] = chunk->data[packinfo->header_offset + 1] & 0xFF;
+	pwd[2] = chunk->data[packinfo->header_offset + 2] & 0xFF;
+
+	// Add the supplied password to the key
+	memcpy(pwd + 3, (*bwmitr->second)->key, WEPKEY_MAX);
+	int pwdlen = 3 + (*bwmitr->second)->len;
+
+	// Prepare the keyblock for the rc4 cipher
+	unsigned char keyblock[256];
+	memcpy(keyblock, wep_identity, 256);
+	int kba = 0, kbb = 0;
+	for (kba = 0; kba < 256; kba++) {
+		kbb = (kbb + keyblock[kba] + pwd[kba % pwdlen]) & 0xFF;
+		unsigned char oldkey = keyblock[kba];
+		keyblock[kba] = keyblock[kbb];
+		keyblock[kbb] = oldkey;
+	}
+
+	// Allocate the mangled chunk -- 4 byte IV/Key# gone, 4 byte ICV gone
+	manglechunk = new kis_datachunk;
+	manglechunk->length = chunk->length - 8;
+	manglechunk->data = new uint8_t[manglechunk->length];
+
+	// Copy the packet headers to the new chunk
+	memcpy(manglechunk->data, chunk->data, packinfo->header_offset);
+
+	// Decrypt the data payload and check the CRC
+	kba = kbb = 0;
+	uint32_t crc = ~0;
+	uint8_t c_crc[4];
+	uint8_t icv[4];
+
+	// Copy the ICV into the CRC buffer for checking
+	memcpy(icv, &(chunk->data[chunk->length - 4]), 4);
+
+	for (unsigned int dpos = packinfo->header_offset + 4; 
+		 dpos < chunk->length - 4; dpos++) {
+		kba = (kba + 1) & 0xFF;
+		kbb = (kbb + keyblock[kba]) & 0xFF;
+
+		unsigned char oldkey = keyblock[kba];
+		keyblock[kba] = keyblock[kbb];
+		keyblock[kbb] = oldkey;
+
+		// Decode the byte into the pos - 4 (no wepkey header)
+		manglechunk->data[dpos - 4] = 
+			chunk->data[dpos] ^ keyblock[(keyblock[kba] + keyblock[kbb]) & 0xFF];
+
+		crc = wep_crc32_table[(crc ^ manglechunk->data[dpos]) & 0xFF] ^ (crc >> 8);
+	}
+
+	// Check the CRC
+	crc = ~crc;
+	c_crc[0] = crc;
+	c_crc[1] = crc >> 8;
+	c_crc[2] = crc >> 16;
+	c_crc[3] = crc >> 24;
+
+	int crcfailure = 0;
+	for (unsigned int crcpos = 0; crcpos < 4; crcpos++) {
+		kba = (kba + 1) & 0xFF;
+		kbb = (kbb + keyblock[kba]) & 0xFF;
+
+		unsigned char oldkey = keyblock[kba];
+		keyblock[kba] = keyblock[kbb];
+		keyblock[kbb] = oldkey;
+
+		if ((c_crc[crcpos] ^ keyblock[(keyblock[kba] + keyblock[kbb]) & 0xFF]) !=
+			icv[crcpos]) {
+			crcfailure = 1;
+			break;
+		}
+	}
+
+	// If the CRC check failed, delete the moddata
+	if (crcfailure) {
+		(*bwmitr->second)->failed++;
+		delete manglechunk;
+		return 0;
+	}
+
+	(*bwmitr->second)->decrypted++;
+	packinfo->decrypted = 1;
+	in_pack->insert(_PCM(PACK_COMP_MANGLEFRAME), manglechunk);
+	return 1;
 }
-#endif
 
 int KisBuiltinDissector::cmd_listwepkeys(CLIENT_PARMS) {
     if (client_wepkey_allowed == 0) {
@@ -1506,14 +1618,14 @@ int KisBuiltinDissector::cmd_listwepkeys(CLIENT_PARMS) {
         return -1;
     }
 
-    if (wepkey_pref < 0) {
+    if (_NPM(PROTO_REF_WEPKEY) < 0) {
         snprintf(errstr, 1024, "Unable to find WEPKEY protocol");
         return -1;
     }
     
     for (macmap<wep_key_info *>::iterator wkitr = wepkeys.begin(); 
 		 wkitr != wepkeys.end(); wkitr++) {
-        globalreg->kisnetserver->SendToClient(in_clid, wepkey_pref, 
+        globalreg->kisnetserver->SendToClient(in_clid, _NPM(PROTO_REF_WEPKEY), 
 											  (void *) wkitr->second, NULL);
     }
 

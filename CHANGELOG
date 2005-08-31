@@ -1,3 +1,5 @@
+Aug 31 2005  devel  Added WEP decryptor, MANGLE packet element, updated pcap
+                     and tun loggers to write the mangled frame
 Aug 29 2005  devel  Added writeinterval support
 Aug 27 2005  devel  Added auxptr to client command pointers
                     Moved wepkey code into private functions in kisbuiltindis
