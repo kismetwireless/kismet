@@ -113,7 +113,8 @@ int Protocol_NETWORK(PROTO_PARMS) {
 				cache->Cache(fnum, osstr.str());
 				break;
 			case NETWORK_ssid:
-				if (net->ssid_cloaked)
+				if (net->ssid.length() == 0 || 
+					(net->ssid_cloaked && net->ssid_uncloaked == 0))
 					cache->Cache(fnum, "\001 \001");
 				else
 					cache->Cache(fnum, "\001" + net->ssid + "\001");
@@ -569,6 +570,12 @@ int kis_80211_datatracker_hook(CHAINCALL_PARMS) {
 	return auxptr->datatracker_chain_handler(in_pack);
 }
 
+int NetrackerUpdateTimer(TIMEEVENT_PARMS) {
+	Netracker *ntr = (Netracker *) parm;
+
+	return ntr->TimerKick();
+}
+
 Netracker::Netracker() {
 	fprintf(stderr, "FATAL OOPS: Netracker() called with no global registry\n");
 }
@@ -594,6 +601,11 @@ Netracker::Netracker(GlobalRegistry *in_globalreg) {
 
 	if (globalreg->alertracker == NULL) {
 		fprintf(stderr, "FATAL OOPS:  Netracker called while alertracker is NULL\n");
+		exit(1);
+	}
+
+	if (globalreg->timetracker == NULL) {
+		fprintf(stderr, "FATAL OOPS:  Netracker called while timetracker is NULL\n");
 		exit(1);
 	}
 
@@ -662,9 +674,28 @@ Netracker::Netracker(GlobalRegistry *in_globalreg) {
 	alert_chan_ref = 
 		globalreg->alertracker->ActivateConfiguredAlert("CHANCHANGE");
 
-	// TODO:
-	// Register timer events
-	
+	// Register timer kick
+	netrackereventid = 
+		globalreg->timetracker->RegisterTimer(SERVER_TIMESLICES_SEC, NULL, 1,
+											  &NetrackerUpdateTimer, (void *) this);
+}
+
+Netracker::~Netracker() {
+	// FIXME:  More cleanup here
+	if (netrackereventid >= 0 && globalreg != NULL)
+		globalreg->timetracker->RemoveTimer(netrackereventid);
+}
+
+int Netracker::TimerKick() {
+	for (Netracker::track_iter x = globalreg->netracker->tracked_map.begin(); 
+		 x != globalreg->netracker->tracked_map.end(); ++x) {
+        if (x->second->type == network_remove) 
+            continue;
+
+		globalreg->kisnetserver->SendToAll(_NPM(PROTO_REF_NETWORK), 
+										   (void *) x->second);
+	}
+	return 1;
 }
 
 int Netracker::netracker_chain_handler(kis_packet *in_pack) {
@@ -901,6 +932,8 @@ int Netracker::netracker_chain_handler(kis_packet *in_pack) {
 				 net->cryptset ? "yes" : "no",
 				 net->channel, net->maxrate);
 		_MSG(status, MSGFLAG_INFO);
+		globalreg->kisnetserver->SendToAll(_NPM(PROTO_REF_NETWORK), 
+										   (void *) net);
 	}
 
 	// TODO:  

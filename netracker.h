@@ -35,6 +35,7 @@
 #include "globalregistry.h"
 #include "packetchain.h"
 #include "kis_netframe.h"
+#include "timetracker.h"
 
 // Cache file versioning
 #define NETRACKER_SSIDCACHE_VERSION 	2
@@ -44,6 +45,9 @@
 // elements
 int kis_80211_netracker_hook(CHAINCALL_PARMS);
 int kis_80211_datatracker_hook(CHAINCALL_PARMS);
+
+// Timer event to update
+int NetrackerUpdateTimer(TIMEEVENT_PARMS);
 
 // Tcp server elements
 enum NETWORK_fields {
@@ -355,6 +359,7 @@ public:
 
 	Netracker();
 	Netracker(GlobalRegistry *in_globalreg);
+	~Netracker();
 
 	typedef map<mac_addr, Netracker::tracked_network *>::iterator track_iter;
 	typedef map<mac_addr, Netracker::tracked_client *>::iterator client_iter;
@@ -373,6 +378,9 @@ protected:
 	int WriteSSIDCache();
 	int ReadIPCache();
 	int WriteIPCache();
+
+	// Kick the timer event to update all the clients
+	int TimerKick();
 
 	// Associate probes w/ networks
 	int track_probenets;
@@ -401,11 +409,15 @@ protected:
 	// Alert references
 	int alert_chan_ref;
 
+	// Timer refs
+	int netrackereventid;
+
 	// Let the hooks call directly in
 	friend int kis_80211_netracker_hook(CHAINCALL_PARMS);
 	friend int kis_80211_datatracker_hook(CHAINCALL_PARMS);
 	friend void Protocol_NETWORK_enable(PROTO_ENABLE_PARMS);
 	friend void Protocol_CLIENT_enable(PROTO_ENABLE_PARMS);
+	friend int NetrackerUpdateTimer(TIMEEVENT_PARMS);
 };
 
 int Protocol_NETWORK(PROTO_PARMS); 
