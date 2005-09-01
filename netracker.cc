@@ -755,7 +755,7 @@ int Netracker::netracker_chain_handler(kis_packet *in_pack) {
 	net->dirty = 1;
 
 	// Extract info from the GPS component, if we have one
-	if (gpsinfo != NULL) {
+	if (gpsinfo != NULL && gpsinfo->gps_fix >= 2) {
 		net->gpsdata.gps_valid = 1;
 
 		if (gpsinfo->lat < net->gpsdata.min_lat)
