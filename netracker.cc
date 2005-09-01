@@ -54,7 +54,7 @@ char *NETWORK_fields_text[] = {
     "datasize",
     "turbocellnid", "turbocellmode", "turbocellsat",
     "carrierset", "maxseenrate", "encodingset",
-    "decrypted", "dupeivpackets",
+    "decrypted", "dupeivpackets", "bsstimestamp",
     NULL
 };
 
@@ -284,7 +284,7 @@ int Protocol_NETWORK(PROTO_PARMS) {
 				break;
 			case NETWORK_tcnid:
 				// FIXME turbocell
-				cache->Cache(fnum, "\001 \001");
+				cache->Cache(fnum, "0");
 				break;
 			case NETWORK_tcmode:
 			case NETWORK_tsat:
@@ -309,6 +309,10 @@ int Protocol_NETWORK(PROTO_PARMS) {
 				break;
 			case NETWORK_dupeiv:
 				osstr << net->dupeiv_packets;
+				cache->Cache(fnum, osstr.str());
+				break;
+			case NETWORK_bsstimestamp:
+				osstr << net->bss_timestamp;
 				cache->Cache(fnum, osstr.str());
 				break;
 		}
@@ -717,24 +721,6 @@ int Netracker::netracker_chain_handler(kis_packet *in_pack) {
 			net->guess_ipdata = bssid_ip_map[packinfo->bssid_mac];
 		}
 
-		// Copy management network info in
-		if (packinfo->type == packet_management &&
-			packinfo->subtype == packet_sub_beacon) {
-
-			// Find cached SSID if we don't have one
-			if (packinfo->ssid_len == 0 || packinfo->ssid_blank) {
-				net->ssid_cloaked = 1;
-				if (bssid_cloak_map.find(packinfo->bssid_mac) != 
-					bssid_cloak_map.end()) {
-					net->ssid = bssid_cloak_map[packinfo->bssid_mac];
-					net->ssid_uncloaked = 1;
-				}
-			} else {
-				net->ssid = string(packinfo->ssid);
-				net->ssid_cloaked = 0;
-			}
-		}
-
 		net->bssid = packinfo->bssid_mac;
 
 		if (packinfo->type == packet_management && 
@@ -829,6 +815,25 @@ int Netracker::netracker_chain_handler(kis_packet *in_pack) {
 	if (packinfo->type == packet_management && 
 		packinfo->subtype == packet_sub_beacon) {
 		net->beacon_info = string(packinfo->beacon_info);
+
+		// Find cached SSID if we don't have one
+		if (packinfo->ssid_len == 0 || packinfo->ssid_blank) {
+			net->ssid_cloaked = 1;
+			if (net->ssid_uncloaked == 0 &&
+				bssid_cloak_map.find(packinfo->bssid_mac) != bssid_cloak_map.end()) {
+				net->ssid = bssid_cloak_map[packinfo->bssid_mac];
+				net->ssid_uncloaked = 1;
+			}
+		} else {
+			net->ssid = string(packinfo->ssid);
+			if (net->ssid_cloaked) {
+				_MSG("Decloaked network " + packinfo->bssid_mac.Mac2String() + 
+					 " SSID '" + packinfo->ssid + "'", MSGFLAG_INFO);
+				net->ssid_uncloaked = 1;
+			} else {
+				net->ssid_cloaked = 0;
+			}
+		}
 
 		if (packinfo->ssid_len != 0 && packinfo->ssid_blank != 0) {
 			net->ssid = string(packinfo->ssid);

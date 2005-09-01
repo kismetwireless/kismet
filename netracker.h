@@ -62,7 +62,7 @@ enum NETWORK_fields {
     NETWORK_agglat, NETWORK_agglon, NETWORK_aggalt, NETWORK_aggpoints,
     NETWORK_datasize, NETWORK_tcnid, NETWORK_tcmode, NETWORK_tsat,
     NETWORK_carrierset, NETWORK_maxseenrate, NETWORK_encodingset,
-    NETWORK_decrypted, NETWORK_dupeiv,
+    NETWORK_decrypted, NETWORK_dupeiv, NETWORK_bsstimestamp,
 	NETWORK_maxfield
 };
 
@@ -155,8 +155,10 @@ public:
 		gps_data() {
 			gps_valid = 0;
 			// Pick absurd initial values to be clearly out-of-bounds
-			min_lat = min_lon = 1024;
-			max_lat = max_lon = -1024;
+			min_lat = 90;
+			max_lat = -90;
+			min_lon = 180;
+			max_lon = -180;
 			min_alt = 100000;
 			max_alt = -100000;
 			min_spd = 100000;

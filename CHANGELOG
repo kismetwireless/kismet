@@ -1,5 +1,10 @@
 Aug 31 2005  devel  Added WEP decryptor, MANGLE packet element, updated pcap
                      and tun loggers to write the mangled frame
+                    Added Adler-32 checksum to util.[h|cc]
+                    Added bsstimestamp network field
+                    Fixed gpsd adding null data to each frame
+                    Fixed turbocell nid returning \001 buffered crap
+                    Fixed newcore server working with existing client
 Aug 29 2005  devel  Added writeinterval support
 Aug 27 2005  devel  Added auxptr to client command pointers
                     Moved wepkey code into private functions in kisbuiltindis

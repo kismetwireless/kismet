@@ -79,6 +79,11 @@ int GpsInjectEvent(Timetracker::timer_event *evt, void *parm,
 
 int kis_gpspack_hook(CHAINCALL_PARMS) {
 	// Simple packet insertion of current GPS coordinates
+	
+	// Don't bother attaching data if we're no good
+	if (globalreg->gpsd->FetchMode() <= 0)
+		return 0;
+
 	kis_gps_packinfo *gpsdat = new kis_gps_packinfo;
 
 	globalreg->gpsd->FetchLoc(&(gpsdat->lat), &(gpsdat->lon), &(gpsdat->alt),
@@ -108,7 +113,7 @@ GPSDClient::GPSDClient(GlobalRegistry *in_globalreg) : ClientFramework(in_global
 
     reconnect_attempt = -1;
 
-    mode = 0;
+    mode = -1;
     lat = lon = alt = spd = hed = last_lat = last_lon = last_hed = 0;
 
 	// Register the network protocol
