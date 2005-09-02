@@ -1,3 +1,6 @@
+Sep 02 2005  devel  Fixed alert on channel 0 networks getting a channel
+                    Fixed treating probe req, disassoc, auth, and death as
+                     frames that have a normal fixparm
 Sep 01 2005  devel  Added timer kick to netracker to push network updates to
                      kismet clients
                     Fixed numerous uses of unitialzed memory

@@ -877,7 +877,7 @@ int Netracker::netracker_chain_handler(kis_packet *in_pack) {
 			net->cryptset |= packinfo->cryptset;
 
 		// Fire off an alert if the channel changes
-		if (alert_chan_ref >= 0 && newnetwork == 0 && 
+		if (alert_chan_ref >= 0 && newnetwork == 0 && net->channel != 0 &&
 			packinfo->channel != 0 && net->channel != packinfo->channel &&
 			globalreg->alertracker->PotentialAlert(alert_chan_ref)) {
 			ostringstream outs;

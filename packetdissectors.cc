@@ -495,13 +495,22 @@ int KisBuiltinDissector::ieee80211_dissector(kis_packet *in_pack) {
             return 0;
         }
 
-        // Short handling of probe reqs since they don't have a fixed parameters
-        // field
         fixed_parameters *fixparm;
-        if (fc->subtype == 4) {
+
+        if (fc->subtype == 4 || fc->subtype == 10 || fc->subtype == 11 || 
+			fc->subtype == 12) {
+			// Shortcut handling of probe req, disassoc, auth, deauth since they're
+			// not normal management frames
             packinfo->header_offset = 24;
             fixparm = NULL;
         } else {
+			// If we're not long enough to have the fixparm and look like a normal
+			// mgt header, bail.
+			if (chunk->length < 36) {
+				packinfo->corrupt = 1;
+				in_pack->insert(_PCM(PACK_COMP_80211), packinfo);
+				return 0;
+			}
             packinfo->header_offset = 36;
             fixparm = (fixed_parameters *) &(chunk->data[24]);
 			if (fixparm->wep)
