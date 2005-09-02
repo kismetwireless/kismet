@@ -551,7 +551,8 @@ int KisBuiltinDissector::ieee80211_dissector(kis_packet *in_pack) {
 								  &tag_cache_map) < 0) {
                 // The frame is corrupt, bail
                 packinfo->corrupt = 1;
-                return 1;
+				in_pack->insert(_PCM(PACK_COMP_80211), packinfo);
+                return 0;
             }
      
             if ((tcitr = tag_cache_map.find(0)) != tag_cache_map.end()) {
@@ -825,6 +826,7 @@ int KisBuiltinDissector::ieee80211_dissector(kis_packet *in_pack) {
 							memcmp(&(chunk->data[tag_orig + offt]), RSN_OUI,
 								   sizeof(RSN_OUI))) {
 							packinfo->corrupt = 1;
+							in_pack->insert(_PCM(PACK_COMP_80211), packinfo);
 							return 0;
 						}
 						packinfo->cryptset |= 
