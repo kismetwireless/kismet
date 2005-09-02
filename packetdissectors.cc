@@ -1172,9 +1172,79 @@ int KisBuiltinDissector::basicdata_dissector(kis_packet *in_pack) {
 
 		} // LLC_SIGNATURE
 
+		// We don't bail right here, if anything looks "more" like something 
+		// else then we'll let it take over
+
 	} // LLC_UI
 
-	if ((header_offset + LLC_UI_OFFSET + 1 + 
+	// CDP cisco discovery frames, good for finding unauthorized APs
+	// +1 for the version frame we compare first
+	if ((header_offset + LLC_UI_OFFSET + 1 +
+		 sizeof(CISCO_SIGNATURE)) < chunk->length &&
+		memcmp(&(chunk->data[header_offset + LLC_UI_OFFSET]), CISCO_SIGNATURE,
+			   sizeof(CISCO_SIGNATURE)) == 0) {
+		unsigned int offset = 0;
+
+		// Look for frames the old way, maybe v1 used it?  Compare the versions.
+		// I don't remember why the code worked this way.
+		if (chunk->data[header_offset + LLC_UI_OFFSET + 
+			sizeof(CISCO_SIGNATURE)] == 2)
+			offset = header_offset + LLC_UI_OFFSET + sizeof(CISCO_SIGNATURE) + 4;
+		else
+			offset = header_offset + LLC_UI_OFFSET + 12;
+
+		while (offset + CDP_ELEMENT_LEN < chunk->length) {
+		// uint16_t dot1x_length = kis_extract16(&(chunk->data[offset + 2]));
+			uint16_t elemlen = kis_ntoh16(kis_extract16(&(chunk->data[offset + 0])));
+			uint16_t elemtype = kis_ntoh16(kis_extract16(&(chunk->data[offset + 2])));
+
+			if (elemlen == 0)
+				break;
+
+			if (offset + elemlen >= chunk->length)
+				break;
+
+			if (elemtype == 0x01) {
+				// Device id, we care about this
+				if (elemlen < 3) {
+					_MSG("Corrupt CDP frame (possibly an exploit attempt), discarded",
+						 MSGFLAG_ERROR);
+					packinfo->corrupt = 1;
+					delete(datainfo);
+					return 0;
+				}
+
+				datainfo->cdp_dev_id = 
+					MungeToPrintable((char *) &(chunk->data[offset + 4]), 
+									 elemlen - 3);
+			} else if (elemtype == 0x03) {
+				if (elemlen < 3) {
+					_MSG("Corrupt CDP frame (possibly an exploit attempt), discarded",
+						 MSGFLAG_ERROR);
+					packinfo->corrupt = 1;
+					delete(datainfo);
+					return 0;
+				}
+
+				datainfo->cdp_port_id = 
+					MungeToPrintable((char *) &(chunk->data[offset + 4]), 
+									 elemlen - 3);
+			}
+
+			offset += elemlen;
+		}
+
+		datainfo->proto = proto_cdp;
+
+		in_pack->insert(_PCM(PACK_COMP_BASICDATA), datainfo);
+		return 1;
+
+	}
+
+	// Dot1x frames
+	// +1 for the version byte at header_offset + hot1x off
+	// +3 for the offset past LLC_UI
+	if ((header_offset + LLC_UI_OFFSET + 4 + 
 		 sizeof(DOT1X_PROTO)) < chunk->length && 
 		memcmp(&(chunk->data[header_offset + LLC_UI_OFFSET + 3]),
 			   DOT1X_PROTO, sizeof(DOT1X_PROTO)) == 0) {
