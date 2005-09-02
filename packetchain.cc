@@ -157,7 +157,6 @@ void Packetchain::DestroyPacket(kis_packet *in_pack) {
     }
 
 	delete in_pack;
-
 }
 
 int Packetchain::RegisterHandler(pc_callback in_cb, void *in_aux, 
@@ -165,8 +164,8 @@ int Packetchain::RegisterHandler(pc_callback in_cb, void *in_aux,
     pc_link *link = NULL;
     
     if (in_prio > 1000) {
-        globalreg->messagebus->InjectMessage("Packetchain::RegisterHandler requested "
-                                             "priority greater than 1000", MSGFLAG_ERROR);
+        _MSG("Packetchain::RegisterHandler requested priority greater than 1000", 
+			 MSGFLAG_ERROR);
         return -1;
     }
 
@@ -179,17 +178,20 @@ int Packetchain::RegisterHandler(pc_callback in_cb, void *in_aux,
     switch (in_chain) {
         case CHAINPOS_GENESIS:
             genesis_chain.push_back(link);
-            stable_sort(genesis_chain.begin(), genesis_chain.end(), SortLinkPriority());
+            stable_sort(genesis_chain.begin(), genesis_chain.end(), 
+						SortLinkPriority());
             break;
 
         case CHAINPOS_POSTCAP:
             postcap_chain.push_back(link);
-            stable_sort(postcap_chain.begin(), postcap_chain.end(), SortLinkPriority());
+            stable_sort(postcap_chain.begin(), postcap_chain.end(), 
+						SortLinkPriority());
             break;
 
         case CHAINPOS_LLCDISSECT:
             llcdissect_chain.push_back(link);
-            stable_sort(llcdissect_chain.begin(), llcdissect_chain.end(), SortLinkPriority());
+            stable_sort(llcdissect_chain.begin(), llcdissect_chain.end(), 
+						SortLinkPriority());
             break;
 
         case CHAINPOS_FILTER:
@@ -199,33 +201,38 @@ int Packetchain::RegisterHandler(pc_callback in_cb, void *in_aux,
 
         case CHAINPOS_DECRYPT:
             decrypt_chain.push_back(link);
-            stable_sort(decrypt_chain.begin(), decrypt_chain.end(), SortLinkPriority());
+            stable_sort(decrypt_chain.begin(), decrypt_chain.end(), 
+						SortLinkPriority());
             break;
             
         case CHAINPOS_DATADISSECT:
             datadissect_chain.push_back(link);
-            stable_sort(datadissect_chain.begin(), datadissect_chain.end(), SortLinkPriority());
+            stable_sort(datadissect_chain.begin(), datadissect_chain.end(), 
+						SortLinkPriority());
             break;
 
         case CHAINPOS_CLASSIFIER:
             classifier_chain.push_back(link);
-            stable_sort(classifier_chain.begin(), classifier_chain.end(), SortLinkPriority());
+            stable_sort(classifier_chain.begin(), classifier_chain.end(), 
+						SortLinkPriority());
             break;
 
         case CHAINPOS_LOGGING:
             logging_chain.push_back(link);
-            stable_sort(logging_chain.begin(), logging_chain.end(), SortLinkPriority());
+            stable_sort(logging_chain.begin(), logging_chain.end(), 
+						SortLinkPriority());
             break;
 
         case CHAINPOS_DESTROY:
             destruction_chain.push_back(link);
-            stable_sort(destruction_chain.begin(), destruction_chain.end(), SortLinkPriority());
+            stable_sort(destruction_chain.begin(), destruction_chain.end(), 
+						SortLinkPriority());
             break;
 
         default:
             delete link;
-            globalreg->messagebus->InjectMessage("Packetchain::RegisterHandler requested "
-                                                 "unknown chain", MSGFLAG_ERROR);
+            _MSG("Packetchain::RegisterHandler requested unknown chain", 
+				 MSGFLAG_ERROR);
             return -1;
     }
 

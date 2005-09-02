@@ -432,6 +432,7 @@ void Protocol_CLIENT_enable(PROTO_ENABLE_PARMS);
 class kis_netracker_netinfo : public packet_component {
 public:
 	kis_netracker_netinfo() {
+		self_destruct = 1; // OK to delete us, we're only a pointer container
 		netref = NULL;
 	}
 
@@ -441,6 +442,7 @@ public:
 class kis_netracker_cliinfo : public packet_component {
 public:
 	kis_netracker_cliinfo() {
+		self_destruct = 1; // OK to delete us, we're only a pointer container
 		cliref = NULL;
 	}
 

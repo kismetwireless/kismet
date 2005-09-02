@@ -52,6 +52,7 @@ int Protocol_GPS(PROTO_PARMS);
 class kis_gps_packinfo : public packet_component {
 public:
 	kis_gps_packinfo() {
+		self_destruct = 1; // Nothing special, just delete us
 		lat = lon = alt = spd = heading = -1000;
 		gps_fix = 0;
 	}

@@ -664,7 +664,9 @@ int Clicmd_RESUME(CLIENT_PARMS) {
 void KisNetframe_MessageClient::ProcessMessage(string in_msg, int in_flags) {
     char msg[1024];
 
-    if (in_flags & MSGFLAG_LOCAL)
+	// Local messages and alerts don't go out to the world.  Alerts are sent via
+	// the ALERT protocol.
+    if ((in_flags & MSGFLAG_LOCAL) || (in_flags & MSGFLAG_ALERT))
         return;
 
     if (in_flags & MSGFLAG_DEBUG)
@@ -787,11 +789,6 @@ KisNetFramework::KisNetFramework(GlobalRegistry *in_globalreg) {
 		return;
 	}
 
-    kisnet_msgcli = new KisNetframe_MessageClient(globalreg);
-
-    // Register our network message handler to feed clients
-    globalreg->messagebus->RegisterClient(kisnet_msgcli, MSGFLAG_ALL);
-    
     // Register the core Kismet protocols
 
     // Protocols we REQUIRE all clients to support
@@ -833,6 +830,10 @@ KisNetFramework::KisNetFramework(GlobalRegistry *in_globalreg) {
 		RegisterProtocol("STRING", 0, 0, STRING_fields_text, 
 						 &Protocol_STRING, NULL);
 
+	// Create the message bus attachment to forward messages to the client
+    kisnet_msgcli = new KisNetframe_MessageClient(globalreg);
+    globalreg->messagebus->RegisterClient(kisnet_msgcli, MSGFLAG_ALL);
+    
     // Kismet builtin client commands
     RegisterClientCommand("CAPABILITY", &Clicmd_CAPABILITY, NULL);
     RegisterClientCommand("ENABLE", &Clicmd_ENABLE, NULL);

@@ -120,6 +120,7 @@ public:
 	KisPacketSource *ref_source;
 
 	kis_ref_capsource() {
+		self_destruct = 1; // We're just a ptr container
 		ref_source = NULL;
 	}
 

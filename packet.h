@@ -69,20 +69,26 @@ public:
         error = 0;
 
 		// Stock and init the content vector
-		content_vec.reserve(64);
+		content_vec.resize(MAX_PACKET_COMPONENTS);
 		for (unsigned int y = 0; y < MAX_PACKET_COMPONENTS; y++)
-			content_vec.push_back(NULL);
+			content_vec[y] = NULL;
     }
 
     ~kis_packet() {
         // Delete everything we contain when we die.  I hope whomever put
         // it there expected this.
 		for (unsigned int y = 0; y < MAX_PACKET_COMPONENTS; y++) {
-			if (content_vec[y] == NULL)
+			packet_component *pcm = content_vec[y];
+
+			if (pcm == NULL)
 				continue;
 
-			if (content_vec[y]->self_destruct)
-				delete content_vec[y];
+			// If it's marked for self-destruction, delete it.  Otherwise, 
+			// someone else is responsible for removing it.
+			if (pcm->self_destruct)
+				delete pcm;
+
+			content_vec[y] = NULL;
         }
     }
    
@@ -124,6 +130,7 @@ public:
     unsigned int length;
    
     kis_datachunk() {
+		self_destruct = 1; // Our delete() handles everything
         data = NULL;
         length = 0;
     }
@@ -138,6 +145,7 @@ public:
 class kis_ieee80211_packinfo : public packet_component {
 public:
     kis_ieee80211_packinfo() {
+		self_destruct = 1; // Our delete() handles this
         corrupt = 0;
         header_offset = 0;
         type = packet_unknown;
@@ -250,6 +258,7 @@ enum kis_protocol_info_type {
 class kis_data_packinfo : public packet_component {
 public:
 	kis_data_packinfo() {
+		self_destruct = 1; // Safe to delete us
 		proto = proto_unknown;
 		ip_source_port = 0;
 		ip_dest_port = 0;
@@ -286,6 +295,7 @@ public:
 class kis_layer1_packinfo : public packet_component {
 public:
 	kis_layer1_packinfo() {
+		self_destruct = 1;  // Safe to delete us
 		signal = noise = 0;
 		carrier = carrier_unknown;
 		encoding = encoding_unknown;

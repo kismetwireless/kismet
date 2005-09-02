@@ -1,5 +1,6 @@
 Sep 01 2005  devel  Added timer kick to netracker to push network updates to
                      kismet clients
+                    Fixed numerous uses of unitialzed memory
 Aug 31 2005  devel  Added WEP decryptor, MANGLE packet element, updated pcap
                      and tun loggers to write the mangled frame
                     Added Adler-32 checksum to util.[h|cc]
