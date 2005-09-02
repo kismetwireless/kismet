@@ -409,8 +409,13 @@ int KisBuiltinDissector::WPAKeyMgtConv(uint8_t mgt_index) {
 
 // This needs to be optimized and it needs to not use casting to do its magic
 int KisBuiltinDissector::ieee80211_dissector(kis_packet *in_pack) {
+	static int debugpcknum = 0;
+
 	if (in_pack->error)
 		return 0;
+
+	debugpcknum++;
+	// printf("debug - packet %d\n", debugpcknum);
 
     // Extract data, bail if it doesn't exist, make a local copy of what we're
     // inserting into the frame.
@@ -1344,7 +1349,7 @@ int KisBuiltinDissector::basicdata_dissector(kis_packet *in_pack) {
 					default:
 						break;
 				}
-				pdu += pdu_len + 3;
+				pdu_offset += pdu_len + 3;
 			}
 
 			datainfo->proto = proto_iapp;
