@@ -47,7 +47,8 @@
 // High-level packet component so that we can provide our own destructors
 class packet_component {
 public:
-    ~packet_component() { self_destruct = 1; };
+    packet_component() { self_destruct = 1; };
+	virtual ~packet_component() { }
 	int self_destruct;
 };
 
@@ -135,7 +136,7 @@ public:
         length = 0;
     }
 
-    ~kis_datachunk() {
+    virtual ~kis_datachunk() {
         delete[] data;
         length = 0;
     }

@@ -237,7 +237,8 @@ int PacketSource_Pcap::ManglePacket(kis_packet *packet) {
 
 	// Add the link-layer raw data to the packet, for the pristine copy
 	kis_datachunk *linkchunk = new kis_datachunk;
-	linkchunk->data = new uint8_t[callback_header.caplen];
+	linkchunk->data = 
+		new uint8_t[kismin(callback_header.caplen, (uint32_t) MAX_PACKET_LEN)];
 	linkchunk->length = kismin(callback_header.caplen, (uint32_t) MAX_PACKET_LEN);
 	memcpy(linkchunk->data, callback_data, linkchunk->length);
 	packet->insert(_PCM(PACK_COMP_LINKFRAME), linkchunk);

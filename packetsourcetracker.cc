@@ -143,14 +143,14 @@ Packetsourcetracker::Packetsourcetracker(GlobalRegistry *in_globalreg) {
 
 	// Register our packet components 
 	// back-refer to the capsource so we can get names and parameters
-	globalreg->packetcomp_map[PACK_COMP_KISCAPSRC] =
+	_PCM(PACK_COMP_KISCAPSRC) =
 		globalreg->packetchain->RegisterPacketComponent("KISCAPSRC");
 	// Basic packet chunks everyone needs
-	globalreg->packetcomp_map[PACK_COMP_RADIODATA] =
+	_PCM(PACK_COMP_RADIODATA) =
 		globalreg->packetchain->RegisterPacketComponent("RADIODATA");
-	globalreg->packetcomp_map[PACK_COMP_LINKFRAME] =
+	_PCM(PACK_COMP_LINKFRAME) =
 		globalreg->packetchain->RegisterPacketComponent("LINKFRAME");
-	globalreg->packetcomp_map[PACK_COMP_80211FRAME] =
+	_PCM(PACK_COMP_80211FRAME) =
 		globalreg->packetchain->RegisterPacketComponent("80211FRAME");
 	
 
