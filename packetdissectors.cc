@@ -1193,10 +1193,13 @@ int KisBuiltinDissector::basicdata_dissector(kis_packet *in_pack) {
 		else
 			offset = header_offset + LLC_UI_OFFSET + 12;
 
+		// Did we get useful info?
+		int gotinfo = 0;
+
 		while (offset + CDP_ELEMENT_LEN < chunk->length) {
 		// uint16_t dot1x_length = kis_extract16(&(chunk->data[offset + 2]));
-			uint16_t elemlen = kis_ntoh16(kis_extract16(&(chunk->data[offset + 0])));
-			uint16_t elemtype = kis_ntoh16(kis_extract16(&(chunk->data[offset + 2])));
+			uint16_t elemtype = kis_extract16(&(chunk->data[offset + 0]));
+			uint16_t elemlen = kis_extract16(&(chunk->data[offset + 2]));
 
 			if (elemlen == 0)
 				break;
@@ -1206,7 +1209,7 @@ int KisBuiltinDissector::basicdata_dissector(kis_packet *in_pack) {
 
 			if (elemtype == 0x01) {
 				// Device id, we care about this
-				if (elemlen < 3) {
+				if (elemlen < 4) {
 					_MSG("Corrupt CDP frame (possibly an exploit attempt), discarded",
 						 MSGFLAG_ERROR);
 					packinfo->corrupt = 1;
@@ -1216,9 +1219,10 @@ int KisBuiltinDissector::basicdata_dissector(kis_packet *in_pack) {
 
 				datainfo->cdp_dev_id = 
 					MungeToPrintable((char *) &(chunk->data[offset + 4]), 
-									 elemlen - 3);
+									 elemlen - 4);
+				gotinfo = 1;
 			} else if (elemtype == 0x03) {
-				if (elemlen < 3) {
+				if (elemlen < 4) {
 					_MSG("Corrupt CDP frame (possibly an exploit attempt), discarded",
 						 MSGFLAG_ERROR);
 					packinfo->corrupt = 1;
@@ -1228,16 +1232,18 @@ int KisBuiltinDissector::basicdata_dissector(kis_packet *in_pack) {
 
 				datainfo->cdp_port_id = 
 					MungeToPrintable((char *) &(chunk->data[offset + 4]), 
-									 elemlen - 3);
+									 elemlen - 4);
+				gotinfo = 1;
 			}
 
 			offset += elemlen;
 		}
 
-		datainfo->proto = proto_cdp;
-
-		in_pack->insert(_PCM(PACK_COMP_BASICDATA), datainfo);
-		return 1;
+		if (gotinfo) {
+			datainfo->proto = proto_cdp;
+			in_pack->insert(_PCM(PACK_COMP_BASICDATA), datainfo);
+			return 1;
+		}
 
 	}
 
