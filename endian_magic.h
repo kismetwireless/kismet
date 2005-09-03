@@ -33,6 +33,10 @@
 #define kis_hton64(x) (x)
 #define kis_ntoh64(x) (x)
 
+#define kis_extract16(x) kis_extractBE16(x)
+#define kis_extract32(x) kis_extractBE32(x)
+#define kis_extract64(x) kis_extractBE64(x)
+
 #else
 
 #define kis_hton16(x) kis_swap16((x))
@@ -43,6 +47,10 @@
 
 #define kis_hton64(x) kis_swap64((x))
 #define kis_ntoh64(x) kis_swap64((x))
+
+#define kis_extract16(x) kis_extractLE16(x)
+#define kis_extract32(x) kis_extractLE32(x)
+#define kis_extract64(x) kis_extractLE64(x)
 
 #endif
 
@@ -80,17 +88,37 @@
 })
 
 // Extract magic, also cribbed from tcpdump/ethereal
-#define kis_extract16(x) \
+#define kis_extractLE16(x) \
+	((uint16_t)((uint16_t)*((const uint8_t *)(x) + 1) << 8 | \
+ 	(uint16_t)*((const uint8_t *)(x) + 0))) 
+
+#define kis_extractLE32(x) \
+	((uint32_t)((uint32_t)*((const uint8_t *)(x) + 1) << 24 | \
+	((uint32_t)((uint32_t)*((const uint8_t *)(x) + 0) << 16 | \
+	((uint32_t)((uint32_t)*((const uint8_t *)(x) + 3) << 8 | \
+ 	(uint32_t)*((const uint8_t *)(x) + 2))) 
+
+#define kis_extractLE64(x) \
+	((uint64_t)((uint64_t)*((const uint8_t *)(x) + 1) << 56 | \
+	((uint64_t)((uint64_t)*((const uint8_t *)(x) + 0) << 48 | \
+	((uint64_t)((uint64_t)*((const uint8_t *)(x) + 3) << 40 | \
+	((uint64_t)((uint64_t)*((const uint8_t *)(x) + 2) << 32 | \
+	((uint64_t)((uint64_t)*((const uint8_t *)(x) + 5) << 24 | \
+	((uint64_t)((uint64_t)*((const uint8_t *)(x) + 4) << 16 | \
+	((uint64_t)((uint64_t)*((const uint8_t *)(x) + 7) << 8 | \
+ 	(uint64_t)*((const uint8_t *)(x) + 6))) 
+
+#define kis_extractBE16(x) \
 	((uint16_t)((uint16_t)*((const uint8_t *)(x) + 0) << 8 | \
  	(uint16_t)*((const uint8_t *)(x) + 1))) 
 
-#define kis_extract32(x) \
+#define kis_extractBE32(x) \
 	((uint32_t)((uint32_t)*((const uint8_t *)(x) + 0) << 24 | \
 	((uint32_t)((uint32_t)*((const uint8_t *)(x) + 1) << 16 | \
 	((uint32_t)((uint32_t)*((const uint8_t *)(x) + 2) << 8 | \
  	(uint32_t)*((const uint8_t *)(x) + 3))) 
 
-#define kis_extract64(x) \
+#define kis_extractBE64(x) \
 	((uint64_t)((uint64_t)*((const uint8_t *)(x) + 0) << 56 | \
 	((uint64_t)((uint64_t)*((const uint8_t *)(x) + 1) << 48 | \
 	((uint64_t)((uint64_t)*((const uint8_t *)(x) + 2) << 40 | \

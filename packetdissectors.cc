@@ -1198,8 +1198,8 @@ int KisBuiltinDissector::basicdata_dissector(kis_packet *in_pack) {
 
 		while (offset + CDP_ELEMENT_LEN < chunk->length) {
 		// uint16_t dot1x_length = kis_extract16(&(chunk->data[offset + 2]));
-			uint16_t elemtype = kis_extract16(&(chunk->data[offset + 0]));
-			uint16_t elemlen = kis_extract16(&(chunk->data[offset + 2]));
+			uint16_t elemtype = kis_ntoh16(kis_extract16(&(chunk->data[offset + 0])));
+			uint16_t elemlen = kis_ntoh16(kis_extract16(&(chunk->data[offset + 2])));
 
 			if (elemlen == 0)
 				break;
