@@ -268,7 +268,7 @@ public:
 		int beaconrate;
 
 		// Guesstimated IP data
-		ip_data guess_ipdata;
+		Netracker::ip_data guess_ipdata;
 
 		// state tracking elements
 		// Number of client disconnects (decayed per second)
@@ -290,6 +290,9 @@ public:
 
 		// Nonoverlapping so standard map is ok
 		map<mac_addr, tracked_client *> cli_track_map;
+
+		string cdp_dev_id;
+		string cdp_port_id;
 
 		// Network is dirty and should be pushed out
 		int dirty;
@@ -408,6 +411,7 @@ protected:
 
 	// Alert references
 	int alert_chan_ref;
+	int alert_dhcpcon_ref;
 
 	// Timer refs
 	int netrackereventid;

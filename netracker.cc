@@ -673,6 +673,8 @@ Netracker::Netracker(GlobalRegistry *in_globalreg) {
 	// See if we have some alerts to raise
 	alert_chan_ref = 
 		globalreg->alertracker->ActivateConfiguredAlert("CHANCHANGE");
+	alert_dhcpcon_ref =
+		globalreg->alertracker->ActivateConfiguredAlert("DHCPCONFLICT");
 
 	// Register timer kick
 	netrackereventid = 
@@ -923,6 +925,11 @@ int Netracker::netracker_chain_handler(kis_packet *in_pack) {
 			net->crypt_packets++;
 	}
 
+	// Handle data sizes
+	net->datasize += packinfo->datasize;
+
+	// FIXME - handle client creation
+
 	if (newnetwork) {
 		snprintf(status, STATUS_MAX, "Detected new network \"%s\", BSSID %s, "
 				 "encryption %s, channel %d, %2.2f mbit",
@@ -936,6 +943,8 @@ int Netracker::netracker_chain_handler(kis_packet *in_pack) {
 										   (void *) net);
 	}
 
+	net->dirty = 1;
+
 	// TODO:  
 	//  Manuf matching
 
@@ -943,9 +952,96 @@ int Netracker::netracker_chain_handler(kis_packet *in_pack) {
 }
 
 int Netracker::datatracker_chain_handler(kis_packet *in_pack) {
-	// return auxptr->datatracker_chain_handler(in_pack);
+	// Fetch the info from the packet chain data
+	kis_ieee80211_packinfo *packinfo = (kis_ieee80211_packinfo *) 
+		in_pack->fetch(_PCM(PACK_COMP_80211));
 
-	return 0;
+	// No 802.11 info, we don't handle it.
+	if (packinfo == NULL) {
+		return 0;
+	}
+
+	// Not an 802.11 frame type we known how to track, we'll just skip
+	// it, too
+	if (packinfo->corrupt || packinfo->type == packet_noise ||
+		packinfo->type == packet_unknown || 
+		packinfo->subtype == packet_sub_unknown) {
+		return 0;
+	}
+
+	kis_data_packinfo *datainfo = (kis_data_packinfo *)
+		in_pack->fetch(_PCM(PACK_COMP_BASICDATA));
+
+	// No data info?  We can't handle it
+	if (datainfo == NULL) {
+		return 0;
+	}
+
+	// Make sure we got a network
+	tracked_network *net = (tracked_network *)
+		in_pack->fetch(_PCM(PACK_COMP_TRACKERNET));
+
+	// No network?  Can't handle this either.
+	if (net == NULL) {
+		return 0;
+	}
+
+	// Apply the network-level stuff
+	if (packinfo->source_mac == net->bssid) {
+		// Things that come from the MAC of the AP carry special weight.  
+		// CDP gets copied over so that we can figure out where this AP is
+		// (maybe)
+		net->cdp_dev_id = datainfo->cdp_dev_id;
+		net->cdp_port_id = datainfo->cdp_port_id;
+	} 
+
+	// Start comparing IP stuff and move it into the network.  We don't
+	// trust IPs coming from the the AP itself UNLESS they're DHCP-Offers because
+	// an AP in router mode tends to replicate in internet addresses and confuse
+	// things all over the place.
+	if ((packinfo->source_mac == net->bssid && datainfo->proto == proto_dhcp_offer) ||
+		packinfo->source_mac != net->bssid) {
+		if (datainfo->proto  == proto_dhcp_offer) {
+			// DHCP Offers are about the most complete and authoratative IP info we
+			// can get, so we just overwrite our network knowledge with it.
+
+			// First, check and see if we're going to make noise about this being
+			// a conflicting DHCP offer...  since DHCP is the "best" type of address,
+			// if we've seen an offer before, it will be this address.
+			in_addr ip_calced_range;
+			ip_calced_range.s_addr = 
+				(datainfo->ip_dest_addr.s_addr & datainfo->ip_netmask_addr.s_addr);
+
+			if (alert_dhcpcon_ref >= 0 && net->guess_ipdata.ip_type == ipdata_dhcp &&
+				ip_calced_range.s_addr != net->guess_ipdata.ip_addr_block.s_addr &&
+				globalreg->alertracker->PotentialAlert(alert_dhcpcon_ref)) {
+				ostringstream outs;
+
+				outs << "Network BSSID " << net->bssid.Mac2String() << " got  "
+					"conflicting DHCP offer from " <<
+					packinfo->source_mac.Mac2String() << " of " <<
+					string(inet_ntoa(net->guess_ipdata.ip_addr_block)) <<
+					" previously " << string(inet_ntoa(ip_calced_range));
+
+				globalreg->alertracker->RaiseAlert(alert_dhcpcon_ref, in_pack, 
+												   packinfo->bssid_mac, 
+												   packinfo->source_mac, 
+												   packinfo->dest_mac, 
+												   packinfo->other_mac, 
+												   packinfo->channel, outs.str());
+			}
+		
+			// Copy it into our network IP data
+			net->guess_ipdata.ip_type = ipdata_dhcp;
+			// IP range goes straight in masked w/ offered netmask
+			net->guess_ipdata.ip_addr_block.s_addr = ip_calced_range.s_addr;
+			net->guess_ipdata.ip_netmask.s_addr = datainfo->ip_netmask_addr.s_addr;
+			net->guess_ipdata.ip_gateway.s_addr = datainfo->ip_gateway_addr.s_addr;
+		}
+
+	}
+
+	return 1;
 }
 
 int Netracker::ReadSSIDCache() {
