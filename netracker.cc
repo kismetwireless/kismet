@@ -55,6 +55,7 @@ char *NETWORK_fields_text[] = {
     "turbocellnid", "turbocellmode", "turbocellsat",
     "carrierset", "maxseenrate", "encodingset",
     "decrypted", "dupeivpackets", "bsstimestamp",
+	"cdpdevice", "cdpport",
     NULL
 };
 
@@ -315,6 +316,18 @@ int Protocol_NETWORK(PROTO_PARMS) {
 			case NETWORK_bsstimestamp:
 				osstr << net->bss_timestamp;
 				cache->Cache(fnum, osstr.str());
+				break;
+			case NETWORK_cdpdevice:
+				if (net->cdp_dev_id.length() == 0)
+					cache->Cache(fnum, "\001 \001");
+				else
+					cache->Cache(fnum, "\001" + net->cdp_dev_id + "\001");
+				break;
+			case NETWORK_cdpport:
+				if (net->cdp_port_id.length() == 0)
+					cache->Cache(fnum, "\001 \001");
+				else
+					cache->Cache(fnum, "\001" + net->cdp_port_id + "\001");
 				break;
 		}
 

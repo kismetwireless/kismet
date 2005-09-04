@@ -1,6 +1,7 @@
 Sep 04 2005  devel  Started adding data processing, IP guessing
                     Added DHCPCONFLICT alert to catch multiple DHCP servers
                      on one network.  Maybe a little too layer-3ish
+                    Added CDP ids to NETWORK protocol
 Sep 03 2005  devel  Fixed CDP processing
 Sep 02 2005  devel  Fixed alert on channel 0 networks getting a channel
                     Fixed treating probe req, disassoc, auth, and death as

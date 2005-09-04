@@ -67,6 +67,7 @@ enum NETWORK_fields {
     NETWORK_datasize, NETWORK_tcnid, NETWORK_tcmode, NETWORK_tsat,
     NETWORK_carrierset, NETWORK_maxseenrate, NETWORK_encodingset,
     NETWORK_decrypted, NETWORK_dupeiv, NETWORK_bsstimestamp,
+	NETWORK_cdpdevice, NETWORK_cdpport,
 	NETWORK_maxfield
 };
 
