@@ -914,18 +914,19 @@ int Netracker::netracker_chain_handler(kis_packet *in_pack) {
 	}
 
 	// Catch probe responses and decloak if they're nonblank
-	if (net->ssid_cloaked != 0 && net->ssid_uncloaked == 0 &&
+	if (packinfo->ssid_len != 0 && packinfo->ssid_blank == 0 &&
+		net->ssid_cloaked != 0 && net->ssid_uncloaked == 0 &&
 		packinfo->type == packet_management &&
-		packinfo->subtype == packet_sub_probe_resp &&
-		packinfo->ssid_len != 0 && packinfo->ssid_blank != 0) {
+		packinfo->subtype == packet_sub_probe_resp) {
 
 		net->ssid_uncloaked = 1;
 		net->ssid = packinfo->ssid;
+
 		// Update the cloak map
 		bssid_cloak_map[net->bssid] = packinfo->ssid;
 
-		_MSG("Discovered SSID \"" + net->ssid + "\" for cloaked network " + 
-			 net->bssid.Mac2String(), MSGFLAG_INFO);
+		_MSG("Decloaked network " + packinfo->bssid_mac.Mac2String() + 
+			 " SSID '" + packinfo->ssid + "'", MSGFLAG_INFO);
 	}
 
 	if (packinfo->type == packet_management ||
