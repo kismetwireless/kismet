@@ -112,7 +112,8 @@ enum client_type {
 	client_fromds = 1,
 	client_tods = 2,
 	client_interds = 3,
-	client_established = 4
+	client_established = 4,
+	client_adhoc = 5
 };
 
 enum ipdata_type {
@@ -289,9 +290,6 @@ public:
 		// Number of duplicate IV counts
 		int dupeiv_packets;
 
-		// Nonoverlapping so standard map is ok
-		map<mac_addr, tracked_client *> cli_track_map;
-
 		string cdp_dev_id;
 		string cdp_port_id;
 
@@ -310,6 +308,8 @@ public:
 			maxrate = 0;
 			last_sequence = 0;
 			datasize = 0;
+			netptr = NULL;
+			dirty = 0;
 		}
 
 		// DS detected type
@@ -359,6 +359,12 @@ public:
 
 		// Guesstimated IP data
 		ip_data guess_ipdata;
+
+		// Do we need to push an update?
+		int dirty;
+
+		// Pointer to the network we belong to, for fast compares
+		Netracker::tracked_network *netptr;
 	};
 
 	Netracker();
@@ -369,6 +375,7 @@ public:
 	typedef map<mac_addr, Netracker::tracked_client *>::iterator client_iter;
 	typedef map<mac_addr, Netracker::ip_data>::iterator ipcache_iter;
 	typedef map<mac_addr, string>::iterator ssidcache_iter;
+	typedef multimap<mac_addr, Netracker::tracked_client *>::iterator ap_client_itr;
 
 protected:
 	GlobalRegistry *globalreg;
@@ -382,6 +389,13 @@ protected:
 	int WriteSSIDCache();
 	int ReadIPCache();
 	int WriteIPCache();
+
+	// Move a client between networks
+	void MoveClientNetwork(Netracker::tracked_client *cli, 
+						   Netracker::tracked_network *net);
+	// Combine networks (probe into normal)
+	void MergeNetwork(Netracker::tracked_network *net1,
+					  Netracker::tracked_network *net2);
 
 	// Kick the timer event to update all the clients
 	int TimerKick();
@@ -399,6 +413,9 @@ protected:
 	// Cached data
 	map<mac_addr, Netracker::ip_data> bssid_ip_map;
 	map<mac_addr, string> bssid_cloak_map;
+
+	// AP BSSID to client
+	multimap<mac_addr, Netracker::tracked_client *> ap_client_map;
 
 	// Manufacturer maps
 	/*

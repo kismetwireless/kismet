@@ -562,12 +562,14 @@ void Protocol_CLIENT_enable(PROTO_ENABLE_PARMS) {
         if (x->second->type == network_remove) 
             continue;
 
+#if 0
 		for (Netracker::client_iter y = x->second->cli_track_map.begin();
 			 y != x->second->cli_track_map.end(); ++y) {
 			kis_protocol_cache cache;
 			globalreg->kisnetserver->SendToClient(in_fd, _NPM(PROTO_REF_CLIENT),
 												  (void *) y->second, &cache);
 		}
+#endif
 	}
 }
 
@@ -713,9 +715,45 @@ int Netracker::TimerKick() {
 	return 1;
 }
 
+void Netracker::MoveClientNetwork(Netracker::tracked_client *cli, 
+								  Netracker::tracked_network *net) {
+	// Just to be safe
+	if (cli->netptr == NULL)
+		return;
+
+	pair<ap_client_itr, ap_client_itr> apclis = 
+		ap_client_map.equal_range(cli->netptr->bssid);
+
+	for (ap_client_itr i = apclis.first; i != apclis.second; ++i) {
+		if (i->second == cli) {
+			ap_client_map.erase(i);
+			break;
+		}
+	}
+
+	// Remove it from one
+	cli->netptr->llc_packets -= cli->llc_packets;
+	cli->netptr->data_packets -= cli->data_packets;
+	cli->netptr->crypt_packets -= cli->crypt_packets;
+	cli->netptr->fmsweak_packets -= cli->fmsweak_packets;
+
+	// Add it to the other
+	cli->netptr = net;
+	net->llc_packets += cli->llc_packets;
+	net->data_packets += cli->data_packets;
+	net->crypt_packets += cli->crypt_packets;
+	net->fmsweak_packets += cli->fmsweak_packets;
+
+	ap_client_map.insert(make_pair(net->bssid, cli));
+
+	// FIXME:  Add recalculating the crypt_set and other goodies
+}
+
 int Netracker::netracker_chain_handler(kis_packet *in_pack) {
 	tracked_network *net = NULL;
+	tracked_client *cli = NULL;
 	int newnetwork = 0;
+	int newclient = 0;
 	char status[STATUS_MAX];
 
 	// Fetch the info from the packet chain data
@@ -778,7 +816,7 @@ int Netracker::netracker_chain_handler(kis_packet *in_pack) {
 			net->type = network_ap;
 		}
 
-		net->first_time = time(0);
+		net->first_time = globalreg->timestamp.tv_sec;
 		net->bss_timestamp = packinfo->timestamp;
 
 		// Learn it
@@ -789,10 +827,58 @@ int Netracker::netracker_chain_handler(kis_packet *in_pack) {
 		// outside of the new network code, obviously
 	}
 
+	// Handle client tracking and creation
+	client_iter clitr;
+	if ((clitr = client_map.find(packinfo->source_mac)) == client_map.end()) {
+		cli = new tracked_client;
+
+		cli->first_time = globalreg->timestamp.tv_sec;
+
+		// Set the distribution type
+		if (packinfo->distrib == distrib_from)
+			cli->type = client_fromds;
+		else if (packinfo->distrib == distrib_to)
+			cli->type = client_tods;
+		else if (packinfo->distrib == distrib_inter)
+			cli->type = client_interds;
+		else if (packinfo->distrib == distrib_adhoc)
+			cli->type = client_adhoc;
+		else
+			cli->type = client_unknown;
+
+		// Pointer to us
+		cli->netptr = net;
+
+		// Log it in the multimap
+		ap_client_map.insert(make_pair(net->bssid, cli));
+
+		newclient = 1;
+	} else {
+		cli = clitr->second;
+
+		// Update and move the client to this network if it isn't.
+		if (cli->netptr != net) {
+			MoveClientNetwork(cli, net);
+		}
+
+		// Process the type to indicate established clients
+		if ((packinfo->distrib == distrib_to && cli->type == client_fromds) ||
+			(packinfo->distrib == distrib_from && cli->type == client_tods))
+			cli->type = client_established;
+		else if (packinfo->distrib == distrib_inter)
+			cli->type = client_interds;
+		else if (packinfo->distrib == distrib_adhoc)
+			cli->type = client_adhoc;
+	}
+
 	// Link it to the packet for future chain elements
 	kis_netracker_netinfo *netpackinfo = new kis_netracker_netinfo;
 	netpackinfo->netref = net;
-	in_pack->insert(globalreg->packetcomp_map[PACK_COMP_TRACKERNET], netpackinfo);
+	in_pack->insert(_PCM(PACK_COMP_TRACKERNET), netpackinfo);
+
+	kis_netracker_cliinfo *clipackinfo = new kis_netracker_cliinfo;
+	clipackinfo->cliref = cli;
+	in_pack->insert(_PCM(PACK_COMP_TRACKERCLIENT), clipackinfo);
 
 	// Update the time
 	net->last_time = time(0);
@@ -826,6 +912,31 @@ int Netracker::netracker_chain_handler(kis_packet *in_pack) {
 		net->gpsdata.aggregate_lon += gpsinfo->lon;
 		net->gpsdata.aggregate_alt += gpsinfo->alt;
 		net->gpsdata.aggregate_points++;
+
+		cli->gpsdata.gps_valid = 1;
+
+		if (gpsinfo->lat < cli->gpsdata.min_lat)
+			cli->gpsdata.min_lat = gpsinfo->lat;
+		if (gpsinfo->lon < cli->gpsdata.min_lon)
+			cli->gpsdata.min_lon = gpsinfo->lon;
+		if (gpsinfo->alt < cli->gpsdata.min_alt)
+			cli->gpsdata.min_alt = gpsinfo->alt;
+		if (gpsinfo->spd < cli->gpsdata.min_spd)
+			cli->gpsdata.min_spd = gpsinfo->spd;
+
+		if (gpsinfo->lat > cli->gpsdata.max_lat)
+			cli->gpsdata.max_lat = gpsinfo->lat;
+		if (gpsinfo->lon > cli->gpsdata.max_lon)
+			cli->gpsdata.max_lon = gpsinfo->lon;
+		if (gpsinfo->alt > cli->gpsdata.max_alt)
+			cli->gpsdata.max_alt = gpsinfo->alt;
+		if (gpsinfo->spd > cli->gpsdata.max_spd)
+			cli->gpsdata.max_spd = gpsinfo->spd;
+
+		cli->gpsdata.aggregate_lat += gpsinfo->lat;
+		cli->gpsdata.aggregate_lon += gpsinfo->lon;
+		cli->gpsdata.aggregate_alt += gpsinfo->alt;
+		cli->gpsdata.aggregate_points++;
 	}
 
 	// L1 signal info, if our capture source was able to inject any into
@@ -854,6 +965,30 @@ int Netracker::netracker_chain_handler(kis_packet *in_pack) {
 		// Push in the bits for the carrier and encoding
 		net->snrdata.carrierset |= (1 << (int) l1info->carrier);
 		net->snrdata.encodingset |= (1 << (int) l1info->encoding);
+
+		cli->snrdata.last_signal = l1info->signal;
+		cli->snrdata.last_noise = l1info->noise;
+
+		if (l1info->noise > cli->snrdata.max_noise) {
+			cli->snrdata.max_noise = l1info->noise;
+		}
+
+		if (l1info->signal > cli->snrdata.max_signal) {
+			cli->snrdata.max_signal = l1info->signal;
+
+			if (gpsinfo != NULL) {
+				cli->snrdata.peak_lat = gpsinfo->lat;
+				cli->snrdata.peak_lon = gpsinfo->lon;
+				cli->snrdata.peak_alt = gpsinfo->alt;
+			}
+		}
+
+		if (l1info->datarate < cli->snrdata.maxseenrate)
+			cli->snrdata.maxseenrate = l1info->datarate;
+
+		// Push in the bits for the carrier and encoding
+		cli->snrdata.carrierset |= (1 << (int) l1info->carrier);
+		cli->snrdata.encodingset |= (1 << (int) l1info->encoding);
 	}
 
 	// Extract info from beacon frames, they're the only ones we trust to
@@ -888,8 +1023,10 @@ int Netracker::netracker_chain_handler(kis_packet *in_pack) {
 		if (net->maxrate < packinfo->maxrate)
 			net->maxrate = packinfo->maxrate;
 
-		if (packinfo->cryptset)
+		if (packinfo->cryptset) {
 			net->cryptset |= packinfo->cryptset;
+			cli->cryptset |= packinfo->cryptset;
+		}
 
 		// Fire off an alert if the channel changes
 		if (alert_chan_ref >= 0 && newnetwork == 0 && net->channel != 0 &&
@@ -909,6 +1046,7 @@ int Netracker::netracker_chain_handler(kis_packet *in_pack) {
 		}
 
 		net->channel = packinfo->channel;
+		cli->channel = packinfo->channel;
 
 		net->beaconrate = packinfo->beacon_interval;
 	}
@@ -932,17 +1070,22 @@ int Netracker::netracker_chain_handler(kis_packet *in_pack) {
 	if (packinfo->type == packet_management ||
 		packinfo->type == packet_phy) {
 		net->llc_packets++;
+		cli->llc_packets++;
 	} else if (packinfo->type == packet_data) {
 		net->data_packets++;
+		cli->data_packets++;
 
-		if (packinfo->encrypted)
+		if (packinfo->encrypted) {
 			net->crypt_packets++;
+			cli->crypt_packets++;
+		}
+
+		// TODO - Add FMSweak handling
 	}
 
 	// Handle data sizes
 	net->datasize += packinfo->datasize;
-
-	// FIXME - handle client creation
+	cli->datasize += packinfo->datasize;
 
 	if (newnetwork) {
 		snprintf(status, STATUS_MAX, "Detected new network \"%s\", BSSID %s, "
@@ -958,6 +1101,7 @@ int Netracker::netracker_chain_handler(kis_packet *in_pack) {
 	}
 
 	net->dirty = 1;
+	cli->dirty = 1;
 
 	// TODO:  
 	//  Manuf matching
