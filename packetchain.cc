@@ -34,7 +34,7 @@ class SortLinkPriority {
 public:
     inline bool operator() (const Packetchain::pc_link *x, 
                             const Packetchain::pc_link *y) const {
-        if (x->priority > y->priority)
+        if (x->priority < y->priority)
             return 1;
         return 0;
     }

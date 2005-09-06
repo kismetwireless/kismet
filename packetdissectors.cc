@@ -1317,7 +1317,7 @@ int KisBuiltinDissector::basicdata_dissector(kis_packet *in_pack) {
 		
 		datainfo->proto = proto_arp;
 		memcpy(&(datainfo->ip_source_addr.s_addr),
-			   &(chunk->data[header_offset + 16]), 4);
+			   &(chunk->data[header_offset + ARP_OFFSET + 16]), 4);
 		in_pack->insert(_PCM(PACK_COMP_BASICDATA), datainfo);
 		return 1;
 	}
@@ -1507,13 +1507,13 @@ int KisBuiltinDissector::basicdata_dissector(kis_packet *in_pack) {
 					// Have to dig all the way into the bootp segment
 					
 					// Bail if we're misformed
-					if (offset + 32 >= chunk->length) {
+					if ((header_offset + DHCPD_OFFSET + 32) >= chunk->length) {
 						delete datainfo;
 						return 0;
 					}
 
 					memcpy(&(datainfo->ip_dest_addr.s_addr), 
-						   &(chunk->data[offset + 28]), 4);
+						   &(chunk->data[header_offset + DHCPD_OFFSET + 28]), 4);
 				}
 
 				offset += chunk->data[offset + 1] + 2;

@@ -1,3 +1,8 @@
+Sep 05 2005  devel  Fixed DHCP handling
+                    Fixed UDP handling
+                    Fixed packetchain ordering
+                    Added IP tracking
+                    Fixed network/client packet attachments
 Sep 04 2005  devel  Started adding data processing, IP guessing
                     Added DHCPCONFLICT alert to catch multiple DHCP servers
                      on one network.  Maybe a little too layer-3ish

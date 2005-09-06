@@ -744,6 +744,8 @@ void Netracker::MoveClientNetwork(Netracker::tracked_client *cli,
 	net->crypt_packets += cli->crypt_packets;
 	net->fmsweak_packets += cli->fmsweak_packets;
 
+	cli->bssid = net->bssid;
+
 	ap_client_map.insert(make_pair(net->bssid, cli));
 
 	// FIXME:  Add recalculating the crypt_set and other goodies
@@ -833,6 +835,9 @@ int Netracker::netracker_chain_handler(kis_packet *in_pack) {
 		cli = new tracked_client;
 
 		cli->first_time = globalreg->timestamp.tv_sec;
+
+		cli->mac = packinfo->source_mac;
+		cli->bssid = net->bssid;
 
 		// Set the distribution type
 		if (packinfo->distrib == distrib_from)
@@ -1007,7 +1012,7 @@ int Netracker::netracker_chain_handler(kis_packet *in_pack) {
 			}
 		} else {
 			net->ssid = string(packinfo->ssid);
-			if (net->ssid_cloaked) {
+			if (net->ssid_cloaked && net->ssid_uncloaked == 0) {
 				_MSG("Decloaked network " + packinfo->bssid_mac.Mac2String() + 
 					 " SSID '" + packinfo->ssid + "'", MSGFLAG_INFO);
 				net->ssid_uncloaked = 1;
@@ -1090,7 +1095,7 @@ int Netracker::netracker_chain_handler(kis_packet *in_pack) {
 	if (newnetwork) {
 		snprintf(status, STATUS_MAX, "Detected new network \"%s\", BSSID %s, "
 				 "encryption %s, channel %d, %2.2f mbit",
-				 (net->ssid_cloaked && !net->ssid_uncloaked) ? 
+				 (net->ssid.length() == 0) ? 
 				 "<no ssid>" : net->ssid.c_str(), 
 				 net->bssid.Mac2String().c_str(),
 				 net->cryptset ? "yes" : "no",
@@ -1098,6 +1103,12 @@ int Netracker::netracker_chain_handler(kis_packet *in_pack) {
 		_MSG(status, MSGFLAG_INFO);
 		globalreg->kisnetserver->SendToAll(_NPM(PROTO_REF_NETWORK), 
 										   (void *) net);
+	}
+
+	if (newclient) {
+		// do we want to whine in the info field?
+		globalreg->kisnetserver->SendToAll(_NPM(PROTO_REF_CLIENT),
+										   (void *) cli);
 	}
 
 	net->dirty = 1;
@@ -1136,13 +1147,28 @@ int Netracker::datatracker_chain_handler(kis_packet *in_pack) {
 	}
 
 	// Make sure we got a network
-	tracked_network *net = (tracked_network *)
-		in_pack->fetch(_PCM(PACK_COMP_TRACKERNET));
+	tracked_network *net;
+	kis_netracker_netinfo *netpackinfo =
+		(kis_netracker_netinfo *) in_pack->fetch(_PCM(PACK_COMP_TRACKERNET));
 
 	// No network?  Can't handle this either.
-	if (net == NULL) {
+	if (netpackinfo == NULL) {
 		return 0;
 	}
+
+	net = netpackinfo->netref;
+
+	// Make sure we got a client, too
+	tracked_client *cli;
+	kis_netracker_cliinfo *clipackinfo =
+		(kis_netracker_cliinfo *) in_pack->fetch(_PCM(PACK_COMP_TRACKERCLIENT));
+
+	// No network?  Can't handle this either.
+	if (clipackinfo == NULL) {
+		return 0;
+	}
+
+	cli = clipackinfo->cliref;
 
 	// Apply the network-level stuff
 	if (packinfo->source_mac == net->bssid) {
@@ -1157,10 +1183,12 @@ int Netracker::datatracker_chain_handler(kis_packet *in_pack) {
 	// trust IPs coming from the the AP itself UNLESS they're DHCP-Offers because
 	// an AP in router mode tends to replicate in internet addresses and confuse
 	// things all over the place.
+	int ipdata_dirty = 0;
+
 	if ((packinfo->source_mac == net->bssid && datainfo->proto == proto_dhcp_offer) ||
 		packinfo->source_mac != net->bssid) {
 		if (datainfo->proto  == proto_dhcp_offer) {
-			// DHCP Offers are about the most complete and authoratative IP info we
+			// DHCP Offers are about the most complete and authoritative IP info we
 			// can get, so we just overwrite our network knowledge with it.
 
 			// First, check and see if we're going to make noise about this being
@@ -1195,9 +1223,124 @@ int Netracker::datatracker_chain_handler(kis_packet *in_pack) {
 			net->guess_ipdata.ip_addr_block.s_addr = ip_calced_range.s_addr;
 			net->guess_ipdata.ip_netmask.s_addr = datainfo->ip_netmask_addr.s_addr;
 			net->guess_ipdata.ip_gateway.s_addr = datainfo->ip_gateway_addr.s_addr;
+			net->dirty = 1;
+
+			// Copy it into our client ip data too
+			cli->guess_ipdata.ip_type = ipdata_dhcp;
+			cli->guess_ipdata.ip_addr_block.s_addr = ip_calced_range.s_addr;
+			cli->guess_ipdata.ip_netmask.s_addr = datainfo->ip_netmask_addr.s_addr;
+			cli->guess_ipdata.ip_gateway.s_addr = datainfo->ip_gateway_addr.s_addr;
+			cli->dirty = 1;
+
+			// printf("debug - got dhcp range %s for net %s\n", inet_ntoa(net->guess_ipdata.ip_addr_block), net->bssid.Mac2String().c_str());
+			ipdata_dirty = 1;
+		} else if (datainfo->proto == proto_arp) {
+			// Second most trusted:  ARP.  ARP only occurs within the IP subnet,
+			// which should be tied to the physical broadcast domain, which should
+			// be a good gauge of our network range
+			if (cli->guess_ipdata.ip_type <= ipdata_arp) {
+				cli->guess_ipdata.ip_type = ipdata_arp;
+				cli->guess_ipdata.ip_addr_block.s_addr = 
+					datainfo->ip_source_addr.s_addr;
+				cli->dirty = 1;
+				ipdata_dirty = 1;
+			}
+		} else if (datainfo->proto == proto_udp || datainfo->proto == proto_tcp) {
+			// Third most trusted: TCP and UDP... update the client
+			if (cli->guess_ipdata.ip_type <= ipdata_udptcp) {
+				cli->guess_ipdata.ip_type = ipdata_udptcp;
+
+				if (packinfo->distrib == distrib_from) {
+					// Coming from the distribution to a client, we probably care
+					// about the destination since it's inside our network
+					cli->guess_ipdata.ip_addr_block.s_addr = 
+						datainfo->ip_dest_addr.s_addr;
+				} else {
+					// Coming from a client, we're more likely to care about the
+					// source.  Let this drop into a generic else since we
+					// might as well use the source addr for anything else.  Other
+					// distrib types don't give us enough of a clue so source is
+					// as good as anything
+					cli->guess_ipdata.ip_addr_block.s_addr = 
+						datainfo->ip_source_addr.s_addr;
+				}
+
+				// Zero the rest of the stuff
+				cli->guess_ipdata.ip_netmask.s_addr = 0;
+				cli->guess_ipdata.ip_gateway.s_addr = 0;
+
+				cli->dirty = 1;
+				ipdata_dirty = 1;
+			}
 		}
 
-	}
+		// Recalculate the network IP characteristics
+		if (ipdata_dirty && net->guess_ipdata.ip_type != ipdata_dhcp) {
+			pair<ap_client_itr, ap_client_itr> apclis = 
+				ap_client_map.equal_range(net->bssid);
+
+			// Track combined addresses for both types so we can pick the
+			// best one
+			in_addr combo_tcpudp;
+			in_addr combo_arp;
+			combo_tcpudp.s_addr = 0;
+			combo_arp.s_addr = 0;
+
+			for (ap_client_itr i = apclis.first; i != apclis.second; ++i) {
+				// Short out on DHCP, thats the best news we get, even though
+				// we should never get here thanks to the special handling of
+				// dhcp in the base ip catcher above
+				tracked_client *acli = i->second;
+				if (acli->guess_ipdata.ip_type == ipdata_dhcp) {
+					net->guess_ipdata = cli->guess_ipdata;
+					break;
+				} else if (acli->guess_ipdata.ip_type == ipdata_arp) {
+					if (combo_arp.s_addr == 0) {
+						// If we're a blank combo addr just set it
+						combo_arp.s_addr = acli->guess_ipdata.ip_addr_block.s_addr;
+					} else {
+						// Otherwise AND it
+						combo_arp.s_addr &=
+							acli->guess_ipdata.ip_addr_block.s_addr;
+					}
+				} else if (acli->guess_ipdata.ip_type == ipdata_udptcp) {
+					// Compare the tcpudp addresses
+					if (combo_tcpudp.s_addr == 0) {
+						combo_tcpudp.s_addr = 
+							acli->guess_ipdata.ip_addr_block.s_addr;
+					} else {
+						combo_tcpudp.s_addr &=
+							acli->guess_ipdata.ip_addr_block.s_addr;
+					}
+				}
+			}
+
+			// Find the "best" address.  If the arp stuff came out to 0
+			// we had no arp or it ANDed out to useless, we need to drop
+			// to the tcp field
+			if (net->guess_ipdata.ip_type != ipdata_dhcp) {
+				if (combo_arp.s_addr != 0) {
+					net->guess_ipdata.ip_type = ipdata_arp;
+					net->guess_ipdata.ip_addr_block.s_addr =
+						combo_arp.s_addr;
+					// printf("debug - got arp range %s for net %s\n", inet_ntoa(combo_arp), net->bssid.Mac2String().c_str());
+				} else if (combo_tcpudp.s_addr != 0) {
+					net->guess_ipdata.ip_type = ipdata_udptcp;
+					net->guess_ipdata.ip_addr_block.s_addr =
+						combo_tcpudp.s_addr;
+					// printf("debug - got tcpdup range %s for net %s\n", inet_ntoa(combo_arp), net->bssid.Mac2String().c_str());
+				} else {
+					net->guess_ipdata.ip_type = ipdata_unknown;
+					net->guess_ipdata.ip_addr_block.s_addr = 0;
+				}
+				net->guess_ipdata.ip_netmask.s_addr = 0;
+				net->guess_ipdata.ip_gateway.s_addr = 0;
+
+				// FIXME:  Add netmask calculation
+				// FIXME:  Add gateway detection
+			}
+		} // ipdata dirty
+	} // ip considered
 
 	return 1;
 }

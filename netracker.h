@@ -119,11 +119,10 @@ enum client_type {
 enum ipdata_type {
 	ipdata_unknown = 0,
 	ipdata_factoryguess = 1,
-	ipdata_udp = 2,
+	ipdata_udptcp = 2,
 	ipdata_arp = 3,
-	ipdata_tcp = 4,
-	ipdata_dhcp = 5,
-	ipdata_group = 6
+	ipdata_dhcp = 4,
+	ipdata_group = 5
 };
 
 // Netracker itself
