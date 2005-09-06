@@ -781,8 +781,9 @@ int Netracker::netracker_chain_handler(kis_packet *in_pack) {
 
 	// Look to see if we already track this bssid and grab it if we do
 	track_iter triter = tracked_map.find(packinfo->bssid_mac);
-	if (triter != tracked_map.end())
+	if (triter != tracked_map.end()) {
 		net = triter->second;
+	}
 
 	// Try to map probe reqs into the network they really belong in, if we
 	// track probes, and we don't already have a network for them
@@ -1203,7 +1204,7 @@ int Netracker::datatracker_chain_handler(kis_packet *in_pack) {
 				globalreg->alertracker->PotentialAlert(alert_dhcpcon_ref)) {
 				ostringstream outs;
 
-				outs << "Network BSSID " << net->bssid.Mac2String() << " got  "
+				outs << "Network BSSID " << net->bssid.Mac2String() << " got "
 					"conflicting DHCP offer from " <<
 					packinfo->source_mac.Mac2String() << " of " <<
 					string(inet_ntoa(net->guess_ipdata.ip_addr_block)) <<
@@ -1232,7 +1233,6 @@ int Netracker::datatracker_chain_handler(kis_packet *in_pack) {
 			cli->guess_ipdata.ip_gateway.s_addr = datainfo->ip_gateway_addr.s_addr;
 			cli->dirty = 1;
 
-			// printf("debug - got dhcp range %s for net %s\n", inet_ntoa(net->guess_ipdata.ip_addr_block), net->bssid.Mac2String().c_str());
 			ipdata_dirty = 1;
 		} else if (datainfo->proto == proto_arp) {
 			// Second most trusted:  ARP.  ARP only occurs within the IP subnet,
@@ -1283,8 +1283,10 @@ int Netracker::datatracker_chain_handler(kis_packet *in_pack) {
 			// best one
 			in_addr combo_tcpudp;
 			in_addr combo_arp;
-			combo_tcpudp.s_addr = 0;
-			combo_arp.s_addr = 0;
+			in_addr combo_nil; // This is dumb
+			combo_tcpudp.s_addr = ~0;
+			combo_arp.s_addr = ~0;
+			combo_nil.s_addr = ~0;
 
 			for (ap_client_itr i = apclis.first; i != apclis.second; ++i) {
 				// Short out on DHCP, thats the best news we get, even though
@@ -1295,23 +1297,12 @@ int Netracker::datatracker_chain_handler(kis_packet *in_pack) {
 					net->guess_ipdata = cli->guess_ipdata;
 					break;
 				} else if (acli->guess_ipdata.ip_type == ipdata_arp) {
-					if (combo_arp.s_addr == 0) {
-						// If we're a blank combo addr just set it
-						combo_arp.s_addr = acli->guess_ipdata.ip_addr_block.s_addr;
-					} else {
-						// Otherwise AND it
-						combo_arp.s_addr &=
-							acli->guess_ipdata.ip_addr_block.s_addr;
-					}
+					combo_arp.s_addr &=
+						acli->guess_ipdata.ip_addr_block.s_addr;
 				} else if (acli->guess_ipdata.ip_type == ipdata_udptcp) {
 					// Compare the tcpudp addresses
-					if (combo_tcpudp.s_addr == 0) {
-						combo_tcpudp.s_addr = 
-							acli->guess_ipdata.ip_addr_block.s_addr;
-					} else {
-						combo_tcpudp.s_addr &=
-							acli->guess_ipdata.ip_addr_block.s_addr;
-					}
+					combo_tcpudp.s_addr &=
+						acli->guess_ipdata.ip_addr_block.s_addr;
 				}
 			}
 
@@ -1319,20 +1310,35 @@ int Netracker::datatracker_chain_handler(kis_packet *in_pack) {
 			// we had no arp or it ANDed out to useless, we need to drop
 			// to the tcp field
 			if (net->guess_ipdata.ip_type != ipdata_dhcp) {
-				if (combo_arp.s_addr != 0) {
+				if (net->guess_ipdata.ip_type <= ipdata_arp &&
+					combo_arp.s_addr != combo_nil.s_addr && combo_arp.s_addr !=
+					net->guess_ipdata.ip_addr_block.s_addr) {
+
 					net->guess_ipdata.ip_type = ipdata_arp;
 					net->guess_ipdata.ip_addr_block.s_addr =
 						combo_arp.s_addr;
-					// printf("debug - got arp range %s for net %s\n", inet_ntoa(combo_arp), net->bssid.Mac2String().c_str());
-				} else if (combo_tcpudp.s_addr != 0) {
+
+					_MSG("Found IP range " + string(inet_ntoa(combo_arp)) +
+						 " via ARP for network " + net->bssid.Mac2String() + 
+						 " SSID '" + (net->ssid.length() == 0 ? "<no ssid>" : 
+									  net->ssid) + "'",
+						 MSGFLAG_INFO);
+
+				} else if (net->guess_ipdata.ip_type <= ipdata_udptcp &&
+						   combo_tcpudp.s_addr != combo_nil.s_addr && 
+						   combo_tcpudp.s_addr != 
+						   net->guess_ipdata.ip_addr_block.s_addr) {
 					net->guess_ipdata.ip_type = ipdata_udptcp;
 					net->guess_ipdata.ip_addr_block.s_addr =
 						combo_tcpudp.s_addr;
-					// printf("debug - got tcpdup range %s for net %s\n", inet_ntoa(combo_arp), net->bssid.Mac2String().c_str());
-				} else {
-					net->guess_ipdata.ip_type = ipdata_unknown;
-					net->guess_ipdata.ip_addr_block.s_addr = 0;
+
+					_MSG("Found IP range " + string(inet_ntoa(combo_tcpudp)) +
+						 " via TCP/UDP for network " + net->bssid.Mac2String() + 
+						 " SSID '" + (net->ssid.length() == 0 ? "<no ssid>" : 
+									  net->ssid) + "'",
+						 MSGFLAG_INFO);
 				}
+
 				net->guess_ipdata.ip_netmask.s_addr = 0;
 				net->guess_ipdata.ip_gateway.s_addr = 0;
 
