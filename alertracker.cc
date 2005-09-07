@@ -50,7 +50,7 @@ int Protocol_ALERT(PROTO_PARMS) {
 		// Shortcut test the cache once and print/bail immediately
 		if (cache->Filled(fnum)) {
 			out_string += cache->GetCache(fnum) + " ";
-			break;
+			continue;
 		}
 
 		switch(fnum) {

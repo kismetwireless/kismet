@@ -584,6 +584,8 @@ int main(int argc,char *argv[]) {
 			}
 		}
 
+		globalregistry->timetracker->Tick();
+
 		for (unsigned int x = 0; x < globalregistry->subsys_pollable_vec.size(); 
 			 x++) {
 			if (globalregistry->subsys_pollable_vec[x]->Poll(rset, wset) < 0 &&
@@ -591,8 +593,6 @@ int main(int argc,char *argv[]) {
 				CatchShutdown(-1);
 			}
 		}
-
-		globalregistry->timetracker->Tick();
 	}
 
 	CatchShutdown(-1);

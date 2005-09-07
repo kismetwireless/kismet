@@ -101,7 +101,7 @@ int Protocol_NETWORK(PROTO_PARMS) {
 		// Shortcut test the cache once and print/bail immediately
 		if (cache->Filled(fnum)) {
 			out_string += cache->GetCache(fnum) + " ";
-			break;
+			continue;
 		}
 
 		// Fill in the cached element
@@ -358,7 +358,7 @@ int Protocol_CLIENT(PROTO_PARMS) {
 		// Shortcut test the cache once and print/bail immediately
 		if (cache->Filled(fnum)) {
 			out_string += cache->GetCache(fnum) + " ";
-			break;
+			continue;
 		}
 
 		// Fill in the cached element
@@ -817,9 +817,13 @@ int Netracker::netracker_chain_handler(kis_packet *in_pack) {
 			net->type = network_probe;
 		} else if (packinfo->distrib == distrib_adhoc) {
 			net->type = network_adhoc;
+		} else if (packinfo->type == packet_data) {
+			net->type = network_data;
 		} else {
 			net->type = network_ap;
 		}
+
+		// FIXME:  Add turbocell
 
 		net->first_time = globalreg->timestamp.tv_sec;
 		net->bss_timestamp = packinfo->timestamp;
@@ -830,6 +834,18 @@ int Netracker::netracker_chain_handler(kis_packet *in_pack) {
 		newnetwork = 1;
 		// Everything else needs to change with new frames so we fill it in
 		// outside of the new network code, obviously
+	} else {
+		// Update network types for existing networks
+		if (packinfo->distrib == distrib_adhoc) {
+			// Adhoc gets the network mode flopped
+			net->type = network_adhoc;
+		} else if (packinfo->type == packet_management &&
+				   net->type == network_data) {
+			// Management frames on a data-only network get it upgraded to a 
+			// normal network.  The adhoc catch above should have snagged us
+			// if we were an adhoc beacon
+			net->type = network_ap;
+		}
 	}
 
 	// Handle client tracking and creation
@@ -889,7 +905,7 @@ int Netracker::netracker_chain_handler(kis_packet *in_pack) {
 	in_pack->insert(_PCM(PACK_COMP_TRACKERCLIENT), clipackinfo);
 
 	// Update the time
-	net->last_time = time(0);
+	net->last_time = globalreg->timestamp.tv_sec;
 
 	// Dirty the network
 	net->dirty = 1;
@@ -999,10 +1015,20 @@ int Netracker::netracker_chain_handler(kis_packet *in_pack) {
 		cli->snrdata.encodingset |= (1 << (int) l1info->encoding);
 	}
 
+	// Extract info from probe request frames if its a probe network
+	if (packinfo->type == packet_management &&
+		packinfo->subtype == packet_sub_probe_req &&
+		net->type == network_probe) {
+
+		// Learn the SSID they're probing for
+		net->ssid = packinfo->ssid;
+	}
+
 	// Extract info from beacon frames, they're the only ones we trust to
 	// give us good info...
 	if (packinfo->type == packet_management && 
 		packinfo->subtype == packet_sub_beacon) {
+		
 		net->beacon_info = string(packinfo->beacon_info);
 
 		// Find cached SSID if we don't have one
