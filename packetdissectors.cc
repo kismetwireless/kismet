@@ -472,6 +472,9 @@ int KisBuiltinDissector::ieee80211_dissector(kis_packet *in_pack) {
 	if (fc->more_fragments)
 		packinfo->fragmented = 1;
 
+	if (fc->retry)
+		packinfo->retry = 1;
+
     unsigned int tag_offset = 0;
 	unsigned int taglen = 0;
 

@@ -1,3 +1,12 @@
+Sep 07 2005  devel  Fixed client/server protocol caching
+                    Added probereq SSID tracking
+                    Added tracked network type updating
+                    Changed timestamp/timetracker set/tick to head of loop
+                    Added 'retry' flag to ieee80211 packet info
+                    Added fragments/retries tracking
+                    Added fragments and retries to CLIENT and NETWORK protocols
+                    Fixed CLIENT protocol enable
+                    Added CLIENT to nettracker tick
 Sep 06 2005  devel  Added some support for flooding clients with more than the
                      ringbuf can handle
 Sep 05 2005  devel  Fixed DHCP handling

@@ -55,7 +55,7 @@ char *NETWORK_fields_text[] = {
     "turbocellnid", "turbocellmode", "turbocellsat",
     "carrierset", "maxseenrate", "encodingset",
     "decrypted", "dupeivpackets", "bsstimestamp",
-	"cdpdevice", "cdpport",
+	"cdpdevice", "cdpport", "fragments", "retries",
     NULL
 };
 
@@ -78,6 +78,7 @@ char *CLIENT_fields_text[] = {
     "bestlat", "bestlon", "bestalt",
     "atype", "ip", "gatewayip", "datasize", "maxseenrate", "encodingset",
 	"carrierset", "decrypted", "wep", "channel",
+	"fragments", "retries",
     NULL
 };
 
@@ -329,6 +330,14 @@ int Protocol_NETWORK(PROTO_PARMS) {
 				else
 					cache->Cache(fnum, "\001" + net->cdp_port_id + "\001");
 				break;
+			case NETWORK_fragments:
+				osstr << net->fragments;
+				cache->Cache(fnum, osstr.str());
+				break;
+			case NETWORK_retries:
+				osstr << net->retries;
+				cache->Cache(fnum, osstr.str());
+				break;
 		}
 
 		// print the newly filled in cache
@@ -526,6 +535,14 @@ int Protocol_CLIENT(PROTO_PARMS) {
 				osstr << cli->channel;
 				cache->Cache(fnum, osstr.str());
 				break;
+			case CLIENT_fragments:
+				osstr << cli->fragments;
+				cache->Cache(fnum, osstr.str());
+				break;
+			case CLIENT_retries:
+				osstr << cli->retries;
+				cache->Cache(fnum, osstr.str());
+				break;
 		}
 
 		// print the newly filled in cache
@@ -557,19 +574,14 @@ void Protocol_NETWORK_enable(PROTO_ENABLE_PARMS) {
 }
 
 void Protocol_CLIENT_enable(PROTO_ENABLE_PARMS) {
-	for (Netracker::track_iter x = globalreg->netracker->tracked_map.begin(); 
-		 x != globalreg->netracker->tracked_map.end(); ++x) {
-        if (x->second->type == network_remove) 
+	for (Netracker::client_iter x = globalreg->netracker->client_map.begin(); 
+		 x != globalreg->netracker->client_map.end(); ++x) {
+        if (x->second->type == client_remove) 
             continue;
 
-#if 0
-		for (Netracker::client_iter y = x->second->cli_track_map.begin();
-			 y != x->second->cli_track_map.end(); ++y) {
-			kis_protocol_cache cache;
-			globalreg->kisnetserver->SendToClient(in_fd, _NPM(PROTO_REF_CLIENT),
-												  (void *) y->second, &cache);
-		}
-#endif
+		kis_protocol_cache cache;
+		globalreg->kisnetserver->SendToClient(in_fd, _NPM(PROTO_REF_CLIENT),
+											  (void *) x->second, &cache);
 	}
 }
 
@@ -711,6 +723,16 @@ int Netracker::TimerKick() {
 
 		if (x->second->dirty) {
 			globalreg->kisnetserver->SendToAll(_NPM(PROTO_REF_NETWORK), 
+											   (void *) x->second);
+		}
+	}
+	for (Netracker::client_iter x = globalreg->netracker->client_map.begin(); 
+		 x != globalreg->netracker->client_map.end(); ++x) {
+        if (x->second->type == client_remove) 
+            continue;
+
+		if (x->second->dirty) {
+			globalreg->kisnetserver->SendToAll(_NPM(PROTO_REF_CLIENT), 
 											   (void *) x->second);
 		}
 	}
@@ -1120,6 +1142,16 @@ int Netracker::netracker_chain_handler(kis_packet *in_pack) {
 	// Handle data sizes
 	net->datasize += packinfo->datasize;
 	cli->datasize += packinfo->datasize;
+
+	// Handle fragment and retry values
+	if (packinfo->fragmented) {
+		net->fragments++;
+		cli->fragments++;
+	} 
+	if (packinfo->retry) {
+		net->retries++;
+		cli->retries++;
+	}
 
 	if (newnetwork) {
 		snprintf(status, STATUS_MAX, "Detected new network \"%s\", BSSID %s, "

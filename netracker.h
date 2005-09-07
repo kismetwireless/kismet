@@ -67,7 +67,7 @@ enum NETWORK_fields {
     NETWORK_datasize, NETWORK_tcnid, NETWORK_tcmode, NETWORK_tsat,
     NETWORK_carrierset, NETWORK_maxseenrate, NETWORK_encodingset,
     NETWORK_decrypted, NETWORK_dupeiv, NETWORK_bsstimestamp,
-	NETWORK_cdpdevice, NETWORK_cdpport,
+	NETWORK_cdpdevice, NETWORK_cdpport, NETWORK_fragments, NETWORK_retries,
 	NETWORK_maxfield
 };
 
@@ -85,7 +85,7 @@ enum CLIENT_fields {
     CLIENT_bestlat, CLIENT_bestlon, CLIENT_bestalt,
     CLIENT_atype, CLIENT_ip, CLIENT_gatewayip, CLIENT_datasize, CLIENT_maxseenrate, 
 	CLIENT_encodingset, CLIENT_carrierset, CLIENT_decrypted, CLIENT_wep,
-	CLIENT_channel,
+	CLIENT_channel, CLIENT_fragments, CLIENT_retries,
 	CLIENT_maxfield
 };
 
@@ -113,7 +113,8 @@ enum client_type {
 	client_tods = 2,
 	client_interds = 3,
 	client_established = 4,
-	client_adhoc = 5
+	client_adhoc = 5,
+	client_remove = 6
 };
 
 enum ipdata_type {
@@ -228,6 +229,8 @@ public:
 			datasize = 0;
 			dupeiv_packets = 0;
 			dirty = 0;
+			fragments = 0;
+			retries = 0;
 		}
 
 		// What we last saw it as
@@ -292,6 +295,10 @@ public:
 		string cdp_dev_id;
 		string cdp_port_id;
 
+		// Fragment and retry rates
+		int fragments;
+		int retries;
+
 		// Network is dirty and should be pushed out
 		int dirty;
 	};
@@ -308,6 +315,8 @@ public:
 			last_sequence = 0;
 			datasize = 0;
 			netptr = NULL;
+			fragments = 0;
+			retries = 0;
 			dirty = 0;
 		}
 
@@ -358,6 +367,10 @@ public:
 
 		// Guesstimated IP data
 		ip_data guess_ipdata;
+
+		// Fragments and retries for packet stats
+		int fragments;
+		int retries;
 
 		// Do we need to push an update?
 		int dirty;
