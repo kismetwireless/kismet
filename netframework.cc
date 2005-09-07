@@ -210,10 +210,12 @@ int NetworkServer::WriteData(int in_clid, void *in_data, int in_len) {
     RingBuffer *write_buf = write_buf_map[in_clid];
 
     if (write_buf->InsertDummy(in_len) == 0) {
+		/*
         snprintf(errstr, STATUS_MAX, "NetworkServer::WriteData no room in ring "
                  "buffer to insert %d bytes for client id %d", in_len, in_clid);
         globalreg->messagebus->InjectMessage(errstr, MSGFLAG_ERROR);
-        return -1;
+		*/
+        return -2;
     }
 
     write_buf->InsertData((uint8_t *) in_data, in_len);
@@ -282,5 +284,9 @@ int ServerFramework::Shutdown() {
     }
 
     return 1;
+}
+
+int ServerFramework::BufferDrained(int in_fd) {
+	return 0;
 }
 

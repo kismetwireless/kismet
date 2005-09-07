@@ -767,6 +767,17 @@ KisNetFramework::KisNetFramework(GlobalRegistry *in_globalreg) {
 		globalreg->fatal_condition = 1;
 	}
 
+	if (globalreg->kismet_config->FetchOpt("maxbacklog") == "") {
+		_MSG("No 'maxbacklog' config line defined for the Kismet UI server, "
+			 "defaulting to 5000 lines", MSGFLAG_INFO);
+		maxbacklog = 5000;
+	} else if (sscanf(globalreg->kismet_config->FetchOpt("maxbacklog").c_str(), 
+					  "%d", &maxbacklog) != 1) {
+		_MSG("Malformed 'maxbacklog' config line defined for the Kismet UI server",
+			 MSGFLAG_FATAL);
+		globalreg->fatal_condition = 1;
+	}
+
 	if (globalreg->kismet_config->FetchOpt("allowedhosts") == "") {
 		_MSG("No 'allowedhosts' config line defined for the Kismet UI server",
 			 MSGFLAG_FATAL);
@@ -924,6 +935,45 @@ int KisNetFramework::Accept(int in_fd) {
 				 (void *) &protocol_map, NULL);
     
     return 1;
+}
+
+int KisNetFramework::BufferDrained(int in_fd) {
+    map<int, client_opt *>::iterator opitr = client_optmap.find(in_fd);
+    if (opitr == client_optmap.end()) {
+        snprintf(errstr, 1024, "KisNetFramework::SendToClient illegal client %d.", 
+				 in_fd);
+        globalreg->messagebus->InjectMessage(errstr, MSGFLAG_ERROR);
+        return -1;
+    }
+    client_opt *opt = opitr->second;
+	int ret = 0;
+
+	if (opt->backlog.size() == 0)
+		return 0;
+
+	while (opt->backlog.size() > 0) {
+		string outtext = opt->backlog[0];
+
+		ret = netserver->WriteData(in_fd, (uint8_t *) outtext.c_str(), 
+								   outtext.length());
+
+		// Catch "full buffer" error and stop trying to shove more down it
+		if (ret == -2) 
+			return 0;
+
+		if (ret < 0)
+			return ret;
+
+		opt->backlog.erase(opt->backlog.begin());
+
+		if (opt->backlog.size() == 0) {
+			snprintf(errstr, 1024, "Flushed protocol data backlog for Kismet "
+					 "client %d", in_fd);
+			_MSG(errstr, MSGFLAG_INFO);
+		}
+	}
+
+	return 1;
 }
 
 int KisNetFramework::ParseData(int in_fd) {
@@ -1113,13 +1163,45 @@ int KisNetFramework::SendToClient(int in_fd, int in_refnum, const void *in_data,
     // Assemble a line for them:
     // *HEADER: DATA\n
     //  16      x   1
+	int ret = 0;
+
+	// Check the size
+	int blogsz = opt->backlog.size();
+
+	// Bail gracefully for now
+	if (blogsz >= maxbacklog) {
+		return 0;
+	}
+	
     int nlen = prot->header.length() + fieldtext.length() + 5; // *..: \n\0
     char *outtext = new char[nlen];
     snprintf(outtext, nlen, "*%s: %s\n", prot->header.c_str(), fieldtext.c_str());
-    netserver->WriteData(in_fd, (uint8_t *) outtext, strlen(outtext));
+
+	// Look in the backlog vector and backlog it if we're already over-full
+	if (blogsz > 0) {
+		opt->backlog.push_back(outtext);
+		delete[] outtext;
+		return 0;
+	}
+
+    ret = netserver->WriteData(in_fd, (uint8_t *) outtext, strlen(outtext));
+
+	// Catch "full buffer" error
+	if (ret == -2) {
+		snprintf(errstr, 1024, "Client %d ring buffer full, storing Kismet protocol "
+				 "data in backlog vector", in_fd);
+		_MSG(errstr, MSGFLAG_INFO);
+		opt->backlog.push_back(outtext);
+		delete[] outtext;
+		return 0;
+	}
+	
     delete[] outtext;
 
-    return nlen;
+	if (ret < 0)
+		return ret;
+
+	return nlen;
 }
 
 int KisNetFramework::SendToAll(int in_refnum, const void *in_data) {

@@ -709,8 +709,10 @@ int Netracker::TimerKick() {
         if (x->second->type == network_remove) 
             continue;
 
-		globalreg->kisnetserver->SendToAll(_NPM(PROTO_REF_NETWORK), 
-										   (void *) x->second);
+		if (x->second->dirty) {
+			globalreg->kisnetserver->SendToAll(_NPM(PROTO_REF_NETWORK), 
+											   (void *) x->second);
+		}
 	}
 	return 1;
 }

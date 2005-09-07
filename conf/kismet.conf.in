@@ -97,6 +97,9 @@ listen=tcp://127.0.0.1:2501
 allowedhosts=127.0.0.1
 # Maximum number of concurrent GUI's
 maxclients=5
+# Maximum backlog before we start throwing out or killing clients.  The
+# bigger this number, the more memory and the more power it will use.
+maxbacklog=5000
 
 # Do we have a GPS?
 gps=true

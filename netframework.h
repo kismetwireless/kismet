@@ -211,6 +211,10 @@ public:
 
     // Shutdown the protocol
     virtual int Shutdown();
+
+	// The ring buffer was drained...  If we have anything cached in the
+	// framework to try to send to the client, this is how we should do it.
+	virtual int BufferDrained(int in_fd);
     
 protected:
     char errstr[STATUS_MAX];

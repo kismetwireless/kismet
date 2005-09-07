@@ -271,6 +271,9 @@ public:
     virtual int ParseData(int in_fd);
     virtual int KillConnection(int in_fd);
 
+	// Handle a buffer drain on a client
+	virtual int BufferDrained(int in_fd);
+
     // Send a protocol to a specific client
     int SendToClient(int in_fd, int in_refnum, const void *in_data, 
 					 kis_protocol_cache *in_cache);
@@ -319,6 +322,7 @@ protected:
     struct client_opt {
         // Map of sentence references to field lists
         map<int, vector<int> > protocols;
+		vector<string> backlog;
     };
 
     // Client commands we understand
@@ -338,6 +342,9 @@ protected:
 
 	// Server type (0 = tcp...)
 	int server_type;
+
+	// Max backlog
+	int maxbacklog;
 
 };
 

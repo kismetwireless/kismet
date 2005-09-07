@@ -296,15 +296,15 @@ int TcpServer::ReadBytes(int in_fd) {
     }
 
     if (ret == 0) {
-        snprintf(errstr, STATUS_MAX, "TCP server client fd %d read() returned end of file",
-                 in_fd);
+        snprintf(errstr, STATUS_MAX, "TCP server client fd %d read() returned end of "
+				 "file", in_fd);
         globalreg->messagebus->InjectMessage(errstr, MSGFLAG_ERROR);
         return -1;
     }
 
     if (read_buf_map[in_fd]->InsertData(recv_bytes, ret) == 0) {
-        snprintf(errstr, STATUS_MAX, "TCP server client fd %d read error, ring buffer full",
-                 in_fd);
+        snprintf(errstr, STATUS_MAX, "TCP server client fd %d read error, ring "
+				 "buffer full", in_fd);
         globalreg->messagebus->InjectMessage(errstr, MSGFLAG_ERROR);
         return -1;
     }
@@ -321,14 +321,22 @@ int TcpServer::WriteBytes(int in_fd) {
     write_buf_map[in_fd]->FetchPtr(dptr, 1024, &dlen);
 
     if ((ret = write(in_fd, dptr, dlen)) <= 0) {
-        snprintf(errstr, STATUS_MAX, "TCP server: Killing client fd %d write error %s",
-                 in_fd, strerror(errno));
+        snprintf(errstr, STATUS_MAX, "TCP server: Killing client fd %d write "
+				 "error %s", in_fd, strerror(errno));
         globalreg->messagebus->InjectMessage(errstr, MSGFLAG_ERROR);
         KillConnection(in_fd);
         return -1;
     }
 
     write_buf_map[in_fd]->MarkRead(ret);
+
+	if (srvframework->BufferDrained(in_fd) < 0) {
+		snprintf(errstr, STATUS_MAX, "TCP server: Error occured calling framework "
+				 "buffer drain notification on client fd %d", in_fd);
+		_MSG(errstr, MSGFLAG_ERROR);
+		KillConnection(in_fd);
+		return -1;
+	}
 
     return ret;
 }

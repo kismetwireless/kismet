@@ -148,3 +148,29 @@ void RingBuffer::MarkRead(int in_len) {
     return;
 }
 
+int RingBuffer::FetchSize() {
+	return ring_len;
+}
+
+int RingBuffer::Resize(int in_newlen) {
+	if (in_newlen < ring_len)
+		return 0;
+
+	// New buffer
+	uint8_t *newdata = new uint8_t[in_newlen];
+	// Copy old data
+	memcpy(ring_data, newdata, ring_len);
+
+	// Offset the pointers into the ring buf by the same # of bytes that they
+	// were into the old buf
+	ring_wptr = newdata + (ring_wptr - ring_data);
+	ring_rptr = newdata + (ring_rptr - ring_data);
+
+	// Remove the old, copy the new
+	delete[] ring_data;
+	ring_data = newdata;
+	ring_len = in_newlen;
+
+	return 1;
+}
+

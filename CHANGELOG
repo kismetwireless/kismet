@@ -1,3 +1,5 @@
+Sep 06 2005  devel  Added some support for flooding clients with more than the
+                     ringbuf can handle
 Sep 05 2005  devel  Fixed DHCP handling
                     Fixed UDP handling
                     Fixed packetchain ordering
