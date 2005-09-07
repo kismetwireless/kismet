@@ -823,6 +823,7 @@ int Netracker::netracker_chain_handler(kis_packet *in_pack) {
 		net == NULL &&
 		packinfo->type == packet_management &&
 		packinfo->subtype == packet_sub_probe_req) {
+
 		if (probe_assoc_map.find(packinfo->bssid_mac) != probe_assoc_map.end()) {
 			net = probe_assoc_map[packinfo->bssid_mac];
 		}
@@ -1047,11 +1048,16 @@ int Netracker::netracker_chain_handler(kis_packet *in_pack) {
 
 	// Extract info from probe request frames if its a probe network
 	if (packinfo->type == packet_management &&
-		packinfo->subtype == packet_sub_probe_req &&
-		net->type == network_probe) {
+		packinfo->subtype == packet_sub_probe_req) {
+		
+		if (net->type == network_probe) {
+			// Learn the SSID they're probing for
+			net->ssid = packinfo->ssid;
+		}
 
-		// Learn the SSID they're probing for
-		net->ssid = packinfo->ssid;
+		if (cli->maxrate < packinfo->maxrate)
+			cli->maxrate = packinfo->maxrate;
+
 	}
 
 	// Extract info from beacon frames, they're the only ones we trust to
