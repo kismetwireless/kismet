@@ -760,6 +760,9 @@ void Netracker::MoveClientNetwork(Netracker::tracked_client *cli,
 	cli->netptr->data_packets -= cli->data_packets;
 	cli->netptr->crypt_packets -= cli->crypt_packets;
 	cli->netptr->fmsweak_packets -= cli->fmsweak_packets;
+	cli->netptr->fragments -= cli->fragments;
+	cli->netptr->retries -= cli->retries;
+	cli->netptr->dirty = 1;
 
 	// Add it to the other
 	cli->netptr = net;
@@ -767,8 +770,13 @@ void Netracker::MoveClientNetwork(Netracker::tracked_client *cli,
 	net->data_packets += cli->data_packets;
 	net->crypt_packets += cli->crypt_packets;
 	net->fmsweak_packets += cli->fmsweak_packets;
+	net->fragments += cli->fragments;
+	net->retries += cli->retries;
 
 	cli->bssid = net->bssid;
+
+	cli->dirty = 1;
+	net->dirty = 1;
 
 	ap_client_map.insert(make_pair(net->bssid, cli));
 
