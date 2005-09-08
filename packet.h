@@ -164,6 +164,7 @@ public:
         fuzzywep = 0;
 		fmsweak = 0;
         ess = 0;
+		ibss = 0;
         channel = 0;
         encrypted = 0;
         beacon_interval = 0;
@@ -211,6 +212,7 @@ public:
 
     // Was it flagged as ess? (ap)
     int ess;
+	int ibss;
 
     // What channel?
     int channel;

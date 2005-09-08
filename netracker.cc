@@ -829,8 +829,6 @@ int Netracker::netracker_chain_handler(kis_packet *in_pack) {
 		}
 	} 
 
-	// TODO: Adhoc and inter-ds matching needs to go here once its redone
-
 	// Spawn a new network record
 	if (net == NULL) {
 		// Constructor will make our network record clear
@@ -870,11 +868,10 @@ int Netracker::netracker_chain_handler(kis_packet *in_pack) {
 		if (packinfo->distrib == distrib_adhoc) {
 			// Adhoc gets the network mode flopped
 			net->type = network_adhoc;
-		} else if (packinfo->type == packet_management &&
+		} else if (packinfo->type == packet_management && packinfo->ess &&
 				   net->type == network_data) {
-			// Management frames on a data-only network get it upgraded to a 
-			// normal network.  The adhoc catch above should have snagged us
-			// if we were an adhoc beacon
+			// Management frames from an AP on a data-only network turn it into
+			// an AP network
 			net->type = network_ap;
 		}
 	}
@@ -1189,8 +1186,10 @@ int Netracker::netracker_chain_handler(kis_packet *in_pack) {
 	net->dirty = 1;
 	cli->dirty = 1;
 
-	// TODO:  
+	// TODO/FIXME:  
 	//  Manuf matching
+	//  IV set handling
+	//	"Smart" vs. "Purely accurate" adhoc handling
 
 	return 1;
 }

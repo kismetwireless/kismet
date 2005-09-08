@@ -299,7 +299,8 @@ int PacketSource_Pcap::Prism2KisPack(kis_packet *packet) {
     if (callback_header.caplen >= sizeof(avs_80211_1_header) &&
         ntohl(v1hdr->version) == 0x80211001 && radioheader == NULL) {
 
-        if (ntohl(v1hdr->length) > callback_header.caplen) {
+        if (ntohl(v1hdr->length) > callback_header.caplen ||
+			callback_header.caplen < (ntohl(v1hdr->length) + fcsbytes)) {
             snprintf(errstr, STATUS_MAX, "pcap prism2 converter got corrupted "
 					 "AVS header length");
             globalreg->messagebus->InjectMessage(errstr, MSGFLAG_ERROR);
@@ -352,6 +353,7 @@ int PacketSource_Pcap::Prism2KisPack(kis_packet *packet) {
     // See if we have a prism2 header
     wlan_ng_prism2_header *p2head = (wlan_ng_prism2_header *) callback_data;
     if (callback_header.caplen >= sizeof(wlan_ng_prism2_header) &&
+		callback_header.caplen < (sizeof(wlan_ng_prism2_header) + fcsbytes) &&
         radioheader == NULL) {
 
 		eight11chunk = new kis_datachunk;

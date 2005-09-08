@@ -524,6 +524,10 @@ int KisBuiltinDissector::ieee80211_dissector(kis_packet *in_pack) {
 			if (fixparm->wep)
 				packinfo->cryptset |= crypt_wep;
 
+			// Set the transmitter info
+			packinfo->ess = fixparm->ess;
+			packinfo->ibss = fixparm->ibss;
+
             // Pull the fixparm ibss info
             if (fixparm->ess == 0 && fixparm->ibss == 1) {
                 packinfo->distrib = distrib_adhoc;

@@ -398,8 +398,11 @@ int Alertracker::ParseAlertConfig(ConfigFile *in_conf) {
 int Alertracker::ActivateConfiguredAlert(const char *in_header) {
 	string hdr = StrLower(in_header);
 
-	if (alert_conf_map.find(hdr) == alert_conf_map.end()) 
+	if (alert_conf_map.find(hdr) == alert_conf_map.end()) {
+		_MSG("Alert type " + string(in_header) + " not found in list of activated "
+			 "alerts.", MSGFLAG_INFO);
 		return -1;
+	}
 
 	alert_conf_rec *rec = alert_conf_map[hdr];
 
