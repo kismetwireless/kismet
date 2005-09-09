@@ -182,6 +182,10 @@ public:
     Packetsourcetracker(GlobalRegistry *in_globalreg);
     ~Packetsourcetracker();
 
+	// Handle the commandline and config file and load cards (has to be outside
+	// of constructor to make plugins able to insert capture types)
+	int LoadConfiguredCards();
+
     // Merge descriptors into a set
     unsigned int MergeSet(unsigned int in_max_fd, fd_set *out_rset, 
 						  fd_set *out_wset);

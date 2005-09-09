@@ -81,70 +81,6 @@ Packetsourcetracker::Packetsourcetracker(GlobalRegistry *in_globalreg) {
     chanchild_pid = 0;
     sockpair[0] = sockpair[1] = 0;
 
-    dataframe_only = 0;
-
-    // Default channels
-    vector<string> defaultchannel_vec;
-    // Custom channel lists for sources
-    vector<string> src_customchannel_vec;
-
-	// Zero state stuff
-	channel_hop = -1;
-	channel_split = -1;
-	channel_dwell = -1;
-	channel_velocity = -1;
-
-	// Commandline stuff
-	string named_sources;
-	vector<string> src_input_vec;
-	vector<string> src_init_vec;
-	int option_idx = 0;
-	int from_cmdline = 0;
-
-	// longopts for the packetsourcetracker component
-	static struct option packetsource_long_options[] = {
-		{ "initial-channel", required_argument, 0, 'I' },
-		{ "channel-hop", required_argument, 0, 'X' },
-		{ "capture-source", required_argument, 0, 'c' },
-		{ "enable-capture-sources", required_argument, 0, 'C' },
-		{ 0, 0, 0, 0 }
-	};
-
-	// Hack the extern getopt index
-	optind = 0;
-
-	while (1) {
-		int r = getopt_long(globalreg->argc, globalreg->argv,
-							"-I:X:c:C:", 
-							packetsource_long_options, &option_idx);
-		if (r < 0) break;
-		switch (r) {
-			case 'I':
-				src_init_vec.push_back(string(optarg));
-				break;
-			case 'X':
-				if (strcmp(optarg, "yes") == 0 ||
-					strcmp(optarg, "true") == 0 ||
-					strcmp(optarg, "1") == 0) {
-					_MSG("Explicitly enabling channel hopping on all supported "
-						 "sources", MSGFLAG_INFO);
-					channel_hop = 1;
-				} else {
-					_MSG("Explicity disabling channel hopping on all sources",
-						 MSGFLAG_INFO);
-					channel_hop = 0;
-				}
-				break;
-			case 'c':
-				src_input_vec.push_back(string(optarg));
-				from_cmdline = 1;
-				break;
-			case 'C':
-				named_sources = string(optarg);
-				break;
-		}
-	}
-	
 
 	// Register our packet components 
 	// back-refer to the capsource so we can get names and parameters
@@ -172,6 +108,11 @@ Packetsourcetracker::Packetsourcetracker(GlobalRegistry *in_globalreg) {
     RegisterPacketsource("none", 0, "na", 0, NULL,
                          nullsource_registrant,
                          NULL, unmonitor_nullsource, NULL, 0);
+
+	// Auto source placeholder, has no real attributes but keeps it from
+	// erroring out before the BindSources call
+	RegisterPacketsource("auto", 0, "na", 0, NULL, NULL, NULL, NULL, NULL, 0);
+
 #ifdef HAVE_LIBPCAP
     // pcapfile doesn't have channel or monitor controls and can't autoreg
     RegisterPacketsource("pcapfile", 0, "na", 0, NULL,
@@ -387,131 +328,6 @@ Packetsourcetracker::Packetsourcetracker(GlobalRegistry *in_globalreg) {
     REG_EMPTY_CARD("viha");
 #endif
 #endif
-    
-    // Read all of our packet sources, tokenize the input and then start opening
-    // them.
-
-    if (named_sources.length() == 0 && from_cmdline == 0) {
-        _MSG("No specific sources named, all sources defined in kismet.conf will "
-			 "be enabled.", MSGFLAG_INFO);
-        named_sources = 
-			globalreg->kismet_config->FetchOpt("enablesources");
-    }
-
-    // Read the config file if we didn't get any sources on the command line
-    if (src_input_vec.size() == 0)
-        src_input_vec = globalreg->kismet_config->FetchOptVec("source");
-
-    // Now look at our channel options
-    if (channel_hop == -1) {
-        if (globalreg->kismet_config->FetchOpt("channelhop") == "true") {
-			_MSG("Channel hopping enabled in config file", MSGFLAG_INFO);
-            channel_hop = 1;
-        } else {
-            _MSG("Channel hopping disabled in config file", MSGFLAG_INFO);
-            channel_hop = 0;
-        }
-    }
-
-    if (channel_hop == 1) {
-        if (globalreg->kismet_config->FetchOpt("channelsplit") == "true") {
-            _MSG("Channel splitting enabled in config file", MSGFLAG_INFO);
-            channel_split = 1;
-        } else {
-            _MSG("Channel splitting disabled in config file", MSGFLAG_INFO);
-            channel_split = 0;
-        }
-
-        if (globalreg->kismet_config->FetchOpt("channelvelocity") != "") {
-            if (sscanf(globalreg->kismet_config->FetchOpt("channelvelocity").c_str(),
-					   "%d", &channel_velocity) != 1) {
-                snprintf(errstr, STATUS_MAX, "Illegal config file value '%s' for "
-						 "channelvelocity, must be an integer",
-                         globalreg->kismet_config->FetchOpt("channelvelocity").c_str());
-                _MSG(errstr, MSGFLAG_FATAL);
-                globalreg->fatal_condition = 1;
-                return;
-            }
-
-            if (channel_velocity < 1 || channel_velocity > 10) {
-                _MSG("Illegal value for channelvelocity, must be "
-					 "between 1 and 10", MSGFLAG_FATAL);
-                globalreg->fatal_condition = 1;
-                return;
-            }
-        }
-
-        if (globalreg->kismet_config->FetchOpt("channeldwell") != "") {
-            if (sscanf(globalreg->kismet_config->FetchOpt("channeldwell").c_str(), 
-					   "%d", &channel_dwell) != 1) {
-                snprintf(errstr, STATUS_MAX, "Illegal config file value '%s' for "
-						 "channeldwell, must be an integer",
-                         globalreg->kismet_config->FetchOpt("channeldwell").c_str());
-                _MSG(errstr, MSGFLAG_FATAL);
-                globalreg->fatal_condition = 1;
-                return;
-            }
-
-			if (channel_dwell < 1) {
-				_MSG("Illegal value for channeldwell, must be between 1 and 10",
-					 MSGFLAG_FATAL);
-				globalreg->fatal_condition = 1;
-				return;
-			}
-        }
-
-        // Fetch the vector of default channels
-        defaultchannel_vec = globalreg->kismet_config->FetchOptVec("defaultchannels");
-        if (defaultchannel_vec.size() == 0) {
-            _MSG("Could not find any defaultchannels config lines "
-				 "and channel hopping was requested.  Something is "
-				 "broken in the config file.", MSGFLAG_FATAL);
-            globalreg->fatal_condition = 1;
-            return;
-        }
-
-        // Fetch custom channels for individual sources
-        src_customchannel_vec = 
-			globalreg->kismet_config->FetchOptVec("sourcechannels");
-    }
-
-    // Register our default channels
-    if (RegisterDefaultChannels(&defaultchannel_vec) < 0) {
-        return;
-    }
-
-    // Turn all our config data into meta packsources, or fail...  If we're
-    // passing the sources from the command line, we enable them all, so we
-    // null the named_sources string
-    int old_chhop = channel_hop;
-	// Zero the enable line if we used the command line to get a source
-	// definition.
-	if (from_cmdline)
-		named_sources = "";
-
-	if (ProcessCardList(named_sources, &src_input_vec, 
-						&src_customchannel_vec, &src_init_vec,
-						channel_hop, channel_split) < 0) {
-        return;
-    }
-
-    // This would only change if we're channel hopping and processcardlist had
-    // to turn it off because nothing supports it, so print a notice...
-    if (old_chhop != channel_hop)
-        globalreg->messagebus->InjectMessage("Disabling channel hopping, no enabled "
-                                             "sources are able to set channels.",
-                                             MSGFLAG_INFO);
-
-    if (channel_hop) {
-        if (channel_dwell < 1)
-            globalreg->timetracker->RegisterTimer(SERVER_TIMESLICES_SEC / 
-												  channel_velocity, 
-                                                  NULL, 1, &ChannelHopEvent, NULL);
-        else
-            globalreg->timetracker->RegisterTimer(SERVER_TIMESLICES_SEC * 
-												  channel_dwell, NULL, 1, 
-                                                  &ChannelHopEvent, NULL);
-    }
 
 	// Register the packetsourcetracker as a pollable subsystem
 	globalreg->RegisterPollableSubsys(this);
@@ -523,6 +339,199 @@ Packetsourcetracker::~Packetsourcetracker() {
     for (map<string, packsource_protorec *>::iterator x = cardtype_map.begin();
          x != cardtype_map.end(); ++x)
         delete x->second;
+}
+
+int Packetsourcetracker::LoadConfiguredCards() {
+	// Commandline stuff
+	string named_sources;
+	vector<string> src_input_vec;
+	vector<string> src_init_vec;
+	int option_idx = 0;
+	int from_cmdline = 0;
+
+    dataframe_only = 0;
+
+    // Default channels
+    vector<string> defaultchannel_vec;
+    // Custom channel lists for sources
+    vector<string> src_customchannel_vec;
+
+	// Zero state stuff
+	channel_hop = -1;
+	channel_split = -1;
+	channel_dwell = -1;
+	channel_velocity = -1;
+
+	// longopts for the packetsourcetracker component
+	static struct option packetsource_long_options[] = {
+		{ "initial-channel", required_argument, 0, 'I' },
+		{ "channel-hop", required_argument, 0, 'X' },
+		{ "capture-source", required_argument, 0, 'c' },
+		{ "enable-capture-sources", required_argument, 0, 'C' },
+		{ 0, 0, 0, 0 }
+	};
+
+	// Hack the extern getopt index
+	optind = 0;
+
+	while (1) {
+		int r = getopt_long(globalreg->argc, globalreg->argv,
+							"-I:X:c:C:", 
+							packetsource_long_options, &option_idx);
+		if (r < 0) break;
+		switch (r) {
+			case 'I':
+				src_init_vec.push_back(string(optarg));
+				break;
+			case 'X':
+				if (strcmp(optarg, "yes") == 0 ||
+					strcmp(optarg, "true") == 0 ||
+					strcmp(optarg, "1") == 0) {
+					_MSG("Explicitly enabling channel hopping on all supported "
+						 "sources", MSGFLAG_INFO);
+					channel_hop = 1;
+				} else {
+					_MSG("Explicity disabling channel hopping on all sources",
+						 MSGFLAG_INFO);
+					channel_hop = 0;
+				}
+				break;
+			case 'c':
+				src_input_vec.push_back(string(optarg));
+				from_cmdline = 1;
+				break;
+			case 'C':
+				named_sources = string(optarg);
+				break;
+		}
+	}
+	
+	// Read all of our packet sources, tokenize the input and then start opening
+	// them.
+
+	if (named_sources.length() == 0 && from_cmdline == 0) {
+		_MSG("No specific sources named, all sources defined in kismet.conf will "
+			 "be enabled.", MSGFLAG_INFO);
+		named_sources = 
+			globalreg->kismet_config->FetchOpt("enablesources");
+	}
+
+	// Read the config file if we didn't get any sources on the command line
+	if (src_input_vec.size() == 0)
+		src_input_vec = globalreg->kismet_config->FetchOptVec("source");
+
+	// Now look at our channel options
+	if (channel_hop == -1) {
+		if (globalreg->kismet_config->FetchOpt("channelhop") == "true") {
+			_MSG("Channel hopping enabled in config file", MSGFLAG_INFO);
+			channel_hop = 1;
+		} else {
+			_MSG("Channel hopping disabled in config file", MSGFLAG_INFO);
+			channel_hop = 0;
+		}
+	}
+
+	if (channel_hop == 1) {
+		if (globalreg->kismet_config->FetchOpt("channelsplit") == "true") {
+			_MSG("Channel splitting enabled in config file", MSGFLAG_INFO);
+			channel_split = 1;
+		} else {
+			_MSG("Channel splitting disabled in config file", MSGFLAG_INFO);
+			channel_split = 0;
+		}
+
+		if (globalreg->kismet_config->FetchOpt("channelvelocity") != "") {
+			if (sscanf(globalreg->kismet_config->FetchOpt("channelvelocity").c_str(),
+					   "%d", &channel_velocity) != 1) {
+				snprintf(errstr, STATUS_MAX, "Illegal config file value '%s' for "
+						 "channelvelocity, must be an integer",
+						 globalreg->kismet_config->FetchOpt("channelvelocity").c_str());
+				_MSG(errstr, MSGFLAG_FATAL);
+				globalreg->fatal_condition = 1;
+				return -1;
+			}
+
+			if (channel_velocity < 1 || channel_velocity > 10) {
+				_MSG("Illegal value for channelvelocity, must be "
+					 "between 1 and 10", MSGFLAG_FATAL);
+				globalreg->fatal_condition = 1;
+				return -1;
+			}
+		}
+
+		if (globalreg->kismet_config->FetchOpt("channeldwell") != "") {
+			if (sscanf(globalreg->kismet_config->FetchOpt("channeldwell").c_str(), 
+					   "%d", &channel_dwell) != 1) {
+				snprintf(errstr, STATUS_MAX, "Illegal config file value '%s' for "
+						 "channeldwell, must be an integer",
+						 globalreg->kismet_config->FetchOpt("channeldwell").c_str());
+				_MSG(errstr, MSGFLAG_FATAL);
+				globalreg->fatal_condition = 1;
+				return -1;
+			}
+
+			if (channel_dwell < 1) {
+				_MSG("Illegal value for channeldwell, must be between 1 and 10",
+					 MSGFLAG_FATAL);
+				globalreg->fatal_condition = 1;
+				return -1;
+			}
+		}
+
+		// Fetch the vector of default channels
+		defaultchannel_vec = globalreg->kismet_config->FetchOptVec("defaultchannels");
+		if (defaultchannel_vec.size() == 0) {
+			_MSG("Could not find any defaultchannels config lines "
+				 "and channel hopping was requested.  Something is "
+				 "broken in the config file.", MSGFLAG_FATAL);
+			globalreg->fatal_condition = 1;
+			return -1;
+		}
+
+		// Fetch custom channels for individual sources
+		src_customchannel_vec = 
+			globalreg->kismet_config->FetchOptVec("sourcechannels");
+	}
+
+	// Register our default channels
+	if (RegisterDefaultChannels(&defaultchannel_vec) < 0) {
+		return -1;
+	}
+
+	// Turn all our config data into meta packsources, or fail...  If we're
+	// passing the sources from the command line, we enable them all, so we
+	// null the named_sources string
+	int old_chhop = channel_hop;
+	// Zero the enable line if we used the command line to get a source
+	// definition.
+	if (from_cmdline)
+		named_sources = "";
+
+	if (ProcessCardList(named_sources, &src_input_vec, 
+						&src_customchannel_vec, &src_init_vec,
+						channel_hop, channel_split) < 0) {
+		return -1;
+	}
+
+	// This would only change if we're channel hopping and processcardlist had
+	// to turn it off because nothing supports it, so print a notice...
+	if (old_chhop != channel_hop)
+		globalreg->messagebus->InjectMessage("Disabling channel hopping, no enabled "
+											 "sources are able to set channels.",
+											 MSGFLAG_INFO);
+
+	if (channel_hop) {
+		if (channel_dwell < 1)
+			globalreg->timetracker->RegisterTimer(SERVER_TIMESLICES_SEC / 
+												  channel_velocity, 
+												  NULL, 1, &ChannelHopEvent, NULL);
+		else
+			globalreg->timetracker->RegisterTimer(SERVER_TIMESLICES_SEC * 
+												  channel_dwell, NULL, 1, 
+												  &ChannelHopEvent, NULL);
+	}
+
+	return 1;
 }
 
 unsigned int Packetsourcetracker::MergeSet(unsigned int in_max_fd, fd_set *out_rset, 
