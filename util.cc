@@ -73,7 +73,7 @@ string MungeToPrintable(char *in_data, int max) {
 	int i;
 
 	for (i = 0; i < max; i++) {
-		if ((unsigned char) in_data[i] >= 32 && (unsigned char) in_data[i] <= 176) {
+		if ((unsigned char) in_data[i] >= 32 && (unsigned char) in_data[i] <= 126) {
 			ret += in_data[i];
 		} else {
 			ret += '\\';
