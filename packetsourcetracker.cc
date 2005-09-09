@@ -26,6 +26,11 @@
 #include "configfile.h"
 #include "getopt.h"
 
+#ifdef SYS_LINUX
+// Bring in the ifcontrol stuff for 'auto'
+#include "ifcontrol.h"
+#endif
+
 void Packetcontrolchild_MessageClient::ProcessMessage(string in_msg, int in_flags) {
     // Redirect stuff into the protocol to talk to the parent control
 
@@ -42,7 +47,7 @@ void Packetcontrolchild_MessageClient::ProcessMessage(string in_msg, int in_flag
 }
 
 // Handle channel hopping... this is actually really simple.
-int ChannelHopEvent(Timetracker::timer_event *evt, void *parm, GlobalRegistry *globalreg) {
+int ChannelHopEvent(TIMEEVENT_PARMS) {
     // Just call advancechannel
     globalreg->sourcetracker->AdvanceChannel();
     

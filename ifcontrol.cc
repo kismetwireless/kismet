@@ -21,6 +21,34 @@
 
 #ifdef SYS_LINUX
 
+int Linux_GetDrvInfo(const char *in_dev, char *errstr, 
+					 struct ethtool_drvinfo *info) {
+	struct ifreq ifr;
+	int skfd;
+
+    if ((skfd = socket(AF_INET, SOCK_DGRAM, 0)) < 0) {
+		snprintf(errstr, STATUS_MAX, "Failed to create ioctl socket to get "
+				 "driver info on %s: %s", in_dev, strerror(errno));
+        return -1;
+    }
+
+	memset(&ifr, 0, sizeof(ifr));
+    strncpy(ifr.ifr_name, in_dev, IFNAMSIZ);
+
+	info->cmd = ETHTOOL_GDRVINFO;
+	ifr.ifr_data = (caddr_t) info;
+
+    if (ioctl(skfd, SIOCETHTOOL, &ifr) < 0) {
+		snprintf(errstr, STATUS_MAX, "Failed to get driver info on %s: %s",
+				 in_dev, strerror(errno));
+        close(skfd);
+        return -1;
+    }
+
+    close(skfd);
+    return 0;
+}
+
 int Ifconfig_Set_Flags(const char *in_dev, char *errstr, short flags) {
     struct ifreq ifr;
     int skfd;
