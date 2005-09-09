@@ -92,7 +92,15 @@ string StrLower(string in_str) {
         thestr[i] = tolower(thestr[i]);
 
     return thestr;
+}
 
+string StrUpper(string in_str) {
+    string thestr = in_str;
+
+    for (unsigned int i = 0; i < thestr.length(); i++)
+        thestr[i] = toupper(thestr[i]);
+
+    return thestr;
 }
 
 string StrStrip(string in_str) {

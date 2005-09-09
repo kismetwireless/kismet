@@ -190,7 +190,7 @@ int Alertracker::RegisterAlert(const char *in_header, alert_time_unit in_unit,
 	alert_rec *arec = new alert_rec;
 
 	arec->ref_index = next_alert_id++;
-	arec->header = in_header;
+	arec->header = StrUpper(in_header);
 	arec->limit_unit = in_unit;
 	arec->burst_unit = in_burstunit;
 	arec->limit_rate = in_rate;

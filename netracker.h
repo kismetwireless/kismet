@@ -442,6 +442,8 @@ protected:
 	// Alert references
 	int alert_chan_ref;
 	int alert_dhcpcon_ref;
+	int alert_bcastdcon_ref;
+	int alert_airjackssid_ref;
 
 	// Timer refs
 	int netrackereventid;

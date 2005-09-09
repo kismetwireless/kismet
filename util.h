@@ -47,6 +47,7 @@ string MungeToShell(string in_data);
 string MungeToPrintable(char *in_data, int max);
 
 string StrLower(string in_str);
+string StrUpper(string in_str);
 string StrStrip(string in_str);
 
 int XtoI(char x);

@@ -82,6 +82,8 @@ char *CLIENT_fields_text[] = {
     NULL
 };
 
+mac_addr bcast_mac = mac_addr("FF:FF:FF:FF:FF:FF");
+
 // Network records.  data = NETWORK_data
 int Protocol_NETWORK(PROTO_PARMS) {
 	Netracker::tracked_network *net = (Netracker::tracked_network *) data;
@@ -702,6 +704,10 @@ Netracker::Netracker(GlobalRegistry *in_globalreg) {
 		globalreg->alertracker->ActivateConfiguredAlert("CHANCHANGE");
 	alert_dhcpcon_ref =
 		globalreg->alertracker->ActivateConfiguredAlert("DHCPCONFLICT");
+	alert_bcastdcon_ref =
+		globalreg->alertracker->ActivateConfiguredAlert("BCASTDISCON");
+	alert_airjackssid_ref =
+		globalreg->alertracker->ActivateConfiguredAlert("AIRJACKSSID");
 
 	// Register timer kick
 	netrackereventid = 
@@ -1084,7 +1090,23 @@ int Netracker::netracker_chain_handler(kis_packet *in_pack) {
 		}
 
 		if (packinfo->ssid_len != 0 && packinfo->ssid_blank != 0) {
-			net->ssid = string(packinfo->ssid);
+			net->ssid = packinfo->ssid;
+		}
+
+		if (alert_airjackssid_ref >= 0 && packinfo->ssid == "AirJack" &&
+			globalreg->alertracker->PotentialAlert(alert_airjackssid_ref)) {
+			ostringstream outs;
+
+			outs << "Network BSSID " << net->bssid.Mac2String() << " broadcasting "
+				"SSID 'AirJack' which implies an attempt to disrupt networks";
+
+			globalreg->alertracker->RaiseAlert(alert_airjackssid_ref, in_pack, 
+											   packinfo->bssid_mac, 
+											   packinfo->source_mac, 
+											   packinfo->dest_mac, 
+											   packinfo->other_mac, 
+											   packinfo->channel, outs.str());
+
 		}
 
 		if (net->maxrate < packinfo->maxrate)
@@ -1132,6 +1154,25 @@ int Netracker::netracker_chain_handler(kis_packet *in_pack) {
 
 		_MSG("Decloaked network " + packinfo->bssid_mac.Mac2String() + 
 			 " SSID '" + packinfo->ssid + "'", MSGFLAG_INFO);
+	}
+
+	// Fire an alert on a disconnect/deauth broadcast
+	if (alert_bcastdcon_ref >= 0 && packinfo->type == packet_management &&
+		(packinfo->subtype == packet_sub_disassociation ||
+		 packinfo->subtype == packet_sub_deauthentication) &&
+		packinfo->dest_mac == bcast_mac &&
+		globalreg->alertracker->PotentialAlert(alert_bcastdcon_ref)) {
+		ostringstream outs;
+
+		outs << "Network BSSID " << net->bssid.Mac2String() << " broadcast "
+			"deauthenticate/disassociation of all clients, possible DoS";
+
+		globalreg->alertracker->RaiseAlert(alert_bcastdcon_ref, in_pack, 
+										   packinfo->bssid_mac, 
+										   packinfo->source_mac, 
+										   packinfo->dest_mac, 
+										   packinfo->other_mac, 
+										   packinfo->channel, outs.str());
 	}
 
 	if (packinfo->type == packet_management ||
