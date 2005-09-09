@@ -109,10 +109,6 @@ Packetsourcetracker::Packetsourcetracker(GlobalRegistry *in_globalreg) {
                          nullsource_registrant,
                          NULL, unmonitor_nullsource, NULL, 0);
 
-	// Auto source placeholder, has no real attributes but keeps it from
-	// erroring out before the BindSources call
-	RegisterPacketsource("auto", 0, "na", 0, NULL, NULL, NULL, NULL, NULL, 0);
-
 #ifdef HAVE_LIBPCAP
     // pcapfile doesn't have channel or monitor controls and can't autoreg
     RegisterPacketsource("pcapfile", 0, "na", 0, NULL,
@@ -1092,6 +1088,15 @@ int Packetsourcetracker::ProcessCardList(string in_enableline,
 					globalreg->fatal_condition = 1;
 					return -1;
 				}
+			}
+
+			if (curproto == NULL) {
+				_MSG("Failed to find a matching source type for autosource "
+					 "interface " + tokens[1] + ".  Got info ('" + driver + "', '" + 
+					 version + "'," " '" + firmware + "') for the device.", 
+					 MSGFLAG_FATAL);
+				globalreg->fatal_condition = 1;
+				return -1;
 			}
 		} else {
 			// Look for the card type, we won't even create a metasource if we 
