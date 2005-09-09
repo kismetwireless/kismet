@@ -1,4 +1,6 @@
 Sep 09 2005  devel  Started implementing 'auto' device support
+                    Skeleton of 'auto' capsource in place (for the one capsource
+                     newcore supports currently)
 Sep 08 2005  devel  Added BCASTDISCON and AIRJACKSSID alerts
 Sep 07 2005  devel  Fixed client/server protocol caching
                     Added probereq SSID tracking

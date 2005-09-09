@@ -451,7 +451,9 @@ int main(int argc,char *argv[]) {
 		CatchShutdown(-1);
 
 	// Enable cards from config/cmdline
-	globalregistry->sourcetracker->LoadConfiguredCards();
+	if (globalregistry->sourcetracker->LoadConfiguredCards() < 0)
+		CatchShutdown(-1);
+
 	if (globalregistry->fatal_condition)
 		CatchShutdown(-1);
 

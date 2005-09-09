@@ -976,8 +976,8 @@ int Packetsourcetracker::ProcessCardList(string in_enableline,
     }
 
     // Register the default channels by making them look like capsource name maps, 
-    // giving them their own sequence ids we can count during assignment to see how we 
-    // need to split things
+    // giving them their own sequence ids we can count during assignment to see how 
+	// we need to split things
     for (map<string, vector<int> >::iterator dchi = defaultch_map.begin(); 
          dchi != defaultch_map.end(); ++dchi) {
         chan_cap_seqid_map[dchi->first] = chan_seqid;
@@ -991,7 +991,8 @@ int Packetsourcetracker::ProcessCardList(string in_enableline,
         tokens = StrTokenize((*in_sourcechannels)[sc], ":");
 
         if (tokens.size() < 2) {
-            snprintf(errstr, 1024, "Illegal sourcechannel line '%s'", (*in_sourcechannels)[sc].c_str());
+            snprintf(errstr, 1024, "Illegal sourcechannel line '%s'", 
+					 (*in_sourcechannels)[sc].c_str());
             globalreg->messagebus->InjectMessage(errstr, MSGFLAG_FATAL);
             globalreg->fatal_condition = 1;
             return -1;
@@ -1001,8 +1002,9 @@ int Packetsourcetracker::ProcessCardList(string in_enableline,
         vector<int> chan_channel_bits = Str2IntVec(tokens[1]);
 
         if (chan_channel_bits.size() == 0) {
-            snprintf(errstr, 1024, "Illegal channel list '%s' in sourcechannel line '%s'", 
-                     tokens[1].c_str(), (*in_sourcechannels)[sc].c_str());
+            snprintf(errstr, 1024, "Illegal channel list '%s' in sourcechannel "
+					 "line '%s'", tokens[1].c_str(), 
+					 (*in_sourcechannels)[sc].c_str());
             globalreg->messagebus->InjectMessage(errstr, MSGFLAG_FATAL);
             globalreg->fatal_condition = 1;
             return -1;
@@ -1015,8 +1017,8 @@ int Packetsourcetracker::ProcessCardList(string in_enableline,
         for (unsigned int cap = 0; cap < chan_capsource_bits.size(); cap++) {
             if (chan_cap_seqid_map.find(StrLower(chan_capsource_bits[cap])) != 
                 chan_cap_seqid_map.end()) {
-                snprintf(errstr, 1024, "Capture source '%s' assigned multiple channel sequences.",
-                         chan_capsource_bits[cap].c_str());
+                snprintf(errstr, 1024, "Capture source '%s' assigned multiple "
+						 "channel sequences.", chan_capsource_bits[cap].c_str());
                 globalreg->messagebus->InjectMessage(errstr, MSGFLAG_FATAL);
                 globalreg->fatal_condition = 1;
                 return -1;
@@ -1038,26 +1040,78 @@ int Packetsourcetracker::ProcessCardList(string in_enableline,
         int sourceline_initch = -1;
 
         if (tokens.size() < 3) {
-            snprintf(errstr, 1024, "Illegal card source line '%s'", (*in_cardlines)[cl].c_str());
+            snprintf(errstr, 1024, "Illegal card source line '%s'", 
+					 (*in_cardlines)[cl].c_str());
             globalreg->messagebus->InjectMessage(errstr, MSGFLAG_FATAL);
             globalreg->fatal_condition = 1;
             return -1;
         }
 
-        // Look for the card type, we won't even create a metasource if we dont' have one.
-        if (cardtype_map.find(StrLower(tokens[0])) == cardtype_map.end()) {
-            snprintf(errstr, 1024, "Unknown capture source type '%s' in source '%s'", 
-                     tokens[0].c_str(), (*in_cardlines)[cl].c_str());
-            globalreg->messagebus->InjectMessage(errstr, MSGFLAG_FATAL);
-            globalreg->fatal_condition = 1;
-            return -1;
-        }
+		// Look for the auto cards
+		packsource_protorec *curproto = NULL;
+		if (StrLower(tokens[0]) == "auto") {
+			string driver, version, firmware;
+#if defined(SYS_LINUX)
+			ethtool_drvinfo drvinfo;
+			if (Linux_GetDrvInfo(tokens[1].c_str(), errstr, &drvinfo) < 0) {
+				_MSG(errstr, MSGFLAG_FATAL);
+				_MSG("Failed to get the ethtool driver info from device " +
+					 tokens[1] + ".  This information is used to detect the capture "
+					 "type for 'auto' sources.", MSGFLAG_FATAL);
+				globalreg->fatal_condition = 1;
+				return -1;
+			}
+
+			driver = drvinfo.driver;
+			version = drvinfo.version;
+			firmware = drvinfo.fw_version;
+#else
+			// Short out if we don't know what to do
+			_MSG("Currently the 'auto' card type detection is only supported "
+				 "under Linux.  Please consult the README file for information "
+				 "on the exact card type which should be used for your card.",
+				 MSGFLAG_FATAL);
+			globalreg->fatal_condition = 1;
+			return -1;
+#endif
+
+			for (map<string, packsource_protorec *>::iterator psi = 
+				 cardtype_map.begin(); psi != cardtype_map.end(); ++psi) {
+				int ret = 0;
+				if (psi->second->autoprobe == NULL)
+					continue;
+
+				ret = (*(psi->second->autoprobe))(globalreg, tokens[2],
+												  tokens[1], driver, 
+												  version, firmware);
+				if (ret > 0) {
+					curproto = psi->second;
+					_MSG("Resolved " + tokens[1] + " auto source type to " 
+						 "source type " + curproto->cardtype, MSGFLAG_INFO);
+				} else if (ret < 0 || globalreg->fatal_condition == 1) {
+					globalreg->fatal_condition = 1;
+					return -1;
+				}
+			}
+		} else {
+			// Look for the card type, we won't even create a metasource if we 
+			// don't have one.
+			if (cardtype_map.find(StrLower(tokens[0])) == cardtype_map.end()) {
+				snprintf(errstr, 1024, "Unknown capture source type '%s' in "
+						 "source '%s'", tokens[0].c_str(), 
+						 (*in_cardlines)[cl].c_str());
+				globalreg->messagebus->InjectMessage(errstr, MSGFLAG_FATAL);
+				globalreg->fatal_condition = 1;
+				return -1;
+			}
+		}
 
         // Look for stuff the code knows about but which was disabled
         if (cardtype_map[StrLower(tokens[0])]->registrant == NULL) {
-            snprintf(errstr, 1024, "Support for capture source type '%s' was not built.  "
-                     "Check the output from 'configure' for more information about why it might "
-                     "not have been compiled in.", tokens[0].c_str());
+            snprintf(errstr, 1024, "Support for capture source type '%s' was not "
+					 "built.  Check the output from 'configure' for more information "
+					 "about why it might not have been compiled in.", 
+					 tokens[0].c_str());
             globalreg->messagebus->InjectMessage(errstr, MSGFLAG_FATAL);
             globalreg->fatal_condition = 1;
             return -1;
@@ -1083,7 +1137,10 @@ int Packetsourcetracker::ProcessCardList(string in_enableline,
             meta->id = next_meta_id++;
             meta->valid = 0;
             meta->cmd_ack = 1;
-            meta->prototype = cardtype_map[StrLower(tokens[0])];
+			if (curproto == NULL)
+				meta->prototype = cardtype_map[StrLower(tokens[0])];
+			else
+				meta->prototype = curproto;
             meta->name = tokens[2];
             meta->device = tokens[1];
             meta->capsource = NULL;
