@@ -99,6 +99,9 @@ int chancontrol_wext_core(CHCONTROL_PARMS, char *errstr);
 
 int chancontrol_wext_std(CHCONTROL_PARMS);
 
+// ---------- Automatic Registration Functions
+int autoprobe_ipw2200(AUTOPROBE_PARMS);
+
 #endif /* have_libpcap && sys_linux */
 
 #endif

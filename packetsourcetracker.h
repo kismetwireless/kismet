@@ -61,6 +61,7 @@ typedef struct {
     int root_required;
     string default_channelset;
     int initial_channel;
+	packsource_autoprobe autoprobe;
     packsource_registrant registrant;
     packsource_monitor monitor_enable;
     packsource_monitor monitor_disable;
@@ -174,7 +175,7 @@ int unmonitor_nullsource(MONITOR_PARMS);
 
 // Shortcut for registering uncompiled sources
 #define REG_EMPTY_CARD(y) RegisterPacketsource(y, 0, "na", 0, \
-                                               NULL, NULL, NULL, NULL, 0)
+                                               NULL, NULL, NULL, NULL, NULL, 0)
 
 class Packetsourcetracker : public Pollable {
 public:
@@ -216,6 +217,7 @@ public:
     // requires it.
     int RegisterPacketsource(const char *in_cardtype, int in_root, 
                              const char *in_defaultchanset, int in_initch, 
+							 packsource_autoprobe in_autoprobe,
                              packsource_registrant in_registrant, 
                              packsource_monitor in_monitor,
                              packsource_monitor in_unmonitor,

@@ -54,6 +54,10 @@
 
 class KisPacketSource;
 
+#define AUTOPROBE_PARMS GlobalRegistry *globalreg, string in_name, \
+	string in_device, string in_driver, string in_version, string in_fwversion
+typedef int (*packsource_autoprobe)(AUTOPROBE_PARMS);
+
 #define REGISTRANT_PARMS GlobalRegistry *globalreg, string in_name, string in_device
 typedef KisPacketSource *(*packsource_registrant)(REGISTRANT_PARMS);
 

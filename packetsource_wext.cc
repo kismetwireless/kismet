@@ -287,5 +287,33 @@ int chancontrol_wext_std(CHCONTROL_PARMS) {
 	return 1;
 }
 
+
+/* *********************************************************** */
+/* Autoprobe functions */
+int autoprobe_ipw2200(AUTOPROBE_PARMS) {
+	if (in_driver == "ipw2200") {
+		int major, minor, tiny;
+		if (sscanf(in_version.c_str(), "%d.%d.%d", &major, &minor, &tiny) != 3) {
+			_MSG("IPW2200 Autoprobe device " + in_device + " looks like an ipw2200 "
+				 "driver, but couldn't parse version string '" + in_version + "'",
+				 MSGFLAG_ERROR);
+			return 0;
+		}
+
+		if (major == 1 && minor == 0 && tiny < 4) {
+			_MSG("IPW2200 Autoprobe device " + in_device + " looks like an ipw2200 "
+				 "driver, but is running a version of the driver which is too old "
+				 "to support monitor mode.  Version 1.0.4 or newer is required.",
+				 MSGFLAG_ERROR);
+			return -1;
+		}
+
+		if (major >= 1 && tiny >= 4)
+			return 1;
+	}
+
+	return 0;
+}
+
 #endif
 

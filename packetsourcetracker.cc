@@ -168,19 +168,20 @@ Packetsourcetracker::Packetsourcetracker(GlobalRegistry *in_globalreg) {
     // 
     // Plugins will go here after null sources, somehow
  
-    // Null source
-    RegisterPacketsource("none", 0, "na", 0,
+    // Null source, error registrant and can't autoreg
+    RegisterPacketsource("none", 0, "na", 0, NULL,
                          nullsource_registrant,
                          NULL, unmonitor_nullsource, NULL, 0);
 #ifdef HAVE_LIBPCAP
-    // pcapfile doesn't have channel or monitor controls
-    RegisterPacketsource("pcapfile", 0, "na", 0,
+    // pcapfile doesn't have channel or monitor controls and can't autoreg
+    RegisterPacketsource("pcapfile", 0, "na", 0, NULL,
                          packetsource_pcapfile_registrant,
                          NULL, unmonitor_pcapfile, NULL, 0);
 
 #ifdef WIRELESS_EXT
 	// ipw2200 source
 	RegisterPacketsource("ipw2200", 1, "IEEE80211b", 6,
+						 autoprobe_ipw2200,
 						 packetsource_wext_registrant,
 						 monitor_wext_std, unmonitor_wext_std,
 						 chancontrol_wext_std, 1);
@@ -791,6 +792,7 @@ int Packetsourcetracker::AdvanceChannel() {
 int Packetsourcetracker::RegisterPacketsource(const char *in_cardtype, int in_root, 
                                               const char *in_defaultchanset, 
                                               int in_initch, 
+											  packsource_autoprobe in_autoprobe,
                                               packsource_registrant in_registrant, 
                                               packsource_monitor in_monitor,
                                               packsource_monitor in_unmonitor,
@@ -808,6 +810,7 @@ int Packetsourcetracker::RegisterPacketsource(const char *in_cardtype, int in_ro
     rec->default_channelset = in_defaultchanset;
     rec->initial_channel = in_initch;
 
+	rec->autoprobe = in_autoprobe;
     rec->registrant = in_registrant;
     rec->monitor_enable = in_monitor;
     rec->monitor_disable = in_unmonitor;
