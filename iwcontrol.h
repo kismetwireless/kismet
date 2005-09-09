@@ -52,6 +52,37 @@
 // Wireless extentions master mode
 #define LINUX_WLEXT_MASTER  3
 
+// Definitions gratuitiously yoinked from ethtool-2 for getting
+// driver info
+#define ETHTOOL_BUSINFO_LEN	32
+struct ethtool_drvinfo {
+	uint32_t cmd;
+	char driver[32]; // Driver short name
+	char version[32]; // Driver version
+	char fw_version[32]; // Driver firmware version
+	// We don't really care about anything below here but we need it
+	// anyhow.
+	char bus_info[ETHTOOL_BUSINFO_LEN]; // Bus info
+	char reserved1[32];
+	char reserved2[16];
+	uint32_t n_stats; // Number of ETHTOOL_GSTATS
+	uint32_t testinfo_len;
+	uint32_t eedump_len; // Size of ETHTOOL_GEEPROM
+	uint32_t regdump_len;
+};
+
+#ifndef ETHTOOL_GDRVINFO
+#define ETHTOOL_GDRVINFO	0x00000003
+#endif
+
+#ifndef SIOCETHTOOL
+#define SIOCETHTOOL			0x8946
+#endif
+
+// Get the ethtool info
+int Linux_GetDrvInfo(const char *in_dev, char *errstr, 
+					 struct ethtool_drvinfo *info);
+
 // remove the SSID of the device.  Some cards seem to need this.
 int Iwconfig_Set_SSID(const char *in_dev, char *errstr, char *in_essid);
 int Iwconfig_Get_SSID(const char *in_dev, char *errstr, char *in_essid);
