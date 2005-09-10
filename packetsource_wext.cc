@@ -243,7 +243,7 @@ int unmonitor_wext_core(MONITOR_PARMS, char *errstr) {
 int monitor_wext_std(MONITOR_PARMS) {
 	char errstr[STATUS_MAX];
 
-	// Fall through to the primary monitor functon
+	// Fall through to the primary monitor function
 	if (monitor_wext_core(globalreg, in_dev, initch, in_if, in_ext, errstr) < 0) {
 		globalreg->messagebus->InjectMessage(errstr, MSGFLAG_FATAL);
 		globalreg->fatal_condition = 1;
@@ -287,6 +287,117 @@ int chancontrol_wext_std(CHCONTROL_PARMS) {
 	return 1;
 }
 
+int monitor_madwifi_core(MONITOR_PARMS, char *errstr, int mode) {
+	// Run the primary monitor function
+	if (monitor_wext_core(globalreg, in_dev, initch, in_if, in_ext, errstr) < 0) {
+		globalreg->messagebus->InjectMessage(errstr, MSGFLAG_FATAL);
+		globalreg->fatal_condition = 1;
+		return -1;
+	}
+
+	linux_ifparm *ifparm = (linux_ifparm *) (*in_if);
+
+	if (Iwconfig_Get_IntPriv(in_dev, "get_mode", &ifparm->privmode, errstr) < 0) {
+		globalreg->messagebus->InjectMessage(errstr, MSGFLAG_FATAL);
+		_MSG("Failed to get the current mode via `iwpriv get_mode'.  This is "
+			 "needed to set the mode for a/b/g", MSGFLAG_FATAL);
+		globalreg->fatal_condition = 1;
+		return -1;
+	}
+
+	if (Iwconfig_Set_IntPriv(in_dev, "mode", mode, 0, errstr) < 0) {
+		globalreg->messagebus->InjectMessage(errstr, MSGFLAG_FATAL);
+		_MSG("Failed to set the current mode via `iwpriv get_mode'.  This is "
+			 "needed to set the mode for a/b/g", MSGFLAG_FATAL);
+		globalreg->fatal_condition = 1;
+		return -1;
+	}
+
+	return 1;
+}
+
+int unmonitor_madwifi(MONITOR_PARMS) {
+	char errstr[STATUS_MAX];
+
+	linux_ifparm *ifparm = (linux_ifparm *) (*in_if);
+
+	if (ifparm == NULL)
+		return -1;
+
+	// Restore the mode
+	if (Iwconfig_Set_IntPriv(in_dev, "mode", ifparm->privmode, 0, errstr) < 0) {
+		globalreg->messagebus->InjectMessage(errstr, MSGFLAG_FATAL);
+		_MSG("Failed to set the current mode via `iwpriv get_mode'.  This is "
+			 "needed to set the mode for a/b/g", MSGFLAG_FATAL);
+		globalreg->fatal_condition = 1;
+		return -1;
+	}
+
+	// Fall through to the primary monitor functon
+	if (unmonitor_wext_core(globalreg, in_dev, initch, in_if, in_ext, errstr) < 0) {
+		globalreg->messagebus->InjectMessage(errstr, MSGFLAG_FATAL);
+		globalreg->fatal_condition = 1;
+		return -1;
+	}
+
+	return 1;
+}
+
+int monitor_madwifi_a(MONITOR_PARMS) {
+	char errstr[STATUS_MAX];
+
+	// Fall through to the primary monitor function
+	if (monitor_madwifi_core(globalreg, in_dev, initch, in_if, 
+							 in_ext, errstr, 1) < 0) {
+		globalreg->messagebus->InjectMessage(errstr, MSGFLAG_FATAL);
+		globalreg->fatal_condition = 1;
+		return -1;
+	}
+
+	return 1;
+}
+
+int monitor_madwifi_b(MONITOR_PARMS) {
+	char errstr[STATUS_MAX];
+
+	// Fall through to the primary monitor function
+	if (monitor_madwifi_core(globalreg, in_dev, initch, in_if, 
+							 in_ext, errstr, 2) < 0) {
+		globalreg->messagebus->InjectMessage(errstr, MSGFLAG_FATAL);
+		globalreg->fatal_condition = 1;
+		return -1;
+	}
+
+	return 1;
+}
+
+int monitor_madwifi_g(MONITOR_PARMS) {
+	char errstr[STATUS_MAX];
+
+	// Fall through to the primary monitor function
+	if (monitor_madwifi_core(globalreg, in_dev, initch, in_if, 
+							 in_ext, errstr, 3) < 0) {
+		globalreg->messagebus->InjectMessage(errstr, MSGFLAG_FATAL);
+		globalreg->fatal_condition = 1;
+		return -1;
+	}
+
+	return 1;
+}
+
+int monitor_madwifi_ag(MONITOR_PARMS) {
+	char errstr[STATUS_MAX];
+
+	// Fall through to the primary monitor function
+	if (monitor_madwifi_core(globalreg, in_dev, initch, in_if, 
+							 in_ext, errstr, 0) < 0) {
+		globalreg->messagebus->InjectMessage(errstr, MSGFLAG_FATAL);
+		globalreg->fatal_condition = 1;
+		return -1;
+	}
+
+	return 1;
+}
 
 /* *********************************************************** */
 /* Autoprobe functions */
@@ -311,6 +422,14 @@ int autoprobe_ipw2200(AUTOPROBE_PARMS) {
 		if (major >= 1 && tiny >= 4)
 			return 1;
 	}
+
+	return 0;
+}
+
+int autoprobe_madwifi(AUTOPROBE_PARMS) {
+	// Simple test to see if it looks like an ath_pci driver name
+	if (in_driver == "ath_pci")
+		return 1;
 
 	return 0;
 }

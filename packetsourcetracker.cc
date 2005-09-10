@@ -122,6 +122,31 @@ Packetsourcetracker::Packetsourcetracker(GlobalRegistry *in_globalreg) {
 						 packetsource_wext_registrant,
 						 monitor_wext_std, unmonitor_wext_std,
 						 chancontrol_wext_std, 1);
+	
+	// Madwifi builtin sources
+	RegisterPacketsource("madwifi_a", 1, "IEEE80211a", 36,
+						 NULL,
+						 packetsource_wext_fcs_registrant,
+						 monitor_madwifi_a, unmonitor_madwifi,
+						 chancontrol_wext_std, 1);
+	// Only madwifi_b gets the autolearn for now until we get a mode probe
+	// working and a way to tie it in
+	RegisterPacketsource("madwifi_b", 1, "IEEE80211b", 6,
+						 autoprobe_madwifi,
+						 packetsource_wext_fcs_registrant,
+						 monitor_madwifi_b, unmonitor_madwifi,
+						 chancontrol_wext_std, 1);
+	RegisterPacketsource("madwifi_g", 1, "IEEE80211b", 6,
+						 NULL,
+						 packetsource_wext_fcs_registrant,
+						 monitor_madwifi_g, unmonitor_madwifi,
+						 chancontrol_wext_std, 1);
+	RegisterPacketsource("madwifi_ag", 1, "IEEE80211ab", 6,
+						 NULL,
+						 packetsource_wext_fcs_registrant,
+						 monitor_madwifi_ag, unmonitor_madwifi,
+						 chancontrol_wext_std, 1);
+
 #endif
 
 #endif

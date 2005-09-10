@@ -93,6 +93,15 @@ int unmonitor_wext_core(MONITOR_PARMS, char *errstr);
 int monitor_wext_std(MONITOR_PARMS);
 int unmonitor_wext_std(MONITOR_PARMS);
 
+// Madwifi core and individual monitor hooks
+int monitor_madwifi_core(MONITOR_PARMS, char *errstr, int mode);
+int unmonitor_madwifi(MONITOR_PARMS);
+int monitor_madwifi_a(MONITOR_PARMS);
+int monitor_madwifi_b(MONITOR_PARMS);
+int monitor_madwifi_g(MONITOR_PARMS);
+int monitor_madwifi_ag(MONITOR_PARMS);
+
+
 // ---------- Channel Manipulation Functions
 
 int chancontrol_wext_core(CHCONTROL_PARMS, char *errstr);
@@ -101,6 +110,7 @@ int chancontrol_wext_std(CHCONTROL_PARMS);
 
 // ---------- Automatic Registration Functions
 int autoprobe_ipw2200(AUTOPROBE_PARMS);
+int autoprobe_madwifi(AUTOPROBE_PARMS);
 
 #endif /* have_libpcap && sys_linux */
 
