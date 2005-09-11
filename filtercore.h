@@ -48,6 +48,17 @@ public:
 	// Add a filter line to a block
 	int AddFilterLine(string filter_str);
 
+	// Run a set of addresses through the filter.  We extract this to the
+	// generic layer here so that we're not necessarily tied to the
+	// packinfo_80211
+	int RunFilter(mac_addr bssidmac, mac_addr sourcemac,
+				  mac_addr destmac);
+
+	int FetchBSSIDHit() { return bssid_hit; }
+	int FetchSourceHit() { return source_hit; }
+	int FetchDestHit() { return dest_hit; }
+	int FetchHits() { return bssid_hit + source_hit + dest_hit; }
+
 protected:
 	GlobalRegistry *globalreg;
 
