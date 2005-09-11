@@ -611,6 +611,7 @@ Netracker::Netracker() {
 
 Netracker::Netracker(GlobalRegistry *in_globalreg) {
 	globalreg = in_globalreg;
+	track_filter = NULL;
 
 	// Sanity
 	if (globalreg->packetchain == NULL) {
@@ -684,10 +685,11 @@ Netracker::Netracker(GlobalRegistry *in_globalreg) {
 	}
 
 	// Parse the filtering for the tracker
+	track_filter = new FilterCore(globalreg);
 	vector<string> filterlines = 
 		globalreg->kismet_config->FetchOptVec("filter_tracker");
 	for (unsigned int fl = 0; fl < filterlines.size(); fl++) {
-		if (track_filter.AddFilterLine(filterlines[fl]) < 0) {
+		if (track_filter->AddFilterLine(filterlines[fl]) < 0) {
 			_MSG("Failed to add filter_tracker config line from the Kismet config "
 				 "file.", MSGFLAG_FATAL);
 			globalreg->fatal_condition = 1;
@@ -731,6 +733,9 @@ Netracker::~Netracker() {
 	// FIXME:  More cleanup here
 	if (netrackereventid >= 0 && globalreg != NULL)
 		globalreg->timetracker->RemoveTimer(netrackereventid);
+
+	if (track_filter != NULL)
+		delete track_filter;
 }
 
 int Netracker::TimerKick() {
@@ -824,9 +829,10 @@ int Netracker::netracker_chain_handler(kis_packet *in_pack) {
 	// Compare against the filter and return w/out making a network record or
 	// anything if we're due to be excluded anyhow.  This also keeps datatracker
 	// handlers from processing since they won't find a network reference
-	if (track_filter.RunFilter(packinfo->bssid_mac, packinfo->source_mac,
-							   packinfo->dest_mac))
+	if (track_filter->RunFilter(packinfo->bssid_mac, packinfo->source_mac,
+								packinfo->dest_mac)) {
 		return 0;
+	}
 
 	// Not an 802.11 frame type we known how to track, we'll just skip
 	// it, too

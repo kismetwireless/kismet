@@ -450,7 +450,7 @@ protected:
 	int netrackereventid;
 
 	// Filter core for tracker
-	FilterCore track_filter;
+	FilterCore *track_filter;
 
 	// Let the hooks call directly in
 	friend int kis_80211_netracker_hook(CHAINCALL_PARMS);
