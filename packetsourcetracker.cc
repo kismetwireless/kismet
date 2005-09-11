@@ -116,9 +116,21 @@ Packetsourcetracker::Packetsourcetracker(GlobalRegistry *in_globalreg) {
                          NULL, unmonitor_pcapfile, NULL, 0);
 
 #ifdef WIRELESS_EXT
+	// acx100
+	RegisterPacketsource("acx100", 1, "IEEE80211b", 6,
+						 NULL, // FIXME -- add a source
+						 packetsource_wext_registrant,
+						 monitor_wext_std, unmonitor_wext_std,
+						 chancontrol_wext_std, 1);
 	// ipw2200 source
 	RegisterPacketsource("ipw2200", 1, "IEEE80211b", 6,
 						 autoprobe_ipw2200,
+						 packetsource_wext_registrant,
+						 monitor_wext_std, unmonitor_wext_std,
+						 chancontrol_wext_std, 1);
+	// ipw2200 source
+	RegisterPacketsource("ipw2100", 1, "IEEE80211b", 6,
+						 autoprobe_ipw2100,
 						 packetsource_wext_registrant,
 						 monitor_wext_std, unmonitor_wext_std,
 						 chancontrol_wext_std, 1);

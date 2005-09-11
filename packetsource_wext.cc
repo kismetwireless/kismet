@@ -426,6 +426,15 @@ int autoprobe_ipw2200(AUTOPROBE_PARMS) {
 	return 0;
 }
 
+int autoprobe_ipw2100(AUTOPROBE_PARMS) {
+	// Assume we're ok as long as we're ipw2100.  Probably doesn't matter
+	// on version since anything in reasonable history did monitor.
+	if (in_driver == "ipw2100")
+		return 1;
+
+	return 0;
+}
+
 int autoprobe_madwifi(AUTOPROBE_PARMS) {
 	// Simple test to see if it looks like an ath_pci driver name
 	if (in_driver == "ath_pci")
@@ -433,6 +442,7 @@ int autoprobe_madwifi(AUTOPROBE_PARMS) {
 
 	return 0;
 }
+
 
 #endif
 

@@ -1,3 +1,8 @@
+Sep 10 2005  devel  Turned on ipw2100 source again
+                    Turned on acx100 source (kluge to hopefully work with
+                     modern acx100 drivers)
+                    Turned on atmel-usb sourceA
+                    Turned on rt2400, rt2500, rt8180
 Sep 09 2005  devel  Started implementing 'auto' device support
                     Skeleton of 'auto' capsource in place (for the one capsource
                      newcore supports currently)

@@ -110,6 +110,7 @@ int chancontrol_wext_std(CHCONTROL_PARMS);
 
 // ---------- Automatic Registration Functions
 int autoprobe_ipw2200(AUTOPROBE_PARMS);
+int autoprobe_ipw2100(AUTOPROBE_PARMS);
 int autoprobe_madwifi(AUTOPROBE_PARMS);
 
 #endif /* have_libpcap && sys_linux */
