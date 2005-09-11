@@ -39,7 +39,7 @@ WAV = ${SHARE}/wav/
 DEPEND	= .depend
 
 # Objects
-PSO	= util.o ringbuf.o messagebus.o configfile.o getopt.o \
+PSO	= util.o ringbuf.o messagebus.o configfile.o getopt.o filtercore.o \
 	ifcontrol.o iwcontrol.o soundcontrol.o speechcontrol.o \
 	netframework.o clinetframework.o tcpserver.o tcpclient.o \
 	kis_netframe.o gpsdclient.o \

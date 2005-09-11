@@ -16,36 +16,51 @@
     Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 */
 
-#ifndef __CONFIGFILE_H__
-#define __CONFIGFILE_H__
+#ifndef __FILTERCORE_H__
+#define __FILTERCORE_H__
+
+// Core filter functions
+//
+// Basic filtering class used as a "smart struct" more than anything.  Handle
+// parsing, comparing, etc.
 
 #include "config.h"
 
-#include <unistd.h>
-#include <sys/stat.h>
-#include <sys/types.h>
-#include <sys/wait.h>
-#include <stdlib.h>
-#include <pwd.h>
-
-#include <string>
+#include <stdio.h>
+#include <time.h>
+#include <list>
 #include <map>
 #include <vector>
+#include <algorithm>
+#include <string>
 
 #include "globalregistry.h"
-#include "macaddr.h"
+#include "messagebus.h"
+#include "packetchain.h"
+#include "timetracker.h"
+#include "kis_netframe.h"
 
-class ConfigFile {
+class FilterCore {
 public:
-    int ParseConfig(const char *in_fname);
-    string FetchOpt(string in_key);
-    vector<string> FetchOptVec(string in_key);
+	FilterCore();
+	FilterCore(GlobalRegistry *in_globalreg);
 
-    static string ExpandLogPath(string path, string logname, string type, 
-								int start, int overwrite = 0);
+	// Add a filter line to a block
+	int AddFilterLine(string filter_str);
+
 protected:
-    map<string, vector<string> > config_map;
+	GlobalRegistry *globalreg;
+
+	macmap<int> bssid_map;
+	macmap<int> source_map;
+	macmap<int> dest_map;
+	int bssid_invert;
+	int source_invert;
+	int dest_invert;
+
+	int bssid_hit;
+	int source_hit;
+	int dest_hit;
 };
 
 #endif
-
