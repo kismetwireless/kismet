@@ -55,3 +55,24 @@ EXAMPLES
 Currently one of the best examples of the newcore design is the GPS client
 module, gpsdclient.[h|cc].  It excercises many of the new methods.
 
+NETWORK TRACKING
+
+Network tracking is basically the same as it was before, however some things
+have been made more explicit:
+
+* All networks now have at least one client.  The network itself is a client
+  of itself.  This handles many weird discrepencies in the old model about
+  how client data was different from network data, how IPs were calculated, 
+  etc.
+
+* Network totals are still tracked realtime.  This is much cheaper than
+  iterating over the clients in a network shell.
+
+* Network numbers must be recalculated when moving a client to another network.
+  subtract all the totals of client1 from net1 and add them to net2
+
+* The kisclient will be responsible for moving clients between networks on
+  the client end of things, but doesn't need to be smart enough to move
+  packet totals -- the new packet total for the network shell will be pushed
+  in the NETWORK update.
+
