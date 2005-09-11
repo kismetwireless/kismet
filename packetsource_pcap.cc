@@ -297,7 +297,7 @@ int PacketSource_Pcap::Prism2KisPack(kis_packet *packet) {
     // See if we have an AVS wlan header...
     avs_80211_1_header *v1hdr = (avs_80211_1_header *) callback_data;
     if (callback_header.caplen >= sizeof(avs_80211_1_header) &&
-        ntohl(v1hdr->version) == 0x80211001 && radioheader == NULL) {
+        ntohl(v1hdr->version) == 0x80211001) {
 
         if (ntohl(v1hdr->length) > callback_header.caplen ||
 			callback_header.caplen < (ntohl(v1hdr->length) + fcsbytes)) {
@@ -352,8 +352,7 @@ int PacketSource_Pcap::Prism2KisPack(kis_packet *packet) {
 
     // See if we have a prism2 header
     wlan_ng_prism2_header *p2head = (wlan_ng_prism2_header *) callback_data;
-    if (callback_header.caplen >= sizeof(wlan_ng_prism2_header) &&
-		callback_header.caplen < (sizeof(wlan_ng_prism2_header) + fcsbytes) &&
+	if (callback_header.caplen >= (sizeof(wlan_ng_prism2_header) + fcsbytes) &&
         radioheader == NULL) {
 
 		eight11chunk = new kis_datachunk;
@@ -361,6 +360,13 @@ int PacketSource_Pcap::Prism2KisPack(kis_packet *packet) {
 
         // Subtract the packet FCS since kismet doesn't do anything terribly bright
         // with it right now
+		if (p2head->frmlen.data < fcsbytes) {
+			snprintf(errstr, STATUS_MAX, "pcap prism2 converter got corrupted "
+					 "wlanng-header frame length");
+			globalreg->messagebus->InjectMessage(errstr, MSGFLAG_ERROR);
+			return 0;
+		}
+
         eight11chunk->length = kismin((p2head->frmlen.data - fcsbytes), 
 									   (uint32_t) MAX_PACKET_LEN);
 
@@ -374,8 +380,9 @@ int PacketSource_Pcap::Prism2KisPack(kis_packet *packet) {
     }
 
     if (radioheader == NULL) {
-        snprintf(errstr, STATUS_MAX, "pcap prism2 convverter saw undersized "
-				 "capture frame (PRISM80211 linktype, no prism headers)");
+        snprintf(errstr, STATUS_MAX, "pcap prism2 converter saw strange "
+				 "capture frame (PRISM80211 linktype, unable to determine "
+				 "prism headers)");
         globalreg->messagebus->InjectMessage(errstr, MSGFLAG_ERROR);
         return 0;
     }

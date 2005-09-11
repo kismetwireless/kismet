@@ -125,7 +125,7 @@ public:
     // Stop ignoring incoming packets
     void Resume() { paused = 0; };
 
-	void SetFCSBytes(int in_bytes) { fcsbytes = in_bytes; }
+	virtual void SetFCSBytes(int in_bytes) { fcsbytes = in_bytes; }
 
 	int FetchCarrierSet() { return carrier_set; }
 
@@ -142,8 +142,8 @@ protected:
     string name;
     string interface;
 
-    // Bytes in the FCS - public so monitor can write it
-    int fcsbytes;
+    // Bytes in the FCS
+    unsigned int fcsbytes;
 
     // Total packets
     unsigned int num_packets;

@@ -205,7 +205,6 @@ protected:
 
 	pcap_t *pd;
 	int datalink_type;
-	int fcsbytes;
 };	
 
 class PacketSource_Pcapfile : public PacketSource_Pcap {
