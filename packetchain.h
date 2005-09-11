@@ -46,8 +46,6 @@
 //
 // DISSECT
 //
-// FILTER
-//
 // DECRYPT
 //
 // DATA-DISSECT
@@ -62,12 +60,11 @@
 #define CHAINPOS_GENESIS        1
 #define CHAINPOS_POSTCAP        2
 #define CHAINPOS_LLCDISSECT     3
-#define CHAINPOS_FILTER         4
-#define CHAINPOS_DECRYPT        5
-#define CHAINPOS_DATADISSECT    6
-#define CHAINPOS_CLASSIFIER     7
-#define CHAINPOS_LOGGING        8
-#define CHAINPOS_DESTROY        9
+#define CHAINPOS_DECRYPT        4
+#define CHAINPOS_DATADISSECT    5
+#define CHAINPOS_CLASSIFIER     6
+#define CHAINPOS_LOGGING        7
+#define CHAINPOS_DESTROY        8
 
 #define CHAINCALL_PARMS GlobalRegistry *globalreg, void *auxdata, kis_packet *in_pack
 
@@ -114,7 +111,6 @@ protected:
     // Core chain components
     vector<Packetchain::pc_link *> postcap_chain;
     vector<Packetchain::pc_link *> llcdissect_chain;
-    vector<Packetchain::pc_link *> filter_chain;
     vector<Packetchain::pc_link *> decrypt_chain;
     vector<Packetchain::pc_link *> datadissect_chain;
     vector<Packetchain::pc_link *> classifier_chain;

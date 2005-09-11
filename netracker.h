@@ -36,6 +36,7 @@
 #include "packetchain.h"
 #include "kis_netframe.h"
 #include "timetracker.h"
+#include "filtercore.h"
 
 // Cache file versioning
 #define NETRACKER_SSIDCACHE_VERSION 	2
@@ -447,6 +448,9 @@ protected:
 
 	// Timer refs
 	int netrackereventid;
+
+	// Filter core for tracker
+	FilterCore track_filter;
 
 	// Let the hooks call directly in
 	friend int kis_80211_netracker_hook(CHAINCALL_PARMS);

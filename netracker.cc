@@ -683,6 +683,18 @@ Netracker::Netracker(GlobalRegistry *in_globalreg) {
 		ssid_cache_track = 0;
 	}
 
+	// Parse the filtering for the tracker
+	vector<string> filterlines = 
+		globalreg->kismet_config->FetchOptVec("filter_tracker");
+	for (unsigned int fl = 0; fl < filterlines.size(); fl++) {
+		if (track_filter.AddFilterLine(filterlines[fl]) < 0) {
+			_MSG("Failed to add filter_tracker config line from the Kismet config "
+				 "file.", MSGFLAG_FATAL);
+			globalreg->fatal_condition = 1;
+			return;
+		}
+	}
+
 	// Register network protocols with the tcp server
 	_NPM(PROTO_REF_NETWORK) =
 		globalreg->kisnetserver->RegisterProtocol("NETWORK", 0, 1, 
@@ -808,6 +820,13 @@ int Netracker::netracker_chain_handler(kis_packet *in_pack) {
 	if (packinfo == NULL) {
 		return 0;
 	}
+
+	// Compare against the filter and return w/out making a network record or
+	// anything if we're due to be excluded anyhow.  This also keeps datatracker
+	// handlers from processing since they won't find a network reference
+	if (track_filter.RunFilter(packinfo->bssid_mac, packinfo->source_mac,
+							   packinfo->dest_mac))
+		return 0;
 
 	// Not an 802.11 frame type we known how to track, we'll just skip
 	// it, too

@@ -120,10 +120,6 @@ int Packetchain::ProcessPacket(kis_packet *in_pack) {
 		 (pcl = llcdissect_chain[x]); x++)
         (*(pcl->callback))(globalreg, pcl->auxdata, in_pack);
 
-    for (unsigned int x = 0; x < filter_chain.size() && 
-		 (pcl = filter_chain[x]); x++)
-        (*(pcl->callback))(globalreg, pcl->auxdata, in_pack);
-
     for (unsigned int x = 0; x < decrypt_chain.size() && 
 		 (pcl = decrypt_chain[x]); x++)
         (*(pcl->callback))(globalreg, pcl->auxdata, in_pack);
@@ -192,11 +188,6 @@ int Packetchain::RegisterHandler(pc_callback in_cb, void *in_aux,
             llcdissect_chain.push_back(link);
             stable_sort(llcdissect_chain.begin(), llcdissect_chain.end(), 
 						SortLinkPriority());
-            break;
-
-        case CHAINPOS_FILTER:
-            filter_chain.push_back(link);
-            stable_sort(filter_chain.begin(), filter_chain.end(), SortLinkPriority());
             break;
 
         case CHAINPOS_DECRYPT:
