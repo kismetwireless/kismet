@@ -1,3 +1,5 @@
+Sep 11 2005  devel  Turned on hostap (straight 'mode foo' control, no priv
+                     monitor)
 Sep 10 2005  devel  Turned on ipw2100 source again
                     Turned on acx100 source (kluge to hopefully work with
                      modern acx100 drivers)

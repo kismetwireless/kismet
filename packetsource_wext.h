@@ -101,7 +101,6 @@ int monitor_madwifi_b(MONITOR_PARMS);
 int monitor_madwifi_g(MONITOR_PARMS);
 int monitor_madwifi_ag(MONITOR_PARMS);
 
-
 // ---------- Channel Manipulation Functions
 
 int chancontrol_wext_core(CHCONTROL_PARMS, char *errstr);

@@ -116,19 +116,30 @@ Packetsourcetracker::Packetsourcetracker(GlobalRegistry *in_globalreg) {
                          NULL, unmonitor_pcapfile, NULL, 0);
 
 #ifdef WIRELESS_EXT
-	// acx100
 	RegisterPacketsource("acx100", 1, "IEEE80211b", 6,
-						 NULL, // FIXME -- add a source
+						 NULL, // FIXME -- add a detector
 						 packetsource_wext_registrant,
 						 monitor_wext_std, unmonitor_wext_std,
 						 chancontrol_wext_std, 1);
-	// ipw2200 source
+
+	RegisterPacketsource("atmel_usb", 1, "IEEE80211b", 6,
+						 NULL, // FIXME -- add a detector
+						 packetsource_wext_registrant,
+						 monitor_wext_std, unmonitor_wext_std,
+						 chancontrol_wext_std, 1);
+
+	RegisterPacketsource("hostap", 1, "IEEE80211b", 6,
+						 NULL, // FIXME -- add a detector
+						 packetsource_wext_registrant,
+						 monitor_wext_std, unmonitor_wext_std,
+						 chancontrol_wext_std, 1);
+
 	RegisterPacketsource("ipw2200", 1, "IEEE80211b", 6,
 						 autoprobe_ipw2200,
 						 packetsource_wext_registrant,
 						 monitor_wext_std, unmonitor_wext_std,
 						 chancontrol_wext_std, 1);
-	// ipw2200 source
+
 	RegisterPacketsource("ipw2100", 1, "IEEE80211b", 6,
 						 autoprobe_ipw2100,
 						 packetsource_wext_registrant,
@@ -157,6 +168,24 @@ Packetsourcetracker::Packetsourcetracker(GlobalRegistry *in_globalreg) {
 						 NULL,
 						 packetsource_wext_fcs_registrant,
 						 monitor_madwifi_ag, unmonitor_madwifi,
+						 chancontrol_wext_std, 1);
+
+	RegisterPacketsource("rt2400", 1, "IEEE80211b", 6,
+						 NULL, // FIXME -- add a detector
+						 packetsource_wext_registrant,
+						 monitor_wext_std, unmonitor_wext_std,
+						 chancontrol_wext_std, 1);
+
+	RegisterPacketsource("rt2500", 1, "IEEE80211b", 6,
+						 NULL, // FIXME -- add a detector
+						 packetsource_wext_registrant,
+						 monitor_wext_std, unmonitor_wext_std,
+						 chancontrol_wext_std, 1);
+
+	RegisterPacketsource("rt8180", 1, "IEEE80211b", 6,
+						 NULL, // FIXME -- add a detector
+						 packetsource_wext_registrant,
+						 monitor_wext_std, unmonitor_wext_std,
 						 chancontrol_wext_std, 1);
 
 #endif
