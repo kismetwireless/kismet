@@ -305,9 +305,11 @@ int main(int argc,char *argv[]) {
 	char errstr[STATUS_MAX];
 	char *configfilename = NULL;
 	ConfigFile *conf;
+#ifdef HAVE_SUID
 	uid_t suid_uid;
 	gid_t suid_gid;
 	string suiduser;
+#endif
 	int option_idx = 0;
 	KisBuiltinDissector *bid;
 	int data_dump = 0;
@@ -418,7 +420,7 @@ int main(int argc,char *argv[]) {
 			 "This is NOT reccomended as it can increase the risk to your system "
 			 "from hostile remote data.  Please consult the 'Installation & "
 			 "Security' and 'Configuration' sections of your README file.");
-	globalregistry->messagebus->InjectMessage(errstr, MSGFLAG_WARNING);
+	globalregistry->messagebus->InjectMessage(errstr, MSGFLAG_ERROR);
 	sleep(1);
 #endif
 
