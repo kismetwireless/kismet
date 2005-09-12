@@ -7,6 +7,7 @@ Sep 11 2005  devel  Turned on hostap (straight 'mode foo' control, no priv
                     Fixed AVS handling
                     Fixed class overload of fcsbytes causing all sorts of issues
                     Fixed some errors with compiling with suid disabled
+                    Added ADDTRACKERFILTER client command to nettracker
 Sep 10 2005  devel  Turned on ipw2100 source again
                     Turned on acx100 source (kluge to hopefully work with
                      modern acx100 drivers)

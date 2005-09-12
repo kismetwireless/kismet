@@ -587,6 +587,25 @@ void Protocol_CLIENT_enable(PROTO_ENABLE_PARMS) {
 	}
 }
 
+int Netracker_Clicmd_ADDFILTER(CLIENT_PARMS) {
+	if (parsedcmdline->size() != 1) {
+		snprintf(errstr, 1024, "Illegal addfilter request");
+		return -1;
+	}
+
+	Netracker *netr = (Netracker *) auxptr;
+
+	if (netr->AddFilter((*parsedcmdline)[0].word) < 0) {
+		snprintf(errstr, 1024, "Failed to insert filter string");
+		return -1;
+	}
+
+	_MSG("Added network filter '" + (*parsedcmdline)[0].word + "'",
+		 MSGFLAG_INFO);
+
+	return 1;
+}
+
 // These are both just dropthroughs into the class itself
 int kis_80211_netracker_hook(CHAINCALL_PARMS) {
 	Netracker *auxptr = (Netracker *) auxdata;
@@ -713,6 +732,12 @@ Netracker::Netracker(GlobalRegistry *in_globalreg) {
 												  REMOVE_fields_text, 
 												  &Protocol_REMOVE, NULL);
 
+	// Add the client command
+	addfiltercmd_ref =
+		globalreg->kisnetserver->RegisterClientCommand("ADDTRACKERFILTER",
+													   &Netracker_Clicmd_ADDFILTER,
+													   this);
+
 	// See if we have some alerts to raise
 	alert_chan_ref = 
 		globalreg->alertracker->ActivateConfiguredAlert("CHANCHANGE");
@@ -736,6 +761,10 @@ Netracker::~Netracker() {
 
 	if (track_filter != NULL)
 		delete track_filter;
+}
+
+int Netracker::AddFilter(string in_filter) {
+	return track_filter->AddFilterLine(in_filter);
 }
 
 int Netracker::TimerKick() {

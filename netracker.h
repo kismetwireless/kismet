@@ -384,6 +384,8 @@ public:
 	Netracker(GlobalRegistry *in_globalreg);
 	~Netracker();
 
+	int AddFilter(string in_filter);
+
 	typedef map<mac_addr, Netracker::tracked_network *>::iterator track_iter;
 	typedef map<mac_addr, Netracker::tracked_client *>::iterator client_iter;
 	typedef map<mac_addr, Netracker::ip_data>::iterator ipcache_iter;
@@ -449,6 +451,9 @@ protected:
 	// Timer refs
 	int netrackereventid;
 
+	// Command refs
+	int addfiltercmd_ref;
+
 	// Filter core for tracker
 	FilterCore *track_filter;
 
@@ -467,6 +472,8 @@ int Protocol_REMOVE(PROTO_PARMS);
 
 void Protocol_NETWORK_enable(PROTO_ENABLE_PARMS);
 void Protocol_CLIENT_enable(PROTO_ENABLE_PARMS);
+
+int Netracker_Clicmd_ADDFILTER(CLIENT_PARMS);
 
 // Hooks into the packet component trackers
 class kis_netracker_netinfo : public packet_component {
