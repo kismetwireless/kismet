@@ -291,10 +291,13 @@ int FindSuidTarget(string in_username, GlobalRegistry *globalreg,
 }
 
 int FlushDatafilesEvent(TIMEEVENT_PARMS) {
+	if (globalreg->subsys_dumpfile_vec.size() == 0)
+		return 1;
+
 	_MSG("Saving data files", MSGFLAG_INFO);
 
 	for (unsigned int x = 0; x < globalreg->subsys_dumpfile_vec.size(); x++) {
-		globalregistry->subsys_dumpfile_vec[x]->Flush();
+		globalreg->subsys_dumpfile_vec[x]->Flush();
 	}
 
 	return 1;
@@ -531,7 +534,7 @@ int main(int argc,char *argv[]) {
 		CatchShutdown(-1);
 
 	// Create the dumpfiles
-	globalregistry->messagebus->InjectMessage("Opening dumpfiles...",
+	globalregistry->messagebus->InjectMessage("Registering dumpfiles...",
 											  MSGFLAG_INFO);
 	globalregistry->RegisterDumpFile(new Dumpfile_Pcap(globalregistry));
 	if (globalregistry->fatal_condition)
