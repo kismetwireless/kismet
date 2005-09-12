@@ -68,11 +68,14 @@ string MungeToShell(string in_data) {
 
 // Munge text down to printable characters only.  Simpler, cleaner munger than
 // before (and more blatant when munging)
-string MungeToPrintable(char *in_data, int max) {
+string MungeToPrintable(char *in_data, int max, int nullterm) {
 	string ret;
 	int i;
 
 	for (i = 0; i < max; i++) {
+		if ((unsigned char) in_data[i] == 0 && nullterm == 1)
+			return ret;
+
 		if ((unsigned char) in_data[i] >= 32 && (unsigned char) in_data[i] <= 126) {
 			ret += in_data[i];
 		} else {

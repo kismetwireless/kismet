@@ -588,7 +588,7 @@ int KisBuiltinDissector::ieee80211_dissector(kis_packet *in_pack) {
 					if (zeroed == 0) {
 						packinfo->ssid = 
 							MungeToPrintable((char *) 
-											 &(chunk->data[tag_offset+1]), taglen);
+											 &(chunk->data[tag_offset+1]), taglen, 0);
 					} else {
 						packinfo->ssid_blank = 1;
 					}
@@ -738,8 +738,8 @@ int KisBuiltinDissector::ieee80211_dissector(kis_packet *in_pack) {
 				// boundaries
 				if ((tag_offset + 11) < chunk->length && taglen >= 11) {
 					packinfo->beacon_info = 
-						MungeToPrintable((char *)
-										 &(chunk->data[tag_offset+11]), taglen - 11);
+						MungeToPrintable((char *) &(chunk->data[tag_offset+11]), 
+										 taglen - 11, 1);
                 }
 
 				// Non-fatal fail since beacon info might not have that
@@ -1226,7 +1226,7 @@ int KisBuiltinDissector::basicdata_dissector(kis_packet *in_pack) {
 
 				datainfo->cdp_dev_id = 
 					MungeToPrintable((char *) &(chunk->data[offset + 4]), 
-									 elemlen - 4);
+									 elemlen - 4, 0);
 				gotinfo = 1;
 			} else if (elemtype == 0x03) {
 				if (elemlen < 4) {
@@ -1239,7 +1239,7 @@ int KisBuiltinDissector::basicdata_dissector(kis_packet *in_pack) {
 
 				datainfo->cdp_port_id = 
 					MungeToPrintable((char *) &(chunk->data[offset + 4]), 
-									 elemlen - 4);
+									 elemlen - 4, 0);
 				gotinfo = 1;
 			}
 
@@ -1398,7 +1398,7 @@ int KisBuiltinDissector::basicdata_dissector(kis_packet *in_pack) {
 							break;
 
 						packinfo->ssid = 
-							MungeToPrintable((char *) &(pdu[3]), pdu_len);
+							MungeToPrintable((char *) &(pdu[3]), pdu_len, 0);
 						break;
 					case iapp_pdu_bssid:
 						if (pdu_len != MAC_LEN)
