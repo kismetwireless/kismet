@@ -69,6 +69,7 @@ enum NETWORK_fields {
     NETWORK_carrierset, NETWORK_maxseenrate, NETWORK_encodingset,
     NETWORK_decrypted, NETWORK_dupeiv, NETWORK_bsstimestamp,
 	NETWORK_cdpdevice, NETWORK_cdpport, NETWORK_fragments, NETWORK_retries,
+	NETWORK_newpackets,
 	NETWORK_maxfield
 };
 
@@ -86,7 +87,7 @@ enum CLIENT_fields {
     CLIENT_bestlat, CLIENT_bestlon, CLIENT_bestalt,
     CLIENT_atype, CLIENT_ip, CLIENT_gatewayip, CLIENT_datasize, CLIENT_maxseenrate, 
 	CLIENT_encodingset, CLIENT_carrierset, CLIENT_decrypted, CLIENT_wep,
-	CLIENT_channel, CLIENT_fragments, CLIENT_retries,
+	CLIENT_channel, CLIENT_fragments, CLIENT_retries, CLIENT_newpackets,
 	CLIENT_maxfield
 };
 
@@ -232,6 +233,7 @@ public:
 			dirty = 0;
 			fragments = 0;
 			retries = 0;
+			new_packets = 0;
 		}
 
 		// What we last saw it as
@@ -300,6 +302,9 @@ public:
 		int fragments;
 		int retries;
 
+		// Number of packets since last tick
+		int new_packets;
+
 		// Network is dirty and should be pushed out
 		int dirty;
 	};
@@ -318,6 +323,7 @@ public:
 			netptr = NULL;
 			fragments = 0;
 			retries = 0;
+			new_packets = 0;
 			dirty = 0;
 		}
 
@@ -372,6 +378,9 @@ public:
 		// Fragments and retries for packet stats
 		int fragments;
 		int retries;
+
+		// Packets since last push
+		int new_packets;
 
 		// Do we need to push an update?
 		int dirty;

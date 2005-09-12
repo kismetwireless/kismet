@@ -56,6 +56,7 @@ char *NETWORK_fields_text[] = {
     "carrierset", "maxseenrate", "encodingset",
     "decrypted", "dupeivpackets", "bsstimestamp",
 	"cdpdevice", "cdpport", "fragments", "retries",
+	"newpackets",
     NULL
 };
 
@@ -78,7 +79,7 @@ char *CLIENT_fields_text[] = {
     "bestlat", "bestlon", "bestalt",
     "atype", "ip", "gatewayip", "datasize", "maxseenrate", "encodingset",
 	"carrierset", "decrypted", "wep", "channel",
-	"fragments", "retries",
+	"fragments", "retries", "newpackets",
     NULL
 };
 
@@ -340,6 +341,10 @@ int Protocol_NETWORK(PROTO_PARMS) {
 				osstr << net->retries;
 				cache->Cache(fnum, osstr.str());
 				break;
+			case NETWORK_newpackets:
+				osstr << net->new_packets;
+				cache->Cache(fnum, osstr.str());
+				break;
 		}
 
 		// print the newly filled in cache
@@ -543,6 +548,10 @@ int Protocol_CLIENT(PROTO_PARMS) {
 				break;
 			case CLIENT_retries:
 				osstr << cli->retries;
+				cache->Cache(fnum, osstr.str());
+				break;
+			case CLIENT_newpackets:
+				osstr << cli->new_packets;
 				cache->Cache(fnum, osstr.str());
 				break;
 		}
@@ -768,6 +777,8 @@ int Netracker::AddFilter(string in_filter) {
 }
 
 int Netracker::TimerKick() {
+	// Push new networks and reset their rate counters
+	
 	for (Netracker::track_iter x = globalreg->netracker->tracked_map.begin(); 
 		 x != globalreg->netracker->tracked_map.end(); ++x) {
         if (x->second->type == network_remove) 
@@ -776,6 +787,7 @@ int Netracker::TimerKick() {
 		if (x->second->dirty) {
 			globalreg->kisnetserver->SendToAll(_NPM(PROTO_REF_NETWORK), 
 											   (void *) x->second);
+			x->second->new_packets = 0;
 		}
 	}
 	for (Netracker::client_iter x = globalreg->netracker->client_map.begin(); 
@@ -786,6 +798,7 @@ int Netracker::TimerKick() {
 		if (x->second->dirty) {
 			globalreg->kisnetserver->SendToAll(_NPM(PROTO_REF_CLIENT), 
 											   (void *) x->second);
+			x->second->new_packets = 0;
 		}
 	}
 	return 1;
@@ -1244,6 +1257,10 @@ int Netracker::netracker_chain_handler(kis_packet *in_pack) {
 
 		// TODO - Add FMSweak handling
 	}
+
+	// Increment per-unit rates
+	net->new_packets++;
+	cli->new_packets++;
 
 	// Handle data sizes
 	net->datasize += packinfo->datasize;

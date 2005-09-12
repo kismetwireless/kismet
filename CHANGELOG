@@ -1,3 +1,5 @@
+Sep 12 2005  devel  Added per-network and per-client packet rate data
+                    Added packetrate fields to NETWORK and CLIENT protos
 Sep 11 2005  devel  Turned on hostap (straight 'mode foo' control, no priv
                      monitor)
                     Started new filter core class
