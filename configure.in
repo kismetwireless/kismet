@@ -128,6 +128,7 @@ else
 fi
 
 CXXFLAGS="$CXXFLAGS $CFLAGS"
+LDFLAGS="$LDFLAGS -rdynamic"
 
 AC_CONFIG_SRCDIR([kismet_server.cc])
 AC_CONFIG_HEADER([config.h])

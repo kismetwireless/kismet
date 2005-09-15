@@ -12,6 +12,9 @@ servername=Kismet_Newcore
 # User to setid to (should be your normal user)
 suiduser=your_user_here
 
+# Do we allow plugins to be used?
+allowplugins=true
+
 # Sources are defined as:
 # source=cardtype,interface,name[,initialchannel]
 # Card types and required drivers are listed in the README.

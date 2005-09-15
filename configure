@@ -3208,6 +3208,7 @@ echo "${ECHO_T}none needed" >&6
 fi
 
 CXXFLAGS="$CXXFLAGS $CFLAGS"
+LDFLAGS="$LDFLAGS -rdynamic"
 
 
           ac_config_headers="$ac_config_headers config.h"

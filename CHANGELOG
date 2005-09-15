@@ -1,6 +1,11 @@
 Sep 15 2005  devel  Added user plugin directory scanning and loading
                     Implemented actually kickstarting the plugins
                     Made better errors for dlopen() being stupid
+                    Fixed plugin symbol exporting
+                    Wrote demo NULL plugin (crappy example, better to come)
+                    Plugins should now be functional.  YOU WILL NEED TO RERUN
+                     CONFIGURE for plugins to enable properly, you will also
+                     need to turn on 'allowplugins=true' in your config file.
 Sep 14 2005  devel  Imported -stable autoconf with all its little fixes
                     Added LIB_LOC to config.h
                     Fixed config.h.bot glitch
