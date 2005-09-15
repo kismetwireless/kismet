@@ -1,3 +1,6 @@
+Sep 15 2005  devel  Added user plugin directory scanning and loading
+                    Implemented actually kickstarting the plugins
+                    Made better errors for dlopen() being stupid
 Sep 14 2005  devel  Imported -stable autoconf with all its little fixes
                     Added LIB_LOC to config.h
                     Fixed config.h.bot glitch

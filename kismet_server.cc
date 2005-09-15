@@ -523,6 +523,9 @@ int main(int argc,char *argv[]) {
 
 	// ------ WE ARE NOW RUNNING AS THE TARGET (MAYBE) ------
 
+	// Process userspace plugins
+	plugintracker->ScanUserPlugins();
+
 	// Bind sources as non-root
 	globalregistry->sourcetracker->BindSources(0);
 	if (globalregistry->fatal_condition)
@@ -579,6 +582,11 @@ int main(int argc,char *argv[]) {
 												  MSGFLAG_FATAL);
 		CatchShutdown(-1);
 	}
+
+	// Kick the plugin system again
+	plugintracker->ActivatePlugins();
+	if (globalregistry->fatal_condition)
+		CatchShutdown(-1);
 
 	// Set the global silence now that we're set up
 	glob_silent = local_silent;

@@ -47,6 +47,8 @@
 #include <vector>
 #include <algorithm>
 #include <string>
+#include <sys/types.h>
+#include <dirent.h>
 
 #include "globalregistry.h"
 
@@ -67,10 +69,6 @@ typedef struct {
 	// Callback to be removed
 	plugin_hook plugin_unregister;
 	
-	// Callback for Kismet to notify a root plugin that the privdrop has occured,
-	// if there are any plugin-related priv controls
-	plugin_hook plugin_suiddrop;
-
 } plugin_usrdata;
 
 // Plugin information fetch function
@@ -119,15 +117,14 @@ public:
 	// Activate the vector of plugins (called repeatedly during startup)
 	int ActivatePlugins();
 
-	// Kick that we privdropped
-	int PrivdropPlugins();
-
 	// Shut down the plugins and close the shared files
 	int ShutdownPlugins();
 
 protected:
 	GlobalRegistry *globalreg;
 	int plugins_active;
+
+	int ScanDirectory(DIR *in_dir, string in_path);
 
 	vector<plugin_meta *> plugin_vec;
 };
