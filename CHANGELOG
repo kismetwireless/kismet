@@ -1,3 +1,14 @@
+Sep 14 2005  devel  Imported -stable autoconf with all its little fixes
+                    Added LIB_LOC to config.h
+                    Fixed config.h.bot glitch
+                    Changed privdrop behavior to keep running when there is a
+                     user/target mismatch provided neither is root, and kismet
+                     isn't started as root.  (ie, Kismet configured to drop to
+                     'bob', started as 'susan', now runs as 'susan' with an
+                     error warning)
+                    Added linewrap to fataloutput message client
+                    Added plugin core (funny how small a note that is) and
+                     started plugin loaders
 Sep 12 2005  devel  Added per-network and per-client packet rate data
                     Added packetrate fields to NETWORK and CLIENT protos
 Sep 11 2005  devel  Turned on hostap (straight 'mode foo' control, no priv

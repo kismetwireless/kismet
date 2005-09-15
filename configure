@@ -311,7 +311,7 @@ ac_includes_default="\
 #endif"
 
 ac_subdirs_all="$ac_subdirs_all $pcapdir"
-ac_subst_vars='SHELL PATH_SEPARATOR PACKAGE_NAME PACKAGE_TARNAME PACKAGE_VERSION PACKAGE_STRING PACKAGE_BUGREPORT exec_prefix prefix program_transform_name bindir sbindir libexecdir datadir sysconfdir sharedstatedir localstatedir libdir includedir oldincludedir infodir mandir build_alias host_alias target_alias DEFS ECHO_C ECHO_N ECHO_T LIBS pcapdir build build_cpu build_vendor build_os host host_cpu host_vendor host_os CC CFLAGS LDFLAGS CPPFLAGS ac_ct_CC EXEEXT OBJEXT CXX CXXFLAGS ac_ct_CXX INSTALL_PROGRAM INSTALL_SCRIPT INSTALL_DATA SET_MAKE CPP EGREP LIBOBJS instgrp mangrp CLIBS wantnetlink wantwireless wantpcap pcaplib pcaplnk subdirs pcap suid zaurus zbuild local glib wget magickconfig threadlib gpslc gpslco sharedatadir LTLIBOBJS'
+ac_subst_vars='SHELL PATH_SEPARATOR PACKAGE_NAME PACKAGE_TARNAME PACKAGE_VERSION PACKAGE_STRING PACKAGE_BUGREPORT exec_prefix prefix program_transform_name bindir sbindir libexecdir datadir sysconfdir sharedstatedir localstatedir libdir includedir oldincludedir infodir mandir build_alias host_alias target_alias DEFS ECHO_C ECHO_N ECHO_T LIBS pcapdir build build_cpu build_vendor build_os host host_cpu host_vendor host_os CC CFLAGS LDFLAGS CPPFLAGS ac_ct_CC EXEEXT OBJEXT CXX CXXFLAGS ac_ct_CXX INSTALL_PROGRAM INSTALL_SCRIPT INSTALL_DATA SET_MAKE CPP EGREP LIBOBJS instgrp mangrp CLIBS wantnetlink wantwireless wantpcap pcaplib pcaplnk subdirs pcap suid zaurus zbuild local wantgpsmap wget magickconfig gpslc gpslco threadlib sharedatadir LTLIBOBJS'
 ac_subst_files=''
 
 # Initialize some variables set by options.
@@ -866,14 +866,13 @@ Optional Features:
   --disable-wsp100        disable wsp100 remote drone source
   --enable-zaurus         enable extra utils for Sharp Zaurus (deprecated)
   --enable-local-dumper   force use of local dump code even if Ethereal is available
+  --disable-gpsmap        disable building gpsmap
   --disable-optimization        disable -Ox gcc optimization
 
 Optional Packages:
   --with-PACKAGE[=ARG]    use PACKAGE [ARG=yes]
   --without-PACKAGE       do not use PACKAGE (same as --with-PACKAGE=no)
   --with-linuxheaders=DIR     Custom location of the Linux kernel headers if the glibc copies are insufficient
-  --with-ethereal=DIR     support ethereal wiretap for replaying logs
-  --without-ethereal        disable support for ethereal wiretap]
 
 Some influential environment variables:
   CC          C compiler command
@@ -3096,6 +3095,7 @@ cat >>confdefs.h <<\_ACEOF
 #define SYS_FREEBSD 1
 _ACEOF
 
+		bsd="yes"
 		;;
 	openbsd*)
 		echo "$as_me:$LINENO: result: none needed" >&5
@@ -3105,6 +3105,17 @@ cat >>confdefs.h <<\_ACEOF
 #define SYS_OPENBSD 1
 _ACEOF
 
+		bsd="yes"
+		;;
+	netbsd*)
+		echo "$as_me:$LINENO: result: none needed" >&5
+echo "${ECHO_T}none needed" >&6
+
+cat >>confdefs.h <<\_ACEOF
+#define SYS_NETBSD 1
+_ACEOF
+
+		bsd="yes"
 		;;
 	cygwin*)
 		echo "$as_me:$LINENO: result: none needed" >&5
@@ -3157,15 +3168,27 @@ cat >>confdefs.h <<\_ACEOF
 #define SYS_FREEBSD 1
 _ACEOF
 
+		bsd="yes"
         ;;
     openbsd*)
-       echo "$as_me:$LINENO: result: none needed" >&5
+        echo "$as_me:$LINENO: result: none needed" >&5
 echo "${ECHO_T}none needed" >&6
 
 cat >>confdefs.h <<\_ACEOF
 #define SYS_OPENBSD 1
 _ACEOF
 
+		bsd="yes"
+        ;;
+    netbsd*)
+        echo "$as_me:$LINENO: result: none needed" >&5
+echo "${ECHO_T}none needed" >&6
+
+cat >>confdefs.h <<\_ACEOF
+#define SYS_NETBSD 1
+_ACEOF
+
+		bsd="yes"
         ;;
 	cygwin*)
 		echo "$as_me:$LINENO: result: none needed" >&5
@@ -3224,6 +3247,18 @@ BIN_DIR=`(
 
 cat >>confdefs.h <<_ACEOF
 #define BIN_LOC "$BIN_DIR"
+_ACEOF
+
+
+LIB_DIR=$libdir
+LIB_DIR=`(
+    test "$prefix" = NONE && prefix=$ac_default_prefix
+    test "$exec_prefix" = NONE && exec_prefix=${prefix}
+    eval echo "$LIB_DIR"
+)`
+
+cat >>confdefs.h <<_ACEOF
+#define LIB_LOC "$LIB_DIR"
 _ACEOF
 
 
@@ -3723,7 +3758,8 @@ done
 
 
 
-for ac_header in errno.h stdlib.h string.h sys/socket.h sys/time.h sys/wait.h unistd.h sys/types.h
+
+for ac_header in errno.h stdlib.h string.h sys/socket.h sys/time.h sys/wait.h unistd.h sys/types.h netdb.h
 do
 as_ac_Header=`echo "ac_cv_header_$ac_header" | $as_tr_sh`
 if eval "test \"\${$as_ac_Header+set}\" = set"; then
@@ -5167,6 +5203,7 @@ cat >>conftest.$ac_ext <<_ACEOF
 /* end confdefs.h.  */
 
 		#include <stdio.h>
+		#include <netdb.h>
 		#include <sys/types.h>
 		#include <sys/socket.h>
 
@@ -5174,11 +5211,12 @@ int
 main ()
 {
 
-		int s;
-		struct sockaddr *addr;
-		socklen_t *addrlen;
+		int s = 0;
+		struct sockaddr *addr = NULL;
+		socklen_t *addrlen = NULL;
 
 		accept(s, addr, addrlen);
+		return 0;
 
   ;
   return 0;
@@ -6063,21 +6101,6 @@ echo "$as_me: WARNING: *** Neither ncurses or panel interface will be built. ***
 fi
 
 
-wantgps=yes
-
-cat >>confdefs.h <<\_ACEOF
-#define HAVE_GPS 1
-_ACEOF
-
-#AC_ARG_ENABLE(gps,
-#[  --disable-gps           disable GPS support],
-#	wantgps=no, wantgps=yes)
-#if test "$wantgps" = "no"; then
-#	AC_MSG_WARN(*** GPS support will not be built. ***)
-#else
-#	AC_DEFINE(HAVE_GPS, 1, GPS support will be built.)
-#fi
-
 
 # Check whether --with-linuxheaders or --without-linuxheaders was given.
 if test "${with_linuxheaders+set}" = set; then
@@ -6115,7 +6138,11 @@ _ACEOF
 cat confdefs.h >>conftest.$ac_ext
 cat >>conftest.$ac_ext <<_ACEOF
 /* end confdefs.h.  */
-#include <linux/socket.h>
+
+	#include <sys/types.h>
+	#include <netdb.h>
+	#include <linux/socket.h>
+
 
 #include <linux/netlink.h>
 _ACEOF
@@ -6191,7 +6218,11 @@ _ACEOF
 cat confdefs.h >>conftest.$ac_ext
 cat >>conftest.$ac_ext <<_ACEOF
 /* end confdefs.h.  */
-#include <linux/socket.h>
+
+	#include <sys/types.h>
+	#include <netdb.h>
+	#include <linux/socket.h>
+
 
 #include <linux/wireless.h>
 _ACEOF
@@ -6253,6 +6284,7 @@ cat >>conftest.$ac_ext <<_ACEOF
 
         #include <stdio.h>
 		#include <sys/types.h>
+		#include <netdb.h>
 		#include <netinet/in.h>
         #include <sys/resource.h>
 		#include <linux/wireless.h>
@@ -6911,20 +6943,21 @@ echo "$as_me: WARNING: Compiling without libpcap support." >&2;}
 fi
 
 
-echo "$as_me:$LINENO: checking for radiotap support" >&5
-echo $ECHO_N "checking for radiotap support... $ECHO_C" >&6
-cat >conftest.$ac_ext <<_ACEOF
+if test "$bsd" = yes; then
+	echo "$as_me:$LINENO: checking for net80211/radiotap support" >&5
+echo $ECHO_N "checking for net80211/radiotap support... $ECHO_C" >&6
+	cat >conftest.$ac_ext <<_ACEOF
 /* confdefs.h.  */
 _ACEOF
 cat confdefs.h >>conftest.$ac_ext
 cat >>conftest.$ac_ext <<_ACEOF
 /* end confdefs.h.  */
 
-    #include <stdio.h>
-    #include <sys/socket.h>
-    #include <net/if.h>
-    #include <net/if_media.h>
-    #include <net80211/ieee80211_radiotap.h>
+	    #include <stdio.h>
+	    #include <sys/socket.h>
+	    #include <net/if.h>
+	    #include <net/if_media.h>
+	    #include <net80211/ieee80211_radiotap.h>
 
 int
 main ()
@@ -6967,6 +7000,12 @@ radiotap=no
 fi
 rm -f conftest.err conftest.$ac_objext \
       conftest$ac_exeext conftest.$ac_ext
+
+else
+	{ echo "$as_me:$LINENO: WARNING: Using local radiotap support on a non-bsd system" >&5
+echo "$as_me: WARNING: Using local radiotap support on a non-bsd system" >&2;}
+	radiotap=yes
+fi
 
 if test "$radiotap" = yes; then
 
@@ -7242,27 +7281,23 @@ if test "${enable_local_dumper+set}" = set; then
 fi;
 
 
-
-# Check whether --with-ethereal or --without-ethereal was given.
-if test "${with_ethereal+set}" = set; then
-  withval="$with_ethereal"
-
-    if test $withval = no; then
-        want_ethereal=no
-    elif test $withval = yes; then
-        want_ethereal=yes
-		ethereal_dir=$etherealdir
-    else
-        want_ethereal=yes
-        ethereal_dir=$withval
-    fi
-
-else
-
-    want_ethereal=yes
-    ethereal_dir=$etherealdir
-
-fi;
+# AC_ARG_WITH(ethereal,
+# [  --with-ethereal[=DIR]     support ethereal wiretap for replaying logs ]
+#   --without-ethereal        disable support for ethereal wiretap],
+# [
+#     if test $withval = no; then
+#         want_ethereal=no
+#     elif test $withval = yes; then
+#         want_ethereal=yes
+# 		ethereal_dir=$etherealdir
+#     else
+#         want_ethereal=yes
+#         ethereal_dir=$withval
+#     fi
+# ],[
+#     want_ethereal=yes
+#     ethereal_dir=$etherealdir
+# ])
 
 #
 #found_ethereal=no
@@ -7277,340 +7312,146 @@ fi;
 
 
 libz="no"
-if test $want_ethereal = yes; then
-
-	# Extract the first word of "glib-config --version", so it can be a program name with args.
-set dummy glib-config --version; ac_word=$2
-echo "$as_me:$LINENO: checking for $ac_word" >&5
-echo $ECHO_N "checking for $ac_word... $ECHO_C" >&6
-if test "${ac_cv_prog_glib+set}" = set; then
-  echo $ECHO_N "(cached) $ECHO_C" >&6
-else
-  if test -n "$glib"; then
-  ac_cv_prog_glib="$glib" # Let the user override the test.
-else
-as_save_IFS=$IFS; IFS=$PATH_SEPARATOR
-for as_dir in $PATH
-do
-  IFS=$as_save_IFS
-  test -z "$as_dir" && as_dir=.
-  for ac_exec_ext in '' $ac_executable_extensions; do
-  if $as_executable_p "$as_dir/$ac_word$ac_exec_ext"; then
-    ac_cv_prog_glib="yes"
-    echo "$as_me:$LINENO: found $as_dir/$ac_word$ac_exec_ext" >&5
-    break 2
-  fi
-done
-done
-
-  test -z "$ac_cv_prog_glib" && ac_cv_prog_glib="no"
-fi
-fi
-glib=$ac_cv_prog_glib
-if test -n "$glib"; then
-  echo "$as_me:$LINENO: result: $glib" >&5
-echo "${ECHO_T}$glib" >&6
-else
-  echo "$as_me:$LINENO: result: no" >&5
-echo "${ECHO_T}no" >&6
-fi
-
-
-	if test $glib = no; then
-		{ echo "$as_me:$LINENO: WARNING: Could not find glib-config in $PATH.  glib is required to link to wiretap." >&5
-echo "$as_me: WARNING: Could not find glib-config in $PATH.  glib is required to link to wiretap." >&2;}
-		want_ethereal=no
-		local=yes
-	    { echo "$as_me:$LINENO: WARNING: *** Wiretap support disabled.  While Kismet will function without wiretap, it will limit the log reading and writing abilities. ***" >&5
-echo "$as_me: WARNING: *** Wiretap support disabled.  While Kismet will function without wiretap, it will limit the log reading and writing abilities. ***" >&2;}
 
 cat >>confdefs.h <<\_ACEOF
 #define USE_LOCAL_DUMP 1
 _ACEOF
 
-	    local=yes
-	else
-
-	echo "$as_me:$LINENO: checking for usable wiretap with 3 arguments in $ethereal_dir/wiretap" >&5
-echo $ECHO_N "checking for usable wiretap with 3 arguments in $ethereal_dir/wiretap... $ECHO_C" >&6
-	save_cppflags="$CPPFLAGS"
-	CPPFLAGS="$CPPFLAGS `glib-config --cflags glib` -I$ethereal_dir/wiretap"
-	#CPPFLAGS="$CPPFLAGS `glib-config --cflags glib` -I$ethereal_dir/wiretap"
-	#save_cxxflags="$CXXFLAGS"
-	#CXXFLAGS="$CXXFLAGS `glib-config --cflags glib` -I$ethereal_dir/wiretap"
-	save_libs="$LIBS"
-	LIBS="$LIBS -lz `glib-config --libs glib` -L$ethereal_dir/wiretap -lwiretap"
-
-    cat >conftest.$ac_ext <<_ACEOF
-/* confdefs.h.  */
-_ACEOF
-cat confdefs.h >>conftest.$ac_ext
-cat >>conftest.$ac_ext <<_ACEOF
-/* end confdefs.h.  */
-
-		#include <stdio.h>
-		#include <sys/types.h>
-		#include <sys/time.h>
-		#include "wtap.h"
-
-int
-main ()
-{
-
-	const char *filename = "autoconf test";
-	int err;
-
-	wtap_open_offline(filename, &err, 0);
-
-  ;
-  return 0;
-}
-_ACEOF
-rm -f conftest.$ac_objext conftest$ac_exeext
-if { (eval echo "$as_me:$LINENO: \"$ac_link\"") >&5
-  (eval $ac_link) 2>conftest.er1
-  ac_status=$?
-  grep -v '^ *+' conftest.er1 >conftest.err
-  rm -f conftest.er1
-  cat conftest.err >&5
-  echo "$as_me:$LINENO: \$? = $ac_status" >&5
-  (exit $ac_status); } &&
-	 { ac_try='test -z "$ac_c_werror_flag"
-			 || test ! -s conftest.err'
-  { (eval echo "$as_me:$LINENO: \"$ac_try\"") >&5
-  (eval $ac_try) 2>&5
-  ac_status=$?
-  echo "$as_me:$LINENO: \$? = $ac_status" >&5
-  (exit $ac_status); }; } &&
-	 { ac_try='test -s conftest$ac_exeext'
-  { (eval echo "$as_me:$LINENO: \"$ac_try\"") >&5
-  (eval $ac_try) 2>&5
-  ac_status=$?
-  echo "$as_me:$LINENO: \$? = $ac_status" >&5
-  (exit $ac_status); }; }; then
-  wtap_valid=yes
-else
-  echo "$as_me: failed program was:" >&5
-sed 's/^/| /' conftest.$ac_ext >&5
-
-wtap_valid=no
-fi
-rm -f conftest.err conftest.$ac_objext \
-      conftest$ac_exeext conftest.$ac_ext
-
-    if test "$wtap_valid" = no ; then
-        echo "$as_me:$LINENO: result: no" >&5
-echo "${ECHO_T}no" >&6;
-	    echo "$as_me:$LINENO: checking for usable wiretap with 4 arguments in $ethereal_dir/wiretap" >&5
-echo $ECHO_N "checking for usable wiretap with 4 arguments in $ethereal_dir/wiretap... $ECHO_C" >&6
-    	cat >conftest.$ac_ext <<_ACEOF
-/* confdefs.h.  */
-_ACEOF
-cat confdefs.h >>conftest.$ac_ext
-cat >>conftest.$ac_ext <<_ACEOF
-/* end confdefs.h.  */
-
-        	#include <stdio.h>
-			#include <sys/types.h>
-			#include <netinet/in.h>
-      		#include "wtap.h"
-
-int
-main ()
-{
-
-	const char *filename = "autoconf test";
-	int err;
-
-	wtap_open_offline(filename, &err, 0, 0);
-
-  ;
-  return 0;
-}
-_ACEOF
-rm -f conftest.$ac_objext conftest$ac_exeext
-if { (eval echo "$as_me:$LINENO: \"$ac_link\"") >&5
-  (eval $ac_link) 2>conftest.er1
-  ac_status=$?
-  grep -v '^ *+' conftest.er1 >conftest.err
-  rm -f conftest.er1
-  cat conftest.err >&5
-  echo "$as_me:$LINENO: \$? = $ac_status" >&5
-  (exit $ac_status); } &&
-	 { ac_try='test -z "$ac_c_werror_flag"
-			 || test ! -s conftest.err'
-  { (eval echo "$as_me:$LINENO: \"$ac_try\"") >&5
-  (eval $ac_try) 2>&5
-  ac_status=$?
-  echo "$as_me:$LINENO: \$? = $ac_status" >&5
-  (exit $ac_status); }; } &&
-	 { ac_try='test -s conftest$ac_exeext'
-  { (eval echo "$as_me:$LINENO: \"$ac_try\"") >&5
-  (eval $ac_try) 2>&5
-  ac_status=$?
-  echo "$as_me:$LINENO: \$? = $ac_status" >&5
-  (exit $ac_status); }; }; then
-  wtap_argquad=yes
-else
-  echo "$as_me: failed program was:" >&5
-sed 's/^/| /' conftest.$ac_ext >&5
-
-wtap_argquad=no
-fi
-rm -f conftest.err conftest.$ac_objext \
-      conftest$ac_exeext conftest.$ac_ext
-
-		if test "$wtap_argquad" = yes ; then
-            wtap_valid="yes";
-
-cat >>confdefs.h <<\_ACEOF
-#define HAVE_WTAP_ARGQUAD 1
-_ACEOF
-
-		fi
-    fi
-
-    if test "$wtap_valid" = yes ; then
-        echo "$as_me:$LINENO: result: yes" >&5
-echo "${ECHO_T}yes" >&6
-
-cat >>confdefs.h <<\_ACEOF
-#define HAVE_LIBWIRETAP 1
-_ACEOF
-
-		libz="yes";
-
-cat >>confdefs.h <<\_ACEOF
-#define HAVE_LIBZ 1
-_ACEOF
-
-
-        if test "$wtap_argquad" = no ; then
-    		echo "$as_me:$LINENO: checking for wtap_read parameters (wtap *, int *, int *)" >&5
-echo $ECHO_N "checking for wtap_read parameters (wtap *, int *, int *)... $ECHO_C" >&6
-        	cat >conftest.$ac_ext <<_ACEOF
-/* confdefs.h.  */
-_ACEOF
-cat confdefs.h >>conftest.$ac_ext
-cat >>conftest.$ac_ext <<_ACEOF
-/* end confdefs.h.  */
-
-            	#include <stdio.h>
-    			#include <sys/types.h>
-    			#include <netinet/in.h>
-          		#include "wtap.h"
-
-int
-main ()
-{
-
-        		int err;
-    			struct wtap *packfile;
-    			long *offset;
-
-        		wtap_read(packfile, &err, offset);
-
-  ;
-  return 0;
-}
-_ACEOF
-rm -f conftest.$ac_objext conftest$ac_exeext
-if { (eval echo "$as_me:$LINENO: \"$ac_link\"") >&5
-  (eval $ac_link) 2>conftest.er1
-  ac_status=$?
-  grep -v '^ *+' conftest.er1 >conftest.err
-  rm -f conftest.er1
-  cat conftest.err >&5
-  echo "$as_me:$LINENO: \$? = $ac_status" >&5
-  (exit $ac_status); } &&
-	 { ac_try='test -z "$ac_c_werror_flag"
-			 || test ! -s conftest.err'
-  { (eval echo "$as_me:$LINENO: \"$ac_try\"") >&5
-  (eval $ac_try) 2>&5
-  ac_status=$?
-  echo "$as_me:$LINENO: \$? = $ac_status" >&5
-  (exit $ac_status); }; } &&
-	 { ac_try='test -s conftest$ac_exeext'
-  { (eval echo "$as_me:$LINENO: \"$ac_try\"") >&5
-  (eval $ac_try) 2>&5
-  ac_status=$?
-  echo "$as_me:$LINENO: \$? = $ac_status" >&5
-  (exit $ac_status); }; }; then
-  wtap_intint=no
-else
-  echo "$as_me: failed program was:" >&5
-sed 's/^/| /' conftest.$ac_ext >&5
-
-wtap_intint=yes
-fi
-rm -f conftest.err conftest.$ac_objext \
-      conftest$ac_exeext conftest.$ac_ext
-
-    		if test "$wtap_intint" = yes ; then
-    			echo "$as_me:$LINENO: result: struct wtap *, int *, int *" >&5
-echo "${ECHO_T}struct wtap *, int *, int *" >&6
-
-cat >>confdefs.h <<\_ACEOF
-#define HAVE_WTAPREAD_INTINT 1
-_ACEOF
-
-    		else
-                echo "$as_me:$LINENO: result: struct wtap *, int *, long *" >&5
-echo "${ECHO_T}struct wtap *, int *, long *" >&6
-            fi
-        fi
-
-		if test $local = yes; then
-		    echo "$as_me:$LINENO: checking for forced local-dumper" >&5
-echo $ECHO_N "checking for forced local-dumper... $ECHO_C" >&6
-		    echo "$as_me:$LINENO: result: yes" >&5
-echo "${ECHO_T}yes" >&6
-		    { echo "$as_me:$LINENO: WARNING: *** Forcing local dumper code instead of wiretap dumper.  ***" >&5
-echo "$as_me: WARNING: *** Forcing local dumper code instead of wiretap dumper.  ***" >&2;}
-
-cat >>confdefs.h <<\_ACEOF
-#define USE_LOCAL_DUMP 1
-_ACEOF
-
-		else
-		    echo "$as_me:$LINENO: checking for forced local-dumper" >&5
-echo $ECHO_N "checking for forced local-dumper... $ECHO_C" >&6
-		    echo "$as_me:$LINENO: result: no" >&5
-echo "${ECHO_T}no" >&6
-		fi
-    else
-        echo "$as_me:$LINENO: result: no" >&5
-echo "${ECHO_T}no" >&6
-		want_ethereal="no"
-		{ echo "$as_me:$LINENO: WARNING: *** No useable wiretap found in $ethereal_dir.  Make sure this directory is correct and that you have configured and compiled Ethereal in this directory.  While Kismet will function without wiretap, it will limit the log reading and writing abilities. ***" >&5
-echo "$as_me: WARNING: *** No useable wiretap found in $ethereal_dir.  Make sure this directory is correct and that you have configured and compiled Ethereal in this directory.  While Kismet will function without wiretap, it will limit the log reading and writing abilities. ***" >&2;}
-		CPPFLAGS="$save_cppflags"
-		#CXXFLAGS="$save_cxxflags"
-   		LIBS="$save_libs"
-
-cat >>confdefs.h <<\_ACEOF
-#define USE_LOCAL_DUMP 1
-_ACEOF
-
-    	local=yes
-    fi
-
-	fi
-else
-	{ echo "$as_me:$LINENO: WARNING: *** Wiretap support disabled.  While Kismet will function without wiretap, it will limit the log reading and writing abilities. ***" >&5
-echo "$as_me: WARNING: *** Wiretap support disabled.  While Kismet will function without wiretap, it will limit the log reading and writing abilities. ***" >&2;}
-
-cat >>confdefs.h <<\_ACEOF
-#define USE_LOCAL_DUMP 1
-_ACEOF
-
-    local=yes
-fi
+	local=yes
+# if test $want_ethereal = yes; then
+#
+# 	AC_CHECK_PROG(glib, [glib-config --version], yes, no)
+#
+# 	if test $glib = no; then
+# 		AC_MSG_WARN(Could not find glib-config in $PATH.  glib is required to link to wiretap.)
+# 		want_ethereal=no
+# 		local=yes
+# 	    AC_MSG_WARN([*** Wiretap support disabled.  While Kismet will function without wiretap, it will limit the log reading and writing abilities. ***])
+# 	    AC_DEFINE(USE_LOCAL_DUMP, 1, Use local dumper code)
+# 	    local=yes
+# 	else
+#
+# 	AC_MSG_CHECKING(for usable wiretap with 3 arguments in $ethereal_dir/wiretap)
+# 	save_cppflags="$CPPFLAGS"
+# 	CPPFLAGS="$CPPFLAGS `glib-config --cflags glib` -I$ethereal_dir/wiretap"
+# 	#CPPFLAGS="$CPPFLAGS `glib-config --cflags glib` -I$ethereal_dir/wiretap"
+# 	#save_cxxflags="$CXXFLAGS"
+# 	#CXXFLAGS="$CXXFLAGS `glib-config --cflags glib` -I$ethereal_dir/wiretap"
+# 	save_libs="$LIBS"
+# 	LIBS="$LIBS -lz `glib-config --libs glib` -L$ethereal_dir/wiretap -lwiretap"
+#
+#     AC_LINK_IFELSE([AC_LANG_PROGRAM([[
+# 		#include <stdio.h>
+# 		#include <sys/types.h>
+# 		#include <sys/time.h>
+# 		#include "wtap.h"
+# 		]], [[
+# 	const char *filename = "autoconf test";
+# 	int err;
+#
+# 	wtap_open_offline(filename, &err, 0);
+# 		]])],[wtap_valid=yes],[wtap_valid=no])
+#
+#     if test "$wtap_valid" = no ; then
+#         AC_MSG_RESULT(no);
+# 	    AC_MSG_CHECKING(for usable wiretap with 4 arguments in $ethereal_dir/wiretap)
+#     	AC_LINK_IFELSE([AC_LANG_PROGRAM([[
+#         	#include <stdio.h>
+# 			#include <sys/types.h>
+# 			#include <netinet/in.h>
+#       		#include "wtap.h"
+#        	]], [[
+# 	const char *filename = "autoconf test";
+# 	int err;
+#
+# 	wtap_open_offline(filename, &err, 0, 0);
+#         ]])],[wtap_argquad=yes],[wtap_argquad=no])
+#
+# 		if test "$wtap_argquad" = yes ; then
+#             wtap_valid="yes";
+#             AC_DEFINE(HAVE_WTAP_ARGQUAD, 1, wiretap functions takesfour parameters)
+# 		fi
+#     fi
+#
+#     if test "$wtap_valid" = yes ; then
+#         AC_MSG_RESULT(yes)
+#         AC_DEFINE(HAVE_LIBWIRETAP, 1, Ethereal wiretap library)
+# 		libz="yes";
+# 		AC_DEFINE(HAVE_LIBZ, 1, Zlib compression library)
+#
+#         if test "$wtap_argquad" = no ; then
+#     		AC_MSG_CHECKING(for wtap_read parameters (wtap *, int *, int *))
+#         	AC_LINK_IFELSE([AC_LANG_PROGRAM([[
+#             	#include <stdio.h>
+#     			#include <sys/types.h>
+#     			#include <netinet/in.h>
+#           		#include "wtap.h"
+#            	]], [[
+#         		int err;
+#     			struct wtap *packfile;
+#     			long *offset;
+#
+#         		wtap_read(packfile, &err, offset);
+#             ]])],[wtap_intint=no],[wtap_intint=yes])
+#
+#     		if test "$wtap_intint" = yes ; then
+#     			AC_MSG_RESULT([struct wtap *, int *, int *])
+#                 AC_DEFINE(HAVE_WTAPREAD_INTINT, 1, wtap_read takes two int * parameters)
+#     		else
+#                 AC_MSG_RESULT([struct wtap *, int *, long *])
+#             fi
+#         fi
+#
+# 		if test $local = yes; then
+# 		    AC_MSG_CHECKING(for forced local-dumper)
+# 		    AC_MSG_RESULT(yes)
+# 		    AC_MSG_WARN(*** Forcing local dumper code instead of wiretap dumper.  ***)
+# 			AC_DEFINE(USE_LOCAL_DUMP, 1, Force local dumper code)
+# 		else
+# 		    AC_MSG_CHECKING(for forced local-dumper)
+# 		    AC_MSG_RESULT(no)
+# 		fi
+#     else
+#         AC_MSG_RESULT(no)
+# 		want_ethereal="no"
+# 		AC_MSG_WARN([*** No useable wiretap found in $ethereal_dir.  Make sure this directory is correct and that you have configured and compiled Ethereal in this directory.  While Kismet will function without wiretap, it will limit the log reading and writing abilities. ***])
+# 		CPPFLAGS="$save_cppflags"
+# 		#CXXFLAGS="$save_cxxflags"
+#    		LIBS="$save_libs"
+# 		AC_DEFINE(USE_LOCAL_DUMP, 1, Use local dumper code)
+#     	local=yes
+#     fi
+#
+# 	fi
+# else
+# 	AC_MSG_WARN([*** Wiretap support disabled.  While Kismet will function without wiretap, it will limit the log reading and writing abilities. ***])
+# 	AC_DEFINE(USE_LOCAL_DUMP, 1, Use local dumper code)
+#     local=yes
+# fi
 
 # gpsmap checks
 
-# Check for expat
-if test "$wantgps" = "yes"; then
+# We include GPS handling code regardless, for now.
+
+cat >>confdefs.h <<\_ACEOF
+#define HAVE_GPS 1
+_ACEOF
+
+
+wantgpsmap=yes
+
+# Check whether --enable-gpsmap or --disable-gpsmap was given.
+if test "${enable_gpsmap+set}" = set; then
+  enableval="$enable_gpsmap"
+  wantgpsmap=no
+else
+  wantgpsmap=yes
+fi;
+
+
+if test "$wantgpsmap" = "yes"; then
+
+	# Check for expat
 	expatl=no
 	echo "$as_me:$LINENO: checking for XML_GetCurrentLineNumber in -lexpat" >&5
 echo $ECHO_N "checking for XML_GetCurrentLineNumber in -lexpat... $ECHO_C" >&6
@@ -7687,14 +7528,10 @@ else
 echo "$as_me: WARNING: *** Missing Expat XML library.  gpsmap will not be built. ***" >&2;}
 fi
 
-else
-	expatl=no
-fi
 
-# Check for libgmp
-if test "$wantgps" = "yes"; then
+	# Check for libgmp
 	gmpl=no
-    if test "${ac_cv_header_gmp_h+set}" = set; then
+	if test "${ac_cv_header_gmp_h+set}" = set; then
   echo "$as_me:$LINENO: checking for gmp.h" >&5
 echo $ECHO_N "checking for gmp.h... $ECHO_C" >&6
 if test "${ac_cv_header_gmp_h+set}" = set; then
@@ -7843,19 +7680,15 @@ echo "$as_me: WARNING: *** Missing GMP math library.  gpsmap will not be built. 
 fi
 
 
-else
-	gmpl=no
-fi
 
+	# Check for imagemagick
+	magickold=no
 
-magickold=no
-
-# Check for imagemagick
-save_cppflags="$CPPFLAGS"
-save_cxxflags="$CXXFLAGS"
-save_libs="$LIBS"
-save_ldflags="$LDFLAGS"
-# Extract the first word of "wget --version", so it can be a program name with args.
+	save_cppflags="$CPPFLAGS"
+	save_cxxflags="$CXXFLAGS"
+	save_libs="$LIBS"
+	save_ldflags="$LDFLAGS"
+	# Extract the first word of "wget --version", so it can be a program name with args.
 set dummy wget --version; ac_word=$2
 echo "$as_me:$LINENO: checking for $ac_word" >&5
 echo $ECHO_N "checking for $ac_word... $ECHO_C" >&6
@@ -7891,7 +7724,7 @@ else
 echo "${ECHO_T}no" >&6
 fi
 
-# Extract the first word of "Magick-config --version", so it can be a program name with args.
+	# Extract the first word of "Magick-config --version", so it can be a program name with args.
 set dummy Magick-config --version; ac_word=$2
 echo "$as_me:$LINENO: checking for $ac_word" >&5
 echo $ECHO_N "checking for $ac_word... $ECHO_C" >&6
@@ -7928,184 +7761,37 @@ echo "${ECHO_T}no" >&6
 fi
 
 
-if test "$magickconfig" = "yes"; then
-	magickversion=`Magick-config --version`
-	magickmajor=`echo $magickversion | cut -d '.' -f 1`
-	magickminor=`echo $magickversion | cut -d '.' -f 2`
-	magicktiny=`echo $magickversion | cut -d '.' -f 3`
+	if test "$magickconfig" = "yes"; then
+		magickversion=`Magick-config --version`
+		magickmajor=`echo $magickversion | cut -d '.' -f 1`
+		magickminor=`echo $magickversion | cut -d '.' -f 2`
+		magicktiny=`echo $magickversion | cut -d '.' -f 3`
 
-	if test "$magickmajor" -lt 5; then
-		magickold="yes";
-	elif test "$magickmajor" -eq 5 -a "$magickminor" -lt 4; then
-		magickold="yes";
-	elif test "$magickmajor" -eq 5 -a "$magickminor" -eq 4 -a "$magicktiny" -lt 7; then
-		magickold="yes";
+		if test "$magickmajor" -lt 5; then
+			magickold="yes";
+		elif test "$magickmajor" -eq 5 -a "$magickminor" -lt 4; then
+			magickold="yes";
+		elif test "$magickmajor" -eq 5 -a "$magickminor" -eq 4 -a "$magicktiny" -lt 7; then
+			magickold="yes";
+		fi
 	fi
-fi
 
-if test $magickold = "yes"; then
+	if test $magickold = "yes"; then
 		{ echo "$as_me:$LINENO: WARNING: *** Old version of ImageMagick ($magickversion) found.  Please upgrade to 5.4.7 or newer.  gpsmap will not be built. ***" >&5
 echo "$as_me: WARNING: *** Old version of ImageMagick ($magickversion) found.  Please upgrade to 5.4.7 or newer.  gpsmap will not be built. ***" >&2;}
-elif test $magickconfig = "no"; then
-	{ echo "$as_me:$LINENO: WARNING: *** Missing Magick-config (or it is not in the path).  gpsmap will not be built. ***" >&5
+	elif test $magickconfig = "no"; then
+		{ echo "$as_me:$LINENO: WARNING: *** Missing Magick-config (or it is not in the path).  gpsmap will not be built. ***" >&5
 echo "$as_me: WARNING: *** Missing Magick-config (or it is not in the path).  gpsmap will not be built. ***" >&2;}
-elif test $wget = "no"; then
-	{ echo "$as_me:$LINENO: WARNING: *** Missing wget (or it is not in the path).  gpsmap will not be build. ***" >&5
+	elif test $wget = "no"; then
+		{ echo "$as_me:$LINENO: WARNING: *** Missing wget (or it is not in the path).  gpsmap will not be build. ***" >&5
 echo "$as_me: WARNING: *** Missing wget (or it is not in the path).  gpsmap will not be build. ***" >&2;}
-else
-	#CPPFLAGS="$CPPFLAGS `Magick-config --cppflags` -I`Magick-config --prefix`/include"
-	CPPFLAGS="$CPPFLAGS `Magick-config --cppflags`"
-	CXXFLAGS="$CXXFLAGS `Magick-config --cflags`"
-	#CXXFLAGS="$CXXFLAGS `Magick-config --cflags` -I`Magick-config --prefix`/include"
-	LDFLAGS="$LDFLAGS `Magick-config --ldflags`"
-	LIBS="`Magick-config --libs`"
-	if test "${ac_cv_header_magick_api_h+set}" = set; then
-  echo "$as_me:$LINENO: checking for magick/api.h" >&5
-echo $ECHO_N "checking for magick/api.h... $ECHO_C" >&6
-if test "${ac_cv_header_magick_api_h+set}" = set; then
-  echo $ECHO_N "(cached) $ECHO_C" >&6
-fi
-echo "$as_me:$LINENO: result: $ac_cv_header_magick_api_h" >&5
-echo "${ECHO_T}$ac_cv_header_magick_api_h" >&6
-else
-  # Is the header compilable?
-echo "$as_me:$LINENO: checking magick/api.h usability" >&5
-echo $ECHO_N "checking magick/api.h usability... $ECHO_C" >&6
-cat >conftest.$ac_ext <<_ACEOF
-/* confdefs.h.  */
-_ACEOF
-cat confdefs.h >>conftest.$ac_ext
-cat >>conftest.$ac_ext <<_ACEOF
-/* end confdefs.h.  */
-$ac_includes_default
-#include <magick/api.h>
-_ACEOF
-rm -f conftest.$ac_objext
-if { (eval echo "$as_me:$LINENO: \"$ac_compile\"") >&5
-  (eval $ac_compile) 2>conftest.er1
-  ac_status=$?
-  grep -v '^ *+' conftest.er1 >conftest.err
-  rm -f conftest.er1
-  cat conftest.err >&5
-  echo "$as_me:$LINENO: \$? = $ac_status" >&5
-  (exit $ac_status); } &&
-	 { ac_try='test -z "$ac_c_werror_flag"
-			 || test ! -s conftest.err'
-  { (eval echo "$as_me:$LINENO: \"$ac_try\"") >&5
-  (eval $ac_try) 2>&5
-  ac_status=$?
-  echo "$as_me:$LINENO: \$? = $ac_status" >&5
-  (exit $ac_status); }; } &&
-	 { ac_try='test -s conftest.$ac_objext'
-  { (eval echo "$as_me:$LINENO: \"$ac_try\"") >&5
-  (eval $ac_try) 2>&5
-  ac_status=$?
-  echo "$as_me:$LINENO: \$? = $ac_status" >&5
-  (exit $ac_status); }; }; then
-  ac_header_compiler=yes
-else
-  echo "$as_me: failed program was:" >&5
-sed 's/^/| /' conftest.$ac_ext >&5
-
-ac_header_compiler=no
-fi
-rm -f conftest.err conftest.$ac_objext conftest.$ac_ext
-echo "$as_me:$LINENO: result: $ac_header_compiler" >&5
-echo "${ECHO_T}$ac_header_compiler" >&6
-
-# Is the header present?
-echo "$as_me:$LINENO: checking magick/api.h presence" >&5
-echo $ECHO_N "checking magick/api.h presence... $ECHO_C" >&6
-cat >conftest.$ac_ext <<_ACEOF
-/* confdefs.h.  */
-_ACEOF
-cat confdefs.h >>conftest.$ac_ext
-cat >>conftest.$ac_ext <<_ACEOF
-/* end confdefs.h.  */
-#include <magick/api.h>
-_ACEOF
-if { (eval echo "$as_me:$LINENO: \"$ac_cpp conftest.$ac_ext\"") >&5
-  (eval $ac_cpp conftest.$ac_ext) 2>conftest.er1
-  ac_status=$?
-  grep -v '^ *+' conftest.er1 >conftest.err
-  rm -f conftest.er1
-  cat conftest.err >&5
-  echo "$as_me:$LINENO: \$? = $ac_status" >&5
-  (exit $ac_status); } >/dev/null; then
-  if test -s conftest.err; then
-    ac_cpp_err=$ac_c_preproc_warn_flag
-    ac_cpp_err=$ac_cpp_err$ac_c_werror_flag
-  else
-    ac_cpp_err=
-  fi
-else
-  ac_cpp_err=yes
-fi
-if test -z "$ac_cpp_err"; then
-  ac_header_preproc=yes
-else
-  echo "$as_me: failed program was:" >&5
-sed 's/^/| /' conftest.$ac_ext >&5
-
-  ac_header_preproc=no
-fi
-rm -f conftest.err conftest.$ac_ext
-echo "$as_me:$LINENO: result: $ac_header_preproc" >&5
-echo "${ECHO_T}$ac_header_preproc" >&6
-
-# So?  What about this header?
-case $ac_header_compiler:$ac_header_preproc:$ac_c_preproc_warn_flag in
-  yes:no: )
-    { echo "$as_me:$LINENO: WARNING: magick/api.h: accepted by the compiler, rejected by the preprocessor!" >&5
-echo "$as_me: WARNING: magick/api.h: accepted by the compiler, rejected by the preprocessor!" >&2;}
-    { echo "$as_me:$LINENO: WARNING: magick/api.h: proceeding with the compiler's result" >&5
-echo "$as_me: WARNING: magick/api.h: proceeding with the compiler's result" >&2;}
-    ac_header_preproc=yes
-    ;;
-  no:yes:* )
-    { echo "$as_me:$LINENO: WARNING: magick/api.h: present but cannot be compiled" >&5
-echo "$as_me: WARNING: magick/api.h: present but cannot be compiled" >&2;}
-    { echo "$as_me:$LINENO: WARNING: magick/api.h:     check for missing prerequisite headers?" >&5
-echo "$as_me: WARNING: magick/api.h:     check for missing prerequisite headers?" >&2;}
-    { echo "$as_me:$LINENO: WARNING: magick/api.h: see the Autoconf documentation" >&5
-echo "$as_me: WARNING: magick/api.h: see the Autoconf documentation" >&2;}
-    { echo "$as_me:$LINENO: WARNING: magick/api.h:     section \"Present But Cannot Be Compiled\"" >&5
-echo "$as_me: WARNING: magick/api.h:     section \"Present But Cannot Be Compiled\"" >&2;}
-    { echo "$as_me:$LINENO: WARNING: magick/api.h: proceeding with the preprocessor's result" >&5
-echo "$as_me: WARNING: magick/api.h: proceeding with the preprocessor's result" >&2;}
-    { echo "$as_me:$LINENO: WARNING: magick/api.h: in the future, the compiler will take precedence" >&5
-echo "$as_me: WARNING: magick/api.h: in the future, the compiler will take precedence" >&2;}
-    (
-      cat <<\_ASBOX
-## ------------------------------------------ ##
-## Report this to the AC_PACKAGE_NAME lists.  ##
-## ------------------------------------------ ##
-_ASBOX
-    ) |
-      sed "s/^/$as_me: WARNING:     /" >&2
-    ;;
-esac
-echo "$as_me:$LINENO: checking for magick/api.h" >&5
-echo $ECHO_N "checking for magick/api.h... $ECHO_C" >&6
-if test "${ac_cv_header_magick_api_h+set}" = set; then
-  echo $ECHO_N "(cached) $ECHO_C" >&6
-else
-  ac_cv_header_magick_api_h=$ac_header_preproc
-fi
-echo "$as_me:$LINENO: result: $ac_cv_header_magick_api_h" >&5
-echo "${ECHO_T}$ac_cv_header_magick_api_h" >&6
-
-fi
-if test $ac_cv_header_magick_api_h = yes; then
-  magickhdr="yes"
-else
-  magickhdr="no"
-fi
-
-
-	if test "$magickhdr" = "no"; then
-		oldcppflags2="$CPPFLAGS"
-		CPPFLAGS="$CPPFLAGS -I`Magick-config --prefix`/include";
+	else
+		#CPPFLAGS="$CPPFLAGS `Magick-config --cppflags` -I`Magick-config --prefix`/include"
+		CPPFLAGS="$CPPFLAGS `Magick-config --cppflags`"
+		CXXFLAGS="$CXXFLAGS `Magick-config --cflags`"
+		#CXXFLAGS="$CXXFLAGS `Magick-config --cflags` -I`Magick-config --prefix`/include"
+		LDFLAGS="$LDFLAGS `Magick-config --ldflags`"
+		LIBS="`Magick-config --libs`"
 		if test "${ac_cv_header_magick_api_h+set}" = set; then
   echo "$as_me:$LINENO: checking for magick/api.h" >&5
 echo $ECHO_N "checking for magick/api.h... $ECHO_C" >&6
@@ -8251,14 +7937,161 @@ fi
 
 
 		if test "$magickhdr" = "no"; then
-			CPPFLAGS="$oldcppflags2";
-			{ echo "$as_me:$LINENO: WARNING: *** Missing ImageMagick.  gpsmap will not be built. ***" >&5
-echo "$as_me: WARNING: *** Missing ImageMagick.  gpsmap will not be built. ***" >&2;}
-		fi
-	fi
+			oldcppflags2="$CPPFLAGS"
+			CPPFLAGS="$CPPFLAGS -I`Magick-config --prefix`/include";
+			if test "${ac_cv_header_magick_api_h+set}" = set; then
+  echo "$as_me:$LINENO: checking for magick/api.h" >&5
+echo $ECHO_N "checking for magick/api.h... $ECHO_C" >&6
+if test "${ac_cv_header_magick_api_h+set}" = set; then
+  echo $ECHO_N "(cached) $ECHO_C" >&6
+fi
+echo "$as_me:$LINENO: result: $ac_cv_header_magick_api_h" >&5
+echo "${ECHO_T}$ac_cv_header_magick_api_h" >&6
+else
+  # Is the header compilable?
+echo "$as_me:$LINENO: checking magick/api.h usability" >&5
+echo $ECHO_N "checking magick/api.h usability... $ECHO_C" >&6
+cat >conftest.$ac_ext <<_ACEOF
+/* confdefs.h.  */
+_ACEOF
+cat confdefs.h >>conftest.$ac_ext
+cat >>conftest.$ac_ext <<_ACEOF
+/* end confdefs.h.  */
+$ac_includes_default
+#include <magick/api.h>
+_ACEOF
+rm -f conftest.$ac_objext
+if { (eval echo "$as_me:$LINENO: \"$ac_compile\"") >&5
+  (eval $ac_compile) 2>conftest.er1
+  ac_status=$?
+  grep -v '^ *+' conftest.er1 >conftest.err
+  rm -f conftest.er1
+  cat conftest.err >&5
+  echo "$as_me:$LINENO: \$? = $ac_status" >&5
+  (exit $ac_status); } &&
+	 { ac_try='test -z "$ac_c_werror_flag"
+			 || test ! -s conftest.err'
+  { (eval echo "$as_me:$LINENO: \"$ac_try\"") >&5
+  (eval $ac_try) 2>&5
+  ac_status=$?
+  echo "$as_me:$LINENO: \$? = $ac_status" >&5
+  (exit $ac_status); }; } &&
+	 { ac_try='test -s conftest.$ac_objext'
+  { (eval echo "$as_me:$LINENO: \"$ac_try\"") >&5
+  (eval $ac_try) 2>&5
+  ac_status=$?
+  echo "$as_me:$LINENO: \$? = $ac_status" >&5
+  (exit $ac_status); }; }; then
+  ac_header_compiler=yes
+else
+  echo "$as_me: failed program was:" >&5
+sed 's/^/| /' conftest.$ac_ext >&5
 
-	if test "$magickhdr" = "yes"; then
-		echo "$as_me:$LINENO: checking for WriteImage in -lMagick" >&5
+ac_header_compiler=no
+fi
+rm -f conftest.err conftest.$ac_objext conftest.$ac_ext
+echo "$as_me:$LINENO: result: $ac_header_compiler" >&5
+echo "${ECHO_T}$ac_header_compiler" >&6
+
+# Is the header present?
+echo "$as_me:$LINENO: checking magick/api.h presence" >&5
+echo $ECHO_N "checking magick/api.h presence... $ECHO_C" >&6
+cat >conftest.$ac_ext <<_ACEOF
+/* confdefs.h.  */
+_ACEOF
+cat confdefs.h >>conftest.$ac_ext
+cat >>conftest.$ac_ext <<_ACEOF
+/* end confdefs.h.  */
+#include <magick/api.h>
+_ACEOF
+if { (eval echo "$as_me:$LINENO: \"$ac_cpp conftest.$ac_ext\"") >&5
+  (eval $ac_cpp conftest.$ac_ext) 2>conftest.er1
+  ac_status=$?
+  grep -v '^ *+' conftest.er1 >conftest.err
+  rm -f conftest.er1
+  cat conftest.err >&5
+  echo "$as_me:$LINENO: \$? = $ac_status" >&5
+  (exit $ac_status); } >/dev/null; then
+  if test -s conftest.err; then
+    ac_cpp_err=$ac_c_preproc_warn_flag
+    ac_cpp_err=$ac_cpp_err$ac_c_werror_flag
+  else
+    ac_cpp_err=
+  fi
+else
+  ac_cpp_err=yes
+fi
+if test -z "$ac_cpp_err"; then
+  ac_header_preproc=yes
+else
+  echo "$as_me: failed program was:" >&5
+sed 's/^/| /' conftest.$ac_ext >&5
+
+  ac_header_preproc=no
+fi
+rm -f conftest.err conftest.$ac_ext
+echo "$as_me:$LINENO: result: $ac_header_preproc" >&5
+echo "${ECHO_T}$ac_header_preproc" >&6
+
+# So?  What about this header?
+case $ac_header_compiler:$ac_header_preproc:$ac_c_preproc_warn_flag in
+  yes:no: )
+    { echo "$as_me:$LINENO: WARNING: magick/api.h: accepted by the compiler, rejected by the preprocessor!" >&5
+echo "$as_me: WARNING: magick/api.h: accepted by the compiler, rejected by the preprocessor!" >&2;}
+    { echo "$as_me:$LINENO: WARNING: magick/api.h: proceeding with the compiler's result" >&5
+echo "$as_me: WARNING: magick/api.h: proceeding with the compiler's result" >&2;}
+    ac_header_preproc=yes
+    ;;
+  no:yes:* )
+    { echo "$as_me:$LINENO: WARNING: magick/api.h: present but cannot be compiled" >&5
+echo "$as_me: WARNING: magick/api.h: present but cannot be compiled" >&2;}
+    { echo "$as_me:$LINENO: WARNING: magick/api.h:     check for missing prerequisite headers?" >&5
+echo "$as_me: WARNING: magick/api.h:     check for missing prerequisite headers?" >&2;}
+    { echo "$as_me:$LINENO: WARNING: magick/api.h: see the Autoconf documentation" >&5
+echo "$as_me: WARNING: magick/api.h: see the Autoconf documentation" >&2;}
+    { echo "$as_me:$LINENO: WARNING: magick/api.h:     section \"Present But Cannot Be Compiled\"" >&5
+echo "$as_me: WARNING: magick/api.h:     section \"Present But Cannot Be Compiled\"" >&2;}
+    { echo "$as_me:$LINENO: WARNING: magick/api.h: proceeding with the preprocessor's result" >&5
+echo "$as_me: WARNING: magick/api.h: proceeding with the preprocessor's result" >&2;}
+    { echo "$as_me:$LINENO: WARNING: magick/api.h: in the future, the compiler will take precedence" >&5
+echo "$as_me: WARNING: magick/api.h: in the future, the compiler will take precedence" >&2;}
+    (
+      cat <<\_ASBOX
+## ------------------------------------------ ##
+## Report this to the AC_PACKAGE_NAME lists.  ##
+## ------------------------------------------ ##
+_ASBOX
+    ) |
+      sed "s/^/$as_me: WARNING:     /" >&2
+    ;;
+esac
+echo "$as_me:$LINENO: checking for magick/api.h" >&5
+echo $ECHO_N "checking for magick/api.h... $ECHO_C" >&6
+if test "${ac_cv_header_magick_api_h+set}" = set; then
+  echo $ECHO_N "(cached) $ECHO_C" >&6
+else
+  ac_cv_header_magick_api_h=$ac_header_preproc
+fi
+echo "$as_me:$LINENO: result: $ac_cv_header_magick_api_h" >&5
+echo "${ECHO_T}$ac_cv_header_magick_api_h" >&6
+
+fi
+if test $ac_cv_header_magick_api_h = yes; then
+  magickhdr="yes"
+else
+  magickhdr="no"
+fi
+
+
+			if test "$magickhdr" = "no"; then
+				CPPFLAGS="$oldcppflags2";
+				{ echo "$as_me:$LINENO: WARNING: *** Missing ImageMagick.  gpsmap will not be built. ***" >&5
+echo "$as_me: WARNING: *** Missing ImageMagick.  gpsmap will not be built. ***" >&2;}
+			fi
+		fi
+
+		if test "$magickhdr" = "yes"; then
+			echo "$as_me:$LINENO: checking for WriteImage in -lMagick" >&5
 echo $ECHO_N "checking for WriteImage in -lMagick... $ECHO_C" >&6
 if test "${ac_cv_lib_Magick_WriteImage+set}" = set; then
   echo $ECHO_N "(cached) $ECHO_C" >&6
@@ -8333,48 +8166,36 @@ else
 echo "$as_me: WARNING: *** Missing Imagemagick.  gpsmap will not be built. ***" >&2;}
 fi
 
+		fi
 	fi
-fi
-CPPFLAGS="$save_cppflags"
-CXXFLAGS="$save_cxxflags"
-LIBS="$save_libs"
-LDFLAGS="$save_ldflags"
+	CPPFLAGS="$save_cppflags"
+	CXXFLAGS="$save_cxxflags"
+	LIBS="$save_libs"
+	LDFLAGS="$save_ldflags"
 
-if test "$expatl" = "no"; then
-	if test "$gpslc" != ""; then
-		{ echo "$as_me:$LINENO: WARNING: *** Disabling gpsmap because expat was not found. ***" >&5
+	if test "$expatl" = "no"; then
+		if test "$gpslc" != ""; then
+			{ echo "$as_me:$LINENO: WARNING: *** Disabling gpsmap because expat was not found. ***" >&5
 echo "$as_me: WARNING: *** Disabling gpsmap because expat was not found. ***" >&2;}
-		gpslc=""
+			gpslc=""
+		fi
 	fi
-fi
 
-if test "$gmpl" = "no"; then
-	if test "$gpslc" != ""; then
-		{ echo "$as_me:$LINENO: WARNING: *** Disabling gpsmap because GMP was not found. ***" >&5
+	if test "$gmpl" = "no"; then
+		if test "$gpslc" != ""; then
+			{ echo "$as_me:$LINENO: WARNING: *** Disabling gpsmap because GMP was not found. ***" >&5
 echo "$as_me: WARNING: *** Disabling gpsmap because GMP was not found. ***" >&2;}
-		gpslc=""
+			gpslc=""
+		fi
 	fi
-fi
 
-if test "$gpslc" != ""; then
-	CPPFLAGS="$CPPFLAGS `Magick-config --cppflags`"
-	CXXFLAGS="$CXXFLAGS `Magick-config --cflags`"
-fi
+	if test "$gpslc" != ""; then
+		CPPFLAGS="$CPPFLAGS `Magick-config --cppflags`"
+		CXXFLAGS="$CXXFLAGS `Magick-config --cflags`"
+	fi
 
-# Check whether --enable-optimization or --disable-optimization was given.
-if test "${enable_optimization+set}" = set; then
-  enableval="$enable_optimization"
-
-else
-  wantopto=yes
-fi;
-if test "$wantopto" != "yes"; then
-	CPPFLAGS=`echo $CPPFLAGS | sed -e 's/-O.//g'`
-	CXXFLAGS=`echo $CXXFLAGS | sed -e 's/-O.//g'`
-fi
-
-if test "$libz" = "no" -a "$gpslc" != ""; then
-	echo "$as_me:$LINENO: checking for gzopen in -lz" >&5
+	if test "$libz" = "no" -a "$gpslc" != ""; then
+		echo "$as_me:$LINENO: checking for gzopen in -lz" >&5
 echo $ECHO_N "checking for gzopen in -lz... $ECHO_C" >&6
 if test "${ac_cv_lib_z_gzopen+set}" = set; then
   echo $ECHO_N "(cached) $ECHO_C" >&6
@@ -8449,9 +8270,9 @@ else
 echo "$as_me: WARNING: Unable to find libz compression" >&2;}
 fi
 
-fi
+	fi
 
-if test "${ac_cv_header_pthread_h+set}" = set; then
+	if test "${ac_cv_header_pthread_h+set}" = set; then
   echo "$as_me:$LINENO: checking for pthread.h" >&5
 echo $ECHO_N "checking for pthread.h... $ECHO_C" >&6
 if test "${ac_cv_header_pthread_h+set}" = set; then
@@ -8669,22 +8490,44 @@ fi
 
 
 
-if test "$pthr" = "no"; then
-	{ echo "$as_me:$LINENO: WARNING: *** GPSMap will be built without pthread support. ***" >&5
+	if test "$pthr" = "no"; then
+		{ echo "$as_me:$LINENO: WARNING: *** GPSMap will be built without pthread support. ***" >&5
 echo "$as_me: WARNING: *** GPSMap will be built without pthread support. ***" >&2;};
-	threadlib=""
+		threadlib=""
+	else
+		threadlib="-lpthread"
+	fi
+
+	# Update the companion to this...
+	if test "$gpslc"x != "x"; then
+    		gpslco="\$(GPSLO)"
+	fi
+
+
+
 else
-	threadlib="-lpthread"
+	{ echo "$as_me:$LINENO: WARNING: *** --disable-gpsmap was specified. gpsmap will not be built ***" >&5
+echo "$as_me: WARNING: *** --disable-gpsmap was specified. gpsmap will not be built ***" >&2;}
+	expatl="no"
+	gmpl="no"
+	gpslc=""
+	pthr="no"
 fi
 
-LIBS="$LIBS -lstdc++"
 
+# Check whether --enable-optimization or --disable-optimization was given.
+if test "${enable_optimization+set}" = set; then
+  enableval="$enable_optimization"
 
-
-# Update the companion to this...
-if test "$gpslc"x != "x"; then
-    gpslco="\$(GPSLO)"
+else
+  wantopto=yes
+fi;
+if test "$wantopto" != "yes"; then
+	CPPFLAGS=`echo $CPPFLAGS | sed -e 's/-O.//g'`
+	CXXFLAGS=`echo $CXXFLAGS | sed -e 's/-O.//g'`
 fi
+
+LIBS="$LIBS -lstdc++ -ldl"
 
 
 
@@ -9355,12 +9198,12 @@ s,@suid@,$suid,;t t
 s,@zaurus@,$zaurus,;t t
 s,@zbuild@,$zbuild,;t t
 s,@local@,$local,;t t
-s,@glib@,$glib,;t t
+s,@wantgpsmap@,$wantgpsmap,;t t
 s,@wget@,$wget,;t t
 s,@magickconfig@,$magickconfig,;t t
-s,@threadlib@,$threadlib,;t t
 s,@gpslc@,$gpslc,;t t
 s,@gpslco@,$gpslco,;t t
+s,@threadlib@,$threadlib,;t t
 s,@sharedatadir@,$sharedatadir,;t t
 s,@LTLIBOBJS@,$LTLIBOBJS,;t t
 CEOF
@@ -10132,33 +9975,49 @@ if test "$local" = "yes"; then
 else
 	echo "no"
 fi
-echo -n "Using ethereal wiretap: "
-if test "$want_ethereal" = "no"; then
-	echo "no"
-else
-	echo "$ethereal_dir"
-fi
+# echo -n "Using ethereal wiretap: "
+# if test "$want_ethereal" = "no"; then
+# 	echo "no"
+# else
+# 	echo "$ethereal_dir"
+# fi
 echo -n "   Imagemagick support: "
 if test "$gpslc" = ""; then
-	echo "no"
+	if test "$wantgpsmap" = "no"; then
+		echo "disabled"
+	else
+		echo "no"
+	fi
 else
 	echo "yes ($magickversion)"
 fi
 echo -n "         Expat Library: "
 if test "$expatl" = "no"; then
-	echo "no"
+	if test "$wantgpsmap" = "no"; then
+		echo "disabled"
+	else
+		echo "no"
+	fi
 else
 	echo "yes"
 fi
 echo -n "           GMP Library: "
 if test "$gmpl" = "no"; then
-    echo "no"
+	if test "$wantgpsmap" = "no"; then
+		echo "disabled"
+	else
+		echo "no"
+	fi
 else
     echo "yes"
 fi
 echo -n "       PThread Support: "
 if test "$pthr" = "no"; then
-	echo "no"
+	if test "$wantgpsmap" = "no"; then
+		echo "disabled"
+	else
+		echo "no"
+	fi
 else
 	echo "yes"
 fi
@@ -10166,12 +10025,16 @@ echo -n "      libz compression: "
 if test "$libz" = "yes"; then
 	echo "yes"
 else
-	echo "no"
+	if test "$wantgpsmap" = "no"; then
+		echo "disabled"
+	else
+		echo "no"
+	fi
 fi
 
 if test "$wireless" != "yes" -a "$linux" = "yes"; then
     echo "*** WARNING ***"
-    echo "Linux Wireless Extentions were not found.  This means that they are not"
+    echo "Linux Wireless Extensions were not found.  This means that they are not"
     echo "turned on in your kernel or that your kernel source include paths on your"
     echo "distribution are broken (namely, that linux/wireless.h didn't exist or"
     echo "was unuseable).  Without wireless extentions, most of the commonly used"

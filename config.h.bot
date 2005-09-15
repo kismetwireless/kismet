@@ -5,9 +5,6 @@
 /* Maximum number of channels - I've only ever heard of 14 being used. */
 #define CHANNEL_MAX 14
 
-/* SSID length */
-#define MAX_SSID_LEN 32
-
 /* Stupid ncurses */
 #define NCURSES_NOMACROS
 

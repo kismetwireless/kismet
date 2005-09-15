@@ -126,6 +126,11 @@ public:
     SpeechControl *speechctl;
     SoundControl *soundctl;
 
+	string version_major;
+	string version_minor;
+	string version_tiny;
+	string version_timestamp;
+
 	// Vector of pollable subservices for main()...  You should use the util 
 	// functions for this, but main needs to be able to see it directly
 	vector<Pollable *> subsys_pollable_vec;
@@ -175,6 +180,11 @@ public:
 	int alertref_map[ALERT_REF_MAX];
     
     GlobalRegistry() { 
+		version_major = VERSION_MAJOR;
+		version_minor = VERSION_MINOR;
+		version_tiny = VERSION_TINY;
+		version_timestamp = string(TIMESTAMP);
+
         fatal_condition = 0;
 
 		argc = 0;

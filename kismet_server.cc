@@ -38,8 +38,7 @@
 #include "configfile.h"
 #include "messagebus.h"
 
-#include "macaddr.h"
-#include "packet.h"
+#include "plugintracker.h"
 
 #include "packetsourcetracker.h"
 
@@ -134,7 +133,11 @@ void FatalQueueMessageClient::ProcessMessage(string in_msg, int in_flags) {
 
 void FatalQueueMessageClient::DumpFatals() {
     for (unsigned int x = 0; x < fatalqueue.size(); x++) {
-        fprintf(stderr, "FATAL: %s\n", fatalqueue[x].c_str());
+		if (glob_linewrap)
+			fprintf(stderr, "%s", InLineWrap("FATAL: " + fatalqueue[x], 
+											 7, 80).c_str());
+		else
+			fprintf(stderr, "FATAL: %s\n", fatalqueue[x].c_str());
     }
 }
 
@@ -275,13 +278,14 @@ int FindSuidTarget(string in_username, GlobalRegistry *globalreg,
 		globalreg->fatal_condition = 1;
 		return -1;
 	} else if (suid_uid != real_uid && real_uid != 0) {
-		snprintf(errstr, 1024, "Kismet must be started as root (or as the "
-				 "priv-drop target user) for priv-drop to work properly. "
-				 "See the 'Installation & Security' and 'Configuration' sections "
-				 "of the README file for more information.");
-		_MSG(errstr, MSGFLAG_FATAL);
-		globalreg->fatal_condition = 1;
-		return -1;
+		_MSG("Kismet must be started as root for priv-drop to work properly. "
+			 "See the 'Installation & Security' and 'Configuration' sections "
+			 "of the README file for more information.  Kismet will continue "
+			 "executing as the user which started it, and will ignore the "
+			 "privdrop user.", MSGFLAG_ERROR);
+		(*ret_uid) = real_uid;
+		(*ret_gid) = getgid();
+		return 0;
 	}
 
 	(*ret_uid) = suid_uid;
@@ -316,6 +320,7 @@ int main(int argc,char *argv[]) {
 	int option_idx = 0;
 	KisBuiltinDissector *bid;
 	int data_dump = 0;
+	PluginTracker *plugintracker;
 
 	// ------ WE MAY BE RUNNING AS ROOT ------
 	
@@ -427,6 +432,12 @@ int main(int argc,char *argv[]) {
 	sleep(1);
 #endif
 
+	// Start the time tracker
+	plugintracker = new PluginTracker(globalregistry);
+
+	// Build the plugin list for root plugins
+	plugintracker->ScanRootPlugins();
+
 	// Assign the speech and sound handlers
 	globalregistry->soundctl = new SoundControl(globalregistry);
 	if (globalregistry->fatal_condition)
@@ -452,6 +463,12 @@ int main(int argc,char *argv[]) {
 
 	// Create the packetsourcetracker
 	globalregistry->sourcetracker = new Packetsourcetracker(globalregistry);
+	if (globalregistry->fatal_condition)
+		CatchShutdown(-1);
+
+	// Kickstart the root plugins -- Can't think of any that needed to
+	// activate before now
+	plugintracker->ActivatePlugins();
 	if (globalregistry->fatal_condition)
 		CatchShutdown(-1);
 
