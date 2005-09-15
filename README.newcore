@@ -76,3 +76,46 @@ have been made more explicit:
   packet totals -- the new packet total for the network shell will be pushed
   in the NETWORK update.
 
+PLUGIN ARCHITECTURE
+
+Plugins are scary things.  They can do basically anything to you.  Be careful
+what you load!
+
+Root plugins:  Plugins that load as root before the privdrop must be in
+               the system plugin directory (/install-prefix/lib/kismet/).
+               That directory must be owned by root:root.  The directory
+               must not be writeable by anyone else (mode 755 or more
+               restrictive).  The plugin must be owned by root:root, and
+               not be writeable by anyone else (755 or more restrictive).
+               Finally, the plugin MUST be specified in the kismet.conf
+               config on a 'rootplugin=foo.so' line.
+
+User plugins:  Anything found in a plugin directory after the privdrop,
+               that wasn't loaded as root, is probed and loaded.
+               Plugin directories are '/install-prefix/lib/kismet/' and
+               'userconfig/plugins/' (typically ~/.kismet/plugins).
+
+Security mentality:  Root plugins are super-dangerous.  We can't keep
+the user from loading one, but we can make sure that other users on the
+system can't corrupt it, and we can make sure only ones actively approved
+are loaded during startup.
+
+Plugins must be enabled in the config file!
+
+Plugins are expected to have 1 exported extern "C" function, and respond
+to register/unregister events appropriately.  Look at the example plugin
+for more info.
+
+The plugin registrant is called many times during load, until it returns a
+value that indicates total failure or success.  A plugin can look at the
+globalregistry pointers for standard system components to determine if the
+plugin is able to load yet.  If it isn't, it should return 0 and it will be
+asked again later.
+
+Plugins are responsible for adding their own callbacks to the system
+components, and for removing them cleanly on request.  Plugins have
+access to any system component that Kismet itself can access, which gives
+them extroadinary power.
+
+Documentation on the system components and APIs will be forthcoming.
+
