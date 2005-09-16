@@ -583,8 +583,10 @@ int main(int argc,char *argv[]) {
 		CatchShutdown(-1);
 	}
 
-	// Kick the plugin system again
-	plugintracker->ActivatePlugins();
+	// Kick the plugin system one last time.  This will try to kick any plugins
+	// that aren't activated yet, and then bomb out if we can't turn them on at
+	// all.
+	plugintracker->LastChancePlugins();
 	if (globalregistry->fatal_condition)
 		CatchShutdown(-1);
 

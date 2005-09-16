@@ -87,6 +87,8 @@ public:
 
 		// Path to plugin
 		string filename; 
+		// Object name of the plugin
+		string objectname;
 
 		// Pointer to dlopened file
 		void *dlfileptr;
@@ -116,6 +118,9 @@ public:
 
 	// Activate the vector of plugins (called repeatedly during startup)
 	int ActivatePlugins();
+
+	// Last chance for plugins to activate or we error out
+	int LastChancePlugins();
 
 	// Shut down the plugins and close the shared files
 	int ShutdownPlugins();
