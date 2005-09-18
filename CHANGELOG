@@ -1,3 +1,13 @@
+Sep 17 2005  devel  Added tracking of multiple SSIDs per network, and tracking
+                     all networks a client has probed for.  No methods to export
+                     this information yet.
+                    Added removal abilities for client commands and network
+                     protocols in netframe
+                    Added auxptr to network protocols for enable functions to
+                     hook a class
+                    Added plugin listing protocol
+                    Added plugin shutdown
+                    Put plugintracker in globalreg
 Sep 15 2005  devel  Added user plugin directory scanning and loading
                     Implemented actually kickstarting the plugins
                     Made better errors for dlopen() being stupid

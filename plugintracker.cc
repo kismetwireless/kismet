@@ -31,17 +31,89 @@
 #include "getopt.h"
 #include "messagebus.h"
 #include "plugintracker.h"
+#include "kis_netframe.h"
 
-PluginTracker::PluginTracker() {
-	fprintf(stderr, "FATAL OOPS:  PluginTracker() called with no globalreg\n");
+// Plugin protocol stuff
+enum PLUGIN_fields {
+	PLUGIN_fname, PLUGIN_name, PLUGIN_version, 
+	PLUGIN_description, PLUGIN_unloadable, PLUGIN_root,
+	PLUGIN_maxfield
+};
+
+char *PLUGIN_fields_text[] = {
+	"filename", "name", "version", "description", 
+	"unloadable", "root", NULL
+};
+
+int Protocol_PLUGIN(PROTO_PARMS) {
+	Plugintracker::plugin_meta *meta = (Plugintracker::plugin_meta *) data;
+
+	for (unsigned int x = 0; x < field_vec->size(); x++) {
+		unsigned int fnum = (*field_vec)[x];
+		if (fnum >= PLUGIN_maxfield) {
+			out_string = "Unknown field requests";
+			return -1;
+		}
+
+		switch (fnum) {
+			case PLUGIN_fname:
+				out_string += "\001" + MungeToPrintable(meta->objectname) + "\001";
+				break;
+			case PLUGIN_name:
+				out_string += "\001" +
+					MungeToPrintable(meta->usrdata.pl_name) + "\001";
+				break;
+			case PLUGIN_version:
+				out_string += "\001" +
+					MungeToPrintable(meta->usrdata.pl_version) + "\001";
+				break;
+			case PLUGIN_description:
+				out_string += "\001" + 
+					MungeToPrintable(meta->usrdata.pl_description) + "\001";
+				break;
+			case PLUGIN_unloadable:
+				if (meta->usrdata.pl_unloadable)
+					out_string += "1";
+				else
+					out_string += "0";
+				break;
+			case PLUGIN_root:
+				if (meta->root)
+					out_string += "1";
+				else
+					out_string += "0";
+				break;
+		}
+
+		out_string += " ";
+	}
+
+	return 1;
+}
+
+void Protocol_PLUGIN_enable(PROTO_ENABLE_PARMS) {
+	Plugintracker *ptrak = (Plugintracker *) data;
+
+	ptrak->BlitPlugins(in_fd);
+
+	return;
+}
+
+Plugintracker::Plugintracker() {
+	fprintf(stderr, "FATAL OOPS:  Plugintracker() called with no globalreg\n");
 	exit(1);
 }
 
-PluginTracker::PluginTracker(GlobalRegistry *in_globalreg) {
+Plugintracker::Plugintracker(GlobalRegistry *in_globalreg) {
 	globalreg = in_globalreg;
 
 	if (globalreg->kismet_config == NULL) {
-		fprintf(stderr, "FATAL OOPS:  PluginTracker called while config is NULL\n");
+		fprintf(stderr, "FATAL OOPS:  Plugintracker called while config is NULL\n");
+		exit(1);
+	}
+
+	if (globalreg->kisnetserver == NULL) {
+		fprintf(stderr, "FATAL OOPS:  Plugintracker called while netframe is NULL\n");
 		exit(1);
 	}
 
@@ -85,19 +157,27 @@ PluginTracker::PluginTracker(GlobalRegistry *in_globalreg) {
 
 	plugins_active = 1;
 
+	plugins_protoref = 
+		globalreg->kisnetserver->RegisterProtocol("PLUGIN", 0, 0,
+												  PLUGIN_fields_text,
+												  &Protocol_PLUGIN,
+												  &Protocol_PLUGIN_enable,
+												  this);
 }
 
-PluginTracker::~PluginTracker() {
+Plugintracker::~Plugintracker() {
 	// Call the main shutdown, which should kill the vector allocations
 	ShutdownPlugins();
+
+	globalreg->kisnetserver->RemoveProtocol(plugins_protoref);
 }
 
-void PluginTracker::Usage(char *name) {
+void Plugintracker::Usage(char *name) {
 	printf(" *** Plugin Options ***\n");
 	printf("     --disable-plugins		  Turn off the plugin system\n");
 }
 
-int PluginTracker::ScanRootPlugins() {
+int Plugintracker::ScanRootPlugins() {
 	// Bail if plugins disabled
 	if (plugins_active == 0)
 		return 0;
@@ -188,7 +268,7 @@ int PluginTracker::ScanRootPlugins() {
 	return 1;
 }
 
-int PluginTracker::ScanUserPlugins() {
+int Plugintracker::ScanUserPlugins() {
 	// Bail if plugins disabled
 	if (plugins_active == 0)
 		return 0;
@@ -227,7 +307,7 @@ int PluginTracker::ScanUserPlugins() {
 	return 1;
 }
 
-int PluginTracker::ScanDirectory(DIR *in_dir, string in_path) {
+int Plugintracker::ScanDirectory(DIR *in_dir, string in_path) {
 	struct dirent *plugfile;
 
 	while ((plugfile = readdir(in_dir)) != NULL) {
@@ -257,7 +337,7 @@ int PluginTracker::ScanDirectory(DIR *in_dir, string in_path) {
 	return 1;
 }
 
-int PluginTracker::ActivatePlugins() {
+int Plugintracker::ActivatePlugins() {
 	// Try to activate all the plugins
 	for (unsigned int x = 0; x < plugin_vec.size(); x++) {
 		// Try to DLOPEN anything that isn't open
@@ -325,7 +405,7 @@ int PluginTracker::ActivatePlugins() {
 	return 1;
 }
 
-int PluginTracker::LastChancePlugins() {
+int Plugintracker::LastChancePlugins() {
 	if (ActivatePlugins() < 0 || globalreg->fatal_condition) {
 		globalreg->fatal_condition = 1;
 		return -1;
@@ -344,7 +424,8 @@ int PluginTracker::LastChancePlugins() {
 	return 1;
 }
 
-int PluginTracker::ShutdownPlugins() {
+int Plugintracker::ShutdownPlugins() {
+	_MSG("Shutting down plugins...", MSGFLAG_INFO);
 	for (unsigned int x = 0; x < plugin_vec.size(); x++) {
 		if (plugin_vec[x]->activate == 0 ||
 			plugin_vec[x]->usrdata.plugin_unregister == NULL)
@@ -363,4 +444,15 @@ int PluginTracker::ShutdownPlugins() {
 
 	return 0;
 }
+
+int Plugintracker::BlitPlugins(int in_fd) {
+	kis_protocol_cache cache;
+	for (unsigned int x = 0; x < plugin_vec.size(); x++) {
+		globalreg->kisnetserver->SendToClient(in_fd, plugins_protoref,
+											  (void *) plugin_vec[x], &cache);
+	}
+
+	return 1;
+}
+
 

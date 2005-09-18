@@ -521,7 +521,7 @@ int Clicmd_ENABLE(CLIENT_PARMS) {
     globalreg->kisnetserver->AddProtocolClient(in_clid, cmdref, numericf);
 
 	if (prot->enable != NULL)
-		(*prot->enable)(in_clid, globalreg);
+		(*prot->enable)(in_clid, globalreg, prot->auxptr);
 
     return 1;
 }
@@ -713,6 +713,7 @@ KisNetFramework::KisNetFramework(GlobalRegistry *in_globalreg) {
 	char srv_proto[10], srv_bindhost[128];
 	TcpServer *tcpsrv;
 	string listenline;
+	next_netprotoref = 0;
 
 	// Commandline stuff
 	static struct option netframe_long_options[] = {
@@ -804,22 +805,26 @@ KisNetFramework::KisNetFramework(GlobalRegistry *in_globalreg) {
 
     // Protocols we REQUIRE all clients to support
 	globalreg->netproto_map[PROTO_REF_KISMET] =
-		RegisterProtocol("KISMET", 1, 0, KISMET_fields_text, &Protocol_KISMET, NULL);
+		RegisterProtocol("KISMET", 1, 0, KISMET_fields_text, 
+						 &Protocol_KISMET, NULL, NULL);
 	globalreg->netproto_map[PROTO_REF_ERROR] =
-		RegisterProtocol("ERROR", 1, 0, ERROR_fields_text, &Protocol_ERROR, NULL);
+		RegisterProtocol("ERROR", 1, 0, ERROR_fields_text, 
+						 &Protocol_ERROR, NULL, NULL);
 	globalreg->netproto_map[PROTO_REF_ACK] =
-		RegisterProtocol("ACK", 1, 0, ACK_fields_text, &Protocol_ACK, NULL);
+		RegisterProtocol("ACK", 1, 0, ACK_fields_text, 
+						 &Protocol_ACK, NULL, NULL);
 	globalreg->netproto_map[PROTO_REF_PROTOCOL] =
 		RegisterProtocol("PROTOCOLS", 1, 0, PROTOCOLS_fields_text,
-						 &Protocol_PROTOCOLS, NULL);
+						 &Protocol_PROTOCOLS, NULL, NULL);
 	globalreg->netproto_map[PROTO_REF_CAPABILITY] =
 		RegisterProtocol("CAPABILITY", 1, 0, CAPABILITY_fields_text,
-						 &Protocol_CAPABILITY, NULL);
+						 &Protocol_CAPABILITY, NULL, NULL);
 	globalreg->netproto_map[PROTO_REF_TERMINATE] =
 		RegisterProtocol("TERMINATE", 1, 0, TERMINATE_fields_text,
-						 &Protocol_TERMINATE, NULL);
+						 &Protocol_TERMINATE, NULL, NULL);
 	globalreg->netproto_map[PROTO_REF_TIME] =
-		RegisterProtocol("TIME", 1, 0, TIME_fields_text, &Protocol_TIME, NULL);
+		RegisterProtocol("TIME", 1, 0, TIME_fields_text, 
+						 &Protocol_TIME, NULL, NULL);
 
     // Other protocols
     
@@ -827,19 +832,21 @@ KisNetFramework::KisNetFramework(GlobalRegistry *in_globalreg) {
 
 	globalreg->netproto_map[PROTO_REF_CARD] =
 		RegisterProtocol("CARD", 0, 0, CARD_fields_text, 
-						 &Protocol_CARD, NULL);
+						 &Protocol_CARD, NULL, NULL);
     // This has been broken for a long time now
     // RegisterProtocol("CISCO", 0, CISCO_fields_text, &Protocol_CISCO, NULL);
 	globalreg->netproto_map[PROTO_REF_INFO] =
 		RegisterProtocol("INFO", 0, 0, INFO_fields_text, 
-						 &Protocol_INFO, NULL);
+						 &Protocol_INFO, NULL, NULL);
 	globalreg->netproto_map[PROTO_REF_PACKET] =
-		RegisterProtocol("PACKET", 0, 0, PACKET_fields_text, &Protocol_PACKET, NULL);
+		RegisterProtocol("PACKET", 0, 0, PACKET_fields_text, 
+						 &Protocol_PACKET, NULL, NULL);
 	globalreg->netproto_map[PROTO_REF_STATUS] =
-		RegisterProtocol("STATUS", 0, 0, STATUS_fields_text, &Protocol_STATUS, NULL);
+		RegisterProtocol("STATUS", 0, 0, STATUS_fields_text, 
+						 &Protocol_STATUS, NULL, NULL);
 	globalreg->netproto_map[PROTO_REF_STRING] =
 		RegisterProtocol("STRING", 0, 0, STRING_fields_text, 
-						 &Protocol_STRING, NULL);
+						 &Protocol_STRING, NULL, NULL);
 
 	// Create the message bus attachment to forward messages to the client
     kisnet_msgcli = new KisNetframe_MessageClient(globalreg);
@@ -1110,6 +1117,16 @@ int KisNetFramework::RegisterClientCommand(string in_cmdword, ClientCommand in_c
     return 1;
 }
 
+int KisNetFramework::RemoveClientCommand(string in_cmdword) {
+	if (client_cmd_map.find(in_cmdword) == client_cmd_map.end())
+		return 0;
+
+	delete client_cmd_map[in_cmdword];
+	client_cmd_map.erase(in_cmdword);
+
+	return 1;
+}
+
 // Create an output string based on the clients
 // This looks very complex - and it is - but almost all of the "big" ops like
 // find are done with integer references.  They're cheap.
@@ -1155,7 +1172,8 @@ int KisNetFramework::SendToClient(int in_fd, int in_refnum, const void *in_data,
 
     // Bounce through the printer function
     string fieldtext;
-    if ((*prot->printer)(fieldtext, fieldlist, in_data, in_cache, globalreg) == -1) {
+    if ((*prot->printer)(fieldtext, fieldlist, in_data, prot->auxptr,
+						 in_cache, globalreg) == -1) {
         snprintf(errstr, 1024, "%s", fieldtext.c_str());
         return -1;
     }
@@ -1226,7 +1244,8 @@ int KisNetFramework::SendToAll(int in_refnum, const void *in_data) {
 int KisNetFramework::RegisterProtocol(string in_header, int in_required, int in_cache,
 									  char **in_fields,
                                       int (*in_printer)(PROTO_PARMS),
-                                      void (*in_enable)(PROTO_ENABLE_PARMS)) {
+                                      void (*in_enable)(PROTO_ENABLE_PARMS),
+									  void *in_auxdata) {
     // First, see if we're already registered and return a -1 if we are.  You can't
     // register a protocol twice.
     if (FetchProtocolRef(in_header) != -1) {
@@ -1245,7 +1264,7 @@ int KisNetFramework::RegisterProtocol(string in_header, int in_required, int in_
         return -1;
     }
 
-    int refnum = protocol_map.size() + 1;
+	int refnum = next_netprotoref++;
 
     server_protocol *sen = new server_protocol;
     sen->ref_index = refnum;
@@ -1261,6 +1280,7 @@ int KisNetFramework::RegisterProtocol(string in_header, int in_required, int in_
     sen->enable = in_enable;
     sen->required = in_required;
 	sen->cacheable = in_cache;
+	sen->auxptr = in_auxdata;
 
     // Put us in the map
     protocol_map[refnum] = sen;
@@ -1270,6 +1290,30 @@ int KisNetFramework::RegisterProtocol(string in_header, int in_required, int in_
         required_protocols.push_back(refnum);
 
     return refnum;
+}
+
+int KisNetFramework::RemoveProtocol(int in_protoref) {
+	// Efficiency isn't the biggest deal here since it happens rarely
+	
+	if (in_protoref < 0)
+		return 0;
+
+	if (protocol_map.find(in_protoref) == protocol_map.end())
+		return 0;
+
+	string cmdheader = protocol_map[in_protoref]->header;
+	delete protocol_map[in_protoref];
+	protocol_map.erase(in_protoref);
+	ref_map.erase(cmdheader);
+
+	for (unsigned int x = 0; x < required_protocols.size(); x++) {
+		if (required_protocols[x] == in_protoref) {
+			required_protocols.erase(required_protocols.begin() + x);
+			break;
+		}
+	}
+
+	return 1;
 }
 
 int KisNetFramework::FetchProtocolRef(string in_header) {

@@ -730,16 +730,16 @@ Netracker::Netracker(GlobalRegistry *in_globalreg) {
 		globalreg->kisnetserver->RegisterProtocol("NETWORK", 0, 1, 
 												  NETWORK_fields_text, 
 												  &Protocol_NETWORK, 
-												  &Protocol_NETWORK_enable);
+												  &Protocol_NETWORK_enable, this);
 	_NPM(PROTO_REF_CLIENT) =
 		globalreg->kisnetserver->RegisterProtocol("CLIENT", 0, 1,
 												  CLIENT_fields_text, 
 												  &Protocol_CLIENT, 
-												  &Protocol_CLIENT_enable);
+												  &Protocol_CLIENT_enable, this);
 	_NPM(PROTO_REF_REMOVE) =
 		globalreg->kisnetserver->RegisterProtocol("REMOVE", 0, 1,
 												  REMOVE_fields_text, 
-												  &Protocol_REMOVE, NULL);
+												  &Protocol_REMOVE, NULL, this);
 
 	// Add the client command
 	addfiltercmd_ref =
@@ -1123,6 +1123,14 @@ int Netracker::netracker_chain_handler(kis_packet *in_pack) {
 		if (net->type == network_probe) {
 			// Learn the SSID they're probing for
 			net->ssid = packinfo->ssid;
+
+			// Calc the checksum and see if its in our map
+			uint32_t csum = 
+				Adler32Checksum(packinfo->ssid.c_str(), packinfo->ssid.length());
+			map<uint32_t, string>::iterator psmi = cli->probe_ssid_map.find(csum);
+			if (psmi == cli->probe_ssid_map.end())
+				cli->probe_ssid_map[csum] = packinfo->ssid;
+
 		}
 
 		if (cli->maxrate < packinfo->maxrate)
@@ -1145,8 +1153,9 @@ int Netracker::netracker_chain_handler(kis_packet *in_pack) {
 				net->ssid = bssid_cloak_map[packinfo->bssid_mac];
 				net->ssid_uncloaked = 1;
 			}
-		} else {
-			net->ssid = string(packinfo->ssid);
+		} else if (packinfo->ssid_len != 0 && packinfo->ssid_blank == 0) {
+			net->ssid = packinfo->ssid;
+
 			if (net->ssid_cloaked && net->ssid_uncloaked == 0) {
 				_MSG("Decloaked network " + packinfo->bssid_mac.Mac2String() + 
 					 " SSID '" + packinfo->ssid + "'", MSGFLAG_INFO);
@@ -1154,10 +1163,13 @@ int Netracker::netracker_chain_handler(kis_packet *in_pack) {
 			} else {
 				net->ssid_cloaked = 0;
 			}
-		}
 
-		if (packinfo->ssid_len != 0 && packinfo->ssid_blank != 0) {
-			net->ssid = packinfo->ssid;
+			// Check our map of known bssids for this AP and add this to it
+			uint32_t csum = 
+				Adler32Checksum(packinfo->ssid.c_str(), packinfo->ssid.length());
+			map<uint32_t, string>::iterator nbmi = net->beacon_ssid_map.find(csum);
+			if (nbmi == net->beacon_ssid_map.end())
+				net->beacon_ssid_map[csum] = packinfo->ssid;
 		}
 
 		if (alert_airjackssid_ref >= 0 && packinfo->ssid == "AirJack" &&

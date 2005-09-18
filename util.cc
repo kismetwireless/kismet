@@ -68,7 +68,7 @@ string MungeToShell(string in_data) {
 
 // Munge text down to printable characters only.  Simpler, cleaner munger than
 // before (and more blatant when munging)
-string MungeToPrintable(char *in_data, int max, int nullterm) {
+string MungeToPrintable(const char *in_data, int max, int nullterm) {
 	string ret;
 	int i;
 
@@ -87,6 +87,10 @@ string MungeToPrintable(char *in_data, int max, int nullterm) {
 	}
 
 	return ret;
+}
+
+string MungeToPrintable(string in_str) {
+	return MungeToPrintable(in_str.c_str(), in_str.length(), 1);
 }
 
 string StrLower(string in_str) {
@@ -369,7 +373,7 @@ int FetchSysLoadAvg(uint8_t *in_avgmaj, uint8_t *in_avgmin) {
 }
 #endif
 
-uint32_t Adler32Checksum(char *buf1, int len) {
+uint32_t Adler32Checksum(const char *buf1, int len) {
 	int i;
 	uint32_t s1, s2;
 	char *buf = (char *)buf1;

@@ -305,6 +305,9 @@ public:
 		// Number of packets since last tick
 		int new_packets;
 
+		// Map of SSIDs beaconed (checksum to ssid for quick-search)
+		map<uint32_t, string> beacon_ssid_map;
+
 		// Network is dirty and should be pushed out
 		int dirty;
 	};
@@ -384,6 +387,9 @@ public:
 
 		// Do we need to push an update?
 		int dirty;
+
+		// Networks we've probed for
+		map<uint32_t, string> probe_ssid_map;
 
 		// Pointer to the network we belong to, for fast compares
 		Netracker::tracked_network *netptr;

@@ -241,7 +241,7 @@ KisBuiltinDissector::KisBuiltinDissector(GlobalRegistry *in_globalreg) {
 	// Register network protocols for WEP key transfer commands
 	_NPM(PROTO_REF_WEPKEY) =
 		globalreg->kisnetserver->RegisterProtocol("WEPKEY", 0, 0, WEPKEY_fields_text,
-												  &proto_WEPKEY, NULL);
+												  &proto_WEPKEY, NULL, this);
 	globalreg->kisnetserver->RegisterClientCommand("LISTWEPKEYS", 
 												   clicmd_LISTWEPKEYS_hook,
 												   this);

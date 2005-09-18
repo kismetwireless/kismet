@@ -24,6 +24,7 @@ extern "C" {
 		data->pl_name = "Null";
 		data->pl_version = "1.0.0";
 		data->pl_description = "I do basically nothing";
+		data->pl_unloadable = 1;
 		data->plugin_register = null_register;
 		data->plugin_unregister = null_unregister;
 
@@ -74,13 +75,17 @@ int null_register(GlobalRegistry *in_globalreg) {
 		in_globalreg->kisnetserver->RegisterProtocol("NULLFOO", 0, 0,
 													 NULLPROTO_fields_text,
 													 &Protocol_NULLPROTO,
-													 &Protocol_NULLPROTO_Enable);
+													 &Protocol_NULLPROTO_Enable,
+													 NULL);
 
 	return 1;
 }
 
 int null_unregister(GlobalRegistry *in_globalreg) {
 	printf("PLUGINDEBUG - I got unregistered\n");
+
+	if (in_globalreg->kisnetserver != NULL) 
+		in_globalreg->kisnetserver->RemoveProtocol(nullproto_ref);
 
 	return 1;
 }

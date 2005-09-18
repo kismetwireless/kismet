@@ -85,11 +85,12 @@ typedef int (*ClientCommand)(CLIENT_PARMS);
 
 // Protocol parameters
 #define PROTO_PARMS string& out_string, const vector<int> *field_vec, \
-        const void *data, kis_protocol_cache *cache, \
+        const void *data, const void *auxptr, kis_protocol_cache *cache, \
 		GlobalRegistry *globalreg
 typedef int (*ProtoCallback)(PROTO_PARMS);
 
-#define PROTO_ENABLE_PARMS int in_fd, GlobalRegistry *globalreg
+#define PROTO_ENABLE_PARMS int in_fd, GlobalRegistry *globalreg, \
+		const void *data
 typedef void (*ProtoEnableCallback)(PROTO_ENABLE_PARMS);
 
 // Lowlevel protocols that get inserted into the server during setup, these
@@ -253,6 +254,7 @@ public:
         vector<string> field_vec;
         int (*printer)(PROTO_PARMS);
         void (*enable)(PROTO_ENABLE_PARMS);
+		void *auxptr;
     };
 
 	typedef struct client_command_rec {
@@ -283,6 +285,7 @@ public:
     // Learn a client command
     int RegisterClientCommand(string in_cmdword, ClientCommand in_cmd, 
 							  void *in_auxdata);
+	int RemoveClientCommand(string in_cmdword);
 
     // Register an output sentence.  This needs:
     // * A header (ie, NETWORK)
@@ -297,7 +300,9 @@ public:
     int RegisterProtocol(string in_header, int in_required, int in_cache, 
 						 char **in_fields,
 						 int (*in_printer)(PROTO_PARMS),
-						 void (*in_enable)(PROTO_ENABLE_PARMS));
+						 void (*in_enable)(PROTO_ENABLE_PARMS),
+						 void *in_auxdata);
+	int RemoveProtocol(int in_protoref);
     int FetchProtocolRef(string in_header);
     KisNetFramework::server_protocol *FetchProtocol(int in_ref);
 
@@ -315,6 +320,8 @@ public:
 	static void Usage(char *name);
 
 protected:
+	int next_netprotoref;
+
     // Messagebus client
     KisNetframe_MessageClient *kisnet_msgcli;
 

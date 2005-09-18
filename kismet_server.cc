@@ -180,6 +180,11 @@ void CatchShutdown(int sig) {
                 "cleanly...\n");
 
     string termstr = "Kismet server terminating.";
+
+	if (globalregistry->plugintracker != NULL)
+		globalregistry->plugintracker->ShutdownPlugins();
+	
+	
 	if (globalregistry->kisnetserver != NULL) {
 		globalregistry->kisnetserver->SendToAll(globalregistry->netproto_map[PROTO_REF_TERMINATE], (void *) &termstr);
 
@@ -320,7 +325,6 @@ int main(int argc,char *argv[]) {
 	int option_idx = 0;
 	KisBuiltinDissector *bid;
 	int data_dump = 0;
-	PluginTracker *plugintracker;
 
 	// ------ WE MAY BE RUNNING AS ROOT ------
 	
@@ -432,12 +436,6 @@ int main(int argc,char *argv[]) {
 	sleep(1);
 #endif
 
-	// Start the time tracker
-	plugintracker = new PluginTracker(globalregistry);
-
-	// Build the plugin list for root plugins
-	plugintracker->ScanRootPlugins();
-
 	// Assign the speech and sound handlers
 	globalregistry->soundctl = new SoundControl(globalregistry);
 	if (globalregistry->fatal_condition)
@@ -450,6 +448,13 @@ int main(int argc,char *argv[]) {
 	globalregistry->kisnetserver = new KisNetFramework(globalregistry);
 	if (globalregistry->fatal_condition)
 		CatchShutdown(-1);
+
+	// Start the plugin handler
+	globalregistry->plugintracker = new Plugintracker(globalregistry);
+
+	// Build the plugin list for root plugins
+	globalregistry->plugintracker->ScanRootPlugins();
+
 
 	// Create the packet chain
 	globalregistry->packetchain = new Packetchain(globalregistry);
@@ -468,7 +473,7 @@ int main(int argc,char *argv[]) {
 
 	// Kickstart the root plugins -- Can't think of any that needed to
 	// activate before now
-	plugintracker->ActivatePlugins();
+	globalregistry->plugintracker->ActivatePlugins();
 	if (globalregistry->fatal_condition)
 		CatchShutdown(-1);
 
@@ -524,7 +529,7 @@ int main(int argc,char *argv[]) {
 	// ------ WE ARE NOW RUNNING AS THE TARGET (MAYBE) ------
 
 	// Process userspace plugins
-	plugintracker->ScanUserPlugins();
+	globalregistry->plugintracker->ScanUserPlugins();
 
 	// Bind sources as non-root
 	globalregistry->sourcetracker->BindSources(0);
@@ -586,7 +591,7 @@ int main(int argc,char *argv[]) {
 	// Kick the plugin system one last time.  This will try to kick any plugins
 	// that aren't activated yet, and then bomb out if we can't turn them on at
 	// all.
-	plugintracker->LastChancePlugins();
+	globalregistry->plugintracker->LastChancePlugins();
 	if (globalregistry->fatal_condition)
 		CatchShutdown(-1);
 

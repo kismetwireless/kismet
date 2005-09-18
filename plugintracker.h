@@ -61,6 +61,14 @@ typedef struct {
 	string pl_name;
 	string pl_description;
 	string pl_version;
+	
+	// Can this plugin be unloaded?  Anything that touches capture sources 
+	// should definitely say no, and anything else that sets up dynamic 
+	// structures that can't be reasonably disassembled or recreated should
+	// answer no.  Unloadable plugins should still handle the unload event in
+	// a permanent fashion, this just means Kismet will not ask it to unload
+	// during runtime.
+	int pl_unloadable;
 
 	// Call back to initialized.  A 0 return means "try again later in the build
 	// chain", a negative means "failure" and a positive means success.
@@ -75,7 +83,7 @@ typedef struct {
 typedef int (*plugin_infocall)(plugin_usrdata *);
 
 // Plugin management class
-class PluginTracker {
+class Plugintracker {
 public:
 	typedef struct plugin_meta {
 		plugin_meta() {
@@ -106,9 +114,9 @@ public:
 
 	static void Usage(char *name);
 
-	PluginTracker();
-	PluginTracker(GlobalRegistry *in_globalreg);
-	~PluginTracker();
+	Plugintracker();
+	Plugintracker(GlobalRegistry *in_globalreg);
+	~Plugintracker();
 
 	// Parse the config file and load root plugins into the vector
 	int ScanRootPlugins();
@@ -125,6 +133,9 @@ public:
 	// Shut down the plugins and close the shared files
 	int ShutdownPlugins();
 
+	// Network hook to send the plugins to a user on enable
+	int BlitPlugins(int in_fd);
+
 protected:
 	GlobalRegistry *globalreg;
 	int plugins_active;
@@ -132,6 +143,8 @@ protected:
 	int ScanDirectory(DIR *in_dir, string in_path);
 
 	vector<plugin_meta *> plugin_vec;
+
+	int plugins_protoref;
 };
 
 #endif

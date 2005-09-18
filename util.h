@@ -44,7 +44,8 @@
 // Munge a string to characters safe for calling in a shell
 void MungeToShell(char *in_data, int max);
 string MungeToShell(string in_data);
-string MungeToPrintable(char *in_data, int max, int nullterm);
+string MungeToPrintable(const char *in_data, int max, int nullterm);
+string MungeToPrintable(string in_str);
 
 string StrLower(string in_str);
 string StrUpper(string in_str);
@@ -101,6 +102,6 @@ int FetchSysLoadAvg(uint8_t *in_avgmaj, uint8_t *in_avgmin);
 
 // Adler-32 checksum
 // From rsync, adler-32
-uint32_t Adler32Checksum(char *buf1, int len);
+uint32_t Adler32Checksum(const char *buf1, int len);
 
 #endif

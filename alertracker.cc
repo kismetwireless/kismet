@@ -144,7 +144,7 @@ Alertracker::Alertracker(GlobalRegistry *in_globalreg) {
 	_NPM(PROTO_REF_NETWORK) =
 		globalreg->kisnetserver->RegisterProtocol("ALERT", 0, 1, ALERT_fields_text, 
 												  &Protocol_ALERT, 
-												  &Protocol_ALERT_enable);
+												  &Protocol_ALERT_enable, this);
 
 	// Register a KISMET alert type with no rate restrictions
 	_ARM(ALERT_REF_KISMET) =

@@ -37,6 +37,7 @@ class KisNetFramework;
 class ConfigFile;
 class SpeechControl;
 class SoundControl;
+class Plugintracker;
 // We need these for the vectors of subservices to poll
 class Pollable;
 // Vector of dumpfiles to destroy
@@ -114,6 +115,7 @@ public:
     int fatal_condition;
     
     MessageBus *messagebus;
+	Plugintracker *plugintracker;
     Packetsourcetracker *sourcetracker;
     Netracker *netracker;
     Packetchain *packetchain;
@@ -193,6 +195,7 @@ public:
         next_ext_ref = 0;
 
         messagebus = NULL;
+		plugintracker = NULL;
         sourcetracker = NULL;
 		netracker = NULL;
 		packetchain = NULL;
