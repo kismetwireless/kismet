@@ -1291,8 +1291,23 @@ int Netracker::netracker_chain_handler(kis_packet *in_pack) {
 	}
 
 	if (newnetwork) {
-		snprintf(status, STATUS_MAX, "Detected new network \"%s\", BSSID %s, "
+		string nettype;
+
+		if (net->type == network_ap) {
+			nettype = "managed";
+		} else if (net->type == network_adhoc) {
+			nettype = "ad-hoc";
+		} else if (net->type == network_probe) {
+			nettype = "probe";
+		} else if (net->type == network_turbocell) {
+			nettype = "turbocell";
+		} else if (net->type == network_data) {
+			nettype = "data";
+		}
+
+		snprintf(status, STATUS_MAX, "Detected new %s network \"%s\", BSSID %s, "
 				 "encryption %s, channel %d, %2.2f mbit",
+				 nettype.c_str(),
 				 (net->ssid.length() == 0) ? 
 				 "<no ssid>" : net->ssid.c_str(), 
 				 net->bssid.Mac2String().c_str(),
