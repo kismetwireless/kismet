@@ -122,7 +122,7 @@ int Dumpfile_Gpsxml::chain_handler(kis_packet *in_pack) {
 
 	// If all we're doing is logging the GPS info...
 	if ((eight11 = (kis_ieee80211_packinfo *)
-		 in_pack->fetch(_PCM(PACK_COMP_GPS))) == NULL) {
+		 in_pack->fetch(_PCM(PACK_COMP_80211))) == NULL) {
 		fprintf(xmlfile, "    <gps-point bssid=\"%s\" time-sec=\"%ld\" "
 				"time-usec=\"%ld\" lat=\"%f\" lon=\"%f\" alt=\"%f\" spd=\"%f\" "
 				"heading=\"%f\" fix=\"%d\" />\n",
