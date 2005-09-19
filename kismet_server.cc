@@ -386,7 +386,7 @@ int main(int argc,char *argv[]) {
 				Usage(argv[0]);
 				exit(1);
 				break;
-			case 'c':
+			case 'f':
 				configfilename = strdup(optarg);
 				break;
 			case 200:

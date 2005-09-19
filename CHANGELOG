@@ -1,3 +1,4 @@
+Sep 19 2005  devel  Fixed config file cmdline option
 Sep 18 2005  devel  Moved CARD protocol into packetsourcetracker
                     Fixed "client ring buffer full" message going into the
                      client ring buffer
