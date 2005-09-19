@@ -86,16 +86,6 @@ char *STRING_fields_text[] = {
     NULL
 };
 
-char *CISCO_fields_text[] = {
-    "placeholder",
-    NULL
-};
-
-char *CARD_fields_text[] = {
-    "interface", "type", "username", "channel", "id", "packets", "hopping",
-    NULL
-};
-
 // Kismet welcome printer.  Data should be KISMET_data
 int Protocol_KISMET(PROTO_PARMS) {
     KISMET_data *kdata = (KISMET_data *) data;
@@ -396,46 +386,6 @@ int Protocol_STRING(PROTO_PARMS) {
         out_string += " ";
     }
 
-    return 1;
-}
-
-int Protocol_CARD(PROTO_PARMS) {
-    meta_packsource *csrc = (meta_packsource *) data;
-    char tmp[32];
-
-    for (unsigned int x = 0; x < field_vec->size(); x++) {
-        switch ((CARD_fields) (*field_vec)[x]) {
-        case CARD_interface:
-            out_string += csrc->device.c_str();
-            break;
-        case CARD_type:
-            // Fix this in the future...
-            out_string += csrc->prototype->cardtype.c_str();
-            break;
-        case CARD_username:
-            snprintf(tmp, 32, "\001%s\001", csrc->name.c_str());
-            out_string += tmp;
-            break;
-        case CARD_channel:
-            snprintf(tmp, 32, "%d", csrc->capsource->FetchChannel());
-            out_string += tmp;
-            break;
-        case CARD_id:
-            snprintf(tmp, 32, "%d", csrc->id);
-            out_string += tmp;
-            break;
-        case CARD_packets:
-            snprintf(tmp, 32, "%d", csrc->capsource->FetchNumPackets());
-            out_string += tmp;
-            break;
-        case CARD_hopping:
-            snprintf(tmp, 32, "%d", csrc->ch_hop);
-            out_string += tmp;
-            break;
-        }
-
-        out_string += " ";
-    }
     return 1;
 }
 
@@ -830,11 +780,6 @@ KisNetFramework::KisNetFramework(GlobalRegistry *in_globalreg) {
     
     // Alert ref done in alertracker
 
-	globalreg->netproto_map[PROTO_REF_CARD] =
-		RegisterProtocol("CARD", 0, 0, CARD_fields_text, 
-						 &Protocol_CARD, NULL, NULL);
-    // This has been broken for a long time now
-    // RegisterProtocol("CISCO", 0, CISCO_fields_text, &Protocol_CISCO, NULL);
 	globalreg->netproto_map[PROTO_REF_INFO] =
 		RegisterProtocol("INFO", 0, 0, INFO_fields_text, 
 						 &Protocol_INFO, NULL, NULL);
@@ -976,7 +921,7 @@ int KisNetFramework::BufferDrained(int in_fd) {
 		if (opt->backlog.size() == 0) {
 			snprintf(errstr, 1024, "Flushed protocol data backlog for Kismet "
 					 "client %d", in_fd);
-			_MSG(errstr, MSGFLAG_INFO);
+			_MSG(errstr, MSGFLAG_LOCAL);
 		}
 	}
 
@@ -1208,7 +1153,7 @@ int KisNetFramework::SendToClient(int in_fd, int in_refnum, const void *in_data,
 	if (ret == -2) {
 		snprintf(errstr, 1024, "Client %d ring buffer full, storing Kismet protocol "
 				 "data in backlog vector", in_fd);
-		_MSG(errstr, MSGFLAG_INFO);
+		_MSG(errstr, MSGFLAG_LOCAL);
 		opt->backlog.push_back(outtext);
 		delete[] outtext;
 		return 0;

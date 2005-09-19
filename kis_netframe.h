@@ -140,18 +140,9 @@ enum STRING_fields {
     STRING_bssid, STRING_sourcemac, STRING_text
 };
 
-enum CISCO_fields {
-    CISCO_placeholder
-};
-
 enum INFO_fields {
     INFO_networks, INFO_packets, INFO_crypt, INFO_weak,
     INFO_noise, INFO_dropped, INFO_rate, INFO_signal
-};
-
-enum CARD_fields {
-    CARD_interface, CARD_type, CARD_username, CARD_channel, CARD_id, CARD_packets,
-    CARD_hopping
 };
 
 extern char *KISMET_fields_text[];
@@ -162,8 +153,6 @@ extern char *CAPABILITY_fields_text[];
 extern char *TERMINATE_fields_text[];
 extern char *TIME_fields_text[];
 
-extern char *CARD_fields_text[];
-extern char *CISCO_fields_text[];
 extern char *INFO_fields_text[];
 extern char *PACKET_fields_text[];
 extern char *STATUS_fields_text[];
@@ -199,8 +188,6 @@ void Protocol_Packet2Data(const kis_packet *info, PACKET_data *data);
 int Protocol_PACKET(PROTO_PARMS); // PACKET_data
 int Protocol_STRING(PROTO_PARMS); // STRING_data
 int Protocol_WEPKEY(PROTO_PARMS); // wep_key_info
-int Protocol_CARD(PROTO_PARMS); // captype
-int Protocol_CISCO(PROTO_PARMS);
 
 typedef struct KISMET_data {
     string version;

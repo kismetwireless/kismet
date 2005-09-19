@@ -89,6 +89,11 @@ void SmartStdoutMessageClient::ProcessMessage(string in_msg, int in_flags) {
 			fprintf(stdout, "%s", InLineWrap("DEBUG: " + in_msg, 7, 80).c_str());
 		else
 			fprintf(stdout, "DEBUG: %s\n", in_msg.c_str());
+	} else if ((in_flags & MSGFLAG_LOCAL)) {
+		if (glob_linewrap)
+			fprintf(stdout, "%s", InLineWrap("LOCAL: " + in_msg, 7, 80).c_str());
+		else
+			fprintf(stdout, "LOCAL: %s\n", in_msg.c_str());
 	} else if ((in_flags & MSGFLAG_INFO)) {
 		if (glob_linewrap)
 			fprintf(stdout, "%s", InLineWrap("INFO: " + in_msg, 6, 80).c_str());

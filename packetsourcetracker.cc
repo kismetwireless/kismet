@@ -18,6 +18,9 @@
 
 #include "config.h"
 
+#include <string>
+#include <sstream>
+
 #include "util.h"
 #include "packetsourcetracker.h"
 #include "packetsource.h"
@@ -30,6 +33,78 @@
 // Bring in the ifcontrol stuff for 'auto'
 #include "ifcontrol.h"
 #endif
+
+char *CARD_fields_text[] = {
+    "interface", "type", "username", "channel", "id", "packets", "hopping",
+    NULL
+};
+
+int Protocol_CARD(PROTO_PARMS) {
+    meta_packsource *csrc = (meta_packsource *) data;
+	ostringstream osstr;
+
+	// Fill up the cache
+	cache->Filled(field_vec->size());
+
+	for (unsigned int x = 0; x < field_vec->size(); x++) {
+		unsigned int fnum = (*field_vec)[x];
+		if (fnum >= CARD_maxfield) {
+			out_string = "Unknown field requested";
+			return -1;
+		}
+
+		osstr.str("");
+
+		if (cache->Filled(fnum)) {
+			out_string += cache->GetCache(fnum) + " ";
+			continue;
+		}
+
+		// Fill in the cached element
+		switch (fnum) {
+			case CARD_interface:
+				cache->Cache(fnum, csrc->device);
+				break;
+			case CARD_type:
+				cache->Cache(fnum, csrc->prototype->cardtype);
+				break;
+			case CARD_username:
+				cache->Cache(fnum, "\001" + MungeToPrintable(csrc->name) + "\001");
+				break;
+			case CARD_channel:
+				osstr << csrc->capsource->FetchChannel();
+				cache->Cache(fnum, osstr.str());
+				break;
+			case CARD_id:
+				osstr << csrc->id;
+				cache->Cache(fnum, osstr.str());
+				break;
+			case CARD_packets:
+				osstr << csrc->capsource->FetchNumPackets();
+				cache->Cache(fnum, osstr.str());
+				break;
+			case CARD_hopping:
+				if (csrc->ch_hop)
+					cache->Cache(fnum, "1");
+				else
+					cache->Cache(fnum, "0");
+				break;
+		}
+
+		out_string += cache->GetCache(fnum) + " ";
+	}
+
+    return 1;
+}
+
+// Enable hook to blit known cards
+void Protocol_CARD_enable(PROTO_ENABLE_PARMS) {
+	Packetsourcetracker *pstrak = (Packetsourcetracker *) data;
+
+	pstrak->BlitCards(in_fd);
+
+	return;
+}
 
 void Packetcontrolchild_MessageClient::ProcessMessage(string in_msg, int in_flags) {
     // Redirect stuff into the protocol to talk to the parent control
@@ -81,6 +156,31 @@ Packetsourcetracker::Packetsourcetracker(GlobalRegistry *in_globalreg) {
     chanchild_pid = 0;
     sockpair[0] = sockpair[1] = 0;
 
+	if (globalreg->packetchain == NULL) {
+		fprintf(stderr, "FATAL OOPS:  Packetsourcetracker called before "
+				"packetchain\n");
+		exit(1);
+	}
+
+	if (globalreg->kisnetserver == NULL) {
+		fprintf(stderr, "FATAL OOPS:  Packetsourcetracker called before "
+				"kisnetframework\n");
+		exit(1);
+	} 
+
+	if (globalreg->kismet_config == NULL) {
+		fprintf(stderr, "FATAL OOPS:  Packetsourcetracker called before "
+				"kismet_config\n");
+		exit(1);
+	}
+
+	// Register the CARD protocol
+	card_protoref =
+		globalreg->kisnetserver->RegisterProtocol("CARD", 0, 1,
+												  CARD_fields_text,
+												  &Protocol_CARD,
+												  &Protocol_CARD_enable,
+												  this);
 
 	// Register our packet components 
 	// back-refer to the capsource so we can get names and parameters
@@ -93,7 +193,6 @@ Packetsourcetracker::Packetsourcetracker(GlobalRegistry *in_globalreg) {
 		globalreg->packetchain->RegisterPacketComponent("LINKFRAME");
 	_PCM(PACK_COMP_80211FRAME) =
 		globalreg->packetchain->RegisterPacketComponent("80211FRAME");
-	
 
     // Register all our packet sources
     // RegisterPacketsource(name, root, channelset, init channel, register,
@@ -190,205 +289,6 @@ Packetsourcetracker::Packetsourcetracker(GlobalRegistry *in_globalreg) {
 
 #endif
 
-#endif
-
-#if 0
-    // Drone
-    RegisterPacketsource("kismet_drone", 0, "na", 0,
-                         dronesource_registrant,
-                         NULL, unmonitor_dronesource, NULL, 0);
-
-    // pcap supported sources 
-#ifdef HAVE_LIBPCAP
-    // pcapfile doesn't have channel or monitor controls
-    RegisterPacketsource("pcapfile", 0, "na", 0,
-                         pcapsource_file_registrant,
-                         NULL, unmonitor_pcapfile, NULL, 0);
-#else
-    REG_EMPTY_CARD("pcapfile");
-#endif
-
-#if defined(HAVE_LIBPCAP) && defined(HAVE_LINUX_WIRELESS)
-    // Linux wext-driven cards
-    RegisterPacketsource("cisco", 1, "IEEE80211b", 6,
-                         pcapsource_wext_registrant,
-                         monitor_cisco, unmonitor_cisco, 
-                         chancontrol_wext, 1);
-    RegisterPacketsource("cisco_wifix", 1, "IEEE80211b", 6,
-                         pcapsource_ciscowifix_registrant,
-                         monitor_cisco_wifix, NULL, NULL, 1);
-    RegisterPacketsource("hostap", 1, "IEEE80211b", 6,
-                         pcapsource_wext_registrant,
-                         monitor_hostap, unmonitor_hostap, 
-                         chancontrol_wext, 1);
-    RegisterPacketsource("orinoco", 1, "IEEE80211b", 6,
-                         pcapsource_wext_registrant,
-                         monitor_orinoco, unmonitor_orinoco, 
-                         chancontrol_orinoco, 1);
-    RegisterPacketsource("orinoco_14", 1, "IEEE80211b", 6,
-                         pcapsource_wext_registrant,
-                         monitor_orinoco, unmonitor_orinoco,
-                         chancontrol_orinoco, 1);
-    RegisterPacketsource("acx100", 1, "IEEE80211b", 6,
-                         pcapsource_wextfcs_registrant,
-                         monitor_acx100, unmonitor_acx100, 
-                         chancontrol_wext, 1);
-    RegisterPacketsource("admtek", 1, "IEEE80211b", 6,
-                         pcapsource_wext_registrant,
-                         monitor_admtek, unmonitor_admtek,
-                         chancontrol_wext, 1);
-    RegisterPacketsource("vtar5k", 1, "IEEE80211a", 36,
-                         pcapsource_wext_registrant,
-                         monitor_vtar5k, NULL, chancontrol_wext, 1);
-
-    RegisterPacketsource("madwifi_a", 1, "IEEE80211a", 36,
-                         pcapsource_wextfcs_registrant,
-                         monitor_madwifi_a, unmonitor_madwifi, 
-                         chancontrol_wext, 1);
-    RegisterPacketsource("madwifi_b", 1, "IEEE80211b", 6,
-                         pcapsource_wextfcs_registrant,
-                         monitor_madwifi_b, unmonitor_madwifi, 
-                         chancontrol_wext, 1);
-    RegisterPacketsource("madwifi_g", 1, "IEEE80211g", 6,
-                         pcapsource_11gfcs_registrant,
-                         monitor_madwifi_g, unmonitor_madwifi, 
-                         chancontrol_wext, 1);
-    RegisterPacketsource("madwifi_ab", 1, "IEEE80211ab", 6,
-                         pcapsource_wextfcs_registrant,
-                         monitor_madwifi_comb, unmonitor_madwifi, 
-                         chancontrol_madwifi_ab, 1);
-    RegisterPacketsource("madwifi_ag", 1, "IEEE80211ab", 6,
-                         pcapsource_11gfcs_registrant,
-                         monitor_madwifi_comb, unmonitor_madwifi, 
-                         chancontrol_madwifi_ag, 1);
-
-    RegisterPacketsource("prism54g", 1, "IEEE80211g", 6,
-                         pcapsource_11g_registrant,
-                         monitor_prism54g, unmonitor_prism54g,
-                         chancontrol_prism54g, 1);
-
-    RegisterPacketsource("wlanng_wext", 1, "IEEE80211b", 6,
-                         pcapsource_wlanng_registrant,
-                         monitor_wlanng_avs, NULL,
-                         chancontrol_wext, 1);
-
-    RegisterPacketsource("ipw2100", 1, "IEEE80211b", 6,
-                         pcapsource_wext_registrant,
-                         monitor_ipw2100, unmonitor_ipw2100,
-                         chancontrol_ipw2100, 1);
-
-    RegisterPacketsource("rt2400", 1, "IEEE80211b", 6,
-                         pcapsource_wext_registrant,
-                         monitor_wext, unmonitor_wext,
-                         chancontrol_wext, 1);
-    RegisterPacketsource("rt2500", 1, "IEEE80211g", 6,
-                         pcapsource_11g_registrant,
-                         monitor_wext, unmonitor_wext,
-                         chancontrol_wext, 1);
-
-#else
-    // Register the linuxwireless pcap stuff as null
-    REG_EMPTY_CARD("cisco");
-    REG_EMPTY_CARD("cisco_wifix");
-    REG_EMPTY_CARD("hostap");
-    REG_EMPTY_CARD("orinoco");
-    REG_EMPTY_CARD("acx100");
-    REG_EMPTY_CARD("vtar5k");
-
-    REG_EMPTY_CARD("madwifi_a");
-    REG_EMPTY_CARD("madwifi_b");
-    REG_EMPTY_CARD("madwifi_g");
-    REG_EMPTY_CARD("madwifi_ab");
-    REG_EMPTY_CARD("madwifi_ag");
-
-    REG_EMPTY_CARD("prism54g");
-
-    REG_EMPTY_CARD("ipw2100");
-
-    REG_EMPTY_CARD("wlanng_wext");
-#endif
-
-#if defined(HAVE_LIBPCAP) && defined(SYS_LINUX)
-    RegisterPacketsource("wlanng", 1, "IEEE80211b", 6,
-                         pcapsource_wlanng_registrant,
-                         monitor_wlanng, NULL, chancontrol_wlanng, 1);
-    RegisterPacketsource("wlanng_avs", 1, "IEEE80211b", 6,
-                         pcapsource_wlanng_registrant,
-                         monitor_wlanng_avs, NULL,
-                         chancontrol_wlanng_avs, 1);
-    RegisterPacketsource("wrt54g", 1, "na", 0,
-                         pcapsource_wrt54g_registrant,
-                         monitor_wrt54g, NULL, NULL, 0);
-#else
-    REG_EMPTY_CARD("wlanng");
-    REG_EMPTY_CARD("wlanng_avs");
-    REG_EMPTY_CARD("wrt54g");
-#endif
-
-#if defined(SYS_LINUX) && defined(HAVE_LINUX_NETLINK)
-    RegisterPacketsource("wlanng_legacy", 1, "IEEE80211b", 6,
-                         prism2source_registrant,
-                         monitor_wlanng_legacy, NULL,
-                         chancontrol_wlanng_legacy, 1);
-#else
-    REG_EMPTY_CARD("wlanng_legacy");
-#endif
-
-#if defined(HAVE_LIBPCAP) && defined(SYS_OPENBSD)
-    RegisterPacketsource("cisco_openbsd", 1, "IEEE80211b", 6,
-                         pcapsource_registrant,
-                         monitor_openbsd_cisco, NULL, NULL, 1);
-    RegisterPacketsource("prism2_openbsd", 1, "IEEE80211b", 6,
-                         pcapsource_openbsdprism2_registrant,
-                         monitor_openbsd_prism2, NULL,
-                         chancontrol_openbsd_prism2, 1);
-#else
-    REG_EMPTY_CARD("cisco_openbsd");
-    REG_EMPTY_CARD("prism2_openbsd");
-#endif
-
-#if defined(HAVE_LIBPCAP) && defined(SYS_FREEBSD) && defined(HAVE_RADIOTAP)
-    RegisterPacketsource("radiotap_fbsd_ab", 1, "IEEE80211ab", 6,
-                         pcapsource_radiotap_registrant,
-                         monitor_freebsd, unmonitor_freebsd,
-                         chancontrol_freebsd, 1);
-    RegisterPacketsource("radiotap_fbsd_a",1, "IEEE80211a", 6,
-                         pcapsource_radiotap_registrant,
-                         monitor_freebsd, unmonitor_freebsd,
-                         chancontrol_freebsd, 1);
-    RegisterPacketsource("radiotap_fbsd_b",1, "IEEE80211b", 6,
-                         pcapsource_radiotap_registrant,
-                         monitor_freebsd, unmonitor_freebsd,
-                         chancontrol_freebsd, 1);
-#else
-    REG_EMPTY_CARD("radiotap_fbsd_ab");
-    REG_EMPTY_CARD("radiotap_fbsd_a");
-    REG_EMPTY_CARD("radiotap_fbsd_b");
-#endif
-
-#if defined(HAVE_LIBWIRETAP)
-    RegisterPacketsource("wtapfile", 0, "na", 0,
-                         wtapfilesource_registrant,
-                         NULL, NULL, NULL, 0);
-#else
-    REG_EMPTY_CARD("wtapfile");
-#endif
-
-#if defined(HAVE_WSP100)
-    RegisterPacketsource("wsp100", 0, "IEEE80211b", 6,
-                         wsp100source_registrant,
-                         monitor_wsp100, NULL, chancontrol_wsp100, 0);
-#else
-    REG_EMPTY_CARD("wsp100");
-#endif
-
-#if defined(HAVE_VIHAHEADERS)
-    RegisterPacketsource("viha", 1, "IEEE80211b", 6,
-                         vihasource_registrant,
-                         NULL, NULL, chancontrol_viha, 0);
-#else
-    REG_EMPTY_CARD("viha");
-#endif
 #endif
 
 	// Register the packetsourcetracker as a pollable subsystem
@@ -1559,6 +1459,21 @@ int Packetsourcetracker::ShutdownChannelChild() {
 
     return 1;
 #endif
+}
+
+void Packetsourcetracker::BlitCards(int in_fd) {
+	kis_protocol_cache cache;
+
+	for (unsigned int x = 0; x < meta_packsources.size(); x++) {
+		// Don't send ones with no info
+		if (meta_packsources[x]->capsource == NULL)
+			continue;
+
+		if (globalreg->kisnetserver->SendToClient(in_fd, card_protoref,
+												  (void *) meta_packsources[x],
+												  &cache) < 0)
+			break;
+	}
 }
 
 // Interrupt handler - we just die.

@@ -68,9 +68,11 @@ int NetworkClient::Poll(fd_set& in_rset, fd_set& in_wset) {
 
     // Look for stuff to read
     if (FD_ISSET(cli_fd, &in_rset)) {
-        // If we failed reading, die.  The read handler will kill the link.
-        if ((ret = ReadBytes()) < 0)
+        // If we failed reading, die.
+        if ((ret = ReadBytes()) < 0) {
+            KillConnection();
             return ret;
+		}
 
         // If we've got new data, try to parse.  if we fail, die.
         if (ret != 0 && cliframework->ParseData() < 0) {
@@ -81,11 +83,11 @@ int NetworkClient::Poll(fd_set& in_rset, fd_set& in_wset) {
 
     // Look for stuff to write
     if (FD_ISSET(cli_fd, &in_wset)) {
-        // If we can't write data, die.  The write handler will kill the link.
+        // If we can't write data, die.
         if ((ret = WriteBytes()) < 0)
+            KillConnection();
             return ret;
     }
-    
     
     return ret;
 }
@@ -134,8 +136,6 @@ int NetworkClient::FlushRings() {
 }
 
 void NetworkClient::KillConnection() {
-    cliframework->KillConnection();
-
     if (cl_valid) {
         delete read_buf;
         delete write_buf;
@@ -154,6 +154,7 @@ int NetworkClient::WriteData(void *in_data, int in_len) {
         snprintf(errstr, STATUS_MAX, "NetworkClient::WriateData no room in ring "
                  "buffer to insert %d bytes", in_len);
         globalreg->messagebus->InjectMessage(errstr, MSGFLAG_ERROR);
+		KillConnection();
         return -1;
     }
 

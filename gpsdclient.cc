@@ -195,14 +195,14 @@ GPSDClient::~GPSDClient() {
 	// Unregister ourselves from the main tcp service loop
 	globalreg->RemovePollableSubsys(this);
 	
-    if (tcpcli != NULL) {
+    if (tcpcli != NULL && tcpcli->Valid()) {
         tcpcli->KillConnection();
         delete tcpcli;
     }
 }
 
 int GPSDClient::KillConnection() {
-    if (tcpcli != NULL)
+    if (tcpcli != NULL && tcpcli->Valid())
         tcpcli->KillConnection();
 
     return 1;
@@ -219,7 +219,7 @@ int GPSDClient::Shutdown() {
 
 int GPSDClient::InjectCommand() {
     // Timed backoff up to 30 seconds
-    if (netclient->Valid() == 0 && reconnect_attempt &&
+    if (netclient->Valid() == 0 && reconnect_attempt >= 0 &&
         (time(0) - last_disconnect >= (kismin(reconnect_attempt, 6) * 5))) {
         if (Reconnect() <= 0)
             return 0;

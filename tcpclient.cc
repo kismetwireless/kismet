@@ -93,12 +93,14 @@ int TcpClient::ReadBytes() {
         snprintf(errstr, 1024, "TCP client fd %d read() error: %s", 
                  cli_fd, strerror(errno));
         globalreg->messagebus->InjectMessage(errstr, MSGFLAG_ERROR);
+		KillConnection();
         return -1;
     }
 
     if (ret == 0) {
         snprintf(errstr, 1024, "TCP client fd %d socket closed.", cli_fd);
         globalreg->messagebus->InjectMessage(errstr, MSGFLAG_ERROR);
+		KillConnection();
         return -1;
     }
 
@@ -106,6 +108,7 @@ int TcpClient::ReadBytes() {
         snprintf(errstr, 1024, "TCP client fd %d read error, ring buffer full",
                  cli_fd);
         globalreg->messagebus->InjectMessage(errstr, MSGFLAG_ERROR);
+		KillConnection();
         return -1;
     }
 
@@ -122,7 +125,7 @@ int TcpClient::WriteBytes() {
         snprintf(errstr, 1024, "TCP client: Killing client fd %d write error %s",
                  cli_fd, strerror(errno));
         globalreg->messagebus->InjectMessage(errstr, MSGFLAG_ERROR);
-        KillConnection();
+		KillConnection();
         return -1;
     }
 

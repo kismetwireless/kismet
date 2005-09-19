@@ -1,3 +1,9 @@
+Sep 18 2005  devel  Moved CARD protocol into packetsourcetracker
+                    Fixed "client ring buffer full" message going into the
+                     client ring buffer
+                    Fixed loop in clinetframe kill procedure, fixed hammering
+                     "Socket closed" error messages
+                    Fixed gpsd reconnect if nothing to connect to
 Sep 17 2005  devel  Added tracking of multiple SSIDs per network, and tracking
                      all networks a client has probed for.  No methods to export
                      this information yet.

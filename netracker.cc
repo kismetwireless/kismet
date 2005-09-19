@@ -579,8 +579,9 @@ void Protocol_NETWORK_enable(PROTO_ENABLE_PARMS) {
 		// Send with a local cache that just gets thrown away, its only to 1
 		// client so we can't efficiently cache
 		kis_protocol_cache cache;
-		globalreg->kisnetserver->SendToClient(in_fd, _NPM(PROTO_REF_NETWORK),
-											  (void *) x->second, &cache);
+		if (globalreg->kisnetserver->SendToClient(in_fd, _NPM(PROTO_REF_NETWORK),
+												  (void *) x->second, &cache) < 0)
+			break;
 	}
 }
 
@@ -591,8 +592,9 @@ void Protocol_CLIENT_enable(PROTO_ENABLE_PARMS) {
             continue;
 
 		kis_protocol_cache cache;
-		globalreg->kisnetserver->SendToClient(in_fd, _NPM(PROTO_REF_CLIENT),
-											  (void *) x->second, &cache);
+		if (globalreg->kisnetserver->SendToClient(in_fd, _NPM(PROTO_REF_CLIENT),
+												  (void *) x->second, &cache) < 0)
+			break;
 	}
 }
 

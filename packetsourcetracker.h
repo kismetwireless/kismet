@@ -265,6 +265,9 @@ public:
     // Release sources, disabling monitor if possible
     int CloseSources();
 
+	// Blit out what we know about
+	void BlitCards(int in_fd);
+
 	// Usage
 	static void Usage(char *name);
 
@@ -287,6 +290,8 @@ protected:
     } chanchild_changepacket;
 
     GlobalRegistry *globalreg;
+
+	int card_protoref;
     
     char errstr[1024];
 
@@ -326,6 +331,16 @@ protected:
     friend int ChannelHopEvent(Timetracker::timer_event *evt, 
                                void *parm, GlobalRegistry *globalreg);
 };
+
+enum CARD_fields {
+    CARD_interface, CARD_type, CARD_username, CARD_channel, CARD_id, CARD_packets,
+    CARD_hopping,
+	CARD_maxfield
+};
+extern char *CARD_fields_text[];
+
+int Protocol_CARD(PROTO_PARMS);
+void Protocol_CARD_enable(PROTO_ENABLE_PARMS);
 
 #endif
 
