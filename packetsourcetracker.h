@@ -292,6 +292,8 @@ protected:
     GlobalRegistry *globalreg;
 
 	int card_protoref;
+	int hop_eventid;
+	int card_eventid;
     
     char errstr[1024];
 

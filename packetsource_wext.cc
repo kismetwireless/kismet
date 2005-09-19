@@ -46,16 +46,17 @@ typedef unsigned long u64;
 
 int PacketSource_Wext::FetchChannel() {
     char errstr[STATUS_MAX] = "";
+	int chan = 0;
 
     // Failure to fetch a channel isn't necessarily a fatal error
 	// and if we blow up badly enough that we can't get channels, we'll
 	// blow up definitively on something else soon enough
-    if (Iwconfig_Get_Channel(interface.c_str(), errstr) < 0) {
+    if ((chan = Iwconfig_Get_Channel(interface.c_str(), errstr)) < 0) {
         globalreg->messagebus->InjectMessage(errstr, MSGFLAG_ERROR);
         return -1;
     }
 
-    return 1;
+    return chan;
 }
 
 void PacketSource_Wext::FetchRadioData(kis_packet *in_packet) {

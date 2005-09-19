@@ -106,6 +106,13 @@ void Protocol_CARD_enable(PROTO_ENABLE_PARMS) {
 	return;
 }
 
+int Event_CARD(TIMEEVENT_PARMS) {
+	// Just send everything
+	globalreg->sourcetracker->BlitCards(-1);
+
+	return 1;
+}
+
 void Packetcontrolchild_MessageClient::ProcessMessage(string in_msg, int in_flags) {
     // Redirect stuff into the protocol to talk to the parent control
 
@@ -484,14 +491,21 @@ int Packetsourcetracker::LoadConfiguredCards() {
 
 	if (channel_hop) {
 		if (channel_dwell < 1)
-			globalreg->timetracker->RegisterTimer(SERVER_TIMESLICES_SEC / 
-												  channel_velocity, 
-												  NULL, 1, &ChannelHopEvent, NULL);
+			hop_eventid = 
+				globalreg->timetracker->RegisterTimer(SERVER_TIMESLICES_SEC / 
+													  channel_velocity, 
+													  NULL, 1, &ChannelHopEvent, 
+													  NULL);
 		else
-			globalreg->timetracker->RegisterTimer(SERVER_TIMESLICES_SEC * 
-												  channel_dwell, NULL, 1, 
-												  &ChannelHopEvent, NULL);
+			hop_eventid = 
+				globalreg->timetracker->RegisterTimer(SERVER_TIMESLICES_SEC * 
+													  channel_dwell, NULL, 1, 
+													  &ChannelHopEvent, NULL);
 	}
+
+	card_eventid =
+		globalreg->timetracker->RegisterTimer(SERVER_TIMESLICES_SEC,
+											  NULL, 1, &Event_CARD, NULL);
 
 	return 1;
 }
@@ -1469,10 +1483,16 @@ void Packetsourcetracker::BlitCards(int in_fd) {
 		if (meta_packsources[x]->capsource == NULL)
 			continue;
 
-		if (globalreg->kisnetserver->SendToClient(in_fd, card_protoref,
-												  (void *) meta_packsources[x],
-												  &cache) < 0)
-			break;
+		if (in_fd == -1) {
+			if (globalreg->kisnetserver->SendToAll(card_protoref, 
+												   (void *) meta_packsources[x]) < 0)
+				break;
+		} else {
+			if (globalreg->kisnetserver->SendToClient(in_fd, card_protoref,
+													  (void *) meta_packsources[x],
+													  &cache) < 0)
+				break;
+		}
 	}
 }
 
