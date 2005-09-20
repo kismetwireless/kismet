@@ -199,7 +199,7 @@ public:
 			// These all go to 0 since we don't know if it'll be positive or
 			// negative
 			last_signal = last_noise = 0;
-			max_signal = max_noise = 0;
+			max_signal = max_noise = -256;
 
 			peak_lat = peak_lon = peak_alt = 0;
 
