@@ -61,12 +61,6 @@ char *TIME_fields_text[] = {
     NULL
 };
 
-char *INFO_fields_text[] = {
-    "networks", "packets", "crypt", "weak",
-    "noise", "dropped", "rate", "signal",
-    NULL
-};
-
 char *STATUS_fields_text[] = {
     "text",
     NULL
@@ -227,48 +221,6 @@ int Protocol_TIME(PROTO_PARMS) {
     int *tim = (int *) data;
     snprintf(tmpstr, 32, "%d", *tim);
     out_string += tmpstr;
-    return 1;
-}
-
-// General info.  data = INFO_data
-int Protocol_INFO(PROTO_PARMS) {
-    INFO_data *idata = (INFO_data *) data;
-
-    for (unsigned int x = 0; x < field_vec->size(); x++) {
-        switch ((INFO_fields) (*field_vec)[x]) {
-        case INFO_networks:
-            out_string += idata->networks;
-            break;
-        case INFO_packets:
-            out_string += idata->packets;
-            break;
-        case INFO_crypt:
-            out_string += idata->crypt;
-            break;
-        case INFO_weak:
-            out_string += idata->weak;
-            break;
-        case INFO_noise:
-            out_string += idata->noise;
-            break;
-        case INFO_dropped:
-            out_string += idata->dropped;
-            break;
-        case INFO_rate:
-            out_string += idata->rate;
-            break;
-        case INFO_signal:
-            out_string += idata->signal;
-            break;
-        default:
-            out_string = "Unknown field requested.";
-            return -1;
-            break;
-        }
-
-        out_string += " ";
-    }
-
     return 1;
 }
 
@@ -778,11 +730,6 @@ KisNetFramework::KisNetFramework(GlobalRegistry *in_globalreg) {
 
     // Other protocols
     
-    // Alert ref done in alertracker
-
-	globalreg->netproto_map[PROTO_REF_INFO] =
-		RegisterProtocol("INFO", 0, 0, INFO_fields_text, 
-						 &Protocol_INFO, NULL, NULL);
 	globalreg->netproto_map[PROTO_REF_PACKET] =
 		RegisterProtocol("PACKET", 0, 0, PACKET_fields_text, 
 						 &Protocol_PACKET, NULL, NULL);

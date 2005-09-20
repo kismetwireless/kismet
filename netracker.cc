@@ -83,6 +83,13 @@ char *CLIENT_fields_text[] = {
     NULL
 };
 
+char *INFO_fields_text[] = {
+	"networks", "packets", "crypt", "weak",
+	"noise", "dropped", "rate", "signal",
+	"filtered", "clients",
+	NULL
+};
+
 mac_addr bcast_mac = mac_addr("FF:FF:FF:FF:FF:FF");
 
 // Network records.  data = NETWORK_data
@@ -617,6 +624,79 @@ int Netracker_Clicmd_ADDFILTER(CLIENT_PARMS) {
 	return 1;
 }
 
+int Protocol_INFO(PROTO_PARMS) {
+	ostringstream osstr;
+
+	// Alloc the cache quickly
+	cache->Filled(field_vec->size());
+
+    for (unsigned int x = 0; x < field_vec->size(); x++) {
+        unsigned int fnum = (*field_vec)[x];
+        if (fnum >= INFO_maxfield) {
+            out_string = "Unknown field requested.";
+            return -1;
+		}
+
+		osstr.str("");
+
+		// Shortcut test the cache once and print/bail immediately
+		if (cache->Filled(fnum)) {
+			out_string += cache->GetCache(fnum) + " ";
+			continue;
+		}
+
+		// Fill in the cached element
+		switch(fnum) {
+			case INFO_networks:
+				osstr << globalreg->netracker->FetchNumNetworks();
+				cache->Cache(fnum, osstr.str());
+				break;
+			case INFO_clients:
+				osstr << globalreg->netracker->FetchNumClients();
+				cache->Cache(fnum, osstr.str());
+				break;
+			case INFO_packets:
+				osstr << globalreg->netracker->FetchNumPackets();
+				cache->Cache(fnum, osstr.str());
+				break;
+			case INFO_cryptpackets:
+				osstr << globalreg->netracker->FetchNumCryptpackets();
+				cache->Cache(fnum, osstr.str());
+				break;
+			case INFO_weakpackets:
+				osstr << globalreg->netracker->FetchNumFMSpackets();
+				cache->Cache(fnum, osstr.str());
+				break;
+			case INFO_noisepackets:
+				osstr << globalreg->netracker->FetchNumErrorpackets();
+				cache->Cache(fnum, osstr.str());
+				break;
+			case INFO_droppedpackets:
+				osstr << (globalreg->netracker->FetchNumErrorpackets() +
+						  globalreg->netracker->FetchNumFiltered());
+				cache->Cache(fnum, osstr.str());
+				break;
+			case INFO_packetrate:
+				osstr << globalreg->netracker->FetchPacketRate();
+				cache->Cache(fnum, osstr.str());
+				break;
+			case INFO_filteredpackets:
+				osstr << globalreg->netracker->FetchNumFiltered();
+				cache->Cache(fnum, osstr.str());
+				break;
+			case INFO_signal_dep:
+				cache->Cache(fnum, "0 0 0");
+				cache->Cache(fnum, osstr.str());
+				break;
+		}
+
+		// print the newly filled in cache
+		out_string += cache->GetCache(fnum) + " ";
+    }
+
+    return 1;
+}
+
 // These are both just dropthroughs into the class itself
 int kis_80211_netracker_hook(CHAINCALL_PARMS) {
 	Netracker *auxptr = (Netracker *) auxdata;
@@ -742,6 +822,10 @@ Netracker::Netracker(GlobalRegistry *in_globalreg) {
 		globalreg->kisnetserver->RegisterProtocol("REMOVE", 0, 1,
 												  REMOVE_fields_text, 
 												  &Protocol_REMOVE, NULL, this);
+	_NPM(PROTO_REF_INFO) =
+		globalreg->kisnetserver->RegisterProtocol("INFO", 0, 1,
+												  INFO_fields_text, 
+												  &Protocol_INFO, NULL, this);
 
 	// Add the client command
 	addfiltercmd_ref =
@@ -763,6 +847,9 @@ Netracker::Netracker(GlobalRegistry *in_globalreg) {
 	netrackereventid = 
 		globalreg->timetracker->RegisterTimer(SERVER_TIMESLICES_SEC, NULL, 1,
 											  &NetrackerUpdateTimer, (void *) this);
+
+	num_packets = num_datapackets = num_cryptpackets = num_fmsweakpackets =
+		num_errorpackets = num_filterpackets = num_packetdelta = 0;
 }
 
 Netracker::~Netracker() {
@@ -792,6 +879,7 @@ int Netracker::TimerKick() {
 			x->second->new_packets = 0;
 		}
 	}
+
 	for (Netracker::client_iter x = globalreg->netracker->client_map.begin(); 
 		 x != globalreg->netracker->client_map.end(); ++x) {
         if (x->second->type == client_remove) 
@@ -803,6 +891,12 @@ int Netracker::TimerKick() {
 			x->second->new_packets = 0;
 		}
 	}
+
+	// Send the info frame to everyone
+	globalreg->kisnetserver->SendToAll(_NPM(PROTO_REF_INFO), NULL);
+
+	num_packetdelta = 0;
+
 	return 1;
 }
 
@@ -870,11 +964,15 @@ int Netracker::netracker_chain_handler(kis_packet *in_pack) {
 		return 0;
 	}
 
+	num_packets++;
+	num_packetdelta++;
+
 	// Compare against the filter and return w/out making a network record or
 	// anything if we're due to be excluded anyhow.  This also keeps datatracker
 	// handlers from processing since they won't find a network reference
 	if (track_filter->RunFilter(packinfo->bssid_mac, packinfo->source_mac,
 								packinfo->dest_mac)) {
+		num_filterpackets++;
 		return 0;
 	}
 
@@ -883,6 +981,7 @@ int Netracker::netracker_chain_handler(kis_packet *in_pack) {
 	if (packinfo->corrupt || packinfo->type == packet_noise ||
 		packinfo->type == packet_unknown || 
 		packinfo->subtype == packet_sub_unknown) {
+		num_errorpackets++;
 		return 0;
 	}
 
@@ -1196,6 +1295,7 @@ int Netracker::netracker_chain_handler(kis_packet *in_pack) {
 		if (packinfo->cryptset) {
 			net->cryptset |= packinfo->cryptset;
 			cli->cryptset |= packinfo->cryptset;
+			num_cryptpackets++;
 		}
 
 		// Fire off an alert if the channel changes
@@ -1382,6 +1482,8 @@ int Netracker::datatracker_chain_handler(kis_packet *in_pack) {
 	if (clipackinfo == NULL) {
 		return 0;
 	}
+
+	num_datapackets++;
 
 	cli = clipackinfo->cliref;
 
@@ -1751,4 +1853,39 @@ int Netracker::WriteIPCache() {
 	return 1;
 }
 
+int Netracker::FetchNumNetworks() {
+	return tracked_map.size();
+}
+
+int Netracker::FetchNumClients() {
+	return client_map.size();
+}
+
+int Netracker::FetchNumPackets() {
+	return num_packets;
+}
+
+int Netracker::FetchNumDatapackets() {
+	return num_datapackets;
+}
+
+int Netracker::FetchNumCryptpackets() {
+	return num_cryptpackets;
+}
+
+int Netracker::FetchNumFMSpackets() {
+	return num_fmsweakpackets;
+}
+
+int Netracker::FetchNumErrorpackets() {
+	return num_errorpackets;
+}
+
+int Netracker::FetchNumFiltered() {
+	return num_filterpackets;
+}
+
+int Netracker::FetchPacketRate() {
+	return num_packetdelta;
+}
 

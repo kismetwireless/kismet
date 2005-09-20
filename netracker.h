@@ -95,9 +95,18 @@ enum REMOVE_fields {
     REMOVE_bssid
 };
 
+// The info protocol lives in here for lack of anywhere better to live
+enum INFO_fields {
+	INFO_networks, INFO_packets, INFO_cryptpackets, INFO_weakpackets,
+	INFO_noisepackets, INFO_droppedpackets, INFO_packetrate, 
+	INFO_signal_dep, INFO_filteredpackets, INFO_clients,
+	INFO_maxfield
+};
+
 extern char *NETWORK_fields_text[];
 extern char *CLIENT_fields_text[];
 extern char *REMOVE_fields_text[];
+extern char *INFO_fields_text[];
 
 // Enums explicitly defined for the ease of client writers
 enum network_type {
@@ -399,6 +408,16 @@ public:
 	Netracker(GlobalRegistry *in_globalreg);
 	~Netracker();
 
+	int FetchNumNetworks();
+	int FetchNumPackets();
+	int FetchNumDatapackets();
+	int FetchNumCryptpackets();
+	int FetchNumFMSpackets();
+	int FetchNumErrorpackets();
+	int FetchNumFiltered();
+	int FetchNumClients();
+	int FetchPacketRate();
+
 	int AddFilter(string in_filter);
 
 	typedef map<mac_addr, Netracker::tracked_network *>::iterator track_iter;
@@ -409,6 +428,14 @@ public:
 
 protected:
 	GlobalRegistry *globalreg;
+
+	int num_packets;
+	int num_datapackets;
+	int num_cryptpackets;
+	int num_fmsweakpackets;
+	int num_errorpackets;
+	int num_filterpackets;
+	int num_packetdelta;
 
 	// Actually handle the chain events
 	int netracker_chain_handler(kis_packet *in_pack);

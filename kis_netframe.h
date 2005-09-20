@@ -140,11 +140,6 @@ enum STRING_fields {
     STRING_bssid, STRING_sourcemac, STRING_text
 };
 
-enum INFO_fields {
-    INFO_networks, INFO_packets, INFO_crypt, INFO_weak,
-    INFO_noise, INFO_dropped, INFO_rate, INFO_signal
-};
-
 extern char *KISMET_fields_text[];
 extern char *ERROR_fields_text[];
 extern char *ACK_fields_text[];
@@ -153,7 +148,6 @@ extern char *CAPABILITY_fields_text[];
 extern char *TERMINATE_fields_text[];
 extern char *TIME_fields_text[];
 
-extern char *INFO_fields_text[];
 extern char *PACKET_fields_text[];
 extern char *STATUS_fields_text[];
 extern char *STRING_fields_text[];
@@ -162,10 +156,6 @@ extern char *STRING_fields_text[];
 // of the protocol functions.
 // These are all done in two main ways - a var for each field, or a vector in the
 // same order as the field names. 
-
-typedef struct INFO_data {
-    string networks, packets, crypt, weak, noise, dropped, rate, signal;
-};
 
 typedef struct PACKET_data {
     vector<string> pdvec;
@@ -182,7 +172,6 @@ int Protocol_PROTOCOLS(PROTO_PARMS);
 int Protocol_CAPABILITY(PROTO_PARMS);
 int Protocol_TERMINATE(PROTO_PARMS);
 int Protocol_TIME(PROTO_PARMS);
-int Protocol_INFO(PROTO_PARMS); // INFO_data
 int Protocol_STATUS(PROTO_PARMS); // string
 void Protocol_Packet2Data(const kis_packet *info, PACKET_data *data);
 int Protocol_PACKET(PROTO_PARMS); // PACKET_data

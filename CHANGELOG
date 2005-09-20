@@ -1,3 +1,5 @@
+Sep 20 2005  devel  Implemented INFO protocol, added additional fields,
+                     deprecated 'signal' field
 Sep 19 2005  devel  Fixed config file cmdline option
                     Finished redoing CARD protocol
                     Fixed stupid error in gpsxml logging
