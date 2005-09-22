@@ -23,48 +23,6 @@
 #include "soundcontrol.h"
 #include "packetchain.h"
 
-#ifdef HAVE_GPS
-
-char *GPS_fields_text[] = {
-    "lat", "lon", "alt", "spd", "heading", "fix",
-    NULL
-};
-
-int Protocol_GPS(PROTO_PARMS) {
-    GPS_data *gdata = (GPS_data *) data;
-
-    for (unsigned int x = 0; x < field_vec->size(); x++) {
-        switch ((GPS_fields) (*field_vec)[x]) {
-        case GPS_lat:
-            out_string += gdata->lat;
-            break;
-        case GPS_lon:
-            out_string += gdata->lon;
-            break;
-        case GPS_alt:
-            out_string += gdata->alt;
-            break;
-        case GPS_spd:
-            out_string += gdata->spd;
-            break;
-        case GPS_heading:
-            out_string += gdata->heading;
-            break;
-        case GPS_fix:
-            out_string += gdata->mode;
-            break;
-        default:
-            out_string = "Unknown field requested.";
-            return -1;
-            break;
-        }
-
-        out_string += " ";
-    }
-
-    return 1;
-}
-
 int GpsInjectEvent(Timetracker::timer_event *evt, void *parm, 
                    GlobalRegistry *globalreg) {
     GPSDClient *cli = (GPSDClient *) parm;
@@ -77,29 +35,12 @@ int GpsInjectEvent(Timetracker::timer_event *evt, void *parm,
     return 1;
 }
 
-int kis_gpspack_hook(CHAINCALL_PARMS) {
-	// Simple packet insertion of current GPS coordinates
-	
-	// Don't bother attaching data if we're no good
-	if (globalreg->gpsd->FetchMode() <= 0)
-		return 0;
-
-	kis_gps_packinfo *gpsdat = new kis_gps_packinfo;
-
-	globalreg->gpsd->FetchLoc(&(gpsdat->lat), &(gpsdat->lon), &(gpsdat->alt),
-							  &(gpsdat->spd), &(gpsdat->heading), &(gpsdat->gps_fix));
-	
-	in_pack->insert(_PCM(PACK_COMP_GPS), gpsdat);
-
-	return 1;
-}
-
 GPSDClient::GPSDClient() {
     fprintf(stderr, "FATAL OOPS: gpsdclient called with no globalreg\n");
 	exit(-1);
 }
 
-GPSDClient::GPSDClient(GlobalRegistry *in_globalreg) : ClientFramework(in_globalreg) {
+GPSDClient::GPSDClient(GlobalRegistry *in_globalreg) : GPSCore(in_globalreg) {
     // The only GPSD connection method we support is a plain 
     // old TCP connection so we can generate it all internally
     tcpcli = new TcpClient(globalreg);
@@ -111,24 +52,6 @@ GPSDClient::GPSDClient(GlobalRegistry *in_globalreg) : ClientFramework(in_global
 
     gpseventid = -1;
 
-    reconnect_attempt = -1;
-
-    mode = -1;
-    lat = lon = alt = spd = hed = last_lat = last_lon = last_hed = 0;
-
-	// Register the network protocol
-	gps_proto_ref = 
-		globalreg->kisnetserver->RegisterProtocol("GPS", 0, 0, GPS_fields_text, 
-												  &Protocol_GPS, NULL, this);
-
-	// Register the gps component and packetchain hooks to include it
-	_PCM(PACK_COMP_GPS) =
-		globalreg->packetchain->RegisterPacketComponent("gps");
-	globalreg->packetchain->RegisterHandler(&kis_gpspack_hook, this,
-											CHAINPOS_POSTCAP, -100);
-
-    // Parse the config file and enable the tcpclient
-    
     if (globalreg->kismet_config->FetchOpt("gps") == "true") {
         char temphost[128];
         if (sscanf(globalreg->kismet_config->FetchOpt("gpshost").c_str(), 
@@ -140,22 +63,6 @@ GPSDClient::GPSDClient(GlobalRegistry *in_globalreg) : ClientFramework(in_global
             return;
         }
         snprintf(host, MAXHOSTNAMELEN, "%s", temphost);
-
-        // Lock GPS position
-        if (globalreg->kismet_config->FetchOpt("gpsmodelock") == "true") {
-            globalreg->messagebus->InjectMessage("Enabling GPS position information "
-												 "override (override broken GPS "
-												 "units that always report 0 "
-                                                 "in the NMEA stream)", MSGFLAG_INFO);
-            SetOptions(GPSD_OPT_FORCEMODE);
-        }
-
-        if (globalreg->kismet_config->FetchOpt("gpsreconnect") == "true") {
-            globalreg->messagebus->InjectMessage("Enabling reconnection to the GPSD "
-												 "server if the link is lost", 
-												 MSGFLAG_INFO);
-            reconnect_attempt = 0;
-        }
 
         if (tcpcli->Connect(host, port) < 0) {
             globalreg->messagebus->InjectMessage("Could not create initial "
@@ -179,10 +86,7 @@ GPSDClient::GPSDClient(GlobalRegistry *in_globalreg) : ClientFramework(in_global
 
         snprintf(errstr, STATUS_MAX, "Using GPSD server on %s:%d", host, port);
         globalreg->messagebus->InjectMessage(errstr, MSGFLAG_INFO);
-        
-    } else {
-        globalreg->messagebus->InjectMessage("GPS support not enabled", MSGFLAG_INFO);
-    }
+	}
 
 	// Register the TCP component of the GPS system with the main service loop
 	globalreg->RegisterPollableSubsys(this);
@@ -470,99 +374,4 @@ int GPSDClient::ParseData() {
 
     return 1;
 }
-
-int GPSDClient::FetchLoc(double *in_lat, double *in_lon, double *in_alt, 
-                         double *in_spd, double *in_hed, int *in_mode) {
-    *in_lat = lat;
-    *in_lon = lon;
-    *in_alt = alt;
-    *in_spd = spd;
-    *in_mode = mode;
-    *in_hed = hed;
-
-    return mode;
-}
-
-double GPSDClient::CalcHeading(double in_lat, double in_lon, double in_lat2, 
-							   double in_lon2) {
-    double r = CalcRad((double) in_lat2);
-
-    double lat1 = Deg2Rad((double) in_lat);
-    double lon1 = Deg2Rad((double) in_lon);
-    double lat2 = Deg2Rad((double) in_lat2);
-    double lon2 = Deg2Rad((double) in_lon2);
-
-    double angle = 0;
-
-    if (lat1 == lat2) {
-        if (lon2 > lon1) {
-            angle = M_PI/2;
-        } else if (lon2 < lon1) {
-            angle = 3 * M_PI / 2;
-        } else {
-            return 0;
-        }
-    } else if (lon1 == lon2) {
-        if (lat2 > lat1) {
-            angle = 0;
-        } else if (lat2 < lat1) {
-            angle = M_PI;
-        }
-    } else {
-        double tx = r * cos((double) lat1) * (lon2 - lon1);
-        double ty = r * (lat2 - lat1);
-        angle = atan((double) (tx/ty));
-
-        if (ty < 0) {
-            angle += M_PI;
-        }
-
-        if (angle >= (2 * M_PI)) {
-            angle -= (2 * M_PI);
-        }
-
-        if (angle < 0) {
-            angle += 2 * M_PI;
-        }
-
-    }
-
-    return (double) Rad2Deg(angle);
-}
-
-double GPSDClient::Rad2Deg(double x) {
-    return (x/M_PI) * 180.0;
-}
-
-double GPSDClient::Deg2Rad(double x) {
-    return 180/(x*M_PI);
-}
-
-double GPSDClient::EarthDistance(double in_lat, double in_lon, double in_lat2, double in_lon2) {
-    double x1 = CalcRad(in_lat) * cos(Deg2Rad(in_lon)) * sin(Deg2Rad(90-in_lat));
-    double x2 = CalcRad(in_lat2) * cos(Deg2Rad(in_lon2)) * sin(Deg2Rad(90-in_lat2));
-    double y1 = CalcRad(in_lat) * sin(Deg2Rad(in_lon)) * sin(Deg2Rad(90-in_lat));
-    double y2 = CalcRad(in_lat2) * sin(Deg2Rad(in_lon2)) * sin(Deg2Rad(90-in_lat2));
-    double z1 = CalcRad(in_lat) * cos(Deg2Rad(90-in_lat));
-    double z2 = CalcRad(in_lat2) * cos(Deg2Rad(90-in_lat2));
-    double a = acos((x1*x2 + y1*y2 + z1*z2)/pow(CalcRad((double) (in_lat+in_lat2)/2),2));
-    return CalcRad((double) (in_lat+in_lat2) / 2) * a;
-}
-
-double GPSDClient::CalcRad(double lat) {
-    double a = 6378.137, r, sc, x, y, z;
-    double e2 = 0.081082 * 0.081082;
-
-    lat = lat * M_PI / 180.0;
-    sc = sin (lat);
-    x = a * (1.0 - e2);
-    z = 1.0 - e2 * sc * sc;
-    y = pow (z, 1.5);
-    r = x / y;
-
-    r = r * 1000.0;
-    return r;
-}
-
-#endif
 

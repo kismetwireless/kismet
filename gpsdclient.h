@@ -21,15 +21,11 @@
 
 #include "config.h"
 
-#ifdef HAVE_GPS
-
 #include "clinetframework.h"
 #include "tcpclient.h"
 #include "kis_netframe.h"
 #include "packetchain.h"
-
-// Options
-#define GPSD_OPT_FORCEMODE    1
+#include "gpscore.h"
 
 // Our command
 const char gpsd_command[] = "PAVMH\n";
@@ -37,38 +33,7 @@ const char gpsd_command[] = "PAVMH\n";
 // Command injection and network ticking
 int GpsInjectEvent(TIMEEVENT_PARMS);
 
-enum GPS_fields {
-    GPS_lat, GPS_lon, GPS_alt, GPS_spd, GPS_heading, GPS_fix
-};
-extern char *GPS_fields_text[];
-
-typedef struct GPS_data {
-    string lat, lon, alt, spd, heading, mode;
-};
-
-int Protocol_GPS(PROTO_PARMS);
-
-// GPS info linked into each packet
-class kis_gps_packinfo : public packet_component {
-public:
-	kis_gps_packinfo() {
-		self_destruct = 1; // Nothing special, just delete us
-		lat = lon = alt = spd = heading = -1000;
-		gps_fix = 0;
-	}
-
-    double lat;
-    double lon;
-    double alt;
-    double spd;
-    double heading;
-    int gps_fix;
-};
-
-// Packetchain hook to add GPS data
-int kis_gpspack_hook(CHAINCALL_PARMS);
-
-class GPSDClient : public ClientFramework {
+class GPSDClient : public GPSCore {
 public:
     GPSDClient();
     GPSDClient(GlobalRegistry *in_globalreg);
@@ -89,55 +54,20 @@ public:
     
     virtual int Shutdown();
 
-    void SetOptions(uint32_t in_opt) {
-        gps_options = in_opt;
-    }
-
-    // Fetch a location
-    int FetchLoc(double *in_lat, double *in_lon, double *in_alt, double *in_spd, 
-				 double *in_hed, int *mode);
-
-    // Fetch mode
-    int FetchMode() { return mode; }
-
-    // Various GPS transformations
-    static double CalcHeading(double in_lat, double in_lon, 
-							  double in_lat2, double in_lon2);
-    static double CalcRad(double lat);
-    static double Rad2Deg(double x);
-    static double Deg2Rad(double x);
-    static double EarthDistance(double in_lat, double in_lon, 
-								double in_lat2, double in_lon2);
-
 protected:
     TcpClient *tcpcli;
 
-    uint32_t gps_options;
-
     char host[MAXHOSTNAMELEN];
     int port;
-    int reconnect_attempt;
-    time_t last_disconnect;
 
-    double lat, lon, alt, spd, hed;
-    int mode;
-
-    int gpseventid;
-
-    // Last location used for softheading calcs
-    double last_lat, last_lon, last_hed;
+	int gpseventid;
 
     // Reconnect local trigger
-    int Reconnect();
-    int InjectCommand();
+    virtual int Reconnect();
+    virtual int InjectCommand();
 
-	// network proto ref
-	int gps_proto_ref;
-    
     friend int GpsInjectEvent(TIMEEVENT_PARMS);
 };
-
-#endif
 
 #endif
 

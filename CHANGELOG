@@ -1,3 +1,5 @@
+Sep 21 2005  devel  Split GPS into gpscore and gpsdclient in anticipation of
+                     adding additional GPS capture methods
 Sep 20 2005  devel  Implemented INFO protocol, added additional fields,
                      deprecated 'signal' field
                     Fixed maxsignal initialization in SNR fields
