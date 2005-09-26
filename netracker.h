@@ -474,6 +474,11 @@ protected:
 	// AP BSSID to client
 	multimap<mac_addr, Netracker::tracked_client *> ap_client_map;
 
+	// Vector of dirty elements for pushing out to clients, quicker than
+	// walking the map every tick
+	vector<Netracker::tracked_network *> dirty_net_vec;
+	vector<Netracker::tracked_client *> dirty_cli_vec;
+
 	// Manufacturer maps
 	/*
 	macmap<vector<manuf *> > ap_manuf_map;

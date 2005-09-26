@@ -867,31 +867,36 @@ int Netracker::AddFilter(string in_filter) {
 
 int Netracker::TimerKick() {
 	// Push new networks and reset their rate counters
+	for (unsigned int x = 0; x < dirty_net_vec.size(); x++) {
+		tracked_network *net = dirty_net_vec[x];
+
+		if (net->type == network_remove)
+			continue;
+
+		globalreg->kisnetserver->SendToAll(_NPM(PROTO_REF_NETWORK),
+										   (void *) net);
+
+		net->new_packets = 0;
+		net->dirty = 0;
+	}
+
+	for (unsigned int x = 0; x < dirty_cli_vec.size(); x++) {
+		tracked_client *cli = dirty_cli_vec[x];
+
+		if (cli->type == client_remove)
+			continue;
+
+		globalreg->kisnetserver->SendToAll(_NPM(PROTO_REF_CLIENT),
+										   (void *) cli);
+
+		cli->new_packets = 0;
+		cli->dirty = 0;
+	}
+
+	// Empty the vectors
+	dirty_net_vec.clear();
+	dirty_cli_vec.clear();
 	
-	for (Netracker::track_iter x = globalreg->netracker->tracked_map.begin(); 
-		 x != globalreg->netracker->tracked_map.end(); ++x) {
-        if (x->second->type == network_remove) 
-            continue;
-
-		if (x->second->dirty) {
-			globalreg->kisnetserver->SendToAll(_NPM(PROTO_REF_NETWORK), 
-											   (void *) x->second);
-			x->second->new_packets = 0;
-		}
-	}
-
-	for (Netracker::client_iter x = globalreg->netracker->client_map.begin(); 
-		 x != globalreg->netracker->client_map.end(); ++x) {
-        if (x->second->type == client_remove) 
-            continue;
-
-		if (x->second->dirty) {
-			globalreg->kisnetserver->SendToAll(_NPM(PROTO_REF_CLIENT), 
-											   (void *) x->second);
-			x->second->new_packets = 0;
-		}
-	}
-
 	// Send the info frame to everyone
 	globalreg->kisnetserver->SendToAll(_NPM(PROTO_REF_INFO), NULL);
 
@@ -905,6 +910,11 @@ void Netracker::MoveClientNetwork(Netracker::tracked_client *cli,
 	// Just to be safe
 	if (cli->netptr == NULL)
 		return;
+
+	// If the client or network are dirty, we need to flush the current dirty
+	// vector out to the client
+	if (cli->dirty || net->dirty)
+		TimerKick();
 
 	pair<ap_client_itr, ap_client_itr> apclis = 
 		ap_client_map.equal_range(cli->netptr->bssid);
@@ -923,7 +933,12 @@ void Netracker::MoveClientNetwork(Netracker::tracked_client *cli,
 	cli->netptr->fmsweak_packets -= cli->fmsweak_packets;
 	cli->netptr->fragments -= cli->fragments;
 	cli->netptr->retries -= cli->retries;
-	cli->netptr->dirty = 1;
+
+	if (cli->netptr->dirty == 0) {
+		cli->netptr->dirty = 1;
+		// Push the old network onto the vec
+		dirty_net_vec.push_back(cli->netptr);
+	}
 
 	// Add it to the other
 	cli->netptr = net;
@@ -936,8 +951,15 @@ void Netracker::MoveClientNetwork(Netracker::tracked_client *cli,
 
 	cli->bssid = net->bssid;
 
-	cli->dirty = 1;
-	net->dirty = 1;
+	if (cli->dirty == 0) {
+		cli->dirty = 1;
+		dirty_cli_vec.push_back(cli);
+	}
+
+	if (net->dirty == 0) {
+		net->dirty = 1;
+		dirty_net_vec.push_back(net);
+	}
 
 	ap_client_map.insert(make_pair(net->bssid, cli));
 
@@ -1110,7 +1132,10 @@ int Netracker::netracker_chain_handler(kis_packet *in_pack) {
 	net->last_time = globalreg->timestamp.tv_sec;
 
 	// Dirty the network
-	net->dirty = 1;
+	if (net->dirty == 0) {
+		net->dirty = 1;
+		dirty_net_vec.push_back(net);
+	}
 
 	// Extract info from the GPS component, if we have one
 	if (gpsinfo != NULL && gpsinfo->gps_fix >= 2) {
@@ -1424,8 +1449,14 @@ int Netracker::netracker_chain_handler(kis_packet *in_pack) {
 										   (void *) cli);
 	}
 
-	net->dirty = 1;
-	cli->dirty = 1;
+	if (net->dirty == 0) {
+		net->dirty = 1;
+		dirty_net_vec.push_back(net);
+	}
+	if (cli->dirty == 0) {
+		cli->dirty = 1;
+		dirty_cli_vec.push_back(cli);
+	}
 
 	// TODO/FIXME:  
 	//  Manuf matching
@@ -1540,14 +1571,20 @@ int Netracker::datatracker_chain_handler(kis_packet *in_pack) {
 			net->guess_ipdata.ip_addr_block.s_addr = ip_calced_range.s_addr;
 			net->guess_ipdata.ip_netmask.s_addr = datainfo->ip_netmask_addr.s_addr;
 			net->guess_ipdata.ip_gateway.s_addr = datainfo->ip_gateway_addr.s_addr;
-			net->dirty = 1;
+			if (net->dirty == 0) {
+				net->dirty = 1;
+				dirty_net_vec.push_back(net);
+			}
 
 			// Copy it into our client ip data too
 			cli->guess_ipdata.ip_type = ipdata_dhcp;
 			cli->guess_ipdata.ip_addr_block.s_addr = ip_calced_range.s_addr;
 			cli->guess_ipdata.ip_netmask.s_addr = datainfo->ip_netmask_addr.s_addr;
 			cli->guess_ipdata.ip_gateway.s_addr = datainfo->ip_gateway_addr.s_addr;
-			cli->dirty = 1;
+			if (cli->dirty == 0) {
+				cli->dirty = 1;
+				dirty_cli_vec.push_back(cli);
+			}
 
 			ipdata_dirty = 1;
 		} else if (datainfo->proto == proto_arp) {
@@ -1558,7 +1595,10 @@ int Netracker::datatracker_chain_handler(kis_packet *in_pack) {
 				cli->guess_ipdata.ip_type = ipdata_arp;
 				cli->guess_ipdata.ip_addr_block.s_addr = 
 					datainfo->ip_source_addr.s_addr;
-				cli->dirty = 1;
+				if (cli->dirty == 0) {
+					cli->dirty = 1;
+					dirty_cli_vec.push_back(cli);
+				}
 				ipdata_dirty = 1;
 			}
 		} else if (datainfo->proto == proto_udp || datainfo->proto == proto_tcp) {
@@ -1585,7 +1625,10 @@ int Netracker::datatracker_chain_handler(kis_packet *in_pack) {
 				cli->guess_ipdata.ip_netmask.s_addr = 0;
 				cli->guess_ipdata.ip_gateway.s_addr = 0;
 
-				cli->dirty = 1;
+				if (cli->dirty == 0) {
+					cli->dirty = 1;
+					dirty_cli_vec.push_back(cli);
+				}
 				ipdata_dirty = 1;
 			}
 		}
