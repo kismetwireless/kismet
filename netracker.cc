@@ -1741,8 +1741,8 @@ int Netracker::ReadSSIDCache() {
 	}
 
 	do {
-		char macstr[18];
-		char ssid[64];
+		char macstr[19];
+		char ssid[65];
 		mac_addr mac;
 
 		// Keep hijacking the error buffer
@@ -1827,7 +1827,7 @@ int Netracker::ReadIPCache() {
 	}
 
 	do {
-		char macstr[18];
+		char macstr[19];
 		ip_data ipd;
 		mac_addr mac;
 		int ipaddr, netmask, gateway;

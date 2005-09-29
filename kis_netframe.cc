@@ -612,7 +612,7 @@ KisNetFramework::KisNetFramework(GlobalRegistry *in_globalreg) {
     globalreg = in_globalreg;
     netserver = NULL;
 	int port = 0, maxcli = 0;
-	char srv_proto[10], srv_bindhost[128];
+	char srv_proto[11], srv_bindhost[129];
 	TcpServer *tcpsrv;
 	string listenline;
 	next_netprotoref = 0;

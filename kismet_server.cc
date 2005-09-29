@@ -494,10 +494,12 @@ int main(int argc,char *argv[]) {
 	if (globalregistry->fatal_condition)
 		CatchShutdown(-1);
 
+#ifdef SYS_LINUX
 	// Make the tuntap device as root, if we need to
 	globalregistry->RegisterDumpFile(new Dumpfile_Tuntap(globalregistry));
 	if (globalregistry->fatal_condition)
 		CatchShutdown(-1);
+#endif
 
 	// Create the channel process if necessary
 	globalregistry->sourcetracker->SpawnChannelChild();

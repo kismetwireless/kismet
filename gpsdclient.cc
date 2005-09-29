@@ -53,7 +53,7 @@ GPSDClient::GPSDClient(GlobalRegistry *in_globalreg) : GPSCore(in_globalreg) {
     gpseventid = -1;
 
     if (globalreg->kismet_config->FetchOpt("gps") == "true") {
-        char temphost[128];
+        char temphost[129];
         if (sscanf(globalreg->kismet_config->FetchOpt("gpshost").c_str(), 
 				   "%128[^:]:%d", temphost, &port) != 2) {
             globalreg->messagebus->InjectMessage("Invalid GPS host in config, "
