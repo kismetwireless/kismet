@@ -5634,6 +5634,79 @@ rm -f conftest*
 fi
 
 
+# Do we need to use -ldl?
+echo "$as_me:$LINENO: checking for dlopen in -ldl" >&5
+echo $ECHO_N "checking for dlopen in -ldl... $ECHO_C" >&6
+if test "${ac_cv_lib_dl_dlopen+set}" = set; then
+  echo $ECHO_N "(cached) $ECHO_C" >&6
+else
+  ac_check_lib_save_LIBS=$LIBS
+LIBS="-ldl  $LIBS"
+cat >conftest.$ac_ext <<_ACEOF
+/* confdefs.h.  */
+_ACEOF
+cat confdefs.h >>conftest.$ac_ext
+cat >>conftest.$ac_ext <<_ACEOF
+/* end confdefs.h.  */
+
+/* Override any gcc2 internal prototype to avoid an error.  */
+#ifdef __cplusplus
+extern "C"
+#endif
+/* We use char because int might match the return type of a gcc2
+   builtin and then its argument prototype would still apply.  */
+char dlopen ();
+int
+main ()
+{
+dlopen ();
+  ;
+  return 0;
+}
+_ACEOF
+rm -f conftest.$ac_objext conftest$ac_exeext
+if { (eval echo "$as_me:$LINENO: \"$ac_link\"") >&5
+  (eval $ac_link) 2>conftest.er1
+  ac_status=$?
+  grep -v '^ *+' conftest.er1 >conftest.err
+  rm -f conftest.er1
+  cat conftest.err >&5
+  echo "$as_me:$LINENO: \$? = $ac_status" >&5
+  (exit $ac_status); } &&
+	 { ac_try='test -z "$ac_c_werror_flag"
+			 || test ! -s conftest.err'
+  { (eval echo "$as_me:$LINENO: \"$ac_try\"") >&5
+  (eval $ac_try) 2>&5
+  ac_status=$?
+  echo "$as_me:$LINENO: \$? = $ac_status" >&5
+  (exit $ac_status); }; } &&
+	 { ac_try='test -s conftest$ac_exeext'
+  { (eval echo "$as_me:$LINENO: \"$ac_try\"") >&5
+  (eval $ac_try) 2>&5
+  ac_status=$?
+  echo "$as_me:$LINENO: \$? = $ac_status" >&5
+  (exit $ac_status); }; }; then
+  ac_cv_lib_dl_dlopen=yes
+else
+  echo "$as_me: failed program was:" >&5
+sed 's/^/| /' conftest.$ac_ext >&5
+
+ac_cv_lib_dl_dlopen=no
+fi
+rm -f conftest.err conftest.$ac_objext \
+      conftest$ac_exeext conftest.$ac_ext
+LIBS=$ac_check_lib_save_LIBS
+fi
+echo "$as_me:$LINENO: result: $ac_cv_lib_dl_dlopen" >&5
+echo "${ECHO_T}$ac_cv_lib_dl_dlopen" >&6
+if test $ac_cv_lib_dl_dlopen = yes; then
+  LIBS="$LIBS -ldl"
+else
+  { echo "$as_me:$LINENO: WARNING: libdl doesn't seem to be needed on this system" >&5
+echo "$as_me: WARNING: libdl doesn't seem to be needed on this system" >&2;}
+fi
+
+
 echo "$as_me:$LINENO: checking for group 'root'" >&5
 echo $ECHO_N "checking for group 'root'... $ECHO_C" >&6
 if test "`grep -e ^root: /etc/group`" = ""; then
@@ -8528,7 +8601,7 @@ if test "$wantopto" != "yes"; then
 	CXXFLAGS=`echo $CXXFLAGS | sed -e 's/-O.//g'`
 fi
 
-LIBS="$LIBS -lstdc++ -ldl"
+LIBS="$LIBS -lstdc++"
 
 
 

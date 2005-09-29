@@ -264,6 +264,11 @@ CFLAGS="$OCFL"
 # Do we have large file support?
 AC_SYS_LARGEFILE
 
+# Do we need to use -ldl?
+AC_CHECK_LIB([dl], [dlopen], 
+			 LIBS="$LIBS -ldl",
+			 AC_MSG_WARN([libdl doesn't seem to be needed on this system]))
+
 AC_MSG_CHECKING([for group 'root'])
 if test "`grep -e ^root: /etc/group`" = ""; then
 	AC_MSG_RESULT([no.  Using 'wheel'])
@@ -874,7 +879,7 @@ if test "$wantopto" != "yes"; then
 	CXXFLAGS=`echo $CXXFLAGS | sed -e 's/-O.//g'`
 fi
 
-LIBS="$LIBS -lstdc++ -ldl"
+LIBS="$LIBS -lstdc++"
 
 AC_SUBST(threadlib)
 
