@@ -21,6 +21,7 @@
 
 #include "config.h"
 
+#include "version.h"
 #include "util.h"
 #include "macaddr.h"
 // #include "packet.h"
@@ -131,7 +132,6 @@ public:
 	string version_major;
 	string version_minor;
 	string version_tiny;
-	string version_timestamp;
 
 	// Vector of pollable subservices for main()...  You should use the util 
 	// functions for this, but main needs to be able to see it directly
@@ -185,7 +185,6 @@ public:
 		version_major = VERSION_MAJOR;
 		version_minor = VERSION_MINOR;
 		version_tiny = VERSION_TINY;
-		version_timestamp = string(TIMESTAMP);
 
         fatal_condition = 0;
 

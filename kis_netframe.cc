@@ -96,7 +96,7 @@ int Protocol_KISMET(PROTO_PARMS) {
             out_string += "\001" + kdata->servername + "\001";
             break;
         case KISMET_timestamp:
-            out_string += kdata->timestamp;
+			out_string += "0";
             break;
         case KISMET_chanhop:
             if (globalreg->sourcetracker->FetchChannelHop() == 0)
@@ -822,7 +822,7 @@ int KisNetFramework::Accept(int in_fd) {
     snprintf(temp, 512, "%u", (unsigned int) globalreg->start_time);
     kdat.starttime = string(temp);
     kdat.servername = globalreg->servername;
-    kdat.timestamp = string(TIMESTAMP);
+    kdat.timestamp = "0";
     snprintf(temp, 512, "%s.%s.%s", VERSION_MAJOR, VERSION_MINOR, VERSION_TINY);
     kdat.newversion = string(temp);
    

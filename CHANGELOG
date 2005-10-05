@@ -1,3 +1,8 @@
+Oct 04 2005  devel  Moved versioning into header file for plugins to draw
+                     from
+                    Removed the timestamp file and zeroed out the timestamp
+                     element in the protocol.  This should have been done
+                     a long time ago.
 Sep 29 2005  devel  Various BSD related fixups, buffer size checks
                     Added libdl check to autoconf (for BSD systems)
 Sep 26 2005  devel  Moved dirty network and client tracking into vector, fixed
