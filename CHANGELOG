@@ -1,3 +1,4 @@
+Oct 06 2005  devel  Removed double-cache-lookup in NETWORK protocol handler
 Oct 04 2005  devel  Moved versioning into header file for plugins to draw
                      from
                     Removed the timestamp file and zeroed out the timestamp
