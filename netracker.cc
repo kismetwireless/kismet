@@ -432,6 +432,7 @@ int Protocol_NETWORK(PROTO_PARMS) {
 int Protocol_CLIENT(PROTO_PARMS) {
 	Netracker::tracked_client *cli = (Netracker::tracked_client *) data;
 	ostringstream osstr;
+	string scratch;
 
 	// Alloc the cache quickly
 	cache->Filled(field_vec->size());
@@ -454,184 +455,232 @@ int Protocol_CLIENT(PROTO_PARMS) {
 		// Fill in the cached element
 		switch(fnum) {
 			case CLIENT_bssid:
-				cache->Cache(fnum, cli->bssid.Mac2String());
+				scratch = cli->bssid.Mac2String();
+				out_string += scratch;
+				cache->Cache(fnum, scratch);
 				break;
 			case CLIENT_mac:
-				cache->Cache(fnum, cli->mac.Mac2String());
+				scratch = cli->mac.Mac2String();
+				out_string += scratch;
+				cache->Cache(fnum, scratch);
 				break;
 			case CLIENT_type:
 				osstr << (int) cli->type;
+				out_string += osstr.str();
 				cache->Cache(fnum, osstr.str());
 				break;
 			case CLIENT_firsttime:
 				osstr << (int) cli->first_time;
+				out_string += osstr.str();
 				cache->Cache(fnum, osstr.str());
 				break;
 			case CLIENT_lasttime:
 				osstr << (int) cli->last_time;
+				out_string += osstr.str();
 				cache->Cache(fnum, osstr.str());
 				break;
 			case CLIENT_manufkey:
 			case CLIENT_manufscore:
 				// Deprecated/broken
 				// FIXME manfkey
+				out_string += osstr.str();
 				cache->Cache(fnum, "0");
 				break;
 			case CLIENT_llcpackets:
 				osstr << cli->llc_packets;
+				out_string += osstr.str();
 				cache->Cache(fnum, osstr.str());
 				break;
 			case CLIENT_datapackets:
 				osstr << cli->data_packets;
+				out_string += osstr.str();
 				cache->Cache(fnum, osstr.str());
 				break;
 			case CLIENT_cryptpackets:
 				osstr << cli->crypt_packets;
+				out_string += osstr.str();
 				cache->Cache(fnum, osstr.str());
 				break;
 			case CLIENT_weakpackets:
 				osstr << cli->fmsweak_packets;
+				out_string += osstr.str();
 				cache->Cache(fnum, osstr.str());
 				break;
 			case CLIENT_gpsfixed:
 				osstr << cli->gpsdata.gps_valid;
+				out_string += osstr.str();
 				cache->Cache(fnum, osstr.str());
 				break;
 			case CLIENT_minlat:
 				osstr << cli->gpsdata.min_lat;
+				out_string += osstr.str();
 				cache->Cache(fnum, osstr.str());
 				break;
 			case CLIENT_minlon:
 				osstr << cli->gpsdata.min_lon;
+				out_string += osstr.str();
 				cache->Cache(fnum, osstr.str());
 				break;
 			case CLIENT_minalt:
 				osstr << cli->gpsdata.min_alt;
+				out_string += osstr.str();
 				cache->Cache(fnum, osstr.str());
 				break;
 			case CLIENT_minspd:
 				osstr << cli->gpsdata.min_spd;
+				out_string += osstr.str();
 				cache->Cache(fnum, osstr.str());
 				break;
 			case CLIENT_maxlat:
 				osstr << cli->gpsdata.max_lat;
+				out_string += osstr.str();
 				cache->Cache(fnum, osstr.str());
 				break;
 			case CLIENT_maxlon:
 				osstr << cli->gpsdata.max_lon;
+				out_string += osstr.str();
 				cache->Cache(fnum, osstr.str());
 				break;
 			case CLIENT_maxalt:
 				osstr << cli->gpsdata.max_alt;
+				out_string += osstr.str();
 				cache->Cache(fnum, osstr.str());
 				break;
 			case CLIENT_maxspd:
 				osstr << cli->gpsdata.max_spd;
+				out_string += osstr.str();
 				cache->Cache(fnum, osstr.str());
 				break;
 			case CLIENT_maxrate:
 				osstr << cli->maxrate;
+				out_string += osstr.str();
 				cache->Cache(fnum, osstr.str());
 				break;
 			case CLIENT_quality:
 			case CLIENT_bestquality:
 				// Deprecated
+				out_string += "0";
 				cache->Cache(fnum, "0");
 				break;
 			case CLIENT_signal:
 				osstr << cli->snrdata.last_signal;
+				out_string += osstr.str();
 				cache->Cache(fnum, osstr.str());
 				break;
 			case CLIENT_noise:
 				osstr << cli->snrdata.last_noise;
+				out_string += osstr.str();
 				cache->Cache(fnum, osstr.str());
 				break;
 			case CLIENT_bestsignal:
 				osstr << cli->snrdata.max_signal;
+				out_string += osstr.str();
 				cache->Cache(fnum, osstr.str());
 				break;
 			case CLIENT_bestnoise:
 				osstr << cli->snrdata.max_noise;
+				out_string += osstr.str();
 				cache->Cache(fnum, osstr.str());
 				break;
 			case CLIENT_bestlat:
 				osstr << cli->snrdata.peak_lat;
+				out_string += osstr.str();
 				cache->Cache(fnum, osstr.str());
 				break;
 			case CLIENT_bestlon:
 				osstr << cli->snrdata.peak_lon;
+				out_string += osstr.str();
 				cache->Cache(fnum, osstr.str());
 				break;
 			case CLIENT_bestalt:
 				osstr << cli->snrdata.peak_alt;
+				out_string += osstr.str();
 				cache->Cache(fnum, osstr.str());
 				break;
 			case CLIENT_agglat:
 				osstr << cli->gpsdata.aggregate_lat;
+				out_string += osstr.str();
 				cache->Cache(fnum, osstr.str());
 				break;
 			case CLIENT_agglon:
 				osstr << cli->gpsdata.aggregate_lon;
+				out_string += osstr.str();
 				cache->Cache(fnum, osstr.str());
 				break;
 			case CLIENT_aggalt:
 				osstr << cli->gpsdata.aggregate_alt;
+				out_string += osstr.str();
 				cache->Cache(fnum, osstr.str());
 				break;
 			case CLIENT_aggpoints:
 				osstr << cli->gpsdata.aggregate_points;
+				out_string += osstr.str();
 				cache->Cache(fnum, osstr.str());
 				break;
 			case CLIENT_atype:
 				osstr << (int) cli->guess_ipdata.ip_type;
+				out_string += osstr.str();
 				cache->Cache(fnum, osstr.str());
 				break;
 			case CLIENT_ip:
-				cache->Cache(fnum, inet_ntoa(cli->guess_ipdata.ip_addr_block));
+				scratch = inet_ntoa(cli->guess_ipdata.ip_addr_block);
+				out_string += scratch;
+				cache->Cache(fnum, scratch);
 				break;
 			case CLIENT_gatewayip:
-				cache->Cache(fnum, inet_ntoa(cli->guess_ipdata.ip_gateway));
+				scratch = inet_ntoa(cli->guess_ipdata.ip_gateway);
+				out_string += scratch;
+				cache->Cache(fnum, scratch);
 				break;
 			case CLIENT_datasize:
 				osstr << (int) cli->datasize;
+				out_string += osstr.str();
 				cache->Cache(fnum, osstr.str());
 				break;
 			case CLIENT_maxseenrate:
 				osstr << cli->snrdata.maxseenrate;
+				out_string += osstr.str();
 				cache->Cache(fnum, osstr.str());
 				break;
 			case CLIENT_encodingset:
 				osstr << cli->snrdata.encodingset;
+				out_string += osstr.str();
 				cache->Cache(fnum, osstr.str());
 				break;
 			case CLIENT_decrypted:
 				osstr << cli->decrypted;
+				out_string += osstr.str();
 				cache->Cache(fnum, osstr.str());
 				break;
 			case CLIENT_wep:
 				osstr << cli->cryptset;
+				out_string += osstr.str();
 				cache->Cache(fnum, osstr.str());
 				break;
 			case CLIENT_channel:
 				osstr << cli->channel;
+				out_string += osstr.str();
 				cache->Cache(fnum, osstr.str());
 				break;
 			case CLIENT_fragments:
 				osstr << cli->fragments;
+				out_string += osstr.str();
 				cache->Cache(fnum, osstr.str());
 				break;
 			case CLIENT_retries:
 				osstr << cli->retries;
+				out_string += osstr.str();
 				cache->Cache(fnum, osstr.str());
 				break;
 			case CLIENT_newpackets:
 				osstr << cli->new_packets;
+				out_string += osstr.str();
 				cache->Cache(fnum, osstr.str());
 				break;
 		}
 
 		// print the newly filled in cache
-		out_string += cache->GetCache(fnum) + " ";
+		out_string += " ";
     }
 
     return 1;
