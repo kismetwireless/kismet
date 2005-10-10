@@ -30,21 +30,12 @@
  * OF SUCH DAMAGE.
  */
 
-/*
- * Modifications to fit into the linux IEEE 802.11 stack,
- * Mike Kershaw (dragorn@kismetwireless.net)
- */
-
 #ifndef IEEE80211RADIOTAP_H
 #define IEEE80211RADIOTAP_H
 
-#include <linux/version.h>
-#include <linux/if_ether.h>
-#include <linux/kernel.h>
-
 /* Kluge the radiotap linktype for now if we don't have it */
-#ifndef ARPHRD_IEEE80211_RADIOTAP
-#define ARPHRD_IEEE80211_RADIOTAP 803
+#ifndef LNX_ARPHRD_IEEE80211_RADIOTAP
+#define LNX_ARPHRD_IEEE80211_RADIOTAP 803
 #endif
 
 /* Radiotap header version (from official NetBSD feed) */
