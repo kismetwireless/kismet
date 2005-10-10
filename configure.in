@@ -292,14 +292,16 @@ AC_SUBST(mangrp)
 AC_ARG_ENABLE(curses, [  --disable-curses        disable libcurses],,
 			  wantcurses=yes)
 
+termcontrol="none";
+
 if test "$wantcurses" = "yes"; then
 	AC_CHECK_LIB([ncurses], [initscr], 
 		AC_DEFINE(HAVE_LIBNCURSES, 1, NCurses terminal lib) \
-			foundlcurses=yes curseaux="-lncurses")
+			foundlcurses=yes curseaux="-lncurses" termcontrol="ncurses" )
 
 	AC_CHECK_LIB([curses], [initscr],
 		 AC_DEFINE(HAVE_LIBCURSES, 1, Curses terminal lib) \
-			 foundlcurses=yes curseaux="-lcurses")
+			 foundlcurses=yes curseaux="-lcurses" termcontrol="curses" )
 
 	if test "$foundlcurses" != "yes"; then
 		AC_MSG_ERROR("Failed to find libcurses or libncurses.  Install them or " \
@@ -313,60 +315,44 @@ if test "$wantcurses" = "yes"; then
 		AC_MSG_ERROR("Failed to find curses.h or ncurses.h.  You probably need to " \
 					 "install the curses-devel package from your distribution");
 	fi
-
 fi
 AC_SUBST(CLIBS)
 
 # TODO - check for advanced curses stuff here like cdk/panels
 
+# Check for linux headers if we're on linux systems
+if test "$linux" = "yes"; then
+
 AC_ARG_WITH(linuxheaders,
-[  --with-linuxheaders[=DIR]     Custom location of the Linux kernel headers if the glibc copies are insufficient ],
-[
-    if test "$withval" != no -a "$withval" != "yes"; then
+	["  --with-linuxheaders[=DIR]     Custom location of the Linux kernel " \
+	 "headers if the glibc copies are insufficient" ],
+	[
+   	 if test "$withval" != no -a "$withval" != "yes"; then
         CPPFLAGS="$CPPFLAGS -I$withval"   
     fi
-])
-
-# ,[
-#         CPPFLAGS="$CPPFLAGS -I/lib/modules/$(uname -r)/build/include/"   
-# ])
-
-AC_ARG_ENABLE(netlink, [  --disable-netlink       disable linux netlink socket capture],,wantnetlink=yes)
-AC_SUBST(wantnetlink)
-
-if test $wantnetlink = yes; then
-netlink=no
-AC_CHECK_HEADER([linux/netlink.h],
-	[AC_DEFINE(HAVE_LINUX_NETLINK, 1, Linux netlink socket capture present) netlink=yes],
-	[AC_MSG_WARN([*** Missing Linux netlink headers.  wlanng_legacy source will not be built. ***])],
-	[
-	#include <sys/types.h>
-	#include <netdb.h>
-	#include <linux/socket.h>
 	])
-else
-	AC_MSG_WARN([*** Compiling without Linux netlink headers.  wlanng_legacy source will not be built. ***])
-fi
 
-AC_ARG_ENABLE(wireless-extension, [  --disable-wireless-extension  Disable linux wireless extensions even if found],,
-              wantwireless=yes)
-AC_SUBST(wantwireless)
+AC_ARG_ENABLE(linuxwext, 
+	[  --disable-linuxwext        disable linux wireless extension support],,
+	wantwext=yes)
 
-if test $wantwireless = yes; then
-wireless=no
-AC_CHECK_HEADER([linux/wireless.h],
-	[wireless=yes],
-	[AC_MSG_WARN([*** Missing Linux Wireless kernel extentions.  The majority of packet sources on Linux require this support and will not work without it.  Make sure your kernel header packages are installed.  If all else fails, try the --with-linuxheaders directive. ***])],
-	[
-	#include <sys/types.h>
-	#include <netdb.h>
-	#include <linux/socket.h>
-	])
-else
-	AC_MSG_WARN(*** Missing Linux Wireless kernel extentions.  The majority of packet sources on Linux require this support and will not work without it.  Make sure your kernel header packages are installed.  If all else fails, try the --with-linuxheaders directive. ***)
-fi
+linux_wireless="no"
 
-if test "$wireless" = "yes"; then
+if test "$wantwext" = "yes"; then
+	AC_CHECK_HEADER([linux/wireless.h],
+		[foundwexth=yes],,
+		[
+		#include <sys/types.h>
+		#include <netdb.h>
+		#include <linux/socket.h>
+		])
+
+	if test "$foundwexth" != "yes"; then
+		AC_MSG_ERROR("Failed to find a usable linux/wireless.h header for Linux " \
+					 "Wireless Extensions.  Either your kernel headers are missing " \
+					 "or are incorrect.  See config.log for the exact error.");
+	fi
+
     AC_MSG_CHECKING(that linux/wireless.h is what we expect)
     AC_LINK_IFELSE([AC_LANG_PROGRAM([[
         #include <stdio.h>
@@ -379,38 +365,23 @@ if test "$wireless" = "yes"; then
 		struct iwreq wrq;
 
 		wrq.u.essid.flags = 0;
-    ]])],[wireless=yes],[wireless=no])
+    ]])],[foundwextok=yes])
 
-	if test "$wireless" = "no"; then
+	if test "$foundwextok" != "yes"; then
 		AC_MSG_RESULT(no)
-		AC_MSG_WARN(*** Missing working Linux Wireless kernel extentions.  ***)
-	else
-		AC_MSG_RESULT(yes)
-		AC_DEFINE(HAVE_LINUX_WIRELESS, 1, Linux wireless extentions present)
-		# Check if we have 22+ (SIOCIWFIRSTPRIV) support
-		wireless22=no
-		AC_MSG_CHECKING(that wireless extentions support SIOCIWFIRSTPRIV)
-    	AC_LINK_IFELSE([AC_LANG_PROGRAM([[
-        	#include <stdio.h>
-			#include <sys/types.h>
-			#include <netinet/in.h>
-        	#include <sys/resource.h>
-			#include <linux/wireless.h>
-    	]], [[
-			int x;
-			x = SIOCIWFIRSTPRIV;
-	    ]])],[wireless22=yes],[wireless22=no])
+		AC_MSG_ERROR("Failed to find a usable linux/wireless.h header for Linux " \
+					 "Wireless Extensions.  Either your kernel headers are missing " \
+					 "or are incorrect.  See config.log for the exact error.");
+	fi # wexth
 
-		if test "$wireless22" = "no"; then
-			AC_MSG_RESULT(no)
-			AC_MSG_WARN([*** Your wireless extentions version is old.  This will almost certianly cause problems entering monitor mode and controlling channels. ***]);
-		else
-			AC_MSG_RESULT(yes)
-			AC_DEFINE(HAVE_LINUX_WIRELESS22, 1, [Linux wireless extentions v22 or better present])
-		fi
+	AC_MSG_RESULT(yes)
+	AC_DEFINE(HAVE_LINUX_WIRELESS, 1, Linux wireless extentions present)
+	linux_wireless="yes";
 
-	fi
-fi
+fi # want headers
+
+fi # linux 
+
 
 AC_ARG_ENABLE(pcap, [  --disable-pcap          disable libpcap (most sources) capture support],,wantpcap=yes)
 AC_SUBST(wantpcap)
@@ -491,6 +462,9 @@ fi
 
 if test "$radiotap" != "yes"; then
     AC_DEFINE(HAVE_LOCALRADIOTAP, 1, local radiotap packet headers)
+	radiotaploc="local";
+else
+	radiotaploc="system (BSD)";
 fi
 
 AC_ARG_ENABLE(setuid, [  --disable-setuid        disable setuid/privdrop ability (not reccomended)],,suid=yes)
@@ -561,149 +535,9 @@ AC_ARG_ENABLE(local-dumper, [  --enable-local-dumper   force use of local dump c
               local=yes,)
 AC_SUBST(local)
 
-# AC_ARG_WITH(ethereal,
-# [  --with-ethereal[=DIR]     support ethereal wiretap for replaying logs ]
-#   --without-ethereal        disable support for ethereal wiretap],
-# [
-#     if test $withval = no; then
-#         want_ethereal=no
-#     elif test $withval = yes; then
-#         want_ethereal=yes
-# 		ethereal_dir=$etherealdir
-#     else
-#         want_ethereal=yes
-#         ethereal_dir=$withval
-#     fi
-# ],[
-#     want_ethereal=yes
-#     ethereal_dir=$etherealdir
-# ])
-
-#
-#found_ethereal=no
-#if test $want_ethereal = yes; then
-#	AC_CHECK_FILE($ethereal_dir/Makefile, found_ethereal=yes, found_ethereal=no)
-#fi
-
-#if test $found_ethereal = no -a $want_ethereal = yes; then
-#	want_ethereal=no
-#	AC_MSG_WARN(*** Unable to find configured Ethereal in $ethereal_dir ***)
-#fi
-
-
 libz="no"
 AC_DEFINE(USE_LOCAL_DUMP, 1, Use local dumper code)
 	local=yes
-# if test $want_ethereal = yes; then
-# 
-# 	AC_CHECK_PROG(glib, [glib-config --version], yes, no)
-# 	
-# 	if test $glib = no; then
-# 		AC_MSG_WARN(Could not find glib-config in $PATH.  glib is required to link to wiretap.)
-# 		want_ethereal=no
-# 		local=yes
-# 	    AC_MSG_WARN([*** Wiretap support disabled.  While Kismet will function without wiretap, it will limit the log reading and writing abilities. ***])
-# 	    AC_DEFINE(USE_LOCAL_DUMP, 1, Use local dumper code)
-# 	    local=yes
-# 	else
-# 
-# 	AC_MSG_CHECKING(for usable wiretap with 3 arguments in $ethereal_dir/wiretap)
-# 	save_cppflags="$CPPFLAGS"
-# 	CPPFLAGS="$CPPFLAGS `glib-config --cflags glib` -I$ethereal_dir/wiretap"
-# 	#CPPFLAGS="$CPPFLAGS `glib-config --cflags glib` -I$ethereal_dir/wiretap"
-# 	#save_cxxflags="$CXXFLAGS"
-# 	#CXXFLAGS="$CXXFLAGS `glib-config --cflags glib` -I$ethereal_dir/wiretap"
-# 	save_libs="$LIBS"
-# 	LIBS="$LIBS -lz `glib-config --libs glib` -L$ethereal_dir/wiretap -lwiretap"
-# 
-#     AC_LINK_IFELSE([AC_LANG_PROGRAM([[
-# 		#include <stdio.h>
-# 		#include <sys/types.h>
-# 		#include <sys/time.h>
-# 		#include "wtap.h"
-# 		]], [[
-# 	const char *filename = "autoconf test";
-# 	int err;
-# 
-# 	wtap_open_offline(filename, &err, 0);
-# 		]])],[wtap_valid=yes],[wtap_valid=no])
-# 
-#     if test "$wtap_valid" = no ; then
-#         AC_MSG_RESULT(no);
-# 	    AC_MSG_CHECKING(for usable wiretap with 4 arguments in $ethereal_dir/wiretap)
-#     	AC_LINK_IFELSE([AC_LANG_PROGRAM([[
-#         	#include <stdio.h>
-# 			#include <sys/types.h>
-# 			#include <netinet/in.h>
-#       		#include "wtap.h"
-#        	]], [[
-# 	const char *filename = "autoconf test";
-# 	int err;
-# 
-# 	wtap_open_offline(filename, &err, 0, 0);
-#         ]])],[wtap_argquad=yes],[wtap_argquad=no])
-# 
-# 		if test "$wtap_argquad" = yes ; then
-#             wtap_valid="yes";
-#             AC_DEFINE(HAVE_WTAP_ARGQUAD, 1, wiretap functions takesfour parameters)
-# 		fi
-#     fi
-# 
-#     if test "$wtap_valid" = yes ; then
-#         AC_MSG_RESULT(yes)
-#         AC_DEFINE(HAVE_LIBWIRETAP, 1, Ethereal wiretap library)
-# 		libz="yes";
-# 		AC_DEFINE(HAVE_LIBZ, 1, Zlib compression library)
-# 
-#         if test "$wtap_argquad" = no ; then
-#     		AC_MSG_CHECKING(for wtap_read parameters (wtap *, int *, int *))
-#         	AC_LINK_IFELSE([AC_LANG_PROGRAM([[
-#             	#include <stdio.h>
-#     			#include <sys/types.h>
-#     			#include <netinet/in.h>
-#           		#include "wtap.h"
-#            	]], [[
-#         		int err;
-#     			struct wtap *packfile;
-#     			long *offset;
-#     
-#         		wtap_read(packfile, &err, offset);
-#             ]])],[wtap_intint=no],[wtap_intint=yes])
-#     
-#     		if test "$wtap_intint" = yes ; then
-#     			AC_MSG_RESULT([struct wtap *, int *, int *])
-#                 AC_DEFINE(HAVE_WTAPREAD_INTINT, 1, wtap_read takes two int * parameters)
-#     		else
-#                 AC_MSG_RESULT([struct wtap *, int *, long *])
-#             fi
-#         fi
-# 
-# 		if test $local = yes; then
-# 		    AC_MSG_CHECKING(for forced local-dumper)
-# 		    AC_MSG_RESULT(yes)
-# 		    AC_MSG_WARN(*** Forcing local dumper code instead of wiretap dumper.  ***)
-# 			AC_DEFINE(USE_LOCAL_DUMP, 1, Force local dumper code)
-# 		else
-# 		    AC_MSG_CHECKING(for forced local-dumper)
-# 		    AC_MSG_RESULT(no)
-# 		fi
-#     else
-#         AC_MSG_RESULT(no)
-# 		want_ethereal="no"
-# 		AC_MSG_WARN([*** No useable wiretap found in $ethereal_dir.  Make sure this directory is correct and that you have configured and compiled Ethereal in this directory.  While Kismet will function without wiretap, it will limit the log reading and writing abilities. ***])
-# 		CPPFLAGS="$save_cppflags"
-# 		#CXXFLAGS="$save_cxxflags"
-#    		LIBS="$save_libs"
-# 		AC_DEFINE(USE_LOCAL_DUMP, 1, Use local dumper code)
-#     	local=yes
-#     fi
-# 
-# 	fi
-# else
-# 	AC_MSG_WARN([*** Wiretap support disabled.  While Kismet will function without wiretap, it will limit the log reading and writing abilities. ***])
-# 	AC_DEFINE(USE_LOCAL_DUMP, 1, Use local dumper code)
-#     local=yes
-# fi
 
 # gpsmap checks
 
@@ -878,29 +712,10 @@ if test "$suid" = "yes"; then
 else
 	echo "no"
 fi
-echo -n "         Zaurus extras: "
-if test "$zaurus" = "yes"; then
-	echo "yes"
-	if test "$host_cpu" != "arm"; then
- 		echo "        WARNING:  Not compiling for ARM but zaurus extentions enabled."
-	fi
-else
-	echo "no"
-    if test "$host_cpu" = "arm"; then
-		echo "        WARNING:  Arm CPU but zaurus extentions not enabled."
-    fi
-fi
 
 echo -n "      Terminal Control: "
-if test "$ncurses" = "yes"; then
-	if test "$curses" = "yes"; then
-		echo "curses"
-	else
-		echo "ncurses"
-	fi
-else
-	echo "none"
-fi
+echo "$termcontrol";
+
 echo -n "      Curses interface: "
 if test "$buildcurses" = "yes"; then
 	echo "yes"
@@ -913,20 +728,8 @@ if test "$panel" = "yes"; then
 else
 	echo "no"
 fi
-echo -n " Linux Netlink capture: "
-if test "$netlink" = "yes"; then
-	echo "yes"
-else
-	echo "no"
-fi
 echo -n "       Linux wireless : "
-if test "$wireless" = "yes"; then
-	echo "yes"
-else
-	echo "no"
-fi
-echo -n " Linux wireless v.22+ : "
-if test "$wireless22" = "yes"; then
+if test "$linux_wireless" = "yes"; then
 	echo "yes"
 else
 	echo "no"
@@ -955,11 +758,7 @@ else
 	echo "no";
 fi
 echo -n "      Radiotap headers: "
-if test "$radiotap" = "yes"; then
-    echo "yes";
-else
-    echo "no";
-fi
+echo "$radiotaploc";
 echo -n " Using local dump code: "
 if test "$local" = "yes"; then
 	echo "yes"
@@ -1023,14 +822,13 @@ else
 	fi
 fi
 
-if test "$wireless" != "yes" -a "$linux" = "yes"; then
+if test "$linux_wireless" != "yes" -a "$linux" = "yes"; then
     echo "*** WARNING ***"
-    echo "Linux Wireless Extensions were not found.  This means that they are not"
-    echo "turned on in your kernel or that your kernel source include paths on your"
-    echo "distribution are broken (namely, that linux/wireless.h didn't exist or"
-    echo "was unuseable).  Without wireless extentions, most of the commonly used"
-    echo "packet sources (such as Cisco, Orinoco, Madwifi, Prism54, and others)"
-    echo "WILL NOT BE BUILT."
+	echo "Linux Wireless Extensions were disabled.  Compiling without wext on a "
+	echo "Linux system is certianly possible, however nearly all of the packet "
+	echo "sources will be disabled (including capture sources for Cisco, Madwifi, "
+	echo "Orinoco, Prism, and just about every other live capture method).  Make "
+	echo "sure this is what you want to do."
     echo "*** WARNING ***"
 fi
 

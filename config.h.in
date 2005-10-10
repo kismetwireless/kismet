@@ -42,14 +42,8 @@
 /* Libz compression lib */
 #undef HAVE_LIBZ
 
-/* Linux netlink socket capture present */
-#undef HAVE_LINUX_NETLINK
-
 /* Linux wireless extentions present */
 #undef HAVE_LINUX_WIRELESS
-
-/* Linux wireless extentions v22 or better present */
-#undef HAVE_LINUX_WIRELESS22
 
 /* local radiotap packet headers */
 #undef HAVE_LOCALRADIOTAP

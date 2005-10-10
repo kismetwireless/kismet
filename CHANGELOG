@@ -1,4 +1,9 @@
-Oct 10 2005  devel  Started adding failure conditions to autoconf and forcing
+Oct 10 2005  devel  Removed wext22 check from configure (unneeded)
+                    Cleaned up more of the configure file
+                    Set auto-fail for missing wext headers on linux
+                    Changed config warning for disabling wext
+                    Removed netlink socket checking from configure
+Oct 09 2005  devel  Started adding failure conditions to autoconf and forcing
                      explicit disabling of expected components (like ncurses)
                      which is the "right" thing to do.
                     Removed some linux-specific stuff from the radiotap header,
