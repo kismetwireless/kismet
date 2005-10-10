@@ -38,8 +38,10 @@
 
 #ifdef HAVE_LINUX_SYS_RADIOTAP
 #include <net/ieee80211_radiotap.h>
-#else
-#include "linux_ieee80211_radiotap.h"
+#endif
+
+#ifdef HAVE_LOCALRADIOTAP
+#include "local_ieee80211_radiotap.h"
 #endif
 
 // Stuff we need to track to restore later

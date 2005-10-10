@@ -58,11 +58,9 @@ extern "C" {
 #include <netinet/if_ether.h>
 #include <dev/ic/if_wi_ieee.h>
 
-#ifdef HAVE_RADIOTAP
 #include <net80211/ieee80211.h>
 #include <net80211/ieee80211_ioctl.h>
 #include <net80211/ieee80211_radiotap.h>
-#endif
 
 #endif // Sys/NetBSD
 
@@ -71,18 +69,18 @@ extern "C" {
 #include <net/if.h>
 #include <net/if_media.h>
 
-#ifdef HAVE_RADIOTAP
 #include <net80211/ieee80211_ioctl.h>
 #include <net80211/ieee80211_radiotap.h>
-#endif
 
 #endif // FreeBSD
 
 // Include the linux radiotap headers either from local or system copies
 #if (defined(SYS_LINUX) && defined(HAVE_LINUX_SYS_RADIOTAP))
 #include <net/ieee80211_radiotap.h>
-#elif (defined(SYS_LINUX) && defined(HAVE_RADIOTAP))
-#include "linux_ieee80211_radiotap.h"
+#endif
+
+#ifdef HAVE_LOCALRADIOTAP
+#include "local_ieee80211_radiotap.h"
 #endif
 
 // Maximum SSID length for storing

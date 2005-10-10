@@ -288,63 +288,36 @@ else
 fi
 AC_SUBST(mangrp)
 
-# Checks for libraries.
-# AC_CHECK_LIB([ibs], [main])
-AC_ARG_ENABLE(curses, [  --disable-curses        disable libcurses interface],,wantecurses=yes)
-buildcurses=no
-if test "$wantecurses" = "yes"; then
-	AC_DEFINE(BUILD_CURSES, 1, Build curses-based UI)
-	buildcurses=yes
-fi
+# Check for libcurses or libncurses.  Fatal error if we didn't use disable.
+AC_ARG_ENABLE(curses, [  --disable-curses        disable libcurses],,
+			  wantcurses=yes)
 
-AC_ARG_ENABLE(panel, [  --disable-panel         disable libpanels interface],,wantepanel=yes)
-
-ncurses=no
-wantpanel=no
-if test "$wantecurses" = "yes" -o "$wantepanel" = "yes"; then
+if test "$wantcurses" = "yes"; then
 	AC_CHECK_LIB([ncurses], [initscr], 
-		AC_DEFINE(HAVE_LIBNCURSES, 1, NCurses terminal lib) ncurses=yes curseaux="-lncurses", 
-		AC_MSG_WARN(Unable to find libncurses))
+		AC_DEFINE(HAVE_LIBNCURSES, 1, NCurses terminal lib) \
+			foundlcurses=yes curseaux="-lncurses")
 
-	if test "$ncurses" = no; then
-		AC_CHECK_LIB([curses], [initscr],
-			AC_DEFINE(HAVE_LIBNCURSES, 1, NCurses terminal lib) 
-				AC_DEFINE(HAVE_LIBCURSES, 1, Curses terminal lib)
-				curses=yes ncurses=yes curseaux="-lcurses",
-			AC_MSG_ERROR(Unable to find libncurses or libcurses))
+	AC_CHECK_LIB([curses], [initscr],
+		 AC_DEFINE(HAVE_LIBCURSES, 1, Curses terminal lib) \
+			 foundlcurses=yes curseaux="-lcurses")
+
+	if test "$foundlcurses" != "yes"; then
+		AC_MSG_ERROR("Failed to find libcurses or libncurses.  Install them or " \
+					 "disable curses based components with --disable-curses");
 	fi
 
-	if test "$ncurses" = yes -a "$wantepanel" = yes; then
-		AC_CHECK_LIB([panel], [new_panel], 
-			AC_DEFINE(HAVE_LIBPANEL, 1, Panel terminal lib) 
-				AC_DEFINE(BUILD_PANEL, 1, Build panel UI) panel=yes, 
-			AC_MSG_WARN(*** Unable to find libpanel - panel UI will not be built. ***), $curseaux)
+	AC_CHECK_HEADER([curses.h], [foundhcurses=yes])
+	AC_CHECK_HEADER([ncurses.h], [foundhcurses=yes])
+
+	if test "$foundhcurses" != "yes"; then
+		AC_MSG_ERROR("Failed to find curses.h or ncurses.h.  You probably need to " \
+					 "install the curses-devel package from your distribution");
 	fi
 
-	if test "$panel" = yes; then
-		CLIBS="$CLIBS -lpanel"
-		if test "$curses" = "yes"; then
-        	AC_CHECK_LIB([curses], [assume_default_colors],
-				AC_DEFINE(HAVE_ASSUME_DEFAULT_COLORS, 1, AssumeDefaultColors present),
-				AC_MSG_WARN(*** Your curses does not have assume_default_colors. ***))
-		else
-        	AC_CHECK_LIB([ncurses], [assume_default_colors],
-				AC_DEFINE(HAVE_ASSUME_DEFAULT_COLORS, 1, AssumeDefaultColors present),
-				AC_MSG_WARN(*** Your curses does not have assume_default_colors. ***))
-		fi
-	fi
-
-	if test "$ncurses" = yes; then
-		if test "$curses" = yes; then
-			CLIBS="$CLIBS -lcurses"
-		else
-			CLIBS="$CLIBS -lncurses"
-		fi
-	fi
-else
-	AC_MSG_WARN(*** Neither ncurses or panel interface will be built. ***)
 fi
 AC_SUBST(CLIBS)
+
+# TODO - check for advanced curses stuff here like cdk/panels
 
 AC_ARG_WITH(linuxheaders,
 [  --with-linuxheaders[=DIR]     Custom location of the Linux kernel headers if the glibc copies are insufficient ],
@@ -502,7 +475,7 @@ fi
 AC_SUBST(pcap)
 
 if test "$bsd" = yes; then
-	AC_MSG_CHECKING(for net80211/radiotap support)
+	AC_MSG_CHECKING(for BSD net80211/radiotap support)
 	AC_LINK_IFELSE([AC_LANG_PROGRAM([[
 	    #include <stdio.h>
 	    #include <sys/socket.h>
@@ -512,14 +485,12 @@ if test "$bsd" = yes; then
 	]], [[
 	
 	]])],[radiotap=yes],[radiotap=no])
-	
 else
-	AC_MSG_WARN(Using local radiotap support on a non-bsd system)
-	radiotap=yes
+	AC_MSG_WARN(Using local radiotap headers)
 fi
 
-if test "$radiotap" = yes; then
-    AC_DEFINE(HAVE_RADIOTAP, 1, radiotap packet headers)
+if test "$radiotap" != "yes"; then
+    AC_DEFINE(HAVE_LOCALRADIOTAP, 1, local radiotap packet headers)
 fi
 
 AC_ARG_ENABLE(setuid, [  --disable-setuid        disable setuid/privdrop ability (not reccomended)],,suid=yes)

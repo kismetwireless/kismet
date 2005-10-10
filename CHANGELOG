@@ -1,3 +1,8 @@
+Oct 10 2005  devel  Started adding failure conditions to autoconf and forcing
+                     explicit disabling of expected components (like ncurses)
+                     which is the "right" thing to do.
+                    Removed some linux-specific stuff from the radiotap header,
+                     renamed it to local_radiotap_header.h
 Oct 06 2005  devel  Removed double-cache-lookup in NETWORK protocol handler
                     Removed double-cache-lookup in CLIENT protocol handler
 Oct 04 2005  devel  Moved versioning into header file for plugins to draw

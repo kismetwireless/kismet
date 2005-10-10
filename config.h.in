@@ -3,15 +3,6 @@
 /* system binary directory */
 #undef BIN_LOC
 
-/* Build curses-based UI */
-#undef BUILD_CURSES
-
-/* Build panel UI */
-#undef BUILD_PANEL
-
-/* AssumeDefaultColors present */
-#undef HAVE_ASSUME_DEFAULT_COLORS
-
 /* Define to 1 if you have the <errno.h> header file. */
 #undef HAVE_ERRNO_H
 
@@ -45,9 +36,6 @@
 /* NCurses terminal lib */
 #undef HAVE_LIBNCURSES
 
-/* Panel terminal lib */
-#undef HAVE_LIBPANEL
-
 /* libpcap packet capture lib */
 #undef HAVE_LIBPCAP
 
@@ -62,6 +50,9 @@
 
 /* Linux wireless extentions v22 or better present */
 #undef HAVE_LINUX_WIRELESS22
+
+/* local radiotap packet headers */
+#undef HAVE_LOCALRADIOTAP
 
 /* Define to 1 if you have the <memory.h> header file. */
 #undef HAVE_MEMORY_H
@@ -83,9 +74,6 @@
 
 /* pthread threading library */
 #undef HAVE_PTHREAD
-
-/* radiotap packet headers */
-#undef HAVE_RADIOTAP
 
 /* Define to 1 if you have the `select' function. */
 #undef HAVE_SELECT

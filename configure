@@ -855,8 +855,7 @@ Optional Features:
   --disable-FEATURE       do not include FEATURE (same as --enable-FEATURE=no)
   --enable-FEATURE[=ARG]  include FEATURE [ARG=yes]
   --disable-largefile     omit support for large files
-  --disable-curses        disable libcurses interface
-  --disable-panel         disable libpanels interface
+  --disable-curses        disable libcurses
   --disable-netlink       disable linux netlink socket capture
   --disable-wireless-extension  Disable linux wireless extensions even if found
   --disable-pcap          disable libpcap (most sources) capture support
@@ -5731,36 +5730,16 @@ else
 fi
 
 
-# Checks for libraries.
-# AC_CHECK_LIB([ibs], [main])
+# Check for libcurses or libncurses.  Fatal error if we didn't use disable.
 # Check whether --enable-curses or --disable-curses was given.
 if test "${enable_curses+set}" = set; then
   enableval="$enable_curses"
 
 else
-  wantecurses=yes
-fi;
-buildcurses=no
-if test "$wantecurses" = "yes"; then
-
-cat >>confdefs.h <<\_ACEOF
-#define BUILD_CURSES 1
-_ACEOF
-
-	buildcurses=yes
-fi
-
-# Check whether --enable-panel or --disable-panel was given.
-if test "${enable_panel+set}" = set; then
-  enableval="$enable_panel"
-
-else
-  wantepanel=yes
+  wantcurses=yes
 fi;
 
-ncurses=no
-wantpanel=no
-if test "$wantecurses" = "yes" -o "$wantepanel" = "yes"; then
+if test "$wantcurses" = "yes"; then
 	echo "$as_me:$LINENO: checking for initscr in -lncurses" >&5
 echo $ECHO_N "checking for initscr in -lncurses... $ECHO_C" >&6
 if test "${ac_cv_lib_ncurses_initscr+set}" = set; then
@@ -5830,15 +5809,12 @@ if test $ac_cv_lib_ncurses_initscr = yes; then
 cat >>confdefs.h <<\_ACEOF
 #define HAVE_LIBNCURSES 1
 _ACEOF
- ncurses=yes curseaux="-lncurses"
-else
-  { echo "$as_me:$LINENO: WARNING: Unable to find libncurses" >&5
-echo "$as_me: WARNING: Unable to find libncurses" >&2;}
+ \
+			foundlcurses=yes curseaux="-lncurses"
 fi
 
 
-	if test "$ncurses" = no; then
-		echo "$as_me:$LINENO: checking for initscr in -lcurses" >&5
+	echo "$as_me:$LINENO: checking for initscr in -lcurses" >&5
 echo $ECHO_N "checking for initscr in -lcurses... $ECHO_C" >&6
 if test "${ac_cv_lib_curses_initscr+set}" = set; then
   echo $ECHO_N "(cached) $ECHO_C" >&6
@@ -5905,56 +5881,45 @@ echo "${ECHO_T}$ac_cv_lib_curses_initscr" >&6
 if test $ac_cv_lib_curses_initscr = yes; then
 
 cat >>confdefs.h <<\_ACEOF
-#define HAVE_LIBNCURSES 1
-_ACEOF
-
-
-cat >>confdefs.h <<\_ACEOF
 #define HAVE_LIBCURSES 1
 _ACEOF
-
-				curses=yes ncurses=yes curseaux="-lcurses"
-else
-  { { echo "$as_me:$LINENO: error: Unable to find libncurses or libcurses" >&5
-echo "$as_me: error: Unable to find libncurses or libcurses" >&2;}
-   { (exit 1); exit 1; }; }
+ \
+			 foundlcurses=yes curseaux="-lcurses"
 fi
 
+
+	if test "$foundlcurses" != "yes"; then
+		{ { echo "$as_me:$LINENO: error: \"Failed to find libcurses or libncurses.  Install them or \" \
+					 \"disable curses based components with --disable-curses\"" >&5
+echo "$as_me: error: \"Failed to find libcurses or libncurses.  Install them or \" \
+					 \"disable curses based components with --disable-curses\"" >&2;}
+   { (exit 1); exit 1; }; };
 	fi
 
-	if test "$ncurses" = yes -a "$wantepanel" = yes; then
-		echo "$as_me:$LINENO: checking for new_panel in -lpanel" >&5
-echo $ECHO_N "checking for new_panel in -lpanel... $ECHO_C" >&6
-if test "${ac_cv_lib_panel_new_panel+set}" = set; then
+	if test "${ac_cv_header_curses_h+set}" = set; then
+  echo "$as_me:$LINENO: checking for curses.h" >&5
+echo $ECHO_N "checking for curses.h... $ECHO_C" >&6
+if test "${ac_cv_header_curses_h+set}" = set; then
   echo $ECHO_N "(cached) $ECHO_C" >&6
+fi
+echo "$as_me:$LINENO: result: $ac_cv_header_curses_h" >&5
+echo "${ECHO_T}$ac_cv_header_curses_h" >&6
 else
-  ac_check_lib_save_LIBS=$LIBS
-LIBS="-lpanel $curseaux $LIBS"
+  # Is the header compilable?
+echo "$as_me:$LINENO: checking curses.h usability" >&5
+echo $ECHO_N "checking curses.h usability... $ECHO_C" >&6
 cat >conftest.$ac_ext <<_ACEOF
 /* confdefs.h.  */
 _ACEOF
 cat confdefs.h >>conftest.$ac_ext
 cat >>conftest.$ac_ext <<_ACEOF
 /* end confdefs.h.  */
-
-/* Override any gcc2 internal prototype to avoid an error.  */
-#ifdef __cplusplus
-extern "C"
-#endif
-/* We use char because int might match the return type of a gcc2
-   builtin and then its argument prototype would still apply.  */
-char new_panel ();
-int
-main ()
-{
-new_panel ();
-  ;
-  return 0;
-}
+$ac_includes_default
+#include <curses.h>
 _ACEOF
-rm -f conftest.$ac_objext conftest$ac_exeext
-if { (eval echo "$as_me:$LINENO: \"$ac_link\"") >&5
-  (eval $ac_link) 2>conftest.er1
+rm -f conftest.$ac_objext
+if { (eval echo "$as_me:$LINENO: \"$ac_compile\"") >&5
+  (eval $ac_compile) 2>conftest.er1
   ac_status=$?
   grep -v '^ *+' conftest.er1 >conftest.err
   rm -f conftest.er1
@@ -5968,78 +5933,135 @@ if { (eval echo "$as_me:$LINENO: \"$ac_link\"") >&5
   ac_status=$?
   echo "$as_me:$LINENO: \$? = $ac_status" >&5
   (exit $ac_status); }; } &&
-	 { ac_try='test -s conftest$ac_exeext'
+	 { ac_try='test -s conftest.$ac_objext'
   { (eval echo "$as_me:$LINENO: \"$ac_try\"") >&5
   (eval $ac_try) 2>&5
   ac_status=$?
   echo "$as_me:$LINENO: \$? = $ac_status" >&5
   (exit $ac_status); }; }; then
-  ac_cv_lib_panel_new_panel=yes
+  ac_header_compiler=yes
 else
   echo "$as_me: failed program was:" >&5
 sed 's/^/| /' conftest.$ac_ext >&5
 
-ac_cv_lib_panel_new_panel=no
+ac_header_compiler=no
 fi
-rm -f conftest.err conftest.$ac_objext \
-      conftest$ac_exeext conftest.$ac_ext
-LIBS=$ac_check_lib_save_LIBS
-fi
-echo "$as_me:$LINENO: result: $ac_cv_lib_panel_new_panel" >&5
-echo "${ECHO_T}$ac_cv_lib_panel_new_panel" >&6
-if test $ac_cv_lib_panel_new_panel = yes; then
+rm -f conftest.err conftest.$ac_objext conftest.$ac_ext
+echo "$as_me:$LINENO: result: $ac_header_compiler" >&5
+echo "${ECHO_T}$ac_header_compiler" >&6
 
-cat >>confdefs.h <<\_ACEOF
-#define HAVE_LIBPANEL 1
-_ACEOF
-
-
-cat >>confdefs.h <<\_ACEOF
-#define BUILD_PANEL 1
-_ACEOF
- panel=yes
-else
-  { echo "$as_me:$LINENO: WARNING: *** Unable to find libpanel - panel UI will not be built. ***" >&5
-echo "$as_me: WARNING: *** Unable to find libpanel - panel UI will not be built. ***" >&2;}
-fi
-
-	fi
-
-	if test "$panel" = yes; then
-		CLIBS="$CLIBS -lpanel"
-		if test "$curses" = "yes"; then
-        	echo "$as_me:$LINENO: checking for assume_default_colors in -lcurses" >&5
-echo $ECHO_N "checking for assume_default_colors in -lcurses... $ECHO_C" >&6
-if test "${ac_cv_lib_curses_assume_default_colors+set}" = set; then
-  echo $ECHO_N "(cached) $ECHO_C" >&6
-else
-  ac_check_lib_save_LIBS=$LIBS
-LIBS="-lcurses  $LIBS"
+# Is the header present?
+echo "$as_me:$LINENO: checking curses.h presence" >&5
+echo $ECHO_N "checking curses.h presence... $ECHO_C" >&6
 cat >conftest.$ac_ext <<_ACEOF
 /* confdefs.h.  */
 _ACEOF
 cat confdefs.h >>conftest.$ac_ext
 cat >>conftest.$ac_ext <<_ACEOF
 /* end confdefs.h.  */
-
-/* Override any gcc2 internal prototype to avoid an error.  */
-#ifdef __cplusplus
-extern "C"
-#endif
-/* We use char because int might match the return type of a gcc2
-   builtin and then its argument prototype would still apply.  */
-char assume_default_colors ();
-int
-main ()
-{
-assume_default_colors ();
-  ;
-  return 0;
-}
+#include <curses.h>
 _ACEOF
-rm -f conftest.$ac_objext conftest$ac_exeext
-if { (eval echo "$as_me:$LINENO: \"$ac_link\"") >&5
-  (eval $ac_link) 2>conftest.er1
+if { (eval echo "$as_me:$LINENO: \"$ac_cpp conftest.$ac_ext\"") >&5
+  (eval $ac_cpp conftest.$ac_ext) 2>conftest.er1
+  ac_status=$?
+  grep -v '^ *+' conftest.er1 >conftest.err
+  rm -f conftest.er1
+  cat conftest.err >&5
+  echo "$as_me:$LINENO: \$? = $ac_status" >&5
+  (exit $ac_status); } >/dev/null; then
+  if test -s conftest.err; then
+    ac_cpp_err=$ac_c_preproc_warn_flag
+    ac_cpp_err=$ac_cpp_err$ac_c_werror_flag
+  else
+    ac_cpp_err=
+  fi
+else
+  ac_cpp_err=yes
+fi
+if test -z "$ac_cpp_err"; then
+  ac_header_preproc=yes
+else
+  echo "$as_me: failed program was:" >&5
+sed 's/^/| /' conftest.$ac_ext >&5
+
+  ac_header_preproc=no
+fi
+rm -f conftest.err conftest.$ac_ext
+echo "$as_me:$LINENO: result: $ac_header_preproc" >&5
+echo "${ECHO_T}$ac_header_preproc" >&6
+
+# So?  What about this header?
+case $ac_header_compiler:$ac_header_preproc:$ac_c_preproc_warn_flag in
+  yes:no: )
+    { echo "$as_me:$LINENO: WARNING: curses.h: accepted by the compiler, rejected by the preprocessor!" >&5
+echo "$as_me: WARNING: curses.h: accepted by the compiler, rejected by the preprocessor!" >&2;}
+    { echo "$as_me:$LINENO: WARNING: curses.h: proceeding with the compiler's result" >&5
+echo "$as_me: WARNING: curses.h: proceeding with the compiler's result" >&2;}
+    ac_header_preproc=yes
+    ;;
+  no:yes:* )
+    { echo "$as_me:$LINENO: WARNING: curses.h: present but cannot be compiled" >&5
+echo "$as_me: WARNING: curses.h: present but cannot be compiled" >&2;}
+    { echo "$as_me:$LINENO: WARNING: curses.h:     check for missing prerequisite headers?" >&5
+echo "$as_me: WARNING: curses.h:     check for missing prerequisite headers?" >&2;}
+    { echo "$as_me:$LINENO: WARNING: curses.h: see the Autoconf documentation" >&5
+echo "$as_me: WARNING: curses.h: see the Autoconf documentation" >&2;}
+    { echo "$as_me:$LINENO: WARNING: curses.h:     section \"Present But Cannot Be Compiled\"" >&5
+echo "$as_me: WARNING: curses.h:     section \"Present But Cannot Be Compiled\"" >&2;}
+    { echo "$as_me:$LINENO: WARNING: curses.h: proceeding with the preprocessor's result" >&5
+echo "$as_me: WARNING: curses.h: proceeding with the preprocessor's result" >&2;}
+    { echo "$as_me:$LINENO: WARNING: curses.h: in the future, the compiler will take precedence" >&5
+echo "$as_me: WARNING: curses.h: in the future, the compiler will take precedence" >&2;}
+    (
+      cat <<\_ASBOX
+## ------------------------------------------ ##
+## Report this to the AC_PACKAGE_NAME lists.  ##
+## ------------------------------------------ ##
+_ASBOX
+    ) |
+      sed "s/^/$as_me: WARNING:     /" >&2
+    ;;
+esac
+echo "$as_me:$LINENO: checking for curses.h" >&5
+echo $ECHO_N "checking for curses.h... $ECHO_C" >&6
+if test "${ac_cv_header_curses_h+set}" = set; then
+  echo $ECHO_N "(cached) $ECHO_C" >&6
+else
+  ac_cv_header_curses_h=$ac_header_preproc
+fi
+echo "$as_me:$LINENO: result: $ac_cv_header_curses_h" >&5
+echo "${ECHO_T}$ac_cv_header_curses_h" >&6
+
+fi
+if test $ac_cv_header_curses_h = yes; then
+  foundhcurses=yes
+fi
+
+
+	if test "${ac_cv_header_ncurses_h+set}" = set; then
+  echo "$as_me:$LINENO: checking for ncurses.h" >&5
+echo $ECHO_N "checking for ncurses.h... $ECHO_C" >&6
+if test "${ac_cv_header_ncurses_h+set}" = set; then
+  echo $ECHO_N "(cached) $ECHO_C" >&6
+fi
+echo "$as_me:$LINENO: result: $ac_cv_header_ncurses_h" >&5
+echo "${ECHO_T}$ac_cv_header_ncurses_h" >&6
+else
+  # Is the header compilable?
+echo "$as_me:$LINENO: checking ncurses.h usability" >&5
+echo $ECHO_N "checking ncurses.h usability... $ECHO_C" >&6
+cat >conftest.$ac_ext <<_ACEOF
+/* confdefs.h.  */
+_ACEOF
+cat confdefs.h >>conftest.$ac_ext
+cat >>conftest.$ac_ext <<_ACEOF
+/* end confdefs.h.  */
+$ac_includes_default
+#include <ncurses.h>
+_ACEOF
+rm -f conftest.$ac_objext
+if { (eval echo "$as_me:$LINENO: \"$ac_compile\"") >&5
+  (eval $ac_compile) 2>conftest.er1
   ac_status=$?
   grep -v '^ *+' conftest.er1 >conftest.err
   rm -f conftest.er1
@@ -6053,127 +6075,124 @@ if { (eval echo "$as_me:$LINENO: \"$ac_link\"") >&5
   ac_status=$?
   echo "$as_me:$LINENO: \$? = $ac_status" >&5
   (exit $ac_status); }; } &&
-	 { ac_try='test -s conftest$ac_exeext'
+	 { ac_try='test -s conftest.$ac_objext'
   { (eval echo "$as_me:$LINENO: \"$ac_try\"") >&5
   (eval $ac_try) 2>&5
   ac_status=$?
   echo "$as_me:$LINENO: \$? = $ac_status" >&5
   (exit $ac_status); }; }; then
-  ac_cv_lib_curses_assume_default_colors=yes
+  ac_header_compiler=yes
 else
   echo "$as_me: failed program was:" >&5
 sed 's/^/| /' conftest.$ac_ext >&5
 
-ac_cv_lib_curses_assume_default_colors=no
+ac_header_compiler=no
 fi
-rm -f conftest.err conftest.$ac_objext \
-      conftest$ac_exeext conftest.$ac_ext
-LIBS=$ac_check_lib_save_LIBS
-fi
-echo "$as_me:$LINENO: result: $ac_cv_lib_curses_assume_default_colors" >&5
-echo "${ECHO_T}$ac_cv_lib_curses_assume_default_colors" >&6
-if test $ac_cv_lib_curses_assume_default_colors = yes; then
+rm -f conftest.err conftest.$ac_objext conftest.$ac_ext
+echo "$as_me:$LINENO: result: $ac_header_compiler" >&5
+echo "${ECHO_T}$ac_header_compiler" >&6
 
-cat >>confdefs.h <<\_ACEOF
-#define HAVE_ASSUME_DEFAULT_COLORS 1
-_ACEOF
-
-else
-  { echo "$as_me:$LINENO: WARNING: *** Your curses does not have assume_default_colors. ***" >&5
-echo "$as_me: WARNING: *** Your curses does not have assume_default_colors. ***" >&2;}
-fi
-
-		else
-        	echo "$as_me:$LINENO: checking for assume_default_colors in -lncurses" >&5
-echo $ECHO_N "checking for assume_default_colors in -lncurses... $ECHO_C" >&6
-if test "${ac_cv_lib_ncurses_assume_default_colors+set}" = set; then
-  echo $ECHO_N "(cached) $ECHO_C" >&6
-else
-  ac_check_lib_save_LIBS=$LIBS
-LIBS="-lncurses  $LIBS"
+# Is the header present?
+echo "$as_me:$LINENO: checking ncurses.h presence" >&5
+echo $ECHO_N "checking ncurses.h presence... $ECHO_C" >&6
 cat >conftest.$ac_ext <<_ACEOF
 /* confdefs.h.  */
 _ACEOF
 cat confdefs.h >>conftest.$ac_ext
 cat >>conftest.$ac_ext <<_ACEOF
 /* end confdefs.h.  */
-
-/* Override any gcc2 internal prototype to avoid an error.  */
-#ifdef __cplusplus
-extern "C"
-#endif
-/* We use char because int might match the return type of a gcc2
-   builtin and then its argument prototype would still apply.  */
-char assume_default_colors ();
-int
-main ()
-{
-assume_default_colors ();
-  ;
-  return 0;
-}
+#include <ncurses.h>
 _ACEOF
-rm -f conftest.$ac_objext conftest$ac_exeext
-if { (eval echo "$as_me:$LINENO: \"$ac_link\"") >&5
-  (eval $ac_link) 2>conftest.er1
+if { (eval echo "$as_me:$LINENO: \"$ac_cpp conftest.$ac_ext\"") >&5
+  (eval $ac_cpp conftest.$ac_ext) 2>conftest.er1
   ac_status=$?
   grep -v '^ *+' conftest.er1 >conftest.err
   rm -f conftest.er1
   cat conftest.err >&5
   echo "$as_me:$LINENO: \$? = $ac_status" >&5
-  (exit $ac_status); } &&
-	 { ac_try='test -z "$ac_c_werror_flag"
-			 || test ! -s conftest.err'
-  { (eval echo "$as_me:$LINENO: \"$ac_try\"") >&5
-  (eval $ac_try) 2>&5
-  ac_status=$?
-  echo "$as_me:$LINENO: \$? = $ac_status" >&5
-  (exit $ac_status); }; } &&
-	 { ac_try='test -s conftest$ac_exeext'
-  { (eval echo "$as_me:$LINENO: \"$ac_try\"") >&5
-  (eval $ac_try) 2>&5
-  ac_status=$?
-  echo "$as_me:$LINENO: \$? = $ac_status" >&5
-  (exit $ac_status); }; }; then
-  ac_cv_lib_ncurses_assume_default_colors=yes
+  (exit $ac_status); } >/dev/null; then
+  if test -s conftest.err; then
+    ac_cpp_err=$ac_c_preproc_warn_flag
+    ac_cpp_err=$ac_cpp_err$ac_c_werror_flag
+  else
+    ac_cpp_err=
+  fi
+else
+  ac_cpp_err=yes
+fi
+if test -z "$ac_cpp_err"; then
+  ac_header_preproc=yes
 else
   echo "$as_me: failed program was:" >&5
 sed 's/^/| /' conftest.$ac_ext >&5
 
-ac_cv_lib_ncurses_assume_default_colors=no
+  ac_header_preproc=no
 fi
-rm -f conftest.err conftest.$ac_objext \
-      conftest$ac_exeext conftest.$ac_ext
-LIBS=$ac_check_lib_save_LIBS
-fi
-echo "$as_me:$LINENO: result: $ac_cv_lib_ncurses_assume_default_colors" >&5
-echo "${ECHO_T}$ac_cv_lib_ncurses_assume_default_colors" >&6
-if test $ac_cv_lib_ncurses_assume_default_colors = yes; then
+rm -f conftest.err conftest.$ac_ext
+echo "$as_me:$LINENO: result: $ac_header_preproc" >&5
+echo "${ECHO_T}$ac_header_preproc" >&6
 
-cat >>confdefs.h <<\_ACEOF
-#define HAVE_ASSUME_DEFAULT_COLORS 1
-_ACEOF
-
+# So?  What about this header?
+case $ac_header_compiler:$ac_header_preproc:$ac_c_preproc_warn_flag in
+  yes:no: )
+    { echo "$as_me:$LINENO: WARNING: ncurses.h: accepted by the compiler, rejected by the preprocessor!" >&5
+echo "$as_me: WARNING: ncurses.h: accepted by the compiler, rejected by the preprocessor!" >&2;}
+    { echo "$as_me:$LINENO: WARNING: ncurses.h: proceeding with the compiler's result" >&5
+echo "$as_me: WARNING: ncurses.h: proceeding with the compiler's result" >&2;}
+    ac_header_preproc=yes
+    ;;
+  no:yes:* )
+    { echo "$as_me:$LINENO: WARNING: ncurses.h: present but cannot be compiled" >&5
+echo "$as_me: WARNING: ncurses.h: present but cannot be compiled" >&2;}
+    { echo "$as_me:$LINENO: WARNING: ncurses.h:     check for missing prerequisite headers?" >&5
+echo "$as_me: WARNING: ncurses.h:     check for missing prerequisite headers?" >&2;}
+    { echo "$as_me:$LINENO: WARNING: ncurses.h: see the Autoconf documentation" >&5
+echo "$as_me: WARNING: ncurses.h: see the Autoconf documentation" >&2;}
+    { echo "$as_me:$LINENO: WARNING: ncurses.h:     section \"Present But Cannot Be Compiled\"" >&5
+echo "$as_me: WARNING: ncurses.h:     section \"Present But Cannot Be Compiled\"" >&2;}
+    { echo "$as_me:$LINENO: WARNING: ncurses.h: proceeding with the preprocessor's result" >&5
+echo "$as_me: WARNING: ncurses.h: proceeding with the preprocessor's result" >&2;}
+    { echo "$as_me:$LINENO: WARNING: ncurses.h: in the future, the compiler will take precedence" >&5
+echo "$as_me: WARNING: ncurses.h: in the future, the compiler will take precedence" >&2;}
+    (
+      cat <<\_ASBOX
+## ------------------------------------------ ##
+## Report this to the AC_PACKAGE_NAME lists.  ##
+## ------------------------------------------ ##
+_ASBOX
+    ) |
+      sed "s/^/$as_me: WARNING:     /" >&2
+    ;;
+esac
+echo "$as_me:$LINENO: checking for ncurses.h" >&5
+echo $ECHO_N "checking for ncurses.h... $ECHO_C" >&6
+if test "${ac_cv_header_ncurses_h+set}" = set; then
+  echo $ECHO_N "(cached) $ECHO_C" >&6
 else
-  { echo "$as_me:$LINENO: WARNING: *** Your curses does not have assume_default_colors. ***" >&5
-echo "$as_me: WARNING: *** Your curses does not have assume_default_colors. ***" >&2;}
+  ac_cv_header_ncurses_h=$ac_header_preproc
+fi
+echo "$as_me:$LINENO: result: $ac_cv_header_ncurses_h" >&5
+echo "${ECHO_T}$ac_cv_header_ncurses_h" >&6
+
+fi
+if test $ac_cv_header_ncurses_h = yes; then
+  foundhcurses=yes
 fi
 
-		fi
+
+
+	if test "$foundhcurses" != "yes"; then
+		{ { echo "$as_me:$LINENO: error: \"Failed to find curses.h or ncurses.h.  You probably need to \" \
+					 \"install the curses-devel package from your distribution\"" >&5
+echo "$as_me: error: \"Failed to find curses.h or ncurses.h.  You probably need to \" \
+					 \"install the curses-devel package from your distribution\"" >&2;}
+   { (exit 1); exit 1; }; };
 	fi
 
-	if test "$ncurses" = yes; then
-		if test "$curses" = yes; then
-			CLIBS="$CLIBS -lcurses"
-		else
-			CLIBS="$CLIBS -lncurses"
-		fi
-	fi
-else
-	{ echo "$as_me:$LINENO: WARNING: *** Neither ncurses or panel interface will be built. ***" >&5
-echo "$as_me: WARNING: *** Neither ncurses or panel interface will be built. ***" >&2;}
 fi
 
+
+# TODO - check for advanced curses stuff here like cdk/panels
 
 
 # Check whether --with-linuxheaders or --without-linuxheaders was given.
@@ -7018,8 +7037,8 @@ fi
 
 
 if test "$bsd" = yes; then
-	echo "$as_me:$LINENO: checking for net80211/radiotap support" >&5
-echo $ECHO_N "checking for net80211/radiotap support... $ECHO_C" >&6
+	echo "$as_me:$LINENO: checking for BSD net80211/radiotap support" >&5
+echo $ECHO_N "checking for BSD net80211/radiotap support... $ECHO_C" >&6
 	cat >conftest.$ac_ext <<_ACEOF
 /* confdefs.h.  */
 _ACEOF
@@ -7074,17 +7093,15 @@ radiotap=no
 fi
 rm -f conftest.err conftest.$ac_objext \
       conftest$ac_exeext conftest.$ac_ext
-
 else
-	{ echo "$as_me:$LINENO: WARNING: Using local radiotap support on a non-bsd system" >&5
-echo "$as_me: WARNING: Using local radiotap support on a non-bsd system" >&2;}
-	radiotap=yes
+	{ echo "$as_me:$LINENO: WARNING: Using local radiotap headers" >&5
+echo "$as_me: WARNING: Using local radiotap headers" >&2;}
 fi
 
-if test "$radiotap" = yes; then
+if test "$radiotap" != "yes"; then
 
 cat >>confdefs.h <<\_ACEOF
-#define HAVE_RADIOTAP 1
+#define HAVE_LOCALRADIOTAP 1
 _ACEOF
 
 fi
