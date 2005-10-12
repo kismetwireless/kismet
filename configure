@@ -6940,17 +6940,17 @@ if { (eval echo "$as_me:$LINENO: \"$ac_link\"") >&5
   ac_status=$?
   echo "$as_me:$LINENO: \$? = $ac_status" >&5
   (exit $ac_status); }; }; then
-  echo "$as_me:$LINENO: result: \"yes\"" >&5
-echo "${ECHO_T}\"yes\"" >&6 radiotap=yes bsdradiotap=yes
+  radiotap=yes bsdradiotap=yes
 else
   echo "$as_me: failed program was:" >&5
 sed 's/^/| /' conftest.$ac_ext >&5
 
-echo "$as_me:$LINENO: result: \"no\"" >&5
-echo "${ECHO_T}\"no\"" >&6 radiotap=no
+bsdradiotap=no radiotap=no
 fi
 rm -f conftest.err conftest.$ac_objext \
       conftest$ac_exeext conftest.$ac_ext
+	echo "$as_me:$LINENO: result: $bsdradiotap" >&5
+echo "${ECHO_T}$bsdradiotap" >&6
 else
 	{ echo "$as_me:$LINENO: WARNING: Using local radiotap headers" >&5
 echo "$as_me: WARNING: Using local radiotap headers" >&2;}

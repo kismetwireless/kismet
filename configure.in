@@ -455,8 +455,8 @@ if test "$bsd" = yes; then
 	    #include <net80211/ieee80211_radiotap.h>
 	]], [[
 	
-	]])],AC_MSG_RESULT("yes") radiotap=yes bsdradiotap=yes,
-		AC_MSG_RESULT("no") radiotap=no)
+	]])],radiotap=yes bsdradiotap=yes, bsdradiotap=no radiotap=no)
+	AC_MSG_RESULT($bsdradiotap)
 else
 	AC_MSG_WARN(Using local radiotap headers)
 fi
