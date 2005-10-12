@@ -1,3 +1,5 @@
+Oct 12 2005  devel  Tweaked configure for BSD radiotap detection
+                    Removed some OS specific stuff from generic pcapsource
 Oct 10 2005  devel  Removed wext22 check from configure (unneeded)
                     Cleaned up more of the configure file
                     Set auto-fail for missing wext headers on linux

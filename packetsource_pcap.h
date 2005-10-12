@@ -47,13 +47,16 @@ extern "C" {
 #endif
 }
 
-// Include the BSD radiotap headers... This may be including other bits we
-// don't really need to include here, but I don't know what inter-dependencies
-// they have
-#if defined(SYS_OPENBSD) || defined(SYS_NETBSD)
+// Include the various variations of BSD radiotap headers from the system if
+// we can get them, incidentally pull in other stuff but I'm not sure whats
+// needed so we'll leave the extra headers for now
+#ifdef HAVE_BSD_SYS_RADIOTAP
+
 #include <sys/socket.h>
 #include <net/if.h>
 #include <net/if_media.h>
+
+#if defined(SYS_OPENBSD) || defined(SYS_NETBSD)
 #include <netinet/in.h>
 #include <netinet/if_ether.h>
 #include <dev/ic/if_wi_ieee.h>
@@ -61,24 +64,22 @@ extern "C" {
 #include <net80211/ieee80211.h>
 #include <net80211/ieee80211_ioctl.h>
 #include <net80211/ieee80211_radiotap.h>
-
-#endif // Sys/NetBSD
+#endif // Open/Net
 
 #ifdef SYS_FREEBSD
-#include <sys/socket.h>
-#include <net/if.h>
-#include <net/if_media.h>
-
 #include <net80211/ieee80211_ioctl.h>
 #include <net80211/ieee80211_radiotap.h>
-
 #endif // FreeBSD
 
-// Include the linux radiotap headers either from local or system copies
-#if (defined(SYS_LINUX) && defined(HAVE_LINUX_SYS_RADIOTAP))
+#endif // BSD radiotap
+
+// Include the linux system radiotap headers
+#ifdef HAVE_LINUX_SYS_RADIOTAP
 #include <net/ieee80211_radiotap.h>
 #endif
 
+// If we couldn't make any sense of system rt headers (OSX perhaps, or
+// win32, or an older linux) then pull in the local radiotap copy
 #ifdef HAVE_LOCALRADIOTAP
 #include "local_ieee80211_radiotap.h"
 #endif
@@ -135,20 +136,6 @@ typedef struct {
 	p80211item_uint32_t istx __attribute__ ((packed));
 	p80211item_uint32_t frmlen __attribute__ ((packed));
 } wlan_ng_prism2_header;
-
-// Prism 802.11 headers from the openbsd Hermes drivers, even though they don't return
-// a valid linktype yet.  Structure lifted from bsd_airtools by dachb0den labs.
-typedef struct {
-	u_int16_t wi_status;
-	u_int16_t wi_ts0;
-	u_int16_t wi_ts1;
-	u_int8_t  wi_silence;
-	u_int8_t  wi_signal;
-	u_int8_t  wi_rate;
-	u_int8_t  wi_rx_flow;
-	u_int16_t wi_rsvd0;
-	u_int16_t wi_rsvd1;
-} bsd_80211_header;
 
 // wlan-ng (and hopefully others) AVS header, version one.  Fields in
 // network byte order.

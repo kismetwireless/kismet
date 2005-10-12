@@ -6940,7 +6940,7 @@ if { (eval echo "$as_me:$LINENO: \"$ac_link\"") >&5
   ac_status=$?
   echo "$as_me:$LINENO: \$? = $ac_status" >&5
   (exit $ac_status); }; }; then
-  radiotap=yes
+  radiotap=yes bsdradiotap=yes
 else
   echo "$as_me: failed program was:" >&5
 sed 's/^/| /' conftest.$ac_ext >&5
@@ -6957,11 +6957,18 @@ fi
 if test "$radiotap" != "yes"; then
 
 cat >>confdefs.h <<\_ACEOF
-#define HAVE_LOCALRADIOTAP 1
+#define HAVE_LOCAL_RADIOTAP 1
 _ACEOF
 
 	radiotaploc="local";
-else
+fi
+
+if test "$bsdradiotap" = "yes"; then
+
+cat >>confdefs.h <<\_ACEOF
+#define HAVE_BSD_SYS_RADIOTAP 1
+_ACEOF
+
 	radiotaploc="system (BSD)";
 fi
 

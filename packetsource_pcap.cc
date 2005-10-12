@@ -104,23 +104,7 @@ int PacketSource_Pcap::DatalinkType() {
     datalink_type = pcap_datalink(pd);
 
     // Blow up if we're not valid 802.11 headers
-#if (defined(SYS_FREEBSD) || defined(SYS_OPENBSD))
-    if (datalink_type == DLT_EN10MB) {
-        snprintf(errstr, STATUS_MAX, "pcap reports link type of EN10MB but we'll "
-				 "try to fake it on BSD. This probably will NOT work and probably "
-				 "means you're using the WRONG capture source or UNSUPPORTED "
-				 "DRIVERS");
-        globalreg->messagebus->InjectMessage(errstr, MSGFLAG_ERROR);
-#if (defined(SYS_FREEBSD) || defined(SYS_NETBSD) && !defined(HAVE_RADIOTAP))
-        snprintf(errstr, STATUS_MAX, "Some free- and net- BSD drivers do not report "
-				 "rfmon packets correctly.  Kismet may not run correctly.  For "
-				 "better support, you should upgrade to a version of BSD with "
-				 "radiotap support.");
-        globalreg->messagebus->InjectMessage(errstr, MSGFLAG_ERROR);
-#endif
-        datalink_type = KDLT_BSD802_11;
-    }
-#else
+	// Need to not blow up on en10mb?  Override.
     if (datalink_type == DLT_EN10MB) {
         snprintf(errstr, STATUS_MAX, "pcap reported netlink type 1 (EN10MB) for %s.  "
                  "This probably means you're not in RFMON mode or your drivers are "
@@ -129,12 +113,12 @@ int PacketSource_Pcap::DatalinkType() {
         globalreg->messagebus->InjectMessage(errstr, MSGFLAG_FATAL);
         globalreg->fatal_condition = 1;
         return -1;
-    }
-#endif
-
-    // Little hack to give an intelligent error report for radiotap
+    } 
 #ifndef HAVE_RADIOTAP
-    if (datalink_type == DLT_IEEE802_11_RADIO) {
+	else if (datalink_type == DLT_IEEE802_11_RADIO) {
+    // Little hack to give an intelligent error report for radiotap
+	// Probably redundant now that we always include local rt if we can't
+	// get a system rt
         snprintf(errstr, STATUS_MAX, "FATAL: Radiotap link type reported but "
 				 "radiotap support was not compiled into Kismet when the configure "
 				 "scripts were run.  Make sure that ther radiotap include files "
@@ -144,10 +128,7 @@ int PacketSource_Pcap::DatalinkType() {
         return -1;
     }
 #endif
-    
-    if (datalink_type != KDLT_BSD802_11 && datalink_type != DLT_IEEE802_11 &&
-        datalink_type != DLT_PRISM_HEADER &&
-        datalink_type != DLT_IEEE802_11_RADIO) {
+	else {
         snprintf(errstr, STATUS_MAX, "Unknown link type %d reported.  Continuing on "
                  "blindly and hoping we get something useful...  This is ALMOST "
 				 "CERTIANLY NOT GOING TO WORK RIGHT", datalink_type);

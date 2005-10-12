@@ -455,15 +455,18 @@ if test "$bsd" = yes; then
 	    #include <net80211/ieee80211_radiotap.h>
 	]], [[
 	
-	]])],[radiotap=yes],[radiotap=no])
+	]])],radiotap=yes bsdradiotap=yes,radiotap=no)
 else
 	AC_MSG_WARN(Using local radiotap headers)
 fi
 
 if test "$radiotap" != "yes"; then
-    AC_DEFINE(HAVE_LOCALRADIOTAP, 1, local radiotap packet headers)
+    AC_DEFINE(HAVE_LOCAL_RADIOTAP, 1, local radiotap packet headers)
 	radiotaploc="local";
-else
+fi
+
+if test "$bsdradiotap" = "yes"; then
+	AC_DEFINE(HAVE_BSD_SYS_RADIOTAP, 1, BSD radiotap packet headers)
 	radiotaploc="system (BSD)";
 fi
 

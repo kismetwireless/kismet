@@ -3,6 +3,9 @@
 /* system binary directory */
 #undef BIN_LOC
 
+/* BSD radiotap packet headers */
+#undef HAVE_BSD_SYS_RADIOTAP
+
 /* Define to 1 if you have the <errno.h> header file. */
 #undef HAVE_ERRNO_H
 
@@ -46,7 +49,7 @@
 #undef HAVE_LINUX_WIRELESS
 
 /* local radiotap packet headers */
-#undef HAVE_LOCALRADIOTAP
+#undef HAVE_LOCAL_RADIOTAP
 
 /* Define to 1 if you have the <memory.h> header file. */
 #undef HAVE_MEMORY_H
