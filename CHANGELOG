@@ -1,3 +1,4 @@
+Oct 13 2005  devel  Converted BSD interface control framework from stable
 Oct 12 2005  devel  Tweaked configure for BSD radiotap detection
                     Removed some OS specific stuff from generic pcapsource
                     Removed -O2 from default makefile cxxflags (oops)
