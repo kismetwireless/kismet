@@ -26,6 +26,7 @@
 #include "packetsource.h"
 #include "packetsource_pcap.h"
 #include "packetsource_wext.h"
+#include "packetsource_bsd.h"
 #include "configfile.h"
 #include "getopt.h"
 
@@ -294,7 +295,31 @@ Packetsourcetracker::Packetsourcetracker(GlobalRegistry *in_globalreg) {
 						 monitor_wext_std, unmonitor_wext_std,
 						 chancontrol_wext_std, 1);
 
-#endif
+#endif // Wext
+
+#if defined(SYS_OPENBSD) || defined(SYS_NETBSD) || defined(SYS_FREEBSD)
+	// BSD pcap-based common radiotap capture sources
+	RegisterPacketsource("radiotap_bsd_ag", 1, "IEEE80211ab", 6,
+						 NULL, // FIXME -- add a detector
+						 packetsource_bsdrtap_registrant,
+						 monitor_bsdrtap_std, unmonitor_bsdrtap_std,
+						 chancontrol_bsdrtap_std, 1);
+	RegisterPacketsource("radiotap_bsd_a", 1, "IEEE80211a", 36,
+						 NULL, // FIXME -- add a detector
+						 packetsource_bsdrtap_registrant,
+						 monitor_bsdrtap_std, unmonitor_bsdrtap_std,
+						 chancontrol_bsdrtap_std, 1);
+	RegisterPacketsource("radiotap_bsd_g", 1, "IEEE80211b", 6,
+						 NULL, // FIXME -- add a detector
+						 packetsource_bsdrtap_registrant,
+						 monitor_bsdrtap_std, unmonitor_bsdrtap_std,
+						 chancontrol_bsdrtap_std, 1);
+	RegisterPacketsource("radiotap_bsd_b", 1, "IEEE80211b", 6,
+						 NULL, // FIXME -- add a detector
+						 packetsource_bsdrtap_registrant,
+						 monitor_bsdrtap_std, unmonitor_bsdrtap_std,
+						 chancontrol_bsdrtap_std, 1);
+#endif // BSD
 
 #endif
 

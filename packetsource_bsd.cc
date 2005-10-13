@@ -430,6 +430,14 @@ int monitor_bsdrtap_std(MONITOR_PARMS) {
 int unmonitor_bsdrtap_std(MONITOR_PARMS) {
 	Radiotap_BSD_Controller *bsdcon = *(Radiotap_BSD_Controller **) in_if;
 
+	if (bsdcon == 0) {
+		_MSG("BSD interface controller left in unknown mode for " + string(in_dev) + 
+			 ".  Interface cannot be cleanly returned to previous settings and "
+			 "may be left in an unusable state.", MSGFLAG_FATAL);
+		globalreg->fatal_condition = 1;
+		return -1;
+	}
+
 	if (bsdcon->MonitorReset(initch) == 0) {
 		delete bsdcon;
 		_MSG("Failed to reset wireless mode of '" + string(in_dev) + 
