@@ -94,9 +94,7 @@ class PacketSource_BSD : public PacketSource_Pcap {
 public:
 	// Standard interface for capturesource
 	PacketSource_BSD(GlobalRegistry *in_globalreg, string in_name, string in_dev) :
-		PacketSource_Pcap(in_globalreg, in_name, in_dev) { 
-			// Stuff
-		}
+		PacketSource_Pcap(in_globalreg, in_name, in_dev) { }
 
 	virtual int OpenSource();
 
@@ -117,9 +115,7 @@ class PacketSource_BSDRT : public PacketSource_BSD {
 public:
 	// Standard interface for capturesource
 	PacketSource_BSDRT(GlobalRegistry *in_globalreg, string in_name, string in_dev) :
-		PacketSource_Pcap(in_globalreg, in_name, in_dev) { 
-			// Stuff
-		}
+		PacketSource_BSD(in_globalreg, in_name, in_dev) { }
 
 	virtual int OpenSource();
 protected:

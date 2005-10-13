@@ -392,6 +392,5 @@ int PacketSource_BSDRT::DatalinkType() {
 	return 1;
 }
 
-
 #endif
 
