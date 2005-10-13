@@ -392,5 +392,67 @@ int PacketSource_BSDRT::DatalinkType() {
 	return 1;
 }
 
+/* *********************************************************** */
+/* Packetsource registrant functions */
+
+KisPacketSource *packetsource_bsdrtap_registrant(REGISTRANT_PARMS) {
+	PacketSource_BSDRT *rts = new PacketSource_BSDRT(globalreg, in_name, in_device);
+	return rts;
+}
+
+/* *********************************************************** */
+/* Monitor enter/exit functions */
+
+int monitor_bsdrtap_std(MONITOR_PARMS) {
+	Radiotap_BSD_Controller *bsdcon = 
+		new Radiotap_BSD_Controller(globalreg, in_device);
+	
+	if (bsdcon->MonitorEnable(initch) == 0) {
+		delete bsdcon;
+		_MSG("Unable to enable monitor mode on '" + in_device + "'.", MSGFLAG_FATAL);
+		globalreg->fatal_condition = 1;
+		return -1;
+	}
+
+	*(Radiotap_BSD_Controller **) in_if = bsdcon;
+#ifdef SYS_OPENBSD
+	// Temporary hack around OpenBSD drivers not standardizing on wether FCS
+	// bytes are appended, nor having any method to indicate their presence.
+	if (strncmp(in_dev, "ath", 3) == 0 || strncmp(in_dev, "ural", 4) == 0) {
+		((KisPacketSource *) in_ext)->SetFCSBytes(4);
+	}
+#endif
+
+	return 0;
+}
+
+int unmonitor_bsdrtap_std(MONITOR_PARMS) {
+	Radiotap_BSD_Controller *bsdcon = *(Radiotap_BSD_Controller **) in_if;
+
+	if (bsdcon->monitor_reset(initch) == 0) {
+		delete bsdcon;
+		snprintf(errstr, STATUS_MAX, "Failed to reset wireless mode to stored "
+				 "values for %s. It may be left in an unusable state.", 
+				 in_dev);
+		return -1;
+	}
+
+	delete bsdcon;
+	return 1;
+}
+
+/* *********************************************************** */
+/* Channel control functions */
+
+int chancontrol_bsdrtap_std(CHCONTROL_PARMS) {
+	Radiotap_BSD_Controller *bsdcon = *(Radiotap_BSD_Controller **) in_if;
+
+	if (bsdcon->ChangeChannel(in_ch) == 0) {
+		return -1;
+	}
+
+	return 0;
+}
+
 #endif
 

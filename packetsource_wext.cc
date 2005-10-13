@@ -276,6 +276,9 @@ int chancontrol_wext_core(CHCONTROL_PARMS, char *errstr) {
     return 1;
 }
 
+/* *********************************************************** */
+/* Channel control functions */
+
 int chancontrol_wext_std(CHCONTROL_PARMS) {
 	char errstr[STATUS_MAX];
 
