@@ -96,8 +96,6 @@ public:
 	PacketSource_BSD(GlobalRegistry *in_globalreg, string in_name, string in_dev) :
 		PacketSource_Pcap(in_globalreg, in_name, in_dev) { }
 
-	virtual int OpenSource();
-
 	virtual int FetchChannel();
 
 protected:

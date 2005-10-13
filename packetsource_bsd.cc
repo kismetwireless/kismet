@@ -87,8 +87,8 @@ int Radiotap_BSD_Controller::MonitorReset(int initch) {
 
 int Radiotap_BSD_Controller::ChangeChannel(int in_ch) {
 	if (Set80211(IEEE80211_IOC_CHANNEL, in_ch, 0, NULL) == 0) {
-		_MSG("BSD interface control failed to set channel: " +
-			 string(strerror(errno)), MSGFLAG_ERROR);
+		_MSG("BSD interface control failed to set channel on '" + dev + "': " +
+			 strerror(errno), MSGFLAG_ERROR);
 		return 0;
 	} 
 
