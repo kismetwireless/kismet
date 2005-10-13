@@ -1,4 +1,8 @@
 Oct 13 2005  devel  Converted BSD interface control framework from stable
+                    Removed radiotap availability check, since we force it on
+                     with local headers now anyhow
+                    Fixed local radiotap inclusion
+                    Fleshed out BSD capture sources
 Oct 12 2005  devel  Tweaked configure for BSD radiotap detection
                     Removed some OS specific stuff from generic pcapsource
                     Removed -O2 from default makefile cxxflags (oops)

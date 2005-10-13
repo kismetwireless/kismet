@@ -80,7 +80,7 @@ extern "C" {
 
 // If we couldn't make any sense of system rt headers (OSX perhaps, or
 // win32, or an older linux) then pull in the local radiotap copy
-#ifdef HAVE_LOCALRADIOTAP
+#ifdef HAVE_LOCAL_RADIOTAP
 #include "local_ieee80211_radiotap.h"
 #endif
 

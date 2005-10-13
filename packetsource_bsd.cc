@@ -318,5 +318,80 @@ int Radiotap_BSD_Controller::CheckSocket() {
 	return 1;
 }
 
+int PacketSource_BSD::DatalinkType() {
+	// Do some whining about linktypes for the generic BSD stuff
+	datalink_type = pcap_datalink(pd);
+
+	if (datalink_type == DLT_EN10MB) {
+		_MSG("pcap reported EN10MB (standard ethernet) link type for " +
+			 interface + ".  This probably means you're not in monitor mode or "
+			 "that your drivers are reporting a bad value, but we'll continue on "
+			 "and hope we get something useful because some *BSD drivers report "
+			 "funny values for linktype.", MSGFLAG_ERROR);
+	}
+
+	return 1;
+}
+
+int PacketSource_BSD::CheckDLT(int dlt) {
+	int found = 0;
+	int i, n, *dl;
+
+	n = pcap_list_datalinks(pd, &dl);
+
+	for (i = 0; i < n; i++) {
+		if (dl[i] == dlt) {
+			found = 1;
+			break;
+		}
+	}
+
+	free(dl);
+	return found;
+}
+
+int PacketSource_BSD::FetchChannel() {
+	int chan;
+
+	Radiotap_BSD_Controller bsdcon(globalreg, interface);
+
+	if (bsdcon.Get80211(IEEE80211_IOC_CHANNEL, chan, 0, NULL) == 0) {
+		return -1;
+	}
+
+	return chan;
+}
+
+void PacketSource_BSD::FetchRadioData(kis_packet *in_packet) {
+	// Nothing to do here
+	return;
+}
+
+int PacketSource_BSDRT::OpenSource() {
+	// XXX Hack to avoid duplicate code, open using normal methods
+	int ret = PacketSource_Pcap::OpenSource();
+	if (ret < 0)
+		return ret;
+
+	if (CheckDLT(DLT_IEEE802_11_RADIO) == 0) {
+		_MSG("No support for radiotap data link type on '" + interface + "'",
+			 MSGFLAG_FATAL);
+		globalreg->fatal_condition = 1;
+		return -1;
+	}
+
+	(void) pcap_set_datalink(pd, DLT_IEEE802_11_RADIO);
+	datalink_type = DLT_IEEE802_11_RADIO;
+
+	return 1;
+}
+
+int PacketSource_BSDRT::DatalinkType() {
+	// We do no checking here because we don't really care, the open test
+	// clears up any link problems or fails on its own.
+	return 1;
+}
+
+
 #endif
 

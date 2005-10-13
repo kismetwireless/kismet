@@ -113,22 +113,7 @@ int PacketSource_Pcap::DatalinkType() {
         globalreg->messagebus->InjectMessage(errstr, MSGFLAG_FATAL);
         globalreg->fatal_condition = 1;
         return -1;
-    } 
-#ifndef HAVE_RADIOTAP
-	else if (datalink_type == DLT_IEEE802_11_RADIO) {
-    // Little hack to give an intelligent error report for radiotap
-	// Probably redundant now that we always include local rt if we can't
-	// get a system rt
-        snprintf(errstr, STATUS_MAX, "FATAL: Radiotap link type reported but "
-				 "radiotap support was not compiled into Kismet when the configure "
-				 "scripts were run.  Make sure that ther radiotap include files "
-				 "are detected during configuration");
-        globalreg->messagebus->InjectMessage(errstr, MSGFLAG_FATAL);
-        globalreg->fatal_condition = 1;
-        return -1;
-    }
-#endif
-	else {
+    } else {
         snprintf(errstr, STATUS_MAX, "Unknown link type %d reported.  Continuing on "
                  "blindly and hoping we get something useful...  This is ALMOST "
 				 "CERTIANLY NOT GOING TO WORK RIGHT", datalink_type);
@@ -226,10 +211,8 @@ int PacketSource_Pcap::ManglePacket(kis_packet *packet) {
 
 	if (datalink_type == DLT_PRISM_HEADER) {
 		ret = Prism2KisPack(packet);
-#ifdef HAVE_RADIOTAP
 	} else if (datalink_type == DLT_IEEE802_11_RADIO) {
 		ret = Radiotap2KisPack(packet);
-#endif
 	}
 
 	// We don't have to do anything else now other than add the signal headers.
@@ -377,7 +360,6 @@ int PacketSource_Pcap::Prism2KisPack(kis_packet *packet) {
     return 1;
 }
 
-#ifdef HAVE_RADIOTAP
 /*
  * Convert MHz frequency to IEEE channel number.
  */
@@ -647,8 +629,6 @@ int PacketSource_Pcap::Radiotap2KisPack(kis_packet *packet) {
 #undef BITNO_4
 #undef BITNO_2
 #undef BIT
-
-#endif // HAVE_RADIOTAP
 
 int PacketSource_Pcap::FetchChannel() {
 	return 0;

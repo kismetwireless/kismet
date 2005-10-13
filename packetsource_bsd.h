@@ -98,10 +98,12 @@ public:
 			// Stuff
 		}
 
+	virtual int OpenSource();
+
 	virtual int FetchChannel();
 
 protected:
-	// Override data link type to handle bsd funky
+	// Override data link type to handle bsd funky bits
 	virtual int DatalinkType();
 
 	// Inherited from grandparent 
@@ -109,6 +111,39 @@ protected:
 
 	virtual int CheckDLT(int dlt);
 };	
+
+// Yeah this is a little annoying to nest so deep but it's logical at least
+class PacketSource_BSDRT : public PacketSource_BSD {
+public:
+	// Standard interface for capturesource
+	PacketSource_BSDRT(GlobalRegistry *in_globalreg, string in_name, string in_dev) :
+		PacketSource_Pcap(in_globalreg, in_name, in_dev) { 
+			// Stuff
+		}
+
+	virtual int OpenSource();
+protected:
+	// Dead datalink type since we force it in open
+	virtual int DatalinkType();
+};	
+
+// ---------- Registrant Functions
+
+// BSD radiotap common build
+KisPacketSource *packetsource_bsdrtap_registrant(REGISTRANT_PARMS);
+
+// ---------- Monitor enter/exit Functions
+
+// BSD radiotap common monitor/unmonitor
+int monitor_bsdrtap_std(MONITOR_PARMS);
+int unmonitor_bsdrtap_std(MONITOR_PARMS);
+
+// ---------- Channel Manipulation Functions
+
+int chancontrol_bsdrtap_std(CHCONTROL_PARMS);
+
+// ---------- Automatic Registration Functions
+// FIXME:  Add autodetects
 
 #endif /* have_libpcap && BSD */
 
