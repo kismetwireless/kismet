@@ -405,11 +405,12 @@ KisPacketSource *packetsource_bsdrtap_registrant(REGISTRANT_PARMS) {
 
 int monitor_bsdrtap_std(MONITOR_PARMS) {
 	Radiotap_BSD_Controller *bsdcon = 
-		new Radiotap_BSD_Controller(globalreg, in_device);
+		new Radiotap_BSD_Controller(globalreg, in_dev);
 	
 	if (bsdcon->MonitorEnable(initch) == 0) {
 		delete bsdcon;
-		_MSG("Unable to enable monitor mode on '" + in_device + "'.", MSGFLAG_FATAL);
+		_MSG("Unable to enable monitor mode on '" + string(in_dev) + "'.", 
+			 MSGFLAG_FATAL);
 		globalreg->fatal_condition = 1;
 		return -1;
 	}
@@ -429,11 +430,12 @@ int monitor_bsdrtap_std(MONITOR_PARMS) {
 int unmonitor_bsdrtap_std(MONITOR_PARMS) {
 	Radiotap_BSD_Controller *bsdcon = *(Radiotap_BSD_Controller **) in_if;
 
-	if (bsdcon->monitor_reset(initch) == 0) {
+	if (bsdcon->MonitorReset(initch) == 0) {
 		delete bsdcon;
-		snprintf(errstr, STATUS_MAX, "Failed to reset wireless mode to stored "
-				 "values for %s. It may be left in an unusable state.", 
-				 in_dev);
+		_MSG("Failed to reset wireless mode of '" + string(in_dev) + 
+			 "' to stored values. " "It may be left in an unusable state.", 
+			 MSGFLAG_FATAL);
+		globalreg->fatal_condition = 1;
 		return -1;
 	}
 
@@ -445,9 +447,9 @@ int unmonitor_bsdrtap_std(MONITOR_PARMS) {
 /* Channel control functions */
 
 int chancontrol_bsdrtap_std(CHCONTROL_PARMS) {
-	Radiotap_BSD_Controller *bsdcon = *(Radiotap_BSD_Controller **) in_if;
+	Radiotap_BSD_Controller bsdcon(globalreg, in_dev);
 
-	if (bsdcon->ChangeChannel(in_ch) == 0) {
+	if (bsdcon.ChangeChannel(in_ch) == 0) {
 		return -1;
 	}
 
