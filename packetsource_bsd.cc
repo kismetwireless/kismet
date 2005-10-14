@@ -51,10 +51,13 @@ int Radiotap_BSD_Controller::MonitorEnable(int initch) {
 
 	// Enter monitor mode, set the specified channel, enable promisc
 	// reception, force the interface up, set bpf
-	if (SetMediaOpt(IFM_IEEE80211_MONITOR, IFM_AUTO) == 0)
+	if (SetMediaOpt(IFM_IEEE80211_MONITOR, IFM_AUTO) == 0) {
+		_MSG("BSD interface set media command failed.  The drivers for this device "
+			 "may not support radiotap operation.", MSGFLAG_FATAL);
 		return 0;
+	}
 
-	if (ChangeChannel(initch) == 0) {
+	if (Set80211(IEEE80211_IOC_CHANNEL, prev_chan, 0, NULL) < 0) {
 		_MSG("BSD interface set channel operation failed, attempting to restore "
 			 "previous operation mode and terminate", MSGFLAG_FATAL);
 		globalreg->fatal_condition = 1;
@@ -64,7 +67,7 @@ int Radiotap_BSD_Controller::MonitorEnable(int initch) {
 
 #if defined(SYS_FREEBSD)
 	if (SetIfFlags(prev_flags | IFF_PPROMISC | IFF_UP) == 0) {
-#else
+#elif defined(SYS_OPENBSD) || defined(SYS_NETBSD)
 	if (SetIfFlags(prev_flags | IFF_PROMISC | IFF_UP) == 0) {
 #endif
 		_MSG("BSD interface set promisc operation failed, attempting to restore "
@@ -290,18 +293,19 @@ int Radiotap_BSD_Controller::SetIfFlags(int flags) {
 		return 0;
 
 	memset(&ifr, 0, sizeof(ifr));
-	strncpy(ifr.ifr_name, dev.c_str(), sizeof(ifr.ifr_name));
+	strncpy(ifr.ifr_name, dev.c_str(), sizeof (ifr.ifr_name));
 #if defined(SYS_FREEBSD)
-	ifr.ifr_flags = flags & 0xFFFF;
+	ifr.ifr_flags = flags & 0xffff;
 	ifr.ifr_flagshigh = flags >> 16;
-#elif #defined(SYS_OPENBSD) || defined(SYS_NETBSD)
+#elif defined(SYS_OPENBSD) || defined(SYS_NETBSD)
 	ifr.ifr_flags = flags;
 #endif
 	if (ioctl(sock, SIOCSIFFLAGS, (caddr_t) &ifr) < 0) {
 		_MSG("BSD interface control failed to set interface flags for '" + dev + 
-			 "': " + strerror(errno), MSGFLAG_ERROR);
+			 "': " + strerror(errno), MSGFLAG_FATAL);
+		globalreg->fatal_condition = 1;
 		return 0;
-	}
+	}   
 
 	return 1;
 }
