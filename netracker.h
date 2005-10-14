@@ -494,6 +494,7 @@ protected:
 	int alert_dhcpcon_ref;
 	int alert_bcastdcon_ref;
 	int alert_airjackssid_ref;
+	int alert_wepflap_ref;
 
 	// Timer refs
 	int netrackereventid;

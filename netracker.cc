@@ -958,6 +958,8 @@ Netracker::Netracker(GlobalRegistry *in_globalreg) {
 		globalreg->alertracker->ActivateConfiguredAlert("BCASTDISCON");
 	alert_airjackssid_ref =
 		globalreg->alertracker->ActivateConfiguredAlert("AIRJACKSSID");
+	alert_wepflap_ref =
+		globalreg->alertracker->ActivateConfiguredAlert("CRYPTODROP");
 
 	// Register timer kick
 	netrackereventid = 
@@ -1434,10 +1436,27 @@ int Netracker::netracker_chain_handler(kis_packet *in_pack) {
 			net->maxrate = packinfo->maxrate;
 
 		if (packinfo->cryptset) {
-			net->cryptset |= packinfo->cryptset;
-			cli->cryptset |= packinfo->cryptset;
 			num_cryptpackets++;
+		} else {
+			if (net->cryptset && alert_wepflap_ref &&
+				globalreg->alertracker->PotentialAlert(alert_wepflap_ref)) {
+				ostringstream outs;
+
+				outs << "Network BSSID " << net->bssid.Mac2String() << " stopped "
+					"advertising encryption";
+
+				globalreg->alertracker->RaiseAlert(alert_wepflap_ref, in_pack,
+												   packinfo->bssid_mac,
+												   packinfo->source_mac,
+												   packinfo->dest_mac,
+												   packinfo->other_mac,
+												   packinfo->channel,
+												   outs.str());
+			}
 		}
+
+		net->cryptset = packinfo->cryptset;
+		cli->cryptset = packinfo->cryptset;
 
 		// Fire off an alert if the channel changes
 		if (alert_chan_ref >= 0 && newnetwork == 0 && net->channel != 0 &&

@@ -3,6 +3,12 @@ Oct 13 2005  devel  Converted BSD interface control framework from stable
                      with local headers now anyhow
                     Fixed local radiotap inclusion
                     Fleshed out BSD capture sources
+                    Added CRYPTODROP alert for networks dropping advertised
+                     encryption
+                    Changed network/client crypto tracking to take the last
+                     advertised crypto set instead of the aggregate of all
+                     crypto ever seen
+                    Added per-sec throttling to kismet.conf defaults
 Oct 12 2005  devel  Tweaked configure for BSD radiotap detection
                     Removed some OS specific stuff from generic pcapsource
                     Removed -O2 from default makefile cxxflags (oops)
