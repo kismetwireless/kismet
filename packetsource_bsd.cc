@@ -54,10 +54,10 @@ int Radiotap_BSD_Controller::MonitorEnable(int initch) {
 	if (SetMediaOpt(IFM_IEEE80211_MONITOR, IFM_AUTO) == 0)
 		return 0;
 
-	if (Set80211(IEEE80211_IOC_CHANNEL, initch, 0, NULL) == 0) {
-		// Try to restore and bail
+	if (ChangeChannel(initch) == 0) {
 		_MSG("BSD interface set channel operation failed, attempting to restore "
-			 "non-rfmon operation mode", MSGFLAG_ERROR);
+			 "previous operation mode and terminate", MSGFLAG_FATAL);
+		globalreg->fatal_condition = 1;
 		(void) SetMediaOpt(prev_options, prev_mode);
 		return 0;
 	}
@@ -68,7 +68,8 @@ int Radiotap_BSD_Controller::MonitorEnable(int initch) {
 	if (SetIfFlags(prev_flags | IFF_PROMISC | IFF_UP) == 0) {
 #endif
 		_MSG("BSD interface set promisc operation failed, attempting to restore "
-			 "non-rfmon operation mode", MSGFLAG_ERROR);
+			 "previous operation mode and terminate", MSGFLAG_FATAL);
+		globalreg->fatal_condition = 1;
 		(void) Set80211(IEEE80211_IOC_CHANNEL, prev_chan, 0, NULL);
 		(void) SetMediaOpt(prev_options, prev_mode);
 		return 0;
@@ -205,7 +206,7 @@ int Radiotap_BSD_Controller::Set80211(int type, int val, int len, uint8_t *data)
 
 	strlcpy(channel.i_name, dev.c_str(), sizeof(channel.i_name));
 	channel.i_channel = (uint16_t) val;
-	if (ioctl(sock, SIOCS80211CHANNEL, (caddr_t) &val) == -1) {
+	if (ioctl(sock, SIOCS80211CHANNEL, (caddr_t) &channel) == -1) {
 		ostringstream osstr;
 		osstr << "BSD interface control failed to set channel " << val << " for "
 			"interface '" << dev << "': " << strerror(errno);
