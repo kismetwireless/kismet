@@ -1,3 +1,5 @@
+Oct 16 2005  devel  Added tracker meta to packsources for chain components
+                     to access
 Oct 13 2005  devel  Converted BSD interface control framework from stable
                     Removed radiotap availability check, since we force it on
                      with local headers now anyhow

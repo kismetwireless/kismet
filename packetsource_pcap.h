@@ -159,8 +159,9 @@ typedef struct {
 class PacketSource_Pcap : public KisPacketSource {
 public:
 	// Standard interface for capturesource
-	PacketSource_Pcap(GlobalRegistry *in_globalreg, string in_name, string in_dev) :
-		KisPacketSource(in_globalreg, in_name, in_dev) { 
+	PacketSource_Pcap(GlobalRegistry *in_globalreg, meta_packsource *in_meta, 
+					  string in_name, string in_dev) :
+		KisPacketSource(in_globalreg, in_meta, in_name, in_dev) { 
 			// Nothing special here
 		}
 
@@ -194,9 +195,9 @@ protected:
 
 class PacketSource_Pcapfile : public PacketSource_Pcap {
 public:
-	PacketSource_Pcapfile(GlobalRegistry *in_globalreg, string in_name, 
-						  string in_dev) :
-		PacketSource_Pcap(in_globalreg, in_name, in_dev) { }
+	PacketSource_Pcapfile(GlobalRegistry *in_globalreg, meta_packsource *in_meta,
+						  string in_name, string in_dev) :
+		PacketSource_Pcap(in_globalreg, in_meta, in_name, in_dev) { }
 	virtual int OpenSource();
 	virtual int Poll();
 protected:

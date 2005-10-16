@@ -76,7 +76,8 @@ typedef struct {
 // Needs to contain all the information needed to control the packetsource without
 // having a valid instance of that packetsource - the root channel control process
 // has to be able to control sources not opened until user-time
-typedef struct {
+class meta_packsource {
+public:
     int id;
     int valid;
 
@@ -104,7 +105,7 @@ typedef struct {
 
 	// Consecutive errors doing something
 	int consec_errors;
-} meta_packsource;
+};
 
 // Messagebus client to intercept messages from the forked client 
 class Packetcontrolchild_MessageClient : public MessageClient {
@@ -136,8 +137,9 @@ int ChannelHopEvent(Timetracker::timer_event *evt, void *parm,
 // the software
 class NullPacketSource : public KisPacketSource {
 public:
-    NullPacketSource(GlobalRegistry *in_globalreg, string in_name, string in_dev) : 
-        KisPacketSource(in_globalreg, in_name, in_dev) { }
+    NullPacketSource(GlobalRegistry *in_globalreg, meta_packsource *in_meta,
+					 string in_name, string in_dev) : 
+        KisPacketSource(in_globalreg, in_meta, in_name, in_dev) { }
 
     virtual int OpenSource() {
         char errstr[STATUS_MAX];

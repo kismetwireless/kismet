@@ -52,13 +52,18 @@
  *
  */
 
+// Forward definitions of ourselves and the meta info from the source tracker
+// We need to track the meta info so that things that hook the source out of
+// the packetchain can get access to the meta state of hopping, etc
 class KisPacketSource;
+class meta_packsource;
 
 #define AUTOPROBE_PARMS GlobalRegistry *globalreg, string in_name, \
 	string in_device, string in_driver, string in_version, string in_fwversion
 typedef int (*packsource_autoprobe)(AUTOPROBE_PARMS);
 
-#define REGISTRANT_PARMS GlobalRegistry *globalreg, string in_name, string in_device
+#define REGISTRANT_PARMS GlobalRegistry *globalreg, meta_packsource *in_meta, \
+	string in_name, string in_device
 typedef KisPacketSource *(*packsource_registrant)(REGISTRANT_PARMS);
 
 #define CHCONTROL_PARMS GlobalRegistry *globalreg, const char *in_dev, \
@@ -81,14 +86,20 @@ typedef struct packet_parm {
 
 // Packet capture source superclass ...  Not part of Pollable, because the
 // packetsourcetracker aggregates us into the descriptors and handles actual
-// polling
+// polling.
+//
+// We need the meta source separate from the name and device here and in the
+// constructor because at this point we don't know the format of meta, it's an
+// empty forward definition.
 class KisPacketSource {
 public:
-    KisPacketSource(GlobalRegistry *in_globalreg, string in_name, string in_dev) {
+    KisPacketSource(GlobalRegistry *in_globalreg, meta_packsource *in_meta, 
+					string in_name, string in_dev) {
         name = in_name;
         interface = in_dev;
 
         globalreg = in_globalreg;
+		metasource = in_meta;
         
         fcsbytes = 0;
 		carrier_set = 0;
@@ -131,10 +142,13 @@ public:
 
 	void SetCarrierSet(int in_set) { carrier_set = in_set; }
 
+	virtual meta_packsource *FetchMetasource() { return metasource; }
+
 protected:
 	virtual void FetchRadioData(kis_packet *in_packet) = 0;
 
     GlobalRegistry *globalreg;
+	meta_packsource *metasource;
 
     int paused;
 

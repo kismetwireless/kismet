@@ -93,8 +93,9 @@ protected:
 class PacketSource_BSD : public PacketSource_Pcap {
 public:
 	// Standard interface for capturesource
-	PacketSource_BSD(GlobalRegistry *in_globalreg, string in_name, string in_dev) :
-		PacketSource_Pcap(in_globalreg, in_name, in_dev) { }
+	PacketSource_BSD(GlobalRegistry *in_globalreg, meta_packsource *in_meta,
+					 string in_name, string in_dev) :
+		PacketSource_Pcap(in_globalreg, in_meta, in_name, in_dev) { }
 
 	virtual int FetchChannel();
 
@@ -112,8 +113,9 @@ protected:
 class PacketSource_BSDRT : public PacketSource_BSD {
 public:
 	// Standard interface for capturesource
-	PacketSource_BSDRT(GlobalRegistry *in_globalreg, string in_name, string in_dev) :
-		PacketSource_BSD(in_globalreg, in_name, in_dev) { }
+	PacketSource_BSDRT(GlobalRegistry *in_globalreg, meta_packsource *in_meta, 
+					   string in_name, string in_dev) :
+		PacketSource_BSD(in_globalreg, in_meta, in_name, in_dev) { }
 
 	virtual int OpenSource();
 protected:

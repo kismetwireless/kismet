@@ -692,7 +692,7 @@ int PacketSource_Pcapfile::Poll() {
 
 KisPacketSource *packetsource_pcapfile_registrant(REGISTRANT_PARMS) {
 	PacketSource_Pcapfile *ret = 
-		new PacketSource_Pcapfile(globalreg, in_name, in_device);
+		new PacketSource_Pcapfile(globalreg, in_meta, in_name, in_device);
 	return ret;
 }
 

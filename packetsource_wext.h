@@ -57,8 +57,9 @@ typedef struct linux_ifparm {
 class PacketSource_Wext : public PacketSource_Pcap {
 public:
 	// Standard interface for capturesource
-	PacketSource_Wext(GlobalRegistry *in_globalreg, string in_name, string in_dev) :
-		PacketSource_Pcap(in_globalreg, in_name, in_dev) { 
+	PacketSource_Wext(GlobalRegistry *in_globalreg, meta_packsource *in_meta, 
+					  string in_name, string in_dev) :
+		PacketSource_Pcap(in_globalreg, in_meta, in_name, in_dev) { 
 			// Zero out the modern chan stuff
 			modern_chancontrol = -1;
 		}

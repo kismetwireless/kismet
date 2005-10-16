@@ -102,11 +102,12 @@ void PacketSource_Wext::FetchRadioData(kis_packet *in_packet) {
 /* Packetsource registrant functions */
 
 KisPacketSource *packetsource_wext_registrant(REGISTRANT_PARMS) {
-	return new PacketSource_Wext(globalreg, in_name, in_device);
+	return new PacketSource_Wext(globalreg, in_meta, in_name, in_device);
 }
 
 KisPacketSource *packetsource_wext_fcs_registrant(REGISTRANT_PARMS) {
-	PacketSource_Wext *ret = new PacketSource_Wext(globalreg, in_name, in_device);
+	PacketSource_Wext *ret = new PacketSource_Wext(globalreg, in_meta, 
+												   in_name, in_device);
 	ret->SetFCSBytes(4);
 	return ret;
 }
@@ -123,12 +124,12 @@ KisPacketSource *packetsource_wext_split_registrant(REGISTRANT_PARMS) {
         return NULL;
     }
 
-    return new PacketSource_Wext(globalreg, in_name, devbits[1]);
+    return new PacketSource_Wext(globalreg, in_meta, in_name, devbits[1]);
 }
 
 KisPacketSource *packetsource_wext_splitfcs_registrant(REGISTRANT_PARMS) {
 	KisPacketSource *psrc = 
-		packetsource_wext_split_registrant(globalreg, in_name, in_device);
+		packetsource_wext_split_registrant(globalreg, in_meta, in_name, in_device);
 	psrc->SetFCSBytes(4);
 	return psrc;
 }

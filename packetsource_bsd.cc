@@ -401,7 +401,8 @@ int PacketSource_BSDRT::DatalinkType() {
 /* Packetsource registrant functions */
 
 KisPacketSource *packetsource_bsdrtap_registrant(REGISTRANT_PARMS) {
-	PacketSource_BSDRT *rts = new PacketSource_BSDRT(globalreg, in_name, in_device);
+	PacketSource_BSDRT *rts = 
+		new PacketSource_BSDRT(globalreg, in_meta, in_name, in_device);
 	return rts;
 }
 

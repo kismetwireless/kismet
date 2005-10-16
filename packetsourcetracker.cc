@@ -138,7 +138,7 @@ int ChannelHopEvent(TIMEEVENT_PARMS) {
 }
 
 KisPacketSource *nullsource_registrant(REGISTRANT_PARMS) {
-    return new NullPacketSource(globalreg, in_name, in_device);
+    return new NullPacketSource(globalreg, in_meta, in_name, in_device);
 }
 
 int unmonitor_nullsource(MONITOR_PARMS) {
@@ -1280,7 +1280,7 @@ int Packetsourcetracker::BindSources(int in_root) {
         // handler but it works.
         errstr[0] = '\0';
         meta->capsource = 
-            (*meta->prototype->registrant)(globalreg, meta->name, meta->device);
+            (*meta->prototype->registrant)(globalreg, meta, meta->name, meta->device);
 
         if (meta->capsource == NULL) {
             snprintf(errstr, 1024, "Unable to create source instance for source '%s'",
