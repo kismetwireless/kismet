@@ -87,9 +87,6 @@ GPSDClient::GPSDClient(GlobalRegistry *in_globalreg) : GPSCore(in_globalreg) {
         snprintf(errstr, STATUS_MAX, "Using GPSD server on %s:%d", host, port);
         globalreg->messagebus->InjectMessage(errstr, MSGFLAG_INFO);
 	}
-
-	// Register the TCP component of the GPS system with the main service loop
-	globalreg->RegisterPollableSubsys(this);
 }
 
 GPSDClient::~GPSDClient() {
@@ -210,8 +207,8 @@ int GPSDClient::ParseData() {
         // Try to not error out entirely and just throw up an error about
         // not being able to understand it
         if (lintok.size() < 1) {
-            globalreg->messagebus->InjectMessage("GPSDClient unable to parse string "
-												 "from GPSD", MSGFLAG_ERROR);
+            _MSG("GPSDClient unable to parse string from GPSD: '" + inptok[it] + "'", 
+				 MSGFLAG_ERROR);
             return 0;
         }
 
@@ -227,21 +224,26 @@ int GPSDClient::ParseData() {
             vector<string> values = StrTokenize(lintok[x], "=");
             
             if (values.size() != 2) {
-                globalreg->messagebus->InjectMessage("GPSDClient unable to parse "
-													 "string from GPSD",
-                                                     MSGFLAG_ERROR);
+				_MSG("GPSDClient unable to parse string from GPSD: '" + 
+					 inptok[it] + "'", MSGFLAG_ERROR);
                 return 0;
             }
 
+			if (values[2].length() == 0) {
+				_MSG("GPSDClient unable to parse string from GPSD: '" + 
+					 inptok[it] + "'", MSGFLAG_ERROR);
+                return 0;
+			}
+
             if (values[0] == "P") {
-                if (values[1] == "?") {
+                if (values[1][0] == '?') {
                     newgpsd_invalid = 1;
+					continue;
                 } else if (sscanf(values[1].c_str(), "%lf %lf", 
 								  &in_lat, &in_lon) != 2) {
                     in_lat = in_lon = -1;
-                    globalreg->messagebus->InjectMessage("GPSDClient unable to parse "
-														 "string from GPSD",
-                                                         MSGFLAG_ERROR);
+					_MSG("GPSDClient unable to parse string from GPSD: '" + 
+						 inptok[it] + "'", MSGFLAG_ERROR);
                     return 0;
                 }
                 set_pos = 1;        
@@ -249,13 +251,13 @@ int GPSDClient::ParseData() {
             }
 
             if (values[0] == "A") {
-                if (values[1] == "?") {
+                if (values[1][0] == '?') {
                     newgpsd_invalid = 1;
+					continue;
                 } else if (sscanf(values[1].c_str(), "%lf", &in_alt) != 1) {
                     in_alt = -1;
-                    globalreg->messagebus->InjectMessage("GPSDClient unable to parse "
-														 "string from GPSD",
-                                                         MSGFLAG_ERROR);
+					_MSG("GPSDClient unable to parse string from GPSD: '" + 
+						 inptok[it] + "'", MSGFLAG_ERROR);
                     return 0;
                 }
                 set_alt = 1;
@@ -263,13 +265,13 @@ int GPSDClient::ParseData() {
             }
 
             if (values[0] == "V") {
-                if (values[1] == "?") {
+                if (values[1][0] == '?') {
                     newgpsd_invalid = 1;
+					continue;
                 } else if (sscanf(values[1].c_str(), "%lf", &in_spd) != 1) {
                     in_spd = -1;
-                    globalreg->messagebus->InjectMessage("GPSDClient unable to parse "
-														 "string from GPSD",
-                                                         MSGFLAG_ERROR);
+					_MSG("GPSDClient unable to parse string from GPSD: '" + 
+						 inptok[it] + "'", MSGFLAG_ERROR);
                     return 0;
                 }
                 set_spd = 1;
@@ -277,13 +279,13 @@ int GPSDClient::ParseData() {
             }
 
             if (values[0] == "H") {
-                if (values[1] == "?") {
+                if (values[1][0] == '?') {
                     newgpsd_invalid = 1;
+					continue;
                 } else if (sscanf(values[1].c_str(), "%lf", &in_hed) != 1) {
                     in_hed = -1;
-                    globalreg->messagebus->InjectMessage("GPSDClient unable to parse "
-														 "string from GPSD",
-                                                         MSGFLAG_ERROR);
+					_MSG("GPSDClient unable to parse string from GPSD: '" + 
+						 inptok[it] + "'", MSGFLAG_ERROR);
                     return 0;
                 }
                 set_hed = 1;
@@ -291,13 +293,13 @@ int GPSDClient::ParseData() {
             }
 
             if (values[0] == "M") {
-                if (values[1] == "?") {
+                if (values[1][0] == '?') {
                     newgpsd_invalid = 1;
+					continue;
                 } else if (sscanf(values[1].c_str(), "%d", &in_mode) != 1) {
                     in_mode = -1;
-                    globalreg->messagebus->InjectMessage("GPSDClient unable to parse "
-														 "string from GPSD",
-                                                         MSGFLAG_ERROR);
+					_MSG("GPSDClient unable to parse string from GPSD: '" + 
+						 inptok[it] + "'", MSGFLAG_ERROR);
                     return 0;
                 }
                 set_mode = 1;

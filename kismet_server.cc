@@ -74,8 +74,8 @@ int glob_silent = 0;
 // Smart standard out client that understands the silence options
 class SmartStdoutMessageClient : public MessageClient {
 public:
-    SmartStdoutMessageClient(GlobalRegistry *in_globalreg) :
-        MessageClient(in_globalreg) { }
+    SmartStdoutMessageClient(GlobalRegistry *in_globalreg, void *in_aux) :
+        MessageClient(in_globalreg, in_aux) { }
     virtual ~SmartStdoutMessageClient() { }
     void ProcessMessage(string in_msg, int in_flags);
 };
@@ -122,8 +122,8 @@ void SmartStdoutMessageClient::ProcessMessage(string in_msg, int in_flags) {
 // Queue of fatal alert conditions to spew back out at the end
 class FatalQueueMessageClient : public MessageClient {
 public:
-    FatalQueueMessageClient(GlobalRegistry *in_globalreg) :
-        MessageClient(in_globalreg) { }
+    FatalQueueMessageClient(GlobalRegistry *in_globalreg, void *in_aux) :
+        MessageClient(in_globalreg, in_aux) { }
     virtual ~FatalQueueMessageClient() { }
     void ProcessMessage(string in_msg, int in_flags);
     void DumpFatals();
@@ -352,8 +352,8 @@ int main(int argc,char *argv[]) {
 	// Create a smart stdout client and allocate the fatal message client, 
 	// add them to the messagebus
 	SmartStdoutMessageClient *smartmsgcli = 
-		new SmartStdoutMessageClient(globalregistry);
-	fqmescli = new FatalQueueMessageClient(globalregistry);
+		new SmartStdoutMessageClient(globalregistry, NULL);
+	fqmescli = new FatalQueueMessageClient(globalregistry, NULL);
 
 	globalregistry->messagebus->RegisterClient(fqmescli, MSGFLAG_FATAL);
 	globalregistry->messagebus->RegisterClient(smartmsgcli, MSGFLAG_ALL);

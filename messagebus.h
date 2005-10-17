@@ -45,22 +45,26 @@
 class MessageClient {
 public:
     MessageClient() {
-        fprintf(stderr, "*** MessageClient::MessageClient() called with no global registry\n");
+        fprintf(stderr, "FATAL OOPS: MessageClient::MessageClient() called "
+				"with no global registry\n");
+		exit(1);
     }
 
-    MessageClient(GlobalRegistry *in_globalreg) {
+    MessageClient(GlobalRegistry *in_globalreg, void *in_aux) {
         globalreg = in_globalreg;
+		auxptr = in_aux;
     }
 
     virtual void ProcessMessage(string in_msg, int in_flags) = 0;
 protected:
     GlobalRegistry *globalreg;
+	void *auxptr;
 };
 
 class StdoutMessageClient : public MessageClient {
 public:
-    StdoutMessageClient(GlobalRegistry *in_globalreg) :
-        MessageClient(in_globalreg) { }
+    StdoutMessageClient(GlobalRegistry *in_globalreg, void *in_aux) :
+        MessageClient(in_globalreg, in_aux) { }
     void ProcessMessage(string in_msg, int in_flags);
 };
 

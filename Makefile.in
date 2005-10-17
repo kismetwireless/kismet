@@ -72,7 +72,7 @@ GPSLBUILD=@gpslc@
 GPSLBUILDO=@gpslco@
 ZAURUSBUILD=@zbuild@
 
-all:	Makefile $(DEPEND) $(PS) $(DRONE) $(NC) $(GPSLBUILD) $(ZAURUSBUILD)
+all:	Makefile $(DEPEND) $(PS) 
 
 $(PS):	$(PSO) $(PCAPLIB)
 	$(LD) $(LDFLAGS) -o $(PS) $(PSO) $(PCAPLIB) $(LIBS) $(PCAPLNK)
@@ -364,7 +364,7 @@ $(DEPEND):
 	@echo "Generating dependencies... "
 	@echo > $(DEPEND)
 	@$(CXX) $(CFLAGS) -MM \
-		`echo $(PSO) $(DRONEO) $(GPSLO) $(NCO) | sed -e "s/\.o/\.cc/g"` >> $(DEPEND)
+		`echo $(PSO) | sed -e "s/\.o/\.cc/g"` >> $(DEPEND)
 
 include $(DEPEND)
 

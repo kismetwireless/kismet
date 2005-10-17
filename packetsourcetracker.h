@@ -110,8 +110,8 @@ public:
 // Messagebus client to intercept messages from the forked client 
 class Packetcontrolchild_MessageClient : public MessageClient {
 public:
-    Packetcontrolchild_MessageClient(GlobalRegistry *in_globalreg) :
-        MessageClient(in_globalreg) { };
+    Packetcontrolchild_MessageClient(GlobalRegistry *in_globalreg, void *in_aux) :
+        MessageClient(in_globalreg, in_aux) { };
     void ProcessMessage(string in_msg, int in_flags);
 };
 

@@ -1,5 +1,14 @@
 Oct 16 2005  devel  Added tracker meta to packsources for chain components
                      to access
+                    Added "monitor_mode" ioctl set attempt to generic
+                     monitor
+                    Fixed gpscore/gpsdclient double pollable registration
+                    Fixed gpsdclient parsing more
+                    Added void* aux pointer to message clients for incoming
+                     IPC_remote generic and other message clients linked to
+                     replication of messages (netframe)
+                    Added IPC generic framework (incomplete)
+                    Took drone/client/etc out of Makefile for now
 Oct 13 2005  devel  Converted BSD interface control framework from stable
                     Removed radiotap availability check, since we force it on
                      with local headers now anyhow

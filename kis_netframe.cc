@@ -582,8 +582,7 @@ void KisNetframe_MessageClient::ProcessMessage(string in_msg, int in_flags) {
 
     // Dispatch it out to the clients
     string tmp = msg;
-    globalreg->kisnetserver->SendToAll(globalreg->netproto_map[PROTO_REF_STATUS], 
-									   (void *) &tmp);
+	((KisNetFramework *) auxptr)->SendToAll(_NPM(PROTO_REF_STATUS), (void *) &tmp);
 
 }
 
@@ -741,7 +740,7 @@ KisNetFramework::KisNetFramework(GlobalRegistry *in_globalreg) {
 						 &Protocol_STRING, NULL, NULL);
 
 	// Create the message bus attachment to forward messages to the client
-    kisnet_msgcli = new KisNetframe_MessageClient(globalreg);
+    kisnet_msgcli = new KisNetframe_MessageClient(globalreg, this);
     globalreg->messagebus->RegisterClient(kisnet_msgcli, MSGFLAG_ALL);
     
     // Kismet builtin client commands

@@ -206,8 +206,8 @@ int Clicmd_DELWEPKEY(CLIENT_PARMS);
 // Messagebus subscriber to pass data to the client
 class KisNetframe_MessageClient : public MessageClient {
 public:
-    KisNetframe_MessageClient(GlobalRegistry *in_globalreg) :
-        MessageClient(in_globalreg) { };
+    KisNetframe_MessageClient(GlobalRegistry *in_globalreg, void *in_aux) :
+        MessageClient(in_globalreg, in_aux) { };
     void ProcessMessage(string in_msg, int in_flags);
 };
 

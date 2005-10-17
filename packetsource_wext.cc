@@ -203,6 +203,12 @@ int monitor_wext_core(MONITOR_PARMS, char *errstr) {
 	}
 
 	(*in_if) = ifparm;
+
+	// Try to set the monitor header mode, nonfatal if it doesn't work
+	if (Iwconfig_Set_IntPriv(in_dev, "monitor_type", 2, 0, errstr) < 0) {
+		_MSG("Couldn't set monitor_type iwpriv ioctl, this drive rmay not use it.",
+			 MSGFLAG_INFO);
+	}
 	
 	// Set the initial channel
 	if (chancontrol_wext_std(globalreg, in_dev, initch, NULL) < 0) {
