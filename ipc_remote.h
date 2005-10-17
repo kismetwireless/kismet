@@ -67,16 +67,19 @@ typedef struct ipc_msgbus_pass {
 	char msg[0];
 };
 
-
 // Super-generic IPC packet.  This never sees outside of a unix dgram
 // frame, so we don't have to armor or protect it.  Just a handy method for
 // tossing simple chunks of data.  Commands are responsible for filling in
 // reasonable structs for *data
 typedef struct ipc_packet {
+	uint32_t sentinel;
 	uint32_t ipc_cmdnum;
 	uint32_t data_len;
 	uint8_t data[0];
 };
+
+// IPC sentinel
+const uint32_t IPCRemoteSentinel = 0xDECAFBAD;
 
 class IPCRemote : public Pollable {
 public:
@@ -89,7 +92,7 @@ public:
 	// IPC commands are integers, which means we get away without having to care
 	// at all if they duplicate commands or whatever, so we don't even really
 	// care about unique callbacks.  Makes life easy for us.
-	virtual int RegisterIPCCmd(IPCmdCallback in_callback);
+	virtual int RegisterIPCCmd(IPCmdCallback in_callback, void *in_aux);
 
 	// Kick a command across (either direction)
 	virtual int SendIPC(ipc_packet *pack);
@@ -102,6 +105,16 @@ public:
 		return ipc_pid;
 	}
 
+	// Pollable system
+	virtual unsigned int MergeSet(unsigned int in_max_fd, fd_set *out_rset,
+								  fd_set *out_wset);
+	virtual int Poll(fd_set& in_rset, fd_set& in_wset);
+
+	typedef struct ipc_cmd_rec {
+		void *auxptr;
+		IPCmdCallback callback;
+	};
+
 protected:
 	// Child process that never returns
 	void IPC_Child_Loop();
@@ -112,7 +125,7 @@ protected:
 	GlobalRegistry *globalreg;
 
 	// This isn't a ringbuf since it's dgram single-tx frames
-	vector<ipc_packet *> cmd_buf;
+	list<ipc_packet *> cmd_buf;
 
 	int next_cmdid;
 
@@ -130,7 +143,7 @@ protected:
 	// we have.
 	int ipc_spawned;
 
-	map<int, IPCmdCallback> ipc_cmd_map;
+	map<unsigned int, ipc_cmd_rec *> ipc_cmd_map;
 
 	// Builtin mandatory command IDs
 	int die_cmd_id;

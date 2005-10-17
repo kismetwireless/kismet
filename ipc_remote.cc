@@ -110,11 +110,11 @@ IPCRemote::IPCRemote(GlobalRegistry *in_globalreg) {
 	ipc_spawned = 0;
 
 	// Register builtin commands
-	die_cmd_id = RegisterIPCCmd(ipc_die_callback);
-	msg_cmd_id = RegisterIPCCmd(ipc_msg_callback);
+	die_cmd_id = RegisterIPCCmd(ipc_die_callback, this);
+	msg_cmd_id = RegisterIPCCmd(ipc_msg_callback, this);
 }
 
-int IPCRemote::RegisterIPCCmd(IPCmdCallback in_callback) {
+int IPCRemote::RegisterIPCCmd(IPCmdCallback in_callback, void *in_aux) {
 	if (ipc_spawned) {
 		_MSG("IPC_Remote - Tried to register a command after the IPC agent has "
 			 "been spawned.  Commands must be registered before Spawn().",
@@ -125,7 +125,11 @@ int IPCRemote::RegisterIPCCmd(IPCmdCallback in_callback) {
 
 	next_cmdid++;
 
-	ipc_cmd_map[next_cmdid] = in_callback;
+	ipc_cmd_rec *rec = new ipc_cmd_rec;
+	rec->auxptr = in_aux;
+	rec->callback = in_callback;
+
+	ipc_cmd_map[next_cmdid] = rec;
 
 	return next_cmdid;
 }
@@ -184,6 +188,7 @@ int IPCRemote::ShutdownIPC() {
 
 int IPCRemote::SendIPC(ipc_packet *pack) {
 	// This is really just an enqueue system
+	pack->sentinel = IPCRemoteSentinel;
 	cmd_buf.push_back(pack);
 
 	return 1;
@@ -266,5 +271,160 @@ void IPCRemote::IPCDie() {
 		ipc_pid = 0;
 		ipc_spawned = 0;
 	}
+}
+
+unsigned int IPCRemote::MergeSet(unsigned int in_max_fd, fd_set *out_rset,
+								 fd_set *out_wset) {
+	// Don't call this on the child, we have a micro-select loop in the child
+	// process... also do nothing if we haven't spawned yet
+	if (ipc_pid == 0 || ipc_spawned == 0)
+		return in_max_fd;
+
+	// Set the socket to be read
+	FD_SET(sockpair[1], out_rset);
+	
+	// Set the write if we have data queued
+	if (cmd_buf.size() > 0)
+		FD_SET(sockpair[1], out_wset);
+
+	if (in_max_fd < (unsigned int) sockpair[1])
+		return sockpair[1];
+
+	return in_max_fd;
+}
+
+int IPCRemote::Poll(fd_set& in_rset, fd_set& in_wset) {
+	// This CAN be called by the parent or the child.  In the parent it's called
+	// by the normal pollable architecture.  In the child we manually call it
+	// from our micro-select loop.
+
+	ostringstream osstr;
+
+	// Process packets in
+	if (FD_ISSET(sockpair[1], &in_rset)) {
+		ipc_packet ipchdr;
+		ipc_packet *fullpack;
+		int ret;
+
+		// Peek at the packet header
+		if ((ret = recv(sockpair[1], &ipchdr, 
+						sizeof(ipc_packet), MSG_PEEK)) < (int) sizeof(ipc_packet)) {
+			if (ret < 0) {
+				if (ipc_pid == 0) 
+					osstr << "IPC child got error receiving packet header "
+						"from controller: " << strerror(errno);
+				else
+					osstr << "IPC controller got error receiving packet header "
+						"from IPC child pid " << ipc_pid << ": " << strerror(errno);
+				_MSG(osstr.str(), MSGFLAG_FATAL);
+				globalreg->fatal_condition = 1;
+				return -1;
+			} else {
+				return 0;
+			}
+		}
+
+		// validate the ipc header
+		if (ipchdr.sentinel != IPCRemoteSentinel) {
+			if (ipc_pid == 0) 
+				osstr << "IPC child got error receiving packet header from "
+					"controller: Invalid IPC sentinel value";
+			else
+				osstr << "IPC controller got error receiving packet header "
+					"from IPC child pid " << ipc_pid << ": Invalid IPC "
+					"sentinel value";
+			_MSG(osstr.str(), MSGFLAG_FATAL);
+			globalreg->fatal_condition = 1;
+			return -1;
+		}
+
+		// See if its a command we understand
+		map<unsigned int, ipc_cmd_rec *>::iterator cbitr = 
+			ipc_cmd_map.find(ipchdr.ipc_cmdnum);
+		if (cbitr == ipc_cmd_map.end()) {
+			if (ipc_pid == 0) 
+				osstr << "IPC child got error receiving packet header from "
+					"controller: Unknown IPC command";
+			else
+				osstr << "IPC controller got error receiving packet header "
+					"from IPC child pid " << ipc_pid << ": Unknown IPC command";
+			_MSG(osstr.str(), MSGFLAG_FATAL);
+			globalreg->fatal_condition = 1;
+			return -1;
+		}
+
+		// Get the full packet
+		fullpack = (ipc_packet *) malloc(sizeof(ipc_packet) + ipchdr.data_len);
+
+		if ((ret = recv(sockpair[1], &fullpack, sizeof(ipc_packet), 0)) < 
+			(int) sizeof(ipc_packet) + (int) ipchdr.data_len) {
+			if (ret < 0) {
+				if (ipc_pid == 0) 
+					osstr << "IPC child got error receiving packet "
+						"from controller: " << strerror(errno);
+				else
+					osstr << "IPC controller got error receiving packet "
+						"from IPC child pid " << ipc_pid << ": " << strerror(errno);
+				_MSG(osstr.str(), MSGFLAG_FATAL);
+				globalreg->fatal_condition = 1;
+				return -1;
+			} else {
+				return 0;
+			}
+		}
+
+		// We "know" the rest is valid, so call the handler w/ this function.
+		// giving it the ipc pid lets us cheat and tell if its the parent or not,
+		// since the child has a 0 pid
+		ret = (cbitr->second->callback)(globalreg, fullpack->data, 
+										fullpack->data_len, cbitr->second->auxptr,
+										ipc_pid);
+		if (ret < 0) {
+			if (ipc_pid == 0) 
+				osstr << "IPC child got error executing command from controller.";
+			else
+				osstr << "IPC controller got error executing command "
+					"from IPC child pid " << ipc_pid;
+			_MSG(osstr.str(), MSGFLAG_FATAL);
+			globalreg->fatal_condition = 1;
+			return -1;
+		}
+
+		free(fullpack);
+	}
+
+	if (FD_ISSET(sockpair[1], &in_wset)) {
+		// Send as many frames as we have room for
+		while (cmd_buf.size() > 0) {
+			ipc_packet *pack = cmd_buf.front();
+
+			// Send the frame
+			if (send(sockpair[1], pack, 
+					 sizeof(ipc_packet) + pack->data_len, 0) < 0) {
+				if (errno == ENOBUFS)
+					break;
+
+				if (ipc_pid == 0) {
+					// Blow up messily and spew into stderr
+					fprintf(stderr, "IPC child %d got error writing packet to "
+							"IPC socket: %s\n", getpid(), strerror(errno));
+					globalreg->fatal_condition = 1;
+					return -1;
+				} else {
+					osstr << "IPC controller got error writing data to IPC socket "
+						"for IPC child pid " << ipc_pid << ": " << strerror(errno);
+					_MSG(osstr.str(), MSGFLAG_FATAL);
+					globalreg->fatal_condition = 1;
+				}
+			}
+
+			// Finally delete it
+			cmd_buf.pop_front();
+			free(pack);
+		}
+
+	}
+	
+	return 1;
 }
 
