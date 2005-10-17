@@ -26,7 +26,7 @@
 #include "packetsource.h"
 #include "packetsource_pcap.h"
 #include "packetsource_wext.h"
-#include "packetsource_bsd.h"
+#include "packetsource_bsdrt.h"
 #include "configfile.h"
 #include "getopt.h"
 

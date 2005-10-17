@@ -29,7 +29,7 @@
 #include "packet_ieee80211.h"
 #include "packetsource.h"
 #include "packetsource_pcap.h"
-#include "packetsource_bsd.h"
+#include "packetsource_bsdrt.h"
 
 Radiotap_BSD_Controller::Radiotap_BSD_Controller(GlobalRegistry *in_globalreg,
 												 string in_dev) {

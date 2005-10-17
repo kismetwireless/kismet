@@ -1,5 +1,6 @@
 Oct 17 2005  devel  Fixed packetsourcetracker not being updated for meta msgclient
                     Removed packetsource_bsd stub class
+                    Moved packetsource_bsd to packetsource_bsdrt
 Oct 16 2005  devel  Added tracker meta to packsources for chain components
                      to access
                     Added "monitor_mode" ioctl set attempt to generic
