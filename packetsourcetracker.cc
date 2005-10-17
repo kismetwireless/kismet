@@ -1450,7 +1450,7 @@ int Packetsourcetracker::SpawnChannelChild() {
         // Kluge a new messagebus into the childs global registry
         globalreg->messagebus = new MessageBus;
         Packetcontrolchild_MessageClient *pccmc = 
-			new Packetcontrolchild_MessageClient(globalreg);
+			new Packetcontrolchild_MessageClient(globalreg, this);
         globalreg->messagebus->RegisterClient(pccmc, MSGFLAG_ALL);
         
         // Spawn the child loop code

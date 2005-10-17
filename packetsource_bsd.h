@@ -90,37 +90,26 @@ protected:
 	string dev;
 };
 
-class PacketSource_BSD : public PacketSource_Pcap {
-public:
-	// Standard interface for capturesource
-	PacketSource_BSD(GlobalRegistry *in_globalreg, meta_packsource *in_meta,
-					 string in_name, string in_dev) :
-		PacketSource_Pcap(in_globalreg, in_meta, in_name, in_dev) { }
-
-	virtual int FetchChannel();
-
-protected:
-	// Override data link type to handle bsd funky bits
-	virtual int DatalinkType();
-
-	// Inherited from grandparent 
-	virtual void FetchRadioData(kis_packet *in_packet);
-
-	virtual int CheckDLT(int dlt);
-};	
-
-// Yeah this is a little annoying to nest so deep but it's logical at least
-class PacketSource_BSDRT : public PacketSource_BSD {
+// BSD radiotap
+class PacketSource_BSDRT : public PacketSource_Pcap {
 public:
 	// Standard interface for capturesource
 	PacketSource_BSDRT(GlobalRegistry *in_globalreg, meta_packsource *in_meta, 
 					   string in_name, string in_dev) :
-		PacketSource_BSD(in_globalreg, in_meta, in_name, in_dev) { }
+		PacketSource_Pcap(in_globalreg, in_meta, in_name, in_dev) { }
 
 	virtual int OpenSource();
+
+	virtual int FetchChannel();
 protected:
-	// Dead datalink type since we force it in open
+	// Override data link type to handle bsd funky bits
 	virtual int DatalinkType();
+
+	// BSD radio fetch
+	virtual void FetchRadioData(kis_packet *in_packet);
+
+	// Check that we support the dlt we need
+	virtual int CheckDLT(int dlt);
 };	
 
 // ---------- Registrant Functions

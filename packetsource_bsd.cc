@@ -323,22 +323,7 @@ int Radiotap_BSD_Controller::CheckSocket() {
 	return 1;
 }
 
-int PacketSource_BSD::DatalinkType() {
-	// Do some whining about linktypes for the generic BSD stuff
-	datalink_type = pcap_datalink(pd);
-
-	if (datalink_type == DLT_EN10MB) {
-		_MSG("pcap reported EN10MB (standard ethernet) link type for " +
-			 interface + ".  This probably means you're not in monitor mode or "
-			 "that your drivers are reporting a bad value, but we'll continue on "
-			 "and hope we get something useful because some *BSD drivers report "
-			 "funny values for linktype.", MSGFLAG_ERROR);
-	}
-
-	return 1;
-}
-
-int PacketSource_BSD::CheckDLT(int dlt) {
+int PacketSource_BSDRT::CheckDLT(int dlt) {
 	int found = 0;
 	int i, n, *dl;
 
@@ -355,7 +340,7 @@ int PacketSource_BSD::CheckDLT(int dlt) {
 	return found;
 }
 
-int PacketSource_BSD::FetchChannel() {
+int PacketSource_BSDRT::FetchChannel() {
 	int chan;
 
 	Radiotap_BSD_Controller bsdcon(globalreg, interface);
@@ -367,7 +352,7 @@ int PacketSource_BSD::FetchChannel() {
 	return chan;
 }
 
-void PacketSource_BSD::FetchRadioData(kis_packet *in_packet) {
+void PacketSource_BSDRT::FetchRadioData(kis_packet *in_packet) {
 	// Nothing to do here
 	return;
 }
