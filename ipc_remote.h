@@ -45,7 +45,7 @@
 #include <unistd.h>
 
 #include "globalregistry.h"
-#include "ringbuf.h"
+#include "pollable.h"
 #include "messagebus.h"
 
 #define IPC_CMD_PARMS GlobalRegistry *globalreg, const void *data, int len, \
@@ -63,7 +63,8 @@ public:
 // Message frame to go over IPC
 typedef struct ipc_msgbus_pass {
 	uint32_t msg_flags;
-	char msg[2048];
+	uint32_t msg_len; // Redundant but simpler to read
+	char msg[0];
 };
 
 
@@ -74,7 +75,7 @@ typedef struct ipc_msgbus_pass {
 typedef struct ipc_packet {
 	uint32_t ipc_cmdnum;
 	uint32_t data_len;
-	void *data;
+	uint8_t data[0];
 };
 
 class IPCRemote : public Pollable {
@@ -83,6 +84,7 @@ public:
 	IPCRemote(GlobalRegistry *in_globalreg);
 
 	virtual int SpawnIPC();
+	virtual int ShutdownIPC();
 
 	// IPC commands are integers, which means we get away without having to care
 	// at all if they duplicate commands or whatever, so we don't even really
@@ -96,13 +98,21 @@ public:
 		return spawneduid;
 	}
 
+	pid_t FetchSpawnPid() {
+		return ipc_pid;
+	}
+
 protected:
 	// Child process that never returns
 	void IPC_Child_Loop();
+
+	// Internal die functions
+	void IPCDie();
 	
 	GlobalRegistry *globalreg;
 
-	RingBuffer *buf;
+	// This isn't a ringbuf since it's dgram single-tx frames
+	vector<ipc_packet *> cmd_buf;
 
 	int next_cmdid;
 
@@ -123,7 +133,11 @@ protected:
 	map<int, IPCmdCallback> ipc_cmd_map;
 
 	// Builtin mandatory command IDs
+	int die_cmd_id;
 	int msg_cmd_id;
+
+	friend class IPC_MessageClient;
+	friend int ipc_die_callback(IPC_CMD_PARMS);
 };
 
 #endif

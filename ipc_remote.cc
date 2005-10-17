@@ -25,15 +25,33 @@
 #include <vector>
 #include <algorithm>
 #include <string>
+#include <sstream>
 
 #include <sys/types.h>
 #include <unistd.h>
+#include <errno.h>
 
 #include "ipc_remote.h"
 
 void IPC_MessageClient::ProcessMessage(string in_msg, int in_flags) {
+	// Build it into a msgbus ipc block ... is there a smarter way to
+	// build these things?
+	ipc_packet *pack = 
+		(ipc_packet *) malloc(sizeof(ipc_packet) + 8 + in_msg.length() + 1);
+	ipc_msgbus_pass *msgb = (ipc_msgbus_pass *) pack->data;
+
+	msgb->msg_flags = in_flags;
+	msgb->msg_len = in_msg.length() + 1;
+	snprintf(msgb->msg, msgb->msg_len, in_msg.c_str());
+
+	pack->data_len = 8 + in_msg.length() + 1;
+
+	pack->ipc_cmdnum = ((IPCRemote *) auxptr)->msg_cmd_id;
+
 	// Push it via the IPC
-	((IPCRemote *) auxptr)->PushMessage(int_msg, in_flags);
+	((IPCRemote *) auxptr)->SendIPC(pack);
+
+	// It gets freed once its sent so don't free it ourselves here
 }
 
 int ipc_msg_callback(IPC_CMD_PARMS) {
@@ -56,6 +74,30 @@ int ipc_msg_callback(IPC_CMD_PARMS) {
 	return 1;
 }
 
+int ipc_die_callback(IPC_CMD_PARMS) {
+	// Child receiving DIE command shuts down
+	if (parent == 0) {
+		// Call the internal shutdown process
+		((IPCRemote *) auxptr)->IPCDie();
+		// Exit entirely, if we didn't already
+		exit(1);
+	}
+
+	// Parent receiving DIE command knows child is dieing for some
+	// reason, send a message note, we'll figure out later if this is
+	// fatal
+	ostringstream osstr;
+	
+	osstr << "IPC controller got notification that IPC child process " <<
+		(int) ((IPCRemote *) auxptr)->FetchSpawnPid() << " is shutting down.";
+	_MSG(osstr.str(), MSGFLAG_INFO);
+
+	// Call the internal die sequence to make sure the child pid goes down
+	((IPCRemote *) auxptr)->IPCDie();
+	
+	return 1;
+}
+
 IPCRemote::IPCRemote() {
 	fprintf(stderr, "FATAL OOPS:  IPCRemote called w/ no globalreg\n");
 	exit(1);
@@ -64,11 +106,11 @@ IPCRemote::IPCRemote() {
 IPCRemote::IPCRemote(GlobalRegistry *in_globalreg) {
 	globalreg = in_globalreg;
 	next_cmdid = 0;
-	buf = NULL;
 	ipc_pid = 0;
 	ipc_spawned = 0;
 
 	// Register builtin commands
+	die_cmd_id = RegisterIPCCmd(ipc_die_callback);
 	msg_cmd_id = RegisterIPCCmd(ipc_msg_callback);
 }
 
@@ -95,7 +137,7 @@ int IPCRemote::SpawnIPC() {
 	// Generate the socket pair before the split
 	if (socketpair(PF_UNIX, SOCK_DGRAM, 0, sockpair) < 0) {
 		_MSG("Unable to great socket pair for IPC communication: " +
-			 strerror(errno), MSGFLAG_FATAL);
+			 string(strerror(errno)), MSGFLAG_FATAL);
 		globalreg->fatal_condition = 1;
 		return -1;
 	}
@@ -104,7 +146,7 @@ int IPCRemote::SpawnIPC() {
 	// info.
 	if ((ipc_pid = fork()) < 0) {
 		_MSG("Unable to fork() and create child process for IPC communication: " +
-			 strerror(errno), MSGFLAG_FATAL);
+			 string(strerror(errno)), MSGFLAG_FATAL);
 		globalreg->fatal_condition = 1;
 		return -1;
 	}
@@ -118,15 +160,40 @@ int IPCRemote::SpawnIPC() {
 	// We've spawned, can't set new commands anymore
 	ipc_spawned = 1;
 
-	// Make a ring buffer for the parent side
-	buf = new RingBuffer(8192);
-
 	// Close half the socket pair
 	close(sockpair[0]);
+
+	return 1;
+}
+
+int IPCRemote::ShutdownIPC() {
+	if (ipc_spawned == 0) 
+		return 0;
+
+	// Nothing special here, just a die frame.  Beauty is, we don't care
+	// if we're the parent of the child, a clean shutdown will signal the other
+	// side it's time to shuffle off
+	ipc_packet *pack = (ipc_packet *) malloc(sizeof(ipc_packet));
+	pack->data_len = 0;
+	pack->ipc_cmdnum = die_cmd_id;
+
+	SendIPC(pack);
+
+	return 1;
+}
+
+int IPCRemote::SendIPC(ipc_packet *pack) {
+	// This is really just an enqueue system
+	cmd_buf.push_back(pack);
+
+	return 1;
 }
 
 void IPCRemote::IPC_Child_Loop() {
 	fd_set rset, wset;
+
+	// Obviously we're spawned
+	ipc_spawned = 1;
 
 	// Close the other half of the socket pair
 	close(sockpair[1]);
@@ -135,10 +202,7 @@ void IPCRemote::IPC_Child_Loop() {
 	// the IPC client to replicate messages
 	globalreg->messagebus = new MessageBus;
 	IPC_MessageClient *ipcmc = new IPC_MessageClient(globalreg, this);
-	globalreg->messagebus->RegisterMessageClient(ipcmc, MSGFLAG_ALL);
-
-	// Make a new child ringbuffer
-	buf = new RingBuffer(8192);
+	globalreg->messagebus->RegisterClient(ipcmc, MSGFLAG_ALL);
 
 	// ignore a bunch of signals
 	signal(SIGINT, SIG_IGN);
@@ -156,7 +220,7 @@ void IPCRemote::IPC_Child_Loop() {
 		max_fd = sockpair[0];
 
 		// Do we have data to send?
-		if (buf->FetchLen() > 0)
+		if (cmd_buf.size() > 0)
 			FD_SET(sockpair[0], &wset);
 
 		struct timeval tm;
@@ -174,6 +238,33 @@ void IPCRemote::IPC_Child_Loop() {
 
 		// Handle in/out data
 
+	}
+}
+
+void IPCRemote::IPCDie() {
+	// If we're the child...
+	if (ipc_pid == 0 && ipc_spawned) {
+		// Shut down the child socket fd
+		close(sockpair[0]);
+		// and exit, we're done
+		exit(0);
+	} else if (ipc_spawned) {
+		// otherwise if we're the parent...
+		// Shut down the socket
+		close(sockpair[1]);
+
+		// Wait for the child process to be dead
+
+		ostringstream osstr;
+
+		osstr << "IPC controller waiting for IPC child process " <<
+			(int) ipc_pid << " to end.";
+		_MSG(osstr.str(), MSGFLAG_INFO);
+
+		wait4(ipc_pid, NULL, 0, NULL);
+
+		ipc_pid = 0;
+		ipc_spawned = 0;
 	}
 }
 
