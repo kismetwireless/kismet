@@ -351,7 +351,7 @@ int Protocol_STATUS(PROTO_PARMS) {
 // The order of this is VERY IMPORTANT.  It HAS TO MATCH the order of the
 // char *[] array of fields.
 void Protocol_Network2Data(const wireless_network *net, NETWORK_data *data) {
-    char tmpstr[128];
+    char tmpstr[256];
 
     // Reserve fields
     data->ndvec.reserve(50);
@@ -361,10 +361,10 @@ void Protocol_Network2Data(const wireless_network *net, NETWORK_data *data) {
     snprintf(tmpstr, 128, "%d", (int) net->type);
     data->ndvec.push_back(tmpstr);
 
-    snprintf(tmpstr, 128, "\001%s\001", net->ssid.length() > 0 ? net->ssid.c_str() : " ");
+    snprintf(tmpstr, 255, "\001%s\001", net->ssid.length() > 0 ? net->ssid.c_str() : " ");
     data->ndvec.push_back(tmpstr);
 
-    snprintf(tmpstr, 128, "\001%s\001", net->beacon_info.length() > 0 ? net->beacon_info.c_str() : " ");
+    snprintf(tmpstr, 255, "\001%s\001", net->beacon_info.length() > 0 ? net->beacon_info.c_str() : " ");
     data->ndvec.push_back(tmpstr);
 
     snprintf(tmpstr, 128, "%d", net->llc_packets);

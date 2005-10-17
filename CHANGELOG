@@ -1,3 +1,8 @@
+Oct 17 2005  devel  All the new development is in newcore, for people who 
+                     haven't noticed that yet.
+                    Minor updates:
+                     Fixed SSID being trimmed sometimes in network protocol
+                     Fixed SSID munging more
 Aug 15 2005 2005-08 Released 2005-08-R1.  This fixes several potential security
                      problems.  ALL USERS SHOULD UPGRADE.
 Aug 15 2005  devel  Merged patch from JD Shmidt to add a toggle for gpsdrive
