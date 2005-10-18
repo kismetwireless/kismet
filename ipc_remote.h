@@ -87,7 +87,9 @@ public:
 	IPCRemote(GlobalRegistry *in_globalreg);
 
 	virtual int SpawnIPC();
-	virtual int ShutdownIPC();
+	// Shutdown takes an optional final packet to send before sending the
+	// death packet
+	virtual int ShutdownIPC(ipc_packet *pack);
 
 	// IPC commands are integers, which means we get away without having to care
 	// at all if they duplicate commands or whatever, so we don't even really
@@ -96,6 +98,12 @@ public:
 
 	// Kick a command across (either direction)
 	virtual int SendIPC(ipc_packet *pack);
+
+	// Is the IPC ready for more commands?  This would mean that the last
+	// command was ack'd and that we don't have any queued up to still send.
+	// Some uses might want to defer sending a command until the IPC is
+	// settled.
+	virtual int FetchReadyState();
 
 	uid_t FetchSpawnUid() {
 		return spawneduid;
@@ -117,10 +125,10 @@ public:
 
 protected:
 	// Child process that never returns
-	void IPC_Child_Loop();
+	virtual void IPC_Child_Loop();
 
 	// Internal die functions
-	void IPCDie();
+	virtual void IPCDie();
 	
 	GlobalRegistry *globalreg;
 
@@ -145,12 +153,17 @@ protected:
 
 	map<unsigned int, ipc_cmd_rec *> ipc_cmd_map;
 
+	// Has the last command been acknowledged as complete?
+	int last_ack;
+
 	// Builtin mandatory command IDs
-	int die_cmd_id;
-	int msg_cmd_id;
+	uint32_t die_cmd_id;
+	uint32_t msg_cmd_id;
+	uint32_t ack_cmd_id;
 
 	friend class IPC_MessageClient;
 	friend int ipc_die_callback(IPC_CMD_PARMS);
+	friend int ipc_ack_callback(IPC_CMD_PARMS);
 };
 
 #endif

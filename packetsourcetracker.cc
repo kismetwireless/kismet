@@ -114,21 +114,6 @@ int Event_CARD(TIMEEVENT_PARMS) {
 	return 1;
 }
 
-void Packetcontrolchild_MessageClient::ProcessMessage(string in_msg, int in_flags) {
-    // Redirect stuff into the protocol to talk to the parent control
-
-    int chflag = CHANFLAG_NONE;
-
-    if (in_flags & MSGFLAG_LOCAL)
-        return;
-
-    if (in_flags & MSGFLAG_FATAL)
-        chflag = CHANFLAG_FATAL;
-    
-    // This is a godawfully ugly call
-    globalreg->sourcetracker->child_ipc_buffer.push_front(globalreg->sourcetracker->CreateTextPacket(in_msg, chflag));
-}
-
 // Handle channel hopping... this is actually really simple.
 int ChannelHopEvent(TIMEEVENT_PARMS) {
     // Just call advancechannel
@@ -143,6 +128,24 @@ KisPacketSource *nullsource_registrant(REGISTRANT_PARMS) {
 
 int unmonitor_nullsource(MONITOR_PARMS) {
     return 0;
+}
+
+int packsrc_chan_ipc(IPC_CMD_PARMS) {
+	// Parents don't do anything with channel set commands
+	if (parent)
+		return 0;
+
+	if (len < (int) sizeof(Packetsourcetracker::chanchild_changepacket))
+		return 0;
+
+	Packetsourcetracker::chanchild_changepacket *chpak =
+		(Packetsourcetracker::chanchild_changepacket *) data;
+
+	// Kick our IPC-child copy of the channel set command
+	((Packetsourcetracker *) auxptr)->SetIPCChannel(chpak->channel,
+													chpak->meta_num);
+
+	return 1;
 }
 
 void Packetsourcetracker::Usage(char *name) {
@@ -161,8 +164,6 @@ Packetsourcetracker::Packetsourcetracker(GlobalRegistry *in_globalreg) {
     globalreg = in_globalreg;
     next_packsource_id = 0;
     next_meta_id = 0;
-    chanchild_pid = 0;
-    sockpair[0] = sockpair[1] = 0;
 
 	if (globalreg->packetchain == NULL) {
 		fprintf(stderr, "FATAL OOPS:  Packetsourcetracker called before "
@@ -321,14 +322,23 @@ Packetsourcetracker::Packetsourcetracker(GlobalRegistry *in_globalreg) {
 						 chancontrol_bsdrtap_std, 1);
 #endif // BSD
 
-#endif
+#endif // pcap
 
 	// Register the packetsourcetracker as a pollable subsystem
 	globalreg->RegisterPollableSubsys(this);
+
+	// Assign the IPC commands and make it pollable
+	chan_remote = new IPCRemote(globalreg);
+	chan_ipc_id = chan_remote->RegisterIPCCmd(&packsrc_chan_ipc, this);
+	globalreg->RegisterPollableSubsys(chan_remote);
 }
 
 Packetsourcetracker::~Packetsourcetracker() {
 	globalreg->RemovePollableSubsys(this);
+
+	chan_remote->ShutdownIPC(NULL);
+	globalreg->RemovePollableSubsys(chan_remote);
+	delete chan_remote;
 
     for (map<string, packsource_protorec *>::iterator x = cardtype_map.begin();
          x != cardtype_map.end(); ++x)
@@ -342,8 +352,6 @@ int Packetsourcetracker::LoadConfiguredCards() {
 	vector<string> src_init_vec;
 	int option_idx = 0;
 	int from_cmdline = 0;
-
-    dataframe_only = 0;
 
     // Default channels
     vector<string> defaultchannel_vec;
@@ -539,18 +547,6 @@ unsigned int Packetsourcetracker::MergeSet(unsigned int in_max_fd, fd_set *out_r
 										   fd_set *out_wset) {
     unsigned int max = in_max_fd;
 
-    if (chanchild_pid != 0) {
-        if (in_max_fd < (unsigned int) sockpair[1])
-            max = sockpair[1];
-
-        // Set the read sock all the time
-        FD_SET(sockpair[1], out_rset);
-
-        // Set it for writing if we have some queued
-        if (ipc_buffer.size() > 0)
-            FD_SET(sockpair[1], out_wset);
-    }
-
     for (unsigned int metc = 0; metc < meta_packsources.size(); metc++) {
         meta_packsource *meta = meta_packsources[metc];
 		int capd = meta->capsource->FetchDescriptor();
@@ -568,131 +564,6 @@ unsigned int Packetsourcetracker::MergeSet(unsigned int in_max_fd, fd_set *out_r
 
 // Read from the socket and return text if we have any
 int Packetsourcetracker::Poll(fd_set& in_rset, fd_set& in_wset) {
-    // This should only ever get called when the fd is set so we don't need to do our 
-    // own select...
-    chanchild_packhdr in_pak;
-    uint8_t *data;
-
-    // Write packets out if we have them queued, and write as many as we can
-    if (FD_ISSET(sockpair[1], &in_wset)) {
-        while (ipc_buffer.size() > 0) {
-            chanchild_packhdr *pak = ipc_buffer.front();
-
-            // Send the header if we didn't already
-            if (dataframe_only == 0) {
-                if (send(sockpair[1], pak, 
-						 sizeof(chanchild_packhdr) - sizeof(void *), 0) < 0) {
-                    if (errno == ENOBUFS) {
-                        break;
-                    } else {
-                        snprintf(errstr, 1024, "ipc header send() failed: %s", 
-								 strerror(errno));
-                        globalreg->messagebus->InjectMessage(errstr, MSGFLAG_FATAL);
-                        globalreg->fatal_condition = 1;
-                        return -1;
-                    }
-                } 
-            }
-
-            // send the payload if there is one
-            if (pak->datalen > 0) {
-                if (send(sockpair[1], pak->data, pak->datalen, 0) < 0) {
-                    if (errno == ENOBUFS) {
-                        dataframe_only = 1;
-                        break;
-                    } else {
-                        snprintf(errstr, 1024, "ipc content send() failed: %s", 
-								 strerror(errno));
-                        globalreg->messagebus->InjectMessage(errstr, MSGFLAG_FATAL);
-                        globalreg->fatal_condition = 1;
-                        return -1;
-                    }
-                }
-
-            }
-
-            dataframe_only = 0;
-
-            ipc_buffer.pop_front();
-            free(pak->data);
-            delete pak;
-        }
-
-    }
-    
-    // Read responses from the capture child
-    if (FD_ISSET(sockpair[1], &in_rset)) {
-        if (recv(sockpair[1], &in_pak, 
-				 sizeof(chanchild_packhdr) - sizeof(void *), 0) < 0) {
-            snprintf(errstr, 1024, "header recv() error: %s", strerror(errno));
-            globalreg->messagebus->InjectMessage(errstr, MSGFLAG_FATAL);
-            globalreg->fatal_condition = 1;
-            return -1;
-        }
-
-        // Keep trying to go on...
-        if (in_pak.sentinel != CHANSENTINEL) {
-            snprintf(errstr, 1024, "Got packet from channel control process with "
-                     "invalid sentinel.");
-            globalreg->messagebus->InjectMessage(errstr, MSGFLAG_FATAL);
-            globalreg->fatal_condition = 1;
-            return 1;
-        }
-
-        // These don't mean anything to us.
-        if (in_pak.packtype == CHANPACK_DIE || in_pak.packtype == CHANPACK_CHANNEL)
-            return 0;
-
-        if (in_pak.datalen == 0) {
-            return 0;
-        }
-
-        // Other packets have a data component so we need to allocate it plus a null
-        data = (uint8_t *) malloc(sizeof(uint8_t) * (in_pak.datalen + 1));
-
-        if (recv(sockpair[1], data, in_pak.datalen, 0) < 0) {
-            snprintf(errstr, 1024, "data recv() error: %s", strerror(errno));
-            globalreg->messagebus->InjectMessage(errstr, MSGFLAG_FATAL);
-            globalreg->fatal_condition = 1;
-            return -1;
-        }
-
-        // Packet acks just set the flag
-        if (in_pak.packtype == CHANPACK_CMDACK) {
-            // Data should be an 8bit uint with the meta number.
-            if (data[0] >= meta_packsources.size()) {
-                snprintf(errstr, 1024, "illegal command ack for meta number %d", 
-						 data[0]);
-                globalreg->messagebus->InjectMessage(errstr, MSGFLAG_FATAL);
-                globalreg->fatal_condition = 1;
-                return -1;
-            }
-
-            // Set the command ack
-            meta_packsources[data[0]]->cmd_ack = 1;
-
-            free(data);
-
-            return 0;
-        } else if (in_pak.packtype == CHANPACK_TEXT) {
-            // Just to be safe
-            data[in_pak.datalen] = '\0';
-            snprintf(errstr, 1024, "%s", (char *) data);
-
-            free(data);
-
-            // Fatal packets return a fatal condition 
-            if (in_pak.flags & CHANFLAG_FATAL) {
-                globalreg->messagebus->InjectMessage(errstr, MSGFLAG_FATAL);
-                globalreg->fatal_condition = 1;
-            } else {
-                globalreg->messagebus->InjectMessage(errstr, MSGFLAG_INFO);
-            }
-
-            return 1;
-        }
-    }
-
 	// Sweep the packet sources
 	for (unsigned int x = 0; x < live_packsources.size(); x++) {
 		if (FD_ISSET(live_packsources[x]->FetchDescriptor(), &in_rset)) {
@@ -722,6 +593,7 @@ int Packetsourcetracker::SetChannel(int in_ch, meta_packsource *in_meta) {
     if (ret < 0)
         return ret;
 #else
+	// Don't use IPC to set "local control" sources (why use IPC to set snmp?)
     if (in_meta->prototype->child_control == 0) {
         int ret;
         ret = (*in_meta->prototype->channelcon)(globalreg, in_meta->device.c_str(),
@@ -730,35 +602,64 @@ int Packetsourcetracker::SetChannel(int in_ch, meta_packsource *in_meta) {
             return ret;
     }
 
-    chanchild_packhdr *chancmd = new chanchild_packhdr;
-    chanchild_changepacket *data = (chanchild_changepacket *)
-        malloc(sizeof(chanchild_changepacket));
+	ipc_packet *pack =
+		(ipc_packet *) malloc(sizeof(ipc_packet) + 
+							  sizeof(chanchild_changepacket));
+	chanchild_changepacket *chpak = (chanchild_changepacket *) pack->data;
 
-    memset(chancmd, 0, sizeof(chanchild_packhdr));
+	chpak->meta_num = in_meta->id;
+	chpak->channel = in_ch;
 
-    if (data == NULL) {
-        snprintf(errstr, STATUS_MAX, "Could not allocate data struct for "
-                 "changing channels: %s", strerror(errno));
-        globalreg->messagebus->InjectMessage(errstr, MSGFLAG_FATAL);
-        globalreg->fatal_condition = 1;
-        return -1;
-    }
-    memset(data, 0, sizeof(chanchild_changepacket));
+	pack->data_len = sizeof(chanchild_changepacket);
+	pack->ipc_cmdnum = chan_ipc_id;
 
-    chancmd->sentinel = CHANSENTINEL;
-    chancmd->packtype = CHANPACK_CHANNEL;
-    chancmd->flags = CHANFLAG_NONE;
-    chancmd->datalen = sizeof(chanchild_changepacket);
-    chancmd->data = (uint8_t *) data;
-
-    data->meta_num = (uint8_t) in_meta->id;
-    data->channel = (uint16_t) in_ch;
-
-    ipc_buffer.push_back(chancmd);
+	chan_remote->SendIPC(pack);
 #endif
 
     return 1;
 
+}
+
+int Packetsourcetracker::SetIPCChannel(int in_ch, unsigned int meta_num) {
+	// This usually happens inside the IPC fork, so remember not to screw with
+	// things that aren't set yet!  Meta is safe, other stuff isn't.  Globalreg
+	// got remapped by the IPC system to funnel back over IPC
+	if (meta_num >= meta_packsources.size()) {
+		_MSG("Packetsourcetracker SetIPCChannel got illegal metasource "
+			 "card number to set", MSGFLAG_ERROR);
+		return 0;
+	}
+
+	meta_packsource *meta = meta_packsources[meta_num];
+
+	if (meta->prototype->channelcon == NULL) {
+		_MSG("Packetsourcetracker SetIPCChannel tried to set a metasource "
+			 "with no channel control function", MSGFLAG_ERROR);
+		return 0;
+	}
+
+	int ret = 
+		(*meta->prototype->channelcon)(globalreg, meta->device.c_str(),
+									   in_ch, (void *) meta->capsource);
+	if (ret >= 0) {
+		meta->consec_errors = 0;
+		return 1;
+	}
+
+	meta->consec_errors++;
+
+	if (meta->consec_errors >= MAX_CONSEC_CHAN_ERR) {
+		ostringstream osstr;
+		osstr << "Packet source " << meta->name << " (" << meta->device << ") "
+			"has had " << meta->consec_errors << " consecutive errors.  This "
+			"most likely means the drivers or firmware have become confused. "
+			"Kismet cannot continue.";
+		_MSG(osstr.str(), MSGFLAG_FATAL);
+		// Redundant but can't hurt
+		chan_remote->ShutdownIPC(NULL);
+	}
+
+	return -1;
 }
 
 int Packetsourcetracker::SetHopping(int in_hopping, meta_packsource *in_meta) {
@@ -772,6 +673,10 @@ int Packetsourcetracker::SetHopping(int in_hopping, meta_packsource *in_meta) {
 
 // Hop the packet sources up a channel
 int Packetsourcetracker::AdvanceChannel() {
+	// Don't hop if it's queued up/un-ack'd
+	if (chan_remote->FetchReadyState() == 0)
+		return 0;
+
     for (unsigned int metac = 0; metac < meta_packsources.size(); metac++) {
         meta_packsource *meta = meta_packsources[metac];
 
@@ -1414,92 +1319,6 @@ int Packetsourcetracker::CloseSources() {
     return 1;
 }
 
-int Packetsourcetracker::SpawnChannelChild() {
-    // If we don't do priv dropping don't bother opening a channel control child
-#ifndef HAVE_SUID
-    return 1;
-#else
-
-    int child_control = 0;
-    for (unsigned int metac = 0; metac < meta_packsources.size(); metac++) {
-        if (meta_packsources[metac]->prototype->child_control == 1) {
-            child_control = 1;
-            break;
-        }
-    }
-
-    // Don't spawn a process if we don't ahve anyting to do with it
-    if (child_control == 0) {
-        chanchild_pid = 0;
-        return 1;
-    }
-    
-    // Generate socket pair before we split
-    if (socketpair(PF_UNIX, SOCK_DGRAM, 0, sockpair) < 0) {
-        fprintf(stderr, "FATAL:  Unable to create child socket pair for "
-				"channel control: %d, %s\n", errno, strerror(errno));
-        return -1;
-    }
-
-    // Fork
-    if ((chanchild_pid = fork()) < 0) {
-        fprintf(stderr, "FATAL:  Unable to create child process for "
-				"channel control.\n");
-        return -1;
-    } else if (chanchild_pid == 0) {
-        // Kluge a new messagebus into the childs global registry
-        globalreg->messagebus = new MessageBus;
-        Packetcontrolchild_MessageClient *pccmc = 
-			new Packetcontrolchild_MessageClient(globalreg, this);
-        globalreg->messagebus->RegisterClient(pccmc, MSGFLAG_ALL);
-        
-        // Spawn the child loop code
-        ChannelChildLoop();
-        exit(0);
-    }
-
-    fprintf(stderr, "Spawned channelc control process %d\n", chanchild_pid);
-    
-    return 1;
-#endif
-}
-
-// Die cleanly
-int Packetsourcetracker::ShutdownChannelChild() {
-#ifndef HAVE_SUID
-    return 1;
-#else
-    chanchild_packhdr death_packet;
-
-    if (chanchild_pid == 0)
-        return 1;
-   
-    memset(&death_packet, 0, sizeof(chanchild_packhdr));
-    
-    death_packet.sentinel = CHANSENTINEL;
-    death_packet.packtype = CHANPACK_DIE;
-    death_packet.flags = CHANFLAG_FATAL;
-    death_packet.datalen = 0;
-    death_packet.data = NULL;
-
-	// We'll use fprintf here since the messagebus might not be running anymore
-
-    // THIS NEEDS TO BE TIMERED against blocking
-    fprintf(stderr, "Sending termination request to channel control child %d...\n",
-            chanchild_pid);
-    send(sockpair[1], &death_packet, sizeof(chanchild_packhdr) - sizeof(void *), 0);
-
-    // THIS NEEDS TO BE TIMERED TOO
-    // At least it should die in 5 seconds from lack of commands if nothing
-    // else....
-    fprintf(stderr, "Waiting for channel control child %d to exit...\n",
-            chanchild_pid);
-    wait4(chanchild_pid, NULL, 0, NULL);
-
-    return 1;
-#endif
-}
-
 void Packetsourcetracker::BlitCards(int in_fd) {
 	kis_protocol_cache cache;
 
@@ -1521,202 +1340,49 @@ void Packetsourcetracker::BlitCards(int in_fd) {
 	}
 }
 
-// Interrupt handler - we just die.
-void ChanChildSignal(int sig) {
-    exit(0);
+int Packetsourcetracker::SpawnChannelChild() {
+#ifndef HAVE_SUID
+	return 1;
+#endif
+
+	int child_control = 0;
+	for (unsigned int metac = 0; metac < meta_packsources.size(); metac++) {
+		if (meta_packsources[metac]->prototype->child_control) {
+			child_control = 1;
+			break;
+		}
+	}
+
+	// Don't spawn IPC if we don't have anything to do
+	if (child_control == 0)
+		return 1;
+
+	// Spawn the IPC handler
+	int ret = chan_remote->SpawnIPC();
+
+	if (ret < 0 || globalreg->fatal_condition) {
+		_MSG("Packetsourcetracker failed to create an IPC child process",
+			 MSGFLAG_FATAL);
+		globalreg->fatal_condition = 1;
+		return -1;
+	}
+
+	ostringstream osstr;
+
+	osstr << "Packetsourcetracker spawned IPC child process pid " <<
+		chan_remote->FetchSpawnPid();
+	_MSG(osstr.str(), MSGFLAG_INFO);
+
+	return 1;
 }
 
-// Handle reading channel change requests and driving them
-void Packetsourcetracker::ChannelChildLoop() {
-    fd_set rset, wset;
-    int child_dataframe_only = 0;
-    char txtbuf[1024];
-   
-    signal(SIGINT, SIG_IGN);
-    signal(SIGTERM, SIG_IGN);
-    signal(SIGHUP, SIG_IGN);
-    signal(SIGPIPE, ChanChildSignal);
-    
-    while (1) {
-        int max_fd = 0;
+int Packetsourcetracker::ShutdownChannelChild() {
+#ifndef HAVE_SUID
+	return 1;
+#endif
 
-        FD_ZERO(&rset);
-        FD_ZERO(&wset);
+	chan_remote->ShutdownIPC(NULL);
 
-        FD_SET(sockpair[0], &rset);
-        max_fd = sockpair[0];
-
-        // Do we need to send packets?
-        if (child_ipc_buffer.size() > 0)
-            FD_SET(sockpair[0], &wset);
-
-        struct timeval tm;
-        tm.tv_sec = 1;
-        tm.tv_usec = 0;
-
-        // Timeout after 1 second to see if we stopped getting commands
-        if (select(max_fd + 1, &rset, &wset, NULL, &tm) < 0) {
-            // Die violently if select blows itself up
-            fprintf(stderr, "FATAL:  Channel control child %d got select() error "
-                    "%d:%s\n", getpid(), errno, strerror(errno));
-            exit(1);
-        }
-
-        // Obey incoming data
-        if (FD_ISSET(sockpair[0], &rset)) {
-            chanchild_packhdr pak;
-            int ret;
-
-            if ((ret = recv(sockpair[0], &pak, sizeof(chanchild_packhdr) - 
-							sizeof(void *), 0)) < 0) {
-                exit(1);
-            }
-
-            if (pak.sentinel != CHANSENTINEL) {
-                snprintf(txtbuf, 1024, "capture child %d got IPC frame without valid "
-                         "sentinel", getpid());
-                child_ipc_buffer.push_front(CreateTextPacket(txtbuf, CHANFLAG_NONE));
-                continue;
-            }
-
-            // Drop dead
-            if (pak.packtype == CHANPACK_DIE || pak.flags & CHANFLAG_FATAL) {
-                CloseSources();
-                exit(1);
-            }
-          
-            if (pak.packtype == CHANPACK_CMDACK)
-                continue;
-
-            // Handle changing channels
-            if (pak.packtype == CHANPACK_CHANNEL) {
-                chanchild_changepacket chanpak;
-
-                // Just die if we can't receive data
-                if (recv(sockpair[0], &chanpak, 
-						 sizeof(chanchild_changepacket), 0) < 0)
-                    exit(1);
-
-                // Sanity check
-                if (chanpak.meta_num >= meta_packsources.size()) {
-                    snprintf(txtbuf, 1024, "Channel control got illegal metasource "
-							 "number %d", chanpak.meta_num);
-                    child_ipc_buffer.push_front(CreateTextPacket(txtbuf, 
-																 CHANFLAG_NONE));
-                    continue;
-                }
-
-				meta_packsource *meta = meta_packsources[chanpak.meta_num];
-
-                // Can this source change the channel?
-                if (meta->prototype->channelcon == NULL)
-                    continue;
-
-                // Actually change it and blow up if we failed.
-                // We pass a void * cast of the instance, which may or may not
-                // be valid - channel change stuff has to be smart enough to test
-                // for null and report an error accordingly if it uses this
-                // data.
-				//
-				// If a channel has more than N consecutive errors, we actually
-				// fail out, send a fatal condition, and die.
-                if ((*meta->prototype->channelcon) 
-					(globalreg, 
-					 meta_packsources[chanpak.meta_num]->device.c_str(), 
-                     chanpak.channel, (void *) (meta->capsource)) < 0) {
-
-					meta->consec_errors++;
-
-					if (meta->consec_errors >= MAX_CONSEC_CHAN_ERR) {
-						// Push an explanation and the final error
-						snprintf(txtbuf, 1024, "Packet source %s (%s) has suffered "
-								 "%d consecutive errors setting the channel.  This "
-								 "most likely means the drivers have become "
-								 "confused.",
-								 meta_packsources[chanpak.meta_num]->name.c_str(),
-								 meta_packsources[chanpak.meta_num]->device.c_str(),
-								 MAX_CONSEC_CHAN_ERR);
-						child_ipc_buffer.push_front(CreateTextPacket(txtbuf, 
-																	 CHANFLAG_NONE));
-
-						snprintf(txtbuf, 1024, "%s", errstr);
-						child_ipc_buffer.push_front(CreateTextPacket(txtbuf, 
-																	 CHANFLAG_FATAL));
-						continue;
-					}
-                } else {
-					// Otherwise reset the error count
-					meta->consec_errors = 0;
-				}
-
-                // Acknowledge
-                chanchild_packhdr *ackpak = new chanchild_packhdr;
-
-                memset(ackpak, 0, sizeof(chanchild_packhdr));
-                ackpak->sentinel = CHANSENTINEL;
-                ackpak->packtype = CHANPACK_CMDACK;
-                ackpak->flags = CHANFLAG_NONE;
-                ackpak->datalen = 1;
-                ackpak->data = (uint8_t *) malloc(1);
-                ackpak->data[0] = (uint8_t) chanpak.meta_num;
-                child_ipc_buffer.push_back(ackpak);
-
-            }
-        } 
-
-        // Write a packet - wset should never be set if child_ipc_buffer is empty
-        if (FD_ISSET(sockpair[0], &wset)) {
-            chanchild_packhdr *pak = child_ipc_buffer.front();
-
-            // Send the header if we didn't already
-            if (child_dataframe_only == 0) {
-                if (send(sockpair[0], pak, sizeof(chanchild_packhdr) - sizeof(void *), 0) < 0) {
-                    if (errno == ENOBUFS)
-                        continue;
-                    else
-                        exit(1);
-                } 
-            }
-
-            // send the payload if there is one
-            if (pak->datalen > 0) {
-                if (send(sockpair[0], pak->data, pak->datalen, 0) < 0) {
-                    if (errno == ENOBUFS) {
-                        child_dataframe_only = 1;
-                        continue;
-                    } else {
-                        exit(1);
-                    }
-                }
-            }
-
-            child_dataframe_only = 0;
-
-            // Blow ourselves away if we just wrote a fatal failure
-            if (pak->flags & CHANFLAG_FATAL)
-                exit(1);
-
-            child_ipc_buffer.pop_front();
-            free(pak->data);
-            delete pak;
-        }
-
-    }
-
-    exit(1);
+	return 1;
 }
-
-Packetsourcetracker::chanchild_packhdr *Packetsourcetracker::CreateTextPacket(string in_text, int8_t in_flags) {
-    chanchild_packhdr *ret = new chanchild_packhdr;
-
-    memset(ret, 0, sizeof(chanchild_packhdr));
-    ret->sentinel = CHANSENTINEL;
-    ret->packtype = CHANPACK_TEXT;
-    ret->flags = in_flags;
-    ret->datalen = in_text.length();
-    ret->data = (uint8_t *) strdup(in_text.c_str());
-
-    return ret;
-}
-
 

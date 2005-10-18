@@ -34,19 +34,7 @@
 #include "gpsdclient.h"
 #include "packetsource.h"
 #include "pollable.h"
-
-// Sentinel for starting a new packet
-#define CHANSENTINEL      0xDECAFBAD
-
-// What type of frame it is in the child datagram
-#define CHANPACK_CHANNEL  1
-#define CHANPACK_TEXT     2
-#define CHANPACK_CMDACK   3
-#define CHANPACK_DIE      254
-
-// What sort of extra info can we carry with the text?
-#define CHANFLAG_NONE     0
-#define CHANFLAG_FATAL    1
+#include "ipc_remote.h"
 
 // Maximum number of consecutive failures before we die
 #define MAX_CONSEC_CHAN_ERR		5
@@ -107,14 +95,6 @@ public:
 	int consec_errors;
 };
 
-// Messagebus client to intercept messages from the forked client 
-class Packetcontrolchild_MessageClient : public MessageClient {
-public:
-    Packetcontrolchild_MessageClient(GlobalRegistry *in_globalreg, void *in_aux) :
-        MessageClient(in_globalreg, in_aux) { };
-    void ProcessMessage(string in_msg, int in_flags);
-};
-
 // Packetchain reference for packet sources to be attached to the 
 // item captured
 class kis_ref_capsource : public packet_component {
@@ -130,8 +110,7 @@ public:
 };
 
 // Channel control event
-int ChannelHopEvent(Timetracker::timer_event *evt, void *parm, 
-					GlobalRegistry *globalreg);
+int ChannelHopEvent(TIMEEVENT_PARMS);
 
 // Internal NULL packet source that's always present to remind the users to configure
 // the software
@@ -191,9 +170,6 @@ public:
     // Merge descriptors into a set
     unsigned int MergeSet(unsigned int in_max_fd, fd_set *out_rset, 
 						  fd_set *out_wset);
-
-    // Return the pid of the channel control child
-    pid_t FetchChildPid() { return chanchild_pid; }
 
     // Poll the socket for command acks and text.
     // Text gets put in errstr with a return code > 0.
@@ -274,37 +250,22 @@ public:
 	static void Usage(char *name);
 
 protected:
-    // IPC packet header - All is sent besides the data pointer
-    typedef struct {
-        uint32_t sentinel;
-        uint8_t packtype;
-        int8_t flags;
-        int32_t datalen;
-        uint8_t *data;
-    } chanchild_packhdr;
-
     // IPC data frame to set a channel
     typedef struct {
         // If anyone ever needs more than 256 sources on one capture server, let me
         // know, until then...
-        uint8_t meta_num;
+        uint16_t meta_num;
         uint16_t channel;
     } chanchild_changepacket;
+
+	// Local card set used by the ipc callback
+    int SetIPCChannel(int in_ch, unsigned int meta_num);
 
     GlobalRegistry *globalreg;
 
 	int card_protoref;
 	int hop_eventid;
 	int card_eventid;
-    
-    char errstr[1024];
-
-    pid_t chanchild_pid;
-
-    // outbound packets
-    list<chanchild_packhdr *> ipc_buffer;
-    list<chanchild_packhdr *> child_ipc_buffer;
-    int dataframe_only;
     
     int next_packsource_id;
     int next_meta_id;
@@ -317,23 +278,19 @@ protected:
 	int channel_split;
 	int channel_dwell;
 	int channel_velocity;
+
+	char errstr[1024];
 	
     // We track this twice so we don't have to convert the meta_packsource into 
     // a packsource vec every loop
     vector<meta_packsource *> meta_packsources;
     vector<KisPacketSource *> live_packsources;
 
-    int sockpair[2];
+	IPCRemote *chan_remote;
+	uint32_t chan_ipc_id;
 
-    // Core of the channel control child process
-    void ChannelChildLoop();
-
-    // Generate a text packet
-    chanchild_packhdr *CreateTextPacket(string in_text, int8_t in_flags);
-
-    friend class Packetcontrolchild_MessageClient;
-    friend int ChannelHopEvent(Timetracker::timer_event *evt, 
-                               void *parm, GlobalRegistry *globalreg);
+	friend int ChannelHopEvent(TIMEEVENT_PARMS);
+	friend int packsrc_chan_ipc(IPC_CMD_PARMS);
 };
 
 enum CARD_fields {
