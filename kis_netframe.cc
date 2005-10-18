@@ -969,12 +969,23 @@ int KisNetFramework::KillConnection(int in_fd) {
     map<int, client_opt *>::iterator citr = client_optmap.find(in_fd);
     if (citr != client_optmap.end()) {
         // Remove all our protocols
-        for (map<int, vector<int> >::iterator clpitr = citr->second->protocols.begin();
-             clpitr != citr->second->protocols.end(); ++clpitr)
-            DelProtocolClient(in_fd, clpitr->first);
+        map<int, vector<int> >::iterator clpitr;
 
-        delete citr->second;
+		while ((clpitr = citr->second->protocols.begin()) != 
+			   citr->second->protocols.end()) {
+			DelProtocolClient(in_fd, clpitr->first);
+		}
+
+			/*
+        for (map<int, vector<int> >::iterator clpitr = 
+			 citr->second->protocols.begin(); 
+			 clpitr != citr->second->protocols.end(); ++clpitr)
+            DelProtocolClient(in_fd, clpitr->first);
+			*/
+
+		client_opt *sec = citr->second;
         client_optmap.erase(citr);
+		delete sec;
     }
 
     return 1;
