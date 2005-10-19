@@ -446,9 +446,10 @@ void init_proc_title(int argc, char *argv[], char *envp[]) {
 	if ((p = (char **)malloc((i + 1) * sizeof(char *))) != NULL) {
 		environ = p;
 
+		// Stupid strncpy because it makes the linker not whine
 		for (i = 0; envp[i] != NULL; i++)
 			if ((environ[i] = (char *) malloc(strlen(envp[i]) + 1)) != NULL)
-				strcpy(environ[i], envp[i]);
+				strncpy(environ[i], envp[i], strlen(envp[i]) + 1);
 
 		environ[i] = NULL;
 	}
