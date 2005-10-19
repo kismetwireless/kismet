@@ -117,8 +117,10 @@ IPCRemote::IPCRemote() {
 	exit(1);
 }
 
-IPCRemote::IPCRemote(GlobalRegistry *in_globalreg) {
+IPCRemote::IPCRemote(GlobalRegistry *in_globalreg, string in_procname) {
 	globalreg = in_globalreg;
+	procname = in_procname;
+
 	next_cmdid = 0;
 	ipc_pid = 0;
 	ipc_spawned = 0;
@@ -261,7 +263,9 @@ void IPCRemote::IPC_Child_Loop() {
 	signal(SIGHUP, SIG_IGN);
 	signal(SIGPIPE, SIG_IGN);
 
-	_MSG("Spawned child loop", MSGFLAG_INFO);
+	// Set the process title
+	init_proc_title(globalreg->argc, globalreg->argv, globalreg->envp);
+	set_proc_title("%s", procname.c_str());
 
 	while (1) {
 		int max_fd = 0;

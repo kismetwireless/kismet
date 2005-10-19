@@ -317,7 +317,7 @@ int FlushDatafilesEvent(TIMEEVENT_PARMS) {
 	return 1;
 }
 
-int main(int argc,char *argv[]) {
+int main(int argc, char *argv[], char *envp[]) {
 	exec_name = argv[0];
 	char errstr[STATUS_MAX];
 	char *configfilename = NULL;
@@ -345,6 +345,7 @@ int main(int argc,char *argv[]) {
 	// Copy for modules
 	globalregistry->argc = argc;
 	globalregistry->argv = argv;
+	globalregistry->envp = envp;
 	
 	// First order - create our message bus and our client for outputting
 	globalregistry->messagebus = new MessageBus;

@@ -42,6 +42,9 @@
 /* libpcap packet capture lib */
 #undef HAVE_LIBPCAP
 
+/* Define to 1 if you have the <libutil.h> header file. */
+#undef HAVE_LIBUTIL_H
+
 /* Libz compression lib */
 #undef HAVE_LIBZ
 
@@ -69,11 +72,17 @@
 /* Nonblocking-capable libpcap */
 #undef HAVE_PCAP_NONBLOCK
 
+/* Define to 1 if you have the `pstat' function. */
+#undef HAVE_PSTAT
+
 /* pthread threading library */
 #undef HAVE_PTHREAD
 
 /* Define to 1 if you have the `select' function. */
 #undef HAVE_SELECT
+
+/* Define to 1 if you have the `setproctitle' function. */
+#undef HAVE_SETPROCTITLE
 
 /* Define to 1 if you have the `socket' function. */
 #undef HAVE_SOCKET
@@ -112,6 +121,9 @@
 /* System headers are there */
 #undef HAVE_SYSHEADERS
 
+/* Define to 1 if you have the <sys/pstat.h> header file. */
+#undef HAVE_SYS_PSTAT_H
+
 /* Define to 1 if you have the <sys/socket.h> header file. */
 #undef HAVE_SYS_SOCKET_H
 
@@ -148,6 +160,9 @@
 /* wsp100 remote sensor support */
 #undef HAVE_WSP100
 
+/* __PROGNAME glibc macro available */
+#undef HAVE___PROGNAME
+
 /* system binary directory */
 #undef LIB_LOC
 
@@ -172,6 +187,9 @@
 
 /* Define to the version of this package. */
 #undef PACKAGE_VERSION
+
+/* writeable argv type */
+#undef PF_ARGV_TYPE
 
 /* Define as the return type of signal handlers (`int' or `void'). */
 #undef RETSIGTYPE
@@ -246,6 +264,14 @@
 
 // Max chars in SSID
 #define MAX_SSID_LEN    255
+
+// Proftpd process title stuff
+#define PF_ARGV_NONE		0
+#define PF_ARGV_NEW		1
+#define PF_ARGV_WRITEABLE	2
+#define PF_ARGV_PSTAT		3
+#define PF_ARGV_PSSTRINGS	4
+#undef PF_ARGV_TYPE
 
 /* Namespace */
 using namespace std;

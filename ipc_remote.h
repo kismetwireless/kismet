@@ -84,7 +84,7 @@ const uint32_t IPCRemoteSentinel = 0xDECAFBAD;
 class IPCRemote : public Pollable {
 public:
 	IPCRemote();
-	IPCRemote(GlobalRegistry *in_globalreg);
+	IPCRemote(GlobalRegistry *in_globalreg, string procname);
 
 	virtual int SpawnIPC();
 	// Shutdown takes an optional final packet to send before sending the
@@ -134,6 +134,9 @@ protected:
 
 	// This isn't a ringbuf since it's dgram single-tx frames
 	list<ipc_packet *> cmd_buf;
+
+	// Name of the process we'll use in the child
+	string procname;
 
 	int next_cmdid;
 

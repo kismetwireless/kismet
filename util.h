@@ -104,4 +104,8 @@ int FetchSysLoadAvg(uint8_t *in_avgmaj, uint8_t *in_avgmin);
 // From rsync, adler-32
 uint32_t Adler32Checksum(const char *buf1, int len);
 
+// Proftpd process title manipulation functions
+void init_proc_title(int argc, char *argv[], char *envp[]);
+void set_proc_title(const char *fmt, ...);
+
 #endif

@@ -320,6 +320,70 @@ AC_SUBST(CLIBS)
 
 # TODO - check for advanced curses stuff here like cdk/panels
 
+# Check for process title manipulation stuff, from proftpd configure.in
+AC_CHECK_FUNCS(setproctitle)
+AC_CHECK_HEADERS(libutil.h)
+AC_CHECK_LIB(util, setproctitle,
+	[AC_DEFINE(HAVE_SETPROCTITLE)
+		ac_cv_func_setproctitle="yes" ; LIBS="$LIBS -lutil"])
+
+if test "$ac_cv_func_setproctitle" = "yes"; then
+  AC_DEFINE(PF_ARGV_TYPE, PF_ARGV_NONE)
+else
+  pf_argv_set="no"
+
+  AC_CHECK_HEADERS(sys/pstat.h,have_pstat_h="yes",have_pstat_h="no")
+  if test "$have_pstat_h" = "yes"; then
+    AC_CHECK_FUNCS(pstat)
+    
+    if test "$ac_cv_func_pstat" = "yes"; then
+	AC_DEFINE(PF_ARGV_TYPE, PF_ARGV_PSTAT, pstat argv type)
+    else
+	AC_DEFINE(PF_ARGV_TYPE, PF_ARGV_WRITEABLE, writeable argv type)
+    fi
+
+    pf_argv_set="yes"
+  fi
+
+  if test "$pf_argv_set" = "no"; then
+    AC_EGREP_HEADER([#define.*PS_STRINGS.*],sys/exec.h,
+			have_psstrings="yes",have_psstrings="no")
+    if test "$have_psstrings" = "yes"; then
+	AC_DEFINE(PF_ARGV_TYPE, PF_ARGV_PSSTRINGS)
+	pf_argv_set="yes"
+    fi
+  fi
+
+  if test "$pf_argv_set" = "no"; then
+    AC_CACHE_CHECK(whether __progname and __progname_full are available,
+		    pf_cv_var_progname,
+		    AC_TRY_LINK([extern char *__progname, *__progname_full;],
+			[__progname = "foo"; __progname_full = "foo bar";],
+			pf_cv_var_progname="yes", pf_cv_var_progname="no"))
+
+    if test "$pf_cv_var_progname" = "yes"; then
+	AC_DEFINE(HAVE___PROGNAME, 1, __PROGNAME glibc macro available)
+    fi
+
+    AC_CACHE_CHECK(which argv replacement method to use,
+		    pf_cv_argv_type,
+		    AC_EGREP_CPP(yes,[
+#if defined(__GNU_HURD__)
+  yes
+#endif
+  ],pf_cv_argv_type="new", pf_cv_argv_type="writeable"))
+
+    if test "$pf_cv_argv_type" = "new"; then
+	AC_DEFINE(PF_ARGV_TYPE, PF_ARGV_NEW, new argv type)
+	pf_argv_set="yes"
+    fi
+
+    if test "$pf_argv_set" = "no"; then
+	AC_DEFINE(PF_ARGV_TYPE, PF_ARGV_WRITEABLE, writeable argv type)
+    fi
+  fi
+fi
+
 # Check for linux headers if we're on linux systems
 if test "$linux" = "yes"; then
 

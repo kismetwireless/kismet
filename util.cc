@@ -22,6 +22,30 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
+#include <stdarg.h>
+
+#ifdef HAVE_LIBUTIL_H
+# include <libutil.h>
+#endif /* HAVE_LIBUTIL_H */
+
+#if PF_ARGV_TYPE == PF_ARGV_PSTAT
+# ifdef HAVE_SYS_PSTAT_H
+#  include <sys/pstat.h>
+# else
+#  undef PF_ARGV_TYPE
+#  define PF_ARGV_TYPE PF_ARGV_WRITEABLE
+# endif /* HAVE_SYS_PSTAT_H */
+#endif /* PF_ARGV_PSTAT */
+
+#if PF_ARGV_TYPE == PF_ARGV_PSSTRINGS
+# ifndef HAVE_SYS_EXEC_H
+#  undef PF_ARGV_TYPE
+#  define PF_ARGV_TYPE PF_ARGV_WRITEABLE
+# else
+#  include <machine/vmparam.h>
+#  include <sys/exec.h>
+# endif /* HAVE_SYS_EXEC_H */
+#endif /* PF_ARGV_PSSTRINGS */
 
 // We need this to make uclibc happy since they don't even have rintf...
 #ifndef rintf
@@ -393,3 +417,133 @@ uint32_t Adler32Checksum(const char *buf1, int len) {
 	return (s1 & 0xffff) + (s2 << 16);
 }
 
+// Multiplatform method of setting a process title.  Lifted from proftpd main.c
+// * ProFTPD - FTP server daemon
+// * Copyright (c) 1997, 1998 Public Flood Software
+// * Copyright (c) 1999, 2000 MacGyver aka Habeeb J. Dihu <macgyver@tos.net>
+// * Copyright (c) 2001, 2002, 2003 The ProFTPD Project team
+//
+// Process title munging is ugly!
+
+// Externs to glibc
+#ifdef HAVE___PROGNAME
+extern char *__progname, *__progname_full;
+#endif /* HAVE___PROGNAME */
+extern char **environ;
+
+// This is not good at all.  i should probably rewrite this, but...
+static char **Argv = NULL;
+static char *LastArgv = NULL;
+
+void init_proc_title(int argc, char *argv[], char *envp[]) {
+	register int i, envpsize;
+	char **p;
+
+	/* Move the environment so setproctitle can use the space. */
+	for (i = envpsize = 0; envp[i] != NULL; i++)
+		envpsize += strlen(envp[i]) + 1;
+
+	if ((p = (char **)malloc((i + 1) * sizeof(char *))) != NULL) {
+		environ = p;
+
+		for (i = 0; envp[i] != NULL; i++)
+			if ((environ[i] = (char *) malloc(strlen(envp[i]) + 1)) != NULL)
+				strcpy(environ[i], envp[i]);
+
+		environ[i] = NULL;
+	}
+
+	Argv = argv;
+
+	for (i = 0; i < argc; i++)
+		if (!i || (LastArgv + 1 == argv[i]))
+			LastArgv = argv[i] + strlen(argv[i]);
+
+	for (i = 0; envp[i] != NULL; i++)
+		if ((LastArgv + 1) == envp[i])
+			LastArgv = envp[i] + strlen(envp[i]);
+
+#ifdef HAVE___PROGNAME
+	/* Set the __progname and __progname_full variables so glibc and company
+	 * don't go nuts.
+	 */
+	__progname = strdup("kismet");
+	__progname_full = strdup(argv[0]);
+#endif /* HAVE___PROGNAME */
+}
+
+void set_proc_title(const char *fmt, ...) {
+	va_list msg;
+	static char statbuf[BUFSIZ];
+
+#ifndef HAVE_SETPROCTITLE
+#if PF_ARGV_TYPE == PF_ARGV_PSTAT
+	union pstun pst;
+#endif /* PF_ARGV_PSTAT */
+	char *p;
+	int i,maxlen = (LastArgv - Argv[0]) - 2;
+#endif /* HAVE_SETPROCTITLE */
+
+	va_start(msg,fmt);
+
+	memset(statbuf, 0, sizeof(statbuf));
+
+#ifdef HAVE_SETPROCTITLE
+# if __FreeBSD__ >= 4 && !defined(FREEBSD4_0) && !defined(FREEBSD4_1)
+	/* FreeBSD's setproctitle() automatically prepends the process name. */
+	vsnprintf(statbuf, sizeof(statbuf), fmt, msg);
+
+# else /* FREEBSD4 */
+	/* Manually append the process name for non-FreeBSD platforms. */
+	snprintf(statbuf, sizeof(statbuf), "%s", "kismet: ");
+	vsnprintf(statbuf + strlen(statbuf), sizeof(statbuf) - strlen(statbuf),
+			  fmt, msg);
+
+# endif /* FREEBSD4 */
+	setproctitle("%s", statbuf);
+
+#else /* HAVE_SETPROCTITLE */
+	/* Manually append the process name for non-setproctitle() platforms. */
+	snprintf(statbuf, sizeof(statbuf), "%s", "kismet: ");
+	vsnprintf(statbuf + strlen(statbuf), sizeof(statbuf) - strlen(statbuf),
+			  fmt, msg);
+
+#endif /* HAVE_SETPROCTITLE */
+
+	va_end(msg);
+
+#ifdef HAVE_SETPROCTITLE
+	return;
+#else
+	i = strlen(statbuf);
+
+#if PF_ARGV_TYPE == PF_ARGV_NEW
+	/* We can just replace argv[] arguments.  Nice and easy.
+	*/
+	Argv[0] = statbuf;
+	Argv[1] = NULL;
+#endif /* PF_ARGV_NEW */
+
+#if PF_ARGV_TYPE == PF_ARGV_WRITEABLE
+	/* We can overwrite individual argv[] arguments.  Semi-nice.
+	*/
+	snprintf(Argv[0], maxlen, "%s", statbuf);
+	p = &Argv[0][i];
+
+	while(p < LastArgv)
+		*p++ = '\0';
+	Argv[1] = NULL;
+#endif /* PF_ARGV_WRITEABLE */
+
+#if PF_ARGV_TYPE == PF_ARGV_PSTAT
+	pst.pst_command = statbuf;
+	pstat(PSTAT_SETCMD, pst, i, 0, 0);
+#endif /* PF_ARGV_PSTAT */
+
+#if PF_ARGV_TYPE == PF_ARGV_PSSTRINGS
+	PS_STRINGS->ps_nargvstr = 1;
+	PS_STRINGS->ps_argvstr = statbuf;
+#endif /* PF_ARGV_PSSTRINGS */
+
+#endif /* HAVE_SETPROCTITLE */
+}

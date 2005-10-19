@@ -110,6 +110,7 @@ public:
 	// argc and argv for modules to allow overrides
 	int argc;
 	char **argv;
+	char **envp;
 	
     // Fatal terminate condition, as soon as we detect this in the main code we
     // should initiate a shutdown

@@ -328,7 +328,7 @@ Packetsourcetracker::Packetsourcetracker(GlobalRegistry *in_globalreg) {
 	globalreg->RegisterPollableSubsys(this);
 
 	// Assign the IPC commands and make it pollable
-	chan_remote = new IPCRemote(globalreg);
+	chan_remote = new IPCRemote(globalreg, "channel control");
 	chan_ipc_id = chan_remote->RegisterIPCCmd(&packsrc_chan_ipc, this);
 	globalreg->RegisterPollableSubsys(chan_remote);
 }
