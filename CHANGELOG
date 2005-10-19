@@ -1,5 +1,7 @@
 Oct 19 2005  devel  Cosmetic - added IPC child process name control
                     Ported sound controller to IPC framework
+                    Moved speech/sound spawn to after privdrop
+                    Removed gpsdclient from globalreg
 Oct 18 2005  devel  Fixed invalid handling of map when cleaning up kisclient
                      protocols during a disconnect
                     Ported speech handler to IPC framework

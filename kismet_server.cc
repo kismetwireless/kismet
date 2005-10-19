@@ -442,14 +442,6 @@ int main(int argc, char *argv[], char *envp[]) {
 	sleep(1);
 #endif
 
-	// Assign the speech and sound handlers
-	globalregistry->soundctl = new SoundControl(globalregistry);
-	if (globalregistry->fatal_condition)
-		CatchShutdown(-1);
-	globalregistry->speechctl = new SpeechControl(globalregistry);
-	if (globalregistry->fatal_condition)
-		CatchShutdown(-1);
-
 	// Create the basic network/protocol server
 	globalregistry->kisnetserver = new KisNetFramework(globalregistry);
 	if (globalregistry->fatal_condition)
@@ -460,7 +452,6 @@ int main(int argc, char *argv[], char *envp[]) {
 
 	// Build the plugin list for root plugins
 	globalregistry->plugintracker->ScanRootPlugins();
-
 
 	// Create the packet chain
 	globalregistry->packetchain = new Packetchain(globalregistry);
@@ -552,10 +543,19 @@ int main(int argc, char *argv[], char *envp[]) {
 	if (globalregistry->fatal_condition)
 		CatchShutdown(-1);
 
+	// Assign the speech and sound handlers
+	globalregistry->soundctl = new SoundControl(globalregistry);
+	if (globalregistry->fatal_condition)
+		CatchShutdown(-1);
+	globalregistry->speechctl = new SpeechControl(globalregistry);
+	if (globalregistry->fatal_condition)
+		CatchShutdown(-1);
+
 	// Create the GPS server
+	GPSDClient *gpsdclient;
 	globalregistry->messagebus->InjectMessage("Starting GPSD client...",
 											  MSGFLAG_INFO);
-	globalregistry->gpsd = new GPSDClient(globalregistry);
+	gpsdclient = new GPSDClient(globalregistry);
 	if (globalregistry->fatal_condition)
 		CatchShutdown(-1);
 

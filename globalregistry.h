@@ -33,7 +33,6 @@ class Netracker;
 class Packetchain;
 class Alertracker;
 class Timetracker;
-class GPSDClient;
 class KisNetFramework;
 class ConfigFile;
 class SpeechControl;
@@ -123,7 +122,6 @@ public:
     Packetchain *packetchain;
     Alertracker *alertracker;
     Timetracker *timetracker;
-    GPSDClient *gpsd;
     KisNetFramework *kisnetserver;
     ConfigFile *kismet_config;
     ConfigFile *kismetui_config;
@@ -201,7 +199,6 @@ public:
 		packetchain = NULL;
         alertracker = NULL;
         timetracker = NULL;
-        gpsd = NULL;
         kisnetserver = NULL;
         kismet_config = NULL;
         kismetui_config = NULL;

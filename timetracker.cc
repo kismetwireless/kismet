@@ -87,7 +87,7 @@ int Timetracker::Tick() {
 
 int Timetracker::RegisterTimer(int in_timeslices, struct timeval *in_trigger,
                                int in_recurring, 
-                               int (*in_callback)(timer_event *, void *, GlobalRegistry *),
+                               int (*in_callback)(TIMEEVENT_PARMS),
                                void *in_parm) {
     timer_event *evt = new timer_event;
 

@@ -369,8 +369,8 @@ int GPSDClient::ParseData() {
 	kis_gps_packinfo *gpsdat = new kis_gps_packinfo;
 	newpack->ts.tv_sec = globalreg->timestamp.tv_sec;
 	newpack->ts.tv_usec = globalreg->timestamp.tv_usec;
-	globalreg->gpsd->FetchLoc(&(gpsdat->lat), &(gpsdat->lon), &(gpsdat->alt),
-							  &(gpsdat->spd), &(gpsdat->heading), &(gpsdat->gps_fix));
+	FetchLoc(&(gpsdat->lat), &(gpsdat->lon), &(gpsdat->alt),
+			 &(gpsdat->spd), &(gpsdat->heading), &(gpsdat->gps_fix));
 	newpack->insert(_PCM(PACK_COMP_GPS), gpsdat);
 	globalreg->packetchain->ProcessPacket(newpack);
 
