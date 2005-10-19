@@ -24,6 +24,9 @@ int no_optimize = 1;
 
 int
 install_bpf_program(pcap_t *p, struct bpf_program *fp) {
+	fprintf(stderr, "OOPS:  Something tried to install a bpf program into the "
+			"stripped down Kismet libpcap.  This is probably going to cause "
+			"problems or confusion later.\n");
 	return 0;
 }
 
