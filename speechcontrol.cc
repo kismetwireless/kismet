@@ -51,7 +51,7 @@ int speech_ipc_callback(IPC_CMD_PARMS) {
 
 	// Make sure it's shell-clean, we shouldn't be sent something that isn't,
 	// but why risk it?
-	MungeToShell((char *) data, strlen((char *) data));
+	MungeToShell((char *) data, len);
 	char spk_call[2048];
 	snprintf(spk_call, 2048, "echo \"(SayText \\\"%s\\\")\" | %s "
 			 ">/dev/null 2>/dev/null", (char *) data, 
@@ -125,14 +125,16 @@ SpeechControl::~SpeechControl() {
 int SpeechControl::SayText(string in_text) {
 	int ret = 0;
 
+	if (speech_enable <= 0)
+		return 0;
+
 	// Spawn the child proc if we need to
 	if (speech_remote->FetchSpawnPid() == 0) {
 		ret = SpawnChildProcess();
 	}
 	
 	// Don't send it until we're not blocked
-	if (globalreg->fatal_condition || speech_remote->FetchReadyState() == 0 || 
-		speech_enable <= 0)
+	if (globalreg->fatal_condition || speech_remote->FetchReadyState() == 0)
 		return ret;
 
     char snd[1024];

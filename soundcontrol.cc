@@ -23,9 +23,23 @@
 #include <fcntl.h>
 #include <errno.h>
 
+#include <sstream>
+
 #include "soundcontrol.h"
 #include "messagebus.h"
 #include "configfile.h"
+
+int sound_ipc_callback(IPC_CMD_PARMS) {
+	if (parent)
+		return 0;
+
+	if (len < 2) {
+		_MSG("IPC sound handler got a short sound message", MSGFLAG_ERROR);
+		return 0;
+	}
+
+	return ((SoundControl *) auxptr)->LocalPlay((char *) data);
+}
 
 SoundControl::SoundControl() {
     fprintf(stderr, "*** SoundControl() called with no global registry\n");
@@ -49,26 +63,36 @@ SoundControl::SoundControl(GlobalRegistry *in_globalreg) {
             if (globalreg->kismet_config->FetchOpt("sound_new") != "")
                 wav_map["new"] = globalreg->kismet_config->FetchOpt("sound_new");
             if (globalreg->kismet_config->FetchOpt("sound_new_wep") != "")
-                wav_map["new_wep"] = globalreg->kismet_config->FetchOpt("sound_new_wep");
+                wav_map["new_wep"] = 
+					globalreg->kismet_config->FetchOpt("sound_new_wep");
             if (globalreg->kismet_config->FetchOpt("sound_traffic") != "")
-                wav_map["traffic"] = globalreg->kismet_config->FetchOpt("sound_traffic");
+                wav_map["traffic"] = 
+					globalreg->kismet_config->FetchOpt("sound_traffic");
             if (globalreg->kismet_config->FetchOpt("sound_junktraffic") != "")
-                wav_map["junktraffic"] = globalreg->kismet_config->FetchOpt("sound_traffic");
+                wav_map["junktraffic"] = 
+					globalreg->kismet_config->FetchOpt("sound_traffic");
             if (globalreg->kismet_config->FetchOpt("sound_gpslock") != "")
-                wav_map["gpslock"] = globalreg->kismet_config->FetchOpt("sound_gpslock");
+                wav_map["gpslock"] = 
+					globalreg->kismet_config->FetchOpt("sound_gpslock");
             if (globalreg->kismet_config->FetchOpt("sound_gpslost") != "")
-                wav_map["gpslost"] = globalreg->kismet_config->FetchOpt("sound_gpslost");
+                wav_map["gpslost"] = 
+					globalreg->kismet_config->FetchOpt("sound_gpslost");
             if (globalreg->kismet_config->FetchOpt("sound_alert") != "")
-                wav_map["alert"] = globalreg->kismet_config->FetchOpt("sound_alert");
+                wav_map["alert"] = 
+					globalreg->kismet_config->FetchOpt("sound_alert");
 
         } else {
-            globalreg->messagebus->InjectMessage("Sound alerts enabled but no sound player specified, "
-                                                 "sound will be disabled", MSGFLAG_ERROR);
+            _MSG("Sound alerts enabled but no sound player specified, "
+				 "sound will be disabled", MSGFLAG_ERROR);
             sound_enable = 0;
         }
     } else if (sound_enable == -1) {
         sound_enable = 0;
     }
+
+	sound_remote = new IPCRemote(globalreg, "sound daemon");
+	sound_ipc_id = sound_remote->RegisterIPCCmd(&sound_ipc_callback, this);
+	globalreg->RegisterPollableSubsys(sound_remote);
     
 }
 
@@ -77,152 +101,86 @@ SoundControl::~SoundControl() {
 }
 
 int SoundControl::PlaySound(string in_text) {
-    char snd[1024];
+	char snd[1024];
+	int ret = 0;
 
-    if (sound_enable <= 0)
-        return 0;
-    
-    snprintf(snd, 1024, "%s\n", in_text.c_str());
+	if (sound_enable <= 0)
+		return 0;
 
-    if (write(fds[1], snd, strlen(snd)) < 0) {
-        globalreg->messagebus->InjectMessage("Write error on sending data to sound "
-                                             "child process.  Attempting to restart sound "
-                                             "process", MSGFLAG_ERROR);
+	if (sound_remote->FetchSpawnPid() == 0) {
+		ret = SpawnChildProcess();
+	}
 
-        if (SpawnChildProcess() < 0)
-            return -1;
+	if (globalreg->fatal_condition || sound_remote->FetchReadyState() == 0)
+		return ret;
 
-        if (write(fds[1], snd, strlen(snd)) < 0) {
-            globalreg->messagebus->InjectMessage("Continued write error after restarting sound "
-                                                 "process.  Sound will be disabled.",
-                                                 MSGFLAG_ERROR);
-            sound_enable = 0;
-        }
-    }
+	snprintf(snd, 1024, "%s", in_text.c_str());
+
+	ipc_packet *pack =
+		(ipc_packet *) malloc(sizeof(ipc_packet) + strlen(snd) + 1);
+	char *msg = (char *) pack->data;
+
+	snprintf(msg, strlen(snd) + 1, snd);
+	
+	pack->data_len = strlen(snd) + 1;
+	pack->ipc_cmdnum = sound_ipc_id;
+
+	sound_remote->SendIPC(pack);
 
     return 1;
 }
 
 void SoundControl::Shutdown() {
-    if (childpid > 0) {
-        close(fds[1]);
-        kill(childpid, 9);
-    }
+	sound_remote->ShutdownIPC(NULL);
+	globalreg->RemovePollableSubsys(sound_remote);
+	delete sound_remote;
 }
 
 int SoundControl::SpawnChildProcess() {
-    if (pipe(fds) == -1) {
-        globalreg->messagebus->InjectMessage("Unable to create pipe for sound.  Disabling sound.",
-                                             MSGFLAG_ERROR);
-        sound_enable = 0;
-    } else {
-        childpid = fork();
+	ostringstream osstr;
 
-        if (childpid < 0) {
-            globalreg->messagebus->InjectMessage("Unable to fork speech control process.  Disabling speech.",
-                                                 MSGFLAG_ERROR);
-            sound_enable = 0;
-        } else if (childpid == 0) {
-            SoundChild();
-            exit(0);
-        }
+	int ret = sound_remote->SpawnIPC();
 
-        close(fds[0]);
-    }
+	if (ret < 0 || globalreg->fatal_condition) {
+		_MSG("SoundControl failed to create an IPC child process", MSGFLAG_FATAL);
+		globalreg->fatal_condition = 1;
+		return -1;
+	}
+
+	osstr << "SoundControl spawned IPC child process pid " <<
+		sound_remote->FetchSpawnPid();
+	_MSG(osstr.str(), MSGFLAG_INFO);
 
     return 1;
 }
 
-void SoundControl::SoundChild() {
-    int read_sock = fds[0];
-    close(fds[1]);
+int SoundControl::LocalPlay(string key) {
+	char snd[1024];
+	pid_t sndpid;
 
-    fd_set rset;
+	if (wav_map.size() == 0)
+		snprintf(snd, 1024, "%s", key.c_str());
+	if (wav_map.find(key) != wav_map.end())
+		snprintf(snd, 1024, "%s", wav_map[key].c_str());
+	else
+		return 0;
 
-    char data[1024];
+	char plr[1024];
+	snprintf(plr, 1024, "%s", FetchPlayer().c_str());
 
-    pid_t sndpid = -1;
-    int harvested = 1;
+	if ((sndpid = fork()) == 0) {
+		// Suppress errors
+		int nulfd = open("/dev/null", O_RDWR);
+		dup2(nulfd, 1);
+		dup2(nulfd, 2);
 
-    while (1) {
-        FD_ZERO(&rset);
-        FD_SET(read_sock, &rset);
-        char *end;
+		char * const echoarg[] = { plr, snd, NULL };
+		execve(echoarg[0], echoarg, NULL);
+	}
 
-        memset(data, 0, 1024);
+	// Blocking wait for the sound to finish
+	waitpid(sndpid, NULL, 0);
 
-        struct timeval tm;
-        tm.tv_sec = 1;
-        tm.tv_usec = 0;
-
-        if (select(read_sock + 1, &rset, NULL, NULL, &tm) < 0) {
-            if (errno != EINTR) {
-                exit(1);
-            }
-        }
-
-        if (harvested == 0) {
-            // We consider a wait error to be a sign that the child pid died
-            // so we flag it as harvested and keep on going
-            pid_t harvestpid = waitpid(sndpid, NULL, WNOHANG);
-            if (harvestpid == -1 || harvestpid == sndpid)
-                harvested = 1;
-        }
-
-        if (FD_ISSET(read_sock, &rset)) {
-            int ret;
-            ret = read(read_sock, data, 1024);
-
-            // We'll die off if we get a read error, and we'll let kismet on the
-            // other side detact that it died
-            if (ret <= 0 && (errno != EAGAIN && errno != EPIPE))
-                exit(1);
-
-            if ((end = strstr(data, "\n")) == NULL)
-                continue;
-
-            end[0] = '\0';
-        }
-
-        if (data[0] == '\0')
-            continue;
-
-
-        // If we've harvested the process, spawn a new one and watch it
-        // instead.  Otherwise, we just let go of the data we read
-        if (harvested == 1) {
-            // Only take the first line
-            char *nl;
-            if ((nl = strchr(data, '\n')) != NULL)
-                *nl = '\0';
-
-            // Make sure it's shell-clean
-
-            char snd[1024];
-
-            if (wav_map.size() == 0)
-                snprintf(snd, 1024, "%s", data);
-            if (wav_map.find(data) != wav_map.end())
-                snprintf(snd, 1024, "%s", wav_map[data].c_str());
-            else
-                continue;
-
-            char plr[1024];
-            snprintf(plr, 1024, "%s", player.c_str());
-
-            harvested = 0;
-            if ((sndpid = fork()) == 0) {
-                // Suppress errors
-                int nulfd = open("/dev/null", O_RDWR);
-                dup2(nulfd, 1);
-                dup2(nulfd, 2);
-
-                char * const echoarg[] = { plr, snd, NULL };
-                execve(echoarg[0], echoarg, NULL);
-            }
-        }
-        data[0] = '\0';
-    }
-
+	return 1;
 }
 

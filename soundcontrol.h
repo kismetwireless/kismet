@@ -21,15 +21,9 @@
 #ifndef __SOUNDCONTROL_H__
 #define __SOUNDCONTROL_H__
 
-#include <unistd.h>
-#include <sys/stat.h>
-#include <sys/types.h>
-#include <sys/wait.h>
-#include "getopt.h"
-#include <stdlib.h>
-#include <signal.h>
-#include <pwd.h>
 #include "globalregistry.h"
+#include "pollable.h"
+#include "ipc_remote.h"
 
 class SoundControl {
 public:
@@ -43,21 +37,27 @@ public:
     // Send something to the speech pipe
     int PlaySound(string in_text);
 
+	string FetchPlayer() { return player; }
+
 protected:
     int SpawnChildProcess();
-    void SoundChild();
+	int LocalPlay(string key);
 
     GlobalRegistry *globalreg;
+
+	IPCRemote *sound_remote;
+
+	uint32_t sound_ipc_id;
 
 	int sound_enable;
     
     char errstr[STATUS_MAX];
 
-    pid_t childpid;
-    int fds[2];
     string player;
 
     map<string, string> wav_map;
+
+	friend int sound_ipc_callback(IPC_CMD_PARMS);
 };
 
 #endif
