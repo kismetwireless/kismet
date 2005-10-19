@@ -1,5 +1,6 @@
 Oct 18 2005  devel  Fixed invalid handling of map when cleaning up kisclient
                      protocols during a disconnect
+                    Ported speech handler to IPC framework
 Oct 17 2005  devel  Fixed packetsourcetracker not being updated for meta msgclient
                     Removed packetsource_bsd stub class
                     Moved packetsource_bsd to packetsource_bsdrt

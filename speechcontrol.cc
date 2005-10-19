@@ -23,6 +23,8 @@
 #include <fcntl.h>
 #include <errno.h>
 
+#include <sstream>
+
 #include "speechcontrol.h"
 #include "messagebus.h"
 #include "configfile.h"
@@ -37,6 +39,30 @@ char speech_alphabet[2][36][12]={
     "L", "M", "N", "O", "P", "Q", "R", "S", "T", "U", "V", "W", "X", "Y", "Z",
     "0", "1", "2", "3", "4", "5", "6", "7", "8", "9"}
 };
+
+int speech_ipc_callback(IPC_CMD_PARMS) {
+	if (parent)
+		return 0;
+
+	if (len < 5) {
+		_MSG("IPC speech handler got a short text message", MSGFLAG_ERROR);
+		return 0;
+	}
+
+	// Make sure it's shell-clean, we shouldn't be sent something that isn't,
+	// but why risk it?
+	MungeToShell((char *) data, strlen((char *) data));
+	char spk_call[2048];
+	snprintf(spk_call, 2048, "echo \"(SayText \\\"%s\\\")\" | %s "
+			 ">/dev/null 2>/dev/null", (char *) data, 
+			 ((SpeechControl *) auxptr)->FetchPlayer());
+
+	// Blocking system call, this will block the ack until its done.  This
+	// is fine.
+	system(spk_call);
+
+	return 1;
+}
 
 SpeechControl::SpeechControl() {
     fprintf(stderr, "*** SpeechControl() called with no global registry\n");
@@ -68,24 +94,28 @@ SpeechControl::SpeechControl(GlobalRegistry *in_globalreg) {
             // Make sure we have encrypted text lines
             if (globalreg->kismet_config->FetchOpt("speech_encrypted") == "" || 
                 globalreg->kismet_config->FetchOpt("speech_unencrypted") == "") {
-                globalreg->messagebus->InjectMessage("Speech requested but no speech templates given "
-                                                     "in the config file.  Speech will be disabled.", 
-                                                     MSGFLAG_ERROR);
+                _MSG("Speech requested but no speech templates given "
+					 "in the config file.  Speech will be disabled.", MSGFLAG_ERROR);
                 speech_enable = 0;
             }
 
-            speech_sentence_encrypted = globalreg->kismet_config->FetchOpt("speech_encrypted");
-            speech_sentence_unencrypted = globalreg->kismet_config->FetchOpt("speech_unencrypted");
+            speech_sentence_encrypted = 
+				globalreg->kismet_config->FetchOpt("speech_encrypted");
+            speech_sentence_unencrypted = 
+				globalreg->kismet_config->FetchOpt("speech_unencrypted");
         } else {
-            globalreg->messagebus->InjectMessage("Speech requested but no path to festival has been "
-                                                 "specified.  Speech will be disabled",
-                                                 MSGFLAG_ERROR);
+            _MSG("Speech requested but no path to festival has been "
+				 "specified.  Speech will be disabled", MSGFLAG_ERROR);
             speech_enable = 0;
         }
     } else if (speech_enable == -1) {
         speech_enable = 0;
     }
     
+
+	speech_remote = new IPCRemote(globalreg);
+	speech_ipc_id = speech_remote->RegisterIPCCmd(&speech_ipc_callback, this);
+	globalreg->RegisterPollableSubsys(speech_remote);
 }
 
 SpeechControl::~SpeechControl() {
@@ -93,139 +123,63 @@ SpeechControl::~SpeechControl() {
 }
 
 int SpeechControl::SayText(string in_text) {
-    char snd[1024];
+	int ret = 0;
 
-    if (speech_enable <= 0)
-        return -1;
+	// Spawn the child proc if we need to
+	if (speech_remote->FetchSpawnPid() == 0) {
+		ret = SpawnChildProcess();
+	}
+	
+	// Don't send it until we're not blocked
+	if (globalreg->fatal_condition || speech_remote->FetchReadyState() == 0 || 
+		speech_enable <= 0)
+		return ret;
+
+    char snd[1024];
 
     snprintf(snd, 1024, "%s\n", in_text.c_str());
     MungeToShell(snd, 1024);
 
-    if (write(fds[1], snd, strlen(snd)) < 0) {
-        globalreg->messagebus->InjectMessage("Write error on sending data to speech "
-                                             "child process.  Attempting to restart speech "
-                                             "process", MSGFLAG_ERROR);
+	ipc_packet *pack = 
+		(ipc_packet *) malloc(sizeof(ipc_packet) + strlen(snd) + 1);
+	char *msg = (char *) pack->data;
 
-        if (SpawnChildProcess() < 0)
-            return -1;
+	snprintf(msg, strlen(snd) + 1, snd);
 
-        if (write(fds[1], snd, strlen(snd)) < 0) {
-            globalreg->messagebus->InjectMessage("Continued write error after restarting speech "
-                                                 "process.  Speech will be disabled.",
-                                                 MSGFLAG_ERROR);
-            speech_enable = 0;
-        }
-    }
+	pack->data_len = strlen(snd) + 1;
+
+	pack->ipc_cmdnum = speech_ipc_id;
+
+	// Push it via the IPC
+	speech_remote->SendIPC(pack);
 
     return 1;
 }
 
 void SpeechControl::Shutdown() {
-    if (childpid > 0) {
-        close(fds[1]);
-        kill(childpid, 9);
-    }
+	speech_remote->ShutdownIPC(NULL);
+	globalreg->RemovePollableSubsys(speech_remote);
+	delete speech_remote;
 }
 
 int SpeechControl::SpawnChildProcess() {
-    if (pipe(fds) == -1) {
-        globalreg->messagebus->InjectMessage("Unable to create pipe for speech.  Disabling speech.",
-                                             MSGFLAG_ERROR);
-        speech_enable = 0;
-    } else {
-        childpid = fork();
+	ostringstream osstr;
+	
+	int ret = speech_remote->SpawnIPC();
 
-        if (childpid < 0) {
-            globalreg->messagebus->InjectMessage("Unable to fork speech control process.  Disabling speech.",
-                                                 MSGFLAG_ERROR);
-            speech_enable = 0;
-        } else if (childpid == 0) {
-            SpeechChild();
-            exit(0);
-        }
+	if (ret < 0 || globalreg->fatal_condition) {
+		_MSG("SpeechControl failed to create an IPC child process", MSGFLAG_FATAL);
+		globalreg->fatal_condition = 1;
+		return -1;
+	}
 
-        close(fds[0]);
-    }
+	osstr << "SpeechControl spawned IPC child process pid " <<
+		speech_remote->FetchSpawnPid();
+	_MSG(osstr.str(), MSGFLAG_INFO);
 
-    return 1;
+	return 1;
 }
-
-void SpeechControl::SpeechChild() {
-    int read_sock = fds[0];
-    close(fds[1]);
-
-    fd_set rset;
-
-    char data[1024];
-
-    pid_t sndpid = -1;
-    int harvested = 1;
-
-    while (1) {
-        FD_ZERO(&rset);
-        FD_SET(read_sock, &rset);
-        //char *end;
-
-        memset(data, 0, 1024);
-
-        if (harvested == 0) {
-            // We consider a wait error to be a sign that the child pid died
-            // so we flag it as harvested and keep on going
-            pid_t harvestpid = waitpid(sndpid, NULL, WNOHANG);
-            if (harvestpid == -1 || harvestpid == sndpid)
-                harvested = 1;
-        }
-
-        struct timeval tm;
-        tm.tv_sec = 1;
-        tm.tv_usec = 0;
-
-        if (select(read_sock + 1, &rset, NULL, NULL, &tm) < 0) {
-            if (errno != EINTR) {
-                exit(1);
-            }
-        }
-
-        if (FD_ISSET(read_sock, &rset)) {
-            int ret;
-            ret = read(read_sock, data, 1024);
-
-            // We'll die off if we get a read error, and we'll let kismet on the
-            // other side detact that it died
-            if (ret <= 0 && (errno != EAGAIN && errno != EPIPE))
-                exit(1);
-
-            data[ret] = '\0';
-        }
-
-        if (data[0] == '\0')
-            continue;
-
-        // If we've harvested the process, spawn a new one and watch it
-        // instead.  Otherwise, we just let go of the data we read
-        if (harvested == 1) {
-            harvested = 0;
-            if ((sndpid = fork()) == 0) {
-                // Only take the first line
-                char *nl;
-                if ((nl = strchr(data, '\n')) != NULL)
-                    *nl = '\0';
-
-                // Make sure it's shell-clean
-                MungeToShell(data, strlen(data));
-                char spk_call[1024];
-                snprintf(spk_call, 1024, "echo \"(SayText \\\"%s\\\")\" | %s >/dev/null 2>/dev/null",
-                         data, player);
-                system(spk_call);
-
-                exit(0);
-            }
-        }
-
-        data[0] = '\0';
-    }
-}
-
+	
 string SpeechControl::EncodeSpeechString(string in_str) {
     if (speech_encoding != SPEECH_ENCODING_NATO && 
         speech_encoding != SPEECH_ENCODING_SPELL)

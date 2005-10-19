@@ -21,15 +21,9 @@
 #ifndef __SPEECHCONTROL_H__
 #define __SPEECHCONTROL_H__
 
-#include <unistd.h>
-#include <sys/stat.h>
-#include <sys/types.h>
-#include <sys/wait.h>
-#include "getopt.h"
-#include <stdlib.h>
-#include <signal.h>
-#include <pwd.h>
 #include "globalregistry.h"
+#include "pollable.h"
+#include "ipc_remote.h"
 
 #define SPEECH_ENCODING_NORMAL   0
 #define SPEECH_ENCODING_NATO     1
@@ -52,18 +46,22 @@ public:
     // Encode to nato, etc
     string EncodeSpeechString(string in_str);
 
+	// Fetch the player command
+	char *FetchPlayer() { return player; }
+
 protected:
-    int SpawnChildProcess();
-    void SpeechChild();
+	int SpawnChildProcess();
 
     GlobalRegistry *globalreg;
+
+	IPCRemote *speech_remote;
+
+	uint32_t speech_ipc_id;
  
 	int speech_enable;
 
     char errstr[STATUS_MAX];
 
-    pid_t childpid;
-    int fds[2];
     char *player;
 
     int speech_encoding;
