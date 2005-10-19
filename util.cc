@@ -496,7 +496,7 @@ void set_proc_title(const char *fmt, ...) {
 
 # else /* FREEBSD4 */
 	/* Manually append the process name for non-FreeBSD platforms. */
-	snprintf(statbuf, sizeof(statbuf), "%s", "kismet: ");
+	snprintf(statbuf, sizeof(statbuf), "%s: ", Argv[0]);
 	vsnprintf(statbuf + strlen(statbuf), sizeof(statbuf) - strlen(statbuf),
 			  fmt, msg);
 
@@ -505,7 +505,7 @@ void set_proc_title(const char *fmt, ...) {
 
 #else /* HAVE_SETPROCTITLE */
 	/* Manually append the process name for non-setproctitle() platforms. */
-	snprintf(statbuf, sizeof(statbuf), "%s", "kismet: ");
+	snprintf(statbuf, sizeof(statbuf), "%s: ", Argv[0]);
 	vsnprintf(statbuf + strlen(statbuf), sizeof(statbuf) - strlen(statbuf),
 			  fmt, msg);
 
