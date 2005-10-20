@@ -278,7 +278,7 @@ int Radiotap_BSD_Controller::GetIfFlags(int& flags) {
 	}
 
 #if defined(SYS_FREEBSD)
-	flags = (ifr.ifr_flags & 0xFFFF) | (ifr.ifr_glagshigh << 16);
+	flags = (ifr.ifr_flags & 0xFFFF) | (ifr.ifr_flagshigh << 16);
 #elif defined(SYS_OPENBSD) || defined(SYS_NETBSD)
 	flags = ifr.ifr_flags;
 #endif
