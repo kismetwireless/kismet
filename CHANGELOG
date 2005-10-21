@@ -1,4 +1,5 @@
 Oct 20 2005  devel  Implemented shutdown&cleanup of root capsources via IPC
+                    Fixed ieee80211 linktype
 Oct 19 2005  devel  Cosmetic - added IPC child process name control
                     Ported sound controller to IPC framework
                     Moved speech/sound spawn to after privdrop
