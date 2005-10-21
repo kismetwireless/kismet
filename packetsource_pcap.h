@@ -188,6 +188,8 @@ protected:
 	int Prism2KisPack(kis_packet *packet);
 	// If we have radiotap headers, mangle those into kis packets
 	int Radiotap2KisPack(kis_packet *packet);
+	// If we're just a straight up frame
+	int Eight2KisPack(kis_packet *packet);
 
 	pcap_t *pd;
 	int datalink_type;

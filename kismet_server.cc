@@ -192,11 +192,6 @@ void CatchShutdown(int sig) {
 	
 	if (globalregistry->kisnetserver != NULL) {
 		globalregistry->kisnetserver->SendToAll(globalregistry->netproto_map[PROTO_REF_TERMINATE], (void *) &termstr);
-
-		// Shutdown and flush all the ring buffers
-		fprintf(stderr, "Shutting down Kismet server and flushing "
-                "client buffers...\n");
-		globalregistry->kisnetserver->Shutdown();
 	}
 
 	// Kill all the logfiles
@@ -208,9 +203,59 @@ void CatchShutdown(int sig) {
 	if (globalregistry->sourcetracker != NULL) {
 		// Shut down the packet sources
 		globalregistry->sourcetracker->CloseSources();
+	}
 
+	// Start a short shutdown cycle for 2 seconds
+	fprintf(stderr, "\n*** KISMET IS FLUSHING BUFFERS AND SHUTTING DOWN ***\n");
+	globalregistry->spindown = 1;
+	time_t shutdown_target = time(0) + 2;
+	int max_fd = 0;
+	fd_set rset, wset;
+	struct timeval tm;
+	while (1) {
+		FD_ZERO(&rset);
+		FD_ZERO(&wset);
+		max_fd = 0;
+
+		if (globalregistry->fatal_condition) {
+			break;
+		}
+
+		if (time(0) >= shutdown_target) {
+			break;
+		}
+
+		// Collect all the pollable descriptors
+		for (unsigned int x = 0; x < globalregistry->subsys_pollable_vec.size(); x++) 
+			max_fd = 
+				globalregistry->subsys_pollable_vec[x]->MergeSet(max_fd, &rset, 
+																 &wset);
+
+		tm.tv_sec = 0;
+		tm.tv_usec = 100000;
+
+		if (select(max_fd + 1, &rset, &wset, NULL, &tm) < 0) {
+			if (errno != EINTR) {
+				break;
+			}
+		}
+
+		for (unsigned int x = 0; x < globalregistry->subsys_pollable_vec.size(); 
+			 x++) {
+			if (globalregistry->subsys_pollable_vec[x]->Poll(rset, wset) < 0 &&
+				globalregistry->fatal_condition) {
+				break;
+			}
+		}
+	}
+
+	if (globalregistry->sourcetracker != NULL) {
 		// Shut down the channel control child
 		globalregistry->sourcetracker->ShutdownChannelChild();
+	}
+
+	if (globalregistry->kisnetserver != NULL) {
+		globalregistry->kisnetserver->Shutdown();
 	}
 
 	// Be noisy

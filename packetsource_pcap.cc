@@ -103,6 +103,13 @@ int PacketSource_Pcap::DatalinkType() {
     char errstr[STATUS_MAX] = "";
     datalink_type = pcap_datalink(pd);
 
+	// Known good pcap generic header types
+	if (datalink_type == DLT_PRISM_HEADER ||
+		datalink_type == DLT_IEEE802_11_RADIO ||
+		datalink_type == DLT_IEEE802_11_RADIO_AVS ||
+		datalink_type == DLT_IEEE802_11)
+		return 1;
+
     // Blow up if we're not valid 802.11 headers
 	// Need to not blow up on en10mb?  Override.
     if (datalink_type == DLT_EN10MB) {
@@ -209,10 +216,13 @@ int PacketSource_Pcap::ManglePacket(kis_packet *packet) {
 	memcpy(linkchunk->data, callback_data, linkchunk->length);
 	packet->insert(_PCM(PACK_COMP_LINKFRAME), linkchunk);
 
-	if (datalink_type == DLT_PRISM_HEADER) {
+	if (datalink_type == DLT_PRISM_HEADER || 
+		datalink_type == DLT_IEEE802_11_RADIO_AVS) {
 		ret = Prism2KisPack(packet);
 	} else if (datalink_type == DLT_IEEE802_11_RADIO) {
 		ret = Radiotap2KisPack(packet);
+	} else if (datalink_type == DLT_IEEE802_11) {
+		ret = Eight2KisPack(packet);
 	}
 
 	// We don't have to do anything else now other than add the signal headers.
@@ -248,6 +258,22 @@ int PacketSource_Pcap::ManglePacket(kis_packet *packet) {
 #endif
 
     return ret;
+}
+
+int PacketSource_Pcap::Eight2KisPack(kis_packet *packet) {
+	kis_datachunk *eight11chunk = NULL;
+
+	eight11chunk = new kis_datachunk;
+
+	eight11chunk->length = kismin((callback_header.caplen - fcsbytes), 
+								  (uint32_t) MAX_PACKET_LEN);
+
+	eight11chunk->data = new uint8_t[eight11chunk->length];
+    memcpy(eight11chunk->data, callback_data, eight11chunk->length);
+
+	packet->insert(_PCM(PACK_COMP_80211FRAME), eight11chunk);
+
+	return 1;
 }
 
 int PacketSource_Pcap::Prism2KisPack(kis_packet *packet) {

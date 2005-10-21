@@ -252,14 +252,14 @@ public:
 protected:
     // IPC data frame to set a channel
     typedef struct {
-        // If anyone ever needs more than 256 sources on one capture server, let me
-        // know, until then...
         uint16_t meta_num;
         uint16_t channel;
     } chanchild_changepacket;
 
 	// Local card set used by the ipc callback
     int SetIPCChannel(int in_ch, unsigned int meta_num);
+	// Shutdown all sources (actually do the work)
+	int ShutdownIPCSources();
 
     GlobalRegistry *globalreg;
 
@@ -288,9 +288,11 @@ protected:
 
 	IPCRemote *chan_remote;
 	uint32_t chan_ipc_id;
+	uint32_t haltall_ipc_id;
 
 	friend int ChannelHopEvent(TIMEEVENT_PARMS);
 	friend int packsrc_chan_ipc(IPC_CMD_PARMS);
+	friend int packsrc_haltall_ipc(IPC_CMD_PARMS);
 };
 
 enum CARD_fields {

@@ -114,6 +114,9 @@ public:
     // Fatal terminate condition, as soon as we detect this in the main code we
     // should initiate a shutdown
     int fatal_condition;
+	// Are we in "spindown" mode, where we're giving components a little time
+	// to clean up their business with pollables and shut down
+	int spindown;
     
     MessageBus *messagebus;
 	Plugintracker *plugintracker;
@@ -186,6 +189,7 @@ public:
 		version_tiny = VERSION_TINY;
 
         fatal_condition = 0;
+		spindown = 0;
 
 		argc = 0;
 		argv = NULL;

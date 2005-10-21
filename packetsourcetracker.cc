@@ -148,6 +148,16 @@ int packsrc_chan_ipc(IPC_CMD_PARMS) {
 	return 1;
 }
 
+int packsrc_haltall_ipc(IPC_CMD_PARMS) {
+	if (parent)
+		return 0;
+
+	// Kick the IPC copy to shutdown this metanum
+	((Packetsourcetracker *) auxptr)->ShutdownIPCSources();
+
+	return 1;
+}
+
 void Packetsourcetracker::Usage(char *name) {
 	printf(" *** Packet Capture Source Options ***\n");
 	printf(" -I, --initial-channel        Initial channel for a capture source\n"
@@ -330,6 +340,7 @@ Packetsourcetracker::Packetsourcetracker(GlobalRegistry *in_globalreg) {
 	// Assign the IPC commands and make it pollable
 	chan_remote = new IPCRemote(globalreg, "channel control");
 	chan_ipc_id = chan_remote->RegisterIPCCmd(&packsrc_chan_ipc, this);
+	haltall_ipc_id = chan_remote->RegisterIPCCmd(&packsrc_haltall_ipc, this);
 	globalreg->RegisterPollableSubsys(chan_remote);
 }
 
@@ -545,6 +556,10 @@ int Packetsourcetracker::LoadConfiguredCards() {
 
 unsigned int Packetsourcetracker::MergeSet(unsigned int in_max_fd, fd_set *out_rset, 
 										   fd_set *out_wset) {
+	// Don't probe during spindown
+	if (globalreg->spindown)
+		return in_max_fd;
+
     unsigned int max = in_max_fd;
 
     for (unsigned int metc = 0; metc < meta_packsources.size(); metc++) {
@@ -564,6 +579,9 @@ unsigned int Packetsourcetracker::MergeSet(unsigned int in_max_fd, fd_set *out_r
 
 // Read from the socket and return text if we have any
 int Packetsourcetracker::Poll(fd_set& in_rset, fd_set& in_wset) {
+	if (globalreg->spindown)
+		return 0;
+
 	// Sweep the packet sources
 	for (unsigned int x = 0; x < live_packsources.size(); x++) {
 		if (FD_ISSET(live_packsources[x]->FetchDescriptor(), &in_rset)) {
@@ -571,7 +589,7 @@ int Packetsourcetracker::Poll(fd_set& in_rset, fd_set& in_wset) {
 		}
 	}
 
-    return 0;
+    return 1;
 }
 
 meta_packsource *Packetsourcetracker::FetchMetaID(int in_id) {
@@ -1257,16 +1275,34 @@ int Packetsourcetracker::ResumeSources() {
 }
 
 int Packetsourcetracker::CloseSources() {
+#ifndef HAVE_SUID
+	return ShutdownIPCSources();
+#else
+	ipc_packet *pack = (ipc_packet *) malloc(sizeof(ipc_packet));
+
+	pack->data_len = 0;
+	pack->ipc_cmdnum = haltall_ipc_id;
+
+	chan_remote->SendIPC(pack);
+#endif
+
+    return 1;
+}
+
+int Packetsourcetracker::ShutdownIPCSources() {
     uid_t uid = getuid();
     int talk = 0;
+	int uidbork = 0;
 
     for (unsigned int metc = 0; metc < meta_packsources.size(); metc++) {
         meta_packsource *meta = meta_packsources[metc];
-     
+
         // If we're not root and we can't close stuff, don't.  This might need to
         // turn into something that checks caps later...
-        if (uid != 0 && meta->prototype->root_required != 0)
+        if (uid != 0 && meta->prototype->root_required != 0) {
+			uidbork = 1;
             continue;
+		}
 
         // close if we can
         if (meta->valid)
@@ -1292,7 +1328,7 @@ int Packetsourcetracker::CloseSources() {
                          "You may need to manually restart or reconfigure it for "
                          "normal operation.", meta->name.c_str(), 
 						 meta->device.c_str());
-                globalreg->messagebus->InjectMessage(errstr, MSGFLAG_ERROR);
+                _MSG(errstr, MSGFLAG_ERROR);
             }
 
             // return 0 if we want to be quiet
@@ -1303,7 +1339,7 @@ int Packetsourcetracker::CloseSources() {
                      "automatically. You may need to manually restart the device "
                      "and reconfigure it for normal operation.", 
                      meta->name.c_str(), meta->device.c_str()); 
-            globalreg->messagebus->InjectMessage(errstr, MSGFLAG_ERROR);
+            _MSG(errstr, MSGFLAG_ERROR);
         }
 
     }
@@ -1316,7 +1352,7 @@ int Packetsourcetracker::CloseSources() {
                 "         restart or reconfigure it for normal operation.\n");
     }
 
-    return 1;
+	return 1;
 }
 
 void Packetsourcetracker::BlitCards(int in_fd) {
