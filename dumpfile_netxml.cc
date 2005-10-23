@@ -230,7 +230,7 @@ int Dumpfile_Netxml::Flush() {
 		fprintf(xmlfile, "       <retries>%d</retries>\n", net->retries);
 		fprintf(xmlfile, "     </packets>\n");
 
-		fprintf(xmlfile, "     <datasize>%ld</datasize>\n", net->datasize);
+		fprintf(xmlfile, "     <datasize>%lu</datasize>\n", net->datasize);
 
 		if (net->gpsdata.gps_valid) {
 			fprintf(xmlfile, "    <gps-info>\n");
@@ -254,7 +254,7 @@ int Dumpfile_Netxml::Flush() {
 					net->gpsdata.aggregate_lon);
 			fprintf(xmlfile, "      <agg-alt>%ld</agg-alt>\n", 
 					net->gpsdata.aggregate_alt);
-			fprintf(xmlfile, "      <agg-points>%ld</agg-points>\n", 
+			fprintf(xmlfile, "      <agg-points>%lu</agg-points>\n", 
 					net->gpsdata.aggregate_points);
 			fprintf(xmlfile, "    </gps-info>\n");
 		}
@@ -289,7 +289,7 @@ int Dumpfile_Netxml::Flush() {
 
 		fprintf(xmlfile, "    <bsstimestamp>%lu</bsstimestamp>\n", 
 				net->bss_timestamp);
-		fprintf(xmlfile, "    <datasize>%ld</datasize>\n", net->datasize);
+		fprintf(xmlfile, "    <datasize>%lu</datasize>\n", net->datasize);
 		fprintf(xmlfile, "    <cdp-device>%s</cdp-device>\n",
 				SanitizeXML(net->cdp_dev_id).c_str());
 		fprintf(xmlfile, "    <cdp-portid>%s</cdp-portid>\n",

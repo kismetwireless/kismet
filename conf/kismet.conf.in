@@ -241,7 +241,7 @@ waypointdata=%h/.gpsdrive/way_kismet.txt
 alertbacklog=50
 
 # File types to log, comma seperated
-logtypes=pcapdump,network,csv,weak,cisco,gpsxml,netxml
+logtypes=pcapdump,gpsxml,netxml,nettxt
 
 # Do we track probe responses and merge probe networks into their owners?
 # This isn't always desireable, depending on the type of monitoring you're
