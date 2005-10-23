@@ -34,7 +34,6 @@ Dumpfile_Netxml::Dumpfile_Netxml(GlobalRegistry *in_globalreg) :
 	globalreg = in_globalreg;
 
 	xmlfile = NULL;
-	export_filter = NULL;
 
 	if (globalreg->netracker == NULL) {
 		fprintf(stderr, "FATAL OOPS:  Netracker missing before Dumpfile_Netxml\n");
