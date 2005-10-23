@@ -420,6 +420,13 @@ public:
 
 	int AddFilter(string in_filter);
 
+	// Fetch the internal maps.  Touching these is Bad.  Should only be used when
+	// the chain API is insufficient, like logging xml/net ascii
+	const map<mac_addr, Netracker::tracked_network *> FetchTrackedNets();
+	const map<mac_addr, Netracker::tracked_network *> FetchProbeNets();
+	const map<mac_addr, Netracker::tracked_client *> FetchTrackedClients();
+	const multimap<mac_addr, Netracker::tracked_client *> FetchAssocClients();
+
 	typedef map<mac_addr, Netracker::tracked_network *>::iterator track_iter;
 	typedef map<mac_addr, Netracker::tracked_client *>::iterator client_iter;
 	typedef map<mac_addr, Netracker::ip_data>::iterator ipcache_iter;

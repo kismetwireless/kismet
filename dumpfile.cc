@@ -37,6 +37,18 @@ Dumpfile::Dumpfile(GlobalRegistry *in_globalreg) {
 		fprintf(stderr, "FATAL OOPS: Dumpfile() called before config built\n");
 		exit(1);
 	}
+
+	export_filter = new FilterCore(globalreg);
+	vector<string> filterlines = 
+		globalreg->kismet_config->FetchOptVec("filter_export");
+	for (unsigned int fl = 0; fl < filterlines.size(); fl++) {
+		if (export_filter->AddFilterLine(filterlines[fl]) < 0) {
+			_MSG("Failed to add filter_export config line from the Kismet config "
+				 "file.", MSGFLAG_FATAL);
+			globalreg->fatal_condition = 1;
+			return;
+		}
+	}
 }
 
 void Dumpfile::Usage(char *name) {

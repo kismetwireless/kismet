@@ -44,7 +44,8 @@ Dumpfile_Gpsxml::Dumpfile_Gpsxml(GlobalRegistry *in_globalreg) :
 	xmlfile = NULL;
 
 	if (globalreg->sourcetracker == NULL) {
-		fprintf(stderr, "FATAL OOPS:  Sourcetracker missing before Dumpfile_Pcap\n");
+		fprintf(stderr, "FATAL OOPS:  Sourcetracker missing before "
+				"Dumpfile_Gpsxml\n");
 		exit(1);
 	}
 

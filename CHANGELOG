@@ -1,3 +1,7 @@
+Oct 22 2005  devel  Added export filter initialization to dumpfile core
+                    Fixed pcap references from copying pcap dump to gpsxml
+                    Added netxml dumpfile
+                    Added hooks for fetching const maps of netracker internals
 Oct 21 2005  devel  Smartened up linewrap
 Oct 20 2005  devel  Implemented shutdown&cleanup of root capsources via IPC
                     Fixed ieee80211 linktype

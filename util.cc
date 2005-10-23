@@ -314,6 +314,34 @@ string InLineWrap(string in_txt, unsigned int in_hdr_len,
 	return ret;
 }
 
+string SanitizeXML(string in_str) {
+	// Ghetto-fied XML sanitizer.  Add more stuff later if we need to.
+	string ret;
+	for (unsigned int x = 0; x < in_str.length(); x++) {
+		if (in_str[x] == '&')
+			ret += "&amp;";
+		else if (in_str[x] == '<')
+			ret += "&lt;";
+		else if (in_str[x] == '>')
+			ret += "&gt;";
+		else
+			ret += in_str[x];
+	}
+
+	return ret;
+}
+
+string SanitizeCSV(string in_str) {
+	string ret;
+	for (unsigned int x = 0; x < in_str.length(); x++) {
+		if (in_str[x] == ';')
+			ret += " ";
+		else
+			ret += in_str[x];
+	}
+
+	return ret;
+}
 
 void Float2Pair(float in_float, int16_t *primary, int64_t *mantissa) {
     *primary = (int) in_float;

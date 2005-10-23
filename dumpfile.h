@@ -28,6 +28,7 @@
 #include "configfile.h"
 #include "messagebus.h"
 #include "packetchain.h"
+#include "filtercore.h"
 
 class Dumpfile {
 public:
@@ -45,6 +46,7 @@ public:
 
 protected:
 	GlobalRegistry *globalreg;
+	FilterCore *export_filter;
 	string fname;
 
 	int dumped_frames;

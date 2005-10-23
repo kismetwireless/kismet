@@ -2067,3 +2067,19 @@ int Netracker::FetchPacketRate() {
 	return num_packetdelta;
 }
 
+const map<mac_addr, Netracker::tracked_network *> Netracker::FetchTrackedNets() {
+	return tracked_map;
+}
+
+const map<mac_addr, Netracker::tracked_network *> Netracker::FetchProbeNets() {
+	return probe_assoc_map;
+}
+
+const map<mac_addr, Netracker::tracked_client *> Netracker::FetchTrackedClients() {
+	return client_map;
+}
+
+const multimap<mac_addr, Netracker::tracked_client *> Netracker::FetchAssocClients() {
+	return ap_client_map;
+}
+

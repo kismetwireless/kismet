@@ -16,8 +16,8 @@
     Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 */
 
-#ifndef __DUMPFILE_GPSXML_H__
-#define __DUMPFILE_GPSXML_H__
+#ifndef __DUMPFILE_NETXML_H__
+#define __DUMPFILE_NETXML_H__
 
 #include "config.h"
 
@@ -27,20 +27,16 @@
 #include "globalregistry.h"
 #include "configfile.h"
 #include "messagebus.h"
-#include "packetchain.h"
 #include "dumpfile.h"
+#include "netracker.h"
 
-// Hook for grabbing packets
-int dumpfilegpsxml_chain_hook(CHAINCALL_PARMS);
-
-// GPSXML point logger
-class Dumpfile_Gpsxml : public Dumpfile {
+// Netxml bulk logger
+class Dumpfile_Netxml : public Dumpfile {
 public:
-	Dumpfile_Gpsxml();
-	Dumpfile_Gpsxml(GlobalRegistry *in_globalreg);
-	virtual ~Dumpfile_Gpsxml();
+	Dumpfile_Netxml();
+	Dumpfile_Netxml(GlobalRegistry *in_globalreg);
+	virtual ~Dumpfile_Netxml();
 
-	virtual int chain_handler(kis_packet *in_pack);
 	virtual int Flush();
 protected:
 	FILE *xmlfile;

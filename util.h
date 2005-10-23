@@ -79,6 +79,10 @@ vector<int> Str2IntVec(string in_text);
 
 int IsBlank(const char *s);
 
+// Clean up XML and CSV data for output
+string SanitizeXML(string);
+string SanitizeCSV(string);
+
 void Float2Pair(float in_float, int16_t *primary, int64_t *mantissa);
 float Pair2Float(int16_t primary, int64_t mantissa);
 
