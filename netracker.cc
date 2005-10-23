@@ -1215,6 +1215,8 @@ int Netracker::netracker_chain_handler(kis_packet *in_pack) {
 		// Pointer to us
 		cli->netptr = net;
 
+		// Log it in the simple map
+		client_map[cli->mac] = cli;
 		// Log it in the multimap
 		ap_client_map.insert(make_pair(net->bssid, cli));
 

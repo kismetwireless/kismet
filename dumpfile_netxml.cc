@@ -287,7 +287,7 @@ int Dumpfile_Netxml::Flush() {
 			fprintf(xmlfile, "    </ip-address>\n");
 		}
 
-		fprintf(xmlfile, "    <bsstimestamp>%ld</bsstimestamp>\n", 
+		fprintf(xmlfile, "    <bsstimestamp>%lu</bsstimestamp>\n", 
 				net->bss_timestamp);
 		fprintf(xmlfile, "    <datasize>%ld</datasize>\n", net->datasize);
 		fprintf(xmlfile, "    <cdp-device>%s</cdp-device>\n",
