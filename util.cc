@@ -158,7 +158,18 @@ string StrStrip(string in_str) {
     }
 
     return in_str.substr(start, end-start+1);
+}
 
+string StrPrintable(string in_str) {
+    string thestr;
+
+    for (unsigned int i = 0; i < in_str.length(); i++) {
+		if (isprint(in_str[i])) {
+			thestr += in_str[i];
+		}
+	}
+
+    return thestr;
 }
 
 int IsBlank(const char *s) {

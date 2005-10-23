@@ -189,7 +189,7 @@ int GPSDClient::ParseData() {
     delete[] buf;
 
     // Bail on no useful data
-    if (inptok.size() < 1) {
+    if (inptok.size() <= 0) {
         return 0;
     }
 
@@ -200,13 +200,16 @@ int GPSDClient::ParseData() {
     for (unsigned int it = 0; it < inptok.size(); it++) {
         // No matter what we've dealt with this data block
         netclient->MarkRead(inptok[it].length() + 1 + roft);
- 
+
+		// Trim garbage out of it
+		inptok[it] = StrPrintable(inptok[it]);
+
         // Split it on the commas
         vector<string> lintok = StrTokenize(inptok[it], ",");
 
         // Try to not error out entirely and just throw up an error about
         // not being able to understand it
-        if (lintok.size() < 1) {
+        if (lintok.size() <= 0) {
             _MSG("GPSDClient unable to parse string from GPSD: '" + inptok[it] + "'", 
 				 MSGFLAG_ERROR);
             return 0;
@@ -229,7 +232,7 @@ int GPSDClient::ParseData() {
                 return 0;
             }
 
-			if (values[2].length() == 0) {
+			if (values[1].length() == 0) {
 				_MSG("GPSDClient unable to parse string from GPSD: '" + 
 					 inptok[it] + "'", MSGFLAG_ERROR);
                 return 0;

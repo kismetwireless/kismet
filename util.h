@@ -50,6 +50,7 @@ string MungeToPrintable(string in_str);
 string StrLower(string in_str);
 string StrUpper(string in_str);
 string StrStrip(string in_str);
+string StrPrintable(string in_str);
 
 int XtoI(char x);
 int Hex2UChar(unsigned char *in_hex, unsigned char *in_chr);
