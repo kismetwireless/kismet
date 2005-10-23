@@ -137,7 +137,7 @@ int Dumpfile_Netxml::Flush() {
 		}
 
 		fprintf(xmlfile, "  <wireless-network number=\"%d\" type=\"%s\" wep=\"%s\" "
-				"cloaked=\"%s\" first-time=\"%.24s\" last-time=\"%.24s\"\n",
+				"cloaked=\"%s\" first-time=\"%.24s\" last-time=\"%.24s\">\n",
 				netnum, ntype.c_str(), net->cryptset ? "true" : "false",
 				net->ssid_cloaked ? "true" : "false",
 				ctime(&(net->first_time)), ctime(&(net->last_time)));
@@ -332,7 +332,7 @@ int Dumpfile_Netxml::Flush() {
 			}
 
 			fprintf(xmlfile, "    <wireless-client number=\"%d\" type=\"%s\" "
-					"wep=\"%s\" first-time=\"%.24s\" last-time=\"%.24s\"\n",
+					"wep=\"%s\" first-time=\"%.24s\" last-time=\"%.24s\">\n",
 					clinum, ctype.c_str(), cli->cryptset ? "true" : "false",
 					ctime(&(cli->first_time)), ctime(&(cli->last_time)));
 
