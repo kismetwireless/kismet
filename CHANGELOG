@@ -1,3 +1,5 @@
+Oct 23 2004  devel  Added client CDP port/dev tracking
+                    Added client XML output
 Oct 22 2005  devel  Added export filter initialization to dumpfile core
                     Fixed pcap references from copying pcap dump to gpsxml
                     Added netxml dumpfile

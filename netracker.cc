@@ -1660,6 +1660,8 @@ int Netracker::datatracker_chain_handler(kis_packet *in_pack) {
 		// (maybe)
 		net->cdp_dev_id = datainfo->cdp_dev_id;
 		net->cdp_port_id = datainfo->cdp_port_id;
+		cli->cdp_dev_id = datainfo->cdp_dev_id;
+		cli->cdp_port_id = datainfo->cdp_port_id;
 	} 
 
 	// Start comparing IP stuff and move it into the network.  We don't

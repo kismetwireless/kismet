@@ -391,6 +391,10 @@ public:
 		int fragments;
 		int retries;
 
+		// CDP tracking
+		string cdp_dev_id;
+		string cdp_port_id;
+
 		// Packets since last push
 		int new_packets;
 

@@ -59,6 +59,7 @@
 
 #include "dumpfile.h"
 #include "dumpfile_pcap.h"
+#include "dumpfile_netxml.h"
 #include "dumpfile_gpsxml.h"
 #include "dumpfile_tuntap.h"
 
@@ -615,6 +616,9 @@ int main(int argc, char *argv[], char *envp[]) {
 	globalregistry->messagebus->InjectMessage("Registering dumpfiles...",
 											  MSGFLAG_INFO);
 	globalregistry->RegisterDumpFile(new Dumpfile_Pcap(globalregistry));
+	if (globalregistry->fatal_condition)
+		CatchShutdown(-1);
+	globalregistry->RegisterDumpFile(new Dumpfile_Netxml(globalregistry));
 	if (globalregistry->fatal_condition)
 		CatchShutdown(-1);
 	globalregistry->RegisterDumpFile(new Dumpfile_Gpsxml(globalregistry));

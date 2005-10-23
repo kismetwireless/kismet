@@ -243,6 +243,20 @@ int Dumpfile_Netxml::Flush() {
 			fprintf(xmlfile, "      <max-lon>%f</max-lon>\n", net->gpsdata.max_lon);
 			fprintf(xmlfile, "      <max-alt>%f</max-alt>\n", net->gpsdata.max_alt);
 			fprintf(xmlfile, "      <max-spd>%f</max-spd>\n", net->gpsdata.max_spd);
+			fprintf(xmlfile, "      <peak-lat>%f</peak-lat>\n", 
+					net->snrdata.peak_lat);
+			fprintf(xmlfile, "      <peak-lon>%f</peak-lon>\n", 
+					net->snrdata.peak_lon);
+			fprintf(xmlfile, "      <peak-alt>%f</peak-alt>\n", 
+					net->snrdata.peak_alt);
+			fprintf(xmlfile, "      <agg-lat>%ld</agg-lat>\n", 
+					net->gpsdata.aggregate_lat);
+			fprintf(xmlfile, "      <agg-lon>%ld</agg-lon>\n", 
+					net->gpsdata.aggregate_lon);
+			fprintf(xmlfile, "      <agg-alt>%ld</agg-alt>\n", 
+					net->gpsdata.aggregate_alt);
+			fprintf(xmlfile, "      <agg-points>%ld</agg-points>\n", 
+					net->gpsdata.aggregate_points);
 			fprintf(xmlfile, "    </gps-info>\n");
 		}
 
@@ -282,13 +296,226 @@ int Dumpfile_Netxml::Flush() {
 		fprintf(xmlfile, "    <cdp-portid>%s</cdp-portid>\n",
 				SanitizeXML(net->cdp_port_id).c_str());
 
+		int clinum = 0;
+
 		// Get the client range pairs and print them out
 		pair<multimap<mac_addr, Netracker::tracked_client *>::const_iterator, 
 			multimap<mac_addr, Netracker::tracked_client *>::const_iterator> apclis = 
 			trackcli.equal_range(net->bssid);
 		for (y = apclis.first; y != apclis.second; ++y) {
+			Netracker::tracked_client *cli = y->second;
+
+			clinum++;
+
+			if (cli->type == client_remove)
+				continue;
+
+			string ctype;
+			switch (cli->type) {
+				case client_fromds:
+					ctype = "fromds";
+					break;
+				case client_tods:
+					ctype = "tods";
+					break;
+				case client_interds:
+					ctype = "interds";
+					break;
+				case client_established:
+					ctype = "established";
+					break;
+				case client_adhoc:
+					ctype = "ad-hoc";
+					break;
+				default:
+					ctype = "unknown";
+					break;
+			}
+
+			fprintf(xmlfile, "    <wireless-client number=\"%d\" type=\"%s\" "
+					"wep=\"%s\" first-time=\"%.24s\" last-time=\"%.24s\"\n",
+					clinum, ctype.c_str(), cli->cryptset ? "true" : "false",
+					ctime(&(cli->first_time)), ctime(&(cli->last_time)));
+
+			fprintf(xmlfile, "      <client-mac>%s</client-mac>\n", 
+					cli->mac.Mac2String().c_str());
+
+			fprintf(xmlfile, "      <client-channel>%d</client-channel>\n", 
+					cli->channel);
+			fprintf(xmlfile, "      <client-maxrate>%2.1f</client-maxrate>\n", 
+					cli->maxrate);
+			fprintf(xmlfile, "      <client-maxseenrate>%ld</client-maxseenrate>\n",
+					(long) cli->snrdata.maxseenrate * 100);
+
+			if (cli->snrdata.carrierset & (1 << (int) carrier_80211b))
+				fprintf(xmlfile, "      <client-carrier>IEEE 802.11b"
+						"</client-carrier>\n");
+			if (cli->snrdata.carrierset & (1 << (int) carrier_80211bplus))
+				fprintf(xmlfile, "      <client-carrier>IEEE 802.11b+"
+						"</client-carrier>\n");
+			if (cli->snrdata.carrierset & (1 << (int) carrier_80211a))
+				fprintf(xmlfile, "      <client-carrier>IEEE 802.11a"
+						"</client-carrier>\n");
+			if (cli->snrdata.carrierset & (1 << (int) carrier_80211g))
+				fprintf(xmlfile, "      <client-carrier>IEEE 802.11g"
+						"</client-carrier>\n");
+			if (cli->snrdata.carrierset & (1 << (int) carrier_80211fhss))
+				fprintf(xmlfile, "      <client-carrier>IEEE 802.11 FHSS"
+						"</client-carrier>\n");
+			if (cli->snrdata.carrierset & (1 << (int) carrier_80211dsss))
+				fprintf(xmlfile, "      <client-carrier>IEEE 802.11 DSSS"
+						"</client-carrier>\n");
+
+			if (cli->snrdata.encodingset & (1 << (int) encoding_cck))
+				fprintf(xmlfile, "      <client-encoding>CCK</client-encoding>\n");
+			if (cli->snrdata.encodingset & (1 << (int) encoding_pbcc))
+				fprintf(xmlfile, "      <client-encoding>PBCC</client-encoding>\n");
+			if (cli->snrdata.encodingset & (1 << (int) encoding_ofdm))
+				fprintf(xmlfile, "      <client-encoding>OFDM</client-encoding>\n");
+
+			if (cli->cryptset == 0)
+				fprintf(xmlfile, "      <client-encryption>None"
+						"</client-encryption>\n");
+			if (cli->cryptset & crypt_wep)
+				fprintf(xmlfile, "      <client-encryption>WEP"
+						"</client-encryption>\n");
+			if (cli->cryptset & crypt_layer3)
+				fprintf(xmlfile, "      <client-encryption>Layer3"
+						"</client-encryption>\n");
+			if (cli->cryptset & crypt_wep40)
+				fprintf(xmlfile, "      <client-encryption>WEP40"
+						"</client-encryption>\n");
+			if (cli->cryptset & crypt_wep104)
+				fprintf(xmlfile, "      <client-encryption>WEP104"
+						"</client-encryption>\n");
+			if (cli->cryptset & crypt_tkip)
+				fprintf(xmlfile, "      <client-encryption>TKIP"
+						"</client-encryption>\n");
+			if (cli->cryptset & crypt_wpa)
+				fprintf(xmlfile, "      <client-encryption>WPA"
+						"</client-encryption>\n");
+			if (cli->cryptset & crypt_psk)
+				fprintf(xmlfile, "      <client-encryption>PSK"
+						"</client-encryption>\n");
+			if (cli->cryptset & crypt_aes_ocb)
+				fprintf(xmlfile, "      <client-encryption>AES-OCB"
+						"</client-encryption>\n");
+			if (cli->cryptset & crypt_aes_ccm)
+				fprintf(xmlfile, "      <client-encryption>AES-CCM"
+						"</client-encryption>\n");
+			if (cli->cryptset & crypt_leap)
+				fprintf(xmlfile, "      <client-encryption>LEAP"
+						"</client-encryption>\n");
+			if (cli->cryptset & crypt_ttls)
+				fprintf(xmlfile, "      <client-encryption>TTLS"
+						"</client-encryption>\n");
+			if (cli->cryptset & crypt_tls)
+				fprintf(xmlfile, "      <client-encryption>TLS"
+						"</client-encryption>\n");
+			if (cli->cryptset & crypt_peap)
+				fprintf(xmlfile, "      <client-encryption>PEAP"
+						"</client-encryption>\n");
+			if (cli->cryptset & crypt_isakmp)
+				fprintf(xmlfile, "      <client-encryption>ISAKMP"
+						"</client-encryption>\n");
+			if (cli->cryptset & crypt_pptp)
+				fprintf(xmlfile, "      <client-encryption>PPTP"
+						"</client-encryption>\n");
+
+			fprintf(xmlfile, "       <client-packets>\n");
+			fprintf(xmlfile, "         <client-LLC>%d</client-LLC>\n", 
+					cli->llc_packets);
+			fprintf(xmlfile, "         <client-data>%d</client-data>\n", 
+					cli->data_packets);
+			fprintf(xmlfile, "         <client-crypt>%d</client-crypt>\n", 
+					cli->crypt_packets);
+			// TODO - DupeIV stuff?
+			fprintf(xmlfile, "         <client-total>%d</client-total>\n", 
+					cli->llc_packets + cli->data_packets);
+			fprintf(xmlfile, "         <client-fragments>%d</client-fragments>\n", 
+					cli->fragments);
+			fprintf(xmlfile, "         <client-retries>%d</client-retries>\n", 
+					cli->retries);
+			fprintf(xmlfile, "       </client-packets>\n");
+
+			fprintf(xmlfile, "       <client-datasize>%ld</client-datasize>\n", 
+					cli->datasize);
+
+			if (cli->gpsdata.gps_valid) {
+				fprintf(xmlfile, "      <client-gps-info>\n");
+				fprintf(xmlfile, "        <client-min-lat>%f</client-min-lat>\n", 
+						cli->gpsdata.min_lat);
+				fprintf(xmlfile, "        <client-min-lon>%f</client-min-lon>\n", 
+						cli->gpsdata.min_lon);
+				fprintf(xmlfile, "        <client-min-alt>%f</client-min-alt>\n", 
+						cli->gpsdata.min_alt);
+				fprintf(xmlfile, "        <client-min-spd>%f</client-min-spd>\n", 
+						cli->gpsdata.min_spd);
+				fprintf(xmlfile, "        <client-max-lat>%f</client-max-lat>\n", 
+						cli->gpsdata.max_lat);
+				fprintf(xmlfile, "        <client-max-lon>%f</client-max-lon>\n", 
+						cli->gpsdata.max_lon);
+				fprintf(xmlfile, "        <client-max-alt>%f</client-max-alt>\n", 
+						cli->gpsdata.max_alt);
+				fprintf(xmlfile, "        <client-max-spd>%f</client-max-spd>\n", 
+						cli->gpsdata.max_spd);
+				fprintf(xmlfile, "        <client-peak-lat>%f</client-peak-lat>\n", 
+						cli->snrdata.peak_lat);
+				fprintf(xmlfile, "        <client-peak-lon>%f</client-peak-lon>\n", 
+						cli->snrdata.peak_lon);
+				fprintf(xmlfile, "        <client-peak-alt>%f</client-peak-alt>\n", 
+						cli->snrdata.peak_alt);
+				fprintf(xmlfile, "        <client-agg-lat>%ld</client-agg-lat>\n", 
+						cli->gpsdata.aggregate_lat);
+				fprintf(xmlfile, "        <client-agg-lon>%ld</client-agg-lon>\n", 
+						cli->gpsdata.aggregate_lon);
+				fprintf(xmlfile, "        <client-agg-alt>%ld</client-agg-alt>\n", 
+						cli->gpsdata.aggregate_alt);
+				fprintf(xmlfile, "        <client-agg-points>%ld"
+						"</client-agg-points>\n", cli->gpsdata.aggregate_points);
+				fprintf(xmlfile, "      </client-gps-info>\n");
+			}
+
+			if (cli->guess_ipdata.ip_type > ipdata_factoryguess && 
+				cli->guess_ipdata.ip_type < ipdata_group) {
+				string iptype;
+				switch (cli->guess_ipdata.ip_type) {
+					case ipdata_udptcp:
+						iptype = "UDP/TCP";
+						break;
+					case ipdata_arp:
+						iptype = "ARP";
+						break;
+					case ipdata_dhcp:
+						iptype = "DHCP";
+						break;
+					default:
+						iptype = "Unknown";
+						break;
+				}
+
+				fprintf(xmlfile, "      <client-ip-address type=\"%s\">\n", 
+						iptype.c_str());
+				fprintf(xmlfile, "        <client-ip-block>%s"
+						"</client-ip-block>\n", 
+						inet_ntoa(cli->guess_ipdata.ip_addr_block));
+				fprintf(xmlfile, "        <client-ip-netmask>%s"
+						"</client-ip-netmask>\n",
+						inet_ntoa(cli->guess_ipdata.ip_netmask));
+				fprintf(xmlfile, "        <client-ip-gateway>%s"
+						"</client-ip-gateway>\n",
+						inet_ntoa(cli->guess_ipdata.ip_gateway));
+				fprintf(xmlfile, "      </client-ip-address>\n");
+			}
+
+			fprintf(xmlfile, "      <cdp-device>%s</cdp-device>\n",
+					SanitizeXML(cli->cdp_dev_id).c_str());
+			fprintf(xmlfile, "      <cdp-portid>%s</cdp-portid>\n",
+					SanitizeXML(cli->cdp_port_id).c_str());
+			fprintf(xmlfile, "    </wireless-client>\n");
 
 		}
+			fprintf(xmlfile, "  </wireless-network>\n");
 
 	}
 
