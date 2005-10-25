@@ -1,4 +1,5 @@
-Oct 23 2004  devel  Added client CDP port/dev tracking
+Oct 25 2005  devel  Added checking for *.bz2 *.gz files in logfile enumeration
+Oct 23 2005  devel  Added client CDP port/dev tracking
                     Added client XML output
                     Fixed rampant client allocation bug
                     Fixed negative bsstimestamp in netxml

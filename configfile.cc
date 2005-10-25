@@ -189,41 +189,85 @@ string ConfigFile::ExpandLogPath(string path, string logname, string type,
 
         if (start == 0) {
             // If we don't have a number we want to use, find the next free
-
-            // This is almost solely for the use of the packetlimit logger
-
             for (int num = 1; num < 100; num++) {
-                string copied = logtemplate;
+				string copied;
                 struct stat filstat;
 
                 // This is annoying
                 char numstr[5];
                 snprintf(numstr, 5, "%d", num);
 
+                copied = logtemplate;
+                copied.insert(inc, numstr);
+				copied += ".gz";
+
+                if (stat(copied.c_str(), &filstat) == 0) {
+					continue;
+				}
+
+                copied = logtemplate;
+                copied.insert(inc, numstr);
+				copied += ".bz2";
+
+                if (stat(copied.c_str(), &filstat) == 0) {
+					continue;
+				}
+
+                copied = logtemplate;
                 copied.insert(inc, numstr);
 
-                if (stat(copied.c_str(), &filstat) == -1) {
-                    found = 1;
-                    logtemplate = copied;
-                    break;
-                }
+                if (stat(copied.c_str(), &filstat) == 0) {
+					continue;
+				}
+
+				// If we haven't been found with any of our variants, we're
+				// clean, mark us found
+			
+				found = 1;
+				logtemplate = copied;
+				break;
             }
         } else {
             // Otherwise find out if this incremental is taken
-            string copied = logtemplate;
+            string copied;
             struct stat filstat;
             char numstr[5];
             snprintf(numstr, 5, "%d", start);
+			int localfound = 1;
 
             copied.insert(inc, numstr);
 
-            if (stat(copied.c_str(), &filstat) != -1 && overwrite == 0) {
-                logtemplate = "";
-            } else {
-                logtemplate = copied;
-            }
+			copied = logtemplate;
+			copied.insert(inc, numstr);
+			copied += ".gz";
 
-            found = 1;
+            if (stat(copied.c_str(), &filstat) == 0 && overwrite != 0) {
+				localfound = 0;
+			}
+
+			copied = logtemplate;
+			copied.insert(inc, numstr);
+			copied += ".bz2";
+
+            if (stat(copied.c_str(), &filstat) == 0 && overwrite != 0) {
+				localfound = 0;
+			}
+
+			copied = logtemplate;
+			copied.insert(inc, numstr);
+
+            if (stat(copied.c_str(), &filstat) == 0 && overwrite != 0) {
+				localfound = 0;
+			}
+
+			// If we haven't been found with any of our variants, we're
+			// clean, mark us found
+
+			found = localfound;
+			if (localfound == 0)
+				logtemplate = "";
+			else
+				logtemplate = copied;
         }
 
 

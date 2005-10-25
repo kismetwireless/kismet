@@ -656,6 +656,10 @@ int main(int argc, char *argv[], char *envp[]) {
 	if (globalregistry->fatal_condition)
 		CatchShutdown(-1);
 
+	// Blab about starting
+	globalregistry->messagebus->InjectMessage("Kismet starting to gather packets",
+											  MSGFLAG_INFO);
+	
 	// Set the global silence now that we're set up
 	glob_silent = local_silent;
 
