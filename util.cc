@@ -293,7 +293,7 @@ vector<string> LineWrap(string in_txt, unsigned int in_hdr_len,
 		 pos = in_txt.find(' ', pos + 1)) {
 		if ((hdroffset + pos) - start >= in_maxlen) {
 			if (pos - prev_pos > (in_maxlen / 5)) {
-				prev_pos = start + (in_maxlen - hdroffset);
+				pos = prev_pos = start + (in_maxlen - hdroffset);
 			}
 
 			string str(hdroffset, ' ');
@@ -306,6 +306,21 @@ vector<string> LineWrap(string in_txt, unsigned int in_hdr_len,
 
 		prev_pos = pos + 1;
 	}
+
+	while (in_txt.length() - start > (in_maxlen - hdroffset)) {
+		string str(hdroffset, ' ');
+		hdroffset = in_hdr_len;
+
+		prev_pos = (in_maxlen - hdroffset);
+
+		str += in_txt.substr(start, (prev_pos - start));
+		ret.push_back(str);
+
+		start = prev_pos;
+
+		prev_pos++;
+	}
+
 	string str(hdroffset, ' ');
 	str += in_txt.substr(start, in_txt.length() - start);
 	ret.push_back(str);
