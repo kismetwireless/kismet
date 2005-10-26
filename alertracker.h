@@ -157,6 +157,8 @@ public:
 	// Activate a preconfigured alert from a file
 	int ActivateConfiguredAlert(const char *in_header);
 
+	const vector<kis_alert_info *> *FetchBacklog();
+
 protected:
     // Check and age times
     int CheckTimes(alert_rec *arec);

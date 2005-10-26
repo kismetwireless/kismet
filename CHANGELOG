@@ -1,6 +1,9 @@
 Oct 25 2005  devel  Added checking for *.bz2 *.gz files in logfile enumeration
                     Revamped attaching alerts to packets so that more than one
                      alert can be tracked
+                    Cleaned up nettxt export
+                    Added backlogged alerts to nettxt output per network
+                    Added fetching alert backlog to alertracker
 Oct 23 2005  devel  Added client CDP port/dev tracking
                     Added client XML output
                     Fixed rampant client allocation bug

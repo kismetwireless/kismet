@@ -420,3 +420,7 @@ int Alertracker::ActivateConfiguredAlert(const char *in_header) {
 						 rec->burst_unit, rec->limit_burst);
 }
 
+const vector<kis_alert_info *> *Alertracker::FetchBacklog() {
+	return (const vector<kis_alert_info *> *) &alert_backlog;
+}
+

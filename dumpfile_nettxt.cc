@@ -21,7 +21,7 @@
 #include <errno.h>
 
 #include "globalregistry.h"
-#include "gpsdclient.h"
+#include "alertracker.h"
 #include "dumpfile_nettxt.h"
 
 Dumpfile_Nettxt::Dumpfile_Nettxt() {
@@ -42,6 +42,11 @@ Dumpfile_Nettxt::Dumpfile_Nettxt(GlobalRegistry *in_globalreg) :
 
 	if (globalreg->kismet_config == NULL) {
 		fprintf(stderr, "FATAL OOPS:  Config file missing before Dumpfile_Nettxt\n");
+		exit(1);
+	}
+
+	if (globalreg->alertracker == NULL) {
+		fprintf(stderr, "FATAL OOPS:  Alertacker missing before dumpfile_nettxt\n");
 		exit(1);
 	}
 
@@ -92,6 +97,9 @@ int Dumpfile_Nettxt::Flush() {
 		globalreg->netracker->FetchTrackedNets();
 	const multimap<mac_addr, Netracker::tracked_client *> trackcli =
 		globalreg->netracker->FetchAssocClients();
+	// Get the alerts
+	const vector<kis_alert_info *> *alerts =
+		globalreg->alertracker->FetchBacklog();
 
 	map<mac_addr, Netracker::tracked_network *>::const_iterator x;
 	multimap<mac_addr, Netracker::tracked_client *>::const_iterator y;
@@ -266,8 +274,25 @@ int Dumpfile_Nettxt::Flush() {
 		}
 
 		fprintf(txtfile, " BSS Time   : %lu\n", net->bss_timestamp);
-		fprintf(txtfile, " CDP Device : \"%s\"\n", net->cdp_dev_id.c_str());
-		fprintf(txtfile, " CDP Port   : \"%s\"\n", net->cdp_port_id.c_str());
+
+		if (net->cdp_dev_id.length() > 0)
+			fprintf(txtfile, " CDP Device : \"%s\"\n", net->cdp_dev_id.c_str());
+		if (net->cdp_port_id.length() > 0)
+			fprintf(txtfile, " CDP Port   : \"%s\"\n", net->cdp_port_id.c_str());
+
+		// Sloppy iteration but it doesn't happen often and alert backlogs shouldn't
+		// be that huge
+		for (unsigned int an = 0; an < alerts->size(); an++) {
+			if ((*alerts)[an]->bssid != net->bssid)
+				continue;
+
+			kis_alert_info *ali = (*alerts)[an];
+
+			fprintf(txtfile, " Alert      : %.24s %s %s\n",
+					ctime(&(ali->tm.tv_sec)),
+					ali->header.c_str(),
+					ali->text.c_str());
+		}
 
 		int clinum = 0;
 
@@ -286,22 +311,22 @@ int Dumpfile_Nettxt::Flush() {
 			string ctype;
 			switch (cli->type) {
 				case client_fromds:
-					ctype = "fromds";
+					ctype = "From Distribution";
 					break;
 				case client_tods:
-					ctype = "tods";
+					ctype = "To Distribution";
 					break;
 				case client_interds:
-					ctype = "interds";
+					ctype = "Inter-Distribution";
 					break;
 				case client_established:
-					ctype = "established";
+					ctype = "Established";
 					break;
 				case client_adhoc:
-					ctype = "ad-hoc";
+					ctype = "Ad-hoc";
 					break;
 				default:
-					ctype = "unknown";
+					ctype = "Unknown";
 					break;
 			}
 
@@ -310,7 +335,7 @@ int Dumpfile_Nettxt::Flush() {
 			fprintf(txtfile, "  First      : %.24s\n", ctime(&(cli->first_time)));
 			fprintf(txtfile, "  Last       : %.24s\n", ctime(&(cli->last_time)));
 			fprintf(txtfile, "  Type       : %s\n", ctype.c_str());
-			fprintf(txtfile, "  BSSID      : %s\n", cli->bssid.Mac2String().c_str());
+			fprintf(txtfile, "  MAC        : %s\n", cli->mac.Mac2String().c_str());
 
 			fprintf(txtfile, "  Channel    : %d\n", cli->channel);
 			fprintf(txtfile, "  Max Seen   : %ld\n", cli->snrdata.maxseenrate * 100);
@@ -420,8 +445,12 @@ int Dumpfile_Nettxt::Flush() {
 						inet_ntoa(cli->guess_ipdata.ip_gateway));
 			}
 
-			fprintf(txtfile, "  CDP Device : \"%s\"\n", cli->cdp_dev_id.c_str());
-			fprintf(txtfile, "  CDP Port   : \"%s\"\n", cli->cdp_port_id.c_str());
+			if (cli->cdp_dev_id.length() > 0)
+				fprintf(txtfile, "  CDP Device : \"%s\"\n", 
+						cli->cdp_dev_id.c_str());
+			if (cli->cdp_port_id.length() > 0)
+				fprintf(txtfile, "  CDP Port   : \"%s\"\n", 
+						cli->cdp_port_id.c_str());
 
 		}
 
