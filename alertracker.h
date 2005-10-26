@@ -57,6 +57,17 @@ public:
 	string text;
 };
 
+class kis_alert_component : public packet_component {
+public:
+	kis_alert_component() {
+		// We can self destruct because we won't clear out the vector
+		// of actual alert info
+		self_destruct = 1;
+	}
+
+	vector<kis_alert_info *> alert_vec;
+};
+
 enum ALERT_fields {
     ALERT_sec, ALERT_usec, ALERT_header, ALERT_bssid, ALERT_source,
     ALERT_dest, ALERT_other, ALERT_channel, ALERT_text,

@@ -1,4 +1,6 @@
 Oct 25 2005  devel  Added checking for *.bz2 *.gz files in logfile enumeration
+                    Revamped attaching alerts to packets so that more than one
+                     alert can be tracked
 Oct 23 2005  devel  Added client CDP port/dev tracking
                     Added client XML output
                     Fixed rampant client allocation bug
