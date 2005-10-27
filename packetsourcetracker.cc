@@ -240,6 +240,12 @@ Packetsourcetracker::Packetsourcetracker(GlobalRegistry *in_globalreg) {
 						 monitor_wext_std, unmonitor_wext_std,
 						 chancontrol_wext_std, 1);
 
+	RegisterPacketsource("admtek", 1, "IEEE80211b", 6,
+						 NULL, // FIXME -- add a detector
+						 packetsource_wext_registrant,
+						 monitor_wext_std, unmonitor_wext_std,
+						 chancontrol_wext_std, 1);
+
 	RegisterPacketsource("atmel_usb", 1, "IEEE80211b", 6,
 						 NULL, // FIXME -- add a detector
 						 packetsource_wext_registrant,
@@ -252,14 +258,20 @@ Packetsourcetracker::Packetsourcetracker(GlobalRegistry *in_globalreg) {
 						 monitor_wext_std, unmonitor_wext_std,
 						 chancontrol_wext_std, 1);
 
+	RegisterPacketsource("ipw2100", 1, "IEEE80211b", 6,
+						 autoprobe_ipw2100,
+						 packetsource_wext_registrant,
+						 monitor_wext_std, unmonitor_wext_std,
+						 chancontrol_wext_std, 1);
+
 	RegisterPacketsource("ipw2200", 1, "IEEE80211b", 6,
 						 autoprobe_ipw2200,
 						 packetsource_wext_registrant,
 						 monitor_wext_std, unmonitor_wext_std,
 						 chancontrol_wext_std, 1);
 
-	RegisterPacketsource("ipw2100", 1, "IEEE80211b", 6,
-						 autoprobe_ipw2100,
+	RegisterPacketsource("ipw2915", 1, "IEEE80211ab", 6,
+						 NULL, // FIXME -- what to do?
 						 packetsource_wext_registrant,
 						 monitor_wext_std, unmonitor_wext_std,
 						 chancontrol_wext_std, 1);
@@ -278,14 +290,20 @@ Packetsourcetracker::Packetsourcetracker(GlobalRegistry *in_globalreg) {
 						 monitor_madwifi_b, unmonitor_madwifi,
 						 chancontrol_wext_std, 1);
 	RegisterPacketsource("madwifi_g", 1, "IEEE80211b", 6,
-						 NULL,
+						 NULL, // FIXME - do we need a detector?
 						 packetsource_wext_fcs_registrant,
 						 monitor_madwifi_g, unmonitor_madwifi,
 						 chancontrol_wext_std, 1);
 	RegisterPacketsource("madwifi_ag", 1, "IEEE80211ab", 6,
-						 NULL,
+						 NULL, // FIXME -- do we need a detector?
 						 packetsource_wext_fcs_registrant,
 						 monitor_madwifi_ag, unmonitor_madwifi,
+						 chancontrol_wext_std, 1);
+
+	RegisterPacketsource("prism54g", 1, "IEEE80211g", 6,
+						 NULL, // FIXME -- add a detector
+						 packetsource_wext_registrant,
+						 monitor_wext_std, unmonitor_wext_std,
 						 chancontrol_wext_std, 1);
 
 	RegisterPacketsource("rt2400", 1, "IEEE80211b", 6,

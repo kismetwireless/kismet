@@ -1,3 +1,4 @@
+Oct 26 2005  devel  Turned on assorted packet sources (ipw2915, admtek, prism54g)
 Oct 25 2005  devel  Added checking for *.bz2 *.gz files in logfile enumeration
                     Revamped attaching alerts to packets so that more than one
                      alert can be tracked
