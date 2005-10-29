@@ -18,6 +18,7 @@ or interface-specific components are put back into action.
 Once newcore has reached an equivalent level of functionality with the 
 stable code branch, it will replace the existing Kismet codebase.
 
+
 DEVELOPING IN NEWCORE
 
 Some disjointed comments about the design...
@@ -49,6 +50,48 @@ The messagebus is a common system for sending information to the user.  A text
 string injected into the messagebus carries flags to indicate the type of
 message.  Subscribers to the messagebus can then display the message, log it
 to a file, queue it for output to stdout on exit, etc.
+
+NEWCORE EXECUTION PATHS
+
+For anyone interested in developing modules or plugins, it's important
+to know how the kismet engine actually works, now:
+
+* Startup
+    - Allocate global registry
+    - Initialize argc/argv/env variables
+    - Initialize messagebus and message clients (stdout, fatal)
+    - initialize timetracker
+    - Parse command line options
+    - Parse config file
+    - Resolve suiduser targets
+    - Initialize network framework
+    - Initialize plugin framework
+    - Process root plugins
+    - Initialize alert framework
+    - Initialize capture source framework
+    - Activate root plugins
+    - Process configured capture sources
+    - Activate root capture sources
+    - Register tun/tap dumpfile
+    - Spawn root control IPC child
+    - Activate network framework
+    * Drop root privs on main kismet process
+    - Scan user plugins
+    - Bind non-root sources
+    - Initialize builtin packet dissectors
+    - Activate sound and speech IPC processes
+    - Activate gpsd client
+    - Activate network tracker framework
+    - Activate dump files
+    - Activate timer events
+    - Give plugins a final chance to activate
+    - Begin main loop
+
+* Main loop
+    - Aggregate fd_sets from all subsystems registered with Pollable
+    - Select()
+    - Tick the timer framework
+    - Poll all subsystems registered with Pollable()
 
 EXAMPLES
 

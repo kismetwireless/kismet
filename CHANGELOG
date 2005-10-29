@@ -1,3 +1,6 @@
+Oct 29 2005  devel  Updated info text on header mode iwprivs on linux
+                    Added set_prismhdr to default wext set
+Oct 28 2005  devel  Updated README.newcore
 Oct 26 2005  devel  Turned on assorted packet sources (ipw2915, admtek, prism54g)
 Oct 25 2005  devel  Added checking for *.bz2 *.gz files in logfile enumeration
                     Revamped attaching alerts to packets so that more than one
