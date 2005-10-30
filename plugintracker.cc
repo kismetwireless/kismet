@@ -343,7 +343,7 @@ int Plugintracker::ActivatePlugins() {
 		// Try to DLOPEN anything that isn't open
 		if (plugin_vec[x]->dlfileptr == NULL) {
 			if ((plugin_vec[x]->dlfileptr = 
-				 dlopen(plugin_vec[x]->filename.c_str(), RTLD_NOW)) == NULL) {
+				 dlopen(plugin_vec[x]->filename.c_str(), RTLD_LAZY)) == NULL) {
 				_MSG("Failed to open plugin '"+ plugin_vec[x]->filename + "': " +
 					 dlerror(), MSGFLAG_FATAL);
 				globalreg->fatal_condition = 1;
