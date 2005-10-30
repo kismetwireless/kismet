@@ -63,6 +63,7 @@ public:
 			// Zero out the modern chan stuff
 			modern_chancontrol = -1;
 		}
+	virtual ~PacketSource_Wext() { }
 
 	virtual int FetchChannel();
 

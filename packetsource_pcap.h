@@ -164,6 +164,7 @@ public:
 		KisPacketSource(in_globalreg, in_meta, in_name, in_dev) { 
 			// Nothing special here
 		}
+	virtual ~PacketSource_Pcap() { }
 
 	virtual int OpenSource();
 	virtual int CloseSource();
@@ -200,6 +201,7 @@ public:
 	PacketSource_Pcapfile(GlobalRegistry *in_globalreg, meta_packsource *in_meta,
 						  string in_name, string in_dev) :
 		PacketSource_Pcap(in_globalreg, in_meta, in_name, in_dev) { }
+	virtual ~PacketSource_Pcapfile() { }
 	virtual int OpenSource();
 	virtual int Poll();
 protected:

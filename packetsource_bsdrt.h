@@ -97,6 +97,7 @@ public:
 	PacketSource_BSDRT(GlobalRegistry *in_globalreg, meta_packsource *in_meta, 
 					   string in_name, string in_dev) :
 		PacketSource_Pcap(in_globalreg, in_meta, in_name, in_dev) { }
+	virtual ~PacketSource_BSDRT() { }
 
 	virtual int OpenSource();
 
