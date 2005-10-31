@@ -280,30 +280,6 @@ int unmonitor_wext_std(MONITOR_PARMS) {
 	return 1;
 }
 
-
-int chancontrol_wext_core(CHCONTROL_PARMS, char *errstr) {
-    if (Iwconfig_Set_Channel(in_dev, in_ch, errstr) < 0) {
-        return -1;
-    }
-
-    return 1;
-}
-
-/* *********************************************************** */
-/* Channel control functions */
-
-int chancontrol_wext_std(CHCONTROL_PARMS) {
-	char errstr[STATUS_MAX];
-
-	if (chancontrol_wext_core(globalreg, in_dev, in_ch, in_ext, errstr) < 0) {
-		globalreg->messagebus->InjectMessage(errstr, MSGFLAG_FATAL);
-		globalreg->fatal_condition = 1;
-		return -1;
-	}
-
-	return 1;
-}
-
 int monitor_madwifi_core(MONITOR_PARMS, char *errstr, int mode) {
 	// Run the primary monitor function
 	if (monitor_wext_core(globalreg, in_dev, initch, in_if, in_ext, errstr) < 0) {
@@ -408,6 +384,29 @@ int monitor_madwifi_ag(MONITOR_PARMS) {
 	// Fall through to the primary monitor function
 	if (monitor_madwifi_core(globalreg, in_dev, initch, in_if, 
 							 in_ext, errstr, 0) < 0) {
+		globalreg->messagebus->InjectMessage(errstr, MSGFLAG_FATAL);
+		globalreg->fatal_condition = 1;
+		return -1;
+	}
+
+	return 1;
+}
+
+/* *********************************************************** */
+/* Channel control functions */
+
+int chancontrol_wext_core(CHCONTROL_PARMS, char *errstr) {
+    if (Iwconfig_Set_Channel(in_dev, in_ch, errstr) < 0) {
+        return -1;
+    }
+
+    return 1;
+}
+
+int chancontrol_wext_std(CHCONTROL_PARMS) {
+	char errstr[STATUS_MAX];
+
+	if (chancontrol_wext_core(globalreg, in_dev, in_ch, in_ext, errstr) < 0) {
 		globalreg->messagebus->InjectMessage(errstr, MSGFLAG_FATAL);
 		globalreg->fatal_condition = 1;
 		return -1;

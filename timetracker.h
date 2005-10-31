@@ -69,7 +69,7 @@ public:
 
     Timetracker();
     Timetracker(GlobalRegistry *in_globalreg);
-    ~Timetracker();
+    virtual ~Timetracker();
 
     // Tick and handle timers
     int Tick();

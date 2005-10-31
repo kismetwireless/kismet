@@ -119,6 +119,7 @@ public:
     NullPacketSource(GlobalRegistry *in_globalreg, meta_packsource *in_meta,
 					 string in_name, string in_dev) : 
         KisPacketSource(in_globalreg, in_meta, in_name, in_dev) { }
+	virtual ~NullPacketSource() { }
 
     virtual int OpenSource() {
         char errstr[STATUS_MAX];
@@ -161,7 +162,7 @@ int unmonitor_nullsource(MONITOR_PARMS);
 class Packetsourcetracker : public Pollable {
 public:
     Packetsourcetracker(GlobalRegistry *in_globalreg);
-    ~Packetsourcetracker();
+    virtual ~Packetsourcetracker();
 
 	// Handle the commandline and config file and load cards (has to be outside
 	// of constructor to make plugins able to insert capture types)

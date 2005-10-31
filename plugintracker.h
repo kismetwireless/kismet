@@ -116,7 +116,7 @@ public:
 
 	Plugintracker();
 	Plugintracker(GlobalRegistry *in_globalreg);
-	~Plugintracker();
+	virtual ~Plugintracker();
 
 	// Parse the config file and load root plugins into the vector
 	int ScanRootPlugins();

@@ -160,5 +160,16 @@ components, and for removing them cleanly on request.  Plugins have
 access to any system component that Kismet itself can access, which gives
 them extroadinary power.
 
+Things to remember about C++ and plugins:
+    * Don't do things that would cause the kismet_server code to new an
+      object.  Use a helper function.  This should be pretty easy to 
+      maintain since it's all callbacks that insert objects into
+      kismet_server components anyway
+    * All classes used in a plugin must have virtual destructors.  All
+      their parents must have virtual destructors.  Even if they don't
+      actually need one.  If you find a kismet core class you need to
+      use in a plugin, tell me, and I'll make sure it's got virtual
+      destructors.
+
 Documentation on the system components and APIs will be forthcoming.
 

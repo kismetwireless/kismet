@@ -188,10 +188,6 @@ void CatchShutdown(int sig) {
 
     string termstr = "Kismet server terminating.";
 
-	if (globalregistry->plugintracker != NULL)
-		globalregistry->plugintracker->ShutdownPlugins();
-	
-	
 	if (globalregistry->kisnetserver != NULL) {
 		globalregistry->kisnetserver->SendToAll(globalregistry->netproto_map[PROTO_REF_TERMINATE], (void *) &termstr);
 	}
@@ -206,6 +202,9 @@ void CatchShutdown(int sig) {
 		// Shut down the packet sources
 		globalregistry->sourcetracker->CloseSources();
 	}
+
+	if (globalregistry->plugintracker != NULL)
+		globalregistry->plugintracker->ShutdownPlugins();
 
 	// Start a short shutdown cycle for 2 seconds
 	fprintf(stderr, "\n*** KISMET IS FLUSHING BUFFERS AND SHUTTING DOWN ***\n");
