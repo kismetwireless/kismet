@@ -289,7 +289,7 @@ int Dumpfile_Nettxt::Flush() {
 			kis_alert_info *ali = (*alerts)[an];
 
 			fprintf(txtfile, " Alert      : %.24s %s %s\n",
-					ctime(&(ali->tm.tv_sec)),
+					ctime((const time_t *) &(ali->tm.tv_sec)),
 					ali->header.c_str(),
 					ali->text.c_str());
 		}
