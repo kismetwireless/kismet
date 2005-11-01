@@ -440,7 +440,7 @@ int Plugintracker::ShutdownPlugins() {
 		delete plugin_vec[x];
 	}
 
-	plugin_vec.erase(plugin_vec.begin(), plugin_vec.end());
+	plugin_vec.clear();
 
 	return 0;
 }

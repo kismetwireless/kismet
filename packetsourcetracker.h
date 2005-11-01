@@ -206,6 +206,7 @@ public:
                              packsource_monitor in_unmonitor,
                              packsource_chcontrol in_channelcon,
                              int in_childcontrol);
+	int RemovePacketsource(const char *in_cardtype);
 
     // Register default channels 
     int RegisterDefaultChannels(vector<string> *in_defchannels);

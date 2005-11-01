@@ -776,6 +776,24 @@ int Packetsourcetracker::RegisterPacketsource(const char *in_cardtype, int in_ro
     return rec->id;
 }
 
+int Packetsourcetracker::RemovePacketsource(const char *in_cardtype) {
+	// We can't fully clean it, but we can make it unusable.
+	
+	map<string, packsource_protorec *>::iterator itr =
+		cardtype_map.find(in_cardtype);
+
+    if (itr == cardtype_map.end())
+        return -1;
+
+	itr->second->autoprobe = NULL;
+	itr->second->registrant = NULL;
+	itr->second->monitor_disable = NULL;
+	itr->second->monitor_enable = NULL;
+	itr->second->channelcon = NULL;
+
+	return 1;
+}
+
 int Packetsourcetracker::RegisterDefaultChannels(vector<string> *in_defchannels) {
     vector<string> tokens;
 
