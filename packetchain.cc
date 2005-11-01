@@ -230,3 +230,81 @@ int Packetchain::RegisterHandler(pc_callback in_cb, void *in_aux,
     return 1;
 }
 
+int Packetchain::RemoveHandler(pc_callback in_cb, int in_chain) {
+	unsigned int x;
+
+    switch (in_chain) {
+        case CHAINPOS_GENESIS:
+			for (x = 0; x < genesis_chain.size(); x++) {
+				if (genesis_chain[x]->callback == in_cb) {
+					genesis_chain.erase(genesis_chain.begin() + x);
+				}
+			}
+            break;
+
+        case CHAINPOS_POSTCAP:
+			for (x = 0; x < postcap_chain.size(); x++) {
+				if (postcap_chain[x]->callback == in_cb) {
+					postcap_chain.erase(postcap_chain.begin() + x);
+				}
+			}
+            break;
+
+        case CHAINPOS_LLCDISSECT:
+			for (x = 0; x < llcdissect_chain.size(); x++) {
+				if (llcdissect_chain[x]->callback == in_cb) {
+					llcdissect_chain.erase(llcdissect_chain.begin() + x);
+				}
+			}
+            break;
+
+        case CHAINPOS_DECRYPT:
+			for (x = 0; x < decrypt_chain.size(); x++) {
+				if (decrypt_chain[x]->callback == in_cb) {
+					decrypt_chain.erase(decrypt_chain.begin() + x);
+				}
+			}
+            break;
+            
+        case CHAINPOS_DATADISSECT:
+			for (x = 0; x < datadissect_chain.size(); x++) {
+				if (datadissect_chain[x]->callback == in_cb) {
+					datadissect_chain.erase(datadissect_chain.begin() + x);
+				}
+			}
+            break;
+
+        case CHAINPOS_CLASSIFIER:
+			for (x = 0; x < classifier_chain.size(); x++) {
+				if (classifier_chain[x]->callback == in_cb) {
+					classifier_chain.erase(classifier_chain.begin() + x);
+				}
+			}
+            break;
+
+        case CHAINPOS_LOGGING:
+			for (x = 0; x < logging_chain.size(); x++) {
+				if (logging_chain[x]->callback == in_cb) {
+					logging_chain.erase(logging_chain.begin() + x);
+				}
+			}
+            break;
+
+        case CHAINPOS_DESTROY:
+			for (x = 0; x < destruction_chain.size(); x++) {
+				if (destruction_chain[x]->callback == in_cb) {
+					destruction_chain.erase(destruction_chain.begin() + x);
+				}
+			}
+            break;
+
+        default:
+            _MSG("Packetchain::RemoveHandler requested unknown chain", 
+				 MSGFLAG_ERROR);
+            return -1;
+    }
+
+    return 1;
+
+}
+
