@@ -1,3 +1,6 @@
+Nov 02 2005  devel  Fixed off-by-one in packet.cc for terminating null in
+                     netbios string, missing format element in gpsmap
+                     error (thanks, David)
 Oct 17 2005  devel  All the new development is in newcore, for people who 
                      haven't noticed that yet.
                     Minor updates:

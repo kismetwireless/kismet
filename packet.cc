@@ -1401,7 +1401,7 @@ void GetProtoInfo(kis_packet *packet, packet_info *in_info) {
 						ret_protoinfo->netbios_source[x/2] |= schr;
 					}
 
-					ret_protoinfo->netbios_source[17] = '\0';
+					ret_protoinfo->netbios_source[16] = '\0';
 				}
 			}
 
