@@ -1,3 +1,4 @@
+Nov 03 2005  devel  Added smarter error message if the card drops out of monitor
 Oct 30 2005  devel  Docs, plugin tweaks
 Oct 29 2005  devel  Updated info text on header mode iwprivs on linux
                     Added set_prismhdr to default wext set

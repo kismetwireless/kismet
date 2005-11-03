@@ -408,6 +408,18 @@ int chancontrol_wext_std(CHCONTROL_PARMS) {
 
 	if (chancontrol_wext_core(globalreg, in_dev, in_ch, in_ext, errstr) < 0) {
 		globalreg->messagebus->InjectMessage(errstr, MSGFLAG_FATAL);
+
+		// Check if we fell out of rfmon somehow
+		int curmode;
+		if (Iwconfig_Get_Mode(in_dev, errstr, &curmode) >= 0 &&
+			curmode != LINUX_WLEXT_MONITOR) {
+			_MSG("Interface '" + string(in_dev) + "' no longer appears to be "
+				 "in monitor mode.  This can happen if the drivers get "
+				 "confused or if an external program has changed state. "
+				 "Make sure no network management tools are running before "
+				 "starting Kismet.", MSGFLAG_FATAL);
+		}
+		
 		globalreg->fatal_condition = 1;
 		return -1;
 	}
