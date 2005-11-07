@@ -114,7 +114,6 @@ int clicmd_DELWEPKEY_hook(CLIENT_PARMS) {
 							   parsedcmdline, auxptr);
 }
 
-
 // CRC32 index for verifying WEP - cribbed from ethereal
 static const uint32_t wep_crc32_table[256] = {
     0x00000000L, 0x77073096L, 0xee0e612cL, 0x990951baL, 0x076dc419L,
@@ -1086,6 +1085,11 @@ int KisBuiltinDissector::basicdata_dissector(kis_packet *in_pack) {
 	if (packinfo->corrupt)
 		return 0;
 	if (packinfo->type != packet_data || packinfo->subtype != packet_sub_data)
+		return 0;
+
+	// If it's encrypted and hasn't been decrypted, we can't do anything
+	// smart with it, so toss.
+	if (packinfo->cryptset != 0 && packinfo->decrypted == 0)
 		return 0;
 	
 	// Grab the mangled frame if we have it, then try to grab up the list of
