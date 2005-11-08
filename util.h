@@ -40,6 +40,7 @@
 #include <string>
 #include <map>
 #include <vector>
+#include <list>
 
 // Munge a string to characters safe for calling in a shell
 void MungeToShell(char *in_data, int max);
@@ -112,5 +113,21 @@ uint32_t Adler32Checksum(const char *buf1, int len);
 // Proftpd process title manipulation functions
 void init_proc_title(int argc, char *argv[], char *envp[]);
 void set_proc_title(const char *fmt, ...);
+
+// Simple lexer for "advanced" filter stuff and other tools
+#define _kis_lex_none			0
+#define _kis_lex_string			1
+#define _kis_lex_quotestring	2
+#define _kis_lex_popen			3
+#define _kis_lex_pclose			4
+#define _kis_lex_negate			5
+#define _kis_lex_delim			6
+
+typedef struct {
+	int type;
+	string data;
+} _kis_lex_rec;
+
+list<_kis_lex_rec> LexString(string in_line);
 
 #endif

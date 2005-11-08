@@ -34,6 +34,10 @@
 #include <algorithm>
 #include <string>
 
+#ifdef HAVE_LIBPCRE
+#include <pcre.h>
+#endif
+
 #include "globalregistry.h"
 #include "messagebus.h"
 #include "packetchain.h"

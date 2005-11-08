@@ -1,3 +1,9 @@
+/* proftpd argv stuff */
+#define PF_ARGV_NONE        0
+#define PF_ARGV_NEW     	1
+#define PF_ARGV_WRITEABLE   2
+#define PF_ARGV_PSTAT       3
+#define PF_ARGV_PSSTRINGS   4
 
 /* Maximum number of characters in the status line */
 #define STATUS_MAX 1024

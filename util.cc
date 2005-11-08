@@ -29,6 +29,10 @@
 #endif /* HAVE_LIBUTIL_H */
 
 #if PF_ARGV_TYPE == PF_ARGV_PSTAT
+#error "pstat?"
+#endif
+
+#if PF_ARGV_TYPE == PF_ARGV_PSTAT
 # ifdef HAVE_SYS_PSTAT_H
 #  include <sys/pstat.h>
 # else
@@ -602,3 +606,107 @@ void set_proc_title(const char *fmt, ...) {
 
 #endif /* HAVE_SETPROCTITLE */
 }
+
+list<_kis_lex_rec> LexString(string in_line, string& errstr) {
+	list<_kis_lex_rec> ret;
+	int curstate = _kis_lex_none;
+	_kis_lex_rec cpr;
+	string tempstr;
+	char lastc = 0;
+	char c = 0;
+
+	cpr.type = _kis_lex_none;
+	cpr.data = "";
+	ret.push_back(cpr);
+
+	for (size_t pos = 0; pos < in_line.length(); pos++) {
+		lastc = c;
+		c = in_line[pos];
+
+		cpr.data = "";
+
+		if (curstate == _kis_lex_none) {
+			// Open paren
+			if (c == '(') {
+				cpr.type = _kis_lex_popen;
+				ret.push_back(cpr);
+				continue;
+			}
+
+			// Close paren
+			if (c == ')') {
+				cpr.type = _kis_lex_pclose;
+				ret.push_back(cpr);
+				continue;
+			}
+
+			// Negation
+			if (c == '!') {
+				cpr.type = _kis_lex_negate;
+				ret.push_back(cpr);
+				continue;
+			}
+
+			// delimiter
+			if (c == ',') {
+				cpr.type = _kis_lex_delim;
+				ret.push_back(cpr);
+				continue;
+			}
+
+			// start a quoted string
+			if (c == '"') {
+				curstate = _kis_lex_quotestring;
+				tempstr = "";
+				continue;
+			}
+		
+			curstate = _kis_lex_string;
+			tempstr = c;
+			continue;
+		}
+
+		if (curstate == _kis_lex_quotestring) {
+			// We don't close on an escaped \"
+			if (c == '"' && lastc != '\\') {
+				// Drop out of the string and make the lex stack element
+				curstate = _kis_lex_none;
+				cpr.type = _kis_lex_quotestring;
+				cpr.data = tempstr;
+				ret.push_back(cpr);
+
+				tempstr = "";
+
+				continue;
+			}
+
+			// Add it to the quoted temp strnig
+			tempstr += c;
+		}
+
+		if (curstate == _kis_lex_string) {
+			// If we're a special character break out and add the lex stack element
+			// otherwise increase our unquoted string
+			if (c == '(' || c == ')' || c == '!' || c == '"' || c == ',') {
+				cpr.type = _kis_lex_string;
+				cpr.data = tempstr;
+				ret.push_front(cpr);
+				tempstr = "";
+				curstate = _kis_lex_none;
+				pos--;
+				continue;
+			}
+
+			tempstr += c;
+			continue;
+		}
+	}
+
+	if (curstate == _kis_lex_quotestring) {
+		errstr = "Unfinished quoted string in line '" + in_line + "'";
+		ret.clear();
+	}
+
+	return ret;
+}
+
