@@ -42,6 +42,15 @@
 
 class FilterCore {
 public:
+
+#ifdef HAVE_LIBPCRE
+	typedef struct {
+		pcre *re;
+		pcre_extra *study;
+		string filter;
+	} pcre_filter;
+#endif
+
 	FilterCore();
 	FilterCore(GlobalRegistry *in_globalreg);
 
@@ -53,6 +62,10 @@ public:
 	// packinfo_80211
 	int RunFilter(mac_addr bssidmac, mac_addr sourcemac,
 				  mac_addr destmac);
+	// Run the PCRE filters against the incoming text.  This isn't an ifdef since
+	// we'll catch it in the implementation.  We don't want to have to ifdef every
+	// filter call.
+	int RunPcreFilter(string in_text);
 
 	int FetchBSSIDHit() { return bssid_hit; }
 	int FetchSourceHit() { return source_hit; }
@@ -72,6 +85,10 @@ protected:
 	int bssid_hit;
 	int source_hit;
 	int dest_hit;
+
+#ifdef HAVE_LIBPCRE
+	vector<FilterCore::pcre_filter *> pcre_vec;
+#endif
 };
 
 #endif

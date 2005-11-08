@@ -446,6 +446,30 @@ fi # want headers
 
 fi # linux 
 
+AC_ARG_ENABLE(pcre,  [  --disable-pcre          disable building pcre components],
+	wantpcre=no, wantpcre=yes)
+
+if test "$wantpcre" = "yes"; then
+	# Check for pcre
+	pcrel=no
+	AC_CHECK_LIB([pcre], [pcre_compile], pcrel=yes, pcrel=no)
+
+	if test $pcrel != "yes"; then
+		AC_MSG_ERROR(["Failed to find libpcre.  Either install it, or " \
+					 "disable it via --disable-pcre"])
+	fi
+
+	pcreh=no
+	AC_CHECK_HEADER([pcre.h], pcreh=yes, pcreh=no)
+
+	if test $pcreh != "yes"; then
+		AC_MSG_ERROR(["Failed to find pcre.h.  You probably need to install " \
+					 "the pcre-devel packages for your distribution."])
+	fi
+
+	AC_DEFINE(HAVE_LIBPCRE, 1, libpcre regex support)
+	LIBS="$LIBS -lpcre"
+fi
 
 AC_ARG_ENABLE(pcap, [  --disable-pcap          disable libpcap (most sources) capture support],,wantpcap=yes)
 AC_SUBST(wantpcap)
@@ -798,6 +822,12 @@ else
 fi
 echo -n "       Linux wireless : "
 if test "$linux_wireless" = "yes"; then
+	echo "yes"
+else
+	echo "no"
+fi
+echo -n "   PCRE Regex Filters : "
+if test "$wantpcre" = "yes"; then
 	echo "yes"
 else
 	echo "no"

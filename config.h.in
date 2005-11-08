@@ -42,6 +42,9 @@
 /* libpcap packet capture lib */
 #undef HAVE_LIBPCAP
 
+/* libpcre regex support */
+#undef HAVE_LIBPCRE
+
 /* Define to 1 if you have the <libutil.h> header file. */
 #undef HAVE_LIBUTIL_H
 
@@ -264,14 +267,6 @@
 
 // Max chars in SSID
 #define MAX_SSID_LEN    255
-
-// Proftpd process title stuff
-#define PF_ARGV_NONE		0
-#define PF_ARGV_NEW		1
-#define PF_ARGV_WRITEABLE	2
-#define PF_ARGV_PSTAT		3
-#define PF_ARGV_PSSTRINGS	4
-#undef PF_ARGV_TYPE
 
 /* Namespace */
 using namespace std;
