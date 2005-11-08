@@ -18,6 +18,7 @@
 
 #include "config.h"
 
+#include "util.h"
 #include "filtercore.h"
 
 FilterCore::FilterCore() {
@@ -35,7 +36,299 @@ FilterCore::FilterCore(GlobalRegistry *in_globalreg) {
 	dest_hit = 0;
 }
 
+#define _filter_stacker_none	0
+#define _filter_stacker_mac		1
+#define _filter_stacker_pcre	2
+
+#define _filter_type_none		-1
+#define _filter_type_bssid		0
+#define _filter_type_source		1
+#define _filter_type_dest		2
+#define _filter_type_any		3
+
 int FilterCore::AddFilterLine(string filter_str) {
+	_kis_lex_rec ltop;
+	int type = _filter_stacker_none;
+	int mtype = _filter_type_none;
+	int negate = 0;
+	string errstr;
+
+	// Local copies to add so we can error out cleanly...  This is a cheap
+	// hack but it lets us avoid a bunch of if's
+	map<int, vector<mac_addr> > local_maps;
+	map<int, int> local_inverts;
+	vector<string> local_pcre;
+	vector<mac_addr> macvec;
+
+	local_inverts[_filter_type_bssid] = -1;
+	local_inverts[_filter_type_source] = -1;
+	local_inverts[_filter_type_dest] = -1;
+	local_inverts[_filter_type_any] = -1;
+
+	list<_kis_lex_rec> precs = LexString(filter_str, errstr);
+
+	if (precs.size() == 0) {
+		_MSG(errstr, MSGFLAG_ERROR);
+		return -1;
+	}
+
+	while (precs.size() > 0) {
+		// Grab the top of the stack, pop the lexer
+		ltop = precs.front();
+		precs.pop_front();
+
+		// Ignore 'none'
+		if (ltop.type == _kis_lex_none) {
+			continue;
+		}
+
+		// If we don't have anything in the stack...
+		if (type == _filter_stacker_none) {
+			// Ignore delimiters, they just break up mac addresses
+			if (ltop.type == _kis_lex_delim)
+				continue;
+
+			if (ltop.type != _kis_lex_string) {
+				_MSG("Couldn't parse filter line '" + filter_str + "', expected an "
+					 "unquoted string", MSGFLAG_ERROR);
+				return -1;
+			}
+
+			string uqstr = StrLower(ltop.data);
+
+			if (uqstr == "bssid") {
+				type = _filter_stacker_mac;
+				mtype = _filter_type_bssid;
+			} else if (uqstr == "source") {
+				type = _filter_stacker_mac;
+				mtype = _filter_type_source;
+			} else if (uqstr == "dest") {
+				type = _filter_stacker_mac;
+				mtype = _filter_type_dest;
+			} else if (uqstr == "any") {
+				type = _filter_stacker_mac;
+				mtype = _filter_type_any;
+			} else if (uqstr == "pcre") {
+				type = _filter_stacker_pcre;
+			} else {
+				_MSG("Couldn't parse filter line '" + filter_str + "', expected one "
+					 "of BSSID, SOURCE, DEST, ANY, PCRE", MSGFLAG_ERROR);
+				return -1;
+			}
+
+			// check for a '('
+			if (precs.size() <= 0) {
+				_MSG("Couldn't parse filter line '" + filter_str + "', expected (",
+					 MSGFLAG_ERROR);
+				return -1;
+			}
+
+			ltop = precs.front();
+			precs.pop_front();
+
+			if (ltop.type != _kis_lex_popen) {
+				_MSG("Couldn't parse filter line '" + filter_str + "', expected (",
+					 MSGFLAG_ERROR);
+				return -1;
+			}
+
+			// Peek for a negation
+			if (precs.size() <= 0) {
+				_MSG("Couldn't parse filter line '" + filter_str + "', expected "
+					 "contents", MSGFLAG_ERROR);
+				return -1;
+			}
+
+			ltop = precs.front();
+			if (ltop.type == _kis_lex_negate) {
+				negate = 1;
+				precs.pop_front();
+			}
+
+			continue;
+		}
+
+		if (type == _filter_stacker_mac) {
+			// Look for an address as a string
+			if (ltop.type != _kis_lex_string) {
+				_MSG("Couldn't parse filter line '" + filter_str + "', expected "
+					 "MAC address", MSGFLAG_ERROR);
+				return -1;
+			}
+
+			mac_addr mymac = ltop.data.c_str();
+
+			if (mymac.error) {
+				_MSG("Couldn't parse filter line '" + filter_str + "', expected "
+					 "MAC address and could not interpret '" + ltop.data + "'",
+					 MSGFLAG_ERROR);
+				return -1;
+			}
+
+			// Add it to the local map for this type
+			(local_maps[mtype]).push_back(mymac);
+
+			// Peek at the next item
+			if (precs.size() <= 0) {
+				_MSG("Couldn't parse filter line '" + filter_str + "', expected ',' "
+					 "or ')'", MSGFLAG_ERROR);
+				return -1;
+			}
+
+			ltop = precs.front();
+			precs.pop_front();
+
+			// If it's a delimiter, skip over it and continue
+			if (ltop.type == _kis_lex_delim)
+				continue;
+
+			// if it's a close paren, close down and save/errorcheck the negation
+			if (ltop.type == _kis_lex_pclose) {
+				if (local_inverts[mtype] != -1 && local_inverts[mtype] != negate) {
+					_MSG("Couldn't parse filter line '" + filter_str + "', filter "
+						 "has an illegal mix of normal and inverted addresses. "
+						 "A filter type must be either all inverted addresses or all "
+						 "standard addresses.", MSGFLAG_ERROR);
+					return -1;
+				}
+
+				local_inverts[mtype] = negate;
+				type = _filter_stacker_none;
+				mtype = _filter_type_none;
+				negate = 0;
+				continue;
+			}
+
+			// Fall through and hit errors about anything else
+			_MSG("Couldn't parse filter line '" + filter_str + "', expected ',' "
+				 "or ')'", MSGFLAG_ERROR);
+			return -1;
+		}
+
+		if (type == _filter_stacker_pcre) {
+#ifndef HAVE_LIBPCRE
+			// Catch libpcre not being here
+			if (local_pcre.size() != 0) {
+				_MSG("Couldn't parse filter line '" + filter_str + "', filter "
+					 "uses PCRE regular expressions and this instance of Kismet "
+					 "was not compiled with libpcre support.");
+				return -1;
+			}
+#endif
+
+			// Look for a quoted string
+			if (ltop.type != _kis_lex_quotestring) {
+				_MSG("Couldn't parse filter line '" + filter_str + "', expected "
+					 "quoted string", MSGFLAG_ERROR);
+				return -1;
+			}
+
+			// Add it to the local PCRE vector
+			local_pcre.push_back(ltop.data);
+
+			// Peek at the next item
+			if (precs.size() <= 0) {
+				_MSG("Couldn't parse filter line '" + filter_str + "', expected ',' "
+					 "or ')'", MSGFLAG_ERROR);
+				return -1;
+			}
+
+			ltop = precs.front();
+			precs.pop_front();
+
+			// If it's a delimiter, skip over it and continue
+			if (ltop.type == _kis_lex_delim) {
+				continue;
+			}
+
+			// If it's a close paren, close down
+			if (ltop.type == _kis_lex_pclose) {
+				type = _filter_stacker_none;
+				mtype = _filter_type_none;
+				negate = 0;
+				continue;
+			}
+
+			// Fall through and hit errors about anything else
+			_MSG("Couldn't parse filter line '" + filter_str + "', expected ',' "
+				 "or ')'", MSGFLAG_ERROR);
+			return -1;
+		}
+
+	}
+
+	// Join all the maps back up with the real filters
+	negate = local_inverts[_filter_type_bssid];
+	if (negate != -1) {
+		macvec = local_maps[_filter_type_bssid];
+		if (bssid_invert != -1 && negate != bssid_invert) {
+			_MSG("Couldn't parse filter line '" + filter_str + "', filter "
+				 "has an illegal mix of normal and inverted addresses. "
+				 "A filter type must be either all inverted addresses or all "
+				 "standard addresses.", MSGFLAG_ERROR);
+			return -1;
+		}
+		bssid_invert = negate;
+		for (unsigned int x = 0; x < macvec.size(); x++) {
+			bssid_map.insert(macvec[x], 1);
+		}
+	}
+
+	negate = local_inverts[_filter_type_source];
+	if (negate != -1) {
+		macvec = local_maps[_filter_type_source];
+		if (source_invert != -1 && negate != source_invert) {
+			_MSG("Couldn't parse filter line '" + filter_str + "', filter "
+				 "has an illegal mix of normal and inverted addresses. "
+				 "A filter type must be either all inverted addresses or all "
+				 "standard addresses.", MSGFLAG_ERROR);
+			return -1;
+		}
+		source_invert = negate;
+		for (unsigned int x = 0; x < macvec.size(); x++) {
+			source_map.insert(macvec[x], 1);
+		}
+	}
+
+	negate = local_inverts[_filter_type_dest];
+	if (negate != -1) {
+		macvec = local_maps[_filter_type_dest];
+		if (dest_invert != -1 && negate != dest_invert) {
+			_MSG("Couldn't parse filter line '" + filter_str + "', filter "
+				 "has an illegal mix of normal and inverted addresses. "
+				 "A filter type must be either all inverted addresses or all "
+				 "standard addresses.", MSGFLAG_ERROR);
+			return -1;
+		}
+		dest_invert = negate;
+		for (unsigned int x = 0; x < macvec.size(); x++) {
+			dest_map.insert(macvec[x], 1);
+		}
+	}
+
+	negate = local_inverts[_filter_type_any];
+	if (negate != -1) {
+		macvec = local_maps[_filter_type_any];
+		if ((dest_invert != 1 && negate != dest_invert) ||
+			(source_invert != 1 && negate != source_invert) ||
+			(bssid_invert != 1 && negate != bssid_invert)) {
+			_MSG("Couldn't parse filter line '" + filter_str + "', filter uses the "
+				 "ANY filter term.  The ANY filter can only be used on inverted "
+				 "matches to discard any packets not matching the specified address, "
+				 "and the DEST, SOURCE, and BSSID filter terms must contain only "
+				 "inverted matches.", MSGFLAG_ERROR);
+			return -1;
+		}
+		for (unsigned int x = 0; x < macvec.size(); x++) {
+			dest_map.insert(macvec[x], 1);
+			source_map.insert(macvec[x], 1);
+			bssid_map.insert(macvec[x], 1);
+		}
+	}
+
+	return 1;
+	
+#if 0
     // Break it into filter terms
     size_t parse_pos = 0;
     size_t parse_error = 0;
@@ -187,6 +480,7 @@ int FilterCore::AddFilterLine(string filter_str) {
         return -1;
 
     return 1;
+#endif
 }
 
 int FilterCore::RunFilter(mac_addr bssidmac, mac_addr sourcemac,

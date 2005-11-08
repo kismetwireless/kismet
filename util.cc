@@ -315,14 +315,12 @@ vector<string> LineWrap(string in_txt, unsigned int in_hdr_len,
 		string str(hdroffset, ' ');
 		hdroffset = in_hdr_len;
 
-		prev_pos = (in_maxlen - hdroffset);
-
 		str += in_txt.substr(start, (prev_pos - start));
 		ret.push_back(str);
 
 		start = prev_pos;
 
-		prev_pos++;
+		prev_pos+= (in_maxlen - hdroffset);
 	}
 
 	string str(hdroffset, ' ');
@@ -690,7 +688,7 @@ list<_kis_lex_rec> LexString(string in_line, string& errstr) {
 			if (c == '(' || c == ')' || c == '!' || c == '"' || c == ',') {
 				cpr.type = _kis_lex_string;
 				cpr.data = tempstr;
-				ret.push_front(cpr);
+				ret.push_back(cpr);
 				tempstr = "";
 				curstate = _kis_lex_none;
 				pos--;

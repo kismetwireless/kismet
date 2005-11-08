@@ -128,6 +128,6 @@ typedef struct {
 	string data;
 } _kis_lex_rec;
 
-list<_kis_lex_rec> LexString(string in_line);
+list<_kis_lex_rec> LexString(string in_line, string& errstr);
 
 #endif
