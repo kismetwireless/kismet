@@ -116,6 +116,27 @@ int RegisterKismetSources(Packetsourcetracker *sourcetracker) {
                                         monitor_madwifi_comb, unmonitor_madwifi, 
                                         chancontrol_madwifi_ag, 1);
 
+	sourcetracker->RegisterPacketsource("madwifing_a", 1, "IEEE80211a", 36,
+										pcapsource_wext_registrant,
+										monitor_wext, unmonitor_wext,
+										chancontrol_wext, 1);
+	sourcetracker->RegisterPacketsource("madwifing_ab", 1, "IEEE80211ab", 6,
+										pcapsource_wext_registrant,
+										monitor_wext, unmonitor_wext,
+										chancontrol_wext, 1);
+	sourcetracker->RegisterPacketsource("madwifing_ag", 1, "IEEE80211ab", 6,
+										pcapsource_wext_registrant,
+										monitor_wext, unmonitor_wext,
+										chancontrol_wext, 1);
+	sourcetracker->RegisterPacketsource("madwifing_b", 1, "IEEE80211b", 6,
+										pcapsource_wext_registrant,
+										monitor_wext, unmonitor_wext,
+										chancontrol_wext, 1);
+	sourcetracker->RegisterPacketsource("madwifing_g", 1, "IEEE80211b", 6,
+										pcapsource_wext_registrant,
+										monitor_wext, unmonitor_wext,
+										chancontrol_wext, 1);
+
     sourcetracker->RegisterPacketsource("prism54g", 1, "IEEE80211g", 6,
                                         pcapsource_11g_registrant,
                                         monitor_prism54g, unmonitor_prism54g,
@@ -168,6 +189,11 @@ int RegisterKismetSources(Packetsourcetracker *sourcetracker) {
     REG_EMPTY_CARD(sourcetracker, "madwifi_g");
     REG_EMPTY_CARD(sourcetracker, "madwifi_ab");
     REG_EMPTY_CARD(sourcetracker, "madwifi_ag");
+	REG_EMPTY_CARD(sourcetracker, "madwifing_a");
+	REG_EMPTY_CARD(sourcetracker, "madwifing_ab");
+	REG_EMPTY_CARD(sourcetracker, "madwifing_b");
+	REG_EMPTY_CARD(sourcetracker, "madwifing_ag");
+	REG_EMPTY_CARD(sourcetracker, "madwifing_g");
 
     REG_EMPTY_CARD(sourcetracker, "prism54g");
 

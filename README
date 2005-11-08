@@ -659,35 +659,49 @@ Licensed under the GPL
                      Drone section of the README for more details about how
                      to set up a drone.
 
-    madwifi_a       Atheros             Linux       madwifi-cvs
+    madwifi_a       Atheros             Linux       madwifi
                     http://sourceforge.net/projects/madwifi/
                     Capture interface:  'athX'
                     Madwifi drivers in 802.11a-only mode. 
 
-    madwifi_b       Atheros             Linux       madwifi-cvs
+    madwifi_b       Atheros             Linux       madwifi
                     http://sourceforge.net/projects/madwifi/
                     Capture interface:  'athX'
                     Madwifi drivers in 802.11b-only mode. 
 
-    madwifi_g       Atheros             Linux       madwifi-cvs
+    madwifi_g       Atheros             Linux       madwifi
                     http://sourceforge.net/projects/madwifi/
                     Capture interface:  'athX'
                     Madwifi drivers in 802.11g-only mode.  This will, 
                      obviously, also see 11b networks.
 
-    madwifi_ab      Atheros             Linux       madwifi-cvs
+    madwifi_ab      Atheros             Linux       madwifi
                     http://sourceforge.net/projects/madwifi/
                     Capture interface:  'athX'
                     Madwifi drivers in 802.11a and 802.11b combo mode.  This
                      will seamlessly switch between bands during channel 
                      hopping.
 
-    madwifi_ag      Atheros             Linux       madwifi-cvs
+    madwifi_ag      Atheros             Linux       madwifi
                     http://sourceforge.net/projects/madwifi/
                     Capture interface:  'athX'
                     Madwifi drivers in 802.11a and 802.11g combo mode.  This
                      will seamlessly switch between bands during channel 
                      hopping.
+
+    madwifing_a     Atheros             Linux       madwifi-ng
+    madwifing_ab    Atheros             Linux       madwifi-ng
+    madwifing_ag    Atheros             Linux       madwifi-ng
+    madwifing_g     Atheros             Linux       madwifi-ng
+    madwifing_b     Atheros             Linux       madwifi-ng
+                    http://sourceforge.net/projects/madwifi/
+                    Capture interface:  'athX'
+                    Madwifi-ng drivers on 802.11a channels.  
+                    The interface MUST be brought up first via:
+                     wlanconfig athX create wlandev wifiX wlanmode monitor
+                    Multiple types for a, ab, ag, etc exist only for
+                     naming consistency and channel selection, as the
+                     drivers can hop seamlessly between channels.
 
     orinoco         Lucent, Orinoco     Linux       Patched orinoco_cs
                     http://airsnort.shmoo.com/orinocoinfo.html

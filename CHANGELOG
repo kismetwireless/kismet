@@ -1,3 +1,4 @@
+Nov 08 2005  devel  Added madwifi-ng support
 Nov 02 2005  devel  Fixed off-by-one in packet.cc for terminating null in
                      netbios string, missing format element in gpsmap
                      error (thanks, David)
