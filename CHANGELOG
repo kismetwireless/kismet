@@ -3,6 +3,8 @@ Nov 08 2005  devel  Added libpcre checks to configure
                     Added basic lexer to util.cc
                     Re-implemented MAC address filtering
                     Added stubs for pcre filters
+                    Added PCRE filter string parsing
+                    Fixed infinite loop in linewrapper
 Nov 07 2005  devel  Fixed encryption/decryption check for data dissectors
 Nov 03 2005  devel  Added smarter error message if the card drops out of monitor
 Oct 30 2005  devel  Docs, plugin tweaks

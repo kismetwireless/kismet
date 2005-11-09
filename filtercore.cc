@@ -18,6 +18,8 @@
 
 #include "config.h"
 
+#include <sstream>
+
 #include "util.h"
 #include "filtercore.h"
 
@@ -57,7 +59,7 @@ int FilterCore::AddFilterLine(string filter_str) {
 	// hack but it lets us avoid a bunch of if's
 	map<int, vector<mac_addr> > local_maps;
 	map<int, int> local_inverts;
-	vector<string> local_pcre;
+	vector<pcre_filter *> local_pcre;
 	vector<mac_addr> macvec;
 
 	local_inverts[_filter_type_bssid] = -1;
@@ -91,6 +93,11 @@ int FilterCore::AddFilterLine(string filter_str) {
 			if (ltop.type != _kis_lex_string) {
 				_MSG("Couldn't parse filter line '" + filter_str + "', expected an "
 					 "unquoted string", MSGFLAG_ERROR);
+				for (unsigned zed = 0; zed < local_pcre.size(); zed++) {
+					pcre_free(local_pcre[zed]->re);
+					pcre_free(local_pcre[zed]->study);
+					delete(local_pcre[zed]);
+				}
 				return -1;
 			}
 
@@ -113,6 +120,11 @@ int FilterCore::AddFilterLine(string filter_str) {
 			} else {
 				_MSG("Couldn't parse filter line '" + filter_str + "', expected one "
 					 "of BSSID, SOURCE, DEST, ANY, PCRE", MSGFLAG_ERROR);
+				for (unsigned zed = 0; zed < local_pcre.size(); zed++) {
+					pcre_free(local_pcre[zed]->re);
+					pcre_free(local_pcre[zed]->study);
+					delete(local_pcre[zed]);
+				}
 				return -1;
 			}
 
@@ -120,6 +132,11 @@ int FilterCore::AddFilterLine(string filter_str) {
 			if (precs.size() <= 0) {
 				_MSG("Couldn't parse filter line '" + filter_str + "', expected (",
 					 MSGFLAG_ERROR);
+				for (unsigned zed = 0; zed < local_pcre.size(); zed++) {
+					pcre_free(local_pcre[zed]->re);
+					pcre_free(local_pcre[zed]->study);
+					delete(local_pcre[zed]);
+				}
 				return -1;
 			}
 
@@ -129,6 +146,11 @@ int FilterCore::AddFilterLine(string filter_str) {
 			if (ltop.type != _kis_lex_popen) {
 				_MSG("Couldn't parse filter line '" + filter_str + "', expected (",
 					 MSGFLAG_ERROR);
+				for (unsigned zed = 0; zed < local_pcre.size(); zed++) {
+					pcre_free(local_pcre[zed]->re);
+					pcre_free(local_pcre[zed]->study);
+					delete(local_pcre[zed]);
+				}
 				return -1;
 			}
 
@@ -136,6 +158,11 @@ int FilterCore::AddFilterLine(string filter_str) {
 			if (precs.size() <= 0) {
 				_MSG("Couldn't parse filter line '" + filter_str + "', expected "
 					 "contents", MSGFLAG_ERROR);
+				for (unsigned zed = 0; zed < local_pcre.size(); zed++) {
+					pcre_free(local_pcre[zed]->re);
+					pcre_free(local_pcre[zed]->study);
+					delete(local_pcre[zed]);
+				}
 				return -1;
 			}
 
@@ -153,6 +180,11 @@ int FilterCore::AddFilterLine(string filter_str) {
 			if (ltop.type != _kis_lex_string) {
 				_MSG("Couldn't parse filter line '" + filter_str + "', expected "
 					 "MAC address", MSGFLAG_ERROR);
+				for (unsigned zed = 0; zed < local_pcre.size(); zed++) {
+					pcre_free(local_pcre[zed]->re);
+					pcre_free(local_pcre[zed]->study);
+					delete(local_pcre[zed]);
+				}
 				return -1;
 			}
 
@@ -162,6 +194,11 @@ int FilterCore::AddFilterLine(string filter_str) {
 				_MSG("Couldn't parse filter line '" + filter_str + "', expected "
 					 "MAC address and could not interpret '" + ltop.data + "'",
 					 MSGFLAG_ERROR);
+				for (unsigned zed = 0; zed < local_pcre.size(); zed++) {
+					pcre_free(local_pcre[zed]->re);
+					pcre_free(local_pcre[zed]->study);
+					delete(local_pcre[zed]);
+				}
 				return -1;
 			}
 
@@ -172,6 +209,11 @@ int FilterCore::AddFilterLine(string filter_str) {
 			if (precs.size() <= 0) {
 				_MSG("Couldn't parse filter line '" + filter_str + "', expected ',' "
 					 "or ')'", MSGFLAG_ERROR);
+				for (unsigned zed = 0; zed < local_pcre.size(); zed++) {
+					pcre_free(local_pcre[zed]->re);
+					pcre_free(local_pcre[zed]->study);
+					delete(local_pcre[zed]);
+				}
 				return -1;
 			}
 
@@ -189,6 +231,11 @@ int FilterCore::AddFilterLine(string filter_str) {
 						 "has an illegal mix of normal and inverted addresses. "
 						 "A filter type must be either all inverted addresses or all "
 						 "standard addresses.", MSGFLAG_ERROR);
+				for (unsigned zed = 0; zed < local_pcre.size(); zed++) {
+					pcre_free(local_pcre[zed]->re);
+					pcre_free(local_pcre[zed]->study);
+					delete(local_pcre[zed]);
+				}
 					return -1;
 				}
 
@@ -202,34 +249,83 @@ int FilterCore::AddFilterLine(string filter_str) {
 			// Fall through and hit errors about anything else
 			_MSG("Couldn't parse filter line '" + filter_str + "', expected ',' "
 				 "or ')'", MSGFLAG_ERROR);
+			for (unsigned zed = 0; zed < local_pcre.size(); zed++) {
+				pcre_free(local_pcre[zed]->re);
+				pcre_free(local_pcre[zed]->study);
+				delete(local_pcre[zed]);
+			}
 			return -1;
 		}
 
 		if (type == _filter_stacker_pcre) {
 #ifndef HAVE_LIBPCRE
 			// Catch libpcre not being here
-			if (local_pcre.size() != 0) {
-				_MSG("Couldn't parse filter line '" + filter_str + "', filter "
-					 "uses PCRE regular expressions and this instance of Kismet "
-					 "was not compiled with libpcre support.");
-				return -1;
-			}
-#endif
-
+			_MSG("Couldn't parse filter line '" + filter_str + "', filter "
+				 "uses PCRE regular expressions and this instance of Kismet "
+				 "was not compiled with libpcre support.");
+			return -1;
+#else
 			// Look for a quoted string
 			if (ltop.type != _kis_lex_quotestring) {
 				_MSG("Couldn't parse filter line '" + filter_str + "', expected "
 					 "quoted string", MSGFLAG_ERROR);
+				for (unsigned zed = 0; zed < local_pcre.size(); zed++) {
+					pcre_free(local_pcre[zed]->re);
+					pcre_free(local_pcre[zed]->study);
+					delete(local_pcre[zed]);
+				}
 				return -1;
 			}
 
-			// Add it to the local PCRE vector
-			local_pcre.push_back(ltop.data);
+			// local_pcre.push_back(ltop.data);
+			// Try to parse and study the PCRE
+			pcre_filter *filt = new pcre_filter;
+			const char *error, *study_err;
+			int erroffset;
+			ostringstream osstr;
+
+			filt->re = 
+				pcre_compile(ltop.data.c_str(), 0, &error, &erroffset, NULL);
+			if (filt->re == NULL) {
+				osstr << "Couldn't parse filter line '" << filter_str << "', PCRE "
+					"compilation failure '" << error << "' at offset " << erroffset;
+				_MSG(osstr.str(), MSGFLAG_ERROR);
+				free(filt);
+				for (unsigned zed = 0; zed < local_pcre.size(); zed++) {
+					pcre_free(local_pcre[zed]->re);
+					pcre_free(local_pcre[zed]->study);
+					delete(local_pcre[zed]);
+				}
+				return -1;
+			}
+
+			filt->study = pcre_study(filt->re, 0, &study_err);
+			if (filt->study != NULL) {
+				osstr << "Couldn't parse filter line '" << filter_str << "', PCRE "
+					"study/optimization failure '" << study_err << "'";
+				_MSG(osstr.str(), MSGFLAG_ERROR);
+				pcre_free(filt->re);
+				free(filt);
+				for (unsigned zed = 0; zed < local_pcre.size(); zed++) {
+					pcre_free(local_pcre[zed]->re);
+					pcre_free(local_pcre[zed]->study);
+					delete(local_pcre[zed]);
+				}
+				return -1;
+			}
+
+			filt->filter = ltop.data;
+			local_pcre.push_back(filt);
 
 			// Peek at the next item
 			if (precs.size() <= 0) {
 				_MSG("Couldn't parse filter line '" + filter_str + "', expected ',' "
 					 "or ')'", MSGFLAG_ERROR);
+				for (unsigned zed = 0; zed < local_pcre.size(); zed++) {
+					pcre_free(local_pcre[zed]->re);
+					pcre_free(local_pcre[zed]->study);
+					delete(local_pcre[zed]);
+				}
 				return -1;
 			}
 
@@ -252,7 +348,13 @@ int FilterCore::AddFilterLine(string filter_str) {
 			// Fall through and hit errors about anything else
 			_MSG("Couldn't parse filter line '" + filter_str + "', expected ',' "
 				 "or ')'", MSGFLAG_ERROR);
+			for (unsigned zed = 0; zed < local_pcre.size(); zed++) {
+				pcre_free(local_pcre[zed]->re);
+				pcre_free(local_pcre[zed]->study);
+				delete(local_pcre[zed]);
+			}
 			return -1;
+#endif
 		}
 
 	}
@@ -266,6 +368,11 @@ int FilterCore::AddFilterLine(string filter_str) {
 				 "has an illegal mix of normal and inverted addresses. "
 				 "A filter type must be either all inverted addresses or all "
 				 "standard addresses.", MSGFLAG_ERROR);
+			for (unsigned zed = 0; zed < local_pcre.size(); zed++) {
+				pcre_free(local_pcre[zed]->re);
+				pcre_free(local_pcre[zed]->study);
+				delete(local_pcre[zed]);
+			}
 			return -1;
 		}
 		bssid_invert = negate;
@@ -282,6 +389,11 @@ int FilterCore::AddFilterLine(string filter_str) {
 				 "has an illegal mix of normal and inverted addresses. "
 				 "A filter type must be either all inverted addresses or all "
 				 "standard addresses.", MSGFLAG_ERROR);
+			for (unsigned zed = 0; zed < local_pcre.size(); zed++) {
+				pcre_free(local_pcre[zed]->re);
+				pcre_free(local_pcre[zed]->study);
+				delete(local_pcre[zed]);
+			}
 			return -1;
 		}
 		source_invert = negate;
@@ -298,6 +410,11 @@ int FilterCore::AddFilterLine(string filter_str) {
 				 "has an illegal mix of normal and inverted addresses. "
 				 "A filter type must be either all inverted addresses or all "
 				 "standard addresses.", MSGFLAG_ERROR);
+			for (unsigned zed = 0; zed < local_pcre.size(); zed++) {
+				pcre_free(local_pcre[zed]->re);
+				pcre_free(local_pcre[zed]->study);
+				delete(local_pcre[zed]);
+			}
 			return -1;
 		}
 		dest_invert = negate;
@@ -317,6 +434,11 @@ int FilterCore::AddFilterLine(string filter_str) {
 				 "matches to discard any packets not matching the specified address, "
 				 "and the DEST, SOURCE, and BSSID filter terms must contain only "
 				 "inverted matches.", MSGFLAG_ERROR);
+			for (unsigned zed = 0; zed < local_pcre.size(); zed++) {
+				pcre_free(local_pcre[zed]->re);
+				pcre_free(local_pcre[zed]->study);
+				delete(local_pcre[zed]);
+			}
 			return -1;
 		}
 		for (unsigned int x = 0; x < macvec.size(); x++) {
@@ -325,6 +447,12 @@ int FilterCore::AddFilterLine(string filter_str) {
 			bssid_map.insert(macvec[x], 1);
 		}
 	}
+
+#ifdef HAVE_LIBPCRE
+	for (unsigned int x = 0; x < local_pcre.size(); x++) {
+		pcre_vec.push_back(local_pcre[x]);
+	}
+#endif
 
 	return 1;
 	
