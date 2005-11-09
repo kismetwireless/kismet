@@ -641,3 +641,21 @@ int FilterCore::RunFilter(mac_addr bssidmac, mac_addr sourcemac,
 	return hit;
 }
 
+int FilterCore::RunPcreFilter(string in_text) {
+#ifndef HAVE_LIBPCRE
+	return 0;
+#else
+	int ovector[128];
+	int rc;
+
+	for (unsigned int x = 0; x < pcre_vec.size(); x++) {
+		rc = pcre_exec(pcre_vec[x]->re, pcre_vec[x]->study, in_text.c_str(),
+					   in_text.length(), 0, 0, ovector, 128);
+
+		if (rc > 0)
+			return 1;
+	}
+#endif
+	return 0;
+}
+
