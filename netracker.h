@@ -423,6 +423,7 @@ public:
 	int FetchPacketRate();
 
 	int AddFilter(string in_filter);
+	int AddNetcliFilter(string in_filter);
 
 	// Fetch the internal maps.  Touching these is Bad.  Should only be used when
 	// the chain API is insufficient, like logging xml/net ascii
@@ -512,9 +513,12 @@ protected:
 
 	// Command refs
 	int addfiltercmd_ref;
+	int addnetclifiltercmd_ref;
 
 	// Filter core for tracker
 	FilterCore *track_filter;
+	// Filter core for network client
+	FilterCore *netcli_filter;
 
 	// Let the hooks call directly in
 	friend int kis_80211_netracker_hook(CHAINCALL_PARMS);
@@ -533,6 +537,7 @@ void Protocol_NETWORK_enable(PROTO_ENABLE_PARMS);
 void Protocol_CLIENT_enable(PROTO_ENABLE_PARMS);
 
 int Netracker_Clicmd_ADDFILTER(CLIENT_PARMS);
+int Netracker_Clicmd_ADDNETCLIFILTER(CLIENT_PARMS);
 
 // Hooks into the packet component trackers
 class kis_netracker_netinfo : public packet_component {

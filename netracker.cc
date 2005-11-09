@@ -740,6 +740,25 @@ int Netracker_Clicmd_ADDFILTER(CLIENT_PARMS) {
 	return 1;
 }
 
+int Netracker_Clicmd_ADDNETCLIFILTER(CLIENT_PARMS) {
+	if (parsedcmdline->size() != 1) {
+		snprintf(errstr, 1024, "Illegal addnetclifilter request");
+		return -1;
+	}
+
+	Netracker *netr = (Netracker *) auxptr;
+
+	if (netr->AddNetcliFilter((*parsedcmdline)[0].word) < 0) {
+		snprintf(errstr, 1024, "Failed to insert filter string");
+		return -1;
+	}
+
+	_MSG("Added network client filter '" + (*parsedcmdline)[0].word + "'",
+		 MSGFLAG_INFO);
+
+	return 1;
+}
+
 int Protocol_INFO(PROTO_PARMS) {
 	ostringstream osstr;
 
@@ -838,6 +857,7 @@ Netracker::Netracker() {
 Netracker::Netracker(GlobalRegistry *in_globalreg) {
 	globalreg = in_globalreg;
 	track_filter = NULL;
+	netcli_filter = NULL;
 
 	// Sanity
 	if (globalreg->packetchain == NULL) {
@@ -923,6 +943,19 @@ Netracker::Netracker(GlobalRegistry *in_globalreg) {
 		}
 	}
 
+	// Parse the filter for the network client
+	netcli_filter = new FilterCore(globalreg);
+	vector<string> netclifilterlines = 
+		globalreg->kismet_config->FetchOptVec("filter_netclient");
+	for (unsigned int fl = 0; fl < netclifilterlines.size(); fl++) {
+		if (netcli_filter->AddFilterLine(netclifilterlines[fl]) < 0) {
+			_MSG("Failed to add filter_tracker config line from the Kismet config "
+				 "file.", MSGFLAG_FATAL);
+			globalreg->fatal_condition = 1;
+			return;
+		}
+	}
+
 	// Register network protocols with the tcp server
 	_NPM(PROTO_REF_NETWORK) =
 		globalreg->kisnetserver->RegisterProtocol("NETWORK", 0, 1, 
@@ -947,6 +980,10 @@ Netracker::Netracker(GlobalRegistry *in_globalreg) {
 	addfiltercmd_ref =
 		globalreg->kisnetserver->RegisterClientCommand("ADDTRACKERFILTER",
 													   &Netracker_Clicmd_ADDFILTER,
+													   this);
+	addnetclifiltercmd_ref =
+		globalreg->kisnetserver->RegisterClientCommand("ADDNETCLIFILTER",
+													   &Netracker_Clicmd_ADDNETCLIFILTER,
 													   this);
 
 	// See if we have some alerts to raise
@@ -977,10 +1014,16 @@ Netracker::~Netracker() {
 
 	if (track_filter != NULL)
 		delete track_filter;
+	if (netcli_filter != NULL)
+		delete netcli_filter;
 }
 
 int Netracker::AddFilter(string in_filter) {
 	return track_filter->AddFilterLine(in_filter);
+}
+
+int Netracker::AddNetcliFilter(string in_filter) {
+	return netcli_filter->AddFilterLine(in_filter);
 }
 
 int Netracker::TimerKick() {
@@ -989,6 +1032,10 @@ int Netracker::TimerKick() {
 		tracked_network *net = dirty_net_vec[x];
 
 		if (net->type == network_remove)
+			continue;
+
+		if (netcli_filter->RunFilter(net->bssid, mac_addr(0), mac_addr(0)) ||
+			netcli_filter->RunPcreFilter(net->ssid))
 			continue;
 
 		globalreg->kisnetserver->SendToAll(_NPM(PROTO_REF_NETWORK),
@@ -1002,6 +1049,10 @@ int Netracker::TimerKick() {
 		tracked_client *cli = dirty_cli_vec[x];
 
 		if (cli->type == client_remove)
+			continue;
+
+		if (netcli_filter->RunFilter(cli->netptr->bssid, mac_addr(0), mac_addr(0)) ||
+			netcli_filter->RunPcreFilter(cli->netptr->ssid))
 			continue;
 
 		globalreg->kisnetserver->SendToAll(_NPM(PROTO_REF_CLIENT),
@@ -1576,14 +1627,21 @@ int Netracker::netracker_chain_handler(kis_packet *in_pack) {
 				 net->cryptset ? "yes" : "no",
 				 net->channel, net->maxrate);
 		_MSG(status, MSGFLAG_INFO);
-		globalreg->kisnetserver->SendToAll(_NPM(PROTO_REF_NETWORK), 
-										   (void *) net);
+
+		if (netcli_filter->RunFilter(net->bssid, mac_addr(0), mac_addr(0)) == 0 &&
+			netcli_filter->RunPcreFilter(net->ssid) == 0) {
+			globalreg->kisnetserver->SendToAll(_NPM(PROTO_REF_NETWORK), 
+											   (void *) net);
+		}
 	}
 
 	if (newclient) {
 		// do we want to whine in the info field?
-		globalreg->kisnetserver->SendToAll(_NPM(PROTO_REF_CLIENT),
-										   (void *) cli);
+		if (netcli_filter->RunFilter(net->bssid, mac_addr(0), mac_addr(0)) == 0 &&
+			netcli_filter->RunPcreFilter(net->ssid) == 0) {
+			globalreg->kisnetserver->SendToAll(_NPM(PROTO_REF_CLIENT),
+											   (void *) cli);
+		}
 	}
 
 	if (net->dirty == 0) {
