@@ -75,6 +75,7 @@ public:
 	int FetchSourceHit() { return source_hit; }
 	int FetchDestHit() { return dest_hit; }
 	int FetchHits() { return bssid_hit + source_hit + dest_hit; }
+	int FetchPCREHits();
 
 protected:
 	GlobalRegistry *globalreg;
@@ -92,6 +93,8 @@ protected:
 
 #ifdef HAVE_LIBPCRE
 	vector<FilterCore::pcre_filter *> pcre_vec;
+	int pcre_invert;
+	int pcre_hit;
 #endif
 };
 

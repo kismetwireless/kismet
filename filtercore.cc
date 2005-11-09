@@ -36,6 +36,10 @@ FilterCore::FilterCore(GlobalRegistry *in_globalreg) {
 	bssid_hit = 0;
 	source_hit = 0;
 	dest_hit = 0;
+#ifdef HAVE_LIBPCRE
+	pcre_invert = -1;
+	pcre_hit = 0;
+#endif
 }
 
 #define _filter_stacker_none	0
@@ -47,6 +51,7 @@ FilterCore::FilterCore(GlobalRegistry *in_globalreg) {
 #define _filter_type_source		1
 #define _filter_type_dest		2
 #define _filter_type_any		3
+#define _filter_type_pcre		4
 
 int FilterCore::AddFilterLine(string filter_str) {
 	_kis_lex_rec ltop;
@@ -66,6 +71,7 @@ int FilterCore::AddFilterLine(string filter_str) {
 	local_inverts[_filter_type_source] = -1;
 	local_inverts[_filter_type_dest] = -1;
 	local_inverts[_filter_type_any] = -1;
+	local_inverts[_filter_type_pcre] = -1;
 
 	list<_kis_lex_rec> precs = LexString(filter_str, errstr);
 
@@ -231,11 +237,11 @@ int FilterCore::AddFilterLine(string filter_str) {
 						 "has an illegal mix of normal and inverted addresses. "
 						 "A filter type must be either all inverted addresses or all "
 						 "standard addresses.", MSGFLAG_ERROR);
-				for (unsigned zed = 0; zed < local_pcre.size(); zed++) {
-					pcre_free(local_pcre[zed]->re);
-					pcre_free(local_pcre[zed]->study);
-					delete(local_pcre[zed]);
-				}
+					for (unsigned zed = 0; zed < local_pcre.size(); zed++) {
+						pcre_free(local_pcre[zed]->re);
+						pcre_free(local_pcre[zed]->study);
+						delete(local_pcre[zed]);
+					}
 					return -1;
 				}
 
@@ -339,6 +345,19 @@ int FilterCore::AddFilterLine(string filter_str) {
 
 			// If it's a close paren, close down
 			if (ltop.type == _kis_lex_pclose) {
+				if (local_inverts[_filter_type_pcre] != -1 && 
+					local_inverts[_filter_type_pcre] != negate) {
+					_MSG("Couldn't parse filter line '" + filter_str + "', filter "
+						 "has an illegal mix of normal and inverted PCRE filters. "
+						 "A filter type must be either all inverted addresses or all "
+						 "standard addresses.", MSGFLAG_ERROR);
+					for (unsigned zed = 0; zed < local_pcre.size(); zed++) {
+						pcre_free(local_pcre[zed]->re);
+						pcre_free(local_pcre[zed]->study);
+						delete(local_pcre[zed]);
+					}
+					return -1;
+				}
 				type = _filter_stacker_none;
 				mtype = _filter_type_none;
 				negate = 0;
@@ -359,70 +378,29 @@ int FilterCore::AddFilterLine(string filter_str) {
 
 	}
 
-	// Join all the maps back up with the real filters
+	// Check all the negate joins before we edit anything
+	int negfail = 0;
 	negate = local_inverts[_filter_type_bssid];
 	if (negate != -1) {
 		macvec = local_maps[_filter_type_bssid];
 		if (bssid_invert != -1 && negate != bssid_invert) {
-			_MSG("Couldn't parse filter line '" + filter_str + "', filter "
-				 "has an illegal mix of normal and inverted addresses. "
-				 "A filter type must be either all inverted addresses or all "
-				 "standard addresses.", MSGFLAG_ERROR);
-			for (unsigned zed = 0; zed < local_pcre.size(); zed++) {
-				pcre_free(local_pcre[zed]->re);
-				pcre_free(local_pcre[zed]->study);
-				delete(local_pcre[zed]);
-			}
-			return -1;
-		}
-		bssid_invert = negate;
-		for (unsigned int x = 0; x < macvec.size(); x++) {
-			bssid_map.insert(macvec[x], 1);
+			negfail = 1;
 		}
 	}
-
 	negate = local_inverts[_filter_type_source];
 	if (negate != -1) {
 		macvec = local_maps[_filter_type_source];
 		if (source_invert != -1 && negate != source_invert) {
-			_MSG("Couldn't parse filter line '" + filter_str + "', filter "
-				 "has an illegal mix of normal and inverted addresses. "
-				 "A filter type must be either all inverted addresses or all "
-				 "standard addresses.", MSGFLAG_ERROR);
-			for (unsigned zed = 0; zed < local_pcre.size(); zed++) {
-				pcre_free(local_pcre[zed]->re);
-				pcre_free(local_pcre[zed]->study);
-				delete(local_pcre[zed]);
-			}
-			return -1;
-		}
-		source_invert = negate;
-		for (unsigned int x = 0; x < macvec.size(); x++) {
-			source_map.insert(macvec[x], 1);
+			negfail = 1;
 		}
 	}
-
 	negate = local_inverts[_filter_type_dest];
 	if (negate != -1) {
 		macvec = local_maps[_filter_type_dest];
 		if (dest_invert != -1 && negate != dest_invert) {
-			_MSG("Couldn't parse filter line '" + filter_str + "', filter "
-				 "has an illegal mix of normal and inverted addresses. "
-				 "A filter type must be either all inverted addresses or all "
-				 "standard addresses.", MSGFLAG_ERROR);
-			for (unsigned zed = 0; zed < local_pcre.size(); zed++) {
-				pcre_free(local_pcre[zed]->re);
-				pcre_free(local_pcre[zed]->study);
-				delete(local_pcre[zed]);
-			}
-			return -1;
-		}
-		dest_invert = negate;
-		for (unsigned int x = 0; x < macvec.size(); x++) {
-			dest_map.insert(macvec[x], 1);
+			negfail = 1;
 		}
 	}
-
 	negate = local_inverts[_filter_type_any];
 	if (negate != -1) {
 		macvec = local_maps[_filter_type_any];
@@ -434,13 +412,61 @@ int FilterCore::AddFilterLine(string filter_str) {
 				 "matches to discard any packets not matching the specified address, "
 				 "and the DEST, SOURCE, and BSSID filter terms must contain only "
 				 "inverted matches.", MSGFLAG_ERROR);
-			for (unsigned zed = 0; zed < local_pcre.size(); zed++) {
-				pcre_free(local_pcre[zed]->re);
-				pcre_free(local_pcre[zed]->study);
-				delete(local_pcre[zed]);
-			}
-			return -1;
+			negfail = 1;
 		}
+	}
+	negate = local_inverts[_filter_type_pcre];
+	if (negate != -1) {
+		macvec = local_maps[_filter_type_pcre];
+		if (pcre_invert != -1 && negate != pcre_invert) {
+			negfail = 1;
+		}
+	}
+
+	if (negfail != 0) {
+		_MSG("Couldn't parse filter line '" + filter_str + "', filter "
+			 "has an illegal mix of normal and inverted addresses. "
+			 "A filter type must be either all inverted addresses or all "
+			 "standard addresses.", MSGFLAG_ERROR);
+		for (unsigned zed = 0; zed < local_pcre.size(); zed++) {
+			pcre_free(local_pcre[zed]->re);
+			pcre_free(local_pcre[zed]->study);
+			delete(local_pcre[zed]);
+		}
+		return -1;
+	}
+
+	// Join all the maps back up with the real filters
+	negate = local_inverts[_filter_type_bssid];
+	if (negate != -1) {
+		macvec = local_maps[_filter_type_bssid];
+		bssid_invert = negate;
+		for (unsigned int x = 0; x < macvec.size(); x++) {
+			bssid_map.insert(macvec[x], 1);
+		}
+	}
+
+	negate = local_inverts[_filter_type_source];
+	if (negate != -1) {
+		macvec = local_maps[_filter_type_source];
+		source_invert = negate;
+		for (unsigned int x = 0; x < macvec.size(); x++) {
+			source_map.insert(macvec[x], 1);
+		}
+	}
+
+	negate = local_inverts[_filter_type_dest];
+	if (negate != -1) {
+		macvec = local_maps[_filter_type_dest];
+		dest_invert = negate;
+		for (unsigned int x = 0; x < macvec.size(); x++) {
+			dest_map.insert(macvec[x], 1);
+		}
+	}
+
+	negate = local_inverts[_filter_type_any];
+	if (negate != -1) {
+		macvec = local_maps[_filter_type_any];
 		for (unsigned int x = 0; x < macvec.size(); x++) {
 			dest_map.insert(macvec[x], 1);
 			source_map.insert(macvec[x], 1);
@@ -449,8 +475,12 @@ int FilterCore::AddFilterLine(string filter_str) {
 	}
 
 #ifdef HAVE_LIBPCRE
-	for (unsigned int x = 0; x < local_pcre.size(); x++) {
-		pcre_vec.push_back(local_pcre[x]);
+	negate = local_inverts[_filter_type_pcre];
+	if (negate != -1) {
+		pcre_invert = negate;
+		for (unsigned int x = 0; x < local_pcre.size(); x++) {
+			pcre_vec.push_back(local_pcre[x]);
+		}
 	}
 #endif
 
@@ -639,6 +669,14 @@ int FilterCore::RunFilter(mac_addr bssidmac, mac_addr sourcemac,
 	}
 
 	return hit;
+}
+
+int FilterCore::FetchPCREHits() {
+#ifndef HAVE_LIBPCRE
+	return 0;
+#else
+	return pcre_hit;
+#endif
 }
 
 int FilterCore::RunPcreFilter(string in_text) {
