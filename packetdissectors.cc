@@ -324,7 +324,7 @@ KisBuiltinDissector::KisBuiltinDissector(GlobalRegistry *in_globalreg) {
 													   clicmd_STRINGS_hook,
 													   this);
 	stringsfilter_cmdid =
-		globalreg->kisnetserver->RegisterClientCommand("STRINGSFILTER", 
+		globalreg->kisnetserver->RegisterClientCommand("ADDSTRINGSFILTER", 
 													   clicmd_STRINGSFILTER_hook,
 													   this);
 
@@ -1900,7 +1900,8 @@ int KisBuiltinDissector::cmd_delwepkey(CLIENT_PARMS) {
 }
 
 int KisBuiltinDissector::basicstring_dissector(kis_packet *in_pack) {
-	// FIXME:  Check if strings are being decoded
+	if (dissect_strings == 0)
+		return 0;
 	
 	kis_string_info *stringinfo = NULL;
 	vector<string> parsed_strings;
@@ -1947,7 +1948,10 @@ int KisBuiltinDissector::basicstring_dissector(kis_packet *in_pack) {
 	int printable = 0;
 	for (unsigned int x = packinfo->header_offset; x < chunk->length; x++) {
 		if (printable && !isprint(chunk->data[x]) && pos != 0) {
-			if (pos > 4 && string_filter->RunPcreFilter(str) == 0) {
+			if (pos > 4 && 
+				string_filter->RunFilter(packinfo->bssid_mac, packinfo->source_mac,
+										 packinfo->dest_mac) == 0 &&
+				string_filter->RunPcreFilter(str) == 0) {
 				// Send it to the clients
 				string_proto_info nfo;
 				nfo.text = str;
@@ -1984,13 +1988,45 @@ int KisBuiltinDissector::basicstring_dissector(kis_packet *in_pack) {
 
 int KisBuiltinDissector::cmd_strings(CLIENT_PARMS) {
 	// FIXME: write this
+    if (parsedcmdline->size() != 1) {
+        snprintf(errstr, 1024, "Illegal string request");
+		_MSG(errstr, MSGFLAG_ERROR);
+        return -1;
+    }
+
+    int req;
+    if (sscanf(((*parsedcmdline)[0]).word.c_str(), "%d", &req) != 1) {
+        snprintf(errstr, 1024, "Illegal string request");
+		_MSG(errstr, MSGFLAG_ERROR);
+        return -1;
+    }
+
+	if (req)
+		_MSG("String dissection from data frames enabled", MSGFLAG_INFO);
+	else
+		_MSG("String dissection from data frames disabled", MSGFLAG_INFO);
+
+	dissect_strings = req;
 	
 	return 1;
 }
 
 int KisBuiltinDissector::cmd_stringsfilter(CLIENT_PARMS) {
-	// FIXME: write this
-	
+	if (parsedcmdline->size() != 1) {
+		snprintf(errstr, 1024, "Illegal addstringsfilter request");
+		_MSG(errstr, MSGFLAG_ERROR);
+		return -1;
+	}
+
+	if (string_filter->AddFilterLine((*parsedcmdline)[0].word) < 0) {
+		snprintf(errstr, 1024, "Failed to insert strings filter");
+		_MSG(errstr, MSGFLAG_ERROR);
+		return -1;
+	}
+
+	_MSG("Added string filter '" + (*parsedcmdline)[0].word + "'",
+		 MSGFLAG_INFO);
+
 	return 1;
 }
 
