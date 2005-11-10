@@ -43,7 +43,7 @@ PSO	= util.o ringbuf.o messagebus.o configfile.o getopt.o filtercore.o \
 	plugintracker.o packetsourcetracker.o alertracker.o timetracker.o \
 	packetdissectors.o netracker.o \
 	dumpfile.o dumpfile_pcap.o dumpfile_gpsxml.o dumpfile_tuntap.o \
-	dumpfile_netxml.o dumpfile_nettxt.o dumpfile_string.o \
+	dumpfile_netxml.o dumpfile_nettxt.o dumpfile_string.o dumpfile_alert.o \
 	kismet_server.o
 
 PS	= kismet_server

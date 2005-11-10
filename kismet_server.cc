@@ -64,6 +64,7 @@
 #include "dumpfile_gpsxml.h"
 #include "dumpfile_tuntap.h"
 #include "dumpfile_string.h"
+#include "dumpfile_alert.h"
 
 #ifndef exec_name
 char *exec_name;
@@ -628,6 +629,9 @@ int main(int argc, char *argv[], char *envp[]) {
 	if (globalregistry->fatal_condition)
 		CatchShutdown(-1);
 	globalregistry->RegisterDumpFile(new Dumpfile_String(globalregistry));
+	if (globalregistry->fatal_condition)
+		CatchShutdown(-1);
+	globalregistry->RegisterDumpFile(new Dumpfile_Alert(globalregistry));
 	if (globalregistry->fatal_condition)
 		CatchShutdown(-1);
 

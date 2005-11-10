@@ -105,7 +105,6 @@ int Dumpfile_String::chain_handler(kis_packet *in_pack) {
 		return 0;
 
 	kis_string_info *stringinfo = NULL;
-	vector<string> parsed_strings;
 
 	if (in_pack->error)
 		return 0;
