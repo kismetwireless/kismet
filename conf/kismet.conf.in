@@ -133,7 +133,7 @@ tuntap_device=tap0
 # addresses to be filtered.  Valid address types are 'ANY', 'BSSID',
 # 'SOURCE', and 'DEST'.  Filtering can be inverted by the use of '!' before
 # the address.  For example,
-# filter_tracker=ANY(!00:00:DE:AD:BE:EF)
+# filter_tracker=ANY(!"00:00:DE:AD:BE:EF")
 # has the same effect as the previous mac_filter config file option.
 # filter_tracker=...
 # filter_dump=...

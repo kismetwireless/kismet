@@ -36,6 +36,7 @@
 #include "kis_netframe.h"
 #include "packetchain.h"
 #include "macaddr.h"
+#include "filtercore.h"
 
 /*
  * Basic built-in Kismet dissectors that handle ieee80211 dissection and
@@ -56,17 +57,34 @@ int proto_WEPKEY(PROTO_PARMS);
 int clicmd_LISTWEPKEYS_hook(CLIENT_PARMS);
 int clicmd_ADDWEPKEY_hook(CLIENT_PARMS);
 int clicmd_DELWEPKEY_hook(CLIENT_PARMS);
+int clicmd_STRINGS_hook(CLIENT_PARMS);
+int clicmd_STRINGSFILTER_hook(CLIENT_PARMS);
 
 // Basic dissector hooks
 int kis_80211_dissector(CHAINCALL_PARMS);
 int kis_turbocell_dissector(CHAINCALL_PARMS);
 int kis_data_dissector(CHAINCALL_PARMS);
+int kis_string_dissector(CHAINCALL_PARMS);
 
 // Basic decryptor hooks
 int kis_wep_decryptor(CHAINCALL_PARMS);
 
 // Basic mangler hooks
 int kis_wep_mangler(CHAINCALL_PARMS);
+
+// Strings protocol
+enum STRINGS_fields {
+	STRINGS_bssid, STRINGS_source, STRINGS_dest, STRINGS_string,
+	STRINGS_maxfield
+};
+typedef struct {
+	string text;
+	mac_addr bssid;
+	mac_addr source;
+	mac_addr dest;
+} string_proto_info;
+extern char *STRINGS_fields_text[];
+int proto_STRINGS(PROTO_PARMS);
 
 // Wep keys
 typedef struct {
@@ -78,6 +96,16 @@ typedef struct {
     unsigned int failed;
 } wep_key_info;
 
+// String reference
+class kis_string_info : public packet_component {
+public:
+	kis_string_info() {
+		self_destruct = 1;
+	}
+protected:
+	vector<string> extracted_strings;
+};
+
 class KisBuiltinDissector {
 public:
 	KisBuiltinDissector();
@@ -86,6 +114,7 @@ public:
 
 	int ieee80211_dissector(kis_packet *in_pack);
 	int basicdata_dissector(kis_packet *in_pack);
+	int basicstring_dissector(kis_packet *in_pack);
 
 	int wep_data_decryptor(kis_packet *in_pack);
 	int wep_data_mangler(kis_packet *in_pack);
@@ -100,6 +129,8 @@ protected:
 	int cmd_listwepkeys(CLIENT_PARMS);
 	int cmd_addwepkey(CLIENT_PARMS);
 	int cmd_delwepkey(CLIENT_PARMS);
+	int cmd_strings(CLIENT_PARMS);
+	int cmd_stringsfilter(CLIENT_PARMS);
 	
 	GlobalRegistry *globalreg;
 
@@ -110,11 +141,22 @@ protected:
 	int client_wepkey_allowed;
 	macmap<wep_key_info *> wepkeys;
 
+	FilterCore *string_filter;
+	int dissect_strings;
+
+	int listwepkey_cmdid;
+	int addwepkey_cmdid;
+	int delwepkey_cmdid;
+	int strings_cmdid;
+	int stringsfilter_cmdid;
+
 	unsigned char wep_identity[256];
 
 	friend int clicmd_LISTWEPKEYS_hook(CLIENT_PARMS);
 	friend int clicmd_ADDWEPKEY_hook(CLIENT_PARMS);
 	friend int clicmd_DELWEPKEY_hook(CLIENT_PARMS);
+	friend int clicmd_STRINGS_hook(CLIENT_PARMS);
+	friend int clicmd_STRINGSFILTER_hook(CLIENT_PARMS);
 };
 
 #endif

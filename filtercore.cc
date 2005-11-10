@@ -690,7 +690,7 @@ int FilterCore::RunPcreFilter(string in_text) {
 	for (unsigned int x = 0; x < pcre_vec.size(); x++) {
 		rc = pcre_exec(pcre_vec[x]->re, pcre_vec[x]->study, in_text.c_str(),
 					   in_text.length(), 0, 0, ovector, 128);
-		if (rc > 0 && pcre_invert == 0)
+		if ((rc >= 0 && pcre_invert == 0) || (rc < 0 && pcre_invert == 1))
 			return 1;
 	}
 #endif

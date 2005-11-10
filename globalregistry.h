@@ -81,7 +81,8 @@ class Dumpfile;
 #define PACK_COMP_KISCAPSRC		9
 #define PACK_COMP_ALERT			10
 #define PACK_COMP_BASICDATA		11
-#define PACK_COMP_MAX			12
+#define PACK_COMP_STRINGS		12
+#define PACK_COMP_MAX			13
 
 // Same game again, with alerts that internal things need to generate
 #define ALERT_REF_KISMET		0
