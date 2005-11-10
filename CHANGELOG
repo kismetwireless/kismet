@@ -4,6 +4,7 @@ Nov 10 2005  devel  Added string extraction (currently always on)
                     Fixed filter examples to show "00:11:.." quoted mac strings
                     Added STRINGS (0|1) and ADDSTRINGSFILTER commands to toggle
                      string fetching
+                    Added string logfile (type 'string')
 Nov 08 2005  devel  Added libpcre checks to configure
                     Fixed util.cc compiling process title stuff
                     Added basic lexer to util.cc

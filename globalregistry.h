@@ -38,6 +38,7 @@ class ConfigFile;
 class SpeechControl;
 class SoundControl;
 class Plugintracker;
+class KisBuiltinDissector;
 // We need these for the vectors of subservices to poll
 class Pollable;
 // Vector of dumpfiles to destroy
@@ -131,6 +132,7 @@ public:
     ConfigFile *kismetui_config;
     SpeechControl *speechctl;
     SoundControl *soundctl;
+	KisBuiltinDissector *builtindissector;
 
 	string version_major;
 	string version_minor;
@@ -209,6 +211,7 @@ public:
         kismetui_config = NULL;
         speechctl = NULL;
         soundctl = NULL;
+		builtindissector = NULL;
 
         start_time = 0;
 

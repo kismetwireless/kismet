@@ -86,6 +86,16 @@ typedef struct {
 extern char *STRINGS_fields_text[];
 int proto_STRINGS(PROTO_PARMS);
 
+// String reference
+class kis_string_info : public packet_component {
+public:
+	kis_string_info() {
+		self_destruct = 1;
+	}
+
+	vector<string> extracted_strings;
+};
+
 // Wep keys
 typedef struct {
     int fragile;
@@ -95,16 +105,6 @@ typedef struct {
     unsigned int decrypted;
     unsigned int failed;
 } wep_key_info;
-
-// String reference
-class kis_string_info : public packet_component {
-public:
-	kis_string_info() {
-		self_destruct = 1;
-	}
-protected:
-	vector<string> extracted_strings;
-};
 
 class KisBuiltinDissector {
 public:
@@ -124,6 +124,8 @@ public:
 
 	int WPACipherConv(uint8_t cipher_index);
 	int WPAKeyMgtConv(uint8_t mgt_index);
+
+	void SetStringExtract(int in_extr);
 
 protected:
 	int cmd_listwepkeys(CLIENT_PARMS);

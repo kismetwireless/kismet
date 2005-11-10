@@ -1952,6 +1952,7 @@ int KisBuiltinDissector::basicstring_dissector(kis_packet *in_pack) {
 				string_filter->RunFilter(packinfo->bssid_mac, packinfo->source_mac,
 										 packinfo->dest_mac) == 0 &&
 				string_filter->RunPcreFilter(str) == 0) {
+				str = MungeToPrintable(str);
 				// Send it to the clients
 				string_proto_info nfo;
 				nfo.text = str;
@@ -1975,6 +1976,9 @@ int KisBuiltinDissector::basicstring_dissector(kis_packet *in_pack) {
 		}
 	}
 
+	if (parsed_strings.size() <= 0)
+		return 0;
+
 	stringinfo =
 		(kis_string_info *) in_pack->fetch(_PCM(PACK_COMP_STRINGS));
 
@@ -1983,7 +1987,19 @@ int KisBuiltinDissector::basicstring_dissector(kis_packet *in_pack) {
 		in_pack->insert(_PCM(PACK_COMP_STRINGS), stringinfo);
 	}
 
+	stringinfo->extracted_strings = parsed_strings;
+
 	return 1;
+}
+
+void KisBuiltinDissector::SetStringExtract(int in_extr) {
+	if (in_extr == 0 && dissect_strings == 2) {
+		_MSG("SetStringExtract(): String dissection cannot be disabled because "
+			 "it is required by another active component.", MSGFLAG_ERROR);
+		return;
+	}
+
+	dissect_strings = in_extr;
 }
 
 int KisBuiltinDissector::cmd_strings(CLIENT_PARMS) {
@@ -2000,6 +2016,13 @@ int KisBuiltinDissector::cmd_strings(CLIENT_PARMS) {
 		_MSG(errstr, MSGFLAG_ERROR);
         return -1;
     }
+
+	if (dissect_strings == 2) {
+		if (req == 0)
+			_MSG("String dissection cannot be disabled because it is required "
+				 "by another component", MSGFLAG_INFO);
+		return 1;
+	}
 
 	if (req)
 		_MSG("String dissection from data frames enabled", MSGFLAG_INFO);
