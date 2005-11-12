@@ -75,11 +75,6 @@ char *PACKET_fields_text[] = {
     NULL
 };
 
-char *STRING_fields_text[] = {
-    "bssid", "sourcemac", "text",
-    NULL
-};
-
 // Kismet welcome printer.  Data should be KISMET_data
 int Protocol_KISMET(PROTO_PARMS) {
     KISMET_data *kdata = (KISMET_data *) data;
@@ -309,33 +304,6 @@ int Protocol_PACKET(PROTO_PARMS) {
         } else {
             out_string += pdata->pdvec[fnum] + " ";
         }
-    }
-
-    return 1;
-}
-
-// string.  data = STRING_data
-int Protocol_STRING(PROTO_PARMS) {
-    STRING_data *sdata = (STRING_data *) data;
-
-    for (unsigned int x = 0; x < field_vec->size(); x++) {
-        switch ((STRING_fields) (*field_vec)[x]) {
-        case STRING_bssid:
-            out_string += sdata->bssid;
-            break;
-        case STRING_sourcemac:
-            out_string += sdata->sourcemac;
-            break;
-        case STRING_text:
-            out_string += sdata->text;
-            break;
-        default:
-            out_string = "Unknown field requested.";
-            return -1;
-            break;
-        }
-
-        out_string += " ";
     }
 
     return 1;
@@ -735,9 +703,6 @@ KisNetFramework::KisNetFramework(GlobalRegistry *in_globalreg) {
 	globalreg->netproto_map[PROTO_REF_STATUS] =
 		RegisterProtocol("STATUS", 0, 0, STATUS_fields_text, 
 						 &Protocol_STATUS, NULL, NULL);
-	globalreg->netproto_map[PROTO_REF_STRING] =
-		RegisterProtocol("STRING", 0, 0, STRING_fields_text, 
-						 &Protocol_STRING, NULL, NULL);
 
 	// Create the message bus attachment to forward messages to the client
     kisnet_msgcli = new KisNetframe_MessageClient(globalreg, this);

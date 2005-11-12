@@ -1,4 +1,5 @@
 Nov 11 2005  devel  Fixed filtercore compiling on systems without libpcre
+                    Fixed dual-registration of STRING protocl
 Nov 10 2005  devel  Added string extraction (currently always on)
                     Added PCRE string filtering
                     Fixed PCRE negation tests

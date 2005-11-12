@@ -136,10 +136,6 @@ enum PACKET_fields {
     PACKET_nbsource, PACKET_sourcename
 };
 
-enum STRING_fields {
-    STRING_bssid, STRING_sourcemac, STRING_text
-};
-
 extern char *KISMET_fields_text[];
 extern char *ERROR_fields_text[];
 extern char *ACK_fields_text[];
@@ -150,7 +146,6 @@ extern char *TIME_fields_text[];
 
 extern char *PACKET_fields_text[];
 extern char *STATUS_fields_text[];
-extern char *STRING_fields_text[];
 
 // Client/server protocol data structures.  These get passed as void *'s to each 
 // of the protocol functions.
@@ -159,10 +154,6 @@ extern char *STRING_fields_text[];
 
 typedef struct PACKET_data {
     vector<string> pdvec;
-};
-
-typedef struct STRING_data {
-    string bssid, sourcemac, text;
 };
 
 int Protocol_KISMET(PROTO_PARMS);
@@ -175,7 +166,6 @@ int Protocol_TIME(PROTO_PARMS);
 int Protocol_STATUS(PROTO_PARMS); // string
 void Protocol_Packet2Data(const kis_packet *info, PACKET_data *data);
 int Protocol_PACKET(PROTO_PARMS); // PACKET_data
-int Protocol_STRING(PROTO_PARMS); // STRING_data
 int Protocol_WEPKEY(PROTO_PARMS); // wep_key_info
 
 typedef struct KISMET_data {

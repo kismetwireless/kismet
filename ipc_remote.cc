@@ -121,6 +121,11 @@ IPCRemote::IPCRemote(GlobalRegistry *in_globalreg, string in_procname) {
 	globalreg = in_globalreg;
 	procname = in_procname;
 
+	if (globalreg->messagebus == NULL) {
+		fprintf(stderr, "FATAL OOPS:  IPCRemote called before messagebus\n");
+		exit(1);
+	}
+
 	next_cmdid = 0;
 	ipc_pid = 0;
 	ipc_spawned = 0;
