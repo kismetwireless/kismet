@@ -415,10 +415,12 @@ int main(int argc, char *argv[], char *envp[]) {
 	// Timer for silence
 	int local_silent = 0;
 
+	const int nlwc = globalregistry->getopt_long_num++;
+
 	// Standard getopt parse run
 	static struct option main_longopt[] = {
 		{ "config-file", required_argument, 0, 'f' },
-		{ "no-line-wrap", no_argument, 0, 200 },
+		{ "no-line-wrap", no_argument, 0, nlwc },
 		{ "silent", no_argument, 0, 's' },
 		{ "help", no_argument, 0, 'h' },
 		{ 0, 0, 0, 0 }
@@ -429,20 +431,15 @@ int main(int argc, char *argv[], char *envp[]) {
 							"-f:lsh", 
 							main_longopt, &option_idx);
 		if (r < 0) break;
-		switch (r) {
-			case 'h':
-				Usage(argv[0]);
-				exit(1);
-				break;
-			case 'f':
-				configfilename = strdup(optarg);
-				break;
-			case 200:
-				glob_linewrap = 0;
-				break;
-			case 's':
-				local_silent = 1;
-				break;
+		if (r == 'h') {
+			Usage(argv[0]);
+			exit(1);
+		} else if (r == 'f') {
+			configfilename = strdup(optarg);
+		} else if (r == nlwc) {
+			glob_linewrap = 0;
+		} else if (r == 's') {
+			local_silent = 1;
 		}
 	}
 

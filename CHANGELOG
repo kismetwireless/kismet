@@ -1,3 +1,6 @@
+Nov 13 2005  devel  Fixed netframe fatal oops to match other code
+                    Added float mantissa components to util
+                    Added globalreg component for non-char getopt
 Nov 11 2005  devel  Fixed filtercore compiling on systems without libpcre
                     Fixed dual-registration of STRING protocl
 Nov 10 2005  devel  Added string extraction (currently always on)

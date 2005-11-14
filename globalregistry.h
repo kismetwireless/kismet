@@ -112,6 +112,10 @@ public:
 	int argc;
 	char **argv;
 	char **envp;
+
+	// getopt-long number for arguments that don't take a short letter
+	// Anything using a getopt long should grab this and increment it
+	int getopt_long_num;
 	
     // Fatal terminate condition, as soon as we detect this in the main code we
     // should initiate a shutdown
@@ -196,6 +200,9 @@ public:
 
 		argc = 0;
 		argv = NULL;
+		envp = NULL;
+
+		getopt_long_num = 127;
 
         next_ext_ref = 0;
 

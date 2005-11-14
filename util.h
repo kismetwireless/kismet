@@ -42,6 +42,28 @@
 #include <vector>
 #include <list>
 
+// ieee float struct for a 64bit float for serialization
+typedef struct {
+	uint64_t mantissa:52 __attribute__ ((packed));
+	uint64_t exponent:11 __attribute__ ((packed));
+	uint64_t sign:1 __attribute__ ((packed));
+} ieee_64_float_t;
+
+typedef struct {
+	unsigned int mantissal:32;
+	unsigned int mantissah:20;
+	unsigned int exponent:11;
+	unsigned int sign:1;
+} ieee_double_t;
+
+typedef struct {
+	unsigned int mantissal:32;
+	unsigned int mantissah:32;
+	unsigned int exponent:15;
+	unsigned int sign:1;
+	unsigned int empty:16;
+} ieee_long_double_t;
+
 // Munge a string to characters safe for calling in a shell
 void MungeToShell(char *in_data, int max);
 string MungeToShell(string in_data);

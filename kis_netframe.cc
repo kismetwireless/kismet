@@ -567,7 +567,8 @@ int KisNetFrame_TimeEvent(Timetracker::timer_event *evt, void *parm,
 }
 
 KisNetFramework::KisNetFramework() {
-    fprintf(stderr, "*** KisNetFramework() This constructor should never be called!!\n");
+    fprintf(stderr, "FATAL OOPS:  KisNetFramework() called with no globalreg\n");
+	exit(1);
 }
 
 void KisNetFramework::Usage(char *name) {
@@ -583,6 +584,8 @@ KisNetFramework::KisNetFramework(GlobalRegistry *in_globalreg) {
 	TcpServer *tcpsrv;
 	string listenline;
 	next_netprotoref = 0;
+
+	int srvlistenopt = globalreg->getopt_long_num++;
 
 	// Commandline stuff
 	static struct option netframe_long_options[] = {
