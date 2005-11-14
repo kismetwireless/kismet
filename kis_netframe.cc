@@ -585,8 +585,6 @@ KisNetFramework::KisNetFramework(GlobalRegistry *in_globalreg) {
 	string listenline;
 	next_netprotoref = 0;
 
-	int srvlistenopt = globalreg->getopt_long_num++;
-
 	// Commandline stuff
 	static struct option netframe_long_options[] = {
 		{ "server-listen", required_argument, 0, 'l' },
