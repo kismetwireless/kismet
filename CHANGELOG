@@ -1,3 +1,5 @@
+Nov 15 2005  devel  Standardized some error reporting in netframe
+                    Started drone protocol rewrite
 Nov 13 2005  devel  Fixed netframe fatal oops to match other code
                     Added float mantissa components to util
                     Added globalreg component for non-char getopt

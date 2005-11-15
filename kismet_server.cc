@@ -428,7 +428,7 @@ int main(int argc, char *argv[], char *envp[]) {
 
 	while (1) {
 		int r = getopt_long(argc, argv, 
-							"-f:lsh", 
+							"-f:sh", 
 							main_longopt, &option_idx);
 		if (r < 0) break;
 		if (r == 'h') {

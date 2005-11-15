@@ -585,6 +585,22 @@ KisNetFramework::KisNetFramework(GlobalRegistry *in_globalreg) {
 	string listenline;
 	next_netprotoref = 0;
 
+    // Sanity check for timetracker
+    if (globalreg->timetracker == NULL) {
+		fprintf(stderr, "FATAL OOPS: KisNetFramework called without timetracker\n");
+        exit(1);
+    }
+
+	if (globalreg->kismet_config == NULL) {
+		fprintf(stderr, "FATAL OOPS: KisNetFramework called without kismet_config\n");
+		exit(1);
+	}
+
+	if (globalreg->messagebus == NULL) {
+		fprintf(stderr, "FATAL OOPS: KisNetFramework called without messagebus\n");
+		exit(1);
+	}
+
 	// Commandline stuff
 	static struct option netframe_long_options[] = {
 		{ "server-listen", required_argument, 0, 'l' },
@@ -636,6 +652,7 @@ KisNetFramework::KisNetFramework(GlobalRegistry *in_globalreg) {
 		_MSG("Malformed 'maxclients' config line defined for the Kismet UI server",
 			 MSGFLAG_FATAL);
 		globalreg->fatal_condition = 1;
+		return;
 	}
 
 	if (globalreg->kismet_config->FetchOpt("maxbacklog") == "") {
@@ -647,6 +664,7 @@ KisNetFramework::KisNetFramework(GlobalRegistry *in_globalreg) {
 		_MSG("Malformed 'maxbacklog' config line defined for the Kismet UI server",
 			 MSGFLAG_FATAL);
 		globalreg->fatal_condition = 1;
+		return;
 	}
 
 	if (globalreg->kismet_config->FetchOpt("allowedhosts") == "") {
@@ -717,13 +735,6 @@ KisNetFramework::KisNetFramework(GlobalRegistry *in_globalreg) {
     RegisterClientCommand("CHANHOP", &Clicmd_CHANHOP, NULL);
     RegisterClientCommand("PAUSE", &Clicmd_PAUSE, NULL);
     RegisterClientCommand("RESUME", &Clicmd_RESUME, NULL);
-
-    // Sanity check for timetracker
-    if (globalreg->timetracker == NULL) {
-        fprintf(stderr, "*** KisNetFramework globalreg->timetracker not "
-                "initialized.  We're going to crash and burn!  Report this error.\n");
-        exit(1);
-    }
 
     // Register timer events
     globalreg->timetracker->RegisterTimer(SERVER_TIMESLICES_SEC, NULL, 1, 
