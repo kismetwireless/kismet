@@ -224,7 +224,11 @@ int KisDroneFramework::BufferDrained(int in_fd) {
 
 }
 
-void KisDroneFramework::SendText(string in_text) {
+int KisDroneFramework::SendText(string in_text) {
+
+}
+
+int KisDroneFramework::SendPacket(drone_packet *in_pack) {
 
 }
 
@@ -277,21 +281,100 @@ int KisDroneFramework::chain_handler(kis_packet *in_pack) {
 	// Capture frame starts at the drone_packet data field
 	drone_capture_packet *dcpkt = (drone_capture_packet *) dpkt->data;
 
+	unsigned int suboffst = 0;
+
 	// Fill in the bitmap
 	if (radio != NULL) {
 		dcpkt->cap_content_bitmap |= DRONEBIT(DRONE_CONTENT_RADIO);
+
+		drone_capture_sub_radio *rcpkt = 
+			(drone_capture_sub_radio *) &(dcpkt->content[suboffst]);
+		
+		suboffst += sizeof(drone_capture_sub_radio);
+
+		rcpkt->radio_hdr_len = kis_hton16(sizeof(drone_capture_sub_radio));
+		// We have all the frields.  This could be reduced to an integer
+		// assign but that would suck to edit in the future, and this all
+		// optomizes away into a single assign anyhow during compile
+		rcpkt->radio_content_bitmap |=
+			(DRONEBIT(DRONE_RADIO_ACCURACY) |
+			 DRONEBIT(DRONE_RADIO_CHANNEL) |
+			 DRONEBIT(DRONE_RADIO_SIGNAL) |
+			 DRONEBIT(DRONE_RADIO_NOISE) |
+			 DRONEBIT(DRONE_RADIO_CARRIER) |
+			 DRONEBIT(DRONE_RADIO_ENCODING) |
+			 DRONEBIT(DRONE_RADIO_DATARATE));
+
+		rcpkt->radio_accuracy = kis_hton16(radio->accuracy);
+		rcpkt->radio_channel = kis_hton16(radio->channel);
+		rcpkt->radio_signal = kis_hton16(radio->signal);
+		rcpkt->radio_noise = kis_hton16(radio->noise);
+		rcpkt->radio_carrier = kis_hton32((uint32_t) radio->carrier);
+		rcpkt->radio_encoding = kis_hton32((uint32_t) radio->encoding);
+		rcpkt->radio_datarate = kis_hton32(radio->datarate);
 	}
 
 	if (gpsinfo != NULL) {
 		dcpkt->cap_content_bitmap |= DRONEBIT(DRONE_CONTENT_GPS);
+
+		drone_capture_sub_gps *gppkt = 
+			(drone_capture_sub_gps *) &(dcpkt->content[suboffst]);
+		
+		suboffst += sizeof(drone_capture_sub_gps);
+
+		gppkt->gps_hdr_len = kis_hton16(sizeof(drone_capture_sub_gps));
+
+		gppkt->gps_content_bitmap |=
+			(DRONEBIT(DRONE_GPS_FIX) |
+			 DRONEBIT(DRONE_GPS_LAT) |
+			 DRONEBIT(DRONE_GPS_LON) |
+			 DRONEBIT(DRONE_GPS_ALT) |
+			 DRONEBIT(DRONE_GPS_SPD) |
+			 DRONEBIT(DRONE_GPS_HEADING));
+
+		gppkt->gps_fix = kis_hton16(gpsinfo->gps_fix);
+		DRONE_CONV_DOUBLE(gpsinfo->lat, &(gppkt->gps_lat));
+		DRONE_CONV_DOUBLE(gpsinfo->lon, &(gppkt->gps_lon));
+		DRONE_CONV_DOUBLE(gpsinfo->alt, &(gppkt->gps_alt));
+		DRONE_CONV_DOUBLE(gpsinfo->spd, &(gppkt->gps_spd));
+		DRONE_CONV_DOUBLE(gpsinfo->heading, &(gppkt->gps_heading));
 	}
 
-	if (eight11 != NULL) {
+	// Finally the eight11 headers and the packet chunk itself
+	if (eight11 != NULL && chunk != NULL) {
 		dcpkt->cap_content_bitmap |= DRONEBIT(DRONE_CONTENT_IEEEPACKET);
-	}
-
-	if (chunk != NULL) {
 		dcpkt->cap_content_bitmap |= DRONEBIT(DRONE_RAW_DATA);
+
+		drone_capture_sub_80211 *e1pkt =
+			(drone_capture_sub_80211 *) &(dcpkt->content[suboffst]);
+
+		suboffst += sizeof(drone_capture_sub_80211);
+
+		e1pkt->eight11_hdr_len = kis_hton16(sizeof(drone_capture_sub_80211));
+
+		e1pkt->eight11_content_bitmap |=
+			(DRONEBIT(DRONE_EIGHT11_PACKLEN) |
+			 DRONEBIT(DRONE_EIGHT11_ERROR) |
+			 DRONEBIT(DRONE_EIGHT11_TVSEC) |
+			 DRONEBIT(DRONE_EIGHT11_TVUSEC));
+
+		e1pkt->packet_len = kis_hton16(chunk->length);
+		e1pkt->error = kis_hton16(in_pack->error);
+		e1pkt->tv_sec = kis_hton64(in_pack->ts.tv_sec);
+		e1pkt->tv_usec = kis_hton64(in_pack->ts.tv_usec);
+
+		// This should be big enough for the packet because we malloc'd it to
+		// be, but lets be sure
+		if (suboffst + chunk->length + sizeof(drone_capture_packet) >= packet_len) {
+			_MSG("Drone packet tx - something went wrong in allocating a "
+				 "packet to transmit the frame, bailing.", MSGFLAG_ERROR);
+			free(dpkt);
+			return 0;
+		}
+
+		memcpy(e1pkt->packdata, chunk->data, chunk->length);
+
+		dcpkt->cap_packet_offset = kis_hton32(suboffst);
 	}
 
 	return 1;

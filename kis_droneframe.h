@@ -94,6 +94,15 @@ typedef struct drone_trans_double {
 	uint16_t sign __attribute__ ((packed));
 } __attribute__ ((packed));
 
+#define DRONE_CONV_DOUBLE(x, y)		\
+	({ \
+	 ieee_double_t *locfl = (ieee_double_t *) &(x); \
+	 (y)->mantissal = kis_hton32(locfl->mantissal); \
+	 (y)->mantissah = kis_hton32(locfl->mantissah); \
+	 (y)->exponent = kis_hton16(locfl->exponent); \
+	 (y)->sign = kis_hton16(locfl->sign); \
+	 })
+
 // Bitmap fields for radio headers
 #define DRONE_RADIO_ACCURACY		0
 #define DRONE_RADIO_CHANNEL			1
@@ -199,10 +208,13 @@ public:
 	static void Usage(char *name);
 
 	// Send text down the connection
-	void SendText(string in_text);
+	int SendText(string in_text);
 
 	// Chain handler
 	virtual int chain_handler(kis_packet *in_pack);
+
+	// Send a frame
+	virtual int SendPacket(drone_packet *in_pack);
 
 protected:
     // Messagebus client
