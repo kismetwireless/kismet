@@ -46,7 +46,7 @@ void KisDroneframe_MessageClient::ProcessMessage(string in_msg, int in_flags) {
 	else if (in_flags & MSGFLAG_FATAL)
 		msg = string("FATAL - ") + in_msg;
 
-	((KisDroneFramework *) auxptr)->SendText(msg);
+	((KisDroneFramework *) auxptr)->SendAllText(msg, in_flags);
 }
 
 int kisdrone_chain_hook(CHAINCALL_PARMS) {
@@ -209,29 +209,121 @@ int KisDroneFramework::Activate() {
 }
 
 int KisDroneFramework::Accept(int in_fd) {
+	drone_packet *dpkt =
+		(drone_packet *) malloc(sizeof(uint8_t) *
+								(sizeof(drone_packet) + 
+								 sizeof(drone_helo_packet)));
 
+	dpkt->sentinel = kis_hton32(DroneSentinel);
+	dpkt->drone_cmdnum = kis_hton32(DRONE_CMDNUM_HELO);
+	dpkt->data_len = kis_hton32(sizeof(drone_helo_packet));
+
+	drone_helo_packet *hpkt = (drone_helo_packet *) dpkt->data;
+	hpkt->version = kis_hton32(KIS_DRONE_VERSION);
+
+	int ret = 0;
+	ret = SendPacket(in_fd, dpkt);
+
+	free(dpkt);
+
+	return ret;
 }
 
 int KisDroneFramework::ParseData(int in_fd) {
-
+	return 1;
 }
 
 int KisDroneFramework::KillConnection(int in_fd) {
-
+	// Nothing to do here since we don't track per-client attributes
+	return 1;
 }
 
 int KisDroneFramework::BufferDrained(int in_fd) {
-
+	// Nothing to do here since we don't care about draining buffers since
+	// we don't keep a client backlog
+	return 1;
 }
 
-int KisDroneFramework::SendText(string in_text) {
+int KisDroneFramework::SendText(int in_cl, string in_text, int flags) {
+	drone_packet *dpkt = 
+		(drone_packet *) malloc(sizeof(uint8_t) * 
+								(sizeof(drone_packet) + sizeof(drone_string_packet) +
+								 in_text.length()));
 
+	dpkt->sentinel = kis_hton32(DroneSentinel);
+	dpkt->drone_cmdnum = kis_hton32(DRONE_CMDNUM_STRING);
+	dpkt->data_len = kis_hton32(sizeof(drone_string_packet) + in_text.length());
+
+	drone_string_packet *spkt = (drone_string_packet *) dpkt->data;
+
+	spkt->msg_flags = kis_hton32(flags);
+	spkt->msg_len = kis_hton32(in_text.length());
+	memcpy(spkt->msg, in_text.c_str(), in_text.length());
+
+	int ret = 0;
+
+	ret = SendPacket(in_cl, dpkt);
+
+	free(dpkt);
+
+	return ret;
 }
 
-int KisDroneFramework::SendPacket(drone_packet *in_pack) {
+int KisDroneFramework::SendAllText(string in_text, int flags) {
+	vector<int> clvec;
+	int nsent = 0;
 
+	if (netserver == NULL)
+		return 0;
+
+	netserver->FetchClientVector(&clvec);
+
+	for (unsigned int x = 0; x < clvec.size(); x++) {
+		if (SendText(x, in_text, flags) > 0)
+			nsent++;
+	}
+
+	return nsent;
 }
 
+int KisDroneFramework::SendPacket(int in_cl, drone_packet *in_pack) {
+	int nlen = kis_ntoh32(in_pack->data_len) + sizeof(drone_packet);
+
+	int ret = 0;
+
+	ret = netserver->WriteData(in_cl, in_pack, nlen);
+
+	if (ret == -2) {
+		ostringstream osstr;
+		osstr << "Kismet drone server client fd " << in_cl << " ring buffer "
+			"full, throwing away packet";
+		_MSG(osstr.str(), MSGFLAG_LOCAL);
+		return 0;
+	}
+
+	return ret;
+}
+
+int KisDroneFramework::SendAllPacket(drone_packet *in_pack) {
+	vector<int> clvec;
+	int nsent = 0;
+
+	if (netserver == NULL)
+		return 0;
+
+	netserver->FetchClientVector(&clvec);
+
+	for (unsigned int x = 0; x < clvec.size(); x++) {
+		if (SendPacket(x, in_pack) > 0)
+			nsent++;
+	}
+
+	return nsent;
+}
+
+// Grab a frame off the chain and format it as best we can to send to the
+// drone client.  We automatically handle sending or not sending GPS data
+// based on its presence in the chain packet.  Same with signal level data.
 int KisDroneFramework::chain_handler(kis_packet *in_pack) {
 	kis_gps_packinfo *gpsinfo = NULL;
 	kis_ieee80211_packinfo *eight11 = NULL;
@@ -343,7 +435,6 @@ int KisDroneFramework::chain_handler(kis_packet *in_pack) {
 	// Finally the eight11 headers and the packet chunk itself
 	if (eight11 != NULL && chunk != NULL) {
 		dcpkt->cap_content_bitmap |= DRONEBIT(DRONE_CONTENT_IEEEPACKET);
-		dcpkt->cap_content_bitmap |= DRONEBIT(DRONE_RAW_DATA);
 
 		drone_capture_sub_80211 *e1pkt =
 			(drone_capture_sub_80211 *) &(dcpkt->content[suboffst]);
@@ -376,6 +467,10 @@ int KisDroneFramework::chain_handler(kis_packet *in_pack) {
 
 		dcpkt->cap_packet_offset = kis_hton32(suboffst);
 	}
+
+	SendAllPacket(dpkt);
+
+	free(dpkt);
 
 	return 1;
 }

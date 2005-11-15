@@ -41,6 +41,8 @@
 // Forward prototype
 class KisDroneFramework;
 
+#define KIS_DRONE_VERSION		1
+
 #define DRONEBIT(n)     (1 << n)
 
 // Messagebus subscriber to pass data to the client
@@ -166,8 +168,7 @@ typedef struct drone_capture_sub_80211 {
 
 #define DRONE_CONTENT_RADIO			0
 #define DRONE_CONTENT_GPS			1
-#define DRONE_CONTENT_IEEEPACKET	30
-#define DRONE_RAW_DATA				31
+#define DRONE_CONTENT_IEEEPACKET	31
 // Capture packet made of multiple other sub components
 // content[0] format:
 //   Bitmap
@@ -208,13 +209,15 @@ public:
 	static void Usage(char *name);
 
 	// Send text down the connection
-	int SendText(string in_text);
+	virtual int SendText(int in_cl, string in_text, int flags);
+	virtual int SendAllText(string in_text, int flags);
 
 	// Chain handler
 	virtual int chain_handler(kis_packet *in_pack);
 
 	// Send a frame
-	virtual int SendPacket(drone_packet *in_pack);
+	virtual int SendPacket(int in_cl, drone_packet *in_pack);
+	virtual int SendAllPacket(drone_packet *in_pack);
 
 protected:
     // Messagebus client

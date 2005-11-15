@@ -173,3 +173,74 @@ Things to remember about C++ and plugins:
 
 Documentation on the system components and APIs will be forthcoming.
 
+DRONE PROTOCOL
+
+The newcore drone protocol is similar to the original remote capture drone
+protocol from Kismet, however it is different in several key ways at not
+backwards compatible with the original drone protocol.
+
+The Newcore-drone protocol is designed to be forward- and backward-compatible
+with itself, so that different versions of the drone client and drone server
+can communicate with eachother, as completely as their protocol implementations
+allow.
+
+While not exactly encouraged, the more robust newcore protocol will allow
+for third-party drone clients to participate as well.
+
+Frames with dynamic components such as captured_packet are split into
+sub-frames and combined with bitfields to indicate what data is present.
+Frames with an unknown cmdnum can be ignored.  New frame elements must be
+added AFTER known frame elements, so that clients can parse the known 
+bitfield elements.  Clients are assumed to know the size of each
+element in the bitfield.  The length field in each type and subtype is used
+to skip unknown data once known data has been read.
+
+All integers are in network-endian format.  uint8s are avoided to prevent
+struct packing problems on some platforms.  Doubles are extracted into
+mantissa, exponent, and sign components and each component is translated to
+network endian before transmission.
+
+Basic frame formats:
+    drone_packet
+        sentinel
+        cmdnum/packet type
+        data len
+        [... data ...]
+    
+    capture_packet (placed in drone_packet->data)
+        content bitmap (radio|gps|ieee|rawdata)
+        packet data offset (to head of packet)
+        [... packed data of all headers indicated in bitfield, followed by
+             raw frame ...]
+
+        (optional if radio header present in content bitmap)
+        radio header len
+        radio header bitmap (accuracy|channel|signal...datarate)
+        radio accuracy
+        radio channel
+        radio signal
+        radio noise
+        radio carrier
+        radio encoding
+        radio datarate
+        [... future expansion by adding to radio header bitmap ...]
+
+        (optional if gps header present in content bitmap)
+        gps header len
+        gps header bitmap
+        gps fix
+        gps lat
+        ...
+        gps heading
+        [... future expansion by adding to gps header bitmap ...]
+
+        (optional if IEEEpacket set)
+        eight11 header len (goes to start of packet)
+        eight11 header bitmap
+        packet len
+        error
+        tv_sec
+        tv_usec
+        [... future expansion by adding to gps header bitmap ...]
+        [ packet data ]
+
