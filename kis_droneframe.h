@@ -24,6 +24,7 @@
 #include <string>
 
 #include "util.h"
+#include "globalregistry.h"
 #include "messagebus.h"
 #include "netframework.h"
 #include "packetchain.h"
@@ -54,7 +55,7 @@ public:
 };
 
 // Timer events
-int KisDroneFrame_TimeEvent(TIMEEVENT_PARMS);
+int kisdrone_time_hook(TIMEEVENT_PARMS);
 
 // Chain hook
 int kisdrone_chain_hook(CHAINCALL_PARMS);
@@ -78,7 +79,12 @@ typedef struct drone_packet {
 
 // Basic hello packet
 typedef struct drone_helo_packet {
-	uint32_t version __attribute__ ((packed));
+	// Increment when we break the protocol in big ways
+	uint32_t drone_version __attribute__ ((packed));
+	// Version string of the kismet server hosting this
+	uint8_t kismet_version[32] __attribute__ ((packed));
+	// Arbitrary name of the drone/server hosting this
+	uint8_t host_name[32] __attribute__ ((packed));
 } __attribute__ ((packed));
 
 // String packet for text
@@ -187,6 +193,10 @@ typedef struct drone_capture_packet {
 	uint8_t content[0];
 } __attribute__ ((packed));
 
+// Callbacks
+#define DRONE_CMD_PARMS GlobalRegistry *globalreg, const drone_packet *data, \
+	const void *auxptr
+typedef int (*DroneCmdCallback)(DRONE_CMD_PARMS);
 
 // Drone framework for sending data
 class KisDroneFramework : public ServerFramework {
@@ -208,6 +218,11 @@ public:
 	// Usage
 	static void Usage(char *name);
 
+	// Add a command
+	virtual int RegisterDroneCmd(uint32_t in_cmdid, DroneCmdCallback in_callback, 
+								 void *in_aux);
+	virtual int RemoveDroneCmd(uint32_t in_cmdid);
+
 	// Send text down the connection
 	virtual int SendText(int in_cl, string in_text, int flags);
 	virtual int SendAllText(string in_text, int flags);
@@ -215,9 +230,17 @@ public:
 	// Chain handler
 	virtual int chain_handler(kis_packet *in_pack);
 
+	// Timer handler
+	virtual int time_handler();
+
 	// Send a frame
 	virtual int SendPacket(int in_cl, drone_packet *in_pack);
 	virtual int SendAllPacket(drone_packet *in_pack);
+
+	typedef struct drone_cmd_rec {
+		void *auxptr;
+		DroneCmdCallback callback;
+	};
 
 protected:
     // Messagebus client
@@ -225,6 +248,12 @@ protected:
 
 	// Server type (0 = tcp...)
 	int server_type;
+
+	int eventid;
+
+	map<unsigned int, drone_cmd_rec *> drone_cmd_map;
+
+	friend int drone_die_callback(DRONE_CMD_PARMS);
 
 };
 

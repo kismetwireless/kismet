@@ -844,7 +844,7 @@ int KisNetFramework::BufferDrained(int in_fd) {
 		if (opt->backlog.size() == 0) {
 			snprintf(errstr, 1024, "Flushed protocol data backlog for Kismet "
 					 "client %d", in_fd);
-			_MSG(errstr, MSGFLAG_LOCAL);
+			_MSG(errstr, (MSGFLAG_LOCAL | MSGFLAG_ERROR));
 		}
 	}
 
@@ -1087,7 +1087,7 @@ int KisNetFramework::SendToClient(int in_fd, int in_refnum, const void *in_data,
 	if (ret == -2) {
 		snprintf(errstr, 1024, "Client %d ring buffer full, storing Kismet protocol "
 				 "data in backlog vector", in_fd);
-		_MSG(errstr, MSGFLAG_LOCAL);
+		_MSG(errstr, (MSGFLAG_LOCAL | MSGFLAG_INFO));
 		opt->backlog.push_back(outtext);
 		delete[] outtext;
 		return 0;

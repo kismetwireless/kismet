@@ -20,6 +20,7 @@
 
 #include <string>
 #include <sstream>
+#include <iomanip>
 
 #include "util.h"
 #include "endian_magic.h"
@@ -30,6 +31,7 @@
 #include "tcpserver.h"
 #include "getopt.h"
 #include "gpscore.h"
+#include "version.h"
 
 void KisDroneframe_MessageClient::ProcessMessage(string in_msg, int in_flags) {
 	string msg;
@@ -51,6 +53,10 @@ void KisDroneframe_MessageClient::ProcessMessage(string in_msg, int in_flags) {
 
 int kisdrone_chain_hook(CHAINCALL_PARMS) {
 	return ((KisDroneFramework *) auxdata)->chain_handler(in_pack);
+}
+
+int kisdrone_time_hook(TIMEEVENT_PARMS) {
+	return ((KisDroneFramework *) parm)->time_handler();
 }
 
 void KisDroneFramework::Usage(char *name) {
@@ -117,9 +123,10 @@ KisDroneFramework::KisDroneFramework(GlobalRegistry *in_globalreg) {
 
 	if (listenline.length() == 0 &&
 		(listenline = globalreg->kismet_config->FetchOpt("dronelisten")) == "") {
-		_MSG("No 'dronelisten' config line defined for the Kismet drone server",
-			 MSGFLAG_FATAL);
-		globalreg->fatal_condition = 1;
+		_MSG("No 'dronelisten' config line and no command line drone-listen "
+			 "argument given, Kismet drone server will not be enabled.",
+			 MSGFLAG_INFO);
+		server_type = -1;
 		return;
 	}
 
@@ -173,16 +180,37 @@ KisDroneFramework::KisDroneFramework(GlobalRegistry *in_globalreg) {
 	globalreg->packetchain->RegisterHandler(&kisdrone_chain_hook, this,
 											CHAINPOS_POSTCAP, -100);
 
+	// Event trigger
+	eventid = 
+		globalreg->timetracker->RegisterTimer(SERVER_TIMESLICES_SEC, NULL, 1, 
+											  &kisdrone_time_hook, (void *) this);
+
+	// Register the internals so nothing else can, but they just get nulls
+	RegisterDroneCmd(0, NULL, this); // null
+	RegisterDroneCmd(1, NULL, this); // helo
+	RegisterDroneCmd(2, NULL, this); // string
+	RegisterDroneCmd(3, NULL, this); // cappacket
+	
 }
 
 KisDroneFramework::~KisDroneFramework() {
 	if (globalreg != NULL && globalreg->messagebus != NULL) {
 		globalreg->messagebus->RemoveClient(kisdrone_msgcli);
 	}
+
+	if (eventid >= 0) {
+		globalreg->timetracker->RemoveTimer(eventid);
+	}
 }
 
 int KisDroneFramework::Activate() {
 	ostringstream osstr;
+
+	if (server_type == -1) {
+		_MSG("Kismet drone framework disabled, drone will not be activated.",
+			 MSGFLAG_INFO);
+		return 0;
+	}
 
 	if (server_type != 0) {
 		_MSG("KisDroneFramework unknown server type, something didn't "
@@ -219,7 +247,10 @@ int KisDroneFramework::Accept(int in_fd) {
 	dpkt->data_len = kis_hton32(sizeof(drone_helo_packet));
 
 	drone_helo_packet *hpkt = (drone_helo_packet *) dpkt->data;
-	hpkt->version = kis_hton32(KIS_DRONE_VERSION);
+	hpkt->drone_version = kis_hton32(KIS_DRONE_VERSION);
+	snprintf((char *) hpkt->kismet_version, 32, "%s-%s-%s", 
+			 VERSION_MAJOR, VERSION_MINOR, VERSION_TINY);
+	snprintf((char *) hpkt->host_name, 32, "%s", globalreg->servername.c_str());
 
 	int ret = 0;
 	ret = SendPacket(in_fd, dpkt);
@@ -229,7 +260,117 @@ int KisDroneFramework::Accept(int in_fd) {
 	return ret;
 }
 
+int KisDroneFramework::RegisterDroneCmd(uint32_t in_cmdid, 
+										DroneCmdCallback in_callback, void *in_aux) {
+	ostringstream osstr;
+
+	if (drone_cmd_map.find(in_cmdid) != drone_cmd_map.end()) {
+		osstr << "Drone cannot register command id " << in_cmdid << " (" <<
+			hex << setprecision(4) << in_cmdid << ") because it already exists";
+		_MSG(osstr.str(), MSGFLAG_ERROR);
+		return -1;
+	}
+
+	drone_cmd_rec *rec = new drone_cmd_rec;
+	rec->auxptr = in_aux;
+	rec->callback = in_callback;
+
+	drone_cmd_map[in_cmdid] = rec;
+
+	return 1;
+}
+
+int KisDroneFramework::RemoveDroneCmd(uint32_t in_cmdid) {
+	if (drone_cmd_map.find(in_cmdid) == drone_cmd_map.end())
+		return 0;
+
+	map<unsigned int, drone_cmd_rec *>::iterator dcritr = 
+		drone_cmd_map.find(in_cmdid);
+
+	if (dcritr == drone_cmd_map.end()) {
+		return 0;
+	}
+
+	delete dcritr->second;
+	drone_cmd_map.erase(dcritr);
+
+	return 1;
+}
+
 int KisDroneFramework::ParseData(int in_fd) {
+	int len, rlen;
+	uint8_t *buf;
+	ostringstream osstr;
+
+	len = netserver->FetchReadLen(in_fd);
+
+	// We don't care at all if we're less than the size of a drone frame
+	if (len < (int) sizeof(drone_packet))
+		return 0;
+	
+	buf = new uint8_t[len + 1];
+
+	if (netserver->ReadData(in_fd, buf, len, &rlen) < 0) {
+		osstr << "DroneFramework::ParseData failed to fetch data from "
+			"client id " << in_fd;
+		_MSG(osstr.str(), MSGFLAG_ERROR);
+		delete[] buf;
+		return -1;
+	}
+
+	if (rlen < (int) sizeof(drone_packet)) {
+		delete[] buf;
+		return 0;
+	}
+
+	drone_packet *dpkt = (drone_packet *) buf;
+
+	if (kis_ntoh32(dpkt->sentinel) != DroneSentinel) {
+		osstr << "DroneFramework::ParseData failed to find sentinel "
+			"value in packet header, dropping connection to client " << in_fd;
+		_MSG(osstr.str(), (MSGFLAG_ERROR | MSGFLAG_LOCAL));
+		delete[] buf;
+		return -1;
+	}
+
+	unsigned int dplen = kis_ntoh32(dpkt->data_len);
+
+	// Check for an incomplete packet in the buffer
+	if (rlen < (int) (dplen + sizeof(drone_packet))) {
+		delete[] buf;
+		return 0;
+	}
+
+	unsigned int dcid = kis_ntoh32(dpkt->drone_cmdnum);
+
+	// Do something with the command
+	map<unsigned int, drone_cmd_rec *>::iterator dcritr = 
+		drone_cmd_map.find(dcid);
+	if (dcritr == drone_cmd_map.end()) {
+		osstr << "DroneFramework::ParseData got unknown packet type " <<
+			dcid << "(" << hex << setprecision(4) << dcid << ")";
+		_MSG(osstr.str(), (MSGFLAG_INFO | MSGFLAG_LOCAL));
+	} else {
+		if (dcritr->second->callback == NULL) {
+			osstr << "DroneFramework::ParseData throwing away packet of known "
+				"type " << dcid << " (" << hex << setprecision(4) << dcid << ") "
+				"with no handler";
+			_MSG(osstr.str(), (MSGFLAG_INFO | MSGFLAG_LOCAL));
+		} else {
+			int ret = 
+				(*dcritr->second->callback)(globalreg, dpkt, dcritr->second->auxptr);
+			if (ret < 0) {
+				delete[] buf;
+				return -1;
+			}
+		}
+	}
+
+	// Take it out of the ring buffer
+	netserver->MarkRead(in_fd, (dplen + sizeof(drone_packet)));
+
+	delete[] buf;
+	
 	return 1;
 }
 
@@ -297,7 +438,7 @@ int KisDroneFramework::SendPacket(int in_cl, drone_packet *in_pack) {
 		ostringstream osstr;
 		osstr << "Kismet drone server client fd " << in_cl << " ring buffer "
 			"full, throwing away packet";
-		_MSG(osstr.str(), MSGFLAG_LOCAL);
+		_MSG(osstr.str(), (MSGFLAG_INFO | MSGFLAG_LOCAL));
 		return 0;
 	}
 
@@ -471,6 +612,11 @@ int KisDroneFramework::chain_handler(kis_packet *in_pack) {
 	SendAllPacket(dpkt);
 
 	free(dpkt);
+
+	return 1;
+}
+
+int KisDroneFramework::time_handler() {
 
 	return 1;
 }
