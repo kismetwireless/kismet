@@ -420,7 +420,7 @@ int KisDroneFramework::SendAllText(string in_text, int flags) {
 	netserver->FetchClientVector(&clvec);
 
 	for (unsigned int x = 0; x < clvec.size(); x++) {
-		if (SendText(x, in_text, flags) > 0)
+		if (SendText(clvec[x], in_text, flags) > 0)
 			nsent++;
 	}
 
@@ -455,7 +455,7 @@ int KisDroneFramework::SendAllPacket(drone_packet *in_pack) {
 	netserver->FetchClientVector(&clvec);
 
 	for (unsigned int x = 0; x < clvec.size(); x++) {
-		if (SendPacket(x, in_pack) > 0)
+		if (SendPacket(clvec[x], in_pack) > 0)
 			nsent++;
 	}
 
@@ -466,16 +466,22 @@ int KisDroneFramework::SendAllPacket(drone_packet *in_pack) {
 // drone client.  We automatically handle sending or not sending GPS data
 // based on its presence in the chain packet.  Same with signal level data.
 int KisDroneFramework::chain_handler(kis_packet *in_pack) {
+	vector<int> clvec;
+
+	if (netserver == NULL)
+		return 0;
+
+	netserver->FetchClientVector(&clvec);
+
+	if (clvec.size() <= 0)
+		return 0;
+
 	kis_gps_packinfo *gpsinfo = NULL;
-	kis_ieee80211_packinfo *eight11 = NULL;
 	kis_layer1_packinfo *radio = NULL;
 	kis_datachunk *chunk = NULL;
 
 	// Get gps info
 	gpsinfo = (kis_gps_packinfo *) in_pack->fetch(_PCM(PACK_COMP_GPS));
-
-	// Get 80211 decoded info
-	eight11 = (kis_ieee80211_packinfo *) in_pack->fetch(_PCM(PACK_COMP_80211));
 
 	// Get radio-header info
 	radio = (kis_layer1_packinfo *) in_pack->fetch(_PCM(PACK_COMP_RADIODATA));
@@ -483,10 +489,10 @@ int KisDroneFramework::chain_handler(kis_packet *in_pack) {
 	// Try to find if we have a data chunk through various means
 	chunk = (kis_datachunk *) in_pack->fetch(_PCM(PACK_COMP_MANGLEFRAME));
 	if (chunk == NULL) {
-		if ((chunk =
-			 (kis_datachunk *) in_pack->fetch(_PCM(PACK_COMP_MANGLEFRAME))) == NULL) {
-			chunk = (kis_datachunk *) in_pack->fetch(_PCM(PACK_COMP_LINKFRAME));
-		}
+		chunk = (kis_datachunk *) in_pack->fetch(_PCM(PACK_COMP_80211FRAME));
+	}
+	if (chunk == NULL) {
+		chunk = (kis_datachunk *) in_pack->fetch(_PCM(PACK_COMP_LINKFRAME));
 	}
 
 	// Add up the size of the packet for the data[0] component 
@@ -495,10 +501,10 @@ int KisDroneFramework::chain_handler(kis_packet *in_pack) {
 		packet_len += sizeof(drone_capture_sub_gps);
 	if (radio != NULL)
 		packet_len += sizeof(drone_capture_sub_radio);
-	if (eight11 != NULL) 
+	if (chunk != NULL) {
 		packet_len += sizeof(drone_capture_sub_80211);
-	if (chunk != NULL)
 		packet_len += chunk->length;
+	}
 
 	// Packet = size of a normal packet + dynamic packetlen
 	drone_packet *dpkt = 
@@ -574,7 +580,7 @@ int KisDroneFramework::chain_handler(kis_packet *in_pack) {
 	}
 
 	// Finally the eight11 headers and the packet chunk itself
-	if (eight11 != NULL && chunk != NULL) {
+	if (chunk != NULL) {
 		dcpkt->cap_content_bitmap |= DRONEBIT(DRONE_CONTENT_IEEEPACKET);
 
 		drone_capture_sub_80211 *e1pkt =
@@ -594,15 +600,6 @@ int KisDroneFramework::chain_handler(kis_packet *in_pack) {
 		e1pkt->error = kis_hton16(in_pack->error);
 		e1pkt->tv_sec = kis_hton64(in_pack->ts.tv_sec);
 		e1pkt->tv_usec = kis_hton64(in_pack->ts.tv_usec);
-
-		// This should be big enough for the packet because we malloc'd it to
-		// be, but lets be sure
-		if (suboffst + chunk->length + sizeof(drone_capture_packet) >= packet_len) {
-			_MSG("Drone packet tx - something went wrong in allocating a "
-				 "packet to transmit the frame, bailing.", MSGFLAG_ERROR);
-			free(dpkt);
-			return 0;
-		}
 
 		memcpy(e1pkt->packdata, chunk->data, chunk->length);
 

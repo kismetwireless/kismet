@@ -1,5 +1,7 @@
 Nov 16 2005  devel  Fixed up error exporting to do _LOCAL | _FOO
                     Added command parsing to drone server
+                    Activated drone server in kismet_server.cc
+                    Fixed drone server stupidity
 Nov 15 2005  devel  Standardized some error reporting in netframe
                     Started drone protocol rewrite
 Nov 13 2005  devel  Fixed netframe fatal oops to match other code

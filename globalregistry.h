@@ -34,6 +34,7 @@ class Packetchain;
 class Alertracker;
 class Timetracker;
 class KisNetFramework;
+class KisDroneFramework;
 class ConfigFile;
 class SpeechControl;
 class SoundControl;
@@ -132,6 +133,7 @@ public:
     Alertracker *alertracker;
     Timetracker *timetracker;
     KisNetFramework *kisnetserver;
+    KisDroneFramework *kisdroneserver;
     ConfigFile *kismet_config;
     ConfigFile *kismetui_config;
     SpeechControl *speechctl;
@@ -214,6 +216,7 @@ public:
         alertracker = NULL;
         timetracker = NULL;
         kisnetserver = NULL;
+        kisdroneserver = NULL;
         kismet_config = NULL;
         kismetui_config = NULL;
         speechctl = NULL;

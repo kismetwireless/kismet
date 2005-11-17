@@ -48,6 +48,7 @@
 #include "netframework.h"
 #include "tcpserver.h"
 #include "kis_netframe.h"
+#include "kis_droneframe.h"
 
 #include "speechcontrol.h"
 #include "soundcontrol.h"
@@ -291,6 +292,8 @@ int Usage(char *argv) {
 	printf("\n");
 	KisNetFramework::Usage(argv);
 	printf("\n");
+	KisDroneFramework::Usage(argv);
+	printf("\n");
 	Dumpfile::Usage(argv);
 	printf("\n");
 	Packetsourcetracker::Usage(argv);
@@ -502,6 +505,11 @@ int main(int argc, char *argv[], char *envp[]) {
 	if (globalregistry->fatal_condition)
 		CatchShutdown(-1);
 
+	// Create the basic drone server
+	globalregistry->kisdroneserver = new KisDroneFramework(globalregistry);
+	if (globalregistry->fatal_condition)
+		CatchShutdown(-1);
+
 	// Create the alert tracker (this is important so it has to be done as root)
 	globalregistry->alertracker = new Alertracker(globalregistry);
 	if (globalregistry->fatal_condition)
@@ -544,6 +552,11 @@ int main(int argc, char *argv[], char *envp[]) {
 
 	// Create the basic network/protocol server
 	globalregistry->kisnetserver->Activate();
+	if (globalregistry->fatal_condition)
+		CatchShutdown(-1);
+
+	// Create the basic network/protocol server
+	globalregistry->kisdroneserver->Activate();
 	if (globalregistry->fatal_condition)
 		CatchShutdown(-1);
 
