@@ -186,10 +186,10 @@ KisDroneFramework::KisDroneFramework(GlobalRegistry *in_globalreg) {
 											  &kisdrone_time_hook, (void *) this);
 
 	// Register the internals so nothing else can, but they just get nulls
-	RegisterDroneCmd(0, NULL, this); // null
-	RegisterDroneCmd(1, NULL, this); // helo
-	RegisterDroneCmd(2, NULL, this); // string
-	RegisterDroneCmd(3, NULL, this); // cappacket
+	RegisterDroneCmd(DRONE_CMDNUM_NULL, NULL, this);
+	RegisterDroneCmd(DRONE_CMDNUM_HELO, NULL, this);
+	RegisterDroneCmd(DRONE_CMDNUM_STRING, NULL, this);
+	RegisterDroneCmd(DRONE_CMDNUM_CAPPACKET, NULL, this);
 	
 }
 
