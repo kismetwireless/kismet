@@ -23,6 +23,13 @@ allowplugins=true
 # YOU MUST CHANGE THIS TO BE THE SOURCE YOU WANT TO USE
 source=none,none,addme
 
+# Per-source special options
+# sourceopts=srcname:options
+# srcname * indicates "all sources".  Individual source options can be turned
+# off with "no", ie "noweakvalidate".  Some sources may have special options.
+# sourceopts=demo:fuzzycrypt,weakvalidate
+# sourceopts=demo2:nofuzzycrypt
+
 # Comma-separated list of sources to enable.  This is only needed if you defined
 # multiple sources and only want to enable some of them.  By default, all defined
 # sources are enabled.
@@ -266,12 +273,6 @@ phylog=true
 
 # Do we mangle packets if we can decrypt them or if they're fuzzy-detected
 mangledatalog=true
-
-# Do we do "fuzzy" crypt detection?  (byte-based detection instead of 802.11
-# frame headers)
-# valid option: Comma seperated list of card types to perform fuzzy detection 
-#  on, or 'all'
-fuzzycrypt=wtapfile,wlanng,wlanng_legacy,wlanng_avs,hostap,wlanng_wext
 
 # What type of dump do we generate? 
 # valid option: "wiretap" 

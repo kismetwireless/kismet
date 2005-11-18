@@ -31,7 +31,7 @@
 
 // Network stream protocol used for Drones.
 // Designed to be future-proof so that drone and server versions will be able
-// to comingle, instead of breaking all the users every time we find a field
+// to co-mingle, instead of breaking all the users every time we find a field
 // we have to add.
 //
 // Future-proofing is accomplished via nested bitfields for each component and

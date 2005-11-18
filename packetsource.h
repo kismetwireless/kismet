@@ -29,6 +29,7 @@
 #include "packet.h"
 #include "timetracker.h"
 #include "gpsdclient.h"
+#include "configfile.h"
 
 /*
  * How packet sources, helper functions, and packetsourcetrackers work:
@@ -79,9 +80,11 @@ typedef int (*packsource_monitor)(MONITOR_PARMS);
 typedef struct packet_parm {
 	packet_parm() {
 		fuzzy_crypt = 0;
+		weak_dissect = 0;
 	}
 
     int fuzzy_crypt;
+	int weak_dissect;
 };
 
 // Packet capture source superclass ...  Not part of Pollable, because the
@@ -103,6 +106,41 @@ public:
         
         fcsbytes = 0;
 		carrier_set = 0;
+
+		// It seems like a bad idea to put this much into a function in a 
+		// header file, but it would have to change anyhow to update the
+		// struct
+		vector<string> rawopts = globalreg->kismet_config->FetchOptVec("sourceopts");
+		for (unsigned int x = 0; x < rawopts.size(); x++) {
+			vector<string> subopts = StrTokenize(rawopts[x], ":");
+			if (subopts.size() != 2)
+				continue;
+			if (StrLower(subopts[0]) != StrLower(in_name) && subopts[0] != "*")
+				continue;
+			subopts = StrTokenize(subopts[1], ",", 1);
+			for (unsigned y = 0; y < subopts.size(); y++) {
+				subopts[y] = StrLower(subopts[y]);
+				optargs.push_back(subopts[y]);
+
+				if (subopts[y] == "fuzzycrypt") {
+					genericparms.fuzzy_crypt = 1;
+					_MSG("Enabling fuzzy encryption detection on packet "
+						 "source '" + in_name + "'", MSGFLAG_INFO);
+				} else if (subopts[y] == "nofuzzycrypt") {
+					genericparms.fuzzy_crypt = 0;
+					_MSG("Forced disabling of fuzzy encryption detection on packet "
+						 "source '" + in_name + "'", MSGFLAG_INFO);
+				} else if (subopts[y] == "weakvalidate") {
+					genericparms.weak_dissect = 1;
+					_MSG("Enabling weak frame validation on packet "
+						 "source '" + in_name + "'", MSGFLAG_INFO);
+				} else if (subopts[y] == "noweakvalidate") {
+					genericparms.weak_dissect = 0;
+					_MSG("Forced disabling of weak frame validation on packet "
+						 "source '" + in_name + "'", MSGFLAG_INFO);
+				}
+			}
+		}
     }
 
     virtual ~KisPacketSource() { }
@@ -144,6 +182,8 @@ public:
 
 	virtual meta_packsource *FetchMetasource() { return metasource; }
 
+	virtual packet_parm FetchGenericParms() { return genericparms; }
+
 protected:
 	virtual void FetchRadioData(kis_packet *in_packet) = 0;
 
@@ -168,7 +208,12 @@ protected:
 
 	// Set of carrier types
 	int carrier_set;
-	
+
+	// Generic packetsource optional parameters
+	packet_parm genericparms;
+
+	// Optional parameters from the config file which apply to this source
+	vector<string> optargs;
 };
 
 #endif

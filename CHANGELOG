@@ -1,3 +1,6 @@
+Nov 17 2005  devel  Added 'sourceopts' config line to set per-source special
+                     options ('fuzzycrypt' moved to here, added 'weakvalidate'
+                     to loosen frame header validation restrictions)
 Nov 16 2005  devel  Fixed up error exporting to do _LOCAL | _FOO
                     Added command parsing to drone server
                     Activated drone server in kismet_server.cc
