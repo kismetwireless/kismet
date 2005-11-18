@@ -75,6 +75,8 @@ protected:
 	char cli_host[129];
 
 	virtual int Reconnect();
+
+	int timerid;
 };
 
 class PacketSource_Drone : public KisPacketSource {
@@ -97,6 +99,8 @@ public:
 	virtual int FetchChannel();
 
 protected:
+	virtual void FetchRadioData(kis_packet *in_packet);
+
 	DroneClientFrame *droneframe;
 	int reconnect;
 };	

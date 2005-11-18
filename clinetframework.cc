@@ -20,7 +20,8 @@
 #include "clinetframework.h"
 
 NetworkClient::NetworkClient() {
-    fprintf(stderr, "*** NetworkClient() called with no global registry\n");
+	fprintf(stderr, "FATAL OOPS:  Networkclient() called with no globalreg\n");
+	exit(-1);
 }
 
 NetworkClient::NetworkClient(GlobalRegistry *in_globalreg) {

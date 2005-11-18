@@ -1,4 +1,5 @@
 Nov 18 2005  devel  Did beginnings of drone packet source & client framework
+                    Activated packetsource_drone (does nothing yet)
 Nov 17 2005  devel  Added 'sourceopts' config line to set per-source special
                      options ('fuzzycrypt' moved to here, added 'weakvalidate'
                      to loosen frame header validation restrictions)

@@ -27,6 +27,7 @@
 #include "packetsource_pcap.h"
 #include "packetsource_wext.h"
 #include "packetsource_bsdrt.h"
+#include "packetsource_drone.h"
 #include "configfile.h"
 #include "getopt.h"
 
@@ -226,6 +227,11 @@ Packetsourcetracker::Packetsourcetracker(GlobalRegistry *in_globalreg) {
     RegisterPacketsource("none", 0, "na", 0, NULL,
                          nullsource_registrant,
                          NULL, unmonitor_nullsource, NULL, 0);
+
+	// Everyone gets a drone
+	RegisterPacketsource("drone", 0, "na", 0, NULL,
+						 packetsource_drone_registrant,
+						 NULL, unmonitor_drone, NULL, 0);
 
 #ifdef HAVE_LIBPCAP
     // pcapfile doesn't have channel or monitor controls and can't autoreg
@@ -602,7 +608,10 @@ int Packetsourcetracker::Poll(fd_set& in_rset, fd_set& in_wset) {
 
 	// Sweep the packet sources
 	for (unsigned int x = 0; x < live_packsources.size(); x++) {
-		if (FD_ISSET(live_packsources[x]->FetchDescriptor(), &in_rset)) {
+		int desc = 
+			live_packsources[x]->FetchDescriptor();
+
+		if (desc >= 0 && FD_ISSET(desc, &in_rset)) {
 			live_packsources[x]->Poll();
 		}
 	}

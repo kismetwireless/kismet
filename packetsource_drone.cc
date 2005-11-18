@@ -39,9 +39,20 @@ DroneClientFrame::DroneClientFrame() {
 	exit(1);
 }
 
-DroneClientFrame::DroneClientFrame(GlobalRegistry *in_globalreg) {
+DroneClientFrame::DroneClientFrame(GlobalRegistry *in_globalreg) :
+	ClientFramework(in_globalreg) {
 	// Not much to do here, the real magic happens in OpenConnection(..)
 	globalreg = in_globalreg;
+
+	if (globalreg->packetchain == NULL) {
+		fprintf(stderr, "FATAL OOPS: DroneClientFrame called before packetchain\n");
+		exit(1);
+	}
+
+	if (globalreg->timetracker == NULL) {
+		fprintf(stderr, "FATAL OOPS: DroneClientFrame called before timetracker\n");
+		exit(1);
+	}
 
 	netclient = NULL;
 	tcpcli = NULL;
@@ -49,11 +60,21 @@ DroneClientFrame::DroneClientFrame(GlobalRegistry *in_globalreg) {
 	reconnect = 0;
 
 	cli_type = -1;
+
+	timerid = 
+		globalreg->timetracker->RegisterTimer(SERVER_TIMESLICES_SEC, NULL, 1,
+											  &droneclienttimer_hook, (void *) this);
+
+	last_disconnect = 0;
 }
 
 DroneClientFrame::~DroneClientFrame() {
 	if (netclient != NULL) {
 		netclient->KillConnection();
+	}
+
+	if (timerid >= 0 && globalreg != NULL) {
+		globalreg->timetracker->RemoveTimer(timerid);
 	}
 }
 
@@ -211,15 +232,34 @@ int PacketSource_Drone::CloseSource() {
 	return 1;
 }
 
+void PacketSource_Drone::FetchRadioData(kis_packet *in_packet) {
+	// Nothing to do here
+	return;
+}
+
 int PacketSource_Drone::FetchDescriptor() {
+	// Nothing to do here, the pollable droneclientframe handles it
 	return -1;
 }
 
 int PacketSource_Drone::Poll() {
+	// Nothing to do here, we should never even be called.   Pollable
+	// droneclientframe handles it
 	return 0;
 }
 
 int PacketSource_Drone::FetchChannel() {
+	// Nope
+	return 0;
+}
+
+KisPacketSource *packetsource_drone_registrant(REGISTRANT_PARMS) {
+	PacketSource_Drone *ret =
+		new PacketSource_Drone(globalreg, in_meta, in_name, in_device);
+	return ret;
+}
+
+int unmonitor_drone(MONITOR_PARMS) {
 	return 0;
 }
 

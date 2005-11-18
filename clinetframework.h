@@ -127,9 +127,8 @@ protected:
 class ClientFramework : public Pollable {
 public:
     ClientFramework() {
-        globalreg = NULL;
-        netclient = NULL;
-        fprintf(stderr, "*** ClientFramework called with no global registry\n");
+		fprintf(stderr, "FATAL OOPS:  ClientFramework called with no globalreg\n");
+		exit(1);
     };
 
     ClientFramework(GlobalRegistry *in_reg) {
