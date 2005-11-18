@@ -83,9 +83,9 @@ public:
 	PacketSource_Drone(GlobalRegistry *in_globalreg, meta_packsource *in_meta, 
 					   string in_name, string in_dev) :
 		KisPacketSource(in_globalreg, in_meta, in_name, in_dev) { 
-			// Nothing special here
+			droneframe = NULL;
 		}
-	virtual ~PacketSource_Drone() { }
+	virtual ~PacketSource_Drone();
 
 	virtual int OpenSource();
 	virtual int CloseSource();
@@ -97,7 +97,8 @@ public:
 	virtual int FetchChannel();
 
 protected:
-
+	DroneClientFrame *droneframe;
+	int reconnect;
 };	
 
 // Drone registrant and 0-return unmonitor function

@@ -102,6 +102,7 @@ int DroneClientFrame::OpenConnection(string in_conparm, int in_recon) {
 		}
 
 		last_disconnect = time(0);
+		return 0;
 	}
 
 	return 1;
@@ -165,6 +166,60 @@ int DroneClientFrame::Shutdown() {
 
 int DroneClientFrame::ParseData() {
 
+	return 0;
+}
+
+PacketSource_Drone::~PacketSource_Drone() {
+	if (droneframe != NULL) {
+		droneframe->Shutdown();
+		delete droneframe;
+	}
+}
+
+int PacketSource_Drone::OpenSource() {
+	if (droneframe == NULL)
+		droneframe = new DroneClientFrame(globalreg);
+
+	// Look for the reconnect parm
+	for (unsigned int x = 0; x < optargs.size(); x++) {
+		if (optargs[x] == "reconnect") {
+			reconnect = 1;
+		} else if (optargs[x] == "noreconnect") {
+			reconnect = 0;
+		}
+	}
+
+	if (droneframe->OpenConnection(interface, reconnect) < 0 ||
+		globalreg->fatal_condition) {
+		_MSG("Packetsource drone (" + name + ") failed to create drone "
+			 "framework and open connection", MSGFLAG_FATAL);
+		globalreg->fatal_condition = 1;
+		return -1;
+	}
+
+	return 1;
+}
+
+int PacketSource_Drone::CloseSource() {
+	if (droneframe == NULL)
+		return 0;
+
+	droneframe->Shutdown();
+	delete droneframe;
+	droneframe = NULL;
+
+	return 1;
+}
+
+int PacketSource_Drone::FetchDescriptor() {
+	return -1;
+}
+
+int PacketSource_Drone::Poll() {
+	return 0;
+}
+
+int PacketSource_Drone::FetchChannel() {
 	return 0;
 }
 
