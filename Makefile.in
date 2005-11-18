@@ -38,7 +38,7 @@ DEPEND	= .depend
 PSO	= util.o ringbuf.o messagebus.o configfile.o getopt.o filtercore.o \
 	ifcontrol.o iwcontrol.o ipc_remote.o soundcontrol.o speechcontrol.o \
 	netframework.o clinetframework.o tcpserver.o tcpclient.o \
-	kis_netframe.o gpscore.o gpsdclient.o \
+	kis_netframe.o kis_droneframe.o gpscore.o gpsdclient.o \
 	packetchain.o packetsource_pcap.o packetsource_wext.o packetsource_bsdrt.o \
 	plugintracker.o packetsourcetracker.o alertracker.o timetracker.o \
 	packetdissectors.o netracker.o \
