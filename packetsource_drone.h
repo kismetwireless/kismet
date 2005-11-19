@@ -47,6 +47,7 @@ public:
 	DroneClientFrame(GlobalRegistry *in_globalreg);
 	virtual ~DroneClientFrame();
 
+	virtual void SetPacketsource(void *in_src);
 	virtual int OpenConnection(string in_conparm, int in_recon);
 
 	virtual unsigned int MergeSet(unsigned int in_max_fd, fd_set *out_rset,
@@ -73,6 +74,8 @@ protected:
 	char cli_host[129];
 
 	virtual int Reconnect();
+
+	void *packetsource;
 
 	int timerid;
 };

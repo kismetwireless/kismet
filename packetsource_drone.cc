@@ -29,6 +29,7 @@
 #include "kis_droneframe.h"
 #include "clinetframework.h"
 #include "tcpclient.h"
+#include "packetsourcetracker.h"
 #include "packetsource_drone.h"
 
 int droneclienttimer_hook(TIMEEVENT_PARMS) {
@@ -57,6 +58,7 @@ DroneClientFrame::DroneClientFrame(GlobalRegistry *in_globalreg) :
 
 	netclient = NULL;
 	tcpcli = NULL;
+	packetsource = NULL;
 
 	reconnect = 0;
 
@@ -79,6 +81,10 @@ DroneClientFrame::~DroneClientFrame() {
 	if (timerid >= 0 && globalreg != NULL) {
 		globalreg->timetracker->RemoveTimer(timerid);
 	}
+}
+
+void DroneClientFrame::SetPacketsource(void *in_src) {
+	packetsource = in_src;
 }
 
 int DroneClientFrame::OpenConnection(string in_conparm, int in_recon) {
@@ -500,6 +506,12 @@ int DroneClientFrame::ParseData() {
 			}
 		}
 
+		if (packetsource != NULL) {
+			kis_ref_capsource *csrc_ref = new kis_ref_capsource;
+			csrc_ref->ref_source = (KisPacketSource *) packetsource;
+			newpack->insert(_PCM(PACK_COMP_KISCAPSRC), csrc_ref);
+		}
+
 		globalreg->packetchain->ProcessPacket(newpack);
 	}
 	
@@ -529,6 +541,8 @@ int PacketSource_Drone::OpenSource() {
 			reconnect = 0;
 		}
 	}
+
+	droneframe->SetPacketsource((void *) this);
 
 	if (droneframe->OpenConnection(interface, reconnect) < 0 ||
 		globalreg->fatal_condition) {
