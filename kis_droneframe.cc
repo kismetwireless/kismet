@@ -570,12 +570,18 @@ int KisDroneFramework::chain_handler(kis_packet *in_pack) {
 		DRONE_CONV_DOUBLE(gpsinfo->heading, &(gppkt->gps_heading));
 	}
 
+	// Other packet types go here
+
 	// Finally the eight11 headers and the packet chunk itself
 	if (chunk != NULL && in_pack->error == 0) {
 		dcpkt->cap_content_bitmap |= DRONEBIT(DRONE_CONTENT_IEEEPACKET);
 
 		drone_capture_sub_80211 *e1pkt =
 			(drone_capture_sub_80211 *) &(dcpkt->content[suboffst]);
+
+		// Set the offset to be the head of the eight11 frame since we
+		// skip to the end of the content set
+		dcpkt->cap_packet_offset = kis_hton32(suboffst);
 
 		suboffst += sizeof(drone_capture_sub_80211);
 
@@ -591,8 +597,6 @@ int KisDroneFramework::chain_handler(kis_packet *in_pack) {
 		e1pkt->tv_usec = kis_hton64(in_pack->ts.tv_usec);
 
 		memcpy(e1pkt->packdata, chunk->data, chunk->length);
-
-		dcpkt->cap_packet_offset = kis_hton32(suboffst);
 	}
 
 	SendAllPacket(dpkt);

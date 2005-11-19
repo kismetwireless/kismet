@@ -54,9 +54,7 @@ public:
 		return netclient->MergeSet(in_max_fd, out_rset, out_wset);
 	}
 
-	virtual int Poll(fd_set &in_rset, fd_set& in_wset) {
-		return netclient->Poll(in_rset, in_wset);
-	}
+	virtual int Poll(fd_set &in_rset, fd_set& in_wset);
 
 	virtual int ParseData();
 	virtual int KillConnection();

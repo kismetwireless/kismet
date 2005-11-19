@@ -188,6 +188,29 @@ int DroneClientFrame::Shutdown() {
 	return 1;
 }
 
+int DroneClientFrame::Poll(fd_set &in_rset, fd_set& in_wset) {
+	int ret = netclient->Poll(in_rset, in_wset);
+
+	if (ret < 0) {
+		if (reconnect) {
+			_MSG("Kismet drone client failed to poll data from the "
+				 "TCP connection.  Will attempt to reconnect in 5 seconds",
+				 MSGFLAG_ERROR);
+			last_disconnect = time(0);
+			KillConnection();
+			return 0;
+		} else {
+			_MSG("Kismet drone client failed to poll data from the "
+				 "TCP connection.  This error is fatal because "
+				 "drone reconnecting is not enabled", MSGFLAG_FATAL);
+			globalreg->fatal_condition = 1;
+			return -1;
+		}
+	}
+
+	return ret;
+}
+
 int DroneClientFrame::ParseData() {
 	int len, rlen;
 	uint8_t *buf;
@@ -414,6 +437,9 @@ int DroneClientFrame::ParseData() {
 		}
 
 		if (dcpkt->cap_content_bitmap & DRONEBIT(DRONE_CONTENT_IEEEPACKET)) {
+			// Jump to thend of the capframe
+			poffst = kis_ntoh32(dcpkt->cap_packet_offset);
+
 			drone_capture_sub_80211 *ds11 = 
 				(drone_capture_sub_80211 *) &(dcpkt->content[poffst]);
 
@@ -472,9 +498,6 @@ int DroneClientFrame::ParseData() {
 
 				newpack->insert(_PCM(PACK_COMP_LINKFRAME), chunk);
 			}
-
-			// Jump to the end of this packet
-			poffst += sublen;
 		}
 
 		globalreg->packetchain->ProcessPacket(newpack);
