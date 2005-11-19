@@ -18,6 +18,8 @@
 
 #include "config.h"
 
+#define KISMET_DRONE
+
 #include <unistd.h>
 #include <sys/stat.h>
 #include <sys/types.h>
@@ -29,46 +31,136 @@
 #include <string>
 #include <vector>
 
-#include "packet.h"
+#include "util.h"
 
-#include "packetsource.h"
-#include "prism2source.h"
-#include "pcapsource.h"
-#include "wtapfilesource.h"
-#include "wsp100source.h"
-#include "vihasource.h"
-#include "dronesource.h"
-#include "packetsourcetracker.h"
-#include "kis_packsources.h"
+#include "globalregistry.h"
 
-#include "gpsd.h"
-#include "tcpstreamer.h"
 #include "configfile.h"
+#include "messagebus.h"
+
+#include "plugintracker.h"
+
+#include "packetsourcetracker.h"
 
 #include "timetracker.h"
+
+#include "netframework.h"
+#include "tcpserver.h"
+// Include the stubbed empty netframe code
+#include "kis_netframe.h"
+#include "kis_droneframe.h"
+
+#include "gpsdclient.h"
 
 #ifndef exec_name
 char *exec_name;
 #endif
 
+// One of our few globals in this file
+int glob_linewrap = 1;
+int glob_silent = 0;
+
+// Message clients that are attached at the master level
+// Smart standard out client that understands the silence options
+class SmartStdoutMessageClient : public MessageClient {
+public:
+    SmartStdoutMessageClient(GlobalRegistry *in_globalreg, void *in_aux) :
+        MessageClient(in_globalreg, in_aux) { }
+    virtual ~SmartStdoutMessageClient() { }
+    void ProcessMessage(string in_msg, int in_flags);
+};
+
+void SmartStdoutMessageClient::ProcessMessage(string in_msg, int in_flags) {
+	if (glob_silent)
+		return;
+
+    if ((in_flags & MSGFLAG_DEBUG)) {
+		if (glob_linewrap)
+			fprintf(stdout, "%s", InLineWrap("DEBUG: " + in_msg, 7, 80).c_str());
+		else
+			fprintf(stdout, "DEBUG: %s\n", in_msg.c_str());
+	} else if ((in_flags & MSGFLAG_LOCAL)) {
+		if (glob_linewrap)
+			fprintf(stdout, "%s", InLineWrap("LOCAL: " + in_msg, 7, 80).c_str());
+		else
+			fprintf(stdout, "LOCAL: %s\n", in_msg.c_str());
+	} else if ((in_flags & MSGFLAG_INFO)) {
+		if (glob_linewrap)
+			fprintf(stdout, "%s", InLineWrap("INFO: " + in_msg, 6, 80).c_str());
+		else
+			fprintf(stdout, "INFO: %s\n", in_msg.c_str());
+	} else if ((in_flags & MSGFLAG_ERROR)) {
+		if (glob_linewrap)
+			fprintf(stdout, "%s", InLineWrap("ERROR: " + in_msg, 7, 80).c_str());
+		else
+			fprintf(stdout, "ERROR: %s\n", in_msg.c_str());
+	} else if ((in_flags & MSGFLAG_ALERT)) {
+		if (glob_linewrap)
+			fprintf(stdout, "%s", InLineWrap("ALERT: " + in_msg, 7, 80).c_str());
+		else
+			fprintf(stdout, "ALERT: %s\n", in_msg.c_str());
+	} else if (in_flags & MSGFLAG_FATAL) {
+		if (glob_linewrap)
+			fprintf(stderr, "%s", InLineWrap("FATAL: " + in_msg, 7, 80).c_str());
+		else
+			fprintf(stderr, "FATAL: %s\n", in_msg.c_str());
+	}
+    
+    return;
+}
+
+// Queue of fatal alert conditions to spew back out at the end
+class FatalQueueMessageClient : public MessageClient {
+public:
+    FatalQueueMessageClient(GlobalRegistry *in_globalreg, void *in_aux) :
+        MessageClient(in_globalreg, in_aux) { }
+    virtual ~FatalQueueMessageClient() { }
+    void ProcessMessage(string in_msg, int in_flags);
+    void DumpFatals();
+protected:
+    vector<string> fatalqueue;
+};
+
+void FatalQueueMessageClient::ProcessMessage(string in_msg, int in_flags) {
+    // We only get passed fatal stuff so save a test
+    fatalqueue.push_back(in_msg);
+}
+
+void FatalQueueMessageClient::DumpFatals() {
+    for (unsigned int x = 0; x < fatalqueue.size(); x++) {
+		if (glob_linewrap)
+			fprintf(stderr, "%s", InLineWrap("FATAL: " + fatalqueue[x], 
+											 7, 80).c_str());
+		else
+			fprintf(stderr, "FATAL: %s\n", fatalqueue[x].c_str());
+    }
+}
+
 const char *config_base = "kismet_drone.conf";
+const char *pid_base = "kismet_drone.pid";
 
-GPSD *gps = NULL;
-#ifdef HAVE_GPS
-int gpsmode = 0;
-int gps_enable = 0;
-#endif
+// This needs to be a global but nothing outside of this main file will
+// use it, so we don't have to worry much about putting it in the globalreg.
+FatalQueueMessageClient *fqmescli = NULL;
 
-// Timetracker
-Timetracker timetracker;
+// Some globals for command line options
+char *configfile = NULL;
 
-// Source trcker
-Packetsourcetracker sourcetracker;
+// Ultimate registry of global components
+GlobalRegistry *globalregistry = NULL;
 
-// Catch a fast error shutdown
+// Quick shutdown to clean up from a fatal config after we opened the child
 void ErrorShutdown() {
-    sourcetracker.CloseSources();
-    sourcetracker.ShutdownChannelChild();
+    // Shut down the packet sources
+    if (globalregistry->sourcetracker != NULL) {
+        globalregistry->sourcetracker->CloseSources();
+
+        // Shut down the channel control child
+        globalregistry->sourcetracker->ShutdownChannelChild();
+    }
+
+    // Shouldn't need to requeue fatal errors here since error shutdown means 
+    // we just printed something about fatal errors.  Probably.
 
     fprintf(stderr, "Kismet drone exiting.\n");
     exit(1);
@@ -76,707 +168,425 @@ void ErrorShutdown() {
 
 // Catch our interrupt
 void CatchShutdown(int sig) {
-    sourcetracker.CloseSources();
-    sourcetracker.ShutdownChannelChild();
+    if (sig == SIGPIPE)
+        fprintf(stderr, "FATAL: A pipe closed unexpectedly, trying to shut down "
+                "cleanly...\n");
+
+    string termstr = "Kismet drone terminating.";
+
+	if (globalregistry->sourcetracker != NULL) {
+		// Shut down the packet sources
+		globalregistry->sourcetracker->CloseSources();
+	}
+
+	if (globalregistry->plugintracker != NULL)
+		globalregistry->plugintracker->ShutdownPlugins();
+
+	// Start a short shutdown cycle for 2 seconds
+	fprintf(stderr, "\n*** KISMET DRONE IS FLUSHING BUFFERS AND SHUTTING DOWN ***\n");
+	globalregistry->spindown = 1;
+	time_t shutdown_target = time(0) + 2;
+	int max_fd = 0;
+	fd_set rset, wset;
+	struct timeval tm;
+	while (1) {
+		FD_ZERO(&rset);
+		FD_ZERO(&wset);
+		max_fd = 0;
+
+		if (globalregistry->fatal_condition) {
+			break;
+		}
+
+		if (time(0) >= shutdown_target) {
+			break;
+		}
+
+		// Collect all the pollable descriptors
+		for (unsigned int x = 0; x < globalregistry->subsys_pollable_vec.size(); x++) 
+			max_fd = 
+				globalregistry->subsys_pollable_vec[x]->MergeSet(max_fd, &rset, 
+																 &wset);
+
+		tm.tv_sec = 0;
+		tm.tv_usec = 100000;
+
+		if (select(max_fd + 1, &rset, &wset, NULL, &tm) < 0) {
+			if (errno != EINTR) {
+				break;
+			}
+		}
+
+		for (unsigned int x = 0; x < globalregistry->subsys_pollable_vec.size(); 
+			 x++) {
+			if (globalregistry->subsys_pollable_vec[x]->Poll(rset, wset) < 0 &&
+				globalregistry->fatal_condition) {
+				break;
+			}
+		}
+	}
+
+	if (globalregistry->sourcetracker != NULL) {
+		// Shut down the channel control child
+		globalregistry->sourcetracker->ShutdownChannelChild();
+	}
+
+	// Be noisy
+	if (globalregistry->fatal_condition) {
+		fprintf(stderr, "\n*** KISMET DRONE HAS ENCOUNTERED A FATAL ERROR AND CANNOT "
+				"CONTINUE.  ***\n");
+	}
+    
+    // Dump fatal errors again
+    if (fqmescli != NULL) 
+        fqmescli->DumpFatals();
 
     fprintf(stderr, "Kismet drone exiting.\n");
     exit(0);
 }
 
-int GpsEvent(Timetracker::timer_event *evt, void *parm) {
-#ifdef HAVE_GPS
-    // The GPS only provides us a new update once per second we might
-    // as well only update it here once a second
-    if (gps_enable) {
-        int gpsret;
-        gpsret = gps->Scan();
-        if (gpsret < 0) {
-            if (!silent)
-                fprintf(stderr, "GPS error fetching data: %s\n",
-                        gps->FetchError());
-
-            gps_enable = 0;
-        }
-
-    }
-
-    // We want to be rescheduled
-    return 1;
-#endif
-    return 0;
-}
-
-// Handle channel hopping... this is actually really simple.
-int ChannelHopEvent(Timetracker::timer_event *evt, void *parm) {
-    sourcetracker.AdvanceChannel();
-
-    return 1;
-}
-
 int Usage(char *argv) {
     printf("Usage: %s [OPTION]\n", argv);
-    printf("Most (or all) of these options can (and should) be configured via the\n"
-           "kismet_drone.conf global config file, but can be overridden here.\n");
-    printf("  -I, --initial-channel <n:c>  Initial channel to monitor on (default: 6)\n"
-           "                                Format capname:channel\n"
-           "  -x, --force-channel-hop      Forcibly enable the channel hopper\n"
-           "  -X, --force-no-channel-hop   Forcibly disable the channel hopper\n"
-           "  -f, --config-file <file>     Use alternate config file\n"
-           "  -c, --capture-source <src>   Packet capture source line (type,interface,name)\n"
-           "  -C, --enable-capture-sources Comma separated list of named packet sources to use.\n"
-           "  -p, --port <port>            TCPIP server port for stream connections\n"
-           "  -a, --allowed-hosts <hosts>  Comma separated list of hosts allowed to connect\n"
-           "  -s, --silent                 Don't send any output to console.\n"
-           "  -N, --server-name            Server name\n"
-           "  -v, --version                Kismet version\n"
-           "  -h, --help                   What do you think you're reading?\n");
-    exit(1);
+	printf("Nearly all of these options are run-time overrides for values in the\n"
+		   "kismet.conf configuration file.  Permanent changes should be made to\n"
+		   "the configuration file.\n");
+
+	printf(" *** Generic Options ***\n");
+	printf(" -f, --config-file            Use alternate configuration file\n"
+		   "     --no-line-wrap           Turn of linewrapping of output\n"
+		   "                              (for grep, speed, etc)\n"
+		   " -s, --silent                 Turn off stdout output after setup phase\n"
+		   );
+
+	printf("\n");
+	KisDroneFramework::Usage(argv);
+	printf("\n");
+	Packetsourcetracker::Usage(argv);
+
+	exit(1);
 }
 
-int main(int argc, char *argv[]) {
-    exec_name = argv[0];
+int FindSuidTarget(string in_username, GlobalRegistry *globalreg,
+				   uid_t *ret_uid, gid_t *ret_gid) {
+	struct passwd *pwordent;
+	char *suid_user;
+	uid_t suid_uid, real_uid;
+	gid_t suid_gid;
+	char errstr[1024];
 
-    // Packet and contents
-    kis_packet packet;
-    uint8_t data[MAX_PACKET_LEN];
-    uint8_t moddata[MAX_PACKET_LEN];
+	real_uid = getuid();
 
-    char *configfile = NULL;
-    char *servername = NULL;
+	suid_user = strdup(in_username.c_str());
 
-    char status[STATUS_MAX];
-    
-    string allowed_hosts;
-    int tcpport = -1;
-    int tcpmax;
+	if ((pwordent = getpwnam(suid_user)) == NULL) {
+		snprintf(errstr, 1024, "Could not find user '%s' for priv-drop.  Make sure "
+				 "you have a valid user set for the 'suiduser' configuration entry "
+				 "and that /etc/passwd is readable.  See the 'Installation & "
+				 "Security' and 'Configuration' sections of the README file for "
+				 "more information.", suid_user);
+		_MSG(errstr, MSGFLAG_FATAL);
+		globalreg->fatal_condition = 1;
+		free(suid_user);
+		return -1;
+	}
 
-    TcpStreamer streamer;
+	free(suid_user);
 
-#ifdef HAVE_GPS
-    char gpshost[1024];
-    int gpsport = -1;
+	suid_uid = pwordent->pw_uid;
+	suid_gid = pwordent->pw_gid;
+
+	if (suid_uid == 0) {
+		snprintf(errstr, 1024, "Specifying a UID-0 user for the priv-drop is "
+				 "pointless.  See the 'Installation & Security' and "
+				 "'Configuration' sections of the README file for information "
+				 "on how to properly configure Kismet for priv-drop.");
+		_MSG(errstr, MSGFLAG_FATAL);
+		globalreg->fatal_condition = 1;
+		return -1;
+	} else if (suid_uid != real_uid && real_uid != 0) {
+		_MSG("Kismet drone must be started as root for priv-drop to work properly. "
+			 "See the 'Installation & Security' and 'Configuration' sections "
+			 "of the README file for more information.  Kismet will continue "
+			 "executing as the user which started it, and will ignore the "
+			 "privdrop user.", MSGFLAG_ERROR);
+		(*ret_uid) = real_uid;
+		(*ret_gid) = getgid();
+		return 0;
+	}
+
+	(*ret_uid) = suid_uid;
+	(*ret_gid) = suid_gid;
+
+	return 1;
+}
+
+int main(int argc, char *argv[], char *envp[]) {
+	exec_name = argv[0];
+	char errstr[STATUS_MAX];
+	char *configfilename = NULL;
+	ConfigFile *conf;
+#ifdef HAVE_SUID
+	uid_t suid_uid;
+	gid_t suid_gid;
+	string suiduser;
 #endif
+	int option_idx = 0;
 
-    int channel_hop = -1;
-    int channel_velocity = 1;
-    int channel_dwell = 0;
-    int channel_split = 0;
-
-    // Default channels
-    vector<string> defaultchannel_vec;
-    vector<string> src_initchannel_vec;
-    vector<string> src_customchannel_vec;
-    
-    // We don't actually use this but we need it for calls
-    map<mac_addr, wep_key_info *> bssid_wep_map;
-
-    // For commandline and file sources
-    string named_sources;
-    vector<string> source_input_vec;
-    int source_from_cmd = 0;
-
-    vector<client_ipblock *> legal_ipblock_vec;
-
-    int microsleep = 0;
-
-    static struct option long_options[] = {   /* options table */
-        { "config-file", required_argument, 0, 'f' },
-        { "capture-source", required_argument, 0, 'c' },
-        { "enable-capture-sources", required_argument, 0, 'C' },
-        { "port", required_argument, 0, 'p' },
-        { "allowed-hosts", required_argument, 0, 'a' },
-        { "server-name", required_argument, 0, 'N' },
-        { "help", no_argument, 0, 'h' },
-        { "version", no_argument, 0, 'v' },
-        { "silent", no_argument, 0, 's' },
-        { "initial-channel", required_argument, 0, 'I' },
-        { "force-channel-hop", no_argument, 0, 'x' },
-        { "force-no-channel-hop", no_argument, 0, 'X' },
-        { "microsleep", required_argument, 0, 'M' },
-        { 0, 0, 0, 0 }
-    };
-    int option_index;
-
-    // Catch the interrupt handler to shut down
+	// ------ WE MAY BE RUNNING AS ROOT ------
+	
+	// Catch the interrupt handler to shut down
     signal(SIGINT, CatchShutdown);
     signal(SIGTERM, CatchShutdown);
     signal(SIGHUP, CatchShutdown);
-    signal(SIGPIPE, SIG_IGN);
+    signal(SIGPIPE, CatchShutdown);
 
-    while(1) {
-        int r = getopt_long(argc, argv, "f:c:C:p:a:N:hvsI:xXM:",
-                            long_options, &option_index);
-        if (r < 0) break;
-        switch(r) {
-        case 'M':
-            // Microsleep
-            if (sscanf(optarg, "%d", &microsleep) != 1) {
-                fprintf(stderr, "Invalid microsleep\n");
-                Usage(argv[0]);
-            }
-            break;
-        case 's':
-            // Silent
-            silent = 1;
-            break;
-        case 'f':
-            // Config path
-            configfile = optarg;
-            fprintf(stderr, "Using alternate config file: %s\n", configfile);
-            break;
-        case 'c':
-            // Capture type
-            source_input_vec.push_back(optarg);
-            source_from_cmd = 1;
-            break;
-        case 'C':
-            // Named sources
-            named_sources = string(optarg);
-            fprintf(stderr, "Using specified capture sources: %s\n", named_sources.c_str());
-            break;
-        case 'p':
-            // Port
-            if (sscanf(optarg, "%d", &tcpport) != 1) {
-                fprintf(stderr, "Invalid port number.\n");
-                Usage(argv[0]);
-            }
-            break;
-        case 'a':
-            // Allowed
-            allowed_hosts = string(optarg);
-            break;
-        case 'N':
-            // Servername
-            servername = optarg;
-            break;
-        case 'v':
-            // version
-            fprintf(stderr, "Kismet Drone %s.%s.%s\n", VERSION_MAJOR, VERSION_MINOR, VERSION_TINY);
-            exit(0);
-            break;
-        case 'x':
-            // force channel hop
-            channel_hop = 1;
-            fprintf(stderr, "Ignoring config file and enabling channel hopping.\n");
-            break;
-        case 'X':
-            // Force channel hop off
-            channel_hop = 0;
-            fprintf(stderr, "Ignoring config file and disabling channel hopping.\n");
-            break;
-        case 'I':
-            // Initial channel
-            src_initchannel_vec.push_back(optarg);
-            break;
-        default:
-            Usage(argv[0]);
-            break;
-        }
-    }
+	// Start filling in key components of the globalregistry
+	globalregistry = new GlobalRegistry;
 
-    // If we haven't gotten a command line config option...
-    int freeconf = 0;
-    if (configfile == NULL) {
-        configfile = (char *) malloc(1024*sizeof(char));
-        snprintf(configfile, 1024, "%s/%s", getenv("KISMET_CONF") != NULL ? getenv("KISMET_CONF") : SYSCONF_LOC, config_base);
-        freeconf = 1;
-    }
+	// Copy for modules
+	globalregistry->argc = argc;
+	globalregistry->argv = argv;
+	globalregistry->envp = envp;
+	
+	// First order - create our message bus and our client for outputting
+	globalregistry->messagebus = new MessageBus;
 
-    ConfigFile *conf = new ConfigFile;
+	// Create a smart stdout client and allocate the fatal message client, 
+	// add them to the messagebus
+	SmartStdoutMessageClient *smartmsgcli = 
+		new SmartStdoutMessageClient(globalregistry, NULL);
+	fqmescli = new FatalQueueMessageClient(globalregistry, NULL);
 
-    // Parse the config and load all the values from it and/or our command
-    // line options.  This is a little soupy but it does the trick.
-    if (conf->ParseConfig(configfile) < 0) {
-        exit(1);
-    }
+	globalregistry->messagebus->RegisterClient(fqmescli, MSGFLAG_FATAL);
+	globalregistry->messagebus->RegisterClient(smartmsgcli, MSGFLAG_ALL);
 
-    if (freeconf)
-        free(configfile);
+	// Allocate some other critical stuff
+	globalregistry->timetracker = new Timetracker(globalregistry);
+
+	// Turn off the getopt error reporting
+	opterr = 0;
+
+	// Timer for silence
+	int local_silent = 0;
+
+	const int nlwc = globalregistry->getopt_long_num++;
+
+	// Standard getopt parse run
+	static struct option main_longopt[] = {
+		{ "config-file", required_argument, 0, 'f' },
+		{ "no-line-wrap", no_argument, 0, nlwc },
+		{ "silent", no_argument, 0, 's' },
+		{ "help", no_argument, 0, 'h' },
+		{ 0, 0, 0, 0 }
+	};
+
+	while (1) {
+		int r = getopt_long(argc, argv, 
+							"-f:sh", 
+							main_longopt, &option_idx);
+		if (r < 0) break;
+		if (r == 'h') {
+			Usage(argv[0]);
+			exit(1);
+		} else if (r == 'f') {
+			configfilename = strdup(optarg);
+		} else if (r == nlwc) {
+			glob_linewrap = 0;
+		} else if (r == 's') {
+			local_silent = 1;
+		}
+	}
+
+	// Open, initial parse, and assign the config file
+	if (configfilename == NULL) {
+		configfilename = new char[1024];
+		snprintf(configfilename, 1024, "%s/%s", 
+				 getenv("KISMETDRONE_CONF") != NULL ? 
+				 getenv("KISMETDRONE_CONF") : SYSCONF_LOC,
+				 config_base);
+	}
+
+	snprintf(errstr, STATUS_MAX, "Reading from config file %s", configfilename);
+	globalregistry->messagebus->InjectMessage(errstr, MSGFLAG_INFO);
+	
+	conf = new ConfigFile;
+	if (conf->ParseConfig(configfilename) < 0) {
+		exit(1);
+	}
+	globalregistry->kismet_config = conf;
 
 #ifdef HAVE_SUID
-    struct passwd *pwordent;
-    const char *suid_user;
-    uid_t suid_id, real_uid;
+	// Process privdrop critical stuff
+	if ((suiduser = conf->FetchOpt("suiduser")) == "") {
+		snprintf(errstr, 1024, "No 'suiduser' directive found in the configuration "
+				 "file.  Please refer to the 'Installation & Security' and "
+				 "'Configuration' sections of the README file for more "
+				 "information.");
+		globalregistry->messagebus->InjectMessage(errstr, MSGFLAG_FATAL);
+		globalregistry->fatal_condition = 1;
+		CatchShutdown(-1);
+	}
 
-    real_uid = getuid();
+	if (FindSuidTarget(suiduser, globalregistry,
+					   &suid_uid, &suid_gid) < 0 || globalregistry->fatal_condition) {
+		CatchShutdown(-1);
+	}
 
-    if (conf->FetchOpt("suiduser") != "") {
-        suid_user = strdup(conf->FetchOpt("suiduser").c_str());
-        if ((pwordent = getpwnam(suid_user)) == NULL) {
-            fprintf(stderr, "FATAL:  Could not find user '%s' for dropping priviledges.\n", suid_user);
-            fprintf(stderr, "        Make sure you have a valid user set for 'suiduser' in your config.\n");
-            exit(1);
-        } else {
-            suid_id = pwordent->pw_uid;
-
-            if (suid_id == 0) {
-                // If we're suiding to root...
-                fprintf(stderr, "FATAL:  Specifying a uid-0 user for the priv drop is pointless.  Recompile\n");
-                fprintf(stderr, "        with --disable-setuid if you really want this.\n");
-                exit(1);
-            } else if (suid_id != real_uid && real_uid != 0) {
-                // If we're not running as root (ie, we've suid'd to root)
-                // and if we're not switching to the user that ran us
-                // then we don't like it and we bail.
-                fprintf(stderr, "FATAL:  kismet_server must be started as root or as the suid-target user.\n");
-                exit(1);
-            }
-
-
-            fprintf(stderr, "Will drop privs to %s (%d)\n", suid_user, suid_id);
-        }
-    } else {
-        fprintf(stderr, "FATAL:  No 'suiduser' option in the config file.\n");
-        exit(1);
-    }
 #else
-    fprintf(stderr, "Suid priv-dropping disabled.  This may not be secure.\n");
+	snprintf(errstr, 1024, "SUID priv-dropping has been DISABLED at compile time. "
+			 "This is NOT reccomended as it can increase the risk to your system "
+			 "from hostile remote data.  Please consult the 'Installation & "
+			 "Security' and 'Configuration' sections of your README file.");
+	globalregistry->messagebus->InjectMessage(errstr, MSGFLAG_ERROR);
+	sleep(1);
 #endif
 
-    // Catch old configs and yell about them
-    if (conf->FetchOpt("cardtype") != "" || conf->FetchOpt("captype") != "" ||
-        conf->FetchOpt("capinterface") != "") {
-        fprintf(stderr, "FATAL:  Your config file uses the old capture type "
-                "definitions.  These have been changed to support multiple captures "
-                "and other new features.  You need to install the latest configuration "
-                "files.  See the troubleshooting section of the README for more "
-                "information.\n");
-        exit(1);
-    }
+	// Create the stubbed network/protocol server
+	globalregistry->kisnetserver = new KisNetFramework(globalregistry);	
 
-    if (conf->FetchOpt("80211achannels") != "" || 
-        conf->FetchOpt("80211bchannels") != "") {
-        fprintf(stderr, "FATAL:  Your config file uses the old default channel "
-                "configuration lines.  You need to install the latest configuration "
-                "files.  See the troubleshooting section of the README for more "
-                "information.\n");
-        exit(1);
-    }
+	// Start the plugin handler
+	globalregistry->plugintracker = new Plugintracker(globalregistry);
 
-#ifdef HAVE_GPS
-    if (conf->FetchOpt("gps") == "true") {
-        if (sscanf(conf->FetchOpt("gpshost").c_str(), "%1024[^:]:%d", gpshost, &gpsport) != 2) {
-            fprintf(stderr, "Invalid GPS host in config (host:port required)\n");
-            exit(1);
-        }
+	// Build the plugin list for root plugins
+	globalregistry->plugintracker->ScanRootPlugins();
 
-        gps_enable = 1;
-    } else {
-            gps_enable = 0;
-    }
+	// Create the packet chain
+	globalregistry->packetchain = new Packetchain(globalregistry);
+	if (globalregistry->fatal_condition)
+		CatchShutdown(-1);
 
-    if (gps_enable == 1) {
-        // Open the GPS
-        gps = new GPSD(gpshost, gpsport);
+	// Create the basic drone server
+	globalregistry->kisdroneserver = new KisDroneFramework(globalregistry);
+	if (globalregistry->fatal_condition)
+		CatchShutdown(-1);
 
-        // Lock GPS position
-        if (conf->FetchOpt("gpsmodelock") == "true") {
-            fprintf(stderr, "Enabling GPS position lock override (broken GPS unit reports 0 always)\n");
-            gps->SetOptions(GPSD_OPT_FORCEMODE);
-        }
+	// Create the packetsourcetracker
+	globalregistry->sourcetracker = new Packetsourcetracker(globalregistry);
+	if (globalregistry->fatal_condition)
+		CatchShutdown(-1);
 
-        if (gps->OpenGPSD() < 0) {
-            fprintf(stderr, "%s\n", gps->FetchError());
+	// Kickstart the root plugins -- Can't think of any that needed to
+	// activate before now
+	globalregistry->plugintracker->ActivatePlugins();
+	if (globalregistry->fatal_condition)
+		CatchShutdown(-1);
 
-            gps_enable = 0;
-        } else {
-            fprintf(stderr, "Opened GPS connection to %s port %d\n",
-                    gpshost, gpsport);
+	// Enable cards from config/cmdline
+	if (globalregistry->sourcetracker->LoadConfiguredCards() < 0)
+		CatchShutdown(-1);
 
-        }
-    }
+	if (globalregistry->fatal_condition)
+		CatchShutdown(-1);
 
-    // Update GPS coordinates and handle signal loss if defined
-    timetracker.RegisterTimer(SERVER_TIMESLICES_SEC, NULL, 1, &GpsEvent, NULL);
+	// Bind sources as root
+	globalregistry->sourcetracker->BindSources(1);
+	if (globalregistry->fatal_condition)
+		CatchShutdown(-1);
 
-#endif
+	// Create the channel process if necessary
+	globalregistry->sourcetracker->SpawnChannelChild();
+	if (globalregistry->fatal_condition)
+		CatchShutdown(-1);
 
-    // Register the gps and timetracker with the sourcetracker
-    sourcetracker.AddGpstracker(gps);
-    sourcetracker.AddTimetracker(&timetracker);
+	// Create the basic network/protocol server
+	globalregistry->kisdroneserver->Activate();
+	if (globalregistry->fatal_condition)
+		CatchShutdown(-1);
 
-    // Register the sources
-    RegisterKismetSources(&sourcetracker);
-
-    // Read all of our packet sources, tokenize the input and then start opening
-    // them.
-
-    if (named_sources.length() == 0) {
-        named_sources = conf->FetchOpt("enablesources");
-    }
-
-    // Tell them if we're enabling everything
-    if (named_sources.length() == 0)
-        fprintf(stderr, "No specific sources given to be enabled, all will be enabled.\n");
-
-    // Read the config file if we didn't get any sources on the command line
-    if (source_input_vec.size() == 0)
-        source_input_vec = conf->FetchOptVec("source");
-
-    // Now look at our channel options
-    if (channel_hop == -1) {
-        if (conf->FetchOpt("channelhop") == "true") {
-            fprintf(stderr, "Enabling channel hopping.\n");
-            channel_hop = 1;
-        } else {
-            fprintf(stderr, "Disabling channel hopping.\n");
-            channel_hop = 0;
-        }
-    }
-
-    if (channel_hop == 1) {
-        if (conf->FetchOpt("channelsplit") == "true") {
-            fprintf(stderr, "Enabling channel splitting.\n");
-            channel_split = 1;
-        } else {
-            fprintf(stderr, "Disabling channel splitting.\n");
-            channel_split = 0;
-        }
-
-        if (conf->FetchOpt("channelvelocity") != "") {
-            if (sscanf(conf->FetchOpt("channelvelocity").c_str(), "%d", 
-                       &channel_velocity) != 1) {
-                fprintf(stderr, "FATAL:  Illegal config file value for "
-                        "channelvelocity.\n");
-                exit(1);
-            }
-
-            if (channel_velocity < 1 || channel_velocity > 10) {
-                fprintf(stderr, "FATAL:  Illegal value for channelvelocity, must "
-                        "be between 1 and 10.\n");
-                exit(1);
-            }
-        }
-
-        if (conf->FetchOpt("channeldwell") != "") {
-            if (sscanf(conf->FetchOpt("channeldwell").c_str(), "%d",
-                       &channel_dwell) != 1) {
-                fprintf(stderr, "FATAL: Illegal config file value for "
-                        "channeldwell.\n");
-                exit(1);
-            }
-        }
-
-        // Fetch the vector of default channels
-        defaultchannel_vec = conf->FetchOptVec("defaultchannels");
-        if (defaultchannel_vec.size() == 0) {
-            fprintf(stderr, "FATAL:  Could not find any defaultchannels config lines "
-                    "and channel hopping was requested.");
-            exit(1);
-        }
-
-        // Fetch custom channels for individual sources
-        src_customchannel_vec = conf->FetchOptVec("sourcechannels");
-    }
-
-    // Register our default channels
-    if (sourcetracker.RegisterDefaultChannels(&defaultchannel_vec) < 0) {
-        fprintf(stderr, "FATAL:  %s\n", sourcetracker.FetchError());
-        exit(1);
-    }
-
-    // Turn all our config data into meta packsources, or fail...  If we're
-    // passing the sources from the command line, we enable them all, so we
-    // null the named_sources string
-    int old_chhop = channel_hop;
-    if (sourcetracker.ProcessCardList(source_from_cmd ? "" : named_sources, 
-                                      &source_input_vec, &src_customchannel_vec, 
-                                      &src_initchannel_vec,
-                                      channel_hop, channel_split) < 0) {
-        fprintf(stderr, "FATAL: %s\n", sourcetracker.FetchError());
-        exit(1);
-    }
-        
-    // This would only change if we're channel hopping and processcardlist had
-    // to turn it off because nothing supports it, so print a notice...
-    if (old_chhop != channel_hop)
-        fprintf(stderr, "NOTICE: Disabling channel hopping, no enabled sources "
-                "are able to change channel.\n");
-    
-    // Now enable root sources...
-    setreuid(0, 0);
-
-    // Bind the root sources
-    if (sourcetracker.BindSources(1) < 0) {
-        fprintf(stderr, "FATAL: %s\n", sourcetracker.FetchError());
-        exit(1);
-    }
-
-    // Spawn the channel control source.  All future exits must now call the real
-    // exit function to terminate the channel hopper!
-    if (sourcetracker.SpawnChannelChild() < 0) {
-        fprintf(stderr, "FATAL: %s\n", sourcetracker.FetchError());
-        exit(1);
-    }
-
-
-    // Once the packet source and channel control is opened, we shouldn't need special
-    // privileges anymore so lets drop to a normal user.  We also don't want to open our
-    // logfiles as root if we can avoid it.  Once we've dropped, we'll investigate our
-    // sources again and open any defered
+	// Once the packet source and channel control is opened, we shouldn't need special
+	// privileges anymore so lets drop to a normal user.  We also don't want to open 
+	// our logfiles as root if we can avoid it.  Once we've dropped, we'll 
+	// investigate our sources again and open any defered
 #ifdef HAVE_SUID
-    if (setuid(suid_id) < 0) {
-        fprintf(stderr, "FATAL:  setuid() to %s (%d) failed.\n", suid_user, suid_id);
-        exit(1);
-    } else {
-        fprintf(stderr, "Dropped privs to %s (%d)\n", suid_user, suid_id);
-    }
+	if (setgid(suid_gid) < 0) {
+		snprintf(errstr, 1024, "Priv-drop to GID %d failed", suid_gid);
+		globalregistry->messagebus->InjectMessage(errstr, MSGFLAG_FATAL);
+		CatchShutdown(-1);
+	}
+
+	if (setuid(suid_uid) < 0) {
+		snprintf(errstr, 1024, "Priv-drop to UID %d failed", suid_uid);
+		globalregistry->messagebus->InjectMessage(errstr, MSGFLAG_FATAL);
+		CatchShutdown(-1);
+	} 
+
+	snprintf(errstr, 1024, "Dropped privs to %s (%d) gid %d", suiduser.c_str(), 
+			 suid_uid, suid_gid);
+	globalregistry->messagebus->InjectMessage(errstr, MSGFLAG_INFO);
 #endif
 
-    // WE ARE NOW RUNNING AS THE TARGET UID
+	// ------ WE ARE NOW RUNNING AS THE TARGET (MAYBE) ------
 
-    // Bind the user sources
-    if (sourcetracker.BindSources(0) < 0) {
-        fprintf(stderr, "FATAL: %s\n", sourcetracker.FetchError());
-        ErrorShutdown();
-    }
+	// Process userspace plugins
+	globalregistry->plugintracker->ScanUserPlugins();
 
+	// Bind sources as non-root
+	globalregistry->sourcetracker->BindSources(0);
+	if (globalregistry->fatal_condition)
+		CatchShutdown(-1);
 
-    // Now parse the rest of our options
-    // ---------------
+	// Create the GPS server
+	GPSDClient *gpsdclient;
+	globalregistry->messagebus->InjectMessage("Starting GPSD client...",
+											  MSGFLAG_INFO);
+	gpsdclient = new GPSDClient(globalregistry);
+	if (globalregistry->fatal_condition)
+		CatchShutdown(-1);
 
-    if (servername == NULL) {
-        if (conf->FetchOpt("servername") != "") {
-            servername = strdup(conf->FetchOpt("servername").c_str());
-        } else {
-            servername = strdup("Unnamed");
-        }
-    }
+	// Kick the plugin system one last time.  This will try to kick any plugins
+	// that aren't activated yet, and then bomb out if we can't turn them on at
+	// all.
+	globalregistry->plugintracker->LastChancePlugins();
+	if (globalregistry->fatal_condition)
+		CatchShutdown(-1);
 
-    if (tcpport == -1) {
-        if (conf->FetchOpt("tcpport") == "") {
-            fprintf(stderr, "FATAL:  No tcp port given to listen for stream connections.\n");
-            ErrorShutdown();
-        } else if (sscanf(conf->FetchOpt("tcpport").c_str(), "%d", &tcpport) != 1) {
-            fprintf(stderr, "FATAL:  Invalid config file value for tcp port.\n");
-            ErrorShutdown();
-        }
-    }
+	// Blab about starting
+	globalregistry->messagebus->InjectMessage("Kismet drone starting to gather "
+											  "packets", MSGFLAG_INFO);
+	
+	// Set the global silence now that we're set up
+	glob_silent = local_silent;
 
-    if (conf->FetchOpt("maxclients") == "") {
-        fprintf(stderr, "FATAL:  No maximum number of clients given.\n");
-        ErrorShutdown();
-    } else if (sscanf(conf->FetchOpt("maxclients").c_str(), "%d", &tcpmax) != 1) {
-        fprintf(stderr, "FATAL:  Invalid config file option for max clients.\n");
-        ErrorShutdown();
-    }
+	int max_fd = 0;
+	fd_set rset, wset;
+	struct timeval tm;
 
-    if (allowed_hosts.length() == 0) {
-        if (conf->FetchOpt("allowedhosts") == "") {
-            fprintf(stderr, "FATAL:  No list of allowed hosts.\n");
-            ErrorShutdown();
-        }
+	// Core loop
+	while (1) {
+		FD_ZERO(&rset);
+		FD_ZERO(&wset);
+		max_fd = 0;
 
-        allowed_hosts = conf->FetchOpt("allowedhosts");
-    }
+		if (globalregistry->fatal_condition)
+			CatchShutdown(-1);
 
-    // Parse the allowed hosts into the vector
-    size_t ahstart = 0;
-    size_t ahend = allowed_hosts.find(",");
+		// Collect all the pollable descriptors
+		for (unsigned int x = 0; x < globalregistry->subsys_pollable_vec.size(); x++) 
+			max_fd = 
+				globalregistry->subsys_pollable_vec[x]->MergeSet(max_fd, &rset, 
+																 &wset);
 
-    int ahdone = 0;
-    while (ahdone == 0) {
-        string hoststr;
+		tm.tv_sec = 0;
+		tm.tv_usec = 100000;
 
-        if (ahend == string::npos) {
-            ahend = allowed_hosts.length();
-            ahdone = 1;
-        }
+		if (select(max_fd + 1, &rset, &wset, NULL, &tm) < 0) {
+			if (errno != EINTR) {
+				snprintf(errstr, STATUS_MAX, "Main select loop failed: %s",
+						 strerror(errno));
+				CatchShutdown(-1);
+			}
+		}
 
-        hoststr = allowed_hosts.substr(ahstart, ahend - ahstart);
-        ahstart = ahend + 1;
-        ahend = allowed_hosts.find(",", ahstart);
+		globalregistry->timetracker->Tick();
 
-        client_ipblock *ipb = new client_ipblock;
+		for (unsigned int x = 0; x < globalregistry->subsys_pollable_vec.size(); 
+			 x++) {
+			if (globalregistry->subsys_pollable_vec[x]->Poll(rset, wset) < 0 &&
+				globalregistry->fatal_condition) {
+				CatchShutdown(-1);
+			}
+		}
+	}
 
-        // Find the netmask divider, if one exists
-        size_t masksplit = hoststr.find("/");
-        if (masksplit == string::npos) {
-            // Handle hosts with no netmask - they're treated as single hosts
-            inet_aton("255.255.255.255", &(ipb->mask));
-
-            if (inet_aton(hoststr.c_str(), &(ipb->network)) == 0) {
-                fprintf(stderr, "FATAL:  Illegal IP address '%s' in allowed hosts list.\n",
-                        hoststr.c_str());
-                ErrorShutdown();
-            }
-        } else {
-            // Handle pairs
-            string hosthalf = hoststr.substr(0, masksplit);
-            string maskhalf = hoststr.substr(masksplit + 1, hoststr.length() - (masksplit + 1));
-
-            if (inet_aton(hosthalf.c_str(), &(ipb->network)) == 0) {
-                fprintf(stderr, "FATAL:  Illegal IP address '%s' in allowed hosts list.\n",
-                        hosthalf.c_str());
-                ErrorShutdown();
-            }
-
-            int validmask = 1;
-            if (maskhalf.find(".") == string::npos) {
-                // If we have a single number (ie, /24) calculate it and put it into
-                // the mask.
-                long masklong = strtol(maskhalf.c_str(), (char **) NULL, 10);
-
-                if (masklong < 0 || masklong > 32) {
-                    validmask = 0;
-                } else {
-                    if (masklong == 0)
-                        masklong = 32;
-
-                    ipb->mask.s_addr = htonl((-1 << (32 - masklong)));
-                }
-            } else {
-                // We have a dotted quad mask (ie, 255.255.255.0), convert it
-                if (inet_aton(maskhalf.c_str(), &(ipb->mask)) == 0)
-                    validmask = 0;
-            }
-
-            if (validmask == 0) {
-                fprintf(stderr, "FATAL:  Illegal netmask '%s' in allowed hosts list.\n",
-                        maskhalf.c_str());
-                ErrorShutdown();
-            }
-        }
-
-        // Catch 'network' addresses that aren't network addresses.
-        if ((ipb->network.s_addr & ipb->mask.s_addr) != ipb->network.s_addr) {
-            fprintf(stderr, "FATAL:  Invalid network '%s' in allowed hosts list.\n",
-                    inet_ntoa(ipb->network));
-            ErrorShutdown();
-        }
-
-        // Add it to our vector
-        legal_ipblock_vec.push_back(ipb);
-    }
-
-    // Channel hop if requested
-    if (channel_hop) {
-        if (channel_dwell)
-            timetracker.RegisterTimer(SERVER_TIMESLICES_SEC * channel_dwell, NULL, 1, &ChannelHopEvent, NULL);
-        else
-            timetracker.RegisterTimer(SERVER_TIMESLICES_SEC / channel_velocity, NULL, 1, &ChannelHopEvent, NULL);
-    }
-
-    // Now we can start doing things...
-    fprintf(stderr, "Kismet Drone %s.%s.%s (%s)\n",
-            VERSION_MAJOR, VERSION_MINOR, VERSION_TINY, servername);
-
-    fprintf(stderr, "Listening on port %d (protocol %d).\n", tcpport, STREAM_DRONE_VERSION);
-    for (unsigned int ipvi = 0; ipvi < legal_ipblock_vec.size(); ipvi++) {
-        char *netaddr = strdup(inet_ntoa(legal_ipblock_vec[ipvi]->network));
-        char *maskaddr = strdup(inet_ntoa(legal_ipblock_vec[ipvi]->mask));
-
-        fprintf(stderr, "Allowing connections from %s/%s\n", netaddr, maskaddr);
-
-        free(netaddr);
-        free(maskaddr);
-    }
-
-    if (streamer.Setup(tcpmax, tcpport, &legal_ipblock_vec) < 0) {
-        fprintf(stderr, "Failed to set up stream server: %s\n", streamer.FetchError());
-        CatchShutdown(-1);
-    }
-
-    fd_set read_set;
-    int max_fd = 0;
-
-    FD_ZERO(&read_set);
-
-    // We want to remember all our FD's so we don't have to keep calling functions which
-    // call functions and so on.  Fill in our descriptors while we're at it.
-    int stream_descrip = streamer.FetchDescriptor();
-    if (stream_descrip > max_fd && stream_descrip > 0)
-        max_fd = stream_descrip;
-    FD_SET(stream_descrip, &read_set);
-
-    while (1) {
-        fd_set rset, wset;
-
-        max_fd = streamer.MergeSet(read_set, max_fd, &rset, &wset);
-        max_fd = sourcetracker.MergeSet(&rset, &wset, max_fd);
-
-        struct timeval tm;
-        tm.tv_sec = 0;
-        tm.tv_usec = 100000;
-
-        if (select(max_fd + 1, &rset, &wset, NULL, &tm) < 0) {
-            if (errno != EINTR) {
-                fprintf(stderr, "FATAL:  select() error %d (%s)\n", errno, strerror(errno));
-                CatchShutdown(-1);
-            }
-        }
-
-        // We can pass the results of this select to the UI handler without incurring a
-        // a delay since it will bail nicely if there aren't any new connections.
-        int accept_fd = 0;
-        accept_fd = streamer.Poll(rset, wset);
-        if (accept_fd < 0) {
-            if (!silent)
-                fprintf(stderr, "TCP streamer error: %s\n", streamer.FetchError());
-        } else if (accept_fd > 0) {
-            if (!silent)
-                fprintf(stderr, "Accepted streamer connection from %s\n",
-                        streamer.FetchError());
-
-            if (accept_fd > max_fd)
-                max_fd = accept_fd;
-        }
-
-
-        // Process sourcetracker-level stuff... This should someday handle packetpath
-        // stuff, and should someday be the same argument format as uiserver.poll...
-        int ret;
-        ret = sourcetracker.Poll(&rset, &wset);
-        if (ret < 0) {
-            snprintf(status, STATUS_MAX, "FATAL: %s", sourcetracker.FetchError());
-            if (!silent) {
-                fprintf(stderr, "%s\n", status);
-                fprintf(stderr, "Terminating.\n");
-            }
-
-            CatchShutdown(-1);
-        } else if (ret > 0) {
-            if (!silent) {
-                fprintf(stderr, "%s\n", sourcetracker.FetchError());
-            }
-        }
-      
-        // This is ugly, come up with a better way to do it someday
-        vector<KisPacketSource *> packet_sources = sourcetracker.FetchSourceVec();
-        
-        for (unsigned int src = 0; src < packet_sources.size(); src++) {
-            if (FD_ISSET(packet_sources[src]->FetchDescriptor(), &rset)) {
-                // Capture the packet from whatever device
-                // len = psrc->FetchPacket(&packet, data, moddata);
-
-                ret = packet_sources[src]->FetchPacket(&packet, data, moddata);
-                
-                if (ret > 0) {
-                    if (streamer.WritePacket(&packet) < 0) {
-                        fprintf(stderr, "FATAL:  Error writing packet to streamer: %s\n",
-                                streamer.FetchError());
-                        CatchShutdown(-1);
-                    }
-                } else if (ret < 0) {
-                    // Fail on error
-                    snprintf(status, STATUS_MAX, "FATAL: %s",
-                             packet_sources[src]->FetchError());
-                    if (!silent) {
-                        fprintf(stderr, "%s\n", status);
-                        fprintf(stderr, "Terminating.\n");
-                    }
-
-                    CatchShutdown(-1);
-                }
-            } // End processing new packets
-
-        }
-
-        timetracker.Tick();
-
-        if (microsleep != 0)
-            usleep(microsleep);
-
-    }
-
+	CatchShutdown(-1);
 }

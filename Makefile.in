@@ -49,10 +49,15 @@ PSO	= util.o ringbuf.o messagebus.o configfile.o getopt.o filtercore.o \
 
 PS	= kismet_server
 
-DRONEO = util.o ringbuf.o configfile.o getopt.o ifcontrol.o iwcontrol.o packet.o \
-		tcpstreamer.o prism2source.o pcapsource.o wtapfilesource.o wsp100source.o \
-		dronesource.o vihasource.o packetsourcetracker.o kis_packsources.o \
-		timetracker.o gpsd.o server_globals.o kismet_drone.o
+DRONEO = util.o ringbuf.o messagebus.o configfile.o getopt.o \
+		 ifcontrol.o iwcontrol.o ipc_remote.o soundcontrol.o speechcontrol.o \
+		 netframework.o clinetframework.o tcpserver.o tcpclient.o \
+		 drone_kisnetframe.o kis_droneframe.o gpscore.o gpsdclient.o \
+		 packetchain.o packetsource_pcap.o packetsource_wext.o packetsource_bsdrt.o \
+		 packetsource_drone.o \
+		 plugintracker.o packetsourcetracker.o timetracker.o \
+		 kismet_drone.o
+
 DRONE = kismet_drone
 
 NCO	= util.o configfile.o speech.o manuf.o tcpclient.o \
@@ -74,7 +79,7 @@ GPSLBUILD=@gpslc@
 GPSLBUILDO=@gpslco@
 ZAURUSBUILD=@zbuild@
 
-all:	Makefile $(DEPEND) $(PS) 
+all:	Makefile $(DEPEND) $(PS) ${DRONE}
 
 $(PS):	$(PSO) $(PCAPLIB)
 	$(LD) $(LDFLAGS) -o $(PS) $(PSO) $(PCAPLIB) $(LIBS) $(PCAPLNK)
