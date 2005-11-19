@@ -620,7 +620,6 @@ KisNetFramework::KisNetFramework(GlobalRegistry *in_globalreg) {
 		switch (r) {
 			case 'l':
 				listenline = string(optarg);
-				printf("debug: '%s'\n", listenline.c_str());
 				break;
 		}
 	}

@@ -39,16 +39,7 @@ void KisDroneframe_MessageClient::ProcessMessage(string in_msg, int in_flags) {
 	if ((in_flags & MSGFLAG_LOCAL) || (in_flags & MSGFLAG_ALERT))
 		return;
 
-	if (in_flags & MSGFLAG_DEBUG)
-		msg = string("DEBUG - ") + in_msg;
-	else if (in_flags & MSGFLAG_INFO)
-		msg = string("INFO - ") + in_msg;
-	else if (in_flags & MSGFLAG_ERROR)
-		msg = string("ERROR - ") + in_msg;
-	else if (in_flags & MSGFLAG_FATAL)
-		msg = string("FATAL - ") + in_msg;
-
-	((KisDroneFramework *) auxptr)->SendAllText(msg, in_flags);
+	((KisDroneFramework *) auxptr)->SendAllText(in_msg, in_flags);
 }
 
 int kisdrone_chain_hook(CHAINCALL_PARMS) {
@@ -112,7 +103,7 @@ KisDroneFramework::KisDroneFramework(GlobalRegistry *in_globalreg) {
 
 	while (1) {
 		int r = getopt_long(globalreg->argc, globalreg->argv,
-							"",
+							"-",
 							droneframe_long_options, &option_idx);
 		if (r < 0) break;
 
@@ -546,14 +537,14 @@ int KisDroneFramework::chain_handler(kis_packet *in_pack) {
 
 		rcpkt->radio_accuracy = kis_hton16(radio->accuracy);
 		rcpkt->radio_channel = kis_hton16(radio->channel);
-		rcpkt->radio_signal = kis_hton16(radio->signal);
-		rcpkt->radio_noise = kis_hton16(radio->noise);
+		rcpkt->radio_signal = kis_hton16((int16_t) radio->signal);
+		rcpkt->radio_noise = kis_hton16((int16_t) radio->noise);
 		rcpkt->radio_carrier = kis_hton32((uint32_t) radio->carrier);
 		rcpkt->radio_encoding = kis_hton32((uint32_t) radio->encoding);
 		rcpkt->radio_datarate = kis_hton32(radio->datarate);
 	}
 
-	if (gpsinfo != NULL) {
+	if (gpsinfo != NULL && gpsinfo->gps_fix >= 2) {
 		dcpkt->cap_content_bitmap |= DRONEBIT(DRONE_CONTENT_GPS);
 
 		drone_capture_sub_gps *gppkt = 
@@ -580,7 +571,7 @@ int KisDroneFramework::chain_handler(kis_packet *in_pack) {
 	}
 
 	// Finally the eight11 headers and the packet chunk itself
-	if (chunk != NULL) {
+	if (chunk != NULL && in_pack->error == 0) {
 		dcpkt->cap_content_bitmap |= DRONEBIT(DRONE_CONTENT_IEEEPACKET);
 
 		drone_capture_sub_80211 *e1pkt =
@@ -592,12 +583,10 @@ int KisDroneFramework::chain_handler(kis_packet *in_pack) {
 
 		e1pkt->eight11_content_bitmap |=
 			(DRONEBIT(DRONE_EIGHT11_PACKLEN) |
-			 DRONEBIT(DRONE_EIGHT11_ERROR) |
 			 DRONEBIT(DRONE_EIGHT11_TVSEC) |
 			 DRONEBIT(DRONE_EIGHT11_TVUSEC));
 
 		e1pkt->packet_len = kis_hton16(chunk->length);
-		e1pkt->error = kis_hton16(in_pack->error);
 		e1pkt->tv_sec = kis_hton64(in_pack->ts.tv_sec);
 		e1pkt->tv_usec = kis_hton64(in_pack->ts.tv_usec);
 

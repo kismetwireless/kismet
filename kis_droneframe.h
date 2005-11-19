@@ -111,6 +111,15 @@ typedef struct drone_trans_double {
 	 (y)->sign = kis_hton16(locfl->sign); \
 	 })
 
+#define DOUBLE_CONV_DRONE(x, y)		\
+	({ \
+	 ieee_double_t *locfl = (ieee_double_t *) &(x); \
+	 (locfl)->mantissal = kis_ntoh32((y)->mantissal); \
+	 (locfl)->mantissah = kis_ntoh32((y)->mantissah); \
+	 (locfl)->exponent = kis_ntoh16((y)->exponent); \
+	 (locfl)->sign = kis_ntoh16((y)->sign); \
+	})
+
 // Bitmap fields for radio headers
 #define DRONE_RADIO_ACCURACY		0
 #define DRONE_RADIO_CHANNEL			1
@@ -157,16 +166,14 @@ typedef struct drone_capture_sub_gps {
 
 // Bitmap fields for eitht11 subs
 #define DRONE_EIGHT11_PACKLEN		0
-#define DRONE_EIGHT11_ERROR			1
-#define DRONE_EIGHT11_TVSEC			2
-#define DRONE_EIGHT11_TVUSEC		3
+#define DRONE_EIGHT11_TVSEC			1
+#define DRONE_EIGHT11_TVUSEC		2
 
 // Capture data in ieee80211 format
 typedef struct drone_capture_sub_80211 {
 	uint16_t eight11_hdr_len __attribute__ ((packed));
 	uint32_t eight11_content_bitmap __attribute__ ((packed));
 	uint16_t packet_len __attribute__ ((packed));
-	uint16_t error __attribute__ ((packed));
 	uint64_t tv_sec __attribute__ ((packed));
 	uint64_t tv_usec __attribute__ ((packed));
 	uint8_t packdata[0]; // Alias to the trailing packet data
