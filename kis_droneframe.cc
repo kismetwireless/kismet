@@ -169,7 +169,7 @@ KisDroneFramework::KisDroneFramework(GlobalRegistry *in_globalreg) {
 
 	// Register the packet handler
 	globalreg->packetchain->RegisterHandler(&kisdrone_chain_hook, this,
-											CHAINPOS_POSTCAP, -100);
+											CHAINPOS_POSTCAP, 100);
 
 	// Event trigger
 	eventid = 
