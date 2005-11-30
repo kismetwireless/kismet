@@ -625,7 +625,7 @@ int KisBuiltinDissector::ieee80211_dissector(kis_packet *in_pack) {
             uint64_t temp_ts;
             memcpy(&temp_ts, fixparm->timestamp, 8);
 #ifdef WORDS_BIGENDIAN
-            packinfo = kis_swap64(temp_ts);
+            packinfo->timestamp = kis_swap64(temp_ts);
 #else
             packinfo->timestamp = temp_ts;
 #endif
