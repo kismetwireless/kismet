@@ -39,125 +39,33 @@
 // Maximum number of consecutive failures before we die
 #define MAX_CONSEC_CHAN_ERR		5
 
-// Pre-prototype
-class Packetsourcetracker;
-
-// Packet source prototype for building an instance
+// Packet source prototype used to create new packetsources from string
+// definitions
 typedef struct {
-    int id;
-    string cardtype;
+	// Part of both the initial build of sources we understand, and the second
+	// build of sources we're going to create
+	string type;
     int root_required;
     string default_channelset;
     int initial_channel;
-	packsource_autoprobe autoprobe;
-    packsource_registrant registrant;
-    packsource_monitor monitor_enable;
-    packsource_monitor monitor_disable;
-    packsource_chcontrol channelcon;
-    int child_control;
-	// Failure tracking to allow conditional failing
-	int n_failures;
-	time_t last_failure;
+	// "weak" packetsource instance used to generate the real packet source
+	KisPacketSource *weak_source;
+
+	// This is used in the second run of prototyping, used to build the vector
+	// of sources we're going to allocate strong versions of
+	string name, interface;
+	// Channels to push to the source
+	vector<int> channel_vec;
+	// Offset to the channel vec to push (for multisource stuff)
+	int cv_offset;
+	// ID of the channel vec (for calculating offset & # of sources using this vec)
+	int channelvec_id;
+	// Does this specific interface have a hop/nothop set?
+	int interface_hop;
 } packsource_protorec;
-
-// Meta packetsource for handling created packetsources, channel control, etc
-// Needs to contain all the information needed to control the packetsource without
-// having a valid instance of that packetsource - the root channel control process
-// has to be able to control sources not opened until user-time
-class meta_packsource {
-public:
-    int id;
-    int valid;
-
-    // Channel control
-    int cmd_ack;
-    int channel_seqid;
-    vector<int> channels;
-    int ch_pos;
-    int ch_hop;
-    int cur_ch; 
-
-    // Capsource prototype
-    packsource_protorec *prototype;
-
-    // Capsource name
-    string name;
-    // Card device
-    string device;
-
-    // Actual packetsource
-    KisPacketSource *capsource;
-
-    // Interface settings to store
-    void *stored_interface;
-
-	// Consecutive errors doing something
-	int consec_errors;
-};
-
-// Packetchain reference for packet sources to be attached to the 
-// item captured
-class kis_ref_capsource : public packet_component {
-public:
-	KisPacketSource *ref_source;
-
-	kis_ref_capsource() {
-		self_destruct = 1; // We're just a ptr container
-		ref_source = NULL;
-	}
-
-	~kis_ref_capsource() { };
-};
 
 // Channel control event
 int ChannelHopEvent(TIMEEVENT_PARMS);
-
-// Internal NULL packet source that's always present to remind the users to configure
-// the software
-class NullPacketSource : public KisPacketSource {
-public:
-    NullPacketSource(GlobalRegistry *in_globalreg, meta_packsource *in_meta,
-					 string in_name, string in_dev) : 
-        KisPacketSource(in_globalreg, in_meta, in_name, in_dev) { }
-	virtual ~NullPacketSource() { }
-
-    virtual int OpenSource() {
-        char errstr[STATUS_MAX];
-        snprintf(errstr, 1024, "Please configure at least one packet source.  "
-                 "Kismet will not function if no packet sources are defined in "
-                 "kismet.conf or on the command line.  Please read the README "
-                 "for more information about configuring Kismet.");
-        globalreg->messagebus->InjectMessage(errstr, MSGFLAG_FATAL);
-        globalreg->fatal_condition = 1;
-        return -1;
-    }
-
-    virtual int CloseSource() {
-        return 1;
-    }
-
-    virtual int FetchDescriptor() {
-        return -1;
-    }
-
-    virtual int FetchChannel() {
-        return -1;
-    }
-
-	virtual int Poll() {
-		return -1;
-	}
-
-protected:
-	virtual void FetchRadioData(kis_packet *in_packet) { }
-};
-
-KisPacketSource *nullsource_registrant(REGISTRANT_PARMS);
-int unmonitor_nullsource(MONITOR_PARMS);
-
-// Shortcut for registering uncompiled sources
-#define REG_EMPTY_CARD(y) RegisterPacketsource(y, 0, "na", 0, \
-                                               NULL, NULL, NULL, NULL, NULL, 0)
 
 class Packetsourcetracker : public Pollable {
 public:
@@ -176,12 +84,15 @@ public:
     // Text gets put in errstr with a return code > 0.
     int Poll(fd_set& in_rset, fd_set& in_wset);
 
-    // Fetch a meta record for an id
-    meta_packsource *FetchMetaID(int in_id);
+	// Explicit channel control of sources
+	
     // Set the channel
-    int SetChannel(int in_ch, meta_packsource *in_meta);
-    // Control if a metasource hops or not
-    int SetHopping(int in_hopping, meta_packsource *in_meta);
+    int SetChannel(int in_ch, uuid in_uuid);
+	// Set a channel sequence
+	int SetChannelSequence(vector<int> in_seq, uuid in_uuid);
+	// Control if a source hops or not
+    int SetHopping(int in_hopping, uuid in_uuid);
+
     // Advance all the sources one channel
     int AdvanceChannel();
 
@@ -191,39 +102,33 @@ public:
 	int FetchChannelDwell() { return channel_dwell; }
 	int FetchChannelVelolcity() { return channel_velocity; }
 
-    // Register a packet prototype source...  Card type string, root binding 
-	// requirement, function to generate an instance of the source, and function to 
-	// change channel.  This fills out the prototype. Sources that don't hop 
-    // should request a default channelset of "none"
-    // Turning off child control puts the channel changing into the core of the
-    // server.  This isn't really a good thing to do, but one source (viha)
-    // requires it.
-    int RegisterPacketsource(const char *in_cardtype, int in_root, 
-                             const char *in_defaultchanset, int in_initch, 
-							 packsource_autoprobe in_autoprobe,
-                             packsource_registrant in_registrant, 
-                             packsource_monitor in_monitor,
-                             packsource_monitor in_unmonitor,
-                             packsource_chcontrol in_channelcon,
-                             int in_childcontrol);
+	// Add a weak packet source to the system.  This queues it for being
+	// asked to register its source types and be available for autoprobe,
+	// etc.
+	int AddKisPacketsource(KisPacketSource *in_source);
+
+	// Register a packet source:  (this should be called by the PacketSource
+	// AddSources(...) function
+	// This expects a "weak" instance of the packetsource (see packetsource.h),
+	// indications if it requires root privs for setup, the default channel
+	// set name, initial channel, and if it can be controlled by a child process
+	// Turning off child control indicates that it has to be controlled from the
+	// master process.  this prevents privsep, but some things require it
+    int RegisterPacketsource(const char *in_cardtype, 
+							 KisPacketSource *in_weaksource,
+							 int in_root, 
+                             const char *in_defaultchanset, int in_initch);
 	int RemovePacketsource(const char *in_cardtype);
 
-    // Register default channels 
+    // Register default channels
     int RegisterDefaultChannels(vector<string> *in_defchannels);
-
-    // Spawn root child channel control process
-    int SpawnChannelChild();
-
-    // Do a clean termination of the channel child (blocking)
-    int ShutdownChannelChild();
 
     // Return a vector of packet sources for other things to process with 
 	// (this should be self-contained in the future, probably)
     vector<KisPacketSource *> FetchSourceVec();
-    vector<meta_packsource *> FetchMetaSourceVec();
-   
-    // Build the meta-packsource records from the requested configs provided either 
-    // by the config file or the command line options.  
+  
+	// Buiild the packetsources from the requested config file and cmdline
+	// options
     // enableline: vector of source names to be enabled
     // cardlines: vector of config lines defining actual capture sources,
     // sourcechannels: vector of config lines defining explicit channel sequences 
@@ -235,10 +140,10 @@ public:
                         vector<string> *in_initchannels,
                         int& in_chhop, int in_chsplit);
 
-    // Bind to sources.  in_root == 1 when binding root sources, obviosuly
+    // Bind to sources.  in_root == 1 when binding root sources, obviously
     int BindSources(int in_root);
 
-    // Pause/unpause our sources
+    // Pause/unpause all sources
     int PauseSources();
     int ResumeSources();
     
@@ -248,16 +153,33 @@ public:
 	// Blit out what we know about
 	void BlitCards(int in_fd);
 
+	// Find a source by the UUID
+	KisPacketSource *FindUUID(uuid in_id);
+
 	// Usage
 	static void Usage(char *name);
 
 protected:
+	// Client commands
+	int cmd_chanlock(CLIENT_PARMS);
+	int cmd_chanhop(CLIENT_PARMS);
+	int cmd_pause(CLIENT_PARMS);
+	int cmd_resume(CLIENT_PARMS);
+
+	friend int Clicmd_CHANHOP_hook(CLIENT_PARMS);
+	friend int Clicmd_CHANLOCK_hook(CLIENT_PARMS);
+	friend int Clicmd_RESUME_hook(CLIENT_PARMS);
+	friend int Clicmd_PAUSE_hook(CLIENT_PARMS);
+	
     // IPC data frame to set a channel
     typedef struct {
         uint16_t meta_num;
         uint16_t channel;
     } chanchild_changepacket;
 
+	// High-level channel setting dispatcher that calls the packetsource
+	// directly or dispatches it to IPC
+	int SetChannel(int in_ch, KisPacketSource *src);
 	// Local card set used by the ipc callback
     int SetIPCChannel(int in_ch, unsigned int meta_num);
 	// Shutdown all sources (actually do the work)
@@ -269,8 +191,7 @@ protected:
 	int hop_eventid;
 	int card_eventid;
     
-    int next_packsource_id;
-    int next_meta_id;
+	int cmdid_chanlock, cmdid_chanhop, cmdid_pause, cmdid_resume;
 
     map<string, packsource_protorec *> cardtype_map;
     map<string, vector<int> > defaultch_map;
@@ -282,13 +203,17 @@ protected:
 	int channel_velocity;
 
 	char errstr[1024];
-	
-    // We track this twice so we don't have to convert the meta_packsource into 
-    // a packsource vec every loop
-    vector<meta_packsource *> meta_packsources;
+
+	// Intermediary of prototype sources and weak mappings used to finally
+	// generate the full live sources.  This is populated by processcardlist
+	vector<packsource_protorec *> prebuild_protosources;
+
+	// All live packet sources
     vector<KisPacketSource *> live_packsources;
 
-	IPCRemote *chan_remote;
+	// UUIDs to live packetsources
+	map<uuid, KisPacketSource *> ps_map;
+
 	uint32_t chan_ipc_id;
 	uint32_t haltall_ipc_id;
 
@@ -297,15 +222,80 @@ protected:
 	friend int packsrc_haltall_ipc(IPC_CMD_PARMS);
 };
 
+// Internal NULL packet source that's always present to remind the users to configure
+// the software
+class NullPacketSource : public KisPacketSource {
+public:
+	NullPacketSource() {
+		fprintf(stderr, "FATAL OOPS: NullPacketSource() called\n");
+		exit(1);
+	}
+
+	NullPacketSource(GlobalRegistry *in_globalreg) :
+		KisPacketSource(in_globalreg) {
+	}
+
+	virtual NullPacketSource *CreateSource(GlobalRegistry *in_globalreg,
+										   string in_type, string in_name,
+										   string in_dev) {
+		return new NullPacketSource(in_globalreg, in_type, in_name,
+									in_dev);
+	}
+
+	virtual ~NullPacketSource() { }
+
+	NullPacketSource(GlobalRegistry *, string, string, string) {
+		// Nothing here either
+	}
+
+    virtual int OpenSource() {
+		_MSG("You must configure at least one packet source.  Kismet will not "
+			 "function if no packet sources are defined in kismet.conf or on "
+			 "the command line.  Please read the README for more information "
+			 "on how to configure Kismet.", MSGFLAG_FATAL);
+        globalreg->fatal_condition = 1;
+        return -1;
+    }
+
+    virtual int CloseSource() { return 1; }
+	virtual int AutotypeProbe(string in_device) { return 0; }
+
+	virtual int RegisterSources(Packetsourcetracker *tracker) {
+		tracker->RegisterPacketsource("none", this, 0, "n/a", 0);
+		return 1;
+	}
+
+    virtual int FetchDescriptor() { return -1; }
+	virtual int FetchChannelCapable() { return -1; }
+    virtual int FetchChannel() { return -1; }
+	virtual int Poll() { return -1; }
+	virtual int EnableMonitor() { return -1; }
+	virtual int DisableMonitor() { return -1; }
+	virtual int ChildIPCControl() { return 0; }
+	virtual int SetChannel(int) { return -1; }
+	virtual int SetChannelSequence(vector<int> in_seq) { return -1; }
+	virtual int HopNextChannel() { return -1; }
+
+protected:
+	virtual void FetchRadioData(kis_packet *in_packet) { }
+};
+
+
 enum CARD_fields {
-    CARD_interface, CARD_type, CARD_username, CARD_channel, CARD_id, CARD_packets,
-    CARD_hopping,
+    CARD_interface, CARD_type, CARD_username, CARD_channel, 
+	CARD_uuid, CARD_packets, CARD_hopping,
 	CARD_maxfield
 };
 extern char *CARD_fields_text[];
 
 int Protocol_CARD(PROTO_PARMS);
 void Protocol_CARD_enable(PROTO_ENABLE_PARMS);
+
+// Network commands
+int Clicmd_CHANLOCK_hook(CLIENT_PARMS);
+int Clicmd_CHANHOP_hook(CLIENT_PARMS);
+int Clicmd_PAUSE_hook(CLIENT_PARMS);
+int Clicmd_RESUME_hook(CLIENT_PARMS);
 
 #endif
 

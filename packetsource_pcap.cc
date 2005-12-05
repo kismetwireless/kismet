@@ -660,6 +660,13 @@ int PacketSource_Pcap::FetchChannel() {
 	return 0;
 }
 
+int PacketSource_Pcapfile::RegisterSources(Packetsourcetracker *tracker) {
+	// Register the pcapfile source based off ourselves, nonroot, no channels
+	tracker->RegisterPacketsource("pcapfile", this, 0, "n/a", 0);
+	return 1;
+}
+
+
 int PacketSource_Pcapfile::OpenSource() {
 	channel = 0;
 	char errstr[STATUS_MAX] = "";
@@ -716,14 +723,5 @@ int PacketSource_Pcapfile::Poll() {
 	return 1;
 }
 
-KisPacketSource *packetsource_pcapfile_registrant(REGISTRANT_PARMS) {
-	PacketSource_Pcapfile *ret = 
-		new PacketSource_Pcapfile(globalreg, in_meta, in_name, in_device);
-	return ret;
-}
-
-int unmonitor_pcapfile(MONITOR_PARMS) {
-	return 0;
-}
 #endif
 

@@ -68,6 +68,7 @@ const uint32_t DroneSentinel = 0xDEADBEEF;
 #define DRONE_CMDNUM_HELO			1
 #define DRONE_CMDNUM_STRING			2
 #define DRONE_CMDNUM_CAPPACKET		3
+#define DRONE_CMDNUM_CHANNELSET		4
 
 // Packet header stuck on the beginning of everything
 typedef struct drone_packet {
@@ -92,6 +93,14 @@ typedef struct drone_string_packet {
 	uint32_t msg_flags __attribute__ ((packed));
 	uint32_t msg_len __attribute__ ((packed));
 	char msg[0];
+} __attribute__ ((packed));
+
+// Channel set command packet
+typedef struct drone_channelset_packet {
+	uint16_t channel_hop __attribute__ ((packed));
+	uint16_t num_channels __attribute__ ((packed));
+	// size = 2 * num_channels
+	uint16_t channels[0];
 } __attribute__ ((packed));
 
 // Size-neutral container for doubles
@@ -205,6 +214,8 @@ typedef struct drone_capture_packet {
 	const void *auxptr
 typedef int (*DroneCmdCallback)(DRONE_CMD_PARMS);
 
+int dronecmd_channelset_hook(DRONE_CMD_PARMS);
+
 // Drone framework for sending data
 class KisDroneFramework : public ServerFramework {
 public:
@@ -243,6 +254,8 @@ public:
 	// Send a frame
 	virtual int SendPacket(int in_cl, drone_packet *in_pack);
 	virtual int SendAllPacket(drone_packet *in_pack);
+
+	virtual int channel_handler(const drone_packet *in_pack);
 
 	typedef struct drone_cmd_rec {
 		void *auxptr;

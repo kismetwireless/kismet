@@ -84,6 +84,9 @@ extern "C" {
 #include "local_ieee80211_radiotap.h"
 #endif
 
+// We provide the pcap packet sources
+#define USE_PACKETSOURCE_PCAPFILE
+
 // Maximum SSID length for storing
 #define MAX_STORED_SSID		32
 
@@ -158,13 +161,38 @@ typedef struct {
 
 class PacketSource_Pcap : public KisPacketSource {
 public:
-	// Standard interface for capturesource
-	PacketSource_Pcap(GlobalRegistry *in_globalreg, meta_packsource *in_meta, 
+	PacketSource_Pcap() {
+		fprintf(stderr, "FATAL OOPS:  Packetsource_Pcap() called\n");
+		exit(1);
+	}
+
+	PacketSource_Pcap(GlobalRegistry *in_globalreg) :
+		KisPacketSource(in_globalreg) {
+	}
+
+	// No creation or probe for this high-level metasource
+	virtual KisPacketSource *CreateSource(GlobalRegistry *in_globalreg, 
+										  string in_type, string in_name, 
+										  string in_dev) = 0;
+
+	virtual int AutotypeProbe(string in_device) = 0;
+	virtual int RegisterSources(Packetsourcetracker *tracker) = 0;
+
+	PacketSource_Pcap(GlobalRegistry *in_globalreg, string in_type, 
 					  string in_name, string in_dev) :
-		KisPacketSource(in_globalreg, in_meta, in_name, in_dev) { 
-			// Nothing special here
+		KisPacketSource(in_globalreg, in_type, in_name, in_dev) { 
+			// Nothing special here vs. normal
 		}
 	virtual ~PacketSource_Pcap() { }
+
+	// No management functions at this level
+	virtual int EnableMonitor() = 0;
+	virtual int DisableMonitor() = 0;
+	virtual int FetchChannelCapable() = 0;
+	virtual int SetChannel(int in_ch) = 0;
+
+	// We expect to be drive by the child IPC
+	virtual int ChildIPCControl() { return 1; }
 
 	virtual int OpenSource();
 	virtual int CloseSource();
@@ -198,21 +226,50 @@ protected:
 
 class PacketSource_Pcapfile : public PacketSource_Pcap {
 public:
-	PacketSource_Pcapfile(GlobalRegistry *in_globalreg, meta_packsource *in_meta,
+	PacketSource_Pcapfile() {
+		fprintf(stderr, "FATAL OOPS:  Packetsource_Pcapfile() called\n");
+		exit(1);
+	}
+
+	PacketSource_Pcapfile(GlobalRegistry *in_globalreg) :
+		PacketSource_Pcap(in_globalreg) {
+	}
+
+	// This should return a new object of its own subclass type
+	virtual KisPacketSource *CreateSource(GlobalRegistry *in_globalreg, 
+										  string in_type, string in_name, 
+										  string in_dev) {
+		return new PacketSource_Pcapfile(in_globalreg, in_type, in_name, in_dev);
+	}
+
+	virtual int AutotypeProbe(string in_device) {
+		return 0;
+	}
+
+	virtual int RegisterSources(Packetsourcetracker *tracker);
+
+	PacketSource_Pcapfile(GlobalRegistry *in_globalreg, string in_type, 
 						  string in_name, string in_dev) :
-		PacketSource_Pcap(in_globalreg, in_meta, in_name, in_dev) { }
+		PacketSource_Pcap(in_globalreg, in_type, in_name, in_dev) { 
+			// Foo
+		}
 	virtual ~PacketSource_Pcapfile() { }
+
 	virtual int OpenSource();
 	virtual int Poll();
+
+	virtual int FetchChannelCapable() { return 0; }
+	// Basically do nothing because they have no meaning
+	virtual int EnableMonitor() { return 0; }
+	virtual int DisableMonitor() { return PACKSOURCE_UNMONITOR_RET_SILENCE; }
+	virtual int SetChannel(int in_ch) { return 0; }
+	virtual int HopNextChannel() { return 0; }
+
 protected:
 	// Do nothing here, we don't have an independent radio data fetch,
 	// we're just filling in the virtual
 	virtual void FetchRadioData(kis_packet *in_packet) { };
 };
-
-// Pcapfile registrant and 0-return unmonitor function
-KisPacketSource *packetsource_pcapfile_registrant(REGISTRANT_PARMS);
-int unmonitor_pcapfile(MONITOR_PARMS);
 
 #endif /* have_libpcap */
 

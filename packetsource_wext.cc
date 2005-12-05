@@ -28,8 +28,8 @@
 #include <sys/socket.h>
 
 #ifdef HAVE_LINUX_WIRELESS
-// Because some kernels include ethtool which breaks horribly...
-// The stock ones don't but others seem to
+// Some kernels include ethtool headers in wireless.h and seem to break
+// terribly if these aren't defined
 typedef unsigned char u8;
 typedef unsigned short u16;
 typedef unsigned int u32;
@@ -43,6 +43,213 @@ typedef unsigned long u64;
 #include "packetsource_wext.h"
 
 #if (defined(HAVE_LIBPCAP) && defined(SYS_LINUX) && defined(HAVE_LINUX_WIRELESS))
+
+int PacketSource_Wext::AutotypeProbe(string in_device) {
+	ethtool_drvinfo drvinfo;
+	char errstr[1024];
+
+	if (Linux_GetDrvInfo(in_device.c_str(), errstr, &drvinfo) < 0) {
+		_MSG(errstr, MSGFLAG_FATAL);
+		_MSG("Failed to get ethtool information from device '" + in_device + "'. "
+			 "This information is needed to detect the capture type for 'auto' "
+			 "sources.", MSGFLAG_FATAL);
+		globalreg->fatal_condition = 1;
+		return -1;
+	}
+
+	// 2100 has supported rfmon for so long we can just take it
+	if (string(drvinfo.driver) == "ipw2100") {
+		return 1;
+	}
+
+	if (string(drvinfo.driver) == "ipw2200") {
+		int major, minor, tiny;
+		if (sscanf(drvinfo.version, "%d.%d.%d", &major, &minor, &tiny) != 3) {
+			_MSG("IPW2200 Autoprobe for interface '" + in_device + "' looks "
+				 "like an ipw2200 driver, but couldn't parse driver version "
+				 "string.", MSGFLAG_ERROR);
+			return 0;
+		}
+
+		if (major == 1 && minor == 0 && tiny < 4) {
+			_MSG("IPW2200 Autoprobe for interface '" + in_device + "' looks "
+				 "like an ipw2200 driver, but is reporting a version of the "
+				 "driver which is too old to support monitor mode.  "
+				 "ipw2200-1.0.4 or newer is required, version seen was '" +
+				 string(drvinfo.version) + "'", MSGFLAG_ERROR);
+			return -1;
+		}
+
+		return 1;
+	}
+
+	return 0;
+}
+
+int PacketSource_Wext::RegisterSources(Packetsourcetracker *tracker) {
+	tracker->RegisterPacketsource("acx100", this, 1, "IEEE80211b", 6);
+	tracker->RegisterPacketsource("admtek", this, 1, "IEEE80211b", 6);
+	tracker->RegisterPacketsource("atmel_usb", this, 1, "IEEE80211b", 6);
+	tracker->RegisterPacketsource("hostap", this, 1, "IEEE80211b", 6);
+	tracker->RegisterPacketsource("ipw2100", this, 1, "IEEE80211b", 6);
+	tracker->RegisterPacketsource("ipw2200", this, 1, "IEEE80211b", 6);
+	tracker->RegisterPacketsource("ipw2915", this, 1, "IEEE80211ab", 6);
+	tracker->RegisterPacketsource("prism54g", this, 1, "IEEE80211b", 6);
+	tracker->RegisterPacketsource("rt2400", this, 1, "IEEE80211b", 6);
+	tracker->RegisterPacketsource("rt2500", this, 1, "IEEE80211b", 6);
+	tracker->RegisterPacketsource("rt8180", this, 1, "IEEE80211b", 6);
+	return 1;
+}
+
+int PacketSource_Wext::EnableMonitor() {
+	char errstr[STATUS_MAX];
+
+	if (Ifconfig_Get_Flags(interface.c_str(), errstr, &stored_flags) < 0) {
+		_MSG(errstr, MSGFLAG_ERROR);
+		_MSG("Failed to get interface flags for '" + interface + "', "
+			 "this will probably fully fail in a moment when we try to configure "
+			 "the interface, but we'll keep going.", MSGFLAG_ERROR);
+	}
+
+	// Bring the interface up, zero its IP, etc
+	if (Ifconfig_Delta_Flags(interface.c_str(), errstr, 
+							 IFF_UP | IFF_RUNNING | IFF_PROMISC) < 0) {
+		_MSG(errstr, MSGFLAG_FATAL);
+		_MSG("Failed to bring up interface '" + interface + "', check your "
+			 "permissions and configuration, and consult the Kismet README file",
+			 MSGFLAG_FATAL);
+		globalreg->fatal_condition = 1;
+		return -1;
+	}
+
+	// Try to grab the channel
+	if ((stored_channel = Iwconfig_Get_Channel(interface.c_str(), errstr)) < 0) {
+		_MSG(errstr, MSGFLAG_ERROR);
+		_MSG("Failed to get the current channel for interface '" + interface + 
+			 "'.  This may be a fatal problem, but we'll keep going in case "
+			 "the drivers are reporting incorrectly.", MSGFLAG_ERROR);
+		stored_channel = -1;
+	}
+
+	// Try to grab the wireless mode
+	if (Iwconfig_Get_Mode(interface.c_str(), errstr, &stored_mode) < 0) {
+		_MSG(errstr, MSGFLAG_FATAL);
+		_MSG("Failed to get current wireless mode for interface '" + interface + 
+			 "', check your configuration and consult the Kismet README file",
+			 MSGFLAG_FATAL);
+		globalreg->fatal_condition = 1;
+		return -1;
+	}
+
+	if (stored_mode != LINUX_WLEXT_MONITOR) {
+		if (Iwconfig_Set_Mode(interface.c_str(), errstr, LINUX_WLEXT_MONITOR) < 0) {
+			_MSG(errstr, MSGFLAG_FATAL);
+			_MSG("Failed to set monitor mode on interface '" + interface + "'.  "
+				 "This usually means your drivers either do not support monitor "
+				 "mode, use a different mechanism than Kismet expected to "
+				 "set monitor mode, or that the user which started Kismet does "
+				 "not have permission to change the mode.  Make sure you have "
+				 "the required version and have applied any patches needed to "
+				 "your drivers, and tht you have configured the proper source "
+				 "type for Kismet.  See the troubleshooting section of the Kismet "
+				 "README for more information.", MSGFLAG_FATAL);
+			globalreg->fatal_condition = 1;
+			return -1;
+		}
+	} else {
+		_MSG("Interface '" + interface + "' is already marked as being in "
+			 "monitor mode, leaving it as it is.", MSGFLAG_INFO);
+	}
+
+	// Try to set the monitor header mode, nonfatal if it doesn't work
+	if (Iwconfig_Set_IntPriv(interface.c_str(), "monitor_type", 2, 0, errstr) < 0) {
+		_MSG("Capture source '" + interface + "' doesn't appear to use the "
+			 "monitor_type iwpriv control.", MSGFLAG_INFO);
+	}
+
+	// Try to set the monitor header another way, nonfatal if it doesn't work
+	if (Iwconfig_Set_IntPriv(interface.c_str(), "set_prismhdr", 1, 0, errstr) < 0) {
+		_MSG("Capture source '" + interface + "' doesn't appear to use the "
+			 "set_prismhdr iwpriv control", MSGFLAG_INFO);
+	}
+	
+	// Set the initial channel
+	if (SetChannel(initial_channel) < 0) {
+		return -2;
+	}
+
+	return 0;
+}
+
+int PacketSource_Wext::DisableMonitor() {
+	char errstr[STATUS_MAX];
+
+	// We don't really care if any of these things fail.  Keep trying.
+	SetChannel(stored_channel);
+	
+	// We do care if this fails
+	if (Iwconfig_Set_Mode(interface.c_str(), errstr, stored_mode) < 0) {
+		_MSG(errstr, MSGFLAG_ERROR);
+		_MSG("Failed to restore previous wireless mode for interface '" +
+			 interface + "'.  It may be left in an unknown or unusable state.",
+			 MSGFLAG_ERROR);
+		return -1;
+	}
+
+	if (Ifconfig_Set_Flags(interface.c_str(), errstr, stored_flags) < 0) {
+		_MSG(errstr, MSGFLAG_ERROR);
+		_MSG("Failed to restore previous interface settings for '" + interface + "'. "
+			 "It may be left in an unknown or unusable state.", MSGFLAG_ERROR);
+		return -1;
+	}
+
+	return PACKSOURCE_UNMONITOR_RET_OKWITHWARN;
+}
+
+int PacketSource_Wext::SetChannelSequence(vector<int> in_seq) {
+	return PacketSource_Pcap::SetChannelSequence(in_seq);
+}
+
+int PacketSource_Wext::SetChannel(int in_ch) {
+	char errstr[STATUS_MAX];
+
+	// Set and exit if we're ok
+    if (Iwconfig_Set_Channel(interface.c_str(), in_ch, errstr) >= 0) {
+		consec_error = 0;
+        return 1;
+    }
+
+	if (consec_error > 5) {
+		_MSG(errstr, MSGFLAG_FATAL);
+		globalreg->fatal_condition = 1;
+	} else {
+		_MSG(errstr, MSGFLAG_ERROR);
+	}
+
+	int curmode;
+	if (Iwconfig_Get_Mode(interface.c_str(), errstr, &curmode) < 0) {
+		_MSG(errstr, MSGFLAG_FATAL);
+		_MSG("Failed to change channel on interface '" + interface + "' and "
+			 "failed to fetch current interface state when determining the "
+			 "cause of the error.  It is likely that the drivers are in a "
+			 "broken or unavailable state.", MSGFLAG_FATAL);
+		globalreg->fatal_condition = 1;
+		return -1;
+	}
+
+	if (curmode != LINUX_WLEXT_MONITOR) {
+		_MSG("Failed to change channel on interface '" + interface + "'. " 
+			 "It appears to no longer be in monitor mode.  This can happen if "
+			 "the drivers enter an unknown or broken state, but usually indicate "
+			 "that an external program has changed the device mode.  Make sure no "
+			 "network management tools (such as networkmanager) are running "
+			 "before starting Kismet.", MSGFLAG_FATAL);
+		globalreg->fatal_condition = 1;
+		return -1;
+	}
+
+	return 1;
+}
 
 int PacketSource_Wext::FetchChannel() {
     char errstr[STATUS_MAX] = "";
@@ -98,379 +305,104 @@ void PacketSource_Wext::FetchRadioData(kis_packet *in_packet) {
 	in_packet->insert(_PCM(PACK_COMP_RADIODATA), radiodata);
 }
 
-/* *********************************************************** */
-/* Packetsource registrant functions */
+PacketSource_Madwifi::PacketSource_Madwifi(GlobalRegistry *in_globalreg, 
+										   string in_type, string in_name,
+										   string in_dev) : 
+	PacketSource_Wext(in_globalreg, in_type, in_name, in_dev) {
 
-KisPacketSource *packetsource_wext_registrant(REGISTRANT_PARMS) {
-	return new PacketSource_Wext(globalreg, in_meta, in_name, in_device);
-}
-
-KisPacketSource *packetsource_wext_fcs_registrant(REGISTRANT_PARMS) {
-	PacketSource_Wext *ret = new PacketSource_Wext(globalreg, in_meta, 
-												   in_name, in_device);
-	ret->SetFCSBytes(4);
-	return ret;
-}
-
-KisPacketSource *packetsource_wext_split_registrant(REGISTRANT_PARMS) {
-    char errstr[STATUS_MAX] = "";
-
-    vector<string> devbits = StrTokenize(in_device, ":");
-
-    if (devbits.size() < 2) {
-        snprintf(errstr, STATUS_MAX, "Invalid device pair '%s'", in_device.c_str());
-        globalreg->messagebus->InjectMessage(errstr, MSGFLAG_ERROR);
-		globalreg->fatal_condition = 1;
-        return NULL;
-    }
-
-    return new PacketSource_Wext(globalreg, in_meta, in_name, devbits[1]);
-}
-
-KisPacketSource *packetsource_wext_splitfcs_registrant(REGISTRANT_PARMS) {
-	KisPacketSource *psrc = 
-		packetsource_wext_split_registrant(globalreg, in_meta, in_name, in_device);
-	psrc->SetFCSBytes(4);
-	return psrc;
-}
-
-/* *********************************************************** */
-/* Monitor enter/exit functions */
-
-int monitor_wext_core(MONITOR_PARMS, char *errstr) {
-	linux_ifparm *ifparm = (linux_ifparm *) malloc(sizeof(linux_ifparm));
-
-	if (Ifconfig_Get_Flags(in_dev, errstr, &ifparm->flags) < 0) {
-		globalreg->messagebus->InjectMessage(errstr, MSGFLAG_ERROR);
-		snprintf(errstr, STATUS_MAX, "Failed to get interface flags for %s, "
-				 "this will probably fully fail in a moment when we try to "
-				 "configure the interface, but we'll try anyhow.", in_dev);
-		globalreg->messagebus->InjectMessage(errstr, MSGFLAG_ERROR);
-	}
-
-	// Bring the interface up, zero its IP, etc
-	if (Ifconfig_Delta_Flags(in_dev, errstr, 
-							 IFF_UP | IFF_RUNNING | IFF_PROMISC) < 0) {
-		globalreg->messagebus->InjectMessage(errstr, MSGFLAG_FATAL);
-		snprintf(errstr, STATUS_MAX, "Failed bringing interface %s up, check "
-				 "your permissions and configuration and consult the README "
-				 "file.", in_dev);
-		free(ifparm);
-		return -1;
-	}
-
-	// Try to grab the channel
-	if ((ifparm->channel = Iwconfig_Get_Channel(in_dev, errstr)) < 0) {
-		globalreg->messagebus->InjectMessage(errstr, MSGFLAG_ERROR);
-		snprintf(errstr, STATUS_MAX, "Failed to get current channel for %s. "
-				 "This will probably fail in a moment when we try to set the "
-				 "card mode and channel, but we'll keep going incase the "
-				 "drivers are reporting incorrectly.", in_dev);
-		globalreg->messagebus->InjectMessage(errstr, MSGFLAG_ERROR);
-		ifparm->channel = -1;
-	}
-
-	// Try to grab the wireless mode
-	if (Iwconfig_Get_Mode(in_dev, errstr, &(ifparm->mode)) < 0) {
-		globalreg->messagebus->InjectMessage(errstr, MSGFLAG_ERROR);
-		snprintf(errstr, STATUS_MAX, "Failed to get current wireless modes for "
-				 "%s, check your configuration and consult the README "
-				 "file.", in_dev);
-		free(ifparm);
-		return -1;
-	}
-
-	// Set it to monitor mode if we need to
-	if (ifparm->mode != LINUX_WLEXT_MONITOR) {
-		if (Iwconfig_Set_Mode(in_dev, errstr, LINUX_WLEXT_MONITOR) < 0) {
-			globalreg->messagebus->InjectMessage(errstr, MSGFLAG_ERROR);
-			snprintf(errstr, STATUS_MAX, "Failed to set monitor mode on interface "
-					 "%s.  This usually means your drivers either do not "
-					 "support monitor mode, or use a different mechanism to set "
-					 "monitor mode.  Make sure you have a version of your drivers "
-					 "that supports monitor mode (this may require patching or "
-					 "other special configuration of the driver source) and that "
-					 "you have configured the correct capture source inside "
-					 "Kismet.  Consult the troubleshooting section of the README "
-					 "for more information.", in_dev);
-			free(ifparm);
-			return -1;
-		}
+	if (in_type == "madwifi_a") {
+		madwifi_type = 1;
+	} else if (in_type == "madwifi_b") {
+		madwifi_type = 2;
+	} else if (in_type == "madwifi_g") {
+		madwifi_type = 3;
+	} else if (in_type == "madwifi_ag") {
+		madwifi_type = 0;
 	} else {
-		snprintf(errstr, STATUS_MAX, "Interface %s appears to already be in "
-				 "monitor mode, leaving it as it is.", in_dev);
-		globalreg->messagebus->InjectMessage(errstr, MSGFLAG_INFO);
+		_MSG("Packetsource::MadWifi - Unknown source type '" + in_type + "'.  "
+			 "Will treat it as auto radio type", MSGFLAG_ERROR);
+		madwifi_type = 0;
 	}
-
-	(*in_if) = ifparm;
-
-	// Try to set the monitor header mode, nonfatal if it doesn't work
-	if (Iwconfig_Set_IntPriv(in_dev, "monitor_type", 2, 0, errstr) < 0) {
-		_MSG("Capture source '" + string(in_dev) + "' doesn't appear to use the "
-			 "monitor_type iwpriv control", MSGFLAG_INFO);
-	}
-
-	// Try to set the monitor header another way, nonfatal if it doesn't work
-	if (Iwconfig_Set_IntPriv(in_dev, "set_prismhdr", 1, 0, errstr) < 0) {
-		_MSG("Capture source '" + string(in_dev) + "' doesn't appear to use the "
-			 "monitor_type iwpriv control", MSGFLAG_INFO);
-	}
-	
-	// Set the initial channel
-	if (chancontrol_wext_std(globalreg, in_dev, initch, NULL) < 0) {
-		return -2;
-	}
-
-	return 0;
 }
 
-int unmonitor_wext_core(MONITOR_PARMS, char *errstr) {
-	linux_ifparm *ifparm = (linux_ifparm *) (*in_if);
+int PacketSource_Madwifi::RegisterSources(Packetsourcetracker *tracker) {
+	tracker->RegisterPacketsource("madwifi_a", this, 1, "IEEE80211a", 36);
+	tracker->RegisterPacketsource("madwifi_b", this, 1, "IEEE80211b", 6);
+	tracker->RegisterPacketsource("madwifi_g", this, 1, "IEEE80211b", 6);
+	tracker->RegisterPacketsource("madwifi_ag", this, 1, "IEEE80211ab", 6);
+	return 1;
+}
 
-	if (ifparm == NULL)
+int PacketSource_Madwifi::EnableMonitor() {
+	if (PacketSource_Wext::EnableMonitor() < 0) {
+		return -1;
+	}
+
+	char errstr[1024];
+
+	if (Iwconfig_Get_IntPriv(interface.c_str(), "get_mode", &stored_privmode,
+							 errstr) < 0) {
+		_MSG(errstr, MSGFLAG_FATAL);
+		_MSG("Failed to get the current radio mode of interface '" + 
+			 interface + "'", MSGFLAG_FATAL);
+		globalreg->fatal_condition = 1;
+		return -1;
+	}
+
+	if (Iwconfig_Set_IntPriv(interface.c_str(), "mode", madwifi_type, 
+							 0, errstr) < 0) {
+		_MSG(errstr, MSGFLAG_FATAL);
+		_MSG("Failed to set the radio mode of interface '" + interface + "'.  This "
+			 "is needed to set the a/b/g radio mode", MSGFLAG_FATAL);
+		globalreg->fatal_condition = 1;
+		return -1;
+	}
+
+	return 1;
+}
+
+int PacketSource_Madwifi::DisableMonitor() {
+	char errstr[1024];
+	if (Iwconfig_Set_IntPriv(interface.c_str(), "mode", stored_privmode,
+							 0, errstr) < 0) {
+		_MSG(errstr, MSGFLAG_FATAL);
+		_MSG("Failed to restore the stored radio mode for interface '" +
+			 interface + "'.  The device may be left in an unknown or unusable "
+			 "state.", MSGFLAG_FATAL);
+		globalreg->fatal_condition = 1;
+		return -1;
+	}
+
+	if (PacketSource_Wext::DisableMonitor() < 0) {
+		return -1;
+	}
+
+	return PACKSOURCE_UNMONITOR_RET_OKWITHWARN;
+}
+
+int PacketSource_Madwifi::AutotypeProbe(string in_device) {
+	ethtool_drvinfo drvinfo;
+	char errstr[1024];
+
+	if (Linux_GetDrvInfo(in_device.c_str(), errstr, &drvinfo) < 0) {
+		_MSG(errstr, MSGFLAG_FATAL);
+		_MSG("Failed to get ethtool information from device '" + in_device + "'. "
+			 "This information is needed to detect the capture type for 'auto' "
+			 "sources.", MSGFLAG_FATAL);
+		globalreg->fatal_condition = 1;
+		return -1;
+	}
+
+	if (string(drvinfo.driver) == "ath_pci") {
 		return 1;
-
-	// We don't care if this fails
-	chancontrol_wext_std(globalreg, in_dev, ifparm->channel, NULL);
-
-	// We do care if this fails
-	if (Iwconfig_Set_Mode(in_dev, errstr, ifparm->mode) < 0) {
-		globalreg->messagebus->InjectMessage(errstr, MSGFLAG_ERROR);
-		snprintf(errstr, STATUS_MAX, "Failed to set wireless mode to stored value "
-				 "for %s.  It may be left in an unusable state.", in_dev);
-		free(ifparm);
-		return -1;
-	}
-
-	if (Ifconfig_Set_Flags(in_dev, errstr, ifparm->flags) < 0) {
-		globalreg->messagebus->InjectMessage(errstr, MSGFLAG_ERROR);
-		snprintf(errstr, STATUS_MAX, "Failed to set interface flags to stored value "
-				 "for %s.  It may be left in an unusable state.", in_dev);
-		free(ifparm);
-		return -1;
-	}
-
-	free(ifparm);
-	return 1;
-}
-
-int monitor_wext_std(MONITOR_PARMS) {
-	char errstr[STATUS_MAX];
-
-	// Fall through to the primary monitor function
-	if (monitor_wext_core(globalreg, in_dev, initch, in_if, in_ext, errstr) < 0) {
-		globalreg->messagebus->InjectMessage(errstr, MSGFLAG_FATAL);
-		globalreg->fatal_condition = 1;
-		return -1;
-	}
-
-	return 1;
-}
-
-int unmonitor_wext_std(MONITOR_PARMS) {
-	char errstr[STATUS_MAX];
-
-	// Fall through to the primary monitor functon
-	if (unmonitor_wext_core(globalreg, in_dev, initch, in_if, in_ext, errstr) < 0) {
-		globalreg->messagebus->InjectMessage(errstr, MSGFLAG_FATAL);
-		globalreg->fatal_condition = 1;
-		return -1;
-	}
-
-	return 1;
-}
-
-int monitor_madwifi_core(MONITOR_PARMS, char *errstr, int mode) {
-	// Run the primary monitor function
-	if (monitor_wext_core(globalreg, in_dev, initch, in_if, in_ext, errstr) < 0) {
-		globalreg->messagebus->InjectMessage(errstr, MSGFLAG_FATAL);
-		globalreg->fatal_condition = 1;
-		return -1;
-	}
-
-	linux_ifparm *ifparm = (linux_ifparm *) (*in_if);
-
-	if (Iwconfig_Get_IntPriv(in_dev, "get_mode", &ifparm->privmode, errstr) < 0) {
-		globalreg->messagebus->InjectMessage(errstr, MSGFLAG_FATAL);
-		_MSG("Failed to get the current mode via `iwpriv get_mode'.  This is "
-			 "needed to set the mode for a/b/g", MSGFLAG_FATAL);
-		globalreg->fatal_condition = 1;
-		return -1;
-	}
-
-	if (Iwconfig_Set_IntPriv(in_dev, "mode", mode, 0, errstr) < 0) {
-		globalreg->messagebus->InjectMessage(errstr, MSGFLAG_FATAL);
-		_MSG("Failed to set the current mode via `iwpriv get_mode'.  This is "
-			 "needed to set the mode for a/b/g", MSGFLAG_FATAL);
-		globalreg->fatal_condition = 1;
-		return -1;
-	}
-
-	return 1;
-}
-
-int unmonitor_madwifi(MONITOR_PARMS) {
-	char errstr[STATUS_MAX];
-
-	linux_ifparm *ifparm = (linux_ifparm *) (*in_if);
-
-	if (ifparm == NULL)
-		return -1;
-
-	// Restore the mode
-	if (Iwconfig_Set_IntPriv(in_dev, "mode", ifparm->privmode, 0, errstr) < 0) {
-		globalreg->messagebus->InjectMessage(errstr, MSGFLAG_FATAL);
-		_MSG("Failed to set the current mode via `iwpriv get_mode'.  This is "
-			 "needed to set the mode for a/b/g", MSGFLAG_FATAL);
-		globalreg->fatal_condition = 1;
-		return -1;
-	}
-
-	// Fall through to the primary monitor functon
-	if (unmonitor_wext_core(globalreg, in_dev, initch, in_if, in_ext, errstr) < 0) {
-		globalreg->messagebus->InjectMessage(errstr, MSGFLAG_FATAL);
-		globalreg->fatal_condition = 1;
-		return -1;
-	}
-
-	return 1;
-}
-
-int monitor_madwifi_a(MONITOR_PARMS) {
-	char errstr[STATUS_MAX];
-
-	// Fall through to the primary monitor function
-	if (monitor_madwifi_core(globalreg, in_dev, initch, in_if, 
-							 in_ext, errstr, 1) < 0) {
-		globalreg->messagebus->InjectMessage(errstr, MSGFLAG_FATAL);
-		globalreg->fatal_condition = 1;
-		return -1;
-	}
-
-	return 1;
-}
-
-int monitor_madwifi_b(MONITOR_PARMS) {
-	char errstr[STATUS_MAX];
-
-	// Fall through to the primary monitor function
-	if (monitor_madwifi_core(globalreg, in_dev, initch, in_if, 
-							 in_ext, errstr, 2) < 0) {
-		globalreg->messagebus->InjectMessage(errstr, MSGFLAG_FATAL);
-		globalreg->fatal_condition = 1;
-		return -1;
-	}
-
-	return 1;
-}
-
-int monitor_madwifi_g(MONITOR_PARMS) {
-	char errstr[STATUS_MAX];
-
-	// Fall through to the primary monitor function
-	if (monitor_madwifi_core(globalreg, in_dev, initch, in_if, 
-							 in_ext, errstr, 3) < 0) {
-		globalreg->messagebus->InjectMessage(errstr, MSGFLAG_FATAL);
-		globalreg->fatal_condition = 1;
-		return -1;
-	}
-
-	return 1;
-}
-
-int monitor_madwifi_ag(MONITOR_PARMS) {
-	char errstr[STATUS_MAX];
-
-	// Fall through to the primary monitor function
-	if (monitor_madwifi_core(globalreg, in_dev, initch, in_if, 
-							 in_ext, errstr, 0) < 0) {
-		globalreg->messagebus->InjectMessage(errstr, MSGFLAG_FATAL);
-		globalreg->fatal_condition = 1;
-		return -1;
-	}
-
-	return 1;
-}
-
-/* *********************************************************** */
-/* Channel control functions */
-
-int chancontrol_wext_core(CHCONTROL_PARMS, char *errstr) {
-    if (Iwconfig_Set_Channel(in_dev, in_ch, errstr) < 0) {
-        return -1;
-    }
-
-    return 1;
-}
-
-int chancontrol_wext_std(CHCONTROL_PARMS) {
-	char errstr[STATUS_MAX];
-
-	if (chancontrol_wext_core(globalreg, in_dev, in_ch, in_ext, errstr) < 0) {
-		globalreg->messagebus->InjectMessage(errstr, MSGFLAG_FATAL);
-
-		// Check if we fell out of rfmon somehow
-		int curmode;
-		if (Iwconfig_Get_Mode(in_dev, errstr, &curmode) >= 0 &&
-			curmode != LINUX_WLEXT_MONITOR) {
-			_MSG("Interface '" + string(in_dev) + "' no longer appears to be "
-				 "in monitor mode.  This can happen if the drivers get "
-				 "confused or if an external program has changed state. "
-				 "Make sure no network management tools are running before "
-				 "starting Kismet.", MSGFLAG_FATAL);
-		}
-		
-		globalreg->fatal_condition = 1;
-		return -1;
-	}
-
-	return 1;
-}
-
-/* *********************************************************** */
-/* Autoprobe functions */
-int autoprobe_ipw2200(AUTOPROBE_PARMS) {
-	if (in_driver == "ipw2200") {
-		int major, minor, tiny;
-		if (sscanf(in_version.c_str(), "%d.%d.%d", &major, &minor, &tiny) != 3) {
-			_MSG("IPW2200 Autoprobe device " + in_device + " looks like an ipw2200 "
-				 "driver, but couldn't parse version string '" + in_version + "'",
-				 MSGFLAG_ERROR);
-			return 0;
-		}
-
-		if (major == 1 && minor == 0 && tiny < 4) {
-			_MSG("IPW2200 Autoprobe device " + in_device + " looks like an ipw2200 "
-				 "driver, but is running a version of the driver which is too old "
-				 "to support monitor mode.  Version 1.0.4 or newer is required.",
-				 MSGFLAG_ERROR);
-			return -1;
-		}
-
-		if (major >= 1 && tiny >= 4)
-			return 1;
 	}
 
 	return 0;
 }
 
-int autoprobe_ipw2100(AUTOPROBE_PARMS) {
-	// Assume we're ok as long as we're ipw2100.  Probably doesn't matter
-	// on version since anything in reasonable history did monitor.
-	if (in_driver == "ipw2100")
-		return 1;
-
-	return 0;
+int PacketSource_Madwifi::SetChannelSequence(vector<int> in_seq) {
+	return PacketSource_Wext::SetChannelSequence(in_seq);
 }
-
-int autoprobe_madwifi(AUTOPROBE_PARMS) {
-	// Simple test to see if it looks like an ath_pci driver name
-	if (in_driver == "ath_pci")
-		return 1;
-
-	return 0;
-}
-
 
 #endif
 

@@ -40,6 +40,11 @@
 
 #include "plugintracker.h"
 
+#include "packetsource.h"
+#include "packetsource_bsdrt.h"
+#include "packetsource_pcap.h"
+#include "packetsource_wext.h"
+#include "packetsource_drone.h"
 #include "packetsourcetracker.h"
 
 #include "timetracker.h"
@@ -66,6 +71,8 @@
 #include "dumpfile_tuntap.h"
 #include "dumpfile_string.h"
 #include "dumpfile_alert.h"
+
+#include "ipc_remote.h"
 
 #ifndef exec_name
 char *exec_name;
@@ -171,10 +178,12 @@ void ErrorShutdown() {
     // Shut down the packet sources
     if (globalregistry->sourcetracker != NULL) {
         globalregistry->sourcetracker->CloseSources();
-
-        // Shut down the channel control child
-        globalregistry->sourcetracker->ShutdownChannelChild();
     }
+
+	// Shut down the root IPC process
+	if (globalregistry->rootipc != NULL) {
+		globalregistry->rootipc->ShutdownIPC(NULL);
+	}
 
     // Shouldn't need to requeue fatal errors here since error shutdown means 
     // we just printed something about fatal errors.  Probably.
@@ -253,9 +262,9 @@ void CatchShutdown(int sig) {
 		}
 	}
 
-	if (globalregistry->sourcetracker != NULL) {
+	if (globalregistry->rootipc != NULL) {
 		// Shut down the channel control child
-		globalregistry->sourcetracker->ShutdownChannelChild();
+		globalregistry->rootipc->ShutdownIPC(NULL);;
 	}
 
 	if (globalregistry->kisnetserver != NULL) {
@@ -515,10 +524,41 @@ int main(int argc, char *argv[], char *envp[]) {
 	if (globalregistry->fatal_condition)
 		CatchShutdown(-1);
 
+	// Create the root IPC controller if we have SUID abilities
+#ifdef HAVE_SUID
+	globalregistry->rootipc = new IPCRemote(globalregistry, "root control");
+	globalregistry->RegisterPollableSubsys(globalregistry->rootipc);
+#endif
+
 	// Create the packetsourcetracker
 	globalregistry->sourcetracker = new Packetsourcetracker(globalregistry);
 	if (globalregistry->fatal_condition)
 		CatchShutdown(-1);
+
+	new PacketSource_Pcapfile(globalregistry);
+	printf("debug - made it past the sourcetracker\n");
+
+	// Add the packet sources
+#ifdef USE_PACKETSOURCE_PCAPFILE
+	if (globalregistry->sourcetracker->AddKisPacketsource(new PacketSource_Pcapfile(globalregistry)) < 0 || globalregistry->fatal_condition) 
+		CatchShutdown(-1);
+#endif
+	printf("debug - past pcapfile\n");
+#ifdef USE_PACKETSOURCE_WEXT
+	if (globalregistry->sourcetracker->AddKisPacketsource(new PacketSource_Wext(globalregistry)) < 0 || globalregistry->fatal_condition) 
+		CatchShutdown(-1);
+#endif
+	printf("debug - past wext\n");
+#ifdef USE_PACKETSOURCE_MADWIFI
+	if (globalregistry->sourcetracker->AddKisPacketsource(new PacketSource_Madwifi(globalregistry)) < 0 || globalregistry->fatal_condition) 
+		CatchShutdown(-1);
+#endif
+	printf("debug - past madwifi\n");
+#ifdef USE_PACKETSOURCE_DRONE
+	if (globalregistry->sourcetracker->AddKisPacketsource(new PacketSource_Drone(globalregistry)) < 0 || globalregistry->fatal_condition) 
+		CatchShutdown(-1);
+#endif
+	printf("debug - past drone\n");
 
 	// Kickstart the root plugins -- Can't think of any that needed to
 	// activate before now
@@ -545,11 +585,6 @@ int main(int argc, char *argv[], char *envp[]) {
 		CatchShutdown(-1);
 #endif
 
-	// Create the channel process if necessary
-	globalregistry->sourcetracker->SpawnChannelChild();
-	if (globalregistry->fatal_condition)
-		CatchShutdown(-1);
-
 	// Create the basic network/protocol server
 	globalregistry->kisnetserver->Activate();
 	if (globalregistry->fatal_condition)
@@ -565,6 +600,14 @@ int main(int argc, char *argv[], char *envp[]) {
 	// our logfiles as root if we can avoid it.  Once we've dropped, we'll 
 	// investigate our sources again and open any defered
 #ifdef HAVE_SUID
+	//  Spawn the root IPC system
+	if (globalregistry->rootipc->SpawnIPC() < 0 || globalregistry->fatal_condition) {
+		globalregistry->messagebus->InjectMessage("Failed to create IPC child "
+												  "process", MSGFLAG_FATAL);
+		globalregistry->fatal_condition = 1;
+		CatchShutdown(-1);
+	}
+	
 	if (setgid(suid_gid) < 0) {
 		snprintf(errstr, 1024, "Priv-drop to GID %d failed", suid_gid);
 		globalregistry->messagebus->InjectMessage(errstr, MSGFLAG_FATAL);

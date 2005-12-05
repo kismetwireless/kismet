@@ -522,6 +522,12 @@ int DroneClientFrame::ParseData() {
 	return 1;
 }
 
+int PacketSource_Drone::RegisterSources(Packetsourcetracker *tracker) {
+	// Register the pcapfile source based off ourselves, nonroot, nonchildcontrol
+	tracker->RegisterPacketsource("drone", this, 0, "n/a", 0);
+	return 1;
+}
+
 PacketSource_Drone::~PacketSource_Drone() {
 	if (droneframe != NULL) {
 		droneframe->Shutdown();
@@ -579,21 +585,6 @@ int PacketSource_Drone::FetchDescriptor() {
 int PacketSource_Drone::Poll() {
 	// Nothing to do here, we should never even be called.   Pollable
 	// droneclientframe handles it
-	return 0;
-}
-
-int PacketSource_Drone::FetchChannel() {
-	// Nope
-	return 0;
-}
-
-KisPacketSource *packetsource_drone_registrant(REGISTRANT_PARMS) {
-	PacketSource_Drone *ret =
-		new PacketSource_Drone(globalreg, in_meta, in_name, in_device);
-	return ret;
-}
-
-int unmonitor_drone(MONITOR_PARMS) {
 	return 0;
 }
 

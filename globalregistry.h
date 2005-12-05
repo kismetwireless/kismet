@@ -44,6 +44,8 @@ class KisBuiltinDissector;
 class Pollable;
 // Vector of dumpfiles to destroy
 class Dumpfile;
+// Root-level ipc system
+class IPCRemote;
 
 // These are the offsets into the array of protocol references, not
 // the reference itself.
@@ -139,6 +141,7 @@ public:
     SpeechControl *speechctl;
     SoundControl *soundctl;
 	KisBuiltinDissector *builtindissector;
+	IPCRemote *rootipc;
 
 	string version_major;
 	string version_minor;
@@ -222,6 +225,7 @@ public:
         speechctl = NULL;
         soundctl = NULL;
 		builtindissector = NULL;
+		rootipc = NULL;
 
         start_time = 0;
 

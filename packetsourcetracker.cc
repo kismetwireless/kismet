@@ -24,10 +24,6 @@
 #include "util.h"
 #include "packetsourcetracker.h"
 #include "packetsource.h"
-#include "packetsource_pcap.h"
-#include "packetsource_wext.h"
-#include "packetsource_bsdrt.h"
-#include "packetsource_drone.h"
 #include "configfile.h"
 #include "getopt.h"
 
@@ -37,15 +33,15 @@
 #endif
 
 char *CARD_fields_text[] = {
-    "interface", "type", "username", "channel", "id", "packets", "hopping",
+    "interface", "type", "username", "channel", "uuid", "packets", "hopping",
     NULL
 };
 
 int Protocol_CARD(PROTO_PARMS) {
-    meta_packsource *csrc = (meta_packsource *) data;
+	KisPacketSource *csrc = (KisPacketSource *) data;
 	ostringstream osstr;
 
-	// Fill up the cache
+	// Allocate the cache
 	cache->Filled(field_vec->size());
 
 	for (unsigned int x = 0; x < field_vec->size(); x++) {
@@ -65,28 +61,28 @@ int Protocol_CARD(PROTO_PARMS) {
 		// Fill in the cached element
 		switch (fnum) {
 			case CARD_interface:
-				cache->Cache(fnum, csrc->device);
+				cache->Cache(fnum, csrc->FetchInterface());
 				break;
 			case CARD_type:
-				cache->Cache(fnum, csrc->prototype->cardtype);
+				cache->Cache(fnum, csrc->FetchType());
 				break;
 			case CARD_username:
-				cache->Cache(fnum, "\001" + MungeToPrintable(csrc->name) + "\001");
+				cache->Cache(fnum, "\001" + MungeToPrintable(csrc->FetchName()) + 
+							 "\001");
 				break;
 			case CARD_channel:
-				osstr << csrc->capsource->FetchChannel();
+				osstr << csrc->FetchChannel();
 				cache->Cache(fnum, osstr.str());
 				break;
-			case CARD_id:
-				osstr << csrc->id;
-				cache->Cache(fnum, osstr.str());
+			case CARD_uuid:
+				cache->Cache(fnum, csrc->FetchUUID().UUID2String());
 				break;
 			case CARD_packets:
-				osstr << csrc->capsource->FetchNumPackets();
+				osstr << csrc->FetchNumPackets();
 				cache->Cache(fnum, osstr.str());
 				break;
 			case CARD_hopping:
-				if (csrc->ch_hop)
+				if (csrc->FetchChannelHop())
 					cache->Cache(fnum, "1");
 				else
 					cache->Cache(fnum, "0");
@@ -108,6 +104,181 @@ void Protocol_CARD_enable(PROTO_ENABLE_PARMS) {
 	return;
 }
 
+int Clicmd_CHANLOCK_hook(CLIENT_PARMS) {
+	return 
+		((Packetsourcetracker *) auxptr)->cmd_chanlock(in_clid, framework,
+													   globalreg, errstr, cmdline,
+													   parsedcmdline, auxptr);
+}
+
+int Clicmd_CHANHOP_hook(CLIENT_PARMS) {
+	return 
+		((Packetsourcetracker *) auxptr)->cmd_chanhop(in_clid, framework,
+													  globalreg, errstr, cmdline,
+													  parsedcmdline, auxptr);
+}
+
+int Clicmd_PAUSE_hook(CLIENT_PARMS) {
+	return 
+		((Packetsourcetracker *) auxptr)->cmd_pause(in_clid, framework,
+													globalreg, errstr, cmdline,
+													parsedcmdline, auxptr);
+}
+
+int Clicmd_RESUME_hook(CLIENT_PARMS) {
+	return 
+		((Packetsourcetracker *) auxptr)->cmd_resume(in_clid, framework,
+													 globalreg, errstr, cmdline,
+													 parsedcmdline, auxptr);
+}
+
+int Packetsourcetracker::cmd_chanlock(CLIENT_PARMS) {
+    if (parsedcmdline->size() != 2) {
+        snprintf(errstr, 1024, "Illegal chanlock request");
+        return -1;
+    }
+
+	uuid srcuuid = uuid((*parsedcmdline)[0].word);
+	if (srcuuid.error) {
+		snprintf(errstr, 1024, "Illegal chanlock request, invalid UUID");
+		return -1;
+	}
+
+    int chnum;
+    if (sscanf(((*parsedcmdline)[1]).word.c_str(), "%d", &chnum) != 1) {
+        snprintf(errstr, 1024, "Illegal chanlock request");
+        return -1;
+    }
+
+	KisPacketSource *src = FindUUID(srcuuid);
+
+	if (src == NULL) {
+		snprintf(errstr, 1024, "Illegal chanlock request, unknown uuid");
+		return -1;
+	}
+
+	// Try to set the channel
+	if (SetChannel(chnum, src) < 0) {
+		snprintf(errstr, 1024, "Illegal chanlock request, source could not "
+				 "set channel %d", chnum);
+		return -1;
+	}
+
+	// Lock it to not hop on this source
+	src->SetChannelHop(0);
+
+    snprintf(errstr, 1024, "Locking source '%s' to channel %d", 
+			 src->FetchName().c_str(), chnum);
+    _MSG(errstr, MSGFLAG_INFO);
+    
+    return 1;
+}
+
+int Packetsourcetracker::cmd_chanhop(CLIENT_PARMS) {
+    if (parsedcmdline->size() != 1) {
+        snprintf(errstr, 1024, "Illegal chanhop request");
+        return -1;
+    }
+
+	uuid srcuuid = (*parsedcmdline)[0].word;
+	if (srcuuid.error) {
+		snprintf(errstr, 1024, "Illegal chanhop request, invalid UUID");
+		return -1;
+	}
+
+	KisPacketSource *src = FindUUID(srcuuid);
+
+	if (src == NULL) {
+		snprintf(errstr, 1024, "Illegal chanhop request, unknown uuid");
+		return -1;
+	}
+
+	// Lock it to not hop on this source
+	if (src->SetChannelHop(1) < 0) {
+		snprintf(errstr, 1024, "Illegal chanhop request, source cannot "
+				 "perform channel hopping");
+		return -1;
+	}
+
+	snprintf(errstr, 1024, "Enabling channel hopping on source '%s'",
+			 src->FetchName().c_str());
+    globalreg->messagebus->InjectMessage(errstr, MSGFLAG_INFO);
+    
+    return 1;
+}
+
+int Packetsourcetracker::cmd_pause(CLIENT_PARMS) {
+    if (parsedcmdline->size() == 1) {
+		uuid srcuuid = (*parsedcmdline)[0].word;
+		if (srcuuid.error) {
+			snprintf(errstr, 1024, "Illegal pause request, invalid UUID");
+			return -1;
+		}
+
+		KisPacketSource *src = FindUUID(srcuuid);
+
+		if (src == NULL) {
+			snprintf(errstr, 1024, "Illegal pause request, unknown uuid");
+			return -1;
+		}
+
+		// Try to pause it
+		src->Pause();
+
+		snprintf(errstr, 1024, "Pausing source '%s'", src->FetchName().c_str());
+		_MSG(errstr, MSGFLAG_INFO);
+    
+		return 1;
+	} else if (parsedcmdline->size() == 0) {
+		for (unsigned int x = 0; x < live_packsources.size(); x++) {
+			live_packsources[x]->Pause();
+		}
+
+		snprintf(errstr, 1024, "Pausing all packet sources");
+		_MSG(errstr, MSGFLAG_INFO);
+		return 1;
+	}
+
+	snprintf(errstr, 1024, "Illegal pause request");
+	return -1;
+}
+
+int Packetsourcetracker::cmd_resume(CLIENT_PARMS) {
+    if (parsedcmdline->size() == 1) {
+		uuid srcuuid = (*parsedcmdline)[0].word;
+		if (srcuuid.error) {
+			snprintf(errstr, 1024, "Illegal resume request, invalid UUID");
+			return -1;
+		}
+
+		KisPacketSource *src = FindUUID(srcuuid);
+
+		if (src == NULL) {
+			snprintf(errstr, 1024, "Illegal resume request, unknown uuid");
+			return -1;
+		}
+
+		// Try to resume it
+		src->Resume();
+
+		snprintf(errstr, 1024, "Resuming source '%s'", src->FetchName().c_str());
+		_MSG(errstr, MSGFLAG_INFO);
+    
+		return 1;
+	} else if (parsedcmdline->size() == 0) {
+		for (unsigned int x = 0; x < live_packsources.size(); x++) {
+			live_packsources[x]->Resume();
+		}
+
+		snprintf(errstr, 1024, "Resuming all packet sources");
+		_MSG(errstr, MSGFLAG_INFO);
+		return 1;
+	}
+
+	snprintf(errstr, 1024, "Illegal resume request");
+	return -1;
+}
+
 int Event_CARD(TIMEEVENT_PARMS) {
 	// Just send everything
 	globalreg->sourcetracker->BlitCards(-1);
@@ -121,14 +292,6 @@ int ChannelHopEvent(TIMEEVENT_PARMS) {
     globalreg->sourcetracker->AdvanceChannel();
     
     return 1;
-}
-
-KisPacketSource *nullsource_registrant(REGISTRANT_PARMS) {
-    return new NullPacketSource(globalreg, in_meta, in_name, in_device);
-}
-
-int unmonitor_nullsource(MONITOR_PARMS) {
-    return 0;
 }
 
 int packsrc_chan_ipc(IPC_CMD_PARMS) {
@@ -173,8 +336,6 @@ void Packetsourcetracker::Usage(char *name) {
 
 Packetsourcetracker::Packetsourcetracker(GlobalRegistry *in_globalreg) {
     globalreg = in_globalreg;
-    next_packsource_id = 0;
-    next_meta_id = 0;
 
 	if (globalreg->packetchain == NULL) {
 		fprintf(stderr, "FATAL OOPS:  Packetsourcetracker called before "
@@ -201,6 +362,19 @@ Packetsourcetracker::Packetsourcetracker(GlobalRegistry *in_globalreg) {
 												  &Protocol_CARD,
 												  &Protocol_CARD_enable,
 												  this);
+	// Register the card commands
+	cmdid_chanlock =
+		globalreg->kisnetserver->RegisterClientCommand("CHANLOCK", 
+													   &Clicmd_CHANLOCK_hook, NULL);
+	cmdid_chanhop =
+		globalreg->kisnetserver->RegisterClientCommand("CHANHOP", 
+													   &Clicmd_CHANHOP_hook, NULL);
+	cmdid_pause =
+		globalreg->kisnetserver->RegisterClientCommand("PAUSE", 
+													   &Clicmd_PAUSE_hook, NULL);
+	cmdid_resume =
+		globalreg->kisnetserver->RegisterClientCommand("RESUME", 
+													   &Clicmd_RESUME_hook, NULL);
 
 	// Register our packet components 
 	// back-refer to the capsource so we can get names and parameters
@@ -214,172 +388,31 @@ Packetsourcetracker::Packetsourcetracker(GlobalRegistry *in_globalreg) {
 	_PCM(PACK_COMP_80211FRAME) =
 		globalreg->packetchain->RegisterPacketComponent("80211FRAME");
 
-    // Register all our packet sources
-    // RegisterPacketsource(name, root, channelset, init channel, register,
-    // monitor, unmonitor, channelchanger)
-    //
-    // We register sources we known about but didn't compile support for as
-    // NULL so we can report a sensible error if someone tries to use it
-    // 
-    // Plugins will go here after null sources, somehow
- 
-    // Null source, error registrant and can't autoreg
-    RegisterPacketsource("none", 0, "na", 0, NULL,
-                         nullsource_registrant,
-                         NULL, unmonitor_nullsource, NULL, 0);
-
-	// Everyone gets a drone
-	RegisterPacketsource("drone", 0, "na", 0, NULL,
-						 packetsource_drone_registrant,
-						 NULL, unmonitor_drone, NULL, 0);
-
-#ifdef HAVE_LIBPCAP
-    // pcapfile doesn't have channel or monitor controls and can't autoreg
-    RegisterPacketsource("pcapfile", 0, "na", 0, NULL,
-                         packetsource_pcapfile_registrant,
-                         NULL, unmonitor_pcapfile, NULL, 0);
-
-#ifdef WIRELESS_EXT
-	RegisterPacketsource("acx100", 1, "IEEE80211b", 6,
-						 NULL, // FIXME -- add a detector
-						 packetsource_wext_registrant,
-						 monitor_wext_std, unmonitor_wext_std,
-						 chancontrol_wext_std, 1);
-
-	RegisterPacketsource("admtek", 1, "IEEE80211b", 6,
-						 NULL, // FIXME -- add a detector
-						 packetsource_wext_registrant,
-						 monitor_wext_std, unmonitor_wext_std,
-						 chancontrol_wext_std, 1);
-
-	RegisterPacketsource("atmel_usb", 1, "IEEE80211b", 6,
-						 NULL, // FIXME -- add a detector
-						 packetsource_wext_registrant,
-						 monitor_wext_std, unmonitor_wext_std,
-						 chancontrol_wext_std, 1);
-
-	RegisterPacketsource("hostap", 1, "IEEE80211b", 6,
-						 NULL, // FIXME -- add a detector
-						 packetsource_wext_registrant,
-						 monitor_wext_std, unmonitor_wext_std,
-						 chancontrol_wext_std, 1);
-
-	RegisterPacketsource("ipw2100", 1, "IEEE80211b", 6,
-						 autoprobe_ipw2100,
-						 packetsource_wext_registrant,
-						 monitor_wext_std, unmonitor_wext_std,
-						 chancontrol_wext_std, 1);
-
-	RegisterPacketsource("ipw2200", 1, "IEEE80211b", 6,
-						 autoprobe_ipw2200,
-						 packetsource_wext_registrant,
-						 monitor_wext_std, unmonitor_wext_std,
-						 chancontrol_wext_std, 1);
-
-	RegisterPacketsource("ipw2915", 1, "IEEE80211ab", 6,
-						 NULL, // FIXME -- what to do?
-						 packetsource_wext_registrant,
-						 monitor_wext_std, unmonitor_wext_std,
-						 chancontrol_wext_std, 1);
-	
-	// Madwifi builtin sources
-	RegisterPacketsource("madwifi_a", 1, "IEEE80211a", 36,
-						 NULL,
-						 packetsource_wext_fcs_registrant,
-						 monitor_madwifi_a, unmonitor_madwifi,
-						 chancontrol_wext_std, 1);
-	// Only madwifi_b gets the autolearn for now until we get a mode probe
-	// working and a way to tie it in
-	RegisterPacketsource("madwifi_b", 1, "IEEE80211b", 6,
-						 autoprobe_madwifi,
-						 packetsource_wext_fcs_registrant,
-						 monitor_madwifi_b, unmonitor_madwifi,
-						 chancontrol_wext_std, 1);
-	RegisterPacketsource("madwifi_g", 1, "IEEE80211b", 6,
-						 NULL, // FIXME - do we need a detector?
-						 packetsource_wext_fcs_registrant,
-						 monitor_madwifi_g, unmonitor_madwifi,
-						 chancontrol_wext_std, 1);
-	RegisterPacketsource("madwifi_ag", 1, "IEEE80211ab", 6,
-						 NULL, // FIXME -- do we need a detector?
-						 packetsource_wext_fcs_registrant,
-						 monitor_madwifi_ag, unmonitor_madwifi,
-						 chancontrol_wext_std, 1);
-
-	RegisterPacketsource("prism54g", 1, "IEEE80211g", 6,
-						 NULL, // FIXME -- add a detector
-						 packetsource_wext_registrant,
-						 monitor_wext_std, unmonitor_wext_std,
-						 chancontrol_wext_std, 1);
-
-	RegisterPacketsource("rt2400", 1, "IEEE80211b", 6,
-						 NULL, // FIXME -- add a detector
-						 packetsource_wext_registrant,
-						 monitor_wext_std, unmonitor_wext_std,
-						 chancontrol_wext_std, 1);
-
-	RegisterPacketsource("rt2500", 1, "IEEE80211b", 6,
-						 NULL, // FIXME -- add a detector
-						 packetsource_wext_registrant,
-						 monitor_wext_std, unmonitor_wext_std,
-						 chancontrol_wext_std, 1);
-
-	RegisterPacketsource("rt8180", 1, "IEEE80211b", 6,
-						 NULL, // FIXME -- add a detector
-						 packetsource_wext_registrant,
-						 monitor_wext_std, unmonitor_wext_std,
-						 chancontrol_wext_std, 1);
-
-#endif // Wext
-
-#if defined(SYS_OPENBSD) || defined(SYS_NETBSD) || defined(SYS_FREEBSD)
-	// BSD pcap-based common radiotap capture sources
-	RegisterPacketsource("radiotap_bsd_ag", 1, "IEEE80211ab", 6,
-						 NULL, // FIXME -- add a detector
-						 packetsource_bsdrtap_registrant,
-						 monitor_bsdrtap_std, unmonitor_bsdrtap_std,
-						 chancontrol_bsdrtap_std, 1);
-	RegisterPacketsource("radiotap_bsd_a", 1, "IEEE80211a", 36,
-						 NULL, // FIXME -- add a detector
-						 packetsource_bsdrtap_registrant,
-						 monitor_bsdrtap_std, unmonitor_bsdrtap_std,
-						 chancontrol_bsdrtap_std, 1);
-	RegisterPacketsource("radiotap_bsd_g", 1, "IEEE80211b", 6,
-						 NULL, // FIXME -- add a detector
-						 packetsource_bsdrtap_registrant,
-						 monitor_bsdrtap_std, unmonitor_bsdrtap_std,
-						 chancontrol_bsdrtap_std, 1);
-	RegisterPacketsource("radiotap_bsd_b", 1, "IEEE80211b", 6,
-						 NULL, // FIXME -- add a detector
-						 packetsource_bsdrtap_registrant,
-						 monitor_bsdrtap_std, unmonitor_bsdrtap_std,
-						 chancontrol_bsdrtap_std, 1);
-#endif // BSD
-
-#endif // pcap
+	// Add our null source
+	AddKisPacketsource(new NullPacketSource(globalreg));
 
 	// Register the packetsourcetracker as a pollable subsystem
 	globalreg->RegisterPollableSubsys(this);
 
 	// Assign the IPC commands and make it pollable
-	chan_remote = new IPCRemote(globalreg, "channel control");
-	chan_ipc_id = chan_remote->RegisterIPCCmd(&packsrc_chan_ipc, this);
-	haltall_ipc_id = chan_remote->RegisterIPCCmd(&packsrc_haltall_ipc, this);
-	globalreg->RegisterPollableSubsys(chan_remote);
+	chan_ipc_id = globalreg->rootipc->RegisterIPCCmd(&packsrc_chan_ipc, this);
+	haltall_ipc_id = globalreg->rootipc->RegisterIPCCmd(&packsrc_haltall_ipc, this);
 }
 
 Packetsourcetracker::~Packetsourcetracker() {
 	globalreg->RemovePollableSubsys(this);
-
-	chan_remote->ShutdownIPC(NULL);
-	globalreg->RemovePollableSubsys(chan_remote);
-	delete chan_remote;
 
     for (map<string, packsource_protorec *>::iterator x = cardtype_map.begin();
          x != cardtype_map.end(); ++x)
         delete x->second;
 }
 
+// Add a packet source type (just call the registersources with ourself)
+int Packetsourcetracker::AddKisPacketsource(KisPacketSource *in_source) {
+	return in_source->RegisterSources(this);
+}
+
+// Process the cards from kismet.conf and the command line
 int Packetsourcetracker::LoadConfiguredCards() {
 	// Commandline stuff
 	string named_sources;
@@ -586,9 +619,9 @@ unsigned int Packetsourcetracker::MergeSet(unsigned int in_max_fd, fd_set *out_r
 
     unsigned int max = in_max_fd;
 
-    for (unsigned int metc = 0; metc < meta_packsources.size(); metc++) {
-        meta_packsource *meta = meta_packsources[metc];
-		int capd = meta->capsource->FetchDescriptor();
+    for (unsigned int livc = 0; livc < live_packsources.size(); livc++) {
+        KisPacketSource *psrc = live_packsources[livc];
+		int capd = psrc->FetchDescriptor();
 
 		if (capd < 0)
 			continue;
@@ -619,145 +652,148 @@ int Packetsourcetracker::Poll(fd_set& in_rset, fd_set& in_wset) {
     return 1;
 }
 
-meta_packsource *Packetsourcetracker::FetchMetaID(int in_id) {
-    if (in_id < 0 || in_id >= (int) meta_packsources.size())
-        return NULL;
+KisPacketSource *Packetsourcetracker::FindUUID(uuid in_id) {
+	// Try to find the source
+	map<uuid, KisPacketSource *>::iterator psmi = ps_map.find(in_id);
+	if (psmi == ps_map.end()) {
+		return NULL;
+	}
 
-    return meta_packsources[in_id];
+	return psmi->second;
 }
 
 // Explicitly set a channel.  Caller is responsible for turning off hopping
 // on this source if they want it to really stay on this channel
-int Packetsourcetracker::SetChannel(int in_ch, meta_packsource *in_meta) {
-    if (in_meta->prototype->channelcon == NULL)
-        return 0;
-
+int Packetsourcetracker::SetChannel(int in_ch, KisPacketSource *src) {
 #ifndef HAVE_SUID
-    int ret = (*in_meta->prototype->channelcon)(globalreg, in_meta->device.c_str(),
-                                                in_ch, (void *) in_meta->capsource);
+    int ret = src->SetChannel(in_ch);
+
     if (ret < 0)
         return ret;
 #else
 	// Don't use IPC to set "local control" sources (why use IPC to set snmp?)
-    if (in_meta->prototype->child_control == 0) {
-        int ret;
-        ret = (*in_meta->prototype->channelcon)(globalreg, in_meta->device.c_str(),
-                                                in_ch, (void *) in_meta->capsource);
-        if (ret < 0)
-            return ret;
-    }
 
+	// This looks like it's inefficient, but there aren't going to be hundreds
+	// of packet sources, and an iteration through a 1-10 element array (avg)
+	// isn't going to be measurably more expensive than a tree search.  Plus
+	// it gets us the offset index we need.
+	unsigned int live_offt = 0;
+	int match = 0;
+	for (live_offt = 0; live_offt < live_packsources.size(); live_offt++) {
+		if (live_packsources[live_offt] == src) {
+			match = 1;
+			break; 
+		}
+	}
+
+	if (match == 0) {
+		_MSG("Packetsourcetracker unable to find reference to source pointer in "
+			 "live source vec for SetChannel.  Perhaps called with a dynamic "
+			 "source not added?", MSGFLAG_FATAL);
+		globalreg->fatal_condition = 1;
+		return -1;
+	}
+
+	if (src->ChildIPCControl() == 0) {
+		int ret;
+		ret = src->SetChannel(in_ch);
+
+		return ret;
+	}
+	
 	ipc_packet *pack =
 		(ipc_packet *) malloc(sizeof(ipc_packet) + 
 							  sizeof(chanchild_changepacket));
 	chanchild_changepacket *chpak = (chanchild_changepacket *) pack->data;
 
-	chpak->meta_num = in_meta->id;
+	chpak->meta_num = live_offt;
 	chpak->channel = in_ch;
 
 	pack->data_len = sizeof(chanchild_changepacket);
 	pack->ipc_cmdnum = chan_ipc_id;
 
-	chan_remote->SendIPC(pack);
+	globalreg->rootipc->SendIPC(pack);
 #endif
 
     return 1;
-
 }
 
 int Packetsourcetracker::SetIPCChannel(int in_ch, unsigned int meta_num) {
 	// This usually happens inside the IPC fork, so remember not to screw with
 	// things that aren't set yet!  Meta is safe, other stuff isn't.  Globalreg
 	// got remapped by the IPC system to funnel back over IPC
-	if (meta_num >= meta_packsources.size()) {
-		_MSG("Packetsourcetracker SetIPCChannel got illegal metasource "
+	if (meta_num >= live_packsources.size()) {
+		_MSG("Packetsourcetracker SetIPCChannel got illegal packet source "
 			 "card number to set", MSGFLAG_ERROR);
 		return 0;
 	}
 
-	meta_packsource *meta = meta_packsources[meta_num];
+	KisPacketSource *src = live_packsources[meta_num];
 
-	if (meta->prototype->channelcon == NULL) {
-		_MSG("Packetsourcetracker SetIPCChannel tried to set a metasource "
-			 "with no channel control function", MSGFLAG_ERROR);
-		return 0;
-	}
+	int ret = src->SetChannel(in_ch);
 
-	int ret = 
-		(*meta->prototype->channelcon)(globalreg, meta->device.c_str(),
-									   in_ch, (void *) meta->capsource);
-	if (ret >= 0) {
-		meta->consec_errors = 0;
-		return 1;
-	}
-
-	meta->consec_errors++;
-
-	if (meta->consec_errors >= MAX_CONSEC_CHAN_ERR) {
-		ostringstream osstr;
-		osstr << "Packet source " << meta->name << " (" << meta->device << ") "
-			"has had " << meta->consec_errors << " consecutive errors.  This "
-			"most likely means the drivers or firmware have become confused. "
-			"Kismet cannot continue.";
-		_MSG(osstr.str(), MSGFLAG_FATAL);
+	if (ret < 0) {
 		// Redundant but can't hurt
-		chan_remote->ShutdownIPC(NULL);
+		globalreg->rootipc->ShutdownIPC(NULL);
 	}
 
 	return -1;
 }
 
-int Packetsourcetracker::SetHopping(int in_hopping, meta_packsource *in_meta) {
-    if (in_meta->prototype->channelcon == NULL)
-        return 0;
+int Packetsourcetracker::SetHopping(int in_hopping, uuid in_uuid) {
+	KisPacketSource *src = FindUUID(in_uuid);
 
-    in_meta->ch_hop = in_hopping;
+	if (src == NULL) {
+		_MSG("Could not set hopping for source UUID " + in_uuid.UUID2String() + 
+			 ", unable to find source", MSGFLAG_FATAL);
+		globalreg->fatal_condition = 1;
+		return -1;
+	}
 
-    return 0;
+	return src->SetChannelHop(in_hopping);
 }
 
 // Hop the packet sources up a channel
 int Packetsourcetracker::AdvanceChannel() {
 	// Don't hop if it's queued up/un-ack'd
-	if (chan_remote->FetchReadyState() == 0)
+	if (globalreg->rootipc->FetchReadyState() == 0)
 		return 0;
 
-    for (unsigned int metac = 0; metac < meta_packsources.size(); metac++) {
-        meta_packsource *meta = meta_packsources[metac];
+	for (unsigned int livec = 0; livec < live_packsources.size(); livec++) {
+		KisPacketSource *liv = live_packsources[livec];
 
-        // Don't do anything for sources with no channel controls
-        if (meta->prototype->channelcon == NULL)
-            continue;
+		if (liv->FetchChannelCapable() == 0) {
+			continue;
+		}
 
-        // Don't do anything if this source doesn't hop
-        if (meta->ch_hop == 0)
-            continue;
+		if (liv->FetchChannelHop() == 0) {
+			continue;
+		}
 
-        int ret = SetChannel(meta->channels[meta->ch_pos++], meta);
-        
+		// Get the next channel from the source
+		int nextchan = liv->FetchNextChannel();
 
-        if (meta->ch_pos >= (int) meta->channels.size())
-            meta->ch_pos = 0;
+		if (nextchan <= 0)
+			continue;
 
-        if (ret < 0)
-            return ret;
+		// Call the IPC dispatcher
+		int ret = SetChannel(nextchan, liv);
 
-    }
+		// Blow up if something died
+		if (ret < 0)
+			return ret;
+	}
 
     return 1;
 }
 
 // Map a cardtype string to the registrant function.  Should be called from main() or 
 // wherever packet sources get loaded from.  (Plugin hook)
-int Packetsourcetracker::RegisterPacketsource(const char *in_cardtype, int in_root, 
-                                              const char *in_defaultchanset, 
-                                              int in_initch, 
-											  packsource_autoprobe in_autoprobe,
-                                              packsource_registrant in_registrant, 
-                                              packsource_monitor in_monitor,
-                                              packsource_monitor in_unmonitor,
-                                              packsource_chcontrol in_channelcon,
-                                              int in_childcontrol) {
+int Packetsourcetracker::RegisterPacketsource(const char *in_cardtype, 
+											  KisPacketSource *in_weaksource,
+											  int in_root, 
+											  const char *in_defaultchanset, 
+                                              int in_initch) {
     // Do we have it?  Can't register a type that's already registered.
     if (cardtype_map.find(in_cardtype) != cardtype_map.end())
         return -1;
@@ -765,40 +801,26 @@ int Packetsourcetracker::RegisterPacketsource(const char *in_cardtype, int in_ro
     // Register it.
     packsource_protorec *rec = new packsource_protorec;
 
-    rec->id = next_packsource_id++;
+	rec->type = in_cardtype;
     rec->root_required = in_root;
     rec->default_channelset = in_defaultchanset;
     rec->initial_channel = in_initch;
-
-	rec->autoprobe = in_autoprobe;
-    rec->registrant = in_registrant;
-    rec->monitor_enable = in_monitor;
-    rec->monitor_disable = in_unmonitor;
-    rec->channelcon = in_channelcon;
-
-    rec->child_control = in_childcontrol;
-
-    rec->cardtype = in_cardtype;
+	rec->weak_source = in_weaksource;
 
     cardtype_map[StrLower(in_cardtype)] = rec;
 
-    return rec->id;
+	return 1;
 }
 
 int Packetsourcetracker::RemovePacketsource(const char *in_cardtype) {
-	// We can't fully clean it, but we can make it unusable.
-	
 	map<string, packsource_protorec *>::iterator itr =
 		cardtype_map.find(in_cardtype);
 
     if (itr == cardtype_map.end())
         return -1;
 
-	itr->second->autoprobe = NULL;
-	itr->second->registrant = NULL;
-	itr->second->monitor_disable = NULL;
-	itr->second->monitor_enable = NULL;
-	itr->second->channelcon = NULL;
+	delete itr->second;
+	cardtype_map.erase(itr);
 
 	return 1;
 }
@@ -846,18 +868,9 @@ int Packetsourcetracker::RegisterDefaultChannels(vector<string> *in_defchannels)
     return 1;
 }
 
-vector<KisPacketSource *> Packetsourcetracker::FetchSourceVec() {
-    return live_packsources;
-}
-
-vector<meta_packsource *> Packetsourcetracker::FetchMetaSourceVec() {
-    return meta_packsources;
-}
-
-// Big scary function to build the meta-packsource records from the requested configs 
-// provided. These configs can come from either the config file or the command line 
-// options, caller is responsible for figuring out which ones override and get sent 
-// to us.
+// Big scary function to build the contents of prebuild_protosources, which
+// will then be used by bindsources to build the real, strong-packsource
+// instances.
 //
 // enableline: vector of source names to be enabled
 // cardlines: vector of config lines defining actual capture sources,
@@ -889,8 +902,6 @@ int Packetsourcetracker::ProcessCardList(string in_enableline,
     map<int, int> chan_seqid_count_map;
     // Sequence id counter
     int chan_seqid = 0;
-    // Was anything able to hop?
-    int hop_possible = 0;
 
     // Split the enable lines into a map saying if a source should be turned on
     tokens.clear();
@@ -1019,44 +1030,19 @@ int Packetsourcetracker::ProcessCardList(string in_enableline,
 		// Look for the auto cards
 		packsource_protorec *curproto = NULL;
 		if (StrLower(tokens[0]) == "auto") {
-			string driver, version, firmware;
-#if defined(SYS_LINUX)
-			ethtool_drvinfo drvinfo;
-			if (Linux_GetDrvInfo(tokens[1].c_str(), errstr, &drvinfo) < 0) {
-				_MSG(errstr, MSGFLAG_FATAL);
-				_MSG("Failed to get the ethtool driver info from device " +
-					 tokens[1] + ".  This information is used to detect the capture "
-					 "type for 'auto' sources.", MSGFLAG_FATAL);
-				globalreg->fatal_condition = 1;
-				return -1;
-			}
-
-			driver = drvinfo.driver;
-			version = drvinfo.version;
-			firmware = drvinfo.fw_version;
-#else
-			// Short out if we don't know what to do
-			_MSG("Currently the 'auto' card type detection is only supported "
-				 "under Linux.  Please consult the README file for information "
-				 "on the exact card type which should be used for your card.",
-				 MSGFLAG_FATAL);
-			globalreg->fatal_condition = 1;
-			return -1;
-#endif
-
 			for (map<string, packsource_protorec *>::iterator psi = 
 				 cardtype_map.begin(); psi != cardtype_map.end(); ++psi) {
 				int ret = 0;
-				if (psi->second->autoprobe == NULL)
+
+				if (psi->second->weak_source == NULL)
 					continue;
 
-				ret = (*(psi->second->autoprobe))(globalreg, tokens[2],
-												  tokens[1], driver, 
-												  version, firmware);
+				ret = psi->second->weak_source->AutotypeProbe(tokens[1]);
+
 				if (ret > 0) {
 					curproto = psi->second;
-					_MSG("Resolved " + tokens[1] + " auto source type to " 
-						 "source type " + curproto->cardtype, MSGFLAG_INFO);
+					_MSG("Resolved '" + tokens[1] + "' auto source type to " 
+						 "source type " + curproto->type, MSGFLAG_INFO);
 				} else if (ret < 0 || globalreg->fatal_condition == 1) {
 					globalreg->fatal_condition = 1;
 					return -1;
@@ -1065,14 +1051,15 @@ int Packetsourcetracker::ProcessCardList(string in_enableline,
 
 			if (curproto == NULL) {
 				_MSG("Failed to find a matching source type for autosource "
-					 "interface " + tokens[1] + ".  Got info ('" + driver + "', '" + 
-					 version + "'," " '" + firmware + "') for the device.", 
-					 MSGFLAG_FATAL);
+					 "interface " + tokens[1] + ".  This does not always mean that "
+					 "the device is unsupported, please consult the Kismet "
+					 "README file for information about configuring capture "
+					 "sources", MSGFLAG_FATAL);
 				globalreg->fatal_condition = 1;
 				return -1;
 			}
 		} else {
-			// Look for the card type, we won't even create a metasource if we 
+			// Look for the card type, we won't even create a source if we 
 			// don't have one.
 			if (cardtype_map.find(StrLower(tokens[0])) == cardtype_map.end()) {
 				snprintf(errstr, 1024, "Unknown capture source type '%s' in "
@@ -1083,17 +1070,6 @@ int Packetsourcetracker::ProcessCardList(string in_enableline,
 				return -1;
 			}
 		}
-
-        // Look for stuff the code knows about but which was disabled
-        if (cardtype_map[StrLower(tokens[0])]->registrant == NULL) {
-            snprintf(errstr, 1024, "Support for capture source type '%s' was not "
-					 "built.  Check the output from 'configure' for more information "
-					 "about why it might not have been compiled in.", 
-					 tokens[0].c_str());
-            globalreg->messagebus->InjectMessage(errstr, MSGFLAG_FATAL);
-            globalreg->fatal_condition = 1;
-            return -1;
-        }
 
         // If they have four elements in the source line, take the fourth as the
         // initial channel
@@ -1111,115 +1087,95 @@ int Packetsourcetracker::ProcessCardList(string in_enableline,
         if (enable_map.find(StrLower(tokens[2])) != enable_map.end() ||
             all_enable == 1) {
 
-            meta_packsource *meta = new meta_packsource;
-            meta->id = next_meta_id++;
-            meta->valid = 0;
-            meta->cmd_ack = 1;
+			packsource_protorec *meta = new packsource_protorec;
+
+			meta->name = tokens[2];
+			meta->interface = tokens[1];
+			meta->type = StrLower(tokens[0]);
+
+			// Grab the defaults
 			if (curproto == NULL)
-				meta->prototype = cardtype_map[StrLower(tokens[0])];
-			else
-				meta->prototype = curproto;
-            meta->name = tokens[2];
-            meta->device = tokens[1];
-            meta->capsource = NULL;
-            meta->stored_interface = NULL;
-            meta->ch_pos = 0;
-            meta->cur_ch = 0;
-			meta->consec_errors = 0;
-            // Hopping is turned on in any source that has a channel control pointer.
-            // This isn't controlling if kismet hops in general, only if this source
-            // changes channel when Kismet decides to channel hop.
-            if (meta->prototype->channelcon == NULL) {
-                meta->ch_hop = 0;
-            } else {
-                meta->ch_hop = 1;
-                hop_possible++;
-            }
+				curproto = cardtype_map[meta->type];
+
+			meta->root_required = curproto->root_required;
+			meta->default_channelset = curproto->default_channelset;
+			meta->weak_source = curproto->weak_source;
 
             // Assign the initial channel - the kismet command line takes the highest
             // priority, then if they defined a quad-element sourceline, and finally
             // the prototype default if nothing overrides it
             if (initch_map.find(StrLower(meta->name)) != initch_map.end()) {
-                meta->cur_ch = initch_map[StrLower(meta->name)];
+                meta->initial_channel = initch_map[StrLower(meta->name)];
             } else {
-                // If they didn't request an initial channel, and they specified one on
-                // the source line, set it to that, otherwise use the prototype initial
-                // channel
+                // If they didn't request an initial channel, and they specified 
+				// one on the source line, set it to that, otherwise use the 
+				// prototype initial channel
                 if (sourceline_initch > 0)
-                    meta->cur_ch = sourceline_initch;
+                    meta->initial_channel = sourceline_initch;
                 else
-                    meta->cur_ch = meta->prototype->initial_channel;
+                    meta->initial_channel = curproto->initial_channel;
             }
 
-            // Assign the channels - if it doesn't have a specific name, we look for 
-            // the default channel set.  Assignment counts are used in the next run 
-            // through to assign initial channel offsets.  These map references are 
-            // pretty ridiculous, but they only happen once during startup so it 
-            // doesn't make much sense to go nuts trying to optimize them
+			// Assign the channels - if it doesn't have a specific name, we look
+			// for the default channel set.  Assignment counts are used in the
+			// next block to assign channel offsets.  The map referenes are
+			// admittedly pretty nuts, but they only happen during startup so
+			// it just doesn't pay to try to optimize them
             if (chan_cap_seqid_map.find(StrLower(meta->name)) != 
                 chan_cap_seqid_map.end()) {
-                // Hard-fault on sources that have an explicit channel hop but can't 
-                // hop...
-                if (meta->prototype->default_channelset == "none") {
-                    snprintf(errstr, 1024, "Channel set assigned to capsource %s, "
-                             "which cannot channel hop.",
-                             meta->name.c_str());
-                    globalreg->messagebus->InjectMessage(errstr, MSGFLAG_FATAL);
-                    globalreg->fatal_condition = 1;
-                    return -1;
-                }
 
-                meta->channel_seqid = chan_cap_seqid_map[StrLower(meta->name)];
-                chan_seqid_count_map[meta->channel_seqid]++;
-            } else if (chan_cap_seqid_map.find(StrLower(meta->prototype->default_channelset)) 
+                meta->channelvec_id = chan_cap_seqid_map[StrLower(meta->name)];
+                chan_seqid_count_map[meta->channelvec_id]++;
+
+            } else if (chan_cap_seqid_map.find(StrLower(meta->default_channelset)) 
                        != chan_cap_seqid_map.end()) {
 
-                meta->channel_seqid = 
-                    chan_cap_seqid_map[StrLower(meta->prototype->default_channelset)];
-                chan_seqid_count_map[meta->channel_seqid]++;
+                meta->channelvec_id = 
+                    chan_cap_seqid_map[StrLower(meta->default_channelset)];
+                chan_seqid_count_map[meta->channelvec_id]++;
             }
-                        
-            meta_packsources.push_back(meta);
+
+			// If we're hopping, turn it on
+			if (in_chhop)
+				meta->interface_hop = 1;
+
+			prebuild_protosources.push_back(meta);
         }
     }
 
-    // Even if we asked for channel hopping, if nothing we enabled is able to,
-    // turn it off.
-    if (hop_possible == 0)
-        in_chhop = 0;
-    
     // Now we assign split channels by going through all the meta sources, if we're 
     // hopping and splitting channels, that is.
-    //
-    // If we're not hopping, this doesn't happen, meta->channels.size() == 0, and 
-    // we know not to hop on this device
+	//
+	// If this interface has a specific "do not hop" set, we allocate the
+	// channels anyway and then don't enable hopping, since we might want to turn
+	// it on again later
     if (in_chhop) {
         map<int, int> tmp_seqid_assign_map;
 
-        for (unsigned int metc = 0; metc < meta_packsources.size(); metc++) {
-            meta_packsource *meta = meta_packsources[metc];
+        for (unsigned int metc = 0; metc < prebuild_protosources.size(); metc++) {
+			packsource_protorec *meta = prebuild_protosources[metc];
 
-            meta->channels = chan_seqid_seq_map[meta->channel_seqid];
+            meta->channel_vec = chan_seqid_seq_map[meta->channelvec_id];
     
             // Bail if we don't split hop positions
             if (in_chsplit == 0)
                 continue;
 
-            // Track how many actual assignments we've made so far and use it to 
+            // Track how many actual assignments we've made use it to 
             // offset the channel position.
-            if (tmp_seqid_assign_map.find(meta->channel_seqid) == 
+            if (tmp_seqid_assign_map.find(meta->channelvec_id) == 
                 tmp_seqid_assign_map.end())
-                tmp_seqid_assign_map[meta->channel_seqid] = 0;
+                tmp_seqid_assign_map[meta->channelvec_id] = 0;
 
-            meta->ch_pos = (meta->channels.size() / 
-                            chan_seqid_count_map[meta->channel_seqid]) * 
-                tmp_seqid_assign_map[meta->channel_seqid];
+			meta->cv_offset = (meta->channel_vec.size() / 
+							   chan_seqid_count_map[meta->channelvec_id]) * 
+				tmp_seqid_assign_map[meta->channelvec_id];
 
-            tmp_seqid_assign_map[meta->channel_seqid]++;
+            tmp_seqid_assign_map[meta->channelvec_id]++;
         }
     }
 
-    if (meta_packsources.size() == 0) {
+    if (prebuild_protosources.size() == 0) {
         snprintf(errstr, STATUS_MAX, "No packsources were enabled.  Make sure that "
                  "if you use an enablesource line that you specify the correct "
                  "sources.");
@@ -1234,88 +1190,99 @@ int Packetsourcetracker::ProcessCardList(string in_enableline,
 int Packetsourcetracker::BindSources(int in_root) {
     // Walk through the packet sources and create/open all the ones that we can.
     // Dual-pass for root and non-root
-    for (unsigned int x = 0; x < meta_packsources.size(); x++) {
-        meta_packsource *meta = meta_packsources[x];
+    for (unsigned int x = 0; x < prebuild_protosources.size(); x++) {
+		packsource_protorec *meta = prebuild_protosources[x];
 
         // Skip sources that don't apply to this user mode
-        if (!meta->prototype->root_required && in_root) {
+        if (!meta->root_required && in_root) {
             continue;
-        } else if (meta->prototype->root_required && !in_root) {
+        } else if (meta->root_required && !in_root) {
             continue;
         }
-        
-        // Call the registrant to allocate a packet source ... nasty little error
-        // handler but it works.
-        errstr[0] = '\0';
-        meta->capsource = 
-            (*meta->prototype->registrant)(globalreg, meta, meta->name, meta->device);
+       
+		// Use the weak source to create a strong one
+		KisPacketSource *strong = 
+			meta->weak_source->CreateSource(globalreg, meta->type, meta->name,
+											meta->interface);
 
-        if (meta->capsource == NULL) {
-            snprintf(errstr, 1024, "Unable to create source instance for source '%s'",
-                     meta->name.c_str());
-            globalreg->messagebus->InjectMessage(errstr, MSGFLAG_FATAL);
-            globalreg->fatal_condition = 1;
-            return -1;
-        }
+		// Enable monitor mode
+		snprintf(errstr, STATUS_MAX, "Source %d (%s): Enabling monitor mode for "
+				 "%s source interface %s channel %d...",
+				 x, meta->name.c_str(), meta->type.c_str(), 
+				 meta->interface.c_str(), meta->initial_channel);
+		globalreg->messagebus->InjectMessage(errstr, MSGFLAG_INFO);
 
-        // Enable monitor mode
-        int ret = 0;
-        if (meta->prototype->monitor_enable != NULL) {
-            snprintf(errstr, STATUS_MAX, "Source %d (%s): Enabling monitor mode for "
-					 "%s source interface %s channel %d...",
-                    x, meta->name.c_str(), meta->prototype->cardtype.c_str(), 
-                    meta->device.c_str(), meta->cur_ch);
-            globalreg->messagebus->InjectMessage(errstr, MSGFLAG_INFO);
+		// Set the initial channel vec
+		if (strong->SetChannelSequence(meta->channel_vec) < 0) {
+			snprintf(errstr, STATUS_MAX, "Source %d (%s): Failed to set channel "
+					 "list.", x, meta->name.c_str());
+			_MSG(errstr, MSGFLAG_FATAL);
+			globalreg->fatal_condition = 1;
+			return -1;
+		}
 
-            ret = (*meta->prototype->monitor_enable)(globalreg, meta->device.c_str(), 
-                                                     meta->cur_ch, 
-													 &meta->stored_interface,
-                                                     (void *) meta->capsource);
-        }
+		// Set the vector position
+		if (strong->SetChannelSeqPos(meta->cv_offset) < 0) {
+			snprintf(errstr, STATUS_MAX, "Source %d (%s): Failed to set starting "
+					 "position in channel list.", x, meta->name.c_str());
+			_MSG(errstr, MSGFLAG_FATAL);
+			globalreg->fatal_condition = 1;
+			return -1;
+		}
 
-        if (ret < 0) {
-            // Monitor enable dealt with printing stuff
-            return -1;
-        }
+		// Set hopping mode
+		if (strong->SetChannelHop(meta->interface_hop) < 0) {
+			snprintf(errstr, STATUS_MAX, "Source %d (%s): Failed to enable "
+					 "channel hopping.", x, meta->name.c_str());
+			_MSG(errstr, MSGFLAG_FATAL);
+			globalreg->fatal_condition = 1;
+			return -1;
+		}
 
-        // Add it to the live sources vector
-        live_packsources.push_back(meta->capsource);
-        
+		if (strong->EnableMonitor() < 0 || globalreg->fatal_condition) {
+			globalreg->fatal_condition = 1;
+			return -1;
+		}
+
+		// Add it to the strong sources vector and the UUID vector (we wait until
+		// now to give sources a chance to fill in their UUID at monitor time with
+		// a real node ID derived from the MAC.
+		live_packsources.push_back(strong);
+		ps_map[strong->FetchUUID()] = strong;
+
         // Open it
         snprintf(errstr, STATUS_MAX, "Source %d (%s): Opening %s source "
                  "interface %s...", x, meta->name.c_str(), 
-                 meta->prototype->cardtype.c_str(), meta->device.c_str());
+                 meta->type.c_str(), meta->interface.c_str());
         globalreg->messagebus->InjectMessage(errstr, MSGFLAG_INFO);
-        if (meta->capsource->OpenSource() < 0) {
-            meta->valid = 0;
-            return -1;
-        }
 
-        meta->valid = 1;
-
+		if (strong->OpenSource() < 0 || globalreg->fatal_condition) {
+			// Try to drop back to normal
+			strong->DisableMonitor();
+			globalreg->fatal_condition = 1;
+			return -1;
+		}
     }
 
     return 0;
-    
 }
 
 int Packetsourcetracker::PauseSources() {
-    for (unsigned int metc = 0; metc < meta_packsources.size(); metc++) {
-        meta_packsource *meta = meta_packsources[metc];
+    for (unsigned int metc = 0; metc < live_packsources.size(); metc++) {
+		KisPacketSource *meta = live_packsources[metc];
 
-        meta->capsource->Pause();
+      	meta->Pause();
     }
 
     return 1;
 }
 
 int Packetsourcetracker::ResumeSources() {
-    for (unsigned int metc = 0; metc < meta_packsources.size(); metc++) {
-        meta_packsource *meta = meta_packsources[metc];
+    for (unsigned int metc = 0; metc < live_packsources.size(); metc++) {
+		KisPacketSource *meta = live_packsources[metc];
 
-        meta->capsource->Resume();
+      	meta->Resume();
     }
-
     return 1;
 }
 
@@ -1328,7 +1295,7 @@ int Packetsourcetracker::CloseSources() {
 	pack->data_len = 0;
 	pack->ipc_cmdnum = haltall_ipc_id;
 
-	chan_remote->SendIPC(pack);
+	globalreg->rootipc->SendIPC(pack);
 #endif
 
     return 1;
@@ -1336,54 +1303,45 @@ int Packetsourcetracker::CloseSources() {
 
 int Packetsourcetracker::ShutdownIPCSources() {
     uid_t uid = getuid();
-    int talk = 0;
+    int talk = -1;
 	int uidbork = 0;
 
-    for (unsigned int metc = 0; metc < meta_packsources.size(); metc++) {
-        meta_packsource *meta = meta_packsources[metc];
+    for (unsigned int metc = 0; metc < live_packsources.size(); metc++) {
+        KisPacketSource *meta = live_packsources[metc];
+
+		// Pull the root requirement from the cardtype map... just skip entirely
+		// if we can't figure out what to do with it because its not in the ct map
+		if (cardtype_map.find(meta->FetchType()) == cardtype_map.end())
+			return 0;
 
         // If we're not root and we can't close stuff, don't.  This might need to
         // turn into something that checks caps later...
-        if (uid != 0 && meta->prototype->root_required != 0) {
+        if (uid != 0 && cardtype_map[meta->FetchType()]->root_required != 0) {
 			uidbork = 1;
             continue;
 		}
 
-        // close if we can
-        if (meta->valid)
-            meta->capsource->CloseSource();
+		meta->CloseSource();
         
-        // delete
-        delete meta->capsource;
-
-        meta->valid = 0;
-
         // Unmonitor if we can
-        if (meta->prototype->monitor_disable != NULL) {
-            int umon_ret = 0;
-            if ((umon_ret = 
-                 (*meta->prototype->monitor_disable)(globalreg, 
-													 meta->device.c_str(), 0, 
-                                                     &meta->stored_interface,
-                                                     (void *) meta->capsource)) < 0) {
-                snprintf(errstr, STATUS_MAX, "Unable to cleanly disable "
-						 "monitor mode.");
-                globalreg->messagebus->InjectMessage(errstr, MSGFLAG_ERROR);
-                snprintf(errstr, STATUS_MAX, "%s (%s) left in an unknown state.  "
-                         "You may need to manually restart or reconfigure it for "
-                         "normal operation.", meta->name.c_str(), 
-						 meta->device.c_str());
-                _MSG(errstr, MSGFLAG_ERROR);
-            }
-
-            // return 0 if we want to be quiet
-            if (umon_ret != 0)
-                talk = 1;
-        } else {
+		int umon_ret = 0;
+		if ((umon_ret = meta->DisableMonitor()) < 0) {
+			snprintf(errstr, STATUS_MAX, "Unable to cleanly disable monitor mode.");
+			globalreg->messagebus->InjectMessage(errstr, MSGFLAG_ERROR);
+			snprintf(errstr, STATUS_MAX, "%s (%s) left in an unknown state.  "
+					 "You may need to manually restart or reconfigure it for "
+					 "normal operation.", meta->FetchName().c_str(), 
+					 meta->FetchInterface().c_str());
+			_MSG(errstr, MSGFLAG_ERROR);
+		} else if (umon_ret == PACKSOURCE_UNMONITOR_RET_SILENCE && talk == -1) {
+			talk = 0;
+		} else if (umon_ret == PACKSOURCE_UNMONITOR_RET_OKWITHWARN) {
+			talk = 1;
+		} else if (umon_ret == PACKSOURCE_UNMONITOR_RET_CANTUNMON) {
             snprintf(errstr, STATUS_MAX, "%s (%s) unable to exit monitor mode "
                      "automatically. You may need to manually restart the device "
                      "and reconfigure it for normal operation.", 
-                     meta->name.c_str(), meta->device.c_str()); 
+                     meta->FetchName().c_str(), meta->FetchInterface().c_str()); 
             _MSG(errstr, MSGFLAG_ERROR);
         }
 
@@ -1403,67 +1361,17 @@ int Packetsourcetracker::ShutdownIPCSources() {
 void Packetsourcetracker::BlitCards(int in_fd) {
 	kis_protocol_cache cache;
 
-	for (unsigned int x = 0; x < meta_packsources.size(); x++) {
-		// Don't send ones with no info
-		if (meta_packsources[x]->capsource == NULL)
-			continue;
-
+	for (unsigned int x = 0; x < live_packsources.size(); x++) {
 		if (in_fd == -1) {
 			if (globalreg->kisnetserver->SendToAll(card_protoref, 
-												   (void *) meta_packsources[x]) < 0)
+												   (void *) live_packsources[x]) < 0)
 				break;
 		} else {
 			if (globalreg->kisnetserver->SendToClient(in_fd, card_protoref,
-													  (void *) meta_packsources[x],
+													  (void *) live_packsources[x],
 													  &cache) < 0)
 				break;
 		}
 	}
-}
-
-int Packetsourcetracker::SpawnChannelChild() {
-#ifndef HAVE_SUID
-	return 1;
-#endif
-
-	int child_control = 0;
-	for (unsigned int metac = 0; metac < meta_packsources.size(); metac++) {
-		if (meta_packsources[metac]->prototype->child_control) {
-			child_control = 1;
-			break;
-		}
-	}
-
-	// Don't spawn IPC if we don't have anything to do
-	if (child_control == 0)
-		return 1;
-
-	// Spawn the IPC handler
-	int ret = chan_remote->SpawnIPC();
-
-	if (ret < 0 || globalreg->fatal_condition) {
-		_MSG("Packetsourcetracker failed to create an IPC child process",
-			 MSGFLAG_FATAL);
-		globalreg->fatal_condition = 1;
-		return -1;
-	}
-
-	ostringstream osstr;
-
-	osstr << "Packetsourcetracker spawned IPC child process pid " <<
-		chan_remote->FetchSpawnPid();
-	_MSG(osstr.str(), MSGFLAG_INFO);
-
-	return 1;
-}
-
-int Packetsourcetracker::ShutdownChannelChild() {
-#ifndef HAVE_SUID
-	return 1;
-#endif
-
-	chan_remote->ShutdownIPC(NULL);
-
-	return 1;
 }
 

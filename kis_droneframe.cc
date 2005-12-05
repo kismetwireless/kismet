@@ -50,6 +50,10 @@ int kisdrone_time_hook(TIMEEVENT_PARMS) {
 	return ((KisDroneFramework *) parm)->time_handler();
 }
 
+int dronecmd_channelset_hook(DRONE_CMD_PARMS) {
+	return ((KisDroneFramework *) auxptr)->channel_handler(data);
+}
+
 void KisDroneFramework::Usage(char *name) {
 	printf(" *** Kismet Remote Drone Options ***\n");
 	printf("     --drone-listen           Override Kismet drone listen options\n");
@@ -181,7 +185,7 @@ KisDroneFramework::KisDroneFramework(GlobalRegistry *in_globalreg) {
 	RegisterDroneCmd(DRONE_CMDNUM_HELO, NULL, this);
 	RegisterDroneCmd(DRONE_CMDNUM_STRING, NULL, this);
 	RegisterDroneCmd(DRONE_CMDNUM_CAPPACKET, NULL, this);
-	
+	RegisterDroneCmd(DRONE_CMDNUM_CHANNELSET, dronecmd_channelset_hook, this);
 }
 
 KisDroneFramework::~KisDroneFramework() {
@@ -607,7 +611,19 @@ int KisDroneFramework::chain_handler(kis_packet *in_pack) {
 }
 
 int KisDroneFramework::time_handler() {
-
 	return 1;
+}
+
+int KisDroneFramework::channel_handler(const drone_packet *in_pack) {
+	uint32_t len = kis_ntoh32(in_pack->data_len);
+	if (len < sizeof(drone_channelset_packet))
+		return -1;
+
+	drone_channelset_packet *csp = (drone_channelset_packet *) in_pack->data;
+	uint16_t nch = kis_ntoh16(csp->num_channels);
+	if (len < (nch * sizeof(uint16_t)) + sizeof(drone_channelset_packet)) 
+		return -1;
+
+	return 0;
 }
 

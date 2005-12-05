@@ -419,118 +419,6 @@ int Clicmd_REMOVE(CLIENT_PARMS) {
     return 1;
 }
 
-int Clicmd_CHANLOCK(CLIENT_PARMS) {
-    if (parsedcmdline->size() != 2) {
-        snprintf(errstr, 1024, "Illegal chanlock request");
-        return -1;
-    }
-
-    int metanum;
-    if (sscanf(((*parsedcmdline)[0]).word.c_str(), "%d", &metanum) != 1) {
-        snprintf(errstr, 1024, "Illegal chanlock request");
-        return -1;
-    }
-
-    int chnum;
-    if (sscanf(((*parsedcmdline)[1]).word.c_str(), "%d", &chnum) != 1) {
-        snprintf(errstr, 1024, "Illegal chanlock request");
-        return -1;
-    }
-
-    // See if this meta number even exists...
-    meta_packsource *meta;
-    if ((meta = globalreg->sourcetracker->FetchMetaID(metanum)) == NULL) {
-        snprintf(errstr, 1024, "Illegal chanlock request, unknown meta id");
-        return -1;
-    }
-
-    // See if the meta can control channel
-    if (meta->prototype->channelcon == NULL) {
-        snprintf(errstr, 1024, "Illegal chanlock request, source cannot change channel");
-        return -1;
-    }
-
-    // See if the requested channel is in the list of valid channels for this
-    // source...
-    int chvalid = 0;
-    for (unsigned int chi = 0; chi < meta->channels.size(); chi++) {
-        if (meta->channels[chi] == chnum) {
-            chvalid = 1;
-            break;
-        }
-    }
-
-    if (chvalid == 0) {
-        snprintf(errstr, 1024, "Illegal chanlock request - illegal channel for this source");
-        return -1;
-    }
-
-    // Finally if we're valid, stop the source from hopping and lock it to this
-    // channel
-    globalreg->sourcetracker->SetHopping(0, meta);
-    globalreg->sourcetracker->SetChannel(chnum, meta);
-
-    snprintf(errstr, 1024, "Locking source '%s' to channel %d", meta->name.c_str(), chnum);
-    globalreg->messagebus->InjectMessage(errstr, MSGFLAG_INFO);
-    
-    return 1;
-}
-
-int Clicmd_CHANHOP(CLIENT_PARMS) {
-    if (parsedcmdline->size() != 2) {
-        snprintf(errstr, 1024, "Illegal chanhop request");
-        return -1;
-    }
-
-    int metanum;
-    if (sscanf(((*parsedcmdline)[0]).word.c_str(), "%d", &metanum) != 1) {
-        snprintf(errstr, 1024, "Illegal chanhop request");
-        return -1;
-    }
-
-    int chnum;
-    if (sscanf(((*parsedcmdline)[1]).word.c_str(), "%d", &chnum) != 1) {
-        snprintf(errstr, 1024, "Illegal chanhop request");
-        return -1;
-    }
-
-    // See if this meta number even exists...
-    meta_packsource *meta;
-    if ((meta = globalreg->sourcetracker->FetchMetaID(metanum)) == NULL) {
-        snprintf(errstr, 1024, "Illegal chanhop request, unknown meta id");
-        return -1;
-    }
-
-    // See if the meta can control channel
-    if (meta->prototype->channelcon == NULL) {
-        snprintf(errstr, 1024, "Illegal chanhop request, source cannot change channel");
-        return -1;
-    }
-
-    globalreg->sourcetracker->SetHopping(1, meta);
-
-    snprintf(errstr, 1024, "Setting source '%s' to channelhopping", meta->name.c_str());
-    globalreg->messagebus->InjectMessage(errstr, MSGFLAG_INFO);
-    
-    return 1;
-}
-
-int Clicmd_PAUSE(CLIENT_PARMS) {
-    globalreg->sourcetracker->PauseSources();
-
-    globalreg->messagebus->InjectMessage("Pausing capture on all packet sources", MSGFLAG_INFO);
-    
-    return 1;
-}
-
-int Clicmd_RESUME(CLIENT_PARMS) {
-    globalreg->sourcetracker->ResumeSources();
-
-    globalreg->messagebus->InjectMessage("Resuming capture on all packet sources", MSGFLAG_INFO);
-
-    return 1;
-}
-
 void KisNetframe_MessageClient::ProcessMessage(string in_msg, int in_flags) {
     char msg[1024];
 
@@ -730,10 +618,6 @@ KisNetFramework::KisNetFramework(GlobalRegistry *in_globalreg) {
     RegisterClientCommand("CAPABILITY", &Clicmd_CAPABILITY, NULL);
     RegisterClientCommand("ENABLE", &Clicmd_ENABLE, NULL);
     RegisterClientCommand("REMOVE", &Clicmd_REMOVE, NULL);
-    RegisterClientCommand("CHANLOCK", &Clicmd_CHANLOCK, NULL);
-    RegisterClientCommand("CHANHOP", &Clicmd_CHANHOP, NULL);
-    RegisterClientCommand("PAUSE", &Clicmd_PAUSE, NULL);
-    RegisterClientCommand("RESUME", &Clicmd_RESUME, NULL);
 
     // Register timer events
     globalreg->timetracker->RegisterTimer(SERVER_TIMESLICES_SEC, NULL, 1, 

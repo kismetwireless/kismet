@@ -18,8 +18,7 @@
 
 /*
  * WEXT is the linux wireless extensions tools subset of pcap capture devices.
- * Anything controlled by the standard wireless extensions live here
- *
+ * Anything controlled by the standard wireless extensions will live here.
  */
 
 #ifndef __PACKETSOURCE_WEXT_H__
@@ -44,77 +43,128 @@
 #include "local_ieee80211_radiotap.h"
 #endif
 
-// Stuff we need to track to restore later
-typedef struct linux_ifparm {
-    short flags;
-    char essid[MAX_SSID_LEN + 1];
-    int channel;
-    int mode;
-    int privmode;
-    int prismhdr;
-};
+#define USE_PACKETSOURCE_WEXT
+#define USE_PACKETSOURCE_MADWIFI
 
+// Another tier of subclassing.  In some respects this is sort of silly, but it's
+// fairly logical as far as progression of functionality goes.
+//
+// Wext is both an actual class and a virtual layer.  Some wext code needs
+// special hooks for monitor, channel, etc, and can subclass this.  Otherwise,
+// Wext handles it internally w/ the standard commands
 class PacketSource_Wext : public PacketSource_Pcap {
 public:
-	// Standard interface for capturesource
-	PacketSource_Wext(GlobalRegistry *in_globalreg, meta_packsource *in_meta, 
+	// HANDLED PACKET SOURCES:
+	// acx100
+	// admtek
+	// atmel_usb
+	// hostap
+	// ipw2100 [auto]
+	// ipw2200 [auto]
+	// ipw2915 [as 2200]
+	// prism54g
+	// rt2400
+	// rt2500
+	// rt8180
+	PacketSource_Wext() {
+		fprintf(stderr, "FATAL OOPS:  Packetsource_Wext() called\n");
+		exit(1);
+	}
+
+	PacketSource_Wext(GlobalRegistry *in_globalreg) :
+		PacketSource_Pcap(in_globalreg) {
+	}
+
+	virtual KisPacketSource *CreateSource(GlobalRegistry *in_globalreg, 
+										  string in_type, string in_name, 
+										  string in_dev) {
+		return new PacketSource_Wext(in_globalreg, in_type, in_name, in_dev);
+	}
+
+	virtual int AutotypeProbe(string in_device);
+	virtual int RegisterSources(Packetsourcetracker *tracker);
+
+	PacketSource_Wext(GlobalRegistry *in_globalreg, string in_type, 
 					  string in_name, string in_dev) :
-		PacketSource_Pcap(in_globalreg, in_meta, in_name, in_dev) { 
-			// Zero out the modern chan stuff
-			modern_chancontrol = -1;
+		PacketSource_Pcap(in_globalreg, in_type, in_name, in_dev) { 
+			// foo
 		}
 	virtual ~PacketSource_Wext() { }
 
+	// Should be, something can override if it needs
+	virtual int FetchChannelCapable() { return 1; }
+
+	// Generic-level functions
+	virtual int EnableMonitor();
+	virtual int DisableMonitor();
+	virtual int SetChannel(int in_ch);
+	virtual int SetChannelSequence(vector<int> in_seq);
 	virtual int FetchChannel();
 
-	// Tacker val to tell us if we have modern channel control functions
-	int modern_chancontrol;
-
 protected:
-	// Inherited from grandparent 
+	// Stuff we need to track to restore later
+	typedef struct linux_ifparm {
+		short flags;
+		char essid[MAX_SSID_LEN + 1];
+		int channel;
+		int mode;
+		int privmode;
+		int prismhdr;
+	};
+
+	short stored_flags;
+	string stored_essid;
+	int stored_channel;
+	int stored_mode;
+	int stored_privmode;
+
 	virtual void FetchRadioData(kis_packet *in_packet);
 };	
 
-// ---------- Registrant Functions
+// Madwifi subclass
+// Implements local detection of the subtype (madwifi_a, madwifi_bg, etc)
+class PacketSource_Madwifi : public PacketSource_Wext {
+public:
+	// HANDLED PACKET SOURCES:
+	// madwifi_a
+	// madwifi_b
+	// madwifi_g
+	// madwifi_ag
+	PacketSource_Madwifi() {
+		fprintf(stderr, "FATAL OOPS:  Packetsource_Madwifi() called\n");
+		exit(1);
+	}
 
-// Standard wireless extension based registrant
-KisPacketSource *packetsource_wext_registrant(REGISTRANT_PARMS);
-// Standard wireless extension with FCS footers
-KisPacketSource *packetsource_wext_fcs_registrant(REGISTRANT_PARMS);
-// Split-source eth1:wifix style registrant
-KisPacketSource *packetsource_wext_split_registrant(REGISTRANT_PARMS);
-// Split-source eth1:wifix style registrant with fcs
-KisPacketSource *packetsource_wext_splitfcs_registrant(REGISTRANT_PARMS);
+	PacketSource_Madwifi(GlobalRegistry *in_globalreg) :
+		PacketSource_Wext(in_globalreg) {
+	}
 
-// ---------- Monitor enter/exit Functions
+	virtual KisPacketSource *CreateSource(GlobalRegistry *in_globalreg, 
+										  string in_type, string in_name, 
+										  string in_dev) {
+		return new PacketSource_Madwifi(in_globalreg, in_type, in_name,
+										in_dev);
+	}
 
-// Standard wext monitor/unmonitor functions that get called by others
-int monitor_wext_core(MONITOR_PARMS, char *errstr);
-int unmonitor_wext_core(MONITOR_PARMS, char *errstr);
+	virtual int AutotypeProbe(string in_device);
+	virtual int RegisterSources(Packetsourcetracker *tracker);
 
-// Basic 'mode monitor' functions that should be used for all the modern
-// drivers now.
-int monitor_wext_std(MONITOR_PARMS);
-int unmonitor_wext_std(MONITOR_PARMS);
+	PacketSource_Madwifi(GlobalRegistry *in_globalreg, string in_type,
+						 string in_name, string in_dev);
+	virtual ~PacketSource_Madwifi() { }
 
-// Madwifi core and individual monitor hooks
-int monitor_madwifi_core(MONITOR_PARMS, char *errstr, int mode);
-int unmonitor_madwifi(MONITOR_PARMS);
-int monitor_madwifi_a(MONITOR_PARMS);
-int monitor_madwifi_b(MONITOR_PARMS);
-int monitor_madwifi_g(MONITOR_PARMS);
-int monitor_madwifi_ag(MONITOR_PARMS);
+	virtual int EnableMonitor();
+	virtual int DisableMonitor();
 
-// ---------- Channel Manipulation Functions
+	virtual int SetChannelSequence(vector<int> in_seq);
 
-int chancontrol_wext_core(CHCONTROL_PARMS, char *errstr);
-
-int chancontrol_wext_std(CHCONTROL_PARMS);
-
-// ---------- Automatic Registration Functions
-int autoprobe_ipw2200(AUTOPROBE_PARMS);
-int autoprobe_ipw2100(AUTOPROBE_PARMS);
-int autoprobe_madwifi(AUTOPROBE_PARMS);
+protected:
+	// 1 - madwifi_a
+	// 2 - madwifi_b
+	// 3 - madwifi_g
+	// 0 - madwifi_ag
+	int madwifi_type;
+};
 
 #endif /* have_libpcap && sys_linux */
 

@@ -39,6 +39,8 @@
 #include "clinetframework.h"
 #include "tcpclient.h"
 
+#define USE_PACKETSOURCE_DRONE
+
 int droneclienttimer_hook(TIMEEVENT_PARMS);
 
 class DroneClientFrame : public ClientFramework {
@@ -82,10 +84,31 @@ protected:
 
 class PacketSource_Drone : public KisPacketSource {
 public:
+	PacketSource_Drone() {
+		fprintf(stderr, "FATAL OOPS:  Packetsource_Drone() called\n");
+		exit(1);
+	}
+
+	PacketSource_Drone(GlobalRegistry *in_globalreg) :
+		KisPacketSource(in_globalreg) {
+	}
+
+	virtual KisPacketSource *CreateSource(GlobalRegistry *in_globalreg,
+										  string in_type, string in_name,
+										  string in_dev) {
+		return new PacketSource_Drone(in_globalreg, in_type, in_name, in_dev);
+	}
+
+	virtual int AutotypeProbe(string in_device) {
+		return 0;
+	}
+
+	virtual int RegisterSources(Packetsourcetracker *tracker);
+
 	// Standard interface for capturesource
-	PacketSource_Drone(GlobalRegistry *in_globalreg, meta_packsource *in_meta, 
+	PacketSource_Drone(GlobalRegistry *in_globalreg, string in_type, 
 					   string in_name, string in_dev) :
-		KisPacketSource(in_globalreg, in_meta, in_name, in_dev) { 
+		KisPacketSource(in_globalreg, in_type, in_name, in_dev) { 
 			droneframe = NULL;
 		}
 	virtual ~PacketSource_Drone();
@@ -93,11 +116,21 @@ public:
 	virtual int OpenSource();
 	virtual int CloseSource();
 
+	// The 'master source' isn't channel capable, virtual subsources might
+	// be.
+	virtual int FetchChannelCapable() { return 0; }
+
+	// No meaning on the drone master source
+	virtual int EnableMonitor() { return 0; }
+	virtual int DisableMonitor() { return PACKSOURCE_UNMONITOR_RET_SILENCE; }
+	virtual int SetChannel(int in_ch) { return 0; }
+	virtual int FetchChannel() { return 0; }
+
+	virtual int ChildIPCControl() { return 0; }
+
 	virtual int FetchDescriptor();
 
 	virtual int Poll();
-
-	virtual int FetchChannel();
 
 protected:
 	virtual void FetchRadioData(kis_packet *in_packet);
@@ -105,10 +138,6 @@ protected:
 	DroneClientFrame *droneframe;
 	int reconnect;
 };	
-
-// Drone registrant and 0-return unmonitor function
-KisPacketSource *packetsource_drone_registrant(REGISTRANT_PARMS);
-int unmonitor_drone(MONITOR_PARMS);
 
 #endif
 
