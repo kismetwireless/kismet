@@ -527,6 +527,8 @@ int main(int argc, char *argv[], char *envp[]) {
 	// Create the root IPC controller if we have SUID abilities
 #ifdef HAVE_SUID
 	globalregistry->rootipc = new IPCRemote(globalregistry, "root control");
+	if (globalregistry->fatal_condition)
+		CatchShutdown(-1);
 	globalregistry->RegisterPollableSubsys(globalregistry->rootipc);
 #endif
 
@@ -535,30 +537,23 @@ int main(int argc, char *argv[], char *envp[]) {
 	if (globalregistry->fatal_condition)
 		CatchShutdown(-1);
 
-	new PacketSource_Pcapfile(globalregistry);
-	printf("debug - made it past the sourcetracker\n");
-
 	// Add the packet sources
 #ifdef USE_PACKETSOURCE_PCAPFILE
 	if (globalregistry->sourcetracker->AddKisPacketsource(new PacketSource_Pcapfile(globalregistry)) < 0 || globalregistry->fatal_condition) 
 		CatchShutdown(-1);
 #endif
-	printf("debug - past pcapfile\n");
 #ifdef USE_PACKETSOURCE_WEXT
 	if (globalregistry->sourcetracker->AddKisPacketsource(new PacketSource_Wext(globalregistry)) < 0 || globalregistry->fatal_condition) 
 		CatchShutdown(-1);
 #endif
-	printf("debug - past wext\n");
 #ifdef USE_PACKETSOURCE_MADWIFI
 	if (globalregistry->sourcetracker->AddKisPacketsource(new PacketSource_Madwifi(globalregistry)) < 0 || globalregistry->fatal_condition) 
 		CatchShutdown(-1);
 #endif
-	printf("debug - past madwifi\n");
 #ifdef USE_PACKETSOURCE_DRONE
 	if (globalregistry->sourcetracker->AddKisPacketsource(new PacketSource_Drone(globalregistry)) < 0 || globalregistry->fatal_condition) 
 		CatchShutdown(-1);
 #endif
-	printf("debug - past drone\n");
 
 	// Kickstart the root plugins -- Can't think of any that needed to
 	// activate before now

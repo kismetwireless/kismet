@@ -5,6 +5,7 @@ Dec 04 2005  devel  Major code drop:
                     * This code drop is KNOWN TO BREAK on *BSD and on compiling
                       drones!  I wanted to get it off my drive and versioned,
                       more updates later tonight.
+                    Fixed drone to use new packetsource framework
 Nov 19 2005  devel  Fixed quirks in drone protocol
                     Implemented standalone kismet_drone binary
 Nov 18 2005  devel  Did beginnings of drone packet source & client framework
