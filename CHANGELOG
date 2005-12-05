@@ -8,6 +8,7 @@ Dec 04 2005  devel  Major code drop:
                     Fixed drone to use new packetsource framework
                     Set wext packet sources to pull UUID node from the
                      interface MAC address
+                    Ported BSDRT source to new packetsource framework (untested)
 Nov 19 2005  devel  Fixed quirks in drone protocol
                     Implemented standalone kismet_drone binary
 Nov 18 2005  devel  Did beginnings of drone packet source & client framework

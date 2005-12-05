@@ -323,6 +323,91 @@ int Radiotap_BSD_Controller::CheckSocket() {
 	return 1;
 }
 
+int PacketSource_BSDRT::AutotypeProbe(string in_device) {
+	return 0;
+}
+
+int PacketSource_BSDRT::RegisterSources(Packetsourcetracker *tracker) {
+	tracker->RegisterPacketsource("radiotap_bsd_ag", this, 1, "IEEE80211ab", 6);
+	tracker->RegisterPacketsource("radiotap_bsd_a", this, 1, "IEEE80211a", 36);
+	tracker->RegisterPacketsource("radiotap_bsd_g", this, 1, "IEEE80211b", 6);
+	tracker->RegisterPacketsource("radiotap_bsd_b", this, 1, "IEEE80211b", 6);
+	return 1;
+}
+
+int PacketSource_BSDRT::EnableMonitor() {
+	if (bsdcon->MonitorEnable(initch) == 0) {
+		delete bsdcon;
+		_MSG("Unable to enable monitor mode on '" + string(in_dev) + "'.", 
+			 MSGFLAG_FATAL);
+		globalreg->fatal_condition = 1;
+		return -1;
+	}
+
+#ifdef SYS_OPENBSD
+	// Temporary hack around OpenBSD drivers not standardizing on wether FCS
+	// bytes are appended, nor having any method to indicate their presence.
+	if (strncmp(in_dev, "ath", 3) == 0 || strncmp(in_dev, "ural", 4) == 0) {
+		((KisPacketSource *) in_ext)->SetFCSBytes(4);
+	}
+#endif
+
+	return 0;
+}
+
+int PacketSource_BSDRT::DisableMonitor() {
+	if (bsdcon == NULL) {
+		_MSG("BSD interface controller left in unknown mode for " + string(in_dev) + 
+			 ".  Interface cannot be cleanly returned to previous settings and "
+			 "may be left in an unusable state.", MSGFLAG_FATAL);
+		globalreg->fatal_condition = 1;
+		return -1;
+	}
+
+	if (bsdcon->MonitorReset(initch) == 0) {
+		delete bsdcon;
+		bsdcon = NULL;
+		_MSG("Failed to reset wireless mode of '" + string(in_dev) + 
+			 "' to stored values. " "It may be left in an unusable state.", 
+			 MSGFLAG_FATAL);
+		globalreg->fatal_condition = 1;
+		return -1;
+	}
+
+	delete bsdcon;
+	bsdcon = NULL;
+
+	return PACKSOURCE_UNMONITOR_RET_OKWITHWARN;
+}
+
+int PacketSource_BSDRT::SetChannel(int in_ch) {
+	if (bsdcon == NULL) {
+		_MSG("PacketSource_BSD channel set called while bsdcon controller is NULL",
+			 MSGFLAG_FATAL);
+		globalreg->fatal_condition = 1;
+		return -1;
+	}
+
+	if (bsdcon.ChangeChannel(in_ch) == 0) {
+		consec_error++;
+
+		if (consec_error > 5) {
+			globalreg->fatal_condition = 1;
+			return -1;
+		}
+		
+		return 0;
+	}
+
+	consec_error = 0;
+
+	return 1;
+}
+
+int PacketSource_BSDRT::SetChannelSequence(vector<int> in_seq) {
+	return PacketSource_Pcap::SetChannelSequence(in_seq);
+}
+
 int PacketSource_BSDRT::CheckDLT(int dlt) {
 	int found = 0;
 	int i, n, *dl;
@@ -380,79 +465,6 @@ int PacketSource_BSDRT::DatalinkType() {
 	// We do no checking here because we don't really care, the open test
 	// clears up any link problems or fails on its own.
 	return 1;
-}
-
-/* *********************************************************** */
-/* Packetsource registrant functions */
-
-KisPacketSource *packetsource_bsdrtap_registrant(REGISTRANT_PARMS) {
-	PacketSource_BSDRT *rts = 
-		new PacketSource_BSDRT(globalreg, in_meta, in_name, in_device);
-	return rts;
-}
-
-/* *********************************************************** */
-/* Monitor enter/exit functions */
-
-int monitor_bsdrtap_std(MONITOR_PARMS) {
-	Radiotap_BSD_Controller *bsdcon = 
-		new Radiotap_BSD_Controller(globalreg, in_dev);
-	
-	if (bsdcon->MonitorEnable(initch) == 0) {
-		delete bsdcon;
-		_MSG("Unable to enable monitor mode on '" + string(in_dev) + "'.", 
-			 MSGFLAG_FATAL);
-		globalreg->fatal_condition = 1;
-		return -1;
-	}
-
-	*(Radiotap_BSD_Controller **) in_if = bsdcon;
-#ifdef SYS_OPENBSD
-	// Temporary hack around OpenBSD drivers not standardizing on wether FCS
-	// bytes are appended, nor having any method to indicate their presence.
-	if (strncmp(in_dev, "ath", 3) == 0 || strncmp(in_dev, "ural", 4) == 0) {
-		((KisPacketSource *) in_ext)->SetFCSBytes(4);
-	}
-#endif
-
-	return 0;
-}
-
-int unmonitor_bsdrtap_std(MONITOR_PARMS) {
-	Radiotap_BSD_Controller *bsdcon = *(Radiotap_BSD_Controller **) in_if;
-
-	if (bsdcon == 0) {
-		_MSG("BSD interface controller left in unknown mode for " + string(in_dev) + 
-			 ".  Interface cannot be cleanly returned to previous settings and "
-			 "may be left in an unusable state.", MSGFLAG_FATAL);
-		globalreg->fatal_condition = 1;
-		return -1;
-	}
-
-	if (bsdcon->MonitorReset(initch) == 0) {
-		delete bsdcon;
-		_MSG("Failed to reset wireless mode of '" + string(in_dev) + 
-			 "' to stored values. " "It may be left in an unusable state.", 
-			 MSGFLAG_FATAL);
-		globalreg->fatal_condition = 1;
-		return -1;
-	}
-
-	delete bsdcon;
-	return 1;
-}
-
-/* *********************************************************** */
-/* Channel control functions */
-
-int chancontrol_bsdrtap_std(CHCONTROL_PARMS) {
-	Radiotap_BSD_Controller bsdcon(globalreg, in_dev);
-
-	if (bsdcon.ChangeChannel(in_ch) == 0) {
-		return -1;
-	}
-
-	return 0;
 }
 
 #endif

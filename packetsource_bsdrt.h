@@ -40,6 +40,8 @@
 #include "packetsource.h"
 #include "packetsource_pcap.h"
 
+#define USE_PACKETSOURCE_BSDRT
+
 // Prism 802.11 headers from the openbsd Hermes drivers, even though they don't return
 // a valid linktype yet.  Structure lifted from bsd_airtools by dachb0den labs.
 typedef struct {
@@ -93,16 +95,48 @@ protected:
 // BSD radiotap
 class PacketSource_BSDRT : public PacketSource_Pcap {
 public:
-	// Standard interface for capturesource
-	PacketSource_BSDRT(GlobalRegistry *in_globalreg, meta_packsource *in_meta, 
-					   string in_name, string in_dev) :
-		PacketSource_Pcap(in_globalreg, in_meta, in_name, in_dev) { }
+	// HANDLED PACKET SOURCES:
+	// radiotap_bsd_ag
+	// radiotap_bsd_a
+	// radiotap_bsd_g
+	// radiotap_bsd_b
+	PacketSource_BSDRT() {
+		fprintf(stderr, "FATAL OOPS:  Packetsource_BSDRT() called\n");
+		exit(1);
+	}
+
+	PacketSource_BSDRT(GlobalRegistry *in_globalreg) :
+		PacketSourc_Pcap(in_globalreg) {
+			bsdcon = NULL;
+	}
+
+	virtual KisPacketSource *CreateSource(GlobalRegistry *in_globalreg, 
+										  string in_type, string in_name, 
+										  string in_dev) {
+		return new PacketSource_BSDRT(in_globalreg, in_type, in_name, in_dev);
+	}
+
+	virtual int AutotypeProbe(string in_device);
+	virtual int RegisterSources(Packetsourcetracker *tracker);
+
+	PacketSource_BSDRT(GlobalRegistry *in_globalreg, string in_type,
+					   string in_name, string_in_dev) :
+		PacketSource_Pcap(in_globalreg, in_type, in_name, in_dev) {
+			bsdcon = new Radiotap_BSD_Controller(in_globalreg, in_dev.c_str());
+		}
 	virtual ~PacketSource_BSDRT() { }
 
-	virtual int OpenSource();
+	virtual int FetchChannelCapable() { return 1; }
 
+	virtual int EnableMonitor();
+	virtual int DisableMonitor();
+	virtual int SetChannel(int in_ch);
+	virtual int SetChannelSequence(vector<int> in_seq);
 	virtual int FetchChannel();
+	
 protected:
+	Radiotap_BSD_Controller *bsdcon;
+
 	// Override data link type to handle bsd funky bits
 	virtual int DatalinkType();
 
@@ -112,24 +146,6 @@ protected:
 	// Check that we support the dlt we need
 	virtual int CheckDLT(int dlt);
 };	
-
-// ---------- Registrant Functions
-
-// BSD radiotap common build
-KisPacketSource *packetsource_bsdrtap_registrant(REGISTRANT_PARMS);
-
-// ---------- Monitor enter/exit Functions
-
-// BSD radiotap common monitor/unmonitor
-int monitor_bsdrtap_std(MONITOR_PARMS);
-int unmonitor_bsdrtap_std(MONITOR_PARMS);
-
-// ---------- Channel Manipulation Functions
-
-int chancontrol_bsdrtap_std(CHCONTROL_PARMS);
-
-// ---------- Automatic Registration Functions
-// FIXME:  Add autodetects
 
 #endif /* have_libpcap && BSD */
 
