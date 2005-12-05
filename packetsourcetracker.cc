@@ -1262,6 +1262,11 @@ int Packetsourcetracker::BindSources(int in_root) {
 			globalreg->fatal_condition = 1;
 			return -1;
 		}
+
+		snprintf(errstr, STATUS_MAX, "Source %d (%s): Opened source. "
+				 "UUID: %s", x, meta->name.c_str(),
+				 strong->FetchUUID().UUID2String().c_str());
+		_MSG(errstr, MSGFLAG_INFO);
     }
 
     return 0;
