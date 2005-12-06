@@ -244,3 +244,71 @@ Basic frame formats:
         [... future expansion by adding to gps header bitmap ...]
         [ packet data ]
 
+PACKETSOURCES
+
+A packetsource is the os and driver specific code used to get packets from
+whatever, and turn them into something Kismet can use.  A packetsource need
+not be a lot of code - the BSD radtiotap packetsource is only 600 lines of code.
+
+The packetsource defines everything needed to turn packets into the normal format
+used by Kismet and to control the device, including setting monitor mode, caching
+former values, resetting the card to the previous operational mode, and changing
+channels.
+
+How the KisPacketSource class works:
+
+All packetsources are subclassed from the KisPacketSource class.  Sometimes,
+it makes sense to nest classes two or three deep below KisPacketSource.  Normally
+this would be a bad idea, but it seems to make the most sense here.
+
+Instantatiations of a KisPacketSource have two types, weak and strong.  Weak
+packetsources never themselves become strong packetsources, but are used to
+register the actual types with the packetsourcetracker, test the autoprobe
+function to identify types, and to create the actual strong packet source.
+Weak instances can expect globalregistry to be available, but not much else.
+They should not try to open any devices or capture packets (and packetsourcetracker
+will never as them to).
+
+Strong instances of a KisPacketSource are created with the CreateSource(...)
+function in the weak instance.  Strong sources are given the globalregistry,
+type string, interface, and name.  Strong sources are expected to handle channel
+control, monitor control, etc.
+
+Things to keep in mind making your own:
+
+You can get access to runtime options for that source in the configfile by
+looking at the optargs vector inherited from KisPacketSource.  These are
+options set for this source (or all sources) via the sourceopts= config file
+line.
+
+Registering types gives the packetsourcetracker a method to call your
+CreateSource.  You should register all the types you indend to provide.
+
+Kismet uses a #define to indicate to kismet_server.cc and kismet_drone.cc that
+an instance of your source should be bootstrapped into the packetsourcetracker.
+Define something like USE_PACKETSOURCE_FOO and add it to the #ifdefs in
+main().  This prevents cluttering the main function with convoluted ifdef
+tests -- put those in your header before you define USE_PACKETSOURCE_...
+
+ChildIPCControl implies that you need root to control the source (channel, 
+etc).  If you don't need this (ie, you use a tcp socket or something),
+don't set it.  It'll only create overhead.
+
+You will be given a vector of channels and a starting position.  If you want,
+you can validate these against known supported channels.
+
+Most kismet sources support a grace period when setting the channel, incase a 
+card has a momentary hiccup.  I usually use 5 consecutive errors as an indication
+it's really broken and don't return a fail condition on SetChannel until I hit
+that.
+
+The autotypeprobe function will be called with nothing more than a string
+indicating the device.  It's up to you to try to identify it.  On Linux,
+packetsource_wext uses the ethtool ioctls to fetch driver versions.  Currently,
+the autoprobe will be called once per source type registered
+
+If you can get the MAC address of the source, it wouldn't be a bad thing to
+re-seed the UUID using it.  packetsource_wext does this on Linux.  The
+packetsourcetracker won't expect the UUID until after EnableMonitor() is 
+called.
+

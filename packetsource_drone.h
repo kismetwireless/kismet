@@ -137,7 +137,86 @@ protected:
 
 	DroneClientFrame *droneframe;
 	int reconnect;
-};	
+};
+
+// Virtual packet source that inherits the UUID and characteristics of a capture
+// source on a remote drone.  All channel controls are pumped through to the drone
+// source.  Packets from the drone remotes will show up from sources based off
+// this.
+class PacketSource_DroneRemote : public KisPacketSource {
+public:
+	PacketSource_DroneRemote() {
+		fprintf(stderr, "FATAL OOPS:  Packetsource_DroneRemote() called\n");
+		exit(1);
+	}
+
+	PacketSource_DroneRemote(GlobalRegistry *in_globalreg) :
+		KisPacketSource(in_globalreg) {
+
+		}
+
+	virtual KisPacketSource *CreateSource(GlobalRegistry *in_globalreg,
+										  string in_type, string in_name,
+										  string in_dev) {
+		return new PacketSource_DroneRemote(in_globalreg, in_type, in_name, in_dev);
+	}
+
+	virtual int AutotypeProbe(string in_device) {
+		return 0;
+	}
+
+	virtual int RegisterSources(Packetsourcetracker *tracker);
+
+	PacketSource_DroneRemote(GlobalRegistry *in_globalreg, string in_type,
+							 string in_name, string in_dev) :
+		KisPacketSource(in_globalreg, in_type, in_name, in_dev) {
+			droneframe = NULL;
+			rem_channelcapable = 0;
+		}
+	virtual ~PacketSource_DroneRemote();
+
+	// Open and close have no effect
+	virtual int OpenSource() { return 0; }
+	virtual int CloseSource() { return 0; }
+
+	// Return remote capability
+	virtual int FetchChannelCapable() { return rem_channelcapable; }
+
+	// Dropthrough commands to drone
+	virtual int SetChannel(int in_ch);
+	virtual int SetChannelSequence(vector<int> in_seq);
+	virtual int SetChannelSeqPos(int in_offt);
+	virtual int FetchChannel();
+	virtual int SetChannelHop(int in_hop);
+	virtual int FetchChannelHop();
+
+	// Stuff we can't implement
+	virtual int FetchNextChannel() { return 0; }
+	virtual int EnableMonitor() { return 0; }
+	virtual int DisableMonitor() { return PACKSOURCE_UNMONITOR_RET_SILENCE; }
+
+	// Local stuff
+	virtual int ChildIPCControl() { return 0; }
+	virtual int FetchDescriptor();
+	virtual int Poll();
+
+	// Special functions to let the drone framework spawn and control us
+	virtual int SetDroneFrame(DroneClientFrame *in_frame) {
+		droneframe = in_frame;
+		return 1;
+	}
+
+	virtual int SetUUID(uuid in_uuid) {
+		src_uuid = in_uuid;
+		return 1;
+	}
+
+protected:
+	virtual void FetchRadioData(kis_packet *in_packet);
+
+	int rem_channelcapable;
+	DroneClientFrame *droneframe;
+};
 
 #endif
 

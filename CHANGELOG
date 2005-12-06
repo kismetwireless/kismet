@@ -1,3 +1,5 @@
+Dec 05 2005  devel  Began to add remote drone virtual sources
+                    Wrote some documentation on the new PacketSource api
 Dec 04 2005  devel  Major code drop:
                     - Moved root IPC for channel control out of packetsourcetracker
                     - Rewrote how packetsourcetracker and packetsources work entirely
