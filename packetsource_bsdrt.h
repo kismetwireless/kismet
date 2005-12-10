@@ -106,7 +106,7 @@ public:
 	}
 
 	PacketSource_BSDRT(GlobalRegistry *in_globalreg) :
-		PacketSourc_Pcap(in_globalreg) {
+		PacketSource_Pcap(in_globalreg) {
 			bsdcon = NULL;
 	}
 
@@ -120,11 +120,13 @@ public:
 	virtual int RegisterSources(Packetsourcetracker *tracker);
 
 	PacketSource_BSDRT(GlobalRegistry *in_globalreg, string in_type,
-					   string in_name, string_in_dev) :
+					   string in_name, string in_dev) :
 		PacketSource_Pcap(in_globalreg, in_type, in_name, in_dev) {
 			bsdcon = new Radiotap_BSD_Controller(in_globalreg, in_dev.c_str());
 		}
 	virtual ~PacketSource_BSDRT() { }
+
+	virtual int OpenSource();
 
 	virtual int FetchChannelCapable() { return 1; }
 

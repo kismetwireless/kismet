@@ -31,6 +31,8 @@
 #include "packetsource_pcap.h"
 #include "packetsource_bsdrt.h"
 
+#include "packetsourcetracker.h"
+
 Radiotap_BSD_Controller::Radiotap_BSD_Controller(GlobalRegistry *in_globalreg,
 												 string in_dev) {
 	globalreg = in_globalreg;
@@ -336,9 +338,9 @@ int PacketSource_BSDRT::RegisterSources(Packetsourcetracker *tracker) {
 }
 
 int PacketSource_BSDRT::EnableMonitor() {
-	if (bsdcon->MonitorEnable(initch) == 0) {
+	if (bsdcon->MonitorEnable(initial_channel) == 0) {
 		delete bsdcon;
-		_MSG("Unable to enable monitor mode on '" + string(in_dev) + "'.", 
+		_MSG("Unable to enable monitor mode on '" + interface + "'.", 
 			 MSGFLAG_FATAL);
 		globalreg->fatal_condition = 1;
 		return -1;
@@ -347,8 +349,9 @@ int PacketSource_BSDRT::EnableMonitor() {
 #ifdef SYS_OPENBSD
 	// Temporary hack around OpenBSD drivers not standardizing on wether FCS
 	// bytes are appended, nor having any method to indicate their presence.
-	if (strncmp(in_dev, "ath", 3) == 0 || strncmp(in_dev, "ural", 4) == 0) {
-		((KisPacketSource *) in_ext)->SetFCSBytes(4);
+	if (strncmp(interface.c_str(), "ath", 3) == 0 || 
+		strncmp(interface.c_str(), "ural", 4) == 0) {
+		SetFCSBytes(4);
 	}
 #endif
 
@@ -357,17 +360,17 @@ int PacketSource_BSDRT::EnableMonitor() {
 
 int PacketSource_BSDRT::DisableMonitor() {
 	if (bsdcon == NULL) {
-		_MSG("BSD interface controller left in unknown mode for " + string(in_dev) + 
+		_MSG("BSD interface controller left in unknown mode for " + interface + 
 			 ".  Interface cannot be cleanly returned to previous settings and "
 			 "may be left in an unusable state.", MSGFLAG_FATAL);
 		globalreg->fatal_condition = 1;
 		return -1;
 	}
 
-	if (bsdcon->MonitorReset(initch) == 0) {
+	if (bsdcon->MonitorReset(initial_channel) == 0) {
 		delete bsdcon;
 		bsdcon = NULL;
-		_MSG("Failed to reset wireless mode of '" + string(in_dev) + 
+		_MSG("Failed to reset wireless mode of '" + interface + 
 			 "' to stored values. " "It may be left in an unusable state.", 
 			 MSGFLAG_FATAL);
 		globalreg->fatal_condition = 1;
@@ -388,7 +391,7 @@ int PacketSource_BSDRT::SetChannel(int in_ch) {
 		return -1;
 	}
 
-	if (bsdcon.ChangeChannel(in_ch) == 0) {
+	if (bsdcon->ChangeChannel(in_ch) == 0) {
 		consec_error++;
 
 		if (consec_error > 5) {
