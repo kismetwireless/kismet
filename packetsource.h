@@ -127,6 +127,7 @@ public:
 					string in_name, string in_dev) {
         name = in_name;
 
+		/*
 		vector<string> ifv = StrTokenize(in_dev, ":");
 		if (ifv.size() < 2) {
 			interface = in_dev;
@@ -135,7 +136,10 @@ public:
 			interface = ifv[0];
 			interface2 = ifv[1];
 		}
+		*/
 
+		interface = in_dev;
+		
         globalreg = in_globalreg;
 
 		// This is mostly just crap.  Hash the type and name, then
@@ -305,7 +309,6 @@ protected:
     // Name, interface
     string name;
     string interface;
-	string interface2; // Second interface for ethX:wifiX style setups
 	string type;
 
 	// Unique identifier for this capture source

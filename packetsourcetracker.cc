@@ -1165,7 +1165,7 @@ int Packetsourcetracker::ProcessCardList(string in_enableline,
             // offset the channel position.
             if (tmp_seqid_assign_map.find(meta->channelvec_id) == 
                 tmp_seqid_assign_map.end())
-                tmp_seqid_assign_map[meta->channelvec_id] = 0;
+				continue;
 
 			meta->cv_offset = (meta->channel_vec.size() / 
 							   chan_seqid_count_map[meta->channelvec_id]) * 
