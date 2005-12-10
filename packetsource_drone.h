@@ -189,6 +189,10 @@ public:
 	virtual int FetchChannel();
 	virtual int SetChannelHop(int in_hop);
 	virtual int FetchChannelHop();
+	// We don't have local channel hops
+	virtual int FetchLocalChannelHop() {
+		return 0;
+	}
 
 	// Stuff we can't implement
 	virtual int FetchNextChannel() { return 0; }

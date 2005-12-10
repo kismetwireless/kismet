@@ -86,6 +86,15 @@ public:
 		memcpy(node, in_node, 6);
 	}
 
+	void GenerateStoredUUID(uint32_t in_low, uint16_t in_mid, uint16_t in_hi,
+							uint8_t in_seq, uint8_t *in_node) {
+		time_low = in_low;
+		time_mid = in_mid;
+		time_hi = in_hi;
+		clock_seq = in_seq;
+		memcpy(node, in_node, 6);
+	}
+
 	string UUID2String() {
 		char ids[38];
 		snprintf(ids, 38, "%08x-%04x-%04x-%04x-%02x%02x%02x%02x%02x%02x",

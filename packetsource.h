@@ -224,6 +224,10 @@ public:
 	virtual int FetchChannelHop() {
 		return channel_hop;
 	}
+	// Channel hop is performed locally (true for most)
+	virtual int FetchLocalChannelHop() {
+		return 1;
+	}
 
 	// Is the device controllable by the child IPC process?
 	virtual int ChildIPCControl() = 0;

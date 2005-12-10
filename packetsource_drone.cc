@@ -472,6 +472,11 @@ int DroneClientFrame::ParseData() {
 									   (uint32_t) MAX_PACKET_LEN);
 				rofft += 2;
 			}
+			if ((ds11->eight11_content_bitmap & DRONEBIT(DRONE_EIGHT11_UUID)) &&
+				(rofft + sizeof(drone_trans_uuid) <= sublen)) {
+
+				rofft += sizeof(drone_trans_uuid);
+			}
 			if ((ds11->eight11_content_bitmap & DRONEBIT(DRONE_EIGHT11_TVSEC)) &&
 				(rofft + 8 <= sublen)) {
 				newpack->ts.tv_sec = kis_ntoh64(ds11->tv_sec);

@@ -26,6 +26,7 @@
 #include "endian_magic.h"
 #include "configfile.h"
 #include "packet.h"
+#include "packetsource.h"
 #include "packetchain.h"
 #include "kis_droneframe.h"
 #include "tcpserver.h"
@@ -474,6 +475,10 @@ int KisDroneFramework::chain_handler(kis_packet *in_pack) {
 	kis_gps_packinfo *gpsinfo = NULL;
 	kis_layer1_packinfo *radio = NULL;
 	kis_datachunk *chunk = NULL;
+	kis_ref_capsource *csrc_ref = NULL;
+
+	// Get the capsource info
+	csrc_ref = (kis_ref_capsource *) in_pack->fetch(_PCM(PACK_COMP_KISCAPSRC));
 
 	// Get gps info
 	gpsinfo = (kis_gps_packinfo *) in_pack->fetch(_PCM(PACK_COMP_GPS));
@@ -577,7 +582,7 @@ int KisDroneFramework::chain_handler(kis_packet *in_pack) {
 	// Other packet types go here
 
 	// Finally the eight11 headers and the packet chunk itself
-	if (chunk != NULL && in_pack->error == 0) {
+	if (chunk != NULL && in_pack->error == 0 && csrc_ref != NULL) {
 		dcpkt->cap_content_bitmap |= DRONEBIT(DRONE_CONTENT_IEEEPACKET);
 
 		drone_capture_sub_80211 *e1pkt =
@@ -593,9 +598,11 @@ int KisDroneFramework::chain_handler(kis_packet *in_pack) {
 
 		e1pkt->eight11_content_bitmap |=
 			(DRONEBIT(DRONE_EIGHT11_PACKLEN) |
+			 DRONEBIT(DRONE_EIGHT11_UUID) |
 			 DRONEBIT(DRONE_EIGHT11_TVSEC) |
 			 DRONEBIT(DRONE_EIGHT11_TVUSEC));
 
+		DRONE_CONV_UUID(csrc_ref->ref_source->FetchUUID(), &(e1pkt->uuid));
 		e1pkt->packet_len = kis_hton16(chunk->length);
 		e1pkt->tv_sec = kis_hton64(in_pack->ts.tv_sec);
 		e1pkt->tv_usec = kis_hton64(in_pack->ts.tv_usec);

@@ -1,3 +1,6 @@
+Dec 10 2005  devel  Added UUID to drone protocol
+                    Added LocalChannelHop() to packetsources to prevent conflicts
+                     with virtual drone interfaces
 Dec 05 2005  devel  Began to add remote drone virtual sources
                     Wrote some documentation on the new PacketSource api
 Dec 04 2005  devel  Major code drop:

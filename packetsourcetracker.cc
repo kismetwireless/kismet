@@ -766,7 +766,7 @@ int Packetsourcetracker::AdvanceChannel() {
 			continue;
 		}
 
-		if (liv->FetchChannelHop() == 0) {
+		if (liv->FetchChannelHop() == 0 || liv->FetchLocalChannelHop() == 0) {
 			continue;
 		}
 
