@@ -60,6 +60,10 @@ int RegisterKismetSources(Packetsourcetracker *sourcetracker) {
 
 #if defined(HAVE_LIBPCAP) && defined(HAVE_LINUX_WIRELESS)
     // Linux wext-driven cards
+    sourcetracker->RegisterPacketsource("bcm43xx", 1, "IEEE80211g", 6,
+                                        pcapsource_11g_registrant,
+                                        monitor_wext, unmonitor_wext,
+                                        chancontrol_wext, 1);
     sourcetracker->RegisterPacketsource("cisco", 1, "IEEE80211b", 6,
                                        pcapsource_wext_registrant,
                                        monitor_cisco, unmonitor_cisco, 

@@ -1,3 +1,11 @@
+Dec 11 2005  devel  Added a fix to ringbuf from Shane Schisler
+                    Added extremely experimental support for broadcom 43xx
+                     devices (yes, you read right, broadcom.  Look at the 
+                     README file.)
+                    Changed prism2 header conversion to ignore a broken length
+                     field in the header.  Recent versions of madwifi-ng return
+                     a garbage length value (brokenly!).  Basic madwifi-ng
+                     support restored for now, still very experimental.
 Nov 08 2005  devel  Added madwifi-ng support
 Nov 02 2005  devel  Fixed off-by-one in packet.cc for terminating null in
                      netbios string, missing format element in gpsmap

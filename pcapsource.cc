@@ -331,8 +331,6 @@ int PcapSource::ManglePacket(kis_packet *packet, uint8_t *data, uint8_t *moddata
 #endif
 
     return ret;
-
-
 }
 
 int PcapSource::Prism2KisPack(kis_packet *packet, uint8_t *data, uint8_t *moddata) {
@@ -427,15 +425,22 @@ int PcapSource::Prism2KisPack(kis_packet *packet, uint8_t *data, uint8_t *moddat
         // Get the FCS
         int fcs = FCSBytes();
 
+		/* We don't *really* have to pay attention to the wlanng-prism2 frame
+		 * lengths, as long as we obey the capture frame lengths, so we'll
+		 * ignore this for now.  Ethereal also ignores this length field. */
+#if 0
         if (p2head->frmlen.data > callback_header.caplen) {
-            snprintf(errstr, 1024, "pcap prism2 converter got corrupted AVS "
+            snprintf(errstr, 1024, "pcap prism2 converter got corrupted prism2 "
 					 "header length");
             packet->len = 0;
             packet->caplen = 0;
+			printf("debug - corrupt avs header len %d vs %d\n",
+				   p2head->frmlen.data, callback_header.caplen);
             return 0;
         }
+#endif
 
-		// Protect the integers just in case
+		// Do a little more checking just in case
 		if (callback_header.caplen < (sizeof(wlan_ng_prism2_header) + fcs)) {
 			fprintf(stderr, "*** WARNING - Strangeness with prism2 header len "
 					"and FCS size\n");
@@ -445,6 +450,10 @@ int PcapSource::Prism2KisPack(kis_packet *packet, uint8_t *data, uint8_t *moddat
             packet->caplen = 0;
             return 0;
         }
+
+		// We're safe here because of the initial test -- no matter what garbage
+		// is in here, we're bigger than a prism2 header, so we can read the data
+		// and set the offset.
 
         // Subtract the packet FCS since kismet doesn't do anything terribly bright
         // with it right now
@@ -461,16 +470,17 @@ int PcapSource::Prism2KisPack(kis_packet *packet, uint8_t *data, uint8_t *moddat
         packet->noise = p2head->noise.data;
 
         packet->channel = p2head->channel.data;
-
     }
 
     if (header_found == 0) {
-        snprintf(errstr, 1024, "pcap prism2 convverter saw undersized capture frame");
+        snprintf(errstr, 1024, "pcap prism2 converter saw undersized capture frame");
         packet->len = 0;
         packet->caplen = 0;
         return 0;
     }
 
+	// This should be set up safely since all of the prior adjustments to caplen
+	// take it into account
     memcpy(packet->data, callback_data + callback_offset, packet->caplen);
 
     return 1;
