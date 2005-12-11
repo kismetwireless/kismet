@@ -39,6 +39,12 @@
 // Maximum number of consecutive failures before we die
 #define MAX_CONSEC_CHAN_ERR		5
 
+// Callback for adding a packet source to the packetsourcetracker.  They don't
+// get to return anything, since we're just telling them it happened
+#define LIVESOURCECB_PARMS GlobalRegistry *globalreg, KisPacketSource *src, \
+	int srcadd, void *auxptr
+typedef void (*LiveSourceCallback)(LIVESOURCECB_PARMS);
+
 // Packet source prototype used to create new packetsources from string
 // definitions
 typedef struct {
@@ -107,6 +113,15 @@ public:
 	// etc.
 	int AddKisPacketsource(KisPacketSource *in_source);
 
+	// Add a live precreated packetsource to the system.  This takes a strong
+	// packet source.
+	int RegisterLiveKisPacketsource(KisPacketSource *in_livesource);
+	// Remove a packet source from the system
+	int RemoveLiveKisPacketsource(KisPacketSource *in_livesource);
+	// Add a callback for notifying external elements when a packet source is added
+	int RegisterLiveSourceCallback(LiveSourceCallback *in_cb, void *in_aux);
+	int RemoveLiveSourceCallback(LiveSourceCallback *in_cb);
+
 	// Register a packet source:  (this should be called by the PacketSource
 	// AddSources(...) function
 	// This expects a "weak" instance of the packetsource (see packetsource.h),
@@ -159,6 +174,11 @@ public:
 	// Usage
 	static void Usage(char *name);
 
+	typedef struct {
+		LiveSourceCallback *cb;
+		void *auxdata;
+	} addsourcecb_rec;
+
 protected:
 	// Client commands
 	int cmd_chanlock(CLIENT_PARMS);
@@ -192,6 +212,9 @@ protected:
 	int card_eventid;
     
 	int cmdid_chanlock, cmdid_chanhop, cmdid_pause, cmdid_resume;
+
+	// Callbacks for adding a source
+	vector<Packetsourcetracker::addsourcecb_rec *> cb_vec;
 
     map<string, packsource_protorec *> cardtype_map;
     map<string, vector<int> > defaultch_map;

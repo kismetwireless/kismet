@@ -412,6 +412,74 @@ int Packetsourcetracker::AddKisPacketsource(KisPacketSource *in_source) {
 	return in_source->RegisterSources(this);
 }
 
+// Add a live packet source into our internal tracking system
+int Packetsourcetracker::RegisterLiveKisPacketsource(KisPacketSource *in_livesource) {
+	// Add it to the strong sources vector and the UUID vector (we wait until
+	// now to give sources a chance to fill in their UUID at monitor time with
+	// a real node ID derived from the MAC.
+	live_packsources.push_back(in_livesource);
+	ps_map[in_livesource->FetchUUID()] = in_livesource;
+
+	// Send a notify to all the registered callbacks
+	for (unsigned int x = 0; x < cb_vec.size(); x++) {
+		(*(cb_vec[x]->cb))(globalreg, in_livesource, 1, cb_vec[x]->auxdata);
+	}
+
+	return 1;
+}
+
+int Packetsourcetracker::RemoveLiveKisPacketsource(KisPacketSource *in_livesource) {
+	// If it isn't in the ps_map we don't have it.
+	map<uuid, KisPacketSource *>::iterator psmi;
+	psmi = ps_map.find(in_livesource->FetchUUID());
+	if (psmi == ps_map.end()) {
+		return 0;
+	}
+
+	// Send a notify to all the registered callbacks
+	for (unsigned int x = 0; x < cb_vec.size(); x++) {
+		(*(cb_vec[x]->cb))(globalreg, in_livesource, 0, cb_vec[x]->auxdata);
+	}
+
+	// Remove it from the packetsource map
+	ps_map.erase(psmi);
+
+	// Remove it from the live sources vector
+	for (unsigned int x = 0; x < live_packsources.size(); x++) {
+		if (live_packsources[x] == in_livesource) {
+			live_packsources.erase(live_packsources.begin() + x);
+			break;
+		}
+	}
+
+	return 1;
+}
+
+int Packetsourcetracker::RegisterLiveSourceCallback(LiveSourceCallback *in_cb,
+													void *in_aux) {
+	// Make a cb rec
+	addsourcecb_rec *cbr = new addsourcecb_rec;
+	cbr->cb = in_cb;
+	cbr->auxdata = in_aux;
+
+	cb_vec.push_back(cbr);
+
+	return 1;
+}
+
+int Packetsourcetracker::RemoveLiveSourceCallback(LiveSourceCallback *in_cb) {
+	for (unsigned int x = 0; x < cb_vec.size(); x++) {
+		if (cb_vec[x]->cb != in_cb)
+			continue;
+
+		delete cb_vec[x];
+		cb_vec.erase(cb_vec.begin() + x);
+		return 1;
+	}
+
+	return 0;
+}
+
 // Process the cards from kismet.conf and the command line
 int Packetsourcetracker::LoadConfiguredCards() {
 	// Commandline stuff
@@ -1244,11 +1312,8 @@ int Packetsourcetracker::BindSources(int in_root) {
 			return -1;
 		}
 
-		// Add it to the strong sources vector and the UUID vector (we wait until
-		// now to give sources a chance to fill in their UUID at monitor time with
-		// a real node ID derived from the MAC.
-		live_packsources.push_back(strong);
-		ps_map[strong->FetchUUID()] = strong;
+		// Add it to the standard live sources mechanism
+		RegisterLiveKisPacketsource(strong);
 
         // Open it
         snprintf(errstr, STATUS_MAX, "Source %d (%s): Opening %s source "
