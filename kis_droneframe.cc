@@ -33,6 +33,7 @@
 #include "getopt.h"
 #include "gpscore.h"
 #include "version.h"
+#include "packetsourcetracker.h"
 
 void KisDroneframe_MessageClient::ProcessMessage(string in_msg, int in_flags) {
 	string msg;
@@ -53,6 +54,10 @@ int kisdrone_time_hook(TIMEEVENT_PARMS) {
 
 int dronecmd_channelset_hook(DRONE_CMD_PARMS) {
 	return ((KisDroneFramework *) auxptr)->channel_handler(data);
+}
+
+void drone_pst_addsource_hook(LIVESOURCECB_PARMS) {
+	((KisDroneFramework *) auxptr)->addsource_handler(src, srcadd);
 }
 
 void KisDroneFramework::Usage(char *name) {
@@ -87,6 +92,12 @@ KisDroneFramework::KisDroneFramework(GlobalRegistry *in_globalreg) {
 
 	if (globalreg->messagebus == NULL) {
 		fprintf(stderr, "FATAL OOPS: KisDroneFramework called without messagebus\n");
+		exit(1);
+	}
+
+	if (globalreg->sourcetracker == NULL) {
+		fprintf(stderr, "FATAL OOPS: KisDroneFramework called without "
+				"packetsourcetracker\n");
 		exit(1);
 	}
 
@@ -176,6 +187,10 @@ KisDroneFramework::KisDroneFramework(GlobalRegistry *in_globalreg) {
 	globalreg->packetchain->RegisterHandler(&kisdrone_chain_hook, this,
 											CHAINPOS_POSTCAP, 100);
 
+	// Register the AddSource handler
+	globalreg->sourcetracker->RegisterLiveSourceCallback(&drone_pst_addsource_hook,
+														 (void *) this);
+
 	// Event trigger
 	eventid = 
 		globalreg->timetracker->RegisterTimer(SERVER_TIMESLICES_SEC, NULL, 1, 
@@ -253,6 +268,12 @@ int KisDroneFramework::Accept(int in_fd) {
 	ret = SendPacket(in_fd, dpkt);
 
 	free(dpkt);
+
+	// Send them all the sources
+	vector<KisPacketSource *> srcv = globalreg->sourcetracker->FetchSourceVec();
+	for (unsigned int x = 0; x < srcv.size(); x++) {
+		SendSource(in_fd, srcv[x]);
+	}
 
 	return ret;
 }
@@ -510,6 +531,14 @@ int KisDroneFramework::SendAllPacket(drone_packet *in_pack) {
 	}
 
 	return nsent;
+}
+
+// Send a new source to all the clients
+void KisDroneFramework::addsource_handler(KisPacketSource *in_src, int in_enable) {
+	// TODO:  Add disabling
+	if (in_enable) {
+		SendAllSource(in_src);
+	}
 }
 
 // Grab a frame off the chain and format it as best we can to send to the

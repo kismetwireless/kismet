@@ -119,8 +119,8 @@ public:
 	// Remove a packet source from the system
 	int RemoveLiveKisPacketsource(KisPacketSource *in_livesource);
 	// Add a callback for notifying external elements when a packet source is added
-	int RegisterLiveSourceCallback(LiveSourceCallback *in_cb, void *in_aux);
-	int RemoveLiveSourceCallback(LiveSourceCallback *in_cb);
+	int RegisterLiveSourceCallback(LiveSourceCallback in_cb, void *in_aux);
+	int RemoveLiveSourceCallback(LiveSourceCallback in_cb);
 
 	// Register a packet source:  (this should be called by the PacketSource
 	// AddSources(...) function
@@ -175,7 +175,7 @@ public:
 	static void Usage(char *name);
 
 	typedef struct {
-		LiveSourceCallback *cb;
+		LiveSourceCallback cb;
 		void *auxdata;
 	} addsourcecb_rec;
 

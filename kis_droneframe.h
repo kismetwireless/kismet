@@ -54,12 +54,6 @@ public:
     void ProcessMessage(string in_msg, int in_flags);
 };
 
-// Timer events
-int kisdrone_time_hook(TIMEEVENT_PARMS);
-
-// Chain hook
-int kisdrone_chain_hook(CHAINCALL_PARMS);
-
 // Drone protocol
 const uint32_t DroneSentinel = 0xDEADBEEF;
 
@@ -268,8 +262,6 @@ typedef struct drone_capture_packet {
 	const void *auxptr
 typedef int (*DroneCmdCallback)(DRONE_CMD_PARMS);
 
-int dronecmd_channelset_hook(DRONE_CMD_PARMS);
-
 // Drone framework for sending data
 class KisDroneFramework : public ServerFramework {
 public:
@@ -304,6 +296,9 @@ public:
 
 	// Timer handler
 	virtual int time_handler();
+
+	// AddSource handler
+	virtual void addsource_handler(KisPacketSource *in_src, int in_enable);
 
 	// Send a frame
 	virtual int SendPacket(int in_cl, drone_packet *in_pack);

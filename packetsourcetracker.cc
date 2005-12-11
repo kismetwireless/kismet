@@ -355,6 +355,11 @@ Packetsourcetracker::Packetsourcetracker(GlobalRegistry *in_globalreg) {
 		exit(1);
 	}
 
+	if (globalreg->rootipc == NULL) {
+		fprintf(stderr, "FATAL OOPS:  Packetsourcetracker called before rootipc\n");
+		exit(1);
+	}
+
 	// Register the CARD protocol
 	card_protoref =
 		globalreg->kisnetserver->RegisterProtocol("CARD", 0, 1,
@@ -455,7 +460,7 @@ int Packetsourcetracker::RemoveLiveKisPacketsource(KisPacketSource *in_livesourc
 	return 1;
 }
 
-int Packetsourcetracker::RegisterLiveSourceCallback(LiveSourceCallback *in_cb,
+int Packetsourcetracker::RegisterLiveSourceCallback(LiveSourceCallback in_cb,
 													void *in_aux) {
 	// Make a cb rec
 	addsourcecb_rec *cbr = new addsourcecb_rec;
@@ -467,7 +472,7 @@ int Packetsourcetracker::RegisterLiveSourceCallback(LiveSourceCallback *in_cb,
 	return 1;
 }
 
-int Packetsourcetracker::RemoveLiveSourceCallback(LiveSourceCallback *in_cb) {
+int Packetsourcetracker::RemoveLiveSourceCallback(LiveSourceCallback in_cb) {
 	for (unsigned int x = 0; x < cb_vec.size(); x++) {
 		if (cb_vec[x]->cb != in_cb)
 			continue;
@@ -934,6 +939,10 @@ int Packetsourcetracker::RegisterDefaultChannels(vector<string> *in_defchannels)
     no_channel.push_back(0);
     defaultch_map["na"] = no_channel;
     return 1;
+}
+
+vector<KisPacketSource *> Packetsourcetracker::FetchSourceVec() {
+	return live_packsources;
 }
 
 // Big scary function to build the contents of prebuild_protosources, which

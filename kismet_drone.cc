@@ -465,11 +465,6 @@ int main(int argc, char *argv[], char *envp[]) {
 	if (globalregistry->fatal_condition)
 		CatchShutdown(-1);
 
-	// Create the basic drone server
-	globalregistry->kisdroneserver = new KisDroneFramework(globalregistry);
-	if (globalregistry->fatal_condition)
-		CatchShutdown(-1);
-
 	// Create the root IPC controller if we have SUID abilities
 #ifdef HAVE_SUID
 	globalregistry->rootipc = new IPCRemote(globalregistry, "root control");
@@ -480,6 +475,11 @@ int main(int argc, char *argv[], char *envp[]) {
 
 	// Create the packetsourcetracker
 	globalregistry->sourcetracker = new Packetsourcetracker(globalregistry);
+	if (globalregistry->fatal_condition)
+		CatchShutdown(-1);
+
+	// Create the basic drone server
+	globalregistry->kisdroneserver = new KisDroneFramework(globalregistry);
 	if (globalregistry->fatal_condition)
 		CatchShutdown(-1);
 
