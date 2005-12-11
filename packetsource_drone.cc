@@ -317,8 +317,10 @@ int DroneClientFrame::ParseData() {
 		uint32_t poffst = 0;
 
 		kis_packet *newpack = globalreg->packetchain->GeneratePacket();
+
+		uint32_t cbm = kis_ntoh32(dcpkt->cap_content_bitmap);
 		
-		if ((dcpkt->cap_content_bitmap & DRONEBIT(DRONE_CONTENT_RADIO))) {
+		if ((cbm & DRONEBIT(DRONE_CONTENT_RADIO))) {
 			drone_capture_sub_radio *dsr = 
 				(drone_capture_sub_radio *) &(dcpkt->content[poffst]);
 
@@ -342,37 +344,38 @@ int DroneClientFrame::ParseData() {
 			// Extract the components as long as theres space... in theory it
 			// should be an error condition if it's not filled in, but
 			// if we just handle it properly...
-			if ((dsr->radio_content_bitmap & DRONEBIT(DRONE_RADIO_ACCURACY)) &&
+			uint32_t rcbm = kis_ntoh32(dsr->radio_content_bitmap);
+			if ((rcbm & DRONEBIT(DRONE_RADIO_ACCURACY)) &&
 				(rofft + 2 <= sublen)) {
 				radio->accuracy = kis_ntoh16(dsr->radio_accuracy);
 				rofft += 2;
 			}
-			if ((dsr->radio_content_bitmap & DRONEBIT(DRONE_RADIO_CHANNEL)) &&
+			if ((rcbm & DRONEBIT(DRONE_RADIO_CHANNEL)) &&
 				(rofft + 2 <= sublen)) {
 				radio->channel = kis_ntoh16(dsr->radio_channel);
 				rofft += 2;
 			}
-			if ((dsr->radio_content_bitmap & DRONEBIT(DRONE_RADIO_SIGNAL)) &&
+			if ((rcbm & DRONEBIT(DRONE_RADIO_SIGNAL)) &&
 				(rofft + 2 <= sublen)) {
 				radio->signal = (int16_t) kis_ntoh16(dsr->radio_signal);
 				rofft += 2;
 			}
-			if ((dsr->radio_content_bitmap & DRONEBIT(DRONE_RADIO_NOISE)) &&
+			if ((rcbm & DRONEBIT(DRONE_RADIO_NOISE)) &&
 				(rofft + 2 <= sublen)) {
 				radio->noise = (int16_t) kis_ntoh16(dsr->radio_noise);
 				rofft += 2;
 			}
-			if ((dsr->radio_content_bitmap & DRONEBIT(DRONE_RADIO_CARRIER)) &&
+			if ((rcbm & DRONEBIT(DRONE_RADIO_CARRIER)) &&
 				(rofft + 4 <= sublen)) {
 				radio->carrier = (phy_carrier_type) kis_ntoh32(dsr->radio_carrier);
 				rofft += 4;
 			}
-			if ((dsr->radio_content_bitmap & DRONEBIT(DRONE_RADIO_ENCODING)) &&
+			if ((rcbm & DRONEBIT(DRONE_RADIO_ENCODING)) &&
 				(rofft + 4 <= sublen)) {
 				radio->encoding = (phy_encoding_type) kis_ntoh32(dsr->radio_encoding);
 				rofft += 4;
 			}
-			if ((dsr->radio_content_bitmap & DRONEBIT(DRONE_RADIO_DATARATE)) &&
+			if ((rcbm & DRONEBIT(DRONE_RADIO_DATARATE)) &&
 				(rofft + 4 <= sublen)) {
 				radio->datarate = kis_ntoh32(dsr->radio_datarate);
 				rofft += 4;
@@ -384,7 +387,7 @@ int DroneClientFrame::ParseData() {
 			poffst += sublen;
 		}
 
-		if ((dcpkt->cap_content_bitmap & DRONEBIT(DRONE_CONTENT_GPS))) {
+		if ((cbm & DRONEBIT(DRONE_CONTENT_GPS))) {
 			drone_capture_sub_gps *dsg = 
 				(drone_capture_sub_gps *) &(dcpkt->content[poffst]);
 
@@ -405,32 +408,33 @@ int DroneClientFrame::ParseData() {
 
 			uint16_t rofft = 0;
 
-			if ((dsg->gps_content_bitmap & DRONEBIT(DRONE_GPS_FIX)) &&
+			uint32_t gcbm = kis_ntoh32(dsg->gps_content_bitmap);
+			if ((gcbm & DRONEBIT(DRONE_GPS_FIX)) &&
 				(rofft + 2 <= sublen)) {
 				gpsinfo->gps_fix = kis_ntoh16(dsg->gps_fix);
 				rofft += 2;
 			}
-			if ((dsg->gps_content_bitmap & DRONEBIT(DRONE_GPS_LAT)) &&
+			if ((gcbm & DRONEBIT(DRONE_GPS_LAT)) &&
 				(rofft + sizeof(drone_trans_double) <= sublen)) {
 				DOUBLE_CONV_DRONE(gpsinfo->lat, &(dsg->gps_lat));
 				rofft += sizeof(drone_trans_double);
 			}
-			if ((dsg->gps_content_bitmap & DRONEBIT(DRONE_GPS_LON)) &&
+			if ((gcbm & DRONEBIT(DRONE_GPS_LON)) &&
 				(rofft + sizeof(drone_trans_double) <= sublen)) {
 				DOUBLE_CONV_DRONE(gpsinfo->lon, &(dsg->gps_lon));
 				rofft += sizeof(drone_trans_double);
 			}
-			if ((dsg->gps_content_bitmap & DRONEBIT(DRONE_GPS_ALT)) &&
+			if ((gcbm & DRONEBIT(DRONE_GPS_ALT)) &&
 				(rofft + sizeof(drone_trans_double) <= sublen)) {
 				DOUBLE_CONV_DRONE(gpsinfo->alt, &(dsg->gps_alt));
 				rofft += sizeof(drone_trans_double);
 			}
-			if ((dsg->gps_content_bitmap & DRONEBIT(DRONE_GPS_SPD)) &&
+			if ((gcbm & DRONEBIT(DRONE_GPS_SPD)) &&
 				(rofft + sizeof(drone_trans_double) <= sublen)) {
 				DOUBLE_CONV_DRONE(gpsinfo->spd, &(dsg->gps_spd));
 				rofft += sizeof(drone_trans_double);
 			}
-			if ((dsg->gps_content_bitmap & DRONEBIT(DRONE_GPS_HEADING)) &&
+			if ((gcbm & DRONEBIT(DRONE_GPS_HEADING)) &&
 				(rofft + sizeof(drone_trans_double) <= sublen)) {
 				DOUBLE_CONV_DRONE(gpsinfo->heading, &(dsg->gps_heading));
 				rofft += sizeof(drone_trans_double);
@@ -442,7 +446,7 @@ int DroneClientFrame::ParseData() {
 			poffst += sublen;
 		}
 
-		if (dcpkt->cap_content_bitmap & DRONEBIT(DRONE_CONTENT_IEEEPACKET)) {
+		if ((cbm & DRONEBIT(DRONE_CONTENT_IEEEPACKET))) {
 			// Jump to thend of the capframe
 			poffst = kis_ntoh32(dcpkt->cap_packet_offset);
 
@@ -466,23 +470,25 @@ int DroneClientFrame::ParseData() {
 
 			uint16_t rofft = 0;
 
-			if ((ds11->eight11_content_bitmap & DRONEBIT(DRONE_EIGHT11_PACKLEN)) &&
+			uint32_t ecbm = kis_ntoh32(ds11->eight11_content_bitmap);
+
+			if ((ecbm & DRONEBIT(DRONE_EIGHT11_PACKLEN)) &&
 				(rofft + 2 <= sublen)) {
 				chunk->length = kismin(kis_ntoh16(ds11->packet_len),
 									   (uint32_t) MAX_PACKET_LEN);
 				rofft += 2;
 			}
-			if ((ds11->eight11_content_bitmap & DRONEBIT(DRONE_EIGHT11_UUID)) &&
+			if ((ecbm & DRONEBIT(DRONE_EIGHT11_UUID)) &&
 				(rofft + sizeof(drone_trans_uuid) <= sublen)) {
 
 				rofft += sizeof(drone_trans_uuid);
 			}
-			if ((ds11->eight11_content_bitmap & DRONEBIT(DRONE_EIGHT11_TVSEC)) &&
+			if ((ecbm & DRONEBIT(DRONE_EIGHT11_TVSEC)) &&
 				(rofft + 8 <= sublen)) {
 				newpack->ts.tv_sec = kis_ntoh64(ds11->tv_sec);
 				rofft += 8;
 			}
-			if ((ds11->eight11_content_bitmap & DRONEBIT(DRONE_EIGHT11_TVUSEC)) &&
+			if ((ecbm & DRONEBIT(DRONE_EIGHT11_TVUSEC)) &&
 				(rofft + 8 <= sublen)) {
 				newpack->ts.tv_usec = kis_ntoh64(ds11->tv_usec);
 				rofft += 8;

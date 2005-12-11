@@ -439,11 +439,11 @@ int KisDroneFramework::SendSource(int in_cl, KisPacketSource *in_int) {
 
 	spkt->source_hdr_len = kis_hton16(sizeof(drone_source_packet));
 	spkt->source_content_bitmap =
-		(DRONEBIT(DRONE_SRC_UUID) |
-		 DRONEBIT(DRONE_SRC_NAMESTR) |
-		 DRONEBIT(DRONE_SRC_INTSTR) |
-		 DRONEBIT(DRONE_SRC_TYPESTR) |
-		 DRONEBIT(DRONE_SRC_FCSBYTES));
+		kis_hton32(DRONEBIT(DRONE_SRC_UUID) |
+				   DRONEBIT(DRONE_SRC_NAMESTR) |
+				   DRONEBIT(DRONE_SRC_INTSTR) |
+				   DRONEBIT(DRONE_SRC_TYPESTR) |
+				   DRONEBIT(DRONE_SRC_FCSBYTES));
 
 	DRONE_CONV_UUID(in_int->FetchUUID(), &(spkt->uuid));
 	snprintf((char *) spkt->name_str, 32, "%s", in_int->FetchName().c_str());
@@ -589,14 +589,14 @@ int KisDroneFramework::chain_handler(kis_packet *in_pack) {
 		// We have all the frields.  This could be reduced to an integer
 		// assign but that would suck to edit in the future, and this all
 		// optomizes away into a single assign anyhow during compile
-		rcpkt->radio_content_bitmap |=
-			(DRONEBIT(DRONE_RADIO_ACCURACY) |
-			 DRONEBIT(DRONE_RADIO_CHANNEL) |
-			 DRONEBIT(DRONE_RADIO_SIGNAL) |
-			 DRONEBIT(DRONE_RADIO_NOISE) |
-			 DRONEBIT(DRONE_RADIO_CARRIER) |
-			 DRONEBIT(DRONE_RADIO_ENCODING) |
-			 DRONEBIT(DRONE_RADIO_DATARATE));
+		rcpkt->radio_content_bitmap =
+			kis_hton32(DRONEBIT(DRONE_RADIO_ACCURACY) |
+					   DRONEBIT(DRONE_RADIO_CHANNEL) |
+					   DRONEBIT(DRONE_RADIO_SIGNAL) |
+					   DRONEBIT(DRONE_RADIO_NOISE) |
+					   DRONEBIT(DRONE_RADIO_CARRIER) |
+					   DRONEBIT(DRONE_RADIO_ENCODING) |
+					   DRONEBIT(DRONE_RADIO_DATARATE));
 
 		rcpkt->radio_accuracy = kis_hton16(radio->accuracy);
 		rcpkt->radio_channel = kis_hton16(radio->channel);
@@ -617,13 +617,13 @@ int KisDroneFramework::chain_handler(kis_packet *in_pack) {
 
 		gppkt->gps_hdr_len = kis_hton16(sizeof(drone_capture_sub_gps));
 
-		gppkt->gps_content_bitmap |=
-			(DRONEBIT(DRONE_GPS_FIX) |
-			 DRONEBIT(DRONE_GPS_LAT) |
-			 DRONEBIT(DRONE_GPS_LON) |
-			 DRONEBIT(DRONE_GPS_ALT) |
-			 DRONEBIT(DRONE_GPS_SPD) |
-			 DRONEBIT(DRONE_GPS_HEADING));
+		gppkt->gps_content_bitmap =
+			kis_hton32(DRONEBIT(DRONE_GPS_FIX) |
+					   DRONEBIT(DRONE_GPS_LAT) |
+					   DRONEBIT(DRONE_GPS_LON) |
+					   DRONEBIT(DRONE_GPS_ALT) |
+					   DRONEBIT(DRONE_GPS_SPD) |
+					   DRONEBIT(DRONE_GPS_HEADING));
 
 		gppkt->gps_fix = kis_hton16(gpsinfo->gps_fix);
 		DRONE_CONV_DOUBLE(gpsinfo->lat, &(gppkt->gps_lat));
@@ -650,11 +650,11 @@ int KisDroneFramework::chain_handler(kis_packet *in_pack) {
 
 		e1pkt->eight11_hdr_len = kis_hton16(sizeof(drone_capture_sub_80211));
 
-		e1pkt->eight11_content_bitmap |=
-			(DRONEBIT(DRONE_EIGHT11_PACKLEN) |
-			 DRONEBIT(DRONE_EIGHT11_UUID) |
-			 DRONEBIT(DRONE_EIGHT11_TVSEC) |
-			 DRONEBIT(DRONE_EIGHT11_TVUSEC));
+		e1pkt->eight11_content_bitmap =
+			kis_hton32(DRONEBIT(DRONE_EIGHT11_PACKLEN) |
+					   DRONEBIT(DRONE_EIGHT11_UUID) |
+					   DRONEBIT(DRONE_EIGHT11_TVSEC) |
+					   DRONEBIT(DRONE_EIGHT11_TVUSEC));
 
 		DRONE_CONV_UUID(csrc_ref->ref_source->FetchUUID(), &(e1pkt->uuid));
 		e1pkt->packet_len = kis_hton16(chunk->length);
@@ -664,6 +664,7 @@ int KisDroneFramework::chain_handler(kis_packet *in_pack) {
 		memcpy(e1pkt->packdata, chunk->data, chunk->length);
 	}
 
+	dcpkt->cap_content_bitmap = kis_hton32(dcpkt->cap_content_bitmap);
 	SendAllPacket(dpkt);
 
 	free(dpkt);
