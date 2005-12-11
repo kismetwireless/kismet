@@ -33,7 +33,7 @@ int RingBuffer::InsertDummy(int in_len) {
     if (ring_wptr == ring_rptr && ring_wptr == ring_data)
         return 1;
 
-    if (ring_wptr + in_len > ring_data + ring_len) {
+    if (ring_wptr + in_len >= ring_data + ring_len) {
         int tail = (ring_data + ring_len) - ring_wptr;
         if (ring_data + (in_len - tail) >= ring_rptr)
             return 0;

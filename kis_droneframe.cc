@@ -187,6 +187,7 @@ KisDroneFramework::KisDroneFramework(GlobalRegistry *in_globalreg) {
 	RegisterDroneCmd(DRONE_CMDNUM_STRING, NULL, this);
 	RegisterDroneCmd(DRONE_CMDNUM_CAPPACKET, NULL, this);
 	RegisterDroneCmd(DRONE_CMDNUM_CHANNELSET, dronecmd_channelset_hook, this);
+	RegisterDroneCmd(DRONE_CMDNUM_SOURCE, NULL, this);
 }
 
 KisDroneFramework::~KisDroneFramework() {
@@ -417,6 +418,59 @@ int KisDroneFramework::SendAllText(string in_text, int flags) {
 
 	for (unsigned int x = 0; x < clvec.size(); x++) {
 		if (SendText(clvec[x], in_text, flags) > 0)
+			nsent++;
+	}
+
+	return nsent;
+}
+
+int KisDroneFramework::SendSource(int in_cl, KisPacketSource *in_int) {
+	drone_packet *dpkt = 
+		(drone_packet *) malloc(sizeof(uint8_t) * 
+								(sizeof(drone_packet) + sizeof(drone_source_packet)));
+	memset(dpkt, 0, sizeof(uint8_t) * (sizeof(drone_packet) + 
+									   sizeof(drone_source_packet)));
+
+	dpkt->sentinel = kis_hton32(DroneSentinel);
+	dpkt->drone_cmdnum = kis_hton32(DRONE_CMDNUM_SOURCE);
+	dpkt->data_len = kis_hton32(sizeof(drone_source_packet));
+
+	drone_source_packet *spkt = (drone_source_packet *) dpkt->data;
+
+	spkt->source_hdr_len = kis_hton16(sizeof(drone_source_packet));
+	spkt->source_content_bitmap =
+		(DRONEBIT(DRONE_SRC_UUID) |
+		 DRONEBIT(DRONE_SRC_NAMESTR) |
+		 DRONEBIT(DRONE_SRC_INTSTR) |
+		 DRONEBIT(DRONE_SRC_TYPESTR) |
+		 DRONEBIT(DRONE_SRC_FCSBYTES));
+
+	DRONE_CONV_UUID(in_int->FetchUUID(), &(spkt->uuid));
+	snprintf((char *) spkt->name_str, 32, "%s", in_int->FetchName().c_str());
+	snprintf((char *) spkt->interface_str, 32, "%s", 
+			 in_int->FetchInterface().c_str());
+	snprintf((char *) spkt->type_str, 32, "%s", in_int->FetchType().c_str());
+
+	int ret = 0;
+
+	ret = SendPacket(in_cl, dpkt);
+
+	free(dpkt);
+
+	return ret;
+}
+
+int KisDroneFramework::SendAllSource(KisPacketSource *in_int) {
+	vector<int> clvec;
+	int nsent = 0;
+
+	if (netserver == NULL)
+		return 0;
+
+	netserver->FetchClientVector(&clvec);
+
+	for (unsigned int x = 0; x < clvec.size(); x++) {
+		if (SendSource(clvec[x], in_int) > 0)
 			nsent++;
 	}
 

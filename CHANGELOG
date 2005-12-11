@@ -1,3 +1,6 @@
+Dec 11 2005  devel  Added fix to ringbuf from Shane Schisler
+                    Added drone_source_packet generators to drone protocol to
+                     push a capture source upstream
 Dec 10 2005  devel  Added UUID to drone protocol
                     Added LocalChannelHop() to packetsources to prevent conflicts
                      with virtual drone interfaces

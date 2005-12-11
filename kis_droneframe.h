@@ -69,7 +69,7 @@ const uint32_t DroneSentinel = 0xDEADBEEF;
 #define DRONE_CMDNUM_STRING			2
 #define DRONE_CMDNUM_CAPPACKET		3
 #define DRONE_CMDNUM_CHANNELSET		4
-#define DRONE_CMDNUM_INTERFACE		5
+#define DRONE_CMDNUM_SOURCE			5
 
 // Size-neutral container for a uuid
 typedef struct drone_trans_uuid {
@@ -151,7 +151,13 @@ typedef struct drone_string_packet {
 
 // Channel set command packet (one channel sets chan, multiple sets vector)
 // OR if it comes FROM the drone, it indicates the current set of channels used
+#define DRONE_CHANNELSET_UUID		0
+#define DRONE_CHANNELSET_HOP		1
+#define DRONE_CHANNELSET_NUMCH		2
+#define DRONE_CHANNELSET_CHANNELS	3
 typedef struct drone_channelset_packet {
+	uint16_t channelset_hdr_len __attribute__ ((packed));
+	uint32_t channelset_content_bitmap __attribute__ ((packed));
 	drone_trans_uuid uuid __attribute__ ((packed));
 	uint16_t channel_hop __attribute__ ((packed));
 	uint16_t num_channels __attribute__ ((packed));
@@ -159,15 +165,20 @@ typedef struct drone_channelset_packet {
 	uint16_t channels[0];
 } __attribute__ ((packed));
 
-// Interface record
-typedef struct drone_interface_packet {
+// Source record
+#define DRONE_SRC_UUID				0
+#define DRONE_SRC_NAMESTR			1
+#define DRONE_SRC_INTSTR			2
+#define DRONE_SRC_TYPESTR			3
+#define DRONE_SRC_FCSBYTES			4
+typedef struct drone_source_packet {
+	uint16_t source_hdr_len __attribute__ ((packed));
+	uint32_t source_content_bitmap __attribute__ ((packed));
 	drone_trans_uuid uuid __attribute__ ((packed));
 	// Null terminated strings
 	uint8_t name_str[32] __attribute__ ((packed));
-	uint8_t interface1_str[16] __attribute__ ((packed));
-	uint8_t interface2_str[16] __attribute__ ((packed));
+	uint8_t interface_str[32] __attribute__ ((packed));
 	uint8_t type_str[32] __attribute__ ((packed));
-	uint16_t fcs_bytes __attribute__ ((packed));
 };
 
 // Bitmap fields for radio headers
@@ -298,6 +309,10 @@ public:
 	virtual int SendPacket(int in_cl, drone_packet *in_pack);
 	virtual int SendAllPacket(drone_packet *in_pack);
 
+	// Send a source record
+	virtual int SendSource(int in_cl, KisPacketSource *in_int);
+	virtual int SendAllSource(KisPacketSource *in_int);
+
 	virtual int channel_handler(const drone_packet *in_pack);
 
 	typedef struct drone_cmd_rec {
@@ -315,9 +330,6 @@ protected:
 	int eventid;
 
 	map<unsigned int, drone_cmd_rec *> drone_cmd_map;
-
-	friend int drone_die_callback(DRONE_CMD_PARMS);
-
 };
 
 #endif

@@ -291,6 +291,7 @@ public:
     void Resume() { paused = 0; };
 
 	virtual void SetFCSBytes(int in_bytes) { fcsbytes = in_bytes; }
+	virtual int FetchFCSBytes() { return fcsbytes; }
 
 	// Set and fetch the carriers this source understands
 	void SetCarrierSet(int in_set) { carrier_set = in_set; }
