@@ -167,6 +167,12 @@ int Packetsourcetracker::cmd_chanlock(CLIENT_PARMS) {
 	// Lock it to not hop on this source
 	src->SetChannelHop(0);
 
+	// Send a notify to all the registered callbacks
+	for (unsigned int x = 0; x < cb_vec.size(); x++) {
+		(*(cb_vec[x]->cb))(globalreg, src, SOURCEACT_HOPSET, 0, 
+						   cb_vec[x]->auxdata);
+	}
+
     snprintf(errstr, 1024, "Locking source '%s' to channel %d", 
 			 src->FetchName().c_str(), chnum);
     _MSG(errstr, MSGFLAG_INFO);
@@ -198,6 +204,12 @@ int Packetsourcetracker::cmd_chanhop(CLIENT_PARMS) {
 		snprintf(errstr, 1024, "Illegal chanhop request, source cannot "
 				 "perform channel hopping");
 		return -1;
+	}
+
+	// Send a notify to all the registered callbacks
+	for (unsigned int x = 0; x < cb_vec.size(); x++) {
+		(*(cb_vec[x]->cb))(globalreg, src, SOURCEACT_HOPSET, 1, 
+						   cb_vec[x]->auxdata);
 	}
 
 	snprintf(errstr, 1024, "Enabling channel hopping on source '%s'",
@@ -427,7 +439,8 @@ int Packetsourcetracker::RegisterLiveKisPacketsource(KisPacketSource *in_livesou
 
 	// Send a notify to all the registered callbacks
 	for (unsigned int x = 0; x < cb_vec.size(); x++) {
-		(*(cb_vec[x]->cb))(globalreg, in_livesource, 1, cb_vec[x]->auxdata);
+		(*(cb_vec[x]->cb))(globalreg, in_livesource, SOURCEACT_ADDSOURCE, 0, 
+						   cb_vec[x]->auxdata);
 	}
 
 	return 1;
@@ -443,7 +456,8 @@ int Packetsourcetracker::RemoveLiveKisPacketsource(KisPacketSource *in_livesourc
 
 	// Send a notify to all the registered callbacks
 	for (unsigned int x = 0; x < cb_vec.size(); x++) {
-		(*(cb_vec[x]->cb))(globalreg, in_livesource, 0, cb_vec[x]->auxdata);
+		(*(cb_vec[x]->cb))(globalreg, in_livesource, SOURCEACT_DELSOURCE, 0, 
+						   cb_vec[x]->auxdata);
 	}
 
 	// Remove it from the packetsource map
@@ -460,10 +474,10 @@ int Packetsourcetracker::RemoveLiveKisPacketsource(KisPacketSource *in_livesourc
 	return 1;
 }
 
-int Packetsourcetracker::RegisterLiveSourceCallback(LiveSourceCallback in_cb,
-													void *in_aux) {
+int Packetsourcetracker::RegisterSourceActCallback(SourceActCallback in_cb,
+												   void *in_aux) {
 	// Make a cb rec
-	addsourcecb_rec *cbr = new addsourcecb_rec;
+	sourceactcb_rec *cbr = new sourceactcb_rec;
 	cbr->cb = in_cb;
 	cbr->auxdata = in_aux;
 
@@ -472,7 +486,7 @@ int Packetsourcetracker::RegisterLiveSourceCallback(LiveSourceCallback in_cb,
 	return 1;
 }
 
-int Packetsourcetracker::RemoveLiveSourceCallback(LiveSourceCallback in_cb) {
+int Packetsourcetracker::RemoveSourceActCallback(SourceActCallback in_cb) {
 	for (unsigned int x = 0; x < cb_vec.size(); x++) {
 		if (cb_vec[x]->cb != in_cb)
 			continue;
@@ -726,13 +740,6 @@ int Packetsourcetracker::Poll(fd_set& in_rset, fd_set& in_wset) {
 }
 
 KisPacketSource *Packetsourcetracker::FindUUID(uuid in_id) {
-#if 0
-	for (map<uuid, KisPacketSource *>::iterator i = ps_map.begin();
-		 i != ps_map.end(); ++i) {
-		uuid u = i->first;
-		printf("debug - %s %p\n", u.UUID2String().c_str(), i->second);
-	}
-#endif
 	// Try to find the source
 	map<uuid, KisPacketSource *>::iterator psmi = ps_map.find(in_id);
 	if (psmi == ps_map.end()) {
@@ -830,7 +837,40 @@ int Packetsourcetracker::SetHopping(int in_hopping, uuid in_uuid) {
 		return -1;
 	}
 
-	return src->SetChannelHop(in_hopping);
+	int ret = src->SetChannelHop(in_hopping);
+
+	if (ret >= 0) {
+		// Send a notify to all the registered callbacks
+		for (unsigned int x = 0; x < cb_vec.size(); x++) {
+			(*(cb_vec[x]->cb))(globalreg, src, SOURCEACT_HOPSET, in_hopping, 
+							   cb_vec[x]->auxdata);
+		}
+	}
+
+	return ret;
+}
+
+int Packetsourcetracker::SetChannelSequence(vector<int> in_seq, uuid in_uuid) {
+	KisPacketSource *src = FindUUID(in_uuid);
+
+	if (src == NULL) {
+		_MSG("Could not set sequence for source UUID " + in_uuid.UUID2String() + 
+			 ", unable to find source", MSGFLAG_FATAL);
+		globalreg->fatal_condition = 1;
+		return -1;
+	}
+
+	int ret = src->SetChannelSequence(in_seq);
+
+	if (ret >= 0) {
+		// Send a notify to all the registered callbacks
+		for (unsigned int x = 0; x < cb_vec.size(); x++) {
+			(*(cb_vec[x]->cb))(globalreg, src, SOURCEACT_CHVECTOR, 0, 
+							   cb_vec[x]->auxdata);
+		}
+	}
+
+	return ret;
 }
 
 // Hop the packet sources up a channel

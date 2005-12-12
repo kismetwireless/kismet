@@ -145,6 +145,7 @@ typedef struct drone_string_packet {
 
 // Channel set command packet (one channel sets chan, multiple sets vector)
 // OR if it comes FROM the drone, it indicates the current set of channels used
+// and the state of channel hopping
 #define DRONE_CHANNELSET_UUID		0
 #define DRONE_CHANNELSET_HOP		1
 #define DRONE_CHANNELSET_NUMCH		2
@@ -299,8 +300,8 @@ public:
 	// Timer handler
 	virtual int time_handler();
 
-	// AddSource handler
-	virtual void addsource_handler(KisPacketSource *in_src, int in_enable);
+	// AddSource handler...
+	virtual void sourceact_handler(KisPacketSource *src, int action, int flags);
 
 	// Send a frame
 	virtual int SendPacket(int in_cl, drone_packet *in_pack);
@@ -309,6 +310,10 @@ public:
 	// Send a source record
 	virtual int SendSource(int in_cl, KisPacketSource *in_int, int invalid);
 	virtual int SendAllSource(KisPacketSource *in_int, int invalid);
+
+	// Send a channel record
+	virtual int SendChannels(int in_cl, KisPacketSource *in_int);
+	virtual int SendAllChannels(KisPacketSource *in_int);
 
 	virtual int channel_handler(const drone_packet *in_pack);
 

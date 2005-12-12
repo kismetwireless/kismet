@@ -1,3 +1,7 @@
+Dec 12 2005  devel  Revamped AddSource callback API into a generic SourceAction
+                     API
+                    Wrote drone interface channel push code
+                    Added SourceAction hooks for setting hop, vectors
 Dec 11 2005  devel  Added fix to ringbuf from Shane Schisler
                     Added drone_source_packet generators to drone protocol to
                      push a capture source upstream

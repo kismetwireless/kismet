@@ -56,8 +56,8 @@ int dronecmd_channelset_hook(DRONE_CMD_PARMS) {
 	return ((KisDroneFramework *) auxptr)->channel_handler(data);
 }
 
-void drone_pst_addsource_hook(LIVESOURCECB_PARMS) {
-	((KisDroneFramework *) auxptr)->addsource_handler(src, srcadd);
+void drone_pst_sourceact_hook(SOURCEACT_PARMS) {
+	((KisDroneFramework *) auxptr)->sourceact_handler(src, action, flags);
 }
 
 void KisDroneFramework::Usage(char *name) {
@@ -187,9 +187,9 @@ KisDroneFramework::KisDroneFramework(GlobalRegistry *in_globalreg) {
 	globalreg->packetchain->RegisterHandler(&kisdrone_chain_hook, this,
 											CHAINPOS_POSTCAP, 100);
 
-	// Register the AddSource handler
-	globalreg->sourcetracker->RegisterLiveSourceCallback(&drone_pst_addsource_hook,
-														 (void *) this);
+	// Register the source action handler
+	globalreg->sourcetracker->RegisterSourceActCallback(&drone_pst_sourceact_hook,
+														(void *) this);
 
 	// Event trigger
 	eventid = 
@@ -206,8 +206,8 @@ KisDroneFramework::KisDroneFramework(GlobalRegistry *in_globalreg) {
 }
 
 KisDroneFramework::~KisDroneFramework() {
-	// Register the AddSource handler
-	globalreg->sourcetracker->RemoveLiveSourceCallback(&drone_pst_addsource_hook);
+	// Unregister the source action
+	globalreg->sourcetracker->RemoveSourceActCallback(&drone_pst_sourceact_hook);
 
 	if (globalreg != NULL && globalreg->messagebus != NULL) {
 		globalreg->messagebus->RemoveClient(kisdrone_msgcli);
@@ -276,6 +276,7 @@ int KisDroneFramework::Accept(int in_fd) {
 	vector<KisPacketSource *> srcv = globalreg->sourcetracker->FetchSourceVec();
 	for (unsigned int x = 0; x < srcv.size(); x++) {
 		SendSource(in_fd, srcv[x], 0);
+		SendChannels(in_fd, srcv[x]);
 	}
 
 	return ret;
@@ -507,6 +508,64 @@ int KisDroneFramework::SendAllSource(KisPacketSource *in_int, int invalid) {
 	return nsent;
 }
 
+int KisDroneFramework::SendChannels(int in_cl, KisPacketSource *in_int) {
+	vector<int> channels = in_int->FetchChannelSequence();
+	unsigned int chsize = sizeof(uint16_t) * channels.size();
+
+	drone_packet *dpkt = 
+		(drone_packet *) malloc(sizeof(uint8_t) * 
+								(sizeof(drone_packet) + 
+								 sizeof(drone_channelset_packet) + chsize));
+	memset(dpkt, 0, sizeof(uint8_t) * (sizeof(drone_packet) + 
+									   sizeof(drone_channelset_packet) + chsize));
+
+	dpkt->sentinel = kis_hton32(DroneSentinel);
+	dpkt->drone_cmdnum = kis_hton32(DRONE_CMDNUM_CHANNELSET);
+	dpkt->data_len = kis_hton32(sizeof(drone_channelset_packet) + chsize);
+
+	drone_channelset_packet *cpkt = (drone_channelset_packet *) dpkt->data;
+
+	cpkt->channelset_hdr_len = kis_hton16(sizeof(drone_channelset_packet) + chsize);
+	cpkt->channelset_content_bitmap =
+		kis_hton32(DRONEBIT(DRONE_CHANNELSET_UUID) |
+				   DRONEBIT(DRONE_CHANNELSET_HOP) |
+				   DRONEBIT(DRONE_CHANNELSET_NUMCH) |
+				   DRONEBIT(DRONE_CHANNELSET_CHANNELS));
+
+	DRONE_CONV_UUID(in_int->FetchUUID(), &(cpkt->uuid));
+
+	cpkt->channel_hop = kis_hton16(in_int->FetchChannelHop());
+	cpkt->num_channels = kis_hton16(channels.size());
+	for (unsigned int x = 0; x < channels.size(); x++) {
+		cpkt->channels[x] = kis_hton16(channels[x]);
+	}
+
+	int ret = 0;
+
+	ret = SendPacket(in_cl, dpkt);
+
+	free(dpkt);
+
+	return ret;
+}
+
+int KisDroneFramework::SendAllChannels(KisPacketSource *in_int) {
+	vector<int> clvec;
+	int nsent = 0;
+
+	if (netserver == NULL)
+		return 0;
+
+	netserver->FetchClientVector(&clvec);
+
+	for (unsigned int x = 0; x < clvec.size(); x++) {
+		if (SendChannels(clvec[x], in_int) > 0)
+			nsent++;
+	}
+
+	return nsent;
+}
+
 int KisDroneFramework::SendPacket(int in_cl, drone_packet *in_pack) {
 	int nlen = kis_ntoh32(in_pack->data_len) + sizeof(drone_packet);
 
@@ -543,12 +602,17 @@ int KisDroneFramework::SendAllPacket(drone_packet *in_pack) {
 }
 
 // Send a new source to all the clients
-void KisDroneFramework::addsource_handler(KisPacketSource *in_src, int in_enable) {
-	// Invert the enable flag, since we care about sending "its now invalid"
-	if (in_enable) {
-		SendAllSource(in_src, 0);
-	} else {
-		SendAllSource(in_src, 1);
+void KisDroneFramework::sourceact_handler(KisPacketSource *src, int action,
+										  int flags) {
+	if (action == SOURCEACT_ADDSOURCE) {
+		// Push a new source
+		SendAllSource(src, 0);
+	} else if (action == SOURCEACT_DELSOURCE) {
+		// Push a remove action
+		SendAllSource(src, 1);
+	} else if (action == SOURCEACT_HOPSET || action == SOURCEACT_CHVECTOR) {
+		// Push a full channel info frame if we change hopping or channel vector
+		SendAllChannels(src);
 	}
 }
 

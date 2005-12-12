@@ -245,6 +245,9 @@ public:
 		channel_list = in_seq;
 		return 1;
 	}
+	virtual vector<int> FetchChannelSequence() {
+		return channel_list;
+	}
 	// Jump to a specific offset in the channel list (used during creation,
 	// primarily)
 	virtual int SetChannelSeqPos(int in_offt) {
