@@ -182,6 +182,17 @@ int DroneClientFrame::KillConnection() {
 	if (tcpcli != NULL)
 		tcpcli->KillConnection();
 
+	// Kill all our faked packet sources
+	for (map<uuid, int>::iterator i = virtual_src_map.begin();
+		 i != virtual_src_map.end(); ++i) {
+		KisPacketSource *src = globalreg->sourcetracker->FindUUID(i->first);
+		if (src != NULL) {
+			globalreg->sourcetracker->RemoveLiveKisPacketsource(src);
+			delete src;
+		}
+	}
+	virtual_src_map.erase(virtual_src_map.begin(), virtual_src_map.end());
+
 	return 1;
 }
 
