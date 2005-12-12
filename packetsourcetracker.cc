@@ -422,8 +422,8 @@ int Packetsourcetracker::RegisterLiveKisPacketsource(KisPacketSource *in_livesou
 	// Add it to the strong sources vector and the UUID vector (we wait until
 	// now to give sources a chance to fill in their UUID at monitor time with
 	// a real node ID derived from the MAC.
-	live_packsources.push_back(in_livesource);
 	ps_map[in_livesource->FetchUUID()] = in_livesource;
+	live_packsources.push_back(in_livesource);
 
 	// Send a notify to all the registered callbacks
 	for (unsigned int x = 0; x < cb_vec.size(); x++) {
@@ -726,6 +726,13 @@ int Packetsourcetracker::Poll(fd_set& in_rset, fd_set& in_wset) {
 }
 
 KisPacketSource *Packetsourcetracker::FindUUID(uuid in_id) {
+#if 0
+	for (map<uuid, KisPacketSource *>::iterator i = ps_map.begin();
+		 i != ps_map.end(); ++i) {
+		uuid u = i->first;
+		printf("debug - %s %p\n", u.UUID2String().c_str(), i->second);
+	}
+#endif
 	// Try to find the source
 	map<uuid, KisPacketSource *>::iterator psmi = ps_map.find(in_id);
 	if (psmi == ps_map.end()) {

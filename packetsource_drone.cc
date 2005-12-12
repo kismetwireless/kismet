@@ -312,6 +312,92 @@ int DroneClientFrame::ParseData() {
 		}
 		// Inject it into the messagebus w/ the normal 
 		_MSG(msg, kis_ntoh32(spkt->msg_flags));
+	} else if (dcid == DRONE_CMDNUM_SOURCE) {
+		drone_source_packet *spkt = (drone_source_packet *) dpkt->data;
+
+		uint32_t sbm = kis_ntoh32(spkt->source_content_bitmap);
+		uint16_t sourcelen = kis_ntoh16(spkt->source_hdr_len);
+		uint16_t rofft = 0;
+
+		// New source data we're making
+		uuid new_uuid;
+		string name, interface, type;
+		char strbuffer[32];
+		int src_invalidated = 0;
+		// Ghetto method of tracking how many components we've filled in.
+		// We should get a 4 to make a source.
+		int comp_counter = 0;
+
+		if ((sbm & DRONEBIT(DRONE_SRC_UUID)) &&
+			(rofft + sizeof(drone_trans_uuid) <= sourcelen)) {
+
+			UUID_CONV_DRONE(&(spkt->uuid), new_uuid);
+
+			comp_counter++;
+	
+			rofft += sizeof(drone_trans_uuid);
+		}
+		if ((sbm & DRONEBIT(DRONE_SRC_INVALID)) &&
+			(rofft + 2 <= sourcelen)) {
+			src_invalidated = kis_ntoh16(spkt->invalidate);
+			rofft += 2;
+		}
+		if ((sbm & DRONEBIT(DRONE_SRC_NAMESTR)) &&
+			(rofft + 32 <= sourcelen)) {
+			sscanf((const char *) spkt->name_str, "%32s", strbuffer);
+			name = string(strbuffer);
+			comp_counter++;
+			rofft += 32;
+		}
+		if ((sbm & DRONEBIT(DRONE_SRC_INTSTR)) &&
+			(rofft + 32 <= sourcelen)) {
+			sscanf((const char *) spkt->interface_str, "%32s", strbuffer);
+			interface = string(strbuffer);
+			comp_counter++;
+			rofft += 32;
+		}
+		if ((sbm & DRONEBIT(DRONE_SRC_TYPESTR)) &&
+			(rofft + 32 <= sourcelen)) {
+			sscanf((const char *) spkt->type_str, "%32s", strbuffer);
+			type = string(strbuffer);
+			comp_counter++;
+			rofft += 32;
+		}
+
+		if (comp_counter >= 4 && src_invalidated == 0 && new_uuid.error == 0) {
+			// Make sure the source doesn't exist in the real tracker
+			KisPacketSource *rsrc =
+				globalreg->sourcetracker->FindUUID(new_uuid);
+			if (rsrc == NULL) {
+				PacketSource_DroneRemote *rem = 
+					new PacketSource_DroneRemote(globalreg, type, name, interface);
+				rem->SetUUID(new_uuid);
+				globalreg->sourcetracker->RegisterLiveKisPacketsource(rem);
+				virtual_src_map[new_uuid] = 1;
+				_MSG("Imported capture source '" + type + "," + name + "," +
+					 interface + "' UUID " + new_uuid.UUID2String() + " from "
+					 "remote drone", MSGFLAG_INFO);
+			}
+		} else if (src_invalidated == 1 && new_uuid.error == 0) {
+			KisPacketSource *rsrc = 
+				globalreg->sourcetracker->FindUUID(new_uuid);
+
+			// Make sure the source really exists, and make sure its one of our
+			// virtual sources, because we don't let a drone try to cancel a
+			// local real source
+			if (rsrc != NULL && 
+				virtual_src_map.find(new_uuid) != virtual_src_map.end()) {
+				// We don't have to close anything since the virtual interfaces
+				// are just nonsense
+
+				_MSG("Removing capture source '" + type + "," + name + "," +
+					 interface + "' UUID " + new_uuid.UUID2String() + " from "
+					 "remote drone", MSGFLAG_INFO);
+				
+				globalreg->sourcetracker->RemoveLiveKisPacketsource(rsrc);
+				virtual_src_map.erase(new_uuid);
+			}
+		}
 	} else if (dcid == DRONE_CMDNUM_CAPPACKET) {
 		drone_capture_packet *dcpkt = (drone_capture_packet *) dpkt->data;
 		uint32_t poffst = 0;
@@ -468,8 +554,9 @@ int DroneClientFrame::ParseData() {
 
 			kis_datachunk *chunk = new kis_datachunk;
 
-			uint16_t rofft = 0;
+			uuid new_uuid;
 
+			uint16_t rofft = 0;
 			uint32_t ecbm = kis_ntoh32(ds11->eight11_content_bitmap);
 
 			if ((ecbm & DRONEBIT(DRONE_EIGHT11_PACKLEN)) &&
@@ -480,7 +567,7 @@ int DroneClientFrame::ParseData() {
 			}
 			if ((ecbm & DRONEBIT(DRONE_EIGHT11_UUID)) &&
 				(rofft + sizeof(drone_trans_uuid) <= sublen)) {
-
+				UUID_CONV_DRONE(&(ds11->uuid), new_uuid);
 				rofft += sizeof(drone_trans_uuid);
 			}
 			if ((ecbm & DRONEBIT(DRONE_EIGHT11_TVSEC)) &&
@@ -515,12 +602,26 @@ int DroneClientFrame::ParseData() {
 
 				newpack->insert(_PCM(PACK_COMP_LINKFRAME), chunk);
 			}
-		}
 
-		if (packetsource != NULL) {
-			kis_ref_capsource *csrc_ref = new kis_ref_capsource;
-			csrc_ref->ref_source = (KisPacketSource *) packetsource;
-			newpack->insert(_PCM(PACK_COMP_KISCAPSRC), csrc_ref);
+			// Fill in the capture source if we can find it locally, and only
+			// accept from sources we understand, otherwise it shows up as
+			// from the drone itself, as long as we have a local source
+			if (new_uuid.error == 0 && 
+				virtual_src_map.find(new_uuid) != virtual_src_map.end()) {
+				PacketSource_DroneRemote *rsrc = (PacketSource_DroneRemote *) 
+					globalreg->sourcetracker->FindUUID(new_uuid);
+				if (rsrc != NULL) {
+					// Safe because we only do it on our own virtuals
+					rsrc->IncrementNumPackets();
+					kis_ref_capsource *csrc_ref = new kis_ref_capsource;
+					csrc_ref->ref_source = rsrc;
+					newpack->insert(_PCM(PACK_COMP_KISCAPSRC), csrc_ref);
+				}
+			} else if (packetsource != NULL) {
+				kis_ref_capsource *csrc_ref = new kis_ref_capsource;
+				csrc_ref->ref_source = (KisPacketSource *) packetsource;
+				newpack->insert(_PCM(PACK_COMP_KISCAPSRC), csrc_ref);
+			}
 		}
 
 		globalreg->packetchain->ProcessPacket(newpack);
@@ -597,5 +698,38 @@ int PacketSource_Drone::Poll() {
 	// Nothing to do here, we should never even be called.   Pollable
 	// droneclientframe handles it
 	return 0;
+}
+
+PacketSource_DroneRemote::~PacketSource_DroneRemote() {
+	// nothing right now
+}
+
+int PacketSource_DroneRemote::RegisterSources(Packetsourcetracker *tracker) {
+	// Nothing to do here, since we don't have any types per se that belong
+	// to us
+	return 1;
+}
+
+int PacketSource_DroneRemote::SetChannel(int in_ch) {
+	// TODO:  Add remote channel set
+	return 1;
+}
+
+int PacketSource_DroneRemote::SetChannelSequence(vector<int> in_sep) {
+	// TODO:  Add remote channel set
+	return 1;
+}
+
+int PacketSource_DroneRemote::FetchChannel() {
+	return 0;
+}
+
+int PacketSource_DroneRemote::SetChannelHop(int in_hop) {
+	// TODO:  Add remote hop set
+	return 1;
+}
+
+int PacketSource_DroneRemote::FetchChannelHop() {
+	return channel_hop;
 }
 

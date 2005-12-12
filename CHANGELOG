@@ -3,6 +3,9 @@ Dec 11 2005  devel  Added fix to ringbuf from Shane Schisler
                      push a capture source upstream
                     Added endian-flipping to bitmap fields in drone protocol
                     Completed server side of drone interface push system
+                    Fixed UUID '<' operator
+                    Added remote source pushing via drone protocol, remote sources
+                     now show up
 Dec 10 2005  devel  Added UUID to drone protocol
                     Added LocalChannelHop() to packetsources to prevent conflicts
                      with virtual drone interfaces

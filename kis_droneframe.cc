@@ -467,8 +467,7 @@ int KisDroneFramework::SendSource(int in_cl, KisPacketSource *in_int, int invali
 				   DRONEBIT(DRONE_SRC_INVALID) |
 				   DRONEBIT(DRONE_SRC_NAMESTR) |
 				   DRONEBIT(DRONE_SRC_INTSTR) |
-				   DRONEBIT(DRONE_SRC_TYPESTR) |
-				   DRONEBIT(DRONE_SRC_FCSBYTES));
+				   DRONEBIT(DRONE_SRC_TYPESTR));
 
 	DRONE_CONV_UUID(in_int->FetchUUID(), &(spkt->uuid));
 

@@ -80,6 +80,8 @@ protected:
 	void *packetsource;
 
 	int timerid;
+
+	map<uuid, int> virtual_src_map;
 };
 
 class PacketSource_Drone : public KisPacketSource {
@@ -185,7 +187,7 @@ public:
 	// Dropthrough commands to drone
 	virtual int SetChannel(int in_ch);
 	virtual int SetChannelSequence(vector<int> in_seq);
-	virtual int SetChannelSeqPos(int in_offt);
+	virtual int SetChannelSeqPos(int in_offt) { return 0; }
 	virtual int FetchChannel();
 	virtual int SetChannelHop(int in_hop);
 	virtual int FetchChannelHop();
@@ -201,8 +203,8 @@ public:
 
 	// Local stuff
 	virtual int ChildIPCControl() { return 0; }
-	virtual int FetchDescriptor();
-	virtual int Poll();
+	virtual int FetchDescriptor() { return -1; }
+	virtual int Poll() { return 0; }
 
 	// Special functions to let the drone framework spawn and control us
 	virtual int SetDroneFrame(DroneClientFrame *in_frame) {
@@ -215,8 +217,12 @@ public:
 		return 1;
 	}
 
+	virtual void IncrementNumPackets() {
+		num_packets++;
+	}
+
 protected:
-	virtual void FetchRadioData(kis_packet *in_packet);
+	virtual void FetchRadioData(kis_packet *in_packet) { }
 
 	int rem_channelcapable;
 	DroneClientFrame *droneframe;

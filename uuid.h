@@ -45,12 +45,13 @@
 class uuid {
 public:
 	uuid() {
-		time_low = 0;
-		time_mid = 0;
-		time_hi = 0;
-		clock_seq = 0;
-		memset(node, 0, 6);
-		error = 0;
+		memset(uuid_block, 0, 16);
+		time_low = (uint32_t *) &(uuid_block[0]);
+		time_mid = (uint16_t *) &(uuid_block[4]);
+		time_hi = (uint16_t *) &(uuid_block[6]);
+		clock_seq = (uint16_t *) &(uuid_block[8]);
+		node = &(uuid_block[10]);
+		error = 1;
 	}
 
 	uuid(const string in) {
@@ -64,10 +65,16 @@ public:
 		}
 
 		error = 0;
-		time_low = ltl;
-		time_mid = ltm;
-		time_hi = lth;
-		clock_seq = lcs;
+		time_low = (uint32_t *) &(uuid_block[0]);
+		time_mid = (uint16_t *) &(uuid_block[4]);
+		time_hi = (uint16_t *) &(uuid_block[6]);
+		clock_seq = (uint16_t *) &(uuid_block[8]);
+		node = &(uuid_block[10]);
+
+		*time_low = ltl;
+		*time_mid = ltm;
+		*time_hi = lth;
+		*clock_seq = lcs;
 		for (unsigned int x = 0; x < 6; x++) {
 			node[x] = ln[x];
 		}
@@ -79,105 +86,72 @@ public:
 	
 	void GenerateTimeUUID(uint8_t *in_node) {
 		uint32_t clock_mid;
-		get_clock(&clock_mid, &time_low, &clock_seq);
-		clock_seq |= 0x8000;
-		time_mid = (uint16_t) clock_mid;
-		time_hi = ((clock_mid >> 16) & 0x0FFF) | 0x1000;
+		get_clock(&clock_mid, time_low, clock_seq);
+		*clock_seq |= 0x8000;
+		*time_mid = (uint16_t) clock_mid;
+		*time_hi = ((clock_mid >> 16) & 0x0FFF) | 0x1000;
 		memcpy(node, in_node, 6);
+		error = 0;
 	}
 
 	void GenerateStoredUUID(uint32_t in_low, uint16_t in_mid, uint16_t in_hi,
 							uint8_t in_seq, uint8_t *in_node) {
-		time_low = in_low;
-		time_mid = in_mid;
-		time_hi = in_hi;
-		clock_seq = in_seq;
+		*time_low = in_low;
+		*time_mid = in_mid;
+		*time_hi = in_hi;
+		*clock_seq = in_seq;
 		memcpy(node, in_node, 6);
+		error = 0;
 	}
 
 	string UUID2String() {
 		char ids[38];
 		snprintf(ids, 38, "%08x-%04x-%04x-%04x-%02x%02x%02x%02x%02x%02x",
-				 time_low, time_mid, time_hi, clock_seq,
+				 *time_low, *time_mid, *time_hi, *clock_seq,
 				 node[0], node[1], node[2], node[3], node[4], node[5]);
 		return string(ids);
 	}
 
 	inline bool operator== (const uuid& op) const {
-		if (time_low != op.time_low)
-			return 0;
-		if (time_mid != op.time_mid)
-			return 0;
-		if (time_hi != op.time_hi)
-			return 0;
-		if (clock_seq != op.clock_seq)
-			return 0;
-		if (memcmp(node, op.node, 6) != 0)
-			return 0;
+		if (memcmp(uuid_block, op.uuid_block, 16) == 0)
+			return 1;
 
-		return 1;
+		return 0;
 	}
 
 	inline bool operator!= (const uuid& op) const {
-		if (time_low != op.time_low)
-			return 1;
-		if (time_mid != op.time_mid)
-			return 1;
-		if (time_hi != op.time_hi)
-			return 1;
-		if (clock_seq != op.clock_seq)
-			return 1;
-		if (memcmp(node, op.node, 6) != 0)
+		if (memcmp(uuid_block, op.uuid_block, 16) != 0)
 			return 1;
 
 		return 0;
 	}
 
 	inline bool operator<= (const uuid& op) const {
-		if (time_low <= op.time_low)
+		int ret = memcmp(uuid_block, op.uuid_block, 16);
+		if (ret <= 0)
 			return 1;
-		if (time_mid <= op.time_mid)
-			return 1;
-		if (time_hi <= op.time_hi)
-			return 1;
-		if (clock_seq <= op.clock_seq)
-			return 1;
-		if (memcmp(node, op.node, 6) <= 0)
-			return 1;
-
 		return 0;
 	}
 
 	inline bool operator< (const uuid& op) const {
-		if (time_low < op.time_low)
+		int ret = memcmp(uuid_block, op.uuid_block, 16);
+		if (ret < 0)
 			return 1;
-		if (time_mid < op.time_mid)
-			return 1;
-		if (time_hi < op.time_hi)
-			return 1;
-		if (clock_seq < op.clock_seq)
-			return 1;
-		if (memcmp(node, op.node, 6) < 0)
-			return 1;
-
 		return 0;
 	}
 
 	uuid& operator= (const uuid& op) {
-		time_low = op.time_low;
-		time_mid = op.time_mid;
-		time_hi = op.time_hi;
-		clock_seq = op.clock_seq;
-		memcpy(node, op.node, 6);
+		memcpy(uuid_block, op.uuid_block, 16);
 		error = op.error;
 		return *this;
 	}
 
-	uint32_t time_low;
-	uint16_t time_mid;
-	uint16_t time_hi;
-	uint16_t clock_seq;
-	uint8_t node[6];
+	uint8_t uuid_block[4+2+2+2+6];
+	uint32_t *time_low;
+	uint16_t *time_mid;
+	uint16_t *time_hi;
+	uint16_t *clock_seq;
+	uint8_t *node;
 	int error;
 
 protected:

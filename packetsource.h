@@ -139,6 +139,7 @@ public:
 		*/
 
 		interface = in_dev;
+		type = in_type;
 		
         globalreg = in_globalreg;
 
@@ -162,6 +163,8 @@ public:
 		channel_pos = 0;
 		consec_error = 0;
 		initial_channel = 0;
+
+		num_packets = 0;
 
 		// It seems like a bad idea to put this much into a function in a 
 		// header file, but it would have to change anyhow to update the

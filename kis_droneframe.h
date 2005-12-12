@@ -76,20 +76,20 @@ typedef struct drone_trans_uuid {
 
 #define DRONE_CONV_UUID(x, y)	\
 	({ \
-	 (y)->time_low = kis_hton32((x).time_low); \
-	 (y)->time_mid = kis_hton16((x).time_mid); \
-	 (y)->time_hi = kis_hton16((x).time_hi); \
-	 (y)->clock_seq = kis_hton16((x).clock_seq); \
+	 (y)->time_low = kis_hton32(*((x).time_low)); \
+	 (y)->time_mid = kis_hton16(*((x).time_mid)); \
+	 (y)->time_hi = kis_hton16(*((x).time_hi)); \
+	 (y)->clock_seq = kis_hton16(*((x).clock_seq)); \
 	 memcpy((y)->node, (x).node, 6); \
 	 })
 
 #define UUID_CONV_DRONE(x, y)	\
 	({ \
-	 (y).GenererateStoredUUID(kis_ntoh32((x)->time_low), \
-							  kis_ntoh16((x)->time_mid), \
-							  kis_ntoh16((x)->time_hi), \
-							  (uint8_t) kis_ntoh16((x)->clock_seq), \
-							  (x)->node); \
+	 (y).GenerateStoredUUID(kis_ntoh32((x)->time_low), \
+							kis_ntoh16((x)->time_mid), \
+							kis_ntoh16((x)->time_hi), \
+							(uint8_t) kis_ntoh16((x)->clock_seq), \
+							(x)->node); \
 	 })
 
 // Size-neutral container for doubles
@@ -165,7 +165,6 @@ typedef struct drone_channelset_packet {
 #define DRONE_SRC_NAMESTR			2
 #define DRONE_SRC_INTSTR			3
 #define DRONE_SRC_TYPESTR			4
-#define DRONE_SRC_FCSBYTES			5
 typedef struct drone_source_packet {
 	uint16_t source_hdr_len __attribute__ ((packed));
 	uint32_t source_content_bitmap __attribute__ ((packed));
