@@ -206,6 +206,9 @@ KisDroneFramework::KisDroneFramework(GlobalRegistry *in_globalreg) {
 }
 
 KisDroneFramework::~KisDroneFramework() {
+	// Register the AddSource handler
+	globalreg->sourcetracker->RemoveLiveSourceCallback(&drone_pst_addsource_hook);
+
 	if (globalreg != NULL && globalreg->messagebus != NULL) {
 		globalreg->messagebus->RemoveClient(kisdrone_msgcli);
 	}
@@ -272,7 +275,7 @@ int KisDroneFramework::Accept(int in_fd) {
 	// Send them all the sources
 	vector<KisPacketSource *> srcv = globalreg->sourcetracker->FetchSourceVec();
 	for (unsigned int x = 0; x < srcv.size(); x++) {
-		SendSource(in_fd, srcv[x]);
+		SendSource(in_fd, srcv[x], 0);
 	}
 
 	return ret;
@@ -445,7 +448,7 @@ int KisDroneFramework::SendAllText(string in_text, int flags) {
 	return nsent;
 }
 
-int KisDroneFramework::SendSource(int in_cl, KisPacketSource *in_int) {
+int KisDroneFramework::SendSource(int in_cl, KisPacketSource *in_int, int invalid) {
 	drone_packet *dpkt = 
 		(drone_packet *) malloc(sizeof(uint8_t) * 
 								(sizeof(drone_packet) + sizeof(drone_source_packet)));
@@ -461,16 +464,23 @@ int KisDroneFramework::SendSource(int in_cl, KisPacketSource *in_int) {
 	spkt->source_hdr_len = kis_hton16(sizeof(drone_source_packet));
 	spkt->source_content_bitmap =
 		kis_hton32(DRONEBIT(DRONE_SRC_UUID) |
+				   DRONEBIT(DRONE_SRC_INVALID) |
 				   DRONEBIT(DRONE_SRC_NAMESTR) |
 				   DRONEBIT(DRONE_SRC_INTSTR) |
 				   DRONEBIT(DRONE_SRC_TYPESTR) |
 				   DRONEBIT(DRONE_SRC_FCSBYTES));
 
 	DRONE_CONV_UUID(in_int->FetchUUID(), &(spkt->uuid));
-	snprintf((char *) spkt->name_str, 32, "%s", in_int->FetchName().c_str());
-	snprintf((char *) spkt->interface_str, 32, "%s", 
-			 in_int->FetchInterface().c_str());
-	snprintf((char *) spkt->type_str, 32, "%s", in_int->FetchType().c_str());
+
+	if (invalid) {
+		spkt->invalidate = kis_hton16(1);
+	} else {
+		spkt->invalidate = kis_hton16(0);
+		snprintf((char *) spkt->name_str, 32, "%s", in_int->FetchName().c_str());
+		snprintf((char *) spkt->interface_str, 32, "%s", 
+				 in_int->FetchInterface().c_str());
+		snprintf((char *) spkt->type_str, 32, "%s", in_int->FetchType().c_str());
+	}
 
 	int ret = 0;
 
@@ -481,7 +491,7 @@ int KisDroneFramework::SendSource(int in_cl, KisPacketSource *in_int) {
 	return ret;
 }
 
-int KisDroneFramework::SendAllSource(KisPacketSource *in_int) {
+int KisDroneFramework::SendAllSource(KisPacketSource *in_int, int invalid) {
 	vector<int> clvec;
 	int nsent = 0;
 
@@ -491,7 +501,7 @@ int KisDroneFramework::SendAllSource(KisPacketSource *in_int) {
 	netserver->FetchClientVector(&clvec);
 
 	for (unsigned int x = 0; x < clvec.size(); x++) {
-		if (SendSource(clvec[x], in_int) > 0)
+		if (SendSource(clvec[x], in_int, invalid) > 0)
 			nsent++;
 	}
 
@@ -535,9 +545,11 @@ int KisDroneFramework::SendAllPacket(drone_packet *in_pack) {
 
 // Send a new source to all the clients
 void KisDroneFramework::addsource_handler(KisPacketSource *in_src, int in_enable) {
-	// TODO:  Add disabling
+	// Invert the enable flag, since we care about sending "its now invalid"
 	if (in_enable) {
-		SendAllSource(in_src);
+		SendAllSource(in_src, 0);
+	} else {
+		SendAllSource(in_src, 1);
 	}
 }
 

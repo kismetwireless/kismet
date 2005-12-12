@@ -161,14 +161,17 @@ typedef struct drone_channelset_packet {
 
 // Source record
 #define DRONE_SRC_UUID				0
-#define DRONE_SRC_NAMESTR			1
-#define DRONE_SRC_INTSTR			2
-#define DRONE_SRC_TYPESTR			3
-#define DRONE_SRC_FCSBYTES			4
+#define DRONE_SRC_INVALID			1
+#define DRONE_SRC_NAMESTR			2
+#define DRONE_SRC_INTSTR			3
+#define DRONE_SRC_TYPESTR			4
+#define DRONE_SRC_FCSBYTES			5
 typedef struct drone_source_packet {
 	uint16_t source_hdr_len __attribute__ ((packed));
 	uint32_t source_content_bitmap __attribute__ ((packed));
 	drone_trans_uuid uuid __attribute__ ((packed));
+	// Kill this source, the rest of the data is empty
+	uint16_t invalidate __attribute__ ((packed));
 	// Null terminated strings
 	uint8_t name_str[32] __attribute__ ((packed));
 	uint8_t interface_str[32] __attribute__ ((packed));
@@ -305,8 +308,8 @@ public:
 	virtual int SendAllPacket(drone_packet *in_pack);
 
 	// Send a source record
-	virtual int SendSource(int in_cl, KisPacketSource *in_int);
-	virtual int SendAllSource(KisPacketSource *in_int);
+	virtual int SendSource(int in_cl, KisPacketSource *in_int, int invalid);
+	virtual int SendAllSource(KisPacketSource *in_int, int invalid);
 
 	virtual int channel_handler(const drone_packet *in_pack);
 
