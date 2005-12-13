@@ -472,6 +472,12 @@ int main(int argc, char *argv[], char *envp[]) {
 	}
 	globalregistry->kismet_config = conf;
 
+	if (conf->FetchOpt("servername") == "") {
+		globalregistry->servername = "Unnamed Kismet";
+	} else {
+		globalregistry->servername = MungeToPrintable(conf->FetchOpt("servername"));
+	}
+
 #ifdef HAVE_SUID
 	// Process privdrop critical stuff
 	if ((suiduser = conf->FetchOpt("suiduser")) == "") {

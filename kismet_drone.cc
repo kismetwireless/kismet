@@ -424,6 +424,12 @@ int main(int argc, char *argv[], char *envp[]) {
 		exit(1);
 	}
 	globalregistry->kismet_config = conf;
+ 
+	if (conf->FetchOpt("servername") == "") {
+		globalregistry->servername = "Unnamed Drone";
+	} else {
+		globalregistry->servername = MungeToPrintable(conf->FetchOpt("servername"));
+	}
 
 #ifdef HAVE_SUID
 	// Process privdrop critical stuff
