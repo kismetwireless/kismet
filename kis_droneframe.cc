@@ -509,7 +509,7 @@ int KisDroneFramework::SendAllSource(KisPacketSource *in_int, int invalid) {
 }
 
 int KisDroneFramework::SendChannels(int in_cl, KisPacketSource *in_int) {
-	vector<int> channels = in_int->FetchChannelSequence();
+	vector<unsigned int> channels = in_int->FetchChannelSequence();
 	unsigned int chsize = sizeof(uint16_t) * channels.size();
 
 	drone_packet *dpkt = 
@@ -528,11 +528,14 @@ int KisDroneFramework::SendChannels(int in_cl, KisPacketSource *in_int) {
 	cpkt->channelset_hdr_len = kis_hton16(sizeof(drone_channelset_packet) + chsize);
 	cpkt->channelset_content_bitmap =
 		kis_hton32(DRONEBIT(DRONE_CHANNELSET_UUID) |
+				   DRONEBIT(DRONE_CHANNELSET_CMD) |
 				   DRONEBIT(DRONE_CHANNELSET_HOP) |
 				   DRONEBIT(DRONE_CHANNELSET_NUMCH) |
 				   DRONEBIT(DRONE_CHANNELSET_CHANNELS));
 
 	DRONE_CONV_UUID(in_int->FetchUUID(), &(cpkt->uuid));
+
+	cpkt->command = kis_ntoh16(DRONE_CHS_CMD_NONE);
 
 	cpkt->channel_hop = kis_hton16(in_int->FetchChannelHop());
 	cpkt->num_channels = kis_hton16(channels.size());
@@ -610,7 +613,8 @@ void KisDroneFramework::sourceact_handler(KisPacketSource *src, int action,
 	} else if (action == SOURCEACT_DELSOURCE) {
 		// Push a remove action
 		SendAllSource(src, 1);
-	} else if (action == SOURCEACT_HOPSET || action == SOURCEACT_CHVECTOR) {
+	} else if (action == SOURCEACT_HOPENABLE || action == SOURCEACT_HOPDISABLE || 
+			   action == SOURCEACT_CHVECTOR) {
 		// Push a full channel info frame if we change hopping or channel vector
 		SendAllChannels(src);
 	}
@@ -789,6 +793,37 @@ int KisDroneFramework::channel_handler(const drone_packet *in_pack) {
 	uint16_t nch = kis_ntoh16(csp->num_channels);
 	if (len < (nch * sizeof(uint16_t)) + sizeof(drone_channelset_packet)) 
 		return -1;
+
+	uuid intuuid;
+	int cmd;
+
+	UUID_CONV_DRONE(&(csp->uuid), intuuid);
+
+	cmd = kis_ntoh16(csp->command);
+
+	if (cmd == DRONE_CHS_CMD_SETHOP) {
+		int hopping;
+		hopping = kis_ntoh16(csp->channel_hop);
+		return globalreg->sourcetracker->SetHopping(hopping, intuuid);
+	} else if (cmd == DRONE_CHS_CMD_SETCUR) {
+		uint16_t curch = kis_ntoh16(csp->cur_channel);
+		return globalreg->sourcetracker->SetChannel(curch, intuuid);
+	} else if (cmd == DRONE_CHS_CMD_SETVEC) {
+		// We're already length-checked
+		vector<unsigned int> setchans;
+
+		if (nch == 0) {
+			_MSG("Drone framework got set channel vector command with no "
+				 "channels in the vector to set.", MSGFLAG_ERROR);
+			return 0;
+		}
+
+		for (unsigned int x = 0; x < nch; x++) {
+			setchans.push_back(kis_ntoh16(csp->channels[x]));
+		}
+
+		return globalreg->sourcetracker->SetChannelSequence(setchans, intuuid);
+	}
 
 	return 0;
 }

@@ -97,8 +97,8 @@ public:
 	// Generic-level functions
 	virtual int EnableMonitor();
 	virtual int DisableMonitor();
-	virtual int SetChannel(int in_ch);
-	virtual int SetChannelSequence(vector<int> in_seq);
+	virtual int SetChannel(unsigned int in_ch);
+	virtual int SetChannelSequence(vector<unsigned int> in_seq);
 	virtual int FetchChannel();
 
 protected:
@@ -156,7 +156,7 @@ public:
 	virtual int EnableMonitor();
 	virtual int DisableMonitor();
 
-	virtual int SetChannelSequence(vector<int> in_seq);
+	virtual int SetChannelSequence(vector<unsigned int> in_seq);
 
 protected:
 	// 1 - madwifi_a

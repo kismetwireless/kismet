@@ -239,18 +239,18 @@ public:
 	// Is the device controllable by the child IPC process?
 	virtual int ChildIPCControl() = 0;
 
-	virtual int SetChannel(int in_ch) = 0;
+	virtual int SetChannel(unsigned int in_ch) = 0;
 	// These can be overridden if special stuff needs to happen
-	virtual int SetChannelSequence(vector<int> in_seq) {
+	virtual int SetChannelSequence(vector<unsigned int> in_seq) {
 		channel_list = in_seq;
 		return 1;
 	}
-	virtual vector<int> FetchChannelSequence() {
+	virtual vector<unsigned int> FetchChannelSequence() {
 		return channel_list;
 	}
 	// Jump to a specific offset in the channel list (used during creation,
 	// primarily)
-	virtual int SetChannelSeqPos(int in_offt) {
+	virtual int SetChannelSeqPos(unsigned int in_offt) {
 		channel_pos = in_offt;
 		return 1;
 	}
@@ -258,7 +258,7 @@ public:
 	// A little convoluted, we need to return the next channel to the caller
 	// instead of setting it ourselves because it needs to go through the
 	// IPC games
-	virtual int FetchNextChannel() {
+	virtual unsigned int FetchNextChannel() {
 		if (channel_hop == 0)
 			return 0;
 
@@ -335,7 +335,7 @@ protected:
 	// Do we hop, where are we in hopping, what channels do we hop to
 	int channel_hop;
 	unsigned int channel_pos;
-	vector<int> channel_list;
+	vector<unsigned int> channel_list;
 	int consec_error;
 
 	// Set of carrier types

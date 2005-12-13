@@ -125,7 +125,7 @@ public:
 	// No meaning on the drone master source
 	virtual int EnableMonitor() { return 0; }
 	virtual int DisableMonitor() { return PACKSOURCE_UNMONITOR_RET_SILENCE; }
-	virtual int SetChannel(int in_ch) { return 0; }
+	virtual int SetChannel(unsigned int in_ch) { return 0; }
 	virtual int FetchChannel() { return 0; }
 
 	virtual int ChildIPCControl() { return 0; }
@@ -185,9 +185,9 @@ public:
 	virtual int FetchChannelCapable() { return rem_channelcapable; }
 
 	// Dropthrough commands to drone
-	virtual int SetChannel(int in_ch);
-	virtual int SetChannelSequence(vector<int> in_seq);
-	virtual int SetChannelSeqPos(int in_offt) { return 0; }
+	virtual int SetChannel(unsigned int in_ch);
+	virtual int SetChannelSequence(vector<unsigned int> in_seq);
+	virtual int SetChannelSeqPos(unsigned int in_offt) { return 0; }
 	virtual int FetchChannel();
 	virtual int SetChannelHop(int in_hop);
 	virtual int FetchChannelHop();
@@ -197,7 +197,7 @@ public:
 	}
 
 	// Stuff we can't implement
-	virtual int FetchNextChannel() { return 0; }
+	virtual unsigned int FetchNextChannel() { return 0; }
 	virtual int EnableMonitor() { return 0; }
 	virtual int DisableMonitor() { return PACKSOURCE_UNMONITOR_RET_SILENCE; }
 

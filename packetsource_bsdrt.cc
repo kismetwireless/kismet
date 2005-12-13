@@ -383,7 +383,7 @@ int PacketSource_BSDRT::DisableMonitor() {
 	return PACKSOURCE_UNMONITOR_RET_OKWITHWARN;
 }
 
-int PacketSource_BSDRT::SetChannel(int in_ch) {
+int PacketSource_BSDRT::SetChannel(unsigned int in_ch) {
 	if (bsdcon == NULL) {
 		_MSG("PacketSource_BSD channel set called while bsdcon controller is NULL",
 			 MSGFLAG_FATAL);
@@ -407,7 +407,7 @@ int PacketSource_BSDRT::SetChannel(int in_ch) {
 	return 1;
 }
 
-int PacketSource_BSDRT::SetChannelSequence(vector<int> in_seq) {
+int PacketSource_BSDRT::SetChannelSequence(vector<unsigned int> in_seq) {
 	return PacketSource_Pcap::SetChannelSequence(in_seq);
 }
 

@@ -47,8 +47,9 @@ typedef void (*SourceActCallback)(SOURCEACT_PARMS);
 // Various actions.  Adding, deleting, hop setting, vector setting
 #define SOURCEACT_ADDSOURCE 	0
 #define SOURCEACT_DELSOURCE		1
-#define SOURCEACT_HOPSET		2
-#define SOURCEACT_CHVECTOR		3
+#define SOURCEACT_HOPENABLE		2
+#define SOURCEACT_HOPDISABLE	3
+#define SOURCEACT_CHVECTOR		4
 
 // Packet source prototype used to create new packetsources from string
 // definitions
@@ -66,7 +67,7 @@ typedef struct {
 	// of sources we're going to allocate strong versions of
 	string name, interface;
 	// Channels to push to the source
-	vector<int> channel_vec;
+	vector<unsigned int> channel_vec;
 	// Offset to the channel vec to push (for multisource stuff)
 	int cv_offset;
 	// ID of the channel vec (for calculating offset & # of sources using this vec)
@@ -98,9 +99,9 @@ public:
 	// Explicit channel control of sources
 	
     // Set the channel
-    int SetChannel(int in_ch, uuid in_uuid);
+    int SetChannel(unsigned int in_ch, uuid in_uuid);
 	// Set a channel sequence
-	int SetChannelSequence(vector<int> in_seq, uuid in_uuid);
+	int SetChannelSequence(vector<unsigned int> in_seq, uuid in_uuid);
 	// Control if a source hops or not
     int SetHopping(int in_hopping, uuid in_uuid);
 
@@ -204,9 +205,9 @@ protected:
 
 	// High-level channel setting dispatcher that calls the packetsource
 	// directly or dispatches it to IPC
-	int SetChannel(int in_ch, KisPacketSource *src);
+	int SetChannelSrc(unsigned int in_ch, KisPacketSource *src);
 	// Local card set used by the ipc callback
-    int SetIPCChannel(int in_ch, unsigned int meta_num);
+    int SetIPCChannel(unsigned int in_ch, unsigned int meta_num);
 	// Shutdown all sources (actually do the work)
 	int ShutdownIPCSources();
 
@@ -222,7 +223,7 @@ protected:
 	vector<Packetsourcetracker::sourceactcb_rec *> cb_vec;
 
     map<string, packsource_protorec *> cardtype_map;
-    map<string, vector<int> > defaultch_map;
+    map<string, vector<unsigned int> > defaultch_map;
 
 	// State stuff
 	int channel_hop;
@@ -300,8 +301,8 @@ public:
 	virtual int EnableMonitor() { return -1; }
 	virtual int DisableMonitor() { return -1; }
 	virtual int ChildIPCControl() { return 0; }
-	virtual int SetChannel(int) { return -1; }
-	virtual int SetChannelSequence(vector<int> in_seq) { return -1; }
+	virtual int SetChannel(unsigned int) { return -1; }
+	virtual int SetChannelSequence(vector<unsigned int> in_seq) { return -1; }
 	virtual int HopNextChannel() { return -1; }
 
 protected:

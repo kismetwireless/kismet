@@ -158,7 +158,7 @@ int Packetsourcetracker::cmd_chanlock(CLIENT_PARMS) {
 	}
 
 	// Try to set the channel
-	if (SetChannel(chnum, src) < 0) {
+	if (SetChannelSrc(chnum, src) < 0) {
 		snprintf(errstr, 1024, "Illegal chanlock request, source could not "
 				 "set channel %d", chnum);
 		return -1;
@@ -169,7 +169,7 @@ int Packetsourcetracker::cmd_chanlock(CLIENT_PARMS) {
 
 	// Send a notify to all the registered callbacks
 	for (unsigned int x = 0; x < cb_vec.size(); x++) {
-		(*(cb_vec[x]->cb))(globalreg, src, SOURCEACT_HOPSET, 0, 
+		(*(cb_vec[x]->cb))(globalreg, src, SOURCEACT_HOPDISABLE, chnum, 
 						   cb_vec[x]->auxdata);
 	}
 
@@ -208,7 +208,7 @@ int Packetsourcetracker::cmd_chanhop(CLIENT_PARMS) {
 
 	// Send a notify to all the registered callbacks
 	for (unsigned int x = 0; x < cb_vec.size(); x++) {
-		(*(cb_vec[x]->cb))(globalreg, src, SOURCEACT_HOPSET, 1, 
+		(*(cb_vec[x]->cb))(globalreg, src, SOURCEACT_HOPENABLE, 0, 
 						   cb_vec[x]->auxdata);
 	}
 
@@ -751,7 +751,7 @@ KisPacketSource *Packetsourcetracker::FindUUID(uuid in_id) {
 
 // Explicitly set a channel.  Caller is responsible for turning off hopping
 // on this source if they want it to really stay on this channel
-int Packetsourcetracker::SetChannel(int in_ch, KisPacketSource *src) {
+int Packetsourcetracker::SetChannelSrc(unsigned int in_ch, KisPacketSource *src) {
 #ifndef HAVE_SUID
     int ret = src->SetChannel(in_ch);
 
@@ -805,7 +805,7 @@ int Packetsourcetracker::SetChannel(int in_ch, KisPacketSource *src) {
     return 1;
 }
 
-int Packetsourcetracker::SetIPCChannel(int in_ch, unsigned int meta_num) {
+int Packetsourcetracker::SetIPCChannel(unsigned int in_ch, unsigned int meta_num) {
 	// This usually happens inside the IPC fork, so remember not to screw with
 	// things that aren't set yet!  Meta is safe, other stuff isn't.  Globalreg
 	// got remapped by the IPC system to funnel back over IPC
@@ -832,32 +832,47 @@ int Packetsourcetracker::SetHopping(int in_hopping, uuid in_uuid) {
 
 	if (src == NULL) {
 		_MSG("Could not set hopping for source UUID " + in_uuid.UUID2String() + 
-			 ", unable to find source", MSGFLAG_FATAL);
-		globalreg->fatal_condition = 1;
-		return -1;
+			 ", unable to find source", MSGFLAG_ERROR);
+		return 0;
 	}
 
 	int ret = src->SetChannelHop(in_hopping);
 
 	if (ret >= 0) {
 		// Send a notify to all the registered callbacks
+		int opt;
+		if (in_hopping)
+			opt = SOURCEACT_HOPENABLE;
+		else
+			opt = SOURCEACT_HOPDISABLE;
 		for (unsigned int x = 0; x < cb_vec.size(); x++) {
-			(*(cb_vec[x]->cb))(globalreg, src, SOURCEACT_HOPSET, in_hopping, 
-							   cb_vec[x]->auxdata);
+			(*(cb_vec[x]->cb))(globalreg, src, opt, 0, cb_vec[x]->auxdata);
 		}
 	}
 
 	return ret;
 }
 
-int Packetsourcetracker::SetChannelSequence(vector<int> in_seq, uuid in_uuid) {
+int Packetsourcetracker::SetChannel(unsigned int in_ch, uuid in_uuid) {
+	KisPacketSource *src = FindUUID(in_uuid);
+
+	if (src == NULL) {
+		_MSG("Could not set channel for source UUID " + in_uuid.UUID2String() + 
+			 ", unable to find source", MSGFLAG_ERROR);
+		return 0;
+	}
+
+	return SetChannelSrc(in_ch, src);
+}
+
+int Packetsourcetracker::SetChannelSequence(vector<unsigned int> in_seq, 
+											uuid in_uuid) {
 	KisPacketSource *src = FindUUID(in_uuid);
 
 	if (src == NULL) {
 		_MSG("Could not set sequence for source UUID " + in_uuid.UUID2String() + 
-			 ", unable to find source", MSGFLAG_FATAL);
-		globalreg->fatal_condition = 1;
-		return -1;
+			 ", unable to find source", MSGFLAG_ERROR);
+		return 0;
 	}
 
 	int ret = src->SetChannelSequence(in_seq);
@@ -891,13 +906,13 @@ int Packetsourcetracker::AdvanceChannel() {
 		}
 
 		// Get the next channel from the source
-		int nextchan = liv->FetchNextChannel();
+		unsigned int nextchan = liv->FetchNextChannel();
 
 		if (nextchan <= 0)
 			continue;
 
 		// Call the IPC dispatcher
-		int ret = SetChannel(nextchan, liv);
+		int ret = SetChannelSrc(nextchan, liv);
 
 		// Blow up if something died
 		if (ret < 0)
@@ -978,11 +993,14 @@ int Packetsourcetracker::RegisterDefaultChannels(vector<string> *in_defchannels)
             return -1;
         }
 
-        defaultch_map[StrLower(tokens[0])] = channel_bits;
+		// Copy the signed into an unsigned
+		for (unsigned int zed = 0; zed < channel_bits.size(); zed++) {
+			defaultch_map[StrLower(tokens[0])].push_back(channel_bits[zed]);
+		}
 
     }
     // Default channels for non-hopping types
-    vector<int> no_channel;
+    vector<unsigned int> no_channel;
     no_channel.push_back(0);
     defaultch_map["na"] = no_channel;
     return 1;
@@ -1020,7 +1038,7 @@ int Packetsourcetracker::ProcessCardList(string in_enableline,
     // capname to sequence id
     map<string, int> chan_cap_seqid_map;
     // sequence id to channel sequence
-    map<int, vector<int> > chan_seqid_seq_map;
+    map<int, vector<unsigned int> > chan_seqid_seq_map;
     // Sequence counts, if we're splitting we need to know how many instances use 
     // each seqid
     map<int, int> chan_seqid_count_map;
@@ -1082,7 +1100,7 @@ int Packetsourcetracker::ProcessCardList(string in_enableline,
     // Register the default channels by making them look like capsource name maps, 
     // giving them their own sequence ids we can count during assignment to see how 
 	// we need to split things
-    for (map<string, vector<int> >::iterator dchi = defaultch_map.begin(); 
+    for (map<string, vector<unsigned int> >::iterator dchi = defaultch_map.begin(); 
          dchi != defaultch_map.end(); ++dchi) {
         chan_cap_seqid_map[dchi->first] = chan_seqid;
         chan_seqid_seq_map[chan_seqid] = dchi->second;
@@ -1115,7 +1133,9 @@ int Packetsourcetracker::ProcessCardList(string in_enableline,
         }
 
         // Assign the intvec a sequence id
-        chan_seqid_seq_map[chan_seqid] = chan_channel_bits;
+		for (unsigned int zed = 0; zed < chan_channel_bits.size(); zed++) {
+			chan_seqid_seq_map[chan_seqid].push_back(chan_channel_bits[zed]);
+		}
 
         // Assign it to each name slot
         for (unsigned int cap = 0; cap < chan_capsource_bits.size(); cap++) {

@@ -189,7 +189,7 @@ public:
 	virtual int EnableMonitor() = 0;
 	virtual int DisableMonitor() = 0;
 	virtual int FetchChannelCapable() = 0;
-	virtual int SetChannel(int in_ch) = 0;
+	virtual int SetChannel(unsigned int in_ch) = 0;
 
 	// We expect to be drive by the child IPC
 	virtual int ChildIPCControl() { return 1; }
@@ -262,7 +262,7 @@ public:
 	// Basically do nothing because they have no meaning
 	virtual int EnableMonitor() { return 0; }
 	virtual int DisableMonitor() { return PACKSOURCE_UNMONITOR_RET_SILENCE; }
-	virtual int SetChannel(int in_ch) { return 0; }
+	virtual int SetChannel(unsigned int in_ch) { return 0; }
 	virtual int HopNextChannel() { return 0; }
 
 protected:

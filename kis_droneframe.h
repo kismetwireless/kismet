@@ -145,15 +145,26 @@ typedef struct drone_string_packet {
 
 // Channel set command packet (one channel sets chan, multiple sets vector)
 // OR if it comes FROM the drone, it indicates the current set of channels used
-// and the state of channel hopping
+// and the state of channel hopping.  How a set command is treated depends on
+// the commands set.
 #define DRONE_CHANNELSET_UUID		0
-#define DRONE_CHANNELSET_HOP		1
-#define DRONE_CHANNELSET_NUMCH		2
-#define DRONE_CHANNELSET_CHANNELS	3
+#define DRONE_CHANNELSET_CMD		1
+#define DRONE_CHANNELSET_CURCH		2
+#define DRONE_CHANNELSET_HOP		3
+#define DRONE_CHANNELSET_NUMCH		4
+#define DRONE_CHANNELSET_CHANNELS	5
+
+// Commands for the channelset command
+#define DRONE_CHS_CMD_NONE			0
+#define DRONE_CHS_CMD_SETHOP		1
+#define DRONE_CHS_CMD_SETVEC		2
+#define DRONE_CHS_CMD_SETCUR		3
 typedef struct drone_channelset_packet {
 	uint16_t channelset_hdr_len __attribute__ ((packed));
 	uint32_t channelset_content_bitmap __attribute__ ((packed));
 	drone_trans_uuid uuid __attribute__ ((packed));
+	uint16_t command __attribute__ ((packed));
+	uint16_t cur_channel __attribute__ ((packed));
 	uint16_t channel_hop __attribute__ ((packed));
 	uint16_t num_channels __attribute__ ((packed));
 	// size = 2 * num_channels

@@ -217,11 +217,11 @@ int PacketSource_Wext::DisableMonitor() {
 	return PACKSOURCE_UNMONITOR_RET_OKWITHWARN;
 }
 
-int PacketSource_Wext::SetChannelSequence(vector<int> in_seq) {
+int PacketSource_Wext::SetChannelSequence(vector<unsigned int> in_seq) {
 	return PacketSource_Pcap::SetChannelSequence(in_seq);
 }
 
-int PacketSource_Wext::SetChannel(int in_ch) {
+int PacketSource_Wext::SetChannel(unsigned int in_ch) {
 	char errstr[STATUS_MAX];
 
 	// Set and exit if we're ok
@@ -411,7 +411,7 @@ int PacketSource_Madwifi::AutotypeProbe(string in_device) {
 	return 0;
 }
 
-int PacketSource_Madwifi::SetChannelSequence(vector<int> in_seq) {
+int PacketSource_Madwifi::SetChannelSequence(vector<unsigned int> in_seq) {
 	return PacketSource_Wext::SetChannelSequence(in_seq);
 }
 

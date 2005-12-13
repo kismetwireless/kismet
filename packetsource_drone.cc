@@ -721,12 +721,12 @@ int PacketSource_DroneRemote::RegisterSources(Packetsourcetracker *tracker) {
 	return 1;
 }
 
-int PacketSource_DroneRemote::SetChannel(int in_ch) {
+int PacketSource_DroneRemote::SetChannel(unsigned int in_ch) {
 	// TODO:  Add remote channel set
 	return 1;
 }
 
-int PacketSource_DroneRemote::SetChannelSequence(vector<int> in_sep) {
+int PacketSource_DroneRemote::SetChannelSequence(vector<unsigned int> in_sep) {
 	// TODO:  Add remote channel set
 	return 1;
 }
