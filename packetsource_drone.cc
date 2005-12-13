@@ -653,7 +653,6 @@ int DroneClientFrame::SendPacket(drone_packet *in_pack) {
 	}
 
 	int nlen = kis_ntoh32(in_pack->data_len) + sizeof(drone_packet);
-	printf("debug - we think we're writing a packet len %d\n", nlen);
 
 	if (netclient->WriteData((void *) in_pack, nlen) < 0 ||
 		globalreg->fatal_condition) {
