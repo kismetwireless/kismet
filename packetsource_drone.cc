@@ -383,6 +383,7 @@ int DroneClientFrame::ParseData() {
 				PacketSource_DroneRemote *rem = 
 					new PacketSource_DroneRemote(globalreg, type, name, interface);
 				rem->SetUUID(new_uuid);
+				rem->SetDroneFrame(this);
 				globalreg->sourcetracker->RegisterLiveKisPacketsource(rem);
 				virtual_src_map[new_uuid] = 1;
 				_MSG("Imported capture source '" + type + "," + name + "," +
@@ -643,6 +644,70 @@ int DroneClientFrame::ParseData() {
 	delete[] buf;
 
 	return 1;
+}
+
+int DroneClientFrame::SendPacket(drone_packet *in_pack) {
+	if (netclient->Valid() == 0 && last_disconnect != 0) {
+		if (Reconnect() <= 0)
+			return 0;
+	}
+
+	int nlen = kis_ntoh32(in_pack->data_len) + sizeof(drone_packet);
+
+	if (netclient->WriteData((void *) in_pack, nlen) < 0 ||
+		globalreg->fatal_condition) {
+		last_disconnect = time(0);
+		return -1;
+	}
+
+	return 1;
+}
+
+int DroneClientFrame::SendChannelset(uuid in_uuid, unsigned int in_cmd, 
+									 unsigned int in_cur, unsigned int in_hop,
+									 vector<unsigned int> in_vec) {
+	unsigned int chsize = sizeof(uint16_t) * in_vec.size();
+
+	drone_packet *dpkt = 
+		(drone_packet *) malloc(sizeof(uint8_t) * 
+								(sizeof(drone_packet) + 
+								 sizeof(drone_channelset_packet) + chsize));
+	memset(dpkt, 0, sizeof(uint8_t) * (sizeof(drone_packet) + 
+									   sizeof(drone_channelset_packet) + chsize));
+
+	dpkt->sentinel = kis_hton32(DroneSentinel);
+	dpkt->drone_cmdnum = kis_hton32(DRONE_CMDNUM_CHANNELSET);
+	dpkt->data_len = kis_hton32(sizeof(drone_channelset_packet) + chsize);
+
+	drone_channelset_packet *cpkt = (drone_channelset_packet *) dpkt->data;
+
+	cpkt->channelset_hdr_len = kis_hton16(sizeof(drone_channelset_packet) + chsize);
+	cpkt->channelset_content_bitmap =
+		kis_hton32(DRONEBIT(DRONE_CHANNELSET_UUID) |
+				   DRONEBIT(DRONE_CHANNELSET_CMD) |
+				   DRONEBIT(DRONE_CHANNELSET_CURCH) |
+				   DRONEBIT(DRONE_CHANNELSET_HOP) |
+				   DRONEBIT(DRONE_CHANNELSET_NUMCH) |
+				   DRONEBIT(DRONE_CHANNELSET_CHANNELS));
+
+	DRONE_CONV_UUID(in_uuid, &(cpkt->uuid));
+
+	cpkt->command = kis_ntoh16(in_cmd);
+
+	cpkt->cur_channel = kis_hton16(in_cur);
+	cpkt->channel_hop = kis_hton16(in_hop);
+	cpkt->num_channels = kis_hton16(in_vec.size());
+	for (unsigned int x = 0; x < in_vec.size(); x++) {
+		cpkt->channels[x] = kis_hton16(in_vec[x]);
+	}
+
+	int ret = 0;
+
+	ret = SendPacket(dpkt);
+
+	free(dpkt);
+
+	return ret;
 }
 
 int PacketSource_Drone::RegisterSources(Packetsourcetracker *tracker) {

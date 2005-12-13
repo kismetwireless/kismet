@@ -5,6 +5,10 @@ Dec 12 2005  devel  Revamped AddSource callback API into a generic SourceAction
                     Added drone server-side handling of channelset for hopping
                      and vector
                     Changed internal channel representation to unsigned int
+                    Added packet sending to drone client
+                    Added channelset packet generation to drone client
+                    Added proper bitmap handling of channelset frames in
+                     drone server
 Dec 11 2005  devel  Added fix to ringbuf from Shane Schisler
                     Added drone_source_packet generators to drone protocol to
                      push a capture source upstream

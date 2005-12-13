@@ -64,6 +64,11 @@ public:
 	virtual int Shutdown();
 
 	virtual int time_handler();
+
+	int SendPacket(drone_packet *in_pack);
+
+	int SendChannelset(uuid in_uuid, unsigned int in_cmd, unsigned int in_cur, 
+					   unsigned int in_hop, vector<unsigned int> in_vec);
 	
 protected:
 	TcpClient *tcpcli;

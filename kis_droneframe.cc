@@ -529,6 +529,7 @@ int KisDroneFramework::SendChannels(int in_cl, KisPacketSource *in_int) {
 	cpkt->channelset_content_bitmap =
 		kis_hton32(DRONEBIT(DRONE_CHANNELSET_UUID) |
 				   DRONEBIT(DRONE_CHANNELSET_CMD) |
+				   DRONEBIT(DRONE_CHANNELSET_CURCH) |
 				   DRONEBIT(DRONE_CHANNELSET_HOP) |
 				   DRONEBIT(DRONE_CHANNELSET_NUMCH) |
 				   DRONEBIT(DRONE_CHANNELSET_CHANNELS));
@@ -537,6 +538,7 @@ int KisDroneFramework::SendChannels(int in_cl, KisPacketSource *in_int) {
 
 	cpkt->command = kis_ntoh16(DRONE_CHS_CMD_NONE);
 
+	cpkt->cur_channel = kis_hton16(in_int->FetchChannel());
 	cpkt->channel_hop = kis_hton16(in_int->FetchChannelHop());
 	cpkt->num_channels = kis_hton16(channels.size());
 	for (unsigned int x = 0; x < channels.size(); x++) {
@@ -790,9 +792,22 @@ int KisDroneFramework::channel_handler(const drone_packet *in_pack) {
 		return -1;
 
 	drone_channelset_packet *csp = (drone_channelset_packet *) in_pack->data;
-	uint16_t nch = kis_ntoh16(csp->num_channels);
-	if (len < (nch * sizeof(uint16_t)) + sizeof(drone_channelset_packet)) 
-		return -1;
+
+	uint32_t cbm = kis_ntoh32(csp->channelset_content_bitmap);
+
+	// We can't handle it if it doesn't have at least this much set
+	if ((cbm & DRONEBIT(DRONE_CHANNELSET_UUID)) == 0 ||
+		(cbm & DRONEBIT(DRONE_CHANNELSET_CMD)) == 0) {
+		return 0;
+	}
+
+	uint16_t nch = 0;
+	if ((cbm & DRONEBIT(DRONE_CHANNELSET_NUMCH)) &&
+		(cbm & DRONEBIT(DRONE_CHANNELSET_CHANNELS))) {
+		nch = kis_ntoh16(csp->num_channels);
+		if (len < (nch * sizeof(uint16_t)) + sizeof(drone_channelset_packet)) 
+			return -1;
+	}
 
 	uuid intuuid;
 	int cmd;
@@ -801,14 +816,17 @@ int KisDroneFramework::channel_handler(const drone_packet *in_pack) {
 
 	cmd = kis_ntoh16(csp->command);
 
-	if (cmd == DRONE_CHS_CMD_SETHOP) {
+	if (cmd == DRONE_CHS_CMD_SETHOP && (cbm & DRONEBIT(DRONE_CHANNELSET_HOP))) {
 		int hopping;
 		hopping = kis_ntoh16(csp->channel_hop);
 		return globalreg->sourcetracker->SetHopping(hopping, intuuid);
-	} else if (cmd == DRONE_CHS_CMD_SETCUR) {
+	} else if (cmd == DRONE_CHS_CMD_SETCUR &&
+			   (cbm & DRONEBIT(DRONE_CHANNELSET_CURCH))) {
 		uint16_t curch = kis_ntoh16(csp->cur_channel);
 		return globalreg->sourcetracker->SetChannel(curch, intuuid);
-	} else if (cmd == DRONE_CHS_CMD_SETVEC) {
+	} else if (cmd == DRONE_CHS_CMD_SETVEC &&
+			   (cbm & DRONEBIT(DRONE_CHANNELSET_NUMCH)) &&
+			   (cbm & DRONEBIT(DRONE_CHANNELSET_CHANNELS))) {
 		// We're already length-checked
 		vector<unsigned int> setchans;
 
