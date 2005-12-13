@@ -790,6 +790,7 @@ int KisDroneFramework::time_handler() {
 }
 
 int KisDroneFramework::channel_handler(const drone_packet *in_pack) {
+	ostringstream osstr;
 	uint32_t len = kis_ntoh32(in_pack->data_len);
 	if (len < sizeof(drone_channelset_packet))
 		return -1;
@@ -823,17 +824,15 @@ int KisDroneFramework::channel_handler(const drone_packet *in_pack) {
 		int hopping;
 		hopping = kis_ntoh16(csp->channel_hop);
 
-		if (hopping) {
-			_MSG("Enabling channel hopping on " + intuuid.UUID2String(), 
-				 MSGFLAG_INFO);
-		} else {
-			_MSG("Disabling channel hopping on " + intuuid.UUID2String(), 
-				 MSGFLAG_INFO);
-		}
+		_MSG((hopping ? string("Enabling") : string("Disabling")) + 
+			 " channel hopping on " + intuuid.UUID2String(), MSGFLAG_INFO);
 		return globalreg->sourcetracker->SetHopping(hopping, intuuid);
 	} else if (cmd == DRONE_CHS_CMD_SETCUR &&
 			   (cbm & DRONEBIT(DRONE_CHANNELSET_CURCH))) {
 		uint16_t curch = kis_ntoh16(csp->cur_channel);
+		osstr << "Setting source " + intuuid.UUID2String() + " to channel " <<
+			curch;
+		_MSG(osstr.str(), MSGFLAG_INFO);
 		return globalreg->sourcetracker->SetChannel(curch, intuuid);
 	} else if (cmd == DRONE_CHS_CMD_SETVEC &&
 			   (cbm & DRONEBIT(DRONE_CHANNELSET_NUMCH)) &&
@@ -847,9 +846,14 @@ int KisDroneFramework::channel_handler(const drone_packet *in_pack) {
 			return 0;
 		}
 
+		osstr << "Setting source " + intuuid.UUID2String() + " channel sequence ";
 		for (unsigned int x = 0; x < nch; x++) {
 			setchans.push_back(kis_ntoh16(csp->channels[x]));
+			osstr << kis_ntoh16(csp->channels[x]) << ",";
 		}
+		osstr << "end";
+
+		_MSG(osstr.str(), MSGFLAG_INFO);
 
 		return globalreg->sourcetracker->SetChannelSequence(setchans, intuuid);
 	}
