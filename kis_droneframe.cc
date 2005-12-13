@@ -267,8 +267,7 @@ int KisDroneFramework::Accept(int in_fd) {
 			 VERSION_MAJOR, VERSION_MINOR, VERSION_TINY);
 	snprintf((char *) hpkt->host_name, 32, "%s", globalreg->servername.c_str());
 
-	int ret = 0;
-	ret = SendPacket(in_fd, dpkt);
+	SendPacket(in_fd, dpkt);
 
 	free(dpkt);
 
@@ -279,7 +278,7 @@ int KisDroneFramework::Accept(int in_fd) {
 		SendChannels(in_fd, srcv[x]);
 	}
 
-	return ret;
+	return 1;
 }
 
 int KisDroneFramework::RegisterDroneCmd(uint32_t in_cmdid, 
@@ -323,6 +322,7 @@ int KisDroneFramework::ParseData(int in_fd) {
 	int len, rlen;
 	uint8_t *buf;
 	ostringstream osstr;
+	int pos = 0;
 
 	len = netserver->FetchReadLen(in_fd);
 
@@ -340,56 +340,59 @@ int KisDroneFramework::ParseData(int in_fd) {
 		return -1;
 	}
 
-	if (rlen < (int) sizeof(drone_packet)) {
+	if ((unsigned int) rlen < sizeof(drone_packet)) {
 		delete[] buf;
 		return 0;
 	}
 
-	drone_packet *dpkt = (drone_packet *) buf;
+	while ((unsigned int) (rlen - pos) >= sizeof(drone_packet)) {
+		drone_packet *dpkt = (drone_packet *) &(buf[pos]);
 
-	if (kis_ntoh32(dpkt->sentinel) != DroneSentinel) {
-		osstr << "DroneFramework::ParseData failed to find sentinel "
-			"value in packet header, dropping connection to client " << in_fd;
-		_MSG(osstr.str(), (MSGFLAG_ERROR | MSGFLAG_LOCAL));
-		delete[] buf;
-		return -1;
-	}
+		if (kis_ntoh32(dpkt->sentinel) != DroneSentinel) {
+			osstr << "DroneFramework::ParseData failed to find sentinel "
+				"value in packet header, dropping connection to client " << in_fd;
+			_MSG(osstr.str(), (MSGFLAG_ERROR | MSGFLAG_LOCAL));
+			delete[] buf;
+			return -1;
+		}
 
-	unsigned int dplen = kis_ntoh32(dpkt->data_len);
+		unsigned int dplen = kis_ntoh32(dpkt->data_len);
 
-	// Check for an incomplete packet in the buffer
-	if (rlen < (int) (dplen + sizeof(drone_packet))) {
-		delete[] buf;
-		return 0;
-	}
+		// Check for an incomplete packet in the buffer
+		if (rlen < (int) (dplen + sizeof(drone_packet))) {
+			delete[] buf;
+			return 0;
+		}
 
-	unsigned int dcid = kis_ntoh32(dpkt->drone_cmdnum);
+		// Take it out of the ring buffer
+		netserver->MarkRead(in_fd, (dplen + sizeof(drone_packet)));
 
-	// Do something with the command
-	map<unsigned int, drone_cmd_rec *>::iterator dcritr = 
-		drone_cmd_map.find(dcid);
-	if (dcritr == drone_cmd_map.end()) {
-		osstr << "DroneFramework::ParseData got unknown packet type " <<
-			dcid << "(" << hex << setprecision(4) << dcid << ")";
-		_MSG(osstr.str(), (MSGFLAG_INFO | MSGFLAG_LOCAL));
-	} else {
-		if (dcritr->second->callback == NULL) {
-			osstr << "DroneFramework::ParseData throwing away packet of known "
-				"type " << dcid << " (" << hex << setprecision(4) << dcid << ") "
-				"with no handler";
+		unsigned int dcid = kis_ntoh32(dpkt->drone_cmdnum);
+
+		int ret = 1;
+
+		// Do something with the command
+		map<unsigned int, drone_cmd_rec *>::iterator dcritr = 
+			drone_cmd_map.find(dcid);
+		if (dcritr == drone_cmd_map.end()) {
+			osstr << "DroneFramework::ParseData got unknown packet type " <<
+				dcid << "(" << hex << setprecision(4) << dcid << ")";
 			_MSG(osstr.str(), (MSGFLAG_INFO | MSGFLAG_LOCAL));
 		} else {
-			int ret = 
-				(*dcritr->second->callback)(globalreg, dpkt, dcritr->second->auxptr);
-			if (ret < 0) {
-				delete[] buf;
-				return -1;
+			if (dcritr->second->callback == NULL) {
+				osstr << "DroneFramework::ParseData throwing away packet of known "
+					"type " << dcid << " (" << hex << setprecision(4) << dcid << ") "
+					"with no handler";
+				_MSG(osstr.str(), (MSGFLAG_INFO | MSGFLAG_LOCAL));
+			} else {
+				ret = 
+					(*dcritr->second->callback)(globalreg, dpkt, 
+												dcritr->second->auxptr);
 			}
 		}
-	}
 
-	// Take it out of the ring buffer
-	netserver->MarkRead(in_fd, (dplen + sizeof(drone_packet)));
+		pos += dplen + sizeof(drone_packet);
+	}
 
 	delete[] buf;
 	
@@ -819,6 +822,14 @@ int KisDroneFramework::channel_handler(const drone_packet *in_pack) {
 	if (cmd == DRONE_CHS_CMD_SETHOP && (cbm & DRONEBIT(DRONE_CHANNELSET_HOP))) {
 		int hopping;
 		hopping = kis_ntoh16(csp->channel_hop);
+
+		if (hopping) {
+			_MSG("Enabling channel hopping on " + intuuid.UUID2String(), 
+				 MSGFLAG_INFO);
+		} else {
+			_MSG("Disabling channel hopping on " + intuuid.UUID2String(), 
+				 MSGFLAG_INFO);
+		}
 		return globalreg->sourcetracker->SetHopping(hopping, intuuid);
 	} else if (cmd == DRONE_CHS_CMD_SETCUR &&
 			   (cbm & DRONEBIT(DRONE_CHANNELSET_CURCH))) {

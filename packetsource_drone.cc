@@ -653,6 +653,7 @@ int DroneClientFrame::SendPacket(drone_packet *in_pack) {
 	}
 
 	int nlen = kis_ntoh32(in_pack->data_len) + sizeof(drone_packet);
+	printf("debug - we think we're writing a packet len %d\n", nlen);
 
 	if (netclient->WriteData((void *) in_pack, nlen) < 0 ||
 		globalreg->fatal_condition) {
@@ -787,12 +788,26 @@ int PacketSource_DroneRemote::RegisterSources(Packetsourcetracker *tracker) {
 }
 
 int PacketSource_DroneRemote::SetChannel(unsigned int in_ch) {
-	// TODO:  Add remote channel set
+	if (droneframe == NULL)
+		return 0;
+
+	vector<unsigned int> evec;
+
+	// Toss the error, we always "succeed"
+	droneframe->SendChannelset(src_uuid, DRONE_CHS_CMD_SETCUR, in_ch,
+							   0, evec);
+
 	return 1;
 }
 
-int PacketSource_DroneRemote::SetChannelSequence(vector<unsigned int> in_sep) {
-	// TODO:  Add remote channel set
+int PacketSource_DroneRemote::SetChannelSequence(vector<unsigned int> in_seq) {
+	if (droneframe == NULL)
+		return 0;
+
+	// Toss the error, we always "succeed"
+	droneframe->SendChannelset(src_uuid, DRONE_CHS_CMD_SETVEC, 0,
+							   0, in_seq);
+
 	return 1;
 }
 
@@ -801,7 +816,15 @@ int PacketSource_DroneRemote::FetchChannel() {
 }
 
 int PacketSource_DroneRemote::SetChannelHop(int in_hop) {
-	// TODO:  Add remote hop set
+	if (droneframe == NULL)
+		return 0;
+
+	vector<unsigned int> evec;
+
+	// Toss the error, we always "succeed"
+	droneframe->SendChannelset(src_uuid, DRONE_CHS_CMD_SETHOP, 0,
+							   in_hop, evec);
+
 	return 1;
 }
 

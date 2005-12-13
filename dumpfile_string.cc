@@ -78,6 +78,9 @@ Dumpfile_String::Dumpfile_String(GlobalRegistry *in_globalreg) :
 Dumpfile_String::~Dumpfile_String() {
 	int opened = 0;
 
+	globalreg->packetchain->RemoveHandler(&dumpfilestring_chain_hook,
+										  CHAINPOS_LOGGING);
+
 	// Close files
 	if (stringfile != NULL) {
 		Flush();

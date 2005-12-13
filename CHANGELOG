@@ -9,6 +9,11 @@ Dec 12 2005  devel  Revamped AddSource callback API into a generic SourceAction
                     Added channelset packet generation to drone client
                     Added proper bitmap handling of channelset frames in
                      drone server
+                    Added channel sequence command (CHANSEQ)
+                    Fixed card commands (hop, etc) from segfaulting
+                    Fixed dumpfiles unregistering callbacks during destruction
+                    Fixed more blatant errors in uuid
+                    Fixed stupid errors in drone server handling
 Dec 11 2005  devel  Added fix to ringbuf from Shane Schisler
                     Added drone_source_packet generators to drone protocol to
                      push a capture source upstream

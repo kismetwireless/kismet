@@ -55,6 +55,13 @@ public:
 	}
 
 	uuid(const string in) {
+		memset(uuid_block, 0, 16);
+		time_low = (uint32_t *) &(uuid_block[0]);
+		time_mid = (uint16_t *) &(uuid_block[4]);
+		time_hi = (uint16_t *) &(uuid_block[6]);
+		clock_seq = (uint16_t *) &(uuid_block[8]);
+		node = &(uuid_block[10]);
+
 		unsigned int ln[6];
 		unsigned int ltl, ltm, lth, lcs;
 		if (sscanf(in.c_str(), "%08x-%04x-%04x-%04x-%02x%02x%02x%02x%02x%02x",
@@ -65,11 +72,6 @@ public:
 		}
 
 		error = 0;
-		time_low = (uint32_t *) &(uuid_block[0]);
-		time_mid = (uint16_t *) &(uuid_block[4]);
-		time_hi = (uint16_t *) &(uuid_block[6]);
-		clock_seq = (uint16_t *) &(uuid_block[8]);
-		node = &(uuid_block[10]);
 
 		*time_low = ltl;
 		*time_mid = ltm;
@@ -95,7 +97,7 @@ public:
 	}
 
 	void GenerateStoredUUID(uint32_t in_low, uint16_t in_mid, uint16_t in_hi,
-							uint8_t in_seq, uint8_t *in_node) {
+							uint16_t in_seq, uint8_t *in_node) {
 		*time_low = in_low;
 		*time_mid = in_mid;
 		*time_hi = in_hi;
@@ -146,7 +148,7 @@ public:
 		return *this;
 	}
 
-	uint8_t uuid_block[4+2+2+2+6];
+	uint8_t uuid_block[16];
 	uint32_t *time_low;
 	uint16_t *time_mid;
 	uint16_t *time_hi;

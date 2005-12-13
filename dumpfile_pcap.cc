@@ -78,6 +78,9 @@ Dumpfile_Pcap::Dumpfile_Pcap(GlobalRegistry *in_globalreg) : Dumpfile(in_globalr
 Dumpfile_Pcap::~Dumpfile_Pcap() {
 	int opened = 0;
 
+	globalreg->packetchain->RemoveHandler(&dumpfilepcap_chain_hook, 
+										  CHAINPOS_LOGGING);
+
 	// Close files
 	if (dumper != NULL) {
 		Flush();

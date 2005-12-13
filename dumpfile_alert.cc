@@ -69,6 +69,9 @@ Dumpfile_Alert::Dumpfile_Alert(GlobalRegistry *in_globalreg) :
 Dumpfile_Alert::~Dumpfile_Alert() {
 	int opened = 0;
 
+	globalreg->packetchain->RemoveHandler(&dumpfilealert_chain_hook, 
+										  CHAINPOS_LOGGING);
+	
 	// Close files
 	if (alertfile != NULL) {
 		Flush();

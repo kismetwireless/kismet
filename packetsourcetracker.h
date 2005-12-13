@@ -191,11 +191,13 @@ protected:
 	int cmd_chanhop(CLIENT_PARMS);
 	int cmd_pause(CLIENT_PARMS);
 	int cmd_resume(CLIENT_PARMS);
+	int cmd_chanseq(CLIENT_PARMS);
 
 	friend int Clicmd_CHANHOP_hook(CLIENT_PARMS);
 	friend int Clicmd_CHANLOCK_hook(CLIENT_PARMS);
 	friend int Clicmd_RESUME_hook(CLIENT_PARMS);
 	friend int Clicmd_PAUSE_hook(CLIENT_PARMS);
+	friend int Clicmd_CHANSEQ_hook(CLIENT_PARMS);
 	
     // IPC data frame to set a channel
     typedef struct {
@@ -217,7 +219,7 @@ protected:
 	int hop_eventid;
 	int card_eventid;
     
-	int cmdid_chanlock, cmdid_chanhop, cmdid_pause, cmdid_resume;
+	int cmdid_chanlock, cmdid_chanhop, cmdid_pause, cmdid_resume, cmdid_chanseq;
 
 	// Callbacks for adding a source
 	vector<Packetsourcetracker::sourceactcb_rec *> cb_vec;
@@ -319,12 +321,6 @@ extern char *CARD_fields_text[];
 
 int Protocol_CARD(PROTO_PARMS);
 void Protocol_CARD_enable(PROTO_ENABLE_PARMS);
-
-// Network commands
-int Clicmd_CHANLOCK_hook(CLIENT_PARMS);
-int Clicmd_CHANHOP_hook(CLIENT_PARMS);
-int Clicmd_PAUSE_hook(CLIENT_PARMS);
-int Clicmd_RESUME_hook(CLIENT_PARMS);
 
 #endif
 

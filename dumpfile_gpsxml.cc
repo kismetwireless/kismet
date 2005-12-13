@@ -85,6 +85,9 @@ Dumpfile_Gpsxml::Dumpfile_Gpsxml(GlobalRegistry *in_globalreg) :
 }
 
 Dumpfile_Gpsxml::~Dumpfile_Gpsxml() {
+	globalreg->packetchain->RemoveHandler(&dumpfilegpsxml_chain_hook,
+										  CHAINPOS_LOGGING);
+
 	// Close files
 	if (xmlfile != NULL) {
 		fprintf(xmlfile, "</gps-run>\n");

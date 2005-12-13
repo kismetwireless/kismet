@@ -130,6 +130,8 @@ Dumpfile_Tuntap::Dumpfile_Tuntap(GlobalRegistry *in_globalreg) :
 }
 
 Dumpfile_Tuntap::~Dumpfile_Tuntap() {
+	globalreg->packetchain->RemoveHandler(&dumpfiletuntap_chain_hook,
+										  CHAINPOS_LOGGING);
 	if (tuntap_fd >= 0) {
 		close(tuntap_fd);
 		tuntap_fd = -1;

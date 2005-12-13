@@ -132,6 +132,13 @@ int Clicmd_RESUME_hook(CLIENT_PARMS) {
 													 parsedcmdline, auxptr);
 }
 
+int Clicmd_CHANSEQ_hook(CLIENT_PARMS) {
+	return 
+		((Packetsourcetracker *) auxptr)->cmd_chanseq(in_clid, framework,
+													  globalreg, errstr, cmdline,
+													  parsedcmdline, auxptr);
+}
+
 int Packetsourcetracker::cmd_chanlock(CLIENT_PARMS) {
     if (parsedcmdline->size() != 2) {
         snprintf(errstr, 1024, "Illegal chanlock request");
@@ -150,31 +157,22 @@ int Packetsourcetracker::cmd_chanlock(CLIENT_PARMS) {
         return -1;
     }
 
-	KisPacketSource *src = FindUUID(srcuuid);
-
-	if (src == NULL) {
-		snprintf(errstr, 1024, "Illegal chanlock request, unknown uuid");
+	// Lock it to not hop on this source (lock before set to keep anything 
+	// from hopping after the set)
+	if (SetHopping(0, srcuuid) <= 0) {
+		snprintf(errstr, 1024, "Failed to disable hopping for %s",
+				 srcuuid.UUID2String().c_str());
 		return -1;
 	}
 
-	// Try to set the channel
-	if (SetChannelSrc(chnum, src) < 0) {
-		snprintf(errstr, 1024, "Illegal chanlock request, source could not "
-				 "set channel %d", chnum);
+	if (SetChannel(chnum, srcuuid) <= 0) {
+		snprintf(errstr, 1024, "Failed to set channel for %s",
+				 srcuuid.UUID2String().c_str());
 		return -1;
-	}
-
-	// Lock it to not hop on this source
-	src->SetChannelHop(0);
-
-	// Send a notify to all the registered callbacks
-	for (unsigned int x = 0; x < cb_vec.size(); x++) {
-		(*(cb_vec[x]->cb))(globalreg, src, SOURCEACT_HOPDISABLE, chnum, 
-						   cb_vec[x]->auxdata);
 	}
 
     snprintf(errstr, 1024, "Locking source '%s' to channel %d", 
-			 src->FetchName().c_str(), chnum);
+			 srcuuid.UUID2String().c_str(), chnum);
     _MSG(errstr, MSGFLAG_INFO);
     
     return 1;
@@ -192,28 +190,16 @@ int Packetsourcetracker::cmd_chanhop(CLIENT_PARMS) {
 		return -1;
 	}
 
-	KisPacketSource *src = FindUUID(srcuuid);
-
-	if (src == NULL) {
-		snprintf(errstr, 1024, "Illegal chanhop request, unknown uuid");
+	// Lock it to not hop on this source (lock before set to keep anything 
+	// from hopping after the set)
+	if (SetHopping(1, srcuuid) <= 0) {
+		snprintf(errstr, 1024, "Failed to enable hopping for %s",
+				 srcuuid.UUID2String().c_str());
 		return -1;
-	}
-
-	// Lock it to not hop on this source
-	if (src->SetChannelHop(1) < 0) {
-		snprintf(errstr, 1024, "Illegal chanhop request, source cannot "
-				 "perform channel hopping");
-		return -1;
-	}
-
-	// Send a notify to all the registered callbacks
-	for (unsigned int x = 0; x < cb_vec.size(); x++) {
-		(*(cb_vec[x]->cb))(globalreg, src, SOURCEACT_HOPENABLE, 0, 
-						   cb_vec[x]->auxdata);
 	}
 
 	snprintf(errstr, 1024, "Enabling channel hopping on source '%s'",
-			 src->FetchName().c_str());
+			 srcuuid.UUID2String().c_str());
     globalreg->messagebus->InjectMessage(errstr, MSGFLAG_INFO);
     
     return 1;
@@ -289,6 +275,41 @@ int Packetsourcetracker::cmd_resume(CLIENT_PARMS) {
 
 	snprintf(errstr, 1024, "Illegal resume request");
 	return -1;
+}
+
+int Packetsourcetracker::cmd_chanseq(CLIENT_PARMS) {
+    if (parsedcmdline->size() != 2) {
+        snprintf(errstr, 1024, "Illegal chanseq request");
+        return -1;
+    }
+
+	uuid srcuuid = uuid((*parsedcmdline)[0].word);
+	if (srcuuid.error) {
+		snprintf(errstr, 1024, "Illegal chanseq request, invalid UUID");
+		return -1;
+	}
+
+	vector<int> rawlist = Str2IntVec((*parsedcmdline)[1].word);
+	if (rawlist.size() == 0) {
+		snprintf(errstr, 1024, "Illegal chanseq, invalid channel list");
+	}
+
+	// Convert it to unsigned int vec
+	vector<unsigned int> realist;
+	for (unsigned int zed = 0; zed < rawlist.size(); zed++) 
+		realist.push_back(rawlist[zed]);
+
+	if (SetChannelSequence(realist, srcuuid) < 0) {
+		snprintf(errstr, 1024, "Failed to set channel sequence for %s",
+				 srcuuid.UUID2String().c_str());
+		return -1;
+	}
+
+    snprintf(errstr, 1024, "Setting source %s sequence to %s", 
+			 srcuuid.UUID2String().c_str(), (*parsedcmdline)[1].word.c_str());
+    _MSG(errstr, MSGFLAG_INFO);
+    
+    return 1;
 }
 
 int Event_CARD(TIMEEVENT_PARMS) {
@@ -382,16 +403,24 @@ Packetsourcetracker::Packetsourcetracker(GlobalRegistry *in_globalreg) {
 	// Register the card commands
 	cmdid_chanlock =
 		globalreg->kisnetserver->RegisterClientCommand("CHANLOCK", 
-													   &Clicmd_CHANLOCK_hook, NULL);
+													   &Clicmd_CHANLOCK_hook, 
+													   (void *) this);
 	cmdid_chanhop =
 		globalreg->kisnetserver->RegisterClientCommand("CHANHOP", 
-													   &Clicmd_CHANHOP_hook, NULL);
+													   &Clicmd_CHANHOP_hook, 
+													   (void *) this);
 	cmdid_pause =
 		globalreg->kisnetserver->RegisterClientCommand("PAUSE", 
-													   &Clicmd_PAUSE_hook, NULL);
+													   &Clicmd_PAUSE_hook, 
+													   (void *) this);
 	cmdid_resume =
 		globalreg->kisnetserver->RegisterClientCommand("RESUME", 
-													   &Clicmd_RESUME_hook, NULL);
+													   &Clicmd_RESUME_hook, 
+													   (void *) this);
+	cmdid_chanseq =
+		globalreg->kisnetserver->RegisterClientCommand("CHANSEQ", 
+													   &Clicmd_CHANSEQ_hook, 
+													   (void *) this);
 
 	// Register our packet components 
 	// back-refer to the capsource so we can get names and parameters

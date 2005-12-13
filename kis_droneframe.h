@@ -88,7 +88,7 @@ typedef struct drone_trans_uuid {
 	 (y).GenerateStoredUUID(kis_ntoh32((x)->time_low), \
 							kis_ntoh16((x)->time_mid), \
 							kis_ntoh16((x)->time_hi), \
-							(uint8_t) kis_ntoh16((x)->clock_seq), \
+							kis_ntoh16((x)->clock_seq), \
 							(x)->node); \
 	 })
 

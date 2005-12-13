@@ -54,8 +54,9 @@ unsigned int NetworkClient::MergeSet(unsigned int in_max_fd, fd_set *out_rset,
     if (cl_valid) {
         FD_SET(cli_fd, out_rset);
 
-        if (write_buf->FetchLen() > 0)
+        if (write_buf->FetchLen() > 0) {
             FD_SET(cli_fd, out_wset);
+		}
     }
 
     return max;
