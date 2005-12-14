@@ -255,6 +255,9 @@ used by Kismet and to control the device, including setting monitor mode, cachin
 former values, resetting the card to the previous operational mode, and changing
 channels.
 
+Packetsources have a globally unique UUID.  When multiple servers use a drone
+source, they will all get the same UUID and can use it to correlate data.
+
 How the KisPacketSource class works:
 
 All packetsources are subclassed from the KisPacketSource class.  Sometimes,
@@ -311,4 +314,10 @@ If you can get the MAC address of the source, it wouldn't be a bad thing to
 re-seed the UUID using it.  packetsource_wext does this on Linux.  The
 packetsourcetracker won't expect the UUID until after EnableMonitor() is 
 called.
+
+NEWCORE SOURCE CONTROL KISMET COMMANDS
+
+Lock to channel:            CHANLOCK uuid chnum
+Hop across channel list:    CHANHOP uuid
+Set channel list:           CHANSEQ uuid ch1,ch2,ch3,ch4
 
