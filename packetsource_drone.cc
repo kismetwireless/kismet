@@ -232,6 +232,7 @@ int DroneClientFrame::ParseData() {
 	int len, rlen;
 	uint8_t *buf;
 	ostringstream osstr;
+	int pos = 0;
 
 	if (netclient == NULL)
 		return 0;
@@ -261,386 +262,393 @@ int DroneClientFrame::ParseData() {
 		}
 	}
 
-	if (rlen < (int) sizeof(drone_packet)) {
+	if ((unsigned int) rlen < sizeof(drone_packet)) {
 		delete[] buf;
 		return 0;
 	}
 
-	drone_packet *dpkt = (drone_packet *) buf;
+	while ((unsigned int) (rlen - pos) >= sizeof(drone_packet)) {
+		drone_packet *dpkt = (drone_packet *) &(buf[pos]);
 
-	if (kis_ntoh32(dpkt->sentinel) != DroneSentinel) {
-		if (reconnect) {
-			_MSG("Kismet drone client failed to find the sentinel "
-				 "value in a packet header, dropping connection.  Will "
-				 "attempt to reconnect in 5 seconds", MSGFLAG_ERROR);
-			last_disconnect = time(0);
-			KillConnection();
+		if (kis_ntoh32(dpkt->sentinel) != DroneSentinel) {
+			if (reconnect) {
+				_MSG("Kismet drone client failed to find the sentinel "
+					 "value in a packet header, dropping connection.  Will "
+					 "attempt to reconnect in 5 seconds", MSGFLAG_ERROR);
+				last_disconnect = time(0);
+				KillConnection();
+				delete[] buf;
+				return 0;
+			} else {
+				_MSG("Kismet drone client failed to find the sentinel "
+					 "value in a packet header.  This error is fatal because "
+					 "drone reconnecting is not enabled", MSGFLAG_FATAL);
+				globalreg->fatal_condition = 1;
+				delete[] buf;
+				return -1;
+			}
+		}
+
+		unsigned int dplen = kis_ntoh32(dpkt->data_len);
+
+		// Check for incomplete packets
+		if (rlen < (int) (dplen + sizeof(drone_packet))) {
 			delete[] buf;
 			return 0;
-		} else {
-			_MSG("Kismet drone client failed to find the sentinel "
-				 "value in a packet header.  This error is fatal because "
-				 "drone reconnecting is not enabled", MSGFLAG_FATAL);
-			globalreg->fatal_condition = 1;
-			delete[] buf;
-			return -1;
-		}
-	}
-
-	unsigned int dplen = kis_ntoh32(dpkt->data_len);
-
-	// Check for incomplete packets
-	if (rlen < (int) (dplen + sizeof(drone_packet))) {
-		delete[] buf;
-		return 0;
-	}
-
-	unsigned int dcid = kis_ntoh32(dpkt->drone_cmdnum);
-
-	// Handle the packet types
-	if (dcid == DRONE_CMDNUM_NULL) {
-		// Nothing special to do here
-	} else if (dcid == DRONE_CMDNUM_HELO) {
-		drone_helo_packet *hpkt = (drone_helo_packet *) dpkt->data;
-		if (kis_ntoh32(hpkt->drone_version) != KIS_DRONE_VERSION) {
-			osstr << "Kismet drone client got remote protocol "
-				"version " << kis_ntoh32(hpkt->drone_version) << " but uses "
-				"version " << KIS_DRONE_VERSION << ".  All features or "
-				"components may not be available";
-			_MSG(osstr.str(), MSGFLAG_INFO);
-		} else {
-			osstr << "Kismet drone client connected to remote server "
-				"using protocol version " << kis_ntoh32(hpkt->drone_version);
-			_MSG(osstr.str(), MSGFLAG_INFO);
-		}
-	} else if (dcid == DRONE_CMDNUM_STRING) {
-		drone_string_packet *spkt = (drone_string_packet *) dpkt->data;
-		string msg = string("DRONE - ");
-		uint32_t len = kis_ntoh32(spkt->msg_len);
-		// Don't trust us to have a final terminator, copy manually
-		for (unsigned int x = 0; x < len; x++) {
-			msg += spkt->msg[x];
-		}
-		// Inject it into the messagebus w/ the normal 
-		_MSG(msg, kis_ntoh32(spkt->msg_flags));
-	} else if (dcid == DRONE_CMDNUM_SOURCE) {
-		drone_source_packet *spkt = (drone_source_packet *) dpkt->data;
-
-		uint32_t sbm = kis_ntoh32(spkt->source_content_bitmap);
-		uint16_t sourcelen = kis_ntoh16(spkt->source_hdr_len);
-		uint16_t rofft = 0;
-
-		// New source data we're making
-		uuid new_uuid;
-		string name, interface, type;
-		char strbuffer[32];
-		int src_invalidated = 0;
-		// Ghetto method of tracking how many components we've filled in.
-		// We should get a 4 to make a source.
-		int comp_counter = 0;
-
-		if ((sbm & DRONEBIT(DRONE_SRC_UUID)) &&
-			(rofft + sizeof(drone_trans_uuid) <= sourcelen)) {
-
-			UUID_CONV_DRONE(&(spkt->uuid), new_uuid);
-
-			comp_counter++;
-	
-			rofft += sizeof(drone_trans_uuid);
-		}
-		if ((sbm & DRONEBIT(DRONE_SRC_INVALID)) &&
-			(rofft + 2 <= sourcelen)) {
-			src_invalidated = kis_ntoh16(spkt->invalidate);
-			rofft += 2;
-		}
-		if ((sbm & DRONEBIT(DRONE_SRC_NAMESTR)) &&
-			(rofft + 32 <= sourcelen)) {
-			sscanf((const char *) spkt->name_str, "%32s", strbuffer);
-			name = string(strbuffer);
-			comp_counter++;
-			rofft += 32;
-		}
-		if ((sbm & DRONEBIT(DRONE_SRC_INTSTR)) &&
-			(rofft + 32 <= sourcelen)) {
-			sscanf((const char *) spkt->interface_str, "%32s", strbuffer);
-			interface = string(strbuffer);
-			comp_counter++;
-			rofft += 32;
-		}
-		if ((sbm & DRONEBIT(DRONE_SRC_TYPESTR)) &&
-			(rofft + 32 <= sourcelen)) {
-			sscanf((const char *) spkt->type_str, "%32s", strbuffer);
-			type = string(strbuffer);
-			comp_counter++;
-			rofft += 32;
 		}
 
-		if (comp_counter >= 4 && src_invalidated == 0 && new_uuid.error == 0) {
-			// Make sure the source doesn't exist in the real tracker
-			KisPacketSource *rsrc =
-				globalreg->sourcetracker->FindUUID(new_uuid);
-			if (rsrc == NULL) {
-				PacketSource_DroneRemote *rem = 
-					new PacketSource_DroneRemote(globalreg, type, name, interface);
-				rem->SetUUID(new_uuid);
-				rem->SetDroneFrame(this);
-				globalreg->sourcetracker->RegisterLiveKisPacketsource(rem);
-				virtual_src_map[new_uuid] = 1;
-				_MSG("Imported capture source '" + type + "," + name + "," +
-					 interface + "' UUID " + new_uuid.UUID2String() + " from "
-					 "remote drone", MSGFLAG_INFO);
+		netclient->MarkRead(dplen + sizeof(drone_packet));
+
+		unsigned int dcid = kis_ntoh32(dpkt->drone_cmdnum);
+
+		// Handle the packet types
+		if (dcid == DRONE_CMDNUM_NULL) {
+			// Nothing special to do here
+		} else if (dcid == DRONE_CMDNUM_HELO) {
+			drone_helo_packet *hpkt = (drone_helo_packet *) dpkt->data;
+			if (kis_ntoh32(hpkt->drone_version) != KIS_DRONE_VERSION) {
+				osstr << "Kismet drone client got remote protocol "
+					"version " << kis_ntoh32(hpkt->drone_version) << " but uses "
+					"version " << KIS_DRONE_VERSION << ".  All features or "
+					"components may not be available";
+				_MSG(osstr.str(), MSGFLAG_INFO);
+			} else {
+				osstr << "Kismet drone client connected to remote server "
+					"using protocol version " << kis_ntoh32(hpkt->drone_version);
+				_MSG(osstr.str(), MSGFLAG_INFO);
 			}
-		} else if (src_invalidated == 1 && new_uuid.error == 0) {
-			KisPacketSource *rsrc = 
-				globalreg->sourcetracker->FindUUID(new_uuid);
-
-			// Make sure the source really exists, and make sure its one of our
-			// virtual sources, because we don't let a drone try to cancel a
-			// local real source
-			if (rsrc != NULL && 
-				virtual_src_map.find(new_uuid) != virtual_src_map.end()) {
-				// We don't have to close anything since the virtual interfaces
-				// are just nonsense
-
-				_MSG("Removing capture source '" + type + "," + name + "," +
-					 interface + "' UUID " + new_uuid.UUID2String() + " from "
-					 "remote drone", MSGFLAG_INFO);
-				
-				globalreg->sourcetracker->RemoveLiveKisPacketsource(rsrc);
-				virtual_src_map.erase(new_uuid);
+		} else if (dcid == DRONE_CMDNUM_STRING) {
+			drone_string_packet *spkt = (drone_string_packet *) dpkt->data;
+			string msg = string("DRONE - ");
+			uint32_t len = kis_ntoh32(spkt->msg_len);
+			// Don't trust us to have a final terminator, copy manually
+			for (unsigned int x = 0; x < len; x++) {
+				msg += spkt->msg[x];
 			}
-		}
-	} else if (dcid == DRONE_CMDNUM_CAPPACKET) {
-		drone_capture_packet *dcpkt = (drone_capture_packet *) dpkt->data;
-		uint32_t poffst = 0;
+			// Inject it into the messagebus w/ the normal 
+			_MSG(msg, kis_ntoh32(spkt->msg_flags));
+		} else if (dcid == DRONE_CMDNUM_SOURCE) {
+			drone_source_packet *spkt = (drone_source_packet *) dpkt->data;
 
-		kis_packet *newpack = globalreg->packetchain->GeneratePacket();
-
-		uint32_t cbm = kis_ntoh32(dcpkt->cap_content_bitmap);
-		
-		if ((cbm & DRONEBIT(DRONE_CONTENT_RADIO))) {
-			drone_capture_sub_radio *dsr = 
-				(drone_capture_sub_radio *) &(dcpkt->content[poffst]);
-
-			uint16_t sublen = kis_ntoh16(dsr->radio_hdr_len);
-
-			// Make sure our subframe is contained within the larger frame
-			if (poffst + sublen > dplen) {
-				_MSG("Kismet drone client got a subframe with a length "
-					 "greater than the total packet length.  This "
-					 "corruption may be accidental or malicious.",
-					 MSGFLAG_ERROR);
-				globalreg->packetchain->DestroyPacket(newpack);
-				delete[] buf;
-				return 0;
-			}
-
-			kis_layer1_packinfo *radio = new kis_layer1_packinfo;
-
+			uint32_t sbm = kis_ntoh32(spkt->source_content_bitmap);
+			uint16_t sourcelen = kis_ntoh16(spkt->source_hdr_len);
 			uint16_t rofft = 0;
 
-			// Extract the components as long as theres space... in theory it
-			// should be an error condition if it's not filled in, but
-			// if we just handle it properly...
-			uint32_t rcbm = kis_ntoh32(dsr->radio_content_bitmap);
-			if ((rcbm & DRONEBIT(DRONE_RADIO_ACCURACY)) &&
-				(rofft + 2 <= sublen)) {
-				radio->accuracy = kis_ntoh16(dsr->radio_accuracy);
-				rofft += 2;
-			}
-			if ((rcbm & DRONEBIT(DRONE_RADIO_CHANNEL)) &&
-				(rofft + 2 <= sublen)) {
-				radio->channel = kis_ntoh16(dsr->radio_channel);
-				rofft += 2;
-			}
-			if ((rcbm & DRONEBIT(DRONE_RADIO_SIGNAL)) &&
-				(rofft + 2 <= sublen)) {
-				radio->signal = (int16_t) kis_ntoh16(dsr->radio_signal);
-				rofft += 2;
-			}
-			if ((rcbm & DRONEBIT(DRONE_RADIO_NOISE)) &&
-				(rofft + 2 <= sublen)) {
-				radio->noise = (int16_t) kis_ntoh16(dsr->radio_noise);
-				rofft += 2;
-			}
-			if ((rcbm & DRONEBIT(DRONE_RADIO_CARRIER)) &&
-				(rofft + 4 <= sublen)) {
-				radio->carrier = (phy_carrier_type) kis_ntoh32(dsr->radio_carrier);
-				rofft += 4;
-			}
-			if ((rcbm & DRONEBIT(DRONE_RADIO_ENCODING)) &&
-				(rofft + 4 <= sublen)) {
-				radio->encoding = (phy_encoding_type) kis_ntoh32(dsr->radio_encoding);
-				rofft += 4;
-			}
-			if ((rcbm & DRONEBIT(DRONE_RADIO_DATARATE)) &&
-				(rofft + 4 <= sublen)) {
-				radio->datarate = kis_ntoh32(dsr->radio_datarate);
-				rofft += 4;
-			}
-
-			newpack->insert(_PCM(PACK_COMP_RADIODATA), radio);
-
-			// Jump to the end of this packet
-			poffst += sublen;
-		}
-
-		if ((cbm & DRONEBIT(DRONE_CONTENT_GPS))) {
-			drone_capture_sub_gps *dsg = 
-				(drone_capture_sub_gps *) &(dcpkt->content[poffst]);
-
-			uint16_t sublen = kis_ntoh16(dsg->gps_hdr_len);
-
-			// Make sure our subframe is contained within the larger frame
-			if (poffst + sublen > dplen) {
-				_MSG("Kismet drone client got a subframe with a length "
-					 "greater than the total packet length.  This "
-					 "corruption may be accidental or malicious.",
-					 MSGFLAG_ERROR);
-				delete[] buf;
-				globalreg->packetchain->DestroyPacket(newpack);
-				return 0;
-			}
-
-			kis_gps_packinfo *gpsinfo = new kis_gps_packinfo;
-
-			uint16_t rofft = 0;
-
-			uint32_t gcbm = kis_ntoh32(dsg->gps_content_bitmap);
-			if ((gcbm & DRONEBIT(DRONE_GPS_FIX)) &&
-				(rofft + 2 <= sublen)) {
-				gpsinfo->gps_fix = kis_ntoh16(dsg->gps_fix);
-				rofft += 2;
-			}
-			if ((gcbm & DRONEBIT(DRONE_GPS_LAT)) &&
-				(rofft + sizeof(drone_trans_double) <= sublen)) {
-				DOUBLE_CONV_DRONE(gpsinfo->lat, &(dsg->gps_lat));
-				rofft += sizeof(drone_trans_double);
-			}
-			if ((gcbm & DRONEBIT(DRONE_GPS_LON)) &&
-				(rofft + sizeof(drone_trans_double) <= sublen)) {
-				DOUBLE_CONV_DRONE(gpsinfo->lon, &(dsg->gps_lon));
-				rofft += sizeof(drone_trans_double);
-			}
-			if ((gcbm & DRONEBIT(DRONE_GPS_ALT)) &&
-				(rofft + sizeof(drone_trans_double) <= sublen)) {
-				DOUBLE_CONV_DRONE(gpsinfo->alt, &(dsg->gps_alt));
-				rofft += sizeof(drone_trans_double);
-			}
-			if ((gcbm & DRONEBIT(DRONE_GPS_SPD)) &&
-				(rofft + sizeof(drone_trans_double) <= sublen)) {
-				DOUBLE_CONV_DRONE(gpsinfo->spd, &(dsg->gps_spd));
-				rofft += sizeof(drone_trans_double);
-			}
-			if ((gcbm & DRONEBIT(DRONE_GPS_HEADING)) &&
-				(rofft + sizeof(drone_trans_double) <= sublen)) {
-				DOUBLE_CONV_DRONE(gpsinfo->heading, &(dsg->gps_heading));
-				rofft += sizeof(drone_trans_double);
-			}
-
-			newpack->insert(_PCM(PACK_COMP_GPS), gpsinfo);
-
-			// Jump to the end of this packet
-			poffst += sublen;
-		}
-
-		if ((cbm & DRONEBIT(DRONE_CONTENT_IEEEPACKET))) {
-			// Jump to thend of the capframe
-			poffst = kis_ntoh32(dcpkt->cap_packet_offset);
-
-			drone_capture_sub_80211 *ds11 = 
-				(drone_capture_sub_80211 *) &(dcpkt->content[poffst]);
-
-			uint16_t sublen = kis_ntoh16(ds11->eight11_hdr_len);
-
-			// Make sure our subframe is contained within the larger frame
-			if (poffst + sublen > dplen) {
-				_MSG("Kismet drone client got a subframe with a length "
-					 "greater than the total packet length.  This "
-					 "corruption may be accidental or malicious.",
-					 MSGFLAG_ERROR);
-				delete[] buf;
-				globalreg->packetchain->DestroyPacket(newpack);
-				return 0;
-			}
-
-			kis_datachunk *chunk = new kis_datachunk;
-
+			// New source data we're making
 			uuid new_uuid;
+			string name, interface, type;
+			char strbuffer[32];
+			int src_invalidated = 0;
+			// Ghetto method of tracking how many components we've filled in.
+			// We should get a 4 to make a source.
+			int comp_counter = 0;
 
-			uint16_t rofft = 0;
-			uint32_t ecbm = kis_ntoh32(ds11->eight11_content_bitmap);
+			if ((sbm & DRONEBIT(DRONE_SRC_UUID)) &&
+				(rofft + sizeof(drone_trans_uuid) <= sourcelen)) {
 
-			if ((ecbm & DRONEBIT(DRONE_EIGHT11_PACKLEN)) &&
-				(rofft + 2 <= sublen)) {
-				chunk->length = kismin(kis_ntoh16(ds11->packet_len),
-									   (uint32_t) MAX_PACKET_LEN);
-				rofft += 2;
-			}
-			if ((ecbm & DRONEBIT(DRONE_EIGHT11_UUID)) &&
-				(rofft + sizeof(drone_trans_uuid) <= sublen)) {
-				UUID_CONV_DRONE(&(ds11->uuid), new_uuid);
+				UUID_CONV_DRONE(&(spkt->uuid), new_uuid);
+
+				comp_counter++;
+
 				rofft += sizeof(drone_trans_uuid);
 			}
-			if ((ecbm & DRONEBIT(DRONE_EIGHT11_TVSEC)) &&
-				(rofft + 8 <= sublen)) {
-				newpack->ts.tv_sec = kis_ntoh64(ds11->tv_sec);
-				rofft += 8;
+			if ((sbm & DRONEBIT(DRONE_SRC_INVALID)) &&
+				(rofft + 2 <= sourcelen)) {
+				src_invalidated = kis_ntoh16(spkt->invalidate);
+				rofft += 2;
 			}
-			if ((ecbm & DRONEBIT(DRONE_EIGHT11_TVUSEC)) &&
-				(rofft + 8 <= sublen)) {
-				newpack->ts.tv_usec = kis_ntoh64(ds11->tv_usec);
-				rofft += 8;
+			if ((sbm & DRONEBIT(DRONE_SRC_NAMESTR)) &&
+				(rofft + 32 <= sourcelen)) {
+				sscanf((const char *) spkt->name_str, "%32s", strbuffer);
+				name = string(strbuffer);
+				comp_counter++;
+				rofft += 32;
+			}
+			if ((sbm & DRONEBIT(DRONE_SRC_INTSTR)) &&
+				(rofft + 32 <= sourcelen)) {
+				sscanf((const char *) spkt->interface_str, "%32s", strbuffer);
+				interface = string(strbuffer);
+				comp_counter++;
+				rofft += 32;
+			}
+			if ((sbm & DRONEBIT(DRONE_SRC_TYPESTR)) &&
+				(rofft + 32 <= sourcelen)) {
+				sscanf((const char *) spkt->type_str, "%32s", strbuffer);
+				type = string(strbuffer);
+				comp_counter++;
+				rofft += 32;
 			}
 
-			// Fill in the rest of the chunk if it makes sense to
-			if (chunk->length == 0) {
-				delete chunk;
-			} else {
-				if (poffst + sublen + chunk->length > dplen) {
-					_MSG("Kismet drone client got a 80211 frame with a length "
+			if (comp_counter >= 4 && src_invalidated == 0 && new_uuid.error == 0) {
+				// Make sure the source doesn't exist in the real tracker
+				KisPacketSource *rsrc =
+					globalreg->sourcetracker->FindUUID(new_uuid);
+				if (rsrc == NULL) {
+					PacketSource_DroneRemote *rem = 
+						new PacketSource_DroneRemote(globalreg, type, 
+													 name, interface);
+					rem->SetUUID(new_uuid);
+					rem->SetDroneFrame(this);
+					globalreg->sourcetracker->RegisterLiveKisPacketsource(rem);
+					virtual_src_map[new_uuid] = 1;
+					_MSG("Imported capture source '" + type + "," + name + "," +
+						 interface + "' UUID " + new_uuid.UUID2String() + " from "
+						 "remote drone", MSGFLAG_INFO);
+				}
+			} else if (src_invalidated == 1 && new_uuid.error == 0) {
+				KisPacketSource *rsrc = 
+					globalreg->sourcetracker->FindUUID(new_uuid);
+
+				// Make sure the source really exists, and make sure its one of our
+				// virtual sources, because we don't let a drone try to cancel a
+				// local real source
+				if (rsrc != NULL && 
+					virtual_src_map.find(new_uuid) != virtual_src_map.end()) {
+					// We don't have to close anything since the virtual interfaces
+					// are just nonsense
+
+					_MSG("Removing capture source '" + type + "," + name + "," +
+						 interface + "' UUID " + new_uuid.UUID2String() + " from "
+						 "remote drone", MSGFLAG_INFO);
+
+					globalreg->sourcetracker->RemoveLiveKisPacketsource(rsrc);
+					virtual_src_map.erase(new_uuid);
+				}
+			}
+		} else if (dcid == DRONE_CMDNUM_CAPPACKET) {
+			drone_capture_packet *dcpkt = (drone_capture_packet *) dpkt->data;
+			uint32_t poffst = 0;
+
+			kis_packet *newpack = globalreg->packetchain->GeneratePacket();
+
+			uint32_t cbm = kis_ntoh32(dcpkt->cap_content_bitmap);
+
+			if ((cbm & DRONEBIT(DRONE_CONTENT_RADIO))) {
+				drone_capture_sub_radio *dsr = 
+					(drone_capture_sub_radio *) &(dcpkt->content[poffst]);
+
+				uint16_t sublen = kis_ntoh16(dsr->radio_hdr_len);
+
+				// Make sure our subframe is contained within the larger frame
+				if (poffst + sublen > dplen) {
+					_MSG("Kismet drone client got a subframe with a length "
+						 "greater than the total packet length.  This "
+						 "corruption may be accidental or malicious.",
+						 MSGFLAG_ERROR);
+					globalreg->packetchain->DestroyPacket(newpack);
+					delete[] buf;
+					return 0;
+				}
+
+				kis_layer1_packinfo *radio = new kis_layer1_packinfo;
+
+				uint16_t rofft = 0;
+
+				// Extract the components as long as theres space... in theory it
+				// should be an error condition if it's not filled in, but
+				// if we just handle it properly...
+				uint32_t rcbm = kis_ntoh32(dsr->radio_content_bitmap);
+				if ((rcbm & DRONEBIT(DRONE_RADIO_ACCURACY)) &&
+					(rofft + 2 <= sublen)) {
+					radio->accuracy = kis_ntoh16(dsr->radio_accuracy);
+					rofft += 2;
+				}
+				if ((rcbm & DRONEBIT(DRONE_RADIO_CHANNEL)) &&
+					(rofft + 2 <= sublen)) {
+					radio->channel = kis_ntoh16(dsr->radio_channel);
+					rofft += 2;
+				}
+				if ((rcbm & DRONEBIT(DRONE_RADIO_SIGNAL)) &&
+					(rofft + 2 <= sublen)) {
+					radio->signal = (int16_t) kis_ntoh16(dsr->radio_signal);
+					rofft += 2;
+				}
+				if ((rcbm & DRONEBIT(DRONE_RADIO_NOISE)) &&
+					(rofft + 2 <= sublen)) {
+					radio->noise = (int16_t) kis_ntoh16(dsr->radio_noise);
+					rofft += 2;
+				}
+				if ((rcbm & DRONEBIT(DRONE_RADIO_CARRIER)) &&
+					(rofft + 4 <= sublen)) {
+					radio->carrier = 
+						(phy_carrier_type) kis_ntoh32(dsr->radio_carrier);
+					rofft += 4;
+				}
+				if ((rcbm & DRONEBIT(DRONE_RADIO_ENCODING)) &&
+					(rofft + 4 <= sublen)) {
+					radio->encoding = 
+						(phy_encoding_type) kis_ntoh32(dsr->radio_encoding);
+					rofft += 4;
+				}
+				if ((rcbm & DRONEBIT(DRONE_RADIO_DATARATE)) &&
+					(rofft + 4 <= sublen)) {
+					radio->datarate = kis_ntoh32(dsr->radio_datarate);
+					rofft += 4;
+				}
+
+				newpack->insert(_PCM(PACK_COMP_RADIODATA), radio);
+
+				// Jump to the end of this packet
+				poffst += sublen;
+			}
+
+			if ((cbm & DRONEBIT(DRONE_CONTENT_GPS))) {
+				drone_capture_sub_gps *dsg = 
+					(drone_capture_sub_gps *) &(dcpkt->content[poffst]);
+
+				uint16_t sublen = kis_ntoh16(dsg->gps_hdr_len);
+
+				// Make sure our subframe is contained within the larger frame
+				if (poffst + sublen > dplen) {
+					_MSG("Kismet drone client got a subframe with a length "
 						 "greater than the total packet length.  This "
 						 "corruption may be accidental or malicious.",
 						 MSGFLAG_ERROR);
 					delete[] buf;
-					delete chunk;
 					globalreg->packetchain->DestroyPacket(newpack);
 					return 0;
 				}
 
-				chunk->data = new uint8_t[chunk->length];
-				uint8_t *rawdat = (uint8_t *) ds11;
-				memcpy(chunk->data, &(rawdat[sublen]), chunk->length);
+				kis_gps_packinfo *gpsinfo = new kis_gps_packinfo;
 
-				newpack->insert(_PCM(PACK_COMP_LINKFRAME), chunk);
+				uint16_t rofft = 0;
+
+				uint32_t gcbm = kis_ntoh32(dsg->gps_content_bitmap);
+				if ((gcbm & DRONEBIT(DRONE_GPS_FIX)) &&
+					(rofft + 2 <= sublen)) {
+					gpsinfo->gps_fix = kis_ntoh16(dsg->gps_fix);
+					rofft += 2;
+				}
+				if ((gcbm & DRONEBIT(DRONE_GPS_LAT)) &&
+					(rofft + sizeof(drone_trans_double) <= sublen)) {
+					DOUBLE_CONV_DRONE(gpsinfo->lat, &(dsg->gps_lat));
+					rofft += sizeof(drone_trans_double);
+				}
+				if ((gcbm & DRONEBIT(DRONE_GPS_LON)) &&
+					(rofft + sizeof(drone_trans_double) <= sublen)) {
+					DOUBLE_CONV_DRONE(gpsinfo->lon, &(dsg->gps_lon));
+					rofft += sizeof(drone_trans_double);
+				}
+				if ((gcbm & DRONEBIT(DRONE_GPS_ALT)) &&
+					(rofft + sizeof(drone_trans_double) <= sublen)) {
+					DOUBLE_CONV_DRONE(gpsinfo->alt, &(dsg->gps_alt));
+					rofft += sizeof(drone_trans_double);
+				}
+				if ((gcbm & DRONEBIT(DRONE_GPS_SPD)) &&
+					(rofft + sizeof(drone_trans_double) <= sublen)) {
+					DOUBLE_CONV_DRONE(gpsinfo->spd, &(dsg->gps_spd));
+					rofft += sizeof(drone_trans_double);
+				}
+				if ((gcbm & DRONEBIT(DRONE_GPS_HEADING)) &&
+					(rofft + sizeof(drone_trans_double) <= sublen)) {
+					DOUBLE_CONV_DRONE(gpsinfo->heading, &(dsg->gps_heading));
+					rofft += sizeof(drone_trans_double);
+				}
+
+				newpack->insert(_PCM(PACK_COMP_GPS), gpsinfo);
+
+				// Jump to the end of this packet
+				poffst += sublen;
 			}
 
-			// Fill in the capture source if we can find it locally, and only
-			// accept from sources we understand, otherwise it shows up as
-			// from the drone itself, as long as we have a local source
-			if (new_uuid.error == 0 && 
-				virtual_src_map.find(new_uuid) != virtual_src_map.end()) {
-				PacketSource_DroneRemote *rsrc = (PacketSource_DroneRemote *) 
-					globalreg->sourcetracker->FindUUID(new_uuid);
-				if (rsrc != NULL) {
-					// Safe because we only do it on our own virtuals
-					rsrc->IncrementNumPackets();
+			if ((cbm & DRONEBIT(DRONE_CONTENT_IEEEPACKET))) {
+				// Jump to thend of the capframe
+				poffst = kis_ntoh32(dcpkt->cap_packet_offset);
+
+				drone_capture_sub_80211 *ds11 = 
+					(drone_capture_sub_80211 *) &(dcpkt->content[poffst]);
+
+				uint16_t sublen = kis_ntoh16(ds11->eight11_hdr_len);
+
+				// Make sure our subframe is contained within the larger frame
+				if (poffst + sublen > dplen) {
+					_MSG("Kismet drone client got a subframe with a length "
+						 "greater than the total packet length.  This "
+						 "corruption may be accidental or malicious.",
+						 MSGFLAG_ERROR);
+					delete[] buf;
+					globalreg->packetchain->DestroyPacket(newpack);
+					return 0;
+				}
+
+				kis_datachunk *chunk = new kis_datachunk;
+
+				uuid new_uuid;
+
+				uint16_t rofft = 0;
+				uint32_t ecbm = kis_ntoh32(ds11->eight11_content_bitmap);
+
+				if ((ecbm & DRONEBIT(DRONE_EIGHT11_PACKLEN)) &&
+					(rofft + 2 <= sublen)) {
+					chunk->length = kismin(kis_ntoh16(ds11->packet_len),
+										   (uint32_t) MAX_PACKET_LEN);
+					rofft += 2;
+				}
+				if ((ecbm & DRONEBIT(DRONE_EIGHT11_UUID)) &&
+					(rofft + sizeof(drone_trans_uuid) <= sublen)) {
+					UUID_CONV_DRONE(&(ds11->uuid), new_uuid);
+					rofft += sizeof(drone_trans_uuid);
+				}
+				if ((ecbm & DRONEBIT(DRONE_EIGHT11_TVSEC)) &&
+					(rofft + 8 <= sublen)) {
+					newpack->ts.tv_sec = kis_ntoh64(ds11->tv_sec);
+					rofft += 8;
+				}
+				if ((ecbm & DRONEBIT(DRONE_EIGHT11_TVUSEC)) &&
+					(rofft + 8 <= sublen)) {
+					newpack->ts.tv_usec = kis_ntoh64(ds11->tv_usec);
+					rofft += 8;
+				}
+
+				// Fill in the rest of the chunk if it makes sense to
+				if (chunk->length == 0) {
+					delete chunk;
+				} else {
+					if (poffst + sublen + chunk->length > dplen) {
+						_MSG("Kismet drone client got a 80211 frame with a length "
+							 "greater than the total packet length.  This "
+							 "corruption may be accidental or malicious.",
+							 MSGFLAG_ERROR);
+						delete[] buf;
+						delete chunk;
+						globalreg->packetchain->DestroyPacket(newpack);
+						return 0;
+					}
+
+					chunk->data = new uint8_t[chunk->length];
+					uint8_t *rawdat = (uint8_t *) ds11;
+					memcpy(chunk->data, &(rawdat[sublen]), chunk->length);
+
+					newpack->insert(_PCM(PACK_COMP_LINKFRAME), chunk);
+				}
+
+				// Fill in the capture source if we can find it locally, and only
+				// accept from sources we understand, otherwise it shows up as
+				// from the drone itself, as long as we have a local source
+				if (new_uuid.error == 0 && 
+					virtual_src_map.find(new_uuid) != virtual_src_map.end()) {
+					PacketSource_DroneRemote *rsrc = (PacketSource_DroneRemote *) 
+						globalreg->sourcetracker->FindUUID(new_uuid);
+					if (rsrc != NULL) {
+						// Safe because we only do it on our own virtuals
+						rsrc->IncrementNumPackets();
+						kis_ref_capsource *csrc_ref = new kis_ref_capsource;
+						csrc_ref->ref_source = rsrc;
+						newpack->insert(_PCM(PACK_COMP_KISCAPSRC), csrc_ref);
+					}
+				} else if (packetsource != NULL) {
 					kis_ref_capsource *csrc_ref = new kis_ref_capsource;
-					csrc_ref->ref_source = rsrc;
+					csrc_ref->ref_source = (KisPacketSource *) packetsource;
 					newpack->insert(_PCM(PACK_COMP_KISCAPSRC), csrc_ref);
 				}
-			} else if (packetsource != NULL) {
-				kis_ref_capsource *csrc_ref = new kis_ref_capsource;
-				csrc_ref->ref_source = (KisPacketSource *) packetsource;
-				newpack->insert(_PCM(PACK_COMP_KISCAPSRC), csrc_ref);
 			}
+
+			globalreg->packetchain->ProcessPacket(newpack);
 		}
 
-		globalreg->packetchain->ProcessPacket(newpack);
+		pos += dplen + sizeof(drone_packet);
 	}
 	
-	netclient->MarkRead(dplen + sizeof(drone_packet));
-
 	delete[] buf;
 
 	return 1;

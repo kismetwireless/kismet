@@ -327,7 +327,7 @@ int KisDroneFramework::ParseData(int in_fd) {
 	len = netserver->FetchReadLen(in_fd);
 
 	// We don't care at all if we're less than the size of a drone frame
-	if (len < (int) sizeof(drone_packet))
+	if ((unsigned int) len < sizeof(drone_packet))
 		return 0;
 	
 	buf = new uint8_t[len + 1];
