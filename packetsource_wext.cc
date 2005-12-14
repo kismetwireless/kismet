@@ -415,5 +415,35 @@ int PacketSource_Madwifi::SetChannelSequence(vector<unsigned int> in_seq) {
 	return PacketSource_Wext::SetChannelSequence(in_seq);
 }
 
+PacketSource_Wrt54Prism::PacketSource_Wrt54Prism(GlobalRegistry *in_globalreg,
+												 string in_type, string in_name,
+												 string in_dev) :
+	PacketSource_Wext(in_globalreg, in_type, in_name, in_dev) {
+	// Nothing
+}
+
+int PacketSource_Wrt54Prism::RegisterSources(Packetsourcetracker *tracker) {
+	tracker->RegisterPacketsource("wrt54prism", this, 1, "IEEE80211b", 6);
+	return 1;
+}
+
+int PacketSource_Wrt54Prism::OpenSource() {
+	// Store the interface
+	string realsrc = interface;
+
+	// Fake the prism0 interface
+	interface = "prism0";
+	// Open using prism0
+	int ret = PacketSource_Wext::OpenSource();
+	// Restore
+	interface = realsrc;
+
+	return ret;
+}
+
+int PacketSource_Wrt54Prism::SetChannelSequence(vector<unsigned int> in_seq) {
+	return PacketSource_Wext::SetChannelSequence(in_seq);
+}
+
 #endif
 

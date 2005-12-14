@@ -284,12 +284,12 @@ public:
 	virtual int Poll() = 0;
 
 	// Fetch info about how we were built
-    string FetchName() { return name; }
-    string FetchInterface() { return interface; }
-	string FetchType() { return type; }
+    virtual string FetchName() { return name; }
+    virtual string FetchInterface() { return interface; }
+	virtual string FetchType() { return type; }
 
     // Fetch number of packets
-    int FetchNumPackets() { return num_packets; } 
+    virtual int FetchNumPackets() { return num_packets; } 
 
 	// Pause/resume listening to this source (what this means depends on 
 	// the implementation of polling)
@@ -300,8 +300,8 @@ public:
 	virtual int FetchFCSBytes() { return fcsbytes; }
 
 	// Set and fetch the carriers this source understands
-	void SetCarrierSet(int in_set) { carrier_set = in_set; }
-	int FetchCarrierSet() { return carrier_set; }
+	virtual void SetCarrierSet(int in_set) { carrier_set = in_set; }
+	virtual int FetchCarrierSet() { return carrier_set; }
 
 	// Generic-level per packet parameters
 	virtual packet_parm FetchGenericParms() { return genericparms; }

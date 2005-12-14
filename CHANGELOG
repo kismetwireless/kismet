@@ -1,4 +1,5 @@
 Dec 13 2005  devel  Fixed loading of servername in server/drone
+                    Restored wrt54prism capture source for OpenWRT
 Dec 12 2005  devel  Revamped AddSource callback API into a generic SourceAction
                      API
                     Wrote drone interface channel push code

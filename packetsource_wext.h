@@ -45,6 +45,7 @@
 
 #define USE_PACKETSOURCE_WEXT
 #define USE_PACKETSOURCE_MADWIFI
+#define USE_PACKETSOURCE_WRT54PRISM
 
 // Another tier of subclassing.  In some respects this is sort of silly, but it's
 // fairly logical as far as progression of functionality goes.
@@ -164,6 +165,42 @@ protected:
 	// 3 - madwifi_g
 	// 0 - madwifi_ag
 	int madwifi_type;
+};
+
+// Wrt54prism subclass
+// Implements the wrt54prism source for openwrt
+class PacketSource_Wrt54Prism : public PacketSource_Wext {
+public:
+	// HANDLED PACKET SOURCES:
+	// wrt54prism
+	PacketSource_Wrt54Prism() {
+		fprintf(stderr, "FATAL OOPS:  Packetsource_Wrt54prism() called\n");
+		exit(1);
+	}
+
+	PacketSource_Wrt54Prism(GlobalRegistry *in_globalreg) :
+		PacketSource_Wext(in_globalreg) {
+	}
+
+	virtual KisPacketSource *CreateSource(GlobalRegistry *in_globalreg, 
+										  string in_type, string in_name, 
+										  string in_dev) {
+		return new PacketSource_Wrt54Prism(in_globalreg, in_type, in_name,
+										   in_dev);
+	}
+
+	// We don't do autotype scanning
+	virtual int AutotypeProbe(string in_device) { return 0; }
+
+	virtual int RegisterSources(Packetsourcetracker *tracker);
+
+	PacketSource_Wrt54Prism(GlobalRegistry *in_globalreg, string in_type,
+							string in_name, string in_dev);
+	virtual ~PacketSource_Wrt54Prism() { }
+
+	virtual int OpenSource();
+	
+	virtual int SetChannelSequence(vector<unsigned int> in_seq);
 };
 
 #endif /* have_libpcap && sys_linux */
