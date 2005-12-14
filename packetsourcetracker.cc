@@ -923,9 +923,11 @@ int Packetsourcetracker::SetChannelSequence(vector<unsigned int> in_seq,
 
 // Hop the packet sources up a channel
 int Packetsourcetracker::AdvanceChannel() {
+#ifdef HAVE_SUID
 	// Don't hop if it's queued up/un-ack'd
 	if (globalreg->rootipc->FetchReadyState() == 0)
 		return 0;
+#endif
 
 	for (unsigned int livec = 0; livec < live_packsources.size(); livec++) {
 		KisPacketSource *liv = live_packsources[livec];
