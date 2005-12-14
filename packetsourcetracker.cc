@@ -388,10 +388,12 @@ Packetsourcetracker::Packetsourcetracker(GlobalRegistry *in_globalreg) {
 		exit(1);
 	}
 
+#ifdef HAVE_SUID
 	if (globalreg->rootipc == NULL) {
 		fprintf(stderr, "FATAL OOPS:  Packetsourcetracker called before rootipc\n");
 		exit(1);
 	}
+#endif
 
 	// Register the CARD protocol
 	card_protoref =
@@ -441,8 +443,10 @@ Packetsourcetracker::Packetsourcetracker(GlobalRegistry *in_globalreg) {
 	globalreg->RegisterPollableSubsys(this);
 
 	// Assign the IPC commands and make it pollable
+#ifdef HAVE_SUID
 	chan_ipc_id = globalreg->rootipc->RegisterIPCCmd(&packsrc_chan_ipc, this);
 	haltall_ipc_id = globalreg->rootipc->RegisterIPCCmd(&packsrc_haltall_ipc, this);
+#endif
 }
 
 Packetsourcetracker::~Packetsourcetracker() {
