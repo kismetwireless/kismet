@@ -419,7 +419,8 @@ PacketSource_Wrt54Prism::PacketSource_Wrt54Prism(GlobalRegistry *in_globalreg,
 												 string in_type, string in_name,
 												 string in_dev) :
 	PacketSource_Wext(in_globalreg, in_type, in_name, in_dev) {
-	// Nothing
+	// We get FCS bytes
+	SetFCSBytes(4);
 }
 
 int PacketSource_Wrt54Prism::RegisterSources(Packetsourcetracker *tracker) {
