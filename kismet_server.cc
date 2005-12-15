@@ -589,7 +589,7 @@ int main(int argc, char *argv[], char *envp[]) {
 
 #ifdef SYS_LINUX
 	// Make the tuntap device as root, if we need to
-	globalregistry->RegisterDumpFile(new Dumpfile_Tuntap(globalregistry));
+	new Dumpfile_Tuntap(globalregistry);
 	if (globalregistry->fatal_condition)
 		CatchShutdown(-1);
 #endif
@@ -675,25 +675,26 @@ int main(int argc, char *argv[], char *envp[]) {
 	if (globalregistry->fatal_condition)
 		CatchShutdown(-1);
 
-	// Create the dumpfiles
+	// Create the dumpfiles.  We don't have to assign the new dumpfile anywhere
+	// because it puts itself in the global vector
 	globalregistry->messagebus->InjectMessage("Registering dumpfiles...",
 											  MSGFLAG_INFO);
-	globalregistry->RegisterDumpFile(new Dumpfile_Pcap(globalregistry));
+	new Dumpfile_Pcap(globalregistry);
 	if (globalregistry->fatal_condition)
 		CatchShutdown(-1);
-	globalregistry->RegisterDumpFile(new Dumpfile_Netxml(globalregistry));
+	new Dumpfile_Netxml(globalregistry);
 	if (globalregistry->fatal_condition)
 		CatchShutdown(-1);
-	globalregistry->RegisterDumpFile(new Dumpfile_Nettxt(globalregistry));
+	new Dumpfile_Nettxt(globalregistry);
 	if (globalregistry->fatal_condition)
 		CatchShutdown(-1);
-	globalregistry->RegisterDumpFile(new Dumpfile_Gpsxml(globalregistry));
+	new Dumpfile_Gpsxml(globalregistry);
 	if (globalregistry->fatal_condition)
 		CatchShutdown(-1);
-	globalregistry->RegisterDumpFile(new Dumpfile_String(globalregistry));
+	new Dumpfile_String(globalregistry);
 	if (globalregistry->fatal_condition)
 		CatchShutdown(-1);
-	globalregistry->RegisterDumpFile(new Dumpfile_Alert(globalregistry));
+	new Dumpfile_Alert(globalregistry);
 	if (globalregistry->fatal_condition)
 		CatchShutdown(-1);
 

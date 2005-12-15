@@ -57,6 +57,8 @@ Dumpfile_Netxml::Dumpfile_Netxml(GlobalRegistry *in_globalreg) :
 		return;
 	}
 
+	globalreg->RegisterDumpFile(this);
+
 	_MSG("Opened netxml log file '" + fname + "'", MSGFLAG_INFO);
 
 }

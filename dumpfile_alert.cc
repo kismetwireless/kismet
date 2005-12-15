@@ -62,6 +62,8 @@ Dumpfile_Alert::Dumpfile_Alert(GlobalRegistry *in_globalreg) :
 	globalreg->packetchain->RegisterHandler(&dumpfilealert_chain_hook, this,
 											CHAINPOS_LOGGING, -100);
 
+	globalreg->RegisterDumpFile(this);
+
 	_MSG("Opened alert log file '" + fname + "'", MSGFLAG_INFO);
 
 }

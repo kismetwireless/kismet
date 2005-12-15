@@ -82,6 +82,8 @@ Dumpfile_Gpsxml::Dumpfile_Gpsxml(GlobalRegistry *in_globalreg) :
 		fclose(xmlfile);
 		return;
 	}
+
+	globalreg->RegisterDumpFile(this);
 }
 
 Dumpfile_Gpsxml::~Dumpfile_Gpsxml() {

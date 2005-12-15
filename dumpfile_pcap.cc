@@ -72,6 +72,8 @@ Dumpfile_Pcap::Dumpfile_Pcap(GlobalRegistry *in_globalreg) : Dumpfile(in_globalr
 	globalreg->packetchain->RegisterHandler(&dumpfilepcap_chain_hook, this,
 											CHAINPOS_LOGGING, -100);
 
+	globalreg->RegisterDumpFile(this);
+
 	_MSG("Opened pcapdump log file '" + fname + "'", MSGFLAG_INFO);
 }
 

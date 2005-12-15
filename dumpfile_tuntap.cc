@@ -126,6 +126,8 @@ Dumpfile_Tuntap::Dumpfile_Tuntap(GlobalRegistry *in_globalreg) :
 	globalreg->packetchain->RegisterHandler(&dumpfiletuntap_chain_hook, this,
 											CHAINPOS_LOGGING, -100);
 
+	globalreg->RegisterDumpFile(this);
+
 	_MSG("Opened tun/tap replicator '" + fname + "'", MSGFLAG_INFO);
 }
 

@@ -117,15 +117,15 @@ string Dumpfile::ProcessConfigOpt(string in_type) {
 	vector<string> typevec = StrTokenize(StrLower(logtypes), ",");
 	in_type = StrLower(in_type); // lower local copy
 
-	int active = 0;
+	int factive = 0;
 	for (unsigned int x = 0; x < typevec.size(); x++) {
 		if (typevec[x] == in_type) {
-			active = 1;
+			factive = 1;
 			break;
 		}
 	}
 
-	if (active == 0) {
+	if (factive == 0) {
 		return "";
 	}
 

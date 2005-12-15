@@ -62,6 +62,8 @@ Dumpfile_Nettxt::Dumpfile_Nettxt(GlobalRegistry *in_globalreg) :
 		return;
 	}
 
+	globalreg->RegisterDumpFile(this);
+
 	_MSG("Opened nettxt log file '" + fname + "'", MSGFLAG_INFO);
 
 }

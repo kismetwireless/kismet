@@ -68,6 +68,8 @@ Dumpfile_String::Dumpfile_String(GlobalRegistry *in_globalreg) :
 	globalreg->packetchain->RegisterHandler(&dumpfilestring_chain_hook, this,
 											CHAINPOS_LOGGING, -100);
 
+	globalreg->RegisterDumpFile(this);
+
 	_MSG("Opened string log file '" + fname + "'", MSGFLAG_INFO);
 
 	globalreg->builtindissector->SetStringExtract(2);

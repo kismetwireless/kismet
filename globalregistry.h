@@ -307,9 +307,8 @@ public:
 		return 0;
 	}
 
-	int RegisterDumpFile(Dumpfile *in_dump) {
+	void RegisterDumpFile(Dumpfile *in_dump) {
 		subsys_dumpfile_vec.push_back(in_dump);
-		return -1;
 	}
 
 	int RemoveDumpFile(Dumpfile *in_dump) {
