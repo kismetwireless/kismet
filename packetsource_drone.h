@@ -86,6 +86,8 @@ protected:
 
 	int timerid;
 
+	string remote_name;
+
 	map<uuid, int> virtual_src_map;
 };
 

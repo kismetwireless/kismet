@@ -309,6 +309,11 @@ int DroneClientFrame::ParseData() {
 			// Nothing special to do here
 		} else if (dcid == DRONE_CMDNUM_HELO) {
 			drone_helo_packet *hpkt = (drone_helo_packet *) dpkt->data;
+			char rname[32];
+
+			sscanf((char *) hpkt->host_name, "%32s", rname);
+			remote_name = string(rname);
+
 			if (kis_ntoh32(hpkt->drone_version) != KIS_DRONE_VERSION) {
 				osstr << "Kismet drone client got remote protocol "
 					"version " << kis_ntoh32(hpkt->drone_version) << " but uses "
@@ -317,12 +322,13 @@ int DroneClientFrame::ParseData() {
 				_MSG(osstr.str(), MSGFLAG_INFO);
 			} else {
 				osstr << "Kismet drone client connected to remote server "
-					"using protocol version " << kis_ntoh32(hpkt->drone_version);
+					"\"" + remote_name + "\" using protocol version " << 
+					kis_ntoh32(hpkt->drone_version);
 				_MSG(osstr.str(), MSGFLAG_INFO);
 			}
 		} else if (dcid == DRONE_CMDNUM_STRING) {
 			drone_string_packet *spkt = (drone_string_packet *) dpkt->data;
-			string msg = string("DRONE - ");
+			string msg = string("DRONE(" + remote_name + ") - ");
 			uint32_t len = kis_ntoh32(spkt->msg_len);
 			// Don't trust us to have a final terminator, copy manually
 			for (unsigned int x = 0; x < len; x++) {
