@@ -232,7 +232,7 @@ int DroneClientFrame::ParseData() {
 	int len, rlen;
 	uint8_t *buf;
 	ostringstream osstr;
-	int pos = 0;
+	unsigned int pos = 0;
 
 	if (netclient == NULL)
 		return 0;
@@ -240,9 +240,11 @@ int DroneClientFrame::ParseData() {
 	if (netclient->Valid() == 0)
 		return 0;
 
+	// Allocate a buffer
 	len = netclient->FetchReadLen();
 	buf = new uint8_t[len + 1];
 
+	// Fetch all the data we have queued
 	if (netclient->ReadData(buf, len, &rlen) < 0) {
 		if (reconnect) {
 			_MSG("Kismet drone client failed to read data from the "
@@ -262,11 +264,13 @@ int DroneClientFrame::ParseData() {
 		}
 	}
 
+	// Bail if we're too small to hold even a packet header
 	if ((unsigned int) rlen < sizeof(drone_packet)) {
 		delete[] buf;
 		return 0;
 	}
 
+	// Loop through
 	while ((unsigned int) (rlen - pos) >= sizeof(drone_packet)) {
 		drone_packet *dpkt = (drone_packet *) &(buf[pos]);
 
@@ -293,8 +297,7 @@ int DroneClientFrame::ParseData() {
 
 		// Check for incomplete packets
 		if (rlen < (int) (dplen + sizeof(drone_packet))) {
-			delete[] buf;
-			return 0;
+			break;
 		}
 
 		netclient->MarkRead(dplen + sizeof(drone_packet));
