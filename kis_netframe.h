@@ -57,13 +57,14 @@ protected:
 		if (in_f < numfields)
 			return 0;
 
-		field_cache.resize(in_f + 1);
-		field_filled.resize(in_f + 1);
+		field_cache.resize(in_f + 1, 0);
+		field_filled.resize(in_f + 1, 0);
 
+		/*
 		for (int x = numfields; x < in_f; x++) {
 			field_filled[x] = 0;
 		}
-		
+		*/
 		numfields = in_f + 1;
 
 		return 1;

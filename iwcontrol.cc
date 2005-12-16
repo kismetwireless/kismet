@@ -21,6 +21,10 @@
 
 #ifdef HAVE_LINUX_WIRELESS
 
+#ifndef rintf
+#define rintf(x) (float) rint((double) (x))
+#endif
+
 float IwFreq2Float(iwreq *inreq) {
     return ((float) inreq->u.freq.m) * pow(10,inreq->u.freq.e);
 }

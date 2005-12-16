@@ -70,9 +70,11 @@ public:
         error = 0;
 
 		// Stock and init the content vector
-		content_vec.resize(MAX_PACKET_COMPONENTS);
+		content_vec.resize(MAX_PACKET_COMPONENTS, NULL);
+		/*
 		for (unsigned int y = 0; y < MAX_PACKET_COMPONENTS; y++)
 			content_vec[y] = NULL;
+		*/
     }
 
     ~kis_packet() {
