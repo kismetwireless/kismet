@@ -679,9 +679,11 @@ int main(int argc, char *argv[], char *envp[]) {
 	// because it puts itself in the global vector
 	globalregistry->messagebus->InjectMessage("Registering dumpfiles...",
 											  MSGFLAG_INFO);
+#ifdef HAVE_LIBPCAP
 	new Dumpfile_Pcap(globalregistry);
 	if (globalregistry->fatal_condition)
 		CatchShutdown(-1);
+#endif
 	new Dumpfile_Netxml(globalregistry);
 	if (globalregistry->fatal_condition)
 		CatchShutdown(-1);
