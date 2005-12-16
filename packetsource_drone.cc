@@ -271,7 +271,7 @@ int DroneClientFrame::ParseData() {
 	}
 
 	// Loop through
-	while ((unsigned int) (rlen - pos) >= sizeof(drone_packet)) {
+	while ((rlen - pos) >= (int) sizeof(drone_packet)) {
 		drone_packet *dpkt = (drone_packet *) &(buf[pos]);
 
 		if (kis_ntoh32(dpkt->sentinel) != DroneSentinel) {
@@ -296,11 +296,12 @@ int DroneClientFrame::ParseData() {
 		unsigned int dplen = kis_ntoh32(dpkt->data_len);
 
 		// Check for incomplete packets
-		if (rlen < (int) (dplen + sizeof(drone_packet))) {
+		if (rlen - (int) pos < (int) (dplen + sizeof(drone_packet))) {
 			break;
 		}
 
 		netclient->MarkRead(dplen + sizeof(drone_packet));
+		pos += dplen + sizeof(drone_packet);
 
 		unsigned int dcid = kis_ntoh32(dpkt->drone_cmdnum);
 
@@ -654,8 +655,6 @@ int DroneClientFrame::ParseData() {
 
 			globalreg->packetchain->ProcessPacket(newpack);
 		}
-
-		pos += dplen + sizeof(drone_packet);
 	}
 	
 	delete[] buf;

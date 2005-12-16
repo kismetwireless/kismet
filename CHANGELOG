@@ -1,4 +1,6 @@
 Dec 15 2005  devel  Added remote drone name to messages passed from it
+                    Fixed drone stream syncing problem which caused sentinel
+                     errors
 Dec 14 2005  devel  Fixed queuing of dumpfiles when dumping is disabled
 Dec 13 2005  devel  Fixed loading of servername in server/drone
                     Restored wrt54prism capture source for OpenWRT

@@ -345,7 +345,7 @@ int KisDroneFramework::ParseData(int in_fd) {
 		return 0;
 	}
 
-	while ((unsigned int) (rlen - pos) >= sizeof(drone_packet)) {
+	while ((rlen - pos) >= (int) sizeof(drone_packet)) {
 		drone_packet *dpkt = (drone_packet *) &(buf[pos]);
 
 		if (kis_ntoh32(dpkt->sentinel) != DroneSentinel) {
@@ -359,7 +359,7 @@ int KisDroneFramework::ParseData(int in_fd) {
 		unsigned int dplen = kis_ntoh32(dpkt->data_len);
 
 		// Check for an incomplete packet in the buffer
-		if (rlen < (int) (dplen + sizeof(drone_packet))) {
+		if (rlen - (int) pos < (int) (dplen + sizeof(drone_packet))) {
 			delete[] buf;
 			return 0;
 		}
