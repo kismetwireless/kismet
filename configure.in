@@ -283,13 +283,13 @@ AC_LINK_IFELSE([AC_LANG_PROGRAM([[
 		]])],[needlibm=no],[needlibm=yes])
 CFLAGS="$OCFL"
 if test $needlibm = "yes"; then
-	AC_MSG_RESULT([yes])
+	AC_MSG_RESULT([no])
 # Do we need to use -lm?
 	AC_CHECK_LIB([m], [pow], 
 				 LIBS="$LIBS -lm",
 				 AC_MSG_ERROR([libm is needed and is not available]))
 else
-	AC_MSG_RESULT([no])
+	AC_MSG_RESULT([yes])
 fi
 
 # Do we use libstdc++?
