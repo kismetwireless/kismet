@@ -321,12 +321,12 @@ public:
         }
 
         // equal
-        inline bool operator==(const iterator& op) const {
+        inline bool operator==(const iterator& op) {
             return (singleton_itr == op.singleton_itr) && (vector_itr == op.vector_itr);
         }
 
         // not
-        inline bool operator!=(const iterator& op) const {
+        inline bool operator!=(const iterator& op) {
             return (singleton_itr != op.singleton_itr) || (vector_itr != op.vector_itr);
         }
 
