@@ -269,6 +269,29 @@ AC_CHECK_LIB([dl], [dlopen],
 			 LIBS="$LIBS -ldl",
 			 AC_MSG_WARN([libdl doesn't seem to be needed on this system]))
 
+# Do we need libm for math functions?
+AC_MSG_CHECKING([for libm math function in std libs])
+OCFL="$CFLAGS"
+CFLAGS="-Werror $CFLAGS"
+AC_LINK_IFELSE([AC_LANG_PROGRAM([[
+		#include <stdio.h>
+		#include <math.h>
+		]], [[
+		double x;
+		pow(x, y);
+		return 0;
+		]])],[needlibm=no],[needlibm=yes])
+CFLAGS="$OCFL"
+if test $needlibm = "yes"; then
+	AC_MSG_RESULT([yes])
+else
+	AC_MSG_RESULT([no])
+# Do we need to use -lm?
+	AC_CHECK_LIB([m], [pow], 
+				 LIBS="$LIBS -lm",
+				 AC_MSG_ERROR([libm is needed and is not available]))
+fi
+
 # Do we use libstdc++?
 AC_CHECK_LIB([uClibc++], [main], 
 			 foundcxxl="uclibc" LIBS="$LIBS -luClibc++",

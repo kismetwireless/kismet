@@ -1,5 +1,6 @@
 Dec 16 2005  devel  Fixed vector resize with uclibc++
                     Added uclibc++ autodetect in autoconf
+                    Added libm autodetect in autoconf
 Dec 15 2005  devel  Added remote drone name to messages passed from it
                     Fixed drone stream syncing problem which caused sentinel
                      errors
