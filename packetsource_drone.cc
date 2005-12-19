@@ -726,6 +726,27 @@ int DroneClientFrame::SendChannelset(uuid in_uuid, unsigned int in_cmd,
 	return ret;
 }
 
+PacketSource_Drone::PacketSource_Drone(GlobalRegistry *in_globalreg, 
+											 string in_type, 
+											 string in_name, string in_dev) :
+	KisPacketSource(in_globalreg, in_type, in_name, in_dev) { 
+	droneframe = NULL;
+	reconnect = 0;
+
+	// Look for the reconnect parm
+	for (unsigned int x = 0; x < optargs.size(); x++) {
+		if (optargs[x] == "reconnect") {
+			reconnect = 1;
+			_MSG("Enabling drone automatic reconnection every 5 seconds on "
+				 "source '" + in_name + "'", MSGFLAG_INFO);
+		} else if (optargs[x] == "noreconnect") {
+			_MSG("Forced disabling of drone automatic reconnection on "
+				 "source '" + in_name + "'", MSGFLAG_INFO);
+			reconnect = 0;
+		}
+	}
+}
+
 int PacketSource_Drone::RegisterSources(Packetsourcetracker *tracker) {
 	// Register the pcapfile source based off ourselves, nonroot, nonchildcontrol
 	tracker->RegisterPacketsource("drone", this, 0, "n/a", 0);
@@ -742,15 +763,6 @@ PacketSource_Drone::~PacketSource_Drone() {
 int PacketSource_Drone::OpenSource() {
 	if (droneframe == NULL)
 		droneframe = new DroneClientFrame(globalreg);
-
-	// Look for the reconnect parm
-	for (unsigned int x = 0; x < optargs.size(); x++) {
-		if (optargs[x] == "reconnect") {
-			reconnect = 1;
-		} else if (optargs[x] == "noreconnect") {
-			reconnect = 0;
-		}
-	}
 
 	droneframe->SetPacketsource((void *) this);
 

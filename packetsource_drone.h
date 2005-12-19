@@ -116,10 +116,7 @@ public:
 
 	// Standard interface for capturesource
 	PacketSource_Drone(GlobalRegistry *in_globalreg, string in_type, 
-					   string in_name, string in_dev) :
-		KisPacketSource(in_globalreg, in_type, in_name, in_dev) { 
-			droneframe = NULL;
-		}
+					   string in_name, string in_dev);
 	virtual ~PacketSource_Drone();
 
 	virtual int OpenSource();
