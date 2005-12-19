@@ -364,7 +364,9 @@ void Packetsourcetracker::Usage(char *name) {
 		   "                              line that is not present in the config\n"
 		   "                              file (type,interface,name[,channel])\n"
 		   " -C, --enable-capture-sources Enable named capture sources from the\n"
-		   "                              config file (comma-separated list)\n");
+		   "                              config file (comma-separated list)\n"
+		   "     --source-options         Set per-source options (name:options)\n");
+	// (bad hack, source-options is handled in packetsource actually)
 }
 
 Packetsourcetracker::Packetsourcetracker(GlobalRegistry *in_globalreg) {

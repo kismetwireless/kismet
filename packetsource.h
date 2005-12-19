@@ -33,6 +33,7 @@
 #include "gpsdclient.h"
 #include "configfile.h"
 #include "packetchain.h"
+#include "getopt.h"
 
 // Packet capture source superclass
 // This defines the methods used to go in and out of monitor mode, channel 
@@ -166,10 +167,31 @@ public:
 
 		num_packets = 0;
 
+		const int soc = globalreg->getopt_long_num++;
+		static struct option kissource_long_options[] = {
+			{ "source-options", required_argument, 0, soc },
+			{ 0, 0, 0, 0 }
+		};
+		int option_idx = 0;
+
 		// It seems like a bad idea to put this much into a function in a 
 		// header file, but it would have to change anyhow to update the
 		// struct
+		// Grab the raw options from the config file
 		vector<string> rawopts = globalreg->kismet_config->FetchOptVec("sourceopts");
+		// Grab the command line options
+		optind = 0;
+		while (1) {
+			int r = getopt_long(globalreg->argc, globalreg->argv,
+								"-", kissource_long_options,
+								&option_idx);
+			if (r < 0) break;
+			if (r == soc) {
+				rawopts.push_back(string(optarg));
+				break;
+			}
+		}
+
 		for (unsigned int x = 0; x < rawopts.size(); x++) {
 			vector<string> subopts = StrTokenize(rawopts[x], ":");
 			if (subopts.size() != 2)
