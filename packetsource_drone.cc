@@ -731,19 +731,27 @@ PacketSource_Drone::PacketSource_Drone(GlobalRegistry *in_globalreg,
 											 string in_name, string in_dev) :
 	KisPacketSource(in_globalreg, in_type, in_name, in_dev) { 
 	droneframe = NULL;
-	reconnect = 0;
+	reconnect = 1;
 
 	// Look for the reconnect parm
 	for (unsigned int x = 0; x < optargs.size(); x++) {
 		if (optargs[x] == "reconnect") {
 			reconnect = 1;
-			_MSG("Enabling drone automatic reconnection every 5 seconds on "
+			_MSG("Forcing drone automatic reconnection every 5 seconds on "
 				 "source '" + in_name + "'", MSGFLAG_INFO);
 		} else if (optargs[x] == "noreconnect") {
 			_MSG("Forced disabling of drone automatic reconnection on "
 				 "source '" + in_name + "'", MSGFLAG_INFO);
 			reconnect = 0;
 		}
+	}
+
+	if (reconnect) {
+		_MSG("Drone source '" + in_name + "' will automatically reconnect if "
+			 "the connection is lost.", MSGFLAG_INFO);
+	} else {
+		_MSG("Drone source '" + in_name + "' will not automatically reconnect "
+			 "if the connection is lost.", MSGFLAG_INFO);
 	}
 }
 
