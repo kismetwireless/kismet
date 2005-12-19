@@ -473,6 +473,8 @@ KisNetFramework::KisNetFramework(GlobalRegistry *in_globalreg) {
 	string listenline;
 	next_netprotoref = 0;
 
+	valid = 0;
+
     // Sanity check for timetracker
     if (globalreg->timetracker == NULL) {
 		fprintf(stderr, "FATAL OOPS: KisNetFramework called without timetracker\n");
@@ -622,6 +624,8 @@ KisNetFramework::KisNetFramework(GlobalRegistry *in_globalreg) {
     // Register timer events
     globalreg->timetracker->RegisterTimer(SERVER_TIMESLICES_SEC, NULL, 1, 
                                           &KisNetFrame_TimeEvent, NULL);
+
+	valid = 1;
 }
 
 int KisNetFramework::Activate() {

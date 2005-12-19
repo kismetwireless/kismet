@@ -486,7 +486,8 @@ int main(int argc, char *argv[], char *envp[]) {
 
 	// Create the basic drone server
 	globalregistry->kisdroneserver = new KisDroneFramework(globalregistry);
-	if (globalregistry->fatal_condition)
+	if (globalregistry->fatal_condition || 
+		globalregistry->kisdroneserver->Valid() == 0)
 		CatchShutdown(-1);
 
 	// Add the packet sources

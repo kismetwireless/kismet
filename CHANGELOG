@@ -1,3 +1,4 @@
+Dec 18 2005  devel  Fixed drone starting if drone server doesn't start
 Dec 16 2005  devel  Fixed vector resize with uclibc++
                     Added uclibc++ autodetect in autoconf
                     Added libm autodetect in autoconf

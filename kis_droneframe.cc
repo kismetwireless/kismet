@@ -78,6 +78,8 @@ KisDroneFramework::KisDroneFramework(GlobalRegistry *in_globalreg) {
 	TcpServer *tcpsrv;
 	string listenline;
 
+	valid = 0;
+
     // Sanity check for timetracker
     if (globalreg->timetracker == NULL) {
 		fprintf(stderr, "FATAL OOPS: KisDroneFramework called without timetracker\n");
@@ -203,6 +205,8 @@ KisDroneFramework::KisDroneFramework(GlobalRegistry *in_globalreg) {
 	RegisterDroneCmd(DRONE_CMDNUM_CAPPACKET, NULL, this);
 	RegisterDroneCmd(DRONE_CMDNUM_CHANNELSET, dronecmd_channelset_hook, this);
 	RegisterDroneCmd(DRONE_CMDNUM_SOURCE, NULL, this);
+
+	valid = 1;
 }
 
 KisDroneFramework::~KisDroneFramework() {

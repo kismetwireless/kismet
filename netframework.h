@@ -200,6 +200,8 @@ public:
 		return 0;
 	}
 
+	// Is this setup valid?
+	virtual int Valid() { return valid; }
     // Handle new connections
     virtual int Accept(int in_fd) = 0;
 
@@ -218,6 +220,7 @@ public:
     
 protected:
     char errstr[STATUS_MAX];
+	int valid;
 
     GlobalRegistry *globalreg;
     NetworkServer *netserver;
