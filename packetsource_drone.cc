@@ -81,6 +81,8 @@ DroneClientFrame::~DroneClientFrame() {
 	if (timerid >= 0 && globalreg != NULL) {
 		globalreg->timetracker->RemoveTimer(timerid);
 	}
+
+	globalreg->RemovePollableSubsys(this);
 }
 
 void DroneClientFrame::SetPacketsource(void *in_src) {
@@ -206,6 +208,9 @@ int DroneClientFrame::Shutdown() {
 }
 
 int DroneClientFrame::Poll(fd_set &in_rset, fd_set& in_wset) {
+	if (netclient == NULL)
+		return 0;
+
 	int ret = netclient->Poll(in_rset, in_wset);
 
 	if (ret < 0) {

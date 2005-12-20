@@ -139,6 +139,20 @@ int Clicmd_CHANSEQ_hook(CLIENT_PARMS) {
 													  parsedcmdline, auxptr);
 }
 
+int Clicmd_ADDSOURCE_hook(CLIENT_PARMS) {
+	return 
+		((Packetsourcetracker *) auxptr)->cmd_addsource(in_clid, framework,
+														globalreg, errstr, cmdline,
+														parsedcmdline, auxptr);
+}
+
+int Clicmd_DELSOURCE_hook(CLIENT_PARMS) {
+	return 
+		((Packetsourcetracker *) auxptr)->cmd_delsource(in_clid, framework,
+														globalreg, errstr, cmdline,
+														parsedcmdline, auxptr);
+}
+
 int Packetsourcetracker::cmd_chanlock(CLIENT_PARMS) {
     if (parsedcmdline->size() != 2) {
         snprintf(errstr, 1024, "Illegal chanlock request");
@@ -312,6 +326,50 @@ int Packetsourcetracker::cmd_chanseq(CLIENT_PARMS) {
     return 1;
 }
 
+int Packetsourcetracker::cmd_addsource(CLIENT_PARMS) {
+    if (parsedcmdline->size() != 1) {
+        snprintf(errstr, 1024, "Illegal addsource request");
+        return -1;
+    }
+
+	if (CreateRuntimeSource((*parsedcmdline)[0].word) < 0) {
+		snprintf(errstr, 1024, "Failed to create source");
+		return -1;
+	}
+
+	snprintf(errstr, 1024, "Created runtime source '%s'",
+			 (*parsedcmdline)[0].word.c_str());
+    
+    return 1;
+}
+
+int Packetsourcetracker::cmd_delsource(CLIENT_PARMS) {
+    if (parsedcmdline->size() != 1) {
+        snprintf(errstr, 1024, "Illegal delsource request");
+        return -1;
+    }
+
+	uuid srcuuid = uuid((*parsedcmdline)[0].word);
+	if (srcuuid.error) {
+		snprintf(errstr, 1024, "Illegal delsource request, invalid UUID");
+		return -1;
+	}
+
+	KisPacketSource *src = FindUUID(srcuuid);
+
+	if (src == NULL) {
+		snprintf(errstr, 1024, "Illegal delsource request, unknown uuid");
+		return -1;
+	}
+
+    snprintf(errstr, 1024, "Removing source UUID %s", srcuuid.UUID2String().c_str());
+    _MSG(errstr, MSGFLAG_INFO);
+
+	RemoveLiveKisPacketsource(src);
+    
+    return 1;
+}
+
 int Event_CARD(TIMEEVENT_PARMS) {
 	// Just send everything
 	globalreg->sourcetracker->BlitCards(-1);
@@ -425,6 +483,14 @@ Packetsourcetracker::Packetsourcetracker(GlobalRegistry *in_globalreg) {
 		globalreg->kisnetserver->RegisterClientCommand("CHANSEQ", 
 													   &Clicmd_CHANSEQ_hook, 
 													   (void *) this);
+	cmdid_addsource =
+		globalreg->kisnetserver->RegisterClientCommand("ADDSOURCE", 
+													   &Clicmd_ADDSOURCE_hook, 
+													   (void *) this);
+	cmdid_delsource =
+		globalreg->kisnetserver->RegisterClientCommand("DELSOURCE", 
+													   &Clicmd_DELSOURCE_hook, 
+													   (void *) this);
 
 	// Register our packet components 
 	// back-refer to the capsource so we can get names and parameters
@@ -462,6 +528,111 @@ Packetsourcetracker::~Packetsourcetracker() {
 // Add a packet source type (just call the registersources with ourself)
 int Packetsourcetracker::AddKisPacketsource(KisPacketSource *in_source) {
 	return in_source->RegisterSources(this);
+}
+
+int Packetsourcetracker::CreateRuntimeSource(string in_srcdef) {
+	vector<string> srccomp = StrTokenize(in_srcdef, ",");
+
+	if (srccomp.size() < 3) {
+		_MSG("Illegal runtime source '" + in_srcdef + "'", MSGFLAG_ERROR);
+		return -1;
+	}
+	
+	int initch = 0;
+
+	if (srccomp.size() == 4) {
+		if (sscanf(srccomp[3].c_str(), "%d", &initch) != 1) {
+			_MSG("Illegal initial channel on runtime source '" + in_srcdef + "'",
+				 MSGFLAG_ERROR);
+			return -1;
+		}
+	}
+
+	// We don't do auto cards
+	if (StrLower(srccomp[0]) == "auto") {
+		_MSG("Runtime addition of 'auto' source types not possible, cannot add "
+			 "'" + in_srcdef + "'", MSGFLAG_ERROR);
+		return -1;
+	}
+
+	packsource_protorec *curproto = NULL;
+	if (cardtype_map.find(StrLower(srccomp[0])) == cardtype_map.end()) {
+		_MSG("Unknown capture source type '" + srccomp[0] + "' in runtime source '" +
+			 in_srcdef, MSGFLAG_ERROR);
+		return -1;
+	}
+
+	curproto = cardtype_map[StrLower(srccomp[0])];
+
+#ifdef HAVE_SUID
+	if (curproto->root_required) {
+		_MSG("Unable to add sources which require root privileges at runtime, "
+			 "cannot add '" + in_srcdef + "'", MSGFLAG_ERROR);
+		return -1;
+	}
+#endif
+
+	KisPacketSource *strong = 
+		curproto->weak_source->CreateSource(globalreg, srccomp[0], 
+											srccomp[2], srccomp[1]);
+
+	ostringstream osstr;
+	
+	osstr << "Source (" << srccomp[2] << "): Enabling monitor mode for " << 
+		srccomp[0] << " source interface " << srccomp[1] << " channel " <<
+		initch;
+	_MSG(osstr.str(), MSGFLAG_INFO);
+
+	osstr.str("");
+
+	if (strong->FetchLocalChannelHop()) {
+		vector<unsigned int> ch;
+		if (defaultch_map.find(curproto->default_channelset) != defaultch_map.end()) {
+			ch = defaultch_map[curproto->default_channelset];
+		}
+
+		if (strong->SetChannelSequence(ch) < 0) {
+			_MSG("Source (" + srccomp[2] + "): Failed to set channel list",
+				 MSGFLAG_ERROR);
+			delete strong;
+			return -1;
+		}
+
+		if (strong->SetChannelSeqPos(0) < 0) {
+			_MSG("Source (" + srccomp[2] + "): Failed to set starting position in "
+				 "channel list", MSGFLAG_ERROR);
+			delete strong;
+			return -1;
+		}
+	}
+
+	// We don't turn on hopping, they can issue a second command if they want it.
+	
+	if (strong->EnableMonitor() < 0) {
+		delete strong;
+		return -1;
+	}
+
+	// Open it
+	osstr << "Source (" << srccomp[2] << "): Opening " << srccomp[0] << " source "
+		"interface " << srccomp[1] << "...";
+	_MSG(osstr.str(), MSGFLAG_INFO);
+	osstr.str("");
+
+	if (strong->OpenSource() < 0) {
+		strong->DisableMonitor();
+		delete strong;
+		return -1;
+	}
+
+	osstr << "Source (" << srccomp[2] << "): Opened " << srccomp[0] << " source "
+		"UUID: " << strong->FetchUUID().UUID2String();
+	_MSG(osstr.str(), MSGFLAG_INFO);
+	osstr.str("");
+
+	RegisterLiveKisPacketsource(strong);
+
+	return 1;
 }
 
 // Add a live packet source into our internal tracking system

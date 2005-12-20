@@ -119,6 +119,10 @@ public:
 	// etc.
 	int AddKisPacketsource(KisPacketSource *in_source);
 
+	// Add a runtime source (much simpler than the initial parse and split
+	// configurations)
+	int CreateRuntimeSource(string in_srcdef);
+
 	// Add a live precreated packetsource to the system.  This takes a strong
 	// packet source.
 	int RegisterLiveKisPacketsource(KisPacketSource *in_livesource);
@@ -192,12 +196,19 @@ protected:
 	int cmd_pause(CLIENT_PARMS);
 	int cmd_resume(CLIENT_PARMS);
 	int cmd_chanseq(CLIENT_PARMS);
+	int cmd_addsource(CLIENT_PARMS);
+	int cmd_delsource(CLIENT_PARMS);
 
 	friend int Clicmd_CHANHOP_hook(CLIENT_PARMS);
 	friend int Clicmd_CHANLOCK_hook(CLIENT_PARMS);
 	friend int Clicmd_RESUME_hook(CLIENT_PARMS);
 	friend int Clicmd_PAUSE_hook(CLIENT_PARMS);
 	friend int Clicmd_CHANSEQ_hook(CLIENT_PARMS);
+	friend int Clicmd_ADDSOURCE_hook(CLIENT_PARMS);
+	friend int Clicmd_DELSOURCE_hook(CLIENT_PARMS);
+
+	int cmdid_chanlock, cmdid_chanhop, cmdid_pause, cmdid_resume, cmdid_chanseq,
+		cmdid_addsource, cmdid_delsource;
 	
     // IPC data frame to set a channel
     typedef struct {
@@ -219,8 +230,6 @@ protected:
 	int hop_eventid;
 	int card_eventid;
     
-	int cmdid_chanlock, cmdid_chanhop, cmdid_pause, cmdid_resume, cmdid_chanseq;
-
 	// Callbacks for adding a source
 	vector<Packetsourcetracker::sourceactcb_rec *> cb_vec;
 
