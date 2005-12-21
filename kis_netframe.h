@@ -57,7 +57,7 @@ protected:
 		if (in_f < numfields)
 			return 0;
 
-		field_cache.resize(in_f + 1, 0);
+		field_cache.resize(in_f + 1, string(""));
 		field_filled.resize(in_f + 1, 0);
 
 		/*
