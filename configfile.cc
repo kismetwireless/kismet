@@ -291,3 +291,24 @@ string ConfigFile::ExpandLogPath(string path, string logname, string type,
     return logtemplate;
 }
 
+uint32_t ConfigFile::FetchFileChecksum() {
+	if (checksum == 0)
+		CalculateChecksum();
+
+	return checksum;
+}
+
+void ConfigFile::CalculateChecksum() {
+	string cks;
+
+	for (map<string, vector<string> >::iterator x = config_map.begin();
+		 x != config_map.end(); ++x) {
+		cks += x->first;
+		for (unsigned int y = 0; y < x->second.size(); y++) {
+			cks += x->second[y];
+		}
+	}
+
+	checksum = Adler32Checksum(cks.c_str(), cks.length());
+}
+

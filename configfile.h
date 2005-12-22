@@ -37,14 +37,23 @@
 
 class ConfigFile {
 public:
+	ConfigFile() { checksum = 0; }
     int ParseConfig(const char *in_fname);
     string FetchOpt(string in_key);
     vector<string> FetchOptVec(string in_key);
 
     static string ExpandLogPath(string path, string logname, string type, 
 								int start, int overwrite = 0);
+
+	// Fetches the load-time checksum of the config values.
+	uint32_t FetchFileChecksum();
+
 protected:
+	void CalculateChecksum();
+
     map<string, vector<string> > config_map;
+	uint32_t checksum;
+	string ckstring;
 };
 
 #endif
