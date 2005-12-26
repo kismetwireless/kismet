@@ -56,5 +56,43 @@ protected:
 	string ckstring;
 };
 
+// Config file with grouping.  Only used at the moment for runtime log file
+// parsing.  Doesn't currently support the 'include = ' statement, either
+class GroupConfigFile {
+public:
+	class ConfEntity {
+	public:
+		ConfEntity() {
+			type = 0;
+		}
+		string name;
+		string value;
+		// 0 = unassigned
+		// 1 = subgroup
+		// 2 = item
+		int type;
+	};
+
+	GroupConfigFile() { 
+		checksum = 0; 
+		root = NULL;
+	}
+	int ParseConfig(const char *in_fname);
+
+	// Return the vector of entities in this group, or the top groups if NULL
+	vector<ConfEntity *> FetchEntityGroup(ConfEntity *in_parent);
+
+	uint32_t FetchFileChecksum();
+
+protected:
+	void CalculateChecksum();
+
+	map<ConfEntity *, vector<ConfEntity *> > parsed_group_map;
+
+	uint32_t checksum;
+
+	ConfEntity *root;
+};
+
 #endif
 

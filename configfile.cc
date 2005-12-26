@@ -61,7 +61,8 @@ int ConfigFile::ParseConfig(const char *in_fname) {
             value = StrStrip(parsestr.substr(eq+1, parsestr.length()));
 
             if (value == "") {
-                fprintf(stderr, "ERROR: Illegal config option: %s\n", parsestr.c_str());
+                fprintf(stderr, "ERROR: Illegal config option: %s\n", 
+						parsestr.c_str());
                 continue;
             }
 
@@ -306,6 +307,137 @@ void ConfigFile::CalculateChecksum() {
 		cks += x->first;
 		for (unsigned int y = 0; y < x->second.size(); y++) {
 			cks += x->second[y];
+		}
+	}
+
+	checksum = Adler32Checksum(cks.c_str(), cks.length());
+}
+
+int GroupConfigFile::ParseConfig(const char *in_fname) {
+	FILE *configf;
+	char confline[8192];
+
+	if ((configf = fopen(in_fname, "r")) == NULL) {
+		fprintf(stderr, "ERROR:  Reading config file '%s': %s\n", in_fname,
+				strerror(errno));
+		return -1;
+	}
+
+	root = new ConfEntity;
+	root->type = 1;
+	root->name = ":root:";
+
+	vector<ConfEntity *> group_stack;
+	group_stack.push_back(root);
+
+	vector<ConfEntity *> primervec;
+
+	parsed_group_map[root] = primervec;
+
+	ConfEntity *sub = root;
+
+	while (!feof(configf)) {
+		fgets(confline, 8192, configf);
+
+		if (feof(configf)) break;
+
+		string parsestr = StrStrip(confline);
+		string directive, value;
+
+		if (parsestr.length() == 0)
+			continue;
+		if (parsestr[0] == '#')
+			continue;
+
+		size_t eq;
+		if ((eq = parsestr.find("=")) == string::npos) {
+			// Look for a "foo {".  { must be the end
+			if (parsestr[parsestr.length() - 1] == '{') {
+				directive = StrStrip(parsestr.substr(0, parsestr.length() - 1));
+
+				ConfEntity *newent = new ConfEntity;
+				parsed_group_map[sub].push_back(newent);
+
+				sub = newent;
+				sub->type = 1;
+				sub->name = directive;
+				parsed_group_map[sub] = primervec;
+				group_stack.push_back(sub);
+
+				continue;
+			}
+
+			// Look for an ending }.  Must be the first character, everything after
+			// it is ignored
+			if (parsestr[0] == '}') {
+				if (sub == root) {
+					fprintf(stderr, "ERROR:  Unexpected closing '}'\n");
+					return -1;
+				}
+
+				group_stack.pop_back();
+				sub = group_stack.back();
+
+				continue;
+			}
+		} else {
+			// Process a directive
+			directive = StrStrip(parsestr.substr(0, eq));
+			value = StrStrip(parsestr.substr(eq + 1, parsestr.length()));
+
+			if (value == "") {
+				fprintf(stderr, "ERROR:  Illegal config option: '%s'\n",
+						parsestr.c_str());
+				continue;
+			}
+
+			if (directive == "include") {
+				fprintf(stderr, "ERROR:  Can't include sub-files right now\n");
+				return -1;
+			}
+
+			ConfEntity *ent = new ConfEntity;
+			ent->type = 2;
+			ent->name = directive;
+			ent->value = value;
+
+			parsed_group_map[sub].push_back(ent);
+		}
+	}
+
+	return 1;
+}
+
+vector<GroupConfigFile::ConfEntity *> GroupConfigFile::FetchEntityGroup(ConfEntity *in_parent) {
+	map<ConfEntity *, vector<ConfEntity *> >::iterator itr;
+	if (in_parent == NULL)
+		itr = parsed_group_map.find(root);
+	else
+		itr = parsed_group_map.find(in_parent);
+
+	if (itr == parsed_group_map.end()) {
+		vector<ConfEntity *> ret;
+		return ret;
+	}
+
+	return itr->second;
+}
+
+uint32_t GroupConfigFile::FetchFileChecksum() {
+	if (checksum == 0)
+		CalculateChecksum();
+
+	return checksum;
+}
+
+void GroupConfigFile::CalculateChecksum() {
+	string cks;
+
+	map<ConfEntity *, vector<ConfEntity *> >::iterator x;
+	for (x = parsed_group_map.begin(); x != parsed_group_map.end(); ++x) {
+		for (unsigned int y = 0; y < x->second.size(); y++) {
+			cks += x->second[y]->name;
+			cks += x->second[y]->value;
 		}
 	}
 
