@@ -41,6 +41,9 @@ public:
 	// Fetch the number of items logged
 	int FetchNumDumped() { return dumped_frames; }
 
+	// Fetch the name of the file being dumped to
+	string FetchFileName() { return fname; }
+
 	// Cleanly flush the file to disk
 	virtual int Flush() = 0;
 
