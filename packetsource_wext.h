@@ -59,6 +59,7 @@ public:
 	// acx100
 	// admtek
 	// atmel_usb
+	// bcm43xx
 	// hostap
 	// ipw2100 [auto]
 	// ipw2200 [auto]
