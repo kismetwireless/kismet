@@ -27,6 +27,7 @@ Dumpfile::Dumpfile() {
 
 Dumpfile::Dumpfile(GlobalRegistry *in_globalreg) {
 	globalreg = in_globalreg;
+	resume = 0;
 
 	if (globalreg->packetchain == NULL) {
 		fprintf(stderr, "FATAL OOPS:  Dumpfile() called before packetchain built\n");
@@ -134,5 +135,23 @@ string Dumpfile::ProcessConfigOpt(string in_type) {
 	retfname = ConfigFile::ExpandLogPath(logtemplate, logname, in_type, 0, 0);
 
 	return retfname;
+}
+
+int Dumpfile::ProcessRuntimeResume(string in_type) {
+	// No runstate?  Bail w/ -1 so we know to ignore the results
+	if (globalreg->runstate_config == NULL)
+		return -1;
+
+	// Fetch all the root entities of the runstate file, we want any that are
+	// of the type 'dumpfile', and then we'll do a compare
+	vector<GroupConfigFile::GroupEntity *> rent;
+	rent = globalreg->runstate_config->FetchEntityGroup(NULL);
+
+	for (unsigned int x = 0; x < rent.size(); x++) {
+		if (rent[x]->name != "dumpfile")
+			continue;
+	}
+
+	return 0;
 }
 

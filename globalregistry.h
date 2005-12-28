@@ -36,6 +36,7 @@ class Timetracker;
 class KisNetFramework;
 class KisDroneFramework;
 class ConfigFile;
+class GroupConfigFile;
 class SpeechControl;
 class SoundControl;
 class Plugintracker;
@@ -137,6 +138,7 @@ public:
     KisNetFramework *kisnetserver;
     KisDroneFramework *kisdroneserver;
     ConfigFile *kismet_config;
+	GroupConfigFile *runstate_config;
     ConfigFile *kismetui_config;
     SpeechControl *speechctl;
     SoundControl *soundctl;
@@ -221,6 +223,7 @@ public:
         kisnetserver = NULL;
         kisdroneserver = NULL;
         kismet_config = NULL;
+		runstate_config = NULL;
         kismetui_config = NULL;
         speechctl = NULL;
         soundctl = NULL;

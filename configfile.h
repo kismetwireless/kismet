@@ -60,17 +60,10 @@ protected:
 // parsing.  Doesn't currently support the 'include = ' statement, either
 class GroupConfigFile {
 public:
-	class ConfEntity {
+	class GroupEntity {
 	public:
-		ConfEntity() {
-			type = 0;
-		}
 		string name;
-		string value;
-		// 0 = unassigned
-		// 1 = subgroup
-		// 2 = item
-		int type;
+		map<string, vector<string> > value_map;
 	};
 
 	GroupConfigFile() { 
@@ -80,18 +73,21 @@ public:
 	int ParseConfig(const char *in_fname);
 
 	// Return the vector of entities in this group, or the top groups if NULL
-	vector<ConfEntity *> FetchEntityGroup(ConfEntity *in_parent);
+	vector<GroupEntity *> FetchEntityGroup(GroupEntity *in_parent);
+
+    string FetchOpt(string in_key, GroupEntity *in_parent);
+    vector<string> FetchOptVec(string in_key, GroupEntity *in_parent);
 
 	uint32_t FetchFileChecksum();
 
 protected:
 	void CalculateChecksum();
 
-	map<ConfEntity *, vector<ConfEntity *> > parsed_group_map;
+	map<GroupEntity *, vector<GroupEntity *> > parsed_group_map;
 
 	uint32_t checksum;
 
-	ConfEntity *root;
+	GroupEntity *root;
 };
 
 #endif

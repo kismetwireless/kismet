@@ -318,23 +318,22 @@ int GroupConfigFile::ParseConfig(const char *in_fname) {
 	char confline[8192];
 
 	if ((configf = fopen(in_fname, "r")) == NULL) {
-		fprintf(stderr, "ERROR:  Reading config file '%s': %s\n", in_fname,
+		fprintf(stderr, "ERROR:  Reading grouped config file '%s': %s\n", in_fname,
 				strerror(errno));
 		return -1;
 	}
 
-	root = new ConfEntity;
-	root->type = 1;
+	root = new GroupEntity;
 	root->name = ":root:";
 
-	vector<ConfEntity *> group_stack;
+	vector<GroupEntity *> group_stack;
 	group_stack.push_back(root);
 
-	vector<ConfEntity *> primervec;
+	vector<GroupEntity *> primervec;
 
 	parsed_group_map[root] = primervec;
 
-	ConfEntity *sub = root;
+	GroupEntity *sub = root;
 
 	while (!feof(configf)) {
 		fgets(confline, 8192, configf);
@@ -355,11 +354,10 @@ int GroupConfigFile::ParseConfig(const char *in_fname) {
 			if (parsestr[parsestr.length() - 1] == '{') {
 				directive = StrStrip(parsestr.substr(0, parsestr.length() - 1));
 
-				ConfEntity *newent = new ConfEntity;
+				GroupEntity *newent = new GroupEntity;
 				parsed_group_map[sub].push_back(newent);
 
 				sub = newent;
-				sub->type = 1;
 				sub->name = directive;
 				parsed_group_map[sub] = primervec;
 				group_stack.push_back(sub);
@@ -396,27 +394,57 @@ int GroupConfigFile::ParseConfig(const char *in_fname) {
 				return -1;
 			}
 
-			ConfEntity *ent = new ConfEntity;
-			ent->type = 2;
-			ent->name = directive;
-			ent->value = value;
-
-			parsed_group_map[sub].push_back(ent);
+			sub->value_map[StrLower(directive)].push_back(value);
 		}
 	}
 
 	return 1;
 }
 
-vector<GroupConfigFile::ConfEntity *> GroupConfigFile::FetchEntityGroup(ConfEntity *in_parent) {
-	map<ConfEntity *, vector<ConfEntity *> >::iterator itr;
+string GroupConfigFile::FetchOpt(string in_key, GroupEntity *in_parent) {
+	if (in_parent == NULL)
+		in_parent = root;
+
+    map<string, vector<string> >::iterator cmitr = 
+		in_parent->value_map.find(StrLower(in_key));
+    // No such key
+    if (cmitr == in_parent->value_map.end())
+        return "";
+
+    // Get a single key if we can
+    if (cmitr->second.size() == 0)
+        return "";
+
+    string val = cmitr->second[0];
+
+    return val;
+}
+
+vector<string> GroupConfigFile::FetchOptVec(string in_key, GroupEntity *in_parent) {
+    // Empty vec to return
+    vector<string> eretvec;
+
+	if (in_parent == NULL)
+		in_parent = root;
+
+    map<string, vector<string> >::iterator cmitr = 
+		in_parent->value_map.find(StrLower(in_key));
+    // No such key
+    if (cmitr == in_parent->value_map.end())
+        return eretvec;
+
+    return cmitr->second;
+}
+
+vector<GroupConfigFile::GroupEntity *> GroupConfigFile::FetchEntityGroup(GroupEntity *in_parent) {
+	map<GroupEntity *, vector<GroupEntity *> >::iterator itr;
 	if (in_parent == NULL)
 		itr = parsed_group_map.find(root);
 	else
 		itr = parsed_group_map.find(in_parent);
 
 	if (itr == parsed_group_map.end()) {
-		vector<ConfEntity *> ret;
+		vector<GroupEntity *> ret;
 		return ret;
 	}
 
@@ -433,14 +461,22 @@ uint32_t GroupConfigFile::FetchFileChecksum() {
 void GroupConfigFile::CalculateChecksum() {
 	string cks;
 
-	map<ConfEntity *, vector<ConfEntity *> >::iterator x;
+	map<GroupEntity *, vector<GroupEntity *> >::iterator x;
 	for (x = parsed_group_map.begin(); x != parsed_group_map.end(); ++x) {
 		for (unsigned int y = 0; y < x->second.size(); y++) {
 			cks += x->second[y]->name;
-			cks += x->second[y]->value;
+			for (map<string, vector<string> >::iterator z = 
+				 x->second[y]->value_map.begin(); z != x->second[y]->value_map.end();
+				 ++z) {
+				cks += z->first;
+				for (unsigned int zz = 0; zz < z->second.size(); zz++) {
+					cks += z->second[zz];
+				}
+			}
 		}
 	}
 
 	checksum = Adler32Checksum(cks.c_str(), cks.length());
 }
+
 
