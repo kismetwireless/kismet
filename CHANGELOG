@@ -1,3 +1,5 @@
+Dec 28 2005  devel  Added runstate dumpfile framework for freezing the Kismet
+                     running state
 Dec 21 2005  devel  Fixed error in netframe caching
 Dec 19 2005  devel  Added dynamic source creation/removal via ADDSOURCE and
                      DELSOURCE commands
