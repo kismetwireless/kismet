@@ -68,8 +68,10 @@ Dumpfile_Runstate::Dumpfile_Runstate(GlobalRegistry *in_globalreg) :
 
 	globalreg->RegisterDumpFile(this);
 
-	_MSG("Opened runstate file '" + fname + "'", MSGFLAG_INFO);
+	// Register our local dumpfile callback
+	RegisterRunstateCb(runstate_dumpfile_cb, this);
 
+	_MSG("Opened runstate file '" + fname + "'", MSGFLAG_INFO);
 }
 
 Dumpfile_Runstate::~Dumpfile_Runstate() {
