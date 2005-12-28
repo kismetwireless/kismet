@@ -38,8 +38,8 @@ Dumpfile_Alert::Dumpfile_Alert(GlobalRegistry *in_globalreg) :
 
 	alertfile = NULL;
 
-	if (globalreg->sourcetracker == NULL) {
-		fprintf(stderr, "FATAL OOPS:  Sourcetracker missing before "
+	if (globalreg->packetchain == NULL) {
+		fprintf(stderr, "FATAL OOPS:  Packetchain missing before "
 				"Dumpfile_Alert\n");
 		exit(1);
 	}
