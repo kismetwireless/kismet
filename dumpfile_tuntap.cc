@@ -42,6 +42,8 @@ Dumpfile_Tuntap::Dumpfile_Tuntap(GlobalRegistry *in_globalreg) :
 
 	tuntap_fd = -1;
 
+	type = "tuntap";
+
 	if (globalreg->sourcetracker == NULL) {
 		fprintf(stderr, "FATAL OOPS:  Sourcetracker missing before "
 				"Dumpfile_Tuntap\n");

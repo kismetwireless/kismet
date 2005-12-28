@@ -38,6 +38,8 @@ Dumpfile_Alert::Dumpfile_Alert(GlobalRegistry *in_globalreg) :
 
 	alertfile = NULL;
 
+	type = "alert";
+
 	if (globalreg->packetchain == NULL) {
 		fprintf(stderr, "FATAL OOPS:  Packetchain missing before "
 				"Dumpfile_Alert\n");

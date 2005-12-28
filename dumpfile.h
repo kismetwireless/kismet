@@ -44,6 +44,9 @@ public:
 	// Fetch the name of the file being dumped to
 	string FetchFileName() { return fname; }
 
+	// Fetch the type of the file being dumped to
+	string FetchFileType() { return type; }
+
 	// Cleanly flush the file to disk
 	virtual int Flush() = 0;
 
@@ -51,6 +54,7 @@ protected:
 	GlobalRegistry *globalreg;
 	FilterCore *export_filter;
 	string fname;
+	string type;
 
 	int dumped_frames;
 

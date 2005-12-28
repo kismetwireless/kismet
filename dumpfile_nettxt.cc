@@ -35,6 +35,8 @@ Dumpfile_Nettxt::Dumpfile_Nettxt(GlobalRegistry *in_globalreg) :
 
 	txtfile = NULL;
 
+	type = "nettxt";
+
 	if (globalreg->netracker == NULL) {
 		fprintf(stderr, "FATAL OOPS:  Netracker missing before Dumpfile_Nettxt\n");
 		exit(1);

@@ -41,6 +41,8 @@ Dumpfile_Pcap::Dumpfile_Pcap(GlobalRegistry *in_globalreg) : Dumpfile(in_globalr
 	dumpfile = NULL;
 	dumper = NULL;
 
+	type = "pcapdump";
+
 	if (globalreg->sourcetracker == NULL) {
 		fprintf(stderr, "FATAL OOPS:  Sourcetracker missing before Dumpfile_Pcap\n");
 		exit(1);

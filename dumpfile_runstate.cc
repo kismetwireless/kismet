@@ -22,6 +22,20 @@
 
 #include "dumpfile_runstate.h"
 
+// No better place than here to handle the dumpfile segment
+void runstate_dumpfile_cb(RUNSTATE_PARMS) {
+	for (unsigned int x = 0; x < globalreg->subsys_dumpfile_vec.size(); x++) {
+		fprintf(runfile, "dumpfile {\n"
+				"    type=%s\n"
+				"    path=%s\n"
+				"    numdumped=%d\n"
+				"}",
+				globalreg->subsys_dumpfile_vec[x]->FetchFileType().c_str(),
+				globalreg->subsys_dumpfile_vec[x]->FetchFileName().c_str(),
+				globalreg->subsys_dumpfile_vec[x]->FetchNumDumped());
+	}
+}
+
 Dumpfile_Runstate::Dumpfile_Runstate() {
 	fprintf(stderr, "FATAL OOPS: Dumpfile_Runstate called with no globalreg\n");
 	exit(1);
@@ -34,6 +48,8 @@ Dumpfile_Runstate::Dumpfile_Runstate(GlobalRegistry *in_globalreg) :
 	globalreg = in_globalreg;
 
 	runfile = NULL;
+
+	type = "runstate";
 
 	// Find the file name
 	if ((fname = ProcessConfigOpt("runstate")) == "" || 

@@ -38,6 +38,8 @@ Dumpfile_String::Dumpfile_String(GlobalRegistry *in_globalreg) :
 
 	stringfile = NULL;
 
+	type = "string";
+
 	if (globalreg->sourcetracker == NULL) {
 		fprintf(stderr, "FATAL OOPS:  Sourcetracker missing before "
 				"Dumpfile_String\n");

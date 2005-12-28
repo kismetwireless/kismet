@@ -43,6 +43,8 @@ Dumpfile_Gpsxml::Dumpfile_Gpsxml(GlobalRegistry *in_globalreg) :
 
 	xmlfile = NULL;
 
+	type = "gpsxml";
+
 	if (globalreg->sourcetracker == NULL) {
 		fprintf(stderr, "FATAL OOPS:  Sourcetracker missing before "
 				"Dumpfile_Gpsxml\n");
