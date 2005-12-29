@@ -1,3 +1,4 @@
+Dec 29 2005  devel  Added runstate loaders to kismet_server (do not use yet)
 Dec 28 2005  devel  Added runstate dumpfile framework for freezing the Kismet
                      running state
                     Tweaked runstate dumpfile parsing

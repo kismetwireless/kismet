@@ -30,6 +30,7 @@
 #include <pwd.h>
 #include <string>
 #include <vector>
+#include <sstream>
 
 #include "util.h"
 
@@ -286,6 +287,70 @@ void CatchShutdown(int sig) {
     exit(0);
 }
 
+int ValidateRunstate(GlobalRegistry *globalreg, GroupConfigFile *runstate) {
+	int ver;
+	ostringstream osstr;
+
+	if (sscanf(runstate->FetchOpt("runstate_version", NULL).c_str(), "%d",
+			   &ver) != 1) {
+		_MSG("Failed to find runstate version in file", MSGFLAG_FATAL);
+		globalreg->fatal_condition = 1;
+		return -1;
+	}
+
+	if (ver != RUNSTATE_VERSION) {
+		osstr << "Current runstate file version (" << RUNSTATE_VERSION << ") does "
+			"not match runstate file version (" << ver << ").  Continuing may not "
+			"be possible.";
+		_MSG(osstr.str(), MSGFLAG_ERROR);
+		sleep(2);
+	}
+
+	unsigned int cksm;
+	if (sscanf(runstate->FetchOpt("config_checksum", NULL).c_str(), "%u",
+			   &cksm) != 1) {
+		_MSG("Failed to find runstate config checksum in file", MSGFLAG_FATAL);
+		globalreg->fatal_condition = 1;
+		return -1;
+	}
+
+	if (cksm != globalreg->kismet_config->FetchFileChecksum()) {
+		_MSG("Current config file checksum does not match the checksum stored "
+			 "in the runstate file.  Some options may have changed, resulting "
+			 "in different log file contents.  Startup will be paused for 5 "
+			 "seconds, abort with control-c if you do not want to attempt to "
+			 "resume", MSGFLAG_ERROR);
+		sleep(5);
+	}
+
+	int lt;
+	if (sscanf(runstate->FetchOpt("launch_time", NULL).c_str(), "%d", &lt) != 1) {
+		_MSG("Failed to find runstate launch time in file", MSGFLAG_FATAL);
+		globalreg->fatal_condition = 1;
+		return -1;
+	}
+
+	if (lt > time(0)) {
+		_MSG("Clock skew detected, launch time of runstate file is in the future. "
+			 "Timestamps in logs may be affected.", MSGFLAG_ERROR);
+	} else {
+		globalreg->start_time = lt;
+	}
+
+	if (sscanf(runstate->FetchOpt("save_time", NULL).c_str(), "%d", &lt) != 1) {
+		_MSG("Failed to find runstate save time in file", MSGFLAG_FATAL);
+		globalreg->fatal_condition = 1;
+		return -1;
+	}
+
+	if (lt > time(0)) {
+		_MSG("Clock skew detected, save time of runstate file is in the future. "
+			 "Timestamps in logs may be affected.", MSGFLAG_ERROR);
+	}
+
+	return 1;
+}
+
 int Usage(char *argv) {
     printf("Usage: %s [OPTION]\n", argv);
 	printf("Nearly all of these options are run-time overrides for values in the\n"
@@ -293,10 +358,12 @@ int Usage(char *argv) {
 		   "the configuration file.\n");
 
 	printf(" *** Generic Options ***\n");
-	printf(" -f, --config-file            Use alternate configuration file\n"
+	printf(" -f, --config-file <file>     Use alternate configuration file\n"
 		   "     --no-line-wrap           Turn of linewrapping of output\n"
 		   "                              (for grep, speed, etc)\n"
 		   " -s, --silent                 Turn off stdout output after setup phase\n"
+		   " -r, --resume <file>          Resume a previous Kismet session from a\n"
+		   "                              runstate dump file\n"
 		   );
 
 	printf("\n");
@@ -383,6 +450,8 @@ int main(int argc, char *argv[], char *envp[]) {
 	char errstr[STATUS_MAX];
 	char *configfilename = NULL;
 	ConfigFile *conf;
+	GroupConfigFile *runstate = NULL;
+	string runstatename;
 #ifdef HAVE_SUID
 	uid_t suid_uid;
 	gid_t suid_gid;
@@ -435,13 +504,14 @@ int main(int argc, char *argv[], char *envp[]) {
 		{ "config-file", required_argument, 0, 'f' },
 		{ "no-line-wrap", no_argument, 0, nlwc },
 		{ "silent", no_argument, 0, 's' },
+		{ "resume", required_argument, 0, 'r' },
 		{ "help", no_argument, 0, 'h' },
 		{ 0, 0, 0, 0 }
 	};
 
 	while (1) {
 		int r = getopt_long(argc, argv, 
-							"-f:sh", 
+							"-f:shr:", 
 							main_longopt, &option_idx);
 		if (r < 0) break;
 		if (r == 'h') {
@@ -449,6 +519,8 @@ int main(int argc, char *argv[], char *envp[]) {
 			exit(1);
 		} else if (r == 'f') {
 			configfilename = strdup(optarg);
+		} else if (r == 'r') {
+			runstatename = string(optarg);
 		} else if (r == nlwc) {
 			glob_linewrap = 0;
 		} else if (r == 's') {
@@ -600,7 +672,7 @@ int main(int argc, char *argv[], char *envp[]) {
 	if (globalregistry->fatal_condition)
 		CatchShutdown(-1);
 
-	// Create the basic network/protocol server
+	// Create the basic drone server
 	globalregistry->kisdroneserver->Activate();
 	if (globalregistry->fatal_condition)
 		CatchShutdown(-1);
@@ -637,8 +709,28 @@ int main(int argc, char *argv[], char *envp[]) {
 
 	// ------ WE ARE NOW RUNNING AS THE TARGET (MAYBE) ------
 	
+	// Load the old runstate dumpfile
+	if (runstatename.length() > 0) {
+		snprintf(errstr, STATUS_MAX, "Reading from runstate file %s", 
+				 runstatename.c_str());
+		globalregistry->messagebus->InjectMessage(errstr, MSGFLAG_INFO);
+
+		// Load the file
+		runstate = new GroupConfigFile;
+		if (runstate->ParseConfig(runstatename.c_str()) < 0) {
+			CatchShutdown(-1);
+		}
+
+		// Run it through the validator
+		if (ValidateRunstate(globalregistry, runstate) < 0 || 
+			globalregistry->fatal_condition)
+			CatchShutdown(-1);
+		
+		globalregistry->runstate_config = runstate;
+	}
+	
 	// Create the runstate dumpfile
-	new Dumpfile_Runstate(globalregistry);
+	globalregistry->runstate_dumper = new Dumpfile_Runstate(globalregistry);
 	if (globalregistry->fatal_condition)
 		CatchShutdown(-1);
 

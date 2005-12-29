@@ -35,7 +35,7 @@ Dumpfile_Pcap::Dumpfile_Pcap() {
 }
 
 Dumpfile_Pcap::Dumpfile_Pcap(GlobalRegistry *in_globalreg) : Dumpfile(in_globalreg) {
-	char errstr[STATUS_MAX];
+	char errstr[STATUS_MAX] = "";
 	globalreg = in_globalreg;
 
 	dumpfile = NULL;
@@ -84,7 +84,8 @@ Dumpfile_Pcap::Dumpfile_Pcap(GlobalRegistry *in_globalreg) : Dumpfile(in_globalr
 
 		_MSG("Opened pcapdump log file '" + fname + "'", MSGFLAG_INFO);
 	} else if (ret == 1) {
-		_MSG("Resuming pcap log file '" + fname + "'", MSGFLAG_INFO);
+		_MSG("Resuming pcap log file '" + fname + "' (this may take time to copy "
+			 "previous packets)", MSGFLAG_INFO);
 
 		// Open the old file
 		pcap_t *opd;
@@ -134,7 +135,7 @@ Dumpfile_Pcap::Dumpfile_Pcap(GlobalRegistry *in_globalreg) : Dumpfile(in_globalr
 		// Close the old file and let the unlink complete
 		pcap_close(opd);
 
-		_MSG("Resumed pcap log file '" + fname + "'", MSGFLAG_INFO);
+		_MSG("Completed resuming pcap log file '" + fname + "'", MSGFLAG_INFO);
 	} else {
 		_MSG("Pcap log file not enabled in runstate", MSGFLAG_INFO);
 		return;

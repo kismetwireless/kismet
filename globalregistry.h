@@ -144,6 +144,7 @@ public:
     SoundControl *soundctl;
 	KisBuiltinDissector *builtindissector;
 	IPCRemote *rootipc;
+	Dumpfile *runstate_dumper;
 
 	string version_major;
 	string version_minor;
@@ -224,6 +225,7 @@ public:
         kisdroneserver = NULL;
         kismet_config = NULL;
 		runstate_config = NULL;
+		runstate_dumper = NULL;
         kismetui_config = NULL;
         speechctl = NULL;
         soundctl = NULL;
