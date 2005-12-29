@@ -47,8 +47,21 @@ Dumpfile_Netxml::Dumpfile_Netxml(GlobalRegistry *in_globalreg) :
 		exit(1);
 	}
 
-	// Find the file name
-	if ((fname = ProcessConfigOpt("netxml")) == "" || globalreg->fatal_condition) {
+	int ret = 0;
+
+	if ((ret == ProcessRuntimeResume("netxml")) == -1) {
+		if (globalreg->fatal_condition)
+			return;
+
+		// Find the file name
+		if ((fname = ProcessConfigOpt("netxml")) == "" || 
+			globalreg->fatal_condition) {
+			return;
+		}
+	} else if (ret == 1) {
+		_MSG("Resuming netxml log file '" + fname + "'", MSGFLAG_INFO);
+	} else {
+		_MSG("Netxml log file not enabled in runstate", MSGFLAG_INFO);
 		return;
 	}
 

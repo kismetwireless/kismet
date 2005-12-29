@@ -51,9 +51,20 @@ Dumpfile_Runstate::Dumpfile_Runstate(GlobalRegistry *in_globalreg) :
 
 	type = "runstate";
 
-	// Find the file name
-	if ((fname = ProcessConfigOpt("runstate")) == "" || 
-		globalreg->fatal_condition) {
+	int ret = 0;
+
+	if ((ret == ProcessRuntimeResume("runstate")) == -1) {
+		// Find the file name
+		if ((fname = ProcessConfigOpt("runstate")) == "" || 
+			globalreg->fatal_condition) {
+			return;
+		} 
+	} else if (ret == 1) {
+		_MSG("Resuming runstate log file '" + fname + "'", MSGFLAG_INFO);
+	} else {
+		_MSG("Runstate log not enabled in this runstate file.  Something is "
+			 "broken.", MSGFLAG_FATAL);
+		globalreg->fatal_condition = 1;
 		return;
 	}
 
