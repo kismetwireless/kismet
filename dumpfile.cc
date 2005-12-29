@@ -130,7 +130,7 @@ string Dumpfile::ProcessConfigOpt(string in_type) {
 		return "";
 	}
 
-	_MSG("Log file type '" + in_type + "' activated.", MSGFLAG_INFO);
+	// _MSG("Log file type '" + in_type + "' activated.", MSGFLAG_INFO);
 
 	retfname = ConfigFile::ExpandLogPath(logtemplate, logname, in_type, 0, 0);
 
@@ -142,14 +142,48 @@ int Dumpfile::ProcessRuntimeResume(string in_type) {
 	if (globalreg->runstate_config == NULL)
 		return -1;
 
-	// Fetch all the root entities of the runstate file, we want any that are
-	// of the type 'dumpfile', and then we'll do a compare
+	GroupConfigFile *rcf = globalreg->runstate_config;
+
+	// Fetch all the root level entities, this will give us all the groups
+	// so we can look for the dumpfile groups
 	vector<GroupConfigFile::GroupEntity *> rent;
-	rent = globalreg->runstate_config->FetchEntityGroup(NULL);
+	rent = rcf->FetchEntityGroup(NULL);
 
 	for (unsigned int x = 0; x < rent.size(); x++) {
 		if (rent[x]->name != "dumpfile")
 			continue;
+
+		// Explode if we don't have a 'type' option in this dumpfile group
+		if (rcf->FetchOpt("type", rent[x]) == "") {
+			_MSG("Expected 'type' in runstate dumpfile group", MSGFLAG_FATAL);
+			globalreg->fatal_condition = 1;
+			return -1;
+		}
+
+		// Skip if we're not the right type
+		if (rcf->FetchOpt("type", rent[x]) != in_type)
+			continue;
+
+		// Explode if we don't have a path
+		if ((fname = rcf->FetchOpt("path", rent[x])) == "") {
+			_MSG("Expected 'path' in runstate dumpfile group", MSGFLAG_FATAL);
+			globalreg->fatal_condition = 1;
+			return -1;
+		}
+
+		// Try to parse the number of dumped frames, explode if we can't
+		// get it.
+		if (sscanf(rcf->FetchOpt("numdumped", rent[x]).c_str(), "%d",
+				   &dumped_frames) != 1) {
+			_MSG("Expected 'numdumped' in runstate dumpfile group", MSGFLAG_FATAL);
+			globalreg->fatal_condition = 1;
+			return -1;
+		}
+
+		// if we've gotten this far, we have a valid record and we've assigned it,
+		// so set that we're resuming and return out
+		resume = 1;
+		return 1;
 	}
 
 	return 0;

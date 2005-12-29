@@ -48,26 +48,95 @@ Dumpfile_Pcap::Dumpfile_Pcap(GlobalRegistry *in_globalreg) : Dumpfile(in_globalr
 		exit(1);
 	}
 
-	// Find the file name
-	if ((fname = ProcessConfigOpt("pcapdump")) == "" || globalreg->fatal_condition) {
-		return;
-	}
+	int ret = 0;
 
-	dumpfile = pcap_open_dead(DLT_IEEE802_11, MAX_PACKET_LEN);
-	if (dumpfile == NULL) {
-		snprintf(errstr, STATUS_MAX, "Failed to open pcap dump file '%s': %s",
-				 fname.c_str(), strerror(errno));
-		_MSG(errstr, MSGFLAG_FATAL);
-		globalreg->fatal_condition = 1;
-		return;
-	}
+	// Process a resume request
+	if ((ret = ProcessRuntimeResume("pcapdump")) == -1) {
+		// Bail on errors
+		if (globalreg->fatal_condition)
+			return;
 
-	dumper = pcap_dump_open(dumpfile, fname.c_str());
-	if (dumper == NULL) {
-		snprintf(errstr, STATUS_MAX, "Failed to open pcap dump file '%s': %s",
-				 fname.c_str(), strerror(errno));
-		_MSG(errstr, MSGFLAG_FATAL);
-		globalreg->fatal_condition = 1;
+		// continue processing if we're not resuming
+		
+		// Find the file name
+		if ((fname = ProcessConfigOpt("pcapdump")) == "" || 
+			globalreg->fatal_condition) {
+			return;
+		}
+
+		dumpfile = pcap_open_dead(DLT_IEEE802_11, MAX_PACKET_LEN);
+		if (dumpfile == NULL) {
+			snprintf(errstr, STATUS_MAX, "Failed to open pcap dump file '%s': %s",
+					 fname.c_str(), strerror(errno));
+			_MSG(errstr, MSGFLAG_FATAL);
+			globalreg->fatal_condition = 1;
+			return;
+		}
+
+		dumper = pcap_dump_open(dumpfile, fname.c_str());
+		if (dumper == NULL) {
+			snprintf(errstr, STATUS_MAX, "Failed to open pcap dump file '%s': %s",
+					 fname.c_str(), strerror(errno));
+			_MSG(errstr, MSGFLAG_FATAL);
+			globalreg->fatal_condition = 1;
+			return;
+		}
+
+		_MSG("Opened pcapdump log file '" + fname + "'", MSGFLAG_INFO);
+	} else if (ret == 1) {
+		_MSG("Resuming pcap log file '" + fname + "'", MSGFLAG_INFO);
+
+		// Open the old file
+		pcap_t *opd;
+		opd = pcap_open_offline(fname.c_str(), errstr);
+		if (strlen(errstr) > 0) {
+			_MSG("Failed to open pcap file to resume: '" + string(errstr) + "'", 
+				 MSGFLAG_FATAL);
+			globalreg->fatal_condition = 1;
+			return;
+		}
+
+		// Unlink the old file, it'll stay around because we have it open
+		// with opd
+		if (unlink(fname.c_str()) != 0) {
+			_MSG("Failed to unlink old pcap log file '" + fname + "': " +
+				 string(strerror(errno)), MSGFLAG_FATAL);
+			globalreg->fatal_condition = 1;
+			return;
+		}
+
+		// Open a new file with the same name
+		dumpfile = pcap_open_dead(DLT_IEEE802_11, MAX_PACKET_LEN);
+		if (dumpfile == NULL) {
+			snprintf(errstr, STATUS_MAX, "Failed to open pcap dump file '%s': %s",
+					 fname.c_str(), strerror(errno));
+			_MSG(errstr, MSGFLAG_FATAL);
+			globalreg->fatal_condition = 1;
+			return;
+		}
+
+		dumper = pcap_dump_open(dumpfile, fname.c_str());
+		if (dumper == NULL) {
+			snprintf(errstr, STATUS_MAX, "Failed to open pcap dump file '%s': %s",
+					 fname.c_str(), strerror(errno));
+			_MSG(errstr, MSGFLAG_FATAL);
+			globalreg->fatal_condition = 1;
+			return;
+		}
+
+		// Loop and copy every packet
+		pcap_pkthdr ohdr;
+		const u_char *odata;
+		while ((odata = pcap_next(opd, &ohdr)) != NULL) {
+			pcap_dump((u_char *) dumper, &ohdr, odata);
+		}
+
+		// Close the old file and let the unlink complete
+		pcap_close(opd);
+
+		_MSG("Resumed pcap log file '" + fname + "'", MSGFLAG_INFO);
+	} else {
+		_MSG("Pcap log file not enabled in runstate", MSGFLAG_INFO);
 		return;
 	}
 
@@ -75,8 +144,6 @@ Dumpfile_Pcap::Dumpfile_Pcap(GlobalRegistry *in_globalreg) : Dumpfile(in_globalr
 											CHAINPOS_LOGGING, -100);
 
 	globalreg->RegisterDumpFile(this);
-
-	_MSG("Opened pcapdump log file '" + fname + "'", MSGFLAG_INFO);
 }
 
 Dumpfile_Pcap::~Dumpfile_Pcap() {
