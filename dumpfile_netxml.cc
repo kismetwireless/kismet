@@ -49,7 +49,7 @@ Dumpfile_Netxml::Dumpfile_Netxml(GlobalRegistry *in_globalreg) :
 
 	int ret = 0;
 
-	if ((ret == ProcessRuntimeResume("netxml")) == -1) {
+	if ((ret = ProcessRuntimeResume("netxml")) == -1) {
 		if (globalreg->fatal_condition)
 			return;
 

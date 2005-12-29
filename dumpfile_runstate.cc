@@ -29,7 +29,7 @@ void runstate_dumpfile_cb(RUNSTATE_PARMS) {
 				"    type=%s\n"
 				"    path=%s\n"
 				"    numdumped=%d\n"
-				"}",
+				"}\n",
 				globalreg->subsys_dumpfile_vec[x]->FetchFileType().c_str(),
 				globalreg->subsys_dumpfile_vec[x]->FetchFileName().c_str(),
 				globalreg->subsys_dumpfile_vec[x]->FetchNumDumped());
@@ -53,7 +53,7 @@ Dumpfile_Runstate::Dumpfile_Runstate(GlobalRegistry *in_globalreg) :
 
 	int ret = 0;
 
-	if ((ret == ProcessRuntimeResume("runstate")) == -1) {
+	if ((ret = ProcessRuntimeResume("runstate")) == -1) {
 		// Find the file name
 		if ((fname = ProcessConfigOpt("runstate")) == "" || 
 			globalreg->fatal_condition) {

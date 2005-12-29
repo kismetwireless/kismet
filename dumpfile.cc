@@ -28,6 +28,7 @@ Dumpfile::Dumpfile() {
 Dumpfile::Dumpfile(GlobalRegistry *in_globalreg) {
 	globalreg = in_globalreg;
 	resume = 0;
+	dumped_frames = 0;
 
 	if (globalreg->packetchain == NULL) {
 		fprintf(stderr, "FATAL OOPS:  Dumpfile() called before packetchain built\n");

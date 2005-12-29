@@ -54,7 +54,7 @@ Dumpfile_String::Dumpfile_String(GlobalRegistry *in_globalreg) :
 
 	int ret = 0;
 
-	if ((ret == ProcessRuntimeResume("string")) == -1) {
+	if ((ret = ProcessRuntimeResume("string")) == -1) {
 		// We're not resuming
 		
 		if (globalreg->fatal_condition)

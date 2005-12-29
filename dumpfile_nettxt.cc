@@ -54,7 +54,7 @@ Dumpfile_Nettxt::Dumpfile_Nettxt(GlobalRegistry *in_globalreg) :
 
 	int ret = 0;
 
-	if ((ret == ProcessRuntimeResume("nettxt")) == -1) {
+	if ((ret = ProcessRuntimeResume("nettxt")) == -1) {
 		if (globalreg->fatal_condition)
 			return;
 

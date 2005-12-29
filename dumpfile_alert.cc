@@ -54,7 +54,7 @@ Dumpfile_Alert::Dumpfile_Alert(GlobalRegistry *in_globalreg) :
 
 	int ret = 0;
 
-	if ((ret == ProcessRuntimeResume("alert")) == -1) {
+	if ((ret = ProcessRuntimeResume("alert")) == -1) {
 		// We're not resuming
 
 		if (globalreg->fatal_condition)

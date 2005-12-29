@@ -64,6 +64,7 @@
 #include "netracker.h"
 
 #include "dumpfile.h"
+#include "dumpfile_runstate.h"
 #include "dumpfile_pcap.h"
 #include "dumpfile_netxml.h"
 #include "dumpfile_nettxt.h"
@@ -635,6 +636,11 @@ int main(int argc, char *argv[], char *envp[]) {
 #endif
 
 	// ------ WE ARE NOW RUNNING AS THE TARGET (MAYBE) ------
+	
+	// Create the runstate dumpfile
+	new Dumpfile_Runstate(globalregistry);
+	if (globalregistry->fatal_condition)
+		CatchShutdown(-1);
 
 	// Process userspace plugins
 	globalregistry->plugintracker->ScanUserPlugins();
