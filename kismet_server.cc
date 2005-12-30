@@ -727,6 +727,14 @@ int main(int argc, char *argv[], char *envp[]) {
 			CatchShutdown(-1);
 		
 		globalregistry->runstate_config = runstate;
+
+		snprintf(errstr, STATUS_MAX, "Kismet will restore from a previous saved "
+				 "run state.  This will present previously captured networks "
+				 "and continue logging to the same dumpfiles.  Logging will be "
+				 "limited to the dumpfiles which are enabled in the runstate.");
+		globalregistry->messagebus->InjectMessage(errstr, MSGFLAG_INFO);
+
+		sleep(3);
 	}
 	
 	// Create the runstate dumpfile
