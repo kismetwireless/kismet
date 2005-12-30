@@ -1322,6 +1322,7 @@ int Netracker::netracker_chain_handler(kis_packet *in_pack) {
 
 	// Update the time
 	net->last_time = globalreg->timestamp.tv_sec;
+	cli->last_time = globalreg->timestamp.tv_sec;
 
 	// Dirty the network
 	if (net->dirty == 0) {
@@ -2256,6 +2257,7 @@ void Netracker::dump_runstate(FILE *runfile) {
 		fprintf(runfile, "    type=%d\n", tcli->type);
 		fprintf(runfile, "    last_time=%u\n", tcli->last_time);
 		fprintf(runfile, "    first_time=%u\n", tcli->first_time);
+		fprintf(runfile, "    last_time=%u\n", tcli->last_time);
 		fprintf(runfile, "    cryptset=%d\n", tcli->cryptset);
 		fprintf(runfile, "    decrypted=%d\n", tcli->decrypted);
 		fprintf(runfile, "    mac=%s\n", tcli->mac.Mac2String().c_str());
@@ -2385,6 +2387,13 @@ int Netracker::load_runstate() {
 			globalreg->fatal_condition = 1;
 			break;
 		}
+
+		if (sscanf(rcf->FetchOpt("cryptset", rent[x]).c_str(), "%d",
+				   &(tnet->cryptset)) != 1) {
+			globalreg->fatal_condition = 1;
+			break;
+		}
+
 
 		if (sscanf(rcf->FetchOpt("channel", rent[x]).c_str(), "%d",
 				   &(tnet->channel)) != 1) {
@@ -2637,6 +2646,292 @@ int Netracker::load_runstate() {
 
 	if (globalreg->fatal_condition) {
 		_MSG("Parsing stored networks failed, runstate file is corrupt or "
+			 "incompatible and cannot be used", MSGFLAG_FATAL);
+		return -1;
+	}
+
+	for (unsigned int x = 0; x < rent.size(); x++) {
+		if (rent[x]->name != "netclient")
+			continue;
+
+		tracked_client *tcli = new tracked_client;
+
+		if (sscanf(rcf->FetchOpt("type", rent[x]).c_str(), "%d", 
+				   (int *) &(tcli->type)) != 1) {
+			globalreg->fatal_condition = 1;
+			break;
+		}
+
+		if (sscanf(rcf->FetchOpt("last_time", rent[x]).c_str(), "%u",
+				   (unsigned int *) &(tcli->last_time)) != 1) {
+			globalreg->fatal_condition = 1;
+			break;
+		}
+
+		if (sscanf(rcf->FetchOpt("first_time", rent[x]).c_str(), "%u",
+				   (unsigned int *) &(tcli->first_time)) != 1) {
+			globalreg->fatal_condition = 1;
+			break;
+		}
+
+		if (sscanf(rcf->FetchOpt("channel", rent[x]).c_str(), "%d",
+				   &(tcli->channel)) != 1) {
+			globalreg->fatal_condition = 1;
+			break;
+		}
+
+		if (sscanf(rcf->FetchOpt("decrypted", rent[x]).c_str(), "%d",
+				   &(tcli->decrypted)) != 1) {
+			globalreg->fatal_condition = 1;
+			break;
+		}
+
+		if (sscanf(rcf->FetchOpt("cryptset", rent[x]).c_str(), "%d",
+				   &(tcli->cryptset)) != 1) {
+			globalreg->fatal_condition = 1;
+			break;
+		}
+
+		tcli->bssid = mac_addr(rcf->FetchOpt("bssid", rent[x]).c_str());
+		if (tcli->bssid.error) {
+			globalreg->fatal_condition = 1;
+			break;
+		}
+
+		tcli->mac = mac_addr(rcf->FetchOpt("mac", rent[x]).c_str());
+		if (tcli->mac.error) {
+			globalreg->fatal_condition = 1;
+			break;
+		}
+
+		if (rcf->FetchOpt("gps_valid", rent[x]) != "") {
+			if (sscanf(rcf->FetchOpt("gps_valid", rent[x]).c_str(), "%d",
+					   &(tcli->gpsdata.gps_valid)) != 1) {
+				globalreg->fatal_condition = 1;
+				break;
+			}
+
+			if (sscanf(rcf->FetchOpt("gps_min_lat", rent[x]).c_str(), "%lf",
+					   &(tcli->gpsdata.min_lat)) != 1) {
+				globalreg->fatal_condition = 1;
+				break;
+			}
+
+			if (sscanf(rcf->FetchOpt("gps_min_lon", rent[x]).c_str(), "%lf",
+					   &(tcli->gpsdata.min_lon)) != 1) {
+				globalreg->fatal_condition = 1;
+				break;
+			}
+
+			if (sscanf(rcf->FetchOpt("gps_min_alt", rent[x]).c_str(), "%lf",
+					   &(tcli->gpsdata.min_alt)) != 1) {
+				globalreg->fatal_condition = 1;
+				break;
+			}
+
+			if (sscanf(rcf->FetchOpt("gps_min_spd", rent[x]).c_str(), "%lf",
+					   &(tcli->gpsdata.min_spd)) != 1) {
+				globalreg->fatal_condition = 1;
+				break;
+			}
+
+			if (sscanf(rcf->FetchOpt("gps_max_lat", rent[x]).c_str(), "%lf",
+					   &(tcli->gpsdata.max_lat)) != 1) {
+				globalreg->fatal_condition = 1;
+				break;
+			}
+
+			if (sscanf(rcf->FetchOpt("gps_max_lon", rent[x]).c_str(), "%lf",
+					   &(tcli->gpsdata.max_lon)) != 1) {
+				globalreg->fatal_condition = 1;
+				break;
+			}
+
+			if (sscanf(rcf->FetchOpt("gps_max_alt", rent[x]).c_str(), "%lf",
+					   &(tcli->gpsdata.max_alt)) != 1) {
+				globalreg->fatal_condition = 1;
+				break;
+			}
+
+			if (sscanf(rcf->FetchOpt("gps_max_spd", rent[x]).c_str(), "%lf",
+					   &(tcli->gpsdata.max_spd)) != 1) {
+				globalreg->fatal_condition = 1;
+				break;
+			}
+
+			if (sscanf(rcf->FetchOpt("gps_agg_lat", rent[x]).c_str(), "%Lf",
+					   &(tcli->gpsdata.aggregate_lat)) != 1) {
+				globalreg->fatal_condition = 1;
+				break;
+			}
+
+			if (sscanf(rcf->FetchOpt("gps_agg_lon", rent[x]).c_str(), "%Lf",
+					   &(tcli->gpsdata.aggregate_lon)) != 1) {
+				globalreg->fatal_condition = 1;
+				break;
+			}
+
+			if (sscanf(rcf->FetchOpt("gps_agg_alt", rent[x]).c_str(), "%Lf",
+					   &(tcli->gpsdata.aggregate_alt)) != 1) {
+				globalreg->fatal_condition = 1;
+				break;
+			}
+
+			if (sscanf(rcf->FetchOpt("gps_agg_pts", rent[x]).c_str(), "%ld",
+					   &(tcli->gpsdata.aggregate_points)) != 1) {
+				globalreg->fatal_condition = 1;
+				break;
+			}
+
+		}
+
+		if (sscanf(rcf->FetchOpt("snr_last_signal", rent[x]).c_str(), "%d",
+				   &(tcli->snrdata.last_signal)) != 1) {
+			globalreg->fatal_condition = 1;
+			break;
+		}
+
+		if (sscanf(rcf->FetchOpt("snr_last_noise", rent[x]).c_str(), "%d",
+				   &(tcli->snrdata.last_noise)) != 1) {
+			globalreg->fatal_condition = 1;
+			break;
+		}
+
+		if (sscanf(rcf->FetchOpt("snr_max_signal", rent[x]).c_str(), "%d",
+				   &(tcli->snrdata.max_signal)) != 1) {
+			globalreg->fatal_condition = 1;
+			break;
+		}
+
+		if (sscanf(rcf->FetchOpt("snr_max_noise", rent[x]).c_str(), "%d",
+				   &(tcli->snrdata.max_noise)) != 1) {
+			globalreg->fatal_condition = 1;
+			break;
+		}
+
+		if (sscanf(rcf->FetchOpt("snr_maxseenrate", rent[x]).c_str(), "%d",
+				   &(tcli->snrdata.maxseenrate)) != 1) {
+			globalreg->fatal_condition = 1;
+			break;
+		}
+
+		if (sscanf(rcf->FetchOpt("snr_encodingset", rent[x]).c_str(), "%u",
+				   &(tcli->snrdata.encodingset)) != 1) {
+			globalreg->fatal_condition = 1;
+			break;
+		}
+
+		if (sscanf(rcf->FetchOpt("snr_carrierset", rent[x]).c_str(), "%d",
+				   &(tcli->snrdata.carrierset)) != 1) {
+			globalreg->fatal_condition = 1;
+			break;
+		}
+
+		if (sscanf(rcf->FetchOpt("ip_type", rent[x]).c_str(), "%d",
+				   (int *) &(tcli->guess_ipdata.ip_type)) != 1) {
+			globalreg->fatal_condition = 1;
+			break;
+		}
+
+		if (sscanf(rcf->FetchOpt("ip_addr_block", rent[x]).c_str(), "%u",
+				   &(tcli->guess_ipdata.ip_addr_block.s_addr)) != 1) {
+			globalreg->fatal_condition = 1;
+			break;
+		}
+
+		if (sscanf(rcf->FetchOpt("ip_gateway", rent[x]).c_str(), "%u",
+				   &(tcli->guess_ipdata.ip_gateway.s_addr)) != 1) {
+			globalreg->fatal_condition = 1;
+			break;
+		}
+
+		if (sscanf(rcf->FetchOpt("ip_netmask", rent[x]).c_str(), "%u",
+				   &(tcli->guess_ipdata.ip_netmask.s_addr)) != 1) {
+			globalreg->fatal_condition = 1;
+			break;
+		}
+
+		if (sscanf(rcf->FetchOpt("llc_packets", rent[x]).c_str(), "%d",
+				   &(tcli->llc_packets)) != 1) {
+			globalreg->fatal_condition = 1;
+			break;
+		}
+
+		if (sscanf(rcf->FetchOpt("data_packets", rent[x]).c_str(), "%d",
+				   &(tcli->data_packets)) != 1) {
+			globalreg->fatal_condition = 1;
+			break;
+		}
+
+		if (sscanf(rcf->FetchOpt("crypt_packets", rent[x]).c_str(), "%d",
+				   &(tcli->crypt_packets)) != 1) {
+			globalreg->fatal_condition = 1;
+			break;
+		}
+
+		if (sscanf(rcf->FetchOpt("fmsweak_packets", rent[x]).c_str(), "%d",
+				   &(tcli->fmsweak_packets)) != 1) {
+			globalreg->fatal_condition = 1;
+			break;
+		}
+
+		if (sscanf(rcf->FetchOpt("maxrate", rent[x]).c_str(), "%f",
+				   (float *) &(tcli->maxrate)) != 1) {
+			globalreg->fatal_condition = 1;
+			break;
+		}
+
+		if (sscanf(rcf->FetchOpt("last_sequence", rent[x]).c_str(), "%d",
+				   &(tcli->last_sequence)) != 1) {
+			globalreg->fatal_condition = 1;
+			break;
+		}
+
+		if (sscanf(rcf->FetchOpt("datasize", rent[x]).c_str(), "%llu",
+				   &(tcli->datasize)) != 1) {
+			globalreg->fatal_condition = 1;
+			break;
+		}
+
+		tcli->cdp_dev_id = MungeToPrintable(rcf->FetchOpt("cdp_dev_id", rent[x]));
+		tcli->cdp_port_id = MungeToPrintable(rcf->FetchOpt("cdp_port_id", rent[x]));
+
+		if (sscanf(rcf->FetchOpt("fragments", rent[x]).c_str(), "%d",
+				   &(tcli->fragments)) != 1) {
+			globalreg->fatal_condition = 1;
+			break;
+		}
+
+		if (sscanf(rcf->FetchOpt("retries", rent[x]).c_str(), "%d",
+				   &(tcli->retries)) != 1) {
+			globalreg->fatal_condition = 1;
+			break;
+		}
+
+		strvec = rcf->FetchOptVec("probe_ssid", rent[x]);
+		for (unsigned int z = 0; z < strvec.size(); z++) {
+			string mod = MungeToPrintable(strvec[z]);
+			tcli->probe_ssid_map[Adler32Checksum(mod.c_str(), mod.length())] = mod;
+		}
+
+		tcli->dirty = 1;
+
+		// Silently bail for now
+		if (tracked_map.find(tcli->bssid) == tracked_map.end()) {
+			delete tcli;
+			continue;
+		}
+
+		tracked_network *tnet = tracked_map[tcli->bssid];
+		tcli->netptr = tnet;
+
+		client_map[tcli->mac] = tcli;
+
+		ap_client_map.insert(make_pair(tcli->bssid, tcli));
+	}
+
+	if (globalreg->fatal_condition) {
+		_MSG("Parsing stored network clients failed, runstate file is corrupt or "
 			 "incompatible and cannot be used", MSGFLAG_FATAL);
 		return -1;
 	}
