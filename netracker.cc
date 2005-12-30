@@ -2168,6 +2168,18 @@ const multimap<mac_addr, Netracker::tracked_client *> Netracker::FetchAssocClien
 }
 
 void Netracker::dump_runstate(FILE *runfile) {
+	// Dump headers
+	fprintf(runfile, "nettotals {\n");
+	fprintf(runfile, "    packets=%d\n"
+			"    datapackets=%d\n"
+			"    cryptpackets=%d\n"
+			"    fmsweakpackets=%d\n"
+			"    errorpackets=%d\n"
+			"    filterpackets=%d\n"
+			"}\n",
+			num_packets, num_datapackets, num_cryptpackets,
+			num_fmsweakpackets, num_errorpackets, num_filterpackets);
+
 	// Dump all the networks
 	map<mac_addr, Netracker::tracked_network *>::iterator itr;
 	for (itr = tracked_map.begin(); itr != tracked_map.end(); ++itr) {
@@ -2339,6 +2351,47 @@ int Netracker::load_runstate() {
 	_MSG("Network tracker restoring saved networks", MSGFLAG_INFO);
 
 	vector<string> strvec;
+
+	for (unsigned int x = 0; x < rent.size(); x++) {
+		if (rent[x]->name != "nettotals")
+			continue;
+
+		if (sscanf(rcf->FetchOpt("packets", rent[x]).c_str(), "%d", 
+				  &num_packets) != 1) {
+			globalreg->fatal_condition = 1;
+			break;
+		}
+
+		if (sscanf(rcf->FetchOpt("datapackets", rent[x]).c_str(), "%d", 
+				  &num_datapackets) != 1) {
+			globalreg->fatal_condition = 1;
+			break;
+		}
+
+		if (sscanf(rcf->FetchOpt("cryptpackets", rent[x]).c_str(), "%d", 
+				  &num_cryptpackets) != 1) {
+			globalreg->fatal_condition = 1;
+			break;
+		}
+
+		if (sscanf(rcf->FetchOpt("fmsweakpackets", rent[x]).c_str(), "%d", 
+				  &num_fmsweakpackets) != 1) {
+			globalreg->fatal_condition = 1;
+			break;
+		}
+
+		if (sscanf(rcf->FetchOpt("errorpackets", rent[x]).c_str(), "%d", 
+				  &num_errorpackets) != 1) {
+			globalreg->fatal_condition = 1;
+			break;
+		}
+	}
+
+	if (globalreg->fatal_condition) {
+		_MSG("Parsing stored network totals failed, runstate file is corrupt or "
+			 "incompatible and cannot be used", MSGFLAG_FATAL);
+		return -1;
+	}
 
 	// Process all the networks first, then iterate again for clients, so that
 	// all of the points work out
@@ -2641,6 +2694,7 @@ int Netracker::load_runstate() {
 			break;
 		}
 
+		tnet->dirty = 1;
 		tracked_map[tnet->bssid] = tnet;
 	}
 

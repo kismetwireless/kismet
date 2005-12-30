@@ -2,6 +2,8 @@ Dec 29 2005  devel  Added runstate loaders to kismet_server (do not use yet)
                     Added runstate support to gpsxml
                     Added runstate logging to netracker
                     Added runstate loading to netracker
+                    Added runstate net totals logging/loading
+                    Runstate loading should be usable
 Dec 28 2005  devel  Added runstate dumpfile framework for freezing the Kismet
                      running state
                     Tweaked runstate dumpfile parsing

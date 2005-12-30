@@ -320,4 +320,22 @@ NEWCORE SOURCE CONTROL KISMET COMMANDS
 Lock to channel:            CHANLOCK uuid chnum
 Hop across channel list:    CHANHOP uuid
 Set channel list:           CHANSEQ uuid ch1,ch2,ch3,ch4
+Add a new source:           ADDSOURCE type,interface,name[,initch]
+Delete a source:            DELSOURCE uuid
+
+NEWCORE SAVE STATE
+
+Kismet now supports resuming from a previous state.  The 'runstate' dump
+file type logs the important current states every time dump files are logged.
+
+To write the current state along with other dumpfiles, add 'runstate' to
+your logtypes.
+
+To resume a previous runstate, use '--resume' or '-r' on the runstate file.
+
+Runstates should be resumed under the same config file and options as they
+were created under.  Warnings will be issued if the config file has changed.
+
+For consistency, only dumpfiles enabled when the runstate was created are
+enabled when a runstate is resumed.
 
