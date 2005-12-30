@@ -38,6 +38,8 @@
 #include "timetracker.h"
 #include "filtercore.h"
 
+#include "dumpfile_runstate.h"
+
 // Cache file versioning
 #define NETRACKER_SSIDCACHE_VERSION 	2
 #define NETRACKER_IPCACHE_VERSION 		2
@@ -453,6 +455,10 @@ protected:
 	int netracker_chain_handler(kis_packet *in_pack);
 	int datatracker_chain_handler(kis_packet *in_pack);
 
+	// Runstate callback handler
+	void dump_runstate(FILE *runfile);
+	int load_runstate();
+
 	// Read and write the cache files
 	int ReadSSIDCache();
 	int WriteSSIDCache();
@@ -526,6 +532,7 @@ protected:
 	friend void Protocol_NETWORK_enable(PROTO_ENABLE_PARMS);
 	friend void Protocol_CLIENT_enable(PROTO_ENABLE_PARMS);
 	friend int NetrackerUpdateTimer(TIMEEVENT_PARMS);
+	friend void NetrackerRunstateCB(RUNSTATE_PARMS);
 };
 
 int Protocol_NETWORK(PROTO_PARMS); 

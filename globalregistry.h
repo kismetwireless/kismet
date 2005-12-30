@@ -45,6 +45,7 @@ class KisBuiltinDissector;
 class Pollable;
 // Vector of dumpfiles to destroy
 class Dumpfile;
+class Dumpfile_Runstate;
 // Root-level ipc system
 class IPCRemote;
 
@@ -144,7 +145,7 @@ public:
     SoundControl *soundctl;
 	KisBuiltinDissector *builtindissector;
 	IPCRemote *rootipc;
-	Dumpfile *runstate_dumper;
+	Dumpfile_Runstate *runstate_dumper;
 
 	string version_major;
 	string version_minor;

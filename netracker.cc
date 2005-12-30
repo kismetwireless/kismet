@@ -36,6 +36,8 @@
 #include "gpsdclient.h"
 #include "alertracker.h"
 
+#include "dumpfile_runstate.h"
+
 // TCP server hooks
 char *NETWORK_fields_text[] = {
     "bssid", "type", "ssid", "beaconinfo",
@@ -850,6 +852,10 @@ int NetrackerUpdateTimer(TIMEEVENT_PARMS) {
 	return ntr->TimerKick();
 }
 
+void NetrackerRunstateCB(RUNSTATE_PARMS) {
+	((Netracker *) auxptr)->dump_runstate(runfile);
+}
+
 Netracker::Netracker() {
 	fprintf(stderr, "FATAL OOPS: Netracker() called with no global registry\n");
 }
@@ -882,6 +888,11 @@ Netracker::Netracker(GlobalRegistry *in_globalreg) {
 
 	if (globalreg->timetracker == NULL) {
 		fprintf(stderr, "FATAL OOPS:  Netracker called while timetracker is NULL\n");
+		exit(1);
+	}
+
+	if (globalreg->runstate_dumper == NULL) {
+		fprintf(stderr, "FATAL OOPS:  Netracker called before runstate_dumper\n");
 		exit(1);
 	}
 
@@ -1003,8 +1014,14 @@ Netracker::Netracker(GlobalRegistry *in_globalreg) {
 		globalreg->timetracker->RegisterTimer(SERVER_TIMESLICES_SEC, NULL, 1,
 											  &NetrackerUpdateTimer, (void *) this);
 
+	// Register the runstate dumper
+	globalreg->runstate_dumper->RegisterRunstateCb(NetrackerRunstateCB, this);
+
 	num_packets = num_datapackets = num_cryptpackets = num_fmsweakpackets =
 		num_errorpackets = num_filterpackets = num_packetdelta = 0;
+
+	// Try to load the dumpstate
+	load_runstate();
 }
 
 Netracker::~Netracker() {
@@ -1016,6 +1033,10 @@ Netracker::~Netracker() {
 		delete track_filter;
 	if (netcli_filter != NULL)
 		delete netcli_filter;
+
+	if (globalreg->runstate_dumper != NULL)
+		globalreg->runstate_dumper->RemoveRunstateCb(NetrackerRunstateCB);
+
 }
 
 int Netracker::AddFilter(string in_filter) {
@@ -2143,5 +2164,483 @@ const map<mac_addr, Netracker::tracked_client *> Netracker::FetchTrackedClients(
 
 const multimap<mac_addr, Netracker::tracked_client *> Netracker::FetchAssocClients() {
 	return ap_client_map;
+}
+
+void Netracker::dump_runstate(FILE *runfile) {
+	// Dump all the networks
+	map<mac_addr, Netracker::tracked_network *>::iterator itr;
+	for (itr = tracked_map.begin(); itr != tracked_map.end(); ++itr) {
+		tracked_network *tnet = itr->second;
+
+		fprintf(runfile, "network {\n");
+		fprintf(runfile, "    type=%d\n", (int) tnet->type);
+		for (map<uint32_t, string>::iterator bitr = tnet->beacon_ssid_map.begin();
+			 bitr != tnet->beacon_ssid_map.end(); ++bitr) 
+			fprintf(runfile, "    ssid=%s\n", 
+					MungeToPrintable(bitr->second).c_str());
+		if (tnet->beacon_info.length() > 0)
+			fprintf(runfile, "    beacon_info=%s\n", 
+					MungeToPrintable(tnet->beacon_info).c_str());
+		fprintf(runfile, "    llc_packets=%d\n"
+				"    data_packets=%d\n"
+				"    crypt_packets=%d\n"
+				"    fmsweak_packets=%d\n",
+				tnet->llc_packets, tnet->data_packets, 
+				tnet->crypt_packets, tnet->fmsweak_packets);
+		fprintf(runfile, "    channel=%d\n", tnet->channel);
+		fprintf(runfile, "    cryptset=%d\n", tnet->cryptset);
+		fprintf(runfile, "    decrypted=%d\n", tnet->decrypted);
+		fprintf(runfile, "    bssid=%s\n", tnet->bssid.Mac2String().c_str());
+		fprintf(runfile, "    ssid_cloaked=%d\n", tnet->ssid_cloaked);
+		fprintf(runfile, "    ssid_uncloaked=%d\n", tnet->ssid_uncloaked);
+		fprintf(runfile, "    last_time=%u\n", tnet->last_time);
+		fprintf(runfile, "    first_time=%u\n", tnet->first_time);
+		fprintf(runfile, "    maxrate=%f\n", tnet->maxrate);
+		fprintf(runfile, "    beaconrate=%d\n", tnet->beaconrate);
+		fprintf(runfile, "    client_disconnects=%d\n", tnet->client_disconnects);
+		fprintf(runfile, "    last_sequence=%d\n", tnet->last_sequence);
+		fprintf(runfile, "    bss_timestamp=%llu\n", tnet->bss_timestamp);
+		fprintf(runfile, "    datasize=%llu\n", tnet->datasize);
+		fprintf(runfile, "    dupeiv_packets=%d\n", tnet->dupeiv_packets);
+		if (tnet->cdp_dev_id.size() > 0)
+			fprintf(runfile, "    cdp_dev_id=%s\n",
+					MungeToPrintable(tnet->cdp_dev_id).c_str());
+		if (tnet->cdp_port_id.size() > 0)
+			fprintf(runfile, "    cdp_port_id=%s\n",
+					MungeToPrintable(tnet->cdp_port_id).c_str());
+		fprintf(runfile, "    fragments=%d\n", tnet->fragments);
+		fprintf(runfile, "    retries=%d\n", tnet->retries);
+
+		if (tnet->gpsdata.gps_valid) {
+			fprintf(runfile, "    gps_valid=%d\n", tnet->gpsdata.gps_valid);
+			fprintf(runfile, "    gps_min_lat=%lf\n", tnet->gpsdata.min_lat);
+			fprintf(runfile, "    gps_min_lon=%lf\n", tnet->gpsdata.min_lon);
+			fprintf(runfile, "    gps_min_alt=%lf\n", tnet->gpsdata.min_alt);
+			fprintf(runfile, "    gps_min_spd=%lf\n", tnet->gpsdata.min_spd);
+			fprintf(runfile, "    gps_max_lat=%lf\n", tnet->gpsdata.max_lat);
+			fprintf(runfile, "    gps_max_lon=%lf\n", tnet->gpsdata.max_lon);
+			fprintf(runfile, "    gps_max_alt=%lf\n", tnet->gpsdata.max_alt);
+			fprintf(runfile, "    gps_max_spd=%lf\n", tnet->gpsdata.max_spd);
+			fprintf(runfile, "    gps_agg_lat=%Lf\n", tnet->gpsdata.aggregate_lat);
+			fprintf(runfile, "    gps_agg_lon=%Lf\n", tnet->gpsdata.aggregate_lon);
+			fprintf(runfile, "    gps_agg_alt=%Lf\n", tnet->gpsdata.aggregate_alt);
+			fprintf(runfile, "    gps_agg_pts=%ld\n", tnet->gpsdata.aggregate_points);
+		}
+
+		fprintf(runfile, "    snr_last_signal=%d\n", tnet->snrdata.last_signal);
+		fprintf(runfile, "    snr_last_noise=%d\n", tnet->snrdata.last_noise);
+		fprintf(runfile, "    snr_max_signal=%d\n", tnet->snrdata.max_signal);
+		fprintf(runfile, "    snr_max_noise=%d\n", tnet->snrdata.max_noise);
+		fprintf(runfile, "    snr_maxseenrate=%d\n", tnet->snrdata.maxseenrate);
+		fprintf(runfile, "    snr_encodingset=%u\n", tnet->snrdata.encodingset);
+		fprintf(runfile, "    snr_carrierset=%u\n", tnet->snrdata.carrierset);
+
+		fprintf(runfile, "    ip_type=%d\n", tnet->guess_ipdata.ip_type);
+		fprintf(runfile, "    ip_addr_block=%u\n", 
+				tnet->guess_ipdata.ip_addr_block.s_addr);
+		fprintf(runfile, "    ip_gateway=%u\n", 
+				tnet->guess_ipdata.ip_gateway.s_addr);
+		fprintf(runfile, "    ip_netmask=%u\n", 
+				tnet->guess_ipdata.ip_netmask.s_addr);
+
+		fprintf(runfile, "}\n");
+	}
+
+	// Dump all the clients
+	map<mac_addr, Netracker::tracked_client *>::iterator citr;
+	for (citr = client_map.begin(); citr != client_map.end(); ++citr) {
+		tracked_client *tcli = citr->second;
+
+		fprintf(runfile, "netclient {\n");
+
+		fprintf(runfile, "    type=%d\n", tcli->type);
+		fprintf(runfile, "    last_time=%u\n", tcli->last_time);
+		fprintf(runfile, "    first_time=%u\n", tcli->first_time);
+		fprintf(runfile, "    cryptset=%d\n", tcli->cryptset);
+		fprintf(runfile, "    decrypted=%d\n", tcli->decrypted);
+		fprintf(runfile, "    mac=%s\n", tcli->mac.Mac2String().c_str());
+		fprintf(runfile, "    bssid=%s\n", tcli->bssid.Mac2String().c_str());
+		fprintf(runfile, "    channel=%d\n", tcli->channel);
+
+		if (tcli->gpsdata.gps_valid) {
+			fprintf(runfile, "    gps_valid=%d\n", tcli->gpsdata.gps_valid);
+			fprintf(runfile, "    gps_min_lat=%lf\n", tcli->gpsdata.min_lat);
+			fprintf(runfile, "    gps_min_lon=%lf\n", tcli->gpsdata.min_lon);
+			fprintf(runfile, "    gps_min_alt=%lf\n", tcli->gpsdata.min_alt);
+			fprintf(runfile, "    gps_min_spd=%lf\n", tcli->gpsdata.min_spd);
+			fprintf(runfile, "    gps_max_lat=%lf\n", tcli->gpsdata.max_lat);
+			fprintf(runfile, "    gps_max_lon=%lf\n", tcli->gpsdata.max_lon);
+			fprintf(runfile, "    gps_max_alt=%lf\n", tcli->gpsdata.max_alt);
+			fprintf(runfile, "    gps_max_spd=%lf\n", tcli->gpsdata.max_spd);
+			fprintf(runfile, "    gps_agg_lat=%Lf\n", tcli->gpsdata.aggregate_lat);
+			fprintf(runfile, "    gps_agg_lon=%Lf\n", tcli->gpsdata.aggregate_lon);
+			fprintf(runfile, "    gps_agg_alt=%Lf\n", tcli->gpsdata.aggregate_alt);
+			fprintf(runfile, "    gps_agg_pts=%ld\n", tcli->gpsdata.aggregate_points);
+		}
+
+		fprintf(runfile, "    snr_last_signal=%d\n", tcli->snrdata.last_signal);
+		fprintf(runfile, "    snr_last_noise=%d\n", tcli->snrdata.last_noise);
+		fprintf(runfile, "    snr_max_signal=%d\n", tcli->snrdata.max_signal);
+		fprintf(runfile, "    snr_max_noise=%d\n", tcli->snrdata.max_noise);
+		fprintf(runfile, "    snr_maxseenrate=%d\n", tcli->snrdata.maxseenrate);
+		fprintf(runfile, "    snr_encodingset=%u\n", tcli->snrdata.encodingset);
+		fprintf(runfile, "    snr_carrierset=%u\n", tcli->snrdata.carrierset);
+
+		fprintf(runfile, "    llc_packets=%d\n"
+				"    data_packets=%d\n"
+				"    crypt_packets=%d\n"
+				"    fmsweak_packets=%d\n",
+				tcli->llc_packets, tcli->data_packets, 
+				tcli->crypt_packets, tcli->fmsweak_packets);
+
+		fprintf(runfile, "    maxrate=%f\n", tcli->maxrate);
+		fprintf(runfile, "    last_sequence=%d\n", tcli->last_sequence);
+		fprintf(runfile, "    datasize=%llu\n", tcli->datasize);
+		fprintf(runfile, "    fragments=%d\n", tcli->fragments);
+		fprintf(runfile, "    retries=%d\n", tcli->retries);
+		
+		if (tcli->cdp_dev_id.size() > 0)
+			fprintf(runfile, "    cdp_dev_id=%s\n",
+					MungeToPrintable(tcli->cdp_dev_id).c_str());
+		if (tcli->cdp_port_id.size() > 0)
+			fprintf(runfile, "    cdp_port_id=%s\n",
+					MungeToPrintable(tcli->cdp_port_id).c_str());
+
+		for (map<uint32_t, string>::iterator bitr = tcli->probe_ssid_map.begin();
+			 bitr != tcli->probe_ssid_map.end(); ++bitr)
+			fprintf(runfile, "    probe_ssid=%s\n", 
+					MungeToPrintable(bitr->second).c_str());
+
+		fprintf(runfile, "    ip_type=%d\n", tcli->guess_ipdata.ip_type);
+		fprintf(runfile, "    ip_addr_block=%u\n", 
+				tcli->guess_ipdata.ip_addr_block.s_addr);
+		fprintf(runfile, "    ip_gateway=%u\n", 
+				tcli->guess_ipdata.ip_gateway.s_addr);
+		fprintf(runfile, "    ip_netmask=%u\n", 
+				tcli->guess_ipdata.ip_netmask.s_addr);
+
+		fprintf(runfile, "}\n");
+	}
+
+}
+
+int Netracker::load_runstate() {
+	if (globalreg->runstate_config == NULL)
+		return -1;
+
+	GroupConfigFile *rcf = globalreg->runstate_config;
+
+	// Fetch all the root level options
+	vector<GroupConfigFile::GroupEntity *> rent;
+	rent = rcf->FetchEntityGroup(NULL);
+
+	_MSG("Network tracker restoring saved networks", MSGFLAG_INFO);
+
+	vector<string> strvec;
+
+	// Process all the networks first, then iterate again for clients, so that
+	// all of the points work out
+	for (unsigned int x = 0; x < rent.size(); x++) {
+		if (rent[x]->name != "network")
+			continue;
+
+		tracked_network *tnet = new tracked_network;
+
+		if (sscanf(rcf->FetchOpt("type", rent[x]).c_str(), "%d", 
+				   (int *) &(tnet->type)) != 1) {
+			globalreg->fatal_condition = 1;
+			break;
+		}
+
+		strvec = rcf->FetchOptVec("ssid", rent[x]);
+		for (unsigned int z = 0; z < strvec.size(); z++) {
+			string mod = MungeToPrintable(strvec[z]);
+			tnet->beacon_ssid_map[Adler32Checksum(mod.c_str(), mod.length())] = mod;
+		}
+		if (strvec.size() > 0)
+			tnet->ssid = MungeToPrintable(strvec[0]);
+
+		tnet->beacon_info = rcf->FetchOpt("beacon_info", rent[x]);
+
+		if (sscanf(rcf->FetchOpt("llc_packets", rent[x]).c_str(), "%d",
+				   &(tnet->llc_packets)) != 1) {
+			globalreg->fatal_condition = 1;
+			break;
+		}
+
+		if (sscanf(rcf->FetchOpt("data_packets", rent[x]).c_str(), "%d",
+				   &(tnet->data_packets)) != 1) {
+			globalreg->fatal_condition = 1;
+			break;
+		}
+
+		if (sscanf(rcf->FetchOpt("crypt_packets", rent[x]).c_str(), "%d",
+				   &(tnet->crypt_packets)) != 1) {
+			globalreg->fatal_condition = 1;
+			break;
+		}
+
+		if (sscanf(rcf->FetchOpt("fmsweak_packets", rent[x]).c_str(), "%d",
+				   &(tnet->fmsweak_packets)) != 1) {
+			globalreg->fatal_condition = 1;
+			break;
+		}
+
+		if (sscanf(rcf->FetchOpt("channel", rent[x]).c_str(), "%d",
+				   &(tnet->channel)) != 1) {
+			globalreg->fatal_condition = 1;
+			break;
+		}
+
+		if (sscanf(rcf->FetchOpt("decrypted", rent[x]).c_str(), "%d",
+				   &(tnet->decrypted)) != 1) {
+			globalreg->fatal_condition = 1;
+			break;
+		}
+
+		tnet->bssid = mac_addr(rcf->FetchOpt("bssid", rent[x]).c_str());
+		if (tnet->bssid.error) {
+			globalreg->fatal_condition = 1;
+			break;
+		}
+
+		if (sscanf(rcf->FetchOpt("ssid_cloaked", rent[x]).c_str(), "%d",
+				   &(tnet->ssid_cloaked)) != 1) {
+			globalreg->fatal_condition = 1;
+			break;
+		}
+
+		if (sscanf(rcf->FetchOpt("ssid_uncloaked", rent[x]).c_str(), "%d",
+				   &(tnet->ssid_uncloaked)) != 1) {
+			globalreg->fatal_condition = 1;
+			break;
+		}
+
+		if (sscanf(rcf->FetchOpt("last_time", rent[x]).c_str(), "%u",
+				   (unsigned int *) &(tnet->last_time)) != 1) {
+			globalreg->fatal_condition = 1;
+			break;
+		}
+
+		if (sscanf(rcf->FetchOpt("first_time", rent[x]).c_str(), "%u",
+				   (unsigned int *) &(tnet->first_time)) != 1) {
+			globalreg->fatal_condition = 1;
+			break;
+		}
+
+		if (sscanf(rcf->FetchOpt("maxrate", rent[x]).c_str(), "%f",
+				   (float *) &(tnet->maxrate)) != 1) {
+			globalreg->fatal_condition = 1;
+			break;
+		}
+
+		if (sscanf(rcf->FetchOpt("beaconrate", rent[x]).c_str(), "%d",
+				   &(tnet->beaconrate)) != 1) {
+			globalreg->fatal_condition = 1;
+			break;
+		}
+
+		if (sscanf(rcf->FetchOpt("client_disconnects", rent[x]).c_str(), "%d",
+				   &(tnet->client_disconnects)) != 1) {
+			globalreg->fatal_condition = 1;
+			break;
+		}
+
+		if (sscanf(rcf->FetchOpt("last_sequence", rent[x]).c_str(), "%d",
+				   &(tnet->last_sequence)) != 1) {
+			globalreg->fatal_condition = 1;
+			break;
+		}
+
+		if (sscanf(rcf->FetchOpt("bss_timestamp", rent[x]).c_str(), "%llu",
+				   &(tnet->bss_timestamp)) != 1) {
+			globalreg->fatal_condition = 1;
+			break;
+		}
+
+		if (sscanf(rcf->FetchOpt("datasize", rent[x]).c_str(), "%llu",
+				   &(tnet->datasize)) != 1) {
+			globalreg->fatal_condition = 1;
+			break;
+		}
+
+		if (sscanf(rcf->FetchOpt("dupeiv_packets", rent[x]).c_str(), "%d",
+				   &(tnet->dupeiv_packets)) != 1) {
+			globalreg->fatal_condition = 1;
+			break;
+		}
+
+		tnet->cdp_dev_id = MungeToPrintable(rcf->FetchOpt("cdp_dev_id", rent[x]));
+		tnet->cdp_port_id = MungeToPrintable(rcf->FetchOpt("cdp_port_id", rent[x]));
+
+		if (sscanf(rcf->FetchOpt("fragments", rent[x]).c_str(), "%d",
+				   &(tnet->fragments)) != 1) {
+			globalreg->fatal_condition = 1;
+			break;
+		}
+
+		if (sscanf(rcf->FetchOpt("retries", rent[x]).c_str(), "%d",
+				   &(tnet->retries)) != 1) {
+			globalreg->fatal_condition = 1;
+			break;
+		}
+
+		if (rcf->FetchOpt("gps_valid", rent[x]) != "") {
+			if (sscanf(rcf->FetchOpt("gps_valid", rent[x]).c_str(), "%d",
+					   &(tnet->gpsdata.gps_valid)) != 1) {
+				globalreg->fatal_condition = 1;
+				break;
+			}
+
+			if (sscanf(rcf->FetchOpt("gps_min_lat", rent[x]).c_str(), "%lf",
+					   &(tnet->gpsdata.min_lat)) != 1) {
+				globalreg->fatal_condition = 1;
+				break;
+			}
+
+			if (sscanf(rcf->FetchOpt("gps_min_lon", rent[x]).c_str(), "%lf",
+					   &(tnet->gpsdata.min_lon)) != 1) {
+				globalreg->fatal_condition = 1;
+				break;
+			}
+
+			if (sscanf(rcf->FetchOpt("gps_min_alt", rent[x]).c_str(), "%lf",
+					   &(tnet->gpsdata.min_alt)) != 1) {
+				globalreg->fatal_condition = 1;
+				break;
+			}
+
+			if (sscanf(rcf->FetchOpt("gps_min_spd", rent[x]).c_str(), "%lf",
+					   &(tnet->gpsdata.min_spd)) != 1) {
+				globalreg->fatal_condition = 1;
+				break;
+			}
+
+			if (sscanf(rcf->FetchOpt("gps_max_lat", rent[x]).c_str(), "%lf",
+					   &(tnet->gpsdata.max_lat)) != 1) {
+				globalreg->fatal_condition = 1;
+				break;
+			}
+
+			if (sscanf(rcf->FetchOpt("gps_max_lon", rent[x]).c_str(), "%lf",
+					   &(tnet->gpsdata.max_lon)) != 1) {
+				globalreg->fatal_condition = 1;
+				break;
+			}
+
+			if (sscanf(rcf->FetchOpt("gps_max_alt", rent[x]).c_str(), "%lf",
+					   &(tnet->gpsdata.max_alt)) != 1) {
+				globalreg->fatal_condition = 1;
+				break;
+			}
+
+			if (sscanf(rcf->FetchOpt("gps_max_spd", rent[x]).c_str(), "%lf",
+					   &(tnet->gpsdata.max_spd)) != 1) {
+				globalreg->fatal_condition = 1;
+				break;
+			}
+
+			if (sscanf(rcf->FetchOpt("gps_agg_lat", rent[x]).c_str(), "%Lf",
+					   &(tnet->gpsdata.aggregate_lat)) != 1) {
+				globalreg->fatal_condition = 1;
+				break;
+			}
+
+			if (sscanf(rcf->FetchOpt("gps_agg_lon", rent[x]).c_str(), "%Lf",
+					   &(tnet->gpsdata.aggregate_lon)) != 1) {
+				globalreg->fatal_condition = 1;
+				break;
+			}
+
+			if (sscanf(rcf->FetchOpt("gps_agg_alt", rent[x]).c_str(), "%Lf",
+					   &(tnet->gpsdata.aggregate_alt)) != 1) {
+				globalreg->fatal_condition = 1;
+				break;
+			}
+
+			if (sscanf(rcf->FetchOpt("gps_agg_pts", rent[x]).c_str(), "%ld",
+					   &(tnet->gpsdata.aggregate_points)) != 1) {
+				globalreg->fatal_condition = 1;
+				break;
+			}
+
+		}
+
+		if (sscanf(rcf->FetchOpt("snr_last_signal", rent[x]).c_str(), "%d",
+				   &(tnet->snrdata.last_signal)) != 1) {
+			globalreg->fatal_condition = 1;
+			break;
+		}
+
+		if (sscanf(rcf->FetchOpt("snr_last_noise", rent[x]).c_str(), "%d",
+				   &(tnet->snrdata.last_noise)) != 1) {
+			globalreg->fatal_condition = 1;
+			break;
+		}
+
+		if (sscanf(rcf->FetchOpt("snr_max_signal", rent[x]).c_str(), "%d",
+				   &(tnet->snrdata.max_signal)) != 1) {
+			globalreg->fatal_condition = 1;
+			break;
+		}
+
+		if (sscanf(rcf->FetchOpt("snr_max_noise", rent[x]).c_str(), "%d",
+				   &(tnet->snrdata.max_noise)) != 1) {
+			globalreg->fatal_condition = 1;
+			break;
+		}
+
+		if (sscanf(rcf->FetchOpt("snr_maxseenrate", rent[x]).c_str(), "%d",
+				   &(tnet->snrdata.maxseenrate)) != 1) {
+			globalreg->fatal_condition = 1;
+			break;
+		}
+
+		if (sscanf(rcf->FetchOpt("snr_encodingset", rent[x]).c_str(), "%u",
+				   &(tnet->snrdata.encodingset)) != 1) {
+			globalreg->fatal_condition = 1;
+			break;
+		}
+
+		if (sscanf(rcf->FetchOpt("snr_carrierset", rent[x]).c_str(), "%d",
+				   &(tnet->snrdata.carrierset)) != 1) {
+			globalreg->fatal_condition = 1;
+			break;
+		}
+
+		if (sscanf(rcf->FetchOpt("ip_type", rent[x]).c_str(), "%d",
+				   (int *) &(tnet->guess_ipdata.ip_type)) != 1) {
+			globalreg->fatal_condition = 1;
+			break;
+		}
+
+		if (sscanf(rcf->FetchOpt("ip_addr_block", rent[x]).c_str(), "%u",
+				   &(tnet->guess_ipdata.ip_addr_block.s_addr)) != 1) {
+			globalreg->fatal_condition = 1;
+			break;
+		}
+
+		if (sscanf(rcf->FetchOpt("ip_gateway", rent[x]).c_str(), "%u",
+				   &(tnet->guess_ipdata.ip_gateway.s_addr)) != 1) {
+			globalreg->fatal_condition = 1;
+			break;
+		}
+
+		if (sscanf(rcf->FetchOpt("ip_netmask", rent[x]).c_str(), "%u",
+				   &(tnet->guess_ipdata.ip_netmask.s_addr)) != 1) {
+			globalreg->fatal_condition = 1;
+			break;
+		}
+
+		tracked_map[tnet->bssid] = tnet;
+	}
+
+	if (globalreg->fatal_condition) {
+		_MSG("Parsing stored networks failed, runstate file is corrupt or "
+			 "incompatible and cannot be used", MSGFLAG_FATAL);
+		return -1;
+	}
+
+	return 1;
 }
 

@@ -33,7 +33,7 @@
 
 #define RUNSTATE_VERSION 		1
 
-#define RUNSTATE_PARMS GlobalRegistry *globalreg, void *auxdata, FILE *runfile
+#define RUNSTATE_PARMS GlobalRegistry *globalreg, void *auxptr, FILE *runfile
 typedef void (*RunstateCallback)(RUNSTATE_PARMS);
 
 // Grouped config file writer to dump out runstate stuff
