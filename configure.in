@@ -328,12 +328,12 @@ fi
 AC_SUBST(mangrp)
 
 # Check for libcurses or libncurses.  Fatal error if we didn't use disable.
-AC_ARG_ENABLE(curses, [  --disable-curses        disable libcurses],,
-			  wantcurses=yes)
+AC_ARG_ENABLE(client, [  --disable-client        disable kismet client],,
+			  wantclient=yes)
 
 termcontrol="none";
 
-if test "$wantcurses" = "yes"; then
+if test "$wantclient" = "yes"; then
 	AC_CHECK_LIB([ncurses], [initscr], 
 		AC_DEFINE(HAVE_LIBNCURSES, 1, NCurses terminal lib) \
 			foundlcurses=yes curseaux="-lncurses" termcontrol="ncurses" )
@@ -345,7 +345,7 @@ if test "$wantcurses" = "yes"; then
 	fi
 
 	if test "$foundlcurses" != "yes"; then
-		AC_MSG_ERROR(Failed to find libcurses or libncurses.  Install them or disable curses based components with --disable-curses.  If libcurses is disabled, the client will not be built.)
+		AC_MSG_ERROR(Failed to find libcurses or libncurses.  Install them, or disable building the Kismet client with --disable-client.  Disabling the client is probably not something you want to do normally.)
 	fi
 
 	if test "$termcontrol" = "ncurses"; then
@@ -357,8 +357,23 @@ if test "$wantcurses" = "yes"; then
 	if test "$foundhcurses" != "yes"; then
 		AC_MSG_ERROR(Failed to find curses.h or ncurses.h.  You probably need to install the curses-devel package from your distribution)
 	fi
+
+	AC_CHECK_LIB([panel], [new_panel],
+				 AC_DEFINE(HAVE_LIBPANEL, 1, Panel terminal lib) 
+				 curseaux="$curseaux -lpanel",
+				 AC_MSG_ERROR(Failed to find libpanel extension to curses/ncurses.  Install it, or disable building the Kismet client with --disable-client.  Disabling the client is probably not something you want to do normally.))
+
+	AC_CHECK_HEADER([panel.h], [foundhpanel=yes])
+	if test "$foundhpanel" != "yes"; then
+		AC_MSG_ERROR(Failed to find panel.h curses extension header.  You probably need to install the curses-devel or panel-devel package from your distribution.)
+	fi
+
+	CLIENTCLIBS="$CLIENTCLIBS $curseaux"
 fi
+
 AC_SUBST(CLIBS)
+AC_SUBST(CLIENTCLIBS)
+AC_SUBST(CLIENTCFLAGS)
 
 # TODO - check for advanced curses stuff here like cdk/panels
 

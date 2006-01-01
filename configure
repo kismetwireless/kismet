@@ -311,7 +311,7 @@ ac_includes_default="\
 #endif"
 
 ac_subdirs_all="$ac_subdirs_all $pcapdir"
-ac_subst_vars='SHELL PATH_SEPARATOR PACKAGE_NAME PACKAGE_TARNAME PACKAGE_VERSION PACKAGE_STRING PACKAGE_BUGREPORT exec_prefix prefix program_transform_name bindir sbindir libexecdir datadir sysconfdir sharedstatedir localstatedir libdir includedir oldincludedir infodir mandir build_alias host_alias target_alias DEFS ECHO_C ECHO_N ECHO_T LIBS pcapdir build build_cpu build_vendor build_os host host_cpu host_vendor host_os CC CFLAGS LDFLAGS CPPFLAGS ac_ct_CC EXEEXT OBJEXT CXX CXXFLAGS ac_ct_CXX INSTALL_PROGRAM INSTALL_SCRIPT INSTALL_DATA SET_MAKE CPP EGREP LIBOBJS instgrp mangrp CLIBS wantpcap pcaplib pcaplnk subdirs pcap suid zaurus zbuild local wantgpsmap wget magickconfig gpslc gpslco threadlib sharedatadir LTLIBOBJS'
+ac_subst_vars='SHELL PATH_SEPARATOR PACKAGE_NAME PACKAGE_TARNAME PACKAGE_VERSION PACKAGE_STRING PACKAGE_BUGREPORT exec_prefix prefix program_transform_name bindir sbindir libexecdir datadir sysconfdir sharedstatedir localstatedir libdir includedir oldincludedir infodir mandir build_alias host_alias target_alias DEFS ECHO_C ECHO_N ECHO_T LIBS pcapdir build build_cpu build_vendor build_os host host_cpu host_vendor host_os CC CFLAGS LDFLAGS CPPFLAGS ac_ct_CC EXEEXT OBJEXT CXX CXXFLAGS ac_ct_CXX INSTALL_PROGRAM INSTALL_SCRIPT INSTALL_DATA SET_MAKE CPP EGREP LIBOBJS instgrp mangrp CLIBS CLIENTCLIBS CLIENTCFLAGS wantpcap pcaplib pcaplnk subdirs pcap suid zaurus zbuild local wantgpsmap wget magickconfig gpslc gpslco threadlib sharedatadir LTLIBOBJS'
 ac_subst_files=''
 
 # Initialize some variables set by options.
@@ -855,7 +855,7 @@ Optional Features:
   --disable-FEATURE       do not include FEATURE (same as --enable-FEATURE=no)
   --enable-FEATURE[=ARG]  include FEATURE [ARG=yes]
   --disable-largefile     omit support for large files
-  --disable-curses        disable libcurses
+  --disable-client        disable kismet client
   --disable-linuxwext        disable linux wireless extension support
   --disable-pcre          disable building pcre components
   --disable-pcap          disable libpcap (most sources) capture support
@@ -6014,17 +6014,17 @@ fi
 
 
 # Check for libcurses or libncurses.  Fatal error if we didn't use disable.
-# Check whether --enable-curses or --disable-curses was given.
-if test "${enable_curses+set}" = set; then
-  enableval="$enable_curses"
+# Check whether --enable-client or --disable-client was given.
+if test "${enable_client+set}" = set; then
+  enableval="$enable_client"
 
 else
-  wantcurses=yes
+  wantclient=yes
 fi;
 
 termcontrol="none";
 
-if test "$wantcurses" = "yes"; then
+if test "$wantclient" = "yes"; then
 	echo "$as_me:$LINENO: checking for initscr in -lncurses" >&5
 echo $ECHO_N "checking for initscr in -lncurses... $ECHO_C" >&6
 if test "${ac_cv_lib_ncurses_initscr+set}" = set; then
@@ -6176,9 +6176,9 @@ fi
 	fi
 
 	if test "$foundlcurses" != "yes"; then
-		{ { echo "$as_me:$LINENO: error: Failed to find libcurses or libncurses.  Install them or disable curses based components with --disable-curses.  If libcurses is disabled" >&5
-echo "$as_me: error: Failed to find libcurses or libncurses.  Install them or disable curses based components with --disable-curses.  If libcurses is disabled" >&2;}
-   { (exit the client will not be built.); exit the client will not be built.; }; }
+		{ { echo "$as_me:$LINENO: error: Failed to find libcurses or libncurses.  Install them" >&5
+echo "$as_me: error: Failed to find libcurses or libncurses.  Install them" >&2;}
+   { (exit or disable building the Kismet client with --disable-client.  Disabling the client is probably not something you want to do normally.); exit or disable building the Kismet client with --disable-client.  Disabling the client is probably not something you want to do normally.; }; }
 	fi
 
 	if test "$termcontrol" = "ncurses"; then
@@ -6474,7 +6474,238 @@ fi
 echo "$as_me: error: Failed to find curses.h or ncurses.h.  You probably need to install the curses-devel package from your distribution" >&2;}
    { (exit 1); exit 1; }; }
 	fi
+
+	echo "$as_me:$LINENO: checking for new_panel in -lpanel" >&5
+echo $ECHO_N "checking for new_panel in -lpanel... $ECHO_C" >&6
+if test "${ac_cv_lib_panel_new_panel+set}" = set; then
+  echo $ECHO_N "(cached) $ECHO_C" >&6
+else
+  ac_check_lib_save_LIBS=$LIBS
+LIBS="-lpanel  $LIBS"
+cat >conftest.$ac_ext <<_ACEOF
+/* confdefs.h.  */
+_ACEOF
+cat confdefs.h >>conftest.$ac_ext
+cat >>conftest.$ac_ext <<_ACEOF
+/* end confdefs.h.  */
+
+/* Override any gcc2 internal prototype to avoid an error.  */
+#ifdef __cplusplus
+extern "C"
+#endif
+/* We use char because int might match the return type of a gcc2
+   builtin and then its argument prototype would still apply.  */
+char new_panel ();
+int
+main ()
+{
+new_panel ();
+  ;
+  return 0;
+}
+_ACEOF
+rm -f conftest.$ac_objext conftest$ac_exeext
+if { (eval echo "$as_me:$LINENO: \"$ac_link\"") >&5
+  (eval $ac_link) 2>conftest.er1
+  ac_status=$?
+  grep -v '^ *+' conftest.er1 >conftest.err
+  rm -f conftest.er1
+  cat conftest.err >&5
+  echo "$as_me:$LINENO: \$? = $ac_status" >&5
+  (exit $ac_status); } &&
+	 { ac_try='test -z "$ac_c_werror_flag"
+			 || test ! -s conftest.err'
+  { (eval echo "$as_me:$LINENO: \"$ac_try\"") >&5
+  (eval $ac_try) 2>&5
+  ac_status=$?
+  echo "$as_me:$LINENO: \$? = $ac_status" >&5
+  (exit $ac_status); }; } &&
+	 { ac_try='test -s conftest$ac_exeext'
+  { (eval echo "$as_me:$LINENO: \"$ac_try\"") >&5
+  (eval $ac_try) 2>&5
+  ac_status=$?
+  echo "$as_me:$LINENO: \$? = $ac_status" >&5
+  (exit $ac_status); }; }; then
+  ac_cv_lib_panel_new_panel=yes
+else
+  echo "$as_me: failed program was:" >&5
+sed 's/^/| /' conftest.$ac_ext >&5
+
+ac_cv_lib_panel_new_panel=no
 fi
+rm -f conftest.err conftest.$ac_objext \
+      conftest$ac_exeext conftest.$ac_ext
+LIBS=$ac_check_lib_save_LIBS
+fi
+echo "$as_me:$LINENO: result: $ac_cv_lib_panel_new_panel" >&5
+echo "${ECHO_T}$ac_cv_lib_panel_new_panel" >&6
+if test $ac_cv_lib_panel_new_panel = yes; then
+
+cat >>confdefs.h <<\_ACEOF
+#define HAVE_LIBPANEL 1
+_ACEOF
+
+				 curseaux="$curseaux -lpanel"
+else
+  { { echo "$as_me:$LINENO: error: Failed to find libpanel extension to curses/ncurses.  Install it" >&5
+echo "$as_me: error: Failed to find libpanel extension to curses/ncurses.  Install it" >&2;}
+   { (exit or disable building the Kismet client with --disable-client.  Disabling the client is probably not something you want to do normally.); exit or disable building the Kismet client with --disable-client.  Disabling the client is probably not something you want to do normally.; }; }
+fi
+
+
+	if test "${ac_cv_header_panel_h+set}" = set; then
+  echo "$as_me:$LINENO: checking for panel.h" >&5
+echo $ECHO_N "checking for panel.h... $ECHO_C" >&6
+if test "${ac_cv_header_panel_h+set}" = set; then
+  echo $ECHO_N "(cached) $ECHO_C" >&6
+fi
+echo "$as_me:$LINENO: result: $ac_cv_header_panel_h" >&5
+echo "${ECHO_T}$ac_cv_header_panel_h" >&6
+else
+  # Is the header compilable?
+echo "$as_me:$LINENO: checking panel.h usability" >&5
+echo $ECHO_N "checking panel.h usability... $ECHO_C" >&6
+cat >conftest.$ac_ext <<_ACEOF
+/* confdefs.h.  */
+_ACEOF
+cat confdefs.h >>conftest.$ac_ext
+cat >>conftest.$ac_ext <<_ACEOF
+/* end confdefs.h.  */
+$ac_includes_default
+#include <panel.h>
+_ACEOF
+rm -f conftest.$ac_objext
+if { (eval echo "$as_me:$LINENO: \"$ac_compile\"") >&5
+  (eval $ac_compile) 2>conftest.er1
+  ac_status=$?
+  grep -v '^ *+' conftest.er1 >conftest.err
+  rm -f conftest.er1
+  cat conftest.err >&5
+  echo "$as_me:$LINENO: \$? = $ac_status" >&5
+  (exit $ac_status); } &&
+	 { ac_try='test -z "$ac_c_werror_flag"
+			 || test ! -s conftest.err'
+  { (eval echo "$as_me:$LINENO: \"$ac_try\"") >&5
+  (eval $ac_try) 2>&5
+  ac_status=$?
+  echo "$as_me:$LINENO: \$? = $ac_status" >&5
+  (exit $ac_status); }; } &&
+	 { ac_try='test -s conftest.$ac_objext'
+  { (eval echo "$as_me:$LINENO: \"$ac_try\"") >&5
+  (eval $ac_try) 2>&5
+  ac_status=$?
+  echo "$as_me:$LINENO: \$? = $ac_status" >&5
+  (exit $ac_status); }; }; then
+  ac_header_compiler=yes
+else
+  echo "$as_me: failed program was:" >&5
+sed 's/^/| /' conftest.$ac_ext >&5
+
+ac_header_compiler=no
+fi
+rm -f conftest.err conftest.$ac_objext conftest.$ac_ext
+echo "$as_me:$LINENO: result: $ac_header_compiler" >&5
+echo "${ECHO_T}$ac_header_compiler" >&6
+
+# Is the header present?
+echo "$as_me:$LINENO: checking panel.h presence" >&5
+echo $ECHO_N "checking panel.h presence... $ECHO_C" >&6
+cat >conftest.$ac_ext <<_ACEOF
+/* confdefs.h.  */
+_ACEOF
+cat confdefs.h >>conftest.$ac_ext
+cat >>conftest.$ac_ext <<_ACEOF
+/* end confdefs.h.  */
+#include <panel.h>
+_ACEOF
+if { (eval echo "$as_me:$LINENO: \"$ac_cpp conftest.$ac_ext\"") >&5
+  (eval $ac_cpp conftest.$ac_ext) 2>conftest.er1
+  ac_status=$?
+  grep -v '^ *+' conftest.er1 >conftest.err
+  rm -f conftest.er1
+  cat conftest.err >&5
+  echo "$as_me:$LINENO: \$? = $ac_status" >&5
+  (exit $ac_status); } >/dev/null; then
+  if test -s conftest.err; then
+    ac_cpp_err=$ac_c_preproc_warn_flag
+    ac_cpp_err=$ac_cpp_err$ac_c_werror_flag
+  else
+    ac_cpp_err=
+  fi
+else
+  ac_cpp_err=yes
+fi
+if test -z "$ac_cpp_err"; then
+  ac_header_preproc=yes
+else
+  echo "$as_me: failed program was:" >&5
+sed 's/^/| /' conftest.$ac_ext >&5
+
+  ac_header_preproc=no
+fi
+rm -f conftest.err conftest.$ac_ext
+echo "$as_me:$LINENO: result: $ac_header_preproc" >&5
+echo "${ECHO_T}$ac_header_preproc" >&6
+
+# So?  What about this header?
+case $ac_header_compiler:$ac_header_preproc:$ac_c_preproc_warn_flag in
+  yes:no: )
+    { echo "$as_me:$LINENO: WARNING: panel.h: accepted by the compiler, rejected by the preprocessor!" >&5
+echo "$as_me: WARNING: panel.h: accepted by the compiler, rejected by the preprocessor!" >&2;}
+    { echo "$as_me:$LINENO: WARNING: panel.h: proceeding with the compiler's result" >&5
+echo "$as_me: WARNING: panel.h: proceeding with the compiler's result" >&2;}
+    ac_header_preproc=yes
+    ;;
+  no:yes:* )
+    { echo "$as_me:$LINENO: WARNING: panel.h: present but cannot be compiled" >&5
+echo "$as_me: WARNING: panel.h: present but cannot be compiled" >&2;}
+    { echo "$as_me:$LINENO: WARNING: panel.h:     check for missing prerequisite headers?" >&5
+echo "$as_me: WARNING: panel.h:     check for missing prerequisite headers?" >&2;}
+    { echo "$as_me:$LINENO: WARNING: panel.h: see the Autoconf documentation" >&5
+echo "$as_me: WARNING: panel.h: see the Autoconf documentation" >&2;}
+    { echo "$as_me:$LINENO: WARNING: panel.h:     section \"Present But Cannot Be Compiled\"" >&5
+echo "$as_me: WARNING: panel.h:     section \"Present But Cannot Be Compiled\"" >&2;}
+    { echo "$as_me:$LINENO: WARNING: panel.h: proceeding with the preprocessor's result" >&5
+echo "$as_me: WARNING: panel.h: proceeding with the preprocessor's result" >&2;}
+    { echo "$as_me:$LINENO: WARNING: panel.h: in the future, the compiler will take precedence" >&5
+echo "$as_me: WARNING: panel.h: in the future, the compiler will take precedence" >&2;}
+    (
+      cat <<\_ASBOX
+## ------------------------------------------ ##
+## Report this to the AC_PACKAGE_NAME lists.  ##
+## ------------------------------------------ ##
+_ASBOX
+    ) |
+      sed "s/^/$as_me: WARNING:     /" >&2
+    ;;
+esac
+echo "$as_me:$LINENO: checking for panel.h" >&5
+echo $ECHO_N "checking for panel.h... $ECHO_C" >&6
+if test "${ac_cv_header_panel_h+set}" = set; then
+  echo $ECHO_N "(cached) $ECHO_C" >&6
+else
+  ac_cv_header_panel_h=$ac_header_preproc
+fi
+echo "$as_me:$LINENO: result: $ac_cv_header_panel_h" >&5
+echo "${ECHO_T}$ac_cv_header_panel_h" >&6
+
+fi
+if test $ac_cv_header_panel_h = yes; then
+  foundhpanel=yes
+fi
+
+
+	if test "$foundhpanel" != "yes"; then
+		{ { echo "$as_me:$LINENO: error: Failed to find panel.h curses extension header.  You probably need to install the curses-devel or panel-devel package from your distribution." >&5
+echo "$as_me: error: Failed to find panel.h curses extension header.  You probably need to install the curses-devel or panel-devel package from your distribution." >&2;}
+   { (exit 1); exit 1; }; }
+	fi
+
+	CLIENTCLIBS="$CLIENTCLIBS $curseaux"
+fi
+
+
+
 
 
 # TODO - check for advanced curses stuff here like cdk/panels
@@ -10273,6 +10504,8 @@ s,@LIBOBJS@,$LIBOBJS,;t t
 s,@instgrp@,$instgrp,;t t
 s,@mangrp@,$mangrp,;t t
 s,@CLIBS@,$CLIBS,;t t
+s,@CLIENTCLIBS@,$CLIENTCLIBS,;t t
+s,@CLIENTCFLAGS@,$CLIENTCFLAGS,;t t
 s,@wantpcap@,$wantpcap,;t t
 s,@pcaplib@,$pcaplib,;t t
 s,@pcaplnk@,$pcaplnk,;t t

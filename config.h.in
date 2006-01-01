@@ -39,6 +39,9 @@
 /* NCurses terminal lib */
 #undef HAVE_LIBNCURSES
 
+/* Panel terminal lib */
+#undef HAVE_LIBPANEL
+
 /* libpcap packet capture lib */
 #undef HAVE_LIBPCAP
 
