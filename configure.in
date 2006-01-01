@@ -232,7 +232,7 @@ fi
 if test $stdint = "no"; then
 	if test $inttypes = "no"; then
 		AC_MSG_RESULT([failed])
-		AC_MSG_ERROR([could not find stdint.h or inttypes.h.])
+		AC_MSG_ERROR(could not find stdint.h or inttypes.h.)
 	fi
 fi
 
@@ -305,7 +305,7 @@ if test "$foundcxxl"x == "x"; then
 fi
 
 if test "$foundcxxl"x == "x"; then
-	AC_MSG_ERROR("Neither uclibc uClibc++ or standard gcc stdc++ libraries found.");
+	AC_MSG_ERROR(Neither uclibc uClibc++ or standard gcc stdc++ libraries found.)
 fi
 
 AC_MSG_CHECKING([for group 'root'])
@@ -338,21 +338,24 @@ if test "$wantcurses" = "yes"; then
 		AC_DEFINE(HAVE_LIBNCURSES, 1, NCurses terminal lib) \
 			foundlcurses=yes curseaux="-lncurses" termcontrol="ncurses" )
 
-	AC_CHECK_LIB([curses], [initscr],
-		 AC_DEFINE(HAVE_LIBCURSES, 1, Curses terminal lib) \
-			 foundlcurses=yes curseaux="-lcurses" termcontrol="curses" )
-
 	if test "$foundlcurses" != "yes"; then
-		AC_MSG_ERROR("Failed to find libcurses or libncurses.  Install them or " \
-					 "disable curses based components with --disable-curses");
+		AC_CHECK_LIB([curses], [initscr],
+			 AC_DEFINE(HAVE_LIBCURSES, 1, Curses terminal lib) \
+				 foundlcurses=yes curseaux="-lcurses" termcontrol="curses" )
 	fi
 
-	AC_CHECK_HEADER([curses.h], [foundhcurses=yes])
-	AC_CHECK_HEADER([ncurses.h], [foundhcurses=yes])
+	if test "$foundlcurses" != "yes"; then
+		AC_MSG_ERROR(Failed to find libcurses or libncurses.  Install them or disable curses based components with --disable-curses.  If libcurses is disabled, the client will not be built.)
+	fi
+
+	if test "$termcontrol" = "ncurses"; then
+		AC_CHECK_HEADER([ncurses.h], [foundhcurses=yes])
+	else
+		AC_CHECK_HEADER([curses.h], [foundhcurses=yes])
+	fi
 
 	if test "$foundhcurses" != "yes"; then
-		AC_MSG_ERROR("Failed to find curses.h or ncurses.h.  You probably need to " \
-					 "install the curses-devel package from your distribution");
+		AC_MSG_ERROR(Failed to find curses.h or ncurses.h.  You probably need to install the curses-devel package from your distribution)
 	fi
 fi
 AC_SUBST(CLIBS)
@@ -451,9 +454,7 @@ if test "$wantwext" = "yes"; then
 		])
 
 	if test "$foundwexth" != "yes"; then
-		AC_MSG_ERROR("Failed to find a usable linux/wireless.h header for Linux " \
-					 "Wireless Extensions.  Either your kernel headers are missing " \
-					 "or are incorrect.  See config.log for the exact error.");
+		AC_MSG_ERROR(Failed to find a usable linux/wireless.h header for Linux Wireless Extensions.  Either your kernel headers are missing or are incorrect.  See config.log for the exact error.)
 	fi
 
     AC_MSG_CHECKING(that linux/wireless.h is what we expect)
@@ -472,9 +473,7 @@ if test "$wantwext" = "yes"; then
 
 	if test "$foundwextok" != "yes"; then
 		AC_MSG_RESULT(no)
-		AC_MSG_ERROR("Failed to find a usable linux/wireless.h header for Linux " \
-					 "Wireless Extensions.  Either your kernel headers are missing " \
-					 "or are incorrect.  See config.log for the exact error.");
+		AC_MSG_ERROR(Failed to find a usable linux/wireless.h header for Linux Wireless Extensions.  Either your kernel headers are missing or are incorrect.  See config.log for the exact error.)
 	fi # wexth
 
 	AC_MSG_RESULT(yes)
@@ -494,16 +493,14 @@ if test "$wantpcre" = "yes"; then
 	AC_CHECK_LIB([pcre], [pcre_compile], pcrel=yes, pcrel=no)
 
 	if test $pcrel != "yes"; then
-		AC_MSG_ERROR(["Failed to find libpcre.  Either install it, or " \
-					 "disable it via --disable-pcre"])
+		AC_MSG_ERROR(Failed to find libpcre.  Either install it, or disable it via --disable-pcre)
 	fi
 
 	pcreh=no
 	AC_CHECK_HEADER([pcre.h], pcreh=yes, pcreh=no)
 
 	if test $pcreh != "yes"; then
-		AC_MSG_ERROR(["Failed to find pcre.h.  You probably need to install " \
-					 "the pcre-devel packages for your distribution."])
+		AC_MSG_ERROR(Failed to find pcre.h.  You probably need to install the pcre-devel packages for your distribution.)
 	fi
 
 	AC_DEFINE(HAVE_LIBPCRE, 1, libpcre regex support)
@@ -530,7 +527,7 @@ AC_ARG_ENABLE(syspcap, [  --enable-syspcap        use system libpcap (not recomm
 		    if test $foundsyspcaph != yes; then 
 				AC_CHECK_HEADER([pcap/pcap.h], 
 				AC_DEFINE(HAVE_PCAP_H, 1, libpcap header) AC_DEFINE(HAVE_PCAPPCAP_H, 1, pcap/pcap.h),
-				AC_MSG_ERROR([found libpcap but unable to find pcap.h]))
+				AC_MSG_ERROR(found libpcap but unable to find pcap.h))
 		    fi
 		# Look for the new PCAP stuff
 		AC_CHECK_LIB([pcap], [pcap_setnonblock],
@@ -590,12 +587,12 @@ fi
 
 if test "$radiotap" != "yes"; then
     AC_DEFINE(HAVE_LOCAL_RADIOTAP, 1, local radiotap packet headers)
-	radiotaploc="local";
+	radiotaploc="local"
 fi
 
 if test "$bsdradiotap" = "yes"; then
 	AC_DEFINE(HAVE_BSD_SYS_RADIOTAP, 1, BSD radiotap packet headers)
-	radiotaploc="system (BSD)";
+	radiotaploc="system (BSD)"
 fi
 
 AC_ARG_ENABLE(setuid, [  --disable-setuid        disable setuid/privdrop ability (not reccomended)],,suid=yes)
@@ -846,18 +843,6 @@ fi
 echo -n "      Terminal Control: "
 echo "$termcontrol";
 
-echo -n "      Curses interface: "
-if test "$buildcurses" = "yes"; then
-	echo "yes"
-else
-	echo "no"
-fi
-echo -n "      Panels interface: "
-if test "$panel" = "yes"; then
-	echo "yes"
-else
-	echo "no"
-fi
 echo -n "       Linux wireless : "
 if test "$linux_wireless" = "yes"; then
 	echo "yes"

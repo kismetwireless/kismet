@@ -5984,9 +5984,9 @@ fi
 fi
 
 if test "$foundcxxl"x == "x"; then
-	{ { echo "$as_me:$LINENO: error: \"Neither uclibc uClibc++ or standard gcc stdc++ libraries found.\"" >&5
-echo "$as_me: error: \"Neither uclibc uClibc++ or standard gcc stdc++ libraries found.\"" >&2;}
-   { (exit 1); exit 1; }; };
+	{ { echo "$as_me:$LINENO: error: Neither uclibc uClibc++ or standard gcc stdc++ libraries found." >&5
+echo "$as_me: error: Neither uclibc uClibc++ or standard gcc stdc++ libraries found." >&2;}
+   { (exit 1); exit 1; }; }
 fi
 
 echo "$as_me:$LINENO: checking for group 'root'" >&5
@@ -6099,7 +6099,8 @@ _ACEOF
 fi
 
 
-	echo "$as_me:$LINENO: checking for initscr in -lcurses" >&5
+	if test "$foundlcurses" != "yes"; then
+		echo "$as_me:$LINENO: checking for initscr in -lcurses" >&5
 echo $ECHO_N "checking for initscr in -lcurses... $ECHO_C" >&6
 if test "${ac_cv_lib_curses_initscr+set}" = set; then
   echo $ECHO_N "(cached) $ECHO_C" >&6
@@ -6169,161 +6170,19 @@ cat >>confdefs.h <<\_ACEOF
 #define HAVE_LIBCURSES 1
 _ACEOF
  \
-			 foundlcurses=yes curseaux="-lcurses" termcontrol="curses"
+				 foundlcurses=yes curseaux="-lcurses" termcontrol="curses"
 fi
 
-
-	if test "$foundlcurses" != "yes"; then
-		{ { echo "$as_me:$LINENO: error: \"Failed to find libcurses or libncurses.  Install them or \" \
-					 \"disable curses based components with --disable-curses\"" >&5
-echo "$as_me: error: \"Failed to find libcurses or libncurses.  Install them or \" \
-					 \"disable curses based components with --disable-curses\"" >&2;}
-   { (exit 1); exit 1; }; };
 	fi
 
-	if test "${ac_cv_header_curses_h+set}" = set; then
-  echo "$as_me:$LINENO: checking for curses.h" >&5
-echo $ECHO_N "checking for curses.h... $ECHO_C" >&6
-if test "${ac_cv_header_curses_h+set}" = set; then
-  echo $ECHO_N "(cached) $ECHO_C" >&6
-fi
-echo "$as_me:$LINENO: result: $ac_cv_header_curses_h" >&5
-echo "${ECHO_T}$ac_cv_header_curses_h" >&6
-else
-  # Is the header compilable?
-echo "$as_me:$LINENO: checking curses.h usability" >&5
-echo $ECHO_N "checking curses.h usability... $ECHO_C" >&6
-cat >conftest.$ac_ext <<_ACEOF
-/* confdefs.h.  */
-_ACEOF
-cat confdefs.h >>conftest.$ac_ext
-cat >>conftest.$ac_ext <<_ACEOF
-/* end confdefs.h.  */
-$ac_includes_default
-#include <curses.h>
-_ACEOF
-rm -f conftest.$ac_objext
-if { (eval echo "$as_me:$LINENO: \"$ac_compile\"") >&5
-  (eval $ac_compile) 2>conftest.er1
-  ac_status=$?
-  grep -v '^ *+' conftest.er1 >conftest.err
-  rm -f conftest.er1
-  cat conftest.err >&5
-  echo "$as_me:$LINENO: \$? = $ac_status" >&5
-  (exit $ac_status); } &&
-	 { ac_try='test -z "$ac_c_werror_flag"
-			 || test ! -s conftest.err'
-  { (eval echo "$as_me:$LINENO: \"$ac_try\"") >&5
-  (eval $ac_try) 2>&5
-  ac_status=$?
-  echo "$as_me:$LINENO: \$? = $ac_status" >&5
-  (exit $ac_status); }; } &&
-	 { ac_try='test -s conftest.$ac_objext'
-  { (eval echo "$as_me:$LINENO: \"$ac_try\"") >&5
-  (eval $ac_try) 2>&5
-  ac_status=$?
-  echo "$as_me:$LINENO: \$? = $ac_status" >&5
-  (exit $ac_status); }; }; then
-  ac_header_compiler=yes
-else
-  echo "$as_me: failed program was:" >&5
-sed 's/^/| /' conftest.$ac_ext >&5
+	if test "$foundlcurses" != "yes"; then
+		{ { echo "$as_me:$LINENO: error: Failed to find libcurses or libncurses.  Install them or disable curses based components with --disable-curses.  If libcurses is disabled" >&5
+echo "$as_me: error: Failed to find libcurses or libncurses.  Install them or disable curses based components with --disable-curses.  If libcurses is disabled" >&2;}
+   { (exit the client will not be built.); exit the client will not be built.; }; }
+	fi
 
-ac_header_compiler=no
-fi
-rm -f conftest.err conftest.$ac_objext conftest.$ac_ext
-echo "$as_me:$LINENO: result: $ac_header_compiler" >&5
-echo "${ECHO_T}$ac_header_compiler" >&6
-
-# Is the header present?
-echo "$as_me:$LINENO: checking curses.h presence" >&5
-echo $ECHO_N "checking curses.h presence... $ECHO_C" >&6
-cat >conftest.$ac_ext <<_ACEOF
-/* confdefs.h.  */
-_ACEOF
-cat confdefs.h >>conftest.$ac_ext
-cat >>conftest.$ac_ext <<_ACEOF
-/* end confdefs.h.  */
-#include <curses.h>
-_ACEOF
-if { (eval echo "$as_me:$LINENO: \"$ac_cpp conftest.$ac_ext\"") >&5
-  (eval $ac_cpp conftest.$ac_ext) 2>conftest.er1
-  ac_status=$?
-  grep -v '^ *+' conftest.er1 >conftest.err
-  rm -f conftest.er1
-  cat conftest.err >&5
-  echo "$as_me:$LINENO: \$? = $ac_status" >&5
-  (exit $ac_status); } >/dev/null; then
-  if test -s conftest.err; then
-    ac_cpp_err=$ac_c_preproc_warn_flag
-    ac_cpp_err=$ac_cpp_err$ac_c_werror_flag
-  else
-    ac_cpp_err=
-  fi
-else
-  ac_cpp_err=yes
-fi
-if test -z "$ac_cpp_err"; then
-  ac_header_preproc=yes
-else
-  echo "$as_me: failed program was:" >&5
-sed 's/^/| /' conftest.$ac_ext >&5
-
-  ac_header_preproc=no
-fi
-rm -f conftest.err conftest.$ac_ext
-echo "$as_me:$LINENO: result: $ac_header_preproc" >&5
-echo "${ECHO_T}$ac_header_preproc" >&6
-
-# So?  What about this header?
-case $ac_header_compiler:$ac_header_preproc:$ac_c_preproc_warn_flag in
-  yes:no: )
-    { echo "$as_me:$LINENO: WARNING: curses.h: accepted by the compiler, rejected by the preprocessor!" >&5
-echo "$as_me: WARNING: curses.h: accepted by the compiler, rejected by the preprocessor!" >&2;}
-    { echo "$as_me:$LINENO: WARNING: curses.h: proceeding with the compiler's result" >&5
-echo "$as_me: WARNING: curses.h: proceeding with the compiler's result" >&2;}
-    ac_header_preproc=yes
-    ;;
-  no:yes:* )
-    { echo "$as_me:$LINENO: WARNING: curses.h: present but cannot be compiled" >&5
-echo "$as_me: WARNING: curses.h: present but cannot be compiled" >&2;}
-    { echo "$as_me:$LINENO: WARNING: curses.h:     check for missing prerequisite headers?" >&5
-echo "$as_me: WARNING: curses.h:     check for missing prerequisite headers?" >&2;}
-    { echo "$as_me:$LINENO: WARNING: curses.h: see the Autoconf documentation" >&5
-echo "$as_me: WARNING: curses.h: see the Autoconf documentation" >&2;}
-    { echo "$as_me:$LINENO: WARNING: curses.h:     section \"Present But Cannot Be Compiled\"" >&5
-echo "$as_me: WARNING: curses.h:     section \"Present But Cannot Be Compiled\"" >&2;}
-    { echo "$as_me:$LINENO: WARNING: curses.h: proceeding with the preprocessor's result" >&5
-echo "$as_me: WARNING: curses.h: proceeding with the preprocessor's result" >&2;}
-    { echo "$as_me:$LINENO: WARNING: curses.h: in the future, the compiler will take precedence" >&5
-echo "$as_me: WARNING: curses.h: in the future, the compiler will take precedence" >&2;}
-    (
-      cat <<\_ASBOX
-## ------------------------------------------ ##
-## Report this to the AC_PACKAGE_NAME lists.  ##
-## ------------------------------------------ ##
-_ASBOX
-    ) |
-      sed "s/^/$as_me: WARNING:     /" >&2
-    ;;
-esac
-echo "$as_me:$LINENO: checking for curses.h" >&5
-echo $ECHO_N "checking for curses.h... $ECHO_C" >&6
-if test "${ac_cv_header_curses_h+set}" = set; then
-  echo $ECHO_N "(cached) $ECHO_C" >&6
-else
-  ac_cv_header_curses_h=$ac_header_preproc
-fi
-echo "$as_me:$LINENO: result: $ac_cv_header_curses_h" >&5
-echo "${ECHO_T}$ac_cv_header_curses_h" >&6
-
-fi
-if test $ac_cv_header_curses_h = yes; then
-  foundhcurses=yes
-fi
-
-
-	if test "${ac_cv_header_ncurses_h+set}" = set; then
+	if test "$termcontrol" = "ncurses"; then
+		if test "${ac_cv_header_ncurses_h+set}" = set; then
   echo "$as_me:$LINENO: checking for ncurses.h" >&5
 echo $ECHO_N "checking for ncurses.h... $ECHO_C" >&6
 if test "${ac_cv_header_ncurses_h+set}" = set; then
@@ -6465,13 +6324,155 @@ if test $ac_cv_header_ncurses_h = yes; then
 fi
 
 
+	else
+		if test "${ac_cv_header_curses_h+set}" = set; then
+  echo "$as_me:$LINENO: checking for curses.h" >&5
+echo $ECHO_N "checking for curses.h... $ECHO_C" >&6
+if test "${ac_cv_header_curses_h+set}" = set; then
+  echo $ECHO_N "(cached) $ECHO_C" >&6
+fi
+echo "$as_me:$LINENO: result: $ac_cv_header_curses_h" >&5
+echo "${ECHO_T}$ac_cv_header_curses_h" >&6
+else
+  # Is the header compilable?
+echo "$as_me:$LINENO: checking curses.h usability" >&5
+echo $ECHO_N "checking curses.h usability... $ECHO_C" >&6
+cat >conftest.$ac_ext <<_ACEOF
+/* confdefs.h.  */
+_ACEOF
+cat confdefs.h >>conftest.$ac_ext
+cat >>conftest.$ac_ext <<_ACEOF
+/* end confdefs.h.  */
+$ac_includes_default
+#include <curses.h>
+_ACEOF
+rm -f conftest.$ac_objext
+if { (eval echo "$as_me:$LINENO: \"$ac_compile\"") >&5
+  (eval $ac_compile) 2>conftest.er1
+  ac_status=$?
+  grep -v '^ *+' conftest.er1 >conftest.err
+  rm -f conftest.er1
+  cat conftest.err >&5
+  echo "$as_me:$LINENO: \$? = $ac_status" >&5
+  (exit $ac_status); } &&
+	 { ac_try='test -z "$ac_c_werror_flag"
+			 || test ! -s conftest.err'
+  { (eval echo "$as_me:$LINENO: \"$ac_try\"") >&5
+  (eval $ac_try) 2>&5
+  ac_status=$?
+  echo "$as_me:$LINENO: \$? = $ac_status" >&5
+  (exit $ac_status); }; } &&
+	 { ac_try='test -s conftest.$ac_objext'
+  { (eval echo "$as_me:$LINENO: \"$ac_try\"") >&5
+  (eval $ac_try) 2>&5
+  ac_status=$?
+  echo "$as_me:$LINENO: \$? = $ac_status" >&5
+  (exit $ac_status); }; }; then
+  ac_header_compiler=yes
+else
+  echo "$as_me: failed program was:" >&5
+sed 's/^/| /' conftest.$ac_ext >&5
+
+ac_header_compiler=no
+fi
+rm -f conftest.err conftest.$ac_objext conftest.$ac_ext
+echo "$as_me:$LINENO: result: $ac_header_compiler" >&5
+echo "${ECHO_T}$ac_header_compiler" >&6
+
+# Is the header present?
+echo "$as_me:$LINENO: checking curses.h presence" >&5
+echo $ECHO_N "checking curses.h presence... $ECHO_C" >&6
+cat >conftest.$ac_ext <<_ACEOF
+/* confdefs.h.  */
+_ACEOF
+cat confdefs.h >>conftest.$ac_ext
+cat >>conftest.$ac_ext <<_ACEOF
+/* end confdefs.h.  */
+#include <curses.h>
+_ACEOF
+if { (eval echo "$as_me:$LINENO: \"$ac_cpp conftest.$ac_ext\"") >&5
+  (eval $ac_cpp conftest.$ac_ext) 2>conftest.er1
+  ac_status=$?
+  grep -v '^ *+' conftest.er1 >conftest.err
+  rm -f conftest.er1
+  cat conftest.err >&5
+  echo "$as_me:$LINENO: \$? = $ac_status" >&5
+  (exit $ac_status); } >/dev/null; then
+  if test -s conftest.err; then
+    ac_cpp_err=$ac_c_preproc_warn_flag
+    ac_cpp_err=$ac_cpp_err$ac_c_werror_flag
+  else
+    ac_cpp_err=
+  fi
+else
+  ac_cpp_err=yes
+fi
+if test -z "$ac_cpp_err"; then
+  ac_header_preproc=yes
+else
+  echo "$as_me: failed program was:" >&5
+sed 's/^/| /' conftest.$ac_ext >&5
+
+  ac_header_preproc=no
+fi
+rm -f conftest.err conftest.$ac_ext
+echo "$as_me:$LINENO: result: $ac_header_preproc" >&5
+echo "${ECHO_T}$ac_header_preproc" >&6
+
+# So?  What about this header?
+case $ac_header_compiler:$ac_header_preproc:$ac_c_preproc_warn_flag in
+  yes:no: )
+    { echo "$as_me:$LINENO: WARNING: curses.h: accepted by the compiler, rejected by the preprocessor!" >&5
+echo "$as_me: WARNING: curses.h: accepted by the compiler, rejected by the preprocessor!" >&2;}
+    { echo "$as_me:$LINENO: WARNING: curses.h: proceeding with the compiler's result" >&5
+echo "$as_me: WARNING: curses.h: proceeding with the compiler's result" >&2;}
+    ac_header_preproc=yes
+    ;;
+  no:yes:* )
+    { echo "$as_me:$LINENO: WARNING: curses.h: present but cannot be compiled" >&5
+echo "$as_me: WARNING: curses.h: present but cannot be compiled" >&2;}
+    { echo "$as_me:$LINENO: WARNING: curses.h:     check for missing prerequisite headers?" >&5
+echo "$as_me: WARNING: curses.h:     check for missing prerequisite headers?" >&2;}
+    { echo "$as_me:$LINENO: WARNING: curses.h: see the Autoconf documentation" >&5
+echo "$as_me: WARNING: curses.h: see the Autoconf documentation" >&2;}
+    { echo "$as_me:$LINENO: WARNING: curses.h:     section \"Present But Cannot Be Compiled\"" >&5
+echo "$as_me: WARNING: curses.h:     section \"Present But Cannot Be Compiled\"" >&2;}
+    { echo "$as_me:$LINENO: WARNING: curses.h: proceeding with the preprocessor's result" >&5
+echo "$as_me: WARNING: curses.h: proceeding with the preprocessor's result" >&2;}
+    { echo "$as_me:$LINENO: WARNING: curses.h: in the future, the compiler will take precedence" >&5
+echo "$as_me: WARNING: curses.h: in the future, the compiler will take precedence" >&2;}
+    (
+      cat <<\_ASBOX
+## ------------------------------------------ ##
+## Report this to the AC_PACKAGE_NAME lists.  ##
+## ------------------------------------------ ##
+_ASBOX
+    ) |
+      sed "s/^/$as_me: WARNING:     /" >&2
+    ;;
+esac
+echo "$as_me:$LINENO: checking for curses.h" >&5
+echo $ECHO_N "checking for curses.h... $ECHO_C" >&6
+if test "${ac_cv_header_curses_h+set}" = set; then
+  echo $ECHO_N "(cached) $ECHO_C" >&6
+else
+  ac_cv_header_curses_h=$ac_header_preproc
+fi
+echo "$as_me:$LINENO: result: $ac_cv_header_curses_h" >&5
+echo "${ECHO_T}$ac_cv_header_curses_h" >&6
+
+fi
+if test $ac_cv_header_curses_h = yes; then
+  foundhcurses=yes
+fi
+
+
+	fi
 
 	if test "$foundhcurses" != "yes"; then
-		{ { echo "$as_me:$LINENO: error: \"Failed to find curses.h or ncurses.h.  You probably need to \" \
-					 \"install the curses-devel package from your distribution\"" >&5
-echo "$as_me: error: \"Failed to find curses.h or ncurses.h.  You probably need to \" \
-					 \"install the curses-devel package from your distribution\"" >&2;}
-   { (exit 1); exit 1; }; };
+		{ { echo "$as_me:$LINENO: error: Failed to find curses.h or ncurses.h.  You probably need to install the curses-devel package from your distribution" >&5
+echo "$as_me: error: Failed to find curses.h or ncurses.h.  You probably need to install the curses-devel package from your distribution" >&2;}
+   { (exit 1); exit 1; }; }
 	fi
 fi
 
@@ -7308,13 +7309,9 @@ fi
 
 
 	if test "$foundwexth" != "yes"; then
-		{ { echo "$as_me:$LINENO: error: \"Failed to find a usable linux/wireless.h header for Linux \" \
-					 \"Wireless Extensions.  Either your kernel headers are missing \" \
-					 \"or are incorrect.  See config.log for the exact error.\"" >&5
-echo "$as_me: error: \"Failed to find a usable linux/wireless.h header for Linux \" \
-					 \"Wireless Extensions.  Either your kernel headers are missing \" \
-					 \"or are incorrect.  See config.log for the exact error.\"" >&2;}
-   { (exit 1); exit 1; }; };
+		{ { echo "$as_me:$LINENO: error: Failed to find a usable linux/wireless.h header for Linux Wireless Extensions.  Either your kernel headers are missing or are incorrect.  See config.log for the exact error." >&5
+echo "$as_me: error: Failed to find a usable linux/wireless.h header for Linux Wireless Extensions.  Either your kernel headers are missing or are incorrect.  See config.log for the exact error." >&2;}
+   { (exit 1); exit 1; }; }
 	fi
 
     echo "$as_me:$LINENO: checking that linux/wireless.h is what we expect" >&5
@@ -7379,13 +7376,9 @@ rm -f conftest.err conftest.$ac_objext \
 	if test "$foundwextok" != "yes"; then
 		echo "$as_me:$LINENO: result: no" >&5
 echo "${ECHO_T}no" >&6
-		{ { echo "$as_me:$LINENO: error: \"Failed to find a usable linux/wireless.h header for Linux \" \
-					 \"Wireless Extensions.  Either your kernel headers are missing \" \
-					 \"or are incorrect.  See config.log for the exact error.\"" >&5
-echo "$as_me: error: \"Failed to find a usable linux/wireless.h header for Linux \" \
-					 \"Wireless Extensions.  Either your kernel headers are missing \" \
-					 \"or are incorrect.  See config.log for the exact error.\"" >&2;}
-   { (exit 1); exit 1; }; };
+		{ { echo "$as_me:$LINENO: error: Failed to find a usable linux/wireless.h header for Linux Wireless Extensions.  Either your kernel headers are missing or are incorrect.  See config.log for the exact error." >&5
+echo "$as_me: error: Failed to find a usable linux/wireless.h header for Linux Wireless Extensions.  Either your kernel headers are missing or are incorrect.  See config.log for the exact error." >&2;}
+   { (exit 1); exit 1; }; }
 	fi # wexth
 
 	echo "$as_me:$LINENO: result: yes" >&5
@@ -7484,11 +7477,9 @@ fi
 
 
 	if test $pcrel != "yes"; then
-		{ { echo "$as_me:$LINENO: error: \"Failed to find libpcre.  Either install it, or \" \
-					 \"disable it via --disable-pcre\"" >&5
-echo "$as_me: error: \"Failed to find libpcre.  Either install it, or \" \
-					 \"disable it via --disable-pcre\"" >&2;}
-   { (exit 1); exit 1; }; }
+		{ { echo "$as_me:$LINENO: error: Failed to find libpcre.  Either install it" >&5
+echo "$as_me: error: Failed to find libpcre.  Either install it" >&2;}
+   { (exit or disable it via --disable-pcre); exit or disable it via --disable-pcre; }; }
 	fi
 
 	pcreh=no
@@ -7638,10 +7629,8 @@ fi
 
 
 	if test $pcreh != "yes"; then
-		{ { echo "$as_me:$LINENO: error: \"Failed to find pcre.h.  You probably need to install \" \
-					 \"the pcre-devel packages for your distribution.\"" >&5
-echo "$as_me: error: \"Failed to find pcre.h.  You probably need to install \" \
-					 \"the pcre-devel packages for your distribution.\"" >&2;}
+		{ { echo "$as_me:$LINENO: error: Failed to find pcre.h.  You probably need to install the pcre-devel packages for your distribution." >&5
+echo "$as_me: error: Failed to find pcre.h.  You probably need to install the pcre-devel packages for your distribution." >&2;}
    { (exit 1); exit 1; }; }
 	fi
 
@@ -8242,7 +8231,7 @@ cat >>confdefs.h <<\_ACEOF
 #define HAVE_LOCAL_RADIOTAP 1
 _ACEOF
 
-	radiotaploc="local";
+	radiotaploc="local"
 fi
 
 if test "$bsdradiotap" = "yes"; then
@@ -8251,7 +8240,7 @@ cat >>confdefs.h <<\_ACEOF
 #define HAVE_BSD_SYS_RADIOTAP 1
 _ACEOF
 
-	radiotaploc="system (BSD)";
+	radiotaploc="system (BSD)"
 fi
 
 # Check whether --enable-setuid or --disable-setuid was given.
@@ -10987,18 +10976,6 @@ fi
 echo -n "      Terminal Control: "
 echo "$termcontrol";
 
-echo -n "      Curses interface: "
-if test "$buildcurses" = "yes"; then
-	echo "yes"
-else
-	echo "no"
-fi
-echo -n "      Panels interface: "
-if test "$panel" = "yes"; then
-	echo "yes"
-else
-	echo "no"
-fi
 echo -n "       Linux wireless : "
 if test "$linux_wireless" = "yes"; then
 	echo "yes"
