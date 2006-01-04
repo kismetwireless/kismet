@@ -5621,6 +5621,148 @@ rm -f conftest*
 fi
 
 
+# Do we use libstdc++?
+echo "$as_me:$LINENO: checking for main in -luClibc++" >&5
+echo $ECHO_N "checking for main in -luClibc++... $ECHO_C" >&6
+if test "${ac_cv_lib_uClibcpp_main+set}" = set; then
+  echo $ECHO_N "(cached) $ECHO_C" >&6
+else
+  ac_check_lib_save_LIBS=$LIBS
+LIBS="-luClibc++  $LIBS"
+cat >conftest.$ac_ext <<_ACEOF
+/* confdefs.h.  */
+_ACEOF
+cat confdefs.h >>conftest.$ac_ext
+cat >>conftest.$ac_ext <<_ACEOF
+/* end confdefs.h.  */
+
+
+int
+main ()
+{
+main ();
+  ;
+  return 0;
+}
+_ACEOF
+rm -f conftest.$ac_objext conftest$ac_exeext
+if { (eval echo "$as_me:$LINENO: \"$ac_link\"") >&5
+  (eval $ac_link) 2>conftest.er1
+  ac_status=$?
+  grep -v '^ *+' conftest.er1 >conftest.err
+  rm -f conftest.er1
+  cat conftest.err >&5
+  echo "$as_me:$LINENO: \$? = $ac_status" >&5
+  (exit $ac_status); } &&
+	 { ac_try='test -z "$ac_c_werror_flag"
+			 || test ! -s conftest.err'
+  { (eval echo "$as_me:$LINENO: \"$ac_try\"") >&5
+  (eval $ac_try) 2>&5
+  ac_status=$?
+  echo "$as_me:$LINENO: \$? = $ac_status" >&5
+  (exit $ac_status); }; } &&
+	 { ac_try='test -s conftest$ac_exeext'
+  { (eval echo "$as_me:$LINENO: \"$ac_try\"") >&5
+  (eval $ac_try) 2>&5
+  ac_status=$?
+  echo "$as_me:$LINENO: \$? = $ac_status" >&5
+  (exit $ac_status); }; }; then
+  ac_cv_lib_uClibcpp_main=yes
+else
+  echo "$as_me: failed program was:" >&5
+sed 's/^/| /' conftest.$ac_ext >&5
+
+ac_cv_lib_uClibcpp_main=no
+fi
+rm -f conftest.err conftest.$ac_objext \
+      conftest$ac_exeext conftest.$ac_ext
+LIBS=$ac_check_lib_save_LIBS
+fi
+echo "$as_me:$LINENO: result: $ac_cv_lib_uClibcpp_main" >&5
+echo "${ECHO_T}$ac_cv_lib_uClibcpp_main" >&6
+if test $ac_cv_lib_uClibcpp_main = yes; then
+  foundcxxl="uclibc" LIBS="$LIBS -luClibc++"
+else
+  { echo "$as_me:$LINENO: WARNING: uclibc++ not available on this system" >&5
+echo "$as_me: WARNING: uclibc++ not available on this system" >&2;}
+fi
+
+
+# Do we use uclibc++?
+if test "$foundcxxl"x == "x"; then
+	echo "$as_me:$LINENO: checking for main in -lstdc++" >&5
+echo $ECHO_N "checking for main in -lstdc++... $ECHO_C" >&6
+if test "${ac_cv_lib_stdcpp_main+set}" = set; then
+  echo $ECHO_N "(cached) $ECHO_C" >&6
+else
+  ac_check_lib_save_LIBS=$LIBS
+LIBS="-lstdc++  $LIBS"
+cat >conftest.$ac_ext <<_ACEOF
+/* confdefs.h.  */
+_ACEOF
+cat confdefs.h >>conftest.$ac_ext
+cat >>conftest.$ac_ext <<_ACEOF
+/* end confdefs.h.  */
+
+
+int
+main ()
+{
+main ();
+  ;
+  return 0;
+}
+_ACEOF
+rm -f conftest.$ac_objext conftest$ac_exeext
+if { (eval echo "$as_me:$LINENO: \"$ac_link\"") >&5
+  (eval $ac_link) 2>conftest.er1
+  ac_status=$?
+  grep -v '^ *+' conftest.er1 >conftest.err
+  rm -f conftest.er1
+  cat conftest.err >&5
+  echo "$as_me:$LINENO: \$? = $ac_status" >&5
+  (exit $ac_status); } &&
+	 { ac_try='test -z "$ac_c_werror_flag"
+			 || test ! -s conftest.err'
+  { (eval echo "$as_me:$LINENO: \"$ac_try\"") >&5
+  (eval $ac_try) 2>&5
+  ac_status=$?
+  echo "$as_me:$LINENO: \$? = $ac_status" >&5
+  (exit $ac_status); }; } &&
+	 { ac_try='test -s conftest$ac_exeext'
+  { (eval echo "$as_me:$LINENO: \"$ac_try\"") >&5
+  (eval $ac_try) 2>&5
+  ac_status=$?
+  echo "$as_me:$LINENO: \$? = $ac_status" >&5
+  (exit $ac_status); }; }; then
+  ac_cv_lib_stdcpp_main=yes
+else
+  echo "$as_me: failed program was:" >&5
+sed 's/^/| /' conftest.$ac_ext >&5
+
+ac_cv_lib_stdcpp_main=no
+fi
+rm -f conftest.err conftest.$ac_objext \
+      conftest$ac_exeext conftest.$ac_ext
+LIBS=$ac_check_lib_save_LIBS
+fi
+echo "$as_me:$LINENO: result: $ac_cv_lib_stdcpp_main" >&5
+echo "${ECHO_T}$ac_cv_lib_stdcpp_main" >&6
+if test $ac_cv_lib_stdcpp_main = yes; then
+  foundcxxl="stdc++" LIBS="$LIBS -lstdc++"
+else
+  { echo "$as_me:$LINENO: WARNING: libstdc++ not available on this system" >&5
+echo "$as_me: WARNING: libstdc++ not available on this system" >&2;}
+fi
+
+fi
+
+if test "$foundcxxl"x == "x"; then
+	{ { echo "$as_me:$LINENO: error: Neither uclibc uClibc++ or standard gcc stdc++ libraries found." >&5
+echo "$as_me: error: Neither uclibc uClibc++ or standard gcc stdc++ libraries found." >&2;}
+   { (exit 1); exit 1; }; }
+fi
+
 echo "$as_me:$LINENO: checking for group 'root'" >&5
 echo $ECHO_N "checking for group 'root'... $ECHO_C" >&6
 if test "`grep -e ^root: /etc/group`" = ""; then
@@ -8515,8 +8657,6 @@ if test "$wantopto" != "yes"; then
 	CXXFLAGS=`echo $CXXFLAGS | sed -e 's/-O.//g'`
 fi
 
-LIBS="$LIBS -lstdc++"
-
 
 
 sharedatadir=$datadir
@@ -9866,6 +10006,7 @@ fi
 echo
 echo "Configuration complete: "
 echo "         Compiling for: $host_os ($host_cpu)"
+echo "           C++ Library: $foundcxxl"
 echo "   Installing as group: $instgrp"
 echo "    Man pages owned by: $mangrp"
 echo "       Installing into: $prefix"

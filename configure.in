@@ -255,6 +255,22 @@ CFLAGS="$OCFL"
 # Do we have large file support?
 AC_SYS_LARGEFILE
 
+# Do we use libstdc++?
+AC_CHECK_LIB([uClibc++], [main], 
+			 foundcxxl="uclibc" LIBS="$LIBS -luClibc++",
+			 AC_MSG_WARN([uclibc++ not available on this system]))
+
+# Do we use uclibc++?
+if test "$foundcxxl"x == "x"; then
+	AC_CHECK_LIB([stdc++], [main], 
+				 foundcxxl="stdc++" LIBS="$LIBS -lstdc++",
+				 AC_MSG_WARN([libstdc++ not available on this system]))
+fi
+
+if test "$foundcxxl"x == "x"; then
+	AC_MSG_ERROR(Neither uclibc uClibc++ or standard gcc stdc++ libraries found.)
+fi
+
 AC_MSG_CHECKING([for group 'root'])
 if test "`grep -e ^root: /etc/group`" = ""; then
 	AC_MSG_RESULT([no.  Using 'wheel'])
@@ -865,8 +881,6 @@ if test "$wantopto" != "yes"; then
 	CXXFLAGS=`echo $CXXFLAGS | sed -e 's/-O.//g'`
 fi
 
-LIBS="$LIBS -lstdc++"
-
 AC_SUBST(threadlib)
 
 sharedatadir=$datadir
@@ -884,6 +898,7 @@ AC_OUTPUT
 echo
 echo "Configuration complete: "
 echo "         Compiling for: $host_os ($host_cpu)"
+echo "           C++ Library: $foundcxxl"
 echo "   Installing as group: $instgrp"
 echo "    Man pages owned by: $mangrp"
 echo "       Installing into: $prefix"
