@@ -174,7 +174,8 @@ string ConfigFile::ExpandLogPath(string path, string logname, string type,
             pw = getpwuid(getuid());
 
             if (pw == NULL) {
-                fprintf(stderr, "ERROR:  Could not explode home directory path, getpwuid() failed.\n");
+                fprintf(stderr, "ERROR:  Could not explode home directory path, "
+						"getpwuid() failed: %s.\n", strerror(errno));
                 exit(1);
             }
 
