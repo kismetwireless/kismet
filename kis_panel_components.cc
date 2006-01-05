@@ -196,7 +196,8 @@ int Kis_Menu(int in_key) {
 		return 0;
 	}
 
-	if (in_key == ' ' && cur_menu >= 0) {
+	// Space or enter
+	if ((in_key == ' ' || in_key == 0x0A || in_key == KEY_ENTER) && cur_menu >= 0) {
 		return (cur_menu * 100) + cur_item + 1;
 	}
 
