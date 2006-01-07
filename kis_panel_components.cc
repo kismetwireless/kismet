@@ -33,7 +33,7 @@ int Kis_Menu::AddMenu(string in_text, int targ_char) {
 	_menu *menu = new _menu;
 
 	menu->text = in_text;
-	if (targ_char < 0 || targ_char > in_text.length() - 1)
+	if (targ_char < 0 || targ_char > (int) in_text.length() - 1)
 		menu->targchar = -1;
 	else
 		menu->targchar = targ_char;
@@ -48,7 +48,7 @@ int Kis_Menu::AddMenu(string in_text, int targ_char) {
 }
 
 int Kis_Menu::AddMenuItem(string in_text, int menuid, char extra) {
-	if (menuid < 0 || menuid > menubar.size() - 1)
+	if (menuid < 0 || menuid > (int) menubar.size() - 1)
 		return -1;
 
 	_menuitem *item = new _menuitem;
@@ -59,7 +59,7 @@ int Kis_Menu::AddMenuItem(string in_text, int menuid, char extra) {
 	item->id = menubar[menuid]->items.size();
 	menubar[menuid]->items.push_back(item);
 
-	if (in_text.length() > menubar[menuid]->width)
+	if ((int) in_text.length() > menubar[menuid]->width)
 		menubar[menuid]->width = in_text.length();
 
 	return (menuid * 100) + item->id + 1;
@@ -80,9 +80,9 @@ void Kis_Menu::Activate(int subcomponent) {
 	int menu = subcomponent / 100;
 	int item = (subcomponent % 100) - 1;
 
-	if (menu < 0 || menu > menubar.size() - 1)
+	if (menu < 0 || menu > (int) menubar.size() - 1)
 		return;
-	if (item < 0 || item > menubar[menu]->items.size() - 1)
+	if (item < 0 || item > (int) menubar[menu]->items.size() - 1)
 		return;
 
 	cur_menu = menu;
@@ -100,7 +100,7 @@ void Kis_Menu::DrawComponent() {
 	// Draw the menu bar itself
 	for (unsigned int x = 0; x < menubar.size(); x++) {
 		// If the current menu is the selected one, hilight it
-		if (x == cur_menu)
+		if ((int) x == cur_menu)
 			wattron(window, WA_REVERSE);
 
 		// Draw the menu
@@ -113,7 +113,7 @@ void Kis_Menu::DrawComponent() {
 			wattroff(window, WA_UNDERLINE);
 		}
 
-		if (x == cur_menu) {
+		if ((int) x == cur_menu) {
 			// turn off hilighting, and draw the menu itself too
 			wattroff(window, WA_REVERSE);
 
@@ -137,13 +137,13 @@ void Kis_Menu::DrawComponent() {
 				}
 
 				// Hilight the current item
-				if (y == cur_item)
+				if ((int) y == cur_item)
 					wattron(menuwin, WA_REVERSE);
 
 				// Format it with Foo ... F
 				menuline = menubar[x]->items[y]->text + " ";
 				for (unsigned int z = menuline.length(); 
-					 z <= menubar[x]->width + 2; z++) {
+					 (int) z <= menubar[x]->width + 2; z++) {
 					menuline = menuline + string(".");
 				}
 
@@ -152,7 +152,7 @@ void Kis_Menu::DrawComponent() {
 				// Print it
 				mvwaddstr(menuwin, 1 + y, 1, menuline.c_str());
 
-				if (y == cur_item)
+				if ((int) y == cur_item)
 					wattroff(menuwin, WA_REVERSE);
 			}
 		}
@@ -161,9 +161,9 @@ void Kis_Menu::DrawComponent() {
 	}
 }
 
-int Kis_Menu(int in_key) {
+int Kis_Menu::KeyPress(int in_key) {
 	// Menu movement
-	if (in_key == KEY_RIGHT && cur_menu < menubar.size() - 1 &&
+	if (in_key == KEY_RIGHT && cur_menu < (int) menubar.size() - 1 &&
 		cur_menu >= 0) {
 		cur_menu++;
 		return 0;
@@ -175,12 +175,12 @@ int Kis_Menu(int in_key) {
 	}
 
 	if (in_key == KEY_DOWN && cur_menu >= 0 &&
-		cur_item < menubar[cur_menu]->items.size() - 1) {
+		cur_item < (int) menubar[cur_menu]->items.size() - 1) {
 		cur_item++;
 
 		// handle '----' spacer items
 		if (menubar[cur_menu]->items[cur_item]->text[0] == '-' &&
-			cur_item < menubar[cur_menu]->items.size() - 1)
+			cur_item < (int) menubar[cur_menu]->items.size() - 1)
 			cur_item++;
 
 		return 0;
@@ -210,5 +210,49 @@ int Kis_Menu(int in_key) {
 	}
 
 	return 0;
+}
+
+Kis_Panel::Kis_Panel() {
+	win = NULL;
+	pan = NULL;
+	menu = NULL;
+
+	sx = sy = sizex = sizey = 0;
+}
+
+Kis_Panel::~Kis_Panel() {
+	for (unsigned int x = 0; x < comp_vec.size(); x++) {
+		delete comp_vec[x];
+	}
+
+	if (menu != NULL)
+		delete menu;
+	if (pan != NULL)
+		del_panel(pan);
+	if (win != NULL)
+		delwin(win);
+}
+
+void Kis_Panel::Position(int in_sy, int in_sx, int in_y, int in_x) {
+	sx = in_sx;
+	sy = in_sy;
+	sizex = in_x;
+	sizey = in_y;
+
+	if (win == NULL) {
+		win = newwin(sizey, sizex, sy, sx);
+	}
+
+	if (pan = NULL) {
+		pan = new_panel(win);
+	} else {
+		wresize(win, sizey, sizex);
+		replace_panel(pan, win);
+		move_panel(pan, sy, sx);
+	}
+}
+
+void Kis_Panel::SetTitle(string in_title) {
+	title = in_title;
 }
 

@@ -36,14 +36,16 @@
 
 #include <stdio.h>
 #include <string>
+#include <vector>
 
 // Basic component super-class that handles drawing a group of items of
 // some sort
 class Kis_Panel_Component {
+public:
 	Kis_Panel_Component() { 
 		window = NULL;
 	};
-	virtual ~Kis_Panel_Component() = 0;
+	virtual ~Kis_Panel_Component() { };
 
 	// Set the position inside a window
 	virtual void SetPosition(WINDOW *inwin, int isx, int isy, int iex, int iey) {
@@ -125,10 +127,15 @@ protected:
 class Kis_Panel {
 public:
 	Kis_Panel();
-	~Kis_Panel();
+	virtual ~Kis_Panel();
 
-	void PrintPanel();
-	int KeyPress(int in_key);
+	virtual void Position(int in_sy, int in_sx, int in_y, int in_x);
+
+	virtual void PrintPanel() = 0;
+
+	virtual int KeyPress(int in_key) = 0;
+
+	virtual void SetTitle(string in_title);
 
 protected:
 	WINDOW *win;
@@ -144,6 +151,8 @@ protected:
 
 	// Component which gets the keypress we didn't filter
 	Kis_Panel_Component *active_component;
+
+	int sx, sy, sizex, sizey;
 };
 
 #endif // panel

@@ -63,10 +63,11 @@ DRONEO = util.o ringbuf.o messagebus.o configfile.o getopt.o \
 
 DRONE = kismet_drone
 
-NCO	= util.o configfile.o speech.o manuf.o tcpclient.o \
-		frontend.o cursesfront.o \
-		panelfront.o panelfront_display.o panelfront_input.o \
-		gpsd.o getopt.o kismet_client.o 
+NCO	= util.o ringbuf.o messagebus.o configfile.o getopt.o \
+	  soundcontrol.o speechcontrol.o timetracker.o ipc_remote.o \
+	  clinetframework.o tcpclient.o \
+	  kis_panel_components.o \
+	  kismet_client.o
 NC	= kismet_client
 
 GPSLO = getopt.o util.o configfile.o expat.o manuf.o \
@@ -91,7 +92,7 @@ $(DRONE):	$(DRONEO) $(PCAPLIB)
 	$(LD) $(LDFLAGS) -o $(DRONE) $(DRONEO) $(PCAPLIB) $(LIBS) $(PCAPLNK)
 
 $(NC):	$(NCO)
-	$(LD) $(LDFLAGS) -o $(NC) $(NCO) $(LIBS) $(CLIBS)
+	$(LD) $(LDFLAGS) -o $(NC) $(NCO) $(LIBS) $(CLIENTLIBS)
 
 $(GPSL):	$(GPSLBUILDO)
 	@if test "$(GPSLBUILD)"x = "x"; then \
@@ -374,7 +375,7 @@ $(DEPEND):
 	@echo "Generating dependencies... "
 	@echo > $(DEPEND)
 	@$(CXX) $(CFLAGS) -MM \
-		`echo $(PSO) | sed -e "s/\.o/\.cc/g"` >> $(DEPEND)
+		`echo $(PSO) $(DRONEO) $(NCO) | sed -e "s/\.o/\.cc/g"` >> $(DEPEND)
 
 include $(DEPEND)
 
