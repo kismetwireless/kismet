@@ -361,8 +361,12 @@ void Kis_Panel::Position(int in_sy, int in_sx, int in_y, int in_x) {
 
 int Kis_Panel::Poll() {
 	int get = wgetch(win);
+	int ret;
 
-	KeyPress(get);
+	ret = KeyPress(get);
+
+	if (ret < 0)
+		return ret;
 
 	return 1;
 }
