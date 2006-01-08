@@ -38,6 +38,8 @@
 #include <string>
 #include <vector>
 
+#include "pollable.h"
+
 // Basic component super-class that handles drawing a group of items of
 // some sort
 class Kis_Panel_Component {
@@ -75,7 +77,7 @@ protected:
 	int sx, sy, ex, ey;
 };
 
-class Kis_Menu : Kis_Panel_Component {
+class Kis_Menu : public Kis_Panel_Component {
 public:
 	Kis_Menu();
 	virtual ~Kis_Menu();
@@ -131,13 +133,17 @@ public:
 
 	virtual void Position(int in_sy, int in_sx, int in_y, int in_x);
 
-	virtual void PrintPanel() = 0;
+	virtual int Poll();
+
+	virtual void DrawPanel() = 0;
 
 	virtual int KeyPress(int in_key) = 0;
 
 	virtual void SetTitle(string in_title);
 
 protected:
+	virtual void DrawTitleBorder();
+
 	WINDOW *win;
 	PANEL *pan;
 
@@ -153,6 +159,38 @@ protected:
 	Kis_Panel_Component *active_component;
 
 	int sx, sy, sizex, sizey;
+};
+
+class Kis_Main_Panel : public Kis_Panel {
+public:
+	Kis_Main_Panel();
+	virtual ~Kis_Main_Panel();
+
+	virtual void Position(int in_sy, int in_sx, int in_y, int in_x);
+	virtual void DrawPanel();
+	virtual int KeyPress(int in_key);
+
+protected:
+	int mn_file, mn_sort;
+	int mi_connect, mi_quit;
+};
+
+// Pollable supersystem for handling panels and input
+class PanelInterface : public Pollable {
+public:
+	PanelInterface();
+	PanelInterface(GlobalRegistry *in_globalreg);
+	virtual ~PanelInterface();
+
+	virtual unsigned int MergeSet(unsigned int in_max_fd, fd_set *out_rset, 
+								  fd_set *out_wset);
+
+	virtual int Poll(fd_set& in_rset, fd_set& in_wset);
+
+	virtual int DrawInterface();
+protected:
+	vector<Kis_Panel *> live_panels;
+	int draweventid;
 };
 
 #endif // panel

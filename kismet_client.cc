@@ -47,6 +47,8 @@
 
 #include "ipc_remote.h"
 
+#include "kis_panel_components.h"
+
 #ifndef exec_name
 char *exec_name;
 #endif
@@ -143,9 +145,9 @@ GlobalRegistry *globalregistry = NULL;
 
 // Quick shutdown to clean up from a fatal config after we opened the child
 void ErrorShutdown() {
-	// Shut down the root IPC process
-	if (globalregistry->rootipc != NULL) {
-		globalregistry->rootipc->ShutdownIPC(NULL);
+	if (globalregistry->panel_interface) {
+		delete globalregistry->panel_interface;
+		globalregistry->panel_interface = NULL;
 	}
 
     // Shouldn't need to requeue fatal errors here since error shutdown means 
@@ -157,6 +159,11 @@ void ErrorShutdown() {
 
 // Catch our interrupt
 void CatchShutdown(int sig) {
+	if (globalregistry->panel_interface != NULL) {
+		delete globalregistry->panel_interface;
+		globalregistry->panel_interface = NULL;
+	}
+
     if (sig == SIGPIPE)
         fprintf(stderr, "FATAL: A pipe closed unexpectedly, trying to shut down "
                 "cleanly...\n");
@@ -292,19 +299,18 @@ int main(int argc, char *argv[], char *envp[]) {
 		}
 	}
 
-	//  Spawn the root IPC system
-	if (globalregistry->rootipc->SpawnIPC() < 0 || globalregistry->fatal_condition) {
-		globalregistry->messagebus->InjectMessage("Failed to create IPC child "
-												  "process", MSGFLAG_FATAL);
-		globalregistry->fatal_condition = 1;
-		CatchShutdown(-1);
-	}
-	
 	// Assign the speech and sound handlers
+#if 0
 	globalregistry->soundctl = new SoundControl(globalregistry);
 	if (globalregistry->fatal_condition)
 		CatchShutdown(-1);
 	globalregistry->speechctl = new SpeechControl(globalregistry);
+	if (globalregistry->fatal_condition)
+		CatchShutdown(-1);
+#endif
+
+	// Create the panel interface
+	globalregistry->panel_interface = new PanelInterface(globalregistry);
 	if (globalregistry->fatal_condition)
 		CatchShutdown(-1);
 
