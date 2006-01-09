@@ -1,5 +1,7 @@
 Jan 08 2005  devel  Started newcore client development (Current client code
                      is demo only and will not do anything useful)
+                    Changed menu drivers to go to menubar mode and allow
+                     picking the menu by underlined key
 Dec 29 2005  devel  Added runstate loaders to kismet_server (do not use yet)
                     Added runstate support to gpsxml
                     Added runstate logging to netracker

@@ -6176,9 +6176,9 @@ fi
 	fi
 
 	if test "$foundlcurses" != "yes"; then
-		{ { echo "$as_me:$LINENO: error: Failed to find libcurses or libncurses.  Install them" >&5
-echo "$as_me: error: Failed to find libcurses or libncurses.  Install them" >&2;}
-   { (exit or disable building the Kismet client with --disable-client.  Disabling the client is probably not something you want to do normally.); exit or disable building the Kismet client with --disable-client.  Disabling the client is probably not something you want to do normally.; }; }
+		{ { echo "$as_me:$LINENO: error: Failed to find libcurses or libncurses.  Install them or disable building the Kismet client with --disable-client.  Disabling the client is probably not something you want to do normally." >&5
+echo "$as_me: error: Failed to find libcurses or libncurses.  Install them or disable building the Kismet client with --disable-client.  Disabling the client is probably not something you want to do normally." >&2;}
+   { (exit 1); exit 1; }; }
 	fi
 
 	if test "$termcontrol" = "ncurses"; then

@@ -166,18 +166,8 @@ void Kis_Menu::ClearMenus() {
 }
 
 void Kis_Menu::Activate(int subcomponent) {
-	// Caller is expected to cause a screen redraw once this is called, so
-	// just set the stuff up
-	int menu = subcomponent / 100;
-	int item = (subcomponent % 100) - 1;
-
-	if (menu < 0 || menu > (int) menubar.size() - 1)
-		return;
-	if (item < 0 || item > (int) menubar[menu]->items.size() - 1)
-		return;
-
-	cur_menu = menu;
-	cur_item = item;
+	cur_menu = subcomponent - 1;
+	cur_item = -1;
 }
 
 void Kis_Menu::Deactivate() {
@@ -207,10 +197,10 @@ void Kis_Menu::DrawComponent() {
 			wattroff(window, WA_UNDERLINE);
 		}
 
-		if ((int) x == cur_menu) {
-			// turn off hilighting, and draw the menu itself too
-			wattroff(window, WA_REVERSE);
+		wattroff(window, WA_REVERSE);
 
+		// Draw the menu itself, if we've got an item selected in it
+		if ((int) x == cur_menu && cur_item >= 0) {
 			// Resize the menu window
 			wresize(menuwin, menubar[x]->items.size() + 2,
 					menubar[x]->width + 7);
@@ -219,7 +209,6 @@ void Kis_Menu::DrawComponent() {
 			// Draw the box
 			box(menuwin, 0, 0);
 
-			// Draw the items in the menu
 			for (unsigned int y = 0; y < menubar[x]->items.size(); y++) {
 				string menuline;
 
@@ -280,7 +269,13 @@ int Kis_Menu::KeyPress(int in_key) {
 	}
 
 	if (in_key == KEY_DOWN && cur_menu >= 0 &&
-		cur_item < (int) menubar[cur_menu]->items.size() - 1) {
+		cur_item <= (int) menubar[cur_menu]->items.size() - 1) {
+
+		if (cur_item == (int) menubar[cur_menu]->items.size() - 1) {
+			cur_item = 0;
+			return 0;
+		}
+
 		cur_item++;
 
 		// handle '----' spacer items
@@ -291,7 +286,12 @@ int Kis_Menu::KeyPress(int in_key) {
 		return 0;
 	}
 
-	if (in_key == KEY_UP && cur_item > 0) {
+	if (in_key == KEY_UP && cur_item >= 0) {
+		if (cur_item == 0) {
+			cur_item = menubar[cur_menu]->items.size() - 1;
+			return 0;
+		}
+
 		cur_item--;
 
 		// handle '----' spacer items
@@ -303,14 +303,42 @@ int Kis_Menu::KeyPress(int in_key) {
 
 	// Space or enter
 	if ((in_key == ' ' || in_key == 0x0A || in_key == KEY_ENTER) && cur_menu >= 0) {
-		return (cur_menu * 100) + cur_item + 1;
+		if (cur_item == -1) {
+			cur_item = 0;
+			return 0;
+		}
+		int ret = (cur_menu * 100) + cur_item + 1;
+		Deactivate();
+		return ret;
 	}
 
 	// Key shortcuts
 	if (cur_menu >= 0) {
-		for (unsigned int x = 0; x < menubar[cur_menu]->items.size(); x++) {
-			if (in_key == menubar[cur_menu]->items[x]->extrachar)
-				return (cur_menu * 100) + x + 1;
+		if (cur_item < 0) {
+			// Try w/ the proper case
+			for (unsigned int x = 0; x < menubar.size(); x++) {
+				if (in_key == menubar[x]->text[menubar[x]->targchar]) {
+					cur_menu = x;
+					cur_item = 0;
+					return 0;
+				}
+			}
+			// Try with lowercase, if we didn't find one already
+			for (unsigned int x = 0; x < menubar.size(); x++) {
+				if (in_key == tolower(menubar[x]->text[menubar[x]->targchar])) {
+					cur_menu = x;
+					cur_item = 0;
+					return 0;
+				}
+			}
+		} else {
+			for (unsigned int x = 0; x < menubar[cur_menu]->items.size(); x++) {
+				if (in_key == menubar[cur_menu]->items[x]->extrachar) {
+					int ret = (cur_menu * 100) + x + 1;
+					Deactivate();
+					return ret;
+				}
+			}
 		}
 	}
 
@@ -431,6 +459,7 @@ int Kis_Main_Panel::KeyPress(int in_key) {
 	// Give the menu first shot, it'll ignore the key if it didn't have 
 	// anything open.
 	ret = menu->KeyPress(in_key);
+
 	if (ret == 0) {
 		// Menu ate the key, let it go
 		return 0;
