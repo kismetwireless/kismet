@@ -325,7 +325,8 @@ int Kis_Menu::KeyPress(int in_key) {
 			}
 			// Try with lowercase, if we didn't find one already
 			for (unsigned int x = 0; x < menubar.size(); x++) {
-				if (in_key == tolower(menubar[x]->text[menubar[x]->targchar])) {
+				if (tolower(in_key) == 
+					tolower(menubar[x]->text[menubar[x]->targchar])) {
 					cur_menu = x;
 					cur_item = 0;
 					return 0;
