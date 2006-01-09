@@ -31,8 +31,8 @@ GPSD::GPSD(char *in_host, int in_port) {
     last_lat = last_lon = last_hed = 0;
 
     sock = -1;
-    errstr[0] = '\0';
-    data[0] = '\0';
+	memset(errstr, 0, 1024);
+	memset(data, 0, 1024);
 
     host = strdup(in_host);
     port = in_port;

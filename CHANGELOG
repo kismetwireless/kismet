@@ -1,3 +1,5 @@
+Jan 09 2006  devel  Added memset 0 to gpsd code to explicity zero the gps data
+                     buffer on startup
 Dec 11 2005  devel  Added a fix to ringbuf from Shane Schisler
                     Added extremely experimental support for broadcom 43xx
                      devices (yes, you read right, broadcom.  Look at the 
