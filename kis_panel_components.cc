@@ -110,6 +110,16 @@ int PanelInterface::DrawInterface() {
 	return 1;
 }
 
+void PanelInterface::AddPanel(Kis_Panel *in_panel) {
+	live_panels.push_back(in_panel);
+}
+
+void PanelInterface::KillPanel(Kis_Panel *in_panel) {
+	for (unsigned int x = 0; x < live_panels.size(); x++)
+		if (live_panels[x] == in_panel)
+			live_panels.erase(live_panels.begin() + x);
+}
+
 Kis_Menu::Kis_Menu() {
 	cur_menu = -1;
 	cur_item = -1;
@@ -176,6 +186,9 @@ void Kis_Menu::Deactivate() {
 }
 
 void Kis_Menu::DrawComponent() {
+	if (visible == 0)
+		return;
+
 	int hpos = 1;
 
 	if (menuwin == NULL)
@@ -346,6 +359,70 @@ int Kis_Menu::KeyPress(int in_key) {
 	return -1;
 }
 
+Kis_Free_Text::Kis_Free_Text() {
+	scroll_pos = 0;
+}
+
+Kis_Free_Text::~Kis_Free_Text() {
+	// Nothing
+}
+
+void Kis_Free_Text::DrawComponent() {
+	for (unsigned int x = scroll_pos; x < text_vec.size(); x++) {
+		mvwaddnstr(window, sy, sx, text_vec[x].c_str(), ex - 1);
+	}
+}
+
+void Kis_Free_Text::Activate(int subcomponent) {
+	// No magic
+}
+
+void Kis_Free_Text::Deactivate() {
+	// No magic
+}
+
+int Kis_Free_Text::KeyPress(int in_key) {
+	int scrollable = 1;
+
+	if ((int) text_vec.size() <= ey)
+		scrollable = 0;
+
+	if (scrollable && in_key == KEY_UP && scroll_pos > 0) {
+		scroll_pos--;
+		return 0;
+	}
+
+	if (scrollable && in_key == KEY_DOWN && 
+		scroll_pos < ((int) text_vec.size() - ey) - 1) {
+		scroll_pos++;
+		return 0;
+	}
+
+	if (scrollable && in_key == KEY_PPAGE && scroll_pos > 0) {
+		scroll_pos -= (ey - 2);
+		if (scroll_pos < 0)
+			scroll_pos = 0;
+		return 0;
+	}
+
+	if (scrollable && in_key == KEY_NPAGE) {
+		scroll_pos += (ey - 2);
+		if (scroll_pos >= ((int) text_vec.size() - ey) - 1) 
+			scroll_pos = ((int) text_vec.size() - ey) - 1;
+		return 0;
+	}
+
+	return -1;
+}
+
+void Kis_Free_Text::SetText(string in_text) {
+	text_vec = StrTokenize(in_text, "\n");
+}
+
+void Kis_Free_Text::SetText(vector<string> in_text) {
+	text_vec = in_text;
+}
+
 Kis_Panel::Kis_Panel() {
 	win = newwin(0, 0, 0, 0);
 	pan = new_panel(win);
@@ -428,6 +505,8 @@ Kis_Main_Panel::Kis_Main_Panel() {
 	menu->AddMenuItem("SSID", mn_sort, 's');
 	menu->AddMenuItem("Packets", mn_sort, 'p');
 	menu->AddMenuItem("Packets (descending)", mn_sort, 'P');
+
+	menu->Show();
 
 	SetTitle("Kismet Newcore Client Test");
 }

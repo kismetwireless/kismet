@@ -46,10 +46,19 @@ class Kis_Panel_Component {
 public:
 	Kis_Panel_Component() { 
 		window = NULL;
+		visible = 0;
 	};
 	virtual ~Kis_Panel_Component() { };
 
-	// Set the position inside a window
+	// Show/hide
+	virtual void Show() {
+		visible = 1;
+	}
+	virtual void Hide() {
+		visible = 0;
+	}
+
+	// Set the position inside a window (start x, y, and width, height)
 	virtual void SetPosition(WINDOW *inwin, int isx, int isy, int iex, int iey) {
 		window = inwin;
 		sx = isx;
@@ -70,10 +79,13 @@ public:
 	virtual int KeyPress(int in_key) = 0;
 
 protected:
+	// Are we even visible?
+	int visible;
+
 	// Widow we render to
 	WINDOW *window;
 
-	// Position within the window (start xy, end xy)
+	// Position within the window (start xy, size xy)
 	int sx, sy, ex, ey;
 };
 
@@ -122,8 +134,40 @@ protected:
 	// Selected items
 	int cur_menu;
 	int cur_item;
-	// Have we moved since we drew?
-	int mvdelta;
+};
+
+// A scrollable list of fields
+class Kis_Field_List : public Kis_Panel_Component {
+public:
+	Kis_Field_List();
+	virtual ~Kis_Field_List();
+
+	virtual void DrawComponent();
+	virtual void Activate(int subcomponent);
+	virtual void Deactivate();
+
+	virtual int KeyPress(int in_key);
+};
+
+// A scrollable freetext field
+class Kis_Free_Text : public Kis_Panel_Component {
+public:
+	Kis_Free_Text();
+	virtual ~Kis_Free_Text();
+
+	virtual void DrawComponent();
+	virtual void Activate(int subcomponent);
+	virtual void Deactivate();
+
+	virtual int KeyPress(int in_key);
+
+	virtual void SetText(string in_text);
+	virtual void SetText(vector<string> in_text);
+
+protected:
+	vector<string> text_vec;
+
+	int scroll_pos;
 };
 
 class Kis_Panel {
@@ -188,6 +232,9 @@ public:
 	virtual int Poll(fd_set& in_rset, fd_set& in_wset);
 
 	virtual int DrawInterface();
+
+	virtual void AddPanel(Kis_Panel *in_panel);
+	virtual void KillPanel(Kis_Panel *in_panel);
 protected:
 	vector<Kis_Panel *> live_panels;
 	int draweventid;

@@ -280,8 +280,6 @@ int main(int argc, char *argv[], char *envp[]) {
 	// Turn off the getopt error reporting
 	opterr = 0;
 
-	const int nlwc = globalregistry->getopt_long_num++;
-
 	// Standard getopt parse run
 	static struct option main_longopt[] = {
 		{ "help", no_argument, 0, 'h' },
