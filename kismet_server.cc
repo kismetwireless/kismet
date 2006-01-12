@@ -629,6 +629,10 @@ int main(int argc, char *argv[], char *envp[]) {
 	if (globalregistry->sourcetracker->AddKisPacketsource(new PacketSource_Madwifi(globalregistry)) < 0 || globalregistry->fatal_condition) 
 		CatchShutdown(-1);
 #endif
+#ifdef USE_PACKETSOURCE_MADWIFING
+	if (globalregistry->sourcetracker->AddKisPacketsource(new PacketSource_MadwifiNG(globalregistry)) < 0 || globalregistry->fatal_condition) 
+		CatchShutdown(-1);
+#endif
 #ifdef USE_PACKETSOURCE_WRT54PRISM
 	if (globalregistry->sourcetracker->AddKisPacketsource(new PacketSource_Wrt54Prism(globalregistry)) < 0 || globalregistry->fatal_condition) 
 		CatchShutdown(-1);

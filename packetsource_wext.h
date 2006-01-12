@@ -45,6 +45,7 @@
 
 #define USE_PACKETSOURCE_WEXT
 #define USE_PACKETSOURCE_MADWIFI
+#define USE_PACKETSOURCE_MADWIFING
 #define USE_PACKETSOURCE_WRT54PRISM
 
 // Another tier of subclassing.  In some respects this is sort of silly, but it's
@@ -168,10 +169,57 @@ protected:
 	int madwifi_type;
 };
 
+// MadwifiNG subclass
+// Similar to other wext based packet sources, except we use a completely
+// custom method for going into monitor mode, based on the ioctls from
+// the wlanconfig tool
+class PacketSource_MadwifiNG : public PacketSource_Wext {
+public:
+	// HANDLED PACKET SOURCES:
+	// madwifing_a
+	// madwifing_b
+	// madwifing_g
+	// madwifing_ag
+	PacketSource_MadwifiNG() {
+		fprintf(stderr, "FATAL OOPS:  Packetsource_MadwifiNG() called\n");
+		exit(1);
+	}
+
+	PacketSource_MadwifiNG(GlobalRegistry *in_globalreg) :
+		PacketSource_Wext(in_globalreg) {
+	}
+
+	virtual KisPacketSource *CreateSource(GlobalRegistry *in_globalreg, 
+										  string in_type, string in_name, 
+										  string in_dev) {
+		return new PacketSource_MadwifiNG(in_globalreg, in_type, in_name,
+										in_dev);
+	}
+
+	virtual int AutotypeProbe(string in_device);
+	virtual int RegisterSources(Packetsourcetracker *tracker);
+
+	PacketSource_MadwifiNG(GlobalRegistry *in_globalreg, string in_type,
+						   string in_name, string in_dev);
+	virtual ~PacketSource_MadwifiNG() { }
+
+	virtual int EnableMonitor();
+	virtual int DisableMonitor();
+
+	virtual int SetChannelSequence(vector<unsigned int> in_seq);
+
+protected:
+	// 1 - madwifing_a
+	// 2 - madwifing_b
+	// 3 - madwifing_g
+	// 0 - madwifing_ag
+	int madwifi_type;
+	string core_interface;
+};
+
 // Wrt54prism subclass
 // Implements the wrt54prism source for openwrt
-class PacketSource_Wrt54Prism : public PacketSource_Wext {
-public:
+class PacketSource_Wrt54Prism : public PacketSource_Wext { public:
 	// HANDLED PACKET SOURCES:
 	// wrt54prism
 	PacketSource_Wrt54Prism() {

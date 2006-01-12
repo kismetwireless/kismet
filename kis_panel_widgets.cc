@@ -373,17 +373,21 @@ Kis_Free_Text::~Kis_Free_Text() {
 }
 
 void Kis_Free_Text::DrawComponent() {
-	for (unsigned int x = scroll_pos; x < text_vec.size(); x++) {
-		mvwaddnstr(window, sy, sx, text_vec[x].c_str(), ex - 1);
+	for (unsigned int x = 0; x < text_vec.size() && (int) x < ey; x++) {
+		mvwaddnstr(window, sy + x, sx, text_vec[x + scroll_pos].c_str(), ex - 1);
 	}
+
 	// Draw the hash scroll bar
 	mvwvline(window, sy, sx + ex - 1, ACS_BOARD, ey);
 	// Figure out how far down our text we are
 	// int perc = ey * (scroll_pos / text_vec.size());
 	float perc = (float) ey * (float) ((float) (scroll_pos) / 
-									 (float) (text_vec.size()));
+									 (float) (text_vec.size() - ey));
+	wattron(window, WA_REVERSE);
 	// Draw the solid position
 	mvwaddch(window, sy + (int) perc, sx + ex - 1, ACS_BLOCK);
+
+	wattroff(window, WA_REVERSE);
 }
 
 void Kis_Free_Text::Activate(int subcomponent) {
@@ -406,26 +410,26 @@ int Kis_Free_Text::KeyPress(int in_key) {
 	}
 
 	if (scrollable && in_key == KEY_DOWN && 
-		scroll_pos < ((int) text_vec.size() - ey) - 1) {
+		scroll_pos < ((int) text_vec.size() - ey)) {
 		scroll_pos++;
 		return 0;
 	}
 
 	if (scrollable && in_key == KEY_PPAGE && scroll_pos > 0) {
-		scroll_pos -= (ey - 2);
+		scroll_pos -= (ey - 1);
 		if (scroll_pos < 0)
 			scroll_pos = 0;
 		return 0;
 	}
 
 	if (scrollable && in_key == KEY_NPAGE) {
-		scroll_pos += (ey - 2);
-		if (scroll_pos >= ((int) text_vec.size() - ey) - 1) 
-			scroll_pos = ((int) text_vec.size() - ey) - 1;
+		scroll_pos += (ey - 1);
+		if (scroll_pos >= ((int) text_vec.size() - ey)) 
+			scroll_pos = ((int) text_vec.size() - ey);
 		return 0;
 	}
 
-	return -1;
+	return 1;
 }
 
 void Kis_Free_Text::SetText(string in_text) {
@@ -509,6 +513,7 @@ Kis_Main_Panel::Kis_Main_Panel() {
 
 	mn_sort = menu->AddMenu("Sort", 0);
 	menu->AddMenuItem("Auto-fit", mn_sort, 'a');
+	menu->AddMenuItem("-", mn_sort, 0);
 	menu->AddMenuItem("Channel", mn_sort, 'c');
 	menu->AddMenuItem("First Seen", mn_sort, 'f');
 	menu->AddMenuItem("First Seen (descending)", mn_sort, 'F');
@@ -520,6 +525,86 @@ Kis_Main_Panel::Kis_Main_Panel() {
 	menu->AddMenuItem("Packets (descending)", mn_sort, 'P');
 
 	menu->Show();
+
+	Kis_Free_Text *ftxt = new Kis_Free_Text();
+	ftxt->SetPosition(win, 2, 3, 80, 20);
+	ftxt->SetText("2.  Quick Start\n"
+"\n"
+"    PLEASE read the full manual, but for the impatient, here is the BARE\n"
+"    MINIMUM needed to get Kismet working:\n"
+"\n"
+"    * Download Kismet from http://www.kismetwireless.net/download.shtml\n"
+"    * Run ``./configure''.  Pay attention to the output!  If Kismet cannot\n"
+"      find all the headers and libraries it needs, it won't be able to do\n"
+"      many things.\n"
+"    * Compile Kismet with ``make''\n"
+"    * Install Kismet with either ``make install'' or ``make suidinstall''.\n"
+"      YOU MUST READ THE SECTION OF THIS README NAMED \"SUID INSTALLATION &\n"
+"      SECURITY\" OR YOUR SYSTEM MAY BE MADE VULNERABLE!!\n"
+"    * Edit the config file (standardly in \"/usr/local/etc/kismet.conf\")\n"
+"    * Set the user Kismet will drop privileges to by changing the \"suiduser\"\n"
+"      configuration option.\n"
+"    * Set the capture source by changing the \"source\" configuration option.\n"
+"      FOR A LIST OF VALID CAPTURE SOURCES, SEE THE SECTION OF THIS README\n"
+"      CALLED \"CAPTURE SOURCES\".  The capture source you should use depends\n"
+"      on the operating system and driver that your wireless card uses.\n"
+"      USE THE PROPER CAPTURE SOURCE.  No permanent harm will come from using\n"
+"      the wrong one, but you won't get the optimal behavior.\n"
+"    * Add an absolute path to the \"logtemplate\" configuration option if you\n"
+"      want Kismet to always log to the same directory instead of the directory\n"
+"      you start it in.\n"
+"\n"
+"    * Run ``kismet''.  You may need to start Kismet as root.\n"
+"    * READ THE REST OF THIS README\n"
+"\n"
+"3.  Feature Overview\n"
+"\n"
+"    Kismet has many features useful in different situations for monitoring\n"
+"    wireless networks:\n"
+"\n"
+"    - Ethereal/Tcpdump compatible data logging\n"
+"    - Airsnort compatible weak-iv packet logging\n"
+"    - Network IP range detection\n"
+"    - Built-in channel hopping and multicard split channel hopping\n"
+"    - Hidden network SSID decloaking\n"
+"    - Graphical mapping of networks\n"
+"    - Client/Server architecture allows multiple clients to view a single\n"
+"      Kismet server simultaneously\n"
+"    - Manufacturer and model identification of access points and clients\n"
+"    - Detection of known default access point configurations\n"
+"    - Runtime decoding of WEP packets for known networks\n"
+"    - Named pipe output for integration with other tools, such as a layer3 IDS\n"
+"      like Snort\n"
+"    - Multiplexing of multiple simultaneous capture sources on a single Kismet\n"
+"      instance\n"
+"    - Distributed remote drone sniffing\n"
+"    - XML output\n"
+"    - Over 20 supported card types\n"
+"\n"
+"4.  Typical Uses\n"
+"\n"
+"    Common applications Kismet is useful for:\n"
+"\n"
+"    - Wardriving:  Mobile detection of wireless networks, logging and mapping\n"
+"      of network location, WEP, etc.\n"
+"    - Site survey:  Monitoring and graphing signal strength and location.\n"
+"    - Distributed IDS:  Multiple Remote Drone sniffers distributed throughout\n"
+"      an installation monitored by a single server, possibly combined with a\n"
+"      layer3 IDS like Snort.\n"
+"    - Rogue AP Detection:  Stationary or mobile sniffers to enforce site policy\n"
+"      against rogue access points.\n"
+"\n"
+"5.  Upgrading from Previous Versions\n"
+"\n"
+"    Upgrading to Kismet 2005-08-R1:\n"
+"      Upgrading from 2005-06-R1 or 2005-07-R1 should have no major changes.\n"
+"      See the config file for new settings pertaining to waypoint export.\n"
+"\n"
+"      For upgrading from previous versions, see the section on upgrading to\n"
+"      2005-06-R1 from older releases.\n");
+	ftxt->Show();
+	active_component = ftxt;
+	comp_vec.push_back(ftxt);
 
 	SetTitle("Kismet Newcore Client Test");
 }
@@ -569,6 +654,14 @@ int Kis_Main_Panel::KeyPress(int in_key) {
 
 	// Otherwise the menu didn't touch the key, so pass it to the top
 	// component
+	if (active_component != NULL) {
+		ret = active_component->KeyPress(in_key);
+
+		if (ret == 0)
+			return 0;
+
+		return ret;
+	}
 
 	return 0;
 }

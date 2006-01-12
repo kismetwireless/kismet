@@ -416,6 +416,183 @@ int PacketSource_Madwifi::SetChannelSequence(vector<unsigned int> in_seq) {
 	return PacketSource_Wext::SetChannelSequence(in_seq);
 }
 
+/* Madwifi NG ioctls from net80211 */
+#define	SIOC80211IFCREATE		(SIOCDEVPRIVATE+7)
+#define	SIOC80211IFDESTROY	 	(SIOCDEVPRIVATE+8)
+PacketSource_MadwifiNG::PacketSource_MadwifiNG(GlobalRegistry *in_globalreg, 
+											   string in_type, string in_name,
+											   string in_dev) : 
+	PacketSource_Wext(in_globalreg, in_type, in_name, in_dev) {
+
+	// Copy the core interface
+	core_interface = in_dev;
+
+	if (in_type == "madwifing_a") {
+		madwifi_type = 1;
+	} else if (in_type == "madwifing_b") {
+		madwifi_type = 2;
+	} else if (in_type == "madwifing_g") {
+		madwifi_type = 3;
+	} else if (in_type == "madwifing_ag") {
+		madwifi_type = 0;
+	} else {
+		_MSG("Packetsource::MadWifiNG - Unknown source type '" + in_type + "'.  "
+			 "Will treat it as auto radio type", MSGFLAG_ERROR);
+		madwifi_type = 0;
+	}
+}
+
+int PacketSource_MadwifiNG::RegisterSources(Packetsourcetracker *tracker) {
+	tracker->RegisterPacketsource("madwifing_a", this, 1, "IEEE80211a", 36);
+	tracker->RegisterPacketsource("madwifing_b", this, 1, "IEEE80211b", 6);
+	tracker->RegisterPacketsource("madwifing_g", this, 1, "IEEE80211b", 6);
+	tracker->RegisterPacketsource("madwifing_ag", this, 1, "IEEE80211ab", 6);
+	return 1;
+}
+
+int PacketSource_MadwifiNG::EnableMonitor() {
+	/* from net80211 headers */
+	struct ieee80211_clone_params {
+		char		icp_name[IFNAMSIZ];
+		u_int16_t	icp_opmode;
+		u_int16_t	icp_flags;
+#define	IEEE80211_CLONE_BSSID	0x0001
+#define	IEEE80211_NO_STABEACONS	0x0002
+#define IEEE80211_M_MONITOR 	8
+	};
+	struct ieee80211_clone_params cp;
+	struct ifreq ifr;
+	char newdev[IFNAMSIZ];
+	int s;
+
+	memset(&ifr, 0, sizeof(ifr));
+	memset(&cp, 0, sizeof(cp));
+
+	strncpy(cp.icp_name, "kis", IFNAMSIZ);
+	cp.icp_opmode = (u_int16_t) IEEE80211_M_MONITOR;
+	cp.icp_flags = IEEE80211_CLONE_BSSID;
+
+	strncpy(ifr.ifr_name, interface.c_str(), IFNAMSIZ);
+	ifr.ifr_data = (void *) &cp;
+
+	s = socket(AF_INET, SOCK_DGRAM, 0);
+	if (s < 0) {
+		_MSG("Failed to create monitor mode virtual interface on "
+			 "madwifi-ng interface '" + interface +"'.  Could not create "
+			 "a control socket (" + string(strerror(errno)) + ").  Make "
+		 	 "sure that you have the latest version of the madwifi-ng "
+			 "drivers, that you specified the correct control interface, "
+			 "and that you are running with the correct permissions (root). "
+			 "See the 'Troubleshooting' section of the Kismet README for more "
+			 "information.", MSGFLAG_FATAL);
+		globalreg->fatal_condition = 1;
+		return -1;
+	}
+
+	if (ioctl(s, SIOC80211IFCREATE, &ifr) < 0) {
+		_MSG("Failed to create monitor mode virtual interface on "
+			 "madwifi-ng interface '" + interface +"'.  Could not issue "
+			 "the create ioctl (" + string(strerror(errno)) + ").  Make "
+		 	 "sure that you have the latest version of the madwifi-ng "
+			 "drivers, that you specified the correct control interface, "
+			 "and that you are running with the correct permissions (root). "
+			 "See the 'Troubleshooting' section of the Kismet README for more "
+			 "information.", MSGFLAG_FATAL);
+		globalreg->fatal_condition = 1;
+		close(s);
+		return -1;
+	}
+
+	// Extract the interface name we got back */
+	strncpy(newdev, ifr.ifr_name, IFNAMSIZ);
+	core_interface = interface;
+	interface = newdev;
+
+	_MSG("Created Madwifi-NG virtual monitor interface '" + interface + "' "
+		 "from base interface '" + core_interface +"'", MSGFLAG_INFO);
+
+	close(s);
+
+	if (PacketSource_Wext::EnableMonitor() < 0) {
+		return -1;
+	}
+
+# if 0
+	// Don't set the mode for now.  How does this affect channel hopping?
+	// This might be the wrong behavior.  Hope it does auto properly
+	char errstr[1024];
+
+	if (Iwconfig_Set_IntPriv(interface.c_str(), "mode", madwifi_type, 
+							 0, errstr) < 0) {
+		_MSG(errstr, MSGFLAG_FATAL);
+		_MSG("Failed to set the radio mode of interface '" + interface + "'.  This "
+			 "is needed to set the a/b/g radio mode", MSGFLAG_FATAL);
+		globalreg->fatal_condition = 1;
+		return -1;
+	}
+#endif
+
+	return 1;
+}
+
+int PacketSource_MadwifiNG::DisableMonitor() {
+	struct ifreq ifr;
+	int s;
+
+	// Just destroy our dynamic interface
+	s = socket(AF_INET, SOCK_DGRAM, 0);
+	if (s < 0) {
+		_MSG("Failed to destroy monitor mode virtual interface '" + interface + "'"
+			 "on madwifi-ng interface '" + interface +"'.  Could not create "
+			 "a control socket (" + string(strerror(errno)) + ").  The virtual "
+			 "monitor interface will be left up, try to manually destroy it "
+			 "with wlanconfig", MSGFLAG_FATAL);
+		globalreg->fatal_condition = 1;
+		return -1;
+	}
+
+	memset(&ifr, 0, sizeof(ifr));
+	strncpy(ifr.ifr_name, interface.c_str(), IFNAMSIZ);
+	if (ioctl(s, SIOC80211IFDESTROY, &ifr) < 0) {
+		_MSG("Failed to destroy monitor mode virtual interface '" + interface + "'"
+			 "on madwifi-ng interface '" + interface +"'.  Could not issue "
+			 "the destroy ioctl (" + string(strerror(errno)) + ").  The virtual "
+			 "monitor interface will be left up, try to manually destroy it "
+			 "with wlanconfig", MSGFLAG_FATAL);
+		globalreg->fatal_condition = 1;
+		close(s);
+		return -1;
+	}
+
+	close(s);
+
+	return PACKSOURCE_UNMONITOR_RET_OKWITHWARN;
+}
+
+int PacketSource_MadwifiNG::AutotypeProbe(string in_device) {
+	ethtool_drvinfo drvinfo;
+	char errstr[1024];
+
+	if (Linux_GetDrvInfo(in_device.c_str(), errstr, &drvinfo) < 0) {
+		_MSG(errstr, MSGFLAG_FATAL);
+		_MSG("Failed to get ethtool information from device '" + in_device + "'. "
+			 "This information is needed to detect the capture type for 'auto' "
+			 "sources.", MSGFLAG_FATAL);
+		globalreg->fatal_condition = 1;
+		return -1;
+	}
+
+	if (string(drvinfo.driver) == "ath_pci") {
+		return 1;
+	}
+
+	return 0;
+}
+
+int PacketSource_MadwifiNG::SetChannelSequence(vector<unsigned int> in_seq) {
+	return PacketSource_Wext::SetChannelSequence(in_seq);
+}
+
 PacketSource_Wrt54Prism::PacketSource_Wrt54Prism(GlobalRegistry *in_globalreg,
 												 string in_type, string in_name,
 												 string in_dev) :
