@@ -48,6 +48,7 @@
 #include "ipc_remote.h"
 
 #include "kis_panel_widgets.h"
+#include "kis_panel_windows.h"
 
 #ifndef exec_name
 char *exec_name;
@@ -311,6 +312,11 @@ int main(int argc, char *argv[], char *envp[]) {
 	globalregistry->panel_interface = new PanelInterface(globalregistry);
 	if (globalregistry->fatal_condition)
 		CatchShutdown(-1);
+
+	// Make the main panel and assign it to the interface
+	Kis_Main_Panel *mainp = new Kis_Main_Panel();
+	mainp->Position(0, 0, LINES, COLS);
+	globalregistry->panel_interface->AddPanel(mainp);
 
 	int max_fd = 0;
 	fd_set rset, wset;

@@ -18,8 +18,68 @@
 
 #include "config.h"
 
+// Panel has to be here to pass configure, so just test these
+#if (defined(HAVE_LIBNCURSES) || defined (HAVE_LIBCURSES))
+
 #include "kis_panel_widgets.h"
 #include "timetracker.h"
+
+void Kis_Panel_Specialtext::Mvwaddnstr(WINDOW *win, int y, int x, string str, int n) {
+	int npos = 0;
+	int escape = 0;
+
+	for (unsigned int pos = 0; pos < str.size(); pos++) {
+		if (str[pos] == '\\') {
+			escape = 1;
+			continue;
+		}
+
+		// Handle the attributes
+		if (escape) {
+			if (str[pos] == 'u') {
+				wattron(win, WA_UNDERLINE);
+			} else if (str[pos] == 'U') {
+				wattroff(win, WA_UNDERLINE);
+			} else if (str[pos] == 's') {
+				wattron(win, WA_STANDOUT);
+			} else if (str[pos] == 'S') {
+				wattroff(win, WA_STANDOUT);
+			} else if (str[pos] == 'r') {
+				wattron(win, WA_REVERSE);
+			} else if (str[pos] == 'R') {
+				wattroff(win, WA_REVERSE);
+			} else if (str[pos] == 'b') {
+				wattron(win, WA_BOLD);
+			} else if (str[pos] == 'B') {
+				wattroff(win, WA_BOLD);
+			} else {
+				fprintf(stderr, "invalid escape '%c'\n", str[pos]);
+				// Backfill the unescaped data
+				escape = 0;
+				if (npos <= n) {
+					mvwaddch(win, y, x + npos, '\\');
+					npos++;
+				}
+				if (npos <= n) {
+					mvwaddch(win, y, x + npos, str[npos]);
+					npos++;
+				}
+			}
+
+			escape = 0;
+			continue;
+		}
+
+		// Otherwise write the character, if we can.  We DON'T abort here,
+		// because we need to process to the end of the string to turn off
+		// any attributes that were on
+		if (npos <= n) {
+			mvwaddch(win, y, x + npos, str[pos]);
+			npos++;
+			continue;
+		}
+	}
+}
 
 int panelint_draw_timer(TIMEEVENT_PARMS) {
 	return ((PanelInterface *) parm)->DrawInterface();
@@ -38,12 +98,6 @@ PanelInterface::PanelInterface(GlobalRegistry *in_globalreg) {
 	initscr();
 	cbreak();
 	noecho();
-
-	Kis_Main_Panel *mainp = new Kis_Main_Panel();
-	
-	mainp->Position(0, 0, LINES, COLS);
-
-	live_panels.push_back(mainp);
 
 	draweventid = 
 		globalreg->timetracker->RegisterTimer(SERVER_TIMESLICES_SEC / 2,
@@ -263,6 +317,9 @@ void Kis_Menu::DrawComponent() {
 }
 
 int Kis_Menu::KeyPress(int in_key) {
+	if (visible == 0)
+		return -1;
+
 	// Activate menu
 	if (in_key == '~' || in_key == '`' || in_key == 0x1B) {
 		if (cur_menu < 0)
@@ -373,21 +430,30 @@ Kis_Free_Text::~Kis_Free_Text() {
 }
 
 void Kis_Free_Text::DrawComponent() {
+	if (visible == 0)
+		return;
+
 	for (unsigned int x = 0; x < text_vec.size() && (int) x < ey; x++) {
-		mvwaddnstr(window, sy + x, sx, text_vec[x + scroll_pos].c_str(), ex - 1);
+		// Use the special formatter
+		Kis_Panel_Specialtext::Mvwaddnstr(window, sy + x, sx, 
+										  text_vec[x + scroll_pos],
+										  ex - 1);
+		// mvwaddnstr(window, sy + x, sx, text_vec[x + scroll_pos].c_str(), ex - 1);
 	}
 
-	// Draw the hash scroll bar
-	mvwvline(window, sy, sx + ex - 1, ACS_BOARD, ey);
-	// Figure out how far down our text we are
-	// int perc = ey * (scroll_pos / text_vec.size());
-	float perc = (float) ey * (float) ((float) (scroll_pos) / 
-									 (float) (text_vec.size() - ey));
-	wattron(window, WA_REVERSE);
-	// Draw the solid position
-	mvwaddch(window, sy + (int) perc, sx + ex - 1, ACS_BLOCK);
+	if ((int) text_vec.size() > ey) {
+		// Draw the hash scroll bar
+		mvwvline(window, sy, sx + ex - 1, ACS_VLINE, ey);
+		// Figure out how far down our text we are
+		// int perc = ey * (scroll_pos / text_vec.size());
+		float perc = (float) ey * (float) ((float) (scroll_pos) / 
+										   (float) (text_vec.size() - ey));
+		wattron(window, WA_REVERSE);
+		// Draw the solid position
+		mvwaddch(window, sy + (int) perc, sx + ex - 1, ACS_BLOCK);
 
-	wattroff(window, WA_REVERSE);
+		wattroff(window, WA_REVERSE);
+	}
 }
 
 void Kis_Free_Text::Activate(int subcomponent) {
@@ -399,6 +465,9 @@ void Kis_Free_Text::Deactivate() {
 }
 
 int Kis_Free_Text::KeyPress(int in_key) {
+	if (visible == 0)
+		return 0;
+
 	int scrollable = 1;
 
 	if ((int) text_vec.size() <= ey)
@@ -438,6 +507,141 @@ void Kis_Free_Text::SetText(string in_text) {
 
 void Kis_Free_Text::SetText(vector<string> in_text) {
 	text_vec = in_text;
+}
+
+Kis_Field_List::Kis_Field_List() {
+	scroll_pos = 0;
+	field_w = 0;
+}
+
+Kis_Field_List::~Kis_Field_List() {
+	// Nothing
+}
+
+void Kis_Field_List::DrawComponent() {
+	if (visible == 0)
+		return;
+
+	for (unsigned int x = 0; x < field_vec.size() && (int) x < ey; x++) {
+		// Set the field name to bold
+		wattron(window, WA_BOLD);
+		mvwaddnstr(window, sy + x, sx, field_vec[x + scroll_pos].c_str(), field_w);
+		mvwaddch(window, sy + x, sx + field_w, ':');
+		wattroff(window, WA_BOLD);
+
+		// Draw the data, leave room on the end for the scrollbar
+		mvwaddnstr(window, sy + x, sx + field_w + 2, data_vec[x + scroll_pos].c_str(),
+				   sx - field_w - 3);
+	}
+
+	if ((int) field_vec.size() > ey) {
+		// Draw the hash scroll bar
+		mvwvline(window, sy, sx + ex - 1, ACS_VLINE, ey);
+		// Figure out how far down our text we are
+		// int perc = ey * (scroll_pos / text_vec.size());
+		float perc = (float) ey * (float) ((float) (scroll_pos) / 
+										   (float) (field_vec.size() - ey));
+		wattron(window, WA_REVERSE);
+		// Draw the solid position
+		mvwaddch(window, sy + (int) perc, sx + ex - 1, ACS_BLOCK);
+
+		wattroff(window, WA_REVERSE);
+	}
+}
+
+void Kis_Field_List::Activate(int subcomponent) {
+	// No magic
+}
+
+void Kis_Field_List::Deactivate() {
+	// No magic
+}
+
+int Kis_Field_List::KeyPress(int in_key) {
+	if (visible == 0)
+		return 0;
+
+	int scrollable = 1;
+
+	if ((int) field_vec.size() <= ey)
+		scrollable = 0;
+
+	if (scrollable && in_key == KEY_UP && scroll_pos > 0) {
+		scroll_pos--;
+		return 0;
+	}
+
+	if (scrollable && in_key == KEY_DOWN && 
+		scroll_pos < ((int) field_vec.size() - ey)) {
+		scroll_pos++;
+		return 0;
+	}
+
+	if (scrollable && in_key == KEY_PPAGE && scroll_pos > 0) {
+		scroll_pos -= (ey - 1);
+		if (scroll_pos < 0)
+			scroll_pos = 0;
+		return 0;
+	}
+
+	if (scrollable && in_key == KEY_NPAGE) {
+		scroll_pos += (ey - 1);
+		if (scroll_pos >= ((int) field_vec.size() - ey)) 
+			scroll_pos = ((int) field_vec.size() - ey);
+		return 0;
+	}
+
+	return 1;
+}
+
+int Kis_Field_List::AddData(string in_field, string in_data) {
+	int pos = field_vec.size();
+	field_vec.push_back(in_field);
+	data_vec.push_back(in_data);
+
+	if (in_field.length() > field_w)
+		field_w = in_field.length();
+
+	return (int) pos;
+}
+
+int Kis_Field_List::ModData(unsigned int in_row, string in_field, string in_data) {
+	if (in_row >= field_vec.size())
+		return -1;
+
+	field_vec[in_row] = in_field;
+	data_vec[in_row] = in_data;
+
+	return (int) in_row;
+}
+
+Kis_Single_Input::Kis_Single_Input() {
+	curs_pos = 0;
+	label_pos = -1;
+	max_len = 0;
+}
+
+Kis_Single_Input::~Kis_Single_Input() {
+	// Nothing
+}
+
+void Kis_Single_Input::DrawComponent() {
+	int xoff = 0;
+
+	// Draw the label if we can, in bold
+	if (ey > 2 && label_pos == 0 ) {
+		wattron(window, WA_BOLD);
+		mvwaddnstr(window, sx, sy, label.c_str(), ex);
+		wattroff(window, WA_BOLD);
+	} else if (label_pos == 1) {
+		wattron(window, WA_BOLD);
+		mvwaddnstr(window, sx, sy, label.c_str(), ex);
+		wattroff(window, WA_BOLD);
+		xoff += label.length();
+	}
+
+
+
 }
 
 Kis_Panel::Kis_Panel() {
@@ -500,169 +704,10 @@ void Kis_Panel::SetTitle(string in_title) {
 
 void Kis_Panel::DrawTitleBorder() {
 	box(win, 0, 0);
+	wattron(win, WA_UNDERLINE);
 	mvwaddstr(win, 0, 3, title.c_str());
+	wattroff(win, WA_UNDERLINE);
 }
 
-Kis_Main_Panel::Kis_Main_Panel() {
-	menu = new Kis_Menu;
-
-	mn_file = menu->AddMenu("Kismet", 0);
-	mi_connect = menu->AddMenuItem("Connect...", mn_file, 'C');
-	menu->AddMenuItem("-", mn_file, 0);
-	mi_quit = menu->AddMenuItem("Quit", mn_file, 'Q');
-
-	mn_sort = menu->AddMenu("Sort", 0);
-	menu->AddMenuItem("Auto-fit", mn_sort, 'a');
-	menu->AddMenuItem("-", mn_sort, 0);
-	menu->AddMenuItem("Channel", mn_sort, 'c');
-	menu->AddMenuItem("First Seen", mn_sort, 'f');
-	menu->AddMenuItem("First Seen (descending)", mn_sort, 'F');
-	menu->AddMenuItem("Latest Seen", mn_sort, 'l');
-	menu->AddMenuItem("Latest Seen (descending)", mn_sort, 'L');
-	menu->AddMenuItem("BSSID", mn_sort, 'b');
-	menu->AddMenuItem("SSID", mn_sort, 's');
-	menu->AddMenuItem("Packets", mn_sort, 'p');
-	menu->AddMenuItem("Packets (descending)", mn_sort, 'P');
-
-	menu->Show();
-
-	Kis_Free_Text *ftxt = new Kis_Free_Text();
-	ftxt->SetPosition(win, 2, 3, 80, 20);
-	ftxt->SetText("2.  Quick Start\n"
-"\n"
-"    PLEASE read the full manual, but for the impatient, here is the BARE\n"
-"    MINIMUM needed to get Kismet working:\n"
-"\n"
-"    * Download Kismet from http://www.kismetwireless.net/download.shtml\n"
-"    * Run ``./configure''.  Pay attention to the output!  If Kismet cannot\n"
-"      find all the headers and libraries it needs, it won't be able to do\n"
-"      many things.\n"
-"    * Compile Kismet with ``make''\n"
-"    * Install Kismet with either ``make install'' or ``make suidinstall''.\n"
-"      YOU MUST READ THE SECTION OF THIS README NAMED \"SUID INSTALLATION &\n"
-"      SECURITY\" OR YOUR SYSTEM MAY BE MADE VULNERABLE!!\n"
-"    * Edit the config file (standardly in \"/usr/local/etc/kismet.conf\")\n"
-"    * Set the user Kismet will drop privileges to by changing the \"suiduser\"\n"
-"      configuration option.\n"
-"    * Set the capture source by changing the \"source\" configuration option.\n"
-"      FOR A LIST OF VALID CAPTURE SOURCES, SEE THE SECTION OF THIS README\n"
-"      CALLED \"CAPTURE SOURCES\".  The capture source you should use depends\n"
-"      on the operating system and driver that your wireless card uses.\n"
-"      USE THE PROPER CAPTURE SOURCE.  No permanent harm will come from using\n"
-"      the wrong one, but you won't get the optimal behavior.\n"
-"    * Add an absolute path to the \"logtemplate\" configuration option if you\n"
-"      want Kismet to always log to the same directory instead of the directory\n"
-"      you start it in.\n"
-"\n"
-"    * Run ``kismet''.  You may need to start Kismet as root.\n"
-"    * READ THE REST OF THIS README\n"
-"\n"
-"3.  Feature Overview\n"
-"\n"
-"    Kismet has many features useful in different situations for monitoring\n"
-"    wireless networks:\n"
-"\n"
-"    - Ethereal/Tcpdump compatible data logging\n"
-"    - Airsnort compatible weak-iv packet logging\n"
-"    - Network IP range detection\n"
-"    - Built-in channel hopping and multicard split channel hopping\n"
-"    - Hidden network SSID decloaking\n"
-"    - Graphical mapping of networks\n"
-"    - Client/Server architecture allows multiple clients to view a single\n"
-"      Kismet server simultaneously\n"
-"    - Manufacturer and model identification of access points and clients\n"
-"    - Detection of known default access point configurations\n"
-"    - Runtime decoding of WEP packets for known networks\n"
-"    - Named pipe output for integration with other tools, such as a layer3 IDS\n"
-"      like Snort\n"
-"    - Multiplexing of multiple simultaneous capture sources on a single Kismet\n"
-"      instance\n"
-"    - Distributed remote drone sniffing\n"
-"    - XML output\n"
-"    - Over 20 supported card types\n"
-"\n"
-"4.  Typical Uses\n"
-"\n"
-"    Common applications Kismet is useful for:\n"
-"\n"
-"    - Wardriving:  Mobile detection of wireless networks, logging and mapping\n"
-"      of network location, WEP, etc.\n"
-"    - Site survey:  Monitoring and graphing signal strength and location.\n"
-"    - Distributed IDS:  Multiple Remote Drone sniffers distributed throughout\n"
-"      an installation monitored by a single server, possibly combined with a\n"
-"      layer3 IDS like Snort.\n"
-"    - Rogue AP Detection:  Stationary or mobile sniffers to enforce site policy\n"
-"      against rogue access points.\n"
-"\n"
-"5.  Upgrading from Previous Versions\n"
-"\n"
-"    Upgrading to Kismet 2005-08-R1:\n"
-"      Upgrading from 2005-06-R1 or 2005-07-R1 should have no major changes.\n"
-"      See the config file for new settings pertaining to waypoint export.\n"
-"\n"
-"      For upgrading from previous versions, see the section on upgrading to\n"
-"      2005-06-R1 from older releases.\n");
-	ftxt->Show();
-	active_component = ftxt;
-	comp_vec.push_back(ftxt);
-
-	SetTitle("Kismet Newcore Client Test");
-}
-
-Kis_Main_Panel::~Kis_Main_Panel() {
-}
-
-void Kis_Main_Panel::Position(int in_sy, int in_sx, int in_y, int in_x) {
-	Kis_Panel::Position(in_sy, in_sx, in_y, in_x);
-
-	menu->SetPosition(win, 1, 1, 0, 0);
-}
-
-void Kis_Main_Panel::DrawPanel() {
-	werase(win);
-
-	DrawTitleBorder();
-
-	for (unsigned int x = 0; x < comp_vec.size(); x++)
-		comp_vec[x]->DrawComponent();
-
-	menu->DrawComponent();
-
-	wmove(win, 0, 0);
-}
-
-int Kis_Main_Panel::KeyPress(int in_key) {
-	int ret;
-	
-	// Give the menu first shot, it'll ignore the key if it didn't have 
-	// anything open.
-	ret = menu->KeyPress(in_key);
-
-	if (ret == 0) {
-		// Menu ate the key, let it go
-		return 0;
-	}
-
-	if (ret > 0) {
-		// Menu processed an event, do something with it
-		if (ret == mi_quit) {
-			return -1;
-		}
-
-		return 0;
-	}
-
-	// Otherwise the menu didn't touch the key, so pass it to the top
-	// component
-	if (active_component != NULL) {
-		ret = active_component->KeyPress(in_key);
-
-		if (ret == 0)
-			return 0;
-
-		return ret;
-	}
-
-	return 0;
-}
+#endif
 

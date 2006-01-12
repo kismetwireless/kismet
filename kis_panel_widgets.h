@@ -40,6 +40,20 @@
 
 #include "pollable.h"
 
+// Functor-style handler for special text.  Provides an alternate to the
+// printstr mvwaddnstr which does color and type formating.
+//
+// Special string formatting:
+// \s .. \S  - Standout
+// \u .. \U  - Underline
+// \r .. \R  - Reverse
+// \d .. \D  - Dim
+// \b .. \B  - Bold
+class Kis_Panel_Specialtext {
+public:
+	static void Mvwaddnstr(WINDOW *win, int y, int x, string str, int n);
+};
+
 // Basic component super-class that handles drawing a group of items of
 // some sort
 class Kis_Panel_Component {
@@ -147,6 +161,19 @@ public:
 	virtual void Deactivate();
 
 	virtual int KeyPress(int in_key);
+
+	// Add a row
+	virtual int AddData(string in_field, string in_data);
+	virtual int ModData(unsigned int in_row, string in_field, string in_data);
+
+protected:
+	// Data
+	vector<string> field_vec;
+	vector<string> data_vec;
+
+	// Width of field column and scrolling position
+	unsigned int field_w;
+	int scroll_pos;
 };
 
 // A scrollable freetext field
@@ -168,6 +195,46 @@ protected:
 	vector<string> text_vec;
 
 	int scroll_pos;
+};
+
+// Single line input
+class Kis_Single_Input : public Kis_Panel_Component {
+public:
+	Kis_Single_Input();
+	virtual ~Kis_Single_Input();
+
+	virtual void DrawComponent();
+	virtual void Activate(int subcomponent);
+	virtual void Deactivate();
+
+	virtual int KeyPress(int in_key);
+
+	// Allowed characters filter (mandatory)
+	virtual void SetCharFilter(string in_charfilter);
+	// Set the label and position
+	virtual void SetLabel(string in_label, int in_pos);
+	// Set the length of the text we want (can be more than the size of the
+	// widget) (mandatory)
+	virtual void SetTextLen(int in_len);
+
+	// Pre-stock the widget text
+	virtual void SetText(string in_text);
+	// Get the text from the widget
+	virtual string GetText();
+
+protected:
+	// Label, position (0 = top, 1 = left)
+	string label;
+	int label_pos;
+
+	// Maximum length (may be more than the size of the widget)
+	int max_len;
+
+	// Characters we allow
+	map<char, int> filter_map;
+
+	string text;
+	int curs_pos;
 };
 
 class Kis_Panel {
@@ -203,20 +270,6 @@ protected:
 	Kis_Panel_Component *active_component;
 
 	int sx, sy, sizex, sizey;
-};
-
-class Kis_Main_Panel : public Kis_Panel {
-public:
-	Kis_Main_Panel();
-	virtual ~Kis_Main_Panel();
-
-	virtual void Position(int in_sy, int in_sx, int in_y, int in_x);
-	virtual void DrawPanel();
-	virtual int KeyPress(int in_key);
-
-protected:
-	int mn_file, mn_sort;
-	int mi_connect, mi_quit;
 };
 
 // Pollable supersystem for handling panels and input
