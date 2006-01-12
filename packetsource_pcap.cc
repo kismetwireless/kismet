@@ -301,7 +301,8 @@ int PacketSource_Pcap::Prism2KisPack(kis_packet *packet) {
 		radioheader = new kis_layer1_packinfo;
 
         // Subtract the packet FCS since kismet doesn't do anything terribly bright
-        // with it right now, also subtract the avs header
+        // with it right now, also subtract the avs header.  We have to obey the
+		// header length here since avs could change
 		eight11chunk->length = kismin((callback_header.caplen - ntohl(v1hdr->length) -
 									  fcsbytes), (uint32_t) MAX_PACKET_LEN);
         callback_offset = ntohl(v1hdr->length);
@@ -348,6 +349,7 @@ int PacketSource_Pcap::Prism2KisPack(kis_packet *packet) {
 		eight11chunk = new kis_datachunk;
 		radioheader = new kis_layer1_packinfo;
 
+#if 0
         // Subtract the packet FCS since kismet doesn't do anything terribly bright
         // with it right now
 		if (p2head->frmlen.data < fcsbytes) {
@@ -356,9 +358,18 @@ int PacketSource_Pcap::Prism2KisPack(kis_packet *packet) {
 			globalreg->messagebus->InjectMessage(errstr, MSGFLAG_ERROR);
 			return 0;
 		}
+#endif
+		
+		// We don't pay attention to the length provided by prism2hdr, since
+		// some drivers get it wrong
+		eight11chunk->length = kismin((callback_header.caplen - 
+									   sizeof(wlan_ng_prism2_header) - fcsbytes),
+									  (uint32_t) MAX_PACKET_LEN);
 
+#if 0
         eight11chunk->length = kismin((p2head->frmlen.data - fcsbytes), 
 									   (uint32_t) MAX_PACKET_LEN);
+#endif
 
         // Set our offset for extracting the actual data
         callback_offset = sizeof(wlan_ng_prism2_header);

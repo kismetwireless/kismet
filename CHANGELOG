@@ -2,6 +2,8 @@ Jan 12 2006  devel  Finished client panel menu widget code
                     Finished client panel arbitrary text scroller widget code
                     Added Madwifi-NG support (with dyanamic interface
                      creation and destruction support)
+                    Removed prism2 header length validation, not needed and
+                     some drivers are broken
 Jan 08 2006  devel  Started newcore client development (Current client code
                      is demo only and will not do anything useful)
                     Changed menu drivers to go to menubar mode and allow
