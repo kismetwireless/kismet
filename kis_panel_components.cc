@@ -227,8 +227,13 @@ void Kis_Menu::DrawComponent() {
 
 				// Shortcut out a spacer
 				if (menubar[x]->items[y]->text[0] == '-') {
+					mvwhline(menuwin, 1 + y, 1, ACS_HLINE, menubar[x]->width + 5);
+					mvwaddch(menuwin, 1 + y, 0, ACS_LTEE);
+					mvwaddch(menuwin, 1 + y, menubar[x]->width + 6, ACS_RTEE);
+					/*
 					menuline = string(menubar[x]->width + 5, '-');
 					mvwaddstr(menuwin, 1 + y, 1, menuline.c_str());
+					*/
 					continue;
 				}
 
@@ -371,6 +376,14 @@ void Kis_Free_Text::DrawComponent() {
 	for (unsigned int x = scroll_pos; x < text_vec.size(); x++) {
 		mvwaddnstr(window, sy, sx, text_vec[x].c_str(), ex - 1);
 	}
+	// Draw the hash scroll bar
+	mvwvline(window, sy, sx + ex - 1, ACS_BOARD, ey);
+	// Figure out how far down our text we are
+	// int perc = ey * (scroll_pos / text_vec.size());
+	float perc = (float) ey * (float) ((float) (scroll_pos) / 
+									 (float) (text_vec.size()));
+	// Draw the solid position
+	mvwaddch(window, sy + (int) perc, sx + ex - 1, ACS_BLOCK);
 }
 
 void Kis_Free_Text::Activate(int subcomponent) {
