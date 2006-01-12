@@ -18,7 +18,7 @@
 
 #include "config.h"
 
-#include "kis_panel_components.h"
+#include "kis_panel_widgets.h"
 #include "timetracker.h"
 
 int panelint_draw_timer(TIMEEVENT_PARMS) {

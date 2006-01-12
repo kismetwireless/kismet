@@ -47,7 +47,7 @@
 
 #include "ipc_remote.h"
 
-#include "kis_panel_components.h"
+#include "kis_panel_widgets.h"
 
 #ifndef exec_name
 char *exec_name;

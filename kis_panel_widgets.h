@@ -16,8 +16,8 @@
     Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 */
 
-#ifndef __KIS_PANEL_COMPONENTS_H__
-#define __KIS_PANEL_COMPONENTS_H__
+#ifndef __KIS_PANEL_WIDGETS_H__
+#define __KIS_PANEL_WIDGETS_H__
 
 #include "config.h"
 
