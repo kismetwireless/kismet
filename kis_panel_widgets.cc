@@ -161,6 +161,12 @@ int PanelInterface::DrawInterface() {
 	update_panels();
 	doupdate();
 
+	// Delete dead panels from before
+	for (unsigned int x = 0; x < dead_panels.size(); x++) {
+		delete(dead_panels[x]);
+	}
+	dead_panels.clear();
+
 	return 1;
 }
 
@@ -169,12 +175,17 @@ void PanelInterface::AddPanel(Kis_Panel *in_panel) {
 }
 
 void PanelInterface::KillPanel(Kis_Panel *in_panel) {
-	for (unsigned int x = 0; x < live_panels.size(); x++)
-		if (live_panels[x] == in_panel)
+	for (unsigned int x = 0; x < live_panels.size(); x++) {
+		if (live_panels[x] == in_panel) {
+			dead_panels.push_back(in_panel);
 			live_panels.erase(live_panels.begin() + x);
+		}
+	}
 }
 
-Kis_Menu::Kis_Menu() {
+Kis_Menu::Kis_Menu(GlobalRegistry *in_globalreg) :
+	Kis_Panel_Component(in_globalreg) {
+	globalreg = in_globalreg;
 	cur_menu = -1;
 	cur_item = -1;
 	menuwin = NULL;
@@ -212,12 +223,45 @@ int Kis_Menu::AddMenuItem(string in_text, int menuid, char extra) {
 	item->text = in_text;
 	item->extrachar = extra;
 	item->id = menubar[menuid]->items.size();
+
+	// Auto-disable spacers
+	if (item->text[0] != '-')
+		item->enabled = 1;
+	else
+		item->enabled = 0;
+
 	menubar[menuid]->items.push_back(item);
 
 	if ((int) in_text.length() > menubar[menuid]->width)
 		menubar[menuid]->width = in_text.length();
 
 	return (menuid * 100) + item->id + 1;
+}
+
+void Kis_Menu::DisableMenuItem(int in_item) {
+	int mid = in_item / 100;
+	int iid = (in_item % 100) - 1;
+
+	if (mid < 0 || mid >= (int) menubar.size())
+		return;
+
+	if (iid < 0 || iid > (int) menubar[mid]->items.size())
+		return;
+
+	menubar[mid]->items[iid]->enabled = 0;
+}
+
+void Kis_Menu::EnableMenuItem(int in_item) {
+	int mid = in_item / 100;
+	int iid = (in_item % 100) - 1;
+
+	if (mid < 0 || mid >= (int) menubar.size())
+		return;
+
+	if (iid < 0 || iid > (int) menubar[mid]->items.size())
+		return;
+
+	menubar[mid]->items[iid]->enabled = 1;
 }
 
 void Kis_Menu::ClearMenus() {
@@ -295,6 +339,10 @@ void Kis_Menu::DrawComponent() {
 				if ((int) y == cur_item)
 					wattron(menuwin, WA_REVERSE);
 
+				// Dim a disabled item
+				if (menubar[x]->items[y]->enabled == 0)
+					wattron(menuwin, WA_DIM);
+
 				// Format it with 'Foo     F'
 				menuline = menubar[x]->items[y]->text + " ";
 				for (unsigned int z = menuline.length(); 
@@ -307,12 +355,62 @@ void Kis_Menu::DrawComponent() {
 				// Print it
 				mvwaddstr(menuwin, 1 + y, 1, menuline.c_str());
 
+				// Dim a disabled item
+				if (menubar[x]->items[y]->enabled == 0)
+					wattroff(menuwin, WA_DIM);
+
 				if ((int) y == cur_item)
 					wattroff(menuwin, WA_REVERSE);
 			}
 		}
 
 		hpos += menubar[x]->text.length() + 1;
+	}
+}
+
+void Kis_Menu::FindNextEnabledItem() {
+	// Handle disabled and spacer items
+	if (menubar[cur_menu]->items[cur_item]->enabled == 0) {
+		// find the next enabled item
+		for (int i = cur_item + 1; i < (int) menubar[cur_menu]->items.size(); i++) {
+			// Loop
+			if (i >= (int) menubar[cur_menu]->items.size())
+				i = 0;
+
+			// Bail on a full loop
+			if (i == cur_item) {
+				cur_item = -1;
+				break;
+			}
+
+			if (menubar[cur_menu]->items[i]->enabled) {
+				cur_item = i;
+				break;
+			}
+		}
+	}
+}
+
+void Kis_Menu::FindPrevEnabledItem() {
+	// Handle disabled and spacer items
+	if (menubar[cur_menu]->items[cur_item]->enabled == 0) {
+		// find the next enabled item
+		for (int i = cur_item - 1; i >= -1; i--) {
+			// Loop
+			if (i < 0)
+				i = menubar[cur_menu]->items.size() - 1;
+
+			// Bail on a full loop
+			if (i == cur_item) {
+				cur_item = -1;
+				break;
+			}
+
+			if (menubar[cur_menu]->items[i]->enabled) {
+				cur_item = i;
+				break;
+			}
+		}
 	}
 }
 
@@ -334,12 +432,14 @@ int Kis_Menu::KeyPress(int in_key) {
 		cur_menu >= 0) {
 		cur_menu++;
 		cur_item = 0;
+		FindNextEnabledItem();
 		return 0;
 	}
 
 	if (in_key == KEY_LEFT && cur_menu > 0) {
 		cur_menu--;
 		cur_item = 0;
+		FindNextEnabledItem();
 		return 0;
 	}
 
@@ -348,15 +448,13 @@ int Kis_Menu::KeyPress(int in_key) {
 
 		if (cur_item == (int) menubar[cur_menu]->items.size() - 1) {
 			cur_item = 0;
+			FindNextEnabledItem();
 			return 0;
 		}
 
 		cur_item++;
 
-		// handle '----' spacer items
-		if (menubar[cur_menu]->items[cur_item]->text[0] == '-' &&
-			cur_item < (int) menubar[cur_menu]->items.size() - 1)
-			cur_item++;
+		FindNextEnabledItem();
 
 		return 0;
 	}
@@ -364,14 +462,13 @@ int Kis_Menu::KeyPress(int in_key) {
 	if (in_key == KEY_UP && cur_item >= 0) {
 		if (cur_item == 0) {
 			cur_item = menubar[cur_menu]->items.size() - 1;
+			FindPrevEnabledItem();
 			return 0;
 		}
 
 		cur_item--;
 
-		// handle '----' spacer items
-		if (menubar[cur_menu]->items[cur_item]->text[0] == '-' && cur_item > 0)
-			cur_item--;
+		FindPrevEnabledItem();
 
 		return 0;
 	}
@@ -380,6 +477,7 @@ int Kis_Menu::KeyPress(int in_key) {
 	if ((in_key == ' ' || in_key == 0x0A || in_key == KEY_ENTER) && cur_menu >= 0) {
 		if (cur_item == -1) {
 			cur_item = 0;
+			FindNextEnabledItem();
 			return 0;
 		}
 		int ret = (cur_menu * 100) + cur_item + 1;
@@ -395,6 +493,7 @@ int Kis_Menu::KeyPress(int in_key) {
 				if (in_key == menubar[x]->text[menubar[x]->targchar]) {
 					cur_menu = x;
 					cur_item = 0;
+					FindNextEnabledItem();
 					return 0;
 				}
 			}
@@ -404,24 +503,30 @@ int Kis_Menu::KeyPress(int in_key) {
 					tolower(menubar[x]->text[menubar[x]->targchar])) {
 					cur_menu = x;
 					cur_item = 0;
+					FindNextEnabledItem();
 					return 0;
 				}
 			}
+			return 0;
 		} else {
 			for (unsigned int x = 0; x < menubar[cur_menu]->items.size(); x++) {
-				if (in_key == menubar[cur_menu]->items[x]->extrachar) {
+				if (in_key == menubar[cur_menu]->items[x]->extrachar &&
+					menubar[cur_menu]->items[x]->enabled == 1) {
 					int ret = (cur_menu * 100) + x + 1;
 					Deactivate();
 					return ret;
 				}
 			}
+			return 0;
 		}
 	}
 
 	return -1;
 }
 
-Kis_Free_Text::Kis_Free_Text() {
+Kis_Free_Text::Kis_Free_Text(GlobalRegistry *in_globalreg) :
+	Kis_Panel_Component(in_globalreg) {
+	globalreg = in_globalreg;
 	scroll_pos = 0;
 }
 
@@ -509,7 +614,9 @@ void Kis_Free_Text::SetText(vector<string> in_text) {
 	text_vec = in_text;
 }
 
-Kis_Field_List::Kis_Field_List() {
+Kis_Field_List::Kis_Field_List(GlobalRegistry *in_globalreg) :
+	Kis_Panel_Component(in_globalreg) {
+	globalreg = in_globalreg;
 	scroll_pos = 0;
 	field_w = 0;
 }
@@ -615,10 +722,14 @@ int Kis_Field_List::ModData(unsigned int in_row, string in_field, string in_data
 	return (int) in_row;
 }
 
-Kis_Single_Input::Kis_Single_Input() {
+Kis_Single_Input::Kis_Single_Input(GlobalRegistry *in_globalreg) :
+	Kis_Panel_Component(in_globalreg) {
+	globalreg = in_globalreg;
 	curs_pos = 0;
-	label_pos = -1;
+	inp_pos = 0;
+	label_pos = LABEL_POS_NONE;
 	max_len = 0;
+	draw_len = 0;
 }
 
 Kis_Single_Input::~Kis_Single_Input() {
@@ -626,25 +737,220 @@ Kis_Single_Input::~Kis_Single_Input() {
 }
 
 void Kis_Single_Input::DrawComponent() {
+	if (visible == 0)
+		return;
+
 	int xoff = 0;
+	int yoff = 0;
 
 	// Draw the label if we can, in bold
-	if (ey > 2 && label_pos == 0 ) {
+	if (ey >= 2 && label_pos == LABEL_POS_TOP) {
 		wattron(window, WA_BOLD);
-		mvwaddnstr(window, sx, sy, label.c_str(), ex);
+		mvwaddnstr(window, sy, sx, label.c_str(), ex);
 		wattroff(window, WA_BOLD);
-	} else if (label_pos == 1) {
+		yoff = 1;
+	} else if (label_pos == LABEL_POS_LEFT) {
 		wattron(window, WA_BOLD);
-		mvwaddnstr(window, sx, sy, label.c_str(), ex);
+		mvwaddnstr(window, sy, sx, label.c_str(), ex);
 		wattroff(window, WA_BOLD);
-		xoff += label.length();
+		xoff += label.length() + 1;
 	}
 
+	// set the drawing length
+	draw_len = ex - xoff;
 
+	// Clean up any silliness that might be present from initialization
+	if (inp_pos - curs_pos >= draw_len)
+		curs_pos = inp_pos - draw_len + 1;
 
+	// Invert for the text
+	wattron(window, WA_REVERSE);
+
+	/* draw the inverted line */
+	mvwhline(window, sy + yoff, sx + xoff, ' ', draw_len);
+
+	/* draw the text from cur to what fits */
+	mvwaddnstr(window, sy + yoff, sx + xoff, 
+			   text.substr(curs_pos, draw_len).c_str(), draw_len);
+
+	/* Underline & unreverse the last character of the text (or space) */
+	wattroff(window, WA_REVERSE);
+
+	if (active) {
+		wattron(window, WA_UNDERLINE);
+		char ch;
+		if (inp_pos < (int) text.length())
+			ch = text[inp_pos];
+		else
+			ch = ' ';
+
+		mvwaddch(window, sy + yoff, sx + xoff + (inp_pos - curs_pos), ch);
+		wattroff(window, WA_UNDERLINE);
+	}
 }
 
-Kis_Panel::Kis_Panel() {
+void Kis_Single_Input::Activate(int subcomponent) {
+	active = 1;
+}
+
+void Kis_Single_Input::Deactivate() {
+	active = 0;
+}
+
+int Kis_Single_Input::KeyPress(int in_key) {
+	if (visible == 0 || draw_len == 0)
+		return 0;
+
+	// scroll left, and move the viewing window if we have to
+	if (in_key == KEY_LEFT && inp_pos > 0) {
+		inp_pos--;
+		if (inp_pos < curs_pos)
+			curs_pos = inp_pos;
+		return 0;
+	}
+
+	// scroll right, and move the viewing window if we have to
+	if (in_key == KEY_RIGHT && inp_pos < (int) text.length()) {
+		inp_pos++;
+
+		if (inp_pos - curs_pos >= draw_len)
+			curs_pos = inp_pos - draw_len + 1;
+
+		return 0;
+	}
+
+	// Catch home/end (if we can)
+	if (in_key == KEY_HOME) {
+		inp_pos = 0;
+		curs_pos = 0;
+
+		return 0;
+	}
+	if (in_key == KEY_END) {
+		inp_pos = text.length();
+		curs_pos = inp_pos - draw_len + 1;
+
+		return 0;
+	}
+
+	// Catch deletes
+	if ((in_key == KEY_BACKSPACE || in_key == 0x7F) && text.length() > 0) {
+		if (inp_pos == 0)
+			inp_pos = 1;
+
+		text.erase(text.begin() + (inp_pos - 1));
+
+		if (inp_pos > 0)
+			inp_pos--;
+
+		if (inp_pos < curs_pos)
+			curs_pos = inp_pos;
+
+		return 0;
+	}
+
+	// Lastly, if the character is in our filter of allowed characters for typing,
+	// and if we have room, insert it and scroll to the right
+	if ((int) text.length() < max_len && 
+		filter_map.find(in_key) != filter_map.end()) {
+		char ins[2] = { in_key, 0 };
+		text.insert(inp_pos, ins);
+		inp_pos++;
+
+		if (inp_pos - curs_pos >= draw_len)
+			curs_pos = inp_pos - draw_len + 1;
+
+		return 0;
+	}
+
+	return 0;
+}
+
+void Kis_Single_Input::SetCharFilter(string in_charfilter) {
+	filter_map.clear();
+	for (unsigned int x = 0; x < in_charfilter.length(); x++) {
+		filter_map[in_charfilter[x]] = 1;
+	}
+}
+
+void Kis_Single_Input::SetLabel(string in_label, KisWidget_LabelPos in_pos) {
+	label = in_label;
+	label_pos = in_pos;
+}
+
+void Kis_Single_Input::SetTextLen(int in_len) {
+	max_len = in_len;
+}
+
+void Kis_Single_Input::SetText(string in_text, int dpos, int ipos) {
+	text = in_text;
+
+	inp_pos = ipos;
+	curs_pos = dpos;
+}
+
+string Kis_Single_Input::GetText() {
+	return text;
+}
+
+Kis_Button::Kis_Button(GlobalRegistry *in_globalreg) :
+	Kis_Panel_Component(in_globalreg) {
+	globalreg = in_globalreg;
+
+	active = 0;
+}
+
+Kis_Button::~Kis_Button() {
+	// nada
+}
+
+void Kis_Button::DrawComponent() {
+	if (visible == 0)
+		return;
+
+	// Draw the highlighted button area if we're active
+	if (active)
+		wattron(window, WA_REVERSE);
+
+	mvwhline(window, sy, sx, ' ', ex);
+
+	// Center the text
+	int tx = (ex / 2) - (text.length() / 2);
+	mvwaddnstr(window, sy, sx + tx, text.c_str(), ex - tx);
+
+	// Add the ticks 
+	mvwaddch(window, sy, sx, '[');
+	mvwaddch(window, sy, sx + ex, ']');
+
+	if (active)
+		wattroff(window, WA_REVERSE);
+}
+
+void Kis_Button::Activate(int subcomponent) {
+	active = 1;
+}
+
+void Kis_Button::Deactivate() {
+	active = 0;
+}
+
+int Kis_Button::KeyPress(int in_key) {
+	if (visible == 0)
+		return 0;
+
+	if (in_key == KEY_ENTER || in_key == '\n') {
+		return 1;
+	}
+
+	return 0;
+}
+
+void Kis_Button::SetText(string in_text) {
+	text = in_text;
+}
+
+Kis_Panel::Kis_Panel(GlobalRegistry *in_globalreg) {
+	globalreg = in_globalreg;
 	win = newwin(0, 0, 0, 0);
 	pan = new_panel(win);
 	menu = NULL;
@@ -675,7 +981,7 @@ void Kis_Panel::Position(int in_sy, int in_sx, int in_y, int in_x) {
 		win = newwin(sizey, sizex, sy, sx);
 	}
 
-	if (pan = NULL) {
+	if (pan == NULL) {
 		pan = new_panel(win);
 	} else {
 		wresize(win, sizey, sizex);

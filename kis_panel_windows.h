@@ -24,11 +24,16 @@
 // Panel has to be here to pass configure, so just test these
 #if (defined(HAVE_LIBNCURSES) || defined (HAVE_LIBCURSES))
 
+#include "globalregistry.h"
 #include "kis_panel_widgets.h"
 
 class Kis_Main_Panel : public Kis_Panel {
 public:
-	Kis_Main_Panel();
+	Kis_Main_Panel() {
+		fprintf(stderr, "FATAL OOPS: Kis_Main_Panel() called w/out globalreg\n");
+		exit(1);
+	}
+	Kis_Main_Panel(GlobalRegistry *in_globalreg);
 	virtual ~Kis_Main_Panel();
 
 	virtual void Position(int in_sy, int in_sx, int in_y, int in_x);
@@ -38,10 +43,35 @@ public:
 protected:
 	int mn_file, mn_view, mn_sort, mn_tools;
 	int mi_connect, mi_quit;
-	int mi_showtext, mi_showfields;
+	int mi_showtext, mi_showfields, mi_showinput;
 
 	Kis_Free_Text *ftxt;
 	Kis_Field_List *fl;
+	Kis_Single_Input *sinp;
+};
+
+class Kis_Connect_Panel : public Kis_Panel {
+public:
+	Kis_Connect_Panel() {
+		fprintf(stderr, "FATAL OOPS: Kis_Connect_Panel called w/out globalreg\n");
+		exit(1);
+	}
+
+	Kis_Connect_Panel(GlobalRegistry *in_globalreg);
+	virtual ~Kis_Connect_Panel();
+
+	virtual void Position(int in_sy, int in_sx, int in_y, int in_x);
+	virtual void DrawPanel();
+	virtual int KeyPress(int in_key);
+
+protected:
+	Kis_Single_Input *hostname;
+	Kis_Single_Input *hostport;
+	Kis_Button *okbutton;
+	Kis_Button *cancelbutton;
+
+	vector<Kis_Panel_Component *> tab_components;
+	int tab_pos;
 };
 
 #endif

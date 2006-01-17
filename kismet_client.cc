@@ -314,7 +314,7 @@ int main(int argc, char *argv[], char *envp[]) {
 		CatchShutdown(-1);
 
 	// Make the main panel and assign it to the interface
-	Kis_Main_Panel *mainp = new Kis_Main_Panel();
+	Kis_Main_Panel *mainp = new Kis_Main_Panel(globalregistry);
 	mainp->Position(0, 0, LINES, COLS);
 	globalregistry->panel_interface->AddPanel(mainp);
 

@@ -40,6 +40,16 @@
 
 #include "pollable.h"
 
+// Some standard filters we'd use on input
+#define FILTER_ALPHANUM	"ABCDEFGHIJKLMNOPQRSTUVWXYZ" \
+	"abcdefghijklmnopqrstuvwxyz" \
+	"0123456789 "
+#define FILTER_ALPHANUMSYM "ABCDEFGHIJKLMNOPQRSTUVWXYZ" \
+	"abcdefghijklmnopqrstuvwxyz" \
+	"0123456789 " \
+	".,~!@#$%^&*()_-+/"
+#define FILTER_NUM "0123456789"
+
 // Functor-style handler for special text.  Provides an alternate to the
 // printstr mvwaddnstr which does color and type formating.
 //
@@ -59,8 +69,15 @@ public:
 class Kis_Panel_Component {
 public:
 	Kis_Panel_Component() { 
+		fprintf(stderr, "FATAL OOPS:  Component called without globalreg\n");
+		exit(1);
+	}
+
+	Kis_Panel_Component(GlobalRegistry *in_globalreg) {
+		globalreg = in_globalreg;
 		window = NULL;
 		visible = 0;
+		active = 0;
 	};
 	virtual ~Kis_Panel_Component() { };
 
@@ -93,6 +110,8 @@ public:
 	virtual int KeyPress(int in_key) = 0;
 
 protected:
+	GlobalRegistry *globalreg;
+
 	// Are we even visible?
 	int visible;
 
@@ -101,11 +120,18 @@ protected:
 
 	// Position within the window (start xy, size xy)
 	int sx, sy, ex, ey;
+
+	// Are we active?
+	int active;
 };
 
 class Kis_Menu : public Kis_Panel_Component {
 public:
-	Kis_Menu();
+	Kis_Menu() {
+		fprintf(stderr, "FATAL OOPS: Kis_Menu called without globalreg\n");
+		exit(1);
+	}
+	Kis_Menu(GlobalRegistry *in_globalreg);
 	virtual ~Kis_Menu();
 
 	// Refresh drawing the menu bar in its current state
@@ -125,11 +151,15 @@ public:
 	// Delete all the menus
 	virtual void ClearMenus();
 
+	virtual void EnableMenuItem(int in_item);
+	virtual void DisableMenuItem(int in_item);
+
 	typedef struct _menuitem {
 		int parentmenu;
 		string text;
 		char extrachar;
 		int id;
+		int enabled;
 	};
 
 	typedef struct _menu {
@@ -148,12 +178,19 @@ protected:
 	// Selected items
 	int cur_menu;
 	int cur_item;
+
+	virtual void FindNextEnabledItem();
+	virtual void FindPrevEnabledItem();
 };
 
 // A scrollable list of fields
 class Kis_Field_List : public Kis_Panel_Component {
 public:
-	Kis_Field_List();
+	Kis_Field_List() {
+		fprintf(stderr, "FATAL OOPS: Kis_Field_List called without globalreg\n");
+		exit(1);
+	}
+	Kis_Field_List(GlobalRegistry *in_globalreg);
 	virtual ~Kis_Field_List();
 
 	virtual void DrawComponent();
@@ -179,7 +216,11 @@ protected:
 // A scrollable freetext field
 class Kis_Free_Text : public Kis_Panel_Component {
 public:
-	Kis_Free_Text();
+	Kis_Free_Text() {
+		fprintf(stderr, "FATAL OOPS: Kis_Free_Text() called w/out globalreg\n");
+		exit(1);
+	}
+	Kis_Free_Text(GlobalRegistry *in_globalreg);
 	virtual ~Kis_Free_Text();
 
 	virtual void DrawComponent();
@@ -197,10 +238,23 @@ protected:
 	int scroll_pos;
 };
 
+enum KisWidget_LabelPos {
+	LABEL_POS_NONE = -1,
+	LABEL_POS_TOP = 0,
+	LABEL_POS_LEFT = 1,
+	LABEL_POS_BOT = 2,
+	LABEL_POS_RIGHT = 3,
+	LABEL_POS_BORDER = 4
+};
+
 // Single line input
 class Kis_Single_Input : public Kis_Panel_Component {
 public:
-	Kis_Single_Input();
+	Kis_Single_Input() {
+		fprintf(stderr, "FATAL OOPS:  Kis_Single_Input called w/out globalreg\n");
+		exit(1);
+	}
+	Kis_Single_Input(GlobalRegistry *in_globalreg);
 	virtual ~Kis_Single_Input();
 
 	virtual void DrawComponent();
@@ -212,20 +266,20 @@ public:
 	// Allowed characters filter (mandatory)
 	virtual void SetCharFilter(string in_charfilter);
 	// Set the label and position
-	virtual void SetLabel(string in_label, int in_pos);
+	virtual void SetLabel(string in_label, KisWidget_LabelPos in_pos);
 	// Set the length of the text we want (can be more than the size of the
 	// widget) (mandatory)
 	virtual void SetTextLen(int in_len);
 
 	// Pre-stock the widget text
-	virtual void SetText(string in_text);
+	virtual void SetText(string in_text, int dpos, int ipos);
 	// Get the text from the widget
 	virtual string GetText();
 
 protected:
 	// Label, position (0 = top, 1 = left)
 	string label;
-	int label_pos;
+	KisWidget_LabelPos label_pos;
 
 	// Maximum length (may be more than the size of the widget)
 	int max_len;
@@ -233,13 +287,45 @@ protected:
 	// Characters we allow
 	map<char, int> filter_map;
 
+	/* text itself */
 	string text;
+	/* Position of the start of the displayed text */
 	int curs_pos;
+	/* Position of the input character */
+	int inp_pos;
+	/* drawing length of the text field */
+	int draw_len;
+};
+
+// A button
+class Kis_Button : public Kis_Panel_Component {
+public:
+	Kis_Button() {
+		fprintf(stderr, "FATAL OOPS: Kis_Button() called w/out globalreg\n");
+		exit(1);
+	}
+	Kis_Button(GlobalRegistry *in_globalreg);
+	virtual ~Kis_Button();
+
+	virtual void DrawComponent();
+	virtual void Activate(int subcomponent);
+	virtual void Deactivate();
+
+	virtual int KeyPress(int in_key);
+
+	virtual void SetText(string in_text);
+
+protected:
+	string text;
 };
 
 class Kis_Panel {
 public:
-	Kis_Panel();
+	Kis_Panel() {
+		fprintf(stderr, "FATAL OOPS: Kis_Panel() called w/out globalreg\n");
+		exit(1);
+	}
+	Kis_Panel(GlobalRegistry *in_globalreg);
 	virtual ~Kis_Panel();
 
 	virtual void Position(int in_sy, int in_sx, int in_y, int in_x);
@@ -253,6 +339,8 @@ public:
 	virtual void SetTitle(string in_title);
 
 protected:
+	GlobalRegistry *globalreg;
+
 	virtual void DrawTitleBorder();
 
 	WINDOW *win;
@@ -291,6 +379,7 @@ public:
 protected:
 	vector<Kis_Panel *> live_panels;
 	int draweventid;
+	vector<Kis_Panel *> dead_panels;
 };
 
 #endif // panel

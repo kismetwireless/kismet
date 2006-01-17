@@ -24,8 +24,10 @@
 #include "kis_panel_widgets.h"
 #include "kis_panel_windows.h"
 
-Kis_Main_Panel::Kis_Main_Panel() {
-	menu = new Kis_Menu;
+Kis_Main_Panel::Kis_Main_Panel(GlobalRegistry *in_globalreg) :
+	Kis_Panel(in_globalreg) {
+	globalreg = in_globalreg;
+	menu = new Kis_Menu(globalreg);
 
 	mn_file = menu->AddMenu("Kismet", 0);
 	mi_connect = menu->AddMenuItem("Connect...", mn_file, 'C');
@@ -35,6 +37,7 @@ Kis_Main_Panel::Kis_Main_Panel() {
 	mn_view = menu->AddMenu("Show", 1);
 	mi_showtext = menu->AddMenuItem("Text", mn_view, 't');
 	mi_showfields = menu->AddMenuItem("2-Fields", mn_view, '2');
+	mi_showinput = menu->AddMenuItem("Input", mn_view, 'i');
 
 	mn_sort = menu->AddMenu("Sort", 0);
 	menu->AddMenuItem("Auto-fit", mn_sort, 'a');
@@ -49,9 +52,29 @@ Kis_Main_Panel::Kis_Main_Panel() {
 	menu->AddMenuItem("Packets", mn_sort, 'p');
 	menu->AddMenuItem("Packets (descending)", mn_sort, 'P');
 
+	mn_tools = menu->AddMenu("Tools", 0);
+	menu->DisableMenuItem(menu->AddMenuItem("Network List...", mn_tools, 'n'));
+	menu->AddMenuItem("Client List...", mn_tools, 'c');
+	menu->DisableMenuItem(menu->AddMenuItem("Details...", mn_tools, 'd'));
+
+	menu->AddMenuItem("-", mn_tools, 0);
+
+	menu->AddMenuItem("Server List...", mn_tools, 'S');
+	menu->AddMenuItem("Capture Source List...", mn_tools, 'C');
+	menu->AddMenuItem("GPS...", mn_tools, 'G');
+
 	menu->Show();
 
-	ftxt = new Kis_Free_Text();
+	sinp = new Kis_Single_Input(globalreg);
+	sinp->SetPosition(win, 2, 3, 50, 2);
+	sinp->SetText("abacadabamonkeycadabafooblahblahblah", 0, 10);
+	sinp->SetLabel("Foo", LABEL_POS_LEFT);
+	sinp->SetTextLen(120);
+	sinp->SetCharFilter(FILTER_ALPHANUM);
+	active_component = sinp;
+	comp_vec.push_back(sinp);
+
+	ftxt = new Kis_Free_Text(globalreg);
 	ftxt->SetPosition(win, 2, 3, 80, 20);
 	ftxt->SetText("2.  Quick Start\n"
 "\n"
@@ -130,7 +153,7 @@ Kis_Main_Panel::Kis_Main_Panel() {
 	active_component = ftxt;
 	comp_vec.push_back(ftxt);
 
-	fl = new Kis_Field_List;
+	fl = new Kis_Field_List(globalreg);
 	fl->SetPosition(win, 2, 3, 80, 20);
 
 	fl->AddData("One", "Data from one");
@@ -207,11 +230,22 @@ int Kis_Main_Panel::KeyPress(int in_key) {
 		if (ret == mi_showtext) {
 			ftxt->Show();
 			fl->Hide();
+			sinp->Hide();
 			active_component = ftxt;
 		} else if (ret == mi_showfields) {
 			ftxt->Hide();
+			sinp->Hide();
 			fl->Show();
 			active_component = fl;
+		} else if (ret == mi_showinput) {
+			ftxt->Hide();
+			fl->Hide();
+			sinp->Show();
+			active_component = sinp;
+		} else if (ret == mi_connect) {
+			Kis_Connect_Panel *cp = new Kis_Connect_Panel(globalreg);
+			cp->Position((LINES / 2) - 4, (COLS / 2) - 20, 8, 40);
+			globalreg->panel_interface->AddPanel(cp);
 		}
 
 		return 0;
@@ -221,6 +255,99 @@ int Kis_Main_Panel::KeyPress(int in_key) {
 	// component
 	if (active_component != NULL) {
 		ret = active_component->KeyPress(in_key);
+
+		if (ret == 0)
+			return 0;
+
+		return ret;
+	}
+
+	return 0;
+}
+
+Kis_Connect_Panel::Kis_Connect_Panel(GlobalRegistry *in_globalreg) :
+	Kis_Panel(in_globalreg) {
+	globalreg = in_globalreg;
+
+	hostname = new Kis_Single_Input(globalreg);
+	hostport = new Kis_Single_Input(globalreg);
+	okbutton = new Kis_Button(globalreg);
+
+	comp_vec.push_back(hostname);
+	comp_vec.push_back(hostport);
+	comp_vec.push_back(okbutton);
+
+	tab_components.push_back(hostname);
+	tab_components.push_back(hostport);
+	tab_components.push_back(okbutton);
+	tab_pos = 0;
+
+	active_component = hostname;
+
+	SetTitle("Connect to Server");
+
+	hostname->SetLabel("Host", LABEL_POS_LEFT);
+	hostname->SetTextLen(120);
+	hostname->SetCharFilter(FILTER_ALPHANUMSYM);
+
+	hostport->SetLabel("Port", LABEL_POS_LEFT);
+	hostport->SetTextLen(5);
+	hostport->SetCharFilter(FILTER_NUM);
+
+	okbutton->SetText("Connect");
+}
+
+Kis_Connect_Panel::~Kis_Connect_Panel() {
+}
+
+void Kis_Connect_Panel::Position(int in_sy, int in_sx, int in_y, int in_x) {
+	Kis_Panel::Position(in_sy, in_sx, in_y, in_x);
+
+	hostname->SetPosition(win, 2, 2, in_x - 6, 1);
+	hostport->SetPosition(win, 2, 4, 14, 1);
+	okbutton->SetPosition(win, in_x - 15, in_y - 2, 10, 1);
+
+	hostname->Activate(1);
+	active_component = hostname;
+
+	hostname->Show();
+	hostport->Show();
+	okbutton->Show();
+}
+
+void Kis_Connect_Panel::DrawPanel() {
+	werase(win);
+
+	DrawTitleBorder();
+
+	for (unsigned int x = 0; x < comp_vec.size(); x++)
+		comp_vec[x]->DrawComponent();
+
+	wmove(win, 0, 0);
+}
+
+int Kis_Connect_Panel::KeyPress(int in_key) {
+	int ret;
+
+	// Rotate through the tabbed items
+	if (in_key == '\t') {
+		tab_components[tab_pos]->Deactivate();
+		tab_pos++;
+		if (tab_pos >= (int) tab_components.size())
+			tab_pos = 0;
+		tab_components[tab_pos]->Activate(1);
+		active_component = tab_components[tab_pos];
+	}
+
+	// Otherwise the menu didn't touch the key, so pass it to the top
+	// component
+	if (active_component != NULL) {
+		ret = active_component->KeyPress(in_key);
+
+		if (active_component == okbutton && ret == 1) {
+			// Normally we'd configure the TCP client here
+			globalreg->panel_interface->KillPanel(this);
+		}
 
 		if (ret == 0)
 			return 0;
