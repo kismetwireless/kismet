@@ -473,7 +473,7 @@ int PacketSource_MadwifiNG::EnableMonitor() {
 	cp.icp_flags = IEEE80211_CLONE_BSSID;
 
 	strncpy(ifr.ifr_name, interface.c_str(), IFNAMSIZ);
-	ifr.ifr_data = (void *) &cp;
+	ifr.ifr_data = (caddr_t) &cp;
 
 	s = socket(AF_INET, SOCK_DGRAM, 0);
 	if (s < 0) {
