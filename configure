@@ -6025,6 +6025,7 @@ fi;
 termcontrol="none";
 
 if test "$wantclient" = "yes"; then
+    OLIBS="$LIBS"
 	echo "$as_me:$LINENO: checking for initscr in -lncurses" >&5
 echo $ECHO_N "checking for initscr in -lncurses... $ECHO_C" >&6
 if test "${ac_cv_lib_ncurses_initscr+set}" = set; then
@@ -6475,6 +6476,7 @@ echo "$as_me: error: Failed to find curses.h or ncurses.h.  You probably need to
    { (exit 1); exit 1; }; }
 	fi
 
+	LIBS="$LIBS $curseaux"
 	echo "$as_me:$LINENO: checking for new_panel in -lpanel" >&5
 echo $ECHO_N "checking for new_panel in -lpanel... $ECHO_C" >&6
 if test "${ac_cv_lib_panel_new_panel+set}" = set; then
@@ -6700,6 +6702,8 @@ fi
 echo "$as_me: error: Failed to find panel.h curses extension header.  You probably need to install the curses-devel or panel-devel package from your distribution." >&2;}
    { (exit 1); exit 1; }; }
 	fi
+
+	LIBS="$OLIBS"
 
 	CLIENTCLIBS="$CLIENTCLIBS $curseaux"
 fi
