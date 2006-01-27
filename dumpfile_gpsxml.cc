@@ -122,7 +122,7 @@ Dumpfile_Gpsxml::Dumpfile_Gpsxml(GlobalRegistry *in_globalreg) :
 											CHAINPOS_LOGGING, -100);
 
     fprintf(xmlfile, "<gps-run gps-version=\"%d\" start-time=\"%.24s\">\n\n",
-            GPS_VERSION, ctime(&(globalreg->timestamp.tv_sec)));
+            GPS_VERSION, ctime((const time_t *) &(globalreg->timestamp.tv_sec)));
 
 	string netxmlname;
 	if ((netxmlname = ProcessConfigOpt("netxml")) != "") {
