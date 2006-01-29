@@ -347,6 +347,9 @@ int Kis_Connect_Panel::KeyPress(int in_key) {
 		if (active_component == okbutton && ret == 1) {
 			// Normally we'd configure the TCP client here
 			globalreg->panel_interface->KillPanel(this);
+		} else if (active_component == cancelbutton && ret == 1) {
+			// Cancel and close
+			globalreg->panel_interface->KillPanel(this);
 		}
 
 		if (ret == 0)
