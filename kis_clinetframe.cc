@@ -58,7 +58,7 @@ int KisNetClient::KillConnection() {
 	return 1;
 }
 
-int KisNetClient::ShutDown() {
+int KisNetClient::Shutdown() {
 	if (tcpcli != NULL) {
 		tcpcli->FlushRings();
 		tcpcli->KillConnection();
