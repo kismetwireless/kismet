@@ -306,9 +306,6 @@ int KisDroneFramework::RegisterDroneCmd(uint32_t in_cmdid,
 }
 
 int KisDroneFramework::RemoveDroneCmd(uint32_t in_cmdid) {
-	if (drone_cmd_map.find(in_cmdid) == drone_cmd_map.end())
-		return 0;
-
 	map<unsigned int, drone_cmd_rec *>::iterator dcritr = 
 		drone_cmd_map.find(in_cmdid);
 

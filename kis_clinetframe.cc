@@ -17,6 +17,9 @@
 */
 
 #include "config.h"
+
+#include <sstream>
+
 #include "util.h"
 #include "configfile.h"
 #include "kis_clinetframe.h"
@@ -37,6 +40,12 @@ KisNetClient::KisNetClient(GlobalRegistry *in_globalreg) :
 	// Link it
 	RegisterNetworkClient(tcpcli);
 	tcpcli->RegisterClientFramework(this);
+
+	reconnect = 0;
+	reconid = -1;
+
+	cmdid = 1;
+	last_disconnect = 0;
 	
 	globalreg->RegisterPollableSubsys(this);
 }
@@ -49,6 +58,10 @@ KisNetClient::~KisNetClient() {
 		delete tcpcli;
 		tcpcli = NULL;
 	}
+
+	if (reconid > -1)
+		globalreg->timetracker->RemoveTimer(reconid);
+
 }
 
 int KisNetClient::KillConnection() {
@@ -62,6 +75,151 @@ int KisNetClient::Shutdown() {
 	if (tcpcli != NULL) {
 		tcpcli->FlushRings();
 		tcpcli->KillConnection();
+	}
+
+	return 1;
+}
+
+int KisNetClient::RegisterProtoHandler(string in_proto, string in_fieldlist,
+									   CliProto_Callback in_cb, void *in_aux) {
+	in_proto = StrLower(in_proto);
+
+	if (handler_cb_map.find(in_proto) != handler_cb_map.end()) {
+		_MSG("Handler for '" + in_proto + "' already registered.", MSGFLAG_ERROR);
+		return -1;
+	}
+
+	// Do we know about this proto at all?
+	map<string, map<string, int> >::iterator dmitr = proto_field_dmap.find(in_proto);
+
+	if (dmitr == proto_field_dmap.end()) {
+		_MSG("Trying to register for unknown protocol '" + in_proto + "'",
+			 MSGFLAG_ERROR);
+		return -1;
+	}
+
+	// Break down the fields and compare against the fields we know about
+	vector<string> fields = StrTokenize(in_fieldlist, ",");
+
+	for (unsigned int x = 0; x < fields.size(); x++) {
+		if (dmitr->second.find(StrLower(fields[x])) == dmitr->second.end()) {
+			_MSG("Unknown field '" + fields[x] + "' requested for protocol '" +
+				 in_proto + "'", MSGFLAG_ERROR);
+			return -1;
+		}
+	}
+
+	kcli_handler_rec *rec = new kcli_handler_rec;
+	rec->auxptr = in_aux;
+	rec->callback = in_cb;
+	rec->fields = in_fieldlist;
+
+	// TODO - send subscribe command
+	
+	handler_cb_map[in_proto] = rec;
+
+	return 1;
+}
+
+void KisNetClient::RemoveProtoHandler(string in_proto) {
+	in_proto = StrLower(in_proto);
+
+	map<string, kcli_handler_rec *>::iterator hitr =
+		handler_cb_map.find(in_proto);
+
+	if (hitr == handler_cb_map.end())
+		return;
+
+	// TODO - send unsubscribe
+
+	delete hitr->second;
+	handler_cb_map.erase(hitr);
+}
+
+int KisNetClient::InjectCommand(string in_cmdtext) {
+	if (tcpcli->Valid() == 0)
+		return 0;
+
+	int curid = cmdid++;
+	ostringstream cmd;
+
+	cmd << "!" << curid << " " << in_cmdtext;
+
+	if (tcpcli->WriteData((void *) cmd.str().c_str(), cmd.str().length()) < 0 ||
+		globalreg->fatal_condition) {
+		last_disconnect = time(0);
+		return -1;
+	}
+
+	return curid;
+}
+
+int KisNetClient::Reconnect() {
+
+	return 1;
+}
+
+int KisNetClient::ParseData() {
+    int len, rlen;
+    char *buf;
+    string strbuf;
+
+    // Scratch variables for parsing data
+    char header[65];
+
+	if (netclient == NULL)
+		return 0;
+
+    len = netclient->FetchReadLen();
+    buf = new char[len + 1];
+    
+    if (netclient->ReadData(buf, len, &rlen) < 0) {
+		_MSG("Kismet protocol parser failed to get data from the TCP connection",
+			 MSGFLAG_ERROR);
+        return -1;
+    }
+    buf[len] = '\0';
+
+    // Parse without including partials, so we don't get a fragmented command 
+    // out of the buffer
+    vector<string> inptok = StrTokenize(buf, "\n", 0);
+    delete[] buf;
+
+    // Bail on no useful data
+    if (inptok.size() < 1) {
+        return 0;
+    }
+
+    for (unsigned int it = 0; it < inptok.size(); it++) {
+        // No matter what we've dealt with this data block
+        netclient->MarkRead(inptok[it].length() + 1);
+
+        // Pull the header out to save time -- cheaper to parse the header and 
+		// then the data than to try to parse an entire data string just to find 
+		// out what protocol we are
+        // 
+        // Protocol parsers should be dynamic so that we can have plugins in the 
+		// framework able to handle a proto, but right now thats a hassle
+
+        if (sscanf(inptok[it].c_str(), "*%64[^:]", header) < 1) {
+            continue;
+        }
+
+        // Nuke the header off the string
+        inptok[it].erase(0, (size_t) strlen(header) + 3);
+
+		// Smarter tokenization to handle quoted field buffers
+		vector<smart_word_token> net_toks = SmartStrTokenize(inptok[it], " ", 1);
+
+        if (!strncmp(header, "TERMINATE", 64)) {
+            snprintf(errstr, STATUS_MAX, "Kismet server terminated.");
+            globalreg->messagebus->InjectMessage(errstr, MSGFLAG_ERROR);
+           
+            netclient->KillConnection();
+            
+            continue;
+		}
+
 	}
 
 	return 1;
