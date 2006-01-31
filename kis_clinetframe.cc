@@ -98,7 +98,10 @@ int KisNetClient::RegisterProtoHandler(string in_proto, string in_fieldlist,
 		return -1;
 	}
 
-	// Break down the fields and compare against the fields we know about
+	// Break down the fields and compare against the fields we know about, make
+	// sure they can't enable something the server doesn't understand.  This is a 
+	// cheap hack around our non-async behavior that keeps us from having a good
+	// way to return a command failure condition
 	vector<string> fields = StrTokenize(in_fieldlist, ",");
 
 	for (unsigned int x = 0; x < fields.size(); x++) {
@@ -114,7 +117,8 @@ int KisNetClient::RegisterProtoHandler(string in_proto, string in_fieldlist,
 	rec->callback = in_cb;
 	rec->fields = in_fieldlist;
 
-	// TODO - send subscribe command
+	// Send the command
+	InjectCommand("ENABLE " + in_proto + " " + in_fieldlist);
 	
 	handler_cb_map[in_proto] = rec;
 
@@ -130,7 +134,7 @@ void KisNetClient::RemoveProtoHandler(string in_proto) {
 	if (hitr == handler_cb_map.end())
 		return;
 
-	// TODO - send unsubscribe
+	InjectCommand("REMOVE " + in_proto);
 
 	delete hitr->second;
 	handler_cb_map.erase(hitr);
@@ -143,7 +147,7 @@ int KisNetClient::InjectCommand(string in_cmdtext) {
 	int curid = cmdid++;
 	ostringstream cmd;
 
-	cmd << "!" << curid << " " << in_cmdtext;
+	cmd << "!" << curid << " " << in_cmdtext << "\n";
 
 	if (tcpcli->WriteData((void *) cmd.str().c_str(), cmd.str().length()) < 0 ||
 		globalreg->fatal_condition) {
@@ -212,12 +216,35 @@ int KisNetClient::ParseData() {
 		vector<smart_word_token> net_toks = SmartStrTokenize(inptok[it], " ", 1);
 
         if (!strncmp(header, "TERMINATE", 64)) {
-            snprintf(errstr, STATUS_MAX, "Kismet server terminated.");
-            globalreg->messagebus->InjectMessage(errstr, MSGFLAG_ERROR);
-           
+			_MSG("Kismet server '" + string(host) + "' terminated.", MSGFLAG_ERROR);
             netclient->KillConnection();
-            
             continue;
+		} else if (!strncmp(header, "PROTOCOLS", 64)) {
+			// Vectorize the protocol list
+			vector<string> protovec = StrTokenize(net_toks[0].word, ",");
+
+			if (protovec.size() <= 0) {
+				_MSG("Kismet server '" + string(host) + "' sent PROTOCOLS list "
+					 "with nothing in it, something is broken.", MSGFLAG_ERROR);
+				// We'll keep trying though
+				continue;
+			}
+
+			// We expect that a protocol will never add fields once it's been
+			// announced.  If this changes, this assumption will be broken
+			for (unsigned int pro = 0; pro < protovec.size(); pro++) {
+				if (proto_field_dmap.find(StrLower(protovec[pro])) ==
+					proto_field_dmap.end()) {
+					// Send a capabilities request for all of the protocols
+					if (InjectCommand("CAPABILITY " + protovec[pro]) < 0) {
+						_MSG("Failed queuing CAPABILITY command to get details "
+							 "for protocol '" + protovec[pro] + "'", MSGFLAG_ERROR);
+						return -1;
+					}
+				}
+			}
+		} else if (!strncmp(header, "CAPABILITY", 64)) {
+			printf("debug - capability response\n");
 		}
 
 	}
