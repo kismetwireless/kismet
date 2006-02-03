@@ -25,6 +25,11 @@
 #include "kis_clinetframe.h"
 #include "getopt.h"
 
+int KisNetClientReconEvent(TIMEEVENT_PARMS) {
+	((KisNetClient *) parm)->Reconnect();
+	return 1;
+}
+
 KisNetClient::KisNetClient() {
 	fprintf(stderr, "FATAL OOPS:  kisnetclient called with no globalreg\n");
 	exit(-1);
@@ -32,7 +37,7 @@ KisNetClient::KisNetClient() {
 
 KisNetClient::KisNetClient(GlobalRegistry *in_globalreg) :
 	ClientFramework(in_globalreg) {
-
+		
 	// We only support tcpclients for now, so just generate it all now
 	tcpcli = new TcpClient(globalreg);
 	netclient = tcpcli;
@@ -62,6 +67,44 @@ KisNetClient::~KisNetClient() {
 	if (reconid > -1)
 		globalreg->timetracker->RemoveTimer(reconid);
 
+}
+
+int KisNetClient::Connect(string in_host, int in_reconnect) {
+	char proto[11];
+	char temphost[129];
+	short int temport;
+
+	if (sscanf(in_host.c_str(), "%10[^:]://%128[^:]:%hu", 
+			   proto, temphost, &temport) != 3) {
+		_MSG("Kismet network client could not parse host, expected the form "
+			 "proto://host:port, got '" + in_host + "'", MSGFLAG_ERROR);
+		return -1;
+	}
+
+	if (StrLower(string(proto)) != "tcp") {
+		_MSG("Kismet network client currently only supports the TCP protocol for "
+			 "connecting to servers.", MSGFLAG_ERROR);
+		return -1;
+	}
+
+	snprintf(host, MAXHOSTNAMELEN, "%s", temphost);
+	port = temport;
+	
+
+	if (in_reconnect && reconid == -1) {
+		reconid =
+			globalreg->timetracker->RegisterTimer(SERVER_TIMESLICES_SEC * 5,
+												  NULL, 1, &KisNetClientReconEvent,
+												  (void *) this);
+		reconnect = 1;
+	}
+
+	last_disconnect = 1;
+
+	// Let the reconnect trigger handle the rest
+	Reconnect();
+
+	return 1;
 }
 
 int KisNetClient::KillConnection() {
@@ -151,6 +194,7 @@ int KisNetClient::InjectCommand(string in_cmdtext) {
 
 	if (tcpcli->WriteData((void *) cmd.str().c_str(), cmd.str().length()) < 0 ||
 		globalreg->fatal_condition) {
+		KillConnection();
 		last_disconnect = time(0);
 		return -1;
 	}
@@ -159,6 +203,32 @@ int KisNetClient::InjectCommand(string in_cmdtext) {
 }
 
 int KisNetClient::Reconnect() {
+	if (tcpcli == NULL)
+		return -1;
+
+	if (tcpcli->Valid() || last_disconnect == 0)
+		return 1;
+
+	ostringstream osstr;
+
+	if (tcpcli->Connect(host, port) < 0) {
+		osstr << "Could not connect to Kismet server '" << host << ":" << port <<
+			"' will attempt to reconnect in 5 seconds.";
+		_MSG(osstr.str(), MSGFLAG_ERROR);
+		last_disconnect = time(0);
+		return 0;
+	} else {
+		osstr << "Established connection with Kismet server '" << host << 
+			":" << port << "'";
+		_MSG(osstr.str(), MSGFLAG_INFO);
+		last_disconnect = 0;
+
+		// Inject all the enable commands we had queued
+		for (map<string, KisNetClient::kcli_handler_rec *>::iterator hi = 
+			 handler_cb_map.begin(); hi != handler_cb_map.end(); ++hi) {
+			InjectCommand("ENABLE " + hi->first + " " + hi->second->fields);
+		}
+	}
 
 	return 1;
 }
@@ -167,6 +237,7 @@ int KisNetClient::ParseData() {
     int len, rlen;
     char *buf;
     string strbuf;
+	ostringstream osstr;
 
     // Scratch variables for parsing data
     char header[65];
@@ -216,7 +287,9 @@ int KisNetClient::ParseData() {
 		vector<smart_word_token> net_toks = SmartStrTokenize(inptok[it], " ", 1);
 
         if (!strncmp(header, "TERMINATE", 64)) {
-			_MSG("Kismet server '" + string(host) + "' terminated.", MSGFLAG_ERROR);
+			osstr << "Kismet server '" << host << ":" << port << "' has "
+				"terminated";
+			_MSG(osstr.str(), MSGFLAG_ERROR);
             netclient->KillConnection();
             continue;
 		} else if (!strncmp(header, "PROTOCOLS", 64)) {
@@ -224,8 +297,9 @@ int KisNetClient::ParseData() {
 			vector<string> protovec = StrTokenize(net_toks[0].word, ",");
 
 			if (protovec.size() <= 0) {
-				_MSG("Kismet server '" + string(host) + "' sent PROTOCOLS list "
-					 "with nothing in it, something is broken.", MSGFLAG_ERROR);
+				osstr << "Kismet server '" << host << ":" << port << "' sent a "
+					"protocols list with nothing in it, something is broken";
+				_MSG(osstr.str(), MSGFLAG_ERROR);
 				// We'll keep trying though
 				continue;
 			}
@@ -233,18 +307,44 @@ int KisNetClient::ParseData() {
 			// We expect that a protocol will never add fields once it's been
 			// announced.  If this changes, this assumption will be broken
 			for (unsigned int pro = 0; pro < protovec.size(); pro++) {
-				if (proto_field_dmap.find(StrLower(protovec[pro])) ==
-					proto_field_dmap.end()) {
-					// Send a capabilities request for all of the protocols
-					if (InjectCommand("CAPABILITY " + protovec[pro]) < 0) {
-						_MSG("Failed queuing CAPABILITY command to get details "
-							 "for protocol '" + protovec[pro] + "'", MSGFLAG_ERROR);
-						return -1;
-					}
+				// Send a capabilities request for all of the protocols
+				if (InjectCommand("CAPABILITY " + protovec[pro]) < 0) {
+					osstr << "Kismet server '" << host << ":" << port << "' "
+						"network failure while queuing a capability request";
+					_MSG(osstr.str(), MSGFLAG_ERROR);
+					KillConnection();
+					return -1;
 				}
 			}
 		} else if (!strncmp(header, "CAPABILITY", 64)) {
-			printf("debug - capability response\n");
+			if (net_toks.size() != 2) {
+				osstr << "Kismet server '" << host << ":" << port << "' "
+					"sent a capability report without the proper fields";
+				_MSG(osstr.str(), MSGFLAG_ERROR);
+				continue;
+			}
+
+			// Vectorize the field list, error check it, and make sure we're
+			// in the list of protocols
+			vector<string> fieldvec = StrTokenize(net_toks[1].word, ",");
+
+			if (fieldvec.size() <= 0) {
+				osstr << "Kismet server '" << host << ":" << port << "' sent a "
+					"protocol capability list with nothing in it, something is "
+					"broken";
+				_MSG(osstr.str(), MSGFLAG_ERROR);
+				// We'll keep trying though
+				continue;
+			}
+
+			// Put them all in the map
+			map<string, int> flmap;
+			for (unsigned int fl = 0; fl < fieldvec.size(); fl++) {
+				flmap[StrLower(fieldvec[fl])] = 1;
+			}
+
+			// Assign it
+			proto_field_dmap[StrLower(net_toks[0].word)] = flmap;
 		}
 
 	}

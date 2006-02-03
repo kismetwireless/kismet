@@ -90,18 +90,6 @@ int Protocol_KISMET(PROTO_PARMS) {
         case KISMET_servername:
             out_string += "\001" + kdata->servername + "\001";
             break;
-        case KISMET_timestamp:
-			out_string += "0";
-            break;
-        case KISMET_chanhop:
-            if (globalreg->sourcetracker->FetchChannelHop() == 0)
-                out_string += "0";
-            else
-                out_string += "1";
-            break;
-        case KISMET_newversion:
-            out_string += kdata->newversion;
-            break;
         default:
             out_string = "Unknown field requested.";
             return -1;
@@ -335,7 +323,7 @@ int Clicmd_CAPABILITY(CLIENT_PARMS) {
     }
 
     globalreg->kisnetserver->SendToClient(in_clid, 
-										  globalreg->netproto_map[PROTO_REF_CLIENT],
+									  globalreg->netproto_map[PROTO_REF_CAPABILITY],
 										  (void *) prot, NULL);
     
     return 1;

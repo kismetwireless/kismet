@@ -1,3 +1,6 @@
+Feb 02 2006  devel  More work on panels client
+                    Work on new tcp client code
+                    Fixed stupid error in server that didn't send capabilities
 Jan 16 2006  devel  Finished client panel single input line widget
                     Fixed menu not eating input when selecting nonexistent
                      menus or items via keyboard
