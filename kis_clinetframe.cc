@@ -127,10 +127,12 @@ int KisNetClient::RegisterProtoHandler(string in_proto, string in_fieldlist,
 									   CliProto_Callback in_cb, void *in_aux) {
 	in_proto = StrLower(in_proto);
 
+	/*
 	if (handler_cb_map.find(in_proto) != handler_cb_map.end()) {
 		_MSG("Handler for '" + in_proto + "' already registered.", MSGFLAG_ERROR);
 		return -1;
 	}
+	*/
 
 	// Do we know about this proto at all?
 	map<string, map<string, int> >::iterator dmitr = proto_field_dmap.find(in_proto);
@@ -163,15 +165,15 @@ int KisNetClient::RegisterProtoHandler(string in_proto, string in_fieldlist,
 	// Send the command
 	InjectCommand("ENABLE " + in_proto + " " + in_fieldlist);
 	
-	handler_cb_map[in_proto] = rec;
+	handler_cb_map[in_proto].push_back(rec);
 
 	return 1;
 }
 
-void KisNetClient::RemoveProtoHandler(string in_proto) {
+void KisNetClient::RemoveProtoHandler(string in_proto, CliProto_Callback in_cb) {
 	in_proto = StrLower(in_proto);
 
-	map<string, kcli_handler_rec *>::iterator hitr =
+	map<string, vector<kcli_handler_rec *> >::iterator hitr =
 		handler_cb_map.find(in_proto);
 
 	if (hitr == handler_cb_map.end())
@@ -179,8 +181,33 @@ void KisNetClient::RemoveProtoHandler(string in_proto) {
 
 	InjectCommand("REMOVE " + in_proto);
 
-	delete hitr->second;
-	handler_cb_map.erase(hitr);
+	for (unsigned int x = 0; x < hitr->second.size(); x++) {
+		if (hitr->second[x]->callback == in_cb) {
+			delete hitr->second[x];
+			hitr->second.erase(hitr->second.begin() + x);
+			break;
+		}
+	}
+
+	if (hitr->second.size() == 0) 
+		handler_cb_map.erase(hitr);
+}
+
+int KisNetClient::FetchProtoCapabilities(string in_proto,
+										 map<string, int> *ret_fields) {
+	map<string, map<string, int> >::iterator pfi;
+
+	pfi = proto_field_dmap.find(StrLower(in_proto));
+
+	if (pfi == proto_field_dmap.end())
+		return -1;
+
+	for (map<string, int>::iterator i = pfi->second.begin(); 
+		 i != pfi->second.end(); ++i) {
+		ret_fields->insert(make_pair(i->first, 1));
+	}
+
+	return 1;
 }
 
 int KisNetClient::InjectCommand(string in_cmdtext) {
@@ -224,9 +251,11 @@ int KisNetClient::Reconnect() {
 		last_disconnect = 0;
 
 		// Inject all the enable commands we had queued
-		for (map<string, KisNetClient::kcli_handler_rec *>::iterator hi = 
+		for (map<string, vector<KisNetClient::kcli_handler_rec *> >::iterator hi = 
 			 handler_cb_map.begin(); hi != handler_cb_map.end(); ++hi) {
-			InjectCommand("ENABLE " + hi->first + " " + hi->second->fields);
+			for (unsigned int hx = 0; hx < hi->second.size(); hx++) {
+				InjectCommand("ENABLE " + hi->first + " " + hi->second[hx]->fields);
+			}
 		}
 	}
 
@@ -272,10 +301,11 @@ int KisNetClient::ParseData() {
         // Pull the header out to save time -- cheaper to parse the header and 
 		// then the data than to try to parse an entire data string just to find 
 		// out what protocol we are
-        // 
-        // Protocol parsers should be dynamic so that we can have plugins in the 
-		// framework able to handle a proto, but right now thats a hassle
 
+		// Throw out absurdly short lines
+		if (inptok[it].length() < 4)
+			continue;
+		
         if (sscanf(inptok[it].c_str(), "*%64[^:]", header) < 1) {
             continue;
         }
@@ -285,6 +315,10 @@ int KisNetClient::ParseData() {
 
 		// Smarter tokenization to handle quoted field buffers
 		vector<smart_word_token> net_toks = SmartStrTokenize(inptok[it], " ", 1);
+
+		// All protocols have to return something
+		if (net_toks.size() == 0)
+			continue;
 
         if (!strncmp(header, "TERMINATE", 64)) {
 			osstr << "Kismet server '" << host << ":" << port << "' has "
@@ -345,8 +379,29 @@ int KisNetClient::ParseData() {
 
 			// Assign it
 			proto_field_dmap[StrLower(net_toks[0].word)] = flmap;
+
+		} else if (!strncmp(header, "ERROR", 64)) {
+			// Nothing smart to do here yet, it ought to handle callbacks to
+			// command req's at some point
+		} else if (!strncmp(header, "ACK", 64)) {
+			// Nothing smart to do here yet, it ought to handle callbacks to
+			// command req's at some point
+		} else if (!strncmp(header, "TIME", 64)) {
+			// Graceful handling of junk time proto, set us to 0.
+			if (sscanf(net_toks[0].word.c_str(), "%d", (int *) &last_time) != 0)
+				last_time = 0;
 		}
 
+		// Call the registered handlers for this protocol, even if we handled
+		// it internally
+		map<string, vector<KisNetClient::kcli_handler_rec *> >::iterator hi;
+		hi = handler_cb_map.find(StrLower(header));
+		if (hi != handler_cb_map.end()) {
+			for (unsigned int hx = 0; hx < hi->second.size(); hx++) {
+				CliProto_Callback cback = hi->second[hx]->callback;
+				(*cback)(globalreg, inptok[it], &net_toks, hi->second[hx]->auxptr);
+			}
+		}
 	}
 
 	return 1;
