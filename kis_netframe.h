@@ -97,8 +97,7 @@ typedef void (*ProtoEnableCallback)(PROTO_ENABLE_PARMS);
 // Lowlevel protocols that get inserted into the server during setup, these
 // MUST be supported ASAP
 enum KISMET_fields {
-    KISMET_version, KISMET_starttime, KISMET_servername, KISMET_timestamp,
-    KISMET_chanhop, KISMET_newversion
+    KISMET_version, KISMET_starttime, KISMET_servername, 
 };
 
 enum ERROR_fields {

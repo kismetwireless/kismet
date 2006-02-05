@@ -27,7 +27,7 @@
 #include "getopt.h"
 
 char *KISMET_fields_text[] = {
-    "version", "starttime", "servername", "timestamp", "channelhop", "newversion",
+    "version", "starttime", "servername", 
     NULL
 };
 
