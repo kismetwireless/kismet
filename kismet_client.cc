@@ -321,6 +321,11 @@ int main(int argc, char *argv[], char *envp[]) {
 	mainp->Position(0, 0, LINES, COLS);
 	globalregistry->panel_interface->AddPanel(mainp);
 
+#if 0
+	KisNetClient *kcli = new KisNetClient(globalregistry);
+	kcli->Connect("tcp://localhost:2501", 1);
+#endif
+
 	int max_fd = 0;
 	fd_set rset, wset;
 	struct timeval tm;

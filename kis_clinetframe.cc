@@ -46,11 +46,16 @@ KisNetClient::KisNetClient(GlobalRegistry *in_globalreg) :
 	RegisterNetworkClient(tcpcli);
 	tcpcli->RegisterClientFramework(this);
 
+	// Set to -1 so the reconnect auto-incr doesn't screw us up
+	num_reconnects = -1;
 	reconnect = 0;
 	reconid = -1;
 
 	cmdid = 1;
 	last_disconnect = 0;
+
+	// Counter for configure level
+	configured = 1;
 	
 	globalreg->RegisterPollableSubsys(this);
 }
@@ -121,6 +126,31 @@ int KisNetClient::Shutdown() {
 	}
 
 	return 1;
+}
+
+void KisNetClient::AddConfCallback(CliConf_Callback in_cb, int in_recon,
+								   void *in_aux) {
+	kcli_conf_rec *rec = new kcli_conf_rec;
+
+	rec->auxptr = in_aux;
+	rec->callback = in_cb;
+	rec->on_recon = in_recon;
+
+	conf_cb_vec.push_back(rec);
+
+	// Call the configure function if we're already configured
+	if (configured == 0)
+		(*in_cb)(globalreg, this, 0, in_aux);
+}
+
+void KisNetClient::RemoveConfCallback(CliConf_Callback in_cb) {
+	for (unsigned int x = 0; x < conf_cb_vec.size(); x++) {
+		if (conf_cb_vec[x]->callback == in_cb) {
+			delete conf_cb_vec[x];
+			conf_cb_vec.erase(conf_cb_vec.begin() + x);
+			break;
+		}
+	}
 }
 
 int KisNetClient::RegisterProtoHandler(string in_proto, string in_fieldlist,
@@ -244,20 +274,26 @@ int KisNetClient::Reconnect() {
 		_MSG(osstr.str(), MSGFLAG_ERROR);
 		last_disconnect = time(0);
 		return 0;
-	} else {
-		osstr << "Established connection with Kismet server '" << host << 
-			":" << port << "'";
-		_MSG(osstr.str(), MSGFLAG_INFO);
-		last_disconnect = 0;
+	}
 
-		// Inject all the enable commands we had queued
-		for (map<string, vector<KisNetClient::kcli_handler_rec *> >::iterator hi = 
-			 handler_cb_map.begin(); hi != handler_cb_map.end(); ++hi) {
-			for (unsigned int hx = 0; hx < hi->second.size(); hx++) {
-				InjectCommand("ENABLE " + hi->first + " " + hi->second[hx]->fields);
-			}
+	osstr << "Established connection with Kismet server '" << host << 
+		":" << port << "'";
+	_MSG(osstr.str(), MSGFLAG_INFO);
+	last_disconnect = 0;
+
+	// Set the start time and initialize configured to 1
+	time_connected = time(0);
+	configured = 1;
+
+	// Inject all the enable commands we had queued
+	for (map<string, vector<KisNetClient::kcli_handler_rec *> >::iterator hi = 
+		 handler_cb_map.begin(); hi != handler_cb_map.end(); ++hi) {
+		for (unsigned int hx = 0; hx < hi->second.size(); hx++) {
+			InjectCommand("ENABLE " + hi->first + " " + hi->second[hx]->fields);
 		}
 	}
+
+	num_reconnects++;
 
 	return 1;
 }
@@ -320,7 +356,10 @@ int KisNetClient::ParseData() {
 		if (net_toks.size() == 0)
 			continue;
 
-        if (!strncmp(header, "TERMINATE", 64)) {
+		if (!strncmp(header, "KISMET", 64)) {
+			// Decrement our configure counter
+			configured--;
+		} else if (!strncmp(header, "TERMINATE", 64)) {
 			osstr << "Kismet server '" << host << ":" << port << "' has "
 				"terminated";
 			_MSG(osstr.str(), MSGFLAG_ERROR);
@@ -349,6 +388,9 @@ int KisNetClient::ParseData() {
 					KillConnection();
 					return -1;
 				}
+
+				// Increment our configure counter
+				configured++;
 			}
 		} else if (!strncmp(header, "CAPABILITY", 64)) {
 			if (net_toks.size() != 2) {
@@ -380,6 +422,9 @@ int KisNetClient::ParseData() {
 			// Assign it
 			proto_field_dmap[StrLower(net_toks[0].word)] = flmap;
 
+			// Decrement our configure count
+			configured--;
+
 		} else if (!strncmp(header, "ERROR", 64)) {
 			// Nothing smart to do here yet, it ought to handle callbacks to
 			// command req's at some point
@@ -402,6 +447,21 @@ int KisNetClient::ParseData() {
 				(*cback)(globalreg, inptok[it], &net_toks, hi->second[hx]->auxptr);
 			}
 		}
+	}
+
+	// If we're done configuring, set it to 0 and call the configured stuff
+	// Make sure we've been running long enough to get all the data flushed
+	// through.  This is safe to hardcode here because the TIME will always
+	// wake us up.
+	if (configured == 0 && (time(0) - time_connected) > 2) {
+		for (unsigned int x = 0; x < conf_cb_vec.size(); x++) {
+			if (conf_cb_vec[x]->on_recon == 0 && num_reconnects != 0)
+				continue;
+
+			CliConf_Callback cback = conf_cb_vec[x]->callback;
+			(*cback)(globalreg, this, num_reconnects, conf_cb_vec[x]->auxptr);
+		}
+		configured = -1;
 	}
 
 	return 1;

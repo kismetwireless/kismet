@@ -26,9 +26,15 @@
 #include "clinetframework.h"
 #include "tcpclient.h"
 
+class KisNetClient;
+
 #define CLIPROTO_CB_PARMS	GlobalRegistry *globalreg, string proto_string, \
 	vector<smart_word_token> *proto_parsed, void *auxptr
 typedef void (*CliProto_Callback)(CLIPROTO_CB_PARMS);
+
+#define CLICONF_CB_PARMS	GlobalRegistry *globalreg, KisNetClient *kcli, \
+	int recon, void *auxptr
+typedef void (*CliConf_Callback)(CLICONF_CB_PARMS);
 
 class KisNetClient : public ClientFramework {
 public:
@@ -38,6 +44,9 @@ public:
 
 	// Connect to a server string, proto://host:port
 	virtual int Connect(string in_host, int in_reconnect);
+
+	virtual void AddConfCallback(CliConf_Callback in_cb, int in_recon, void *in_aux);
+	virtual void RemoveConfCallback(CliConf_Callback in_cb);
 
 	virtual unsigned int MergeSet(unsigned int in_max_fd, fd_set *out_rset,
 								  fd_set *out_wset) {
@@ -74,11 +83,21 @@ public:
 		string fields;
 	};
 
+	// Internal conf cb record
+	typedef struct kcli_conf_rec {
+		void *auxptr;
+		CliConf_Callback callback;
+		int on_recon;
+	};
+
 protected:
 	TcpClient *tcpcli;
 
 	char host[MAXHOSTNAMELEN];
 	short int port;
+
+	// Callbacks to call when we get configured
+	vector<kcli_conf_rec *> conf_cb_vec;
 
 	// Double map of protocols and fields in them, filled in at connection time
 	map<string, map<string, int> > proto_field_dmap;
@@ -88,9 +107,14 @@ protected:
 
 	int reconnect;
 	int reconid;
+	
+	// Have we gotten configure data for everything?
+	int configured;
 
 	int cmdid;
 	time_t last_disconnect;
+	time_t time_connected;
+	int num_reconnects;
 
 	time_t last_time;
 };
