@@ -22,6 +22,7 @@
 #if (defined(HAVE_LIBNCURSES) || defined (HAVE_LIBCURSES))
 
 #include "kis_panel_widgets.h"
+#include "kis_panel_frontend.h"
 #include "kis_panel_windows.h"
 
 Kis_Main_Panel::Kis_Main_Panel(GlobalRegistry *in_globalreg) :

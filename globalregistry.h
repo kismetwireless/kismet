@@ -48,7 +48,7 @@ class Dumpfile;
 class Dumpfile_Runstate;
 // Root-level ipc system
 class IPCRemote;
-class PanelInterface;
+class KisPanelInterface;
 
 // These are the offsets into the array of protocol references, not
 // the reference itself.
@@ -147,7 +147,7 @@ public:
 	KisBuiltinDissector *builtindissector;
 	IPCRemote *rootipc;
 	Dumpfile_Runstate *runstate_dumper;
-	PanelInterface *panel_interface;
+	KisPanelInterface *panel_interface;
 
 	string version_major;
 	string version_minor;

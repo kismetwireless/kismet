@@ -51,6 +51,7 @@
 
 #include "kis_panel_widgets.h"
 #include "kis_panel_windows.h"
+#include "kis_panel_frontend.h"
 
 #ifndef exec_name
 char *exec_name;
@@ -311,7 +312,7 @@ int main(int argc, char *argv[], char *envp[]) {
 #endif
 
 	// Create the panel interface
-	globalregistry->panel_interface = new PanelInterface(globalregistry);
+	globalregistry->panel_interface = new KisPanelInterface(globalregistry);
 	if (globalregistry->fatal_condition)
 		CatchShutdown(-1);
 
