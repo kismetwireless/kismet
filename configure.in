@@ -293,6 +293,9 @@ else
 fi
 
 # Do we use libstdc++?
+# We need to swap to the g++ compiler here
+oCC="$CC"
+CC="$CXX"
 AC_CHECK_LIB([uClibc++], [main], 
 			 foundcxxl="uclibc" LIBS="$LIBS -luClibc++",
 			 AC_MSG_WARN([uclibc++ not available on this system]))
@@ -307,6 +310,7 @@ fi
 if test "$foundcxxl"x == "x"; then
 	AC_MSG_ERROR(Neither uclibc uClibc++ or standard gcc stdc++ libraries found.)
 fi
+CC="$oCC"
 
 AC_MSG_CHECKING([for group 'root'])
 if test "`grep -e ^root: /etc/group`" = ""; then
