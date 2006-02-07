@@ -311,7 +311,7 @@ ac_includes_default="\
 #endif"
 
 ac_subdirs_all="$ac_subdirs_all $pcapdir"
-ac_subst_vars='SHELL PATH_SEPARATOR PACKAGE_NAME PACKAGE_TARNAME PACKAGE_VERSION PACKAGE_STRING PACKAGE_BUGREPORT exec_prefix prefix program_transform_name bindir sbindir libexecdir datadir sysconfdir sharedstatedir localstatedir libdir includedir oldincludedir infodir mandir build_alias host_alias target_alias DEFS ECHO_C ECHO_N ECHO_T LIBS pcapdir build build_cpu build_vendor build_os host host_cpu host_vendor host_os CC CFLAGS LDFLAGS CPPFLAGS ac_ct_CC EXEEXT OBJEXT CXX CXXFLAGS ac_ct_CXX INSTALL_PROGRAM INSTALL_SCRIPT INSTALL_DATA SET_MAKE CPP EGREP LIBOBJS instgrp mangrp CLIBS CLIENTCLIBS CLIENTCFLAGS wantpcap pcaplib pcaplnk subdirs pcap suid zaurus zbuild local wantgpsmap wget magickconfig gpslc gpslco threadlib sharedatadir LTLIBOBJS'
+ac_subst_vars='SHELL PATH_SEPARATOR PACKAGE_NAME PACKAGE_TARNAME PACKAGE_VERSION PACKAGE_STRING PACKAGE_BUGREPORT exec_prefix prefix program_transform_name bindir sbindir libexecdir datadir sysconfdir sharedstatedir localstatedir libdir includedir oldincludedir infodir mandir build_alias host_alias target_alias DEFS ECHO_C ECHO_N ECHO_T LIBS pcapdir build build_cpu build_vendor build_os host host_cpu host_vendor host_os CC CFLAGS LDFLAGS CPPFLAGS ac_ct_CC EXEEXT OBJEXT CXX CXXFLAGS ac_ct_CXX INSTALL_PROGRAM INSTALL_SCRIPT INSTALL_DATA SET_MAKE CPP EGREP LIBOBJS CXXLIBS instgrp mangrp CLIBS CLIENTCLIBS CLIENTCFLAGS wantpcap pcaplib pcaplnk subdirs pcap suid zaurus zbuild local wantgpsmap wget magickconfig gpslc gpslco threadlib sharedatadir LTLIBOBJS'
 ac_subst_files=''
 
 # Initialize some variables set by options.
@@ -5910,7 +5910,7 @@ fi
 echo "$as_me:$LINENO: result: $ac_cv_lib_uClibcpp_main" >&5
 echo "${ECHO_T}$ac_cv_lib_uClibcpp_main" >&6
 if test $ac_cv_lib_uClibcpp_main = yes; then
-  foundcxxl="uclibc" LIBS="$LIBS -luClibc++"
+  foundcxxl="uclibc" CXXLIBS="$CXXLIBS -luClibc++"
 else
   { echo "$as_me:$LINENO: WARNING: uclibc++ not available on this system" >&5
 echo "$as_me: WARNING: uclibc++ not available on this system" >&2;}
@@ -5978,7 +5978,7 @@ fi
 echo "$as_me:$LINENO: result: $ac_cv_lib_stdcpp_main" >&5
 echo "${ECHO_T}$ac_cv_lib_stdcpp_main" >&6
 if test $ac_cv_lib_stdcpp_main = yes; then
-  foundcxxl="stdc++" LIBS="$LIBS -lstdc++"
+  foundcxxl="stdc++" CXXLIBS="$CXXLIBS -lstdc++"
 else
   { echo "$as_me:$LINENO: WARNING: libstdc++ not available on this system" >&5
 echo "$as_me: WARNING: libstdc++ not available on this system" >&2;}
@@ -5992,6 +5992,7 @@ echo "$as_me: error: Neither uclibc uClibc++ or standard gcc stdc++ libraries fo
    { (exit 1); exit 1; }; }
 fi
 CC="$oCC"
+
 
 echo "$as_me:$LINENO: checking for group 'root'" >&5
 echo $ECHO_N "checking for group 'root'... $ECHO_C" >&6
@@ -10509,6 +10510,7 @@ s,@SET_MAKE@,$SET_MAKE,;t t
 s,@CPP@,$CPP,;t t
 s,@EGREP@,$EGREP,;t t
 s,@LIBOBJS@,$LIBOBJS,;t t
+s,@CXXLIBS@,$CXXLIBS,;t t
 s,@instgrp@,$instgrp,;t t
 s,@mangrp@,$mangrp,;t t
 s,@CLIBS@,$CLIBS,;t t

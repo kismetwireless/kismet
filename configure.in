@@ -297,13 +297,13 @@ fi
 oCC="$CC"
 CC="$CXX"
 AC_CHECK_LIB([uClibc++], [main], 
-			 foundcxxl="uclibc" LIBS="$LIBS -luClibc++",
+			 foundcxxl="uclibc" CXXLIBS="$CXXLIBS -luClibc++",
 			 AC_MSG_WARN([uclibc++ not available on this system]))
 
 # Do we use uclibc++?
 if test "$foundcxxl"x == "x"; then
 	AC_CHECK_LIB([stdc++], [main], 
-				 foundcxxl="stdc++" LIBS="$LIBS -lstdc++",
+				 foundcxxl="stdc++" CXXLIBS="$CXXLIBS -lstdc++",
 				 AC_MSG_WARN([libstdc++ not available on this system]))
 fi
 
@@ -311,6 +311,7 @@ if test "$foundcxxl"x == "x"; then
 	AC_MSG_ERROR(Neither uclibc uClibc++ or standard gcc stdc++ libraries found.)
 fi
 CC="$oCC"
+AC_SUBST(CXXLIBS)
 
 AC_MSG_CHECKING([for group 'root'])
 if test "`grep -e ^root: /etc/group`" = ""; then
