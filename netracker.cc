@@ -2106,8 +2106,9 @@ int Netracker::WriteIPCache() {
 			ipd = x->second;
 
 		fprintf(ipf, "%s %d %d %d\n", x->first.Mac2String().c_str(),
-				x->second.ip_addr_block, x->second.ip_netmask,
-				x->second.ip_gateway);
+				(int) x->second.ip_addr_block.s_addr, 
+				(int) x->second.ip_netmask.s_addr,
+				(int) x->second.ip_gateway.s_addr);
 	}
 
 	fclose(ipf);
@@ -2206,8 +2207,8 @@ void Netracker::dump_runstate(FILE *runfile) {
 		fprintf(runfile, "    bssid=%s\n", tnet->bssid.Mac2String().c_str());
 		fprintf(runfile, "    ssid_cloaked=%d\n", tnet->ssid_cloaked);
 		fprintf(runfile, "    ssid_uncloaked=%d\n", tnet->ssid_uncloaked);
-		fprintf(runfile, "    last_time=%u\n", tnet->last_time);
-		fprintf(runfile, "    first_time=%u\n", tnet->first_time);
+		fprintf(runfile, "    last_time=%u\n", (int) tnet->last_time);
+		fprintf(runfile, "    first_time=%u\n", (int) tnet->first_time);
 		fprintf(runfile, "    maxrate=%f\n", tnet->maxrate);
 		fprintf(runfile, "    beaconrate=%d\n", tnet->beaconrate);
 		fprintf(runfile, "    client_disconnects=%d\n", tnet->client_disconnects);
@@ -2267,9 +2268,8 @@ void Netracker::dump_runstate(FILE *runfile) {
 		fprintf(runfile, "netclient {\n");
 
 		fprintf(runfile, "    type=%d\n", tcli->type);
-		fprintf(runfile, "    last_time=%u\n", tcli->last_time);
-		fprintf(runfile, "    first_time=%u\n", tcli->first_time);
-		fprintf(runfile, "    last_time=%u\n", tcli->last_time);
+		fprintf(runfile, "    last_time=%u\n", (int) tcli->last_time);
+		fprintf(runfile, "    first_time=%u\n", (int) tcli->first_time);
 		fprintf(runfile, "    cryptset=%d\n", tcli->cryptset);
 		fprintf(runfile, "    decrypted=%d\n", tcli->decrypted);
 		fprintf(runfile, "    mac=%s\n", tcli->mac.Mac2String().c_str());

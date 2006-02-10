@@ -51,6 +51,7 @@ class KisDroneframe_MessageClient : public MessageClient {
 public:
     KisDroneframe_MessageClient(GlobalRegistry *in_globalreg, void *in_aux) :
 		MessageClient(in_globalreg, in_aux) { };
+	virtual ~KisDroneframe_MessageClient() { }
     void ProcessMessage(string in_msg, int in_flags);
 };
 

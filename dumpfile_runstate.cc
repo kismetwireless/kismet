@@ -121,8 +121,8 @@ int Dumpfile_Runstate::Flush() {
 	fprintf(runfile, "runstate_version=%d\n", RUNSTATE_VERSION);
 	fprintf(runfile, "config_checksum=%u\n", 
 			globalreg->kismet_config->FetchFileChecksum());
-	fprintf(runfile, "launch_time=%u\n", globalreg->start_time);
-	fprintf(runfile, "save_time=%u\n", globalreg->timestamp.tv_sec);
+	fprintf(runfile, "launch_time=%u\n", (unsigned int) globalreg->start_time);
+	fprintf(runfile, "save_time=%u\n", (unsigned int) globalreg->timestamp.tv_sec);
 	fprintf(runfile, "kismet_version=%s.%s.%s\n",
 			globalreg->version_major.c_str(),
 			globalreg->version_minor.c_str(),

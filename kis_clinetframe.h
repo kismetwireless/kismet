@@ -47,6 +47,7 @@ public:
 
 	virtual void AddConfCallback(CliConf_Callback in_cb, int in_recon, void *in_aux);
 	virtual void RemoveConfCallback(CliConf_Callback in_cb);
+	virtual int FetchConfigured() { return configured; }
 
 	virtual unsigned int MergeSet(unsigned int in_max_fd, fd_set *out_rset,
 								  fd_set *out_wset) {

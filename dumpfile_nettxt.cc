@@ -184,7 +184,7 @@ int Dumpfile_Nettxt::Flush() {
 		}
 		fprintf(txtfile, " Channel    : %d\n", net->channel);
 		fprintf(txtfile, " Max Rate   : %2.1f\n", net->maxrate);
-		fprintf(txtfile, " Max Seen   : %ld\n", net->snrdata.maxseenrate * 100);
+		fprintf(txtfile, " Max Seen   : %d\n", net->snrdata.maxseenrate * 100);
 
 		if (net->snrdata.carrierset & (1 << (int) carrier_80211b))
 			fprintf(txtfile, " Carrier    : IEEE 802.11b\n");
@@ -245,7 +245,8 @@ int Dumpfile_Nettxt::Flush() {
 		fprintf(txtfile, " Fragments  : %d\n", net->fragments);
 		fprintf(txtfile, " Retries    : %d\n", net->retries);
 		fprintf(txtfile, " Total      : %d\n", net->llc_packets + net->data_packets);
-		fprintf(txtfile, " Datasize   : %lu\n", net->datasize);
+		fprintf(txtfile, " Datasize   : %llu\n", 
+				(long long unsigned int) net->datasize);
 
 		if (net->gpsdata.gps_valid) {
 			fprintf(txtfile, " Min Pos    : Lat %f Lon %f Alt %f Spd %f\n", 
@@ -257,10 +258,11 @@ int Dumpfile_Nettxt::Flush() {
 			fprintf(txtfile, " Peak Pos   : Lat %f Lon %f Alt %f\n", 
 					net->snrdata.peak_lat, net->snrdata.peak_lon,
 					net->snrdata.peak_alt);
-			fprintf(txtfile, " Agg Pos    : AggLat %ld AggLon %ld AggAlt %ld "
-					"AggPts %lu\n",
+			fprintf(txtfile, " Agg Pos    : AggLat %Lf AggLon %Lf AggAlt %Lf "
+					"AggPts %llu\n",
 					net->gpsdata.aggregate_lat, net->gpsdata.aggregate_lon,
-					net->gpsdata.aggregate_alt, net->gpsdata.aggregate_points);
+					net->gpsdata.aggregate_alt, 
+					(long long unsigned int) net->gpsdata.aggregate_points);
 		}
 
 		if (net->guess_ipdata.ip_type > ipdata_factoryguess && 

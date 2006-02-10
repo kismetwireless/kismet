@@ -55,6 +55,8 @@ public:
 		auxptr = in_aux;
     }
 
+	virtual ~MessageClient() { }
+
     virtual void ProcessMessage(string in_msg, int in_flags) = 0;
 protected:
     GlobalRegistry *globalreg;
@@ -65,6 +67,7 @@ class StdoutMessageClient : public MessageClient {
 public:
     StdoutMessageClient(GlobalRegistry *in_globalreg, void *in_aux) :
         MessageClient(in_globalreg, in_aux) { }
+	virtual ~StdoutMessageClient() { }
     void ProcessMessage(string in_msg, int in_flags);
 };
 

@@ -247,7 +247,8 @@ int Dumpfile_Netxml::Flush() {
 		fprintf(xmlfile, "       <retries>%d</retries>\n", net->retries);
 		fprintf(xmlfile, "     </packets>\n");
 
-		fprintf(xmlfile, "     <datasize>%lu</datasize>\n", net->datasize);
+		fprintf(xmlfile, "     <datasize>%llu</datasize>\n", 
+				(long long unsigned int) net->datasize);
 
 		if (net->gpsdata.gps_valid) {
 			fprintf(xmlfile, "    <gps-info>\n");
@@ -265,14 +266,14 @@ int Dumpfile_Netxml::Flush() {
 					net->snrdata.peak_lon);
 			fprintf(xmlfile, "      <peak-alt>%f</peak-alt>\n", 
 					net->snrdata.peak_alt);
-			fprintf(xmlfile, "      <agg-lat>%ld</agg-lat>\n", 
+			fprintf(xmlfile, "      <agg-lat>%Lf</agg-lat>\n", 
 					net->gpsdata.aggregate_lat);
-			fprintf(xmlfile, "      <agg-lon>%ld</agg-lon>\n", 
+			fprintf(xmlfile, "      <agg-lon>%Lf</agg-lon>\n", 
 					net->gpsdata.aggregate_lon);
-			fprintf(xmlfile, "      <agg-alt>%ld</agg-alt>\n", 
+			fprintf(xmlfile, "      <agg-alt>%Lf</agg-alt>\n", 
 					net->gpsdata.aggregate_alt);
-			fprintf(xmlfile, "      <agg-points>%lu</agg-points>\n", 
-					net->gpsdata.aggregate_points);
+			fprintf(xmlfile, "      <agg-points>%llu</agg-points>\n", 
+					(long long unsigned int) net->gpsdata.aggregate_points);
 			fprintf(xmlfile, "    </gps-info>\n");
 		}
 
@@ -304,9 +305,10 @@ int Dumpfile_Netxml::Flush() {
 			fprintf(xmlfile, "    </ip-address>\n");
 		}
 
-		fprintf(xmlfile, "    <bsstimestamp>%lu</bsstimestamp>\n", 
-				net->bss_timestamp);
-		fprintf(xmlfile, "    <datasize>%lu</datasize>\n", net->datasize);
+		fprintf(xmlfile, "    <bsstimestamp>%llu</bsstimestamp>\n", 
+				(long long unsigned int) net->bss_timestamp);
+		fprintf(xmlfile, "    <datasize>%llu</datasize>\n", 
+				(long long unsigned int) net->datasize);
 		fprintf(xmlfile, "    <cdp-device>%s</cdp-device>\n",
 				SanitizeXML(net->cdp_dev_id).c_str());
 		fprintf(xmlfile, "    <cdp-portid>%s</cdp-portid>\n",
@@ -455,7 +457,7 @@ int Dumpfile_Netxml::Flush() {
 			fprintf(xmlfile, "       </client-packets>\n");
 
 			fprintf(xmlfile, "       <client-datasize>%ld</client-datasize>\n", 
-					cli->datasize);
+					(long int) cli->datasize);
 
 			if (cli->gpsdata.gps_valid) {
 				fprintf(xmlfile, "      <client-gps-info>\n");
@@ -481,13 +483,13 @@ int Dumpfile_Netxml::Flush() {
 						cli->snrdata.peak_lon);
 				fprintf(xmlfile, "        <client-peak-alt>%f</client-peak-alt>\n", 
 						cli->snrdata.peak_alt);
-				fprintf(xmlfile, "        <client-agg-lat>%ld</client-agg-lat>\n", 
-						cli->gpsdata.aggregate_lat);
-				fprintf(xmlfile, "        <client-agg-lon>%ld</client-agg-lon>\n", 
-						cli->gpsdata.aggregate_lon);
-				fprintf(xmlfile, "        <client-agg-alt>%ld</client-agg-alt>\n", 
-						cli->gpsdata.aggregate_alt);
-				fprintf(xmlfile, "        <client-agg-points>%ld"
+				fprintf(xmlfile, "        <client-agg-lat>%lld</client-agg-lat>\n", 
+						(long long int) cli->gpsdata.aggregate_lat);
+				fprintf(xmlfile, "        <client-agg-lon>%lld</client-agg-lon>\n", 
+						(long long int) cli->gpsdata.aggregate_lon);
+				fprintf(xmlfile, "        <client-agg-alt>%lld</client-agg-alt>\n", 
+						(long long int) cli->gpsdata.aggregate_alt);
+				fprintf(xmlfile, "        <client-agg-points>%lld"
 						"</client-agg-points>\n", cli->gpsdata.aggregate_points);
 				fprintf(xmlfile, "      </client-gps-info>\n");
 			}
