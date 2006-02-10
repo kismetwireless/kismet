@@ -483,13 +483,13 @@ int Dumpfile_Netxml::Flush() {
 						cli->snrdata.peak_lon);
 				fprintf(xmlfile, "        <client-peak-alt>%f</client-peak-alt>\n", 
 						cli->snrdata.peak_alt);
-				fprintf(xmlfile, "        <client-agg-lat>%lld</client-agg-lat>\n", 
-						(long long int) cli->gpsdata.aggregate_lat);
-				fprintf(xmlfile, "        <client-agg-lon>%lld</client-agg-lon>\n", 
-						(long long int) cli->gpsdata.aggregate_lon);
-				fprintf(xmlfile, "        <client-agg-alt>%lld</client-agg-alt>\n", 
-						(long long int) cli->gpsdata.aggregate_alt);
-				fprintf(xmlfile, "        <client-agg-points>%lld"
+				fprintf(xmlfile, "        <client-agg-lat>%Lf</client-agg-lat>\n", 
+						cli->gpsdata.aggregate_lat);
+				fprintf(xmlfile, "        <client-agg-lon>%Lf</client-agg-lon>\n", 
+						cli->gpsdata.aggregate_lon);
+				fprintf(xmlfile, "        <client-agg-alt>%Lf</client-agg-alt>\n", 
+						cli->gpsdata.aggregate_alt);
+				fprintf(xmlfile, "        <client-agg-points>%ld"
 						"</client-agg-points>\n", cli->gpsdata.aggregate_points);
 				fprintf(xmlfile, "      </client-gps-info>\n");
 			}

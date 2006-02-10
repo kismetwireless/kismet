@@ -292,7 +292,8 @@ int Dumpfile_Nettxt::Flush() {
 					inet_ntoa(net->guess_ipdata.ip_gateway));
 		}
 
-		fprintf(txtfile, " BSS Time   : %lu\n", net->bss_timestamp);
+		fprintf(txtfile, " BSS Time   : %llu\n", 
+				(long long unsigned int) net->bss_timestamp);
 
 		if (net->cdp_dev_id.length() > 0)
 			fprintf(txtfile, " CDP Device : \"%s\"\n", net->cdp_dev_id.c_str());
@@ -357,7 +358,7 @@ int Dumpfile_Nettxt::Flush() {
 			fprintf(txtfile, "  MAC        : %s\n", cli->mac.Mac2String().c_str());
 
 			fprintf(txtfile, "  Channel    : %d\n", cli->channel);
-			fprintf(txtfile, "  Max Seen   : %ld\n", cli->snrdata.maxseenrate * 100);
+			fprintf(txtfile, "  Max Seen   : %d\n", cli->snrdata.maxseenrate * 100);
 
 			if (cli->snrdata.carrierset & (1 << (int) carrier_80211b))
 				fprintf(txtfile, "  Carrier    : IEEE 802.11b\n");
@@ -419,7 +420,8 @@ int Dumpfile_Nettxt::Flush() {
 			fprintf(txtfile, "  Retries    : %d\n", cli->retries);
 			fprintf(txtfile, "  Total      : %d\n", 
 					cli->llc_packets + cli->data_packets);
-			fprintf(txtfile, "  Datasize   : %lu\n", cli->datasize);
+			fprintf(txtfile, "  Datasize   : %llu\n", 
+					(long long unsigned int) cli->datasize);
 
 			if (cli->gpsdata.gps_valid) {
 				fprintf(txtfile, "  Min Pos    : Lat %f Lon %f Alt %f Spd %f\n", 
@@ -431,7 +433,7 @@ int Dumpfile_Nettxt::Flush() {
 				fprintf(txtfile, "  Peak Pos   : Lat %f Lon %f Alt %f\n", 
 						cli->snrdata.peak_lat, cli->snrdata.peak_lon,
 						cli->snrdata.peak_alt);
-				fprintf(txtfile, "  Agg Pos    : AggLat %ld AggLon %ld AggAlt %ld "
+				fprintf(txtfile, "  Agg Pos    : AggLat %Lf AggLon %Lf AggAlt %Lf "
 						"AggPts %lu\n",
 						cli->gpsdata.aggregate_lat, cli->gpsdata.aggregate_lon,
 						cli->gpsdata.aggregate_alt, cli->gpsdata.aggregate_points);
