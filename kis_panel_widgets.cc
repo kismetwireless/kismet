@@ -767,6 +767,16 @@ void Kis_Scrollable_Table::DrawComponent() {
 	}
 	wattroff(window, WA_BOLD);
 
+	if ((int) data_vec.size() > ey) {
+		// Draw the scroll bar
+		mvwvline(window, sy, sx + ex - 1, ACS_VLINE, ey);
+		float perc = (float) ey * (float) ((float) (scroll_pos) /
+										   (float) (data_vec.size() - ey));
+		wattron(window, WA_REVERSE);
+		mvwaddch(window, sy + (int) perc, sx + ex - 1, ACS_BLOCK);
+		wattroff(window, WA_REVERSE);
+	}
+
 	// Jump to the scroll location to start drawing rows
 	int ycur = 1;
 	for (unsigned int r = scroll_pos; r < data_vec.size() && 
