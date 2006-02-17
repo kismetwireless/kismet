@@ -74,6 +74,24 @@ protected:
 	int tab_pos;
 };
 
+class Kis_ServerList_Panel : public Kis_Panel {
+public:
+	Kis_ServerList_Panel() {
+		fprintf(stderr, "FATAL OOPS: Kis_ServerList_Panel called w/out globalreg\n");
+		exit(1);
+	}
+
+	Kis_ServerList_Panel(GlobalRegistry *in_globalreg);
+	virtual ~Kis_ServerList_Panel();
+
+	virtual void Position(int in_sy, int in_sx, int in_y, int in_x);
+	virtual void DrawPanel();
+	virtual int KeyPress(int in_key);
+
+protected:
+	
+};
+
 #endif
 
 #endif

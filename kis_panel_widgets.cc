@@ -23,6 +23,7 @@
 
 #include "kis_panel_widgets.h"
 #include "timetracker.h"
+#include "messagebus.h"
 
 void Kis_Panel_Specialtext::Mvwaddnstr(WINDOW *win, int y, int x, string str, int n) {
 	int npos = 0;
@@ -720,6 +721,132 @@ int Kis_Field_List::ModData(unsigned int in_row, string in_field, string in_data
 	data_vec[in_row] = in_data;
 
 	return (int) in_row;
+}
+
+Kis_Scrollable_Table::Kis_Scrollable_Table(GlobalRegistry *in_globalreg) : 
+	Kis_Panel_Component(in_globalreg) {
+
+	globalreg = in_globalreg;
+
+	scroll_pos = 0;
+	hscroll_pos = 0;
+	selected = -1;
+}
+
+Kis_Scrollable_Table::~Kis_Scrollable_Table() {
+	for (unsigned int x = 0; x < data_vec.size(); x++) {
+		delete data_vec[x];
+	}
+}
+
+void Kis_Scrollable_Table::DrawComponent() {
+	if (visible == 0)
+		return;
+
+	// Current character position x
+	int xcur = sx;
+	string ftxt;
+
+	// Print across the titles
+	for (unsigned int x = hscroll_pos; x < title_vec.size() && xcur < ex; x++) {
+		wattron(window, WA_BOLD);
+
+		// Align the field w/in the width
+		ftxt = AlignString(title_vec[x].title, ' ', title_vec[x].alignment,
+						   title_vec[x].width);
+	
+		// Write it out
+		mvwaddstr(window, sy, xcur, ftxt.c_str());
+
+		// Advance by the width + 1
+		xcur += title_vec[x].width + 1;
+
+		wattroff(window, WA_BOLD);
+	}
+
+}
+
+void Kis_Scrollable_Table::Activate(int subcomponent) {
+	// no magic 
+}
+
+void Kis_Scrollable_Table::Deactivate() {
+	// no magic
+}
+
+int Kis_Scrollable_Table::KeyPress(int in_key) {
+
+	return 0;
+}
+
+int Kis_Scrollable_Table::AddTitles(vector<Kis_Scrollable_Table::title_data> 
+									in_titles) {
+	title_vec = in_titles;
+	return 1;
+}
+
+int Kis_Scrollable_Table::AddRow(int in_key, vector<string> in_fields) {
+	if (key_map.find(in_key) != key_map.end()) {
+		_MSG("Scrollable_Table tried to add row already keyed", MSGFLAG_ERROR);
+		return -1;
+	}
+
+	if (in_fields.size() != title_vec.size()) {
+		_MSG("Scrollable_Table added row with a different number of fields than "
+			 "the title", MSGFLAG_ERROR);
+	}
+
+	row_data *r = new row_data;
+	r->key = in_key;
+	r->data = in_fields;
+
+	key_map[in_key] = 1;
+
+	return 1;
+}
+
+int Kis_Scrollable_Table::DelRow(int in_key) {
+	if (key_map.find(in_key) == key_map.end()) {
+		_MSG("Scrollable_Table tried to del row that doesn't exist", MSGFLAG_ERROR);
+		return -1;
+	}
+
+	key_map.erase(key_map.find(in_key));
+	
+	for (unsigned int x = 0; x < data_vec.size(); x++) {
+		if (data_vec[x]->key == in_key) {
+			delete data_vec[x];
+			data_vec.erase(data_vec.begin() + x);
+			break;
+		}
+	}
+
+	if (scroll_pos >= (int) data_vec.size()) {
+		scroll_pos = data_vec.size() - 1;
+	}
+
+	if (selected >= (int) data_vec.size()) {
+		selected = data_vec.size() - 1;
+	}
+
+	return 1;
+}
+
+int Kis_Scrollable_Table::ReplaceRow(int in_key, vector<string> in_fields) {
+	if (key_map.find(in_key) == key_map.end()) {
+		_MSG("Scrollable_Table tried to replace row that doesn't exist", 
+			 MSGFLAG_ERROR);
+		return -1;
+	}
+
+	for (unsigned int x = 0; x < data_vec.size(); x++) {
+		if (data_vec[x]->key == in_key) {
+			data_vec[x]->data = in_fields;
+			break;
+		}
+	}
+
+	return 1;
 }
 
 Kis_Single_Input::Kis_Single_Input(GlobalRegistry *in_globalreg) :

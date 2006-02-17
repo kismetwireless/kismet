@@ -238,6 +238,53 @@ protected:
 	int scroll_pos;
 };
 
+class Kis_Scrollable_Table : public Kis_Panel_Component {
+public:
+	Kis_Scrollable_Table() {
+		fprintf(stderr, "FATAL OOPS: Kis_Scrollable_Table called w/out globalreg\n");
+		exit(1);
+	}
+	Kis_Scrollable_Table(GlobalRegistry *in_globalreg);
+	virtual ~Kis_Scrollable_Table();
+
+	virtual void DrawComponent();
+	virtual void Activate(int subcomponent);
+	virtual void Deactivate();
+
+	virtual int KeyPress(int in_key);
+
+	// Title format data
+	typedef struct title_data {
+		int width;
+		string title;
+		int alignment;
+	};
+
+	// Set the titles based on format data
+	virtual int AddTitles(vector<Kis_Scrollable_Table::title_data> in_titles);
+
+	// Add a row of data keyed to an int
+	virtual int AddRow(int in_key, vector<string> in_fields);
+	// Delete a keyed row
+	virtual int DelRow(int in_key);
+	// Replace a keyed row
+	virtual int ReplaceRow(int in_key, vector<string> in_fields);
+
+	typedef struct row_data {
+		int key;
+		vector<string> data;
+	};
+
+protected:
+	vector<title_data> title_vec;
+	vector<row_data *> data_vec;
+	map<int, int> key_map;
+
+	int scroll_pos;
+	int hscroll_pos;
+	int selected;
+};
+
 enum KisWidget_LabelPos {
 	LABEL_POS_NONE = -1,
 	LABEL_POS_TOP = 0,

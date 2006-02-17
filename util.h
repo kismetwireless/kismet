@@ -74,6 +74,7 @@ string StrLower(string in_str);
 string StrUpper(string in_str);
 string StrStrip(string in_str);
 string StrPrintable(string in_str);
+string AlignString(string in_txt, char in_spacer, int in_align, int in_width);
 
 int XtoI(char x);
 int Hex2UChar(unsigned char *in_hex, unsigned char *in_chr);

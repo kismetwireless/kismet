@@ -197,6 +197,37 @@ int IsBlank(const char *s) {
     return 1;
 }
 
+string AlignString(string in_txt, char in_spacer, int in_align, int in_width) {
+	if (in_align == 1) {
+		// Center -- half, text, chop to fit
+		int sp = (in_width / 2) - (in_txt.length() / 2);
+		string ts = "";
+
+		if (sp > 0) {
+			ts = string(sp, in_spacer);
+		}
+
+		ts += in_txt.substr(0, in_width);
+
+		return ts;
+	} else if (in_align == 2) {
+		// Right -- width - len, chop to fit
+		int sp = (in_width - in_txt.length());
+		string ts = "";
+
+		if (sp > 0) {
+			ts = string(sp, in_spacer);
+		}
+
+		ts += in_txt.substr(0, in_width);
+
+		return ts;
+	}
+
+	// Left align -- make sure it's not too long
+	return in_txt.substr(0, in_width);
+}
+
 int XtoI(char x) {
     if (isxdigit(x)) {
         if (x <= '9')
