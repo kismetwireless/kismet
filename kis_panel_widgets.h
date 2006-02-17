@@ -269,6 +269,8 @@ public:
 	virtual int DelRow(int in_key);
 	// Replace a keyed row
 	virtual int ReplaceRow(int in_key, vector<string> in_fields);
+	// Get the selected key
+	virtual int GetSelected();
 
 	typedef struct row_data {
 		int key;

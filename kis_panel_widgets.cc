@@ -744,24 +744,56 @@ void Kis_Scrollable_Table::DrawComponent() {
 		return;
 
 	// Current character position x
-	int xcur = sx;
+	int xcur = 0;
 	string ftxt;
 
 	// Print across the titles
+	wattron(window, WA_BOLD);
 	for (unsigned int x = hscroll_pos; x < title_vec.size() && xcur < ex; x++) {
-		wattron(window, WA_BOLD);
+
+		int w = title_vec[x].width;
+
+		if (xcur + w >= ex)
+			w = ex - xcur;
 
 		// Align the field w/in the width
-		ftxt = AlignString(title_vec[x].title, ' ', title_vec[x].alignment,
-						   title_vec[x].width);
+		ftxt = AlignString(title_vec[x].title, ' ', title_vec[x].alignment, w);
 	
 		// Write it out
-		mvwaddstr(window, sy, xcur, ftxt.c_str());
+		mvwaddstr(window, sy, sx + xcur, ftxt.c_str());
 
 		// Advance by the width + 1
-		xcur += title_vec[x].width + 1;
+		xcur += w + 1;
+	}
+	wattroff(window, WA_BOLD);
 
-		wattroff(window, WA_BOLD);
+	// Jump to the scroll location to start drawing rows
+	int ycur = 1;
+	for (unsigned int r = scroll_pos; r < data_vec.size() && 
+		 ycur < ey; r++) {
+		// Print across
+		xcur = 0;
+
+		for (unsigned int x = hscroll_pos; x < data_vec[r]->data.size() &&
+			 xcur < ex && x < title_vec.size(); x++) {
+			int w = title_vec[x].width;
+
+			if (xcur + w >= ex)
+				w = ex - xcur;
+
+			ftxt = AlignString(title_vec[x].title, ' ', title_vec[x].alignment, w);
+
+			if ((int) x == selected)
+				wattron(window, WA_REVERSE);
+
+			mvwaddstr(window, sy + ycur, sx + xcur, ftxt.c_str());
+
+			if ((int) x == selected)
+				wattroff(window, WA_REVERSE);
+
+			xcur += w + 1;
+		}
+
 	}
 
 }
@@ -775,8 +807,37 @@ void Kis_Scrollable_Table::Deactivate() {
 }
 
 int Kis_Scrollable_Table::KeyPress(int in_key) {
+	if (visible == 0)
+		return 0;
+
+	int scrollable = 1;
+	if ((int) data_vec.size() <= ey)
+		scrollable = 0;
+
+	// Selected up one, scroll up one if we need to
+	if (in_key == KEY_UP && selected > 0) {
+		selected--;
+		if (scrollable && scroll_pos > 0 && scroll_pos > selected) {
+			scroll_pos--;
+		}
+	}
+
+	if (in_key == KEY_DOWN && selected < ((int) data_vec.size() - ey)) {
+		selected++;
+		if (scrollable && scroll_pos + ey < selected) {
+			scroll_pos++;
+		}
+	}
 
 	return 0;
+}
+
+int Kis_Scrollable_Table::GetSelected() {
+	if (selected >= 0 && selected < (int) data_vec.size()) {
+		return data_vec[selected]->key;
+	}
+
+	return -1;
 }
 
 int Kis_Scrollable_Table::AddTitles(vector<Kis_Scrollable_Table::title_data> 
