@@ -37,8 +37,8 @@ KisPanelInterface::KisPanelInterface(GlobalRegistry *in_globalreg) :
 }
 
 KisPanelInterface::~KisPanelInterface() {
-	for (unsigned int x = 0; x < client_vec.size(); x++)
-		delete client_vec[x];
+	for (unsigned int x = 0; x < netclient_vec.size(); x++)
+		delete netclient_vec[x];
 }
 
 int KisPanelInterface::AddNetClient(string in_host, int in_reconnect) {
@@ -47,9 +47,36 @@ int KisPanelInterface::AddNetClient(string in_host, int in_reconnect) {
 	if (netcl->Connect(in_host, in_reconnect) < 0)
 		return -1;
 
-	client_vec.push_back(netcl);
+	netclient_vec.push_back(netcl);
 
 	return 1;
+}
+
+vector<KisNetClient *> KisPanelInterface::FetchNetClientVec() {
+	return netclient_vec;
+}
+
+int KisPanelInterface::RemoveNetClient(KisNetClient *in_cli) {
+	for (unsigned int x = 0; x < netclient_vec.size(); x++) {
+		if (netclient_vec[x] == in_cli) {
+			delete netclient_vec[x];
+			netclient_vec.erase(netclient_vec.begin() + x);
+			return 1;
+		}
+	}
+
+	return 0;
+}
+
+void KisPanelInterface::RaiseAlert(string in_title, string in_text) {
+	Kis_ModalAlert_Panel *ma = new Kis_ModalAlert_Panel(globalreg, this);
+
+	ma->Position((LINES / 2) - 5, (COLS / 2) - 20, 10, 40);
+
+	ma->ConfigureAlert(in_title, in_text);
+	
+	globalreg->panel_interface->AddPanel(ma);
+
 }
 
 #endif

@@ -2,6 +2,8 @@ Feb 22 2006  devel  Lots of un-changelog'd work in svn
                     Increased max iwpriv ioctls per interface, will produce
                      a different error on madwifi-ng using madwifi-old sources
                     Finished cli matrix widget
+                    Added ModalAlert panel
+                    "File->Connect" actually connects to the Kismet server
 Feb 02 2006  devel  More work on panels client
                     Work on new tcp client code
                     Fixed stupid error in server that didn't send capabilities

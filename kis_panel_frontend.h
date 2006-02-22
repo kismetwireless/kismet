@@ -48,9 +48,16 @@ public:
 
 	// Add a new client
 	virtual int AddNetClient(string in_host, int in_reconnect);
+	// Fetch a list of clients
+	virtual vector<KisNetClient *> FetchNetClientVec();
+	// Remove a client
+	virtual int RemoveNetClient(KisNetClient *in_cli);
+
+	// Bring up a modal alert
+	virtual void RaiseAlert(string in_title, string in_text);
 
 protected:
-	vector<KisNetClient *> client_vec;
+	vector<KisNetClient *> netclient_vec;
 
 };
 
