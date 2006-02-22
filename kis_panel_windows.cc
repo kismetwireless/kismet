@@ -75,6 +75,45 @@ Kis_Main_Panel::Kis_Main_Panel(GlobalRegistry *in_globalreg) :
 	active_component = sinp;
 	comp_vec.push_back(sinp);
 
+	sct = new Kis_Scrollable_Table(globalreg);
+	sct->SetPosition(win, 2, 3, 50, 15);
+
+	Kis_Scrollable_Table::title_data td;
+	vector<Kis_Scrollable_Table::title_data> titlevec;
+
+	td.width = 6;
+	td.title = "Name";
+	td.alignment = 1;
+	titlevec.push_back(td);
+
+	td.width = 25;
+	td.title = "Address";
+	td.alignment = 0;
+	titlevec.push_back(td);
+
+	td.width = 6;
+	td.title = "Port";
+	td.alignment = 2;
+	titlevec.push_back(td);
+
+	sct->AddTitles(titlevec);
+
+	sct->AddRow(0, StrTokenize("One\001localhost\0012501", "\001"));
+	sct->AddRow(1, StrTokenize("Two\001localhost\0012502", "\001"));
+	sct->AddRow(2, StrTokenize("Three\001some.host\0012503", "\001"));
+	sct->AddRow(3, StrTokenize("Four\001foo.com\0012504", "\001"));
+	sct->AddRow(10, StrTokenize("One\001localhost\0012501", "\001"));
+	sct->AddRow(11, StrTokenize("Two\001localhost\0012502", "\001"));
+	sct->AddRow(12, StrTokenize("Three\001some.host\0012503", "\001"));
+	sct->AddRow(13, StrTokenize("Four\001foo.com\0012504", "\001"));
+	sct->AddRow(20, StrTokenize("One\001localhost\0012501", "\001"));
+	sct->AddRow(21, StrTokenize("Two\001localhost\0012502", "\001"));
+	sct->AddRow(22, StrTokenize("Three\001some.host\0012503", "\001"));
+	sct->AddRow(23, StrTokenize("Four\001foo.com\0012504", "\001"));
+	
+	active_component = sct;
+	comp_vec.push_back(sct);
+
 	ftxt = new Kis_Free_Text(globalreg);
 	ftxt->SetPosition(win, 2, 3, 80, 20);
 	ftxt->SetText("2.  Quick Start\n"
@@ -231,18 +270,21 @@ int Kis_Main_Panel::KeyPress(int in_key) {
 		if (ret == mi_showtext) {
 			ftxt->Show();
 			fl->Hide();
-			sinp->Hide();
+			// sinp->Hide();
+			sct->Hide();
 			active_component = ftxt;
 		} else if (ret == mi_showfields) {
 			ftxt->Hide();
-			sinp->Hide();
+			// sinp->Hide();
+			sct->Hide();
 			fl->Show();
 			active_component = fl;
 		} else if (ret == mi_showinput) {
 			ftxt->Hide();
 			fl->Hide();
-			sinp->Show();
-			active_component = sinp;
+			//sinp->Show();
+			sct->Show();
+			active_component = sct;
 		} else if (ret == mi_connect) {
 			Kis_Connect_Panel *cp = new Kis_Connect_Panel(globalreg);
 			cp->Position((LINES / 2) - 4, (COLS / 2) - 20, 8, 40);

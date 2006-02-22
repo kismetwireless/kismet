@@ -772,6 +772,8 @@ void Kis_Scrollable_Table::DrawComponent() {
 		mvwvline(window, sy, sx + ex - 1, ACS_VLINE, ey);
 		float perc = (float) ey * (float) ((float) (scroll_pos) /
 										   (float) (data_vec.size() - ey));
+		if (perc >= ey - 1)
+			perc = ey - 1;
 		wattron(window, WA_REVERSE);
 		mvwaddch(window, sy + (int) perc, sx + ex - 1, ACS_BLOCK);
 		wattroff(window, WA_REVERSE);
@@ -784,6 +786,11 @@ void Kis_Scrollable_Table::DrawComponent() {
 		// Print across
 		xcur = 0;
 
+		if ((int) r == selected) {
+			wattron(window, WA_REVERSE);
+			mvwhline(window, sy + ycur, sx, ' ', ex);
+		}
+
 		for (unsigned int x = hscroll_pos; x < data_vec[r]->data.size() &&
 			 xcur < ex && x < title_vec.size(); x++) {
 			int w = title_vec[x].width;
@@ -791,18 +798,17 @@ void Kis_Scrollable_Table::DrawComponent() {
 			if (xcur + w >= ex)
 				w = ex - xcur;
 
-			ftxt = AlignString(title_vec[x].title, ' ', title_vec[x].alignment, w);
-
-			if ((int) x == selected)
-				wattron(window, WA_REVERSE);
+			ftxt = AlignString(data_vec[r]->data[x], ' ', title_vec[x].alignment, w);
 
 			mvwaddstr(window, sy + ycur, sx + xcur, ftxt.c_str());
 
-			if ((int) x == selected)
-				wattroff(window, WA_REVERSE);
-
 			xcur += w + 1;
 		}
+
+		if ((int) r == selected)
+			wattroff(window, WA_REVERSE);
+
+		ycur += 1;
 
 	}
 
@@ -832,11 +838,19 @@ int Kis_Scrollable_Table::KeyPress(int in_key) {
 		}
 	}
 
-	if (in_key == KEY_DOWN && selected < ((int) data_vec.size() - ey)) {
+	if (in_key == KEY_DOWN && selected < (int) data_vec.size() - 1) {
 		selected++;
-		if (scrollable && scroll_pos + ey < selected) {
+		if (scrollable && scroll_pos + ey - 1 <= selected) {
 			scroll_pos++;
 		}
+	}
+
+	if (in_key == KEY_RIGHT && hscroll_pos < (int) title_vec.size() - 1) {
+		hscroll_pos++;
+	}
+
+	if (in_key == KEY_LEFT && hscroll_pos > 0) {
+		hscroll_pos--;
 	}
 
 	return 0;
@@ -872,6 +886,8 @@ int Kis_Scrollable_Table::AddRow(int in_key, vector<string> in_fields) {
 	r->data = in_fields;
 
 	key_map[in_key] = 1;
+
+	data_vec.push_back(r);
 
 	return 1;
 }

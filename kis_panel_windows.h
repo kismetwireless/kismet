@@ -48,6 +48,7 @@ protected:
 	Kis_Free_Text *ftxt;
 	Kis_Field_List *fl;
 	Kis_Single_Input *sinp;
+	Kis_Scrollable_Table *sct;
 };
 
 class Kis_Connect_Panel : public Kis_Panel {
