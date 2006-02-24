@@ -271,7 +271,6 @@ int KisNetClient::Reconnect() {
 		last_disconnect = time(0);
 
 	if (tcpcli->Valid() || last_disconnect == 0) {
-		fprintf(stderr, "valid, disconnect %d\n", last_disconnect);
 		return 1;
 	}
 
@@ -453,7 +452,8 @@ int KisNetClient::ParseData() {
 		if (hi != handler_cb_map.end()) {
 			for (unsigned int hx = 0; hx < hi->second.size(); hx++) {
 				CliProto_Callback cback = hi->second[hx]->callback;
-				(*cback)(globalreg, inptok[it], &net_toks, hi->second[hx]->auxptr);
+				(*cback)(globalreg, inptok[it], &net_toks, this,
+						 hi->second[hx]->auxptr);
 			}
 		}
 	}

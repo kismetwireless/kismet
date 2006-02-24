@@ -29,7 +29,7 @@
 class KisNetClient;
 
 #define CLIPROTO_CB_PARMS	GlobalRegistry *globalreg, string proto_string, \
-	vector<smart_word_token> *proto_parsed, void *auxptr
+	vector<smart_word_token> *proto_parsed, KisNetClient *srccli, void *auxptr
 typedef void (*CliProto_Callback)(CLIPROTO_CB_PARMS);
 
 #define CLICONF_CB_PARMS	GlobalRegistry *globalreg, KisNetClient *kcli, \
