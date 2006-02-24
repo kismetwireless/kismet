@@ -125,7 +125,7 @@ enum TIME_fields {
 };
 
 enum STATUS_fields {
-    STATUS_text
+    STATUS_text, STATUS_flags
 };
 
 enum PACKET_fields {
@@ -156,6 +156,11 @@ typedef struct PACKET_data {
     vector<string> pdvec;
 };
 
+typedef struct STATUS_data {
+	string text;
+	int flags;
+};
+
 int Protocol_KISMET(PROTO_PARMS);
 int Protocol_ERROR(PROTO_PARMS);
 int Protocol_ACK(PROTO_PARMS);
@@ -163,7 +168,7 @@ int Protocol_PROTOCOLS(PROTO_PARMS);
 int Protocol_CAPABILITY(PROTO_PARMS);
 int Protocol_TERMINATE(PROTO_PARMS);
 int Protocol_TIME(PROTO_PARMS);
-int Protocol_STATUS(PROTO_PARMS); // string
+int Protocol_STATUS(PROTO_PARMS); // STATUS_data
 void Protocol_Packet2Data(const kis_packet *info, PACKET_data *data);
 int Protocol_PACKET(PROTO_PARMS); // PACKET_data
 int Protocol_WEPKEY(PROTO_PARMS); // wep_key_info

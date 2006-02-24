@@ -62,7 +62,7 @@ char *TIME_fields_text[] = {
 };
 
 char *STATUS_fields_text[] = {
-    "text",
+    "text", "flags",
     NULL
 };
 
@@ -209,8 +209,27 @@ int Protocol_TIME(PROTO_PARMS) {
 
 // We don't care about fields.  Data = string
 int Protocol_STATUS(PROTO_PARMS) {
-    string *str = (string *) data;
-    out_string += *str;
+    STATUS_data *rdata = (STATUS_data *) data;
+    char dig[10];
+
+    for (unsigned int x = 0; x < field_vec->size(); x++) {
+        switch ((STATUS_fields) (*field_vec)[x]) {
+            case STATUS_flags:
+                snprintf(dig, 10, "%d", rdata->flags);
+                out_string += dig;
+                break;
+			case STATUS_text:
+				out_string += "\001" + rdata->text + "\001";
+                break;
+            default:
+                out_string = "\001Unknown field requested.\001";
+                return -1;
+                break;
+        }
+
+        out_string += " ";
+    }
+
     return 1;
 }
 
@@ -408,25 +427,17 @@ int Clicmd_REMOVE(CLIENT_PARMS) {
 }
 
 void KisNetframe_MessageClient::ProcessMessage(string in_msg, int in_flags) {
-    char msg[1024];
-
 	// Local messages and alerts don't go out to the world.  Alerts are sent via
 	// the ALERT protocol.
     if ((in_flags & MSGFLAG_LOCAL) || (in_flags & MSGFLAG_ALERT))
         return;
 
-    if (in_flags & MSGFLAG_DEBUG)
-        snprintf(msg, 1024, "DEBUG - %s", in_msg.c_str());
-    if (in_flags & MSGFLAG_INFO)
-        snprintf(msg, 1024, "NOTICE - %s", in_msg.c_str());
-    if (in_flags & MSGFLAG_ERROR)
-        snprintf(msg, 1024, "ERROR - %s", in_msg.c_str());
-    if (in_flags & MSGFLAG_FATAL)
-        snprintf(msg, 1024, "FATAL - %s", in_msg.c_str());
-
+	STATUS_data sdata;
+	sdata.text = in_msg;
+	sdata.flags = in_flags;
+	
     // Dispatch it out to the clients
-    string tmp = msg;
-	((KisNetFramework *) auxptr)->SendToAll(_NPM(PROTO_REF_STATUS), (void *) &tmp);
+	((KisNetFramework *) auxptr)->SendToAll(_NPM(PROTO_REF_STATUS), (void *) &sdata);
 
 }
 
