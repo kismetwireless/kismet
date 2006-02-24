@@ -116,6 +116,9 @@ int KisNetClient::KillConnection() {
 	if (tcpcli != NULL && tcpcli->Valid())
 		tcpcli->KillConnection();
 
+	fprintf(stderr, "Killconnection called, setting last disconnect\n");
+	last_disconnect = time(0);
+
 	return 1;
 }
 
@@ -252,7 +255,6 @@ int KisNetClient::InjectCommand(string in_cmdtext) {
 	if (tcpcli->WriteData((void *) cmd.str().c_str(), cmd.str().length()) < 0 ||
 		globalreg->fatal_condition) {
 		KillConnection();
-		last_disconnect = time(0);
 		return -1;
 	}
 
@@ -260,11 +262,18 @@ int KisNetClient::InjectCommand(string in_cmdtext) {
 }
 
 int KisNetClient::Reconnect() {
-	if (tcpcli == NULL)
+	if (tcpcli == NULL) {
+		fprintf(stderr, "tcpcli null\n");
 		return -1;
+	}
 
-	if (tcpcli->Valid() || last_disconnect == 0)
+	if (tcpcli->Valid() == 0)
+		last_disconnect = time(0);
+
+	if (tcpcli->Valid() || last_disconnect == 0) {
+		fprintf(stderr, "valid, disconnect %d\n", last_disconnect);
 		return 1;
+	}
 
 	ostringstream osstr;
 

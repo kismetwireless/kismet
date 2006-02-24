@@ -263,7 +263,7 @@ public:
 
 	virtual int KeyPress(int in_key);
 
-	virtual void AddLine(string in_line);
+	virtual void AddLine(string in_line, int headeroffset = 0);
 	
 protected:
 	vector<string> text_vec;

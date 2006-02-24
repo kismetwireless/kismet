@@ -616,7 +616,15 @@ void Kis_Free_Text::SetText(vector<string> in_text) {
 }
 
 void KisStatusText_Messageclient::ProcessMessage(string in_msg, int in_flags) {
-	((Kis_Status_Text *) auxptr)->AddLine(in_msg);
+	if ((in_flags & MSGFLAG_INFO)) {
+		((Kis_Status_Text *) auxptr)->AddLine("\\bINFO\\B: " + in_msg, 6);
+	} else if ((in_flags & MSGFLAG_ERROR)) {
+		((Kis_Status_Text *) auxptr)->AddLine("\\rERROR\\R: " + in_msg, 7);
+	} else if ((in_flags & MSGFLAG_FATAL)) {
+		((Kis_Status_Text *) auxptr)->AddLine("\\rFATAL\\R: " + in_msg, 7);
+	} else {
+		((Kis_Status_Text *) auxptr)->AddLine(in_msg);
+	}
 }
 
 Kis_Status_Text::Kis_Status_Text(GlobalRegistry *in_globalreg) :
@@ -655,8 +663,8 @@ int Kis_Status_Text::KeyPress(int in_key) {
 	return 1;
 }
 
-void Kis_Status_Text::AddLine(string in_line) {
-	vector<string> lw = LineWrap(in_line, 0, ex - 1);
+void Kis_Status_Text::AddLine(string in_line, int headeroffset) {
+	vector<string> lw = LineWrap(in_line, headeroffset, ex - 1);
 
 	for (unsigned int x = 0; x < lw.size(); x++) {
 		text_vec.push_back(lw[x]);
