@@ -1049,7 +1049,7 @@ int KisNetFramework::RegisterProtocol(string in_header, int in_required, int in_
 
     // Put us in the map
     protocol_map[refnum] = sen;
-    ref_map[in_header] = refnum;
+    ref_map[StrLower(in_header)] = refnum;
 
     if (in_required)
         required_protocols.push_back(refnum);
@@ -1082,7 +1082,7 @@ int KisNetFramework::RemoveProtocol(int in_protoref) {
 }
 
 int KisNetFramework::FetchProtocolRef(string in_header) {
-    map<string, int>::iterator rmitr = ref_map.find(in_header);
+    map<string, int>::iterator rmitr = ref_map.find(StrLower(in_header));
     if (rmitr == ref_map.end())
         return -1;
 

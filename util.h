@@ -94,7 +94,10 @@ typedef struct smart_word_token {
         return *this;
     }
 };
-vector<smart_word_token> SmartStrTokenize(string in_str, string in_split, int return_partial = 1);
+vector<smart_word_token> SmartStrTokenize(string in_str, string in_split, 
+										  int return_partial = 1);
+vector<smart_word_token> NetStrTokenize(string in_str, string in_split, 
+										int return_partial = 1);
 
 string InLineWrap(string in_txt, unsigned int in_hdr_len,
 				  unsigned int in_max_len);

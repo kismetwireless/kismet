@@ -21,9 +21,33 @@
 // Panel has to be here to pass configure, so just test these
 #if (defined(HAVE_LIBNCURSES) || defined (HAVE_LIBCURSES))
 
+#include "util.h"
+#include "messagebus.h"
 #include "kis_panel_widgets.h"
 #include "kis_panel_windows.h"
 #include "kis_panel_frontend.h"
+
+// STATUS protocol parser that injects right into the messagebus
+void KisPanelClient_STATUS(CLIPROTO_CB_PARMS) {
+	if (proto_parsed->size() < 2) {
+		return;
+	}
+
+	int flags;
+	string text;
+
+	text = (*proto_parsed)[0].word;
+
+	if (sscanf((*proto_parsed)[1].word.c_str(), "%d", &flags) != 1) {
+		return;
+	}
+
+	_MSG(text, flags);
+}
+
+void KisPanelClient_Configured(CLICONF_CB_PARMS) {
+	((KisPanelInterface *) auxptr)->NetClientConfigure(kcli, recon);
+}
 
 KisPanelInterface::KisPanelInterface() {
 	fprintf(stderr, "FATAL OOPS: KisPanelInterface not called with globalreg\n");
@@ -43,6 +67,8 @@ KisPanelInterface::~KisPanelInterface() {
 
 int KisPanelInterface::AddNetClient(string in_host, int in_reconnect) {
 	KisNetClient *netcl = new KisNetClient(globalreg);
+
+	netcl->AddConfCallback(KisPanelClient_Configured, 1, this);
 
 	if (netcl->Connect(in_host, in_reconnect) < 0)
 		return -1;
@@ -66,6 +92,16 @@ int KisPanelInterface::RemoveNetClient(KisNetClient *in_cli) {
 	}
 
 	return 0;
+}
+
+void KisPanelInterface::NetClientConfigure(KisNetClient *in_cli, int in_recon) {
+	if (in_recon)
+		return;
+
+	_MSG("Got configure event for client", MSGFLAG_INFO);
+
+	in_cli->RegisterProtoHandler("STATUS", "text,flags",
+								 KisPanelClient_STATUS, this);
 }
 
 void KisPanelInterface::RaiseAlert(string in_title, string in_text) {

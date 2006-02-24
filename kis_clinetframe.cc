@@ -350,7 +350,7 @@ int KisNetClient::ParseData() {
         inptok[it].erase(0, (size_t) strlen(header) + 3);
 
 		// Smarter tokenization to handle quoted field buffers
-		vector<smart_word_token> net_toks = SmartStrTokenize(inptok[it], " ", 1);
+		vector<smart_word_token> net_toks = NetStrTokenize(inptok[it], " ", 1);
 
 		// All protocols have to return something
 		if (net_toks.size() == 0)

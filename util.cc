@@ -318,6 +318,51 @@ vector<smart_word_token> SmartStrTokenize(string in_str, string in_split, int re
     return ret;
 }
 
+vector<smart_word_token> NetStrTokenize(string in_str, string in_split, 
+										int return_partial) {
+	size_t begin = 0;
+	size_t end = in_str.find(in_split);
+	vector<smart_word_token> ret;
+    smart_word_token stok;
+	int special = 0;
+	
+	if (in_str.length() == 0)
+		return ret;
+
+	while (end != string::npos) {
+		if (in_str[begin] == '\001') {
+			// Look for a special inner field which buffers the splitvar inside the 
+			// field..  That means we need to recalculate the end of the field
+			// based on the special splitter
+			end = in_str.find("\001", begin + 1);
+			special = 1;
+		}
+
+		string sub = in_str.substr(begin + special, end - begin - special);
+
+		begin = end + 1 + special;
+
+		end = in_str.find(in_split, begin);
+
+		stok.begin = begin;
+		stok.end = end;
+		stok.word = sub;
+
+		ret.push_back(stok);
+		
+		special = 0;
+	}
+
+	if (return_partial && begin != in_str.size()) {
+		stok.begin = begin;
+		stok.end = in_str.size() - begin;
+		stok.word = in_str.substr(begin, in_str.size() - begin);
+		ret.push_back(stok);
+	}
+	
+	return ret;
+}
+
 vector<string> LineWrap(string in_txt, unsigned int in_hdr_len, 
 						unsigned int in_maxlen) {
 	vector<string> ret;

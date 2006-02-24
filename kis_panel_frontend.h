@@ -55,6 +55,8 @@ public:
 	virtual vector<KisNetClient *> FetchNetClientVec();
 	// Remove a client
 	virtual int RemoveNetClient(KisNetClient *in_cli);
+	// Configured client callback
+	virtual void NetClientConfigure(KisNetClient *in_cli, int in_recon);
 
 	// Bring up a modal alert
 	virtual void RaiseAlert(string in_title, string in_text);
