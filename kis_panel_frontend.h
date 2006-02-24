@@ -29,10 +29,13 @@
 #include <vector>
 
 #include "pollable.h"
+#include "messagebus.h"
 #include "kis_panel_widgets.h"
 #include "kis_panel_windows.h"
 
 #include "kis_clinetframe.h"
+
+class KisPanelInterface;
 
 // Our specialized actual kismet frontend
 // Most of the drawing is inherited from the generic case panel interface,

@@ -39,6 +39,7 @@
 #include <vector>
 
 #include "pollable.h"
+#include "messagebus.h"
 
 // Some standard filters we'd use on input
 #define FILTER_ALPHANUM	"ABCDEFGHIJKLMNOPQRSTUVWXYZ" \
@@ -232,6 +233,38 @@ public:
 	virtual void SetText(string in_text);
 	virtual void SetText(vector<string> in_text);
 
+protected:
+	vector<string> text_vec;
+
+	int scroll_pos;
+};
+
+class KisStatusText_Messageclient : public MessageClient {
+public:
+	KisStatusText_Messageclient(GlobalRegistry *in_globalreg, void *in_aux) :
+		MessageClient(in_globalreg, in_aux) { };
+	virtual ~KisStatusText_Messageclient() { }
+	void ProcessMessage(string in_msg, int in_flags);
+};
+
+// Status message field
+class Kis_Status_Text : public Kis_Panel_Component {
+public:
+	Kis_Status_Text() {
+		fprintf(stderr, "FATAL OOPS: Kis_Status_Text() called w/out globalreg\n");
+		exit(1);
+	}
+	Kis_Status_Text(GlobalRegistry *in_globalreg);
+	virtual ~Kis_Status_Text();
+
+	virtual void DrawComponent();
+	virtual void Activate(int subcomponent);
+	virtual void Deactivate();
+
+	virtual int KeyPress(int in_key);
+
+	virtual void AddLine(string in_line);
+	
 protected:
 	vector<string> text_vec;
 

@@ -49,10 +49,8 @@ protected:
 	int mi_connect, mi_quit;
 	int mi_showtext, mi_showfields, mi_showinput;
 
-	Kis_Free_Text *ftxt;
-	Kis_Field_List *fl;
-	Kis_Single_Input *sinp;
-	Kis_Scrollable_Table *sct;
+	KisStatusText_Messageclient *statuscli;
+	Kis_Status_Text *statustext;
 };
 
 class Kis_Connect_Panel : public Kis_Panel {
@@ -98,6 +96,7 @@ public:
 protected:
 	KisPanelInterface *kpinterface;
 	Kis_Scrollable_Table *srvlist;
+	Kis_Menu *menu;
 };
 
 class Kis_ModalAlert_Panel : public Kis_Panel {

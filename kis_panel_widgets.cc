@@ -615,6 +615,58 @@ void Kis_Free_Text::SetText(vector<string> in_text) {
 	text_vec = in_text;
 }
 
+void KisStatusText_Messageclient::ProcessMessage(string in_msg, int in_flags) {
+	((Kis_Status_Text *) auxptr)->AddLine(in_msg);
+}
+
+Kis_Status_Text::Kis_Status_Text(GlobalRegistry *in_globalreg) :
+	Kis_Panel_Component(in_globalreg) {
+	globalreg = in_globalreg;
+	scroll_pos = 0;
+}
+
+Kis_Status_Text::~Kis_Status_Text() {
+	// Nothing
+}
+
+void Kis_Status_Text::DrawComponent() {
+	if (visible == 0)
+		return;
+
+	for (unsigned int x = 0; x < text_vec.size() && (int) x < ey; x++) {
+		Kis_Panel_Specialtext::Mvwaddnstr(window, sy + (ey - x), sx,
+										  text_vec[text_vec.size() - x - 1],
+										  ex - 1);
+	}
+}
+
+void Kis_Status_Text::Activate(int subcomponent) {
+	// No magic
+}
+
+void Kis_Status_Text::Deactivate() {
+	// No magic
+}
+
+int Kis_Status_Text::KeyPress(int in_key) {
+	if (visible == 0)
+		return 0;
+
+	return 1;
+}
+
+void Kis_Status_Text::AddLine(string in_line) {
+	vector<string> lw = LineWrap(in_line, 0, ex - 1);
+
+	for (unsigned int x = 0; x < lw.size(); x++) {
+		text_vec.push_back(lw[x]);
+	}
+
+	if ((int) text_vec.size() > ey) {
+		text_vec.erase(text_vec.begin(), text_vec.begin() + text_vec.size() - ey);
+	}
+}
+
 Kis_Field_List::Kis_Field_List(GlobalRegistry *in_globalreg) :
 	Kis_Panel_Component(in_globalreg) {
 	globalreg = in_globalreg;
