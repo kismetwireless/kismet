@@ -100,8 +100,12 @@ void KisPanelInterface::NetClientConfigure(KisNetClient *in_cli, int in_recon) {
 
 	_MSG("Got configure event for client", MSGFLAG_INFO);
 
-	in_cli->RegisterProtoHandler("STATUS", "text,flags",
-								 KisPanelClient_STATUS, this);
+	if (in_cli->RegisterProtoHandler("STATUS", "text,flags",
+									 KisPanelClient_STATUS, this) < 0) {
+		_MSG("Could not register STATUS protocol with remote server, connection "
+			 "will be terminated.", MSGFLAG_ERROR);
+		in_cli->KillConnection();
+	}
 }
 
 void KisPanelInterface::RaiseAlert(string in_title, string in_text) {
