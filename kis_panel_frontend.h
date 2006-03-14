@@ -27,6 +27,9 @@
 #include <stdio.h>
 #include <string>
 #include <vector>
+#include <map>
+
+#include "uuid.h"
 
 #include "pollable.h"
 #include "messagebus.h"
@@ -61,8 +64,42 @@ public:
 	// Bring up a modal alert
 	virtual void RaiseAlert(string in_title, string in_text);
 
+	// Internal structure for tracking cards
+	typedef struct knc_card {
+		// Last time this record got updated
+		time_t last_update;
+
+		// Hash for the UUID, used as a placeholder in the table since
+		// we need just an int there.  We hope this never collides, and if it
+		// does, we'll figure out some other way to deal with this
+		uint32_t uuid_hash;
+
+		string interface;
+		string type;
+		string username;
+
+		// We need a copy of this anyhow
+		uuid carduuid; 
+
+		int channel;
+		int packets;
+		int hopping;
+
+		// Once we add it to the server we need to support storing the
+		// list of channels supported and screen channel locks to the
+		// appropriate sources
+	};
+
+	// Internal parser for the CARD proto, linked to the callback
+	void NetClientCARD(CLIPROTO_CB_PARMS);
+	// Fetch the list of cards from the system
+	map<uuid, KisPanelInterface::knc_card *> *FetchNetCardMap();
+
 protected:
 	vector<KisNetClient *> netclient_vec;
+
+	// Map of UUIDs of sources to representations
+	map<uuid, KisPanelInterface::knc_card *> netcard_map;
 
 };
 

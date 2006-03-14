@@ -1,3 +1,7 @@
+Mar 12 2006  devel  I know it's been a while, stuff going on in life, sorry.
+                    Added CARD protocol support to kp_frontend
+                    Changed behavior of kp_Scrollable_Table to add a row
+                     during a replace of a nonexistent row
 Feb 22 2006  devel  Lots of un-changelog'd work in svn
                     Increased max iwpriv ioctls per interface, will produce
                      a different error on madwifi-ng using madwifi-old sources

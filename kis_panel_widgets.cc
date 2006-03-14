@@ -981,9 +981,14 @@ int Kis_Scrollable_Table::DelRow(int in_key) {
 
 int Kis_Scrollable_Table::ReplaceRow(int in_key, vector<string> in_fields) {
 	if (key_map.find(in_key) == key_map.end()) {
+		// Add a row instead
+		return AddRow(in_key, in_fields);
+
+#if 0
 		_MSG("Scrollable_Table tried to replace row that doesn't exist", 
 			 MSGFLAG_ERROR);
 		return -1;
+#endif
 	}
 
 	for (unsigned int x = 0; x < data_vec.size(); x++) {

@@ -45,6 +45,95 @@ void KisPanelClient_STATUS(CLIPROTO_CB_PARMS) {
 	_MSG(text, flags);
 }
 
+void KisPanelClient_CARD(CLIPROTO_CB_PARMS) {
+	// Pass it off to the clinet frame
+	((KisPanelInterface *) auxptr)->NetClientCARD(globalreg, proto_string,
+												  proto_parsed, srccli, auxptr);
+}
+
+void KisPanelInterface::NetClientCARD(CLIPROTO_CB_PARMS) {
+	// interface		0
+	// type				1
+	// username			2
+	// channel			3
+	// uuid				4
+	// packets			5
+	// hopping			6
+	// MAX				7
+	
+	if (proto_parsed->size() < 7) {
+		return;
+	}
+
+	// Grab the UUID first, see if we need to build a record or if we're
+	// filling in an existing one
+	uuid carduuid = uuid((*proto_parsed)[4].word);
+	if (carduuid.error) {
+		_MSG("Invalid UUID in CARD protocol, skipping line", MSGFLAG_ERROR);
+		return;
+	}
+
+	KisPanelInterface::knc_card *card = NULL;
+	int prevknown = 0;
+	map<uuid, KisPanelInterface::knc_card *>::iterator itr;
+
+	if ((itr = netcard_map.find(carduuid)) != netcard_map.end()) {
+		card = itr->second;
+		prevknown = 1;
+	} else {
+		card = new KisPanelInterface::knc_card;
+	}
+
+	// If we didn't know about it, get the name, type, etc.  Otherwise
+	// we can ignore it because we should never change this
+	if (prevknown == 0) {
+		card->carduuid = carduuid;
+		card->uuid_hash = Adler32Checksum(carduuid.UUID2String().c_str(),
+										  carduuid.UUID2String().length());
+		card->interface = MungeToPrintable((*proto_parsed)[0].word);
+		card->type = MungeToPrintable((*proto_parsed)[1].word);
+		card->username = MungeToPrintable((*proto_parsed)[2].word);
+	}
+
+	// Parse the current channel and number of packets for all of them
+	int tchannel;
+	int tpackets;
+	int thopping;
+
+	if (sscanf((*proto_parsed)[3].word.c_str(), "%d", &tchannel) != 1) {
+		_MSG("Invalid channel in CARD protocol, skipping line.", MSGFLAG_ERROR);
+		if (prevknown == 0)
+			delete card;
+		return;
+	}
+
+	if (sscanf((*proto_parsed)[5].word.c_str(), "%d", &tpackets) != 1) {
+		_MSG("Invalid packet count in CARD protocol, skipping line.", MSGFLAG_ERROR);
+		if (prevknown == 0)
+			delete card;
+		return;
+	}
+
+	if (sscanf((*proto_parsed)[6].word.c_str(), "%d", &thopping) != 1) {
+		_MSG("Invalid hop state in CARD protocol, skipping line.", MSGFLAG_ERROR);
+		if (prevknown == 0)
+			delete card;
+		return;
+	}
+
+	// We're good, lets fill it in
+	card->channel = tchannel;
+	card->packets = tpackets;
+	card->hopping = thopping;
+
+	// Fill in the last time we saw something here
+	card->last_update = time(0);
+
+	if (prevknown == 0) 
+		netcard_map[carduuid] = card;
+
+}
+
 void KisPanelClient_Configured(CLICONF_CB_PARMS) {
 	((KisPanelInterface *) auxptr)->NetClientConfigure(kcli, recon);
 }
@@ -106,6 +195,14 @@ void KisPanelInterface::NetClientConfigure(KisNetClient *in_cli, int in_recon) {
 			 "will be terminated.", MSGFLAG_ERROR);
 		in_cli->KillConnection();
 	}
+	if (in_cli->RegisterProtoHandler("CARD", 
+									 "interface,type,username,channel,"
+									 "uuid,packets,hopping",
+									 KisPanelClient_CARD, this) < 0) {
+		_MSG("Could not register CARD protocol with remote server, connection "
+			 "will be terminated.", MSGFLAG_ERROR);
+		in_cli->KillConnection();
+	}
 }
 
 void KisPanelInterface::RaiseAlert(string in_title, string in_text) {
@@ -117,6 +214,10 @@ void KisPanelInterface::RaiseAlert(string in_title, string in_text) {
 	
 	globalreg->panel_interface->AddPanel(ma);
 
+}
+
+map<uuid, KisPanelInterface::knc_card *> *KisPanelInterface::FetchNetCardMap() {
+	return &netcard_map;
 }
 
 #endif
