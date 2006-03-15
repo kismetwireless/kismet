@@ -247,10 +247,11 @@ int TcpServer::Accept() {
 
 // Kill a connection
 void TcpServer::Kill(int in_fd) {
-    FD_CLR(in_fd, &server_fds);
-    FD_CLR(in_fd, &client_fds);
-    if (in_fd)
+    if (in_fd) {
+		FD_CLR(in_fd, &server_fds);
+		FD_CLR(in_fd, &client_fds);
         close(in_fd);
+	}
 
     // Do a little testing here since we might not have an opt record
     map<int, client_opt *>::iterator citr = client_optmap.find(in_fd);
@@ -374,7 +375,7 @@ int TcpServer::HandleClient(int fd, client_command *c, fd_set *rds, fd_set *wrs)
             }
         } else {
             copt->wrbuf.erase(0, res);
-	}
+		}
     }
 
     /* See if the buffer contains a command. */

@@ -46,7 +46,7 @@
 
 #ifdef HAVE_LINUX_WIRELESS
 
-#define IW_MAX_PRIV_DEF 128
+#define IW_MAX_PRIV_DEF 256
 // Wireless extentions monitor mode number
 #define LINUX_WLEXT_MONITOR 6
 // Wireless extentions master mode
