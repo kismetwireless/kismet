@@ -80,6 +80,8 @@ public:
 
     // Get the interface
     const char *FetchInterface() { return(interface.c_str()); }
+	// Set the interface
+	void SetInterface(string in_if) { interface = in_if; }
 
     // Fetch number of packets
     int FetchNumPackets() { return num_packets; }

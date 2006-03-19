@@ -398,6 +398,10 @@ int monitor_ipw2100(const char *in_dev, int initch, char *in_err, void **in_if, 
 int unmonitor_ipw2100(const char *in_dev, int initch, char *in_err, void **in_if, void *in_ext);
 int monitor_ipw2200(const char *in_dev, int initch, char *in_err, void **in_if, void *in_ext);
 int unmonitor_ipw2200(const char *in_dev, int initch, char *in_err, void **in_if, void *in_ext);
+int monitor_ipw3945(const char *in_dev, int initch, char *in_err, void **in_if, void *in_ext);
+int unmonitor_ipw3945(const char *in_dev, int initch, char *in_err, void **in_if, void *in_ext);
+int monitor_ipw3945_parasite(const char *in_dev, int initch, char *in_err, void **in_if, void *in_ext);
+int unmonitor_ipw3945_parasite(const char *in_dev, int initch, char *in_err, void **in_if, void *in_ext);
 // "Standard" wext monitor sequence - mostly a helper for other functions
 // since most cards that use wext still have custom initialization that
 // needs to be done.

@@ -1772,6 +1772,164 @@ int unmonitor_ipw2200(const char *in_dev, int initch, char *in_err,
     return 1;
 }
 
+// (Unless we learn different) the 3945 in full rfmon acts the same as
+// an ipw2200, so we'll use the same control mechanisms
+int monitor_ipw3945(const char *in_dev, int initch, char *in_err, 
+					void **in_if, void *in_ext) {
+    // Allocate a tracking record for the interface settings and remember our
+    // setup
+    linux_ifparm *ifparm = (linux_ifparm *) malloc(sizeof(linux_ifparm));
+    (*in_if) = ifparm;
+
+    if (Ifconfig_Get_Flags(in_dev, in_err, &ifparm->flags) < 0) {
+        return -1;
+    }
+
+    if ((ifparm->channel = Iwconfig_Get_Channel(in_dev, in_err)) < 0)
+        return -1;
+
+    if (Iwconfig_Get_Mode(in_dev, in_err, &ifparm->mode) < 0)
+        return -1;
+
+    // Call the normal monitor mode
+    return (monitor_wext(in_dev, initch, in_err, in_if, in_ext));
+}
+
+int unmonitor_ipw3945(const char *in_dev, int initch, char *in_err, 
+					  void **in_if, void *in_ext) {
+    // Restore initial monitor header
+    // linux_ifparm *ifparm = (linux_ifparm *) (*in_if);
+
+    linux_ifparm *ifparm = (linux_ifparm *) (*in_if);
+
+    if (Ifconfig_Set_Flags(in_dev, in_err, ifparm->flags) < 0) {
+        return -1;
+    }
+
+    if (Iwconfig_Set_Mode(in_dev, in_err, ifparm->mode) < 0)
+        return -1;
+
+	// James says this wants to be set to channel 0 for proper scanning operation
+	if (Iwconfig_Set_Channel(in_dev, 0, in_err) < 0)
+		return -1;
+
+    free(ifparm);
+
+    return 1;
+}
+
+// The 3945 in "parasite" mode (until James names it) is a different
+// beast entirely.  It uses a dynamically added tap interface to give us
+// realtime rtap formatted frames off the interface, so we need to
+// turn it on via sysfs and then push the new rtapX interface into the source
+// before the open happens
+int monitor_ipw3945_parasite(const char *in_dev, int initch, char *in_err, 
+							 void **in_if, void *in_ext) {
+	// We don't try to remember settings because we aren't going to do
+	// anything with them, we're leeching off a dynamic interface made
+	// just for us.
+	char dynif[32];
+	FILE *sysf;
+	char path[1024];
+	short int ifflags;
+
+	// Try to get the flags off the master interface
+    if (Ifconfig_Get_Flags(in_dev, in_err, &ifflags) < 0) {
+        return -1;
+    }
+
+	// If the master interface isn't even up, blow up.
+	if ((ifflags & IFF_UP) == 0) {
+		snprintf(in_err, 1024, "The ipw3245 control interface (%s) is not "
+				 "configured as 'up'.  The ipw3945_parasite mode reports "
+				 "traffic from a currently running interface.  For pure "
+				 "rfmon monitor mode, use ipw3945 instead.", in_dev);
+		return -1;
+	}
+
+	// Use the .../net/foo/device symlink into the .../bus/pci/drivers/
+	// ipw3945/foo/ pci bus interface
+	snprintf(path, 1024, "/sys/class/net/%s/device/rtap_iface",
+			 in_dev);
+
+	// Open it in RO mode first and get the current state.  I'm not sure
+	// how well frewind works on a dynamic system file so we'll just
+	// close it off and re-open it when we go to set modes, if we need
+	// to.
+	if ((sysf = fopen(path, "r")) == NULL) {
+		snprintf(in_err, 1024, "Failed to open ipw3945 sysfs tap control file, "
+				 "check that the version of the 3945 drivers you are running "
+				 "is recent enough, and that your system has sysfs properly "
+				 "set up.");
+		return -1;
+	}
+
+	fgets(dynif, 32, sysf);
+
+	// We're done with the RO 
+	fclose(sysf);
+
+	// If it's -1, we aren't turned on and we need to.
+	if (strncmp(dynif, "-1", 32) == 0) {
+		if ((sysf = fopen(path, "w")) == NULL) {
+			snprintf(in_err, 1024, "Failed to open the ipw3945 sysfs tap control "
+					 "file for writing (%s).  Check that Kismet has the proper "
+					 "privilege levels and that you are running a version of the "
+					 "ipw3945 drivers which is recent enough.", strerror(errno));
+			return -1;
+		}
+
+		fprintf(sysf, "1\n");
+		fclose(sysf);
+
+		// Reopen it again for reading for the last time, and get the
+		// interface we changed to.  Do some minor error checking to make
+		// sure the new interface isn't called -1, 0, or 1, which I'm going
+		// to guess would imply an older driver
+		if ((sysf = fopen(path, "r")) == NULL) {
+			snprintf(in_err, 1024, "Failed to open the ipw3945 sysfs tap "
+					 "control to find the interface allocated.  Something strange "
+					 "has happened, because the control file was available "
+					 "previously for setting.  Check your system messages.");
+			return -1;
+		}
+
+		fgets(dynif, 32, sysf);
+
+		fclose(sysf);
+	}
+
+	// Sanity check the interface we were told to use.  A 0, 1, -1 probably
+	// means a bad driver version.
+	if (strncmp(dynif, "-1", 32) == 0 || strncmp(dynif, "0", 32) == 0 ||
+		strncmp(dynif, "1", 32) == 0) {
+		snprintf(in_err, 1024, "Got a nonsense interface from the ipw3945 "
+				 "sysfs tap control file.  This probably means your ipw3945 "
+				 "drivers are out of date, or that there is something strange "
+				 "happening in the drivers.  Check your system messages.");
+		return -1;
+	}
+
+	// Now that we've gone through that nonsense, make sure the
+	// dynamic rtap interface is up
+	if (Ifconfig_Delta_Flags(dynif, in_err, IFF_UP | IFF_RUNNING | IFF_PROMISC) < 0)
+        return -1;
+
+	// And push the config into the packetsoure
+	((KisPacketSource *) in_ext)->SetInterface(dynif);
+
+	return 1;
+}
+
+int unmonitor_ipw3945_parasite(const char *in_dev, int initch, char *in_err, 
+							   void **in_if, void *in_ext) {
+	// Actually there isn't anything to do here.  Right now, I don't
+	// think I care if we leave the parasite rtap interface hanging around.
+	// Newcore might do this better, but this isn't newcore.
+
+    return 1;
+}
+
 // "standard" wireless extension monitor mode
 int monitor_wext(const char *in_dev, int initch, char *in_err, void **in_if, void *in_ext) {
     int mode;

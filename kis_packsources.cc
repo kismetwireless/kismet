@@ -166,6 +166,17 @@ int RegisterKismetSources(Packetsourcetracker *sourcetracker) {
                                         monitor_ipw2200, unmonitor_ipw2200,
                                         chancontrol_ipw2200, 1);
 
+    sourcetracker->RegisterPacketsource("ipw3945", 1, "IEEE80211ab", 6,
+                                        pcapsource_wext_registrant,
+                                        monitor_ipw3945, unmonitor_ipw3945,
+                                        chancontrol_ipw2200, 1);
+
+    sourcetracker->RegisterPacketsource("ipw3945parasite", 1, "IEEE80211ab", 0,
+                                        pcapsource_wext_registrant,
+                                        monitor_ipw3945_parasite, 
+										unmonitor_ipw3945_parasite,
+                                        NULL, 1);
+
     sourcetracker->RegisterPacketsource("rt2400", 1, "IEEE80211b", 6,
                                         pcapsource_wext_registrant,
                                         monitor_wext, unmonitor_wext,
