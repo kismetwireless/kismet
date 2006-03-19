@@ -1897,6 +1897,9 @@ int monitor_ipw3945_parasite(const char *in_dev, int initch, char *in_err,
 		fgets(dynif, 32, sysf);
 
 		fclose(sysf);
+
+		// Wait for the distro to settle if its going to rename an interface
+		sleep(1);
 	}
 
 	// Sanity check the interface we were told to use.  A 0, 1, -1 probably

@@ -1,3 +1,7 @@
+Mar 19 2006  devel  Added the initial ipw3945 support.  You'll need a current
+                     (read: latest) ipw3945 driver.  If it doesn't work,
+                     let me know.  There are no doc entries for this until
+                     I get it officially tested.
 Mar 15 2006  devel  Switched ACX100 capture to not expect the FCS bytes.
                     Remember, kismet devel is happening in the newcore
                      branch now.  It's not dead. :)
