@@ -75,6 +75,7 @@ protected:
 	int reconnect;
 
 	time_t last_disconnect;
+	time_t last_frame;
 
 	int cli_type;
 	int cli_port;

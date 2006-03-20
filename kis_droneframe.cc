@@ -787,6 +787,19 @@ int KisDroneFramework::chain_handler(kis_packet *in_pack) {
 }
 
 int KisDroneFramework::time_handler() {
+	// Send everyone a NULL frame as a keepalove
+	drone_packet *dpkt = 
+		(drone_packet *) malloc(sizeof(uint8_t) * 
+								sizeof(drone_packet));
+
+	memset(dpkt, 0, sizeof(uint8_t) * sizeof(drone_packet));
+
+	dpkt->sentinel = kis_hton32(DroneSentinel);
+	dpkt->drone_cmdnum = kis_hton32(DRONE_CMDNUM_NULL);
+	dpkt->data_len = kis_hton32(0);
+
+	SendAllPacket(dpkt);
+
 	return 1;
 }
 

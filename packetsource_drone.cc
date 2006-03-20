@@ -69,6 +69,7 @@ DroneClientFrame::DroneClientFrame(GlobalRegistry *in_globalreg) :
 											  &droneclienttimer_hook, (void *) this);
 
 	last_disconnect = 0;
+	last_frame = 0;
 
 	globalreg->RegisterPollableSubsys(this);
 }
@@ -141,9 +142,19 @@ int DroneClientFrame::OpenConnection(string in_conparm, int in_recon) {
 }
 
 int DroneClientFrame::time_handler() {
+	ostringstream osstr;
+
 	if (last_disconnect != 0) {
 		if (time(0) - last_disconnect > 5) {
 			Reconnect();
+		}
+	}
+
+	if (last_disconnect == 0) {
+		if (time(0) - last_frame > 20) {
+			osstr << "No frames from Kismet drone server at " << cli_host << ":" <<
+				cli_port << " in 20 seconds, disconnecting";
+			_MSG(osstr.str(), MSGFLAG_ERROR);
 		}
 	}
 
@@ -312,7 +323,7 @@ int DroneClientFrame::ParseData() {
 
 		// Handle the packet types
 		if (dcid == DRONE_CMDNUM_NULL) {
-			// Nothing special to do here
+			// Nothing special to do here, treat it as an update packet
 		} else if (dcid == DRONE_CMDNUM_HELO) {
 			drone_helo_packet *hpkt = (drone_helo_packet *) dpkt->data;
 			char rname[32];
@@ -657,6 +668,8 @@ int DroneClientFrame::ParseData() {
 					newpack->insert(_PCM(PACK_COMP_KISCAPSRC), csrc_ref);
 				}
 			}
+
+			last_frame = time(0);
 
 			globalreg->packetchain->ProcessPacket(newpack);
 		}
