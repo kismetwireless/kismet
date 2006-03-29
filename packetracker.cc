@@ -1637,7 +1637,7 @@ int Packetracker::WriteCSVNetworks(string in_fname) {
     fprintf(netfile, "Network;NetType;ESSID;BSSID;Info;Channel;Cloaked;Encryption;Decrypted;MaxRate;MaxSeenRate;Beacon;"
             "LLC;Data;Crypt;Weak;Total;Carrier;Encoding;FirstTime;LastTime;BestQuality;BestSignal;BestNoise;"
             "GPSMinLat;GPSMinLon;GPSMinAlt;GPSMinSpd;GPSMaxLat;GPSMaxLon;GPSMaxAlt;GPSMaxSpd;"
-            "GPSBestLat;GPSBestLon;GPSBestAlt;DataSize;IPType;IP;\n\r");
+            "GPSBestLat;GPSBestLon;GPSBestAlt;DataSize;IPType;IP;\r\n");
 
     stable_sort(network_list.begin(), network_list.end(), SortFirstTimeLT());
 
@@ -1825,7 +1825,7 @@ int Packetracker::WriteCSVNetworks(string in_fname) {
                 "%f;%f;%f;%f;"
                 "%f;%f;%f;"
                 "%ld;%s;"
-                "%hu.%hu.%hu.%hu;\n\r",
+                "%hu.%hu.%hu.%hu;\r\n",
                 netnum, type, SanitizeCSV(net->ssid).c_str(), 
 				net->bssid.Mac2String().c_str(), 
 				SanitizeCSV(net->beacon_info).c_str(),
