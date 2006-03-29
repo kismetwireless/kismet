@@ -1512,63 +1512,170 @@ int monitor_vtar5k(const char *in_dev, int initch, char *in_err, void **in_if, v
     return 0;
 }
 
+/* Madwifi NG ioctls from net80211 */
+#define	SIOC80211IFCREATE		(SIOCDEVPRIVATE+7)
+#define	SIOC80211IFDESTROY	 	(SIOCDEVPRIVATE+8)
+int monitor_madwifi_ng(const char *in_dev, char *in_err, void **in_if, 
+					   void *in_ext) {
+	/* from net80211 headers */
+	struct ieee80211_clone_params {
+		char		icp_name[IFNAMSIZ];
+		u_int16_t	icp_opmode;
+		u_int16_t	icp_flags;
+#define	IEEE80211_CLONE_BSSID	0x0001
+#define	IEEE80211_NO_STABEACONS	0x0002
+#define IEEE80211_M_MONITOR 	8
+	};
+	struct ieee80211_clone_params cp;
+	struct ifreq ifr;
+	char newdev[IFNAMSIZ];
+	int s;
+
+	memset(&ifr, 0, sizeof(ifr));
+	memset(&cp, 0, sizeof(cp));
+
+	strncpy(cp.icp_name, "kis", IFNAMSIZ);
+	cp.icp_opmode = (u_int16_t) IEEE80211_M_MONITOR;
+	cp.icp_flags = IEEE80211_CLONE_BSSID;
+
+	strncpy(ifr.ifr_name, in_dev, IFNAMSIZ);
+	ifr.ifr_data = (caddr_t) &cp;
+
+	s = socket(AF_INET, SOCK_DGRAM, 0);
+	if (s < 0) {
+		return -1;
+	}
+
+	if (ioctl(s, SIOC80211IFCREATE, &ifr) < 0) {
+		close(s);
+		return -1;
+	}
+
+	// Extract the interface name we got back */
+	strncpy(newdev, ifr.ifr_name, IFNAMSIZ);
+
+	((KisPacketSource *) in_ext)->SetInterface(newdev);
+
+	close(s);
+
+	fprintf(stderr, "NOTICE:  Created Madwifi-NG VAP %s\n", newdev);
+
+	return 1;
+}
+
+int unmonitor_madwifi_ng(const char *in_dev, char *in_err, void **in_if, 
+						 void *in_ext) {
+	struct ifreq ifr;
+	int s;
+
+	// Just destroy our dynamic interface
+	s = socket(AF_INET, SOCK_DGRAM, 0);
+	if (s < 0) {
+		return -1;
+	}
+
+	memset(&ifr, 0, sizeof(ifr));
+	strncpy(ifr.ifr_name, in_dev, IFNAMSIZ);
+	if (ioctl(s, SIOC80211IFDESTROY, &ifr) < 0) {
+		close(s);
+		return -1;
+	}
+
+	close(s);
+
+	return 1;
+}
+
 // Madwifi stuff uses iwpriv mode
 int monitor_madwifi_a(const char *in_dev, int initch, char *in_err, void **in_if, void *in_ext) {
-    // Allocate a tracking record for the interface settings and remember our
-    // setup
-    linux_ifparm *ifparm = (linux_ifparm *) malloc(sizeof(linux_ifparm));
-    (*in_if) = ifparm;
+	// Try to enable the madwifi-ng mode
+	if (monitor_madwifi_ng(in_dev, in_err, in_if, in_ext) < 0) {
+		fprintf(stderr, "WARNING: %s appears to not accept the Madwifi-NG controls. "
+				"Will attempt to configure it as a standard Madwifi-old interface.\n",
+				in_dev);
+		// Allocate a tracking record for the interface settings and remember our
+		// setup
+		linux_ifparm *ifparm = (linux_ifparm *) malloc(sizeof(linux_ifparm));
+		(*in_if) = ifparm;
 
-    if (Ifconfig_Get_Flags(in_dev, in_err, &ifparm->flags) < 0) {
-        return -1;
-    }
+		if (Ifconfig_Get_Flags(in_dev, in_err, &ifparm->flags) < 0) {
+			return -1;
+		}
 
-    if ((ifparm->channel = Iwconfig_Get_Channel(in_dev, in_err)) < 0)
-        return -1;
+		if ((ifparm->channel = Iwconfig_Get_Channel(in_dev, in_err)) < 0)
+			return -1;
 
-    if (Iwconfig_Get_Mode(in_dev, in_err, &ifparm->mode) < 0)
-        return -1;
+		if (Iwconfig_Get_Mode(in_dev, in_err, &ifparm->mode) < 0)
+			return -1;
 
-    if (Iwconfig_Get_IntPriv(in_dev, "get_mode", &ifparm->privmode, in_err) < 0)
-        return -1;
-    
-    if (Iwconfig_Set_IntPriv(in_dev, "mode", 1, 0, in_err) < 0)
-        return -1;
+		if (Iwconfig_Get_IntPriv(in_dev, "get_mode", &ifparm->privmode, in_err) < 0)
+			return -1;
+
+		if (Iwconfig_Set_IntPriv(in_dev, "mode", 1, 0, in_err) < 0)
+			return -1;
+	} else {
+		fprintf(stderr, "WARNING: %s appears to be using Madwifi-NG.  Some versions "
+				"of the Madwifi-NG drivers have problems in monitor mode, especially "
+				"if non-monitor VAPs are active.  If you experience problems, be "
+				"sure to try the latest versions of Madwifi-NG and remove other "
+				"VAPs\n", in_dev);
+
+		in_dev = ((KisPacketSource *) in_ext)->FetchInterface();
+
+		sleep(1);
+	}
 
     // The rest is standard wireless extensions
     if (monitor_wext(in_dev, initch, in_err, in_if, in_ext) < 0) {
-        snprintf(in_err, STATUS_MAX, "Unable to enter monitor mode.  This can happen if "
-                 "you are not using the CVS madwifi drivers or if your kernel version is "
-                 "older than 2.4.23.  Make sure you are running a current driver release "
-                 "and kernel version.  See the troubleshooting section of the README for "
-                 "more information.");
+		snprintf(in_err, STATUS_MAX, "Unable to enter monitor mode.  This can "
+				 "happen if your drivers have been compiled without the proper "
+				 "wireless extensions support or if you are running a very old "
+				 "version of the drivers or kernels.  Please see the troubleshooting "
+				 "section of the README for more information.");
         return -1;
     }
 
     return 0;
 }
 
-int monitor_madwifi_b(const char *in_dev, int initch, char *in_err, void **in_if, void *in_ext) {
-    // Allocate a tracking record for the interface settings and remember our
-    // setup
-    linux_ifparm *ifparm = (linux_ifparm *) malloc(sizeof(linux_ifparm));
-    (*in_if) = ifparm;
+int monitor_madwifi_b(const char *in_dev, int initch, char *in_err, 
+					  void **in_if, void *in_ext) {
+	// Try to enable the madwifi-ng mode
+	if (monitor_madwifi_ng(in_dev, in_err, in_if, in_ext) < 0) {
+		fprintf(stderr, "WARNING: %s appears to not accept the Madwifi-NG controls. "
+				"Will attempt to configure it as a standard Madwifi-old interface.\n",
+				in_dev);
+		// Allocate a tracking record for the interface settings and remember our
+		// setup
+		linux_ifparm *ifparm = (linux_ifparm *) malloc(sizeof(linux_ifparm));
+		(*in_if) = ifparm;
 
-    if (Ifconfig_Get_Flags(in_dev, in_err, &ifparm->flags) < 0) {
-        return -1;
-    }
+		if (Ifconfig_Get_Flags(in_dev, in_err, &ifparm->flags) < 0) {
+			return -1;
+		}
 
-    if ((ifparm->channel = Iwconfig_Get_Channel(in_dev, in_err)) < 0)
-        return -1;
+		if ((ifparm->channel = Iwconfig_Get_Channel(in_dev, in_err)) < 0)
+			return -1;
 
-    if (Iwconfig_Get_Mode(in_dev, in_err, &ifparm->mode) < 0)
-        return -1;
+		if (Iwconfig_Get_Mode(in_dev, in_err, &ifparm->mode) < 0)
+			return -1;
 
-    if (Iwconfig_Get_IntPriv(in_dev, "get_mode", &ifparm->privmode, in_err) < 0)
-        return -1;
-    
-    if (Iwconfig_Set_IntPriv(in_dev, "mode", 2, 0, in_err) < 0)
-        return -1;
+		if (Iwconfig_Get_IntPriv(in_dev, "get_mode", &ifparm->privmode, in_err) < 0)
+			return -1;
+
+		if (Iwconfig_Set_IntPriv(in_dev, "mode", 2, 0, in_err) < 0)
+			return -1;
+	} else {
+		fprintf(stderr, "WARNING: %s appears to be using Madwifi-NG.  Some versions "
+				"of the Madwifi-NG drivers have problems in monitor mode, especially "
+				"if non-monitor VAPs are active.  If you experience problems, be "
+				"sure to try the latest versions of Madwifi-NG and remove other "
+				"VAPs\n", in_dev);
+
+		in_dev = ((KisPacketSource *) in_ext)->FetchInterface();
+
+		sleep(1);
+	}
 
     // The rest is standard wireless extensions
     if (monitor_wext(in_dev, initch, in_err, in_if, in_ext) < 0)
@@ -1577,27 +1684,44 @@ int monitor_madwifi_b(const char *in_dev, int initch, char *in_err, void **in_if
     return 0;
 }
 
-int monitor_madwifi_g(const char *in_dev, int initch, char *in_err, void **in_if, void *in_ext) {
-    // Allocate a tracking record for the interface settings and remember our
-    // setup
-    linux_ifparm *ifparm = (linux_ifparm *) malloc(sizeof(linux_ifparm));
-    (*in_if) = ifparm;
+int monitor_madwifi_g(const char *in_dev, int initch, char *in_err, 
+					  void **in_if, void *in_ext) {
+	// Try to enable the madwifi-ng mode
+	if (monitor_madwifi_ng(in_dev, in_err, in_if, in_ext) < 0) {
+		fprintf(stderr, "WARNING: %s appears to not accept the Madwifi-NG controls. "
+				"Will attempt to configure it as a standard Madwifi-old interface.\n",
+				in_dev);
+		// Allocate a tracking record for the interface settings and remember our
+		// setup
+		linux_ifparm *ifparm = (linux_ifparm *) malloc(sizeof(linux_ifparm));
+		(*in_if) = ifparm;
 
-    if (Ifconfig_Get_Flags(in_dev, in_err, &ifparm->flags) < 0) {
-        return -1;
-    }
+		if (Ifconfig_Get_Flags(in_dev, in_err, &ifparm->flags) < 0) {
+			return -1;
+		}
 
-    if ((ifparm->channel = Iwconfig_Get_Channel(in_dev, in_err)) < 0)
-        return -1;
+		if ((ifparm->channel = Iwconfig_Get_Channel(in_dev, in_err)) < 0)
+			return -1;
 
-    if (Iwconfig_Get_Mode(in_dev, in_err, &ifparm->mode) < 0)
-        return -1;
+		if (Iwconfig_Get_Mode(in_dev, in_err, &ifparm->mode) < 0)
+			return -1;
 
-    if (Iwconfig_Get_IntPriv(in_dev, "get_mode", &ifparm->privmode, in_err) < 0)
-        return -1;
-    
-    if (Iwconfig_Set_IntPriv(in_dev, "mode", 3, 0, in_err) < 0)
-        return -1;
+		if (Iwconfig_Get_IntPriv(in_dev, "get_mode", &ifparm->privmode, in_err) < 0)
+			return -1;
+
+		if (Iwconfig_Set_IntPriv(in_dev, "mode", 3, 0, in_err) < 0)
+			return -1;
+	} else {
+		fprintf(stderr, "WARNING: %s appears to be using Madwifi-NG.  Some versions "
+				"of the Madwifi-NG drivers have problems in monitor mode, especially "
+				"if non-monitor VAPs are active.  If you experience problems, be "
+				"sure to try the latest versions of Madwifi-NG and remove other "
+				"VAPs\n", in_dev);
+
+		in_dev = ((KisPacketSource *) in_ext)->FetchInterface();
+
+		sleep(1);
+	}
 
     // The rest is standard wireless extensions
     if (monitor_wext(in_dev, initch, in_err, in_if, in_ext) < 0)
@@ -1606,27 +1730,45 @@ int monitor_madwifi_g(const char *in_dev, int initch, char *in_err, void **in_if
     return 0;
 }
 
-int monitor_madwifi_comb(const char *in_dev, int initch, char *in_err, void **in_if, void *in_ext) {
-    // Allocate a tracking record for the interface settings and remember our
-    // setup
-    linux_ifparm *ifparm = (linux_ifparm *) malloc(sizeof(linux_ifparm));
-    (*in_if) = ifparm;
+int monitor_madwifi_comb(const char *in_dev, int initch, char *in_err, 
+						 void **in_if, void *in_ext) {
+	// Try to enable the madwifi-ng mode
+	if (monitor_madwifi_ng(in_dev, in_err, in_if, in_ext) < 0) {
+		fprintf(stderr, "WARNING: %s appears to not accept the Madwifi-NG controls. "
+				"Will attempt to configure it as a standard Madwifi-old interface.\n",
+				in_dev);
 
-    if (Ifconfig_Get_Flags(in_dev, in_err, &ifparm->flags) < 0) {
-        return -1;
-    }
+		// Allocate a tracking record for the interface settings and remember our
+		// setup
+		linux_ifparm *ifparm = (linux_ifparm *) malloc(sizeof(linux_ifparm));
+		(*in_if) = ifparm;
 
-    if ((ifparm->channel = Iwconfig_Get_Channel(in_dev, in_err)) < 0)
-        return -1;
+		if (Ifconfig_Get_Flags(in_dev, in_err, &ifparm->flags) < 0) {
+			return -1;
+		}
 
-    if (Iwconfig_Get_Mode(in_dev, in_err, &ifparm->mode) < 0)
-        return -1;
+		if ((ifparm->channel = Iwconfig_Get_Channel(in_dev, in_err)) < 0)
+			return -1;
 
-    if (Iwconfig_Get_IntPriv(in_dev, "get_mode", &ifparm->privmode, in_err) < 0)
-        return -1;
-    
-    if (Iwconfig_Set_IntPriv(in_dev, "mode", 0, 0, in_err) < 0)
-        return -1;
+		if (Iwconfig_Get_Mode(in_dev, in_err, &ifparm->mode) < 0)
+			return -1;
+
+		if (Iwconfig_Get_IntPriv(in_dev, "get_mode", &ifparm->privmode, in_err) < 0)
+			return -1;
+
+		if (Iwconfig_Set_IntPriv(in_dev, "mode", 0, 0, in_err) < 0)
+			return -1;
+	} else {
+		fprintf(stderr, "WARNING: %s appears to be using Madwifi-NG.  Some versions "
+				"of the Madwifi-NG drivers have problems in monitor mode, especially "
+				"if non-monitor VAPs are active.  If you experience problems, be "
+				"sure to try the latest versions of Madwifi-NG and remove other "
+				"VAPs\n", in_dev);
+
+		in_dev = ((KisPacketSource *) in_ext)->FetchInterface();
+
+		sleep(1);
+	}
 
     // The rest is standard wireless extensions
     if (monitor_wext(in_dev, initch, in_err, in_if, in_ext) < 0)
@@ -1636,7 +1778,8 @@ int monitor_madwifi_comb(const char *in_dev, int initch, char *in_err, void **in
 }
 
 // Unmonitor madwifi (shared)
-int unmonitor_madwifi(const char *in_dev, int initch, char *in_err, void **in_if, void *in_ext) {
+int unmonitor_madwifi(const char *in_dev, int initch, char *in_err, 
+					  void **in_if, void *in_ext) {
     // Restore the stored mode
     linux_ifparm *ifparm = (linux_ifparm *) (*in_if);
 
@@ -1823,8 +1966,8 @@ int unmonitor_ipw3945(const char *in_dev, int initch, char *in_err,
 // realtime rtap formatted frames off the interface, so we need to
 // turn it on via sysfs and then push the new rtapX interface into the source
 // before the open happens
-int monitor_ipw3945_parasite(const char *in_dev, int initch, char *in_err, 
-							 void **in_if, void *in_ext) {
+int monitor_ipwlivetap(const char *in_dev, int initch, char *in_err, 
+					   void **in_if, void *in_ext) {
 	// We don't try to remember settings because we aren't going to do
 	// anything with them, we're leeching off a dynamic interface made
 	// just for us.
@@ -1840,10 +1983,10 @@ int monitor_ipw3945_parasite(const char *in_dev, int initch, char *in_err,
 
 	// If the master interface isn't even up, blow up.
 	if ((ifflags & IFF_UP) == 0) {
-		snprintf(in_err, 1024, "The ipw3245 control interface (%s) is not "
-				 "configured as 'up'.  The ipw3945_parasite mode reports "
+		snprintf(in_err, 1024, "The ipw control interface (%s) is not "
+				 "configured as 'up'.  The ipwlivetap mode reports "
 				 "traffic from a currently running interface.  For pure "
-				 "rfmon monitor mode, use ipw3945 instead.", in_dev);
+				 "rfmon monitor mode, use ipwXXXX instead.", in_dev);
 		return -1;
 	}
 
@@ -1857,8 +2000,8 @@ int monitor_ipw3945_parasite(const char *in_dev, int initch, char *in_err,
 	// close it off and re-open it when we go to set modes, if we need
 	// to.
 	if ((sysf = fopen(path, "r")) == NULL) {
-		snprintf(in_err, 1024, "Failed to open ipw3945 sysfs tap control file, "
-				 "check that the version of the 3945 drivers you are running "
+		snprintf(in_err, 1024, "Failed to open ipw sysfs tap control file, "
+				 "check that the version of the ipw drivers you are running "
 				 "is recent enough, and that your system has sysfs properly "
 				 "set up.");
 		return -1;
@@ -1872,10 +2015,10 @@ int monitor_ipw3945_parasite(const char *in_dev, int initch, char *in_err,
 	// If it's -1, we aren't turned on and we need to.
 	if (strncmp(dynif, "-1", 32) == 0) {
 		if ((sysf = fopen(path, "w")) == NULL) {
-			snprintf(in_err, 1024, "Failed to open the ipw3945 sysfs tap control "
+			snprintf(in_err, 1024, "Failed to open the ipw sysfs tap control "
 					 "file for writing (%s).  Check that Kismet has the proper "
 					 "privilege levels and that you are running a version of the "
-					 "ipw3945 drivers which is recent enough.", strerror(errno));
+					 "ipw drivers which supports associated rfmon.", strerror(errno));
 			return -1;
 		}
 
@@ -1887,7 +2030,7 @@ int monitor_ipw3945_parasite(const char *in_dev, int initch, char *in_err,
 		// sure the new interface isn't called -1, 0, or 1, which I'm going
 		// to guess would imply an older driver
 		if ((sysf = fopen(path, "r")) == NULL) {
-			snprintf(in_err, 1024, "Failed to open the ipw3945 sysfs tap "
+			snprintf(in_err, 1024, "Failed to open the ipw sysfs tap "
 					 "control to find the interface allocated.  Something strange "
 					 "has happened, because the control file was available "
 					 "previously for setting.  Check your system messages.");
@@ -1906,8 +2049,8 @@ int monitor_ipw3945_parasite(const char *in_dev, int initch, char *in_err,
 	// means a bad driver version.
 	if (strncmp(dynif, "-1", 32) == 0 || strncmp(dynif, "0", 32) == 0 ||
 		strncmp(dynif, "1", 32) == 0) {
-		snprintf(in_err, 1024, "Got a nonsense interface from the ipw3945 "
-				 "sysfs tap control file.  This probably means your ipw3945 "
+		snprintf(in_err, 1024, "Got a nonsense interface from the ipw "
+				 "sysfs tap control file.  This probably means your ipw "
 				 "drivers are out of date, or that there is something strange "
 				 "happening in the drivers.  Check your system messages.");
 		return -1;
@@ -1924,8 +2067,8 @@ int monitor_ipw3945_parasite(const char *in_dev, int initch, char *in_err,
 	return 1;
 }
 
-int unmonitor_ipw3945_parasite(const char *in_dev, int initch, char *in_err, 
-							   void **in_if, void *in_ext) {
+int unmonitor_ipwlivetap(const char *in_dev, int initch, char *in_err, 
+						 void **in_if, void *in_ext) {
 	// Actually there isn't anything to do here.  Right now, I don't
 	// think I care if we leave the parasite rtap interface hanging around.
 	// Newcore might do this better, but this isn't newcore.

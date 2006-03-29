@@ -468,7 +468,7 @@ Licensed under the GPL
     - Linux (Intel, PPC, MIPS, X-Scale, Arm, etc)
       Known supported cards: Atmel_USB, ACX100, ADMTek, Atheros, Cisco, Prism2, 
        Orinoco, WSP100, Drone, wtapfile, pcapfile, wrt54g, ipw2100, rt2400,
-       rt2500, rt8180, ipw2200, ipw2915
+       rt2500, rt8180, ipw2200, ipw2915, ipw3945, Broadcom 43xx
 
       Kismet will work with any distribution of Linux.  Currently, Linux is the
       recommended platform for running Kismet because it has the largest
@@ -645,24 +645,44 @@ Licensed under the GPL
                     The Linux IPW2100/Centrino drivers for 802.11b cards
                     now support rfmon, so here's support for them.  They act
                     more or less like any other wireless interface would.
-                    THIS IS NOT FOR WINDOWS OR FOR LINUX SYSTEMS USING 
-                    NDISWRAPPER OR LINUXANT.
 
     ipw2200         Intel/Centrino      Linux       ipw2200-1.0.4+
                     http://ipw2200.sourceforge.net/
                     Capture interface:  'ethX'
                     The Linux IPW2200/Centrino drivers for 802.11bg cards
                     support rfmon as of 1.0.4 and firmware 2.3.  
-                    THIS IS NOT FOR WINDOWS OR FOR LINUX SYSTEMS USING 
-                    NDISWRAPPER OR LINUXANT.
+                    Signal level reporting requires radiotap be turned on
+                    in the makefile while compiling the driver.  Noise levels
+                    are not reported.
 
     ipw2915         Intel/Centrino      Linux       ipw2200-1.0.4+
-                    http://ipw2200.sourceforge.net/
                     Capture interface:  'ethX'
-                    The Linux IPW2200/Centrino drivers for 802.11bg cards
+                    http://ipw2200.sourceforge.net/
+                    The Linux IPW2200/Centrino drivers for 802.11bga cards
                     support rfmon as of 1.0.4 and firmware 2.3.  
                     This is the same as ipw2200 but defaults to scanning the
                     802.11a channel range in addition to 802.11b/g.
+                    Signal level reporting requires radiotap be turned on
+                    in the makefile while compiling the driver.  Noise levels
+                    are not reported.
+
+    ipw3945         Intel/Centrino      Linux       ipw3945
+                    Capture interface:  'ethX'
+                    http://ipw3945.sourceforge.net/
+                    The Linux IPW3945/Centrino drivers for Intel Core
+                    802.11bga cards.
+
+    ipwlivetap      Intel/Centrino      Linux       ipw2200/3945
+                    Capture interface:  'ethX'
+                    http://ipw2200.sourceforge.net/
+                    http://ipw3945.sourceforge.net/
+                    The ipw3945 and patched ipw2200 drivers support a 
+                    special mode which allows monitor-mode style sniffing
+                    while remaining associated.  Channel hopping is not
+                    possible, as the card is still associated to a 
+                    specific AP, but single-channel IDS and sniffing can
+                    be accomplished.  See the ipw driver mailing list
+                    archives for information about patching your drivers.
 
     kismet_drone    n/a                 Any         n/a
                     Capture interface:  'dronehost:port'  
@@ -708,17 +728,10 @@ Licensed under the GPL
     madwifing_b     Atheros             Linux       madwifi-ng
                     http://sourceforge.net/projects/madwifi/
                     Capture interface:  'athX'
-                    Madwifi-ng drivers.  
-                    The interface MUST be brought up first via:
-                     wlanconfig athX create wlandev wifiX wlanmode monitor
-                    Multiple types for a, ab, ag, etc exist only for
-                     naming consistency and channel selection, as the
-                     drivers can hop seamlessly between channels.
-                    Currently this support is *very experimental and minimal.*
-                     Once the madwifi-ng drivers are more solid & stable, real
-                     support will be added to automatically configure the
-                     device.  If these sources don't work for you right now,
-                     sorry.
+                    *Deprecated*.  Detection for madwifi-ng is built into
+                    the standard madwifi sources.  The _ng source names
+                    have been kept to allow old configs to continue
+                    functioning.
 
     orinoco         Lucent, Orinoco     Linux       Patched orinoco_cs
                     http://airsnort.shmoo.com/orinocoinfo.html

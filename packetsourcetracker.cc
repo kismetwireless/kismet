@@ -186,7 +186,7 @@ int Packetsourcetracker::SetChannel(int in_ch, meta_packsource *in_meta) {
         return 0;
 
 #ifndef HAVE_SUID
-    int ret = (*in_meta->prototype->channelcon)(in_meta->device.c_str(),
+    int ret = (*in_meta->prototype->channelcon)(in_meta->capsource->FetchInterface(),
                                                 in_ch, errstr, 
                                                 (void *) in_meta->capsource);
     if (ret < 0)
@@ -194,7 +194,7 @@ int Packetsourcetracker::SetChannel(int in_ch, meta_packsource *in_meta) {
 #else
     if (in_meta->prototype->child_control == 0) {
         int ret;
-        ret = (*in_meta->prototype->channelcon)(in_meta->device.c_str(),
+        ret = (*in_meta->prototype->channelcon)(in_meta->capsource->FetchInterface(),
                                                 in_ch, errstr,
                                                 (void *) in_meta->capsource);
         if (ret < 0)
@@ -695,7 +695,8 @@ int Packetsourcetracker::BindSources(int in_root) {
        
         // Open it
         fprintf(stderr, "Source %d (%s): Opening %s source interface %s...\n",
-                x, meta->name.c_str(), meta->prototype->cardtype.c_str(), meta->device.c_str());
+                x, meta->name.c_str(), meta->prototype->cardtype.c_str(), 
+				meta->capsource->FetchInterface());
         if (meta->capsource->OpenSource() < 0) {
             meta->valid = 0;
             snprintf(errstr, 1024, "%s", meta->capsource->FetchError());
@@ -774,7 +775,7 @@ int Packetsourcetracker::CloseSources() {
         if (meta->prototype->monitor_disable != NULL) {
             int umon_ret = 0;
             if ((umon_ret = 
-                 (*meta->prototype->monitor_disable)(meta->device.c_str(), 0, 
+                 (*meta->prototype->monitor_disable)(meta->capsource->FetchInterface(), 0, 
                                                      errstr, 
                                                      &meta->stored_interface,
                                                      (void *) meta->capsource)) < 0) {
@@ -965,8 +966,10 @@ void Packetsourcetracker::ChannelChildLoop() {
 
                 // Sanity check
                 if (chanpak.meta_num >= meta_packsources.size()) {
-                    snprintf(txtbuf, 1024, "Channel control got illegal metasource number %d", chanpak.meta_num);
-                    child_ipc_buffer.push_front(CreateTextPacket(txtbuf, CHANFLAG_NONE));
+                    snprintf(txtbuf, 1024, "Channel control got illegal metasource "
+							 "number %d", chanpak.meta_num);
+                    child_ipc_buffer.push_front(CreateTextPacket(txtbuf, 
+																 CHANFLAG_NONE));
                     continue;
                 }
 
@@ -983,7 +986,7 @@ void Packetsourcetracker::ChannelChildLoop() {
 				// If a channel has more than N consecutive errors, we actually
 				// fail out, send a fatal condition, and die.
                 if ((*meta_packsources[chanpak.meta_num]->prototype->channelcon)
-                    (meta_packsources[chanpak.meta_num]->device.c_str(), 
+                    (meta_packsources[chanpak.meta_num]->capsource->FetchInterface(), 
                      chanpak.channel, errstr, 
                      (void *) (meta_packsources[chanpak.meta_num]->capsource)) < 0) {
 
@@ -997,7 +1000,7 @@ void Packetsourcetracker::ChannelChildLoop() {
 								 "most likely means the drivers have become "
 								 "confused.",
 								 meta_packsources[chanpak.meta_num]->name.c_str(),
-								 meta_packsources[chanpak.meta_num]->device.c_str(),
+								 meta_packsources[chanpak.meta_num]->capsource->FetchInterface(),
 								 MAX_CONSEC_CHAN_ERR);
 						child_ipc_buffer.push_front(CreateTextPacket(txtbuf, 
 																	 CHANFLAG_NONE));

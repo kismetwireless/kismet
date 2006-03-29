@@ -122,23 +122,23 @@ int RegisterKismetSources(Packetsourcetracker *sourcetracker) {
 
 	sourcetracker->RegisterPacketsource("madwifing_a", 1, "IEEE80211a", 36,
 										pcapsource_wext_registrant,
-										monitor_wext, unmonitor_wext,
+										monitor_madwifi_comb, unmonitor_madwifi,
 										chancontrol_wext, 1);
 	sourcetracker->RegisterPacketsource("madwifing_ab", 1, "IEEE80211ab", 6,
 										pcapsource_wext_registrant,
-										monitor_wext, unmonitor_wext,
+										monitor_madwifi_comb, unmonitor_madwifi,
 										chancontrol_wext, 1);
 	sourcetracker->RegisterPacketsource("madwifing_ag", 1, "IEEE80211ab", 6,
 										pcapsource_wext_registrant,
-										monitor_wext, unmonitor_wext,
+										monitor_madwifi_comb, unmonitor_madwifi,
 										chancontrol_wext, 1);
 	sourcetracker->RegisterPacketsource("madwifing_b", 1, "IEEE80211b", 6,
 										pcapsource_wext_registrant,
-										monitor_wext, unmonitor_wext,
+										monitor_madwifi_comb, unmonitor_madwifi,
 										chancontrol_wext, 1);
 	sourcetracker->RegisterPacketsource("madwifing_g", 1, "IEEE80211b", 6,
 										pcapsource_wext_registrant,
-										monitor_wext, unmonitor_wext,
+										monitor_madwifi_comb, unmonitor_madwifi,
 										chancontrol_wext, 1);
 
     sourcetracker->RegisterPacketsource("prism54g", 1, "IEEE80211g", 6,
@@ -171,10 +171,10 @@ int RegisterKismetSources(Packetsourcetracker *sourcetracker) {
                                         monitor_ipw3945, unmonitor_ipw3945,
                                         chancontrol_ipw2200, 1);
 
-    sourcetracker->RegisterPacketsource("ipw3945parasite", 1, "IEEE80211ab", 0,
+    sourcetracker->RegisterPacketsource("ipwlivetap", 1, "IEEE80211b", 0,
                                         pcapsource_wext_registrant,
-                                        monitor_ipw3945_parasite, 
-										unmonitor_ipw3945_parasite,
+                                        monitor_ipwlivetap, 
+										unmonitor_ipwlivetap,
                                         NULL, 1);
 
     sourcetracker->RegisterPacketsource("rt2400", 1, "IEEE80211b", 6,
