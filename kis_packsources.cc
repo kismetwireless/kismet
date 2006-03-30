@@ -190,8 +190,15 @@ int RegisterKismetSources(Packetsourcetracker *sourcetracker) {
                                         monitor_wext, unmonitor_wext,
                                         chancontrol_wext, 1);
 
+    sourcetracker->RegisterPacketsource("zd1211", 1, "IEEE80211g", 6,
+                                        pcapsource_wext_registrant,
+                                        monitor_wext, unmonitor_wext,
+                                        chancontrol_wext, 1);
+
 #else
     // Register the linuxwireless pcap stuff as null
+    REG_EMPTY_CARD(sourcetracker, "bcm43xx");
+
     REG_EMPTY_CARD(sourcetracker, "cisco");
     REG_EMPTY_CARD(sourcetracker, "cisco_wifix");
     REG_EMPTY_CARD(sourcetracker, "hostap");
@@ -215,12 +222,15 @@ int RegisterKismetSources(Packetsourcetracker *sourcetracker) {
     REG_EMPTY_CARD(sourcetracker, "ipw2100");
     REG_EMPTY_CARD(sourcetracker, "ipw2200");
     REG_EMPTY_CARD(sourcetracker, "ipw2915");
+    REG_EMPTY_CARD(sourcetracker, "ipw3945");
+    REG_EMPTY_CARD(sourcetracker, "ipwlivetap");
 
     REG_EMPTY_CARD(sourcetracker, "rt2400");
     REG_EMPTY_CARD(sourcetracker, "rt2500");
     REG_EMPTY_CARD(sourcetracker, "rt8180");
 
     REG_EMPTY_CARD(sourcetracker, "wlanng_wext");
+    REG_EMPTY_CARD(sourcetracker, "zd1211");
 #endif
 
 #if defined(HAVE_LIBPCAP) && defined(SYS_LINUX)

@@ -695,17 +695,26 @@ Licensed under the GPL
                     http://sourceforge.net/projects/madwifi/
                     Capture interface:  'athX'
                     Madwifi drivers in 802.11a-only mode. 
+                    When using madwifi-ng, be sure all non-monitor VAPs have
+                     been removed, otherwise madwifi will not properly report
+                     most traffic.
 
     madwifi_b       Atheros             Linux       madwifi
                     http://sourceforge.net/projects/madwifi/
                     Capture interface:  'athX'
                     Madwifi drivers in 802.11b-only mode. 
+                    When using madwifi-ng, be sure all non-monitor VAPs have
+                     been removed, otherwise madwifi will not properly report
+                     most traffic.
 
     madwifi_g       Atheros             Linux       madwifi
                     http://sourceforge.net/projects/madwifi/
                     Capture interface:  'athX'
                     Madwifi drivers in 802.11g-only mode.  This will, 
                      obviously, also see 11b networks.
+                    When using madwifi-ng, be sure all non-monitor VAPs have
+                     been removed, otherwise madwifi will not properly report
+                     most traffic.
 
     madwifi_ab      Atheros             Linux       madwifi
                     http://sourceforge.net/projects/madwifi/
@@ -713,6 +722,9 @@ Licensed under the GPL
                     Madwifi drivers in 802.11a and 802.11b combo mode.  This
                      will seamlessly switch between bands during channel 
                      hopping.
+                    When using madwifi-ng, be sure all non-monitor VAPs have
+                     been removed, otherwise madwifi will not properly report
+                     most traffic.
 
     madwifi_ag      Atheros             Linux       madwifi
                     http://sourceforge.net/projects/madwifi/
@@ -720,6 +732,9 @@ Licensed under the GPL
                     Madwifi drivers in 802.11a and 802.11g combo mode.  This
                      will seamlessly switch between bands during channel 
                      hopping.
+                    When using madwifi-ng, be sure all non-monitor VAPs have
+                     been removed, otherwise madwifi will not properly report
+                     most traffic.
 
     madwifing_a     Atheros             Linux       madwifi-ng
     madwifing_ab    Atheros             Linux       madwifi-ng
@@ -862,6 +877,14 @@ Licensed under the GPL
                      automatically decompress gzipped files, etc.  Wtapfile
                      sources are only available if Kismet was compiled with
                      libwiretap support.
+
+    zd1211          ZyDAS USB           Linux       zd1211
+                    http://zd1211.ath.cx
+                    Capture interface:  'wlanX'
+                    At the time of this writing, the ZD1211 drivers have
+                     significant data corruption while changing channel, and
+                     often while receiving data frames.  Until these problems
+                     are addressed in the driver, it is not reccomended.
 
     Chipsets known to NOT WORK:
      Broadcom           - No linux drivers, only useable with ndiswrapper or
