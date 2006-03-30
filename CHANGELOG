@@ -1,3 +1,4 @@
+Mar 29 2006  devel  Fixed madwifi_ag with madwifi-ng drivers
 Mar 28 2006  devel  Moved ipw3945parasite to ipwlivetap
                     Moved madwifing support into madwifi standard as an
                      auto-detect

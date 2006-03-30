@@ -2524,6 +2524,7 @@ int chancontrol_madwifi_ab(const char *in_dev, int in_ch, char *in_err, void *in
 }
 
 int chancontrol_madwifi_ag(const char *in_dev, int in_ch, char *in_err, void *in_ext) {
+	/* This seems to not be needed 
     if (in_ch > 0 && in_ch <= 14) {
         if (Iwconfig_Set_IntPriv(in_dev, "mode", 3, 0, in_err) < 0)
             return -1;
@@ -2531,6 +2532,7 @@ int chancontrol_madwifi_ag(const char *in_dev, int in_ch, char *in_err, void *in
         if (Iwconfig_Set_IntPriv(in_dev, "mode", 1, 0, in_err) < 0)
             return -1;
     }
+	*/
 
     return chancontrol_wext(in_dev, in_ch, in_err, in_ext);
 }
