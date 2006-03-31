@@ -765,9 +765,6 @@ int Packetsourcetracker::CloseSources() {
         // close if we can
         if (meta->valid)
             meta->capsource->CloseSource();
-        
-        // delete
-        delete meta->capsource;
 
         meta->valid = 0;
 
@@ -800,6 +797,9 @@ int Packetsourcetracker::CloseSources() {
                     "         operation.", meta->name.c_str(), meta->device.c_str());
         }
 
+		// delete
+		delete meta->capsource;
+
     }
 
     if (talk == 1) {
@@ -809,7 +809,7 @@ int Packetsourcetracker::CloseSources() {
                 "may need to\n"
                 "         restart or reconfigure it for normal operation.\n");
     }
-
+        
     return 1;
 }
 

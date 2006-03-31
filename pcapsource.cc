@@ -470,6 +470,7 @@ int PcapSource::Prism2KisPack(kis_packet *packet, uint8_t *data, uint8_t *moddat
         packet->noise = p2head->noise.data;
 
         packet->channel = p2head->channel.data;
+
     }
 
     if (header_found == 0) {
@@ -1622,6 +1623,10 @@ int monitor_madwifi_a(const char *in_dev, int initch, char *in_err, void **in_if
 
 		in_dev = ((KisPacketSource *) in_ext)->FetchInterface();
 
+		(*in_if) = NULL;
+
+		((KisPacketSource *) in_ext)->fcsbytes = 0;
+
 		sleep(1);
 	}
 
@@ -1674,6 +1679,10 @@ int monitor_madwifi_b(const char *in_dev, int initch, char *in_err,
 
 		in_dev = ((KisPacketSource *) in_ext)->FetchInterface();
 
+		(*in_if) = NULL;
+		
+		((KisPacketSource *) in_ext)->fcsbytes = 0;
+
 		sleep(1);
 	}
 
@@ -1719,6 +1728,10 @@ int monitor_madwifi_g(const char *in_dev, int initch, char *in_err,
 				"VAPs\n", in_dev);
 
 		in_dev = ((KisPacketSource *) in_ext)->FetchInterface();
+
+		(*in_if) = NULL;
+
+		((KisPacketSource *) in_ext)->fcsbytes = 0;
 
 		sleep(1);
 	}
@@ -1767,6 +1780,10 @@ int monitor_madwifi_comb(const char *in_dev, int initch, char *in_err,
 
 		in_dev = ((KisPacketSource *) in_ext)->FetchInterface();
 
+		(*in_if) = NULL;
+
+		((KisPacketSource *) in_ext)->fcsbytes = 0;
+
 		sleep(1);
 	}
 
@@ -1783,12 +1800,20 @@ int unmonitor_madwifi(const char *in_dev, int initch, char *in_err,
     // Restore the stored mode
     linux_ifparm *ifparm = (linux_ifparm *) (*in_if);
 
-    if (Iwconfig_Set_IntPriv(in_dev, "mode", ifparm->privmode, 0, in_err) < 0) {
-        return -1;
-    }
+	// Try the ng unmonitor
+	if (unmonitor_madwifi_ng(in_dev, in_err, in_if, in_ext) < 0) {
+		if ((*in_if) == NULL) 
+			return -1;
 
-    // Call the standard unmonitor
-    return unmonitor_wext(in_dev, initch, in_err, in_if, in_ext);
+		if (Iwconfig_Set_IntPriv(in_dev, "mode", ifparm->privmode, 0, in_err) < 0) {
+			return -1;
+		}
+
+		// Call the standard unmonitor
+		return unmonitor_wext(in_dev, initch, in_err, in_if, in_ext);
+	}
+
+	return 0;
 }
 
 // Call the standard monitor but ignore error codes since channel
