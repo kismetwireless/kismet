@@ -709,6 +709,8 @@ void GetPacketInfo(kis_packet *packet, packet_info *ret_packinfo,
             ret_packinfo->reason_code = rcode;
         } else {
             ret_packinfo->subtype = packet_sub_unknown;
+			ret_packinfo->noise = 1;
+			return;
         }
 
     } else if (fc->type == 1) {
@@ -742,6 +744,8 @@ void GetPacketInfo(kis_packet *packet, packet_info *ret_packinfo,
 
         } else {
             ret_packinfo->subtype = packet_sub_unknown;
+			ret_packinfo->noise = 1;
+			return;
         }
 
     } else if (fc->type == 2) {
@@ -770,7 +774,7 @@ void GetPacketInfo(kis_packet *packet, packet_info *ret_packinfo,
         } else if (fc->subtype == 6) {
             ret_packinfo->subtype = packet_sub_cf_ack_poll;
         } else {
-            ret_packinfo->corrupt = 1;
+            ret_packinfo->noise = 1;
             ret_packinfo->subtype = packet_sub_unknown;
             return;
         }

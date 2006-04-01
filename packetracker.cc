@@ -306,7 +306,7 @@ void Packetracker::ProcessPacket(kis_packet *packet, packet_info *info,
     }
 
     // Junk unknown, pure noise, and corrupt packets
-    if (info->type == packet_noise || info->corrupt == 1) {
+    if (info->type == packet_noise || info->corrupt == 1 || info->noise == 1) {
         num_dropped++;
         num_noise++;
         return;
@@ -318,7 +318,11 @@ void Packetracker::ProcessPacket(kis_packet *packet, packet_info *info,
         // We unceremoniously junk phy layer packets for now too but
 		// don't count them as dropped
         return;
-    }
+    } else if (info->type == packet_data && info->subtype != 0) {
+		// Drop data frames of non-data types since they don't get 
+		// handled in a useful way
+		return;
+	}
 
     net = MatchNetwork(info);
 

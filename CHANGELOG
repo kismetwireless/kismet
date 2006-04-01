@@ -1,4 +1,6 @@
 Mar 31 2006  devel  Added setting madwifi-ng to radiotap mode
+                    Fixed several crashes due to not checking noise/junk
+                     packet params
 Mar 30 2006  devel  Added zd1211 capture source (with warnings)
                     Fixed madwifi-ng fcs bytes
                     Fixed madwifi-ng not shutting down rfmon vap
