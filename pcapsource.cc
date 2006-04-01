@@ -1529,7 +1529,7 @@ int monitor_madwifi_ng(const char *in_dev, char *in_err, void **in_if,
 	};
 	struct ieee80211_clone_params cp;
 	struct ifreq ifr;
-	char newdev[IFNAMSIZ];
+	char newdev[IFNAMSIZ + 1];
 	int s;
 
 	memset(&ifr, 0, sizeof(ifr));
@@ -1560,6 +1560,20 @@ int monitor_madwifi_ng(const char *in_dev, char *in_err, void **in_if,
 	close(s);
 
 	fprintf(stderr, "NOTICE:  Created Madwifi-NG VAP %s\n", newdev);
+
+	FILE *controlf;
+	char cpath[256];
+
+	snprintf(cpath, 255, "/proc/sys/net/%s/dev_type", newdev);
+
+	if ((controlf = fopen(cpath, "w")) == NULL) {
+		fprintf(stderr, "WARNING:  Could not open /proc/sys/net control interface "
+				"to set radiotap mode.  This may indicate a deeper problem but "
+				"is not a fatal error.\n");
+	} else {
+		fprintf(controlf, "803\n");
+		fclose(controlf);
+	}
 
 	return 1;
 }
