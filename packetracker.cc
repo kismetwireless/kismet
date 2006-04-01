@@ -306,7 +306,7 @@ void Packetracker::ProcessPacket(kis_packet *packet, packet_info *info,
     }
 
     // Junk unknown, pure noise, and corrupt packets
-    if (info->type == packet_noise || info->corrupt == 1 || info->noise == 1) {
+    if (info->type == packet_noise || info->corrupt == 1) {
         num_dropped++;
         num_noise++;
         return;
