@@ -1606,7 +1606,9 @@ int monitor_madwifi_a(const char *in_dev, int initch, char *in_err, void **in_if
 	// Try to enable the madwifi-ng mode
 	if (monitor_madwifi_ng(in_dev, in_err, in_if, in_ext) < 0) {
 		fprintf(stderr, "WARNING: %s appears to not accept the Madwifi-NG controls. "
-				"Will attempt to configure it as a standard Madwifi-old interface.\n",
+				"Will attempt to configure it as a standard Madwifi-old interface. "
+				"If you are using madwifi-ng, be sure to set the source interface "
+				"to the wifiX control interface, NOT athX\n",
 				in_dev);
 		// Allocate a tracking record for the interface settings and remember our
 		// setup
@@ -1662,7 +1664,9 @@ int monitor_madwifi_b(const char *in_dev, int initch, char *in_err,
 	// Try to enable the madwifi-ng mode
 	if (monitor_madwifi_ng(in_dev, in_err, in_if, in_ext) < 0) {
 		fprintf(stderr, "WARNING: %s appears to not accept the Madwifi-NG controls. "
-				"Will attempt to configure it as a standard Madwifi-old interface.\n",
+				"Will attempt to configure it as a standard Madwifi-old interface. "
+				"If you are using madwifi-ng, be sure to set the source interface "
+				"to the wifiX control interface, NOT athX\n",
 				in_dev);
 		// Allocate a tracking record for the interface settings and remember our
 		// setup
@@ -1712,7 +1716,9 @@ int monitor_madwifi_g(const char *in_dev, int initch, char *in_err,
 	// Try to enable the madwifi-ng mode
 	if (monitor_madwifi_ng(in_dev, in_err, in_if, in_ext) < 0) {
 		fprintf(stderr, "WARNING: %s appears to not accept the Madwifi-NG controls. "
-				"Will attempt to configure it as a standard Madwifi-old interface.\n",
+				"Will attempt to configure it as a standard Madwifi-old interface. "
+				"If you are using madwifi-ng, be sure to set the source interface "
+				"to the wifiX control interface, NOT athX\n",
 				in_dev);
 		// Allocate a tracking record for the interface settings and remember our
 		// setup
@@ -1762,7 +1768,9 @@ int monitor_madwifi_comb(const char *in_dev, int initch, char *in_err,
 	// Try to enable the madwifi-ng mode
 	if (monitor_madwifi_ng(in_dev, in_err, in_if, in_ext) < 0) {
 		fprintf(stderr, "WARNING: %s appears to not accept the Madwifi-NG controls. "
-				"Will attempt to configure it as a standard Madwifi-old interface.\n",
+				"Will attempt to configure it as a standard Madwifi-old interface. "
+				"If you are using madwifi-ng, be sure to set the source interface "
+				"to the wifiX control interface, NOT athX\n",
 				in_dev);
 
 		// Allocate a tracking record for the interface settings and remember our

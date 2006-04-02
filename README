@@ -694,6 +694,7 @@ Licensed under the GPL
     madwifi_a       Atheros             Linux       madwifi
                     http://sourceforge.net/projects/madwifi/
                     Capture interface:  'athX'
+                    Capture interface:  'wifiX' (Madwifi-NG)
                     Madwifi drivers in 802.11a-only mode. 
                     When using madwifi-ng, be sure all non-monitor VAPs have
                      been removed, otherwise madwifi will not properly report
@@ -702,6 +703,7 @@ Licensed under the GPL
     madwifi_b       Atheros             Linux       madwifi
                     http://sourceforge.net/projects/madwifi/
                     Capture interface:  'athX'
+                    Capture interface:  'wifiX' (Madwifi-NG)
                     Madwifi drivers in 802.11b-only mode. 
                     When using madwifi-ng, be sure all non-monitor VAPs have
                      been removed, otherwise madwifi will not properly report
@@ -710,6 +712,7 @@ Licensed under the GPL
     madwifi_g       Atheros             Linux       madwifi
                     http://sourceforge.net/projects/madwifi/
                     Capture interface:  'athX'
+                    Capture interface:  'wifiX' (Madwifi-NG)
                     Madwifi drivers in 802.11g-only mode.  This will, 
                      obviously, also see 11b networks.
                     When using madwifi-ng, be sure all non-monitor VAPs have
@@ -719,6 +722,7 @@ Licensed under the GPL
     madwifi_ab      Atheros             Linux       madwifi
                     http://sourceforge.net/projects/madwifi/
                     Capture interface:  'athX'
+                    Capture interface:  'wifiX' (Madwifi-NG)
                     Madwifi drivers in 802.11a and 802.11b combo mode.  This
                      will seamlessly switch between bands during channel 
                      hopping.
@@ -729,6 +733,7 @@ Licensed under the GPL
     madwifi_ag      Atheros             Linux       madwifi
                     http://sourceforge.net/projects/madwifi/
                     Capture interface:  'athX'
+                    Capture interface:  'wifiX' (Madwifi-NG)
                     Madwifi drivers in 802.11a and 802.11g combo mode.  This
                      will seamlessly switch between bands during channel 
                      hopping.
@@ -742,11 +747,11 @@ Licensed under the GPL
     madwifing_g     Atheros             Linux       madwifi-ng
     madwifing_b     Atheros             Linux       madwifi-ng
                     http://sourceforge.net/projects/madwifi/
-                    Capture interface:  'athX'
+                    Capture interface:  'wifiX'
                     *Deprecated*.  Detection for madwifi-ng is built into
-                    the standard madwifi sources.  The _ng source names
-                    have been kept to allow old configs to continue
-                    functioning.
+                     the standard madwifi sources.  The _ng source names
+                     have been kept to allow old configs to continue
+                     functioning.
 
     orinoco         Lucent, Orinoco     Linux       Patched orinoco_cs
                     http://airsnort.shmoo.com/orinocoinfo.html
