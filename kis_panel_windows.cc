@@ -43,17 +43,17 @@ Kis_Main_Panel::Kis_Main_Panel(GlobalRegistry *in_globalreg,
 	mi_showinput = menu->AddMenuItem("Input", mn_view, 'i');
 
 	mn_sort = menu->AddMenu("Sort", 0);
-	menu->AddMenuItem("Auto-fit", mn_sort, 'a');
+	mi_sort_auto = menu->AddMenuItem("Auto-fit", mn_sort, 'a');
 	menu->AddMenuItem("-", mn_sort, 0);
-	menu->AddMenuItem("Channel", mn_sort, 'c');
-	menu->AddMenuItem("First Seen", mn_sort, 'f');
-	menu->AddMenuItem("First Seen (descending)", mn_sort, 'F');
-	menu->AddMenuItem("Latest Seen", mn_sort, 'l');
-	menu->AddMenuItem("Latest Seen (descending)", mn_sort, 'L');
-	menu->AddMenuItem("BSSID", mn_sort, 'b');
-	menu->AddMenuItem("SSID", mn_sort, 's');
-	menu->AddMenuItem("Packets", mn_sort, 'p');
-	menu->AddMenuItem("Packets (descending)", mn_sort, 'P');
+	mi_sort_chan = menu->AddMenuItem("Channel", mn_sort, 'c');
+	mi_sort_first = menu->AddMenuItem("First Seen", mn_sort, 'f');
+	mi_sort_first_d = menu->AddMenuItem("First Seen (descending)", mn_sort, 'F');
+	mi_sort_last = menu->AddMenuItem("Latest Seen", mn_sort, 'l');
+	mi_sort_last_d = menu->AddMenuItem("Latest Seen (descending)", mn_sort, 'L');
+	mi_sort_bssid = menu->AddMenuItem("BSSID", mn_sort, 'b');
+	mi_sort_ssid = menu->AddMenuItem("SSID", mn_sort, 's');
+	mi_sort_packets = menu->AddMenuItem("Packets", mn_sort, 'p');
+	mi_sort_packets_d = menu->AddMenuItem("Packets (descending)", mn_sort, 'P');
 
 	// mn_tools = menu->AddMenu("Tools", 0);
 	mn_cmds = menu->AddMenu("Cmds", 0);
@@ -83,6 +83,8 @@ Kis_Main_Panel::Kis_Main_Panel(GlobalRegistry *in_globalreg,
 
 	active_component = statustext;
 	comp_vec.push_back(statustext);
+
+	sortmode = KIS_SORT_AUTO;
 
 	SetTitle("Kismet Newcore Client");
 }
@@ -128,15 +130,41 @@ int Kis_Main_Panel::KeyPress(int in_key) {
 		// Menu processed an event, do something with it
 		if (ret == mi_quit) {
 			return -1;
-		}
-
-		if (ret == mi_connect) {
+		} else if (ret == mi_connect) {
 			Kis_Connect_Panel *cp = new Kis_Connect_Panel(globalreg, kpinterface);
 			cp->Position((LINES / 2) - 4, (COLS / 2) - 20, 8, 40);
 			globalreg->panel_interface->AddPanel(cp);
-		}
-
-		if (ret == mi_addcard) {
+		} else if (ret == mi_sort_auto) {
+			sortmode = KIS_SORT_AUTO;
+			_MSG("Auto-fit sorting", MSGFLAG_INFO);
+		} else if (ret == mi_sort_chan) {
+			sortmode = KIS_SORT_CHANNEL;
+			_MSG("Sorting by channel...", MSGFLAG_INFO);
+		} else if (ret == mi_sort_first) {
+			sortmode = KIS_SORT_FIRST;
+			_MSG("Sorting by first-seen time...", MSGFLAG_INFO);
+		} else if (ret == mi_sort_first_d) {
+			sortmode = KIS_SORT_FIRST_D;
+			_MSG("Sorting by first-seen time (descending)...", MSGFLAG_INFO);
+		} else if (ret == mi_sort_last) {
+			sortmode = KIS_SORT_LAST;
+			_MSG("Sorting by last-seen time...", MSGFLAG_INFO);
+		} else if (ret == mi_sort_last_d) {
+			sortmode = KIS_SORT_LAST_D;
+			_MSG("Sorting by last-seen time (descending)...", MSGFLAG_INFO);
+		} else if (ret == mi_sort_bssid) {
+			sortmode = KIS_SORT_BSSID;
+			_MSG("Sorting by BSSID...", MSGFLAG_INFO);
+		} else if (ret == mi_sort_ssid) {
+			sortmode = KIS_SORT_SSID;
+			_MSG("Sorting by SSID...", MSGFLAG_INFO);
+		} else if (ret == mi_sort_packets) {
+			sortmode = KIS_SORT_PACKETS;
+			_MSG("Sorting by packet count...", MSGFLAG_INFO);
+		} else if (ret == mi_sort_packets_d) {
+			sortmode = KIS_SORT_PACKETS_D;
+			_MSG("Sorting by packet count (descending)...", MSGFLAG_INFO);
+		} else if (ret == mi_addcard) {
 			vector<KisNetClient *> *cliref = kpinterface->FetchNetClientVecPtr();
 			if (cliref->size() == 0) {
 				kpinterface->RaiseAlert("No servers",
@@ -306,11 +334,10 @@ Kis_ModalAlert_Panel::Kis_ModalAlert_Panel(GlobalRegistry *in_globalreg,
 	comp_vec.push_back(ftxt);
 	comp_vec.push_back(ackbutton);
 
-	tab_components.push_back(ftxt);
 	tab_components.push_back(ackbutton);
 	tab_pos = 0;
 
-	active_component = ftxt;
+	active_component = ackbutton;
 
 	SetTitle("");
 
@@ -326,8 +353,8 @@ void Kis_ModalAlert_Panel::Position(int in_sy, int in_sx, int in_y, int in_x) {
 	ftxt->SetPosition(win, 1, 1, in_x - 2, in_y - 3);
 	ackbutton->SetPosition(win, (in_x / 2) - 7, in_y - 2, 14, 1);
 
-	ftxt->Activate(1);
-	active_component = ftxt;
+	ackbutton->Activate(1);
+	active_component = ackbutton;
 
 	ftxt->Show();
 	ackbutton->Show();

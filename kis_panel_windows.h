@@ -35,6 +35,17 @@ class KisPanelInterface;
 	KisNetClient *picked, void *auxptr
 typedef void (*kpi_sl_cb_hook)(KPI_SL_CB_PARMS);
 
+#define KIS_SORT_AUTO		0
+#define KIS_SORT_CHANNEL	1
+#define KIS_SORT_FIRST		2
+#define KIS_SORT_FIRST_D	3
+#define KIS_SORT_LAST		4
+#define KIS_SORT_LAST_D		5
+#define KIS_SORT_BSSID		6
+#define KIS_SORT_SSID		7
+#define KIS_SORT_PACKETS	8
+#define KIS_SORT_PACKETS_D	9
+
 class Kis_Main_Panel : public Kis_Panel {
 public:
 	Kis_Main_Panel() {
@@ -53,8 +64,16 @@ protected:
 
 	int mn_file, mn_view, mn_sort, mn_tools, mn_cmds;
 	int mi_connect, mi_quit;
+
 	int mi_showtext, mi_showfields, mi_showinput;
+
+	int mi_sort_auto, mi_sort_chan, mi_sort_first, mi_sort_first_d,
+		mi_sort_last, mi_sort_last_d, mi_sort_bssid, mi_sort_ssid,
+		mi_sort_packets, mi_sort_packets_d;
+
 	int mi_addcard;
+
+	int sortmode;
 
 	KisStatusText_Messageclient *statuscli;
 	Kis_Status_Text *statustext;
