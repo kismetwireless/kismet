@@ -44,6 +44,8 @@ public:
 
 	// Connect to a server string, proto://host:port
 	virtual int Connect(string in_host, int in_reconnect);
+	virtual string FetchHost() { return host; }
+	virtual int FetchPort() { return port; }
 
 	virtual void AddConfCallback(CliConf_Callback in_cb, int in_recon, void *in_aux);
 	virtual void RemoveConfCallback(CliConf_Callback in_cb);

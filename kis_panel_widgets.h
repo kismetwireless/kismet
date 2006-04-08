@@ -48,7 +48,7 @@
 #define FILTER_ALPHANUMSYM "ABCDEFGHIJKLMNOPQRSTUVWXYZ" \
 	"abcdefghijklmnopqrstuvwxyz" \
 	"0123456789 " \
-	".,~!@#$%^&*()_-+/"
+	".,~!@#$%^&*()_-+/:"
 #define FILTER_NUM "0123456789"
 
 // Functor-style handler for special text.  Provides an alternate to the

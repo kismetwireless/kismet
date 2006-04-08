@@ -56,6 +56,7 @@ public:
 	virtual int AddNetClient(string in_host, int in_reconnect);
 	// Fetch a list of clients
 	virtual vector<KisNetClient *> FetchNetClientVec();
+	virtual vector<KisNetClient *> *FetchNetClientVecPtr();
 	// Remove a client
 	virtual int RemoveNetClient(KisNetClient *in_cli);
 	// Configured client callback
@@ -63,6 +64,10 @@ public:
 
 	// Bring up a modal alert
 	virtual void RaiseAlert(string in_title, string in_text);
+
+	// Bring up a modal picker for connected servers
+	virtual void RaiseServerPicker(string in_title, kpi_sl_cb_hook in_hook,
+								   void *in_aux);
 
 	// Internal structure for tracking cards
 	typedef struct knc_card {

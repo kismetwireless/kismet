@@ -25,9 +25,15 @@
 #if (defined(HAVE_LIBNCURSES) || defined (HAVE_LIBCURSES))
 
 #include "globalregistry.h"
+#include "kis_clinetframe.h"
 #include "kis_panel_widgets.h"
 
 class KisPanelInterface;
+
+// Callback for the frontend to pick a server
+#define KPI_SL_CB_PARMS GlobalRegistry *globalreg, KisPanelInterface *kpi, \
+	KisNetClient *picked, void *auxptr
+typedef void (*kpi_sl_cb_hook)(KPI_SL_CB_PARMS);
 
 class Kis_Main_Panel : public Kis_Panel {
 public:
@@ -48,6 +54,7 @@ protected:
 	int mn_file, mn_view, mn_sort, mn_tools;
 	int mi_connect, mi_quit;
 	int mi_showtext, mi_showfields, mi_showinput;
+	int mi_addcard;
 
 	KisStatusText_Messageclient *statuscli;
 	Kis_Status_Text *statustext;
@@ -78,6 +85,40 @@ protected:
 	vector<Kis_Panel_Component *> tab_components;
 	int tab_pos;
 };
+
+class Kis_AddCard_Panel : public Kis_Panel {
+public:
+	Kis_AddCard_Panel() {
+		fprintf(stderr, "FATAL OOPS: Kis_AddCard_Panel called w/out globalreg\n");
+		exit(1);
+	}
+
+	Kis_AddCard_Panel(GlobalRegistry *in_globalreg, KisPanelInterface *in_kpf);
+	virtual ~Kis_AddCard_Panel();
+
+	virtual void Position(int in_sy, int in_sx, int in_y, int in_x);
+	virtual void DrawPanel();
+	virtual int KeyPress(int in_key);
+
+	virtual void SetTargetClient(KisNetClient *in_cli);
+
+protected:
+	KisPanelInterface *kpinterface;
+
+	KisNetClient *target_cli;
+
+	Kis_Single_Input *srctype;
+	Kis_Single_Input *srciface;
+	Kis_Single_Input *srcname;
+	Kis_Button *okbutton;
+	Kis_Button *cancelbutton;
+
+	vector<Kis_Panel_Component *> tab_components;
+	int tab_pos;
+};
+
+// AddCard callback to trigger building the window
+void sp_addcard_cb(KPI_SL_CB_PARMS);
 
 class Kis_ServerList_Panel : public Kis_Panel {
 public:
@@ -116,6 +157,32 @@ public:
 protected:
 	KisPanelInterface *kpinterface;
 	Kis_Scrollable_Table *cardlist;
+};
+
+class Kis_ServerList_Picker : public Kis_Panel {
+public:
+	Kis_ServerList_Picker() {
+		fprintf(stderr, "FATAL OOPS: Kis_ServerList_Picker called w/out globalreg\n");
+		exit(1);
+	}
+
+	Kis_ServerList_Picker(GlobalRegistry *in_globalreg, KisPanelInterface *in_intf);
+	virtual ~Kis_ServerList_Picker();
+
+	virtual void Position(int in_sy, int in_sx, int in_y, int in_x);
+	virtual void DrawPanel();
+	virtual int KeyPress(int in_key);
+
+	virtual void ConfigurePicker(string in_title, kpi_sl_cb_hook in_hook,
+								 void *in_aux);
+
+protected:
+	KisPanelInterface *kpinterface;
+	Kis_Scrollable_Table *srvlist;
+
+	kpi_sl_cb_hook cb_hook;
+	void *cb_aux;
+	vector<KisNetClient *> *netcliref;
 };
 
 class Kis_ModalAlert_Panel : public Kis_Panel {

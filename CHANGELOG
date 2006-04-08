@@ -1,3 +1,5 @@
+Apr 07 2006  devel  Added server picker window
+                    Added "add source" window
 Mar 20 2006  devel  Added keepalive to drone protocol
 Mar 12 2006  devel  I know it's been a while, stuff going on in life, sorry.
                     Added CARD protocol support to kp_frontend

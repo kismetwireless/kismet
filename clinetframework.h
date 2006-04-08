@@ -151,6 +151,12 @@ public:
 
     // Shutdown the protocol
     virtual int Shutdown();
+
+	// Is the connection valid?
+	virtual int Valid() {
+		if (netclient == NULL) return 0;
+		return netclient->Valid();
+	}
     
 protected:
     char errstr[STATUS_MAX];

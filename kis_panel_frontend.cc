@@ -171,6 +171,10 @@ vector<KisNetClient *> KisPanelInterface::FetchNetClientVec() {
 	return netclient_vec;
 }
 
+vector<KisNetClient *> *KisPanelInterface::FetchNetClientVecPtr() {
+	return &netclient_vec;
+}
+
 int KisPanelInterface::RemoveNetClient(KisNetClient *in_cli) {
 	for (unsigned int x = 0; x < netclient_vec.size(); x++) {
 		if (netclient_vec[x] == in_cli) {
@@ -214,6 +218,17 @@ void KisPanelInterface::RaiseAlert(string in_title, string in_text) {
 	
 	globalreg->panel_interface->AddPanel(ma);
 
+}
+
+void KisPanelInterface::RaiseServerPicker(string in_title, kpi_sl_cb_hook in_hook,
+										  void *in_aux) {
+	Kis_ServerList_Picker *slp = new Kis_ServerList_Picker(globalreg, this);
+
+	slp->Position((LINES / 2) - 5, (COLS / 2) - 25, 10, 50);
+
+	slp->ConfigurePicker(in_title, in_hook, in_aux);
+
+	globalreg->panel_interface->AddPanel(slp);
 }
 
 map<uuid, KisPanelInterface::knc_card *> *KisPanelInterface::FetchNetCardMap() {
