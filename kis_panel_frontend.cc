@@ -224,7 +224,7 @@ void KisPanelInterface::RaiseServerPicker(string in_title, kpi_sl_cb_hook in_hoo
 										  void *in_aux) {
 	Kis_ServerList_Picker *slp = new Kis_ServerList_Picker(globalreg, this);
 
-	slp->Position((LINES / 2) - 5, (COLS / 2) - 25, 10, 50);
+	slp->Position((LINES / 2) - 5, (COLS / 2) - 17, 10, 34);
 
 	slp->ConfigurePicker(in_title, in_hook, in_aux);
 

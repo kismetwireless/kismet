@@ -55,8 +55,9 @@ Kis_Main_Panel::Kis_Main_Panel(GlobalRegistry *in_globalreg,
 	menu->AddMenuItem("Packets", mn_sort, 'p');
 	menu->AddMenuItem("Packets (descending)", mn_sort, 'P');
 
-	mn_tools = menu->AddMenu("Tools", 0);
-	mi_addcard = menu->AddMenuItem("Add Card...", mn_tools, 'A');
+	// mn_tools = menu->AddMenu("Tools", 0);
+	mn_cmds = menu->AddMenu("Cmds", 0);
+	mi_addcard = menu->AddMenuItem("Add Source...", mn_cmds, 'A');
 
 #if 0
 	mn_tools = menu->AddMenu("Tools", 0);
@@ -186,8 +187,8 @@ Kis_Connect_Panel::Kis_Connect_Panel(GlobalRegistry *in_globalreg,
 
 	tab_components.push_back(hostname);
 	tab_components.push_back(hostport);
-	tab_components.push_back(cancelbutton);
 	tab_components.push_back(okbutton);
+	tab_components.push_back(cancelbutton);
 	tab_pos = 0;
 
 	active_component = hostname;
@@ -515,7 +516,7 @@ void Kis_ServerList_Picker::ConfigurePicker(string in_title, kpi_sl_cb_hook in_h
 void sp_addcard_cb(KPI_SL_CB_PARMS) {
 	Kis_AddCard_Panel *acp = new Kis_AddCard_Panel(globalreg, kpi);
 
-	acp->Position((LINES / 2) - 5, (COLS / 2) - 20, 15, 40);
+	acp->Position((LINES / 2) - 5, (COLS / 2) - 17, 10, 34);
 
 	acp->SetTargetClient(picked);
 
@@ -538,14 +539,14 @@ Kis_AddCard_Panel::Kis_AddCard_Panel(GlobalRegistry *in_globalreg,
 	comp_vec.push_back(srctype);
 	comp_vec.push_back(srciface);
 	comp_vec.push_back(srcname);
-	comp_vec.push_back(cancelbutton);
 	comp_vec.push_back(okbutton);
+	comp_vec.push_back(cancelbutton);
 
 	tab_components.push_back(srctype);
 	tab_components.push_back(srciface);
 	tab_components.push_back(srcname);
-	tab_components.push_back(cancelbutton);
 	tab_components.push_back(okbutton);
+	tab_components.push_back(cancelbutton);
 	tab_pos = 0;
 
 	active_component = srctype;
@@ -577,7 +578,7 @@ void Kis_AddCard_Panel::Position(int in_sy, int in_sx, int in_y, int in_x) {
 	Kis_Panel::Position(in_sy, in_sx, in_y, in_x);
 
 	srctype->SetPosition(win, 2, 2, in_x - 6, 1);
-	srciface->SetPosition(win, 2, 4, in_x - 6, 1);
+	srciface->SetPosition(win, 2, 4, in_x - 15, 1);
 	srcname->SetPosition(win, 2, 6, in_x - 6, 1);
 	okbutton->SetPosition(win, in_x - 15, in_y - 2, 10, 1);
 	cancelbutton->SetPosition(win, in_x - 15 - 2 - 15, in_y - 2, 10, 1);
@@ -634,28 +635,36 @@ int Kis_AddCard_Panel::KeyPress(int in_key) {
 		if (active_component == okbutton && ret == 1) {
 			if (srctype->GetText() == "") {
 				kpinterface->RaiseAlert("No source type",
-										"No source type was provided for creating\n"
-										"a new source.  A source type is required.\n");
+										"No source type was provided for\n"
+										"creating a new source.  A source\n"
+										"type is required.\n");
 				return(0);
 			}
 
 			if (srciface->GetText() == "") {
 				kpinterface->RaiseAlert("No source interface",
 										"No source interface was provided for\n"
-										"creating a new source.  A source interface\n"
-										"is required.\n");
+										"creating a new source.  A source\n"
+										"interface is required.\n");
 				return(0);
 			}
 
 			if (srcname->GetText() == "") {
 				kpinterface->RaiseAlert("No source name",
-										"No source name was provided for creating\n"
-										"a new source.  A source name is required.\n");
+										"No source name was provided for\n"
+										"creating a new source.  A source name\n"
+										"is required.\n");
 				return(0);
 			}
 
 			if (target_cli == NULL) {
 				globalreg->panel_interface->KillPanel(this);
+				return(0);
+			}
+
+			if (target_cli->Valid() == 0) {
+				kpinterface->RaiseAlert("Server unavailable",
+										"The selected server is not available.\n");
 				return(0);
 			}
 

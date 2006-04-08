@@ -288,10 +288,12 @@ void Kis_Menu::DrawComponent() {
 	if (visible == 0)
 		return;
 
-	int hpos = 1;
+	int hpos = 3;
 
 	if (menuwin == NULL)
 		menuwin = derwin(window, 1, 1, 0, 0);
+
+	mvwaddstr(window, sy, sx + 1, "~");
 
 	// Draw the menu bar itself
 	for (unsigned int x = 0; x < menubar.size(); x++) {
