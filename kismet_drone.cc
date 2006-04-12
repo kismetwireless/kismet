@@ -57,6 +57,9 @@ GPSD *gps = NULL;
 int gpsmode = 0;
 int gps_enable = 0;
 
+// Unused, only here to make packetsourcetracker link
+int retain_monitor = 0;
+
 // Timetracker
 Timetracker timetracker;
 

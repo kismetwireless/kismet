@@ -202,6 +202,7 @@ int datainterval = 0;
 string logtemplate;
 
 int channel_hop;
+int retain_monitor;
 
 // More globals!  Sure!  Why not!  This will all go away in newcore anyhow
 // Do we use the network classifier to determine if a data frame should be
@@ -1167,6 +1168,7 @@ int Usage(char *argv) {
            "  -p, --port <port>            TCPIP server port for GUI connections\n"
            "  -a, --allowed-hosts <hosts>  Comma separated list of hosts allowed to connect\n"
            "  -b, --bind-address <address>    Bind to this address. Default INADDR_ANY\n."
+		   "  -r, --retain-monitor         Leave card in monitor mode on exit\n"
            "  -s, --silent                 Don't send any output to console.\n"
            "  -N, --server-name            Server name\n"
            "  -v, --version                Kismet version\n"
@@ -2025,6 +2027,7 @@ int main(int argc,char *argv[]) {
         wep_identity[wi] = wi;
 
     channel_hop = -1;
+	retain_monitor = 0;
     int channel_velocity = 1;
     int channel_dwell = 0;
     int channel_split = 0;
@@ -2066,6 +2069,7 @@ int main(int argc,char *argv[]) {
         { "initial-channel", required_argument, 0, 'I' },
         { "force-channel-hop", no_argument, 0, 'x' },
         { "force-no-channel-hop", no_argument, 0, 'X' },
+		{ "retain-monitor", no_argument, 0, 'r' },
         // No this isn't documented, and no, you shouldn't be screwing with it
         { "microsleep", required_argument, 0, 'M' },
         { 0, 0, 0, 0 }
@@ -2080,7 +2084,7 @@ int main(int argc,char *argv[]) {
     signal(SIGPIPE, CatchShutdown);
 
     while(1) {
-        int r = getopt_long(argc, argv, "d:M:t:nf:c:C:l:m:g:a:b:p:N:I:xXqhvs",
+        int r = getopt_long(argc, argv, "d:M:t:nf:c:C:l:m:g:a:b:p:N:I:xXqhvsr",
                             long_options, &option_index);
         if (r < 0) break;
         switch(r) {
@@ -2186,6 +2190,10 @@ int main(int argc,char *argv[]) {
             channel_hop = 0;
             fprintf(stderr, "Ignoring config file and disabling channel hopping.\n");
             break;
+		case 'r':
+			retain_monitor = 1;
+			fprintf(stderr, "Retaining monitor mode on exit\n");
+			break;
         case 'I':
             // Initial channel
             src_initchannel_vec.push_back(optarg);

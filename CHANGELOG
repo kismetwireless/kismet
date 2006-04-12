@@ -1,3 +1,4 @@
+Apr 12 2006  devel  Added --retain-monitor cmdline option on request
 Mar 31 2006  devel  Added setting madwifi-ng to radiotap mode
                     Fixed several crashes due to not checking noise/junk
                      packet params

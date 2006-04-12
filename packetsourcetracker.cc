@@ -21,6 +21,9 @@
 #include "util.h"
 #include "packetsourcetracker.h"
 
+// Ugly hack reference to retain monitor from command line
+extern int retain_monitor;
+
 Packetsourcetracker::Packetsourcetracker() {
     next_packsource_id = 0;
     next_meta_id = 0;
@@ -769,7 +772,7 @@ int Packetsourcetracker::CloseSources() {
         meta->valid = 0;
 
         // Unmonitor if we can
-        if (meta->prototype->monitor_disable != NULL) {
+        if (meta->prototype->monitor_disable != NULL && retain_monitor == 0) {
             int umon_ret = 0;
             if ((umon_ret = 
                  (*meta->prototype->monitor_disable)(meta->capsource->FetchInterface(), 0, 
