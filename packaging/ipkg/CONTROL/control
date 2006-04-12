@@ -1,7 +1,7 @@
 Package: kismet
 Section: extras
 Priority: optional
-Version: 2005-08-R1
+Version: 2006-04-R1
 Architecture: arm
 Maintainer: Mike Kershaw <dragorn@kismetwireless.net>
 Description: 802.11 network sniffer and analyser
