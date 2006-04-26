@@ -2054,7 +2054,10 @@ int monitor_ipwlivetap(const char *in_dev, int initch, char *in_err,
 		return -1;
 	}
 
-	fgets(dynif, 32, sysf);
+	if (fgets(dynif, 32, sysf) == NULL) {
+	        fclose(sysf);
+	        return -1;
+	}
 
 	// We're done with the RO 
 	fclose(sysf);
@@ -2084,7 +2087,10 @@ int monitor_ipwlivetap(const char *in_dev, int initch, char *in_err,
 			return -1;
 		}
 
-		fgets(dynif, 32, sysf);
+		if (fgets(dynif, 32, sysf) == NULL) {
+		        fclose(sysf);
+			return -1;
+		}
 
 		fclose(sysf);
 
@@ -2446,6 +2452,7 @@ int monitor_openbsd_prism2(const char *in_dev, int initch, char *in_err, void **
         close(s);
         snprintf(in_err, 1024, "Power management ioctl failed: %s",
                  strerror(errno));
+        return -1;
     }
 
     // Lower AP density, better radio threshold settings? 
@@ -2458,6 +2465,7 @@ int monitor_openbsd_prism2(const char *in_dev, int initch, char *in_err, void **
         close(s);
         snprintf(in_err, 1024, "AP Density ioctl failed: %s",
                  strerror(errno));
+        return -1;
     }
 
     // Enable driver processing of 802.11b frames
@@ -2483,6 +2491,7 @@ int monitor_openbsd_prism2(const char *in_dev, int initch, char *in_err, void **
         close(s);
         snprintf(in_err, 1024, "Roaming disable ioctl failed: %s",
                  strerror(errno));
+        return -1;
     }
 
     // Enable monitor mode
@@ -2750,7 +2759,7 @@ bool RadiotapBSD::getmediaopt(int& options, int& mode) {
         return false;
 
     memset(&ifmr, 0, sizeof(ifmr));
-    strncpy(ifmr.ifm_name, ifname.c_str(), sizeof(ifmr.ifm_name));
+    strncpy(ifmr.ifm_name, ifname.c_str(), sizeof(ifmr.ifm_name)-1);
 
     /*
      * We must go through the motions of reading all
@@ -2775,7 +2784,7 @@ bool RadiotapBSD::setmediaopt(int options, int mode) {
         return false;
 
     memset(&ifmr, 0, sizeof(ifmr));
-    strncpy(ifmr.ifm_name, ifname.c_str(), sizeof(ifmr.ifm_name));
+    strncpy(ifmr.ifm_name, ifname.c_str(), sizeof(ifmr.ifm_name)-1);
 
     /*
      * We must go through the motions of reading all
@@ -2803,7 +2812,7 @@ bool RadiotapBSD::setmediaopt(int options, int mode) {
     delete mwords;
 
     memset(&ifr, 0, sizeof(ifr));
-    strncpy(ifr.ifr_name, ifname.c_str(), sizeof(ifr.ifr_name));
+    strncpy(ifr.ifr_name, ifname.c_str(), sizeof(ifr.ifr_name)-1);
     ifr.ifr_media = (ifmr.ifm_current &~ IFM_OMASK) | options;
     ifr.ifr_media = (ifr.ifr_media &~ IFM_MMASK) | IFM_MAKEMODE(mode);
 
@@ -2857,7 +2866,7 @@ bool RadiotapBSD::get80211(int type, int& val, int len, u_int8_t *data) {
     if (!checksocket())
         return false;
     memset(&ireq, 0, sizeof(ireq));
-    strncpy(ireq.i_name, ifname.c_str(), sizeof(ireq.i_name));
+    strncpy(ireq.i_name, ifname.c_str(), sizeof(ireq.i_name)-1);
     ireq.i_type = type;
     ireq.i_len = len;
     ireq.i_data = data;
@@ -2875,7 +2884,7 @@ bool RadiotapBSD::set80211(int type, int val, int len, u_int8_t *data) {
     if (!checksocket())
 	return false;
     memset(&ireq, 0, sizeof(ireq));
-    strncpy(ireq.i_name, ifname.c_str(), sizeof(ireq.i_name));
+    strncpy(ireq.i_name, ifname.c_str(), sizeof(ireq.i_name)-1);
     ireq.i_type = type;
     ireq.i_val = val;
     ireq.i_len = len;
@@ -2892,6 +2901,7 @@ bool RadiotapBSD::getifflags(int& flags) {
         return false;
 
     strncpy(ifr.ifr_name, ifname.c_str(), sizeof (ifr.ifr_name));
+    ifr.ifr_name[sizeof (ifr.ifr_name)-1] = '\0';
     if (ioctl(s, SIOCGIFFLAGS, (caddr_t)&ifr) < 0) {
         perror("SIOCGIFFLAGS ioctl failed");
         return false;

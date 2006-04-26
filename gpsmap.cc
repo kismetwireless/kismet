@@ -2212,7 +2212,9 @@ void DrawNetPower(vector<gps_network *> in_nets, Image *in_img,
     // Now wait for the threads to complete and come back
     int thread_status;
     for (int t = 0; t < numthreads; t++) {
-        pthread_join(mapthread[t], (void **) &thread_status);
+        void *tmp;
+        pthread_join(mapthread[t], &tmp);
+	thread_status = reinterpret_cast<int>(tmp);
     }
 #else
     // Run one instance of our "thread".  thread number 0, it should just crunch it all
@@ -4178,7 +4180,10 @@ int main(int argc, char *argv[]) {
         } else {
             char geturl[1024];
             snprintf(geturl, 1024, download_template, url, mapname);
-            system(geturl);
+            if (system(geturl)!=0) {
+	      fprintf(stderr, "WARNING: failed to execute '%s'\n", geturl);
+	      exit(1);
+	    }
         }
 
         printf("Loading map into Imagemagick structures.\n");

@@ -66,27 +66,27 @@ public:
 
 protected:
     typedef struct {
-        uint32_t did __attribute__ ((packed));
-        uint16_t status __attribute__ ((packed));
-        uint16_t len __attribute__ ((packed));
-        uint32_t data __attribute__ ((packed));
-    } p80211item_t;
+        uint32_t did;
+        uint16_t status;
+        uint16_t len;
+        uint32_t data;
+    } __attribute__((__packed__)) p80211item_t;
 
     typedef struct {
-        uint32_t msgcode __attribute__ ((packed));
-        uint32_t msglen __attribute__ ((packed));
-        uint8_t devname[DEVNAME_LEN] __attribute__ ((packed));
-        p80211item_t hosttime __attribute__ ((packed));
-        p80211item_t mactime __attribute__ ((packed));
-        p80211item_t channel __attribute__ ((packed));
-        p80211item_t rssi __attribute__ ((packed));
-        p80211item_t sq __attribute__ ((packed));
-        p80211item_t signal __attribute__ ((packed));
-        p80211item_t noise __attribute__ ((packed));
-        p80211item_t rate __attribute__ ((packed));
-        p80211item_t istx __attribute__ ((packed));
-        p80211item_t frmlen __attribute__ ((packed));
-    } sniff_packet_t;
+        uint32_t msgcode;
+        uint32_t msglen;
+        uint8_t devname[DEVNAME_LEN];
+        p80211item_t hosttime;
+        p80211item_t mactime;
+        p80211item_t channel;
+        p80211item_t rssi;
+        p80211item_t sq;
+        p80211item_t signal;
+        p80211item_t noise;
+        p80211item_t rate;
+        p80211item_t istx;
+        p80211item_t frmlen;
+    } __attribute__ ((__packed__)) sniff_packet_t;
 
     int Prism2Common(kis_packet *packet, uint8_t *data, uint8_t *moddata);
 

@@ -94,6 +94,7 @@ main(int argc, char **argv)
 
   // Figure out program name. Remove path if needed.
   strncpy(pname,argv[0],sizeof(pname));
+  pname[sizeof(pname)-1] = '\0';
   if ((progname = rindex(pname,'/')) != NULL) {
      progname++; // skip slash.
   }

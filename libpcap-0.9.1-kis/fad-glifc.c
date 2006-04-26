@@ -213,6 +213,7 @@ pcap_findalldevs(pcap_if_t **alldevsp, char *errbuf)
 		 */
 		strncpy(ifrflags.lifr_name, ifrp->lifr_name,
 		    sizeof(ifrflags.lifr_name));
+		ifrflags.lifr_name[sizeof(ifrflags.lifr_name)-1] = '\0';
 		if (ioctl(fd, SIOCGLIFFLAGS, (char *)&ifrflags) < 0) {
 			if (errno == ENXIO)
 				continue;
@@ -232,6 +233,7 @@ pcap_findalldevs(pcap_if_t **alldevsp, char *errbuf)
 		 */
 		strncpy(ifrnetmask.lifr_name, ifrp->lifr_name,
 		    sizeof(ifrnetmask.lifr_name));
+		ifrnetmask.lifr_name[sizeof(ifrnetmask.lifr_name)-1] = '\0';
 		memcpy(&ifrnetmask.lifr_addr, &ifrp->lifr_addr,
 		    sizeof(ifrnetmask.lifr_addr));
 		if (ioctl(fd, SIOCGLIFNETMASK, (char *)&ifrnetmask) < 0) {
@@ -259,6 +261,7 @@ pcap_findalldevs(pcap_if_t **alldevsp, char *errbuf)
 		if (ifrflags.lifr_flags & IFF_BROADCAST) {
 			strncpy(ifrbroadaddr.lifr_name, ifrp->lifr_name,
 			    sizeof(ifrbroadaddr.lifr_name));
+			ifrbroadaddr.lifr_name[sizeof(ifrbroadaddr.lifr_name)-1] = '\0';
 			memcpy(&ifrbroadaddr.lifr_addr, &ifrp->lifr_addr,
 			    sizeof(ifrbroadaddr.lifr_addr));
 			if (ioctl(fd, SIOCGLIFBRDADDR,
@@ -294,6 +297,7 @@ pcap_findalldevs(pcap_if_t **alldevsp, char *errbuf)
 		if (ifrflags.lifr_flags & IFF_POINTOPOINT) {
 			strncpy(ifrdstaddr.lifr_name, ifrp->lifr_name,
 			    sizeof(ifrdstaddr.lifr_name));
+			ifrdstaddr.lifr_name[sizeof(ifrdstaddr.lifr_name)-1] = '\0';
 			memcpy(&ifrdstaddr.lifr_addr, &ifrp->lifr_addr,
 			    sizeof(ifrdstaddr.lifr_addr));
 			if (ioctl(fd, SIOCGLIFDSTADDR,

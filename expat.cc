@@ -52,7 +52,7 @@ cdp_packet *building_cdp;
 // Vector of networks
 vector<wireless_network *> netvec;
 
-char net_kisversion[32];
+char net_kisversion[33];
 time_t net_run_start, net_run_end;
 
 // Every fricking possible XML node.
@@ -192,12 +192,14 @@ int NetXmlStr2Struct(wireless_network *in_net) {
         return -1;
     }
 
-    if (sscanf(xmlstrnodes[net_node_wn_maxrate].c_str(), "%f", (float *) &in_net->maxrate) < 1) {
+    float	tmpmaxrate;
+    if (sscanf(xmlstrnodes[net_node_wn_maxrate].c_str(), "%f", &tmpmaxrate) < 1) {
         if (verbose)
             fprintf(stderr, "WARNING:  Illegal maxrate '%s', skipping rest of network.\n",
                     xmlstrnodes[net_node_wn_maxrate].c_str());
         return -1;
     }
+    in_net->maxrate = tmpmaxrate;
 
     if (sscanf(xmlstrnodes[net_node_pk_LLC].c_str(), "%d", &in_net->llc_packets) < 1) {
         if (verbose)

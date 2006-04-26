@@ -107,7 +107,8 @@ int Prism2Source::FetchPacket(kis_packet *packet, uint8_t *data, uint8_t *moddat
 
     if (FD_ISSET(read_sock, &rs)) {
         char a;
-        read(read_sock, &a, 1);
+        if (read(read_sock, &a, 1)!=1)
+	  return -1;
     }
 
 //    u_char buf[MAX_PACKET_LEN];

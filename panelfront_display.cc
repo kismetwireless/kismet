@@ -19,6 +19,7 @@
 #include "config.h"
 
 #include <math.h>
+#include <sys/param.h>
 
 #include "panelfront.h"
 #include "displaynetworksort.h"
@@ -1475,9 +1476,8 @@ int PanelFront::DetailsPrinter(void *in_window) {
     char output[1024];
     kwin->text.clear();
 
-    int print_width = kwin->print_width;
-    if (print_width > 1024)
-        print_width = 1023;
+    size_t const print_width = MIN(static_cast<size_t>(kwin->print_width),
+				   sizeof(output));
 
 	if (details_network == NULL) {
 		kwin->text.push_back("The network or group being displayed");
@@ -1918,9 +1918,8 @@ int PanelFront::GpsPrinter(void *in_window) {
 
     wireless_network *dnet = details_network->virtnet;
 
-    int print_width = kwin->print_width;
-    if (print_width > 1024)
-        print_width = 1023;
+    size_t const print_width = MIN(static_cast<size_t>(kwin->print_width),
+				   sizeof(output));
 
     if (print_width < 32) {
         kwin->text.push_back("Display not wide enough");
@@ -2603,7 +2602,8 @@ int PanelFront::StatsPrinter(void *in_window) {
     vector<string> details_text;
     char output[1024];
 
-    const int print_width = kwin->print_width;
+    const size_t print_width = MIN(static_cast<size_t>(kwin->print_width),
+				   sizeof(output));
 
     snprintf(output, print_width, "Start   : %.24s", ctime((const time_t *) &start_time));
     details_text.push_back(output);
@@ -2921,9 +2921,8 @@ int PanelFront::DetailsClientPrinter(void *in_window) {
     char temp[1024];
     kwin->text.clear();
 
-    int print_width = kwin->print_width;
-    if (print_width > 1024)
-        print_width = 1023;
+    size_t const print_width = MIN(static_cast<size_t>(kwin->print_width),
+				   sizeof(output));
 
     switch (details_client->type) {
     case client_fromds:

@@ -1496,7 +1496,7 @@ iface_get_id(int fd, const char *device, char *ebuf)
 	struct ifreq	ifr;
 
 	memset(&ifr, 0, sizeof(ifr));
-	strncpy(ifr.ifr_name, device, sizeof(ifr.ifr_name));
+	strncpy(ifr.ifr_name, device, sizeof(ifr.ifr_name)-1);
 
 	if (ioctl(fd, SIOCGIFINDEX, &ifr) == -1) {
 		snprintf(ebuf, PCAP_ERRBUF_SIZE,
@@ -1598,7 +1598,7 @@ static void	pcap_close_linux( pcap_t *handle )
 		 * kernels.
 		 */
 		memset(&ifr, 0, sizeof(ifr));
-		strncpy(ifr.ifr_name, handle->md.device, sizeof(ifr.ifr_name));
+		strncpy(ifr.ifr_name, handle->md.device, sizeof(ifr.ifr_name)-1);
 		if (ioctl(handle->fd, SIOCGIFFLAGS, &ifr) == -1) {
 			fprintf(stderr,
 			    "Can't restore interface flags (SIOCGIFFLAGS failed: %s).\n"
@@ -1714,7 +1714,7 @@ live_open_old(pcap_t *handle, const char *device, int promisc,
 
 		if (promisc) {
 			memset(&ifr, 0, sizeof(ifr));
-			strncpy(ifr.ifr_name, device, sizeof(ifr.ifr_name));
+			strncpy(ifr.ifr_name, device, sizeof(ifr.ifr_name)-1);
 			if (ioctl(handle->fd, SIOCGIFFLAGS, &ifr) == -1) {
 				snprintf(ebuf, PCAP_ERRBUF_SIZE,
 					 "ioctl: %s", pcap_strerror(errno));
@@ -1792,7 +1792,7 @@ iface_bind_old(int fd, const char *device, char *ebuf)
 	socklen_t	errlen = sizeof(err);
 
 	memset(&saddr, 0, sizeof(saddr));
-	strncpy(saddr.sa_data, device, sizeof(saddr.sa_data));
+	strncpy(saddr.sa_data, device, sizeof(saddr.sa_data)-1);
 	if (bind(fd, &saddr, sizeof(saddr)) == -1) {
 		snprintf(ebuf, PCAP_ERRBUF_SIZE,
 			 "bind: %s", pcap_strerror(errno));
@@ -1831,7 +1831,7 @@ iface_get_mtu(int fd, const char *device, char *ebuf)
 		return BIGGER_THAN_ALL_MTUS;
 
 	memset(&ifr, 0, sizeof(ifr));
-	strncpy(ifr.ifr_name, device, sizeof(ifr.ifr_name));
+	strncpy(ifr.ifr_name, device, sizeof(ifr.ifr_name)-1);
 
 	if (ioctl(fd, SIOCGIFMTU, &ifr) == -1) {
 		snprintf(ebuf, PCAP_ERRBUF_SIZE,
@@ -1851,7 +1851,7 @@ iface_get_arptype(int fd, const char *device, char *ebuf)
 	struct ifreq	ifr;
 
 	memset(&ifr, 0, sizeof(ifr));
-	strncpy(ifr.ifr_name, device, sizeof(ifr.ifr_name));
+	strncpy(ifr.ifr_name, device, sizeof(ifr.ifr_name)-1);
 
 	if (ioctl(fd, SIOCGIFHWADDR, &ifr) == -1) {
 		snprintf(ebuf, PCAP_ERRBUF_SIZE,

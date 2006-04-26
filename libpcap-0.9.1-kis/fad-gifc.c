@@ -188,6 +188,7 @@ scan_proc_net_dev(pcap_if_t **devlistp, int fd, char *errbuf)
 		 * it's not up.
 		 */
 		strncpy(ifrflags.ifr_name, name, sizeof(ifrflags.ifr_name));
+		ifrflags.ifr_name[sizeof(ifrflags.ifr_name)-1] = '\0';
 		if (ioctl(fd, SIOCGIFFLAGS, (char *)&ifrflags) < 0) {
 			if (errno == ENXIO)
 				continue;
@@ -354,6 +355,7 @@ pcap_findalldevs(pcap_if_t **alldevsp, char *errbuf)
 		 */
 		strncpy(ifrflags.ifr_name, ifrp->ifr_name,
 		    sizeof(ifrflags.ifr_name));
+		ifrflags.ifr_name[sizeof(ifrflags.ifr_name)-1] = '\0';
 		if (ioctl(fd, SIOCGIFFLAGS, (char *)&ifrflags) < 0) {
 			if (errno == ENXIO)
 				continue;
@@ -373,6 +375,7 @@ pcap_findalldevs(pcap_if_t **alldevsp, char *errbuf)
 		 */
 		strncpy(ifrnetmask.ifr_name, ifrp->ifr_name,
 		    sizeof(ifrnetmask.ifr_name));
+		ifrnetmask.ifr_name[sizeof(ifrnetmask.ifr_name)-1] = '\0';
 		memcpy(&ifrnetmask.ifr_addr, &ifrp->ifr_addr,
 		    sizeof(ifrnetmask.ifr_addr));
 		if (ioctl(fd, SIOCGIFNETMASK, (char *)&ifrnetmask) < 0) {
@@ -403,6 +406,7 @@ pcap_findalldevs(pcap_if_t **alldevsp, char *errbuf)
 		if (ifrflags.ifr_flags & IFF_BROADCAST) {
 			strncpy(ifrbroadaddr.ifr_name, ifrp->ifr_name,
 			    sizeof(ifrbroadaddr.ifr_name));
+			ifrbroadaddr.ifr_name[sizeof(ifrbroadaddr.ifr_name)-1] = '\0';
 			memcpy(&ifrbroadaddr.ifr_addr, &ifrp->ifr_addr,
 			    sizeof(ifrbroadaddr.ifr_addr));
 			if (ioctl(fd, SIOCGIFBRDADDR,
@@ -442,6 +446,7 @@ pcap_findalldevs(pcap_if_t **alldevsp, char *errbuf)
 		if (ifrflags.ifr_flags & IFF_POINTOPOINT) {
 			strncpy(ifrdstaddr.ifr_name, ifrp->ifr_name,
 			    sizeof(ifrdstaddr.ifr_name));
+			ifrdstaddr.ifr_name[sizeof(ifrdstaddr.ifr_name)-1] = '\0';
 			memcpy(&ifrdstaddr.ifr_addr, &ifrp->ifr_addr,
 			    sizeof(ifrdstaddr.ifr_addr));
 			if (ioctl(fd, SIOCGIFDSTADDR,

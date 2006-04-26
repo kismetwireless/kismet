@@ -174,6 +174,8 @@ int ReadGpsCacheFile(const char *in_gpsfname,
 
         strncpy(pt->bssid, cpt.bssid, MAC_STR_LEN);
         strncpy(pt->source, cpt.source, MAC_STR_LEN);
+	pt->bssid[MAC_STR_LEN-1]  = '\0';
+	pt->source[MAC_STR_LEN-1] = '\0';
         pt->tv_sec = cpt.tv_sec;
         pt->tv_usec = cpt.tv_usec;
         pt->lat = cpt.lat;
@@ -344,9 +346,10 @@ int WriteGpsCacheFile(const char *in_gpsfname,
     for (unsigned int nsam = 0; nsam < fheader.num_points; nsam++) {
         gpscache_point cpt;
         gps_point *pt = (*in_points)[nsam];
-   
-        strncpy(cpt.bssid, pt->bssid, MAC_STR_LEN);
-        strncpy(cpt.source, pt->source, MAC_STR_LEN);
+
+	memset(&cpt, 0, sizeof cpt);
+        strncpy(cpt.bssid, pt->bssid, sizeof(cpt.bssid)-1);
+        strncpy(cpt.source, pt->source, sizeof(cpt.source)-1);
         cpt.tv_sec = pt->tv_sec;
         cpt.tv_usec = pt->tv_usec;
         cpt.lat = pt->lat;

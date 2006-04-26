@@ -22,7 +22,7 @@
 #include <sys/types.h>
 #include <dirent.h>
 
-#ifdef SYS_OPENBSD
+#if defined(SYS_OPENBSD) && defined(HAVE_MACHINE_APMVAR_H)
 #include <machine/apmvar.h>
 #endif
 
@@ -1398,16 +1398,14 @@ int PanelFront::Tick() {
             int ac_line_status, battery_status, flag, percentage, apm_time;
             char units[32];
 
-            if ((apm = fopen("/proc/apm", "r")) == NULL) {
+            if ((apm = fopen("/proc/apm", "r")) == NULL ||
+		fgets(buf, 128, apm) == NULL) {
                 bat_available = 0;
                 bat_ac = 0;
                 bat_percentage = 0;
                 bat_time = 0;
                 bat_charging = 0;
             } else {
-                fgets(buf, 128, apm);
-                fclose(apm);
-
                 sscanf(buf, "%*s %*d.%*d %*x %x %x %x %d%% %d %s\n", &ac_line_status,
                        &battery_status, &flag, &percentage, &apm_time, units);
 
@@ -1436,6 +1434,8 @@ int PanelFront::Tick() {
                 if (!strncmp(units, "min", 32))
                     bat_time *= 60;
             }
+	    if (apm!=NULL)
+	      fclose(apm);
         } else {
             DIR *batteries, *ac_adapters;
             struct dirent *this_battery, *this_adapter;
@@ -1535,7 +1535,7 @@ int PanelFront::Tick() {
                 closedir(batteries);
         }
 
-#elif defined(SYS_OPENBSD)
+#elif defined(SYS_OPENBSD) && defined(HAVE_MACHINE_APMVAR_H)
 
 		struct apm_power_info api;
 		int apmfd;
@@ -1561,7 +1561,7 @@ int PanelFront::Tick() {
 			}
 			if (bat_available == 1) {
 				bat_percentage = (int)api.battery_life;
-				bat_time = (int)api.minutes_left;
+				bat_time = (int)api.minutes_left * 60;
 				if (api.battery_state == APM_BATT_CHARGING) {
 					bat_ac = 1;
 					bat_charging = 1;

@@ -223,7 +223,7 @@ pcap_open_live(const char *device, int snaplen, int promisc, int to_ms,
 	p->fd = fd;
 	memset(&sr, 0, sizeof(sr));
 	sr.sr_family = AF_RAW;
-	(void)strncpy(sr.sr_ifname, device, sizeof(sr.sr_ifname));
+	(void)strncpy(sr.sr_ifname, device, sizeof(sr.sr_ifname)-1);
 	if (bind(fd, (struct sockaddr *)&sr, sizeof(sr))) {
 		snprintf(ebuf, PCAP_ERRBUF_SIZE, "snoop bind: %s",
 		    pcap_strerror(errno));
@@ -316,6 +316,7 @@ pcap_open_live(const char *device, int snaplen, int promisc, int to_ms,
 	 * to be no greater than the MTU.
 	 */
 	(void)strncpy(ifr.ifr_name, device, sizeof(ifr.ifr_name));
+	ifr.ifr_name[sizeof(ifr.ifr_name)-1] = '\0';
 	if (ioctl(fd, SIOCGIFMTU, (char *)&ifr) < 0) {
 		snprintf(ebuf, PCAP_ERRBUF_SIZE, "SIOCGIFMTU: %s",
 		    pcap_strerror(errno));

@@ -107,6 +107,7 @@ int TcpClient::Connect(short int in_port, char *in_host) {
     }
 
     strncpy(hostname, in_host, MAXHOSTNAMELEN);
+    hostname[MAXHOSTNAMELEN-1] = '\0';
 
     // Set up our socket
     //bzero(&client_sock, sizeof(client_sock));
@@ -277,6 +278,7 @@ int TcpClient::ParseData(char *in_data) {
     char bssid_str[18];
     mac_addr bssid;
     int junkmajor, junkminor, junktiny;
+    int		tmptime;	// HACK: should be some 64-bit type
 
     if (sscanf(in_data, "%64[^:]", header) < 1) {
         return 0;
@@ -294,14 +296,15 @@ int TcpClient::ParseData(char *in_data) {
         if (sscanf(in_data+hdrlen, "%d.%d.%d %d \001%32[^\001]\001 %24s %d "
                    "%24[^.].%24[^.].%24s",
                    &junkmajor, &junkminor, &junktiny, 
-                   (int *) &start_time, servername, 
+                   &tmptime, servername, 
                    build, &channel_hop,
                    major, minor, tiny) < 7)
             return 0;
+	start_time = tmptime;
     } else if (!strncmp(header, "*TIME", 64)) {
-        if (sscanf(in_data+hdrlen, "%d", (int *) &serv_time) < 1)
+        if (sscanf(in_data+hdrlen, "%d", &tmptime) < 1)
             return 0;
-
+	serv_time = tmptime;
     } else if (!strncmp(header, "*NETWORK", 64)) {
         wireless_network *net;
 
@@ -393,17 +396,22 @@ int TcpClient::ParseData(char *in_data) {
             newnet = 1;
         }
 
+	{
+	int		tmptype, tmpatype;
+	int		tmpturbocell_mode;
+	int		tmpfirst_time;	// HACK: should be some 64-bit type
+	int		tmplast_time;	// HACK: should be some 64-bit type
         scanned = sscanf(in_data+hdrlen+18, "%d \001%255[^\001]\001 "
 						 "\001%255[^\001]\001 "
                          "%d %d %d %d %d %d %d %d %d %hd.%hd.%hd.%hd "
                          "%d %f %f %f %f %f %f %f %f %d %d %d %f %d %d %d %d %d %d "
 						 "%f %f %f %lf %lf %lf %ld %ld"
                          "%d %d %d %d %d %d %d %d %lld",
-                         (int *) &type, ssid, beaconstr,
+                         &tmptype, ssid, beaconstr,
                          &llc_packets, &data_packets, &crypt_packets, 
                          &interesting_packets, &channel, &crypt_set, 
-                         (int *) &first_time, (int *) &last_time,
-                         (int *) &atype, &range[0], &range[1], &range[2], 
+                         &tmpfirst_time, &tmplast_time,
+                         &tmpatype, &range[0], &range[1], &range[2], 
                          &range[3], &gps_fixed, &min_lat, &min_lon, 
                          &min_alt, &min_spd, &max_lat, &max_lon, 
                          &max_alt, &max_spd, &octets, 
@@ -413,10 +421,16 @@ int TcpClient::ParseData(char *in_data) {
                          &best_lat, &best_lon, &best_alt,
                          &aggregate_lat, &aggregate_lon, &aggregate_alt,
                          &aggregate_points, &datasize,
-                         &turbocell_nid, (int *) &turbocell_mode, 
+                         &turbocell_nid, &tmpturbocell_mode, 
                          &turbocell_sat, &carrier_set, &maxseenrate, 
                          &encoding_set, &decrypted, &dupeiv_packets, &bss_timestamp);
-
+	type           = static_cast<wireless_network_type>(tmptype);
+	first_time     = tmpfirst_time;
+	last_time      = tmplast_time;
+	atype          = static_cast<address_type>(tmpatype);
+	turbocell_mode = static_cast<turbocell_type>(tmpturbocell_mode);
+	}
+	
         if (scanned < 51) {
             // fprintf(stderr, "Flubbed network, discarding... %s  '%s'\n", bssid_str, in_data);
 			// Can't delete us out of the tracker offhand if we're not a new network,
@@ -562,12 +576,16 @@ int TcpClient::ParseData(char *in_data) {
             return 0;
         }
 
+	{
+	int		tmptype, tmpatype;
+	int		tmpfirst_time;	// HACK: should be some 64-bit type
+	int		tmplast_time;	// HACK: should be some 64-bit type
         scanned = sscanf(in_data+hdrlen+36, "%d %d %d %d %d %d %d "
                          "%f %f %f %f %f %f %f %f %lf %lf "
                          "%lf %ld %f %d %d %d %d %d %d "
                          "%f %f %f %d %hd.%hd.%hd.%hd %ld %d %d %d %d",
-                         (int *) &type,
-                         (int *) &first_time, (int *) &last_time,
+                         &tmptype,
+                         &tmpfirst_time, &tmplast_time,
                          &data_packets, &crypt_packets,
                          &interesting_packets,
                          &gps_fixed, &min_lat, &min_lon,
@@ -580,9 +598,14 @@ int TcpClient::ParseData(char *in_data) {
                          &best_quality, &best_signal, 
 						 &best_noise,
                          &best_lat, &best_lon, &best_alt,
-                         (int *) &atype, &ip[0], &ip[1], &ip[2], &ip[3],
+                         &tmpatype, &ip[0], &ip[1], &ip[2], &ip[3],
                          &datasize, &maxseenrate, &encoding_set,
                          &decrypted, &crypt_set);
+	type       = static_cast<client_type>(tmptype);
+	first_time = tmpfirst_time;
+	last_time  = tmplast_time;
+	atype      = static_cast<address_type>(tmpatype);
+	}
 
         if (scanned < 39) {
             if (nclient)
@@ -767,20 +790,31 @@ int TcpClient::ParseData(char *in_data) {
         short int sip[4], dip[4];
         int sport, dport;
 
+	{
+	int	tmptype, tmpsubtype, tmptvsec;
+	int	tmpproto_type, tmpsport, tmpdport, tmpproto_nbtype;  
         if (sscanf(in_data+hdrlen, "%d %d %d %d %d %d %17s %17s %17s "
                    "\001%32[^\001]\001 %d %hd.%hd.%hd.%hd %hd.%hd.%hd.%hd %d %d %d "
                    "\001%16[^\001]\001\n",
-                   (int *) &packinfo.type,
-                   (int *) &packinfo.subtype,
-                   (int *) &packinfo.ts.tv_sec,
+                   &tmptype,
+                   &tmpsubtype,
+                   &tmptvsec,
                    &packinfo.encrypted, &packinfo.interesting, &packinfo.beacon,
                    smac, dmac, bmac,
                    packinfo.ssid,
-                   (int *) &packinfo.proto.type,
+		   &tmpproto_type,
                    &sip[0], &sip[1], &sip[2], &sip[3], &dip[0], &dip[1], &dip[2], &dip[3],
-                   (int *) &sport, (int *) &dport,
-                   (int *) &packinfo.proto.nbtype, packinfo.proto.netbios_source) < 22)
+                   &tmpsport, &tmpdport,
+                   &tmpproto_nbtype, packinfo.proto.netbios_source) < 22)
             return 0;
+	packinfo.type       = static_cast<packet_type>(tmptype);
+	packinfo.subtype    = static_cast<packet_sub_type>(tmpsubtype);
+	packinfo.ts.tv_sec  = tmptvsec;
+	packinfo.proto.type = static_cast<protocol_info_type>(tmpproto_type);
+	sport               = tmpsport;
+	dport               = tmpdport;
+	packinfo.proto.nbtype = static_cast<protocol_netbios_type>(tmpproto_nbtype);
+	}
 
         packinfo.source_mac = smac;
         packinfo.dest_mac = dmac;

@@ -32,7 +32,8 @@ int Ifconfig_Set_Flags(const char *in_dev, char *errstr, short flags) {
     }
 
     // Fetch interface flags
-    strncpy(ifr.ifr_name, in_dev, IFNAMSIZ);
+    memset(&ifr, 0, sizeof ifr);
+    strncpy(ifr.ifr_name, in_dev, sizeof(ifr.ifr_name)-1);
     ifr.ifr_flags = flags;
     if (ioctl(skfd, SIOCSIFFLAGS, &ifr) < 0) {
         snprintf(errstr, STATUS_MAX, "SetIFFlags: Unknown interface %s: %s", 
@@ -58,7 +59,8 @@ int Ifconfig_Get_Flags(const char *in_dev, char *errstr, short *flags) {
     }
 
     // Fetch interface flags
-    strncpy(ifr.ifr_name, in_dev, IFNAMSIZ);
+    memset(&ifr, 0, sizeof ifr);
+    strncpy(ifr.ifr_name, in_dev, sizeof(ifr.ifr_name)-1);
     if (ioctl(skfd, SIOCGIFFLAGS, &ifr) < 0) {
         snprintf(errstr, STATUS_MAX, "GetIFFlags: interface %s: %s", 
                  in_dev, strerror(errno));
@@ -96,7 +98,8 @@ int Ifconfig_Get_Hwaddr(const char *in_dev, char *errstr, uint8_t *ret_hwaddr) {
     }
 
     // Fetch interface flags
-    strncpy(ifr.ifr_name, in_dev, IFNAMSIZ);
+    memset(&ifr, 0, sizeof ifr);
+    strncpy(ifr.ifr_name, in_dev, sizeof(ifr.ifr_name)-1);
     if (ioctl(skfd, SIOCGIFHWADDR, &ifr) < 0) {
         snprintf(errstr, STATUS_MAX, "Getting HWAddr: unknown interface %s: %s", 
                  in_dev, strerror(errno));
@@ -122,7 +125,8 @@ int Ifconfig_Set_Hwaddr(const char *in_dev, char *errstr, uint8_t *in_hwaddr) {
         return -1;
     }
 
-    strncpy(ifr.ifr_name, in_dev, IFNAMSIZ);
+    memset(&ifr, 0, sizeof ifr);
+    strncpy(ifr.ifr_name, in_dev, sizeof(ifr.ifr_name)-1);
     memcpy(ifr.ifr_hwaddr.sa_data, in_hwaddr, 6);
     ifr.ifr_hwaddr.sa_family = ARPHRD_ETHER;
      
@@ -151,7 +155,8 @@ int Ifconfig_Set_MTU(const char *in_dev, char *errstr, uint16_t in_mtu) {
     }
 
     // Fetch interface flags
-    strncpy(ifr.ifr_name, in_dev, IFNAMSIZ);
+    memset(&ifr, 0, sizeof ifr);
+    strncpy(ifr.ifr_name, in_dev, sizeof(ifr.ifr_name)-1);
     ifr.ifr_mtu = in_mtu;
     if (ioctl(skfd, SIOCSIFMTU, &ifr) < 0) {
         snprintf(errstr, STATUS_MAX, "Setting MTU: unknown interface %s: %s", 

@@ -2295,9 +2295,8 @@ void Packetracker::ReadSSIDMap(FILE *in_file) {
     char bssid_str[18];
 
     while (!feof(in_file)) {
-        fgets(dline, 8192, in_file);
-
-        if (feof(in_file)) break;
+        if (fgets(dline, 8192, in_file) == NULL ||
+	    feof(in_file)) break;
 
         if (sscanf(dline, "%17s %1023[^\n]\n",
                    bssid_str, name) < 2)
@@ -2313,8 +2312,9 @@ void Packetracker::ReadSSIDMap(FILE *in_file) {
 }
 
 void Packetracker::WriteSSIDMap(FILE *in_file) {
-    fseek(in_file, 0L, SEEK_SET);
-    ftruncate(fileno(in_file), 0);
+    if (fseek(in_file, 0L, SEEK_SET) == -1 ||
+	ftruncate(fileno(in_file), 0) == -1)
+      abort();		// HACK: implement better error-handling
 
     char format[64];
     snprintf(format, 64, "%%.%ds %%.%ds\n", MAC_STR_LEN, SSID_SIZE);
@@ -2344,13 +2344,13 @@ void Packetracker::ReadIPMap(FILE *in_file) {
     net_ip_data dat;
 
     while (!feof(in_file)) {
-        fgets(dline, 8192, in_file);
-
-        if (feof(in_file)) break;
+        if (fgets(dline, 8192, in_file) == NULL ||
+	    feof(in_file)) break;
 
         memset(&dat, 0, sizeof(net_ip_data));
 
         short int range[4];
+	int		tmpatype;
         /*
          , mask[4], gate[4];
          */
@@ -2358,10 +2358,11 @@ void Packetracker::ReadIPMap(FILE *in_file) {
         // Fetch the line and continue if we're invalid...
         if (sscanf(dline, "%17s %d %d %hd %hd %hd %hd",
                    bssid_str,
-                   (int *) &dat.atype, &dat.octets,
+                   &tmpatype, &dat.octets,
                    &range[0], &range[1], &range[2], &range[3]
                   ) < 7)
             continue;
+	dat.atype = static_cast<address_type>(tmpatype);
 
         for (int x = 0; x < 4; x++) {
             dat.range_ip[x] = (uint8_t) range[x];
@@ -2382,8 +2383,9 @@ void Packetracker::ReadIPMap(FILE *in_file) {
 }
 
 void Packetracker::WriteIPMap(FILE *in_file) {
-    fseek(in_file, 0L, SEEK_SET);
-    ftruncate(fileno(in_file), 0);
+    if (fseek(in_file, 0L, SEEK_SET) == -1 ||
+        ftruncate(fileno(in_file), 0) == -1)
+        abort();		// HACK: better error-handling
 
     for (map<mac_addr, net_ip_data>::iterator x = bssid_ip_map.begin();
          x != bssid_ip_map.end(); ++x) {
@@ -2445,8 +2447,9 @@ void Packetracker::RemoveNetwork(mac_addr in_bssid) {
 
 // Write a gpsdrive compatable waypoint file
 int Packetracker::WriteGpsdriveWaypt(FILE *in_file) {
-    fseek(in_file, 0L, SEEK_SET);
-    ftruncate(fileno(in_file), 0);
+    if (fseek(in_file, 0L, SEEK_SET) == -1 ||
+	ftruncate(fileno(in_file), 0) == -1)
+      abort();		// HACK: better error-handling
 
     // Convert the map to a vector and sort it
     for (map<mac_addr, wireless_network *>::const_iterator i = bssid_map.begin();

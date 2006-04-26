@@ -63,6 +63,9 @@
 /* Linux wireless extentions v22 or better present */
 #undef HAVE_LINUX_WIRELESS22
 
+/* Define to 1 if you have the <machine/apmvar.h> header file. */
+#undef HAVE_MACHINE_APMVAR_H
+
 /* Define to 1 if you have the <memory.h> header file. */
 #undef HAVE_MEMORY_H
 

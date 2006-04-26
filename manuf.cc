@@ -48,8 +48,8 @@ macmap<vector<manuf *> > ReadManufMap(FILE *in_file, int ap_map) {
     // Read from the file
     char dline[8192];
     while (!feof(in_file)) {
-        fgets(dline, 8192, in_file);
-        if (feof(in_file)) break;
+        if (fgets(dline, 8192, in_file) == NULL ||
+	    feof(in_file)) break;
 
         linenum++;
 

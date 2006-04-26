@@ -1,3 +1,15 @@
+Apr 25 2006  devel  Merged OpenBSD patches from Matthias Kilian:
+                     Detect stdc++ OpenBSD properly
+                     Fix possible overflow in expat handling
+                     Handle OpenBSD APM info
+                     Fix return values in packet source
+                    Merged various patches from Enrico:
+                     c++-ism casting in expat parsers
+                     Honor return values in several cases from syscalls
+                     Move compiler attributes
+                     Fix my stupidity in string handlers in some places
+                     Fix buffers to be more efficient
+                     Fix an initialization in macaddr structs
 Apr 12 2006  devel  Added --retain-monitor cmdline option on request
 Mar 31 2006  devel  Added setting madwifi-ng to radiotap mode
                     Fixed several crashes due to not checking noise/junk

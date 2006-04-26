@@ -722,9 +722,8 @@ void Frontend::ReadGroupMap(FILE *in_file) {
     snprintf(format, 64, "%%6[^:]: %%%d[^ ] %%1024[^\n]\n", MAC_STR_LEN);
 
     while (!feof(in_file)) {
-        fgets(dline, 8192, in_file);
-
-        if (feof(in_file)) break;
+        if (fgets(dline, 8192, in_file) == NULL ||
+	    feof(in_file)) break;
 
         // Fetch the line and continue if we're invalid...
         if (sscanf(dline, format, type, parm1, parm2) < 3)

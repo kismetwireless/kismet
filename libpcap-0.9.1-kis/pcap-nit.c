@@ -199,7 +199,7 @@ pcap_inject_nit(pcap_t *p, const void *buf, size_t size)
 	int ret;
 
 	memset(&sa, 0, sizeof(sa));
-	strncpy(sa.sa_data, device, sizeof(sa.sa_data));
+	strncpy(sa.sa_data, device, sizeof(sa.sa_data)-1);
 	ret = sendto(p->fd, buf, size, 0, &sa, sizeof(sa));
 	if (ret == -1) {
 		snprintf(p->errbuf, PCAP_ERRBUF_SIZE, "send: %s",
@@ -273,8 +273,9 @@ pcap_open_live(const char *device, int snaplen, int promisc, int to_ms,
 		    "socket: %s", pcap_strerror(errno));
 		goto bad;
 	}
+	memset(&snit, 0, sizeof snit);
 	snit.snit_family = AF_NIT;
-	(void)strncpy(snit.snit_ifname, device, NITIFSIZ);
+	(void)strncpy(snit.snit_ifname, device, sizeof(snit.snit_ifname)-1);
 
 	if (bind(fd, (struct sockaddr *)&snit, sizeof(snit))) {
 		snprintf(ebuf, PCAP_ERRBUF_SIZE,

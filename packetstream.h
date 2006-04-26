@@ -38,10 +38,10 @@
 #define STREAM_COMMAND_FLUSH -1
 
 typedef struct stream_frame_header {
-    uint32_t frame_sentinel __attribute__ ((packed));
-    uint8_t frame_type __attribute__ ((packed));
-    uint32_t frame_len __attribute__ ((packed));
-};
+    uint32_t frame_sentinel;
+    uint8_t frame_type;
+    uint32_t frame_len;
+} __attribute__((__packed__));
 
 typedef struct stream_version_packet {
     uint16_t drone_version;
@@ -49,34 +49,34 @@ typedef struct stream_version_packet {
 };
 
 typedef struct stream_packet_header {
-    uint32_t header_len __attribute__ ((packed));
-    uint16_t drone_version __attribute__ ((packed));
-    uint32_t len __attribute__ ((packed));
-    uint32_t caplen __attribute__ ((packed));
-    uint64_t tv_sec __attribute__ ((packed));
-    uint64_t tv_usec __attribute__ ((packed));
-    uint16_t quality __attribute__ ((packed));
-    uint16_t signal __attribute__ ((packed));
-    uint16_t noise __attribute__ ((packed));
-    uint8_t error __attribute__ ((packed));
-    uint8_t channel __attribute__ ((packed));
-    uint8_t carrier __attribute__ ((packed));
-    uint8_t encoding __attribute__ ((packed));
-    uint32_t datarate __attribute__ ((packed));
+    uint32_t header_len;
+    uint16_t drone_version;
+    uint32_t len;
+    uint32_t caplen;
+    uint64_t tv_sec;
+    uint64_t tv_usec;
+    uint16_t quality;
+    uint16_t signal;
+    uint16_t noise;
+    uint8_t error;
+    uint8_t channel;
+    uint8_t carrier;
+    uint8_t encoding;
+    uint32_t datarate;
 
-    int16_t gps_lat __attribute__ ((packed));
-    int64_t gps_lat_mant __attribute__ ((packed));
-    int16_t gps_lon __attribute__ ((packed));
-    int64_t gps_lon_mant __attribute__ ((packed));
-    int16_t gps_alt __attribute__ ((packed));
-    int64_t gps_alt_mant __attribute__ ((packed));
-    int16_t gps_spd __attribute__ ((packed));
-    int64_t gps_spd_mant __attribute__ ((packed));
-    int16_t gps_heading __attribute__ ((packed));
-    int64_t gps_heading_mant __attribute__ ((packed));
-    int8_t gps_fix __attribute__ ((packed));
+    int16_t gps_lat;
+    int64_t gps_lat_mant;
+    int16_t gps_lon;
+    int64_t gps_lon_mant;
+    int16_t gps_alt;
+    int64_t gps_alt_mant;
+    int16_t gps_spd;
+    int64_t gps_spd_mant;
+    int16_t gps_heading;
+    int64_t gps_heading_mant;
+    int8_t gps_fix;
 
-    uint8_t sourcename[32] __attribute__ ((packed));
-};
+    uint8_t sourcename[32];
+} __attribute__((__packed__));
 
 #endif
