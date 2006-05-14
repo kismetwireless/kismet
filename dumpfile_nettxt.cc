@@ -189,7 +189,8 @@ int Dumpfile_Nettxt::Flush() {
 			fprintf(txtfile, "    Last       : %.24s\n", 
 					ctime(&(m->second->last_time)));
 			fprintf(txtfile, "    Max Rate   : %2.1f\n", m->second->maxrate);
-			fprintf(txtfile, "    Beacon     : %d\n", m->second->beaconrate);
+			if (m->second->beaconrate != 0) 
+				fprintf(txtfile, "    Beacon     : %d\n", m->second->beaconrate);
 			fprintf(txtfile, "    Packets    : %d\n", m->second->packets);
 
 			if (m->second->cryptset == 0)
@@ -396,7 +397,8 @@ int Dumpfile_Nettxt::Flush() {
 				fprintf(txtfile, "    Last       : %.24s\n", 
 						ctime(&(m->second->last_time)));
 				fprintf(txtfile, "    Max Rate   : %2.1f\n", m->second->maxrate);
-				fprintf(txtfile, "    Beacon     : %d\n", m->second->beaconrate);
+				if (m->second->beaconrate != 0) 
+					fprintf(txtfile, "    Beacon     : %d\n", m->second->beaconrate);
 				fprintf(txtfile, "    Packets    : %d\n", m->second->packets);
 
 				if (m->second->cryptset == 0)

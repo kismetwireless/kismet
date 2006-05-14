@@ -168,17 +168,17 @@ int Dumpfile_Netxml::Flush() {
 				adtype = "Probe Response";
 
 			fprintf(xmlfile, "    <SSID first-time\"%.24s\" last-time\"%.24s\">\n"
-					"        <checksum>%u</checksum>\n"
 					"        <type>%s</type>\n"
 					"        <max-rate>%f</max-rate>\n"
-					"        <beacon-rate>%d</beacon-rate>\n"
 					"        <packets>%d</packets>\n",
 					ctime(&(m->second->first_time)), ctime(&(m->second->last_time)),
-					m->second->checksum,
 					adtype.c_str(),
 					m->second->maxrate,
-					m->second->beaconrate,
 					m->second->packets);
+
+			if (m->second->beaconrate != 0)
+				fprintf(xmlfile, "        <beaconrate>%d</beaconrate>\n",
+						m->second->beaconrate);
 
 			if (m->second->cryptset == 0)
 				fprintf(xmlfile, "        <encryption>None</encryption>\n");
@@ -385,18 +385,18 @@ int Dumpfile_Netxml::Flush() {
 
 				fprintf(xmlfile, "        <SSID first-time\"%.24s\" "
 						"last-time\"%.24s\">\n"
-						"            <checksum>%u</checksum>\n"
 						"            <type>%s</type>\n"
 						"            <max-rate>%f</max-rate>\n"
-						"            <beacon-rate>%d</beacon-rate>\n"
 						"            <packets>%d</packets>\n",
 						ctime(&(m->second->first_time)), 
 						ctime(&(m->second->last_time)),
-						m->second->checksum,
 						adtype.c_str(),
 						m->second->maxrate,
-						m->second->beaconrate,
 						m->second->packets);
+
+				if (m->second->beaconrate != 0)
+					fprintf(xmlfile, "            <beaconrate>%d</beaconrate>\n",
+							m->second->beaconrate);
 
 				if (m->second->cryptset == 0)
 					fprintf(xmlfile, "            <encryption>None</encryption>\n");
