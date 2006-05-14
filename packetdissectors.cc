@@ -35,6 +35,7 @@
 #include "packetchain.h"
 #include "alertracker.h"
 #include "configfile.h"
+#include "packetsource.h"
 
 #define PROTO_SSID_LEN		32
 
@@ -519,6 +520,12 @@ int KisBuiltinDissector::ieee80211_dissector(kis_packet *in_pack) {
 		}
 	}
 
+	kis_ref_capsource *capsrc =
+		(kis_ref_capsource *) in_pack->fetch(_PCM(PACK_COMP_KISCAPSRC));
+	packet_parm srcparms;
+	if (capsrc != NULL)
+		srcparms = capsrc->ref_source->FetchGenericParms();
+
 	// Flat-out dump if it's not big enough to be 80211.
     if (chunk->length < 24)
         return 0;
@@ -645,10 +652,12 @@ int KisBuiltinDissector::ieee80211_dissector(kis_packet *in_pack) {
             // so we don't have to do more error checking
             if (GetIEEETagOffsets(packinfo->header_offset, chunk, 
 								  &tag_cache_map) < 0) {
-                // The frame is corrupt, bail
-                packinfo->corrupt = 1;
-				in_pack->insert(_PCM(PACK_COMP_80211), packinfo);
-                return 0;
+				if (srcparms.weak_dissect == 0) {
+					// The frame is corrupt, bail
+					packinfo->corrupt = 1;
+					in_pack->insert(_PCM(PACK_COMP_80211), packinfo);
+					return 0;
+				}
             }
      
             if ((tcitr = tag_cache_map.find(0)) != tag_cache_map.end()) {
