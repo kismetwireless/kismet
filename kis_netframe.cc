@@ -25,9 +25,10 @@
 #include "kis_netframe.h"
 #include "tcpserver.h"
 #include "getopt.h"
+#include "dumpfile.h"
 
 char *KISMET_fields_text[] = {
-    "version", "starttime", "servername", 
+    "version", "starttime", "servername", "dumpfiles",
     NULL
 };
 
@@ -90,6 +91,16 @@ int Protocol_KISMET(PROTO_PARMS) {
         case KISMET_servername:
             out_string += "\001" + kdata->servername + "\001";
             break;
+		case KISMET_dumpfiles:
+			out_string += "\001";
+			for (unsigned int y = 0; y < globalreg->subsys_dumpfile_vec.size(); y++) {
+				out_string += 
+					globalreg->subsys_dumpfile_vec[y]->FetchFileType();
+				if (y != globalreg->subsys_dumpfile_vec.size() - 1)
+					out_string += ",";
+			}
+			out_string += "\001";
+			break;
         default:
             out_string = "Unknown field requested.";
             return -1;

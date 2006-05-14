@@ -98,6 +98,7 @@ typedef void (*ProtoEnableCallback)(PROTO_ENABLE_PARMS);
 // MUST be supported ASAP
 enum KISMET_fields {
     KISMET_version, KISMET_starttime, KISMET_servername, 
+	KISMET_dumpfiles,
 };
 
 enum ERROR_fields {
