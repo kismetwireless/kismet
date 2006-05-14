@@ -865,7 +865,7 @@ int KisBuiltinDissector::ieee80211_dissector(kis_packet *in_pack) {
 								   sizeof(WPA_OUI)))
 							continue;
 
-						packinfo->cryptset |= 
+						packinfo->cryptset = 
 							WPACipherConv(chunk->data[tag_orig + offt + 3]);
 
 						// We don't care about parsing the number of ciphers,
@@ -876,7 +876,7 @@ int KisBuiltinDissector::ieee80211_dissector(kis_packet *in_pack) {
 						while (offt + 4 <= taglen) {
 							if (memcmp(&(chunk->data[tag_orig + offt]), 
 									  WPA_OUI, sizeof(WPA_OUI)) == 0) {
-								packinfo->cryptset |= 
+								packinfo->cryptset = 
 									WPACipherConv(chunk->data[tag_orig + offt + 3]);
 								offt += 4;
 							} else {
@@ -889,7 +889,7 @@ int KisBuiltinDissector::ieee80211_dissector(kis_packet *in_pack) {
 						while (offt + 4 <= taglen) {
 							if (memcmp(&(chunk->data[tag_orig + offt]), 
 									  WPA_OUI, sizeof(WPA_OUI)) == 0) {
-								packinfo->cryptset |= 
+								packinfo->cryptset = 
 									WPACipherConv(chunk->data[tag_orig + offt + 3]);
 								offt += 4;
 							} else {
@@ -925,7 +925,7 @@ int KisBuiltinDissector::ieee80211_dissector(kis_packet *in_pack) {
 							in_pack->insert(_PCM(PACK_COMP_80211), packinfo);
 							return 0;
 						}
-						packinfo->cryptset |= 
+						packinfo->cryptset = 
 							WPACipherConv(chunk->data[tag_orig + offt + 3]);
 						offt += 4;
 
@@ -935,7 +935,7 @@ int KisBuiltinDissector::ieee80211_dissector(kis_packet *in_pack) {
 						while (offt + 4 <= taglen) {
 							if (memcmp(&(chunk->data[tag_orig + offt]), 
 									  RSN_OUI, sizeof(RSN_OUI)) == 0) {
-								packinfo->cryptset |= 
+								packinfo->cryptset = 
 									WPACipherConv(chunk->data[tag_orig + offt + 3]);
 								offt += 4;
 							} else {
