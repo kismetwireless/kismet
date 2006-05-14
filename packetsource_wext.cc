@@ -61,6 +61,10 @@ int PacketSource_Wext::AutotypeProbe(string in_device) {
 	if (string(drvinfo.driver) == "ipw2100") {
 		return 1;
 	}
+	// We're going to assume a 3945 will just work as well
+	if (string(drvinfo.driver) == "ipw3945") {
+		return 1;
+	}
 
 	if (string(drvinfo.driver) == "ipw2200") {
 		int major, minor, tiny;
