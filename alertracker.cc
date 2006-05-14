@@ -141,7 +141,7 @@ Alertracker::Alertracker(GlobalRegistry *in_globalreg) {
 		globalreg->packetchain->RegisterPacketComponent("alert");
 
 	// Register the alert protocol
-	_NPM(PROTO_REF_NETWORK) =
+	_NPM(PROTO_REF_ALERT) =
 		globalreg->kisnetserver->RegisterProtocol("ALERT", 0, 1, ALERT_fields_text, 
 												  &Protocol_ALERT, 
 												  &Protocol_ALERT_enable, this);

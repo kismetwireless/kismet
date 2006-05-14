@@ -44,11 +44,11 @@
  */
 typedef struct {
 	u_int16_t	val;
-} __attribute__((packed)) unaligned_u_int16_t;
+} __attribute__((__packed__)) unaligned_u_int16_t;
 
 typedef struct {
 	u_int32_t	val;
-} __attribute__((packed)) unaligned_u_int32_t;
+} __attribute__((__packed__)) unaligned_u_int32_t;
 
 #define EXTRACT_16BITS(p) \
 	((u_int16_t)ntohs(((const unaligned_u_int16_t *)(p))->val))

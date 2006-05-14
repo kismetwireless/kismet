@@ -62,7 +62,7 @@ class KisPanelInterface;
 #define PROTO_REF_CAPABILITY	4
 #define PROTO_REF_TERMINATE		5
 #define PROTO_REF_TIME			6
-#define PROTO_REF_NETWORK		7
+#define PROTO_REF_BSSID			7
 #define PROTO_REF_CLIENT		8
 #define PROTO_REF_CARD			9
 #define PROTO_REF_GPS			10
@@ -73,7 +73,8 @@ class KisPanelInterface;
 #define PROTO_REF_PACKET		15
 #define PROTO_REF_STRING		16
 #define PROTO_REF_WEPKEY		17
-#define PROTO_REF_MAX			18
+#define PROTO_REF_SSID			18
+#define PROTO_REF_MAX			19
 
 // Same game, packet component references
 #define PACK_COMP_80211			0

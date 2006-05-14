@@ -39,18 +39,17 @@
 #include "dumpfile_runstate.h"
 
 // TCP server hooks
-char *NETWORK_fields_text[] = {
-    "bssid", "type", "ssid", "beaconinfo",
+char *BSSID_fields_text[] = {
+    "bssid", "type",
     "llcpackets", "datapackets", "cryptpackets",
-    "weakpackets", "channel", "wep", "firsttime",
-    "lasttime", "atype", "rangeip", "netmaskip",
+    "channel", "firsttime", "lasttime", "atype", 
+	"rangeip", "netmaskip",
 	"gatewayip", "gpsfixed",
     "minlat", "minlon", "minalt", "minspd",
     "maxlat", "maxlon", "maxalt", "maxspd",
-    "octets", "cloaked", "beaconrate", "maxrate",
-    "manufkey", "manufscore",
-    "quality", "signal", "noise",
-    "bestquality", "bestsignal", "bestnoise",
+    "octets", 
+    "signal", "noise", "minsignal", "minnoise",
+    "maxsignal", "maxnoise",
     "bestlat", "bestlon", "bestalt",
     "agglat", "agglon", "aggalt", "aggpoints",
     "datasize",
@@ -62,25 +61,34 @@ char *NETWORK_fields_text[] = {
     NULL
 };
 
+char *SSID_fields_text[] = {
+	"mac", "checksum", "type", "ssid",
+	"beaconinfo", "cryptset", "cloaked",
+	"firsttime", "lasttime", "maxrate",
+	"beaconrate", "packets",
+	NULL
+};
+
 char *REMOVE_fields_text[] = {
     "bssid",
     NULL
 };
 
 char *CLIENT_fields_text[] = {
-    "bssid", "mac", "type", "firsttime", "lasttime",
+    "mac", "type", "firsttime", "lasttime",
     "manufkey", "manufscore",
-    "llcpackets", "datapackets", "cryptpackets", "weakpackets",
+    "llcpackets", "datapackets", "cryptpackets", 
     "gpsfixed",
     "minlat", "minlon", "minalt", "minspd",
     "maxlat", "maxlon", "maxalt", "maxspd",
     "agglat", "agglon", "aggalt", "aggpoints",
     "maxrate",
-    "quality", "signal", "noise",
-    "bestquality", "bestsignal", "bestnoise",
+    "signal", "noise",
+	"minsignal", "minnoise",
+	"maxsignal", "maxnoise",
     "bestlat", "bestlon", "bestalt",
     "atype", "ip", "gatewayip", "datasize", "maxseenrate", "encodingset",
-	"carrierset", "decrypted", "wep", "channel",
+	"carrierset", "decrypted", "channel",
 	"fragments", "retries", "newpackets",
     NULL
 };
@@ -94,8 +102,7 @@ char *INFO_fields_text[] = {
 
 mac_addr bcast_mac = mac_addr("FF:FF:FF:FF:FF:FF");
 
-// Network records.  data = NETWORK_data
-int Protocol_NETWORK(PROTO_PARMS) {
+int Protocol_BSSID(PROTO_PARMS) {
 	Netracker::tracked_network *net = (Netracker::tracked_network *) data;
 	ostringstream osstr;
 	string scratch;
@@ -105,7 +112,7 @@ int Protocol_NETWORK(PROTO_PARMS) {
 
     for (unsigned int x = 0; x < field_vec->size(); x++) {
         unsigned int fnum = (*field_vec)[x];
-        if (fnum >= NETWORK_maxfield) {
+        if (fnum >= BSSID_maxfield) {
             out_string = "Unknown field requested.";
             return -1;
 		}
@@ -120,277 +127,225 @@ int Protocol_NETWORK(PROTO_PARMS) {
 
 		// Fill in the cached element
 		switch(fnum) {
-			case NETWORK_bssid:
+			case BSSID_bssid:
 				scratch = net->bssid.Mac2String();
 				out_string += scratch;
 				cache->Cache(fnum, scratch);
 				break;
-			case NETWORK_type:
+			case BSSID_type:
 				osstr << net->type;
 				out_string += osstr.str();
 				cache->Cache(fnum, osstr.str());
 				break;
-			case NETWORK_ssid:
-				if (net->ssid.length() == 0 || 
-					(net->ssid_cloaked && net->ssid_uncloaked == 0))
-					scratch = "\001 \001";
-				else
-					scratch = "\001" + net->ssid + "\001";
-				out_string += scratch;
-				cache->Cache(fnum, scratch);
-				break;
-			case NETWORK_beaconinfo:
-				if (net->beacon_info.length() == 0)
-					scratch = "\001 \001";
-				else
-					scratch = "\001" + net->beacon_info + "\001";
-				out_string += scratch;
-				cache->Cache(fnum, scratch);
-				break;
-			case NETWORK_llcpackets:
+			case BSSID_llcpackets:
 				osstr << net->llc_packets;
 				out_string += osstr.str();
 				cache->Cache(fnum, osstr.str());
 				break;
-			case NETWORK_datapackets:
+			case BSSID_datapackets:
 				osstr << net->data_packets;
 				out_string += osstr.str();
 				cache->Cache(fnum, osstr.str());
 				break;
-			case NETWORK_cryptpackets:
-				osstr << net->crypt_packets;
-				out_string += osstr.str();
-				cache->Cache(fnum, osstr.str());
-				break;
-			case NETWORK_weakpackets:
-				osstr << net->fmsweak_packets;
-				out_string += osstr.str();
-				cache->Cache(fnum, osstr.str());
-				break;
-			case NETWORK_channel:
+			case BSSID_channel:
 				osstr << net->channel;
 				out_string += osstr.str();
 				cache->Cache(fnum, osstr.str());
 				break;
-			case NETWORK_wep:
-				osstr << net->cryptset;
-				out_string += osstr.str();
-				cache->Cache(fnum, osstr.str());
-				break;
-			case NETWORK_firsttime:
+			case BSSID_firsttime:
 				osstr << (int) net->first_time;
 				out_string += osstr.str();
 				cache->Cache(fnum, osstr.str());
 				break;
-			case NETWORK_lasttime:
+			case BSSID_lasttime:
 				osstr << (int) net->last_time;
 				out_string += osstr.str();
 				cache->Cache(fnum, osstr.str());
 				break;
-			case NETWORK_atype:
+			case BSSID_atype:
 				osstr << (int) net->guess_ipdata.ip_type;
 				out_string += osstr.str();
 				cache->Cache(fnum, osstr.str());
 				break;
-			case NETWORK_rangeip:
+			case BSSID_rangeip:
 				scratch = inet_ntoa(net->guess_ipdata.ip_addr_block);
 				out_string += scratch;
 				cache->Cache(fnum, scratch);
 				break;
-			case NETWORK_netmaskip:
+			case BSSID_netmaskip:
 				scratch = inet_ntoa(net->guess_ipdata.ip_netmask);
 				out_string += scratch;
 				cache->Cache(fnum, scratch);
 				break;
-			case NETWORK_gatewayip:
+			case BSSID_gatewayip:
 				scratch = inet_ntoa(net->guess_ipdata.ip_gateway);
 				out_string += scratch;
 				cache->Cache(fnum, scratch);
 				break;
-			case NETWORK_gpsfixed:
+			case BSSID_gpsfixed:
 				osstr << net->gpsdata.gps_valid;
 				out_string += osstr.str();
 				cache->Cache(fnum, osstr.str());
 				break;
-			case NETWORK_minlat:
+			case BSSID_minlat:
 				osstr << net->gpsdata.min_lat;
 				out_string += osstr.str();
 				cache->Cache(fnum, osstr.str());
 				break;
-			case NETWORK_minlon:
+			case BSSID_minlon:
 				osstr << net->gpsdata.min_lon;
 				out_string += osstr.str();
 				cache->Cache(fnum, osstr.str());
 				break;
-			case NETWORK_minalt:
+			case BSSID_minalt:
 				osstr << net->gpsdata.min_alt;
 				out_string += osstr.str();
 				cache->Cache(fnum, osstr.str());
 				break;
-			case NETWORK_minspd:
+			case BSSID_minspd:
 				osstr << net->gpsdata.min_spd;
 				out_string += osstr.str();
 				cache->Cache(fnum, osstr.str());
 				break;
-			case NETWORK_maxlat:
+			case BSSID_maxlat:
 				osstr << net->gpsdata.max_lat;
 				out_string += osstr.str();
 				cache->Cache(fnum, osstr.str());
 				break;
-			case NETWORK_maxlon:
+			case BSSID_maxlon:
 				osstr << net->gpsdata.max_lon;
 				out_string += osstr.str();
 				cache->Cache(fnum, osstr.str());
 				break;
-			case NETWORK_maxalt:
+			case BSSID_maxalt:
 				osstr << net->gpsdata.max_alt;
 				out_string += osstr.str();
 				cache->Cache(fnum, osstr.str());
 				break;
-			case NETWORK_maxspd:
+			case BSSID_maxspd:
 				osstr << net->gpsdata.max_spd;
 				out_string += osstr.str();
 				cache->Cache(fnum, osstr.str());
 				break;
-			case NETWORK_octets:
+			case BSSID_octets:
 				// Deprecated
 				out_string += "0";
 				cache->Cache(fnum, "0");
 				break;
-			case NETWORK_cloaked:
-				if (net->ssid_cloaked) {
-					out_string += "1";
-					cache->Cache(fnum, "1");
-				} else {
-					out_string += "0";
-					cache->Cache(fnum, "0");
-				}
-				break;
-			case NETWORK_beaconrate:
-				osstr << net->beaconrate;
-				out_string += osstr.str();
-				cache->Cache(fnum, osstr.str());
-				break;
-			case NETWORK_maxrate:
-				osstr << net->maxrate;
-				out_string += osstr.str();
-				cache->Cache(fnum, osstr.str());
-				break;
-			case NETWORK_manufkey:
-			case NETWORK_manufscore:
-				// Deprecated/broken
-				// FIXME manfkey
-				out_string += "0";
-				cache->Cache(fnum, "0");
-				break;
-			case NETWORK_quality:
-			case NETWORK_bestquality:
-				// Deprecated
-				out_string += "0";
-				cache->Cache(fnum, "0");
-				break;
-			case NETWORK_signal:
+			case BSSID_signal:
 				osstr << net->snrdata.last_signal;
 				out_string += osstr.str();
 				cache->Cache(fnum, osstr.str());
 				break;
-			case NETWORK_noise:
-				osstr << net->snrdata.last_noise;
+			case BSSID_minsignal:
+				osstr << net->snrdata.min_signal;
 				out_string += osstr.str();
 				cache->Cache(fnum, osstr.str());
 				break;
-			case NETWORK_bestsignal:
+			case BSSID_maxsignal:
 				osstr << net->snrdata.max_signal;
 				out_string += osstr.str();
 				cache->Cache(fnum, osstr.str());
 				break;
-			case NETWORK_bestnoise:
+			case BSSID_noise:
+				osstr << net->snrdata.last_noise;
+				out_string += osstr.str();
+				cache->Cache(fnum, osstr.str());
+				break;
+			case BSSID_minnoise:
+				osstr << net->snrdata.min_noise;
+				out_string += osstr.str();
+				cache->Cache(fnum, osstr.str());
+				break;
+			case BSSID_maxnoise:
 				osstr << net->snrdata.max_noise;
 				out_string += osstr.str();
 				cache->Cache(fnum, osstr.str());
 				break;
-			case NETWORK_bestlat:
+			case BSSID_bestlat:
 				osstr << net->snrdata.peak_lat;
 				out_string += osstr.str();
 				cache->Cache(fnum, osstr.str());
 				break;
-			case NETWORK_bestlon:
+			case BSSID_bestlon:
 				osstr << net->snrdata.peak_lon;
 				out_string += osstr.str();
 				cache->Cache(fnum, osstr.str());
 				break;
-			case NETWORK_bestalt:
+			case BSSID_bestalt:
 				osstr << net->snrdata.peak_alt;
 				out_string += osstr.str();
 				cache->Cache(fnum, osstr.str());
 				break;
-			case NETWORK_agglat:
+			case BSSID_agglat:
 				osstr << net->gpsdata.aggregate_lat;
 				out_string += osstr.str();
 				cache->Cache(fnum, osstr.str());
 				break;
-			case NETWORK_agglon:
+			case BSSID_agglon:
 				osstr << net->gpsdata.aggregate_lon;
 				out_string += osstr.str();
 				cache->Cache(fnum, osstr.str());
 				break;
-			case NETWORK_aggalt:
+			case BSSID_aggalt:
 				osstr << net->gpsdata.aggregate_alt;
 				out_string += osstr.str();
 				cache->Cache(fnum, osstr.str());
 				break;
-			case NETWORK_aggpoints:
+			case BSSID_aggpoints:
 				osstr << net->gpsdata.aggregate_points;
 				out_string += osstr.str();
 				cache->Cache(fnum, osstr.str());
 				break;
-			case NETWORK_datasize:
+			case BSSID_datasize:
 				osstr << net->datasize;
 				out_string += osstr.str();
 				cache->Cache(fnum, osstr.str());
 				break;
-			case NETWORK_tcnid:
+			case BSSID_tcnid:
 				// FIXME turbocell
 				out_string += "0";
 				cache->Cache(fnum, "0");
 				break;
-			case NETWORK_tcmode:
-			case NETWORK_tsat:
+			case BSSID_tcmode:
+			case BSSID_tsat:
 				// FIXME turbocell
 				out_string += "0";
 				cache->Cache(fnum, "0");
 				break;
-			case NETWORK_carrierset:
+			case BSSID_carrierset:
 				osstr << net->snrdata.carrierset;
 				out_string += osstr.str();
 				cache->Cache(fnum, osstr.str());
 				break;
-			case NETWORK_maxseenrate:
+			case BSSID_maxseenrate:
 				osstr << net->snrdata.maxseenrate;
 				out_string += osstr.str();
 				cache->Cache(fnum, osstr.str());
 				break;
-			case NETWORK_encodingset:
+			case BSSID_encodingset:
 				osstr << net->snrdata.encodingset;
 				out_string += osstr.str();
 				cache->Cache(fnum, osstr.str());
 				break;
-			case NETWORK_decrypted:
+#if 0
+			case BSSID_decrypted:
 				osstr << net->decrypted;
 				out_string += osstr.str();
 				cache->Cache(fnum, osstr.str());
 				break;
-			case NETWORK_dupeiv:
+#endif
+			case BSSID_dupeiv:
 				osstr << net->dupeiv_packets;
 				out_string += osstr.str();
 				cache->Cache(fnum, osstr.str());
 				break;
-			case NETWORK_bsstimestamp:
+			case BSSID_bsstimestamp:
 				osstr << net->bss_timestamp;
 				out_string += osstr.str();
 				cache->Cache(fnum, osstr.str());
 				break;
-			case NETWORK_cdpdevice:
+			case BSSID_cdpdevice:
 				if (net->cdp_dev_id.length() == 0)
 					scratch = "\001 \001";
 				else
@@ -398,7 +353,7 @@ int Protocol_NETWORK(PROTO_PARMS) {
 				out_string += scratch;
 				cache->Cache(fnum, scratch);
 				break;
-			case NETWORK_cdpport:
+			case BSSID_cdpport:
 				if (net->cdp_port_id.length() == 0)
 					scratch = "\001 \001";
 				else
@@ -406,17 +361,17 @@ int Protocol_NETWORK(PROTO_PARMS) {
 				out_string += scratch;
 				cache->Cache(fnum, scratch);
 				break;
-			case NETWORK_fragments:
+			case BSSID_fragments:
 				osstr << net->fragments;
 				out_string += osstr.str();
 				cache->Cache(fnum, osstr.str());
 				break;
-			case NETWORK_retries:
+			case BSSID_retries:
 				osstr << net->retries;
 				out_string += osstr.str();
 				cache->Cache(fnum, osstr.str());
 				break;
-			case NETWORK_newpackets:
+			case BSSID_newpackets:
 				osstr << net->new_packets;
 				out_string += osstr.str();
 				cache->Cache(fnum, osstr.str());
@@ -430,6 +385,106 @@ int Protocol_NETWORK(PROTO_PARMS) {
     return 1;
 }
 
+int Protocol_SSID(PROTO_PARMS) {
+	Netracker::adv_ssid_data *ssid = (Netracker::adv_ssid_data *) data;
+	ostringstream osstr;
+	string scratch;
+
+	// Alloc the cache quickly
+	cache->Filled(field_vec->size());
+
+    for (unsigned int x = 0; x < field_vec->size(); x++) {
+        unsigned int fnum = (*field_vec)[x];
+        if (fnum >= SSID_maxfield) {
+            out_string = "Unknown field requested.";
+            return -1;
+		}
+
+		osstr.str("");
+
+		// Shortcut test the cache once and print/bail immediately
+		if (cache->Filled(fnum)) {
+			out_string += cache->GetCache(fnum) + " ";
+			continue;
+		}
+
+		// Fill in the cached element
+		switch(fnum) {
+			case SSID_mac:
+				scratch = ssid->mac.Mac2String();
+				out_string += scratch;
+				cache->Cache(fnum, scratch);
+				break;
+			case SSID_checksum:
+				osstr << ssid->checksum;
+				out_string += osstr.str();
+				cache->Cache(fnum, osstr.str());
+				break;
+			case SSID_type:
+				osstr << ssid->type;
+				out_string += osstr.str();
+				cache->Cache(fnum, osstr.str());
+				break;
+			case SSID_ssid:
+				if (ssid->ssid_cloaked) {
+					osstr << "\001 \001";
+				} else {
+					osstr << "\001" << ssid->ssid << "\001";
+				}
+				out_string += osstr.str();
+				cache->Cache(fnum, osstr.str());
+				break;
+			case SSID_beaconinfo:
+				if (ssid->beacon_info.length() == 0) 
+					osstr << "\001 \001";
+				else
+					osstr << "\001" << ssid->beacon_info << "\001";
+				out_string += osstr.str();
+				cache->Cache(fnum, osstr.str());
+				break;
+			case SSID_cryptset:
+				osstr << ssid->cryptset;
+				out_string += osstr.str();
+				cache->Cache(fnum, osstr.str());
+				break;
+			case SSID_cloaked:
+				osstr << ssid->ssid_cloaked;
+				out_string += osstr.str();
+				cache->Cache(fnum, osstr.str());
+				break;
+			case SSID_firsttime:
+				osstr << ssid->first_time;
+				out_string += osstr.str();
+				cache->Cache(fnum, osstr.str());
+				break;
+			case SSID_lasttime:
+				osstr << ssid->last_time;
+				out_string += osstr.str();
+				cache->Cache(fnum, osstr.str());
+				break;
+			case SSID_maxrate:
+				osstr << ssid->maxrate;
+				out_string += osstr.str();
+				cache->Cache(fnum, osstr.str());
+				break;
+			case SSID_beaconrate:
+				osstr << ssid->beaconrate;
+				out_string += osstr.str();
+				cache->Cache(fnum, osstr.str());
+				break;
+			case SSID_packets:
+				osstr << ssid->packets;
+				out_string += osstr.str();
+				cache->Cache(fnum, osstr.str());
+				break;
+		}
+
+		// print the newly filled in cache
+		out_string += " ";
+    }
+
+    return 1;
+}
 // client records.  data = CLIENT_data
 int Protocol_CLIENT(PROTO_PARMS) {
 	Netracker::tracked_client *cli = (Netracker::tracked_client *) data;
@@ -503,11 +558,6 @@ int Protocol_CLIENT(PROTO_PARMS) {
 				out_string += osstr.str();
 				cache->Cache(fnum, osstr.str());
 				break;
-			case CLIENT_weakpackets:
-				osstr << cli->fmsweak_packets;
-				out_string += osstr.str();
-				cache->Cache(fnum, osstr.str());
-				break;
 			case CLIENT_gpsfixed:
 				osstr << cli->gpsdata.gps_valid;
 				out_string += osstr.str();
@@ -553,17 +603,6 @@ int Protocol_CLIENT(PROTO_PARMS) {
 				out_string += osstr.str();
 				cache->Cache(fnum, osstr.str());
 				break;
-			case CLIENT_maxrate:
-				osstr << cli->maxrate;
-				out_string += osstr.str();
-				cache->Cache(fnum, osstr.str());
-				break;
-			case CLIENT_quality:
-			case CLIENT_bestquality:
-				// Deprecated
-				out_string += "0";
-				cache->Cache(fnum, "0");
-				break;
 			case CLIENT_signal:
 				osstr << cli->snrdata.last_signal;
 				out_string += osstr.str();
@@ -574,12 +613,22 @@ int Protocol_CLIENT(PROTO_PARMS) {
 				out_string += osstr.str();
 				cache->Cache(fnum, osstr.str());
 				break;
-			case CLIENT_bestsignal:
+			case CLIENT_minsignal:
+				osstr << cli->snrdata.min_signal;
+				out_string += osstr.str();
+				cache->Cache(fnum, osstr.str());
+				break;
+			case CLIENT_minnoise:
+				osstr << cli->snrdata.min_noise;
+				out_string += osstr.str();
+				cache->Cache(fnum, osstr.str());
+				break;
+			case CLIENT_maxsignal:
 				osstr << cli->snrdata.max_signal;
 				out_string += osstr.str();
 				cache->Cache(fnum, osstr.str());
 				break;
-			case CLIENT_bestnoise:
+			case CLIENT_maxnoise:
 				osstr << cli->snrdata.max_noise;
 				out_string += osstr.str();
 				cache->Cache(fnum, osstr.str());
@@ -654,11 +703,6 @@ int Protocol_CLIENT(PROTO_PARMS) {
 				out_string += osstr.str();
 				cache->Cache(fnum, osstr.str());
 				break;
-			case CLIENT_wep:
-				osstr << cli->cryptset;
-				out_string += osstr.str();
-				cache->Cache(fnum, osstr.str());
-				break;
 			case CLIENT_channel:
 				osstr << cli->channel;
 				out_string += osstr.str();
@@ -694,19 +738,81 @@ int Protocol_REMOVE(PROTO_PARMS) {
     return 1;
 }
 
-void Protocol_NETWORK_enable(PROTO_ENABLE_PARMS) {
-	// Bad touch, bad touch!
+void Protocol_BSSID_enable(PROTO_ENABLE_PARMS) {
+	// Push new networks and reset their rate counters
 	for (Netracker::track_iter x = globalreg->netracker->tracked_map.begin(); 
 		 x != globalreg->netracker->tracked_map.end(); ++x) {
-        if (x->second->type == network_remove) 
-            continue;
+		Netracker::tracked_network *net = x->second;
 
-		// Send with a local cache that just gets thrown away, its only to 1
-		// client so we can't efficiently cache
+		int filtered = 0;
+
+		if (net->type == network_remove)
+			continue;
+
+		// Filter on bssid
+		if (globalreg->netracker->netcli_filter->RunFilter(net->bssid, 
+														   mac_addr(0), mac_addr(0)))
+			continue;
+
+		// Do the ADVSSID push inside the BSSID timer kick, because we want 
+		// to still allow filtering on the SSID...
+		// TODO:  Add filter state caching
+		map<uint32_t, Netracker::adv_ssid_data *>::iterator asi;
+		for (asi = net->ssid_map.begin(); asi != net->ssid_map.end(); ++asi) {
+			if (globalreg->netracker->netcli_filter->RunPcreFilter(asi->second->ssid)) {
+				filtered = 1;
+				break;
+			}
+		}
+
+		if (filtered)
+			continue;
+
 		kis_protocol_cache cache;
-		if (globalreg->kisnetserver->SendToClient(in_fd, _NPM(PROTO_REF_NETWORK),
-												  (void *) x->second, &cache) < 0)
+		if (globalreg->kisnetserver->SendToClient(in_fd, _NPM(PROTO_REF_BSSID),
+												  (void *) net, &cache) < 0)
 			break;
+
+	}
+}
+
+void Protocol_SSID_enable(PROTO_ENABLE_PARMS) {
+	// Push new networks and reset their rate counters
+	for (Netracker::track_iter x = globalreg->netracker->tracked_map.begin(); 
+		 x != globalreg->netracker->tracked_map.end(); ++x) {
+		Netracker::tracked_network *net = x->second;
+
+		int filtered = 0;
+
+		if (net->type == network_remove)
+			continue;
+
+		// Filter on bssid
+		if (globalreg->netracker->netcli_filter->RunFilter(net->bssid, mac_addr(0), 
+														   mac_addr(0)))
+			continue;
+
+		// Do the ADVSSID push inside the BSSID timer kick, because we want 
+		// to still allow filtering on the SSID...
+		// TODO:  Add filter state caching
+		map<uint32_t, Netracker::adv_ssid_data *>::iterator asi;
+		for (asi = net->ssid_map.begin(); asi != net->ssid_map.end(); ++asi) {
+			if (globalreg->netracker->netcli_filter->RunPcreFilter(asi->second->ssid)) {
+				filtered = 1;
+				break;
+			}
+		}
+
+		if (filtered)
+			continue;
+
+		for (asi = net->ssid_map.begin(); asi != net->ssid_map.end(); ++asi) {
+			kis_protocol_cache cache;
+			if (globalreg->kisnetserver->SendToClient(in_fd, _NPM(PROTO_REF_SSID),
+													  (void *) asi->second, 
+													  &cache) < 0)
+				break;
+		}
 	}
 }
 
@@ -968,11 +1074,16 @@ Netracker::Netracker(GlobalRegistry *in_globalreg) {
 	}
 
 	// Register network protocols with the tcp server
-	_NPM(PROTO_REF_NETWORK) =
-		globalreg->kisnetserver->RegisterProtocol("NETWORK", 0, 1, 
-												  NETWORK_fields_text, 
-												  &Protocol_NETWORK, 
-												  &Protocol_NETWORK_enable, this);
+	_NPM(PROTO_REF_BSSID) =
+		globalreg->kisnetserver->RegisterProtocol("BSSID", 0, 1, 
+												  BSSID_fields_text, 
+												  &Protocol_BSSID, 
+												  &Protocol_BSSID_enable, this);
+	_NPM(PROTO_REF_SSID) =
+		globalreg->kisnetserver->RegisterProtocol("SSID", 0, 1, 
+												  SSID_fields_text, 
+												  &Protocol_SSID, 
+												  &Protocol_SSID_enable, this);
 	_NPM(PROTO_REF_CLIENT) =
 		globalreg->kisnetserver->RegisterProtocol("CLIENT", 0, 1,
 												  CLIENT_fields_text, 
@@ -1051,16 +1162,48 @@ int Netracker::TimerKick() {
 	// Push new networks and reset their rate counters
 	for (unsigned int x = 0; x < dirty_net_vec.size(); x++) {
 		tracked_network *net = dirty_net_vec[x];
+		int filtered = 0;
 
 		if (net->type == network_remove)
 			continue;
 
+		// Filter on bssid
+		if (netcli_filter->RunFilter(net->bssid, mac_addr(0), mac_addr(0)))
+			continue;
+
+		// Do the ADVSSID push inside the BSSID timer kick, because we want 
+		// to still allow filtering on the SSID...
+		// TODO:  Add filter state caching
+		map<uint32_t, Netracker::adv_ssid_data *>::iterator asi;
+		for (asi = net->ssid_map.begin(); asi != net->ssid_map.end(); ++asi) {
+			if (netcli_filter->RunPcreFilter(asi->second->ssid)) {
+				filtered = 1;
+				break;
+			}
+		}
+
+		if (filtered)
+			continue;
+
+		/*
 		if (netcli_filter->RunFilter(net->bssid, mac_addr(0), mac_addr(0)) ||
 			netcli_filter->RunPcreFilter(net->ssid))
 			continue;
+			*/
 
-		globalreg->kisnetserver->SendToAll(_NPM(PROTO_REF_NETWORK),
+		globalreg->kisnetserver->SendToAll(_NPM(PROTO_REF_BSSID),
 										   (void *) net);
+
+		for (asi = net->ssid_map.begin(); asi != net->ssid_map.end(); ++asi) {
+			if (asi->second->dirty == 0)
+				continue;
+
+			globalreg->kisnetserver->SendToAll(_NPM(PROTO_REF_SSID),
+											   (void *) asi->second);
+
+			asi->second->dirty = 0;
+		}
+
 
 		net->new_packets = 0;
 		net->dirty = 0;
@@ -1068,16 +1211,38 @@ int Netracker::TimerKick() {
 
 	for (unsigned int x = 0; x < dirty_cli_vec.size(); x++) {
 		tracked_client *cli = dirty_cli_vec[x];
+		int filtered = 0;
 
 		if (cli->type == client_remove)
 			continue;
 
-		if (netcli_filter->RunFilter(cli->netptr->bssid, mac_addr(0), mac_addr(0)) ||
-			netcli_filter->RunPcreFilter(cli->netptr->ssid))
+		if (netcli_filter->RunFilter(cli->netptr->bssid, mac_addr(0), mac_addr(0)))
+			continue;
+
+		map<uint32_t, Netracker::adv_ssid_data *>::iterator asi;
+		for (asi = cli->netptr->ssid_map.begin(); 
+			 asi != cli->netptr->ssid_map.end(); ++asi) {
+			if (netcli_filter->RunPcreFilter(asi->second->ssid)) {
+				filtered = 1;
+				break;
+			}
+		}
+
+		if (filtered)
 			continue;
 
 		globalreg->kisnetserver->SendToAll(_NPM(PROTO_REF_CLIENT),
 										   (void *) cli);
+
+		for (asi = cli->ssid_map.begin(); asi != cli->ssid_map.end(); ++asi) {
+			if (asi->second->dirty == 0)
+				continue;
+
+			globalreg->kisnetserver->SendToAll(_NPM(PROTO_REF_SSID),
+											   (void *) asi->second);
+
+			asi->second->dirty = 0;
+		}
 
 		cli->new_packets = 0;
 		cli->dirty = 0;
@@ -1120,7 +1285,6 @@ void Netracker::MoveClientNetwork(Netracker::tracked_client *cli,
 	cli->netptr->llc_packets -= cli->llc_packets;
 	cli->netptr->data_packets -= cli->data_packets;
 	cli->netptr->crypt_packets -= cli->crypt_packets;
-	cli->netptr->fmsweak_packets -= cli->fmsweak_packets;
 	cli->netptr->fragments -= cli->fragments;
 	cli->netptr->retries -= cli->retries;
 
@@ -1135,7 +1299,6 @@ void Netracker::MoveClientNetwork(Netracker::tracked_client *cli,
 	net->llc_packets += cli->llc_packets;
 	net->data_packets += cli->data_packets;
 	net->crypt_packets += cli->crypt_packets;
-	net->fmsweak_packets += cli->fmsweak_packets;
 	net->fragments += cli->fragments;
 	net->retries += cli->retries;
 
@@ -1388,19 +1551,123 @@ int Netracker::netracker_chain_handler(kis_packet *in_pack) {
 	if (l1info != NULL) {
 		net->snrdata.last_signal = l1info->signal;
 		net->snrdata.last_noise = l1info->noise;
+		cli->snrdata.last_signal = l1info->signal;
+		cli->snrdata.last_noise = l1info->signal;
 
-		if (l1info->noise > net->snrdata.max_noise) {
+		// Fill in min/max if they have nothing
+		if (net->snrdata.min_noise == 0) {
+			net->snrdata.min_noise = l1info->noise;
+		}
+		if (net->snrdata.max_noise == -256) {
 			net->snrdata.max_noise = l1info->noise;
 		}
+		if (cli->snrdata.min_noise == 0) {
+			cli->snrdata.min_noise = l1info->noise;
+		}
+		if (cli->snrdata.max_noise == -256) {
+			cli->snrdata.max_noise = l1info->noise;
+		}
 
-		if (l1info->signal > net->snrdata.max_signal) {
+		if (l1info->noise < 0) {
+			// Assume SNR if negative
+			if (l1info->noise < net->snrdata.max_noise) 
+				net->snrdata.max_noise = l1info->noise;
+			if (l1info->noise > net->snrdata.min_noise)
+				net->snrdata.min_noise = l1info->noise;
+
+			// Client
+			if (l1info->noise < cli->snrdata.max_noise) 
+				cli->snrdata.max_noise = l1info->noise;
+			if (l1info->noise > cli->snrdata.min_noise)
+				cli->snrdata.min_noise = l1info->noise;
+		} else {
+			// Assume some sort of RSSI if not negative
+			if (l1info->noise > net->snrdata.max_noise)
+				net->snrdata.max_noise = l1info->noise;
+			if (l1info->noise < net->snrdata.min_noise)
+				net->snrdata.min_noise = l1info->noise;
+
+			// Client
+			if (l1info->noise > cli->snrdata.max_noise)
+				cli->snrdata.max_noise = l1info->noise;
+			if (l1info->noise < cli->snrdata.min_noise)
+				cli->snrdata.min_noise = l1info->noise;
+		}
+
+		// Fill in min/max if they have nothing
+		if (net->snrdata.min_signal == 0) {
+			net->snrdata.min_signal = l1info->signal;
+		}
+		if (net->snrdata.max_signal == -256) {
 			net->snrdata.max_signal = l1info->signal;
+		}
+		if (cli->snrdata.min_signal == 0) {
+			cli->snrdata.min_signal = l1info->signal;
+		}
+		if (cli->snrdata.max_signal == -256) {
+			cli->snrdata.max_signal = l1info->signal;
+		}
 
-			if (gpsinfo != NULL) {
-				net->snrdata.peak_lat = gpsinfo->lat;
-				net->snrdata.peak_lon = gpsinfo->lon;
-				net->snrdata.peak_alt = gpsinfo->alt;
+		if (l1info->signal < 0) {
+			// Assume SNR if negative
+			if (l1info->signal < net->snrdata.max_signal) {
+				net->snrdata.max_signal = l1info->signal;
+
+				// Update the GPS info
+				if (gpsinfo != NULL) {
+					net->snrdata.peak_lat = gpsinfo->lat;
+					net->snrdata.peak_lon = gpsinfo->lon;
+					net->snrdata.peak_alt = gpsinfo->alt;
+				}
 			}
+
+			if (l1info->signal > net->snrdata.min_signal)
+				net->snrdata.min_signal = l1info->signal;
+
+			// Client
+			if (l1info->signal < cli->snrdata.max_signal) {
+				cli->snrdata.max_signal = l1info->signal;
+
+				// Update the GPS info
+				if (gpsinfo != NULL) {
+					cli->snrdata.peak_lat = gpsinfo->lat;
+					cli->snrdata.peak_lon = gpsinfo->lon;
+					cli->snrdata.peak_alt = gpsinfo->alt;
+				}
+			}
+
+			if (l1info->signal > cli->snrdata.min_signal)
+				cli->snrdata.min_signal = l1info->signal;
+		} else {
+			// Assume some sort of RSSI if not negative
+			if (l1info->signal > net->snrdata.max_signal) {
+				net->snrdata.max_signal = l1info->signal;
+
+				// Update the GPS info
+				if (gpsinfo != NULL) {
+					net->snrdata.peak_lat = gpsinfo->lat;
+					net->snrdata.peak_lon = gpsinfo->lon;
+					net->snrdata.peak_alt = gpsinfo->alt;
+				}
+			}
+
+			if (l1info->signal < net->snrdata.min_signal)
+				net->snrdata.min_signal = l1info->signal;
+
+			// Client
+			if (l1info->signal > cli->snrdata.max_signal) {
+				cli->snrdata.max_signal = l1info->signal;
+
+				// Update the GPS info
+				if (gpsinfo != NULL) {
+					cli->snrdata.peak_lat = gpsinfo->lat;
+					cli->snrdata.peak_lon = gpsinfo->lon;
+					cli->snrdata.peak_alt = gpsinfo->alt;
+				}
+			}
+
+			if (l1info->signal < cli->snrdata.min_signal)
+				cli->snrdata.min_signal = l1info->signal;
 		}
 
 		if (l1info->datarate < net->snrdata.maxseenrate)
@@ -1409,23 +1676,6 @@ int Netracker::netracker_chain_handler(kis_packet *in_pack) {
 		// Push in the bits for the carrier and encoding
 		net->snrdata.carrierset |= (1 << (int) l1info->carrier);
 		net->snrdata.encodingset |= (1 << (int) l1info->encoding);
-
-		cli->snrdata.last_signal = l1info->signal;
-		cli->snrdata.last_noise = l1info->noise;
-
-		if (l1info->noise > cli->snrdata.max_noise) {
-			cli->snrdata.max_noise = l1info->noise;
-		}
-
-		if (l1info->signal > cli->snrdata.max_signal) {
-			cli->snrdata.max_signal = l1info->signal;
-
-			if (gpsinfo != NULL) {
-				cli->snrdata.peak_lat = gpsinfo->lat;
-				cli->snrdata.peak_lon = gpsinfo->lon;
-				cli->snrdata.peak_alt = gpsinfo->alt;
-			}
-		}
 
 		if (l1info->datarate < cli->snrdata.maxseenrate)
 			cli->snrdata.maxseenrate = l1info->datarate;
@@ -1439,57 +1689,67 @@ int Netracker::netracker_chain_handler(kis_packet *in_pack) {
 	if (packinfo->type == packet_management &&
 		packinfo->subtype == packet_sub_probe_req) {
 		
-		if (net->type == network_probe) {
-			// Learn the SSID they're probing for
-			net->ssid = packinfo->ssid;
+		// Build the SSID block checksum
+		uint32_t ssid_csum;
+		ostringstream ssid_st;
 
-			// Calc the checksum and see if its in our map
-			uint32_t csum = 
-				Adler32Checksum(packinfo->ssid.c_str(), packinfo->ssid.length());
-			map<uint32_t, string>::iterator psmi = cli->probe_ssid_map.find(csum);
-			if (psmi == cli->probe_ssid_map.end())
-				cli->probe_ssid_map[csum] = packinfo->ssid;
+		// Combine some fields into a string
+		ssid_st << packinfo->ssid << packinfo->ssid_len << packinfo->cryptset;
 
+		ssid_csum = Adler32Checksum(ssid_st.str().c_str(), 
+									ssid_st.str().length());
+		map<uint32_t, Netracker::adv_ssid_data *>::iterator ssidi =
+			net->ssid_map.find(ssid_csum);
+
+		Netracker::adv_ssid_data *adssid;
+
+		if (ssidi == net->ssid_map.end()) {
+			adssid = BuildAdvSSID(ssid_csum, packinfo);
+			adssid->type = ssid_probereq;
+			cli->ssid_map[ssid_csum] = adssid;
+		} else {
+			adssid = ssidi->second;
 		}
 
-		if (cli->maxrate < packinfo->maxrate)
-			cli->maxrate = packinfo->maxrate;
+		adssid->last_time = globalreg->timestamp.tv_sec;
+		adssid->packets++;
 
+		adssid->maxrate = packinfo->maxrate;
+
+		adssid->dirty = 1;
 	}
 
 	// Extract info from beacon frames, they're the only ones we trust to
 	// give us good info...
 	if (packinfo->type == packet_management && 
 		packinfo->subtype == packet_sub_beacon) {
-		
-		net->beacon_info = string(packinfo->beacon_info);
 
-		// Find cached SSID if we don't have one
-		if (packinfo->ssid_len == 0 || packinfo->ssid_blank) {
-			net->ssid_cloaked = 1;
-			if (net->ssid_uncloaked == 0 &&
-				bssid_cloak_map.find(packinfo->bssid_mac) != bssid_cloak_map.end()) {
-				net->ssid = bssid_cloak_map[packinfo->bssid_mac];
-				net->ssid_uncloaked = 1;
-			}
-		} else if (packinfo->ssid_len != 0 && packinfo->ssid_blank == 0) {
-			net->ssid = packinfo->ssid;
+		// Build the SSID block checksum
+		uint32_t ssid_csum;
+		ostringstream ssid_st;
 
-			if (net->ssid_cloaked && net->ssid_uncloaked == 0) {
-				_MSG("Decloaked network " + packinfo->bssid_mac.Mac2String() + 
-					 " SSID '" + packinfo->ssid + "'", MSGFLAG_INFO);
-				net->ssid_uncloaked = 1;
-			} else {
-				net->ssid_cloaked = 0;
-			}
+		// Combine some fields into a string
+		ssid_st << packinfo->ssid << packinfo->ssid_len << packinfo->cryptset;
 
-			// Check our map of known bssids for this AP and add this to it
-			uint32_t csum = 
-				Adler32Checksum(packinfo->ssid.c_str(), packinfo->ssid.length());
-			map<uint32_t, string>::iterator nbmi = net->beacon_ssid_map.find(csum);
-			if (nbmi == net->beacon_ssid_map.end())
-				net->beacon_ssid_map[csum] = packinfo->ssid;
+		ssid_csum = Adler32Checksum(ssid_st.str().c_str(), ssid_st.str().length());
+
+		map<uint32_t, Netracker::adv_ssid_data *>::iterator ssidi =
+			net->ssid_map.find(ssid_csum);
+
+		Netracker::adv_ssid_data *adssid;
+
+		if (ssidi == net->ssid_map.end()) {
+			adssid = BuildAdvSSID(ssid_csum, packinfo);
+			adssid->type = ssid_beacon;
+			net->ssid_map[ssid_csum] = adssid;
+		} else {
+			adssid = ssidi->second;
 		}
+
+		adssid->last_time = globalreg->timestamp.tv_sec;
+		adssid->packets++;
+
+		adssid->dirty = 1;
 
 		if (alert_airjackssid_ref >= 0 && packinfo->ssid == "AirJack" &&
 			globalreg->alertracker->PotentialAlert(alert_airjackssid_ref)) {
@@ -1507,13 +1767,8 @@ int Netracker::netracker_chain_handler(kis_packet *in_pack) {
 
 		}
 
-		if (net->maxrate < packinfo->maxrate)
-			net->maxrate = packinfo->maxrate;
-
-		if (packinfo->cryptset) {
-			num_cryptpackets++;
-		} else {
-			if (net->cryptset && alert_wepflap_ref &&
+		if (packinfo->cryptset == 0) {
+			if (adssid->cryptset && alert_wepflap_ref &&
 				globalreg->alertracker->PotentialAlert(alert_wepflap_ref)) {
 				ostringstream outs;
 
@@ -1529,9 +1784,6 @@ int Netracker::netracker_chain_handler(kis_packet *in_pack) {
 												   outs.str());
 			}
 		}
-
-		net->cryptset = packinfo->cryptset;
-		cli->cryptset = packinfo->cryptset;
 
 		// Fire off an alert if the channel changes
 		if (alert_chan_ref >= 0 && newnetwork == 0 && net->channel != 0 &&
@@ -1552,24 +1804,38 @@ int Netracker::netracker_chain_handler(kis_packet *in_pack) {
 
 		net->channel = packinfo->channel;
 		cli->channel = packinfo->channel;
-
-		net->beaconrate = packinfo->beacon_interval;
 	}
 
-	// Catch probe responses and decloak if they're nonblank
-	if (packinfo->ssid_len != 0 && packinfo->ssid_blank == 0 &&
-		net->ssid_cloaked != 0 && net->ssid_uncloaked == 0 &&
-		packinfo->type == packet_management &&
+	// Catch probe responses, handle adding probe resp SSIDs
+
+	if (packinfo->type == packet_management &&
 		packinfo->subtype == packet_sub_probe_resp) {
 
-		net->ssid_uncloaked = 1;
-		net->ssid = packinfo->ssid;
+		// Build the SSID block checksum
+		uint32_t ssid_csum;
+		ostringstream ssid_st;
 
-		// Update the cloak map
-		bssid_cloak_map[net->bssid] = packinfo->ssid;
+		// Combine some fields into a string
+		ssid_st << packinfo->ssid << packinfo->ssid_len << packinfo->cryptset;
 
-		_MSG("Decloaked network " + packinfo->bssid_mac.Mac2String() + 
-			 " SSID '" + packinfo->ssid + "'", MSGFLAG_INFO);
+		ssid_csum = Adler32Checksum(ssid_st.str().c_str(), ssid_st.str().length());
+
+		map<uint32_t, Netracker::adv_ssid_data *>::iterator ssidi =
+			net->ssid_map.find(ssid_csum);
+
+		Netracker::adv_ssid_data *adssid;
+
+		if (ssidi == net->ssid_map.end()) {
+			adssid = BuildAdvSSID(ssid_csum, packinfo);
+			adssid->type = ssid_proberesp;
+			net->ssid_map[ssid_csum] = adssid;
+		} else {
+			adssid = ssidi->second;
+		}
+
+		adssid->last_time = globalreg->timestamp.tv_sec;
+		adssid->packets++;
+		adssid->dirty = 1;
 	}
 
 	// Fire an alert on a disconnect/deauth broadcast
@@ -1625,6 +1891,7 @@ int Netracker::netracker_chain_handler(kis_packet *in_pack) {
 		cli->retries++;
 	}
 
+	int net_filtered = 0;
 	if (newnetwork) {
 		string nettype;
 
@@ -1640,29 +1907,52 @@ int Netracker::netracker_chain_handler(kis_packet *in_pack) {
 			nettype = "data";
 		}
 
+		// Use the packinfo field here to spew out info about the network,
+		// since we don't want to have to find the advssid data related
 		snprintf(status, STATUS_MAX, "Detected new %s network \"%s\", BSSID %s, "
 				 "encryption %s, channel %d, %2.2f mbit",
 				 nettype.c_str(),
-				 (net->ssid.length() == 0) ? 
-				 "<no ssid>" : net->ssid.c_str(), 
+				 (packinfo->ssid_len == 0) ? 
+				 "<hidden ssid>" : packinfo->ssid.c_str(), 
 				 net->bssid.Mac2String().c_str(),
-				 net->cryptset ? "yes" : "no",
-				 net->channel, net->maxrate);
+				 packinfo->cryptset ? "yes" : "no",
+				 net->channel, packinfo->maxrate);
 		_MSG(status, MSGFLAG_INFO);
 
-		if (netcli_filter->RunFilter(net->bssid, mac_addr(0), mac_addr(0)) == 0 &&
-			netcli_filter->RunPcreFilter(net->ssid) == 0) {
-			globalreg->kisnetserver->SendToAll(_NPM(PROTO_REF_NETWORK), 
+		// Check filtering and send BSSID
+		int filtered = 0;
+
+		map<uint32_t, Netracker::adv_ssid_data *>::iterator asi;
+		for (asi = net->ssid_map.begin(); asi != net->ssid_map.end(); ++asi) {
+			if (netcli_filter->RunPcreFilter(asi->second->ssid)) {
+				filtered = 1;
+				break;
+			}
+		}
+
+		net_filtered = filtered;
+
+		// Send the BSSID and all SSIDs: If it's a new BSSID, by default,
+		// all SSIDs are new
+		if (filtered == 0) {
+			globalreg->kisnetserver->SendToAll(_NPM(PROTO_REF_BSSID), 
 											   (void *) net);
+
+			for (asi = net->ssid_map.begin(); asi != net->ssid_map.end(); ++asi) {
+				globalreg->kisnetserver->SendToAll(_NPM(PROTO_REF_SSID),
+												   (void *) asi->second);
+			}
 		}
 	}
 
-	if (newclient) {
-		// do we want to whine in the info field?
-		if (netcli_filter->RunFilter(net->bssid, mac_addr(0), mac_addr(0)) == 0 &&
-			netcli_filter->RunPcreFilter(net->ssid) == 0) {
-			globalreg->kisnetserver->SendToAll(_NPM(PROTO_REF_CLIENT),
-											   (void *) cli);
+	// Don't send clients for filtered nets
+	if (newclient && net_filtered == 0) {
+		// Send the BSSID and all SSIDs: If it's a new BSSID, by default,
+		// all SSIDs are new
+		map<uint32_t, Netracker::adv_ssid_data *>::iterator asi;
+		for (asi = cli->ssid_map.begin(); asi != cli->ssid_map.end(); ++asi) {
+			globalreg->kisnetserver->SendToAll(_NPM(PROTO_REF_SSID),
+											   (void *) asi->second);
 		}
 	}
 
@@ -1887,6 +2177,7 @@ int Netracker::datatracker_chain_handler(kis_packet *in_pack) {
 			// Find the "best" address.  If the arp stuff came out to 0
 			// we had no arp or it ANDed out to useless, we need to drop
 			// to the tcp field
+
 			if (net->guess_ipdata.ip_type != ipdata_dhcp) {
 				if (net->guess_ipdata.ip_type <= ipdata_arp &&
 					combo_arp.s_addr != combo_nil.s_addr && combo_arp.s_addr !=
@@ -1897,9 +2188,7 @@ int Netracker::datatracker_chain_handler(kis_packet *in_pack) {
 						combo_arp.s_addr;
 
 					_MSG("Found IP range " + string(inet_ntoa(combo_arp)) +
-						 " via ARP for network " + net->bssid.Mac2String() + 
-						 " SSID '" + (net->ssid.length() == 0 ? "<no ssid>" : 
-									  net->ssid) + "'",
+						 " via ARP for network " + net->bssid.Mac2String(),
 						 MSGFLAG_INFO);
 
 				} else if (net->guess_ipdata.ip_type <= ipdata_udptcp &&
@@ -1911,9 +2200,7 @@ int Netracker::datatracker_chain_handler(kis_packet *in_pack) {
 						combo_tcpudp.s_addr;
 
 					_MSG("Found IP range " + string(inet_ntoa(combo_tcpudp)) +
-						 " via TCP/UDP for network " + net->bssid.Mac2String() + 
-						 " SSID '" + (net->ssid.length() == 0 ? "<no ssid>" : 
-									  net->ssid) + "'",
+						 " via TCP/UDP for network " + net->bssid.Mac2String(),
 						 MSGFLAG_INFO);
 				}
 
@@ -2188,29 +2475,15 @@ void Netracker::dump_runstate(FILE *runfile) {
 
 		fprintf(runfile, "network {\n");
 		fprintf(runfile, "    type=%d\n", (int) tnet->type);
-		for (map<uint32_t, string>::iterator bitr = tnet->beacon_ssid_map.begin();
-			 bitr != tnet->beacon_ssid_map.end(); ++bitr) 
-			fprintf(runfile, "    ssid=%s\n", 
-					MungeToPrintable(bitr->second).c_str());
-		if (tnet->beacon_info.length() > 0)
-			fprintf(runfile, "    beacon_info=%s\n", 
-					MungeToPrintable(tnet->beacon_info).c_str());
 		fprintf(runfile, "    llc_packets=%d\n"
 				"    data_packets=%d\n"
-				"    crypt_packets=%d\n"
-				"    fmsweak_packets=%d\n",
+				"    crypt_packets=%d\n",
 				tnet->llc_packets, tnet->data_packets, 
-				tnet->crypt_packets, tnet->fmsweak_packets);
+				tnet->crypt_packets);
 		fprintf(runfile, "    channel=%d\n", tnet->channel);
-		fprintf(runfile, "    cryptset=%d\n", tnet->cryptset);
-		fprintf(runfile, "    decrypted=%d\n", tnet->decrypted);
 		fprintf(runfile, "    bssid=%s\n", tnet->bssid.Mac2String().c_str());
-		fprintf(runfile, "    ssid_cloaked=%d\n", tnet->ssid_cloaked);
-		fprintf(runfile, "    ssid_uncloaked=%d\n", tnet->ssid_uncloaked);
 		fprintf(runfile, "    last_time=%u\n", (int) tnet->last_time);
 		fprintf(runfile, "    first_time=%u\n", (int) tnet->first_time);
-		fprintf(runfile, "    maxrate=%f\n", tnet->maxrate);
-		fprintf(runfile, "    beaconrate=%d\n", tnet->beaconrate);
 		fprintf(runfile, "    client_disconnects=%d\n", tnet->client_disconnects);
 		fprintf(runfile, "    last_sequence=%d\n", tnet->last_sequence);
 		fprintf(runfile, "    bss_timestamp=%llu\n", tnet->bss_timestamp);
@@ -2245,6 +2518,8 @@ void Netracker::dump_runstate(FILE *runfile) {
 		fprintf(runfile, "    snr_last_noise=%d\n", tnet->snrdata.last_noise);
 		fprintf(runfile, "    snr_max_signal=%d\n", tnet->snrdata.max_signal);
 		fprintf(runfile, "    snr_max_noise=%d\n", tnet->snrdata.max_noise);
+		fprintf(runfile, "    snr_min_signal=%d\n", tnet->snrdata.min_signal);
+		fprintf(runfile, "    snr_min_noise=%d\n", tnet->snrdata.min_noise);
 		fprintf(runfile, "    snr_maxseenrate=%d\n", tnet->snrdata.maxseenrate);
 		fprintf(runfile, "    snr_encodingset=%u\n", tnet->snrdata.encodingset);
 		fprintf(runfile, "    snr_carrierset=%u\n", tnet->snrdata.carrierset);
@@ -2258,6 +2533,29 @@ void Netracker::dump_runstate(FILE *runfile) {
 				tnet->guess_ipdata.ip_netmask.s_addr);
 
 		fprintf(runfile, "}\n");
+
+		// Dump all the SSIDs in the network
+		map<uint32_t, Netracker::adv_ssid_data *>::iterator asi;
+		for (asi = tnet->ssid_map.begin(); asi != tnet->ssid_map.end(); ++asi) {
+			fprintf(runfile, "ssid {\n");
+
+			fprintf(runfile, "    checksum=%u\n", asi->second->checksum);
+			fprintf(runfile, "    type=%d\n", asi->second->type);
+			fprintf(runfile, "    mac=%s\n", asi->second->mac.Mac2String().c_str());
+			fprintf(runfile, "    ssid=%s\n", 
+					MungeToPrintable(asi->second->ssid).c_str());
+			fprintf(runfile, "    beacon_info=%s\n", 
+					MungeToPrintable(asi->second->beacon_info).c_str());
+			fprintf(runfile, "    cryptset=%d\n", asi->second->cryptset);
+			fprintf(runfile, "    ssid_cloaked=%d\n", asi->second->ssid_cloaked);
+			fprintf(runfile, "    first_time=%d\n", asi->second->first_time);
+			fprintf(runfile, "    last_time=%d\n", asi->second->last_time);
+			fprintf(runfile, "    maxrate=%f\n", asi->second->maxrate);
+			fprintf(runfile, "    beaconrate=%d\n", asi->second->beaconrate);
+			fprintf(runfile, "    packets=%d\n", asi->second->packets);
+
+			fprintf(runfile, "}\n");
+		}
 	}
 
 	// Dump all the clients
@@ -2270,7 +2568,6 @@ void Netracker::dump_runstate(FILE *runfile) {
 		fprintf(runfile, "    type=%d\n", tcli->type);
 		fprintf(runfile, "    last_time=%u\n", (int) tcli->last_time);
 		fprintf(runfile, "    first_time=%u\n", (int) tcli->first_time);
-		fprintf(runfile, "    cryptset=%d\n", tcli->cryptset);
 		fprintf(runfile, "    decrypted=%d\n", tcli->decrypted);
 		fprintf(runfile, "    mac=%s\n", tcli->mac.Mac2String().c_str());
 		fprintf(runfile, "    bssid=%s\n", tcli->bssid.Mac2String().c_str());
@@ -2296,18 +2593,18 @@ void Netracker::dump_runstate(FILE *runfile) {
 		fprintf(runfile, "    snr_last_noise=%d\n", tcli->snrdata.last_noise);
 		fprintf(runfile, "    snr_max_signal=%d\n", tcli->snrdata.max_signal);
 		fprintf(runfile, "    snr_max_noise=%d\n", tcli->snrdata.max_noise);
+		fprintf(runfile, "    snr_min_signal=%d\n", tcli->snrdata.min_signal);
+		fprintf(runfile, "    snr_min_noise=%d\n", tcli->snrdata.min_noise);
 		fprintf(runfile, "    snr_maxseenrate=%d\n", tcli->snrdata.maxseenrate);
 		fprintf(runfile, "    snr_encodingset=%u\n", tcli->snrdata.encodingset);
 		fprintf(runfile, "    snr_carrierset=%u\n", tcli->snrdata.carrierset);
 
 		fprintf(runfile, "    llc_packets=%d\n"
 				"    data_packets=%d\n"
-				"    crypt_packets=%d\n"
-				"    fmsweak_packets=%d\n",
+				"    crypt_packets=%d\n",
 				tcli->llc_packets, tcli->data_packets, 
-				tcli->crypt_packets, tcli->fmsweak_packets);
+				tcli->crypt_packets);
 
-		fprintf(runfile, "    maxrate=%f\n", tcli->maxrate);
 		fprintf(runfile, "    last_sequence=%d\n", tcli->last_sequence);
 		fprintf(runfile, "    datasize=%llu\n", tcli->datasize);
 		fprintf(runfile, "    fragments=%d\n", tcli->fragments);
@@ -2320,11 +2617,6 @@ void Netracker::dump_runstate(FILE *runfile) {
 			fprintf(runfile, "    cdp_port_id=%s\n",
 					MungeToPrintable(tcli->cdp_port_id).c_str());
 
-		for (map<uint32_t, string>::iterator bitr = tcli->probe_ssid_map.begin();
-			 bitr != tcli->probe_ssid_map.end(); ++bitr)
-			fprintf(runfile, "    probe_ssid=%s\n", 
-					MungeToPrintable(bitr->second).c_str());
-
 		fprintf(runfile, "    ip_type=%d\n", tcli->guess_ipdata.ip_type);
 		fprintf(runfile, "    ip_addr_block=%u\n", 
 				tcli->guess_ipdata.ip_addr_block.s_addr);
@@ -2334,6 +2626,28 @@ void Netracker::dump_runstate(FILE *runfile) {
 				tcli->guess_ipdata.ip_netmask.s_addr);
 
 		fprintf(runfile, "}\n");
+
+		// Dump all the SSIDs in the client
+		map<uint32_t, Netracker::adv_ssid_data *>::iterator asi;
+		for (asi = tcli->ssid_map.begin(); asi != tcli->ssid_map.end(); ++asi) {
+			fprintf(runfile, "ssid {\n");
+
+			fprintf(runfile, "    checksum=%u\n", asi->second->checksum);
+			fprintf(runfile, "    type=%d\n", asi->second->type);
+			fprintf(runfile, "    mac=%s\n", asi->second->mac.Mac2String().c_str());
+			fprintf(runfile, "    ssid=%s\n", asi->second->ssid.c_str());
+			fprintf(runfile, "    beacon_info=%s\n", 
+					asi->second->beacon_info.c_str());
+			fprintf(runfile, "    cryptset=%d\n", asi->second->cryptset);
+			fprintf(runfile, "    ssid_cloaked=%d\n", asi->second->ssid_cloaked);
+			fprintf(runfile, "    first_time=%d\n", asi->second->first_time);
+			fprintf(runfile, "    last_time=%d\n", asi->second->last_time);
+			fprintf(runfile, "    maxrate=%f\n", asi->second->maxrate);
+			fprintf(runfile, "    beaconrate=%d\n", asi->second->beaconrate);
+			fprintf(runfile, "    packets=%d\n", asi->second->packets);
+
+			fprintf(runfile, "}\n");
+		}
 	}
 
 }
@@ -2343,6 +2657,9 @@ int Netracker::load_runstate() {
 		return -1;
 
 	GroupConfigFile *rcf = globalreg->runstate_config;
+	int tint;
+	unsigned int tuint;
+	float tfloat;
 
 	// Fetch all the root level options
 	vector<GroupConfigFile::GroupEntity *> rent;
@@ -2401,21 +2718,11 @@ int Netracker::load_runstate() {
 
 		tracked_network *tnet = new tracked_network;
 
-		if (sscanf(rcf->FetchOpt("type", rent[x]).c_str(), "%d", 
-				   (int *) &(tnet->type)) != 1) {
+		if (sscanf(rcf->FetchOpt("type", rent[x]).c_str(), "%d", &tint) != 1) {
 			globalreg->fatal_condition = 1;
 			break;
 		}
-
-		strvec = rcf->FetchOptVec("ssid", rent[x]);
-		for (unsigned int z = 0; z < strvec.size(); z++) {
-			string mod = MungeToPrintable(strvec[z]);
-			tnet->beacon_ssid_map[Adler32Checksum(mod.c_str(), mod.length())] = mod;
-		}
-		if (strvec.size() > 0)
-			tnet->ssid = MungeToPrintable(strvec[0]);
-
-		tnet->beacon_info = rcf->FetchOpt("beacon_info", rent[x]);
+		tnet->type = (network_type) tint;
 
 		if (sscanf(rcf->FetchOpt("llc_packets", rent[x]).c_str(), "%d",
 				   &(tnet->llc_packets)) != 1) {
@@ -2435,27 +2742,9 @@ int Netracker::load_runstate() {
 			break;
 		}
 
-		if (sscanf(rcf->FetchOpt("fmsweak_packets", rent[x]).c_str(), "%d",
-				   &(tnet->fmsweak_packets)) != 1) {
-			globalreg->fatal_condition = 1;
-			break;
-		}
-
-		if (sscanf(rcf->FetchOpt("cryptset", rent[x]).c_str(), "%d",
-				   &(tnet->cryptset)) != 1) {
-			globalreg->fatal_condition = 1;
-			break;
-		}
-
 
 		if (sscanf(rcf->FetchOpt("channel", rent[x]).c_str(), "%d",
 				   &(tnet->channel)) != 1) {
-			globalreg->fatal_condition = 1;
-			break;
-		}
-
-		if (sscanf(rcf->FetchOpt("decrypted", rent[x]).c_str(), "%d",
-				   &(tnet->decrypted)) != 1) {
 			globalreg->fatal_condition = 1;
 			break;
 		}
@@ -2466,41 +2755,17 @@ int Netracker::load_runstate() {
 			break;
 		}
 
-		if (sscanf(rcf->FetchOpt("ssid_cloaked", rent[x]).c_str(), "%d",
-				   &(tnet->ssid_cloaked)) != 1) {
+		if (sscanf(rcf->FetchOpt("last_time", rent[x]).c_str(), "%u", &tuint) != 1) {
 			globalreg->fatal_condition = 1;
 			break;
 		}
+		tnet->last_time = (time_t) tuint;
 
-		if (sscanf(rcf->FetchOpt("ssid_uncloaked", rent[x]).c_str(), "%d",
-				   &(tnet->ssid_uncloaked)) != 1) {
+		if (sscanf(rcf->FetchOpt("first_time", rent[x]).c_str(), "%u", &tuint) != 1) {
 			globalreg->fatal_condition = 1;
 			break;
 		}
-
-		if (sscanf(rcf->FetchOpt("last_time", rent[x]).c_str(), "%u",
-				   (unsigned int *) &(tnet->last_time)) != 1) {
-			globalreg->fatal_condition = 1;
-			break;
-		}
-
-		if (sscanf(rcf->FetchOpt("first_time", rent[x]).c_str(), "%u",
-				   (unsigned int *) &(tnet->first_time)) != 1) {
-			globalreg->fatal_condition = 1;
-			break;
-		}
-
-		if (sscanf(rcf->FetchOpt("maxrate", rent[x]).c_str(), "%f",
-				   (float *) &(tnet->maxrate)) != 1) {
-			globalreg->fatal_condition = 1;
-			break;
-		}
-
-		if (sscanf(rcf->FetchOpt("beaconrate", rent[x]).c_str(), "%d",
-				   &(tnet->beaconrate)) != 1) {
-			globalreg->fatal_condition = 1;
-			break;
-		}
+		tnet->first_time = (time_t) tuint;
 
 		if (sscanf(rcf->FetchOpt("client_disconnects", rent[x]).c_str(), "%d",
 				   &(tnet->client_disconnects)) != 1) {
@@ -2652,6 +2917,18 @@ int Netracker::load_runstate() {
 			break;
 		}
 
+		if (sscanf(rcf->FetchOpt("snr_min_signal", rent[x]).c_str(), "%d",
+				   &(tnet->snrdata.min_signal)) != 1) {
+			globalreg->fatal_condition = 1;
+			break;
+		}
+
+		if (sscanf(rcf->FetchOpt("snr_min_noise", rent[x]).c_str(), "%d",
+				   &(tnet->snrdata.min_noise)) != 1) {
+			globalreg->fatal_condition = 1;
+			break;
+		}
+
 		if (sscanf(rcf->FetchOpt("snr_maxseenrate", rent[x]).c_str(), "%d",
 				   &(tnet->snrdata.maxseenrate)) != 1) {
 			globalreg->fatal_condition = 1;
@@ -2730,24 +3007,6 @@ int Netracker::load_runstate() {
 
 		if (sscanf(rcf->FetchOpt("channel", rent[x]).c_str(), "%d",
 				   &(tcli->channel)) != 1) {
-			globalreg->fatal_condition = 1;
-			break;
-		}
-
-		if (sscanf(rcf->FetchOpt("decrypted", rent[x]).c_str(), "%d",
-				   &(tcli->decrypted)) != 1) {
-			globalreg->fatal_condition = 1;
-			break;
-		}
-
-		if (sscanf(rcf->FetchOpt("cryptset", rent[x]).c_str(), "%d",
-				   &(tcli->cryptset)) != 1) {
-			globalreg->fatal_condition = 1;
-			break;
-		}
-
-		tcli->bssid = mac_addr(rcf->FetchOpt("bssid", rent[x]).c_str());
-		if (tcli->bssid.error) {
 			globalreg->fatal_condition = 1;
 			break;
 		}
@@ -2863,6 +3122,18 @@ int Netracker::load_runstate() {
 			break;
 		}
 
+		if (sscanf(rcf->FetchOpt("snr_min_signal", rent[x]).c_str(), "%d",
+				   &(tcli->snrdata.min_signal)) != 1) {
+			globalreg->fatal_condition = 1;
+			break;
+		}
+
+		if (sscanf(rcf->FetchOpt("snr_min_noise", rent[x]).c_str(), "%d",
+				   &(tcli->snrdata.min_noise)) != 1) {
+			globalreg->fatal_condition = 1;
+			break;
+		}
+
 		if (sscanf(rcf->FetchOpt("snr_maxseenrate", rent[x]).c_str(), "%d",
 				   &(tcli->snrdata.maxseenrate)) != 1) {
 			globalreg->fatal_condition = 1;
@@ -2923,18 +3194,6 @@ int Netracker::load_runstate() {
 			break;
 		}
 
-		if (sscanf(rcf->FetchOpt("fmsweak_packets", rent[x]).c_str(), "%d",
-				   &(tcli->fmsweak_packets)) != 1) {
-			globalreg->fatal_condition = 1;
-			break;
-		}
-
-		if (sscanf(rcf->FetchOpt("maxrate", rent[x]).c_str(), "%f",
-				   (float *) &(tcli->maxrate)) != 1) {
-			globalreg->fatal_condition = 1;
-			break;
-		}
-
 		if (sscanf(rcf->FetchOpt("last_sequence", rent[x]).c_str(), "%d",
 				   &(tcli->last_sequence)) != 1) {
 			globalreg->fatal_condition = 1;
@@ -2962,12 +3221,6 @@ int Netracker::load_runstate() {
 			break;
 		}
 
-		strvec = rcf->FetchOptVec("probe_ssid", rent[x]);
-		for (unsigned int z = 0; z < strvec.size(); z++) {
-			string mod = MungeToPrintable(strvec[z]);
-			tcli->probe_ssid_map[Adler32Checksum(mod.c_str(), mod.length())] = mod;
-		}
-
 		tcli->dirty = 1;
 
 		// Silently bail for now
@@ -2984,6 +3237,99 @@ int Netracker::load_runstate() {
 		ap_client_map.insert(make_pair(tcli->bssid, tcli));
 	}
 
+	for (unsigned int x = 0; x < rent.size(); x++) {
+		if (rent[x]->name != "ssid")
+			continue;
+
+		adv_ssid_data *adssid = new adv_ssid_data;
+
+		if (sscanf(rcf->FetchOpt("checksum", rent[x]).c_str(), "%d", &tint) != 1) {
+			globalreg->fatal_condition = 1;
+			break;
+		}
+		adssid->checksum = tint;
+
+		if (sscanf(rcf->FetchOpt("type", rent[x]).c_str(), "%d", &tint) != 1) {
+			globalreg->fatal_condition = 1;
+			break;
+		}
+		adssid->type = (ssid_type) tint;
+
+		adssid->mac = mac_addr(rcf->FetchOpt("mac", rent[x]).c_str());
+		if (adssid->mac.error) {
+			globalreg->fatal_condition = 1;
+			break;
+		}
+
+		adssid->ssid = rcf->FetchOpt("ssid", rent[x]);
+		adssid->beacon_info = rcf->FetchOpt("beacon_info", rent[x]);
+		
+		if (sscanf(rcf->FetchOpt("cryptset", rent[x]).c_str(), "%d", &tint) != 1) {
+			globalreg->fatal_condition = 1;
+			break;
+		}
+		adssid->cryptset = tint;
+
+		if (sscanf(rcf->FetchOpt("ssid_cloaked", rent[x]).c_str(), "%d", 
+				   &tint) != 1) {
+			globalreg->fatal_condition = 1;
+			break;
+		}
+		adssid->cryptset = tint;
+
+		if (sscanf(rcf->FetchOpt("first_time", rent[x]).c_str(), "%d", &tint) != 1) {
+			globalreg->fatal_condition = 1;
+			break;
+		}
+		adssid->first_time = (time_t) tint;
+
+		if (sscanf(rcf->FetchOpt("last_time", rent[x]).c_str(), "%d", &tint) != 1) {
+			globalreg->fatal_condition = 1;
+			break;
+		}
+		adssid->last_time = (time_t) tint;
+
+		if (sscanf(rcf->FetchOpt("maxrate", rent[x]).c_str(), "%f", &tfloat) != 1) {
+			globalreg->fatal_condition = 1;
+			break;
+		}
+		adssid->maxrate = tfloat;
+
+		if (sscanf(rcf->FetchOpt("beaconrate", rent[x]).c_str(), "%d", &tint) != 1) {
+			globalreg->fatal_condition = 1;
+			break;
+		}
+		adssid->beaconrate = tint;
+
+		if (sscanf(rcf->FetchOpt("packets", rent[x]).c_str(), "%d", &tint) != 1) {
+			globalreg->fatal_condition = 1;
+			break;
+		}
+		adssid->packets = tint;
+
+		adssid->dirty = 1;
+
+		if (adssid->type == ssid_probereq) {
+			// Silently bail for now
+			if (client_map.find(adssid->mac) == client_map.end()) {
+				delete adssid;
+				continue;
+			}
+
+			client_map[adssid->mac]->ssid_map[adssid->checksum] = adssid;
+		} else {
+			// Silently fail for now
+			if (tracked_map.find(adssid->mac) == tracked_map.end()) {
+				delete adssid;
+				continue;
+			}
+
+			tracked_map[adssid->mac]->ssid_map[adssid->checksum] = adssid;
+		}
+
+	}
+
+
 	if (globalreg->fatal_condition) {
 		_MSG("Parsing stored network clients failed, runstate file is corrupt or "
 			 "incompatible and cannot be used", MSGFLAG_FATAL);
@@ -2991,5 +3337,25 @@ int Netracker::load_runstate() {
 	}
 
 	return 1;
+}
+
+Netracker::adv_ssid_data *Netracker::BuildAdvSSID(uint32_t ssid_csum, 
+												  kis_ieee80211_packinfo *packinfo) {
+	Netracker::adv_ssid_data *adssid;
+
+	adssid = new Netracker::adv_ssid_data;
+	adssid->checksum = ssid_csum;
+	adssid->mac = packinfo->bssid_mac;
+	adssid->ssid = string(packinfo->ssid);
+	if (packinfo->ssid_len == 0 || packinfo->ssid_blank)
+		adssid->ssid_cloaked = 1;
+	adssid->beacon_info = string(packinfo->beacon_info);
+	adssid->cryptset = packinfo->cryptset;
+	adssid->first_time = globalreg->timestamp.tv_sec;
+	adssid->maxrate = packinfo->maxrate;
+	adssid->beaconrate = packinfo->beacon_interval;
+	adssid->packets = 0;
+
+	return adssid;
 }
 

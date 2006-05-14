@@ -55,9 +55,8 @@ Kis_Main_Panel::Kis_Main_Panel(GlobalRegistry *in_globalreg,
 	mi_sort_packets = menu->AddMenuItem("Packets", mn_sort, 'p');
 	mi_sort_packets_d = menu->AddMenuItem("Packets (descending)", mn_sort, 'P');
 
-	// mn_tools = menu->AddMenu("Tools", 0);
-	mn_cmds = menu->AddMenu("Cmds", 0);
-	mi_addcard = menu->AddMenuItem("Add Source...", mn_cmds, 'A');
+	mn_tools = menu->AddMenu("Tools", 0);
+	mi_addcard = menu->AddMenuItem("Add Source...", mn_tools, 'A');
 
 #if 0
 	mn_tools = menu->AddMenu("Tools", 0);

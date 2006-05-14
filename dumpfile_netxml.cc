@@ -153,33 +153,80 @@ int Dumpfile_Netxml::Flush() {
 				break;
 		}
 
-		fprintf(xmlfile, "  <wireless-network number=\"%d\" type=\"%s\" wep=\"%s\" "
-				"cloaked=\"%s\" first-time=\"%.24s\" last-time=\"%.24s\">\n",
-				netnum, ntype.c_str(), net->cryptset ? "true" : "false",
-				net->ssid_cloaked ? "true" : "false",
-				ctime(&(net->first_time)), ctime(&(net->last_time)));
+		fprintf(xmlfile, "  <wireless-network number=\"%d\" type=\"%s\" "
+				"first-time=\"%.24s\" last-time=\"%.24s\">\n",
+				netnum, ntype.c_str(), ctime(&(net->first_time)), 
+				ctime(&(net->last_time)));
 
-		if (net->ssid.length() > 0) {
-			for (map<uint32_t, string>::iterator m = net->beacon_ssid_map.begin();
-				 m != net->beacon_ssid_map.end(); ++m) {
-				if (m->second.length() > 0) {
-					fprintf(xmlfile, "    <SSID>%s</SSID>\n",
-							SanitizeXML(m->second).c_str());
-				}
-			}
-			fprintf(xmlfile, "    <Last-SSID>%s</Last-SSID>\n", 
-					SanitizeXML(net->ssid).c_str());
+		for (map<uint32_t, Netracker::adv_ssid_data *>::iterator m =
+			 net->ssid_map.begin(); m != net->ssid_map.end(); ++m) {
+			string adtype;
+
+			if (m->second->type == ssid_beacon)
+				adtype = "Beacon";
+			else if (m->second->type == ssid_proberesp)
+				adtype = "Probe Response";
+
+			fprintf(xmlfile, "    <SSID first-time\"%.24s\" last-time\"%.24s\">\n"
+					"        <checksum>%u</checksum>\n"
+					"        <type>%s</type>\n"
+					"        <max-rate>%f</max-rate>\n"
+					"        <beacon-rate>%d</beacon-rate>\n"
+					"        <packets>%d</packets>\n",
+					ctime(&(m->second->first_time)), ctime(&(m->second->last_time)),
+					m->second->checksum,
+					adtype.c_str(),
+					m->second->maxrate,
+					m->second->beaconrate,
+					m->second->packets);
+
+			if (m->second->cryptset == 0)
+				fprintf(xmlfile, "        <encryption>None</encryption>\n");
+			if (m->second->cryptset & crypt_wep)
+				fprintf(xmlfile, "        <encryption>WEP</encryption>\n");
+			if (m->second->cryptset & crypt_layer3)
+				fprintf(xmlfile, "        <encryption>Layer3</encryption>\n");
+			if (m->second->cryptset & crypt_wep40)
+				fprintf(xmlfile, "        <encryption>WEP40</encryption>\n");
+			if (m->second->cryptset & crypt_wep104)
+				fprintf(xmlfile, "        <encryption>WEP104</encryption>\n");
+			if (m->second->cryptset & crypt_tkip)
+				fprintf(xmlfile, "        <encryption>TKIP</encryption>\n");
+			if (m->second->cryptset & crypt_wpa)
+				fprintf(xmlfile, "        <encryption>WPA</encryption>\n");
+			if (m->second->cryptset & crypt_psk)
+				fprintf(xmlfile, "        <encryption>PSK</encryption>\n");
+			if (m->second->cryptset & crypt_aes_ocb)
+				fprintf(xmlfile, "        <encryption>AES-OCB</encryption>\n");
+			if (m->second->cryptset & crypt_aes_ccm)
+				fprintf(xmlfile, "        <encryption>AES-CCM</encryption>\n");
+			if (m->second->cryptset & crypt_leap)
+				fprintf(xmlfile, "        <encryption>LEAP</encryption>\n");
+			if (m->second->cryptset & crypt_ttls)
+				fprintf(xmlfile, "        <encryption>TTLS</encryption>\n");
+			if (m->second->cryptset & crypt_tls)
+				fprintf(xmlfile, "        <encryption>TLS</encryption>\n");
+			if (m->second->cryptset & crypt_peap)
+				fprintf(xmlfile, "        <encryption>PEAP</encryption>\n");
+			if (m->second->cryptset & crypt_isakmp)
+				fprintf(xmlfile, "        <encryption>ISAKMP</encryption>\n");
+			if (m->second->cryptset & crypt_pptp)
+				fprintf(xmlfile, "        <encryption>PPTP</encryption>\n");
+
+			if (m->second->ssid_cloaked == 0)
+				fprintf(xmlfile, "        <ssid>%s</ssid>\n",
+						SanitizeXML(m->second->ssid).c_str());
+			if (m->second->beacon_info.length() > 0)
+				fprintf(xmlfile, "        <info>%s</info>\n",
+						SanitizeXML(m->second->beacon_info).c_str());
+
+			fprintf(xmlfile, "    </ssid>\n");
 		}
 
 		fprintf(xmlfile, "    <BSSID>%s</BSSID>\n", net->bssid.Mac2String().c_str());
 		
-		if (net->beacon_info.length() > 0) {
-			fprintf(xmlfile, "    <info>%s</info>\n", 
-					SanitizeXML(net->beacon_info).c_str());
-		}
 
 		fprintf(xmlfile, "    <channel>%d</channel>\n", net->channel);
-		fprintf(xmlfile, "    <maxrate>%2.1f</maxrate>\n", net->maxrate);
 		fprintf(xmlfile, "    <maxseenrate>%ld</maxseenrate>\n",
 				(long) net->snrdata.maxseenrate * 100);
 
@@ -202,39 +249,6 @@ int Dumpfile_Netxml::Flush() {
 			fprintf(xmlfile, "    <encoding>PBCC</encoding>\n");
 		if (net->snrdata.encodingset & (1 << (int) encoding_ofdm))
 			fprintf(xmlfile, "    <encoding>OFDM</encoding>\n");
-
-		if (net->cryptset == 0)
-			fprintf(xmlfile, "    <encryption>None</encryption>\n");
-		if (net->cryptset & crypt_wep)
-			fprintf(xmlfile, "    <encryption>WEP</encryption>\n");
-		if (net->cryptset & crypt_layer3)
-			fprintf(xmlfile, "    <encryption>Layer3</encryption>\n");
-		if (net->cryptset & crypt_wep40)
-			fprintf(xmlfile, "    <encryption>WEP40</encryption>\n");
-		if (net->cryptset & crypt_wep104)
-			fprintf(xmlfile, "    <encryption>WEP104</encryption>\n");
-		if (net->cryptset & crypt_tkip)
-			fprintf(xmlfile, "    <encryption>TKIP</encryption>\n");
-		if (net->cryptset & crypt_wpa)
-			fprintf(xmlfile, "    <encryption>WPA</encryption>\n");
-		if (net->cryptset & crypt_psk)
-			fprintf(xmlfile, "    <encryption>PSK</encryption>\n");
-		if (net->cryptset & crypt_aes_ocb)
-			fprintf(xmlfile, "    <encryption>AES-OCB</encryption>\n");
-		if (net->cryptset & crypt_aes_ccm)
-			fprintf(xmlfile, "    <encryption>AES-CCM</encryption>\n");
-		if (net->cryptset & crypt_leap)
-			fprintf(xmlfile, "    <encryption>LEAP</encryption>\n");
-		if (net->cryptset & crypt_ttls)
-			fprintf(xmlfile, "    <encryption>TTLS</encryption>\n");
-		if (net->cryptset & crypt_tls)
-			fprintf(xmlfile, "    <encryption>TLS</encryption>\n");
-		if (net->cryptset & crypt_peap)
-			fprintf(xmlfile, "    <encryption>PEAP</encryption>\n");
-		if (net->cryptset & crypt_isakmp)
-			fprintf(xmlfile, "    <encryption>ISAKMP</encryption>\n");
-		if (net->cryptset & crypt_pptp)
-			fprintf(xmlfile, "    <encryption>PPTP</encryption>\n");
 
 		fprintf(xmlfile, "     <packets>\n");
 		fprintf(xmlfile, "       <LLC>%d</LLC>\n", net->llc_packets);
@@ -351,17 +365,86 @@ int Dumpfile_Netxml::Flush() {
 			}
 
 			fprintf(xmlfile, "    <wireless-client number=\"%d\" type=\"%s\" "
-					"wep=\"%s\" first-time=\"%.24s\" last-time=\"%.24s\">\n",
-					clinum, ctype.c_str(), cli->cryptset ? "true" : "false",
+					"first-time=\"%.24s\" last-time=\"%.24s\">\n",
+					clinum, ctype.c_str(),
 					ctime(&(cli->first_time)), ctime(&(cli->last_time)));
 
 			fprintf(xmlfile, "      <client-mac>%s</client-mac>\n", 
 					cli->mac.Mac2String().c_str());
 
+			for (map<uint32_t, Netracker::adv_ssid_data *>::iterator m =
+				 cli->ssid_map.begin(); m != cli->ssid_map.end(); ++m) {
+				string adtype;
+
+				if (m->second->type == ssid_beacon)
+					adtype = "Beacon";
+				else if (m->second->type == ssid_proberesp)
+					adtype = "Probe Response";
+				else if (m->second->type == ssid_probereq)
+					adtype = "Probe Request";
+
+				fprintf(xmlfile, "        <SSID first-time\"%.24s\" "
+						"last-time\"%.24s\">\n"
+						"            <checksum>%u</checksum>\n"
+						"            <type>%s</type>\n"
+						"            <max-rate>%f</max-rate>\n"
+						"            <beacon-rate>%d</beacon-rate>\n"
+						"            <packets>%d</packets>\n",
+						ctime(&(m->second->first_time)), 
+						ctime(&(m->second->last_time)),
+						m->second->checksum,
+						adtype.c_str(),
+						m->second->maxrate,
+						m->second->beaconrate,
+						m->second->packets);
+
+				if (m->second->cryptset == 0)
+					fprintf(xmlfile, "            <encryption>None</encryption>\n");
+				if (m->second->cryptset & crypt_wep)
+					fprintf(xmlfile, "            <encryption>WEP</encryption>\n");
+				if (m->second->cryptset & crypt_layer3)
+					fprintf(xmlfile, "            <encryption>Layer3</encryption>\n");
+				if (m->second->cryptset & crypt_wep40)
+					fprintf(xmlfile, "            <encryption>WEP40</encryption>\n");
+				if (m->second->cryptset & crypt_wep104)
+					fprintf(xmlfile, "            <encryption>WEP104</encryption>\n");
+				if (m->second->cryptset & crypt_tkip)
+					fprintf(xmlfile, "            <encryption>TKIP</encryption>\n");
+				if (m->second->cryptset & crypt_wpa)
+					fprintf(xmlfile, "            <encryption>WPA</encryption>\n");
+				if (m->second->cryptset & crypt_psk)
+					fprintf(xmlfile, "            <encryption>PSK</encryption>\n");
+				if (m->second->cryptset & crypt_aes_ocb)
+					fprintf(xmlfile, 
+							"            <encryption>AES-OCB</encryption>\n");
+				if (m->second->cryptset & crypt_aes_ccm)
+					fprintf(xmlfile, 
+							"            <encryption>AES-CCM</encryption>\n");
+				if (m->second->cryptset & crypt_leap)
+					fprintf(xmlfile, "            <encryption>LEAP</encryption>\n");
+				if (m->second->cryptset & crypt_ttls)
+					fprintf(xmlfile, "            <encryption>TTLS</encryption>\n");
+				if (m->second->cryptset & crypt_tls)
+					fprintf(xmlfile, "            <encryption>TLS</encryption>\n");
+				if (m->second->cryptset & crypt_peap)
+					fprintf(xmlfile, "            <encryption>PEAP</encryption>\n");
+				if (m->second->cryptset & crypt_isakmp)
+					fprintf(xmlfile, "            <encryption>ISAKMP</encryption>\n");
+				if (m->second->cryptset & crypt_pptp)
+					fprintf(xmlfile, "            <encryption>PPTP</encryption>\n");
+
+				if (m->second->ssid_cloaked == 0)
+					fprintf(xmlfile, "            <ssid>%s</ssid>\n",
+							SanitizeXML(m->second->ssid).c_str());
+				if (m->second->beacon_info.length() > 0)
+					fprintf(xmlfile, "        <info>%s</info>\n",
+							SanitizeXML(m->second->beacon_info).c_str());
+
+				fprintf(xmlfile, "        </ssid>\n");
+			}
+
 			fprintf(xmlfile, "      <client-channel>%d</client-channel>\n", 
 					cli->channel);
-			fprintf(xmlfile, "      <client-maxrate>%2.1f</client-maxrate>\n", 
-					cli->maxrate);
 			fprintf(xmlfile, "      <client-maxseenrate>%ld</client-maxseenrate>\n",
 					(long) cli->snrdata.maxseenrate * 100);
 
@@ -390,55 +473,6 @@ int Dumpfile_Netxml::Flush() {
 				fprintf(xmlfile, "      <client-encoding>PBCC</client-encoding>\n");
 			if (cli->snrdata.encodingset & (1 << (int) encoding_ofdm))
 				fprintf(xmlfile, "      <client-encoding>OFDM</client-encoding>\n");
-
-			if (cli->cryptset == 0)
-				fprintf(xmlfile, "      <client-encryption>None"
-						"</client-encryption>\n");
-			if (cli->cryptset & crypt_wep)
-				fprintf(xmlfile, "      <client-encryption>WEP"
-						"</client-encryption>\n");
-			if (cli->cryptset & crypt_layer3)
-				fprintf(xmlfile, "      <client-encryption>Layer3"
-						"</client-encryption>\n");
-			if (cli->cryptset & crypt_wep40)
-				fprintf(xmlfile, "      <client-encryption>WEP40"
-						"</client-encryption>\n");
-			if (cli->cryptset & crypt_wep104)
-				fprintf(xmlfile, "      <client-encryption>WEP104"
-						"</client-encryption>\n");
-			if (cli->cryptset & crypt_tkip)
-				fprintf(xmlfile, "      <client-encryption>TKIP"
-						"</client-encryption>\n");
-			if (cli->cryptset & crypt_wpa)
-				fprintf(xmlfile, "      <client-encryption>WPA"
-						"</client-encryption>\n");
-			if (cli->cryptset & crypt_psk)
-				fprintf(xmlfile, "      <client-encryption>PSK"
-						"</client-encryption>\n");
-			if (cli->cryptset & crypt_aes_ocb)
-				fprintf(xmlfile, "      <client-encryption>AES-OCB"
-						"</client-encryption>\n");
-			if (cli->cryptset & crypt_aes_ccm)
-				fprintf(xmlfile, "      <client-encryption>AES-CCM"
-						"</client-encryption>\n");
-			if (cli->cryptset & crypt_leap)
-				fprintf(xmlfile, "      <client-encryption>LEAP"
-						"</client-encryption>\n");
-			if (cli->cryptset & crypt_ttls)
-				fprintf(xmlfile, "      <client-encryption>TTLS"
-						"</client-encryption>\n");
-			if (cli->cryptset & crypt_tls)
-				fprintf(xmlfile, "      <client-encryption>TLS"
-						"</client-encryption>\n");
-			if (cli->cryptset & crypt_peap)
-				fprintf(xmlfile, "      <client-encryption>PEAP"
-						"</client-encryption>\n");
-			if (cli->cryptset & crypt_isakmp)
-				fprintf(xmlfile, "      <client-encryption>ISAKMP"
-						"</client-encryption>\n");
-			if (cli->cryptset & crypt_pptp)
-				fprintf(xmlfile, "      <client-encryption>PPTP"
-						"</client-encryption>\n");
 
 			fprintf(xmlfile, "       <client-packets>\n");
 			fprintf(xmlfile, "         <client-LLC>%d</client-LLC>\n", 

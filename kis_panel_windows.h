@@ -62,7 +62,7 @@ public:
 protected:
 	KisPanelInterface *kpinterface;
 
-	int mn_file, mn_view, mn_sort, mn_tools, mn_cmds;
+	int mn_file, mn_view, mn_sort, mn_tools;
 	int mi_connect, mi_quit;
 
 	int mi_showtext, mi_showfields, mi_showinput;

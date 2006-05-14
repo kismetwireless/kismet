@@ -475,9 +475,7 @@ vector<int> Str2IntVec(string in_text) {
 }
 
 int RunSysCmd(char *in_cmd) {
-    system(in_cmd);
-    
-    return 0;
+    return system(in_cmd);
 }
 
 pid_t ExecSysCmd(char *in_cmd) {

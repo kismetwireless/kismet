@@ -68,12 +68,12 @@ const uint32_t DroneSentinel = 0xDEADBEEF;
 
 // Size-neutral container for a uuid
 typedef struct drone_trans_uuid {
-	uint32_t time_low __attribute__ ((packed));
-	uint16_t time_mid __attribute__ ((packed));
-	uint16_t time_hi __attribute__ ((packed));
-	uint16_t clock_seq __attribute__ ((packed));
-	uint8_t node[6] __attribute__ ((packed));
-} __attribute__ ((packed));
+	uint32_t time_low;
+	uint16_t time_mid;
+	uint16_t time_hi;
+	uint16_t clock_seq;
+	uint8_t node[6];
+} __attribute__((__packed__));
 
 #define DRONE_CONV_UUID(x, y)	\
 	({ \
@@ -95,11 +95,11 @@ typedef struct drone_trans_uuid {
 
 // Size-neutral container for doubles
 typedef struct drone_trans_double {
-	uint32_t mantissal __attribute__ ((packed));
-	uint32_t mantissah __attribute__ ((packed));
-	uint16_t exponent __attribute__ ((packed));
-	uint16_t sign __attribute__ ((packed));
-} __attribute__ ((packed));
+	uint32_t mantissal;
+	uint32_t mantissah;
+	uint16_t exponent;
+	uint16_t sign;
+} __attribute__((__packed__));
 
 #define DRONE_CONV_DOUBLE(x, y)		\
 	({ \
@@ -121,28 +121,28 @@ typedef struct drone_trans_double {
 
 // Packet header stuck on the beginning of everything
 typedef struct drone_packet {
-	uint32_t sentinel __attribute__ ((packed));
-	uint32_t drone_cmdnum __attribute__ ((packed));
-	uint32_t data_len __attribute__ ((packed));
+	uint32_t sentinel;
+	uint32_t drone_cmdnum;
+	uint32_t data_len;
 	uint8_t data[0];
-} __attribute__ ((packed));
+} __attribute__((__packed__));
 
 // Basic hello packet
 typedef struct drone_helo_packet {
 	// Increment when we break the protocol in big ways
-	uint32_t drone_version __attribute__ ((packed));
+	uint32_t drone_version;
 	// Version string of the kismet server hosting this
-	uint8_t kismet_version[32] __attribute__ ((packed));
+	uint8_t kismet_version[32];
 	// Arbitrary name of the drone/server hosting this
-	uint8_t host_name[32] __attribute__ ((packed));
-} __attribute__ ((packed));
+	uint8_t host_name[32];
+} __attribute__((__packed__));
 
 // String packet for text
 typedef struct drone_string_packet {
-	uint32_t msg_flags __attribute__ ((packed));
-	uint32_t msg_len __attribute__ ((packed));
+	uint32_t msg_flags;
+	uint32_t msg_len;
 	char msg[0];
-} __attribute__ ((packed));
+} __attribute__((__packed__));
 
 // Channel set command packet (one channel sets chan, multiple sets vector)
 // OR if it comes FROM the drone, it indicates the current set of channels used
@@ -161,16 +161,16 @@ typedef struct drone_string_packet {
 #define DRONE_CHS_CMD_SETVEC		2
 #define DRONE_CHS_CMD_SETCUR		3
 typedef struct drone_channelset_packet {
-	uint16_t channelset_hdr_len __attribute__ ((packed));
-	uint32_t channelset_content_bitmap __attribute__ ((packed));
-	drone_trans_uuid uuid __attribute__ ((packed));
-	uint16_t command __attribute__ ((packed));
-	uint16_t cur_channel __attribute__ ((packed));
-	uint16_t channel_hop __attribute__ ((packed));
-	uint16_t num_channels __attribute__ ((packed));
+	uint16_t channelset_hdr_len;
+	uint32_t channelset_content_bitmap;
+	drone_trans_uuid uuid;
+	uint16_t command;
+	uint16_t cur_channel;
+	uint16_t channel_hop;
+	uint16_t num_channels;
 	// size = 2 * num_channels
 	uint16_t channels[0];
-} __attribute__ ((packed));
+} __attribute__((__packed__));
 
 // Source record
 #define DRONE_SRC_UUID				0
@@ -179,16 +179,16 @@ typedef struct drone_channelset_packet {
 #define DRONE_SRC_INTSTR			3
 #define DRONE_SRC_TYPESTR			4
 typedef struct drone_source_packet {
-	uint16_t source_hdr_len __attribute__ ((packed));
-	uint32_t source_content_bitmap __attribute__ ((packed));
-	drone_trans_uuid uuid __attribute__ ((packed));
+	uint16_t source_hdr_len;
+	uint32_t source_content_bitmap;
+	drone_trans_uuid uuid;
 	// Kill this source, the rest of the data is empty
-	uint16_t invalidate __attribute__ ((packed));
+	uint16_t invalidate;
 	// Null terminated strings
-	uint8_t name_str[32] __attribute__ ((packed));
-	uint8_t interface_str[32] __attribute__ ((packed));
-	uint8_t type_str[32] __attribute__ ((packed));
-};
+	uint8_t name_str[32];
+	uint8_t interface_str[32];
+	uint8_t type_str[32];
+} __attribute__((__packed__));
 
 // Bitmap fields for radio headers
 #define DRONE_RADIO_ACCURACY		0
@@ -201,17 +201,17 @@ typedef struct drone_source_packet {
 
 // Radiotap-style header of radio data
 typedef struct drone_capture_sub_radio {
-	uint16_t radio_hdr_len __attribute__ ((packed));
-	uint32_t radio_content_bitmap __attribute__ ((packed));
+	uint16_t radio_hdr_len;
+	uint32_t radio_content_bitmap;
 
-	uint16_t radio_accuracy __attribute__ ((packed));
-	uint16_t radio_channel __attribute__ ((packed));
-	int16_t radio_signal __attribute__ ((packed));
-	int16_t radio_noise __attribute__ ((packed));
-	uint32_t radio_carrier __attribute__ ((packed));
-	uint32_t radio_encoding __attribute__ ((packed));
-	uint32_t radio_datarate __attribute__ ((packed));
-} __attribute__ ((packed));
+	uint16_t radio_accuracy;
+	uint16_t radio_channel;
+	int16_t radio_signal;
+	int16_t radio_noise;
+	uint32_t radio_carrier;
+	uint32_t radio_encoding;
+	uint32_t radio_datarate;
+} __attribute__((__packed__));
 
 // Bitmap fields for gps headers
 #define DRONE_GPS_FIX				0
@@ -223,16 +223,16 @@ typedef struct drone_capture_sub_radio {
 
 // Radiotap-style header of GPS data
 typedef struct drone_capture_sub_gps {
-	uint16_t gps_hdr_len __attribute__ ((packed));
-	uint32_t gps_content_bitmap __attribute__ ((packed));
+	uint16_t gps_hdr_len;
+	uint32_t gps_content_bitmap;
 
-	uint16_t gps_fix __attribute__ ((packed));
-	drone_trans_double gps_lat __attribute__ ((packed));
-	drone_trans_double gps_lon __attribute__ ((packed));
-	drone_trans_double gps_alt __attribute__ ((packed));
-	drone_trans_double gps_spd __attribute__ ((packed));
-	drone_trans_double gps_heading __attribute__ ((packed));
-} __attribute__ ((packed));
+	uint16_t gps_fix;
+	drone_trans_double gps_lat;
+	drone_trans_double gps_lon;
+	drone_trans_double gps_alt;
+	drone_trans_double gps_spd;
+	drone_trans_double gps_heading;
+} __attribute__((__packed__));
 
 // Bitmap fields for eitht11 subs
 #define DRONE_EIGHT11_UUID			0
@@ -242,14 +242,14 @@ typedef struct drone_capture_sub_gps {
 
 // Capture data in ieee80211 format
 typedef struct drone_capture_sub_80211 {
-	uint16_t eight11_hdr_len __attribute__ ((packed));
-	uint32_t eight11_content_bitmap __attribute__ ((packed));
-	drone_trans_uuid uuid __attribute__ ((packed));
-	uint16_t packet_len __attribute__ ((packed));
-	uint64_t tv_sec __attribute__ ((packed));
-	uint64_t tv_usec __attribute__ ((packed));
+	uint16_t eight11_hdr_len;
+	uint32_t eight11_content_bitmap;
+	drone_trans_uuid uuid;
+	uint16_t packet_len;
+	uint64_t tv_sec;
+	uint64_t tv_usec;
 	uint8_t packdata[0]; // Alias to the trailing packet data
-} __attribute__ ((packed));
+} __attribute__((__packed__));
 
 #define DRONE_CONTENT_RADIO			0
 #define DRONE_CONTENT_GPS			1
@@ -265,12 +265,12 @@ typedef struct drone_capture_sub_80211 {
 //   Eight11 header
 //   Raw packet data
 typedef struct drone_capture_packet {
-	uint32_t cap_content_bitmap __attribute__ ((packed));
-	uint32_t cap_packet_offset __attribute__ ((packed));
+	uint32_t cap_content_bitmap;
+	uint32_t cap_packet_offset;
 	// This will be filled with a subset of (radio|gps|packet) based
 	// on the content bitmap
 	uint8_t content[0];
-} __attribute__ ((packed));
+} __attribute__((__packed__));
 
 // Callbacks
 #define DRONE_CMD_PARMS GlobalRegistry *globalreg, const drone_packet *data, \

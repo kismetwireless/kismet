@@ -53,42 +53,51 @@ int kis_80211_datatracker_hook(CHAINCALL_PARMS);
 int NetrackerUpdateTimer(TIMEEVENT_PARMS);
 
 // Tcp server elements
-enum NETWORK_fields {
-    NETWORK_bssid, NETWORK_type, NETWORK_ssid, NETWORK_beaconinfo,
-    NETWORK_llcpackets, NETWORK_datapackets, NETWORK_cryptpackets,
-    NETWORK_weakpackets, NETWORK_channel, NETWORK_wep, NETWORK_firsttime,
-    NETWORK_lasttime, NETWORK_atype, NETWORK_rangeip, NETWORK_netmaskip,
-	NETWORK_gatewayip, NETWORK_gpsfixed,
-    NETWORK_minlat, NETWORK_minlon, NETWORK_minalt, NETWORK_minspd,
-    NETWORK_maxlat, NETWORK_maxlon, NETWORK_maxalt, NETWORK_maxspd,
-    NETWORK_octets, NETWORK_cloaked, NETWORK_beaconrate, NETWORK_maxrate,
-    NETWORK_manufkey, NETWORK_manufscore,
-    NETWORK_quality, NETWORK_signal, NETWORK_noise,
-    NETWORK_bestquality, NETWORK_bestsignal, NETWORK_bestnoise,
-    NETWORK_bestlat, NETWORK_bestlon, NETWORK_bestalt,
-    NETWORK_agglat, NETWORK_agglon, NETWORK_aggalt, NETWORK_aggpoints,
-    NETWORK_datasize, NETWORK_tcnid, NETWORK_tcmode, NETWORK_tsat,
-    NETWORK_carrierset, NETWORK_maxseenrate, NETWORK_encodingset,
-    NETWORK_decrypted, NETWORK_dupeiv, NETWORK_bsstimestamp,
-	NETWORK_cdpdevice, NETWORK_cdpport, NETWORK_fragments, NETWORK_retries,
-	NETWORK_newpackets,
-	NETWORK_maxfield
+enum BSSID_fields {
+    BSSID_bssid, BSSID_type,
+    BSSID_llcpackets, BSSID_datapackets, BSSID_cryptpackets,
+    BSSID_channel, BSSID_firsttime, BSSID_lasttime, 
+	BSSID_atype, BSSID_rangeip, BSSID_netmaskip,
+	BSSID_gatewayip, BSSID_gpsfixed,
+    BSSID_minlat, BSSID_minlon, BSSID_minalt, BSSID_minspd,
+    BSSID_maxlat, BSSID_maxlon, BSSID_maxalt, BSSID_maxspd,
+    BSSID_octets, BSSID_beaconrate, BSSID_maxrate,
+    BSSID_signal, BSSID_noise, 
+	BSSID_minsignal, BSSID_minnoise,
+    BSSID_maxsignal, BSSID_maxnoise,
+    BSSID_bestlat, BSSID_bestlon, BSSID_bestalt,
+    BSSID_agglat, BSSID_agglon, BSSID_aggalt, BSSID_aggpoints,
+    BSSID_datasize, BSSID_tcnid, BSSID_tcmode, BSSID_tsat,
+    BSSID_carrierset, BSSID_maxseenrate, BSSID_encodingset,
+    BSSID_decrypted, BSSID_dupeiv, BSSID_bsstimestamp,
+	BSSID_cdpdevice, BSSID_cdpport, BSSID_fragments, BSSID_retries,
+	BSSID_newpackets,
+	BSSID_maxfield
+};
+
+enum SSID_fields {
+	SSID_mac, SSID_checksum, SSID_type, SSID_ssid,
+	SSID_beaconinfo, SSID_cryptset, SSID_cloaked,
+	SSID_firsttime, SSID_lasttime, SSID_maxrate, SSID_beaconrate,
+	SSID_packets,
+	SSID_maxfield
 };
 
 enum CLIENT_fields {
     CLIENT_bssid, CLIENT_mac, CLIENT_type, CLIENT_firsttime, CLIENT_lasttime,
     CLIENT_manufkey, CLIENT_manufscore,
-    CLIENT_llcpackets, CLIENT_datapackets, CLIENT_cryptpackets, CLIENT_weakpackets,
+    CLIENT_llcpackets, CLIENT_datapackets, CLIENT_cryptpackets, 
     CLIENT_gpsfixed,
     CLIENT_minlat, CLIENT_minlon, CLIENT_minalt, CLIENT_minspd,
     CLIENT_maxlat, CLIENT_maxlon, CLIENT_maxalt, CLIENT_maxspd,
     CLIENT_agglat, CLIENT_agglon, CLIENT_aggalt, CLIENT_aggpoints,
     CLIENT_maxrate,
-    CLIENT_quality, CLIENT_signal, CLIENT_noise,
-    CLIENT_bestquality, CLIENT_bestsignal, CLIENT_bestnoise,
+    CLIENT_signal, CLIENT_noise,
+    CLIENT_minsignal, CLIENT_minnoise,
+    CLIENT_maxsignal, CLIENT_maxnoise,
     CLIENT_bestlat, CLIENT_bestlon, CLIENT_bestalt,
     CLIENT_atype, CLIENT_ip, CLIENT_gatewayip, CLIENT_datasize, CLIENT_maxseenrate, 
-	CLIENT_encodingset, CLIENT_carrierset, CLIENT_decrypted, CLIENT_wep,
+	CLIENT_encodingset, CLIENT_carrierset, CLIENT_decrypted, 
 	CLIENT_channel, CLIENT_fragments, CLIENT_retries, CLIENT_newpackets,
 	CLIENT_maxfield
 };
@@ -105,7 +114,8 @@ enum INFO_fields {
 	INFO_maxfield
 };
 
-extern char *NETWORK_fields_text[];
+extern char *BSSID_fields_text[];
+extern char *SSID_fields_text[];
 extern char *CLIENT_fields_text[];
 extern char *REMOVE_fields_text[];
 extern char *INFO_fields_text[];
@@ -137,6 +147,12 @@ enum ipdata_type {
 	ipdata_arp = 3,
 	ipdata_dhcp = 4,
 	ipdata_group = 5
+};
+
+enum ssid_type {
+	ssid_beacon = 0,
+	ssid_proberesp = 1,
+	ssid_probereq = 2,
 };
 
 // Netracker itself
@@ -201,6 +217,7 @@ public:
 			// These all go to 0 since we don't know if it'll be positive or
 			// negative
 			last_signal = last_noise = 0;
+			min_signal = min_noise = 0;
 			max_signal = max_noise = -256;
 
 			peak_lat = peak_lon = peak_alt = 0;
@@ -211,6 +228,7 @@ public:
 		}
 
 		int last_signal, last_noise;
+		int min_signal, min_noise;
 		int max_signal, max_noise;
 		// Peak locations
 		double peak_lat, peak_lon, peak_alt;
@@ -223,19 +241,64 @@ public:
 		uint32_t carrierset;
 	};
 
+	// Advertised SSID data for multi-ssid networks
+	// Each SSID advertised can have its own advertised limits
+	typedef struct adv_ssid_data {
+		adv_ssid_data() {
+			checksum = 0;
+			type = ssid_beacon;
+			mac = mac_addr(0);
+			ssid = "";
+			beacon_info = "";
+			cryptset = 0;
+			ssid_cloaked = 0;
+			first_time = 0;
+			last_time = 0;
+			dirty = 0;
+			maxrate = 0;
+			beaconrate = 0;
+			packets = 0;
+		}
+			
+		uint32_t checksum;
+
+		ssid_type type;
+
+		mac_addr mac;
+
+		string ssid;
+		string beacon_info;
+
+		// Cryptset and decrypted
+		int cryptset;
+
+		// Is the SSID hidden
+		int ssid_cloaked;
+
+		// First and last times we saw this SSID
+		time_t first_time;
+		time_t last_time;
+
+		// Advertised maximum rate
+		double maxrate;
+		// Beacon interval
+		int beaconrate;
+
+		// Number of packets seen advertising this ssid
+		int packets;
+
+		// SSID is dirty and should be resent
+		int dirty;
+	};
+
 	class tracked_network {
 	public:
 		tracked_network() {
 			type = network_ap;
-			llc_packets = data_packets = crypt_packets = fmsweak_packets = 0;
+			llc_packets = data_packets = crypt_packets = 0;
 			channel = 0;
-			cryptset = 0;
-			decrypted = 0;
 			bssid = mac_addr(0);
-			ssid_cloaked = ssid_uncloaked = 0;
 			last_time = first_time = 0;
-			maxrate = 0;
-			beaconrate = 0;
 			client_disconnects = 0;
 			last_sequence = 0;
 			bss_timestamp = 0;
@@ -250,26 +313,17 @@ public:
 		// What we last saw it as
 		network_type type;
 
-		string ssid;
-		string beacon_info;
+		mac_addr bssid;
 
 		// Aggregate packet counts
 		int llc_packets;
 		int data_packets;
 		int crypt_packets;
-		int fmsweak_packets;
+
+		// Advertised SSID data, often only 1 item
+		map<uint32_t, Netracker::adv_ssid_data *> ssid_map;
 
 		int channel;
-
-		int cryptset;
-		int decrypted;
-
-		mac_addr bssid;
-
-		// Is the SSID hidden
-		int ssid_cloaked;
-		// And have we exposed it
-		int ssid_uncloaked;
 
 		time_t last_time;
 		time_t first_time;
@@ -279,11 +333,6 @@ public:
 
 		// SNR info
 		Netracker::signal_data snrdata;
-
-		// Maximum advertised rate
-		double maxrate;
-		// Beacon interval
-		int beaconrate;
 
 		// Guesstimated IP data
 		Netracker::ip_data guess_ipdata;
@@ -316,11 +365,9 @@ public:
 		// Number of packets since last tick
 		int new_packets;
 
-		// Map of SSIDs beaconed (checksum to ssid for quick-search)
-		map<uint32_t, string> beacon_ssid_map;
-
 		// Network is dirty and should be pushed out
 		int dirty;
+
 	};
 
 	class tracked_client {
@@ -328,10 +375,9 @@ public:
 		tracked_client() {
 			type = client_unknown;
 			last_time = first_time = 0;
-			cryptset = decrypted = 0;
+			decrypted = 0;
 			channel = 0;
-			llc_packets = data_packets = crypt_packets = fmsweak_packets = 0;
-			maxrate = 0;
+			llc_packets = data_packets = crypt_packets = 0;
 			last_sequence = 0;
 			datasize = 0;
 			netptr = NULL;
@@ -349,7 +395,6 @@ public:
 		time_t first_time;
 
 		// Crypt and decrypt sets
-		int cryptset;
 		int decrypted;
 
 		// MAC of client
@@ -368,7 +413,6 @@ public:
 		int llc_packets;
 		int data_packets;
 		int crypt_packets;
-		int fmsweak_packets;
 
 		// Manufacturer info - MAC address key to the manuf map and score
 		// for easy mapping
@@ -376,9 +420,6 @@ public:
 		manuf *manuf_ref;
 		int manuf_score;
 		*/
-
-		// Maximum advertised rate during a probe
-		double maxrate;
 
 		// Last sequence number seen
 		int last_sequence;
@@ -403,8 +444,8 @@ public:
 		// Do we need to push an update?
 		int dirty;
 
-		// Networks we've probed for
-		map<uint32_t, string> probe_ssid_map;
+		// Probed ssid data
+		map<uint32_t, Netracker::adv_ssid_data *> ssid_map;
 
 		// Pointer to the network we belong to, for fast compares
 		Netracker::tracked_network *netptr;
@@ -471,6 +512,9 @@ protected:
 	// Combine networks (probe into normal)
 	void MergeNetwork(Netracker::tracked_network *net1,
 					  Netracker::tracked_network *net2);
+	// Build a SSID record
+	Netracker::adv_ssid_data *BuildAdvSSID(uint32_t ssid_csum, 
+										   kis_ieee80211_packinfo *packinfo);
 
 	// Kick the timer event to update all the clients
 	int TimerKick();
@@ -529,7 +573,8 @@ protected:
 	// Let the hooks call directly in
 	friend int kis_80211_netracker_hook(CHAINCALL_PARMS);
 	friend int kis_80211_datatracker_hook(CHAINCALL_PARMS);
-	friend void Protocol_NETWORK_enable(PROTO_ENABLE_PARMS);
+	friend void Protocol_BSSID_enable(PROTO_ENABLE_PARMS);
+	friend void Protocol_SSID_enable(PROTO_ENABLE_PARMS);
 	friend void Protocol_CLIENT_enable(PROTO_ENABLE_PARMS);
 	friend int NetrackerUpdateTimer(TIMEEVENT_PARMS);
 	friend void NetrackerRunstateCB(RUNSTATE_PARMS);

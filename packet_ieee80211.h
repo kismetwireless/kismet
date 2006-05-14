@@ -180,14 +180,14 @@ enum iapp_auth {
 };
 
 typedef struct {
-    unsigned iapp_version : 8 __attribute__ ((packed));
-    unsigned iapp_type : 8 __attribute__ ((packed));
-} iapp_header;
+    unsigned iapp_version : 8;
+    unsigned iapp_type : 8;
+} iapp_header __attribute__((__packed__));
 
 typedef struct {
-    unsigned pdu_type : 8 __attribute__ ((packed));
-    unsigned pdu_len : 16 __attribute__ ((packed));
-} iapp_pdu_header;
+    unsigned pdu_type : 8;
+    unsigned pdu_len : 16;
+} iapp_pdu_header __attribute__((__packed__));
 
 // Crypt bitfield
 enum crypt_type {
@@ -217,87 +217,87 @@ enum crypt_type {
 #ifdef WORDS_BIGENDIAN
 // Byte ordering for bigendian systems.  Bitwise strcts are so funky.
 typedef struct {
-    unsigned short subtype : 4 __attribute__ ((packed));
-    unsigned short type : 2 __attribute__ ((packed));
-    unsigned short version : 2 __attribute__ ((packed));
+    unsigned short subtype : 4;
+    unsigned short type : 2;
+    unsigned short version : 2;
 
-    unsigned short order : 1 __attribute__ ((packed));
-    unsigned short wep : 1 __attribute__ ((packed));
-    unsigned short more_data : 1 __attribute__ ((packed));
-    unsigned short power_management : 1 __attribute__ ((packed));
+    unsigned short order : 1;
+    unsigned short wep : 1;
+    unsigned short more_data : 1;
+    unsigned short power_management : 1;
 
-    unsigned short retry : 1 __attribute__ ((packed));
-    unsigned short more_fragments : 1 __attribute__ ((packed));
-    unsigned short from_ds : 1 __attribute__ ((packed));
-    unsigned short to_ds : 1 __attribute__ ((packed));
-} frame_control;
+    unsigned short retry : 1;
+    unsigned short more_fragments : 1;
+    unsigned short from_ds : 1;
+    unsigned short to_ds : 1;
+} frame_control __attribute__((__packed__));
 
 typedef struct {
-    unsigned short frag : 12 __attribute__ ((packed));
-    unsigned short sequence : 4 __attribute__ ((packed));
-} wireless_fragseq;
+    unsigned short frag : 12;
+    unsigned short sequence : 4;
+} wireless_fragseq __attribute__((__packed__));
 
 typedef struct {
     uint8_t timestamp[8];
 
     // This field must be converted to host-endian before being used
-    unsigned int beacon : 16 __attribute__ ((packed));
+    unsigned int beacon : 16;
 
-    unsigned short agility : 1 __attribute__ ((packed));
-    unsigned short pbcc : 1 __attribute__ ((packed));
-    unsigned short short_preamble : 1 __attribute__ ((packed));
-    unsigned short wep : 1 __attribute__ ((packed));
+    unsigned short agility : 1;
+    unsigned short pbcc : 1;
+    unsigned short short_preamble : 1;
+    unsigned short wep : 1;
 
-    unsigned short unused2 : 1 __attribute__ ((packed));
-    unsigned short unused1 : 1 __attribute__ ((packed));
-    unsigned short ibss : 1 __attribute__ ((packed));
-    unsigned short ess : 1 __attribute__ ((packed));
+    unsigned short unused2 : 1;
+    unsigned short unused1 : 1;
+    unsigned short ibss : 1;
+    unsigned short ess : 1;
 
-    unsigned int coordinator : 8 __attribute__ ((packed));
+    unsigned int coordinator : 8;
 
-} fixed_parameters;
+} fixed_parameters __attribute__((__packed__));
 
 #else
 // And 802.11 packet frame header
 typedef struct {
-    unsigned short version : 2 __attribute__ ((packed));
-    unsigned short type : 2 __attribute__ ((packed));
-    unsigned short subtype : 4 __attribute__ ((packed));
+    unsigned short version : 2;
+    unsigned short type : 2;
+    unsigned short subtype : 4;
 
-    unsigned short to_ds : 1 __attribute__ ((packed));
-    unsigned short from_ds : 1 __attribute__ ((packed));
-    unsigned short more_fragments : 1 __attribute__ ((packed));
-    unsigned short retry : 1 __attribute__ ((packed));
+    unsigned short to_ds : 1;
+    unsigned short from_ds : 1;
+    unsigned short more_fragments : 1;
+    unsigned short retry : 1;
 
-    unsigned short power_management : 1 __attribute__ ((packed));
-    unsigned short more_data : 1 __attribute__ ((packed));
-    unsigned short wep : 1 __attribute__ ((packed));
-    unsigned short order : 1 __attribute__ ((packed));
-} frame_control;
+    unsigned short power_management : 1;
+    unsigned short more_data : 1;
+    unsigned short wep : 1;
+    unsigned short order : 1;
+} frame_control __attribute__((__packed__));
 
 typedef struct {
-    unsigned short frag : 4 __attribute__ ((packed));
-    unsigned short sequence : 12 __attribute__ ((packed));
-} wireless_fragseq;
+    unsigned short frag : 4;
+    unsigned short sequence : 12;
+} wireless_fragseq __attribute__((__packed__));
 
 typedef struct {
     uint8_t timestamp[8];
 
     // This field must be converted to host-endian before being used
-    unsigned int beacon : 16 __attribute__ ((packed));
+    unsigned int beacon : 16;
 
-    unsigned short ess : 1 __attribute__ ((packed));
-    unsigned short ibss : 1 __attribute__ ((packed));
-    unsigned short unused1 : 1 __attribute__ ((packed));
-    unsigned short unused2 : 1 __attribute__ ((packed));
+    unsigned short ess : 1;
+    unsigned short ibss : 1;
+    unsigned short unused1 : 1;
+    unsigned short unused2 : 1;
 
-    unsigned short wep : 1 __attribute__ ((packed));
-    unsigned short short_preamble : 1 __attribute__ ((packed));
-    unsigned short pbcc : 1 __attribute__ ((packed));
-    unsigned short agility : 1 __attribute__ ((packed));
+    unsigned short wep : 1;
+    unsigned short short_preamble : 1;
+    unsigned short pbcc : 1;
+    unsigned short agility : 1;
 
-    unsigned int coordinator : 8 __attribute__ ((packed));
-} fixed_parameters;
+    unsigned int coordinator : 8;
+} fixed_parameters __attribute__((__packed__));
 
 #endif
 

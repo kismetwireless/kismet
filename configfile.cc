@@ -38,9 +38,8 @@ int ConfigFile::ParseConfig(const char *in_fname) {
     }
 
     while (!feof(configf)) {
-        fgets(confline, 8192, configf);
-
-        if (feof(configf)) break;
+        if (fgets(confline, 8192, configf) == NULL || feof(configf)) 
+			break;
 
         // It's easier to parse this using C++ functions
         string parsestr = StrStrip(confline);

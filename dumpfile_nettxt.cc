@@ -164,26 +164,71 @@ int Dumpfile_Nettxt::Flush() {
 		fprintf(txtfile, " Type       : %s\n", ntype.c_str());
 		fprintf(txtfile, " BSSID      : %s\n", net->bssid.Mac2String().c_str());
 
-		if (net->ssid.length() > 0) {
-			for (map<uint32_t, string>::iterator m = net->beacon_ssid_map.begin();
-				 m != net->beacon_ssid_map.end(); ++m) {
-				if (m->second.length() > 0) {
-					fprintf(txtfile, " SSID       : \"%s\"\n", m->second.c_str());
-				}
-			}
-			fprintf(txtfile, " Last SSID  : \"%s\"\n", net->ssid.c_str());
-		} else {
-			if (net->ssid_cloaked)
-				fprintf(txtfile, " SSID       : <Cloaked>\n");
+		int ssidnum = 1;
+		for (map<uint32_t, Netracker::adv_ssid_data *>::iterator m =
+			 net->ssid_map.begin(); m != net->ssid_map.end(); ++m) {
+			string typestr;
+			if (m->second->type == ssid_beacon)
+				typestr = "Beacon";
+			else if (m->second->type == ssid_proberesp)
+				typestr = "Probe Response";
+			else if (m->second->type == ssid_probereq)
+				typestr = "Probe Request";
+
+			fprintf(txtfile, "   SSID %d\n", ssidnum);
+			fprintf(txtfile, "    Type       : %s\n", typestr.c_str());
+			if (m->second->ssid_cloaked)
+				fprintf(txtfile, "    SSID       : <cloaked>\n");
 			else
-				fprintf(txtfile, " SSID       : <Unknown>\n");
+				fprintf(txtfile, "    SSID       : %s\n", m->second->ssid.c_str());
+			if (m->second->beacon_info.length() > 0)
+				fprintf(txtfile, "    Info       : %s\n", 
+						m->second->beacon_info.c_str());
+			fprintf(txtfile, "    First      : %.24s\n", 
+					ctime(&(m->second->first_time)));
+			fprintf(txtfile, "    Last       : %.24s\n", 
+					ctime(&(m->second->last_time)));
+			fprintf(txtfile, "    Max Rate   : %2.1f\n", m->second->maxrate);
+			fprintf(txtfile, "    Beacon     : %d\n", m->second->beaconrate);
+			fprintf(txtfile, "    Packets    : %d\n", m->second->packets);
+
+			if (m->second->cryptset == 0)
+				fprintf(txtfile, "    Encryption : None\n");
+			if (m->second->cryptset & crypt_wep)
+				fprintf(txtfile, "    Encryption : WEP\n");
+			if (m->second->cryptset & crypt_layer3)
+				fprintf(txtfile, "    Encryption : Layer3\n");
+			if (m->second->cryptset & crypt_wep40)
+				fprintf(txtfile, "    Encryption : WEP40\n");
+			if (m->second->cryptset & crypt_wep104)
+				fprintf(txtfile, "    Encryption : WEP104\n");
+			if (m->second->cryptset & crypt_tkip)
+				fprintf(txtfile, "    Encryption : TKIP\n");
+			if (m->second->cryptset & crypt_wpa)
+				fprintf(txtfile, "    Encryption : WPA\n");
+			if (m->second->cryptset & crypt_psk)
+				fprintf(txtfile, "    Encryption : PSK\n");
+			if (m->second->cryptset & crypt_aes_ocb)
+				fprintf(txtfile, "    Encryption : AES-OCB\n");
+			if (m->second->cryptset & crypt_aes_ccm)
+				fprintf(txtfile, "    Encryption : AES-CCM\n");
+			if (m->second->cryptset & crypt_leap)
+				fprintf(txtfile, "    Encryption : LEAP\n");
+			if (m->second->cryptset & crypt_ttls)
+				fprintf(txtfile, "    Encryption : TTLS\n");
+			if (m->second->cryptset & crypt_tls)
+				fprintf(txtfile, "    Encryption : TLS\n");
+			if (m->second->cryptset & crypt_peap)
+				fprintf(txtfile, "    Encryption : PEAP\n");
+			if (m->second->cryptset & crypt_isakmp)
+				fprintf(txtfile, "    Encryption : ISAKMP\n");
+			if (m->second->cryptset & crypt_pptp)
+				fprintf(txtfile, "    Encryption : PPTP\n");
+			
+			ssidnum++;
 		}
 
-		if (net->beacon_info.length() > 0) {
-			fprintf(txtfile, " BeaconInfo : \"%s\"\n", net->beacon_info.c_str());
-		}
 		fprintf(txtfile, " Channel    : %d\n", net->channel);
-		fprintf(txtfile, " Max Rate   : %2.1f\n", net->maxrate);
 		fprintf(txtfile, " Max Seen   : %d\n", net->snrdata.maxseenrate * 100);
 
 		if (net->snrdata.carrierset & (1 << (int) carrier_80211b))
@@ -206,38 +251,6 @@ int Dumpfile_Nettxt::Flush() {
 		if (net->snrdata.encodingset & (1 << (int) encoding_ofdm))
 			fprintf(txtfile, " Encoding   : OFDM\n");
 
-		if (net->cryptset == 0)
-			fprintf(txtfile, " Encryption : None\n");
-		if (net->cryptset & crypt_wep)
-			fprintf(txtfile, " Encryption : WEP\n");
-		if (net->cryptset & crypt_layer3)
-			fprintf(txtfile, " Encryption : Layer3\n");
-		if (net->cryptset & crypt_wep40)
-			fprintf(txtfile, " Encryption : WEP40\n");
-		if (net->cryptset & crypt_wep104)
-			fprintf(txtfile, " Encryption : WEP104\n");
-		if (net->cryptset & crypt_tkip)
-			fprintf(txtfile, " Encryption : TKIP\n");
-		if (net->cryptset & crypt_wpa)
-			fprintf(txtfile, " Encryption : WPA\n");
-		if (net->cryptset & crypt_psk)
-			fprintf(txtfile, " Encryption : PSK\n");
-		if (net->cryptset & crypt_aes_ocb)
-			fprintf(txtfile, " Encryption : AES-OCB\n");
-		if (net->cryptset & crypt_aes_ccm)
-			fprintf(txtfile, " Encryption : AES-CCM\n");
-		if (net->cryptset & crypt_leap)
-			fprintf(txtfile, " Encryption : LEAP\n");
-		if (net->cryptset & crypt_ttls)
-			fprintf(txtfile, " Encryption : TTLS\n");
-		if (net->cryptset & crypt_tls)
-			fprintf(txtfile, " Encryption : TLS\n");
-		if (net->cryptset & crypt_peap)
-			fprintf(txtfile, " Encryption : PEAP\n");
-		if (net->cryptset & crypt_isakmp)
-			fprintf(txtfile, " Encryption : ISAKMP\n");
-		if (net->cryptset & crypt_pptp)
-			fprintf(txtfile, " Encryption : PPTP\n");
 
 		fprintf(txtfile, " LLC        : %d\n", net->llc_packets);
 		fprintf(txtfile, " Data       : %d\n", net->data_packets);
@@ -357,6 +370,71 @@ int Dumpfile_Nettxt::Flush() {
 			fprintf(txtfile, "  Type       : %s\n", ctype.c_str());
 			fprintf(txtfile, "  MAC        : %s\n", cli->mac.Mac2String().c_str());
 
+			int ssidnum = 1;
+			for (map<uint32_t, Netracker::adv_ssid_data *>::iterator m =
+				 cli->ssid_map.begin(); m != cli->ssid_map.end(); ++m) {
+				string typestr;
+				if (m->second->type == ssid_beacon)
+					typestr = "Beacon";
+				else if (m->second->type == ssid_proberesp)
+					typestr = "Probe Response";
+				else if (m->second->type == ssid_probereq)
+					typestr = "Probe Request";
+
+				fprintf(txtfile, "   SSID %d\n", ssidnum);
+				fprintf(txtfile, "    Type       : %s\n", typestr.c_str());
+				if (m->second->ssid_cloaked)
+					fprintf(txtfile, "    SSID       : <cloaked>\n");
+				else
+					fprintf(txtfile, "    SSID       : %s\n", 
+							m->second->ssid.c_str());
+				if (m->second->beacon_info.length() > 0)
+					fprintf(txtfile, "    Info       : %s\n", 
+							m->second->beacon_info.c_str());
+				fprintf(txtfile, "    First      : %.24s\n", 
+						ctime(&(m->second->first_time)));
+				fprintf(txtfile, "    Last       : %.24s\n", 
+						ctime(&(m->second->last_time)));
+				fprintf(txtfile, "    Max Rate   : %2.1f\n", m->second->maxrate);
+				fprintf(txtfile, "    Beacon     : %d\n", m->second->beaconrate);
+				fprintf(txtfile, "    Packets    : %d\n", m->second->packets);
+
+				if (m->second->cryptset == 0)
+					fprintf(txtfile, "    Encryption : None\n");
+				if (m->second->cryptset & crypt_wep)
+					fprintf(txtfile, "    Encryption : WEP\n");
+				if (m->second->cryptset & crypt_layer3)
+					fprintf(txtfile, "    Encryption : Layer3\n");
+				if (m->second->cryptset & crypt_wep40)
+					fprintf(txtfile, "    Encryption : WEP40\n");
+				if (m->second->cryptset & crypt_wep104)
+					fprintf(txtfile, "    Encryption : WEP104\n");
+				if (m->second->cryptset & crypt_tkip)
+					fprintf(txtfile, "    Encryption : TKIP\n");
+				if (m->second->cryptset & crypt_wpa)
+					fprintf(txtfile, "    Encryption : WPA\n");
+				if (m->second->cryptset & crypt_psk)
+					fprintf(txtfile, "    Encryption : PSK\n");
+				if (m->second->cryptset & crypt_aes_ocb)
+					fprintf(txtfile, "    Encryption : AES-OCB\n");
+				if (m->second->cryptset & crypt_aes_ccm)
+					fprintf(txtfile, "    Encryption : AES-CCM\n");
+				if (m->second->cryptset & crypt_leap)
+					fprintf(txtfile, "    Encryption : LEAP\n");
+				if (m->second->cryptset & crypt_ttls)
+					fprintf(txtfile, "    Encryption : TTLS\n");
+				if (m->second->cryptset & crypt_tls)
+					fprintf(txtfile, "    Encryption : TLS\n");
+				if (m->second->cryptset & crypt_peap)
+					fprintf(txtfile, "    Encryption : PEAP\n");
+				if (m->second->cryptset & crypt_isakmp)
+					fprintf(txtfile, "    Encryption : ISAKMP\n");
+				if (m->second->cryptset & crypt_pptp)
+					fprintf(txtfile, "    Encryption : PPTP\n");
+
+				ssidnum++;
+			}
+
 			fprintf(txtfile, "  Channel    : %d\n", cli->channel);
 			fprintf(txtfile, "  Max Seen   : %d\n", cli->snrdata.maxseenrate * 100);
 
@@ -379,39 +457,6 @@ int Dumpfile_Nettxt::Flush() {
 				fprintf(txtfile, "  Encoding   : PBCC\n");
 			if (cli->snrdata.encodingset & (1 << (int) encoding_ofdm))
 				fprintf(txtfile, "  Encoding   : OFDM\n");
-
-			if (cli->cryptset == 0)
-				fprintf(txtfile, "  Encryption : None\n");
-			if (cli->cryptset & crypt_wep)
-				fprintf(txtfile, "  Encryption : WEP\n");
-			if (cli->cryptset & crypt_layer3)
-				fprintf(txtfile, "  Encryption : Layer3\n");
-			if (cli->cryptset & crypt_wep40)
-				fprintf(txtfile, "  Encryption : WEP40\n");
-			if (cli->cryptset & crypt_wep104)
-				fprintf(txtfile, "  Encryption : WEP104\n");
-			if (cli->cryptset & crypt_tkip)
-				fprintf(txtfile, "  Encryption : TKIP\n");
-			if (cli->cryptset & crypt_wpa)
-				fprintf(txtfile, "  Encryption : WPA\n");
-			if (cli->cryptset & crypt_psk)
-				fprintf(txtfile, "  Encryption : PSK\n");
-			if (cli->cryptset & crypt_aes_ocb)
-				fprintf(txtfile, "  Encryption : AES-OCB\n");
-			if (cli->cryptset & crypt_aes_ccm)
-				fprintf(txtfile, "  Encryption : AES-CCM\n");
-			if (cli->cryptset & crypt_leap)
-				fprintf(txtfile, "  Encryption : LEAP\n");
-			if (cli->cryptset & crypt_ttls)
-				fprintf(txtfile, "  Encryption : TTLS\n");
-			if (cli->cryptset & crypt_tls)
-				fprintf(txtfile, "  Encryption : TLS\n");
-			if (cli->cryptset & crypt_peap)
-				fprintf(txtfile, "  Encryption : PEAP\n");
-			if (cli->cryptset & crypt_isakmp)
-				fprintf(txtfile, "  Encryption : ISAKMP\n");
-			if (cli->cryptset & crypt_pptp)
-				fprintf(txtfile, "  Encryption : PPTP\n");
 
 			fprintf(txtfile, "  LLC        : %d\n", cli->llc_packets);
 			fprintf(txtfile, "  Data       : %d\n", cli->data_packets);

@@ -290,6 +290,7 @@ public:
             } else {
                 singleton_itr = owner->singleton_map.end();
                 vector_itr = owner->mask_vec.size();
+				second = NULL;
             }
         }
 
