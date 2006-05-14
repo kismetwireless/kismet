@@ -46,6 +46,7 @@
 #include "packetsource_pcap.h"
 #include "packetsource_wext.h"
 #include "packetsource_drone.h"
+#include "packetsource_ipwlive.h"
 #include "packetsourcetracker.h"
 
 #include "timetracker.h"
@@ -643,6 +644,10 @@ int main(int argc, char *argv[], char *envp[]) {
 #endif
 #ifdef USE_PACKETSOURCE_BSDRT
 	if (globalregistry->sourcetracker->AddKisPacketsource(new PacketSource_BSDRT(globalregistry)) < 0 || globalregistry->fatal_condition) 
+		CatchShutdown(-1);
+#endif
+#ifdef USE_PACKETSOURCE_IPWLIVE
+	if (globalregistry->sourcetracker->AddKisPacketsource(new PacketSource_Ipwlive(globalregistry)) < 0 || globalregistry->fatal_condition) 
 		CatchShutdown(-1);
 #endif
 

@@ -69,8 +69,10 @@ int TcpClient::Connect(const char *in_remotehost, short int in_port) {
 
     // Connect the sockets
     if (connect(cli_fd, (struct sockaddr *) &client_sock, sizeof(client_sock)) < 0) {
+		/*
         snprintf(errstr, 1024, "TCP client connect() failed: %s", strerror(errno));
         globalreg->messagebus->InjectMessage(errstr, MSGFLAG_ERROR);
+		*/
         return -1;
     }
 

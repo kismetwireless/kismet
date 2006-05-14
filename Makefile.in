@@ -43,7 +43,7 @@ PSO	= util.o ringbuf.o messagebus.o configfile.o getopt.o filtercore.o \
 	netframework.o clinetframework.o tcpserver.o tcpclient.o \
 	kis_netframe.o kis_droneframe.o gpscore.o gpsdclient.o \
 	packetchain.o packetsource_pcap.o packetsource_wext.o packetsource_bsdrt.o \
-	packetsource_drone.o \
+	packetsource_drone.o packetsource_ipwlive.o \
 	plugintracker.o packetsourcetracker.o alertracker.o timetracker.o \
 	packetdissectors.o netracker.o \
 	dumpfile.o dumpfile_runstate.o dumpfile_pcap.o dumpfile_gpsxml.o \
