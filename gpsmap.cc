@@ -79,7 +79,8 @@ const char *config_base = "kismet.conf";
 #define MAPSOURCE_TIGER      3
 #define MAPSOURCE_EARTHAMAPS 4
 #define MAPSOURCE_TERRATOPO  5
-#define MAPSOURCE_MAX        5
+#define MAPSOURCE_EUEX	     6
+#define MAPSOURCE_MAX        6
 
 // Broken map sources...  Damn vendors changing.
 // Mappoint
@@ -95,6 +96,8 @@ const char url_template_tt[] = "http://terraservice.net/GetImageArea.ashx?t=2&la
 const char url_template_ti[] = "http://tiger.census.gov/cgi-bin/mapper/map.gif?lat=%f&lon=%f&wid=0.001&ht=%f&iwd=%d&iht=%d&on=majroads&on=places&on=shorelin&on=streets&on=interstate&on=statehwy&on=ushwy&on=water&tlevel=-&tvar=-&tmeth=i";
 // Earthamaps need a perl helper script to get data because of cookies
 const char url_template_em[] = "gpsmap-helper-earthamaps %s %f %f %d %d %ld";
+
+const char url_template_euex[] = "http://www.expedia.de/pub/agent.dll?qscr=mrdt&ID=3XNsF.&CenP=%f,%f&Lang=%s&Alti=%ld&Size=%d,%d&Offs=0.000000,0.000000&BCheck=1";
 
 // Download template for sources that we fetch using wget
 const char download_template[] = "wget \"%s\" -O %s";
@@ -114,6 +117,12 @@ long int terrascales[] = { 2757, 5512, 11024, 22048, 44096, 88182, 176384, -1 };
 long int earthamapscales[] = {
     0, 0, 32393191, 16196595, 8098298, 4319092, 2159546, 1079773, 539887,
     215955, 107977, 53989, 26994, 14315, 7158, 3579, -1 };
+
+// Scales for Expedia
+long int euexscales[] = { 3950, 7900, 11850, 15800, 19750, 23700, 27650,
+	31600, 35550, 39500, 79000, 118500, 197500, 237000, 276500, 316000,
+	355500, 395000, 790000, 1580000, 237000, 3160000, 3950000, 19750000,
+	39500000, 47400000};
 
 // Decay from absolute blue for multiple tracks
 const uint8_t track_decay = 0x1F;
@@ -1488,6 +1497,29 @@ int BestMapScale(long int *in_mapscale, long int *in_fetchscale,
             } else {
                 (*in_mapscale) = terrascales[x];
                 (*in_fetchscale) = x + 10;
+                return 1;
+            }
+        }
+        return -1;
+    }
+
+    if (mapsource == MAPSOURCE_EUEX) {
+        for (int x = 0; euexscales[x] != -1; x++) {
+            calcxy(&mapx, &mapy, tlat, tlon, 
+                    (double) euexscales[x]/PIXELFACT, 
+                    map_avg_lat, map_avg_lon);
+            calcxy(&map2x, &map2y, blat, blon, 
+                    (double) euexscales[x]/PIXELFACT, 
+                    map_avg_lat, map_avg_lon);
+
+            if ((mapx < 0 || mapx > map_width || mapy < 0 || 
+                        mapy > map_height) ||
+                    (map2x < 0 || map2x > map_width || 
+                     map2y < 0 || map2y > map_height)) {
+                continue;
+            } else {
+                (*in_mapscale) = euexscales[x];
+                (*in_fetchscale) = x;
                 return 1;
             }
         }
@@ -3350,6 +3382,7 @@ int Usage(char* argv, int ec = 1) {
            "                                  3 Tiger US Census (vector)\n"
            "                                  4 EarthaMaps (vector, UNAVAILABLE)\n"
            "                                  5 TerraServer (topo)\n"
+	   "                                  6 Expedia EU (vector)\n"
            "  -D, --keep-gif                 Keep the downloaded map\n"
            "  -V, --version                  GPSMap version\n"
            "\nImage options\n"
@@ -4165,7 +4198,14 @@ int main(int argc, char *argv[]) {
         } else if (mapsource == MAPSOURCE_EARTHAMAPS) {
             snprintf(url, 1024, url_template_em, mapname, map_avg_lat, 
                      map_avg_lon, map_width, map_height, fetch_scale);
-        }
+        } else if (mapsource == MAPSOURCE_EUEX) {
+	    fetch_scale = (long) (map_scale / 3950);
+	    char loc[8] = "USA0409";
+	    if (map_avg_lat > (-30.0))
+		strcpy(loc,"EUR0809");
+	    snprintf(url, 1024, url_template_euex, map_avg_lat, map_avg_lon,
+		 loc, fetch_scale, map_width, map_height);
+	}
 
         printf("Map url: %s\n", url);
         printf("Fetching map...\n");
