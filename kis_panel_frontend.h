@@ -46,6 +46,11 @@ class KisPanelInterface;
 //
 // This also implements all the hooks which get linked to the clients to
 // process protocols.
+
+#define KPI_ADDCLI_CB_PARMS		GlobalRegistry *globalreg, KisNetClient *netcli, \
+	int add, void *auxptr
+typedef void (*KPI_AddCli_Callback)(KPI_ADDCLI_CB_PARMS);
+
 class KisPanelInterface : public PanelInterface {
 public:
 	KisPanelInterface();
@@ -54,6 +59,9 @@ public:
 
 	// Add a new client
 	virtual int AddNetClient(string in_host, int in_reconnect);
+	virtual int Add_NetCli_AddCli_CB(KPI_AddCli_Callback in_cb, void *in_aux);
+	virtual void Remove_Netcli_AddCli_CB(int in_cbref);
+
 	// Fetch a list of clients
 	virtual vector<KisNetClient *> FetchNetClientVec();
 	virtual vector<KisNetClient *> *FetchNetClientVecPtr();
@@ -100,11 +108,20 @@ public:
 	// Fetch the list of cards from the system
 	map<uuid, KisPanelInterface::knc_card *> *FetchNetCardMap();
 
+	typedef struct addcli_cb_rec {
+		int refnum;
+		KPI_AddCli_Callback cb;
+		void *auxptr;
+	};
+
 protected:
 	vector<KisNetClient *> netclient_vec;
 
 	// Map of UUIDs of sources to representations
 	map<uuid, KisPanelInterface::knc_card *> netcard_map;
+
+	int addcb_ref;
+	vector<KisPanelInterface::addcli_cb_rec *> addclicb_vec;
 
 };
 

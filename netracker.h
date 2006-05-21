@@ -61,7 +61,6 @@ enum BSSID_fields {
 	BSSID_gatewayip, BSSID_gpsfixed,
     BSSID_minlat, BSSID_minlon, BSSID_minalt, BSSID_minspd,
     BSSID_maxlat, BSSID_maxlon, BSSID_maxalt, BSSID_maxspd,
-    BSSID_octets, BSSID_beaconrate, BSSID_maxrate,
     BSSID_signal, BSSID_noise, 
 	BSSID_minsignal, BSSID_minnoise,
     BSSID_maxsignal, BSSID_maxnoise,
@@ -298,6 +297,7 @@ public:
 			llc_packets = data_packets = crypt_packets = 0;
 			channel = 0;
 			bssid = mac_addr(0);
+			decrypted = 0;
 			last_time = first_time = 0;
 			client_disconnects = 0;
 			last_sequence = 0;
@@ -308,6 +308,7 @@ public:
 			fragments = 0;
 			retries = 0;
 			new_packets = 0;
+			field1 = field2 = 0;
 		}
 
 		// What we last saw it as
@@ -327,6 +328,9 @@ public:
 
 		time_t last_time;
 		time_t first_time;
+
+		// One of the SSIDs decrypted?
+		int decrypted;
 
 		// GPS info
 		Netracker::gps_data gpsdata;
@@ -367,6 +371,9 @@ public:
 
 		// Network is dirty and should be pushed out
 		int dirty;
+
+		// Arbitrary fields for use by other things (like the client)
+		int field1, field2;
 
 	};
 

@@ -1,3 +1,9 @@
+REMEMBER:  I don't always update the changelog for newcore, check the SVN
+log for current progress
+
+Apr 20 2006  devel  Fixed BSSID protocol in kismet_server
+                    Added various sources
+                    Added BSSID protocol decoder to client
 Apr 07 2006  devel  Added server picker window
                     Added "add source" window
 Mar 20 2006  devel  Added keepalive to drone protocol

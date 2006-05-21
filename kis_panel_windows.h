@@ -27,6 +27,7 @@
 #include "globalregistry.h"
 #include "kis_clinetframe.h"
 #include "kis_panel_widgets.h"
+#include "netracker.h"
 
 class KisPanelInterface;
 
@@ -35,16 +36,27 @@ class KisPanelInterface;
 	KisNetClient *picked, void *auxptr
 typedef void (*kpi_sl_cb_hook)(KPI_SL_CB_PARMS);
 
+// Used as the bitfield of modified fields for smarter sorting, too
 #define KIS_SORT_AUTO		0
 #define KIS_SORT_CHANNEL	1
 #define KIS_SORT_FIRST		2
-#define KIS_SORT_FIRST_D	3
-#define KIS_SORT_LAST		4
-#define KIS_SORT_LAST_D		5
-#define KIS_SORT_BSSID		6
-#define KIS_SORT_SSID		7
-#define KIS_SORT_PACKETS	8
-#define KIS_SORT_PACKETS_D	9
+#define KIS_SORT_FIRST_D	4
+#define KIS_SORT_LAST		8
+#define KIS_SORT_LAST_D		16
+#define KIS_SORT_BSSID		32
+#define KIS_SORT_SSID		64
+#define KIS_SORT_PACKETS	128
+#define KIS_SORT_PACKETS_D	256
+
+// What we expect from the client
+#define KCLI_BSSID_FIELDS	"bssid,type,llcpackets,datapackets,cryptpackets," \
+	"channel,firsttime,lasttime,atype,rangeip,netmaskip,gatewayip,gpsfixed," \
+	"minlat,minlon,minalt,minspd,maxlat,maxlon,maxalt,maxspd,signal,noise," \
+	"minsignal,minnoise,maxsignal,maxnoise,bestlat,bestlon,bestalt,agglat," \
+	"agglon,aggalt,aggpoints,datasize,turbocellnid,turbocellmode,turbocellsat," \
+	"carrierset,maxseenrate,encodingset,decrypted,dupeivpackets,bsstimestamp," \
+	"cdpdevice,cdpport,fragments,retries,newpackets"
+#define KCLI_BSSID_NUMFIELDS	49
 
 class Kis_Main_Panel : public Kis_Panel {
 public:
@@ -58,6 +70,10 @@ public:
 	virtual void Position(int in_sy, int in_sx, int in_y, int in_x);
 	virtual void DrawPanel();
 	virtual int KeyPress(int in_key);
+
+	void Proto_BSSID(CLIPROTO_CB_PARMS);
+	void NetClientConfigure(KisNetClient *in_cli, int in_recon);
+	void NetClientAdd(KisNetClient *cli, int add);
 
 protected:
 	KisPanelInterface *kpinterface;
@@ -77,6 +93,19 @@ protected:
 
 	KisStatusText_Messageclient *statuscli;
 	Kis_Status_Text *statustext;
+
+	int addref;
+
+	// The map of all BSSIDs seen
+	map<mac_addr, Netracker::tracked_network *> bssid_map;
+	// Viewable vector
+	vector<Netracker::tracked_network *> viewable_bssid;
+	// All networks, as a vector
+	vector<Netracker::tracked_network *> all_bssid;
+	// Dirty flags for viewable and all.  The viewable vector is only
+	// dirty if a new network is added to it or if something changes w/in the
+	// sorting type
+	int viewable_dirty, all_dirty;
 };
 
 class Kis_Connect_Panel : public Kis_Panel {

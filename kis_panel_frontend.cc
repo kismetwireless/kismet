@@ -146,10 +146,16 @@ KisPanelInterface::KisPanelInterface() {
 KisPanelInterface::KisPanelInterface(GlobalRegistry *in_globalreg) :
 	PanelInterface(in_globalreg) {
 	globalreg = in_globalreg;
-
+	addcb_ref = 0;
 }
 
 KisPanelInterface::~KisPanelInterface() {
+	// Destroy panels in this destructor, if they get destroyed in the
+	// parent destructor sadness happens
+	for (unsigned int x = 0; x < live_panels.size(); x++)
+		delete live_panels[x];
+	live_panels.clear();
+
 	for (unsigned int x = 0; x < netclient_vec.size(); x++)
 		delete netclient_vec[x];
 }
@@ -158,6 +164,10 @@ int KisPanelInterface::AddNetClient(string in_host, int in_reconnect) {
 	KisNetClient *netcl = new KisNetClient(globalreg);
 
 	netcl->AddConfCallback(KisPanelClient_Configured, 1, this);
+
+	for (unsigned int x = 0; x < addclicb_vec.size(); x++)
+		(*(addclicb_vec[x]->cb))(globalreg, netcl, 1, 
+								 addclicb_vec[x]->auxptr);
 
 	if (netcl->Connect(in_host, in_reconnect) < 0)
 		return -1;
@@ -178,6 +188,9 @@ vector<KisNetClient *> *KisPanelInterface::FetchNetClientVecPtr() {
 int KisPanelInterface::RemoveNetClient(KisNetClient *in_cli) {
 	for (unsigned int x = 0; x < netclient_vec.size(); x++) {
 		if (netclient_vec[x] == in_cli) {
+			for (unsigned int c = 0; c < addclicb_vec.size(); c++)
+				(*(addclicb_vec[c]->cb))(globalreg, in_cli, 0, 
+										 addclicb_vec[c]->auxptr);
 			delete netclient_vec[x];
 			netclient_vec.erase(netclient_vec.begin() + x);
 			return 1;
@@ -233,6 +246,31 @@ void KisPanelInterface::RaiseServerPicker(string in_title, kpi_sl_cb_hook in_hoo
 
 map<uuid, KisPanelInterface::knc_card *> *KisPanelInterface::FetchNetCardMap() {
 	return &netcard_map;
+}
+
+int KisPanelInterface::Add_NetCli_AddCli_CB(KPI_AddCli_Callback in_cb,
+											void *in_auxptr) {
+	addcli_cb_rec *cbr = new addcli_cb_rec;
+
+	cbr->refnum = addcb_ref;
+	cbr->cb = in_cb;
+	cbr->auxptr = in_auxptr;
+
+	addcb_ref++;
+
+	addclicb_vec.push_back(cbr);
+
+	return cbr->refnum;
+}
+
+void KisPanelInterface::Remove_Netcli_AddCli_CB(int in_cbref) {
+	for (unsigned int x = 0; x < addclicb_vec.size(); x++) {
+		if (addclicb_vec[x]->refnum == in_cbref) {
+			delete addclicb_vec[x];
+			addclicb_vec.erase(addclicb_vec.begin() + x);
+			return;
+		}
+	}
 }
 
 #endif

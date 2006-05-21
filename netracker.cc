@@ -47,7 +47,6 @@ char *BSSID_fields_text[] = {
 	"gatewayip", "gpsfixed",
     "minlat", "minlon", "minalt", "minspd",
     "maxlat", "maxlon", "maxalt", "maxspd",
-    "octets", 
     "signal", "noise", "minsignal", "minnoise",
     "maxsignal", "maxnoise",
     "bestlat", "bestlon", "bestalt",
@@ -147,6 +146,11 @@ int Protocol_BSSID(PROTO_PARMS) {
 				out_string += osstr.str();
 				cache->Cache(fnum, osstr.str());
 				break;
+			case BSSID_cryptpackets:
+				osstr << net->crypt_packets;
+				out_string += osstr.str();
+				cache->Cache(fnum, osstr.str());
+				break;
 			case BSSID_channel:
 				osstr << net->channel;
 				out_string += osstr.str();
@@ -226,11 +230,6 @@ int Protocol_BSSID(PROTO_PARMS) {
 				osstr << net->gpsdata.max_spd;
 				out_string += osstr.str();
 				cache->Cache(fnum, osstr.str());
-				break;
-			case BSSID_octets:
-				// Deprecated
-				out_string += "0";
-				cache->Cache(fnum, "0");
 				break;
 			case BSSID_signal:
 				osstr << net->snrdata.last_signal;
@@ -328,13 +327,11 @@ int Protocol_BSSID(PROTO_PARMS) {
 				out_string += osstr.str();
 				cache->Cache(fnum, osstr.str());
 				break;
-#if 0
 			case BSSID_decrypted:
 				osstr << net->decrypted;
 				out_string += osstr.str();
 				cache->Cache(fnum, osstr.str());
 				break;
-#endif
 			case BSSID_dupeiv:
 				osstr << net->dupeiv_packets;
 				out_string += osstr.str();

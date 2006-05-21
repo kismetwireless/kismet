@@ -25,10 +25,27 @@
 #include "kis_panel_frontend.h"
 #include "kis_panel_windows.h"
 
+// Callbacks into the classes proper
+void KisMainPanel_BSSID(CLIPROTO_CB_PARMS) {
+	((Kis_Main_Panel *) auxptr)->Proto_BSSID(globalreg, proto_string,
+											 proto_parsed, srccli, auxptr);
+}
+
+void KisMainPanel_Configured(CLICONF_CB_PARMS) {
+	((Kis_Main_Panel *) auxptr)->NetClientConfigure(kcli, recon);
+}
+
+void KisMainPanel_AddCli(KPI_ADDCLI_CB_PARMS) {
+	((Kis_Main_Panel *) auxptr)->NetClientAdd(netcli, add);
+}
+
 Kis_Main_Panel::Kis_Main_Panel(GlobalRegistry *in_globalreg, 
 							   KisPanelInterface *in_intf) : Kis_Panel(in_globalreg) {
 	globalreg = in_globalreg;
 	kpinterface = in_intf;
+
+	// Add the addcli callback
+	addref = kpinterface->Add_NetCli_AddCli_CB(KisMainPanel_AddCli, (void *) this);
 
 	menu = new Kis_Menu(globalreg);
 
@@ -86,9 +103,21 @@ Kis_Main_Panel::Kis_Main_Panel(GlobalRegistry *in_globalreg,
 	sortmode = KIS_SORT_AUTO;
 
 	SetTitle("Kismet Newcore Client");
+
+	viewable_dirty = 0;
+	all_dirty = 0;
 }
 
 Kis_Main_Panel::~Kis_Main_Panel() {
+	kpinterface->Remove_Netcli_AddCli_CB(addref);
+
+	// Manually remove it all
+	vector<KisNetClient *> cv = kpinterface->FetchNetClientVec();
+	for (unsigned int x = 0; x < cv.size(); x++) {
+		cv[x]->RemoveProtoHandler("BSSID", KisMainPanel_BSSID);
+		cv[x]->RemoveConfCallback(KisMainPanel_Configured);
+	}
+
 	globalreg->messagebus->RemoveClient(statuscli);
 
 }
@@ -194,6 +223,328 @@ int Kis_Main_Panel::KeyPress(int in_key) {
 	}
 
 	return 0;
+}
+
+void Kis_Main_Panel::NetClientConfigure(KisNetClient *in_cli, int in_recon) {
+	if (in_recon)
+		return;
+
+	if (in_cli->RegisterProtoHandler("BSSID", KCLI_BSSID_FIELDS,
+									 KisMainPanel_BSSID, this) < 0) {
+		_MSG("Could not register BSSID protocol with remote server, connection "
+			 "will be terminated.", MSGFLAG_ERROR);
+		in_cli->KillConnection();
+	}
+
+}
+
+void Kis_Main_Panel::NetClientAdd(KisNetClient *in_cli, int add) {
+	if (add == 0) {
+		// Ignore remove events for now
+		return;
+	}
+
+	// Add a client configured callback to the new client so we can load
+	// our protocols
+	in_cli->AddConfCallback(KisMainPanel_Configured, 1, this);
+}
+
+void Kis_Main_Panel::Proto_BSSID(CLIPROTO_CB_PARMS) {
+	if (proto_parsed->size() < KCLI_BSSID_NUMFIELDS) {
+		return;
+	}
+	
+	Netracker::tracked_network *net = new Netracker::tracked_network;
+
+	int tint;
+	float tfloat;
+	long double tlf;
+	long long unsigned int tlld;
+	mac_addr tmac;
+
+	// BSSID
+	tmac = mac_addr((*proto_parsed)[0].word.c_str());
+	if (tmac.error) {
+		delete net;
+		return;
+	}
+	net->bssid = tmac;
+
+	// Type
+	if (sscanf((*proto_parsed)[1].word.c_str(), "%d", &tint) != 1) {
+		delete net;
+		return;
+	}
+	net->type = (network_type) tint;
+
+	// Packet counts
+	if (sscanf((*proto_parsed)[2].word.c_str(), "%d", &(net->llc_packets)) != 1) {
+		delete net;
+		return;
+	}
+	if (sscanf((*proto_parsed)[3].word.c_str(), "%d", &(net->data_packets)) != 1) {
+		delete net;
+		return;
+	}
+	if (sscanf((*proto_parsed)[4].word.c_str(), "%d", &(net->crypt_packets)) != 1) {
+		delete net;
+		return;
+	}
+
+	// Channel
+	if (sscanf((*proto_parsed)[5].word.c_str(), "%d", &(net->channel)) != 1) {
+		delete net;
+		return;
+	}
+
+	// Times
+	if (sscanf((*proto_parsed)[6].word.c_str(), "%d", &tint) != 1) {
+		delete net;
+		return;
+	}
+	net->first_time = tint;
+	if (sscanf((*proto_parsed)[7].word.c_str(), "%d", &tint) != 1) {
+		delete net;
+		return;
+	}
+	net->last_time = tint;
+
+	// Atype
+	if (sscanf((*proto_parsed)[8].word.c_str(), "%d", &tint) != 1) {
+		delete net;
+		return;
+	}
+	net->guess_ipdata.ip_type = (ipdata_type) tint;
+
+	// Rangeip
+	if (inet_aton((*proto_parsed)[9].word.c_str(), 
+				  &(net->guess_ipdata.ip_addr_block)) == 0) {
+		delete net;
+		return;
+	}
+
+	// Maskip
+	if (inet_aton((*proto_parsed)[10].word.c_str(),
+				  &(net->guess_ipdata.ip_netmask)) == 0) {
+		delete net;
+		return;
+	}
+
+	// Gateip
+	if (inet_aton((*proto_parsed)[11].word.c_str(),
+				  &(net->guess_ipdata.ip_gateway)) == 0) {
+		delete net;
+		return;
+	}
+
+	// GPS
+	if (sscanf((*proto_parsed)[12].word.c_str(), "%d",
+			   &(net->gpsdata.gps_valid)) != 1) {
+		delete net;
+		return;
+	}
+
+	if (sscanf((*proto_parsed)[13].word.c_str(), "%f", &tfloat) != 1) {
+		delete net;
+		return;
+	}
+	net->gpsdata.min_lat = tfloat;
+
+	if (sscanf((*proto_parsed)[14].word.c_str(), "%f", &tfloat) != 1) {
+		delete net;
+		return;
+	}
+	net->gpsdata.min_lon = tfloat;
+
+	if (sscanf((*proto_parsed)[15].word.c_str(), "%f", &tfloat) != 1) {
+		delete net;
+		return;
+	}
+	net->gpsdata.min_alt = tfloat;
+
+	if (sscanf((*proto_parsed)[16].word.c_str(), "%f", &tfloat) != 1) {
+		delete net;
+		return;
+	}
+	net->gpsdata.min_spd = tfloat;
+
+	if (sscanf((*proto_parsed)[17].word.c_str(), "%f", &tfloat) != 1) {
+		delete net;
+		return;
+	}
+	net->gpsdata.max_lat = tfloat;
+
+	if (sscanf((*proto_parsed)[18].word.c_str(), "%f", &tfloat) != 1) {
+		delete net;
+		return;
+	}
+	net->gpsdata.max_lon = tfloat;
+	
+	if (sscanf((*proto_parsed)[19].word.c_str(), "%f", &tfloat) != 1) {
+		delete net;
+		return;
+	}
+	net->gpsdata.max_alt = tfloat;
+
+	if (sscanf((*proto_parsed)[20].word.c_str(), "%f", &tfloat) != 1) {
+		delete net;
+		return;
+	}
+	net->gpsdata.max_spd = tfloat;
+
+	// Signal levels
+	if (sscanf((*proto_parsed)[21].word.c_str(), "%d", 
+			   &(net->snrdata.last_signal)) != 1) {
+		delete net;
+		return;
+	}
+
+	if (sscanf((*proto_parsed)[22].word.c_str(), "%d",
+			   &(net->snrdata.last_noise)) != 1) {
+		delete net;
+		return;
+	}
+
+	if (sscanf((*proto_parsed)[23].word.c_str(), "%d",
+			   &(net->snrdata.min_signal)) != 1) {
+		delete net;
+		return;
+	}
+
+	if (sscanf((*proto_parsed)[24].word.c_str(), "%d",
+			   &(net->snrdata.min_noise)) != 1) {
+		delete net;
+		return;
+	}
+
+	if (sscanf((*proto_parsed)[25].word.c_str(), "%d",
+			   &(net->snrdata.max_signal)) != 1) {
+		delete net;
+		return;
+	}
+
+	if (sscanf((*proto_parsed)[26].word.c_str(), "%d",
+			   &(net->snrdata.max_noise)) != 1) {
+		delete net;
+		return;
+	}
+
+	// SNR lat/lon
+	if (sscanf((*proto_parsed)[27].word.c_str(), "%f", &tfloat) != 1) {
+		delete net;
+		return;
+	}
+	net->snrdata.peak_lat = tfloat;
+
+	if (sscanf((*proto_parsed)[28].word.c_str(), "%f", &tfloat) != 1) {
+		delete net;
+		return;
+	}
+	net->snrdata.peak_lon = tfloat;
+
+	if (sscanf((*proto_parsed)[29].word.c_str(), "%f", &tfloat) != 1) {
+		delete net;
+		return;
+	}
+	net->snrdata.peak_alt = tfloat;
+
+	// gpsdata aggregates
+	if (sscanf((*proto_parsed)[30].word.c_str(), "%Lf", &tlf) != 1) {
+		delete net;
+		return;
+	}
+	net->gpsdata.aggregate_lat = tlf;
+
+	if (sscanf((*proto_parsed)[31].word.c_str(), "%Lf", &tlf) != 1) {
+		delete net;
+		return;
+	}
+	net->gpsdata.aggregate_lon = tlf;
+
+	if (sscanf((*proto_parsed)[32].word.c_str(), "%Lf", &tlf) != 1) {
+		delete net;
+		return;
+	}
+	net->gpsdata.aggregate_alt = tlf;
+
+	if (sscanf((*proto_parsed)[33].word.c_str(), "%ld", 
+			   &(net->gpsdata.aggregate_points)) != 1) {
+		delete net;
+		return;
+	}
+
+	// Data size
+	if (sscanf((*proto_parsed)[34].word.c_str(), "%llu", &tlld) != 1) {
+		delete net;
+		return;
+	}
+	net->datasize = tlld;
+
+	// We don't handle turbocell yet, so ignore it
+	// 35 tcnid
+	// 36 tcmode
+	// 37 tcsat
+	
+	// SNR carrierset
+	if (sscanf((*proto_parsed)[38].word.c_str(), "%d", 
+			   &(net->snrdata.carrierset)) != 1) {
+		delete net;
+		return;
+	}
+
+	if (sscanf((*proto_parsed)[39].word.c_str(), "%d",
+			   &(net->snrdata.maxseenrate)) != 1) {
+		delete net;
+		return;
+	}
+
+	if (sscanf((*proto_parsed)[40].word.c_str(), "%d",
+			   &(net->snrdata.encodingset)) != 1) {
+		delete net;
+		return;
+	}
+
+	// Decrypted
+	if (sscanf((*proto_parsed)[41].word.c_str(), "%d", &(net->decrypted)) != 1) {
+		delete net;
+		return;
+	}
+
+	// Dupeiv
+	if (sscanf((*proto_parsed)[42].word.c_str(), "%d", &(net->dupeiv_packets)) != 1) {
+		delete net;
+		return;
+	}
+
+	// BSS time stamp
+	if (sscanf((*proto_parsed)[43].word.c_str(), "%llu", &tlld) != 1) {
+		delete net;
+		return;
+	}
+	net->bss_timestamp = tlld;
+
+	// CDP data
+	net->cdp_dev_id = MungeToPrintable((*proto_parsed)[44].word);
+	net->cdp_port_id = MungeToPrintable((*proto_parsed)[45].word);
+
+	// Fragments
+	if (sscanf((*proto_parsed)[46].word.c_str(), "%d", &(net->fragments)) != 1) {
+		delete net;
+		return;
+	}
+
+	// Retries
+	if (sscanf((*proto_parsed)[47].word.c_str(), "%d", &(net->retries)) != 1) {
+		delete net;
+		return;
+	}
+
+	// New packets
+	if (sscanf((*proto_parsed)[48].word.c_str(), "%d", &(net->new_packets)) != 1) {
+		delete net;
+		return;
+	}
+
 }
 
 Kis_Connect_Panel::Kis_Connect_Panel(GlobalRegistry *in_globalreg, 
@@ -678,7 +1029,7 @@ int Kis_AddCard_Panel::KeyPress(int in_key) {
 			if (srcname->GetText() == "") {
 				kpinterface->RaiseAlert("No source name",
 										"No source name was provided for\n"
-										"creating a new source.  A source name\n"
+										"reating a new source.  A source name\n"
 										"is required.\n");
 				return(0);
 			}
