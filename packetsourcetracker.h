@@ -121,7 +121,7 @@ public:
 
 	// Add a runtime source (much simpler than the initial parse and split
 	// configurations)
-	int CreateRuntimeSource(string in_srcdef);
+	uuid CreateRuntimeSource(string in_srcdef);
 
 	// Add a live precreated packetsource to the system.  This takes a strong
 	// packet source.

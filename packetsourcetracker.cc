@@ -332,7 +332,10 @@ int Packetsourcetracker::cmd_addsource(CLIENT_PARMS) {
         return -1;
     }
 
-	if (CreateRuntimeSource((*parsedcmdline)[0].word) < 0) {
+	uuid ret;
+
+	ret = CreateRuntimeSource((*parsedcmdline)[0].word);
+	if (ret.error) {
 		snprintf(errstr, 1024, "Failed to create source");
 		return -1;
 	}
@@ -530,12 +533,15 @@ int Packetsourcetracker::AddKisPacketsource(KisPacketSource *in_source) {
 	return in_source->RegisterSources(this);
 }
 
-int Packetsourcetracker::CreateRuntimeSource(string in_srcdef) {
+uuid Packetsourcetracker::CreateRuntimeSource(string in_srcdef) {
 	vector<string> srccomp = StrTokenize(in_srcdef, ",");
+	uuid err;
+
+	err.error = 1;
 
 	if (srccomp.size() < 3) {
 		_MSG("Illegal runtime source '" + in_srcdef + "'", MSGFLAG_ERROR);
-		return -1;
+		return err;
 	}
 	
 	int initch = 0;
@@ -544,7 +550,7 @@ int Packetsourcetracker::CreateRuntimeSource(string in_srcdef) {
 		if (sscanf(srccomp[3].c_str(), "%d", &initch) != 1) {
 			_MSG("Illegal initial channel on runtime source '" + in_srcdef + "'",
 				 MSGFLAG_ERROR);
-			return -1;
+			return err;
 		}
 	}
 
@@ -552,14 +558,14 @@ int Packetsourcetracker::CreateRuntimeSource(string in_srcdef) {
 	if (StrLower(srccomp[0]) == "auto") {
 		_MSG("Runtime addition of 'auto' source types not possible, cannot add "
 			 "'" + in_srcdef + "'", MSGFLAG_ERROR);
-		return -1;
+		return err;
 	}
 
 	packsource_protorec *curproto = NULL;
 	if (cardtype_map.find(StrLower(srccomp[0])) == cardtype_map.end()) {
 		_MSG("Unknown capture source type '" + srccomp[0] + "' in runtime source '" +
 			 in_srcdef, MSGFLAG_ERROR);
-		return -1;
+		return err;
 	}
 
 	curproto = cardtype_map[StrLower(srccomp[0])];
@@ -568,7 +574,7 @@ int Packetsourcetracker::CreateRuntimeSource(string in_srcdef) {
 	if (curproto->root_required) {
 		_MSG("Unable to add sources which require root privileges at runtime, "
 			 "cannot add '" + in_srcdef + "'", MSGFLAG_ERROR);
-		return -1;
+		return err;
 	}
 #endif
 
@@ -595,14 +601,14 @@ int Packetsourcetracker::CreateRuntimeSource(string in_srcdef) {
 			_MSG("Source (" + srccomp[2] + "): Failed to set channel list",
 				 MSGFLAG_ERROR);
 			delete strong;
-			return -1;
+			return err;
 		}
 
 		if (strong->SetChannelSeqPos(0) < 0) {
 			_MSG("Source (" + srccomp[2] + "): Failed to set starting position in "
 				 "channel list", MSGFLAG_ERROR);
 			delete strong;
-			return -1;
+			return err;
 		}
 	}
 
@@ -610,7 +616,7 @@ int Packetsourcetracker::CreateRuntimeSource(string in_srcdef) {
 	
 	if (strong->EnableMonitor() < 0) {
 		delete strong;
-		return -1;
+		return err;
 	}
 
 	// Open it
@@ -622,7 +628,7 @@ int Packetsourcetracker::CreateRuntimeSource(string in_srcdef) {
 	if (strong->OpenSource() < 0) {
 		strong->DisableMonitor();
 		delete strong;
-		return -1;
+		return err;
 	}
 
 	osstr << "Source (" << srccomp[2] << "): Opened " << srccomp[0] << " source "
@@ -632,7 +638,7 @@ int Packetsourcetracker::CreateRuntimeSource(string in_srcdef) {
 
 	RegisterLiveKisPacketsource(strong);
 
-	return 1;
+	return strong->FetchUUID();
 }
 
 // Add a live packet source into our internal tracking system

@@ -115,7 +115,7 @@ int PacketSource_Wext::EnableMonitor() {
 	uint8_t hwnode[6];
 	if (Ifconfig_Get_Hwaddr(interface.c_str(), errstr, hwnode) < 0) {
 		_MSG(errstr, MSGFLAG_ERROR);
-		_MSG("Failed to fetch interface hardware flags for '" + interface + ", "
+		_MSG("Failed to fetch interface hardware address for '" + interface + ", "
 			 "this will probably fully fail in a moment when we try to configure "
 			 "the interface, but we'll keep going.", MSGFLAG_ERROR);
 	}
@@ -284,6 +284,10 @@ int PacketSource_Wext::FetchChannel() {
 }
 
 void PacketSource_Wext::FetchRadioData(kis_packet *in_packet) {
+	// Don't fetch non-packetheader data since it's not likely to be
+	// useful info.
+	return;
+#if 0
 	// Build a signal layer record if we don't have one from the builtin headers.
 	// These are less accurate.
 	char errstr[STATUS_MAX] = "";
@@ -320,6 +324,7 @@ void PacketSource_Wext::FetchRadioData(kis_packet *in_packet) {
 	}
 
 	in_packet->insert(_PCM(PACK_COMP_RADIODATA), radiodata);
+#endif
 }
 
 PacketSource_Madwifi::PacketSource_Madwifi(GlobalRegistry *in_globalreg, 
