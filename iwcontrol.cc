@@ -85,7 +85,7 @@ int FloatChan2Int(float in_chan) {
     return 0;
 }
 
-int Iwconfig_Set_SSID(const char *in_dev, char *errstr, char *in_essid) {
+int Iwconfig_Set_SSID(const char *in_dev, char *errstr, const char *in_essid) {
     struct iwreq wrq;
     int skfd;
     char essid[IW_ESSID_MAX_SIZE + 1];

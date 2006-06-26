@@ -53,7 +53,7 @@
 #define LINUX_WLEXT_MASTER  3
 
 // remove the SSID of the device.  Some cards seem to need this.
-int Iwconfig_Set_SSID(const char *in_dev, char *errstr, char *in_essid);
+int Iwconfig_Set_SSID(const char *in_dev, char *errstr, const char *in_essid);
 int Iwconfig_Get_SSID(const char *in_dev, char *errstr, char *in_essid);
 
 // Get the name
