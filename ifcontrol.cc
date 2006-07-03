@@ -21,6 +21,8 @@
 
 #ifdef SYS_LINUX
 
+#include <netdb.h>
+
 int Linux_GetDrvInfo(const char *in_dev, char *errstr, 
 					 struct ethtool_drvinfo *info) {
 	struct ifreq ifr;
@@ -55,7 +57,7 @@ int Ifconfig_Set_Flags(const char *in_dev, char *errstr, short flags) {
 
     if ((skfd = socket(AF_INET, SOCK_DGRAM, 0)) < 0) {
         snprintf(errstr, STATUS_MAX, "SetIFFlags: Failed to create AF_INET "
-                 "DGRAM socket. %d:%s", errno, strerror(errno));
+                 "DGRAM socket. %s", strerror(errno));
         return -1;
     }
 
@@ -80,8 +82,7 @@ int Ifconfig_Get_Flags(const char *in_dev, char *errstr, short *flags) {
 
     if ((skfd = socket(AF_INET, SOCK_DGRAM, 0)) < 0) {
         snprintf(errstr, STATUS_MAX, "GetIFFlags: Failed to create AF_INET "
-                 "DGRAM socket. %d:%s",
-                 errno, strerror(errno));
+                 "DGRAM socket. %s", strerror(errno));
         return -1;
     }
 
@@ -119,7 +120,7 @@ int Ifconfig_Get_Hwaddr(const char *in_dev, char *errstr, uint8_t *ret_hwaddr) {
 
     if ((skfd = socket(AF_INET, SOCK_DGRAM, 0)) < 0) {
         snprintf(errstr, STATUS_MAX, "Getting HWAddr: failed to create AF_INET "
-                 "DGRAM socket. %d:%s", errno, strerror(errno));
+                 "DGRAM socket. %s", strerror(errno));
         return -1;
     }
 
@@ -146,7 +147,7 @@ int Ifconfig_Set_Hwaddr(const char *in_dev, char *errstr, uint8_t *in_hwaddr) {
 
     if ((skfd = socket(AF_INET, SOCK_DGRAM, 0)) < 0) {
         snprintf(errstr, STATUS_MAX, "Setting HWAddr: failed to create AF_INET "
-                 "DGRAM socket. %d:%s", errno, strerror(errno));
+                 "DGRAM socket. %s", strerror(errno));
         return -1;
     }
 
@@ -174,11 +175,10 @@ int Ifconfig_Set_MTU(const char *in_dev, char *errstr, uint16_t in_mtu) {
 
     if ((skfd = socket(AF_INET, SOCK_DGRAM, 0)) < 0) {
         snprintf(errstr, STATUS_MAX, "Setting MTU: failed to create AF_INET "
-                 "DGRAM socket. %d:%s", errno, strerror(errno));
+                 "DGRAM socket. %s", strerror(errno));
         return -1;
     }
 
-    // Fetch interface flags
     strncpy(ifr.ifr_name, in_dev, IFNAMSIZ);
     ifr.ifr_mtu = in_mtu;
     if (ioctl(skfd, SIOCSIFMTU, &ifr) < 0) {
@@ -191,6 +191,84 @@ int Ifconfig_Set_MTU(const char *in_dev, char *errstr, uint16_t in_mtu) {
     close(skfd);
 
     return 0;
+}
+
+int Ifconfig_Set_IP(const char *in_dev, char *errstr, const char *ip) {
+	struct ifreq ifr;
+	int skfd;
+	struct sockaddr_in sin;
+	struct hostent *hp;
+
+	sin.sin_family = AF_INET;
+	sin.sin_port = 0;
+
+	if ((hp = gethostbyname(ip)) != NULL) {
+		memcpy(&(sin.sin_addr), hp->h_addr_list[0], sizeof(struct in_addr));
+	} else {
+		snprintf(errstr, STATUS_MAX, "Setting IPAddr: unable to resolve address %s",
+				 ip);
+		return -1;
+	}
+
+    if ((skfd = socket(AF_INET, SOCK_DGRAM, 0)) < 0) {
+        snprintf(errstr, STATUS_MAX, "Setting IPAddr: failed to create AF_INET "
+                 "DGRAM socket. %s", strerror(errno));
+        return -1;
+    }
+
+    strncpy(ifr.ifr_name, in_dev, IFNAMSIZ);
+
+	memcpy(&(ifr.ifr_addr), &sin, sizeof(struct sockaddr));
+
+	if (ioctl(skfd, SIOCSIFADDR, &ifr) < 0) {
+        snprintf(errstr, STATUS_MAX, "Setting IPAddr failed %s: %s", 
+                 in_dev, strerror(errno));
+        close(skfd);
+        return -1;
+    }
+
+    close(skfd);
+
+	return 0;
+}
+
+int Ifconfig_Set_Netmask(const char *in_dev, char *errstr, const char *netmask) {
+	struct ifreq ifr;
+	int skfd;
+	struct sockaddr_in sin;
+	struct hostent *hp;
+
+	sin.sin_family = AF_INET;
+	sin.sin_port = 0;
+
+	if ((hp = gethostbyname(netmask)) != NULL) {
+		memcpy(&(sin.sin_addr), hp->h_addr_list[0], sizeof(struct in_addr));
+	} else {
+		snprintf(errstr, STATUS_MAX, "Setting netmask: unable to resolve address %s",
+				 netmask);
+		return -1;
+	}
+
+    if ((skfd = socket(AF_INET, SOCK_DGRAM, 0)) < 0) {
+        snprintf(errstr, STATUS_MAX, "Setting netmask: failed to create AF_INET "
+                 "DGRAM socket. %s", strerror(errno));
+        return -1;
+    }
+
+    strncpy(ifr.ifr_name, in_dev, IFNAMSIZ);
+
+	memcpy(&(ifr.ifr_addr), &sin, sizeof(struct sockaddr));
+
+	if (ioctl(skfd, SIOCSIFNETMASK, &ifr) < 0) {
+        snprintf(errstr, STATUS_MAX, "Setting netmask failed %s: %s", 
+                 in_dev, strerror(errno));
+        close(skfd);
+        return -1;
+    }
+
+    close(skfd);
+
+	return 0;
 }
 
 #endif

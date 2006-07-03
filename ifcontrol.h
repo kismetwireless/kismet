@@ -89,6 +89,8 @@ int Ifconfig_Get_Flags(const char *in_dev, char *errstr, short *flags);
 int Ifconfig_Get_Hwaddr(const char *in_dev, char *errstr, uint8_t *ret_hwaddr);
 int Ifconfig_Set_Hwaddr(const char *in_dev, char *errstr, uint8_t *in_hwaddr);
 int Ifconfig_Set_MTU(const char *in_dev, char *errstr, uint16_t in_mtu);
+int Ifconfig_Set_IP(const char *in_dev, char *errstr, const char *ip);
+int Ifconfig_Set_Netmask(const char *in_dev, char *errstr, const char *netmask);
 #endif
 
 #endif
