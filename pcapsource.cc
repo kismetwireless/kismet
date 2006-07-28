@@ -2165,24 +2165,26 @@ int monitor_wext(const char *in_dev, int initch, char *in_err, void **in_if, voi
 }
 
 int unmonitor_wext(const char *in_dev, int initch, char *in_err, void **in_if, void *in_ext) {
-    // Restore the IP settings
-    linux_ifparm *ifparm = (linux_ifparm *) (*in_if);
+	if (*in_if != NULL) {
+		// Restore the IP settings
+		linux_ifparm *ifparm = (linux_ifparm *) (*in_if);
 
-    if (Ifconfig_Set_Flags(in_dev, in_err, ifparm->flags) < 0) {
-        return -1;
-    }
+		if (Ifconfig_Set_Flags(in_dev, in_err, ifparm->flags) < 0) {
+			return -1;
+		}
 
-    if (ifparm->mode >= 0) {
-        if (Iwconfig_Set_Mode(in_dev, in_err, ifparm->mode) < 0)
-            return -1;
-    }
+		if (ifparm->mode >= 0) {
+			if (Iwconfig_Set_Mode(in_dev, in_err, ifparm->mode) < 0)
+				return -1;
+		}
 
-    if (ifparm->channel > 0) {
-        if (Iwconfig_Set_Channel(in_dev, ifparm->channel, in_err) < 0)
-            return -1;
-    }
-    
-    free(ifparm);
+		if (ifparm->channel > 0) {
+			if (Iwconfig_Set_Channel(in_dev, ifparm->channel, in_err) < 0)
+				return -1;
+		}
+
+		free(ifparm);
+	}
 
     return 1;
 }
