@@ -773,6 +773,13 @@ void GetPacketInfo(kis_packet *packet, packet_info *ret_packinfo,
 
         } else if (fc->subtype == 6) {
             ret_packinfo->subtype = packet_sub_cf_ack_poll;
+
+        } else if (fc->subtype == 8) {
+           // This is a BIG, LAME hack. We really should process QOS data
+           // properly, but that's for -newcore at this point. For now we'll
+           // just not break and ignore the QOS data.
+            ret_packinfo->subtype = packet_sub_data;
+
         } else {
             ret_packinfo->corrupt = 1;
             ret_packinfo->subtype = packet_sub_unknown;
@@ -828,7 +835,13 @@ void GetPacketInfo(kis_packet *packet, packet_info *ret_packinfo,
 			ret_packinfo->header_offset = 0;
             return;
             break;
-        }
+       }
+
+       // More big QOS hack. We just fudge the header 2 bytes further out
+       // to skip the QOS data.
+       if (fc->subtype == 8) {
+               ret_packinfo->header_offset += 2;
+       }
 
 		// Check the header bounds
 		if (packet->len < ret_packinfo->header_offset) {
