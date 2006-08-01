@@ -77,6 +77,8 @@
 
 #include "ipc_remote.h"
 
+#include "statealert.h"
+
 #ifndef exec_name
 char *exec_name;
 #endif
@@ -834,6 +836,12 @@ int main(int argc, char *argv[], char *envp[]) {
 												  MSGFLAG_FATAL);
 		CatchShutdown(-1);
 	}
+
+	// Start stateful alert systems
+	BSSTSStateAlert *bsstsa;
+	bsstsa = new BSSTSStateAlert(globalregistry);
+	if (globalregistry->fatal_condition)
+		CatchShutdown(-1);
 
 	// Kick the plugin system one last time.  This will try to kick any plugins
 	// that aren't activated yet, and then bomb out if we can't turn them on at

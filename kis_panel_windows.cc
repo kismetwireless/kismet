@@ -62,6 +62,7 @@ Kis_Main_Panel::Kis_Main_Panel(GlobalRegistry *in_globalreg,
 	mn_sort = menu->AddMenu("Sort", 0);
 	mi_sort_auto = menu->AddMenuItem("Auto-fit", mn_sort, 'a');
 	menu->AddMenuItem("-", mn_sort, 0);
+	mi_sort_type = menu->AddMenuItem("Type", mn_sort, 't');
 	mi_sort_chan = menu->AddMenuItem("Channel", mn_sort, 'c');
 	mi_sort_first = menu->AddMenuItem("First Seen", mn_sort, 'f');
 	mi_sort_first_d = menu->AddMenuItem("First Seen (descending)", mn_sort, 'F');
@@ -104,7 +105,8 @@ Kis_Main_Panel::Kis_Main_Panel(GlobalRegistry *in_globalreg,
 
 	SetTitle("Kismet Newcore Client");
 
-	viewable_dirty = 0;
+	v_dirty = 0;
+	vc_dirty = 0;
 	all_dirty = 0;
 }
 
@@ -127,6 +129,9 @@ void Kis_Main_Panel::Position(int in_sy, int in_sx, int in_y, int in_x) {
 
 	menu->SetPosition(win, 1, 1, 0, 0);
 	statustext->SetPosition(win, in_sx + 1, in_y - 7, in_x - 2, 5);
+
+	// Set the viewable vector size
+	viewable_size = in_y - 7;
 }
 
 void Kis_Main_Panel::DrawPanel() {
@@ -165,6 +170,9 @@ int Kis_Main_Panel::KeyPress(int in_key) {
 		} else if (ret == mi_sort_auto) {
 			sortmode = KIS_SORT_AUTO;
 			_MSG("Auto-fit sorting", MSGFLAG_INFO);
+		} else if (ret == mi_sort_type) {
+			sortmode = KIS_SORT_TYPE;
+			_MSG("Sorting by type...", MSGFLAG_INFO);
 		} else if (ret == mi_sort_chan) {
 			sortmode = KIS_SORT_CHANNEL;
 			_MSG("Sorting by channel...", MSGFLAG_INFO);
@@ -543,6 +551,133 @@ void Kis_Main_Panel::Proto_BSSID(CLIPROTO_CB_PARMS) {
 	if (sscanf((*proto_parsed)[48].word.c_str(), "%d", &(net->new_packets)) != 1) {
 		delete net;
 		return;
+	}
+
+	map<mac_addr, Netracker::tracked_network *>::iterator ti;
+	// simple case -- we're not tracked yet
+	if ((ti = bssid_map.find(net->bssid)) == bssid_map.end()) {
+		bssid_map[net->bssid] = net;
+		all_bssid.push_back(net);
+		all_dirty = 1;
+
+		// If the viewable vec is smaller than the possible size, anything
+		// new goes into it
+		if (viewable_bssid.size() < viewable_size) { 
+			viewable_bssid.push_back(net);
+			// Use field2 to indicate visible
+			net->field2 = 1;
+			v_dirty = 1;
+
+			_MSG("debug - pushed new net into small viewable list", MSGFLAG_INFO);
+		} else {
+			// Compare with the viewable vec fields for the current sort
+			ViewSortFitBSSID(net);
+		}
+
+		return;
+	}
+
+	Netracker::tracked_network *onet = ti->second;
+	int merge_potential = 0;
+
+	// Onet content will always be dirty, so update it if its viewable
+	if (onet->field2)
+		vc_dirty = 1;
+
+	// Check the sort-relevant fields and if they're dirty, flag this as
+	// a potential merge
+	// Irrelevant: BSSID, firsttime.  Neither should change.
+	if (onet->type != net->type && sortmode == KIS_SORT_TYPE)
+		merge_potential = 1;
+	else if (onet->channel != net->channel && sortmode == KIS_SORT_CHANNEL)
+		merge_potential = 1;
+	else if (onet->last_time != net->last_time && 
+			 (sortmode == KIS_SORT_LAST || sortmode == KIS_SORT_LAST_D))
+		merge_potential = 1;
+	else if ((onet->llc_packets + onet->data_packets) != 
+			 (net->llc_packets + net->data_packets) && 
+			 (sortmode == KIS_SORT_PACKETS || sortmode == KIS_SORT_PACKETS_D))
+		merge_potential = 1;
+	
+	// Merge the new data into the old data
+	onet->type = net->type;
+	onet->llc_packets = net->llc_packets;
+	onet->data_packets = net->data_packets;
+	onet->crypt_packets = net->crypt_packets;
+	onet->channel = net->channel;
+	onet->last_time = net->last_time;
+	onet->decrypted = net->decrypted;
+	onet->client_disconnects = net->client_disconnects;
+	onet->last_sequence = net->last_sequence;
+	onet->bss_timestamp = net->bss_timestamp;
+	onet->datasize = net->datasize;
+	onet->dupeiv_packets = net->dupeiv_packets;
+	onet->fragments = net->fragments;
+	onet->retries = net->retries;
+	onet->new_packets = net->new_packets;
+
+	// So by now, if the net is new, it's (maybe) tacked into the viewable array.
+	// If it's one we have, and it's viewable, the viewable list is set to
+	// dirty straight off.  If something has changed that might affect the
+	// viewable vector, try to merge it into the viewable list
+	ViewSortFitBSSID(onet);
+}
+
+void Kis_Main_Panel::ViewSortFitBSSID(Netracker::tracked_network *net) {
+	Netracker::tracked_network *first = viewable_bssid[0];
+	Netracker::tracked_network *last = viewable_bssid[viewable_bssid.size() - 1];
+	int merge = 0;
+
+	// If we're already viewed, we don't need to think about a merge at all
+	if (net->field2 == 1)
+		return;
+
+	if (sortmode == KIS_SORT_AUTO) {
+		if (net->last_time >= last->last_time)
+			merge = 1;
+	} else if (sortmode == KIS_SORT_TYPE) {
+		if ((int) net->type >= (int) first->type &&
+			(int) net->type <= (int) last->type)
+			merge = 1;
+	} else if (sortmode == KIS_SORT_CHANNEL) {
+		if (net->channel >= first->channel && net->channel <= last->channel)
+			merge = 1;
+	} else if (sortmode == KIS_SORT_FIRST) {
+		if (net->first_time >= first->first_time && 
+			net->first_time <= last->first_time)
+			merge = 1;
+	} else if (sortmode == KIS_SORT_FIRST_D) {
+		if (net->first_time <= first->first_time &&
+			net->first_time >= last->first_time)
+			merge = 1;
+	} else if (sortmode == KIS_SORT_LAST) {
+		if (net->last_time >= first->last_time && 
+			net->last_time <= last->last_time)
+			merge = 1;
+	} else if (sortmode == KIS_SORT_LAST_D) {
+		if (net->last_time <= first->last_time &&
+			net->last_time >= last->last_time)
+			merge = 1;
+	} else if (sortmode == KIS_SORT_BSSID) {
+		if (net->bssid <= first->bssid == 0 &&
+			net->bssid <= last->bssid)
+			merge = 1;
+	} else if (sortmode == KIS_SORT_SSID) {
+		// Fix me somehow
+	} else if (sortmode == KIS_SORT_PACKETS) {
+		if ((net->llc_packets + net->data_packets) >= 
+			(first->llc_packets + first->data_packets) && 
+			(net->llc_packets + net->data_packets) <=
+			(last->llc_packets + last->data_packets))
+			merge = 1;
+	}
+
+	if (merge) {
+		viewable_bssid.push_back(net);
+		// Set the viewable field
+		net->field2 = 1;
+		v_dirty = 1;
+		_MSG("debug - pushed new net into sorted viewable list", MSGFLAG_INFO);
 	}
 
 }

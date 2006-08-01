@@ -464,6 +464,43 @@ protected:
 	vector<Kis_Panel *> dead_panels;
 };
 
+// Network display
+class Kis_Netlist : public Kis_Panel_Component {
+public:
+	Kis_Netlist() {
+		fprintf(stderr, "FATAL OOPS: Kis_Netlist() called w/out globalreg\n");
+		exit(1);
+	}
+	Kis_Netlist(GlobalRegistry *in_globalreg);
+	virtual ~Kis_Netlist();
+
+	virtual void DrawComponent();
+	virtual void Activate(int subcomponent);
+	virtual void Deactivate();
+
+	virtual int KeyPress(int in_key);
+
+	virtual void SetText(string in_text);
+
+protected:
+	// Addclient hook reference
+	int addref;
+
+	// The map of all BSSIDs seen
+	map<mac_addr, Netracker::tracked_network *> bssid_map;
+	// Viewable vector
+	vector<Netracker::tracked_network *> viewable_bssid;
+	// All networks, as a vector
+	vector<Netracker::tracked_network *> all_bssid;
+	// Dirty flags for viewable and all.  The viewable vector is only
+	// dirty if a new network is added to it or if something changes w/in the
+	// sorting type.  Content dirty means we need to regenerate our display
+	// text, but not resort.
+	int v_dirty, all_dirty, vc_dirty;
+	// Viewable size
+	unsigned int viewable_size;
+};
+
 #endif // panel
 #endif // header
 

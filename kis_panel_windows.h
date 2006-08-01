@@ -47,6 +47,7 @@ typedef void (*kpi_sl_cb_hook)(KPI_SL_CB_PARMS);
 #define KIS_SORT_SSID		64
 #define KIS_SORT_PACKETS	128
 #define KIS_SORT_PACKETS_D	256
+#define KIS_SORT_TYPE		512
 
 // What we expect from the client
 #define KCLI_BSSID_FIELDS	"bssid,type,llcpackets,datapackets,cryptpackets," \
@@ -71,10 +72,6 @@ public:
 	virtual void DrawPanel();
 	virtual int KeyPress(int in_key);
 
-	void Proto_BSSID(CLIPROTO_CB_PARMS);
-	void NetClientConfigure(KisNetClient *in_cli, int in_recon);
-	void NetClientAdd(KisNetClient *cli, int add);
-
 protected:
 	KisPanelInterface *kpinterface;
 
@@ -83,7 +80,7 @@ protected:
 
 	int mi_showtext, mi_showfields, mi_showinput;
 
-	int mi_sort_auto, mi_sort_chan, mi_sort_first, mi_sort_first_d,
+	int mi_sort_auto, mi_sort_type, mi_sort_chan, mi_sort_first, mi_sort_first_d,
 		mi_sort_last, mi_sort_last_d, mi_sort_bssid, mi_sort_ssid,
 		mi_sort_packets, mi_sort_packets_d;
 
@@ -93,19 +90,6 @@ protected:
 
 	KisStatusText_Messageclient *statuscli;
 	Kis_Status_Text *statustext;
-
-	int addref;
-
-	// The map of all BSSIDs seen
-	map<mac_addr, Netracker::tracked_network *> bssid_map;
-	// Viewable vector
-	vector<Netracker::tracked_network *> viewable_bssid;
-	// All networks, as a vector
-	vector<Netracker::tracked_network *> all_bssid;
-	// Dirty flags for viewable and all.  The viewable vector is only
-	// dirty if a new network is added to it or if something changes w/in the
-	// sorting type
-	int viewable_dirty, all_dirty;
 };
 
 class Kis_Connect_Panel : public Kis_Panel {

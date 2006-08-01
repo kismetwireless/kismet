@@ -2054,6 +2054,7 @@ int Netracker::datatracker_chain_handler(kis_packet *in_pack) {
 
 			if (alert_dhcpcon_ref >= 0 && net->guess_ipdata.ip_type == ipdata_dhcp &&
 				ip_calced_range.s_addr != net->guess_ipdata.ip_addr_block.s_addr &&
+				ip_calced_range.s_addr != 0 &&
 				globalreg->alertracker->PotentialAlert(alert_dhcpcon_ref)) {
 				ostringstream outs;
 

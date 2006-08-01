@@ -1098,6 +1098,10 @@ int KisBuiltinDissector::ieee80211_dissector(kis_packet *in_pack) {
 
         } else if (fc->subtype == 6) {
             packinfo->subtype = packet_sub_cf_ack_poll;
+		} else if (fc->subtype == 8) {
+			// Ugly hack, do this better
+			packinfo->subtype = packet_sub_data;
+			packinfo->header_offset += 2;
         } else {
             packinfo->corrupt = 1;
             packinfo->subtype = packet_sub_unknown;
@@ -1119,19 +1123,19 @@ int KisBuiltinDissector::ieee80211_dissector(kis_packet *in_pack) {
             if (packinfo->bssid_mac.longmac == 0)
                 packinfo->bssid_mac = packinfo->source_mac;
 
-            packinfo->header_offset = 24;
+            packinfo->header_offset += 24;
             break;
         case distrib_from:
             packinfo->dest_mac = addr0;
             packinfo->bssid_mac = addr1;
             packinfo->source_mac = addr2;
-            packinfo->header_offset = 24;
+            packinfo->header_offset += 24;
             break;
         case distrib_to:
             packinfo->bssid_mac = addr0;
             packinfo->source_mac = addr1;
             packinfo->dest_mac = addr2;
-            packinfo->header_offset = 24;
+            packinfo->header_offset += 24;
             break;
         case distrib_unknown:
             // If we aren't long enough to hold a intra-ds packet, bail
@@ -1148,7 +1152,7 @@ int KisBuiltinDissector::ieee80211_dissector(kis_packet *in_pack) {
             packinfo->distrib = distrib_inter;
 
             // First byte of offsets
-            packinfo->header_offset = 30;
+            packinfo->header_offset += 30;
             break;
         default:
             packinfo->corrupt = 1;
