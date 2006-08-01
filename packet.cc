@@ -775,10 +775,28 @@ void GetPacketInfo(kis_packet *packet, packet_info *ret_packinfo,
             ret_packinfo->subtype = packet_sub_cf_ack_poll;
 
         } else if (fc->subtype == 8) {
-           // This is a BIG, LAME hack. We really should process QOS data
-           // properly, but that's for -newcore at this point. For now we'll
-           // just not break and ignore the QOS data.
-            ret_packinfo->subtype = packet_sub_data;
+	    // This is a BIG, LAME hack. We really should process QOS data
+	    // properly, but that's for -newcore at this point. For now we'll
+	    // just not break, store and ignore the QOS data.
+            ret_packinfo->subtype = packet_sub_data_qos_data;
+
+        } else if (fc->subtype == 9) {
+            ret_packinfo->subtype = packet_sub_data_qos_data_cf_ack;
+
+        } else if (fc->subtype == 10) {
+            ret_packinfo->subtype = packet_sub_data_qos_data_cf_poll;
+
+        } else if (fc->subtype == 11) {
+            ret_packinfo->subtype = packet_sub_data_qos_data_cf_ack_poll;
+
+        } else if (fc->subtype == 12) {
+            ret_packinfo->subtype = packet_sub_data_qos_null;
+
+        } else if (fc->subtype == 14) {
+            ret_packinfo->subtype = packet_sub_data_qos_cf_poll_nod;
+
+        } else if (fc->subtype == 15) {
+            ret_packinfo->subtype = packet_sub_data_qos_cf_ack_poll;
 
         } else {
             ret_packinfo->corrupt = 1;
@@ -835,14 +853,22 @@ void GetPacketInfo(kis_packet *packet, packet_info *ret_packinfo,
 			ret_packinfo->header_offset = 0;
             return;
             break;
-       }
+       } 
 
-       // More big QOS hack. We just fudge the header 2 bytes further out
-       // to skip the QOS data.
-       if (fc->subtype == 8) {
-               ret_packinfo->header_offset += 2;
-       }
-
+	// More QOS hack. We just fudge the header 2 bytes further out 
+	// to skip the QOS data.
+	//	if (fc->subtype == 8) {
+	//	ret_packinfo->header_offset += 2;
+	//}
+	// QOS header info effectively begins just after the end of the
+	// "regular" header, so generate that offset here based on the
+	// header offset we just got and stash the data in ret_packinfo.
+	if (ret_packinfo->subtype == packet_sub_data_qos_data) {
+	  ret_packinfo->qos = (uint16_t)packet->data[ret_packinfo->header_offset];
+	  // Now do something bad and just fudge the header offset out
+	  // a couple bytes here so the rest of the code works.
+	  ret_packinfo->header_offset += 2;
+	}
 		// Check the header bounds
 		if (packet->len < ret_packinfo->header_offset) {
 			ret_packinfo->corrupt = 1;
@@ -850,7 +876,9 @@ void GetPacketInfo(kis_packet *packet, packet_info *ret_packinfo,
 		}
 
 		// If we're special data frame types bail now
-		if (ret_packinfo->subtype != packet_sub_data) {
+	        // Note: QOS data frames also count.
+	        if ((ret_packinfo->subtype != packet_sub_data) &&
+                    (ret_packinfo->subtype != packet_sub_data_qos_data)) {
 			ret_packinfo->datasize = 0;
 			return;
 		}
