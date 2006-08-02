@@ -76,7 +76,14 @@ enum ieee_80211_subtype {
     packet_sub_data_cf_ack_poll = 3,
     packet_sub_data_null = 4,
     packet_sub_cf_ack = 5,
-    packet_sub_cf_ack_poll = 6
+    packet_sub_cf_ack_poll = 6,
+    packet_sub_data_qos_data = 8,
+    packet_sub_data_qos_data_cf_ack = 9,
+    packet_sub_data_qos_data_cf_poll = 10,
+    packet_sub_data_qos_data_cf_ack_poll = 11,
+    packet_sub_data_qos_null = 12,
+    packet_sub_data_qos_cf_poll_nod = 14,
+    packet_sub_data_qos_cf_ack_poll = 15
 };
 
 // distribution directions

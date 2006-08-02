@@ -179,6 +179,7 @@ public:
 		retry = 0;
         duration = 0;
         datasize = 0;
+		qos = 0;
     }
 
     // Corrupt 802.11 frame
@@ -222,6 +223,8 @@ public:
     // Is this encrypted?
     int encrypted;
     int beacon_interval;
+
+	uint16_t qos;
 
     // Some cisco APs seem to fill in this info field
 	string beacon_info;

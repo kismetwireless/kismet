@@ -1100,7 +1100,31 @@ int KisBuiltinDissector::ieee80211_dissector(kis_packet *in_pack) {
             packinfo->subtype = packet_sub_cf_ack_poll;
 		} else if (fc->subtype == 8) {
 			// Ugly hack, do this better
-			packinfo->subtype = packet_sub_data;
+			packinfo->subtype = packet_sub_data_qos_data;
+			packinfo->header_offset += 2;
+		} else if (fc->subtype == 9) {
+			// Ugly hack, do this better
+			packinfo->subtype = packet_sub_data_qos_data_cf_ack;
+			packinfo->header_offset += 2;
+		} else if (fc->subtype == 10) {
+			// Ugly hack, do this better
+			packinfo->subtype = packet_sub_data_qos_data_cf_poll;
+			packinfo->header_offset += 2;
+		} else if (fc->subtype == 11) {
+			// Ugly hack, do this better
+			packinfo->subtype = packet_sub_data_qos_data_cf_ack_poll;
+			packinfo->header_offset += 2;
+		} else if (fc->subtype == 12) {
+			// Ugly hack, do this better
+			packinfo->subtype = packet_sub_data_qos_null;
+			packinfo->header_offset += 2;
+		} else if (fc->subtype == 14) {
+			// Ugly hack, do this better
+			packinfo->subtype = packet_sub_data_qos_cf_poll_nod;
+			packinfo->header_offset += 2;
+		} else if (fc->subtype == 15) {
+			// Ugly hack, do this better
+			packinfo->subtype = packet_sub_data_qos_cf_ack_poll;
 			packinfo->header_offset += 2;
         } else {
             packinfo->corrupt = 1;
