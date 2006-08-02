@@ -1211,7 +1211,9 @@ int KisBuiltinDissector::basicdata_dissector(kis_packet *in_pack) {
 		return 0;
 	if (packinfo->corrupt)
 		return 0;
-	if (packinfo->type != packet_data || packinfo->subtype != packet_sub_data)
+	if (packinfo->type != packet_data || 
+		(packinfo->subtype != packet_sub_data &&
+		 packinfo->subtype != packet_sub_data_qos_data))
 		return 0;
 
 	// If it's encrypted and hasn't been decrypted, we can't do anything
@@ -1716,7 +1718,9 @@ int KisBuiltinDissector::wep_data_decryptor(kis_packet *in_pack) {
 		return 0;
 	if (packinfo->corrupt)
 		return 0;
-	if (packinfo->type != packet_data || packinfo->subtype != packet_sub_data)
+	if (packinfo->type != packet_data || 
+		(packinfo->subtype != packet_sub_data &&
+		 packinfo->subtype != packet_sub_data_qos_data))
 		return 0;
 
 	// No need to look at data thats already been decoded
@@ -1954,7 +1958,9 @@ int KisBuiltinDissector::basicstring_dissector(kis_packet *in_pack) {
 		return 0;
 	if (packinfo->corrupt)
 		return 0;
-	if (packinfo->type != packet_data || packinfo->subtype != packet_sub_data)
+	if (packinfo->type != packet_data || 
+		(packinfo->subtype != packet_sub_data &&
+		 packinfo->subtype != packet_sub_data_qos_data))
 		return 0;
 
 	// If it's encrypted and hasn't been decrypted, we can't do anything
