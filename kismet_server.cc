@@ -2927,8 +2927,7 @@ int main(int argc,char *argv[]) {
                     }
 
                     if (gps_log == 1 && info.type != packet_noise && 
-                        info.type != packet_unknown && info.type != packet_phy && 
-                        info.corrupt == 0) {
+                        info.type != packet_unknown && info.type != packet_phy) {
                         if (gpsdump.DumpPacket(&info) < 0) {
                             snprintf(status, STATUS_MAX, "%s", gpsdump.FetchError());
                             if (!silent || NetWriteStatus(status) == 0)
@@ -3007,8 +3006,8 @@ int main(int argc,char *argv[]) {
                     if (fifo)
                         fifodump.DumpPacket(&info, &packet);
 
-                    if (data_log && !(info.type == packet_noise && noise_log == 1) &&
-                        !(info.corrupt != 0 && corrupt_log == 1)) {
+                    if (data_log && !(info.type == packet_noise && noise_log == 0) &&
+                        !(info.corrupt != 0 && corrupt_log == 0)) {
                         if (limit_logs && log_packnum > limit_logs) {
                             dumpfile->CloseDump();
 
