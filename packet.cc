@@ -349,7 +349,8 @@ void GetPacketInfo(kis_packet *packet, packet_info *ret_packinfo,
         if (fc->subtype == 8 || fc->subtype == 4 || fc->subtype == 5) {
             // This is guaranteed to only give us tags that fit within the packets,
             // so we don't have to do more error checking
-            if (GetTagOffsets(ret_packinfo->header_offset, packet, &tag_cache_map) < 0) {
+            if (GetTagOffsets(ret_packinfo->header_offset, packet, 
+							  &tag_cache_map) < 0 && packet->parm.fuzzy_decode == 0) {
                 // The frame is corrupt, bail
                 ret_packinfo->corrupt = 1;
                 return;

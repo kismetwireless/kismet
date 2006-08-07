@@ -271,6 +271,10 @@ mangledatalog=true
 #  on, or 'all'
 fuzzycrypt=wtapfile,wlanng,wlanng_legacy,wlanng_avs,hostap,wlanng_wext,ipw2200,ipw2915
 
+# Do we do forgiving fuzzy packet decoding?  This lets us handle borked drivers
+# which don't indicate they're including FCS, and then do.
+fuzzydecode=wtapfile,radiotap_bsd_a,radiotap_bsd_g,radiotap_bsd_bg,radiotap_bsd_b,pcapfile
+
 # Do we use network-classifier fuzzy-crypt detection?  This means we expect 
 # packets that are associated with an encrypted network to be encrypted too, 
 # and we process them by the same fuzzy compare. 

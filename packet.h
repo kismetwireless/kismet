@@ -56,6 +56,7 @@
 // Parmeters to the packet info
 typedef struct packet_parm {
     int fuzzy_crypt;
+	int fuzzy_decode;
 };
 
 // Signalling layer info - what protocol are we seeing data on?

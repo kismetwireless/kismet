@@ -1989,10 +1989,19 @@ int ProcessBulkConf(ConfigFile *conf) {
                                  &filter_export_dest_invert);
 
     // Push the packparms into each source...
-    packet_parm fuzzparms;
-    fuzzparms.fuzzy_crypt = 1;
+    packet_parm optparms;
 
-    sourcetracker.SetTypeParms(conf->FetchOpt("fuzzycrypt"), fuzzparms);
+	// Set the fuzzy options
+    optparms.fuzzy_crypt = 1;
+	optparms.fuzzy_decode = -1;
+
+    sourcetracker.SetTypeParms(conf->FetchOpt("fuzzycrypt"), optparms);
+
+	// Set the fuzzy decode to be forgiving on FCS
+    optparms.fuzzy_crypt = -1;
+	optparms.fuzzy_decode = 1;
+
+    sourcetracker.SetTypeParms(conf->FetchOpt("fuzzydecode"), optparms);
 
 	// Fetch the netcryptdetect value
 	if (conf->FetchOpt("netfuzzycrypt") == "true") {
