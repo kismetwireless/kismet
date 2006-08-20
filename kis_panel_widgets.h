@@ -51,6 +51,9 @@
 	".,~!@#$%^&*()_-+/:"
 #define FILTER_NUM "0123456789"
 
+class Kis_Panel;
+class KisPanelInterface;
+
 // Functor-style handler for special text.  Provides an alternate to the
 // printstr mvwaddnstr which does color and type formating.
 //
@@ -74,12 +77,7 @@ public:
 		exit(1);
 	}
 
-	Kis_Panel_Component(GlobalRegistry *in_globalreg) {
-		globalreg = in_globalreg;
-		window = NULL;
-		visible = 0;
-		active = 0;
-	};
+	Kis_Panel_Component(GlobalRegistry *in_globalreg, Kis_Panel *in_panel);
 	virtual ~Kis_Panel_Component() { };
 
 	// Show/hide
@@ -91,8 +89,7 @@ public:
 	}
 
 	// Set the position inside a window (start x, y, and width, height)
-	virtual void SetPosition(WINDOW *inwin, int isx, int isy, int iex, int iey) {
-		window = inwin;
+	virtual void SetPosition(int isx, int isy, int iex, int iey) {
 		sx = isx;
 		sy = isy;
 		ex = iex;
@@ -116,6 +113,9 @@ protected:
 	// Are we even visible?
 	int visible;
 
+	// Panel we're in
+	Kis_Panel *parent_panel;
+
 	// Widow we render to
 	WINDOW *window;
 
@@ -132,7 +132,7 @@ public:
 		fprintf(stderr, "FATAL OOPS: Kis_Menu called without globalreg\n");
 		exit(1);
 	}
-	Kis_Menu(GlobalRegistry *in_globalreg);
+	Kis_Menu(GlobalRegistry *in_globalreg, Kis_Panel *in_panel);
 	virtual ~Kis_Menu();
 
 	// Refresh drawing the menu bar in its current state
@@ -191,7 +191,7 @@ public:
 		fprintf(stderr, "FATAL OOPS: Kis_Field_List called without globalreg\n");
 		exit(1);
 	}
-	Kis_Field_List(GlobalRegistry *in_globalreg);
+	Kis_Field_List(GlobalRegistry *in_globalreg, Kis_Panel *in_panel);
 	virtual ~Kis_Field_List();
 
 	virtual void DrawComponent();
@@ -221,7 +221,7 @@ public:
 		fprintf(stderr, "FATAL OOPS: Kis_Free_Text() called w/out globalreg\n");
 		exit(1);
 	}
-	Kis_Free_Text(GlobalRegistry *in_globalreg);
+	Kis_Free_Text(GlobalRegistry *in_globalreg, Kis_Panel *in_panel);
 	virtual ~Kis_Free_Text();
 
 	virtual void DrawComponent();
@@ -254,7 +254,7 @@ public:
 		fprintf(stderr, "FATAL OOPS: Kis_Status_Text() called w/out globalreg\n");
 		exit(1);
 	}
-	Kis_Status_Text(GlobalRegistry *in_globalreg);
+	Kis_Status_Text(GlobalRegistry *in_globalreg, Kis_Panel *in_panel);
 	virtual ~Kis_Status_Text();
 
 	virtual void DrawComponent();
@@ -277,7 +277,7 @@ public:
 		fprintf(stderr, "FATAL OOPS: Kis_Scrollable_Table called w/out globalreg\n");
 		exit(1);
 	}
-	Kis_Scrollable_Table(GlobalRegistry *in_globalreg);
+	Kis_Scrollable_Table(GlobalRegistry *in_globalreg, Kis_Panel *in_panel);
 	virtual ~Kis_Scrollable_Table();
 
 	virtual void DrawComponent();
@@ -336,7 +336,7 @@ public:
 		fprintf(stderr, "FATAL OOPS:  Kis_Single_Input called w/out globalreg\n");
 		exit(1);
 	}
-	Kis_Single_Input(GlobalRegistry *in_globalreg);
+	Kis_Single_Input(GlobalRegistry *in_globalreg, Kis_Panel *in_panel);
 	virtual ~Kis_Single_Input();
 
 	virtual void DrawComponent();
@@ -386,7 +386,7 @@ public:
 		fprintf(stderr, "FATAL OOPS: Kis_Button() called w/out globalreg\n");
 		exit(1);
 	}
-	Kis_Button(GlobalRegistry *in_globalreg);
+	Kis_Button(GlobalRegistry *in_globalreg, Kis_Panel *in_panel);
 	virtual ~Kis_Button();
 
 	virtual void DrawComponent();
@@ -407,7 +407,7 @@ public:
 		fprintf(stderr, "FATAL OOPS: Kis_Panel() called w/out globalreg\n");
 		exit(1);
 	}
-	Kis_Panel(GlobalRegistry *in_globalreg);
+	Kis_Panel(GlobalRegistry *in_globalreg, KisPanelInterface *kpinterface);
 	virtual ~Kis_Panel();
 
 	virtual void Position(int in_sy, int in_sx, int in_y, int in_x);
@@ -420,8 +420,12 @@ public:
 
 	virtual void SetTitle(string in_title);
 
+	virtual WINDOW *FetchDrawWindow() { return win; }
+	virtual KisPanelInterface *FetchPanelInterface() { return kpinterface; }
+
 protected:
 	GlobalRegistry *globalreg;
+	KisPanelInterface *kpinterface;
 
 	virtual void DrawTitleBorder();
 
@@ -462,43 +466,6 @@ protected:
 	vector<Kis_Panel *> live_panels;
 	int draweventid;
 	vector<Kis_Panel *> dead_panels;
-};
-
-// Network display
-class Kis_Netlist : public Kis_Panel_Component {
-public:
-	Kis_Netlist() {
-		fprintf(stderr, "FATAL OOPS: Kis_Netlist() called w/out globalreg\n");
-		exit(1);
-	}
-	Kis_Netlist(GlobalRegistry *in_globalreg);
-	virtual ~Kis_Netlist();
-
-	virtual void DrawComponent();
-	virtual void Activate(int subcomponent);
-	virtual void Deactivate();
-
-	virtual int KeyPress(int in_key);
-
-	virtual void SetText(string in_text);
-
-protected:
-	// Addclient hook reference
-	int addref;
-
-	// The map of all BSSIDs seen
-	map<mac_addr, Netracker::tracked_network *> bssid_map;
-	// Viewable vector
-	vector<Netracker::tracked_network *> viewable_bssid;
-	// All networks, as a vector
-	vector<Netracker::tracked_network *> all_bssid;
-	// Dirty flags for viewable and all.  The viewable vector is only
-	// dirty if a new network is added to it or if something changes w/in the
-	// sorting type.  Content dirty means we need to regenerate our display
-	// text, but not resort.
-	int v_dirty, all_dirty, vc_dirty;
-	// Viewable size
-	unsigned int viewable_size;
 };
 
 #endif // panel

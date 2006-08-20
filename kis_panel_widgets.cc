@@ -184,8 +184,17 @@ void PanelInterface::KillPanel(Kis_Panel *in_panel) {
 	}
 }
 
-Kis_Menu::Kis_Menu(GlobalRegistry *in_globalreg) :
-	Kis_Panel_Component(in_globalreg) {
+Kis_Panel_Component::Kis_Panel_Component(GlobalRegistry *in_globalreg, 
+										 Kis_Panel *in_panel) {
+	globalreg = in_globalreg;
+	parent_panel = in_panel;
+	window = in_panel->FetchDrawWindow();
+	visible = 0;
+	active = 0;
+}
+
+Kis_Menu::Kis_Menu(GlobalRegistry *in_globalreg, Kis_Panel *in_panel) :
+	Kis_Panel_Component(in_globalreg, in_panel) {
 	globalreg = in_globalreg;
 	cur_menu = -1;
 	cur_item = -1;
@@ -527,8 +536,8 @@ int Kis_Menu::KeyPress(int in_key) {
 	return -1;
 }
 
-Kis_Free_Text::Kis_Free_Text(GlobalRegistry *in_globalreg) :
-	Kis_Panel_Component(in_globalreg) {
+Kis_Free_Text::Kis_Free_Text(GlobalRegistry *in_globalreg, Kis_Panel *in_panel) :
+	Kis_Panel_Component(in_globalreg, in_panel) {
 	globalreg = in_globalreg;
 	scroll_pos = 0;
 }
@@ -629,8 +638,8 @@ void KisStatusText_Messageclient::ProcessMessage(string in_msg, int in_flags) {
 	}
 }
 
-Kis_Status_Text::Kis_Status_Text(GlobalRegistry *in_globalreg) :
-	Kis_Panel_Component(in_globalreg) {
+Kis_Status_Text::Kis_Status_Text(GlobalRegistry *in_globalreg, Kis_Panel *in_panel) :
+	Kis_Panel_Component(in_globalreg, in_panel) {
 	globalreg = in_globalreg;
 	scroll_pos = 0;
 }
@@ -677,8 +686,8 @@ void Kis_Status_Text::AddLine(string in_line, int headeroffset) {
 	}
 }
 
-Kis_Field_List::Kis_Field_List(GlobalRegistry *in_globalreg) :
-	Kis_Panel_Component(in_globalreg) {
+Kis_Field_List::Kis_Field_List(GlobalRegistry *in_globalreg, Kis_Panel *in_panel) :
+	Kis_Panel_Component(in_globalreg, in_panel) {
 	globalreg = in_globalreg;
 	scroll_pos = 0;
 	field_w = 0;
@@ -785,8 +794,9 @@ int Kis_Field_List::ModData(unsigned int in_row, string in_field, string in_data
 	return (int) in_row;
 }
 
-Kis_Scrollable_Table::Kis_Scrollable_Table(GlobalRegistry *in_globalreg) : 
-	Kis_Panel_Component(in_globalreg) {
+Kis_Scrollable_Table::Kis_Scrollable_Table(GlobalRegistry *in_globalreg, 
+										   Kis_Panel *in_panel) : 
+	Kis_Panel_Component(in_globalreg, in_panel) {
 
 	globalreg = in_globalreg;
 
@@ -1003,8 +1013,9 @@ int Kis_Scrollable_Table::ReplaceRow(int in_key, vector<string> in_fields) {
 	return 1;
 }
 
-Kis_Single_Input::Kis_Single_Input(GlobalRegistry *in_globalreg) :
-	Kis_Panel_Component(in_globalreg) {
+Kis_Single_Input::Kis_Single_Input(GlobalRegistry *in_globalreg, 
+								   Kis_Panel *in_panel) :
+	Kis_Panel_Component(in_globalreg, in_panel) {
 	globalreg = in_globalreg;
 	curs_pos = 0;
 	inp_pos = 0;
@@ -1174,8 +1185,8 @@ string Kis_Single_Input::GetText() {
 	return text;
 }
 
-Kis_Button::Kis_Button(GlobalRegistry *in_globalreg) :
-	Kis_Panel_Component(in_globalreg) {
+Kis_Button::Kis_Button(GlobalRegistry *in_globalreg, Kis_Panel *in_panel) :
+	Kis_Panel_Component(in_globalreg, in_panel) {
 	globalreg = in_globalreg;
 
 	active = 0;
@@ -1230,8 +1241,9 @@ void Kis_Button::SetText(string in_text) {
 	text = in_text;
 }
 
-Kis_Panel::Kis_Panel(GlobalRegistry *in_globalreg) {
+Kis_Panel::Kis_Panel(GlobalRegistry *in_globalreg, KisPanelInterface *in_intf) {
 	globalreg = in_globalreg;
+	kpinterface = in_intf;
 	win = newwin(0, 0, 0, 0);
 	pan = new_panel(win);
 	menu = NULL;

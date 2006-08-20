@@ -203,7 +203,8 @@ int KisNetClient::RegisterProtoHandler(string in_proto, string in_fieldlist,
 	return 1;
 }
 
-void KisNetClient::RemoveProtoHandler(string in_proto, CliProto_Callback in_cb) {
+void KisNetClient::RemoveProtoHandler(string in_proto, CliProto_Callback in_cb,
+									  void *in_aux) {
 	in_proto = StrLower(in_proto);
 
 	map<string, vector<kcli_handler_rec *> >::iterator hitr =
@@ -215,7 +216,7 @@ void KisNetClient::RemoveProtoHandler(string in_proto, CliProto_Callback in_cb) 
 	InjectCommand("REMOVE " + in_proto);
 
 	for (unsigned int x = 0; x < hitr->second.size(); x++) {
-		if (hitr->second[x]->callback == in_cb) {
+		if (hitr->second[x]->callback == in_cb && hitr->second[x]->auxptr == in_aux) {
 			delete hitr->second[x];
 			hitr->second.erase(hitr->second.begin() + x);
 			break;

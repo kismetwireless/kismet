@@ -150,6 +150,9 @@ KisPanelInterface::KisPanelInterface(GlobalRegistry *in_globalreg) :
 }
 
 KisPanelInterface::~KisPanelInterface() {
+	Remove_AllNetcli_ProtoHandler("STATUS", KisPanelClient_STATUS, this);
+	Remove_AllNetcli_ProtoHandler("CARD", KisPanelClient_CARD, this);
+
 	// Destroy panels in this destructor, if they get destroyed in the
 	// parent destructor sadness happens
 	for (unsigned int x = 0; x < live_panels.size(); x++)
@@ -222,6 +225,16 @@ void KisPanelInterface::NetClientConfigure(KisNetClient *in_cli, int in_recon) {
 	}
 }
 
+int KisPanelInterface::Remove_AllNetcli_ProtoHandler(string in_proto,
+													 CliProto_Callback in_cb,
+													 void *in_aux) {
+	for (unsigned int x = 0; x < netclient_vec.size(); ++x) {
+		netclient_vec[x]->RemoveProtoHandler(in_proto, in_cb, in_aux);
+	}
+
+	return 0;
+}
+
 void KisPanelInterface::RaiseAlert(string in_title, string in_text) {
 	Kis_ModalAlert_Panel *ma = new Kis_ModalAlert_Panel(globalreg, this);
 
@@ -259,6 +272,15 @@ int KisPanelInterface::Add_NetCli_AddCli_CB(KPI_AddCli_Callback in_cb,
 	addcb_ref++;
 
 	addclicb_vec.push_back(cbr);
+
+	// Call it for all the existing clients, since if we're adding a function
+	// to take action when a client gets added, we probably want to be able
+	// to take action on all the existing.  We can add a parm to control
+	// this sometime if this ever turns out to be not the case, but I don't
+	// think it will.
+	for (unsigned int x = 0; x < netclient_vec.size(); ++x) {
+		(*(in_cb))(globalreg, netclient_vec[x], 1, in_auxptr);
+	}
 
 	return cbr->refnum;
 }

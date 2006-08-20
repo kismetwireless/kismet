@@ -25,29 +25,11 @@
 #include "kis_panel_frontend.h"
 #include "kis_panel_windows.h"
 
-// Callbacks into the classes proper
-void KisMainPanel_BSSID(CLIPROTO_CB_PARMS) {
-	((Kis_Main_Panel *) auxptr)->Proto_BSSID(globalreg, proto_string,
-											 proto_parsed, srccli, auxptr);
-}
-
-void KisMainPanel_Configured(CLICONF_CB_PARMS) {
-	((Kis_Main_Panel *) auxptr)->NetClientConfigure(kcli, recon);
-}
-
-void KisMainPanel_AddCli(KPI_ADDCLI_CB_PARMS) {
-	((Kis_Main_Panel *) auxptr)->NetClientAdd(netcli, add);
-}
-
 Kis_Main_Panel::Kis_Main_Panel(GlobalRegistry *in_globalreg, 
-							   KisPanelInterface *in_intf) : Kis_Panel(in_globalreg) {
-	globalreg = in_globalreg;
-	kpinterface = in_intf;
+							   KisPanelInterface *in_intf) : 
+	Kis_Panel(in_globalreg, in_intf) {
 
-	// Add the addcli callback
-	addref = kpinterface->Add_NetCli_AddCli_CB(KisMainPanel_AddCli, (void *) this);
-
-	menu = new Kis_Menu(globalreg);
+	menu = new Kis_Menu(globalreg, this);
 
 	mn_file = menu->AddMenu("Kismet", 0);
 	mi_connect = menu->AddMenuItem("Connect...", mn_file, 'C');
@@ -91,7 +73,7 @@ Kis_Main_Panel::Kis_Main_Panel(GlobalRegistry *in_globalreg,
 
 	menu->Show();
 
-	statustext = new Kis_Status_Text(globalreg);
+	statustext = new Kis_Status_Text(globalreg, this);
 	
 	statuscli = new KisStatusText_Messageclient(globalreg, statustext);
 	globalreg->messagebus->RegisterClient(statuscli, MSGFLAG_ALL);
@@ -101,25 +83,14 @@ Kis_Main_Panel::Kis_Main_Panel(GlobalRegistry *in_globalreg,
 	active_component = statustext;
 	comp_vec.push_back(statustext);
 
-	sortmode = KIS_SORT_AUTO;
+	netlist = new Kis_Netlist(globalreg, this);
+	netlist->Show();
+	comp_vec.push_back(netlist);
 
 	SetTitle("Kismet Newcore Client");
-
-	v_dirty = 0;
-	vc_dirty = 0;
-	all_dirty = 0;
 }
 
 Kis_Main_Panel::~Kis_Main_Panel() {
-	kpinterface->Remove_Netcli_AddCli_CB(addref);
-
-	// Manually remove it all
-	vector<KisNetClient *> cv = kpinterface->FetchNetClientVec();
-	for (unsigned int x = 0; x < cv.size(); x++) {
-		cv[x]->RemoveProtoHandler("BSSID", KisMainPanel_BSSID);
-		cv[x]->RemoveConfCallback(KisMainPanel_Configured);
-	}
-
 	globalreg->messagebus->RemoveClient(statuscli);
 
 }
@@ -127,11 +98,8 @@ Kis_Main_Panel::~Kis_Main_Panel() {
 void Kis_Main_Panel::Position(int in_sy, int in_sx, int in_y, int in_x) {
 	Kis_Panel::Position(in_sy, in_sx, in_y, in_x);
 
-	menu->SetPosition(win, 1, 1, 0, 0);
-	statustext->SetPosition(win, in_sx + 1, in_y - 7, in_x - 2, 5);
-
-	// Set the viewable vector size
-	viewable_size = in_y - 7;
+	menu->SetPosition(1, 1, 0, 0);
+	statustext->SetPosition(in_sx + 1, in_y - 7, in_x - 2, 5);
 }
 
 void Kis_Main_Panel::DrawPanel() {
@@ -233,465 +201,14 @@ int Kis_Main_Panel::KeyPress(int in_key) {
 	return 0;
 }
 
-void Kis_Main_Panel::NetClientConfigure(KisNetClient *in_cli, int in_recon) {
-	if (in_recon)
-		return;
-
-	if (in_cli->RegisterProtoHandler("BSSID", KCLI_BSSID_FIELDS,
-									 KisMainPanel_BSSID, this) < 0) {
-		_MSG("Could not register BSSID protocol with remote server, connection "
-			 "will be terminated.", MSGFLAG_ERROR);
-		in_cli->KillConnection();
-	}
-
-}
-
-void Kis_Main_Panel::NetClientAdd(KisNetClient *in_cli, int add) {
-	if (add == 0) {
-		// Ignore remove events for now
-		return;
-	}
-
-	// Add a client configured callback to the new client so we can load
-	// our protocols
-	in_cli->AddConfCallback(KisMainPanel_Configured, 1, this);
-}
-
-void Kis_Main_Panel::Proto_BSSID(CLIPROTO_CB_PARMS) {
-	if (proto_parsed->size() < KCLI_BSSID_NUMFIELDS) {
-		return;
-	}
-	
-	Netracker::tracked_network *net = new Netracker::tracked_network;
-
-	int tint;
-	float tfloat;
-	long double tlf;
-	long long unsigned int tlld;
-	mac_addr tmac;
-
-	// BSSID
-	tmac = mac_addr((*proto_parsed)[0].word.c_str());
-	if (tmac.error) {
-		delete net;
-		return;
-	}
-	net->bssid = tmac;
-
-	// Type
-	if (sscanf((*proto_parsed)[1].word.c_str(), "%d", &tint) != 1) {
-		delete net;
-		return;
-	}
-	net->type = (network_type) tint;
-
-	// Packet counts
-	if (sscanf((*proto_parsed)[2].word.c_str(), "%d", &(net->llc_packets)) != 1) {
-		delete net;
-		return;
-	}
-	if (sscanf((*proto_parsed)[3].word.c_str(), "%d", &(net->data_packets)) != 1) {
-		delete net;
-		return;
-	}
-	if (sscanf((*proto_parsed)[4].word.c_str(), "%d", &(net->crypt_packets)) != 1) {
-		delete net;
-		return;
-	}
-
-	// Channel
-	if (sscanf((*proto_parsed)[5].word.c_str(), "%d", &(net->channel)) != 1) {
-		delete net;
-		return;
-	}
-
-	// Times
-	if (sscanf((*proto_parsed)[6].word.c_str(), "%d", &tint) != 1) {
-		delete net;
-		return;
-	}
-	net->first_time = tint;
-	if (sscanf((*proto_parsed)[7].word.c_str(), "%d", &tint) != 1) {
-		delete net;
-		return;
-	}
-	net->last_time = tint;
-
-	// Atype
-	if (sscanf((*proto_parsed)[8].word.c_str(), "%d", &tint) != 1) {
-		delete net;
-		return;
-	}
-	net->guess_ipdata.ip_type = (ipdata_type) tint;
-
-	// Rangeip
-	if (inet_aton((*proto_parsed)[9].word.c_str(), 
-				  &(net->guess_ipdata.ip_addr_block)) == 0) {
-		delete net;
-		return;
-	}
-
-	// Maskip
-	if (inet_aton((*proto_parsed)[10].word.c_str(),
-				  &(net->guess_ipdata.ip_netmask)) == 0) {
-		delete net;
-		return;
-	}
-
-	// Gateip
-	if (inet_aton((*proto_parsed)[11].word.c_str(),
-				  &(net->guess_ipdata.ip_gateway)) == 0) {
-		delete net;
-		return;
-	}
-
-	// GPS
-	if (sscanf((*proto_parsed)[12].word.c_str(), "%d",
-			   &(net->gpsdata.gps_valid)) != 1) {
-		delete net;
-		return;
-	}
-
-	if (sscanf((*proto_parsed)[13].word.c_str(), "%f", &tfloat) != 1) {
-		delete net;
-		return;
-	}
-	net->gpsdata.min_lat = tfloat;
-
-	if (sscanf((*proto_parsed)[14].word.c_str(), "%f", &tfloat) != 1) {
-		delete net;
-		return;
-	}
-	net->gpsdata.min_lon = tfloat;
-
-	if (sscanf((*proto_parsed)[15].word.c_str(), "%f", &tfloat) != 1) {
-		delete net;
-		return;
-	}
-	net->gpsdata.min_alt = tfloat;
-
-	if (sscanf((*proto_parsed)[16].word.c_str(), "%f", &tfloat) != 1) {
-		delete net;
-		return;
-	}
-	net->gpsdata.min_spd = tfloat;
-
-	if (sscanf((*proto_parsed)[17].word.c_str(), "%f", &tfloat) != 1) {
-		delete net;
-		return;
-	}
-	net->gpsdata.max_lat = tfloat;
-
-	if (sscanf((*proto_parsed)[18].word.c_str(), "%f", &tfloat) != 1) {
-		delete net;
-		return;
-	}
-	net->gpsdata.max_lon = tfloat;
-	
-	if (sscanf((*proto_parsed)[19].word.c_str(), "%f", &tfloat) != 1) {
-		delete net;
-		return;
-	}
-	net->gpsdata.max_alt = tfloat;
-
-	if (sscanf((*proto_parsed)[20].word.c_str(), "%f", &tfloat) != 1) {
-		delete net;
-		return;
-	}
-	net->gpsdata.max_spd = tfloat;
-
-	// Signal levels
-	if (sscanf((*proto_parsed)[21].word.c_str(), "%d", 
-			   &(net->snrdata.last_signal)) != 1) {
-		delete net;
-		return;
-	}
-
-	if (sscanf((*proto_parsed)[22].word.c_str(), "%d",
-			   &(net->snrdata.last_noise)) != 1) {
-		delete net;
-		return;
-	}
-
-	if (sscanf((*proto_parsed)[23].word.c_str(), "%d",
-			   &(net->snrdata.min_signal)) != 1) {
-		delete net;
-		return;
-	}
-
-	if (sscanf((*proto_parsed)[24].word.c_str(), "%d",
-			   &(net->snrdata.min_noise)) != 1) {
-		delete net;
-		return;
-	}
-
-	if (sscanf((*proto_parsed)[25].word.c_str(), "%d",
-			   &(net->snrdata.max_signal)) != 1) {
-		delete net;
-		return;
-	}
-
-	if (sscanf((*proto_parsed)[26].word.c_str(), "%d",
-			   &(net->snrdata.max_noise)) != 1) {
-		delete net;
-		return;
-	}
-
-	// SNR lat/lon
-	if (sscanf((*proto_parsed)[27].word.c_str(), "%f", &tfloat) != 1) {
-		delete net;
-		return;
-	}
-	net->snrdata.peak_lat = tfloat;
-
-	if (sscanf((*proto_parsed)[28].word.c_str(), "%f", &tfloat) != 1) {
-		delete net;
-		return;
-	}
-	net->snrdata.peak_lon = tfloat;
-
-	if (sscanf((*proto_parsed)[29].word.c_str(), "%f", &tfloat) != 1) {
-		delete net;
-		return;
-	}
-	net->snrdata.peak_alt = tfloat;
-
-	// gpsdata aggregates
-	if (sscanf((*proto_parsed)[30].word.c_str(), "%Lf", &tlf) != 1) {
-		delete net;
-		return;
-	}
-	net->gpsdata.aggregate_lat = tlf;
-
-	if (sscanf((*proto_parsed)[31].word.c_str(), "%Lf", &tlf) != 1) {
-		delete net;
-		return;
-	}
-	net->gpsdata.aggregate_lon = tlf;
-
-	if (sscanf((*proto_parsed)[32].word.c_str(), "%Lf", &tlf) != 1) {
-		delete net;
-		return;
-	}
-	net->gpsdata.aggregate_alt = tlf;
-
-	if (sscanf((*proto_parsed)[33].word.c_str(), "%ld", 
-			   &(net->gpsdata.aggregate_points)) != 1) {
-		delete net;
-		return;
-	}
-
-	// Data size
-	if (sscanf((*proto_parsed)[34].word.c_str(), "%llu", &tlld) != 1) {
-		delete net;
-		return;
-	}
-	net->datasize = tlld;
-
-	// We don't handle turbocell yet, so ignore it
-	// 35 tcnid
-	// 36 tcmode
-	// 37 tcsat
-	
-	// SNR carrierset
-	if (sscanf((*proto_parsed)[38].word.c_str(), "%d", 
-			   &(net->snrdata.carrierset)) != 1) {
-		delete net;
-		return;
-	}
-
-	if (sscanf((*proto_parsed)[39].word.c_str(), "%d",
-			   &(net->snrdata.maxseenrate)) != 1) {
-		delete net;
-		return;
-	}
-
-	if (sscanf((*proto_parsed)[40].word.c_str(), "%d",
-			   &(net->snrdata.encodingset)) != 1) {
-		delete net;
-		return;
-	}
-
-	// Decrypted
-	if (sscanf((*proto_parsed)[41].word.c_str(), "%d", &(net->decrypted)) != 1) {
-		delete net;
-		return;
-	}
-
-	// Dupeiv
-	if (sscanf((*proto_parsed)[42].word.c_str(), "%d", &(net->dupeiv_packets)) != 1) {
-		delete net;
-		return;
-	}
-
-	// BSS time stamp
-	if (sscanf((*proto_parsed)[43].word.c_str(), "%llu", &tlld) != 1) {
-		delete net;
-		return;
-	}
-	net->bss_timestamp = tlld;
-
-	// CDP data
-	net->cdp_dev_id = MungeToPrintable((*proto_parsed)[44].word);
-	net->cdp_port_id = MungeToPrintable((*proto_parsed)[45].word);
-
-	// Fragments
-	if (sscanf((*proto_parsed)[46].word.c_str(), "%d", &(net->fragments)) != 1) {
-		delete net;
-		return;
-	}
-
-	// Retries
-	if (sscanf((*proto_parsed)[47].word.c_str(), "%d", &(net->retries)) != 1) {
-		delete net;
-		return;
-	}
-
-	// New packets
-	if (sscanf((*proto_parsed)[48].word.c_str(), "%d", &(net->new_packets)) != 1) {
-		delete net;
-		return;
-	}
-
-	map<mac_addr, Netracker::tracked_network *>::iterator ti;
-	// simple case -- we're not tracked yet
-	if ((ti = bssid_map.find(net->bssid)) == bssid_map.end()) {
-		bssid_map[net->bssid] = net;
-		all_bssid.push_back(net);
-		all_dirty = 1;
-
-		// If the viewable vec is smaller than the possible size, anything
-		// new goes into it
-		if (viewable_bssid.size() < viewable_size) { 
-			viewable_bssid.push_back(net);
-			// Use field2 to indicate visible
-			net->field2 = 1;
-			v_dirty = 1;
-
-			_MSG("debug - pushed new net into small viewable list", MSGFLAG_INFO);
-		} else {
-			// Compare with the viewable vec fields for the current sort
-			ViewSortFitBSSID(net);
-		}
-
-		return;
-	}
-
-	Netracker::tracked_network *onet = ti->second;
-	int merge_potential = 0;
-
-	// Onet content will always be dirty, so update it if its viewable
-	if (onet->field2)
-		vc_dirty = 1;
-
-	// Check the sort-relevant fields and if they're dirty, flag this as
-	// a potential merge
-	// Irrelevant: BSSID, firsttime.  Neither should change.
-	if (onet->type != net->type && sortmode == KIS_SORT_TYPE)
-		merge_potential = 1;
-	else if (onet->channel != net->channel && sortmode == KIS_SORT_CHANNEL)
-		merge_potential = 1;
-	else if (onet->last_time != net->last_time && 
-			 (sortmode == KIS_SORT_LAST || sortmode == KIS_SORT_LAST_D))
-		merge_potential = 1;
-	else if ((onet->llc_packets + onet->data_packets) != 
-			 (net->llc_packets + net->data_packets) && 
-			 (sortmode == KIS_SORT_PACKETS || sortmode == KIS_SORT_PACKETS_D))
-		merge_potential = 1;
-	
-	// Merge the new data into the old data
-	onet->type = net->type;
-	onet->llc_packets = net->llc_packets;
-	onet->data_packets = net->data_packets;
-	onet->crypt_packets = net->crypt_packets;
-	onet->channel = net->channel;
-	onet->last_time = net->last_time;
-	onet->decrypted = net->decrypted;
-	onet->client_disconnects = net->client_disconnects;
-	onet->last_sequence = net->last_sequence;
-	onet->bss_timestamp = net->bss_timestamp;
-	onet->datasize = net->datasize;
-	onet->dupeiv_packets = net->dupeiv_packets;
-	onet->fragments = net->fragments;
-	onet->retries = net->retries;
-	onet->new_packets = net->new_packets;
-
-	// So by now, if the net is new, it's (maybe) tacked into the viewable array.
-	// If it's one we have, and it's viewable, the viewable list is set to
-	// dirty straight off.  If something has changed that might affect the
-	// viewable vector, try to merge it into the viewable list
-	ViewSortFitBSSID(onet);
-}
-
-void Kis_Main_Panel::ViewSortFitBSSID(Netracker::tracked_network *net) {
-	Netracker::tracked_network *first = viewable_bssid[0];
-	Netracker::tracked_network *last = viewable_bssid[viewable_bssid.size() - 1];
-	int merge = 0;
-
-	// If we're already viewed, we don't need to think about a merge at all
-	if (net->field2 == 1)
-		return;
-
-	if (sortmode == KIS_SORT_AUTO) {
-		if (net->last_time >= last->last_time)
-			merge = 1;
-	} else if (sortmode == KIS_SORT_TYPE) {
-		if ((int) net->type >= (int) first->type &&
-			(int) net->type <= (int) last->type)
-			merge = 1;
-	} else if (sortmode == KIS_SORT_CHANNEL) {
-		if (net->channel >= first->channel && net->channel <= last->channel)
-			merge = 1;
-	} else if (sortmode == KIS_SORT_FIRST) {
-		if (net->first_time >= first->first_time && 
-			net->first_time <= last->first_time)
-			merge = 1;
-	} else if (sortmode == KIS_SORT_FIRST_D) {
-		if (net->first_time <= first->first_time &&
-			net->first_time >= last->first_time)
-			merge = 1;
-	} else if (sortmode == KIS_SORT_LAST) {
-		if (net->last_time >= first->last_time && 
-			net->last_time <= last->last_time)
-			merge = 1;
-	} else if (sortmode == KIS_SORT_LAST_D) {
-		if (net->last_time <= first->last_time &&
-			net->last_time >= last->last_time)
-			merge = 1;
-	} else if (sortmode == KIS_SORT_BSSID) {
-		if (net->bssid <= first->bssid == 0 &&
-			net->bssid <= last->bssid)
-			merge = 1;
-	} else if (sortmode == KIS_SORT_SSID) {
-		// Fix me somehow
-	} else if (sortmode == KIS_SORT_PACKETS) {
-		if ((net->llc_packets + net->data_packets) >= 
-			(first->llc_packets + first->data_packets) && 
-			(net->llc_packets + net->data_packets) <=
-			(last->llc_packets + last->data_packets))
-			merge = 1;
-	}
-
-	if (merge) {
-		viewable_bssid.push_back(net);
-		// Set the viewable field
-		net->field2 = 1;
-		v_dirty = 1;
-		_MSG("debug - pushed new net into sorted viewable list", MSGFLAG_INFO);
-	}
-
-}
-
 Kis_Connect_Panel::Kis_Connect_Panel(GlobalRegistry *in_globalreg, 
 									 KisPanelInterface *in_intf) :
-	Kis_Panel(in_globalreg) {
-	globalreg = in_globalreg;
-	kpinterface = in_intf;
+	Kis_Panel(in_globalreg, in_intf) {
 
-	hostname = new Kis_Single_Input(globalreg);
-	hostport = new Kis_Single_Input(globalreg);
-	cancelbutton = new Kis_Button(globalreg);
-	okbutton = new Kis_Button(globalreg);
+	hostname = new Kis_Single_Input(globalreg, this);
+	hostport = new Kis_Single_Input(globalreg, this);
+	cancelbutton = new Kis_Button(globalreg, this);
+	okbutton = new Kis_Button(globalreg, this);
 
 	comp_vec.push_back(hostname);
 	comp_vec.push_back(hostport);
@@ -726,10 +243,10 @@ Kis_Connect_Panel::~Kis_Connect_Panel() {
 void Kis_Connect_Panel::Position(int in_sy, int in_sx, int in_y, int in_x) {
 	Kis_Panel::Position(in_sy, in_sx, in_y, in_x);
 
-	hostname->SetPosition(win, 2, 2, in_x - 6, 1);
-	hostport->SetPosition(win, 2, 4, 14, 1);
-	okbutton->SetPosition(win, in_x - 15, in_y - 2, 10, 1);
-	cancelbutton->SetPosition(win, in_x - 15 - 2 - 15, in_y - 2, 10, 1);
+	hostname->SetPosition(2, 2, in_x - 6, 1);
+	hostport->SetPosition(2, 4, 14, 1);
+	okbutton->SetPosition(in_x - 15, in_y - 2, 10, 1);
+	cancelbutton->SetPosition(in_x - 15 - 2 - 15, in_y - 2, 10, 1);
 
 	hostname->Activate(1);
 	active_component = hostname;
@@ -809,12 +326,10 @@ int Kis_Connect_Panel::KeyPress(int in_key) {
 
 Kis_ModalAlert_Panel::Kis_ModalAlert_Panel(GlobalRegistry *in_globalreg, 
 										   KisPanelInterface *in_intf) :
-	Kis_Panel(in_globalreg) {
-	globalreg = in_globalreg;
-	kpinterface = in_intf;
+	Kis_Panel(in_globalreg, in_intf) {
 
-	ftxt = new Kis_Free_Text(globalreg);
-	ackbutton = new Kis_Button(globalreg);
+	ftxt = new Kis_Free_Text(globalreg, this);
+	ackbutton = new Kis_Button(globalreg, this);
 
 	comp_vec.push_back(ftxt);
 	comp_vec.push_back(ackbutton);
@@ -835,8 +350,8 @@ Kis_ModalAlert_Panel::~Kis_ModalAlert_Panel() {
 void Kis_ModalAlert_Panel::Position(int in_sy, int in_sx, int in_y, int in_x) {
 	Kis_Panel::Position(in_sy, in_sx, in_y, in_x);
 
-	ftxt->SetPosition(win, 1, 1, in_x - 2, in_y - 3);
-	ackbutton->SetPosition(win, (in_x / 2) - 7, in_y - 2, 14, 1);
+	ftxt->SetPosition(1, 1, in_x - 2, in_y - 3);
+	ackbutton->SetPosition((in_x / 2) - 7, in_y - 2, 14, 1);
 
 	ackbutton->Activate(1);
 	active_component = ackbutton;
@@ -890,14 +405,12 @@ void Kis_ModalAlert_Panel::ConfigureAlert(string in_title, string in_text) {
 
 Kis_ServerList_Picker::Kis_ServerList_Picker(GlobalRegistry *in_globalreg, 
 											 KisPanelInterface *in_intf) :
-	Kis_Panel(in_globalreg) {
-	globalreg = in_globalreg;
-	kpinterface = in_intf;
+	Kis_Panel(in_globalreg, in_intf) {
 
 	// Grab the pointer to the list of clients maintained
 	netcliref = kpinterface->FetchNetClientVecPtr();
 
-	srvlist = new Kis_Scrollable_Table(globalreg);
+	srvlist = new Kis_Scrollable_Table(globalreg, this);
 
 	comp_vec.push_back(srvlist);
 
@@ -940,7 +453,7 @@ Kis_ServerList_Picker::~Kis_ServerList_Picker() {
 void Kis_ServerList_Picker::Position(int in_sy, int in_sx, int in_y, int in_x) {
 	Kis_Panel::Position(in_sy, in_sx, in_y, in_x);
 
-	srvlist->SetPosition(win, 1, 1, in_x - 2, in_y - 2);
+	srvlist->SetPosition(1, 1, in_x - 2, in_y - 2);
 
 	srvlist->Show();
 }
@@ -1037,16 +550,14 @@ void sp_addcard_cb(KPI_SL_CB_PARMS) {
 
 Kis_AddCard_Panel::Kis_AddCard_Panel(GlobalRegistry *in_globalreg, 
 									 KisPanelInterface *in_intf) :
-	Kis_Panel(in_globalreg) {
-	globalreg = in_globalreg;
-	kpinterface = in_intf;
+	Kis_Panel(in_globalreg, in_intf) {
 
-	srctype = new Kis_Single_Input(globalreg);
-	srciface = new Kis_Single_Input(globalreg);
-	srcname = new Kis_Single_Input(globalreg);
+	srctype = new Kis_Single_Input(globalreg, this);
+	srciface = new Kis_Single_Input(globalreg, this);
+	srcname = new Kis_Single_Input(globalreg, this);
 
-	okbutton = new Kis_Button(globalreg);
-	cancelbutton = new Kis_Button(globalreg);
+	okbutton = new Kis_Button(globalreg, this);
+	cancelbutton = new Kis_Button(globalreg, this);
 
 	comp_vec.push_back(srctype);
 	comp_vec.push_back(srciface);
@@ -1089,11 +600,11 @@ Kis_AddCard_Panel::~Kis_AddCard_Panel() {
 void Kis_AddCard_Panel::Position(int in_sy, int in_sx, int in_y, int in_x) {
 	Kis_Panel::Position(in_sy, in_sx, in_y, in_x);
 
-	srctype->SetPosition(win, 2, 2, in_x - 6, 1);
-	srciface->SetPosition(win, 2, 4, in_x - 15, 1);
-	srcname->SetPosition(win, 2, 6, in_x - 6, 1);
-	okbutton->SetPosition(win, in_x - 15, in_y - 2, 10, 1);
-	cancelbutton->SetPosition(win, in_x - 15 - 2 - 15, in_y - 2, 10, 1);
+	srctype->SetPosition(2, 2, in_x - 6, 1);
+	srciface->SetPosition(2, 4, in_x - 15, 1);
+	srcname->SetPosition(2, 6, in_x - 6, 1);
+	okbutton->SetPosition(in_x - 15, in_y - 2, 10, 1);
+	cancelbutton->SetPosition(in_x - 15 - 2 - 15, in_y - 2, 10, 1);
 
 	srctype->Activate(1);
 	active_component = srctype;

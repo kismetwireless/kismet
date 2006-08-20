@@ -67,7 +67,8 @@ DRONE = kismet_drone
 NCO	= util.o ringbuf.o messagebus.o configfile.o getopt.o \
 	  soundcontrol.o speechcontrol.o timetracker.o ipc_remote.o \
 	  clinetframework.o tcpclient.o kis_clinetframe.o \
-	  kis_panel_widgets.o kis_panel_windows.o kis_panel_frontend.o \
+	  kis_panel_widgets.o kis_panel_bssid.o kis_panel_windows.o \
+	  kis_panel_frontend.o \
 	  kismet_client.o
 NC	= kismet_client
 

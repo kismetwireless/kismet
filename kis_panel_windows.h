@@ -27,7 +27,7 @@
 #include "globalregistry.h"
 #include "kis_clinetframe.h"
 #include "kis_panel_widgets.h"
-#include "netracker.h"
+#include "kis_panel_bssid.h"
 
 class KisPanelInterface;
 
@@ -49,16 +49,6 @@ typedef void (*kpi_sl_cb_hook)(KPI_SL_CB_PARMS);
 #define KIS_SORT_PACKETS_D	256
 #define KIS_SORT_TYPE		512
 
-// What we expect from the client
-#define KCLI_BSSID_FIELDS	"bssid,type,llcpackets,datapackets,cryptpackets," \
-	"channel,firsttime,lasttime,atype,rangeip,netmaskip,gatewayip,gpsfixed," \
-	"minlat,minlon,minalt,minspd,maxlat,maxlon,maxalt,maxspd,signal,noise," \
-	"minsignal,minnoise,maxsignal,maxnoise,bestlat,bestlon,bestalt,agglat," \
-	"agglon,aggalt,aggpoints,datasize,turbocellnid,turbocellmode,turbocellsat," \
-	"carrierset,maxseenrate,encodingset,decrypted,dupeivpackets,bsstimestamp," \
-	"cdpdevice,cdpport,fragments,retries,newpackets"
-#define KCLI_BSSID_NUMFIELDS	49
-
 class Kis_Main_Panel : public Kis_Panel {
 public:
 	Kis_Main_Panel() {
@@ -73,8 +63,6 @@ public:
 	virtual int KeyPress(int in_key);
 
 protected:
-	KisPanelInterface *kpinterface;
-
 	int mn_file, mn_view, mn_sort, mn_tools;
 	int mi_connect, mi_quit;
 
@@ -90,6 +78,7 @@ protected:
 
 	KisStatusText_Messageclient *statuscli;
 	Kis_Status_Text *statustext;
+	Kis_Netlist *netlist;
 };
 
 class Kis_Connect_Panel : public Kis_Panel {
@@ -107,8 +96,6 @@ public:
 	virtual int KeyPress(int in_key);
 
 protected:
-	KisPanelInterface *kpinterface;
-
 	Kis_Single_Input *hostname;
 	Kis_Single_Input *hostport;
 	Kis_Button *okbutton;
@@ -135,8 +122,6 @@ public:
 	virtual void SetTargetClient(KisNetClient *in_cli);
 
 protected:
-	KisPanelInterface *kpinterface;
-
 	KisNetClient *target_cli;
 
 	Kis_Single_Input *srctype;
@@ -167,7 +152,6 @@ public:
 	virtual int KeyPress(int in_key);
 
 protected:
-	KisPanelInterface *kpinterface;
 	Kis_Scrollable_Table *srvlist;
 	Kis_Menu *menu;
 };
@@ -187,7 +171,6 @@ public:
 	virtual int KeyPress(int in_key);
 
 protected:
-	KisPanelInterface *kpinterface;
 	Kis_Scrollable_Table *cardlist;
 };
 
@@ -209,7 +192,6 @@ public:
 								 void *in_aux);
 
 protected:
-	KisPanelInterface *kpinterface;
 	Kis_Scrollable_Table *srvlist;
 
 	kpi_sl_cb_hook cb_hook;
@@ -234,8 +216,6 @@ public:
 	virtual void ConfigureAlert(string in_title, string in_text);
 
 protected:
-	KisPanelInterface *kpinterface;
-
 	Kis_Free_Text *ftxt;
 	Kis_Button *ackbutton;
 

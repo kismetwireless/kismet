@@ -68,7 +68,8 @@ public:
 	// Register a handler for a protocol.  There can be multiple handlers.
 	virtual int RegisterProtoHandler(string in_proto, string in_fieldlist,
 									 CliProto_Callback in_cb, void *in_aux);
-	virtual void RemoveProtoHandler(string in_proto, CliProto_Callback in_cb);
+	virtual void RemoveProtoHandler(string in_proto, CliProto_Callback in_cb,
+									void *in_aux);
 
 	// Grab the list of fields we know about for a proto so clients can
 	// request what they want

@@ -70,10 +70,18 @@ public:
 	// Configured client callback
 	virtual void NetClientConfigure(KisNetClient *in_cli, int in_recon);
 
+	// Callthroughs to operate on the entire list of clients, so that panels
+	// and, via them, widgets, can manipulate protocols, etc
+	virtual int Remove_AllNetcli_ProtoHandler(string in_proto,
+											  CliProto_Callback in_cb,
+											  void *in_aux);
+
 	// Bring up a modal alert
 	virtual void RaiseAlert(string in_title, string in_text);
 
-	// Bring up a modal picker for connected servers
+	// Bring up a modal picker for connected servers -- This is generic
+	// enough that it's worth having a main hook here for other panels
+	// to get access to the common code
 	virtual void RaiseServerPicker(string in_title, kpi_sl_cb_hook in_hook,
 								   void *in_aux);
 
