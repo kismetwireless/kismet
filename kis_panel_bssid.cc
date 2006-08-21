@@ -482,52 +482,69 @@ void Kis_Netlist::Proto_BSSID(CLIPROTO_CB_PARMS) {
 }
 
 void Kis_Netlist::ViewSortFitBSSID(Netracker::tracked_network *net) {
-	Netracker::tracked_network *first = viewable_bssid[0];
-	Netracker::tracked_network *last = viewable_bssid[viewable_bssid.size() - 1];
+	Netracker::tracked_network *first;
+	Netracker::tracked_network *last;
+
+	if (viewable_bssid.size() > 0) {
+		first = viewable_bssid[0];
+	} else {
+		first = NULL;
+	}
+
+	if (viewable_bssid.size() >= 1) {
+		last = viewable_bssid[viewable_bssid.size() - 1];
+	} else {
+		last = NULL;
+	}
+
 	int merge = 0;
 
 	// If we're already viewed, we don't need to think about a merge at all
 	if (net->field2 == 1)
 		return;
 
-	if (sortmode == KIS_SORT_AUTO) {
-		if (net->last_time >= last->last_time)
-			merge = 1;
-	} else if (sortmode == KIS_SORT_TYPE) {
-		if ((int) net->type >= (int) first->type &&
-			(int) net->type <= (int) last->type)
-			merge = 1;
-	} else if (sortmode == KIS_SORT_CHANNEL) {
-		if (net->channel >= first->channel && net->channel <= last->channel)
-			merge = 1;
-	} else if (sortmode == KIS_SORT_FIRST) {
-		if (net->first_time >= first->first_time && 
-			net->first_time <= last->first_time)
-			merge = 1;
-	} else if (sortmode == KIS_SORT_FIRST_D) {
-		if (net->first_time <= first->first_time &&
-			net->first_time >= last->first_time)
-			merge = 1;
-	} else if (sortmode == KIS_SORT_LAST) {
-		if (net->last_time >= first->last_time && 
-			net->last_time <= last->last_time)
-			merge = 1;
-	} else if (sortmode == KIS_SORT_LAST_D) {
-		if (net->last_time <= first->last_time &&
-			net->last_time >= last->last_time)
-			merge = 1;
-	} else if (sortmode == KIS_SORT_BSSID) {
-		if (net->bssid <= first->bssid == 0 &&
-			net->bssid <= last->bssid)
-			merge = 1;
-	} else if (sortmode == KIS_SORT_SSID) {
-		// Fix me somehow
-	} else if (sortmode == KIS_SORT_PACKETS) {
-		if ((net->llc_packets + net->data_packets) >= 
-			(first->llc_packets + first->data_packets) && 
-			(net->llc_packets + net->data_packets) <=
-			(last->llc_packets + last->data_packets))
-			merge = 1;
+	if (first != NULL && last != NULL) {
+		if (sortmode == KIS_SORT_AUTO) {
+			if (net->last_time >= last->last_time)
+				merge = 1;
+		} else if (sortmode == KIS_SORT_TYPE) {
+			if ((int) net->type >= (int) first->type &&
+				(int) net->type <= (int) last->type)
+				merge = 1;
+		} else if (sortmode == KIS_SORT_CHANNEL) {
+			if (net->channel >= first->channel && net->channel <= last->channel)
+				merge = 1;
+		} else if (sortmode == KIS_SORT_FIRST) {
+			if (net->first_time >= first->first_time && 
+				net->first_time <= last->first_time)
+				merge = 1;
+		} else if (sortmode == KIS_SORT_FIRST_D) {
+			if (net->first_time <= first->first_time &&
+				net->first_time >= last->first_time)
+				merge = 1;
+		} else if (sortmode == KIS_SORT_LAST) {
+			if (net->last_time >= first->last_time && 
+				net->last_time <= last->last_time)
+				merge = 1;
+		} else if (sortmode == KIS_SORT_LAST_D) {
+			if (net->last_time <= first->last_time &&
+				net->last_time >= last->last_time)
+				merge = 1;
+		} else if (sortmode == KIS_SORT_BSSID) {
+			if (net->bssid <= first->bssid == 0 &&
+				net->bssid <= last->bssid)
+				merge = 1;
+		} else if (sortmode == KIS_SORT_SSID) {
+			// Fix me somehow
+		} else if (sortmode == KIS_SORT_PACKETS) {
+			if ((net->llc_packets + net->data_packets) >= 
+				(first->llc_packets + first->data_packets) && 
+				(net->llc_packets + net->data_packets) <=
+				(last->llc_packets + last->data_packets))
+				merge = 1;
+		}
+	} else {
+		merge = 1;
 	}
 
 	if (merge) {
