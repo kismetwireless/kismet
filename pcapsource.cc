@@ -329,12 +329,12 @@ int PcapSource::ManglePacket(kis_packet *packet, uint8_t *data, uint8_t *moddata
 			packet->error = 1;
 			packet->caplen = 0;
 			packet->len = 0;
-			return 1;
+			return 0;
 		}
 
         packet->caplen = kismin(callback_header.caplen - fcs, 
-								(uint32_t) MAX_PACKET_LEN);
-        packet->len = packet->caplen - fcs;
+				(uint32_t) MAX_PACKET_LEN);
+        packet->len = packet->caplen;
         memcpy(packet->data, callback_data, packet->caplen);
 
 		// If we're going to validate fcs, check it here */
@@ -344,14 +344,13 @@ int PcapSource::ManglePacket(kis_packet *packet, uint8_t *data, uint8_t *moddata
 			uint32_t calc_crc = 
 				crc32_le_80211(crc32_table, packet->data, packet->caplen);
 
-			// We always swap it because we calculate LE but need BE
-			// calc_crc = kis_swap32(calc_crc);
-
 			if (memcmp(frame_crc, &calc_crc, 4)) {
 				packet->error = 1;
-				printf("debug - crc corrupt, got %08x expected %08x\n", calc_crc, *frame_crc);
+				// printf("debug - crc corrupt, got %08x expected %08x\n", calc_crc, *frame_crc);
 				return 1;
 			}
+
+			// printf("debug - good - got crc %08x, expected %08x\n", calc_crc, *frame_crc);
 		}
 
         ret = 1;
