@@ -195,6 +195,11 @@ int RegisterKismetSources(Packetsourcetracker *sourcetracker) {
                                         monitor_wext, unmonitor_wext,
                                         chancontrol_wext, 1);
 
+    sourcetracker->RegisterPacketsource("nokia770", 1, "IEEE80211g", 6,
+                                        pcapsource_11gfcschk_registrant,
+                                        monitor_prism54g, unmonitor_prism54g,
+                                        chancontrol_prism54g, 1);
+
 #else
     // Register the linuxwireless pcap stuff as null
     REG_EMPTY_CARD(sourcetracker, "bcm43xx");
@@ -231,6 +236,8 @@ int RegisterKismetSources(Packetsourcetracker *sourcetracker) {
 
     REG_EMPTY_CARD(sourcetracker, "wlanng_wext");
     REG_EMPTY_CARD(sourcetracker, "zd1211");
+
+    REG_EMPTY_CARD(sourcetracker, "nokia770");
 #endif
 
 #if defined(HAVE_LIBPCAP) && defined(SYS_LINUX)

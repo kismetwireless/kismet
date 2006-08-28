@@ -320,3 +320,46 @@ uint32_t Adler32Checksum(char *buf1, int len) {
 	return (s1 & 0xffff) + (s2 << 16);
 }
 
+// Taken from the BBN USRP 802.11 encoding code
+inline unsigned int update_crc32_80211(unsigned int crc, const unsigned char *data,
+								int len, unsigned int poly) {
+	int i, j;
+	unsigned short ch;
+
+	for ( i = 0; i < len; ++i) {
+		ch = data[i];
+		for (j = 0; j < 8; ++j) {
+			if ((crc ^ ch) & 0x0001) {
+				crc = (crc >> 1) ^ poly;
+			} else {
+				crc = (crc >> 1);
+			}
+			ch >>= 1;
+		}
+	}
+	return crc;
+}
+
+void crc32_init_table_80211(unsigned int *crc32_table) {
+	int i;
+	unsigned char c;
+
+	for (i = 0; i < 256; ++i) {
+		c = (unsigned char) i;
+		crc32_table[i] = update_crc32_80211(0, &c, 1, IEEE_802_3_CRC32_POLY);
+	}
+}
+
+unsigned int crc32_le_80211(unsigned int *crc32_table, const unsigned char *buf, int len) {
+	int i;
+	unsigned int crc = 0xFFFFFFFF;
+
+	for (i = 0; i < len; ++i) {
+		crc = (crc >> 8) ^ crc32_table[(crc ^ buf[i]) & 0xFF];
+	}
+
+	crc ^= 0xFFFFFFFF;
+
+	return crc;
+}
+

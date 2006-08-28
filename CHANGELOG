@@ -1,3 +1,5 @@
+Aug 28 2006  devel  First shot at support for the Nokia770 (FCS checking)
+                    Added source nokia770
 Jul 27 2006  devel  Merged patch from Rob Deker to handle QoS to some extent
 May 20 2006  devel  Merged gpsmap patch from rr to add european expedia maps
 Apr 25 2006  devel  Merged OpenBSD patches from Matthias Kilian:

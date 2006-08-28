@@ -74,19 +74,24 @@ extern "C" {
 // Generic pcapsource
 class PcapSource : public KisPacketSource {
 public:
-    PcapSource(string in_name, string in_dev) : KisPacketSource(in_name, in_dev) { }
+    PcapSource(string in_name, string in_dev) : KisPacketSource(in_name, in_dev) { 
+		decode_fcs = 0;
+		crc32_table = NULL;
+	}
 
-    int OpenSource();
-    int CloseSource();
+    virtual int OpenSource();
+    virtual int CloseSource();
 
-    int FetchDescriptor();
+    virtual int FetchDescriptor();
 
-    int FetchPacket(kis_packet *packet, uint8_t *data, uint8_t *moddata);
+    virtual int FetchPacket(kis_packet *packet, uint8_t *data, uint8_t *moddata);
 
     static void Callback(u_char *bp, const struct pcap_pkthdr *header,
                          const u_char *in_data);
 
-    int FetchChannel();
+    virtual int FetchChannel();
+
+	virtual void SetSmartCRC(int in_smart);
 protected:
     // Prism 802.11 headers from wlan-ng tacked on to the beginning of a
     // pcap packet... Snagged from the wlan-ng source
@@ -166,6 +171,10 @@ protected:
     pcap_t *pd;
     int datalink_type;
 
+	// Do we do anything intelligent with the FCS?
+	int decode_fcs;
+	unsigned int *crc32_table;
+
     // Some toggles for subclasses to use
     int toggle0;
     int toggle1;
@@ -179,7 +188,7 @@ public:
     int OpenSource();
     int FetchPacket(kis_packet *packet, uint8_t *data, uint8_t *moddata);
     // int FetchDescriptor();
-    int FetchChannel();
+    virtual int FetchChannel();
 };
 
 #ifdef SYS_LINUX
@@ -202,13 +211,13 @@ public:
     PcapSourceWext(string in_name, string in_dev) : PcapSource(in_name, in_dev) { 
         modern_chancontrol = -1;
     }
-    int FetchChannel();
+    virtual int FetchChannel();
 
     // Small tracker var for intelligent channel control in orinoco.  I don't want to make
     // a new class for 1 int
     int modern_chancontrol;
 protected:
-    int FetchSignalLevels(int *in_siglev, int *in_noiselev);
+    virtual int FetchSignalLevels(int *in_siglev, int *in_noiselev);
 };
 
 // FCS trimming for wext cards
@@ -247,7 +256,7 @@ public:
         PcapSource(in_name, in_dev) { 
             fcsbytes = 4;
         }
-    int FetchChannel();
+    virtual int FetchChannel();
 protected:
     // Signal levels are pulled from the prism2 or avs headers so leave that as 0
     int last_channel;
@@ -276,7 +285,7 @@ class PcapSourceOpenBSDPrism : public PcapSource {
 public:
     PcapSourceOpenBSDPrism(string in_name, string in_dev) :
         PcapSource(in_name, in_dev) { }
-    int FetchChannel();
+    virtual int FetchChannel();
 };
 #endif
 
@@ -317,7 +326,7 @@ public:
     PcapSourceRadiotap(string in_name, string in_dev) :
         PcapSource(in_name, in_dev) { }
     int OpenSource();
-    int FetchChannel();
+    virtual int FetchChannel();
 protected:
     bool CheckForDLT(int dlt);
 };
@@ -342,6 +351,8 @@ KisPacketSource *pcapsource_11g_registrant(string in_name, string in_device,
                                            char *in_err);
 KisPacketSource *pcapsource_11gfcs_registrant(string in_name, string in_device,
                                               char *in_err);
+KisPacketSource *pcapsource_11gfcschk_registrant(string in_name, string in_device,
+												 char *in_err);
 #endif
 
 #ifdef SYS_LINUX

@@ -180,6 +180,20 @@ int PcapSource::FetchSignalLevels(int *in_siglev, int *in_noiselev) {
     return 0;
 }
 
+void PcapSource::SetSmartCRC(int in_smart) {
+	if (in_smart && crc32_table == NULL) {
+		crc32_table = new unsigned int[256];
+		crc32_init_table_80211(crc32_table);
+	}
+
+	if (in_smart == 0 && crc32_table != NULL) {
+		delete[] crc32_table;
+		crc32_table = NULL;
+	}
+
+	decode_fcs = in_smart;
+}
+
 // Errorcheck the datalink type
 int PcapSource::DatalinkType() {
     datalink_type = pcap_datalink(pd);
@@ -310,9 +324,34 @@ int PcapSource::ManglePacket(kis_packet *packet, uint8_t *data, uint8_t *moddata
         ret = Radiotap2KisPack(packet, data, moddata);
 #endif
     } else {
-        packet->caplen = kismin(callback_header.caplen, (uint32_t) MAX_PACKET_LEN);
-        packet->len = packet->caplen;
+        unsigned int fcs = FCSBytes();
+		if (callback_header.caplen <= fcs) {
+			packet->error = 1;
+			packet->caplen = 0;
+			packet->len = 0;
+			return 1;
+		}
+
+        packet->caplen = kismin(callback_header.caplen - fcs, 
+								(uint32_t) MAX_PACKET_LEN);
+        packet->len = packet->caplen - fcs;
         memcpy(packet->data, callback_data, packet->caplen);
+
+		// If we're going to validate fcs, check it here */
+		if (fcs && decode_fcs) {
+			uint8_t *frame_crc = &(packet->data[packet->caplen - 4]);
+			uint32_t calc_crc = crc32_le_80211(crc32_table, frame_crc, 4);
+
+			// We always swap it because we calculate LE but need BE
+			calc_crc = kis_swap32(calc_crc);
+
+			if (memcmp(frame_crc, &calc_crc, 4)) {
+				packet->error = 1;
+				printf("debug - crc corrupt, got %08x expected %02x%02x%02x%02x\n", calc_crc, frame_crc[0], frame_crc[1], frame_crc[2], frame_crc[3]);
+				return 1;
+			}
+		}
+
         ret = 1;
     }
 
@@ -1068,6 +1107,15 @@ KisPacketSource *pcapsource_11g_registrant(string in_name, string in_device,
 KisPacketSource *pcapsource_11gfcs_registrant(string in_name, string in_device,
                                               char *in_err) {
     return new PcapSource11GFCS(in_name, in_device);
+}
+
+KisPacketSource *pcapsource_11gfcschk_registrant(string in_name, string in_device,
+												 char *in_err) {
+	PcapSource11GFCS *src = new PcapSource11GFCS(in_name, in_device);
+
+	src->SetSmartCRC(1);
+
+	return src;
 }
 
 #endif
