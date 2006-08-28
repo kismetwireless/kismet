@@ -339,15 +339,17 @@ int PcapSource::ManglePacket(kis_packet *packet, uint8_t *data, uint8_t *moddata
 
 		// If we're going to validate fcs, check it here */
 		if (fcs && decode_fcs) {
-			uint8_t *frame_crc = &(packet->data[packet->caplen - 4]);
-			uint32_t calc_crc = crc32_le_80211(crc32_table, frame_crc, 4);
+			uint32_t *frame_crc = 
+				(uint32_t *) &(callback_data[callback_header.caplen - 4]);
+			uint32_t calc_crc = 
+				crc32_le_80211(crc32_table, packet->data, packet->caplen);
 
 			// We always swap it because we calculate LE but need BE
-			calc_crc = kis_swap32(calc_crc);
+			// calc_crc = kis_swap32(calc_crc);
 
 			if (memcmp(frame_crc, &calc_crc, 4)) {
 				packet->error = 1;
-				printf("debug - crc corrupt, got %08x expected %02x%02x%02x%02x\n", calc_crc, frame_crc[0], frame_crc[1], frame_crc[2], frame_crc[3]);
+				printf("debug - crc corrupt, got %08x expected %08x\n", calc_crc, *frame_crc);
 				return 1;
 			}
 		}
@@ -1074,7 +1076,14 @@ KisPacketSource *pcapsource_registrant(string in_name, string in_device,
 
 KisPacketSource *pcapsource_file_registrant(string in_name, string in_device,
                                             char *in_err) {
-    return new PcapSourceFile(in_name, in_device);
+	PcapSourceFile *src = new PcapSourceFile(in_name, in_device);
+
+#if 0
+	src->SetSmartCRC(1);
+	src->fcsbytes = 4;
+#endif
+
+	return src;
 }
 
 #ifdef HAVE_LINUX_WIRELESS
