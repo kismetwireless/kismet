@@ -1,4 +1,9 @@
 Sep 05 2006  devel  First shot at supporting the Cace AirPcap device (untested)
+                    Removed embedded libpcap finally.  If your distro doesn't
+                     have an updated libpcap by now, update it.
+                    Added configure support for airpcap tests
+                    Disabled setuid on cygwin in all cases
+                    Added smarter output for platform-specific tests
 Aug 28 2006  devel  First shot at support for the Nokia770 (FCS checking)
                     Added source nokia770
 Jul 27 2006  devel  Merged patch from Rob Deker to handle QoS to some extent

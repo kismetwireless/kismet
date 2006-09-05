@@ -4,11 +4,6 @@ AC_CONFIG_SRCDIR([kismet.h])
 
 AC_PREREQ(2.57)
 
-# Included pcap directory
-pcapdir="libpcap-0.9.1-kis"
-etherealdir="/usr/src/ethereal-0.9.12"
-AC_SUBST(pcapdir)
-
 # Check for host type
 AC_CANONICAL_HOST
 
@@ -446,63 +441,67 @@ AC_ARG_ENABLE(pcap, [  --disable-pcap          disable libpcap (most sources) ca
 AC_SUBST(wantpcap)
 
 if test $wantpcap = yes; then
+	foundsyspcap=no
+	AC_CHECK_LIB([pcap], [pcap_open_live],
+	    AC_DEFINE(HAVE_LIBPCAP, 1, libpcap packet capture lib) foundsyspcap=yes,
+	    AC_MSG_WARN(Compiling without libpcap support.))
 
-syspcap="no"
-AC_ARG_ENABLE(syspcap, [  --enable-syspcap        use system libpcap (not recommended)],syspcap=yes,)
-	if test $syspcap = "yes"; then
-		foundsyspcap=no
-		AC_CHECK_LIB([pcap], [pcap_open_live],
-		    AC_DEFINE(HAVE_LIBPCAP, 1, libpcap packet capture lib) foundsyspcap=yes,
-		    AC_MSG_WARN(Compiling without libpcap support.))
+	if test $foundsyspcap = yes; then
+	## if we don't have a pcap.h, do a search for pcap/pcap.h
+	AC_CHECK_HEADER([pcap.h],
+		AC_DEFINE(HAVE_PCAP_H, 1, libpcap header) foundsyspcaph=yes)
+	    if test $foundsyspcaph != yes; then 
+			AC_CHECK_HEADER([pcap/pcap.h], 
+			AC_DEFINE(HAVE_PCAP_H, 1, libpcap header) AC_DEFINE(HAVE_PCAPPCAP_H, 1, pcap/pcap.h),
+			AC_MSG_ERROR([found libpcap but unable to find pcap.h]))
+	    fi
+	# Look for the new PCAP stuff
+	AC_CHECK_LIB([pcap], [pcap_setnonblock],
+	    AC_DEFINE(HAVE_PCAP_NONBLOCK, 1, Nonblocking-capable libpcap),
+	    AC_MSG_WARN(*** You don't appear to have a version of libpcap which supports non-blocking IO.  We'll fake it, but you REALLY should upgrade your libpcap, as it may not support 802.11 capture sources, either. ***))
 
-		if test $foundsyspcap = yes; then
-		## if we don't have a pcap.h, do a search for pcap/pcap.h
-		AC_CHECK_HEADER([pcap.h],
-			AC_DEFINE(HAVE_PCAP_H, 1, libpcap header) foundsyspcaph=yes)
-		    if test $foundsyspcaph != yes; then 
-				AC_CHECK_HEADER([pcap/pcap.h], 
-				AC_DEFINE(HAVE_PCAP_H, 1, libpcap header) AC_DEFINE(HAVE_PCAPPCAP_H, 1, pcap/pcap.h),
-				AC_MSG_ERROR([found libpcap but unable to find pcap.h]))
-		    fi
-		# Look for the new PCAP stuff
-		AC_CHECK_LIB([pcap], [pcap_setnonblock],
-		    AC_DEFINE(HAVE_PCAP_NONBLOCK, 1, Nonblocking-capable libpcap),
-		    AC_MSG_WARN(*** You don't appear to have a version of libpcap which supports non-blocking IO.  We'll fake it, but you really should upgrade your libpcap, as it may not support 802.11 capture sources, either. ***))
-
-		pcaplib=""
-		AC_SUBST(pcaplib)
-		pcaplnk="-lpcap"
-		AC_SUBST(pcaplnk)
-		pcap="yes"
-		fi
-	else
-		# Build local pcap
-		export CC
-		export CXX
-		AC_CONFIG_SUBDIRS($pcapdir)
-
-		if test "$darwin" = yes; then
-			pcaplib=""
-			pcaplnk="-L$pcapdir -lpcap"
-		else
-			pcaplib="$pcapdir/libpcap.a"
-			pcaplnk=""
-		fi
-
-		AC_SUBST(pcaplib)
-		AC_SUBST(pcaplnk)
-
-		CPPFLAGS="$CPPFLAGS -I$pcapdir"
-		#CXXFLAGS="$CPPFLAGS -I$pcapdir"
-		AC_DEFINE(HAVE_LIBPCAP, 1, libpcap packet capture lib)
-		pcap=yes
+	pcaplib=""
+	AC_SUBST(pcaplib)
+	pcaplnk="-lpcap"
+	AC_SUBST(pcaplnk)
+	pcap="yes"
 	fi
-
-
 else
     AC_MSG_WARN(Compiling without libpcap support.)
 fi
 AC_SUBST(pcap)
+
+if test "$cygwin" = yes; then
+	AC_MSG_WARN([*** Enabling AirPcap checks on Cygwin ***]);
+	want_airpcap=yes;
+fi
+
+AC_ARG_ENABLE(airpcap, [  --disable-airpcap          disable CASE AirPcap (Cygwin/Win32 only)],want_airpcap=no,)
+
+if test "$cygwin" = no -a "$want_airpcap" = "yes"; then
+	AC_MSG_WARN([*** Disabling AirPcap on non-cygwin/win32 system ***]);
+	want_airpcap=no;
+fi
+
+if test "$want_airpcap" = "yes" -a "$pcap" = "yes"; then
+	foundairpcap=no
+	AC_CHECK_LIB([airpcap], [AirpcapSetLinkType],
+	    AC_DEFINE(HAVE_LIBAIRPCAP, 1, libairpcap win32 control lib) foundairpcap=yes,
+	    AC_MSG_WARN(Compiling without airpcap support.))
+
+	if test $foundairpcap = yes; then
+	## if we don't have a pcap.h, do a search for pcap/pcap.h
+	AC_CHECK_HEADER([airpcap.h],
+		AC_DEFINE(HAVE_AIRPCAP_H, 1, libairpcap header) foundairpcaph=yes)
+	fi
+
+	if test "$foundairpcap" != "yes" -o "$foundairpcaph" != "yes"; then
+		AC_MSG_WARN(Compiling without airpcap support)
+	else
+		airpcap="yes"
+		LIBS="$LIBS -lairpcap"
+	fi
+fi
 
 if test "$bsd" = yes; then
 	AC_MSG_CHECKING(for net80211/radiotap support)
@@ -526,7 +525,6 @@ if test "$radiotap" = yes; then
 fi
 
 AC_ARG_ENABLE(setuid, [  --disable-setuid        disable setuid/privdrop ability (not reccomended)],,suid=yes)
-# evaluate after viha test
 
 if test "$darwin" = yes; then
 	AC_MSG_WARN([*** Enabling Viha by default because we're compiling under OSX ***]);
@@ -541,7 +539,7 @@ if test "$darwin" = no -a "$want_viha" = "yes"; then
 	AC_MSG_WARN([*** Disabling Viha on non-OSX system ***]);
 	want_viha=no;
 fi
-	
+
 if test $want_viha = "yes"; then
 	AC_CHECK_HEADERS([WiFi/WLPacketSource.h WiFi/WLFrame.h WiFi/IEEE80211Frame.h WiFi/WFException.h], 
 		AC_DEFINE(HAVE_VIHAHEADERS, 1, Viha headers are there) foundviha=yes, 
@@ -556,6 +554,10 @@ if test $want_viha = "yes"; then
 fi
 
 # Evaluate suid
+if test "$cygwin" = "yes"; then
+	suid="no"
+fi
+
 AC_SUBST(suid)
 if test $suid = yes; then
 	AC_MSG_CHECKING(for setuid )
@@ -568,6 +570,9 @@ else
     if test "$foundviha" != "yes"; then
 	    AC_MSG_WARN(*** Not installing setuid capabilities.  It is more secure to install Kismet as setuid-capable so it can drop privileges.  Please consult the README file. ***)
     fi
+	if test "$cygwin" = "yes"; then
+		AC_MSG_WARN(*** Disabling setuid capabilities under Cygwin since they serve no purpose here. ***)
+	fi
 fi
 
 wsp100=yes
@@ -576,166 +581,14 @@ if test "$wsp100" = "yes"; then
 	AC_DEFINE(HAVE_WSP100, 1, wsp100 remote sensor support)
 fi
 
-zaurus=no
-AC_ARG_ENABLE(zaurus, [  --enable-zaurus         enable extra utils for Sharp Zaurus (deprecated)],zaurus=yes,)
-if test "$zaurus" = "yes" -a "$host_cpu" != "arm"; then
-	AC_MSG_WARN(*** Zaurus extentions enabled but not building for an Arm CPU ***)
-fi
-AC_SUBST(zaurus)
-if test "$zaurus" = "yes"; then
-	zbuild="\$(BUZZER)"
-fi
-AC_SUBST(zbuild)
-
-    
 local=no
 AC_ARG_ENABLE(local-dumper, [  --enable-local-dumper   force use of local dump code even if Ethereal is available],
               local=yes,)
 AC_SUBST(local)
 
-# AC_ARG_WITH(ethereal,
-# [  --with-ethereal[=DIR]     support ethereal wiretap for replaying logs ]
-#   --without-ethereal        disable support for ethereal wiretap],
-# [
-#     if test $withval = no; then
-#         want_ethereal=no
-#     elif test $withval = yes; then
-#         want_ethereal=yes
-# 		ethereal_dir=$etherealdir
-#     else
-#         want_ethereal=yes
-#         ethereal_dir=$withval
-#     fi
-# ],[
-#     want_ethereal=yes
-#     ethereal_dir=$etherealdir
-# ])
-
-#
-#found_ethereal=no
-#if test $want_ethereal = yes; then
-#	AC_CHECK_FILE($ethereal_dir/Makefile, found_ethereal=yes, found_ethereal=no)
-#fi
-
-#if test $found_ethereal = no -a $want_ethereal = yes; then
-#	want_ethereal=no
-#	AC_MSG_WARN(*** Unable to find configured Ethereal in $ethereal_dir ***)
-#fi
-
-
 libz="no"
 AC_DEFINE(USE_LOCAL_DUMP, 1, Use local dumper code)
 	local=yes
-# if test $want_ethereal = yes; then
-# 
-# 	AC_CHECK_PROG(glib, [glib-config --version], yes, no)
-# 	
-# 	if test $glib = no; then
-# 		AC_MSG_WARN(Could not find glib-config in $PATH.  glib is required to link to wiretap.)
-# 		want_ethereal=no
-# 		local=yes
-# 	    AC_MSG_WARN([*** Wiretap support disabled.  While Kismet will function without wiretap, it will limit the log reading and writing abilities. ***])
-# 	    AC_DEFINE(USE_LOCAL_DUMP, 1, Use local dumper code)
-# 	    local=yes
-# 	else
-# 
-# 	AC_MSG_CHECKING(for usable wiretap with 3 arguments in $ethereal_dir/wiretap)
-# 	save_cppflags="$CPPFLAGS"
-# 	CPPFLAGS="$CPPFLAGS `glib-config --cflags glib` -I$ethereal_dir/wiretap"
-# 	#CPPFLAGS="$CPPFLAGS `glib-config --cflags glib` -I$ethereal_dir/wiretap"
-# 	#save_cxxflags="$CXXFLAGS"
-# 	#CXXFLAGS="$CXXFLAGS `glib-config --cflags glib` -I$ethereal_dir/wiretap"
-# 	save_libs="$LIBS"
-# 	LIBS="$LIBS -lz `glib-config --libs glib` -L$ethereal_dir/wiretap -lwiretap"
-# 
-#     AC_LINK_IFELSE([AC_LANG_PROGRAM([[
-# 		#include <stdio.h>
-# 		#include <sys/types.h>
-# 		#include <sys/time.h>
-# 		#include "wtap.h"
-# 		]], [[
-# 	const char *filename = "autoconf test";
-# 	int err;
-# 
-# 	wtap_open_offline(filename, &err, 0);
-# 		]])],[wtap_valid=yes],[wtap_valid=no])
-# 
-#     if test "$wtap_valid" = no ; then
-#         AC_MSG_RESULT(no);
-# 	    AC_MSG_CHECKING(for usable wiretap with 4 arguments in $ethereal_dir/wiretap)
-#     	AC_LINK_IFELSE([AC_LANG_PROGRAM([[
-#         	#include <stdio.h>
-# 			#include <sys/types.h>
-# 			#include <netinet/in.h>
-#       		#include "wtap.h"
-#        	]], [[
-# 	const char *filename = "autoconf test";
-# 	int err;
-# 
-# 	wtap_open_offline(filename, &err, 0, 0);
-#         ]])],[wtap_argquad=yes],[wtap_argquad=no])
-# 
-# 		if test "$wtap_argquad" = yes ; then
-#             wtap_valid="yes";
-#             AC_DEFINE(HAVE_WTAP_ARGQUAD, 1, wiretap functions takesfour parameters)
-# 		fi
-#     fi
-# 
-#     if test "$wtap_valid" = yes ; then
-#         AC_MSG_RESULT(yes)
-#         AC_DEFINE(HAVE_LIBWIRETAP, 1, Ethereal wiretap library)
-# 		libz="yes";
-# 		AC_DEFINE(HAVE_LIBZ, 1, Zlib compression library)
-# 
-#         if test "$wtap_argquad" = no ; then
-#     		AC_MSG_CHECKING(for wtap_read parameters (wtap *, int *, int *))
-#         	AC_LINK_IFELSE([AC_LANG_PROGRAM([[
-#             	#include <stdio.h>
-#     			#include <sys/types.h>
-#     			#include <netinet/in.h>
-#           		#include "wtap.h"
-#            	]], [[
-#         		int err;
-#     			struct wtap *packfile;
-#     			long *offset;
-#     
-#         		wtap_read(packfile, &err, offset);
-#             ]])],[wtap_intint=no],[wtap_intint=yes])
-#     
-#     		if test "$wtap_intint" = yes ; then
-#     			AC_MSG_RESULT([struct wtap *, int *, int *])
-#                 AC_DEFINE(HAVE_WTAPREAD_INTINT, 1, wtap_read takes two int * parameters)
-#     		else
-#                 AC_MSG_RESULT([struct wtap *, int *, long *])
-#             fi
-#         fi
-# 
-# 		if test $local = yes; then
-# 		    AC_MSG_CHECKING(for forced local-dumper)
-# 		    AC_MSG_RESULT(yes)
-# 		    AC_MSG_WARN(*** Forcing local dumper code instead of wiretap dumper.  ***)
-# 			AC_DEFINE(USE_LOCAL_DUMP, 1, Force local dumper code)
-# 		else
-# 		    AC_MSG_CHECKING(for forced local-dumper)
-# 		    AC_MSG_RESULT(no)
-# 		fi
-#     else
-#         AC_MSG_RESULT(no)
-# 		want_ethereal="no"
-# 		AC_MSG_WARN([*** No useable wiretap found in $ethereal_dir.  Make sure this directory is correct and that you have configured and compiled Ethereal in this directory.  While Kismet will function without wiretap, it will limit the log reading and writing abilities. ***])
-# 		CPPFLAGS="$save_cppflags"
-# 		#CXXFLAGS="$save_cxxflags"
-#    		LIBS="$save_libs"
-# 		AC_DEFINE(USE_LOCAL_DUMP, 1, Use local dumper code)
-#     	local=yes
-#     fi
-# 
-# 	fi
-# else
-# 	AC_MSG_WARN([*** Wiretap support disabled.  While Kismet will function without wiretap, it will limit the log reading and writing abilities. ***])
-# 	AC_DEFINE(USE_LOCAL_DUMP, 1, Use local dumper code)
-#     local=yes
-# fi
 
 # gpsmap checks
 
@@ -908,22 +761,13 @@ echo "       Installing into: $prefix"
 echo -n "        Setuid capable: "
 if test "$suid" = "yes"; then
 	echo "yes"
+elif test "$cygwin" = "yes"; then
+	echo "n/a (Cygwin/win32)"
+elif test "$want_viha" = "yes"; then
+	echo "n/a (OSX with Viha)"
 else
 	echo "no"
 fi
-echo -n "         Zaurus extras: "
-if test "$zaurus" = "yes"; then
-	echo "yes"
-	if test "$host_cpu" != "arm"; then
- 		echo "        WARNING:  Not compiling for ARM but zaurus extentions enabled."
-	fi
-else
-	echo "no"
-    if test "$host_cpu" = "arm"; then
-		echo "        WARNING:  Arm CPU but zaurus extentions not enabled."
-    fi
-fi
-
 echo -n "      Terminal Control: "
 if test "$ncurses" = "yes"; then
 	if test "$curses" = "yes"; then
@@ -967,11 +811,14 @@ fi
 echo -n "          pcap capture: "
 if test "$pcap" = "yes"; then
 	echo "yes"
-	if test "$syspcap" != "yes"; then
-		echo "           pcap source: $pcapdir"
-	else
-		echo "           pcap source: system"
-	fi
+else
+	echo "no"
+fi
+echo -n "       airpcap control: "
+if test "$airpcap" = "yes"; then
+	echo "yes"
+elif test "$cygwin" != "yes"; then
+	echo "n/a (only Cygwin/Win32)"
 else
 	echo "no"
 fi
@@ -984,6 +831,8 @@ fi
 echo -n "          Viha capture: "
 if test "$want_viha" = "yes"; then
 	echo "yes";
+elif test "$darwin" != "yes"; then
+	echo "n/a (only Darwin)"
 else
 	echo "no";
 fi

@@ -73,7 +73,7 @@ BUZZER = extra/buzzme/buzzme
 
 GPSLBUILD=@gpslc@
 GPSLBUILDO=@gpslco@
-ZAURUSBUILD=@zbuild@
+#ZAURUSBUILD=@zbuild@
 
 all:	Makefile $(DEPEND) $(PS) $(DRONE) $(NC) $(GPSLBUILD) $(ZAURUSBUILD)
 
@@ -299,8 +299,8 @@ clean:
 	@-rm -f $(NC)
 	@-rm -f $(GPSL)
 	# @-rm -f $(HOPPER)
-	@-( cd extra/buzzme; $(MAKE) clean )
-	@-( cd $(PCAPDIR); $(MAKE) clean )
+	# @-( cd extra/buzzme; $(MAKE) clean )
+	# @-( cd $(PCAPDIR); $(MAKE) clean )
 
 distclean:
 	@-$(MAKE) clean
@@ -313,11 +313,11 @@ distclean:
 	@-rm -rf packaging/pak
 	@-rm -rf *.ipk
 	@-rm -f scripts/kismet
-#@-rm -f scripts/kismet_monitor
-#@-rm -f scripts/kismet_unmonitor
+	# @-rm -f scripts/kismet_monitor
+	# @-rm -f scripts/kismet_unmonitor
 	@-( cd extra/; $(MAKE) distclean )
-	@-( cd extra/buzzme; $(MAKE) distclean )
-	@-( cd $(PCAPDIR); $(MAKE) distclean )
+	# @-( cd extra/buzzme; $(MAKE) distclean )
+	# @-( cd $(PCAPDIR); $(MAKE) distclean )
 	@-rm -f Makefile
 
 arm: $(PS) $(NC) $(ZBUILD)

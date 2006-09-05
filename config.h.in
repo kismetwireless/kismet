@@ -9,6 +9,9 @@
 /* Build panel UI */
 #undef BUILD_PANEL
 
+/* libairpcap header */
+#undef HAVE_AIRPCAP_H
+
 /* AssumeDefaultColors present */
 #undef HAVE_ASSUME_DEFAULT_COLORS
 
@@ -38,6 +41,9 @@
 
 /* inttypes.h is present */
 #undef HAVE_INTTYPES_H
+
+/* libairpcap win32 control lib */
+#undef HAVE_LIBAIRPCAP
 
 /* Curses terminal lib */
 #undef HAVE_LIBCURSES
