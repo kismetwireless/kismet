@@ -322,6 +322,18 @@ int RegisterKismetSources(Packetsourcetracker *sourcetracker) {
     REG_EMPTY_CARD(sourcetracker, "viha");
 #endif
 
+#if defined(HAVE_LIBPCAP) && defined(HAVE_LIBAIRPCAP) && defined(SYS_CYGWIN)
+	sourcetracker->RegisterPacketsource("airpcap", 1, "IEEE80211g", 6,
+										airpcapsource_registrant,
+										NULL, NULL, chancontrol_airpcap, 0);
+	sourcetracker->RegisterPacketsource("airpcap_ask", 1, "IEEE80211g", 6,
+										airpcapsourceq_registrant,
+										NULL, NULL, chancontrol_airpcap, 0);
+#else
+	REG_EMPTY_CARD(sourcetracker, "airpcap");
+	REG_EMPTY_CARD(sourcetracker, "airpcap_ask");
+#endif
+
     return 1;
 }
 

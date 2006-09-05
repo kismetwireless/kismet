@@ -28,6 +28,7 @@
 #include "wsp100source.h"
 #include "vihasource.h"
 #include "dronesource.h"
+#include "airpcapsource.h"
 #include "packetsourcetracker.h"
 
 // Null packet source for default config
