@@ -136,6 +136,13 @@ int FetchSysLoadAvg(uint8_t *in_avgmaj, uint8_t *in_avgmin);
 // From rsync, adler-32
 uint32_t Adler32Checksum(const char *buf1, int len);
 
+// 802.11 checksum functions, extracted from the BBN USRP code
+#define IEEE_802_3_CRC32_POLY	0xEDB88320
+unsigned int update_crc32_80211(unsigned int crc, const unsigned char *data,
+								int len, unsigned int poly);
+void crc32_init_table_80211(unsigned int *crc32_table);
+unsigned int crc32_le_80211(unsigned int *crc32_table, const unsigned char *buf, int len);
+
 // Proftpd process title manipulation functions
 void init_proc_title(int argc, char *argv[], char *envp[]);
 void set_proc_title(const char *fmt, ...);

@@ -30,7 +30,7 @@ void Kis_Panel_Specialtext::Mvwaddnstr(WINDOW *win, int y, int x, string str, in
 	int escape = 0;
 
 	for (unsigned int pos = 0; pos < str.size(); pos++) {
-		if (str[pos] == '\\') {
+		if (str[pos] == '\004') {
 			escape = 1;
 			continue;
 		}
@@ -54,7 +54,7 @@ void Kis_Panel_Specialtext::Mvwaddnstr(WINDOW *win, int y, int x, string str, in
 			} else if (str[pos] == 'B') {
 				wattroff(win, WA_BOLD);
 			} else {
-				fprintf(stderr, "invalid escape '%c'\n", str[pos]);
+				// fprintf(stderr, "invalid escape '%c'\n", str[pos]);
 				// Backfill the unescaped data
 				escape = 0;
 				if (npos <= n) {
@@ -628,11 +628,11 @@ void Kis_Free_Text::SetText(vector<string> in_text) {
 
 void KisStatusText_Messageclient::ProcessMessage(string in_msg, int in_flags) {
 	if ((in_flags & MSGFLAG_INFO)) {
-		((Kis_Status_Text *) auxptr)->AddLine("\\bINFO\\B: " + in_msg, 6);
+		((Kis_Status_Text *) auxptr)->AddLine("\004bINFO\004B: " + in_msg, 6);
 	} else if ((in_flags & MSGFLAG_ERROR)) {
-		((Kis_Status_Text *) auxptr)->AddLine("\\rERROR\\R: " + in_msg, 7);
+		((Kis_Status_Text *) auxptr)->AddLine("\004rERROR\004R: " + in_msg, 7);
 	} else if ((in_flags & MSGFLAG_FATAL)) {
-		((Kis_Status_Text *) auxptr)->AddLine("\\rFATAL\\R: " + in_msg, 7);
+		((Kis_Status_Text *) auxptr)->AddLine("\004rFATAL\004R: " + in_msg, 7);
 	} else {
 		((Kis_Status_Text *) auxptr)->AddLine(in_msg);
 	}

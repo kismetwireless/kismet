@@ -1,8 +1,0 @@
-The Kismet modifications to this copy of libpcap simply remove the gencode.c
-file and the packet filtering capabilities (Kismet uses its own packet filter).
-
-The libpcap distributed with Kismet should not be used for anything else, and
-the installer doesn't copy the libpcap.a file outside of the source tree.
-
-Mike Kershaw/dragorn
-dragorn@kismetwireless.net

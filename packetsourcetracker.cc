@@ -506,6 +506,8 @@ Packetsourcetracker::Packetsourcetracker(GlobalRegistry *in_globalreg) {
 		globalreg->packetchain->RegisterPacketComponent("LINKFRAME");
 	_PCM(PACK_COMP_80211FRAME) =
 		globalreg->packetchain->RegisterPacketComponent("80211FRAME");
+	_PCM(PACK_COMP_FCSBYTES) =
+		globalreg->packetchain->RegisterPacketComponent("FCSBYTES");
 
 	// Add our null source
 	AddKisPacketsource(new NullPacketSource(globalreg));

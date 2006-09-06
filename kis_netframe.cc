@@ -706,6 +706,9 @@ int KisNetFramework::Accept(int in_fd) {
     SendToClient(in_fd, globalreg->netproto_map[PROTO_REF_PROTOCOL], 
 				 (void *) &protocol_map, NULL);
     
+	_MSG("Kismet server accepted connection from " +
+		 netserver->GetRemoteAddr(in_fd), MSGFLAG_INFO);
+
     return 1;
 }
 

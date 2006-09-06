@@ -4,11 +4,6 @@ AC_CONFIG_SRCDIR([kismet.h])
 
 AC_PREREQ(2.57)
 
-# Included pcap directory
-pcapdir="libpcap-0.9.1-kis"
-etherealdir="/usr/src/ethereal-0.9.12"
-AC_SUBST(pcapdir)
-
 # Check for host type
 AC_CANONICAL_HOST
 
@@ -535,63 +530,67 @@ AC_ARG_ENABLE(pcap, [  --disable-pcap          disable libpcap (most sources) ca
 AC_SUBST(wantpcap)
 
 if test $wantpcap = yes; then
+	foundsyspcap=no
+	AC_CHECK_LIB([pcap], [pcap_open_live],
+	    AC_DEFINE(HAVE_LIBPCAP, 1, libpcap packet capture lib) foundsyspcap=yes,
+	    AC_MSG_WARN(Compiling without libpcap support.))
 
-syspcap="no"
-AC_ARG_ENABLE(syspcap, [  --enable-syspcap        use system libpcap (not recommended)],syspcap=yes,)
-	if test $syspcap = "yes"; then
-		foundsyspcap=no
-		AC_CHECK_LIB([pcap], [pcap_open_live],
-		    AC_DEFINE(HAVE_LIBPCAP, 1, libpcap packet capture lib) foundsyspcap=yes,
-		    AC_MSG_WARN(Compiling without libpcap support.))
+	if test $foundsyspcap = yes; then
+	## if we don't have a pcap.h, do a search for pcap/pcap.h
+	AC_CHECK_HEADER([pcap.h],
+		AC_DEFINE(HAVE_PCAP_H, 1, libpcap header) foundsyspcaph=yes)
+	    if test $foundsyspcaph != yes; then 
+			AC_CHECK_HEADER([pcap/pcap.h], 
+			AC_DEFINE(HAVE_PCAP_H, 1, libpcap header) AC_DEFINE(HAVE_PCAPPCAP_H, 1, pcap/pcap.h),
+			AC_MSG_ERROR([found libpcap but unable to find pcap.h]))
+	    fi
+	# Look for the new PCAP stuff
+	AC_CHECK_LIB([pcap], [pcap_setnonblock],
+	    AC_DEFINE(HAVE_PCAP_NONBLOCK, 1, Nonblocking-capable libpcap),
+	    AC_MSG_WARN(*** You don't appear to have a version of libpcap which supports non-blocking IO.  We'll fake it, but you REALLY should upgrade your libpcap, as it may not support 802.11 capture sources, either. ***))
 
-		if test $foundsyspcap = yes; then
-		## if we don't have a pcap.h, do a search for pcap/pcap.h
-		AC_CHECK_HEADER([pcap.h],
-			AC_DEFINE(HAVE_PCAP_H, 1, libpcap header) foundsyspcaph=yes)
-		    if test $foundsyspcaph != yes; then 
-				AC_CHECK_HEADER([pcap/pcap.h], 
-				AC_DEFINE(HAVE_PCAP_H, 1, libpcap header) AC_DEFINE(HAVE_PCAPPCAP_H, 1, pcap/pcap.h),
-				AC_MSG_ERROR(found libpcap but unable to find pcap.h))
-		    fi
-		# Look for the new PCAP stuff
-		AC_CHECK_LIB([pcap], [pcap_setnonblock],
-		    AC_DEFINE(HAVE_PCAP_NONBLOCK, 1, Nonblocking-capable libpcap),
-		    AC_MSG_WARN(*** You don't appear to have a version of libpcap which supports non-blocking IO.  We'll fake it, but you really should upgrade your libpcap, as it may not support 802.11 capture sources, either. ***))
-
-		pcaplib=""
-		AC_SUBST(pcaplib)
-		pcaplnk="-lpcap"
-		AC_SUBST(pcaplnk)
-		pcap="yes"
-		fi
-	else
-		# Build local pcap
-		export CC
-		export CXX
-		AC_CONFIG_SUBDIRS($pcapdir)
-
-		if test "$darwin" = yes; then
-			pcaplib=""
-			pcaplnk="-L$pcapdir -lpcap"
-		else
-			pcaplib="$pcapdir/libpcap.a"
-			pcaplnk=""
-		fi
-
-		AC_SUBST(pcaplib)
-		AC_SUBST(pcaplnk)
-
-		CPPFLAGS="$CPPFLAGS -I$pcapdir"
-		#CXXFLAGS="$CPPFLAGS -I$pcapdir"
-		AC_DEFINE(HAVE_LIBPCAP, 1, libpcap packet capture lib)
-		pcap=yes
+	pcaplib=""
+	AC_SUBST(pcaplib)
+	pcaplnk="-lpcap"
+	AC_SUBST(pcaplnk)
+	pcap="yes"
 	fi
-
-
 else
     AC_MSG_WARN(Compiling without libpcap support.)
 fi
 AC_SUBST(pcap)
+
+if test "$cygwin" = yes; then
+	AC_MSG_WARN([*** Enabling AirPcap checks on Cygwin ***]);
+	want_airpcap=yes;
+fi
+
+AC_ARG_ENABLE(airpcap, [  --disable-airpcap          disable CASE AirPcap (Cygwin/Win32 only)],want_airpcap=no,)
+
+if test "$cygwin" = no -a "$want_airpcap" = "yes"; then
+	AC_MSG_WARN([*** Disabling AirPcap on non-cygwin/win32 system ***]);
+	want_airpcap=no;
+fi
+
+if test "$want_airpcap" = "yes" -a "$pcap" = "yes"; then
+	foundairpcap=no
+	AC_CHECK_LIB([airpcap], [AirpcapSetLinkType],
+	    AC_DEFINE(HAVE_LIBAIRPCAP, 1, libairpcap win32 control lib) foundairpcap=yes,
+	    AC_MSG_WARN(Compiling without airpcap support.))
+
+	if test $foundairpcap = yes; then
+	## if we don't have a pcap.h, do a search for pcap/pcap.h
+	AC_CHECK_HEADER([airpcap.h],
+		AC_DEFINE(HAVE_AIRPCAP_H, 1, libairpcap header) foundairpcaph=yes)
+	fi
+
+	if test "$foundairpcap" != "yes" -o "$foundairpcaph" != "yes"; then
+		AC_MSG_WARN(Compiling without airpcap support)
+	else
+		airpcap="yes"
+		LIBS="$LIBS -lairpcap"
+	fi
+fi
 
 if test "$bsd" = yes; then
 	AC_MSG_CHECKING(for BSD net80211/radiotap support)
@@ -622,13 +621,6 @@ fi
 AC_ARG_ENABLE(setuid, [  --disable-setuid        disable setuid/privdrop ability (not reccomended)],,suid=yes)
 # evaluate after viha test
 
-if test "$darwin" = yes; then
-	AC_MSG_WARN([*** Enabling Viha by default because we're compiling under OSX ***]);
-	want_viha=yes;
-else
-	want_viha=no;
-fi
-
 AC_ARG_ENABLE(viha, [  --disable-viha          disable MacOSX Viha capture source (OSX only)],want_viha=no,)
 
 if test "$darwin" = no -a "$want_viha" = "yes"; then
@@ -650,6 +642,10 @@ if test $want_viha = "yes"; then
 fi
 
 # Evaluate suid
+if test "$cygwin" = "yes"; then
+	suid="no"
+fi
+
 AC_SUBST(suid)
 if test $suid = yes; then
 	AC_MSG_CHECKING(for setuid )
@@ -860,6 +856,10 @@ echo "       Installing into: $prefix"
 echo -n "        Setuid capable: "
 if test "$suid" = "yes"; then
 	echo "yes"
+elif test "$cygwin" = "yes"; then
+	echo "n/a (Cygwin/Win32";
+elif test "$want_viha" = "yes"; then
+	echo "n/a (OSX with Viha)"
 else
 	echo "no"
 fi
@@ -870,6 +870,8 @@ echo "$termcontrol";
 echo -n "       Linux wireless : "
 if test "$linux_wireless" = "yes"; then
 	echo "yes"
+elif test "$linux" != "yes"; then
+	echo "n/a (only Linux)"
 else
 	echo "no"
 fi
@@ -882,11 +884,6 @@ fi
 echo -n "          pcap capture: "
 if test "$pcap" = "yes"; then
 	echo "yes"
-	if test "$syspcap" != "yes"; then
-		echo "           pcap source: $pcapdir"
-	else
-		echo "           pcap source: system"
-	fi
 else
 	echo "no"
 fi
@@ -910,16 +907,10 @@ if test "$local" = "yes"; then
 else
 	echo "no"
 fi
-# echo -n "Using ethereal wiretap: "
-# if test "$want_ethereal" = "no"; then
-# 	echo "no"
-# else
-# 	echo "$ethereal_dir"
-# fi
 echo -n "   Imagemagick support: "
 if test "$gpslc" = ""; then
 	if test "$wantgpsmap" = "no"; then
-		echo "disabled"
+		echo "n/a (GPSMap not enabled)"
 	else
 		echo "no"
 	fi
@@ -929,7 +920,7 @@ fi
 echo -n "         Expat Library: "
 if test "$expatl" = "no"; then
 	if test "$wantgpsmap" = "no"; then
-		echo "disabled"
+		echo "n/a (GPSMap not enabled)"
 	else
 		echo "no"
 	fi
@@ -939,7 +930,7 @@ fi
 echo -n "           GMP Library: "
 if test "$gmpl" = "no"; then
 	if test "$wantgpsmap" = "no"; then
-		echo "disabled"
+		echo "n/a (GPSMap not enabled)"
 	else
 		echo "no"
 	fi
@@ -949,7 +940,7 @@ fi
 echo -n "       PThread Support: "
 if test "$pthr" = "no"; then
 	if test "$wantgpsmap" = "no"; then
-		echo "disabled"
+		echo "n/a (GPSMap not enabled)"
 	else
 		echo "no"
 	fi
@@ -961,7 +952,7 @@ if test "$libz" = "yes"; then
 	echo "yes"
 else
 	if test "$wantgpsmap" = "no"; then
-		echo "disabled"
+		echo "n/a (GPSMap not enabled)"
 	else	
 		echo "no"
 	fi

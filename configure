@@ -310,8 +310,7 @@ ac_includes_default="\
 # include <unistd.h>
 #endif"
 
-ac_subdirs_all="$ac_subdirs_all $pcapdir"
-ac_subst_vars='SHELL PATH_SEPARATOR PACKAGE_NAME PACKAGE_TARNAME PACKAGE_VERSION PACKAGE_STRING PACKAGE_BUGREPORT exec_prefix prefix program_transform_name bindir sbindir libexecdir datadir sysconfdir sharedstatedir localstatedir libdir includedir oldincludedir infodir mandir build_alias host_alias target_alias DEFS ECHO_C ECHO_N ECHO_T LIBS pcapdir build build_cpu build_vendor build_os host host_cpu host_vendor host_os CC CFLAGS LDFLAGS CPPFLAGS ac_ct_CC EXEEXT OBJEXT CXX CXXFLAGS ac_ct_CXX INSTALL_PROGRAM INSTALL_SCRIPT INSTALL_DATA SET_MAKE CPP EGREP LIBOBJS CXXLIBS instgrp mangrp CLIBS CLIENTCLIBS CLIENTCFLAGS wantpcap pcaplib pcaplnk subdirs pcap suid zaurus zbuild local wantgpsmap wget magickconfig gpslc gpslco threadlib sharedatadir LTLIBOBJS'
+ac_subst_vars='SHELL PATH_SEPARATOR PACKAGE_NAME PACKAGE_TARNAME PACKAGE_VERSION PACKAGE_STRING PACKAGE_BUGREPORT exec_prefix prefix program_transform_name bindir sbindir libexecdir datadir sysconfdir sharedstatedir localstatedir libdir includedir oldincludedir infodir mandir build_alias host_alias target_alias DEFS ECHO_C ECHO_N ECHO_T LIBS build build_cpu build_vendor build_os host host_cpu host_vendor host_os CC CFLAGS LDFLAGS CPPFLAGS ac_ct_CC EXEEXT OBJEXT CXX CXXFLAGS ac_ct_CXX INSTALL_PROGRAM INSTALL_SCRIPT INSTALL_DATA SET_MAKE CPP EGREP LIBOBJS CXXLIBS instgrp mangrp CLIBS CLIENTCLIBS CLIENTCFLAGS wantpcap pcaplib pcaplnk pcap suid zaurus zbuild local wantgpsmap wget magickconfig gpslc gpslco threadlib sharedatadir LTLIBOBJS'
 ac_subst_files=''
 
 # Initialize some variables set by options.
@@ -859,7 +858,7 @@ Optional Features:
   --disable-linuxwext        disable linux wireless extension support
   --disable-pcre          disable building pcre components
   --disable-pcap          disable libpcap (most sources) capture support
-  --enable-syspcap        use system libpcap (not recommended)
+  --disable-airpcap          disable CASE AirPcap (Cygwin/Win32 only)
   --disable-setuid        disable setuid/privdrop ability (not reccomended)
   --disable-viha          disable MacOSX Viha capture source (OSX only)
   --disable-wsp100        disable wsp100 remote drone source
@@ -1325,11 +1324,6 @@ ac_compiler_gnu=$ac_cv_c_compiler_gnu
 
 
 
-
-
-# Included pcap directory
-pcapdir="libpcap-0.9.1-kis"
-etherealdir="/usr/src/ethereal-0.9.12"
 
 
 # Check for host type
@@ -7892,16 +7886,8 @@ fi;
 
 
 if test $wantpcap = yes; then
-
-syspcap="no"
-# Check whether --enable-syspcap or --disable-syspcap was given.
-if test "${enable_syspcap+set}" = set; then
-  enableval="$enable_syspcap"
-  syspcap=yes
-fi;
-	if test $syspcap = "yes"; then
-		foundsyspcap=no
-		echo "$as_me:$LINENO: checking for pcap_open_live in -lpcap" >&5
+	foundsyspcap=no
+	echo "$as_me:$LINENO: checking for pcap_open_live in -lpcap" >&5
 echo $ECHO_N "checking for pcap_open_live in -lpcap... $ECHO_C" >&6
 if test "${ac_cv_lib_pcap_pcap_open_live+set}" = set; then
   echo $ECHO_N "(cached) $ECHO_C" >&6
@@ -7977,9 +7963,9 @@ echo "$as_me: WARNING: Compiling without libpcap support." >&2;}
 fi
 
 
-		if test $foundsyspcap = yes; then
-		## if we don't have a pcap.h, do a search for pcap/pcap.h
-		if test "${ac_cv_header_pcap_h+set}" = set; then
+	if test $foundsyspcap = yes; then
+	## if we don't have a pcap.h, do a search for pcap/pcap.h
+	if test "${ac_cv_header_pcap_h+set}" = set; then
   echo "$as_me:$LINENO: checking for pcap.h" >&5
 echo $ECHO_N "checking for pcap.h... $ECHO_C" >&6
 if test "${ac_cv_header_pcap_h+set}" = set; then
@@ -8125,8 +8111,8 @@ _ACEOF
 fi
 
 
-		    if test $foundsyspcaph != yes; then
-				if test "${ac_cv_header_pcap_pcap_h+set}" = set; then
+	    if test $foundsyspcaph != yes; then
+			if test "${ac_cv_header_pcap_pcap_h+set}" = set; then
   echo "$as_me:$LINENO: checking for pcap/pcap.h" >&5
 echo $ECHO_N "checking for pcap/pcap.h... $ECHO_C" >&6
 if test "${ac_cv_header_pcap_pcap_h+set}" = set; then
@@ -8280,9 +8266,9 @@ echo "$as_me: error: found libpcap but unable to find pcap.h" >&2;}
 fi
 
 
-		    fi
-		# Look for the new PCAP stuff
-		echo "$as_me:$LINENO: checking for pcap_setnonblock in -lpcap" >&5
+	    fi
+	# Look for the new PCAP stuff
+	echo "$as_me:$LINENO: checking for pcap_setnonblock in -lpcap" >&5
 echo $ECHO_N "checking for pcap_setnonblock in -lpcap... $ECHO_C" >&6
 if test "${ac_cv_lib_pcap_pcap_setnonblock+set}" = set; then
   echo $ECHO_N "(cached) $ECHO_C" >&6
@@ -8358,48 +8344,272 @@ echo "$as_me: WARNING: *** You don't appear to have a version of libpcap which s
 fi
 
 
-		pcaplib=""
+	pcaplib=""
 
-		pcaplnk="-lpcap"
+	pcaplnk="-lpcap"
 
-		pcap="yes"
-		fi
-	else
-		# Build local pcap
-		export CC
-		export CXX
-
-
-subdirs="$subdirs $pcapdir"
-
-
-		if test "$darwin" = yes; then
-			pcaplib=""
-			pcaplnk="-L$pcapdir -lpcap"
-		else
-			pcaplib="$pcapdir/libpcap.a"
-			pcaplnk=""
-		fi
-
-
-
-
-		CPPFLAGS="$CPPFLAGS -I$pcapdir"
-		#CXXFLAGS="$CPPFLAGS -I$pcapdir"
-
-cat >>confdefs.h <<\_ACEOF
-#define HAVE_LIBPCAP 1
-_ACEOF
-
-		pcap=yes
+	pcap="yes"
 	fi
-
-
 else
     { echo "$as_me:$LINENO: WARNING: Compiling without libpcap support." >&5
 echo "$as_me: WARNING: Compiling without libpcap support." >&2;}
 fi
 
+
+if test "$cygwin" = yes; then
+	{ echo "$as_me:$LINENO: WARNING: *** Enabling AirPcap checks on Cygwin ***" >&5
+echo "$as_me: WARNING: *** Enabling AirPcap checks on Cygwin ***" >&2;};
+	want_airpcap=yes;
+fi
+
+# Check whether --enable-airpcap or --disable-airpcap was given.
+if test "${enable_airpcap+set}" = set; then
+  enableval="$enable_airpcap"
+  want_airpcap=no
+fi;
+
+if test "$cygwin" = no -a "$want_airpcap" = "yes"; then
+	{ echo "$as_me:$LINENO: WARNING: *** Disabling AirPcap on non-cygwin/win32 system ***" >&5
+echo "$as_me: WARNING: *** Disabling AirPcap on non-cygwin/win32 system ***" >&2;};
+	want_airpcap=no;
+fi
+
+if test "$want_airpcap" = "yes" -a "$pcap" = "yes"; then
+	foundairpcap=no
+	echo "$as_me:$LINENO: checking for AirpcapSetLinkType in -lairpcap" >&5
+echo $ECHO_N "checking for AirpcapSetLinkType in -lairpcap... $ECHO_C" >&6
+if test "${ac_cv_lib_airpcap_AirpcapSetLinkType+set}" = set; then
+  echo $ECHO_N "(cached) $ECHO_C" >&6
+else
+  ac_check_lib_save_LIBS=$LIBS
+LIBS="-lairpcap  $LIBS"
+cat >conftest.$ac_ext <<_ACEOF
+/* confdefs.h.  */
+_ACEOF
+cat confdefs.h >>conftest.$ac_ext
+cat >>conftest.$ac_ext <<_ACEOF
+/* end confdefs.h.  */
+
+/* Override any gcc2 internal prototype to avoid an error.  */
+#ifdef __cplusplus
+extern "C"
+#endif
+/* We use char because int might match the return type of a gcc2
+   builtin and then its argument prototype would still apply.  */
+char AirpcapSetLinkType ();
+int
+main ()
+{
+AirpcapSetLinkType ();
+  ;
+  return 0;
+}
+_ACEOF
+rm -f conftest.$ac_objext conftest$ac_exeext
+if { (eval echo "$as_me:$LINENO: \"$ac_link\"") >&5
+  (eval $ac_link) 2>conftest.er1
+  ac_status=$?
+  grep -v '^ *+' conftest.er1 >conftest.err
+  rm -f conftest.er1
+  cat conftest.err >&5
+  echo "$as_me:$LINENO: \$? = $ac_status" >&5
+  (exit $ac_status); } &&
+	 { ac_try='test -z "$ac_c_werror_flag"
+			 || test ! -s conftest.err'
+  { (eval echo "$as_me:$LINENO: \"$ac_try\"") >&5
+  (eval $ac_try) 2>&5
+  ac_status=$?
+  echo "$as_me:$LINENO: \$? = $ac_status" >&5
+  (exit $ac_status); }; } &&
+	 { ac_try='test -s conftest$ac_exeext'
+  { (eval echo "$as_me:$LINENO: \"$ac_try\"") >&5
+  (eval $ac_try) 2>&5
+  ac_status=$?
+  echo "$as_me:$LINENO: \$? = $ac_status" >&5
+  (exit $ac_status); }; }; then
+  ac_cv_lib_airpcap_AirpcapSetLinkType=yes
+else
+  echo "$as_me: failed program was:" >&5
+sed 's/^/| /' conftest.$ac_ext >&5
+
+ac_cv_lib_airpcap_AirpcapSetLinkType=no
+fi
+rm -f conftest.err conftest.$ac_objext \
+      conftest$ac_exeext conftest.$ac_ext
+LIBS=$ac_check_lib_save_LIBS
+fi
+echo "$as_me:$LINENO: result: $ac_cv_lib_airpcap_AirpcapSetLinkType" >&5
+echo "${ECHO_T}$ac_cv_lib_airpcap_AirpcapSetLinkType" >&6
+if test $ac_cv_lib_airpcap_AirpcapSetLinkType = yes; then
+
+cat >>confdefs.h <<\_ACEOF
+#define HAVE_LIBAIRPCAP 1
+_ACEOF
+ foundairpcap=yes
+else
+  { echo "$as_me:$LINENO: WARNING: Compiling without airpcap support." >&5
+echo "$as_me: WARNING: Compiling without airpcap support." >&2;}
+fi
+
+
+	if test $foundairpcap = yes; then
+	## if we don't have a pcap.h, do a search for pcap/pcap.h
+	if test "${ac_cv_header_airpcap_h+set}" = set; then
+  echo "$as_me:$LINENO: checking for airpcap.h" >&5
+echo $ECHO_N "checking for airpcap.h... $ECHO_C" >&6
+if test "${ac_cv_header_airpcap_h+set}" = set; then
+  echo $ECHO_N "(cached) $ECHO_C" >&6
+fi
+echo "$as_me:$LINENO: result: $ac_cv_header_airpcap_h" >&5
+echo "${ECHO_T}$ac_cv_header_airpcap_h" >&6
+else
+  # Is the header compilable?
+echo "$as_me:$LINENO: checking airpcap.h usability" >&5
+echo $ECHO_N "checking airpcap.h usability... $ECHO_C" >&6
+cat >conftest.$ac_ext <<_ACEOF
+/* confdefs.h.  */
+_ACEOF
+cat confdefs.h >>conftest.$ac_ext
+cat >>conftest.$ac_ext <<_ACEOF
+/* end confdefs.h.  */
+$ac_includes_default
+#include <airpcap.h>
+_ACEOF
+rm -f conftest.$ac_objext
+if { (eval echo "$as_me:$LINENO: \"$ac_compile\"") >&5
+  (eval $ac_compile) 2>conftest.er1
+  ac_status=$?
+  grep -v '^ *+' conftest.er1 >conftest.err
+  rm -f conftest.er1
+  cat conftest.err >&5
+  echo "$as_me:$LINENO: \$? = $ac_status" >&5
+  (exit $ac_status); } &&
+	 { ac_try='test -z "$ac_c_werror_flag"
+			 || test ! -s conftest.err'
+  { (eval echo "$as_me:$LINENO: \"$ac_try\"") >&5
+  (eval $ac_try) 2>&5
+  ac_status=$?
+  echo "$as_me:$LINENO: \$? = $ac_status" >&5
+  (exit $ac_status); }; } &&
+	 { ac_try='test -s conftest.$ac_objext'
+  { (eval echo "$as_me:$LINENO: \"$ac_try\"") >&5
+  (eval $ac_try) 2>&5
+  ac_status=$?
+  echo "$as_me:$LINENO: \$? = $ac_status" >&5
+  (exit $ac_status); }; }; then
+  ac_header_compiler=yes
+else
+  echo "$as_me: failed program was:" >&5
+sed 's/^/| /' conftest.$ac_ext >&5
+
+ac_header_compiler=no
+fi
+rm -f conftest.err conftest.$ac_objext conftest.$ac_ext
+echo "$as_me:$LINENO: result: $ac_header_compiler" >&5
+echo "${ECHO_T}$ac_header_compiler" >&6
+
+# Is the header present?
+echo "$as_me:$LINENO: checking airpcap.h presence" >&5
+echo $ECHO_N "checking airpcap.h presence... $ECHO_C" >&6
+cat >conftest.$ac_ext <<_ACEOF
+/* confdefs.h.  */
+_ACEOF
+cat confdefs.h >>conftest.$ac_ext
+cat >>conftest.$ac_ext <<_ACEOF
+/* end confdefs.h.  */
+#include <airpcap.h>
+_ACEOF
+if { (eval echo "$as_me:$LINENO: \"$ac_cpp conftest.$ac_ext\"") >&5
+  (eval $ac_cpp conftest.$ac_ext) 2>conftest.er1
+  ac_status=$?
+  grep -v '^ *+' conftest.er1 >conftest.err
+  rm -f conftest.er1
+  cat conftest.err >&5
+  echo "$as_me:$LINENO: \$? = $ac_status" >&5
+  (exit $ac_status); } >/dev/null; then
+  if test -s conftest.err; then
+    ac_cpp_err=$ac_c_preproc_warn_flag
+    ac_cpp_err=$ac_cpp_err$ac_c_werror_flag
+  else
+    ac_cpp_err=
+  fi
+else
+  ac_cpp_err=yes
+fi
+if test -z "$ac_cpp_err"; then
+  ac_header_preproc=yes
+else
+  echo "$as_me: failed program was:" >&5
+sed 's/^/| /' conftest.$ac_ext >&5
+
+  ac_header_preproc=no
+fi
+rm -f conftest.err conftest.$ac_ext
+echo "$as_me:$LINENO: result: $ac_header_preproc" >&5
+echo "${ECHO_T}$ac_header_preproc" >&6
+
+# So?  What about this header?
+case $ac_header_compiler:$ac_header_preproc:$ac_c_preproc_warn_flag in
+  yes:no: )
+    { echo "$as_me:$LINENO: WARNING: airpcap.h: accepted by the compiler, rejected by the preprocessor!" >&5
+echo "$as_me: WARNING: airpcap.h: accepted by the compiler, rejected by the preprocessor!" >&2;}
+    { echo "$as_me:$LINENO: WARNING: airpcap.h: proceeding with the compiler's result" >&5
+echo "$as_me: WARNING: airpcap.h: proceeding with the compiler's result" >&2;}
+    ac_header_preproc=yes
+    ;;
+  no:yes:* )
+    { echo "$as_me:$LINENO: WARNING: airpcap.h: present but cannot be compiled" >&5
+echo "$as_me: WARNING: airpcap.h: present but cannot be compiled" >&2;}
+    { echo "$as_me:$LINENO: WARNING: airpcap.h:     check for missing prerequisite headers?" >&5
+echo "$as_me: WARNING: airpcap.h:     check for missing prerequisite headers?" >&2;}
+    { echo "$as_me:$LINENO: WARNING: airpcap.h: see the Autoconf documentation" >&5
+echo "$as_me: WARNING: airpcap.h: see the Autoconf documentation" >&2;}
+    { echo "$as_me:$LINENO: WARNING: airpcap.h:     section \"Present But Cannot Be Compiled\"" >&5
+echo "$as_me: WARNING: airpcap.h:     section \"Present But Cannot Be Compiled\"" >&2;}
+    { echo "$as_me:$LINENO: WARNING: airpcap.h: proceeding with the preprocessor's result" >&5
+echo "$as_me: WARNING: airpcap.h: proceeding with the preprocessor's result" >&2;}
+    { echo "$as_me:$LINENO: WARNING: airpcap.h: in the future, the compiler will take precedence" >&5
+echo "$as_me: WARNING: airpcap.h: in the future, the compiler will take precedence" >&2;}
+    (
+      cat <<\_ASBOX
+## ------------------------------------------ ##
+## Report this to the AC_PACKAGE_NAME lists.  ##
+## ------------------------------------------ ##
+_ASBOX
+    ) |
+      sed "s/^/$as_me: WARNING:     /" >&2
+    ;;
+esac
+echo "$as_me:$LINENO: checking for airpcap.h" >&5
+echo $ECHO_N "checking for airpcap.h... $ECHO_C" >&6
+if test "${ac_cv_header_airpcap_h+set}" = set; then
+  echo $ECHO_N "(cached) $ECHO_C" >&6
+else
+  ac_cv_header_airpcap_h=$ac_header_preproc
+fi
+echo "$as_me:$LINENO: result: $ac_cv_header_airpcap_h" >&5
+echo "${ECHO_T}$ac_cv_header_airpcap_h" >&6
+
+fi
+if test $ac_cv_header_airpcap_h = yes; then
+
+cat >>confdefs.h <<\_ACEOF
+#define HAVE_AIRPCAP_H 1
+_ACEOF
+ foundairpcaph=yes
+fi
+
+
+	fi
+
+	if test "$foundairpcap" != "yes" -o "$foundairpcaph" != "yes"; then
+		{ echo "$as_me:$LINENO: WARNING: Compiling without airpcap support" >&5
+echo "$as_me: WARNING: Compiling without airpcap support" >&2;}
+	else
+		airpcap="yes"
+		LIBS="$LIBS -lairpcap"
+	fi
+fi
 
 if test "$bsd" = yes; then
 	echo "$as_me:$LINENO: checking for BSD net80211/radiotap support" >&5
@@ -8491,14 +8701,6 @@ else
   suid=yes
 fi;
 # evaluate after viha test
-
-if test "$darwin" = yes; then
-	{ echo "$as_me:$LINENO: WARNING: *** Enabling Viha by default because we're compiling under OSX ***" >&5
-echo "$as_me: WARNING: *** Enabling Viha by default because we're compiling under OSX ***" >&2;};
-	want_viha=yes;
-else
-	want_viha=no;
-fi
 
 # Check whether --enable-viha or --disable-viha was given.
 if test "${enable_viha+set}" = set; then
@@ -8685,6 +8887,10 @@ echo "$as_me: WARNING: *** Disabling setuid capabilities.  Viha must be controll
 fi
 
 # Evaluate suid
+if test "$cygwin" = "yes"; then
+	suid="no"
+fi
+
 
 if test $suid = yes; then
 	echo "$as_me:$LINENO: checking for setuid " >&5
@@ -10484,7 +10690,6 @@ s,@ECHO_C@,$ECHO_C,;t t
 s,@ECHO_N@,$ECHO_N,;t t
 s,@ECHO_T@,$ECHO_T,;t t
 s,@LIBS@,$LIBS,;t t
-s,@pcapdir@,$pcapdir,;t t
 s,@build@,$build,;t t
 s,@build_cpu@,$build_cpu,;t t
 s,@build_vendor@,$build_vendor,;t t
@@ -10519,7 +10724,6 @@ s,@CLIENTCFLAGS@,$CLIENTCFLAGS,;t t
 s,@wantpcap@,$wantpcap,;t t
 s,@pcaplib@,$pcaplib,;t t
 s,@pcaplnk@,$pcaplnk,;t t
-s,@subdirs@,$subdirs,;t t
 s,@pcap@,$pcap,;t t
 s,@suid@,$suid,;t t
 s,@zaurus@,$zaurus,;t t
@@ -11024,183 +11228,6 @@ if test "$no_create" != yes; then
   $ac_cs_success || { (exit 1); exit 1; }
 fi
 
-#
-# CONFIG_SUBDIRS section.
-#
-if test "$no_recursion" != yes; then
-
-  # Remove --cache-file and --srcdir arguments so they do not pile up.
-  ac_sub_configure_args=
-  ac_prev=
-  for ac_arg in $ac_configure_args; do
-    if test -n "$ac_prev"; then
-      ac_prev=
-      continue
-    fi
-    case $ac_arg in
-    -cache-file | --cache-file | --cache-fil | --cache-fi \
-    | --cache-f | --cache- | --cache | --cach | --cac | --ca | --c)
-      ac_prev=cache_file ;;
-    -cache-file=* | --cache-file=* | --cache-fil=* | --cache-fi=* \
-    | --cache-f=* | --cache-=* | --cache=* | --cach=* | --cac=* | --ca=* \
-    | --c=*)
-      ;;
-    --config-cache | -C)
-      ;;
-    -srcdir | --srcdir | --srcdi | --srcd | --src | --sr)
-      ac_prev=srcdir ;;
-    -srcdir=* | --srcdir=* | --srcdi=* | --srcd=* | --src=* | --sr=*)
-      ;;
-    -prefix | --prefix | --prefi | --pref | --pre | --pr | --p)
-      ac_prev=prefix ;;
-    -prefix=* | --prefix=* | --prefi=* | --pref=* | --pre=* | --pr=* | --p=*)
-      ;;
-    *) ac_sub_configure_args="$ac_sub_configure_args $ac_arg" ;;
-    esac
-  done
-
-  # Always prepend --prefix to ensure using the same prefix
-  # in subdir configurations.
-  ac_sub_configure_args="--prefix=$prefix $ac_sub_configure_args"
-
-  ac_popdir=`pwd`
-  for ac_dir in : $subdirs; do test "x$ac_dir" = x: && continue
-
-    # Do not complain, so a configure script can configure whichever
-    # parts of a large source tree are present.
-    test -d $srcdir/$ac_dir || continue
-
-    { echo "$as_me:$LINENO: configuring in $ac_dir" >&5
-echo "$as_me: configuring in $ac_dir" >&6;}
-    { if $as_mkdir_p; then
-    mkdir -p "$ac_dir"
-  else
-    as_dir="$ac_dir"
-    as_dirs=
-    while test ! -d "$as_dir"; do
-      as_dirs="$as_dir $as_dirs"
-      as_dir=`(dirname "$as_dir") 2>/dev/null ||
-$as_expr X"$as_dir" : 'X\(.*[^/]\)//*[^/][^/]*/*$' \| \
-	 X"$as_dir" : 'X\(//\)[^/]' \| \
-	 X"$as_dir" : 'X\(//\)$' \| \
-	 X"$as_dir" : 'X\(/\)' \| \
-	 .     : '\(.\)' 2>/dev/null ||
-echo X"$as_dir" |
-    sed '/^X\(.*[^/]\)\/\/*[^/][^/]*\/*$/{ s//\1/; q; }
-  	  /^X\(\/\/\)[^/].*/{ s//\1/; q; }
-  	  /^X\(\/\/\)$/{ s//\1/; q; }
-  	  /^X\(\/\).*/{ s//\1/; q; }
-  	  s/.*/./; q'`
-    done
-    test ! -n "$as_dirs" || mkdir $as_dirs
-  fi || { { echo "$as_me:$LINENO: error: cannot create directory \"$ac_dir\"" >&5
-echo "$as_me: error: cannot create directory \"$ac_dir\"" >&2;}
-   { (exit 1); exit 1; }; }; }
-
-    ac_builddir=.
-
-if test "$ac_dir" != .; then
-  ac_dir_suffix=/`echo "$ac_dir" | sed 's,^\.[\\/],,'`
-  # A "../" for each directory in $ac_dir_suffix.
-  ac_top_builddir=`echo "$ac_dir_suffix" | sed 's,/[^\\/]*,../,g'`
-else
-  ac_dir_suffix= ac_top_builddir=
-fi
-
-case $srcdir in
-  .)  # No --srcdir option.  We are building in place.
-    ac_srcdir=.
-    if test -z "$ac_top_builddir"; then
-       ac_top_srcdir=.
-    else
-       ac_top_srcdir=`echo $ac_top_builddir | sed 's,/$,,'`
-    fi ;;
-  [\\/]* | ?:[\\/]* )  # Absolute path.
-    ac_srcdir=$srcdir$ac_dir_suffix;
-    ac_top_srcdir=$srcdir ;;
-  *) # Relative path.
-    ac_srcdir=$ac_top_builddir$srcdir$ac_dir_suffix
-    ac_top_srcdir=$ac_top_builddir$srcdir ;;
-esac
-
-# Do not use `cd foo && pwd` to compute absolute paths, because
-# the directories may not exist.
-case `pwd` in
-.) ac_abs_builddir="$ac_dir";;
-*)
-  case "$ac_dir" in
-  .) ac_abs_builddir=`pwd`;;
-  [\\/]* | ?:[\\/]* ) ac_abs_builddir="$ac_dir";;
-  *) ac_abs_builddir=`pwd`/"$ac_dir";;
-  esac;;
-esac
-case $ac_abs_builddir in
-.) ac_abs_top_builddir=${ac_top_builddir}.;;
-*)
-  case ${ac_top_builddir}. in
-  .) ac_abs_top_builddir=$ac_abs_builddir;;
-  [\\/]* | ?:[\\/]* ) ac_abs_top_builddir=${ac_top_builddir}.;;
-  *) ac_abs_top_builddir=$ac_abs_builddir/${ac_top_builddir}.;;
-  esac;;
-esac
-case $ac_abs_builddir in
-.) ac_abs_srcdir=$ac_srcdir;;
-*)
-  case $ac_srcdir in
-  .) ac_abs_srcdir=$ac_abs_builddir;;
-  [\\/]* | ?:[\\/]* ) ac_abs_srcdir=$ac_srcdir;;
-  *) ac_abs_srcdir=$ac_abs_builddir/$ac_srcdir;;
-  esac;;
-esac
-case $ac_abs_builddir in
-.) ac_abs_top_srcdir=$ac_top_srcdir;;
-*)
-  case $ac_top_srcdir in
-  .) ac_abs_top_srcdir=$ac_abs_builddir;;
-  [\\/]* | ?:[\\/]* ) ac_abs_top_srcdir=$ac_top_srcdir;;
-  *) ac_abs_top_srcdir=$ac_abs_builddir/$ac_top_srcdir;;
-  esac;;
-esac
-
-
-    cd $ac_dir
-
-    # Check for guested configure; otherwise get Cygnus style configure.
-    if test -f $ac_srcdir/configure.gnu; then
-      ac_sub_configure="$SHELL '$ac_srcdir/configure.gnu'"
-    elif test -f $ac_srcdir/configure; then
-      ac_sub_configure="$SHELL '$ac_srcdir/configure'"
-    elif test -f $ac_srcdir/configure.in; then
-      ac_sub_configure=$ac_configure
-    else
-      { echo "$as_me:$LINENO: WARNING: no configuration information is in $ac_dir" >&5
-echo "$as_me: WARNING: no configuration information is in $ac_dir" >&2;}
-      ac_sub_configure=
-    fi
-
-    # The recursion is here.
-    if test -n "$ac_sub_configure"; then
-      # Make the cache file name correct relative to the subdirectory.
-      case $cache_file in
-      [\\/]* | ?:[\\/]* ) ac_sub_cache_file=$cache_file ;;
-      *) # Relative path.
-	ac_sub_cache_file=$ac_top_builddir$cache_file ;;
-      esac
-
-      { echo "$as_me:$LINENO: running $ac_sub_configure $ac_sub_configure_args --cache-file=$ac_sub_cache_file --srcdir=$ac_srcdir" >&5
-echo "$as_me: running $ac_sub_configure $ac_sub_configure_args --cache-file=$ac_sub_cache_file --srcdir=$ac_srcdir" >&6;}
-      # The eval makes quoting arguments work.
-      eval $ac_sub_configure $ac_sub_configure_args \
-	   --cache-file=$ac_sub_cache_file --srcdir=$ac_srcdir ||
-	{ { echo "$as_me:$LINENO: error: $ac_sub_configure failed for $ac_dir" >&5
-echo "$as_me: error: $ac_sub_configure failed for $ac_dir" >&2;}
-   { (exit 1); exit 1; }; }
-    fi
-
-    cd $ac_popdir
-  done
-fi
-
 
 echo
 echo "Configuration complete: "
@@ -11212,6 +11239,10 @@ echo "       Installing into: $prefix"
 echo -n "        Setuid capable: "
 if test "$suid" = "yes"; then
 	echo "yes"
+elif test "$cygwin" = "yes"; then
+	echo "n/a (Cygwin/Win32";
+elif test "$want_viha" = "yes"; then
+	echo "n/a (OSX with Viha)"
 else
 	echo "no"
 fi
@@ -11222,6 +11253,8 @@ echo "$termcontrol";
 echo -n "       Linux wireless : "
 if test "$linux_wireless" = "yes"; then
 	echo "yes"
+elif test "$linux" != "yes"; then
+	echo "n/a (only Linux)"
 else
 	echo "no"
 fi
@@ -11234,11 +11267,6 @@ fi
 echo -n "          pcap capture: "
 if test "$pcap" = "yes"; then
 	echo "yes"
-	if test "$syspcap" != "yes"; then
-		echo "           pcap source: $pcapdir"
-	else
-		echo "           pcap source: system"
-	fi
 else
 	echo "no"
 fi
@@ -11262,16 +11290,10 @@ if test "$local" = "yes"; then
 else
 	echo "no"
 fi
-# echo -n "Using ethereal wiretap: "
-# if test "$want_ethereal" = "no"; then
-# 	echo "no"
-# else
-# 	echo "$ethereal_dir"
-# fi
 echo -n "   Imagemagick support: "
 if test "$gpslc" = ""; then
 	if test "$wantgpsmap" = "no"; then
-		echo "disabled"
+		echo "n/a (GPSMap not enabled)"
 	else
 		echo "no"
 	fi
@@ -11281,7 +11303,7 @@ fi
 echo -n "         Expat Library: "
 if test "$expatl" = "no"; then
 	if test "$wantgpsmap" = "no"; then
-		echo "disabled"
+		echo "n/a (GPSMap not enabled)"
 	else
 		echo "no"
 	fi
@@ -11291,7 +11313,7 @@ fi
 echo -n "           GMP Library: "
 if test "$gmpl" = "no"; then
 	if test "$wantgpsmap" = "no"; then
-		echo "disabled"
+		echo "n/a (GPSMap not enabled)"
 	else
 		echo "no"
 	fi
@@ -11301,7 +11323,7 @@ fi
 echo -n "       PThread Support: "
 if test "$pthr" = "no"; then
 	if test "$wantgpsmap" = "no"; then
-		echo "disabled"
+		echo "n/a (GPSMap not enabled)"
 	else
 		echo "no"
 	fi
@@ -11313,7 +11335,7 @@ if test "$libz" = "yes"; then
 	echo "yes"
 else
 	if test "$wantgpsmap" = "no"; then
-		echo "disabled"
+		echo "n/a (GPSMap not enabled)"
 	else
 		echo "no"
 	fi

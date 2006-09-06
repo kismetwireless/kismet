@@ -86,6 +86,8 @@ public:
 	// Fetch the port #
 	virtual short int FetchPort() { return port; }
 
+	virtual string GetRemoteAddr(int in_fd);
+
 protected:
     // Accept the connection TCP-level
     virtual int TcpAccept();

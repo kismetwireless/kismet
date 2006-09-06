@@ -126,6 +126,9 @@ public:
     // future
     virtual int FetchClientConnectInfo(int in_clid, void *ret_info) = 0;
 
+	// Fetch a clients remote address
+	virtual string GetRemoteAddr(int in_fd) = 0;
+
     // Shutdown the server
     virtual void Shutdown() = 0;
 
