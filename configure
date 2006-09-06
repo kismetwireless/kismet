@@ -7362,14 +7362,6 @@ else
   suid=yes
 fi;
 
-if test "$darwin" = yes; then
-	{ echo "$as_me:$LINENO: WARNING: *** Enabling Viha by default because we're compiling under OSX ***" >&5
-echo "$as_me: WARNING: *** Enabling Viha by default because we're compiling under OSX ***" >&2;};
-	want_viha=yes;
-else
-	want_viha=no;
-fi
-
 # Check whether --enable-viha or --disable-viha was given.
 if test "${enable_viha+set}" = set; then
   enableval="$enable_viha"
@@ -10037,18 +10029,24 @@ fi
 echo -n " Linux Netlink capture: "
 if test "$netlink" = "yes"; then
 	echo "yes"
+elif test "$linux" != "yes"; then
+	echo "n/a (only Linux)"
 else
 	echo "no"
 fi
 echo -n "       Linux wireless : "
 if test "$wireless" = "yes"; then
 	echo "yes"
+elif test "$linux" != "yes"; then
+	echo "n/a (only Linux)"
 else
 	echo "no"
 fi
 echo -n " Linux wireless v.22+ : "
 if test "$wireless22" = "yes"; then
 	echo "yes"
+elif test "$linux" != "yes"; then
+	echo "n/a (only Linux)"
 else
 	echo "no"
 fi
