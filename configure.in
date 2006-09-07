@@ -204,7 +204,7 @@ AC_LINK_IFELSE([AC_LANG_PROGRAM([[
 		s = getopt_long(argc, argv, "n:", long_options, &option_index);
 
 		]])],[sys_getopt=yes],[sys_getopt=no])
-if test $sys_getopt = "yes"; then
+if test "$sys_getopt" = "yes"; then
 	AC_MSG_RESULT([yes])
 	AC_DEFINE(HAVE_GETOPT_LONG, 1, system defines getopt_long)
 else
@@ -217,15 +217,15 @@ AC_CHECK_HEADER([stdint.h],
 	AC_DEFINE(HAVE_STDINT_H, 1, stdint.h is present) stdint=yes,
 	stdint=no)
 
-if test $stdint = "no"; then
+if test "$stdint" = "no"; then
     inttypes=no
 	AC_CHECK_HEADER([inttypes.h],
 		AC_DEFINE(HAVE_INTTYPES_H, 1, inttypes.h is present) inttypes=yes, 
 		inttypes=no)
 fi
 
-if test $stdint = "no"; then
-	if test $inttypes = "no"; then
+if test "$stdint" = "no"; then
+	if test "$inttypes" = "no"; then
 		AC_MSG_RESULT([failed])
 		AC_MSG_ERROR(could not find stdint.h or inttypes.h.)
 	fi
@@ -248,7 +248,7 @@ AC_LINK_IFELSE([AC_LANG_PROGRAM([[
 		accept(s, addr, addrlen);
 		return 0;
 		]])],[accept_socklen=yes],[accept_socklen=no])
-if test $accept_socklen = "yes"; then
+if test "$accept_socklen" = "yes"; then
 	AC_MSG_RESULT([socklen_t])
 	AC_DEFINE(HAVE_SOCKLEN_T, 1, accept() takes type socklen_t for addrlen)
 else
@@ -277,7 +277,7 @@ AC_LINK_IFELSE([AC_LANG_PROGRAM([[
 		return 0;
 		]])],[needlibm=no],[needlibm=yes])
 CFLAGS="$OCFL"
-if test $needlibm = "yes"; then
+if test "$needlibm" = "yes"; then
 	AC_MSG_RESULT([no])
 # Do we need to use -lm?
 	AC_CHECK_LIB([m], [pow], 
@@ -511,14 +511,14 @@ if test "$wantpcre" = "yes"; then
 	pcrel=no
 	AC_CHECK_LIB([pcre], [pcre_compile], pcrel=yes, pcrel=no)
 
-	if test $pcrel != "yes"; then
+	if test "$pcrel" != "yes"; then
 		AC_MSG_ERROR(Failed to find libpcre.  Either install it, or disable it via --disable-pcre)
 	fi
 
 	pcreh=no
 	AC_CHECK_HEADER([pcre.h], pcreh=yes, pcreh=no)
 
-	if test $pcreh != "yes"; then
+	if test "$pcreh" != "yes"; then
 		AC_MSG_ERROR(Failed to find pcre.h.  You probably need to install the pcre-devel packages for your distribution.)
 	fi
 
@@ -529,17 +529,17 @@ fi
 AC_ARG_ENABLE(pcap, [  --disable-pcap          disable libpcap (most sources) capture support],,wantpcap=yes)
 AC_SUBST(wantpcap)
 
-if test $wantpcap = yes; then
+if test "$wantpcap" = yes; then
 	foundsyspcap=no
 	AC_CHECK_LIB([pcap], [pcap_open_live],
 	    AC_DEFINE(HAVE_LIBPCAP, 1, libpcap packet capture lib) foundsyspcap=yes,
 	    AC_MSG_WARN(Compiling without libpcap support.))
 
-	if test $foundsyspcap = yes; then
+	if test "$foundsyspcap" = yes; then
 	## if we don't have a pcap.h, do a search for pcap/pcap.h
 	AC_CHECK_HEADER([pcap.h],
 		AC_DEFINE(HAVE_PCAP_H, 1, libpcap header) foundsyspcaph=yes)
-	    if test $foundsyspcaph != yes; then 
+	    if test "$foundsyspcaph" != yes; then 
 			AC_CHECK_HEADER([pcap/pcap.h], 
 			AC_DEFINE(HAVE_PCAP_H, 1, libpcap header) AC_DEFINE(HAVE_PCAPPCAP_H, 1, pcap/pcap.h),
 			AC_MSG_ERROR([found libpcap but unable to find pcap.h]))
@@ -578,7 +578,7 @@ if test "$want_airpcap" = "yes" -a "$pcap" = "yes"; then
 	    AC_DEFINE(HAVE_LIBAIRPCAP, 1, libairpcap win32 control lib) foundairpcap=yes,
 	    AC_MSG_WARN(Compiling without airpcap support.))
 
-	if test $foundairpcap = yes; then
+	if test "$foundairpcap" = yes; then
 	## if we don't have a pcap.h, do a search for pcap/pcap.h
 	AC_CHECK_HEADER([airpcap.h],
 		AC_DEFINE(HAVE_AIRPCAP_H, 1, libairpcap header) foundairpcaph=yes)
@@ -628,12 +628,12 @@ if test "$darwin" = no -a "$want_viha" = "yes"; then
 	want_viha=no;
 fi
 	
-if test $want_viha = "yes"; then
+if test "$want_viha" = "yes"; then
 	AC_CHECK_HEADERS([WiFi/WLPacketSource.h WiFi/WLFrame.h WiFi/IEEE80211Frame.h WiFi/WFException.h], 
 		AC_DEFINE(HAVE_VIHAHEADERS, 1, Viha headers are there) foundviha=yes, 
 		AC_MSG_ERROR(Missing required viha headers.  Did you install the Viha drivers?))
 # Enable the ldflags and cxx flags if we found it...
-	if test $foundviha = "yes"; then
+	if test "$foundviha" = "yes"; then
 		LDFLAGS="$LDFLAGS -framework WiFi"
 # Force suid disabled
         suid="no"        
@@ -647,7 +647,7 @@ if test "$cygwin" = "yes"; then
 fi
 
 AC_SUBST(suid)
-if test $suid = yes; then
+if test "$suid" = yes; then
 	AC_MSG_CHECKING(for setuid )
 	AC_MSG_RESULT(yes)
 	AC_DEFINE(HAVE_SUID, 1, setuid capable)
@@ -737,11 +737,11 @@ if test "$wantgpsmap" = "yes"; then
 		fi
 	fi
 
-	if test $magickold = "yes"; then
+	if test "$magickold" = "yes"; then
 		AC_MSG_WARN(*** Old version of ImageMagick ($magickversion) found.  Please upgrade to 5.4.7 or newer.  gpsmap will not be built. ***)
-	elif test $magickconfig = "no"; then
+	elif test "$magickconfig" = "no"; then
 		AC_MSG_WARN(*** Missing Magick-config (or it is not in the path).  gpsmap will not be built. ***)
-	elif test $wget = "no"; then
+	elif test "$wget" = "no"; then
 		AC_MSG_WARN(*** Missing wget (or it is not in the path).  gpsmap will not be build. ***)
 	else
 		#CPPFLAGS="$CPPFLAGS `Magick-config --cppflags` -I`Magick-config --prefix`/include"
@@ -887,6 +887,14 @@ if test "$pcap" = "yes"; then
 else
 	echo "no"
 fi
+echo -n "       airpcap control: "
+if test "$airpcap" = "yes"; then
+	echo "yes"
+elif test "$cygwin" != "yes"; then
+	echo "n/a (only Cygwin/Win32)"
+else
+	echo "no"
+fi
 echo -n "        WSP100 capture: "
 if test "$wsp100" = "yes"; then
 	echo "yes";
@@ -896,6 +904,8 @@ fi
 echo -n "          Viha capture: "
 if test "$want_viha" = "yes"; then
 	echo "yes";
+elif test "$darwin" != "yes"; then
+	echo "n/a (only Darwin)"
 else
 	echo "no";
 fi
@@ -966,6 +976,16 @@ if test "$linux_wireless" != "yes" -a "$linux" = "yes"; then
 	echo "Orinoco, Prism, and just about every other live capture method).  Make "
 	echo "sure this is what you want to do."
     echo "*** WARNING ***"
+fi
+
+if test "$pcap" != "yes" -a "$linux" = "yes"; then
+	echo "*** WARNING ***"
+	echo "LibPCAP was not found.  Kismet previously included a local copy of this"
+	echo "library, however it now expects libpcap to be provided by the system."
+	echo "Kismet on Linux without LibPcap cannot capture data locally and will "
+	echo "almost certainly NOT BE WHAT YOU WANT."
+	echo "Your distribution should provide packages for libpcap, otherwise "
+	echo "it can be downloaded from http://tcpdump.org"
 fi
 
 if test "`echo $host_os | grep linux`" = ""; then
