@@ -111,6 +111,13 @@ maxclients=5
 # bigger this number, the more memory and the more power it will use.
 maxbacklog=5000
 
+# Server + Drone config options
+# dronelisten=tcp://127.0.0.1:3501
+# droneallowedhosts=127.0.0.1
+# dronebindaddress=127.0.0.1
+# dronemaxclients=5
+# droneringlen=65535
+
 # Do we have a GPS?
 gps=true
 # Host:port that GPSD is running on.  This can be localhost OR remote!
@@ -124,7 +131,7 @@ gpsmodelock=false
 gpsreconnect=true
 
 # Do we export packets over tun/tap virtual interfaces?
-tuntap_export=true
+tuntap_export=false
 # What virtual interface do we use
 tuntap_device=tap0
 

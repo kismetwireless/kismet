@@ -176,9 +176,24 @@ KisDroneFramework::KisDroneFramework(GlobalRegistry *in_globalreg) {
 	} else {
 		server_type = -1;
 		_MSG("Invalid protocol '" + string(srv_proto) + "' in 'dronelisten' for the "
-			 "Kismet UI server", MSGFLAG_FATAL);
+			 "Kismet drone server", MSGFLAG_FATAL);
 		globalreg->fatal_condition = 1;
 		return;
+	}
+
+	if (globalreg->kismet_config->FetchOpt("droneringlen") != "") {
+		int rl;
+		if (sscanf(globalreg->kismet_config->FetchOpt("droneringlen").c_str(),
+				   "%d", &rl) != 1) {
+			_MSG("Invalid value in 'droneringlen' for the Kismet dorne server",
+				 MSGFLAG_FATAL);
+			globalreg->fatal_condition = 1;
+			return;
+		}
+		_MSG("Setting drone connection buffer to " +
+			 globalreg->kismet_config->FetchOpt("droneringlen") + " bytes",
+			 MSGFLAG_INFO);
+		tcpsrv->SetRingSize(rl);
 	}
 
 	// Create the message bus attachment to forward messages to the client

@@ -47,7 +47,7 @@
 #define MAXHOSTNAMELEN 64
 #endif
 
-// Arbitrary 16k ring.
+// Arbitrary 16k ring by default
 #define SRV_RING_LEN (16384)
 
 class TcpServer : public NetworkServer {
@@ -88,6 +88,10 @@ public:
 
 	virtual string GetRemoteAddr(int in_fd);
 
+	// Set the size of ring buffers.  This ONLY affects new connections, not
+	// existing!
+	virtual void SetRingSize(int in_sz);
+
 protected:
     // Accept the connection TCP-level
     virtual int TcpAccept();
@@ -120,6 +124,9 @@ protected:
     int sv_configured;
 
     struct sockaddr_in serv_sock;
+
+	// Ring length, if we resize it
+	int int_ring_len;
 };
 
 #endif

@@ -13,6 +13,8 @@ TcpServer::TcpServer(GlobalRegistry *in_globalreg) : NetworkServer(in_globalreg)
 
     serv_fd = 0;
     max_fd = 0;
+
+	int_ring_len = SRV_RING_LEN;
 }
 
 TcpServer::~TcpServer() {
@@ -30,6 +32,11 @@ int TcpServer::SetupServer(short int in_port, unsigned int in_maxcli,
 	globalreg->RegisterPollableSubsys(this);
 
     return 1;
+}
+
+// Set the length of the rings for new connections
+void TcpServer::SetRingSize(int in_sz) {
+	int_ring_len = in_sz;
 }
 
 int TcpServer::EnableServer() {
@@ -223,8 +230,8 @@ int TcpServer::TcpAccept() {
     // remnants of an old person here, so we'll make the connection 
     // lightweight and not do more tree searching.  If this ever proves
     // wrong, we need to reevaluate
-    write_buf_map[new_fd] = new RingBuffer(SRV_RING_LEN);
-    read_buf_map[new_fd] = new RingBuffer(SRV_RING_LEN);
+    write_buf_map[new_fd] = new RingBuffer(int_ring_len);
+    read_buf_map[new_fd] = new RingBuffer(int_ring_len);
 
     return new_fd;
 }
