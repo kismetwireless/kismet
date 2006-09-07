@@ -920,6 +920,16 @@ if test "$wireless" != "yes" -a "$linux" = "yes"; then
     echo "*** WARNING ***"
 fi
 
+if test "$pcap" != "yes" -a "$linux" = "yes"; then
+	echo "*** WARNING ***"
+	echo "LibPCAP was not found.  Kismet previously included a local copy of this"
+	echo "library, however it now expects libpcap to be provided by the system."
+	echo "Kismet on Linux without LibPcap cannot capture data locally and will "
+	echo "almost certainly NOT BE WHAT YOU WANT."
+	echo "Your distribution should provide packages for libpcap, otherwise "
+	echo "it can be downloaded from http://tcpdump.org"
+fi
+
 if test "`echo $host_os | grep linux`" = ""; then
 	echo
 	echo "Configuration complete.  You are not running a linux-based system,"
