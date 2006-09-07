@@ -310,7 +310,7 @@ ac_includes_default="\
 # include <unistd.h>
 #endif"
 
-ac_subst_vars='SHELL PATH_SEPARATOR PACKAGE_NAME PACKAGE_TARNAME PACKAGE_VERSION PACKAGE_STRING PACKAGE_BUGREPORT exec_prefix prefix program_transform_name bindir sbindir libexecdir datadir sysconfdir sharedstatedir localstatedir libdir includedir oldincludedir infodir mandir build_alias host_alias target_alias DEFS ECHO_C ECHO_N ECHO_T LIBS build build_cpu build_vendor build_os host host_cpu host_vendor host_os CC CFLAGS LDFLAGS CPPFLAGS ac_ct_CC EXEEXT OBJEXT CXX CXXFLAGS ac_ct_CXX INSTALL_PROGRAM INSTALL_SCRIPT INSTALL_DATA SET_MAKE CPP EGREP LIBOBJS instgrp mangrp CLIBS wantnetlink wantwireless wantpcap pcaplib pcaplnk pcap suid local wantgpsmap magickconfig gpslc gpslco threadlib sharedatadir LTLIBOBJS'
+ac_subst_vars='SHELL PATH_SEPARATOR PACKAGE_NAME PACKAGE_TARNAME PACKAGE_VERSION PACKAGE_STRING PACKAGE_BUGREPORT exec_prefix prefix program_transform_name bindir sbindir libexecdir datadir sysconfdir sharedstatedir localstatedir libdir includedir oldincludedir infodir mandir build_alias host_alias target_alias DEFS ECHO_C ECHO_N ECHO_T LIBS build build_cpu build_vendor build_os host host_cpu host_vendor host_os CC CFLAGS LDFLAGS CPPFLAGS ac_ct_CC EXEEXT OBJEXT CXX CXXFLAGS ac_ct_CXX INSTALL_PROGRAM INSTALL_SCRIPT INSTALL_DATA SET_MAKE CPP EGREP LIBOBJS instgrp mangrp CLIBS wantnetlink wantwireless wantpcap pcaplnk pcap suid local wantgpsmap magickconfig gpslc gpslco threadlib sharedatadir LTLIBOBJS'
 ac_subst_files=''
 
 # Initialize some variables set by options.
@@ -4845,7 +4845,7 @@ sys_getopt=no
 fi
 rm -f conftest.err conftest.$ac_objext \
       conftest$ac_exeext conftest.$ac_ext
-if test $sys_getopt = "yes"; then
+if test "$sys_getopt" = "yes"; then
 	echo "$as_me:$LINENO: result: yes" >&5
 echo "${ECHO_T}yes" >&6
 
@@ -5009,7 +5009,7 @@ fi
 
 
 
-if test $stdint = "no"; then
+if test "$stdint" = "no"; then
     inttypes=no
 	if test "${ac_cv_header_inttypes_h+set}" = set; then
   echo "$as_me:$LINENO: checking for inttypes.h" >&5
@@ -5161,8 +5161,8 @@ fi
 
 fi
 
-if test $stdint = "no"; then
-	if test $inttypes = "no"; then
+if test "$stdint" = "no"; then
+	if test "$inttypes" = "no"; then
 		echo "$as_me:$LINENO: result: failed" >&5
 echo "${ECHO_T}failed" >&6
 		{ { echo "$as_me:$LINENO: error: could not find stdint.h or inttypes.h." >&5
@@ -5234,7 +5234,7 @@ accept_socklen=no
 fi
 rm -f conftest.err conftest.$ac_objext \
       conftest$ac_exeext conftest.$ac_ext
-if test $accept_socklen = "yes"; then
+if test "$accept_socklen" = "yes"; then
 	echo "$as_me:$LINENO: result: socklen_t" >&5
 echo "${ECHO_T}socklen_t" >&6
 
@@ -6248,7 +6248,7 @@ else
 fi;
 
 
-if test $wantnetlink = yes; then
+if test "$wantnetlink" = yes; then
 netlink=no
 echo "$as_me:$LINENO: checking for linux/netlink.h" >&5
 echo $ECHO_N "checking for linux/netlink.h... $ECHO_C" >&6
@@ -6328,7 +6328,7 @@ else
 fi;
 
 
-if test $wantwireless = yes; then
+if test "$wantwireless" = yes; then
 wireless=no
 echo "$as_me:$LINENO: checking for linux/wireless.h" >&5
 echo $ECHO_N "checking for linux/wireless.h... $ECHO_C" >&6
@@ -6556,7 +6556,7 @@ else
 fi;
 
 
-if test $wantpcap = yes; then
+if test "$wantpcap" = yes; then
 	foundsyspcap=no
 	echo "$as_me:$LINENO: checking for pcap_open_live in -lpcap" >&5
 echo $ECHO_N "checking for pcap_open_live in -lpcap... $ECHO_C" >&6
@@ -6634,7 +6634,7 @@ echo "$as_me: WARNING: Compiling without libpcap support." >&2;}
 fi
 
 
-	if test $foundsyspcap = yes; then
+	if test "$foundsyspcap" = yes; then
 	## if we don't have a pcap.h, do a search for pcap/pcap.h
 	if test "${ac_cv_header_pcap_h+set}" = set; then
   echo "$as_me:$LINENO: checking for pcap.h" >&5
@@ -6782,7 +6782,7 @@ _ACEOF
 fi
 
 
-	    if test $foundsyspcaph != yes; then
+	    if test "$foundsyspcaph" != yes; then
 			if test "${ac_cv_header_pcap_pcap_h+set}" = set; then
   echo "$as_me:$LINENO: checking for pcap/pcap.h" >&5
 echo $ECHO_N "checking for pcap/pcap.h... $ECHO_C" >&6
@@ -7015,15 +7015,15 @@ echo "$as_me: WARNING: *** You don't appear to have a version of libpcap which s
 fi
 
 
-	pcaplib=""
-
 	pcaplnk="-lpcap"
 
 	pcap="yes"
 	fi
-else
-    { echo "$as_me:$LINENO: WARNING: Compiling without libpcap support." >&5
-echo "$as_me: WARNING: Compiling without libpcap support." >&2;}
+fi
+
+if test "$wantpcap" != "yes" -o "$pcap" != "yes"; then
+    { echo "$as_me:$LINENO: WARNING: Compiling without libpcap support.  Many capture sources will be disabled." >&5
+echo "$as_me: WARNING: Compiling without libpcap support.  Many capture sources will be disabled." >&2;}
 fi
 
 
@@ -7039,7 +7039,13 @@ if test "${enable_airpcap+set}" = set; then
   want_airpcap=no
 fi;
 
-if test "$cygwin" = no -a "$want_airpcap" = "yes"; then
+if test "$pcap" = "no" -a "$want_airpcap" = "yes"; then
+	{ echo "$as_me:$LINENO: WARNING: *** Disabling AirPcap, libpcap not enabled ***" >&5
+echo "$as_me: WARNING: *** Disabling AirPcap, libpcap not enabled ***" >&2;};
+	want_airpcap=no;
+fi
+
+if test "$cygwin" != "yes" -a "$want_airpcap" = "yes"; then
 	{ echo "$as_me:$LINENO: WARNING: *** Disabling AirPcap on non-cygwin/win32 system ***" >&5
 echo "$as_me: WARNING: *** Disabling AirPcap on non-cygwin/win32 system ***" >&2;};
 	want_airpcap=no;
@@ -7123,7 +7129,7 @@ echo "$as_me: WARNING: Compiling without airpcap support." >&2;}
 fi
 
 
-	if test $foundairpcap = yes; then
+	if test "$foundairpcap" = yes; then
 	## if we don't have a pcap.h, do a search for pcap/pcap.h
 	if test "${ac_cv_header_airpcap_h+set}" = set; then
   echo "$as_me:$LINENO: checking for airpcap.h" >&5
@@ -7368,13 +7374,13 @@ if test "${enable_viha+set}" = set; then
   want_viha=no
 fi;
 
-if test "$darwin" = no -a "$want_viha" = "yes"; then
+if test "$darwin" != "yes" -a "$want_viha" = "yes"; then
 	{ echo "$as_me:$LINENO: WARNING: *** Disabling Viha on non-OSX system ***" >&5
 echo "$as_me: WARNING: *** Disabling Viha on non-OSX system ***" >&2;};
 	want_viha=no;
 fi
 
-if test $want_viha = "yes"; then
+if test "$want_viha" = "yes"; then
 
 
 
@@ -7537,7 +7543,7 @@ fi
 done
 
 # Enable the ldflags and cxx flags if we found it...
-	if test $foundviha = "yes"; then
+	if test "$foundviha" = "yes"; then
 		LDFLAGS="$LDFLAGS -framework WiFi"
 # Force suid disabled
         suid="no"
@@ -7552,7 +7558,7 @@ if test "$cygwin" = "yes"; then
 fi
 
 
-if test $suid = yes; then
+if test "$suid" = yes; then
 	echo "$as_me:$LINENO: checking for setuid " >&5
 echo $ECHO_N "checking for setuid ... $ECHO_C" >&6
 	echo "$as_me:$LINENO: result: yes" >&5
@@ -7921,10 +7927,10 @@ fi
 		fi
 	fi
 
-	if test $magickold = "yes"; then
+	if test "$magickold" = "yes"; then
 		{ echo "$as_me:$LINENO: WARNING: *** Old version of ImageMagick ($magickversion) found.  Please upgrade to 5.4.7 or newer.  gpsmap will not be built. ***" >&5
 echo "$as_me: WARNING: *** Old version of ImageMagick ($magickversion) found.  Please upgrade to 5.4.7 or newer.  gpsmap will not be built. ***" >&2;}
-	elif test $magickconfig = "no"; then
+	elif test "$magickconfig" = "no"; then
 		{ echo "$as_me:$LINENO: WARNING: *** Missing Magick-config (or it is not in the path).  gpsmap will not be built. ***" >&5
 echo "$as_me: WARNING: *** Missing Magick-config (or it is not in the path).  gpsmap will not be built. ***" >&2;}
 	else
@@ -9483,7 +9489,6 @@ s,@CLIBS@,$CLIBS,;t t
 s,@wantnetlink@,$wantnetlink,;t t
 s,@wantwireless@,$wantwireless,;t t
 s,@wantpcap@,$wantpcap,;t t
-s,@pcaplib@,$pcaplib,;t t
 s,@pcaplnk@,$pcaplnk,;t t
 s,@pcap@,$pcap,;t t
 s,@suid@,$suid,;t t
