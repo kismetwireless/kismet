@@ -10,11 +10,9 @@ INSTUSR ?= "root"
 
 ZAURUS = @zaurus@
 
-PCAPDIR = @pcapdir@
-PCAPLIB = @pcaplib@
-PCAPLNK = @pcaplnk@
-
 THREADL = @threadlib@
+
+PCAPLNK	= @pcaplnk@
 
 HOME	= @srcdir@
 CXX	= @CXX@
@@ -77,11 +75,11 @@ GPSLBUILDO=@gpslco@
 
 all:	Makefile $(DEPEND) $(PS) $(DRONE) $(NC) $(GPSLBUILD) $(ZAURUSBUILD)
 
-$(PS):	$(PSO) $(PCAPLIB)
-	$(LD) $(LDFLAGS) -o $(PS) $(PSO) $(PCAPLIB) $(LIBS) $(PCAPLNK)
+$(PS):	$(PSO)
+	$(LD) $(LDFLAGS) -o $(PS) $(PSO) $(LIBS) $(PCAPLNK)
 
-$(DRONE):	$(DRONEO) $(PCAPLIB)
-	$(LD) $(LDFLAGS) -o $(DRONE) $(DRONEO) $(PCAPLIB) $(LIBS) $(PCAPLNK)
+$(DRONE):	$(DRONEO)
+	$(LD) $(LDFLAGS) -o $(DRONE) $(DRONEO) $(LIBS) $(PCAPLNK)
 
 $(NC):	$(NCO)
 	$(LD) $(LDFLAGS) -o $(NC) $(NCO) $(LIBS) $(CLIBS)
@@ -99,9 +97,6 @@ $(GPSL):	$(GPSLBUILDO)
 
 $(BUZZER):	
 	@( cd extra/buzzme; $(MAKE); ) ; 
-
-$(PCAPDIR)/libpcap.a:	
-	@( cd $(PCAPDIR); $(MAKE); )
 
 Makefile: Makefile.in configure
 	@-echo "'Makefile.in' or 'configure' are more current than this Makefile.  You should re-run 'configure'."
@@ -300,7 +295,6 @@ clean:
 	@-rm -f $(GPSL)
 	# @-rm -f $(HOPPER)
 	# @-( cd extra/buzzme; $(MAKE) clean )
-	# @-( cd $(PCAPDIR); $(MAKE) clean )
 
 distclean:
 	@-$(MAKE) clean
@@ -317,7 +311,6 @@ distclean:
 	# @-rm -f scripts/kismet_unmonitor
 	@-( cd extra/; $(MAKE) distclean )
 	# @-( cd extra/buzzme; $(MAKE) distclean )
-	# @-( cd $(PCAPDIR); $(MAKE) distclean )
 	@-rm -f Makefile
 
 arm: $(PS) $(NC) $(ZBUILD)
