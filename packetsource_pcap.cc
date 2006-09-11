@@ -271,6 +271,22 @@ int PacketSource_Pcap::Eight2KisPack(kis_packet *packet) {
 	eight11chunk->data = new uint8_t[eight11chunk->length];
     memcpy(eight11chunk->data, callback_data, eight11chunk->length);
 
+	// If we're validating the FCS
+	if (validate_fcs && fcsbytes && callback_header.caplen > 4) {
+		kis_fcs_bytes *fcschunk = new kis_fcs_bytes;
+		memcpy(fcschunk->fcs, &(callback_data[callback_header.caplen - 4]), 4);
+
+		packet->insert(_PCM(PACK_COMP_FCSBYTES), fcschunk);
+
+		// Compare it and flag the packet
+		uint32_t calc_crc =
+			crc32_le_80211(crc32_table, eight11chunk->data, eight11chunk->length);
+
+		if (memcmp(fcschunk->fcsp, &calc_crc, 4)) {
+			packet->error = 1;
+		}
+	}
+
 	packet->insert(_PCM(PACK_COMP_80211FRAME), eight11chunk);
 
 	return 1;
@@ -393,6 +409,22 @@ int PacketSource_Pcap::Prism2KisPack(kis_packet *packet) {
 
 	packet->insert(_PCM(PACK_COMP_RADIODATA), radioheader);
 	packet->insert(_PCM(PACK_COMP_80211FRAME), eight11chunk);
+
+	// If we're validating the FCS
+	if (validate_fcs && fcsbytes && callback_header.caplen > 4) {
+		kis_fcs_bytes *fcschunk = new kis_fcs_bytes;
+		memcpy(fcschunk->fcs, &(callback_data[callback_header.caplen - 4]), 4);
+
+		packet->insert(_PCM(PACK_COMP_FCSBYTES), fcschunk);
+
+		// Compare it and flag the packet
+		uint32_t calc_crc =
+			crc32_le_80211(crc32_table, eight11chunk->data, eight11chunk->length);
+
+		if (memcmp(fcschunk->fcsp, &calc_crc, 4)) {
+			packet->error = 1;
+		}
+	}
 
     return 1;
 }

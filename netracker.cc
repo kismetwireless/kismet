@@ -2547,8 +2547,10 @@ void Netracker::dump_runstate(FILE *runfile) {
 					MungeToPrintable(asi->second->beacon_info).c_str());
 			fprintf(runfile, "    cryptset=%d\n", asi->second->cryptset);
 			fprintf(runfile, "    ssid_cloaked=%d\n", asi->second->ssid_cloaked);
-			fprintf(runfile, "    first_time=%d\n", asi->second->first_time);
-			fprintf(runfile, "    last_time=%d\n", asi->second->last_time);
+			fprintf(runfile, "    first_time=%u\n", 
+					(unsigned int) asi->second->first_time);
+			fprintf(runfile, "    last_time=%u\n", 
+					(unsigned int) asi->second->last_time);
 			fprintf(runfile, "    maxrate=%f\n", asi->second->maxrate);
 			fprintf(runfile, "    beaconrate=%d\n", asi->second->beaconrate);
 			fprintf(runfile, "    packets=%d\n", asi->second->packets);
@@ -2639,8 +2641,10 @@ void Netracker::dump_runstate(FILE *runfile) {
 					asi->second->beacon_info.c_str());
 			fprintf(runfile, "    cryptset=%d\n", asi->second->cryptset);
 			fprintf(runfile, "    ssid_cloaked=%d\n", asi->second->ssid_cloaked);
-			fprintf(runfile, "    first_time=%d\n", asi->second->first_time);
-			fprintf(runfile, "    last_time=%d\n", asi->second->last_time);
+			fprintf(runfile, "    first_time=%u\n", 
+					(unsigned int) asi->second->first_time);
+			fprintf(runfile, "    last_time=%u\n", 
+					(unsigned int) asi->second->last_time);
 			fprintf(runfile, "    maxrate=%f\n", asi->second->maxrate);
 			fprintf(runfile, "    beaconrate=%d\n", asi->second->beaconrate);
 			fprintf(runfile, "    packets=%d\n", asi->second->packets);
@@ -2946,11 +2950,11 @@ int Netracker::load_runstate() {
 			break;
 		}
 
-		if (sscanf(rcf->FetchOpt("ip_type", rent[x]).c_str(), "%d",
-				   (int *) &(tnet->guess_ipdata.ip_type)) != 1) {
+		if (sscanf(rcf->FetchOpt("ip_type", rent[x]).c_str(), "%d", &tint) != 1) {
 			globalreg->fatal_condition = 1;
 			break;
 		}
+		tnet->guess_ipdata.ip_type = (ipdata_type) tint;
 
 		if (sscanf(rcf->FetchOpt("ip_addr_block", rent[x]).c_str(), "%u",
 				   &(tnet->guess_ipdata.ip_addr_block.s_addr)) != 1) {
@@ -2986,23 +2990,23 @@ int Netracker::load_runstate() {
 
 		tracked_client *tcli = new tracked_client;
 
-		if (sscanf(rcf->FetchOpt("type", rent[x]).c_str(), "%d", 
-				   (int *) &(tcli->type)) != 1) {
+		if (sscanf(rcf->FetchOpt("type", rent[x]).c_str(), "%d", &tint) != 1) {
 			globalreg->fatal_condition = 1;
 			break;
 		}
+		tcli->type = (client_type) tint;
 
-		if (sscanf(rcf->FetchOpt("last_time", rent[x]).c_str(), "%u",
-				   (unsigned int *) &(tcli->last_time)) != 1) {
+		if (sscanf(rcf->FetchOpt("last_time", rent[x]).c_str(), "%u", &tuint) != 1) {
 			globalreg->fatal_condition = 1;
 			break;
 		}
+		tcli->last_time = tuint;
 
-		if (sscanf(rcf->FetchOpt("first_time", rent[x]).c_str(), "%u",
-				   (unsigned int *) &(tcli->first_time)) != 1) {
+		if (sscanf(rcf->FetchOpt("first_time", rent[x]).c_str(), "%u", &tuint) != 1) {
 			globalreg->fatal_condition = 1;
 			break;
 		}
+		tcli->first_time = tuint;
 
 		if (sscanf(rcf->FetchOpt("channel", rent[x]).c_str(), "%d",
 				   &(tcli->channel)) != 1) {
@@ -3151,11 +3155,11 @@ int Netracker::load_runstate() {
 			break;
 		}
 
-		if (sscanf(rcf->FetchOpt("ip_type", rent[x]).c_str(), "%d",
-				   (int *) &(tcli->guess_ipdata.ip_type)) != 1) {
+		if (sscanf(rcf->FetchOpt("ip_type", rent[x]).c_str(), "%d", &tint) != 1) {
 			globalreg->fatal_condition = 1;
 			break;
 		}
+		tcli->guess_ipdata.ip_type = (ipdata_type) tint;
 
 		if (sscanf(rcf->FetchOpt("ip_addr_block", rent[x]).c_str(), "%u",
 				   &(tcli->guess_ipdata.ip_addr_block.s_addr)) != 1) {

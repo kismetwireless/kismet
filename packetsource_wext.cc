@@ -44,6 +44,15 @@ typedef unsigned long u64;
 
 #if (defined(HAVE_LIBPCAP) && defined(SYS_LINUX) && defined(HAVE_LINUX_WIRELESS))
 
+PacketSource_Wext::PacketSource_Wext(GlobalRegistry *in_globalreg, string in_type, 
+									 string in_name, string in_dev) :
+	PacketSource_Pcap(in_globalreg, in_type, in_name, in_dev) { 
+
+	if (in_type == "nokia770") {
+		SetValidateCRC(1);
+	}
+}
+
 int PacketSource_Wext::AutotypeProbe(string in_device) {
 	ethtool_drvinfo drvinfo;
 	char errstr[1024];
@@ -100,6 +109,7 @@ int PacketSource_Wext::RegisterSources(Packetsourcetracker *tracker) {
 	tracker->RegisterPacketsource("ipw2200", this, 1, "IEEE80211b", 6);
 	tracker->RegisterPacketsource("ipw2915", this, 1, "IEEE80211ab", 6);
 	tracker->RegisterPacketsource("ipw3945", this, 1, "IEEE80211ab", 6);
+	tracker->RegisterPacketsource("nokia770", this, 1, "IEEE80211b", 6);
 	tracker->RegisterPacketsource("prism54g", this, 1, "IEEE80211b", 6);
 	tracker->RegisterPacketsource("rt2400", this, 1, "IEEE80211b", 6);
 	tracker->RegisterPacketsource("rt2500", this, 1, "IEEE80211b", 6);

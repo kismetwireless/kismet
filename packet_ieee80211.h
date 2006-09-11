@@ -189,12 +189,12 @@ enum iapp_auth {
 typedef struct {
     unsigned iapp_version : 8;
     unsigned iapp_type : 8;
-} iapp_header __attribute__((__packed__));
+} iapp_header __attribute__ ((packed));
 
 typedef struct {
     unsigned pdu_type : 8;
     unsigned pdu_len : 16;
-} iapp_pdu_header __attribute__((__packed__));
+} iapp_pdu_header __attribute__ ((packed));
 
 // Crypt bitfield
 enum crypt_type {
@@ -237,12 +237,12 @@ typedef struct {
     unsigned short more_fragments : 1;
     unsigned short from_ds : 1;
     unsigned short to_ds : 1;
-} frame_control __attribute__((__packed__));
+} frame_control __attribute__ ((packed));
 
 typedef struct {
     unsigned short frag : 12;
     unsigned short sequence : 4;
-} wireless_fragseq __attribute__((__packed__));
+} wireless_fragseq __attribute__ ((packed));
 
 typedef struct {
     uint8_t timestamp[8];
@@ -262,7 +262,7 @@ typedef struct {
 
     unsigned int coordinator : 8;
 
-} fixed_parameters __attribute__((__packed__));
+} fixed_parameters __attribute__ ((packed));
 
 #else
 // And 802.11 packet frame header
@@ -280,12 +280,12 @@ typedef struct {
     unsigned short more_data : 1;
     unsigned short wep : 1;
     unsigned short order : 1;
-} frame_control __attribute__((__packed__));
+} frame_control __attribute__ ((packed));
 
 typedef struct {
     unsigned short frag : 4;
     unsigned short sequence : 12;
-} wireless_fragseq __attribute__((__packed__));
+} wireless_fragseq __attribute__ ((packed));
 
 typedef struct {
     uint8_t timestamp[8];
@@ -304,7 +304,7 @@ typedef struct {
     unsigned short agility : 1;
 
     unsigned int coordinator : 8;
-} fixed_parameters __attribute__((__packed__));
+} fixed_parameters __attribute__ ((packed));
 
 #endif
 

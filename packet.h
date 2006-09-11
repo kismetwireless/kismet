@@ -149,9 +149,11 @@ public:
 	kis_fcs_bytes() {
 		self_destruct = 1;
 		fcs[0] = fcs[1] = fcs[2] = fcs[3] = 0;
+		fcsp = (uint32_t *) fcs;
 	}
 
 	uint8_t fcs[4];
+	uint32_t *fcsp;
 };
 
 // Info from the IEEE 802.11 frame headers for kismet

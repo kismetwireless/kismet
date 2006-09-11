@@ -158,6 +158,8 @@ public:
 		src_uuid.GenerateTimeUUID(unode);
         
         fcsbytes = 0;
+		validate_fcs = 0;
+		crc32_table = NULL;
 		carrier_set = 0;
 
 		channel_hop = 0;
@@ -319,7 +321,22 @@ public:
     void Resume() { paused = 0; };
 
 	virtual void SetFCSBytes(int in_bytes) { fcsbytes = in_bytes; }
-	virtual int FetchFCSBytes() { return fcsbytes; }
+	virtual unsigned int FetchFCSBytes() { return fcsbytes; }
+
+	virtual void SetValidateCRC(int in_validate) {
+		if (in_validate && crc32_table == NULL) {
+			crc32_table = new unsigned int[256];
+			crc32_init_table_80211(crc32_table);
+		}
+
+		if (in_validate && crc32_table != NULL) {
+			delete[] crc32_table;
+			crc32_table = NULL;
+		}
+
+		validate_fcs = in_validate;
+	}
+	virtual unsigned int FetchValidateCRC() { return validate_fcs; }
 
 	// Set and fetch the carriers this source understands
 	virtual void SetCarrierSet(int in_set) { carrier_set = in_set; }
@@ -345,6 +362,11 @@ protected:
 
     // Bytes in the FCS
     unsigned int fcsbytes;
+
+	// Are the FCS bytes coming from this source valid? 
+	// (ie, do we validate FCS and log FCS bytes?)
+	unsigned int validate_fcs;
+	unsigned int *crc32_table;
 
     // Total packets
     unsigned int num_packets;

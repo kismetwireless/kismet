@@ -88,10 +88,7 @@ public:
 	virtual int RegisterSources(Packetsourcetracker *tracker);
 
 	PacketSource_Wext(GlobalRegistry *in_globalreg, string in_type, 
-					  string in_name, string in_dev) :
-		PacketSource_Pcap(in_globalreg, in_type, in_name, in_dev) { 
-			// foo
-		}
+					  string in_name, string in_dev);
 	virtual ~PacketSource_Wext() { }
 
 	// Should be, something can override if it needs
