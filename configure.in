@@ -442,7 +442,14 @@ AC_SUBST(wantpcap)
 
 if test "$wantpcap" = yes; then
 	foundsyspcap=no
-	AC_CHECK_LIB([pcap], [pcap_open_live],
+
+	if test "$cygwin" = yes; then
+		pcaplib="wpcap";
+	else
+		pcaplib="pcap";
+	fi
+
+	AC_CHECK_LIB([${pcaplib}], [pcap_open_live],
 	    AC_DEFINE(HAVE_LIBPCAP, 1, libpcap packet capture lib) foundsyspcap=yes,
 	    AC_MSG_WARN(Compiling without libpcap support.))
 
@@ -460,11 +467,17 @@ if test "$wantpcap" = yes; then
 	    AC_DEFINE(HAVE_PCAP_NONBLOCK, 1, Nonblocking-capable libpcap),
 	    AC_MSG_WARN(*** You don't appear to have a version of libpcap which supports non-blocking IO.  We'll fake it, but you REALLY should upgrade your libpcap, as it may not support 802.11 capture sources, either. ***))
 
-	AC_CHECK_LIB([pcap], [pcap_get_selectable_fd],
+	if test "$cygwin" != yes; then
+	AC_CHECK_LIB([${pcaplib}], [pcap_get_selectable_fd],
 		AC_DEFINE(HAVE_PCAP_GETSELFD, 1, Selectablefd-capable libpcap),
-		AC_MSG_ERROR(installed libpcap version does not support features Kismet requires.  Upgrade to a current version of libpcap, 0.9 or newer))
+		AC_MSG_ERROR(installed libpcap version does not support features Kismet requires.  Upgrade to a current version of libpcap))
+	else
+	AC_CHECK_LIB([${pcaplib}], [pcap_getevent],
+		AC_DEFINE(HAVE_PCAP_GETEVENT, 1, PcapGetevent-capable libwpcap),
+		AC_MSG_ERROR(installed libpcap version does not support features Kismet requires.  Upgrade to a current version of libwpcap))
+	fi
 
-	pcaplnk="-lpcap"
+	pcaplnk="-l${pcaplib}"
 	AC_SUBST(pcaplnk)
 	pcap="yes"
 	fi

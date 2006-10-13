@@ -6558,13 +6558,21 @@ fi;
 
 if test "$wantpcap" = yes; then
 	foundsyspcap=no
-	echo "$as_me:$LINENO: checking for pcap_open_live in -lpcap" >&5
-echo $ECHO_N "checking for pcap_open_live in -lpcap... $ECHO_C" >&6
-if test "${ac_cv_lib_pcap_pcap_open_live+set}" = set; then
+
+	if test "$cygwin" = yes; then
+		pcaplib="wpcap";
+	else
+		pcaplib="pcap";
+	fi
+
+	as_ac_Lib=`echo "ac_cv_lib_${pcaplib}''_pcap_open_live" | $as_tr_sh`
+echo "$as_me:$LINENO: checking for pcap_open_live in -l${pcaplib}" >&5
+echo $ECHO_N "checking for pcap_open_live in -l${pcaplib}... $ECHO_C" >&6
+if eval "test \"\${$as_ac_Lib+set}\" = set"; then
   echo $ECHO_N "(cached) $ECHO_C" >&6
 else
   ac_check_lib_save_LIBS=$LIBS
-LIBS="-lpcap  $LIBS"
+LIBS="-l${pcaplib}  $LIBS"
 cat >conftest.$ac_ext <<_ACEOF
 /* confdefs.h.  */
 _ACEOF
@@ -6609,20 +6617,20 @@ if { (eval echo "$as_me:$LINENO: \"$ac_link\"") >&5
   ac_status=$?
   echo "$as_me:$LINENO: \$? = $ac_status" >&5
   (exit $ac_status); }; }; then
-  ac_cv_lib_pcap_pcap_open_live=yes
+  eval "$as_ac_Lib=yes"
 else
   echo "$as_me: failed program was:" >&5
 sed 's/^/| /' conftest.$ac_ext >&5
 
-ac_cv_lib_pcap_pcap_open_live=no
+eval "$as_ac_Lib=no"
 fi
 rm -f conftest.err conftest.$ac_objext \
       conftest$ac_exeext conftest.$ac_ext
 LIBS=$ac_check_lib_save_LIBS
 fi
-echo "$as_me:$LINENO: result: $ac_cv_lib_pcap_pcap_open_live" >&5
-echo "${ECHO_T}$ac_cv_lib_pcap_pcap_open_live" >&6
-if test $ac_cv_lib_pcap_pcap_open_live = yes; then
+echo "$as_me:$LINENO: result: `eval echo '${'$as_ac_Lib'}'`" >&5
+echo "${ECHO_T}`eval echo '${'$as_ac_Lib'}'`" >&6
+if test `eval echo '${'$as_ac_Lib'}'` = yes; then
 
 cat >>confdefs.h <<\_ACEOF
 #define HAVE_LIBPCAP 1
@@ -7015,13 +7023,15 @@ echo "$as_me: WARNING: *** You don't appear to have a version of libpcap which s
 fi
 
 
-	echo "$as_me:$LINENO: checking for pcap_get_selectable_fd in -lpcap" >&5
-echo $ECHO_N "checking for pcap_get_selectable_fd in -lpcap... $ECHO_C" >&6
-if test "${ac_cv_lib_pcap_pcap_get_selectable_fd+set}" = set; then
+	if test "$cygwin" != yes; then
+	as_ac_Lib=`echo "ac_cv_lib_${pcaplib}''_pcap_get_selectable_fd" | $as_tr_sh`
+echo "$as_me:$LINENO: checking for pcap_get_selectable_fd in -l${pcaplib}" >&5
+echo $ECHO_N "checking for pcap_get_selectable_fd in -l${pcaplib}... $ECHO_C" >&6
+if eval "test \"\${$as_ac_Lib+set}\" = set"; then
   echo $ECHO_N "(cached) $ECHO_C" >&6
 else
   ac_check_lib_save_LIBS=$LIBS
-LIBS="-lpcap  $LIBS"
+LIBS="-l${pcaplib}  $LIBS"
 cat >conftest.$ac_ext <<_ACEOF
 /* confdefs.h.  */
 _ACEOF
@@ -7066,20 +7076,20 @@ if { (eval echo "$as_me:$LINENO: \"$ac_link\"") >&5
   ac_status=$?
   echo "$as_me:$LINENO: \$? = $ac_status" >&5
   (exit $ac_status); }; }; then
-  ac_cv_lib_pcap_pcap_get_selectable_fd=yes
+  eval "$as_ac_Lib=yes"
 else
   echo "$as_me: failed program was:" >&5
 sed 's/^/| /' conftest.$ac_ext >&5
 
-ac_cv_lib_pcap_pcap_get_selectable_fd=no
+eval "$as_ac_Lib=no"
 fi
 rm -f conftest.err conftest.$ac_objext \
       conftest$ac_exeext conftest.$ac_ext
 LIBS=$ac_check_lib_save_LIBS
 fi
-echo "$as_me:$LINENO: result: $ac_cv_lib_pcap_pcap_get_selectable_fd" >&5
-echo "${ECHO_T}$ac_cv_lib_pcap_pcap_get_selectable_fd" >&6
-if test $ac_cv_lib_pcap_pcap_get_selectable_fd = yes; then
+echo "$as_me:$LINENO: result: `eval echo '${'$as_ac_Lib'}'`" >&5
+echo "${ECHO_T}`eval echo '${'$as_ac_Lib'}'`" >&6
+if test `eval echo '${'$as_ac_Lib'}'` = yes; then
 
 cat >>confdefs.h <<\_ACEOF
 #define HAVE_PCAP_GETSELFD 1
@@ -7088,11 +7098,90 @@ _ACEOF
 else
   { { echo "$as_me:$LINENO: error: installed libpcap version does not support features Kismet requires.  Upgrade to a current version of libpcap" >&5
 echo "$as_me: error: installed libpcap version does not support features Kismet requires.  Upgrade to a current version of libpcap" >&2;}
-   { (exit 0.9 or newer); exit 0.9 or newer; }; }
+   { (exit 1); exit 1; }; }
 fi
 
+	else
+	as_ac_Lib=`echo "ac_cv_lib_${pcaplib}''_pcap_getevent" | $as_tr_sh`
+echo "$as_me:$LINENO: checking for pcap_getevent in -l${pcaplib}" >&5
+echo $ECHO_N "checking for pcap_getevent in -l${pcaplib}... $ECHO_C" >&6
+if eval "test \"\${$as_ac_Lib+set}\" = set"; then
+  echo $ECHO_N "(cached) $ECHO_C" >&6
+else
+  ac_check_lib_save_LIBS=$LIBS
+LIBS="-l${pcaplib}  $LIBS"
+cat >conftest.$ac_ext <<_ACEOF
+/* confdefs.h.  */
+_ACEOF
+cat confdefs.h >>conftest.$ac_ext
+cat >>conftest.$ac_ext <<_ACEOF
+/* end confdefs.h.  */
 
-	pcaplnk="-lpcap"
+/* Override any gcc2 internal prototype to avoid an error.  */
+#ifdef __cplusplus
+extern "C"
+#endif
+/* We use char because int might match the return type of a gcc2
+   builtin and then its argument prototype would still apply.  */
+char pcap_getevent ();
+int
+main ()
+{
+pcap_getevent ();
+  ;
+  return 0;
+}
+_ACEOF
+rm -f conftest.$ac_objext conftest$ac_exeext
+if { (eval echo "$as_me:$LINENO: \"$ac_link\"") >&5
+  (eval $ac_link) 2>conftest.er1
+  ac_status=$?
+  grep -v '^ *+' conftest.er1 >conftest.err
+  rm -f conftest.er1
+  cat conftest.err >&5
+  echo "$as_me:$LINENO: \$? = $ac_status" >&5
+  (exit $ac_status); } &&
+	 { ac_try='test -z "$ac_c_werror_flag"
+			 || test ! -s conftest.err'
+  { (eval echo "$as_me:$LINENO: \"$ac_try\"") >&5
+  (eval $ac_try) 2>&5
+  ac_status=$?
+  echo "$as_me:$LINENO: \$? = $ac_status" >&5
+  (exit $ac_status); }; } &&
+	 { ac_try='test -s conftest$ac_exeext'
+  { (eval echo "$as_me:$LINENO: \"$ac_try\"") >&5
+  (eval $ac_try) 2>&5
+  ac_status=$?
+  echo "$as_me:$LINENO: \$? = $ac_status" >&5
+  (exit $ac_status); }; }; then
+  eval "$as_ac_Lib=yes"
+else
+  echo "$as_me: failed program was:" >&5
+sed 's/^/| /' conftest.$ac_ext >&5
+
+eval "$as_ac_Lib=no"
+fi
+rm -f conftest.err conftest.$ac_objext \
+      conftest$ac_exeext conftest.$ac_ext
+LIBS=$ac_check_lib_save_LIBS
+fi
+echo "$as_me:$LINENO: result: `eval echo '${'$as_ac_Lib'}'`" >&5
+echo "${ECHO_T}`eval echo '${'$as_ac_Lib'}'`" >&6
+if test `eval echo '${'$as_ac_Lib'}'` = yes; then
+
+cat >>confdefs.h <<\_ACEOF
+#define HAVE_PCAP_GETEVENT 1
+_ACEOF
+
+else
+  { { echo "$as_me:$LINENO: error: installed libpcap version does not support features Kismet requires.  Upgrade to a current version of libwpcap" >&5
+echo "$as_me: error: installed libpcap version does not support features Kismet requires.  Upgrade to a current version of libwpcap" >&2;}
+   { (exit 1); exit 1; }; }
+fi
+
+	fi
+
+	pcaplnk="-l${pcaplib}"
 
 	pcap="yes"
 	fi

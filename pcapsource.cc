@@ -146,7 +146,7 @@ int PcapSource::OpenSource() {
 
 #ifdef HAVE_PCAP_NONBLOCK
     pcap_setnonblock(pd, 1, errstr);
-#elif !defined(SYS_OPENBSD)
+#elif !defined(SYS_OPENBSD) 
     // do something clever  (Thanks to Guy Harris for suggesting this).
     int save_mode = fcntl(pcap_get_selectable_fd(pd), F_GETFL, 0);
     if (fcntl(pcap_get_selectable_fd(pd), F_SETFL, save_mode | O_NONBLOCK) < 0) {
@@ -247,7 +247,13 @@ int PcapSource::CloseSource() {
 }
 
 int PcapSource::FetchDescriptor() {
+#ifdef HAVE_PCAP_GETSELFD
     return pcap_get_selectable_fd(pd);
+#elif defined(HAVE_PCAP_GETEVENT)
+	return pcap_event(pd);
+#else
+	return -1;
+#endif
 }
 
 void PcapSource::Callback(u_char *bp, const struct pcap_pkthdr *header,
@@ -1591,7 +1597,7 @@ int monitor_madwifi_ng(const char *in_dev, char *in_err, void **in_if,
 	memset(&ifr, 0, sizeof(ifr));
 	memset(&cp, 0, sizeof(cp));
 
-	strncpy(cp.icp_name, "kis", IFNAMSIZ);
+	strncpy(cp.icp_name, "kis0", IFNAMSIZ);
 	cp.icp_opmode = (u_int16_t) IEEE80211_M_MONITOR;
 	cp.icp_flags = IEEE80211_CLONE_BSSID;
 

@@ -84,6 +84,9 @@
 /* pcap/pcap.h */
 #undef HAVE_PCAPPCAP_H
 
+/* PcapGetevent-capable libwpcap */
+#undef HAVE_PCAP_GETEVENT
+
 /* Selectablefd-capable libpcap */
 #undef HAVE_PCAP_GETSELFD
 
