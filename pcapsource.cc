@@ -109,7 +109,7 @@ typedef unsigned long u64;
 
 // Work around broken pcap.h on cygwin
 #if defined(HAVE_PCAP_GETEVENT)
-HANDLE pcap_event(pcap_t *);
+int pcap_event(pcap_t *);
 #endif
 
 // This is such a bad thing to do...
