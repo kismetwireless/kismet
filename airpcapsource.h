@@ -27,6 +27,8 @@
 
 #if defined(HAVE_LIBPCAP) && defined(HAVE_LIBAIRPCAP) && defined(SYS_CYGWIN)
 
+#include <windows.h>
+
 #include "packet.h"
 #include "packetsource.h"
 #include "pcapsource.h"

@@ -175,6 +175,9 @@
 /* Define to 1 if you have the <WiFi/WLPacketSource.h> header file. */
 #undef HAVE_WIFI_WLPACKETSOURCE_H
 
+/* Define to 1 if you have the <windows.h> header file. */
+#undef HAVE_WINDOWS_H
+
 /* wsp100 remote sensor support */
 #undef HAVE_WSP100
 

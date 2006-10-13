@@ -437,6 +437,10 @@ if test "$wireless" = "yes"; then
 	fi
 fi
 
+if test "$cygwin" = yes; then
+AC_CHECK_HEADERS([windows.h])
+fi
+
 AC_ARG_ENABLE(pcap, [  --disable-pcap          disable libpcap (most sources) capture support],,wantpcap=yes)
 AC_SUBST(wantpcap)
 
