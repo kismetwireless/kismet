@@ -50,8 +50,8 @@ PS	= kismet_server
 
 DRONEO = util.o ringbuf.o configfile.o getopt.o ifcontrol.o iwcontrol.o packet.o \
 		tcpstreamer.o prism2source.o pcapsource.o wtapfilesource.o wsp100source.o \
-		dronesource.o vihasource.o packetsourcetracker.o kis_packsources.o \
-		timetracker.o gpsd.o server_globals.o kismet_drone.o
+		airpcapsource.o dronesource.o vihasource.o packetsourcetracker.o \
+		kis_packsources.o timetracker.o gpsd.o server_globals.o kismet_drone.o
 DRONE = kismet_drone
 
 NCO	= util.o configfile.o speech.o manuf.o tcpclient.o \
