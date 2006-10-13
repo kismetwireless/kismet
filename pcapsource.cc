@@ -66,7 +66,7 @@ typedef unsigned long u64;
 
 #endif
 
-#if (defined(SYS_LINUX) && defined(HAVE_RADIOTAP))
+#if (defined(SYS_LINUX) || defined(SYS_CYGWIN)) && defined(HAVE_RADIOTAP)
 // We have to use a local include for now
 #include "linux_ieee80211_radiotap.h"
 #endif
