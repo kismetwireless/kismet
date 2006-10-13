@@ -38,9 +38,11 @@
 #ifndef IEEE80211RADIOTAP_H
 #define IEEE80211RADIOTAP_H
 
+#if 0
 #include <linux/version.h>
 #include <linux/if_ether.h>
 #include <linux/kernel.h>
+#endif
 
 /* Kluge the radiotap linktype for now if we don't have it */
 #ifndef ARPHRD_IEEE80211_RADIOTAP
