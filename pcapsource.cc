@@ -107,7 +107,9 @@ typedef unsigned long u64;
 
 #ifdef HAVE_LIBPCAP
 
-// Work around broken pcap.h on cygwin
+// Work around broken pcap.h on cygwin... this is a TERRIBLE THING TO DO but
+// libwpcap on the airpcap cd seems to come with a pcap.h header for standard
+// pcap, while the lib contains this symbol.
 #if defined(HAVE_PCAP_GETEVENT)
 int pcap_event(pcap_t *);
 #endif
