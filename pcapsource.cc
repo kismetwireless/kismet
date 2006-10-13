@@ -153,7 +153,7 @@ int PcapSource::OpenSource() {
 
 #ifdef HAVE_PCAP_NONBLOCK
     pcap_setnonblock(pd, 1, errstr);
-#elif !defined(SYS_OPENBSD) 
+#elif !defined(SYS_OPENBSD) && defined(HAVE_PCAP_GETSELFD)
     // do something clever  (Thanks to Guy Harris for suggesting this).
     int save_mode = fcntl(pcap_get_selectable_fd(pd), F_GETFL, 0);
     if (fcntl(pcap_get_selectable_fd(pd), F_SETFL, save_mode | O_NONBLOCK) < 0) {

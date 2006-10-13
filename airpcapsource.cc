@@ -18,14 +18,13 @@
 
 #include "config.h"
 
-#include <stdio.h>
-#include <stdlib.h>
+#if defined(HAVE_LIBPCAP) && defined(HAVE_LIBAIRPCAP) && defined(SYS_CYGWIN)
 
 #include "airpcapsource.h"
 
-#if defined(HAVE_LIBPCAP) && defined(HAVE_LIBAIRPCAP) && defined(SYS_CYGWIN)
+string x;
 
-int AirPcapSource::AirPcapSource() {
+int AirPcapSource::OpenSource() {
 	channel = 0;
 	errstr[0] = '\0';
 
@@ -95,9 +94,10 @@ KisPacketSource *airpcapsource_registrant(string in_name, string in_device,
 KisPacketSource *airpcapsourceq_registrant(string in_name, string in_device,
 										   char *in_err) {
 	pcap_if_t *alldevs, *d;
-	unsigned int i;
+	int i;
 	int intnum;
 	AirPcapSource *src = NULL;
+	char errbuf[1024];
 
 	if (pcap_findalldevs(&alldevs, errbuf) == -1) {
 		snprintf(in_err, 1024, "Error in pcap_findalldevs: %s\n", errbuf);
@@ -105,7 +105,7 @@ KisPacketSource *airpcapsourceq_registrant(string in_name, string in_device,
 	}
 
 	fprintf(stdout, "Available interfaces:\n");
-	for (d = alldevs, i = 0; d != NULL, d = d->next) {
+	for (d = alldevs, i = 0; d != NULL; d = d->next) {
 		fprintf(stdout, "%d.  %s\n", ++i, d->name);
 		if (d->description)
 			fprintf(stdout, "  %s\n", d->description);

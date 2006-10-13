@@ -27,26 +27,40 @@
 
 #if defined(HAVE_LIBPCAP) && defined(HAVE_LIBAIRPCAP) && defined(SYS_CYGWIN)
 
-#include <windows.h>
-
-#include "packet.h"
-#include "packetsource.h"
 #include "pcapsource.h"
 
+// This is a bad thing to do, but windows.h totally breaks c++ strings,
+// which is also unacceptable.
+
+typedef bool BOOL;
+typedef int INT;
+typedef unsigned int UINT;
+typedef unsigned int * PUINT;
+typedef char * PCHAR;
+typedef uint8_t BYTE;
+typedef unsigned short USHORT;
+typedef void VOID;
+typedef bool * PBOOL;
+typedef void * PVOID;
+typedef uint8_t * PBYTE;
+typedef int HANDLE;
+
 extern "C" {
-#include <airpcap.h>
+	#include <airpcap.h>
+	#include <Win32-Extensions.h>
 }
 
 class AirPcapSource : public PcapSource {
 public:
     AirPcapSource(string in_name, string in_dev) : PcapSource(in_name, in_dev) { 
     }
-    virtual int FetchChannel();
+	virtual int OpenSource();
+	virtual int FetchChannel();
 	virtual int SetChannel(unsigned int in_ch, char *in_err);
 
 protected:
     virtual int FetchSignalLevels(int *in_siglev, int *in_noiselev);
-	PAircapHandle airpcap_handle;
+	PAirpcapHandle airpcap_handle;
 };
 
 KisPacketSource *airpcapsource_registrant(string in_name, string in_device,

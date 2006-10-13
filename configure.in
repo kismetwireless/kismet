@@ -438,7 +438,7 @@ if test "$wireless" = "yes"; then
 fi
 
 if test "$cygwin" = yes; then
-AC_CHECK_HEADERS([windows.h])
+AC_CHECK_HEADERS([windows.h Win32-Extensions.h])
 fi
 
 AC_ARG_ENABLE(pcap, [  --disable-pcap          disable libpcap (most sources) capture support],,wantpcap=yes)
@@ -476,8 +476,8 @@ if test "$wantpcap" = yes; then
 		AC_DEFINE(HAVE_PCAP_GETSELFD, 1, Selectablefd-capable libpcap),
 		AC_MSG_ERROR(installed libpcap version does not support features Kismet requires.  Upgrade to a current version of libpcap))
 	else
-	AC_CHECK_LIB([${pcaplib}], [pcap_getevent],
-		AC_DEFINE(HAVE_PCAP_GETEVENT, 1, PcapGetevent-capable libwpcap),
+	AC_CHECK_LIB([${pcaplib}], [pcap_fileno],
+		AC_DEFINE(HAVE_PCAP_FILENO, 1, pcapfileno-capable libwpcap),
 		AC_MSG_ERROR(installed libpcap version does not support features Kismet requires.  Upgrade to a current version of libwpcap))
 	fi
 

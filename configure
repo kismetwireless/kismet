@@ -6549,7 +6549,8 @@ fi
 
 if test "$cygwin" = yes; then
 
-for ac_header in windows.h
+
+for ac_header in windows.h Win32-Extensions.h
 do
 as_ac_Header=`echo "ac_cv_header_$ac_header" | $as_tr_sh`
 if eval "test \"\${$as_ac_Header+set}\" = set"; then
@@ -7255,9 +7256,9 @@ echo "$as_me: error: installed libpcap version does not support features Kismet 
 fi
 
 	else
-	as_ac_Lib=`echo "ac_cv_lib_${pcaplib}''_pcap_getevent" | $as_tr_sh`
-echo "$as_me:$LINENO: checking for pcap_getevent in -l${pcaplib}" >&5
-echo $ECHO_N "checking for pcap_getevent in -l${pcaplib}... $ECHO_C" >&6
+	as_ac_Lib=`echo "ac_cv_lib_${pcaplib}''_pcap_fileno" | $as_tr_sh`
+echo "$as_me:$LINENO: checking for pcap_fileno in -l${pcaplib}" >&5
+echo $ECHO_N "checking for pcap_fileno in -l${pcaplib}... $ECHO_C" >&6
 if eval "test \"\${$as_ac_Lib+set}\" = set"; then
   echo $ECHO_N "(cached) $ECHO_C" >&6
 else
@@ -7276,11 +7277,11 @@ extern "C"
 #endif
 /* We use char because int might match the return type of a gcc2
    builtin and then its argument prototype would still apply.  */
-char pcap_getevent ();
+char pcap_fileno ();
 int
 main ()
 {
-pcap_getevent ();
+pcap_fileno ();
   ;
   return 0;
 }
@@ -7323,7 +7324,7 @@ echo "${ECHO_T}`eval echo '${'$as_ac_Lib'}'`" >&6
 if test `eval echo '${'$as_ac_Lib'}'` = yes; then
 
 cat >>confdefs.h <<\_ACEOF
-#define HAVE_PCAP_GETEVENT 1
+#define HAVE_PCAP_FILENO 1
 _ACEOF
 
 else
