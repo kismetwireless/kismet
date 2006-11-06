@@ -22,7 +22,13 @@
 
 #include "airpcapsource.h"
 
-string x;
+// Prototypes of Windows-specific pcap functions.
+// wpcap.dll contains these functions, but they are not exported to cygwin because
+// cygwin doesn't "officially" support the Windows extensions. These functions, 
+// however, are safe to use.
+extern "C" PAirpcapHandle pcap_get_airpcap_handle(pcap_t *p);
+extern "C" HANDLE pcap_getevent (pcap_t *p);
+extern "C" int pcap_setmintocopy (pcap_t *p, int size);
 
 int AirPcapSource::OpenSource() {
 	channel = 0;
@@ -56,6 +62,21 @@ int AirPcapSource::OpenSource() {
 		return -1;
 	}
 
+	// Tell the AirPcap adapter that we want the correct frames only
+	// (XXX Is this needed?) 
+	// (XXX It doesn't hurt.  Kismet doesn't do anything but validate FCS itself
+	// and throw them out, so we might as well toss them out at the
+	// airpcap level - dragorn)
+	if (!AirpcapSetFcsValidation(airpcap_handle, AIRPCAP_VT_ACCEPT_CORRECT_FRAMES)) {
+		snprintf(errstr, 1024, "Adapter %s failed setting radiotap link layer: %s",
+				 interface.c_str(), AirpcapGetLastError(airpcap_handle));
+		pcap_close(pd);
+		return -1;
+	}
+
+	// Add it to our local copy of the fd event mangler
+	fd_mangle.AddHandle(pcap_getevent(pd));
+	fd_mangle.Activate();
 	
 	return 0;
 }
@@ -66,6 +87,11 @@ int AirPcapSource::FetchChannel() {
 		return -1;
 
 	return (int) ch;
+}
+
+int AirPcapSource::FetchDescriptor() {
+	// Fall through to our HANDLE to FD mangler
+	return fd_mangle.GetFd();
 }
 
 int AirPcapSource::SetChannel(unsigned int in_ch, char *in_err) {

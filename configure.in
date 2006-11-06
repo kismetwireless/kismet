@@ -231,6 +231,7 @@ AC_LINK_IFELSE([AC_LANG_PROGRAM([[
 		#include <netdb.h>
 		#include <sys/types.h>
 		#include <sys/socket.h>
+		#include <linux/wireless.h>
 		]], [[
 		int s = 0;
 		struct sockaddr *addr = NULL;
@@ -386,6 +387,7 @@ AC_CHECK_HEADER([linux/wireless.h],
 	#include <sys/types.h>
 	#include <netdb.h>
 	#include <linux/socket.h>
+	#include <linux/if.h>
 	])
 else
 	AC_MSG_WARN(*** Missing Linux Wireless kernel extentions.  The majority of packet sources on Linux require this support and will not work without it.  Make sure your kernel header packages are installed.  If all else fails, try the --with-linuxheaders directive. ***)
@@ -399,6 +401,7 @@ if test "$wireless" = "yes"; then
 		#include <netdb.h>
 		#include <netinet/in.h>
         #include <sys/resource.h>
+		#include <linux/if.h>
 		#include <linux/wireless.h>
     ]], [[
 		struct iwreq wrq;
@@ -420,6 +423,7 @@ if test "$wireless" = "yes"; then
 			#include <sys/types.h>
 			#include <netinet/in.h>
         	#include <sys/resource.h>
+			#include <linux/if.h>
 			#include <linux/wireless.h>
     	]], [[
 			int x;

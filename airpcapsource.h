@@ -46,9 +46,26 @@ typedef uint8_t * PBYTE;
 typedef int HANDLE;
 
 extern "C" {
-	#include <airpcap.h>
-	#include <Win32-Extensions.h>
+// Some Windows-specific definitions. They are normally imported by 
+// including windows.h, but we don't do it because of conflicts with the 
+// rest of cygwin
+typedef unsigned int		ULONG, *PULONG;
+typedef int					LONG, *PLONG;
+typedef unsigned int		UINT, *PUINT;
+typedef int					INT, *PINT;
+typedef int					BOOL, *PBOOL;
+typedef unsigned short		USHORT;
+typedef short				SHORT;
+typedef unsigned char		UCHAR, *PUCHAR;
+typedef signed char			CHAR, *PCHAR;
+typedef unsigned char		BYTE, *PBYTE;
+typedef void				VOID, *PVOID;
+typedef void				*HANDLE;
+
+#include <airpcap.h>
 }
+
+#include "cygwin_utils.h"
 
 class AirPcapSource : public PcapSource {
 public:
@@ -56,11 +73,14 @@ public:
     }
 	virtual int OpenSource();
 	virtual int FetchChannel();
+	virtual int FetchDescriptor();
 	virtual int SetChannel(unsigned int in_ch, char *in_err);
 
 protected:
     virtual int FetchSignalLevels(int *in_siglev, int *in_noiselev);
 	PAirpcapHandle airpcap_handle;
+	HANDLE winpcap_evthandle;
+	Handle2Fd fd_mangle;
 };
 
 KisPacketSource *airpcapsource_registrant(string in_name, string in_device,
