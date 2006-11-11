@@ -530,13 +530,20 @@ Licensed under the GPL
       add support in Kismet.
 
     - Win32 (Cygwin)
-      Known supported cards: WSP100, Drone, wtapfile, pcapfile
+      Known supported cards: WSP100, Drone, airpcap, wtapfile, pcapfile
 
-      Win32 ONLY works with remote captures.  There are no public rfmon drivers
-      for win32, and no reports of any in development.  Kismet on Win32
-      requires cygwin for the POSIX layer.
+      Win32 local packet capture is possible ONLY with the CACE Airpcap device.
+      http://www.cacetech.com/products/airpcap.htm
+      Thanks to Loris Degioanni for doing the bulk of the work adding airpcap
+      support under cygwin.
 
-      Don't use win32 if you want to capture data natively.
+      NO OTHER WIRELESS CARDS CAN CURRENTLY BE USED TO CAPTURE DATA NATIVELY
+      IN WINDOWS.  CACE has released a public API for their drivers to allow
+      third-party programs to interface with them.  Standard Windows wireless
+      drivers are not rfmon capable.
+
+      Win32 is also usable with REMOTE captures such as the Kismet drone 
+      running on a platform which supports native capture.
 
 12. Capture Sources
     
@@ -565,6 +572,24 @@ Licensed under the GPL
                      while in rfmon, rendering the sniffer visible.
                     The fully GPL drivers are supported, in addition to the 
                      hacks to the non-free drivers.
+
+    airpcap         Airpcap USB         cygwin      CACE Tech
+                    http://www.cacetech.com/products/airpcap.htm
+                    Capture interface:  Win32 device path
+                    The CACE AirPcap USB device allows native capture on
+                     Win32/Cygwin.
+                    The explicit airpcap source expects the Win32/Cygwin
+                     interface name.  This should be used once the source
+                     is identified via airpcap_ask or if multiple simultaneous
+                     sources are required.
+
+    airpcap_ask     Airpcap USB         cygwin      CACE Tech
+                    http://www.cacetech.com/products/airpcap.htm
+                    Capture interface: dummy
+                    The CACE AirPcap USB device allows native capture on
+                     Win32/Cygwin.
+                    The airpcap_ask source lists available airpcap devices
+                     and allows the user to pick interactively.
 
     atmel_usb       Atmel-USB           Linux       Berlios-Atmel
                     http://at76c503a.berlios.de/
