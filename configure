@@ -1268,8 +1268,8 @@ Optional Features:
   --disable-panel         disable libpanels interface
   --disable-netlink       disable linux netlink socket capture
   --disable-wireless-extension  Disable linux wireless extensions even if found
+  --enable-airpcap        enable checking for CACE airpcap
   --disable-pcap          disable libpcap (most sources) capture support
-  --disable-airpcap          disable CASE AirPcap (Cygwin/Win32 only)
   --disable-setuid        disable setuid/privdrop ability (not reccomended)
   --disable-viha          disable MacOSX Viha capture source (OSX only)
   --disable-wsp100        disable wsp100 remote drone source
@@ -1281,6 +1281,7 @@ Optional Packages:
   --with-PACKAGE[=ARG]    use PACKAGE [ARG=yes]
   --without-PACKAGE       do not use PACKAGE (same as --with-PACKAGE=no)
   --with-linuxheaders=DIR     Custom location of the Linux kernel headers if the glibc copies are insufficient
+  --with-airpcap=DIR     Location of the CACE AirPcap device pack NOTE cygwin appears to have link errors if the path is not within the current directory
 
 Some influential environment variables:
   CC          C compiler command
@@ -7964,7 +7965,35 @@ fi
 
 done
 
+
+# Check whether --enable-airpcap was given.
+if test "${enable_airpcap+set}" = set; then
+  enableval=$enable_airpcap; wantairpcap=yes
 fi
+
+
+if test "$wantairpcap" = "yes"; then
+
+airpcap_devpack="none"
+
+# Check whether --with-airpcap-devpack was given.
+if test "${with_airpcap_devpack+set}" = set; then
+  withval=$with_airpcap_devpack;  airpcap_devpack="$withval"
+fi
+
+
+if test "$airpcap_devpack" = "none"; then
+	{ { echo "$as_me:$LINENO: error: No airpcap path provided use --with-airpcap-devpack" >&5
+echo "$as_me: error: No airpcap path provided use --with-airpcap-devpack" >&2;}
+   { (exit 1); exit 1; }; }
+fi # devpack none
+
+# Set the libs and includes
+LDFLAGS="$LDFLAGS -L$airpcap_devpack/WinPcap_Devpack/Lib -L$airpcap_devpack/Airpcap_Devpack/lib"
+CPPFLAGS="$CPPFLAGS -I$airpcap_devpack/WinPcap_Devpack/Include -I$airpcap_devpack/Airpcap_Devpack/include"
+
+fi # wantairpcap
+fi # cygwin
 
 # Check whether --enable-pcap was given.
 if test "${enable_pcap+set}" = set; then
@@ -8691,27 +8720,9 @@ echo "$as_me: WARNING: Compiling without libpcap support.  Many capture sources 
 fi
 
 
-if test "$cygwin" = yes; then
-	{ echo "$as_me:$LINENO: WARNING: *** Enabling AirPcap checks on Cygwin ***" >&5
-echo "$as_me: WARNING: *** Enabling AirPcap checks on Cygwin ***" >&2;};
-	want_airpcap=yes;
-fi
-
-# Check whether --enable-airpcap was given.
-if test "${enable_airpcap+set}" = set; then
-  enableval=$enable_airpcap; want_airpcap=no
-fi
-
-
 if test "$pcap" = "no" -a "$want_airpcap" = "yes"; then
 	{ echo "$as_me:$LINENO: WARNING: *** Disabling AirPcap, libpcap not enabled ***" >&5
 echo "$as_me: WARNING: *** Disabling AirPcap, libpcap not enabled ***" >&2;};
-	want_airpcap=no;
-fi
-
-if test "$cygwin" != "yes" -a "$want_airpcap" = "yes"; then
-	{ echo "$as_me:$LINENO: WARNING: *** Disabling AirPcap on non-cygwin/win32 system ***" >&5
-echo "$as_me: WARNING: *** Disabling AirPcap on non-cygwin/win32 system ***" >&2;};
 	want_airpcap=no;
 fi
 

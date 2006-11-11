@@ -32,19 +32,6 @@
 // This is a bad thing to do, but windows.h totally breaks c++ strings,
 // which is also unacceptable.
 
-typedef bool BOOL;
-typedef int INT;
-typedef unsigned int UINT;
-typedef unsigned int * PUINT;
-typedef char * PCHAR;
-typedef uint8_t BYTE;
-typedef unsigned short USHORT;
-typedef void VOID;
-typedef bool * PBOOL;
-typedef void * PVOID;
-typedef uint8_t * PBYTE;
-typedef int HANDLE;
-
 extern "C" {
 // Some Windows-specific definitions. They are normally imported by 
 // including windows.h, but we don't do it because of conflicts with the 
@@ -54,8 +41,8 @@ typedef int					LONG, *PLONG;
 typedef unsigned int		UINT, *PUINT;
 typedef int					INT, *PINT;
 typedef int					BOOL, *PBOOL;
-typedef unsigned short		USHORT;
-typedef short				SHORT;
+typedef unsigned short		USHORT, *PUSHORT;
+typedef short				SHORT, *PSHORT;
 typedef unsigned char		UCHAR, *PUCHAR;
 typedef signed char			CHAR, *PCHAR;
 typedef unsigned char		BYTE, *PBYTE;

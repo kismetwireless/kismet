@@ -26,7 +26,25 @@
 #include <unistd.h>
 
 #define HANDLE2FD_INTERNAL
-#include "handle2fd.h"
+#include "cygwin_utils.h"
+
+//
+// There are two main parameters that can be used to tune the WinPcap performance:
+// mintocopy and the read event timeout.
+//
+// Mintocopy is the minimum amount of data in the kernel buffer that causes the read event to
+// be set by the driver. A small mintocopy means good responisiveness but high CPU load. A big
+// mintocopy forces bigger kernel buffering, at the cost of low responsiveness
+//
+// The read event timeout can be used to check the availability of data once in a while. When the
+// timeout expires, the application will unblock and perform a read, even if the driver doesn't 
+// have mintocopy bytes in the buffer.
+//
+// Using the timeout prevents kismet from sitting forver before processing the packets when traffic 
+// is low, but can cause empty reads. Therefore, we set it to a large enough interval that the 
+// performace hit is neglibile.
+//
+#define THREAD_WAIT_INTERVAL 500
 
 Handle2Fd::Handle2Fd() {
     NHandles = 1;
@@ -91,13 +109,11 @@ DWORD WINAPI Handle2Fd::WaitThread(LPVOID lpParameter)
         WaitRes = WaitForMultipleObjects(This->NHandles,
             This->WinHandles,
             FALSE,
-            INFINITE);
+            THREAD_WAIT_INTERVAL);
 
-        if (WaitRes != WAIT_TIMEOUT) {
-            if (WaitRes != WAIT_OBJECT_0) {		// Event 0 is the service event used to kill the thread
+            if (WaitRes != WAIT_OBJECT_0) {		// Event number 0 is the service event used to kill the thread
                 This->SetPipe();
             }
-        }
     }
 
     return 1;

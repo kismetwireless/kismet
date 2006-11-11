@@ -46,6 +46,14 @@ int AirPcapSource::OpenSource() {
 	paused = 0;
 	errstr[0] = '\0';
 
+	// Gather the data link
+    if (DatalinkType() < 0) {
+		snprintf(errstr, 1024, "unable to get the data link",
+				 interface.c_str());
+		pcap_close(pd);
+		return -1;
+	}
+
 	// Fetch the airpcap channel
 	if ((airpcap_handle = pcap_get_airpcap_handle(pd)) == NULL) {
 		snprintf(errstr, 1024, "Adapter %s does not have wireless extensions",
@@ -77,7 +85,7 @@ int AirPcapSource::OpenSource() {
 	// Add it to our local copy of the fd event mangler
 	fd_mangle.AddHandle(pcap_getevent(pd));
 	fd_mangle.Activate();
-	
+
 	return 0;
 }
 
