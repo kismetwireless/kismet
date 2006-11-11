@@ -35,7 +35,7 @@ int AirPcapSource::OpenSource() {
 	errstr[0] = '\0';
 
 	char *unconst = strdup(interface.c_str());
-
+	
 	pd = pcap_open_live(unconst, MAX_PACKET_LEN, 1, 1000, errstr);
 
 	free(unconst);
@@ -48,12 +48,12 @@ int AirPcapSource::OpenSource() {
 
 	// Gather the data link
     if (DatalinkType() < 0) {
-		snprintf(errstr, 1024, "unable to get the data link",
+		snprintf(errstr, 1024, "unable to get the data link on %s",
 				 interface.c_str());
 		pcap_close(pd);
 		return -1;
 	}
-
+	
 	// Fetch the airpcap channel
 	if ((airpcap_handle = pcap_get_airpcap_handle(pd)) == NULL) {
 		snprintf(errstr, 1024, "Adapter %s does not have wireless extensions",
