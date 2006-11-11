@@ -7968,11 +7968,11 @@ done
 
 # Check whether --enable-airpcap was given.
 if test "${enable_airpcap+set}" = set; then
-  enableval=$enable_airpcap; wantairpcap=yes
+  enableval=$enable_airpcap; want_airpcap=yes
 fi
 
 
-if test "$wantairpcap" = "yes"; then
+if test "$want_airpcap" = "yes"; then
 
 airpcap_devpack="none"
 
@@ -7992,7 +7992,7 @@ fi # devpack none
 LDFLAGS="$LDFLAGS -L$airpcap_devpack/WinPcap_Devpack/Lib -L$airpcap_devpack/Airpcap_Devpack/lib"
 CPPFLAGS="$CPPFLAGS -I$airpcap_devpack/WinPcap_Devpack/Include -I$airpcap_devpack/Airpcap_Devpack/include"
 
-fi # wantairpcap
+fi # want_airpcap
 fi # cygwin
 
 # Check whether --enable-pcap was given.
