@@ -1,5 +1,5 @@
 Nov 11 2006  devel  Added proper support for AirPcap (CACEtech, win32)
-                    Added patch (author unknown) for NetBSD battery reporting
+                    Added patch from Khorben for NetBSD battery reporting
 Oct 13 2006  devel  Tweaks for libwpcap oddities
 Sep 05 2006  devel  First shot at supporting the Cace AirPcap device (untested)
                     Removed embedded libpcap finally.  If your distro doesn't
