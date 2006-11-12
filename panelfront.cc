@@ -26,6 +26,14 @@
 #include <machine/apmvar.h>
 #endif
 
+#ifdef SYS_NETBSD
+#include <sys/types.h>
+#include <sys/ioctl.h>
+#include <sys/envsys.h>
+#include <fcntl.h>
+#include <paths.h>
+#endif
+
 #include "panelfront.h"
 #include "displaynetworksort.h"
 
@@ -450,12 +458,10 @@ PanelFront::PanelFront() {
     tainted = 0;
 
     // Do we have an acpi info file?
-    FILE *acpinfo = fopen("/proc/acpi/info", "r");
-    if (acpinfo == NULL) {
+    if (access("/proc/acpi/info", R_OK) != 0) {
         use_acpi = 0;
     } else {
         use_acpi = 1;
-        fclose(acpinfo);
     }
 
     probe_group = NULL;
@@ -1582,6 +1588,66 @@ int PanelFront::Tick() {
 				}
 			}
 		}
+#elif defined(SYS_NETBSD)
+		static int fd = -1;
+		int i;
+		envsys_basic_info_t info;
+		envsys_tre_data_t data;
+		unsigned int charge = 0;
+		unsigned int maxcharge = 0;
+		unsigned int rate = 0;
+
+		if(fd < 0 && (fd = open(_PATH_SYSMON, O_RDONLY)) < 0)
+		{
+			bat_available = 0;
+			WriteStatus("Unable to open " _PATH_SYSMON);
+			return 1;
+		}
+		bat_ac = 0;
+		bat_available = 0;
+		bat_charging = 0;
+		bat_percentage = 0;
+		bat_time = 0;
+		for(i = 0; i >= 0; i++)
+		{
+			memset(&info, 0, sizeof(info));
+			info.sensor = i;
+			if(ioctl(fd, ENVSYS_GTREINFO, &info) == -1)
+			{
+				bat_available = 0;
+				WriteStatus("ioctl ENVSYS_GTREINFO failed");
+				return 1;
+			}
+			if(!(info.validflags & ENVSYS_FVALID))
+				break;
+			memset(&data, 0, sizeof(data));
+			data.sensor = i;
+			if(ioctl(fd, ENVSYS_GTREDATA, &data) == -1)
+			{
+				bat_available = 0;
+				WriteStatus("ioctl ENVSYS_GTREDATA failed");
+				return 1;
+			}
+			if(!(data.validflags & ENVSYS_FVALID))
+				continue;
+			if(strcmp("acpiacad0 connected", info.desc) == 0)
+				bat_ac = data.cur.data_us;
+			else if(strcmp("acpibat0 charge", info.desc) == 0)
+			{
+				bat_available = 1;
+				bat_percentage = (unsigned int)((data.cur.data_us * 100.0) / data.max.data_us);
+				charge = data.cur.data_us;
+				maxcharge = data.max.data_us;
+			}
+			else if(strcmp("acpibat0 charging", info.desc) == 0)
+				bat_charging = data.cur.data_us > 0 ? 1 : 0;
+			else if(strcmp("acpibat0 discharge rate", info.desc) == 0)
+				rate = data.cur.data_us;
+		}
+		if(bat_charging != 0)
+			bat_time = rate ? (unsigned int)((maxcharge - charge) * 3600.0 / rate) : 0;
+		else
+			bat_time = rate ? (unsigned int)((charge * 3600.0) / rate) : 0;
 #endif
     }
 
