@@ -537,6 +537,12 @@ Licensed under the GPL
       Thanks to Loris Degioanni for doing the bulk of the work adding airpcap
       support under cygwin.
 
+      When compiling with AirPcap on Cygwin, it is necessary to pass both
+      --enable-airpcap and --with-airpcap-devpack=Path, where Path is the
+      CACE devpack containing winpcap and airpcap.  Cygwin appears to have
+      a bug which prevents proper linking if the devpack is not in the same
+      directory as Kismet is compiled in.
+
       NO OTHER WIRELESS CARDS CAN CURRENTLY BE USED TO CAPTURE DATA NATIVELY
       IN WINDOWS.  CACE has released a public API for their drivers to allow
       third-party programs to interface with them.  Standard Windows wireless

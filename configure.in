@@ -122,7 +122,11 @@ else
     esac
 fi
 
-CXXFLAGS="$CXXFLAGS"
+if test "$cygwin" = "yes"; then
+	AC_MSG_CHECKING(cygwin compile flags)
+	AC_MSG_RESULT(__MINGW32__)
+	CXXFLAGS="$CXXFLAGS -D__MINGW32__"
+fi
 
 AC_CONFIG_SRCDIR([kismet_server.cc])
 AC_CONFIG_HEADER([config.h])

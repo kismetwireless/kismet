@@ -3803,7 +3803,13 @@ echo "${ECHO_T}none needed" >&6; }
     esac
 fi
 
-CXXFLAGS="$CXXFLAGS"
+if test "$cygwin" = "yes"; then
+	{ echo "$as_me:$LINENO: checking cygwin compile flags" >&5
+echo $ECHO_N "checking cygwin compile flags... $ECHO_C" >&6; }
+	{ echo "$as_me:$LINENO: result: __MINGW32__" >&5
+echo "${ECHO_T}__MINGW32__" >&6; }
+	CXXFLAGS="$CXXFLAGS -D__MINGW32__"
+fi
 
 
 ac_config_headers="$ac_config_headers config.h"
