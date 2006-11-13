@@ -548,6 +548,9 @@ Licensed under the GPL
       third-party programs to interface with them.  Standard Windows wireless
       drivers are not rfmon capable.
 
+      Due to interactions with Cygwin, users of the kismet_client ncurses frontend
+      should disable sound in kismet_client.conf
+
       Win32 is also usable with REMOTE captures such as the Kismet drone 
       running on a platform which supports native capture.
 
