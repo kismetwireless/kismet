@@ -128,14 +128,14 @@ unsigned int TcpServer::MergeSet(fd_set in_set, unsigned int in_max,
         max_fd = max;
     }
 
-    for (unsigned int x = 0; x <= max; x++) {
-        if (FD_ISSET(x, &in_set) || FD_ISSET(x, &server_fds)) {
-            FD_SET(x, out_set);
+	for (unsigned int x = 0; x <= max; x++) {
+		if (FD_ISSET(x, &in_set) || FD_ISSET(x, &server_fds)) {
+			FD_SET(x, out_set);
+		}
+		if (FD_ISSET(x, &client_fds) && client_optmap[x]->wrbuf.length() > 0) {
+			FD_SET(x, outw_set);
+		}
 	}
-	if (FD_ISSET(x, &client_fds) && client_optmap[x]->wrbuf.length() > 0) {
-	    FD_SET(x, outw_set);
-	}
-    }
 
     return max;
 }
@@ -256,10 +256,11 @@ void TcpServer::Kill(int in_fd) {
     // Do a little testing here since we might not have an opt record
     map<int, client_opt *>::iterator citr = client_optmap.find(in_fd);
     if (citr != client_optmap.end()) {
-        // Remove all our protocols
+		// Remove reference counts to the protocols
         for (map<int, vector<int> >::iterator clpitr = citr->second->protocols.begin();
-             clpitr != citr->second->protocols.end(); ++clpitr)
-            DelProtocolClient(in_fd, clpitr->first);
+             clpitr != citr->second->protocols.end(); ++clpitr) {
+			client_mapped_protocols[clpitr->first]--;
+		}
 
         delete citr->second;
         client_optmap.erase(citr);
