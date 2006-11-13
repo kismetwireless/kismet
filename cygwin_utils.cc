@@ -99,25 +99,31 @@ void Handle2Fd::ResetPipe()
 
 // This thread handles asynchronously waiting on the Windows events.
 // It signals the pipe if one or more events are set.
-DWORD WINAPI Handle2Fd::WaitThread(LPVOID lpParameter)
-{
-    DWORD WaitRes;
-    Handle2Fd* This = (Handle2Fd*)lpParameter;
+DWORD WINAPI Handle2Fd::WaitThread(LPVOID lpParameter) { 
+	DWORD WaitRes; 
+	Handle2Fd* This = (Handle2Fd*)lpParameter; 
 
-    while (This->ThreadAlive) {
+	while (This->ThreadAlive) { 
+		WaitRes = WaitForMultipleObjects(This->NHandles,
+										 This->WinHandles,
+										 FALSE,
+										 THREAD_WAIT_INTERVAL);
 
-        WaitRes = WaitForMultipleObjects(This->NHandles,
-            This->WinHandles,
-            FALSE,
-            THREAD_WAIT_INTERVAL);
+		// Event number 0 is the service event used to kill the thread 
+		if (WaitRes != WAIT_OBJECT_0) { 
+			This->SetPipe(); 
 
-            if (WaitRes != WAIT_OBJECT_0) {		// Event number 0 is the service event used to kill the thread
-                This->SetPipe();
-            }
-    }
+			if (WaitRes != WAIT_TIMEOUT) { 
+				if(WaitRes <= This->NHandles) { 
+					ResetEvent(This->WinHandles[WaitRes]); 
+				} 
+			} 
+		} 
+	} 
 
-    return 1;
+	return 1; 
 }
+
 
 // Activate this instance of the Handle2Fd class.
 // This involves creating the pipe, the service event and the support thread
