@@ -517,18 +517,24 @@ if test "$wantpcre" = "yes"; then
 	AC_CHECK_LIB([pcre], [pcre_compile], pcrel=yes, pcrel=no)
 
 	if test "$pcrel" != "yes"; then
-		AC_MSG_ERROR(Failed to find libpcre.  Either install it, or disable it via --disable-pcre)
+		AC_MSG_WARN(Failed to find libpcre)
+		wantpcre=no
 	fi
 
+	if test "$wantpcre" = "yes"; then
 	pcreh=no
 	AC_CHECK_HEADER([pcre.h], pcreh=yes, pcreh=no)
 
 	if test "$pcreh" != "yes"; then
-		AC_MSG_ERROR(Failed to find pcre.h.  You probably need to install the pcre-devel packages for your distribution.)
+		AC_MSG_WARN(Failed to find pcre headers check that the pcre-devel package is installed if your distribution provides separate packages)
+		wantpcre=no
 	fi
+	fi # wantpcre
 
+	if test "$wantpcre" = "yes"; then
 	AC_DEFINE(HAVE_LIBPCRE, 1, libpcre regex support)
 	LIBS="$LIBS -lpcre"
+	fi # pcre
 fi
 
 # Handle airpcap/winpcap on cygwin

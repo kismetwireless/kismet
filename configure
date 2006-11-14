@@ -9077,11 +9077,12 @@ fi
 
 
 	if test "$pcrel" != "yes"; then
-		{ { echo "$as_me:$LINENO: error: Failed to find libpcre.  Either install it" >&5
-echo "$as_me: error: Failed to find libpcre.  Either install it" >&2;}
-   { (exit or disable it via --disable-pcre); exit or disable it via --disable-pcre; }; }
+		{ echo "$as_me:$LINENO: WARNING: Failed to find libpcre" >&5
+echo "$as_me: WARNING: Failed to find libpcre" >&2;}
+		wantpcre=no
 	fi
 
+	if test "$wantpcre" = "yes"; then
 	pcreh=no
 	if test "${ac_cv_header_pcre_h+set}" = set; then
   { echo "$as_me:$LINENO: checking for pcre.h" >&5
@@ -9241,17 +9242,20 @@ fi
 
 
 	if test "$pcreh" != "yes"; then
-		{ { echo "$as_me:$LINENO: error: Failed to find pcre.h.  You probably need to install the pcre-devel packages for your distribution." >&5
-echo "$as_me: error: Failed to find pcre.h.  You probably need to install the pcre-devel packages for your distribution." >&2;}
-   { (exit 1); exit 1; }; }
+		{ echo "$as_me:$LINENO: WARNING: Failed to find pcre headers check that the pcre-devel package is installed if your distribution provides separate packages" >&5
+echo "$as_me: WARNING: Failed to find pcre headers check that the pcre-devel package is installed if your distribution provides separate packages" >&2;}
+		wantpcre=no
 	fi
+	fi # wantpcre
 
+	if test "$wantpcre" = "yes"; then
 
 cat >>confdefs.h <<\_ACEOF
 #define HAVE_LIBPCRE 1
 _ACEOF
 
 	LIBS="$LIBS -lpcre"
+	fi # pcre
 fi
 
 # Handle airpcap/winpcap on cygwin
