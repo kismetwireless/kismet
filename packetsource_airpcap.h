@@ -56,10 +56,6 @@ typedef void				*HANDLE;
 #include "packetsource.h"
 #include "packetsource_pcap.h"
 
-#ifdef HAVE_LINUX_SYS_RADIOTAP
-#include <net/ieee80211_radiotap.h>
-#endif
-
 #ifdef HAVE_LOCALRADIOTAP
 #include "local_ieee80211_radiotap.h"
 #endif
@@ -74,7 +70,7 @@ public:
 		exit(1);
 	}
 
-	PacketSource_AirPcap(GlobalRegistry *in_globalref) :
+	PacketSource_AirPcap(GlobalRegistry *in_globalreg) :
 		PacketSource_Pcap(in_globalreg) {
 
 	}
@@ -82,7 +78,7 @@ public:
 	virtual KisPacketSource *CreateSource(GlobalRegistry *in_globalreg,
 										  string in_type, string in_name,
 										  string in_dev) {
-		return new PacketSource_AirPcap(inglobalreg, in_type, in_name, in_dev);
+		return new PacketSource_AirPcap(in_globalreg, in_type, in_name, in_dev);
 	}
 
 	virtual int AutotypeProbe(string in_device);
