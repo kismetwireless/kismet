@@ -23,6 +23,10 @@
 
 #ifdef SYS_CYGWIN
 
+#include <sys/time.h>
+#include <sys/types.h>
+#include <unistd.h>
+
 class Handle2Fd {
 public:
     Handle2Fd();
