@@ -135,10 +135,14 @@ int PacketSource_Pcap::DatalinkType() {
 }
 
 int PacketSource_Pcap::FetchDescriptor() {
-	if (pd != NULL)
-		return pcap_get_selectable_fd(pd);
+	if (pd == NULL)
+		return -1;
 
+#ifdef HAVE_PCAP_GETSELFD
+    return pcap_get_selectable_fd(pd);
+#else
 	return -1;
+#endif
 }
 
 void PacketSource_Pcap::Pcap_Callback(u_char *bp, const struct pcap_pkthdr *header,
