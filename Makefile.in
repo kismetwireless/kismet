@@ -36,12 +36,13 @@ WAV = ${SHARE}/wav/
 DEPEND	= .depend
 
 # Objects
-PSO	= util.o ringbuf.o messagebus.o configfile.o getopt.o filtercore.o \
-	ifcontrol.o iwcontrol.o ipc_remote.o soundcontrol.o speechcontrol.o \
+PSO	= util.o cygwin_utils.o ringbuf.o messagebus.o configfile.o getopt.o \
+	filtercore.o ifcontrol.o iwcontrol.o ipc_remote.o soundcontrol.o speechcontrol.o \
 	netframework.o clinetframework.o tcpserver.o tcpclient.o \
 	kis_netframe.o kis_droneframe.o gpscore.o gpsdclient.o \
-	packetchain.o packetsource_pcap.o packetsource_wext.o packetsource_bsdrt.o \
-	packetsource_drone.o packetsource_ipwlive.o \
+	packetchain.o \
+	packetsource_pcap.o packetsource_wext.o packetsource_bsdrt.o \
+	packetsource_drone.o packetsource_ipwlive.o packetsource_airpcap.o \
 	plugintracker.o packetsourcetracker.o alertracker.o timetracker.o \
 	packetdissectors.o netracker.o \
 	dumpfile.o dumpfile_runstate.o dumpfile_pcap.o dumpfile_gpsxml.o \
@@ -51,12 +52,13 @@ PSO	= util.o ringbuf.o messagebus.o configfile.o getopt.o filtercore.o \
 
 PS	= kismet_server
 
-DRONEO = util.o ringbuf.o messagebus.o configfile.o getopt.o \
+DRONEO = util.o cygwin_utils.o ringbuf.o messagebus.o configfile.o getopt.o \
 		 ifcontrol.o iwcontrol.o ipc_remote.o soundcontrol.o speechcontrol.o \
 		 netframework.o clinetframework.o tcpserver.o tcpclient.o \
 		 drone_kisnetframe.o kis_droneframe.o gpscore.o gpsdclient.o \
-		 packetchain.o packetsource_pcap.o packetsource_wext.o packetsource_bsdrt.o \
-		 packetsource_drone.o \
+		 packetchain.o \
+		 packetsource_pcap.o packetsource_wext.o packetsource_bsdrt.o \
+		 packetsource_drone.o packetsource_ipwlive.o packetsource_airpcap.o \
 		 plugintracker.o packetsourcetracker.o timetracker.o \
 		 kismet_drone.o
 
@@ -65,7 +67,7 @@ DRONE = kismet_drone
 NCO	= util.o ringbuf.o messagebus.o configfile.o getopt.o \
 	  soundcontrol.o speechcontrol.o timetracker.o ipc_remote.o \
 	  clinetframework.o tcpclient.o kis_clinetframe.o \
-	  kis_panel_widgets.o kis_panel_bssid.o kis_panel_windows.o \
+	  kis_panel_widgets.o kis_panel_network.o kis_panel_windows.o \
 	  kis_panel_frontend.o \
 	  kismet_client.o
 NC	= kismet_client

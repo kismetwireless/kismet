@@ -72,8 +72,10 @@ int PacketSource_Pcap::OpenSource() {
 	errstr[0] = '\0';
 	num_packets = 0;
 
-	if (DatalinkType() < 0)
+	if (DatalinkType() < 0) {
+		pcap_close(pd);
 		return -1;
+	}
 
 #ifdef HAVE_PCAP_NONBLOCK
 	pcap_setnonblock(pd, 1, errstr);
@@ -88,6 +90,7 @@ int PacketSource_Pcap::OpenSource() {
 	if (strlen(errstr) > 0) {
 		globalreg->messagebus->InjectMessage(errstr, MSGFLAG_FATAL);
 		globalreg->fatal_condition = 1;
+		pcap_close(pd);
 		return -1;
 	}
 

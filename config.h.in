@@ -78,6 +78,12 @@
 /* pcap/pcap.h */
 #undef HAVE_PCAPPCAP_H
 
+/* pcapfileno-capable libwpcap */
+#undef HAVE_PCAP_FILENO
+
+/* Selectablefd-capable libpcap */
+#undef HAVE_PCAP_GETSELFD
+
 /* libpcap header */
 #undef HAVE_PCAP_H
 
@@ -168,6 +174,12 @@
 
 /* Define to 1 if you have the <WiFi/WLPacketSource.h> header file. */
 #undef HAVE_WIFI_WLPACKETSOURCE_H
+
+/* Define to 1 if you have the <Win32-Extensions.h> header file. */
+#undef HAVE_WIN32_EXTENSIONS_H
+
+/* Define to 1 if you have the <windows.h> header file. */
+#undef HAVE_WINDOWS_H
 
 /* wsp100 remote sensor support */
 #undef HAVE_WSP100

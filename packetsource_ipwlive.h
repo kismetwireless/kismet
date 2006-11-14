@@ -52,7 +52,7 @@ public:
 	// HANDLED PACKET SOURCES:
 	// ipwlivetap
 	PacketSource_Ipwlive() {
-		fprintf(stderr, "FATAL OOPS:  Packetsource_Wext() called\n");
+		fprintf(stderr, "FATAL OOPS:  Packetsource_Ipwlive() called\n");
 		exit(1);
 	}
 

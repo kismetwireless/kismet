@@ -442,8 +442,11 @@ int KisNetClient::ParseData() {
 			// command req's at some point
 		} else if (!strncmp(header, "TIME", 64)) {
 			// Graceful handling of junk time proto, set us to 0.
-			if (sscanf(net_toks[0].word.c_str(), "%d", (int *) &last_time) != 0)
+			int tint;
+			if (sscanf(net_toks[0].word.c_str(), "%d", &tint) != 0)
 				last_time = 0;
+			else
+				last_time = (time_t) tint;
 		}
 
 		// Call the registered handlers for this protocol, even if we handled

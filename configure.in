@@ -122,7 +122,12 @@ else
     esac
 fi
 
-CXXFLAGS="$CXXFLAGS $CFLAGS"
+if test "$cygwin" = "yes"; then
+	AC_MSG_CHECKING(cygwin compile flags)
+	AC_MSG_RESULT(__MINGW32__)
+	CXXFLAGS="$CXXFLAGS -D__MINGW32__"
+fi
+
 LDFLAGS="$LDFLAGS -rdynamic"
 
 AC_CONFIG_SRCDIR([kismet_server.cc])
@@ -526,12 +531,43 @@ if test "$wantpcre" = "yes"; then
 	LIBS="$LIBS -lpcre"
 fi
 
+# Handle airpcap/winpcap on cygwin
+if test "$cygwin" = yes; then
+AC_CHECK_HEADERS([windows.h Win32-Extensions.h])
+
+AC_ARG_ENABLE(airpcap, [  --enable-airpcap        enable checking for CACE airpcap],want_airpcap=yes)
+
+if test "$want_airpcap" = "yes"; then
+
+airpcap_devpack="none"
+AC_ARG_WITH(airpcap-devpack, 
+[  --with-airpcap[=DIR]     Location of the CACE AirPcap device pack NOTE cygwin appears to have link errors if the path is not within the current directory], 
+[ airpcap_devpack="$withval" ])
+
+if test "$airpcap_devpack" = "none"; then
+	AC_MSG_ERROR(No airpcap path provided use --with-airpcap-devpack)
+fi # devpack none
+
+# Set the libs and includes
+LDFLAGS="$LDFLAGS -L$airpcap_devpack/WinPcap_Devpack/Lib -L$airpcap_devpack/Airpcap_Devpack/lib"
+CPPFLAGS="$CPPFLAGS -I$airpcap_devpack/WinPcap_Devpack/Include -I$airpcap_devpack/Airpcap_Devpack/include"
+
+fi # want_airpcap
+fi # cygwin
+
 AC_ARG_ENABLE(pcap, [  --disable-pcap          disable libpcap (most sources) capture support],,wantpcap=yes)
 AC_SUBST(wantpcap)
 
 if test "$wantpcap" = yes; then
 	foundsyspcap=no
-	AC_CHECK_LIB([pcap], [pcap_open_live],
+
+	if test "$cygwin" = yes; then
+		pcaplib="wpcap";
+	else
+		pcaplib="pcap";
+	fi
+
+	AC_CHECK_LIB([${pcaplib}], [pcap_open_live],
 	    AC_DEFINE(HAVE_LIBPCAP, 1, libpcap packet capture lib) foundsyspcap=yes,
 	    AC_MSG_WARN(Compiling without libpcap support.))
 
@@ -549,26 +585,29 @@ if test "$wantpcap" = yes; then
 	    AC_DEFINE(HAVE_PCAP_NONBLOCK, 1, Nonblocking-capable libpcap),
 	    AC_MSG_WARN(*** You don't appear to have a version of libpcap which supports non-blocking IO.  We'll fake it, but you REALLY should upgrade your libpcap, as it may not support 802.11 capture sources, either. ***))
 
-	pcaplib=""
-	AC_SUBST(pcaplib)
-	pcaplnk="-lpcap"
+	if test "$cygwin" != yes; then
+	AC_CHECK_LIB([${pcaplib}], [pcap_get_selectable_fd],
+		AC_DEFINE(HAVE_PCAP_GETSELFD, 1, Selectablefd-capable libpcap),
+		AC_MSG_ERROR(installed libpcap version does not support features Kismet requires.  Upgrade to a current version of libpcap))
+	else
+	AC_CHECK_LIB([${pcaplib}], [pcap_fileno],
+		AC_DEFINE(HAVE_PCAP_FILENO, 1, pcapfileno-capable libwpcap),
+		AC_MSG_ERROR(installed libpcap version does not support features Kismet requires.  Upgrade to a current version of libwpcap))
+	fi
+
+	pcaplnk="-l${pcaplib}"
 	AC_SUBST(pcaplnk)
 	pcap="yes"
 	fi
-else
-    AC_MSG_WARN(Compiling without libpcap support.)
+fi
+
+if test "$wantpcap" != "yes" -o "$pcap" != "yes"; then
+    AC_MSG_WARN(Compiling without libpcap support.  Many capture sources will be disabled.)
 fi
 AC_SUBST(pcap)
 
-if test "$cygwin" = yes; then
-	AC_MSG_WARN([*** Enabling AirPcap checks on Cygwin ***]);
-	want_airpcap=yes;
-fi
-
-AC_ARG_ENABLE(airpcap, [  --disable-airpcap          disable CASE AirPcap (Cygwin/Win32 only)],want_airpcap=no,)
-
-if test "$cygwin" = no -a "$want_airpcap" = "yes"; then
-	AC_MSG_WARN([*** Disabling AirPcap on non-cygwin/win32 system ***]);
+if test "$pcap" = "no" -a "$want_airpcap" = "yes"; then
+	AC_MSG_WARN([*** Disabling AirPcap, libpcap not enabled ***]);
 	want_airpcap=no;
 fi
 
