@@ -108,7 +108,7 @@ public:
 
 	string UUID2String() {
 		char ids[38];
-		snprintf(ids, 38, "%08x-%04x-%04x-%04x-%02x%02x%02x%02x%02x%02x",
+		snprintf(ids, 38, "%08hx-%04hx-%04hx-%04hx-%02hx%02hx%02hx%02hx%02hx%02hx",
 				 *time_low, *time_mid, *time_hi, *clock_seq,
 				 node[0], node[1], node[2], node[3], node[4], node[5]);
 		return string(ids);
