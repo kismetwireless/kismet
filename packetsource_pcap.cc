@@ -78,13 +78,14 @@ int PacketSource_Pcap::OpenSource() {
 	}
 
 #ifdef HAVE_PCAP_NONBLOCK
-	pcap_setnonblock(pd, 1, errstr);
-#elif SYS_LINUX
-	int save_mode = fcntl(pcap_get_selectable_fd(pd), F_GETFL, 0);
-	if (fcntl(pcap_get_selectable_fd(pd), F_SETFL, save_mode | O_NONBLOCK) < 0) {
-		snprintf(errstr, STATUS_MAX, "Nonblocking fcntl failed: %s",
-				 strerror(errno));
-	}
+    pcap_setnonblock(pd, 1, errstr);
+#elif !defined(SYS_OPENBSD) && defined(HAVE_PCAP_GETSELFD)
+    // do something clever  (Thanks to Guy Harris for suggesting this).
+    int save_mode = fcntl(pcap_get_selectable_fd(pd), F_GETFL, 0);
+    if (fcntl(pcap_get_selectable_fd(pd), F_SETFL, save_mode | O_NONBLOCK) < 0) {
+        snprintf(errstr, 1024, "fcntl failed, errno %d (%s)",
+                 errno, strerror(errno));
+    }
 #endif
 
 	if (strlen(errstr) > 0) {
