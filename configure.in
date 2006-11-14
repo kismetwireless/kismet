@@ -257,15 +257,12 @@ AC_SYS_LARGEFILE
 
 # Do we use libstdc++?
 AC_CHECK_LIB([uClibc++], [main], 
-			 foundcxxl="uclibc" LIBS="$LIBS -luClibc++",
-			 AC_MSG_WARN([uclibc++ not available on this system]))
+			 foundcxxl="uclibc" LIBS="$LIBS -luClibc++")
 
 # Do we use uclibc++?
 if test "$foundcxxl"x == "x"; then
 	AC_CHECK_LIB([stdc++], [main], 
-				 foundcxxl="stdc++" LIBS="$LIBS -lstdc++ -lm",
-				 AC_MSG_WARN([libstdc++ not available on this system]),
-				 "-lm")
+				 foundcxxl="stdc++" LIBS="$LIBS -lstdc++ -lm",,"-lm")
 fi
 
 if test "$foundcxxl"x == "x"; then

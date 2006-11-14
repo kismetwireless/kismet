@@ -6800,9 +6800,6 @@ fi
 echo "${ECHO_T}$ac_cv_lib_uClibcpp_main" >&6; }
 if test $ac_cv_lib_uClibcpp_main = yes; then
   foundcxxl="uclibc" LIBS="$LIBS -luClibc++"
-else
-  { echo "$as_me:$LINENO: WARNING: uclibc++ not available on this system" >&5
-echo "$as_me: WARNING: uclibc++ not available on this system" >&2;}
 fi
 
 
@@ -6881,9 +6878,6 @@ fi
 echo "${ECHO_T}$ac_cv_lib_stdcpp_main" >&6; }
 if test $ac_cv_lib_stdcpp_main = yes; then
   foundcxxl="stdc++" LIBS="$LIBS -lstdc++ -lm"
-else
-  { echo "$as_me:$LINENO: WARNING: libstdc++ not available on this system" >&5
-echo "$as_me: WARNING: libstdc++ not available on this system" >&2;}
 fi
 
 fi
