@@ -163,7 +163,10 @@ KisPacketSource *airpcapsourceq_registrant(string in_name, string in_device,
 
 		if (intnum < 1 || intnum > i) {
 			fprintf(stdout, "Invalid entry, must be between 1 and %d\n", i);
+			continue;
 		}
+
+		break;
 	}
 
 	// Find the adapter
