@@ -126,9 +126,10 @@ if test "$cygwin" = "yes"; then
 	AC_MSG_CHECKING(cygwin compile flags)
 	AC_MSG_RESULT(__MINGW32__)
 	CXXFLAGS="$CXXFLAGS -D__MINGW32__"
+else
+	# cygwin doesn't like rdynamic, will this hurt us?
+	LDFLAGS="$LDFLAGS -rdynamic"
 fi
-
-LDFLAGS="$LDFLAGS -rdynamic"
 
 AC_CONFIG_SRCDIR([kismet_server.cc])
 AC_CONFIG_HEADER([config.h])

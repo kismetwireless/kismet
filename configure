@@ -3814,9 +3814,10 @@ echo $ECHO_N "checking cygwin compile flags... $ECHO_C" >&6; }
 	{ echo "$as_me:$LINENO: result: __MINGW32__" >&5
 echo "${ECHO_T}__MINGW32__" >&6; }
 	CXXFLAGS="$CXXFLAGS -D__MINGW32__"
+else
+	# cygwin doesn't like rdynamic, will this hurt us?
+	LDFLAGS="$LDFLAGS -rdynamic"
 fi
-
-LDFLAGS="$LDFLAGS -rdynamic"
 
 
 ac_config_headers="$ac_config_headers config.h"

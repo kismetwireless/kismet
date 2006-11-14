@@ -85,10 +85,7 @@ public:
 	virtual int RegisterSources(Packetsourcetracker *tracker);
 
 	PacketSource_AirPcap(GlobalRegistry *in_globalreg, string in_type,
-						 string in_name, string in_dev) :
-		PacketSource_Pcap(in_globalreg, in_type, in_name, in_dev) {
-			// Foo -- build like a pcap device
-	}
+						 string in_name, string in_dev); 
 
 	virtual ~PacketSource_AirPcap() { }
 

@@ -26,6 +26,8 @@
 #include <errno.h>
 #include <time.h>
 
+#include "packetsourcetracker.h"
+
 // Prototypes of Windows-specific pcap functions.
 // wpcap.dll contains these functions, but they are not exported to cygwin because
 // cygwin doesn't "officially" support the Windows extensions. These functions, 
@@ -44,7 +46,7 @@ int PacketSource_AirPcap::OpenSource() {
 	free(unconst);
 
 	if (strlen(errstr) > 0) {
-		globalreg->messsagebus->InjectMessage(errstr, MSGFLAG_FATAL);
+		_MSG(errstr, MSGFLAG_FATAL);
 		globalreg->fatal_condition = 1;
 		return -1;
 	}
@@ -70,7 +72,8 @@ int PacketSource_AirPcap::OpenSource() {
 	// Set the link mode to give us radiotap headers
 	if (!AirpcapSetLinkType(airpcap_handle, AIRPCAP_LT_802_11_PLUS_RADIO)) {
 		_MSG("Adapter " + interface + " failed setting airpcap radiotap "
-			 "link layer: " + string(AirpcapGetLastError(airpcap_handle)),
+			 "link layer: " + 
+			 string((const char *) AirpcapGetLastError(airpcap_handle)),
 			 MSGFLAG_FATAL);
 		globalreg->fatal_condition = 1;
 		pcap_close(pd);
@@ -82,8 +85,9 @@ int PacketSource_AirPcap::OpenSource() {
 	// the overhead of locally processing the checksum.
 	if (AirpcapSetFcsValidation(airpcap_handle, AIRPCAP_VT_ACCEPT_CORRECT_FRAMES)) {
 		_MSG("Adapter " + interface + " failed setting FCS validation routine: " + 
-			 string(airpcapGetLastError(airpcap_handle)), MSGFLAG_FATAL);
-		gloablreg->fatal_condition = 1;
+			 string((const char *) AirpcapGetLastError(airpcap_handle)), 
+			 MSGFLAG_FATAL);
+		globalreg->fatal_condition = 1;
 		pcap_close(pd);
 		return -1;
 	}
@@ -101,19 +105,19 @@ int PacketSource_AirPcap::AutotypeProbe(string in_device) {
 
 int PacketSource_AirPcap::RegisterSources(Packetsourcetracker *tracker) {
 	tracker->RegisterPacketsource("airpcap", this, 6, "IEEE80211b", 0);
-	tracker->registerPacketsource("airpcap_ask", this, 6, "IEEE80211b", 0);
+	tracker->RegisterPacketsource("airpcap_ask", this, 6, "IEEE80211b", 0);
 	return 1;
 }
 
-PacketSource_AirPcap(GlobalRegistry *in_globalreg, string in_type, string in_name,
-					 string in_dev): 
+PacketSource_AirPcap::PacketSource_AirPcap(GlobalRegistry *in_globalreg, 
+										   string in_type, string in_name,
+										   string in_dev): 
 	PacketSource_Pcap(in_globalreg, in_type, in_name, in_dev) {
 
 	// Go through the prompting game for 'ask' variant
 	if (in_type == "airpcap_ask") {
 		pcap_if_t *alldevs, *d;
 		int i, intnum;
-		AirPcapSource *src = NULL;
 		char errbuf[1024];
 
 		if (pcap_findalldevs(&alldevs, errbuf) == -1) {
@@ -135,7 +139,7 @@ PacketSource_AirPcap(GlobalRegistry *in_globalreg, string in_type, string in_nam
 		if (i == 0) {
 			pcap_freealldevs(alldevs);
 			_MSG("airPcapSource failed to find any devices, are WinPcap and AirPcap "
-				 "properly installed?");
+				 "properly installed?", MSGFLAG_FATAL);
 			globalreg->fatal_condition = 1;
 			return;
 		}
@@ -156,7 +160,7 @@ PacketSource_AirPcap(GlobalRegistry *in_globalreg, string in_type, string in_nam
 		}
 
 		// Iterate
-		for (d = alldevs, i = 0; i < intnum - 1; d = d->next; i++)
+		for (d = alldevs, i = 0; i < intnum - 1; d = d->next, i++)
 			;
 
 		interface = string(d->name);
@@ -190,16 +194,13 @@ int PacketSource_AirPcap::FetchDescriptor() {
 int PacketSource_AirPcap::SetChannel(unsigned int in_ch) {
 	if (!AirpcapSetDeviceChannel(airpcap_handle, in_ch)) {
 		_MSG("Airpcap adapter " + interface + " failed setting channel: " +
-			 string(AirpcapGetLastError(airpcap_handle)), MSGFLAG_FATAL);
+			 string((const char *) AirpcapGetLastError(airpcap_handle)), 
+			 MSGFLAG_FATAL);
 		globalreg->fatal_condition = 1;
 		return -1;
 	}
 
 	return 0;
-}
-
-void PacketSource_AirPcap::FetchRadioData(kis_packet *in_packet) {
-	return;
 }
 
 #endif 
