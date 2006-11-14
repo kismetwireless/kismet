@@ -59,6 +59,33 @@
 	"cdpdevice,cdpport,fragments,retries,newpackets"
 #define KCLI_BSSID_NUMFIELDS	49
 
+class Kis_Netlist_Group {
+public:
+	Kis_Netlist_Group();
+	Kis_Netlist_Group(Netracker::tracked_network *in_net);
+
+	// Fetch the network out, could be a standard single network, could be
+	// the meta-group network
+	Netracker::tracked_network *FetchNetwork();
+
+	// Merge a network into the meta-group network
+	void MergeNetwork();
+
+	// Delete a network from a meta-group network
+	void DelNetwork();
+
+	// Mark that we need to recalculate some fields
+	void UpdateNetwork(Netracker::tracked_network *in_net);
+
+protected:
+	// Do we have a local meta network? (ie, do we need to destroy it on our
+	// way our, take special care of it, etc)
+	int local_metanet;
+
+	// Pointer to the network we return, could be allocated locally, or it could
+	// be a pointer to a network from somewhere else
+	Netracker::tracked_network *metanet;
+};
 
 class Kis_Netlist : public Kis_Panel_Component {
 public:

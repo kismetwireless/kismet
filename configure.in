@@ -297,14 +297,12 @@ fi
 oCC="$CC"
 CC="$CXX"
 AC_CHECK_LIB([uClibc++], [main], 
-			 foundcxxl="uclibc" CXXLIBS="$CXXLIBS -luClibc++",
-			 AC_MSG_WARN([uclibc++ not available on this system]))
+			 foundcxxl="uclibc" CXXLIBS="$CXXLIBS -luClibc++")
 
 # Do we use uclibc++?
 if test "$foundcxxl"x == "x"; then
 	AC_CHECK_LIB([stdc++], [main], 
-				 foundcxxl="stdc++" CXXLIBS="$CXXLIBS -lstdc++",
-				 AC_MSG_WARN([libstdc++ not available on this system]))
+				 foundcxxl="stdc++" CXXLIBS="$CXXLIBS -lstdc++")
 fi
 
 if test "$foundcxxl"x == "x"; then
