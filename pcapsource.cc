@@ -105,6 +105,8 @@ typedef unsigned long u64;
 #include "pcapsource.h"
 #include "util.h"
 
+#include "madwifing_control.h"
+
 #ifdef HAVE_LIBPCAP
 
 // Work around broken pcap.h on cygwin... this is a TERRIBLE THING TO DO but
@@ -1582,53 +1584,42 @@ int monitor_vtar5k(const char *in_dev, int initch, char *in_err, void **in_if, v
     return 0;
 }
 
-/* Madwifi NG ioctls from net80211 */
-#define	SIOC80211IFCREATE		(SIOCDEVPRIVATE+7)
-#define	SIOC80211IFDESTROY	 	(SIOCDEVPRIVATE+8)
 int monitor_madwifi_ng(const char *in_dev, char *in_err, void **in_if, 
 					   void *in_ext) {
-	/* from net80211 headers */
-	struct ieee80211_clone_params {
-		char		icp_name[IFNAMSIZ];
-		u_int16_t	icp_opmode;
-		u_int16_t	icp_flags;
-#define	IEEE80211_CLONE_BSSID	0x0001
-#define	IEEE80211_NO_STABEACONS	0x0002
-#define IEEE80211_M_MONITOR 	8
-	};
-	struct ieee80211_clone_params cp;
-	struct ifreq ifr;
-	char newdev[IFNAMSIZ + 1];
-	int s;
+	char newdev[IFNAMSIZ];
+	vector<string> vaplist;
 
-	memset(&ifr, 0, sizeof(ifr));
-	memset(&cp, 0, sizeof(cp));
+	vaplist = madwifing_list_vaps(in_dev);
 
-	strncpy(cp.icp_name, "kis0", IFNAMSIZ);
-	cp.icp_opmode = (u_int16_t) IEEE80211_M_MONITOR;
-	cp.icp_flags = IEEE80211_CLONE_BSSID;
+	for (unsigned int x = 0; x < vaplist.size(); x++) {
+		int iwmode;
 
-	strncpy(ifr.ifr_name, in_dev, IFNAMSIZ);
-	ifr.ifr_data = (caddr_t) &cp;
+		if (Iwconfig_Get_Mode(vaplist[x].c_str(), in_err, &iwmode) < 0) {
+			fprintf(stderr, "WARNING:  Could not get mode of vap %s::%s, skipping\n",
+					in_dev, vaplist[x].c_str());
+			continue;
+		}
 
-	s = socket(AF_INET, SOCK_DGRAM, 0);
-	if (s < 0) {
-		return -1;
+		if (iwmode != LINUX_WLEXT_MONITOR || iwmode != LINUX_WLEXT_MASTER) {
+			fprintf(stderr, "WARNING:  Found a non-master non-monitor VAP %s::%s.  "
+					"Madwifi-ng has historically had problems with normal-mode "
+					"VAPs combined with monitor-mode VAPs.  You may need to remove "
+					"them.\n", in_dev, vaplist[x].c_str());
+			sleep(1);
+			break;
+		}
 	}
 
-	if (ioctl(s, SIOC80211IFCREATE, &ifr) < 0) {
-		close(s);
+	if (madwifing_build_vap(in_dev, in_err, "kis", newdev, IEEE80211_M_MONITOR,
+							IEEE80211_CLONE_BSSID | IEEE80211_NO_STABEACONS) < 0) {
+		fprintf(stderr, "FATAL:  %s\n", in_err);
+		fprintf(stderr, "FATAL:  Unable to create monitor-mode VAP\n");
 		return -1;
 	}
-
-	// Extract the interface name we got back */
-	strncpy(newdev, ifr.ifr_name, IFNAMSIZ);
 
 	((KisPacketSource *) in_ext)->SetInterface(newdev);
 
-	close(s);
-
-	fprintf(stderr, "NOTICE:  Created Madwifi-NG VAP %s\n", newdev);
+	fprintf(stderr, "NOTICE:  Created Madwifi-NG RFMON VAP %s\n", newdev);
 
 	FILE *controlf;
 	char cpath[256];
@@ -1649,23 +1640,12 @@ int monitor_madwifi_ng(const char *in_dev, char *in_err, void **in_if,
 
 int unmonitor_madwifi_ng(const char *in_dev, char *in_err, void **in_if, 
 						 void *in_ext) {
-	struct ifreq ifr;
-	int s;
 
-	// Just destroy our dynamic interface
-	s = socket(AF_INET, SOCK_DGRAM, 0);
-	if (s < 0) {
+	if (madwifing_destroy_vap(in_dev, in_err) < 0) {
+		fprintf(stderr, "WARNING:  Unable to destroy madwifi-ng interface %s during "
+				"cleanup: %s\n", in_dev, in_err);
 		return -1;
 	}
-
-	memset(&ifr, 0, sizeof(ifr));
-	strncpy(ifr.ifr_name, in_dev, IFNAMSIZ);
-	if (ioctl(s, SIOC80211IFDESTROY, &ifr) < 0) {
-		close(s);
-		return -1;
-	}
-
-	close(s);
 
 	return 1;
 }

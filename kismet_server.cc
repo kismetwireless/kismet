@@ -1167,7 +1167,7 @@ int Usage(char *argv) {
            "  -g, --gps <host:port>        GPS server (host:port or off)\n"
            "  -p, --port <port>            TCPIP server port for GUI connections\n"
            "  -a, --allowed-hosts <hosts>  Comma separated list of hosts allowed to connect\n"
-           "  -b, --bind-address <address>    Bind to this address. Default INADDR_ANY\n."
+           "  -b, --bind-address <address>    Bind to this address. Default INADDR_ANY\n"
 		   "  -r, --retain-monitor         Leave card in monitor mode on exit\n"
            "  -s, --silent                 Don't send any output to console.\n"
            "  -N, --server-name            Server name\n"

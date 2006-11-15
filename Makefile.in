@@ -38,7 +38,7 @@ DEPEND	= .depend
 
 # Objects
 PSO	= util.o cygwin_utils.o ringbuf.o configfile.o speech.o ifcontrol.o \
-		iwcontrol.o packet.o \
+		iwcontrol.o madwifing_control.o packet.o \
 		pcapsource.o prism2source.o wtapfilesource.o wsp100source.o \
 		dronesource.o vihasource.o airpcapsource.o \
 		packetsourcetracker.o kis_packsources.o \
@@ -50,7 +50,7 @@ PSO	= util.o cygwin_utils.o ringbuf.o configfile.o speech.o ifcontrol.o \
 PS	= kismet_server
 
 DRONEO = util.o cygwin_utils.o ringbuf.o configfile.o getopt.o ifcontrol.o \
-		iwcontrol.o packet.o \
+		iwcontrol.o madwifing_control.o packet.o \
 		tcpstreamer.o prism2source.o pcapsource.o wtapfilesource.o wsp100source.o \
 		airpcapsource.o dronesource.o vihasource.o packetsourcetracker.o \
 		kis_packsources.o timetracker.o gpsd.o server_globals.o kismet_drone.o
