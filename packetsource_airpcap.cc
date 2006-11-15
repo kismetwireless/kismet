@@ -83,7 +83,7 @@ int PacketSource_AirPcap::OpenSource() {
 	// Tell the adapter to only give us packets which pass internal FCS validation.
 	// All we do is throw away frames which do not, so theres no reason to add
 	// the overhead of locally processing the checksum.
-	if (AirpcapSetFcsValidation(airpcap_handle, AIRPCAP_VT_ACCEPT_CORRECT_FRAMES)) {
+	if (!AirpcapSetFcsValidation(airpcap_handle, AIRPCAP_VT_ACCEPT_CORRECT_FRAMES)) {
 		_MSG("Adapter " + interface + " failed setting FCS validation routine: " + 
 			 string((const char *) AirpcapGetLastError(airpcap_handle)), 
 			 MSGFLAG_FATAL);

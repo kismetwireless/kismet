@@ -284,7 +284,9 @@ public:
 
 	virtual ~NullPacketSource() { }
 
-	NullPacketSource(GlobalRegistry *, string, string, string) {
+	NullPacketSource(GlobalRegistry *in_globalreg, string in_type, 
+					 string in_dev, string in_name) :
+		KisPacketSource(in_globalreg, in_type, in_dev, in_name) {
 		// Nothing here either
 	}
 
