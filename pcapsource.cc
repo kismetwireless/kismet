@@ -1611,7 +1611,7 @@ int monitor_madwifi_ng(const char *in_dev, char *in_err, void **in_if,
 	}
 
 	if (madwifing_build_vap(in_dev, in_err, "kis", newdev, IEEE80211_M_MONITOR,
-							IEEE80211_CLONE_BSSID | IEEE80211_NO_STABEACONS) < 0) {
+							IEEE80211_CLONE_BSSID) < 0) {
 		fprintf(stderr, "FATAL:  %s\n", in_err);
 		fprintf(stderr, "FATAL:  Unable to create monitor-mode VAP\n");
 		return -1;

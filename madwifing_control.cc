@@ -120,7 +120,7 @@ int madwifing_build_vap(const char *ifname, char *errstr, const char *vapname,
 	memset(&ifr, 0, sizeof(ifr));
 	memset(&cp, 0, sizeof(cp));
 
-	strncpy(cp.icp_name, vapname, IFNAMSIZ);
+	strncpy(cp.icp_name, tnam, IFNAMSIZ);
 	cp.icp_opmode = vapmode;
 	cp.icp_flags = vapflags;
 

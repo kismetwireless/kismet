@@ -1,3 +1,4 @@
+Nov 17 2006  devel  Tweaked channel set to use mode fixed (Daniel Drake)
 Nov 11 2006  devel  Added proper support for AirPcap (CACEtech, win32)
                     Added patch from Khorben for NetBSD battery reporting
 Oct 13 2006  devel  Tweaks for libwpcap oddities
