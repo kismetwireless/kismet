@@ -113,7 +113,7 @@ DWORD WINAPI Handle2Fd::WaitThread(LPVOID lpParameter) {
 		if (WaitRes != WAIT_OBJECT_0) { 
 			ResetEvent(This->ReadEvent);
 			This->SetPipe();
-			WaitForSingleOpject(This->ReadEvent, INFINITE);
+			WaitForSingleObject(This->ReadEvent, INFINITE);
 		} 
 	} 
 
