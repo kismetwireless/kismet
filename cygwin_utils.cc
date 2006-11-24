@@ -111,19 +111,19 @@ DWORD WINAPI Handle2Fd::WaitThread(LPVOID lpParameter) {
 
 		// Event number 0 is the service event used to kill the thread 
 		if (WaitRes != WAIT_OBJECT_0) { 
-			This->SetPipe(); 
-
-			if (WaitRes != WAIT_TIMEOUT) { 
-				if(WaitRes <= This->NHandles) { 
-					ResetEvent(This->WinHandles[WaitRes]); 
-				} 
-			} 
+			ResetEvent(This->ReadEvent);
+			This->SetPipe();
+			WaitForSingleOpject(This->ReadEvent, INFINITE);
 		} 
 	} 
 
 	return 1; 
 }
 
+// Mark a signal as read
+void Handle2Fd::Signalread() {
+	SetEvent(ReadEvent);
+}
 
 // Activate this instance of the Handle2Fd class.
 // This involves creating the pipe, the service event and the support thread
@@ -138,14 +138,21 @@ int Handle2Fd::Activate() {
     ResetPipe();
 
     // Create the event for pipe control, and put it in our list
-    PipeControlEvent = CreateEvent(NULL, TRUE, FALSE, NULL);
-    if (!PipeControlEvent) {
+	Winhandles[0] = CreateEvent(NULL, TRUE, FALSE, NULL);
+	if (!WinHandles[0]) {
         close(PipeFds[0]);
         close(PipeFds[1]);
         return -1;
     }
 
-    WinHandles[0] = PipeControlEvent; 
+	// Create the event that will syncronize us with the read loop
+	ReadEvent = CreateEvent(NULL, TRUE, FALSE, NULL);
+	if (!ReadEvent) {
+		close(PipeFds[0]);
+		close(PipeFds[1]);
+		CloseHandle(WinHandles[0]);
+		return -1;
+	}
 
     // Start the thread that does the handle checking
     if ((WaitThreadHandle = CreateThread(
@@ -157,7 +164,8 @@ int Handle2Fd::Activate() {
         NULL)) == NULL) {
             close(PipeFds[0]);
             close(PipeFds[1]);
-            CloseHandle(PipeControlEvent);
+			CloseHandle(WinHandles[0]);
+			CloseHandle(ReadEvent);
             return -1;
 		}
 

@@ -36,7 +36,7 @@ int AirPcapSource::OpenSource() {
 
 	char *unconst = strdup(interface.c_str());
 	
-	pd = pcap_open_live(unconst, MAX_PACKET_LEN, 1, 1000, errstr);
+	pd = pcap_open_live(unconst, MAX_PACKET_LEN, 1, -1, errstr);
 
 	free(unconst);
 
@@ -87,6 +87,16 @@ int AirPcapSource::OpenSource() {
 	fd_mangle.Activate();
 
 	return 0;
+}
+
+int AirPcapSource::FetchPacket(kis_packet *packet, uint8_t *data, uint8_t *moddata) {
+	int ret; 
+	if ((ret = PcapSource::FetchPacket(packet, data, moddata)) == 0) {
+		fd_mangle.reset();
+		fd_mangle.Signalread();
+	}
+
+	return ret;
 }
 
 int AirPcapSource::FetchChannel() {

@@ -59,6 +59,7 @@ public:
     AirPcapSource(string in_name, string in_dev) : PcapSource(in_name, in_dev) { 
     }
 	virtual int OpenSource();
+	virtual int FetchPacket(kis_packet *packet, uint8_t *data, uint8_t *moddata);
 	virtual int FetchChannel();
 	virtual int FetchDescriptor();
 	virtual int SetChannel(unsigned int in_ch, char *in_err);
