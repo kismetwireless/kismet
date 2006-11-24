@@ -138,7 +138,7 @@ int Handle2Fd::Activate() {
     ResetPipe();
 
     // Create the event for pipe control, and put it in our list
-	Winhandles[0] = CreateEvent(NULL, TRUE, FALSE, NULL);
+	WinHandles[0] = CreateEvent(NULL, TRUE, FALSE, NULL);
 	if (!WinHandles[0]) {
         close(PipeFds[0]);
         close(PipeFds[1]);

@@ -92,7 +92,7 @@ int AirPcapSource::OpenSource() {
 int AirPcapSource::FetchPacket(kis_packet *packet, uint8_t *data, uint8_t *moddata) {
 	int ret; 
 	if ((ret = PcapSource::FetchPacket(packet, data, moddata)) == 0) {
-		fd_mangle.reset();
+		fd_mangle.Reset();
 		fd_mangle.Signalread();
 	}
 
