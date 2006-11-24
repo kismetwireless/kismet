@@ -524,6 +524,7 @@ int Iwconfig_Set_Channel(const char *in_dev, int in_ch, char *in_err) {
     memset(&wrq, 0, sizeof(struct iwreq));
 
     strncpy(wrq.ifr_name, in_dev, IFNAMSIZ);
+	wrq.u.freq.flags = IW_FREQ_FIXED;
     IwFloat2Freq(in_ch, &wrq.u.freq);
 
     // Try twice with a tiny delay, some cards (madwifi) need a second chance...

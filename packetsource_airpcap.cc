@@ -99,6 +99,17 @@ int PacketSource_AirPcap::OpenSource() {
 	return 0;
 }
 
+int PacketSource_AirPcap::Poll() {
+	int ret;
+
+	if ((ret = PacketSource_Pcap::Poll()) == 0) {
+		fd_mangle.Reset();
+		fd_mangle.Signalread();
+	}
+
+	return ret;
+}
+
 int PacketSource_AirPcap::AutotypeProbe(string in_device) {
 	return 0;
 }

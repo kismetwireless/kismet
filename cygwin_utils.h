@@ -32,6 +32,7 @@ public:
     Handle2Fd();
 	~Handle2Fd();
     int AddHandle(HANDLE h);
+	void Signalread();
     int Activate();
     void Reset();
     int GetFd();
@@ -49,11 +50,11 @@ private:
     void ResetPipe();
 
     int PipeFds[2];
-    HANDLE PipeControlEvent;
 
     unsigned int NHandles;
 
     HANDLE WaitThreadHandle;
+	HANDLE ReadEvent;
     int ThreadAlive;
 
     int PipeSignalled;

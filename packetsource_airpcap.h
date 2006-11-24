@@ -91,6 +91,8 @@ public:
 
 	virtual int OpenSource();
 
+	virtual int Poll();
+
 	virtual int FetchDescriptor();
 
 	virtual int FetchChannelCapable() { return 1; }
