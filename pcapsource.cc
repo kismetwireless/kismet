@@ -677,19 +677,19 @@ int PcapSource::Radiotap2KisPack(kis_packet *packet, uint8_t *data, uint8_t *mod
         return 0;
     }
     hdr = (struct ieee80211_radiotap_header *) callback_data;
-    if (callback_header.caplen < hdr->it_len) {
+    if (callback_header.caplen < EXTRACT_LE_16BITS(&hdr->it_len)) {
         packet->len = 0;
         packet->caplen = 0;
         return 0;
     }
 
     for (last_presentp = &hdr->it_present;
-         (*last_presentp & BIT(IEEE80211_RADIOTAP_EXT)) != 0 &&
-         (u_char*)(last_presentp + 1) <= data + hdr->it_len;
+         (EXTRACT_LE_32BITS(last_presentp) & BIT(IEEE80211_RADIOTAP_EXT)) != 0 &&
+         (u_char*)(last_presentp + 1) <= data + EXTRACT_LE_16BITS(&hdr->it_len);
          last_presentp++);
 
     /* are there more bitmap extensions than bytes in header? */
-    if ((*last_presentp & BIT(IEEE80211_RADIOTAP_EXT)) != 0) {
+    if ((EXTRACT_LE_32BITS(last_presentp) & BIT(IEEE80211_RADIOTAP_EXT)) != 0) {
         packet->len = 0;
         packet->caplen = 0;
         return 0;
@@ -701,7 +701,7 @@ int PcapSource::Radiotap2KisPack(kis_packet *packet, uint8_t *data, uint8_t *mod
 
     for (bit0 = 0, presentp = &hdr->it_present; presentp <= last_presentp;
          presentp++, bit0 += 32) {
-        for (present = *presentp; present; present = next_present) {
+        for (present = EXTRACT_LE_32BITS(presentp); present; present = next_present) {
             /* clear the least significant bit that is set */
             next_present = present & (present - 1);
 
@@ -831,9 +831,9 @@ int PcapSource::Radiotap2KisPack(kis_packet *packet, uint8_t *data, uint8_t *mod
 		fcs_cut = FCSBytes();
 
     /* copy data down over radiotap header */
-    packet->caplen -= (hdr->it_len + fcs_cut);
-    packet->len -= (hdr->it_len + fcs_cut);
-    memcpy(packet->data, callback_data + hdr->it_len, packet->caplen);
+    packet->caplen -= (EXTRACT_LE_16BITS(&hdr->it_len) + fcs_cut);
+    packet->len -= (EXTRACT_LE_16BITS(&hdr->it_len) + fcs_cut);
+    memcpy(packet->data, callback_data + EXTRACT_LE_16BITS(&hdr->it_len), packet->caplen);
 
     return 1;
 #undef BITNO_32

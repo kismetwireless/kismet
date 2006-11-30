@@ -1,3 +1,6 @@
+Nov 30 2006  devel  Merged patch to treat radiotap as little-endian at all
+                     times.  I suspect this will break some platforms in
+                     the future and will address it later.
 Nov 17 2006  devel  Tweaked channel set to use mode fixed (Daniel Drake)
 Nov 11 2006  devel  Added proper support for AirPcap (CACEtech, win32)
                     Added patch from Khorben for NetBSD battery reporting

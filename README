@@ -161,7 +161,16 @@ Licensed under the GPL
 7.  Required Libraries & Utilities
 
     Kismet is primary self-contained, however for some features it requires
-    some external libraries or utilities.
+    some external libraries or utilities.  For distributions which provide split
+    library packages of somelib and somelib-devel, you will need both installed
+    for Kismet to compile.
+
+    - LibPcap (0.9+ preferred): http://tcpdump.org/
+      REQUIRED for the majority of packet capturing systems
+
+      LibPcap provides the common capture system Kismet uses to read from most
+      Posix-style interfaces.  Without LibPcap, Kismet will be all but useless
+      on most platforms.
 
     - GPSD (any version): http://russnelson.com/gpsd/ 
       REQUIRED for GPS support
@@ -541,7 +550,8 @@ Licensed under the GPL
       --enable-airpcap and --with-airpcap-devpack=Path, where Path is the
       CACE devpack containing winpcap and airpcap.  Cygwin appears to have
       a bug which prevents proper linking if the devpack is not in the same
-      directory as Kismet is compiled in.
+      directory as Kismet is compiled in.  If kismet_server.exe instantly exits
+      with no output, it is typically indicative of a linkage path problem.
 
       NO OTHER WIRELESS CARDS CAN CURRENTLY BE USED TO CAPTURE DATA NATIVELY
       IN WINDOWS.  CACE has released a public API for their drivers to allow
@@ -1335,6 +1345,17 @@ Licensed under the GPL
     FIX:  Your flex/lex/bison/yacc tools are broken or missing.  Make sure you
      install them.  libpcap cannot compile without them.  Newer releases of
      Kismet patch libpcap to not generate filter code at all.
+
+    PROBLEM: Kismet can't compile, there are errors about not finding libpcap
+    FIX: Kismet no longer includes libpcap source, and expects your system to
+    have a relatively modern (0.9+ preferred) libpcap install.  Install 
+    libpcap, and if your distribution provides it, libpcap-devel.
+
+    PROBLEM: Kismet immediately exits on Cygwin with no output
+    FIX: Cygwin appears to have a problem in the linker.  If Kismet is linked
+    to the CASE airpcap/winpcap libraries, they MUST be inside a sub-directory
+    of the Kismet source for compilation.  Recompile Kismet with the airpcap 
+    devpack inside the source directory.
 
 18. Frequently Asked Questions
 
