@@ -136,7 +136,14 @@ int PcapSource::OpenSource() {
     #if defined (SYS_OPENBSD) || defined(SYS_NETBSD) && defined(HAVE_RADIOTAP)
     /* Request desired DLT on multi-DLT systems that default to EN10MB. We do this
        later anyway but doing it here ensures we have the desired DLT from the get go. */
-     pcap_set_datalink(pd, DLT_IEEE802_11_RADIO);
+    pcap_set_datalink(pd, DLT_IEEE802_11_RADIO);
+	// Hack to re-enable promisc mode since changing the DLT seems to make it
+	// drop it on some bsd pcap implementations
+	ioctl(pcap_get_selectable_fd(pd), BIOCPROMISC, NULL);
+	// Hack to set the fd to IOIMMEDIATE, to solve problems with select() on bpf
+	// devices on BSD
+	int v = 1;
+	ioctl(pcap_get_selectable_fd(pd), BIOCIMMEDIATE, &v);
     #endif
 
     free(unconst);
