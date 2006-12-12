@@ -1549,10 +1549,12 @@ int PanelFront::Tick() {
 		if ((apmfd = open("/dev/apm", O_RDONLY)) < 0) {
 			bat_available = 0;
 			WriteStatus("Unable to open /dev/apm\n");
+			monitor_bat = 0;
 			return 1;
 		} else if (ioctl(apmfd, APM_IOC_GETPOWER, &api) < 0) {
 			bat_available = 0;
 			WriteStatus("Apm ioctl failed\n");
+			monitor_bat = 0;
 			close(apmfd);
 			return 1;
 		} else {

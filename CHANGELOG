@@ -1,3 +1,4 @@
+Dec 12 2006  devel  Merged openbsd patches from Pedro
 Nov 30 2006  devel  Merged patch to treat radiotap as little-endian at all
                      times.  I suspect this will break some platforms in
                      the future and will address it later.

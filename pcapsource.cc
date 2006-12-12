@@ -746,6 +746,14 @@ int PcapSource::Radiotap2KisPack(kis_packet *packet, uint8_t *data, uint8_t *mod
                     u.u64 = EXTRACT_LE_64BITS(iter);
                     iter += sizeof(u.u64);
                     break;
+#if defined(SYS_OPENBSD)
+                case IEEE80211_RADIOTAP_RSSI:
+                    u.u8 = EXTRACT_LE_8BITS(iter);
+                    iter += sizeof(u.u8);
+                    u2.u8 = EXTRACT_LE_8BITS(iter);
+                    iter += sizeof(u2.u8);
+                    break;
+#endif
                 default:
                     /* this bit indicates a field whose
                      * size we do not know, so we cannot
@@ -793,6 +801,12 @@ int PcapSource::Radiotap2KisPack(kis_packet *packet, uint8_t *data, uint8_t *mod
                     if (u.u8 & IEEE80211_RADIOTAP_F_FCS)
                          fcs_cut = 4;
                     break;
+#if defined(SYS_OPENBSD)
+                case IEEE80211_RADIOTAP_RSSI:
+                    /* Convert to Kismet units */
+                    packet->signal = int((float(u.u8) / float(u2.u8) * 255));
+                    break;
+#endif
 #if 0
                 case IEEE80211_RADIOTAP_FHSS:
                     printf("fhset %d fhpat %d ", u.u16 & 0xff,
