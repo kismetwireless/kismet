@@ -6201,7 +6201,6 @@ cat >>conftest.$ac_ext <<_ACEOF
 		#include <netdb.h>
 		#include <sys/types.h>
 		#include <sys/socket.h>
-		#include <linux/wireless.h>
 
 int
 main ()
