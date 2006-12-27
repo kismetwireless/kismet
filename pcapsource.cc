@@ -327,7 +327,9 @@ int PcapSource::ManglePacket(kis_packet *packet, uint8_t *data, uint8_t *moddata
     int ret = 0;
     memset(packet, 0, sizeof(kis_packet));
     
-    packet->ts = callback_header.ts;
+    // packet->ts = callback_header.ts;
+	packet->ts.tv_sec = callback_header.ts.tv_sec;
+	packet->ts.tv_usec = callback_header.ts.tv_usec;
     packet->data = data;
     packet->moddata = moddata;
     packet->modified = 0;
