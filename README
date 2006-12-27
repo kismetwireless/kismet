@@ -1,4 +1,4 @@
-Kismet 2006-04-R1
+Kismet 2006-12-R1
 Mike Kershaw <dragorn@kismetwireless.net>
 http://www.kismetwireless.net
 Licensed under the GPL
@@ -485,26 +485,18 @@ Licensed under the GPL
 
     - OpenBSD
       Known supported cards: Prism2 (wi), Atheros (ath), Intel 2200/2225/2915
-      (iwi), Intel 2100 (ipw), Ralink (ral and ural), Realtek RTL8180L (rtw),
-      WSP100, Drone, wtapfile, pcapfile.
+      (iwi), Intel 2100 (ipw), Ralink (ral, ural and rum), Realtek RTL8180L 
+      (rtw), ZyDAS ZD1211/ZD1211B (zyd), Prism GT Full-MAC (pgt), Cisco 35x
+      (an), WSP100, Drone, wtapfile, pcapfile.
   
       OpenBSD 3.7 and newer includes a software 802.11 stack and the Radiotap
       packet header format. Any cards that use the 802.11 stack and support
       monitor mode should work with Kismet via the radiotap_bsd_x capture
-      sources. For best results OpenBSD -current is recommended.
+      sources.
  
       OpenBSD 3.2 and newer report standard frames from the Prism2 drivers. 
       Thanks to the efforts of Pedro la Peu, Kismet works fully with prism2
-      cards under OpenBSD.  The prism2_openbsd and cisco_openbsd capture
-      sources will soon be deprecated, if possible use the radiotap_bsd_x
-      capture sources.
-
-      There have been some reports of the OpenBSD gcc toolchain failing when
-      debugging symbols and optimization are turned on (-g and -O#).  If you
-      experience problems compiling Kismet on OpenBSD where GCC runs out of
-      memory, either edit the Makefile and remove the -Ox and -g options from
-      CPPFLAGS and CXXFLAGS, or run configure with the --disable-optimization
-      parameter, run gmake clean, and then gmake again.
+      cards under OpenBSD.
 
     - FreeBSD
       Known supported cards: Atheros, Prism2, WSP100, Drone, wtapfile, pcapfile
@@ -665,14 +657,6 @@ Licensed under the GPL
                      correctly, so channel control is not available.  The
                      firmware will hop to whatever channel it feels like 
                      hopping to, when it feels like hopping.
-
-    cisco_openbsd   Aironet 340,350     OpenBSD     Kernel
-                    Capture interface:  'anX'  
-                    OpenBSD cisco drivers are not fully supported currently,
-                     but may become so.  Packet capture probably will not
-                     work correctly.
-                    For current OpenBSD releases you should try the 
-                     radiotap_bsd_b capture source, NOT this one.
 
     hostap          Prism/2             Linux       HostAP 0.4
                     http://hostap.epitest.fi/
@@ -835,9 +819,7 @@ Licensed under the GPL
 
     prism2_openbsd  Prism/2             OpenBSD     Kernel
                     Capture interface:  'wiX'
-                    Full support for Prism2 under older OpenBSD releases.
-                    This should soon be deprecated, if possible use the
-                     radiotap_bsd_b capture type.
+                    Full support for Prism2 under OpenBSD.
 
     prism54g        PrismGT             Linux       prism54
                     http://www.prism54.org
