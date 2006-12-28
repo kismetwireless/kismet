@@ -1031,8 +1031,8 @@ carrier_type PcapSourceWrt54g::IEEE80211Carrier() {
 
 #ifdef SYS_OPENBSD
 int PcapSourceOpenBSDPrism::FetchChannel() {
-    struct wi_req wreq;                                                     
-    struct ifreq ifr;                                                       
+    struct wi_req wreq;
+    struct ifreq ifr;
     int skfd;
 
 	if ((skfd = socket(AF_INET, SOCK_DGRAM, 0)) < 0) {
@@ -1041,13 +1041,13 @@ int PcapSourceOpenBSDPrism::FetchChannel() {
 		return -1;
 	}
 
-    bzero((char *)&wreq, sizeof(wreq));                                     
-    wreq.wi_len = WI_MAX_DATALEN;                                           
+    bzero((char *)&wreq, sizeof(wreq));
+    wreq.wi_len = WI_MAX_DATALEN;
     wreq.wi_type = WI_RID_CURRENT_CHAN; 
 
-    bzero((char *)&ifr, sizeof(ifr));                                       
+    bzero((char *)&ifr, sizeof(ifr));
     strlcpy(ifr.ifr_name, interface.c_str(), sizeof(ifr.ifr_name));
-    ifr.ifr_data = (caddr_t)&wreq;                                          
+    ifr.ifr_data = (caddr_t)&wreq;
 
 	if (ioctl(skfd, SIOCGWAVELAN, &ifr) < 0) {
         close(skfd);
@@ -1057,7 +1057,7 @@ int PcapSourceOpenBSDPrism::FetchChannel() {
 	}
 
     close(skfd);
-    return wreq.wi_val[0];                                                  
+    return wreq.wi_val[0];
 }
 #endif
 
@@ -2433,40 +2433,6 @@ int monitor_wrt54g(const char *in_dev, int initch, char *in_err, void **in_if,
 #endif
 
 #ifdef SYS_OPENBSD
-// This should be done programattically...
-int monitor_openbsd_cisco(const char *in_dev, int initch, char *in_err, void **in_if, void *in_ext) {
-    char cmdline[2048];
-
-    // Sanitize the device just to be safe.  The ifconfig should fail if
-    // the device is invalid, but why take risks
-    for (unsigned int x = 0; x < strlen(in_dev); x++) {
-        if (!isalnum(in_dev[x])) {
-            snprintf(in_err, STATUS_MAX, "Invalid device '%s'", in_dev);
-            return -1;
-        }
-    }
-
-    snprintf(cmdline, 2048, "ancontrol -i %s -o 1", in_dev);
-    if (RunSysCmd(cmdline) < 0) {
-        snprintf(in_err, 1024, "Unable to execute '%s'", cmdline);
-        return -1;
-    }
-
-    snprintf(cmdline, 2048, "ancontrol -i %s -p 1", in_dev);
-    if (RunSysCmd(cmdline) < 0) {
-        snprintf(in_err, 1024, "Unable to execute '%s'", cmdline);
-        return -1;
-    }
-
-    snprintf(cmdline, 2048, "ancontrol -i %s -M 7", in_dev);
-    if (RunSysCmd(cmdline) < 0) {
-        snprintf(in_err, 1024, "Unable to execute '%s'", cmdline);
-        return -1;
-    }
-    
-    return 0;
-}
-
 int monitor_openbsd_prism2(const char *in_dev, int initch, char *in_err, void **in_if, void *in_ext) {
     struct wi_req wreq;
     struct ifreq ifr;
@@ -2516,32 +2482,6 @@ int monitor_openbsd_prism2(const char *in_dev, int initch, char *in_err, void **
         return -1;
     }
 
-    // Disable power managment
-    bzero((char *)&wreq, sizeof(wreq));
-    wreq.wi_len = WI_MAX_DATALEN;
-    wreq.wi_type = WI_RID_PM_ENABLED;
-    wreq.wi_val[0] = 0;
-
-    if (ioctl(s, SIOCSWAVELAN, &ifr) < 0) {
-        close(s);
-        snprintf(in_err, 1024, "Power management ioctl failed: %s",
-                 strerror(errno));
-        return -1;
-    }
-
-    // Lower AP density, better radio threshold settings? 
-    bzero((char *)&wreq, sizeof(wreq));
-    wreq.wi_len = WI_MAX_DATALEN;
-    wreq.wi_type = WI_RID_SYSTEM_SCALE;
-    wreq.wi_val[0] = 1;
-
-    if (ioctl(s, SIOCSWAVELAN, &ifr) < 0) {
-        close(s);
-        snprintf(in_err, 1024, "AP Density ioctl failed: %s",
-                 strerror(errno));
-        return -1;
-    }
-
     // Enable driver processing of 802.11b frames
     bzero((char *)&wreq, sizeof(wreq));
     wreq.wi_len = WI_MAX_DATALEN;
@@ -2555,17 +2495,18 @@ int monitor_openbsd_prism2(const char *in_dev, int initch, char *in_err, void **
         return -1;
     }
 
-    // Disable roaming, we don't want the card to probe
+    /*
+     * Disable roaming, we don't want the card to probe
+     * If this fails, don't consider it fatal.
+     */
     bzero((char *)&wreq, sizeof(wreq));
     wreq.wi_len = WI_MAX_DATALEN;
     wreq.wi_type = WI_RID_ROAMING_MODE;
     wreq.wi_val[0] = 3;
 
     if (ioctl(s, SIOCSWAVELAN, &ifr) < 0) {
-        close(s);
         snprintf(in_err, 1024, "Roaming disable ioctl failed: %s",
                  strerror(errno));
-        return -1;
     }
 
     // Enable monitor mode

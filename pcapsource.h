@@ -431,8 +431,6 @@ int monitor_wrt54g(const char *in_dev, int initch, char *in_err, void **in_if, v
 
 // This should be expanded to handle BSD...
 #ifdef SYS_OPENBSD
-// Cisco (bsd)
-int monitor_openbsd_cisco(const char *in_dev, int initch, char *in_err, void **in_if, void *in_ext);
 // openbsd prism2
 int monitor_openbsd_prism2(const char *in_dev, int initch, char *in_err, void **in_if, void *in_ext);
 #endif

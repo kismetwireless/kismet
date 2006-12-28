@@ -267,15 +267,11 @@ int RegisterKismetSources(Packetsourcetracker *sourcetracker) {
 #endif
 
 #if defined(HAVE_LIBPCAP) && defined(SYS_OPENBSD)
-    sourcetracker->RegisterPacketsource("cisco_openbsd", 1, "IEEE80211b", 6,
-                                       pcapsource_registrant,
-                                       monitor_openbsd_cisco, NULL, NULL, 1);
     sourcetracker->RegisterPacketsource("prism2_openbsd", 1, "IEEE80211b", 6,
                                        pcapsource_openbsdprism2_registrant,
                                        monitor_openbsd_prism2, NULL,
                                        chancontrol_openbsd_prism2, 1);
 #else
-    REG_EMPTY_CARD(sourcetracker, "cisco_openbsd");
     REG_EMPTY_CARD(sourcetracker, "prism2_openbsd");
 #endif
 
