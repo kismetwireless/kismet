@@ -353,7 +353,6 @@ void GetPacketInfo(kis_packet *packet, packet_info *ret_packinfo,
 							  &tag_cache_map) < 0 && packet->parm.fuzzy_decode == 0) {
                 // The frame is corrupt, bail
                 ret_packinfo->corrupt = 1;
-                return;
             }
       
             if ((tcitr = tag_cache_map.find(0)) != tag_cache_map.end()) {
@@ -387,7 +386,6 @@ void GetPacketInfo(kis_packet *packet, packet_info *ret_packinfo,
                 } else {
                     // Otherwise we're corrupt, set it and stop processing
                     ret_packinfo->corrupt = 1;
-                    return;
                 }
             } else {
                 ret_packinfo->ssid_len = -1;
@@ -494,7 +492,8 @@ void GetPacketInfo(kis_packet *packet, packet_info *ret_packinfo,
 				// boundaries
 				if ((unsigned int) (tag_offset + 11) < packet->len && temp >= 11) {
 					snprintf(ret_packinfo->beacon_info, SSID_SIZE,
-						MungeToPrintable((char *) &(packet->data[tag_offset+11]), temp - 11).c_str());
+						MungeToPrintable((char *) &(packet->data[tag_offset+11]), 
+										 temp - 11).c_str());
                 }
 
 				// Non-fatal fail since beacon info might not have that

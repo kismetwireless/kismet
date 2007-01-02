@@ -1,3 +1,5 @@
+Jan 02 2007  devel  Added new IDS signatures for MSF Broadcom code exec and
+                     overlong SSID exploits
 Dec 27 2006  devel  Merged README patches from Pedro
                     Merged OpenBSD patches from Pedro to remove cisco_openbsd
                      source (deprecated)

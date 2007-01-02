@@ -32,9 +32,14 @@
 #define BCASTDISCON_AREF   5
 #define AIRJACKSSID_AREF   6
 #define NULLPROBERESP_AREF 7
-#define MAX_AREF           8
+#define MSFBCOMSSID_AREF   8
+#define LONGSSID_AREF      9
+#define MAX_AREF           10
 
 extern mac_addr broadcast_mac;
+
+// Masked opcode MAC used to match metasploit opcode src fields
+mac_addr msfopcode_mac = mac_addr("90:E9:75:00:00:00/FF:FF:FF:00:00:00");
 
 // Get this out of kismet_server (yeah, yeah, globals bad)
 extern int netcryptdetect, waypointformat;
@@ -130,6 +135,16 @@ int Packetracker::EnableAlert(string in_alname, alert_time_unit in_unit,
         // Register 0-len probe response alert
         ret = arefs[NULLPROBERESP_AREF] = 
 			alertracker->RegisterAlert("NULLPROBERESP", in_unit, in_rate, 
+									   in_bunit, in_burstrate);
+	} else if (lname == "msfbcomssid") {
+		// Register MSF broadcom SSID alert
+		ret = arefs[MSFBCOMSSID_AREF] =
+			alertracker->RegisterAlert("MSFBCOMSSID", in_unit, in_rate,
+									   in_bunit, in_burstrate);
+	} else if (lname == "longssid") {
+		// Register generic over-long SSID alert
+		ret = arefs[LONGSSID_AREF] =
+			alertracker->RegisterAlert("LONGSSID", in_unit, in_rate,
 									   in_bunit, in_burstrate);
     } else if (lname == "probenojoin") {
         ProbeNoJoinAutomata *pnja = 
@@ -299,6 +314,19 @@ void Packetracker::ProcessPacket(kis_packet *packet, packet_info *info,
     // string bssid_mac;
 
     num_packets++;
+
+	// Check the SSID length before checking corrupt state -- when we get
+	// a long SSID (longer than 32) in the packet decoder we blow it up and
+	// kick it to here
+	if (info->ssid_len > 32) {
+        if (alertracker->PotentialAlert(arefs[LONGSSID_AREF])) {
+            snprintf(status, STATUS_MAX, "Illegal SSID length (%d > 32) from %s",
+                     info->ssid_len, info->source_mac.Mac2String().c_str());
+            alertracker->RaiseAlert(arefs[LONGSSID_AREF], info->source_mac, 
+                                    info->source_mac, 0, 0, info->channel, status);
+        }
+	}
+
 
     // Feed it through the finite state alert processors
     for (unsigned int x = 0; x < fsa_vec.size(); x++) {
@@ -553,6 +581,20 @@ void Packetracker::ProcessPacket(kis_packet *packet, packet_info *info,
                                     info->source_mac, 0, 0, info->channel, status);
         }
     }
+
+	// MSF opcode-in-MAC
+	if (info->type == packet_management && 
+		(info->subtype == packet_sub_beacon || 
+		 info->subtype == packet_sub_probe_resp) &&
+		info->source_mac == msfopcode_mac) {
+        if (alertracker->PotentialAlert(arefs[MSFBCOMSSID_AREF])) {
+            snprintf(status, STATUS_MAX, 
+					 "MSF-style poisoned exploit packet for Broadcom drivers");
+            alertracker->RaiseAlert(arefs[MSFBCOMSSID_AREF], info->source_mac, 
+                                    info->source_mac, 0, 0, info->channel, status);
+        }
+    }
+
 
     if (info->type == packet_management &&
         (info->subtype == packet_sub_disassociation ||
