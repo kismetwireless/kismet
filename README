@@ -1,4 +1,4 @@
-Kismet 2006-12-R1
+Kismet 2007-01-R1
 Mike Kershaw <dragorn@kismetwireless.net>
 http://www.kismetwireless.net
 Licensed under the GPL
@@ -34,7 +34,7 @@ Licensed under the GPL
     networks, and infering the presence of nonbeaconing networks via data
     traffic.
 
-2.  Quick Start
+2a. Quick Start
 
     PLEASE read the full manual, but for the impatient, here is the BARE
     MINIMUM needed to get Kismet working:
@@ -62,6 +62,23 @@ Licensed under the GPL
 
     * Run ``kismet''.  You may need to start Kismet as root.
     * READ THE REST OF THIS README
+
+2b. Windows Quick Start
+
+    PLEASE read the full manual, but for the impatient, here is the BARE
+    MINIMUM method to get Kismet running:
+
+    * Download the Win32/Cygwin Installer created by CACE
+    * Run the installer
+    * Start Kismet
+    * Pick your AirPcap or Kismet Drone sources
+    
+    * READ THE REST OF THIS README
+
+    KISMET WILL ONLY WORK WITH THE CACE AIRPCAP DEVICE OR REMOTE KISMET DRONES
+    IN WINDOWS.  NO OTHER CARDS ARE SUPPORTED, PERIOD.  DO NOT ASK IF KISMET
+    WILL WORK WITH THEM ON WINDOWS, IT WILL NOT.  THIS LIMITATION IS CAUSED
+    BY THE LACK OF SNIFFER-MODE CAPABLE DRIVERS ON WINDOWS.
 
 3.  Feature Overview
 
@@ -102,32 +119,11 @@ Licensed under the GPL
 
 5.  Upgrading from Previous Versions
 
-    Upgrading to Kismet 2005-08-R1:
-      Upgrading from 2005-06-R1 or 2005-07-R1 should have no major changes.
-      See the config file for new settings pertaining to waypoint export.
-
-      For upgrading from previous versions, see the section on upgrading to
-      2005-06-R1 from older releases.
-
-    Upgrading to Kismet 2005-06-R1 from previous versions:
-      Kismet now supports the ipw2200 card with monitor mode.  If you use this
-      card, make sure you add the ipw2200 source to the 'fuzzycrypt' line
-      in your config file.  (The same applies to ipw2915)
-
-      Alternately, you can enable the "netfuzzycrypt" option to force fuzzy
-       packet detection based on the network encryption.
-
-      Kismet also now supports limiting alert burst rate time units, new
-      default alert values are in the example kismet.conf and alerts may
-      now be of the form:
-        alert=NAME,limit/unit,burst/unit
-        alert=FOO,10/min,1/sec
-    
-    Upgrading to Kismet 3.1+:
-      Kismet 3.1 has significantly changed how Kismet operates again.  There
-      have been config file changes, changes to the names of capture types,
-      and various other mayhem.  Be sure to upgrade your config file or things
-      will definitely not work how you expect them to.
+    Upgrading to Kismet 2007-01-R1:
+      Make sure to either update your kismet.conf file from the one included
+      in the distribution, or to copy the new ALERT enable lines.  If you
+      do not copy the ALERT setup from the new config, new IDS alerts will
+      not be enabled.
 
 6.  Suidroot & Security
 
@@ -1041,6 +1037,7 @@ Licensed under the GPL
     Alert name:       NETSTUMBLER
     Alert type:       Fingerprint  
     Alert on:         Netstumbler probe requests
+    WVE:              WVE-2005-0025
     Alert message:    "Netstumbler ($version) probe detected from ($macsource)"
     Tool-specific:    Yes (Netstumbler 3.22, 3.23, 3.30)
     References:       http://www.netstumbler.com
@@ -1052,6 +1049,10 @@ Licensed under the GPL
     Alert name:       DEAUTHFLOOD
     Alert type:       Trend
     Alert on:         Deauthenticate/Disassociate Flood
+    WVE:              WVE-2005-0019
+                      WVE-2005-0045
+                      WVE-2005-0046
+                      WVE-2005-0061
     Alert message:    "Deassociate/Deauthenticate flood on $targetbssid"
     Tool-specific:    No
     References:       http://802.11ninja.net
@@ -1074,6 +1075,7 @@ Licensed under the GPL
     Alert name:       WELLENREITER
     Alert type:       Fingerprint
     Alert on:         Wellenreiter SSID brute force attempt
+    WVE:              WVE-2006-0058
     Alert message:    "Wellenteiter probe detected from $sourcemac"
     Tool-specific:    Yes (Wellenreiter 1.5, 1.6)
     References:       http://home.jwu.edu/jwright/papers/l2-wlan-ids.pdf
@@ -1085,6 +1087,7 @@ Licensed under the GPL
     Alert name:       CHANCHANGE
     Alert type:       Trend  
     Alert on:         Previously detected AP changing to a new channel
+    WVE:              WVE-2005-0019
     Alert message:    "Beacon on $bssid ($ssid) for channel $newchannel,
                       previously detected on $oldchannel"
     Tool-specific:    No
@@ -1096,21 +1099,29 @@ Licensed under the GPL
     Alert name:       BCASTDISCON
     Alert type:       Fingerprint
     Alert on:         Broadcast disconnect/deauthenticate
+    WVE:              WVE-2005-0019
+                      WVE-2005-0045
+                      WVE-2005-0046
+                      WVE-2005-0061
     Alert message:    "Broadcast [disassociation|deathentication] on $bssid"
     Tool-specific:    No
     Details:          Many attacks use a broadcast disassociate or 
                       deauthenticate to disconnect all users on a network, 
                       either to redirect them to a new fake network or do
                       cause a denial of service or disclose a cloaked SSID.
-                      Broadcast disassociations are rarely, if ever, legitimate.
+                      Broadcast disassociations are rarely, if ever, 
+                      legitimate.
 
     Alert name:       AIRJACKSSID
     Alert type:       Fingerprint
     Alert on:         SSID of 'airjack'
+    WVE:              WVE-2005-0018
     Alert message:    "Beacon for SSID 'airjack' from $sourcemac"
     Tool-specific:    Yes (airjack)
     References:       http://802.11ninja.net/airjack/
     Details:          The AirJack tools set the initial SSID to 'airjack'.
+                      This alert is no longer highly relevant as the AirJack
+                      tool has long been discontinued.
 
     Alert name:       PROBENOJOIN
     Alert type:       Trend
@@ -1127,13 +1138,17 @@ Licensed under the GPL
                       probing for networks but never joins any of the networks
                       which respond.
                       False positives are possible in noisy/lossy situations,
-                      disabling this alert may be desireable in some 
+                      disabling this alert may be desirable in some 
                       installations.
 
     Alert name:       DISASSOCTRAFFIC
     Alert type:       Trend
     Alert on:         Traffic from a source within 10 seconds of a
                       disassociation
+    WVE:              WVE-2005-0019
+                      WVE-2005-0045
+                      WVE-2005-0046
+                      WVE-2005-0061
     Alert message:    "Suspicious traffic on $sourcemac: Data traffic within
                       10 seconds of a disassociate."
     Tool-specific:    No
@@ -1149,7 +1164,9 @@ Licensed under the GPL
 
     Alert name:       NOPROBERESP
     Alert type:       Fingerprint
-    Alert on:         Probe response packet with 0-length SSID tagged parameter
+    Alert on:         Probe response packet with 0-length SSID tagged 
+                      parameter
+    WVE:              WVE-2006-0064
     Alert message:    "Probe response with 0-length SSID detected from 
                       $sourcemac"
     Tool-specific:    No
@@ -1161,6 +1178,7 @@ Licensed under the GPL
     Alert type:       Trend
     Alert on:         Invalid BSS timestamps indicative of an access point 
                       being spoofed.
+    WVE:              WVE-2005-0019
     Alert message:    "Out-of-sequence timestamp on $bssid got $timestamp 
                       expected $timestamp - this could indicate AP spoofing"
     Tool-specific:    No
@@ -1171,6 +1189,26 @@ Licensed under the GPL
                       an access point.
                       This alert contains flap-detection to minimise false
                       positives caused by random bogons and AP recycling.
+
+    Alert name:       MSFBCOMSSID
+    Alert type:       Signature
+    Alert on:         MAC src address used as CPU instructions by MSF when 
+                      exploiting the Broadcom SSID overflow
+    WVE:              WVE-2006-0071
+    Alert message:    "MSF-style poisoned exploit packet for Broadcom drivers"
+    Tool-specific:    Yes
+    Details:          Some versions of the Windows Broadcom wireless drivers
+                      do not properly handle over-long SSIDs.
+
+    Alert name:       LONGSSID
+    Alert type:       Signature
+    Alert on:         SSID advertised as greater than IEEE spec of 32 bytes
+    Alert message:    "Illegal SSID length ($len > 32) from $srcmac"
+    Tool-specific:    No
+    Details:          The IEEE 802.11 spec allows a maximum of 32 bytes for
+                      the SSID, however the IE tag structure allows for 256.
+                      Oversized SSIDs are indicative of an attack attempting
+                      to exploit SSID handling.
    
 16. Reporting Bugs
 
@@ -1520,6 +1558,15 @@ Licensed under the GPL
        not up to date and couldn't handle the 802.11 linktypes.  Now it is
        because Kismet patches libpcap to not generate filter code, resulting
        in a significant reduction in the size of the compiled binaries.
+
+    Q: Why won't Kismet work on Windows?
+    A: Because there are few legally unencumbered drivers for Windows.  I am
+       unwilling to risk the legal repercussions of attempting to leverage
+       the commercial drivers from sniffer demos.  
+       Thanks to the efforts of CACE Tech, the AirPcap device is available
+       for Windows with drivers designed to let OSS projects use the
+       device legally.  Kismet will now work with this device on Windows, 
+       however this is the ONLY local capture device which will work.
 
     Q: What happens when I ask a question thats already answered here?
     A: I'll probably be rude to you and tell you to go read the docs. 

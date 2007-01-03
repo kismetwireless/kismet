@@ -1,3 +1,5 @@
+Jan 03 2007  devel  Updated README
+                    Added WVE references for alerts in README
 Jan 02 2007  devel  Added new IDS signatures for MSF Broadcom code exec and
                      overlong SSID exploits
                     Merged ap_ and client_ manuf updates from joe haldon posted
