@@ -633,6 +633,7 @@ void NetWriteInfo() {
     static time_t last_write = time(0);
     static int last_packnum = tracker.FetchNumPackets();
     vector<wireless_network *> tracked;
+	vector<wireless_network *> rem_tracked;
 
     int tim = time(0);
     ui_server.SendToAll(time_ref, &tim);
@@ -716,7 +717,8 @@ void NetWriteInfo() {
             string remstr = tracked[x]->bssid.Mac2String();
             ui_server.SendToAll(remove_ref, (void *) &remstr);
 
-            tracker.RemoveNetwork(tracked[x]->bssid);
+			rem_tracked.push_back(tracked[x]);
+            // tracker.RemoveNetwork(tracked[x]->bssid);
 
             continue;
         }
@@ -744,6 +746,10 @@ void NetWriteInfo() {
         }
 
     }
+
+	for (unsigned int x = 0; x < rem_tracked.size(); x++) {
+		tracker.RemoveNetwork(rem_tracked[x]->bssid);
+	}
 
 }
 
