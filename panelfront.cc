@@ -649,6 +649,33 @@ void PanelFront::UpdateGroups() {
 				}
 			}
 		}
+
+		// Update the name of the group to be the SSID if there is only one
+		// network in it.
+		if (adhoc_group != NULL) {
+			if (adhoc_group->networks.size() == 1) {
+				adhoc_group->name = adhoc_group->networks[0]->ssid;
+			} else {
+				adhoc_group->name = "Adhoc networks";
+			}
+		}
+
+		if (probe_group != NULL) {
+			if (probe_group->networks.size() == 1) {
+				probe_group->name = probe_group->networks[0]->ssid;
+			} else {
+				probe_group->name = "Probe networks";
+			}
+		}
+
+		if (data_group != NULL) {
+			if (data_group->networks.size() == 1) {
+				data_group->name = data_group->networks[0]->ssid;
+			} else {
+				data_group->name = "Data networks";
+			}
+		}
+		
     }
 
     // Call our generic parent update... is this bad form?  It works, anyhow.
@@ -656,19 +683,11 @@ void PanelFront::UpdateGroups() {
 }
 
 void PanelFront::DestroyGroup(display_network *in_group) {
-	// Don't allow destroying builtin groups...  We don't care if the builtins
-	// are NULL, either.
-	if (in_group == probe_group || in_group == data_group ||
-		in_group == adhoc_group)
-		return;
-
 	// Handle when we destroy the details stuff
 	if (in_group == details_network) {
 		details_network = NULL;
 	}
 
-#if 0
-	// Why did we allow this?
     // Handle when we destroy the probe group
     if (in_group == probe_group) {
         probe_group = NULL;
@@ -677,7 +696,6 @@ void PanelFront::DestroyGroup(display_network *in_group) {
     } else if (in_group == adhoc_group) {
 		adhoc_group = NULL;
 	}
-#endif
 
 	localnets_dirty = 1;
 	
