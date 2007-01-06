@@ -577,8 +577,12 @@ int PanelFront::MainNetworkPrinter(void *in_window) {
         kwin->selected = calcnum - 1;
 
     for (unsigned int i = kwin->start; i < display_vector.size(); i++) {
-        last_displayed.push_back(display_vector[i]);
         wireless_network *net = display_vector[i]->virtnet;
+
+		if (net == NULL)
+			continue;
+
+        last_displayed.push_back(display_vector[i]);
 
         if (net->manuf_score == manuf_max_score && color)
             wattrset(kwin->win, color_map["factory"].pair);
@@ -708,7 +712,7 @@ int PanelFront::MainNetworkPrinter(void *in_window) {
             break;
     }
 
-    last_draw_size = group_vec.size();
+    last_draw_size = last_displayed.size();
 
 
     if (color)

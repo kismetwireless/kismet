@@ -438,6 +438,11 @@ display_network *Frontend::CreateGroup(int in_persistent, string in_tag, string 
 // Add a display network to a specific core group
 display_network *Frontend::AddToGroup(display_network *core, 
 									  display_network *merger) {
+	if (merger == core) {
+		// fprintf(stderr, "bug - merge == core in AddToGroup!?\n");
+		return core;
+	}
+
     // We need to do this nasty loop to find its posiition in the vector
     for (unsigned int x = 0; x < group_vec.size(); x++) {
         display_network *dnet = group_vec[x];
@@ -511,6 +516,7 @@ display_network *Frontend::AddToGroup(display_network *core,
         group_vec.erase(group_vec.begin() + x);
 
         // And free the group
+		// fprintf(stderr, "destroying dnet %p\n", dnet);
         delete dnet;
 
         break;
@@ -657,7 +663,7 @@ display_network *Frontend::GroupTagged() {
 }
 
 void Frontend::DestroyGroup(display_network *in_group) {
-
+	// fprintf(stderr, "FEDes: %p\n", in_group);
     /*
     if (in_group->type != group_bundle)
     return;

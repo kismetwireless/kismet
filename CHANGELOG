@@ -1,3 +1,4 @@
+Jan 06 2007  devel  Fixed long-standing bug in autogrouping in the client
 Jan 03 2007  devel  Updated README
                     Added WVE references for alerts in README
 Jan 02 2007  devel  Added new IDS signatures for MSF Broadcom code exec and

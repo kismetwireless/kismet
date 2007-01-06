@@ -507,6 +507,7 @@ void PanelFront::PopulateGroups(TcpClient *in_client) {
 			}
 		}
 
+		// fprintf(stderr, "pg: %p\n", probe_group);
 		// Build the group if we need to
 		if (probe_group == NULL && auto_pgroup) {
 			probe_group = CreateGroup(0, "autogroup_probe", "Probe Networks");
@@ -571,12 +572,16 @@ void PanelFront::UpdateGroups() {
 				*(dnet->virtnet) = *(dnet->networks[0]);
 			}
 
+			if (dnet == probe_group || dnet == data_group || dnet == adhoc_group)
+				continue;
+
             if (auto_pgroup && dnet->virtnet->type == network_probe && 
                 dnet != probe_group) {
                 probevec.push_back(dnet);
             } else if (auto_dgroup && dnet != data_group &&
                        (dnet->virtnet->type == network_data ||
                         dnet->virtnet->llc_packets == 0)) {
+				// fprintf(stderr, "pushing dnet %p\n", dnet);
                 datavec.push_back(dnet);
             } else if (auto_agroup && dnet != adhoc_group &&
 					   (dnet->virtnet->type == network_adhoc)) {
@@ -615,6 +620,7 @@ void PanelFront::UpdateGroups() {
                 if (dnet == details_network)
                     move_details = 1;
 
+				// fprintf(stderr, "adding dnet %p to data group %p\n", dnet, data_group);
                 data_group = AddToGroup(data_group, dnet);
 
                 if (move_details == 1) {
@@ -650,11 +656,19 @@ void PanelFront::UpdateGroups() {
 }
 
 void PanelFront::DestroyGroup(display_network *in_group) {
+	// Don't allow destroying builtin groups...  We don't care if the builtins
+	// are NULL, either.
+	if (in_group == probe_group || in_group == data_group ||
+		in_group == adhoc_group)
+		return;
+
 	// Handle when we destroy the details stuff
 	if (in_group == details_network) {
 		details_network = NULL;
 	}
 
+#if 0
+	// Why did we allow this?
     // Handle when we destroy the probe group
     if (in_group == probe_group) {
         probe_group = NULL;
@@ -663,6 +677,7 @@ void PanelFront::DestroyGroup(display_network *in_group) {
     } else if (in_group == adhoc_group) {
 		adhoc_group = NULL;
 	}
+#endif
 
 	localnets_dirty = 1;
 	
