@@ -302,13 +302,19 @@ void GetPacketInfo(kis_packet *packet, packet_info *ret_packinfo,
 
         ret_packinfo->distrib = no_distribution;
 
+#if 0
+		// Removing this option -- hopefully the drivers which caused these
+		// problems are updated by now, and we're much more interested in getting
+		// detectable stuff from exploit frames
+		//
         // Throw away large management frames that don't make any sense.  512b is 
         // an arbitrary number to pick, but this should keep some drivers from messing
         // with us
-        if (packet->caplen > 512) {
+        if (packet->caplen > 2048) {
             ret_packinfo->corrupt = 1;
             return;
         }
+#endif
 
         // Short handling of probe reqs since they don't have a fixed parameters
         // field
@@ -351,8 +357,8 @@ void GetPacketInfo(kis_packet *packet, packet_info *ret_packinfo,
             // so we don't have to do more error checking
             if (GetTagOffsets(ret_packinfo->header_offset, packet, 
 							  &tag_cache_map) < 0 && packet->parm.fuzzy_decode == 0) {
-                // The frame is corrupt, bail
-                ret_packinfo->corrupt = 1;
+				// Don't bail on corrupt tags anymore
+                // ret_packinfo->corrupt = 1;
             }
       
             if ((tcitr = tag_cache_map.find(0)) != tag_cache_map.end()) {
@@ -383,9 +389,12 @@ void GetPacketInfo(kis_packet *packet, packet_info *ret_packinfo,
 												  &(packet->data[tag_offset + 1]), 
 												  temp).c_str());
 					}
+#if 0
+					// Don't bail on broken tags anymore
                 } else {
                     // Otherwise we're corrupt, set it and stop processing
                     ret_packinfo->corrupt = 1;
+#endif
                 }
             } else {
                 ret_packinfo->ssid_len = -1;
@@ -452,10 +461,13 @@ void GetPacketInfo(kis_packet *packet, packet_info *ret_packinfo,
             
             ret_packinfo->source_mac = addr1;
             ret_packinfo->bssid_mac = addr1;
-           
+          
+#if 0
+			// Don't bail on this anymore
             // Probe req's with no SSID are bad
             if (found_ssid_tag == 0)
                 ret_packinfo->corrupt = 1;
+#endif
 
             // Catch wellenreiter probes
             if (!strncmp(ret_packinfo->ssid, "this_is_used_for_wellenreiter", 29)) {

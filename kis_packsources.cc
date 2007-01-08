@@ -54,8 +54,12 @@ int RegisterKismetSources(Packetsourcetracker *sourcetracker) {
     sourcetracker->RegisterPacketsource("pcapfile", 0, "na", 0,
                                        pcapsource_file_registrant,
                                        NULL, unmonitor_pcapfile, NULL, 0);
+	sourcetracker->RegisterPacketsource("pcaptap", 1, "na", 0,
+										pcapsource_registrant,
+										NULL, NULL, NULL, 0);
 #else
     REG_EMPTY_CARD(sourcetracker, "pcapfile");
+    REG_EMPTY_CARD(sourcetracker, "pcaptap");
 #endif
 
 #if defined(HAVE_LIBPCAP) && defined(HAVE_LINUX_WIRELESS)
