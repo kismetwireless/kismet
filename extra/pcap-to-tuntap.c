@@ -138,6 +138,8 @@ int main(int argc, char *argv[]) {
 
 	if (ltype == 127) {
 		stype = 803;
+	} else if (ltype == 105) {
+		stype = 801;
 	}
 
 	if (stype != 0) {
