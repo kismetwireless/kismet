@@ -34,7 +34,9 @@
 #define NULLPROBERESP_AREF 7
 #define MSFBCOMSSID_AREF   8
 #define LONGSSID_AREF      9
-#define MAX_AREF           10
+#define MSFDLINKRATE_AREF  10
+#define MSFNETGEARBCN_AREF 11
+#define MAX_AREF           12
 
 extern mac_addr broadcast_mac;
 
@@ -140,6 +142,16 @@ int Packetracker::EnableAlert(string in_alname, alert_time_unit in_unit,
 		// Register MSF broadcom SSID alert
 		ret = arefs[MSFBCOMSSID_AREF] =
 			alertracker->RegisterAlert("MSFBCOMSSID", in_unit, in_rate,
+									   in_bunit, in_burstrate);
+	} else if (lname == "msfdlinkrate") {
+		// Register MSF dlink rate alert
+		ret = arefs[MSFDLINKRATE_AREF] =
+			alertracker->RegisterAlert("MSFDLINKRATE", in_unit, in_rate,
+									   in_bunit, in_burstrate);
+	} else if (lname == "msfnetgearbeacon") {
+		// Register MSF dlink rate alert
+		ret = arefs[MSFNETGEARBCN_AREF] =
+			alertracker->RegisterAlert("MSFNETGEARBEACON", in_unit, in_rate,
 									   in_bunit, in_burstrate);
 	} else if (lname == "longssid") {
 		// Register generic over-long SSID alert
@@ -327,6 +339,27 @@ void Packetracker::ProcessPacket(kis_packet *packet, packet_info *info,
         }
 	}
 
+	// Catch our explicit flags from the packet dissector (total hack, wait
+	// for newcore to do properly)
+	if (info->ids_msfdlinkrate) {
+        if (alertracker->PotentialAlert(arefs[MSFDLINKRATE_AREF])) {
+			snprintf(status, STATUS_MAX, "MSF-style poisoned 802.11 rate field in "
+					 "beacon %s for D-Link driver attack",
+                     info->source_mac.Mac2String().c_str());
+            alertracker->RaiseAlert(arefs[MSFDLINKRATE_AREF], info->source_mac, 
+                                    info->source_mac, 0, 0, info->channel, status);
+        }
+	}
+
+	if (info->ids_msfnetgearbeacon) {
+        if (alertracker->PotentialAlert(arefs[MSFNETGEARBCN_AREF])) {
+			snprintf(status, STATUS_MAX, "MSF-style poisoned 802.11 over-sized "
+					 "options beacon %s for Netgear driver attack",
+                     info->source_mac.Mac2String().c_str());
+            alertracker->RaiseAlert(arefs[MSFNETGEARBCN_AREF], info->source_mac, 
+                                    info->source_mac, 0, 0, info->channel, status);
+        }
+	}
 
     // Feed it through the finite state alert processors
     for (unsigned int x = 0; x < fsa_vec.size(); x++) {

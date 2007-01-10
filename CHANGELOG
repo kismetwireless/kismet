@@ -1,3 +1,5 @@
+Jan 10 2007  devel  Added MSF dlink rate exploit alert
+                    Added MSF netgear large beacon exploit alert
 Jan 06 2007  devel  Fixed long-standing bug in autogrouping in the client
                     Fixed network removal code double-touching a vector
 Jan 03 2007  devel  Updated README

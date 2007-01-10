@@ -1198,7 +1198,8 @@ Licensed under the GPL
     Alert message:    "MSF-style poisoned exploit packet for Broadcom drivers"
     Tool-specific:    Yes
     Details:          Some versions of the Windows Broadcom wireless drivers
-                      do not properly handle over-long SSIDs.
+                      do not properly handle over-long SSIDs, leading to
+                      code execution.
 
     Alert name:       LONGSSID
     Alert type:       Signature
@@ -1209,6 +1210,28 @@ Licensed under the GPL
                       the SSID, however the IE tag structure allows for 256.
                       Oversized SSIDs are indicative of an attack attempting
                       to exploit SSID handling.
+
+    Alert name:       MSFDLINKRATE
+    Alert type:       Signature
+    Alert on:         Beacon frame with over-long 802.11 rates tag containing
+                      exploit opcodes
+    WVE:              WVE-2006-0072
+    Alert message:    "MSF-style poisoned 802.11 rate field in beacon $srcmac
+                      for D-Link driver attack"
+    Tool-specific:    Yes
+    Details:          Some versions of the Windows D-Link wireless drivers
+                      do not properly handle over-long 802.11 accepted rate
+                      fields, leading to code execution.
+
+    Alert name:       MSFNETGEARBEACON
+    Alert type:       Signature
+    Alert on:         Large beacon frame containing exploit opcodes
+    Alert message:    "MSF-style poisoned 802.11 over-sized options beacon $srcmac
+                      for Netgear driver attack"
+    Tool-specific:    Yes
+    Details:          Some versions of the Windows Netgear wireless drivers
+                      do not properly handle over-sized beacon frames, leading
+                      to remote code execution
    
 16. Reporting Bugs
 

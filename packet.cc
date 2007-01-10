@@ -344,6 +344,14 @@ void GetPacketInfo(kis_packet *packet, packet_info *ret_packinfo,
 #endif
         }
 
+		// Detect poisoned MSF beacons for netgear beacons
+		if (fc->subtype == 8 && packet->len >= 1184) {
+			// Detect the MSF jumper code at this offset
+			if (memcmp(&(packet->data[1180]), "\x6A\x39\x58\x01", 4) == 0) {
+				ret_packinfo->ids_msfnetgearbeacon = 1;
+			}
+		}
+
         map<int, vector<int> > tag_cache_map;
         map<int, vector<int> >::iterator tcitr;
 
@@ -402,6 +410,17 @@ void GetPacketInfo(kis_packet *packet, packet_info *ret_packinfo,
 
             // Extract the supported rates
             if ((tcitr = tag_cache_map.find(1)) != tag_cache_map.end()) {
+				// Look for the DLINK rate exploit tag used by metasploit
+				for (unsigned int x = 0; x < tcitr->second.size(); x++) {
+					tag_offset = tcitr->second[x];
+					if ((packet->data[tag_offset] & 0xFF) == 75 &&
+						(memcmp(&(packet->data[tag_offset + 1]), 
+								"\xEB\x49", 2) == 0)) {
+						ret_packinfo->ids_msfdlinkrate = 1;
+						break;
+					}
+				}
+
                 tag_offset = tcitr->second[0];
 
                 found_rate_tag = 1;

@@ -571,6 +571,10 @@ typedef struct {
     // ICV and key number
     uint32_t ivset;
 
+	// IDS hooks kluged into stable
+	int ids_msfdlinkrate;
+	int ids_msfnetgearbeacon;
+
 } packet_info;
 
 typedef struct {
