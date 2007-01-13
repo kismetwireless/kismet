@@ -673,8 +673,8 @@ void Packetracker::ProcessPacket(kis_packet *packet, packet_info *info,
 			} else if (info->subtype == packet_sub_deauthentication &&
 				alertracker->PotentialAlert(arefs[DEAUTHCODE_AREF]) > 0) {
 
-				snprintf(status, STATUS_MAX, "Unknown deauthentcation reason "
-						 "code %X from %s", info->reason_code,
+				snprintf(status, STATUS_MAX, "Unknown deauthentication reason "
+						 "code 0x%X from %s", info->reason_code,
 						 info->source_mac.Mac2String().c_str());
 				alertracker->RaiseAlert(arefs[DEAUTHCODE_AREF], info->bssid_mac,
 										info->source_mac, info->dest_mac, 0,
