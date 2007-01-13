@@ -658,8 +658,6 @@ void Packetracker::ProcessPacket(kis_packet *packet, packet_info *info,
 	if (info->type == packet_management &&
 		(info->subtype == packet_sub_disassociation ||
 		 info->subtype == packet_sub_deauthentication)) {
-		printf("debug - rc %X\n", info->reason_code);
-
 		if ((info->reason_code >= 25 && info->reason_code <= 31) ||
 			(info->reason_code > 45)) {
 			if (info->subtype == packet_sub_disassociation &&
