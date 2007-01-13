@@ -1,3 +1,4 @@
+Jan 13 2007  devel  Added DISCONCODEINVALID and DEAUTHCODEINVALID alerts
 Jan 10 2007  devel  Added MSF dlink rate exploit alert
                     Added MSF netgear large beacon exploit alert
 Jan 06 2007  devel  Fixed long-standing bug in autogrouping in the client

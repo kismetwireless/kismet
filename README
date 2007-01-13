@@ -1232,6 +1232,16 @@ Licensed under the GPL
     Details:          Some versions of the Windows Netgear wireless drivers
                       do not properly handle over-sized beacon frames, leading
                       to remote code execution
+
+    Alert name:       DISCONCODEINVALID | DEAUTHCODEINVALID
+    Alert type:       Signature
+    Alert on:         Unknown / reserved / invalid reason codes in deauth and
+                      disassoc packets
+    Alert message:    "Unknown {disassociation | deauthentication } reason code
+                      0x$rc from $sourcemac"
+    Tool-specific:    No
+    Details:          Various drivers and access points have been reported to
+                      improperly handle unknown/invalid reason codes.
    
 16. Reporting Bugs
 

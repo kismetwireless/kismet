@@ -36,7 +36,9 @@
 #define LONGSSID_AREF      9
 #define MSFDLINKRATE_AREF  10
 #define MSFNETGEARBCN_AREF 11
-#define MAX_AREF           12
+#define DISCONCODE_AREF    12
+#define DEAUTHCODE_AREF    13
+#define MAX_AREF           14
 
 extern mac_addr broadcast_mac;
 
@@ -157,6 +159,14 @@ int Packetracker::EnableAlert(string in_alname, alert_time_unit in_unit,
 		// Register generic over-long SSID alert
 		ret = arefs[LONGSSID_AREF] =
 			alertracker->RegisterAlert("LONGSSID", in_unit, in_rate,
+									   in_bunit, in_burstrate);
+	} else if (lname == "disconcodeinvalid") {
+		ret = arefs[DEAUTHCODE_AREF] =
+			alertracker->RegisterAlert("DISCONCODEINVALID", in_unit, in_rate,
+									   in_bunit, in_burstrate);
+	} else if (lname == "deauthcodeinvalid") {
+		ret = arefs[DISCONCODE_AREF] =
+			alertracker->RegisterAlert("DEAUTHCODEINVALID", in_unit, in_rate,
 									   in_bunit, in_burstrate);
     } else if (lname == "probenojoin") {
         ProbeNoJoinAutomata *pnja = 
@@ -644,6 +654,35 @@ void Packetracker::ProcessPacket(kis_packet *packet, packet_info *info,
         }
 
     }
+
+	if (info->type == packet_management &&
+		(info->subtype == packet_sub_disassociation ||
+		 info->subtype == packet_sub_deauthentication)) {
+		printf("debug - rc %X\n", info->reason_code);
+
+		if ((info->reason_code >= 25 && info->reason_code <= 31) ||
+			(info->reason_code > 45)) {
+			if (info->subtype == packet_sub_disassociation &&
+				alertracker->PotentialAlert(arefs[DISCONCODE_AREF]) > 0) {
+				snprintf(status, STATUS_MAX, "Unknown disassociation reason "
+						 "code 0x%X from %s", info->reason_code,
+						 info->source_mac.Mac2String().c_str());
+				alertracker->RaiseAlert(arefs[DISCONCODE_AREF], info->bssid_mac,
+										info->source_mac, info->dest_mac, 0,
+										info->channel, status);
+			} else if (info->subtype == packet_sub_deauthentication &&
+				alertracker->PotentialAlert(arefs[DEAUTHCODE_AREF]) > 0) {
+
+				snprintf(status, STATUS_MAX, "Unknown deauthentcation reason "
+						 "code %X from %s", info->reason_code,
+						 info->source_mac.Mac2String().c_str());
+				alertracker->RaiseAlert(arefs[DEAUTHCODE_AREF], info->bssid_mac,
+										info->source_mac, info->dest_mac, 0,
+										info->channel, status);
+			} 
+		}
+
+	}
 
     if ((info->type == packet_management) || (info->proto.type == proto_iapp)) {
         if (info->type == packet_management)
