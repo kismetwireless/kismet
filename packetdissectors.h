@@ -139,6 +139,12 @@ protected:
 	int netstumbler_aref;
 	int nullproberesp_aref;
 	int lucenttest_aref;
+	int msfbcomssid_aref;
+	int msfdlinkrate_aref;
+	int msfnetgearbeacon_aref;
+	int longssid_aref;
+	int disconcodeinvalid_aref;
+	int deauthcodeinvalid_aref;
 
 	int client_wepkey_allowed;
 	macmap<wep_key_info *> wepkeys;

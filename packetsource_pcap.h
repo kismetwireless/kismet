@@ -122,7 +122,7 @@ typedef struct {
 	uint16_t status;
 	uint16_t len;
 	uint32_t data;
-} p80211item_uint32_t __attribute__((__packed__));
+} __attribute__((__packed__)) p80211item_uint32_t;
 
 typedef struct {
 	uint32_t msgcode;
@@ -138,7 +138,7 @@ typedef struct {
 	p80211item_uint32_t rate;
 	p80211item_uint32_t istx;
 	p80211item_uint32_t frmlen;
-} wlan_ng_prism2_header __attribute__((__packed__));
+} __attribute__((__packed__)) wlan_ng_prism2_header;
 
 // wlan-ng (and hopefully others) AVS header, version one.  Fields in
 // network byte order.

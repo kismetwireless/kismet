@@ -63,13 +63,14 @@ class Kis_Netlist_Group {
 public:
 	Kis_Netlist_Group();
 	Kis_Netlist_Group(Netracker::tracked_network *in_net);
+	~Kis_Netlist_Group();
 
 	// Fetch the network out, could be a standard single network, could be
 	// the meta-group network
 	Netracker::tracked_network *FetchNetwork();
 
 	// Merge a network into the meta-group network
-	void MergeNetwork();
+	void MergeNetwork(Netracker::tracked_network *in_net);
 
 	// Delete a network from a meta-group network
 	void DelNetwork();
@@ -78,6 +79,9 @@ public:
 	void UpdateNetwork(Netracker::tracked_network *in_net);
 
 protected:
+	// Do we need to update?
+	int dirty; 
+
 	// Do we have a local meta network? (ie, do we need to destroy it on our
 	// way our, take special care of it, etc)
 	int local_metanet;
@@ -85,6 +89,10 @@ protected:
 	// Pointer to the network we return, could be allocated locally, or it could
 	// be a pointer to a network from somewhere else
 	Netracker::tracked_network *metanet;
+
+	// Vector of networks which compose the metanet.  THESE SHOULD NEVER BE FREED,
+	// BECAUSE THEY MAY BE REFERENCED ELSEWHERE.
+	vector<Netracker::tracked_network *> meta_vec;
 };
 
 class Kis_Netlist : public Kis_Panel_Component {

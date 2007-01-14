@@ -189,12 +189,12 @@ enum iapp_auth {
 typedef struct {
     unsigned iapp_version : 8;
     unsigned iapp_type : 8;
-} iapp_header __attribute__ ((packed));
+} __attribute__ ((packed)) iapp_header;
 
 typedef struct {
     unsigned pdu_type : 8;
     unsigned pdu_len : 16;
-} iapp_pdu_header __attribute__ ((packed));
+} __attribute__ ((packed)) iapp_pdu_header;
 
 // Crypt bitfield
 enum crypt_type {
@@ -280,12 +280,12 @@ typedef struct {
     unsigned short more_data : 1;
     unsigned short wep : 1;
     unsigned short order : 1;
-} frame_control __attribute__ ((packed));
+} __attribute__ ((packed)) frame_control;
 
 typedef struct {
     unsigned short frag : 4;
     unsigned short sequence : 12;
-} wireless_fragseq __attribute__ ((packed));
+} __attribute__ ((packed)) wireless_fragseq;
 
 typedef struct {
     uint8_t timestamp[8];
@@ -304,7 +304,7 @@ typedef struct {
     unsigned short agility : 1;
 
     unsigned int coordinator : 8;
-} fixed_parameters __attribute__ ((packed));
+} __attribute__ ((packed)) fixed_parameters;
 
 #endif
 

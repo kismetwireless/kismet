@@ -300,6 +300,18 @@ KisBuiltinDissector::KisBuiltinDissector(GlobalRegistry *in_globalreg) {
 		globalreg->alertracker->ActivateConfiguredAlert("NULLPROBERESP");
 	lucenttest_aref =
 		globalreg->alertracker->ActivateConfiguredAlert("LUCENTTEST");
+	msfbcomssid_aref =
+		globalreg->alertracker->ActivateConfiguredAlert("MSFBCOMSSID");
+	msfdlinkrate_aref =
+		globalreg->alertracker->ActivateConfiguredAlert("MSFDLINKRATE");
+	msfnetgearbeacon_aref =
+		globalreg->alertracker->ActivateConfiguredAlert("MSFNETGEARBEACON");
+	longssid_aref =
+		globalreg->alertracker->ActivateConfiguredAlert("LONGSSID");
+	disconcodeinvalid_aref =
+		globalreg->alertracker->ActivateConfiguredAlert("DISCONCODEINVALID");
+	deauthcodeinvalid_aref =
+		globalreg->alertracker->ActivateConfiguredAlert("DEAUTHCODEINVALID");
 
 	// Register network protocols for WEP key transfer commands
 	_NPM(PROTO_REF_WEPKEY) =

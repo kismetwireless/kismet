@@ -25,6 +25,43 @@
 #include "kis_panel_windows.h"
 #include "kis_panel_frontend.h"
 
+// Netgroup management
+Kis_Netlist_Group::Kis_Netlist_Group() {
+	fprintf(stderr, "FATAL OOPS: Kis_Netlist_Group()\n");
+	exit(1);
+}
+
+Kis_Netlist_Group::Kis_Netlist_Group(Netracker::tracked_network *in_net) {
+	local_metanet = 0;
+	metanet = in_net;
+	meta_vec.push_back(in_net);
+	dirty = 0;
+}
+
+Kis_Netlist_Group::~Kis_Netlist_Group() {
+	// Only delete the metanet if it's a local construct
+	if (local_metanet) {
+		delete metanet;
+		metanet = NULL;
+	}
+}
+
+Netracker::tracked_network *Kis_Netlist_Group::FetchNetwork() {
+	return metanet;
+}
+
+void Kis_Netlist_Group::MergeNetwork(Netracker::tracked_network *in_net) {
+	// If we don't have a local net, we do now
+	if (local_metanet == 0) {
+		local_metanet = 1;
+		metanet = new Netracker::tracked_network;
+	}
+
+	dirty = 1;
+
+
+
+
 // Callbacks into the classes proper
 void KisNetlist_Configured(CLICONF_CB_PARMS) {
 	((Kis_Netlist *) auxptr)->NetClientConfigure(kcli, recon);
