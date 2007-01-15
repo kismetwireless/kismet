@@ -51,8 +51,8 @@ typedef struct mac_addr {
     uint64_t longmask;
     int error;
 
-    // Convert a string mac address to the long-int storage format, with mask conversion
-    // if present.
+    // Convert a string mac address to the long-int storage format, with 
+	// mask conversion if present.
     void string2long(const char *in) {
         short unsigned int *bs_in = new short unsigned int[MAC_LEN];
 
@@ -65,8 +65,12 @@ typedef struct mac_addr {
                    &bs_in[0], &bs_in[1], &bs_in[2], 
                    &bs_in[3], &bs_in[4], &bs_in[5]) == 6) {
 
-            for (int x = 0; x < MAC_LEN; x++)
-                longmac |= (uint64_t) bs_in[x] << ((MAC_LEN - x - 1) * 8);
+			longmac |= (uint64_t) bs_in[0] << ((MAC_LEN - 0 - 1) * 8);
+			longmac |= (uint64_t) bs_in[1] << ((MAC_LEN - 1 - 1) * 8);
+			longmac |= (uint64_t) bs_in[2] << ((MAC_LEN - 2 - 1) * 8);
+			longmac |= (uint64_t) bs_in[3] << ((MAC_LEN - 3 - 1) * 8);
+			longmac |= (uint64_t) bs_in[4] << ((MAC_LEN - 4 - 1) * 8);
+			longmac |= (uint64_t) bs_in[5] << ((MAC_LEN - 5 - 1) * 8);
 
             // If it has a mask component, get that
             char *in_mask = strchr(in, '/');
@@ -80,8 +84,13 @@ typedef struct mac_addr {
                                &bs_in[0], &bs_in[1], &bs_in[2],
                                &bs_in[3], &bs_in[4], &bs_in[5]) == 6) {
 
-                        for (int x = 0; x < MAC_LEN; x++)
-                            longmask |= (uint64_t) bs_in[x] << ((MAC_LEN - x - 1) * 8);
+						longmask |= (uint64_t) bs_in[0] << ((MAC_LEN - 0 - 1) * 8);
+						longmask |= (uint64_t) bs_in[1] << ((MAC_LEN - 1 - 1) * 8);
+						longmask |= (uint64_t) bs_in[2] << ((MAC_LEN - 2 - 1) * 8);
+						longmask |= (uint64_t) bs_in[3] << ((MAC_LEN - 3 - 1) * 8);
+						longmask |= (uint64_t) bs_in[4] << ((MAC_LEN - 4 - 1) * 8);
+						longmask |= (uint64_t) bs_in[5] << ((MAC_LEN - 5 - 1) * 8);
+
                     } else {
                         error = 1;
                     }
@@ -107,46 +116,63 @@ typedef struct mac_addr {
         delete[] bs_in;
     }
 
-    mac_addr() {
+    inline mac_addr() {
         longmac = 0;
         longmask = (uint64_t) -1;
         error = 0;
     }
 
-    mac_addr(const uint8_t *in) {
+    inline mac_addr(const uint8_t *in) {
         longmac = 0;
         longmask = (uint64_t) -1;
         error = 0;
 
-        for (int x = 0; x < MAC_LEN; x++)
-            longmac |= (uint64_t) in[x] << ((MAC_LEN - x - 1) * 8);
+		longmac |= (uint64_t) in[0] << ((MAC_LEN - 0 - 1) * 8);
+		longmac |= (uint64_t) in[1] << ((MAC_LEN - 1 - 1) * 8);
+		longmac |= (uint64_t) in[2] << ((MAC_LEN - 2 - 1) * 8);
+		longmac |= (uint64_t) in[3] << ((MAC_LEN - 3 - 1) * 8);
+		longmac |= (uint64_t) in[4] << ((MAC_LEN - 4 - 1) * 8);
+		longmac |= (uint64_t) in[5] << ((MAC_LEN - 5 - 1) * 8);
     }
 
-    mac_addr(const uint8_t *in, const uint8_t *maskin) {
+    inline mac_addr(const uint8_t *in, const uint8_t *maskin) {
         longmac = 0;
         longmask = 0;
         error = 0;
 
-        for (int x = 0; x < MAC_LEN; x++) {
-            longmac |= (uint64_t) in[x] << ((MAC_LEN - x - 1) * 8);
-            longmask |= (uint64_t) maskin[x] << ((MAC_LEN - x - 1) * 8);
-        }
+		longmac |= (uint64_t) in[0] << ((MAC_LEN - 0 - 1) * 8);
+		longmac |= (uint64_t) in[1] << ((MAC_LEN - 1 - 1) * 8);
+		longmac |= (uint64_t) in[2] << ((MAC_LEN - 2 - 1) * 8);
+		longmac |= (uint64_t) in[3] << ((MAC_LEN - 3 - 1) * 8);
+		longmac |= (uint64_t) in[4] << ((MAC_LEN - 4 - 1) * 8);
+		longmac |= (uint64_t) in[5] << ((MAC_LEN - 5 - 1) * 8);
+
+		longmask |= (uint64_t) maskin[0] << ((MAC_LEN - 0 - 1) * 8);
+		longmask |= (uint64_t) maskin[1] << ((MAC_LEN - 1 - 1) * 8);
+		longmask |= (uint64_t) maskin[2] << ((MAC_LEN - 2 - 1) * 8);
+		longmask |= (uint64_t) maskin[3] << ((MAC_LEN - 3 - 1) * 8);
+		longmask |= (uint64_t) maskin[4] << ((MAC_LEN - 4 - 1) * 8);
+		longmask |= (uint64_t) maskin[5] << ((MAC_LEN - 5 - 1) * 8);
     }
 
-    mac_addr(const unsigned short int *in) {
+    inline mac_addr(const unsigned short int *in) {
         longmac = 0;
         longmask = (uint64_t) -1;
         error = 0;
 
-        for (int x = 0; x < MAC_LEN; x++)
-            longmac |= (uint64_t) in[x] << ((MAC_LEN - x - 1) * 8);
+		longmac |= (uint64_t) in[0] << ((MAC_LEN - 0 - 1) * 8);
+		longmac |= (uint64_t) in[1] << ((MAC_LEN - 1 - 1) * 8);
+		longmac |= (uint64_t) in[2] << ((MAC_LEN - 2 - 1) * 8);
+		longmac |= (uint64_t) in[3] << ((MAC_LEN - 3 - 1) * 8);
+		longmac |= (uint64_t) in[4] << ((MAC_LEN - 4 - 1) * 8);
+		longmac |= (uint64_t) in[5] << ((MAC_LEN - 5 - 1) * 8);
     }
 
-    mac_addr(const char *in) {
+    inline mac_addr(const char *in) {
         string2long(in);
     }
 
-    mac_addr(int in) {
+    inline mac_addr(int in) {
         longmac = 0;
         longmask = 0;
         error = 0;
@@ -204,8 +230,7 @@ typedef struct mac_addr {
 
     inline uint8_t index64(uint64_t val, int index) const {
         // Bitshift kung-foo
-        return (uint8_t) ((uint64_t) (val & ((uint64_t) 0xFF << ((MAC_LEN - index - 1) * 8))) >>
-                          ((MAC_LEN - index - 1) * 8));
+        return (uint8_t) (val >> ((MAC_LEN - index - 1) * 8));
     }
 
     inline const uint8_t operator[] (const int& index) const {
@@ -220,9 +245,9 @@ typedef struct mac_addr {
         char tempstr[MAC_STR_LEN];
 
         snprintf(tempstr, MAC_STR_LEN, "%02X:%02X:%02X:%02X:%02X:%02X",
-                 (*this)[0], (*this)[1], (*this)[2],
-                 (*this)[3], (*this)[4], (*this)[5]);
-        return tempstr;
+				 index64(longmac, 0), index64(longmac, 1), index64(longmac, 2),
+				 index64(longmac, 3), index64(longmac, 4), index64(longmac, 5));
+        return string(tempstr);
     }
 
     inline string MacMask2String() const {
@@ -230,7 +255,8 @@ typedef struct mac_addr {
 
         char tempstr[(MAC_STR_LEN * 2) + 1];
 
-        snprintf(tempstr, (MAC_STR_LEN * 2) + 1, "%02X:%02X:%02X:%02X:%02X:%02X/%02X:%02X:%02X:%02X:%02X:%02X",
+        snprintf(tempstr, (MAC_STR_LEN * 2) + 1, 
+				 "%02X:%02X:%02X:%02X:%02X:%02X/%02X:%02X:%02X:%02X:%02X:%02X",
                  index64(maskedmac, 0), index64(maskedmac, 1), index64(maskedmac, 2),
                  index64(maskedmac, 3), index64(maskedmac, 4), index64(maskedmac, 5),
                  index64(longmask, 0), index64(longmask, 1), index64(longmask, 2),
@@ -240,11 +266,13 @@ typedef struct mac_addr {
 
 };
 
-// A templated container for storing groups of masked mac addresses.  A stl-map will work for single
-// macs, but we need this for smart mask matching on more complex sets.
-// Iterators in this class only work as incremental, because thats all I need right now.
-// This whole thing is really an ugly, ugly kluge, and if I really had any need for it to be
-// more extendable I'd rewrite it to use std::iterator and other good stuff.  But, I don't,
+
+// A templated container for storing groups of masked mac addresses.  A stl-map 
+// will work for single macs, but we need this for smart mask matching on 
+// more complex sets.  Iterators in this class only work as incremental, 
+// because thats all I need right now.  This whole thing is really an ugly, 
+// ugly kluge, and if I really had any need for it to be more extendible I'd 
+// rewrite it to use std::iterator and other good stuff.  But, I don't,
 // it works, and I need to move on to other areas.
 template<class T>
 class macmap {
@@ -261,20 +289,21 @@ protected:
 
     class SortMaskVec {
     public:
-        inline bool operator() (const macmap::mask_vec_content x, const macmap::mask_vec_content y) const {
+        inline bool operator() (const macmap::mask_vec_content x, 
+								const macmap::mask_vec_content y) const {
             return (x.mac < y.mac);
         }
     };
 
 public:
-    // This isn't quite like STL iterators, because I'm too damned lazy to deal with all
-    // the nasty STL hoop-jumping.  This does provide a somewhat-stl-ish interface to
-    // iterating through the singleton and masked maps
+    // This isn't quite like STL iterators, because I'm too damned lazy to deal 
+	// with all the nasty STL hoop-jumping.  This does provide a somewhat-stl-ish 
+	// interface to iterating through the singleton and masked maps
     class iterator {
         friend class macmap;
 
     public:
-        iterator(macmap<T> *in_owner) {
+        inline iterator(macmap<T> *in_owner) {
             owner = in_owner;
 
             if (owner->singleton_map.size() > 0) {
@@ -290,12 +319,12 @@ public:
             } else {
                 singleton_itr = owner->singleton_map.end();
                 vector_itr = owner->mask_vec.size();
-		second     = NULL;
+				second = NULL;
             }
         }
 
         // Prefix
-        iterator& operator++() {
+        inline iterator& operator++() {
             if (singleton_itr == owner->singleton_map.end()) {
                 if ((++vector_itr) < (int) owner->mask_vec.size()) {
                     first = owner->mask_vec[vector_itr].mac;
@@ -315,7 +344,7 @@ public:
         }
 
         // Postfix
-        iterator operator++(int) {
+        inline iterator operator++(int) {
             iterator tmp = *this;
             ++*this;
             return tmp;
@@ -323,16 +352,18 @@ public:
 
         // equal
         inline bool operator==(const iterator& op) {
-            return (singleton_itr == op.singleton_itr) && (vector_itr == op.vector_itr);
+            return (singleton_itr == op.singleton_itr) && 
+				(vector_itr == op.vector_itr);
         }
 
         // not
         inline bool operator!=(const iterator& op) {
-            return (singleton_itr != op.singleton_itr) || (vector_itr != op.vector_itr);
+            return (singleton_itr != op.singleton_itr) || 
+				(vector_itr != op.vector_itr);
         }
 
         // pointer fake
-        iterator *operator->() {
+        inline iterator *operator->() {
             return this;
         }
 
@@ -340,7 +371,7 @@ public:
         T *second;
 
     protected:
-        void assign(typename map<mac_addr, T>::iterator in_itr) {
+        inline void assign(typename map<mac_addr, T>::iterator in_itr) {
             singleton_itr = in_itr;
             vector_itr = -1;
 
@@ -350,7 +381,7 @@ public:
             }
         }
 
-        void assign(int in_itr) {
+        inline void assign(int in_itr) {
             singleton_itr = owner->singleton_map.end();
             vector_itr = in_itr;
 
@@ -367,13 +398,13 @@ public:
 
     friend class macmap<T>::iterator;
 
-    iterator begin() {
+    inline iterator begin() {
         iterator ret(this);
 
         return ret;
     }
 
-    iterator end() {
+    inline iterator end() {
         iterator ret(this);
         ret.singleton_itr = singleton_map.end();
         ret.vector_itr = mask_vec.size();
@@ -382,7 +413,7 @@ public:
     }
 
     // The caller will rebuild the index before using us...
-    void fast_insert(mac_addr in_mac, T in_data) {
+    inline void fast_insert(mac_addr in_mac, T in_data) {
         // Single macs go into the singleton map
         if (in_mac.longmask == (uint64_t) -1) {
             singleton_map[in_mac] = in_data;
@@ -398,7 +429,7 @@ public:
     
     // This is a very expensive insert but it builds a system that allows
     // for fast searching, which is where we REALLY need the speed.
-    void insert(mac_addr in_mac, T in_data) {
+    inline void insert(mac_addr in_mac, T in_data) {
         // Single macs go into the singleton map
         if (in_mac.longmask == (uint64_t) -1) {
             singleton_map[in_mac] = in_data;
@@ -415,7 +446,7 @@ public:
     }
 
     // Do a relatively fast find...
-    iterator find(mac_addr in_mac) {
+    inline iterator find(mac_addr in_mac) {
         iterator ret(this);
 
         if (in_mac.longmask == (uint64_t) -1) {
@@ -443,7 +474,7 @@ public:
         return end();
     }
 
-    void erase(mac_addr in_mac) {
+    inline void erase(mac_addr in_mac) {
         iterator itr = find(in_mac);
 
         if (itr == end())
@@ -481,7 +512,7 @@ public:
         return singleton_map.size() + mask_vec.size();
     }
 
-    void reindex(void) {
+    inline void reindex(void) {
         // Order it
         if (mask_vec.size() == 0)
             return;
