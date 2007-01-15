@@ -118,6 +118,8 @@ string ConfigFile::ExpandLogPath(string path, string logname, string type,
     string logtemplate;
     int inc = 0;
 
+	int found_type = 0, found_num = 0;
+
     logtemplate = path;
 
     for (unsigned int nl = logtemplate.find("%"); nl < logtemplate.length();
@@ -163,11 +165,13 @@ string ConfigFile::ExpandLogPath(string path, string logname, string type,
 
             logtemplate.insert(nl, timestr);
         }
-        else if (op == 'l')
+        else if (op == 'l') {
             logtemplate.insert(nl, type.c_str());
-        else if (op == 'i')
+			found_type = 1;
+		} else if (op == 'i') {
             inc = nl;
-        else if (op == 'h') {
+			found_num = 1;
+		} else if (op == 'h') {
             struct passwd *pw;
 
             pw = getpwuid(getuid());
@@ -181,6 +185,25 @@ string ConfigFile::ExpandLogPath(string path, string logname, string type,
             logtemplate.insert(nl, pw->pw_dir);
         }
     }
+
+#if 0
+	// Good idea but doesn't work here, do it in newcore
+	if (found_type == 0) {
+		fprintf(stderr, "WARNING:  No file type (%%l) marker found in template, "
+				"all files will overwrite each other.  This is probably not what "
+				"you want to have happen.  Fix the logtemplate line in kismet.conf "
+				"and consult the comments and README section 2\n");
+		sleep(1);
+	}
+
+	if (found_num == 0) {
+		fprintf(stderr, "WARNING:  No file number (%%i) marker found in template, "
+				"logging files will not work properly.  This is probably not what "
+				"you want to have happen.  Fix the logtemplate line in kismet.conf "
+				"and consult the comments and README section 2\n");
+		sleep(1);
+	}
+#endif
 
     // If we've got an incremental, go back and find it and start testing
     if (inc) {

@@ -87,7 +87,7 @@ enum PACKET_fields {
     PACKET_weak, PACKET_beaconrate, PACKET_sourcemac, PACKET_destmac,
     PACKET_bssid, PACKET_ssid, PACKET_prototype, PACKET_sourceip,
     PACKET_destip, PACKET_sourceport, PACKET_destport, PACKET_nbtype,
-    PACKET_nbsource, PACKET_sourcename
+    PACKET_nbsource, PACKET_sourcename, PACKET_signal, PACKET_noise
 };
 
 enum STRING_fields {
