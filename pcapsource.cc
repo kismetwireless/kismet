@@ -125,6 +125,7 @@ int pcap_event(pcap_t *);
 pcap_pkthdr callback_header;
 u_char callback_data[MAX_PACKET_LEN];
 
+#ifdef SYS_LINUX
 // Open a source
 int PcapSourceWrt54g::OpenSource() {
     channel = 0;
@@ -171,6 +172,7 @@ int PcapSourceWrt54g::OpenSource() {
     
     return 1;
 }
+#endif
 
 // Open a source
 int PcapSource::OpenSource() {
