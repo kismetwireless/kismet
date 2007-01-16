@@ -84,7 +84,7 @@ Kismet Win32 Readme
     Instructions:
     
     a. run the following configure line:
-       ./configure --enable-airpcap --with-airpcap-devpack=./<devpack_location>
+       ./configure --enable-airpcap --with-airpcap-devpack=<devpack_location>
        Where <devpack_location> is the name of the AirPcap Developer's pack 
        folder, containing WinPcap and AirPcap
     b. Build Kismet by typing 'make'
