@@ -34,6 +34,7 @@
 #include <netinet/if_ether.h>
 #include <arpa/inet.h>
 #include <linux/if.h>
+#include <asm/types.h>
 
 #ifdef HAVE_LINUX_WIRELESS
 #include <linux/wireless.h>
