@@ -992,6 +992,7 @@ void Packetsourcetracker::ChannelChildLoop() {
                     (meta_packsources[chanpak.meta_num]->capsource->FetchInterface(), 
                      chanpak.channel, errstr, 
                      (void *) (meta_packsources[chanpak.meta_num]->capsource)) < 0) {
+#if 0
 
 					meta_packsources[chanpak.meta_num]->consec_errors++;
 
@@ -1013,6 +1014,7 @@ void Packetsourcetracker::ChannelChildLoop() {
 																	 CHANFLAG_FATAL));
 						continue;
 					}
+#endif
                 } else {
 					// Otherwise reset the error count
 					meta_packsources[chanpak.meta_num]->consec_errors = 0;
