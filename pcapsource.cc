@@ -124,6 +124,53 @@ pcap_pkthdr callback_header;
 u_char callback_data[MAX_PACKET_LEN];
 
 // Open a source
+int PcapSourceWrt54g::OpenSource() {
+    channel = 0;
+
+    errstr[0] = '\0';
+
+    char *unconst = strdup("prism0");
+
+    pd = pcap_open_live(unconst, MAX_PACKET_LEN, 1, 1000, errstr);
+
+    #if defined (SYS_OPENBSD) || defined(SYS_NETBSD) && defined(HAVE_RADIOTAP)
+    /* Request desired DLT on multi-DLT systems that default to EN10MB. We do this
+       later anyway but doing it here ensures we have the desired DLT from the get go. */
+     pcap_set_datalink(pd, DLT_IEEE802_11_RADIO);
+    #endif
+
+    free(unconst);
+
+    if (strlen(errstr) > 0)
+        return -1; // Error is already in errstr
+
+    paused = 0;
+
+    errstr[0] = '\0';
+
+    num_packets = 0;
+
+    if (DatalinkType() < 0)
+        return -1;
+
+#ifdef HAVE_PCAP_NONBLOCK
+    pcap_setnonblock(pd, 1, errstr);
+#elif !defined(SYS_OPENBSD)
+    // do something clever  (Thanks to Guy Harris for suggesting this).
+    int save_mode = fcntl(pcap_get_selectable_fd(pd), F_GETFL, 0);
+    if (fcntl(pcap_get_selectable_fd(pd), F_SETFL, save_mode | O_NONBLOCK) < 0) {
+        snprintf(errstr, 1024, "fcntl failed, errno %d (%s)",
+                 errno, strerror(errno));
+    }
+#endif
+
+    if (strlen(errstr) > 0)
+        return -1; // Ditto
+    
+    return 1;
+}
+
+// Open a source
 int PcapSource::OpenSource() {
     channel = 0;
 
@@ -2387,63 +2434,34 @@ int monitor_wlanng_avs(const char *in_dev, int initch, char *in_err, void **in_i
 int monitor_wrt54g(const char *in_dev, int initch, char *in_err, void **in_if, 
 				   void *in_ext) {
     char cmdline[2048];
-	int mode;
-	int wlmode = 0;
 
-#ifdef HAVE_LINUX_WIRELESS
-    vector<string> devbits = StrTokenize(in_dev, ":");
-
-    if (devbits.size() < 2) {
-		snprintf(cmdline, 2048, "/usr/sbin/wl monitor 1");
+		snprintf(cmdline, 2048, "/usr/sbin/iwpriv %s set_monitor 1", in_dev);
 		if (RunSysCmd(cmdline) < 0) {
-			snprintf(in_err, 1024, "Unable to set mode using 'wl monitor 1'.  Some "
-					 "custom firmware images require you to specify the origial "
+			snprintf(in_err, 1024, "Unable to set mode using 'iwpriv %s set_monitor 1'. "
+					 "Some custom firmware images require you to specify the origial "
 					 "device and a new dynamic device and use the iwconfig controls. "
-					 "see the README for how to configure your capture source.");
+					 "see the README for how to configure your capture source.",
+					 in_dev);
 			return -1;
 		}
-    } else {
-		// Get the mode ... If this doesn't work, try the old wl method.
-		if (Iwconfig_Get_Mode(devbits[0].c_str(), in_err, &mode) < 0) {
-			fprintf(stderr, "WARNING:  Getting wireless mode via ioctls failed, "
-					"defaulting to trying the 'wl' command.\n");
-			wlmode = 1;
-		}
 
-		if (wlmode == 1) {
-			snprintf(cmdline, 2048, "/usr/sbin/wl monitor 1");
-			if (RunSysCmd(cmdline) < 0) {
-				snprintf(in_err, 1024, "Unable to execute '%s'", cmdline);
-				return -1;
-			}
-		} else if (mode != LINUX_WLEXT_MONITOR) {
-			// Set it
-			if (Iwconfig_Set_Mode(devbits[0].c_str(), in_err, 
-								  LINUX_WLEXT_MONITOR) < 0) {
-				snprintf(in_err, STATUS_MAX, "Unable to set iwconfig monitor "
-						 "mode.  If you are using an older wrt54g, try specifying "
-						 "only the ethernet device, not ethX:prismX");
-				return -1;
-			}
+	return 1;
+}
+
+
+int unmonitor_wrt54g(const char *in_dev, int initch, char *in_err, void **in_if, 
+				   void *in_ext) {
+    char cmdline[2048];
+
+		snprintf(cmdline, 2048, "/usr/sbin/iwpriv %s set_monitor 0", in_dev);
+		if (RunSysCmd(cmdline) < 0) {
+			snprintf(in_err, 1024, "Unable to set mode using 'iwpriv %s set_monitor 0'. "
+					 "Some custom firmware images require you to specify the origial "
+					 "device and a new dynamic device and use the iwconfig controls. "
+					 "see the README for how to configure your capture source.",
+					 in_dev);
+			return -1;
 		}
-	}
-#else
-	snprintf(cmdline, 2048, "/usr/sbin/wl monitor 1");
-	if (RunSysCmd(cmdline) < 0) {
-		snprintf(in_err, 1024, "Unable to set mode using 'wl monitor 1'.  Some "
-				 "custom firmware images require you to specify the origial "
-				 "device and a new dynamic device and use the iwconfig controls. "
-				 "see the README for how to configure your capture source. "
-				 "Support for wireless extensions was not compiled in, so more "
-				 "advanced modes of setting monitor mode are not available.");
-		return -1;
-	}
-	fprintf(stderr, "WARNING:  Support for wireless extensions was not compiled "
-			"into this binary.  Using the iw* tools to set monitor mode will not "
-			"be available.  This may cause opening the source to fail on some "
-			"firmware versions.  To fix this, make sure wireless extensions are "
-			"available and found by the configure script when building Kismet.");
-#endif
 
 	return 1;
 }

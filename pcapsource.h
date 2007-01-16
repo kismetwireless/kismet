@@ -274,6 +274,7 @@ public:
     PcapSourceWrt54g(string in_name, string in_dev) : PcapSource(in_name, in_dev) { 
         fcsbytes = 4;
     }
+	int OpenSource();
     int FetchPacket(kis_packet *packet, uint8_t *data, uint8_t *moddata);
 protected:
     carrier_type IEEE80211Carrier();
@@ -427,6 +428,7 @@ int monitor_wlanng(const char *in_dev, int initch, char *in_err, void **in_if, v
 int monitor_wlanng_avs(const char *in_dev, int initch, char *in_err, void **in_if, void *in_ext);
 // linksys wrt54g monitoring
 int monitor_wrt54g(const char *in_dev, int initch, char *in_err, void **in_if, void *in_ext);
+int unmonitor_wrt54g(const char *in_dev, int initch, char *in_err, void **in_if, void *in_ext);
 #endif
 
 // This should be expanded to handle BSD...
