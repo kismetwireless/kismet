@@ -1119,9 +1119,13 @@ void Packetracker::ProcessDataPacket(kis_packet *packet, packet_info *info,
         memcpy(client->ipdata.ip, info->proto.source_ip, 4);
         means = "ARP";
         ipdata_dirty = 1;
-    } else if ((info->proto.type == proto_udp || info->proto.type == proto_netbios ||
-		info->proto.type == proto_iapp) &&
-               (client->ipdata.atype < address_udp || 
+    } else if ((info->proto.type == proto_udp) &&
+#if 0
+			   || 
+				info->proto.type == proto_netbios ||
+				info->proto.type == proto_iapp) &&
+#endif
+			   (client->ipdata.atype < address_udp || 
 				client->ipdata.load_from_store == 1) &&
 			   info->proto.source_ip[0] != 0x00 &&
 			   info->source_mac != net->bssid) {
@@ -1131,14 +1135,19 @@ void Packetracker::ProcessDataPacket(kis_packet *packet, packet_info *info,
         memcpy(client->ipdata.ip, info->proto.source_ip, 4);
         means = "UDP";
         ipdata_dirty = 1;
-    } else if ((info->proto.type == proto_misc_tcp || 
+    } else if ((info->proto.type == proto_misc_tcp) &&
+#if 0
+			   || 
 				info->proto.type == proto_netbios_tcp) &&
+#endif
                (client->ipdata.atype < address_tcp || 
 				client->ipdata.load_from_store == 1) &&
                info->proto.source_ip[0] != 0x00 &&
 			   info->source_mac != net->bssid) {
 		// We only process TCP if its from a client on our network, not the AP, to
 		// prevent AP/Routers from getting us with foreign addresses.
+		// printf("debug - got IP %d.%d.%d.%d from s-%s b-%s d-%s net %s pack %d\n", client->ipdata.ip[0], client->ipdata.ip[1], client->ipdata.ip[2], client->ipdata.ip[3], info->source_mac.Mac2String().c_str(), info->bssid_mac.Mac2String().c_str(), info->dest_mac.Mac2String().c_str(), net->bssid.Mac2String().c_str(), num_packets);
+
         client->ipdata.atype = address_tcp;
         memcpy(client->ipdata.ip, info->proto.source_ip, 4);
         means = "TCP";

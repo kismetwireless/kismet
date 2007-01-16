@@ -449,6 +449,15 @@ int PcapSource::Prism2KisPack(kis_packet *packet, uint8_t *data, uint8_t *moddat
         packet->signal = ntohl(v1hdr->ssi_signal);
         packet->noise = ntohl(v1hdr->ssi_noise);
 
+		// Attempt to correct RSSI with whats been reported as a proper conversion
+		// method...
+		if (packet->signal > 0) {
+			packet->signal -= 0x100;
+		}
+		if (packet->noise > 0) {
+			packet->noise -= 0x100;
+		}
+
         packet->channel = ntohl(v1hdr->channel);
 
         switch (ntohl(v1hdr->phytype)) {
@@ -532,6 +541,15 @@ int PcapSource::Prism2KisPack(kis_packet *packet, uint8_t *data, uint8_t *moddat
         // packet->quality = p2head->sq.data;
         packet->signal = p2head->signal.data;
         packet->noise = p2head->noise.data;
+
+		// Attempt to correct RSSI with whats been reported as a proper conversion
+		// method...
+		if (packet->signal > 0) {
+			packet->signal -= 0x100;
+		}
+		if (packet->noise > 0) {
+			packet->noise -= 0x100;
+		}
 
         packet->channel = p2head->channel.data;
 
