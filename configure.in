@@ -438,6 +438,27 @@ if test "$wireless" = "yes"; then
 			AC_DEFINE(HAVE_LINUX_WIRELESS22, 1, [Linux wireless extentions v22 or better present])
 		fi
 
+		iwfreqflag=no
+		AC_MSG_CHECKING(can we use iw_freq.flags)
+		AC_LINK_IFELSE([AC_LANG_PROGRAM([[
+			#include <stdio.h>
+			#include <sys/types.h>
+			#include <netinet/in.h>
+			#include <asm/types.h>
+			#include <linux/if.h>
+			#include <linux/wireless.h>
+		]], [[
+			struct iwreq wrq;
+			wrq.u.freq.flags = IW_FREQ_FIXED;
+		]])],[iwfreqflag=yes],[iwfreqflag=no])
+
+		if test "$iwfreqflag" = "no"; then
+			AC_MSG_RESULT(no)
+		else
+			AC_MSG_RESULT(yes)
+			AC_DEFINE(HAVE_LINUX_IWFREQFLAG, 1, [Linux wireless iwfreq.flag])
+		fi
+
 	fi
 fi
 
