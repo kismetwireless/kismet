@@ -16,8 +16,8 @@
     Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 */
 
-#ifndef __KIS_PANEL_BSSID_H__
-#define __KIS_PANEL_BSSID_H__
+#ifndef __KIS_PANEL_NETWORK_H__
+#define __KIS_PANEL_NETWORK_H__
 
 #include "config.h"
 
@@ -59,24 +59,23 @@
 	"cdpdevice,cdpport,fragments,retries,newpackets"
 #define KCLI_BSSID_NUMFIELDS	49
 
-class Kis_Netlist_Group {
-public:
-	Kis_Netlist_Group();
-	Kis_Netlist_Group(Netracker::tracked_network *in_net);
+class Kis_Display_NetGroup {
+	Kis_Display_NetGroup();
+	Kis_Display_NetGroup(Netracker::tracked_network *in_net);
 	~Kis_Netlist_Group();
 
-	// Fetch the network out, could be a standard single network, could be
-	// the meta-group network
+	// Return a network suitable for display, which could be a single network
+	// or a virtual network aggregated
 	Netracker::tracked_network *FetchNetwork();
 
-	// Merge a network into the meta-group network
-	void MergeNetwork(Netracker::tracked_network *in_net);
+	// Update the group if there are any dirty networks
+	void Update();
 
-	// Delete a network from a meta-group network
-	void DelNetwork();
+	// Add a network to the group
+	void AddNetwork(Netracker::tracked_network *in_net);
 
-	// Mark that we need to recalculate some fields
-	void UpdateNetwork(Netracker::tracked_network *in_net);
+	// Remove a network
+	void DelNetwork(Netracker::tracked_network *in_net);
 
 protected:
 	// Do we need to update?

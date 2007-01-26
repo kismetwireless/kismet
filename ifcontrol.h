@@ -42,9 +42,9 @@ typedef unsigned short u16;
 typedef unsigned int u32;
 typedef unsigned long u64;
 
+#include <asm/types.h>
+#include <linux/if.h>
 #include <linux/wireless.h>
-#else
-#include <net/if.h>
 #endif
 
 #endif

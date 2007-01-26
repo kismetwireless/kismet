@@ -28,6 +28,13 @@
 
 #include "packetsourcetracker.h"
 
+// Work around broken pcap.h on cygwin... this is a TERRIBLE THING TO DO but
+// libwpcap on the airpcap cd seems to come with a pcap.h header for standard
+// pcap, while the lib contains this symbol.
+#if defined(HAVE_PCAP_GETEVENT)
+int pcap_event(pcap_t *);
+#endif
+
 // Prototypes of Windows-specific pcap functions.
 // wpcap.dll contains these functions, but they are not exported to cygwin because
 // cygwin doesn't "officially" support the Windows extensions. These functions, 
@@ -84,7 +91,7 @@ int PacketSource_AirPcap::OpenSource() {
 	// All we do is throw away frames which do not, so theres no reason to add
 	// the overhead of locally processing the checksum.
 	if (!AirpcapSetFcsValidation(airpcap_handle, AIRPCAP_VT_ACCEPT_CORRECT_FRAMES)) {
-		_MSG("Adapter " + interface + " failed setting FCS validation routine: " + 
+		_MSG("Airpcap adapter " + interface + " failed setting FCS validation: " +
 			 string((const char *) AirpcapGetLastError(airpcap_handle)), 
 			 MSGFLAG_FATAL);
 		globalreg->fatal_condition = 1;

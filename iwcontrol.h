@@ -35,9 +35,9 @@
 #include <arpa/inet.h>
 
 #ifdef HAVE_LINUX_WIRELESS
+#include <asm/types.h>
+#include <linux/if.h>
 #include <linux/wireless.h>
-#else
-#include <net/if.h>
 #endif
 
 #endif

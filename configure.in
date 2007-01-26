@@ -474,6 +474,8 @@ if test "$wantwext" = "yes"; then
 		#include <sys/types.h>
 		#include <netdb.h>
 		#include <linux/socket.h>
+		#include <asm/types.h>
+		#include <linux/if.h>
 		])
 
 	if test "$foundwexth" != "yes"; then
@@ -487,6 +489,8 @@ if test "$wantwext" = "yes"; then
 		#include <netdb.h>
 		#include <netinet/in.h>
         #include <sys/resource.h>
+		#include <asm/types.h>
+		#include <linux/if.h>
 		#include <linux/wireless.h>
     ]], [[
 		struct iwreq wrq;
@@ -502,6 +506,29 @@ if test "$wantwext" = "yes"; then
 	AC_MSG_RESULT(yes)
 	AC_DEFINE(HAVE_LINUX_WIRELESS, 1, Linux wireless extentions present)
 	linux_wireless="yes";
+
+	if test "$linux_wireless" = "yes"; then
+		iwfreqflag=no
+		AC_MSG_CHECKING(can we use iw_freq.flags)
+		AC_LINK_IFELSE([AC_LANG_PROGRAM([[
+			#include <stdio.h>
+			#include <sys/types.h>
+			#include <netinet/in.h>
+			#include <asm/types.h>
+			#include <linux/if.h>
+			#include <linux/wireless.h>
+		]], [[
+			struct iwreq wrq;
+			wrq.u.freq.flags = IW_FREQ_FIXED;
+		]])],[iwfreqflag=yes],[iwfreqflag=no])
+	
+		if test "$iwfreqflag" = "no"; then
+			AC_MSG_RESULT(no)
+		else
+			AC_MSG_RESULT(yes)
+			AC_DEFINE(HAVE_LINUX_IWFREQFLAG, 1, [Linux wireless iwfreq.flag])
+		fi
+	fi
 
 fi # want headers
 

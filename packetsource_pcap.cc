@@ -35,6 +35,8 @@ typedef unsigned short u16;
 typedef unsigned int u32;
 typedef unsigned long u64;
 
+#include <asm/types.h>
+#include <linux/if.h>
 #include <linux/wireless.h>
 #endif
 
@@ -245,26 +247,6 @@ int PacketSource_Pcap::ManglePacket(kis_packet *packet) {
 	// Pull the radio data
 	FetchRadioData(packet);
 
-#if 0
-	// Build a signalling layer record if we don't have one from the prism
-	// headers.  If we can, anyhow.
-	kis_layer1_packinfo *radiodata = (kis_layer1_packinfo *) 
-		packet->fetch(_PCM(PACK_COMP_RADIODATA));
-
-	if (radiodata == NULL) {
-		radiodata = new kis_layer1_packinfo;
-		packet->insert(_PCM(PACK_COMP_RADIODATA), radiodata);
-	}
-
-	// Fetch the signal levels if we know how and it hasn't been already.
-	if (radiodata->signal == 0 && radiodata->noise == 0)
-		FetchSignalLevels(&(radiodata->signal), &(radiodata->noise));
-
-	// Fetch the channel if we know how and it hasn't been filled in already
-	if (radiodata->channel == 0)
-		radiodata->channel = FetchChannel();
-#endif
-
     return ret;
 }
 
@@ -335,6 +317,16 @@ int PacketSource_Pcap::Prism2KisPack(kis_packet *packet) {
         // type instead of just copying
 		radioheader->signal = ntohl(v1hdr->ssi_signal);
 		radioheader->noise = ntohl(v1hdr->ssi_noise);
+
+		// Attempt to correct RSSI with whats been reported as a proper conversion
+		// method...
+		if (radioheader->signal > 0) {
+			radioheader->signal -= 0x100;
+		}
+		if (radioheader->noise > 0) {
+			radioheader->noise -= 0x100;
+		}
+
 		radioheader->channel = ntohl(v1hdr->channel);
 
         switch (ntohl(v1hdr->phytype)) {
@@ -400,6 +392,15 @@ int PacketSource_Pcap::Prism2KisPack(kis_packet *packet) {
 
         radioheader->signal = p2head->signal.data;
         radioheader->noise = p2head->noise.data;
+
+		// Attempt to correct RSSI with whats been reported as a proper conversion
+		// method...
+		if (radioheader->signal > 0) {
+			radioheader->signal -= 0x100;
+		}
+		if (radioheader->noise > 0) {
+			radioheader->noise -= 0x100;
+		}
 
         radioheader->channel = p2head->channel.data;
     }
@@ -536,20 +537,21 @@ int PacketSource_Pcap::Radiotap2KisPack(kis_packet *packet) {
 
 	// Assign it to the callback data
     hdr = (struct ieee80211_radiotap_header *) callback_data;
-    if (callback_header.caplen < hdr->it_len) {
+    if (callback_header.caplen < EXTRACT_LE_16BITS(&hdr->it_len)) {
 		snprintf(errstr, STATUS_MAX, "pcap radiotap converter got corrupted "
 				 "Radiotap header length");
 		globalreg->messagebus->InjectMessage(errstr, MSGFLAG_ERROR);
         return 0;
     }
 
+	// null-statement for-loop
     for (last_presentp = &hdr->it_present;
-         (*last_presentp & BIT(IEEE80211_RADIOTAP_EXT)) != 0 &&
-         (u_char*)(last_presentp + 1) <= callback_data + hdr->it_len;
-         last_presentp++);
+         (EXTRACT_LE_32BITS(last_presentp) & BIT(IEEE80211_RADIOTAP_EXT)) != 0 &&
+         (u_char *) (last_presentp + 1) <= callback_data + 
+		 EXTRACT_LE_16BITS(&(hdr->it_len)); last_presentp++);
 
     /* are there more bitmap extensions than bytes in header? */
-    if ((*last_presentp & BIT(IEEE80211_RADIOTAP_EXT)) != 0) {
+    if ((EXTRACT_LE_32BITS(last_presentp) & BIT(IEEE80211_RADIOTAP_EXT)) != 0) {
 		snprintf(errstr, STATUS_MAX, "pcap radiotap converter got corrupted "
 				 "Radiotap bitmap length");
 		globalreg->messagebus->InjectMessage(errstr, MSGFLAG_ERROR);
@@ -563,7 +565,7 @@ int PacketSource_Pcap::Radiotap2KisPack(kis_packet *packet) {
 
     for (bit0 = 0, presentp = &hdr->it_present; presentp <= last_presentp;
          presentp++, bit0 += 32) {
-        for (present = *presentp; present; present = next_present) {
+        for (present = EXTRACT_LE_32BITS(presentp); present; present = next_present) {
             /* clear the least significant bit that is set */
             next_present = present & (present - 1);
 
@@ -601,6 +603,14 @@ int PacketSource_Pcap::Radiotap2KisPack(kis_packet *packet) {
                     u.u64 = EXTRACT_LE_64BITS(iter);
                     iter += sizeof(u.u64);
                     break;
+#if defined(SYS_OPENBSD)
+                case IEEE80211_RADIOTAP_RSSI:
+                    u.u8 = EXTRACT_LE_8BITS(iter);
+                    iter += sizeof(u.u8);
+                    u2.u8 = EXTRACT_LE_8BITS(iter);
+                    iter += sizeof(u2.u8);
+                    break;
+#endif
                 default:
                     /* this bit indicates a field whose
                      * size we do not know, so we cannot
@@ -648,6 +658,12 @@ int PacketSource_Pcap::Radiotap2KisPack(kis_packet *packet) {
                     if (u.u8 & IEEE80211_RADIOTAP_F_FCS)
                          fcs_cut = 4;
                     break;
+#if defined(SYS_OPENBSD)
+                case IEEE80211_RADIOTAP_RSSI:
+                    /* Convert to Kismet units */
+                    packet->signal = int((float(u.u8) / float(u2.u8) * 255));
+                    break;
+#endif
 #if 0
                 case IEEE80211_RADIOTAP_FHSS:
                     printf("fhset %d fhpat %d ", u.u16 & 0xff,
@@ -691,9 +707,11 @@ int PacketSource_Pcap::Radiotap2KisPack(kis_packet *packet) {
 	if (fcs_cut)
 		fcs_cut = fcsbytes;
 
-	eight11chunk->length = callback_header.caplen - hdr->it_len - fcs_cut;
+	eight11chunk->length = callback_header.caplen - 
+		EXTRACT_LE_16BITS(&(hdr->it_len)) - fcs_cut;
 	eight11chunk->data = new uint8_t[eight11chunk->length];
-	memcpy(eight11chunk->data, callback_data + hdr->it_len, eight11chunk->length);
+	memcpy(eight11chunk->data, callback_data + 
+		   EXTRACT_LE_16BITS(&(hdr->it_len)), eight11chunk->length);
 
 	packet->insert(_PCM(PACK_COMP_RADIODATA), radioheader);
 	packet->insert(_PCM(PACK_COMP_80211FRAME), eight11chunk);

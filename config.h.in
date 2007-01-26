@@ -60,6 +60,9 @@
 /* Libz compression lib */
 #undef HAVE_LIBZ
 
+/* Linux wireless iwfreq.flag */
+#undef HAVE_LINUX_IWFREQFLAG
+
 /* Linux wireless extentions present */
 #undef HAVE_LINUX_WIRELESS
 
