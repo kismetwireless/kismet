@@ -287,7 +287,7 @@ wireless_client *Packetracker::CreateClient(const packet_info *info,
 
     client->first_time = time(0);
     client->mac = info->source_mac;
-    client->manuf_ref = MatchBestManuf(client_manuf_map, client->mac, "", 0, 0, 0,
+    client->manuf_ref = MatchBestManuf(&client_manuf_map, client->mac, "", 0, 0, 0,
                                        &client->manuf_score);
 
     client->metric = net->metric;
@@ -502,13 +502,13 @@ void Packetracker::ProcessPacket(kis_packet *packet, packet_info *info,
 
         // Find out what we can from what we know now...
         if (net->type != network_adhoc && net->type != network_probe) {
-            net->manuf_ref = MatchBestManuf(ap_manuf_map, net->bssid, net->ssid, 
+            net->manuf_ref = MatchBestManuf(&ap_manuf_map, net->bssid, net->ssid, 
 											net->channel, net->crypt_set, 
 											net->cloaked, &net->manuf_score);
             if (net->manuf_score == manuf_max_score)
                 memcpy(&net->ipdata, &net->manuf_ref->ipdata, sizeof(net_ip_data));
         } else {
-            net->manuf_ref = MatchBestManuf(client_manuf_map, net->bssid, 
+            net->manuf_ref = MatchBestManuf(&client_manuf_map, net->bssid, 
 											net->ssid, net->channel,
                                             net->crypt_set, net->cloaked, 
 											&net->manuf_score);
@@ -744,7 +744,7 @@ void Packetracker::ProcessPacket(kis_packet *packet, packet_info *info,
             // changed state as well
             if (net->channel != info->channel || net->type != network_ap ||
                 (net->ssid != info->ssid && !IsBlank(info->ssid))) {
-                net->manuf_ref = MatchBestManuf(ap_manuf_map, net->bssid, info->ssid, 
+                net->manuf_ref = MatchBestManuf(&ap_manuf_map, net->bssid, info->ssid, 
 												info->channel, net->crypt_set,
 												net->cloaked, &net->manuf_score);
                 // Update our IP range info too if we're a default
@@ -796,7 +796,7 @@ void Packetracker::ProcessPacket(kis_packet *packet, packet_info *info,
 				if (info->crypt_set & crypt_wep)
 					net->crypt_set |= (int) crypt_wep;
 
-                net->manuf_ref = MatchBestManuf(ap_manuf_map, net->bssid, net->ssid, 
+                net->manuf_ref = MatchBestManuf(&ap_manuf_map, net->bssid, net->ssid, 
                                                 net->channel, net->crypt_set, 
 												net->cloaked, &net->manuf_score);
                 // Update our IP range info too if we're a default
@@ -817,7 +817,7 @@ void Packetracker::ProcessPacket(kis_packet *packet, packet_info *info,
 				if (info->crypt_set & crypt_wep)
 					net->crypt_set |= (int) crypt_wep;
 
-                net->manuf_ref = MatchBestManuf(ap_manuf_map, net->bssid, net->ssid, 
+                net->manuf_ref = MatchBestManuf(&ap_manuf_map, net->bssid, net->ssid, 
                                                 net->channel, net->crypt_set,
 												net->cloaked, &net->manuf_score);
                 // Update our IP range info too if we're a default
@@ -2046,7 +2046,7 @@ int Packetracker::WriteXMLNetworks(string in_fname) {
     //vector<wireless_network *> bssid_vec;
 
     fprintf(netfile, "<?xml version=\"1.0\" encoding=\"ISO-8859-1\"?>\n");
-    fprintf(netfile, "<!DOCTYPE detection-run SYSTEM \"http://kismetwireless.net/kismet-3.1.0.dtd\">\n");
+    fprintf(netfile, "<!DOCTYPE detection-run SYSTEM \"http://kismetwireless.net/kismet-2005-03.dtd\">\n");
 
     fprintf(netfile, "\n\n");
 
@@ -2541,11 +2541,11 @@ void Packetracker::WriteIPMap(FILE *in_file) {
 
 // These are just dropthroughs to the manuf stuff
 void Packetracker::ReadAPManufMap(FILE *in_file) {
-    ap_manuf_map = ReadManufMap(in_file, 1);
+    ReadManufMap(in_file, 1, &ap_manuf_map);
 }
 
 void Packetracker::ReadClientManufMap(FILE *in_file) {
-    client_manuf_map = ReadManufMap(in_file, 0);
+    ReadManufMap(in_file, 0, &client_manuf_map);
 }
 
 void Packetracker::RemoveNetwork(mac_addr in_bssid) {

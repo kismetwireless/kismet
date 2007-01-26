@@ -39,7 +39,7 @@ GPSD::GPSD(char *in_host, int in_port) {
 }
 
 GPSD::~GPSD(void) {
-    if (sock != -1)
+    if (sock >= 0)
         close(sock);
 
     sock = -1;
@@ -50,7 +50,7 @@ char *GPSD::FetchError() {
 }
 
 int GPSD::OpenGPSD() {
-    if (sock)
+    if (sock >= 0)
         close(sock);
 
     // Find our host

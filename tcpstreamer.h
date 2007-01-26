@@ -71,7 +71,7 @@ public:
 
     int Setup(unsigned int in_max_clients, string bind_addr, short int in_port, vector<client_ipblock *> *in_ipb);
 
-    unsigned int MergeSet(fd_set in_set, unsigned int in_max, fd_set *out_set,
+    int MergeSet(fd_set in_set, int in_max, fd_set *out_set,
 	    fd_set *outw_set);
 
     int FetchDescriptor() { return serv_fd; }
@@ -115,7 +115,7 @@ protected:
     vector<client_ipblock *> *ipblock_vec;
 
     // Socket items
-    unsigned int serv_fd;
+    int serv_fd;
     struct sockaddr_in serv_sock;
 
     // Master list of Fd's
@@ -123,7 +123,7 @@ protected:
 
     fd_set client_fds;
 
-    unsigned int max_fd;
+    int max_fd;
 
 	GPSD *gpsd;
 };

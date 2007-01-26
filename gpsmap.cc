@@ -1329,12 +1329,12 @@ void AssignNetColors() {
         if (color_coding == COLORCODE_WEP) {
             if (map_iter->wnet != NULL) {
                 if (map_iter->wnet->type == network_adhoc || map_iter->wnet->type == network_probe)
-                    map_iter->wnet->manuf_ref = MatchBestManuf(client_manuf_map, map_iter->wnet->bssid,
+                    map_iter->wnet->manuf_ref = MatchBestManuf(&client_manuf_map, map_iter->wnet->bssid,
                                                                map_iter->wnet->ssid, map_iter->wnet->channel,
                                                                map_iter->wnet->crypt_set, map_iter->wnet->cloaked,
                                                                &map_iter->wnet->manuf_score);
                 else
-                    map_iter->wnet->manuf_ref = MatchBestManuf(ap_manuf_map, map_iter->wnet->bssid,
+                    map_iter->wnet->manuf_ref = MatchBestManuf(&ap_manuf_map, map_iter->wnet->bssid,
                                                                map_iter->wnet->ssid, map_iter->wnet->channel,
                                                                map_iter->wnet->crypt_set, map_iter->wnet->cloaked,
                                                                &map_iter->wnet->manuf_score);
@@ -2477,7 +2477,7 @@ void DrawNetCenterText(vector<gps_network *> in_nets, Image *in_img, DrawInfo *i
                 case NETLABEL_MANUF:
                     if (map_iter->wnet != NULL) {
                         thisdraw = 1;
-                        map_iter->wnet->manuf_ref = MatchBestManuf(ap_manuf_map, 
+                        map_iter->wnet->manuf_ref = MatchBestManuf(&ap_manuf_map, 
                                                                    map_iter->wnet->bssid,
                                                                    map_iter->wnet->ssid, 
                                                                    map_iter->wnet->channel,
@@ -3998,7 +3998,7 @@ int main(int argc, char *argv[]) {
                     pathname, strerror(errno));
         } else {
             fprintf(stderr, "Reading AP manufacturer data and defaults from %s\n", pathname);
-            ap_manuf_map = ReadManufMap(manuf_data, 1);
+            ReadManufMap(manuf_data, 1, &ap_manuf_map);
             fclose(manuf_data);
         }
 
@@ -4020,7 +4020,7 @@ int main(int argc, char *argv[]) {
         } else {
             fprintf(stderr, "Reading client manufacturer data and defaults "
                     "from %s\n", pathname);
-            client_manuf_map = ReadManufMap(manuf_data, 1);
+            ReadManufMap(manuf_data, 0, &client_manuf_map);
             fclose(manuf_data);
         }
 

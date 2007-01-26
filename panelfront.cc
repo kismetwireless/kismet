@@ -568,8 +568,8 @@ void PanelFront::UpdateGroups() {
             }
 
 			if (dnet->virtnet == NULL) {
-				dnet->virtnet = new wireless_network;
-				*(dnet->virtnet) = *(dnet->networks[0]);
+				dnet->real_ref = 1;
+				dnet->virtnet = dnet->networks[0];
 			}
 
 			if (dnet == probe_group || dnet == data_group || dnet == adhoc_group)

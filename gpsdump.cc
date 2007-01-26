@@ -46,21 +46,24 @@ int GPSDump::OpenDump(const char *in_fname, const char *in_netfname) {
         fprintf(gpsf, "    <network-file>%s</network-file>\n\n", in_netfname);
     }
 
+	fflush(gpsf);
+
     return 1;
 }
 
 int GPSDump::CloseDump(int in_unlink) {
     int ret = 1;
 
-    fprintf(gpsf, "</gps-run>\n");
+    if (gpsf) {
+		fprintf(gpsf, "</gps-run>\n");
 
-    if (gpsf)
         fclose(gpsf);
 
-    if (num_packets == 0 && in_unlink) {
-        unlink(fname);
-        ret = -1;
-    }
+		if (num_packets == 0 && in_unlink) {
+			unlink(fname);
+			ret = -1;
+		}
+	}
 
     gpsf = NULL;
     num_packets = 0;

@@ -115,9 +115,9 @@ int TcpStreamer::Setup(unsigned int in_max_clients, string bind_addr, short int 
 // Make one useable fd_set from the fd's flagged for system-wide monitoring
 // and from the fd's flagged locally for clients connecting to us.  This lets
 // us do 1 big unified select().
-unsigned int TcpStreamer::MergeSet(fd_set in_set, unsigned int in_max,
+int TcpStreamer::MergeSet(fd_set in_set, int in_max,
                                    fd_set *out_set, fd_set *outw_set) {
-    unsigned int max;
+    int max;
 
     FD_ZERO(out_set);
     FD_ZERO(outw_set);
@@ -129,7 +129,7 @@ unsigned int TcpStreamer::MergeSet(fd_set in_set, unsigned int in_max,
         max_fd = max;
     }
 
-    for (unsigned int x = 0; x <= max; x++) {
+    for (int x = 0; x <= max; x++) {
         if (FD_ISSET(x, &in_set) || FD_ISSET(x, &server_fds)) {
             FD_SET(x, out_set);
         }
@@ -156,7 +156,7 @@ int TcpStreamer::Poll(fd_set& in_rset, fd_set& in_wset)
     // that complains about it
     uint8_t dptr[1024];
     int dlen, ret;
-    for (unsigned int x = 0; x <= max_fd; x++) {
+    for (int x = 0; x <= max_fd; x++) {
         // Soak any data in the read buffer
         if (FD_ISSET(x, &in_rset) && FD_ISSET(x, &client_fds)) {
             int8_t buf;
@@ -202,7 +202,7 @@ int TcpStreamer::Poll(fd_set& in_rset, fd_set& in_wset)
 
 // Accept an incoming connection
 int TcpStreamer::Accept() {
-    unsigned int new_fd;
+    int new_fd;
     struct sockaddr_in client_addr;
 #ifdef HAVE_SOCKLEN_T
     socklen_t client_len;
@@ -383,7 +383,7 @@ int TcpStreamer::WritePacket(const kis_packet *in_packet) {
     hdr.frame_len = (uint32_t) htonl(sizeof(struct stream_packet_header) + in_packet->caplen);
 
     int nsent = 0;
-    for (unsigned int x = serv_fd; x <= max_fd; x++) {
+    for (int x = serv_fd; x <= max_fd; x++) {
         if (!FD_ISSET(x, &client_fds))
             continue;
 
@@ -433,7 +433,7 @@ int TcpStreamer::WritePacket(const kis_packet *in_packet) {
 int TcpStreamer::FetchNumClients() {
     int num = 0;
 
-    for (unsigned int x = serv_fd + 1; x <= max_fd; x++) {
+    for (int x = serv_fd + 1; x <= max_fd; x++) {
         if (FD_ISSET(x, &client_fds))
             num++;
     }

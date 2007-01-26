@@ -1,3 +1,17 @@
+Jan 25 2007  *****  SVN ate its face off, bulk commit of previous patches from
+                    time of last SVN backup.  Sorry everyone.
+
+Jan 25 2007  devel  Fixed several minor errors including closing -1 fds
+Jan 25 2007  devel  Fixed gps file being left when gpsd not available
+Jan 24 2007  devel  Added significant optimization to manuf lookups
+                    Fixed manuf lookups in the client
+                    Reduced client memory requirements
+Jan 22 2007  devel  Added daemon mode on request
+Jan 17 2007  devel  Fixed compilation on  2.4.x linux kernels
+                    Merged patch from Kili fixing use of unsigned ints as
+                     fds (eliminates warnings and potentially bunk error
+                     messages)
+
 Jan 16 2007 2007-01 Minor patch to properly #ifdef around a linux source
                     And again.
 

@@ -1177,6 +1177,7 @@ int Usage(char *argv) {
 		   "  -r, --retain-monitor         Leave card in monitor mode on exit\n"
            "  -s, --silent                 Don't send any output to console.\n"
            "  -N, --server-name            Server name\n"
+		   "      --daemonize              Background server in daemon mode\n"
            "  -v, --version                Kismet version\n"
            "  -h, --help                   What do you think you're reading?\n");
     exit(1);
@@ -2063,6 +2064,9 @@ int main(int argc,char *argv[]) {
     metric = 0;
     track_probenets = 0;
 
+	// Daemonize?
+	int daemonize = 0;
+
     static struct option long_options[] = {   /* options table */
         { "log-title", required_argument, 0, 't' },
         { "no-logging", no_argument, 0, 'n' },
@@ -2085,6 +2089,7 @@ int main(int argc,char *argv[]) {
         { "force-channel-hop", no_argument, 0, 'x' },
         { "force-no-channel-hop", no_argument, 0, 'X' },
 		{ "retain-monitor", no_argument, 0, 'r' },
+		{ "daemonize", no_argument, 0, 200 },
         // No this isn't documented, and no, you shouldn't be screwing with it
         { "microsleep", required_argument, 0, 'M' },
         { 0, 0, 0, 0 }
@@ -2213,6 +2218,11 @@ int main(int argc,char *argv[]) {
             // Initial channel
             src_initchannel_vec.push_back(optarg);
             break;
+		case 200:
+			// Daemonize
+			fprintf(stderr, "Backgrounding to daemon mode after startup\n");
+			daemonize = 1;
+			break;
         default:
             Usage(argv[0]);
             break;
@@ -2654,6 +2664,8 @@ int main(int argc,char *argv[]) {
             fprintf(stderr, "%s\n", gps->FetchError());
 
             gps_enable = 0;
+			if (gps_log == 1)
+				gpsdump.CloseDump(1);
             gps_log = 0;
         } else {
             fprintf(stderr, "Opened GPS connection to %s port %d\n",
@@ -2795,6 +2807,17 @@ int main(int argc,char *argv[]) {
     time_t last_click = 0;
     int num_networks = 0, num_packets = 0, num_noise = 0, num_dropped = 0;
 
+    fprintf(stderr, "Gathering packets...\n");
+
+	// Drop to daemon mode if we're going to
+	if (daemonize) {
+		fprintf(stderr, "Silencing output and entering daemon mode...\n");
+		WriteDatafiles(0);
+		silent = 1;
+		if (fork() != 0) {
+			exit(1);
+		}
+	}
 
     // We're ready to begin the show... Fill in our file descriptors for when
     // to wake up
@@ -2808,8 +2831,6 @@ int main(int argc,char *argv[]) {
     if (ui_descrip > max_fd && ui_descrip > 0)
         max_fd = ui_descrip;
     FD_SET(ui_descrip, &read_set);
-
-    fprintf(stderr, "Gathering packets...\n");
 
     time_t cur_time;
     while (1) {

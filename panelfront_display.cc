@@ -1633,6 +1633,7 @@ int PanelFront::DetailsPrinter(void *in_window) {
             kwin->text.push_back(output);
         }
 
+		// fprintf(stderr, "debug - display - net %p manuf ref %p\n", dnet, dnet->manuf_ref);
         if (dnet->manuf_ref != NULL) {
             snprintf(output, print_width, "Manuf   : %s",
                      dnet->manuf_ref->name.c_str());

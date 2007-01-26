@@ -67,6 +67,7 @@ int Alertracker::RegisterAlert(const char *in_header, alert_time_unit in_unit,
 	arec->burst_unit = in_burstunit;
     arec->limit_burst = in_burst;
     arec->burst_sent = 0;
+	arec->time_last = 0;
 
     alert_name_map[arec->header] = arec->ref_index;
     alert_ref_map[arec->ref_index] = arec;
@@ -118,9 +119,7 @@ int Alertracker::PotentialAlert(int in_ref) {
     if (aritr == alert_ref_map.end())
         return -1;
 
-    alert_rec *arec = aritr->second;
-
-    return CheckTimes(arec);
+    return CheckTimes(aritr->second);
 }
 
 int Alertracker::RaiseAlert(int in_ref, mac_addr bssid, mac_addr source, 

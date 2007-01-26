@@ -61,6 +61,8 @@ typedef struct display_network {
     group_type type;
     // If we're a group, this will hold multiple networks
     vector<wireless_network *> networks;
+	// Are we a ref to a real network?
+	int real_ref;
     // Are we tagged?
     int tagged;
     // Are we expanded?

@@ -25,8 +25,8 @@
 
 int manuf_max_score = 8;
 
-macmap<vector<manuf *> > ReadManufMap(FILE *in_file, int ap_map) {
-    macmap<vector<manuf *> > ret;
+int ReadManufMap(FILE *in_file, int ap_map,
+				 macmap<vector<manuf *> > *ret_map) {
     vector<manuf *> rvec;
 
     manuf *manf;
@@ -41,7 +41,7 @@ macmap<vector<manuf *> > ReadManufMap(FILE *in_file, int ap_map) {
     memset(&manf->ipdata, 0, sizeof(net_ip_data));
 
     rvec.push_back(manf);
-    ret.fast_insert(manf->mac_tag, rvec);
+    ret_map->fast_insert(manf->mac_tag, rvec);
 
     int linenum = 0;
 
@@ -99,12 +99,12 @@ macmap<vector<manuf *> > ReadManufMap(FILE *in_file, int ap_map) {
                 }
             }
 
-            if (ret.find(manf->mac_tag) != ret.end()) {
-                ret[manf->mac_tag].push_back(manf);
+            if (ret_map->find(manf->mac_tag) != ret_map->end()) {
+                (*ret_map)[manf->mac_tag].push_back(manf);
             } else {
                 rvec.clear();
                 rvec.push_back(manf);
-                ret.fast_insert(manf->mac_tag, rvec);
+                ret_map->fast_insert(manf->mac_tag, rvec);
             }
         } else {
             // Otherwise we handle clients this way
@@ -115,34 +115,35 @@ macmap<vector<manuf *> > ReadManufMap(FILE *in_file, int ap_map) {
             if (line_vec.size() >= 3)
                 manf->model = line_vec[2];
 
-            if (ret.find(manf->mac_tag) != ret.end()) {
-                ret[manf->mac_tag].push_back(manf);
+            if (ret_map->find(manf->mac_tag) != ret_map->end()) {
+                (*ret_map)[manf->mac_tag].push_back(manf);
             } else {
                 rvec.clear();
                 rvec.push_back(manf);
-                ret.fast_insert(manf->mac_tag, rvec);
+                ret_map->fast_insert(manf->mac_tag, rvec);
             }
 
         }
     }
 
-    ret.reindex();
-    return ret;
+    ret_map->reindex();
+    return 1;
 }
 
 // Find the best match for a likely manufacturer, based on tags (for clients) and
 // default SSIDs, channel, etc (for access points)
 // Returned in the parameters are the pointers to the best manufacturer record, the
 // score, and the modified mac address which matched it
-manuf *MatchBestManuf(macmap<vector<manuf *> > in_manuf, mac_addr in_mac, string in_ssid,
-                      int in_channel, int in_wep, int in_cloaked, int *manuf_score) {
+manuf *MatchBestManuf(macmap<vector<manuf *> > *in_manuf, mac_addr in_mac, 
+					  string in_ssid, int in_channel, int in_wep, int in_cloaked, 
+					  int *manuf_score) {
     manuf *best_manuf = NULL;
     int best_score = 0;
     int best_pos = 0;
 
-    macmap<vector<manuf *> >::iterator mitr = in_manuf.find(in_mac);
+    macmap<vector<manuf *> >::iterator mitr = in_manuf->find(in_mac);
 
-    if (mitr != in_manuf.end()) {
+    if (mitr != in_manuf->end()) {
         vector<manuf *> manuf_list = *(mitr->second);
 
         for (unsigned int x = 0; x < manuf_list.size(); x++) {

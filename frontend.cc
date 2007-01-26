@@ -105,8 +105,8 @@ void Frontend::PopulateGroups(TcpClient *in_client) {
             group->expanded = 0;
             group->persistent = persistent;
             // group->virtnet = NULL;
-			group->virtnet = new wireless_network;
-			*(group->virtnet) = *(net);
+			group->real_ref = 1;
+			group->virtnet = net;
 
             // Register it
             group_tag_map[group->tag] = group;
@@ -151,9 +151,9 @@ void Frontend::UpdateGroups() {
         if (dnet->type == group_host || dnet->type == group_sub) {
             // dnet->virtnet = dnet->networks[0];
 			if (dnet->virtnet == NULL) {
-				dnet->virtnet = new wireless_network;
+				*(dnet->virtnet) = *(dnet->networks[0]);
+				dnet->real_ref = 1;
 			}
-			*(dnet->virtnet) = *(dnet->networks[0]);
 
 			if (dnet->virtnet->tcpclient != NULL) {
 				if (dnet->virtnet->tcpclient->Valid()) 
@@ -162,20 +162,23 @@ void Frontend::UpdateGroups() {
 
             dnet->virtnet->idle_time = curtime - dnet->virtnet->last_time;
 
-            if (dnet->virtnet->manuf_ref == NULL)
-                dnet->virtnet->manuf_ref = MatchBestManuf(ap_manuf_map, 
+			// fprintf(stderr, "debug - host check dnet %p virt %p bssid %s got manuf %p\n", dnet, dnet->virtnet, dnet->virtnet->bssid.Mac2String().c_str(), dnet->virtnet->manuf_ref);
+            if (dnet->virtnet->manuf_ref == NULL) {
+                dnet->virtnet->manuf_ref = MatchBestManuf(&ap_manuf_map, 
                                                           dnet->virtnet->bssid, 
                                                           dnet->virtnet->ssid,
                                                           dnet->virtnet->channel, 
                                                           dnet->virtnet->crypt_set, 
                                                           dnet->virtnet->cloaked,
                                                           &dnet->virtnet->manuf_score);
+				// fprintf(stderr, "debug - group host dnet %p virt %p bssid %s got manuf %p\n", dnet, dnet->virtnet, dnet->virtnet->bssid.Mac2String().c_str(), dnet->virtnet->manuf_ref);
+			}
 
             for (unsigned int clnum = 0; clnum < dnet->virtnet->client_vec.size(); 
                  clnum++) {
                 wireless_client *cl = dnet->virtnet->client_vec[clnum];
                 if (cl->manuf_ref == NULL)
-                    cl->manuf_ref = MatchBestManuf(client_manuf_map, cl->mac, "", 
+                    cl->manuf_ref = MatchBestManuf(&client_manuf_map, cl->mac, "", 
 												   0, 0, 0, &cl->manuf_score);
             }
 
@@ -188,7 +191,7 @@ void Frontend::UpdateGroups() {
         }
 
         // Otherwise we need to destroy the old virtual network and make a new one
-        if (dnet->virtnet != NULL)
+        if (dnet->virtnet != NULL && dnet->real_ref == 0)
             delete dnet->virtnet;
         dnet->virtnet = new wireless_network;
 
@@ -363,19 +366,21 @@ void Frontend::UpdateGroups() {
         if (dnet->virtnet->ssid.length() == 0)
             dnet->virtnet->ssid = NOSSID;
 
-        dnet->virtnet->manuf_ref = MatchBestManuf(ap_manuf_map, dnet->virtnet->bssid, 
+        dnet->virtnet->manuf_ref = MatchBestManuf(&ap_manuf_map, 
+												  dnet->virtnet->bssid, 
                                                   dnet->virtnet->ssid,
                                                   dnet->virtnet->channel, 
                                                   dnet->virtnet->crypt_set, 
                                                   dnet->virtnet->cloaked,
                                                   &dnet->virtnet->manuf_score);
+		// fprintf(stderr, "debug - new virtnet %p virt %p bssid %s got manuf %p\n", dnet, dnet->virtnet, dnet->virtnet->bssid.Mac2String().c_str(), dnet->virtnet->manuf_ref);
 
         // convert our map into a vector
         for (map<mac_addr, wireless_client *>::iterator cli = 
              dnet->virtnet->client_map.begin();
              cli != dnet->virtnet->client_map.end(); ++cli) {
             if (cli->second->manuf_ref == NULL)
-                cli->second->manuf_ref = MatchBestManuf(client_manuf_map, 
+                cli->second->manuf_ref = MatchBestManuf(&client_manuf_map, 
                                                         cli->second->mac,
                                                         "", 0, 0, 0, 
                                                         &cli->second->manuf_score);
@@ -426,6 +431,7 @@ display_network *Frontend::CreateGroup(int in_persistent, string in_tag, string 
     core->expanded = 0;
     core->type = group_host;
 	core->virtnet = NULL;
+	core->real_ref = 0;
 
     // Register it
     group_tag_map[core->tag] = core;
@@ -811,10 +817,10 @@ void Frontend::WriteGroupMap(FILE *in_file) {
 }
 
 void Frontend::ReadAPManufMap(FILE *in_file) {
-    ap_manuf_map = ReadManufMap(in_file, 1);
+    ReadManufMap(in_file, 1, &ap_manuf_map);
 }
 
 void Frontend::ReadClientManufMap(FILE *in_file) {
-    client_manuf_map = ReadManufMap(in_file, 0);
+    ReadManufMap(in_file, 0, &client_manuf_map);
 }
 
