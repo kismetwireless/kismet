@@ -316,12 +316,17 @@ void GetPacketInfo(kis_packet *packet, packet_info *ret_packinfo,
         }
 #endif
 
-        // Short handling of probe reqs since they don't have a fixed parameters
-        // field
         fixed_parameters *fixparm;
         if (fc->subtype == 4) {
+			// Short handling of probe reqs since they don't have a fixed parameters
+			// field...
             ret_packinfo->header_offset = 24;
             fixparm = NULL;
+		} else if (fc->subtype == 11 || fc->subtype == 12) {
+			//  Auth and deauth packets don't have a management fixparm
+			//  either, don't process them
+			ret_packinfo->header_offset = 36;
+			fixparm = NULL;
         } else {
             ret_packinfo->header_offset = 36;
             fixparm = (fixed_parameters *) &packet->data[24];

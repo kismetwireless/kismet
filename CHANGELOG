@@ -1,3 +1,5 @@
+Feb 07 2007  devel  Fixed mis-detecting some networks as WEP
+
 Jan 25 2007  *****  SVN ate its face off, bulk commit of previous patches from
                     time of last SVN backup.  Sorry everyone.
 
