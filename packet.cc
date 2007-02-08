@@ -888,23 +888,23 @@ void GetPacketInfo(kis_packet *packet, packet_info *ret_packinfo,
             ret_packinfo->corrupt = 1;
 			ret_packinfo->header_offset = 0;
             return;
-            break;
-       } 
+			break;
+		} 
 
-	// More QOS hack. We just fudge the header 2 bytes further out 
-	// to skip the QOS data.
-	//	if (fc->subtype == 8) {
-	//	ret_packinfo->header_offset += 2;
-	//}
-	// QOS header info effectively begins just after the end of the
-	// "regular" header, so generate that offset here based on the
-	// header offset we just got and stash the data in ret_packinfo.
-	if (ret_packinfo->subtype == packet_sub_data_qos_data) {
-	  ret_packinfo->qos = (uint16_t)packet->data[ret_packinfo->header_offset];
-	  // Now do something bad and just fudge the header offset out
-	  // a couple bytes here so the rest of the code works.
-	  ret_packinfo->header_offset += 2;
-	}
+		// More QOS hack. We just fudge the header 2 bytes further out 
+		// to skip the QOS data.
+		//	if (fc->subtype == 8) {
+		//	ret_packinfo->header_offset += 2;
+		//}
+		// QOS header info effectively begins just after the end of the
+		// "regular" header, so generate that offset here based on the
+		// header offset we just got and stash the data in ret_packinfo.
+		if (ret_packinfo->subtype == packet_sub_data_qos_data) {
+			ret_packinfo->qos = (uint16_t)packet->data[ret_packinfo->header_offset];
+			// Now do something bad and just fudge the header offset out
+			// a couple bytes here so the rest of the code works.
+			ret_packinfo->header_offset += 2;
+		}
 		// Check the header bounds
 		if (packet->len < ret_packinfo->header_offset) {
 			ret_packinfo->corrupt = 1;
@@ -920,9 +920,7 @@ void GetPacketInfo(kis_packet *packet, packet_info *ret_packinfo,
 		}
 
         // Detect encrypted frames
-        if (fc->wep &&
-			(*((unsigned short *) &packet->data[ret_packinfo->header_offset]) != 
-			 0xAAAA || packet->data[ret_packinfo->header_offset + 1] & 0x40)) {
+        if (packet->len > (ret_packinfo->header_offset + 4) && fc->wep) {
             ret_packinfo->encrypted = 1;
 		}
 
@@ -962,6 +960,21 @@ void ProcessPacketCrypto(kis_packet *packet, packet_info *ret_packinfo,
 						 unsigned char *identity) {
 	int datasize = ret_packinfo->datasize;
 
+	if (ret_packinfo->encrypted && packet->len > (ret_packinfo->header_offset + 4)) {
+		ret_packinfo->encrypted = 1;
+
+		// Detect TKIP/CCMP/WEP
+		if ((packet->data[ret_packinfo->header_offset + 3] & 0x20)) {
+			if ((packet->data[ret_packinfo->header_offset + 1] & 0x20)) {
+				ret_packinfo->crypt_set |= crypt_tkip;
+			} else if (packet->data[ret_packinfo->header_offset + 2] == 0) {
+				ret_packinfo->crypt_set |= crypt_ccmp;
+			}
+		} else {
+			ret_packinfo->crypt_set |= crypt_wep;
+		}
+	}
+
 	if (ret_packinfo->encrypted == 0 && 
 		(unsigned int) ret_packinfo->header_offset+9 < packet->len) {
 		// Do a fuzzy data compare... if it's not:
@@ -975,10 +988,11 @@ void ProcessPacketCrypto(kis_packet *packet, packet_info *ret_packinfo,
 			packet->data[ret_packinfo->header_offset] != 0xE0) {
 			ret_packinfo->encrypted = 1;
 			ret_packinfo->fuzzy = 1;
+			ret_packinfo->crypt_set |= crypt_wep;
 		}
 	}
 
-	if (ret_packinfo->encrypted) {
+	if (ret_packinfo->crypt_set |= crypt_wep) {
 		// Match the range of cryptographically weak packets and let us
 		// know.
 
@@ -1007,19 +1021,21 @@ void ProcessPacketCrypto(kis_packet *packet, packet_info *ret_packinfo,
 		datasize = ret_packinfo->datasize - 8;
 		if (datasize > 0)
 			ret_packinfo->datasize = datasize;
-		else
-			ret_packinfo->datasize = 0;
 
-		if (ret_packinfo->encrypted) {
-			// De-wep if we have any keys
-			if (bssid_wep_map->size() != 0)
-				DecryptPacket(packet, ret_packinfo, bssid_wep_map, identity);
+		// De-wep if we have any keys
+		if (bssid_wep_map->size() != 0)
+			DecryptPacket(packet, ret_packinfo, bssid_wep_map, identity);
 
-			// Record the IV in the info
-			memcpy(&ret_packinfo->ivset, 
-				   &packet->data[ret_packinfo->header_offset], 4);
-		}
+		// Record the IV in the info
+		memcpy(&ret_packinfo->ivset, 
+			   &packet->data[ret_packinfo->header_offset], 4);
 
+	} else if (ret_packinfo->crypt_set |= crypt_tkip) {
+		datasize = ret_packinfo->datasize - 12;
+		if (datasize > 0)
+			ret_packinfo->datasize = datasize;
+	} else {
+		ret_packinfo->datasize = packet->len - ret_packinfo->header_offset;
 	}
 }
 

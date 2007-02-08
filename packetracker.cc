@@ -1512,6 +1512,8 @@ int Packetracker::WriteNetworks(string in_fname) {
 			crypt += "ISAKMP ";
 		if (net->crypt_set & crypt_pptp)
 			crypt += "PPTP ";
+		if (net->crypt_set & crypt_ccmp)
+			crypt += "CCMP ";
 
 		if (crypt.length() == 0)
 			crypt = "Unknown";
@@ -1935,6 +1937,11 @@ int Packetracker::WriteCSVNetworks(string in_fname) {
 				crypt += ",";
 			crypt += "PPTP";
 		}
+		if (net->crypt_set & crypt_ccmp) {
+			if (crypt != "")
+				crypt += ",";
+			crypt += "CCMP";
+		}
 
 		if (crypt.length() == 0)
 			crypt = "Unknown";
@@ -2170,6 +2177,8 @@ int Packetracker::WriteXMLNetworks(string in_fname) {
 			fprintf(netfile, "    <encryption>ISAKMP</encryption>\n");
 		if (net->crypt_set & crypt_pptp)
 			fprintf(netfile, "    <encryption>PPTP</encryption>\n");
+		if (net->crypt_set & crypt_ccmp)
+			fprintf(netfile, "    <encryption>CCMP</encryption>\n");
 
         fprintf(netfile, "    <packets>\n");
         fprintf(netfile, "      <LLC>%d</LLC>\n", net->llc_packets);
@@ -2297,6 +2306,8 @@ int Packetracker::WriteXMLNetworks(string in_fname) {
 			fprintf(netfile, "      <client-encryption>ISAKMP</client-encryption>\n");
 		if (cli->crypt_set & crypt_pptp)
 			fprintf(netfile, "      <client-encryption>PPTP</client-encryption>\n");
+		if (cli->crypt_set & crypt_ccmp)
+			fprintf(netfile, "      <client-encryption>CCMP</client-encryption>\n");
 
             if (cli->gps_fixed != -1) {
                 fprintf(netfile, "      <client-gps-info unit=\"%s\">\n", metric ? "metric" : "english");

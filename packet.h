@@ -475,7 +475,8 @@ enum crypt_type {
 	crypt_tls = 4096,
 	crypt_peap = 8192,
 	crypt_isakmp = 16384,
-    crypt_pptp = 32768
+    crypt_pptp = 32768,
+	crypt_ccmp = 65536
 };
 
 // Info about a packet

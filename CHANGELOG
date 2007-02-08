@@ -1,4 +1,6 @@
 Feb 07 2007  devel  Fixed mis-detecting some networks as WEP
+                    Fixed not assigning crypt types from data frames
+                    Added TKIP and CCMP detection in data frames
 
 Jan 25 2007  *****  SVN ate its face off, bulk commit of previous patches from
                     time of last SVN backup.  Sorry everyone.

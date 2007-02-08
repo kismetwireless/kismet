@@ -1772,6 +1772,8 @@ int PanelFront::DetailsPrinter(void *in_window) {
 			crypt += "ISAKMP ";
 		if (dnet->crypt_set & crypt_pptp)
 			crypt += "PPTP ";
+		if (dnet->crypt_set & crypt_ccmp)
+			crypt += "CCMP ";
 		if (crypt.length() == 0)
 			crypt = "Unknown";
 		snprintf(output, print_width, "Encrypt : %s", crypt.c_str());
@@ -3038,6 +3040,8 @@ int PanelFront::DetailsClientPrinter(void *in_window) {
 		crypt += "ISAKMP ";
     if (details_client->crypt_set & crypt_pptp)
         crypt += "PPTP ";
+	if (details_client->crypt_set & crypt_ccmp)
+		crypt += "CCMP ";
 	if (crypt.length() == 0)
 		crypt = "Unknown";
     snprintf(output, print_width, "Encrypt : %s", crypt.c_str());
