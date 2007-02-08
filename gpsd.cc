@@ -153,7 +153,6 @@ int GPSD::Scan() {
     // Instead, we'll munge them together safely, AND we'll catch if we've filled the
     // data buffer last time and still didn't get anything, if we did, we eliminate it
     // and we only work from the new data buffer.
-	// and we only work from the new data buffer
     if (strlen(data) == 1024)
         data[0] = '\0';
 
@@ -167,24 +166,9 @@ int GPSD::Scan() {
         return 1;
     }
 
-#if 0
-	// PAVMH (NAVLOCK,BU303) ->
-	// GPSD,P=41.711592 -73.931137,A=49.500000,V=0.000000,M=x,M=x
-    if ((scanret = sscanf(live, "GPSD,P=%f %f,A=%f,V=%f,M=%d,H=%f",
-               &lat, &lon, &alt, &spd, &mode, &hed)) < 5) {
-
-        lat = lon = spd = alt = hed = 0;
-        mode = 0;
-		data[0] = '\0';
-
-        return 0;
-    }
-
-#endif
-
 	// Use the newcore method of doing things -- tokenize and process
 	double in_lat, in_lon, in_spd, in_alt, in_hed;
-	int in_mode, set_pos = 0, set_spd = 0, set_alt = 0,
+	int in_mode = 0, set_pos = 0, set_spd = 0, set_alt = 0,
 		set_hed = 0, set_mode = 0;
 
 	vector<string> lintok = StrTokenize(live, ",");
@@ -256,7 +240,7 @@ int GPSD::Scan() {
     }
 
     // Override mode && clean up the mode var
-    if ((options & GPSD_OPT_FORCEMODE) && set_mode != 1) {
+    if ((options & GPSD_OPT_FORCEMODE) && in_mode < 2) {
         set_mode = 1;
 		in_mode = 2;
 	} else if (set_mode != 1) {
