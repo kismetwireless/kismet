@@ -33,7 +33,7 @@ TcpClient::TcpClient() {
     protocol_default_map["NETWORK"] = "bssid,type,ssid,beaconinfo,llcpackets,datapackets,cryptpackets,"
         "weakpackets,channel,wep,firsttime,lasttime,atype,rangeip,gpsfixed,minlat,minlon,minalt,minspd,"
         "maxlat,maxlon,maxalt,maxspd,octets,cloaked,beaconrate,maxrate,"
-        "quality,signal,noise,bestquality,bestsignal,bestnoise,bestlat,bestlon,bestalt,"
+        "quality,signal,noise,rssi,rssi_max,bestquality,bestsignal,bestnoise,bestlat,bestlon,bestalt,"
         "agglat,agglon,aggalt,aggpoints,datasize,turbocellnid,turbocellmode,turbocellsat,"
         "carrierset,maxseenrate,encodingset,decrypted,dupeivpackets,bsstimestamp";
     protocol_default_map["CLIENT"] = "bssid,mac,type,firsttime,lasttime,"
@@ -248,13 +248,24 @@ int TcpClient::Poll() {
     if (strlen(data) < 2)
         return 0;
 
-    // Drop out now on a status event so we can get drawn
-    int ret = ParseData(data);
 
-    /*
-    if (ret == 2)
-        return 1;
-        */
+	// Loop on lines of data
+	int ret;
+	char *post = data;
+	while(1) {
+		ret = ParseData(post);
+
+		if (ret < 0) {
+			return ret;
+		}
+
+		post = strchr(post, '\n');
+
+		if (post == NULL)
+			break;
+
+		post++;
+	}
 
     return ret;
 }
@@ -278,7 +289,7 @@ int TcpClient::ParseData(char *in_data) {
     char bssid_str[18];
     mac_addr bssid;
     int junkmajor, junkminor, junktiny;
-    int		tmptime;	// HACK: should be some 64-bit type
+    int	tmptime;	// HACK: should be some 64-bit type
 
     if (sscanf(in_data, "%64[^:]", header) < 1) {
         return 0;
@@ -300,11 +311,11 @@ int TcpClient::ParseData(char *in_data) {
                    build, &channel_hop,
                    major, minor, tiny) < 7)
             return 0;
-	start_time = tmptime;
+		start_time = tmptime;
     } else if (!strncmp(header, "*TIME", 64)) {
         if (sscanf(in_data+hdrlen, "%d", &tmptime) < 1)
             return 0;
-	serv_time = tmptime;
+		serv_time = tmptime;
     } else if (!strncmp(header, "*NETWORK", 64)) {
         wireless_network *net;
 
@@ -360,8 +371,8 @@ int TcpClient::ParseData(char *in_data) {
 		int maxseenrate;
 
 		// Connection information
-		int quality, signal, noise;
-		int best_quality, best_signal, best_noise;
+        int quality, signal, noise, rssi, rssi_max;
+        int best_quality, best_signal, best_noise;
 		float best_lat, best_lon, best_alt;
 
 		// Amount of data, in bytes
@@ -396,69 +407,66 @@ int TcpClient::ParseData(char *in_data) {
             newnet = 1;
         }
 
-	{
-	int		tmptype, tmpatype;
-	int		tmpturbocell_mode;
-	int		tmpfirst_time;	// HACK: should be some 64-bit type
-	int		tmplast_time;	// HACK: should be some 64-bit type
-        scanned = sscanf(in_data+hdrlen+18, "%d \001%255[^\001]\001 "
+		int tmptype, tmpatype;
+		int	tmpturbocell_mode;
+		int	tmpfirst_time;	// HACK: should be some 64-bit type
+		int	tmplast_time;	// HACK: should be some 64-bit type
+		scanned = sscanf(in_data+hdrlen+18, "%d \001%255[^\001]\001 "
 						 "\001%255[^\001]\001 "
-                         "%d %d %d %d %d %d %d %d %d %hd.%hd.%hd.%hd "
-                         "%d %f %f %f %f %f %f %f %f %d %d %d %f %d %d %d %d %d %d "
+						 "%d %d %d %d %d %d %d %d %d %hd.%hd.%hd.%hd "
+						 "%d %f %f %f %f %f %f %f %f %d %d %d %f %d %d %d %d %d %d %d %d"
 						 "%f %f %f %lf %lf %lf %ld %ld"
-                         "%d %d %d %d %d %d %d %d %lld",
-                         &tmptype, ssid, beaconstr,
-                         &llc_packets, &data_packets, &crypt_packets, 
-                         &interesting_packets, &channel, &crypt_set, 
-                         &tmpfirst_time, &tmplast_time,
-                         &tmpatype, &range[0], &range[1], &range[2], 
-                         &range[3], &gps_fixed, &min_lat, &min_lon, 
-                         &min_alt, &min_spd, &max_lat, &max_lon, 
-                         &max_alt, &max_spd, &octets, 
-                         &cloaked, &beacon, &maxrate, &quality, 
-                         &signal, &noise, &best_quality, 
-                         &best_signal, &best_noise,
-                         &best_lat, &best_lon, &best_alt,
-                         &aggregate_lat, &aggregate_lon, &aggregate_alt,
-                         &aggregate_points, &datasize,
-                         &turbocell_nid, &tmpturbocell_mode, 
-                         &turbocell_sat, &carrier_set, &maxseenrate, 
-                         &encoding_set, &decrypted, &dupeiv_packets, &bss_timestamp);
-	type           = static_cast<wireless_network_type>(tmptype);
-	first_time     = tmpfirst_time;
-	last_time      = tmplast_time;
-	atype          = static_cast<address_type>(tmpatype);
-	turbocell_mode = static_cast<turbocell_type>(tmpturbocell_mode);
-	}
-	
-        if (scanned < 51) {
-            // fprintf(stderr, "Flubbed network, discarding... %s  '%s'\n", bssid_str, in_data);
+						 "%d %d %d %d %d %d %d %d %lld",
+						 &tmptype, ssid, beaconstr,
+						 &llc_packets, &data_packets, &crypt_packets, 
+						 &interesting_packets, &channel, &crypt_set, 
+						 &tmpfirst_time, &tmplast_time,
+						 &tmpatype, &range[0], &range[1], &range[2], 
+						 &range[3], &gps_fixed, &min_lat, &min_lon, 
+						 &min_alt, &min_spd, &max_lat, &max_lon, 
+						 &max_alt, &max_spd, &octets, 
+						 &cloaked, &beacon, &maxrate, &quality, 
+						 &signal, &noise, &rssi, &rssi_max,
+						 &best_quality, &best_signal, &best_noise,
+						 &best_lat, &best_lon, &best_alt,
+						 &aggregate_lat, &aggregate_lon, &aggregate_alt,
+						 &aggregate_points, &datasize,
+						 &turbocell_nid, &tmpturbocell_mode, 
+						 &turbocell_sat, &carrier_set, &maxseenrate, 
+						 &encoding_set, &decrypted, &dupeiv_packets, &bss_timestamp);
+		type = static_cast<wireless_network_type>(tmptype);
+		first_time = tmpfirst_time;
+		last_time = tmplast_time;
+		atype = static_cast<address_type>(tmpatype);
+		turbocell_mode = static_cast<turbocell_type>(tmpturbocell_mode);
+
+		if (scanned < 54) {
 			// Can't delete us out of the tracker offhand if we're not a new network,
 			// remove us cleanly.
 			if (newnet == 1)
 				delete net;
 
-            return 0;
-        }
+			return 0;
+		}
 
-        // Set the network list as dirty
-        network_dirty = 1;
-        
-        if (newnet == 1) {
-            net_map[bssid] = net;
-            net_map_vec.push_back(net);
-            last_new_network = net;
-        }
+		// Set the network list as dirty
+		network_dirty = 1;
 
-        if (ssid[0] != '\002')
-            net->ssid = ssid;
-        if (beaconstr[0] != '\002')
-            net->beacon_info = beaconstr;
+		if (newnet == 1) {
+			net_map[bssid] = net;
+			net_map_vec.push_back(net);
+			last_new_network = net;
+		}
+
+		if (ssid[0] != '\002')
+			net->ssid = ssid;
+		if (beaconstr[0] != '\002')
+			net->beacon_info = beaconstr;
 		net->ipdata.atype = atype;
 		net->ipdata.octets = octets;
-        for (int x = 0; x < 4; x++) {
-            net->ipdata.range_ip[x] = (uint8_t) range[x];
-        }
+		for (int x = 0; x < 4; x++) {
+			net->ipdata.range_ip[x] = (uint8_t) range[x];
+		}
 
 		net->type = type;
 		net->llc_packets = llc_packets;
@@ -487,6 +495,8 @@ int TcpClient::ParseData(char *in_data) {
 		net->quality = quality;
 		net->signal = signal;
 		net->noise = noise;
+        net->rssi = rssi;
+        net->rssi_max = rssi_max;
 		net->best_quality = best_quality;
 		net->best_signal = best_signal;
 		net->best_noise = best_noise;
@@ -566,64 +576,62 @@ int TcpClient::ParseData(char *in_data) {
             cmac = cmac_str;
             map<mac_addr, wireless_client *>::iterator wci = 
                 nmi->second->client_map.find(cmac);
-            if (wci != nmi->second->client_map.end()) {
-                client = wci->second;
-            } else {
-                nclient = 1;
-                client = new wireless_client;
-            }
-        } else {
-            return 0;
-        }
+			if (wci != nmi->second->client_map.end()) {
+				client = wci->second;
+			} else {
+				nclient = 1;
+				client = new wireless_client;
+			}
+		} else {
+			return 0;
+		}
 
-	{
-	int		tmptype, tmpatype;
-	int		tmpfirst_time;	// HACK: should be some 64-bit type
-	int		tmplast_time;	// HACK: should be some 64-bit type
-        scanned = sscanf(in_data+hdrlen+36, "%d %d %d %d %d %d %d "
-                         "%f %f %f %f %f %f %f %f %lf %lf "
-                         "%lf %ld %f %d %d %d %d %d %d "
-                         "%f %f %f %d %hd.%hd.%hd.%hd %ld %d %d %d %d",
-                         &tmptype,
-                         &tmpfirst_time, &tmplast_time,
-                         &data_packets, &crypt_packets,
-                         &interesting_packets,
-                         &gps_fixed, &min_lat, &min_lon,
-                         &min_alt, &min_spd,
-                         &max_lat, &max_lon, &max_alt,
-                         &max_spd, &aggregate_lat, 
+		int	tmptype, tmpatype;
+		int	tmpfirst_time;	// HACK: should be some 64-bit type
+		int	tmplast_time;	// HACK: should be some 64-bit type
+		scanned = sscanf(in_data+hdrlen+36, "%d %d %d %d %d %d %d "
+						 "%f %f %f %f %f %f %f %f %lf %lf "
+						 "%lf %ld %f %d %d %d %d %d %d "
+						 "%f %f %f %d %hd.%hd.%hd.%hd %ld %d %d %d %d",
+						 &tmptype,
+						 &tmpfirst_time, &tmplast_time,
+						 &data_packets, &crypt_packets,
+						 &interesting_packets,
+						 &gps_fixed, &min_lat, &min_lon,
+						 &min_alt, &min_spd,
+						 &max_lat, &max_lon, &max_alt,
+						 &max_spd, &aggregate_lat, 
 						 &aggregate_lon,
-                         &aggregate_alt, &aggregate_points,
-                         &maxrate, &quality, &signal, &noise,
-                         &best_quality, &best_signal, 
+						 &aggregate_alt, &aggregate_points,
+						 &maxrate, &quality, &signal, &noise,
+						 &best_quality, &best_signal, 
 						 &best_noise,
-                         &best_lat, &best_lon, &best_alt,
-                         &tmpatype, &ip[0], &ip[1], &ip[2], &ip[3],
-                         &datasize, &maxseenrate, &encoding_set,
-                         &decrypted, &crypt_set);
-	type       = static_cast<client_type>(tmptype);
-	first_time = tmpfirst_time;
-	last_time  = tmplast_time;
-	atype      = static_cast<address_type>(tmpatype);
-	}
+						 &best_lat, &best_lon, &best_alt,
+						 &tmpatype, &ip[0], &ip[1], &ip[2], &ip[3],
+						 &datasize, &maxseenrate, &encoding_set,
+						 &decrypted, &crypt_set);
+		type = static_cast<client_type>(tmptype);
+		first_time = tmpfirst_time;
+		last_time  = tmplast_time;
+		atype = static_cast<address_type>(tmpatype);
 
-        if (scanned < 39) {
-            if (nclient)
-                delete client;
-            return 0;
-        }
+		if (scanned < 39) {
+			if (nclient)
+				delete client;
+			return 0;
+		}
 
-        // Set the network list to be dirty
-        network_dirty = 1;
-        
-        bssid = bssid_str;
-        client->mac = cmac;
-        client->maxrate = maxrate;
+		// Set the network list to be dirty
+		network_dirty = 1;
 
-        client->tcpclient = this;
+		bssid = bssid_str;
+		client->mac = cmac;
+		client->maxrate = maxrate;
 
-        for (unsigned int x = 0; x < 4; x++)
-            client->ipdata.ip[x] = ip[x];
+		client->tcpclient = this;
+
+		for (unsigned int x = 0; x < 4; x++)
+			client->ipdata.ip[x] = ip[x];
 		client->ipdata.atype = atype;
 
 		client->type = type;
@@ -681,7 +689,8 @@ int TcpClient::ParseData(char *in_data) {
         }
 
     } else if (!strncmp(header, "*GPS", 64)) {
-        if (sscanf(in_data+hdrlen, "%f %f %f %f %f %d", &lat, &lon, &alt, &spd, &heading, &mode) < 5)
+        if (sscanf(in_data+hdrlen, "%f %f %f %f %f %d", 
+				   &lat, &lon, &alt, &spd, &heading, &mode) < 5)
             return 0;
 
     } else if (!strncmp(header, "*INFO", 64)) {
@@ -770,7 +779,8 @@ int TcpClient::ParseData(char *in_data) {
         char bssid_str[18];
         char source_str[18];
         string_info strng;
-        if (sscanf(in_data+hdrlen, "%17s %17s %2047[^\n]\n", bssid_str, source_str, netstr) != 3)
+        if (sscanf(in_data+hdrlen, "%17s %17s %2047[^\n]\n", 
+				   bssid_str, source_str, netstr) != 3)
             return 0;
 
         gettimeofday(&strng.string_ts, NULL);

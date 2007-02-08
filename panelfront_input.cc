@@ -51,13 +51,22 @@ int PanelFront::MainInput(void *in_window, int in_chr) {
         break;
     case KEY_DOWN:
         if (sortby != sort_auto) {
-            if (kwin->start + kwin->selected < last_draw_size - 1) {
+			if ((kwin->end - kwin->start) >= kwin->max_display) {
+				if (kwin->selected + kwin->start == kwin->end) 
+					kwin->start++;
+				else
+					kwin->selected++;
+			}
+
+#if 0
+            if ((kwin->selected - kwin->start) <= last_draw_size - 1) {
                 if ((kwin->start + kwin->selected >= kwin->end) &&
                     (kwin->start + kwin->selected + 1 < last_draw_size))
                     kwin->start++;
                 else
                     kwin->selected++;
             }
+#endif
 
         } else {
             WriteStatus("Cannot scroll in autofit sort mode.  Sort by a different method.");

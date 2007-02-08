@@ -227,36 +227,63 @@ void PanelFront::NetLine(kis_window *in_window, string *in_str, wireless_network
                 snprintf(element, 6, "%4ldM", net->datasize/1024/1024);
             len = 5;
         } else if (colindex == mcol_signalbar) {
-            if (net->best_signal > 0) {
-                int sx = 0;
+            int sx = 0;
 
-                // see if it looks like dBm...
-                if (net->signal < 0 && idle_time < (decay * 2)) {
-                    // If we have a dB noise level, get the percentage of signal to noise
-                    if (net->noise < 0)
-                        sx = (int) (double) (net->noise / net->signal) * 15;
-                    else
-                        sx = (int) (double) (100 / abs(net->signal)) * 15;
-                } else if (idle_time < (decay * 2)) {
-                    // Extract the signal percentage of the best signal seen
-                    sx = (int)((double)(idle_time < (decay * 2) ? net->signal : 0) / 
-							   net->best_signal * 15);
-                }
+            if (idle_time < (decay * 2))
+                sx = (int)(15 * (double)net->rssi / (double)net->rssi_max);
 
-                char sg[16];
+            // Boundscheck sx
+            if (sx < 0)
+                sx = 0;
+            else if (sx > 15)
+                sx = 15;
 
-				// Boundscheck sx
-				if (sx < 0)
-					sx = 0;
-				else if (sx > 15)
-					sx = 15;
+            char sg[16];
 
+            if (sx > 0) {
                 memset(sg, 'X', sx);
                 memset(sg + sx, '=', 15 - sx);
                 sg[15] = '\0';
                 snprintf(element, 16, "%s", sg);
             } else
                 snprintf(element, 1024, "===============");
+
+            len = 15;
+
+        } else if (colindex == mcol_snrbar) {
+            int sx = 0;
+
+            if (idle_time < (decay * 2)) {
+                double snr = 0.0;
+
+                if (net->signal < 0 && net->noise < 0) {
+                    // dBm levels
+                    snr = exp(M_LN10 * ((double)net->signal - (double)net->noise) / 10);
+                }
+                else if (net->signal > 0 && net->noise > 0) {
+                    // absolute, driver-specific levels
+                    snr = (double)net->signal / (double)net->noise;
+                }
+
+                sx = int(15 * snr / (snr + 1));
+            }
+
+            char sg[16];
+
+            // Boundscheck sx
+            if (sx < 0)
+                sx = 0;
+            else if (sx > 15)
+                sx = 15;
+
+            if (sx > 0) {
+                memset(sg, 'X', sx);
+                memset(sg + sx, '=', 15 - sx);
+                sg[15] = '\0';
+                snprintf(element, 16, "%s", sg);
+            } else
+                snprintf(element, 1024, "===============");
+
             len = 15;
         } else if (colindex == mcol_dupeiv) {
             snprintf(element, 5, "%4d", net->dupeiv_packets);
@@ -514,6 +541,9 @@ int PanelFront::MainNetworkPrinter(void *in_window) {
         } else if (colind == mcol_signalbar) {
             snprintf(title, 1024, "SignalGraph");
             len = 15;
+        } else if (colind == mcol_snrbar) {
+            snprintf(title, 1024, "SNRGraph");
+            len = 15;
         } else if (colind == mcol_dupeiv) {
             snprintf(title, 1024, "DIV");
             len = 4;
@@ -611,7 +641,9 @@ int PanelFront::MainNetworkPrinter(void *in_window) {
         // Build the netline for the group or single host and tag it for expansion if
         // appropriate for this sort and group
         NetLine(kwin, &netline, net,
-                display_vector[i]->name.length() == 0 ? display_vector[i]->virtnet->ssid.c_str() : display_vector[i]->name.c_str(),
+                (display_vector[i]->name.length() == 0 ? 
+				display_vector[i]->virtnet->ssid.c_str() : 
+				display_vector[i]->name.c_str()),
                 0,
                 display_vector[i]->type == group_host ? 0 : 1,
                 sortby == sort_auto ? 0 : display_vector[i]->expanded,
@@ -713,7 +745,6 @@ int PanelFront::MainNetworkPrinter(void *in_window) {
     }
 
     last_draw_size = last_displayed.size();
-
 
     if (color)
         wattrset(kwin->win, color_map["title"].pair);

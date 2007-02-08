@@ -441,7 +441,8 @@ Licensed under the GPL
       shortname Shortened name of the network or group for small displays
       shortssid Shortened SSID for small displays
       signal    Last seen signal level
-      signalbar Graphical representation of signal level
+      signalbar Graphical representation of signal strength
+      snrbar    Graphical representation of signal-to-noise ratio
       size      Amount of data transfered on network
       ssid      SSID/ESSID of the network or group
       type      Network type (Probe, Adhoc, Infra, etc)

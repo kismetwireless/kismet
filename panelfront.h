@@ -188,7 +188,8 @@ protected:
             last_draw_size = last_client_draw_size = 0;
             */
 
-            lat = lon = spd = alt = last_lat = last_lon = last_spd = last_alt = last_heading = 0;
+            lat = lon = spd = alt = last_lat = last_lon = last_spd = 
+				last_alt = last_heading = 0;
             fix = last_fix = 0;
 
             max_packet_rate = 0;
@@ -335,10 +336,11 @@ protected:
     enum main_columns {
         mcol_unknown = -1,
         mcol_decay, mcol_name, mcol_shortname, mcol_ssid, mcol_shortssid, mcol_type,
-        mcol_wep, mcol_channel, mcol_data, mcol_llc, mcol_crypt, mcol_weak, mcol_bssid,
+        mcol_wep, mcol_channel, mcol_data, mcol_llc, mcol_crypt, mcol_weak, 
+		mcol_bssid,
         mcol_flags, mcol_ip, /* mcol_mask, mcol_gateway, */ mcol_packets, mcol_info, 
         mcol_maxrate, mcol_manuf, mcol_signal, mcol_quality, mcol_noise, mcol_clients, 
-        mcol_datasize, mcol_signalbar, mcol_qualitybar, mcol_dupeiv
+        mcol_datasize, mcol_signalbar, mcol_qualitybar, mcol_dupeiv, mcol_snrbar
     };
 
     enum client_columns {

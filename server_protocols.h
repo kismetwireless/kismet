@@ -37,6 +37,7 @@ enum NETWORK_fields {
     NETWORK_octets, NETWORK_cloaked, NETWORK_beaconrate, NETWORK_maxrate,
     NETWORK_manufkey, NETWORK_manufscore,
     NETWORK_quality, NETWORK_signal, NETWORK_noise,
+    NETWORK_rssi, NETWORK_rssi_max,
     NETWORK_bestquality, NETWORK_bestsignal, NETWORK_bestnoise,
     NETWORK_bestlat, NETWORK_bestlon, NETWORK_bestalt,
     NETWORK_agglat, NETWORK_agglon, NETWORK_aggalt, NETWORK_aggpoints,

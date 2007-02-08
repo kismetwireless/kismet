@@ -933,6 +933,8 @@ PanelFront::main_columns PanelFront::Token2MainColumn(string in_token) {
         return mcol_datasize;
     } else if (in_token == "signalbar") {
         return mcol_signalbar;
+    } else if (in_token == "snrbar") {
+        return mcol_snrbar;
         /*
     } else if (in_token == "qualitybar") {
         return mcol_qualitybar;

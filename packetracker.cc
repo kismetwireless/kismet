@@ -54,6 +54,8 @@ Packetracker::Packetracker() {
     num_networks = num_packets = num_dropped = num_noise =
         num_crypt = num_interesting = num_cisco = 0;
 
+    best_signal = worst_signal = 0;
+
     errstr[0] = '\0';
 
     filter_export_bssid = filter_export_source = filter_export_dest = NULL;
@@ -535,24 +537,50 @@ void Packetracker::ProcessPacket(kis_packet *packet, packet_info *info,
     if (info->source_mac == net->bssid)
         net->last_sequence = info->sequence_number;
 
-    if (info->noise != 0 || info->signal != 0) {
+    if (info->signal != 0) 
         net->signal = info->signal;
 
-        if (info->signal > net->best_signal || net->best_signal == 0) {
-            net->best_signal = info->signal;
-            if (info->gps_fix >= 2) {
-                net->best_lat = info->gps_lat;
-                net->best_lon = info->gps_lon;
-                net->best_alt = info->gps_alt;
-            }
+    // Record best signal level so far for this network
+    if (info->signal != 0 &&
+           (info->signal > net->best_signal || net->best_signal == 0)) {
+        net->best_signal = info->signal;
+        if (info->gps_fix >= 2) {
+            net->best_lat = info->gps_lat;
+            net->best_lon = info->gps_lon;
+            net->best_alt = info->gps_alt;
         }
+    }
 
+    // Record best and worst signal levels ever seen on any network
+    if (info->signal != 0) {
+        if (info->signal > best_signal || best_signal == 0)
+            best_signal = info->signal;
+        if (info->signal < worst_signal)
+            worst_signal = info->signal;
+    }
+
+    // Fake RSSI against a floating ceiling. FIXME - get RSSI from driver.
+    if (info->signal < 0) {
+        // dbM signal level
+        double strength =
+            (double)(info->signal - worst_signal) /
+            (double)(best_signal - worst_signal);
+        net->rssi = (int)(strength * 100);
+        net->rssi_max = 100;
+    }
+    else {
+        // absolute, driver-specific signal level
+        net->rssi = info->signal;
+        net->rssi_max = best_signal == 0 ? 100 : best_signal;
+    }
+
+    if (info->noise != 0)
         net->noise = info->noise;
 
-        // Record the "best" (aka 'worst') noise level
-        if (info->noise > net->best_noise || net->best_noise == 0)
-            net->best_noise = info->noise;
-    }
+    // Record the "best" (aka 'worst') noise level
+    if (info->noise != 0 &&
+          (info->noise < net->best_noise || net->best_noise == 0))
+        net->best_noise = info->noise;
 
     if (info->gps_fix >= 2) {
         // Don't aggregate slow-moving packets to prevent average "pulling"..

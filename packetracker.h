@@ -125,6 +125,8 @@ protected:
     int num_networks, num_packets, num_dropped, num_noise,
         num_crypt, num_interesting, num_cisco;
 
+    int best_signal, worst_signal;
+
     // all the networks
     vector<wireless_network *> network_list;
 

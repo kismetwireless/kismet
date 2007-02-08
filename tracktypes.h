@@ -127,6 +127,7 @@ typedef struct wireless_client {
 
         signal = quality = noise = 0;
         best_signal = best_quality = best_noise = 0;
+        rssi = 0; rssi_max = 100;
         best_lat = best_lon = best_alt = 0;
 
         memset(&ipdata, 0, sizeof(net_ip_data));
@@ -237,7 +238,7 @@ typedef struct wireless_client {
     int metric;
 
     // Last seen quality for a packet from this client
-    int quality, signal, noise;
+    int quality, signal, noise, rssi, rssi_max;
     int best_quality, best_signal, best_noise;
     float best_lat, best_lon, best_alt;
 
@@ -311,6 +312,7 @@ typedef struct wireless_network {
 
         quality = signal = noise = 0;
         best_quality = best_signal = best_noise = 0;
+        rssi = 0; rssi_max = 100;
         best_lat = best_lon = best_alt = 0;
 
         client_disconnects = 0;
@@ -486,7 +488,7 @@ typedef struct wireless_network {
     int metric;
 
     // Connection information
-    int quality, signal, noise;
+    int quality, signal, noise, rssi, rssi_max;
     int best_quality, best_signal, best_noise;
     float best_lat, best_lon, best_alt;
 

@@ -1,3 +1,5 @@
+Feb 08 2007  devel  Fixed scrolling in kismet_client
+                    Fixed handling of bursty traffic in kismet_client
 Feb 07 2007  devel  Fixed mis-detecting some networks as WEP
                     Fixed not assigning crypt types from data frames
                     Added TKIP and CCMP detection in data frames

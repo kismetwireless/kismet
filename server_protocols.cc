@@ -102,6 +102,7 @@ char *NETWORK_fields_text[] = {
     "octets", "cloaked", "beaconrate", "maxrate",
     "manufkey", "manufscore",
     "quality", "signal", "noise",
+    "rssi", "rssi_max",
     "bestquality", "bestsignal", "bestnoise",
     "bestlat", "bestlon", "bestalt",
     "agglat", "agglon", "aggalt", "aggpoints",
@@ -456,6 +457,12 @@ void Protocol_Network2Data(const wireless_network *net, NETWORK_data *data) {
     data->ndvec.push_back(tmpstr);
 
     snprintf(tmpstr, 128, "%d", net->noise);
+    data->ndvec.push_back(tmpstr);
+
+    snprintf(tmpstr, 128, "%d", net->rssi);
+    data->ndvec.push_back(tmpstr);
+
+    snprintf(tmpstr, 128, "%d", net->rssi_max);
     data->ndvec.push_back(tmpstr);
 
     snprintf(tmpstr, 128, "%d", net->best_quality);
