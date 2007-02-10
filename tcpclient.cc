@@ -248,24 +248,15 @@ int TcpClient::Poll() {
     if (strlen(data) < 2)
         return 0;
 
+	// Set the deltas before a poll
+	old_num_networks = num_networks;
+	old_num_packets = num_packets;
+	old_num_crypt = num_crypt;
+	old_num_interesting = num_interesting;
+	old_num_noise = num_noise;
+	old_num_dropped = num_dropped;
 
-	// Loop on lines of data
-	int ret;
-	char *post = data;
-	while(1) {
-		ret = ParseData(post);
-
-		if (ret < 0) {
-			return ret;
-		}
-
-		post = strchr(post, '\n');
-
-		if (post == NULL)
-			break;
-
-		post++;
-	}
+	int ret = ParseData(data);
 
     return ret;
 }
@@ -694,35 +685,12 @@ int TcpClient::ParseData(char *in_data) {
             return 0;
 
     } else if (!strncmp(header, "*INFO", 64)) {
-        char chan_details[1024];
-        char chan_details_sec[1024];
-
-        memset(chan_details, 0, 1024);
-        memset(chan_details_sec, 0, 1024);
-
-        old_num_networks = num_networks;
-        old_num_packets = num_packets;
-        old_num_crypt = num_crypt;
-        old_num_interesting = num_interesting;
-        old_num_noise = num_noise;
-        old_num_dropped = num_dropped;
-
-        unsigned int numchan;
-        if (sscanf(in_data+hdrlen, "%d %d %d %d %d %d %d %d %d %d %d%1023[^\n]\n",
-                   &num_networks, &num_packets,
-                   &num_crypt, &num_interesting,
-                   &num_noise, &num_dropped, &packet_rate,
-                   &quality, &power, &noise, &numchan,
-                   chan_details) < 11)
-            return 0;
-
-        for (unsigned int x = 0; x < CHANNEL_MAX && x < numchan; x++) {
-            if (sscanf(chan_details, "%d %1023[^\n]\n",
-                       &channel_graph[x].signal, chan_details_sec) < 1)
-                break;
-            strncpy(chan_details, chan_details_sec, 1024);
-        }
-
+		if (sscanf(in_data+hdrlen, "%d %d %d %d %d %d %d %d\n",
+				   &num_networks, &num_packets,
+				   &num_crypt, &num_interesting, 
+				   &num_noise, &num_dropped, 
+				   &packet_rate, &power) < 8)
+			return 0;
     } else if (!strncmp(header, "*CISCO", 64)) {
         cdp_packet cdp;
         memset(&cdp, 0, sizeof(cdp_packet));

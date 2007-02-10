@@ -564,8 +564,10 @@ int main(int argc, char *argv[]) {
                 speech_encoding = SPEECH_ENCODING_NORMAL;
 
             // Make sure we have encrypted text lines
-            if (gui_conf->FetchOpt("speech_encrypted") == "" || gui_conf->FetchOpt("speech_unencrypted") == "") {
-                fprintf(stderr, "ERROR:  Speech request but speech_encrypted or speech_unencrypted line missing.\n");
+            if (gui_conf->FetchOpt("speech_encrypted") == "" || 
+				gui_conf->FetchOpt("speech_unencrypted") == "") {
+                fprintf(stderr, "ERROR:  Speech request but speech_encrypted or "
+						"speech_unencrypted line missing.\n");
                 speech = 0;
             }
 
@@ -573,7 +575,8 @@ int main(int argc, char *argv[]) {
             speech_sentence_unencrypted = gui_conf->FetchOpt("speech_unencrypted");
 
         } else {
-            fprintf(stderr, "ERROR: Speech alerts enabled but no path to festival has been specified.\n");
+            fprintf(stderr, "ERROR: Speech alerts enabled but no path to festival "
+					"has been specified.\n");
             speech = 0;
         }
     } else if (speech == -1)
@@ -685,9 +688,14 @@ int main(int argc, char *argv[]) {
     fprintf(stderr, "Looking for startup info from %s:%d...", guihost, guiport);
     int header_count = 0;
 
-    while (serv_start == 0) {
+    while (1) {
 
         fprintf(stderr, ".");
+
+        serv_start = kismet_serv.FetchStart();
+
+		if (serv_start)
+			break;
 
         if (kismet_serv.Valid())
             kismet_serv.Poll();
@@ -697,8 +705,6 @@ int main(int argc, char *argv[]) {
                     guihost, guiport);
             CatchShutdown(-1);
         }
-
-        serv_start = kismet_serv.FetchStart();
 
         sleep(1);
     }
@@ -867,20 +873,21 @@ int main(int argc, char *argv[]) {
                     int pollret;
                     if ((pollret = tcpcli->Poll()) < 0) {
                         snprintf(status, STATUS_MAX, "%s:%d TCP error: %s",
-                                 tcpcli->FetchHost(), tcpcli->FetchPort(), tcpcli->FetchError());
+                                 tcpcli->FetchHost(), tcpcli->FetchPort(), 
+								 tcpcli->FetchError());
                         gui->WriteStatus(status);
 
-                        // not any longer - clients are dynamically set in rset each time from
-                        // the list of clients now
+                        // not any longer - clients are dynamically set in rset 
+						// each time from the list of clients now
                         // Remove the client descriptor if we're not valid anymore
                         // FD_CLR(client_descrip, &read_set);
 
                         if (reconnect) {
-                            snprintf(status, STATUS_MAX, "Will attempt to reconnect to %s:%d",
+                            snprintf(status, STATUS_MAX, 
+									 "Will attempt to reconnect to %s:%d",
                                      tcpcli->FetchHost(), tcpcli->FetchPort());
                             gui->WriteStatus(status);
                         }
-
                     }
 
                     if (pollret != 0) {
@@ -907,6 +914,7 @@ int main(int argc, char *argv[]) {
                         }
 
                         if (tcpcli->FetchDeltaNumNetworks() > 0) {
+							fprintf(stderr, "delta %d\n", tcpcli->FetchDeltaNumNetworks());
                             wireless_network *newnet = tcpcli->FetchLastNewNetwork();
 
                             if (sound == 1 && newnet != lastspoken) {
