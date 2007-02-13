@@ -2298,6 +2298,7 @@ int monitor_wext(const char *in_dev, int initch, char *in_err,
 	// to change mode
 	if (fail) {
 		short oldflags;
+		fail = 0;
 		if (Ifconfig_Get_Flags(in_dev, in_err, &oldflags) < 0)
 			return -1;
 
