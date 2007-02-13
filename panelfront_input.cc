@@ -51,11 +51,12 @@ int PanelFront::MainInput(void *in_window, int in_chr) {
         break;
     case KEY_DOWN:
         if (sortby != sort_auto) {
-			if ((kwin->end - kwin->start) >= kwin->max_display) {
-				if (kwin->selected + kwin->start == kwin->end) 
+			if (kwin->selected + kwin->start == kwin->end) {
+				if ((kwin->end - kwin->start) >= kwin->max_display) {
 					kwin->start++;
-				else
-					kwin->selected++;
+				}
+			} else {
+				kwin->selected++;
 			}
 
 #if 0
