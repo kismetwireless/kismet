@@ -2271,38 +2271,67 @@ int unmonitor_ipwlivetap(const char *in_dev, int initch, char *in_err,
 }
 
 // "standard" wireless extension monitor mode
-int monitor_wext(const char *in_dev, int initch, char *in_err, void **in_if, void *in_ext) {
-    int mode;
+int monitor_wext(const char *in_dev, int initch, char *in_err, 
+				 void **in_if, void *in_ext) {
+	int mode;
+	int fail = 0;
+	char fcode[256];
 
-    // Bring the device up, zero its ip, and set promisc
-    if (Ifconfig_Delta_Flags(in_dev, in_err, IFF_UP | IFF_RUNNING | IFF_PROMISC) < 0)
-        return -1;
+	// Bring the device up, zero its ip, and set promisc
+	if (Ifconfig_Delta_Flags(in_dev, in_err, IFF_UP | IFF_RUNNING | IFF_PROMISC) < 0)
+		return -1;
 
-    // Get mode and see if we're already in monitor, don't try to go in
-    // if we are (cisco doesn't like rfmon rfmon)
-    if (Iwconfig_Get_Mode(in_dev, in_err, &mode) < 0)
-        return -1;
-    
-    if (mode != LINUX_WLEXT_MONITOR) {
-        // Set it
-        if (Iwconfig_Set_Mode(in_dev, in_err, LINUX_WLEXT_MONITOR) < 0) {
-            snprintf(in_err, STATUS_MAX, "Failed to set monitor mode: %s.  This usually "
-                     "means your drivers either do not support monitor mode, or use a "
-                     "different mechanism for getting to it.  Make sure you have a "
-                     "version of your drivers that support monitor mode, and consult "
-                     "the troubleshooting section of the README.", 
-                     strerror(errno));
-            return -1;
-        }
-    }
-    
-    // Set the initial channel - if we ever get a pcapsource that needs a hook
-    // back into the class, this will have to be rewritten
-    if (chancontrol_wext(in_dev, initch, in_err, NULL) < 0) {
-        return -2;
-    }
-    
-    return 0;
+	// Get mode and see if we're already in monitor, don't try to go in
+	// if we are (cisco doesn't like rfmon rfmon)
+	if (Iwconfig_Get_Mode(in_dev, in_err, &mode) < 0)
+		return -1;
+
+	if (mode != LINUX_WLEXT_MONITOR) {
+		// Set it
+		if (Iwconfig_Set_Mode(in_dev, in_err, LINUX_WLEXT_MONITOR) < 0) {
+			fail = 1;
+			snprintf(fcode, 256, "%s", strerror(errno));
+		}
+	}
+
+	// Try again with the interface down, dscape devices need to be down
+	// to change mode
+	if (fail) {
+		short oldflags;
+		if (Ifconfig_Get_Flags(in_dev, in_err, &oldflags) < 0)
+			return -1;
+
+		if (Ifconfig_Set_Flags(in_dev, in_err, 
+							   oldflags & !(IFF_UP | IFF_RUNNING)) < 0)
+			return -1;
+
+		if (Iwconfig_Set_Mode(in_dev, in_err, LINUX_WLEXT_MONITOR) < 0) {
+			fail = 1;
+			snprintf(fcode, 256, "%s", strerror(errno));
+		} else if (Ifconfig_Delta_Flags(in_dev, in_err, 
+										IFF_UP | IFF_RUNNING | IFF_PROMISC) < 0) {
+			return -1;
+		}
+	}
+
+	if (fail) {
+		snprintf(in_err, STATUS_MAX, "Failed to set monitor mode: %s.  "
+				 "This usually means your drivers either do not support "
+				 "monitor mode, or use a different mechanism for getting "
+				 "to it.  Make sure you have a version of your drivers "
+				 "that support monitor mode, and consult the troubleshooting "
+				 "section of the README.", fcode);
+		return -1;
+	}
+
+
+	// Set the initial channel - if we ever get a pcapsource that needs a hook
+	// back into the class, this will have to be rewritten
+	if (chancontrol_wext(in_dev, initch, in_err, NULL) < 0) {
+		return -2;
+	}
+
+	return 0;
 }
 
 int unmonitor_wext(const char *in_dev, int initch, char *in_err, void **in_if, void *in_ext) {
