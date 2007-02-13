@@ -914,7 +914,6 @@ int main(int argc, char *argv[]) {
                         }
 
                         if (tcpcli->FetchDeltaNumNetworks() > 0) {
-							fprintf(stderr, "delta %d\n", tcpcli->FetchDeltaNumNetworks());
                             wireless_network *newnet = tcpcli->FetchLastNewNetwork();
 
                             if (sound == 1 && newnet != lastspoken) {
