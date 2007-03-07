@@ -474,7 +474,7 @@ Licensed under the GPL
     - Linux (Intel, PPC, MIPS, X-Scale, Arm, etc)
       Known supported cards: Atmel_USB, ACX100, ADMTek, Atheros, Cisco, Prism2, 
        Orinoco, WSP100, Drone, wtapfile, pcapfile, wrt54g, ipw2100, rt2400,
-       rt2500, rt8180, ipw2200, ipw2915, ipw3945, Broadcom 43xx
+       rt2500, rt73, rt8180, ipw2200, ipw2915, ipw3945, Broadcom 43xx
 
       Kismet will work with any distribution of Linux.  Currently, Linux is the
       recommended platform for running Kismet because it has the largest
@@ -848,6 +848,12 @@ Licensed under the GPL
                     http://rt2x00.serialmonkey.com/
                     Ralink 2500 802.11g cards using the serialmonkey GPL'd 
                      rt2x00 drivers.  Must use 1.1.0 beta 2 or newer drivers.
+
+    rt73            Ralink 73   11g     Linux       rt73-gpl-cvs
+                    Capture interface:  'rausbX'
+                    http://rt2x00.serialmonkey.com/
+                    Ralink 73 802.11g USB cards using the serialmonkey GPL'd
+                     rt79 drivers (tested only with CVS driver versions)
 
     rt8180          Realtek 8180 11b    Linux       rtl8180-sa2400
                     Capture interface:  'ethX'
