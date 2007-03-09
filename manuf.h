@@ -46,7 +46,8 @@ extern int manuf_max_score;
 macmap<vector<manuf *> > ReadManufMap(FILE *in_file, int ap_map);
 // Match the best manufacturer given a vector and pertinent info, returning the index to
 // the matching manufacturer and the score in the parameters.  NULL's are acceptable.
-manuf *MatchBestManuf(macmap<vector<manuf *> > in_manuf, mac_addr in_mac, string in_ssid,
-                      int in_channel, int in_wep, int in_cloaked, int *manuf_score);
+manuf *MatchBestManuf(macmap<vector<manuf *> >& in_manuf, mac_addr in_mac, 
+					  string in_ssid, int in_channel, int in_wep, int in_cloaked, 
+					  int *manuf_score);
 
 #endif

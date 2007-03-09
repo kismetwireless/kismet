@@ -122,6 +122,12 @@ public:
 		void *auxptr;
 	};
 
+	// Preference manipulators
+	void SetPref(string pref, string val, int dirty);
+	string GetPref(string pref);
+	int GetPrefDirty(string pref);
+	void SetPrefDirty(string pref, int dirty);
+
 protected:
 	vector<KisNetClient *> netclient_vec;
 
@@ -130,6 +136,10 @@ protected:
 
 	int addcb_ref;
 	vector<KisPanelInterface::addcli_cb_rec *> addclicb_vec;
+
+	// Map of all the settings and prefs
+	map<string, string> pref_map;
+	map<string, int> pref_map_dirty;
 
 };
 

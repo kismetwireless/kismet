@@ -59,10 +59,12 @@
 	"cdpdevice,cdpport,fragments,retries,newpackets"
 #define KCLI_BSSID_NUMFIELDS	49
 
+// TODO - add SSID handling and group naming
 class Kis_Display_NetGroup {
+public:
 	Kis_Display_NetGroup();
 	Kis_Display_NetGroup(Netracker::tracked_network *in_net);
-	~Kis_Netlist_Group();
+	~Kis_Display_NetGroup();
 
 	// Return a network suitable for display, which could be a single network
 	// or a virtual network aggregated
@@ -74,8 +76,10 @@ class Kis_Display_NetGroup {
 	// Add a network to the group
 	void AddNetwork(Netracker::tracked_network *in_net);
 
-	// Remove a network
+	// Remove a network.  Not efficient, so try not to do this too often.
 	void DelNetwork(Netracker::tracked_network *in_net);
+
+	int Dirty() { return dirty; }
 
 protected:
 	// Do we need to update?
@@ -94,6 +98,9 @@ protected:
 	vector<Netracker::tracked_network *> meta_vec;
 };
 
+
+// Smart drawing component which bundles up the networks and displays them
+// in a fast-sort method which hopefully uses less CPU
 class Kis_Netlist : public Kis_Panel_Component {
 public:
 	Kis_Netlist() {
@@ -116,36 +123,70 @@ public:
 
 	// Network callback
 	void NetClientConfigure(KisNetClient *in_cli, int in_recon);
+
 	// Added a client in the panel interface
 	void NetClientAdd(KisNetClient *in_cli, int add);
+
 	// BSSID protocol parser
 	void Proto_BSSID(CLIPROTO_CB_PARMS);
 
-	// Sort the network list
-	void ViewSortFitBSSID(Netracker::tracked_network *net);
+	// Trigger a sort and redraw update
+	void UpdateTrigger(void);
 
+	// Parse the bssid columns preferences
+	void UpdateBColPrefs();
 protected:
+	// Columns we accept
+	enum bssid_columns {
+		bcol_decay, bcol_name, bcol_shortname, bcol_ssid, bcol_nettype,
+		bcol_crypt, bcol_channel, bcol_packdata, bcol_packllc, bcol_packcrypt,
+		bcol_bssid, bcol_packets, bcol_clients, bcol_datasize, bcol_signalbar
+	};
+
 	// Addclient hook reference
 	int addref;
+	
+	// Event reference for update trigger
+	int updateref;
+
 	// Interface
 	KisPanelInterface *kpinterface;
 
 	// Sorting
 	int sortmode;
 
-	// The map of all BSSIDs seen
-	map<mac_addr, Netracker::tracked_network *> bssid_map;
-	// Viewable vector
-	vector<Netracker::tracked_network *> viewable_bssid;
-	// All networks, as a vector
-	vector<Netracker::tracked_network *> all_bssid;
-	// Dirty flags for viewable and all.  The viewable vector is only
-	// dirty if a new network is added to it or if something changes w/in the
-	// sorting type.  Content dirty means we need to regenerate our display
-	// text, but not resort.
-	int v_dirty, all_dirty, vc_dirty;
-	// Viewable size
-	int viewable_size;
+	// Drawing offsets into the display vector & other drawing trackers
+	int viewable_lines;
+	int first_line, last_line, selected_line;
+
+	// We try to optimize our memory usage so that there is only
+	// one copy of the TCP data network, as well as only one copy of
+	// the display group network.
+	//
+	// Sorting is optimized to only occur on a full draw update, not during
+	// reception of *BSSID stanzas.  Sorting should only occur on the visible
+	// network group (or the visible network group plus or minus a few as
+	// new data is added)
+	//
+	
+	// Raw map of all BSSIDs seen so far from *BSSID sentences
+	macmap<Netracker::tracked_network *> bssid_raw_map;
+
+	// Vector of dirty networks which must be considered for re-sorting
+	vector<Netracker::tracked_network *> dirty_raw_vec;
+	
+	// Vector of displayed network groups
+	vector<Kis_Display_NetGroup *> display_vec;
+
+	// Assembled groups - GID to Group object
+	macmap<Kis_Display_NetGroup *> netgroup_asm_map;
+
+	// Defined groups, BSSID to GID mapping
+	macmap<mac_addr> netgroup_stored_map;
+
+	// Columns we display
+	vector<bssid_columns> display_bcols;
+
 };
 
 #endif // panel

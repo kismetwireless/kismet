@@ -26,19 +26,19 @@
 #include "kis_panel_frontend.h"
 
 // Netgroup management
-Kis_Netlist_Group::Kis_Netlist_Group() {
+Kis_Display_NetGroup::Kis_Display_NetGroup() {
 	fprintf(stderr, "FATAL OOPS: Kis_Netlist_Group()\n");
 	exit(1);
 }
 
-Kis_Netlist_Group::Kis_Netlist_Group(Netracker::tracked_network *in_net) {
+Kis_Display_NetGroup::Kis_Display_NetGroup(Netracker::tracked_network *in_net) {
 	local_metanet = 0;
 	metanet = in_net;
 	meta_vec.push_back(in_net);
 	dirty = 0;
 }
 
-Kis_Netlist_Group::~Kis_Netlist_Group() {
+Kis_Display_NetGroup::~Kis_Display_NetGroup() {
 	// Only delete the metanet if it's a local construct
 	if (local_metanet) {
 		delete metanet;
@@ -46,21 +46,122 @@ Kis_Netlist_Group::~Kis_Netlist_Group() {
 	}
 }
 
-Netracker::tracked_network *Kis_Netlist_Group::FetchNetwork() {
-	return metanet;
-}
+void Kis_Display_NetGroup::Update() {
+	if (dirty == 0)
+		return;
 
-void Kis_Netlist_Group::MergeNetwork(Netracker::tracked_network *in_net) {
-	// If we don't have a local net, we do now
-	if (local_metanet == 0) {
+	// if we've gained networks and don't have a local metanet, we
+	// just gained one.
+	if (meta_vec.size() > 1 && local_metanet == 0) {
 		local_metanet = 1;
 		metanet = new Netracker::tracked_network;
 	}
 
+	// If we don't have a local meta network, just bail, because the
+	// network we present is the same as the tcp network.  In the future
+	// this might hold an update of the cached line.
+	if (local_metanet == 0) {
+		// We're not dirty, the comprising network isn't dirty, we're
+		// done here.
+		dirty = 0;
+		metanet->dirty = 0;
+		return;
+	}
+
+	int first = 1;
+	for (unsigned int x = 0; x < meta_vec.size(); x++) {
+		Netracker::tracked_network *mv = meta_vec[x];
+		if (first) {
+			metanet->llc_packets = mv->llc_packets;
+			metanet->data_packets = mv->data_packets;
+			metanet->crypt_packets = mv->crypt_packets;
+			metanet->channel = 0;
+			metanet->last_time = mv->last_time;
+			metanet->first_time = mv->first_time;
+			metanet->decrypted = mv->decrypted;
+			
+			metanet->gpsdata = mv->gpsdata;
+			metanet->snrdata = mv->snrdata;
+			metanet->guess_ipdata = mv->guess_ipdata;
+
+			metanet->client_disconnects = mv->client_disconnects;
+			metanet->last_sequence = 0;
+			metanet->bss_timestamp = 0;
+
+			metanet->datasize = mv->datasize;
+
+			metanet->dupeiv_packets = mv->dupeiv_packets;
+
+			metanet->fragments = mv->fragments;
+			metanet->retries = mv->retries;
+
+			metanet->new_packets = mv->new_packets;
+		} else {
+			metanet->llc_packets += mv->llc_packets;
+			metanet->data_packets += mv->data_packets;
+			metanet->crypt_packets += mv->crypt_packets;
+
+			if (mv->first_time < metanet->first_time)
+				metanet->first_time = mv->first_time;
+			if (mv->last_time > metanet->last_time)
+				metanet->last_time = mv->last_time;
+
+			metanet->decrypted += mv->decrypted;
+
+			// Mmm overloaded
+			metanet->gpsdata += mv->gpsdata;
+			metanet->snrdata += mv->snrdata;
+			// metanet->guess_ipdata += mv->guess_ipdata;
+
+			metanet->client_disconnects += mv->client_disconnects;
+			
+			metanet->datasize += mv->datasize;
+
+			metanet->fragments += mv->fragments;
+			metanet->retries += mv->retries;
+
+			metanet->new_packets += mv->new_packets;
+
+			// We don't combine CDP data
+		}
+
+		first = 0;
+
+		// The net is no longer dirty
+		mv->dirty = 0;
+	}
+
+	dirty = 0;
+}
+
+Netracker::tracked_network *Kis_Display_NetGroup::FetchNetwork() {
+	return metanet;
+}
+
+void Kis_Display_NetGroup::AddNetwork(Netracker::tracked_network *in_net) {
+	// Assume they won't call us without checking an external map
+	// so this net isn't attached to any other groups
+	//
+	// Otherwise, adding a network is really simple, we just stick
+	// it in the vec and flag dirty, more fun happens during the update
+	
+	meta_vec.push_back(in_net);
+
 	dirty = 1;
+}
 
-
-
+void Kis_Display_NetGroup::DelNetwork(Netracker::tracked_network *in_net) {
+	// Maybe we need to replace this in the future if we do a lot of removal,
+	// but on the assumption that most removal will really be destruction of
+	// the entire network, we'll just do a linear search
+	for (unsigned int x = 0; x < meta_vec.size(); x++) {
+		if (meta_vec[x] == in_net) {
+			meta_vec.erase(meta_vec.begin() + x);
+			dirty = 1;
+			return;
+		}
+	}
+}
 
 // Callbacks into the classes proper
 void KisNetlist_Configured(CLICONF_CB_PARMS) {
@@ -76,17 +177,19 @@ void KisNetlist_BSSID(CLIPROTO_CB_PARMS) {
 										  proto_parsed, srccli, auxptr);
 }
 
+// Event callbacks
+int Event_Netlist_Update(TIMEEVENT_PARMS) {
+	((Kis_Netlist *) parm)->UpdateTrigger();
+	return 1;
+}
+
 Kis_Netlist::Kis_Netlist(GlobalRegistry *in_globalreg, Kis_Panel *in_panel) :
 	Kis_Panel_Component(in_globalreg, in_panel) {
 	kpinterface = in_panel->FetchPanelInterface();
 
-	v_dirty = 0;
-	vc_dirty = 0;
-	all_dirty = 0;
-	viewable_size = 0;
+	viewable_lines = 0;
 
 	sortmode = KIS_SORT_AUTO;
-
 
 	// Add the addcli reference.  This also kicks off adding it for any
 	// active clients, so we'd better be ready (IE, leave this at the end 
@@ -100,6 +203,15 @@ Kis_Netlist::Kis_Netlist(GlobalRegistry *in_globalreg, Kis_Panel *in_panel) :
 	//
 	// Good crap.
 	addref = kpinterface->Add_NetCli_AddCli_CB(KisNetlist_AddCli, (void *) this);
+
+	updateref = globalreg->timetracker->RegisterTimer(SERVER_TIMESLICES_SEC,
+													  NULL, 1, 
+													  &Event_Netlist_Update,
+													  (void *) this);
+
+	// Set default preferences for BSSID columns if we don't have any in the
+	// preferences file, then update the column vector
+	UpdateBColPrefs();
 }
 
 Kis_Netlist::~Kis_Netlist() {
@@ -107,6 +219,68 @@ Kis_Netlist::~Kis_Netlist() {
 	kpinterface->Remove_Netcli_AddCli_CB(addref);
 	// Remove the callback the hard way from anyone still using it
 	kpinterface->Remove_AllNetcli_ProtoHandler("BSSID", KisNetlist_BSSID, this);
+	// Remove the timer
+	globalreg->timetracker->RemoveTimer(updateref);
+	
+	// TODO - clean up the display vector incase for some reason we're being
+	// destroyed without exiting the program
+}
+
+void Kis_Netlist::UpdateBColPrefs() {
+	string pcols;
+
+	// Use a default set of columns if we don't find one
+	if ((pcols = kpinterface->GetPref("NETLIST_COLUMNS")) == "") {
+		pcols = "decay,name,nettype,crypt,channel,packets,datasize";
+		kpinterface->SetPref("NETLIST_COLUMNS", pcols, 1);
+	}
+
+	if (kpinterface->GetPrefDirty("NETLIST_COLUMNS") == 0)
+		return;
+
+	kpinterface->SetPrefDirty("NETLIST_COLUMNS", 0);
+
+	vector<string> toks = StrTokenize(pcols, ",");
+	string t;
+
+	for (unsigned int x = 0; x < toks.size(); x++) {
+		t = StrLower(toks[x]);
+
+		if (t == "decay")
+			display_bcols.push_back(bcol_decay);
+		else if (t == "name")
+			display_bcols.push_back(bcol_name);
+		else if (t == "shortname")
+			display_bcols.push_back(bcol_shortname);
+		else if (t == "ssid")
+			display_bcols.push_back(bcol_ssid);
+		else if (t == "nettype")
+			display_bcols.push_back(bcol_nettype);
+		else if (t == "crypt")
+			display_bcols.push_back(bcol_crypt);
+		else if (t == "channel")
+			display_bcols.push_back(bcol_channel);
+		else if (t == "datapack")
+			display_bcols.push_back(bcol_packdata);
+		else if (t == "llcpack")
+			display_bcols.push_back(bcol_packllc);
+		else if (t == "cryptpack")
+			display_bcols.push_back(bcol_packcrypt);
+		else if (t == "bssid")
+			display_bcols.push_back(bcol_bssid);
+		else if (t == "packets")
+			display_bcols.push_back(bcol_packets);
+		else if (t == "clients")
+			display_bcols.push_back(bcol_clients);
+		else if (t == "datasize")
+			display_bcols.push_back(bcol_decay);
+		else if (t == "bcol_signalbar")
+			display_bcols.push_back(bcol_signalbar);
+		else
+			_MSG("Unknown display column '" + t + "', skipping.",
+				 MSGFLAG_INFO);
+	}
+
 }
 
 void Kis_Netlist::NetClientConfigure(KisNetClient *in_cli, int in_recon) {
@@ -135,20 +309,11 @@ void Kis_Netlist::NetClientAdd(KisNetClient *in_cli, int add) {
 
 void Kis_Netlist::SetPosition(int isx, int isy, int iex, int iey) {
 	Kis_Panel_Component::SetPosition(isx, isy, iex, iey);
-
-	// Catch and reset the size and flag us as dirty if we changed
-	if (viewable_size != 0 && viewable_size != ey - 1) {
-			all_dirty = 1;
-	}
 		
-	viewable_size = ey - 1;
+	viewable_lines = ey - 1;
 }
 
 void Kis_Netlist::SetSortMode(int in_mode) {
-	// Flag as dirty if we're changing the mode
-	if (sortmode != in_mode)
-		all_dirty = 1;
-
 	sortmode = in_mode;
 }
 
@@ -455,56 +620,22 @@ void Kis_Netlist::Proto_BSSID(CLIPROTO_CB_PARMS) {
 		return;
 	}
 
-	map<mac_addr, Netracker::tracked_network *>::iterator ti;
-	// simple case -- we're not tracked yet, we're a new net and we're going
-	// to need to resort everything to accommodate us
-	if ((ti = bssid_map.find(net->bssid)) == bssid_map.end()) {
-		bssid_map[net->bssid] = net;
-		all_bssid.push_back(net);
-		all_dirty = 1;
-
-		// If the viewable vec is smaller than the possible size, anything
-		// new goes into it right now
-		if ((int) viewable_bssid.size() < viewable_size) { 
-			viewable_bssid.push_back(net);
-			// Use field2 to indicate visible
-			net->field2 = 1;
-			v_dirty = 1;
-
-			_MSG("debug - pushed new net into small viewable list", MSGFLAG_INFO);
-		} else {
-			// Compare with the viewable vec fields for the current sort
-			ViewSortFitBSSID(net);
-		}
-
-		return;
-	}
-
 	// Determine if we're going to just merge data with the old network, and then
 	// determine what we have to do for repositioning the record in the viewable
 	// list
-	Netracker::tracked_network *onet = ti->second;
-	int merge_potential = 0;
+	macmap<Netracker::tracked_network *>::iterator ti =
+		bssid_raw_map.find(net->bssid);
 
-	// Onet content will always be dirty, so update it if its viewable
-	if (onet->field2)
-		vc_dirty = 1;
+	if (ti == NULL) {
+		// Flag dirty, add to vector, we'll deal with it later
+		net->dirty = 1;
+		dirty_raw_vec.push_back(net);
+		bssid_raw_map.insert(net->bssid, net);
+		return;
+	}
 
-	// Check the sort-relevant fields and if they're dirty, flag this as
-	// a potential merge
-	// Irrelevant: BSSID, firsttime.  Neither should change.
-	if (onet->type != net->type && sortmode == KIS_SORT_TYPE)
-		merge_potential = 1;
-	else if (onet->channel != net->channel && sortmode == KIS_SORT_CHANNEL)
-		merge_potential = 1;
-	else if (onet->last_time != net->last_time && 
-			 (sortmode == KIS_SORT_LAST || sortmode == KIS_SORT_LAST_D))
-		merge_potential = 1;
-	else if ((onet->llc_packets + onet->data_packets) != 
-			 (net->llc_packets + net->data_packets) && 
-			 (sortmode == KIS_SORT_PACKETS || sortmode == KIS_SORT_PACKETS_D))
-		merge_potential = 1;
-	
+	Netracker::tracked_network *onet = *(ti->second);
+
 	// Merge the new data into the old data
 	onet->type = net->type;
 	onet->llc_packets = net->llc_packets;
@@ -522,91 +653,93 @@ void Kis_Netlist::Proto_BSSID(CLIPROTO_CB_PARMS) {
 	onet->retries = net->retries;
 	onet->new_packets = net->new_packets;
 
-	// The net we got is in the all_map, and may be in the viewable map.  If 
-	// something has changed that affects how the network will be sorted (ie,
-	// if sort-pertinent data has been modified), see what we need to do to merge
-	// it into the viewable vector
-	if (merge_potential)
-		ViewSortFitBSSID(onet);
+	// Push a dirty net into the vec, collapse multiple updates to a 
+	// net within a single draw update by not pushing already dirty data
+	if (onet->dirty == 0) {
+		onet->dirty = 1;
+		dirty_raw_vec.push_back(onet);
+	}
+
+	return;
 }
 
-void Kis_Netlist::ViewSortFitBSSID(Netracker::tracked_network *net) {
-	Netracker::tracked_network *first;
-	Netracker::tracked_network *last;
+void Kis_Netlist::UpdateTrigger(void) {
+	// Process the dirty vector and update all our stuff.  This only happens
+	// at regular intervals, not every network update
+	
+	// This code exposes some nasty problems with the macmap iterators,
+	// namely that they're always pointers no matter what.  Some day, this
+	// could get fixed.
 
-	if (viewable_bssid.size() > 0) {
-		first = viewable_bssid[0];
-	} else {
-		first = NULL;
-	}
-
-	if (viewable_bssid.size() >= 1) {
-		last = viewable_bssid[viewable_bssid.size() - 1];
-	} else {
-		last = NULL;
-	}
-
-	int merge = 0;
-
-	// If we're already viewed, we don't need to think about a merge at all
-	if (net->field2 == 1)
+	if (dirty_raw_vec.size() == 0)
 		return;
 
-	if (first != NULL && last != NULL) {
-		if (sortmode == KIS_SORT_AUTO) {
-			if (net->last_time >= last->last_time)
-				merge = 1;
-		} else if (sortmode == KIS_SORT_TYPE) {
-			if ((int) net->type >= (int) first->type &&
-				(int) net->type <= (int) last->type)
-				merge = 1;
-		} else if (sortmode == KIS_SORT_CHANNEL) {
-			if (net->channel >= first->channel && net->channel <= last->channel)
-				merge = 1;
-		} else if (sortmode == KIS_SORT_FIRST) {
-			if (net->first_time >= first->first_time && 
-				net->first_time <= last->first_time)
-				merge = 1;
-		} else if (sortmode == KIS_SORT_FIRST_D) {
-			if (net->first_time <= first->first_time &&
-				net->first_time >= last->first_time)
-				merge = 1;
-		} else if (sortmode == KIS_SORT_LAST) {
-			if (net->last_time >= first->last_time && 
-				net->last_time <= last->last_time)
-				merge = 1;
-		} else if (sortmode == KIS_SORT_LAST_D) {
-			if (net->last_time <= first->last_time &&
-				net->last_time >= last->last_time)
-				merge = 1;
-		} else if (sortmode == KIS_SORT_BSSID) {
-			if (net->bssid <= first->bssid == 0 &&
-				net->bssid <= last->bssid)
-				merge = 1;
-		} else if (sortmode == KIS_SORT_SSID) {
-			// Fix me somehow
-		} else if (sortmode == KIS_SORT_PACKETS) {
-			if ((net->llc_packets + net->data_packets) >= 
-				(first->llc_packets + first->data_packets) && 
-				(net->llc_packets + net->data_packets) <=
-				(last->llc_packets + last->data_packets))
-				merge = 1;
+	vector<Kis_Display_NetGroup *> dirty_vec;
+
+	for (unsigned int x = 0; x < dirty_raw_vec.size(); x++) {
+		Netracker::tracked_network *net = dirty_raw_vec[x];
+
+		net->dirty = 0;
+
+		// Is it already assigned to a group?  If it is, we can just 
+		// flag the display group as dirty and be done
+		if (net->groupptr != NULL) {
+			((Kis_Display_NetGroup *) net->groupptr)->Update();
+			continue;
 		}
-	} else {
-		merge = 1;
+
+		// We have no group.  That means we have to:
+		// 	Be assigned to a group and that group updated,
+		// 	Be assigned to a pre-defined group and that group updated,
+		//  or get a new group all our own
+		Kis_Display_NetGroup *ng = NULL;
+		macmap<mac_addr>::iterator nsmi = netgroup_stored_map.find(net->bssid);
+
+		// We don't belong to an existing network at all, make a new one
+		if (nsmi == netgroup_stored_map.end()) {
+			ng = new Kis_Display_NetGroup(net);
+			netgroup_asm_map.insert(net->bssid, ng);
+			display_vec.push_back(ng);
+			continue;
+		}
+
+		// We see if we're already allocated
+		macmap<Kis_Display_NetGroup *>::iterator nami =
+			netgroup_asm_map.find(*(nsmi->second));
+		if (nami != netgroup_asm_map.end()) {
+			net->groupptr = *(nami->second);
+			// Assign before adding since adding makes it dirty
+			if ((*(nami->second))->Dirty() == 0)
+				dirty_vec.push_back(*(nami->second));
+			(*(nami->second))->AddNetwork(net);
+		} else {
+			// We need to make the group, add it to the allocation, then
+			// add our network to it...  it doesn't need to be added to the
+			// dirty vector, because it gets linked instantly
+			Kis_Display_NetGroup *ng = new Kis_Display_NetGroup(net);
+			net->groupptr = ng;
+			netgroup_asm_map.insert(*(nsmi->second), ng);
+		}
 	}
 
-	if (merge) {
-		viewable_bssid.push_back(net);
-		// Set the viewable field
-		net->field2 = 1;
-		v_dirty = 1;
-		_MSG("debug - pushed new net into sorted viewable list", MSGFLAG_INFO);
+	// Update all the dirty groups (compress multiple active nets into a 
+	// single group update)
+	for (unsigned int x = 0; x < dirty_vec.size(); x++) {
+		dirty_vec[x]->Update();
 	}
-
 }
 
 void Kis_Netlist::DrawComponent() {
+	if (visible == 0)
+		return;
+
+	// For as many lines as we can fit
+	int dpos = 0;
+	for (unsigned int x = first_line; x < display_vec.size() && 
+		 dpos <  viewable_lines; x++) {
+
+
+	}
 
 }
 

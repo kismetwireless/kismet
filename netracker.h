@@ -126,6 +126,7 @@ enum network_type {
 	network_probe = 2,
 	network_turbocell = 3,
 	network_data = 4,
+	network_mixed = 255,
 	network_remove = 256
 };
 
@@ -175,7 +176,7 @@ public:
 		in_addr ip_netmask;
 		in_addr ip_gateway;
 
-		ip_data& operator= (const ip_data& in) {
+		inline ip_data& operator= (const ip_data& in) {
 			ip_addr_block.s_addr = in.ip_addr_block.s_addr;
 			ip_netmask.s_addr = in.ip_netmask.s_addr;
 			ip_gateway.s_addr = in.ip_gateway.s_addr;
@@ -200,6 +201,59 @@ public:
 
 			aggregate_lat = aggregate_lon = aggregate_alt = 0;
 			aggregate_points = 0;
+		}
+
+		inline gps_data& operator= (const gps_data& in) {
+			gps_valid = in.gps_valid;
+			min_lat = in.min_lat;
+			min_lon = in.min_lon;
+			max_lat = in.max_lat;
+			max_lon = in.max_lon;
+			min_alt = in.min_alt;
+			max_alt = in.max_alt;
+			min_spd = in.min_spd;
+			max_spd = in.max_spd;
+
+			aggregate_lat = in.aggregate_lat;
+			aggregate_lon = in.aggregate_lon;
+			aggregate_points = in.aggregate_points;
+
+			return *this;
+		}
+
+		inline gps_data& operator+= (const gps_data& in) {
+			if (in.gps_valid == 0)
+				return *this;
+
+			if (in.min_lat < min_lat)
+				min_lat = in.min_lat;
+
+			if (in.max_lat > max_lat)
+				max_lat = in.max_lat;
+
+			if (in.min_lon < min_lon)
+				min_lon = in.min_lon;
+
+			if (in.max_lon > max_lon)
+				max_lon = in.max_lon;
+			
+			if (in.min_alt < min_alt)
+				min_alt = in.min_alt;
+
+			if (in.max_alt > max_alt)
+				max_alt = in.max_alt;
+
+			if (in.min_spd < min_spd)
+				min_spd = in.min_spd;
+
+			if (in.max_spd > max_spd)
+				max_spd = in.max_spd;
+
+			aggregate_lat += in.aggregate_lat;
+			aggregate_lon += in.aggregate_lon;
+			aggregate_points += in.aggregate_points;
+
+			return *this;
 		}
 
 		int gps_valid;
@@ -238,6 +292,55 @@ public:
 		// Seen encodings
 		uint32_t encodingset;
 		uint32_t carrierset;
+
+		inline signal_data& operator= (const signal_data& in) {
+			last_signal = in.last_signal;
+			last_noise = in.last_noise;
+
+			min_signal = in.min_signal;
+			max_signal = in.max_signal;
+
+			min_noise = in.min_noise;
+			max_noise = in.max_noise;
+
+			peak_lat = in.peak_lat;
+			peak_lon = in.peak_lon;
+			peak_alt = in.peak_alt;
+
+			maxseenrate = in.maxseenrate;
+
+			encodingset = in.encodingset;
+			carrierset = in.carrierset;
+
+			return *this;
+		}
+
+		inline signal_data& operator+= (const signal_data& in) {
+			if (in.min_signal < min_signal)
+				min_signal = in.min_signal;
+
+			if (in.max_signal > max_signal) {
+				max_signal = in.max_signal;
+				peak_lat = in.peak_lat;
+				peak_lon = in.peak_lon;
+				peak_alt = in.peak_alt;
+			}
+
+			if (in.min_noise < min_noise)
+				min_noise = in.min_noise;
+
+			if (in.max_noise < max_noise)
+				max_noise = in.max_noise;
+
+			encodingset |= in.encodingset;
+			carrierset |= in.carrierset;
+
+			if (maxseenrate < in.maxseenrate)
+				maxseenrate = in.maxseenrate;
+
+			return *this;
+		}
+
 	};
 
 	// Advertised SSID data for multi-ssid networks
@@ -309,6 +412,8 @@ public:
 			retries = 0;
 			new_packets = 0;
 			field1 = field2 = 0;
+			auxptr1 = auxptr2 = NULL;
+			groupptr = NULL;
 		}
 
 		// What we last saw it as
@@ -374,6 +479,10 @@ public:
 
 		// Arbitrary fields for use by other things (like the client)
 		int field1, field2;
+		void *auxptr1, *auxptr2;
+
+		// Group pointer (for use by the client, primarily)
+		void *groupptr;
 
 	};
 

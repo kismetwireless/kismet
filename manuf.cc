@@ -134,8 +134,9 @@ macmap<vector<manuf *> > ReadManufMap(FILE *in_file, int ap_map) {
 // default SSIDs, channel, etc (for access points)
 // Returned in the parameters are the pointers to the best manufacturer record, the
 // score, and the modified mac address which matched it
-manuf *MatchBestManuf(macmap<vector<manuf *> > in_manuf, mac_addr in_mac, string in_ssid,
-                      int in_channel, int in_wep, int in_cloaked, int *manuf_score) {
+manuf *MatchBestManuf(macmap<vector<manuf *> >& in_manuf, mac_addr in_mac, 
+					  string in_ssid, int in_channel, int in_wep, 
+					  int in_cloaked, int *manuf_score) {
     manuf *best_manuf = NULL;
     int best_score = 0;
     int best_pos = 0;

@@ -295,5 +295,28 @@ void KisPanelInterface::Remove_Netcli_AddCli_CB(int in_cbref) {
 	}
 }
 
+void KisPanelInterface::SetPref(string pref, string val, int dirty) {
+	pref_map[StrUpper(pref)] = val;
+	pref_map_dirty[StrUpper(pref)] = dirty;
+}
+
+string KisPanelInterface::GetPref(string pref) {
+	if (pref_map.find(StrUpper(pref)) == pref_map.end())
+		return "";
+
+	return pref_map[StrUpper(pref)];
+}
+
+int KisPanelInterface::GetPrefDirty(string pref) {
+	if (pref_map_dirty.find(StrUpper(pref)) == pref_map_dirty.end())
+		return 0;
+
+	return pref_map_dirty[StrUpper(pref)];
+}
+
+void KisPanelInterface::SetPrefDirty(string pref, int dirty) {
+	pref_map_dirty[StrUpper(pref)] = dirty;
+}
+
 #endif
 
