@@ -302,7 +302,7 @@ void Kis_Menu::DrawComponent() {
 	if (menuwin == NULL)
 		menuwin = derwin(window, 1, 1, 0, 0);
 
-	mvwaddstr(window, sy, sx + 1, "~");
+	mvwaddstr(window, sy, sx + 1, "~ ");
 
 	// Draw the menu bar itself
 	for (unsigned int x = 0; x < menubar.size(); x++) {
@@ -311,7 +311,7 @@ void Kis_Menu::DrawComponent() {
 			wattron(window, WA_REVERSE);
 
 		// Draw the menu
-		mvwaddstr(window, sy, sx + hpos, menubar[x]->text.c_str());
+		mvwaddstr(window, sy, sx + hpos, (menubar[x]->text + " ").c_str());
 		// Set the hilight
 		if (menubar[x]->targchar >= 0) {
 			wattron(window, WA_UNDERLINE);

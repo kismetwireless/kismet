@@ -81,9 +81,25 @@ public:
 
 	int Dirty() { return dirty; }
 
+	// Display dirty variables, set after an update
+	int DispDirty() { return dispdirty; }
+	string GetLineCache() { return linecache; }
+	void SetLineCache(string ic) { linecache = ic; dispdirty = 0; }
+
+	// Group name
+	string GetName();
+	void SetName(string in_name);
+
 protected:
 	// Do we need to update?
 	int dirty; 
+
+	// Name
+	string name;
+
+	// Cached display lines
+	int dispdirty;
+	string linecache;
 
 	// Do we have a local meta network? (ie, do we need to destroy it on our
 	// way our, take special care of it, etc)
@@ -133,14 +149,17 @@ public:
 	// Trigger a sort and redraw update
 	void UpdateTrigger(void);
 
-	// Parse the bssid columns preferences
-	void UpdateBColPrefs();
 protected:
 	// Columns we accept
 	enum bssid_columns {
-		bcol_decay, bcol_name, bcol_shortname, bcol_ssid, bcol_nettype,
+		bcol_decay, bcol_name, bcol_shortname, bcol_nettype,
 		bcol_crypt, bcol_channel, bcol_packdata, bcol_packllc, bcol_packcrypt,
 		bcol_bssid, bcol_packets, bcol_clients, bcol_datasize, bcol_signalbar
+	};
+
+	// Extra display options per-line
+	enum bssid_extras {
+		bext_lastseen, bext_crypt, bext_ip, bext_manuf, bext_model
 	};
 
 	// Addclient hook reference
@@ -157,7 +176,11 @@ protected:
 
 	// Drawing offsets into the display vector & other drawing trackers
 	int viewable_lines;
+	int viewable_cols;
+
 	int first_line, last_line, selected_line;
+	// Horizontal position
+	int hpos;
 
 	// We try to optimize our memory usage so that there is only
 	// one copy of the TCP data network, as well as only one copy of
@@ -186,7 +209,16 @@ protected:
 
 	// Columns we display
 	vector<bssid_columns> display_bcols;
+	// Extras we display
+	vector<bssid_extras> display_bexts;
 
+	// Parse the bssid columns preferences
+	void UpdateBColPrefs();
+	// Parse the bssid extras
+	void UpdateBExtPrefs();
+
+	// Cached column headers
+	string colhdr_cache;
 };
 
 #endif // panel

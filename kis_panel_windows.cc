@@ -87,7 +87,7 @@ Kis_Main_Panel::Kis_Main_Panel(GlobalRegistry *in_globalreg,
 	netlist->Show();
 	comp_vec.push_back(netlist);
 
-	SetTitle("Kismet Newcore Client");
+	// SetTitle("Kismet Newcore Client");
 }
 
 Kis_Main_Panel::~Kis_Main_Panel() {
@@ -98,7 +98,8 @@ Kis_Main_Panel::~Kis_Main_Panel() {
 void Kis_Main_Panel::Position(int in_sy, int in_sx, int in_y, int in_x) {
 	Kis_Panel::Position(in_sy, in_sx, in_y, in_x);
 
-	menu->SetPosition(1, 1, 0, 0);
+	menu->SetPosition(1, 0, 0, 0);
+	netlist->SetPosition(in_sx + 2, in_sy + 1, in_x - 2, in_y - 8);
 	statustext->SetPosition(in_sx + 1, in_y - 7, in_x - 2, 5);
 }
 

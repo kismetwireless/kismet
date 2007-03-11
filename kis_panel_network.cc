@@ -36,6 +36,8 @@ Kis_Display_NetGroup::Kis_Display_NetGroup(Netracker::tracked_network *in_net) {
 	metanet = in_net;
 	meta_vec.push_back(in_net);
 	dirty = 0;
+	dispdirty = 1;
+	linecache = "";
 }
 
 Kis_Display_NetGroup::~Kis_Display_NetGroup() {
@@ -49,6 +51,8 @@ Kis_Display_NetGroup::~Kis_Display_NetGroup() {
 void Kis_Display_NetGroup::Update() {
 	if (dirty == 0)
 		return;
+
+	dispdirty = 1;
 
 	// if we've gained networks and don't have a local metanet, we
 	// just gained one.
@@ -134,6 +138,23 @@ void Kis_Display_NetGroup::Update() {
 	dirty = 0;
 }
 
+string Kis_Display_NetGroup::GetName() {
+	if (name == "" && metanet != NULL) {
+		if (metanet->ssid_map.size() != 0) {
+			return (++(metanet->ssid_map.begin()))->second->ssid;
+		} else {
+			return metanet->bssid.Mac2String();
+		}
+	}
+
+	return "<Unknown>";
+}
+
+void Kis_Display_NetGroup::SetName(string in_name) {
+	name = in_name;
+	dispdirty = 1;
+}
+
 Netracker::tracked_network *Kis_Display_NetGroup::FetchNetwork() {
 	return metanet;
 }
@@ -188,6 +209,7 @@ Kis_Netlist::Kis_Netlist(GlobalRegistry *in_globalreg, Kis_Panel *in_panel) :
 	kpinterface = in_panel->FetchPanelInterface();
 
 	viewable_lines = 0;
+	viewable_cols = 0;
 
 	sortmode = KIS_SORT_AUTO;
 
@@ -209,9 +231,15 @@ Kis_Netlist::Kis_Netlist(GlobalRegistry *in_globalreg, Kis_Panel *in_panel) :
 													  &Event_Netlist_Update,
 													  (void *) this);
 
+	hpos = 0;
+	selected_line = -1;
+	first_line = 0;
+	last_line = 0;
+
 	// Set default preferences for BSSID columns if we don't have any in the
 	// preferences file, then update the column vector
 	UpdateBColPrefs();
+	UpdateBExtPrefs();
 }
 
 Kis_Netlist::~Kis_Netlist() {
@@ -240,8 +268,13 @@ void Kis_Netlist::UpdateBColPrefs() {
 
 	kpinterface->SetPrefDirty("NETLIST_COLUMNS", 0);
 
+	display_bcols.clear();
+
 	vector<string> toks = StrTokenize(pcols, ",");
 	string t;
+
+	// Clear the cached headers
+	colhdr_cache = "";
 
 	for (unsigned int x = 0; x < toks.size(); x++) {
 		t = StrLower(toks[x]);
@@ -252,8 +285,6 @@ void Kis_Netlist::UpdateBColPrefs() {
 			display_bcols.push_back(bcol_name);
 		else if (t == "shortname")
 			display_bcols.push_back(bcol_shortname);
-		else if (t == "ssid")
-			display_bcols.push_back(bcol_ssid);
 		else if (t == "nettype")
 			display_bcols.push_back(bcol_nettype);
 		else if (t == "crypt")
@@ -273,7 +304,7 @@ void Kis_Netlist::UpdateBColPrefs() {
 		else if (t == "clients")
 			display_bcols.push_back(bcol_clients);
 		else if (t == "datasize")
-			display_bcols.push_back(bcol_decay);
+			display_bcols.push_back(bcol_datasize);
 		else if (t == "bcol_signalbar")
 			display_bcols.push_back(bcol_signalbar);
 		else
@@ -281,6 +312,44 @@ void Kis_Netlist::UpdateBColPrefs() {
 				 MSGFLAG_INFO);
 	}
 
+}
+
+void Kis_Netlist::UpdateBExtPrefs() {
+	string pcols;
+
+	// Use a default set of columns if we don't find one
+	if ((pcols = kpinterface->GetPref("NETLIST_EXTRAS")) == "") {
+		pcols = "lastseen,crypt,ip,manuf,model";
+		kpinterface->SetPref("NETLIST_EXTRAS", pcols, 1);
+	}
+
+	if (kpinterface->GetPrefDirty("NETLIST_EXTRAS") == 0)
+		return;
+
+	kpinterface->SetPrefDirty("NETLIST_EXTRAS", 0);
+
+	display_bexts.clear();
+
+	vector<string> toks = StrTokenize(pcols, ",");
+	string t;
+
+	for (unsigned int x = 0; x < toks.size(); x++) {
+		t = StrLower(toks[x]);
+
+		if (t == "lastseen") 
+			display_bexts.push_back(bext_lastseen);
+		else if (t == "crypt")
+			display_bexts.push_back(bext_crypt);
+		else if (t == "ip")
+			display_bexts.push_back(bext_ip);
+		else if (t == "manuf")
+			display_bexts.push_back(bext_manuf);
+		else if (t == "model")
+			display_bexts.push_back(bext_manuf);
+		else
+			_MSG("Unknown display extra field '" + t + "', skipping.",
+				 MSGFLAG_INFO);
+	}
 }
 
 void Kis_Netlist::NetClientConfigure(KisNetClient *in_cli, int in_recon) {
@@ -311,6 +380,7 @@ void Kis_Netlist::SetPosition(int isx, int isy, int iex, int iey) {
 	Kis_Panel_Component::SetPosition(isx, isy, iex, iey);
 		
 	viewable_lines = ey - 1;
+	viewable_cols = ex;
 }
 
 void Kis_Netlist::SetSortMode(int in_mode) {
@@ -557,6 +627,7 @@ void Kis_Netlist::Proto_BSSID(CLIPROTO_CB_PARMS) {
 	// 35 tcnid
 	// 36 tcmode
 	// 37 tcsat
+	fnum += 3;
 	
 	// SNR carrierset
 	if (sscanf((*proto_parsed)[fnum++].word.c_str(), "%d", 
@@ -626,7 +697,7 @@ void Kis_Netlist::Proto_BSSID(CLIPROTO_CB_PARMS) {
 	macmap<Netracker::tracked_network *>::iterator ti =
 		bssid_raw_map.find(net->bssid);
 
-	if (ti == NULL) {
+	if (ti == bssid_raw_map.end()) {
 		// Flag dirty, add to vector, we'll deal with it later
 		net->dirty = 1;
 		dirty_raw_vec.push_back(net);
@@ -700,6 +771,7 @@ void Kis_Netlist::UpdateTrigger(void) {
 			ng = new Kis_Display_NetGroup(net);
 			netgroup_asm_map.insert(net->bssid, ng);
 			display_vec.push_back(ng);
+			net->groupptr = ng;
 			continue;
 		}
 
@@ -719,6 +791,7 @@ void Kis_Netlist::UpdateTrigger(void) {
 			Kis_Display_NetGroup *ng = new Kis_Display_NetGroup(net);
 			net->groupptr = ng;
 			netgroup_asm_map.insert(*(nsmi->second), ng);
+			display_vec.push_back(ng);
 		}
 	}
 
@@ -733,22 +806,215 @@ void Kis_Netlist::DrawComponent() {
 	if (visible == 0)
 		return;
 
-	// For as many lines as we can fit
-	int dpos = 0;
-	for (unsigned int x = first_line; x < display_vec.size() && 
-		 dpos <  viewable_lines; x++) {
+	// This is the largest we should ever expect a window to be wide, so
+	// we'll consider it a reasonable static line size
+	char rline[1024];
+	int rofft = 0;
 
+	// Column headers
+	if (colhdr_cache == "") {
+		rofft = 0;
+		for (unsigned c = 0; c < display_bcols.size(); c++) {
+			bssid_columns b = display_bcols[c];
 
+			if (b == bcol_decay) {
+				snprintf(rline + rofft, 1024 - rofft, " ");
+				rofft += 1;
+			} else if (b == bcol_name) {
+				snprintf(rline + rofft, 1024 - rofft, "%-20.20s", "Name");
+				rofft += 20;
+			} else if (b == bcol_shortname) {
+				snprintf(rline + rofft, 1024 - rofft, "%-10.10s", "Name");
+				rofft += 10;
+			} else if (b == bcol_nettype) {
+				snprintf(rline + rofft, 1024 - rofft, "T");
+				rofft += 1;
+			} else if (b == bcol_crypt) {
+				snprintf(rline + rofft, 1024 - rofft, "C");
+				rofft += 1;
+			} else if (b == bcol_channel) {
+				snprintf(rline + rofft, 1024 - rofft, " Ch");
+				rofft += 3;
+			} else if (b == bcol_packdata) {
+				snprintf(rline + rofft, 1024 - rofft, " Data");
+				rofft += 5;
+			} else if (b == bcol_packllc) {
+				snprintf(rline + rofft, 1024 - rofft, "  LLC");
+				rofft += 5;
+			} else if (b == bcol_packcrypt) {
+				snprintf(rline + rofft, 1024 - rofft, "Crypt");
+				rofft += 5;
+			} else if (b == bcol_bssid) {
+				snprintf(rline + rofft, 1024 - rofft, "%-17s", "BSSID");
+				rofft += 17;
+			} else if (b == bcol_packets) {
+				snprintf(rline + rofft, 1024 - rofft, " Pkts");
+				rofft += 5;
+			} else if (b == bcol_clients) {
+				snprintf(rline + rofft, 1024 - rofft, "Clnt");
+				rofft += 4;
+			} else if (b == bcol_datasize) {
+				snprintf(rline + rofft, 1024 - rofft, "DSize");
+				rofft += 5;
+			} else if (b == bcol_datasize) {
+				snprintf(rline + rofft, 1024 - rofft, "Signal  ");
+				rofft += 8;
+			}
+
+			if (rofft < 1023) {
+				// Update the endline conditions
+				rline[rofft++] = ' ';
+				rline[rofft] = '\0';
+			} else {
+				break;
+			}
+		}
+
+		colhdr_cache = rline;
 	}
+
+	// Draw the cached header
+	Kis_Panel_Specialtext::Mvwaddnstr(window, sy, sx, 
+									  "\004u" + colhdr_cache + "\004U", 
+									  ex);
+
+	// For as many lines as we can fit
+	int dpos = 1;
+	for (unsigned int x = first_line; x < display_vec.size() && 
+		 dpos <= viewable_lines; x++) {
+
+		// Recompute the output line if the display for that network is dirty
+		if (display_vec[x]->DispDirty()) {
+			Kis_Display_NetGroup *ng = display_vec[x];
+
+			Netracker::tracked_network *meta = ng->FetchNetwork();
+
+			rofft = 0;
+			for (unsigned c = 0; c < display_bcols.size(); c++) {
+				bssid_columns b = display_bcols[c];
+
+				if (b == bcol_decay) {
+					char d;
+					int to;
+
+					to = time(0) - meta->last_time;
+
+					if (to < 3)
+						d = '!';
+					else if (to < 5)
+						d = '.';
+					else
+						d = ' ';
+
+					snprintf(rline + rofft, 1024 - rofft, "%c", d);
+					rofft += 1;
+				} else if (b == bcol_name) {
+					snprintf(rline + rofft, 1024 - rofft, "%-20.20s", 
+							 ng->GetName().c_str());
+					rofft += 20;
+				} else if (b == bcol_shortname) {
+					snprintf(rline + rofft, 1024 - rofft, "%-10.10s", 
+							 ng->GetName().c_str());
+					rofft += 10;
+				} else if (b == bcol_nettype) {
+					char d;
+
+					if (meta->type == network_ap)
+						d = 'A';
+					else if (meta->type == network_adhoc)
+						d = 'H';
+					else if (meta->type == network_probe)
+						d = 'P';
+					else if (meta->type == network_turbocell)
+						d = 'T';
+					else if (meta->type == network_data)
+						d = 'D';
+					else if (meta->type == network_mixed)
+						d = 'M';
+					else
+						d = '?';
+
+					snprintf(rline + rofft, 1024 - rofft, "%c", d);
+					rofft += 1;
+				} else if (b == bcol_crypt) {
+
+					snprintf(rline + rofft, 1024 - rofft, "C");
+					rofft += 1;
+				} else if (b == bcol_channel) {
+					snprintf(rline + rofft, 1024 - rofft, "%3d", meta->channel);
+					rofft += 3;
+				} else if (b == bcol_packdata) {
+					snprintf(rline + rofft, 1024 - rofft, "%5d", meta->data_packets);
+					rofft += 5;
+				} else if (b == bcol_packllc) {
+					snprintf(rline + rofft, 1024 - rofft, "%5d", meta->llc_packets);
+					rofft += 5;
+				} else if (b == bcol_packcrypt) {
+					snprintf(rline + rofft, 1024 - rofft, "%5d", meta->crypt_packets);
+					rofft += 5;
+				} else if (b == bcol_bssid) {
+					snprintf(rline + rofft, 1024 - rofft, "%-17s", 
+							 meta->bssid.Mac2String().c_str());
+					rofft += 17;
+				} else if (b == bcol_packets) {
+					snprintf(rline + rofft, 1024 - rofft, "%5d",
+							 meta->llc_packets + meta->data_packets);
+					rofft += 5;
+				} else if (b == bcol_clients) {
+					// TODO - handle clients
+					snprintf(rline + rofft, 1024 - rofft, "%4d", 0);
+					rofft += 4;
+				} else if (b == bcol_datasize) {
+					char dt = ' ';
+					long int ds = 0;
+
+					if (meta->datasize < 1024) {
+						ds = meta->datasize;
+						dt = 'B';
+					} else if (meta->datasize < (1024*1024)) {
+						ds = meta->datasize / 1024;
+						dt = 'K';
+					} else {
+						ds = meta->datasize / 1024 / 1024;
+						dt = 'M';
+					}
+
+					snprintf(rline + rofft, 1024 - rofft, "%4ld%c", ds, dt);
+					rofft += 5;
+				} else if (b == bcol_datasize) {
+					// TODO - signalbar
+					snprintf(rline + rofft, 1024 - rofft, "TODO    ");
+					rofft += 8;
+				} else {
+					_MSG("debug - unknown coltype", MSGFLAG_INFO);
+					continue;
+				}
+
+				if (rofft < 1023) {
+					// Update the endline conditions
+					rline[rofft++] = ' ';
+					rline[rofft] = '\0';
+				} else {
+					break;
+				}
+			} // column loop
+
+		} // Cached
+
+		// Draw the line
+		Kis_Panel_Specialtext::Mvwaddnstr(window, sy + dpos, sx, rline, ex);
+		dpos++;
+
+	} // Netlist 
 
 }
 
 void Kis_Netlist::Activate(int subcomponent) {
-
+	active = 1;
 }
 
 void Kis_Netlist::Deactivate() {
-
+	active = 0;
 }
 
 int Kis_Netlist::KeyPress(int in_key) {
