@@ -59,6 +59,10 @@
 	"cdpdevice,cdpport,fragments,retries,newpackets"
 #define KCLI_BSSID_NUMFIELDS	49
 
+#define KCLI_SSID_FIELDS	"mac,checksum,type,ssid,beaconinfo,cryptset," \
+	"cloaked,firsttime,lasttime,maxrate,beaconrate,packets"
+#define KCLI_SSID_NUMFIELDS		12
+
 // TODO - add SSID handling and group naming
 class Kis_Display_NetGroup {
 public:
@@ -78,6 +82,9 @@ public:
 
 	// Remove a network.  Not efficient, so try not to do this too often.
 	void DelNetwork(Netracker::tracked_network *in_net);
+
+	// Let us know a network has been dirtied
+	void DirtyNetwork(Netracker::tracked_network *in_net);
 
 	int Dirty() { return dirty; }
 
@@ -143,8 +150,9 @@ public:
 	// Added a client in the panel interface
 	void NetClientAdd(KisNetClient *in_cli, int add);
 
-	// BSSID protocol parser
+	// Kismet protocol parsers
 	void Proto_BSSID(CLIPROTO_CB_PARMS);
+	void Proto_SSID(CLIPROTO_CB_PARMS);
 
 	// Trigger a sort and redraw update
 	void UpdateTrigger(void);

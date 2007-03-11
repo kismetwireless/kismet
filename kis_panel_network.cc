@@ -184,6 +184,11 @@ void Kis_Display_NetGroup::DelNetwork(Netracker::tracked_network *in_net) {
 	}
 }
 
+void Kis_Display_NetGroup::DirtyNetwork(Netracker::tracked_network *in_net) {
+	// No real reason to take a network, at the moment, but why not
+	dirty = 1;
+}
+
 // Callbacks into the classes proper
 void KisNetlist_Configured(CLICONF_CB_PARMS) {
 	((Kis_Netlist *) auxptr)->NetClientConfigure(kcli, recon);
@@ -196,6 +201,11 @@ void KisNetlist_AddCli(KPI_ADDCLI_CB_PARMS) {
 void KisNetlist_BSSID(CLIPROTO_CB_PARMS) {
 	((Kis_Netlist *) auxptr)->Proto_BSSID(globalreg, proto_string,
 										  proto_parsed, srccli, auxptr);
+}
+
+void KisNetlist_SSID(CLIPROTO_CB_PARMS) {
+	((Kis_Netlist *) auxptr)->Proto_SSID(globalreg, proto_string,
+										 proto_parsed, srccli, auxptr);
 }
 
 // Event callbacks
@@ -247,6 +257,7 @@ Kis_Netlist::~Kis_Netlist() {
 	kpinterface->Remove_Netcli_AddCli_CB(addref);
 	// Remove the callback the hard way from anyone still using it
 	kpinterface->Remove_AllNetcli_ProtoHandler("BSSID", KisNetlist_BSSID, this);
+	kpinterface->Remove_AllNetcli_ProtoHandler("SSID", KisNetlist_SSID, this);
 	// Remove the timer
 	globalreg->timetracker->RemoveTimer(updateref);
 	
@@ -363,6 +374,12 @@ void Kis_Netlist::NetClientConfigure(KisNetClient *in_cli, int in_recon) {
 		in_cli->KillConnection();
 	}
 
+	if (in_cli->RegisterProtoHandler("SSID", KCLI_SSID_FIELDS,
+									 KisNetlist_SSID, this) < 0) {
+		_MSG("Could not register SSID protocol with remote server, connection "
+			 "will be terminated.", MSGFLAG_ERROR);
+		in_cli->KillConnection();
+	}
 }
 
 void Kis_Netlist::NetClientAdd(KisNetClient *in_cli, int add) {
@@ -734,6 +751,14 @@ void Kis_Netlist::Proto_BSSID(CLIPROTO_CB_PARMS) {
 	return;
 }
 
+void Kis_Netlist::Proto_SSID(CLIPROTO_CB_PARMS) {
+	if (proto_parsed->size() < KCLI_BSSID_NUMFIELDS) {
+		return;
+	}
+
+	int fnum = 0;
+}
+
 void Kis_Netlist::UpdateTrigger(void) {
 	// Process the dirty vector and update all our stuff.  This only happens
 	// at regular intervals, not every network update
@@ -755,6 +780,7 @@ void Kis_Netlist::UpdateTrigger(void) {
 		// Is it already assigned to a group?  If it is, we can just 
 		// flag the display group as dirty and be done
 		if (net->groupptr != NULL) {
+			((Kis_Display_NetGroup *) net->groupptr)->DirtyNetwork(net);
 			((Kis_Display_NetGroup *) net->groupptr)->Update();
 			continue;
 		}
@@ -800,6 +826,9 @@ void Kis_Netlist::UpdateTrigger(void) {
 	for (unsigned int x = 0; x < dirty_vec.size(); x++) {
 		dirty_vec[x]->Update();
 	}
+
+	// We've handled it all
+	dirty_raw_vec.clear();
 }
 
 void Kis_Netlist::DrawComponent() {
@@ -810,6 +839,11 @@ void Kis_Netlist::DrawComponent() {
 	// we'll consider it a reasonable static line size
 	char rline[1024];
 	int rofft = 0;
+
+	// Printed line and a temp string to hold memory, used for cache
+	// aliasing
+	char *pline;
+	string pt;
 
 	// Column headers
 	if (colhdr_cache == "") {
@@ -882,11 +916,10 @@ void Kis_Netlist::DrawComponent() {
 	int dpos = 1;
 	for (unsigned int x = first_line; x < display_vec.size() && 
 		 dpos <= viewable_lines; x++) {
+		Kis_Display_NetGroup *ng = display_vec[x];
 
 		// Recompute the output line if the display for that network is dirty
-		if (display_vec[x]->DispDirty()) {
-			Kis_Display_NetGroup *ng = display_vec[x];
-
+		if (ng->DispDirty()) {
 			Netracker::tracked_network *meta = ng->FetchNetwork();
 
 			rofft = 0;
@@ -999,10 +1032,16 @@ void Kis_Netlist::DrawComponent() {
 				}
 			} // column loop
 
-		} // Cached
+			ng->SetLineCache(rline);
+			pline = rline;
+		} else {
+			// Pull the cached line
+			pt = ng->GetLineCache();
+			pline = (char *) pt.c_str();
+		}
 
 		// Draw the line
-		Kis_Panel_Specialtext::Mvwaddnstr(window, sy + dpos, sx, rline, ex);
+		Kis_Panel_Specialtext::Mvwaddnstr(window, sy + dpos, sx, pline, ex);
 		dpos++;
 
 	} // Netlist 
