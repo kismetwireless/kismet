@@ -100,6 +100,9 @@ void Kis_Display_NetGroup::Update() {
 			metanet->retries = mv->retries;
 
 			metanet->new_packets = mv->new_packets;
+
+			metanet->ssid_map = mv->ssid_map;
+			metanet->lastssid = mv->lastssid;
 		} else {
 			metanet->llc_packets += mv->llc_packets;
 			metanet->data_packets += mv->data_packets;
@@ -126,7 +129,16 @@ void Kis_Display_NetGroup::Update() {
 
 			metanet->new_packets += mv->new_packets;
 
+			if (mv->lastssid != NULL) {
+				if (metanet->lastssid == NULL)
+					metanet->lastssid = mv->lastssid;
+				else if (mv->lastssid->last_time > metanet->lastssid->last_time)
+					metanet->lastssid = mv->lastssid;
+			}
+
 			// We don't combine CDP data
+
+
 		}
 
 		first = 0;
@@ -140,11 +152,26 @@ void Kis_Display_NetGroup::Update() {
 
 string Kis_Display_NetGroup::GetName() {
 	if (name == "" && metanet != NULL) {
+#if 0
 		if (metanet->ssid_map.size() != 0) {
-			return (++(metanet->ssid_map.begin()))->second->ssid;
+			Netracker::adv_ssid_data *asd = (metanet->ssid_map.begin())->second;
+
+			if (asd->ssid_cloaked)
+				return "<" + asd->ssid + ">";
+
+			return asd->ssid;
+#endif
+		if (metanet->lastssid != NULL) {
+			if (metanet->lastssid->ssid_cloaked)
+				return "<" + metanet->lastssid->ssid + ">";
+
+			return metanet->lastssid->ssid;
 		} else {
-			return metanet->bssid.Mac2String();
+			// return metanet->bssid.Mac2String();
+			return "<No SSID>";
 		}
+	} else {
+		return name;
 	}
 
 	return "<Unknown>";
@@ -741,6 +768,8 @@ void Kis_Netlist::Proto_BSSID(CLIPROTO_CB_PARMS) {
 	onet->retries = net->retries;
 	onet->new_packets = net->new_packets;
 
+	delete net;
+
 	// Push a dirty net into the vec, collapse multiple updates to a 
 	// net within a single draw update by not pushing already dirty data
 	if (onet->dirty == 0) {
@@ -752,11 +781,128 @@ void Kis_Netlist::Proto_BSSID(CLIPROTO_CB_PARMS) {
 }
 
 void Kis_Netlist::Proto_SSID(CLIPROTO_CB_PARMS) {
-	if (proto_parsed->size() < KCLI_BSSID_NUMFIELDS) {
+	if (proto_parsed->size() < KCLI_SSID_NUMFIELDS) {
 		return;
 	}
 
 	int fnum = 0;
+
+	Netracker::adv_ssid_data *asd = new Netracker::adv_ssid_data;
+	Netracker::tracked_network *net = NULL;
+
+	int tint;
+	float tfloat;
+	mac_addr tmac;
+
+	tmac = mac_addr((*proto_parsed)[fnum++].word.c_str());
+	if (tmac.error) {
+		delete asd;
+		return;
+	}
+
+	// Try to find the network this belongs to, if for some reason we don't have
+	// a record of it, throw it out and stop processing
+	macmap<Netracker::tracked_network *>::iterator tni = bssid_raw_map.find(tmac);
+
+	if (tni == bssid_raw_map.end()) {
+		delete asd;
+		return;
+	}
+	net = *(tni->second);
+
+	asd->mac = tmac;
+
+	if (sscanf((*proto_parsed)[fnum++].word.c_str(), "%d", &tint) != 1) {
+		delete asd;
+		return;
+	}
+	asd->checksum = tint;
+
+	if (sscanf((*proto_parsed)[fnum++].word.c_str(), "%d", &tint) != 1) {
+		delete asd;
+		return;
+	}
+	asd->type = (ssid_type) tint;
+
+	asd->ssid = MungeToPrintable((*proto_parsed)[fnum++].word);
+	asd->beacon_info = MungeToPrintable((*proto_parsed)[fnum++].word);
+
+	if (sscanf((*proto_parsed)[fnum++].word.c_str(), "%d", &tint) != 1) {
+		delete asd;
+		return;
+	}
+	asd->cryptset = tint;
+
+	if (sscanf((*proto_parsed)[fnum++].word.c_str(), "%d", &tint) != 1) {
+		delete asd;
+		return;
+	}
+	asd->ssid_cloaked = tint;
+
+	if (sscanf((*proto_parsed)[fnum++].word.c_str(), "%d", &tint) != 1) {
+		delete asd;
+		return;
+	}
+	asd->first_time = (time_t) tint;
+
+	if (sscanf((*proto_parsed)[fnum++].word.c_str(), "%d", &tint) != 1) {
+		delete asd;
+		return;
+	}
+	asd->last_time = (time_t) tint;
+
+	if (sscanf((*proto_parsed)[fnum++].word.c_str(), "%f", &tfloat) != 1) {
+		delete asd;
+		return;
+	}
+	asd->maxrate = (double) tfloat;
+
+	if (sscanf((*proto_parsed)[fnum++].word.c_str(), "%d", &tint) != 1) {
+		delete asd;
+		return;
+	}
+	asd->beaconrate = tint;
+
+	if (sscanf((*proto_parsed)[fnum++].word.c_str(), "%d", &tint) != 1) {
+		delete asd;
+		return;
+	}
+	asd->packets = tint;
+
+	map<uint32_t, Netracker::adv_ssid_data *>::iterator asi =
+		net->ssid_map.find(asd->checksum);
+
+	// Just add us if we don't exist in the network map
+	if (asi == net->ssid_map.end()) {
+		asd->dirty = 1;
+		net->ssid_map[asd->checksum] = asd;
+		net->lastssid = asd;
+	} else {
+		// Otherwise we need to copy all our stuff into the existing record
+		Netracker::adv_ssid_data *oasd = asi->second;
+
+		oasd->type = asd->type;
+		oasd->ssid = asd->ssid;
+		oasd->beacon_info = asd->beacon_info;
+		oasd->cryptset = asd->cryptset;
+		oasd->ssid_cloaked = asd->ssid_cloaked;
+		oasd->first_time = asd->first_time;
+		oasd->last_time = asd->last_time;
+		oasd->maxrate = asd->maxrate;
+		oasd->beaconrate = asd->beaconrate;
+		oasd->packets = asd->packets;
+		oasd->dirty = 1;
+		net->lastssid = oasd;
+		delete asd;
+	}
+
+	// Set the net dirty and push it into the dirty vec if it isn't there already
+	if (net->dirty == 0) {
+		net->dirty = 1;
+		dirty_raw_vec.push_back(net);
+	}
+
+	return;
 }
 
 void Kis_Netlist::UpdateTrigger(void) {
@@ -888,7 +1034,7 @@ void Kis_Netlist::DrawComponent() {
 				snprintf(rline + rofft, 1024 - rofft, "Clnt");
 				rofft += 4;
 			} else if (b == bcol_datasize) {
-				snprintf(rline + rofft, 1024 - rofft, "DSize");
+				snprintf(rline + rofft, 1024 - rofft, " Size");
 				rofft += 5;
 			} else if (b == bcol_datasize) {
 				snprintf(rline + rofft, 1024 - rofft, "Signal  ");
@@ -908,8 +1054,9 @@ void Kis_Netlist::DrawComponent() {
 	}
 
 	// Draw the cached header
+	string pcache = colhdr_cache + string(ex - sx - colhdr_cache.length(), ' ');
 	Kis_Panel_Specialtext::Mvwaddnstr(window, sy, sx, 
-									  "\004u" + colhdr_cache + "\004U", 
+									  "\004u" + pcache + "\004U", 
 									  ex);
 
 	// For as many lines as we can fit
@@ -970,8 +1117,20 @@ void Kis_Netlist::DrawComponent() {
 					snprintf(rline + rofft, 1024 - rofft, "%c", d);
 					rofft += 1;
 				} else if (b == bcol_crypt) {
+					char d;
 
-					snprintf(rline + rofft, 1024 - rofft, "C");
+					if (meta->lastssid == NULL) {
+						d = '?';
+					} else {
+						if (meta->lastssid->cryptset == crypt_wep)
+							d = 'W';
+						else if (meta->lastssid->cryptset)
+							d = 'O';
+						else
+							d = 'N';
+					}
+
+					snprintf(rline + rofft, 1024 - rofft, "%c", d);
 					rofft += 1;
 				} else if (b == bcol_channel) {
 					snprintf(rline + rofft, 1024 - rofft, "%3d", meta->channel);

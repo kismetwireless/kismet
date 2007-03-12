@@ -311,7 +311,7 @@ void Kis_Menu::DrawComponent() {
 			wattron(window, WA_REVERSE);
 
 		// Draw the menu
-		mvwaddstr(window, sy, sx + hpos, (menubar[x]->text + " ").c_str());
+		mvwaddstr(window, sy, sx + hpos, (menubar[x]->text).c_str());
 		// Set the hilight
 		if (menubar[x]->targchar >= 0) {
 			wattron(window, WA_UNDERLINE);
@@ -321,6 +321,8 @@ void Kis_Menu::DrawComponent() {
 		}
 
 		wattroff(window, WA_REVERSE);
+
+		mvwaddstr(window, sy, sx + hpos + menubar[x]->text.length(), " ");
 
 		// Draw the menu itself, if we've got an item selected in it
 		if ((int) x == cur_menu && cur_item >= 0) {

@@ -411,9 +411,8 @@ public:
 			fragments = 0;
 			retries = 0;
 			new_packets = 0;
-			field1 = field2 = 0;
-			auxptr1 = auxptr2 = NULL;
 			groupptr = NULL;
+			lastssid = NULL;
 		}
 
 		// What we last saw it as
@@ -477,13 +476,9 @@ public:
 		// Network is dirty and should be pushed out
 		int dirty;
 
-		// Arbitrary fields for use by other things (like the client)
-		int field1, field2;
-		void *auxptr1, *auxptr2;
-
-		// Group pointer (for use by the client, primarily)
+		// Client pointers to do "stuff"
 		void *groupptr;
-
+		adv_ssid_data *lastssid;
 	};
 
 	class tracked_client {
