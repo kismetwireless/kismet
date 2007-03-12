@@ -1151,11 +1151,13 @@ void Kis_Netlist::DrawComponent() {
 	for (unsigned int x = first_line; x < display_vec.size() && 
 		 dpos <= viewable_lines; x++) {
 		Kis_Display_NetGroup *ng = display_vec[x];
+		Netracker::tracked_network *meta = ng->FetchNetwork();
 
 		// Recompute the output line if the display for that network is dirty
-		if (ng->DispDirty()) {
-			Netracker::tracked_network *meta = ng->FetchNetwork();
-
+		// or if the network has changed recently enough.  No sense caching whats
+		// going to keep thrashing every update
+		if (ng->DispDirty() || 
+			(meta != NULL && (time(0) - meta->last_time) < 6)) {
 			rofft = 0;
 			for (unsigned c = 0; c < display_bcols.size(); c++) {
 				bssid_columns b = display_bcols[c];
