@@ -137,38 +137,27 @@ int Kis_Main_Panel::KeyPress(int in_key) {
 			cp->Position((LINES / 2) - 4, (COLS / 2) - 20, 8, 40);
 			globalreg->panel_interface->AddPanel(cp);
 		} else if (ret == mi_sort_auto) {
-			sortmode = KIS_SORT_AUTO;
-			_MSG("Auto-fit sorting", MSGFLAG_INFO);
+			kpinterface->SetPref("NETLIST_SORT", "auto", 1);
 		} else if (ret == mi_sort_type) {
-			sortmode = KIS_SORT_TYPE;
-			_MSG("Sorting by type...", MSGFLAG_INFO);
+			kpinterface->SetPref("NETLIST_SORT", "type", 1);
 		} else if (ret == mi_sort_chan) {
-			sortmode = KIS_SORT_CHANNEL;
-			_MSG("Sorting by channel...", MSGFLAG_INFO);
+			kpinterface->SetPref("NETLIST_SORT", "channel", 1);
 		} else if (ret == mi_sort_first) {
-			sortmode = KIS_SORT_FIRST;
-			_MSG("Sorting by first-seen time...", MSGFLAG_INFO);
+			kpinterface->SetPref("NETLIST_SORT", "first", 1);
 		} else if (ret == mi_sort_first_d) {
-			sortmode = KIS_SORT_FIRST_D;
-			_MSG("Sorting by first-seen time (descending)...", MSGFLAG_INFO);
+			kpinterface->SetPref("NETLIST_SORT", "first_desc", 1);
 		} else if (ret == mi_sort_last) {
-			sortmode = KIS_SORT_LAST;
-			_MSG("Sorting by last-seen time...", MSGFLAG_INFO);
+			kpinterface->SetPref("NETLIST_SORT", "last", 1);
 		} else if (ret == mi_sort_last_d) {
-			sortmode = KIS_SORT_LAST_D;
-			_MSG("Sorting by last-seen time (descending)...", MSGFLAG_INFO);
+			kpinterface->SetPref("NETLIST_SORT", "last_desc", 1);
 		} else if (ret == mi_sort_bssid) {
-			sortmode = KIS_SORT_BSSID;
-			_MSG("Sorting by BSSID...", MSGFLAG_INFO);
+			kpinterface->SetPref("NETLIST_SORT", "bssid", 1);
 		} else if (ret == mi_sort_ssid) {
-			sortmode = KIS_SORT_SSID;
-			_MSG("Sorting by SSID...", MSGFLAG_INFO);
+			kpinterface->SetPref("NETLIST_SORT", "ssid", 1);
 		} else if (ret == mi_sort_packets) {
-			sortmode = KIS_SORT_PACKETS;
-			_MSG("Sorting by packet count...", MSGFLAG_INFO);
+			kpinterface->SetPref("NETLIST_SORT", "packets", 1);
 		} else if (ret == mi_sort_packets_d) {
-			sortmode = KIS_SORT_PACKETS_D;
-			_MSG("Sorting by packet count (descending)...", MSGFLAG_INFO);
+			kpinterface->SetPref("NETLIST_SORT", "packets_desc", 1);
 		} else if (ret == mi_addcard) {
 			vector<KisNetClient *> *cliref = kpinterface->FetchNetClientVecPtr();
 			if (cliref->size() == 0) {

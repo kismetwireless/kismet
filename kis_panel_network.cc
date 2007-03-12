@@ -24,6 +24,7 @@
 #include "kis_panel_network.h"
 #include "kis_panel_windows.h"
 #include "kis_panel_frontend.h"
+#include "kis_panel_netsort.h"
 
 // Netgroup management
 Kis_Display_NetGroup::Kis_Display_NetGroup() {
@@ -134,11 +135,11 @@ void Kis_Display_NetGroup::Update() {
 					metanet->lastssid = mv->lastssid;
 				else if (mv->lastssid->last_time > metanet->lastssid->last_time)
 					metanet->lastssid = mv->lastssid;
+			} else {
+				metanet->lastssid = NULL;
 			}
 
 			// We don't combine CDP data
-
-
 		}
 
 		first = 0;
@@ -162,7 +163,9 @@ string Kis_Display_NetGroup::GetName() {
 			return asd->ssid;
 #endif
 		if (metanet->lastssid != NULL) {
-			if (metanet->lastssid->ssid_cloaked)
+			if (metanet->lastssid->ssid.length() == 0)
+				return "<No SSID>";
+			else if (metanet->lastssid->ssid_cloaked)
 				return "<" + metanet->lastssid->ssid + ">";
 
 			return metanet->lastssid->ssid;
@@ -277,6 +280,7 @@ Kis_Netlist::Kis_Netlist(GlobalRegistry *in_globalreg, Kis_Panel *in_panel) :
 	// preferences file, then update the column vector
 	UpdateBColPrefs();
 	UpdateBExtPrefs();
+	UpdateSortPrefs();
 }
 
 Kis_Netlist::~Kis_Netlist() {
@@ -292,7 +296,7 @@ Kis_Netlist::~Kis_Netlist() {
 	// destroyed without exiting the program
 }
 
-void Kis_Netlist::UpdateBColPrefs() {
+int Kis_Netlist::UpdateBColPrefs() {
 	string pcols;
 
 	// Use a default set of columns if we don't find one
@@ -302,7 +306,7 @@ void Kis_Netlist::UpdateBColPrefs() {
 	}
 
 	if (kpinterface->GetPrefDirty("NETLIST_COLUMNS") == 0)
-		return;
+		return 0;
 
 	kpinterface->SetPrefDirty("NETLIST_COLUMNS", 0);
 
@@ -350,9 +354,10 @@ void Kis_Netlist::UpdateBColPrefs() {
 				 MSGFLAG_INFO);
 	}
 
+	return 1;
 }
 
-void Kis_Netlist::UpdateBExtPrefs() {
+int Kis_Netlist::UpdateBExtPrefs() {
 	string pcols;
 
 	// Use a default set of columns if we don't find one
@@ -362,7 +367,7 @@ void Kis_Netlist::UpdateBExtPrefs() {
 	}
 
 	if (kpinterface->GetPrefDirty("NETLIST_EXTRAS") == 0)
-		return;
+		return 0;
 
 	kpinterface->SetPrefDirty("NETLIST_EXTRAS", 0);
 
@@ -388,6 +393,52 @@ void Kis_Netlist::UpdateBExtPrefs() {
 			_MSG("Unknown display extra field '" + t + "', skipping.",
 				 MSGFLAG_INFO);
 	}
+
+	return 1;
+}
+
+int Kis_Netlist::UpdateSortPrefs() {
+	string sort;
+
+	// Use a default set of columns if we don't find one
+	if ((sort = kpinterface->GetPref("NETLIST_SORT")) == "") {
+		sort = "auto";
+		kpinterface->SetPref("NETLIST_SORT", sort, 1);
+	}
+
+	if (kpinterface->GetPrefDirty("NETLIST_SORT") == 0)
+		return 0;
+
+	kpinterface->SetPrefDirty("NETLIST_SORT", 0);
+
+	sort = StrLower(sort);
+
+	if (sort == "auto")
+		sort_mode = netsort_autofit;
+	else if (sort == "type")
+		sort_mode = netsort_type;
+	else if (sort == "channel")
+		sort_mode = netsort_channel;
+	else if (sort == "first")
+		sort_mode = netsort_first;
+	else if (sort == "first_desc")
+		sort_mode = netsort_first_desc;
+	else if (sort == "last")
+		sort_mode = netsort_last;
+	else if (sort == "last_desc")
+		sort_mode = netsort_last;
+	else if (sort == "bssid")
+		sort_mode = netsort_bssid;
+	else if (sort == "ssid")
+		sort_mode = netsort_ssid;
+	else if (sort == "packets")
+		sort_mode = netsort_packets;
+	else if (sort == "packets_desc")
+		sort_mode = netsort_packets_desc;
+	else
+		sort_mode = netsort_autofit;
+
+	return 1;
 }
 
 void Kis_Netlist::NetClientConfigure(KisNetClient *in_cli, int in_recon) {
@@ -881,17 +932,8 @@ void Kis_Netlist::Proto_SSID(CLIPROTO_CB_PARMS) {
 		// Otherwise we need to copy all our stuff into the existing record
 		Netracker::adv_ssid_data *oasd = asi->second;
 
-		oasd->type = asd->type;
-		oasd->ssid = asd->ssid;
-		oasd->beacon_info = asd->beacon_info;
-		oasd->cryptset = asd->cryptset;
-		oasd->ssid_cloaked = asd->ssid_cloaked;
-		oasd->first_time = asd->first_time;
-		oasd->last_time = asd->last_time;
-		oasd->maxrate = asd->maxrate;
-		oasd->beaconrate = asd->beaconrate;
-		oasd->packets = asd->packets;
-		oasd->dirty = 1;
+		*oasd = *asd;
+
 		net->lastssid = oasd;
 		delete asd;
 	}
@@ -913,7 +955,7 @@ void Kis_Netlist::UpdateTrigger(void) {
 	// namely that they're always pointers no matter what.  Some day, this
 	// could get fixed.
 
-	if (dirty_raw_vec.size() == 0)
+	if (UpdateSortPrefs() == 0 && dirty_raw_vec.size() == 0)
 		return;
 
 	vector<Kis_Display_NetGroup *> dirty_vec;
@@ -975,6 +1017,51 @@ void Kis_Netlist::UpdateTrigger(void) {
 
 	// We've handled it all
 	dirty_raw_vec.clear();
+
+	switch (sort_mode) {
+		case netsort_type:
+			stable_sort(display_vec.begin(), display_vec.end(), 
+						KisNetlist_Sort_Type());
+			break;
+		case netsort_channel:
+			stable_sort(display_vec.begin(), display_vec.end(), 
+						KisNetlist_Sort_Channel());
+			break;
+		case netsort_first:
+			stable_sort(display_vec.begin(), display_vec.end(), 
+						KisNetlist_Sort_First());
+			break;
+		case netsort_first_desc:
+			stable_sort(display_vec.begin(), display_vec.end(), 
+						KisNetlist_Sort_FirstDesc());
+			break;
+		case netsort_last:
+			stable_sort(display_vec.begin(), display_vec.end(), 
+						KisNetlist_Sort_Last());
+			break;
+		case netsort_last_desc:
+			stable_sort(display_vec.begin(), display_vec.end(), 
+						KisNetlist_Sort_LastDesc());
+			break;
+		case netsort_bssid:
+			stable_sort(display_vec.begin(), display_vec.end(), 
+						KisNetlist_Sort_Bssid());
+			break;
+		case netsort_ssid:
+			stable_sort(display_vec.begin(), display_vec.end(), 
+						KisNetlist_Sort_Ssid());
+			break;
+		case netsort_packets:
+			stable_sort(display_vec.begin(), display_vec.end(), 
+						KisNetlist_Sort_Packets());
+			break;
+		case netsort_packets_desc:
+			stable_sort(display_vec.begin(), display_vec.end(), 
+						KisNetlist_Sort_PacketsDesc());
+			break;
+		default:
+			break;
+	}
 }
 
 void Kis_Netlist::DrawComponent() {

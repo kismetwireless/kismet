@@ -361,6 +361,23 @@ public:
 			beaconrate = 0;
 			packets = 0;
 		}
+
+		inline adv_ssid_data& operator= (const adv_ssid_data& in) {
+			checksum = in.checksum;
+			type = in.type;
+			mac = in.mac;
+			ssid = in.ssid;
+			beacon_info = in.beacon_info;
+			cryptset = in.cryptset;
+			first_time = in.first_time;
+			last_time = in.last_time;
+			dirty = in.dirty;
+			maxrate = in.maxrate;
+			beaconrate = in.beaconrate;
+			packets = in.packets;
+
+			return *this;
+		}
 			
 		uint32_t checksum;
 

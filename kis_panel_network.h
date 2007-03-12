@@ -170,6 +170,16 @@ protected:
 		bext_lastseen, bext_crypt, bext_ip, bext_manuf, bext_model
 	};
 
+	// Sort modes
+	enum netsort_opts {
+		netsort_autofit, netsort_recent, netsort_type, netsort_channel, 
+		netsort_first, netsort_first_desc, netsort_last, netsort_last_desc, 
+		netsort_bssid, netsort_ssid, netsort_packets, netsort_packets_desc
+	};
+
+	// Sort type
+	netsort_opts sort_mode;
+
 	// Addclient hook reference
 	int addref;
 	
@@ -221,9 +231,11 @@ protected:
 	vector<bssid_extras> display_bexts;
 
 	// Parse the bssid columns preferences
-	void UpdateBColPrefs();
+	int UpdateBColPrefs();
 	// Parse the bssid extras
-	void UpdateBExtPrefs();
+	int UpdateBExtPrefs();
+	// Parse the sort type
+	int UpdateSortPrefs();
 
 	// Cached column headers
 	string colhdr_cache;
