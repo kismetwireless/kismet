@@ -28,8 +28,11 @@
 
 // Netgroup management
 Kis_Display_NetGroup::Kis_Display_NetGroup() {
-	fprintf(stderr, "FATAL OOPS: Kis_Netlist_Group()\n");
-	exit(1);
+	local_metanet = 0;
+	metanet = NULL;
+	dirty = 0;
+	dispdirty = 0;
+	linecache = "";
 }
 
 Kis_Display_NetGroup::Kis_Display_NetGroup(Netracker::tracked_network *in_net) {
@@ -52,6 +55,18 @@ Kis_Display_NetGroup::~Kis_Display_NetGroup() {
 void Kis_Display_NetGroup::Update() {
 	if (dirty == 0)
 		return;
+
+	// Shortcut stripping the last network.  This ought to only happen 
+	// to the autogroup nets but its possible it will occur in other situations
+	if (meta_vec.size() == 0) {
+		if (local_metanet)
+			delete metanet;
+
+		metanet = NULL;
+		dirty = 0;
+		dispdirty = 1;
+		return;
+	}
 
 	dispdirty = 1;
 
@@ -276,6 +291,11 @@ Kis_Netlist::Kis_Netlist(GlobalRegistry *in_globalreg, Kis_Panel *in_panel) :
 	first_line = 0;
 	last_line = 0;
 
+	// Push the auto networks into the tracking vectors
+	probe_autogroup.SetName("Autogroup Probe");
+	adhoc_autogroup.SetName("Autogroup Adhoc");
+	data_autogroup.SetName("Autogroup Data");
+
 	// Set default preferences for BSSID columns if we don't have any in the
 	// preferences file, then update the column vector
 	UpdateBColPrefs();
@@ -362,7 +382,7 @@ int Kis_Netlist::UpdateBExtPrefs() {
 
 	// Use a default set of columns if we don't find one
 	if ((pcols = kpinterface->GetPref("NETLIST_EXTRAS")) == "") {
-		pcols = "lastseen,crypt,ip,manuf,model";
+		pcols = "bssid,lastseen,crypt,ip,manuf,model";
 		kpinterface->SetPref("NETLIST_EXTRAS", pcols, 1);
 	}
 
@@ -389,6 +409,8 @@ int Kis_Netlist::UpdateBExtPrefs() {
 			display_bexts.push_back(bext_manuf);
 		else if (t == "model")
 			display_bexts.push_back(bext_manuf);
+		else if (t == "bssid")
+			display_bexts.push_back(bext_bssid);
 		else
 			_MSG("Unknown display extra field '" + t + "', skipping.",
 				 MSGFLAG_INFO);
@@ -961,6 +983,106 @@ void Kis_Netlist::UpdateTrigger(void) {
 
 		net->dirty = 0;
 
+		Kis_Display_NetGroup *dng = (Kis_Display_NetGroup *) net->groupptr;
+
+		// Handle the autogrouping code
+		if (net->type == network_probe) {
+			if (net->groupptr != NULL && net->groupptr != &probe_autogroup) {
+				if (dng->Dirty() == 0)
+					dirty_vec.push_back(dng);
+				dng->DelNetwork(net);
+			}
+
+			// Kluge the autogroup back into the display vector if we weren't
+			// in there before.  We can assume if we have no network now, and
+			// we're adding a network to it, then we don't exist in the display
+			// vector yet
+			if (probe_autogroup.FetchNetwork() == NULL && 
+				probe_autogroup.Dirty() == 0)
+				display_vec.push_back(&probe_autogroup);
+
+			if (probe_autogroup.Dirty() == 0)
+				dirty_vec.push_back(&probe_autogroup);
+			
+			probe_autogroup.AddNetwork(net);
+
+			continue;
+		} else if (net->type != network_probe && net->groupptr == &probe_autogroup) {
+			// It's not a probe network anymore but it's in our probe netgroup
+			// pull us out of the group, and then if we need to, pull us out of
+			// the display vector because theres nothing left in us.  This is a
+			// horrible hack, but it won't happen too often, hopefully
+			probe_autogroup.DelNetwork(net);
+			if (probe_autogroup.FetchNumNetworks() == 0) {
+				for (unsigned int yy = 0; yy < display_vec.size(); yy++) {
+					if (display_vec[yy] == &probe_autogroup) {
+						display_vec.erase(display_vec.begin() + yy);
+						break;
+					}
+				}
+			}
+		}
+
+		// Cut and paste, but whatever
+		if (net->type == network_adhoc) {
+			if (net->groupptr != NULL && net->groupptr != &adhoc_autogroup) {
+				if (dng->Dirty() == 0)
+					dirty_vec.push_back(dng);
+				dng->DelNetwork(net);
+			}
+
+			if (adhoc_autogroup.FetchNetwork() == NULL &&
+				adhoc_autogroup.Dirty() == 0)
+				display_vec.push_back(&adhoc_autogroup);
+
+			if (adhoc_autogroup.Dirty() == 0)
+				dirty_vec.push_back(&adhoc_autogroup);
+			
+			adhoc_autogroup.AddNetwork(net);
+
+			continue;
+		} else if (net->type != network_adhoc && net->groupptr == &adhoc_autogroup) {
+			adhoc_autogroup.DelNetwork(net);
+			if (adhoc_autogroup.FetchNumNetworks() == 0) {
+				for (unsigned int yy = 0; yy < display_vec.size(); yy++) {
+					if (display_vec[yy] == &adhoc_autogroup) {
+						display_vec.erase(display_vec.begin() + yy);
+						break;
+					}
+				}
+			}
+		}
+
+		// Cut and paste, but whatever
+		if (net->type == network_data) {
+			if (net->groupptr != NULL && net->groupptr != &data_autogroup) {
+				if (dng->Dirty() == 0)
+					dirty_vec.push_back(dng);
+				dng->DelNetwork(net);
+			}
+
+			if (data_autogroup.FetchNetwork() == NULL &&
+				data_autogroup.Dirty())
+				display_vec.push_back(&data_autogroup);
+
+			if (data_autogroup.Dirty() == 0)
+				dirty_vec.push_back(&data_autogroup);
+			
+			data_autogroup.AddNetwork(net);
+
+			continue;
+		} else if (net->type != network_data && net->groupptr == &data_autogroup) {
+			data_autogroup.DelNetwork(net);
+			if (data_autogroup.FetchNumNetworks() == 0) {
+				for (unsigned int yy = 0; yy < display_vec.size(); yy++) {
+					if (display_vec[yy] == &data_autogroup) {
+						display_vec.erase(display_vec.begin() + yy);
+						break;
+					}
+				}
+			}
+		}
+
 		// Is it already assigned to a group?  If it is, we can just 
 		// flag the display group as dirty and be done
 		if (net->groupptr != NULL) {
@@ -1263,7 +1385,6 @@ void Kis_Netlist::DrawComponent() {
 					snprintf(rline + rofft, 1024 - rofft, "TODO    ");
 					rofft += 8;
 				} else {
-					_MSG("debug - unknown coltype", MSGFLAG_INFO);
 					continue;
 				}
 
@@ -1337,7 +1458,7 @@ void Kis_Netlist::DrawComponent() {
 						rofft += 6;
 					
 						if (meta->lastssid == NULL) {
-							snprintf(rline + rofft, 1024 - rofft, "Unknown");
+							snprintf(rline + rofft, 1024 - rofft, " Unknown");
 							rofft += 7;
 						} else {
 							if ((meta->lastssid->cryptset == 0)) {
@@ -1404,10 +1525,18 @@ void Kis_Netlist::DrawComponent() {
 								snprintf(rline + rofft, 1024 - rofft, " PPTP");
 								rofft += 5;
 							}
-						}
-
+						} 
+					} else if (e == bext_bssid) {
+						snprintf(rline + rofft, 1024 - rofft, "BSSID: %s",
+								 meta->bssid.Mac2String().c_str());
+						rofft += 24;
+					} else if (e == bext_manuf) {
+						// TODO - manuf stuff
+						continue;
+					} else if (e == bext_model) {
+						// TODO - manuf stuff
+						continue;
 					} else {
-						_MSG("debug - unknown exttype", MSGFLAG_INFO);
 						continue;
 					}
 

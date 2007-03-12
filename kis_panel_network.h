@@ -83,6 +83,9 @@ public:
 	// Remove a network.  Not efficient, so try not to do this too often.
 	void DelNetwork(Netracker::tracked_network *in_net);
 
+	// Get the number of networks
+	int FetchNumNetworks() { return meta_vec.size(); }
+
 	// Let us know a network has been dirtied
 	void DirtyNetwork(Netracker::tracked_network *in_net);
 
@@ -175,7 +178,7 @@ protected:
 
 	// Extra display options per-line
 	enum bssid_extras {
-		bext_lastseen, bext_crypt, bext_ip, bext_manuf, bext_model
+		bext_lastseen, bext_bssid, bext_crypt, bext_ip, bext_manuf, bext_model
 	};
 
 	// Sort modes
@@ -244,6 +247,9 @@ protected:
 
 	// Cached column headers
 	string colhdr_cache;
+
+	// Probe, adhoc, and data groups
+	Kis_Display_NetGroup probe_autogroup, adhoc_autogroup, data_autogroup;
 };
 
 #endif // panel
