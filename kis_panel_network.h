@@ -90,8 +90,17 @@ public:
 
 	// Display dirty variables, set after an update
 	int DispDirty() { return dispdirty; }
+	void SetDispDirty(int dd) { dispdirty = dd; }
+
+	// Cache manipulation, for the header line and sublines.
+	// Details cache is for cached expanded details lines
+	// Grpcache is cached expanded details
 	string GetLineCache() { return linecache; }
-	void SetLineCache(string ic) { linecache = ic; dispdirty = 0; }
+	void SetLineCache(string ic) { linecache = ic; }
+	vector<string> *GetDetCache() { return &detcache; }
+	void SetDetCache(vector<string>& is) { detcache = is; }
+	vector<string> *GetGrpCache() { return &grpcache; }
+	void SetGrpCache(vector<string>& is) { grpcache = is; }
 
 	// Group name
 	string GetName();
@@ -107,6 +116,8 @@ protected:
 	// Cached display lines
 	int dispdirty;
 	string linecache;
+	vector<string> detcache;
+	vector<string> grpcache;
 
 	// Do we have a local meta network? (ie, do we need to destroy it on our
 	// way our, take special care of it, etc)

@@ -1276,6 +1276,12 @@ void Kis_Netlist::DrawComponent() {
 				}
 			} // column loop
 
+			// Fill to the end if we need to for highlighting
+			if (rofft < (ex - sx) && ((ex - sx) - rofft) < 1024) {
+				memset(rline + rofft, ' ', (ex - sx) - rofft);
+				rline[(ex - sx)] = '\0';
+			}
+
 			ng->SetLineCache(rline);
 			pline = rline;
 		} else {
@@ -1285,19 +1291,159 @@ void Kis_Netlist::DrawComponent() {
 		}
 
 		// Draw the line
-		if (selected_line == (int) x)
+		if (selected_line == (int) x && sort_mode != netsort_autofit)
 			wattron(window, WA_REVERSE);
 
 		// Kis_Panel_Specialtext::Mvwaddnstr(window, sy + dpos, sx, pline, ex);
 		// We don't use our specialtext here since we don't want something that
 		// snuck into the SSID to affect the printing
 		mvwaddnstr(window, sy + dpos, sx, pline, ex - 1);
+		dpos++;
 
-		if (selected_line == (int) x)
+		// Draw the expanded info for the network
+		if (selected_line == (int) x && sort_mode != netsort_autofit) {
+			// Cached print lines (also a direct shortcut into the cache
+			// storage system)
+			vector<string> *pevcache;
+			// Reset the offset we're printing into on rline
+			rofft = 0;
+
+			pevcache = ng->GetDetCache();
+
+			// If we're dirty, we don't have details cached, or it's been
+			// w/in 10 seconds, we recalc the details
+			if (ng->DispDirty() || 
+				(meta != NULL && (time(0) - meta->last_time) < 10) ||
+				pevcache->size() == 0) {
+
+				// Directly manipulate the cache ptr, probably bad
+				pevcache->clear();
+
+				// Offset for decay if we have it
+				if (display_bcols[0] == bcol_decay) {
+					snprintf(rline + rofft, 1024 - rofft, "  ");
+					rofft += 2;
+				}
+
+				for (unsigned int c = 0; c < display_bexts.size(); c++) {
+					bssid_extras e = display_bexts[c];
+
+					if (e == bext_lastseen) {
+						snprintf(rline + rofft, 1024 - rofft, "Last seen: %.15s",
+								 ctime((const time_t *) &(meta->last_time)) + 4);
+						rofft += 26;
+					} else if (e == bext_crypt) {
+						snprintf(rline + rofft, 1024 - rofft, "Crypt:");
+						rofft += 6;
+					
+						if (meta->lastssid == NULL) {
+							snprintf(rline + rofft, 1024 - rofft, "Unknown");
+							rofft += 7;
+						} else {
+							if ((meta->lastssid->cryptset == 0)) {
+								snprintf(rline + rofft, 1024 - rofft, " None");
+								rofft += 5;
+							}
+							if ((meta->lastssid->cryptset == crypt_wep)) {
+								snprintf(rline + rofft, 1024 - rofft, " WEP");
+								rofft += 4;
+							} 
+							if ((meta->lastssid->cryptset & crypt_layer3)) {
+								snprintf(rline + rofft, 1024 - rofft, " L3");
+								rofft += 3;
+							} 
+							if ((meta->lastssid->cryptset & crypt_wep40)) {
+								snprintf(rline + rofft, 1024 - rofft, " WEP40");
+								rofft += 6;
+							} 
+							if ((meta->lastssid->cryptset & crypt_wep104)) {
+								snprintf(rline + rofft, 1024 - rofft, " WEP104");
+								rofft += 7;
+							} 
+							if ((meta->lastssid->cryptset & crypt_tkip)) {
+								snprintf(rline + rofft, 1024 - rofft, " TKIP");
+								rofft += 5;
+							} 
+							if ((meta->lastssid->cryptset & crypt_wpa)) {
+								snprintf(rline + rofft, 1024 - rofft, " WPA");
+								rofft += 4;
+							} 
+							if ((meta->lastssid->cryptset & crypt_psk)) {
+								snprintf(rline + rofft, 1024 - rofft, " PSK");
+								rofft += 4;
+							} 
+							if ((meta->lastssid->cryptset & crypt_aes_ocb)) {
+								snprintf(rline + rofft, 1024 - rofft, " AESOCB");
+								rofft += 7;
+							} 
+							if ((meta->lastssid->cryptset & crypt_aes_ccm)) {
+								snprintf(rline + rofft, 1024 - rofft, " AESCCM");
+								rofft += 7;
+							} 
+							if ((meta->lastssid->cryptset & crypt_leap)) {
+								snprintf(rline + rofft, 1024 - rofft, " LEAP");
+								rofft += 5;
+							} 
+							if ((meta->lastssid->cryptset & crypt_ttls)) {
+								snprintf(rline + rofft, 1024 - rofft, " TTLS");
+								rofft += 5;
+							} 
+							if ((meta->lastssid->cryptset & crypt_tls)) {
+								snprintf(rline + rofft, 1024 - rofft, " TLS");
+								rofft += 4;
+							} 
+							if ((meta->lastssid->cryptset & crypt_peap)) {
+								snprintf(rline + rofft, 1024 - rofft, " PEAP");
+								rofft += 5;
+							} 
+							if ((meta->lastssid->cryptset & crypt_isakmp)) {
+								snprintf(rline + rofft, 1024 - rofft, " ISAKMP");
+								rofft += 7;
+							} 
+							if ((meta->lastssid->cryptset & crypt_pptp)) {
+								snprintf(rline + rofft, 1024 - rofft, " PPTP");
+								rofft += 5;
+							}
+						}
+
+					} else {
+						_MSG("debug - unknown exttype", MSGFLAG_INFO);
+						continue;
+					}
+
+					if (rofft < 1023) {
+						// Update the endline conditions
+						rline[rofft++] = ' ';
+						rline[rofft] = '\0';
+					} else {
+						break;
+					}
+				}
+
+				// Fill to the end if we need to for highlighting
+				if (rofft < (ex - sx) && ((ex - sx) - rofft) < 1024) {
+					memset(rline + rofft, ' ', (ex - sx) - rofft);
+					rline[(ex - sx)] = '\0';
+				}
+
+				pevcache->push_back(rline);
+			}
+
+			for (unsigned int d = 0; d < pevcache->size(); d++) {
+				mvwaddnstr(window, sy + dpos, sx, (*pevcache)[d].c_str(), ex - 1);
+				dpos++;
+			}
+
+		}
+
+		if (selected_line == (int) x && sort_mode != netsort_autofit)
 			wattroff(window, WA_REVERSE);
 
-		dpos++;
 		last_line = x;
+
+		// Set it no longer dirty (we've cached everything along the way
+		// so this is safe to do here regardless)
+		ng->SetDispDirty(0);
 
 	} // Netlist 
 
