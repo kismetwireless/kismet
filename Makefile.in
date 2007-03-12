@@ -85,7 +85,7 @@ GPSLBUILD=@gpslc@
 GPSLBUILDO=@gpslco@
 ZAURUSBUILD=@zbuild@
 
-all:	Makefile $(DEPEND) $(PS) $(DRONE)
+all:	Makefile $(DEPEND) $(PS) $(DRONE) $(NC)
 
 $(PS):	$(PSO)
 	$(LD) $(LDFLAGS) -o $(PS) $(PSO) $(LIBS) $(CXXLIBS) $(PCAPLNK)

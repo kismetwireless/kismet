@@ -251,7 +251,7 @@ Kis_Netlist::Kis_Netlist(GlobalRegistry *in_globalreg, Kis_Panel *in_panel) :
 	viewable_lines = 0;
 	viewable_cols = 0;
 
-	sortmode = KIS_SORT_AUTO;
+	sort_mode = netsort_autofit;
 
 	// Add the addcli reference.  This also kicks off adding it for any
 	// active clients, so we'd better be ready (IE, leave this at the end 
@@ -476,10 +476,6 @@ void Kis_Netlist::SetPosition(int isx, int isy, int iex, int iey) {
 		
 	viewable_lines = ey - 1;
 	viewable_cols = ex;
-}
-
-void Kis_Netlist::SetSortMode(int in_mode) {
-	sortmode = in_mode;
 }
 
 void Kis_Netlist::Proto_BSSID(CLIPROTO_CB_PARMS) {

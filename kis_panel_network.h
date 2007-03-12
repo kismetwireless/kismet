@@ -141,9 +141,6 @@ public:
 
 	virtual void SetPosition(int isx, int isy, int iex, int iey);
 
-	// Set the sort mode
-	void SetSortMode(int in_sortmode);
-
 	// Network callback
 	void NetClientConfigure(KisNetClient *in_cli, int in_recon);
 
@@ -188,9 +185,6 @@ protected:
 
 	// Interface
 	KisPanelInterface *kpinterface;
-
-	// Sorting
-	int sortmode;
 
 	// Drawing offsets into the display vector & other drawing trackers
 	int viewable_lines;
