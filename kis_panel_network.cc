@@ -1157,7 +1157,7 @@ void Kis_Netlist::DrawComponent() {
 		// or if the network has changed recently enough.  No sense caching whats
 		// going to keep thrashing every update
 		if (ng->DispDirty() || 
-			(meta != NULL && (time(0) - meta->last_time) < 6)) {
+			(meta != NULL && (time(0) - meta->last_time) < 10)) {
 			rofft = 0;
 			for (unsigned c = 0; c < display_bcols.size(); c++) {
 				bssid_columns b = display_bcols[c];
@@ -1289,8 +1289,19 @@ void Kis_Netlist::DrawComponent() {
 		}
 
 		// Draw the line
-		Kis_Panel_Specialtext::Mvwaddnstr(window, sy + dpos, sx, pline, ex);
+		if (selected_line == (int) x)
+			wattron(window, WA_REVERSE);
+
+		// Kis_Panel_Specialtext::Mvwaddnstr(window, sy + dpos, sx, pline, ex);
+		// We don't use our specialtext here since we don't want something that
+		// snuck into the SSID to affect the printing
+		mvwaddnstr(window, sy + dpos, sx, pline, ex - 1);
+
+		if (selected_line == (int) x)
+			wattroff(window, WA_REVERSE);
+
 		dpos++;
+		last_line = x;
 
 	} // Netlist 
 
@@ -1305,6 +1316,49 @@ void Kis_Netlist::Deactivate() {
 }
 
 int Kis_Netlist::KeyPress(int in_key) {
+	if (visible == 0)
+		return 0;
+
+	ostringstream osstr;
+
+	// Selected is the literal selected line in the display vector, not the 
+	// line # on the screen, so when we scroll, we need to scroll it as well
+
+	// Autofit gets no love
+	if (sort_mode == netsort_autofit)
+		return 0;
+
+	// If we haven't selected anything, kick us into the first line on the
+	// screen
+	if ((in_key == KEY_DOWN || in_key == KEY_NPAGE ||
+		 in_key == KEY_UP || in_key == KEY_PPAGE) &&
+		(selected_line < 0 || selected_line > last_line)) {
+		selected_line = first_line;
+		return 0;
+	}
+
+	if (in_key == KEY_DOWN) {
+		// If we're at the bottom and we can go further, slide the selection
+		// and the first line down
+		if (selected_line == last_line &&
+			last_line < (int) display_vec.size() - 1) {
+			selected_line++;
+			first_line++;
+		} else if (selected_line != last_line) {
+			// Otherwise we just move the selected line
+			selected_line++;
+		}
+	} else if (in_key == KEY_UP) {
+		// If we're at the top and we can go further, slide the selection
+		// and the first line UP
+		if (selected_line == first_line && first_line > 0) {
+			selected_line--;
+			first_line--;
+		} else if (selected_line != first_line) {
+			// Just slide up the selection
+			selected_line--;
+		}
+	}
 
 	return 0;
 }

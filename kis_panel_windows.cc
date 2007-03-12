@@ -80,11 +80,12 @@ Kis_Main_Panel::Kis_Main_Panel(GlobalRegistry *in_globalreg,
 
 	statustext->Show();
 
-	active_component = statustext;
 	comp_vec.push_back(statustext);
 
 	netlist = new Kis_Netlist(globalreg, this);
 	netlist->Show();
+
+	active_component = netlist;
 	comp_vec.push_back(netlist);
 
 	// SetTitle("Kismet Newcore Client");
