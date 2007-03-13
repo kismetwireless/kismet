@@ -33,6 +33,7 @@ Kis_Display_NetGroup::Kis_Display_NetGroup() {
 	dirty = 0;
 	dispdirty = 0;
 	linecache = "";
+	expanded = 0;
 }
 
 Kis_Display_NetGroup::Kis_Display_NetGroup(Netracker::tracked_network *in_net) {
@@ -40,8 +41,9 @@ Kis_Display_NetGroup::Kis_Display_NetGroup(Netracker::tracked_network *in_net) {
 	metanet = in_net;
 	meta_vec.push_back(in_net);
 	dirty = 0;
-	dispdirty = 1;
-	linecache = "";
+	expanded = 0;
+	ClearSetDirty();
+	in_net->groupptr = this;
 }
 
 Kis_Display_NetGroup::~Kis_Display_NetGroup() {
@@ -50,6 +52,13 @@ Kis_Display_NetGroup::~Kis_Display_NetGroup() {
 		delete metanet;
 		metanet = NULL;
 	}
+}
+
+void Kis_Display_NetGroup::ClearSetDirty() {
+	dispdirty = 1;
+	linecache = "";
+	detcache.clear();
+	grpcache.clear();
 }
 
 void Kis_Display_NetGroup::Update() {
@@ -64,11 +73,10 @@ void Kis_Display_NetGroup::Update() {
 
 		metanet = NULL;
 		dirty = 0;
-		dispdirty = 1;
 		return;
 	}
 
-	dispdirty = 1;
+	ClearSetDirty();
 
 	// if we've gained networks and don't have a local metanet, we
 	// just gained one.
@@ -78,13 +86,13 @@ void Kis_Display_NetGroup::Update() {
 	}
 
 	// If we don't have a local meta network, just bail, because the
-	// network we present is the same as the tcp network.  In the future
-	// this might hold an update of the cached line.
+	// network we present is the same as the tcp network.  
 	if (local_metanet == 0) {
 		// We're not dirty, the comprising network isn't dirty, we're
 		// done here.
 		dirty = 0;
-		metanet->dirty = 0;
+		if (metanet != NULL)
+			metanet->dirty = 0;
 		return;
 	}
 
@@ -163,6 +171,9 @@ void Kis_Display_NetGroup::Update() {
 		mv->dirty = 0;
 	}
 
+	if (metanet == NULL)
+		dispdirty = 0;
+
 	dirty = 0;
 }
 
@@ -197,7 +208,7 @@ string Kis_Display_NetGroup::GetName() {
 
 void Kis_Display_NetGroup::SetName(string in_name) {
 	name = in_name;
-	dispdirty = 1;
+	ClearSetDirty();
 }
 
 Netracker::tracked_network *Kis_Display_NetGroup::FetchNetwork() {
@@ -212,8 +223,10 @@ void Kis_Display_NetGroup::AddNetwork(Netracker::tracked_network *in_net) {
 	// it in the vec and flag dirty, more fun happens during the update
 	
 	meta_vec.push_back(in_net);
+	in_net->groupptr = this;
 
 	dirty = 1;
+	ClearSetDirty();
 }
 
 void Kis_Display_NetGroup::DelNetwork(Netracker::tracked_network *in_net) {
@@ -227,6 +240,8 @@ void Kis_Display_NetGroup::DelNetwork(Netracker::tracked_network *in_net) {
 			return;
 		}
 	}
+
+	in_net->groupptr = NULL;
 }
 
 void Kis_Display_NetGroup::DirtyNetwork(Netracker::tracked_network *in_net) {
@@ -291,10 +306,7 @@ Kis_Netlist::Kis_Netlist(GlobalRegistry *in_globalreg, Kis_Panel *in_panel) :
 	first_line = 0;
 	last_line = 0;
 
-	// Push the auto networks into the tracking vectors
-	probe_autogroup.SetName("Autogroup Probe");
-	adhoc_autogroup.SetName("Autogroup Adhoc");
-	data_autogroup.SetName("Autogroup Data");
+	probe_autogroup = adhoc_autogroup = data_autogroup = NULL;
 
 	// Set default preferences for BSSID columns if we don't have any in the
 	// preferences file, then update the column vector
@@ -965,6 +977,36 @@ void Kis_Netlist::Proto_SSID(CLIPROTO_CB_PARMS) {
 	return;
 }
 
+int Kis_Netlist::DeleteGroup(Kis_Display_NetGroup *in_group) {
+	for (unsigned int x = 0; x < display_vec.size(); x++) {
+		if (display_vec[x] == in_group) {
+			display_vec.erase(display_vec.begin() + x);
+			break;
+		}
+	}
+
+	vector<Netracker::tracked_network *> *nv = in_group->FetchNetworkVec();
+
+	// Shift all the networks into the dirty vector, unlink them from the
+	// additional group tracking methods
+	for (unsigned int x = 0; x < nv->size(); x++) {
+		if ((*nv)[x]->dirty == 0) {
+			dirty_raw_vec.push_back((*nv)[x]);
+			(*nv)[x]->dirty = 1;
+		}
+
+		if (netgroup_stored_map.find((*nv)[x]->bssid) != netgroup_stored_map.end())
+			netgroup_stored_map.erase((*nv)[x]->bssid);
+
+		if (netgroup_asm_map.find((*nv)[x]->bssid) != netgroup_asm_map.end())
+			netgroup_asm_map.erase((*nv)[x]->bssid);
+	}
+
+	delete in_group;
+
+	return 1;
+}
+
 void Kis_Netlist::UpdateTrigger(void) {
 	// Process the dirty vector and update all our stuff.  This only happens
 	// at regular intervals, not every network update
@@ -972,6 +1014,12 @@ void Kis_Netlist::UpdateTrigger(void) {
 	// This code exposes some nasty problems with the macmap iterators,
 	// namely that they're always pointers no matter what.  Some day, this
 	// could get fixed.
+	
+	// Show extended info?
+	if (kpinterface->GetPref("NETLIST_SHOWEXT") == "0")
+		show_ext_info = 0;
+	else
+		show_ext_info = 1;
 
 	if (UpdateSortPrefs() == 0 && dirty_raw_vec.size() == 0)
 		return;
@@ -987,100 +1035,94 @@ void Kis_Netlist::UpdateTrigger(void) {
 
 		// Handle the autogrouping code
 		if (net->type == network_probe) {
-			if (net->groupptr != NULL && net->groupptr != &probe_autogroup) {
-				if (dng->Dirty() == 0)
-					dirty_vec.push_back(dng);
-				dng->DelNetwork(net);
-			}
-
-			// Kluge the autogroup back into the display vector if we weren't
-			// in there before.  We can assume if we have no network now, and
-			// we're adding a network to it, then we don't exist in the display
-			// vector yet
-			if (probe_autogroup.FetchNetwork() == NULL && 
-				probe_autogroup.Dirty() == 0)
-				display_vec.push_back(&probe_autogroup);
-
-			if (probe_autogroup.Dirty() == 0)
-				dirty_vec.push_back(&probe_autogroup);
-			
-			probe_autogroup.AddNetwork(net);
-
-			continue;
-		} else if (net->type != network_probe && net->groupptr == &probe_autogroup) {
-			// It's not a probe network anymore but it's in our probe netgroup
-			// pull us out of the group, and then if we need to, pull us out of
-			// the display vector because theres nothing left in us.  This is a
-			// horrible hack, but it won't happen too often, hopefully
-			probe_autogroup.DelNetwork(net);
-			if (probe_autogroup.FetchNumNetworks() == 0) {
-				for (unsigned int yy = 0; yy < display_vec.size(); yy++) {
-					if (display_vec[yy] == &probe_autogroup) {
-						display_vec.erase(display_vec.begin() + yy);
-						break;
-					}
+			// Delete it from any group its in already
+			if (net->groupptr != probe_autogroup) {
+				if (net->groupptr != NULL) {
+					if (dng->Dirty() == 0)
+						dirty_vec.push_back(dng);
+					dng->DelNetwork(net);
 				}
 			}
+		
+			// Make the group if we need to, otherwise add to it
+			if (probe_autogroup == NULL) {
+				probe_autogroup = new Kis_Display_NetGroup(net);
+				probe_autogroup->SetName("Autogroup Probe");
+				netgroup_asm_map.insert(net->bssid, probe_autogroup);
+				display_vec.push_back(probe_autogroup);
+			} else {
+				if (probe_autogroup->Dirty() == 0)
+					dirty_vec.push_back(probe_autogroup);
+				probe_autogroup->AddNetwork(net);
+			}
+
+			continue;
+		} else if (net->type != network_probe && net->groupptr == probe_autogroup &&
+				   net->groupptr != NULL) {
+			if (probe_autogroup->Dirty() == 0)
+				dirty_vec.push_back(probe_autogroup);
+
+			probe_autogroup->DelNetwork(net);
 		}
 
-		// Cut and paste, but whatever
 		if (net->type == network_adhoc) {
-			if (net->groupptr != NULL && net->groupptr != &adhoc_autogroup) {
-				if (dng->Dirty() == 0)
-					dirty_vec.push_back(dng);
-				dng->DelNetwork(net);
-			}
-
-			if (adhoc_autogroup.FetchNetwork() == NULL &&
-				adhoc_autogroup.Dirty() == 0)
-				display_vec.push_back(&adhoc_autogroup);
-
-			if (adhoc_autogroup.Dirty() == 0)
-				dirty_vec.push_back(&adhoc_autogroup);
-			
-			adhoc_autogroup.AddNetwork(net);
-
-			continue;
-		} else if (net->type != network_adhoc && net->groupptr == &adhoc_autogroup) {
-			adhoc_autogroup.DelNetwork(net);
-			if (adhoc_autogroup.FetchNumNetworks() == 0) {
-				for (unsigned int yy = 0; yy < display_vec.size(); yy++) {
-					if (display_vec[yy] == &adhoc_autogroup) {
-						display_vec.erase(display_vec.begin() + yy);
-						break;
-					}
+			if (net->groupptr != adhoc_autogroup) {
+				if (net->groupptr != NULL) {
+					if (dng->Dirty() == 0)
+						dirty_vec.push_back(dng);
+					dng->DelNetwork(net);
 				}
 			}
+		
+			if (adhoc_autogroup == NULL) {
+				adhoc_autogroup = new Kis_Display_NetGroup(net);
+				adhoc_autogroup->SetName("Autogroup Adhoc");
+				netgroup_asm_map.insert(net->bssid, adhoc_autogroup);
+				display_vec.push_back(adhoc_autogroup);
+			} else {
+				if (adhoc_autogroup->Dirty() == 0)
+					dirty_vec.push_back(adhoc_autogroup);
+				adhoc_autogroup->AddNetwork(net);
+			}
+
+			continue;
+		} else if (net->type != network_adhoc && net->groupptr == adhoc_autogroup &&
+				   net->groupptr != NULL) {
+			if (adhoc_autogroup->Dirty() == 0)
+				dirty_vec.push_back(adhoc_autogroup);
+
+			adhoc_autogroup->DelNetwork(net);
+
 		}
 
-		// Cut and paste, but whatever
 		if (net->type == network_data) {
-			if (net->groupptr != NULL && net->groupptr != &data_autogroup) {
-				if (dng->Dirty() == 0)
-					dirty_vec.push_back(dng);
-				dng->DelNetwork(net);
-			}
-
-			if (data_autogroup.FetchNetwork() == NULL &&
-				data_autogroup.Dirty())
-				display_vec.push_back(&data_autogroup);
-
-			if (data_autogroup.Dirty() == 0)
-				dirty_vec.push_back(&data_autogroup);
-			
-			data_autogroup.AddNetwork(net);
-
-			continue;
-		} else if (net->type != network_data && net->groupptr == &data_autogroup) {
-			data_autogroup.DelNetwork(net);
-			if (data_autogroup.FetchNumNetworks() == 0) {
-				for (unsigned int yy = 0; yy < display_vec.size(); yy++) {
-					if (display_vec[yy] == &data_autogroup) {
-						display_vec.erase(display_vec.begin() + yy);
-						break;
-					}
+			if (net->groupptr != data_autogroup) {
+				if (net->groupptr != NULL) {
+					if (dng->Dirty() == 0)
+						dirty_vec.push_back(dng);
+					dng->DelNetwork(net);
 				}
 			}
+		
+			if (data_autogroup == NULL) {
+				data_autogroup = new Kis_Display_NetGroup(net);
+				data_autogroup->SetName("Autogroup Data");
+				netgroup_asm_map.insert(net->bssid, data_autogroup);
+				display_vec.push_back(data_autogroup);
+			} else {
+				if (data_autogroup->Dirty() == 0)
+					dirty_vec.push_back(data_autogroup);
+
+				data_autogroup->AddNetwork(net);
+			}
+
+			continue;
+		} else if (net->type != network_data && net->groupptr == data_autogroup &&
+				   net->groupptr != NULL) {
+			if (data_autogroup->Dirty() == 0)
+				dirty_vec.push_back(data_autogroup);
+
+			data_autogroup->DelNetwork(net);
 		}
 
 		// Is it already assigned to a group?  If it is, we can just 
@@ -1103,7 +1145,6 @@ void Kis_Netlist::UpdateTrigger(void) {
 			ng = new Kis_Display_NetGroup(net);
 			netgroup_asm_map.insert(net->bssid, ng);
 			display_vec.push_back(ng);
-			net->groupptr = ng;
 			continue;
 		}
 
@@ -1111,7 +1152,6 @@ void Kis_Netlist::UpdateTrigger(void) {
 		macmap<Kis_Display_NetGroup *>::iterator nami =
 			netgroup_asm_map.find(*(nsmi->second));
 		if (nami != netgroup_asm_map.end()) {
-			net->groupptr = *(nami->second);
 			// Assign before adding since adding makes it dirty
 			if ((*(nami->second))->Dirty() == 0)
 				dirty_vec.push_back(*(nami->second));
@@ -1121,7 +1161,6 @@ void Kis_Netlist::UpdateTrigger(void) {
 			// add our network to it...  it doesn't need to be added to the
 			// dirty vector, because it gets linked instantly
 			Kis_Display_NetGroup *ng = new Kis_Display_NetGroup(net);
-			net->groupptr = ng;
 			netgroup_asm_map.insert(*(nsmi->second), ng);
 			display_vec.push_back(ng);
 		}
@@ -1129,8 +1168,27 @@ void Kis_Netlist::UpdateTrigger(void) {
 
 	// Update all the dirty groups (compress multiple active nets into a 
 	// single group update)
+	int delnet = 0;
 	for (unsigned int x = 0; x < dirty_vec.size(); x++) {
 		dirty_vec[x]->Update();
+		if (dirty_vec[x]->FetchNumNetworks() == 0) {
+			delnet = DeleteGroup(dirty_vec[x]);
+
+			// Update the autogroups
+			if (dirty_vec[x] == probe_autogroup)
+				probe_autogroup = NULL;
+			else if (dirty_vec[x] == adhoc_autogroup)
+				adhoc_autogroup = NULL;
+			else if (dirty_vec[x] == data_autogroup)
+				data_autogroup = NULL;
+		}
+	}
+
+	// If we deleted a network, we need to re-run the trigger since we might
+	// have disassembled groups
+	if (delnet) {
+		UpdateTrigger();
+		return;
 	}
 
 	// We've handled it all
@@ -1198,7 +1256,10 @@ void Kis_Netlist::DrawComponent() {
 
 	// Column headers
 	if (colhdr_cache == "") {
-		rofft = 0;
+		// Space for the group indicator
+		rofft = 1;
+		rline[0] = ' ';
+
 		for (unsigned c = 0; c < display_bcols.size(); c++) {
 			bssid_columns b = display_bcols[c];
 
@@ -1274,9 +1335,12 @@ void Kis_Netlist::DrawComponent() {
 		// Recompute the output line if the display for that network is dirty
 		// or if the network has changed recently enough.  No sense caching whats
 		// going to keep thrashing every update
-		if (ng->DispDirty() || 
-			(meta != NULL && (time(0) - meta->last_time) < 10)) {
-			rofft = 0;
+		if (meta != NULL && (ng->DispDirty() || 
+			((time(0) - meta->last_time) < 10))) {
+			// Space for the group indicator
+			rofft = 1;
+			rline[0] = ' ';
+
 			for (unsigned c = 0; c < display_bcols.size(); c++) {
 				bssid_columns b = display_bcols[c];
 
@@ -1422,7 +1486,8 @@ void Kis_Netlist::DrawComponent() {
 		dpos++;
 
 		// Draw the expanded info for the network
-		if (selected_line == (int) x && sort_mode != netsort_autofit) {
+		if (selected_line == (int) x && sort_mode != netsort_autofit &&
+			show_ext_info) {
 			// Cached print lines (also a direct shortcut into the cache
 			// storage system)
 			vector<string> *pevcache;
@@ -1439,6 +1504,9 @@ void Kis_Netlist::DrawComponent() {
 
 				// Directly manipulate the cache ptr, probably bad
 				pevcache->clear();
+
+				rofft = 1;
+				rline[0] = ' ';
 
 				// Offset for decay if we have it
 				if (display_bcols[0] == bcol_decay) {

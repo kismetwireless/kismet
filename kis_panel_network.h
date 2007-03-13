@@ -86,6 +86,9 @@ public:
 	// Get the number of networks
 	int FetchNumNetworks() { return meta_vec.size(); }
 
+	// Get the raw network vec
+	vector<Netracker::tracked_network *> *FetchNetworkVec() { return &meta_vec; }
+
 	// Let us know a network has been dirtied
 	void DirtyNetwork(Netracker::tracked_network *in_net);
 
@@ -109,6 +112,10 @@ public:
 	string GetName();
 	void SetName(string in_name);
 
+	// Are we expanded in the view?
+	int GetExpanded();
+	void SetExpanded(int e) { expanded = e; }
+
 protected:
 	// Do we need to update?
 	int dirty; 
@@ -122,6 +129,9 @@ protected:
 	vector<string> detcache;
 	vector<string> grpcache;
 
+	// Are we expanded
+	int expanded;
+
 	// Do we have a local meta network? (ie, do we need to destroy it on our
 	// way our, take special care of it, etc)
 	int local_metanet;
@@ -133,6 +143,9 @@ protected:
 	// Vector of networks which compose the metanet.  THESE SHOULD NEVER BE FREED,
 	// BECAUSE THEY MAY BE REFERENCED ELSEWHERE.
 	vector<Netracker::tracked_network *> meta_vec;
+
+	// Clear display data and set dirty
+	void ClearSetDirty();
 };
 
 
@@ -238,6 +251,9 @@ protected:
 	// Extras we display
 	vector<bssid_extras> display_bexts;
 
+	// Show extended info
+	int show_ext_info;
+
 	// Parse the bssid columns preferences
 	int UpdateBColPrefs();
 	// Parse the bssid extras
@@ -249,7 +265,10 @@ protected:
 	string colhdr_cache;
 
 	// Probe, adhoc, and data groups
-	Kis_Display_NetGroup probe_autogroup, adhoc_autogroup, data_autogroup;
+	Kis_Display_NetGroup *probe_autogroup, *adhoc_autogroup, *data_autogroup;
+
+	int DeleteGroup(Kis_Display_NetGroup *in_group);
+
 };
 
 #endif // panel
