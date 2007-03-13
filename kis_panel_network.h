@@ -110,11 +110,14 @@ public:
 
 	// Group name
 	string GetName();
+	// Hack to get a network name the same way
+	string GetName(Netracker::tracked_network *net);
+	// Set the group name
 	void SetName(string in_name);
 
 	// Are we expanded in the view?
-	int GetExpanded();
-	void SetExpanded(int e) { expanded = e; }
+	int GetExpanded() { return expanded; }
+	void SetExpanded(int e) { if (e != expanded) ClearSetDirty(); expanded = e; }
 
 protected:
 	// Do we need to update?
@@ -268,6 +271,10 @@ protected:
 	Kis_Display_NetGroup *probe_autogroup, *adhoc_autogroup, *data_autogroup;
 
 	int DeleteGroup(Kis_Display_NetGroup *in_group);
+
+	int PrintNetworkLine(Kis_Display_NetGroup *ng, Netracker::tracked_network *net,
+						 int rofft, char *rline, int max);
+
 
 };
 

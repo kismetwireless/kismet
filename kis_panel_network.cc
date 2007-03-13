@@ -100,6 +100,10 @@ void Kis_Display_NetGroup::Update() {
 	for (unsigned int x = 0; x < meta_vec.size(); x++) {
 		Netracker::tracked_network *mv = meta_vec[x];
 		if (first) {
+			metanet->bssid = mv->bssid;
+
+			metanet->type = mv->type;
+
 			metanet->llc_packets = mv->llc_packets;
 			metanet->data_packets = mv->data_packets;
 			metanet->crypt_packets = mv->crypt_packets;
@@ -127,7 +131,15 @@ void Kis_Display_NetGroup::Update() {
 
 			metanet->ssid_map = mv->ssid_map;
 			metanet->lastssid = mv->lastssid;
+
+			first = 0;
 		} else {
+			// Mask the BSSIDs
+			metanet->bssid.longmac &= mv->bssid.longmac;
+
+			if (metanet->type != mv->type)
+				metanet->type = network_mixed;
+
 			metanet->llc_packets += mv->llc_packets;
 			metanet->data_packets += mv->data_packets;
 			metanet->crypt_packets += mv->crypt_packets;
@@ -165,8 +177,6 @@ void Kis_Display_NetGroup::Update() {
 			// We don't combine CDP data
 		}
 
-		first = 0;
-
 		// The net is no longer dirty
 		mv->dirty = 0;
 	}
@@ -178,23 +188,18 @@ void Kis_Display_NetGroup::Update() {
 }
 
 string Kis_Display_NetGroup::GetName() {
-	if (name == "" && metanet != NULL) {
-#if 0
-		if (metanet->ssid_map.size() != 0) {
-			Netracker::adv_ssid_data *asd = (metanet->ssid_map.begin())->second;
+	return GetName(metanet);
+}
 
-			if (asd->ssid_cloaked)
-				return "<" + asd->ssid + ">";
-
-			return asd->ssid;
-#endif
-		if (metanet->lastssid != NULL) {
-			if (metanet->lastssid->ssid.length() == 0)
+string Kis_Display_NetGroup::GetName(Netracker::tracked_network *net) {
+	if ((name == "" || net != metanet) && net != NULL) {
+		if (net->lastssid != NULL) {
+			if (net->lastssid->ssid.length() == 0)
 				return "<No SSID>";
-			else if (metanet->lastssid->ssid_cloaked)
-				return "<" + metanet->lastssid->ssid + ">";
+			else if (net->lastssid->ssid_cloaked)
+				return "<" + net->lastssid->ssid + ">";
 
-			return metanet->lastssid->ssid;
+			return net->lastssid->ssid;
 		} else {
 			// return metanet->bssid.Mac2String();
 			return "<No SSID>";
@@ -1050,7 +1055,7 @@ void Kis_Netlist::UpdateTrigger(void) {
 				probe_autogroup->SetName("Autogroup Probe");
 				netgroup_asm_map.insert(net->bssid, probe_autogroup);
 				display_vec.push_back(probe_autogroup);
-			} else {
+			} else if (probe_autogroup != net->groupptr){
 				if (probe_autogroup->Dirty() == 0)
 					dirty_vec.push_back(probe_autogroup);
 				probe_autogroup->AddNetwork(net);
@@ -1079,7 +1084,7 @@ void Kis_Netlist::UpdateTrigger(void) {
 				adhoc_autogroup->SetName("Autogroup Adhoc");
 				netgroup_asm_map.insert(net->bssid, adhoc_autogroup);
 				display_vec.push_back(adhoc_autogroup);
-			} else {
+			} else if (adhoc_autogroup != net->groupptr){
 				if (adhoc_autogroup->Dirty() == 0)
 					dirty_vec.push_back(adhoc_autogroup);
 				adhoc_autogroup->AddNetwork(net);
@@ -1109,7 +1114,7 @@ void Kis_Netlist::UpdateTrigger(void) {
 				data_autogroup->SetName("Autogroup Data");
 				netgroup_asm_map.insert(net->bssid, data_autogroup);
 				display_vec.push_back(data_autogroup);
-			} else {
+			} else if (data_autogroup != net->groupptr){
 				if (data_autogroup->Dirty() == 0)
 					dirty_vec.push_back(data_autogroup);
 
@@ -1240,6 +1245,137 @@ void Kis_Netlist::UpdateTrigger(void) {
 	}
 }
 
+int Kis_Netlist::PrintNetworkLine(Kis_Display_NetGroup *ng, 
+								  Netracker::tracked_network *net,
+								  int rofft, char *rline, int max) {
+	Netracker::tracked_network *meta = ng->FetchNetwork();
+
+	if (meta == NULL)
+		return rofft;
+
+	for (unsigned c = 0; c < display_bcols.size(); c++) {
+		bssid_columns b = display_bcols[c];
+
+		if (b == bcol_decay) {
+			char d;
+			int to;
+
+			to = time(0) - net->last_time;
+
+			if (to < 3)
+				d = '!';
+			else if (to < 5)
+				d = '.';
+			else
+				d = ' ';
+
+			snprintf(rline + rofft, max - rofft, "%c", d);
+			rofft += 1;
+		} else if (b == bcol_name) {
+			snprintf(rline + rofft, max - rofft, "%-20.20s", 
+					 ng->GetName(net).c_str());
+			rofft += 20;
+		} else if (b == bcol_shortname) {
+			snprintf(rline + rofft, max - rofft, "%-10.10s", 
+					 ng->GetName(net).c_str());
+			rofft += 10;
+		} else if (b == bcol_nettype) {
+			char d;
+
+			if (net->type == network_ap)
+				d = 'A';
+			else if (net->type == network_adhoc)
+				d = 'H';
+			else if (net->type == network_probe)
+				d = 'P';
+			else if (net->type == network_turbocell)
+				d = 'T';
+			else if (net->type == network_data)
+				d = 'D';
+			else if (net->type == network_mixed)
+				d = 'M';
+			else
+				d = '?';
+
+			snprintf(rline + rofft, max - rofft, "%c", d);
+			rofft += 1;
+		} else if (b == bcol_crypt) {
+			char d;
+
+			if (net->lastssid == NULL) {
+				d = '?';
+			} else {
+				if (net->lastssid->cryptset == crypt_wep)
+					d = 'W';
+				else if (net->lastssid->cryptset)
+					d = 'O';
+				else
+					d = 'N';
+			}
+
+			snprintf(rline + rofft, max - rofft, "%c", d);
+			rofft += 1;
+		} else if (b == bcol_channel) {
+			snprintf(rline + rofft, max - rofft, "%3d", net->channel);
+			rofft += 3;
+		} else if (b == bcol_packdata) {
+			snprintf(rline + rofft, max - rofft, "%5d", net->data_packets);
+			rofft += 5;
+		} else if (b == bcol_packllc) {
+			snprintf(rline + rofft, max - rofft, "%5d", net->llc_packets);
+			rofft += 5;
+		} else if (b == bcol_packcrypt) {
+			snprintf(rline + rofft, max - rofft, "%5d", net->crypt_packets);
+			rofft += 5;
+		} else if (b == bcol_bssid) {
+			snprintf(rline + rofft, max - rofft, "%-17s", 
+					 net->bssid.Mac2String().c_str());
+			rofft += 17;
+		} else if (b == bcol_packets) {
+			snprintf(rline + rofft, max - rofft, "%5d",
+					 net->llc_packets + net->data_packets);
+			rofft += 5;
+		} else if (b == bcol_clients) {
+			// TODO - handle clients
+			snprintf(rline + rofft, max - rofft, "%4d", 0);
+			rofft += 4;
+		} else if (b == bcol_datasize) {
+			char dt = ' ';
+			long int ds = 0;
+
+			if (net->datasize < 1024) {
+				ds = net->datasize;
+				dt = 'B';
+			} else if (net->datasize < (1024*1024)) {
+				ds = net->datasize / 1024;
+				dt = 'K';
+			} else {
+				ds = net->datasize / 1024 / 1024;
+				dt = 'M';
+			}
+
+			snprintf(rline + rofft, max - rofft, "%4ld%c", ds, dt);
+			rofft += 5;
+		} else if (b == bcol_datasize) {
+			// TODO - signalbar
+			snprintf(rline + rofft, max - rofft, "TODO    ");
+			rofft += 8;
+		} else {
+			continue;
+		}
+
+		if (rofft < (max - 1)) {
+			// Update the endline conditions
+			rline[rofft++] = ' ';
+			rline[rofft] = '\0';
+		} else {
+			break;
+		}
+	} // column loop
+
+	return rofft;
+}
+
 void Kis_Netlist::DrawComponent() {
 	if (visible == 0)
 		return;
@@ -1339,127 +1475,17 @@ void Kis_Netlist::DrawComponent() {
 			((time(0) - meta->last_time) < 10))) {
 			// Space for the group indicator
 			rofft = 1;
-			rline[0] = ' ';
-
-			for (unsigned c = 0; c < display_bcols.size(); c++) {
-				bssid_columns b = display_bcols[c];
-
-				if (b == bcol_decay) {
-					char d;
-					int to;
-
-					to = time(0) - meta->last_time;
-
-					if (to < 3)
-						d = '!';
-					else if (to < 5)
-						d = '.';
-					else
-						d = ' ';
-
-					snprintf(rline + rofft, 1024 - rofft, "%c", d);
-					rofft += 1;
-				} else if (b == bcol_name) {
-					snprintf(rline + rofft, 1024 - rofft, "%-20.20s", 
-							 ng->GetName().c_str());
-					rofft += 20;
-				} else if (b == bcol_shortname) {
-					snprintf(rline + rofft, 1024 - rofft, "%-10.10s", 
-							 ng->GetName().c_str());
-					rofft += 10;
-				} else if (b == bcol_nettype) {
-					char d;
-
-					if (meta->type == network_ap)
-						d = 'A';
-					else if (meta->type == network_adhoc)
-						d = 'H';
-					else if (meta->type == network_probe)
-						d = 'P';
-					else if (meta->type == network_turbocell)
-						d = 'T';
-					else if (meta->type == network_data)
-						d = 'D';
-					else if (meta->type == network_mixed)
-						d = 'M';
-					else
-						d = '?';
-
-					snprintf(rline + rofft, 1024 - rofft, "%c", d);
-					rofft += 1;
-				} else if (b == bcol_crypt) {
-					char d;
-
-					if (meta->lastssid == NULL) {
-						d = '?';
-					} else {
-						if (meta->lastssid->cryptset == crypt_wep)
-							d = 'W';
-						else if (meta->lastssid->cryptset)
-							d = 'O';
-						else
-							d = 'N';
-					}
-
-					snprintf(rline + rofft, 1024 - rofft, "%c", d);
-					rofft += 1;
-				} else if (b == bcol_channel) {
-					snprintf(rline + rofft, 1024 - rofft, "%3d", meta->channel);
-					rofft += 3;
-				} else if (b == bcol_packdata) {
-					snprintf(rline + rofft, 1024 - rofft, "%5d", meta->data_packets);
-					rofft += 5;
-				} else if (b == bcol_packllc) {
-					snprintf(rline + rofft, 1024 - rofft, "%5d", meta->llc_packets);
-					rofft += 5;
-				} else if (b == bcol_packcrypt) {
-					snprintf(rline + rofft, 1024 - rofft, "%5d", meta->crypt_packets);
-					rofft += 5;
-				} else if (b == bcol_bssid) {
-					snprintf(rline + rofft, 1024 - rofft, "%-17s", 
-							 meta->bssid.Mac2String().c_str());
-					rofft += 17;
-				} else if (b == bcol_packets) {
-					snprintf(rline + rofft, 1024 - rofft, "%5d",
-							 meta->llc_packets + meta->data_packets);
-					rofft += 5;
-				} else if (b == bcol_clients) {
-					// TODO - handle clients
-					snprintf(rline + rofft, 1024 - rofft, "%4d", 0);
-					rofft += 4;
-				} else if (b == bcol_datasize) {
-					char dt = ' ';
-					long int ds = 0;
-
-					if (meta->datasize < 1024) {
-						ds = meta->datasize;
-						dt = 'B';
-					} else if (meta->datasize < (1024*1024)) {
-						ds = meta->datasize / 1024;
-						dt = 'K';
-					} else {
-						ds = meta->datasize / 1024 / 1024;
-						dt = 'M';
-					}
-
-					snprintf(rline + rofft, 1024 - rofft, "%4ld%c", ds, dt);
-					rofft += 5;
-				} else if (b == bcol_datasize) {
-					// TODO - signalbar
-					snprintf(rline + rofft, 1024 - rofft, "TODO    ");
-					rofft += 8;
+			if (ng->FetchNumNetworks() > 1) {
+				if (ng->GetExpanded()) {
+					rline[0] = '-';
 				} else {
-					continue;
+					rline[0] = '+';
 				}
+			} else {
+				rline[0] = ' ';
+			}
 
-				if (rofft < 1023) {
-					// Update the endline conditions
-					rline[rofft++] = ' ';
-					rline[rofft] = '\0';
-				} else {
-					break;
-				}
-			} // column loop
+			rofft = PrintNetworkLine(ng, meta, rofft, rline, 1024);
 
 			// Fill to the end if we need to for highlighting
 			if (rofft < (ex - sx) && ((ex - sx) - rofft) < 1024) {
@@ -1487,7 +1513,7 @@ void Kis_Netlist::DrawComponent() {
 
 		// Draw the expanded info for the network
 		if (selected_line == (int) x && sort_mode != netsort_autofit &&
-			show_ext_info) {
+			show_ext_info && ng->GetExpanded() == 0) {
 			// Cached print lines (also a direct shortcut into the cache
 			// storage system)
 			vector<string> *pevcache;
@@ -1527,7 +1553,7 @@ void Kis_Netlist::DrawComponent() {
 					
 						if (meta->lastssid == NULL) {
 							snprintf(rline + rofft, 1024 - rofft, " Unknown");
-							rofft += 7;
+							rofft += 8;
 						} else {
 							if ((meta->lastssid->cryptset == 0)) {
 								snprintf(rline + rofft, 1024 - rofft, " None");
@@ -1631,6 +1657,43 @@ void Kis_Netlist::DrawComponent() {
 				dpos++;
 			}
 
+		} else if (sort_mode != netsort_autofit && ng->GetExpanded()) {
+			vector<string> *gevcache;
+
+			rofft = 0;
+
+			gevcache = ng->GetGrpCache();
+
+			if (ng->DispDirty() || 
+				(meta != NULL && (time(0) - meta->last_time) < 10) ||
+				gevcache->size() == 0) {
+				vector<Netracker::tracked_network *> *nv = ng->FetchNetworkVec();
+
+				// Directly manipulate the cache ptr, probably bad
+				gevcache->clear();
+
+				for (unsigned int n = 0; n < nv->size(); n++) {
+					rofft = 2;
+					rline[0] = ' ';
+					rline[1] = ' ';
+
+					rofft = PrintNetworkLine(ng, (*nv)[n], rofft, rline, 1024);
+
+					// Fill to the end if we need to for highlighting
+					if (rofft < (ex - sx) && ((ex - sx) - rofft) < 1024) {
+						memset(rline + rofft, ' ', (ex - sx) - rofft);
+						rline[(ex - sx)] = '\0';
+					}
+
+					gevcache->push_back(rline);
+				}
+			}
+
+			for (unsigned int d = 0; d < gevcache->size(); d++) {
+				mvwaddnstr(window, sy + dpos, sx, (*gevcache)[d].c_str(), ex - 1);
+				dpos++;
+			}
+
 		}
 
 		if (selected_line == (int) x && sort_mode != netsort_autofit)
@@ -1667,16 +1730,12 @@ int Kis_Netlist::KeyPress(int in_key) {
 	if (sort_mode == netsort_autofit)
 		return 0;
 
-	// If we haven't selected anything, kick us into the first line on the
-	// screen
-	if ((in_key == KEY_DOWN || in_key == KEY_NPAGE ||
-		 in_key == KEY_UP || in_key == KEY_PPAGE) &&
-		(selected_line < 0 || selected_line > last_line)) {
-		selected_line = first_line;
-		return 0;
-	}
-
 	if (in_key == KEY_DOWN) {
+		if (selected_line < 0 || selected_line > last_line) {
+			selected_line = first_line;
+			return 0;
+		}
+
 		// If we're at the bottom and we can go further, slide the selection
 		// and the first line down
 		if (selected_line == last_line &&
@@ -1688,6 +1747,11 @@ int Kis_Netlist::KeyPress(int in_key) {
 			selected_line++;
 		}
 	} else if (in_key == KEY_UP) {
+		if (selected_line < 0 || selected_line > last_line) {
+			selected_line = first_line;
+			return 0;
+		}
+
 		// If we're at the top and we can go further, slide the selection
 		// and the first line UP
 		if (selected_line == first_line && first_line > 0) {
@@ -1697,6 +1761,18 @@ int Kis_Netlist::KeyPress(int in_key) {
 			// Just slide up the selection
 			selected_line--;
 		}
+	} else if (in_key == ' ') {
+		if (selected_line < 0 || selected_line > last_line ||
+			selected_line >= (int) display_vec.size()) {
+			return 0;
+		}
+
+		Kis_Display_NetGroup *ng = display_vec[selected_line];
+
+		if (ng->FetchNumNetworks() <= 1)
+			return 0;
+
+		ng->SetExpanded(!ng->GetExpanded());
 	}
 
 	return 0;
