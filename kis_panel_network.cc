@@ -1385,6 +1385,13 @@ void Kis_Netlist::DrawComponent() {
 	char rline[1024];
 	int rofft = 0;
 
+	// Used to track number of lines needed for expanded info
+	int nlines = 0;
+	int recovered_lines = 0;
+	int redraw = 0;
+
+	time_t now = time(0);
+
 	// Printed line and a temp string to hold memory, used for cache
 	// aliasing
 	char *pline;
@@ -1468,11 +1475,13 @@ void Kis_Netlist::DrawComponent() {
 		Kis_Display_NetGroup *ng = display_vec[x];
 		Netracker::tracked_network *meta = ng->FetchNetwork();
 
+		nlines = 0;
+
 		// Recompute the output line if the display for that network is dirty
 		// or if the network has changed recently enough.  No sense caching whats
 		// going to keep thrashing every update
 		if (meta != NULL && (ng->DispDirty() || 
-			((time(0) - meta->last_time) < 10))) {
+			((now - meta->last_time) < 10))) {
 			// Space for the group indicator
 			rofft = 1;
 			if (ng->FetchNumNetworks() > 1) {
@@ -1505,6 +1514,8 @@ void Kis_Netlist::DrawComponent() {
 		if (selected_line == (int) x && sort_mode != netsort_autofit)
 			wattron(window, WA_REVERSE);
 
+		nlines++;
+
 		// Kis_Panel_Specialtext::Mvwaddnstr(window, sy + dpos, sx, pline, ex);
 		// We don't use our specialtext here since we don't want something that
 		// snuck into the SSID to affect the printing
@@ -1525,7 +1536,7 @@ void Kis_Netlist::DrawComponent() {
 			// If we're dirty, we don't have details cached, or it's been
 			// w/in 10 seconds, we recalc the details
 			if (ng->DispDirty() || 
-				(meta != NULL && (time(0) - meta->last_time) < 10) ||
+				(meta != NULL && (now - meta->last_time) < 10) ||
 				pevcache->size() == 0) {
 
 				// Directly manipulate the cache ptr, probably bad
@@ -1652,8 +1663,39 @@ void Kis_Netlist::DrawComponent() {
 				pevcache->push_back(rline);
 			}
 
+			/* Handle scrolling down if we're at the end.  Yeah, this is 
+			 * obnoxious. */
+			
+
 			for (unsigned int d = 0; d < pevcache->size(); d++) {
-				mvwaddnstr(window, sy + dpos, sx, (*pevcache)[d].c_str(), ex - 1);
+				nlines++;
+
+				// If we need to get more space...
+				if (dpos >= viewable_lines) {
+					// We're going to have to redraw this whole thing anyhow
+					redraw = 1;
+
+					// If we've recovered enough lines, we just take some away.
+					// Don't try to take away from the first one - if it doesn't
+					// fit, TFB.
+					if (recovered_lines > 0) {
+						recovered_lines--;
+					} else if ((int) x == first_line) {
+						redraw = -1;
+					} else {
+						// Otherwise we need to start sliding down the list to
+						// recover some lines.  selected is the raw # in dv,
+						// not the visual offset, so we don't have to play any
+						// games there.
+						recovered_lines += display_vec[first_line]->GetNLines();
+						first_line++;
+					}
+				}
+
+				// Only draw if we don't need to redraw everything, but always
+				// increment the dpos so we know how many lines we need to recover
+				if (redraw == 0)
+					mvwaddnstr(window, sy + dpos, sx, (*pevcache)[d].c_str(), ex - 1);
 				dpos++;
 			}
 
@@ -1665,7 +1707,7 @@ void Kis_Netlist::DrawComponent() {
 			gevcache = ng->GetGrpCache();
 
 			if (ng->DispDirty() || 
-				(meta != NULL && (time(0) - meta->last_time) < 10) ||
+				(meta != NULL && (now - meta->last_time) < 10) ||
 				gevcache->size() == 0) {
 				vector<Netracker::tracked_network *> *nv = ng->FetchNetworkVec();
 
@@ -1690,7 +1732,22 @@ void Kis_Netlist::DrawComponent() {
 			}
 
 			for (unsigned int d = 0; d < gevcache->size(); d++) {
-				mvwaddnstr(window, sy + dpos, sx, (*gevcache)[d].c_str(), ex - 1);
+				nlines++;
+
+				if (dpos >= viewable_lines) {
+					redraw = 1;
+					if (recovered_lines > 0) {
+						recovered_lines--;
+					} else if ((int) x == first_line) {
+						redraw = -1;
+					} else {
+						recovered_lines += display_vec[first_line]->GetNLines();
+						first_line++;
+					}
+				}
+
+				if (redraw == 0)
+					mvwaddnstr(window, sy + dpos, sx, (*gevcache)[d].c_str(), ex - 1);
 				dpos++;
 			}
 
@@ -1699,14 +1756,20 @@ void Kis_Netlist::DrawComponent() {
 		if (selected_line == (int) x && sort_mode != netsort_autofit)
 			wattroff(window, WA_REVERSE);
 
+		ng->SetNLines(nlines);
+
 		last_line = x;
 
 		// Set it no longer dirty (we've cached everything along the way
 		// so this is safe to do here regardless)
 		ng->SetDispDirty(0);
-
 	} // Netlist 
 
+	// Call ourselves again and redraw if we have to.  Only loop on 1, -1 used
+	// for first-line overflow
+	if (redraw == 1) {
+		DrawComponent();
+	}
 }
 
 void Kis_Netlist::Activate(int subcomponent) {

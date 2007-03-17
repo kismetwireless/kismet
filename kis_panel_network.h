@@ -119,6 +119,10 @@ public:
 	int GetExpanded() { return expanded; }
 	void SetExpanded(int e) { if (e != expanded) ClearSetDirty(); expanded = e; }
 
+	// Number of lines used in the display, used to recalculate for scrolling
+	void SetNLines(int nl) { nline = nl; }
+	int GetNLines() { return nline; }
+	
 protected:
 	// Do we need to update?
 	int dirty; 
@@ -131,6 +135,8 @@ protected:
 	string linecache;
 	vector<string> detcache;
 	vector<string> grpcache;
+
+	int nline;
 
 	// Are we expanded
 	int expanded;

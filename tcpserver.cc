@@ -188,7 +188,7 @@ int TcpServer::FetchClientConnectInfo(int in_clid, void *ret_info) {
 }
 
 int TcpServer::TcpAccept() {
-    unsigned int new_fd;
+    int new_fd;
     struct sockaddr_in client_addr;
 #ifdef HAVE_SOCKLEN_T
     socklen_t client_len;
@@ -221,7 +221,7 @@ int TcpServer::TcpAccept() {
     int save_mode = fcntl(new_fd, F_GETFL, 0);
     fcntl(new_fd, F_SETFL, save_mode | O_NONBLOCK);
     
-    if (new_fd > max_fd)
+    if (new_fd > (int) max_fd)
         max_fd = new_fd;
 
     FD_SET(new_fd, &server_fdset);
