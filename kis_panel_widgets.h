@@ -149,6 +149,9 @@ public:
 	virtual int AddMenu(string in_text, int targ_char);
 	// Add an item to a menu ID
 	virtual int AddMenuItem(string in_text, int menuid, char extra);
+	// Add a submenu item to a menu ID, returns a menu we can add things
+	// to for them to show up in the submenu
+	virtual int AddSubMenuItem(string in_text, int menuid, char extra);
 	// Delete all the menus
 	virtual void ClearMenus();
 
@@ -161,6 +164,7 @@ public:
 		char extrachar;
 		int id;
 		int enabled;
+		int submenu;
 	};
 
 	typedef struct _menu {
@@ -169,19 +173,27 @@ public:
 		vector<Kis_Menu::_menuitem *> items;
 		int width;
 		int id;
+		int submenu;
 	};
 
 protected:
 	// Menu helper window
 	WINDOW *menuwin;
+	WINDOW *submenuwin;
 	// Menu bar
 	vector<Kis_Menu::_menu *> menubar;
-	// Selected items
+	// Selected items...  When a sub menu is selected, the current menu gets put
+	// into the sub menu record, and operations continue on the current menu.
+	// Draw ops treat cur and sub as both "active" menus
 	int cur_menu;
 	int cur_item;
+	int sub_menu;
+	int sub_item;
 
 	virtual void FindNextEnabledItem();
 	virtual void FindPrevEnabledItem();
+
+	virtual void DrawMenu(_menu *menu, WINDOW *win, int hpos, int vpos);
 };
 
 // A scrollable list of fields

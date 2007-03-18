@@ -41,11 +41,6 @@ Kis_Main_Panel::Kis_Main_Panel(GlobalRegistry *in_globalreg,
 	menu->DisableMenuItem(mi_disconnect);
 	connect_enable = 1;
 
-	mn_view = menu->AddMenu("Show", 1);
-	mi_showtext = menu->AddMenuItem("Text", mn_view, 't');
-	mi_showfields = menu->AddMenuItem("2-Fields", mn_view, '2');
-	mi_showinput = menu->AddMenuItem("Input", mn_view, 'i');
-
 	mn_sort = menu->AddMenu("Sort", 0);
 	mi_sort_auto = menu->AddMenuItem("Auto-fit", mn_sort, 'a');
 	menu->AddMenuItem("-", mn_sort, 0);
@@ -61,6 +56,10 @@ Kis_Main_Panel::Kis_Main_Panel(GlobalRegistry *in_globalreg,
 	mi_sort_packets_d = menu->AddMenuItem("Packets (descending)", mn_sort, 'P');
 
 	mn_tools = menu->AddMenu("Tools", 0);
+	mn_plugins = menu->AddSubMenuItem("Plugins", mn_tools, 'x');
+	mi_noplugins = menu->AddMenuItem("No plugins available", mn_plugins, 'N');
+	menu->DisableMenuItem(mi_noplugins);
+
 	mi_addcard = menu->AddMenuItem("Add Source...", mn_tools, 'A');
 
 #if 0

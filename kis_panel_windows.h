@@ -50,16 +50,16 @@ public:
 	virtual int KeyPress(int in_key);
 
 protected:
-	int mn_file, mn_view, mn_sort, mn_tools;
+	int mn_file, mn_sort, mn_tools, mn_plugins;
 	int mi_connect, mi_disconnect, mi_quit;
-
-	int mi_showtext, mi_showfields, mi_showinput;
 
 	int mi_sort_auto, mi_sort_type, mi_sort_chan, mi_sort_first, mi_sort_first_d,
 		mi_sort_last, mi_sort_last_d, mi_sort_bssid, mi_sort_ssid,
 		mi_sort_packets, mi_sort_packets_d;
 
 	int mi_addcard;
+
+	int mi_noplugins;
 
 	int connect_enable;
 

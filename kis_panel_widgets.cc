@@ -198,7 +198,10 @@ Kis_Menu::Kis_Menu(GlobalRegistry *in_globalreg, Kis_Panel *in_panel) :
 	globalreg = in_globalreg;
 	cur_menu = -1;
 	cur_item = -1;
+	sub_item = -1;
+	sub_menu = -1;
 	menuwin = NULL;
+	submenuwin = NULL;
 }
 
 Kis_Menu::~Kis_Menu() {
@@ -217,6 +220,8 @@ int Kis_Menu::AddMenu(string in_text, int targ_char) {
 	menu->width = 0;
 
 	menu->id = menubar.size();
+
+	menu->submenu = 0;
 
 	menubar.push_back(menu);
 
@@ -240,12 +245,35 @@ int Kis_Menu::AddMenuItem(string in_text, int menuid, char extra) {
 	else
 		item->enabled = 0;
 
+	item->submenu = -1;
+
 	menubar[menuid]->items.push_back(item);
 
 	if ((int) in_text.length() > menubar[menuid]->width)
 		menubar[menuid]->width = in_text.length();
 
 	return (menuid * 100) + item->id + 1;
+}
+
+int Kis_Menu::AddSubMenuItem(string in_text, int menuid, char extra) {
+	if (menuid < 0 || menuid > (int) menubar.size() - 1)
+		return -1;
+
+	// Add a new menu to the menu handling system, which gives us
+	// rational IDs and such.
+	int smenuid = AddMenu(in_text, 0);
+	// Mark the new menu record as a submenu so it doesn't get drawn
+	// in the menubar
+	menubar[smenuid]->submenu = 1;
+
+	// Add a menu item to the requested parent menu, and flag it as a submenu
+	// pointing to our menuid so we can find it during drawing
+	int sitem = AddMenuItem(in_text, menuid, extra);
+
+	menubar[menuid]->items[(sitem % 100) - 1]->submenu = smenuid;
+
+	// Return the id of the menu we made so we can add things to it
+	return smenuid;
 }
 
 void Kis_Menu::DisableMenuItem(int in_item) {
@@ -286,11 +314,89 @@ void Kis_Menu::ClearMenus() {
 void Kis_Menu::Activate(int subcomponent) {
 	cur_menu = subcomponent - 1;
 	cur_item = -1;
+	sub_menu = -1;
+	sub_item = -1;
 }
 
 void Kis_Menu::Deactivate() {
 	cur_menu = -1;
 	cur_item = -1;
+	sub_menu = -1;
+	sub_item = -1;
+}
+
+void Kis_Menu::DrawMenu(_menu *menu, WINDOW *win, int hpos, int vpos) {
+	_menu *submenu = NULL;
+	int subvpos = -1;
+	int subhpos = -1;
+
+	// Resize the menu window
+	wresize(win, menu->items.size() + 2, menu->width + 7);
+
+	// move it
+	mvderwin(win, vpos, hpos);
+
+	// Draw the box
+	box(win, 0, 0);
+
+	for (unsigned int y = 0; y < menu->items.size(); y++) {
+		string menuline;
+
+		// Shortcut out a spacer
+		if (menu->items[y]->text[0] == '-') {
+			mvwhline(win, 1 + y, 1, ACS_HLINE, menu->width + 5);
+			mvwaddch(win, 1 + y, 0, ACS_LTEE);
+			mvwaddch(win, 1 + y, menu->width + 6, ACS_RTEE);
+			continue;
+		}
+
+		// Hilight the current item
+		if ((int) y == cur_item || (int) y == sub_item)
+			wattron(win, WA_REVERSE);
+
+		// Dim a disabled item
+		if (menu->items[y]->enabled == 0)
+			wattron(win, WA_DIM);
+
+		// Format it with 'Foo     F'
+		menuline = menu->items[y]->text + " ";
+		for (unsigned int z = menuline.length(); 
+			 (int) z <= menu->width + 2; z++) {
+			menuline = menuline + string(" ");
+		}
+
+		if (menu->items[y]->submenu != -1) {
+			menuline = menuline + ">>";
+
+			// Draw again, using our submenu, if it's active
+			if (menu->items[y]->submenu == cur_menu) {
+				submenu = menubar[menu->items[y]->submenu];
+				subvpos = vpos + y;
+				subhpos = hpos + menu->width + 6;
+
+			}
+		} else {
+			menuline = menuline + " " + menu->items[y]->extrachar;
+		}
+
+		// Print it
+		mvwaddstr(win, 1 + y, 1, menuline.c_str());
+
+		// Dim a disabled item
+		if (menu->items[y]->enabled == 0)
+			wattroff(win, WA_DIM);
+
+		if ((int) y == cur_item || (int) y == sub_item)
+			wattroff(win, WA_REVERSE);
+	}
+
+	// Draw the expanded submenu
+	if (subvpos > 0 && subhpos > 0) {
+		if (submenuwin == NULL)
+			submenuwin = derwin(window, 1, 1, 0, 0);
+
+		DrawMenu(submenu, submenuwin, subhpos, subvpos);
+	}
 }
 
 void Kis_Menu::DrawComponent() {
@@ -306,8 +412,11 @@ void Kis_Menu::DrawComponent() {
 
 	// Draw the menu bar itself
 	for (unsigned int x = 0; x < menubar.size(); x++) {
+		if (menubar[x]->submenu)
+			continue;
+
 		// If the current menu is the selected one, hilight it
-		if ((int) x == cur_menu)
+		if ((int) x == cur_menu || (int) x == sub_menu)
 			wattron(window, WA_REVERSE);
 
 		// Draw the menu
@@ -325,57 +434,9 @@ void Kis_Menu::DrawComponent() {
 		mvwaddstr(window, sy, sx + hpos + menubar[x]->text.length(), " ");
 
 		// Draw the menu itself, if we've got an item selected in it
-		if ((int) x == cur_menu && cur_item >= 0) {
-			// Resize the menu window
-			wresize(menuwin, menubar[x]->items.size() + 2,
-					menubar[x]->width + 7);
-			// move it
-			mvderwin(menuwin, sy + 1, sx + hpos);
-			// Draw the box
-			box(menuwin, 0, 0);
-
-			for (unsigned int y = 0; y < menubar[x]->items.size(); y++) {
-				string menuline;
-
-				// Shortcut out a spacer
-				if (menubar[x]->items[y]->text[0] == '-') {
-					mvwhline(menuwin, 1 + y, 1, ACS_HLINE, menubar[x]->width + 5);
-					mvwaddch(menuwin, 1 + y, 0, ACS_LTEE);
-					mvwaddch(menuwin, 1 + y, menubar[x]->width + 6, ACS_RTEE);
-					/*
-					menuline = string(menubar[x]->width + 5, '-');
-					mvwaddstr(menuwin, 1 + y, 1, menuline.c_str());
-					*/
-					continue;
-				}
-
-				// Hilight the current item
-				if ((int) y == cur_item)
-					wattron(menuwin, WA_REVERSE);
-
-				// Dim a disabled item
-				if (menubar[x]->items[y]->enabled == 0)
-					wattron(menuwin, WA_DIM);
-
-				// Format it with 'Foo     F'
-				menuline = menubar[x]->items[y]->text + " ";
-				for (unsigned int z = menuline.length(); 
-					 (int) z <= menubar[x]->width + 2; z++) {
-					menuline = menuline + string(" ");
-				}
-
-				menuline = menuline + " " + menubar[x]->items[y]->extrachar;
-
-				// Print it
-				mvwaddstr(menuwin, 1 + y, 1, menuline.c_str());
-
-				// Dim a disabled item
-				if (menubar[x]->items[y]->enabled == 0)
-					wattroff(menuwin, WA_DIM);
-
-				if ((int) y == cur_item)
-					wattroff(menuwin, WA_REVERSE);
-			}
+		if (((int) x == cur_menu || (int) x == sub_menu) && 
+			(sub_item >= 0 || cur_item >= 0)) {
+			DrawMenu(menubar[x], menuwin, sx + hpos, sy + 1);
 		}
 
 		hpos += menubar[x]->text.length() + 1;
@@ -434,26 +495,63 @@ int Kis_Menu::KeyPress(int in_key) {
 
 	// Activate menu
 	if (in_key == '~' || in_key == '`' || in_key == 0x1B) {
-		if (cur_menu < 0)
+		if (cur_menu < 0) {
 			Activate(1);
-		else
+		} else {
+			// Break out of submenus 
+			if (sub_menu != -1) {
+				cur_menu = sub_menu;
+				cur_item = sub_item;
+				sub_menu = sub_item = -1;
+				return 0;
+			}
+
 			Deactivate();
+		}
 		return 0;
 	}
 
 	// Menu movement
-	if (in_key == KEY_RIGHT && cur_menu < (int) menubar.size() - 1 &&
-		cur_menu >= 0) {
-		cur_menu++;
-		cur_item = 0;
-		FindNextEnabledItem();
+	if (in_key == KEY_RIGHT && cur_menu >= 0) {
+
+		// Break out of submenus on l/r
+		if (sub_menu != -1) {
+			cur_menu = sub_menu;
+			cur_item = sub_item;
+			sub_menu = sub_item = -1;
+			return 0;
+		}
+
+		for (unsigned int nm = cur_menu + 1; nm < menubar.size(); nm++) {
+			if (menubar[nm]->submenu == 0) {
+				cur_menu = nm;
+				cur_item = 0;
+				FindNextEnabledItem();
+				break;
+			}
+		}
+			
 		return 0;
 	}
 
 	if (in_key == KEY_LEFT && cur_menu > 0) {
-		cur_menu--;
-		cur_item = 0;
-		FindNextEnabledItem();
+		// Break out of submenus on l/r
+		if (sub_menu != -1) {
+			cur_menu = sub_menu;
+			cur_item = sub_item;
+			sub_menu = sub_item = -1;
+			return 0;
+		}
+
+		for (int nm = cur_menu - 1; nm >= 0; nm--) {
+			if (menubar[nm]->submenu == 0) {
+				cur_menu = nm;
+				cur_item = 0;
+				FindNextEnabledItem();
+				break;
+			}
+		}
+
 		return 0;
 	}
 
@@ -494,6 +592,17 @@ int Kis_Menu::KeyPress(int in_key) {
 			FindNextEnabledItem();
 			return 0;
 		}
+
+		// Are we entering a submenu?
+		if (sub_menu == -1 && menubar[cur_menu]->items[cur_item]->submenu != -1) {
+			// Remember where we were
+			sub_menu = cur_menu;
+			sub_item = cur_item;
+			cur_menu = menubar[cur_menu]->items[cur_item]->submenu;
+			cur_item = 0;
+			return 0;
+		}
+
 		int ret = (cur_menu * 100) + cur_item + 1;
 		Deactivate();
 		return ret;
