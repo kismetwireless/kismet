@@ -38,9 +38,18 @@
 class ConfigFile {
 public:
 	ConfigFile() { checksum = 0; }
+
     int ParseConfig(const char *in_fname);
+	int SaveConfig(const char *in_fname);
+
     string FetchOpt(string in_key);
     vector<string> FetchOptVec(string in_key);
+
+	int FetchOptDirty(string in_key);
+	void SetOptDirty(string in_key, int in_dirty);
+
+	void SetOpt(string in_key, string in_val, int in_dirty);
+	void SetOptVec(string in_key, vector<string> in_val, int in_dirty);
 
     static string ExpandLogPath(string path, string logname, string type, 
 								int start, int overwrite = 0);
@@ -52,6 +61,7 @@ protected:
 	void CalculateChecksum();
 
     map<string, vector<string> > config_map;
+	map<string, int> config_map_dirty;
 	uint32_t checksum;
 	string ckstring;
 };

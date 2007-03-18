@@ -212,6 +212,26 @@ protected:
 	int tab_pos;
 };
 
+class Kis_Plugin_Picker : public Kis_Panel {
+	// Plugin picker lists .so files in the plugin director(ies) and lets 
+	// the user pick one to load.
+public:
+	Kis_Plugin_Picker() {
+		fprintf(stderr, "FATAL OOPS: Kis_Plugin_Picker called w/out globalreg\n");
+		exit(1);
+	}
+
+	Kis_Plugin_Picker(GlobalRegistry *in_globalreg, KisPanelInterface *in_intf);
+	virtual ~Kis_Plugin_Picker();
+
+	virtual void Position(int in_sy, int in_sx, int in_y, int in_x);
+	virtual void DrawPanel();
+	virtual int KeyPress(int in_key);
+
+protected:
+	Kis_Scrollable_Table *pluglist;
+};
+
 #endif
 
 #endif

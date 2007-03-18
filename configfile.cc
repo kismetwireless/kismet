@@ -73,6 +73,7 @@ int ConfigFile::ParseConfig(const char *in_fname) {
                     return -1;
             } else {
                 config_map[StrLower(directive)].push_back(value);
+                config_map_dirty[StrLower(directive)] = 1;
             }
         }
     }
@@ -80,6 +81,24 @@ int ConfigFile::ParseConfig(const char *in_fname) {
     fclose(configf);
 
     return 1;
+}
+
+int ConfigFile::SaveConfig(const char *in_fname) {
+	FILE *wf = NULL;
+
+	if ((wf = fopen(in_fname, "w")) == NULL) {
+		return -1;
+	}
+
+	for (map<string, vector<string> >::iterator x = config_map.begin();
+		 x != config_map.end(); ++x) {
+		for (unsigned int y = 0; y < x->second.size(); y++) {
+			fprintf(wf, "%s=%s\n", x->first.c_str(), x->second[y].c_str());
+		}
+	}
+
+	fclose(wf);
+	return 1;
 }
 
 string ConfigFile::FetchOpt(string in_key) {
@@ -108,6 +127,30 @@ vector<string> ConfigFile::FetchOptVec(string in_key) {
 
     return cmitr->second;
 }
+
+int ConfigFile::FetchOptDirty(string in_key) {
+	if (config_map_dirty.find(StrLower(in_key)) == config_map_dirty.end())
+		return 0;
+
+	return config_map_dirty[StrLower(in_key)];
+}
+
+void ConfigFile::SetOptDirty(string in_key, int in_dirty) {
+	config_map_dirty[StrLower(in_key)] = in_dirty;
+}
+
+void ConfigFile::SetOpt(string in_key, string in_val, int in_dirty) {
+	vector<string> v;
+	v.push_back(in_val);
+	config_map[StrLower(in_key)] = v;
+	SetOptDirty(in_key, in_dirty);
+}
+
+void ConfigFile::SetOptVec(string in_key, vector<string> in_val, int in_dirty) {
+	config_map[StrLower(in_key)] = in_val;
+	SetOptDirty(in_key, in_dirty);
+}
+
 
 // Expand a logfile into a full filename
 // Path/template from config

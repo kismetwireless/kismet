@@ -351,9 +351,15 @@ void Kis_Menu::DrawMenu(_menu *menu, WINDOW *win, int hpos, int vpos) {
 	_menu *submenu = NULL;
 	int subvpos = -1;
 	int subhpos = -1;
+	int dsz = 0;
 
-	// Resize the menu window
-	wresize(win, menu->items.size() + 2, menu->width + 7);
+	// Resize the menu window, taking invisible items into account.
+	for (unsigned int y = 0; y < menu->items.size(); y++) {
+		if (menu->items[y]->visible)
+			dsz++;
+	}
+
+	wresize(win, dsz + 2, menu->width + 7);
 
 	// move it
 	mvderwin(win, vpos, hpos);
@@ -361,6 +367,8 @@ void Kis_Menu::DrawMenu(_menu *menu, WINDOW *win, int hpos, int vpos) {
 	// Draw the box
 	box(win, 0, 0);
 
+	// Use dsz as the position to draw into
+	dsz = 0;
 	for (unsigned int y = 0; y < menu->items.size(); y++) {
 		string menuline;
 
@@ -369,9 +377,10 @@ void Kis_Menu::DrawMenu(_menu *menu, WINDOW *win, int hpos, int vpos) {
 
 		// Shortcut out a spacer
 		if (menu->items[y]->text[0] == '-') {
-			mvwhline(win, 1 + y, 1, ACS_HLINE, menu->width + 5);
-			mvwaddch(win, 1 + y, 0, ACS_LTEE);
-			mvwaddch(win, 1 + y, menu->width + 6, ACS_RTEE);
+			mvwhline(win, 1 + dsz, 1, ACS_HLINE, menu->width + 5);
+			mvwaddch(win, 1 + dsz, 0, ACS_LTEE);
+			mvwaddch(win, 1 + dsz, menu->width + 6, ACS_RTEE);
+			dsz++;
 			continue;
 		}
 
@@ -397,7 +406,7 @@ void Kis_Menu::DrawMenu(_menu *menu, WINDOW *win, int hpos, int vpos) {
 			// Draw again, using our submenu, if it's active
 			if (menu->items[y]->submenu == cur_menu) {
 				submenu = menubar[menu->items[y]->submenu];
-				subvpos = vpos + y;
+				subvpos = vpos + dsz;
 				subhpos = hpos + menu->width + 6;
 
 			}
@@ -406,7 +415,7 @@ void Kis_Menu::DrawMenu(_menu *menu, WINDOW *win, int hpos, int vpos) {
 		}
 
 		// Print it
-		mvwaddstr(win, 1 + y, 1, menuline.c_str());
+		mvwaddstr(win, 1 + dsz, 1, menuline.c_str());
 
 		// Dim a disabled item
 		if (menu->items[y]->enabled == 0)
@@ -415,6 +424,8 @@ void Kis_Menu::DrawMenu(_menu *menu, WINDOW *win, int hpos, int vpos) {
 		if (((int) menu->id == cur_menu && (int) y == cur_item) || 
 			((int) menu->id == sub_menu && (int) y == sub_item))
 			wattroff(win, WA_REVERSE);
+
+		dsz++;
 	}
 
 	// Draw the expanded submenu

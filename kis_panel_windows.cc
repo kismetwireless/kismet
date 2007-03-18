@@ -64,19 +64,6 @@ Kis_Main_Panel::Kis_Main_Panel(GlobalRegistry *in_globalreg,
 
 	mi_addcard = menu->AddMenuItem("Add Source...", mn_tools, 'A');
 
-#if 0
-	mn_tools = menu->AddMenu("Tools", 0);
-	menu->DisableMenuItem(menu->AddMenuItem("Network List...", mn_tools, 'n'));
-	menu->AddMenuItem("Client List...", mn_tools, 'c');
-	menu->DisableMenuItem(menu->AddMenuItem("Details...", mn_tools, 'd'));
-
-	menu->AddMenuItem("-", mn_tools, 0);
-
-	menu->AddMenuItem("Server List...", mn_tools, 'S');
-	menu->AddMenuItem("Capture Source List...", mn_tools, 'C');
-	menu->AddMenuItem("GPS...", mn_tools, 'G');
-#endif
-
 	menu->Show();
 
 	statustext = new Kis_Status_Text(globalreg, this);
@@ -94,7 +81,9 @@ Kis_Main_Panel::Kis_Main_Panel(GlobalRegistry *in_globalreg,
 	active_component = netlist;
 	comp_vec.push_back(netlist);
 
-	// SetTitle("Kismet Newcore Client");
+	if (kpinterface->prefs.FetchOpt("LOADEDFROMFILE") != "1") {
+		_MSG("Failed to load preferences file, will use defaults", MSGFLAG_INFO);
+	}
 }
 
 Kis_Main_Panel::~Kis_Main_Panel() {
@@ -160,27 +149,27 @@ int Kis_Main_Panel::KeyPress(int in_key) {
 				kpinterface->RemoveNetClient((*clivec)[0]);
 			}
 		} else if (ret == mi_sort_auto) {
-			kpinterface->SetPref("NETLIST_SORT", "auto", 1);
+			kpinterface->prefs.SetOpt("NETLIST_SORT", "auto", 1);
 		} else if (ret == mi_sort_type) {
-			kpinterface->SetPref("NETLIST_SORT", "type", 1);
+			kpinterface->prefs.SetOpt("NETLIST_SORT", "type", 1);
 		} else if (ret == mi_sort_chan) {
-			kpinterface->SetPref("NETLIST_SORT", "channel", 1);
+			kpinterface->prefs.SetOpt("NETLIST_SORT", "channel", 1);
 		} else if (ret == mi_sort_first) {
-			kpinterface->SetPref("NETLIST_SORT", "first", 1);
+			kpinterface->prefs.SetOpt("NETLIST_SORT", "first", 1);
 		} else if (ret == mi_sort_first_d) {
-			kpinterface->SetPref("NETLIST_SORT", "first_desc", 1);
+			kpinterface->prefs.SetOpt("NETLIST_SORT", "first_desc", 1);
 		} else if (ret == mi_sort_last) {
-			kpinterface->SetPref("NETLIST_SORT", "last", 1);
+			kpinterface->prefs.SetOpt("NETLIST_SORT", "last", 1);
 		} else if (ret == mi_sort_last_d) {
-			kpinterface->SetPref("NETLIST_SORT", "last_desc", 1);
+			kpinterface->prefs.SetOpt("NETLIST_SORT", "last_desc", 1);
 		} else if (ret == mi_sort_bssid) {
-			kpinterface->SetPref("NETLIST_SORT", "bssid", 1);
+			kpinterface->prefs.SetOpt("NETLIST_SORT", "bssid", 1);
 		} else if (ret == mi_sort_ssid) {
-			kpinterface->SetPref("NETLIST_SORT", "ssid", 1);
+			kpinterface->prefs.SetOpt("NETLIST_SORT", "ssid", 1);
 		} else if (ret == mi_sort_packets) {
-			kpinterface->SetPref("NETLIST_SORT", "packets", 1);
+			kpinterface->prefs.SetOpt("NETLIST_SORT", "packets", 1);
 		} else if (ret == mi_sort_packets_d) {
-			kpinterface->SetPref("NETLIST_SORT", "packets_desc", 1);
+			kpinterface->prefs.SetOpt("NETLIST_SORT", "packets_desc", 1);
 		} else if (ret == mi_addcard) {
 			vector<KisNetClient *> *cliref = kpinterface->FetchNetClientVecPtr();
 			if (cliref->size() == 0) {
@@ -716,6 +705,131 @@ int Kis_AddCard_Panel::KeyPress(int in_key) {
 			// Cancel and close
 			globalreg->panel_interface->KillPanel(this);
 		}
+	}
+
+	return 0;
+}
+
+Kis_Plugin_Picker::Kis_Plugin_Picker(GlobalRegistry *in_globalreg, 
+									 KisPanelInterface *in_intf) :
+	Kis_Panel(in_globalreg, in_intf) {
+
+	pluglist = new Kis_Scrollable_Table(globalreg, this);
+
+	comp_vec.push_back(pluglist);
+
+#if 0
+	// TODO -- Add name parsing to KISMET proto in netclient, add support here
+	vector<Kis_Scrollable_Table::title_data> titles;
+	Kis_Scrollable_Table::title_data t;
+	t.width = 16;
+	t.title = "Host";
+	t.alignment = 0;
+	titles.push_back(t);
+	t.width = 5;
+	t.title = "Port";
+	t.alignment = 2;
+	titles.push_back(t);
+	t.width = 4;
+	t.title = "Cntd";
+	t.alignment = 0;
+	titles.push_back(t);
+	t.width = 3;
+	t.title = "Rdy";
+	t.alignment = 0;
+	titles.push_back(t);
+	srvlist->AddTitles(titles);
+#endif
+
+	// Population is done during draw
+
+	active_component = pluglist;
+
+	pluglist->Activate(1);
+
+	SetTitle("");
+}
+
+Kis_Plugin_Picker::~Kis_Plugin_Picker() {
+}
+
+void Kis_Plugin_Picker::Position(int in_sy, int in_sx, int in_y, int in_x) {
+	Kis_Panel::Position(in_sy, in_sx, in_y, in_x);
+
+	pluglist->SetPosition(1, 1, in_x - 2, in_y - 2);
+
+	pluglist->Show();
+}
+
+void Kis_Plugin_Picker::DrawPanel() {
+	werase(win);
+
+	DrawTitleBorder();
+
+	// Grab the list of servers and populate with it.  We'll assume that the number
+	// of servers, and their order, cannot change while we're in the picker, since
+	// the user can't get at it.  We WILL have to handle updating the connection
+	// status based on the position key.  This is NOT A SAFE ASSUMPTION for any other
+	// of the picker types (like cards), so don't blind-copy this code later.
+#if 0
+	vector<string> td;
+	ostringstream osstr;
+	for (unsigned int x = 0; x < netcliref->size(); x++) {
+		td.clear();
+
+		td.push_back((*netcliref)[x]->FetchHost());
+
+		osstr << (*netcliref)[x]->FetchPort();
+		td.push_back(osstr.str());
+		osstr.str("");
+
+		if ((*netcliref)[x]->Valid()) {
+			td.push_back("Yes");
+			if ((*netcliref)[x]->FetchConfigured() < 0)
+				td.push_back("Tes");
+			else
+				td.push_back("No");
+		} else {
+			td.push_back("No");
+			td.push_back("No");
+		}
+
+		srvlist->ReplaceRow(x, td);
+	}
+#endif
+
+
+	for (unsigned int x = 0; x < comp_vec.size(); x++)
+		comp_vec[x]->DrawComponent();
+
+	wmove(win, 0, 0);
+}
+
+int Kis_Plugin_Picker::KeyPress(int in_key) {
+	int ret;
+	int listkey;
+	
+	// Rotate through the tabbed items
+	if (in_key == '\n' || in_key == '\r') {
+		listkey = pluglist->GetSelected();
+
+#if 0
+		// Sanity check, even though nothing should be able to change this
+		// while we're open since we claim the input.
+		// We could raise an alert but theres nothing the user could do 
+		// about it so we'll just silently close the window
+		if (plugkey >= 0 && listkey < (int) netcliref->size()) {
+			(*cb_hook)(globalreg, kpinterface, (*netcliref)[listkey], cb_aux);
+		}
+#endif
+
+		globalreg->panel_interface->KillPanel(this);
+	}
+
+	// Otherwise the menu didn't touch the key, so pass it to the top
+	// component
+	if (active_component != NULL) {
+		ret = active_component->KeyPress(in_key);
 	}
 
 	return 0;

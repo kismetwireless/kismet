@@ -38,6 +38,8 @@
 
 #include "kis_clinetframe.h"
 
+#include "kis_panel_plugin.h"
+
 class KisPanelInterface;
 
 // Our specialized actual kismet frontend
@@ -56,6 +58,11 @@ public:
 	KisPanelInterface();
 	KisPanelInterface(GlobalRegistry *in_globalreg);
 	virtual ~KisPanelInterface();
+
+	virtual void AddPanel(Kis_Panel *in_panel);
+
+	virtual int LoadPreferences();
+	virtual int SavePreferences();
 
 	// Add a new client
 	virtual int AddNetClient(string in_host, int in_reconnect);
@@ -122,11 +129,10 @@ public:
 		void *auxptr;
 	};
 
-	// Preference manipulators
-	void SetPref(string pref, string val, int dirty);
-	string GetPref(string pref);
-	int GetPrefDirty(string pref);
-	void SetPrefDirty(string pref, int dirty);
+	vector<panel_plugin_meta *> *FetchPluginVec() { return &plugin_vec; }
+
+	// Public so we don't have pointless wrappers
+	ConfigFile prefs;
 
 protected:
 	vector<KisNetClient *> netclient_vec;
@@ -138,9 +144,9 @@ protected:
 	vector<KisPanelInterface::addcli_cb_rec *> addclicb_vec;
 
 	// Map of all the settings and prefs
-	map<string, string> pref_map;
-	map<string, int> pref_map_dirty;
 
+	vector<panel_plugin_meta *> plugin_vec;
+	KisPanelPluginData plugdata;
 };
 
 #endif // panel

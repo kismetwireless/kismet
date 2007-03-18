@@ -337,15 +337,15 @@ int Kis_Netlist::UpdateBColPrefs() {
 	string pcols;
 
 	// Use a default set of columns if we don't find one
-	if ((pcols = kpinterface->GetPref("NETLIST_COLUMNS")) == "") {
+	if ((pcols = kpinterface->prefs.FetchOpt("NETLIST_COLUMNS")) == "") {
 		pcols = "decay,name,nettype,crypt,channel,packets,datasize";
-		kpinterface->SetPref("NETLIST_COLUMNS", pcols, 1);
+		kpinterface->prefs.SetOpt("NETLIST_COLUMNS", pcols, 1);
 	}
 
-	if (kpinterface->GetPrefDirty("NETLIST_COLUMNS") == 0)
+	if (kpinterface->prefs.FetchOptDirty("NETLIST_COLUMNS") == 0)
 		return 0;
 
-	kpinterface->SetPrefDirty("NETLIST_COLUMNS", 0);
+	kpinterface->prefs.SetOptDirty("NETLIST_COLUMNS", 0);
 
 	display_bcols.clear();
 
@@ -398,15 +398,15 @@ int Kis_Netlist::UpdateBExtPrefs() {
 	string pcols;
 
 	// Use a default set of columns if we don't find one
-	if ((pcols = kpinterface->GetPref("NETLIST_EXTRAS")) == "") {
+	if ((pcols = kpinterface->prefs.FetchOpt("NETLIST_EXTRAS")) == "") {
 		pcols = "bssid,lastseen,crypt,ip,manuf,model";
-		kpinterface->SetPref("NETLIST_EXTRAS", pcols, 1);
+		kpinterface->prefs.SetOpt("NETLIST_EXTRAS", pcols, 1);
 	}
 
-	if (kpinterface->GetPrefDirty("NETLIST_EXTRAS") == 0)
+	if (kpinterface->prefs.FetchOptDirty("NETLIST_EXTRAS") == 0)
 		return 0;
 
-	kpinterface->SetPrefDirty("NETLIST_EXTRAS", 0);
+	kpinterface->prefs.SetOptDirty("NETLIST_EXTRAS", 0);
 
 	display_bexts.clear();
 
@@ -440,15 +440,15 @@ int Kis_Netlist::UpdateSortPrefs() {
 	string sort;
 
 	// Use a default set of columns if we don't find one
-	if ((sort = kpinterface->GetPref("NETLIST_SORT")) == "") {
+	if ((sort = kpinterface->prefs.FetchOpt("NETLIST_SORT")) == "") {
 		sort = "auto";
-		kpinterface->SetPref("NETLIST_SORT", sort, 1);
+		kpinterface->prefs.SetOpt("NETLIST_SORT", sort, 1);
 	}
 
-	if (kpinterface->GetPrefDirty("NETLIST_SORT") == 0)
+	if (kpinterface->prefs.FetchOptDirty("NETLIST_SORT") == 0)
 		return 0;
 
-	kpinterface->SetPrefDirty("NETLIST_SORT", 0);
+	kpinterface->prefs.SetOptDirty("NETLIST_SORT", 0);
 
 	sort = StrLower(sort);
 
@@ -1021,7 +1021,7 @@ void Kis_Netlist::UpdateTrigger(void) {
 	// could get fixed.
 	
 	// Show extended info?
-	if (kpinterface->GetPref("NETLIST_SHOWEXT") == "0")
+	if (kpinterface->prefs.FetchOpt("NETLIST_SHOWEXT") == "0")
 		show_ext_info = 0;
 	else
 		show_ext_info = 1;
@@ -1839,6 +1839,13 @@ int Kis_Netlist::KeyPress(int in_key) {
 	}
 
 	return 0;
+}
+
+Kis_Display_NetGroup *Kis_Netlist::FetchSelectedNetgroup() {
+	if (selected_line < 0 || selected_line >= (int) display_vec.size())
+		return NULL;
+
+	return display_vec[selected_line];
 }
 
 #endif // panel

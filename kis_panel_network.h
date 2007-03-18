@@ -122,7 +122,7 @@ public:
 	// Number of lines used in the display, used to recalculate for scrolling
 	void SetNLines(int nl) { nline = nl; }
 	int GetNLines() { return nline; }
-	
+
 protected:
 	// Do we need to update?
 	int dirty; 
@@ -189,6 +189,14 @@ public:
 
 	// Trigger a sort and redraw update
 	void UpdateTrigger(void);
+
+	// Fetch a pointer to the currently selected group
+	Kis_Display_NetGroup *FetchSelectedNetgroup();
+
+	// Fetch a pointer to the display vector (don't change this!  bad things will
+	// happen!)
+	vector<Kis_Display_NetGroup *> *FetchDisplayVector() { return &display_vec; }
+	
 
 protected:
 	// Columns we accept

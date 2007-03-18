@@ -21,6 +21,9 @@
 // Panel has to be here to pass configure, so just test these
 #if (defined(HAVE_LIBNCURSES) || defined (HAVE_LIBCURSES))
 
+#include <sys/stat.h>
+#include <sys/types.h>
+
 #include "util.h"
 #include "messagebus.h"
 #include "kis_panel_widgets.h"
@@ -146,10 +149,23 @@ KisPanelInterface::KisPanelInterface() {
 KisPanelInterface::KisPanelInterface(GlobalRegistry *in_globalreg) :
 	PanelInterface(in_globalreg) {
 	globalreg = in_globalreg;
+
+	// Load the preferences file
+	LoadPreferences();
+
+	// Initialize the plugin data record.  The first panel to get added
+	// to us is the main panel.
+	plugdata.kpinterface = this;
+	plugdata.mainpanel = NULL;
+
+	// Fill the plugin paths if they haven't been found
+
 	addcb_ref = 0;
 }
 
 KisPanelInterface::~KisPanelInterface() {
+	SavePreferences();
+
 	Remove_AllNetcli_ProtoHandler("STATUS", KisPanelClient_STATUS, this);
 	Remove_AllNetcli_ProtoHandler("CARD", KisPanelClient_CARD, this);
 
@@ -161,6 +177,40 @@ KisPanelInterface::~KisPanelInterface() {
 
 	for (unsigned int x = 0; x < netclient_vec.size(); x++)
 		delete netclient_vec[x];
+}
+
+void KisPanelInterface::AddPanel(Kis_Panel *in_panel) {
+	PanelInterface::AddPanel(in_panel);
+
+	if (plugdata.mainpanel == NULL)
+		plugdata.mainpanel = (Kis_Main_Panel *) in_panel;
+}
+
+int KisPanelInterface::LoadPreferences() {
+	if (prefs.ParseConfig(prefs.ExpandLogPath("%h/.kismet/kismet_ui.conf",
+											  "", "", 0, 1).c_str())) 
+		prefs.SetOpt("LOADEDFROMFILE", "1", 0);
+
+	return 1;
+}
+
+int KisPanelInterface::SavePreferences() {
+	// Try to make the dir
+	int ret;
+
+	string dir = prefs.ExpandLogPath("%h/.kismet", "", "", 0, 1);
+
+	ret = mkdir(dir.c_str(), S_IRUSR | S_IWUSR | S_IXUSR);
+
+	if (ret < 0 && errno != EEXIST) {
+		_MSG("Failed to create dir " + dir + ": " + string(strerror(errno)),
+			 MSGFLAG_ERROR);
+	}
+
+	ret = prefs.SaveConfig(prefs.ExpandLogPath("%h/.kismet/kismet_ui.conf",
+											   "", "", 0, 1).c_str());
+
+	return ret;
 }
 
 int KisPanelInterface::AddNetClient(string in_host, int in_reconnect) {
@@ -293,29 +343,6 @@ void KisPanelInterface::Remove_Netcli_AddCli_CB(int in_cbref) {
 			return;
 		}
 	}
-}
-
-void KisPanelInterface::SetPref(string pref, string val, int dirty) {
-	pref_map[StrUpper(pref)] = val;
-	pref_map_dirty[StrUpper(pref)] = dirty;
-}
-
-string KisPanelInterface::GetPref(string pref) {
-	if (pref_map.find(StrUpper(pref)) == pref_map.end())
-		return "";
-
-	return pref_map[StrUpper(pref)];
-}
-
-int KisPanelInterface::GetPrefDirty(string pref) {
-	if (pref_map_dirty.find(StrUpper(pref)) == pref_map_dirty.end())
-		return 0;
-
-	return pref_map_dirty[StrUpper(pref)];
-}
-
-void KisPanelInterface::SetPrefDirty(string pref, int dirty) {
-	pref_map_dirty[StrUpper(pref)] = dirty;
 }
 
 #endif
