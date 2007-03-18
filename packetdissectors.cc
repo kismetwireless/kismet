@@ -546,6 +546,10 @@ int KisBuiltinDissector::ieee80211_dissector(kis_packet *in_pack) {
 
     frame_control *fc = (frame_control *) chunk->data;
 
+	// Inherit the FC privacy flag
+	if (fc->wep)
+		packinfo->cryptset |= crypt_wep;
+
     uint16_t duration = 0;
 
     // 18 bytes of normal address ranges
@@ -1606,7 +1610,7 @@ int KisBuiltinDissector::basicdata_dissector(kis_packet *in_pack) {
 		if ((header_offset + DHCPD_OFFSET +
 			 sizeof(DHCPD_SIGNATURE)) < chunk->length &&
 			memcmp(&(chunk->data[header_offset + DHCPD_OFFSET]),
-				   DHCPD_SIGNATURE, sizeof(DHCPD_SIGNATURE)) == 0) {
+				   DHCPD_SIGNATURE, sizeof(DHCPD_SIGNATURE)) == 0) { 
 			datainfo->proto = proto_dhcp_offer;
 
 			// Now we go through the dhcp options until we find 1, 3, and 53
