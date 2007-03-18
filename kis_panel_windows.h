@@ -36,19 +36,6 @@ class KisPanelInterface;
 	KisNetClient *picked, void *auxptr
 typedef void (*kpi_sl_cb_hook)(KPI_SL_CB_PARMS);
 
-// Used as the bitfield of modified fields for smarter sorting, too
-#define KIS_SORT_AUTO		0
-#define KIS_SORT_CHANNEL	1
-#define KIS_SORT_FIRST		2
-#define KIS_SORT_FIRST_D	4
-#define KIS_SORT_LAST		8
-#define KIS_SORT_LAST_D		16
-#define KIS_SORT_BSSID		32
-#define KIS_SORT_SSID		64
-#define KIS_SORT_PACKETS	128
-#define KIS_SORT_PACKETS_D	256
-#define KIS_SORT_TYPE		512
-
 class Kis_Main_Panel : public Kis_Panel {
 public:
 	Kis_Main_Panel() {
@@ -64,7 +51,7 @@ public:
 
 protected:
 	int mn_file, mn_view, mn_sort, mn_tools;
-	int mi_connect, mi_quit;
+	int mi_connect, mi_disconnect, mi_quit;
 
 	int mi_showtext, mi_showfields, mi_showinput;
 
@@ -73,6 +60,8 @@ protected:
 		mi_sort_packets, mi_sort_packets_d;
 
 	int mi_addcard;
+
+	int connect_enable;
 
 	int sortmode;
 

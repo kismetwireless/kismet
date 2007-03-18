@@ -33,8 +33,13 @@ Kis_Main_Panel::Kis_Main_Panel(GlobalRegistry *in_globalreg,
 
 	mn_file = menu->AddMenu("Kismet", 0);
 	mi_connect = menu->AddMenuItem("Connect...", mn_file, 'C');
+	mi_disconnect = menu->AddMenuItem("Disconnect", mn_file, 'D');
 	menu->AddMenuItem("-", mn_file, 0);
 	mi_quit = menu->AddMenuItem("Quit", mn_file, 'Q');
+
+	menu->EnableMenuItem(mi_connect);
+	menu->DisableMenuItem(mi_disconnect);
+	connect_enable = 1;
 
 	mn_view = menu->AddMenu("Show", 1);
 	mi_showtext = menu->AddMenuItem("Text", mn_view, 't');
@@ -119,6 +124,18 @@ void Kis_Main_Panel::DrawPanel() {
 
 int Kis_Main_Panel::KeyPress(int in_key) {
 	int ret;
+
+	vector<KisNetClient *> *clivec = kpinterface->FetchNetClientVecPtr();
+
+	if (clivec->size() == 0 && connect_enable == 0) {
+		menu->EnableMenuItem(mi_connect);
+		menu->DisableMenuItem(mi_disconnect);
+		connect_enable = 1;
+	} else if (clivec->size() > 0 && connect_enable) {
+		menu->EnableMenuItem(mi_disconnect);
+		menu->DisableMenuItem(mi_connect);
+		connect_enable = 0;
+	}
 	
 	// Give the menu first shot, it'll ignore the key if it didn't have 
 	// anything open.
@@ -136,7 +153,11 @@ int Kis_Main_Panel::KeyPress(int in_key) {
 		} else if (ret == mi_connect) {
 			Kis_Connect_Panel *cp = new Kis_Connect_Panel(globalreg, kpinterface);
 			cp->Position((LINES / 2) - 4, (COLS / 2) - 20, 8, 40);
-			globalreg->panel_interface->AddPanel(cp);
+			kpinterface->AddPanel(cp);
+		} else if (ret == mi_disconnect) {
+			if (clivec->size() > 0) {
+				kpinterface->RemoveNetClient((*clivec)[0]);
+			}
 		} else if (ret == mi_sort_auto) {
 			kpinterface->SetPref("NETLIST_SORT", "auto", 1);
 		} else if (ret == mi_sort_type) {

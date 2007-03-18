@@ -327,6 +327,11 @@ int main(int argc, char *argv[], char *envp[]) {
 	kcli->Connect("tcp://localhost:2501", 1);
 #endif
 
+	globalregistry->messagebus->InjectMessage("Welcome to the Kismet Newcore "
+											  "Client... Press '`' or '~' to "
+											  "activate menus.", 
+											  MSGFLAG_INFO);
+
 	int max_fd = 0;
 	fd_set rset, wset;
 	struct timeval tm;
