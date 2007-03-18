@@ -446,8 +446,8 @@ int Plugintracker::ShutdownPlugins() {
 }
 
 int Plugintracker::BlitPlugins(int in_fd) {
-	kis_protocol_cache cache;
 	for (unsigned int x = 0; x < plugin_vec.size(); x++) {
+		kis_protocol_cache cache;
 		globalreg->kisnetserver->SendToClient(in_fd, plugins_protoref,
 											  (void *) plugin_vec[x], &cache);
 	}

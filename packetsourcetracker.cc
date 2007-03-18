@@ -104,6 +104,66 @@ void Protocol_CARD_enable(PROTO_ENABLE_PARMS) {
 	return;
 }
 
+char *SOURCE_fields_text[] = {
+	"type", "root", "defaultchanset", "initchan",
+	NULL
+};
+
+int Protocol_SOURCE(PROTO_PARMS) {
+	packsource_protorec *csrc = (packsource_protorec *) data;
+	ostringstream osstr;
+
+	// Allocate the cache
+	cache->Filled(field_vec->size());
+
+	for (unsigned int x = 0; x < field_vec->size(); x++) {
+		unsigned int fnum = (*field_vec)[x];
+		if (fnum >= SOURCE_maxfield) {
+			out_string = "Unknown field requested";
+			return -1;
+		}
+
+		osstr.str("");
+
+		if (cache->Filled(fnum)) {
+			out_string += cache->GetCache(fnum) + " ";
+			continue;
+		}
+
+		// Fill in the cached element
+		switch (fnum) {
+			case SOURCE_type:
+				cache->Cache(fnum, csrc->type);
+				break;
+
+			case SOURCE_root:
+				cache->Cache(fnum, csrc->root_required ? "1" : "0");
+				break;
+
+			case SOURCE_defaultchan:
+				cache->Cache(fnum, csrc->default_channelset);
+				break;
+
+			case SOURCE_initchan:
+				osstr << csrc->initial_channel;
+				break;
+		}
+
+		out_string += cache->GetCache(fnum) + " ";
+	}
+
+    return 1;
+}
+
+// Enable hook to blit known cards
+void Protocol_SOURCE_enable(PROTO_ENABLE_PARMS) {
+	Packetsourcetracker *pstrak = (Packetsourcetracker *) data;
+
+	pstrak->BlitSources(in_fd);
+
+	return;
+}
+
 int Clicmd_CHANLOCK_hook(CLIENT_PARMS) {
 	return 
 		((Packetsourcetracker *) auxptr)->cmd_chanlock(in_clid, framework,
@@ -464,6 +524,12 @@ Packetsourcetracker::Packetsourcetracker(GlobalRegistry *in_globalreg) {
 												  CARD_fields_text,
 												  &Protocol_CARD,
 												  &Protocol_CARD_enable,
+												  this);
+	source_protoref =
+		globalreg->kisnetserver->RegisterProtocol("SOURCE", 0, 1,
+												  SOURCE_fields_text,
+												  &Protocol_SOURCE,
+												  &Protocol_SOURCE_enable,
 												  this);
 	// Register the card commands
 	cmdid_chanlock =
@@ -1721,9 +1787,9 @@ int Packetsourcetracker::ShutdownIPCSources() {
 }
 
 void Packetsourcetracker::BlitCards(int in_fd) {
-	kis_protocol_cache cache;
-
 	for (unsigned int x = 0; x < live_packsources.size(); x++) {
+		kis_protocol_cache cache;
+
 		if (in_fd == -1) {
 			if (globalreg->kisnetserver->SendToAll(card_protoref, 
 												   (void *) live_packsources[x]) < 0)
@@ -1731,6 +1797,24 @@ void Packetsourcetracker::BlitCards(int in_fd) {
 		} else {
 			if (globalreg->kisnetserver->SendToClient(in_fd, card_protoref,
 													  (void *) live_packsources[x],
+													  &cache) < 0)
+				break;
+		}
+	}
+}
+
+void Packetsourcetracker::BlitSources(int in_fd) {
+	for (map<string, packsource_protorec *>::iterator x = cardtype_map.begin();
+		 x != cardtype_map.end(); ++x) {
+		kis_protocol_cache cache;
+
+		if (in_fd == -1) {
+			if (globalreg->kisnetserver->SendToAll(source_protoref, 
+												   (void *) x->second) < 0)
+				break;
+		} else {
+			if (globalreg->kisnetserver->SendToClient(in_fd, source_protoref,
+													  (void *) x->second,
 													  &cache) < 0)
 				break;
 		}

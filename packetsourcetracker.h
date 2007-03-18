@@ -177,6 +177,7 @@ public:
 
 	// Blit out what we know about
 	void BlitCards(int in_fd);
+	void BlitSources(int in_fd);
 
 	// Find a source by the UUID
 	KisPacketSource *FindUUID(uuid in_id);
@@ -226,7 +227,7 @@ protected:
 
     GlobalRegistry *globalreg;
 
-	int card_protoref;
+	int card_protoref, source_protoref;
 	int hop_eventid;
 	int card_eventid;
     
@@ -332,6 +333,14 @@ extern char *CARD_fields_text[];
 
 int Protocol_CARD(PROTO_PARMS);
 void Protocol_CARD_enable(PROTO_ENABLE_PARMS);
+
+enum SOURCE_fields {
+	SOURCE_type, SOURCE_root, SOURCE_defaultchan, SOURCE_initchan,
+	SOURCE_maxfield
+};
+
+int Protocol_SOURCE(PROTO_PARMS);
+void Protocol_SOURCE_enable(PROTO_ENABLE_PARMS);
 
 #endif
 
