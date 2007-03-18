@@ -222,10 +222,18 @@ int Kis_Menu::AddMenu(string in_text, int targ_char) {
 	menu->id = menubar.size();
 
 	menu->submenu = 0;
+	menu->visible = 1;
 
 	menubar.push_back(menu);
 
 	return menu->id;
+}
+
+void Kis_Menu::SetMenuVis(int in_menu, int in_vis) {
+	if (in_menu < 0 || in_menu > (int) menubar.size() - 1)
+		return;
+
+	menubar[in_menu]->visible = in_vis;
 }
 
 int Kis_Menu::AddMenuItem(string in_text, int menuid, char extra) {
@@ -238,6 +246,7 @@ int Kis_Menu::AddMenuItem(string in_text, int menuid, char extra) {
 	item->text = in_text;
 	item->extrachar = extra;
 	item->id = menubar[menuid]->items.size();
+	item->visible = 1;
 
 	// Auto-disable spacers
 	if (item->text[0] != '-')
@@ -302,6 +311,19 @@ void Kis_Menu::EnableMenuItem(int in_item) {
 	menubar[mid]->items[iid]->enabled = 1;
 }
 
+void Kis_Menu::SetMenuItemVis(int in_item, int in_vis) {
+	int mid = in_item / 100;
+	int iid = (in_item % 100) - 1;
+
+	if (mid < 0 || mid >= (int) menubar.size())
+		return;
+
+	if (iid < 0 || iid > (int) menubar[mid]->items.size())
+		return;
+
+	menubar[mid]->items[iid]->visible = in_vis;
+}
+
 void Kis_Menu::ClearMenus() {
 	// Deconstruct the menubar
 	for (unsigned int x = 0; x < menubar.size(); x++) {
@@ -342,6 +364,9 @@ void Kis_Menu::DrawMenu(_menu *menu, WINDOW *win, int hpos, int vpos) {
 	for (unsigned int y = 0; y < menu->items.size(); y++) {
 		string menuline;
 
+		if (menu->items[y]->visible == 0)
+			continue;
+
 		// Shortcut out a spacer
 		if (menu->items[y]->text[0] == '-') {
 			mvwhline(win, 1 + y, 1, ACS_HLINE, menu->width + 5);
@@ -351,7 +376,8 @@ void Kis_Menu::DrawMenu(_menu *menu, WINDOW *win, int hpos, int vpos) {
 		}
 
 		// Hilight the current item
-		if ((int) y == cur_item || (int) y == sub_item)
+		if (((int) menu->id == cur_menu && (int) y == cur_item) || 
+			((int) menu->id == sub_menu && (int) y == sub_item))
 			wattron(win, WA_REVERSE);
 
 		// Dim a disabled item
@@ -386,7 +412,8 @@ void Kis_Menu::DrawMenu(_menu *menu, WINDOW *win, int hpos, int vpos) {
 		if (menu->items[y]->enabled == 0)
 			wattroff(win, WA_DIM);
 
-		if ((int) y == cur_item || (int) y == sub_item)
+		if (((int) menu->id == cur_menu && (int) y == cur_item) || 
+			((int) menu->id == sub_menu && (int) y == sub_item))
 			wattroff(win, WA_REVERSE);
 	}
 
@@ -412,7 +439,7 @@ void Kis_Menu::DrawComponent() {
 
 	// Draw the menu bar itself
 	for (unsigned int x = 0; x < menubar.size(); x++) {
-		if (menubar[x]->submenu)
+		if (menubar[x]->submenu || menubar[x]->visible == 0)
 			continue;
 
 		// If the current menu is the selected one, hilight it
@@ -447,16 +474,13 @@ void Kis_Menu::FindNextEnabledItem() {
 	// Handle disabled and spacer items
 	if (menubar[cur_menu]->items[cur_item]->enabled == 0) {
 		// find the next enabled item
-		for (int i = cur_item + 1; i < (int) menubar[cur_menu]->items.size(); i++) {
+		for (int i = cur_item; i <= (int) menubar[cur_menu]->items.size(); i++) {
 			// Loop
 			if (i >= (int) menubar[cur_menu]->items.size())
 				i = 0;
 
-			// Bail on a full loop
-			if (i == cur_item) {
-				cur_item = -1;
-				break;
-			}
+			if (menubar[cur_menu]->items[i]->visible == 0)
+				continue;
 
 			if (menubar[cur_menu]->items[i]->enabled) {
 				cur_item = i;
@@ -470,16 +494,13 @@ void Kis_Menu::FindPrevEnabledItem() {
 	// Handle disabled and spacer items
 	if (menubar[cur_menu]->items[cur_item]->enabled == 0) {
 		// find the next enabled item
-		for (int i = cur_item - 1; i >= -1; i--) {
+		for (int i = cur_item; i >= -1; i--) {
 			// Loop
 			if (i < 0)
 				i = menubar[cur_menu]->items.size() - 1;
 
-			// Bail on a full loop
-			if (i == cur_item) {
-				cur_item = -1;
-				break;
-			}
+			if (menubar[cur_menu]->items[i]->visible == 0)
+				continue;
 
 			if (menubar[cur_menu]->items[i]->enabled) {
 				cur_item = i;

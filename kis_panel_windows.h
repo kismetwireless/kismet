@@ -59,7 +59,7 @@ protected:
 
 	int mi_addcard;
 
-	int mi_noplugins;
+	int mi_addplugin, mi_noplugins;
 
 	int connect_enable;
 

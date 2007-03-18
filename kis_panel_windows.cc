@@ -57,7 +57,9 @@ Kis_Main_Panel::Kis_Main_Panel(GlobalRegistry *in_globalreg,
 
 	mn_tools = menu->AddMenu("Tools", 0);
 	mn_plugins = menu->AddSubMenuItem("Plugins", mn_tools, 'x');
-	mi_noplugins = menu->AddMenuItem("No plugins available", mn_plugins, 'N');
+	mi_addplugin = menu->AddMenuItem("Add Plugin...", mn_plugins, 'P');
+	menu->AddMenuItem("-", mn_plugins, 0);
+	mi_noplugins = menu->AddMenuItem("No plugins available...", mn_plugins, 0);
 	menu->DisableMenuItem(mi_noplugins);
 
 	mi_addcard = menu->AddMenuItem("Add Source...", mn_tools, 'A');

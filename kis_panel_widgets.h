@@ -147,11 +147,17 @@ public:
 
 	// Add a menu & the hilighted character offset
 	virtual int AddMenu(string in_text, int targ_char);
+	// We can't delete, but we can hide a menu
+	virtual void SetMenuVis(int in_menu, int in_vis);
+
 	// Add an item to a menu ID
 	virtual int AddMenuItem(string in_text, int menuid, char extra);
 	// Add a submenu item to a menu ID, returns a menu we can add things
 	// to for them to show up in the submenu
 	virtual int AddSubMenuItem(string in_text, int menuid, char extra);
+	// We can't delete, again, but we can hide
+	virtual void SetMenuItemVis(int in_item, int in_vis);
+
 	// Delete all the menus
 	virtual void ClearMenus();
 
@@ -165,6 +171,7 @@ public:
 		int id;
 		int enabled;
 		int submenu;
+		int visible;
 	};
 
 	typedef struct _menu {
@@ -174,6 +181,7 @@ public:
 		int width;
 		int id;
 		int submenu;
+		int visible;
 	};
 
 protected:
