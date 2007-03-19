@@ -29,6 +29,8 @@
 #include "kis_panel_widgets.h"
 #include "kis_panel_network.h"
 
+#include "kis_panel_plugin.h"
+
 class KisPanelInterface;
 
 // Callback for the frontend to pick a server
@@ -49,6 +51,16 @@ public:
 	virtual void DrawPanel();
 	virtual int KeyPress(int in_key);
 
+	// Add a plugin to the plugin menu
+	virtual void AddPluginMenuItem(string in_name, int (*callback)(void *),
+								   void *auxptr);
+
+	typedef struct plugin_menu_opt {
+		int menuitem;
+		int (*callback)(void *);
+		void *auxptr;
+	};
+
 protected:
 	int mn_file, mn_sort, mn_tools, mn_plugins;
 	int mi_connect, mi_disconnect, mi_quit;
@@ -68,6 +80,8 @@ protected:
 	KisStatusText_Messageclient *statuscli;
 	Kis_Status_Text *statustext;
 	Kis_Netlist *netlist;
+
+	vector<Kis_Main_Panel::plugin_menu_opt> plugin_menu_vec;
 };
 
 class Kis_Connect_Panel : public Kis_Panel {
@@ -230,6 +244,7 @@ public:
 
 protected:
 	Kis_Scrollable_Table *pluglist;
+	vector<panel_plugin_meta> listedplugins;
 };
 
 #endif

@@ -23,6 +23,7 @@
 
 #include <sys/stat.h>
 #include <sys/types.h>
+#include <dlfcn.h>
 
 #include "util.h"
 #include "messagebus.h"
@@ -152,6 +153,14 @@ KisPanelInterface::KisPanelInterface(GlobalRegistry *in_globalreg) :
 
 	// Load the preferences file
 	LoadPreferences();
+
+	// Update the plugin dirs if we didn't get them
+	if (prefs.FetchOptVec("PLUGINDIR").size() == 0) {
+		vector<string> pdv;
+		pdv.push_back("%h/.kismet/client_plugins/");
+		pdv.push_back(string(LIB_LOC) + "/kismet_client/");
+		prefs.SetOptVec("PLUGINDIR", pdv, 1);
+	}
 
 	// Initialize the plugin data record.  The first panel to get added
 	// to us is the main panel.
@@ -343,6 +352,38 @@ void KisPanelInterface::Remove_Netcli_AddCli_CB(int in_cbref) {
 			return;
 		}
 	}
+}
+
+void KisPanelInterface::LoadPlugin(string in_fname, string in_objname) {
+	void *dlfile;
+	panel_plugin_hook plughook;
+
+	if ((dlfile = dlopen(in_fname.c_str(), RTLD_LAZY)) == NULL) {
+		_MSG("Failed to open plugin '" + in_fname + "': " +
+			 dlerror(), MSGFLAG_ERROR);
+		return;
+	}
+
+	if ((plughook = (panel_plugin_hook) dlsym(dlfile, "panel_plugin_init")) == NULL) {
+		_MSG("Failed to find 'panel_plugin_init' function in plugin '" + in_fname + 
+			 "': " + strerror(errno), MSGFLAG_ERROR);
+		dlclose(dlfile);
+		return;
+	}
+
+	int ret;
+	ret = (*(plughook))(globalreg, &plugdata);
+
+	if (ret < 0) {
+		_MSG("Failed to initialize plugin '" + in_fname + "'", MSGFLAG_ERROR);
+		dlclose(dlfile);
+		return;
+	}
+
+	panel_plugin_meta *pm = new panel_plugin_meta;
+	pm->filename = in_fname;
+	pm->objectname = in_objname;
+	pm->dlfileptr = dlfile;
 }
 
 #endif

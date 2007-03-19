@@ -129,6 +129,7 @@ public:
 		void *auxptr;
 	};
 
+	void LoadPlugin(string in_fname, string in_objname);
 	vector<panel_plugin_meta *> *FetchPluginVec() { return &plugin_vec; }
 
 	// Public so we don't have pointless wrappers

@@ -21,6 +21,13 @@
 // Panel has to be here to pass configure, so just test these
 #if (defined(HAVE_LIBNCURSES) || defined (HAVE_LIBCURSES))
 
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
+#include <errno.h>
+#include <unistd.h>
+#include <dirent.h>
+
 #include "kis_panel_widgets.h"
 #include "kis_panel_frontend.h"
 #include "kis_panel_windows.h"
@@ -184,6 +191,17 @@ int Kis_Main_Panel::KeyPress(int in_key) {
 											   NULL);
 			}
 
+		} else if (ret == mi_addplugin) {
+			Kis_Plugin_Picker *pp = new Kis_Plugin_Picker(globalreg, kpinterface);
+			pp->Position((LINES / 2) - 8, (COLS / 2) - 20, 16, 50);
+			kpinterface->AddPanel(pp);
+		} else {
+			for (unsigned int p = 0; p < plugin_menu_vec.size(); p++) {
+				if (ret == plugin_menu_vec[p].menuitem) {
+					(*(plugin_menu_vec[p].callback))(plugin_menu_vec[p].auxptr);
+					break;
+				}
+			}
 		}
 
 		return 0;
@@ -201,6 +219,19 @@ int Kis_Main_Panel::KeyPress(int in_key) {
 	}
 
 	return 0;
+}
+
+void Kis_Main_Panel::AddPluginMenuItem(string in_name, int (*callback)(void *),
+									   void *auxptr) {
+	plugin_menu_opt mo;
+
+	// Hide the "no plugins" menu and make our own item
+	menu->SetMenuItemVis(mi_noplugins, 0);
+	mo.menuitem = menu->AddMenuItem(in_name, mn_plugins, 0);
+	mo.callback = callback;
+	mo.auxptr = auxptr;
+
+	plugin_menu_vec.push_back(mo);
 }
 
 Kis_Connect_Panel::Kis_Connect_Panel(GlobalRegistry *in_globalreg, 
@@ -718,30 +749,93 @@ Kis_Plugin_Picker::Kis_Plugin_Picker(GlobalRegistry *in_globalreg,
 
 	comp_vec.push_back(pluglist);
 
-#if 0
-	// TODO -- Add name parsing to KISMET proto in netclient, add support here
 	vector<Kis_Scrollable_Table::title_data> titles;
 	Kis_Scrollable_Table::title_data t;
-	t.width = 16;
-	t.title = "Host";
+	t.width = 55;
+	t.title = "Plugin";
 	t.alignment = 0;
 	titles.push_back(t);
-	t.width = 5;
-	t.title = "Port";
-	t.alignment = 2;
-	titles.push_back(t);
-	t.width = 4;
-	t.title = "Cntd";
-	t.alignment = 0;
-	titles.push_back(t);
-	t.width = 3;
-	t.title = "Rdy";
-	t.alignment = 0;
-	titles.push_back(t);
-	srvlist->AddTitles(titles);
-#endif
 
-	// Population is done during draw
+	pluglist->AddTitles(titles);
+
+	// Grab the list of plugins we have loaded already, then combine it with the
+	// plugins we scan from the directories.  This is anything but fast and
+	// efficient, but we're not doing it very often -- not even every window
+	// draw -- so whatever.
+	vector<panel_plugin_meta *> *runningplugins = kpinterface->FetchPluginVec();
+	vector<string> plugdirs = kpinterface->prefs.FetchOptVec("PLUGINDIR");
+
+	for (unsigned int x = 0; x < runningplugins->size(); x++) {
+		panel_plugin_meta pm;
+		pm.filename = (*runningplugins)[x]->filename;
+		pm.objectname = (*runningplugins)[x]->objectname;
+		pm.dlfileptr = (void *) 0x1;
+		listedplugins.push_back(pm);
+	}
+
+	for (unsigned int x = 0; x < plugdirs.size(); x++) {
+		DIR *plugdir;
+		struct dirent *plugfile;
+		string expanddir = ConfigFile::ExpandLogPath(plugdirs[x], "", "", 0, 1);
+
+		if ((plugdir = opendir(expanddir.c_str())) == NULL) {
+			continue;
+		}
+
+		while ((plugfile = readdir(plugdir)) != NULL) {
+			int loaded = 0;
+
+			if (plugfile->d_name[0] == '.')
+				continue;
+
+			string fname = plugfile->d_name;
+
+			if (fname.find(".so") == fname.length() - 3) {
+				for (unsigned int y = 0; y < listedplugins.size(); y++) {
+					if (listedplugins[y].filename == expanddir + fname) {
+						loaded = 1;
+						break;
+					}
+				}
+
+				if (loaded)
+					continue;
+
+				panel_plugin_meta pm;
+				pm.filename = expanddir + fname;
+				pm.objectname = fname;
+				pm.dlfileptr = (void *) 0x0;
+				listedplugins.push_back(pm);
+			}
+		}
+
+		closedir(plugdir);
+	}
+
+	for (unsigned int x = 0; x < listedplugins.size(); x++) {
+		vector<string> td;
+		string en = "";
+
+		if (listedplugins[x].dlfileptr != (void *) 0x0)
+			en = " (Loaded)";
+
+		td.push_back(listedplugins[x].objectname + en);
+
+		pluglist->ReplaceRow(x, td);
+	}
+
+	if (listedplugins.size() > 0) {
+		vector<string> td;
+		td.push_back("Cancel");
+		pluglist->ReplaceRow(listedplugins.size(), td);
+	}
+
+	if (listedplugins.size() == 0) {
+		vector<string> td;
+		td.push_back(" ");
+		td.push_back("No plugins found");
+		pluglist->ReplaceRow(0, td);
+	}
 
 	active_component = pluglist;
 
@@ -756,7 +850,7 @@ Kis_Plugin_Picker::~Kis_Plugin_Picker() {
 void Kis_Plugin_Picker::Position(int in_sy, int in_sx, int in_y, int in_x) {
 	Kis_Panel::Position(in_sy, in_sx, in_y, in_x);
 
-	pluglist->SetPosition(1, 1, in_x - 2, in_y - 2);
+	pluglist->SetPosition(2, 1, in_x - 4, in_y - 2);
 
 	pluglist->Show();
 }
@@ -765,39 +859,6 @@ void Kis_Plugin_Picker::DrawPanel() {
 	werase(win);
 
 	DrawTitleBorder();
-
-	// Grab the list of servers and populate with it.  We'll assume that the number
-	// of servers, and their order, cannot change while we're in the picker, since
-	// the user can't get at it.  We WILL have to handle updating the connection
-	// status based on the position key.  This is NOT A SAFE ASSUMPTION for any other
-	// of the picker types (like cards), so don't blind-copy this code later.
-#if 0
-	vector<string> td;
-	ostringstream osstr;
-	for (unsigned int x = 0; x < netcliref->size(); x++) {
-		td.clear();
-
-		td.push_back((*netcliref)[x]->FetchHost());
-
-		osstr << (*netcliref)[x]->FetchPort();
-		td.push_back(osstr.str());
-		osstr.str("");
-
-		if ((*netcliref)[x]->Valid()) {
-			td.push_back("Yes");
-			if ((*netcliref)[x]->FetchConfigured() < 0)
-				td.push_back("Tes");
-			else
-				td.push_back("No");
-		} else {
-			td.push_back("No");
-			td.push_back("No");
-		}
-
-		srvlist->ReplaceRow(x, td);
-	}
-#endif
-
 
 	for (unsigned int x = 0; x < comp_vec.size(); x++)
 		comp_vec[x]->DrawComponent();
@@ -813,15 +874,14 @@ int Kis_Plugin_Picker::KeyPress(int in_key) {
 	if (in_key == '\n' || in_key == '\r') {
 		listkey = pluglist->GetSelected();
 
-#if 0
-		// Sanity check, even though nothing should be able to change this
-		// while we're open since we claim the input.
-		// We could raise an alert but theres nothing the user could do 
-		// about it so we'll just silently close the window
-		if (plugkey >= 0 && listkey < (int) netcliref->size()) {
-			(*cb_hook)(globalreg, kpinterface, (*netcliref)[listkey], cb_aux);
+		if (listkey >= 0 && listkey <= (int) listedplugins.size()) {
+			if (listkey < (int) listedplugins.size()) {
+				if (listedplugins[listkey].dlfileptr == 0x0) {
+					kpinterface->LoadPlugin(listedplugins[listkey].filename,
+											listedplugins[listkey].objectname);
+				}
+			}
 		}
-#endif
 
 		globalreg->panel_interface->KillPanel(this);
 	}

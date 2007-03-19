@@ -309,6 +309,7 @@ int Plugintracker::ScanUserPlugins() {
 
 int Plugintracker::ScanDirectory(DIR *in_dir, string in_path) {
 	struct dirent *plugfile;
+	int loaded;
 
 	while ((plugfile = readdir(in_dir)) != NULL) {
 		if (plugfile->d_name[0] == '.')
@@ -317,13 +318,19 @@ int Plugintracker::ScanDirectory(DIR *in_dir, string in_path) {
 		string fname = plugfile->d_name;
 
 		// Found a .so
+		loaded = 0;
 		if (fname.find(".so") == fname.length() - 3) {
 			// Look for the plugin in the vector.  This is slow to iterate every
 			// time, but it's only happening once at boot so i don't care.
 			for (unsigned int x = 0; x < plugin_vec.size(); x++) {
-				if (plugin_vec[x]->filename == in_path + fname)
-					continue;
+				if (plugin_vec[x]->filename == in_path + fname) {
+					loaded = 1;
+					break;
+				}
 			}
+
+			if (loaded)
+				continue;
 
 			// Load the meta plugin into our vector
 			plugin_meta *meta = new plugin_meta;
