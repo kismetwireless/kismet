@@ -30,8 +30,8 @@
 // Menu event plugin
 int menu_callback(void *auxptr) {
 	((KisPanelPluginData *) auxptr)->kpinterface->RaiseAlert("Example",
-		"Example plugin raising alert since you picked\n"
-		"it from the menu.\n");
+		"Example plugin raising alert since \n"
+		"you picked it from the menu.\n");
 
 	return 1;
 }

@@ -384,6 +384,7 @@ void KisPanelInterface::LoadPlugin(string in_fname, string in_objname) {
 	pm->filename = in_fname;
 	pm->objectname = in_objname;
 	pm->dlfileptr = dlfile;
+	plugin_vec.push_back(pm);
 }
 
 #endif
