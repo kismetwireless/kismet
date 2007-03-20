@@ -42,6 +42,7 @@ class KisPanelPluginData {
 public:
 	KisPanelInterface *kpinterface;
 	Kis_Main_Panel *mainpanel;
+	GlobalRegistry *globalreg;
 };
 
 /* Plugin hook definition.  This function is the only function which will

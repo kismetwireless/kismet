@@ -166,6 +166,7 @@ KisPanelInterface::KisPanelInterface(GlobalRegistry *in_globalreg) :
 	// to us is the main panel.
 	plugdata.kpinterface = this;
 	plugdata.mainpanel = NULL;
+	plugdata.globalreg = globalreg;
 
 	// Fill the plugin paths if they haven't been found
 

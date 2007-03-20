@@ -234,6 +234,20 @@ void Kis_Main_Panel::AddPluginMenuItem(string in_name, int (*callback)(void *),
 	plugin_menu_vec.push_back(mo);
 }
 
+Kis_Display_NetGroup *Kis_Main_Panel::FetchSelectedNetgroup() {
+	if (netlist == NULL)
+		return NULL;
+
+	return netlist->FetchSelectedNetgroup();
+}
+
+vector<Kis_Display_NetGroup *> *Kis_Main_Panel::FetchDisplayNetgroupVector() {
+	if (netlist == NULL)
+		return NULL;
+
+	return netlist->FetchDisplayVector();
+}
+
 Kis_Connect_Panel::Kis_Connect_Panel(GlobalRegistry *in_globalreg, 
 									 KisPanelInterface *in_intf) :
 	Kis_Panel(in_globalreg, in_intf) {

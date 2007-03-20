@@ -51,6 +51,10 @@ public:
 	virtual void DrawPanel();
 	virtual int KeyPress(int in_key);
 
+	// Passthrough to the display group
+	virtual Kis_Display_NetGroup *FetchSelectedNetgroup();
+	virtual vector<Kis_Display_NetGroup *> *FetchDisplayNetgroupVector();
+
 	// Add a plugin to the plugin menu
 	virtual void AddPluginMenuItem(string in_name, int (*callback)(void *),
 								   void *auxptr);
