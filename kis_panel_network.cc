@@ -1707,7 +1707,7 @@ void Kis_Netlist::DrawComponent() {
 				nlines++;
 
 				// If we need to get more space...
-				if (dpos >= viewable_lines) {
+				if (dpos >= viewable_lines && (int) x != first_line) {
 					// We're going to have to redraw this whole thing anyhow
 					redraw = 1;
 
@@ -1716,8 +1716,6 @@ void Kis_Netlist::DrawComponent() {
 					// fit, TFB.
 					if (recovered_lines > 0) {
 						recovered_lines--;
-					} else if ((int) x == first_line) {
-						redraw = -1;
 					} else {
 						// Otherwise we need to start sliding down the list to
 						// recover some lines.  selected is the raw # in dv,
@@ -1730,7 +1728,7 @@ void Kis_Netlist::DrawComponent() {
 
 				// Only draw if we don't need to redraw everything, but always
 				// increment the dpos so we know how many lines we need to recover
-				if (redraw == 0)
+				if (redraw == 0 && dpos < viewable_lines)
 					mvwaddnstr(window, sy + dpos, sx, (*pevcache)[d].c_str(), ex - 1);
 				dpos++;
 			}
@@ -1770,19 +1768,17 @@ void Kis_Netlist::DrawComponent() {
 			for (unsigned int d = 0; d < gevcache->size(); d++) {
 				nlines++;
 
-				if (dpos >= viewable_lines) {
+				if (dpos >= viewable_lines && (int) x != first_line) {
 					redraw = 1;
 					if (recovered_lines > 0) {
 						recovered_lines--;
-					} else if ((int) x == first_line) {
-						redraw = -1;
 					} else {
 						recovered_lines += display_vec[first_line]->GetNLines();
 						first_line++;
 					}
 				}
 
-				if (redraw == 0)
+				if (redraw == 0 && dpos < viewable_lines)
 					mvwaddnstr(window, sy + dpos, sx, (*gevcache)[d].c_str(), ex - 1);
 				dpos++;
 			}
