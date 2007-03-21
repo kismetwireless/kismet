@@ -193,17 +193,53 @@ string Kis_Display_NetGroup::GetName() {
 
 string Kis_Display_NetGroup::GetName(Netracker::tracked_network *net) {
 	if ((name == "" || net != metanet) && net != NULL) {
-		if (net->lastssid != NULL) {
-			if (net->lastssid->ssid.length() == 0)
-				return "<No SSID>";
-			else if (net->lastssid->ssid_cloaked)
-				return "<" + net->lastssid->ssid + ">";
+		Netracker::adv_ssid_data *ssid = net->lastssid;
 
-			return net->lastssid->ssid;
-		} else {
-			// return metanet->bssid.Mac2String();
-			return "<No SSID>";
+		// Return a sanely constructed name if we don't have any
+		if (ssid == NULL) {
+			if (net->type == network_probe)
+				return "<Any>";
+			else if (net->type == network_data)
+				return "<Unknown>";
+			else
+				return "<Hidden SSID>";
 		}
+
+		// If the map only has 2 items, and one of them is cloaked, then
+		// display it with a "decloaked" identifier
+		if (net->ssid_map.size() == 2) {
+			int cloaked = -1;
+			string clear;
+
+			for (map<uint32_t, Netracker::adv_ssid_data *>::iterator i = 
+				 net->ssid_map.begin(); i != net->ssid_map.end(); ++i) {
+				if (i->second->ssid_cloaked)
+					cloaked = 1;
+				else
+					clear = i->second->ssid;
+			}
+
+			if (cloaked == 1 && clear.length() > 0) {
+				return string("<") + clear + string(">");
+			} else if (clear.length() > 0) {
+				return clear;
+			}
+		}
+
+		/* If the last one we found was clean, return that */
+		if (net->lastssid->ssid.length() > 0)
+			return net->lastssid->ssid;
+
+		/* Find a clear one */
+		for (map<uint32_t, Netracker::adv_ssid_data *>::iterator i = 
+			 net->ssid_map.begin(); i != net->ssid_map.end(); ++i) {
+			if (i->second->ssid_cloaked)
+				continue;
+			else
+				return i->second->ssid;
+		}
+
+		return "<Hidden SSID>";
 	} else {
 		return name;
 	}

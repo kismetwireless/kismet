@@ -424,7 +424,7 @@ int Protocol_SSID(PROTO_PARMS) {
 				break;
 			case SSID_ssid:
 				if (ssid->ssid_cloaked) {
-					osstr << "\001 \001";
+					osstr << "\001\001";
 				} else {
 					osstr << "\001" << ssid->ssid << "\001";
 				}
@@ -1906,11 +1906,23 @@ int Netracker::netracker_chain_handler(kis_packet *in_pack) {
 
 		// Use the packinfo field here to spew out info about the network,
 		// since we don't want to have to find the advssid data related
+		string ssid;
+		if (packinfo->ssid_len == 0) {
+			if (net->type == network_probe) {
+				ssid = "<Any>";
+			} else if (net->type == network_data) {
+				ssid = "<Unknown>";
+			} else {
+				ssid = "<Hidden SSID>";
+			}
+		} else {
+			ssid = packinfo->ssid;
+		}
+
 		snprintf(status, STATUS_MAX, "Detected new %s network \"%s\", BSSID %s, "
 				 "encryption %s, channel %d, %2.2f mbit",
 				 nettype.c_str(),
-				 (packinfo->ssid_len == 0) ? 
-				 "<hidden ssid>" : packinfo->ssid.c_str(), 
+				 ssid.c_str(),
 				 net->bssid.Mac2String().c_str(),
 				 packinfo->cryptset ? "yes" : "no",
 				 net->channel, packinfo->maxrate);
