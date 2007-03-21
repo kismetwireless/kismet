@@ -196,7 +196,7 @@ string Kis_Display_NetGroup::GetName(Netracker::tracked_network *net) {
 		Netracker::adv_ssid_data *ssid = net->lastssid;
 
 		// Return a sanely constructed name if we don't have any
-		if (ssid == NULL) {
+		if (ssid == NULL || (ssid != NULL && ssid->ssid.length() == 0)) {
 			if (net->type == network_probe)
 				return "<Any>";
 			else if (net->type == network_data)
