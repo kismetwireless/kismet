@@ -80,6 +80,18 @@ public:
 
 	virtual int Reconnect();
 
+	virtual string FetchServerName() {
+		return server_name;
+	}
+
+	virtual int FetchServerUid() {
+		return server_uid;
+	}
+
+	virtual time_t FetchServerStarttime() {
+		return server_starttime;
+	}
+
 	// Internal callback handler record
 	typedef struct kcli_handler_rec {
 		void *auxptr;
@@ -121,6 +133,11 @@ protected:
 	int num_reconnects;
 
 	time_t last_time;
+
+	// Server start time & uid and such
+	time_t server_starttime;
+	string server_name;
+	int server_uid;
 };
 
 #endif

@@ -160,6 +160,12 @@ protected:
 
 // Smart drawing component which bundles up the networks and displays them
 // in a fast-sort method which hopefully uses less CPU
+enum netsort_opts {
+	netsort_autofit, netsort_recent, netsort_type, netsort_channel, 
+	netsort_first, netsort_first_desc, netsort_last, netsort_last_desc, 
+	netsort_bssid, netsort_ssid, netsort_packets, netsort_packets_desc
+};
+
 class Kis_Netlist : public Kis_Panel_Component {
 public:
 	Kis_Netlist() {
@@ -196,7 +202,9 @@ public:
 	// Fetch a pointer to the display vector (don't change this!  bad things will
 	// happen!)
 	vector<Kis_Display_NetGroup *> *FetchDisplayVector() { return &display_vec; }
-	
+
+	// Return sort mode
+	netsort_opts FetchSortMode() { return sort_mode; }
 
 protected:
 	// Columns we accept
@@ -212,12 +220,6 @@ protected:
 	};
 
 	// Sort modes
-	enum netsort_opts {
-		netsort_autofit, netsort_recent, netsort_type, netsort_channel, 
-		netsort_first, netsort_first_desc, netsort_last, netsort_last_desc, 
-		netsort_bssid, netsort_ssid, netsort_packets, netsort_packets_desc
-	};
-
 	// Sort type
 	netsort_opts sort_mode;
 

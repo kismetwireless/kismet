@@ -223,6 +223,7 @@ int Kis_Menu::AddMenu(string in_text, int targ_char) {
 
 	menu->submenu = 0;
 	menu->visible = 1;
+	menu->checked = -1;
 
 	menubar.push_back(menu);
 
@@ -247,6 +248,7 @@ int Kis_Menu::AddMenuItem(string in_text, int menuid, char extra) {
 	item->extrachar = extra;
 	item->id = menubar[menuid]->items.size();
 	item->visible = 1;
+	item->checked = -1;
 
 	// Auto-disable spacers
 	if (item->text[0] != '-')
@@ -262,6 +264,27 @@ int Kis_Menu::AddMenuItem(string in_text, int menuid, char extra) {
 		menubar[menuid]->width = in_text.length();
 
 	return (menuid * 100) + item->id + 1;
+}
+
+void Kis_Menu::SetMenuItemChecked(int in_item, int in_checked) {
+	int mid = in_item / 100;
+	int iid = (in_item % 100) - 1;
+
+	if (mid < 0 || mid >= (int) menubar.size())
+		return;
+
+	if (iid < 0 || iid > (int) menubar[mid]->items.size())
+		return;
+
+	menubar[mid]->items[iid]->checked = in_checked;
+	menubar[mid]->checked = -1;
+
+	// Update the checked menu status
+	for (unsigned int x = 0; x < menubar[mid]->items.size(); x++) {
+		if (menubar[mid]->items[x]->checked > menubar[mid]->checked)
+			menubar[mid]->checked = menubar[mid]->items[x]->checked;
+	}
+
 }
 
 int Kis_Menu::AddSubMenuItem(string in_text, int menuid, char extra) {
@@ -389,12 +412,19 @@ void Kis_Menu::DrawMenu(_menu *menu, WINDOW *win, int hpos, int vpos) {
 			((int) menu->id == sub_menu && (int) y == sub_item))
 			wattron(win, WA_REVERSE);
 
+		// Draw the check 
+		if (menu->items[y]->checked == 1) {
+			menuline += "X ";
+		} else if (menu->items[y]->checked == 0 || menu->checked > -1) {
+			menuline += "  ";
+		}
+
 		// Dim a disabled item
 		if (menu->items[y]->enabled == 0)
 			wattron(win, WA_DIM);
 
 		// Format it with 'Foo     F'
-		menuline = menu->items[y]->text + " ";
+		menuline += menu->items[y]->text + " ";
 		for (unsigned int z = menuline.length(); 
 			 (int) z <= menu->width + 2; z++) {
 			menuline = menuline + string(" ");

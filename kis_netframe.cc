@@ -28,7 +28,7 @@
 #include "dumpfile.h"
 
 char *KISMET_fields_text[] = {
-    "version", "starttime", "servername", "dumpfiles",
+    "version", "starttime", "servername", "dumpfiles", "uid",
     NULL
 };
 
@@ -79,6 +79,7 @@ char *PACKET_fields_text[] = {
 // Kismet welcome printer.  Data should be KISMET_data
 int Protocol_KISMET(PROTO_PARMS) {
     KISMET_data *kdata = (KISMET_data *) data;
+	ostringstream osstr;
 
     for (unsigned int x = 0; x < field_vec->size(); x++) {
         switch ((KISMET_fields) (*field_vec)[x]) {
@@ -100,6 +101,10 @@ int Protocol_KISMET(PROTO_PARMS) {
 					out_string += ",";
 			}
 			out_string += "\001";
+			break;
+		case KISMET_uid:
+			osstr << (int) kdata->uid;
+			out_string += osstr.str();
 			break;
         default:
             out_string = "Unknown field requested.";
@@ -698,6 +703,7 @@ int KisNetFramework::Accept(int in_fd) {
     kdat.timestamp = "0";
     snprintf(temp, 512, "%s.%s.%s", VERSION_MAJOR, VERSION_MINOR, VERSION_TINY);
     kdat.newversion = string(temp);
+	kdat.uid = geteuid();
    
     SendToClient(in_fd, globalreg->netproto_map[PROTO_REF_KISMET], 
 				 (void *) &kdat, NULL);

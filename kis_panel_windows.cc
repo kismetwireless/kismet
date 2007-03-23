@@ -114,6 +114,8 @@ void Kis_Main_Panel::DrawPanel() {
 	for (unsigned int x = 0; x < comp_vec.size(); x++)
 		comp_vec[x]->DrawComponent();
 
+	UpdateSortMenu();
+
 	menu->DrawComponent();
 
 	wmove(win, 0, 0);
@@ -246,6 +248,65 @@ vector<Kis_Display_NetGroup *> *Kis_Main_Panel::FetchDisplayNetgroupVector() {
 		return NULL;
 
 	return netlist->FetchDisplayVector();
+}
+
+void Kis_Main_Panel::UpdateSortMenu() {
+	netsort_opts so = netlist->FetchSortMode();
+
+	if (so == netsort_autofit)
+		menu->SetMenuItemChecked(mi_sort_auto, 1);
+	else
+		menu->SetMenuItemChecked(mi_sort_auto, 0);
+
+	if (so == netsort_type)
+		menu->SetMenuItemChecked(mi_sort_type, 1);
+	else
+		menu->SetMenuItemChecked(mi_sort_type, 0);
+
+	if (so == netsort_channel)
+		menu->SetMenuItemChecked(mi_sort_chan, 1);
+	else
+		menu->SetMenuItemChecked(mi_sort_chan, 0);
+
+	if (so == netsort_first)
+		menu->SetMenuItemChecked(mi_sort_first, 1);
+	else
+		menu->SetMenuItemChecked(mi_sort_first, 0);
+
+	if (so == netsort_first_desc)
+		menu->SetMenuItemChecked(mi_sort_first_d, 1);
+	else
+		menu->SetMenuItemChecked(mi_sort_first_d, 0);
+
+	if (so == netsort_last)
+		menu->SetMenuItemChecked(mi_sort_last, 1);
+	else
+		menu->SetMenuItemChecked(mi_sort_last, 0);
+
+	if (so == netsort_last_desc)
+		menu->SetMenuItemChecked(mi_sort_last_d, 1);
+	else
+		menu->SetMenuItemChecked(mi_sort_last_d, 0);
+
+	if (so == netsort_bssid)
+		menu->SetMenuItemChecked(mi_sort_bssid, 1);
+	else
+		menu->SetMenuItemChecked(mi_sort_bssid, 0);
+
+	if (so == netsort_ssid)
+		menu->SetMenuItemChecked(mi_sort_ssid, 1);
+	else
+		menu->SetMenuItemChecked(mi_sort_ssid, 0);
+
+	if (so == netsort_packets)
+		menu->SetMenuItemChecked(mi_sort_packets, 1);
+	else
+		menu->SetMenuItemChecked(mi_sort_packets, 0);
+
+	if (so == netsort_packets_desc)
+		menu->SetMenuItemChecked(mi_sort_packets_d, 1);
+	else
+		menu->SetMenuItemChecked(mi_sort_packets_d, 0);
 }
 
 Kis_Connect_Panel::Kis_Connect_Panel(GlobalRegistry *in_globalreg, 
@@ -588,7 +649,7 @@ void Kis_ServerList_Picker::ConfigurePicker(string in_title, kpi_sl_cb_hook in_h
 void sp_addcard_cb(KPI_SL_CB_PARMS) {
 	Kis_AddCard_Panel *acp = new Kis_AddCard_Panel(globalreg, kpi);
 
-	acp->Position((LINES / 2) - 5, (COLS / 2) - 17, 10, 34);
+	acp->Position((LINES / 2) - 5, (COLS / 2) - (40 / 2), 10, 40);
 
 	acp->SetTargetClient(picked);
 

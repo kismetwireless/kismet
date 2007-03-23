@@ -98,7 +98,8 @@ typedef void (*ProtoEnableCallback)(PROTO_ENABLE_PARMS);
 // MUST be supported ASAP
 enum KISMET_fields {
     KISMET_version, KISMET_starttime, KISMET_servername, 
-	KISMET_dumpfiles,
+	KISMET_dumpfiles, KISMET_uid,
+	KISMET_max
 };
 
 enum ERROR_fields {
@@ -180,6 +181,7 @@ typedef struct KISMET_data {
     string servername;
     string timestamp;
     string newversion;
+	int uid;
 };
 
 typedef struct CLIRESP_data {

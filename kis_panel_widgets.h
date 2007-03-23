@@ -155,6 +155,8 @@ public:
 	// Add a submenu item to a menu ID, returns a menu we can add things
 	// to for them to show up in the submenu
 	virtual int AddSubMenuItem(string in_text, int menuid, char extra);
+	// Set an item checkable
+	virtual void SetMenuItemChecked(int in_item, int in_checked);
 	// We can't delete, again, but we can hide
 	virtual void SetMenuItemVis(int in_item, int in_vis);
 
@@ -172,6 +174,7 @@ public:
 		int enabled;
 		int submenu;
 		int visible;
+		int checked;
 	};
 
 	typedef struct _menu {
@@ -182,6 +185,7 @@ public:
 		int id;
 		int submenu;
 		int visible;
+		int checked;
 	};
 
 protected:

@@ -86,6 +86,8 @@ protected:
 	Kis_Netlist *netlist;
 
 	vector<Kis_Main_Panel::plugin_menu_opt> plugin_menu_vec;
+
+	virtual void UpdateSortMenu();
 };
 
 class Kis_Connect_Panel : public Kis_Panel {

@@ -368,6 +368,22 @@ int KisNetClient::ParseData() {
 		if (!strncmp(header, "KISMET", 64)) {
 			// Decrement our configure counter
 			configured--;
+
+			// Parse the client stuff out, in a really ghetto way
+			if (net_toks.size() >= 5) {
+				int tint;
+
+				sscanf(net_toks[1].word.c_str(), "%d", &tint);
+				server_starttime = tint;
+
+				server_name = net_toks[2].word;
+
+				sscanf(net_toks[4].word.c_str(), "%d", &server_uid);
+
+				_MSG("Connected to Kismet server \'" + server_name + "\'",
+					 MSGFLAG_INFO);
+			}
+
 		} else if (!strncmp(header, "TERMINATE", 64)) {
 			osstr << "Kismet server '" << host << ":" << port << "' has "
 				"terminated";
