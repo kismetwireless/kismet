@@ -721,19 +721,23 @@ int KisDroneFramework::chain_handler(kis_packet *in_pack) {
 		rcpkt->radio_content_bitmap =
 			kis_hton32(DRONEBIT(DRONE_RADIO_ACCURACY) |
 					   DRONEBIT(DRONE_RADIO_CHANNEL) |
-					   DRONEBIT(DRONE_RADIO_SIGNAL) |
-					   DRONEBIT(DRONE_RADIO_NOISE) |
+					   DRONEBIT(DRONE_RADIO_SIGNAL_DBM) |
+					   DRONEBIT(DRONE_RADIO_NOISE_DBM) |
 					   DRONEBIT(DRONE_RADIO_CARRIER) |
 					   DRONEBIT(DRONE_RADIO_ENCODING) |
-					   DRONEBIT(DRONE_RADIO_DATARATE));
+					   DRONEBIT(DRONE_RADIO_DATARATE) |
+					   DRONEBIT(DRONE_RADIO_SIGNAL_RSSI) |
+					   DRONEBIT(DRONE_RADIO_NOISE_RSSI));
 
 		rcpkt->radio_accuracy = kis_hton16(radio->accuracy);
 		rcpkt->radio_channel = kis_hton16(radio->channel);
-		rcpkt->radio_signal = kis_hton16((int16_t) radio->signal);
-		rcpkt->radio_noise = kis_hton16((int16_t) radio->noise);
+		rcpkt->radio_signal_dbm = kis_hton16((int16_t) radio->signal_dbm);
+		rcpkt->radio_noise_dbm = kis_hton16((int16_t) radio->noise_dbm);
 		rcpkt->radio_carrier = kis_hton32((uint32_t) radio->carrier);
 		rcpkt->radio_encoding = kis_hton32((uint32_t) radio->encoding);
 		rcpkt->radio_datarate = kis_hton32(radio->datarate);
+		rcpkt->radio_signal_rssi = kis_hton16((int16_t) radio->signal_rssi);
+		rcpkt->radio_noise_rssi = kis_hton16((int16_t) radio->noise_rssi);
 	}
 
 	if (gpsinfo != NULL && gpsinfo->gps_fix >= 2) {

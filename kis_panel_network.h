@@ -52,12 +52,14 @@
 // What we expect from the client
 #define KCLI_BSSID_FIELDS	"bssid,type,llcpackets,datapackets,cryptpackets," \
 	"channel,firsttime,lasttime,atype,rangeip,netmaskip,gatewayip,gpsfixed," \
-	"minlat,minlon,minalt,minspd,maxlat,maxlon,maxalt,maxspd,signal,noise," \
-	"minsignal,minnoise,maxsignal,maxnoise,bestlat,bestlon,bestalt,agglat," \
+	"minlat,minlon,minalt,minspd,maxlat,maxlon,maxalt,maxspd,"\
+	"signal_dbm,noise_dbm,minsignal_dbm,minnoise_dbm,maxsignal_dbm,maxnoise_dbm,"\
+	"signal_rssi,noise_rssi,minsignal_rssi,minnoise_rssi,maxsignal_rssi,"\
+	"maxnoise_rssi,bestlat,bestlon,bestalt,agglat," \
 	"agglon,aggalt,aggpoints,datasize,turbocellnid,turbocellmode,turbocellsat," \
 	"carrierset,maxseenrate,encodingset,decrypted,dupeivpackets,bsstimestamp," \
 	"cdpdevice,cdpport,fragments,retries,newpackets"
-#define KCLI_BSSID_NUMFIELDS	49
+#define KCLI_BSSID_NUMFIELDS	55
 
 #define KCLI_SSID_FIELDS	"mac,checksum,type,ssid,beaconinfo,cryptset," \
 	"cloaked,firsttime,lasttime,maxrate,beaconrate,packets"

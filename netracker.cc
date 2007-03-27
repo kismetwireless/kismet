@@ -47,9 +47,13 @@ char *BSSID_fields_text[] = {
 	"gatewayip", "gpsfixed",
     "minlat", "minlon", "minalt", "minspd",
     "maxlat", "maxlon", "maxalt", "maxspd",
-    "signal", "noise", "minsignal", "minnoise",
-    "maxsignal", "maxnoise",
-    "bestlat", "bestlon", "bestalt",
+    "signal_dbm", "noise_dbm",
+	"minsignal_dbm", "minnoise_dbm",
+	"maxsignal_dbm", "maxnoise_dbm",
+    "signal_rssi", "noise_rssi",
+	"minsignal_rssi", "minnoise_rssi",
+	"maxsignal_rssi", "maxnoise_rssi",
+	"bestlat", "bestlon", "bestalt",
     "agglat", "agglon", "aggalt", "aggpoints",
     "datasize",
     "turbocellnid", "turbocellmode", "turbocellsat",
@@ -82,9 +86,12 @@ char *CLIENT_fields_text[] = {
     "maxlat", "maxlon", "maxalt", "maxspd",
     "agglat", "agglon", "aggalt", "aggpoints",
     "maxrate",
-    "signal", "noise",
-	"minsignal", "minnoise",
-	"maxsignal", "maxnoise",
+    "signal_dbm", "noise_dbm",
+	"minsignal_dbm", "minnoise_dbm",
+	"maxsignal_dbm", "maxnoise_dbm",
+    "signal_rssi", "noise_rssi",
+	"minsignal_rssi", "minnoise_rssi",
+	"maxsignal_rssi", "maxnoise_rssi",
     "bestlat", "bestlon", "bestalt",
     "atype", "ip", "gatewayip", "datasize", "maxseenrate", "encodingset",
 	"carrierset", "decrypted", "channel",
@@ -93,9 +100,7 @@ char *CLIENT_fields_text[] = {
 };
 
 char *INFO_fields_text[] = {
-	"networks", "packets", "crypt", "weak",
-	"noise", "dropped", "rate", "signal",
-	"filtered", "clients",
+	"networks", "packets", "crypt", "noise", "dropped", "rate", "filtered", "clients",
 	NULL
 };
 
@@ -231,33 +236,63 @@ int Protocol_BSSID(PROTO_PARMS) {
 				out_string += osstr.str();
 				cache->Cache(fnum, osstr.str());
 				break;
-			case BSSID_signal:
-				osstr << net->snrdata.last_signal;
+			case BSSID_signal_dbm:
+				osstr << net->snrdata.last_signal_dbm;
 				out_string += osstr.str();
 				cache->Cache(fnum, osstr.str());
 				break;
-			case BSSID_minsignal:
-				osstr << net->snrdata.min_signal;
+			case BSSID_minsignal_dbm:
+				osstr << net->snrdata.min_signal_dbm;
 				out_string += osstr.str();
 				cache->Cache(fnum, osstr.str());
 				break;
-			case BSSID_maxsignal:
-				osstr << net->snrdata.max_signal;
+			case BSSID_maxsignal_dbm:
+				osstr << net->snrdata.max_signal_dbm;
 				out_string += osstr.str();
 				cache->Cache(fnum, osstr.str());
 				break;
-			case BSSID_noise:
-				osstr << net->snrdata.last_noise;
+			case BSSID_noise_dbm:
+				osstr << net->snrdata.last_noise_dbm;
 				out_string += osstr.str();
 				cache->Cache(fnum, osstr.str());
 				break;
-			case BSSID_minnoise:
-				osstr << net->snrdata.min_noise;
+			case BSSID_minnoise_dbm:
+				osstr << net->snrdata.min_noise_dbm;
 				out_string += osstr.str();
 				cache->Cache(fnum, osstr.str());
 				break;
-			case BSSID_maxnoise:
-				osstr << net->snrdata.max_noise;
+			case BSSID_maxnoise_dbm:
+				osstr << net->snrdata.max_noise_dbm;
+				out_string += osstr.str();
+				cache->Cache(fnum, osstr.str());
+				break;
+			case BSSID_signal_rssi:
+				osstr << net->snrdata.last_signal_rssi;
+				out_string += osstr.str();
+				cache->Cache(fnum, osstr.str());
+				break;
+			case BSSID_minsignal_rssi:
+				osstr << net->snrdata.min_signal_rssi;
+				out_string += osstr.str();
+				cache->Cache(fnum, osstr.str());
+				break;
+			case BSSID_maxsignal_rssi:
+				osstr << net->snrdata.max_signal_rssi;
+				out_string += osstr.str();
+				cache->Cache(fnum, osstr.str());
+				break;
+			case BSSID_noise_rssi:
+				osstr << net->snrdata.last_noise_rssi;
+				out_string += osstr.str();
+				cache->Cache(fnum, osstr.str());
+				break;
+			case BSSID_minnoise_rssi:
+				osstr << net->snrdata.min_noise_rssi;
+				out_string += osstr.str();
+				cache->Cache(fnum, osstr.str());
+				break;
+			case BSSID_maxnoise_rssi:
+				osstr << net->snrdata.max_noise_rssi;
 				out_string += osstr.str();
 				cache->Cache(fnum, osstr.str());
 				break;
@@ -600,33 +635,63 @@ int Protocol_CLIENT(PROTO_PARMS) {
 				out_string += osstr.str();
 				cache->Cache(fnum, osstr.str());
 				break;
-			case CLIENT_signal:
-				osstr << cli->snrdata.last_signal;
+			case CLIENT_signal_dbm:
+				osstr << cli->snrdata.last_signal_dbm;
 				out_string += osstr.str();
 				cache->Cache(fnum, osstr.str());
 				break;
-			case CLIENT_noise:
-				osstr << cli->snrdata.last_noise;
+			case CLIENT_minsignal_dbm:
+				osstr << cli->snrdata.min_signal_dbm;
 				out_string += osstr.str();
 				cache->Cache(fnum, osstr.str());
 				break;
-			case CLIENT_minsignal:
-				osstr << cli->snrdata.min_signal;
+			case CLIENT_maxsignal_dbm:
+				osstr << cli->snrdata.max_signal_dbm;
 				out_string += osstr.str();
 				cache->Cache(fnum, osstr.str());
 				break;
-			case CLIENT_minnoise:
-				osstr << cli->snrdata.min_noise;
+			case CLIENT_noise_dbm:
+				osstr << cli->snrdata.last_noise_dbm;
 				out_string += osstr.str();
 				cache->Cache(fnum, osstr.str());
 				break;
-			case CLIENT_maxsignal:
-				osstr << cli->snrdata.max_signal;
+			case CLIENT_minnoise_dbm:
+				osstr << cli->snrdata.min_noise_dbm;
 				out_string += osstr.str();
 				cache->Cache(fnum, osstr.str());
 				break;
-			case CLIENT_maxnoise:
-				osstr << cli->snrdata.max_noise;
+			case CLIENT_maxnoise_dbm:
+				osstr << cli->snrdata.max_noise_dbm;
+				out_string += osstr.str();
+				cache->Cache(fnum, osstr.str());
+				break;
+			case CLIENT_signal_rssi:
+				osstr << cli->snrdata.last_signal_rssi;
+				out_string += osstr.str();
+				cache->Cache(fnum, osstr.str());
+				break;
+			case CLIENT_minsignal_rssi:
+				osstr << cli->snrdata.min_signal_rssi;
+				out_string += osstr.str();
+				cache->Cache(fnum, osstr.str());
+				break;
+			case CLIENT_maxsignal_rssi:
+				osstr << cli->snrdata.max_signal_rssi;
+				out_string += osstr.str();
+				cache->Cache(fnum, osstr.str());
+				break;
+			case CLIENT_noise_rssi:
+				osstr << cli->snrdata.last_noise_rssi;
+				out_string += osstr.str();
+				cache->Cache(fnum, osstr.str());
+				break;
+			case CLIENT_minnoise_rssi:
+				osstr << cli->snrdata.min_noise_rssi;
+				out_string += osstr.str();
+				cache->Cache(fnum, osstr.str());
+				break;
+			case CLIENT_maxnoise_rssi:
+				osstr << cli->snrdata.max_noise_rssi;
 				out_string += osstr.str();
 				cache->Cache(fnum, osstr.str());
 				break;
@@ -903,10 +968,6 @@ int Protocol_INFO(PROTO_PARMS) {
 				osstr << globalreg->netracker->FetchNumCryptpackets();
 				cache->Cache(fnum, osstr.str());
 				break;
-			case INFO_weakpackets:
-				osstr << globalreg->netracker->FetchNumFMSpackets();
-				cache->Cache(fnum, osstr.str());
-				break;
 			case INFO_noisepackets:
 				osstr << globalreg->netracker->FetchNumErrorpackets();
 				cache->Cache(fnum, osstr.str());
@@ -922,10 +983,6 @@ int Protocol_INFO(PROTO_PARMS) {
 				break;
 			case INFO_filteredpackets:
 				osstr << globalreg->netracker->FetchNumFiltered();
-				cache->Cache(fnum, osstr.str());
-				break;
-			case INFO_signal_dep:
-				cache->Cache(fnum, "0 0 0");
 				cache->Cache(fnum, osstr.str());
 				break;
 		}
@@ -1543,144 +1600,10 @@ int Netracker::netracker_chain_handler(kis_packet *in_pack) {
 		cli->gpsdata.aggregate_points++;
 	}
 
-	// L1 signal info, if our capture source was able to inject any into
-	// the packet.
-	if (l1info != NULL) {
-		net->snrdata.last_signal = l1info->signal;
-		net->snrdata.last_noise = l1info->noise;
-		cli->snrdata.last_signal = l1info->signal;
-		cli->snrdata.last_noise = l1info->signal;
-
-		// Fill in min/max if they have nothing
-		if (net->snrdata.min_noise == 0) {
-			net->snrdata.min_noise = l1info->noise;
-		}
-		if (net->snrdata.max_noise == -256) {
-			net->snrdata.max_noise = l1info->noise;
-		}
-		if (cli->snrdata.min_noise == 0) {
-			cli->snrdata.min_noise = l1info->noise;
-		}
-		if (cli->snrdata.max_noise == -256) {
-			cli->snrdata.max_noise = l1info->noise;
-		}
-
-		if (l1info->noise < 0) {
-			// Assume SNR if negative
-			if (l1info->noise < net->snrdata.max_noise) 
-				net->snrdata.max_noise = l1info->noise;
-			if (l1info->noise > net->snrdata.min_noise)
-				net->snrdata.min_noise = l1info->noise;
-
-			// Client
-			if (l1info->noise < cli->snrdata.max_noise) 
-				cli->snrdata.max_noise = l1info->noise;
-			if (l1info->noise > cli->snrdata.min_noise)
-				cli->snrdata.min_noise = l1info->noise;
-		} else {
-			// Assume some sort of RSSI if not negative
-			if (l1info->noise > net->snrdata.max_noise)
-				net->snrdata.max_noise = l1info->noise;
-			if (l1info->noise < net->snrdata.min_noise)
-				net->snrdata.min_noise = l1info->noise;
-
-			// Client
-			if (l1info->noise > cli->snrdata.max_noise)
-				cli->snrdata.max_noise = l1info->noise;
-			if (l1info->noise < cli->snrdata.min_noise)
-				cli->snrdata.min_noise = l1info->noise;
-		}
-
-		// Fill in min/max if they have nothing
-		if (net->snrdata.min_signal == 0) {
-			net->snrdata.min_signal = l1info->signal;
-		}
-		if (net->snrdata.max_signal == -256) {
-			net->snrdata.max_signal = l1info->signal;
-		}
-		if (cli->snrdata.min_signal == 0) {
-			cli->snrdata.min_signal = l1info->signal;
-		}
-		if (cli->snrdata.max_signal == -256) {
-			cli->snrdata.max_signal = l1info->signal;
-		}
-
-		if (l1info->signal < 0) {
-			// Assume SNR if negative
-			if (l1info->signal < net->snrdata.max_signal) {
-				net->snrdata.max_signal = l1info->signal;
-
-				// Update the GPS info
-				if (gpsinfo != NULL) {
-					net->snrdata.peak_lat = gpsinfo->lat;
-					net->snrdata.peak_lon = gpsinfo->lon;
-					net->snrdata.peak_alt = gpsinfo->alt;
-				}
-			}
-
-			if (l1info->signal > net->snrdata.min_signal)
-				net->snrdata.min_signal = l1info->signal;
-
-			// Client
-			if (l1info->signal < cli->snrdata.max_signal) {
-				cli->snrdata.max_signal = l1info->signal;
-
-				// Update the GPS info
-				if (gpsinfo != NULL) {
-					cli->snrdata.peak_lat = gpsinfo->lat;
-					cli->snrdata.peak_lon = gpsinfo->lon;
-					cli->snrdata.peak_alt = gpsinfo->alt;
-				}
-			}
-
-			if (l1info->signal > cli->snrdata.min_signal)
-				cli->snrdata.min_signal = l1info->signal;
-		} else {
-			// Assume some sort of RSSI if not negative
-			if (l1info->signal > net->snrdata.max_signal) {
-				net->snrdata.max_signal = l1info->signal;
-
-				// Update the GPS info
-				if (gpsinfo != NULL) {
-					net->snrdata.peak_lat = gpsinfo->lat;
-					net->snrdata.peak_lon = gpsinfo->lon;
-					net->snrdata.peak_alt = gpsinfo->alt;
-				}
-			}
-
-			if (l1info->signal < net->snrdata.min_signal)
-				net->snrdata.min_signal = l1info->signal;
-
-			// Client
-			if (l1info->signal > cli->snrdata.max_signal) {
-				cli->snrdata.max_signal = l1info->signal;
-
-				// Update the GPS info
-				if (gpsinfo != NULL) {
-					cli->snrdata.peak_lat = gpsinfo->lat;
-					cli->snrdata.peak_lon = gpsinfo->lon;
-					cli->snrdata.peak_alt = gpsinfo->alt;
-				}
-			}
-
-			if (l1info->signal < cli->snrdata.min_signal)
-				cli->snrdata.min_signal = l1info->signal;
-		}
-
-		if (l1info->datarate < net->snrdata.maxseenrate)
-			net->snrdata.maxseenrate = l1info->datarate;
-
-		// Push in the bits for the carrier and encoding
-		net->snrdata.carrierset |= (1 << (int) l1info->carrier);
-		net->snrdata.encodingset |= (1 << (int) l1info->encoding);
-
-		if (l1info->datarate < cli->snrdata.maxseenrate)
-			cli->snrdata.maxseenrate = l1info->datarate;
-
-		// Push in the bits for the carrier and encoding
-		cli->snrdata.carrierset |= (1 << (int) l1info->carrier);
-		cli->snrdata.encodingset |= (1 << (int) l1info->encoding);
-	}
+	// Make an info pair and add it to our signaling layer
+	Packinfo_Sig_Combo sc(l1info, gpsinfo);
+	net->snrdata += sc;
+	cli->snrdata += sc;
 
 	// Extract info from probe request frames if its a probe network
 	if (packinfo->type == packet_management &&
@@ -2525,12 +2448,31 @@ void Netracker::dump_runstate(FILE *runfile) {
 			fprintf(runfile, "    gps_agg_pts=%ld\n", tnet->gpsdata.aggregate_points);
 		}
 
-		fprintf(runfile, "    snr_last_signal=%d\n", tnet->snrdata.last_signal);
-		fprintf(runfile, "    snr_last_noise=%d\n", tnet->snrdata.last_noise);
-		fprintf(runfile, "    snr_max_signal=%d\n", tnet->snrdata.max_signal);
-		fprintf(runfile, "    snr_max_noise=%d\n", tnet->snrdata.max_noise);
-		fprintf(runfile, "    snr_min_signal=%d\n", tnet->snrdata.min_signal);
-		fprintf(runfile, "    snr_min_noise=%d\n", tnet->snrdata.min_noise);
+		fprintf(runfile, "    snr_last_signal_dbm=%d\n", 
+				tnet->snrdata.last_signal_dbm);
+		fprintf(runfile, "    snr_last_noise_dbm=%d\n", 
+				tnet->snrdata.last_noise_dbm);
+		fprintf(runfile, "    snr_max_signal_dbm=%d\n", 
+				tnet->snrdata.max_signal_dbm);
+		fprintf(runfile, "    snr_max_noise_dbm=%d\n", 
+				tnet->snrdata.max_noise_dbm);
+		fprintf(runfile, "    snr_min_signal_dbm=%d\n", 
+				tnet->snrdata.min_signal_dbm);
+		fprintf(runfile, "    snr_min_noise_dbm=%d\n", 
+				tnet->snrdata.min_noise_dbm);
+		fprintf(runfile, "    snr_last_signal_rssi=%d\n", 
+				tnet->snrdata.last_signal_rssi);
+		fprintf(runfile, "    snr_last_noise_rssi=%d\n", 
+				tnet->snrdata.last_noise_rssi);
+		fprintf(runfile, "    snr_max_signal_rssi=%d\n", 
+				tnet->snrdata.max_signal_rssi);
+		fprintf(runfile, "    snr_max_noise_rssi=%d\n", 
+				tnet->snrdata.max_noise_rssi);
+		fprintf(runfile, "    snr_min_signal_rssi=%d\n", 
+				tnet->snrdata.min_signal_rssi);
+		fprintf(runfile, "    snr_min_noise_rssi=%d\n", 
+				tnet->snrdata.min_noise_rssi);
+
 		fprintf(runfile, "    snr_maxseenrate=%d\n", tnet->snrdata.maxseenrate);
 		fprintf(runfile, "    snr_encodingset=%u\n", tnet->snrdata.encodingset);
 		fprintf(runfile, "    snr_carrierset=%u\n", tnet->snrdata.carrierset);
@@ -2602,12 +2544,31 @@ void Netracker::dump_runstate(FILE *runfile) {
 			fprintf(runfile, "    gps_agg_pts=%ld\n", tcli->gpsdata.aggregate_points);
 		}
 
-		fprintf(runfile, "    snr_last_signal=%d\n", tcli->snrdata.last_signal);
-		fprintf(runfile, "    snr_last_noise=%d\n", tcli->snrdata.last_noise);
-		fprintf(runfile, "    snr_max_signal=%d\n", tcli->snrdata.max_signal);
-		fprintf(runfile, "    snr_max_noise=%d\n", tcli->snrdata.max_noise);
-		fprintf(runfile, "    snr_min_signal=%d\n", tcli->snrdata.min_signal);
-		fprintf(runfile, "    snr_min_noise=%d\n", tcli->snrdata.min_noise);
+		fprintf(runfile, "    snr_last_signal_dbm=%d\n", 
+				tcli->snrdata.last_signal_dbm);
+		fprintf(runfile, "    snr_last_noise_dbm=%d\n", 
+				tcli->snrdata.last_noise_dbm);
+		fprintf(runfile, "    snr_max_signal_dbm=%d\n", 
+				tcli->snrdata.max_signal_dbm);
+		fprintf(runfile, "    snr_max_noise_dbm=%d\n", 
+				tcli->snrdata.max_noise_dbm);
+		fprintf(runfile, "    snr_min_signal_dbm=%d\n", 
+				tcli->snrdata.min_signal_dbm);
+		fprintf(runfile, "    snr_min_noise_dbm=%d\n", 
+				tcli->snrdata.min_noise_dbm);
+		fprintf(runfile, "    snr_last_signal_rssi=%d\n", 
+				tcli->snrdata.last_signal_rssi);
+		fprintf(runfile, "    snr_last_noise_rssi=%d\n", 
+				tcli->snrdata.last_noise_rssi);
+		fprintf(runfile, "    snr_max_signal_rssi=%d\n", 
+				tcli->snrdata.max_signal_rssi);
+		fprintf(runfile, "    snr_max_noise_rssi=%d\n", 
+				tcli->snrdata.max_noise_rssi);
+		fprintf(runfile, "    snr_min_signal_rssi=%d\n", 
+				tcli->snrdata.min_signal_rssi);
+		fprintf(runfile, "    snr_min_noise_rssi=%d\n", 
+				tcli->snrdata.min_noise_rssi);
+
 		fprintf(runfile, "    snr_maxseenrate=%d\n", tcli->snrdata.maxseenrate);
 		fprintf(runfile, "    snr_encodingset=%u\n", tcli->snrdata.encodingset);
 		fprintf(runfile, "    snr_carrierset=%u\n", tcli->snrdata.carrierset);
@@ -2908,38 +2869,74 @@ int Netracker::load_runstate() {
 
 		}
 
-		if (sscanf(rcf->FetchOpt("snr_last_signal", rent[x]).c_str(), "%d",
-				   &(tnet->snrdata.last_signal)) != 1) {
+		if (sscanf(rcf->FetchOpt("snr_last_signal_dbm", rent[x]).c_str(), "%d",
+				   &(tnet->snrdata.last_signal_dbm)) != 1) {
 			globalreg->fatal_condition = 1;
 			break;
 		}
 
-		if (sscanf(rcf->FetchOpt("snr_last_noise", rent[x]).c_str(), "%d",
-				   &(tnet->snrdata.last_noise)) != 1) {
+		if (sscanf(rcf->FetchOpt("snr_last_noise_dbm", rent[x]).c_str(), "%d",
+				   &(tnet->snrdata.last_noise_dbm)) != 1) {
 			globalreg->fatal_condition = 1;
 			break;
 		}
 
-		if (sscanf(rcf->FetchOpt("snr_max_signal", rent[x]).c_str(), "%d",
-				   &(tnet->snrdata.max_signal)) != 1) {
+		if (sscanf(rcf->FetchOpt("snr_max_signal_dbm", rent[x]).c_str(), "%d",
+				   &(tnet->snrdata.max_signal_dbm)) != 1) {
 			globalreg->fatal_condition = 1;
 			break;
 		}
 
-		if (sscanf(rcf->FetchOpt("snr_max_noise", rent[x]).c_str(), "%d",
-				   &(tnet->snrdata.max_noise)) != 1) {
+		if (sscanf(rcf->FetchOpt("snr_max_noise_dbm", rent[x]).c_str(), "%d",
+				   &(tnet->snrdata.max_noise_dbm)) != 1) {
 			globalreg->fatal_condition = 1;
 			break;
 		}
 
-		if (sscanf(rcf->FetchOpt("snr_min_signal", rent[x]).c_str(), "%d",
-				   &(tnet->snrdata.min_signal)) != 1) {
+		if (sscanf(rcf->FetchOpt("snr_min_signal_dbm", rent[x]).c_str(), "%d",
+				   &(tnet->snrdata.min_signal_dbm)) != 1) {
 			globalreg->fatal_condition = 1;
 			break;
 		}
 
-		if (sscanf(rcf->FetchOpt("snr_min_noise", rent[x]).c_str(), "%d",
-				   &(tnet->snrdata.min_noise)) != 1) {
+		if (sscanf(rcf->FetchOpt("snr_min_noise_dbm", rent[x]).c_str(), "%d",
+				   &(tnet->snrdata.min_noise_dbm)) != 1) {
+			globalreg->fatal_condition = 1;
+			break;
+		}
+
+		if (sscanf(rcf->FetchOpt("snr_last_signal_rssi", rent[x]).c_str(), "%d",
+				   &(tnet->snrdata.last_signal_rssi)) != 1) {
+			globalreg->fatal_condition = 1;
+			break;
+		}
+
+		if (sscanf(rcf->FetchOpt("snr_last_noise_rssi", rent[x]).c_str(), "%d",
+				   &(tnet->snrdata.last_noise_rssi)) != 1) {
+			globalreg->fatal_condition = 1;
+			break;
+		}
+
+		if (sscanf(rcf->FetchOpt("snr_max_signal_rssi", rent[x]).c_str(), "%d",
+				   &(tnet->snrdata.max_signal_rssi)) != 1) {
+			globalreg->fatal_condition = 1;
+			break;
+		}
+
+		if (sscanf(rcf->FetchOpt("snr_max_noise_rssi", rent[x]).c_str(), "%d",
+				   &(tnet->snrdata.max_noise_rssi)) != 1) {
+			globalreg->fatal_condition = 1;
+			break;
+		}
+
+		if (sscanf(rcf->FetchOpt("snr_min_signal_rssi", rent[x]).c_str(), "%d",
+				   &(tnet->snrdata.min_signal_rssi)) != 1) {
+			globalreg->fatal_condition = 1;
+			break;
+		}
+
+		if (sscanf(rcf->FetchOpt("snr_min_noise_rssi", rent[x]).c_str(), "%d",
+				   &(tnet->snrdata.min_noise_rssi)) != 1) {
 			globalreg->fatal_condition = 1;
 			break;
 		}
@@ -3113,38 +3110,74 @@ int Netracker::load_runstate() {
 
 		}
 
-		if (sscanf(rcf->FetchOpt("snr_last_signal", rent[x]).c_str(), "%d",
-				   &(tcli->snrdata.last_signal)) != 1) {
+		if (sscanf(rcf->FetchOpt("snr_last_signal_dbm", rent[x]).c_str(), "%d",
+				   &(tcli->snrdata.last_signal_dbm)) != 1) {
 			globalreg->fatal_condition = 1;
 			break;
 		}
 
-		if (sscanf(rcf->FetchOpt("snr_last_noise", rent[x]).c_str(), "%d",
-				   &(tcli->snrdata.last_noise)) != 1) {
+		if (sscanf(rcf->FetchOpt("snr_last_noise_dbm", rent[x]).c_str(), "%d",
+				   &(tcli->snrdata.last_noise_dbm)) != 1) {
 			globalreg->fatal_condition = 1;
 			break;
 		}
 
-		if (sscanf(rcf->FetchOpt("snr_max_signal", rent[x]).c_str(), "%d",
-				   &(tcli->snrdata.max_signal)) != 1) {
+		if (sscanf(rcf->FetchOpt("snr_max_signal_dbm", rent[x]).c_str(), "%d",
+				   &(tcli->snrdata.max_signal_dbm)) != 1) {
 			globalreg->fatal_condition = 1;
 			break;
 		}
 
-		if (sscanf(rcf->FetchOpt("snr_max_noise", rent[x]).c_str(), "%d",
-				   &(tcli->snrdata.max_noise)) != 1) {
+		if (sscanf(rcf->FetchOpt("snr_max_noise_dbm", rent[x]).c_str(), "%d",
+				   &(tcli->snrdata.max_noise_dbm)) != 1) {
 			globalreg->fatal_condition = 1;
 			break;
 		}
 
-		if (sscanf(rcf->FetchOpt("snr_min_signal", rent[x]).c_str(), "%d",
-				   &(tcli->snrdata.min_signal)) != 1) {
+		if (sscanf(rcf->FetchOpt("snr_min_signal_dbm", rent[x]).c_str(), "%d",
+				   &(tcli->snrdata.min_signal_dbm)) != 1) {
 			globalreg->fatal_condition = 1;
 			break;
 		}
 
-		if (sscanf(rcf->FetchOpt("snr_min_noise", rent[x]).c_str(), "%d",
-				   &(tcli->snrdata.min_noise)) != 1) {
+		if (sscanf(rcf->FetchOpt("snr_min_noise_dbm", rent[x]).c_str(), "%d",
+				   &(tcli->snrdata.min_noise_dbm)) != 1) {
+			globalreg->fatal_condition = 1;
+			break;
+		}
+
+		if (sscanf(rcf->FetchOpt("snr_last_signal_rssi", rent[x]).c_str(), "%d",
+				   &(tcli->snrdata.last_signal_rssi)) != 1) {
+			globalreg->fatal_condition = 1;
+			break;
+		}
+
+		if (sscanf(rcf->FetchOpt("snr_last_noise_rssi", rent[x]).c_str(), "%d",
+				   &(tcli->snrdata.last_noise_rssi)) != 1) {
+			globalreg->fatal_condition = 1;
+			break;
+		}
+
+		if (sscanf(rcf->FetchOpt("snr_max_signal_rssi", rent[x]).c_str(), "%d",
+				   &(tcli->snrdata.max_signal_rssi)) != 1) {
+			globalreg->fatal_condition = 1;
+			break;
+		}
+
+		if (sscanf(rcf->FetchOpt("snr_max_noise_rssi", rent[x]).c_str(), "%d",
+				   &(tcli->snrdata.max_noise_rssi)) != 1) {
+			globalreg->fatal_condition = 1;
+			break;
+		}
+
+		if (sscanf(rcf->FetchOpt("snr_min_signal_rssi", rent[x]).c_str(), "%d",
+				   &(tcli->snrdata.min_signal_rssi)) != 1) {
+			globalreg->fatal_condition = 1;
+			break;
+		}
+
+		if (sscanf(rcf->FetchOpt("snr_min_noise_rssi", rent[x]).c_str(), "%d",
+				   &(tcli->snrdata.min_noise_rssi)) != 1) {
 			globalreg->fatal_condition = 1;
 			break;
 		}

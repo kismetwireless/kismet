@@ -116,7 +116,6 @@ int KisNetClient::KillConnection() {
 	if (tcpcli != NULL && tcpcli->Valid())
 		tcpcli->KillConnection();
 
-	fprintf(stderr, "Killconnection called, setting last disconnect\n");
 	last_disconnect = time(0);
 
 	return 1;

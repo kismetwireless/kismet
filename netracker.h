@@ -37,6 +37,8 @@
 #include "kis_netframe.h"
 #include "timetracker.h"
 #include "filtercore.h"
+#include "gpscore.h"
+#include "packet.h"
 
 #include "dumpfile_runstate.h"
 
@@ -61,9 +63,12 @@ enum BSSID_fields {
 	BSSID_gatewayip, BSSID_gpsfixed,
     BSSID_minlat, BSSID_minlon, BSSID_minalt, BSSID_minspd,
     BSSID_maxlat, BSSID_maxlon, BSSID_maxalt, BSSID_maxspd,
-    BSSID_signal, BSSID_noise, 
-	BSSID_minsignal, BSSID_minnoise,
-    BSSID_maxsignal, BSSID_maxnoise,
+    BSSID_signal_dbm, BSSID_noise_dbm, 
+	BSSID_minsignal_dbm, BSSID_minnoise_dbm,
+    BSSID_maxsignal_dbm, BSSID_maxnoise_dbm,
+    BSSID_signal_rssi, BSSID_noise_rssi, 
+	BSSID_minsignal_rssi, BSSID_minnoise_rssi,
+    BSSID_maxsignal_rssi, BSSID_maxnoise_rssi,
     BSSID_bestlat, BSSID_bestlon, BSSID_bestalt,
     BSSID_agglat, BSSID_agglon, BSSID_aggalt, BSSID_aggpoints,
     BSSID_datasize, BSSID_tcnid, BSSID_tcmode, BSSID_tsat,
@@ -91,9 +96,12 @@ enum CLIENT_fields {
     CLIENT_maxlat, CLIENT_maxlon, CLIENT_maxalt, CLIENT_maxspd,
     CLIENT_agglat, CLIENT_agglon, CLIENT_aggalt, CLIENT_aggpoints,
     CLIENT_maxrate,
-    CLIENT_signal, CLIENT_noise,
-    CLIENT_minsignal, CLIENT_minnoise,
-    CLIENT_maxsignal, CLIENT_maxnoise,
+    CLIENT_signal_dbm, CLIENT_noise_dbm, 
+	CLIENT_minsignal_dbm, CLIENT_minnoise_dbm,
+    CLIENT_maxsignal_dbm, CLIENT_maxnoise_dbm,
+    CLIENT_signal_rssi, CLIENT_noise_rssi, 
+	CLIENT_minsignal_rssi, CLIENT_minnoise_rssi,
+    CLIENT_maxsignal_rssi, CLIENT_maxnoise_rssi,
     CLIENT_bestlat, CLIENT_bestlon, CLIENT_bestalt,
     CLIENT_atype, CLIENT_ip, CLIENT_gatewayip, CLIENT_datasize, CLIENT_maxseenrate, 
 	CLIENT_encodingset, CLIENT_carrierset, CLIENT_decrypted, 
@@ -107,9 +115,9 @@ enum REMOVE_fields {
 
 // The info protocol lives in here for lack of anywhere better to live
 enum INFO_fields {
-	INFO_networks, INFO_packets, INFO_cryptpackets, INFO_weakpackets,
+	INFO_networks, INFO_packets, INFO_cryptpackets,
 	INFO_noisepackets, INFO_droppedpackets, INFO_packetrate, 
-	INFO_signal_dep, INFO_filteredpackets, INFO_clients,
+	INFO_filteredpackets, INFO_clients,
 	INFO_maxfield
 };
 
@@ -153,6 +161,17 @@ enum ssid_type {
 	ssid_beacon = 0,
 	ssid_proberesp = 1,
 	ssid_probereq = 2,
+};
+
+class Packinfo_Sig_Combo {
+public:
+	Packinfo_Sig_Combo(kis_layer1_packinfo *l1, kis_gps_packinfo *gp) {
+		lay1 = l1;
+		gps = gp;
+	}
+
+	kis_layer1_packinfo *lay1;
+	kis_gps_packinfo *gps;
 };
 
 // Netracker itself
@@ -269,9 +288,13 @@ public:
 		signal_data() {
 			// These all go to 0 since we don't know if it'll be positive or
 			// negative
-			last_signal = last_noise = 0;
-			min_signal = min_noise = 0;
-			max_signal = max_noise = -256;
+			last_signal_dbm = last_noise_dbm = 0;
+			min_signal_dbm = min_noise_dbm = 0;
+			max_signal_dbm = max_noise_dbm = -256;
+
+			last_signal_rssi = last_noise_rssi = 0;
+			min_signal_rssi = min_noise_rssi = 1024;
+			max_signal_rssi = max_noise_rssi = 0;
 
 			peak_lat = peak_lon = peak_alt = 0;
 
@@ -280,9 +303,13 @@ public:
 			carrierset = 0;
 		}
 
-		int last_signal, last_noise;
-		int min_signal, min_noise;
-		int max_signal, max_noise;
+		int last_signal_dbm, last_noise_dbm;
+		int min_signal_dbm, min_noise_dbm;
+		int max_signal_dbm, max_noise_dbm;
+
+		int last_signal_rssi, last_noise_rssi;
+		int min_signal_rssi, min_noise_rssi;
+		int max_signal_rssi, max_noise_rssi;
 		// Peak locations
 		double peak_lat, peak_lon, peak_alt;
 
@@ -294,14 +321,23 @@ public:
 		uint32_t carrierset;
 
 		inline signal_data& operator= (const signal_data& in) {
-			last_signal = in.last_signal;
-			last_noise = in.last_noise;
+			last_signal_dbm = in.last_signal_dbm;
+			last_noise_dbm = in.last_noise_dbm;
 
-			min_signal = in.min_signal;
-			max_signal = in.max_signal;
+			min_signal_dbm = in.min_signal_dbm;
+			max_signal_dbm = in.max_signal_dbm;
 
-			min_noise = in.min_noise;
-			max_noise = in.max_noise;
+			min_noise_dbm = in.min_noise_dbm;
+			max_noise_dbm = in.max_noise_dbm;
+
+			last_signal_rssi = in.last_signal_rssi;
+			last_noise_rssi = in.last_noise_rssi;
+
+			min_signal_rssi = in.min_signal_rssi;
+			max_signal_rssi = in.max_signal_rssi;
+
+			min_noise_rssi = in.min_noise_rssi;
+			max_noise_rssi = in.max_noise_rssi;
 
 			peak_lat = in.peak_lat;
 			peak_lon = in.peak_lon;
@@ -315,22 +351,99 @@ public:
 			return *this;
 		}
 
-		inline signal_data& operator+= (const signal_data& in) {
-			if (in.min_signal < min_signal)
-				min_signal = in.min_signal;
+		inline signal_data& operator+= (const Packinfo_Sig_Combo& in) {
+			if (in.lay1 != NULL) {
+				int gpscopy = 0;
 
-			if (in.max_signal > max_signal) {
-				max_signal = in.max_signal;
+				if (in.lay1->signal_dbm < min_signal_dbm &&
+					in.lay1->signal_dbm != 0)
+					min_signal_dbm = in.lay1->signal_dbm;
+
+				if (in.lay1->signal_rssi < min_signal_rssi &&
+					in.lay1->signal_rssi != 0)
+					min_signal_rssi = in.lay1->signal_rssi;
+
+				if (in.lay1->signal_dbm > max_signal_dbm &&
+					in.lay1->signal_dbm != 0) {
+					max_signal_dbm = in.lay1->signal_dbm;
+					gpscopy = 1;
+				}
+
+				if (in.lay1->signal_rssi > max_signal_rssi &&
+					in.lay1->signal_rssi != 0) {
+					max_signal_rssi = in.lay1->signal_rssi;
+					gpscopy = 1;
+				}
+
+				if (in.lay1->noise_dbm < min_noise_dbm &&
+					in.lay1->noise_dbm != 0)
+					min_noise_dbm = in.lay1->noise_dbm;
+
+				if (in.lay1->noise_rssi < min_noise_rssi &&
+					in.lay1->noise_rssi != 0)
+					min_noise_rssi = in.lay1->noise_rssi;
+
+				if (in.lay1->noise_dbm > max_noise_dbm &&
+					in.lay1->noise_dbm != 0)
+					max_noise_dbm = in.lay1->noise_dbm;
+
+				if (in.lay1->noise_rssi > max_noise_rssi &&
+					in.lay1->noise_rssi != 0) 
+					max_noise_rssi = in.lay1->noise_rssi;
+
+				last_signal_rssi = in.lay1->signal_rssi;
+				last_signal_dbm = in.lay1->signal_dbm;
+				last_noise_rssi = in.lay1->noise_dbm;
+				last_noise_dbm = in.lay1->noise_dbm;
+
+				carrierset |= in.lay1->carrier;
+				encodingset |= in.lay1->encoding;
+
+				if (in.lay1->datarate > maxseenrate)
+					maxseenrate = in.lay1->datarate;
+
+				if (gpscopy && in.gps != NULL) {
+					peak_lat = in.gps->lat;
+					peak_lon = in.gps->lon;
+					peak_alt = in.gps->alt;
+				}
+			}
+
+			return *this;
+		}
+
+		inline signal_data& operator+= (const signal_data& in) {
+			if (in.min_signal_dbm < min_signal_dbm)
+				min_signal_dbm = in.min_signal_dbm;
+
+			if (in.min_signal_rssi < min_signal_rssi)
+				min_signal_rssi = in.min_signal_rssi;
+
+			if (in.max_signal_dbm > max_signal_dbm) {
+				max_signal_dbm = in.max_signal_dbm;
 				peak_lat = in.peak_lat;
 				peak_lon = in.peak_lon;
 				peak_alt = in.peak_alt;
 			}
 
-			if (in.min_noise < min_noise)
-				min_noise = in.min_noise;
+			if (in.max_signal_rssi > max_signal_rssi) {
+				max_signal_rssi = in.max_signal_rssi;
+				peak_lat = in.peak_lat;
+				peak_lon = in.peak_lon;
+				peak_alt = in.peak_alt;
+			}
 
-			if (in.max_noise < max_noise)
-				max_noise = in.max_noise;
+			if (in.min_noise_dbm < min_noise_dbm)
+				min_noise_dbm = in.min_noise_dbm;
+
+			if (in.min_noise_rssi < min_noise_rssi)
+				min_noise_rssi = in.min_noise_rssi;
+
+			if (in.max_noise_dbm > max_noise_dbm)
+				max_noise_dbm = in.max_noise_dbm;
+
+			if (in.max_noise_rssi > max_noise_rssi)
+				max_noise_rssi = in.max_noise_rssi;
 
 			encodingset |= in.encodingset;
 			carrierset |= in.carrierset;

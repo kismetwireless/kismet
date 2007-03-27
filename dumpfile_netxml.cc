@@ -264,6 +264,39 @@ int Dumpfile_Netxml::Flush() {
 		fprintf(xmlfile, "     <datasize>%llu</datasize>\n", 
 				(long long unsigned int) net->datasize);
 
+		if (net->snrdata.last_signal_rssi != 0 ||
+			net->snrdata.last_signal_dbm != 0) {
+			fprintf(xmlfile, "    <snr-info>\n");
+			fprintf(xmlfile, "      <last_signal_dbm>%d</last_signal_dbm>\n",
+					net->snrdata.last_signal_dbm);
+			fprintf(xmlfile, "      <last_noise_dbm>%d</last_noise_dbm>\n",
+					net->snrdata.last_noise_dbm);
+			fprintf(xmlfile, "      <last_signal_rssi>%d</last_signal_rssi>\n",
+					net->snrdata.last_signal_rssi);
+			fprintf(xmlfile, "      <last_noise_rssi>%d</last_noise_rssi>\n",
+					net->snrdata.last_noise_rssi);
+
+			fprintf(xmlfile, "      <min_signal_dbm>%d</min_signal_dbm>\n",
+					net->snrdata.min_signal_dbm);
+			fprintf(xmlfile, "      <min_noise_dbm>%d</min_noise_dbm>\n",
+					net->snrdata.min_noise_dbm);
+			fprintf(xmlfile, "      <min_signal_rssi>%d</min_signal_rssi>\n",
+					net->snrdata.min_signal_rssi);
+			fprintf(xmlfile, "      <min_noise_rssi>%d</min_noise_rssi>\n",
+					net->snrdata.min_noise_rssi);
+
+			fprintf(xmlfile, "      <max_signal_dbm>%d</max_signal_dbm>\n",
+					net->snrdata.max_signal_dbm);
+			fprintf(xmlfile, "      <max_noise_dbm>%d</max_noise_dbm>\n",
+					net->snrdata.max_noise_dbm);
+			fprintf(xmlfile, "      <max_signal_rssi>%d</max_signal_rssi>\n",
+					net->snrdata.max_signal_rssi);
+			fprintf(xmlfile, "      <max_noise_rssi>%d</max_noise_rssi>\n",
+					net->snrdata.max_noise_rssi);
+
+			fprintf(xmlfile, "    </snr-info>\n");
+		}
+
 		if (net->gpsdata.gps_valid) {
 			fprintf(xmlfile, "    <gps-info>\n");
 			fprintf(xmlfile, "      <min-lat>%f</min-lat>\n", net->gpsdata.min_lat);
@@ -443,89 +476,122 @@ int Dumpfile_Netxml::Flush() {
 				fprintf(xmlfile, "        </ssid>\n");
 			}
 
-			fprintf(xmlfile, "      <client-channel>%d</client-channel>\n", 
+			fprintf(xmlfile, "      <channel>%d</channel>\n", 
 					cli->channel);
-			fprintf(xmlfile, "      <client-maxseenrate>%ld</client-maxseenrate>\n",
+			fprintf(xmlfile, "      <maxseenrate>%ld</maxseenrate>\n",
 					(long) cli->snrdata.maxseenrate * 100);
 
 			if (cli->snrdata.carrierset & (1 << (int) carrier_80211b))
-				fprintf(xmlfile, "      <client-carrier>IEEE 802.11b"
-						"</client-carrier>\n");
+				fprintf(xmlfile, "      <carrier>IEEE 802.11b"
+						"</carrier>\n");
 			if (cli->snrdata.carrierset & (1 << (int) carrier_80211bplus))
-				fprintf(xmlfile, "      <client-carrier>IEEE 802.11b+"
-						"</client-carrier>\n");
+				fprintf(xmlfile, "      <carrier>IEEE 802.11b+"
+						"</carrier>\n");
 			if (cli->snrdata.carrierset & (1 << (int) carrier_80211a))
-				fprintf(xmlfile, "      <client-carrier>IEEE 802.11a"
-						"</client-carrier>\n");
+				fprintf(xmlfile, "      <carrier>IEEE 802.11a"
+						"</carrier>\n");
 			if (cli->snrdata.carrierset & (1 << (int) carrier_80211g))
-				fprintf(xmlfile, "      <client-carrier>IEEE 802.11g"
-						"</client-carrier>\n");
+				fprintf(xmlfile, "      <carrier>IEEE 802.11g"
+						"</carrier>\n");
 			if (cli->snrdata.carrierset & (1 << (int) carrier_80211fhss))
-				fprintf(xmlfile, "      <client-carrier>IEEE 802.11 FHSS"
-						"</client-carrier>\n");
+				fprintf(xmlfile, "      <carrier>IEEE 802.11 FHSS"
+						"</carrier>\n");
 			if (cli->snrdata.carrierset & (1 << (int) carrier_80211dsss))
-				fprintf(xmlfile, "      <client-carrier>IEEE 802.11 DSSS"
-						"</client-carrier>\n");
+				fprintf(xmlfile, "      <carrier>IEEE 802.11 DSSS"
+						"</carrier>\n");
 
 			if (cli->snrdata.encodingset & (1 << (int) encoding_cck))
-				fprintf(xmlfile, "      <client-encoding>CCK</client-encoding>\n");
+				fprintf(xmlfile, "      <encoding>CCK</encoding>\n");
 			if (cli->snrdata.encodingset & (1 << (int) encoding_pbcc))
-				fprintf(xmlfile, "      <client-encoding>PBCC</client-encoding>\n");
+				fprintf(xmlfile, "      <encoding>PBCC</encoding>\n");
 			if (cli->snrdata.encodingset & (1 << (int) encoding_ofdm))
-				fprintf(xmlfile, "      <client-encoding>OFDM</client-encoding>\n");
+				fprintf(xmlfile, "      <encoding>OFDM</encoding>\n");
 
-			fprintf(xmlfile, "       <client-packets>\n");
-			fprintf(xmlfile, "         <client-LLC>%d</client-LLC>\n", 
+			fprintf(xmlfile, "       <packets>\n");
+			fprintf(xmlfile, "         <LLC>%d</LLC>\n", 
 					cli->llc_packets);
-			fprintf(xmlfile, "         <client-data>%d</client-data>\n", 
+			fprintf(xmlfile, "         <data>%d</data>\n", 
 					cli->data_packets);
-			fprintf(xmlfile, "         <client-crypt>%d</client-crypt>\n", 
+			fprintf(xmlfile, "         <crypt>%d</crypt>\n", 
 					cli->crypt_packets);
 			// TODO - DupeIV stuff?
-			fprintf(xmlfile, "         <client-total>%d</client-total>\n", 
+			fprintf(xmlfile, "         <total>%d</total>\n", 
 					cli->llc_packets + cli->data_packets);
-			fprintf(xmlfile, "         <client-fragments>%d</client-fragments>\n", 
+			fprintf(xmlfile, "         <fragments>%d</fragments>\n", 
 					cli->fragments);
-			fprintf(xmlfile, "         <client-retries>%d</client-retries>\n", 
+			fprintf(xmlfile, "         <retries>%d</retries>\n", 
 					cli->retries);
-			fprintf(xmlfile, "       </client-packets>\n");
+			fprintf(xmlfile, "       </packets>\n");
 
-			fprintf(xmlfile, "       <client-datasize>%ld</client-datasize>\n", 
+			fprintf(xmlfile, "       <datasize>%ld</datasize>\n", 
 					(long int) cli->datasize);
 
+			if (cli->snrdata.last_signal_rssi != 0 ||
+				cli->snrdata.last_signal_dbm != 0) {
+				fprintf(xmlfile, "      <snr-info>\n");
+				fprintf(xmlfile, "        <last_signal_dbm>%d</last_signal_dbm>\n",
+						cli->snrdata.last_signal_dbm);
+				fprintf(xmlfile, "        <last_noise_dbm>%d</last_noise_dbm>\n",
+						cli->snrdata.last_noise_dbm);
+				fprintf(xmlfile, "        <last_signal_rssi>%d</last_signal_rssi>\n",
+						cli->snrdata.last_signal_rssi);
+				fprintf(xmlfile, "        <last_noise_rssi>%d</last_noise_rssi>\n",
+						cli->snrdata.last_noise_rssi);
+
+				fprintf(xmlfile, "        <min_signal_dbm>%d</min_signal_dbm>\n",
+						cli->snrdata.min_signal_dbm);
+				fprintf(xmlfile, "        <min_noise_dbm>%d</min_noise_dbm>\n",
+						cli->snrdata.min_noise_dbm);
+				fprintf(xmlfile, "        <min_signal_rssi>%d</min_signal_rssi>\n",
+						cli->snrdata.min_signal_rssi);
+				fprintf(xmlfile, "        <min_noise_rssi>%d</min_noise_rssi>\n",
+						cli->snrdata.min_noise_rssi);
+
+				fprintf(xmlfile, "        <max_signal_dbm>%d</max_signal_dbm>\n",
+						cli->snrdata.max_signal_dbm);
+				fprintf(xmlfile, "        <max_noise_dbm>%d</max_noise_dbm>\n",
+						cli->snrdata.max_noise_dbm);
+				fprintf(xmlfile, "        <max_signal_rssi>%d</max_signal_rssi>\n",
+						cli->snrdata.max_signal_rssi);
+				fprintf(xmlfile, "        <max_noise_rssi>%d</max_noise_rssi>\n",
+						cli->snrdata.max_noise_rssi);
+
+				fprintf(xmlfile, "      </snr-info>\n");
+			}
+
 			if (cli->gpsdata.gps_valid) {
-				fprintf(xmlfile, "      <client-gps-info>\n");
-				fprintf(xmlfile, "        <client-min-lat>%f</client-min-lat>\n", 
+				fprintf(xmlfile, "      <gps-info>\n");
+				fprintf(xmlfile, "        <min-lat>%f</min-lat>\n", 
 						cli->gpsdata.min_lat);
-				fprintf(xmlfile, "        <client-min-lon>%f</client-min-lon>\n", 
+				fprintf(xmlfile, "        <min-lon>%f</min-lon>\n", 
 						cli->gpsdata.min_lon);
-				fprintf(xmlfile, "        <client-min-alt>%f</client-min-alt>\n", 
+				fprintf(xmlfile, "        <min-alt>%f</min-alt>\n", 
 						cli->gpsdata.min_alt);
-				fprintf(xmlfile, "        <client-min-spd>%f</client-min-spd>\n", 
+				fprintf(xmlfile, "        <min-spd>%f</min-spd>\n", 
 						cli->gpsdata.min_spd);
-				fprintf(xmlfile, "        <client-max-lat>%f</client-max-lat>\n", 
+				fprintf(xmlfile, "        <max-lat>%f</max-lat>\n", 
 						cli->gpsdata.max_lat);
-				fprintf(xmlfile, "        <client-max-lon>%f</client-max-lon>\n", 
+				fprintf(xmlfile, "        <max-lon>%f</max-lon>\n", 
 						cli->gpsdata.max_lon);
-				fprintf(xmlfile, "        <client-max-alt>%f</client-max-alt>\n", 
+				fprintf(xmlfile, "        <max-alt>%f</max-alt>\n", 
 						cli->gpsdata.max_alt);
-				fprintf(xmlfile, "        <client-max-spd>%f</client-max-spd>\n", 
+				fprintf(xmlfile, "        <max-spd>%f</max-spd>\n", 
 						cli->gpsdata.max_spd);
-				fprintf(xmlfile, "        <client-peak-lat>%f</client-peak-lat>\n", 
+				fprintf(xmlfile, "        <peak-lat>%f</peak-lat>\n", 
 						cli->snrdata.peak_lat);
-				fprintf(xmlfile, "        <client-peak-lon>%f</client-peak-lon>\n", 
+				fprintf(xmlfile, "        <peak-lon>%f</peak-lon>\n", 
 						cli->snrdata.peak_lon);
-				fprintf(xmlfile, "        <client-peak-alt>%f</client-peak-alt>\n", 
+				fprintf(xmlfile, "        <peak-alt>%f</peak-alt>\n", 
 						cli->snrdata.peak_alt);
-				fprintf(xmlfile, "        <client-agg-lat>%Lf</client-agg-lat>\n", 
+				fprintf(xmlfile, "        <agg-lat>%Lf</agg-lat>\n", 
 						cli->gpsdata.aggregate_lat);
-				fprintf(xmlfile, "        <client-agg-lon>%Lf</client-agg-lon>\n", 
+				fprintf(xmlfile, "        <agg-lon>%Lf</agg-lon>\n", 
 						cli->gpsdata.aggregate_lon);
-				fprintf(xmlfile, "        <client-agg-alt>%Lf</client-agg-alt>\n", 
+				fprintf(xmlfile, "        <agg-alt>%Lf</agg-alt>\n", 
 						cli->gpsdata.aggregate_alt);
-				fprintf(xmlfile, "        <client-agg-points>%ld"
-						"</client-agg-points>\n", cli->gpsdata.aggregate_points);
-				fprintf(xmlfile, "      </client-gps-info>\n");
+				fprintf(xmlfile, "        <agg-points>%ld</agg-points>\n", 
+						cli->gpsdata.aggregate_points);
+				fprintf(xmlfile, "      </gps-info>\n");
 			}
 
 			if (cli->guess_ipdata.ip_type > ipdata_factoryguess && 
@@ -546,18 +612,15 @@ int Dumpfile_Netxml::Flush() {
 						break;
 				}
 
-				fprintf(xmlfile, "      <client-ip-address type=\"%s\">\n", 
+				fprintf(xmlfile, "      <address type=\"%s\">\n", 
 						iptype.c_str());
-				fprintf(xmlfile, "        <client-ip-block>%s"
-						"</client-ip-block>\n", 
+				fprintf(xmlfile, "        <ip-block>%s</ip-block>\n", 
 						inet_ntoa(cli->guess_ipdata.ip_addr_block));
-				fprintf(xmlfile, "        <client-ip-netmask>%s"
-						"</client-ip-netmask>\n",
+				fprintf(xmlfile, "        <ip-netmask>%s</ip-netmask>\n",
 						inet_ntoa(cli->guess_ipdata.ip_netmask));
-				fprintf(xmlfile, "        <client-ip-gateway>%s"
-						"</client-ip-gateway>\n",
+				fprintf(xmlfile, "        <ip-gateway>%s</ip-gateway>\n",
 						inet_ntoa(cli->guess_ipdata.ip_gateway));
-				fprintf(xmlfile, "      </client-ip-address>\n");
+				fprintf(xmlfile, "      </ip-address>\n");
 			}
 
 			fprintf(xmlfile, "      <cdp-device>%s</cdp-device>\n",

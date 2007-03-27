@@ -318,7 +318,8 @@ class kis_layer1_packinfo : public packet_component {
 public:
 	kis_layer1_packinfo() {
 		self_destruct = 1;  // Safe to delete us
-		signal = noise = 0;
+		signal_dbm = noise_dbm = 0;
+		signal_rssi = noise_rssi = 0;
 		carrier = carrier_unknown;
 		encoding = encoding_unknown;
 		datarate = 0;
@@ -334,8 +335,8 @@ public:
 	int channel;
 
     // Connection info
-    int signal;
-    int noise;
+    int signal_dbm, signal_rssi;
+    int noise_dbm, noise_rssi;
 
     // What carrier brought us this packet?
     phy_carrier_type carrier;

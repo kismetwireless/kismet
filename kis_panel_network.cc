@@ -704,37 +704,73 @@ void Kis_Netlist::Proto_BSSID(CLIPROTO_CB_PARMS) {
 
 	// Signal levels
 	if (sscanf((*proto_parsed)[fnum++].word.c_str(), "%d", 
-			   &(net->snrdata.last_signal)) != 1) {
+			   &(net->snrdata.last_signal_dbm)) != 1) {
 		delete net;
 		return;
 	}
 
 	if (sscanf((*proto_parsed)[fnum++].word.c_str(), "%d",
-			   &(net->snrdata.last_noise)) != 1) {
+			   &(net->snrdata.last_noise_dbm)) != 1) {
 		delete net;
 		return;
 	}
 
 	if (sscanf((*proto_parsed)[fnum++].word.c_str(), "%d",
-			   &(net->snrdata.min_signal)) != 1) {
+			   &(net->snrdata.min_signal_dbm)) != 1) {
 		delete net;
 		return;
 	}
 
 	if (sscanf((*proto_parsed)[fnum++].word.c_str(), "%d",
-			   &(net->snrdata.min_noise)) != 1) {
+			   &(net->snrdata.min_noise_dbm)) != 1) {
 		delete net;
 		return;
 	}
 
 	if (sscanf((*proto_parsed)[fnum++].word.c_str(), "%d",
-			   &(net->snrdata.max_signal)) != 1) {
+			   &(net->snrdata.max_signal_dbm)) != 1) {
 		delete net;
 		return;
 	}
 
 	if (sscanf((*proto_parsed)[fnum++].word.c_str(), "%d",
-			   &(net->snrdata.max_noise)) != 1) {
+			   &(net->snrdata.max_noise_dbm)) != 1) {
+		delete net;
+		return;
+	}
+
+	if (sscanf((*proto_parsed)[fnum++].word.c_str(), "%d", 
+			   &(net->snrdata.last_signal_rssi)) != 1) {
+		delete net;
+		return;
+	}
+
+	if (sscanf((*proto_parsed)[fnum++].word.c_str(), "%d",
+			   &(net->snrdata.last_noise_rssi)) != 1) {
+		delete net;
+		return;
+	}
+
+	if (sscanf((*proto_parsed)[fnum++].word.c_str(), "%d",
+			   &(net->snrdata.min_signal_rssi)) != 1) {
+		delete net;
+		return;
+	}
+
+	if (sscanf((*proto_parsed)[fnum++].word.c_str(), "%d",
+			   &(net->snrdata.min_noise_rssi)) != 1) {
+		delete net;
+		return;
+	}
+
+	if (sscanf((*proto_parsed)[fnum++].word.c_str(), "%d",
+			   &(net->snrdata.max_signal_rssi)) != 1) {
+		delete net;
+		return;
+	}
+
+	if (sscanf((*proto_parsed)[fnum++].word.c_str(), "%d",
+			   &(net->snrdata.max_noise_rssi)) != 1) {
 		delete net;
 		return;
 	}

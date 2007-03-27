@@ -195,14 +195,17 @@ int Dumpfile_Gpsxml::chain_handler(kis_packet *in_pack) {
 
     fprintf(xmlfile, "    <gps-point bssid=\"%s\" source=\"%s\" time-sec=\"%ld\" "
 			"time-usec=\"%ld\" lat=\"%f\" lon=\"%f\" alt=\"%f\" spd=\"%f\" "
-			"heading=\"%f\" fix=\"%d\" signal=\"%d\" noise=\"%d\"/>\n",
+			"heading=\"%f\" fix=\"%d\" signal_dbm=\"%d\" noise_dbm=\"%d\"/> "
+			"signal_rssi=\"%d\" noise_rssi=\"%d\"\n",
 			eight11->bssid_mac.Mac2String().c_str(),
 			eight11->source_mac.Mac2String().c_str(),
 			(long int) in_pack->ts.tv_sec, (long int) in_pack->ts.tv_usec,
 			gpsinfo->lat, gpsinfo->lon, gpsinfo->alt, gpsinfo->spd,
 			gpsinfo->heading, gpsinfo->gps_fix,
-			radio == NULL ? 0 : radio->signal,
-			radio == NULL ? 0 : radio->noise);
+			radio == NULL ? 0 : radio->signal_dbm,
+			radio == NULL ? 0 : radio->noise_dbm,
+			radio == NULL ? 0 : radio->signal_rssi,
+			radio == NULL ? 0 : radio->noise_rssi);
 
 	dumped_frames++;
 

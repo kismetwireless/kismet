@@ -193,11 +193,13 @@ typedef struct drone_source_packet {
 // Bitmap fields for radio headers
 #define DRONE_RADIO_ACCURACY		0
 #define DRONE_RADIO_CHANNEL			1
-#define DRONE_RADIO_SIGNAL			2
-#define DRONE_RADIO_NOISE			3
+#define DRONE_RADIO_SIGNAL_DBM		2
+#define DRONE_RADIO_NOISE_DBM		3
 #define DRONE_RADIO_CARRIER			4
 #define DRONE_RADIO_ENCODING		5
 #define DRONE_RADIO_DATARATE		6
+#define DRONE_RADIO_SIGNAL_RSSI		7
+#define DRONE_RADIO_NOISE_RSSI		8
 
 // Radiotap-style header of radio data
 typedef struct drone_capture_sub_radio {
@@ -206,11 +208,13 @@ typedef struct drone_capture_sub_radio {
 
 	uint16_t radio_accuracy;
 	uint16_t radio_channel;
-	int16_t radio_signal;
-	int16_t radio_noise;
+	int16_t radio_signal_dbm;
+	int16_t radio_noise_dbm;
 	uint32_t radio_carrier;
 	uint32_t radio_encoding;
 	uint32_t radio_datarate;
+	int16_t radio_signal_rssi;
+	int16_t radio_noise_rssi;
 } __attribute__((__packed__));
 
 // Bitmap fields for gps headers

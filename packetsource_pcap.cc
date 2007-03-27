@@ -315,17 +315,8 @@ int PacketSource_Pcap::Prism2KisPack(kis_packet *packet) {
 
         // We REALLY need to do something smarter about this and handle the RSSI
         // type instead of just copying
-		radioheader->signal = ntohl(v1hdr->ssi_signal);
-		radioheader->noise = ntohl(v1hdr->ssi_noise);
-
-		// Attempt to correct RSSI with whats been reported as a proper conversion
-		// method...
-		if (radioheader->signal > 0) {
-			radioheader->signal -= 0x100;
-		}
-		if (radioheader->noise > 0) {
-			radioheader->noise -= 0x100;
-		}
+		radioheader->signal_rssi = ntohl(v1hdr->ssi_signal);
+		radioheader->noise_rssi = ntohl(v1hdr->ssi_noise);
 
 		radioheader->channel = ntohl(v1hdr->channel);
 
@@ -390,17 +381,8 @@ int PacketSource_Pcap::Prism2KisPack(kis_packet *packet) {
         // Set our offset for extracting the actual data
         callback_offset = sizeof(wlan_ng_prism2_header);
 
-        radioheader->signal = p2head->signal.data;
-        radioheader->noise = p2head->noise.data;
-
-		// Attempt to correct RSSI with whats been reported as a proper conversion
-		// method...
-		if (radioheader->signal > 0) {
-			radioheader->signal -= 0x100;
-		}
-		if (radioheader->noise > 0) {
-			radioheader->noise -= 0x100;
-		}
+        radioheader->signal_rssi = p2head->signal.data;
+        radioheader->noise_rssi = p2head->noise.data;
 
         radioheader->channel = p2head->channel.data;
     }
@@ -643,16 +625,16 @@ int PacketSource_Pcap::Radiotap2KisPack(kis_packet *packet) {
                     radioheader->datarate = ((u.u8 &~ 0x80) / 2) * 10;
                     break;
                 case IEEE80211_RADIOTAP_DB_ANTSIGNAL:
-                    radioheader->signal = u.i8;
+                    radioheader->signal_dbm = u.i8;
                     break;
                 case IEEE80211_RADIOTAP_DB_ANTNOISE:
-                    radioheader->noise = u.i8;
+                    radioheader->noise_dbm = u.i8;
                     break;
 				case IEEE80211_RADIOTAP_DBM_ANTSIGNAL:
-					radioheader->signal = u.i8;
+					radioheader->signal_dbm = u.i8;
 					break;
 				case IEEE80211_RADIOTAP_DBM_ANTNOISE:
-					radioheader->noise = u.i8;
+					radioheader->noise_dbm = u.i8;
 					break;
                 case IEEE80211_RADIOTAP_FLAGS:
                     if (u.u8 & IEEE80211_RADIOTAP_F_FCS)
@@ -660,8 +642,9 @@ int PacketSource_Pcap::Radiotap2KisPack(kis_packet *packet) {
                     break;
 #if defined(SYS_OPENBSD)
                 case IEEE80211_RADIOTAP_RSSI:
-                    /* Convert to Kismet units */
-                    packet->signal = int((float(u.u8) / float(u2.u8) * 255));
+                    /* Convert to Kismet units...  No reason to use RSSI units
+					 * here since we know the conversion factor */
+                    packet->signal_dbm = int((float(u.u8) / float(u2.u8) * 255));
                     break;
 #endif
 #if 0

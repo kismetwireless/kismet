@@ -484,14 +484,14 @@ int DroneClientFrame::ParseData() {
 					radio->channel = kis_ntoh16(dsr->radio_channel);
 					rofft += 2;
 				}
-				if ((rcbm & DRONEBIT(DRONE_RADIO_SIGNAL)) &&
+				if ((rcbm & DRONEBIT(DRONE_RADIO_SIGNAL_DBM)) &&
 					(rofft + 2 <= sublen)) {
-					radio->signal = (int16_t) kis_ntoh16(dsr->radio_signal);
+					radio->signal_dbm = (int16_t) kis_ntoh16(dsr->radio_signal_dbm);
 					rofft += 2;
 				}
-				if ((rcbm & DRONEBIT(DRONE_RADIO_NOISE)) &&
+				if ((rcbm & DRONEBIT(DRONE_RADIO_NOISE_DBM)) &&
 					(rofft + 2 <= sublen)) {
-					radio->noise = (int16_t) kis_ntoh16(dsr->radio_noise);
+					radio->noise_dbm = (int16_t) kis_ntoh16(dsr->radio_noise_dbm);
 					rofft += 2;
 				}
 				if ((rcbm & DRONEBIT(DRONE_RADIO_CARRIER)) &&
@@ -510,6 +510,16 @@ int DroneClientFrame::ParseData() {
 					(rofft + 4 <= sublen)) {
 					radio->datarate = kis_ntoh32(dsr->radio_datarate);
 					rofft += 4;
+				}
+				if ((rcbm & DRONEBIT(DRONE_RADIO_SIGNAL_RSSI)) &&
+					(rofft + 2 <= sublen)) {
+					radio->signal_rssi = (int16_t) kis_ntoh16(dsr->radio_signal_rssi);
+					rofft += 2;
+				}
+				if ((rcbm & DRONEBIT(DRONE_RADIO_NOISE_RSSI)) &&
+					(rofft + 2 <= sublen)) {
+					radio->noise_rssi = (int16_t) kis_ntoh16(dsr->radio_noise_rssi);
+					rofft += 2;
 				}
 
 				newpack->insert(_PCM(PACK_COMP_RADIODATA), radio);
