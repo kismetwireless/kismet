@@ -685,11 +685,11 @@ int TcpClient::ParseData(char *in_data) {
             return 0;
 
     } else if (!strncmp(header, "*INFO", 64)) {
-		if (sscanf(in_data+hdrlen, "%d %d %d %d %d %d %d %d\n",
+		if (sscanf(in_data+hdrlen, "%d %d %d %d %d %d %d %d %d\n",
 				   &num_networks, &num_packets,
 				   &num_crypt, &num_interesting, 
 				   &num_noise, &num_dropped, 
-				   &packet_rate, &power) < 8)
+				   &packet_rate, &power, &noise) < 9)
 			return 0;
     } else if (!strncmp(header, "*CISCO", 64)) {
         cdp_packet cdp;

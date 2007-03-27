@@ -687,13 +687,12 @@ void NetWriteInfo() {
     snprintf(tmpstr, 32, "%d", tracker.FetchNumPackets() - last_packnum);
     idata.rate = tmpstr;
 
-    if (time(0) - last_info.ts.tv_sec < decay && last_info.quality != -1)
-        snprintf(tmpstr, 16, "%d %d %d", last_info.quality,
-                 last_info.signal, last_info.noise);
+    if (time(0) - last_info.ts.tv_sec < decay && last_info.signal != -1)
+        snprintf(tmpstr, 16, "%d %d" , last_info.signal, last_info.noise);
     else if (last_info.quality == -1)
-        snprintf(tmpstr, 16, "-1 -1 -1");
+        snprintf(tmpstr, 16, "-1 -1");
     else
-        snprintf(tmpstr, 16, "0 0 0");
+        snprintf(tmpstr, 16, "0 0");
     idata.signal = tmpstr;
 
     last_packnum = tracker.FetchNumPackets();

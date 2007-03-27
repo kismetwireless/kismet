@@ -24,7 +24,7 @@
 
 char *INFO_fields_text[] = {
     "networks", "packets", "crypt", "weak",
-    "noise", "dropped", "rate", "signal",
+    "noise", "dropped", "rate", "signal", 
     NULL
 };
 
