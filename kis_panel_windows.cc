@@ -107,10 +107,15 @@ void Kis_Main_Panel::Position(int in_sy, int in_sx, int in_y, int in_x) {
 }
 
 void Kis_Main_Panel::DrawPanel() {
+	ColorFromPref(text_color, "panel_text_color");
+	ColorFromPref(border_color, "panel_border_color");
+
+	wbkgdset(win, text_color);
 	werase(win);
 
 	DrawTitleBorder();
 
+	wattrset(win, text_color);
 	for (unsigned int x = 0; x < comp_vec.size(); x++)
 		comp_vec[x]->DrawComponent();
 
@@ -366,7 +371,15 @@ void Kis_Connect_Panel::Position(int in_sy, int in_sx, int in_y, int in_x) {
 }
 
 void Kis_Connect_Panel::DrawPanel() {
+	ColorFromPref(text_color, "panel_text_color");
+	ColorFromPref(border_color, "panel_border_color");
+
+	wbkgdset(win, text_color);
 	werase(win);
+
+	DrawTitleBorder();
+
+	wattrset(win, text_color);
 
 	DrawTitleBorder();
 
@@ -469,8 +482,15 @@ void Kis_ModalAlert_Panel::Position(int in_sy, int in_sx, int in_y, int in_x) {
 }
 
 void Kis_ModalAlert_Panel::DrawPanel() {
+	ColorFromPref(text_color, "panel_text_color");
+	ColorFromPref(border_color, "panel_border_color");
+
+	wbkgdset(win, text_color);
 	werase(win);
 
+	DrawTitleBorder();
+
+	wattrset(win, text_color);
 	DrawTitleBorder();
 
 	for (unsigned int x = 0; x < comp_vec.size(); x++)
@@ -567,7 +587,15 @@ void Kis_ServerList_Picker::Position(int in_sy, int in_sx, int in_y, int in_x) {
 }
 
 void Kis_ServerList_Picker::DrawPanel() {
+	ColorFromPref(text_color, "panel_text_color");
+	ColorFromPref(border_color, "panel_border_color");
+
+	wbkgdset(win, text_color);
 	werase(win);
+
+	DrawTitleBorder();
+
+	wattrset(win, text_color);
 
 	DrawTitleBorder();
 
@@ -735,7 +763,15 @@ void Kis_AddCard_Panel::SetTargetClient(KisNetClient *in_cli) {
 }
 
 void Kis_AddCard_Panel::DrawPanel() {
+	ColorFromPref(text_color, "panel_text_color");
+	ColorFromPref(border_color, "panel_border_color");
+
+	wbkgdset(win, text_color);
 	werase(win);
+
+	DrawTitleBorder();
+
+	wattrset(win, text_color);
 
 	DrawTitleBorder();
 
@@ -931,7 +967,15 @@ void Kis_Plugin_Picker::Position(int in_sy, int in_sx, int in_y, int in_x) {
 }
 
 void Kis_Plugin_Picker::DrawPanel() {
+	ColorFromPref(text_color, "panel_text_color");
+	ColorFromPref(border_color, "panel_border_color");
+
+	wbkgdset(win, text_color);
 	werase(win);
+
+	DrawTitleBorder();
+
+	wattrset(win, text_color);
 
 	DrawTitleBorder();
 

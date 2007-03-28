@@ -22,6 +22,7 @@
 #if (defined(HAVE_LIBNCURSES) || defined (HAVE_LIBCURSES))
 
 #include "kis_panel_widgets.h"
+#include "kis_panel_frontend.h"
 #include "timetracker.h"
 #include "messagebus.h"
 
@@ -82,6 +83,75 @@ void Kis_Panel_Specialtext::Mvwaddnstr(WINDOW *win, int y, int x, string str, in
 	}
 }
 
+Kis_Panel_Color::Kis_Panel_Color() {
+	nextindex = COLORS + 1;
+}
+
+int Kis_Panel_Color::AddColor(string color) {
+	map<string, int>::iterator cimi;
+	int nums[2];
+	int bold;
+	int pair;
+
+	if ((cimi = color_index_map.find(StrLower(color))) != color_index_map.end()) {
+		return cimi->second;
+	}
+
+	if (nextindex == COLOR_PAIRS - 1) {
+		return 0;
+	}
+
+	vector<string> colorpair = StrTokenize(color, ",");
+
+	if (colorpair.size() < 1)
+		colorpair.push_back("white");
+	if (colorpair.size() < 2)
+		colorpair.push_back("black");
+
+	colorpair[0] = StrLower(colorpair[0]);
+	colorpair[1] = StrLower(colorpair[1]);
+
+	for (unsigned int x = 0; x < 2; x++) {
+		string clr = colorpair[x];
+		
+		// First, find if theres a hi-
+		if (clr.substr(0, 3) == "hi-") {
+			bold = 1;
+			clr = clr.substr(3, clr.length() - 3);
+		}
+
+		// Then match all the colors
+		if (clr == "black")
+			nums[x] = COLOR_BLACK;
+		else if (clr == "red")
+			nums[x] = COLOR_RED;
+		else if (clr == "green")
+			nums[x] = COLOR_GREEN;
+		else if (clr == "yellow")
+			nums[x] = COLOR_YELLOW;
+		else if (clr == "blue")
+			nums[x] = COLOR_BLUE;
+		else if (clr == "magenta")
+			nums[x] = COLOR_MAGENTA;
+		else if (clr == "cyan")
+			nums[x] = COLOR_CYAN;
+		else if (clr == "white")
+			nums[x] = COLOR_WHITE;
+	}
+
+	init_pair(nextindex, nums[0], nums[1]);
+
+	pair = COLOR_PAIR(nextindex);
+
+	if (bold)
+		pair |= A_BOLD;
+
+	color_index_map[StrLower(color)] = pair;
+	nextindex++;
+
+	return pair;
+}
+
 int panelint_draw_timer(TIMEEVENT_PARMS) {
 	return ((PanelInterface *) parm)->DrawInterface();
 }
@@ -99,6 +169,7 @@ PanelInterface::PanelInterface(GlobalRegistry *in_globalreg) {
 	initscr();
 	cbreak();
 	noecho();
+	start_color();
 
 	draweventid = 
 		globalreg->timetracker->RegisterTimer(SERVER_TIMESLICES_SEC / 2,
@@ -388,9 +459,11 @@ void Kis_Menu::DrawMenu(_menu *menu, WINDOW *win, int hpos, int vpos) {
 	mvderwin(win, vpos, hpos);
 
 	// Draw the box
+	wattrset(win, border_color);
 	box(win, 0, 0);
 
 	// Use dsz as the position to draw into
+	wattrset(win, text_color);
 	dsz = 0;
 	for (unsigned int y = 0; y < menu->items.size(); y++) {
 		string menuline;
@@ -400,10 +473,12 @@ void Kis_Menu::DrawMenu(_menu *menu, WINDOW *win, int hpos, int vpos) {
 
 		// Shortcut out a spacer
 		if (menu->items[y]->text[0] == '-') {
+			wattrset(win, border_color);
 			mvwhline(win, 1 + dsz, 1, ACS_HLINE, menu->width + 5);
 			mvwaddch(win, 1 + dsz, 0, ACS_LTEE);
 			mvwaddch(win, 1 + dsz, menu->width + 6, ACS_RTEE);
 			dsz++;
+			wattrset(win, text_color);
 			continue;
 		}
 
@@ -440,8 +515,10 @@ void Kis_Menu::DrawMenu(_menu *menu, WINDOW *win, int hpos, int vpos) {
 				subhpos = hpos + menu->width + 6;
 
 			}
-		} else {
+		} else if (menu->items[y]->extrachar != 0) {
 			menuline = menuline + " " + menu->items[y]->extrachar;
+		} else {
+			menuline = menuline + "  ";
 		}
 
 		// Print it
@@ -471,11 +548,17 @@ void Kis_Menu::DrawComponent() {
 	if (visible == 0)
 		return;
 
+	parent_panel->InitColorPref("menu_text_color", "white,blue");
+	parent_panel->InitColorPref("menu_border_color", "cyan,blue");
+	parent_panel->ColorFromPref(text_color, "menu_text_color");
+	parent_panel->ColorFromPref(border_color, "menu_border_color");
+
 	int hpos = 3;
 
 	if (menuwin == NULL)
 		menuwin = derwin(window, 1, 1, 0, 0);
 
+	wattron(window, border_color);
 	mvwaddstr(window, sy, sx + 1, "~ ");
 
 	// Draw the menu bar itself
@@ -509,6 +592,7 @@ void Kis_Menu::DrawComponent() {
 
 		hpos += menubar[x]->text.length() + 1;
 	}
+	wattroff(window, text_color);
 }
 
 void Kis_Menu::FindNextEnabledItem() {
@@ -876,10 +960,10 @@ void Kis_Field_List::DrawComponent() {
 
 	for (unsigned int x = 0; x < field_vec.size() && (int) x < ey; x++) {
 		// Set the field name to bold
-		wattron(window, WA_BOLD);
+		wattron(window, WA_UNDERLINE);
 		mvwaddnstr(window, sy + x, sx, field_vec[x + scroll_pos].c_str(), field_w);
 		mvwaddch(window, sy + x, sx + field_w, ':');
-		wattroff(window, WA_BOLD);
+		wattroff(window, WA_UNDERLINE);
 
 		// Draw the data, leave room on the end for the scrollbar
 		mvwaddnstr(window, sy + x, sx + field_w + 2, data_vec[x + scroll_pos].c_str(),
@@ -993,7 +1077,7 @@ void Kis_Scrollable_Table::DrawComponent() {
 	string ftxt;
 
 	// Print across the titles
-	wattron(window, WA_BOLD);
+	wattron(window, WA_UNDERLINE);
 	for (unsigned int x = hscroll_pos; x < title_vec.size() && xcur < ex; x++) {
 
 		int w = title_vec[x].width;
@@ -1010,7 +1094,7 @@ void Kis_Scrollable_Table::DrawComponent() {
 		// Advance by the width + 1
 		xcur += w + 1;
 	}
-	wattroff(window, WA_BOLD);
+	wattroff(window, WA_UNDERLINE);
 
 	if ((int) data_vec.size() > ey) {
 		// Draw the scroll bar
@@ -1421,6 +1505,12 @@ Kis_Panel::Kis_Panel(GlobalRegistry *in_globalreg, KisPanelInterface *in_intf) {
 	pan = new_panel(win);
 	menu = NULL;
 
+	text_color = border_color = 0;
+	InitColorPref("panel_text_color", "white,black");
+	InitColorPref("panel_border_color", "blue,black");
+	ColorFromPref(text_color, "panel_text_color");
+	ColorFromPref(border_color, "panel_border_color");
+
 	sx = sy = sizex = sizey = 0;
 }
 
@@ -1435,6 +1525,20 @@ Kis_Panel::~Kis_Panel() {
 		del_panel(pan);
 	if (win != NULL)
 		delwin(win);
+}
+
+void Kis_Panel::InitColorPref(string in_pref, string in_def) {
+	if (kpinterface->prefs.FetchOpt(in_pref) == "")
+		kpinterface->prefs.SetOpt(in_pref, in_def, 1);
+}
+
+void Kis_Panel::ColorFromPref(int &clr, string in_pref) {
+	if (kpinterface->prefs.FetchOptDirty(in_pref) || clr == 0) {
+		kpinterface->prefs.SetOptDirty(in_pref, 0);
+		clr = kpinterface->colors.AddColor(kpinterface->prefs.FetchOpt(in_pref));
+	}
+
+	return;
 }
 
 void Kis_Panel::Position(int in_sy, int in_sx, int in_y, int in_x) {
@@ -1475,10 +1579,13 @@ void Kis_Panel::SetTitle(string in_title) {
 }
 
 void Kis_Panel::DrawTitleBorder() {
+	wattrset(win, border_color);
 	box(win, 0, 0);
 	wattron(win, WA_UNDERLINE);
 	mvwaddstr(win, 0, 3, title.c_str());
 	wattroff(win, WA_UNDERLINE);
+
+	wattrset(win, text_color);
 }
 
 #endif

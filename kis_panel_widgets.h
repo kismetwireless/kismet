@@ -68,6 +68,16 @@ public:
 	static void Mvwaddnstr(WINDOW *win, int y, int x, string str, int n);
 };
 
+class Kis_Panel_Color {
+public:
+	Kis_Panel_Color();
+
+	int AddColor(string color);
+protected:
+	int nextindex;
+	map<string, int> color_index_map;
+};
+
 // Basic component super-class that handles drawing a group of items of
 // some sort
 class Kis_Panel_Component {
@@ -201,6 +211,8 @@ protected:
 	int cur_item;
 	int sub_menu;
 	int sub_item;
+
+	int text_color, border_color;
 
 	virtual void FindNextEnabledItem();
 	virtual void FindPrevEnabledItem();
@@ -447,6 +459,10 @@ public:
 	virtual WINDOW *FetchDrawWindow() { return win; }
 	virtual KisPanelInterface *FetchPanelInterface() { return kpinterface; }
 
+	// Map a color pair out of preferences
+	virtual void InitColorPref(string in_prefname, string in_def);
+	virtual void ColorFromPref(int &clr, string in_prefname);
+
 protected:
 	GlobalRegistry *globalreg;
 	KisPanelInterface *kpinterface;
@@ -468,6 +484,8 @@ protected:
 	Kis_Panel_Component *active_component;
 
 	int sx, sy, sizex, sizey;
+
+	int text_color, border_color;
 };
 
 // Pollable supersystem for handling panels and input

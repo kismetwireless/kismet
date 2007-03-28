@@ -134,6 +134,7 @@ public:
 
 	// Public so we don't have pointless wrappers
 	ConfigFile prefs;
+	Kis_Panel_Color colors;
 
 protected:
 	vector<KisNetClient *> netclient_vec;
