@@ -273,6 +273,7 @@ Kis_Menu::Kis_Menu(GlobalRegistry *in_globalreg, Kis_Panel *in_panel) :
 	sub_menu = -1;
 	menuwin = NULL;
 	submenuwin = NULL;
+	text_color = border_color = 0;
 }
 
 Kis_Menu::~Kis_Menu() {
