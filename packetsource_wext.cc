@@ -117,6 +117,8 @@ int PacketSource_Wext::RegisterSources(Packetsourcetracker *tracker) {
 	tracker->RegisterPacketsource("rt2500", this, 1, "IEEE80211b", 6);
 	tracker->RegisterPacketsource("rt73", this, 1, "IEEE80211b", 6);
 	tracker->RegisterPacketsource("rt8180", this, 1, "IEEE80211b", 6);
+	tracker->RegisterPacketsource("zd1211", this, 1, "IEEE80211b", 6);
+	tracker->RegisterPacketsource("zd1211rw", this, 1, "IEEE80211b", 6);
 	return 1;
 }
 
