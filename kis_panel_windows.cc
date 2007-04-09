@@ -31,6 +31,7 @@
 #include "kis_panel_widgets.h"
 #include "kis_panel_frontend.h"
 #include "kis_panel_windows.h"
+#include "kis_panel_preferences.h"
 
 Kis_Main_Panel::Kis_Main_Panel(GlobalRegistry *in_globalreg, 
 							   KisPanelInterface *in_intf) : 
@@ -63,13 +64,18 @@ Kis_Main_Panel::Kis_Main_Panel(GlobalRegistry *in_globalreg,
 	mi_sort_packets_d = menu->AddMenuItem("Packets (descending)", mn_sort, 'P');
 
 	mn_tools = menu->AddMenu("Tools", 0);
+	mi_addcard = menu->AddMenuItem("Add Source...", mn_tools, 'A');
+
+	menu->AddMenuItem("-", mn_tools, 0);
+
 	mn_plugins = menu->AddSubMenuItem("Plugins", mn_tools, 'x');
 	mi_addplugin = menu->AddMenuItem("Add Plugin...", mn_plugins, 'P');
 	menu->AddMenuItem("-", mn_plugins, 0);
 	mi_noplugins = menu->AddMenuItem("No plugins available...", mn_plugins, 0);
 	menu->DisableMenuItem(mi_noplugins);
 
-	mi_addcard = menu->AddMenuItem("Add Source...", mn_tools, 'A');
+	mn_preferences = menu->AddSubMenuItem("Preferences", mn_tools, 'P');
+	mi_colorprefs = menu->AddMenuItem("Colors", mn_preferences, 'C');
 
 	menu->Show();
 
@@ -202,6 +208,8 @@ int Kis_Main_Panel::KeyPress(int in_key) {
 			Kis_Plugin_Picker *pp = new Kis_Plugin_Picker(globalreg, kpinterface);
 			pp->Position((LINES / 2) - 8, (COLS / 2) - 20, 16, 50);
 			kpinterface->AddPanel(pp);
+		} else if (ret == mi_colorprefs) {
+			SpawnColorPrefs();
 		} else {
 			for (unsigned int p = 0; p < plugin_menu_vec.size(); p++) {
 				if (ret == plugin_menu_vec[p].menuitem) {
@@ -239,6 +247,18 @@ void Kis_Main_Panel::AddPluginMenuItem(string in_name, int (*callback)(void *),
 	mo.auxptr = auxptr;
 
 	plugin_menu_vec.push_back(mo);
+}
+
+void Kis_Main_Panel::SpawnColorPrefs() {
+	Kis_ColorPref_Panel *cpp = new Kis_ColorPref_Panel(globalreg, kpinterface);
+
+	cpp->AddColorPref("panel_text_color", "Text");
+	cpp->AddColorPref("panel_border_color", "Window Border");
+	cpp->AddColorPref("menu_text_color", "Menu Text");
+	cpp->AddColorPref("menu_border_color", "Menu Border");
+
+	cpp->Position((LINES / 2) - 7, (COLS / 2) - 20, 14, 40);
+	kpinterface->AddPanel(cpp);
 }
 
 Kis_Display_NetGroup *Kis_Main_Panel::FetchSelectedNetgroup() {
@@ -380,8 +400,6 @@ void Kis_Connect_Panel::DrawPanel() {
 	DrawTitleBorder();
 
 	wattrset(win, text_color);
-
-	DrawTitleBorder();
 
 	for (unsigned int x = 0; x < comp_vec.size(); x++)
 		comp_vec[x]->DrawComponent();
@@ -976,8 +994,6 @@ void Kis_Plugin_Picker::DrawPanel() {
 	DrawTitleBorder();
 
 	wattrset(win, text_color);
-
-	DrawTitleBorder();
 
 	for (unsigned int x = 0; x < comp_vec.size(); x++)
 		comp_vec[x]->DrawComponent();

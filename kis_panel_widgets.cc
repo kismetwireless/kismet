@@ -89,7 +89,7 @@ Kis_Panel_Color::Kis_Panel_Color() {
 
 int Kis_Panel_Color::AddColor(string color) {
 	map<string, int>::iterator cimi;
-	int nums[2];
+	int nums[2] = {0, 0};
 	int bold;
 	int pair;
 
@@ -278,6 +278,11 @@ Kis_Menu::Kis_Menu(GlobalRegistry *in_globalreg, Kis_Panel *in_panel) :
 
 Kis_Menu::~Kis_Menu() {
 	ClearMenus();
+
+	if (menuwin != NULL)
+		delwin(menuwin);
+	if (submenuwin != NULL)
+		delwin(submenuwin);
 }
 
 int Kis_Menu::AddMenu(string in_text, int targ_char) {
@@ -321,6 +326,7 @@ int Kis_Menu::AddMenuItem(string in_text, int menuid, char extra) {
 	item->id = menubar[menuid]->items.size();
 	item->visible = 1;
 	item->checked = -1;
+	item->colorpair = -1;
 
 	// Auto-disable spacers
 	if (item->text[0] != '-')
@@ -356,7 +362,19 @@ void Kis_Menu::SetMenuItemChecked(int in_item, int in_checked) {
 		if (menubar[mid]->items[x]->checked > menubar[mid]->checked)
 			menubar[mid]->checked = menubar[mid]->items[x]->checked;
 	}
+}
 
+void Kis_Menu::SetMenuItemColor(int in_item, string in_color) {
+	int mid = in_item / 100;
+	int iid = (in_item % 100) - 1;
+
+	if (mid < 0 || mid >= (int) menubar.size())
+		return;
+
+	if (iid < 0 || iid > (int) menubar[mid]->items.size())
+		return;
+
+	menubar[mid]->items[iid]->colorpair = parent_panel->AddColor(in_color);
 }
 
 int Kis_Menu::AddSubMenuItem(string in_text, int menuid, char extra) {
@@ -464,7 +482,6 @@ void Kis_Menu::DrawMenu(_menu *menu, WINDOW *win, int hpos, int vpos) {
 	box(win, 0, 0);
 
 	// Use dsz as the position to draw into
-	wattrset(win, text_color);
 	dsz = 0;
 	for (unsigned int y = 0; y < menu->items.size(); y++) {
 		string menuline;
@@ -479,9 +496,13 @@ void Kis_Menu::DrawMenu(_menu *menu, WINDOW *win, int hpos, int vpos) {
 			mvwaddch(win, 1 + dsz, 0, ACS_LTEE);
 			mvwaddch(win, 1 + dsz, menu->width + 6, ACS_RTEE);
 			dsz++;
-			wattrset(win, text_color);
 			continue;
 		}
+
+		wattrset(win, text_color);
+
+		if (menu->items[y]->colorpair != -1)
+			wattrset(win, menu->items[y]->colorpair);
 
 		// Hilight the current item
 		if (((int) menu->id == cur_menu && (int) y == cur_item) || 
@@ -655,7 +676,9 @@ int Kis_Menu::KeyPress(int in_key) {
 
 			Deactivate();
 		}
-		return 0;
+
+		// We consume it but the framework doesn't get a state change
+		return -1;
 	}
 
 	// Menu movement
@@ -666,7 +689,7 @@ int Kis_Menu::KeyPress(int in_key) {
 			cur_menu = sub_menu;
 			cur_item = sub_item;
 			sub_menu = sub_item = -1;
-			return 0;
+			return -1;
 		}
 
 		for (unsigned int nm = cur_menu + 1; nm < menubar.size(); nm++) {
@@ -678,7 +701,7 @@ int Kis_Menu::KeyPress(int in_key) {
 			}
 		}
 			
-		return 0;
+		return -1;
 	}
 
 	if (in_key == KEY_LEFT && cur_menu > 0) {
@@ -687,7 +710,7 @@ int Kis_Menu::KeyPress(int in_key) {
 			cur_menu = sub_menu;
 			cur_item = sub_item;
 			sub_menu = sub_item = -1;
-			return 0;
+			return -1;
 		}
 
 		for (int nm = cur_menu - 1; nm >= 0; nm--) {
@@ -699,7 +722,7 @@ int Kis_Menu::KeyPress(int in_key) {
 			}
 		}
 
-		return 0;
+		return -1;
 	}
 
 	if (in_key == KEY_DOWN && cur_menu >= 0 &&
@@ -708,28 +731,28 @@ int Kis_Menu::KeyPress(int in_key) {
 		if (cur_item == (int) menubar[cur_menu]->items.size() - 1) {
 			cur_item = 0;
 			FindNextEnabledItem();
-			return 0;
+			return -1;
 		}
 
 		cur_item++;
 
 		FindNextEnabledItem();
 
-		return 0;
+		return -1;
 	}
 
 	if (in_key == KEY_UP && cur_item >= 0) {
 		if (cur_item == 0) {
 			cur_item = menubar[cur_menu]->items.size() - 1;
 			FindPrevEnabledItem();
-			return 0;
+			return -1;
 		}
 
 		cur_item--;
 
 		FindPrevEnabledItem();
 
-		return 0;
+		return -1;
 	}
 
 	// Space or enter
@@ -737,7 +760,7 @@ int Kis_Menu::KeyPress(int in_key) {
 		if (cur_item == -1) {
 			cur_item = 0;
 			FindNextEnabledItem();
-			return 0;
+			return -1;
 		}
 
 		// Are we entering a submenu?
@@ -747,7 +770,7 @@ int Kis_Menu::KeyPress(int in_key) {
 			sub_item = cur_item;
 			cur_menu = menubar[cur_menu]->items[cur_item]->submenu;
 			cur_item = 0;
-			return 0;
+			return -1;
 		}
 
 		int ret = (cur_menu * 100) + cur_item + 1;
@@ -764,7 +787,7 @@ int Kis_Menu::KeyPress(int in_key) {
 					cur_menu = x;
 					cur_item = 0;
 					FindNextEnabledItem();
-					return 0;
+					return -1;
 				}
 			}
 			// Try with lowercase, if we didn't find one already
@@ -774,10 +797,10 @@ int Kis_Menu::KeyPress(int in_key) {
 					cur_menu = x;
 					cur_item = 0;
 					FindNextEnabledItem();
-					return 0;
+					return -1;
 				}
 			}
-			return 0;
+			return -1;
 		} else {
 			for (unsigned int x = 0; x < menubar[cur_menu]->items.size(); x++) {
 				if (in_key == menubar[cur_menu]->items[x]->extrachar &&
@@ -787,11 +810,213 @@ int Kis_Menu::KeyPress(int in_key) {
 					return ret;
 				}
 			}
-			return 0;
+			return -1;
 		}
 	}
 
-	return -1;
+	return 0;
+}
+
+Kis_Pop_Menu::Kis_Pop_Menu(GlobalRegistry *in_globalreg, Kis_Panel *in_panel) :
+	Kis_Menu(in_globalreg, in_panel) {
+	globalreg = in_globalreg;
+	cur_menu = -1;
+	cur_item = -1;
+	sub_item = -1;
+	sub_menu = -1;
+	menuwin = NULL;
+	submenuwin = NULL;
+	text_color = border_color = 0;
+}
+
+Kis_Pop_Menu::~Kis_Pop_Menu() {
+	// The parent deconstructor handles clearing menus
+}
+
+int Kis_Pop_Menu::KeyPress(int in_key) {
+	if (visible == 0)
+		return 0;
+
+	if ((in_key == 0x0A || in_key == 0x0A) && cur_menu < 0) {
+		Activate(1);
+		cur_item = 0;
+		FindNextEnabledItem();
+		return -1;
+	}
+
+	int ret = Kis_Menu::KeyPress(in_key);
+
+	// Update the menu selection if we picked something
+	if (cur_menu < 0) {
+		Activate(1);
+		cur_item = 0;
+		FindNextEnabledItem();
+	}
+
+	return ret;
+}
+
+void Kis_Pop_Menu::DrawMenu(_menu *menu, WINDOW *win, int hpos, int vpos) {
+	_menu *submenu = NULL;
+	int subvpos = -1;
+	int subhpos = -1;
+	int dsz = 0;
+	int scrollable = 0;
+
+	// Resize the menu window, taking invisible items into account.
+	for (unsigned int y = 0; y < menu->items.size(); y++) {
+		if (menu->items[y]->visible)
+			dsz++;
+	}
+
+	// Try to size it max, but stay w/in the window constraints
+	if (dsz > parent_panel->FetchSzy() - 6) {
+		dsz = parent_panel->FetchSzy() - 6;
+		scrollable = 1;
+	}
+
+	// Position it - hpos and vpos are passed as the position of the menu, so
+	// we can fit it inside the window w/in those constraints
+	if (scrollable) {
+		// If we're scrollable, then we're maxed out on size anyhow, so we
+		// set the vpos directly
+		vpos = 2;
+	} else {
+		// We can fit in the panel w/out scrolling, so div the height in half
+		// and position it relative to where we started
+		vpos -= (dsz / 2);
+	}
+
+	if (hpos + menu->width + 7 > parent_panel->FetchSzx()) {
+		// If we can't fit in before the end of the window, slide the menu over
+		hpos -= (parent_panel->FetchSzx() - (menu->width + 7));
+	}
+
+	wresize(win, dsz + 2, menu->width + 7);
+
+	// move it
+	mvderwin(win, vpos, hpos);
+
+	// Draw the box
+	wattrset(win, border_color);
+	box(win, 0, 0);
+
+	// Use dsz as the position to draw into
+	dsz = 0;
+	for (unsigned int y = 0; y < menu->items.size(); y++) {
+		string menuline;
+
+		if (menu->items[y]->visible == 0)
+			continue;
+
+		// Shortcut out a spacer
+		if (menu->items[y]->text[0] == '-') {
+			wattrset(win, border_color);
+			mvwhline(win, 1 + dsz, 1, ACS_HLINE, menu->width + 5);
+			mvwaddch(win, 1 + dsz, 0, ACS_LTEE);
+			mvwaddch(win, 1 + dsz, menu->width + 6, ACS_RTEE);
+			dsz++;
+			continue;
+		}
+
+		wattrset(win, text_color);
+
+		if (menu->items[y]->colorpair != -1)
+			wattrset(win, menu->items[y]->colorpair);
+
+		// Hilight the current item
+		if (((int) menu->id == cur_menu && (int) y == cur_item) || 
+			((int) menu->id == sub_menu && (int) y == sub_item))
+			wattron(win, WA_REVERSE);
+
+		// Draw the check 
+		if (menu->items[y]->checked == 1) {
+			menuline += "X ";
+		} else if (menu->items[y]->checked == 0 || menu->checked > -1) {
+			menuline += "  ";
+		}
+
+		// Dim a disabled item
+		if (menu->items[y]->enabled == 0)
+			wattron(win, WA_DIM);
+
+		// Format it with 'Foo     F'
+		menuline += menu->items[y]->text + " ";
+		for (unsigned int z = menuline.length(); 
+			 (int) z <= menu->width + 2; z++) {
+			menuline = menuline + string(" ");
+		}
+
+		if (menu->items[y]->submenu != -1) {
+			menuline = menuline + ">>";
+
+			// Draw again, using our submenu, if it's active
+			if (menu->items[y]->submenu == cur_menu) {
+				submenu = menubar[menu->items[y]->submenu];
+				subvpos = vpos + dsz;
+				subhpos = hpos + menu->width + 6;
+
+			}
+		} else if (menu->items[y]->extrachar != 0) {
+			menuline = menuline + " " + menu->items[y]->extrachar;
+		} else {
+			menuline = menuline + "  ";
+		}
+
+		// Print it
+		mvwaddstr(win, 1 + dsz, 1, menuline.c_str());
+
+		// Dim a disabled item
+		if (menu->items[y]->enabled == 0)
+			wattroff(win, WA_DIM);
+
+		if (((int) menu->id == cur_menu && (int) y == cur_item) || 
+			((int) menu->id == sub_menu && (int) y == sub_item))
+			wattroff(win, WA_REVERSE);
+
+		dsz++;
+	}
+
+	// Draw the expanded submenu
+	if (subvpos > 0 && subhpos > 0) {
+		if (submenuwin == NULL)
+			submenuwin = derwin(window, 1, 1, 0, 0);
+
+		DrawMenu(submenu, submenuwin, subhpos, subvpos);
+	}
+}
+
+void Kis_Pop_Menu::DrawComponent() {
+	if (visible == 0)
+		return;
+
+	parent_panel->InitColorPref("menu_text_color", "white,blue");
+	parent_panel->InitColorPref("menu_border_color", "cyan,blue");
+	parent_panel->ColorFromPref(text_color, "menu_text_color");
+	parent_panel->ColorFromPref(border_color, "menu_border_color");
+
+	if (menuwin == NULL)
+		menuwin = derwin(window, 1, 1, 0, 0);
+
+	wattron(window, border_color);
+
+	// Draw the menu item itself
+	if (menubar.size() == 0)
+		return;
+
+	if (cur_menu)
+		wattron(window, WA_REVERSE);
+
+	// Draw the menu
+	mvwaddstr(window, sy, sx, string(menubar[0]->text + " V").c_str());
+
+	if (cur_menu)
+		wattroff(window, WA_REVERSE);
+
+	// Draw the menu itself, if we've got an item selected in it
+	if (cur_menu == 0 && (sub_item >= 0 || cur_item >= 0)) {
+		DrawMenu(menubar[0], menuwin, sx, sy);
+	}
 }
 
 Kis_Free_Text::Kis_Free_Text(GlobalRegistry *in_globalreg, Kis_Panel *in_panel) :
@@ -1513,6 +1738,8 @@ Kis_Panel::Kis_Panel(GlobalRegistry *in_globalreg, KisPanelInterface *in_intf) {
 	ColorFromPref(border_color, "panel_border_color");
 
 	sx = sy = sizex = sizey = 0;
+
+	active_component = NULL;
 }
 
 Kis_Panel::~Kis_Panel() {
@@ -1540,6 +1767,10 @@ void Kis_Panel::ColorFromPref(int &clr, string in_pref) {
 	}
 
 	return;
+}
+
+int Kis_Panel::AddColor(string in_color) {
+	return kpinterface->colors.AddColor(in_color);
 }
 
 void Kis_Panel::Position(int in_sy, int in_sx, int in_y, int in_x) {
@@ -1580,6 +1811,9 @@ void Kis_Panel::SetTitle(string in_title) {
 }
 
 void Kis_Panel::DrawTitleBorder() {
+	ColorFromPref(text_color, "panel_text_color");
+	ColorFromPref(border_color, "panel_border_color");
+
 	wattrset(win, border_color);
 	box(win, 0, 0);
 	wattron(win, WA_UNDERLINE);

@@ -66,16 +66,18 @@ public:
 	};
 
 protected:
-	int mn_file, mn_sort, mn_tools, mn_plugins;
-	int mi_connect, mi_disconnect, mi_quit;
+	int mn_file, mi_connect, mi_disconnect, mi_quit;
 
-	int mi_sort_auto, mi_sort_type, mi_sort_chan, mi_sort_first, mi_sort_first_d,
-		mi_sort_last, mi_sort_last_d, mi_sort_bssid, mi_sort_ssid,
+	int mn_sort, mi_sort_auto, mi_sort_type, mi_sort_chan, mi_sort_first, 
+		mi_sort_first_d, mi_sort_last, mi_sort_last_d, mi_sort_bssid, mi_sort_ssid,
 		mi_sort_packets, mi_sort_packets_d;
 
-	int mi_addcard;
+	int mn_tools, mi_addcard;
 
-	int mi_addplugin, mi_noplugins;
+	int mn_plugins, mi_addplugin, mi_noplugins;
+
+	int mn_preferences, mi_colorprefs;
+
 
 	int connect_enable;
 
@@ -88,6 +90,8 @@ protected:
 	vector<Kis_Main_Panel::plugin_menu_opt> plugin_menu_vec;
 
 	virtual void UpdateSortMenu();
+
+	virtual void SpawnColorPrefs();
 };
 
 class Kis_Connect_Panel : public Kis_Panel {

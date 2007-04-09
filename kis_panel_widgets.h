@@ -170,6 +170,9 @@ public:
 	// We can't delete, again, but we can hide
 	virtual void SetMenuItemVis(int in_item, int in_vis);
 
+	// Set a menu color
+	virtual void SetMenuItemColor(int in_item, string in_color);
+
 	// Delete all the menus
 	virtual void ClearMenus();
 
@@ -185,6 +188,7 @@ public:
 		int submenu;
 		int visible;
 		int checked;
+		int colorpair;
 	};
 
 	typedef struct _menu {
@@ -217,6 +221,22 @@ protected:
 	virtual void FindNextEnabledItem();
 	virtual void FindPrevEnabledItem();
 
+	virtual void DrawMenu(_menu *menu, WINDOW *win, int hpos, int vpos);
+};
+
+// TODO - fix this.  Pop menus don't quite work right yet
+class Kis_Pop_Menu : public Kis_Menu {
+public:
+	Kis_Pop_Menu() {
+		fprintf(stderr, "FATAL OOPS: Kis_Pop_Menu called without globalreg\n");
+		exit(1);
+	}
+	Kis_Pop_Menu(GlobalRegistry *in_globalreg, Kis_Panel *in_panel);
+	virtual ~Kis_Pop_Menu();
+
+	virtual int KeyPress(int in_key);
+	virtual void DrawComponent();
+protected:
 	virtual void DrawMenu(_menu *menu, WINDOW *win, int hpos, int vpos);
 };
 
@@ -448,6 +468,11 @@ public:
 
 	virtual void Position(int in_sy, int in_sx, int in_y, int in_x);
 
+	virtual int FetchSy() { return sy; }
+	virtual int FetchSx() { return sx; }
+	virtual int FetchSzy() { return sizey; }
+	virtual int FetchSzx() { return sizex; }
+
 	virtual int Poll();
 
 	virtual void DrawPanel() = 0;
@@ -462,6 +487,7 @@ public:
 	// Map a color pair out of preferences
 	virtual void InitColorPref(string in_prefname, string in_def);
 	virtual void ColorFromPref(int &clr, string in_prefname);
+	virtual int AddColor(string in_color);
 
 protected:
 	GlobalRegistry *globalreg;
