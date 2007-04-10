@@ -1277,6 +1277,10 @@ void Kis_Netlist::UpdateTrigger(void) {
 	dirty_raw_vec.clear();
 
 	switch (sort_mode) {
+		case netsort_autofit:
+			stable_sort(display_vec.begin(), display_vec.end(),
+						KisNetlist_Sort_LastDesc());
+			break;
 		case netsort_type:
 			stable_sort(display_vec.begin(), display_vec.end(), 
 						KisNetlist_Sort_Type());
@@ -1563,6 +1567,10 @@ void Kis_Netlist::DrawComponent() {
 	Kis_Panel_Specialtext::Mvwaddnstr(window, sy, sx, 
 									  "\004u" + pcache + "\004U", 
 									  ex);
+
+	if (sort_mode == netsort_autofit)
+		first_line = 0;
+
 	// For as many lines as we can fit
 	int dpos = 1;
 	for (unsigned int x = first_line; x < display_vec.size() && 
@@ -1624,7 +1632,6 @@ void Kis_Netlist::DrawComponent() {
 		// Draw the line
 		if (selected_line == (int) x && sort_mode != netsort_autofit)
 			wattron(window, WA_REVERSE);
-
 
 		// Kis_Panel_Specialtext::Mvwaddnstr(window, sy + dpos, sx, pline, ex);
 		// We don't use our specialtext here since we don't want something that
