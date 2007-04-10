@@ -61,17 +61,17 @@ KisNetClient::KisNetClient(GlobalRegistry *in_globalreg) :
 }
 
 KisNetClient::~KisNetClient() {
-	globalreg->RemovePollableSubsys(this);
-
 	if (tcpcli != NULL) {
 		tcpcli->KillConnection();
 		delete tcpcli;
 		tcpcli = NULL;
+		netclient = NULL;
 	}
 
 	if (reconid > -1)
 		globalreg->timetracker->RemoveTimer(reconid);
 
+	globalreg->RemovePollableSubsys(this);
 }
 
 int KisNetClient::Connect(string in_host, int in_reconnect) {
@@ -318,9 +318,12 @@ int KisNetClient::ParseData() {
 	if (netclient == NULL)
 		return 0;
 
+	if (netclient->Valid() == 0)
+		return 0;
+
     len = netclient->FetchReadLen();
     buf = new char[len + 1];
-    
+
     if (netclient->ReadData(buf, len, &rlen) < 0) {
 		_MSG("Kismet protocol parser failed to get data from the TCP connection",
 			 MSGFLAG_ERROR);
@@ -340,7 +343,8 @@ int KisNetClient::ParseData() {
 
     for (unsigned int it = 0; it < inptok.size(); it++) {
         // No matter what we've dealt with this data block
-        netclient->MarkRead(inptok[it].length() + 1);
+		if (netclient->Valid())
+			netclient->MarkRead(inptok[it].length() + 1);
 
         // Pull the header out to save time -- cheaper to parse the header and 
 		// then the data than to try to parse an entire data string just to find 

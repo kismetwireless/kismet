@@ -141,6 +141,8 @@ void NetworkClient::KillConnection() {
     if (cl_valid) {
         delete read_buf;
         delete write_buf;
+		read_buf = NULL;
+		write_buf = NULL;
     }
 
     if (cli_fd)
