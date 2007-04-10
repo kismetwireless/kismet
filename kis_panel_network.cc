@@ -506,7 +506,7 @@ int Kis_Netlist::UpdateSortPrefs() {
 	else if (sort == "last")
 		sort_mode = netsort_last;
 	else if (sort == "last_desc")
-		sort_mode = netsort_last;
+		sort_mode = netsort_last_desc;
 	else if (sort == "bssid")
 		sort_mode = netsort_bssid;
 	else if (sort == "ssid")
