@@ -47,8 +47,8 @@
 #define MAXHOSTNAMELEN 64
 #endif
 
-// Arbitrary 16k ring by default
-#define SRV_RING_LEN (16384)
+// Arbitrary 64k ring by default
+#define SRV_RING_LEN (65536)
 
 class TcpServer : public NetworkServer {
 public:
