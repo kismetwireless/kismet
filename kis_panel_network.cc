@@ -1906,8 +1906,8 @@ int Kis_Netlist::KeyPress(int in_key) {
 	if (sort_mode == netsort_autofit)
 		return 0;
 
-	if (in_key == KEY_DOWN) {
-		if (selected_line < 0 || selected_line > last_line) {
+	if (in_key == KEY_DOWN || in_key == '+') {
+		if (selected_line < first_line || selected_line > last_line) {
 			selected_line = first_line;
 			return 0;
 		}
@@ -1922,8 +1922,8 @@ int Kis_Netlist::KeyPress(int in_key) {
 			// Otherwise we just move the selected line
 			selected_line++;
 		}
-	} else if (in_key == KEY_UP) {
-		if (selected_line < 0 || selected_line > last_line) {
+	} else if (in_key == KEY_UP || in_key == '-') {
+		if (selected_line < first_line || selected_line > last_line) {
 			selected_line = first_line;
 			return 0;
 		}
@@ -1937,6 +1937,23 @@ int Kis_Netlist::KeyPress(int in_key) {
 			// Just slide up the selection
 			selected_line--;
 		}
+	} else if (in_key == KEY_PPAGE) {
+		if (selected_line < 0 || selected_line > last_line) {
+			selected_line = first_line;
+			return 0;
+		}
+	
+		first_line = kismax(0, first_line - viewable_lines);
+		selected_line = first_line;
+	} else if (in_key == KEY_NPAGE) {
+		if (selected_line < 0 || selected_line > last_line) {
+			selected_line = first_line;
+			return 0;
+		}
+
+		first_line = kismin((int) display_vec.size() - 1, 
+							first_line + viewable_lines);
+		selected_line = first_line;
 	} else if (in_key == ' ') {
 		if (selected_line < 0 || selected_line > last_line ||
 			selected_line >= (int) display_vec.size()) {
