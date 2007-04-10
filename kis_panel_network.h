@@ -100,6 +100,9 @@ public:
 	int DispDirty() { return dispdirty; }
 	void SetDispDirty(int dd) { dispdirty = dd; }
 
+	int GetColor() { return color; }
+	void SetColor(int in_c) { color = in_c; }
+
 	// Cache manipulation, for the header line and sublines.
 	// Details cache is for cached expanded details lines
 	// Grpcache is cached expanded details
@@ -131,6 +134,9 @@ protected:
 
 	// Name
 	string name;
+
+	// Color
+	int color;
 
 	// Cached display lines
 	int dispdirty;
@@ -167,6 +173,13 @@ enum netsort_opts {
 	netsort_first, netsort_first_desc, netsort_last, netsort_last_desc, 
 	netsort_bssid, netsort_ssid, netsort_packets, netsort_packets_desc
 };
+
+/* color array positions */
+#define kis_netlist_color_normal 	0
+#define kis_netlist_color_crypt 	1
+#define kis_netlist_color_group 	2
+#define kis_netlist_color_factory 	3
+#define kis_netlist_color_header 	4
 
 class Kis_Netlist : public Kis_Panel_Component {
 public:
@@ -220,6 +233,8 @@ protected:
 	enum bssid_extras {
 		bext_lastseen, bext_bssid, bext_crypt, bext_ip, bext_manuf, bext_model
 	};
+
+	int color_map[5];
 
 	// Sort modes
 	// Sort type
@@ -292,8 +307,6 @@ protected:
 
 	int PrintNetworkLine(Kis_Display_NetGroup *ng, Netracker::tracked_network *net,
 						 int rofft, char *rline, int max);
-
-
 };
 
 #endif // panel

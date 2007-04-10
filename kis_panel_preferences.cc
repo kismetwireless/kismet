@@ -202,6 +202,8 @@ void Kis_ColorPref_Picker::DrawPanel() {
 	DrawTitleBorder();
 
 	wattrset(win, text_color);
+	mvwaddstr(win, 1, 5, "Foregound:");
+	mvwaddstr(win, 3, 5, "Background:");
 
 	for (unsigned int x = 0; x < comp_vec.size(); x++)
 		comp_vec[x]->DrawComponent();

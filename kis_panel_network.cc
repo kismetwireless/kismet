@@ -34,6 +34,7 @@ Kis_Display_NetGroup::Kis_Display_NetGroup() {
 	dispdirty = 0;
 	linecache = "";
 	expanded = 0;
+	color = -1;
 }
 
 Kis_Display_NetGroup::Kis_Display_NetGroup(Netracker::tracked_network *in_net) {
@@ -349,6 +350,9 @@ Kis_Netlist::Kis_Netlist(GlobalRegistry *in_globalreg, Kis_Panel *in_panel) :
 	last_line = 0;
 
 	probe_autogroup = adhoc_autogroup = data_autogroup = NULL;
+
+	for (int x = 0; x < 5; x++)
+		color_map[x] = 0;
 
 	// Set default preferences for BSSID columns if we don't have any in the
 	// preferences file, then update the column vector
@@ -1453,6 +1457,22 @@ void Kis_Netlist::DrawComponent() {
 	if (visible == 0)
 		return;
 
+	parent_panel->InitColorPref("netlist_normal_color", "green,black");
+	parent_panel->ColorFromPref(color_map[kis_netlist_color_normal], 
+								"netlist_normal_color");
+	parent_panel->InitColorPref("netlist_crypt_color", "yellow,black");
+	parent_panel->ColorFromPref(color_map[kis_netlist_color_crypt], 
+								"netlist_crypt_color");
+	parent_panel->InitColorPref("netlist_group_color", "blue,black");
+	parent_panel->ColorFromPref(color_map[kis_netlist_color_group], 
+								"netlist_group_color");
+	parent_panel->InitColorPref("netlist_factory_color", "red,black");
+	parent_panel->ColorFromPref(color_map[kis_netlist_color_factory], 
+								"netlist_factory_color");
+	parent_panel->InitColorPref("netlist_header_color", "blue,black");
+	parent_panel->ColorFromPref(color_map[kis_netlist_color_header], 
+								"netlist_header_color");
+
 	// This is the largest we should ever expect a window to be wide, so
 	// we'll consider it a reasonable static line size
 	char rline[1024];
@@ -1537,16 +1557,19 @@ void Kis_Netlist::DrawComponent() {
 
 	// Draw the cached header
 	string pcache = colhdr_cache + string(ex - sx - colhdr_cache.length(), ' ');
+
+	wattrset(window, color_map[kis_netlist_color_header]);
+
 	Kis_Panel_Specialtext::Mvwaddnstr(window, sy, sx, 
 									  "\004u" + pcache + "\004U", 
 									  ex);
-
 	// For as many lines as we can fit
 	int dpos = 1;
 	for (unsigned int x = first_line; x < display_vec.size() && 
 		 dpos <= viewable_lines; x++) {
 		Kis_Display_NetGroup *ng = display_vec[x];
 		Netracker::tracked_network *meta = ng->FetchNetwork();
+		int color = -1;
 
 		nlines = 0;
 
@@ -1563,6 +1586,8 @@ void Kis_Netlist::DrawComponent() {
 				} else {
 					rline[0] = '+';
 				}
+
+				color = kis_netlist_color_group;
 			} else {
 				rline[0] = ' ';
 			}
@@ -1575,19 +1600,31 @@ void Kis_Netlist::DrawComponent() {
 				rline[(ex - sx)] = '\0';
 			}
 
+			if (color < 0 && meta->lastssid != NULL && 
+				meta->lastssid->cryptset != 0)
+				color = kis_netlist_color_crypt;
+
+			ng->SetColor(color);
 			ng->SetLineCache(rline);
 			pline = rline;
 		} else {
 			// Pull the cached line
 			pt = ng->GetLineCache();
 			pline = (char *) pt.c_str();
+			color = ng->GetColor();
 		}
+
+		nlines++;
+
+		if (color <= 0)
+			color = kis_netlist_color_normal;
+
+		wattrset(window, color_map[color]);
 
 		// Draw the line
 		if (selected_line == (int) x && sort_mode != netsort_autofit)
 			wattron(window, WA_REVERSE);
 
-		nlines++;
 
 		// Kis_Panel_Specialtext::Mvwaddnstr(window, sy + dpos, sx, pline, ex);
 		// We don't use our specialtext here since we don't want something that

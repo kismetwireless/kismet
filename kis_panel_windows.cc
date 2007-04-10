@@ -75,7 +75,7 @@ Kis_Main_Panel::Kis_Main_Panel(GlobalRegistry *in_globalreg,
 	menu->DisableMenuItem(mi_noplugins);
 
 	mn_preferences = menu->AddSubMenuItem("Preferences", mn_tools, 'P');
-	mi_colorprefs = menu->AddMenuItem("Colors", mn_preferences, 'C');
+	mi_colorprefs = menu->AddMenuItem("Colors...", mn_preferences, 'C');
 
 	menu->Show();
 
@@ -151,11 +151,6 @@ int Kis_Main_Panel::KeyPress(int in_key) {
 	// anything open.
 	ret = menu->KeyPress(in_key);
 
-	if (ret == 0) {
-		// Menu ate the key, let it go
-		return 0;
-	}
-
 	if (ret > 0) {
 		// Menu processed an event, do something with it
 		if (ret == mi_quit) {
@@ -220,6 +215,8 @@ int Kis_Main_Panel::KeyPress(int in_key) {
 		}
 
 		return 0;
+	} else if (ret == -1) {
+		return 0;
 	}
 
 	// Otherwise the menu didn't touch the key, so pass it to the top
@@ -256,6 +253,11 @@ void Kis_Main_Panel::SpawnColorPrefs() {
 	cpp->AddColorPref("panel_border_color", "Window Border");
 	cpp->AddColorPref("menu_text_color", "Menu Text");
 	cpp->AddColorPref("menu_border_color", "Menu Border");
+	cpp->AddColorPref("netlist_header_color", "Netlist Header");
+	cpp->AddColorPref("netlist_normal_color", "Netlist Normal");
+	cpp->AddColorPref("netlist_crypt_color", "Netlist Encrypted");
+	cpp->AddColorPref("netlist_group_color", "Netlist Group");
+	cpp->AddColorPref("netlist_factory_color", "Netlist Factory");
 
 	cpp->Position((LINES / 2) - 7, (COLS / 2) - 20, 14, 40);
 	kpinterface->AddPanel(cpp);
