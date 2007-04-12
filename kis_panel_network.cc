@@ -26,6 +26,13 @@
 #include "kis_panel_frontend.h"
 #include "kis_panel_netsort.h"
 
+const char *Kis_Netlist::bssid_columns_text[] = {
+	"decay", "name", "shortname", "nettype",
+	"crypt", "channel", "packdata", "packllc", "packcrypt",
+	"bssid", "packets", "clients", "datasize", "signalbar",
+	NULL
+};
+
 // Netgroup management
 Kis_Display_NetGroup::Kis_Display_NetGroup() {
 	local_metanet = 0;
@@ -1566,7 +1573,7 @@ void Kis_Netlist::DrawComponent() {
 
 	Kis_Panel_Specialtext::Mvwaddnstr(window, sy, sx, 
 									  "\004u" + pcache + "\004U", 
-									  ex);
+									  ex - sx);
 
 	if (sort_mode == netsort_autofit)
 		first_line = 0;
@@ -1636,7 +1643,7 @@ void Kis_Netlist::DrawComponent() {
 		// Kis_Panel_Specialtext::Mvwaddnstr(window, sy + dpos, sx, pline, ex);
 		// We don't use our specialtext here since we don't want something that
 		// snuck into the SSID to affect the printing
-		mvwaddnstr(window, sy + dpos, sx, pline, ex - 1);
+		mvwaddnstr(window, sy + dpos, sx, pline, ex - sx);
 		dpos++;
 
 		// Draw the expanded info for the network
@@ -1670,6 +1677,7 @@ void Kis_Netlist::DrawComponent() {
 
 				for (unsigned int c = 0; c < display_bexts.size(); c++) {
 					bssid_extras e = display_bexts[c];
+					int rbegin = rofft;
 
 					if (e == bext_lastseen) {
 						snprintf(rline + rofft, 1024 - rofft, "Last seen: %.15s",
@@ -1810,7 +1818,8 @@ void Kis_Netlist::DrawComponent() {
 				// Only draw if we don't need to redraw everything, but always
 				// increment the dpos so we know how many lines we need to recover
 				if (redraw == 0 && dpos < viewable_lines)
-					mvwaddnstr(window, sy + dpos, sx, (*pevcache)[d].c_str(), ex - 1);
+					mvwaddnstr(window, sy + dpos, sx, (*pevcache)[d].c_str(), 
+							   ex - sx);
 				dpos++;
 			}
 
@@ -1860,7 +1869,8 @@ void Kis_Netlist::DrawComponent() {
 				}
 
 				if (redraw == 0 && dpos < viewable_lines)
-					mvwaddnstr(window, sy + dpos, sx, (*gevcache)[d].c_str(), ex - 1);
+					mvwaddnstr(window, sy + dpos, sx, (*gevcache)[d].c_str(), 
+							   ex - sx);
 				dpos++;
 			}
 

@@ -37,7 +37,8 @@ DEPEND	= .depend
 
 # Objects
 PSO	= util.o cygwin_utils.o ringbuf.o messagebus.o configfile.o getopt.o \
-	filtercore.o ifcontrol.o iwcontrol.o ipc_remote.o soundcontrol.o speechcontrol.o \
+	filtercore.o ifcontrol.o iwcontrol.o madwifing_control.o \
+	ipc_remote.o soundcontrol.o speechcontrol.o \
 	netframework.o clinetframework.o tcpserver.o tcpclient.o \
 	kis_netframe.o kis_droneframe.o gpscore.o gpsdclient.o \
 	packetchain.o \
@@ -53,7 +54,8 @@ PSO	= util.o cygwin_utils.o ringbuf.o messagebus.o configfile.o getopt.o \
 PS	= kismet_server
 
 DRONEO = util.o cygwin_utils.o ringbuf.o messagebus.o configfile.o getopt.o \
-		 ifcontrol.o iwcontrol.o ipc_remote.o soundcontrol.o speechcontrol.o \
+		 ifcontrol.o iwcontrol.o madwifing_control.o \
+		 ipc_remote.o soundcontrol.o speechcontrol.o \
 		 netframework.o clinetframework.o tcpserver.o tcpclient.o \
 		 drone_kisnetframe.o kis_droneframe.o gpscore.o gpsdclient.o \
 		 packetchain.o \

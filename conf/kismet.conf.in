@@ -29,6 +29,7 @@ source=none,none,addme
 # off with "no", ie "noweakvalidate".  Some sources may have special options.
 # sourceopts=demo:fuzzycrypt,weakvalidate
 # sourceopts=demo2:nofuzzycrypt
+# sourceopts=madwifingcard:novapkill
 
 # Comma-separated list of sources to enable.  This is only needed if you defined
 # multiple sources and only want to enable some of them.  By default, all defined

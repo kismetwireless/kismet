@@ -108,6 +108,39 @@ protected:
 	vector<Kis_ColorPref_Panel::cprefpair> listedcolors;
 };
 
+class Kis_Column_Picker : public Kis_Panel {
+public:
+	Kis_Column_Picker() {
+		fprintf(stderr, "FATAL OOPS:  Kis_Column_Picker()\n");
+		exit(1);
+	}
+	Kis_Column_Picker(GlobalRegistry *in_globalreg, KisPanelInterface *in_kpf);
+	virtual ~Kis_Column_Picker();
+	
+	virtual void Position(int in_sy, int in_sx, int in_y, int in_x);
+	virtual void DrawPanel();
+	virtual int KeyPress(int in_key);
+
+	virtual void LinkColumn(string in_prefname, const char **columnlist);
+
+	typedef struct colprefpair {
+		string colname;
+		int active;
+	};
+
+protected:
+	Kis_Button *okbutton, *cancelbutton;
+
+	Kis_Scrollable_Table *colist;
+
+	vector<Kis_Column_Picker::colprefpair> listedcols;
+
+	vector<Kis_Panel_Component *> tab_components;
+	int tab_pos;
+
+	string prefname;
+};
+
 #endif // curses
 
 #endif // prefs

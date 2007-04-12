@@ -221,8 +221,7 @@ public:
 	// Return sort mode
 	netsort_opts FetchSortMode() { return sort_mode; }
 
-protected:
-	// Columns we accept
+	// Network columns
 	enum bssid_columns {
 		bcol_decay, bcol_name, bcol_shortname, bcol_nettype,
 		bcol_crypt, bcol_channel, bcol_packdata, bcol_packllc, bcol_packcrypt,
@@ -234,6 +233,10 @@ protected:
 		bext_lastseen, bext_bssid, bext_crypt, bext_ip, bext_manuf, bext_model
 	};
 
+	// Network column text
+	static const char *bssid_columns_text[]; 
+
+protected:
 	int color_map[5];
 
 	// Sort modes
