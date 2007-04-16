@@ -71,7 +71,7 @@ int madwifing_list_vaps(const char *ifname, vector<string> *retvec) {
 				if (fscanf(pf, "%s", pname) != 1) {
 					fclose(pf);
 					continue;
-				} else if (pname == ifname) {
+				} else if (strcmp(pname, ifname) == 0) {
 					retvec->push_back(devfile->d_name);
 				}
 
