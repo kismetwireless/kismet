@@ -1263,7 +1263,7 @@ void Kis_Netlist::UpdateTrigger(void) {
 	for (unsigned int x = 0; x < dirty_vec.size(); x++) {
 		dirty_vec[x]->Update();
 		if (dirty_vec[x]->FetchNumNetworks() == 0) {
-			delnet = DeleteGroup(dirty_vec[x]);
+			delnet |= DeleteGroup(dirty_vec[x]);
 
 			// Update the autogroups
 			if (dirty_vec[x] == probe_autogroup)
