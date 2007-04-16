@@ -1079,6 +1079,8 @@ int Kis_Netlist::DeleteGroup(Kis_Display_NetGroup *in_group) {
 	// Shift all the networks into the dirty vector, unlink them from the
 	// additional group tracking methods
 	for (unsigned int x = 0; x < nv->size(); x++) {
+		(*nv)[x]->groupptr = NULL;
+
 		if ((*nv)[x]->dirty == 0) {
 			dirty_raw_vec.push_back((*nv)[x]);
 			(*nv)[x]->dirty = 1;
