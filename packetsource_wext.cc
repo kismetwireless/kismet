@@ -393,9 +393,10 @@ int PacketSource_Madwifi::EnableMonitor() {
 	vector<string> vaplist;
 	string monvap = "";
 	char errstr[1024];
+	int nvaps;
 
 	shutdowndestroy = 1;
-	vaplist = madwifing_list_vaps(interface.c_str());
+	nvaps = madwifing_list_vaps(interface.c_str(), &vaplist);
 
 	for (unsigned int x = 0; x < vaplist.size(); x++) {
 		int iwmode;
@@ -495,6 +496,16 @@ int PacketSource_Madwifi::EnableMonitor() {
 		driver_ng = 1;
 		shutdowndestroy = 0;
 		interface = monvap;
+	}
+
+	if (driver_ng && nvaps < 0) {
+		_MSG("Madwifi source " + name + ": Able to build rfmon VAP, but unable "
+			 "to get a list of existing VAPs.  This means something strange is "
+			 "happening with your system, or that you're running on an old "
+			 "kernel (2.4.x) which does not provide Controller to VAP mapping.  "
+			 "Performance will likely be VERY poor if you do not remove non-rfmon "
+			 "vaps manually (if any exist) using wlanconfig.", MSGFLAG_ERROR);
+		sleep(1);
 	}
 
 	if (PacketSource_Wext::EnableMonitor() < 0) {

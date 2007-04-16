@@ -41,29 +41,54 @@
 
 #include "ifcontrol.h"
 
-vector<string> madwifing_list_vaps(const char *ifname) {
+int madwifing_list_vaps(const char *ifname, vector<string> *retvec) {
 	DIR *devdir;
 	struct dirent *devfile;
 	string dirpath;
-	vector<string> retvec;
+	int kern24model = 0;
+	FILE *pf = NULL;
 
 	dirpath = "/sys/class/net/" + string(ifname) + "/device/";
 
 	if ((devdir = opendir(dirpath.c_str())) == NULL) {
 		printf("debug - open failed: %s %s\n", dirpath.c_str(), strerror(errno));
-		return retvec;
+		dirpath = "/proc/sys/net/";
+		if ((devdir = opendir(dirpath.c_str())) == NULL) {
+			printf("debug - open failed: %s %s\n", dirpath.c_str(), strerror(errno));
+			return -1;
+		}
+		kern24model = 1;
 	}
 
 	while ((devfile = readdir(devdir)) != NULL) {
-		string ownername = "net:" + string(ifname);
+		if (kern24model) {
+			string pfname = dirpath + devfile->d_name + "/%parent";
+			char pname[64];
 
-		if (strncmp("net:", devfile->d_name, 4) == 0 && devfile->d_name != ownername)
-			retvec.push_back(devfile->d_name + 4);
+			if ((pf = fopen(pfname.c_str(), "r")) == NULL) {
+				continue;
+			} else {
+				if (fscanf(pf, "%s", pname) != 1) {
+					fclose(pf);
+					continue;
+				} else if (pname == ifname) {
+					retvec->push_back(devfile->d_name);
+				}
+
+				fclose(pf);
+			}
+		} else {
+			string ownername = "net:" + string(ifname);
+
+			if (strncmp("net:", devfile->d_name, 4) == 0 && 
+				devfile->d_name != ownername)
+				retvec->push_back(devfile->d_name + 4);
+		}
 	}
 
 	closedir(devdir);
 
-	return retvec;
+	return retvec->size();
 }
 
 int madwifing_destroy_vap(const char *ifname, char *errstr) {
