@@ -287,7 +287,7 @@ void Kis_Display_NetGroup::DelNetwork(Netracker::tracked_network *in_net) {
 		if (meta_vec[x] == in_net) {
 			meta_vec.erase(meta_vec.begin() + x);
 			dirty = 1;
-			return;
+			break;
 		}
 	}
 
@@ -1144,8 +1144,8 @@ void Kis_Netlist::UpdateTrigger(void) {
 			} else if (probe_autogroup != net->groupptr){
 				if (probe_autogroup->Dirty() == 0)
 					dirty_vec.push_back(probe_autogroup);
-				probe_autogroup->AddNetwork(net);
 			}
+			probe_autogroup->AddNetwork(net);
 
 			continue;
 		} else if (net->type != network_probe && net->groupptr == probe_autogroup &&
@@ -1173,8 +1173,8 @@ void Kis_Netlist::UpdateTrigger(void) {
 			} else if (adhoc_autogroup != net->groupptr){
 				if (adhoc_autogroup->Dirty() == 0)
 					dirty_vec.push_back(adhoc_autogroup);
-				adhoc_autogroup->AddNetwork(net);
 			}
+			adhoc_autogroup->AddNetwork(net);
 
 			continue;
 		} else if (net->type != network_adhoc && net->groupptr == adhoc_autogroup &&
@@ -1204,8 +1204,8 @@ void Kis_Netlist::UpdateTrigger(void) {
 				if (data_autogroup->Dirty() == 0)
 					dirty_vec.push_back(data_autogroup);
 
-				data_autogroup->AddNetwork(net);
 			}
+			data_autogroup->AddNetwork(net);
 
 			continue;
 		} else if (net->type != network_data && net->groupptr == data_autogroup &&
