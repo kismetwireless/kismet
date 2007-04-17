@@ -200,7 +200,14 @@ string Kis_Display_NetGroup::GetName() {
 }
 
 string Kis_Display_NetGroup::GetName(Netracker::tracked_network *net) {
-	if ((name == "" || net != metanet) && net != NULL) {
+	int usenet = 1;
+
+	if (net == NULL) {
+		net = metanet;
+		usenet = 0;
+	}
+
+	if (net != NULL && (usenet || name == "")) {
 		Netracker::adv_ssid_data *ssid = net->lastssid;
 
 		// Return a sanely constructed name if we don't have any
@@ -250,6 +257,10 @@ string Kis_Display_NetGroup::GetName(Netracker::tracked_network *net) {
 
 		return "<Hidden SSID>";
 	} else {
+		if (name == "") {
+			return "<Hidden SSID>";
+		}
+
 		return name;
 	}
 
@@ -1338,10 +1349,18 @@ void Kis_Netlist::UpdateTrigger(void) {
 int Kis_Netlist::PrintNetworkLine(Kis_Display_NetGroup *ng, 
 								  Netracker::tracked_network *net,
 								  int rofft, char *rline, int max) {
+	// Are we using the passed net, or the derived meta?  (for name fetching)
+	int usenet = 1;
+
 	Netracker::tracked_network *meta = ng->FetchNetwork();
 
 	if (meta == NULL)
 		return rofft;
+
+	if (net == NULL) {
+		net = meta;
+		usenet = 0;
+	}
 
 	for (unsigned c = 0; c < display_bcols.size(); c++) {
 		bssid_columns b = display_bcols[c];
@@ -1362,12 +1381,25 @@ int Kis_Netlist::PrintNetworkLine(Kis_Display_NetGroup *ng,
 			snprintf(rline + rofft, max - rofft, "%c", d);
 			rofft += 1;
 		} else if (b == bcol_name) {
+			string name;
+
+			if (usenet)
+				name = ng->GetName(net);
+			else
+				name = ng->GetName(NULL);
+
 			snprintf(rline + rofft, max - rofft, "%-20.20s", 
-					 ng->GetName(net).c_str());
+					 name.c_str());
 			rofft += 20;
 		} else if (b == bcol_shortname) {
+			string name;
+
+			if (usenet)
+				name = ng->GetName(net);
+			else
+				name = ng->GetName(NULL);
 			snprintf(rline + rofft, max - rofft, "%-10.10s", 
-					 ng->GetName(net).c_str());
+					 name.c_str());
 			rofft += 10;
 		} else if (b == bcol_nettype) {
 			char d;
@@ -1609,7 +1641,7 @@ void Kis_Netlist::DrawComponent() {
 				rline[0] = ' ';
 			}
 
-			rofft = PrintNetworkLine(ng, meta, rofft, rline, 1024);
+			rofft = PrintNetworkLine(ng, NULL, rofft, rline, 1024);
 
 			// Fill to the end if we need to for highlighting
 			if (rofft < (ex - sx) && ((ex - sx) - rofft) < 1024) {

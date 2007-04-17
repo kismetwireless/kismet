@@ -193,7 +193,17 @@ int PacketSource_Wext::EnableMonitor() {
 	} else {
 		_MSG("Interface '" + interface + "' is already marked as being in "
 			 "monitor mode, leaving it as it is.", MSGFLAG_INFO);
+
+		// Set the initial channel
+		if (SetChannel(initial_channel) < 0) {
+			return -2;
+		}
+
+		return 0;
 	}
+
+	// Don't try this if we have a working rfmon interface, someone else 
+	// probably wants the headers to stay as they are
 
 	// Try to set the monitor header mode, nonfatal if it doesn't work
 	if (Iwconfig_Set_IntPriv(interface.c_str(), "monitor_type", 2, 0, errstr) < 0) {
