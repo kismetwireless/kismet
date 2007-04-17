@@ -1535,6 +1535,10 @@ void Kis_Netlist::DrawComponent() {
 	char *pline;
 	string pt;
 
+	if ((sort_mode != netsort_autofit && sort_mode != netsort_recent) &&
+		selected_line < first_line || selected_line > (int) display_vec.size())
+		selected_line = first_line;
+
 	// Column headers
 	if (colhdr_cache == "") {
 		// Space for the group indicator
@@ -1608,6 +1612,13 @@ void Kis_Netlist::DrawComponent() {
 	Kis_Panel_Specialtext::Mvwaddnstr(window, sy, sx, 
 									  "\004u" + pcache + "\004U", 
 									  ex - sx);
+
+	if (display_vec.size() == 0) {
+		wattrset(window, color_map[kis_netlist_color_normal]);
+		mvwaddnstr(window, sy + 2, sx, "[ --- No networks seen --- ]", ex - sx);
+		return;
+	}
+
 
 	if (sort_mode == netsort_autofit)
 		first_line = 0;
