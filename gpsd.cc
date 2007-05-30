@@ -115,7 +115,7 @@ int GPSD::CloseGPSD() {
 
 // The guts of it
 int GPSD::Scan() {
-    char buf[1024];
+    char buf[1025];
     int ret;
 
     if (sock < 0) {
@@ -133,6 +133,9 @@ int GPSD::Scan() {
 		mode = 0;
         return -1;
     }
+	// Terminate the buf, which is +1 the read size so terminating on the
+	// read len is safe.
+	buf[ret] = '\0';
 
     // And reissue a command
     if (write(sock, gpsd_command, sizeof(gpsd_command)) < 0) {
