@@ -63,12 +63,17 @@ int AirPcapSource::OpenSource() {
 	}
 
 	// Set the link mode to give us radiotap headers
+	// Removed - no deterministic method to set radiotap mode on airpcap.  By
+	// default the drivers ought to be in rtap mode, if they're not we'll
+	// figure it out from the link type later but can't try to set the mode.
+#if 0
 	if (!AirpcapSetLinkType(airpcap_handle, AIRPCAP_LT_802_11_PLUS_RADIO)) {
 		snprintf(errstr, 1024, "Adapter %s failed setting radiotap link layer: %s",
 				 interface.c_str(), AirpcapGetLastError(airpcap_handle));
 		pcap_close(pd);
 		return -1;
 	}
+#endif
 
 	// Tell the AirPcap adapter that we want the correct frames only
 	// (XXX Is this needed?) 

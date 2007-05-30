@@ -1,3 +1,5 @@
+May 30 2007  devel  Removed airpcap radiotap set since it results in
+                     non-deterministic behavior on some configurations
 Mar 07 2007  devel  Aliased rt73 source (same as rt2500)
 Feb 13 2007  devel  Fixed scrolling (again)
                     Added ifconfig down to wext monitor mode for dscape
