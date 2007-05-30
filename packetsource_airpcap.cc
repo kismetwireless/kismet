@@ -77,6 +77,9 @@ int PacketSource_AirPcap::OpenSource() {
 	}
 
 	// Set the link mode to give us radiotap headers
+	// Non-deterministic, we don't know if we've set radiotap mode or just
+	// changed the link type, removed
+#if 0
 	if (!AirpcapSetLinkType(airpcap_handle, AIRPCAP_LT_802_11_PLUS_RADIO)) {
 		_MSG("Adapter " + interface + " failed setting airpcap radiotap "
 			 "link layer: " + 
@@ -86,6 +89,7 @@ int PacketSource_AirPcap::OpenSource() {
 		pcap_close(pd);
 		return -1;
 	}
+#endif
 
 	// Tell the adapter to only give us packets which pass internal FCS validation.
 	// All we do is throw away frames which do not, so theres no reason to add
