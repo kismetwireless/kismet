@@ -136,16 +136,17 @@ int PcapSourceWrt54g::OpenSource() {
 
     pd = pcap_open_live(unconst, MAX_PACKET_LEN, 1, 1000, errstr);
 
-    #if defined (SYS_OPENBSD) || defined(SYS_NETBSD) && defined(HAVE_RADIOTAP)
-    /* Request desired DLT on multi-DLT systems that default to EN10MB. We do this
-       later anyway but doing it here ensures we have the desired DLT from the get go. */
-     pcap_set_datalink(pd, DLT_IEEE802_11_RADIO);
-    #endif
-
     free(unconst);
 
     if (strlen(errstr) > 0)
         return -1; // Error is already in errstr
+
+    #if defined (SYS_OPENBSD) || defined(SYS_NETBSD) && defined(HAVE_RADIOTAP)
+    /* Request desired DLT on multi-DLT systems that default to EN10MB. 
+	 * We do this later anyway but doing it here ensures we have the 
+	 * desired DLT from the get go. */
+	pcap_set_datalink(pd, DLT_IEEE802_11_RADIO);
+    #endif
 
     paused = 0;
 
@@ -184,10 +185,16 @@ int PcapSource::OpenSource() {
 
     pd = pcap_open_live(unconst, MAX_PACKET_LEN, 1, 1000, errstr);
 
+    free(unconst);
+
+    if (strlen(errstr) > 0)
+        return -1; // Error is already in errstr
+
     #if defined (SYS_OPENBSD) || defined(SYS_NETBSD) && defined(HAVE_RADIOTAP)
-    /* Request desired DLT on multi-DLT systems that default to EN10MB. We do this
-       later anyway but doing it here ensures we have the desired DLT from the get go. */
-    pcap_set_datalink(pd, DLT_IEEE802_11_RADIO);
+    /* Request desired DLT on multi-DLT systems that default to EN10MB. 
+	 * We do this later anyway but doing it here ensures we have the 
+	 * desired DLT from the get go. */
+	pcap_set_datalink(pd, DLT_IEEE802_11_RADIO);
 	// Hack to re-enable promisc mode since changing the DLT seems to make it
 	// drop it on some bsd pcap implementations
 	ioctl(pcap_get_selectable_fd(pd), BIOCPROMISC, NULL);
@@ -196,11 +203,6 @@ int PcapSource::OpenSource() {
 	int v = 1;
 	ioctl(pcap_get_selectable_fd(pd), BIOCIMMEDIATE, &v);
     #endif
-
-    free(unconst);
-
-    if (strlen(errstr) > 0)
-        return -1; // Error is already in errstr
 
     paused = 0;
 
@@ -1132,18 +1134,18 @@ int PcapSourceOpenBSDPrism::FetchChannel() {
 
 #if (defined(HAVE_RADIOTAP) && (defined(SYS_NETBSD) || defined(SYS_OPENBSD) || defined(SYS_FREEBSD)))
 int PcapSourceRadiotap::OpenSource() {
-    // XXX this is a hack to avoid duplicating code
-    int s = PcapSource::OpenSource();
-    if (s < 0)
-	return s;
-    if (!CheckForDLT(DLT_IEEE802_11_RADIO)) {
-	snprintf(errstr, 1024, "No support for radiotap data link");
-	return -1;
-    } else {
-	(void) pcap_set_datalink(pd, DLT_IEEE802_11_RADIO);
-	datalink_type = DLT_IEEE802_11_RADIO;
-	return s;
-    }
+	// XXX this is a hack to avoid duplicating code
+	int s = PcapSource::OpenSource();
+	if (s < 0)
+		return s;
+	if (!CheckForDLT(DLT_IEEE802_11_RADIO)) {
+		snprintf(errstr, 1024, "No support for radiotap data link");
+		return -1;
+	} else {
+		(void) pcap_set_datalink(pd, DLT_IEEE802_11_RADIO);
+		datalink_type = DLT_IEEE802_11_RADIO;
+		return s;
+	}
 }
 
 // Check for data link type support
