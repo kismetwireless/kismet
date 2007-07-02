@@ -667,6 +667,7 @@ if test "$bsd" = yes; then
 	AC_MSG_CHECKING(for BSD net80211/radiotap support)
 	AC_LINK_IFELSE([AC_LANG_PROGRAM([[
 	    #include <stdio.h>
+            #include <sys/types.h>
 	    #include <sys/socket.h>
 	    #include <net/if.h>
 	    #include <net/if_media.h>
