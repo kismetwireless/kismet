@@ -121,8 +121,11 @@ int FloatChan2Int(float in_chan);
 // in the future.
 unsigned int Ieee80211Mhz2IeeeChan(unsigned int frequency, unsigned int rt_flags);
 
-// Run a system command and return the error code.  Caller is responsible for security.
-// Does not fork out
+// Convert an IEEE beacon rate to an integer # of beacons per second
+unsigned int Ieee80211Interval2NSecs(int in_rate);
+
+// Run a system command and return the error code.  Caller is responsible 
+// for security.  Does not fork out
 int RunSysCmd(char *in_cmd);
 
 // Fork and exec a syscmd, return the pid of the new process
@@ -132,16 +135,17 @@ pid_t ExecSysCmd(char *in_cmd);
 int FetchSysLoadAvg(uint8_t *in_avgmaj, uint8_t *in_avgmin);
 #endif
 
-// Adler-32 checksum
-// From rsync, adler-32
+// Adler-32 checksum, derived from rsync, adler-32
 uint32_t Adler32Checksum(const char *buf1, int len);
 
-// 802.11 checksum functions, extracted from the BBN USRP code
+// 802.11 checksum functions, derived from the BBN USRP 802.11 code
 #define IEEE_802_3_CRC32_POLY	0xEDB88320
 unsigned int update_crc32_80211(unsigned int crc, const unsigned char *data,
 								int len, unsigned int poly);
 void crc32_init_table_80211(unsigned int *crc32_table);
-unsigned int crc32_le_80211(unsigned int *crc32_table, const unsigned char *buf, int len);
+unsigned int crc32_le_80211(unsigned int *crc32_table, const unsigned char *buf, 
+							int len);
+
 
 // Proftpd process title manipulation functions
 void init_proc_title(int argc, char *argv[], char *envp[]);

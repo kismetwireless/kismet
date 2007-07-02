@@ -37,6 +37,9 @@
 #define kis_extract32(x) kis_extractBE32(x)
 #define kis_extract64(x) kis_extractBE64(x)
 
+#define kis_letoh16(x) kis_swap16((x))
+#define kis_betoh16(x) (x)
+
 #else
 
 #define kis_hton16(x) kis_swap16((x))
@@ -51,6 +54,9 @@
 #define kis_extract16(x) kis_extractLE16(x)
 #define kis_extract32(x) kis_extractLE32(x)
 #define kis_extract64(x) kis_extractLE64(x)
+
+#define kis_betoh16(x) kis_swap16((x))
+#define kis_letoh16(x) (x)
 
 #endif
 

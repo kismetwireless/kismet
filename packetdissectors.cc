@@ -841,7 +841,7 @@ int KisBuiltinDissector::ieee80211_dissector(kis_packet *in_pack) {
         } else if (fc->subtype == 8) {
             packinfo->subtype = packet_sub_beacon;
 
-            packinfo->beacon_interval = kis_ntoh16(fixparm->beacon);
+            packinfo->beacon_interval = kis_letoh16(fixparm->beacon);
 
             // Extract the CISCO beacon info
             if ((tcitr = tag_cache_map.find(133)) != tag_cache_map.end()) {

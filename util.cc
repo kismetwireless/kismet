@@ -24,6 +24,7 @@
 #include <sys/time.h>
 #include <fcntl.h>
 #include <stdarg.h>
+#include <math.h>
 
 #ifdef HAVE_LIBUTIL_H
 # include <libutil.h>
@@ -527,6 +528,15 @@ int FetchSysLoadAvg(uint8_t *in_avgmaj, uint8_t *in_avgmin) {
     return 1;
 }
 #endif
+
+// Convert the beacon interval to # of packets per second
+unsigned int Ieee80211Interval2NSecs(int in_interval) {
+	double interval_per_sec;
+
+	interval_per_sec = in_interval * 1024 / 1000000;
+	
+	return (unsigned int) ceil(1.0f / interval_per_sec);
+}
 
 uint32_t Adler32Checksum(const char *buf1, int len) {
 	int i;

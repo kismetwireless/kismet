@@ -68,7 +68,7 @@ char *SSID_fields_text[] = {
 	"mac", "checksum", "type", "ssid",
 	"beaconinfo", "cryptset", "cloaked",
 	"firsttime", "lasttime", "maxrate",
-	"beaconrate", "packets",
+	"beaconrate", "packets", "beacons",
 	NULL
 };
 
@@ -506,6 +506,11 @@ int Protocol_SSID(PROTO_PARMS) {
 				break;
 			case SSID_packets:
 				osstr << ssid->packets;
+				out_string += osstr.str();
+				cache->Cache(fnum, osstr.str());
+				break;
+			case SSID_beacons:
+				osstr << ssid->beacons;
 				out_string += osstr.str();
 				cache->Cache(fnum, osstr.str());
 				break;
@@ -1255,10 +1260,15 @@ int Netracker::TimerKick() {
 			globalreg->kisnetserver->SendToAll(_NPM(PROTO_REF_SSID),
 											   (void *) asi->second);
 
+			/* Reset dirty and beacon counters */
 			asi->second->dirty = 0;
+			asi->second->beacons = 0;
 		}
 
 
+		/* Reset the frag, retry, and packet counters */
+		net->fragments = 0;
+		net->retries = 0;
 		net->new_packets = 0;
 		net->dirty = 0;
 	}
@@ -1298,6 +1308,9 @@ int Netracker::TimerKick() {
 			asi->second->dirty = 0;
 		}
 
+		// Reset the frag, retry, and packet counts
+		cli->fragments = 0;
+		cli->retries = 0;
 		cli->new_packets = 0;
 		cli->dirty = 0;
 	}
@@ -1668,6 +1681,8 @@ int Netracker::netracker_chain_handler(kis_packet *in_pack) {
 
 		adssid->last_time = globalreg->timestamp.tv_sec;
 		adssid->packets++;
+
+		adssid->beacons++;
 
 		adssid->dirty = 1;
 
@@ -3401,7 +3416,7 @@ Netracker::adv_ssid_data *Netracker::BuildAdvSSID(uint32_t ssid_csum,
 	adssid->cryptset = packinfo->cryptset;
 	adssid->first_time = globalreg->timestamp.tv_sec;
 	adssid->maxrate = packinfo->maxrate;
-	adssid->beaconrate = packinfo->beacon_interval;
+	adssid->beaconrate = Ieee80211Interval2NSecs(packinfo->beacon_interval);
 	adssid->packets = 0;
 
 	return adssid;

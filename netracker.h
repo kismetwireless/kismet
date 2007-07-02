@@ -83,7 +83,7 @@ enum SSID_fields {
 	SSID_mac, SSID_checksum, SSID_type, SSID_ssid,
 	SSID_beaconinfo, SSID_cryptset, SSID_cloaked,
 	SSID_firsttime, SSID_lasttime, SSID_maxrate, SSID_beaconrate,
-	SSID_packets,
+	SSID_packets, SSID_beacons,
 	SSID_maxfield
 };
 
@@ -473,6 +473,7 @@ public:
 			maxrate = 0;
 			beaconrate = 0;
 			packets = 0;
+			beacons = 0;
 		}
 
 		inline adv_ssid_data& operator= (const adv_ssid_data& in) {
@@ -488,6 +489,8 @@ public:
 			maxrate = in.maxrate;
 			beaconrate = in.beaconrate;
 			packets = in.packets;
+
+			beacons = in.beacons;
 
 			return *this;
 		}
@@ -513,11 +516,15 @@ public:
 
 		// Advertised maximum rate
 		double maxrate;
-		// Beacon interval
+
+		// Beacon rate in # of beacons per second
 		int beaconrate;
 
 		// Number of packets seen advertising this ssid
 		int packets;
+
+		// Number of beacons seen in the last second (for calculating loss)
+		int beacons;
 
 		// SSID is dirty and should be resent
 		int dirty;
@@ -596,7 +603,7 @@ public:
 		string cdp_dev_id;
 		string cdp_port_id;
 
-		// Fragment and retry rates
+		// Fragment and retries within the last second
 		int fragments;
 		int retries;
 
