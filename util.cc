@@ -533,7 +533,7 @@ int FetchSysLoadAvg(uint8_t *in_avgmaj, uint8_t *in_avgmin) {
 unsigned int Ieee80211Interval2NSecs(int in_interval) {
 	double interval_per_sec;
 
-	interval_per_sec = in_interval * 1024 / 1000000;
+	interval_per_sec = (double) in_interval * 1024 / 1000000;
 	
 	return (unsigned int) ceil(1.0f / interval_per_sec);
 }
