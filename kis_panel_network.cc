@@ -30,6 +30,7 @@ const char *Kis_Netlist::bssid_columns_text[] = {
 	"decay", "name", "shortname", "nettype",
 	"crypt", "channel", "packdata", "packllc", "packcrypt",
 	"bssid", "packets", "clients", "datasize", "signalbar",
+	"beaconperc",
 	NULL
 };
 
@@ -443,8 +444,11 @@ int Kis_Netlist::UpdateBColPrefs() {
 			display_bcols.push_back(bcol_clients);
 		else if (t == "datasize")
 			display_bcols.push_back(bcol_datasize);
-		else if (t == "bcol_signalbar")
+		else if (t == "signalbar")
 			display_bcols.push_back(bcol_signalbar);
+		else if (t == "beaconperc")
+			display_bcols.push_back(bcol_beaconperc);
+
 		else
 			_MSG("Unknown display column '" + t + "', skipping.",
 				 MSGFLAG_INFO);
@@ -1050,6 +1054,13 @@ void Kis_Netlist::Proto_SSID(CLIPROTO_CB_PARMS) {
 	}
 	asd->packets = tint;
 
+	if (sscanf((*proto_parsed)[fnum++].word.c_str(), "%d", &tint) != 1) {
+		delete asd;
+		return;
+	}
+	asd->beacons = tint;
+
+
 	map<uint32_t, Netracker::adv_ssid_data *>::iterator asi =
 		net->ssid_map.find(asd->checksum);
 
@@ -1457,6 +1468,16 @@ int Kis_Netlist::PrintNetworkLine(Kis_Display_NetGroup *ng,
 			snprintf(rline + rofft, max - rofft, "%5d",
 					 net->llc_packets + net->data_packets);
 			rofft += 5;
+		} else if (b == bcol_beaconperc) {
+			if (net->lastssid == NULL ||
+				(net->lastssid != NULL && (net->lastssid->beaconrate == 0))) {
+				snprintf(rline + rofft, max - rofft, "%-4s", " ???");
+			} else {
+				snprintf(rline + rofft, max - rofft, "%3.0f%%",
+						 ((double) net->lastssid->beacons / 
+						  (double) net->lastssid->beaconrate) * 100);
+			}
+			rofft += 4;
 		} else if (b == bcol_clients) {
 			// TODO - handle clients
 			snprintf(rline + rofft, max - rofft, "%4d", 0);
@@ -1590,6 +1611,9 @@ void Kis_Netlist::DrawComponent() {
 			} else if (b == bcol_datasize) {
 				snprintf(rline + rofft, 1024 - rofft, "Signal  ");
 				rofft += 8;
+			} else if (b == bcol_beaconperc) {
+				snprintf(rline + rofft, 1024 - rofft, "Bprc");
+				rofft += 5;
 			}
 
 			if (rofft < 1023) {

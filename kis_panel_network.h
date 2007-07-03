@@ -62,8 +62,8 @@
 #define KCLI_BSSID_NUMFIELDS	55
 
 #define KCLI_SSID_FIELDS	"mac,checksum,type,ssid,beaconinfo,cryptset," \
-	"cloaked,firsttime,lasttime,maxrate,beaconrate,packets"
-#define KCLI_SSID_NUMFIELDS		12
+	"cloaked,firsttime,lasttime,maxrate,beaconrate,packets,beacons"
+#define KCLI_SSID_NUMFIELDS		13
 
 // TODO - add SSID handling and group naming
 class Kis_Display_NetGroup {
@@ -225,7 +225,8 @@ public:
 	enum bssid_columns {
 		bcol_decay, bcol_name, bcol_shortname, bcol_nettype,
 		bcol_crypt, bcol_channel, bcol_packdata, bcol_packllc, bcol_packcrypt,
-		bcol_bssid, bcol_packets, bcol_clients, bcol_datasize, bcol_signalbar
+		bcol_bssid, bcol_packets, bcol_clients, bcol_datasize, bcol_signalbar,
+		bcol_beaconperc
 	};
 
 	// Extra display options per-line
