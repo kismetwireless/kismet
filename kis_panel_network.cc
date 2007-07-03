@@ -1166,8 +1166,8 @@ void Kis_Netlist::UpdateTrigger(void) {
 			} else if (probe_autogroup != net->groupptr){
 				if (probe_autogroup->Dirty() == 0)
 					dirty_vec.push_back(probe_autogroup);
+				probe_autogroup->AddNetwork(net);
 			}
-			probe_autogroup->AddNetwork(net);
 
 			continue;
 		} else if (net->type != network_probe && net->groupptr == probe_autogroup &&
@@ -1195,8 +1195,8 @@ void Kis_Netlist::UpdateTrigger(void) {
 			} else if (adhoc_autogroup != net->groupptr){
 				if (adhoc_autogroup->Dirty() == 0)
 					dirty_vec.push_back(adhoc_autogroup);
+				adhoc_autogroup->AddNetwork(net);
 			}
-			adhoc_autogroup->AddNetwork(net);
 
 			continue;
 		} else if (net->type != network_adhoc && net->groupptr == adhoc_autogroup &&
@@ -1205,7 +1205,6 @@ void Kis_Netlist::UpdateTrigger(void) {
 				dirty_vec.push_back(adhoc_autogroup);
 
 			adhoc_autogroup->DelNetwork(net);
-
 		}
 
 		if (net->type == network_data) {
@@ -1226,8 +1225,8 @@ void Kis_Netlist::UpdateTrigger(void) {
 				if (data_autogroup->Dirty() == 0)
 					dirty_vec.push_back(data_autogroup);
 
+				data_autogroup->AddNetwork(net);
 			}
-			data_autogroup->AddNetwork(net);
 
 			continue;
 		} else if (net->type != network_data && net->groupptr == data_autogroup &&
@@ -1473,6 +1472,11 @@ int Kis_Netlist::PrintNetworkLine(Kis_Display_NetGroup *ng,
 				(net->lastssid != NULL && (net->lastssid->beaconrate == 0))) {
 				snprintf(rline + rofft, max - rofft, "%-4s", " ???");
 			} else {
+				// Kluge the beacons down to the rate, revisit this later if we
+				// want to add IDS sensitivity based on an over-abundance of 
+				// beacons or something
+				if (net->lastssid->beacons > net->lastssid->beaconrate)
+					net->lastssid->beacons = net->lastssid->beaconrate;
 				snprintf(rline + rofft, max - rofft, "%3.0f%%",
 						 ((double) net->lastssid->beacons / 
 						  (double) net->lastssid->beaconrate) * 100);
