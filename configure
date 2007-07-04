@@ -3668,6 +3668,11 @@ echo "${ECHO_T}HP ANSI C compiler - added -Ae +O2" >&6; }
         # apparently-legal code won't compile with its precompiled
         # headers.
         #
+
+cat >>confdefs.h <<\_ACEOF
+#define SYS_DARWIN 1
+_ACEOF
+
         CFLAGS="-no-cpp-precomp $CFLAGS"
         { echo "$as_me:$LINENO: result: Apple GCC - added -no-cpp-precomp" >&5
 echo "${ECHO_T}Apple GCC - added -no-cpp-precomp" >&6; }
@@ -3741,6 +3746,11 @@ echo "${ECHO_T}GCC on Solaris - added -Wno-return-type -DFUNCPROTO=15" >&6; }
         #
         # See comments above about Apple's lovely C compiler.
         #
+
+cat >>confdefs.h <<\_ACEOF
+#define SYS_DARWIN 1
+_ACEOF
+
         CFLAGS="-no-cpp-precomp $CFLAGS"
         { echo "$as_me:$LINENO: result: Apple GCC - added -no-cpp-precomp" >&5
 echo "${ECHO_T}Apple GCC - added -no-cpp-precomp" >&6; }

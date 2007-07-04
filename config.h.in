@@ -221,6 +221,9 @@
 /* Compiling for Cygwin */
 #undef SYS_CYGWIN
 
+/* Compiling for Darwin/OSX */
+#undef SYS_DARWIN
+
 /* Compiling for FreeBSD */
 #undef SYS_FREEBSD
 

@@ -33,10 +33,16 @@
 #define kis_hton64(x) (x)
 #define kis_ntoh64(x) (x)
 
+#define kis_letoh16(x) kis_swap16((x))
+#define kis_betoh16(x) (x)
+
 #else
 
 #define kis_hton16(x) kis_swap16((x))
 #define kis_ntoh16(x) kis_swap16((x))
+
+#define kis_letoh16(x)	(x)
+#define kis_betoh16(x)	kis_swap16(x)
 
 #define kis_hton32(x) kis_swap32((x))
 #define kis_ntoh32(x) kis_swap32((x))

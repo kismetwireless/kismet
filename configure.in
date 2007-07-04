@@ -42,6 +42,7 @@ then
         # apparently-legal code won't compile with its precompiled
         # headers.
         #
+		AC_DEFINE(SYS_DARWIN, 1, Compiling for Darwin/OSX)
         CFLAGS="-no-cpp-precomp $CFLAGS"
         AC_MSG_RESULT(Apple GCC - added -no-cpp-precomp)
 		darwin="yes"
@@ -87,6 +88,7 @@ else
         #
         # See comments above about Apple's lovely C compiler.
         #
+		AC_DEFINE(SYS_DARWIN, 1, Compiling for Darwin/OSX)
         CFLAGS="-no-cpp-precomp $CFLAGS"
         AC_MSG_RESULT(Apple GCC - added -no-cpp-precomp)
 		darwin="yes"

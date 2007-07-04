@@ -73,6 +73,10 @@ typedef unsigned long u64;
 #include "linux_ieee80211_radiotap.h"
 #endif
 
+#if (defined(SYS_DARWIN))
+#include "osx_ieee80211_radiotap.h"
+#endif
+
 #ifdef HAVE_RADIOTAP
 // Hack around some headers that don't seem to define all of these
 #ifndef IEEE80211_CHAN_TURBO
@@ -1180,6 +1184,13 @@ int PcapSourceRadiotap::FetchChannel() {
 KisPacketSource *pcapsource_registrant(string in_name, string in_device,
                                        char *in_err) {
     return new PcapSource(in_name, in_device);
+}
+
+KisPacketSource *pcapsourcefcs_registrant(string in_name, string in_device,
+                                       char *in_err) {
+	KisPacketSource *nsrc = new PcapSource(in_name, in_device);
+	nsrc->fcsbytes = 4;
+	return nsrc;
 }
 
 KisPacketSource *pcapsource_file_registrant(string in_name, string in_device,

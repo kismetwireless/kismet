@@ -368,6 +368,11 @@ KisPacketSource *pcapsource_openbsdprism2_registrant(string in_name, string in_d
                                                      char *in_err);
 #endif
 
+#if (defined(HAVE_LIBPCAP) && defined(SYS_DARWIN))
+KisPacketSource *pcapsource_darwin_registrant(string in_name, string in_device,
+											  char *in_err);
+#endif
+
 #ifdef HAVE_RADIOTAP
 KisPacketSource *pcapsource_radiotap_registrant(string in_name, string in_device,
                                                 char *in_err);
@@ -471,7 +476,6 @@ int monitor_bsd(const char *in_dev, int initch, char *in_err, void **in_if, void
 int unmonitor_bsd(const char *in_dev, int initch, char *in_err, void **in_if, void *in_ext);
 int chancontrol_bsd(const char *in_dev, int in_ch, char *in_err, void *in_ext);
 #endif
-
 
 #endif
 
