@@ -337,6 +337,8 @@ protected:
 // Registrant and control functions
 KisPacketSource *pcapsource_registrant(string in_name, string in_device,
                                        char *in_err);
+KisPacketSource *pcapsourcefcs_registrant(string in_name, string in_device,
+                                       char *in_err);
 
 KisPacketSource *pcapsource_file_registrant(string in_name, string in_device, 
                                             char *in_err);
