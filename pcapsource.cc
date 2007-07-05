@@ -3135,6 +3135,23 @@ int chancontrol_bsd(const char *in_dev, int in_ch, char *in_err, void *in_ext) {
 #endif /* HAVE_RADIOTAP */
 
 #ifdef SYS_DARWIN
+/* From Macstumber rev-eng darwin headers */
+WIErr wlc_ioctl(int command, int bufsize, void* buffer, int outsize,  void* out) {
+	if (!buffer) 
+		bufsize = 0;
+
+	int* buf = malloc(bufsize+8);
+
+	buf[0] = 3;
+	buf[1] = command;
+
+	if (bufsize && buffer) {
+		memcpy(&buf[2], buffer, bufsize);
+	}
+
+	return WirelessPrivate(gWCtxt, buf, bufsize+8, out, outsize);
+}
+
 int chancontrol_darwin(const char *in_dev, int in_ch, char *in_err, void *in_ext) {
 	WirelessContextPtr gWCtxt = NULL;
 
@@ -3145,7 +3162,7 @@ int chancontrol_darwin(const char *in_dev, int in_ch, char *in_err, void *in_ext
 	wlc_ioctl(52, 0, NULL, 0, NULL); // Disassociate
 	wlcioctl(30, 8, &in_ch, 0, NULL); // Set channel
 
-	WirelessDetatch(&gWCtxt);
+	WirelessDetach(&gWCtxt);
 }
 #endif
 
