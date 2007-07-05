@@ -3163,7 +3163,7 @@ int chancontrol_darwin(const char *in_dev, int in_ch, char *in_err, void *in_ext
 	wlc_ioctl(gWCtxt, 52, 0, NULL, 0, NULL); // Disassociate
 	wlc_ioctl(gWCtxt, 30, 8, &in_ch, 0, NULL); // Set channel
 
-	WirelessDetach(&gWCtxt);
+	WirelessDetach(gWCtxt);
 
 	return 0;
 }
