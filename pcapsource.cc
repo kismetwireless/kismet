@@ -3136,11 +3136,12 @@ int chancontrol_bsd(const char *in_dev, int in_ch, char *in_err, void *in_ext) {
 
 #ifdef SYS_DARWIN
 /* From Macstumber rev-eng darwin headers */
-WIErr wlc_ioctl(int command, int bufsize, void* buffer, int outsize,  void* out) {
+WIErr wlc_ioctl(WirelessContextPtr ctx, int command, int bufsize, 
+				void *buffer, int outsize,  void *out) {
 	if (!buffer) 
 		bufsize = 0;
 
-	int* buf = malloc(bufsize+8);
+	int *buf = (int *) malloc(bufsize+8);
 
 	buf[0] = 3;
 	buf[1] = command;
@@ -3149,7 +3150,7 @@ WIErr wlc_ioctl(int command, int bufsize, void* buffer, int outsize,  void* out)
 		memcpy(&buf[2], buffer, bufsize);
 	}
 
-	return WirelessPrivate(gWCtxt, buf, bufsize+8, out, outsize);
+	return WirelessPrivate(ctx, buf, bufsize+8, out, outsize);
 }
 
 int chancontrol_darwin(const char *in_dev, int in_ch, char *in_err, void *in_ext) {
@@ -3159,8 +3160,8 @@ int chancontrol_darwin(const char *in_dev, int in_ch, char *in_err, void *in_ext
 		snprintf(in_err, STATUS_MAX, "Darwin WirelessAttach() failed for channel set");
 		return -1;
 	}
-	wlc_ioctl(52, 0, NULL, 0, NULL); // Disassociate
-	wlc_ioctl(30, 8, &in_ch, 0, NULL); // Set channel
+	wlc_ioctl(gWCtxt, 52, 0, NULL, 0, NULL); // Disassociate
+	wlc_ioctl(gWCtxt, 30, 8, &in_ch, 0, NULL); // Set channel
 
 	WirelessDetach(&gWCtxt);
 
