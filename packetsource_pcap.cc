@@ -40,16 +40,12 @@ typedef unsigned long u64;
 #include <linux/wireless.h>
 #endif
 
-#include "util.h"
-#include "packetsourcetracker.h"
-#include "packetsource_pcap.h"
-#include "tcpdump-extract.h"
-
 #ifdef SYS_DARWIN
 #include <sys/types.h>
 #include <sys/time.h>
 #include <sys/ioctl.h>
 #include <net/bpf.h>
+#include <pcap-bpf.h>
 #endif
 
 #if defined(SYS_OPENBSD) || defined(SYS_NETBSD)
@@ -79,6 +75,11 @@ typedef unsigned long u64;
 #endif
 
 #endif
+
+#include "util.h"
+#include "packetsourcetracker.h"
+#include "packetsource_pcap.h"
+#include "tcpdump-extract.h"
 
 #ifdef HAVE_LIBPCAP
 
@@ -690,40 +691,6 @@ int PacketSource_Pcap::Radiotap2KisPack(kis_packet *packet) {
                     /* Convert to Kismet units...  No reason to use RSSI units
 					 * here since we know the conversion factor */
                     packet->signal_dbm = int((float(u.u8) / float(u2.u8) * 255));
-                    break;
-#endif
-#if 0
-                case IEEE80211_RADIOTAP_FHSS:
-                    printf("fhset %d fhpat %d ", u.u16 & 0xff,
-                           (u.u16 >> 8) & 0xff);
-                    break;
-                case IEEE80211_RADIOTAP_LOCK_QUALITY:
-                    printf("%u sq ", u.u16);
-                    break;
-                case IEEE80211_RADIOTAP_TX_ATTENUATION:
-                    printf("%d tx power ", -(int)u.u16);
-                    break;
-                case IEEE80211_RADIOTAP_DB_TX_ATTENUATION:
-                    printf("%ddB tx power ", -(int)u.u16);
-                    break;
-                case IEEE80211_RADIOTAP_DBM_TX_POWER:
-                    printf("%ddBm tx power ", u.i8);
-                    break;
-                case IEEE80211_RADIOTAP_FLAGS:
-                    if (u.u8 & IEEE80211_RADIOTAP_F_CFP)
-                        printf("cfp ");
-                    if (u.u8 & IEEE80211_RADIOTAP_F_SHORTPRE)
-                        printf("short preamble ");
-                    if (u.u8 & IEEE80211_RADIOTAP_F_WEP)
-                        printf("wep ");
-                    if (u.u8 & IEEE80211_RADIOTAP_F_FRAG)
-                        printf("fragmented ");
-                    break;
-                case IEEE80211_RADIOTAP_ANTENNA:
-                    printf("antenna %u ", u.u8);
-                    break;
-                case IEEE80211_RADIOTAP_TSFT:
-                    printf("%llus tsft ", u.u64);
                     break;
 #endif
                 default:

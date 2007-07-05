@@ -103,6 +103,10 @@ extern "C" {
 #define DLT_IEEE802_11_RADIO 127
 #endif
 
+#ifndef DLT_IEEE802_11_RADIO_AVS
+#define DLT_IEEE802_11_RADIO_AVS 163
+#endif
+
 // Define kluged local linktype for BSD lame-mode
 #define KDLT_BSD802_11		-100
 

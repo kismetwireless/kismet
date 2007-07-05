@@ -34,10 +34,10 @@
 
 #define USE_PACKETSOURCE_DARWIN
 
-class PacketSource_Darwin : public PacketSource_Darwin {
+class PacketSource_Darwin : public PacketSource_Pcap {
 public:
 	PacketSource_Darwin() {
-		fprintf(Stderr, "FATAL OOPS: Packetsource_Darwin()\n");
+		fprintf(stderr, "FATAL OOPS: Packetsource_Darwin()\n");
 		exit(1);
 	}
 

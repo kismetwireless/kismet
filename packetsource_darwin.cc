@@ -20,8 +20,6 @@
 
 #if defined(HAVE_LIBPCAP) && defined(SYS_DARWIN)
 
-#include "packetsource_darwin.h"
-
 #include <unistd.h>
 #include <errno.h>
 #include <time.h>
@@ -33,6 +31,8 @@
 extern "C" {
 #include "apple80211.h"
 }
+
+#include "packetsource_darwin.h"
 
 #include "packetsourcetracker.h"
 
@@ -71,6 +71,8 @@ PacketSource_Darwin::PacketSource_Darwin(GlobalRegistry *in_globalreg,
 										   string in_type, string in_name,
 										   string in_dev): 
 	PacketSource_Pcap(in_globalreg, in_type, in_name, in_dev) {
+
+	fcsbytes = 4;
 }
 
 int PacketSource_Darwin::EnableMonitor() {
