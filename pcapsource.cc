@@ -61,7 +61,9 @@ typedef unsigned long u64;
 #include <sys/time.h>
 #include <sys/ioctl.h>
 #include <net/bpf.h>
+extern "C" {
 #include "apple80211.h"
+}
 #endif
 
 #ifdef SYS_FREEBSD

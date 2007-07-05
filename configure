@@ -9374,6 +9374,11 @@ echo "$as_me: WARNING: *** Disabling setuid capabilities.  Viha must be controll
 	fi
 fi
 
+# Enable the darwin frameworks for 80211 control
+if test "$darwin" = "yes"; then
+	LDFLAGS="$LDFLAGS -framework Foundation -framework CoreFoundation -F/System/Library/PrivateFrameworks -framework Apple80211"
+fi
+
 # Evaluate suid
 if test "$cygwin" = "yes"; then
 	suid="no"
