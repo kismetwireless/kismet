@@ -61,6 +61,7 @@ typedef unsigned long u64;
 #include <sys/time.h>
 #include <sys/ioctl.h>
 #include <net/bpf.h>
+#include "apple80211.h"
 #endif
 
 #ifdef SYS_FREEBSD
@@ -3132,6 +3133,21 @@ int chancontrol_bsd(const char *in_dev, int in_ch, char *in_err, void *in_ext) {
     }
 }
 #endif /* HAVE_RADIOTAP */
+
+#ifdef SYS_DARWIN
+int chancontrol_darwin(const char *in_dev, int in_ch, char *in_err, void *in_ext) {
+	WirelessContextPtr gWCtxt = NULL;
+
+	if (WirelessAttach(&gWCtxt, 0) != 0) {
+		snprintf(in_err, STATUS_MAX, "Darwin WirelessAttach() failed for channel set");
+		return -1;
+	}
+	wlc_ioctl(52, 0, NULL, 0, NULL); // Disassociate
+	wlcioctl(30, 8, &in_ch, 0, NULL); // Set channel
+
+	WirelessDetatch(&gWCtxt);
+}
+#endif
 
 #endif
 

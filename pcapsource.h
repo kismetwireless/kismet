@@ -479,6 +479,10 @@ int unmonitor_bsd(const char *in_dev, int initch, char *in_err, void **in_if, vo
 int chancontrol_bsd(const char *in_dev, int in_ch, char *in_err, void *in_ext);
 #endif
 
+#ifdef SYS_DARWIN
+int chancontrol_darwin(const char *in_dev, int in_ch, char *in_err, void *in_ext);
+#endif
+
 #endif
 
 #endif
