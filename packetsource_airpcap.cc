@@ -126,8 +126,8 @@ int PacketSource_AirPcap::AutotypeProbe(string in_device) {
 }
 
 int PacketSource_AirPcap::RegisterSources(Packetsourcetracker *tracker) {
-	tracker->RegisterPacketsource("airpcap", this, 6, "IEEE80211b", 0);
-	tracker->RegisterPacketsource("airpcap_ask", this, 6, "IEEE80211b", 0);
+	tracker->RegisterPacketsource("airpcap", this, 0, "IEEE80211b", 6);
+	tracker->RegisterPacketsource("airpcap_ask", this, 0, "IEEE80211b", 6);
 	return 1;
 }
 

@@ -45,6 +45,41 @@ typedef unsigned long u64;
 #include "packetsource_pcap.h"
 #include "tcpdump-extract.h"
 
+#ifdef SYS_DARWIN
+#include <sys/types.h>
+#include <sys/time.h>
+#include <sys/ioctl.h>
+#include <net/bpf.h>
+#endif
+
+#if defined(SYS_OPENBSD) || defined(SYS_NETBSD)
+#include <sys/socket.h>
+#include <net/if.h>
+#include <net/if_media.h>
+#include <netinet/in.h>
+#include <netinet/if_ether.h>
+#include <dev/ic/if_wi_ieee.h>
+
+#ifdef HAVE_RADIOTAP
+#include <net80211/ieee80211.h>
+#include <net80211/ieee80211_ioctl.h>
+#include <net80211/ieee80211_radiotap.h>
+#endif
+
+#endif
+
+#ifdef SYS_FREEBSD
+#include <sys/socket.h>
+#include <net/if.h>
+#include <net/if_media.h>
+
+#ifdef HAVE_RADIOTAP
+#include <net80211/ieee80211_ioctl.h>
+#include <net80211/ieee80211_radiotap.h>
+#endif
+
+#endif
+
 #ifdef HAVE_LIBPCAP
 
 // This is such a bad thing to do...
@@ -89,6 +124,16 @@ int PacketSource_Pcap::OpenSource() {
                  errno, strerror(errno));
     }
 #endif
+
+    #if defined (SYS_OPENBSD) || defined(SYS_NETBSD) || defined(SYS_FREEBSD) \
+		|| defined(SYS_DARWIN)
+	// Force promisc mode
+	ioctl(pcap_get_selectable_fd(pd), BIOCPROMISC, NULL);
+	// Hack to set the fd to IOIMMEDIATE, to solve problems with select() on bpf
+	// devices on BSD
+	int v = 1;
+	ioctl(pcap_get_selectable_fd(pd), BIOCIMMEDIATE, &v);
+    #endif
 
 	if (strlen(errstr) > 0) {
 		globalreg->messagebus->InjectMessage(errstr, MSGFLAG_FATAL);

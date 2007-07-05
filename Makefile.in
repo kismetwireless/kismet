@@ -44,6 +44,7 @@ PSO	= util.o cygwin_utils.o ringbuf.o messagebus.o configfile.o getopt.o \
 	packetchain.o \
 	packetsource_pcap.o packetsource_wext.o packetsource_bsdrt.o \
 	packetsource_drone.o packetsource_ipwlive.o packetsource_airpcap.o \
+	packetsource_darwin.o \
 	plugintracker.o packetsourcetracker.o alertracker.o timetracker.o \
 	packetdissectors.o netracker.o \
 	dumpfile.o dumpfile_runstate.o dumpfile_pcap.o dumpfile_gpsxml.o \
@@ -61,6 +62,7 @@ DRONEO = util.o cygwin_utils.o ringbuf.o messagebus.o configfile.o getopt.o \
 		 packetchain.o \
 		 packetsource_pcap.o packetsource_wext.o packetsource_bsdrt.o \
 		 packetsource_drone.o packetsource_ipwlive.o packetsource_airpcap.o \
+		 packetsource_darwin.o \
 		 plugintracker.o packetsourcetracker.o timetracker.o \
 		 kismet_drone.o
 

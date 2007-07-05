@@ -44,6 +44,7 @@ then
         #
         CFLAGS="-no-cpp-precomp $CFLAGS"
         AC_MSG_RESULT(Apple GCC - added -no-cpp-precomp)
+		AC_DEFINE(SYS_DARWIN, 1, Compiling for OSX/Darwin)
 		darwin="yes"
         ;;
 	linux*)
@@ -89,6 +90,7 @@ else
         #
         CFLAGS="-no-cpp-precomp $CFLAGS"
         AC_MSG_RESULT(Apple GCC - added -no-cpp-precomp)
+		AC_DEFINE(SYS_DARWIN, 1, Compiling for OSX/Darwin)
 		darwin="yes"
         ;;
 	linux*)
@@ -713,6 +715,11 @@ if test "$want_viha" = "yes"; then
 	fi
 fi
 
+# Enable the darwin frameworks for 80211 control
+if test "$darwin" = "yes"; then
+	LDFLAGS="$LDFLAGS -framework Foundation -framework CoreFoundation -F/System/Library/PrivateFrameworks -framework Apple80211"
+fi
+
 # Evaluate suid
 if test "$cygwin" = "yes"; then
 	suid="no"
@@ -939,11 +946,19 @@ fi
 echo -n "      Terminal Control: "
 echo "$termcontrol";
 
-echo -n "       Linux wireless : "
+echo -n "   Linux WEXT capture : "
 if test "$linux_wireless" = "yes"; then
 	echo "yes"
 elif test "$linux" != "yes"; then
 	echo "n/a (only Linux)"
+else
+	echo "no"
+fi
+echo -n "   OSX/Darwin capture : "
+if test "$darwin" = "yes"; then
+	echo "yes"
+elif test "$darwin" != "yes"; then
+	echo "n/a (only OSX/Darwin)"
 else
 	echo "no"
 fi
