@@ -194,11 +194,14 @@ int PcapSource::OpenSource() {
     if (strlen(errstr) > 0)
         return -1; // Error is already in errstr
 
-    #if defined (SYS_OPENBSD) || defined(SYS_NETBSD) && defined(HAVE_RADIOTAP)
+    #if defined (SYS_OPENBSD) || defined(SYS_NETBSD) || defined(SYS_FREEBSD) \
+		|| defined(SYS_DARWIN)
+	#if defined(HAVE_RADIOTAP)
     /* Request desired DLT on multi-DLT systems that default to EN10MB. 
 	 * We do this later anyway but doing it here ensures we have the 
 	 * desired DLT from the get go. */
 	pcap_set_datalink(pd, DLT_IEEE802_11_RADIO);
+	#endif
 	// Hack to re-enable promisc mode since changing the DLT seems to make it
 	// drop it on some bsd pcap implementations
 	ioctl(pcap_get_selectable_fd(pd), BIOCPROMISC, NULL);
