@@ -56,6 +56,13 @@ typedef unsigned long u64;
 
 #endif
 
+#ifdef SYS_DARWIN
+#include <sys/types.h>
+#include <sys/time.h>
+#include <sys/ioctl.h>
+#include <net/bpf.h>
+#endif
+
 #ifdef SYS_FREEBSD
 #include <sys/socket.h>
 #include <net/if.h>
