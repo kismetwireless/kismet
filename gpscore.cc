@@ -81,6 +81,13 @@ int kis_gpspack_hook(CHAINCALL_PARMS) {
 	return 1;
 }
 
+int GpsEvent(Timetracker::timer_event *evt, void *parm,
+			 GlobalRegistry *globalreg) {
+	GPSCore *gps = (GPSCore *) parm;
+
+	return gps->Timer();
+}
+
 GPSCore::GPSCore() {
     fprintf(stderr, "FATAL OOPS: GPSCore called with no globalreg\n");
 	exit(-1);
@@ -102,6 +109,35 @@ GPSCore::GPSCore(GlobalRegistry *in_globalreg) : ClientFramework(in_globalreg) {
     mode = -1;
     lat = lon = alt = spd = hed = last_lat = last_lon = last_hed = 0;
 
+	gpseventid = -1;
+}
+
+GPSCore::~GPSCore() {
+	if (gpseventid >= 0 && globalreg != NULL)
+		globalreg->timetracker->RemoveTimer(gpseventid);
+
+	// Unregister ourselves from the main tcp service loop
+	globalreg->RemovePollableSubsys(this);
+}
+
+int GPSCore::ScanOptions() {
+	// Lock GPS position
+	if (globalreg->kismet_config->FetchOpt("gpsmodelock") == "true") {
+		_MSG("Enabling GPS position information override (override broken GPS "
+			 "units that always report 0 in the NMEA stream)", MSGFLAG_INFO);
+		SetOptions(GPSD_OPT_FORCEMODE);
+	}
+
+	if (globalreg->kismet_config->FetchOpt("gpsreconnect") == "true") {
+		_MSG("Enabling reconnection to the GPS device if the link is lost", 
+			 MSGFLAG_INFO);
+		reconnect_attempt = 0;
+	}
+
+	return 1;
+}
+
+int GPSCore::RegisterComponents() {
 	// Register the network protocol
 	gps_proto_ref = 
 		globalreg->kisnetserver->RegisterProtocol("GPS", 0, 0, GPS_fields_text, 
@@ -113,33 +149,14 @@ GPSCore::GPSCore(GlobalRegistry *in_globalreg) : ClientFramework(in_globalreg) {
 	globalreg->packetchain->RegisterHandler(&kis_gpspack_hook, this,
 											CHAINPOS_POSTCAP, -100);
 
-    // Parse the config file and enable the tcpclient
-    
-    if (globalreg->kismet_config->FetchOpt("gps") == "true") {
-        // Lock GPS position
-        if (globalreg->kismet_config->FetchOpt("gpsmodelock") == "true") {
-            _MSG("Enabling GPS position information override (override broken GPS "
-				 "units that always report 0 in the NMEA stream)", MSGFLAG_INFO);
-            SetOptions(GPSD_OPT_FORCEMODE);
-        }
-
-        if (globalreg->kismet_config->FetchOpt("gpsreconnect") == "true") {
-            _MSG("Enabling reconnection to the GPSD server if the link is lost", 
-				 MSGFLAG_INFO);
-            reconnect_attempt = 0;
-        }
-
-    } else {
-        _MSG("GPS support not enabled in Kismet config file", MSGFLAG_INFO);
-    }
+	gpseventid = 
+		globalreg->timetracker->RegisterTimer(SERVER_TIMESLICES_SEC, NULL, 1, 
+											  &GpsEvent, (void *) this);
 
 	// Register the TCP component of the GPS system with the main service loop
 	globalreg->RegisterPollableSubsys(this);
-}
 
-GPSCore::~GPSCore() {
-	// Unregister ourselves from the main tcp service loop
-	globalreg->RemovePollableSubsys(this);
+	return 1;
 }
 
 int GPSCore::FetchLoc(double *in_lat, double *in_lon, double *in_alt, 
@@ -233,5 +250,37 @@ double GPSCore::CalcRad(double lat) {
 
     r = r * 1000.0;
     return r;
+}
+
+int GPSCore::Timer() {
+    // Send it to the client
+    GPS_data gdata;
+
+    snprintf(errstr, 32, "%lf", lat);
+    gdata.lat = errstr;
+    snprintf(errstr, 32, "%lf", lon);
+    gdata.lon = errstr;
+    snprintf(errstr, 32, "%lf", alt);
+    gdata.alt = errstr;
+    snprintf(errstr, 32, "%lf", spd);
+    gdata.spd = errstr;
+    snprintf(errstr, 32, "%lf", hed);
+    gdata.heading = errstr;
+    snprintf(errstr, 32, "%d", mode);
+    gdata.mode = errstr;
+
+    globalreg->kisnetserver->SendToAll(gps_proto_ref, (void *) &gdata);
+
+	// Make an empty packet w/ just GPS data for the gpsxml logger to catch
+	kis_packet *newpack = globalreg->packetchain->GeneratePacket();
+	kis_gps_packinfo *gpsdat = new kis_gps_packinfo;
+	newpack->ts.tv_sec = globalreg->timestamp.tv_sec;
+	newpack->ts.tv_usec = globalreg->timestamp.tv_usec;
+	FetchLoc(&(gpsdat->lat), &(gpsdat->lon), &(gpsdat->alt),
+			 &(gpsdat->spd), &(gpsdat->heading), &(gpsdat->gps_fix));
+	newpack->insert(_PCM(PACK_COMP_GPS), gpsdat);
+	globalreg->packetchain->ProcessPacket(newpack);
+
+	return 1;
 }
 

@@ -66,6 +66,8 @@ public:
     GPSCore(GlobalRegistry *in_globalreg);
     virtual ~GPSCore();
 
+	int Timer();
+
     void SetOptions(uint32_t in_opt) {
         gps_options = in_opt;
     }
@@ -98,12 +100,17 @@ protected:
     // Last location used for softheading calcs
     double last_lat, last_lon, last_hed;
 
+	// Scan options & register systems
+	int ScanOptions();
+	int RegisterComponents();
+
     // Reconnect local trigger
     virtual int Reconnect() = 0;
-    virtual int InjectCommand() = 0;
 
 	// network proto ref
 	int gps_proto_ref;
+
+	int gpseventid;
     
     friend int GpsInjectEvent(TIMEEVENT_PARMS);
 };

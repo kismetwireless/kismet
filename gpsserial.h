@@ -16,25 +16,22 @@
     Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 */
 
-#ifndef __GPSDCLIENT_H__
-#define __GPSDCLIENT_H__
+#ifndef __GPSSERIAL_H__
+#define __GPSSERIAL_H__
 
 #include "config.h"
 
 #include "clinetframework.h"
-#include "tcpclient.h"
+#include "serialclient.h"
 #include "kis_netframe.h"
 #include "packetchain.h"
 #include "gpscore.h"
 
-// Our command
-const char gpsd_command[] = "PAVMH\n";
-
-class GPSDClient : public GPSCore {
+class GPSSerial : public GPSCore {
 public:
-    GPSDClient();
-    GPSDClient(GlobalRegistry *in_globalreg);
-    virtual ~GPSDClient();
+    GPSSerial();
+    GPSSerial(GlobalRegistry *in_globalreg);
+    virtual ~GPSSerial();
 
 	virtual int Timer();
 
@@ -54,10 +51,11 @@ public:
     virtual int Shutdown();
 
 protected:
-    TcpClient *tcpcli;
+    SerialClient *sercli;
 
-    char host[MAXHOSTNAMELEN];
-    int port;
+	int gpseventid;
+
+	char device[128];
 
     // Reconnect local trigger
     virtual int Reconnect();

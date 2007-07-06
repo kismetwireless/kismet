@@ -39,8 +39,9 @@ DEPEND	= .depend
 PSO	= util.o cygwin_utils.o ringbuf.o messagebus.o configfile.o getopt.o \
 	filtercore.o ifcontrol.o iwcontrol.o madwifing_control.o \
 	ipc_remote.o soundcontrol.o speechcontrol.o \
-	netframework.o clinetframework.o tcpserver.o tcpclient.o \
-	kis_netframe.o kis_droneframe.o gpscore.o gpsdclient.o \
+	netframework.o clinetframework.o tcpserver.o tcpclient.o serialclient.o \
+	kis_netframe.o kis_droneframe.o \
+	gpswrapper.o gpscore.o gpsdclient.o gpsserial.o \
 	packetchain.o \
 	packetsource_pcap.o packetsource_wext.o packetsource_bsdrt.o \
 	packetsource_drone.o packetsource_ipwlive.o packetsource_airpcap.o \
@@ -57,8 +58,9 @@ PS	= kismet_server
 DRONEO = util.o cygwin_utils.o ringbuf.o messagebus.o configfile.o getopt.o \
 		 ifcontrol.o iwcontrol.o madwifing_control.o \
 		 ipc_remote.o soundcontrol.o speechcontrol.o \
-		 netframework.o clinetframework.o tcpserver.o tcpclient.o \
-		 drone_kisnetframe.o kis_droneframe.o gpscore.o gpsdclient.o \
+		 netframework.o clinetframework.o tcpserver.o tcpclient.o serialclient.o \
+		 drone_kisnetframe.o kis_droneframe.o \
+		 gpswrapper.o gpscore.o gpsdclient.o gpsserial.o \
 		 packetchain.o \
 		 packetsource_pcap.o packetsource_wext.o packetsource_bsdrt.o \
 		 packetsource_drone.o packetsource_ipwlive.o packetsource_airpcap.o \

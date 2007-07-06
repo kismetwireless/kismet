@@ -23,18 +23,6 @@
 #include "soundcontrol.h"
 #include "packetchain.h"
 
-int GpsInjectEvent(Timetracker::timer_event *evt, void *parm, 
-                   GlobalRegistry *globalreg) {
-    GPSDClient *cli = (GPSDClient *) parm;
-
-    int ret = cli->InjectCommand();
-
-    if (ret < 0 && cli->reconnect_attempt < 0)
-        return -1;
-
-    return 1;
-}
-
 GPSDClient::GPSDClient() {
     fprintf(stderr, "FATAL OOPS: gpsdclient called with no globalreg\n");
 	exit(-1);
@@ -52,47 +40,40 @@ GPSDClient::GPSDClient(GlobalRegistry *in_globalreg) : GPSCore(in_globalreg) {
 
     gpseventid = -1;
 
-    if (globalreg->kismet_config->FetchOpt("gps") == "true") {
-        char temphost[129];
-        if (sscanf(globalreg->kismet_config->FetchOpt("gpshost").c_str(), 
-				   "%128[^:]:%d", temphost, &port) != 2) {
-            globalreg->messagebus->InjectMessage("Invalid GPS host in config, "
-												 "host:port required",
-                                                 MSGFLAG_FATAL);
-            globalreg->fatal_condition = 1;
-            return;
-        }
-        snprintf(host, MAXHOSTNAMELEN, "%s", temphost);
+	ScanOptions();
+	RegisterComponents();
 
-        if (tcpcli->Connect(host, port) < 0) {
-            globalreg->messagebus->InjectMessage("Could not create initial "
-												 "connection to the GPSD server", 
-												 MSGFLAG_ERROR);
-            if (reconnect_attempt < 0) {
-                globalreg->messagebus->InjectMessage("GPSD Reconnection not enabled, "
-													 "disabling GPS", MSGFLAG_ERROR);
-                return;
-            }
-            last_disconnect = time(0);
-        } else {
-            // Start a command
-            InjectCommand();
-        }
-
-        // Spawn the tick event
-        gpseventid = 
-			globalreg->timetracker->RegisterTimer(SERVER_TIMESLICES_SEC, NULL, 1, 
-												  &GpsInjectEvent, (void *) this);
-
-        snprintf(errstr, STATUS_MAX, "Using GPSD server on %s:%d", host, port);
-        globalreg->messagebus->InjectMessage(errstr, MSGFLAG_INFO);
+	char temphost[129];
+	if (sscanf(globalreg->kismet_config->FetchOpt("gpshost").c_str(), 
+			   "%128[^:]:%d", temphost, &port) != 2) {
+		globalreg->messagebus->InjectMessage("Invalid GPS host in config, "
+											 "host:port required",
+											 MSGFLAG_FATAL);
+		globalreg->fatal_condition = 1;
+		return;
 	}
+	snprintf(host, MAXHOSTNAMELEN, "%s", temphost);
+
+	if (tcpcli->Connect(host, port) < 0) {
+		globalreg->messagebus->InjectMessage("Could not create initial "
+											 "connection to the GPSD server", 
+											 MSGFLAG_ERROR);
+		if (reconnect_attempt < 0) {
+			globalreg->messagebus->InjectMessage("GPSD Reconnection not enabled, "
+												 "disabling GPSD", MSGFLAG_ERROR);
+			return;
+		}
+		last_disconnect = time(0);
+	} else {
+		// Start a command
+		Timer();
+	}
+
+	snprintf(errstr, STATUS_MAX, "Using GPSD server on %s:%d", host, port);
+	globalreg->messagebus->InjectMessage(errstr, MSGFLAG_INFO);
 }
 
 GPSDClient::~GPSDClient() {
-    if (gpseventid >= 0 && globalreg != NULL)
-        globalreg->timetracker->RemoveTimer(gpseventid);
-
 	// Unregister ourselves from the main tcp service loop
 	globalreg->RemovePollableSubsys(this);
 	
@@ -118,7 +99,7 @@ int GPSDClient::Shutdown() {
     return 1;
 }
 
-int GPSDClient::InjectCommand() {
+int GPSDClient::Timer() {
     // Timed backoff up to 30 seconds
     if (netclient->Valid() == 0 && reconnect_attempt >= 0 &&
         (time(0) - last_disconnect >= (kismin(reconnect_attempt, 6) * 5))) {
@@ -133,7 +114,7 @@ int GPSDClient::InjectCommand() {
         return -1;
     }
 
-    return 1;
+	return GPSCore::Timer();
 }
 
 int GPSDClient::Reconnect() {
@@ -348,34 +329,6 @@ int GPSDClient::ParseData() {
             mode = in_mode;
         }
     }
-
-    // Send it to the client
-    GPS_data gdata;
-
-    snprintf(errstr, 32, "%lf", lat);
-    gdata.lat = errstr;
-    snprintf(errstr, 32, "%lf", lon);
-    gdata.lon = errstr;
-    snprintf(errstr, 32, "%lf", alt);
-    gdata.alt = errstr;
-    snprintf(errstr, 32, "%lf", spd);
-    gdata.spd = errstr;
-    snprintf(errstr, 32, "%lf", hed);
-    gdata.heading = errstr;
-    snprintf(errstr, 32, "%d", mode);
-    gdata.mode = errstr;
-
-    globalreg->kisnetserver->SendToAll(gps_proto_ref, (void *) &gdata);
-
-	// Make an empty packet w/ just GPS data for the gpsxml logger to catch
-	kis_packet *newpack = globalreg->packetchain->GeneratePacket();
-	kis_gps_packinfo *gpsdat = new kis_gps_packinfo;
-	newpack->ts.tv_sec = globalreg->timestamp.tv_sec;
-	newpack->ts.tv_usec = globalreg->timestamp.tv_usec;
-	FetchLoc(&(gpsdat->lat), &(gpsdat->lon), &(gpsdat->alt),
-			 &(gpsdat->spd), &(gpsdat->heading), &(gpsdat->gps_fix));
-	newpack->insert(_PCM(PACK_COMP_GPS), gpsdat);
-	globalreg->packetchain->ProcessPacket(newpack);
 
     return 1;
 }

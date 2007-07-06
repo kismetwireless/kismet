@@ -121,6 +121,12 @@ maxbacklog=5000
 
 # Do we have a GPS?
 gps=true
+# Do we use a locally serial attached GPS, or use a gpsd server?
+# (Pick only one)
+gpstype=gpsd
+# gpstype=serial
+# What serial device do we look for the GPS on?
+gpsdevice=/dev/rfcomm0
 # Host:port that GPSD is running on.  This can be localhost OR remote!
 gpshost=localhost:2947
 # Do we lock the mode?  This overrides coordinates of lock "0", which will
