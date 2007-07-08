@@ -3674,8 +3674,9 @@ cat >>confdefs.h <<\_ACEOF
 _ACEOF
 
         CFLAGS="-no-cpp-precomp $CFLAGS"
-        { echo "$as_me:$LINENO: result: Apple GCC - added -no-cpp-precomp" >&5
-echo "${ECHO_T}Apple GCC - added -no-cpp-precomp" >&6; }
+		LDFLAGS="$LDFLAGS -framework Foundation -framework CoreFoundation -F/System/Library/PrivateFrameworks -framework Apple80211"
+        { echo "$as_me:$LINENO: result: Apple GCC - added Apple80211 frameworks and no-precomp" >&5
+echo "${ECHO_T}Apple GCC - added Apple80211 frameworks and no-precomp" >&6; }
 		darwin="yes"
         ;;
 	linux*)
@@ -3709,8 +3710,10 @@ _ACEOF
 		bsd="yes"
 		;;
 	netbsd*)
-		{ echo "$as_me:$LINENO: result: none needed" >&5
-echo "${ECHO_T}none needed" >&6; }
+		{ echo "$as_me:$LINENO: result: adding pkgsrc locations" >&5
+echo "${ECHO_T}adding pkgsrc locations" >&6; }
+		CPPFLAGS="$CPPFLAGS -I/usr/pkg/include"
+		LDFLAGS="$LDFLAGS -L/usr/pkg/lib"
 
 cat >>confdefs.h <<\_ACEOF
 #define SYS_NETBSD 1
@@ -3752,8 +3755,9 @@ cat >>confdefs.h <<\_ACEOF
 _ACEOF
 
         CFLAGS="-no-cpp-precomp $CFLAGS"
-        { echo "$as_me:$LINENO: result: Apple GCC - added -no-cpp-precomp" >&5
-echo "${ECHO_T}Apple GCC - added -no-cpp-precomp" >&6; }
+		LDFLAGS="$LDFLAGS -framework Foundation -framework CoreFoundation -F/System/Library/PrivateFrameworks -framework Apple80211"
+        { echo "$as_me:$LINENO: result: Apple GCC - added Apple80211 frameworks and no-precomp" >&5
+echo "${ECHO_T}Apple GCC - added Apple80211 frameworks and no-precomp" >&6; }
 		darwin="yes"
         ;;
 	linux*)
@@ -3787,8 +3791,10 @@ _ACEOF
 		bsd="yes"
         ;;
     netbsd*)
-        { echo "$as_me:$LINENO: result: none needed" >&5
-echo "${ECHO_T}none needed" >&6; }
+		{ echo "$as_me:$LINENO: result: adding pkgsrc locations" >&5
+echo "${ECHO_T}adding pkgsrc locations" >&6; }
+		CPPFLAGS="$CPPFLAGS -I/usr/pkg/include"
+		LDFLAGS="$LDFLAGS -L/usr/pkg/lib"
 
 cat >>confdefs.h <<\_ACEOF
 #define SYS_NETBSD 1
@@ -9374,11 +9380,6 @@ echo "$as_me: WARNING: *** Disabling setuid capabilities.  Viha must be controll
 	fi
 fi
 
-# Enable the darwin frameworks for 80211 control
-if test "$darwin" = "yes"; then
-	LDFLAGS="$LDFLAGS -framework Foundation -framework CoreFoundation -F/System/Library/PrivateFrameworks -framework Apple80211"
-fi
-
 # Evaluate suid
 if test "$cygwin" = "yes"; then
 	suid="no"
@@ -11995,6 +11996,14 @@ elif test "$darwin" != "yes"; then
 	echo "n/a (only Darwin)"
 else
 	echo "no";
+fi
+echo -n "   OSX/Darwin capture : "
+if test "$darwin" = "yes"; then
+	echo "yes"
+elif test "$darwin" != "yes"; then
+	echo "n/a (only OSX/Darwin)"
+else
+	echo "no"
 fi
 echo -n "      Radiotap headers: "
 if test "$radiotap" = "yes"; then

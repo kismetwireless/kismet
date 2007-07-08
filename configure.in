@@ -44,7 +44,8 @@ then
         #
 		AC_DEFINE(SYS_DARWIN, 1, Compiling for Darwin/OSX)
         CFLAGS="-no-cpp-precomp $CFLAGS"
-        AC_MSG_RESULT(Apple GCC - added -no-cpp-precomp)
+		LDFLAGS="$LDFLAGS -framework Foundation -framework CoreFoundation -F/System/Library/PrivateFrameworks -framework Apple80211"
+        AC_MSG_RESULT(Apple GCC - added Apple80211 frameworks and no-precomp)
 		darwin="yes"
         ;;
 	linux*)
@@ -63,7 +64,9 @@ then
 		bsd="yes"
 		;;
 	netbsd*)
-		AC_MSG_RESULT(none needed)
+		AC_MSG_RESULT(adding pkgsrc locations)
+		CPPFLAGS="$CPPFLAGS -I/usr/pkg/include"
+		LDFLAGS="$LDFLAGS -L/usr/pkg/lib"
 		AC_DEFINE(SYS_NETBSD, 1, Compiling for NetBSD)
 		bsd="yes"
 		;;
@@ -90,7 +93,8 @@ else
         #
 		AC_DEFINE(SYS_DARWIN, 1, Compiling for Darwin/OSX)
         CFLAGS="-no-cpp-precomp $CFLAGS"
-        AC_MSG_RESULT(Apple GCC - added -no-cpp-precomp)
+		LDFLAGS="$LDFLAGS -framework Foundation -framework CoreFoundation -F/System/Library/PrivateFrameworks -framework Apple80211"
+        AC_MSG_RESULT(Apple GCC - added Apple80211 frameworks and no-precomp)
 		darwin="yes"
         ;;
 	linux*)
@@ -109,7 +113,9 @@ else
 		bsd="yes"
         ;;
     netbsd*)
-        AC_MSG_RESULT(none needed)
+		AC_MSG_RESULT(adding pkgsrc locations)
+		CPPFLAGS="$CPPFLAGS -I/usr/pkg/include"
+		LDFLAGS="$LDFLAGS -L/usr/pkg/lib"
         AC_DEFINE(SYS_NETBSD, 1, Compiling for NetBSD)
 		bsd="yes"
         ;;
@@ -606,11 +612,6 @@ if test "$want_viha" = "yes"; then
 	fi
 fi
 
-# Enable the darwin frameworks for 80211 control
-if test "$darwin" = "yes"; then
-	LDFLAGS="$LDFLAGS -framework Foundation -framework CoreFoundation -F/System/Library/PrivateFrameworks -framework Apple80211"
-fi
-
 # Evaluate suid
 if test "$cygwin" = "yes"; then
 	suid="no"
@@ -899,6 +900,14 @@ elif test "$darwin" != "yes"; then
 	echo "n/a (only Darwin)"
 else
 	echo "no";
+fi
+echo -n "   OSX/Darwin capture : "
+if test "$darwin" = "yes"; then
+	echo "yes"
+elif test "$darwin" != "yes"; then
+	echo "n/a (only OSX/Darwin)"
+else
+	echo "no"
 fi
 echo -n "      Radiotap headers: "
 if test "$radiotap" = "yes"; then
