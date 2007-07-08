@@ -37,7 +37,7 @@
 #include <errno.h>
 #include <map>
 #include <vector>
-#include <termio.h>
+#include <termios.h>
 
 #include "ringbuf.h"
 #include "messagebus.h"
