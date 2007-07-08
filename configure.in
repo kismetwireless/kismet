@@ -43,7 +43,8 @@ then
         # headers.
         #
         CFLAGS="-no-cpp-precomp $CFLAGS"
-        AC_MSG_RESULT(Apple GCC - added -no-cpp-precomp)
+		LDFLAGS="$LDFLAGS -framework Foundation -framework CoreFoundation -F/System/Library/PrivateFrameworks -framework Apple80211"
+        AC_MSG_RESULT(Apple GCC - added Apple80211 frameworks and no-precomp)
 		AC_DEFINE(SYS_DARWIN, 1, Compiling for OSX/Darwin)
 		darwin="yes"
         ;;
@@ -63,7 +64,9 @@ then
 		bsd="yes"
 		;;
 	netbsd*)
-		AC_MSG_RESULT(none needed)
+		AC_MSG_RESULT(adding pkgsrc locations)
+		CPPFLAGS="$CPPFLAGS -I/usr/pkg/include"
+		LDFLAGS="$LDFLAGS -L/usr/pkg/lib"
 		AC_DEFINE(SYS_NETBSD, 1, Compiling for NetBSD)
 		bsd="yes"
 		;;
@@ -89,7 +92,8 @@ else
         # See comments above about Apple's lovely C compiler.
         #
         CFLAGS="-no-cpp-precomp $CFLAGS"
-        AC_MSG_RESULT(Apple GCC - added -no-cpp-precomp)
+		LDFLAGS="$LDFLAGS -framework Foundation -framework CoreFoundation -F/System/Library/PrivateFrameworks -framework Apple80211"
+        AC_MSG_RESULT(Apple GCC - added Apple80211 frameworks and no-precomp)
 		AC_DEFINE(SYS_DARWIN, 1, Compiling for OSX/Darwin)
 		darwin="yes"
         ;;
@@ -109,7 +113,9 @@ else
 		bsd="yes"
         ;;
     netbsd*)
-        AC_MSG_RESULT(none needed)
+		AC_MSG_RESULT(adding pkgsrc locations)
+		CPPFLAGS="$CPPFLAGS -I/usr/pkg/include"
+		LDFLAGS="$LDFLAGS -L/usr/pkg/lib"
         AC_DEFINE(SYS_NETBSD, 1, Compiling for NetBSD)
 		bsd="yes"
         ;;
@@ -713,11 +719,6 @@ if test "$want_viha" = "yes"; then
         suid="no"        
         AC_MSG_WARN(*** Disabling setuid capabilities.  Viha must be controlled from the main process which makes setuid-dropping impossible. ***)
 	fi
-fi
-
-# Enable the darwin frameworks for 80211 control
-if test "$darwin" = "yes"; then
-	LDFLAGS="$LDFLAGS -framework Foundation -framework CoreFoundation -F/System/Library/PrivateFrameworks -framework Apple80211"
 fi
 
 # Evaluate suid

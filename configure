@@ -3674,8 +3674,9 @@ echo "${ECHO_T}HP ANSI C compiler - added -Ae +O2" >&6; }
         # headers.
         #
         CFLAGS="-no-cpp-precomp $CFLAGS"
-        { echo "$as_me:$LINENO: result: Apple GCC - added -no-cpp-precomp" >&5
-echo "${ECHO_T}Apple GCC - added -no-cpp-precomp" >&6; }
+		LDFLAGS="$LDFLAGS -framework Foundation -framework CoreFoundation -F/System/Library/PrivateFrameworks -framework Apple80211"
+        { echo "$as_me:$LINENO: result: Apple GCC - added Apple80211 frameworks and no-precomp" >&5
+echo "${ECHO_T}Apple GCC - added Apple80211 frameworks and no-precomp" >&6; }
 
 cat >>confdefs.h <<\_ACEOF
 #define SYS_DARWIN 1
@@ -3714,8 +3715,10 @@ _ACEOF
 		bsd="yes"
 		;;
 	netbsd*)
-		{ echo "$as_me:$LINENO: result: none needed" >&5
-echo "${ECHO_T}none needed" >&6; }
+		{ echo "$as_me:$LINENO: result: adding pkgsrc locations" >&5
+echo "${ECHO_T}adding pkgsrc locations" >&6; }
+		CPPFLAGS="$CPPFLAGS -I/usr/pkg/include"
+		LDFLAGS="$LDFLAGS -L/usr/pkg/lib"
 
 cat >>confdefs.h <<\_ACEOF
 #define SYS_NETBSD 1
@@ -3752,8 +3755,9 @@ echo "${ECHO_T}GCC on Solaris - added -Wno-return-type -DFUNCPROTO=15" >&6; }
         # See comments above about Apple's lovely C compiler.
         #
         CFLAGS="-no-cpp-precomp $CFLAGS"
-        { echo "$as_me:$LINENO: result: Apple GCC - added -no-cpp-precomp" >&5
-echo "${ECHO_T}Apple GCC - added -no-cpp-precomp" >&6; }
+		LDFLAGS="$LDFLAGS -framework Foundation -framework CoreFoundation -F/System/Library/PrivateFrameworks -framework Apple80211"
+        { echo "$as_me:$LINENO: result: Apple GCC - added Apple80211 frameworks and no-precomp" >&5
+echo "${ECHO_T}Apple GCC - added Apple80211 frameworks and no-precomp" >&6; }
 
 cat >>confdefs.h <<\_ACEOF
 #define SYS_DARWIN 1
@@ -3792,8 +3796,10 @@ _ACEOF
 		bsd="yes"
         ;;
     netbsd*)
-        { echo "$as_me:$LINENO: result: none needed" >&5
-echo "${ECHO_T}none needed" >&6; }
+		{ echo "$as_me:$LINENO: result: adding pkgsrc locations" >&5
+echo "${ECHO_T}adding pkgsrc locations" >&6; }
+		CPPFLAGS="$CPPFLAGS -I/usr/pkg/include"
+		LDFLAGS="$LDFLAGS -L/usr/pkg/lib"
 
 cat >>confdefs.h <<\_ACEOF
 #define SYS_NETBSD 1
@@ -10846,11 +10852,6 @@ done
         { echo "$as_me:$LINENO: WARNING: *** Disabling setuid capabilities.  Viha must be controlled from the main process which makes setuid-dropping impossible. ***" >&5
 echo "$as_me: WARNING: *** Disabling setuid capabilities.  Viha must be controlled from the main process which makes setuid-dropping impossible. ***" >&2;}
 	fi
-fi
-
-# Enable the darwin frameworks for 80211 control
-if test "$darwin" = "yes"; then
-	LDFLAGS="$LDFLAGS -framework Foundation -framework CoreFoundation -F/System/Library/PrivateFrameworks -framework Apple80211"
 fi
 
 # Evaluate suid
