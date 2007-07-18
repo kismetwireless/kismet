@@ -329,7 +329,7 @@ int RegisterKismetSources(Packetsourcetracker *sourcetracker) {
 
 #if defined(HAVE_LIBPCAP) && defined(SYS_DARWIN)
 	sourcetracker->RegisterPacketsource("darwin", 1, "IEEE80211g", 6,
-										pcapsourcedarwin_registrant,
+										pcapsource_darwin_registrant,
 										monitor_darwin, unmonitor_darwin, 
 										chancontrol_darwin, 1);
 #else
