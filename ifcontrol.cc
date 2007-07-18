@@ -19,9 +19,7 @@
 #include "config.h"
 #include "ifcontrol.h"
 
-#ifdef SYS_LINUX
-
-int Ifconfig_Set_Flags(const char *in_dev, char *errstr, short flags) {
+int Ifconfig_Set_Flags(const char *in_dev, char *errstr, int flags) {
     struct ifreq ifr;
     int skfd;
 
@@ -34,7 +32,12 @@ int Ifconfig_Set_Flags(const char *in_dev, char *errstr, short flags) {
     // Fetch interface flags
     memset(&ifr, 0, sizeof ifr);
     strncpy(ifr.ifr_name, in_dev, sizeof(ifr.ifr_name)-1);
+#if defined(SYS_FREEBSD)
+	ifr.ifr_flags = flags & 0xFFFF;
+	ifr.ifr_flagshigh = flags >> 16;
+#else
     ifr.ifr_flags = flags;
+#endif
     if (ioctl(skfd, SIOCSIFFLAGS, &ifr) < 0) {
         snprintf(errstr, STATUS_MAX, "SetIFFlags: Unknown interface %s: %s", 
                  in_dev, strerror(errno));
@@ -47,7 +50,7 @@ int Ifconfig_Set_Flags(const char *in_dev, char *errstr, short flags) {
     return 0;
 }
 
-int Ifconfig_Get_Flags(const char *in_dev, char *errstr, short *flags) {
+int Ifconfig_Get_Flags(const char *in_dev, char *errstr, int *flags) {
     struct ifreq ifr;
     int skfd;
 
@@ -68,16 +71,20 @@ int Ifconfig_Get_Flags(const char *in_dev, char *errstr, short *flags) {
         return -1;
     }
 
+#if defined(SYS_FREEBSD)
+	(*flags) = (ifr.ifr_flags & 0xFFFF) | (ifr.ifr_flagshigh << 16);
+#else
     (*flags) = ifr.ifr_flags;
+#endif
 
     close(skfd);
 
     return 0;
 }
 
-int Ifconfig_Delta_Flags(const char *in_dev, char *errstr, short flags) {
+int Ifconfig_Delta_Flags(const char *in_dev, char *errstr, int flags) {
     int ret;
-    short rflags;
+    int rflags;
 
     if ((ret = Ifconfig_Get_Flags(in_dev, errstr, &rflags)) < 0)
         return ret;
@@ -87,6 +94,7 @@ int Ifconfig_Delta_Flags(const char *in_dev, char *errstr, short flags) {
     return Ifconfig_Set_Flags(in_dev, errstr, rflags);
 }
 
+#ifdef SYS_LINUX
 int Ifconfig_Get_Hwaddr(const char *in_dev, char *errstr, uint8_t *ret_hwaddr) {
     struct ifreq ifr;
     int skfd;
@@ -169,6 +177,5 @@ int Ifconfig_Set_MTU(const char *in_dev, char *errstr, uint16_t in_mtu) {
 
     return 0;
 }
-
 #endif
 

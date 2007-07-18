@@ -103,7 +103,7 @@ int madwifing_build_vap(const char *ifname, char *errstr, const char *vapname,
 
 	// Find a numbered vapname which is useable
 	for (unsigned int n = 0; n < 10; n++) {
-		short fl;
+		int fl;
 		snprintf(tnam, IFNAMSIZ, "%s%d", vapname, n);
 		if (Ifconfig_Get_Flags(tnam, errstr, &fl) < 0)
 			break;

@@ -194,7 +194,7 @@ public:
 #ifdef SYS_LINUX
 // What we need to track on a linux interface to restore the settings
 typedef struct linux_ifparm {
-    short flags;
+    int flags;
     char essid[MAX_SSID_LEN + 1];
     int channel;
     int mode;
@@ -480,6 +480,8 @@ int chancontrol_bsd(const char *in_dev, int in_ch, char *in_err, void *in_ext);
 #endif
 
 #ifdef SYS_DARWIN
+int monitor_darwin(const char *in_dev, int initch, char *in_err, void **in_if, void *in_ext);
+int unmonitor_darwin(const char *in_dev, int initch, char *in_err, void **in_if, void *in_ext);
 int chancontrol_darwin(const char *in_dev, int in_ch, char *in_err, void *in_ext);
 #endif
 

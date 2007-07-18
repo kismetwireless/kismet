@@ -359,16 +359,18 @@ int PcapSource::FetchPacket(kis_packet *packet, uint8_t *data, uint8_t *moddata)
 
         // Do something smarter here in the future
 #ifdef SYS_LINUX
-        short flags = 0;
+        int flags = 0;
         // Are we able to fetch the interface, and is it running?
         ret = Ifconfig_Get_Flags(interface.c_str(), errstr, &flags);
         if (ret >= 0 && (flags & IFF_UP) == 0) {
-            snprintf(errstr, 1024, "Reading packet from pcap failed, interface is no longer up.  Usually this "
-                     "happens when a DHCP client times out and turns off the interface.  See the Troubleshooting "
-                     "section of the README for more information.");
+            snprintf(errstr, 1024, "Reading packet from pcap failed, interface "
+					 "is no longer up.  Usually this happens when a DHCP client "
+					 "times out and turns off the interface.  See the "
+					 "Troubleshooting section of the README for more information.");
         } else {
 #endif
-            snprintf(errstr, 1024, "Reading packet from pcap failed, interface no longer available.");
+            snprintf(errstr, 1024, "Reading packet from pcap failed, interface no "
+					 "longer available.");
 #ifdef SYS_LINUX
         }
         return -1;
@@ -1300,7 +1302,8 @@ int unmonitor_pcapfile(const char *in_dev, int initch, char *in_err, void **in_i
 // Monitor commands
 #ifdef HAVE_LINUX_WIRELESS
 // Cisco uses its own config file in /proc to control modes
-int monitor_cisco(const char *in_dev, int initch, char *in_err, void **in_if, void *in_ext) {
+int monitor_cisco(const char *in_dev, int initch, char *in_err, 
+				  void **in_if, void *in_ext) {
     FILE *cisco_config;
     char cisco_path[128];
 
@@ -2188,7 +2191,7 @@ int monitor_ipwlivetap(const char *in_dev, int initch, char *in_err,
 	char dynif[32];
 	FILE *sysf;
 	char path[1024];
-	short int ifflags;
+	int ifflags;
 
 	// Try to get the flags off the master interface
     if (Ifconfig_Get_Flags(in_dev, in_err, &ifflags) < 0) {
@@ -2323,7 +2326,7 @@ int monitor_wext(const char *in_dev, int initch, char *in_err,
 	// Try again with the interface down, dscape devices need to be down
 	// to change mode
 	if (fail) {
-		short oldflags;
+		int oldflags;
 		fail = 0;
 		if (Ifconfig_Get_Flags(in_dev, in_err, &oldflags) < 0)
 			return -1;
@@ -3137,6 +3140,27 @@ int chancontrol_bsd(const char *in_dev, int in_ch, char *in_err, void *in_ext) {
 #endif /* HAVE_RADIOTAP */
 
 #ifdef SYS_DARWIN
+KisPacketSource *pcapsource_darwin_registrant(string in_name, string in_device, 
+											  char *in_err) {
+	char devname[16];
+	int devnum;
+
+	// If they gave us enX, convert it to wltX
+	if (strncmp(in_name, "en", 2) == 0) {
+		if (sscanf(in_name, "%16s%d", devname, &devnum) != 2) {
+			fprintf(stderr, "FATAL:  Looks like 'en' was passed for Darwin device "
+					"instead of 'wlt', but could not parse it into en#\n");
+			return NULL;
+		}
+
+		snprintf(devname, 16, "wlt%d", devnum);
+	} else {
+		snprintf(devname, 16, "%s", in_name);
+	}
+
+    return pcapsourcefcs_registrant(in_name, devname);
+}
+
 /* From Macstumber rev-eng darwin headers */
 WIErr wlc_ioctl(WirelessContextPtr ctx, int command, int bufsize, 
 				void *buffer, int outsize,  void *out) {
@@ -3159,7 +3183,8 @@ int chancontrol_darwin(const char *in_dev, int in_ch, char *in_err, void *in_ext
 	WirelessContextPtr gWCtxt = NULL;
 
 	if (WirelessAttach(&gWCtxt, 0) != 0) {
-		snprintf(in_err, STATUS_MAX, "Darwin WirelessAttach() failed for channel set");
+		snprintf(in_err, STATUS_MAX, "Darwin WirelessAttach() failed "
+				 "for channel set");
 		return -1;
 	}
 	wlc_ioctl(gWCtxt, 52, 0, NULL, 0, NULL); // Disassociate
@@ -3168,6 +3193,33 @@ int chancontrol_darwin(const char *in_dev, int in_ch, char *in_err, void *in_ext
 	WirelessDetach(gWCtxt);
 
 	return 0;
+}
+
+int monitor_darwin(const char *in_dev, int initch, char *in_err, void **in_if, void *in_ext) {
+	char devname[16];
+	int devnum;
+
+	// Get the enX number of the owner interface to set promisc mode
+	if (sscanf(in_dev, "%16s%d", devname, &devnum) != 2) {
+		fprintf(stderr, "FATAL: Could not parse '%s' into wlt#, malformed interface "
+				"name.\n", in_dev);
+		return -1;
+	}
+
+	// Set the master device up, running, and promisc
+	snprintf(devname, 16, "en%d", devnum);
+
+	if (Ifconfig_Delta_Flags(in_dev, in_err, (IFF_UP | IFF_PROMISC)) < 0) {
+		fprintf(stderr, "FATAL:  Failed to set %s interface up and promisc: %s\n",
+				devname, in_err);
+		return -1;
+	}
+
+    return 0;
+}
+
+int unmonitor_darwin(const char *in_dev, int initch, char *in_err, void **in_if, void *in_ext) {
+    return 1;
 }
 #endif
 
