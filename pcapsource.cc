@@ -3147,7 +3147,7 @@ KisPacketSource *pcapsource_darwin_registrant(string in_name, string in_device,
 
 	// If they gave us enX, convert it to wltX
 	if (strncmp(in_device.c_str(), "en", 2) == 0) {
-		if (sscanf(in_device.c_str(), "%16s%d", devname, &devnum) != 2) {
+		if (sscanf(in_device.c_str(), "%16[^0-9]%d", devname, &devnum) != 2) {
 			fprintf(stderr, "FATAL:  Looks like 'en' was passed for Darwin device "
 					"instead of 'wlt', but could not parse it into en#\n");
 			return NULL;
@@ -3200,7 +3200,7 @@ int monitor_darwin(const char *in_dev, int initch, char *in_err, void **in_if, v
 	int devnum;
 
 	// Get the enX number of the owner interface to set promisc mode
-	if (sscanf(in_dev, "%16s%d", devname, &devnum) != 2) {
+	if (sscanf(in_dev, "%16[^0-9]%d", devname, &devnum) != 2) {
 		fprintf(stderr, "FATAL: Could not parse '%s' into wlt#, malformed interface "
 				"name.\n", in_dev);
 		return -1;
