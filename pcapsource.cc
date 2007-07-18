@@ -3146,8 +3146,8 @@ KisPacketSource *pcapsource_darwin_registrant(string in_name, string in_device,
 	int devnum;
 
 	// If they gave us enX, convert it to wltX
-	if (strncmp(in_name, "en", 2) == 0) {
-		if (sscanf(in_name, "%16s%d", devname, &devnum) != 2) {
+	if (strncmp(in_device.c_str(), "en", 2) == 0) {
+		if (sscanf(in_device.c_str(), "%16s%d", devname, &devnum) != 2) {
 			fprintf(stderr, "FATAL:  Looks like 'en' was passed for Darwin device "
 					"instead of 'wlt', but could not parse it into en#\n");
 			return NULL;
@@ -3155,10 +3155,10 @@ KisPacketSource *pcapsource_darwin_registrant(string in_name, string in_device,
 
 		snprintf(devname, 16, "wlt%d", devnum);
 	} else {
-		snprintf(devname, 16, "%s", in_name);
+		snprintf(devname, 16, "%s", in_device.c_str());
 	}
 
-    return pcapsourcefcs_registrant(in_name, devname);
+    return pcapsourcefcs_registrant(in_name, devname, in_err);
 }
 
 /* From Macstumber rev-eng darwin headers */
