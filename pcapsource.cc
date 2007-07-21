@@ -319,8 +319,8 @@ int PcapSource::DatalinkType() {
 #endif
     
     if (datalink_type != KDLT_BSD802_11 && datalink_type != DLT_IEEE802_11 &&
-        datalink_type != DLT_PRISM_HEADER &&
-        datalink_type != DLT_IEEE802_11_RADIO) {
+        datalink_type != DLT_PRISM_HEADER && datalink_type != DLT_IEEE802_11_RADIO &&
+		datalink_type != DLT_IEEE802_11_RADIO_AVS) {
         fprintf(stderr, "WARNING:  Unknown link type %d reported.  Continuing on "
                 "blindly...\n", datalink_type);
     }
@@ -412,7 +412,7 @@ int PcapSource::ManglePacket(kis_packet *packet, uint8_t *data, uint8_t *moddata
                        &packet->gps_spd, &packet->gps_heading, &packet->gps_fix);
     }
 
-    if (datalink_type == DLT_PRISM_HEADER) {
+    if (datalink_type == DLT_PRISM_HEADER || datalink_type == DLT_IEEE802_11_RADIO_AVS) {
         ret = Prism2KisPack(packet, data, moddata);
     } else if (datalink_type == KDLT_BSD802_11) {
         ret = BSD2KisPack(packet, data, moddata);
@@ -3218,10 +3218,7 @@ KisPacketSource *pcapsource_darwin_registrant(string in_name, string in_device,
 		fprintf(stderr, "INFO:  %s looks like a Broadcom card running under Darwin. "
 				"You may need to set this to monitor mode using another application "
 				"before it will work with Kismet.\n", devname);
-		return pcapsource_registrant(in_name, devname, in_err);
-	}
-
-	if (darwin_cardcheck("AirPort_Athr5424ab") == 0) {
+	} else if (darwin_cardcheck("AirPort_Athr5424ab") == 0) {
 		fprintf(stderr, "INFO:  %s looks like an Atheros card running under Darwin.\n",
 				devname);
 	} else {
