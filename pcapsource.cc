@@ -63,6 +63,7 @@ typedef unsigned long u64;
 #include <net/bpf.h>
 extern "C" {
 #include "apple80211.h"
+#include <Carbon/Carbon.h>
 }
 #endif
 
@@ -3140,27 +3141,6 @@ int chancontrol_bsd(const char *in_dev, int in_ch, char *in_err, void *in_ext) {
 #endif /* HAVE_RADIOTAP */
 
 #ifdef SYS_DARWIN
-KisPacketSource *pcapsource_darwin_registrant(string in_name, string in_device, 
-											  char *in_err) {
-	char devname[16];
-	int devnum;
-
-	// If they gave us enX, convert it to wltX
-	if (strncmp(in_device.c_str(), "en", 2) == 0) {
-		if (sscanf(in_device.c_str(), "%16[^0-9]%d", devname, &devnum) != 2) {
-			fprintf(stderr, "FATAL:  Looks like 'en' was passed for Darwin device "
-					"instead of 'wlt', but could not parse it into en#\n");
-			return NULL;
-		}
-
-		snprintf(devname, 16, "wlt%d", devnum);
-	} else {
-		snprintf(devname, 16, "%s", in_device.c_str());
-	}
-
-    return pcapsourcefcs_registrant(in_name, devname, in_err);
-}
-
 /* From Macstumber rev-eng darwin headers */
 WIErr wlc_ioctl(WirelessContextPtr ctx, int command, int bufsize, 
 				void *buffer, int outsize,  void *out) {
@@ -3179,6 +3159,82 @@ WIErr wlc_ioctl(WirelessContextPtr ctx, int command, int bufsize,
 	return WirelessPrivate(ctx, buf, bufsize+8, out, outsize);
 }
 
+/* Iterate over the IO registry, look for a specific type of card
+ * thanks to Kevin Finisterre */
+int darwin_cardcheck(char *service) {
+	mach_port_t masterPort;
+	io_iterator_t iterator;
+	io_object_t sdev;
+	kern_return_t err;
+
+	if (IOMasterPort(MACH_PORT_NULL, &masterPort) != KERN_SUCCESS) {
+		return -1;
+	}
+
+	if (IORegistryCreateIterator(masterPort, kIOServicePlane,
+								 kIORegistryIterateRecursively, &iterator) == 
+		KERN_SUCCESS) {
+		while (sdev = IOIteratorNext(iterator)) {
+			if (sdev != MACH_PORT_NULL) {
+				io_name_t thisClassName;
+				io_name_t name;
+
+				err = IOObjectGetClass(sdev, thisClassName);
+				err = IORegistryEntryGetName(sdev, name);
+
+				if (IOObjectConfirmsTo(sdev, service)) {
+					IOObjectRelease(iterator);
+					return 0;
+				}
+			}
+		}
+
+		IOObjectRelease(iterator);
+	}
+
+	return 1;
+}
+
+KisPacketSource *pcapsource_darwin_registrant(string in_name, string in_device, 
+											  char *in_err) {
+	char devname[16];
+	int devnum;
+
+	// If they gave us enX, convert it to wltX
+	if (strncmp(in_device.c_str(), "en", 2) == 0) {
+		if (sscanf(in_device.c_str(), "%16[^0-9]%d", devname, &devnum) != 2) {
+			fprintf(stderr, "FATAL:  Looks like 'en' was passed for Darwin device "
+					"instead of 'wlt', but could not parse it into en#\n");
+			return NULL;
+		}
+
+		snprintf(devname, 16, "wlt%d", devnum);
+	} else {
+		snprintf(devname, 16, "%s", in_device.c_str());
+	}
+
+	// Look for card types we understand
+	if (darwin_cardcheck("AirPort_Brcm43xx") == 0) {
+		fprintf(stderr, "INFO:  %s looks like a Broadcom card running under Darwin. "
+				"You may need to set this to monitor mode using another application "
+				"before it will work with Kismet.\n", devname);
+		return pcapsource_registrant(in_name, devname, in_err);
+	}
+
+	if (darwin_cardcheck("AirPort_Athr5424ab") == 0) {
+		fprintf(stderr, "INFO:  %s looks like an Atheros card running under Darwin.\n",
+				devname);
+	} else {
+		fprintf(stderr, "WARNING:  %s didn't look like a Broadcom OR Atheros card. "
+				"We'll treat it like an Atheros card and hope for the best, however "
+				"it may not work properly.\n", devname);
+	}
+
+	// Everything we don't understand looks like an atheros in the end
+    return pcapsourcefcs_registrant(in_name, devname, in_err);
+}
+
+
 int chancontrol_darwin(const char *in_dev, int in_ch, char *in_err, void *in_ext) {
 	WirelessContextPtr gWCtxt = NULL;
 
@@ -3195,7 +3251,8 @@ int chancontrol_darwin(const char *in_dev, int in_ch, char *in_err, void *in_ext
 	return 0;
 }
 
-int monitor_darwin(const char *in_dev, int initch, char *in_err, void **in_if, void *in_ext) {
+int monitor_darwin(const char *in_dev, int initch, char *in_err, 
+				   void **in_if, void *in_ext) {
 	char devname[16];
 	int devnum;
 
@@ -3218,7 +3275,8 @@ int monitor_darwin(const char *in_dev, int initch, char *in_err, void **in_if, v
     return 0;
 }
 
-int unmonitor_darwin(const char *in_dev, int initch, char *in_err, void **in_if, void *in_ext) {
+int unmonitor_darwin(const char *in_dev, int initch, char *in_err, 
+					 void **in_if, void *in_ext) {
     return 1;
 }
 #endif

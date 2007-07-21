@@ -1,3 +1,5 @@
+Jul 21 2007  devel  Added Darwin card type detection to properly use Broadcom cards
+                    Added Darwin channel control
 Jul 04 2007  devel  Added beginnings of Darwin support for OSX-Intel (atheros)
 May 30 2007  devel  Removed airpcap radiotap set since it results in
                      non-deterministic behavior on some configurations
