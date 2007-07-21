@@ -3174,7 +3174,7 @@ int darwin_cardcheck(char *service) {
 	if (IORegistryCreateIterator(masterPort, kIOServicePlane,
 								 kIORegistryIterateRecursively, &iterator) == 
 		KERN_SUCCESS) {
-		while (sdev = IOIteratorNext(iterator)) {
+		while ((sdev = IOIteratorNext(iterator))) {
 			if (sdev != MACH_PORT_NULL) {
 				io_name_t thisClassName;
 				io_name_t name;
@@ -3182,7 +3182,7 @@ int darwin_cardcheck(char *service) {
 				err = IOObjectGetClass(sdev, thisClassName);
 				err = IORegistryEntryGetName(sdev, name);
 
-				if (IOObjectConfirmsTo(sdev, service)) {
+				if (IOObjectConformsTo(sdev, service)) {
 					IOObjectRelease(iterator);
 					return 0;
 				}

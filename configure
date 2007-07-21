@@ -3674,7 +3674,7 @@ cat >>confdefs.h <<\_ACEOF
 _ACEOF
 
         CFLAGS="-no-cpp-precomp $CFLAGS"
-		LDFLAGS="$LDFLAGS -framework Foundation -framework CoreFoundation -F/System/Library/PrivateFrameworks -framework Apple80211"
+		LDFLAGS="$LDFLAGS -framework Foundation -framework CoreFoundation -F/System/Library/PrivateFrameworks -framework Apple80211 -framework IOKit"
         { echo "$as_me:$LINENO: result: Apple GCC - added Apple80211 frameworks and no-precomp" >&5
 echo "${ECHO_T}Apple GCC - added Apple80211 frameworks and no-precomp" >&6; }
 		darwin="yes"
@@ -3755,7 +3755,7 @@ cat >>confdefs.h <<\_ACEOF
 _ACEOF
 
         CFLAGS="-no-cpp-precomp $CFLAGS"
-		LDFLAGS="$LDFLAGS -framework Foundation -framework CoreFoundation -F/System/Library/PrivateFrameworks -framework Apple80211"
+		LDFLAGS="$LDFLAGS -framework Foundation -framework CoreFoundation -F/System/Library/PrivateFrameworks -framework Apple80211 -framework IOKit"
         { echo "$as_me:$LINENO: result: Apple GCC - added Apple80211 frameworks and no-precomp" >&5
 echo "${ECHO_T}Apple GCC - added Apple80211 frameworks and no-precomp" >&6; }
 		darwin="yes"

@@ -44,7 +44,7 @@ then
         #
 		AC_DEFINE(SYS_DARWIN, 1, Compiling for Darwin/OSX)
         CFLAGS="-no-cpp-precomp $CFLAGS"
-		LDFLAGS="$LDFLAGS -framework Foundation -framework CoreFoundation -F/System/Library/PrivateFrameworks -framework Apple80211"
+		LDFLAGS="$LDFLAGS -framework Foundation -framework CoreFoundation -F/System/Library/PrivateFrameworks -framework Apple80211 -framework IOKit"
         AC_MSG_RESULT(Apple GCC - added Apple80211 frameworks and no-precomp)
 		darwin="yes"
         ;;
@@ -93,7 +93,7 @@ else
         #
 		AC_DEFINE(SYS_DARWIN, 1, Compiling for Darwin/OSX)
         CFLAGS="-no-cpp-precomp $CFLAGS"
-		LDFLAGS="$LDFLAGS -framework Foundation -framework CoreFoundation -F/System/Library/PrivateFrameworks -framework Apple80211"
+		LDFLAGS="$LDFLAGS -framework Foundation -framework CoreFoundation -F/System/Library/PrivateFrameworks -framework Apple80211 -framework IOKit"
         AC_MSG_RESULT(Apple GCC - added Apple80211 frameworks and no-precomp)
 		darwin="yes"
         ;;
