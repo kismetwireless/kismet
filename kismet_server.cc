@@ -1444,7 +1444,7 @@ int ProcessBulkConf(ConfigFile *conf) {
 
         }
 
-        if (gps_log == 1 && !net_log) {
+        if (gps_log == 1 && !xml_log) {
             fprintf(stderr, "WARNING:  Logging (gps coordinates) enabled but XML logging (networks) was not.\n"
                     "It will be enabled now.\n");
             xml_log = 1;
