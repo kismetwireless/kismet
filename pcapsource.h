@@ -93,8 +93,6 @@ public:
     static void Callback(u_char *bp, const struct pcap_pkthdr *header,
                          const u_char *in_data);
 
-    virtual int FetchChannel();
-
 	virtual void SetSmartCRC(int in_smart);
 protected:
     // Prism 802.11 headers from wlan-ng tacked on to the beginning of a
@@ -192,7 +190,6 @@ public:
     int OpenSource();
     int FetchPacket(kis_packet *packet, uint8_t *data, uint8_t *moddata);
     // int FetchDescriptor();
-    virtual int FetchChannel();
 };
 
 #ifdef SYS_LINUX
@@ -215,7 +212,6 @@ public:
     PcapSourceWext(string in_name, string in_dev) : PcapSource(in_name, in_dev) { 
         modern_chancontrol = -1;
     }
-    virtual int FetchChannel();
 
     // Small tracker var for intelligent channel control in orinoco.  I don't want to make
     // a new class for 1 int
@@ -260,7 +256,6 @@ public:
         PcapSource(in_name, in_dev) { 
             fcsbytes = 4;
         }
-    virtual int FetchChannel();
 protected:
     // Signal levels are pulled from the prism2 or avs headers so leave that as 0
     int last_channel;
@@ -290,7 +285,6 @@ class PcapSourceOpenBSDPrism : public PcapSource {
 public:
     PcapSourceOpenBSDPrism(string in_name, string in_dev) :
         PcapSource(in_name, in_dev) { }
-    virtual int FetchChannel();
 };
 #endif
 
@@ -331,7 +325,6 @@ public:
     PcapSourceRadiotap(string in_name, string in_dev) :
         PcapSource(in_name, in_dev) { }
     int OpenSource();
-    virtual int FetchChannel();
 protected:
     bool CheckForDLT(int dlt);
 };

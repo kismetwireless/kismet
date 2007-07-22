@@ -959,10 +959,6 @@ int PcapSource::Radiotap2KisPack(kis_packet *packet, uint8_t *data, uint8_t *mod
 }
 #endif
 
-int PcapSource::FetchChannel() {
-    return 0;
-}
-
 // Open an offline file with pcap
 int PcapSourceFile::OpenSource() {
     channel = 0;
@@ -993,10 +989,6 @@ int PcapSourceFile::FetchDescriptor() {
     return fileno(pd->sf.rfile);
 }
 #endif
-
-int PcapSourceFile::FetchChannel() {
-    return 0;
-}
 
 int PcapSourceFile::FetchPacket(kis_packet *packet, uint8_t *data, uint8_t *moddata) {
     int ret;
@@ -1029,12 +1021,6 @@ int PcapSourceFile::FetchPacket(kis_packet *packet, uint8_t *data, uint8_t *modd
 }
 
 #ifdef HAVE_LINUX_WIRELESS
-// Simple alias to our ifcontrol interface
-int PcapSourceWext::FetchChannel() {
-    // Use wireless extensions to get the channel
-    return Iwconfig_Get_Channel(interface.c_str(), errstr);
-}
-
 int PcapSourceWext::FetchSignalLevels(int *in_siglev, int *in_noiselev) {
     int raw_siglev, raw_noiselev, ret;
 
@@ -1063,15 +1049,6 @@ carrier_type PcapSource11G::IEEE80211Carrier() {
 #endif
 
 #ifdef SYS_LINUX
-
-int PcapSourceWlanng::FetchChannel() {
-    // Use wireless extensions to get the channel if we can
-#ifdef HAVE_LINUX_WIRELESS
-    return Iwconfig_Get_Channel(interface.c_str(), errstr);
-#else
-    return last_channel;
-#endif
-}
 
 // Handle badly formed jumbo packets from the drivers
 int PcapSourceWrt54g::FetchPacket(kis_packet *packet, uint8_t *data, uint8_t *moddata) {
@@ -1120,38 +1097,6 @@ carrier_type PcapSourceWrt54g::IEEE80211Carrier() {
 }
 #endif
 
-#ifdef SYS_OPENBSD
-int PcapSourceOpenBSDPrism::FetchChannel() {
-    struct wi_req wreq;
-    struct ifreq ifr;
-    int skfd;
-
-	if ((skfd = socket(AF_INET, SOCK_DGRAM, 0)) < 0) {
-		snprintf(errstr, 1024, "Failed to create AF_INET socket: %s",
-                 strerror(errno));
-		return -1;
-	}
-
-    bzero((char *)&wreq, sizeof(wreq));
-    wreq.wi_len = WI_MAX_DATALEN;
-    wreq.wi_type = WI_RID_CURRENT_CHAN; 
-
-    bzero((char *)&ifr, sizeof(ifr));
-    strlcpy(ifr.ifr_name, interface.c_str(), sizeof(ifr.ifr_name));
-    ifr.ifr_data = (caddr_t)&wreq;
-
-	if (ioctl(skfd, SIOCGWAVELAN, &ifr) < 0) {
-        close(skfd);
-		snprintf(errstr, 1024, "Channel get ioctl failed: %s",
-                 strerror(errno));
-		return -1;
-	}
-
-    close(skfd);
-    return wreq.wi_val[0];
-}
-#endif
-
 #if (defined(HAVE_RADIOTAP) && (defined(SYS_NETBSD) || defined(SYS_OPENBSD) || defined(SYS_FREEBSD)))
 int PcapSourceRadiotap::OpenSource() {
 	// XXX this is a hack to avoid duplicating code
@@ -1181,15 +1126,6 @@ bool PcapSourceRadiotap::CheckForDLT(int dlt)
 	}
     free(dl);
     return found;
-}
-
-int PcapSourceRadiotap::FetchChannel() {
-    int chan;
-    RadiotapBSD bsd(interface.c_str());
-    if (!bsd.get80211(IEEE80211_IOC_CHANNEL, chan, 0, NULL)) {
-        return -1;
-    }
-    return chan;
 }
 
 #endif

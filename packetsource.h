@@ -59,7 +59,14 @@ public:
     virtual int CloseSource() = 0;
 
     // Get the channel
-    virtual int FetchChannel() = 0;
+    virtual int FetchChannel() {
+		return channel;
+	}
+
+	// Set the logical channel (ie, when chan control returns to us)
+	virtual void SetLocalChannel(int in_ch) {
+		channel = in_ch;
+	}
 
     // Get the FD of our packet source
     virtual int FetchDescriptor() = 0;

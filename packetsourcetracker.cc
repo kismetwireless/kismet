@@ -143,16 +143,29 @@ int Packetsourcetracker::Poll(fd_set *in_rset, fd_set *in_wset) {
             return -1;
         }
 
-        // Packet acks just set the flag
+		// Return acks set the flag and the local channel
         if (in_pak.packtype == CHANPACK_CMDACK) {
+			if (in_pak.datalen != sizeof(chanchild_changepacket)) {
+				// Something happened... just bail
+				snprintf(errstr, 1024, "Invalid return size in command ack, "
+						 "something weird happened");
+				return -1;
+			}
+
+			chanchild_changepacket *ackdata = (chanchild_changepacket *) data;
+
             // Data should be an 8bit uint with the meta number.
-            if (data[0] >= meta_packsources.size()) {
-                snprintf(errstr, 1024, "illegal command ack for meta number %d", data[0]);
+            if (ackdata->meta_num >= meta_packsources.size()) {
+                snprintf(errstr, 1024, "illegal command ack for meta number %d", 
+						 ackdata->meta_num);
                 return -1;
             }
 
             // Set the command ack
-            meta_packsources[data[0]]->cmd_ack = 1;
+            meta_packsources[ackdata->meta_num]->cmd_ack = 1;
+
+			// Set the local channel
+			meta_packsources[ackdata->meta_num]->capsource->SetLocalChannel(ackdata->channel);
 
             free(data);
 
@@ -194,6 +207,8 @@ int Packetsourcetracker::SetChannel(int in_ch, meta_packsource *in_meta) {
                                                 (void *) in_meta->capsource);
     if (ret < 0)
         return ret;
+
+	in_meta->capsource->SetLocalChannel(in_ch);
 #else
     if (in_meta->prototype->child_control == 0) {
         int ret;
@@ -202,6 +217,8 @@ int Packetsourcetracker::SetChannel(int in_ch, meta_packsource *in_meta) {
                                                 (void *) in_meta->capsource);
         if (ret < 0)
             return ret;
+
+		in_meta->capsource->SetLocalChannel(in_ch);
     }
 
     chanchild_packhdr *chancmd = new chanchild_packhdr;
@@ -1028,11 +1045,13 @@ void Packetsourcetracker::ChannelChildLoop() {
                 ackpak->sentinel = CHANSENTINEL;
                 ackpak->packtype = CHANPACK_CMDACK;
                 ackpak->flags = CHANFLAG_NONE;
-                ackpak->datalen = 1;
-                ackpak->data = (uint8_t *) malloc(1);
-                ackpak->data[0] = (uint8_t) chanpak.meta_num;
+                ackpak->datalen = sizeof(chanchild_changepacket);
+                ackpak->data = (uint8_t *) malloc(sizeof(chanchild_changepacket));
+				((chanchild_changepacket *) ackpak->data)->meta_num = 
+					chanpak.meta_num;
+				((chanchild_changepacket *) ackpak->data)->channel = 
+					chanpak.channel;
                 child_ipc_buffer.push_back(ackpak);
-
             }
         } 
 

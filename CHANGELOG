@@ -1,3 +1,7 @@
+Jul 22 2007  devel  Revamped channel fetching system to use last ack'd set, rather
+                     than fetching live.  This should reduce the load by 4 or 5
+                     syscalls per packet, a good thing.  (And enable channel display
+                     on Darwin capture sources)
 Jul 21 2007  devel  Added Darwin card type detection to properly use Broadcom cards
                     Added Darwin channel control
 Jul 04 2007  devel  Added beginnings of Darwin support for OSX-Intel (atheros)
