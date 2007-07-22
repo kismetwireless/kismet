@@ -88,7 +88,6 @@ typedef struct {
     int valid;
 
     // Channel control
-    int cmd_ack;
     int channel_seqid;
     vector<int> channels;
     int ch_pos;
@@ -234,6 +233,8 @@ protected:
     
     int next_packsource_id;
     int next_meta_id;
+
+    int cmd_ack;
 
     map<string, packsource_protorec *> cardtype_map;
     map<string, vector<int> > defaultch_map;

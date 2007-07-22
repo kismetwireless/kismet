@@ -31,6 +31,7 @@ Packetsourcetracker::Packetsourcetracker() {
     timetracker = NULL;
     chanchild_pid = 0;
     sockpair[0] = sockpair[1] = 0;
+	cmd_ack = 1;
 }
 
 Packetsourcetracker::~Packetsourcetracker() {
@@ -52,7 +53,7 @@ unsigned int Packetsourcetracker::MergeSet(fd_set *in_rset, fd_set *in_wset,
         FD_SET(sockpair[1], in_rset);
 
         // Set it for writing if we have some queued
-        if (ipc_buffer.size() > 0)
+        if (ipc_buffer.size() > 0 && cmd_ack)
             FD_SET(sockpair[1], in_wset);
     }
 
@@ -81,11 +82,13 @@ int Packetsourcetracker::Poll(fd_set *in_rset, fd_set *in_wset) {
 
             // Send the header if we didn't already
             if (dataframe_only == 0) {
-                if (send(sockpair[1], pak, sizeof(chanchild_packhdr) - sizeof(void *), 0) < 0) {
+                if (send(sockpair[1], pak, 
+						 sizeof(chanchild_packhdr) - sizeof(void *), 0) < 0) {
                     if (errno == ENOBUFS) {
                         break;
                     } else {
-                        snprintf(errstr, 1024, "ipc header send() failed: %d:%s", errno, strerror(errno));
+                        snprintf(errstr, 1024, "ipc header send() failed: %d:%s", 
+								 errno, strerror(errno));
                         return -1;
                     }
                 } 
@@ -98,7 +101,8 @@ int Packetsourcetracker::Poll(fd_set *in_rset, fd_set *in_wset) {
                         dataframe_only = 1;
                         break;
                     } else {
-                        snprintf(errstr, 1024, "ipc content send() failed: %d:%s", errno, strerror(errno));
+                        snprintf(errstr, 1024, "ipc content send() failed: %d:%s", 
+								 errno, strerror(errno));
                         return -1;
                     }
                 }
@@ -162,7 +166,7 @@ int Packetsourcetracker::Poll(fd_set *in_rset, fd_set *in_wset) {
             }
 
             // Set the command ack
-            meta_packsources[ackdata->meta_num]->cmd_ack = 1;
+            cmd_ack = 1;
 
 			// Set the local channel
 			meta_packsources[ackdata->meta_num]->capsource->SetLocalChannel(ackdata->channel);
@@ -247,7 +251,6 @@ int Packetsourcetracker::SetChannel(int in_ch, meta_packsource *in_meta) {
 #endif
 
     return 1;
-
 }
 
 int Packetsourcetracker::SetHopping(int in_hopping, meta_packsource *in_meta) {
@@ -544,7 +547,6 @@ int Packetsourcetracker::ProcessCardList(string in_enableline,
             meta_packsource *meta = new meta_packsource;
             meta->id = next_meta_id++;
             meta->valid = 0;
-            meta->cmd_ack = 1;
             meta->prototype = cardtype_map[StrLower(tokens[0])];
             meta->name = tokens[2];
             meta->device = tokens[1];
