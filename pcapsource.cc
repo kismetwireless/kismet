@@ -1669,7 +1669,10 @@ int monitor_madwifi_ng(const char *in_dev, char *in_err, void **in_if,
 					"non-rfmon VAPs, set vapdestroy=true in kismet.conf.  Kismet "
 					"likely WILL NOT WORK with non-rfmon VAPs running.\n", 
 					in_dev, vaplist[x].c_str());
-			sleep(2);
+			if (warned == 0) {
+				warned = 1;
+				sleep(2);
+			}
 			break;
 		} else if (iwmode != LINUX_WLEXT_MONITOR && vap_destroy == 1) {
 			fprintf(stderr, "NOTICE:  Found a non-monitor VAP %s::%s.  Because "
