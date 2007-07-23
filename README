@@ -1,4 +1,4 @@
-Kismet 2007-01-R1
+Kismet 2007-07-R1
 Mike Kershaw <dragorn@kismetwireless.net>
 http://www.kismetwireless.net
 Licensed under the GPL
@@ -80,6 +80,35 @@ Licensed under the GPL
     WILL WORK WITH THEM ON WINDOWS, IT WILL NOT.  THIS LIMITATION IS CAUSED
     BY THE LACK OF SNIFFER-MODE CAPABLE DRIVERS ON WINDOWS.
 
+2c. OSX / Darwin Quick Start
+
+    PLEASE read the full manual, but for the impatient, here is the BARE
+    MINIMUM method to get Kismet running:
+
+    * Download Kismet from http://www.kismetwireless.net/download.shtml
+    * Run ``./configure''.  Pay attention to the output!  If Kismet cannot
+      find all the headers and libraries it needs, it won't be able to do
+      many things.
+    * Compile Kismet with ``gmake'' (NOT 'make'.  gnumake is required.)
+    * Install Kismet with either ``gmake install'' or ``gmake suidinstall''.
+      YOU MUST READ THE SECTION OF THIS README NAMED "SUID INSTALLATION &
+      SECURITY" OR YOUR SYSTEM MAY BE MADE VULNERABLE!!
+    * Edit the config file (standardly in "/usr/local/etc/kismet.conf")
+    * Set the user Kismet will drop privileges to by changing the "suiduser"
+      configuration option.
+    * Set the capture source by changing the "source" configuration option.
+      For OSX/Darwin, this should almost always be a source of type 'darwin'.
+      FOR A LIST OF VALID CAPTURE SOURCES, SEE THE SECTION OF THIS README
+      CALLED "CAPTURE SOURCES".  The capture source you should use depends
+      USE THE PROPER CAPTURE SOURCE.  No permanent harm will come from using
+      the wrong one, but you won't get the optimal behavior.
+    * Add an absolute path to the "logtemplate" configuration option if you
+      want Kismet to always log to the same directory instead of the directory
+      you start it in.
+
+    * Run ``kismet''.  You may need to start Kismet as root.
+    * READ THE REST OF THIS README
+
 3.  Feature Overview
 
     Kismet has many features useful in different situations for monitoring
@@ -102,7 +131,6 @@ Licensed under the GPL
       instance
     - Distributed remote drone sniffing
     - XML output
-    - Over 20 supported card types
 
 4.  Typical Uses
 
@@ -118,6 +146,12 @@ Licensed under the GPL
       against rogue access points.
 
 5.  Upgrading from Previous Versions
+
+    Upgrading to Kismet 2007-07-R1:
+      For Linux users, the config option 'vapdestroy' has been added.  If you
+      are using an Atheros card with Madwifi-NG, this controls if non-rfmon
+      VAPs are destroyed automatically.  Not including this new config option
+      will default to 'false'.
 
     Upgrading to Kismet 2007-01-R1:
       Make sure to either update your kismet.conf file from the one included
@@ -222,7 +256,7 @@ Licensed under the GPL
       the libwiretap library.  By default the configure script will look in
       /usr/src/ for this.
 
-      If you do not need to replay compressed dumps or dumps with other 
+      * If you do not need to replay compressed dumps or dumps with other 
       encodings (such as Airopeek), you don't need wtapfile.
 
 8.  Compiling
@@ -517,12 +551,17 @@ Licensed under the GPL
       it should work with the radiotap_bsd_x sources.
 
     - MacOSX
-      Known supported cards: Airport, WSP100, Drone, wtapfile, pcapfile
+      Known supported cards: Viha, Darwin, WSP100, Drone, wtapfile, pcapfile
 
-      MacOSX is supported for Airport (classic) cards only, using the Viha
-      drivers at http://www.dopesquad.net/security/.  There are no rfmon
-      drivers available for Airport Extreme cards currently.
+      MacOSX is supported for Airport Classic cards using the Viha 
+      drivers at http://www.dopesquad.net/security/.  
 
+      Modern cards (Broadcom and Atheros) are supported via the 'darwin' capture
+      source.  Read the comments below in the Darwin section of the source list
+      for more information.
+
+      Thanks for Kevin Finisterre for help adding the modern OSX capture sources.
+      
       Other third-party drivers may support rfmon for other PCMCIA and USB
       cards under OSX - let me know if your drivers support rfmon, and I'll
       add support in Kismet.
@@ -654,6 +693,15 @@ Licensed under the GPL
                      correctly, so channel control is not available.  The
                      firmware will hop to whatever channel it feels like 
                      hopping to, when it feels like hopping.
+
+    darwin          OSX native cards    OSX/Darwin  OSX
+                    Capture interface: 'wltX'
+                    Supports both Broadcom and Atheros Airport-Extreme cards.
+                    When using a Broadcom based card, it may be necessary to 
+                     enable rfmon on the device for the first time using another 
+                     program.
+                    When using an Atheros based card, 802.11a may also be supported
+                     by adding a 'sourcechannels' line to kismet.conf.
 
     hostap          Prism/2             Linux       HostAP 0.4
                     http://hostap.epitest.fi/
@@ -788,23 +836,21 @@ Licensed under the GPL
     orinoco         Lucent, Orinoco     Linux       Patched orinoco_cs
                     http://airsnort.shmoo.com/orinocoinfo.html
                     Capture interface:  'ethX'
-                    The orinoco-cs drivers do not support monitor mode as-is,
-                     but patches are on the Kismet download site for 
-                     standalone drivers, Linux 2.6 kernel drivers, and 
-                     Linux 2.6.9+ kernel drivers.  These expanded patches fix
-                     several performance issues with previous monitor mode
-                     patches.
+                    The Orinoco drivers which have mainlined into the Linux
+                     kernel do support monitor mode, however only specific firmware
+                     versions are supported and often they do not work.
+                    An up-ported version of the older Orinoco drivers which more
+                     reliably supported rfmon may be available at:
+                     http://www.projectiwear.org/~plasmahh/orinoco.html
+                    Generally, Orinoco cards are not recommended for use with
+                     Kismet due to these limitations.
 
     orinoco_14      Lucent, Orinoco     Linux       Orinoco 0.14+
                     https://savannah.nongnu.org/projects/orinoco/
                     Capture interface:  'ethX'
-                    The new orinoco_cs drivers changed things subtly, but
-                     at least they include rfmon without patching.
-                    Patches to enable signal level reporting are available on
-                     the kismet download site.
-                    These drivers are NOT CURRENTLY RECCOMENDED.  Once the new
-                     Orinoco drivers have solidified, final patches for 
-                     per-packet stats will be made and this source changed.
+                    This source is deprecated and should only be used with
+                    pre-release versions of a driver since merged into the Linux
+                    kernel.
 
     pcapfile        n/a                 Any         n/a
                     Capture interface:  '/path/to/file' 
@@ -1488,7 +1534,15 @@ Licensed under the GPL
        a channel if you're hopping, just like you can't see all of a show on
        TV if you're channel surfing.  If you need to see all of the data from 
        a single network, you'll need to disable hopping or lock Kismet onto the
-       network you want to watch.
+       network you want to watch.  Additionally, Kismet can only process packets
+       which are passed by the drivers.  Some drivers, firmware versions, and 
+       cards simply don't send all the data frames while in rfmon, and not much
+       can be done to solve that.
+
+    Q: What about 802.11n?
+    A: Some 802.11n cards with the Atheros chipset are supported, however
+       currently the link type still appears as 802.11g.  In theory these
+       cards will work with the madwifi-ng capture sources.
 
     Q: Why do I get a lot of nonsense networks, or lots of networks that only
        have one data packet?
@@ -1523,6 +1577,7 @@ Licensed under the GPL
 
     Q: What about plugins?
     A: Yeah, I know, I'm working on them.
+    A2: Look at newcore.  After years of work, it will be releasing soon.
 
     Q: 'configure' says it can't find libncurses/libcurses
     A: First, did you install ncurses-devel?  Kismet needs the development
@@ -1535,10 +1590,6 @@ Licensed under the GPL
     Q: Configure failed on something else
     A: Look at config.log and see why it failed.  Sometimes packages don't
        properly define all their dependencies and linking fails.
-
-    Q: Compiling fails on OSX with undefined variables in pcapsource.cc
-    A: Re-run configure with --without-pcap to bypass this.  Viha doesn't use
-       pcap, so you won't lose functionality.
 
     Q: When channel hopping, the orinoco keeps going to channel -1 and not
        working.
@@ -1592,12 +1643,6 @@ Licensed under the GPL
     Q: I want to port Kismet to (X) or I want to support card (Y)
     A: Kismet is designed to be fairly modular.  Contact me over IRC or email
        and I can explain what parts need to be changed.
-
-    Q: Why do you include your own libpcap?
-    A: Originally it was because the version included with distributions was
-       not up to date and couldn't handle the 802.11 linktypes.  Now it is
-       because Kismet patches libpcap to not generate filter code, resulting
-       in a significant reduction in the size of the compiled binaries.
 
     Q: Why won't Kismet work on Windows?
     A: Because there are few legally unencumbered drivers for Windows.  I am

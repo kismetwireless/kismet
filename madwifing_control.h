@@ -37,7 +37,7 @@
 #define IEEE80211_M_MONITOR 	8
 
 /* Get a list of all vaps on an interface */
-vector<string> madwifing_list_vaps(const char *ifname);
+int madwifing_list_vaps(const char *ifname, vector<string> *retvec);
 
 /* Destroy a vap */
 int madwifing_destroy_vap(const char *ifname, char *errstr);

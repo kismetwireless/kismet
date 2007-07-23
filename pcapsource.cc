@@ -133,8 +133,9 @@ extern "C" {
 int pcap_event(pcap_t *);
 #endif
 
-// This is such a bad thing to do...
-// #include <pcap-int.h>
+// Inherit the global from kismet_server.cc for vap destruction.  This is handled
+// much better in newcore, this is just a kluge to hold us over.
+extern int vap_destroy;
 
 // Pcap global callback structs
 pcap_pkthdr callback_header;
@@ -1646,8 +1647,10 @@ int monitor_madwifi_ng(const char *in_dev, char *in_err, void **in_if,
 					   void *in_ext) {
 	char newdev[IFNAMSIZ];
 	vector<string> vaplist;
+	int nvaps;
+	int warned = 0;
 
-	vaplist = madwifing_list_vaps(in_dev);
+	nvaps = madwifing_list_vaps(in_dev, &vaplist);
 
 	for (unsigned int x = 0; x < vaplist.size(); x++) {
 		int iwmode;
@@ -1658,20 +1661,43 @@ int monitor_madwifi_ng(const char *in_dev, char *in_err, void **in_if,
 			continue;
 		}
 
-		if (iwmode != LINUX_WLEXT_MONITOR || iwmode != LINUX_WLEXT_MASTER) {
-			fprintf(stderr, "WARNING:  Found a non-master non-monitor VAP %s::%s.  "
+		if (iwmode != LINUX_WLEXT_MONITOR && vap_destroy == 0) {
+			fprintf(stderr, "WARNING:  Found a non-monitor VAP %s::%s.  "
 					"Madwifi-ng has historically had problems with normal-mode "
-					"VAPs combined with monitor-mode VAPs.  You may need to remove "
-					"them.\n", in_dev, vaplist[x].c_str());
-			sleep(1);
+					"VAPs combined with monitor-mode VAPs.  Kismet has been "
+					"configured to NOT destroy VAPs.  To automatically destroy " 
+					"non-rfmon VAPs, set vapdestroy=true in kismet.conf.  Kismet "
+					"likely WILL NOT WORK with non-rfmon VAPs running.\n", 
+					in_dev, vaplist[x].c_str());
+			sleep(2);
 			break;
+		} else if (iwmode != LINUX_WLEXT_MONITOR && vap_destroy == 1) {
+			fprintf(stderr, "NOTICE:  Found a non-monitor VAP %s::%s.  Because "
+					"Kismet was configured to remove non-rfmon vaps "
+					"automatically, it will be destroyed.  Once Kismet has "
+					"exited, you must manually restore the VAP and associated "
+					"network state.  If you wish to NOT remove VAPs "
+					"automatically, set vapdestroy=false in kismet.conf.\n", 
+					in_dev, vaplist[x].c_str());
+
+			if (warned == 0) {
+				warned = 1;
+				sleep(2);
+			}
+
+			if (madwifing_destroy_vap(vaplist[x].c_str(), in_err) < 0) {
+				fprintf(stderr, "FATAL:  Failed to destroy madwifi-ng VAP: %s\n",
+						in_err);
+				return -1;
+				break;
+			}
 		}
 	}
 
 	if (madwifing_build_vap(in_dev, in_err, "kis", newdev, IEEE80211_M_MONITOR,
 							IEEE80211_CLONE_BSSID) < 0) {
-		fprintf(stderr, "FATAL:  %s\n", in_err);
-		fprintf(stderr, "FATAL:  Unable to create monitor-mode VAP\n");
+		fprintf(stderr, "ERROR:  %s\n", in_err);
+		fprintf(stderr, "ERROR:  Unable to create monitor-mode VAP\n");
 		return -1;
 	}
 
@@ -1717,6 +1743,7 @@ int monitor_madwifi_a(const char *in_dev, int initch, char *in_err, void **in_if
 				"If you are using madwifi-ng, be sure to set the source interface "
 				"to the wifiX control interface, NOT athX\n",
 				in_dev);
+
 		// Allocate a tracking record for the interface settings and remember our
 		// setup
 		linux_ifparm *ifparm = (linux_ifparm *) malloc(sizeof(linux_ifparm));
@@ -1928,9 +1955,10 @@ int unmonitor_madwifi(const char *in_dev, int initch, char *in_err,
 					  void **in_if, void *in_ext) {
     // Restore the stored mode
     linux_ifparm *ifparm = (linux_ifparm *) (*in_if);
+	int ret = 0;
 
 	// Try the ng unmonitor
-	if (unmonitor_madwifi_ng(in_dev, in_err, in_if, in_ext) < 0) {
+	if ((ret = unmonitor_madwifi_ng(in_dev, in_err, in_if, in_ext)) < 0) {
 		if ((*in_if) == NULL) 
 			return -1;
 
@@ -1939,10 +1967,10 @@ int unmonitor_madwifi(const char *in_dev, int initch, char *in_err,
 		}
 
 		// Call the standard unmonitor
-		return unmonitor_wext(in_dev, initch, in_err, in_if, in_ext);
+		ret = unmonitor_wext(in_dev, initch, in_err, in_if, in_ext);
 	}
 
-	return 0;
+	return ret;
 }
 
 // Call the standard monitor but ignore error codes since channel

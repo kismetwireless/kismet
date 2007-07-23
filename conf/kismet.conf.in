@@ -4,7 +4,7 @@
 # not continually reading --help!
 
 # Version of Kismet config
-version=2005.06.R1
+version=2007.07.R1
 
 # Name of server (Purely for organizational purposes)
 servername=Kismet
@@ -26,6 +26,14 @@ source=none,none,addme
 # sources are enabled.
 # For example:
 # enablesources=prismsource,ciscosource
+
+
+# Automatically destroy VAPs on multi-vap interfaces (like madwifi-ng).
+# Madwifi-ng doesn't work in rfmon when non-rfmon VAPs are present, however
+# this is a fairly invasive change to the system so it CAN be disabled.  Expect
+# things not to work in most cases if you do disable it, however.
+vapdestroy=true
+
 
 # Do we channelhop?
 channelhop=true

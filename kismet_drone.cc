@@ -57,6 +57,8 @@ GPSD *gps = NULL;
 int gpsmode = 0;
 int gps_enable = 0;
 
+int vap_destroy = 0;
+
 // Unused, only here to make packetsourcetracker link
 int retain_monitor = 0;
 
@@ -413,6 +415,12 @@ int main(int argc, char *argv[]) {
     // Read the config file if we didn't get any sources on the command line
     if (source_input_vec.size() == 0)
         source_input_vec = conf->FetchOptVec("source");
+
+	if (conf->FetchOpt("vapdestroy") == "true") {
+		vap_destroy = 1;
+		fprintf(stderr, "Non-RFMon VAPs will be destroyed on multi-vap interfaces "
+				"(ie, madwifi-ng)\n");
+	} 
 
     // Now look at our channel options
     if (channel_hop == -1) {

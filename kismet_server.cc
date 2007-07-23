@@ -76,6 +76,7 @@ char *configfile = NULL;
 int no_log = 0, noise_log = 0, data_log = 0, net_log = 0, crypt_log = 0, cisco_log = 0,
     gps_log = -1, gps_enable = 1, csv_log = 0, xml_log = 0, ssid_cloak_track = 0, 
     ip_track = 0, waypoint = 0, waypointformat = 0, fifo = 0, corrupt_log = 0;
+int vap_destroy = 0;
 string logname, dumplogfile, netlogfile, cryptlogfile, ciscologfile,
     gpslogfile, csvlogfile, xmllogfile, ssidtrackfile, configdir, iptrackfile, 
     waypointfile, fifofile;
@@ -2407,6 +2408,12 @@ int main(int argc,char *argv[]) {
     // Read the config file if we didn't get any sources on the command line
     if (source_input_vec.size() == 0)
         source_input_vec = conf->FetchOptVec("source");
+
+	if (conf->FetchOpt("vapdestroy") == "true") {
+		vap_destroy = 1;
+		fprintf(stderr, "Non-RFMon VAPs will be destroyed on multi-vap interfaces "
+				"(ie, madwifi-ng)\n");
+	} 
 
     // Now look at our channel options
     if (channel_hop == -1) {
