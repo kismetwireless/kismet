@@ -553,15 +553,20 @@ void GetPacketInfo(kis_packet *packet, packet_info *ret_packinfo,
 						}
 
 						// Match 221 tag header for WPA
-						if (taglen < 6 || memcmp(&(packet->data[tag_orig + offt]), 
-												 WPA_OUI, sizeof(WPA_OUI)))
+						if (taglen < 6)
+							continue;
+						
+						if (memcmp(&(packet->data[tag_orig + offt]), 
+								   WPA_OUI, sizeof(WPA_OUI)))
 							continue;
 
 						offt += 6;
 
 						// Match WPA multicast suite
-						if (offt + 4 > taglen || 
-							memcmp(&(packet->data[tag_orig + offt]), WPA_OUI,
+						if (offt + 4 > taglen)
+							continue;
+						
+						if (memcmp(&(packet->data[tag_orig + offt]), WPA_OUI,
 								   sizeof(WPA_OUI)))
 							continue;
 
@@ -590,7 +595,7 @@ void GetPacketInfo(kis_packet *packet, packet_info *ret_packinfo,
 							if (memcmp(&(packet->data[tag_orig + offt]), 
 									  WPA_OUI, sizeof(WPA_OUI)) == 0) {
 								ret_packinfo->crypt_set |= 
-									WPACipherConv(packet->data[tag_orig + offt + 3]);
+									WPAKeyMgtConv(packet->data[tag_orig + offt + 3]);
 								offt += 4;
 							} else {
 								break;

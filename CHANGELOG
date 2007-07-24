@@ -1,5 +1,7 @@
 Jul 24 2007  devel  Backported WEP display from newcore to only show WEP if no
                      expanded crypto options are available
+                    Fixed lurking bug where networks with WPA improperly got
+                     WEP40 set as well
 Jul 23 2007  devel  Added madwifi-ng support for Linux-2.4
                     Added vap teardown code for madwifi-ng
                     Updated README
