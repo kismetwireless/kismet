@@ -129,12 +129,12 @@ void PanelFront::NetLine(kis_window *in_window, string *in_str, wireless_network
 
             len = 1;
         } else if (colindex == mcol_wep) {
-			if (net->crypt_set > crypt_wep)
+			if (net->crypt_set == crypt_wep)
+				snprintf(element, 1024, "Y");
+			else if (net->crypt_set == 0)
+				snprintf(element, 1024, "N");
+			else
 				snprintf(element, 1024, "O");
-			else if (net->crypt_set)
-                snprintf(element, 1024, "Y");
-            else
-                snprintf(element, 1024, "N");
             len = 1;
         } else if (colindex == mcol_channel) {
             if (net->channel == 0)
@@ -1773,7 +1773,7 @@ int PanelFront::DetailsPrinter(void *in_window) {
 		string crypt;
 		if (dnet->crypt_set == 0)
 			crypt = "None";
-		if (dnet->crypt_set & crypt_wep)
+		if (dnet->crypt_set == crypt_wep)
 			crypt += "WEP ";
 		if (dnet->crypt_set & crypt_layer3)
 			crypt += "Layer3 ";
@@ -3041,7 +3041,7 @@ int PanelFront::DetailsClientPrinter(void *in_window) {
 	string crypt;
 	if (details_client->crypt_set == 0)
 		crypt = "None";
-	if (details_client->crypt_set & crypt_wep)
+	if (details_client->crypt_set == crypt_wep)
 		crypt += "WEP ";
 	if (details_client->crypt_set & crypt_layer3)
 		crypt += "Layer3 ";
