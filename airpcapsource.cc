@@ -104,6 +104,7 @@ int AirPcapSource::FetchPacket(kis_packet *packet, uint8_t *data, uint8_t *modda
 	return ret;
 }
 
+#if 0
 int AirPcapSource::FetchChannel() {
 	unsigned int ch;
 	if (!AirpcapGetDeviceChannel(airpcap_handle, &ch))
@@ -111,6 +112,7 @@ int AirPcapSource::FetchChannel() {
 
 	return (int) ch;
 }
+#endif
 
 int AirPcapSource::FetchDescriptor() {
 	// Fall through to our HANDLE to FD mangler

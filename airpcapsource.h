@@ -60,7 +60,6 @@ public:
     }
 	virtual int OpenSource();
 	virtual int FetchPacket(kis_packet *packet, uint8_t *data, uint8_t *moddata);
-	virtual int FetchChannel();
 	virtual int FetchDescriptor();
 	virtual int SetChannel(unsigned int in_ch, char *in_err);
 
