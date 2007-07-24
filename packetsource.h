@@ -49,6 +49,8 @@ public:
 
 		parameters.fuzzy_crypt = 0;
 		parameters.fuzzy_decode = 0;
+
+		flag = 0;
     }
 
     virtual ~KisPacketSource() { };
@@ -100,6 +102,10 @@ public:
     // Stop ignoring incoming packets
     void Resume() { paused = 0; };
 
+	// Misc flag
+	void SetFlag(int in_flag) { flag = in_flag; }
+	int FetchFlag() { return flag; }
+
     // Set packet parameters
     void SetPackparm(packet_parm in_parameters) {
 		if (in_parameters.fuzzy_crypt != -1)
@@ -128,6 +134,9 @@ protected:
     char errstr[1024];
 
     int paused;
+
+	// Random flag to denote "something" (as defined by a subclass)
+	int flag;
 
     // Name, interface
     string name;

@@ -1649,6 +1649,7 @@ int monitor_madwifi_ng(const char *in_dev, char *in_err, void **in_if,
 	vector<string> vaplist;
 	int nvaps;
 	int warned = 0;
+	int existing_rfmon = -1;
 
 	nvaps = madwifing_list_vaps(in_dev, &vaplist);
 
@@ -1694,32 +1695,45 @@ int monitor_madwifi_ng(const char *in_dev, char *in_err, void **in_if,
 				return -1;
 				break;
 			}
+		} else if (iwmode == LINUX_WLEXT_MONITOR) {
+			existing_rfmon = x;
 		}
 	}
 
-	if (madwifing_build_vap(in_dev, in_err, "kis", newdev, IEEE80211_M_MONITOR,
-							IEEE80211_CLONE_BSSID) < 0) {
-		fprintf(stderr, "ERROR:  %s\n", in_err);
-		fprintf(stderr, "ERROR:  Unable to create monitor-mode VAP\n");
-		return -1;
-	}
+	if (existing_rfmon >= 0) {
+		fprintf(stderr, "NOTICE:  Found existing monitor mode vap %s::%s, Kismet "
+				"will use that instead of creating its own VAP\n",
+				in_dev, vaplist[existing_rfmon].c_str());
 
-	((KisPacketSource *) in_ext)->SetInterface(newdev);
+		((KisPacketSource *) in_ext)->SetInterface(vaplist[existing_rfmon].c_str());
 
-	fprintf(stderr, "NOTICE:  Created Madwifi-NG RFMON VAP %s\n", newdev);
-
-	FILE *controlf;
-	char cpath[256];
-
-	snprintf(cpath, 255, "/proc/sys/net/%s/dev_type", newdev);
-
-	if ((controlf = fopen(cpath, "w")) == NULL) {
-		fprintf(stderr, "WARNING:  Could not open /proc/sys/net control interface "
-				"to set radiotap mode.  This may indicate a deeper problem but "
-				"is not a fatal error.\n");
+		// Set "something" flag to indicate we don't clean up
+		((KisPacketSource *) in_ext)->SetFlag(1);
 	} else {
-		fprintf(controlf, "803\n");
-		fclose(controlf);
+		if (madwifing_build_vap(in_dev, in_err, "kis", newdev, IEEE80211_M_MONITOR,
+								IEEE80211_CLONE_BSSID) < 0) {
+			fprintf(stderr, "ERROR:  %s\n", in_err);
+			fprintf(stderr, "ERROR:  Unable to create monitor-mode VAP\n");
+			return -1;
+		}
+
+		((KisPacketSource *) in_ext)->SetInterface(newdev);
+
+		fprintf(stderr, "NOTICE:  Created Madwifi-NG RFMON VAP %s\n", newdev);
+
+		FILE *controlf;
+		char cpath[256];
+
+		snprintf(cpath, 255, "/proc/sys/net/%s/dev_type", newdev);
+
+		if ((controlf = fopen(cpath, "w")) == NULL) {
+			fprintf(stderr, "WARNING:  Could not open /proc/sys/net control "
+					"interface to set radiotap mode.  This may indicate a deeper "
+					"problem but is not a fatal error.\n");
+		} else {
+			fprintf(controlf, "803\n");
+			fclose(controlf);
+		}
 	}
 
 	return 1;
@@ -1727,6 +1741,10 @@ int monitor_madwifi_ng(const char *in_dev, char *in_err, void **in_if,
 
 int unmonitor_madwifi_ng(const char *in_dev, char *in_err, void **in_if, 
 						 void *in_ext) {
+
+	if (((KisPacketSource *) in_ext)->FetchFlag()) {
+		return 1;
+	}
 
 	if (madwifing_destroy_vap(in_dev, in_err) < 0) {
 		fprintf(stderr, "WARNING:  Unable to destroy madwifi-ng interface %s during "
