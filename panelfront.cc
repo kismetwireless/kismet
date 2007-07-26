@@ -1668,9 +1668,9 @@ int PanelFront::Tick() {
 										 kCFNumberSInt32Type, &timeToCharge);
 
 						if (bat_charging && timeToCharge > 0)
-							bat_time += (int) (timeToCharge);
+							bat_time += (int) (timeToCharge) * 60;
 						else if (remainingTime > 0)
-							bat_time += (int) (remainingTime);
+							bat_time += (int) (remainingTime) * 60;
 					}
 				}
 			}
