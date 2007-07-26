@@ -1600,7 +1600,7 @@ int PanelFront::Tick() {
 		CFDictionaryRef pSource = NULL;
 		const void *psValue;
 
-		int acstat = 0, battflag = 0;
+		int acstat = 0, battflag = LCDP_BATT_ABSENT;
 
 		if (CFArrayGetCount(sources) != 0) {
 			for (i = 0; i < CFArrayGetCount(sources); i++) {
@@ -1640,6 +1640,7 @@ int PanelFront::Tick() {
 						int timeToCharge = 0;
 
 						bat_available = 1;
+						bat_time = 0;
 
 						psValue = CFDictionaryGetValue(pSource, 
 													   CFSTR(kIOPSCurrentCapacityKey));
@@ -1667,9 +1668,9 @@ int PanelFront::Tick() {
 										 kCFNumberSInt32Type, &timeToCharge);
 
 						if (bat_charging && timeToCharge > 0)
-							bat_time += (int) (timeToCharge  * 3600);
+							bat_time += (int) (timeToCharge);
 						else if (remainingTime > 0)
-							bat_time += (int) (remainingTime * 3600);
+							bat_time += (int) (remainingTime);
 					}
 				}
 			}
