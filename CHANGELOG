@@ -1,3 +1,4 @@
+Jul 25 2007  devel  First pass at battery support for Darwin
 Jul 24 2007  devel  Backported WEP display from newcore to only show WEP if no
                      expanded crypto options are available
                     Fixed lurking bug where networks with WPA improperly got

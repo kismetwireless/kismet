@@ -26,6 +26,21 @@
 #include <machine/apmvar.h>
 #endif
 
+#ifdef SYS_DARWIN
+#include <CoreFoundation/CoreFoundation.h>
+#include <IOKit/ps/IOPowerSources.h>
+#include <IOKit/ps/IOPSKeys.h>
+
+#define LCDP_BATT_ABSENT 1
+#define LCDP_AC_ON 2
+#define LCDP_BATT_UNKNOWN 3
+#define LCDP_AC_OFF 4
+#define LCDP_BATT_CHARGING 5
+#define LCDP_BATT_HIGH 6
+#define LCDP_BATT_LOW 7
+#define LCDP_BATT_CRITICAL 8
+#endif
+
 #ifdef SYS_NETBSD
 #include <sys/types.h>
 #include <sys/ioctl.h>
@@ -1575,6 +1590,90 @@ int PanelFront::Tick() {
             if (batteries != NULL)
                 closedir(batteries);
         }
+
+#elif defined(SYS_DARWIN)
+		// Battery handling code from Kevin Finisterre & Apple specs
+		CFTypeRef blob = IOPSCopyPowerSourcesInfo();
+		CFArrayRef sources = IOPSCopyPowerSourcesList(blob);
+
+		int i;
+		CFDictionaryRef pSource = NULL;
+		const void *psValue;
+
+		int acstat = 0, battflag = 0;
+
+		if (CFArrayGetCount(sources) != 0) {
+			for (i = 0; i < CFArrayGetCount(sources); i++) {
+				pSource = IOPSGetPowerSourceDescription(blob, 
+								CFArrayGetValueAtIndex(sources, i));
+				if (pSource == NULL)
+					break;
+
+				psValue = (CFStringRef) CFDictionaryGetValue(pSource, CFSTR(kIOPSNameKey));
+
+				if (CFDictionaryGetValueIfPresent(pSource, CFSTR(kIOPSIsPresentKey),
+												  &psValue) && 
+						(CFBooleanGetValue((CFBooleanRef) psValue))) {
+					psValue = 
+						(CFStringRef) CFDictionaryGetValue(pSource, 
+														   CFSTR(kIOPSPowerSourceStateKey));
+
+					if (CFStringCompare((CFStringRef) psValue, 
+							CFSTR(kIOPSBatteryPowerValue), 0) == kCFCompareEqualTo) {
+						battflag = LCDP_BATT_UNKNOWN;
+						acstat = LCDP_AC_OFF;
+						bat_charging = 0;
+					} else if (CFDictionaryGetValueIfPresent(pSource, 
+								CFSTR(kIOPSIsChargingKey), &psValue)) {
+						if (CFBooleanGetValue((CFBooleanRef) psValue) > 0) {
+							battflag = LCDP_BATT_CHARGING;
+							bat_charging = 1;
+						} else {
+							battflag = LCDP_BATT_UNKNOWN;
+						}
+					}
+
+					if (battflag != LCDP_BATT_ABSENT) {
+						int curCapacity = 0;
+						int maxCapacity = 0;
+						int remainingTime = 0;
+						int timeToCharge = 0;
+
+						bat_available = 1;
+
+						psValue = CFDictionaryGetValue(pSource, 
+													   CFSTR(kIOPSCurrentCapacityKey));
+						CFNumberGetValue((CFNumberRef) psValue, kCFNumberSInt32Type, 
+										 &curCapacity);
+
+						psValue = CFDictionaryGetValue(pSource, 
+													   CFSTR(kIOPSMaxCapacityKey));
+						CFNumberGetValue((CFNumberRef) psValue, kCFNumberSInt32Type, 
+										 &maxCapacity);
+
+						bat_percentage = 
+							(int) ((float (curCapacity) / maxCapacity) * 100);
+
+						// If this is 0 we are on AC, if it's a negative we are 
+						// "calculating",
+						psValue = CFDictionaryGetValue(pSource, 
+													   CFSTR(kIOPSTimeToEmptyKey));
+						CFNumberGetValue((CFNumberRef) psValue, 
+										 kCFNumberSInt32Type, &remainingTime);
+
+						psValue = CFDictionaryGetValue(pSource, 
+													   CFSTR(kIOPSTimeToFullChargeKey));
+						CFNumberGetValue((CFNumberRef) psValue, 
+										 kCFNumberSInt32Type, &timeToCharge);
+
+						if (bat_charging && timeToCharge > 0)
+							bat_time += (int) (timeToCharge  * 3600);
+						else if (remainingTime > 0)
+							bat_time += (int) (remainingTime * 3600);
+					}
+				}
+			}
+		}
 
 #elif defined(SYS_OPENBSD) && defined(HAVE_MACHINE_APMVAR_H)
 
