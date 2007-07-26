@@ -49,7 +49,8 @@ char *uiconfigfile;
 char *server = NULL;
 int sound = -1;
 int speech = -1;
-int flite = 0;
+string voice;
+int flite = 0, darwinsay = 0;
 int speech_encoding = 0;
 string speech_sentence_encrypted, speech_sentence_unencrypted;
 unsigned int metric = 0;
@@ -276,9 +277,18 @@ void SpeechHandler(int *fds, const char *player) {
                 // Make sure it's shell-clean
                 MungeToShell(data, strlen(data));
                 char spk_call[1024];
-                snprintf(spk_call, 1024, "echo \"(%s\\\"%s\\\")\" | %s "
+				char voiceopt[128] = "";
+
+				if (voice != "default") {
+					if (darwinsay)
+						snprintf(voiceopt, 128, "-v %s",
+								 MungeToShell(voice).c_str());
+				}
+
+                snprintf(spk_call, 1024, "echo \"(%s\\\"%s\\\")\" | %s %s "
 						 ">/dev/null 2>/dev/null",
-						 flite ? "": "SayText ", data, player);
+						 (flite || darwinsay) ? "": "SayText ", 
+						 data, player, voiceopt);
 
                 system(spk_call);
 
@@ -553,6 +563,19 @@ int main(int argc, char *argv[]) {
 
 			if (gui_conf->FetchOpt("flite") == "true")
 				flite = 1;
+
+#ifdef SYS_DARWIN
+			if (gui_conf->FetchOpt("darwinsay") == "true") {
+				free(festival);
+				festival = strdup("/usr/bin/say");
+				darwinsay = 1;
+			}
+#endif
+
+			voice = gui_conf->FetchOpt("speech_voice");
+
+			if (voice == "")
+				voice = "default";
 
             string speechtype = gui_conf->FetchOpt("speech_type");
 

@@ -184,6 +184,8 @@ string sndplay;
 const char *festival = NULL;
 int speech = -1;
 int flite = 0;
+int darwinsay = 0;
+string voice;
 int speech_encoding = 0;
 string speech_sentence_encrypted, speech_sentence_unencrypted;
 
@@ -530,9 +532,18 @@ void SpeechHandler(int *fds, const char *player) {
                 // Make sure it's shell-clean
                 MungeToShell(data, strlen(data));
                 char spk_call[1024];
-                snprintf(spk_call, 1024, "echo \"(%s\\\"%s\\\")\" | %s "
+				char voiceopt[128] = "";
+
+				if (voice != "default") {
+					if (darwinsay)
+						snprintf(voiceopt, 128, "-v %s",
+								 MungeToShell(voice).c_str());
+				}
+
+                snprintf(spk_call, 1024, "echo \"(%s\\\"%s\\\")\" | %s %s "
 						 ">/dev/null 2>/dev/null",
-						 flite ? "" : "SayText ", data, player);
+						 (flite || darwinsay) ? "" : "SayText ", data, 
+						 player, voiceopt);
                 system(spk_call);
 
                 exit(0);
@@ -1611,6 +1622,19 @@ int ProcessBulkConf(ConfigFile *conf) {
 		
 			if (conf->FetchOpt("flite") == "true")
 				flite = 1;
+
+#ifdef SYS_DARWIN
+			if (conf->FetchOpt("darwinsay") == "true") {
+				free(festival);
+				festival = strdup("/usr/bin/say");
+				darwinsay = 1;
+			}
+#endif
+
+			voice = conf->FetchOpt("speech_voice");
+
+			if (voice == "")
+				voice = "default";
 
             string speechtype = conf->FetchOpt("speech_type");
 
