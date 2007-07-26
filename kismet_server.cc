@@ -1625,7 +1625,6 @@ int ProcessBulkConf(ConfigFile *conf) {
 
 #ifdef SYS_DARWIN
 			if (conf->FetchOpt("darwinsay") == "true") {
-				free(festival);
 				festival = strdup("/usr/bin/say");
 				darwinsay = 1;
 			}

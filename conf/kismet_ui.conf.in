@@ -60,6 +60,10 @@ festival=/usr/bin/festival
 # Are we using festival light?  If so, point the above "festival" path to the
 # "flite" binary.
 flite=false
+# Are we using speech on Darwin?
+darwinsay=false
+# What voice do we use? (currently only supported on darwin)
+speech_voice=default
 # How do we speak?  Valid options:
 # speech    Normal speech
 # nato      NATO spellings (alpha, bravo, charlie)

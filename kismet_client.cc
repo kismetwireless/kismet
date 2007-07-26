@@ -300,7 +300,6 @@ void SpeechHandler(int *fds, const char *player) {
     }
 }
 
-
 int PlaySound(string in_sound) {
 
     char snd[1024];
@@ -566,7 +565,6 @@ int main(int argc, char *argv[]) {
 
 #ifdef SYS_DARWIN
 			if (gui_conf->FetchOpt("darwinsay") == "true") {
-				free(festival);
 				festival = strdup("/usr/bin/say");
 				darwinsay = 1;
 			}
