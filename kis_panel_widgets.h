@@ -456,6 +456,8 @@ protected:
 	vector<string> text_vec;
 
 	int scroll_pos;
+
+	int status_color_normal;
 };
 
 class Kis_Scrollable_Table : public Kis_Panel_Component {

@@ -318,6 +318,7 @@ void Kis_Main_Panel::SpawnColorPrefs() {
 	cpp->AddColorPref("netlist_crypt_color", "Netlist Encrypted");
 	cpp->AddColorPref("netlist_group_color", "Netlist Group");
 	cpp->AddColorPref("netlist_factory_color", "Netlist Factory");
+	cpp->AddColorPref("status_normal_color", "Status Text");
 
 	cpp->Position((LINES / 2) - 7, (COLS / 2) - 20, 14, 40);
 	kpinterface->AddPanel(cpp);

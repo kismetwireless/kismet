@@ -1482,6 +1482,7 @@ Kis_Status_Text::Kis_Status_Text(GlobalRegistry *in_globalreg, Kis_Panel *in_pan
 	Kis_Panel_Component(in_globalreg, in_panel) {
 	globalreg = in_globalreg;
 	scroll_pos = 0;
+	status_color_normal = -1;
 }
 
 Kis_Status_Text::~Kis_Status_Text() {
@@ -1489,8 +1490,13 @@ Kis_Status_Text::~Kis_Status_Text() {
 }
 
 void Kis_Status_Text::DrawComponent() {
+	parent_panel->InitColorPref("status_normal_color", "white,black");
+	parent_panel->ColorFromPref(status_color_normal, "status_normal_color");
+
 	if (visible == 0)
 		return;
+
+	wattrset(window, status_color_normal);
 
 	for (unsigned int x = 0; x < text_vec.size() && (int) x < ly; x++) {
 		Kis_Panel_Specialtext::Mvwaddnstr(window, ey - x, sx,
