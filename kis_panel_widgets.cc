@@ -1522,7 +1522,7 @@ void Kis_Status_Text::AddLine(string in_line, int headeroffset) {
 	}
 
 	if ((int) text_vec.size() > py) {
-		text_vec.erase(text_vec.begin(), text_vec.begin() + text_vec.size() - ey);
+		text_vec.erase(text_vec.begin(), text_vec.begin() + text_vec.size() - py);
 	}
 }
 
