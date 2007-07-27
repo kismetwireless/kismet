@@ -83,10 +83,6 @@ int PacketSource_Darwin::DisableMonitor() {
 	return PACKSOURCE_UNMONITOR_RET_OKWITHWARN;
 }
 
-int PacketSource_Darwin::FetchChannel() {
-	return 0;
-}
-
 int PacketSource_Darwin::SetChannel(unsigned int in_ch) {
 	WirelessContextPtr gWCtxt = NULL;
 
