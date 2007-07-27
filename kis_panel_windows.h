@@ -87,6 +87,8 @@ protected:
 	Kis_Status_Text *statustext;
 	Kis_Netlist *netlist;
 
+	Kis_Panel_Packbox *netbox, *optbox, *linebox, *hbox, *vbox;
+
 	vector<Kis_Main_Panel::plugin_menu_opt> plugin_menu_vec;
 
 	virtual void UpdateSortMenu();

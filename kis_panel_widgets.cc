@@ -262,6 +262,363 @@ Kis_Panel_Component::Kis_Panel_Component(GlobalRegistry *in_globalreg,
 	window = in_panel->FetchDrawWindow();
 	visible = 0;
 	active = 0;
+
+	sx = sy = ex = ey = lx = ly = 0;
+	px = py = 0;
+	mx = my = 0;
+	layout_dirty = 0;
+
+	name = "GENERIC_WIDGET";
+}
+
+Kis_Panel_Packbox::Kis_Panel_Packbox(GlobalRegistry *in_globalreg,
+									 Kis_Panel *in_panel) :
+	Kis_Panel_Component(in_globalreg, in_panel) {
+	homogenous = 0;
+	packing = 0;
+	spacing = 0;
+
+	name = "GENERIC_PACKBOX";
+}
+
+Kis_Panel_Packbox::~Kis_Panel_Packbox() {
+	// Nothing to do really
+}
+
+void Kis_Panel_Packbox::Pack_Start(Kis_Panel_Component *in_widget, int in_fill,
+								   int in_padding) {
+	packbox_details det;
+
+	det.widget = in_widget;
+	det.fill = in_fill;
+	det.padding = in_padding;
+
+	packed_items.push_front(det);
+
+	layout_dirty = 1;
+}
+
+void Kis_Panel_Packbox::Pack_End(Kis_Panel_Component *in_widget, int in_fill,
+								 int in_padding) {
+	packbox_details det;
+
+	det.widget = in_widget;
+	det.fill = in_fill;
+	det.padding = in_padding;
+
+	packed_items.push_back(det);
+
+	layout_dirty = 1;
+}
+
+void Kis_Panel_Packbox::Pack_Before_Named(string in_name, 
+										  Kis_Panel_Component *in_widget, 
+										  int in_fill, int in_padding) {
+	list<Kis_Panel_Packbox::packbox_details>::iterator i;
+	packbox_details det;
+
+	det.widget = in_widget;
+	det.fill = in_fill;
+	det.padding = in_padding;
+
+	layout_dirty = 1;
+
+	for (i = packed_items.begin(); i != packed_items.end(); ++i) {
+		if ((*i).widget->GetName() == in_name) {
+			packed_items.insert(i, det);
+			return;
+		}
+	}
+
+	packed_items.push_back(det);
+	return;
+}
+
+void Kis_Panel_Packbox::Pack_After_Named(string in_name, 
+										 Kis_Panel_Component *in_widget, 
+										 int in_fill, int in_padding) {
+	list<Kis_Panel_Packbox::packbox_details>::iterator i;
+	packbox_details det;
+
+	det.widget = in_widget;
+	det.fill = in_fill;
+	det.padding = in_padding;
+
+	layout_dirty = 1;
+
+	for (i = packed_items.begin(); i != packed_items.end(); ++i) {
+		if ((*i).widget->GetName() == in_name) {
+			packed_items.insert(++i, det);
+			return;
+		}
+	}
+
+	packed_items.push_back(det);
+	return;
+}
+
+void Kis_Panel_Packbox::Pack_Remove(Kis_Panel_Component *in_widget) {
+	list<Kis_Panel_Packbox::packbox_details>::iterator i;
+
+	for (i = packed_items.begin(); i != packed_items.end(); ++i) {
+		if ((*i).widget == in_widget) {
+			packed_items.erase(i);
+			layout_dirty = 1;
+			return;
+		}
+	}
+}
+
+void Kis_Panel_Packbox::Pack_Widgets() {
+	int size, psize, msize, pos;
+	list<Kis_Panel_Packbox::packbox_details>::iterator i;
+
+	if (visible == 0)
+		return;
+
+	// Get the packing direction
+	if (packing == 0) {
+		size = lx;
+	} else {
+		size = ly;
+	}
+
+	// If we're homogenous, we divide by the # of widgets, find out if we're too
+	// small for any of them, and decrease until we can fit them
+	if (homogenous) {
+		int ndivs = packed_items.size();
+		int perbox = 0;
+
+		for (i = packed_items.begin(); i != packed_items.end(); ++i) {
+			int wmsize;
+
+			if ((*i).widget->GetVisible() == 0) {
+				ndivs--;
+				continue;
+			}
+
+			perbox = (int) ((float) (size - (spacing * (ndivs - 1)))  / ndivs);
+
+			if (packing == 0)
+				wmsize = (*i).widget->GetMinX();
+			else
+				wmsize = (*i).widget->GetMinY();
+
+			// If someone can't fit, decrease the number of divisions until we
+			// can, and we just don't draw those widgets.  Yeah, it sucks, 
+			// don't over-pack a small frame
+			if (wmsize > perbox) {
+				// If we simply can't fix the widget in, period, then bail on
+				// drawing.
+				if (ndivs <= 1) 
+					return;
+
+				ndivs -= 1;
+				i = packed_items.begin();
+				continue;
+			}
+		}
+
+		i = packed_items.begin();
+		for (int x = 0; x < ndivs && i != packed_items.end(); x++, ++i) {
+			if ((*i).widget->GetVisible() == 0)
+				continue;
+
+			// Set the position of each widget
+			int ww = perbox - ((*i).padding * 2);
+
+			// Get the preferred size (or best we can do) OR the fill
+			int psize = 0;;
+			if ((*i).fill == 0) {
+				if (packing == 0) {
+					psize = (*i).widget->GetPrefX() + ((*i).padding * 2);
+				} else {
+					psize = (*i).widget->GetPrefY() + ((*i).padding * 2);
+				}
+
+				if (psize > ww)
+					psize = ww;
+			} else {
+				psize = ww;
+			}
+
+			if (packing == 0) {
+				(*i).widget->SetPosition(
+						sx + (spacing * x) + (perbox * x) + (*i).padding, sy,
+						sx + (spacing * x) + (perbox * x) + (*i).padding + psize, ey);
+			} else {
+				(*i).widget->SetPosition(
+						sx, sy + (spacing * x) + (perbox * x) + (*i).padding,
+						ex, sy + (spacing * x) + (perbox * x) + (*i).padding + psize);
+			}
+
+		}
+
+		return;
+		// Done w/ homogenous spacing
+	} 
+
+	// Non-homogenous spacing
+	// Pass 1: Can we fit everyone who has a preferred size in?  If we can, then
+	// we can just start expanding them (or just plain draw them as is if we 
+	// don't have any filler).  Calculate preferred and minimum sizes simultaneously
+	// to save another iteration.
+	psize = 0;
+	msize = 0;
+	for (i = packed_items.begin(); i != packed_items.end(); ++i) {
+		if ((*i).widget->GetVisible() == 0)
+			continue;
+
+		if (packing == 0) {
+			psize += (*i).widget->GetPrefX() + ((*i).padding * 2);
+			msize += (*i).widget->GetMinX() + ((*i).padding * 2);
+		} else {
+			psize += (*i).widget->GetPrefY() + ((*i).padding * 2);
+			msize += (*i).widget->GetMinY() + ((*i).padding * 2);
+		}
+	}
+
+	// If we can't fit the preferred, can we fit the minimum?
+	if (psize > size) {
+		if (msize <= size) {
+			pos = 0;
+			// Fit them via minsize, giving them space from the free
+			// bucket so long as we have it
+			int bucket = size - msize;
+
+			i = packed_items.begin();
+			for (int x = 0; i != packed_items.end(); ++i, x++) {
+				if ((*i).widget->GetVisible() == 0)
+					continue;
+
+				int mp, pp;
+
+				if (packing == 0) {
+					mp = (*i).widget->GetMinX();
+					pp = (*i).widget->GetPrefX();
+				} else {
+					mp = (*i).widget->GetMinY();
+					pp = (*i).widget->GetPrefY();
+				}
+
+
+				int ww;
+				ww = mp + ((*i).padding * 2);
+				if (bucket > 0 && mp < pp) {
+					int delta = pp - mp;
+					if (delta > bucket)
+						delta = bucket;
+					ww += delta;
+				}
+
+				if (packing == 0) {
+					(*i).widget->SetPosition(
+						sx + (spacing * x) + pos, sy,
+						sx + (spacing * x) + pos + ww, ey);
+				} else {
+					(*i).widget->SetPosition(
+						sx, sy + (spacing * x) + pos,
+						ex, sy + (spacing * x) + pos + ww);
+				}
+
+				pos += ww;
+
+			}
+		}
+
+		return;
+	}
+
+	/* Otherwise, we can more than fit our widgets...
+	 * So the first order of business, find out how many are set to expand,
+	 * and how much slush space we have to give them */
+	int bucket = 0;
+	int num_fill = 0;
+	for (i = packed_items.begin(); i != packed_items.end(); ++i) {
+		int pp;
+
+		if ((*i).widget->GetVisible() == 0) 
+			continue;
+
+		if (packing == 0) {
+			pp = (*i).widget->GetPrefX();
+		} else {
+			pp = (*i).widget->GetPrefY();
+		}
+
+		/* Add up all the ones which aren't expanding to let us know
+		 * how much we can give to the ones we can give more to */
+		if ((*i).fill == 0) {
+			bucket += pp;
+		} else {
+			num_fill++;
+		}
+	}
+
+	// Reclaim our variable - our free bucket is the remainder of unclaimed 
+	// stuff
+	bucket = size - bucket - (spacing * (packed_items.size() - 1));
+
+	// Distribute the bucket over the expandable widgets, position, and draw
+	pos = 0;
+	i = packed_items.begin();
+	for (int x = 0; i != packed_items.end(); ++i, x++) {
+		int pp;
+
+		if ((*i).widget->GetVisible() == 0)
+			continue;
+
+		if (packing == 0) {
+			pp = (*i).widget->GetPrefX();
+		} else {
+			pp = (*i).widget->GetPrefY();
+		}
+
+		// Disperse the bucket over the items we have left
+		if ((*i).fill != 0 && num_fill != 0) {
+			int delta = bucket / num_fill;
+			bucket = bucket - delta;
+			num_fill--;
+			
+			pp = delta;
+		}
+
+		if (packing == 0) {
+			(*i).widget->SetPosition(
+						 sx + pos + (spacing * (x > 0)), sy,
+						 sx + pos + (spacing * (x > 0)) + pp, ey);
+		} else {
+			(*i).widget->SetPosition(
+						 sx, sy + pos + (spacing * (x > 0)),
+						 ex, sy + pos + (spacing * (x > 0)) + pp);
+		} 
+
+		pos += pp;
+	}
+}
+
+void Kis_Panel_Packbox::DrawComponent() {
+	list<Kis_Panel_Packbox::packbox_details>::iterator i;
+
+	if (visible == 0)
+		return;
+
+	for (i = packed_items.begin(); i != packed_items.end(); ++i) {
+		if ((*i).widget->GetLayoutDirty()) {
+			layout_dirty = 1;
+			break;
+		}
+	}
+
+	if (layout_dirty) {
+		Pack_Widgets();
+		layout_dirty = 0;
+	}
+
+	for (i = packed_items.begin(); i != packed_items.end(); ++i) {
+		(*i).widget->DrawComponent();
+		(*i).widget->SetLayoutDirty(0);
+	}
 }
 
 Kis_Menu::Kis_Menu(GlobalRegistry *in_globalreg, Kis_Panel *in_panel) :
@@ -1135,8 +1492,8 @@ void Kis_Status_Text::DrawComponent() {
 	if (visible == 0)
 		return;
 
-	for (unsigned int x = 0; x < text_vec.size() && (int) x < ey; x++) {
-		Kis_Panel_Specialtext::Mvwaddnstr(window, sy + (ey - x), sx,
+	for (unsigned int x = 0; x < text_vec.size() && (int) x < ly; x++) {
+		Kis_Panel_Specialtext::Mvwaddnstr(window, ey - x, sx,
 										  text_vec[text_vec.size() - x - 1],
 										  ex - 1);
 	}
@@ -1164,7 +1521,7 @@ void Kis_Status_Text::AddLine(string in_line, int headeroffset) {
 		text_vec.push_back(lw[x]);
 	}
 
-	if ((int) text_vec.size() > ey) {
+	if ((int) text_vec.size() > py) {
 		text_vec.erase(text_vec.begin(), text_vec.begin() + text_vec.size() - ey);
 	}
 }

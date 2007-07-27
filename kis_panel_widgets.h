@@ -37,6 +37,7 @@
 #include <stdio.h>
 #include <string>
 #include <vector>
+#include <list>
 
 #include "pollable.h"
 #include "messagebus.h"
@@ -92,10 +93,26 @@ public:
 
 	// Show/hide
 	virtual void Show() {
+		if (visible == 0)
+			layout_dirty = 1;
 		visible = 1;
 	}
 	virtual void Hide() {
+		if (visible)
+			layout_dirty = 1;
 		visible = 0;
+	}
+
+	virtual int GetVisible() {
+		return visible;
+	}
+
+	virtual void SetName(string in_name) {
+		name = in_name;
+	}
+
+	virtual string GetName() {
+		return name;
 	}
 
 	// Set the position inside a window (start x, y, and width, height)
@@ -104,15 +121,59 @@ public:
 		sy = isy;
 		ex = iex;
 		ey = iey;
+		lx = ex - sx;
+		ly = ey - sy;
+		layout_dirty = 1;
+	}
+
+	virtual void SetPreferredSize(int ipx, int ipy) {
+		px = ipx;
+		py = ipy;
+		layout_dirty = 1;
+	}
+
+	virtual void SetMinSize(int imx, int imy) {
+		mx = imx;
+		my = imy;
+		layout_dirty = 1;
+	}
+
+	virtual int GetMinX() {
+		return mx;
+	}
+
+	virtual int GetMinY() {
+		return my;
+	}
+
+	virtual int GetPrefX() {
+		return px;
+	}
+
+	virtual int GetPrefY() {
+		return py;
+	}
+
+	virtual int GetLayoutDirty() {
+		return layout_dirty;
+	}
+
+	virtual void SetLayoutDirty(int d) {
+		layout_dirty = d;
 	}
 
 	// Draw the component
 	virtual void DrawComponent() = 0;
 	// Activate the component (and target a specific sub-component if we have
 	// some reason to, like a specific menu)
-	virtual void Activate(int subcomponent) = 0;
+	virtual void Activate(int subcomponent) {
+		active = 1;
+	}
+
 	// Deactivate the component (this could cause closing of a menu, for example)
-	virtual void Deactivate() = 0;
+	virtual void Deactivate() {
+		active = 0;
+	}
 
 	// Handle a key press
 	virtual int KeyPress(int in_key) = 0;
@@ -130,10 +191,80 @@ protected:
 	WINDOW *window;
 
 	// Position within the window (start xy, size xy)
-	int sx, sy, ex, ey;
+	int sx, sy, ex, ey, lx, ly, mx, my, px, py;
+
+	int layout_dirty;
 
 	// Are we active?
 	int active;
+
+	// Name
+	string name;
+};
+
+class Kis_Panel_Packbox : public Kis_Panel_Component {
+public:
+	class packbox_details {
+	public:
+		Kis_Panel_Component *widget;
+		int fill;
+		int padding;
+	};
+
+	Kis_Panel_Packbox() {
+		fprintf(stderr, "FATAL OOPS: Kis_Panel_Packbox() called\n");
+		exit(1);
+	}
+
+	Kis_Panel_Packbox(GlobalRegistry *in_globalreg, Kis_Panel *in_panel);
+	virtual ~Kis_Panel_Packbox();
+
+	// Pack to head, end, before or after a named item, or remove from the pack list
+	virtual void Pack_Start(Kis_Panel_Component *in_widget, int fill, int padding);
+	virtual void Pack_End(Kis_Panel_Component *in_widget, int in_fill, int padding);
+
+	virtual void Pack_Before_Named(string in_name, Kis_Panel_Component *in_widget,
+								   int fill, int padding);
+	virtual void Pack_After_Named(string in_name, Kis_Panel_Component *in_widget,
+								  int fill, int padding);
+
+	virtual void Pack_Remove(Kis_Panel_Component *in_widget);
+
+	// Homogenous spacing (all elements fit in the same size)
+	virtual void SetHomogenous(int in_homog) {
+		homogenous = in_homog;
+		layout_dirty = 1;
+	}
+
+	// Set the spacing between elements (but not trailing): WWWSWWW
+	virtual void SetSpacing(int in_space) {
+		spacing = in_space;
+		layout_dirty = 1;
+	}
+
+	// Are we packing vertical or horizontal?
+	virtual void SetPackH() {
+		packing = 0;
+		layout_dirty = 1;
+	}
+
+	virtual void SetPackV() {
+		packing = 1;
+		layout_dirty = 1;
+	}
+
+	virtual int KeyPress(int in_key) {
+		return -1;
+	}
+
+	virtual void DrawComponent();
+
+protected:
+	list<Kis_Panel_Packbox::packbox_details> packed_items;
+
+	virtual void Pack_Widgets();
+
+	int homogenous, packing, spacing;
 };
 
 class Kis_Menu : public Kis_Panel_Component {

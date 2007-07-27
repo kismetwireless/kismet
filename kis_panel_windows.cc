@@ -79,20 +79,74 @@ Kis_Main_Panel::Kis_Main_Panel(GlobalRegistry *in_globalreg,
 
 	menu->Show();
 
+	// Make a hbox to hold the network list and additional info widgets,
+	// and the vertical stack of optional widgets
+	hbox = new Kis_Panel_Packbox(globalreg, this);
+	hbox->SetPackH();
+	hbox->SetHomogenous(0);
+	hbox->SetSpacing(0);
+	hbox->Show();
+
+	// Make a vbox to hold the hbox we just made, and the status text
+	vbox = new Kis_Panel_Packbox(globalreg, this);
+	vbox->SetPackV();
+	vbox->SetHomogenous(0);
+	vbox->SetSpacing(0);
+	vbox->Show();
+
+	// Make the network pack box which holds the network widget and the 
+	// extra info line widget
+	netbox = new Kis_Panel_Packbox(globalreg, this);
+	netbox->SetPackV();
+	netbox->SetSpacing(0);
+	netbox->SetHomogenous(0);
+	netbox->SetName("KIS_MAIN_NETBOX");
+	netbox->Show();
+
+	// Make the one-line horizontal box which holds GPS, battery, etc
+	linebox = new Kis_Panel_Packbox(globalreg, this);
+	linebox->SetPackH();
+	linebox->SetSpacing(1);
+	linebox->SetHomogenous(0);
+	linebox->SetName("KIS_MAIN_LINEBOX");
+	linebox->SetPreferredSize(0, 1);
+	linebox->Show();
+
+	// Make the vertical box holding things like the # of networks
+	optbox = new Kis_Panel_Packbox(globalreg, this);
+	optbox->SetPackV();
+	optbox->SetSpacing(1);
+	optbox->SetHomogenous(0);
+	optbox->SetName("KIS_MAIN_OPTBOX");
+	optbox->SetPreferredSize(10, 0);
+	optbox->Show();
+
 	statustext = new Kis_Status_Text(globalreg, this);
-	
 	statuscli = new KisStatusText_Messageclient(globalreg, statustext);
 	globalreg->messagebus->RegisterClient(statuscli, MSGFLAG_ALL);
 
+	// We only want 5 lines of status text
+	statustext->SetPreferredSize(0, 5);
+	statustext->SetName("KIS_MAIN_STATUS");
 	statustext->Show();
 
-	comp_vec.push_back(statustext);
-
 	netlist = new Kis_Netlist(globalreg, this);
+	netlist->SetName("KIS_MAIN_NETLIST");
 	netlist->Show();
 
+	// Pack our boxes together
+	hbox->Pack_End(netbox, 1, 0);
+	hbox->Pack_End(optbox, 0, 0);
+
+	netbox->Pack_End(netlist, 1, 0);
+	netbox->Pack_End(linebox, 0, 0);
+
+	vbox->Pack_End(hbox, 1, 0);
+	vbox->Pack_End(statustext, 0, 0);
+
 	active_component = netlist;
-	comp_vec.push_back(netlist);
+
+	comp_vec.push_back(vbox);
 
 	if (kpinterface->prefs.FetchOpt("LOADEDFROMFILE") != "1") {
 		_MSG("Failed to load preferences file, will use defaults", MSGFLAG_INFO);
@@ -108,8 +162,14 @@ void Kis_Main_Panel::Position(int in_sy, int in_sx, int in_y, int in_x) {
 	Kis_Panel::Position(in_sy, in_sx, in_y, in_x);
 
 	menu->SetPosition(1, 0, 0, 0);
+
+	// All we have to do is position the main box now
+	vbox->SetPosition(in_sx + 1, in_sy + 1, in_x - 1, in_y - 2);
+
+	/*
 	netlist->SetPosition(in_sx + 2, in_sy + 1, in_x - 15, in_y - 8);
 	statustext->SetPosition(in_sx + 1, in_y - 7, in_x - 2, 5);
+	*/
 }
 
 void Kis_Main_Panel::DrawPanel() {

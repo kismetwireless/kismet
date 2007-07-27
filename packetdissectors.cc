@@ -878,15 +878,20 @@ int KisBuiltinDissector::ieee80211_dissector(kis_packet *in_pack) {
 						}
 
 						// Match 221 tag header for WPA
-						if (taglen < 6 || memcmp(&(chunk->data[tag_orig + offt]), 
-												 WPA_OUI, sizeof(WPA_OUI)))
+						if (taglen < 6)
+							continue;
+
+						if (memcmp(&(chunk->data[tag_orig + offt]), 
+								   WPA_OUI, sizeof(WPA_OUI)))
 							continue;
 
 						offt += 6;
 
 						// Match WPA multicast suite
-						if (offt + 4 > taglen || 
-							memcmp(&(chunk->data[tag_orig + offt]), WPA_OUI,
+						if (offt + 4 > taglen)
+							continue;
+						
+						if (memcmp(&(chunk->data[tag_orig + offt]), WPA_OUI,
 								   sizeof(WPA_OUI)))
 							continue;
 
@@ -915,7 +920,7 @@ int KisBuiltinDissector::ieee80211_dissector(kis_packet *in_pack) {
 							if (memcmp(&(chunk->data[tag_orig + offt]), 
 									  WPA_OUI, sizeof(WPA_OUI)) == 0) {
 								packinfo->cryptset = 
-									WPACipherConv(chunk->data[tag_orig + offt + 3]);
+									WPAKeyMgtConv(chunk->data[tag_orig + offt + 3]);
 								offt += 4;
 							} else {
 								break;
