@@ -295,7 +295,7 @@ int PacketSource_Wext::SetChannel(unsigned int in_ch) {
 	return 1;
 }
 
-int PacketSource_Wext::FetchChannel() {
+int PacketSource_Wext::FetchHardwareChannel() {
     char errstr[STATUS_MAX] = "";
 	int chan = 0;
 

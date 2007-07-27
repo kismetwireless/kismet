@@ -166,6 +166,7 @@ public:
 		channel_pos = 0;
 		consec_error = 0;
 		initial_channel = 0;
+		local_channel = 0;
 
 		num_packets = 0;
 
@@ -298,8 +299,12 @@ public:
     virtual int OpenSource() = 0;
     virtual int CloseSource() = 0;
 
-    // Get the channel
-    virtual int FetchChannel() { return 0; }
+    // Get the last set local channel
+    virtual int FetchChannel() { return local_channel; }
+	virtual void SetLocalChannel(int in_ch) { local_channel = in_ch; }
+
+	// Get the hardware channel
+	virtual int FetchHardwareChannel() { return 0; }
 
 	// Get a pollable file descriptor
     virtual int FetchDescriptor() = 0;
@@ -375,6 +380,7 @@ protected:
 	// "last channel we set"
     int channel;
 	int initial_channel;
+	int local_channel;
 
 	// Do we hop, where are we in hopping, what channels do we hop to
 	int channel_hop;

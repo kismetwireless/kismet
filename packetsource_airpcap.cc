@@ -201,7 +201,7 @@ int PacketSource_AirPcap::DisableMonitor() {
 	return PACKSOURCE_UNMONITOR_RET_CANTUNMON;
 }
 
-int PacketSource_AirPcap::FetchChannel() {
+int PacketSource_AirPcap::FetchHardwareChannel() {
 	unsigned int ch;
 	if (!AirpcapGetDeviceChannel(airpcap_handle, &ch))
 		return -1;

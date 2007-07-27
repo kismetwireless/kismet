@@ -208,7 +208,7 @@ public:
 	static void Pcap_Callback(u_char *bp, const struct pcap_pkthdr *header,
 							  const u_char *in_data);
 
-	virtual int FetchChannel();
+	virtual int FetchHardwareChannel();
 
 protected:
 	// Mangle linkheaders off a frame, etc

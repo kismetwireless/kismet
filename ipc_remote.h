@@ -74,6 +74,7 @@ typedef struct ipc_msgbus_pass {
 // reasonable structs for *data
 typedef struct ipc_packet {
 	uint32_t sentinel;
+	uint8_t ipc_ack;
 	uint32_t ipc_cmdnum;
 	uint32_t data_len;
 	uint8_t data[0];
@@ -94,8 +95,11 @@ public:
 
 	// IPC commands are integers, which means we get away without having to care
 	// at all if they duplicate commands or whatever, so we don't even really
-	// care about unique callbacks.  Makes life easy for us.
-	virtual int RegisterIPCCmd(IPCmdCallback in_callback, void *in_aux);
+	// care about unique callbacks.  Makes life easy for us.  If ackcallback
+	// is not null, the caller will get the ackframe called to their function
+	virtual int RegisterIPCCmd(IPCmdCallback in_callback, 
+							   IPCmdCallback in_ackcallback, 
+							   void *in_aux);
 
 	// Kick a command across (either direction)
 	virtual int SendIPC(ipc_packet *pack);
@@ -122,6 +126,7 @@ public:
 	typedef struct ipc_cmd_rec {
 		void *auxptr;
 		IPCmdCallback callback;
+		IPCmdCallback ack_callback;
 	};
 
 protected:
@@ -163,7 +168,6 @@ protected:
 	// Builtin mandatory command IDs
 	uint32_t die_cmd_id;
 	uint32_t msg_cmd_id;
-	uint32_t ack_cmd_id;
 
 	friend class IPC_MessageClient;
 	friend int ipc_die_callback(IPC_CMD_PARMS);

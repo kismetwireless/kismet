@@ -98,7 +98,7 @@ public:
 	virtual int DisableMonitor();
 	virtual int SetChannel(unsigned int in_ch);
 	virtual int SetChannelSequence(vector<unsigned int> in_seq);
-	virtual int FetchChannel();
+	virtual int FetchHardwareChannel();
 
 protected:
 	// Stuff we need to track to restore later

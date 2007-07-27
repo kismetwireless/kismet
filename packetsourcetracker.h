@@ -222,6 +222,7 @@ protected:
 	int SetChannelSrc(unsigned int in_ch, KisPacketSource *src);
 	// Local card set used by the ipc callback
     int SetIPCChannel(unsigned int in_ch, unsigned int meta_num);
+    int AckIPCChannel(unsigned int in_ch, unsigned int meta_num);
 	// Shutdown all sources (actually do the work)
 	int ShutdownIPCSources();
 
@@ -260,6 +261,7 @@ protected:
 
 	friend int ChannelHopEvent(TIMEEVENT_PARMS);
 	friend int packsrc_chan_ipc(IPC_CMD_PARMS);
+	friend int packsrc_chanack_ipc(IPC_CMD_PARMS);
 	friend int packsrc_haltall_ipc(IPC_CMD_PARMS);
 };
 

@@ -437,7 +437,7 @@ int PacketSource_BSDRT::CheckDLT(int dlt) {
 	return found;
 }
 
-int PacketSource_BSDRT::FetchChannel() {
+int PacketSource_BSDRT::FetchHardwareChannel() {
 	int chan;
 
 	Radiotap_BSD_Controller bsdcon(globalreg, interface);

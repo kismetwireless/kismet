@@ -38,7 +38,12 @@ int sound_ipc_callback(IPC_CMD_PARMS) {
 		return 0;
 	}
 
-	return ((SoundControl *) auxptr)->LocalPlay((char *) data);
+	int ret = ((SoundControl *) auxptr)->LocalPlay((char *) data);
+
+	if (ret < 0)
+		return -1;
+
+	return 0;
 }
 
 SoundControl::SoundControl() {
@@ -91,7 +96,7 @@ SoundControl::SoundControl(GlobalRegistry *in_globalreg) {
     }
 
 	sound_remote = new IPCRemote(globalreg, "sound daemon");
-	sound_ipc_id = sound_remote->RegisterIPCCmd(&sound_ipc_callback, this);
+	sound_ipc_id = sound_remote->RegisterIPCCmd(&sound_ipc_callback, NULL, this);
 	globalreg->RegisterPollableSubsys(sound_remote);
     
 }
@@ -124,6 +129,7 @@ int SoundControl::PlaySound(string in_text) {
 	
 	pack->data_len = strlen(snd) + 1;
 	pack->ipc_cmdnum = sound_ipc_id;
+	pack->ipc_ack = 0;
 
 	sound_remote->SendIPC(pack);
 

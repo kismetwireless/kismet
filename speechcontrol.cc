@@ -61,7 +61,7 @@ int speech_ipc_callback(IPC_CMD_PARMS) {
 	// is fine.
 	system(spk_call);
 
-	return 1;
+	return 0;
 }
 
 SpeechControl::SpeechControl() {
@@ -114,7 +114,7 @@ SpeechControl::SpeechControl(GlobalRegistry *in_globalreg) {
     
 
 	speech_remote = new IPCRemote(globalreg, "speech daemon");
-	speech_ipc_id = speech_remote->RegisterIPCCmd(&speech_ipc_callback, this);
+	speech_ipc_id = speech_remote->RegisterIPCCmd(&speech_ipc_callback, NULL, this);
 	globalreg->RegisterPollableSubsys(speech_remote);
 }
 
@@ -151,6 +151,7 @@ int SpeechControl::SayText(string in_text) {
 	pack->data_len = strlen(snd) + 1;
 
 	pack->ipc_cmdnum = speech_ipc_id;
+	pack->ipc_ack = 0;
 
 	// Push it via the IPC
 	speech_remote->SendIPC(pack);

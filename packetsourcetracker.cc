@@ -466,6 +466,24 @@ int packsrc_chan_ipc(IPC_CMD_PARMS) {
 	return 1;
 }
 
+int packsrc_chanack_ipc(IPC_CMD_PARMS) {
+	// Children don't do anything with this ack
+	if (parent == 0)
+		return 0;
+
+	if (len < (int) sizeof(Packetsourcetracker::chanchild_changepacket))
+		return 0;
+
+	Packetsourcetracker::chanchild_changepacket *chpak =
+		(Packetsourcetracker::chanchild_changepacket *) data;
+
+	// Kick our IPC-child copy of the channel set command
+	((Packetsourcetracker *) auxptr)->AckIPCChannel(chpak->channel,
+													chpak->meta_num);
+
+	return 0;
+}
+
 int packsrc_haltall_ipc(IPC_CMD_PARMS) {
 	if (parent)
 		return 0;
@@ -473,7 +491,7 @@ int packsrc_haltall_ipc(IPC_CMD_PARMS) {
 	// Kick the IPC copy to shutdown this metanum
 	((Packetsourcetracker *) auxptr)->ShutdownIPCSources();
 
-	return 1;
+	return 0;
 }
 
 void Packetsourcetracker::Usage(char *name) {
@@ -583,8 +601,11 @@ Packetsourcetracker::Packetsourcetracker(GlobalRegistry *in_globalreg) {
 
 	// Assign the IPC commands and make it pollable
 #ifdef HAVE_SUID
-	chan_ipc_id = globalreg->rootipc->RegisterIPCCmd(&packsrc_chan_ipc, this);
-	haltall_ipc_id = globalreg->rootipc->RegisterIPCCmd(&packsrc_haltall_ipc, this);
+	chan_ipc_id = globalreg->rootipc->RegisterIPCCmd(&packsrc_chan_ipc, 
+													 &packsrc_chanack_ipc,
+													 this);
+	haltall_ipc_id = globalreg->rootipc->RegisterIPCCmd(&packsrc_haltall_ipc, 
+														NULL, this);
 #endif
 }
 
@@ -1037,6 +1058,8 @@ int Packetsourcetracker::SetChannelSrc(unsigned int in_ch, KisPacketSource *src)
 
     if (ret < 0)
         return ret;
+
+	src->SetLocalChannel(in_ch);
 #else
 	// Don't use IPC to set "local control" sources (why use IPC to set snmp?)
 
@@ -1064,6 +1087,9 @@ int Packetsourcetracker::SetChannelSrc(unsigned int in_ch, KisPacketSource *src)
 	if (src->ChildIPCControl() == 0) {
 		int ret;
 		ret = src->SetChannel(in_ch);
+	
+		if (ret >= 0)
+			src->SetLocalChannel(in_ch);
 
 		return ret;
 	}
@@ -1077,6 +1103,7 @@ int Packetsourcetracker::SetChannelSrc(unsigned int in_ch, KisPacketSource *src)
 	chpak->channel = in_ch;
 
 	pack->data_len = sizeof(chanchild_changepacket);
+	pack->ipc_ack = 0;
 	pack->ipc_cmdnum = chan_ipc_id;
 
 	globalreg->rootipc->SendIPC(pack);
@@ -1104,7 +1131,38 @@ int Packetsourcetracker::SetIPCChannel(unsigned int in_ch, unsigned int meta_num
 		globalreg->rootipc->ShutdownIPC(NULL);
 	}
 
-	return -1;
+	ipc_packet *pack =
+		(ipc_packet *) malloc(sizeof(ipc_packet) + 
+							  sizeof(chanchild_changepacket));
+	chanchild_changepacket *chpak = (chanchild_changepacket *) pack->data;
+
+	chpak->meta_num = meta_num;
+	chpak->channel = in_ch;
+
+	pack->data_len = sizeof(chanchild_changepacket);
+	pack->ipc_ack = 1;
+	pack->ipc_cmdnum = chan_ipc_id;
+
+	globalreg->rootipc->SendIPC(pack);
+
+	return 1;
+}
+
+int Packetsourcetracker::AckIPCChannel(unsigned int in_ch, unsigned int meta_num) {
+	// This usually happens inside the IPC fork, so remember not to screw with
+	// things that aren't set yet!  Meta is safe, other stuff isn't.  Globalreg
+	// got remapped by the IPC system to funnel back over IPC
+	if (meta_num >= live_packsources.size()) {
+		_MSG("Packetsourcetracker SetIPCChannel got illegal packet source "
+			 "card number to set", MSGFLAG_ERROR);
+		return 0;
+	}
+
+	KisPacketSource *src = live_packsources[meta_num];
+
+	src->SetLocalChannel(in_ch);
+
+	return 0;
 }
 
 int Packetsourcetracker::SetHopping(int in_hopping, uuid in_uuid) {

@@ -720,7 +720,7 @@ int PacketSource_Pcap::Radiotap2KisPack(kis_packet *packet) {
 #undef BITNO_2
 #undef BIT
 
-int PacketSource_Pcap::FetchChannel() {
+int PacketSource_Pcap::FetchHardwareChannel() {
 	return 0;
 }
 

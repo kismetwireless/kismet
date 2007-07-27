@@ -47,6 +47,7 @@ void IPC_MessageClient::ProcessMessage(string in_msg, int in_flags) {
 	pack->data_len = 8 + in_msg.length() + 1;
 
 	pack->ipc_cmdnum = ((IPCRemote *) auxptr)->msg_cmd_id;
+	pack->ipc_ack = 0;
 
 	// If it's a fatal frame, push it as a shutdown
 	if ((in_flags & MSGFLAG_FATAL)) {
@@ -77,7 +78,7 @@ int ipc_msg_callback(IPC_CMD_PARMS) {
 
 	_MSG(pass->msg, pass->msg_flags);
 
-	return 1;
+	return 0;
 }
 
 int ipc_die_callback(IPC_CMD_PARMS) {
@@ -101,15 +102,7 @@ int ipc_die_callback(IPC_CMD_PARMS) {
 	// Call the internal die sequence to make sure the child pid goes down
 	((IPCRemote *) auxptr)->IPCDie();
 	
-	return 1;
-}
-
-int ipc_ack_callback(IPC_CMD_PARMS) {
-	// Synchronize commands by sending an ack frame
-	// This is a messy hook into the middle of the class but we need it for the
-	// internals
-	((IPCRemote *) auxptr)->last_ack = 1;
-	return 1;
+	return 0;
 }
 
 IPCRemote::IPCRemote() {
@@ -132,12 +125,13 @@ IPCRemote::IPCRemote(GlobalRegistry *in_globalreg, string in_procname) {
 	last_ack = 1; // Our "last" command was ack'd
 
 	// Register builtin commands
-	die_cmd_id = RegisterIPCCmd(&ipc_die_callback, this);
-	ack_cmd_id = RegisterIPCCmd(&ipc_ack_callback, this);
-	msg_cmd_id = RegisterIPCCmd(&ipc_msg_callback, this);
+	die_cmd_id = RegisterIPCCmd(&ipc_die_callback, NULL, this);
+	msg_cmd_id = RegisterIPCCmd(&ipc_msg_callback, NULL, this);
 }
 
-int IPCRemote::RegisterIPCCmd(IPCmdCallback in_callback, void *in_aux) {
+int IPCRemote::RegisterIPCCmd(IPCmdCallback in_callback, 
+							  IPCmdCallback in_ackcallback,
+							  void *in_aux) {
 	if (ipc_spawned) {
 		_MSG("IPC_Remote - Tried to register a command after the IPC agent has "
 			 "been spawned.  Commands must be registered before Spawn().",
@@ -151,6 +145,7 @@ int IPCRemote::RegisterIPCCmd(IPCmdCallback in_callback, void *in_aux) {
 	ipc_cmd_rec *rec = new ipc_cmd_rec;
 	rec->auxptr = in_aux;
 	rec->callback = in_callback;
+	rec->ack_callback = in_ackcallback;
 
 	ipc_cmd_map[next_cmdid] = rec;
 
@@ -215,6 +210,7 @@ int IPCRemote::ShutdownIPC(ipc_packet *pack) {
 	ipc_packet *dpack = (ipc_packet *) malloc(sizeof(ipc_packet));
 	dpack->data_len = 0;
 	dpack->ipc_cmdnum = die_cmd_id;
+	dpack->ipc_ack = 0;
 	dpack->sentinel = IPCRemoteSentinel;
 
 	// Send it immediately
@@ -409,7 +405,7 @@ int IPCRemote::Poll(fd_set& in_rset, fd_set& in_wset) {
 			// should.
 			if (pack->ipc_cmdnum != die_cmd_id &&
 				pack->ipc_cmdnum != msg_cmd_id &&
-				pack->ipc_cmdnum != ack_cmd_id) {
+				pack->ipc_ack == 0) {
 				last_ack = 0;
 			}
 
@@ -473,6 +469,7 @@ int IPCRemote::Poll(fd_set& in_rset, fd_set& in_wset) {
 			return -1;
 		}
 		IPCmdCallback cback = cbitr->second->callback;
+		IPCmdCallback ackcback = cbitr->second->ack_callback;
 		void *cbackaux = cbitr->second->auxptr;
 
 		// Get the full packet
@@ -495,33 +492,44 @@ int IPCRemote::Poll(fd_set& in_rset, fd_set& in_wset) {
 			}
 		}
 
-		// We "know" the rest is valid, so call the handler w/ this function.
-		// giving it the ipc pid lets us cheat and tell if its the parent or not,
-		// since the child has a 0 pid
-		ret = (*cback)(globalreg, fullpack->data, fullpack->data_len, 
-					   cbackaux, ipc_pid);
-		if (ret < 0) {
-			if (ipc_pid == 0) 
-				osstr << "IPC child got error executing command from controller.";
-			else
-				osstr << "IPC controller got error executing command "
-					"from IPC child pid " << ipc_pid;
-			_MSG(osstr.str(), MSGFLAG_FATAL);
-			globalreg->fatal_condition = 1;
-			return -1;
-		}
+		// If we've got an ack frame, and there is an ack callback for this 
+		// command type, we send it on to them
+		if (ipchdr.ipc_ack) {
+			if (ackcback != NULL) {
+				ret = (*ackcback)(globalreg, fullpack->data, fullpack->data_len,
+								  cbackaux, ipc_pid);
+			}
+			last_ack = 1;
+		} else {
+			// We "know" the rest is valid, so call the handler w/ this function.
+			// giving it the ipc pid lets us cheat and tell if its the parent or not,
+			// since the child has a 0 pid
+			ret = (*cback)(globalreg, fullpack->data, fullpack->data_len, 
+						   cbackaux, ipc_pid);
+			if (ret < 0) {
+				if (ipc_pid == 0) 
+					osstr << "IPC child got error executing command from controller.";
+				else
+					osstr << "IPC controller got error executing command "
+						"from IPC child pid " << ipc_pid;
+				_MSG(osstr.str(), MSGFLAG_FATAL);
+				globalreg->fatal_condition = 1;
+				return -1;
+			}
 
-		free(fullpack);
+			free(fullpack);
 
-		// Queue a return ack frame that the command was received and processed
-		// if it's not die, msg, or ack
-		if (ipchdr.ipc_cmdnum != die_cmd_id &&
-			ipchdr.ipc_cmdnum != msg_cmd_id &&
-			ipchdr.ipc_cmdnum != ack_cmd_id) {
-			ipc_packet *ackpack = (ipc_packet *) malloc(sizeof(ipc_packet));
-			ackpack->data_len = 0;
-			ackpack->ipc_cmdnum = ack_cmd_id;
-			SendIPC(ackpack);
+			// Queue a return ack frame that the command was received and processed
+			// if it's not die, msg, or ack, and ret == 0, ie, send a generic ack
+			if (ipchdr.ipc_cmdnum != die_cmd_id &&
+				ipchdr.ipc_cmdnum != msg_cmd_id &&
+				ret == 0) {
+				ipc_packet *ackpack = (ipc_packet *) malloc(sizeof(ipc_packet));
+				ackpack->ipc_ack = 1;
+				ackpack->ipc_cmdnum = ipchdr.ipc_cmdnum;
+				ackpack->data_len = 0;
+				SendIPC(ackpack);
+			}
 		}
 	}
 

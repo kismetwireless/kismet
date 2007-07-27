@@ -67,7 +67,6 @@ public:
 	virtual int EnableMonitor();
 	virtual int DisableMonitor();
 	virtual int SetChannel(unsigned int in_ch);
-	virtual int FetchChannel();
 
 protected:
 	virtual void FetchRadioData(kis_packet *in_packet) { };
