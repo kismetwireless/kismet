@@ -116,6 +116,8 @@ protected:
 	Kis_Button *okbutton;
 	Kis_Button *cancelbutton;
 
+	Kis_Panel_Packbox *vbox, *bbox;
+
 	vector<Kis_Panel_Component *> tab_components;
 	int tab_pos;
 };

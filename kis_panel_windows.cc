@@ -406,11 +406,6 @@ Kis_Connect_Panel::Kis_Connect_Panel(GlobalRegistry *in_globalreg,
 	cancelbutton = new Kis_Button(globalreg, this);
 	okbutton = new Kis_Button(globalreg, this);
 
-	comp_vec.push_back(hostname);
-	comp_vec.push_back(hostport);
-	comp_vec.push_back(cancelbutton);
-	comp_vec.push_back(okbutton);
-
 	tab_components.push_back(hostname);
 	tab_components.push_back(hostport);
 	tab_components.push_back(okbutton);
@@ -431,6 +426,36 @@ Kis_Connect_Panel::Kis_Connect_Panel(GlobalRegistry *in_globalreg,
 
 	okbutton->SetText("Connect");
 	cancelbutton->SetText("Cancel");
+
+	hostname->Show();
+	hostport->Show();
+	okbutton->Show();
+	cancelbutton->Show();
+
+	vbox = new Kis_Panel_Packbox(globalreg, this);
+	vbox->SetPackV();
+	vbox->SetHomogenous(0);
+	vbox->SetSpacing(1);
+	vbox->Show();
+
+	bbox = new Kis_Panel_Packbox(globalreg, this);
+	bbox->SetPackH();
+	bbox->SetHomogenous(1);
+	bbox->SetSpacing(1);
+	bbox->SetCenter(1);
+	bbox->Show();
+
+	bbox->Pack_End(cancelbutton, 0, 0);
+	bbox->Pack_End(okbutton, 0, 0);
+
+	vbox->Pack_End(hostname, 0, 0);
+	vbox->Pack_End(hostport, 0, 0);
+	vbox->Pack_End(bbox, 1, 0);
+
+	comp_vec.push_back(vbox);
+
+	active_component = hostname;
+	hostname->Activate(1);
 }
 
 Kis_Connect_Panel::~Kis_Connect_Panel() {
@@ -439,18 +464,7 @@ Kis_Connect_Panel::~Kis_Connect_Panel() {
 void Kis_Connect_Panel::Position(int in_sy, int in_sx, int in_y, int in_x) {
 	Kis_Panel::Position(in_sy, in_sx, in_y, in_x);
 
-	hostname->SetPosition(2, 2, in_x - 6, 1);
-	hostport->SetPosition(2, 4, 14, 1);
-	okbutton->SetPosition(in_x - 15, in_y - 2, 10, 1);
-	cancelbutton->SetPosition(in_x - 15 - 2 - 15, in_y - 2, 10, 1);
-
-	hostname->Activate(1);
-	active_component = hostname;
-
-	hostname->Show();
-	hostport->Show();
-	okbutton->Show();
-	cancelbutton->Show();
+	vbox->SetPosition(1, 2, in_x - 2, in_y - 3);
 }
 
 void Kis_Connect_Panel::DrawPanel() {

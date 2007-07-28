@@ -277,6 +277,7 @@ Kis_Panel_Packbox::Kis_Panel_Packbox(GlobalRegistry *in_globalreg,
 	homogenous = 0;
 	packing = 0;
 	spacing = 0;
+	center = 0;
 
 	name = "GENERIC_PACKBOX";
 }
@@ -399,10 +400,11 @@ void Kis_Panel_Packbox::Pack_Widgets() {
 
 			perbox = (int) ((float) (size - (spacing * (ndivs - 1)))  / ndivs);
 
-			if (packing == 0)
+			if (packing == 0) {
 				wmsize = (*i).widget->GetMinX();
-			else
+			} else {
 				wmsize = (*i).widget->GetMinY();
+			}
 
 			// If someone can't fit, decrease the number of divisions until we
 			// can, and we just don't draw those widgets.  Yeah, it sucks, 
@@ -426,14 +428,21 @@ void Kis_Panel_Packbox::Pack_Widgets() {
 
 			// Set the position of each widget
 			int ww = perbox - ((*i).padding * 2);
+			int co = 0;
 
 			// Get the preferred size (or best we can do) OR the fill
-			int psize = 0;;
+			int psize = 0, op = 0;
 			if ((*i).fill == 0) {
 				if (packing == 0) {
 					psize = (*i).widget->GetPrefX() + ((*i).padding * 2);
+					op = (*i).widget->GetPrefY();
+					if (op > ly || op == 0)
+						op = ly;
 				} else {
 					psize = (*i).widget->GetPrefY() + ((*i).padding * 2);
+					op = (*i).widget->GetPrefX();
+					if (op > lx || op == 0)
+						op = lx;
 				}
 
 				if (psize > ww)
@@ -442,14 +451,18 @@ void Kis_Panel_Packbox::Pack_Widgets() {
 				psize = ww;
 			}
 
+			if (center && psize != ww) {
+				co = (ww - psize) / 2;
+			}
+
 			if (packing == 0) {
 				(*i).widget->SetPosition(
-						sx + (spacing * x) + (perbox * x) + (*i).padding, sy,
-						sx + (spacing * x) + (perbox * x) + (*i).padding + psize, ey);
+						sx + (perbox * x) + (*i).padding + co, sy,
+						sx + (perbox * x) + (*i).padding + co + psize, sy + op);
 			} else {
 				(*i).widget->SetPosition(
-						sx, sy + (spacing * x) + (perbox * x) + (*i).padding,
-						ex, sy + (spacing * x) + (perbox * x) + (*i).padding + psize);
+						sx, sy + (perbox * x) + (*i).padding + co, sx + op, 
+						sy + (perbox * x) + (*i).padding + co + psize);
 			}
 
 		}
@@ -491,16 +504,21 @@ void Kis_Panel_Packbox::Pack_Widgets() {
 				if ((*i).widget->GetVisible() == 0)
 					continue;
 
-				int mp, pp;
+				int mp, pp, op;
 
 				if (packing == 0) {
 					mp = (*i).widget->GetMinX();
 					pp = (*i).widget->GetPrefX();
+					op = (*i).widget->GetPrefY();
+					if (op > ly || op == 0)
+						op = ly;
 				} else {
 					mp = (*i).widget->GetMinY();
 					pp = (*i).widget->GetPrefY();
+					op = (*i).widget->GetPrefX();
+					if (op > lx || op == 0)
+						op = lx;
 				}
-
 
 				int ww;
 				ww = mp + ((*i).padding * 2);
@@ -514,15 +532,14 @@ void Kis_Panel_Packbox::Pack_Widgets() {
 				if (packing == 0) {
 					(*i).widget->SetPosition(
 						sx + (spacing * x) + pos, sy,
-						sx + (spacing * x) + pos + ww, ey);
+						sx + (spacing * x) + pos + ww, sy + op);
 				} else {
 					(*i).widget->SetPosition(
 						sx, sy + (spacing * x) + pos,
-						ex, sy + (spacing * x) + pos + ww);
+						sx + op, sy + (spacing * x) + pos + ww);
 				}
 
 				pos += ww;
-
 			}
 		}
 
@@ -563,15 +580,21 @@ void Kis_Panel_Packbox::Pack_Widgets() {
 	pos = 0;
 	i = packed_items.begin();
 	for (int x = 0; i != packed_items.end(); ++i, x++) {
-		int pp;
+		int pp, op;
 
 		if ((*i).widget->GetVisible() == 0)
 			continue;
 
 		if (packing == 0) {
 			pp = (*i).widget->GetPrefX();
+			op = (*i).widget->GetPrefY();
+			if (op > ly || op == 0)
+				op = ly;
 		} else {
 			pp = (*i).widget->GetPrefY();
+			op = (*i).widget->GetPrefX();
+			if (op > lx || op == 0)
+				op = lx;
 		}
 
 		// Disperse the bucket over the items we have left
@@ -585,15 +608,14 @@ void Kis_Panel_Packbox::Pack_Widgets() {
 
 		if (packing == 0) {
 			(*i).widget->SetPosition(
-						 sx + pos + (spacing * (x > 0)), sy,
-						 sx + pos + (spacing * (x > 0)) + pp, ey);
+						 sx + pos, sy,
+						 sx + pos + pp, sy + op);
 		} else {
 			(*i).widget->SetPosition(
-						 sx, sy + pos + (spacing * (x > 0)),
-						 ex, sy + pos + (spacing * (x > 0)) + pp);
+						 sx, sy + pos, sx + op, sy + pos + pp);
 		} 
 
-		pos += pp;
+		pos += pp + spacing;
 	}
 }
 
@@ -1882,20 +1904,20 @@ void Kis_Single_Input::DrawComponent() {
 	int yoff = 0;
 
 	// Draw the label if we can, in bold
-	if (ey >= 2 && label_pos == LABEL_POS_TOP) {
+	if (ly >= 2 && label_pos == LABEL_POS_TOP) {
 		wattron(window, WA_BOLD);
-		mvwaddnstr(window, sy, sx, label.c_str(), ex);
+		mvwaddnstr(window, sy, sx, label.c_str(), lx);
 		wattroff(window, WA_BOLD);
 		yoff = 1;
 	} else if (label_pos == LABEL_POS_LEFT) {
 		wattron(window, WA_BOLD);
-		mvwaddnstr(window, sy, sx, label.c_str(), ex);
+		mvwaddnstr(window, sy, sx, label.c_str(), lx);
 		wattroff(window, WA_BOLD);
 		xoff += label.length() + 1;
 	}
 
 	// set the drawing length
-	draw_len = ex - xoff;
+	draw_len = lx - xoff;
 
 	// Clean up any silliness that might be present from initialization
 	if (inp_pos - curs_pos >= draw_len)
@@ -2014,10 +2036,14 @@ void Kis_Single_Input::SetCharFilter(string in_charfilter) {
 void Kis_Single_Input::SetLabel(string in_label, KisWidget_LabelPos in_pos) {
 	label = in_label;
 	label_pos = in_pos;
+	SetPreferredSize(label.length() + max_len + 1, 1);
+	SetMinSize(label.length() + 3, 1);
 }
 
 void Kis_Single_Input::SetTextLen(int in_len) {
 	max_len = in_len;
+	SetPreferredSize(in_len + label.length() + 1, 1);
+	SetMinSize(label.length() + 3, 1);
 }
 
 void Kis_Single_Input::SetText(string in_text, int dpos, int ipos) {
@@ -2050,15 +2076,15 @@ void Kis_Button::DrawComponent() {
 	if (active)
 		wattron(window, WA_REVERSE);
 
-	mvwhline(window, sy, sx, ' ', ex);
+	mvwhline(window, sy, sx, ' ', lx);
 
 	// Center the text
-	int tx = (ex / 2) - (text.length() / 2);
-	mvwaddnstr(window, sy, sx + tx, text.c_str(), ex - tx);
+	int tx = (lx / 2) - (text.length() / 2);
+	mvwaddnstr(window, sy, sx + tx, text.c_str(), lx - tx);
 
 	// Add the ticks 
 	mvwaddch(window, sy, sx, '[');
-	mvwaddch(window, sy, sx + ex, ']');
+	mvwaddch(window, sy, sx + lx, ']');
 
 	if (active)
 		wattroff(window, WA_REVERSE);
@@ -2085,6 +2111,7 @@ int Kis_Button::KeyPress(int in_key) {
 
 void Kis_Button::SetText(string in_text) {
 	text = in_text;
+	SetPreferredSize(text.length() + 4, 1);
 }
 
 Kis_Panel::Kis_Panel(GlobalRegistry *in_globalreg, KisPanelInterface *in_intf) {

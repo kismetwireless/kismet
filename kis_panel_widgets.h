@@ -242,6 +242,11 @@ public:
 		layout_dirty = 1;
 	}
 
+	virtual void SetCenter(int in_cent) {
+		center = in_cent;
+		layout_dirty = 1;
+	}
+
 	// Are we packing vertical or horizontal?
 	virtual void SetPackH() {
 		packing = 0;
@@ -264,7 +269,7 @@ protected:
 
 	virtual void Pack_Widgets();
 
-	int homogenous, packing, spacing;
+	int homogenous, packing, spacing, center;
 };
 
 class Kis_Menu : public Kis_Panel_Component {
