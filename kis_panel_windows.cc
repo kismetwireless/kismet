@@ -790,19 +790,12 @@ Kis_AddCard_Panel::Kis_AddCard_Panel(GlobalRegistry *in_globalreg,
 	okbutton = new Kis_Button(globalreg, this);
 	cancelbutton = new Kis_Button(globalreg, this);
 
-	comp_vec.push_back(srctype);
-	comp_vec.push_back(srciface);
-	comp_vec.push_back(srcname);
-	comp_vec.push_back(okbutton);
-	comp_vec.push_back(cancelbutton);
-
 	tab_components.push_back(srctype);
 	tab_components.push_back(srciface);
 	tab_components.push_back(srcname);
 	tab_components.push_back(okbutton);
 	tab_components.push_back(cancelbutton);
 	tab_pos = 0;
-
 	active_component = srctype;
 
 	SetTitle("Add Source");
@@ -810,19 +803,47 @@ Kis_AddCard_Panel::Kis_AddCard_Panel(GlobalRegistry *in_globalreg,
 	srctype->SetLabel("Type", LABEL_POS_LEFT);
 	srctype->SetTextLen(32);
 	srctype->SetCharFilter(FILTER_ALPHANUMSYM);
+	srctype->Show();
 
 	srciface->SetLabel("Intf", LABEL_POS_LEFT);
 	srciface->SetTextLen(32);
 	srciface->SetCharFilter(FILTER_ALPHANUMSYM);
+	srciface->Show();
 		
 	srcname->SetLabel("Name", LABEL_POS_LEFT);
 	srcname->SetTextLen(32);
 	srcname->SetCharFilter(FILTER_ALPHANUMSYM);
+	srcname->Show();
 
 	okbutton->SetText("Add");
+	okbutton->Show();
 	cancelbutton->SetText("Cancel");
+	cancelbutton->Show();
 
 	target_cli = NULL;
+
+	vbox = new Kis_Panel_Packbox(globalreg, this);
+	vbox->SetPackV();
+	vbox->SetHomogenous(0);
+	vbox->SetSpacing(1);
+	vbox->Show();
+
+	bbox = new Kis_Panel_Packbox(globalreg, this);
+	bbox->SetPackH();
+	bbox->SetHomogenous(1);
+	bbox->SetSpacing(1);
+	bbox->SetCenter(1);
+	bbox->Show();
+
+	bbox->Pack_End(cancelbutton, 0, 0);
+	bbox->Pack_End(okbutton, 0, 0);
+
+	vbox->Pack_End(srctype, 0, 0);
+	vbox->Pack_End(srciface, 0, 0);
+	vbox->Pack_End(srcname, 0, 0);
+	vbox->Pack_End(bbox, 1, 0);
+
+	comp_vec.push_back(vbox);
 }
 
 Kis_AddCard_Panel::~Kis_AddCard_Panel() {
@@ -831,21 +852,7 @@ Kis_AddCard_Panel::~Kis_AddCard_Panel() {
 void Kis_AddCard_Panel::Position(int in_sy, int in_sx, int in_y, int in_x) {
 	Kis_Panel::Position(in_sy, in_sx, in_y, in_x);
 
-	srctype->SetPosition(2, 2, in_x - 6, 1);
-	srciface->SetPosition(2, 4, in_x - 15, 1);
-	srcname->SetPosition(2, 6, in_x - 6, 1);
-	okbutton->SetPosition(in_x - 15, in_y - 2, 10, 1);
-	cancelbutton->SetPosition(in_x - 15 - 2 - 15, in_y - 2, 10, 1);
-
-	srctype->Activate(1);
-	active_component = srctype;
-
-	srctype->Show();
-	srciface->Show();
-	srcname->Show();
-	
-	okbutton->Show();
-	cancelbutton->Show();
+	vbox->SetPosition(1, 2, in_x - 2, in_y - 3);
 }
 
 void Kis_AddCard_Panel::SetTargetClient(KisNetClient *in_cli) {
