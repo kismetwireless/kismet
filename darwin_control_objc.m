@@ -29,6 +29,9 @@
 
 #import <Foundation/Foundation.h>
 #include <unistd.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <errno.h>
 
 int darwin_bcom_testmonitor()
 {
@@ -52,19 +55,18 @@ int darwin_bcom_enablemonitorfile(const char *c_filename)
 {
 	NSDictionary *dict;
 	NSData *data;
-	pid_t pid;
 	NSString *fileName;
 	NSAutoreleasePool *pool;
 
 	pool  = [[NSAutoreleasePool alloc] init];
 	fileName = [[NSString alloc] initWithCString:c_filename]; 
+	
+	if (chmod([fileName cString],
+		(S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH)) < 0 &&
+		errno != ENOENT) {
+		return -1;
+	}	
 
-	if( (pid=fork()) == -1) { return -1; }
-	if(pid == 0)
-	{
-		execl("/bin/chmod", "chmod", "666", [fileName cString], NULL );	
-	}
-	sleep( 1);
 	data = [NSData dataWithContentsOfFile:fileName];
 	if(!data) return 0;
 	dict = [NSPropertyListSerialization propertyListFromData:data mutabilityOption:kCFPropertyListMutableContainers format:NULL errorDescription:Nil];
@@ -72,20 +74,20 @@ int darwin_bcom_enablemonitorfile(const char *c_filename)
 	[dict setValue:[NSNumber numberWithBool:true] forKeyPath:@"IOKitPersonalities.Broadcom PCI.APMonitorMode"];
 	[[NSPropertyListSerialization dataFromPropertyList:dict format:kCFPropertyListXMLFormat_v1_0 errorDescription:nil] writeToFile:fileName atomically:NO];
 
-	if( (pid=fork()) == -1) { return 0; }
-	if(pid == 0)
-	{
-		execl("/bin/chmod", "chmod", "644", [fileName cString], NULL );	
-	}
+	if (chmod([fileName cString],
+		(S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH)) < 0 && errno != ENOENT) {
+		return -1;
+	}	
+
 	return 1;	
 }
 
 int darwin_bcom_enablemonitor() 
 {
-	pid_t pid;
 	int ret;
 	NSAutoreleasePool *pool;
 	pool  = [[NSAutoreleasePool alloc] init];
+	char cmd[1024];
 
 	ret = darwin_bcom_enablemonitorfile("/System/Library/Extensions/AppleAirPort2.kext/Contents/Info.plist") || 
 		darwin_bcom_enablemonitorfile("/System/Library/Extensions/IO80211Family.kext/Contents/PlugIns/AppleAirPortBrcm4311.kext/Contents/Info.plist");
@@ -94,31 +96,23 @@ int darwin_bcom_enablemonitor()
 		return -1;
 	}
 
-	if( (pid=fork()) == -1) { return -1; }
-	if(pid == 0)
-	{
-		execl("/bin/rm", "rm", "/System/Library/Extensions.kextcache", NULL);	
-	}
-	if( (pid=fork()) == -1) { return -1; }
-	if(pid == 0)
-	{
-		execl("/usr/sbin/kextcache", "kextcache", "-k", "/System/Library/Extensions", NULL );	
-	}
-	if( (pid=fork()) == -1) { return -1; }
-	if(pid == 0)
-	{
-		execl("/bin/rm", "rm", "/System/Library/Extensions.mkext", NULL );	
-	}
-	if( (pid=fork()) == -1) { return -1; }
-	if(pid == 0)
-	{
-		execl("/sbin/kextunload", "kextunload", "-b", "com.apple.driver.AppleAirPort2", NULL );	
-	}
-	if( (pid=fork()) == -1) { return -1; }
-	if(pid == 0)
-	{
-		execl("/sbin/kextload", "kextload", "/System/Library/Extensions/AppleAirPort2.kext", NULL );	
-	}
+	if (unlink("/System/Library/Extensions.kextcache") < 0 && errno != ENOENT)
+		return -1;
+
+	snprintf(cmd, 1024, "/usr/sbin/kextcache -k /System/Library/Extensions");
+	if (system(cmd) != 0)
+		return -1;
+
+	if (unlink("/System/Library/Extensions.mkext") < 0 && errno != ENOENT)
+		return -1;
+
+	/* This appears to be OK to fail? */
+	snprintf(cmd, 1024, "/sbin/kextunload -b com.apple.driver.AppleAirPort2");
+	system(cmd);
+
+	snprintf(cmd, 1024, "/sbin/kextload /System/Library/Extensions/AppleAirPort2.kext");
+	if (system(cmd) != 0)
+		return -1;
 
 	return 1;
 }
