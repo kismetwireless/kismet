@@ -45,6 +45,7 @@ then
 		AC_DEFINE(SYS_DARWIN, 1, Compiling for Darwin/OSX)
         CFLAGS="-no-cpp-precomp $CFLAGS"
 		LDFLAGS="$LDFLAGS -framework Foundation -framework CoreFoundation -F/System/Library/PrivateFrameworks -framework Apple80211 -framework IOKit"
+		objc_link='$(OBJC_CONTROL_O)'
         AC_MSG_RESULT(Apple GCC - added Apple80211 frameworks and no-precomp)
 		darwin="yes"
         ;;
@@ -94,6 +95,7 @@ else
 		AC_DEFINE(SYS_DARWIN, 1, Compiling for Darwin/OSX)
         CFLAGS="-no-cpp-precomp $CFLAGS"
 		LDFLAGS="$LDFLAGS -framework Foundation -framework CoreFoundation -F/System/Library/PrivateFrameworks -framework Apple80211 -framework IOKit"
+		objc_link='$(OBJC_CONTROL_O)'
         AC_MSG_RESULT(Apple GCC - added Apple80211 frameworks and no-precomp)
 		darwin="yes"
         ;;
@@ -788,6 +790,9 @@ fi
 if test "$bsd" = "yes"; then
 	AC_CHECK_HEADERS([machine/apmvar.h])
 fi
+
+# Substitute in the objc linkages if we need them
+AC_SUBST(objc_link)
 
 
 AC_ARG_ENABLE(optimization, [  --disable-optimization        disable -Ox gcc optimization],,wantopto=yes)

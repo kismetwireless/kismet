@@ -676,6 +676,7 @@ wantgpsmap
 magickconfig
 gpslc
 gpslco
+objc_link
 threadlib
 sharedatadir
 LTLIBOBJS'
@@ -3675,6 +3676,7 @@ _ACEOF
 
         CFLAGS="-no-cpp-precomp $CFLAGS"
 		LDFLAGS="$LDFLAGS -framework Foundation -framework CoreFoundation -F/System/Library/PrivateFrameworks -framework Apple80211 -framework IOKit"
+		objc_link='$(OBJC_CONTROL_O)'
         { echo "$as_me:$LINENO: result: Apple GCC - added Apple80211 frameworks and no-precomp" >&5
 echo "${ECHO_T}Apple GCC - added Apple80211 frameworks and no-precomp" >&6; }
 		darwin="yes"
@@ -3756,6 +3758,7 @@ _ACEOF
 
         CFLAGS="-no-cpp-precomp $CFLAGS"
 		LDFLAGS="$LDFLAGS -framework Foundation -framework CoreFoundation -F/System/Library/PrivateFrameworks -framework Apple80211 -framework IOKit"
+		objc_link='$(OBJC_CONTROL_O)'
         { echo "$as_me:$LINENO: result: Apple GCC - added Apple80211 frameworks and no-precomp" >&5
 echo "${ECHO_T}Apple GCC - added Apple80211 frameworks and no-precomp" >&6; }
 		darwin="yes"
@@ -10760,6 +10763,9 @@ done
 
 fi
 
+# Substitute in the objc linkages if we need them
+
+
 
 # Check whether --enable-optimization was given.
 if test "${enable_optimization+set}" = set; then
@@ -11471,12 +11477,13 @@ wantgpsmap!$wantgpsmap$ac_delim
 magickconfig!$magickconfig$ac_delim
 gpslc!$gpslc$ac_delim
 gpslco!$gpslco$ac_delim
+objc_link!$objc_link$ac_delim
 threadlib!$threadlib$ac_delim
 sharedatadir!$sharedatadir$ac_delim
 LTLIBOBJS!$LTLIBOBJS$ac_delim
 _ACEOF
 
-  if test `sed -n "s/.*$ac_delim\$/X/p" conf$$subs.sed | grep -c X` = 80; then
+  if test `sed -n "s/.*$ac_delim\$/X/p" conf$$subs.sed | grep -c X` = 81; then
     break
   elif $ac_last_try; then
     { { echo "$as_me:$LINENO: error: could not make $CONFIG_STATUS" >&5

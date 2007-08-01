@@ -64,6 +64,7 @@ typedef unsigned long u64;
 extern "C" {
 #include "apple80211.h"
 #include <Carbon/Carbon.h>
+#include "darwin_control_objc.h"
 }
 #endif
 
@@ -3200,12 +3201,11 @@ KisPacketSource *pcapsource_darwin_registrant(string in_name, string in_device,
 
 	// Look for card types we understand
 	if (darwin_cardcheck("AirPort_Brcm43xx") == 0) {
-		fprintf(stderr, "INFO:  %s looks like a Broadcom card running under Darwin. "
-				"You may need to set this to monitor mode using another application "
-				"before it will work with Kismet.\n", devname);
+		fprintf(stderr, "INFO:  %s looks like a Broadcom card running "
+				"under Darwin.\n", devname);
 	} else if (darwin_cardcheck("AirPort_Athr5424ab") == 0) {
-		fprintf(stderr, "INFO:  %s looks like an Atheros card running under Darwin.\n",
-				devname);
+		fprintf(stderr, "INFO:  %s looks like an Atheros card running "
+				"under Darwin.\n", devname);
 	} else {
 		fprintf(stderr, "WARNING:  %s didn't look like a Broadcom OR Atheros card. "
 				"We'll treat it like an Atheros card and hope for the best, however "
@@ -3215,7 +3215,6 @@ KisPacketSource *pcapsource_darwin_registrant(string in_name, string in_device,
 	// Everything we don't understand looks like an atheros in the end
     return pcapsourcefcs_registrant(in_name, devname, in_err);
 }
-
 
 int chancontrol_darwin(const char *in_dev, int in_ch, char *in_err, void *in_ext) {
 	WirelessContextPtr gWCtxt = NULL;
@@ -3247,6 +3246,25 @@ int monitor_darwin(const char *in_dev, int initch, char *in_err,
 
 	// Set the master device up, running, and promisc
 	snprintf(devname, 16, "en%d", devnum);
+
+	if (darwin_cardcheck("AirPort_Brcm43xx") == 0) {
+		if (darwin_bcom_testmonitor() < 0) {
+			fprintf(stderr, "INFO: %s looks like a Broadcom card running under "
+					"Darwin and does not appear to have monitor mode enabled in "
+					"the kernel.  Kismet will attempt to enable monitor in "
+					"5 seconds.\n", devname);
+			sleep(5);
+			if (darwin_bcom_enablemonitor() < 0) {
+				fprintf(stderr, "FATAL: Failed to enable monitor mode in the kernel "
+						"for Darwin Broadcom.\n");
+				return -1;
+			}
+		} else {
+			fprintf(stderr, "INFO: %s looks like a Broadcom card running under "
+					"Darwin and already has monitor mode enabled in the kernel.\n",
+					devname);
+		}
+	}
 
 	if (Ifconfig_Delta_Flags(in_dev, in_err, (IFF_UP | IFF_PROMISC)) < 0) {
 		fprintf(stderr, "FATAL:  Failed to set %s interface up and promisc: %s\n",
