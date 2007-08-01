@@ -34,6 +34,8 @@ int darwin_bcom_testmonitor()
 {
 	NSDictionary *dict;
 	NSData *fileData;
+	NSAutoreleasePool *pool;
+	pool  = [[NSAutoreleasePool alloc] init];
 
 	fileData = [NSData dataWithContentsOfFile:@"/System/Library/Extensions/AppleAirPort2.kext/Contents/Info.plist"];
 	dict = [NSPropertyListSerialization propertyListFromData:fileData mutabilityOption:kCFPropertyListImmutable format:NULL errorDescription:Nil];
@@ -51,7 +53,11 @@ int darwin_bcom_enablemonitorfile(const char *c_filename)
 	NSDictionary *dict;
 	NSData *data;
 	pid_t pid;
-	NSString *fileName = [[NSString alloc] initWithCString:c_filename]; 
+	NSString *fileName;
+	NSAutoreleasePool *pool;
+
+	pool  = [[NSAutoreleasePool alloc] init];
+	fileName = [[NSString alloc] initWithCString:c_filename]; 
 
 	if( (pid=fork()) == -1) { return -1; }
 	if(pid == 0)
@@ -78,6 +84,9 @@ int darwin_bcom_enablemonitor()
 {
 	pid_t pid;
 	int ret;
+	NSAutoreleasePool *pool;
+	pool  = [[NSAutoreleasePool alloc] init];
+
 	ret = darwin_bcom_enablemonitorfile("/System/Library/Extensions/AppleAirPort2.kext/Contents/Info.plist") || 
 		darwin_bcom_enablemonitorfile("/System/Library/Extensions/IO80211Family.kext/Contents/PlugIns/AppleAirPortBrcm4311.kext/Contents/Info.plist");
 

@@ -872,7 +872,7 @@ int Packetsourcetracker::SpawnChannelChild() {
         exit(0);
     }
 
-    fprintf(stderr, "Spawned channelc control process %d\n", chanchild_pid);
+    fprintf(stderr, "Spawned channel control process %d\n", chanchild_pid);
     
     return 1;
 #endif
