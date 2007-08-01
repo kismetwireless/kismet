@@ -24,9 +24,11 @@
 // Timer slices per second
 #define SERVER_TIMESLICES_SEC 10
 
-/* Namespace */
+/* Namespace (on non-obj-c files) */
+#ifndef __IN_OBJC_FILE__
 using namespace std;
 #define __STL_USE_NAMESPACES
+#endif
 
 #ifndef _
 #define _(x) x
