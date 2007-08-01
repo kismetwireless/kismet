@@ -96,7 +96,18 @@ public:
 	typedef struct kcli_handler_rec {
 		void *auxptr;
 		CliProto_Callback callback;
+		// Vector of LOCAL field nums (as processed by the interim 
+		// handler)
+		vector<int> local_fnums;
+	};
+
+	// Absolute field numbers to configured field numbers map, and callback
+	// list
+	typedef struct kcli_configured_proto_rec {
+		// Fields we enable
 		string fields;
+		map<int, int> abs_to_conf_fnum_map;
+		vector<kcli_handler_rec *> handler_vec;
 	};
 
 	// Internal conf cb record
@@ -104,6 +115,13 @@ public:
 		void *auxptr;
 		CliConf_Callback callback;
 		int on_recon;
+	};
+
+	// Absolute field numbers and names from the CAPABILITY list
+	typedef struct kcli_field_rec {
+		string fname;
+		int fnum;
+		int usecount; 
 	};
 
 protected:
@@ -116,10 +134,10 @@ protected:
 	vector<kcli_conf_rec *> conf_cb_vec;
 
 	// Double map of protocols and fields in them, filled in at connection time
-	map<string, map<string, int> > proto_field_dmap;
+	map<string, vector<kcli_field_rec> > proto_field_dmap;
 
 	// Map of protocols to handlers
-	map<string, vector<kcli_handler_rec *> > handler_cb_map;
+	map<string, kcli_configured_proto_rec> handler_cb_map;
 
 	int reconnect;
 	int reconid;

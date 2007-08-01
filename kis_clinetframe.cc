@@ -167,11 +167,12 @@ int KisNetClient::RegisterProtoHandler(string in_proto, string in_fieldlist,
 	*/
 
 	// Do we know about this proto at all?
-	map<string, map<string, int> >::iterator dmitr = proto_field_dmap.find(in_proto);
+	map<string, vector<kcli_field_rec> >::iterator dmitr = 
+		proto_field_dmap.find(in_proto);
 
 	if (dmitr == proto_field_dmap.end()) {
-		_MSG("Trying to register for unknown protocol '" + in_proto + "'",
-			 MSGFLAG_ERROR);
+		_MSG("Kis net client - trying to register for unknown protocol '" + 
+			 in_proto + "'", MSGFLAG_ERROR);
 		return -1;
 	}
 
@@ -181,23 +182,57 @@ int KisNetClient::RegisterProtoHandler(string in_proto, string in_fieldlist,
 	// way to return a command failure condition
 	vector<string> fields = StrTokenize(in_fieldlist, ",");
 
+	kcli_handler_rec *rec = new kcli_handler_rec;
+
 	for (unsigned int x = 0; x < fields.size(); x++) {
-		if (dmitr->second.find(StrLower(fields[x])) == dmitr->second.end()) {
+		int matched = 0;
+		fields[x] = StrLower(fields[x]);
+
+		for (unsigned int fx = 0; fx < dmitr->second.size(); fx++) {
+			if (dmitr->second[fx].fname == fields[x]) {
+				matched = 1;
+
+				// Stack the field numbers for this callback, in reference
+				// to the absolute field number from the CAPABILITY field.
+				rec->local_fnums.push_back(dmitr->second[fx].fnum);
+			}
+		}
+
+		if (matched == 0) {
 			_MSG("Unknown field '" + fields[x] + "' requested for protocol '" +
 				 in_proto + "'", MSGFLAG_ERROR);
+			delete rec;
 			return -1;
 		}
 	}
 
-	kcli_handler_rec *rec = new kcli_handler_rec;
+	// Increase the use count for the fields we enabled, done here to preserve
+	// fields if a compare fails
+	for (unsigned int x = 0; x < rec->local_fnums.size(); x++) {
+		dmitr->second[rec->local_fnums[x]].usecount++;
+	}
+
 	rec->auxptr = in_aux;
 	rec->callback = in_cb;
-	rec->fields = in_fieldlist;
+
+	string combo_fieldlist;
+	map<int, int> a_l_map;
+	int cfpos = 0;
+	for (unsigned int x = 0; x < dmitr->second.size(); x++) {
+		if (dmitr->second[x].usecount > 0) {
+			// Build a linkage of absolute field number to field num we
+			// get in response to this specific CONFIGURE command
+			a_l_map[dmitr->second[x].fnum] = cfpos++;
+			combo_fieldlist += dmitr->second[x].fname + ",";
+		}
+	}
 
 	// Send the command
-	InjectCommand("ENABLE " + in_proto + " " + in_fieldlist);
-	
-	handler_cb_map[in_proto].push_back(rec);
+	InjectCommand("ENABLE " + in_proto + " " + combo_fieldlist);
+
+	handler_cb_map[in_proto].fields = combo_fieldlist;
+	handler_cb_map[in_proto].abs_to_conf_fnum_map = a_l_map;
+	handler_cb_map[in_proto].handler_vec.push_back(rec);
 
 	return 1;
 }
@@ -205,39 +240,58 @@ int KisNetClient::RegisterProtoHandler(string in_proto, string in_fieldlist,
 void KisNetClient::RemoveProtoHandler(string in_proto, CliProto_Callback in_cb,
 									  void *in_aux) {
 	in_proto = StrLower(in_proto);
+	int removeproto = 1;
 
-	map<string, vector<kcli_handler_rec *> >::iterator hitr =
+	map<string, kcli_configured_proto_rec>::iterator hitr =
 		handler_cb_map.find(in_proto);
+	map<string, vector<kcli_field_rec> >::iterator dmitr =
+		proto_field_dmap.find(in_proto);
 
-	if (hitr == handler_cb_map.end())
+	if (hitr == handler_cb_map.end() || dmitr == proto_field_dmap.end()) 
 		return;
 
-	InjectCommand("REMOVE " + in_proto);
+	for (unsigned int x = 0; x < hitr->second.handler_vec.size(); x++) {
+		if (hitr->second.handler_vec[x]->callback == in_cb && 
+			hitr->second.handler_vec[x]->auxptr == in_aux) {
 
-	for (unsigned int x = 0; x < hitr->second.size(); x++) {
-		if (hitr->second[x]->callback == in_cb && hitr->second[x]->auxptr == in_aux) {
-			delete hitr->second[x];
-			hitr->second.erase(hitr->second.begin() + x);
+			// Track use counts for fields, we won't remove this protocol if
+			// we have anyone using it
+			for (unsigned int fx = 0; 
+				 fx < hitr->second.handler_vec[x]->local_fnums.size(); fx++) {
+				dmitr->second[hitr->second.handler_vec[x]->local_fnums[fx]].usecount--;
+
+				if (dmitr->second[hitr->second.handler_vec[x]->local_fnums[fx]].usecount > 0)
+					removeproto = 0;
+			}
+
+			delete hitr->second.handler_vec[x];
+			hitr->second.handler_vec.erase(hitr->second.handler_vec.begin() + x);
 			break;
 		}
 	}
 
-	if (hitr->second.size() == 0) 
+	if (hitr->second.handler_vec.size() == 0) {
+		removeproto = 1;
 		handler_cb_map.erase(hitr);
+	}
+
+	if (removeproto)
+		InjectCommand("REMOVE " + in_proto);
+
 }
 
 int KisNetClient::FetchProtoCapabilities(string in_proto,
 										 map<string, int> *ret_fields) {
-	map<string, map<string, int> >::iterator pfi;
+	map<string, vector<kcli_field_rec> >::iterator pfi;
 
 	pfi = proto_field_dmap.find(StrLower(in_proto));
 
 	if (pfi == proto_field_dmap.end())
 		return -1;
 
-	for (map<string, int>::iterator i = pfi->second.begin(); 
-		 i != pfi->second.end(); ++i) {
-		ret_fields->insert(make_pair(i->first, 1));
+	for (unsigned int i = 0; i < pfi->second.size(); i++) {
+		ret_fields->insert(make_pair(pfi->second[i].fname, 
+									 pfi->second[i].fnum));
 	}
 
 	return 1;
@@ -294,11 +348,9 @@ int KisNetClient::Reconnect() {
 	configured = 1;
 
 	// Inject all the enable commands we had queued
-	for (map<string, vector<KisNetClient::kcli_handler_rec *> >::iterator hi = 
+	for (map<string, kcli_configured_proto_rec>::iterator hi = 
 		 handler_cb_map.begin(); hi != handler_cb_map.end(); ++hi) {
-		for (unsigned int hx = 0; hx < hi->second.size(); hx++) {
-			InjectCommand("ENABLE " + hi->first + " " + hi->second[hx]->fields);
-		}
+		InjectCommand("ENABLE " + hi->first + " " + hi->second.fields);
 	}
 
 	num_reconnects++;
@@ -441,14 +493,25 @@ int KisNetClient::ParseData() {
 				continue;
 			}
 
-			// Put them all in the map
-			map<string, int> flmap;
-			for (unsigned int fl = 0; fl < fieldvec.size(); fl++) {
-				flmap[StrLower(fieldvec[fl])] = 1;
-			}
+			map<string, vector<kcli_field_rec> >::iterator dmitr = 
+				proto_field_dmap.find(StrLower(net_toks[0].word));
 
-			// Assign it
-			proto_field_dmap[StrLower(net_toks[0].word)] = flmap;
+			// We assume protocols can't change runtime for now
+			if (dmitr == proto_field_dmap.end()) {
+				// Put them all in the map
+				vector<kcli_field_rec> flvec;
+				for (unsigned int fl = 0; fl < fieldvec.size(); fl++) {
+					kcli_field_rec frec;
+					frec.fname = StrLower(fieldvec[fl]);
+					frec.fnum = fl;
+					frec.usecount = 0;
+
+					flvec.push_back(frec);
+				}
+
+				// Assign it
+				proto_field_dmap[StrLower(net_toks[0].word)] = flvec;
+			}
 
 			// Decrement our configure count
 			configured--;
@@ -470,13 +533,26 @@ int KisNetClient::ParseData() {
 
 		// Call the registered handlers for this protocol, even if we handled
 		// it internally
-		map<string, vector<KisNetClient::kcli_handler_rec *> >::iterator hi;
+		map<string, kcli_configured_proto_rec>::iterator hi;
 		hi = handler_cb_map.find(StrLower(header));
 		if (hi != handler_cb_map.end()) {
-			for (unsigned int hx = 0; hx < hi->second.size(); hx++) {
-				CliProto_Callback cback = hi->second[hx]->callback;
+			for (unsigned int hx = 0; hx < hi->second.handler_vec.size(); hx++) {
+				vector<smart_word_token> cb_toks; 
+
+				// Build a local vector of tokens for this protocol
+				for (unsigned int nt = 0; 
+					 nt < hi->second.handler_vec[hx]->local_fnums.size(); nt++) {
+					// Map the absolute field number to the locally configured field
+					// number
+					int locfnum = hi->second.abs_to_conf_fnum_map[hi->second.handler_vec[hx]->local_fnums[nt]];
+
+					// Stack the field derived from the local field number
+					cb_toks.push_back(net_toks[locfnum]);
+				}
+
+				CliProto_Callback cback = hi->second.handler_vec[hx]->callback;
 				(*cback)(globalreg, inptok[it], &net_toks, this,
-						 hi->second[hx]->auxptr);
+						 hi->second.handler_vec[hx]->auxptr);
 			}
 		}
 	}
