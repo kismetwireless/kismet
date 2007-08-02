@@ -3213,7 +3213,7 @@ KisPacketSource *pcapsource_darwin_registrant(string in_name, string in_device,
 	}
 
 	// Everything we don't understand looks like an atheros in the end
-    return pcapsourcefcs_registrant(in_name, devname, in_err);
+    return pcapsourcefcs_registrant(devname, devname, in_err);
 }
 
 int chancontrol_darwin(const char *in_dev, int in_ch, char *in_err, void *in_ext) {
@@ -3266,7 +3266,7 @@ int monitor_darwin(const char *in_dev, int initch, char *in_err,
 		}
 	}
 
-	if (Ifconfig_Delta_Flags(in_dev, in_err, (IFF_UP | IFF_PROMISC)) < 0) {
+	if (Ifconfig_Delta_Flags(devname, in_err, (IFF_UP | IFF_PROMISC)) < 0) {
 		fprintf(stderr, "FATAL:  Failed to set %s interface up and promisc: %s\n",
 				devname, in_err);
 		return -1;
