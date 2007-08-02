@@ -59,10 +59,26 @@ public:
 	virtual void AddPluginMenuItem(string in_name, int (*callback)(void *),
 								   void *auxptr);
 
+	// Passthroughs to the plugin-relevant packing boxes used to build the UI
+	// Network box (contains network and gps-line)
+	Kis_Panel_Packbox *FetchNetBox() { return netbox; }
+	// Fetch info box (contains network totals, time, etc)
+	Kis_Panel_Packbox *FetchInfoBox() { return optbox; }
+	// Fetch gps line box (contains gps, battery, etc)
+	Kis_Panel_Packbox *FetchLineBox() { return linebox; }
+
+	// Passthrough to color handling
+	void AddColorPref(string in_pref, string in_txt);
+
 	typedef struct plugin_menu_opt {
 		int menuitem;
 		int (*callback)(void *);
 		void *auxptr;
+	};
+
+	typedef struct colorpref {
+		string pref;
+		string text;
 	};
 
 protected:
@@ -94,6 +110,8 @@ protected:
 	virtual void UpdateSortMenu();
 
 	virtual void SpawnColorPrefs();
+
+	vector<colorpref> color_pref_vec;
 };
 
 class Kis_Connect_Panel : public Kis_Panel {

@@ -151,6 +151,18 @@ Kis_Main_Panel::Kis_Main_Panel(GlobalRegistry *in_globalreg,
 	if (kpinterface->prefs.FetchOpt("LOADEDFROMFILE") != "1") {
 		_MSG("Failed to load preferences file, will use defaults", MSGFLAG_INFO);
 	}
+
+	AddColorPref("panel_text_color", "Text");
+	AddColorPref("panel_border_color", "Window Border");
+	AddColorPref("menu_text_color", "Menu Text");
+	AddColorPref("menu_border_color", "Menu Border");
+	AddColorPref("netlist_header_color", "Netlist Header");
+	AddColorPref("netlist_normal_color", "Netlist Normal");
+	AddColorPref("netlist_crypt_color", "Netlist Encrypted");
+	AddColorPref("netlist_group_color", "Netlist Group");
+	AddColorPref("netlist_factory_color", "Netlist Factory");
+	AddColorPref("status_normal_color", "Status Text");
+
 }
 
 Kis_Main_Panel::~Kis_Main_Panel() {
@@ -306,19 +318,26 @@ void Kis_Main_Panel::AddPluginMenuItem(string in_name, int (*callback)(void *),
 	plugin_menu_vec.push_back(mo);
 }
 
+void Kis_Main_Panel::AddColorPref(string in_pref, string in_text) {
+	colorpref cp;
+
+	for (unsigned int x = 0; x < color_pref_vec.size(); x++) {
+		if (color_pref_vec[x].pref == in_pref)
+			return;
+	}
+
+	cp.pref = in_pref;
+	cp.text = in_text;
+
+	color_pref_vec.push_back(cp);
+}
+
 void Kis_Main_Panel::SpawnColorPrefs() {
 	Kis_ColorPref_Panel *cpp = new Kis_ColorPref_Panel(globalreg, kpinterface);
 
-	cpp->AddColorPref("panel_text_color", "Text");
-	cpp->AddColorPref("panel_border_color", "Window Border");
-	cpp->AddColorPref("menu_text_color", "Menu Text");
-	cpp->AddColorPref("menu_border_color", "Menu Border");
-	cpp->AddColorPref("netlist_header_color", "Netlist Header");
-	cpp->AddColorPref("netlist_normal_color", "Netlist Normal");
-	cpp->AddColorPref("netlist_crypt_color", "Netlist Encrypted");
-	cpp->AddColorPref("netlist_group_color", "Netlist Group");
-	cpp->AddColorPref("netlist_factory_color", "Netlist Factory");
-	cpp->AddColorPref("status_normal_color", "Status Text");
+	for (unsigned int x = 0; x < color_pref_vec.size(); x++) {
+		cpp->AddColorPref(color_pref_vec[x].pref, color_pref_vec[x].text);
+	}
 
 	cpp->Position((LINES / 2) - 7, (COLS / 2) - 20, 14, 40);
 	kpinterface->AddPanel(cpp);

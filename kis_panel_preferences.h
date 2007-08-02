@@ -75,6 +75,8 @@ protected:
 	Kis_Button *okbutton, *cancelbutton;
 	Kis_ColorPref_Component *fgcolor, *bgcolor;
 
+	Kis_Panel_Packbox *vbox, *hbox;
+
 	vector<Kis_Panel_Component *> tab_components;
 	int tab_pos;
 

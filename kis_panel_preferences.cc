@@ -57,6 +57,8 @@ Kis_ColorPref_Component::Kis_ColorPref_Component(GlobalRegistry *in_globalreg,
 	cpos = 0;
 
 	text_color = 0;
+
+	SetPreferredSize(32, 2);
 }
 
 Kis_ColorPref_Component::~Kis_ColorPref_Component() {
@@ -154,11 +156,6 @@ Kis_ColorPref_Picker::Kis_ColorPref_Picker(GlobalRegistry *in_globalreg,
 	cancelbutton = new Kis_Button(globalreg, this);
 	okbutton = new Kis_Button(globalreg, this);
 
-	comp_vec.push_back(fgcolor);
-	comp_vec.push_back(bgcolor);
-	comp_vec.push_back(okbutton);
-	comp_vec.push_back(cancelbutton);
-
 	tab_components.push_back(fgcolor);
 	tab_components.push_back(bgcolor);
 	tab_components.push_back(okbutton);
@@ -167,6 +164,28 @@ Kis_ColorPref_Picker::Kis_ColorPref_Picker(GlobalRegistry *in_globalreg,
 
 	fgcolor->Activate(1);
 	active_component = fgcolor;
+
+	vbox = new Kis_Panel_Packbox(globalreg, this);
+	vbox->SetPackV();
+	vbox->SetHomogenous(0);
+	vbox->SetSpacing(1);
+	vbox->Show();
+
+	hbox = new Kis_Panel_Packbox(globalreg, this);
+	hbox->SetPackH();
+	hbox->SetHomogenous(1);
+	hbox->SetSpacing(1);
+	hbox->SetCenter(1);
+	hbox->Show();
+
+	hbox->Pack_End(cancelbutton, 0, 0);
+	hbox->Pack_End(okbutton, 0, 0);
+
+	vbox->Pack_End(fgcolor, 0, 0);
+	vbox->Pack_End(bgcolor, 0, 0);
+	vbox->Pack_End(hbox, 1, 0);
+
+	comp_vec.push_back(vbox);
 
 	okbutton->SetText("Save");
 	cancelbutton->SetText("Cancel");
@@ -186,12 +205,7 @@ Kis_ColorPref_Picker::~Kis_ColorPref_Picker() {
 void Kis_ColorPref_Picker::Position(int in_sy, int in_sx, int in_y, int in_x) {
 	Kis_Panel::Position(in_sy, in_sx, in_y, in_x);
 
-	// TODO -  We should write something to get native sizes...
-	fgcolor->SetPosition(2, 2, 25, 1);
-	bgcolor->SetPosition(2, 4, 25, 1);
-
-	okbutton->SetPosition(in_x - 15, in_y - 2, 10, 1);
-	cancelbutton->SetPosition(in_x - 10 - 15 - 2, in_y - 2, 10, 1);
+	vbox->SetPosition(1, 2, in_x - 2, in_y - 3);
 }
 
 void Kis_ColorPref_Picker::DrawPanel() {
@@ -337,7 +351,7 @@ int Kis_ColorPref_Panel::KeyPress(int in_key) {
 			Kis_ColorPref_Picker *cp = 
 				new Kis_ColorPref_Picker(globalreg, kpinterface);
 			cp->LinkColorPref(listedcolors[listkey].pref);
-			cp->Position((LINES / 2) - 4, (COLS / 2) - 25, 8, 50);
+			cp->Position((LINES / 2) - 4, (COLS / 2) - 25, 10, 50);
 			kpinterface->AddPanel(cp);
 		}
 	}
