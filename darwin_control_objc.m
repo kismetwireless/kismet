@@ -42,13 +42,13 @@ int darwin_bcom_testmonitor()
 
 	fileData = [NSData dataWithContentsOfFile:@"/System/Library/Extensions/AppleAirPort2.kext/Contents/Info.plist"];
 	dict = [NSPropertyListSerialization propertyListFromData:fileData mutabilityOption:kCFPropertyListImmutable format:NULL errorDescription:Nil];
-	if ([[dict valueForKeyPath:@"IOKitPersonalities.Broadcom PCI.APMonitorMode"] boolValue]) return -1;
+	if ([[dict valueForKeyPath:@"IOKitPersonalities.Broadcom PCI.APMonitorMode"] boolValue]) return 1;
 
 	fileData = [NSData dataWithContentsOfFile:@"/System/Library/Extensions/IO80211Family.kext/Contents/PlugIns/AppleAirPortBrcm4311.kext/Contents/Info.plist"];
 	dict = [NSPropertyListSerialization propertyListFromData:fileData mutabilityOption:kCFPropertyListImmutable format:NULL errorDescription:Nil];
-	if ([[dict valueForKeyPath:@"IOKitPersonalities.Broadcom PCI.APMonitorMode"] boolValue]) return -1;
+	if ([[dict valueForKeyPath:@"IOKitPersonalities.Broadcom PCI.APMonitorMode"] boolValue]) return 1;
 
-	return 1;
+	return -1;
 }
 
 int darwin_bcom_enablemonitorfile(const char *c_filename)
@@ -106,13 +106,32 @@ int darwin_bcom_enablemonitor()
 	if (unlink("/System/Library/Extensions.mkext") < 0 && errno != ENOENT)
 		return -1;
 
-	/* This appears to be OK to fail? */
-	snprintf(cmd, 1024, "/sbin/kextunload -b com.apple.driver.AppleAirPort2");
+	/* Throw a warning at the user and wait */
+	fprintf(stderr, "ATTENTION:  Kismet has enabled rfmon on your devices, however to "
+			"activate it, the kernel modules must be reloaded.  There have been reports "
+			"of this causing a system crash.  Kismet will wait 10 seconds before "
+			"attempting to reload the kernel modules.  Press control-c now to cancel "
+			"reloading modules and reboot manually if you do not want to proceed!\n\n");
+
+	sleep(10);
+
+	/* we don't check the failure codes since we don't know which driver we're using */
+	snprintf(cmd, 1024, "/sbin/kextunload -b com.apple.driver.AppleAirPort2"
+			 ">/dev/null 2>/dev/null");
 	system(cmd);
 
-	snprintf(cmd, 1024, "/sbin/kextload /System/Library/Extensions/AppleAirPort2.kext");
-	if (system(cmd) != 0)
-		return -1;
+	snprintf(cmd, 1024, "/sbin/kextload /System/Library/Extensions/AppleAirPort2.kext"
+			 ">/dev/null 2>/dev/null");
+	system(cmd);
+
+	snprintf(cmd, 1024, "/sbin/kextunload -b com.apple.driver.AppleAirPortBrcm4311"
+			 ">/dev/null 2>/dev/null");
+	system(cmd);
+
+	snprintf(cmd, 1024, "/sbin/kextload "
+			 "/System/Library/Extensions/AppleAirPortBrcm4311.kext "
+			 ">/dev/null 2>/dev/null");
+	system(cmd);
 
 	return 1;
 }

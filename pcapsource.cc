@@ -3203,7 +3203,8 @@ KisPacketSource *pcapsource_darwin_registrant(string in_name, string in_device,
 	if (darwin_cardcheck("AirPort_Brcm43xx") == 0) {
 		fprintf(stderr, "INFO:  %s looks like a Broadcom card running "
 				"under Darwin.\n", devname);
-	} else if (darwin_cardcheck("AirPort_Athr5424ab") == 0) {
+	} else if (darwin_cardcheck("AirPort_Athr5424ab") == 0 ||
+			   darwin_cardcheck("AirPortPCI_MM") == 0) {
 		fprintf(stderr, "INFO:  %s looks like an Atheros card running "
 				"under Darwin.\n", devname);
 	} else {
@@ -3247,7 +3248,8 @@ int monitor_darwin(const char *in_dev, int initch, char *in_err,
 	// Set the master device up, running, and promisc
 	snprintf(devname, 16, "en%d", devnum);
 
-	if (darwin_cardcheck("AirPort_Brcm43xx") == 0) {
+	if (darwin_cardcheck("AirPort_Brcm43xx") == 0 ||
+			   darwin_cardcheck("AirPortPCI_MM") == 0) {
 		if (darwin_bcom_testmonitor() < 0) {
 			fprintf(stderr, "INFO: %s looks like a Broadcom card running under "
 					"Darwin and does not appear to have monitor mode enabled in "
