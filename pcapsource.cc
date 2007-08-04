@@ -3268,6 +3268,10 @@ int monitor_darwin(const char *in_dev, int initch, char *in_err,
 		}
 	}
 
+	// Darwin seems to hiccup sometimes, so do this once and don't care,
+	// then fail if it dies a second time
+	Ifconfig_Delta_Flags(devname, in_err, (IFF_UP | IFF_PROMISC));
+
 	if (Ifconfig_Delta_Flags(devname, in_err, (IFF_UP | IFF_PROMISC)) < 0) {
 		fprintf(stderr, "FATAL:  Failed to set %s interface up and promisc: %s\n",
 				devname, in_err);
