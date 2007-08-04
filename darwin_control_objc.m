@@ -84,7 +84,7 @@ int darwin_bcom_enablemonitorfile(const char *c_filename)
 
 int darwin_bcom_enablemonitor() 
 {
-	int ret;
+	int ret, i;
 	NSAutoreleasePool *pool;
 	pool  = [[NSAutoreleasePool alloc] init];
 	char cmd[1024];
@@ -116,16 +116,21 @@ int darwin_bcom_enablemonitor()
 
 	sleep(10);
 
-	/* we don't check the failure codes since we don't know which driver we're using */
-	snprintf(cmd, 1024, "/sbin/kextunload -b com.apple.driver.AppleAirPort2"
-			 ">/dev/null 2>/dev/null");
-	system(cmd);
+	/* we don't check the failure codes since we don't know which driver we're 
+	 * using... Also according to geordi we have to thrash the unload because
+	 * sometimes it just refuses to unload the module.  Highly inelegant. */
+	for (i = 0; i < 10; i++) {
+		snprintf(cmd, 1024, "/sbin/kextunload -b com.apple.driver.AppleAirPort2"
+				 ">/dev/null 2>/dev/null");
+		system(cmd);
 
+		snprintf(cmd, 1024, "/sbin/kextunload -b "
+				 "com.apple.driver.AppleAirPortBrcm4311 >/dev/null 2>/dev/null");
+		system(cmd);
+	}
+
+	/* Try to reload them */
 	snprintf(cmd, 1024, "/sbin/kextload /System/Library/Extensions/AppleAirPort2.kext"
-			 ">/dev/null 2>/dev/null");
-	system(cmd);
-
-	snprintf(cmd, 1024, "/sbin/kextunload -b com.apple.driver.AppleAirPortBrcm4311"
 			 ">/dev/null 2>/dev/null");
 	system(cmd);
 
