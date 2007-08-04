@@ -3200,11 +3200,11 @@ KisPacketSource *pcapsource_darwin_registrant(string in_name, string in_device,
 	}
 
 	// Look for card types we understand
-	if (darwin_cardcheck("AirPort_Brcm43xx") == 0) {
+	if (darwin_cardcheck("AirPort_Brcm43xx") == 0 ||
+			   darwin_cardcheck("AirPortPCI_MM") == 0) {
 		fprintf(stderr, "INFO:  %s looks like a Broadcom card running "
 				"under Darwin.\n", devname);
-	} else if (darwin_cardcheck("AirPort_Athr5424ab") == 0 ||
-			   darwin_cardcheck("AirPortPCI_MM") == 0) {
+	} else if (darwin_cardcheck("AirPort_Athr5424ab")) {
 		fprintf(stderr, "INFO:  %s looks like an Atheros card running "
 				"under Darwin.\n", devname);
 	} else {
