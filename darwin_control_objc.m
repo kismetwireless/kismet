@@ -107,11 +107,12 @@ int darwin_bcom_enablemonitor()
 		return -1;
 
 	/* Throw a warning at the user and wait */
-	fprintf(stderr, "ATTENTION:  Kismet has enabled rfmon on your devices, however to "
-			"activate it, the kernel modules must be reloaded.  There have been reports "
-			"of this causing a system crash.  Kismet will wait 10 seconds before "
-			"attempting to reload the kernel modules.  Press control-c now to cancel "
-			"reloading modules and reboot manually if you do not want to proceed!\n\n");
+	fprintf(stderr, "ATTENTION:  Kismet has enabled rfmon on your devices, however "
+			"to activate it, the kernel modules must be reloaded.  There have "
+			"been reports of this causing a system crash.  Kismet will wait 10 "
+			"seconds before attempting to reload the kernel modules.  Press "
+			"control-c now to cancel reloading modules and reboot manually if "
+			"you do not want to proceed!\n\n");
 
 	sleep(10);
 
@@ -132,6 +133,11 @@ int darwin_bcom_enablemonitor()
 			 "/System/Library/Extensions/AppleAirPortBrcm4311.kext "
 			 ">/dev/null 2>/dev/null");
 	system(cmd);
+
+	fprintf(stderr, "ATTENTION:  Completed trying to reload the kernel modules.  "
+			"Sometimes this doesn't work, if Kismet does not start properly "
+			"you will need to manually reboot.\n");
+	sleep(5);
 
 	return 1;
 }
