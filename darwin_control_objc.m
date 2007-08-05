@@ -39,7 +39,6 @@ int darwin_bcom_testmonitor()
 	NSData *fileData;
 	NSAutoreleasePool *pool;
 	pool  = [[NSAutoreleasePool alloc] init];
-	int x;
 
 	fileData = [NSData dataWithContentsOfFile:@"/System/Library/PrivateFrameworks/AppleTV.framework/Versions/Current/Resources/Info.plist"];
 	dict = [NSPropertyListSerialization propertyListFromData:fileData mutabilityOption:kCFPropertyListImmutable format:NULL errorDescription:Nil];
