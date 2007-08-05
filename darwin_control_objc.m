@@ -39,6 +39,18 @@ int darwin_bcom_testmonitor()
 	NSData *fileData;
 	NSAutoreleasePool *pool;
 	pool  = [[NSAutoreleasePool alloc] init];
+	int x;
+
+	fileData = [NSData dataWithContentsOfFile:@"/System/Library/
+		PrivateFrameworks/AppleTV.framework/Versions/Current/Resources/
+		Info.plist"];
+	dict = [NSPropertyListSerialization
+		propertyListFromData:fileData
+		mutabilityOption:kCFPropertyListImmutable format:NULL
+		errorDescription:Nil];
+	if (strcmp([[dict valueForKeyPath:@"CFBundleExecutable"]
+			   cString], "AppleTV") == 0)
+		return 1;
 
 	fileData = [NSData dataWithContentsOfFile:@"/System/Library/Extensions/AppleAirPort2.kext/Contents/Info.plist"];
 	dict = [NSPropertyListSerialization propertyListFromData:fileData mutabilityOption:kCFPropertyListImmutable format:NULL errorDescription:Nil];
