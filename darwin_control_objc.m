@@ -37,22 +37,52 @@ int darwin_bcom_testmonitor()
 {
 	NSDictionary *dict;
 	NSData *fileData;
-	NSAutoreleasePool *pool;
+	NSString *error;
+	NSAutoreleasePool *pool;	
 	pool  = [[NSAutoreleasePool alloc] init];
 
 	fileData = [NSData dataWithContentsOfFile:@"/System/Library/PrivateFrameworks/AppleTV.framework/Versions/Current/Resources/Info.plist"];
-	dict = [NSPropertyListSerialization propertyListFromData:fileData mutabilityOption:kCFPropertyListImmutable format:NULL errorDescription:Nil];
-	if (strcmp([[dict valueForKeyPath:@"CFBundleExecutable"] cString], "AppleTV") == 0)
-		return 1;
-
+	dict = [NSPropertyListSerialization propertyListFromData:fileData mutabilityOption:kCFPropertyListImmutable format:NULL errorDescription:&error];
+	if(!dict)
+	{
+		NSLog(@"%s", error);
+	}
+	else
+	{
+		if (strcmp([[dict valueForKeyPath:@"CFBundleExecutable"] cString], "AppleTV") == 0) return 1;
+	}
+	// This may work on AppleTV 1.1 also but I am not sure. This is a quick hack to force 1.0 to work. 
+	fileData = [NSData dataWithContentsOfFile:@"/System/Library/MonitorPanels/AppleDisplay.monitorPanels/Contents/Resources/TVOptions.monitorPanel/Contents/Info.plist"];
+	dict = [NSPropertyListSerialization propertyListFromData:fileData mutabilityOption:kCFPropertyListImmutable format:NULL errorDescription:&error];
+	if(!dict)
+	{
+		NSLog(@"%s", error);
+	}
+	else
+	{
+		if (strcmp([[dict valueForKeyPath:@"CFBundleExecutable"] cString], "TVOptions") == 0) return 1;
+	}
 	fileData = [NSData dataWithContentsOfFile:@"/System/Library/Extensions/AppleAirPort2.kext/Contents/Info.plist"];
-	dict = [NSPropertyListSerialization propertyListFromData:fileData mutabilityOption:kCFPropertyListImmutable format:NULL errorDescription:Nil];
-	if ([[dict valueForKeyPath:@"IOKitPersonalities.Broadcom PCI.APMonitorMode"] boolValue]) return 1;
+	dict = [NSPropertyListSerialization propertyListFromData:fileData mutabilityOption:kCFPropertyListImmutable format:NULL errorDescription:&error];
+	if(!dict)
+	{
+		NSLog(@"%s", error);
+	}
+	else
+	{
 
+		if ([[dict valueForKeyPath:@"IOKitPersonalities.Broadcom PCI.APMonitorMode"] boolValue]) return 1;
+	}	
 	fileData = [NSData dataWithContentsOfFile:@"/System/Library/Extensions/IO80211Family.kext/Contents/PlugIns/AppleAirPortBrcm4311.kext/Contents/Info.plist"];
-	dict = [NSPropertyListSerialization propertyListFromData:fileData mutabilityOption:kCFPropertyListImmutable format:NULL errorDescription:Nil];
-	if ([[dict valueForKeyPath:@"IOKitPersonalities.Broadcom PCI.APMonitorMode"] boolValue]) return 1;
-
+	dict = [NSPropertyListSerialization propertyListFromData:fileData mutabilityOption:kCFPropertyListImmutable format:NULL errorDescription:&error];
+	if(!dict)
+	{
+		NSLog(@"%s", error);
+	}
+	else
+	{
+		if ([[dict valueForKeyPath:@"IOKitPersonalities.Broadcom PCI.APMonitorMode"] boolValue]) return 1;
+	}
 	return -1;
 }
 
