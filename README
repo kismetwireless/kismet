@@ -508,7 +508,7 @@ Licensed under the GPL
     - Linux (Intel, PPC, MIPS, X-Scale, Arm, etc)
       Known supported cards: Atmel_USB, ACX100, ADMTek, Atheros, Cisco, Prism2, 
        Orinoco, WSP100, Drone, wtapfile, pcapfile, wrt54g, ipw2100, rt2400,
-       rt2500, rt73, rt8180, ipw2200, ipw2915, ipw3945, Broadcom 43xx
+       rt2500, rt73, rt8180, ipw2200, ipw2915, ipw3945, iwl3945, Broadcom 43xx
 
       Kismet will work with any distribution of Linux.  Currently, Linux is the
       recommended platform for running Kismet because it has the largest
@@ -605,7 +605,6 @@ Licensed under the GPL
     --------------- ------------------- ----------- -------------------------
     acx100          TI ACX100           Linux       ACX100
                     http://acx100.sourceforge.net/
-                    Capture interface:  'ethX'
                     ACX100 drivers handle the 22mbit cards branded by D-Link
                      and others.
 
@@ -622,7 +621,6 @@ Licensed under the GPL
 
     airpcap         Airpcap USB         cygwin      CACE Tech
                     http://www.cacetech.com/products/airpcap.htm
-                    Capture interface:  Win32 device path
                     The CACE AirPcap USB device allows native capture on
                      Win32/Cygwin.
                     The explicit airpcap source expects the Win32/Cygwin
@@ -632,15 +630,15 @@ Licensed under the GPL
 
     airpcap_ask     Airpcap USB         cygwin      CACE Tech
                     http://www.cacetech.com/products/airpcap.htm
-                    Capture interface: dummy
                     The CACE AirPcap USB device allows native capture on
                      Win32/Cygwin.
                     The airpcap_ask source lists available airpcap devices
                      and allows the user to pick interactively.
+                    The 'capture interface' field is irrelevant and can be
+                     filled with any value (for example, 'dummy')
 
     atmel_usb       Atmel-USB           Linux       Berlios-Atmel
                     http://at76c503a.berlios.de/
-                    Capture interface:  'wlanX'
                     These drivers work ONLY on USB cards (Sorry, no PCMCIA
                      support).  Monitor mode support is limited and "faked"
                      by bypassing part of the firmware and parsing packets
@@ -653,20 +651,20 @@ Licensed under the GPL
                      will not see data frames, rendering most IDS functions,
                      IP discovery, and data logging unavailable.
 
-    bcm43xx         Broadcom            Linux       Berlios-BCM43XX
-                    http://bcm43xx.berlios.de
-                    Capture interface:  'ethX'
-                    *Very experimental* drivers with *experimental* Kismet
-                     support.  These reverse-engineered drivers support a
-                     range of Broadcom based wireless cards.  At the time
-                     of this writing, they support ONLY monitor mode, normal
-                     mode is not functional.
-                    These drivers are in a state of high development, and 
-                     support is only added because of demand.  If it doesn't
-                     work, I wouldn't be too surprised.
+    bcm43xx         Broadcom            Linux       BCM43XX
+                    http://bcm43xx.berlios.de, kernel
+                    Linux native broadcom drivers incorporated into modern
+                     kernels. 
+
+    b43             Broadcom            Linux
+                    B43 broadcom drivers for current Broadcom devices in
+                     Linux kernels
+
+    b43legacy       Broadcom            Linux
+                    B43 broadcom drivers for legacy Broadcom devices in
+                     Linux kernels
 
     cisco           Aironet 340,350     Linux       Kernel 2.4.10 - 2.4.19
-                    Capture interface:  'ethX'  
                     Standard Cisco cards in Linux.  Works only with
                      the Linux kernel drivers, not the drivers found in
                      pcmcia-cs.
@@ -695,7 +693,6 @@ Licensed under the GPL
                      hopping to, when it feels like hopping.
 
     darwin          OSX native cards    OSX/Darwin  OSX
-                    Capture interface: 'wltX'
                     Supports both Broadcom and Atheros Airport-Extreme cards.
                     When using a Broadcom based card, it may be necessary to 
                      enable rfmon on the device for the first time using another 
@@ -705,7 +702,6 @@ Licensed under the GPL
 
     hostap          Prism/2             Linux       HostAP 0.4
                     http://hostap.epitest.fi/
-                    Capture interface:  'wlanX'  
                     HostAP drivers drive the Prism/2 chipset in access point
                      mode, but also can drive the cards in client and monitor
                      modes.  The HostAP drivers seem to change how they go
@@ -714,14 +710,12 @@ Licensed under the GPL
 
     ipw2100         Intel/Centrino      Linux       ipw2100-0.44+
                     http://ipw2100.sourceforge.net/
-                    Capture interface:  'ethX'
                     The Linux IPW2100/Centrino drivers for 802.11b cards
                     now support rfmon, so here's support for them.  They act
                     more or less like any other wireless interface would.
 
     ipw2200         Intel/Centrino      Linux       ipw2200-1.0.4+
                     http://ipw2200.sourceforge.net/
-                    Capture interface:  'ethX'
                     The Linux IPW2200/Centrino drivers for 802.11bg cards
                     support rfmon as of 1.0.4 and firmware 2.3.  
                     Signal level reporting requires radiotap be turned on
@@ -729,7 +723,6 @@ Licensed under the GPL
                     are not reported.
 
     ipw2915         Intel/Centrino      Linux       ipw2200-1.0.4+
-                    Capture interface:  'ethX'
                     http://ipw2200.sourceforge.net/
                     The Linux IPW2200/Centrino drivers for 802.11bga cards
                     support rfmon as of 1.0.4 and firmware 2.3.  
@@ -740,13 +733,11 @@ Licensed under the GPL
                     are not reported.
 
     ipw3945         Intel/Centrino      Linux       ipw3945
-                    Capture interface:  'ethX'
                     http://ipw3945.sourceforge.net/
                     The Linux IPW3945/Centrino drivers for Intel Core
                     802.11bga cards.
 
     ipwlivetap      Intel/Centrino      Linux       ipw2200/3945
-                    Capture interface:  'ethX'
                     http://ipw2200.sourceforge.net/
                     http://ipw3945.sourceforge.net/
                     The ipw3945 and patched ipw2200 drivers support a 
@@ -756,6 +747,10 @@ Licensed under the GPL
                     specific AP, but single-channel IDS and sniffing can
                     be accomplished.  See the ipw driver mailing list
                     archives for information about patching your drivers.
+
+    iwl3945         Intel/Centrino      Linux       iwl3945
+                    Intel's new IPW drivers using the mac80211 kernel
+                    layer.
 
     kismet_drone    n/a                 Any         n/a
                     Capture interface:  'dronehost:port'  
@@ -828,14 +823,12 @@ Licensed under the GPL
 
     nokia770        Nokia/TI            Linux       Nokies/TI
                     http://maemo.org/
-                    Capture interface:  'wlan0'
                     Nokia770 capture interface.  Includes support for 
                     validating frame checksums to screen out junk 
                     packets, since the drivers pass us all data.
 
     orinoco         Lucent, Orinoco     Linux       Patched orinoco_cs
                     http://airsnort.shmoo.com/orinocoinfo.html
-                    Capture interface:  'ethX'
                     The Orinoco drivers which have mainlined into the Linux
                      kernel do support monitor mode, however only specific firmware
                      versions are supported and often they do not work.
@@ -847,7 +840,6 @@ Licensed under the GPL
 
     orinoco_14      Lucent, Orinoco     Linux       Orinoco 0.14+
                     https://savannah.nongnu.org/projects/orinoco/
-                    Capture interface:  'ethX'
                     This source is deprecated and should only be used with
                     pre-release versions of a driver since merged into the Linux
                     kernel.
@@ -861,55 +853,45 @@ Licensed under the GPL
                      if Kismet was compiled with libpcap support.
 
     prism2_openbsd  Prism/2             OpenBSD     Kernel
-                    Capture interface:  'wiX'
                     Full support for Prism2 under OpenBSD.
 
     prism54g        PrismGT             Linux       prism54
                     http://www.prism54.org
-                    Capture interface:  'ethX'
                     PrismGT 802.11g drivers supporting monitor mode.
 
     radiotap_bsd_ab Radiotap            BSD         Kernel
-                    Capture interface:  various
                     Dual-band cards with radiotap headers.
 
     radiotap_bsd_a Radiotap              BSD        Kernel
-                    Capture interface:  various
                     802.11a cards (or dual-band on 11a channels only) with 
                      radiotap headers. 
 
     radiotap_bsd_b Radiotap             BSD         Kernel
-                    Capture interface:  various
                     802.11b/g cards (or dual-band on 11b channels only) with
                      radiotap headers. 
 
     rt2400          Ralink 2400 11b     Linux       rt2400-gpl
-                    Capture interface:  'ethX'
                     http://rt2x00.serialmonkey.com/
                     Ralink 2400 802.11b cards using the serialmonkey GPL'd 
                      rt2x00 drivers.  Must use 1.2.2 beta 2 or newer drivers.
 
     rt2500          Ralink 2500 11g     Linux       rt2500-gpl
-                    Capture interface:  'ethX'
                     http://rt2x00.serialmonkey.com/
                     Ralink 2500 802.11g cards using the serialmonkey GPL'd 
                      rt2x00 drivers.  Must use 1.1.0 beta 2 or newer drivers.
 
     rt73            Ralink 73   11g     Linux       rt73-gpl-cvs
-                    Capture interface:  'rausbX'
                     http://rt2x00.serialmonkey.com/
                     Ralink 73 802.11g USB cards using the serialmonkey GPL'd
                      rt79 drivers (tested only with CVS driver versions)
 
     rt8180          Realtek 8180 11b    Linux       rtl8180-sa2400
-                    Capture interface:  'ethX'
                     http://rtl8180-sa2400.sourceforge.net/
                     Realtek 8180 based cards (there seem to be an awful lot of
                      them) using the GPL drivers.
 
     viha            Airport             OSX         viha
                     http://www.dopesquad.net/security/
-                    Capture interface:  'enX'
                     Monitor mode support for Airport under OSX.  Does not
                      support Airport Extreme.
 
@@ -920,19 +902,16 @@ Licensed under the GPL
 
     wlanng_legacy   Prism/2             Linux       wlan-ng 0.1.3 and earlier
                     http://www.linux-wlan.com/
-                    Capture interface:  'wlanX'
                     Old wlan-ng drivers didn't support pcap capturing and
                      use a netlink socket to the kernel.  These are still in
                      use on some embedded systems (like the Zaurus).
 
     wlanng          Prism/2             Linux       wlan-ng 0.1.4 - 0.1.9
                     http://www.linux-wlan.com/
-                    Capture interface:  'wlanX'  
                     Wlan-ng prism2 drivers prior to the AVS headers.
 
     wlanng_avs      Prism/2             Linux       wlan-ng 0.2.0+
                     http://www.linux-wlan.com/
-                    Capture interface:  'wlanX'
                     Newer wlan-ng drivers support a new header type and 
                      slightly different monitor commands to report wepped
                      packets.
@@ -957,17 +936,8 @@ Licensed under the GPL
                      been less maintained than others.  If you'd like to
                      send me patches for this, please let me know.
 
-    wtapfile        n/a                 Any         n/a
-                    Capture interface:  '/path/to/file'  
-                    Wtapfile sources are the same as pcapfile sources but
-                     they use the Ethereal libwiretap loader.  libwiretap can
-                     automatically decompress gzipped files, etc.  Wtapfile
-                     sources are only available if Kismet was compiled with
-                     libwiretap support.
-
     zd1211          ZyDAS USB           Linux       zd1211
                     http://zd1211.ath.cx
-                    Capture interface:  'wlanX'
                     At the time of this writing, the ZD1211 drivers have
                      significant data corruption while changing channel, and
                      often while receiving data frames.  Until these problems

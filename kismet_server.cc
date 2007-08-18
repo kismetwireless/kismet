@@ -2836,7 +2836,9 @@ int main(int argc,char *argv[]) {
     time_t last_click = 0;
     int num_networks = 0, num_packets = 0, num_noise = 0, num_dropped = 0;
 
-    fprintf(stderr, "Gathering packets...\n");
+    printf("Gathering packets...\n");
+	fflush(stdout);
+	fflush(stderr);
 
 	// Drop to daemon mode if we're going to
 	if (daemonize) {

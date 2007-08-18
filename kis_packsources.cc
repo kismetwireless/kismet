@@ -68,6 +68,14 @@ int RegisterKismetSources(Packetsourcetracker *sourcetracker) {
                                         pcapsource_11g_registrant,
                                         monitor_wext, unmonitor_wext,
                                         chancontrol_wext, 1);
+    sourcetracker->RegisterPacketsource("b43", 1, "IEEE80211g", 6,
+                                        pcapsource_11g_registrant,
+                                        monitor_wext, unmonitor_wext,
+                                        chancontrol_wext, 1);
+    sourcetracker->RegisterPacketsource("b43legacy", 1, "IEEE80211g", 6,
+                                        pcapsource_11g_registrant,
+                                        monitor_wext, unmonitor_wext,
+                                        chancontrol_wext, 1);
     sourcetracker->RegisterPacketsource("cisco", 1, "IEEE80211b", 6,
                                        pcapsource_wext_registrant,
                                        monitor_cisco, unmonitor_cisco, 
@@ -175,6 +183,12 @@ int RegisterKismetSources(Packetsourcetracker *sourcetracker) {
                                         monitor_ipw3945, unmonitor_ipw3945,
                                         chancontrol_ipw2200, 1);
 
+	/* Effectively the same as the ipw3945 */
+    sourcetracker->RegisterPacketsource("iwl3945", 1, "IEEE80211ab", 6,
+                                        pcapsource_wext_registrant,
+                                        monitor_ipw3945, unmonitor_ipw3945,
+                                        chancontrol_ipw2200, 1);
+
     sourcetracker->RegisterPacketsource("ipwlivetap", 1, "IEEE80211b", 0,
                                         pcapsource_wext_registrant,
                                         monitor_ipwlivetap, 
@@ -211,6 +225,8 @@ int RegisterKismetSources(Packetsourcetracker *sourcetracker) {
 #else
     // Register the linuxwireless pcap stuff as null
     REG_EMPTY_CARD(sourcetracker, "bcm43xx");
+    REG_EMPTY_CARD(sourcetracker, "b43");
+    REG_EMPTY_CARD(sourcetracker, "b43legacy");
 
     REG_EMPTY_CARD(sourcetracker, "cisco");
     REG_EMPTY_CARD(sourcetracker, "cisco_wifix");
