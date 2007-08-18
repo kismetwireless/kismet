@@ -200,7 +200,7 @@ int main(int argc, char *argv[], char *envp[]) {
 
 	wait4(clipid, NULL, 0, NULL);
 
-	printf("\nKismet exiting, shutdown information follows:\n");
+	printf("\nKismet exiting...\n");
 
 	kill(srvpid, SIGQUIT);
 
@@ -242,9 +242,7 @@ int main(int argc, char *argv[], char *envp[]) {
 				continue;
 			}
 
-			if (clipid == -1) {
-				fprintf(stdout, "%s", ret);
-			}
+			fprintf(stdout, "%s", ret);
 		}
 	}
 
@@ -253,5 +251,7 @@ int main(int argc, char *argv[], char *envp[]) {
 	}
 
 	wait4(srvpid, NULL, 0, NULL);
+
+	printf("Done.\n");
 }
 
