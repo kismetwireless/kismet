@@ -126,6 +126,11 @@ int main(int argc, char *argv[], char *envp[]) {
 			break;
 		}
 
+		if (clipid == -1 &&
+			wait4(srvpid, NULL, WNOHANG, NULL) < 0) {
+			break;
+		}
+
 		if (select(max_fd + 1, &rset, NULL, NULL, &tm) < 0) {
 			fprintf(stderr, "Select failed: %s\n", strerror(errno));
 			break;
@@ -202,7 +207,7 @@ int main(int argc, char *argv[], char *envp[]) {
 
 	printf("\nKismet exiting...\n");
 
-	kill(srvpid, SIGQUIT);
+	kill(srvpid, SIGTERM);
 
 	while (1) {
 		FD_ZERO(&rset);

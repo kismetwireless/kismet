@@ -2123,6 +2123,7 @@ int main(int argc,char *argv[]) {
     // Catch the interrupt handler to shut down
     signal(SIGINT, CatchShutdown);
     signal(SIGTERM, CatchShutdown);
+    signal(SIGQUIT, CatchShutdown);
     signal(SIGHUP, CatchShutdown);
     signal(SIGPIPE, CatchShutdown);
 
