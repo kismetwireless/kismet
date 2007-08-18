@@ -1,3 +1,7 @@
+Aug 18 2007  devel  Rewrote 'kismet' wrapper script to be a C program which
+                     properly handles stderr/stdout and queues error output
+                     for replay on exit, also handles timing on long-startup
+                     sources (like darwin warnings) properly
 Aug 18 2007  devel  Aliased b43/b43legacy for broadcom driver split
 Aug 13 2007  devel  Aliased iwl3945 for ipw3945
 Aug 03 2007  devel  Tweaks to Darwin source handling

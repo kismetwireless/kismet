@@ -2837,8 +2837,8 @@ int main(int argc,char *argv[]) {
     int num_networks = 0, num_packets = 0, num_noise = 0, num_dropped = 0;
 
     printf("Gathering packets...\n");
-	fflush(stdout);
 	fflush(stderr);
+	fflush(stdout);
 
 	// Drop to daemon mode if we're going to
 	if (daemonize) {

@@ -41,6 +41,9 @@ OBJC_CONTROL_O = darwin_control_objc.o
 OBJC_LINK = @objc_link@ 
 
 # Objects
+WRAPO = kismet_wrapper.o
+WRAP = kismet
+
 PSO	= util.o cygwin_utils.o ringbuf.o configfile.o speech.o ifcontrol.o \
 		iwcontrol.o madwifing_control.o $(OBJC_LINK) packet.o \
 		pcapsource.o prism2source.o wtapfilesource.o wsp100source.o \
@@ -79,13 +82,16 @@ GPSLBUILD=@gpslc@
 GPSLBUILDO=@gpslco@
 #ZAURUSBUILD=@zbuild@
 
-all:	Makefile $(DEPEND) $(PS) $(DRONE) $(NC) $(GPSLBUILD) $(ZAURUSBUILD)
+all:	Makefile $(DEPEND) $(PS) $(DRONE) $(WRAP) $(NC) $(GPSLBUILD) $(ZAURUSBUILD)
 
 $(PS):	$(PSO)
 	$(LD) $(LDFLAGS) -o $(PS) $(PSO) $(LIBS) $(PCAPLNK)
 
 $(DRONE):	$(DRONEO)
 	$(LD) $(LDFLAGS) -o $(DRONE) $(DRONEO) $(LIBS) $(PCAPLNK)
+
+$(WRAP):	$(WRAPO)
+	$(LD) $(LDFLAGS) -o $(WRAP) $(WRAPO) $(LIBS)
 
 $(NC):	$(NCO)
 	$(LD) $(LDFLAGS) -o $(NC) $(NCO) $(LIBS) $(CLIBS)
@@ -143,7 +149,7 @@ commoninstall:
 	mkdir -p $(ETC)
 	mkdir -p $(BIN)
 
-	install -o $(INSTUSR) -g $(INSTGRP) -m 755 scripts/kismet $(BIN)/kismet
+	install -o $(INSTUSR) -g $(INSTGRP) -m 755 $(WRAP) $(BIN)/kismet
 	install -o $(INSTUSR) -g $(INSTGRP) -s -m 755 $(NC) $(BIN)/$(NC)
 	# install -o $(INSTUSR) -g $(INSTGRP) -s -m 755 $(HOPPER) $(BIN)/$(HOPPER)
 	@if test "$(ZAURUS)" = "yes"; then \
@@ -312,7 +318,6 @@ distclean:
 	@-rm -rf packaging/ipkg/usr 
 	@-rm -rf packaging/pak
 	@-rm -rf *.ipk
-	@-rm -f scripts/kismet
 	# @-rm -f scripts/kismet_monitor
 	# @-rm -f scripts/kismet_unmonitor
 	@-( cd extra/; $(MAKE) distclean )
@@ -332,7 +337,7 @@ ipkg: $(PS) $(NC)
 	@cp $(PS) packaging/ipkg/$(BIN)/$(PS)
 	@cp $(NC) packaging/ipkg/$(BIN)/$(NC)
 	# @cp $(HOPPER) packaging/ipkg/$(BIN)/$(HOPPER)
-	@cp scripts/kismet packaging/ipkg/$(BIN)/kismet
+	@cp $(WRAP) packaging/ipkg/$(BIN)/kismet
 	@cp conf/kismet.conf packaging/ipkg/$(ETC)/kismet.conf
 	@cp conf/kismet_ui.conf packaging/ipkg/$(ETC)/kismet_ui.conf
 	@cp conf/ap_manuf packaging/ipkg/$(ETC)/ap_manuf
