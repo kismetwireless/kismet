@@ -60,6 +60,8 @@ public:
 	// admtek
 	// atmel_usb
 	// bcm43xx
+	// b43
+	// b43legacy
 	// hostap
 	// ipw2100 [auto]
 	// ipw2200 [auto]

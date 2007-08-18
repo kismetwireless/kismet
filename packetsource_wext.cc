@@ -108,6 +108,8 @@ int PacketSource_Wext::RegisterSources(Packetsourcetracker *tracker) {
 	tracker->RegisterPacketsource("admtek", this, 1, "IEEE80211b", 6);
 	tracker->RegisterPacketsource("atmel_usb", this, 1, "IEEE80211b", 6);
 	tracker->RegisterPacketsource("bcm43xx", this, 1, "IEEE80211b", 6);
+	tracker->RegisterPacketsource("b43", this, 1, "IEEE80211b", 6);
+	tracker->RegisterPacketsource("b43legacy", this, 1, "IEEE80211b", 6);
 	tracker->RegisterPacketsource("hostap", this, 1, "IEEE80211b", 6);
 	tracker->RegisterPacketsource("ipw2100", this, 1, "IEEE80211b", 6);
 	tracker->RegisterPacketsource("ipw2200", this, 1, "IEEE80211b", 6);
