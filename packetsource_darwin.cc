@@ -30,6 +30,8 @@
 #include <net/bpf.h>
 extern "C" {
 #include "apple80211.h"
+#include <Carbon/Carbon.h>
+#include "darwin_control_objc.h"
 }
 
 #include "packetsource_darwin.h"
@@ -54,6 +56,42 @@ WIErr wlc_ioctl(WirelessContextPtr ctx, int command, int bufsize,
 	return WirelessPrivate(ctx, buf, bufsize+8, out, outsize);
 }
 
+/* Iterate over the IO registry, look for a specific type of card
+ * thanks to Kevin Finisterre */
+int darwin_cardcheck(char *service) {
+	mach_port_t masterPort;
+	io_iterator_t iterator;
+	io_object_t sdev;
+	kern_return_t err;
+
+	if (IOMasterPort(MACH_PORT_NULL, &masterPort) != KERN_SUCCESS) {
+		return -1;
+	}
+
+	if (IORegistryCreateIterator(masterPort, kIOServicePlane,
+								 kIORegistryIterateRecursively, &iterator) == 
+		KERN_SUCCESS) {
+		while ((sdev = IOIteratorNext(iterator))) {
+			if (sdev != MACH_PORT_NULL) {
+				io_name_t thisClassName;
+				io_name_t name;
+
+				err = IOObjectGetClass(sdev, thisClassName);
+				err = IORegistryEntryGetName(sdev, name);
+
+				if (IOObjectConformsTo(sdev, service)) {
+					IOObjectRelease(iterator);
+					return 0;
+				}
+			}
+		}
+
+		IOObjectRelease(iterator);
+	}
+
+	return 1;
+}
+
 int PacketSource_Darwin::OpenSource() {
 	return PacketSource_Pcap::OpenSource();
 }
@@ -76,6 +114,63 @@ PacketSource_Darwin::PacketSource_Darwin(GlobalRegistry *in_globalreg,
 }
 
 int PacketSource_Darwin::EnableMonitor() {
+	char devname[16];
+	int devnum;
+
+	if (sscanf(interface.c_str(), "%16[^0-9]%d", devname, &devnum) != 2) {
+		_MSG("OSX Darwin interface could not parse '" + interface + "' "
+			 "into wlt# or en#, malformed interface name", MSGFLAG_FATAL);
+		globalreg->fatal_condition = 1;
+	}
+
+	if (darwin_cardcheck("AirPort_Brcm43xx") == 0 ||
+			   darwin_cardcheck("AirPortPCI_MM") == 0) {
+		if (darwin_bcom_testmonitor() < 0) {
+			_MSG("Darwin source " + name + ": Looks like a broadcom card running "
+				 "under Darwin and does not appear to have monitor mode enabled "
+				 "in the kernel.  Kismet will attempt to enable monitor in "
+				 "5 seconds.", MSGFLAG_INFO);
+			sleep(5);
+			if (darwin_bcom_enablemonitor() < 0) {
+				_MSG("Darwin source " + name + ": Failed to enable monitor mode "
+					 "for Darwin Broadcom", MSGFLAG_FATAL);
+				globalreg->fatal_condition = 1;
+				return -1;
+			}
+		} else {
+			_MSG("Darwin source " + name + ": Looks like a Broadcom card "
+				 "running under Darwin and already has monitor mode enabled",
+				 MSGFLAG_INFO);
+		}
+	} else if (darwin_cardcheck("AirPort_Athr5424ab") == 0) {
+		_MSG("Darwin source " + name + ": Looks like an Atheros card running "
+			 "under Darwin.  Monitor mode assumed to be on by default in "
+			 "these drivers.", MSGFLAG_INFO);
+	} else {
+		_MSG("Darwin source " + name + ": Didn't look like Broadcom or "
+			 "Atheros under Darwin.  We'll treat it like an Atheros card and "
+			 "hope for the best, however it may not work properly.", 
+			 MSGFLAG_ERROR);
+		sleep(2);
+	}
+
+	// Bring the control interface up and promisc
+	snprintf(devname, 16, "en%d", devnum);
+
+	Ifconfig_Delta_Flags(devname, errstr, (IFF_UP | IFF_PROMISC));
+
+	if (Ifconfig_Delta_Flags(devname, errstr, (IFF_UP | IFF_PROMISC)) < 0) {
+		_MSG("Darwin source " + name + ": Failed to set interface " +
+			 string(devname) + " Up+Promisc: " + string(errstr),
+			 MSGFLAG_FATAL);
+		globalreg->fatal_condition = 1;
+		return -1;
+	}
+
+	snprintf(devname, 16, "wlt%d", devnum);
+
+	interface = string(devname);
+
 	return 1;
 }
 

@@ -35,9 +35,12 @@ WAV = ${SHARE}/wav/
 
 DEPEND	= .depend
 
+OBJC_CONTROL_O = darwin_control_objc.mo
+OBJ_LINK = @objc_link@
+
 # Objects
 PSO	= util.o cygwin_utils.o ringbuf.o messagebus.o configfile.o getopt.o \
-	filtercore.o ifcontrol.o iwcontrol.o madwifing_control.o \
+	filtercore.o ifcontrol.o iwcontrol.o madwifing_control.o $(OBJC_LINK) \
 	ipc_remote.o soundcontrol.o speechcontrol.o \
 	netframework.o clinetframework.o tcpserver.o tcpclient.o serialclient.o \
 	kis_netframe.o kis_droneframe.o \
@@ -56,7 +59,7 @@ PSO	= util.o cygwin_utils.o ringbuf.o messagebus.o configfile.o getopt.o \
 PS	= kismet_server
 
 DRONEO = util.o cygwin_utils.o ringbuf.o messagebus.o configfile.o getopt.o \
-		 ifcontrol.o iwcontrol.o madwifing_control.o \
+		 ifcontrol.o iwcontrol.o madwifing_control.o $(OBJC_LINK) \
 		 ipc_remote.o soundcontrol.o speechcontrol.o \
 		 netframework.o clinetframework.o tcpserver.o tcpclient.o serialclient.o \
 		 drone_kisnetframe.o kis_droneframe.o \
@@ -379,7 +382,8 @@ $(DEPEND):
 	@echo "Generating dependencies... "
 	@echo > $(DEPEND)
 	@$(CXX) $(CFLAGS) -MM \
-		`echo $(PSO) $(DRONEO) $(NCO) | sed -e "s/\.o/\.cc/g"` >> $(DEPEND)
+		`echo $(PSO) $(DRONEO) $(NCO) | \
+		sed -e "s/\.o/\.cc/g" | sed -e "s/\.mo/\.m/g"` >> $(DEPEND)
 
 include $(DEPEND)
 
@@ -389,4 +393,8 @@ include $(DEPEND)
 .cc.o:	$(DEPEND)
 	$(CXX) $(CPPFLAGS) $(CXXFLAGS) -c $*.cc -o $@ 
 
-.SUFFIXES: .c .cc .o
+.m.mo:	$(DEPEND)
+	$(CXX) $(CPPFLAGS) $(CXXFLAGS) -c $*.m -o $@ 
+	
+
+.SUFFIXES: .c .cc .o .m .mo

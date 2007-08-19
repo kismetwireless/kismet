@@ -3675,6 +3675,7 @@ echo "${ECHO_T}HP ANSI C compiler - added -Ae +O2" >&6; }
         #
         CFLAGS="-no-cpp-precomp $CFLAGS"
 		LDFLAGS="$LDFLAGS -framework Foundation -framework CoreFoundation -F/System/Library/PrivateFrameworks -framework Apple80211"
+		objc_link='$(OBJC_CONTROL_O)'
         { echo "$as_me:$LINENO: result: Apple GCC - added Apple80211 frameworks and no-precomp" >&5
 echo "${ECHO_T}Apple GCC - added Apple80211 frameworks and no-precomp" >&6; }
 
@@ -3756,6 +3757,7 @@ echo "${ECHO_T}GCC on Solaris - added -Wno-return-type -DFUNCPROTO=15" >&6; }
         #
         CFLAGS="-no-cpp-precomp $CFLAGS"
 		LDFLAGS="$LDFLAGS -framework Foundation -framework CoreFoundation -F/System/Library/PrivateFrameworks -framework Apple80211"
+		objc_link='$(OBJC_CONTROL_O)'
         { echo "$as_me:$LINENO: result: Apple GCC - added Apple80211 frameworks and no-precomp" >&5
 echo "${ECHO_T}Apple GCC - added Apple80211 frameworks and no-precomp" >&6; }
 

@@ -123,17 +123,20 @@ public:
 	virtual void DrawPanel();
 	virtual int KeyPress(int in_key);
 
-	virtual void LinkColumn(string in_prefname, const char **columnlist);
+	virtual void AddColumn(string in_colname, string in_coltext);
+	virtual void LinkPrefValue(string in_prefval);
 
 	typedef struct colprefpair {
 		string colname;
-		int active;
+		string coltext;
+		int enable;
 	};
 
 protected:
 	Kis_Button *okbutton, *cancelbutton;
-
 	Kis_Scrollable_Table *colist;
+
+	Kis_Panel_Packbox *vbox, *hbox;
 
 	vector<Kis_Column_Picker::colprefpair> listedcols;
 
