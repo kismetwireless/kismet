@@ -57,7 +57,6 @@
 #include <sys/time.h>
 #include <sys/types.h>
 #include <sys/ioctl.h>
-#include <linux/if_tun.h>
 
 #include "globalregistry.h"
 #include "configfile.h"
@@ -66,6 +65,7 @@
 #include "dumpfile.h"
 
 #ifdef SYS_LINUX 
+#include <linux/if_tun.h>
 
 // Linux IEEE80211 link typ to set
 #define LNX_LINKTYPE_80211		801

@@ -116,6 +116,13 @@ Dumpfile_Tuntap::Dumpfile_Tuntap(GlobalRegistry *in_globalreg) :
 		sleep(1);
 		return;
 	}
+
+	if (ioctl(tuntap_fd, TUNSETNOCSUM, 1) < 0) {
+		_MSG("Unable to disable checksumming on tun/tap interface " + fname + ": " +
+			 string(strerror(errno)), MSGFLAG_FATAL);
+		globalreg->fatal_condition = 1;
+		return;
+	}
 #endif
 
 	// Bring up the interface
@@ -131,17 +138,11 @@ Dumpfile_Tuntap::Dumpfile_Tuntap(GlobalRegistry *in_globalreg) :
 	// Non-linux systems have fixed tun devices, so we open that
 	if ((tuntap_fd = open(fname.c_str(), O_RDWR)) < 0) {
 		_MSG("Unable to open tun/tap interface " + fname + ": " +
-			 string(strerr(errno)), MSGFLAG_FATAL);
-		globalreg->fatal_condition = 1;
-		return;
-	}
-
-	if (ioctl(tuntap_fd, TUNSETNOCSUM, 1) < 0) {
-		_MSG("Unable to disable checksumming on tun/tap interface " + fname + ": " +
 			 string(strerror(errno)), MSGFLAG_FATAL);
 		globalreg->fatal_condition = 1;
 		return;
 	}
+
 #endif
 
 	globalreg->packetchain->RegisterHandler(&dumpfiletuntap_chain_hook, this,
