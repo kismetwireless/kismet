@@ -659,6 +659,7 @@ INSTALL_SCRIPT
 INSTALL_DATA
 SET_MAKE
 CPP
+objc_link
 GREP
 EGREP
 LIBOBJS
@@ -3825,6 +3826,9 @@ echo "${ECHO_T}none needed" >&6; }
         ;;
     esac
 fi
+
+# Substitute in the objc linkages if we need them
+
 
 if test "$cygwin" = "yes"; then
 	{ echo "$as_me:$LINENO: checking cygwin compile flags" >&5
@@ -12816,6 +12820,7 @@ INSTALL_SCRIPT!$INSTALL_SCRIPT$ac_delim
 INSTALL_DATA!$INSTALL_DATA$ac_delim
 SET_MAKE!$SET_MAKE$ac_delim
 CPP!$CPP$ac_delim
+objc_link!$objc_link$ac_delim
 GREP!$GREP$ac_delim
 EGREP!$EGREP$ac_delim
 LIBOBJS!$LIBOBJS$ac_delim
@@ -12842,7 +12847,7 @@ sharedatadir!$sharedatadir$ac_delim
 LTLIBOBJS!$LTLIBOBJS$ac_delim
 _ACEOF
 
-  if test `sed -n "s/.*$ac_delim\$/X/p" conf$$subs.sed | grep -c X` = 84; then
+  if test `sed -n "s/.*$ac_delim\$/X/p" conf$$subs.sed | grep -c X` = 85; then
     break
   elif $ac_last_try; then
     { { echo "$as_me:$LINENO: error: could not make $CONFIG_STATUS" >&5

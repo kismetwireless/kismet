@@ -132,6 +132,9 @@ else
     esac
 fi
 
+# Substitute in the objc linkages if we need them
+AC_SUBST(objc_link)
+
 if test "$cygwin" = "yes"; then
 	AC_MSG_CHECKING(cygwin compile flags)
 	AC_MSG_RESULT(__MINGW32__)
