@@ -36,7 +36,7 @@ WAV = ${SHARE}/wav/
 
 DEPEND	= .depend
 
-OBJC_CONTROL_O = darwin_control_objc.o
+OBJC_CONTROL_O = darwin_control_objc.mo
 
 OBJC_LINK = @objc_link@ 
 
@@ -371,7 +371,7 @@ $(DEPEND):
 	@echo "Generating dependencies... "
 	@echo > $(DEPEND)
 	@$(CXX) $(CFLAGS) -MM \
-		`echo $(PSO) $(DRONEO) $(GPSLO) $(NCO) | sed -e "s/\.o/\.cc/g"` >> $(DEPEND)
+		`echo $(PSO) $(DRONEO) $(GPSLO) $(NCO) | sed -e "s/\.o/\.cc/g" | sed -e "s/\.mo/\.cc/g"` >> $(DEPEND)
 
 include $(DEPEND)
 
@@ -381,7 +381,7 @@ include $(DEPEND)
 .cc.o:	$(DEPEND)
 	$(CXX) $(CPPFLAGS) $(CXXFLAGS) -c $*.cc -o $@ 
 
-.m.o:	$(DEPEND)
+.m.mo:	$(DEPEND)
 	$(CXX) $(CPPFLAGS) $(CXXFLAGS) -c $*.m -o $@
 
-.SUFFIXES: .c .cc .m .o
+.SUFFIXES: .c .cc .m .o .mo

@@ -2646,7 +2646,7 @@ int PanelFront::StatsPrinter(void *in_window) {
     snprintf(output, print_width, "Start   : %.24s", ctime((const time_t *) &start_time));
     details_text.push_back(output);
 
-    snprintf(output, print_width, "Servers : %d", context_list.size());
+    snprintf(output, print_width, "Servers : %u", context_list.size());
     details_text.push_back(output);
 
     snprintf(output, print_width, "Networks: %d", num_networks);
