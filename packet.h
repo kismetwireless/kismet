@@ -192,6 +192,7 @@ public:
         duration = 0;
         datasize = 0;
 		qos = 0;
+		ssid_csum = 0;
     }
 
     // Corrupt 802.11 frame
@@ -254,6 +255,8 @@ public:
     int duration;
 
     int datasize;
+
+	uint32_t ssid_csum;
 };
 
 // some protocols we do try to track

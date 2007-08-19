@@ -1623,23 +1623,22 @@ int Netracker::netracker_chain_handler(kis_packet *in_pack) {
 		packinfo->subtype == packet_sub_probe_req) {
 		
 		// Build the SSID block checksum
-		uint32_t ssid_csum;
 		ostringstream ssid_st;
 
 		// Combine some fields into a string
 		ssid_st << packinfo->ssid << packinfo->ssid_len << packinfo->cryptset;
 
-		ssid_csum = Adler32Checksum(ssid_st.str().c_str(), 
+		packinfo->ssid_csum = Adler32Checksum(ssid_st.str().c_str(), 
 									ssid_st.str().length());
 		map<uint32_t, Netracker::adv_ssid_data *>::iterator ssidi =
-			net->ssid_map.find(ssid_csum);
+			net->ssid_map.find(packinfo->ssid_csum);
 
 		Netracker::adv_ssid_data *adssid;
 
 		if (ssidi == net->ssid_map.end()) {
-			adssid = BuildAdvSSID(ssid_csum, packinfo);
+			adssid = BuildAdvSSID(packinfo->ssid_csum, packinfo);
 			adssid->type = ssid_probereq;
-			cli->ssid_map[ssid_csum] = adssid;
+			cli->ssid_map[packinfo->ssid_csum] = adssid;
 		} else {
 			adssid = ssidi->second;
 		}
@@ -1658,23 +1657,23 @@ int Netracker::netracker_chain_handler(kis_packet *in_pack) {
 		packinfo->subtype == packet_sub_beacon) {
 
 		// Build the SSID block checksum
-		uint32_t ssid_csum;
 		ostringstream ssid_st;
 
 		// Combine some fields into a string
 		ssid_st << packinfo->ssid << packinfo->ssid_len << packinfo->cryptset;
 
-		ssid_csum = Adler32Checksum(ssid_st.str().c_str(), ssid_st.str().length());
+		packinfo->ssid_csum = 
+			Adler32Checksum(ssid_st.str().c_str(), ssid_st.str().length());
 
 		map<uint32_t, Netracker::adv_ssid_data *>::iterator ssidi =
-			net->ssid_map.find(ssid_csum);
+			net->ssid_map.find(packinfo->ssid_csum);
 
 		Netracker::adv_ssid_data *adssid;
 
 		if (ssidi == net->ssid_map.end()) {
-			adssid = BuildAdvSSID(ssid_csum, packinfo);
+			adssid = BuildAdvSSID(packinfo->ssid_csum, packinfo);
 			adssid->type = ssid_beacon;
-			net->ssid_map[ssid_csum] = adssid;
+			net->ssid_map[packinfo->ssid_csum] = adssid;
 		} else {
 			adssid = ssidi->second;
 		}
@@ -1747,23 +1746,23 @@ int Netracker::netracker_chain_handler(kis_packet *in_pack) {
 		packinfo->subtype == packet_sub_probe_resp) {
 
 		// Build the SSID block checksum
-		uint32_t ssid_csum;
 		ostringstream ssid_st;
 
 		// Combine some fields into a string
 		ssid_st << packinfo->ssid << packinfo->ssid_len << packinfo->cryptset;
 
-		ssid_csum = Adler32Checksum(ssid_st.str().c_str(), ssid_st.str().length());
+		packinfo->ssid_csum = 
+			Adler32Checksum(ssid_st.str().c_str(), ssid_st.str().length());
 
 		map<uint32_t, Netracker::adv_ssid_data *>::iterator ssidi =
-			net->ssid_map.find(ssid_csum);
+			net->ssid_map.find(packinfo->ssid_csum);
 
 		Netracker::adv_ssid_data *adssid;
 
 		if (ssidi == net->ssid_map.end()) {
-			adssid = BuildAdvSSID(ssid_csum, packinfo);
+			adssid = BuildAdvSSID(packinfo->ssid_csum, packinfo);
 			adssid->type = ssid_proberesp;
-			net->ssid_map[ssid_csum] = adssid;
+			net->ssid_map[packinfo->ssid_csum] = adssid;
 		} else {
 			adssid = ssidi->second;
 		}

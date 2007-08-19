@@ -141,6 +141,31 @@ Dumpfile_Pcap::Dumpfile_Pcap(GlobalRegistry *in_globalreg) : Dumpfile(in_globalr
 		return;
 	}
 
+	if (globalreg->kismet_config->FetchOpt("beaconlog") == "true") {
+		_MSG("Pcap log saving all beacon frames", MSGFLAG_INFO);
+		beaconlog = 1;
+	} else {
+		_MSG("Pcap log saving only first and different beacon frames",
+			 MSGFLAG_INFO);
+		beaconlog = 0;
+	} 
+
+	if (globalreg->kismet_config->FetchOpt("phylog") == "true") {
+		_MSG("Pcap log saving PHY frame types", MSGFLAG_INFO);
+		phylog = 1;
+	} else {
+		_MSG("Pcap log file not saving PHY frame types", MSGFLAG_INFO);
+		phylog = 0;
+	}
+
+	if (globalreg->kismet_config->FetchOpt("corruptlog") == "true") {
+		_MSG("Pcap log saving corrupt frames", MSGFLAG_INFO);
+		corruptlog = 1;
+	} else {
+		_MSG("Pcap log not saving corrupt frames", MSGFLAG_INFO);
+		corruptlog = 0;
+	}
+
 	globalreg->packetchain->RegisterHandler(&dumpfilepcap_chain_hook, this,
 											CHAINPOS_LOGGING, -100);
 
@@ -182,9 +207,11 @@ int Dumpfile_Pcap::Flush() {
 }
 
 int Dumpfile_Pcap::chain_handler(kis_packet *in_pack) {
-
 	// Grab the mangled frame if we have it, then try to grab up the list of
 	// data types and die if we can't get anything
+	kis_ieee80211_packinfo *packinfo =
+		(kis_ieee80211_packinfo *) in_pack->fetch(_PCM(PACK_COMP_80211));
+
 	kis_datachunk *chunk = 
 		(kis_datachunk *) in_pack->fetch(_PCM(PACK_COMP_MANGLEFRAME));
 
@@ -201,6 +228,27 @@ int Dumpfile_Pcap::chain_handler(kis_packet *in_pack) {
 	if (chunk->length < 0 || chunk->length > MAX_PACKET_LEN) {
 		_MSG("Weird frame in pcap logger with the wrong size...", MSGFLAG_ERROR);
 		return 0;
+	}
+
+	if (packinfo != NULL) {
+		if (phylog == 0 && packinfo->type == packet_phy)
+			return 0;
+
+		if (corruptlog == 0 && packinfo->corrupt)
+			return 0;
+
+		if (beaconlog == 0 && packinfo->type == packet_management &&
+			packinfo->subtype == packet_sub_beacon) {
+			macmap<uint32_t>::iterator bcmi =
+				bssid_csum_map.find(packinfo->bssid_mac);
+
+			if (bcmi != bssid_csum_map.end() &&
+				*(bcmi->second) == packinfo->ssid_csum) {
+				return 0;
+			}
+
+			bssid_csum_map.insert(packinfo->bssid_mac, packinfo->ssid_csum);
+		}
 	}
 
 	// Fake a header

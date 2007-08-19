@@ -54,6 +54,10 @@ public:
 protected:
 	pcap_t *dumpfile;
 	pcap_dumper_t *dumper;
+
+	int beaconlog, phylog, corruptlog;
+
+	macmap<uint32_t> bssid_csum_map;
 };
 
 #endif /* pcap */
