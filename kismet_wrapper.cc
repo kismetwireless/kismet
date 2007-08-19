@@ -22,6 +22,7 @@
 #include <vector>
 #include <errno.h>
 #include <sys/wait.h>
+#include <fcntl.h>
 
 #include "config.h"
 
@@ -35,6 +36,7 @@ int main(int argc, char *argv[], char *envp[]) {
 	fd_set rset;
 	FILE *out, *err;
 	struct timeval tm;
+	int check_err = 0, check_out = 0;
 
 	for (int x = 1; x < argc; x++) {
 		if (strcmp(argv[x], "-h") == 0 ||
@@ -61,32 +63,40 @@ int main(int argc, char *argv[], char *envp[]) {
 		}
 	}
 
-	/* eargv bumped by 2 to make room for the --silent and argv[0] */
-	eargv = (char **) malloc(sizeof(char *) * (server_opt.size() + 3));
-	for (unsigned int x = 0; x < server_opt.size(); x++) {
-		eargv[x + 2] = strdup(server_opt[x].c_str());
-	}
-
-	snprintf(ret, 2048, "%s/%s", BIN_LOC, "kismet_server");
-	eargv[0] = strdup(ret);
-	eargv[1] = strdup("--silent");
-	eargv[server_opt.size() + 2] = NULL;
-
 	if (pipe(rpipe) != 0 || pipe(epipe) != 0) {
 		fprintf(stderr, "Error creating pipe: %s\n", strerror(errno));
 		exit(5);
 	}
 
+	fcntl(rpipe[1], F_SETFD, fcntl(rpipe[1], F_GETFD) & ~1);
+	fcntl(epipe[1], F_SETFD, fcntl(epipe[1], F_GETFD) & ~1);
+
 	if ((srvpid = fork()) < 0) {
 		fprintf(stderr, "Error forking: %s\n", strerror(errno));
 		exit(5);
 	} else if (srvpid == 0) {
+		/* eargv bumped by 2 to make room for the --silent and argv[0] */
+		eargv = (char **) malloc(sizeof(char *) * (server_opt.size() + 3));
+		for (unsigned int x = 0; x < server_opt.size(); x++) {
+			eargv[x + 2] = strdup(server_opt[x].c_str());
+		}
+
+		snprintf(ret, 2048, "%s/%s", BIN_LOC, "kismet_server");
+		eargv[0] = strdup(ret);
+		eargv[1] = strdup("--silent");
+		eargv[server_opt.size() + 2] = NULL;
+
 		printf("Launching kismet_server: %s\n", eargv[0]);
 		fflush(stdout);
 
 		/* Dup over stdout/stderr so we can hijack the output */
+		close(STDOUT_FILENO);
+		close(STDERR_FILENO);
+
 		dup2(rpipe[1], STDOUT_FILENO);
 		dup2(epipe[1], STDERR_FILENO);
+
+		/* We don't need these anymore */
 		close(rpipe[0]);
 		close(rpipe[1]);
 		close(epipe[0]);
@@ -131,7 +141,8 @@ int main(int argc, char *argv[], char *envp[]) {
 			break;
 		}
 
-		if (select(max_fd + 1, &rset, NULL, NULL, &tm) < 0) {
+		int sel;
+		if ((sel = select(max_fd + 1, &rset, NULL, NULL, &tm)) < 0) {
 			fprintf(stderr, "Select failed: %s\n", strerror(errno));
 			break;
 		}
@@ -152,6 +163,9 @@ int main(int argc, char *argv[], char *envp[]) {
 			continue;
 		}
 
+		if (clipid >= 0 && check_err == 0)
+			check_err = 1;
+
 		if (FD_ISSET(rpipe[0], &rset)) {
 			if (fgets(ret, 2048, out) == NULL ||
 				feof(out)) {
@@ -165,6 +179,7 @@ int main(int argc, char *argv[], char *envp[]) {
 
 			/* Kismet actually launched */
 			if (strstr(ret, "Gathering packets...") != NULL && clipid == -1) {
+				sleep(1);
 				if ((clipid = fork()) < 0) {
 					fprintf(stderr, "Failed to fork for client: %s\n",
 							strerror(errno));
@@ -185,21 +200,15 @@ int main(int argc, char *argv[], char *envp[]) {
 					eargv[server_opt.size() + 1] = NULL;
 
 					printf("Launching kismet_client: %s\n", eargv[0]);
-					fflush(stdout);
-					fflush(stderr);
-
-					usleep(500000);
 
 					execv(eargv[0], eargv);
 
 					fprintf(stderr, "Failed to launch kismet_client\n");
-					break;
+					exit(255);
 				}
 
 				fprintf(stderr, "Launched client, pid %d\n", clipid);
 			}
-
-			continue;
 		}
 	}
 
@@ -212,8 +221,13 @@ int main(int argc, char *argv[], char *envp[]) {
 	while (1) {
 		FD_ZERO(&rset);
 
-		FD_SET(rpipe[0], &rset);
-		FD_SET(epipe[0], &rset);
+		if (check_out == 0 && check_err == 0)
+			break;
+
+		if (check_out)
+			FD_SET(rpipe[0], &rset);
+		if (check_err)
+			FD_SET(epipe[0], &rset);
 
 		tm.tv_sec = 0;
 		tm.tv_usec = 500000;
@@ -228,6 +242,10 @@ int main(int argc, char *argv[], char *envp[]) {
 				feof(err)) {
 				if (feof(out))
 					break;
+
+				fclose(err);
+				close(epipe[0]);
+				check_err = 0;
 				continue;
 			}
 
@@ -243,6 +261,11 @@ int main(int argc, char *argv[], char *envp[]) {
 				feof(out)) {
 				if (feof(err))
 					break;
+
+				fclose(out);
+				close(rpipe[0]);
+
+				check_out = 0;
 
 				continue;
 			}
