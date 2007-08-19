@@ -129,14 +129,14 @@ Dumpfile_Tuntap::Dumpfile_Tuntap(GlobalRegistry *in_globalreg) :
 	if (Ifconfig_Delta_Flags(fname.c_str(), errstr, 
 							 (IFF_UP | IFF_RUNNING | IFF_PROMISC)) < 0) {
 		_MSG(errstr, MSGFLAG_FATAL);
-		_MSG("Failed bringing virtual interface %s up", MSGFLAG_FATAL);
+		_MSG("Failed bringing virtual interface " + fname + " up", MSGFLAG_FATAL);
 		globalreg->fatal_condition = 1;
 		return;
 	}
 
 #ifndef SYS_LINUX
 	// Non-linux systems have fixed tun devices, so we open that
-	if ((tuntap_fd = open(fname.c_str(), O_RDWR)) < 0) {
+	if ((tuntap_fd = open(string("/dev/" + fname).c_str(), O_RDWR)) < 0) {
 		_MSG("Unable to open tun/tap interface " + fname + ": " +
 			 string(strerror(errno)), MSGFLAG_FATAL);
 		globalreg->fatal_condition = 1;
