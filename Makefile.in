@@ -371,7 +371,7 @@ $(DEPEND):
 	@echo "Generating dependencies... "
 	@echo > $(DEPEND)
 	@$(CXX) $(CFLAGS) -MM \
-		`echo $(PSO) $(DRONEO) $(GPSLO) $(NCO) | sed -e "s/\.o/\.cc/g" | sed -e "s/\.mo/\.cc/g"` >> $(DEPEND)
+		`echo $(PSO) $(DRONEO) $(GPSLO) $(NCO) | sed -e "s/\.o/\.cc/g" | sed -e "s/\.mo/\.m/g"` >> $(DEPEND)
 
 include $(DEPEND)
 
