@@ -45,9 +45,6 @@
 
 #include "config.h"
 
-#ifdef SYS_LINUX 
-/* linux only for now, but there's no reason this couldn't be expanded */
-
 #include <string>
 
 #include <stdio.h>
@@ -68,12 +65,16 @@
 #include "packetchain.h"
 #include "dumpfile.h"
 
+#ifdef SYS_LINUX 
+
 // Linux IEEE80211 link typ to set
 #define LNX_LINKTYPE_80211		801
 // If the system headers don't have the TUNSETLINK ioctl, define it here,
 // and we'll figure it out at runtime
 #ifndef TUNSETLINK
 #define TUNSETLINK				_IOW('T', 205, int)
+#endif
+
 #endif
 
 // Hook for grabbing packets
@@ -91,8 +92,6 @@ public:
 protected:
 	int tuntap_fd;
 };
-
-#endif /* sys linux */
 
 #endif /* __dump... */
 	

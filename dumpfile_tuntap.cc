@@ -18,8 +18,6 @@
 
 #include "config.h"
 
-#ifdef SYS_LINUX
-
 #include <errno.h>
 
 #include "dumpfile_tuntap.h"
@@ -66,6 +64,8 @@ Dumpfile_Tuntap::Dumpfile_Tuntap(GlobalRegistry *in_globalreg) :
 		return;
 	}
 
+#ifdef SYS_LINUX
+	// Linux has dynamic tun-tap, so we allocate our device that way
 	if ((tuntap_fd = open("/dev/net/tun", O_RDWR)) < 0) {
 		if (errno == EACCES) {
 			snprintf(errstr, STATUS_MAX, "Unable to open the tun/tap control "
@@ -111,10 +111,12 @@ Dumpfile_Tuntap::Dumpfile_Tuntap(GlobalRegistry *in_globalreg) :
 				 "type it will not work properly.  Make sure you have applied "
 				 "the patches to set tun/tap link type.  Exact error was: %s",
 				 strerror(errno));
-		_MSG(errstr, MSGFLAG_FATAL);
-		globalreg->fatal_condition = 1;
+		_MSG(errstr, MSGFLAG_ERROR);
+		// globalreg->fatal_condition = 1;
+		sleep(1);
 		return;
 	}
+#endif
 
 	// Bring up the interface
 	if (Ifconfig_Delta_Flags(fname.c_str(), errstr, 
@@ -124,6 +126,23 @@ Dumpfile_Tuntap::Dumpfile_Tuntap(GlobalRegistry *in_globalreg) :
 		globalreg->fatal_condition = 1;
 		return;
 	}
+
+#ifndef SYS_LINUX
+	// Non-linux systems have fixed tun devices, so we open that
+	if ((tuntap_fd = open(fname.c_str(), O_RDWR)) < 0) {
+		_MSG("Unable to open tun/tap interface " + fname + ": " +
+			 string(strerr(errno)), MSGFLAG_FATAL);
+		globalreg->fatal_condition = 1;
+		return;
+	}
+
+	if (ioctl(tuntap_fd, TUNSETNOCSUM, 1) < 0) {
+		_MSG("Unable to disable checksumming on tun/tap interface " + fname + ": " +
+			 string(strerror(errno)), MSGFLAG_FATAL);
+		globalreg->fatal_condition = 1;
+		return;
+	}
+#endif
 
 	globalreg->packetchain->RegisterHandler(&dumpfiletuntap_chain_hook, this,
 											CHAINPOS_LOGGING, -100);
@@ -175,6 +194,4 @@ int Dumpfile_Tuntap::chain_handler(kis_packet *in_pack) {
 
 	return 1;
 }
-
-#endif /* sys_linux */
 
