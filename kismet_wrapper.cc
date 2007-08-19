@@ -38,6 +38,9 @@ char ret[2048];
 
 /* Sighandler/Reaper */
 void reap(int sig) {
+	check_err = 1;
+	check_out = 1;
+
 	kill(clipid, SIGTERM);
 	wait4(clipid, NULL, 0, NULL);
 
