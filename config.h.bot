@@ -33,9 +33,11 @@
 // Max chars in SSID
 #define MAX_SSID_LEN    255
 
-/* Namespace */
+/* Namespace (on non-obj-c files) */
+#ifndef __IN_OBJC_FILE__
 using namespace std;
 #define __STL_USE_NAMESPACES
+#endif
 
 #ifndef _
 #define _(x) x
