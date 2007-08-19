@@ -26,17 +26,92 @@
 
 #include "config.h"
 
+/* Blob of globals since sighandler needs them */
+vector<string> postcli_err;
+pid_t srvpid = -1, clipid = -1;
+int rpipe[2], epipe[2], max_fd;
+fd_set rset;
+FILE *out, *err;
+struct timeval tim;
+int check_err = 0, check_out = 0;
+char ret[2048];
+
+/* Sighandler/Reaper */
+void reap(int sig) {
+	kill(clipid, SIGTERM);
+	wait4(clipid, NULL, 0, NULL);
+
+	kill(srvpid, SIGTERM);
+
+	while (1) {
+		FD_ZERO(&rset);
+
+		if (check_out == 0 && check_err == 0)
+			break;
+
+		if (check_out)
+			FD_SET(rpipe[0], &rset);
+		if (check_err)
+			FD_SET(epipe[0], &rset);
+
+		tim.tv_sec = 0;
+		tim.tv_usec = 500000;
+
+		if (select(max_fd + 1, &rset, NULL, NULL, &tim) < 0) {
+			fprintf(stderr, "Select failed: %s\n", strerror(errno));
+			break;
+		}
+
+		if (FD_ISSET(epipe[0], &rset)) {
+			if (fgets(ret, 2048, err) == NULL ||
+				feof(err)) {
+				if (feof(out))
+					break;
+
+				fclose(err);
+				close(epipe[0]);
+				check_err = 0;
+				continue;
+			}
+
+			if (clipid == -1) {
+				fprintf(stderr, "%s", ret);
+			} else {
+				postcli_err.push_back(ret);
+			}
+		}
+
+		if (FD_ISSET(rpipe[0], &rset)) {
+			if (fgets(ret, 2048, out) == NULL ||
+				feof(out)) {
+				if (feof(err))
+					break;
+
+				fclose(out);
+				close(rpipe[0]);
+
+				check_out = 0;
+
+				continue;
+			}
+
+			fprintf(stdout, "%s", ret);
+		}
+	}
+
+	for (unsigned int x = 0; x < postcli_err.size(); x++) {
+		fprintf(stderr, "%s", postcli_err[x].c_str());
+	}
+
+	wait4(srvpid, NULL, 0, NULL);
+
+	printf("Done.\n");
+}
+
 int main(int argc, char *argv[], char *envp[]) {
-	vector<string> server_opt, cli_opt, postcli_err;
+	vector<string> server_opt, cli_opt;
 	char **eargv;
 	int optmode = 0;
-	char ret[2048];
-	pid_t srvpid = -1, clipid = -1;
-	int rpipe[2], epipe[2], max_fd;
-	fd_set rset;
-	FILE *out, *err;
-	struct timeval tm;
-	int check_err = 0, check_out = 0;
 
 	for (int x = 1; x < argc; x++) {
 		if (strcmp(argv[x], "-h") == 0 ||
@@ -110,6 +185,11 @@ int main(int argc, char *argv[], char *envp[]) {
 		exit(255);
 	} 
 
+	signal(SIGINT, &reap);
+	signal(SIGTERM, &reap);
+	signal(SIGQUIT, &reap);
+	signal(SIGHUP, &reap);
+
 	close(rpipe[1]);
 	close(epipe[1]);
 
@@ -128,8 +208,8 @@ int main(int argc, char *argv[], char *envp[]) {
 		FD_SET(rpipe[0], &rset);
 		FD_SET(epipe[0], &rset);
 
-		tm.tv_sec = 0;
-		tm.tv_usec = 500000;
+		tim.tv_sec = 0;
+		tim.tv_usec = 500000;
 
 		if (clipid > -1 &&
 			wait4(clipid, NULL, WNOHANG, NULL) < 0) {
@@ -142,7 +222,7 @@ int main(int argc, char *argv[], char *envp[]) {
 		}
 
 		int sel;
-		if ((sel = select(max_fd + 1, &rset, NULL, NULL, &tm)) < 0) {
+		if ((sel = select(max_fd + 1, &rset, NULL, NULL, &tim)) < 0) {
 			fprintf(stderr, "Select failed: %s\n", strerror(errno));
 			break;
 		}
@@ -214,72 +294,6 @@ int main(int argc, char *argv[], char *envp[]) {
 
 	wait4(clipid, NULL, 0, NULL);
 
-	printf("\nKismet exiting...\n");
-
-	kill(srvpid, SIGTERM);
-
-	while (1) {
-		FD_ZERO(&rset);
-
-		if (check_out == 0 && check_err == 0)
-			break;
-
-		if (check_out)
-			FD_SET(rpipe[0], &rset);
-		if (check_err)
-			FD_SET(epipe[0], &rset);
-
-		tm.tv_sec = 0;
-		tm.tv_usec = 500000;
-
-		if (select(max_fd + 1, &rset, NULL, NULL, &tm) < 0) {
-			fprintf(stderr, "Select failed: %s\n", strerror(errno));
-			break;
-		}
-
-		if (FD_ISSET(epipe[0], &rset)) {
-			if (fgets(ret, 2048, err) == NULL ||
-				feof(err)) {
-				if (feof(out))
-					break;
-
-				fclose(err);
-				close(epipe[0]);
-				check_err = 0;
-				continue;
-			}
-
-			if (clipid == -1) {
-				fprintf(stderr, "%s", ret);
-			} else {
-				postcli_err.push_back(ret);
-			}
-		}
-
-		if (FD_ISSET(rpipe[0], &rset)) {
-			if (fgets(ret, 2048, out) == NULL ||
-				feof(out)) {
-				if (feof(err))
-					break;
-
-				fclose(out);
-				close(rpipe[0]);
-
-				check_out = 0;
-
-				continue;
-			}
-
-			fprintf(stdout, "%s", ret);
-		}
-	}
-
-	for (unsigned int x = 0; x < postcli_err.size(); x++) {
-		fprintf(stderr, "%s", postcli_err[x].c_str());
-	}
-
-	wait4(srvpid, NULL, 0, NULL);
-
-	printf("Done.\n");
+	reap(0);
 }
 
