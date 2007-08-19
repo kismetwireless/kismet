@@ -36,7 +36,7 @@ WAV = ${SHARE}/wav/
 DEPEND	= .depend
 
 OBJC_CONTROL_O = darwin_control_objc.mo
-OBJ_LINK = @objc_link@
+OBJC_LINK = @objc_link@
 
 # Objects
 PSO	= util.o cygwin_utils.o ringbuf.o messagebus.o configfile.o getopt.o \
