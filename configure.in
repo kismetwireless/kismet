@@ -43,7 +43,7 @@ then
         # headers.
         #
         CFLAGS="-no-cpp-precomp $CFLAGS"
-		LDFLAGS="$LDFLAGS -framework Foundation -framework CoreFoundation -F/System/Library/PrivateFrameworks -framework Apple80211"
+		LDFLAGS="$LDFLAGS -framework Foundation -framework CoreFoundation -F/System/Library/PrivateFrameworks -framework Apple80211 -framework IOKit"
 		objc_link='$(OBJC_CONTROL_O)'
         AC_MSG_RESULT(Apple GCC - added Apple80211 frameworks and no-precomp)
 		AC_DEFINE(SYS_DARWIN, 1, Compiling for OSX/Darwin)
@@ -93,7 +93,7 @@ else
         # See comments above about Apple's lovely C compiler.
         #
         CFLAGS="-no-cpp-precomp $CFLAGS"
-		LDFLAGS="$LDFLAGS -framework Foundation -framework CoreFoundation -F/System/Library/PrivateFrameworks -framework Apple80211"
+		LDFLAGS="$LDFLAGS -framework Foundation -framework CoreFoundation -F/System/Library/PrivateFrameworks -framework Apple80211 -framework IOKit"
 		objc_link='$(OBJC_CONTROL_O)'
         AC_MSG_RESULT(Apple GCC - added Apple80211 frameworks and no-precomp)
 		AC_DEFINE(SYS_DARWIN, 1, Compiling for OSX/Darwin)
