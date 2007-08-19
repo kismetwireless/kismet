@@ -678,12 +678,10 @@ int main(int argc, char *argv[], char *envp[]) {
 	if (globalregistry->fatal_condition)
 		CatchShutdown(-1);
 
-#ifdef SYS_LINUX
 	// Make the tuntap device as root, if we need to
 	new Dumpfile_Tuntap(globalregistry);
 	if (globalregistry->fatal_condition)
 		CatchShutdown(-1);
-#endif
 
 	// Create the basic network/protocol server
 	globalregistry->kisnetserver->Activate();
