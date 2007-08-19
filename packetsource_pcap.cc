@@ -209,7 +209,7 @@ int PacketSource_Pcap::Poll() {
 		// If we failed to dispatch a packet collection, find out if the interface
 		// got downed and give a smarter error message
 #ifdef SYS_LINUX
-		short flags = 0;
+		int flags = 0;
 		ret = Ifconfig_Get_Flags(interface.c_str(), errstr, &flags);
 		if (ret >= 0 && (flags & IFF_UP) == 0) {
 			snprintf(errstr, STATUS_MAX, "Failed to read a packet from %s.  The "

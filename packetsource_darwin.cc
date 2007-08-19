@@ -116,6 +116,7 @@ PacketSource_Darwin::PacketSource_Darwin(GlobalRegistry *in_globalreg,
 int PacketSource_Darwin::EnableMonitor() {
 	char devname[16];
 	int devnum;
+	char errstr[1024];
 
 	if (sscanf(interface.c_str(), "%16[^0-9]%d", devname, &devnum) != 2) {
 		_MSG("OSX Darwin interface could not parse '" + interface + "' "

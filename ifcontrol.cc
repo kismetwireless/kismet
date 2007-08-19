@@ -20,8 +20,85 @@
 #include "ifcontrol.h"
 
 #ifdef SYS_LINUX
-
 #include <netdb.h>
+#endif
+
+int Ifconfig_Set_Flags(const char *in_dev, char *errstr, int flags) {
+    struct ifreq ifr;
+    int skfd;
+
+    if ((skfd = socket(AF_INET, SOCK_DGRAM, 0)) < 0) {
+        snprintf(errstr, STATUS_MAX, "SetIFFlags: Failed to create AF_INET "
+                 "DGRAM socket. %d:%s", errno, strerror(errno));
+        return -1;
+    }
+
+    // Fetch interface flags
+    memset(&ifr, 0, sizeof ifr);
+    strncpy(ifr.ifr_name, in_dev, sizeof(ifr.ifr_name)-1);
+#if defined(SYS_FREEBSD)
+	ifr.ifr_flags = flags & 0xFFFF;
+	ifr.ifr_flagshigh = flags >> 16;
+#else
+    ifr.ifr_flags = flags;
+#endif
+    if (ioctl(skfd, SIOCSIFFLAGS, &ifr) < 0) {
+        snprintf(errstr, STATUS_MAX, "SetIFFlags: Unknown interface %s: %s", 
+                 in_dev, strerror(errno));
+        close(skfd);
+        return -1;
+    }
+
+    close(skfd);
+
+    return 0;
+}
+
+int Ifconfig_Get_Flags(const char *in_dev, char *errstr, int *flags) {
+    struct ifreq ifr;
+    int skfd;
+
+    if ((skfd = socket(AF_INET, SOCK_DGRAM, 0)) < 0) {
+        snprintf(errstr, STATUS_MAX, "GetIFFlags: Failed to create AF_INET "
+                 "DGRAM socket. %d:%s",
+                 errno, strerror(errno));
+        return -1;
+    }
+
+    // Fetch interface flags
+    memset(&ifr, 0, sizeof ifr);
+    strncpy(ifr.ifr_name, in_dev, sizeof(ifr.ifr_name)-1);
+    if (ioctl(skfd, SIOCGIFFLAGS, &ifr) < 0) {
+        snprintf(errstr, STATUS_MAX, "GetIFFlags: interface %s: %s", 
+                 in_dev, strerror(errno));
+        close(skfd);
+        return -1;
+    }
+
+#if defined(SYS_FREEBSD)
+	(*flags) = (ifr.ifr_flags & 0xFFFF) | (ifr.ifr_flagshigh << 16);
+#else
+    (*flags) = ifr.ifr_flags;
+#endif
+
+    close(skfd);
+
+    return 0;
+}
+
+int Ifconfig_Delta_Flags(const char *in_dev, char *errstr, int flags) {
+    int ret;
+    int rflags;
+
+    if ((ret = Ifconfig_Get_Flags(in_dev, errstr, &rflags)) < 0)
+        return ret;
+
+    rflags |= flags;
+
+    return Ifconfig_Set_Flags(in_dev, errstr, rflags);
+}
+
+#ifdef SYS_LINUX
 
 int Linux_GetDrvInfo(const char *in_dev, char *errstr, 
 					 struct ethtool_drvinfo *info) {
@@ -49,69 +126,6 @@ int Linux_GetDrvInfo(const char *in_dev, char *errstr,
 
     close(skfd);
     return 0;
-}
-
-int Ifconfig_Set_Flags(const char *in_dev, char *errstr, short flags) {
-    struct ifreq ifr;
-    int skfd;
-
-    if ((skfd = socket(AF_INET, SOCK_DGRAM, 0)) < 0) {
-        snprintf(errstr, STATUS_MAX, "SetIFFlags: Failed to create AF_INET "
-                 "DGRAM socket. %s", strerror(errno));
-        return -1;
-    }
-
-    // Fetch interface flags
-    strncpy(ifr.ifr_name, in_dev, IFNAMSIZ);
-    ifr.ifr_flags = flags;
-    if (ioctl(skfd, SIOCSIFFLAGS, &ifr) < 0) {
-        snprintf(errstr, STATUS_MAX, "SetIFFlags: Unknown interface %s: %s", 
-                 in_dev, strerror(errno));
-        close(skfd);
-        return -1;
-    }
-
-    close(skfd);
-
-    return 0;
-}
-
-int Ifconfig_Get_Flags(const char *in_dev, char *errstr, short *flags) {
-    struct ifreq ifr;
-    int skfd;
-
-    if ((skfd = socket(AF_INET, SOCK_DGRAM, 0)) < 0) {
-        snprintf(errstr, STATUS_MAX, "GetIFFlags: Failed to create AF_INET "
-                 "DGRAM socket. %s", strerror(errno));
-        return -1;
-    }
-
-    // Fetch interface flags
-    strncpy(ifr.ifr_name, in_dev, IFNAMSIZ);
-    if (ioctl(skfd, SIOCGIFFLAGS, &ifr) < 0) {
-        snprintf(errstr, STATUS_MAX, "GetIFFlags: interface %s: %s", 
-                 in_dev, strerror(errno));
-        close(skfd);
-        return -1;
-    }
-
-    (*flags) = ifr.ifr_flags;
-
-    close(skfd);
-
-    return 0;
-}
-
-int Ifconfig_Delta_Flags(const char *in_dev, char *errstr, short flags) {
-    int ret;
-    short rflags;
-
-    if ((ret = Ifconfig_Get_Flags(in_dev, errstr, &rflags)) < 0)
-        return ret;
-
-    rflags |= flags;
-
-    return Ifconfig_Set_Flags(in_dev, errstr, rflags);
 }
 
 int Ifconfig_Get_Hwaddr(const char *in_dev, char *errstr, uint8_t *ret_hwaddr) {

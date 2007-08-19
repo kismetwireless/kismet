@@ -72,7 +72,7 @@ int PacketSource_Ipwlive::EnableMonitor() {
 	char dynif[32];
 	FILE *sysf;
 	char path[1024];
-	short int ifflags;
+	int ifflags;
 
 	if (Ifconfig_Get_Flags(interface.c_str(), errstr, &ifflags) < 0) {
 		_MSG(errstr, MSGFLAG_ERROR);

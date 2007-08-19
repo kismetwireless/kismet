@@ -26,32 +26,43 @@
 #include <stdio.h>
 #include <unistd.h>
 
-#ifdef SYS_LINUX
-#include <net/if_arp.h>
+#include <sys/types.h>
 #include <sys/socket.h>
+
+#ifdef SYS_LINUX
+#include <asm/types.h>
+#include <linux/if.h>
+#else
+#include <net/if.h>
+#endif
+
+#include <net/if_arp.h>
 #include <sys/ioctl.h>
 #include <netinet/in.h>
 #include <netinet/if_ether.h>
 #include <arpa/inet.h>
 
-#ifdef HAVE_LINUX_WIRELESS
-// Because some kernels include ethtool which breaks horribly...
-// The stock ones don't but others seem to
-typedef unsigned char u8;
-typedef unsigned short u16;
-typedef unsigned int u32;
-typedef unsigned long u64;
-
-#include <asm/types.h>
-#include <linux/if.h>
-#include <linux/wireless.h>
-#endif
-
+#ifdef SYS_NETBSD
+#include <net80211/ieee80211.h>
+#include <net80211/ieee80211_ioctl.h>
 #endif
 
 #include "util.h"
 
 #ifdef SYS_LINUX
+
+#if defined(SYS_LINUX) || defined(SYS_NETBSD) || defined(SYS_OPENBSD) || \
+	defined(SYS_FREEBSD) || defined(SYS_DARWIN)
+int Ifconfig_Set_Flags(const char *in_dev, char *errstr, int flags);
+int Ifconfig_Delta_Flags(const char *in_dev, char *errstr, int flags);
+int Ifconfig_Get_Flags(const char *in_dev, char *errstr, int *flags);
+#endif
+
+#ifdef SYS_LINUX
+int Ifconfig_Get_Hwaddr(const char *in_dev, char *errstr, uint8_t *ret_hwaddr);
+int Ifconfig_Set_Hwaddr(const char *in_dev, char *errstr, uint8_t *in_hwaddr);
+int Ifconfig_Set_MTU(const char *in_dev, char *errstr, uint16_t in_mtu);
+#endif
 
 // Definitions gratuitiously yoinked from ethtool-2 for getting
 // driver info
@@ -83,9 +94,6 @@ struct ethtool_drvinfo {
 // Get the ethtool info
 int Linux_GetDrvInfo(const char *in_dev, char *errstr, 
 					 struct ethtool_drvinfo *info);
-int Ifconfig_Set_Flags(const char *in_dev, char *errstr, short flags);
-int Ifconfig_Delta_Flags(const char *in_dev, char *errstr, short flags);
-int Ifconfig_Get_Flags(const char *in_dev, char *errstr, short *flags);
 int Ifconfig_Get_Hwaddr(const char *in_dev, char *errstr, uint8_t *ret_hwaddr);
 int Ifconfig_Set_Hwaddr(const char *in_dev, char *errstr, uint8_t *in_hwaddr);
 int Ifconfig_Set_MTU(const char *in_dev, char *errstr, uint16_t in_mtu);

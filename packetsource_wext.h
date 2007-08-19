@@ -113,7 +113,7 @@ protected:
 		int prismhdr;
 	};
 
-	short stored_flags;
+	int stored_flags;
 	string stored_essid;
 	int stored_channel;
 	int stored_mode;
