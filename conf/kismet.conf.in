@@ -185,6 +185,12 @@ alert=NULLPROBERESP,5/min,1/sec
 alert=BSSTIMESTAMP,5/min,1/sec
 alert=DHCPCONFLICT,10/min,1/sec
 alert=CRYPTODROP,5/min,1/sec
+alert=MSFBCOMSSID,5/min,1/sec
+alert=MSFDLINKRATE,5/min,1/sec
+alert=MSFNETGEARBEACON,5/min,1/sec
+alert=LONGSSID,5/min,1/sec
+alert=DISCONCODEINVALID,5/min,1/sec
+alert=DEAUTHCODEINVALID,5/min,1/sec
 
 # Known WEP keys to decrypt, bssid,hexkey.  This is only for networks where
 # the keys are already known, and it may impact throughput on slower hardware.
