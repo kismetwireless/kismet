@@ -115,6 +115,7 @@ int PacketSource_Wext::RegisterSources(Packetsourcetracker *tracker) {
 	tracker->RegisterPacketsource("ipw2200", this, 1, "IEEE80211b", 6);
 	tracker->RegisterPacketsource("ipw2915", this, 1, "IEEE80211ab", 6);
 	tracker->RegisterPacketsource("ipw3945", this, 1, "IEEE80211ab", 6);
+	tracker->RegisterPacketsource("iwl3945", this, 1, "IEEE80211ab", 6);
 	tracker->RegisterPacketsource("nokia770", this, 1, "IEEE80211b", 6);
 	tracker->RegisterPacketsource("prism54g", this, 1, "IEEE80211b", 6);
 	tracker->RegisterPacketsource("rt2400", this, 1, "IEEE80211b", 6);
@@ -179,18 +180,53 @@ int PacketSource_Wext::EnableMonitor() {
 
 	if (stored_mode != LINUX_WLEXT_MONITOR) {
 		if (Iwconfig_Set_Mode(interface.c_str(), errstr, LINUX_WLEXT_MONITOR) < 0) {
-			_MSG(errstr, MSGFLAG_FATAL);
-			_MSG("Failed to set monitor mode on interface '" + interface + "'.  "
-				 "This usually means your drivers either do not support monitor "
-				 "mode, use a different mechanism than Kismet expected to "
-				 "set monitor mode, or that the user which started Kismet does "
-				 "not have permission to change the mode.  Make sure you have "
-				 "the required version and have applied any patches needed to "
-				 "your drivers, and tht you have configured the proper source "
-				 "type for Kismet.  See the troubleshooting section of the Kismet "
-				 "README for more information.", MSGFLAG_FATAL);
-			globalreg->fatal_condition = 1;
-			return -1;
+			/* Bring the interface down and try again */
+			_MSG("Failed to set monitor mode on interface '" + interface + "' "
+				 "while up, bringing interface down and trying again.",
+				 MSGFLAG_ERROR);
+
+			int oldflags;
+			Ifconfig_Get_Flags(interface.c_str(), errstr, &oldflags);
+
+			if (Ifconfig_Set_Flags(interface.c_str(), errstr,
+								   oldflags & !(IFF_UP | IFF_RUNNING)) < 0) {
+				_MSG("Failed to bring down interface '" + interface + "' to "
+					 "configure monitor mode: " + string(errstr),
+					 MSGFLAG_FATAL);
+				globalreg->fatal_condition = 1;
+				return -1;
+			}
+
+			if (Iwconfig_Set_Mode(interface.c_str(), errstr, 
+								  LINUX_WLEXT_MONITOR) < 0) {
+				_MSG(errstr, MSGFLAG_FATAL);
+				_MSG("Failed to set monitor mode on interface '" + interface + "', "
+					 "even after bringing interface into a down state.  This "
+					 "usually means your drivers either do not report monitor "
+					 "mode, use a different mechanism than Kismet expected "
+					 "to configure monitor mode, or that the user which started "
+					 "Kismet does not have permission to change the driver mode. "
+					 "Make sure you have the required version and have applied "
+					 "any patches needed to your drivers, and that you have "
+					 "configured the proper source type for Kismet.  See the "
+					 "troubleshooting section of the Kismet README for more "
+					 "information.", MSGFLAG_FATAL);
+				globalreg->fatal_condition = 1;
+				Ifconfig_Set_Flags(interface.c_str(), errstr, oldflags);
+				return -1;
+			}
+
+			if (Ifconfig_Delta_Flags(interface.c_str(), errstr, 
+									 IFF_UP | IFF_RUNNING | IFF_PROMISC) < 0) {
+				_MSG(errstr, MSGFLAG_FATAL);
+				_MSG("Failed to bring up interface '" + interface + "' after "
+					 "bringing it down to set monitor mode, check the "
+					 "output of `dmesg'.  This usually means there is some "
+					 "problem with the driver.", MSGFLAG_FATAL);
+				globalreg->fatal_condition = 1;
+				return -1;
+			}
+
 		}
 	} else {
 		_MSG("Interface '" + interface + "' is already marked as being in "
