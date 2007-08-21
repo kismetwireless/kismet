@@ -201,10 +201,6 @@ void ErrorShutdown() {
 
 // Catch our interrupt
 void CatchShutdown(int sig) {
-    if (sig == SIGPIPE)
-        fprintf(stderr, "FATAL: A pipe closed unexpectedly, trying to shut down "
-                "cleanly...\n");
-
     string termstr = "Kismet server terminating.";
 
 	if (globalregistry->kisnetserver != NULL) {
@@ -471,7 +467,7 @@ int main(int argc, char *argv[], char *envp[]) {
     signal(SIGINT, CatchShutdown);
     signal(SIGTERM, CatchShutdown);
     signal(SIGHUP, CatchShutdown);
-    signal(SIGPIPE, CatchShutdown);
+    signal(SIGPIPE, SIG_IGN);
 
 	// Start filling in key components of the globalregistry
 	globalregistry = new GlobalRegistry;
