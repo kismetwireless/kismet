@@ -1643,7 +1643,12 @@ void Kis_Netlist::DrawComponent() {
 
 	if (display_vec.size() == 0) {
 		wattrset(window, color_map[kis_netlist_color_normal]);
-		mvwaddnstr(window, sy + 2, sx, "[ --- No networks seen --- ]", ex - sx);
+		if (kpinterface->FetchNetClientVecPtr()->size() == 0) {
+			mvwaddnstr(window, sy + 2, sx, 
+					   "[ --- Not connected to a Kismet server --- ]", lx);
+		} else {
+			mvwaddnstr(window, sy + 2, sx, "[ --- No networks seen --- ]", ex - sx);
+		}
 		return;
 	}
 
@@ -1750,7 +1755,6 @@ void Kis_Netlist::DrawComponent() {
 
 				for (unsigned int c = 0; c < display_bexts.size(); c++) {
 					bssid_extras e = display_bexts[c];
-					int rbegin = rofft;
 
 					if (e == bext_lastseen) {
 						snprintf(rline + rofft, 1024 - rofft, "Last seen: %.15s",
