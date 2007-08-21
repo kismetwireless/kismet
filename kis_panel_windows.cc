@@ -75,6 +75,7 @@ Kis_Main_Panel::Kis_Main_Panel(GlobalRegistry *in_globalreg,
 	menu->DisableMenuItem(mi_noplugins);
 
 	mn_preferences = menu->AddSubMenuItem("Preferences", mn_tools, 'P');
+	mi_serverprefs = menu->AddMenuItem("Servers...", mn_preferences, 'S');
 	mi_colorprefs = menu->AddMenuItem("Colors...", mn_preferences, 'C');
 
 	menu->Show();
@@ -277,6 +278,8 @@ int Kis_Main_Panel::KeyPress(int in_key) {
 			kpinterface->AddPanel(pp);
 		} else if (ret == mi_colorprefs) {
 			SpawnColorPrefs();
+		} else if (ret == mi_serverprefs) {
+			SpawnServerPrefs();
 		} else {
 			for (unsigned int p = 0; p < plugin_menu_vec.size(); p++) {
 				if (ret == plugin_menu_vec[p].menuitem) {
@@ -340,6 +343,13 @@ void Kis_Main_Panel::SpawnColorPrefs() {
 	}
 
 	cpp->Position((LINES / 2) - 7, (COLS / 2) - 20, 14, 40);
+	kpinterface->AddPanel(cpp);
+}
+
+void Kis_Main_Panel::SpawnServerPrefs() {
+	Kis_AutoConPref_Panel *cpp = new Kis_AutoConPref_Panel(globalreg, kpinterface);
+
+	cpp->Position((LINES / 2) - 5, (COLS / 2) - 20, 11, 40);
 	kpinterface->AddPanel(cpp);
 }
 
@@ -438,10 +448,12 @@ Kis_Connect_Panel::Kis_Connect_Panel(GlobalRegistry *in_globalreg,
 	hostname->SetLabel("Host", LABEL_POS_LEFT);
 	hostname->SetTextLen(120);
 	hostname->SetCharFilter(FILTER_ALPHANUMSYM);
+	hostname->SetText(kpinterface->prefs.FetchOpt("default_host"), -1, -1);
 
 	hostport->SetLabel("Port", LABEL_POS_LEFT);
 	hostport->SetTextLen(5);
 	hostport->SetCharFilter(FILTER_NUM);
+	hostport->SetText(kpinterface->prefs.FetchOpt("default_port"), -1, -1);
 
 	okbutton->SetText("Connect");
 	cancelbutton->SetText("Cancel");

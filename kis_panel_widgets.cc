@@ -2049,8 +2049,15 @@ void Kis_Single_Input::SetTextLen(int in_len) {
 void Kis_Single_Input::SetText(string in_text, int dpos, int ipos) {
 	text = in_text;
 
-	inp_pos = ipos;
-	curs_pos = dpos;
+	if (ipos < 0)
+		inp_pos = in_text.length();
+	else
+		inp_pos = ipos;
+
+	if (dpos < 0)
+		curs_pos = 0;
+	else
+		curs_pos = dpos;
 }
 
 string Kis_Single_Input::GetText() {
@@ -2112,6 +2119,73 @@ int Kis_Button::KeyPress(int in_key) {
 void Kis_Button::SetText(string in_text) {
 	text = in_text;
 	SetPreferredSize(text.length() + 4, 1);
+}
+
+Kis_Checkbox::Kis_Checkbox(GlobalRegistry *in_globalreg, Kis_Panel *in_panel) :
+	Kis_Panel_Component(in_globalreg, in_panel) {
+	globalreg = in_globalreg;
+
+	active = 0;
+	checked = 0;
+}
+
+Kis_Checkbox::~Kis_Checkbox() {
+	// nada
+}
+
+void Kis_Checkbox::DrawComponent() {
+	if (visible == 0)
+		return;
+
+	// Draw the highlighted button area if we're active
+	if (active)
+		wattron(window, WA_REVERSE);
+
+	mvwhline(window, sy, sx, ' ', lx);
+
+	if (checked) {
+		mvwaddnstr(window, sy, sx, "[X]", 3);
+	} else {
+		mvwaddnstr(window, sy, sx, "[ ]", 3);
+	}
+
+	mvwaddnstr(window, sy, sx + 4, text.c_str(), lx - 4);
+
+	if (active)
+		wattroff(window, WA_REVERSE);
+}
+
+void Kis_Checkbox::Activate(int subcomponent) {
+	active = 1;
+}
+
+void Kis_Checkbox::Deactivate() {
+	active = 0;
+}
+
+int Kis_Checkbox::KeyPress(int in_key) {
+	if (visible == 0)
+		return 0;
+
+	if (in_key == KEY_ENTER || in_key == '\n' || in_key == ' ') {
+		checked = !checked;
+		return 0;
+	}
+
+	return 0;
+}
+
+void Kis_Checkbox::SetText(string in_text) {
+	text = in_text;
+	SetPreferredSize(text.length() + 4, 1);
+}
+
+int Kis_Checkbox::GetChecked() {
+	return checked;
+}
+
+void Kis_Checkbox::SetChecked(int in_check) {
+	checked = in_check;
 }
 
 Kis_Panel::Kis_Panel(GlobalRegistry *in_globalreg, KisPanelInterface *in_intf) {

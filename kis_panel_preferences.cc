@@ -371,5 +371,140 @@ void Kis_ColorPref_Panel::AddColorPref(string pref, string name) {
 	listedcolors.push_back(cpp);
 }
 
+Kis_AutoConPref_Panel::Kis_AutoConPref_Panel(GlobalRegistry *in_globalreg, 
+									 KisPanelInterface *in_intf) :
+	Kis_Panel(in_globalreg, in_intf) {
+
+	hostname = new Kis_Single_Input(globalreg, this);
+	hostport = new Kis_Single_Input(globalreg, this);
+	cancelbutton = new Kis_Button(globalreg, this);
+	okbutton = new Kis_Button(globalreg, this);
+	autoconcheck = new Kis_Checkbox(globalreg, this);
+
+	tab_components.push_back(hostname);
+	tab_components.push_back(hostport);
+	tab_components.push_back(autoconcheck);
+	tab_components.push_back(okbutton);
+	tab_components.push_back(cancelbutton);
+	tab_pos = 0;
+
+	active_component = hostname;
+
+	SetTitle("Connect to Server");
+
+	hostname->SetLabel("Host", LABEL_POS_LEFT);
+	hostname->SetTextLen(120);
+	hostname->SetCharFilter(FILTER_ALPHANUMSYM);
+	hostname->SetText(kpinterface->prefs.FetchOpt("default_host"), -1, -1);
+
+	hostport->SetLabel("Port", LABEL_POS_LEFT);
+	hostport->SetTextLen(5);
+	hostport->SetCharFilter(FILTER_NUM);
+	hostport->SetText(kpinterface->prefs.FetchOpt("default_port"), -1, -1);
+
+	autoconcheck->SetText("Auto-connect");
+	autoconcheck->SetChecked(kpinterface->prefs.FetchOpt("autoconnect") == "true");
+
+	okbutton->SetText("Save");
+	cancelbutton->SetText("Cancel");
+
+	hostname->Show();
+	hostport->Show();
+	autoconcheck->Show();
+	okbutton->Show();
+	cancelbutton->Show();
+
+	vbox = new Kis_Panel_Packbox(globalreg, this);
+	vbox->SetPackV();
+	vbox->SetHomogenous(0);
+	vbox->SetSpacing(1);
+	vbox->Show();
+
+	bbox = new Kis_Panel_Packbox(globalreg, this);
+	bbox->SetPackH();
+	bbox->SetHomogenous(1);
+	bbox->SetSpacing(1);
+	bbox->SetCenter(1);
+	bbox->Show();
+
+	bbox->Pack_End(cancelbutton, 0, 0);
+	bbox->Pack_End(okbutton, 0, 0);
+
+	vbox->Pack_End(hostname, 0, 0);
+	vbox->Pack_End(hostport, 0, 0);
+	vbox->Pack_End(autoconcheck, 0, 0);
+	vbox->Pack_End(bbox, 1, 0);
+
+	comp_vec.push_back(vbox);
+
+	active_component = hostname;
+	hostname->Activate(1);
+}
+
+Kis_AutoConPref_Panel::~Kis_AutoConPref_Panel() {
+}
+
+void Kis_AutoConPref_Panel::Position(int in_sy, int in_sx, int in_y, int in_x) {
+	Kis_Panel::Position(in_sy, in_sx, in_y, in_x);
+
+	vbox->SetPosition(1, 2, in_x - 2, in_y - 3);
+}
+
+void Kis_AutoConPref_Panel::DrawPanel() {
+	ColorFromPref(text_color, "panel_text_color");
+	ColorFromPref(border_color, "panel_border_color");
+
+	wbkgdset(win, text_color);
+	werase(win);
+
+	DrawTitleBorder();
+
+	wattrset(win, text_color);
+
+	for (unsigned int x = 0; x < comp_vec.size(); x++)
+		comp_vec[x]->DrawComponent();
+
+	wmove(win, 0, 0);
+}
+
+int Kis_AutoConPref_Panel::KeyPress(int in_key) {
+	int ret;
+
+	// Rotate through the tabbed items
+	if (in_key == '\t') {
+		tab_components[tab_pos]->Deactivate();
+		tab_pos++;
+		if (tab_pos >= (int) tab_components.size())
+			tab_pos = 0;
+		tab_components[tab_pos]->Activate(1);
+		active_component = tab_components[tab_pos];
+	}
+
+	// Otherwise the menu didn't touch the key, so pass it to the top
+	// component
+	if (active_component != NULL) {
+		ret = active_component->KeyPress(in_key);
+
+		if (active_component == okbutton && ret == 1) {
+			kpinterface->prefs.SetOpt("default_host",
+									  hostname->GetText(), 1);
+
+			kpinterface->prefs.SetOpt("default_port",
+									  hostport->GetText(), 1);
+
+			kpinterface->prefs.SetOpt("autoconnect",
+									  autoconcheck->GetChecked() ?
+									  "true" : "false", 1);
+
+			globalreg->panel_interface->KillPanel(this);
+		} else if (active_component == cancelbutton && ret == 1) {
+			// Cancel and close
+			globalreg->panel_interface->KillPanel(this);
+		}
+	}
+
+	return 0;
+}
+
 #endif
 

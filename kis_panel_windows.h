@@ -92,7 +92,7 @@ protected:
 
 	int mn_plugins, mi_addplugin, mi_noplugins;
 
-	int mn_preferences, mi_colorprefs;
+	int mn_preferences, mi_serverprefs, mi_colorprefs;
 
 
 	int connect_enable;
@@ -110,6 +110,8 @@ protected:
 	virtual void UpdateSortMenu();
 
 	virtual void SpawnColorPrefs();
+
+	virtual void SpawnServerPrefs();
 
 	vector<colorpref> color_pref_vec;
 };

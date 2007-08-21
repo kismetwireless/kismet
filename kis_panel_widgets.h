@@ -595,6 +595,33 @@ protected:
 	string text;
 };
 
+// A checkbox
+class Kis_Checkbox : public Kis_Panel_Component {
+public:
+	Kis_Checkbox() {
+		fprintf(stderr, "FATAL OOPS: Kis_Checkbox() called w/out globalreg\n");
+		exit(1);
+	}
+	Kis_Checkbox(GlobalRegistry *in_globalreg, Kis_Panel *in_panel);
+	virtual ~Kis_Checkbox();
+
+	virtual void DrawComponent();
+	virtual void Activate(int subcomponent);
+	virtual void Deactivate();
+
+	virtual int KeyPress(int in_key);
+
+	virtual void SetText(string in_text);
+
+	virtual int GetChecked();
+	virtual void SetChecked(int in_check);
+
+protected:
+	string text;
+
+	int checked;
+};
+
 class Kis_Panel {
 public:
 	Kis_Panel() {

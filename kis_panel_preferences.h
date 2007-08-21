@@ -146,6 +146,33 @@ protected:
 	string prefname;
 };
 
+class Kis_AutoConPref_Panel : public Kis_Panel {
+public:
+	Kis_AutoConPref_Panel() {
+		fprintf(stderr, "FATAL OOPS: Kis_Connect_Panel called w/out globalreg\n");
+		exit(1);
+	}
+
+	Kis_AutoConPref_Panel(GlobalRegistry *in_globalreg, KisPanelInterface *in_kpf);
+	virtual ~Kis_AutoConPref_Panel();
+
+	virtual void Position(int in_sy, int in_sx, int in_y, int in_x);
+	virtual void DrawPanel();
+	virtual int KeyPress(int in_key);
+
+protected:
+	Kis_Single_Input *hostname;
+	Kis_Single_Input *hostport;
+	Kis_Checkbox *autoconcheck;
+	Kis_Button *okbutton;
+	Kis_Button *cancelbutton;
+
+	Kis_Panel_Packbox *vbox, *bbox;
+
+	vector<Kis_Panel_Component *> tab_components;
+	int tab_pos;
+};
+
 #endif // curses
 
 #endif // prefs
