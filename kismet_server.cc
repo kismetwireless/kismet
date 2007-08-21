@@ -317,10 +317,6 @@ void ErrorShutdown() {
 
 // Catch our interrupt
 void CatchShutdown(int sig) {
-    if (sig == SIGPIPE)
-        fprintf(stderr, "FATAL: A pipe closed unexpectedly, trying to shut down "
-                "cleanly...\n");
-
     string termstr = "Kismet server terminating.";
     ui_server.SendToAll(terminate_ref, (void *) &termstr);
 
@@ -2125,7 +2121,7 @@ int main(int argc,char *argv[]) {
     signal(SIGTERM, CatchShutdown);
     signal(SIGQUIT, CatchShutdown);
     signal(SIGHUP, CatchShutdown);
-    signal(SIGPIPE, CatchShutdown);
+    signal(SIGPIPE, SIG_IGN);
 
     while(1) {
         int r = getopt_long(argc, argv, "d:M:t:nf:c:C:l:m:g:a:b:p:N:I:xXqhvsr",
