@@ -1643,11 +1643,22 @@ void Kis_Netlist::DrawComponent() {
 
 	if (display_vec.size() == 0) {
 		wattrset(window, color_map[kis_netlist_color_normal]);
-		if (kpinterface->FetchNetClientVecPtr()->size() == 0) {
+		vector<KisNetClient *> *clivec = kpinterface->FetchNetClientVecPtr();
+		int con = 0;
+
+		for (unsigned int c = 0; c < clivec->size(); c++) {
+			if ((*clivec)[c]->Valid()) {
+				con = 1;
+				break;
+			}
+		}
+
+		if (con == 0) {
 			mvwaddnstr(window, sy + 2, sx, 
 					   "[ --- Not connected to a Kismet server --- ]", lx);
 		} else {
-			mvwaddnstr(window, sy + 2, sx, "[ --- No networks seen --- ]", ex - sx);
+			mvwaddnstr(window, sy + 2, sx, "[ --- No networks seen --- ]", 
+					   ex - sx);
 		}
 		return;
 	}
