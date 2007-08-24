@@ -189,6 +189,11 @@ int RegisterKismetSources(Packetsourcetracker *sourcetracker) {
                                         monitor_ipw3945, unmonitor_ipw3945,
                                         chancontrol_ipw2200, 1);
 
+    sourcetracker->RegisterPacketsource("iwl4965", 1, "IEEE80211ab", 6,
+                                        pcapsource_wext_registrant,
+                                        monitor_ipw3945, unmonitor_ipw3945,
+                                        chancontrol_ipw2200, 1);
+
     sourcetracker->RegisterPacketsource("ipwlivetap", 1, "IEEE80211b", 0,
                                         pcapsource_wext_registrant,
                                         monitor_ipwlivetap, 
@@ -252,6 +257,8 @@ int RegisterKismetSources(Packetsourcetracker *sourcetracker) {
     REG_EMPTY_CARD(sourcetracker, "ipw2200");
     REG_EMPTY_CARD(sourcetracker, "ipw2915");
     REG_EMPTY_CARD(sourcetracker, "ipw3945");
+    REG_EMPTY_CARD(sourcetracker, "iwl3945");
+    REG_EMPTY_CARD(sourcetracker, "iwl4965");
     REG_EMPTY_CARD(sourcetracker, "ipwlivetap");
 
     REG_EMPTY_CARD(sourcetracker, "rt2400");

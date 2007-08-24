@@ -508,7 +508,8 @@ Licensed under the GPL
     - Linux (Intel, PPC, MIPS, X-Scale, Arm, etc)
       Known supported cards: Atmel_USB, ACX100, ADMTek, Atheros, Cisco, Prism2, 
        Orinoco, WSP100, Drone, wtapfile, pcapfile, wrt54g, ipw2100, rt2400,
-       rt2500, rt73, rt8180, ipw2200, ipw2915, ipw3945, iwl3945, Broadcom 43xx
+       rt2500, rt73, rt8180, ipw2200, ipw2915, ipw3945, iwl3945, iwl4965,
+       Broadcom 43xx
 
       Kismet will work with any distribution of Linux.  Currently, Linux is the
       recommended platform for running Kismet because it has the largest
@@ -749,6 +750,10 @@ Licensed under the GPL
                     archives for information about patching your drivers.
 
     iwl3945         Intel/Centrino      Linux       iwl3945
+                    Intel's new IPW drivers using the mac80211 kernel
+                    layer.
+
+    iwl4965         Intel/Centrino      Linux       iwl4965
                     Intel's new IPW drivers using the mac80211 kernel
                     layer.
 
