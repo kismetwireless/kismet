@@ -2319,7 +2319,7 @@ int monitor_wext(const char *in_dev, int initch, char *in_err,
 			return -1;
 
 		if (Ifconfig_Set_Flags(in_dev, in_err, 
-							   oldflags & !(IFF_UP | IFF_RUNNING)) < 0)
+							   oldflags & ~(IFF_UP | IFF_RUNNING)) < 0)
 			return -1;
 
 		if (Iwconfig_Set_Mode(in_dev, in_err, LINUX_WLEXT_MONITOR) < 0) {
