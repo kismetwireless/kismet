@@ -116,6 +116,7 @@ int PacketSource_Wext::RegisterSources(Packetsourcetracker *tracker) {
 	tracker->RegisterPacketsource("ipw2915", this, 1, "IEEE80211ab", 6);
 	tracker->RegisterPacketsource("ipw3945", this, 1, "IEEE80211ab", 6);
 	tracker->RegisterPacketsource("iwl3945", this, 1, "IEEE80211ab", 6);
+	tracker->RegisterPacketsource("iwl4965", this, 1, "IEEE80211ab", 6);
 	tracker->RegisterPacketsource("nokia770", this, 1, "IEEE80211b", 6);
 	tracker->RegisterPacketsource("prism54g", this, 1, "IEEE80211b", 6);
 	tracker->RegisterPacketsource("rt2400", this, 1, "IEEE80211b", 6);
@@ -189,7 +190,7 @@ int PacketSource_Wext::EnableMonitor() {
 			Ifconfig_Get_Flags(interface.c_str(), errstr, &oldflags);
 
 			if (Ifconfig_Set_Flags(interface.c_str(), errstr,
-								   oldflags & !(IFF_UP | IFF_RUNNING)) < 0) {
+								   oldflags & ~(IFF_UP | IFF_RUNNING)) < 0) {
 				_MSG("Failed to bring down interface '" + interface + "' to "
 					 "configure monitor mode: " + string(errstr),
 					 MSGFLAG_FATAL);

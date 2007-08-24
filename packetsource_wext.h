@@ -66,6 +66,9 @@ public:
 	// ipw2100 [auto]
 	// ipw2200 [auto]
 	// ipw2915 [as 2200]
+	// ipw3945
+	// iwl3945
+	// iwl4965
 	// prism54g
 	// rt2400
 	// rt2500
