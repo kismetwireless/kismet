@@ -26,6 +26,24 @@
 #include "kis_panel_frontend.h"
 #include "kis_panel_netsort.h"
 
+char *bssid_column_details[][2] = {
+	{ "decay", "Recent activity" },
+	{ "name", "Name or SSID" },
+	{ "shortname", "Shortened name or SSID" },
+	{ "nettype", "Type of network" },
+	{ "crypt", "Encryption options" },
+	{ "channel", "Channel" },
+	{ "packdata", "Number of data packets" },
+	{ "packllc", "Number of LLC/Management packets" },
+	{ "packcrypt", "Number of encrypted data packets" },
+	{ "bssid", "BSSID" },
+	{ "packets", "Total packets" },
+	{ "clients", "Number of associated clients" },
+	{ "datasize", "Amount of data seen" },
+	{ "beaconperc", "Percentage of expected beacons seen" },
+	{ NULL, NULL }
+};
+
 const char *Kis_Netlist::bssid_columns_text[] = {
 	"decay", "name", "shortname", "nettype",
 	"crypt", "channel", "packdata", "packllc", "packcrypt",
@@ -1563,6 +1581,10 @@ void Kis_Netlist::DrawComponent() {
 	if ((sort_mode != netsort_autofit && sort_mode != netsort_recent) &&
 		selected_line < first_line || selected_line > (int) display_vec.size())
 		selected_line = first_line;
+
+	// Get any updated columns
+	UpdateBColPrefs();
+	UpdateBExtPrefs();
 
 	// Column headers
 	if (colhdr_cache == "") {

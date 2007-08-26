@@ -77,6 +77,7 @@ Kis_Main_Panel::Kis_Main_Panel(GlobalRegistry *in_globalreg,
 	mn_preferences = menu->AddSubMenuItem("Preferences", mn_tools, 'P');
 	mi_serverprefs = menu->AddMenuItem("Servers...", mn_preferences, 'S');
 	mi_colorprefs = menu->AddMenuItem("Colors...", mn_preferences, 'C');
+	mi_netcolprefs = menu->AddMenuItem("Network Columns...", mn_preferences, 'N');
 
 	menu->Show();
 
@@ -280,6 +281,8 @@ int Kis_Main_Panel::KeyPress(int in_key) {
 			SpawnColorPrefs();
 		} else if (ret == mi_serverprefs) {
 			SpawnServerPrefs();
+		} else if (ret == mi_netcolprefs) {
+			SpawnNetcolPrefs();
 		} else {
 			for (unsigned int p = 0; p < plugin_menu_vec.size(); p++) {
 				if (ret == plugin_menu_vec[p].menuitem) {
@@ -343,6 +346,20 @@ void Kis_Main_Panel::SpawnColorPrefs() {
 	}
 
 	cpp->Position((LINES / 2) - 7, (COLS / 2) - 20, 14, 40);
+	kpinterface->AddPanel(cpp);
+}
+
+void Kis_Main_Panel::SpawnNetcolPrefs() {
+	Kis_ColumnPref_Panel *cpp = new Kis_ColumnPref_Panel(globalreg, kpinterface);
+
+	for (unsigned int x = 0; bssid_column_details[x][0] != NULL; x++) {
+		cpp->AddColumn(bssid_column_details[x][0],
+					   bssid_column_details[x][1]);
+	}
+
+	cpp->ColumnPref("netlist_columns", "Network List");
+
+	cpp->Position((LINES / 2) - 9, (COLS / 2) - 30, 18, 60);
 	kpinterface->AddPanel(cpp);
 }
 

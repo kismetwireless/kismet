@@ -506,5 +506,278 @@ int Kis_AutoConPref_Panel::KeyPress(int in_key) {
 	return 0;
 }
 
+Kis_OrderlistPref_Component::Kis_OrderlistPref_Component(GlobalRegistry *in_globalreg,
+														 Kis_Panel *in_panel) :
+	Kis_Scrollable_Table(in_globalreg, in_panel) {
+	globalreg = in_globalreg;
+
+	orderable = 0;
+	enable_fid = -1;
+	field_yes = field_no = "";
+}
+
+Kis_OrderlistPref_Component::~Kis_OrderlistPref_Component() {
+
+}
+
+void Kis_OrderlistPref_Component::SetOrderable(int in_order) {
+	orderable = in_order;
+}
+
+void Kis_OrderlistPref_Component::SetEnableField(int in_field, string in_yes,
+												 string in_no) {
+	enable_fid = in_field;
+	field_yes = in_yes;
+	field_no = in_no;
+}
+
+void Kis_OrderlistPref_Component::SetColumnField(int in_field) {
+	column_fid = in_field;
+}
+
+int Kis_OrderlistPref_Component::KeyPress(int in_key) {
+	if (visible == 0)
+		return 0;
+
+	if (orderable) {
+		// Just swap fields around and then treat it like a user-keyed move 
+		if (in_key == '-' && selected > 0) {
+			row_data *bak = data_vec[selected - 1];
+			data_vec[selected - 1] = data_vec[selected];
+			data_vec[selected] = bak;
+			Kis_Scrollable_Table::KeyPress(KEY_UP);
+		}
+
+		if (in_key == '+' && selected < (int) data_vec.size() - 1) {
+			row_data *bak = data_vec[selected + 1];
+			data_vec[selected + 1] = data_vec[selected];
+			data_vec[selected] = bak;
+			Kis_Scrollable_Table::KeyPress(KEY_DOWN);
+		}
+	}
+
+	if (enable_fid >= 0) {
+		if (in_key == ' ' || in_key == '\n' &&
+			(int) data_vec[selected]->data.size() > enable_fid) {
+			// Toggle the enable field of the current row
+			if (data_vec[selected]->data[enable_fid] == field_no) 
+				data_vec[selected]->data[enable_fid] = field_yes;
+			else
+				data_vec[selected]->data[enable_fid] = field_no;
+		}
+	}
+
+	return Kis_Scrollable_Table::KeyPress(in_key);
+}
+
+string Kis_OrderlistPref_Component::GetStringOrderList() {
+	string ret;
+
+	if (column_fid < 0)
+		return "";
+
+	for (unsigned int x = 0; x < data_vec.size(); x++) {
+		if (enable_fid >= 0 && (int) data_vec[x]->data.size() > enable_fid &&
+			(int) data_vec[x]->data.size() > column_fid) {
+			if (data_vec[x]->data[enable_fid] == field_yes) {
+				ret += ((x > 0) ? string(",") : string("")) + 
+					data_vec[x]->data[column_fid];
+			}
+		}
+	}
+
+	return ret;
+}
+
+Kis_ColumnPref_Panel::Kis_ColumnPref_Panel(GlobalRegistry *in_globalreg, 
+										   KisPanelInterface *in_intf) :
+	Kis_Panel(in_globalreg, in_intf) {
+
+	orderlist = new Kis_OrderlistPref_Component(globalreg, this);
+	helptext = new Kis_Free_Text(globalreg, this);
+
+	cancelbutton = new Kis_Button(globalreg, this);
+	okbutton = new Kis_Button(globalreg, this);
+
+	tab_components.push_back(orderlist);
+	tab_components.push_back(okbutton);
+	tab_components.push_back(cancelbutton);
+	tab_pos = 0;
+
+	active_component = orderlist;
+	orderlist->Activate(1);
+
+	SetTitle("Column Preferences");
+
+	// Set the titles, pref and enable columns, and re-ordering
+	vector<Kis_Scrollable_Table::title_data> titles;
+	Kis_Scrollable_Table::title_data t;
+	t.width = 16;
+	t.title = "Column";
+	t.alignment = 0;
+	titles.push_back(t);
+
+	t.width = 4;
+	t.title = "Show";
+	t.alignment = 0;
+	titles.push_back(t);
+
+	t.width = 30;
+	t.title = "Description";
+	t.alignment = 0;
+	titles.push_back(t);
+
+	orderlist->AddTitles(titles);
+	orderlist->SetColumnField(0);
+	orderlist->SetEnableField(1, "Yes", "No");
+	orderlist->SetOrderable(1);
+
+	helptext->SetText("Select with space, change order with +/-");
+
+	okbutton->SetText("Save");
+	cancelbutton->SetText("Cancel");
+
+	orderlist->Show();
+	helptext->Show();
+	okbutton->Show();
+	cancelbutton->Show();
+
+	vbox = new Kis_Panel_Packbox(globalreg, this);
+	vbox->SetPackV();
+	vbox->SetHomogenous(0);
+	vbox->SetSpacing(1);
+	vbox->Show();
+
+	bbox = new Kis_Panel_Packbox(globalreg, this);
+	bbox->SetPackH();
+	bbox->SetHomogenous(1);
+	bbox->SetSpacing(1);
+	bbox->SetCenter(1);
+	bbox->SetPreferredSize(0, 1);
+	bbox->SetMinSize(0, 1);
+	bbox->Show();
+
+	bbox->Pack_End(cancelbutton, 0, 0);
+	bbox->Pack_End(okbutton, 0, 0);
+
+	vbox->Pack_End(orderlist, 1, 0);
+	vbox->Pack_End(helptext, 0, 0);
+	vbox->Pack_End(bbox, 1, 0);
+
+	comp_vec.push_back(vbox);
+
+	pref = "";
+}
+
+Kis_ColumnPref_Panel::~Kis_ColumnPref_Panel() {
+}
+
+void Kis_ColumnPref_Panel::Position(int in_sy, int in_sx, int in_y, int in_x) {
+	Kis_Panel::Position(in_sy, in_sx, in_y, in_x);
+
+	vbox->SetPosition(1, 2, in_x - 1, in_y - 3);
+}
+
+void Kis_ColumnPref_Panel::DrawPanel() {
+	ColorFromPref(text_color, "panel_text_color");
+	ColorFromPref(border_color, "panel_border_color");
+
+	wbkgdset(win, text_color);
+	werase(win);
+
+	DrawTitleBorder();
+
+	wattrset(win, text_color);
+
+	for (unsigned int x = 0; x < comp_vec.size(); x++)
+		comp_vec[x]->DrawComponent();
+
+	wmove(win, 0, 0);
+}
+
+int Kis_ColumnPref_Panel::KeyPress(int in_key) {
+	int ret;
+
+	// Rotate through the tabbed items
+	if (in_key == '\t') {
+		tab_components[tab_pos]->Deactivate();
+		tab_pos++;
+		if (tab_pos >= (int) tab_components.size())
+			tab_pos = 0;
+		tab_components[tab_pos]->Activate(1);
+		active_component = tab_components[tab_pos];
+	}
+
+	// Otherwise the menu didn't touch the key, so pass it to the top
+	// component
+	if (active_component != NULL) {
+		ret = active_component->KeyPress(in_key);
+
+		if (active_component == okbutton && ret == 1) {
+			if (pref != "") {
+				kpinterface->prefs.SetOpt(pref,
+										  orderlist->GetStringOrderList(), 1);
+			}
+
+			globalreg->panel_interface->KillPanel(this);
+		} else if (active_component == cancelbutton && ret == 1) {
+			// Cancel and close
+			globalreg->panel_interface->KillPanel(this);
+		}
+	}
+
+	return 0;
+}
+
+void Kis_ColumnPref_Panel::AddColumn(string colname, string description) {
+	pref_cols p;
+
+	p.colname = colname;
+	p.description = description;
+	p.queued = 0;
+
+	pref_vec.push_back(p);
+}
+
+void Kis_ColumnPref_Panel::ColumnPref(string in_pref, string name) {
+	vector<string> curprefs = 
+		StrTokenize(kpinterface->prefs.FetchOpt(in_pref), ",");
+	vector<string> fdata;
+	int k = 0;
+
+	pref = in_pref;
+
+	fdata.push_back("col");
+	fdata.push_back("enb");
+	fdata.push_back("dsc");
+
+	// Enable the fields
+	for (unsigned int cp = 0; cp < curprefs.size(); cp++) {
+		for (unsigned int sp = 0; sp < pref_vec.size(); sp++) {
+			if (StrLower(pref_vec[sp].colname) == StrLower(curprefs[cp])) {
+				fdata[0] = pref_vec[sp].colname;
+				fdata[1] = "Yes";
+				fdata[2] = pref_vec[sp].description;
+				orderlist->ReplaceRow(k++, fdata);
+				pref_vec[sp].queued = 1;
+			}
+		}
+	}
+
+	// Add the other fields we know about which weren't in the preferences
+	for (unsigned int sp = 0; sp < pref_vec.size(); sp++) {
+		if (pref_vec[sp].queued)
+			continue;
+
+		fdata[0] = pref_vec[sp].colname;
+		fdata[1] = "No";
+		fdata[2] = pref_vec[sp].description;
+		orderlist->ReplaceRow(k++, fdata);
+		pref_vec[sp].queued = 1;
+	}
+
+	SetTitle(name + " Column Preferences");
+}
+
 #endif
 

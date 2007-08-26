@@ -181,6 +181,24 @@ enum netsort_opts {
 #define kis_netlist_color_factory 	3
 #define kis_netlist_color_header 	4
 
+// Network columns
+enum bssid_columns {
+	bcol_decay, bcol_name, bcol_shortname, bcol_nettype,
+	bcol_crypt, bcol_channel, bcol_packdata, bcol_packllc, bcol_packcrypt,
+	bcol_bssid, bcol_packets, bcol_clients, bcol_datasize, bcol_signalbar,
+	bcol_beaconperc
+};
+
+// Do not expect this to be in numerical order with the above enum, this is
+// for setting up the preferences panels, etc
+extern char *bssid_column_details[][2];
+
+// Extra display options per-line
+enum bssid_extras {
+	bext_lastseen, bext_bssid, bext_crypt, bext_ip, bext_manuf, bext_model
+};
+
+
 class Kis_Netlist : public Kis_Panel_Component {
 public:
 	Kis_Netlist() {
@@ -220,19 +238,6 @@ public:
 
 	// Return sort mode
 	netsort_opts FetchSortMode() { return sort_mode; }
-
-	// Network columns
-	enum bssid_columns {
-		bcol_decay, bcol_name, bcol_shortname, bcol_nettype,
-		bcol_crypt, bcol_channel, bcol_packdata, bcol_packllc, bcol_packcrypt,
-		bcol_bssid, bcol_packets, bcol_clients, bcol_datasize, bcol_signalbar,
-		bcol_beaconperc
-	};
-
-	// Extra display options per-line
-	enum bssid_extras {
-		bext_lastseen, bext_bssid, bext_crypt, bext_ip, bext_manuf, bext_model
-	};
 
 	// Network column text
 	static const char *bssid_columns_text[]; 

@@ -493,11 +493,15 @@ void Kis_Panel_Packbox::Pack_Widgets() {
 
 	// If we can't fit the preferred, can we fit the minimum?
 	if (psize > size) {
+		// fprintf(stderr, "debug - %p can't fit preferred\n", this);
 		if (msize <= size) {
+			// fprintf(stderr, "debug - %p can fit in size\n", this);
 			pos = 0;
 			// Fit them via minsize, giving them space from the free
 			// bucket so long as we have it
 			int bucket = size - msize;
+
+			// fprintf(stderr, "debug - %p has bucket %d for items, min %d\n", this, bucket, msize);
 
 			i = packed_items.begin();
 			for (int x = 0; i != packed_items.end(); ++i, x++) {
@@ -522,10 +526,13 @@ void Kis_Panel_Packbox::Pack_Widgets() {
 
 				int ww;
 				ww = mp + ((*i).padding * 2);
+				// fprintf(stderr, "debug - %p item %d gets %d\n", this, x, ww);
 				if (bucket > 0 && mp < pp) {
 					int delta = pp - mp;
 					if (delta > bucket)
 						delta = bucket;
+					// fprintf(stderr, "debug - %p gave %d to item %d min %d wanted %d was %d now %d\n", this, delta, x, mp, pp - mp, ww, ww+delta);
+					bucket -= delta;
 					ww += delta;
 				}
 
@@ -1402,6 +1409,7 @@ Kis_Free_Text::Kis_Free_Text(GlobalRegistry *in_globalreg, Kis_Panel *in_panel) 
 	Kis_Panel_Component(in_globalreg, in_panel) {
 	globalreg = in_globalreg;
 	scroll_pos = 0;
+	SetMinSize(1, 1);
 }
 
 Kis_Free_Text::~Kis_Free_Text() {
@@ -1412,24 +1420,23 @@ void Kis_Free_Text::DrawComponent() {
 	if (visible == 0)
 		return;
 
-	for (unsigned int x = 0; x < text_vec.size() && (int) x < ey; x++) {
+	for (unsigned int x = 0; x < text_vec.size() && (int) x < ly; x++) {
 		// Use the special formatter
 		Kis_Panel_Specialtext::Mvwaddnstr(window, sy + x, sx, 
 										  text_vec[x + scroll_pos],
-										  ex - 1);
-		// mvwaddnstr(window, sy + x, sx, text_vec[x + scroll_pos].c_str(), ex - 1);
+										  lx - 1);
 	}
 
-	if ((int) text_vec.size() > ey) {
+	if ((int) text_vec.size() > ly) {
 		// Draw the hash scroll bar
-		mvwvline(window, sy, sx + ex - 1, ACS_VLINE, ey);
+		mvwvline(window, sy, sx + lx - 1, ACS_VLINE, ly);
 		// Figure out how far down our text we are
 		// int perc = ey * (scroll_pos / text_vec.size());
-		float perc = (float) ey * (float) ((float) (scroll_pos) / 
-										   (float) (text_vec.size() - ey));
+		float perc = (float) ly * (float) ((float) (scroll_pos) / 
+										   (float) (text_vec.size() - ly));
 		wattron(window, WA_REVERSE);
 		// Draw the solid position
-		mvwaddch(window, sy + (int) perc, sx + ex - 1, ACS_BLOCK);
+		mvwaddch(window, sy + (int) perc, sx + lx - 1, ACS_BLOCK);
 
 		wattroff(window, WA_REVERSE);
 	}
@@ -1482,10 +1489,20 @@ int Kis_Free_Text::KeyPress(int in_key) {
 
 void Kis_Free_Text::SetText(string in_text) {
 	text_vec = StrTokenize(in_text, "\n");
+	SetPreferredSize(in_text.length(), 1);
 }
 
 void Kis_Free_Text::SetText(vector<string> in_text) {
+	unsigned int ml = 0;
+
+	for (unsigned x = 0; x < in_text.size(); x++) {
+		if (in_text[x].length() > ml)
+			ml = in_text[x].length();
+	}
+
 	text_vec = in_text;
+
+	SetPreferredSize(ml, in_text.size());
 }
 
 void KisStatusText_Messageclient::ProcessMessage(string in_msg, int in_flags) {
@@ -1671,6 +1688,8 @@ Kis_Scrollable_Table::Kis_Scrollable_Table(GlobalRegistry *in_globalreg,
 	scroll_pos = 0;
 	hscroll_pos = 0;
 	selected = -1;
+
+	SetMinSize(0, 3);
 }
 
 Kis_Scrollable_Table::~Kis_Scrollable_Table() {
@@ -1689,12 +1708,12 @@ void Kis_Scrollable_Table::DrawComponent() {
 
 	// Print across the titles
 	wattron(window, WA_UNDERLINE);
-	for (unsigned int x = hscroll_pos; x < title_vec.size() && xcur < ex; x++) {
+	for (unsigned int x = hscroll_pos; x < title_vec.size() && xcur < lx; x++) {
 
 		int w = title_vec[x].width;
 
 		if (xcur + w >= ex)
-			w = ex - xcur;
+			w = lx - xcur;
 
 		// Align the field w/in the width
 		ftxt = AlignString(title_vec[x].title, ' ', title_vec[x].alignment, w);
@@ -1707,36 +1726,35 @@ void Kis_Scrollable_Table::DrawComponent() {
 	}
 	wattroff(window, WA_UNDERLINE);
 
-	if ((int) data_vec.size() > ey) {
+	if ((int) data_vec.size() > ly) {
 		// Draw the scroll bar
-		mvwvline(window, sy, sx + ex - 1, ACS_VLINE, ey);
-		float perc = (float) ey * (float) ((float) (scroll_pos) /
-										   (float) (data_vec.size() - ey));
-		if (perc >= ey - 1)
-			perc = ey - 1;
+		mvwvline(window, sy, sx + lx - 1, ACS_VLINE, ly);
+		float perc = (float) ly * (float) ((float) (scroll_pos) /
+										   (float) (data_vec.size() - ly));
+		if (perc > ly - 1)
+			perc = ly - 1;
 		wattron(window, WA_REVERSE);
-		mvwaddch(window, sy + (int) perc, sx + ex - 1, ACS_BLOCK);
+		mvwaddch(window, sy + (int) perc, sx + lx - 1, ACS_BLOCK);
 		wattroff(window, WA_REVERSE);
 	}
 
 	// Jump to the scroll location to start drawing rows
 	int ycur = 1;
-	for (unsigned int r = scroll_pos; r < data_vec.size() && 
-		 ycur < ey; r++) {
+	for (unsigned int r = scroll_pos; r < data_vec.size() && ycur < ly; r++) {
 		// Print across
 		xcur = 0;
 
 		if ((int) r == selected) {
 			wattron(window, WA_REVERSE);
-			mvwhline(window, sy + ycur, sx, ' ', ex);
+			mvwhline(window, sy + ycur, sx, ' ', lx);
 		}
 
 		for (unsigned int x = hscroll_pos; x < data_vec[r]->data.size() &&
-			 xcur < ex && x < title_vec.size(); x++) {
+			 xcur < lx && x < title_vec.size(); x++) {
 			int w = title_vec[x].width;
 
-			if (xcur + w >= ex)
-				w = ex - xcur;
+			if (xcur + w >= lx)
+				w = lx - xcur;
 
 			ftxt = AlignString(data_vec[r]->data[x], ' ', title_vec[x].alignment, w);
 
@@ -1751,7 +1769,6 @@ void Kis_Scrollable_Table::DrawComponent() {
 		ycur += 1;
 
 	}
-
 }
 
 void Kis_Scrollable_Table::Activate(int subcomponent) {
@@ -1767,7 +1784,7 @@ int Kis_Scrollable_Table::KeyPress(int in_key) {
 		return 0;
 
 	int scrollable = 1;
-	if ((int) data_vec.size() <= ey)
+	if ((int) data_vec.size() < ly)
 		scrollable = 0;
 
 	// Selected up one, scroll up one if we need to
@@ -1780,7 +1797,7 @@ int Kis_Scrollable_Table::KeyPress(int in_key) {
 
 	if (in_key == KEY_DOWN && selected < (int) data_vec.size() - 1) {
 		selected++;
-		if (scrollable && scroll_pos + ey - 1 <= selected) {
+		if (scrollable && scroll_pos + ly - 1 <= selected) {
 			scroll_pos++;
 		}
 	}
@@ -1828,6 +1845,8 @@ int Kis_Scrollable_Table::AddRow(int in_key, vector<string> in_fields) {
 	key_map[in_key] = 1;
 
 	data_vec.push_back(r);
+
+	SetPreferredSize(0, data_vec.size() + 1);
 
 	return 1;
 }
@@ -2069,6 +2088,7 @@ Kis_Button::Kis_Button(GlobalRegistry *in_globalreg, Kis_Panel *in_panel) :
 	globalreg = in_globalreg;
 
 	active = 0;
+	SetMinSize(3, 1);
 }
 
 Kis_Button::~Kis_Button() {

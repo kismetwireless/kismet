@@ -55,6 +55,35 @@ protected:
 	int text_color;
 };
 
+class Kis_OrderlistPref_Component : public Kis_Scrollable_Table {
+public:
+	Kis_OrderlistPref_Component() {
+		fprintf(stderr, "FATAL OOPS: Kis_OrderlistPref_Component()\n");
+		exit(1);
+	}
+
+	Kis_OrderlistPref_Component(GlobalRegistry *in_globalreg, Kis_Panel *in_panel);
+	virtual ~Kis_OrderlistPref_Component();
+
+	virtual int KeyPress(int in_key);
+
+	virtual void SetOrderable(int in_order);
+
+	// Set the field of the columns which controls enabled, we dynamically
+	// alter the row_data here.  Set the "Yes" "No" field text, this is
+	// also used to compare for enabled fields
+	virtual void SetEnableField(int in_field, string in_yes, string in_no);
+	// Set the string order field (ie, column name)
+	virtual void SetColumnField(int in_field);
+	// Get a config-file style ordered string of the enabled columns
+	virtual string GetStringOrderList();
+
+protected:
+	int orderable;
+	int enable_fid, column_fid;
+	string field_yes, field_no;
+};
+
 // I'm un-thrilled about this approach but it'll do
 class Kis_ColorPref_Picker : public Kis_Panel {
 public:
@@ -110,42 +139,6 @@ protected:
 	vector<Kis_ColorPref_Panel::cprefpair> listedcolors;
 };
 
-class Kis_Column_Picker : public Kis_Panel {
-public:
-	Kis_Column_Picker() {
-		fprintf(stderr, "FATAL OOPS:  Kis_Column_Picker()\n");
-		exit(1);
-	}
-	Kis_Column_Picker(GlobalRegistry *in_globalreg, KisPanelInterface *in_kpf);
-	virtual ~Kis_Column_Picker();
-	
-	virtual void Position(int in_sy, int in_sx, int in_y, int in_x);
-	virtual void DrawPanel();
-	virtual int KeyPress(int in_key);
-
-	virtual void AddColumn(string in_colname, string in_coltext);
-	virtual void LinkPrefValue(string in_prefval);
-
-	typedef struct colprefpair {
-		string colname;
-		string coltext;
-		int enable;
-	};
-
-protected:
-	Kis_Button *okbutton, *cancelbutton;
-	Kis_Scrollable_Table *colist;
-
-	Kis_Panel_Packbox *vbox, *hbox;
-
-	vector<Kis_Column_Picker::colprefpair> listedcols;
-
-	vector<Kis_Panel_Component *> tab_components;
-	int tab_pos;
-
-	string prefname;
-};
-
 class Kis_AutoConPref_Panel : public Kis_Panel {
 public:
 	Kis_AutoConPref_Panel() {
@@ -171,6 +164,50 @@ protected:
 
 	vector<Kis_Panel_Component *> tab_components;
 	int tab_pos;
+};
+
+class Kis_ColumnPref_Panel : public Kis_Panel {
+public:
+	Kis_ColumnPref_Panel() {
+		fprintf(stderr, "FATAL OOPS: Kis_Connect_Panel called w/out globalreg\n");
+		exit(1);
+	}
+
+	Kis_ColumnPref_Panel(GlobalRegistry *in_globalreg, KisPanelInterface *in_kpf);
+	virtual ~Kis_ColumnPref_Panel();
+
+	virtual void Position(int in_sy, int in_sx, int in_y, int in_x);
+	virtual void DrawPanel();
+	virtual int KeyPress(int in_key);
+
+	// Add a column to the understood options.  These should ALL be populated
+	// BEFORE calling ColumnPref to link it to a pref value
+	virtual void AddColumn(string colname, string description);
+
+	// Link to a column preference field
+	virtual void ColumnPref(string pref, string name);
+
+	typedef struct {
+		string colname;
+		string description;
+		int enable;
+		int queued;
+	} pref_cols;
+
+protected:
+	Kis_OrderlistPref_Component *orderlist;
+	Kis_Free_Text *helptext;
+	Kis_Button *okbutton;
+	Kis_Button *cancelbutton;
+
+	Kis_Panel_Packbox *vbox, *bbox;
+
+	vector<Kis_Panel_Component *> tab_components;
+	int tab_pos;
+
+	string pref, prefname;
+
+	vector<Kis_ColumnPref_Panel::pref_cols> pref_vec;
 };
 
 #endif // curses
