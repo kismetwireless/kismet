@@ -425,8 +425,9 @@ int KisBuiltinDissector::GetIEEETagOffsets(unsigned int init_offset,
     uint8_t len;
 
     // Bail on invalid incoming offsets
-    if (init_offset >= (uint8_t) in_chunk->length)
+    if (init_offset >= (uint8_t) in_chunk->length) {
         return -1;
+	}
     
     // If we haven't parsed the tags for this frame before, parse them all now.
     // Return an error code if one of them is malformed.
@@ -512,8 +513,9 @@ int KisBuiltinDissector::WPAKeyMgtConv(uint8_t mgt_index) {
 int KisBuiltinDissector::ieee80211_dissector(kis_packet *in_pack) {
 	static int debugpcknum = 0;
 
-	if (in_pack->error)
+	if (in_pack->error) {
 		return 0;
+	}
 
 	debugpcknum++;
 	// printf("debug - packet %d\n", debugpcknum);
@@ -539,8 +541,9 @@ int KisBuiltinDissector::ieee80211_dissector(kis_packet *in_pack) {
 		srcparms = capsrc->ref_source->FetchGenericParms();
 
 	// Flat-out dump if it's not big enough to be 80211.
-    if (chunk->length < 24)
+    if (chunk->length < 24) {
         return 0;
+	}
 
     packinfo = new kis_ieee80211_packinfo;
 

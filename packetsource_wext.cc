@@ -412,6 +412,7 @@ PacketSource_Madwifi::PacketSource_Madwifi(GlobalRegistry *in_globalreg,
 		madwifi_type = 0;
 	}
 
+	SetFCSBytes(4);
 	vapdestroy = 1;
 
 	for (unsigned int x = 0; x < optargs.size(); x++) {
@@ -510,6 +511,10 @@ int PacketSource_Madwifi::EnableMonitor() {
 				 MSGFLAG_INFO);
 			sleep(1);
 			monvap = vaplist[x];
+
+			interface = vaplist[x];
+
+			return 1;
 		}
 	}
 

@@ -699,8 +699,9 @@ int PacketSource_Pcap::Radiotap2KisPack(kis_packet *packet) {
         }
     }
 
-	if (fcs_cut)
+	if (fcs_cut) {
 		fcs_cut = fcsbytes;
+	}
 
 	eight11chunk->length = callback_header.caplen - 
 		EXTRACT_LE_16BITS(&(hdr->it_len)) - fcs_cut;
@@ -749,6 +750,8 @@ int PacketSource_Pcapfile::OpenSource() {
 
 	if (DatalinkType() < 0)
 		return -1;
+
+	fcsbytes = 4;
 	
 	return 1;
 }
