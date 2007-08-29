@@ -1,3 +1,5 @@
+Aug 28 2007  devel  Merged patch from Jean Tourrilhes to change how logging
+                     handles temp files
 Aug 24 2007  devel  Added iwl4965 source
                     Fixed bringing down interfaces during config tests
 Aug 18 2007  devel  Rewrote 'kismet' wrapper script to be a C program which

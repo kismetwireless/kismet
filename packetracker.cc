@@ -1429,7 +1429,12 @@ int Packetracker::WriteNetworks(string in_fname) {
 
     FILE *netfile;
 
-    if ((netfile = fopen(in_fname.c_str(), "w+")) == NULL) {
+    /* Test if we can open the file, using read+write mode (r+).
+     * Using write mode (w+) would truncate the file, which means that during
+     * update the log would be empty.
+     * Using append mode (a+) would force to seek to the end of file, which
+     * is slower. Jean II */ 
+    if ((netfile = fopen(in_fname.c_str(), "r+")) == NULL) {
         snprintf(errstr, 1024, "Could not open %s for writing: %s", in_fname.c_str(),
                  strerror(errno));
         return -1;
@@ -1437,17 +1442,17 @@ int Packetracker::WriteNetworks(string in_fname) {
 
     fclose(netfile);
 
-    if (unlink(fname_temp.c_str()) == -1) {
-        if (errno != ENOENT) {
-            snprintf(errstr, 1024, "Could not unlink temp file %s: %s", fname_temp.c_str(),
-                     strerror(errno));
-            return -1;
-        }
-    }
+	if (unlink(fname_temp.c_str()) == -1) {
+		if (errno != ENOENT) {
+			snprintf(errstr, 1024, "Could not unlink temp file %s: %s", 
+					 fname_temp.c_str(), strerror(errno));
+			return -1;
+		}
+	}
 
-    if ((netfile = fopen(fname_temp.c_str(), "w")) == NULL) {
-        snprintf(errstr, 1024, "Could not open %s for writing even though we could unlink it: %s",
-                 fname_temp.c_str(), strerror(errno));
+    if ((netfile = fopen(fname_temp.c_str(), "wx")) == NULL) {
+        snprintf(errstr, 1024, "Could not open %s for writing even though "
+				 "we could unlink it: %s", fname_temp.c_str(), strerror(errno));
         return -1;
     }
 
@@ -1607,16 +1612,13 @@ int Packetracker::WriteNetworks(string in_fname) {
 
     fclose(netfile);
 
-    if (unlink(in_fname.c_str()) == -1) {
-        if (errno != ENOENT) {
-            snprintf(errstr, 1024, "Unable to unlink %s even though we could write to it: %s",
-                     in_fname.c_str(), strerror(errno));
-            return -1;
-        }
-    }
-
+    /* Move the temporary file on the regular file in one "atomic" operation.
+     * The idea here is that the log file is always available and always
+     * a complete and valid file, users of that file can access it with
+     * confidence. The old file will be unlinked automatically. Jean II */
     if (rename(fname_temp.c_str(), in_fname.c_str()) == -1) {
-        snprintf(errstr, 1024, "Unable to rename %s to %s: %s", fname_temp.c_str(), in_fname.c_str(),
+        snprintf(errstr, 1024, "Unable to rename %s to %s: %s", 
+				 fname_temp.c_str(), in_fname.c_str(),
                  strerror(errno));
         return -1;
     }
@@ -1630,7 +1632,12 @@ int Packetracker::WriteCisco(string in_fname) {
 
     FILE *netfile;
 
-    if ((netfile = fopen(in_fname.c_str(), "w+")) == NULL) {
+    /* Test if we can open the file, using read+write mode (r+).
+     * Using write mode (w+) would truncate the file, which means that during
+     * update the log would be empty.
+     * Using apend mode (a+) would force to seek to the end of file, which
+     * is slower. Jean II */ 
+    if ((netfile = fopen(in_fname.c_str(), "r+")) == NULL) {
         snprintf(errstr, 1024, "Could not open %s for writing: %s", in_fname.c_str(),
                  strerror(errno));
         return -1;
@@ -1640,22 +1647,17 @@ int Packetracker::WriteCisco(string in_fname) {
 
     if (unlink(fname_temp.c_str()) == -1) {
         if (errno != ENOENT) {
-            snprintf(errstr, 1024, "Could not unlink temp file %s: %s", fname_temp.c_str(),
-                     strerror(errno));
+            snprintf(errstr, 1024, "Could not unlink temp file %s: %s", 
+					 fname_temp.c_str(), strerror(errno));
             return -1;
         }
     }
 
-    if ((netfile = fopen(fname_temp.c_str(), "w")) == NULL) {
-        snprintf(errstr, 1024, "Could not open %s for writing even though we could unlink it: %s",
-                 fname_temp.c_str(), strerror(errno));
+    if ((netfile = fopen(fname_temp.c_str(), "wx")) == NULL) {
+        snprintf(errstr, 1024, "Could not open %s for writing even though "
+				 "we could unlink it: %s", fname_temp.c_str(), strerror(errno));
         return -1;
     }
-
-    /*
-    fseek(in_file, 0L, SEEK_SET);
-    ftruncate(fileno(in_file), 0);
-    */
 
     /*
     vector<wireless_network *> bssid_vec;
@@ -1718,16 +1720,13 @@ int Packetracker::WriteCisco(string in_fname) {
 
     fclose(netfile);
 
-    if (unlink(in_fname.c_str()) == -1) {
-        if (errno != ENOENT) {
-            snprintf(errstr, 1024, "Unable to unlink %s even though we could write to it: %s",
-                     in_fname.c_str(), strerror(errno));
-            return -1;
-        }
-    }
-
+    /* Move the temporary file on the regular file in one "atomic" operation.
+     * The idea here is that the log file is always available and always
+     * a complete and valid file, users of that file can access it with
+     * confidence. The old file will be unlinked automatically. Jean II */
     if (rename(fname_temp.c_str(), in_fname.c_str()) == -1) {
-        snprintf(errstr, 1024, "Unable to rename %s to %s: %s", fname_temp.c_str(), in_fname.c_str(),
+        snprintf(errstr, 1024, "Unable to rename %s to %s: %s", 
+				 fname_temp.c_str(), in_fname.c_str(),
                  strerror(errno));
         return -1;
     }
@@ -1759,7 +1758,12 @@ int Packetracker::WriteCSVNetworks(string in_fname) {
 
     FILE *netfile;
 
-    if ((netfile = fopen(in_fname.c_str(), "w+")) == NULL) {
+    /* Test if we can open the file, using read+write mode (r+).
+     * Using write mode (w+) would truncate the file, which means that during
+     * update the log would be empty.
+     * Using apend mode (a+) would force to seek to the end of file, which
+     * is slower. Jean II */ 
+    if ((netfile = fopen(in_fname.c_str(), "r+")) == NULL) {
         snprintf(errstr, 1024, "Could not open %s for writing: %s", in_fname.c_str(),
                  strerror(errno));
         return -1;
@@ -1769,22 +1773,17 @@ int Packetracker::WriteCSVNetworks(string in_fname) {
 
     if (unlink(fname_temp.c_str()) == -1) {
         if (errno != ENOENT) {
-            snprintf(errstr, 1024, "Could not unlink temp file %s: %s", fname_temp.c_str(),
-                     strerror(errno));
+            snprintf(errstr, 1024, "Could not unlink temp file %s: %s", 
+					 fname_temp.c_str(), strerror(errno));
             return -1;
         }
     }
 
-    if ((netfile = fopen(fname_temp.c_str(), "w")) == NULL) {
-        snprintf(errstr, 1024, "Could not open %s for writing even though we could unlink it: %s",
-                 fname_temp.c_str(), strerror(errno));
+    if ((netfile = fopen(fname_temp.c_str(), "wx")) == NULL) {
+        snprintf(errstr, 1024, "Could not open %s for writing even though "
+				 "we could unlink it: %s", fname_temp.c_str(), strerror(errno));
         return -1;
     }
-
-    /*
-    fseek(in_file, 0L, SEEK_SET);
-    ftruncate(fileno(in_file), 0);
-    */
 
     int netnum = 1;
 
@@ -2009,16 +2008,13 @@ int Packetracker::WriteCSVNetworks(string in_fname) {
 
     fclose(netfile);
 
-    if (unlink(in_fname.c_str()) == -1) {
-        if (errno != ENOENT) {
-            snprintf(errstr, 1024, "Unable to unlink %s even though we could write to it: %s",
-                     in_fname.c_str(), strerror(errno));
-            return -1;
-        }
-    }
-
+    /* Move the temporary file on the regular file in one "atomic" operation.
+     * The idea here is that the log file is always available and always
+     * a complete and valid file, users of that file can access it with
+     * confidence. The old file will be unlinked automatically. Jean II */
     if (rename(fname_temp.c_str(), in_fname.c_str()) == -1) {
-        snprintf(errstr, 1024, "Unable to rename %s to %s: %s", fname_temp.c_str(), in_fname.c_str(),
+        snprintf(errstr, 1024, "Unable to rename %s to %s: %s", 
+				 fname_temp.c_str(), in_fname.c_str(),
                  strerror(errno));
         return -1;
     }
@@ -2050,7 +2046,12 @@ int Packetracker::WriteXMLNetworks(string in_fname) {
 
     FILE *netfile;
 
-    if ((netfile = fopen(in_fname.c_str(), "w+")) == NULL) {
+    /* Test if we can open the file, using read+write mode (r+).
+     * Using write mode (w+) would truncate the file, which means that during
+     * update the log would be empty.
+     * Using apend mode (a+) would force to seek to the end of file, which
+     * is slower. Jean II */ 
+    if ((netfile = fopen(in_fname.c_str(), "r+")) == NULL) {
         snprintf(errstr, 1024, "Could not open %s for writing: %s", in_fname.c_str(),
                  strerror(errno));
         return -1;
@@ -2060,22 +2061,17 @@ int Packetracker::WriteXMLNetworks(string in_fname) {
 
     if (unlink(fname_temp.c_str()) == -1) {
         if (errno != ENOENT) {
-            snprintf(errstr, 1024, "Could not unlink temp file %s: %s", fname_temp.c_str(),
-                     strerror(errno));
+            snprintf(errstr, 1024, "Could not unlink temp file %s: %s", 
+					 fname_temp.c_str(), strerror(errno));
             return -1;
         }
     }
 
-    if ((netfile = fopen(fname_temp.c_str(), "w")) == NULL) {
-        snprintf(errstr, 1024, "Could not open %s for writing even though we could unlink it: %s",
-                 fname_temp.c_str(), strerror(errno));
+    if ((netfile = fopen(fname_temp.c_str(), "wx")) == NULL) {
+        snprintf(errstr, 1024, "Could not open %s for writing even though "
+				 "we could unlink it: %s", fname_temp.c_str(), strerror(errno));
         return -1;
     }
-
-    /*
-    fseek(in_file, 0L, SEEK_SET);
-    ftruncate(fileno(in_file), 0);
-    */
 
     int netnum = 1;
     //vector<wireless_network *> bssid_vec;
@@ -2431,16 +2427,13 @@ int Packetracker::WriteXMLNetworks(string in_fname) {
 
     fclose(netfile);
 
-    if (unlink(in_fname.c_str()) == -1) {
-        if (errno != ENOENT) {
-            snprintf(errstr, 1024, "Unable to unlink %s even though we could write to it: %s",
-                     in_fname.c_str(), strerror(errno));
-            return -1;
-        }
-    }
-
+    /* Move the temporary file on the regular file in one "atomic" operation.
+     * The idea here is that the log file is always available and always
+     * a complete and valid file, users of that file can access it with
+     * confidence. The old file will be unlinked automatically. Jean II */
     if (rename(fname_temp.c_str(), in_fname.c_str()) == -1) {
-        snprintf(errstr, 1024, "Unable to rename %s to %s: %s", fname_temp.c_str(), in_fname.c_str(),
+        snprintf(errstr, 1024, "Unable to rename %s to %s: %s", 
+				 fname_temp.c_str(), in_fname.c_str(),
                  strerror(errno));
         return -1;
     }
