@@ -33,11 +33,11 @@ char *bssid_column_details[][2] = {
 	{ "nettype", "Type of network" },
 	{ "crypt", "Encryption options" },
 	{ "channel", "Channel" },
+	{ "packets", "Total packets" },
 	{ "packdata", "Number of data packets" },
 	{ "packllc", "Number of LLC/Management packets" },
 	{ "packcrypt", "Number of encrypted data packets" },
 	{ "bssid", "BSSID" },
-	{ "packets", "Total packets" },
 	{ "clients", "Number of associated clients" },
 	{ "datasize", "Amount of data seen" },
 	{ "beaconperc", "Percentage of expected beacons seen" },
@@ -51,6 +51,16 @@ const char *Kis_Netlist::bssid_columns_text[] = {
 	"beaconperc",
 	NULL
 };
+
+char *bssid_extras_details[][2] = {
+	{ "lastseen", "Last seen timestamp" },
+	{ "bssid", "BSSID" },
+	{ "crypt", "Encryption types" },
+	{ "manuf", "Manufacturer info" },
+	{ "model", "Model" },
+	{ NULL, NULL}
+};
+
 
 // Netgroup management
 Kis_Display_NetGroup::Kis_Display_NetGroup() {
@@ -1466,7 +1476,11 @@ int Kis_Netlist::PrintNetworkLine(Kis_Display_NetGroup *ng,
 			snprintf(rline + rofft, max - rofft, "%c", d);
 			rofft += 1;
 		} else if (b == bcol_channel) {
-			snprintf(rline + rofft, max - rofft, "%3d", net->channel);
+			if (net->channel == 0) {
+				snprintf(rline + rofft, max - rofft, "%3s", "---");
+			} else {
+				snprintf(rline + rofft, max - rofft, "%3d", net->channel);
+			}
 			rofft += 3;
 		} else if (b == bcol_packdata) {
 			snprintf(rline + rofft, max - rofft, "%5d", net->data_packets);

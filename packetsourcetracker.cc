@@ -1617,7 +1617,15 @@ int Packetsourcetracker::ProcessCardList(string in_enableline,
                 meta->channelvec_id = 
                     chan_cap_seqid_map[StrLower(meta->default_channelset)];
                 chan_seqid_count_map[meta->channelvec_id]++;
-            }
+            } else if (meta->default_channelset != "n/a") {
+				_MSG("Packet source '" + meta->name + "': Couldn't find channel "
+					 "list '" + meta->default_channelset + "'.  Either your "
+					 "config file is invalid or is out of date.  Expected a "
+					 "defaultchannels=" + meta->default_channelset + ":....",
+					 MSGFLAG_FATAL);
+				globalreg->fatal_condition = 1;
+				return -1;
+			}
 
 			// If we're hopping, turn it on
 			if (in_chhop)

@@ -198,6 +198,8 @@ enum bssid_extras {
 	bext_lastseen, bext_bssid, bext_crypt, bext_ip, bext_manuf, bext_model
 };
 
+extern char *bssid_extras_details[][2];
+
 
 class Kis_Netlist : public Kis_Panel_Component {
 public:

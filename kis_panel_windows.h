@@ -92,7 +92,8 @@ protected:
 
 	int mn_plugins, mi_addplugin, mi_noplugins;
 
-	int mn_preferences, mi_serverprefs, mi_colorprefs, mi_netcolprefs;
+	int mn_preferences, mi_serverprefs, mi_colorprefs, mi_netcolprefs,
+		mi_netextraprefs;
 
 	int connect_enable;
 
@@ -111,6 +112,7 @@ protected:
 	virtual void SpawnColorPrefs();
 	virtual void SpawnServerPrefs();
 	virtual void SpawnNetcolPrefs();
+	virtual void SpawnNetextraPrefs();
 
 	vector<colorpref> color_pref_vec;
 };

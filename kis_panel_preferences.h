@@ -190,7 +190,6 @@ public:
 	typedef struct {
 		string colname;
 		string description;
-		int enable;
 		int queued;
 	} pref_cols;
 

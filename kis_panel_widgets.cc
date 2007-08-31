@@ -556,6 +556,7 @@ void Kis_Panel_Packbox::Pack_Widgets() {
 	/* Otherwise, we can more than fit our widgets...
 	 * So the first order of business, find out how many are set to expand,
 	 * and how much slush space we have to give them */
+	// fprintf(stderr, "debug - %p we can fit all preferred\n", this);
 	int bucket = 0;
 	int num_fill = 0;
 	for (i = packed_items.begin(); i != packed_items.end(); ++i) {
@@ -582,6 +583,7 @@ void Kis_Panel_Packbox::Pack_Widgets() {
 	// Reclaim our variable - our free bucket is the remainder of unclaimed 
 	// stuff
 	bucket = size - bucket - (spacing * (packed_items.size() - 1));
+	// fprintf(stderr, "debug - %p bucket %d fill %d\n", this, bucket, num_fill);
 
 	// Distribute the bucket over the expandable widgets, position, and draw
 	pos = 0;
@@ -1846,7 +1848,7 @@ int Kis_Scrollable_Table::AddRow(int in_key, vector<string> in_fields) {
 
 	data_vec.push_back(r);
 
-	SetPreferredSize(0, data_vec.size() + 1);
+	SetPreferredSize(0, data_vec.size() + 2);
 
 	return 1;
 }

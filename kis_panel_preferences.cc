@@ -662,7 +662,7 @@ Kis_ColumnPref_Panel::Kis_ColumnPref_Panel(GlobalRegistry *in_globalreg,
 
 	vbox->Pack_End(orderlist, 1, 0);
 	vbox->Pack_End(helptext, 0, 0);
-	vbox->Pack_End(bbox, 1, 0);
+	vbox->Pack_End(bbox, 0, 0);
 
 	comp_vec.push_back(vbox);
 
