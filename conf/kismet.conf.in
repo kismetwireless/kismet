@@ -4,7 +4,7 @@
 # not continually reading --help!
 
 # Version of Kismet config
-version=2007.07.R1
+version=2007.09.R1
 
 # Name of server (Purely for organizational purposes)
 servername=Kismet
@@ -177,6 +177,19 @@ allowkeytransmit=true
 
 # How often (in seconds) do we write all our data files (0 to disable)
 writeinterval=300
+
+# How old (and inactive) does a network need to be before we expire it?
+# This is really only good for limited ram environments where keeping a
+# total log of all networks is problematic.  This is in seconds, and should
+# be set to a large value like 12 or 24 hours.  This is intended for use
+# on stationary systems like an IDS
+# logexpiry=86400
+
+# Do we limit the number of networks we log?  This is for low-ram situations
+# when tracking everything could lead to the system falling down.  This
+# should be combined with a sane logexpiry value to flush out very old 
+# inactive networks.  This is mainly for stationary systems like an IDS.
+# limitnets=10000
 
 # Do we use sound?
 # Not to be confused with GUI sound parameter, this controls wether or not the

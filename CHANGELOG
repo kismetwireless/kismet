@@ -1,3 +1,5 @@
+Sep 01 2007  devel  Merged 2 more patches from Jean to add network expiration
+                     and memory limiting for very small-resource platforms.
 Aug 28 2007  devel  Merged patch from Jean Tourrilhes to change how logging
                      handles temp files
 Aug 24 2007  devel  Added iwl4965 source

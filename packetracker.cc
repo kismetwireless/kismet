@@ -47,6 +47,7 @@ mac_addr msfopcode_mac = mac_addr("90:E9:75:00:00:00/FF:FF:FF:00:00:00");
 
 // Get this out of kismet_server (yeah, yeah, globals bad)
 extern int netcryptdetect, waypointformat;
+extern int limit_nets;
 
 Packetracker::Packetracker() {
     alertracker = NULL;
@@ -276,6 +277,24 @@ wireless_network *Packetracker::MatchNetwork(const packet_info *info) {
 wireless_client *Packetracker::CreateClient(const packet_info *info, 
                                             wireless_network *net) {
 
+    /* Some callers of CreateClient can't deal with a NULL return */
+#if 0
+    /* If an attacker use a tool similar to Fake AP to create zillions
+     * fake clients, it can DoS Kismet and/or the underlying system.
+     * Basically, we will exhaust the system memory.
+     * Let's limit the number of clients to avoid that...
+     * There is one way to recover : restart Kismet. We may want to
+     * consider client expiry...
+     * Jean II */
+    if(limit_nets > 0)
+        if(net->client_vec.size() > (unsigned int) limit_nets) {
+	    /* We should trigger an alert and log this condition */
+
+	    /* Don't create this client. */
+	    return NULL;
+	}
+#endif
+
     map<mac_addr, wireless_client *>::iterator cmi;
     if ((cmi = net->client_map.find(info->source_mac)) != net->client_map.end())
         return cmi->second;
@@ -403,6 +422,20 @@ void Packetracker::ProcessPacket(kis_packet *packet, packet_info *info,
     // gets added has a bssid, so we'll use that to search.  We've filtered
     // everything else out by this point so we're safe to just work off bssid
     if (net == NULL) {
+        /* If an attacker use a tool such a Fake AP to create zillions
+	 * of fake networks, it can DoS Kismet and/or the underlying system.
+	 * Basically, we will exhaust the system memory.
+	 * Let's limit the number of network to avoid that...
+	 * There is two ways to recover : restart Kismet, or set logexpiry.
+	 * Jean II */
+        if(limit_nets > 0)
+	    if(network_list.size() > (unsigned int) limit_nets) {
+	        /* We should trigger an alert and log this condition */
+
+	        /* Don't create this network. */
+	        return;
+	    }
+
         // Make a network for them
         net = new wireless_network;
 
@@ -1424,6 +1457,63 @@ void Packetracker::UpdateIpdata(wireless_network *net) {
     }
 }
 
+int Packetracker::ExpireNetworks(int expiry) {
+
+    time_t current_time = time(0);
+    time_t oldest_time = current_time - expiry;
+
+    /* We may be shrinking the list, so start from the end to avoid
+     * messing with our iteration... And we need a signed int to
+     * avoid the boundary test to be useless... Jean II */
+    unsigned int net_len = network_list.size();
+    for (signed int i = net_len - 1; i >= 0; i--) {
+
+        wireless_network *net = network_list[i];
+
+	/* Time may wrap around, especially that embedded typically boot
+	 * at time(0) = 0;, don't have CMOS clock or NTP.
+	 * Let the compiler optimise the condition. Jean II */
+	bool expired;
+	if(current_time > oldest_time)
+	    expired = net->last_time < oldest_time;
+	else
+	    expired = ((net->last_time < oldest_time)
+		       && (net->last_time > current_time));
+
+	/* If expired, remove it. We don't use RemoveNetwork to avoid
+	 * another list interation. Also, RemoveNetwork does not seem
+	 * be do complete cleanup ? Jean II */
+	if(expired) {
+	    // Remove data in secondary hashes
+	    map<mac_addr, net_ip_data>::iterator bimi = bssid_ip_map.find(net->bssid);
+	    if (bimi != bssid_ip_map.end())
+		bssid_ip_map.erase(bimi);
+	    map<mac_addr, string>::iterator bcmi = bssid_cloak_map.find(net->bssid);
+	    if (bcmi != bssid_cloak_map.end())
+		bssid_cloak_map.erase(bcmi);
+	    /* Should do something about probe_map ? */
+
+	    // Remove data about clients
+	    for (unsigned int y = 0; y < net->client_vec.size(); y++)
+                delete net->client_vec[y];
+
+	    // Remove us from the main hash
+	    map<mac_addr, wireless_network *>::iterator bmi = bssid_map.find(net->bssid);
+	    if (bmi != bssid_map.end())
+		bssid_map.erase(bmi);
+
+	    // Remove us from the vector the fast and efficient way
+            network_list.erase(network_list.begin() + i);
+
+	    /* Final cleanup */
+	    delete net;
+	}
+    }
+
+    return 1;
+}
+
+
 int Packetracker::WriteNetworks(string in_fname) {
     string fname_temp = in_fname + ".temp";
 
@@ -1458,7 +1548,8 @@ int Packetracker::WriteNetworks(string in_fname) {
 
     int netnum = 1;
 
-    stable_sort(network_list.begin(), network_list.end(), SortFirstTimeLT());
+    if (network_list.size() > 0)
+	stable_sort(network_list.begin(), network_list.end(), SortFirstTimeLT());
 
     for (unsigned int i = 0; i < network_list.size(); i++) {
         wireless_network *net = network_list[i];
@@ -1670,7 +1761,8 @@ int Packetracker::WriteCisco(string in_fname) {
         stable_sort(bssid_vec.begin(), bssid_vec.end(), SortFirstTimeLT());
         */
 
-    stable_sort(network_list.begin(), network_list.end(), SortFirstTimeLT());
+    if (network_list.size() > 0)
+        stable_sort(network_list.begin(), network_list.end(), SortFirstTimeLT());
 
     for (unsigned int i = 0; i < network_list.size(); i++) {
         wireless_network *net = network_list[i];
@@ -1793,7 +1885,8 @@ int Packetracker::WriteCSVNetworks(string in_fname) {
             "GPSMinLat;GPSMinLon;GPSMinAlt;GPSMinSpd;GPSMaxLat;GPSMaxLon;GPSMaxAlt;GPSMaxSpd;"
             "GPSBestLat;GPSBestLon;GPSBestAlt;DataSize;IPType;IP;\r\n");
 
-    stable_sort(network_list.begin(), network_list.end(), SortFirstTimeLT());
+    if (network_list.size() > 0)
+        stable_sort(network_list.begin(), network_list.end(), SortFirstTimeLT());
 
     for (unsigned int i = 0; i < network_list.size(); i++) {
         wireless_network *net = network_list[i];
@@ -2100,7 +2193,8 @@ int Packetracker::WriteXMLNetworks(string in_fname) {
         stable_sort(bssid_vec.begin(), bssid_vec.end(), SortFirstTimeLT());
         */
 
-    stable_sort(network_list.begin(), network_list.end(), SortFirstTimeLT());
+    if (network_list.size() > 0)
+        stable_sort(network_list.begin(), network_list.end(), SortFirstTimeLT());
 
     for (unsigned int i = 0; i < network_list.size(); i++) {
         wireless_network *net = network_list[i];

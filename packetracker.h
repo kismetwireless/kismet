@@ -80,6 +80,7 @@ public:
 
     wireless_network *MatchNetwork(const packet_info *in_packet);
 
+    int ExpireNetworks(int expiry);
     int WriteNetworks(string in_fname);
     int WriteCSVNetworks(string in_fname);
     int WriteXMLNetworks(string in_fname);

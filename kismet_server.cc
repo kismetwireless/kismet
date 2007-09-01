@@ -169,6 +169,8 @@ typedef struct _alert_enable {
 // More config-driven globals
 const char *logtypes = NULL, *dumptype = NULL;
 int limit_logs = 0;
+int log_expiry = 0;
+int limit_nets = 0;
 
 char gpshost[1024];
 int gpsport = -1;
@@ -236,66 +238,49 @@ void WriteDatafiles(int in_shutdown) {
 
     char alert[2048];
 
+    if (log_expiry)
+        tracker.ExpireNetworks(log_expiry);
+
     if (net_log) {
-        if (tracker.FetchNumNetworks() != 0) {
-            if (tracker.WriteNetworks(netlogfile) == -1) {
-                snprintf(alert, 2048, "WARNING: %s", tracker.FetchError());
-                alertracker.RaiseAlert(kissrv_aref, mac_addr(0), mac_addr(0), 
-                                       mac_addr(0), mac_addr(0), 0, alert);
-                //NetWriteAlert(alert);
-                if (!silent)
-                    fprintf(stderr, "%s\n", alert);
-            }
-        } else if (in_shutdown) {
-            fprintf(stderr, "Didn't detect any networks, unlinking network list.\n");
-            unlink(netlogfile.c_str());
+        if (tracker.WriteNetworks(netlogfile) == -1) {
+            snprintf(alert, 2048, "WARNING: %s", tracker.FetchError());
+            alertracker.RaiseAlert(kissrv_aref, mac_addr(0), mac_addr(0), 
+                                   mac_addr(0), mac_addr(0), 0, alert);
+            //NetWriteAlert(alert);
+            if (!silent)
+                fprintf(stderr, "%s\n", alert);
         }
     }
 
     if (csv_log) {
-        if (tracker.FetchNumNetworks() != 0) {
-            if (tracker.WriteCSVNetworks(csvlogfile) == -1) {
-                snprintf(alert, 2048, "WARNING: %s", tracker.FetchError());
-                alertracker.RaiseAlert(kissrv_aref, 0, 0, 0, 0, 0, alert);
-                //NetWriteAlert(alert);
-                if (!silent)
-                    fprintf(stderr, "%s\n", alert);
-            }
-        } else if (in_shutdown) {
-            fprintf(stderr, "Didn't detect any networks, unlinking CSV network list.\n");
-            unlink(csvlogfile.c_str());
+        if (tracker.WriteCSVNetworks(csvlogfile) == -1) {
+            snprintf(alert, 2048, "WARNING: %s", tracker.FetchError());
+            alertracker.RaiseAlert(kissrv_aref, 0, 0, 0, 0, 0, alert);
+            //NetWriteAlert(alert);
+            if (!silent)
+                fprintf(stderr, "%s\n", alert);
         }
     }
 
     if (xml_log) {
-        if (tracker.FetchNumNetworks() != 0) {
-            if (tracker.WriteXMLNetworks(xmllogfile) == -1) {
-                snprintf(alert, 2048, "WARNING: %s", tracker.FetchError());
-                alertracker.RaiseAlert(kissrv_aref, mac_addr(0), mac_addr(0),
-                                       mac_addr(0), mac_addr(0), 0, alert);
-                //NetWriteAlert(alert);
-                if (!silent)
-                    fprintf(stderr, "%s\n", alert);
-            }
-        } else if (in_shutdown) {
-            fprintf(stderr, "Didn't detect any networks, unlinking XML network list.\n");
-            unlink(xmllogfile.c_str());
+        if (tracker.WriteXMLNetworks(xmllogfile) == -1) {
+            snprintf(alert, 2048, "WARNING: %s", tracker.FetchError());
+            alertracker.RaiseAlert(kissrv_aref, mac_addr(0), mac_addr(0),
+                                   mac_addr(0), mac_addr(0), 0, alert);
+            //NetWriteAlert(alert);
+            if (!silent)
+                fprintf(stderr, "%s\n", alert);
         }
     }
 
     if (cisco_log) {
-        if (tracker.FetchNumCisco() != 0) {
-            if (tracker.WriteCisco(ciscologfile) == -1) {
-                snprintf(alert, 2048, "WARNING: %s", tracker.FetchError());
-                alertracker.RaiseAlert(kissrv_aref, mac_addr(0), mac_addr(0),
-                                       mac_addr(0), mac_addr(0), 0, alert);
-                //NetWriteAlert(alert);
-                if (!silent)
-                    fprintf(stderr, "%s\n", alert);
-            }
-        } else if (in_shutdown) {
-            fprintf(stderr, "Didn't detect any Cisco Discovery Packets, unlinking cisco dump\n");
-            unlink(ciscologfile.c_str());
+        if (tracker.WriteCisco(ciscologfile) == -1) {
+            snprintf(alert, 2048, "WARNING: %s", tracker.FetchError());
+            alertracker.RaiseAlert(kissrv_aref, mac_addr(0), mac_addr(0),
+                                   mac_addr(0), mac_addr(0), 0, alert);
+            //NetWriteAlert(alert);
+            if (!silent)
+                fprintf(stderr, "%s\n", alert);
         }
     }
 
@@ -869,6 +854,7 @@ int GpsEvent(Timetracker::timer_event *evt, void *parm) {
 
             gpsmode = 1;
         }
+
     }
 
     if (gps_log == 1 && gpsmode != 0 && gps != NULL) {
@@ -2007,6 +1993,30 @@ int ProcessBulkConf(ConfigFile *conf) {
 
         free(client_manuf_name);
     }
+
+	if (conf->FetchOpt("logexpiry") != "" || log_expiry != 0) {
+		if (log_expiry == 0)
+			if (sscanf(conf->FetchOpt("logexpiry").c_str(), "%d", &log_expiry) != 1) {
+				fprintf(stderr, "FATAL:  Illegal config file value for logexpiry.\n");
+				ErrorShutdown();
+			}
+
+		if (log_expiry != 0)
+			fprintf(stderr, "Expiring log entries after %d seconds.\n",
+					log_expiry);
+	}
+
+	if (conf->FetchOpt("limitnets") != "" || limit_nets != 0) {
+		if (limit_nets == 0)
+			if (sscanf(conf->FetchOpt("limitnets").c_str(), "%d", &limit_nets) != 1) {
+				fprintf(stderr, "FATAL:  Illegal config file value for limitnets.\n");
+				ErrorShutdown();
+			}
+
+		if (limit_nets != 0)
+			fprintf(stderr, "Limiting network number to %d.\n",
+					limit_nets);
+	}
 
     if (filter_export)
         tracker.AddExportFilters(&filter_export_bssid, &filter_export_source, 
