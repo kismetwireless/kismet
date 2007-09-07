@@ -79,6 +79,7 @@ Kis_Main_Panel::Kis_Main_Panel(GlobalRegistry *in_globalreg,
 	mi_colorprefs = menu->AddMenuItem("Colors...", mn_preferences, 'C');
 	mi_netcolprefs = menu->AddMenuItem("Network Columns...", mn_preferences, 'N');
 	mi_netextraprefs = menu->AddMenuItem("Network Extras...", mn_preferences, 'E');
+	mi_infoprefs = menu->AddMenuItem("Info Pane...", mn_preferences, 'I');
 
 	menu->Show();
 
@@ -137,6 +138,12 @@ Kis_Main_Panel::Kis_Main_Panel(GlobalRegistry *in_globalreg,
 	netlist->SetName("KIS_MAIN_NETLIST");
 	netlist->Show();
 
+	infobits = new Kis_Info_Bits(globalreg, this);
+	infobits->SetName("KIS_MAIN_INFOBITS");
+	infobits->Show();
+
+	optbox->Pack_End(infobits, 1, 0);
+
 	// Pack our boxes together
 	hbox->Pack_End(netbox, 1, 0);
 	hbox->Pack_End(optbox, 0, 0);
@@ -165,6 +172,7 @@ Kis_Main_Panel::Kis_Main_Panel(GlobalRegistry *in_globalreg,
 	AddColorPref("netlist_group_color", "Netlist Group");
 	AddColorPref("netlist_factory_color", "Netlist Factory");
 	AddColorPref("status_normal_color", "Status Text");
+	AddColorPref("info_normal_color", "Info Pane");
 
 }
 
@@ -286,6 +294,8 @@ int Kis_Main_Panel::KeyPress(int in_key) {
 			SpawnNetcolPrefs();
 		} else if (ret == mi_netextraprefs) {
 			SpawnNetextraPrefs();
+		} else if (ret == mi_infoprefs) {
+			SpawnInfoPrefs();
 		} else {
 			for (unsigned int p = 0; p < plugin_menu_vec.size(); p++) {
 				if (ret == plugin_menu_vec[p].menuitem) {
@@ -375,6 +385,20 @@ void Kis_Main_Panel::SpawnNetextraPrefs() {
 	}
 
 	cpp->ColumnPref("netlist_extras", "Network Extras");
+
+	cpp->Position((LINES / 2) - 9, (COLS / 2) - 30, 18, 60);
+	kpinterface->AddPanel(cpp);
+}
+
+void Kis_Main_Panel::SpawnInfoPrefs() {
+	Kis_ColumnPref_Panel *cpp = new Kis_ColumnPref_Panel(globalreg, kpinterface);
+
+	for (unsigned int x = 0; info_bits_details[x][0] != NULL; x++) {
+		cpp->AddColumn(info_bits_details[x][0],
+					   info_bits_details[x][1]);
+	}
+
+	cpp->ColumnPref("netinfo_items", "Info Pane");
 
 	cpp->Position((LINES / 2) - 9, (COLS / 2) - 30, 18, 60);
 	kpinterface->AddPanel(cpp);

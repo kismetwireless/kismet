@@ -93,7 +93,7 @@ protected:
 	int mn_plugins, mi_addplugin, mi_noplugins;
 
 	int mn_preferences, mi_serverprefs, mi_colorprefs, mi_netcolprefs,
-		mi_netextraprefs;
+		mi_netextraprefs, mi_infoprefs;
 
 	int connect_enable;
 
@@ -102,6 +102,7 @@ protected:
 	KisStatusText_Messageclient *statuscli;
 	Kis_Status_Text *statustext;
 	Kis_Netlist *netlist;
+	Kis_Info_Bits *infobits;
 
 	Kis_Panel_Packbox *netbox, *optbox, *linebox, *hbox, *vbox;
 
@@ -113,6 +114,7 @@ protected:
 	virtual void SpawnServerPrefs();
 	virtual void SpawnNetcolPrefs();
 	virtual void SpawnNetextraPrefs();
+	virtual void SpawnInfoPrefs();
 
 	vector<colorpref> color_pref_vec;
 };

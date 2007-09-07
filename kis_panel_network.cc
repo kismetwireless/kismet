@@ -481,6 +481,10 @@ int Kis_Netlist::UpdateBColPrefs() {
 			_MSG("Unknown display column '" + t + "', skipping.",
 				 MSGFLAG_INFO);
 	}
+	
+	for (unsigned int x = 0; x < display_vec.size(); x++) {
+		display_vec[x]->SetDispDirty(1);
+	}
 
 	return 1;
 }
@@ -2110,6 +2114,245 @@ Kis_Display_NetGroup *Kis_Netlist::FetchSelectedNetgroup() {
 		return NULL;
 
 	return display_vec[selected_line];
+}
+
+char *info_bits_details[][2] = {
+	{ "elapsed", "Elapsed time" },
+	{ "numnets", "Number of networks" },
+	{ "numpkts", "Number of packets" },
+	{ "pktrate", "Packet rate" },
+	{ "numfilter", "Number of filtered packets" },
+	{ NULL, NULL}
+};
+
+// Callbacks
+void KisInfobits_Configured(CLICONF_CB_PARMS) {
+	((Kis_Info_Bits *) auxptr)->NetClientConfigure(kcli, recon);
+}
+
+void KisInfobits_AddCli(KPI_ADDCLI_CB_PARMS) {
+	((Kis_Info_Bits *) auxptr)->NetClientAdd(netcli, add);
+}
+
+void KisInfobits_INFO(CLIPROTO_CB_PARMS) {
+	((Kis_Info_Bits *) auxptr)->Proto_INFO(globalreg, proto_string,
+										   proto_parsed, srccli, auxptr);
+}
+
+void KisInfobits_TIME(CLIPROTO_CB_PARMS) {
+	((Kis_Info_Bits *) auxptr)->Proto_TIME(globalreg, proto_string, 
+										   proto_parsed, srccli, auxptr);
+}
+
+Kis_Info_Bits::Kis_Info_Bits(GlobalRegistry *in_globalreg, Kis_Panel *in_panel) :
+	Kis_Panel_Packbox(in_globalreg, in_panel) {
+	kpinterface = in_panel->FetchPanelInterface();
+
+	num_networks = num_packets = packet_rate = filtered_packets = 0;
+
+	addref = kpinterface->Add_NetCli_AddCli_CB(KisInfobits_AddCli, (void *) this);
+
+	// Set up our inherited vbox attributes
+	SetPackV();
+	SetHomogenous(1);
+	SetSpacing(1);
+
+	info_color_normal = -1;
+
+	UpdatePrefs();
+}
+
+Kis_Info_Bits::~Kis_Info_Bits() {
+	kpinterface->Remove_Netcli_AddCli_CB(addref);
+	kpinterface->Remove_AllNetcli_ProtoHandler("TIME", KisInfobits_TIME, this);
+	kpinterface->Remove_AllNetcli_ProtoHandler("INFO", KisInfobits_INFO, this);
+}
+
+int Kis_Info_Bits::UpdatePrefs() {
+	string ibits;
+
+	if ((ibits = kpinterface->prefs.FetchOpt("NETINFO_ITEMS")) == "") {
+		ibits = "elapsed,numnets,numpkts,pktrate,numfilter";
+		kpinterface->prefs.SetOpt("NETINFO_ITEMS", ibits, 1);
+	}
+
+	if (kpinterface->prefs.FetchOptDirty("NETINFO_ITEMS") == 0)
+		return 0;
+
+	kpinterface->prefs.SetOptDirty("NETINFO_ITEMS", 0);
+
+	infovec.clear();
+
+	// Unpack the vbox and remove the widgets
+	for (map<int, Kis_Free_Text *>::iterator x = infowidgets.begin();
+		 x != infowidgets.end(); ++x) {
+		Pack_Remove(x->second);
+		delete(x->second);
+	}
+	infowidgets.clear();
+
+	vector<string> toks = StrTokenize(ibits, ",");
+	string t;
+
+	int optnum;
+	Kis_Free_Text *ft;
+
+	for (unsigned int x = 0; x < toks.size(); x++) {
+		t = StrLower(toks[x]);
+
+		if (t == "elapsed") {
+			optnum = info_elapsed;
+			infovec.push_back(info_elapsed);
+		} else if (t == "numnets") {
+			optnum = info_numnets;
+		} else if (t == "numpkts") {
+			optnum = info_numpkts;
+		} else if (t == "pktrate") {
+			optnum = info_pktrate;
+		} else if (t == "numfilter") {
+			optnum = info_filtered;
+		} else {
+			_MSG("Unknown info panel item '" + t + "', skipping.",
+				 MSGFLAG_INFO);
+			continue;
+		}
+
+		infovec.push_back(optnum);
+		ft = new Kis_Free_Text(globalreg, parent_panel);
+		ft->Show();
+		ft->SetAlignment(1);
+		Pack_End(ft, 0, 0);
+		infowidgets[optnum] = ft;
+	}
+
+	return 1;
+}
+
+void Kis_Info_Bits::DrawComponent() {
+	UpdatePrefs();
+
+	parent_panel->InitColorPref("info_normal_color", "white,black");
+	parent_panel->ColorFromPref(info_color_normal, "info_normal_color");
+
+	wattrset(window, info_color_normal);
+
+	Kis_Panel_Packbox::DrawComponent();
+}
+
+void Kis_Info_Bits::NetClientConfigure(KisNetClient *in_cli, int in_recon) {
+	first_time = in_cli->FetchServerStarttime();
+
+	if (in_recon)
+		return;
+
+	if (in_cli->RegisterProtoHandler("TIME", KCLI_INFO_TIME_FIELDS,
+									 KisInfobits_TIME, this) < 0) {
+		_MSG("Could not register TIME protocol with remote server, connection "
+			 "will be terminated.", MSGFLAG_ERROR);
+		in_cli->KillConnection();
+	}
+
+	if (in_cli->RegisterProtoHandler("INFO", KCLI_INFO_INFO_FIELDS,
+									 KisInfobits_INFO, this) < 0) {
+		_MSG("Could not register INFO protocol with remote server, connection "
+			 "will be terminated.", MSGFLAG_ERROR);
+		in_cli->KillConnection();
+	}
+}
+
+void Kis_Info_Bits::NetClientAdd(KisNetClient *in_cli, int add) {
+	if (add == 0)
+		return;
+
+	in_cli->AddConfCallback(KisInfobits_Configured, 1, this);
+}
+
+void Kis_Info_Bits::Proto_TIME(CLIPROTO_CB_PARMS) {
+	if (proto_parsed->size() < KCLI_INFO_TIME_NUMFIELDS) {
+		return;
+	}
+
+	unsigned int ttime;
+	if (sscanf((*proto_parsed)[0].word.c_str(), "%u", &ttime) != 1) {
+		return;
+	}
+
+	last_time = ttime;
+
+	if (infowidgets.find(info_elapsed) != infowidgets.end()) {
+		vector<string> it;
+		char t[20];
+		time_t el = last_time - first_time;
+
+		it.push_back("Elapsed");
+		snprintf(t, 20, "%02d:%02d.%02d", 
+				 (int) (el / 60) / 60,
+				 (int) (el / 60) % 60,
+				 (int) (el % 60));
+		it.push_back(t);
+
+		infowidgets[info_elapsed]->SetText(it);
+	}
+}
+
+void Kis_Info_Bits::Proto_INFO(CLIPROTO_CB_PARMS) {
+	if (proto_parsed->size() < KCLI_INFO_INFO_NUMFIELDS) {
+		return;
+	}
+
+	int tint;
+	int fnum = 0;
+
+	vector<string> it(2);
+	char n[20];
+
+	if (sscanf((*proto_parsed)[fnum++].word.c_str(), "%d", &tint) != 1) {
+		return;
+	}
+	num_networks = tint;
+
+	if (sscanf((*proto_parsed)[fnum++].word.c_str(), "%d", &tint) != 1) {
+		return;
+	}
+	num_packets = tint;
+
+	if (sscanf((*proto_parsed)[fnum++].word.c_str(), "%d", &tint) != 1) {
+		return;
+	}
+	packet_rate = tint;
+
+	if (sscanf((*proto_parsed)[fnum++].word.c_str(), "%d", &tint) != 1) {
+		return;
+	}
+	filtered_packets = tint;
+
+	if (infowidgets.find(info_numnets) != infowidgets.end()) {
+		it[0] = "Networks";
+		snprintf(n, 20, "%d", num_networks);
+		it[1] = n;
+		infowidgets[info_numnets]->SetText(it);
+	}
+
+	if (infowidgets.find(info_numpkts) != infowidgets.end()) {
+		it[0] = "Packets";
+		snprintf(n, 20, "%d", num_packets);
+		it[1] = n;
+		infowidgets[info_numpkts]->SetText(it);
+	}
+
+	if (infowidgets.find(info_pktrate) != infowidgets.end()) {
+		it[0] = "Pkt/Sec";
+		snprintf(n, 20, "%d", packet_rate);
+		it[1] = n;
+		infowidgets[info_pktrate]->SetText(it);
+	}
+
+	if (infowidgets.find(info_filtered) != infowidgets.end()) {
+		it[0] = "Filtered";
+		snprintf(n, 20, "%d", filtered_packets);
+		it[1] = n;
+		infowidgets[info_filtered]->SetText(it);
+	}
 }
 
 #endif // panel

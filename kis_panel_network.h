@@ -65,6 +65,12 @@
 	"cloaked,firsttime,lasttime,maxrate,beaconrate,packets,beacons"
 #define KCLI_SSID_NUMFIELDS		13
 
+#define KCLI_INFO_TIME_FIELDS	"timesec"
+#define KCLI_INFO_TIME_NUMFIELDS	1
+
+#define KCLI_INFO_INFO_FIELDS	"networks,packets,rate,filtered"
+#define KCLI_INFO_INFO_NUMFIELDS	4
+
 // TODO - add SSID handling and group naming
 class Kis_Display_NetGroup {
 public:
@@ -200,7 +206,6 @@ enum bssid_extras {
 
 extern char *bssid_extras_details[][2];
 
-
 class Kis_Netlist : public Kis_Panel_Component {
 public:
 	Kis_Netlist() {
@@ -318,6 +323,48 @@ protected:
 
 	int PrintNetworkLine(Kis_Display_NetGroup *ng, Netracker::tracked_network *net,
 						 int rofft, char *rline, int max);
+};
+
+enum info_items {
+	info_elapsed, info_numnets, info_numpkts, info_pktrate, info_filtered 
+};
+
+extern char *info_bits_details[][2];
+
+class Kis_Info_Bits : public Kis_Panel_Packbox {
+public:
+	Kis_Info_Bits() {
+		fprintf(stderr, "FATAL OOPS: Kis_Info_Bits()\n");
+		exit(1);
+	}
+	Kis_Info_Bits(GlobalRegistry *in_globalreg, Kis_Panel *in_panel);
+	virtual ~Kis_Info_Bits();
+
+	void NetClientConfigure(KisNetClient *in_cli, int in_recon);
+	void NetClientAdd(KisNetClient *in_cli, int add);
+	void Proto_INFO(CLIPROTO_CB_PARMS);
+	void Proto_TIME(CLIPROTO_CB_PARMS);
+
+	void DrawComponent();
+
+	int UpdatePrefs();
+
+protected:
+	int addref;
+
+	KisPanelInterface *kpinterface;
+
+	vector<int> infovec;
+	map<int, Kis_Free_Text *> infowidgets;
+	time_t first_time;
+	time_t last_time;
+
+	int num_networks;
+	int num_packets;
+	int packet_rate;
+	int filtered_packets;
+
+	int info_color_normal;
 };
 
 #endif // panel

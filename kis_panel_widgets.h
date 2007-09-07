@@ -425,10 +425,15 @@ public:
 	virtual void SetText(string in_text);
 	virtual void SetText(vector<string> in_text);
 
+	virtual void SetAlignment(int in_alignment) {
+		alignment = in_alignment;
+	}
+
 protected:
 	vector<string> text_vec;
 
 	int scroll_pos;
+	int alignment;
 };
 
 class KisStatusText_Messageclient : public MessageClient {

@@ -435,14 +435,20 @@ void Kis_Panel_Packbox::Pack_Widgets() {
 			if ((*i).fill == 0) {
 				if (packing == 0) {
 					psize = (*i).widget->GetPrefX() + ((*i).padding * 2);
+					/*
 					op = (*i).widget->GetPrefY();
 					if (op > ly || op == 0)
 						op = ly;
+					*/
+					op = ly;
 				} else {
 					psize = (*i).widget->GetPrefY() + ((*i).padding * 2);
+					/*
 					op = (*i).widget->GetPrefX();
 					if (op > lx || op == 0)
 						op = lx;
+						*/
+					op = lx;
 				}
 
 				if (psize > ww)
@@ -513,15 +519,21 @@ void Kis_Panel_Packbox::Pack_Widgets() {
 				if (packing == 0) {
 					mp = (*i).widget->GetMinX();
 					pp = (*i).widget->GetPrefX();
+					/*
 					op = (*i).widget->GetPrefY();
 					if (op > ly || op == 0)
 						op = ly;
+						*/
+					op = ly;
 				} else {
 					mp = (*i).widget->GetMinY();
 					pp = (*i).widget->GetPrefY();
+					/*
 					op = (*i).widget->GetPrefX();
 					if (op > lx || op == 0)
 						op = lx;
+						*/
+					op = lx;
 				}
 
 				int ww;
@@ -596,14 +608,20 @@ void Kis_Panel_Packbox::Pack_Widgets() {
 
 		if (packing == 0) {
 			pp = (*i).widget->GetPrefX();
+			/*
 			op = (*i).widget->GetPrefY();
 			if (op > ly || op == 0)
 				op = ly;
+				*/
+			op = ly;
 		} else {
 			pp = (*i).widget->GetPrefY();
+			/*
 			op = (*i).widget->GetPrefX();
 			if (op > lx || op == 0)
 				op = lx;
+				*/
+			op = lx;
 		}
 
 		// Disperse the bucket over the items we have left
@@ -1412,6 +1430,7 @@ Kis_Free_Text::Kis_Free_Text(GlobalRegistry *in_globalreg, Kis_Panel *in_panel) 
 	globalreg = in_globalreg;
 	scroll_pos = 0;
 	SetMinSize(1, 1);
+	alignment = 0;
 }
 
 Kis_Free_Text::~Kis_Free_Text() {
@@ -1425,7 +1444,8 @@ void Kis_Free_Text::DrawComponent() {
 	for (unsigned int x = 0; x < text_vec.size() && (int) x < ly; x++) {
 		// Use the special formatter
 		Kis_Panel_Specialtext::Mvwaddnstr(window, sy + x, sx, 
-										  text_vec[x + scroll_pos],
+										  AlignString(text_vec[x + scroll_pos], ' ',
+													  alignment, lx),
 										  lx - 1);
 	}
 
