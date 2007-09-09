@@ -67,6 +67,7 @@ class KisPanelInterface;
 class Kis_Panel_Specialtext {
 public:
 	static void Mvwaddnstr(WINDOW *win, int y, int x, string str, int n);
+	static unsigned int Strlen(string str);
 };
 
 class Kis_Panel_Color {

@@ -88,7 +88,7 @@ Kis_Main_Panel::Kis_Main_Panel(GlobalRegistry *in_globalreg,
 	hbox = new Kis_Panel_Packbox(globalreg, this);
 	hbox->SetPackH();
 	hbox->SetHomogenous(0);
-	hbox->SetSpacing(0);
+	hbox->SetSpacing(1);
 	hbox->Show();
 
 	// Make a vbox to hold the hbox we just made, and the status text

@@ -331,6 +331,10 @@ enum info_items {
 
 extern char *info_bits_details[][2];
 
+// Infobits main info pane widget is derived from a packbox - we contain our 
+// own sub-widgets and pack them into ourselves, and let all the other normal
+// code take care of things like spacing and such.  Plugins can then append
+// after the main info block.
 class Kis_Info_Bits : public Kis_Panel_Packbox {
 public:
 	Kis_Info_Bits() {
@@ -356,6 +360,7 @@ protected:
 
 	vector<int> infovec;
 	map<int, Kis_Free_Text *> infowidgets;
+	Kis_Free_Text *title;
 	time_t first_time;
 	time_t last_time;
 

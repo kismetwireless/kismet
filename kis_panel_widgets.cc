@@ -26,6 +26,27 @@
 #include "timetracker.h"
 #include "messagebus.h"
 
+unsigned int Kis_Panel_Specialtext::Strlen(string str) {
+	int npos = 0;
+	int escape = 0;
+
+	for (unsigned int pos = 0; pos < str.size(); pos++) {
+		if (str[pos] == '\004') {
+			escape = 1;
+			continue;
+		}
+
+		if (escape) {
+			escape = 0;
+			continue;
+		}
+
+		npos++;
+	}
+
+	return npos;
+}
+
 void Kis_Panel_Specialtext::Mvwaddnstr(WINDOW *win, int y, int x, string str, int n) {
 	int npos = 0;
 	int escape = 0;
@@ -1441,11 +1462,22 @@ void Kis_Free_Text::DrawComponent() {
 	if (visible == 0)
 		return;
 
+	if (scroll_pos < 0 || scroll_pos > (int) text_vec.size())
+		scroll_pos = 0;
+
 	for (unsigned int x = 0; x < text_vec.size() && (int) x < ly; x++) {
+		if (x + scroll_pos > text_vec.size()) {
+			scroll_pos = x;
+		}
 		// Use the special formatter
+		/*
 		Kis_Panel_Specialtext::Mvwaddnstr(window, sy + x, sx, 
 										  AlignString(text_vec[x + scroll_pos], ' ',
 													  alignment, lx),
+										  lx - 1);
+										  */
+		Kis_Panel_Specialtext::Mvwaddnstr(window, sy + x, sx, 
+										  text_vec[x + scroll_pos],
 										  lx - 1);
 	}
 
@@ -1511,15 +1543,15 @@ int Kis_Free_Text::KeyPress(int in_key) {
 
 void Kis_Free_Text::SetText(string in_text) {
 	text_vec = StrTokenize(in_text, "\n");
-	SetPreferredSize(in_text.length(), 1);
+	SetPreferredSize(Kis_Panel_Specialtext::Strlen(in_text), 1);
 }
 
 void Kis_Free_Text::SetText(vector<string> in_text) {
 	unsigned int ml = 0;
 
 	for (unsigned x = 0; x < in_text.size(); x++) {
-		if (in_text[x].length() > ml)
-			ml = in_text[x].length();
+		if (Kis_Panel_Specialtext::Strlen(in_text[x]) > ml) 
+			ml = Kis_Panel_Specialtext::Strlen(in_text[x]);
 	}
 
 	text_vec = in_text;

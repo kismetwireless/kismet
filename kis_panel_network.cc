@@ -2154,10 +2154,16 @@ Kis_Info_Bits::Kis_Info_Bits(GlobalRegistry *in_globalreg, Kis_Panel *in_panel) 
 
 	// Set up our inherited vbox attributes
 	SetPackV();
-	SetHomogenous(1);
+	SetHomogenous(0);
 	SetSpacing(1);
 
 	info_color_normal = -1;
+
+	title = new Kis_Free_Text(globalreg, parent_panel);
+	title->SetText("\004uKismet\004U");
+	title->SetAlignment(1);
+	title->Show();
+	Pack_End(title, 0, 0);
 
 	UpdatePrefs();
 }
@@ -2241,6 +2247,8 @@ void Kis_Info_Bits::DrawComponent() {
 
 void Kis_Info_Bits::NetClientConfigure(KisNetClient *in_cli, int in_recon) {
 	first_time = in_cli->FetchServerStarttime();
+	
+	title->SetText("\004u" + in_cli->FetchServerName() + "\004U");
 
 	if (in_recon)
 		return;
@@ -2284,7 +2292,7 @@ void Kis_Info_Bits::Proto_TIME(CLIPROTO_CB_PARMS) {
 		char t[20];
 		time_t el = last_time - first_time;
 
-		it.push_back("Elapsed");
+		it.push_back("\004bElapsed\004B");
 		snprintf(t, 20, "%02d:%02d.%02d", 
 				 (int) (el / 60) / 60,
 				 (int) (el / 60) % 60,
@@ -2327,28 +2335,28 @@ void Kis_Info_Bits::Proto_INFO(CLIPROTO_CB_PARMS) {
 	filtered_packets = tint;
 
 	if (infowidgets.find(info_numnets) != infowidgets.end()) {
-		it[0] = "Networks";
+		it[0] = "\004bNetworks\004B";
 		snprintf(n, 20, "%d", num_networks);
 		it[1] = n;
 		infowidgets[info_numnets]->SetText(it);
 	}
 
 	if (infowidgets.find(info_numpkts) != infowidgets.end()) {
-		it[0] = "Packets";
+		it[0] = "\004bPackets\004B";
 		snprintf(n, 20, "%d", num_packets);
 		it[1] = n;
 		infowidgets[info_numpkts]->SetText(it);
 	}
 
 	if (infowidgets.find(info_pktrate) != infowidgets.end()) {
-		it[0] = "Pkt/Sec";
+		it[0] = "\004bPkt/Sec\004B";
 		snprintf(n, 20, "%d", packet_rate);
 		it[1] = n;
 		infowidgets[info_pktrate]->SetText(it);
 	}
 
 	if (infowidgets.find(info_filtered) != infowidgets.end()) {
-		it[0] = "Filtered";
+		it[0] = "\004bFiltered\004B";
 		snprintf(n, 20, "%d", filtered_packets);
 		it[1] = n;
 		infowidgets[info_filtered]->SetText(it);
