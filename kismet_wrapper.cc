@@ -42,10 +42,14 @@ void reap(int sig) {
 	check_err = 1;
 	check_out = 1;
 
-	kill(clipid, SIGTERM);
-	wait4(clipid, NULL, 0, NULL);
+	if (clipid > 0) {
+		kill(clipid, SIGTERM);
+		wait4(clipid, NULL, 0, NULL);
+	}
 
-	kill(srvpid, SIGTERM);
+	if (srvpid > 0) {
+		kill(srvpid, SIGTERM);
+	}
 
 	while (1) {
 		FD_ZERO(&rset);
