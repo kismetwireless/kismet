@@ -60,24 +60,20 @@ GPSSerial::GPSSerial(GlobalRegistry *in_globalreg) : GPSCore(in_globalreg) {
 		}
 		last_disconnect = time(0);
 	} else {
-		// Configure the device - 9600,N,8,1 hardcoded for now
 		struct termios options;
 
 		sercli->GetOptions(&options);
 
-		// 9600
-		cfsetispeed(&options, B9600);
-		cfsetospeed(&options, B9600);
+		options.c_oflag = 0;
+		options.c_iflag = 0;
+		options.c_iflag &= (IXON | IXOFF | IXANY);
+		options.c_cflag |= CLOCAL | CREAD;
+		options.c_cflag &= ~HUPCL;
 
-		options.c_cflag |= (CLOCAL | CREAD);
+		cfsetispeed(&options, B4800);
+		cfsetospeed(&options, B4800);
 
-		// Set 8-n-1
-		options.c_cflag &= ~PARENB;
-		options.c_cflag &= ~CSTOPB;
-		options.c_cflag &= ~CSIZE;
-		options.c_cflag |= CS8;
-
-		sercli->SetOptions(&options);
+		sercli->SetOptions(TCSANOW, &options);
 	}
 
 	last_mode = -1;
@@ -122,24 +118,21 @@ int GPSSerial::Reconnect() {
         return 0;
     }
 
-	// Configure the device - 9600,N,8,1 hardcoded for now
+	// Reset the device options
 	struct termios options;
 
 	sercli->GetOptions(&options);
 
-	// 9600
-	cfsetispeed(&options, B9600);
-	cfsetospeed(&options, B9600);
+	options.c_oflag = 0;
+	options.c_iflag = 0;
+	options.c_iflag &= (IXON | IXOFF | IXANY);
+	options.c_cflag |= CLOCAL | CREAD;
+	options.c_cflag &= ~HUPCL;
 
-	options.c_cflag |= (CLOCAL | CREAD);
+	cfsetispeed(&options, B4800);
+	cfsetospeed(&options, B4800);
 
-	// Set 8-n-1
-	options.c_cflag &= ~PARENB;
-	options.c_cflag &= ~CSTOPB;
-	options.c_cflag &= ~CSIZE;
-	options.c_cflag |= CS8;
-
-	sercli->SetOptions(&options);
+	sercli->SetOptions(TCSANOW, &options);
 
     return 1;
 }
@@ -217,27 +210,11 @@ int GPSSerial::ParseData() {
 			if (gpstoks[5] == "W")
 				in_lon = in_lon * -1;
 
-			/*
-			We get mode later in the *GSA sentence
-			if (sscanf(gpstoks[6].c_str(), "%d", &tint) != 1)
-				continue;
-			in_mode = tint;
-
-			// Kluge the # of sats into the mode - if we see more than 3,
-			// we've got a good chance of a 3d lock.  Emulate gpsd modes
-			if (sscanf(gpstoks[7].c_str(), "%d", &tint) != 1)
-				continue;
-			if (tint > 3 && in_mode == 1)
-				in_mode = 3;
-			else
-				in_mode = 2;
-			*/
-
 			if (sscanf(gpstoks[9].c_str(), "%f", &tfloat) != 1)
 				continue;
 			in_alt = tfloat;
 
-			// printf("debug - %f, %f mode %d alt %f\n", in_lat, in_lon, in_mode, in_alt);
+			// printf("debug - %f, %f alt %f\n", in_lat, in_lon, in_alt);
 			set_data = 1;
 
 			continue;
@@ -274,6 +251,7 @@ int GPSSerial::ParseData() {
 				in_mode = tint;
 				last_mode = tint;
 				set_mode = 1;
+				// printf("debug - mode %d\n", in_mode);
 			} else {
 				last_mode = tint;
 			}
@@ -330,8 +308,6 @@ int GPSSerial::ParseData() {
 
 	if (set_spd)
 		spd = in_spd;
-
-	// printf("debug - got data and speed, %f,%f fix %d alt %f spd %f\n", lat, lon, mode, alt, spd);
 
 #if 0
     // send it to the client

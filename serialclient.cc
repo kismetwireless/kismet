@@ -56,8 +56,8 @@ int SerialClient::GetOptions(struct termios *options) {
 	return 1;
 }
 
-int SerialClient::SetOptions(struct termios *options) {
-	if (tcsetattr(cli_fd, TCSANOW, options) < 0) {
+int SerialClient::SetOptions(int optmode, struct termios *options) {
+	if (tcsetattr(cli_fd, optmode, options) < 0) {
 		_MSG("SerialClient::SetOptions() failed to set serial device attributes: " +
 			 string(strerror(errno)), MSGFLAG_ERROR);
 		return -1;

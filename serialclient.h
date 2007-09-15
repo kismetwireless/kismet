@@ -63,7 +63,7 @@ public:
 
 	// Set serial port attributes
 	virtual int GetOptions(struct termios *options);
-	virtual int SetOptions(struct termios *options);
+	virtual int SetOptions(int optmode, struct termios *options);
 
 protected:
     virtual int Validate() {
