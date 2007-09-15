@@ -1,0 +1,91 @@
+Kismet Win32 Readme
+
+1. Requirements
+2. Quick Start
+2. Configuring Kismet
+3. Building Kismet
+
+
+1. Requirements
+
+    The Windows version of kismet requires Windows 2000, Windows XP (32/64bit),
+    Windows Server 2003 (32/64bit), or Vista (32bit).
+
+    At this time, only two kinds of sources are supported:
+    
+    * Drones
+    * The AirPcap USB capture adapter from CACE Technologies 
+      (http://www.cacetech.com/products/airpcap.htm)
+
+    THE AIRPCAP ADAPTER IS THE ONLY WAY FOR KISMET TO CAPTURE LIVE 802.11 
+    TRAFFIC UNDER WINDOWS. NO OTHER CARDS ARE SUPPORTED. THIS LIMITATION IS 
+    CAUSED BY THE LACK OF SNIFFER-MODE CAPABLE DRIVERS ON WINDOWS; THE 
+    AIRPCAP ADAPTER CIRCUMVENTS THIS LIMITATION THROUGH THE USE OF A SPECIALIZED 
+    CUSTOM DRIVER.
+    
+    If multiple AirPcap adapters are plugged in, Kismet is able to take 
+    advantage of them to listen on more than one channel simultaneously.
+    
+2. Quick Start
+
+    The easiest way to run Kismet on Windows is downloading and running the 
+    installer executable available at
+    
+        http://www.cacetech.com/support/downloads.htm
+        
+    The installer creates an entry under "All Programs" with the following 
+    items:
+
+    * Kismet: the program executable.
+    * Kismet Configuration Console: the GUI that can be used to configure the
+      program behavior.
+    * Command Line Prompt: this opens a dos console in the kismet installation
+      folder; advanced users can use this to manually run kismet_server.exe,
+      kismet_client.exe or kismet_drone.exe.
+    * Kismet Logs Folder: this shourtcut allows access to the files that kismet
+      produces when it runs. The folder will be empty until Kismet is run at 
+      least once.
+      
+    After the installer is done, just click on "Kismet", and the program will 
+    start with all the available AirPcap adapters as sources.
+    
+2. Configuring Kismet
+
+    Run the Kismet Configuration Console (start -> All Programs -> Kismet ->
+    Kismet Configuration Console). You will have the option to configure:
+    
+    * the local sources Kismet will use for packet capture.
+    * the list of drones Kismet will try to connect to for remote monitoring.
+    * if kismet will log information about the discovered networks to disk.
+
+    Additionally, you will be able to edit the kismet.conf, kismet_ui.conf and
+    kismet_drone.conf files to tweak the program advanced settings. For a 
+    reference on these three configuration files, please refer to the program 
+    manual.
+    
+3. Building Kismet
+
+    Requirements:
+
+    * the Cygwin Unix emulation environment. Install it from 
+      http://www.cygwin.com/, and remember to include the development packages
+      (gcc and make at least).
+    * the kismet sources, from http://kismetwireless.net/download.shtml
+    * the AirPcap developer's pack, from 
+      http://www.cacetech.com/support/downloads.htm
+    
+    IMPORTANT: unpack the AirPcap developer's pack INSIDE the folder with the
+    Kismet sources. You want the AirPcap_Devpack_XXX folder to be in the same
+    folder of the Kismet makefile. The reason is that Cygwin appears to have a 
+    bug which prevents proper linking if the devpack is not in the same 
+    directory that Kismet is compiled in. If kismet_server.exe instantly exits 
+    with no output, it is typically indicative of a linkage path problem.
+    
+    Instructions:
+    
+    a. run the following configure line:
+       ./configure --enable-airpcap --with-airpcap-devpack=<devpack_location>
+       Where <devpack_location> is the name of the AirPcap Developer's pack 
+       folder, containing WinPcap and AirPcap
+    b. Build Kismet by typing 'make'
+

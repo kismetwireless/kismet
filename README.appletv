@@ -1,0 +1,140 @@
+Tested on AppleTV that was originally set to version 1.1 and downgraded 
+to 1.0 via Factory Restore
+
+http://manuals.info.apple.com/en/AppleTV_UserGuide.pdf
+
+The first step to getting kismet running on AppleTV is to install ssh. 
+
+If you are not familiar with AppleTV mods I suggest 
+you look at: http://wiki.awkwardtv.org/wiki/Main_Page
+
+I found it easiest to open my AppleTV and place the ATVLoader on via
+USB hard disk interface. First run through the AppleTV setup. I chose 
+to reset my AppleTV before preparing for the kismet install. 
+TV->Settings->Reset Settings->Factory Restore. (Warning this resets to 1.0)
+I went with a Streaming only config (not necessary) after the reset. 
+
+Open up the AppleTV and attach the Hard disk via external USB case. 
+http://wiki.awkwardtv.org/wiki/Hardware_Modification_Prerequisites
+
+On OSX the disk should mount as follows once it is plugged in. 
+/dev/disk1s3 on /Volumes/OSBoot (local, nodev, nosuid, journaled)
+/dev/disk1s4 on /Volumes/Media (local, nodev, nosuid, journaled)
+
+We need to install AwkwardTV Loader so we can enable ssh. 
+http://wiki.awkwardtv.org/wiki/ATV_Loader
+http://plugins.awkwardtv.org/det.php?recordID=atvloader
+
+http://alanquatermain.net/atvloader/
+Unpack ATVLoader.zip to get ATVLoader.pkg, run it once it is unpacked. 
+Choose your OSBoot partition in the installer... 
+
+Umount the disks, reinstall the drive and turn on your AppleTV. 
+Make sure you boot wit the LAN cable plugged in. 
+
+Then enable ssh. TV->Awkward TV->SSH Service Disabled->Enable
+This make take a second because the machine needs to generate the ssh
+keys. 
+
+Get the IP and ssh in to the AppleTV using the username frontrow with 
+a pass of frontrow. 
+
+TV->Settings->About
+
+Welcome to Darwin!
+MacbookPro:~ kfinisterre$ ssh -l frontrow 192.168.2.68
+Password:
+Last login: Mon Aug  6 21:17:35 2007
+-bash-2.05b$ sudo sh
+Password: (frontrow)
+sh-2.05b# 
+
+Make sure you use the username frontrow and the password frontrow. Make
+yourself root via 'sudo sh'. (Note this is "sh" and not "su")
+
+Mount the hard disk in rm mode. 
+sh-2.05b# mount -uw /
+
+If you check ifconfig you can see that configd is doing some nasty things 
+to prevent both interfaces from working together. Note how en1 is inactive. 
+If you remove the LAN cable you will note that en0 will switch to inactive. 
+
+-bash-2.05b$ ifconfig
+...
+en0: flags=8863<UP,BROADCAST,SMART,RUNNING,SIMPLEX,MULTICAST> mtu 1500
+        inet6 fe80::217:f2ff:fef8:b946%en0 prefixlen 64 scopeid 0x4 
+        inet 192.168.2.109 netmask 0xffffff00 broadcast 192.168.2.255
+        ether 00:17:f2:f8:b9:46 
+        media: autoselect (100baseTX <full-duplex,flow-control>) status: active
+        supported media: autoselect 100baseTX <full-duplex> 100baseTX <full-duplex,flow-control> 100baseTX <hw-loopback> 100baseTX <half-duplex> 10baseT/UTP <full-duplex> 10baseT/UTP <full-duplex,flow-control> 10baseT/UTP <hw-loopback> 10baseT/UTP <half-duplex> none
+en1: flags=8863<UP,BROADCAST,SMART,RUNNING,SIMPLEX,MULTICAST> mtu 1500
+        ether 00:19:e3:dd:cf:db 
+        media: autoselect (<unknown type>) status: inactive
+        supported media: autoselect
+wlt1: flags=41<UP,RUNNING> mtu 1500
+
+To prevent this behavior we need to disable the configd Kernel Event Manager.
+We first need to set a static IP address on the LAN interface. 
+TV->Settings->Network->Configure Ethernet->Manually 
+
+Connect via ssh again to your new static IP and then disable KEM and reboot. 
+This is also a good opportunity to install kismet. 
+
+-bash-2.05b$ sudo sh
+Password:
+sh-2.05b# cd /System/Library/SystemConfiguration/
+sh-2.05b# mv KernelEventMonitor.bundle/ KernelEventMonitor.bundle_disabled
+
+Next set launchd to fire off kismet at reboot. 
+
+sh-2.05b# cd /System/Library/LaunchDaemons/
+sh-2.05b# cat > com.kismet.kismet_server
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple Computer//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+        <key>Label</key>
+        <string>com.kismet.kismet_server</string>
+        <key>OnDemand</key>
+        <false/>
+        <key>ProgramArguments</key>
+        <array>
+                        <string>/usr/local/bin/kismet_server</string>
+                        <string>--daemonize</string>
+        </array>
+        <key>ServiceIPC</key>
+        <false/>
+</dict>
+</plist>
+
+download and compile kismet from svn
+MacbookPro:~/Desktop kfinisterre$  svn co http://svn.kismetwireless.net/code/trunk kismet-devel 
+
+scp it to the AppleTV
+
+MacbookPro:~/Desktop/kismet-devel kfinisterre$ scp /usr/local/bin/kismet* /usr/local/etc/kismet* frontrow@192.168.2.68:/tmp
+MacbookPro:~/Desktop/kismet-devel kfinisterre$ scp /usr/bin/nano frontrow@192.168.2.68:/tmp
+
+sh-2.05b# mv nano  /usr/bin/   
+sh-2.05b# mkdir -p /usr/local/bin
+sh-2.05b# mkdir -p /usr/local/etc
+sh-2.05b# mv kismet kismet_client  kismet_drone kismet_server  /usr/local/bin/
+sh-2.05b# mv kismet.conf kismet_drone.conf kismet_ui.conf /usr/local/etc/
+
+
+Edit the kismet.conf accordingly
+sh-2.05b# grep frontrow /usr/local/etc/kismet.conf 
+suiduser=frontrow
+source=darwin,en1,none  
+
+Since the drone is broken set kismet_server up to listen on the eth0 interface
+set allowedhosts= and bindaddress=
+
+allowedhosts=192.168.2.0/24
+bindaddress=192.168.2.68
+
+Set the log path to /tmp also. 
+logdefault=/tmp/Kismet
+
+
+Next start kismet_client -s AppleTV:2501
