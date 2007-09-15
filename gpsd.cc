@@ -238,10 +238,12 @@ int GPSD::Scan() {
 				 * in the newer versions.  In theory passing the 'j' option to gpsd
 				 * would help with this, but not all gpsd implementations understand
 				 * that, so we have to add extra logic here. */
-				if (in_mode >= last_mode)
-					set_mode = 1;
-				else
+				if (in_mode >= last_mode) {
 					last_mode = in_mode;
+					set_mode = 1;
+				} else {
+					last_mode = in_mode;
+				}
 			}
 		}
 	}
