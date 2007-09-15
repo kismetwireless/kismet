@@ -1,3 +1,5 @@
+Sep 15 2007  devel  Added anti-jitter to gpsd handler to compensate for current
+                     gpsd implementations toggling 2d/3d
 Sep 01 2007  devel  Merged 2 more patches from Jean to add network expiration
                      and memory limiting for very small-resource platforms.
 Aug 28 2007  devel  Merged patch from Jean Tourrilhes to change how logging

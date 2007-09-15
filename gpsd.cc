@@ -28,6 +28,7 @@ GPSD::GPSD(char *in_host, int in_port) {
     sock = -1;
     lat = lon = alt = spd = hed = 0;
     mode = -1;
+	last_mode = -1;
     last_lat = last_lon = last_hed = 0;
 
     sock = -1;
@@ -232,7 +233,15 @@ int GPSD::Scan() {
 			if (values[1] == "?") {
 				set_mode = -1;
 			} else if (sscanf(values[1].c_str(), "%d", &in_mode) == 1) {
-				set_mode = 1;
+				/* Only set the mode if we've seen the same mode twice in a row,
+				 * this should help with some of the jitter gpsd seems to introduce
+				 * in the newer versions.  In theory passing the 'j' option to gpsd
+				 * would help with this, but not all gpsd implementations understand
+				 * that, so we have to add extra logic here. */
+				if (in_mode >= last_mode)
+					set_mode = 1;
+				else
+					last_mode = in_mode;
 			}
 		}
 	}

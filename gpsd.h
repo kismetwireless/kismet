@@ -93,6 +93,8 @@ protected:
     float lat, lon, alt, spd, hed;
     int mode;
 
+	int last_mode;
+
     // Last location used for softheading calcs
     float last_lat, last_lon, last_hed;
 
