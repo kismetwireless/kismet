@@ -69,6 +69,8 @@ GPSDClient::GPSDClient(GlobalRegistry *in_globalreg) : GPSCore(in_globalreg) {
 		Timer();
 	}
 
+	last_mode = -1;
+
 	snprintf(errstr, STATUS_MAX, "Using GPSD server on %s:%d", host, port);
 	globalreg->messagebus->InjectMessage(errstr, MSGFLAG_INFO);
 }
@@ -286,7 +288,15 @@ int GPSDClient::ParseData() {
 						 inptok[it] + "'", MSGFLAG_ERROR);
                     return 0;
                 }
-                set_mode = 1;
+
+				/* Jitter handler */
+				if (in_mode >= last_mode) {
+					last_mode = in_mode;
+					set_mode = 1;
+				} else {
+					last_mode = in_mode;
+				}
+
 				continue;
             }
         }

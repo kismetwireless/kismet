@@ -59,6 +59,8 @@ protected:
     char host[MAXHOSTNAMELEN];
     int port;
 
+	int last_mode;
+
     // Reconnect local trigger
     virtual int Reconnect();
 };

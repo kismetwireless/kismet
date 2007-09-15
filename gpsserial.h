@@ -57,6 +57,8 @@ protected:
 
 	char device[128];
 
+	int last_mode;
+
     // Reconnect local trigger
     virtual int Reconnect();
 };

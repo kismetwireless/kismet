@@ -80,6 +80,8 @@ GPSSerial::GPSSerial(GlobalRegistry *in_globalreg) : GPSCore(in_globalreg) {
 		sercli->SetOptions(&options);
 	}
 
+	last_mode = -1;
+
 	_MSG("Using GPS device on " + string(device), MSGFLAG_INFO);
 }
 
@@ -147,7 +149,7 @@ int GPSSerial::ParseData() {
 	char *buf;
 
 	double in_lat = 0, in_lon = 0, in_spd = 0, in_alt = 0, in_hed = 0;
-	int in_mode = 0, set_data, set_spd;
+	int in_mode = 0, set_data, set_spd, set_mode;
 
 	if (netclient == NULL)
 		return 0;
@@ -175,6 +177,7 @@ int GPSSerial::ParseData() {
 
 	set_data = 0;
 	set_spd = 0;
+	set_mode = 0;
 
 	for (unsigned int it = 0; it < inptok.size(); it++) {
 		if (netclient->Valid()) {
@@ -214,6 +217,8 @@ int GPSSerial::ParseData() {
 			if (gpstoks[5] == "W")
 				in_lon = in_lon * -1;
 
+			/*
+			We get mode later in the *GSA sentence
 			if (sscanf(gpstoks[6].c_str(), "%d", &tint) != 1)
 				continue;
 			in_mode = tint;
@@ -226,6 +231,7 @@ int GPSSerial::ParseData() {
 				in_mode = 3;
 			else
 				in_mode = 2;
+			*/
 
 			if (sscanf(gpstoks[9].c_str(), "%f", &tfloat) != 1)
 				continue;
@@ -235,6 +241,42 @@ int GPSSerial::ParseData() {
 			set_data = 1;
 
 			continue;
+		}
+
+		// GPS DOP and active sats
+		if (gpstoks[0] == "$GPGSA") {
+			/*
+			http://www.gpsinformation.org/dale/nmea.htm#GSA
+		    $GPGSA,A,3,04,05,,09,12,,,24,,,,,2.5,1.3,2.1*39
+
+			Where:
+			GSA      Satellite status
+			A        Auto selection of 2D or 3D fix (M = manual) 
+			3        3D fix - values include: 1 = no fix
+			2 = 2D fix
+			3 = 3D fix
+			04,05... PRNs of satellites used for fix (space for 12) 
+			2.5      PDOP (dilution of precision) 
+			1.3      Horizontal dilution of precision (HDOP) 
+			2.1      Vertical dilution of precision (VDOP)
+		    *39      the checksum data, always begins with *
+			 */
+			int tint;
+
+			if (gpstoks.size() != 18)
+				continue;
+
+			if (sscanf(gpstoks[2].c_str(), "%d", &tint) != 1)
+				continue;
+
+			/* Account for jitter after the first set */
+			if (tint >= last_mode) {
+				in_mode = tint;
+				last_mode = tint;
+				set_mode = 1;
+			} else {
+				last_mode = tint;
+			}
 		}
 
 		// Travel made good
@@ -269,7 +311,9 @@ int GPSSerial::ParseData() {
 
 		last_hed = hed;
 		hed = CalcHeading(lat, lon, last_lat, last_lon);
+	}
 
+	if (set_mode) {
         if (mode < 2 && (gps_options & GPSD_OPT_FORCEMODE)) {
             mode = 2;
         } else {
@@ -280,7 +324,6 @@ int GPSSerial::ParseData() {
                     globalreg->speechctl->SayText("Lost G P S position fix");
                     globalreg->soundctl->PlaySound("gpslost");
             }
-
             mode = in_mode;
         }
 	}
