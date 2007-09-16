@@ -1,3 +1,6 @@
+Sep 16 2007  devel  Added tracking of send-to clients which are inferred from
+                     data destined TO them with no data FROM them.  Only
+                     the last modified time is tracked on these clients.
 Sep 15 2007  devel  Added anti-jitter to gpsd handler to compensate for current
                      gpsd implementations toggling 2d/3d
 Sep 01 2007  devel  Merged 2 more patches from Jean to add network expiration

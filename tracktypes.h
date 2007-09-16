@@ -85,7 +85,8 @@ enum client_type {
     client_fromds,
     client_tods,
     client_interds,
-    client_established
+    client_established,
+	client_sendto
 };
 
 // Client info

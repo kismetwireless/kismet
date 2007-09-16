@@ -380,6 +380,8 @@ char *KismetClientHelpText[] = {
     "          to another node in the distribution system",
     "  E       Established - client has been seen entering and leaving the DS.",
     "          These are typically wireless nodes.",
+	"  S       Sent-To - data has been sent to this client, but no data has ",
+	"          been seen FROM this client, possibly a hidden node",
     "  -       Unknown - client is in an unknown state",
     NULL,
 };

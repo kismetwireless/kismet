@@ -275,10 +275,12 @@ wireless_network *Packetracker::MatchNetwork(const packet_info *info) {
 }
 
 wireless_client *Packetracker::CreateClient(const packet_info *info, 
-                                            wireless_network *net) {
+                                            wireless_network *net,
+											int destclient) {
 
-    /* Some callers of CreateClient can't deal with a NULL return */
 #if 0
+	/* Main data handler doesn't like NULL client values */
+
     /* If an attacker use a tool similar to Fake AP to create zillions
      * fake clients, it can DoS Kismet and/or the underlying system.
      * Basically, we will exhaust the system memory.
@@ -295,19 +297,27 @@ wireless_client *Packetracker::CreateClient(const packet_info *info,
 	}
 #endif
 
+	mac_addr climac;
     map<mac_addr, wireless_client *>::iterator cmi;
-    if ((cmi = net->client_map.find(info->source_mac)) != net->client_map.end())
+
+	if (destclient == 0) {
+		climac = info->source_mac;
+	} else {
+		climac = info->dest_mac;
+	}
+
+    if ((cmi = net->client_map.find(climac)) != net->client_map.end())
         return cmi->second;
         
     wireless_client *client = new wireless_client;
 
     // Add it to the map
-    net->client_map[info->source_mac] = client;
+    net->client_map[climac] = client;
     // Add it to the vec
     net->client_vec.push_back(client);
 
     client->first_time = time(0);
-    client->mac = info->source_mac;
+    client->mac = climac;
     client->manuf_ref = MatchBestManuf(&client_manuf_map, client->mac, "", 0, 0, 0,
                                        &client->manuf_score);
 
@@ -329,7 +339,12 @@ wireless_client *Packetracker::CreateClient(const packet_info *info,
     // Classify the client.  We'll call no-distrib packets (lucent)
     // inter-distrib clients since it's not an end-user bridge into the
     // network, it's a lucent AP talking to another one.
-    if (info->distrib == from_distribution)
+	//
+	// If we're a destclient, we get classified as a sendto, and then
+	// some later packet from us will get reclassified by the main component
+	if (destclient) {
+		client->type = client_sendto;
+	} else if (info->distrib == from_distribution)
         client->type = client_fromds;
     else if (info->distrib == to_distribution)
         client->type = client_tods;
@@ -338,8 +353,8 @@ wireless_client *Packetracker::CreateClient(const packet_info *info,
     else if (info->distrib == no_distribution)
         client->type = client_interds;
 
-    if (bssid_ip_map.find(info->source_mac) != bssid_ip_map.end()) {
-        memcpy(&net->ipdata, &bssid_ip_map[info->source_mac], sizeof(net_ip_data));
+    if (bssid_ip_map.find(climac) != bssid_ip_map.end()) {
+        memcpy(&net->ipdata, &bssid_ip_map[climac], sizeof(net_ip_data));
     }
 
     KisLocalNewclient(client, net);
@@ -911,7 +926,7 @@ void Packetracker::ProcessPacket(kis_packet *packet, packet_info *info,
                                  net->bssid.Mac2String().c_str());
                         KisLocalStatus(status);
 
-                        CreateClient(info, net);
+                        CreateClient(info, net, 0);
 
                         num_networks--;
                     }
@@ -942,7 +957,7 @@ void Packetracker::ProcessPacket(kis_packet *packet, packet_info *info,
         // all the way down here, but it does need to have the network in the
         // client records first, so....  such it goes.
         if (net->type == network_probe)
-            CreateClient(info, net);
+            CreateClient(info, net, 0);
     }
 
     return;
@@ -953,6 +968,7 @@ void Packetracker::ProcessDataPacket(kis_packet *packet, packet_info *info,
 									 macmap<wep_key_info *> *bssid_wep_map,
 									 unsigned char *identity) {
     wireless_client *client = NULL;
+	wireless_client *sendclient = NULL;
     char status[STATUS_MAX];
 
 	// Blow right out of this if we're funky data non-data frames
@@ -994,7 +1010,7 @@ void Packetracker::ProcessDataPacket(kis_packet *packet, packet_info *info,
                          net->bssid.Mac2String().c_str());
                 KisLocalStatus(status);
 
-                CreateClient(info, net);
+                CreateClient(info, net, 0);
 
                 num_networks--;
             }
@@ -1003,7 +1019,7 @@ void Packetracker::ProcessDataPacket(kis_packet *packet, packet_info *info,
     
     // Find the client or make one
     if (net->client_map.find(info->source_mac) == net->client_map.end()) {
-        client = CreateClient(info, net); 
+        client = CreateClient(info, net, 0); 
     } else {
         client = net->client_map[info->source_mac];
 
@@ -1011,6 +1027,10 @@ void Packetracker::ProcessDataPacket(kis_packet *packet, packet_info *info,
             (client->type == client_tods && info->distrib == from_distribution)) {
             client->type = client_established;
         }
+    }
+
+    if (net->client_map.find(info->dest_mac) == net->client_map.end()) {
+        sendclient = CreateClient(info, net, 1); 
     }
 
     if (info->gps_fix >= 2) {
@@ -1073,6 +1093,9 @@ void Packetracker::ProcessDataPacket(kis_packet *packet, packet_info *info,
     }
 
     client->last_time = time(0);
+
+	if (sendclient != NULL)
+		sendclient->last_time = client->last_time;
 
     client->last_sequence = info->sequence_number;
 
@@ -2373,6 +2396,9 @@ int Packetracker::WriteXMLNetworks(string in_fname) {
             case client_established:
                 clitype = "established";
                 break;
+			case client_sendto:
+				clitype = "sendto";
+				break;
             default:
                 clitype = "unknown";
                 break;

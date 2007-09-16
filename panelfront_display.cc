@@ -1035,6 +1035,8 @@ void PanelFront::ClientLine(kis_window *in_window, string *in_str, wireless_clie
                 snprintf(element, 2, "I");
             else if (wclient->type == client_established)
                 snprintf(element, 2, "E");
+			else if (wclient->type == client_sendto)
+				snprintf(element, 2, "S");
             else
                 snprintf(element, 2, "-");
             len = 1;
@@ -2975,6 +2977,9 @@ int PanelFront::DetailsClientPrinter(void *in_window) {
     case client_established:
         snprintf(temp, print_width, "Established (Wireless->AP and AP->Wireless)");
         break;
+	case client_sendto:
+		snprintf(temp, print_width, "Send-To Only (Data sent to but never seen)");
+		break;
     case client_unknown:
         snprintf(temp, print_width, "Unknown");
         break;
