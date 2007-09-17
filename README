@@ -760,7 +760,7 @@ Licensed under the GPL
     kismet_drone    n/a                 Any         n/a
                     Capture interface:  'dronehost:port'  
                     The remote drone capture source connects to a Kismet
-                     drone and proceses the packets.  Refer to the Remote 
+                     drone and processes the packets.  Refer to the Remote 
                      Drone section of the README for more details about how
                      to set up a drone.
 
@@ -943,10 +943,11 @@ Licensed under the GPL
 
     zd1211          ZyDAS USB           Linux       zd1211
                     http://zd1211.ath.cx
-                    At the time of this writing, the ZD1211 drivers have
-                     significant data corruption while changing channel, and
-                     often while receiving data frames.  Until these problems
-                     are addressed in the driver, it is not reccomended.
+                    The ZD1211 drivers have had some regressions which lead to 
+                     data corruption while changing channel.  Some versions 
+                     work, and typically the aircrack patches resolve the
+                     corruption issues if your version doesn't properly handle
+                     rfmon.
 
     Chipsets known to NOT WORK:
      Broadcom           - No linux drivers, only useable with ndiswrapper or
