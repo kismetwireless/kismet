@@ -1,3 +1,6 @@
+Sep 20 2007  devel  Enabled channel hopping on wrt54g source - Packagers, you
+                     should probably turn OFF channel hopping by default in
+                     the packaged config files on wrt54 platforms.
 Sep 16 2007  devel  Added tracking of send-to clients which are inferred from
                      data destined TO them with no data FROM them.  Only
                      the last modified time is tracked on these clients.

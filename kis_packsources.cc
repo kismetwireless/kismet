@@ -280,9 +280,10 @@ int RegisterKismetSources(Packetsourcetracker *sourcetracker) {
                                        pcapsource_wlanng_registrant,
                                        monitor_wlanng_avs, NULL,
                                        chancontrol_wlanng_avs, 1);
-    sourcetracker->RegisterPacketsource("wrt54g", 1, "na", 0,
+    sourcetracker->RegisterPacketsource("wrt54g", 1, "IEEE80211b", 0,
                                         pcapsource_wrt54g_registrant,
-										monitor_wrt54g, unmonitor_wrt54g, chancontrol_wext, 0);
+										monitor_wrt54g, unmonitor_wrt54g, 
+										chancontrol_wext, 1);
 #else
     REG_EMPTY_CARD(sourcetracker, "wlanng");
     REG_EMPTY_CARD(sourcetracker, "wlanng_avs");
