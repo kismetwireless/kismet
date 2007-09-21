@@ -19,6 +19,9 @@
 #include "config.h"
 #include "ifcontrol.h"
 
+#if defined(SYS_LINUX) || defined(SYS_NETBSD) || defined(SYS_OPENBSD) || \
+	defined(SYS_FREEBSD) || defined(SYS_DARWIN)
+
 int Ifconfig_Set_Flags(const char *in_dev, char *errstr, int flags) {
     struct ifreq ifr;
     int skfd;
@@ -177,5 +180,7 @@ int Ifconfig_Set_MTU(const char *in_dev, char *errstr, uint16_t in_mtu) {
 
     return 0;
 }
+#endif
+
 #endif
 

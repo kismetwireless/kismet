@@ -21,6 +21,9 @@
 
 #include "config.h"
 
+#if defined(SYS_LINUX) || defined(SYS_NETBSD) || defined(SYS_OPENBSD) || \
+	defined(SYS_FREEBSD) || defined(SYS_DARWIN)
+
 #include <errno.h>
 #include <string.h>
 #include <stdio.h>
@@ -49,12 +52,9 @@
 
 #include "util.h"
 
-#if defined(SYS_LINUX) || defined(SYS_NETBSD) || defined(SYS_OPENBSD) || \
-	defined(SYS_FREEBSD) || defined(SYS_DARWIN)
 int Ifconfig_Set_Flags(const char *in_dev, char *errstr, int flags);
 int Ifconfig_Delta_Flags(const char *in_dev, char *errstr, int flags);
 int Ifconfig_Get_Flags(const char *in_dev, char *errstr, int *flags);
-#endif
 
 #ifdef SYS_LINUX
 int Ifconfig_Get_Hwaddr(const char *in_dev, char *errstr, uint8_t *ret_hwaddr);
@@ -63,3 +63,6 @@ int Ifconfig_Set_MTU(const char *in_dev, char *errstr, uint16_t in_mtu);
 #endif
 
 #endif
+
+#endif
+
