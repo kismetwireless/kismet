@@ -1,3 +1,4 @@
+Sep 24 2007  devel  Added support for Cace PPI DLT
 Sep 20 2007  devel  Enabled channel hopping on wrt54g source - Packagers, you
                      should probably turn OFF channel hopping by default in
                      the packaged config files on wrt54 platforms.

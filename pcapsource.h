@@ -65,6 +65,10 @@ extern "C" {
 #define DLT_IEEE802_11_RADIO_AVS	163 /* 802.11 plus AVS header, alternate link type */
 #endif
 
+#ifndef DLT_PPI
+#define DLT_PPI						192 /* cace PPI */
+#endif
+
 // Extension to radiotap header not yet included in all BSD's
 #ifndef IEEE80211_RADIOTAP_F_FCS
 #define IEEE80211_RADIOTAP_F_FCS        0x10    /* frame includes FCS */
@@ -153,6 +157,105 @@ protected:
         uint32_t encoding;
     } avs_80211_1_header;
 
+	typedef struct {
+		uint8_t pph_version;
+		uint8_t pph_flags;
+		uint16_t pph_len;
+		uint32_t pph_dlt;
+	} ppi_packet_header;
+
+#define PPI_PH_FLAG_ALIGNED		2
+
+	typedef struct {
+		uint16_t pfh_datatype;
+		uint16_t pfh_datalen;
+	} ppi_field_header;
+
+#define PPI_FIELD_11COMMON		2
+#define PPI_FIELD_11NMAC		3
+#define PPI_FIELD_11NMACPHY		4
+#define PPI_FIELD_SPECMAP		5
+#define PPI_FIELD_PROCINFO		6
+#define PPI_FIELD_CAPINFO		7
+
+	typedef struct {
+		uint16_t pfh_datatype;
+		uint16_t pfh_datalen;
+		uint64_t tsf_timer;
+		uint16_t flags;
+		uint16_t rate;
+		uint16_t freq_mhz;
+		uint16_t chan_flags;
+		uint8_t fhss_hopset;
+		uint8_t fhss_pattern;
+		int8_t signal_dbm;
+		int8_t noise_dbm;
+	} ppi_80211_common;
+
+#define PPI_80211_FLAG_FCS			1
+#define PPI_80211_FLAG_TSFMS		2
+#define PPI_80211_FLAG_INVALFCS		4
+#define PPI_80211_FLAG_PHYERROR		8
+
+#define PPI_80211_CHFLAG_TURBO 		16
+#define PPI_80211_CHFLAG_CCK		32
+#define PPI_80211_CHFLAG_OFDM		64
+#define PPI_80211_CHFLAG_2GHZ		128
+#define PPI_80211_CHFLAG_5GHZ		256
+#define PPI_80211_CHFLAG_PASSIVE	512
+#define PPI_80211_CHFLAG_DYNAMICCCK	1024
+#define PPI_80211_CHFLAG_GFSK		2048
+
+	typedef struct {
+		uint16_t pfh_datatype;
+		uint16_t pfh_datalen;
+		uint32_t flags;
+		uint32_t a_mpdu_id;
+		uint8_t num_delimiters;
+		uint8_t reserved[3];
+	} ppi_11n_mac;
+
+#define PPI_11NMAC_GREENFIELD		1
+#define PPI_11NMAC_HT2040			2
+#define PPI_11NMAC_RX_SGI			4
+#define PPI_11NMAC_DUPERX			8
+#define PPI_11NMAC_AGGREGATE		16
+#define PPI_11NMAC_MOREAGGREGATE	32
+#define PPI_11NMAC_AGGCRC			64
+
+	typedef struct {
+		uint16_t pfh_datatype;
+		uint16_t pfh_datalen;
+		uint32_t flags;
+		uint32_t a_mpdu_id;
+		uint8_t num_delimiters;
+		uint8_t mcs;
+		uint8_t num_streams;
+		uint8_t combined_rssi;
+		uint8_t ant0_ctl_rssi;
+		uint8_t ant1_ctl_rssi;
+		uint8_t ant2_ctl_rssi;
+		uint8_t ant3_ctl_rssi;
+		uint8_t ant0_ext_rssi;
+		uint8_t ant1_ext_rssi;
+		uint8_t ant2_ext_rssi;
+		uint8_t ant3_ext_rssi;
+		uint16_t extension_freq_mhz;
+		uint16_t extension_flags;
+		int8_t ant0_signal_dbm;
+		int8_t ant0_noise_dbm;
+		int8_t ant1_signal_dbm;
+		int8_t ant1_noise_dbm;
+		int8_t ant2_signal_dbm;
+		int8_t ant2_noise_dbm;
+		int8_t ant3_signal_dbm;
+		int8_t ant3_noise_dbm;
+		uint32_t evm0;
+		uint32_t evm1;
+		uint32_t evm2;
+		uint32_t evm3;
+	} ppi_11n_macphy;
+
     // Carrier setting
     virtual carrier_type IEEE80211Carrier();
     // Datalink checker
@@ -169,6 +272,7 @@ protected:
 #ifdef HAVE_RADIOTAP
     int Radiotap2KisPack(kis_packet *packet, uint8_t *data, uint8_t *moddata);
 #endif
+	int PPI2KisPack(kis_packet *packet, uint8_t *data, uint8_t *moddata);
     
     pcap_t *pd;
     int datalink_type;

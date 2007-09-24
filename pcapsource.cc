@@ -322,7 +322,8 @@ int PcapSource::DatalinkType() {
     
     if (datalink_type != KDLT_BSD802_11 && datalink_type != DLT_IEEE802_11 &&
         datalink_type != DLT_PRISM_HEADER && datalink_type != DLT_IEEE802_11_RADIO &&
-		datalink_type != DLT_IEEE802_11_RADIO_AVS) {
+		datalink_type != DLT_IEEE802_11_RADIO_AVS &&
+		datalink_type != DLT_PPI) {
         fprintf(stderr, "WARNING:  Unknown link type %d reported.  Continuing on "
                 "blindly...\n", datalink_type);
     }
@@ -422,6 +423,8 @@ int PcapSource::ManglePacket(kis_packet *packet, uint8_t *data, uint8_t *moddata
     } else if (datalink_type == DLT_IEEE802_11_RADIO) {
         ret = Radiotap2KisPack(packet, data, moddata);
 #endif
+	} else if (datalink_type == DLT_PPI) {
+		ret = PPI2KisPack(packet, data, moddata);
     } else {
         unsigned int fcs = FCSBytes();
 		if (callback_header.caplen <= fcs) {
@@ -642,7 +645,113 @@ int PcapSource::Prism2KisPack(kis_packet *packet, uint8_t *data, uint8_t *moddat
     memcpy(packet->data, callback_data + callback_offset, packet->caplen);
 
     return 1;
+}
 
+int PcapSource::PPI2KisPack(kis_packet *packet, uint8_t *data, uint8_t *moddata) {
+	ppi_packet_header *ppi_ph;
+	ppi_field_header *ppi_fh;
+	unsigned int ppi_fh_offt = sizeof(ppi_packet_header);
+	unsigned int tuint, ph_len;
+	int applyfcs = 0;
+
+	if (callback_header.caplen < sizeof(ppi_packet_header)) {
+		// printf("debug - too short for ppi header\n");
+		snprintf(errstr, 1024, "pcap PPI converter got corrupt/invalid header "
+				 "length");
+		packet->len = 0;
+		packet->caplen = 0;
+		return 0;
+	}
+
+	ppi_ph = (ppi_packet_header *) callback_data;
+	ph_len = kis_letoh16(ppi_ph->pph_len);
+	if (ph_len > callback_header.caplen) {
+		// printf("debug - ppi header len too short\n");
+		snprintf(errstr, 1024, "pcap PPI converter got corrupt/invalid "
+				 "header length");
+		packet->len = 0;
+		packet->caplen = 0;
+		return 0;
+	}
+
+	// Ignore the DLT and treat it all as 802.11?  For now anyhow.
+	while (ppi_fh_offt < callback_header.caplen && 
+		   ppi_fh_offt < ph_len) {
+		ppi_fh = (ppi_field_header *) &(callback_data[ppi_fh_offt]);
+		unsigned int fh_len = kis_letoh16(ppi_fh->pfh_datalen);
+		unsigned int fh_type = kis_letoh16(ppi_fh->pfh_datatype);
+		// printf("debug - working on header, offset %u len %u\n", ppi_fh_offt, fh_len);
+		if (fh_len > callback_header.caplen || fh_len > ph_len) {
+			// printf("debug - field len too long %u for %u\n", fh_len, ph_len);
+			snprintf(errstr, 1024, "pcap PPI converter got corrupt/invalid "
+					 "field length");
+			packet->len = 0;
+			packet->caplen = 0;
+			return 0;
+		}
+
+		ppi_fh_offt += fh_len + sizeof(ppi_field_header);
+
+		if (fh_type == PPI_FIELD_11COMMON) {
+			// printf("debug - 80211 common\n");
+			ppi_80211_common *ppic = (ppi_80211_common *) ppi_fh;
+
+			// Common flags
+			tuint = kis_letoh16(ppic->flags);
+			if ((tuint & PPI_80211_FLAG_INVALFCS) ||
+				(tuint & PPI_80211_FLAG_PHYERROR)) {
+				// Junk packets that are FCS or phy compromised
+				packet->len = 0;
+				packet->caplen = 0;
+				return 0;
+			}
+
+			if (tuint & PPI_80211_FLAG_FCS)
+				applyfcs = 1;
+
+			// Channel flags
+			tuint = kis_letoh16(ppic->chan_flags);
+			if (tuint & PPI_80211_CHFLAG_CCK) {
+				packet->encoding = encoding_cck;
+			} else if (tuint & PPI_80211_CHFLAG_OFDM) {
+				packet->encoding = encoding_ofdm;
+			}
+
+			packet->signal = ppic->signal_dbm;
+			packet->noise = ppic->noise_dbm;
+
+			packet->datarate = kis_letoh16(ppic->rate) * 5;
+		} else if (fh_type == PPI_FIELD_11NMAC) {
+			ppi_11n_mac *ppin = (ppi_11n_mac *) ppi_fh;
+
+			// Decode greenfield notation
+			tuint = kis_letoh16(ppin->flags);
+			if (tuint & PPI_11NMAC_HT2040)
+				packet->carrier = carrier_80211n20;
+			else
+				packet->carrier = carrier_80211n40;
+		} else if (fh_type == PPI_FIELD_11NMACPHY) {
+			ppi_11n_macphy *ppinp = (ppi_11n_macphy *) ppi_fh;
+
+			// Decode greenfield notation
+			tuint = kis_letoh16(ppinp->flags);
+			if (tuint & PPI_11NMAC_HT2040)
+				packet->carrier = carrier_80211n20;
+			else
+				packet->carrier = carrier_80211n40;
+		}
+	}
+
+	if (applyfcs)
+		applyfcs = FCSBytes();
+
+	packet->caplen = kismin(callback_header.caplen - ph_len - applyfcs,
+							(uint32_t) MAX_PACKET_LEN);
+	packet->len = packet->caplen;
+
+	memcpy(packet->data, callback_data + ph_len, packet->caplen);
+
+	return 1;
 }
 
 int PcapSource::BSD2KisPack(kis_packet *packet, uint8_t *data, uint8_t *moddata) {

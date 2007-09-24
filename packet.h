@@ -68,7 +68,9 @@ enum carrier_type {
     carrier_80211a,
     carrier_80211g,
     carrier_80211fhss,
-    carrier_80211dsss
+    carrier_80211dsss,
+	carrier_80211n20,
+	carrier_80211n40
 };
 
 // Packet encoding info - how are packets encoded?
