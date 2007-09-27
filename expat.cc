@@ -356,7 +356,19 @@ int NetXmlCisco2Struct(wireless_network *in_net, cdp_packet *in_cdp) {
     else
         snprintf(in_cdp->software, 512, "%s", xmlstrnodes[net_node_cdp_software].c_str());
 
-    in_net->cisco_equip[in_cdp->dev_id] = *in_cdp;
+	if (in_net->cisco_equip == NULL)
+		in_net->cisco_equip = new vector<cdp_packet>;
+
+	for (unsigned int x = 0; x < in_net->cisco_equip->size(); x++) {
+		if ((*in_net->cisco_equip)[x].dev_id == in_cdp->dev_id) {
+			(*in_net->cisco_equip)[x] = *in_cdp;
+			in_cdp = NULL;
+			break;
+		}
+	}
+
+	if (in_cdp != NULL)
+		in_net->cisco_equip->push_back(*in_cdp);
 
     return 1;
 }

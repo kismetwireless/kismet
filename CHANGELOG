@@ -1,3 +1,5 @@
+Sep 27 2007  devel  Started moving struct elements to dynamic allocation
+                     vs. static maps
 Sep 24 2007  devel  Added support for Cace PPI DLT
 Sep 20 2007  devel  Enabled channel hopping on wrt54g source - Packagers, you
                      should probably turn OFF channel hopping by default in

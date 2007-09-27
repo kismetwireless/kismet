@@ -1170,7 +1170,22 @@ void Packetracker::ProcessDataPacket(kis_packet *packet, packet_info *info,
 
     // Record a cisco device
     if (info->proto.type == proto_cdp) {
-        net->cisco_equip[info->proto.cdp.dev_id] = info->proto.cdp;
+		if (net->cisco_equip == NULL)
+			net->cisco_equip = new vector<cdp_packet>;
+
+		int matched = 0;
+
+		for (unsigned int x = 0; x < net->cisco_equip->size(); x++) {
+			if ((*net->cisco_equip)[x].dev_id == info->proto.cdp.dev_id) {
+				(*net->cisco_equip)[x] = info->proto.cdp;
+				matched = 1;
+				break;
+			}
+		}
+
+		if (matched == 0)
+			net->cisco_equip->push_back(info->proto.cdp);
+
         num_cisco++;
     }
 
@@ -1623,6 +1638,10 @@ int Packetracker::WriteNetworks(string in_fname) {
             snprintf(carrier, 15, "802.11 FHSS");
         else if (net->carrier_set & (1 << (int) carrier_80211dsss))
             snprintf(carrier, 15, "802.11 DSSS");
+		else if (net->carrier_set & (1 << (int) carrier_80211n20))
+			snprintf(carrier, 15, "802.11n 20Mhz");
+		else if (net->carrier_set & (1 << (int) carrier_80211n40))
+			snprintf(carrier, 15, "802.11n 40Mhz");
         else
             snprintf(carrier, 15, "unknown");
 
@@ -1790,7 +1809,10 @@ int Packetracker::WriteCisco(string in_fname) {
     for (unsigned int i = 0; i < network_list.size(); i++) {
         wireless_network *net = network_list[i];
 
-        if (net->cisco_equip.size() == 0)
+		if (net->cisco_equip == NULL)
+			continue;
+
+        if (net->cisco_equip->size() == 0)
             continue;
 
         if (filter_export) {
@@ -1809,9 +1831,8 @@ int Packetracker::WriteCisco(string in_fname) {
                 net->ssid.c_str(), net->bssid.Mac2String().c_str());
 
         int devnum = 1;
-        for (map<string, cdp_packet>::const_iterator x = net->cisco_equip.begin();
-             x != net->cisco_equip.end(); ++x) {
-            cdp_packet cdp = x->second;
+		for (unsigned int x = 0; x < net->cisco_equip->size(); x++) {
+			cdp_packet cdp = (*net->cisco_equip)[x];
 
             fprintf(netfile, "CDP Broadcast Device %d\n", devnum);
             fprintf(netfile, "    Device ID : %s\n", cdp.dev_id);
@@ -2513,31 +2534,32 @@ int Packetracker::WriteXMLNetworks(string in_fname) {
         }
 
         int devnum = 1;
-        for (map<string, cdp_packet>::const_iterator x = net->cisco_equip.begin();
-             x != net->cisco_equip.end(); ++x) {
-            cdp_packet cdp = x->second;
+		if (net->cisco_equip != NULL) {
+			for (unsigned int x = 0; x < net->cisco_equip->size(); x++) {
+				cdp_packet cdp = (*net->cisco_equip)[x];
 
-            fprintf(netfile, "    <cisco number=\"%d\">\n", devnum);
-            fprintf(netfile, "      <cdp-device-id>%s</cdp-device-id>\n",
-                    cdp.dev_id);
-            fprintf(netfile, "      <cdp-capability level1=\"%s\" igmp-forward=\"%s\" netlayer=\"%s\" "
-                    "level2-switching=\"%s\" level2-sourceroute=\"%s\" level2-transparent=\"%s\" "
-                    "level3-routing=\"%s\"/>\n",
-                    cdp.cap.level1 ? "true" : "false",
-                    cdp.cap.igmp_forward ? "true" : "false",
-                    cdp.cap.nlp ? "true" : "false",
-                    cdp.cap.level2_switching ? "true" : "false",
-                    cdp.cap.level2_sourceroute ? "true" : "false",
-                    cdp.cap.level2_transparent ? "true" : "false",
-                    cdp.cap.level3 ? "true" : "false");
-            fprintf(netfile, "      <cdp-interface>%s</cdp-interface>\n", cdp.interface);
-            fprintf(netfile, "      <cdp-ip>%d.%d.%d.%d</cdp-ip>\n",
-                    cdp.ip[0], cdp.ip[1], cdp.ip[2], cdp.ip[3]);
-            fprintf(netfile, "      <cdp-platform>%s</cdp-platform>\n", cdp.platform);
-            fprintf(netfile, "      <cdp-software>%s</cdp-software>\n", cdp.software);
-            fprintf(netfile, "    </cisco>\n");
-            devnum++;
-        } // cdp
+				fprintf(netfile, "    <cisco number=\"%d\">\n", devnum);
+				fprintf(netfile, "      <cdp-device-id>%s</cdp-device-id>\n",
+						cdp.dev_id);
+				fprintf(netfile, "      <cdp-capability level1=\"%s\" igmp-forward=\"%s\" netlayer=\"%s\" "
+						"level2-switching=\"%s\" level2-sourceroute=\"%s\" level2-transparent=\"%s\" "
+						"level3-routing=\"%s\"/>\n",
+						cdp.cap.level1 ? "true" : "false",
+						cdp.cap.igmp_forward ? "true" : "false",
+						cdp.cap.nlp ? "true" : "false",
+						cdp.cap.level2_switching ? "true" : "false",
+						cdp.cap.level2_sourceroute ? "true" : "false",
+						cdp.cap.level2_transparent ? "true" : "false",
+						cdp.cap.level3 ? "true" : "false");
+				fprintf(netfile, "      <cdp-interface>%s</cdp-interface>\n", cdp.interface);
+				fprintf(netfile, "      <cdp-ip>%d.%d.%d.%d</cdp-ip>\n",
+						cdp.ip[0], cdp.ip[1], cdp.ip[2], cdp.ip[3]);
+				fprintf(netfile, "      <cdp-platform>%s</cdp-platform>\n", cdp.platform);
+				fprintf(netfile, "      <cdp-software>%s</cdp-software>\n", cdp.software);
+				fprintf(netfile, "    </cisco>\n");
+				devnum++;
+			} // cdp
+		} // cdp exists
 
         fprintf(netfile, "  </wireless-network>\n");
 

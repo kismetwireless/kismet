@@ -182,7 +182,8 @@ void PanelFront::NetLine(kis_window *in_window, string *in_str, wireless_network
                      net->manuf_score == manuf_max_score ? 'F' : ' ',
                      atype,
                      (net->ipdata.atype > address_factory && net->ipdata.octets != 0) ? net->ipdata.octets + '0' : ' ',
-                     net->cisco_equip.size() > 0 ? 'C' : ' ',
+					 net->cisco_equip != NULL ?
+					 	(net->cisco_equip->size() > 0 ? 'C' : ' ') : ' ',
                      net->decrypted ? 'W' : ' ');
             len = 5;
         } else if (colindex == mcol_ip) {

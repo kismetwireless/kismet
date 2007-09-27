@@ -256,7 +256,8 @@ int NCurseFront::DrawDisplay() {
             snprintf(statstr, 6, "%c%c%c%c%c",
                      atype,
                      net->ipdata.octets != 0 ? net->ipdata.octets + '0' : ' ',
-                     net->cisco_equip.size() > 0 ? 'C' : ' ',
+					 net->cisco_equip != NULL ?
+					 	(net->cisco_equip->size() > 0 ? 'C' : ' ') : ' ',
                      ' ',
                      ' ');
             mvwaddstr(netwin, num, pos, statstr);

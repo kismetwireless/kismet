@@ -692,6 +692,7 @@ int TcpClient::ParseData(char *in_data) {
 				   &packet_rate, &power, &noise) < 9)
 			return 0;
     } else if (!strncmp(header, "*CISCO", 64)) {
+		wireless_network *net;
         cdp_packet cdp;
         memset(&cdp, 0, sizeof(cdp_packet));
         int cap0, cap1, cap2, cap3, cap4, cap5, cap6;
@@ -715,7 +716,20 @@ int TcpClient::ParseData(char *in_data) {
         if (net_map.find(bssid) == net_map.end())
             return 0;
 
-        net_map[bssid]->cisco_equip[cdp.dev_id] = cdp;
+		net = net_map[bssid];
+
+		int matched = 0;
+
+		for (unsigned int x = 0; x < net->cisco_equip->size(); x++) {
+			if ((*net->cisco_equip)[x].dev_id == cdp.dev_id) {
+				(*net->cisco_equip)[x] = cdp;
+				matched = 1;
+				break;
+			}
+		}
+
+		if (matched == 0)
+			net->cisco_equip->push_back(cdp);
 
     } else if (!strncmp(header, "*STATUS", 64)) {
         if (sscanf(in_data+hdrlen, "%1023[^\n]\n", status) != 1)
