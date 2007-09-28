@@ -111,6 +111,19 @@ int RegisterKismetSources(Packetsourcetracker *sourcetracker) {
                                        monitor_wext, unmonitor_wext, 
                                        chancontrol_wext, 1);
 
+    sourcetracker->RegisterPacketsource("ath5k", 1, "IEEE80211b", 6,
+                                        pcapsource_wext_registrant,
+                                        monitor_wext, unmonitor_wext,
+                                        chancontrol_wext, 1);
+    sourcetracker->RegisterPacketsource("ath5k_a", 1, "IEEE80211a", 6,
+                                        pcapsource_wext_registrant,
+                                        monitor_wext, unmonitor_wext,
+                                        chancontrol_wext, 1);
+    sourcetracker->RegisterPacketsource("ath5k_ag", 1, "IEEE80211ab", 6,
+                                        pcapsource_wext_registrant,
+                                        monitor_wext, unmonitor_wext,
+                                        chancontrol_wext, 1);
+
     sourcetracker->RegisterPacketsource("madwifi_a", 1, "IEEE80211a", 36,
                                         pcapsource_wextfcs_registrant,
                                         monitor_madwifi_a, unmonitor_madwifi, 
@@ -239,6 +252,10 @@ int RegisterKismetSources(Packetsourcetracker *sourcetracker) {
     REG_EMPTY_CARD(sourcetracker, "orinoco");
     REG_EMPTY_CARD(sourcetracker, "acx100");
     REG_EMPTY_CARD(sourcetracker, "vtar5k");
+
+    REG_EMPTY_CARD(sourcetracker, "ath5k");
+    REG_EMPTY_CARD(sourcetracker, "ath5k_a");
+    REG_EMPTY_CARD(sourcetracker, "ath5k_ag");
 
     REG_EMPTY_CARD(sourcetracker, "madwifi_a");
     REG_EMPTY_CARD(sourcetracker, "madwifi_b");

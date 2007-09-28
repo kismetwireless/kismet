@@ -645,6 +645,20 @@ Licensed under the GPL
                      will not see data frames, rendering most IDS functions,
                      IP discovery, and data logging unavailable.
 
+    ath5k           Atheros             Linux       Kernel/Madwifi
+                    http://madwifi.org
+                    Based on the OpenBSD OpenHAL, the Ath5k drivers are the
+                     future of Atheros support and will be mainlined into the
+                     Linux kernel.
+
+    ath5k_a         Atheros             Linux       Kernel/Madwifi
+                    http://madwifi.org
+                    Ath5k source for 11a only
+
+    ath5k_ag        Atheros             Linux       Kernel/Madwifi
+                    http://madwifi.org
+                    Ath5k source for 11a/11g
+
     bcm43xx         Broadcom            Linux       BCM43XX
                     http://bcm43xx.berlios.de, kernel
                     Linux native broadcom drivers incorporated into modern
@@ -1448,6 +1462,9 @@ Licensed under the GPL
      parameter "autocreate=none" helps, by not automatically creating the
      initial managed VAP, subsequent creation of the monitor vap doesn't
      exhibit the lockup while channel hopping.
+
+     Madwifi-ng development has switched to the Ath5k driver, which may
+     perform better.
 
 18. Frequently Asked Questions
 
