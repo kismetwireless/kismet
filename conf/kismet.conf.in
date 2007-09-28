@@ -12,6 +12,11 @@ servername=Kismet
 # User to setid to (should be your normal user)
 suiduser=your_user_here
 
+# Do we try to put networkmanager to sleep?  If you use NM, this is probably
+# what you want to do, so that it will leave the interfaces alone while
+# Kismet is using them.  This requires DBus support!
+networkmanagersleep=true
+
 # Sources are defined as:
 # source=sourcetype,interface,name[,initialchannel]
 # Source types and required drivers are listed in the README under the

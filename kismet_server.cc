@@ -31,6 +31,10 @@
 #include <string>
 #include <vector>
 
+#ifdef HAVE_DBUS
+#include <dbus/dbus.h>
+#endif
+
 #include "util.h"
 #include "configfile.h"
 
@@ -76,7 +80,7 @@ char *configfile = NULL;
 int no_log = 0, noise_log = 0, data_log = 0, net_log = 0, crypt_log = 0, cisco_log = 0,
     gps_log = -1, gps_enable = 1, csv_log = 0, xml_log = 0, ssid_cloak_track = 0, 
     ip_track = 0, waypoint = 0, waypointformat = 0, fifo = 0, corrupt_log = 0;
-int vap_destroy = 0;
+int vap_destroy = 0, netmanager_control = 0;
 string logname, dumplogfile, netlogfile, cryptlogfile, ciscologfile,
     gpslogfile, csvlogfile, xmllogfile, ssidtrackfile, configdir, iptrackfile, 
     waypointfile, fifofile;
@@ -214,6 +218,49 @@ int retain_monitor;
 // tested as encrypted?
 int netcryptdetect = 0;
 
+// Shutdown/restore networkmanager (if we can)
+int networkmanager_control(char *cmd) {
+#ifdef HAVE_DBUS
+	DBusMessage* msg;
+	DBusMessageIter args;
+	DBusConnection* conn;
+	DBusError err;
+	DBusMessageIter iter;
+
+	char *name = "org.freedesktop.NetworkManager";
+	char *path = "/org/freedesktop/NetworkManager";
+
+	// initialise the error value
+	dbus_error_init(&err);
+
+	// connect to the DBUS system bus, and check for errors
+	if ((conn = dbus_bus_get(DBUS_BUS_SYSTEM, &err)) == NULL) {
+		fprintf(stderr, "WARNING: Failed to connect to DBUS system, will "
+				"not be able to control networkmanager: %s\n", err.message);
+		dbus_error_free(&err);
+		return -1;
+	}
+
+	msg = dbus_message_new_signal(path, name, cmd);
+
+	if (dbus_message_set_destination(msg, name) == 0) {
+		fprintf(stderr, "WARNING:  Failed to build DBUS message, will "
+				"not be able to control networkmanager.\n");
+		dbus_error_free(&err);
+		dbus_connection_unref(conn);
+		return -1;
+	}
+
+	dbus_connection_send(conn, msg, NULL);
+	dbus_connection_flush(conn);
+
+	dbus_message_unref(msg);
+	dbus_connection_unref(conn);
+#endif
+
+	return 1;
+}
+
 // Handle writing all the files out and optionally unlinking the empties
 void WriteDatafiles(int in_shutdown) {
     // If we're on our way out make one last write of the network stuff - this
@@ -285,7 +332,6 @@ void WriteDatafiles(int in_shutdown) {
     }
 
     sync();
-
 }
 
 // Quick shutdown to clean up from a fatal config after we opened the child
@@ -295,6 +341,14 @@ void ErrorShutdown() {
 
     // Shut down the channel control child
     sourcetracker.ShutdownChannelChild();
+
+
+	if (netmanager_control) {
+		fprintf(stderr, "Trying to wake networkmanager back up...\n");
+		if (networkmanager_control("wake") < 0)
+			fprintf(stderr, "WARNING: Failed to send 'wake' command to networkmanager "
+					"via DBUS, NM may still be inactive.");
+	}
 
     fprintf(stderr, "Kismet exiting.\n");
     exit(1);
@@ -348,6 +402,13 @@ void CatchShutdown(int sig) {
 
     // Shut down the channel control child
     sourcetracker.ShutdownChannelChild();
+
+	if (netmanager_control) {
+		fprintf(stderr, "Trying to wake networkmanager back up...\n");
+		if (networkmanager_control("wake") < 0)
+			fprintf(stderr, "WARNING: Failed to send 'wake' command to networkmanager "
+					"via DBUS, NM may still be inactive.");
+	}
 
     fprintf(stderr, "Kismet exiting.\n");
     exit(0);
@@ -742,7 +803,6 @@ void NetWriteInfo() {
 	for (unsigned int x = 0; x < rem_tracked.size(); x++) {
 		tracker.RemoveNetwork(rem_tracked[x]->bssid);
 	}
-
 }
 
 int NetWriteStatus(const char *in_status) {
@@ -770,7 +830,6 @@ void ProtocolNetworkEnable(int in_fd) {
         Protocol_Network2Data(tracked[x], &ndata);
         ui_server.SendToClient(in_fd, network_ref, (void *) &ndata);
     }
-
 }
 
 // Called when a client enables the CLIENT protocol
@@ -1213,6 +1272,11 @@ int ParseAlertRateUnit(string in_ru, alert_time_unit *ret_unit,
 // Moved here to make compiling this file take less memory.  Can be broken down more
 // in the future.
 int ProcessBulkConf(ConfigFile *conf) {
+	if (conf->FetchOpt("networkmanagersleep") == "true") {
+		netmanager_control = 1;
+		fprintf(stderr, "Will attempt to put networkmanager to sleep...\n");
+	} 
+
     // Convert the WEP mappings to our real map
     vector<string> raw_wepmap_vec;
     raw_wepmap_vec = conf->FetchOptVec("wepkey");
@@ -2577,6 +2641,14 @@ int main(int argc,char *argv[]) {
     // Delete the conf stuff
     delete conf;
     conf = NULL;
+
+	// Try to put networkmanager to sleep as unprived
+	if (netmanager_control) {
+		fprintf(stderr, "Putting networkmanager to sleep...\n");
+		if (networkmanager_control("sleep") < 0)
+			fprintf(stderr, "WARNING: Failed to send 'sleep' command to networkmanager "
+					"via DBUS, NM may try to take control of the interfaces still.");
+	}
 
     if (data_log) {
         if (dumpfile->OpenDump(dumplogfile.c_str()) < 0) {

@@ -15,6 +15,9 @@
 /* AssumeDefaultColors present */
 #undef HAVE_ASSUME_DEFAULT_COLORS
 
+/* dbus integration */
+#undef HAVE_DBUS
+
 /* Define to 1 if you have the <errno.h> header file. */
 #undef HAVE_ERRNO_H
 

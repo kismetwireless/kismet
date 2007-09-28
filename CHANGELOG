@@ -1,3 +1,4 @@
+Sep 28 2007  devel  Added DBUS support for controlling networkmanager
 Sep 27 2007  devel  Started moving struct elements to dynamic allocation
                      vs. static maps
 Sep 24 2007  devel  Added support for Cace PPI DLT

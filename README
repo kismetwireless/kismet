@@ -243,21 +243,14 @@ Licensed under the GPL
       precision math functions when calculating graphics in gpsmap.  If you
       do not plan to use gpsmap, you can skip this.
 
-    - Ethereal (any): http://www.ethereal.com
-      REQUIRED for wtapfile capture replay
+    - DBUS: http://dbus.freedesktop.org/
+      OPTIONAL for networkmanager control
 
-      Ethereal is the premier packet dissector.  The packet dump logs Kismet
-      creates can be opened in Ethereal for further examination.  Kismet uses
-      libwiretap from Ethereal for saving packet dump files and replaying
-      stored dumps, however Kismet has a builtin dump writer and can replay
-      pcap files using libpcap.  
-
-      Kismet requires a compiled copy of the Ethereal source available to link
-      the libwiretap library.  By default the configure script will look in
-      /usr/src/ for this.
-
-      * If you do not need to replay compressed dumps or dumps with other 
-      encodings (such as Airopeek), you don't need wtapfile.
+      Networkmanager is a network connection management tool.  It can
+      reconfigure devices while Kismet is running, and should be stopped.
+      If Kismet is compiled with DBUS support and the networkmanagersleep
+      variable in kismet.conf is true, Kismet will use DBUS to send 
+      sleep/wake commands to Networkmanager
 
 8.  Compiling
     
@@ -1374,6 +1367,12 @@ Licensed under the GPL
       MAKE SURE YOU DISABLE DHCP before starting Kismet - either turn it off
       entirely for that interface, or kill the client (usually dhclient,
       dhcpcd, or pump) before starting Kismet.
+
+      Similar problems can occur if networkmanager is running and active
+      while Kismet is running, as it will try to reconfigure the interface
+      Kismet is using.  If Kismet is compiled with DBUS support, it can
+      automatically put networkmanager to sleep if the 'networkmanagersleep'
+      variable is set to true in kismet.conf
 
     PROBLEM: Configure is unable to find libncurses or other libraries, but
      they're installed.
