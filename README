@@ -1429,14 +1429,25 @@ Licensed under the GPL
 
     PROBLEM: Kismet can't compile, there are errors about not finding libpcap
     FIX: Kismet no longer includes libpcap source, and expects your system to
-    have a relatively modern (0.9+ preferred) libpcap install.  Install 
-    libpcap, and if your distribution provides it, libpcap-devel.
+     have a relatively modern (0.9+ preferred) libpcap install.  Install 
+     libpcap, and if your distribution provides it, libpcap-devel.
 
     PROBLEM: Kismet immediately exits on Cygwin with no output
     FIX: Cygwin appears to have a problem in the linker.  If Kismet is linked
-    to the CASE airpcap/winpcap libraries, they MUST be inside a sub-directory
-    of the Kismet source for compilation.  Recompile Kismet with the airpcap 
-    devpack inside the source directory.
+     to the CASE airpcap/winpcap libraries, they MUST be inside a sub-directory
+     of the Kismet source for compilation.  Recompile Kismet with the airpcap 
+     devpack inside the source directory.
+
+    PROBLEM: Kismet stops capturing packets with Madwifi
+    FIX: Madwifi seems to have a race condition of some sort which is
+     exposed while hopping channels.  Decreasing the channel hop rate may
+     reduce the frequency of the failures, but will not entirely stop the
+     channel.
+
+     It has been reported that loading the madwifi modules with the module
+     parameter "autocreate=none" helps, by not automatically creating the
+     initial managed VAP, subsequent creation of the monitor vap doesn't
+     exhibit the lockup while channel hopping.
 
 18. Frequently Asked Questions
 
