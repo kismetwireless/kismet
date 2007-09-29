@@ -535,14 +535,13 @@ Licensed under the GPL
       bundled one.
 
     - NetBSD
-      Known supported cards: WSP100, Drone, wtapfile, pcapfile
+      Known supported cards: WSP100, Drone, wtapfile, pcapfile, radiotap
     
       There have been no reports positive or negative about NetBSD drivers.
       Please email if you have them working.
 
-      NetBSD is moving towards (or already has) Radiotap header support.  If
-      your card is supported under a current NetBSD version with radiotap,
-      it should work with the radiotap_bsd_x sources.
+      NetBSD has radiotap support, in theory the radiotap_bsd_... source
+      types should work.
 
     - MacOSX
       Known supported cards: Viha, Darwin, WSP100, Drone, wtapfile, pcapfile
