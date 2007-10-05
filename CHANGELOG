@@ -1,3 +1,4 @@
+Oct 04 2007  devel  Added 11n IE tag decoding and display
 Sep 28 2007  devel  Added DBUS support for controlling networkmanager
                     Added ath5k support
 Sep 27 2007  devel  Started moving struct elements to dynamic allocation

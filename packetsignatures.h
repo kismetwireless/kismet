@@ -64,6 +64,9 @@ const uint8_t CISCO_SIGNATURE[] = {0x00, 0x00, 0x0C, 0x20, 0x00};
 const uint8_t WPA_OUI[] = {0x00, 0x50, 0xF2};
 const uint8_t RSN_OUI[] = {0x00, 0x0F, 0xAC};
 
+// 11n identifier
+const uint8_t DRAFT11N_OUI[] = {0x00, 0x90, 0x4c};
+
 const uint8_t DOT1X_PROTO[] = {0x88, 0x8e};
 const uint8_t DOT1X_OFFSET = LLC_UI_OFFSET + 5;
 

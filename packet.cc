@@ -536,6 +536,45 @@ void GetPacketInfo(kis_packet *packet, packet_info *ret_packinfo,
 				// 11 byte leader on it, I don't know
             }
 
+			// Look for 11n tags - we don't do much smart with them right now,
+			// but we should denote that the network is advertising 11n at
+			if ((tcitr = tag_cache_map.find(45)) != tag_cache_map.end()) {
+				for (unsigned int tagct = 0; tagct < tcitr->second.size(); 
+					 tagct++) {
+					tag_offset = tcitr->second[tagct];
+					unsigned int tag_orig = tag_offset + 1;
+					unsigned int taglen = (packet->data[tag_offset] & 0xFF);
+					unsigned int offt = 1;
+
+					if (tag_orig + taglen > packet->len) {
+						ret_packinfo->corrupt = 1;
+						return;
+					}
+
+					// HT capabilities is 26 bytes
+					if (taglen < 26)
+						continue;
+
+					// If we have the 40mhz CCK bit set in the extended 
+					// capabilities field we're 11n+40MHz, otherwise
+					// we're just 20MHz -- and we don't set either if we've
+					// picked up some sort of better info (like from a PPI header)
+					uint16_t ht_capabilities;
+					memcpy(&ht_capabilities, &packet->data[tag_offset + offt], 2);
+					ht_capabilities = kis_ntoh16(ht_capabilities);
+
+					if ((ht_capabilities & 16384)) {
+						if (ret_packinfo->carrier != carrier_80211n40 &&
+							ret_packinfo->carrier != carrier_80211n20)
+							ret_packinfo->carrier = carrier_80211n40;
+					} else {
+						if (ret_packinfo->carrier != carrier_80211n40 &&
+							ret_packinfo->carrier != carrier_80211n20)
+							ret_packinfo->carrier = carrier_80211n20;
+					}
+				}
+			}
+
 			// WPA frame matching if we have the privacy bit set
 			if ((ret_packinfo->crypt_set & crypt_wep)) {
 				// Liberally borrowed from Ethereal

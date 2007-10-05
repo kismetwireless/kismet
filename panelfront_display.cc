@@ -1599,6 +1599,14 @@ int PanelFront::DetailsPrinter(void *in_window) {
             snprintf(output, print_width, "Carrier : IEEE 802.11 DSSS");
             kwin->text.push_back(output);
         }
+        if (details_network->virtnet->carrier_set & (1 << (int) carrier_80211n20)) {
+            snprintf(output, print_width, "Carrier : IEEE 802.11n 20MHz");
+            kwin->text.push_back(output);
+        }
+        if (details_network->virtnet->carrier_set & (1 << (int) carrier_80211n40)) {
+            snprintf(output, print_width, "Carrier : IEEE 802.11n 40MHz");
+            kwin->text.push_back(output);
+        }
 
     }
 
@@ -1651,6 +1659,14 @@ int PanelFront::DetailsPrinter(void *in_window) {
         }
         if (dnet->carrier_set & (1 << (int) carrier_80211dsss)) {
             snprintf(output, print_width, "Carrier : IEEE 802.11 DSSS");
+            kwin->text.push_back(output);
+        }
+        if (dnet->carrier_set & (1 << (int) carrier_80211n20)) {
+            snprintf(output, print_width, "Carrier : IEEE 802.11n 20MHz");
+            kwin->text.push_back(output);
+        }
+        if (dnet->carrier_set & (1 << (int) carrier_80211n40)) {
+            snprintf(output, print_width, "Carrier : IEEE 802.11n 40MHz");
             kwin->text.push_back(output);
         }
 

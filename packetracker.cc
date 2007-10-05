@@ -437,26 +437,25 @@ void Packetracker::ProcessPacket(kis_packet *packet, packet_info *info,
     // gets added has a bssid, so we'll use that to search.  We've filtered
     // everything else out by this point so we're safe to just work off bssid
     if (net == NULL) {
-        /* If an attacker use a tool such a Fake AP to create zillions
-	 * of fake networks, it can DoS Kismet and/or the underlying system.
-	 * Basically, we will exhaust the system memory.
-	 * Let's limit the number of network to avoid that...
-	 * There is two ways to recover : restart Kismet, or set logexpiry.
-	 * Jean II */
-        if(limit_nets > 0)
-	    if(network_list.size() > (unsigned int) limit_nets) {
-	        /* We should trigger an alert and log this condition */
+		/* If an attacker use a tool such a Fake AP to create zillions
+		 * of fake networks, it can DoS Kismet and/or the underlying system.
+		 * Basically, we will exhaust the system memory.
+		 * Let's limit the number of network to avoid that...
+		 * There is two ways to recover : restart Kismet, or set logexpiry.
+		 * Jean II */
+		if (limit_nets > 0)
+			if(network_list.size() > (unsigned int) limit_nets) {
+				/* We should trigger an alert and log this condition */
+				/* Don't create this network. */
+				return;
+			}
 
-	        /* Don't create this network. */
-	        return;
-	    }
+		// Make a network for them
+		net = new wireless_network;
 
-        // Make a network for them
-        net = new wireless_network;
-
-        if (bssid_ip_map.find(info->bssid_mac) != bssid_ip_map.end()) {
-            memcpy(&net->ipdata, &bssid_ip_map[info->bssid_mac], sizeof(net_ip_data));
-        }
+		if (bssid_ip_map.find(info->bssid_mac) != bssid_ip_map.end()) {
+			memcpy(&net->ipdata, &bssid_ip_map[info->bssid_mac], sizeof(net_ip_data));
+		}
 
         if (info->type == packet_management && 
             (info->subtype == packet_sub_beacon ||
@@ -1496,7 +1495,6 @@ void Packetracker::UpdateIpdata(wireless_network *net) {
 }
 
 int Packetracker::ExpireNetworks(int expiry) {
-
     time_t current_time = time(0);
     time_t oldest_time = current_time - expiry;
 
@@ -1505,50 +1503,55 @@ int Packetracker::ExpireNetworks(int expiry) {
      * avoid the boundary test to be useless... Jean II */
     unsigned int net_len = network_list.size();
     for (signed int i = net_len - 1; i >= 0; i--) {
+		wireless_network *net = network_list[i];
 
-        wireless_network *net = network_list[i];
+		/* Time may wrap around, especially that embedded typically boot
+		 * at time(0) = 0;, don't have CMOS clock or NTP.
+		 * Let the compiler optimise the condition. Jean II */
+		bool expired;
+		if (current_time > oldest_time)
+			expired = net->last_time < oldest_time;
+		else
+			expired = ((net->last_time < oldest_time)
+					   && (net->last_time > current_time));
 
-	/* Time may wrap around, especially that embedded typically boot
-	 * at time(0) = 0;, don't have CMOS clock or NTP.
-	 * Let the compiler optimise the condition. Jean II */
-	bool expired;
-	if(current_time > oldest_time)
-	    expired = net->last_time < oldest_time;
-	else
-	    expired = ((net->last_time < oldest_time)
-		       && (net->last_time > current_time));
+		/* If expired, remove it. We don't use RemoveNetwork to avoid
+		 * another list interation. Also, RemoveNetwork does not seem
+		 * be do complete cleanup ? Jean II */
+		if(expired) {
+			// Remove data in secondary hashes
+			map<mac_addr, net_ip_data>::iterator bimi = bssid_ip_map.find(net->bssid);
+			if (bimi != bssid_ip_map.end())
+				bssid_ip_map.erase(bimi);
 
-	/* If expired, remove it. We don't use RemoveNetwork to avoid
-	 * another list interation. Also, RemoveNetwork does not seem
-	 * be do complete cleanup ? Jean II */
-	if(expired) {
-	    // Remove data in secondary hashes
-	    map<mac_addr, net_ip_data>::iterator bimi = bssid_ip_map.find(net->bssid);
-	    if (bimi != bssid_ip_map.end())
-		bssid_ip_map.erase(bimi);
-	    map<mac_addr, string>::iterator bcmi = bssid_cloak_map.find(net->bssid);
-	    if (bcmi != bssid_cloak_map.end())
-		bssid_cloak_map.erase(bcmi);
-	    /* Should do something about probe_map ? */
+			map<mac_addr, string>::iterator bcmi = bssid_cloak_map.find(net->bssid);
+			if (bcmi != bssid_cloak_map.end())
+				bssid_cloak_map.erase(bcmi);
 
-	    // Remove data about clients
-	    for (unsigned int y = 0; y < net->client_vec.size(); y++)
-                delete net->client_vec[y];
+			/* Should do something about probe_map ? */
 
-	    // Remove us from the main hash
-	    map<mac_addr, wireless_network *>::iterator bmi = bssid_map.find(net->bssid);
-	    if (bmi != bssid_map.end())
-		bssid_map.erase(bmi);
+			// Remove data about clients
+			for (unsigned int y = 0; y < net->client_vec.size(); y++)
+				delete net->client_vec[y];
 
-	    // Remove us from the vector the fast and efficient way
-            network_list.erase(network_list.begin() + i);
+			// Remove data about CDP devices
+			if (net->cisco_equip != NULL)
+				delete net->cisco_equip;
 
-	    /* Final cleanup */
-	    delete net;
+			// Remove us from the main hash
+			map<mac_addr, wireless_network *>::iterator bmi = bssid_map.find(net->bssid);
+			if (bmi != bssid_map.end())
+				bssid_map.erase(bmi);
+
+			// Remove us from the vector the fast and efficient way
+			network_list.erase(network_list.begin() + i);
+
+			/* Final cleanup */
+			delete net;
+		}
 	}
-    }
 
-    return 1;
+	return 1;
 }
 
 
@@ -1639,9 +1642,9 @@ int Packetracker::WriteNetworks(string in_fname) {
         else if (net->carrier_set & (1 << (int) carrier_80211dsss))
             snprintf(carrier, 15, "802.11 DSSS");
 		else if (net->carrier_set & (1 << (int) carrier_80211n20))
-			snprintf(carrier, 15, "802.11n 20Mhz");
+			snprintf(carrier, 15, "802.11n 20MHz");
 		else if (net->carrier_set & (1 << (int) carrier_80211n40))
-			snprintf(carrier, 15, "802.11n 40Mhz");
+			snprintf(carrier, 15, "802.11n 40MHz");
         else
             snprintf(carrier, 15, "unknown");
 
@@ -1996,6 +1999,16 @@ int Packetracker::WriteCSVNetworks(string in_fname) {
                 carrier += ",";
             carrier += "IEEE 802.11 DSSS";
         }
+		if (net->carrier_set & (1 << (int) carrier_80211n20)) {
+            if (carrier != "")
+                carrier += ",";
+            carrier += "IEEE 802.11n 20MHz";
+		}
+		if (net->carrier_set & (1 << (int) carrier_80211n40)) {
+            if (carrier != "")
+                carrier += ",";
+            carrier += "IEEE 802.11n 40MHz";
+		}
 
         string encoding;
         if (net->encoding_set & (1 << (int) encoding_cck)) {
@@ -2306,6 +2319,10 @@ int Packetracker::WriteXMLNetworks(string in_fname) {
             fprintf(netfile, "    <encoding>PBCC</encoding>\n");
         if (net->encoding_set & (1 << (int) encoding_ofdm))
             fprintf(netfile, "    <encoding>OFDM</encoding>\n");
+		if (net->carrier_set & (1 << (int) carrier_80211n20))
+			fprintf(netfile, "    <encoding>802.11n 20MHz</encoding>\n");
+		if (net->carrier_set & (1 << (int) carrier_80211n40))
+			fprintf(netfile, "    <encoding>802.11n 40MHz</encoding>\n");
 
 		if (net->crypt_set == 0)
 			fprintf(netfile, "    <encryption>None</encryption>\n");
