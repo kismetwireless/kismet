@@ -37,15 +37,19 @@ FILE *out, *err;
 struct timeval tim;
 int check_err = 0, check_out = 0;
 char ret[2048];
+int reap_pending = 0;
 
 /* Sighandler/Reaper */
 void reap(int sig) {
 	check_err = 1;
 	check_out = 1;
 
+	reap_pending++;
+
 	if (clipid > 0) {
 		kill(clipid, SIGTERM);
-		wait4(clipid, NULL, 0, NULL);
+		if (reap_pending <= 1)
+			wait4(clipid, NULL, 0, NULL);
 	}
 
 	if (srvpid > 0) {
@@ -112,7 +116,8 @@ void reap(int sig) {
 		fprintf(stderr, "%s", postcli_err[x].c_str());
 	}
 
-	wait4(srvpid, NULL, 0, NULL);
+	if (reap_pending <= 1)
+		wait4(srvpid, NULL, 0, NULL);
 
 	printf("Done.\n");
 }
