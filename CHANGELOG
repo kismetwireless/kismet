@@ -1,3 +1,15 @@
+Oct 06 2007 2007-10 Long time in coming, Kismet-2007-10-R1
+                     Basic 802.11N support (IE tag parsing)
+                     Airpcap 11n header support (PPI)
+                     DBUS support for controlling NetworkManager
+                     Significant memory reduction in server/client
+                     Significantly faster client code
+                     D80211 device support (iwl, others)
+                     Darwin (OSX) native support
+                     Revamped madwifi-ng support
+                     GPSD anti-jitter handling
+                     Innumerable bug fixes (encryption detection, device
+                     handling, client crashes, etc)
 Oct 04 2007  devel  Added 11n IE tag decoding and display
 Sep 28 2007  devel  Added DBUS support for controlling networkmanager
                     Added ath5k support
