@@ -10,6 +10,9 @@ Oct 06 2007 2007-10 Long time in coming, Kismet-2007-10-R1
                      GPSD anti-jitter handling
                      Innumerable bug fixes (encryption detection, device
                      handling, client crashes, etc)
+
+                     There have been many options added to the config file,
+                     be sure to update your configs!
 Oct 06 2007  devel  Added trackiv option (set to false) to turn on IV tracking
                      (previous default behavior)
                     Added kismet-watchdog script in extra/ from JeanII
