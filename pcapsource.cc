@@ -46,7 +46,9 @@ typedef unsigned long u64;
 #include <net/if_media.h>
 #include <netinet/in.h>
 #include <netinet/if_ether.h>
+#if defined(SYS_OPENBSD)
 #include <dev/ic/if_wi_ieee.h>
+#endif
 
 #ifdef HAVE_RADIOTAP
 #include <net80211/ieee80211.h>

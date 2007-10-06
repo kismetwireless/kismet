@@ -10,6 +10,8 @@ Oct 06 2007 2007-10 Long time in coming, Kismet-2007-10-R1
                      GPSD anti-jitter handling
                      Innumerable bug fixes (encryption detection, device
                      handling, client crashes, etc)
+Oct 06 2007  devel  Added trackiv option (set to false) to turn on IV tracking
+                     (previous default behavior)
 Oct 04 2007  devel  Added 11n IE tag decoding and display
 Sep 28 2007  devel  Added DBUS support for controlling networkmanager
                     Added ath5k support

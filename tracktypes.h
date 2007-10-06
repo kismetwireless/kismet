@@ -344,6 +344,8 @@ typedef struct wireless_network {
 
 		cisco_equip = NULL;
 
+		iv_map = NULL;
+
     }
 
     wireless_network_type type;
@@ -450,7 +452,7 @@ typedef struct wireless_network {
     int decrypted;
 
     // Used IVs in this BSSID
-    map<uint32_t, int> iv_map;
+    map<uint32_t, int> *iv_map;
     // number of duplicate IV counts
     int dupeiv_packets;
 

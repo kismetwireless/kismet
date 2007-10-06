@@ -196,6 +196,11 @@ writeinterval=300
 # inactive networks.  This is mainly for stationary systems like an IDS.
 # limitnets=10000
 
+# Do we track IVs?  this can help identify some attacks, but takes a LOT
+# of memory to do so on a busy network.  If you have the RAM, by all
+# means turn it on.
+trackivs=false
+
 # Do we use sound?
 # Not to be confused with GUI sound parameter, this controls wether or not the
 # server itself will play sound.  Primarily for headless or automated systems.

@@ -80,7 +80,7 @@ char *configfile = NULL;
 int no_log = 0, noise_log = 0, data_log = 0, net_log = 0, crypt_log = 0, cisco_log = 0,
     gps_log = -1, gps_enable = 1, csv_log = 0, xml_log = 0, ssid_cloak_track = 0, 
     ip_track = 0, waypoint = 0, waypointformat = 0, fifo = 0, corrupt_log = 0;
-int vap_destroy = 0, netmanager_control = 0;
+int vap_destroy = 0, netmanager_control = 0, track_ivs = 0;
 string logname, dumplogfile, netlogfile, cryptlogfile, ciscologfile,
     gpslogfile, csvlogfile, xmllogfile, ssidtrackfile, configdir, iptrackfile, 
     waypointfile, fifofile;
@@ -2107,6 +2107,15 @@ int ProcessBulkConf(ConfigFile *conf) {
 	if (conf->FetchOpt("netfuzzycrypt") == "true") {
 		fprintf(stderr, "Using network-classifier based data encryption detection\n");
 		netcryptdetect = 1;
+	}
+
+	// Do we track dupe IVs?
+	if (conf->FetchOpt("trackivs") == "true") {
+		fprintf(stderr, "Tracking IVs for duplicates (may use large amounts of RAM)\n");
+		track_ivs = 1;
+	} else {
+		fprintf(stderr, "Not tracking duplicate IVs\n");
+		track_ivs = 0;
 	}
 
     return 1;

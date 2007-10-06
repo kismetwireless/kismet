@@ -48,6 +48,7 @@ mac_addr msfopcode_mac = mac_addr("90:E9:75:00:00:00/FF:FF:FF:00:00:00");
 // Get this out of kismet_server (yeah, yeah, globals bad)
 extern int netcryptdetect, waypointformat;
 extern int limit_nets;
+extern int track_ivs;
 
 Packetracker::Packetracker() {
     alertracker = NULL;
@@ -665,13 +666,17 @@ void Packetracker::ProcessPacket(kis_packet *packet, packet_info *info,
     }
 
     // Handle the IV sets.  4-byte compare IV is fine
-    if (info->encrypted) {
-        map<uint32_t, int>::iterator ivitr = net->iv_map.find(info->ivset);
-        if (ivitr != net->iv_map.end()) {
+	// Only do this if we track IVs, which costs a lot of memory
+    if (info->encrypted && track_ivs) {
+		if (net->iv_map == NULL)
+			net->iv_map = new map<uint32_t, int>;
+
+        map<uint32_t, int>::iterator ivitr = net->iv_map->find(info->ivset);
+        if (ivitr != net->iv_map->end()) {
             ivitr->second++;
             net->dupeiv_packets++;
         } else {
-            net->iv_map[info->ivset] = 1;
+            (*net->iv_map)[info->ivset] = 1;
         }
     }
 
