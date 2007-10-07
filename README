@@ -26,12 +26,12 @@ Licensed under the GPL
 
     Kismet is an 802.11 layer2 wireless network detector, sniffer, and
     intrusion detection system.  Kismet will work with any wireless card which
-    supports raw monitoring (rfmon) mode, and can sniff 802.11b, 802.11a, and
-    802.11g traffic.  
+    supports raw monitoring (rfmon) mode, and can sniff 802.11b, 802.11a, 
+    802.11n, and 802.11g traffic (devices and drivers permitting).
 
     Kismet identifies networks by passively collecting packets and detecting
     standard named networks, detecting (and given time, decloaking) hidden 
-    networks, and infering the presence of nonbeaconing networks via data
+    networks, and inferring the presence of non-beaconing networks via data
     traffic.
 
 2a. Quick Start
@@ -147,11 +147,20 @@ Licensed under the GPL
 
 5.  Upgrading from Previous Versions
 
-    Upgrading to Kismet 2007-07-R1:
+    Upgrading to Kismet 2007-10-R1:
       For Linux users, the config option 'vapdestroy' has been added.  If you
       are using an Atheros card with Madwifi-NG, this controls if non-rfmon
       VAPs are destroyed automatically.  Not including this new config option
       will default to 'false'.
+
+      Wrt54 devices now have channel hopping enabled.  Packagers should
+      probably turn this off by default.
+
+      IV duplication tracking is now off by default to save memory, and is
+      controlled by the 'trackivs' parameter.
+
+      DBUS integration to try to quiesce Network Manager while Kismet
+      is running, controlled by the 'networkmanagersleep' config parameter.
 
     Upgrading to Kismet 2007-01-R1:
       Make sure to either update your kismet.conf file from the one included
@@ -1387,6 +1396,9 @@ Licensed under the GPL
       automatically put networkmanager to sleep if the 'networkmanagersleep'
       variable is set to true in kismet.conf
 
+      Be sure to also disable wpa_supplicant on any interfaces being used
+      by Kismet, as it will try to reconfigure the device.
+
     PROBLEM: Configure is unable to find libncurses or other libraries, but
      they're installed.
     FIX: If you are running a RPM-based distribution, you will need the 
@@ -1418,27 +1430,14 @@ Licensed under the GPL
     PROBLEM: Kismet says it took the card out of monitor mode, but it still
      doesn't work.
     FIX: Sometimes cards don't come out of monitor mode cleanly.  If it doesn't
-     work, you'll need to manually restart your card, sorry.
+     work, you'll need to manually restart your card, sorry.  Restarting your
+     card depends on your drivers and distribution, Google is your friend.
 
     PROBLEM: I get 'invalid mode: monitor' or similar errors trying to go 
      into rfmon with madwifi
     FIX: First, make sure you have madwifi-cvs.
          Second, make sure you're running a recent kernel.  You need wireless
           extensions >= 15.  To be safe, upgrade to the latest stable kernel.
-
-    PROBLEM: I get 'Could not set SSID, I/O error' going into monitor mode on
-     prism54 cards
-    FIX: Update to the latest CVS release of the prism54 driver.
-
-    PROBLEM: Kismet can't enter monitor mode using MadWifi
-    FIX: The CVS version of the MadWifi drivers are needed for rfmon.  
-     Additonally, you need kernel 2.4.23 or newer because of wireless extension
-     dependencies.  Make sure to upgrade your drivers and kernel.
-
-    PROBLEM: Kismet can't compile, there are errors about pcap_parse
-    FIX:  Your flex/lex/bison/yacc tools are broken or missing.  Make sure you
-     install them.  libpcap cannot compile without them.  Newer releases of
-     Kismet patch libpcap to not generate filter code at all.
 
     PROBLEM: Kismet can't compile, there are errors about not finding libpcap
     FIX: Kismet no longer includes libpcap source, and expects your system to
@@ -1545,6 +1544,7 @@ Licensed under the GPL
     A: Some 802.11n cards with the Atheros chipset are supported, however
        currently the link type still appears as 802.11g.  In theory these
        cards will work with the madwifi-ng capture sources.
+    A2: Intel ABGN cards using iwlwifi should work.
 
     Q: Why do I get a lot of nonsense networks, or lots of networks that only
        have one data packet?
@@ -1637,10 +1637,13 @@ Licensed under the GPL
     Q: What cards work in *BSD?
     A: Any card with radiotap support should work in any of the BSD variants
        (Net, Open, or Free).  Check your kernel docs and consider upgrading
-       to the latest release to get more radiotap.  With the exclusion of 
-       OpenBSD, non-radiotap devices are not supported.
+       to the latest release to get more radiotap device support..  With the 
+       exclusion of OpenBSD, non-radiotap devices are not supported.
        If you want to add support for a non-radiotap card, contact me over
        email or IRC and I can help explain it.
+
+    Q: Why can't I use prism2 or USB cards on Darkwin?
+    A: Because I don't have patches for them.  Send me some.
 
     Q: I want to port Kismet to (X) or I want to support card (Y)
     A: Kismet is designed to be fairly modular.  Contact me over IRC or email
