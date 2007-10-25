@@ -62,6 +62,8 @@ void IPC_MessageClient::ProcessMessage(string in_msg, int in_flags) {
 }
 
 int ipc_msg_callback(IPC_CMD_PARMS) {
+	(void) auxptr;
+
 	// Child IPC does nothing with a MSG frame
 	if (parent == 0)
 		return 0;
@@ -82,6 +84,9 @@ int ipc_msg_callback(IPC_CMD_PARMS) {
 }
 
 int ipc_die_callback(IPC_CMD_PARMS) {
+	(void) data;
+	(void) len;
+
 	// Child receiving DIE command shuts down
 	if (parent == 0) {
 		// Call the internal shutdown process

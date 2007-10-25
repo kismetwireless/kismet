@@ -229,6 +229,29 @@ string AlignString(string in_txt, char in_spacer, int in_align, int in_width) {
 	return in_txt.substr(0, in_width);
 }
 
+int HexStrToUint8(string in_str, uint8_t *in_buf, int in_buflen) {
+	int decode_pos = 0;
+	int str_pos = 0;
+
+	while ((unsigned int) str_pos < in_str.length() && decode_pos < in_buflen) {
+		short int tmp;
+
+		if (in_str[str_pos] == ' ') {
+			str_pos++;
+			continue;
+		}
+
+		if (sscanf(in_str.substr(str_pos, 2).c_str(), "%2hx", &tmp) != 1) {
+			return -1;
+		}
+
+		in_buf[decode_pos++] = tmp;
+		str_pos += 2;
+	}
+
+	return decode_pos;
+}
+
 int XtoI(char x) {
     if (isxdigit(x)) {
         if (x <= '9')

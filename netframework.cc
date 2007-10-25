@@ -287,6 +287,8 @@ int ServerFramework::Shutdown() {
 }
 
 int ServerFramework::BufferDrained(int in_fd) {
+	(void) in_fd;
+
 	return 0;
 }
 

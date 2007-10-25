@@ -173,6 +173,7 @@ typedef struct mac_addr {
     }
 
     inline mac_addr(int in) {
+		in = in; // Silence gcc
         longmac = 0;
         longmask = 0;
         error = 0;

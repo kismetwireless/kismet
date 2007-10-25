@@ -303,7 +303,10 @@ public:
     }
 
     virtual int CloseSource() { return 1; }
-	virtual int AutotypeProbe(string in_device) { return 0; }
+	virtual int AutotypeProbe(string in_device) { 
+		(void) in_device;
+		return 0; 
+	}
 
 	virtual int RegisterSources(Packetsourcetracker *tracker) {
 		tracker->RegisterPacketsource("none", this, 0, "n/a", 0);
@@ -318,11 +321,16 @@ public:
 	virtual int DisableMonitor() { return -1; }
 	virtual int ChildIPCControl() { return 0; }
 	virtual int SetChannel(unsigned int) { return -1; }
-	virtual int SetChannelSequence(vector<unsigned int> in_seq) { return -1; }
+	virtual int SetChannelSequence(vector<unsigned int> in_seq) { 
+		(void) in_seq;
+		return -1;
+	}
 	virtual int HopNextChannel() { return -1; }
 
 protected:
-	virtual void FetchRadioData(kis_packet *in_packet) { }
+	virtual void FetchRadioData(kis_packet *in_packet) {
+		(void) in_packet;
+	}
 };
 
 

@@ -76,6 +76,9 @@ string StrStrip(string in_str);
 string StrPrintable(string in_str);
 string AlignString(string in_txt, char in_spacer, int in_align, int in_width);
 
+int HexStrToUint8(string in_str, uint8_t *in_buf, int in_buflen);
+string HexStrFromUint8(uint8_t *in_buf, int in_buflen);
+
 int XtoI(char x);
 int Hex2UChar(unsigned char *in_hex, unsigned char *in_chr);
 

@@ -33,6 +33,8 @@ SerialClient::~SerialClient() {
 }
 
 int SerialClient::Connect(const char *in_remotehost, short int in_port) {
+	(void) in_port;
+
 	cli_fd = open(in_remotehost, O_RDWR | O_NONBLOCK | O_NOCTTY);
 
 	if (cli_fd < 0) {

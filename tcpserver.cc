@@ -23,6 +23,8 @@ TcpServer::~TcpServer() {
 // Set up the TCP socket and listening
 int TcpServer::SetupServer(short int in_port, unsigned int in_maxcli, 
 						   string in_bindaddr, string in_filterstr) {
+	(void) in_filterstr;
+
     port = in_port;
     maxcli = in_maxcli;
 	bindaddr = in_bindaddr;
