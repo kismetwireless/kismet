@@ -1,3 +1,5 @@
+Nov 06 2007  devel  Added --disable-dbus to configure for environments
+                     which don't detect properly
 Oct 06 2007 2007-10 Long time in coming, Kismet-2007-10-R1
                      Basic 802.11N support (IE tag parsing)
                      Airpcap 11n header support (PPI)

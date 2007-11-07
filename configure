@@ -1296,6 +1296,7 @@ Optional Features:
   --disable-setuid        disable setuid/privdrop ability (not reccomended)
   --disable-viha          disable MacOSX Viha capture source (OSX only)
   --disable-wsp100        disable wsp100 remote drone source
+  --disable-dbus          disable dbus detection
   --enable-local-dumper   force use of local dump code even if Ethereal is available
   --disable-gpsmap        disable building gpsmap
   --disable-optimization        disable -Ox gcc optimization
@@ -8463,6 +8464,14 @@ _ACEOF
 fi
 
 # Look for dbus
+# Check whether --enable-dbus was given.
+if test "${enable_dbus+set}" = set; then
+  enableval=$enable_dbus;
+else
+  want_dbus=yes
+fi
+
+if test "$want_dbus" = "yes"; then
 
 
 if test "x$ac_cv_env_PKG_CONFIG_set" != "xset"; then
@@ -8654,14 +8663,17 @@ else
 echo "${ECHO_T}yes" >&6; }
 	HAVE_DBUS="yes"
 fi
-if test "$HAVE_DBUS"x = "yesx"; then
-	CXXFLAGS="$CFLAGS `pkg-config dbus-1 --cflags`"
-	LIBS="$LIBS `pkg-config dbus-1 --libs`"
+	if test "$HAVE_DBUS"x = "yesx"; then
+		CXXFLAGS="$CFLAGS `pkg-config dbus-1 --cflags`"
+		LIBS="$LIBS `pkg-config dbus-1 --libs`"
 
 cat >>confdefs.h <<\_ACEOF
 #define HAVE_DBUS 1
 _ACEOF
 
+	fi
+else
+	HAVE_DBUS="no"
 fi
 
 local=no

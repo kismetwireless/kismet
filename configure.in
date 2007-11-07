@@ -644,11 +644,16 @@ if test "$wsp100" = "yes"; then
 fi
 
 # Look for dbus
-PKG_CHECK_MODULES(DBUS, dbus-1, HAVE_DBUS="yes", HAVE_DBUS="no")
-if test "$HAVE_DBUS"x = "yesx"; then
-	CXXFLAGS="$CFLAGS `pkg-config dbus-1 --cflags`"
-	LIBS="$LIBS `pkg-config dbus-1 --libs`"
-	AC_DEFINE(HAVE_DBUS, 1, dbus integration)
+AC_ARG_ENABLE(dbus, [  --disable-dbus          disable dbus detection],,want_dbus=yes)
+if test "$want_dbus" = "yes"; then
+	PKG_CHECK_MODULES(DBUS, dbus-1, HAVE_DBUS="yes", HAVE_DBUS="no")
+	if test "$HAVE_DBUS"x = "yesx"; then
+		CXXFLAGS="$CFLAGS `pkg-config dbus-1 --cflags`"
+		LIBS="$LIBS `pkg-config dbus-1 --libs`"
+		AC_DEFINE(HAVE_DBUS, 1, dbus integration)
+	fi
+else
+	HAVE_DBUS="no"
 fi
 
 local=no
