@@ -2452,13 +2452,8 @@ int main(int argc,char *argv[]) {
         exit(1);
     }
 
-    // Write our pid.  Things calling us need to check and see if we're actually
-    // running.
-    fprintf(pid_file, "%d\n", getpid());
-
-    // And we're done
-    fclose(pid_file);
-            
+	// Pid gets written and file closed later on, after device open and daemonize
+	// mode happens
 
     // Set up the GPS object to give to the children
     if (gpsport == -1 && gps_enable) {
@@ -2937,6 +2932,12 @@ int main(int argc,char *argv[]) {
 			exit(1);
 		}
 	}
+
+	// Deferred writing of pid until now
+    fprintf(pid_file, "%d\n", getpid());
+
+    // And we're done
+    fclose(pid_file);
 
     // We're ready to begin the show... Fill in our file descriptors for when
     // to wake up
