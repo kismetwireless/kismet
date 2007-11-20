@@ -1,3 +1,5 @@
+Nov 20 2007  devel  Fixed 'make install' and 'make suidinstall' not dep'ing
+                     'kismet' binary
 Nov 06 2007  devel  Added --disable-dbus to configure for environments
                      which don't detect properly
 Oct 06 2007 2007-10 Long time in coming, Kismet-2007-10-R1

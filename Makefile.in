@@ -190,7 +190,7 @@ commoninstall:
 		rm $(BIN)/kismet_curses; \
 	fi
 
-suidinstall: $(PS) $(DRONE) $(NC) $(GPSLBUILD) $(ZAURUSBUILD)
+suidinstall: $(PS) $(DRONE) $(WRAP) $(NC) $(GPSLBUILD) $(ZAURUSBUILD)
 	$(MAKE) -e commoninstall
 	$(MAKE) -e binsuidinstall
 	@if test -f $(ETC)/kismet.conf; then \
@@ -223,7 +223,7 @@ suidinstall: $(PS) $(DRONE) $(NC) $(GPSLBUILD) $(ZAURUSBUILD)
 	@echo "YOUR WIRELESS NETWORK CONNECTION.  IF YOU HAVE ANY UNTRUSTED USERS ON YOUR "
 	@echo "SYSTEM DO NOT INSTALL KISMET AS SUID ROOT."
 
-install: $(PS) $(DRONE) $(NC) $(GPSLBUILD) $(ZAURUSBUILD)
+install: $(PS) $(DRONE) $(NC) $(WRAP) $(GPSLBUILD) $(ZAURUSBUILD)
 	$(MAKE) -e commoninstall
 	$(MAKE) -e binuserinstall
 	@if test -f $(ETC)/kismet.conf; then \
