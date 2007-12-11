@@ -110,6 +110,8 @@ int decay;
 channel_power channel_graph[CHANNEL_MAX];
 char *servername = NULL;
 
+pid_t daemon_parent_pid = 0;
+
 fd_set read_set;
 
 // Do we allow sending wep keys to the client?
@@ -2169,6 +2171,13 @@ int main(int argc,char *argv[]) {
 	// Daemonize?
 	int daemonize = 0;
 
+    time_t last_click = 0;
+    int num_networks = 0, num_packets = 0, num_noise = 0, num_dropped = 0;
+
+    FILE *testfile = NULL;
+
+    int old_chhop = channel_hop;
+
     static struct option long_options[] = {   /* options table */
         { "log-title", required_argument, 0, 't' },
         { "no-logging", no_argument, 0, 'n' },
@@ -2452,8 +2461,18 @@ int main(int argc,char *argv[]) {
         exit(1);
     }
 
-	// Pid gets written and file closed later on, after device open and daemonize
-	// mode happens
+	// Fork off daemon mode and do all the work in the child, write the pid and
+	// do nothing else in the parent.  Yes, goto sucks.  Goto: go away
+	if (daemonize) {
+		daemon_parent_pid = getpid();
+		if (fork() != 0)
+			goto daemon_parent_cleanup;
+	}
+
+	// Deferred writing of pid until now
+	fprintf(pid_file, "%d\n", getpid());
+	// And we're done
+	fclose(pid_file);
 
     // Set up the GPS object to give to the children
     if (gpsport == -1 && gps_enable) {
@@ -2578,7 +2597,6 @@ int main(int argc,char *argv[]) {
     // Turn all our config data into meta packsources, or fail...  If we're
     // passing the sources from the command line, we enable them all, so we
     // null the named_sources string
-    int old_chhop = channel_hop;
     if (sourcetracker.ProcessCardList(source_from_cmd ? "" : named_sources, 
                                       &source_input_vec, &src_customchannel_vec, 
                                       &src_initchannel_vec,
@@ -2675,7 +2693,6 @@ int main(int argc,char *argv[]) {
     }
 
     // Open our files first to make sure we can, we'll unlink the empties later.
-    FILE *testfile = NULL;
     if (net_log) {
         if ((testfile = fopen(netlogfile.c_str(), "w")) == NULL) {
             fprintf(stderr, "FATAL:  Unable to open net file %s: %s.  Consult the "
@@ -2916,28 +2933,19 @@ int main(int argc,char *argv[]) {
     snprintf(status, 1024, "%s", TIMESTAMP);
     kdata.timestamp = status;
 
-    time_t last_click = 0;
-    int num_networks = 0, num_packets = 0, num_noise = 0, num_dropped = 0;
-
     printf("Gathering packets...\n");
 	fflush(stderr);
 	fflush(stdout);
 
 	// Drop to daemon mode if we're going to
+daemon_parent_cleanup:
 	if (daemonize) {
 		fprintf(stderr, "Silencing output and entering daemon mode...\n");
 		WriteDatafiles(0);
 		silent = 1;
-		if (fork() != 0) {
+		if (getpid() == daemon_parent_pid)
 			exit(1);
-		}
 	}
-
-	// Deferred writing of pid until now
-    fprintf(pid_file, "%d\n", getpid());
-
-    // And we're done
-    fclose(pid_file);
 
     // We're ready to begin the show... Fill in our file descriptors for when
     // to wake up

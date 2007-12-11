@@ -1,3 +1,5 @@
+Dec 11 2007  devel  Fixed a problem where the first connection to the server
+                     would be ignored.
 Dec 10 2007  devel  Merged a patchset from Pavol Rusnak and SUSE including
                      some ncurses cleanups, format string quirks with size_t,
                      and header massaging
