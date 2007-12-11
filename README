@@ -217,13 +217,7 @@ Licensed under the GPL
       GPSD is a daemon which listens on a serial port for GPS data, parses it,
       and makes it available via a TCP socket.  Kismet can use a GPSD on the
       local system, or if there is a wired ethernet connection available it can
-      use a GPS on a remote host.  
-
-      The latest versions of GPSD fix compile issues which occurred on some
-      systems and it's highly reccomended you get the latest.
-
-      GPSDrive distributes an alternate version of GPSD, which should work with
-      Kismet.
+      use a GPS via port 2947 on a remote host.  
 
     - Imagemagick (5.4.7+): http://www.imagemagick.org/
       REQUIRED for gpsmap map generation
