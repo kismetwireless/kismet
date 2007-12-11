@@ -1,3 +1,6 @@
+Dec 10 2007  devel  Merged a patchset from Pavol Rusnak and SUSE including
+                     some ncurses cleanups, format string quirks with size_t,
+                     and header massaging
 Nov 20 2007  devel  Fixed 'make install' and 'make suidinstall' not dep'ing
                      'kismet' binary
 Nov 06 2007  devel  Added --disable-dbus to configure for environments

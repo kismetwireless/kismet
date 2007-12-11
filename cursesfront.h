@@ -34,6 +34,7 @@ const int statheight = 6;
 #undef erase
 #undef move
 #undef clear
+#undef bool
 
 #include <stdio.h>
 #include <time.h>

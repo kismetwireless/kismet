@@ -29,7 +29,7 @@
 #if (defined(HAVE_LIBWIRETAP) && !defined(USE_LOCAL_DUMP))
 
 extern "C" {
-#include "wtap.h"
+#include <wireshark/wtap.h>
 }
 
 class WtapDumpFile : public virtual DumpFile {

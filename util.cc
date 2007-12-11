@@ -22,6 +22,7 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
+#include <string.h>
 
 // We need this to make uclibc happy since they don't even have rintf...
 #ifndef rintf

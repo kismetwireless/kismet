@@ -27,7 +27,7 @@
 #include "packetsource.h"
 
 extern "C" {
-#include "wtap.h"
+#include <wireshark/wtap.h>
 }
 
 class WtapFileSource : public KisPacketSource {

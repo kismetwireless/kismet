@@ -33,6 +33,7 @@
 #undef erase
 #undef clear
 #undef move
+#undef bool
 
 #include <stdio.h>
 #include <time.h>

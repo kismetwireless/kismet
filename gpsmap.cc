@@ -874,7 +874,7 @@ int ProcessGPSFile(char *in_fname) {
 
                 // Break up the path to the gpsxml file and form a path based on that
                 unsigned int lastslash = 0;
-                for (unsigned int x = origxmlfile.find('/'); x != string::npos;
+                for (string::size_type x = origxmlfile.find('/'); x != string::npos;
                      lastslash = x, x = origxmlfile.find('/', lastslash+1)) {
                     // We don't actually need to do anything...
                 }
@@ -882,7 +882,7 @@ int ProcessGPSFile(char *in_fname) {
                 comp = origxmlfile.substr(0, lastslash);
 
                 lastslash = 0;
-                for (unsigned int x = orignetfile.find('/'); x != string::npos;
+                for (string::size_type x = orignetfile.find('/'); x != string::npos;
                      lastslash = x, x = orignetfile.find('/', lastslash+1)) {
                     // We don't actually need to do anything...
                 }
@@ -1025,7 +1025,7 @@ int ProcessGPSFile(char *in_fname) {
     
     // Sanitize the data and build the map of points we don't look at
     if (verbose)
-        fprintf(stderr, "NOTICE:  Sanitizing %d sample points...\n", 
+        fprintf(stderr, "NOTICE:  Sanitizing %zd sample points...\n", 
                 file_points.size());
     SanitizeSamplePoints(file_points, &file_screen);
 
@@ -2242,11 +2242,11 @@ void DrawNetPower(vector<gps_network *> in_nets, Image *in_img,
     pthread_attr_destroy(&attr);
 
     // Now wait for the threads to complete and come back
-    int thread_status;
+    intptr_t thread_status;
     for (int t = 0; t < numthreads; t++) {
         void *tmp;
         pthread_join(mapthread[t], &tmp);
-	thread_status = reinterpret_cast<int>(tmp);
+	thread_status = reinterpret_cast<intptr_t>(tmp);
     }
 #else
     // Run one instance of our "thread".  thread number 0, it should just crunch it all
@@ -2881,7 +2881,7 @@ int DrawLegendComposite(vector<gps_network *> in_nets, Image **in_img,
     // contents
 
     // Test the standard text in col1
-    snprintf(text, 1024, "Visible networks: %d\n", drawn_net_map.size());
+    snprintf(text, 1024, "Visible networks: %zd\n", drawn_net_map.size());
     text_colwidth = kismax(text_colwidth, IMStringWidth(text, leg_img, leg_di));
 
     snprintf(text, 1024, "Map Created     : %.24s", ctime((const time_t *) &curtime));
@@ -2972,7 +2972,7 @@ int DrawLegendComposite(vector<gps_network *> in_nets, Image **in_img,
     cur_rowpos += tx_height + 2;
     */ 
 
-    snprintf(text, 1024, "Visible networks: %d\n", drawn_net_map.size());
+    snprintf(text, 1024, "Visible networks: %zd\n", drawn_net_map.size());
     tx_height = IMStringHeight(text, leg_img, leg_di);
 
     snprintf(prim, 1024, "text %d,%d \"%s\"",
@@ -3825,7 +3825,7 @@ int main(int argc, char *argv[]) {
                 else if (tok == "location")
                     network_labels.push_back(NETLABEL_LOCATION);
                 else {
-                    fprintf(stderr, "Invalid label '%s'\n", tok.c_str());
+                    fprintf(stderr, "Invalid label '%zs'\n", tok.c_str());
                     exit(1);
                 }
             }
@@ -4393,7 +4393,7 @@ int main(int argc, char *argv[]) {
         gpsnetvec.push_back(x->second);
     }
 
-    fprintf(stderr, "Plotting %d networks...\n", gpsnetvec.size());
+    fprintf(stderr, "Plotting %zd networks...\n", gpsnetvec.size());
 
     for (unsigned int x = 0; x < draw_feature_order.length(); x++) {
         switch (draw_feature_order[x]) {
