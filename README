@@ -211,7 +211,7 @@ Licensed under the GPL
       Posix-style interfaces.  Without LibPcap, Kismet will be all but useless
       on most platforms.
 
-    - GPSD (any version): http://russnelson.com/gpsd/ 
+    - GPSD (any version): http://gpsd.berlios.de/ 
       REQUIRED for GPS support
    
       GPSD is a daemon which listens on a serial port for GPS data, parses it,
