@@ -1,3 +1,4 @@
+Dec 15 2007  devel  Fixed admtek fatal error on ssid zero (errors now ignored)
 Dec 11 2007  devel  Fixed a problem where the first connection to the server
                      would be ignored.
 Dec 10 2007  devel  Merged a patchset from Pavol Rusnak and SUSE including

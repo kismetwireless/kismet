@@ -1719,14 +1719,14 @@ int monitor_admtek(const char *in_dev, int initch, char *in_err, void **in_if, v
         ifparm->mode = -1;
     }
 
+	// Non-fatal ssid zero
+    Iwconfig_Set_SSID(in_dev, in_err, NULL);
+
     int ret = monitor_wext(in_dev, initch, in_err, in_if, in_ext);
 
     if (ret < 0 && ret != -2)
         return ret;
 
-    if (Iwconfig_Set_SSID(in_dev, in_err, "") < 0)
-        return -1;
-    
     return 0;
 }
 
