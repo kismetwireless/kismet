@@ -63,6 +63,8 @@ typedef unsigned long u64;
 #include <sys/time.h>
 #include <sys/ioctl.h>
 #include <net/bpf.h>
+#include <sys/param.h>
+#include <sys/sysctl.h>
 extern "C" {
 #include "apple80211.h"
 #include <Carbon/Carbon.h>
@@ -3296,9 +3298,29 @@ KisPacketSource *pcapsource_darwin_registrant(string in_name, string in_device,
 											  char *in_err) {
 	char devname[16];
 	int devnum;
+	int mib[2];
+	size_t miblen;
+	char *kernelversion;
+	int kernmaj, kernmin, kerntiny;
 
-	// If they gave us enX, convert it to wltX
-	if (strncmp(in_device.c_str(), "en", 2) == 0) {
+	// Get the Darwin kernel version, we use that to determine if we should
+	// yell at the user, and if we should transform the array
+	mib[0] = CTL_KERN;
+	mib[1] = KERN_OSRELEASE;
+	sysctl(mib, 2, NULL, &len, NULL, 0);
+	kernelversion = malloc(len * sizeof(char));
+	sysctl(mib, 2, kernelversion, &len, NULL, 0);
+
+	if (sscanf(kernelversion, "%d.%d.%d", &kernmaj, &kernmin, &kerntiny) != 3) {
+		fprintf(stderr, "WARNING:  Couldn't get Darwin kernel version, behavior "
+				"may not be correct but we'll keep trying.\n");
+		sleep(1);
+	}
+
+	free(kernelversion);
+
+	// If they gave us enX, convert it to wltX, if we're not on Leopard or newer.
+	if (strncmp(in_device.c_str(), "en", 2) == 0 && (kernmaj < 9)) {
 		if (sscanf(in_device.c_str(), "%16[^0-9]%d", devname, &devnum) != 2) {
 			fprintf(stderr, "FATAL:  Looks like 'en' was passed for Darwin device "
 					"instead of 'wlt', but could not parse it into en#\n");
@@ -3322,6 +3344,15 @@ KisPacketSource *pcapsource_darwin_registrant(string in_name, string in_device,
 		fprintf(stderr, "WARNING:  %s didn't look like a Broadcom OR Atheros card. "
 				"We'll treat it like an Atheros card and hope for the best, however "
 				"it may not work properly.\n", devname);
+	}
+
+	if (kernmaj >= 9) {
+		fprintf(stderr, "\nWARNING: We're running under Darwin/OSX >= 9.1.0 "
+				"(Leopard).  If your libpcap is NOT EXTREMELY CURRENT (as in "
+				"CVS from December, 2007 or newer) things will likely NOT WORK. "
+				"If you get an error configuring the card, make sure your libpcap "
+				"is up to date and understands the DLT enumeration used in "
+				"Leopard.\n\n");
 	}
 
 	// Everything we don't understand looks like an atheros in the end
