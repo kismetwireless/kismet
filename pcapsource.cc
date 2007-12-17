@@ -3307,9 +3307,9 @@ KisPacketSource *pcapsource_darwin_registrant(string in_name, string in_device,
 	// yell at the user, and if we should transform the array
 	mib[0] = CTL_KERN;
 	mib[1] = KERN_OSRELEASE;
-	sysctl(mib, 2, NULL, &len, NULL, 0);
-	kernelversion = malloc(len * sizeof(char));
-	sysctl(mib, 2, kernelversion, &len, NULL, 0);
+	sysctl(mib, 2, NULL, &miblen, NULL, 0);
+	kernelversion = (char *) malloc(miblen * sizeof(char));
+	sysctl(mib, 2, kernelversion, &miblen, NULL, 0);
 
 	if (sscanf(kernelversion, "%d.%d.%d", &kernmaj, &kernmin, &kerntiny) != 3) {
 		fprintf(stderr, "WARNING:  Couldn't get Darwin kernel version, behavior "
