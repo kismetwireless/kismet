@@ -1,3 +1,4 @@
+Dec 19 2007  devel  Nokia-specific changes
 Dec 17 2007  devel  Added kernel version detection for Darwin to accept enX
                      on >= Leopard, VERY NEW LIBPCAP required.
 Dec 15 2007  devel  Fixed admtek fatal error on ssid zero (errors now ignored)

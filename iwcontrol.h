@@ -86,6 +86,10 @@ int Iwconfig_Set_Channel(const char *in_dev, int in_ch, char *errstr);
 int Iwconfig_Get_Mode(const char *in_dev, char *errstr, int *in_mode);
 int Iwconfig_Set_Mode(const char *in_dev, char *errstr, int in_mode);
 
+int Iwconfig_Get_Power(const char *in_dev, char *errstr, void **power);
+int Iwconfig_Restore_Power(const char *in_dev, char *errstr, void *in_power);
+int Iwconfig_Disable_Power(const char *in_dev, char *errstr);
+
 // Info conversion
 float IwFreq2Float(iwreq *inreq);
 float IwFreq2Float(iwreq *inreq);

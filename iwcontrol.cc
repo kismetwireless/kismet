@@ -594,5 +594,88 @@ int Iwconfig_Set_Mode(const char *in_dev, char *in_err, int in_mode) {
     return 0;
 }
 
+// do something a little fugly - we need to cache the entire iwreq, so we
+// put it in a void, we can just issue a set to restore.  Caller must free
+// 'power', but we allocate it.
+int Iwconfig_Get_Power(const char *in_dev, char *in_err, void **power) {
+    struct iwreq *wrq;
+    int skfd;
+
+    if ((skfd = socket(AF_INET, SOCK_DGRAM, 0)) < 0) {
+        snprintf(in_err, STATUS_MAX, "Failed to create AF_INET DGRAM socket %d:%s", 
+                 errno, strerror(errno));
+        return -1;
+    }
+
+	wrq = (struct iwreq *) malloc(sizeof(struct iwreq));
+    memset(wrq, 0, sizeof(struct iwreq));
+    strncpy(wrq->ifr_name, in_dev, IFNAMSIZ);
+
+    if (ioctl(skfd, SIOCGIWPOWER, wrq) < 0) {
+        snprintf(in_err, STATUS_MAX, "channel get power ioctl failed %s",
+                 strerror(errno));
+        close(skfd);
+        return -1;
+    }
+
+    close(skfd);
+
+	*power = wrq;
+
+	return 1;
+}
+
+int Iwconfig_Restore_Power(const char *in_dev, char *in_err, void *in_power) {
+    struct iwreq *wrq = (struct iwreq *) in_power;
+    int skfd;
+
+    if ((skfd = socket(AF_INET, SOCK_DGRAM, 0)) < 0) {
+        snprintf(in_err, STATUS_MAX, "Failed to create AF_INET DGRAM socket %d:%s", 
+                 errno, strerror(errno));
+        return -1;
+    }
+
+	wrq = (struct iwreq *) malloc(sizeof(struct iwreq));
+    memset(wrq, 0, sizeof(struct iwreq));
+    strncpy(wrq->ifr_name, in_dev, IFNAMSIZ);
+
+    if (ioctl(skfd, SIOCSIWPOWER, wrq) < 0) {
+        snprintf(in_err, STATUS_MAX, "channel set power ioctl failed %s",
+                 strerror(errno));
+        close(skfd);
+        return -1;
+    }
+
+    close(skfd);
+
+	return 1;
+}
+
+int Iwconfig_Disable_Power(const char *in_dev, char *in_err) {
+    struct iwreq wrq;
+    int skfd;
+
+    if ((skfd = socket(AF_INET, SOCK_DGRAM, 0)) < 0) {
+        snprintf(in_err, STATUS_MAX, "Failed to create AF_INET DGRAM socket %d:%s", 
+                 errno, strerror(errno));
+        return -1;
+    }
+
+    memset(&wrq, 0, sizeof(struct iwreq));
+    strncpy(wrq.ifr_name, in_dev, IFNAMSIZ);
+
+	wrq.u.power.disabled = 1;
+
+    if (ioctl(skfd, SIOCSIWMODE, &wrq) < 0) {
+        snprintf(in_err, STATUS_MAX, "power set disabled ioctl failed %s",
+                 strerror(errno));
+        close(skfd);
+        return -1;
+    }
+
+    close(skfd);
+    return 0;
+}
+
 #endif
 

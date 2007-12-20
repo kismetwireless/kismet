@@ -2399,6 +2399,50 @@ int unmonitor_ipwlivetap(const char *in_dev, int initch, char *in_err,
     return 1;
 }
 
+int monitor_nokia(const char *in_dev, int initch, char *in_err, void **in_if, void *in_ext) {
+    // Allocate a tracking record for the interface settings and remember our
+    // setup
+    linux_ifparm *ifparm = (linux_ifparm *) malloc(sizeof(linux_ifparm));
+    (*in_if) = ifparm;
+
+    if (Ifconfig_Get_Flags(in_dev, in_err, &ifparm->flags) < 0) {
+        return -1;
+    }
+
+    if (Iwconfig_Get_Mode(in_dev, in_err, &ifparm->mode) < 0)
+        return -1;
+
+	// Set us to offline mode via dbus... cheat and use system for now...
+	system("/usr/bin/dbus-send --type=signal --system /com/nokia/mce/signal "
+		   "com.nokia.mce.signal.sig_device_mode_ind string:flight");
+
+	// Get our power save data, ignore errors
+	Iwconfig_Get_Power(in_dev, in_err, &(ifparm->power));
+
+	// Disable power save mode, ignore errors
+	Iwconfig_Disable_Power(in_dev, in_err);
+
+    // Call the normal monitor mode
+    return (monitor_wext(in_dev, initch, in_err, in_if, in_ext));
+}
+
+int unmonitor_nokia(const char *in_dev, int initch, char *in_err, void **in_if, void *in_ext) {
+    // Restore initial monitor header
+    linux_ifparm *ifparm = (linux_ifparm *) (*in_if);
+
+	// Fail and yell
+	if (unmonitor_wext(in_dev, initch, in_err, in_if, in_ext) < 0)
+		return -1;
+
+	// Restore power mode, ignore errors
+	Iwconfig_Restore_Power(in_dev, in_err, ifparm->power);
+
+	free(ifparm->power);
+
+	return 1;
+}
+
+
 // "standard" wireless extension monitor mode
 int monitor_wext(const char *in_dev, int initch, char *in_err, 
 				 void **in_if, void *in_ext) {
