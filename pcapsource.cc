@@ -2413,8 +2413,10 @@ int monitor_nokia(const char *in_dev, int initch, char *in_err, void **in_if, vo
         return -1;
 
 	// Set us to offline mode via dbus... cheat and use system for now...
+	fprintf(stderr, "INFO - Setting Nokia device to flight/offline mode...\n");
 	system("/usr/bin/dbus-send --type=signal --system /com/nokia/mce/signal "
 		   "com.nokia.mce.signal.sig_device_mode_ind string:flight");
+	sleep(1);
 
 	// Get our power save data, ignore errors
 	Iwconfig_Get_Power(in_dev, in_err, &(ifparm->power));
