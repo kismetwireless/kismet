@@ -132,6 +132,8 @@ public:
 	void LoadPlugin(string in_fname, string in_objname);
 	vector<panel_plugin_meta *> *FetchPluginVec() { return &plugin_vec; }
 
+	Kis_Main_Panel *FetchMainPanel() { return mainp; }
+
 	// Public so we don't have pointless wrappers
 	ConfigFile prefs;
 	Kis_Panel_Color colors;
@@ -149,6 +151,8 @@ protected:
 
 	vector<panel_plugin_meta *> plugin_vec;
 	KisPanelPluginData plugdata;
+
+	Kis_Main_Panel *mainp;
 };
 
 #endif // panel

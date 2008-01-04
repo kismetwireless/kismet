@@ -489,6 +489,7 @@ public:
 	// Title format data
 	typedef struct title_data {
 		int width;
+		int draw_width;
 		string title;
 		int alignment;
 	};
@@ -504,6 +505,23 @@ public:
 	virtual int ReplaceRow(int in_key, vector<string> in_fields);
 	// Get the selected key
 	virtual int GetSelected();
+	// Clear all raws
+	virtual void Clear();
+
+	// Highlight the selected row
+	virtual void SetHighlightSelected(int in_set) {
+		draw_highlight_selected = in_set;
+	}
+
+	// Lock scrolling to the top of the table, ie keep the bottom
+	// visible all the time
+	virtual void SetLockScrollTop(int in_set) {
+		draw_lock_scroll_top = in_set;
+	}
+
+	virtual void SetDrawTitles(int in_set) {
+		draw_titles = in_set;
+	}
 
 	typedef struct row_data {
 		int key;
@@ -518,6 +536,8 @@ protected:
 	int scroll_pos;
 	int hscroll_pos;
 	int selected;
+
+	int draw_lock_scroll_top, draw_highlight_selected, draw_titles;
 };
 
 enum KisWidget_LabelPos {

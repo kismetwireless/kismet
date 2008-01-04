@@ -171,6 +171,8 @@ KisPanelInterface::KisPanelInterface(GlobalRegistry *in_globalreg) :
 	// Fill the plugin paths if they haven't been found
 
 	addcb_ref = 0;
+
+	mainp = NULL;
 }
 
 KisPanelInterface::~KisPanelInterface() {
@@ -194,6 +196,9 @@ void KisPanelInterface::AddPanel(Kis_Panel *in_panel) {
 
 	if (plugdata.mainpanel == NULL)
 		plugdata.mainpanel = (Kis_Main_Panel *) in_panel;
+
+	if (mainp == NULL)
+		mainp = (Kis_Main_Panel *) in_panel;
 }
 
 int KisPanelInterface::LoadPreferences() {

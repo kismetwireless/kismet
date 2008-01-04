@@ -647,11 +647,9 @@ void Kis_Panel_Packbox::Pack_Widgets() {
 
 		// Disperse the bucket over the items we have left
 		if ((*i).fill != 0 && num_fill != 0) {
-			int delta = bucket / num_fill;
-			bucket = bucket - delta;
+			pp = bucket / num_fill;
+			bucket = bucket - pp;
 			num_fill--;
-			
-			pp = delta;
 		}
 
 		if (packing == 0) {
@@ -1744,6 +1742,10 @@ Kis_Scrollable_Table::Kis_Scrollable_Table(GlobalRegistry *in_globalreg,
 	selected = -1;
 
 	SetMinSize(0, 3);
+
+	draw_lock_scroll_top = 0;
+	draw_highlight_selected = 1;
+	draw_titles = 1;
 }
 
 Kis_Scrollable_Table::~Kis_Scrollable_Table() {
@@ -1758,27 +1760,58 @@ void Kis_Scrollable_Table::DrawComponent() {
 
 	// Current character position x
 	int xcur = 0;
+	int ycur = 0;
 	string ftxt;
 
-	// Print across the titles
-	wattron(window, WA_UNDERLINE);
-	for (unsigned int x = hscroll_pos; x < title_vec.size() && xcur < lx; x++) {
+	// Assign widths to '0' sized things by dividing what's left
+	// into them.  We'll assume the caller doesn't generate a horizontally
+	// scrollable table with variable width fields.
+	int ndynf = 0, spare = lx;
+	for (unsigned int x = 0; x < title_vec.size(); x++) {
+		title_vec[x].draw_width = title_vec[x].width;
 
-		int w = title_vec[x].width;
+		if (title_vec[x].width < 0)
+			continue;
 
-		if (xcur + w >= ex)
-			w = lx - xcur;
+		if (title_vec[x].width == 0) {
+			ndynf++;
+			continue;
+		}
 
-		// Align the field w/in the width
-		ftxt = AlignString(title_vec[x].title, ' ', title_vec[x].alignment, w);
-	
-		// Write it out
-		mvwaddstr(window, sy, sx + xcur, ftxt.c_str());
-
-		// Advance by the width + 1
-		xcur += w + 1;
+		spare -= (title_vec[x].draw_width + 1);
 	}
-	wattroff(window, WA_UNDERLINE);
+	// Distribute the spare over the rest
+	if (spare > 0) {
+		for (unsigned int x = 0; x < title_vec.size() && ndynf > 0; x++) {
+			if (title_vec[x].width == 0) {
+				title_vec[x].draw_width = spare / ndynf;
+				spare -= spare / ndynf--;
+			}
+		}
+	}
+
+	// Print across the titles
+	if (draw_titles) {
+		wattron(window, WA_UNDERLINE);
+		for (unsigned int x = hscroll_pos; x < title_vec.size() && xcur < lx; x++) {
+
+			int w = title_vec[x].draw_width;
+
+			if (xcur + w >= ex)
+				w = lx - xcur;
+
+			// Align the field w/in the width
+			ftxt = AlignString(title_vec[x].title, ' ', title_vec[x].alignment, w);
+
+			// Write it out
+			mvwaddstr(window, sy, sx + xcur, ftxt.c_str());
+
+			// Advance by the width + 1
+			xcur += w + 1;
+		}
+		wattroff(window, WA_UNDERLINE);
+		ycur += 1;
+	}
 
 	if ((int) data_vec.size() > ly) {
 		// Draw the scroll bar
@@ -1793,19 +1826,18 @@ void Kis_Scrollable_Table::DrawComponent() {
 	}
 
 	// Jump to the scroll location to start drawing rows
-	int ycur = 1;
 	for (unsigned int r = scroll_pos; r < data_vec.size() && ycur < ly; r++) {
 		// Print across
 		xcur = 0;
 
-		if ((int) r == selected) {
+		if ((int) r == selected && draw_highlight_selected) {
 			wattron(window, WA_REVERSE);
 			mvwhline(window, sy + ycur, sx, ' ', lx);
 		}
 
 		for (unsigned int x = hscroll_pos; x < data_vec[r]->data.size() &&
 			 xcur < lx && x < title_vec.size(); x++) {
-			int w = title_vec[x].width;
+			int w = title_vec[x].draw_width;
 
 			if (xcur + w >= lx)
 				w = lx - xcur;
@@ -1817,7 +1849,7 @@ void Kis_Scrollable_Table::DrawComponent() {
 			xcur += w + 1;
 		}
 
-		if ((int) r == selected)
+		if ((int) r == selected && draw_highlight_selected)
 			wattroff(window, WA_REVERSE);
 
 		ycur += 1;
@@ -1850,9 +1882,18 @@ int Kis_Scrollable_Table::KeyPress(int in_key) {
 	}
 
 	if (in_key == KEY_DOWN && selected < (int) data_vec.size() - 1) {
-		selected++;
-		if (scrollable && scroll_pos + ly - 1 <= selected) {
+		// If we're locked to always keep the list filled, we can only
+		// scroll until the bottom is visible.  This implies we don't 
+		// show the selected row, too
+		if (draw_lock_scroll_top && scrollable &&
+			scroll_pos + ly - 1 <= selected) {
+			selected++;
 			scroll_pos++;
+		} else {
+			selected++;
+			if (scrollable && scroll_pos + ly - 1 <= selected) {
+				scroll_pos++;
+			}
 		}
 	}
 
@@ -1952,6 +1993,16 @@ int Kis_Scrollable_Table::ReplaceRow(int in_key, vector<string> in_fields) {
 	}
 
 	return 1;
+}
+
+void Kis_Scrollable_Table::Clear() {
+	for (unsigned int x = 0; x < data_vec.size(); x++) 
+		delete data_vec[x];
+
+	data_vec.clear();
+	key_map.clear();
+
+	return;
 }
 
 Kis_Single_Input::Kis_Single_Input(GlobalRegistry *in_globalreg, 

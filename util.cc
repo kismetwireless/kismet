@@ -25,6 +25,7 @@
 #include <fcntl.h>
 #include <stdarg.h>
 #include <math.h>
+#include <string.h>
 
 #ifdef HAVE_LIBUTIL_H
 # include <libutil.h>

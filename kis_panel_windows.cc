@@ -33,6 +33,8 @@
 #include "kis_panel_windows.h"
 #include "kis_panel_preferences.h"
 
+#define WIN_CENTER(h, w)	(LINES / 2) - ((h) / 2), (COLS / 2) - ((w) / 2), (h), (w)
+
 Kis_Main_Panel::Kis_Main_Panel(GlobalRegistry *in_globalreg, 
 							   KisPanelInterface *in_intf) : 
 	Kis_Panel(in_globalreg, in_intf) {
@@ -62,6 +64,9 @@ Kis_Main_Panel::Kis_Main_Panel(GlobalRegistry *in_globalreg,
 	mi_sort_ssid = menu->AddMenuItem("SSID", mn_sort, 's');
 	mi_sort_packets = menu->AddMenuItem("Packets", mn_sort, 'p');
 	mi_sort_packets_d = menu->AddMenuItem("Packets (descending)", mn_sort, 'P');
+
+	mn_view = menu->AddMenu("View", 0);
+	mi_netdetails = menu->AddMenuItem("Network Details", mn_view, 'd');
 
 	mn_tools = menu->AddMenu("Tools", 0);
 	mi_addcard = menu->AddMenuItem("Add Source...", mn_tools, 'A');
@@ -187,7 +192,7 @@ void Kis_Main_Panel::Position(int in_sy, int in_sx, int in_y, int in_x) {
 	menu->SetPosition(1, 0, 0, 0);
 
 	// All we have to do is position the main box now
-	vbox->SetPosition(in_sx + 1, in_sy + 1, in_x - 1, in_y - 2);
+	vbox->SetPosition(1, 1, in_x - 1, in_y - 2);
 
 	/*
 	netlist->SetPosition(in_sx + 2, in_sy + 1, in_x - 15, in_y - 8);
@@ -240,7 +245,7 @@ int Kis_Main_Panel::KeyPress(int in_key) {
 			return -1;
 		} else if (ret == mi_connect) {
 			Kis_Connect_Panel *cp = new Kis_Connect_Panel(globalreg, kpinterface);
-			cp->Position((LINES / 2) - 4, (COLS / 2) - 20, 8, 40);
+			cp->Position(WIN_CENTER(8, 40));
 			kpinterface->AddPanel(cp);
 		} else if (ret == mi_disconnect) {
 			if (clivec->size() > 0) {
@@ -268,6 +273,10 @@ int Kis_Main_Panel::KeyPress(int in_key) {
 			kpinterface->prefs.SetOpt("NETLIST_SORT", "packets", 1);
 		} else if (ret == mi_sort_packets_d) {
 			kpinterface->prefs.SetOpt("NETLIST_SORT", "packets_desc", 1);
+		} else if (ret == mi_netdetails) {
+			Kis_NetDetails_Panel *dp = new Kis_NetDetails_Panel(globalreg, kpinterface);
+			dp->Position(WIN_CENTER(LINES - 3, COLS - 5));
+			kpinterface->AddPanel(dp);
 		} else if (ret == mi_addcard) {
 			vector<KisNetClient *> *cliref = kpinterface->FetchNetClientVecPtr();
 			if (cliref->size() == 0) {
@@ -1198,6 +1207,234 @@ int Kis_Plugin_Picker::KeyPress(int in_key) {
 	// component
 	if (active_component != NULL) {
 		ret = active_component->KeyPress(in_key);
+	}
+
+	return 0;
+}
+
+Kis_NetDetails_Panel::Kis_NetDetails_Panel(GlobalRegistry *in_globalreg, 
+									 KisPanelInterface *in_intf) :
+	Kis_Panel(in_globalreg, in_intf) {
+
+	// Details scroll list doesn't get the current one highlighted and
+	// doesn't draw titles, also lock to fit inside the window
+	netdetails = new Kis_Scrollable_Table(globalreg, this);
+	netdetails->SetHighlightSelected(0);
+	netdetails->SetLockScrollTop(1);
+	netdetails->SetDrawTitles(0);
+	comp_vec.push_back(netdetails);
+
+	// We need to populate the titles even if we don't use them so that
+	// the row handler knows how to draw them
+	vector<Kis_Scrollable_Table::title_data> titles;
+	Kis_Scrollable_Table::title_data t;
+	t.width = 12;
+	t.title = "field";
+	t.alignment = 2;
+	titles.push_back(t);
+	t.width = 0;
+	t.title = "value";
+	t.alignment = 0;
+	titles.push_back(t);
+
+	netdetails->AddTitles(titles);
+
+	active_component = netdetails;
+
+	netdetails->Show();
+	netdetails->Activate(1);
+
+	SetTitle("");
+
+	vbox = new Kis_Panel_Packbox(globalreg, this);
+	vbox->SetPackV();
+	vbox->SetHomogenous(0);
+	vbox->SetSpacing(0);
+	vbox->Show();
+
+	vbox->Pack_End(netdetails, 1, 0);
+
+	comp_vec.push_back(vbox);
+
+	last_dirty = 0;
+	last_mac = mac_addr(0);
+	dng = NULL;
+
+	vector<string> td;
+	td.push_back("");
+	td.push_back("No network selected / Empty network selected");
+	netdetails->AddRow(0, td);
+}
+
+Kis_NetDetails_Panel::~Kis_NetDetails_Panel() {
+
+}
+
+void Kis_NetDetails_Panel::Position(int in_sy, int in_sx, int in_y, int in_x) {
+	Kis_Panel::Position(in_sy, in_sx, in_y, in_x);
+
+	// All we have to do is position the main box now
+	vbox->SetPosition(1, 1, in_x - 1, in_y - 2);
+}
+
+int Kis_NetDetails_Panel::AppendNetworkInfo(int k, Kis_Display_NetGroup *tng,
+											Netracker::tracked_network *net) {
+	vector<string> td;
+	ostringstream osstr;
+
+	td.push_back("");
+	td.push_back("");
+
+	td[0] = "Name:";
+	td[1] = dng->GetName(net);
+	netdetails->AddRow(k++, td);
+
+	// Use the display metanet if we haven't been given one
+	if (net == NULL)
+		net = dng->FetchNetwork();
+
+	// Catch nulls just incase
+	if (net == NULL)
+		return k;
+
+	td[0] = "Type:";
+	if (net->type == network_ap)
+		td[1] = "Access Point (Managed/Infrastructure)";
+	else if (net->type == network_probe)
+		td[1] = "Probe (Client)";
+	else if (net->type == network_turbocell)
+		td[1] = "Turbocell";
+	else if (net->type == network_data)
+		td[1] = "Data Only (No management)";
+	else if (net->type == network_mixed)
+		td[1] = "Mixed (Multiple network types in group)";
+	else
+		td[1] = "Unknown";
+	netdetails->AddRow(k++, td);
+
+	if (net->lastssid != NULL) {
+		td[0] = "Last ssid:";
+		td[1] = net->lastssid->ssid;
+		netdetails->AddRow(k++, td);
+
+		td[0] = "Encryption:";
+		td[1] = "";
+		if (net->lastssid->cryptset == 0)
+			td[1] = "None (Open)";
+		if (net->lastssid->cryptset == crypt_wep)
+			td[1] = "WEP (Privacy bit set)";
+		if (net->lastssid->cryptset & crypt_layer3)
+			td[1] += " Layer3";
+		if (net->lastssid->cryptset & crypt_wep40)
+			td[1] += " WEP40";
+		if (net->lastssid->cryptset & crypt_wep104)
+			td[1] += " WEP104";
+		if (net->lastssid->cryptset & crypt_wpa)
+			td[1] += " WPA";
+		if (net->lastssid->cryptset & crypt_tkip)
+			td[1] += " TKIP";
+		if (net->lastssid->cryptset & crypt_psk)
+			td[1] += " PSK";
+		if (net->lastssid->cryptset & crypt_aes_ocb)
+			td[1] += " AES-OCB";
+		if (net->lastssid->cryptset & crypt_aes_ccm)
+			td[1] += " AES-CCM";
+		if (net->lastssid->cryptset & crypt_leap)
+			td[1] += " LEAP";
+		if (net->lastssid->cryptset & crypt_ttls)
+			td[1] += " TTLS";
+		if (net->lastssid->cryptset & crypt_tls)
+			td[1] += " TLS";
+		if (net->lastssid->cryptset & crypt_peap)
+			td[1] += " PEAP";
+		if (net->lastssid->cryptset & crypt_isakmp)
+			td[1] += " ISA-KMP";
+		if (net->lastssid->cryptset & crypt_pptp)
+			td[1] += " PPTP";
+	} 
+
+	return k;
+}
+
+void Kis_NetDetails_Panel::DrawPanel() {
+	Kis_Display_NetGroup *tng;
+	Netracker::tracked_network *meta, *tmeta;
+	int update = 0;
+	vector<string> td;
+
+	int k = 0;
+
+	ColorFromPref(text_color, "panel_text_color");
+	ColorFromPref(border_color, "panel_border_color");
+
+	wbkgdset(win, text_color);
+	werase(win);
+
+	DrawTitleBorder();
+
+	// Figure out if we've changed
+	tng = kpinterface->FetchMainPanel()->FetchSelectedNetgroup();
+	if (tng != NULL) {
+		if (dng == NULL) {
+			dng = tng;
+			update = 1;
+		} else {
+			meta = dng->FetchNetwork();
+			tmeta = tng->FetchNetwork();
+
+			if (meta == NULL && tmeta != NULL) {
+				// We didn't have a valid metagroup before - we get the new one
+				dng = tng;
+				update = 1;
+			} else if (tmeta != NULL && last_mac != tmeta->bssid) {
+				// We weren't the same network before - we get the new one
+				dng = tng;
+				update = 1;
+			} else if (meta != NULL && last_dirty < meta->last_time) {
+				// The network has changed time - just update
+				update = 1;
+			}
+		}
+	} else if (dng != NULL) {
+		// We've lost a selected network entirely, drop to null and update
+		dng = NULL;
+		update = 1;
+	}
+
+	if (update) {
+		netdetails->Clear();
+		meta = dng->FetchNetwork();
+
+		if (dng != NULL && meta != NULL) {
+			k = AppendNetworkInfo(k, tng, meta);
+		} else {
+			td[0] = "";
+			td[1] = "No network selected / Empty network selected";
+			netdetails->AddRow(0, td);
+		}
+	}
+
+	wattrset(win, text_color);
+	for (unsigned int x = 0; x < comp_vec.size(); x++)
+		comp_vec[x]->DrawComponent();
+}
+
+int Kis_NetDetails_Panel::KeyPress(int in_key) {
+	int ret;
+
+	// Rotate through the tabbed items
+	if (in_key == '\t') {
+		tab_components[tab_pos]->Deactivate();
+		tab_pos++;
+		if (tab_pos >= (int) tab_components.size())
+			tab_pos = 0;
+		tab_components[tab_pos]->Activate(1);
+		active_component = tab_components[tab_pos];
+	}
+
+	if (active_component != NULL) {
+		ret = active_component->KeyPress(in_key);
+
 	}
 
 	return 0;

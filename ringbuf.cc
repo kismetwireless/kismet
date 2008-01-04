@@ -17,6 +17,7 @@
 */
 
 #include "ringbuf.h"
+#include <string.h>
 
 RingBuffer::RingBuffer(int in_size) {
     ring_len = in_size;

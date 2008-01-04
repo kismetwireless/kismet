@@ -88,6 +88,8 @@ protected:
 		mi_sort_first_d, mi_sort_last, mi_sort_last_d, mi_sort_bssid, mi_sort_ssid,
 		mi_sort_packets, mi_sort_packets_d;
 
+	int mn_view, mi_netdetails;
+
 	int mn_tools, mi_addcard;
 
 	int mn_plugins, mi_addplugin, mi_noplugins;
@@ -284,6 +286,35 @@ public:
 protected:
 	Kis_Scrollable_Table *pluglist;
 	vector<panel_plugin_meta> listedplugins;
+};
+
+class Kis_NetDetails_Panel : public Kis_Panel {
+public:
+	Kis_NetDetails_Panel() {
+		fprintf(stderr, "FATAL OOPS: Kis_NetDetails_Panel called w/out globalreg\n");
+		exit(1);
+	}
+
+	Kis_NetDetails_Panel(GlobalRegistry *in_globalreg, KisPanelInterface *in_kpf);
+	virtual ~Kis_NetDetails_Panel();
+
+	virtual void Position(int in_sy, int in_sx, int in_y, int in_x);
+	virtual void DrawPanel();
+	virtual int KeyPress(int in_key);
+
+protected:
+	int AppendNetworkInfo(int k, Kis_Display_NetGroup *tng, 
+						  Netracker::tracked_network *net);
+
+	Kis_Panel_Packbox *vbox, *bbox;
+	Kis_Scrollable_Table *netdetails;
+
+	vector<Kis_Panel_Component *> tab_components;
+	int tab_pos;
+
+	time_t last_dirty;
+	mac_addr last_mac;
+	Kis_Display_NetGroup *dng;
 };
 
 #endif

@@ -709,7 +709,7 @@ int KisBuiltinDissector::ieee80211_dissector(kis_packet *in_pack) {
 					} else {
 						packinfo->ssid_blank = 1;
 					}
-                } else {
+                } else { 
                     // Otherwise we're corrupt, set it and stop processing
                     packinfo->corrupt = 1;
                     in_pack->insert(_PCM(PACK_COMP_80211), packinfo);
@@ -1003,8 +1003,9 @@ int KisBuiltinDissector::ieee80211_dissector(kis_packet *in_pack) {
             
             // If beacons don't have a SSID and a basicrate then we consider them
             // corrupt
-            if (found_ssid_tag == 0 || found_rate_tag == 0)
+            if (found_ssid_tag == 0 || found_rate_tag == 0) {
                 packinfo->corrupt = 1;
+			}
 
             /*
             if (ret_packinfo->ess == 0) {
