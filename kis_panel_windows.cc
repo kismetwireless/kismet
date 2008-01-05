@@ -28,6 +28,9 @@
 #include <unistd.h>
 #include <dirent.h>
 
+#include <sstream>
+#include <iomanip>
+
 #include "kis_panel_widgets.h"
 #include "kis_panel_frontend.h"
 #include "kis_panel_windows.h"
@@ -1244,6 +1247,29 @@ Kis_NetDetails_Panel::Kis_NetDetails_Panel(GlobalRegistry *in_globalreg,
 	netdetails->Show();
 	netdetails->Activate(1);
 
+	closebutton = new Kis_Button(globalreg, this);
+	closebutton->SetText("Close");
+	closebutton->Show();
+
+	nextbutton = new Kis_Button(globalreg, this);
+	nextbutton->SetText("Next");
+	nextbutton->Show();
+
+	prevbutton = new Kis_Button(globalreg, this);
+	prevbutton->SetText("Prev");
+	prevbutton->Show();
+
+	bbox = new Kis_Panel_Packbox(globalreg, this);
+	bbox->SetPackH();
+	bbox->SetHomogenous(1);
+	bbox->SetSpacing(1);
+	bbox->SetCenter(1);
+	bbox->Show();
+
+	bbox->Pack_End(closebutton, 0, 0);
+	bbox->Pack_End(prevbutton, 0, 0);
+	bbox->Pack_End(nextbutton, 0, 0);
+
 	SetTitle("");
 
 	vbox = new Kis_Panel_Packbox(globalreg, this);
@@ -1253,8 +1279,18 @@ Kis_NetDetails_Panel::Kis_NetDetails_Panel(GlobalRegistry *in_globalreg,
 	vbox->Show();
 
 	vbox->Pack_End(netdetails, 1, 0);
+	vbox->Pack_End(bbox, 0, 0);
 
 	comp_vec.push_back(vbox);
+	comp_vec.push_back(closebutton);
+	comp_vec.push_back(prevbutton);
+	comp_vec.push_back(nextbutton);
+
+	tab_components.push_back(netdetails);
+	tab_components.push_back(closebutton);
+	tab_components.push_back(prevbutton);
+	tab_components.push_back(nextbutton);
+	tab_pos = 0;
 
 	last_dirty = 0;
 	last_mac = mac_addr(0);
@@ -1296,6 +1332,10 @@ int Kis_NetDetails_Panel::AppendNetworkInfo(int k, Kis_Display_NetGroup *tng,
 	// Catch nulls just incase
 	if (net == NULL)
 		return k;
+
+	td[0] = "BSSID:";
+	td[1] = net->bssid.Mac2String();
+	netdetails->AddRow(k++, td);
 
 	td[0] = "Type:";
 	if (net->type == network_ap)
@@ -1351,7 +1391,56 @@ int Kis_NetDetails_Panel::AppendNetworkInfo(int k, Kis_Display_NetGroup *tng,
 			td[1] += " ISA-KMP";
 		if (net->lastssid->cryptset & crypt_pptp)
 			td[1] += " PPTP";
-	} 
+		netdetails->AddRow(k++, td);
+
+		td[0] = "Beacon %:";
+		if (net->lastssid->beacons > net->lastssid->beaconrate)
+			net->lastssid->beacons = net->lastssid->beaconrate;
+		osstr.str("");
+		osstr << setw(3) << ((double) net->lastssid->beacons /
+				  (double) net->lastssid->beaconrate) * 100;
+		td[1] = osstr.str();
+		netdetails->AddRow(k++, td);
+
+	} else {
+		td[0] = "Encryption:";
+		td[1] = "No info available";
+		netdetails->AddRow(k++, td);
+	}
+
+	td[0] = "Channel:";
+	if (net->channel) {
+		osstr.str("");
+		osstr << net->channel;
+		td[1] = osstr.str();
+	} else {
+		td[1] = "No channel info available";
+	}
+	netdetails->AddRow(k++, td);
+
+	td[0] = "Packets:";
+	osstr.str("");
+	osstr << net->llc_packets + net->data_packets;
+	td[1] = osstr.str();
+	netdetails->AddRow(k++, td);
+
+	td[0] = "Data Pkts:";
+	osstr.str("");
+	osstr << net->data_packets;
+	td[1] = osstr.str();
+	netdetails->AddRow(k++, td);
+
+	td[0] = "Mgmt Pkts:";
+	osstr.str("");
+	osstr << net->llc_packets;
+	td[1] = osstr.str();
+	netdetails->AddRow(k++, td);
+
+	td[0] = "Crypt Pkts:";
+	osstr.str("");
+	osstr << net->crypt_packets;
+	td[1] = osstr.str();
+	netdetails->AddRow(k++, td);
 
 	return k;
 }
@@ -1435,6 +1524,16 @@ int Kis_NetDetails_Panel::KeyPress(int in_key) {
 	if (active_component != NULL) {
 		ret = active_component->KeyPress(in_key);
 
+		if (active_component == closebutton && ret == 1) {
+			globalreg->panel_interface->KillPanel(this);
+		} else if (active_component == nextbutton && ret == 1) {
+			kpinterface->FetchMainPanel()->FetchDisplayNetlist()->KeyPress(KEY_DOWN);
+			dng = NULL;
+		} else if (active_component == prevbutton && ret == 1) {
+			kpinterface->FetchMainPanel()->FetchDisplayNetlist()->KeyPress(KEY_UP);
+			dng = NULL;
+		}
+			
 	}
 
 	return 0;

@@ -54,6 +54,7 @@ public:
 	// Passthrough to the display group
 	virtual Kis_Display_NetGroup *FetchSelectedNetgroup();
 	virtual vector<Kis_Display_NetGroup *> *FetchDisplayNetgroupVector();
+	virtual Kis_Netlist *FetchDisplayNetlist() { return netlist; }
 
 	// Add a plugin to the plugin menu
 	virtual void AddPluginMenuItem(string in_name, int (*callback)(void *),
@@ -315,6 +316,7 @@ protected:
 	time_t last_dirty;
 	mac_addr last_mac;
 	Kis_Display_NetGroup *dng;
+	Kis_Button *closebutton, *prevbutton, *nextbutton;
 };
 
 #endif
