@@ -6347,7 +6347,7 @@ else
 fi
 
 
-# Check for Hildon (Maemo environment)
+# Check for Hildon and friends (Maemo environment)
 
 
 if test "x$ac_cv_env_PKG_CONFIG_set" != "xset"; then
@@ -6478,12 +6478,12 @@ if test -n "$PKG_CONFIG"; then
         pkg_cv_pkghildon_CFLAGS="$pkghildon_CFLAGS"
     else
         if test -n "$PKG_CONFIG" && \
-    { (echo "$as_me:$LINENO: \$PKG_CONFIG --exists --print-errors \"hildon-1\"") >&5
-  ($PKG_CONFIG --exists --print-errors "hildon-1") 2>&5
+    { (echo "$as_me:$LINENO: \$PKG_CONFIG --exists --print-errors \"hildon-1 hildon-help dbus-1 conic\"") >&5
+  ($PKG_CONFIG --exists --print-errors "hildon-1 hildon-help dbus-1 conic") 2>&5
   ac_status=$?
   echo "$as_me:$LINENO: \$? = $ac_status" >&5
   (exit $ac_status); }; then
-  pkg_cv_pkghildon_CFLAGS=`$PKG_CONFIG --cflags "hildon-1" 2>/dev/null`
+  pkg_cv_pkghildon_CFLAGS=`$PKG_CONFIG --cflags "hildon-1 hildon-help dbus-1 conic" 2>/dev/null`
 else
   pkg_failed=yes
 fi
@@ -6496,12 +6496,12 @@ if test -n "$PKG_CONFIG"; then
         pkg_cv_pkghildon_LIBS="$pkghildon_LIBS"
     else
         if test -n "$PKG_CONFIG" && \
-    { (echo "$as_me:$LINENO: \$PKG_CONFIG --exists --print-errors \"hildon-1\"") >&5
-  ($PKG_CONFIG --exists --print-errors "hildon-1") 2>&5
+    { (echo "$as_me:$LINENO: \$PKG_CONFIG --exists --print-errors \"hildon-1 hildon-help dbus-1 conic\"") >&5
+  ($PKG_CONFIG --exists --print-errors "hildon-1 hildon-help dbus-1 conic") 2>&5
   ac_status=$?
   echo "$as_me:$LINENO: \$? = $ac_status" >&5
   (exit $ac_status); }; then
-  pkg_cv_pkghildon_LIBS=`$PKG_CONFIG --libs "hildon-1" 2>/dev/null`
+  pkg_cv_pkghildon_LIBS=`$PKG_CONFIG --libs "hildon-1 hildon-help dbus-1 conic" 2>/dev/null`
 else
   pkg_failed=yes
 fi
@@ -6520,9 +6520,9 @@ else
         _pkg_short_errors_supported=no
 fi
         if test $_pkg_short_errors_supported = yes; then
-	        pkghildon_PKG_ERRORS=`$PKG_CONFIG --short-errors --errors-to-stdout --print-errors "hildon-1"`
+	        pkghildon_PKG_ERRORS=`$PKG_CONFIG --short-errors --errors-to-stdout --print-errors "hildon-1 hildon-help dbus-1 conic"`
         else
-	        pkghildon_PKG_ERRORS=`$PKG_CONFIG --errors-to-stdout --print-errors "hildon-1"`
+	        pkghildon_PKG_ERRORS=`$PKG_CONFIG --errors-to-stdout --print-errors "hildon-1 hildon-help dbus-1 conic"`
         fi
 	# Put the nasty error message in config.log where it belongs
 	echo "$pkghildon_PKG_ERRORS" >&5
@@ -6545,8 +6545,8 @@ cat >>confdefs.h <<\_ACEOF
 #define HAVE_HILDON 1
 _ACEOF
 
-	CFLAGS="$CFLAGS `pkg-config hildon-1 hildon-help dbus-1`"
-	LIBS="$LIBS `pkg-config hildon-1 hildon-help dbus-1 --libs`"
+	CFLAGS="$CFLAGS `pkg-config hildon-1 hildon-help dbus-1 conic --cflags`"
+	LIBS="$LIBS `pkg-config hildon-1 hildon-help dbus-1 conic --libs`"
 fi
 
 # Checks for libraries.

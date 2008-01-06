@@ -297,12 +297,12 @@ else
 fi
 AC_SUBST(mangrp)
 
-# Check for Hildon (Maemo environment)
-PKG_CHECK_MODULES(pkghildon, [hildon-1], pkghildon=yes, pkghildon=no)
+# Check for Hildon and friends (Maemo environment)
+PKG_CHECK_MODULES(pkghildon, [hildon-1 hildon-help dbus-1 conic], pkghildon=yes, pkghildon=no)
 if test "$pkghildon" = "yes"; then
 	AC_DEFINE(HAVE_HILDON, 1, we have libhildon)
-	CFLAGS="$CFLAGS `pkg-config hildon-1 hildon-help dbus-1`"
-	LIBS="$LIBS `pkg-config hildon-1 hildon-help dbus-1 --libs`"
+	CFLAGS="$CFLAGS `pkg-config hildon-1 hildon-help dbus-1 conic --cflags`"
+	LIBS="$LIBS `pkg-config hildon-1 hildon-help dbus-1 conic --libs`"
 fi
 
 # Checks for libraries.
