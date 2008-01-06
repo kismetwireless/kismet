@@ -39,6 +39,9 @@
 /* GPS support will be built. */
 #undef HAVE_GPS
 
+/* we have libhildon */
+#undef HAVE_HILDON
+
 /* Imagemagick image library */
 #undef HAVE_IMAGEMAGICK
 
