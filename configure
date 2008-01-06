@@ -6546,7 +6546,7 @@ cat >>confdefs.h <<\_ACEOF
 _ACEOF
 
 	CFLAGS="$CFLAGS `pkg-config hildon-1 hildon-help dbus-1`"
-	LDFLAGS="$LDFLAGS `pkg-config hildon-1 hildon-help dbus-1 --ldflags --libs`"
+	LDFLAGS="$LDFLAGS `pkg-config hildon-1 hildon-help dbus-1 --libs`"
 fi
 
 # Checks for libraries.
