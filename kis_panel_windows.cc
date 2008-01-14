@@ -278,7 +278,7 @@ int Kis_Main_Panel::KeyPress(int in_key) {
 			kpinterface->prefs.SetOpt("NETLIST_SORT", "packets_desc", 1);
 		} else if (ret == mi_netdetails) {
 			Kis_NetDetails_Panel *dp = new Kis_NetDetails_Panel(globalreg, kpinterface);
-			dp->Position(WIN_CENTER(LINES - 3, COLS - 5));
+			dp->Position(WIN_CENTER(LINES, COLS));
 			kpinterface->AddPanel(dp);
 		} else if (ret == mi_addcard) {
 			vector<KisNetClient *> *cliref = kpinterface->FetchNetClientVecPtr();
@@ -1337,6 +1337,18 @@ int Kis_NetDetails_Panel::AppendNetworkInfo(int k, Kis_Display_NetGroup *tng,
 	td[1] = net->bssid.Mac2String();
 	netdetails->AddRow(k++, td);
 
+	td[0] = "First Seen:";
+	osstr.str("");
+	osstr << setw(15) << left << (ctime((const time_t *) &(net->first_time)) + 4);
+	td[1] = osstr.str();
+	netdetails->AddRow(k++, td);
+
+	td[0] = "Last Seen:";
+	osstr.str("");
+	osstr << setw(15) << left << (ctime((const time_t *) &(net->last_time)) + 4);
+	td[1] = osstr.str();
+	netdetails->AddRow(k++, td);
+
 	td[0] = "Type:";
 	if (net->type == network_ap)
 		td[1] = "Access Point (Managed/Infrastructure)";
@@ -1350,6 +1362,15 @@ int Kis_NetDetails_Panel::AppendNetworkInfo(int k, Kis_Display_NetGroup *tng,
 		td[1] = "Mixed (Multiple network types in group)";
 	else
 		td[1] = "Unknown";
+	netdetails->AddRow(k++, td);
+
+	td[0] = "Channel:";
+	osstr.str("");
+	if (net->channel != 0)
+		osstr << net->channel;
+	else
+		osstr << "No channel identifying information seen";
+	td[1] = osstr.str();
 	netdetails->AddRow(k++, td);
 
 	if (net->lastssid != NULL) {
@@ -1397,7 +1418,7 @@ int Kis_NetDetails_Panel::AppendNetworkInfo(int k, Kis_Display_NetGroup *tng,
 		if (net->lastssid->beacons > net->lastssid->beaconrate)
 			net->lastssid->beacons = net->lastssid->beaconrate;
 		osstr.str("");
-		osstr << setw(3) << ((double) net->lastssid->beacons /
+		osstr << setw(3) << left << ((double) net->lastssid->beacons /
 				  (double) net->lastssid->beaconrate) * 100;
 		td[1] = osstr.str();
 		netdetails->AddRow(k++, td);
@@ -1439,6 +1460,29 @@ int Kis_NetDetails_Panel::AppendNetworkInfo(int k, Kis_Display_NetGroup *tng,
 	td[0] = "Crypt Pkts:";
 	osstr.str("");
 	osstr << net->crypt_packets;
+	td[1] = osstr.str();
+	netdetails->AddRow(k++, td);
+
+	td[0] = "Fragments:";
+	osstr.str("");
+	osstr << net->fragments;
+	td[1] = osstr.str();
+	netdetails->AddRow(k++, td);
+
+	td[0] = "Retries:";
+	osstr.str("");
+	osstr << net->retries;
+	td[1] = osstr.str();
+	netdetails->AddRow(k++, td);
+
+	td[0] = "Bytes:";
+	osstr.str("");
+	if (net->datasize < 1024) 
+		osstr << net->datasize << "B";
+	else if (net->datasize < (1024 * 1024)) 
+		osstr << (int) (net->datasize / 1024) << "K";
+	else 
+		osstr << (int) (net->datasize / 1024 / 1024) << "M";
 	td[1] = osstr.str();
 	netdetails->AddRow(k++, td);
 
@@ -1493,8 +1537,15 @@ void Kis_NetDetails_Panel::DrawPanel() {
 	if (update) {
 		netdetails->Clear();
 		meta = dng->FetchNetwork();
+		k = 0;
+		td.push_back("");
+		td.push_back("");
 
 		if (dng != NULL && meta != NULL) {
+			td[0] = "";
+			td[1] = "Group";
+			netdetails->AddRow(k++, td);
+
 			k = AppendNetworkInfo(k, tng, meta);
 		} else {
 			td[0] = "";
