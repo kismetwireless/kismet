@@ -89,7 +89,7 @@ protected:
 		mi_sort_first_d, mi_sort_last, mi_sort_last_d, mi_sort_bssid, mi_sort_ssid,
 		mi_sort_packets, mi_sort_packets_d;
 
-	int mn_view, mi_netdetails;
+	int mn_view, mi_netdetails, mi_showsummary, mi_showstatus;
 
 	int mn_tools, mi_addcard;
 
@@ -112,6 +112,7 @@ protected:
 	vector<Kis_Main_Panel::plugin_menu_opt> plugin_menu_vec;
 
 	virtual void UpdateSortMenu();
+	virtual void UpdateViewMenu(int mi);
 
 	virtual void SpawnColorPrefs();
 	virtual void SpawnServerPrefs();

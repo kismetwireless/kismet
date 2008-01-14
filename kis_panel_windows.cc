@@ -70,6 +70,9 @@ Kis_Main_Panel::Kis_Main_Panel(GlobalRegistry *in_globalreg,
 
 	mn_view = menu->AddMenu("View", 0);
 	mi_netdetails = menu->AddMenuItem("Network Details", mn_view, 'd');
+	menu->AddMenuItem("-", mn_view, 0);
+	mi_showsummary = menu->AddMenuItem("Summary", mn_view, 'S');
+	mi_showstatus = menu->AddMenuItem("Status", mn_view, 's');
 
 	mn_tools = menu->AddMenu("Tools", 0);
 	mi_addcard = menu->AddMenuItem("Add Source...", mn_tools, 'A');
@@ -182,6 +185,8 @@ Kis_Main_Panel::Kis_Main_Panel(GlobalRegistry *in_globalreg,
 	AddColorPref("status_normal_color", "Status Text");
 	AddColorPref("info_normal_color", "Info Pane");
 
+	UpdateViewMenu(-1);
+
 }
 
 Kis_Main_Panel::~Kis_Main_Panel() {
@@ -280,6 +285,9 @@ int Kis_Main_Panel::KeyPress(int in_key) {
 			Kis_NetDetails_Panel *dp = new Kis_NetDetails_Panel(globalreg, kpinterface);
 			dp->Position(WIN_CENTER(LINES, COLS));
 			kpinterface->AddPanel(dp);
+		} else if (ret == mi_showsummary ||
+				   ret == mi_showstatus) {
+			UpdateViewMenu(ret);
 		} else if (ret == mi_addcard) {
 			vector<KisNetClient *> *cliref = kpinterface->FetchNetClientVecPtr();
 			if (cliref->size() == 0) {
@@ -494,6 +502,54 @@ void Kis_Main_Panel::UpdateSortMenu() {
 		menu->SetMenuItemChecked(mi_sort_packets_d, 1);
 	else
 		menu->SetMenuItemChecked(mi_sort_packets_d, 0);
+}
+
+void Kis_Main_Panel::UpdateViewMenu(int mi) {
+	string opt;
+
+	if (mi == mi_showsummary) {
+		opt = kpinterface->prefs.FetchOpt("MAIN_SHOWSUMMARY");
+		if (opt == "" || opt == "true") {
+			kpinterface->prefs.SetOpt("MAIN_SHOWSUMMARY", "false", 1);
+			menu->SetMenuItemChecked(mi_showsummary, 0);
+			optbox->Hide();
+		} else {
+			kpinterface->prefs.SetOpt("MAIN_SHOWSUMMARY", "true", 1);
+			menu->SetMenuItemChecked(mi_showsummary, 1);
+			optbox->Show();
+		}
+	} else if (mi == mi_showstatus) {
+		opt = kpinterface->prefs.FetchOpt("MAIN_SHOWSTATUS");
+		if (opt == "" || opt == "true") {
+			kpinterface->prefs.SetOpt("MAIN_SHOWSTATUS", "false", 1);
+			menu->SetMenuItemChecked(mi_showstatus, 0);
+			statustext->Hide();
+		} else {
+			kpinterface->prefs.SetOpt("MAIN_SHOWSTATUS", "true", 1);
+			menu->SetMenuItemChecked(mi_showstatus, 1);
+			statustext->Show();
+		}
+	}
+
+	if (mi == -1) {
+		opt = kpinterface->prefs.FetchOpt("MAIN_SHOWSUMMARY");
+		if (opt == "" || opt == "true") {
+			menu->SetMenuItemChecked(mi_showsummary, 1);
+			optbox->Show();
+		} else {
+			menu->SetMenuItemChecked(mi_showsummary, 0);
+			optbox->Hide();
+		}
+
+		opt = kpinterface->prefs.FetchOpt("MAIN_SHOWSTATUS");
+		if (opt == "" || opt == "true") {
+			menu->SetMenuItemChecked(mi_showstatus, 1);
+			statustext->Show();
+		} else {
+			menu->SetMenuItemChecked(mi_showstatus, 0);
+			statustext->Hide();
+		}
+	}
 }
 
 Kis_Connect_Panel::Kis_Connect_Panel(GlobalRegistry *in_globalreg, 
@@ -1322,7 +1378,13 @@ int Kis_NetDetails_Panel::AppendNetworkInfo(int k, Kis_Display_NetGroup *tng,
 	td.push_back("");
 
 	td[0] = "Name:";
-	td[1] = dng->GetName(net);
+	td[1] = tng->GetName(net);
+	netdetails->AddRow(k++, td);
+
+	td[0] = "# Networks:";
+	osstr.str("");
+	osstr << tng->FetchNetworkVec()->size();
+	td[1] = osstr.str();
 	netdetails->AddRow(k++, td);
 
 	// Use the display metanet if we haven't been given one
@@ -1465,13 +1527,13 @@ int Kis_NetDetails_Panel::AppendNetworkInfo(int k, Kis_Display_NetGroup *tng,
 
 	td[0] = "Fragments:";
 	osstr.str("");
-	osstr << net->fragments;
+	osstr << net->fragments << "/sec";
 	td[1] = osstr.str();
 	netdetails->AddRow(k++, td);
 
 	td[0] = "Retries:";
 	osstr.str("");
-	osstr << net->retries;
+	osstr << net->retries << "/sec";
 	td[1] = osstr.str();
 	netdetails->AddRow(k++, td);
 
@@ -1541,12 +1603,12 @@ void Kis_NetDetails_Panel::DrawPanel() {
 		td.push_back("");
 		td.push_back("");
 
-		if (dng != NULL && meta != NULL) {
+		if (dng != NULL) {
 			td[0] = "";
 			td[1] = "Group";
 			netdetails->AddRow(k++, td);
 
-			k = AppendNetworkInfo(k, tng, meta);
+			k = AppendNetworkInfo(k, tng, NULL);
 		} else {
 			td[0] = "";
 			td[1] = "No network selected / Empty network selected";

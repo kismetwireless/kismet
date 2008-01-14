@@ -232,6 +232,8 @@ string Kis_Display_NetGroup::GetName(Netracker::tracked_network *net) {
 	int usenet = 1;
 
 	if (net == NULL) {
+		if (name != "") 
+			return name;
 		net = metanet;
 		usenet = 0;
 	}
