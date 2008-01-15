@@ -48,6 +48,26 @@ Kis_Main_Panel::Kis_Main_Panel(GlobalRegistry *in_globalreg,
 	mi_connect = menu->AddMenuItem("Connect...", mn_file, 'C');
 	mi_disconnect = menu->AddMenuItem("Disconnect", mn_file, 'D');
 	menu->AddMenuItem("-", mn_file, 0);
+
+	mi_addcard = menu->AddMenuItem("Add Source...", mn_file, 'A');
+
+	menu->AddMenuItem("-", mn_file, 0);
+
+	mn_plugins = menu->AddSubMenuItem("Plugins", mn_file, 'x');
+	mi_addplugin = menu->AddMenuItem("Add Plugin...", mn_plugins, 'P');
+	menu->AddMenuItem("-", mn_plugins, 0);
+	mi_noplugins = menu->AddMenuItem("No plugins available...", mn_plugins, 0);
+	menu->DisableMenuItem(mi_noplugins);
+
+	mn_preferences = menu->AddSubMenuItem("Preferences", mn_file, 'P');
+	mi_serverprefs = menu->AddMenuItem("Servers...", mn_preferences, 'S');
+	mi_colorprefs = menu->AddMenuItem("Colors...", mn_preferences, 'C');
+	mi_netcolprefs = menu->AddMenuItem("Network Columns...", mn_preferences, 'N');
+	mi_netextraprefs = menu->AddMenuItem("Network Extras...", mn_preferences, 'E');
+	mi_infoprefs = menu->AddMenuItem("Info Pane...", mn_preferences, 'I');
+
+	menu->AddMenuItem("-", mn_file, 0);
+
 	mi_quit = menu->AddMenuItem("Quit", mn_file, 'Q');
 
 	menu->EnableMenuItem(mi_connect);
@@ -71,26 +91,8 @@ Kis_Main_Panel::Kis_Main_Panel(GlobalRegistry *in_globalreg,
 	mn_view = menu->AddMenu("View", 0);
 	mi_netdetails = menu->AddMenuItem("Network Details", mn_view, 'd');
 	menu->AddMenuItem("-", mn_view, 0);
-	mi_showsummary = menu->AddMenuItem("Summary", mn_view, 'S');
-	mi_showstatus = menu->AddMenuItem("Status", mn_view, 's');
-
-	mn_tools = menu->AddMenu("Tools", 0);
-	mi_addcard = menu->AddMenuItem("Add Source...", mn_tools, 'A');
-
-	menu->AddMenuItem("-", mn_tools, 0);
-
-	mn_plugins = menu->AddSubMenuItem("Plugins", mn_tools, 'x');
-	mi_addplugin = menu->AddMenuItem("Add Plugin...", mn_plugins, 'P');
-	menu->AddMenuItem("-", mn_plugins, 0);
-	mi_noplugins = menu->AddMenuItem("No plugins available...", mn_plugins, 0);
-	menu->DisableMenuItem(mi_noplugins);
-
-	mn_preferences = menu->AddSubMenuItem("Preferences", mn_tools, 'P');
-	mi_serverprefs = menu->AddMenuItem("Servers...", mn_preferences, 'S');
-	mi_colorprefs = menu->AddMenuItem("Colors...", mn_preferences, 'C');
-	mi_netcolprefs = menu->AddMenuItem("Network Columns...", mn_preferences, 'N');
-	mi_netextraprefs = menu->AddMenuItem("Network Extras...", mn_preferences, 'E');
-	mi_infoprefs = menu->AddMenuItem("Info Pane...", mn_preferences, 'I');
+	mi_showsummary = menu->AddMenuItem("Info Pane", mn_view, 'S');
+	mi_showstatus = menu->AddMenuItem("Status Pane", mn_view, 's');
 
 	menu->Show();
 
@@ -1401,13 +1403,13 @@ int Kis_NetDetails_Panel::AppendNetworkInfo(int k, Kis_Display_NetGroup *tng,
 
 	td[0] = "First Seen:";
 	osstr.str("");
-	osstr << setw(15) << left << (ctime((const time_t *) &(net->first_time)) + 4);
+	osstr << setw(14) << left << (ctime((const time_t *) &(net->first_time)) + 4);
 	td[1] = osstr.str();
 	netdetails->AddRow(k++, td);
 
 	td[0] = "Last Seen:";
 	osstr.str("");
-	osstr << setw(15) << left << (ctime((const time_t *) &(net->last_time)) + 4);
+	osstr << setw(14) << left << (ctime((const time_t *) &(net->last_time)) + 4);
 	td[1] = osstr.str();
 	netdetails->AddRow(k++, td);
 

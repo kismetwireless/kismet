@@ -83,20 +83,18 @@ public:
 	};
 
 protected:
-	int mn_file, mi_connect, mi_disconnect, mi_quit;
+	int mn_file, mi_connect, mi_disconnect, mi_addcard, mi_quit;
+
+	int mn_plugins, mi_addplugin, mi_noplugins;
+
+	int mn_preferences, mi_serverprefs, mi_colorprefs, mi_netcolprefs,
+		mi_netextraprefs, mi_infoprefs;
 
 	int mn_sort, mi_sort_auto, mi_sort_type, mi_sort_chan, mi_sort_first, 
 		mi_sort_first_d, mi_sort_last, mi_sort_last_d, mi_sort_bssid, mi_sort_ssid,
 		mi_sort_packets, mi_sort_packets_d;
 
 	int mn_view, mi_netdetails, mi_showsummary, mi_showstatus;
-
-	int mn_tools, mi_addcard;
-
-	int mn_plugins, mi_addplugin, mi_noplugins;
-
-	int mn_preferences, mi_serverprefs, mi_colorprefs, mi_netcolprefs,
-		mi_netextraprefs, mi_infoprefs;
 
 	int connect_enable;
 
