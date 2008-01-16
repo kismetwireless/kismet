@@ -474,11 +474,11 @@ PanelFront::PanelFront() {
 
     tainted = 0;
 
-    // Do we have an acpi info file?
-    if (access("/proc/acpi/info", R_OK) != 0) {
-        use_acpi = 0;
-    } else {
+    // Do we have an apm file?  Assume ACPI if not
+    if (access("/proc/apm", R_OK) != 0) {
         use_acpi = 1;
+    } else {
+        use_acpi = 0;
     }
 
     probe_group = NULL;
