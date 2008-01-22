@@ -1084,66 +1084,66 @@ void ProcessPacketCrypto(kis_packet *packet, packet_info *ret_packinfo,
 }
 
 void GetProtoInfo(kis_packet *packet, packet_info *in_info) {
-    /* This buffering is an unpleasant slowdown, so lets trust our code to be correct
-     * now. */
-    /*
-    u_char data[MAX_PACKET_LEN * 2];
-    memset(data, 0, MAX_PACKET_LEN * 2);
-    memcpy(data, in_data, header->len);
-    */
+	/* This buffering is an unpleasant slowdown, so lets trust our code to be correct
+	 * now. */
+	/*
+	   u_char data[MAX_PACKET_LEN * 2];
+	   memset(data, 0, MAX_PACKET_LEN * 2);
+	   memcpy(data, in_data, header->len);
+	   */
 
-    uint8_t *data;
-    // Grab the modified data if there is any, and use the normal data otherwise.
-    // This lets us handle dewepped data
-    if (packet->modified != 0)
-        data = packet->moddata;
-    else
-        data = packet->data;
+	uint8_t *data;
+	// Grab the modified data if there is any, and use the normal data otherwise.
+	// This lets us handle dewepped data
+	if (packet->modified != 0)
+		data = packet->moddata;
+	else
+		data = packet->data;
 
-    proto_info *ret_protoinfo = &(in_info->proto);
+	proto_info *ret_protoinfo = &(in_info->proto);
 
-    // Zero the entire struct
-    memset(ret_protoinfo, 0, sizeof(proto_info));
+	// Zero the entire struct
+	memset(ret_protoinfo, 0, sizeof(proto_info));
 
-    ret_protoinfo->type = proto_unknown;
+	ret_protoinfo->type = proto_unknown;
 
-    if (memcmp(&data[in_info->header_offset], LLC_UI_SIGNATURE,
-                      sizeof(LLC_UI_SIGNATURE)) == 0) {
-        // Handle all the protocols which fall under the LLC UI 0x3 frame
+	if (memcmp(&data[in_info->header_offset], LLC_UI_SIGNATURE,
+			   sizeof(LLC_UI_SIGNATURE)) == 0) {
+		// Handle all the protocols which fall under the LLC UI 0x3 frame
 
-        if (memcmp(&data[in_info->header_offset + LLC_UI_OFFSET], PROBE_LLC_SIGNATURE,
-                   sizeof(PROBE_LLC_SIGNATURE)) == 0) {
+		if (memcmp(&data[in_info->header_offset + LLC_UI_OFFSET], PROBE_LLC_SIGNATURE,
+				   sizeof(PROBE_LLC_SIGNATURE)) == 0) {
 
-            // If we have a LLC packet that looks like a netstumbler...
-            if (memcmp(&data[in_info->header_offset + NETSTUMBLER_OFFSET], 
+			// If we have a LLC packet that looks like a netstumbler...
+			if (memcmp(&data[in_info->header_offset + NETSTUMBLER_OFFSET], 
 					   NETSTUMBLER_322_SIGNATURE,
-                       sizeof(NETSTUMBLER_322_SIGNATURE)) == 0) {
-                // Netstumbler 322 says Flurble gronk bloopit, bnip Frundletrune
-                ret_protoinfo->type = proto_netstumbler;
-                ret_protoinfo->prototype_extra = 22;
-                return;
-            } else if (memcmp(&data[in_info->header_offset + NETSTUMBLER_OFFSET], 
+					   sizeof(NETSTUMBLER_322_SIGNATURE)) == 0) {
+				// Netstumbler 322 says Flurble gronk bloopit, bnip Frundletrune
+				ret_protoinfo->type = proto_netstumbler;
+				ret_protoinfo->prototype_extra = 22;
+				return;
+			} else if (memcmp(&data[in_info->header_offset + NETSTUMBLER_OFFSET], 
 							  NETSTUMBLER_323_SIGNATURE,
-                              sizeof(NETSTUMBLER_323_SIGNATURE)) == 0) {
-                // Netstumbler 323 says All your 802.11b are belong to us
-                ret_protoinfo->type = proto_netstumbler;
-                ret_protoinfo->prototype_extra = 23;
-                return;
-            } else if (memcmp(&data[in_info->header_offset + NETSTUMBLER_OFFSET], 
+							  sizeof(NETSTUMBLER_323_SIGNATURE)) == 0) {
+				// Netstumbler 323 says All your 802.11b are belong to us
+				ret_protoinfo->type = proto_netstumbler;
+				ret_protoinfo->prototype_extra = 23;
+				return;
+			} else if (memcmp(&data[in_info->header_offset + NETSTUMBLER_OFFSET], 
 							  NETSTUMBLER_330_SIGNATURE,
-                              sizeof(NETSTUMBLER_330_SIGNATURE)) == 0) {
-                // Netstumbler 330 says           Intentionally left blank
-                ret_protoinfo->type = proto_netstumbler;
-                ret_protoinfo->prototype_extra = 30;
-                return;
-            } else if (memcmp(&data[in_info->header_offset + LUCENT_OFFSET], 
+							  sizeof(NETSTUMBLER_330_SIGNATURE)) == 0) {
+				// Netstumbler 330 says           Intentionally left blank
+				ret_protoinfo->type = proto_netstumbler;
+				ret_protoinfo->prototype_extra = 30;
+				return;
+			} else if (memcmp(&data[in_info->header_offset + LUCENT_OFFSET], 
 							  LUCENT_TEST_SIGNATURE,
-                              sizeof(LUCENT_TEST_SIGNATURE)) == 0) {
-                ret_protoinfo->type = proto_lucenttest;
-            }
-        } else if (memcmp(&data[in_info->header_offset + LLC_UI_OFFSET], 
+							  sizeof(LUCENT_TEST_SIGNATURE)) == 0) {
+				ret_protoinfo->type = proto_lucenttest;
+			}
+		} else if (memcmp(&data[in_info->header_offset + LLC_UI_OFFSET], 
 						  CISCO_SIGNATURE, sizeof(CISCO_SIGNATURE)) == 0) {
-            // CDP
+			// CDP
 
 			// What was this?  I don't know why I used +12.  Test the version,
 			// now.  If it's v2, do what should be right, otherwise leave the
@@ -1162,203 +1162,204 @@ void GetProtoInfo(kis_packet *packet, packet_info *in_info) {
 			else
 				offset = in_info->header_offset + LLC_UI_OFFSET + 12;
 
-            while (offset < packet->len) {
-                // Make sure that whatever we do, we don't wander off the
-                // edge of the proverbial world -- segfaulting due to crappy
-                // packets is a really bad thing!
+			while (offset < packet->len) {
+				// Make sure that whatever we do, we don't wander off the
+				// edge of the proverbial world -- segfaulting due to crappy
+				// packets is a really bad thing!
 
-                cdp_element *elem = (cdp_element *) &data[offset];
+				cdp_element *elem = (cdp_element *) &data[offset];
 
 				elem->length = kis_ntoh16(elem->length);
 				elem->type = kis_ntoh16(elem->type);
 
-                if (elem->length == 0)
-                    break;
+				if (elem->length == 0)
+					break;
 
 				if (offset + elem->length >= packet->len) {
 					break;
 				}
 
-                if (elem->type == 0x01) {
-                    // Device id
+				if (elem->type == 0x01) {
+					// Device id
 					if (elem->length < 3) {
 						fprintf(stderr, "*** Warning - Corrupt CDP frame (possibly "
 								"an exploit attempt. (0x01 frame < 3)\n");
 						return;
 					}
-                    snprintf(ret_protoinfo->cdp.dev_id, elem->length-3, "%s", 
+					snprintf(ret_protoinfo->cdp.dev_id, elem->length-3, "%s", 
 							 (char *) &elem->data);
-                } else if (elem->type == 0x02) {
-                    // IP range
+				} else if (elem->type == 0x02) {
+					// IP range
 
-                    cdp_proto_element *proto;
-                    int8_t *datarr = (int8_t *) &elem->data;
+					cdp_proto_element *proto;
+					int8_t *datarr = (int8_t *) &elem->data;
 
-                    // We only take the first addr (for now)... And only if
-                    // it's an IP
-                    proto = (cdp_proto_element *) &datarr[4];
+					// We only take the first addr (for now)... And only if
+					// it's an IP
+					proto = (cdp_proto_element *) &datarr[4];
 
-                    if (proto->proto == 0xcc) {
-                        memcpy(&ret_protoinfo->cdp.ip, &proto->addr, 4);
-                    }
-                    // }
-                } else if (elem->type == 0x03) {
-                    // port id
+					if (proto->proto == 0xcc) {
+						memcpy(&ret_protoinfo->cdp.ip, &proto->addr, 4);
+					}
+				} else if (elem->type == 0x03) {
+					// port id
 					if (elem->length < 3) {
 						fprintf(stderr, "*** Warning - Corrupt CDP frame (possibly "
 								"an exploit attempt. (0x03 frame < 3)\n");
 						return;
 					}
-                    snprintf(ret_protoinfo->cdp.interface, elem->length-3, "%s", 
+					snprintf(ret_protoinfo->cdp.interface, elem->length-3, "%s", 
 							 (char *) &elem->data);
-                } else if (elem->type == 0x04) {
-                    // capabilities
+				} else if (elem->type == 0x04) {
+					// capabilities
 					if (elem->length < 4) {
 						fprintf(stderr, "*** Warning - Corrupt CDP frame (possibly "
 								"an exploit attempt. (0x04 frame < 4)\n");
 						return;
 					}
-                    memcpy(&ret_protoinfo->cdp.cap, &elem->data, elem->length-4);
-                } else if (elem->type == 0x05) {
-                    // software version
+					memcpy(&ret_protoinfo->cdp.cap, &elem->data, elem->length-4);
+				} else if (elem->type == 0x05) {
+					// software version
 					if (elem->length <= 3) {
 						fprintf(stderr, "*** Warning - Corrupt CDP frame (possibly "
 								"an exploit attempt. (0x05 frame< 3)\n");
 						return;
 					}
-                    snprintf(ret_protoinfo->cdp.software, elem->length-3, "%s", 
+					snprintf(ret_protoinfo->cdp.software, elem->length-3, "%s", 
 							 (char *) &elem->data);
-                } else if (elem->type == 0x06) {
-                    // Platform
+				} else if (elem->type == 0x06) {
+					// Platform
 					if (elem->length <= 3) {
 						fprintf(stderr, "*** Warning - Corrupt CDP frame (possibly "
 								"an exploit attempt. (0x06 frame < 3)\n");
 						return;
 					}
-                    snprintf(ret_protoinfo->cdp.platform, elem->length-3, "%s", 
+					snprintf(ret_protoinfo->cdp.platform, elem->length-3, "%s", 
 							 (char *) &elem->data);
-                }
+				}
 
-                offset += elem->length;
-            }
+				offset += elem->length;
+			}
 
-            ret_protoinfo->type = proto_cdp;
-            return;
+			ret_protoinfo->type = proto_cdp;
+			return;
 
-        } else if (memcmp(&data[in_info->header_offset + LLC_UI_OFFSET + 3], DOT1X_PROTO, 
-            sizeof(DOT1X_PROTO)) == 0) {
-                           
-            // 802.1X frame - let's find out if it's LEAP
+		} else if (memcmp(&data[in_info->header_offset + LLC_UI_OFFSET + 3], 
+						  DOT1X_PROTO, sizeof(DOT1X_PROTO)) == 0) {
 
-            // Make sure it's an EAP packet
-            unsigned int offset = in_info->header_offset + DOT1X_OFFSET;
-            struct dot1x_header *dot1x_ptr = (struct dot1x_header *)&data[offset];
-            if (dot1x_ptr->version == 1 && dot1x_ptr->type == 0 &&
-                (packet->len > (sizeof(dot1x_header) + offset))) {
+			// 802.1X frame - let's find out if it's LEAP
 
-                // Check out EAP characteristics
-                offset = offset + EAP_OFFSET;
-                struct eap_packet *eap_ptr = (struct eap_packet *)&data[offset];
-                // code can be 1-4 for request, response, success or failure, respectively
-                if ( (eap_ptr->code > 0 || eap_ptr->code < 5) && 
-                    (packet->len > (sizeof(eap_packet) + offset)) ) {
-                    switch(eap_ptr->type) {
-                        case EAP_TYPE_LEAP:
-                            ret_protoinfo->type = proto_leap;
-                            ret_protoinfo->prototype_extra = eap_ptr->code;
-                            return;
-                            break;
-                        case EAP_TYPE_TLS:
-                            ret_protoinfo->type = proto_tls;
-                            ret_protoinfo->prototype_extra = eap_ptr->code;
-                            return;
-                            break;
-                        case EAP_TYPE_TTLS:
-                            ret_protoinfo->type = proto_ttls;
-                            ret_protoinfo->prototype_extra = eap_ptr->code;
-                            return;
-                            break;
-                        case EAP_TYPE_PEAP:
-                            ret_protoinfo->type = proto_peap;
-                            ret_protoinfo->prototype_extra = eap_ptr->code;
-                            return;
-                            break;
-                        default:
-                            ret_protoinfo->type = proto_unknown;
-                            return;
-                            break;
-                    }
-                }
-            }
-        }
+			// Make sure it's an EAP packet
+			unsigned int offset = in_info->header_offset + DOT1X_OFFSET;
+			struct dot1x_header *dot1x_ptr = (struct dot1x_header *)&data[offset];
+			if (dot1x_ptr->version == 1 && dot1x_ptr->type == 0 &&
+				(packet->len > (sizeof(dot1x_header) + offset))) {
 
+				// Check out EAP characteristics
+				offset = offset + EAP_OFFSET;
+				struct eap_packet *eap_ptr = (struct eap_packet *)&data[offset];
+				// code can be 1-4 for request, response, success or 
+				// failure, respectively
+				if ( (eap_ptr->code > 0 || eap_ptr->code < 5) && 
+					 (packet->len > (sizeof(eap_packet) + offset)) ) {
+					switch(eap_ptr->type) {
+						case EAP_TYPE_LEAP:
+							ret_protoinfo->type = proto_leap;
+							ret_protoinfo->prototype_extra = eap_ptr->code;
+							return;
+							break;
+						case EAP_TYPE_TLS:
+							ret_protoinfo->type = proto_tls;
+							ret_protoinfo->prototype_extra = eap_ptr->code;
+							return;
+							break;
+						case EAP_TYPE_TTLS:
+							ret_protoinfo->type = proto_ttls;
+							ret_protoinfo->prototype_extra = eap_ptr->code;
+							return;
+							break;
+						case EAP_TYPE_PEAP:
+							ret_protoinfo->type = proto_peap;
+							ret_protoinfo->prototype_extra = eap_ptr->code;
+							return;
+							break;
+						default:
+							ret_protoinfo->type = proto_unknown;
+							return;
+							break;
+					}
+				}
+			}
+		}
+	}
 
-    }
+	// This isn't an 'else' because we want to try to handle it if it looked 
+	// like a netstumbler but wasn't.
+	if (in_info->dest_mac == LOR_MAC) {
+		// First thing we do is see if the destination matches the multicast for
+		// lucent outdoor routers, or if we're a multicast with no BSSID.  This should
+		// be indicative of being a lucent outdoor router
+		ret_protoinfo->type = proto_turbocell;
 
-    // This isn't an 'else' because we want to try to handle it if it looked like a netstumbler
-    // but wasn't.
-    if (in_info->dest_mac == LOR_MAC) {
-        // First thing we do is see if the destination matches the multicast for
-        // lucent outdoor routers, or if we're a multicast with no BSSID.  This should
-        // be indicative of being a lucent outdoor router
-        ret_protoinfo->type = proto_turbocell;
+		// if it IS a turbocell packet, see if we can dissect it any...  
+		// Make sure its long enough to have a SSID.
+		if (in_info->encrypted == 0 && 
+			packet->len > (in_info->header_offset + LLC_OFFSET + 7)) {
+			// Get the modes from the LLC header
+			uint8_t turbomode = data[in_info->header_offset + LLC_OFFSET + 6];
+			switch (turbomode) {
+				case 0xA0:
+					in_info->turbocell_mode = turbocell_ispbase;
+					break;
+				case 0x80:
+					in_info->turbocell_mode = turbocell_pollbase;
+					break;
+				case 0x40:
+					in_info->turbocell_mode = turbocell_base;
+					break;
+				case 0x00:
+					in_info->turbocell_mode = turbocell_nonpollbase;
+					break;
+				default:
+					in_info->turbocell_mode = turbocell_unknown;
+					break;
+			}
 
-        // if it IS a turbocell packet, see if we can dissect it any...  Make sure its long
-        // enough to have a SSID.
-        if (in_info->encrypted == 0 && packet->len > (in_info->header_offset + LLC_OFFSET + 7)) {
-            // Get the modes from the LLC header
-            uint8_t turbomode = data[in_info->header_offset + LLC_OFFSET + 6];
-            switch (turbomode) {
-            case 0xA0:
-                in_info->turbocell_mode = turbocell_ispbase;
-                break;
-            case 0x80:
-                in_info->turbocell_mode = turbocell_pollbase;
-                break;
-            case 0x40:
-                in_info->turbocell_mode = turbocell_base;
-                break;
-            case 0x00:
-                in_info->turbocell_mode = turbocell_nonpollbase;
-                break;
-            default:
-                in_info->turbocell_mode = turbocell_unknown;
-                break;
-            }
+			// Get the nwid and sat options
+			uint8_t turbonwid = 
+				((data[in_info->header_offset + LLC_OFFSET + 7] & 0xF0) >> 4);
+			uint8_t turbosat = (data[in_info->header_offset + LLC_OFFSET + 7] & 0x0F);
+			in_info->turbocell_nid = turbonwid;
+			if (turbosat == 2)
+				in_info->turbocell_sat = 1;
+			else
+				in_info->turbocell_sat = 0;
 
-            // Get the nwid and sat options
-            uint8_t turbonwid = ((data[in_info->header_offset + LLC_OFFSET + 7] & 0xF0) >> 4);
-            uint8_t turbosat = (data[in_info->header_offset + LLC_OFFSET + 7] & 0x0F);
-            in_info->turbocell_nid = turbonwid;
-            if (turbosat == 2)
-                in_info->turbocell_sat = 1;
-            else
-                in_info->turbocell_sat = 0;
-
-            // Get the SSID
-            if (packet->len > (in_info->header_offset + LLC_OFFSET + 26)) {
-                char *turbossid = (char *) &data[in_info->header_offset + 
+			// Get the SSID
+			if (packet->len > (in_info->header_offset + LLC_OFFSET + 26)) {
+				char *turbossid = (char *) &data[in_info->header_offset + 
 					LLC_OFFSET + 26];
-                if (isprint(turbossid[0])) {
-                    // Make sure we get a terminator
-                    int turbossidterm = 0;
-                    unsigned int turbossidpos = 0;
-                    while (in_info->header_offset + LLC_OFFSET + 26 + turbossidpos < packet->len) {
-                        if (turbossid[turbossidpos] == '\0') {
-                            turbossidterm = 1;
-                            break;
-                        }
-                        turbossidpos++;
-                    }
+				if (isprint(turbossid[0])) {
+					// Make sure we get a terminator
+					int turbossidterm = 0;
+					unsigned int turbossidpos = 0;
+					while (in_info->header_offset + LLC_OFFSET + 26 + 
+						   turbossidpos < packet->len) {
+						if (turbossid[turbossidpos] == '\0') {
+							turbossidterm = 1;
+							break;
+						}
+						turbossidpos++;
+					}
 
 					if (turbossidterm) {
 						snprintf(in_info->ssid, SSID_SIZE, "%s",
 								 MungeToPrintable(turbossid, 
 												  turbossidpos).c_str());
-                    }
-                }
-            }
-        }
+					}
+				}
+			}
+		}
 
 	} else if (memcmp(&data[in_info->header_offset + ARP_OFFSET], ARP_SIGNATURE,
 					  sizeof(ARP_SIGNATURE)) == 0) {
@@ -1370,28 +1371,28 @@ void GetProtoInfo(kis_packet *packet, packet_info *in_info) {
 			   &data[in_info->header_offset + ARP_OFFSET + 16], 4);
 		memcpy(ret_protoinfo->misc_ip, (const uint8_t *) 
 			   &data[in_info->header_offset + ARP_OFFSET + 26], 4);
-    } else if (memcmp(&data[in_info->header_offset + LLC_OFFSET], NETBIOS_SIGNATURE,
-                          sizeof(NETBIOS_SIGNATURE)) == 0) {
-        ret_protoinfo->type = proto_netbios;
+	} else if (memcmp(&data[in_info->header_offset + LLC_OFFSET], NETBIOS_SIGNATURE,
+					  sizeof(NETBIOS_SIGNATURE)) == 0) {
+		ret_protoinfo->type = proto_netbios;
 
-        uint8_t nb_command = data[in_info->header_offset + NETBIOS_OFFSET];
-        if (nb_command == 0x01) {
-            // Netbios browser announcement
-            ret_protoinfo->nbtype = proto_netbios_host;
-            snprintf(ret_protoinfo->netbios_source, 17, "%s",
-                     &data[in_info->header_offset + NETBIOS_OFFSET + 6]);
-        } else if (nb_command == 0x0F) {
-            // Netbios srver announcement
-            ret_protoinfo->nbtype = proto_netbios_master;
-            snprintf(ret_protoinfo->netbios_source, 17, "%s",
-                     &data[in_info->header_offset + NETBIOS_OFFSET + 6]);
-        } else if (nb_command == 0x0C) {
-            // Netbios domain announcement
-            ret_protoinfo->nbtype = proto_netbios_domain;
-        }
-    } else if (memcmp(&data[in_info->header_offset + LLC_OFFSET], IPX_SIGNATURE,
-                      sizeof(IPX_SIGNATURE)) == 0) {
-        // IPX packet
+		uint8_t nb_command = data[in_info->header_offset + NETBIOS_OFFSET];
+		if (nb_command == 0x01) {
+			// Netbios browser announcement
+			ret_protoinfo->nbtype = proto_netbios_host;
+			snprintf(ret_protoinfo->netbios_source, 17, "%s",
+					 &data[in_info->header_offset + NETBIOS_OFFSET + 6]);
+		} else if (nb_command == 0x0F) {
+			// Netbios srver announcement
+			ret_protoinfo->nbtype = proto_netbios_master;
+			snprintf(ret_protoinfo->netbios_source, 17, "%s",
+					 &data[in_info->header_offset + NETBIOS_OFFSET + 6]);
+		} else if (nb_command == 0x0C) {
+			// Netbios domain announcement
+			ret_protoinfo->nbtype = proto_netbios_domain;
+		}
+	} else if (memcmp(&data[in_info->header_offset + LLC_OFFSET], IPX_SIGNATURE,
+					  sizeof(IPX_SIGNATURE)) == 0) {
+		// IPX packet
 		ret_protoinfo->type = proto_ipx_tcp;
 	} else if (memcmp(&data[in_info->header_offset + IP_OFFSET], UDP_SIGNATURE,
 					  sizeof(UDP_SIGNATURE)) == 0) {
@@ -1595,48 +1596,46 @@ void GetProtoInfo(kis_packet *packet, packet_info *in_info) {
 			}
 
 			// Check for ISAKMP traffic
-        } else if (ret_protoinfo->type == proto_udp &&
+		} else if (ret_protoinfo->type == proto_udp &&
 				   (ret_protoinfo->sport == ISAKMP_PORT || 
 					ret_protoinfo->dport == ISAKMP_PORT)) {
 
-            unsigned int offset = in_info->header_offset + ISAKMP_OFFSET;
-            // Don't read past the packet size
-            if (packet->len >= (offset + sizeof(struct isakmp_packet))) {
-                struct isakmp_packet *isakmp_ptr = 
+			unsigned int offset = in_info->header_offset + ISAKMP_OFFSET;
+			// Don't read past the packet size
+			if (packet->len >= (offset + sizeof(struct isakmp_packet))) {
+				struct isakmp_packet *isakmp_ptr = 
 					(struct isakmp_packet *)&data[offset];
-                ret_protoinfo->type = proto_isakmp;
-                ret_protoinfo->prototype_extra = isakmp_ptr->exchtype;
-            }
+				ret_protoinfo->type = proto_isakmp;
+				ret_protoinfo->prototype_extra = isakmp_ptr->exchtype;
+			}
 
-        }
+		}
 
-    } else if (memcmp(&data[in_info->header_offset + IP_OFFSET], TCP_SIGNATURE,
-                      sizeof(TCP_SIGNATURE)) == 0) {
-        // TCP
-        ret_protoinfo->type = proto_misc_tcp;
+	} else if (memcmp(&data[in_info->header_offset + IP_OFFSET], TCP_SIGNATURE,
+					  sizeof(TCP_SIGNATURE)) == 0) {
+		// TCP
+		ret_protoinfo->type = proto_misc_tcp;
 
-        uint16_t d, s;
+		uint16_t d, s;
 
-        memcpy(&s, (uint16_t *) &data[in_info->header_offset + TCP_OFFSET], 2);
-        memcpy(&d, (uint16_t *) &data[in_info->header_offset + TCP_OFFSET + 2], 2);
+		memcpy(&s, (uint16_t *) &data[in_info->header_offset + TCP_OFFSET], 2);
+		memcpy(&d, (uint16_t *) &data[in_info->header_offset + TCP_OFFSET + 2], 2);
 
-        ret_protoinfo->sport = ntohs((unsigned short int) s);
-        ret_protoinfo->dport = ntohs((unsigned short int) d);
+		ret_protoinfo->sport = ntohs((unsigned short int) s);
+		ret_protoinfo->dport = ntohs((unsigned short int) d);
 
-        memcpy(ret_protoinfo->source_ip, 
+		memcpy(ret_protoinfo->source_ip, 
 			   (const uint8_t *) &data[in_info->header_offset + IP_OFFSET + 3], 4);
-        memcpy(ret_protoinfo->dest_ip, 
+		memcpy(ret_protoinfo->dest_ip, 
 			   (const uint8_t *) &data[in_info->header_offset + IP_OFFSET + 7], 4);
 
-        // Check for PPTP traffic
-        if (ret_protoinfo->type == proto_misc_tcp &&
-        (ret_protoinfo->dport == PPTP_PORT || ret_protoinfo->sport == PPTP_PORT)) {
-            ret_protoinfo->type = proto_pptp;
-        }
+		// Check for PPTP traffic
+		if (ret_protoinfo->type == proto_misc_tcp &&
+			(ret_protoinfo->dport == PPTP_PORT || ret_protoinfo->sport == PPTP_PORT)) {
+			ret_protoinfo->type = proto_pptp;
+		}
 
-    }
-
-
+	}
 }
 
 // Pull all the printable data out
@@ -1860,6 +1859,5 @@ int MangleFuzzyCryptPacket(const kis_packet *packet, const packet_info *in_info,
     fc->wep = 1;
 
     return outpack->len;
-
 }
 
