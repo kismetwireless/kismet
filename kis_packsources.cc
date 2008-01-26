@@ -235,6 +235,7 @@ int RegisterKismetSources(Packetsourcetracker *sourcetracker) {
                                         monitor_wext, unmonitor_wext,
                                         chancontrol_wext, 1);
 
+#ifdef HAVE_HILDON
     sourcetracker->RegisterPacketsource("nokia770", 1, "IEEE80211g", 6,
                                         pcapsource_11gfcschk_registrant,
                                         monitor_prism54g, unmonitor_prism54g,
@@ -243,6 +244,10 @@ int RegisterKismetSources(Packetsourcetracker *sourcetracker) {
                                         pcapsource_11gfcschk_registrant,
                                         monitor_nokia, unmonitor_nokia,
                                         chancontrol_prism54g, 1);
+#else
+    REG_EMPTY_CARD(sourcetracker, "nokia770");
+    REG_EMPTY_CARD(sourcetracker, "nokia8x0");
+#endif
 
 #else
     // Register the linuxwireless pcap stuff as null

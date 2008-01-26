@@ -664,7 +664,7 @@ int Iwconfig_Disable_Power(const char *in_dev, char *in_err) {
     memset(&wrq, 0, sizeof(struct iwreq));
     strncpy(wrq.ifr_name, in_dev, IFNAMSIZ);
 
-	wrq.u.power.disabled = 1;
+	wrq.u.power.disabled = 0;
 
     if (ioctl(skfd, SIOCSIWMODE, &wrq) < 0) {
         snprintf(in_err, STATUS_MAX, "power set disabled ioctl failed %s",

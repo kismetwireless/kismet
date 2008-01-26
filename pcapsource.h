@@ -523,9 +523,11 @@ int monitor_ipw3945(const char *in_dev, int initch, char *in_err, void **in_if, 
 int unmonitor_ipw3945(const char *in_dev, int initch, char *in_err, void **in_if, void *in_ext);
 int monitor_ipwlivetap(const char *in_dev, int initch, char *in_err, void **in_if, void *in_ext);
 int unmonitor_ipwlivetap(const char *in_dev, int initch, char *in_err, void **in_if, void *in_ext);
+#ifdef HAVE_HILDON
 // Nokia needs to set power mgmt off and restore it
 int monitor_nokia(const char *in_dev, int initch, char *in_err, void **in_if, void *in_ext);
 int unmonitor_nokia(const char *in_dev, int initch, char *in_err, void **in_if, void *in_ext);
+#endif
 // "Standard" wext monitor sequence - mostly a helper for other functions
 // since most cards that use wext still have custom initialization that
 // needs to be done.

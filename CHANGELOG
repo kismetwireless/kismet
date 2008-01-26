@@ -1,3 +1,7 @@
+Jan 26 2007  devel  Disabled probenojoin by default in config, it's sort of a
+                     useless alert which makes a lot of noise.
+                    More capture source control changes to try to solve
+                     problems capturing reliably on Nokia 8x0 devices
 Dec 19 2007  devel  Nokia-specific changes
 Dec 17 2007  devel  Added kernel version detection for Darwin to accept enX
                      on >= Leopard, VERY NEW LIBPCAP required.

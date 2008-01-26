@@ -2399,6 +2399,7 @@ int unmonitor_ipwlivetap(const char *in_dev, int initch, char *in_err,
     return 1;
 }
 
+#ifdef HAVE_HILDON
 int monitor_nokia(const char *in_dev, int initch, char *in_err, void **in_if, void *in_ext) {
     // Allocate a tracking record for the interface settings and remember our
     // setup
@@ -2412,11 +2413,21 @@ int monitor_nokia(const char *in_dev, int initch, char *in_err, void **in_if, vo
     if (Iwconfig_Get_Mode(in_dev, in_err, &ifparm->mode) < 0)
         return -1;
 
-	// Set us to offline mode via dbus... cheat and use system for now...
-	fprintf(stderr, "INFO - Setting Nokia device to flight/offline mode...\n");
+	// Force us into normal mode
+	fprintf(stderr, "INFO - Setting Nokia device to online/normal mode...\n");
 	system("/usr/bin/dbus-send --type=signal --system /com/nokia/mce/signal "
-		   "com.nokia.mce.signal.sig_device_mode_ind string:flight");
+		   "com.nokia.mce.signal.sig_device_mode_ind string:normal");
+	fprintf(stderr, "INFO - Waiting for normal mode... ");
+	fflush(stderr);
 	sleep(1);
+	fprintf(stderr, "done\n");
+
+	fprintf(stderr, "INFO - Killing wlancond to get it to leave us alone...\n");
+	system("/etc/init.d/wlancond stop");
+	fprintf(stderr, "INFO - Waiting for wlancond to stop... ");
+	fflush(stderr);
+	sleep(1);
+	fprintf(stderr, "done\n");
 
 	// Get our power save data, ignore errors
 	Iwconfig_Get_Power(in_dev, in_err, &(ifparm->power));
@@ -2436,7 +2447,7 @@ int unmonitor_nokia(const char *in_dev, int initch, char *in_err, void **in_if, 
 	// Preserve the pointer to power, which won't get freed inside ifparm
 	power = ifparm->power;
 
-	// Fail and yell
+	// Bring it out of monitor mode
 	if (unmonitor_wext(in_dev, initch, in_err, in_if, in_ext) < 0)
 		return -1;
 
@@ -2448,8 +2459,12 @@ int unmonitor_nokia(const char *in_dev, int initch, char *in_err, void **in_if, 
 
 	free(power);
 
+	// Bring wlancond back 
+	system("/etc/init.d/wlancond start");
+
 	return 1;
 }
+#endif
 
 
 // "standard" wireless extension monitor mode
