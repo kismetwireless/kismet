@@ -6546,7 +6546,7 @@ cat >>confdefs.h <<\_ACEOF
 _ACEOF
 
 	CFLAGS="$CFLAGS `pkg-config hildon-1 hildon-help dbus-1 conic --cflags`"
-	LIBS="$LIBS `pkg-config hildon-1 hildon-help dbus-1 conic --libs`"
+	LIBS="$LIBS -lgpsmgr -lgpsbt -lgps `pkg-config hildon-1 hildon-help dbus-1 conic --libs`"
 fi
 
 # Checks for libraries.

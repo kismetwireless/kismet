@@ -1,3 +1,4 @@
+Jan 29 2007  devel  Added Hildon GPS support
 Jan 26 2007  devel  Disabled probenojoin by default in config, it's sort of a
                      useless alert which makes a lot of noise.
                     More capture source control changes to try to solve

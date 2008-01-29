@@ -35,6 +35,10 @@
 #include <dbus/dbus.h>
 #endif
 
+#ifdef HAVE_HILDON
+#include <gpsbt.h>
+#endif
+
 #include "util.h"
 #include "configfile.h"
 
@@ -85,6 +89,10 @@ string logname, dumplogfile, netlogfile, cryptlogfile, ciscologfile,
     gpslogfile, csvlogfile, xmllogfile, ssidtrackfile, configdir, iptrackfile, 
     waypointfile, fifofile;
 FILE *ssid_file = NULL, *ip_file = NULL, *waypoint_file = NULL, *pid_file = NULL;
+
+#ifdef HAVE_HILDON
+gpsbt_t gpsbt_ctx = {0};
+#endif
 
 DumpFile *dumpfile, *cryptfile;
 int packnum = 0, localdropnum = 0;
@@ -338,6 +346,11 @@ void WriteDatafiles(int in_shutdown) {
 
 // Quick shutdown to clean up from a fatal config after we opened the child
 void ErrorShutdown() {
+#ifdef HAVE_HILDON
+	// Release hildon gps
+	gpsbt_stop(&gpsbt_ctx);
+#endif
+
     // Shut down the packet sources
     sourcetracker.CloseSources();
 
@@ -404,6 +417,11 @@ void CatchShutdown(int sig) {
 
     // Shut down the channel control child
     sourcetracker.ShutdownChannelChild();
+
+#ifdef HAVE_HILDON
+	// Release hildon gps
+	gpsbt_stop(&gpsbt_ctx);
+#endif
 
 	if (netmanager_control) {
 		fprintf(stderr, "Trying to wake networkmanager back up...\n");
@@ -2499,6 +2517,14 @@ int main(int argc,char *argv[]) {
                     "reports 0 always)\n");
             gps->SetOptions(GPSD_OPT_FORCEMODE);
         }
+
+#ifdef HAVE_HILDON
+		if (gpsbt_start(NULL, 0, 0, 0 /* default port */, 
+						status, STATUS_MAX, 
+						0, &gpsbt_ctx) < 0) {
+			printf("Hildon BT failed: %s\n", status);
+		}
+#endif
 
     } else {
         gps_log = 0;
