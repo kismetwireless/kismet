@@ -106,11 +106,11 @@ int GetTagOffsets(int init_offset, kis_packet *packet,
 				  map<int, vector<int> > *tag_cache_map) {
     int cur_tag = 0;
     // Initial offset is 36, that's the first tag
-    int cur_offset = init_offset;
+    unsigned int cur_offset = (unsigned int) init_offset;
     uint8_t len;
 
     // Bail on invalid incoming offsets
-    if (init_offset >= (uint8_t) packet->len)
+    if (cur_offset >= packet->len)
         return -1;
     
     // If we haven't parsed the tags for this frame before, parse them all now.
@@ -118,7 +118,7 @@ int GetTagOffsets(int init_offset, kis_packet *packet,
     if (tag_cache_map->size() == 0) {
         while (1) {
             // Are we over the packet length?
-            if (cur_offset >= (uint8_t) packet->len) {
+            if (cur_offset >= packet->len) {
                 break;
             }
 
@@ -129,7 +129,7 @@ int GetTagOffsets(int init_offset, kis_packet *packet,
             len = (packet->data[cur_offset+1] & 0xFF);
 
             // If this is longer than we have...
-            if ((unsigned int) (cur_offset + len + 2) > packet->len) {
+            if ((cur_offset + len + 2) > packet->len) {
                 return -1;
             }
 

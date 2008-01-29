@@ -1,4 +1,6 @@
 Jan 29 2007  devel  Added Hildon GPS support
+                    Fixed huge bug in IE tag parsing that ignored large
+                     beacon frames, thanks to Duane Compton
 Jan 26 2007  devel  Disabled probenojoin by default in config, it's sort of a
                      useless alert which makes a lot of noise.
                     More capture source control changes to try to solve
