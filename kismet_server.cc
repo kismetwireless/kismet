@@ -925,7 +925,7 @@ int GpsEvent(Timetracker::timer_event *evt, void *parm) {
                 sound = PlaySound("gpslost");
 
             gpsmode = 0;
-        } else if (gpsret != 0 && gpsmode == 0) {
+        } else if (gpsret > 0 && gpsmode == 0) {
             if (!silent || NetWriteStatus("Acquired GPS signal.") == 0)
                 fprintf(stderr, "Acquired GPS signal.\n");
             if (sound == 1)

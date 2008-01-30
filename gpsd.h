@@ -47,12 +47,17 @@
 // Our command
 // const char gpsd_command[] = "PAVMH\n";
 
-// Init command (stack a few options - try to set a new gpsd jitter
-// correction option, and try to set it into watcher mode
-const char gpsd_init_command[] = "j=1w=1\n";
+// Query gpsd version
+const char gpsd_init_command[] = "l\n";
+
+// Optional GPSD commands (enable jitter correction, etc)
+const char gpsd_opt_commands[] = "j=1\n";
+
+// Watcher mode
+const char gpsd_watch_command[] = "w=1\n";
 
 // GPS poll command
-const char gpsd_command[] = "PAVMH\n";
+const char gpsd_poll_command[] = "PAVM\n";
 
 // Options
 #define GPSD_OPT_FORCEMODE		1
@@ -100,6 +105,9 @@ public:
 protected:
     char errstr[1024];
 
+	// Are we in polling or watcher mode?
+	int poll_mode;
+
     int sock;
 
     float lat, lon, alt, spd, hed;
@@ -109,6 +117,7 @@ protected:
 
     // Last location used for softheading calcs
     float last_lat, last_lon, last_hed;
+	time_t last_hed_time;
 
     char data[GPSD_MAX_DATASIZE + 1];
 	int data_pos;

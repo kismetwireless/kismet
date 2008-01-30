@@ -93,7 +93,6 @@ int GPSD::OpenGPSD() {
     int save_mode = fcntl(sock, F_GETFL, 0);
     fcntl(sock, F_SETFL, save_mode | O_NONBLOCK);
 
-    // Kick a command off into the system, too
     if (write(sock, gpsd_init_command, sizeof(gpsd_init_command)) < 0) {
         if (errno != EAGAIN) {
             snprintf(errstr, 1024, "GPSD write error: %s", strerror(errno));
@@ -103,6 +102,9 @@ int GPSD::OpenGPSD() {
     }
 
 	data_pos = 0;
+	poll_mode = 0;
+
+	last_hed_time = 0;
 
     return 1;
 }
@@ -159,8 +161,82 @@ int GPSD::Scan() {
 				data_pos - (gpslines[x].length() + 1));
 		data_pos -= (gpslines[x].length() + 1);
 
-		// Look for O= watch lines
-		if (gpslines[x].substr(0, 10) == "GPSD,O=GGA") {
+		// Look for the version response
+		if (gpslines[x].substr(0, 7) == "GPSD,L=") {
+			vector<string> lvec = StrTokenize(data, " ");
+			int gma, gmi;
+
+			if (lvec.size() < 3) {
+				poll_mode = 1;
+			} else if (sscanf(lvec[1].c_str(), "%d.%d", &gma, &gmi) != 2) {
+				poll_mode = 1;
+			} else if (gma < 2 || (gma == 2 && gmi < 34)) {
+				poll_mode = 1;
+			}
+
+			// We got the version reply, write the optional setup commands, 
+			// we don't care if they fail
+			if (write(sock, gpsd_opt_commands, sizeof(gpsd_opt_commands)) < 0) {
+				if (errno != EAGAIN) {
+					snprintf(errstr, 1024, "GPSD write error: %s", strerror(errno));
+					CloseGPSD();
+					return -1;
+				}
+			}
+
+			// And then write the poll command if we need to
+			if (poll_mode) {
+				if (write(sock, gpsd_poll_command, sizeof(gpsd_poll_command)) < 0) {
+					if (errno != EAGAIN) {
+						snprintf(errstr, 1024, "GPSD write error: %s", strerror(errno));
+						CloseGPSD();
+						return -1;
+					}
+				}
+			} else {
+				if (write(sock, gpsd_watch_command, sizeof(gpsd_watch_command)) < 0) {
+					if (errno != EAGAIN) {
+						snprintf(errstr, 1024, "GPSD write error: %s", strerror(errno));
+						CloseGPSD();
+						return -1;
+					}
+				}
+			}
+				
+			use_data = 0;
+		} else if (gpslines[x].substr(0, 7) == "GPSD,P=") {
+			// Poll lines
+			vector<string> pollvec = StrTokenize(data, ",");
+
+			if (pollvec.size() < 5)
+				continue;
+
+			if (sscanf(pollvec[1].c_str(), "P=%f %f", &in_lat, &in_lon) != 2)
+				continue;
+
+			if (sscanf(pollvec[4].c_str(), "M=%d", &in_mode) != 1)
+				continue;
+
+			if (sscanf(pollvec[2].c_str(), "A=%f", &in_alt) != 1)
+				use_alt = 0;
+
+			if (sscanf(pollvec[3].c_str(), "V=%f", &in_spd) != 1)
+				use_spd = 0;
+
+			use_hed = 0;
+			use_data = 1;
+
+			// Re-issue the poll command
+			if (write(sock, gpsd_poll_command, sizeof(gpsd_poll_command)) < 0) {
+				if (errno != EAGAIN) {
+					snprintf(errstr, 1024, "GPSD write error: %s", strerror(errno));
+					CloseGPSD();
+					return -1;
+				}
+			}
+
+		} else if (gpslines[x].substr(0, 7) == "GPSD,O=") {
+			// Look for O= watch lines
 			vector<string> ggavec = StrTokenize(data, " ");
 
 			if (ggavec.size() < 15) {
@@ -191,12 +267,7 @@ int GPSD::Scan() {
 	}
 
 	if (use_data == 0)
-		return 0;
-
-    if (last_lat == 0 && last_lon == 0) {
-        last_lat = lat;
-        last_lon = lon;
-    }
+		return 1;
 
     // Override mode && clean up the mode var
     if ((options & GPSD_OPT_FORCEMODE) && in_mode < 2) {
@@ -205,10 +276,13 @@ int GPSD::Scan() {
 		in_mode = 0;
 	}
 
-	// We always get these...
-	mode = in_mode;
-	lat = in_lat;
-	lon = in_lon;
+	// Some internal mode jitter protection, means our mode is slightly lagged
+	if (in_mode >= last_mode) {
+		last_mode = in_mode;
+		mode = in_mode;
+	} else {
+		last_mode = in_mode;
+	}
 
 	if (use_alt && mode >= 3)
 		alt = in_alt * 3.3;
@@ -221,7 +295,26 @@ int GPSD::Scan() {
 	if (use_hed) {
 		last_hed = hed;
 		hed = in_hed;
+	} else if (poll_mode) {
+		// We only do manual heading calcs in poll mode
+		if (last_hed_time == 0) {
+			last_hed_time = time(0);
+		} else if (time(0) - last_hed_time > 1) {
+			// It's been more than a second since we updated the heading, so we
+			// can back up the lat/lon and do hed calcs
+			last_lat = lat;
+			last_lon = lon;
+			last_hed = hed;
+
+			hed = CalcHeading(in_lat, in_lon, last_lat, last_lon);
+			last_hed_time = time(0);
+		}
 	}
+
+	// We always get these...  But we get them at the end so that we can
+	// preserve our heading calculations
+	lat = in_lat;
+	lon = in_lon;
 
     return 1;
 }
