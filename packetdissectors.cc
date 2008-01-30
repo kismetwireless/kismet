@@ -421,11 +421,11 @@ int KisBuiltinDissector::GetIEEETagOffsets(unsigned int init_offset,
 										map<int, vector<int> > *tag_cache_map) {
     int cur_tag = 0;
     // Initial offset is 36, that's the first tag
-    unsigned int cur_offset = init_offset;
+    unsigned int cur_offset = (unsigned int) init_offset;
     uint8_t len;
 
     // Bail on invalid incoming offsets
-    if (init_offset >= (uint8_t) in_chunk->length) {
+    if (init_offset >= in_chunk->length) {
         return -1;
 	}
     
