@@ -1,3 +1,4 @@
+Jan 30 2007  devel  Revamped GPS to use 'watch' mode in GPSD
 Jan 29 2007  devel  Added Hildon GPS support
                     Fixed huge bug in IE tag parsing that ignored large
                      beacon frames, thanks to Duane Compton

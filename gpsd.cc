@@ -94,13 +94,15 @@ int GPSD::OpenGPSD() {
     fcntl(sock, F_SETFL, save_mode | O_NONBLOCK);
 
     // Kick a command off into the system, too
-    if (write(sock, gpsd_command, sizeof(gpsd_command)) < 0) {
+    if (write(sock, gpsd_init_command, sizeof(gpsd_init_command)) < 0) {
         if (errno != EAGAIN) {
             snprintf(errstr, 1024, "GPSD write error: %s", strerror(errno));
             CloseGPSD();
             return -1;
         }
     }
+
+	data_pos = 0;
 
     return 1;
 }
@@ -116,8 +118,9 @@ int GPSD::CloseGPSD() {
 
 // The guts of it
 int GPSD::Scan() {
-    char buf[1025];
     int ret;
+	float in_lat, in_lon, in_alt, in_spd, in_hed;
+	int in_mode, use_alt = 1, use_spd = 1, use_hed = 1, use_data = 0;
 
     if (sock < 0) {
         lat = lon = alt = spd = 0;
@@ -127,126 +130,68 @@ int GPSD::Scan() {
     }
 
     // Read as much as we have
-    ret = read(sock, buf, 1024);
+	if (data_pos == GPSD_MAX_DATASIZE)
+		data_pos = 0;
+
+	ret = read(sock, data, GPSD_MAX_DATASIZE - data_pos);
     if (ret <= 0 && errno != EAGAIN) {
         snprintf(errstr, 1024, "GPSD error reading data, aborting GPS");
         sock = -1;
 		mode = 0;
         return -1;
     }
+
+	data_pos += ret;
+
 	// Terminate the buf, which is +1 the read size so terminating on the
 	// read len is safe.
-	buf[ret] = '\0';
+	data[data_pos] = '\0';
 
-    // And reissue a command
-    if (write(sock, gpsd_command, sizeof(gpsd_command)) < 0) {
-        if (errno != EAGAIN) {
-            snprintf(errstr, 1024, "GPSD error while writing data: %s", 
-					 strerror(errno));
-            CloseGPSD();
-            return -1;
-        }
-    }
-
-    // Combine it
-    // What's wrong with this?  That's right, we're appending maxbuf to whatever the
-    // buf was before.  Very much bad.
-    //
-    //    strncat(data, buf, 1024);
-
-    // Instead, we'll munge them together safely, AND we'll catch if we've filled the
-    // data buffer last time and still didn't get anything, if we did, we eliminate it
-    // and we only work from the new data buffer.
-    if (strlen(data) == 1024)
-        data[0] = '\0';
-
-    char concat[1024];
-    snprintf(concat, 1024, "%s%s", data, buf);
-    strncpy(data, concat, 1024);
-
-    char *live;
-
-    if ((live = strstr(data, "GPSD,")) == NULL) {
-        return 1;
-    }
-
-	// Use the newcore method of doing things -- tokenize and process
-	double in_lat, in_lon, in_spd, in_alt, in_hed;
-	int in_mode = 0, set_pos = 0, set_spd = 0, set_alt = 0,
-		set_hed = 0, set_mode = 0;
-
-	vector<string> lintok = StrTokenize(live, ",");
-
-	if (lintok.size() < 1) {
-		// printf("debug - size < 1 for line tokens\n");
-		// Zero the buffer
-		buf[0] = '\0';
-		data[0] = '\0';
+	// Tokenize it on \n and process each line
+	vector<string> gpslines = StrTokenize(data, "\n", 0);
+	
+	if (gpslines.size() == 0)
 		return 0;
-	}
 
-	if (lintok[0] != "GPSD") {
-		// printf("debug - no gpsd header, '%s'\n", lintok[0].c_str());
-		// Zero the buffer
-		buf[0] = '\0';
-		data[0] = '\0';
-		return 0;
-	}
+	for (unsigned int x = 0; x < gpslines.size() && data_pos > 0; x++) {
+		// Wipe out the previous buffer
+		memmove(data, data + gpslines[x].length() + 1, 
+				data_pos - (gpslines[x].length() + 1));
+		data_pos -= (gpslines[x].length() + 1);
 
-	for (unsigned int it = 1; it < lintok.size(); it++) {
-		vector<string> values = StrTokenize(lintok[it], "=");
+		// Look for O= watch lines
+		if (gpslines[x].substr(0, 10) == "GPSD,O=GGA") {
+			vector<string> ggavec = StrTokenize(data, " ");
 
-		if (values.size() != 2) {
-			// printf("debug - invalid value size\n");
-			buf[0] = '\0';
-			data[0] = '\0';
-			return 0;
-		}
+			if (ggavec.size() < 15) {
+				continue;
+			}
 
-		
-		if (values[0] == "P") {
-			if (values[1] == "?") {
-				set_pos = -1;
-			} else if (sscanf(values[1].c_str(), "%lf %lf", 
-							  &in_lat, &in_lon) == 2) {
-				set_pos = 1;        
-			}
-		} else if (values[0] == "A") {
-			if (values[1] == "?") {
-				set_alt = -1;
-			} else if (sscanf(values[1].c_str(), "%lf", &in_alt) == 1) {
-				set_alt = 1;
-			}
-		} else if (values[0] == "V") {
-			if (values[1] == "?") {
-				set_spd = -1;
-			} else if (sscanf(values[1].c_str(), "%lf", &in_spd) == 1) {
-				set_spd = 1;
-			}
-		} else if (values[0] == "H") {
-			if (values[1] == "?") {
-				set_hed = -1;
-			} else if (sscanf(values[1].c_str(), "%lf", &in_hed) == 1) {
-				set_hed = 1;
-			}
-		} else if (values[0] == "M") {
-			if (values[1] == "?") {
-				set_mode = -1;
-			} else if (sscanf(values[1].c_str(), "%d", &in_mode) == 1) {
-				/* Only set the mode if we've seen the same mode twice in a row,
-				 * this should help with some of the jitter gpsd seems to introduce
-				 * in the newer versions.  In theory passing the 'j' option to gpsd
-				 * would help with this, but not all gpsd implementations understand
-				 * that, so we have to add extra logic here. */
-				if (in_mode >= last_mode) {
-					last_mode = in_mode;
-					set_mode = 1;
-				} else {
-					last_mode = in_mode;
-				}
-			}
+			// Total fail if we can't get lat/lon/mode
+			if (sscanf(ggavec[3].c_str(), "%f", &in_lat) != 1)
+				continue;
+
+			if (sscanf(ggavec[4].c_str(), "%f", &in_lon) != 1)
+				continue;
+
+			if (sscanf(ggavec[14].c_str(), "%d", &in_mode) != 1)
+				continue;
+
+			if (sscanf(ggavec[5].c_str(), "%f", &in_alt) != 1)
+				use_alt = 0;
+
+			if (sscanf(ggavec[8].c_str(), "%f", &in_hed) != 1)
+				use_hed = 0;
+
+			if (sscanf(ggavec[9].c_str(), "%f", &in_spd) != 1)
+				use_spd = 0;
+
+			use_data = 1;
 		}
 	}
+
+	if (use_data == 0)
+		return 0;
 
     if (last_lat == 0 && last_lon == 0) {
         last_lat = lat;
@@ -255,43 +200,30 @@ int GPSD::Scan() {
 
     // Override mode && clean up the mode var
     if ((options & GPSD_OPT_FORCEMODE) && in_mode < 2) {
-        set_mode = 1;
 		in_mode = 2;
-	} else if (set_mode != 1) {
+	} else if (in_mode < 2) {
 		in_mode = 0;
 	}
 
-	// We always get this one
+	// We always get these...
 	mode = in_mode;
+	lat = in_lat;
+	lon = in_lon;
 
-	// Set the position if it was valid
-	if (set_pos == 1 && set_mode == 1 && in_mode >= 2) {
-		lat = in_lat;
-		lon = in_lon;
-	}
+	printf("debug - mode %d %f,%f\n", mode, lat, lon);
 
-	if (set_alt == 1 && set_mode == 1 && in_mode >= 3) {
+	if (use_alt && mode >= 3)
 		alt = in_alt * 3.3;
-	}
+	else if (mode < 3)
+		alt = 0;
 
-	if (set_spd == 1 && set_mode == 1 && in_mode >= 2) {
+	if (use_spd)
 		spd = in_spd * (6076.12 / 5280);
-	}
 
-	if (set_hed == 1 && set_mode == 1 && in_mode >= 2) {
+	if (use_hed) {
 		last_hed = hed;
 		hed = in_hed;
-	} else if (set_mode == 1 && in_mode >= 2 && 
-			   EarthDistance(lat, lon, last_lat, last_lon) > 10) {
-		hed = CalcHeading(lat, lon, last_lat, last_lon);
-
-		last_lat = lat;
-		last_lon = lon;
 	}
-
-    // Zero the buffer
-    buf[0] = '\0';
-    data[0] = '\0';
 
     return 1;
 }

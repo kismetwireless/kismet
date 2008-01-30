@@ -45,10 +45,20 @@
 // POSITION, ALT, VELOCITY, MODE
 
 // Our command
+// const char gpsd_command[] = "PAVMH\n";
+
+// Init command (stack a few options - try to set a new gpsd jitter
+// correction option, and try to set it into watcher mode
+const char gpsd_init_command[] = "j=1w=1\n";
+
+// GPS poll command
 const char gpsd_command[] = "PAVMH\n";
 
 // Options
-#define GPSD_OPT_FORCEMODE    1
+#define GPSD_OPT_FORCEMODE		1
+
+// Max data size
+#define GPSD_MAX_DATASIZE		2048
 
 // gpsd GPS capture
 class GPSD {
@@ -73,7 +83,8 @@ public:
     int Scan();
 
     // Fetch a location
-    int FetchLoc(float *in_lat, float *in_lon, float *in_alt, float *in_spd, float *in_hed, int *mode);
+    int FetchLoc(float *in_lat, float *in_lon, float *in_alt, 
+				 float *in_spd, float *in_hed, int *mode);
 
     // Fetch mode
     int FetchMode() { return mode; }
@@ -83,7 +94,8 @@ public:
     static double CalcRad(double lat);
     static double Rad2Deg(double x);
     static double Deg2Rad(double x);
-    static double EarthDistance(double in_lat, double in_lon, double in_lat2, double in_lon2);
+    static double EarthDistance(double in_lat, double in_lon, 
+								double in_lat2, double in_lon2);
 
 protected:
     char errstr[1024];
@@ -98,7 +110,8 @@ protected:
     // Last location used for softheading calcs
     float last_lat, last_lon, last_hed;
 
-    char data[1024];
+    char data[GPSD_MAX_DATASIZE + 1];
+	int data_pos;
 
     char *host;
     int port;
@@ -107,7 +120,7 @@ protected:
     struct hostent *h;
 
     uint32_t options;
-  
 };
 
 #endif
+ 
