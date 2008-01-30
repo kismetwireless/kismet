@@ -210,8 +210,6 @@ int GPSD::Scan() {
 	lat = in_lat;
 	lon = in_lon;
 
-	printf("debug - mode %d %f,%f\n", mode, lat, lon);
-
 	if (use_alt && mode >= 3)
 		alt = in_alt * 3.3;
 	else if (mode < 3)
