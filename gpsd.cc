@@ -161,9 +161,11 @@ int GPSD::Scan() {
 				data_pos - (gpslines[x].length() + 1));
 		data_pos -= (gpslines[x].length() + 1);
 
-		// Look for a really old gpsd which doesn't do anything useful
-		// with the L command
-		if (gpslines[x] == "GPSD") {
+		if (gpslines[x] == "GPSD" && poll_mode == 0) {
+			// Look for a really old gpsd which doesn't do anything useful
+			// with the L command.  Only do it once, though, if we're already
+			// in poll mode then this is probably from something else and we
+			// don't need to keep flooding it with position requests
 			poll_mode = 1;
 
 			if (write(sock, gpsd_poll_command, sizeof(gpsd_poll_command)) < 0) {
@@ -173,10 +175,8 @@ int GPSD::Scan() {
 					return -1;
 				}
 			}
-		}
-
-		// Look for the version response
-		if (gpslines[x].substr(0, 7) == "GPSD,L=") {
+		} else if (gpslines[x].substr(0, 7) == "GPSD,L=") {
+			// Look for the version response
 			vector<string> lvec = StrTokenize(data, " ");
 			int gma, gmi;
 
