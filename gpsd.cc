@@ -161,7 +161,7 @@ int GPSD::Scan() {
 				data_pos - (gpslines[x].length() + 1));
 		data_pos -= (gpslines[x].length() + 1);
 
-		if (gpslines[x] == "GPSD" && poll_mode == 0) {
+		if (gpslines[x] == "GPSD\r" && poll_mode == 0) {
 			// Look for a really old gpsd which doesn't do anything useful
 			// with the L command.  Only do it once, though, if we're already
 			// in poll mode then this is probably from something else and we
@@ -177,7 +177,7 @@ int GPSD::Scan() {
 			}
 		} else if (gpslines[x].substr(0, 7) == "GPSD,L=") {
 			// Look for the version response
-			vector<string> lvec = StrTokenize(data, " ");
+			vector<string> lvec = StrTokenize(gpslines[x], " ");
 			int gma, gmi;
 
 			if (lvec.size() < 3) {
@@ -220,16 +220,29 @@ int GPSD::Scan() {
 			use_data = 0;
 		} else if (gpslines[x].substr(0, 7) == "GPSD,P=") {
 			// Poll lines
-			vector<string> pollvec = StrTokenize(data, ",");
+			vector<string> pollvec = StrTokenize(gpslines[x], ",");
 
-			if (pollvec.size() < 5)
-				continue;
+			// Re-issue the poll command - throttled in stable by the
+			// gpsevent timer in kismet_server/drone so this shouldn't flood
+			if (write(sock, gpsd_poll_command, sizeof(gpsd_poll_command)) < 0) {
+				if (errno != EAGAIN) {
+					snprintf(errstr, 1024, "GPSD write error: %s", strerror(errno));
+					CloseGPSD();
+					return -1;
+				}
+			}
 
-			if (sscanf(pollvec[1].c_str(), "P=%f %f", &in_lat, &in_lon) != 2)
+			if (pollvec.size() < 5) {
 				continue;
+			}
 
-			if (sscanf(pollvec[4].c_str(), "M=%d", &in_mode) != 1)
+			if (sscanf(pollvec[1].c_str(), "P=%f %f", &in_lat, &in_lon) != 2) {
 				continue;
+			}
+
+			if (sscanf(pollvec[4].c_str(), "M=%d", &in_mode) != 1) {
+				continue;
+			}
 
 			if (sscanf(pollvec[2].c_str(), "A=%f", &in_alt) != 1)
 				use_alt = 0;
@@ -240,18 +253,9 @@ int GPSD::Scan() {
 			use_hed = 0;
 			use_data = 1;
 
-			// Re-issue the poll command
-			if (write(sock, gpsd_poll_command, sizeof(gpsd_poll_command)) < 0) {
-				if (errno != EAGAIN) {
-					snprintf(errstr, 1024, "GPSD write error: %s", strerror(errno));
-					CloseGPSD();
-					return -1;
-				}
-			}
-
 		} else if (gpslines[x].substr(0, 7) == "GPSD,O=") {
 			// Look for O= watch lines
-			vector<string> ggavec = StrTokenize(data, " ");
+			vector<string> ggavec = StrTokenize(gpslines[x], " ");
 
 			if (ggavec.size() < 15) {
 				continue;
