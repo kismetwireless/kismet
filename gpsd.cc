@@ -161,6 +161,20 @@ int GPSD::Scan() {
 				data_pos - (gpslines[x].length() + 1));
 		data_pos -= (gpslines[x].length() + 1);
 
+		// Look for a really old gpsd which doesn't do anything useful
+		// with the L command
+		if (gpslines[x] == "GPSD") {
+			poll_mode = 1;
+
+			if (write(sock, gpsd_poll_command, sizeof(gpsd_poll_command)) < 0) {
+				if (errno != EAGAIN) {
+					snprintf(errstr, 1024, "GPSD write error: %s", strerror(errno));
+					CloseGPSD();
+					return -1;
+				}
+			}
+		}
+
 		// Look for the version response
 		if (gpslines[x].substr(0, 7) == "GPSD,L=") {
 			vector<string> lvec = StrTokenize(data, " ");
