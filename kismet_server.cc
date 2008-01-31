@@ -906,7 +906,7 @@ int GpsEvent(Timetracker::timer_event *evt, void *parm) {
     
     if (gps_enable) {
         int gpsret;
-        gpsret = gps->Scan();
+        gpsret = gps->FetchMode();
 
         if (gpsret < 0) {
             snprintf(status, STATUS_MAX, "GPS error requesting data: %s",
@@ -2994,6 +2994,7 @@ daemon_parent_cleanup:
         // Merge fd's from the server and the packetsources
         max_fd = ui_server.MergeSet(read_set, max_fd, &rset, &wset);
         max_fd = sourcetracker.MergeSet(&rset, &wset, max_fd);
+		max_fd = gps->MergeSet(&rset, &wset, max_fd);
 
         struct timeval tm;
         tm.tv_sec = 0;
@@ -3017,6 +3018,8 @@ daemon_parent_cleanup:
 
         // We can pass the results of this select to the UI handler without incurring a
         // a delay since it will bail nicely if there aren't any new connections.
+
+		gps->Poll(&rset, &wset);
 
         int accept_fd = 0;
         accept_fd = ui_server.Poll(rset, wset);

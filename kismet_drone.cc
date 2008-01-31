@@ -86,26 +86,6 @@ void CatchShutdown(int sig) {
     exit(0);
 }
 
-int GpsEvent(Timetracker::timer_event *evt, void *parm) {
-    // The GPS only provides us a new update once per second we might
-    // as well only update it here once a second
-    if (gps_enable) {
-        int gpsret;
-        gpsret = gps->Scan();
-        if (gpsret < 0) {
-            if (!silent)
-                fprintf(stderr, "GPS error fetching data: %s\n",
-                        gps->FetchError());
-
-            gps_enable = 0;
-        }
-
-    }
-
-    // We want to be rescheduled
-    return 1;
-}
-
 // Handle channel hopping... this is actually really simple.
 int ChannelHopEvent(Timetracker::timer_event *evt, void *parm) {
     sourcetracker.AdvanceChannel();
@@ -387,9 +367,6 @@ int main(int argc, char *argv[]) {
 
         }
     }
-
-    // Update GPS coordinates and handle signal loss if defined
-    timetracker.RegisterTimer(SERVER_TIMESLICES_SEC, NULL, 1, &GpsEvent, NULL);
 
 	// Add the GPS to the tcpstreamer
 	streamer.AddGpstracker(gps);
@@ -713,6 +690,7 @@ int main(int argc, char *argv[]) {
 
         max_fd = streamer.MergeSet(read_set, max_fd, &rset, &wset);
         max_fd = sourcetracker.MergeSet(&rset, &wset, max_fd);
+        max_fd = gps->MergeSet(&rset, &wset, max_fd);
 
         struct timeval tm;
         tm.tv_sec = 0;
@@ -720,10 +698,13 @@ int main(int argc, char *argv[]) {
 
         if (select(max_fd + 1, &rset, &wset, NULL, &tm) < 0) {
             if (errno != EINTR) {
-                fprintf(stderr, "FATAL:  select() error %d (%s)\n", errno, strerror(errno));
+                fprintf(stderr, "FATAL:  select() error %d (%s)\n", 
+						errno, strerror(errno));
                 CatchShutdown(-1);
             }
         }
+
+		gps->Poll(&rset, &wset);
 
         // We can pass the results of this select to the UI handler without incurring a
         // a delay since it will bail nicely if there aren't any new connections.

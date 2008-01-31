@@ -63,13 +63,13 @@ DRONEO = util.o cygwin_utils.o ringbuf.o configfile.o getopt.o ifcontrol.o \
 		kis_packsources.o timetracker.o gpsd.o server_globals.o kismet_drone.o
 DRONE = kismet_drone
 
-NCO	= util.o configfile.o speech.o manuf.o tcpclient.o \
+NCO	= util.o configfile.o speech.o manuf.o tcpclient.o timetracker.o \
 		frontend.o cursesfront.o \
 		panelfront.o panelfront_display.o panelfront_input.o \
 		gpsd.o getopt.o kismet_client.o 
 NC	= kismet_client
 
-GPSLO = getopt.o util.o configfile.o expat.o manuf.o \
+GPSLO = getopt.o util.o configfile.o expat.o manuf.o timetracker.o \
 		gpsmap_cache.o gpsmap_samples.o gpsmap.o
 GPSL = gpsmap
 

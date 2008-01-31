@@ -47,11 +47,15 @@
 #include <magick/api.h>
 #include "configfile.h"
 
+#include "timetracker.h"
 #include "gpsdump.h"
 #include "expat.h"
 #include "manuf.h"
 #include "gpsmap_cache.h"
 #include "gpsmap_samples.h"
+
+// Make gpsd happy
+Timetracker timetracker;
 
 // Kludge old IM
 #if (MagickLibVersion < 0x600)

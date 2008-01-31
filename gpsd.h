@@ -84,8 +84,8 @@ public:
     // Get our file descriptor
     int FetchDescriptor() { return sock; }
 
-    // Scan the GPSD so we can return instantly when someone asks for it
-    int Scan();
+    unsigned int MergeSet(fd_set *in_rset, fd_set *in_wset, unsigned int in_max);
+    int Poll(fd_set *in_rset, fd_set *in_wset);
 
     // Fetch a location
     int FetchLoc(float *in_lat, float *in_lon, float *in_alt, 
@@ -93,6 +93,9 @@ public:
 
     // Fetch mode
     int FetchMode() { return mode; }
+
+	// Write poll request data
+	void WritePoll();
 
     // Various GPS transformations
     static float CalcHeading(float in_lat, float in_lon, float in_lat2, float in_lon2);
@@ -107,6 +110,8 @@ protected:
 
 	// Are we in polling or watcher mode?
 	int poll_mode;
+
+	int poll_timer;
 
     int sock;
 

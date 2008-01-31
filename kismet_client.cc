@@ -29,6 +29,10 @@
 #include "panelfront.h"
 #include "configfile.h"
 #include "speech.h"
+#include "timetracker.h"
+
+// Make gpsd happy
+Timetracker timetracker;
 
 #ifndef exec_name
 char *exec_name;

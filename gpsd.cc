@@ -23,13 +23,24 @@
 #include <vector>
 
 #include "util.h"
+#include "timetracker.h"
+
+extern Timetracker timetracker;
+
+int GpsPollEvent(Timetracker::timer_event *evt, void *parm) {
+	((GPSD *) parm)->WritePoll();
+
+	return 1;
+}
 
 GPSD::GPSD(char *in_host, int in_port) {
     sock = -1;
     lat = lon = alt = spd = hed = 0;
-    mode = -1;
+    mode = 0;
 	last_mode = -1;
     last_lat = last_lon = last_hed = 0;
+
+	poll_timer = -1;
 
     sock = -1;
 	memset(errstr, 0, 1024);
@@ -40,10 +51,15 @@ GPSD::GPSD(char *in_host, int in_port) {
 }
 
 GPSD::~GPSD(void) {
-    if (sock >= 0)
+    if (sock >= 0) {
         close(sock);
+		sock = -1;
+	}
 
-    sock = -1;
+	if (poll_timer >= 0) {
+		timetracker.RemoveTimer(poll_timer);
+		poll_timer = -1;
+	}
 }
 
 char *GPSD::FetchError() {
@@ -118,11 +134,34 @@ int GPSD::CloseGPSD() {
     return 1;
 }
 
+void GPSD::WritePoll() {
+	if (write(sock, gpsd_poll_command, sizeof(gpsd_poll_command)) < 0) {
+		if (errno != EAGAIN) {
+			snprintf(errstr, 1024, "GPSD write error: %s", strerror(errno));
+			CloseGPSD();
+		}
+	}
+}
+
+unsigned int GPSD::MergeSet(fd_set *in_rset, fd_set *in_wset,
+							unsigned int in_max) {
+
+	if (sock < 0)
+		return in_max;
+
+	FD_SET(sock, in_rset);
+
+	if ((int) in_max < sock)
+		return (unsigned int) sock;
+
+    return in_max;
+}
 // The guts of it
-int GPSD::Scan() {
+int GPSD::Poll(fd_set *in_rset, fd_set *in_wset) {
     int ret;
 	float in_lat, in_lon, in_alt, in_spd, in_hed;
-	int in_mode, use_alt = 1, use_spd = 1, use_hed = 1, use_data = 0;
+	int in_mode, use_alt = 1, use_spd = 1, use_hed = 1, use_data = 0,
+		use_mode = 0, use_coord = 0;
 
     if (sock < 0) {
         lat = lon = alt = spd = 0;
@@ -130,6 +169,9 @@ int GPSD::Scan() {
         hed = 0;
         return -1;
     }
+
+	if (FD_ISSET(sock, in_rset) == 0)
+		return 0;
 
     // Read as much as we have
 	if (data_pos == GPSD_MAX_DATASIZE)
@@ -168,7 +210,18 @@ int GPSD::Scan() {
 			// don't need to keep flooding it with position requests
 			poll_mode = 1;
 
-			if (write(sock, gpsd_poll_command, sizeof(gpsd_poll_command)) < 0) {
+			WritePoll();
+
+			if (poll_timer < 0) 
+				poll_timer = 
+					timetracker.RegisterTimer(SERVER_TIMESLICES_SEC, NULL, 1,
+											  &GpsPollEvent, this);
+		} else if (gpslines[x].substr(0, 15) == "GPSD,L=2 1.0-25") {
+			// Maemo ships a broken, broken, broken GPS which doesn't seem to
+			// parse NMEA properly - Alt and Fix are not available in watcher
+			// or polling modes, so we're going to have to kick it into "R" mode
+			// and do NMEA locally
+			if (write(sock, "R=1\n", 4) < 0) {
 				if (errno != EAGAIN) {
 					snprintf(errstr, 1024, "GPSD write error: %s", strerror(errno));
 					CloseGPSD();
@@ -200,13 +253,10 @@ int GPSD::Scan() {
 
 			// And then write the poll command if we need to
 			if (poll_mode) {
-				if (write(sock, gpsd_poll_command, sizeof(gpsd_poll_command)) < 0) {
-					if (errno != EAGAIN) {
-						snprintf(errstr, 1024, "GPSD write error: %s", strerror(errno));
-						CloseGPSD();
-						return -1;
-					}
-				}
+				if (poll_timer < 0) 
+					poll_timer = 
+						timetracker.RegisterTimer(SERVER_TIMESLICES_SEC, NULL, 1,
+												  &GpsPollEvent, this);
 			} else {
 				if (write(sock, gpsd_watch_command, sizeof(gpsd_watch_command)) < 0) {
 					if (errno != EAGAIN) {
@@ -251,6 +301,8 @@ int GPSD::Scan() {
 				use_spd = 0;
 
 			use_hed = 0;
+			use_mode = 1;
+			use_coord = 1;
 			use_data = 1;
 
 		} else if (gpslines[x].substr(0, 7) == "GPSD,O=") {
@@ -280,8 +332,59 @@ int GPSD::Scan() {
 			if (sscanf(ggavec[9].c_str(), "%f", &in_spd) != 1)
 				use_spd = 0;
 
+			use_mode = 1;
+			use_coord = 1;
 			use_data = 1;
-		}
+		} else if (gpslines[x].substr(0, 6) == "$GPGSA") {
+			vector<string> savec = StrTokenize(gpslines[x], ",");
+
+			if (savec.size() != 18)
+				continue;
+
+			if (sscanf(savec[2].c_str(), "%d", &in_mode) != 1)
+				continue;
+
+			use_mode = 1;
+			use_data = 1;
+		} else if (gpslines[x].substr(0, 6) == "$GPVTG") {
+			vector<string> vtvec = StrTokenize(gpslines[x], ",");
+
+			if (vtvec.size() != 10)
+				continue;
+
+			if (sscanf(vtvec[7].c_str(), "%f", &in_spd) != 1)
+				continue;
+
+			use_spd = 1;
+			use_data = 1;
+		} else if (gpslines[x].substr(0, 6) == "$GPGGA") {
+			vector<string> gavec = StrTokenize(gpslines[x], ",");
+			int tint;
+			float tfloat;
+
+			if (gavec.size() != 15)
+				continue;
+
+			if (sscanf(gavec[2].c_str(), "%2d%f", &tint, &tfloat) != 2)
+				continue;
+			in_lat = (float) tint + (tfloat / 60);
+			if (gavec[3] == "S")
+				in_lat = in_lat * -1;
+
+			if (sscanf(gavec[4].c_str(), "%3d%f", &tint, &tfloat) != 2)
+				continue;
+			in_lon = (float) tint + (tfloat / 60);
+			if (gavec[5] == "W")
+				in_lon = in_lon * -1;
+
+			if (sscanf(gavec[9].c_str(), "%f", &tfloat) != 1)
+				continue;
+			in_alt = tfloat;
+
+			use_coord = 1;
+			use_alt = 1;
+			use_data = 1;
+		} 
 	}
 
 	if (use_data == 0)
@@ -295,12 +398,14 @@ int GPSD::Scan() {
 	}
 
 	// Some internal mode jitter protection, means our mode is slightly lagged
-	if (in_mode >= last_mode) {
-		last_mode = in_mode;
-		mode = in_mode;
-	} else {
-		last_mode = in_mode;
-	}
+	if (use_mode) {
+		if (in_mode >= last_mode) {
+			last_mode = in_mode;
+			mode = in_mode;
+		} else {
+			last_mode = in_mode;
+		}
+	} 
 
 	if (use_alt && mode >= 3)
 		alt = in_alt * 3.3;
@@ -313,7 +418,7 @@ int GPSD::Scan() {
 	if (use_hed) {
 		last_hed = hed;
 		hed = in_hed;
-	} else if (poll_mode) {
+	} else if (poll_mode && use_coord) {
 		// We only do manual heading calcs in poll mode
 		if (last_hed_time == 0) {
 			last_hed_time = time(0);
@@ -331,8 +436,10 @@ int GPSD::Scan() {
 
 	// We always get these...  But we get them at the end so that we can
 	// preserve our heading calculations
-	lat = in_lat;
-	lon = in_lon;
+	if (use_coord) {
+		lat = in_lat;
+		lon = in_lon;
+	}
 
     return 1;
 }
