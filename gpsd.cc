@@ -407,10 +407,8 @@ int GPSD::Poll(fd_set *in_rset, fd_set *in_wset) {
 		}
 	} 
 
-	if (use_alt && mode >= 3)
+	if (use_alt)
 		alt = in_alt * 3.3;
-	else if (mode < 3)
-		alt = 0;
 
 	if (use_spd)
 		spd = in_spd * (6076.12 / 5280);
