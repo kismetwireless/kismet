@@ -1832,7 +1832,8 @@ void PanelFront::AddPrefs(map<string, string> in_prefs) {
             }
             batno++;
         }
-        closedir(batteries);
+		if (batteries != NULL)
+			closedir(batteries);
     }
 
     if (prefs["apm"] == "true")
