@@ -50,6 +50,7 @@ public:
 	virtual void Position(int in_sy, int in_sx, int in_y, int in_x);
 	virtual void DrawPanel();
 	virtual int KeyPress(int in_key);
+	virtual int MouseEvent(MEVENT *mevent);
 
 	// Passthrough to the display group
 	virtual Kis_Display_NetGroup *FetchSelectedNetgroup();
@@ -81,6 +82,8 @@ public:
 		string pref;
 		string text;
 	};
+
+	void MenuAction(int opt);
 
 protected:
 	int mn_file, mi_connect, mi_disconnect, mi_addcard, mi_quit;
@@ -133,7 +136,8 @@ public:
 
 	virtual void Position(int in_sy, int in_sx, int in_y, int in_x);
 	virtual void DrawPanel();
-	virtual int KeyPress(int in_key);
+
+	void ButtonAction(Kis_Panel_Component *component);
 
 protected:
 	Kis_Single_Input *hostname;
@@ -142,9 +146,6 @@ protected:
 	Kis_Button *cancelbutton;
 
 	Kis_Panel_Packbox *vbox, *bbox;
-
-	vector<Kis_Panel_Component *> tab_components;
-	int tab_pos;
 };
 
 class Kis_AddCard_Panel : public Kis_Panel {
@@ -159,9 +160,10 @@ public:
 
 	virtual void Position(int in_sy, int in_sx, int in_y, int in_x);
 	virtual void DrawPanel();
-	virtual int KeyPress(int in_key);
 
 	virtual void SetTargetClient(KisNetClient *in_cli);
+
+	void ButtonAction(Kis_Panel_Component *in_button);
 
 protected:
 	KisNetClient *target_cli;
@@ -173,9 +175,6 @@ protected:
 	Kis_Button *cancelbutton;
 
 	Kis_Panel_Packbox *vbox, *bbox;
-
-	vector<Kis_Panel_Component *> tab_components;
-	int tab_pos;
 };
 
 // AddCard callback to trigger building the window
@@ -212,7 +211,6 @@ public:
 
 	virtual void Position(int in_sy, int in_sx, int in_y, int in_x);
 	virtual void DrawPanel();
-	virtual int KeyPress(int in_key);
 
 protected:
 	Kis_Scrollable_Table *cardlist;
@@ -255,16 +253,14 @@ public:
 
 	virtual void Position(int in_sy, int in_sx, int in_y, int in_x);
 	virtual void DrawPanel();
-	virtual int KeyPress(int in_key);
 
 	virtual void ConfigureAlert(string in_title, string in_text);
+
+	virtual void AckAction();
 
 protected:
 	Kis_Free_Text *ftxt;
 	Kis_Button *ackbutton;
-
-	vector<Kis_Panel_Component *> tab_components;
-	int tab_pos;
 };
 
 class Kis_Plugin_Picker : public Kis_Panel {

@@ -188,8 +188,12 @@ PanelInterface::PanelInterface(GlobalRegistry *in_globalreg) {
 
 	// Init curses
 	initscr();
+	raw();
 	cbreak();
 	noecho();
+	keypad(stdscr, 1);
+	meta(stdscr, 1);
+	mousemask(ALL_MOUSE_EVENTS | REPORT_MOUSE_POSITION, NULL);
 	start_color();
 
 	draweventid = 
@@ -289,7 +293,34 @@ Kis_Panel_Component::Kis_Panel_Component(GlobalRegistry *in_globalreg,
 	mx = my = 0;
 	layout_dirty = 0;
 
+	cb_switch = cb_activate = NULL;
+
 	name = "GENERIC_WIDGET";
+}
+
+void Kis_Panel_Component::SetCallback(int cbtype, int (*cb)(COMPONENT_CALLBACK_PARMS),
+									  void *aux) {
+	switch (cbtype) {
+		case COMPONENT_CBTYPE_SWITCH:
+			cb_switch = cb;
+			cb_switch_aux = aux;
+			break;
+		case COMPONENT_CBTYPE_ACTIVATED:
+			cb_activate = cb;
+			cb_activate_aux = aux;
+			break;
+	}
+}
+
+void Kis_Panel_Component::ClearCallback(int cbtype) {
+	switch (cbtype) {
+		case COMPONENT_CBTYPE_SWITCH:
+			cb_switch = NULL;
+			break;
+		case COMPONENT_CBTYPE_ACTIVATED:
+			cb_activate = NULL;
+			break;
+	}
 }
 
 Kis_Panel_Packbox::Kis_Panel_Packbox(GlobalRegistry *in_globalreg,
@@ -696,6 +727,7 @@ Kis_Menu::Kis_Menu(GlobalRegistry *in_globalreg, Kis_Panel *in_panel) :
 	cur_item = -1;
 	sub_item = -1;
 	sub_menu = -1;
+	mouse_triggered = 0;
 	menuwin = NULL;
 	submenuwin = NULL;
 	text_color = border_color = 0;
@@ -872,6 +904,8 @@ void Kis_Menu::ClearMenus() {
 }
 
 void Kis_Menu::Activate(int subcomponent) {
+	Kis_Panel_Component::Activate(subcomponent);
+
 	cur_menu = subcomponent - 1;
 	cur_item = -1;
 	sub_menu = -1;
@@ -879,10 +913,13 @@ void Kis_Menu::Activate(int subcomponent) {
 }
 
 void Kis_Menu::Deactivate() {
+	Kis_Panel_Component::Deactivate();
+
 	cur_menu = -1;
 	cur_item = -1;
 	sub_menu = -1;
 	sub_item = -1;
+	mouse_triggered = 0;
 }
 
 void Kis_Menu::DrawMenu(_menu *menu, WINDOW *win, int hpos, int vpos) {
@@ -1033,7 +1070,7 @@ void Kis_Menu::DrawComponent() {
 
 		// Draw the menu itself, if we've got an item selected in it
 		if (((int) x == cur_menu || (int) x == sub_menu) && 
-			(sub_item >= 0 || cur_item >= 0)) {
+			(sub_item >= 0 || cur_item >= 0 || mouse_triggered)) {
 			DrawMenu(menubar[x], menuwin, sx + hpos, sy + 1);
 		}
 
@@ -1200,6 +1237,10 @@ int Kis_Menu::KeyPress(int in_key) {
 
 		int ret = (cur_menu * 100) + cur_item + 1;
 		Deactivate();
+		
+		if (cb_activate != NULL) 
+			(*cb_activate)(this, ret, cb_activate_aux, globalreg);
+
 		return ret;
 	}
 
@@ -1232,10 +1273,85 @@ int Kis_Menu::KeyPress(int in_key) {
 					menubar[cur_menu]->items[x]->enabled == 1) {
 					int ret = (cur_menu * 100) + x + 1;
 					Deactivate();
+					if (cb_activate != NULL) 
+						(*cb_activate)(this, ret, cb_activate_aux, globalreg);
 					return ret;
 				}
 			}
 			return -1;
+		}
+	}
+
+	return 0;
+}
+
+int Kis_Menu::MouseEvent(MEVENT *mevent) {
+	if (mevent->bstate == 4 && mevent->y == sy) {
+		// Click happened somewhere in the menubar
+		int hpos = 3;
+		for (unsigned int x = 0; x < menubar.size(); x++) {
+			if (menubar[x]->submenu || menubar[x]->visible == 0)
+				continue;
+
+			if (mevent->x < hpos)
+				break;
+
+			if (mevent->x <= hpos + (int) menubar[x]->text.length()) {
+				if ((int) x == cur_menu && cur_item >= 0) {
+					Deactivate();
+					// Consume w/ no state change to caller
+					return -1;
+				} else {
+					Activate(0);
+					cur_menu = x;
+					cur_item = -1;
+					mouse_triggered = 1;
+					// Consume w/ no state change to caller
+					return -1;
+				}
+			}
+
+			hpos += menubar[x]->text.length() + 1;
+		} /* menu list */
+	} else if (mevent->bstate == 4 && mevent->y > sy && cur_menu >= 0) {
+		int hpos = 3;
+		int ypos = sy + 2;
+		for (unsigned int x = 0; x < (unsigned int) (cur_menu + 1); x++) {
+			if (menubar[x]->submenu || menubar[x]->visible == 0)
+				continue;
+
+			if (mevent->x < hpos)
+				break;
+
+			hpos += menubar[x]->text.length() + 1;
+
+			if (mevent->x <= hpos + (int) menubar[x]->text.length()) {
+				for (unsigned int y = 0; y < menubar[x]->items.size(); y++) {
+					if (menubar[x]->items[y]->visible == 0)
+						continue;
+					 
+					if (menubar[x]->items[y]->text[0] == '-') {
+						ypos++;
+						continue;
+					}
+
+					if (ypos == mevent->y) {
+						if (menubar[x]->items[y]->enabled == 0)
+							return -1;
+
+						// Trigger the item
+						if (cb_activate != NULL)
+							(*cb_activate)(this, (cur_menu * 100) + y + 1,
+										   cb_activate_aux, globalreg);
+
+						Deactivate();
+
+						return (cur_menu * 100) + y + 1;
+					}
+
+					ypos++;
+				}
+			}
 		}
 	}
 
@@ -1494,14 +1610,6 @@ void Kis_Free_Text::DrawComponent() {
 	}
 }
 
-void Kis_Free_Text::Activate(int subcomponent) {
-	// No magic
-}
-
-void Kis_Free_Text::Deactivate() {
-	// No magic
-}
-
 int Kis_Free_Text::KeyPress(int in_key) {
 	if (visible == 0)
 		return 0;
@@ -1594,14 +1702,6 @@ void Kis_Status_Text::DrawComponent() {
 										  text_vec[text_vec.size() - x - 1],
 										  ex - 1);
 	}
-}
-
-void Kis_Status_Text::Activate(int subcomponent) {
-	// No magic
-}
-
-void Kis_Status_Text::Deactivate() {
-	// No magic
 }
 
 int Kis_Status_Text::KeyPress(int in_key) {
@@ -1905,6 +2005,13 @@ int Kis_Scrollable_Table::KeyPress(int in_key) {
 		hscroll_pos--;
 	}
 
+	if (in_key == '\n' || in_key == '\r') {
+		if (cb_activate != NULL) 
+			(*cb_activate)(this, GetSelected(), cb_activate_aux, globalreg);
+
+		return GetSelected();
+	}
+
 	return 0;
 }
 
@@ -2027,6 +2134,8 @@ void Kis_Single_Input::DrawComponent() {
 	int xoff = 0;
 	int yoff = 0;
 
+	// fprintf(stderr, "debug - label %d %s\n", label.length(), label.c_str());
+
 	// Draw the label if we can, in bold
 	if (ly >= 2 && label_pos == LABEL_POS_TOP) {
 		wattron(window, WA_BOLD);
@@ -2043,6 +2152,9 @@ void Kis_Single_Input::DrawComponent() {
 	// set the drawing length
 	draw_len = lx - xoff;
 
+	if (draw_len < 0)
+		draw_len = 0;
+
 	// Clean up any silliness that might be present from initialization
 	if (inp_pos - curs_pos >= draw_len)
 		curs_pos = inp_pos - draw_len + 1;
@@ -2052,6 +2164,11 @@ void Kis_Single_Input::DrawComponent() {
 
 	/* draw the inverted line */
 	mvwhline(window, sy + yoff, sx + xoff, ' ', draw_len);
+
+	if (curs_pos >= (int) text.length())
+		curs_pos = 0;
+
+	// fprintf(stderr, "debug - about to try to substr %d %d from len %d\n", curs_pos, draw_len, text.length());
 
 	/* draw the text from cur to what fits */
 	mvwaddnstr(window, sy + yoff, sx + xoff, 
@@ -2071,14 +2188,6 @@ void Kis_Single_Input::DrawComponent() {
 		mvwaddch(window, sy + yoff, sx + xoff + (inp_pos - curs_pos), ch);
 		wattroff(window, WA_UNDERLINE);
 	}
-}
-
-void Kis_Single_Input::Activate(int subcomponent) {
-	active = 1;
-}
-
-void Kis_Single_Input::Deactivate() {
-	active = 0;
 }
 
 int Kis_Single_Input::KeyPress(int in_key) {
@@ -2145,6 +2254,24 @@ int Kis_Single_Input::KeyPress(int in_key) {
 			curs_pos = inp_pos - draw_len + 1;
 
 		return 0;
+	}
+
+	return 0;
+}
+
+int Kis_Single_Input::MouseEvent(MEVENT *mevent) {
+	int mwx, mwy;
+	getbegyx(window, mwy, mwx);
+
+	mwx = mevent->x - mwx;
+	mwy = mevent->y - mwy;
+
+	if (mevent->bstate == 4 && mwy == sy && mwx >= sx && mwx <= ex) {
+		// Single input only does a focus switch on mouse events
+		if (cb_switch != NULL) 
+			(*cb_switch)(this, 1, cb_switch_aux, globalreg);
+
+		return 1;
 	}
 
 	return 0;
@@ -2222,19 +2349,31 @@ void Kis_Button::DrawComponent() {
 		wattroff(window, WA_REVERSE);
 }
 
-void Kis_Button::Activate(int subcomponent) {
-	active = 1;
-}
-
-void Kis_Button::Deactivate() {
-	active = 0;
-}
-
 int Kis_Button::KeyPress(int in_key) {
 	if (visible == 0)
 		return 0;
 
 	if (in_key == KEY_ENTER || in_key == '\n') {
+		if (cb_activate != NULL) 
+			(*cb_activate)(this, 1, cb_activate_aux, globalreg);
+
+		return 1;
+	}
+
+	return 0;
+}
+
+int Kis_Button::MouseEvent(MEVENT *mevent) {
+	int mwx, mwy;
+	getbegyx(window, mwy, mwx);
+
+	mwx = mevent->x - mwx;
+	mwy = mevent->y - mwy;
+
+	if (mevent->bstate == 4 && mwy == sy && mwx >= sx && mwx <= ex) {
+		if (cb_activate != NULL) 
+			(*cb_activate)(this, 1, cb_activate_aux, globalreg);
+
 		return 1;
 	}
 
@@ -2313,6 +2452,13 @@ void Kis_Checkbox::SetChecked(int in_check) {
 	checked = in_check;
 }
 
+template<class T> void Kis_Graph<T>::AddExtDataVec(string name, int layer, 
+												   string colorpref,  char line,
+												   char fill, vector<T> *in_dv) {
+	// text = in_text;
+	// SetPreferredSize(text.length() + 4, 1);
+}
+
 Kis_Panel::Kis_Panel(GlobalRegistry *in_globalreg, KisPanelInterface *in_intf) {
 	globalreg = in_globalreg;
 	kpinterface = in_intf;
@@ -2329,19 +2475,122 @@ Kis_Panel::Kis_Panel(GlobalRegistry *in_globalreg, KisPanelInterface *in_intf) {
 	sx = sy = sizex = sizey = 0;
 
 	active_component = NULL;
+	tab_pos = -1;
 }
 
 Kis_Panel::~Kis_Panel() {
-	for (unsigned int x = 0; x < comp_vec.size(); x++) {
-		delete comp_vec[x];
+	for (unsigned int x = 0; x < pan_comp_vec.size(); x++) {
+		delete pan_comp_vec[x].comp;
 	}
 
-	if (menu != NULL)
-		delete menu;
 	if (pan != NULL)
 		del_panel(pan);
 	if (win != NULL)
 		delwin(win);
+}
+
+void Kis_Panel::AddComponentVec(Kis_Panel_Component *in_comp, int in_flags) {
+	component_entry etr;
+
+	etr.comp_flags = in_flags;
+	etr.comp = in_comp;
+
+	pan_comp_vec.push_back(etr);
+}
+
+void Kis_Panel::DelComponentVec(Kis_Panel_Component *in_comp) {
+	for (unsigned int x = 0; x < pan_comp_vec.size(); x++) {
+		if (pan_comp_vec[x].comp = in_comp) {
+			pan_comp_vec.erase(pan_comp_vec.begin() + x);
+			return;
+		}
+	}
+}
+
+int Kis_Panel::KeyPress(int in_key) {
+	int ret;
+
+	if (menu) {
+		ret = menu->KeyPress(in_key);
+
+		if (ret != 0)
+			return 0;
+	}
+
+	if (in_key == '\t' && tab_pos >= 0) {
+		int set = -1;
+
+		// Find from current to end
+		for (unsigned int x = tab_pos + 1; x < pan_comp_vec.size(); x++) {
+			if ((pan_comp_vec[x].comp_flags & KIS_PANEL_COMP_TAB) == 0)
+				continue;
+
+			set = x;
+			break;
+		}
+
+		// No?  Find from start
+		if (set == -1) {
+			for (unsigned int x = 0; x < pan_comp_vec.size(); x++) {
+				if ((pan_comp_vec[x].comp_flags & KIS_PANEL_COMP_TAB) == 0)
+					continue;
+
+				set = x;
+				break;
+			}
+		}
+
+		// No?  Someone deleted the tabable components then, just stop
+		if (set == -1) {
+			tab_pos = -1;
+			return 0;
+		}
+
+		pan_comp_vec[tab_pos].comp->Deactivate();
+		tab_pos = set;
+
+		pan_comp_vec[tab_pos].comp->Activate(1);
+		active_component = pan_comp_vec[tab_pos].comp;
+	}
+
+	if (active_component != NULL) {
+		ret = active_component->KeyPress(in_key);
+		return 0;
+	}
+
+	return 0;
+}
+
+int Kis_Panel::MouseEvent(MEVENT *mevent) {
+	int ret;
+
+	// We just process every component until we get a non-0
+	for (unsigned int x = 0; x < pan_comp_vec.size(); x++) {
+		if ((pan_comp_vec[x].comp_flags & KIS_PANEL_COMP_EVT) == 0)
+			continue;
+
+		ret = pan_comp_vec[x].comp->MouseEvent(mevent);
+
+		if (ret != 0) {
+			// Positive response means switch the focus
+			if (ret >= 0) {
+				if (active_component != NULL) 
+					active_component->Deactivate();
+
+				if ((pan_comp_vec[x].comp_flags & KIS_PANEL_COMP_TAB) &&
+					tab_pos >= 0) {
+					tab_pos = x;
+				}
+
+				active_component = pan_comp_vec[x].comp;
+				active_component->Activate(0);
+			}
+
+			return 0;
+		}
+	}
+
+	return 0;
 }
 
 void Kis_Panel::InitColorPref(string in_pref, string in_def) {
@@ -2385,9 +2634,15 @@ void Kis_Panel::Position(int in_sy, int in_sx, int in_y, int in_x) {
 
 int Kis_Panel::Poll() {
 	int get = wgetch(win);
+	MEVENT mevent;
 	int ret;
 
-	ret = KeyPress(get);
+	if (get == KEY_MOUSE) {
+		getmouse(&mevent);
+		ret = MouseEvent(&mevent);
+	} else {
+		ret = KeyPress(get);
+	}
 
 	if (ret < 0)
 		return ret;

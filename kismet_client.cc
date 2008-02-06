@@ -225,8 +225,7 @@ void CatchShutdown(int sig) {
 
 	// Be noisy
 	if (globalregistry->fatal_condition) {
-		fprintf(stderr, "\n*** KISMET HAS ENCOUNTERED A FATAL ERROR AND CANNOT "
-				"CONTINUE.  ***\n");
+		fprintf(stderr, "\n*** KISMET-UI SHUTTING DOWN.  ***\n");
 	}
     
     // Dump fatal errors again

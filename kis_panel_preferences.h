@@ -96,18 +96,16 @@ public:
 	
 	virtual void Position(int in_sy, int in_sx, int in_y, int in_x);
 	virtual void DrawPanel();
-	virtual int KeyPress(int in_key);
 
 	virtual void LinkColorPref(string in_prefname);
+
+	virtual void ButtonAction(Kis_Panel_Component *in_button);
 
 protected:
 	Kis_Button *okbutton, *cancelbutton;
 	Kis_ColorPref_Component *fgcolor, *bgcolor;
 
 	Kis_Panel_Packbox *vbox, *hbox;
-
-	vector<Kis_Panel_Component *> tab_components;
-	int tab_pos;
 
 	string prefname;
 };
@@ -126,9 +124,10 @@ public:
 
 	virtual void Position(int in_sy, int in_sx, int in_y, int in_x);
 	virtual void DrawPanel();
-	virtual int KeyPress(int in_key);
 
 	virtual void AddColorPref(string pref, string name);
+
+	virtual void SelectedAction(int listkey);
 
 	typedef struct cprefpair {
 		string text, pref;
@@ -151,7 +150,8 @@ public:
 
 	virtual void Position(int in_sy, int in_sx, int in_y, int in_x);
 	virtual void DrawPanel();
-	virtual int KeyPress(int in_key);
+
+	virtual void ButtonAction(Kis_Panel_Component *in_button);
 
 protected:
 	Kis_Single_Input *hostname;
@@ -161,9 +161,6 @@ protected:
 	Kis_Button *cancelbutton;
 
 	Kis_Panel_Packbox *vbox, *bbox;
-
-	vector<Kis_Panel_Component *> tab_components;
-	int tab_pos;
 };
 
 class Kis_ColumnPref_Panel : public Kis_Panel {
@@ -178,7 +175,6 @@ public:
 
 	virtual void Position(int in_sy, int in_sx, int in_y, int in_x);
 	virtual void DrawPanel();
-	virtual int KeyPress(int in_key);
 
 	// Add a column to the understood options.  These should ALL be populated
 	// BEFORE calling ColumnPref to link it to a pref value
@@ -186,6 +182,8 @@ public:
 
 	// Link to a column preference field
 	virtual void ColumnPref(string pref, string name);
+
+	virtual void ButtonAction(Kis_Panel_Component *in_button);
 
 	typedef struct {
 		string colname;
@@ -200,9 +198,6 @@ protected:
 	Kis_Button *cancelbutton;
 
 	Kis_Panel_Packbox *vbox, *bbox;
-
-	vector<Kis_Panel_Component *> tab_components;
-	int tab_pos;
 
 	string pref, prefname;
 

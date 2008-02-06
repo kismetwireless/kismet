@@ -147,6 +147,11 @@ string Kis_ColorPref_Component::GetColor() {
 	return string(colortext[cpos]);
 }
 
+int ColorprefButtonCB(COMPONENT_CALLBACK_PARMS) {
+	((Kis_ColorPref_Picker *) aux)->ButtonAction(component);
+	return 1;
+}
+
 Kis_ColorPref_Picker::Kis_ColorPref_Picker(GlobalRegistry *in_globalreg,
 										   KisPanelInterface *in_intf) :
 	Kis_Panel(in_globalreg, in_intf) {
@@ -156,10 +161,17 @@ Kis_ColorPref_Picker::Kis_ColorPref_Picker(GlobalRegistry *in_globalreg,
 	cancelbutton = new Kis_Button(globalreg, this);
 	okbutton = new Kis_Button(globalreg, this);
 
-	tab_components.push_back(fgcolor);
-	tab_components.push_back(bgcolor);
-	tab_components.push_back(okbutton);
-	tab_components.push_back(cancelbutton);
+	okbutton->SetCallback(COMPONENT_CBTYPE_ACTIVATED, ColorprefButtonCB, this);
+	cancelbutton->SetCallback(COMPONENT_CBTYPE_ACTIVATED, ColorprefButtonCB, this);
+
+	AddComponentVec(fgcolor, (KIS_PANEL_COMP_DRAW | KIS_PANEL_COMP_TAB |
+							  KIS_PANEL_COMP_EVT));
+	AddComponentVec(bgcolor, (KIS_PANEL_COMP_DRAW | KIS_PANEL_COMP_TAB |
+							  KIS_PANEL_COMP_EVT));
+	AddComponentVec(okbutton, (KIS_PANEL_COMP_DRAW | KIS_PANEL_COMP_TAB |
+							   KIS_PANEL_COMP_EVT));
+	AddComponentVec(cancelbutton, (KIS_PANEL_COMP_DRAW | KIS_PANEL_COMP_TAB |
+								   KIS_PANEL_COMP_EVT));
 	tab_pos = 0;
 
 	fgcolor->Activate(1);
@@ -185,7 +197,7 @@ Kis_ColorPref_Picker::Kis_ColorPref_Picker(GlobalRegistry *in_globalreg,
 	vbox->Pack_End(bgcolor, 0, 0);
 	vbox->Pack_End(hbox, 1, 0);
 
-	comp_vec.push_back(vbox);
+	AddComponentVec(vbox, KIS_PANEL_COMP_DRAW);
 
 	okbutton->SetText("Save");
 	cancelbutton->SetText("Cancel");
@@ -219,43 +231,30 @@ void Kis_ColorPref_Picker::DrawPanel() {
 	mvwaddstr(win, 1, 5, "Foregound:");
 	mvwaddstr(win, 3, 5, "Background:");
 
-	for (unsigned int x = 0; x < comp_vec.size(); x++)
-		comp_vec[x]->DrawComponent();
+	for (unsigned int x = 0; x < pan_comp_vec.size(); x++) {
+		if ((pan_comp_vec[x].comp_flags & KIS_PANEL_COMP_DRAW) == 0)
+			continue;
+
+		pan_comp_vec[x].comp->DrawComponent();
+	}
 
 	wmove(win, 0, 0);
 }
 
-int Kis_ColorPref_Picker::KeyPress(int in_key) {
-	int ret;
+void Kis_ColorPref_Picker::ButtonAction(Kis_Panel_Component *in_button) {
+	if (in_button == okbutton) {
+		kpinterface->prefs.SetOpt(prefname,
+								  fgcolor->GetColor() + "," +
+								  bgcolor->GetColor(), 1);
 
-	if (in_key == '\t') {
-		tab_components[tab_pos]->Deactivate();
-		tab_pos++;
-		if (tab_pos >= (int) tab_components.size())
-			tab_pos = 0;
-		tab_components[tab_pos]->Activate(1);
-		active_component = tab_components[tab_pos];
+		globalreg->panel_interface->KillPanel(this);
+		return;
 	}
 
-	if (active_component != NULL) {
-		ret = active_component->KeyPress(in_key);
-
-		if (active_component == okbutton && ret == 1) {
-			kpinterface->prefs.SetOpt(prefname,
-									  fgcolor->GetColor() + "," +
-									  bgcolor->GetColor(), 1);
-									   
-			globalreg->panel_interface->KillPanel(this);
-			return 0;
-		}
-
-		if (active_component == cancelbutton && ret == 1) {
-			globalreg->panel_interface->KillPanel(this);
-			return 0;
-		}
+	if (in_button == cancelbutton) {
+		globalreg->panel_interface->KillPanel(this);
+		return;
 	}
-
-	return 0;
 }
 
 void Kis_ColorPref_Picker::LinkColorPref(string in_prefname) {
@@ -269,13 +268,20 @@ void Kis_ColorPref_Picker::LinkColorPref(string in_prefname) {
 
 }
 
+int ColorPrefSelCB(COMPONENT_CALLBACK_PARMS) {
+	((Kis_ColorPref_Panel *) aux)->SelectedAction(status);
+	return 1;
+}
+
 Kis_ColorPref_Panel::Kis_ColorPref_Panel(GlobalRegistry *in_globalref,
 										 KisPanelInterface *in_intf) :
 	Kis_Panel(in_globalref, in_intf) {
 
 	colorlist = new Kis_Scrollable_Table(globalreg, this);
 
-	comp_vec.push_back(colorlist);
+	colorlist->SetCallback(COMPONENT_CBTYPE_ACTIVATED, ColorPrefSelCB, this);
+
+	AddComponentVec(colorlist, (KIS_PANEL_COMP_DRAW | KIS_PANEL_COMP_EVT));
 	active_component = colorlist;
 
 	vector<Kis_Scrollable_Table::title_data> titles;
@@ -329,38 +335,31 @@ void Kis_ColorPref_Panel::DrawPanel() {
 
 	wattrset(win, text_color);
 
-	for (unsigned int x = 0; x < comp_vec.size(); x++)
-		comp_vec[x]->DrawComponent();
+	for (unsigned int x = 0; x < pan_comp_vec.size(); x++) {
+		if ((pan_comp_vec[x].comp_flags & KIS_PANEL_COMP_DRAW) == 0)
+			continue;
+
+		pan_comp_vec[x].comp->DrawComponent();
+	}
 
 	wmove(win, 0, 0);
 }
 
-int Kis_ColorPref_Panel::KeyPress(int in_key) {
-	int ret;
-	int listkey;
-
-	if (in_key == '\n' || in_key == '\r') {
-		listkey = colorlist->GetSelected();
-
-		if (listkey >= 0 && listkey <= (int) listedcolors.size()) {
-			if (listkey == (int) listedcolors.size()) {
-				globalreg->panel_interface->KillPanel(this);
-				return 0;
-			}
-
-			Kis_ColorPref_Picker *cp = 
-				new Kis_ColorPref_Picker(globalreg, kpinterface);
-			cp->LinkColorPref(listedcolors[listkey].pref);
-			cp->Position((LINES / 2) - 4, (COLS / 2) - 25, 10, 50);
-			kpinterface->AddPanel(cp);
+void Kis_ColorPref_Panel::SelectedAction(int listkey) {
+	if (listkey >= 0 && listkey <= (int) listedcolors.size()) {
+		if (listkey == (int) listedcolors.size()) {
+			globalreg->panel_interface->KillPanel(this);
+			return;
 		}
+
+		Kis_ColorPref_Picker *cp = 
+			new Kis_ColorPref_Picker(globalreg, kpinterface);
+		cp->LinkColorPref(listedcolors[listkey].pref);
+		cp->Position((LINES / 2) - 4, (COLS / 2) - 25, 10, 50);
+		kpinterface->AddPanel(cp);
 	}
 
-	if (active_component != NULL) {
-		ret = active_component->KeyPress(in_key);
-	}
-
-	return 0;
+	return;
 }
 
 void Kis_ColorPref_Panel::AddColorPref(string pref, string name) {
@@ -369,6 +368,11 @@ void Kis_ColorPref_Panel::AddColorPref(string pref, string name) {
 	cpp.pref = pref;
 
 	listedcolors.push_back(cpp);
+}
+
+int AutoconprefButtonCB(COMPONENT_CALLBACK_PARMS) {
+	((Kis_AutoConPref_Panel *) aux)->ButtonAction(component);
+	return 1;
 }
 
 Kis_AutoConPref_Panel::Kis_AutoConPref_Panel(GlobalRegistry *in_globalreg, 
@@ -381,11 +385,19 @@ Kis_AutoConPref_Panel::Kis_AutoConPref_Panel(GlobalRegistry *in_globalreg,
 	okbutton = new Kis_Button(globalreg, this);
 	autoconcheck = new Kis_Checkbox(globalreg, this);
 
-	tab_components.push_back(hostname);
-	tab_components.push_back(hostport);
-	tab_components.push_back(autoconcheck);
-	tab_components.push_back(okbutton);
-	tab_components.push_back(cancelbutton);
+	cancelbutton->SetCallback(COMPONENT_CBTYPE_ACTIVATED, AutoconprefButtonCB, this);
+	okbutton->SetCallback(COMPONENT_CBTYPE_ACTIVATED, AutoconprefButtonCB, this);
+
+	AddComponentVec(hostname, (KIS_PANEL_COMP_DRAW | KIS_PANEL_COMP_EVT |
+							   KIS_PANEL_COMP_TAB));
+	AddComponentVec(hostport, (KIS_PANEL_COMP_DRAW | KIS_PANEL_COMP_EVT |
+							   KIS_PANEL_COMP_TAB));
+	AddComponentVec(autoconcheck, (KIS_PANEL_COMP_DRAW | KIS_PANEL_COMP_EVT |
+								   KIS_PANEL_COMP_TAB));
+	AddComponentVec(okbutton, (KIS_PANEL_COMP_DRAW | KIS_PANEL_COMP_EVT |
+							   KIS_PANEL_COMP_TAB));
+	AddComponentVec(cancelbutton, (KIS_PANEL_COMP_DRAW | KIS_PANEL_COMP_EVT |
+								   KIS_PANEL_COMP_TAB));
 	tab_pos = 0;
 
 	active_component = hostname;
@@ -435,7 +447,7 @@ Kis_AutoConPref_Panel::Kis_AutoConPref_Panel(GlobalRegistry *in_globalreg,
 	vbox->Pack_End(autoconcheck, 0, 0);
 	vbox->Pack_End(bbox, 1, 0);
 
-	comp_vec.push_back(vbox);
+	AddComponentVec(vbox, KIS_PANEL_COMP_DRAW);
 
 	active_component = hostname;
 	hostname->Activate(1);
@@ -461,49 +473,35 @@ void Kis_AutoConPref_Panel::DrawPanel() {
 
 	wattrset(win, text_color);
 
-	for (unsigned int x = 0; x < comp_vec.size(); x++)
-		comp_vec[x]->DrawComponent();
+	for (unsigned int x = 0; x < pan_comp_vec.size(); x++) {
+		if ((pan_comp_vec[x].comp_flags & KIS_PANEL_COMP_DRAW) == 0)
+			continue;
+
+		pan_comp_vec[x].comp->DrawComponent();
+	}
 
 	wmove(win, 0, 0);
 }
 
-int Kis_AutoConPref_Panel::KeyPress(int in_key) {
-	int ret;
+void Kis_AutoConPref_Panel::ButtonAction(Kis_Panel_Component *in_button) {
+	if (in_button == okbutton) {
+		kpinterface->prefs.SetOpt("default_host",
+								  hostname->GetText(), 1);
 
-	// Rotate through the tabbed items
-	if (in_key == '\t') {
-		tab_components[tab_pos]->Deactivate();
-		tab_pos++;
-		if (tab_pos >= (int) tab_components.size())
-			tab_pos = 0;
-		tab_components[tab_pos]->Activate(1);
-		active_component = tab_components[tab_pos];
+		kpinterface->prefs.SetOpt("default_port",
+								  hostport->GetText(), 1);
+
+		kpinterface->prefs.SetOpt("autoconnect",
+								  autoconcheck->GetChecked() ?
+								  "true" : "false", 1);
+
+		globalreg->panel_interface->KillPanel(this);
+	} else if (in_button == cancelbutton) {
+		// Cancel and close
+		globalreg->panel_interface->KillPanel(this);
 	}
 
-	// Otherwise the menu didn't touch the key, so pass it to the top
-	// component
-	if (active_component != NULL) {
-		ret = active_component->KeyPress(in_key);
-
-		if (active_component == okbutton && ret == 1) {
-			kpinterface->prefs.SetOpt("default_host",
-									  hostname->GetText(), 1);
-
-			kpinterface->prefs.SetOpt("default_port",
-									  hostport->GetText(), 1);
-
-			kpinterface->prefs.SetOpt("autoconnect",
-									  autoconcheck->GetChecked() ?
-									  "true" : "false", 1);
-
-			globalreg->panel_interface->KillPanel(this);
-		} else if (active_component == cancelbutton && ret == 1) {
-			// Cancel and close
-			globalreg->panel_interface->KillPanel(this);
-		}
-	}
-
-	return 0;
+	return;
 }
 
 Kis_OrderlistPref_Component::Kis_OrderlistPref_Component(GlobalRegistry *in_globalreg,
@@ -589,6 +587,11 @@ string Kis_OrderlistPref_Component::GetStringOrderList() {
 	return ret;
 }
 
+int ColumnPrefButtonCB(COMPONENT_CALLBACK_PARMS) {
+	((Kis_ColumnPref_Panel *) aux)->ButtonAction(component);
+	return 1;
+}
+
 Kis_ColumnPref_Panel::Kis_ColumnPref_Panel(GlobalRegistry *in_globalreg, 
 										   KisPanelInterface *in_intf) :
 	Kis_Panel(in_globalreg, in_intf) {
@@ -599,9 +602,15 @@ Kis_ColumnPref_Panel::Kis_ColumnPref_Panel(GlobalRegistry *in_globalreg,
 	cancelbutton = new Kis_Button(globalreg, this);
 	okbutton = new Kis_Button(globalreg, this);
 
-	tab_components.push_back(orderlist);
-	tab_components.push_back(okbutton);
-	tab_components.push_back(cancelbutton);
+	cancelbutton->SetCallback(COMPONENT_CBTYPE_ACTIVATED, ColumnPrefButtonCB, this);
+	okbutton->SetCallback(COMPONENT_CBTYPE_ACTIVATED, ColumnPrefButtonCB, this);
+
+	AddComponentVec(orderlist, (KIS_PANEL_COMP_DRAW | KIS_PANEL_COMP_TAB |
+								KIS_PANEL_COMP_EVT));
+	AddComponentVec(okbutton, (KIS_PANEL_COMP_DRAW | KIS_PANEL_COMP_TAB |
+							   KIS_PANEL_COMP_EVT));
+	AddComponentVec(cancelbutton, (KIS_PANEL_COMP_DRAW | KIS_PANEL_COMP_TAB |
+								   KIS_PANEL_COMP_EVT));
 	tab_pos = 0;
 
 	active_component = orderlist;
@@ -664,7 +673,7 @@ Kis_ColumnPref_Panel::Kis_ColumnPref_Panel(GlobalRegistry *in_globalreg,
 	vbox->Pack_End(helptext, 0, 0);
 	vbox->Pack_End(bbox, 0, 0);
 
-	comp_vec.push_back(vbox);
+	AddComponentVec(vbox, KIS_PANEL_COMP_DRAW);
 
 	pref = "";
 }
@@ -689,44 +698,30 @@ void Kis_ColumnPref_Panel::DrawPanel() {
 
 	wattrset(win, text_color);
 
-	for (unsigned int x = 0; x < comp_vec.size(); x++)
-		comp_vec[x]->DrawComponent();
+	for (unsigned int x = 0; x < pan_comp_vec.size(); x++) {
+		if ((pan_comp_vec[x].comp_flags & KIS_PANEL_COMP_DRAW) == 0)
+			continue;
+
+		pan_comp_vec[x].comp->DrawComponent();
+	}
 
 	wmove(win, 0, 0);
 }
 
-int Kis_ColumnPref_Panel::KeyPress(int in_key) {
-	int ret;
-
-	// Rotate through the tabbed items
-	if (in_key == '\t') {
-		tab_components[tab_pos]->Deactivate();
-		tab_pos++;
-		if (tab_pos >= (int) tab_components.size())
-			tab_pos = 0;
-		tab_components[tab_pos]->Activate(1);
-		active_component = tab_components[tab_pos];
-	}
-
-	// Otherwise the menu didn't touch the key, so pass it to the top
-	// component
-	if (active_component != NULL) {
-		ret = active_component->KeyPress(in_key);
-
-		if (active_component == okbutton && ret == 1) {
-			if (pref != "") {
-				kpinterface->prefs.SetOpt(pref,
-										  orderlist->GetStringOrderList(), 1);
-			}
-
-			globalreg->panel_interface->KillPanel(this);
-		} else if (active_component == cancelbutton && ret == 1) {
-			// Cancel and close
-			globalreg->panel_interface->KillPanel(this);
+void Kis_ColumnPref_Panel::ButtonAction(Kis_Panel_Component *in_button) {
+	if (in_button == okbutton) {
+		if (pref != "") {
+			kpinterface->prefs.SetOpt(pref,
+									  orderlist->GetStringOrderList(), 1);
 		}
+
+		globalreg->panel_interface->KillPanel(this);
+	} else if (in_button == cancelbutton) {
+		// Cancel and close
+		globalreg->panel_interface->KillPanel(this);
 	}
 
-	return 0;
+	return;
 }
 
 void Kis_ColumnPref_Panel::AddColumn(string colname, string description) {

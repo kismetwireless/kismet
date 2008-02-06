@@ -38,11 +38,18 @@
 
 #define WIN_CENTER(h, w)	(LINES / 2) - ((h) / 2), (COLS / 2) - ((w) / 2), (h), (w)
 
+int MenuActivateCB(COMPONENT_CALLBACK_PARMS) {
+	((Kis_Main_Panel *) aux)->MenuAction(status);
+	return 1;
+}
+
 Kis_Main_Panel::Kis_Main_Panel(GlobalRegistry *in_globalreg, 
 							   KisPanelInterface *in_intf) : 
 	Kis_Panel(in_globalreg, in_intf) {
 
 	menu = new Kis_Menu(globalreg, this);
+
+	menu->SetCallback(COMPONENT_CBTYPE_ACTIVATED, MenuActivateCB, this);
 
 	mn_file = menu->AddMenu("Kismet", 0);
 	mi_connect = menu->AddMenuItem("Connect...", mn_file, 'C');
@@ -95,6 +102,7 @@ Kis_Main_Panel::Kis_Main_Panel(GlobalRegistry *in_globalreg,
 	mi_showstatus = menu->AddMenuItem("Status Pane", mn_view, 's');
 
 	menu->Show();
+	AddComponentVec(menu, KIS_PANEL_COMP_EVT);
 
 	// Make a hbox to hold the network list and additional info widgets,
 	// and the vertical stack of optional widgets
@@ -169,13 +177,14 @@ Kis_Main_Panel::Kis_Main_Panel(GlobalRegistry *in_globalreg,
 
 	active_component = netlist;
 
-	comp_vec.push_back(vbox);
+	AddComponentVec(vbox, KIS_PANEL_COMP_TAB | KIS_PANEL_COMP_DRAW);
 
 	if (kpinterface->prefs.FetchOpt("LOADEDFROMFILE") != "1") {
 		_MSG("Failed to load preferences file, will use defaults", MSGFLAG_INFO);
 	}
 
 	AddColorPref("panel_text_color", "Text");
+	AddColorPref("panel_textdis_color", "Text-Inactive");
 	AddColorPref("panel_border_color", "Window Border");
 	AddColorPref("menu_text_color", "Menu Text");
 	AddColorPref("menu_border_color", "Menu Border");
@@ -188,7 +197,6 @@ Kis_Main_Panel::Kis_Main_Panel(GlobalRegistry *in_globalreg,
 	AddColorPref("info_normal_color", "Info Pane");
 
 	UpdateViewMenu(-1);
-
 }
 
 Kis_Main_Panel::~Kis_Main_Panel() {
@@ -220,8 +228,12 @@ void Kis_Main_Panel::DrawPanel() {
 	DrawTitleBorder();
 
 	wattrset(win, text_color);
-	for (unsigned int x = 0; x < comp_vec.size(); x++)
-		comp_vec[x]->DrawComponent();
+	for (unsigned int x = 0; x < pan_comp_vec.size(); x++) {
+		if ((pan_comp_vec[x].comp_flags & KIS_PANEL_COMP_DRAW) == 0)
+			continue;
+
+		pan_comp_vec[x].comp->DrawComponent();
+	}
 
 	UpdateSortMenu();
 
@@ -230,120 +242,127 @@ void Kis_Main_Panel::DrawPanel() {
 	wmove(win, 0, 0);
 }
 
-int Kis_Main_Panel::KeyPress(int in_key) {
-	int ret;
-
+int Kis_Main_Panel::MouseEvent(MEVENT *mevent) {
 	vector<KisNetClient *> *clivec = kpinterface->FetchNetClientVecPtr();
 
 	if (clivec->size() == 0 && connect_enable == 0) {
 		menu->EnableMenuItem(mi_connect);
+		menu->SetMenuItemVis(mi_connect, 1);
 		menu->DisableMenuItem(mi_disconnect);
+		menu->SetMenuItemVis(mi_disconnect, 0);
 		connect_enable = 1;
 	} else if (clivec->size() > 0 && connect_enable) {
 		menu->EnableMenuItem(mi_disconnect);
+		menu->SetMenuItemVis(mi_disconnect, 1);
 		menu->DisableMenuItem(mi_connect);
+		menu->SetMenuItemVis(mi_connect, 0);
 		connect_enable = 0;
 	}
-	
-	// Give the menu first shot, it'll ignore the key if it didn't have 
-	// anything open.
-	ret = menu->KeyPress(in_key);
 
-	if (ret > 0) {
-		// Menu processed an event, do something with it
-		if (ret == mi_quit) {
-			return -1;
-		} else if (ret == mi_connect) {
-			Kis_Connect_Panel *cp = new Kis_Connect_Panel(globalreg, kpinterface);
-			cp->Position(WIN_CENTER(8, 40));
-			kpinterface->AddPanel(cp);
-		} else if (ret == mi_disconnect) {
-			if (clivec->size() > 0) {
-				kpinterface->RemoveNetClient((*clivec)[0]);
-			}
-		} else if (ret == mi_sort_auto) {
-			kpinterface->prefs.SetOpt("NETLIST_SORT", "auto", 1);
-		} else if (ret == mi_sort_type) {
-			kpinterface->prefs.SetOpt("NETLIST_SORT", "type", 1);
-		} else if (ret == mi_sort_chan) {
-			kpinterface->prefs.SetOpt("NETLIST_SORT", "channel", 1);
-		} else if (ret == mi_sort_first) {
-			kpinterface->prefs.SetOpt("NETLIST_SORT", "first", 1);
-		} else if (ret == mi_sort_first_d) {
-			kpinterface->prefs.SetOpt("NETLIST_SORT", "first_desc", 1);
-		} else if (ret == mi_sort_last) {
-			kpinterface->prefs.SetOpt("NETLIST_SORT", "last", 1);
-		} else if (ret == mi_sort_last_d) {
-			kpinterface->prefs.SetOpt("NETLIST_SORT", "last_desc", 1);
-		} else if (ret == mi_sort_bssid) {
-			kpinterface->prefs.SetOpt("NETLIST_SORT", "bssid", 1);
-		} else if (ret == mi_sort_ssid) {
-			kpinterface->prefs.SetOpt("NETLIST_SORT", "ssid", 1);
-		} else if (ret == mi_sort_packets) {
-			kpinterface->prefs.SetOpt("NETLIST_SORT", "packets", 1);
-		} else if (ret == mi_sort_packets_d) {
-			kpinterface->prefs.SetOpt("NETLIST_SORT", "packets_desc", 1);
-		} else if (ret == mi_netdetails) {
-			Kis_NetDetails_Panel *dp = new Kis_NetDetails_Panel(globalreg, kpinterface);
-			dp->Position(WIN_CENTER(LINES, COLS));
-			kpinterface->AddPanel(dp);
-		} else if (ret == mi_showsummary ||
-				   ret == mi_showstatus) {
-			UpdateViewMenu(ret);
-		} else if (ret == mi_addcard) {
-			vector<KisNetClient *> *cliref = kpinterface->FetchNetClientVecPtr();
-			if (cliref->size() == 0) {
-				kpinterface->RaiseAlert("No servers",
-										"There are no servers.  You must\n"
-										"connect to a server before adding\n"
-										"cards.\n");
-			} else if (cliref->size() == 1) {
-				sp_addcard_cb(globalreg, kpinterface, (*cliref)[0], NULL);
-			} else {
-				kpinterface->RaiseServerPicker("Choose server", sp_addcard_cb,
-											   NULL);
-			}
+	return Kis_Panel::MouseEvent(mevent);
+}
 
-		} else if (ret == mi_addplugin) {
-			Kis_Plugin_Picker *pp = new Kis_Plugin_Picker(globalreg, kpinterface);
-			pp->Position((LINES / 2) - 8, (COLS / 2) - 20, 16, 50);
-			kpinterface->AddPanel(pp);
-		} else if (ret == mi_colorprefs) {
-			SpawnColorPrefs();
-		} else if (ret == mi_serverprefs) {
-			SpawnServerPrefs();
-		} else if (ret == mi_netcolprefs) {
-			SpawnNetcolPrefs();
-		} else if (ret == mi_netextraprefs) {
-			SpawnNetextraPrefs();
-		} else if (ret == mi_infoprefs) {
-			SpawnInfoPrefs();
+int Kis_Main_Panel::KeyPress(int in_key) {
+	vector<KisNetClient *> *clivec = kpinterface->FetchNetClientVecPtr();
+
+	if (clivec->size() == 0 && connect_enable == 0) {
+		menu->EnableMenuItem(mi_connect);
+		menu->SetMenuItemVis(mi_connect, 1);
+		menu->DisableMenuItem(mi_disconnect);
+		menu->SetMenuItemVis(mi_disconnect, 0);
+		connect_enable = 1;
+	} else if (clivec->size() > 0 && connect_enable) {
+		menu->EnableMenuItem(mi_disconnect);
+		menu->SetMenuItemVis(mi_disconnect, 1);
+		menu->DisableMenuItem(mi_connect);
+		menu->SetMenuItemVis(mi_connect, 0);
+		connect_enable = 0;
+	}
+
+	return Kis_Panel::KeyPress(in_key);
+}
+
+void Kis_Main_Panel::MenuAction(int opt) {
+	vector<KisNetClient *> *clivec = kpinterface->FetchNetClientVecPtr();
+
+	// Menu processed an event, do something with it
+	if (opt == mi_quit) {
+		globalreg->fatal_condition = 1;
+		_MSG("Quitting...", MSGFLAG_INFO);
+		return;
+	} else if (opt == mi_connect) {
+		Kis_Connect_Panel *cp = new Kis_Connect_Panel(globalreg, kpinterface);
+		cp->Position(WIN_CENTER(8, 40));
+		kpinterface->AddPanel(cp);
+	} else if (opt == mi_disconnect) {
+		if (clivec->size() > 0) {
+			kpinterface->RemoveNetClient((*clivec)[0]);
+		}
+	} else if (opt == mi_sort_auto) {
+		kpinterface->prefs.SetOpt("NETLIST_SORT", "auto", 1);
+	} else if (opt == mi_sort_type) {
+		kpinterface->prefs.SetOpt("NETLIST_SORT", "type", 1);
+	} else if (opt == mi_sort_chan) {
+		kpinterface->prefs.SetOpt("NETLIST_SORT", "channel", 1);
+	} else if (opt == mi_sort_first) {
+		kpinterface->prefs.SetOpt("NETLIST_SORT", "first", 1);
+	} else if (opt == mi_sort_first_d) {
+		kpinterface->prefs.SetOpt("NETLIST_SORT", "first_desc", 1);
+	} else if (opt == mi_sort_last) {
+		kpinterface->prefs.SetOpt("NETLIST_SORT", "last", 1);
+	} else if (opt == mi_sort_last_d) {
+		kpinterface->prefs.SetOpt("NETLIST_SORT", "last_desc", 1);
+	} else if (opt == mi_sort_bssid) {
+		kpinterface->prefs.SetOpt("NETLIST_SORT", "bssid", 1);
+	} else if (opt == mi_sort_ssid) {
+		kpinterface->prefs.SetOpt("NETLIST_SORT", "ssid", 1);
+	} else if (opt == mi_sort_packets) {
+		kpinterface->prefs.SetOpt("NETLIST_SORT", "packets", 1);
+	} else if (opt == mi_sort_packets_d) {
+		kpinterface->prefs.SetOpt("NETLIST_SORT", "packets_desc", 1);
+	} else if (opt == mi_netdetails) {
+		Kis_NetDetails_Panel *dp = new Kis_NetDetails_Panel(globalreg, kpinterface);
+		dp->Position(WIN_CENTER(LINES, COLS));
+		kpinterface->AddPanel(dp);
+	} else if (opt == mi_showsummary ||
+			   opt == mi_showstatus) {
+		UpdateViewMenu(opt);
+	} else if (opt == mi_addcard) {
+		vector<KisNetClient *> *cliref = kpinterface->FetchNetClientVecPtr();
+		if (cliref->size() == 0) {
+			kpinterface->RaiseAlert("No servers",
+									"There are no servers.  You must\n"
+									"connect to a server before adding\n"
+									"cards.\n");
+		} else if (cliref->size() == 1) {
+			sp_addcard_cb(globalreg, kpinterface, (*cliref)[0], NULL);
 		} else {
-			for (unsigned int p = 0; p < plugin_menu_vec.size(); p++) {
-				if (ret == plugin_menu_vec[p].menuitem) {
-					(*(plugin_menu_vec[p].callback))(plugin_menu_vec[p].auxptr);
-					break;
-				}
-			}
+			kpinterface->RaiseServerPicker("Choose server", sp_addcard_cb,
+										   NULL);
 		}
 
-		return 0;
-	} else if (ret == -1) {
-		return 0;
+	} else if (opt == mi_addplugin) {
+		Kis_Plugin_Picker *pp = new Kis_Plugin_Picker(globalreg, kpinterface);
+		pp->Position((LINES / 2) - 8, (COLS / 2) - 20, 16, 50);
+		kpinterface->AddPanel(pp);
+	} else if (opt == mi_colorprefs) {
+		SpawnColorPrefs();
+	} else if (opt == mi_serverprefs) {
+		SpawnServerPrefs();
+	} else if (opt == mi_netcolprefs) {
+		SpawnNetcolPrefs();
+	} else if (opt == mi_netextraprefs) {
+		SpawnNetextraPrefs();
+	} else if (opt == mi_infoprefs) {
+		SpawnInfoPrefs();
+	} else {
+		for (unsigned int p = 0; p < plugin_menu_vec.size(); p++) {
+			if (opt == plugin_menu_vec[p].menuitem) {
+				(*(plugin_menu_vec[p].callback))(plugin_menu_vec[p].auxptr);
+				break;
+			}
+		}
 	}
-
-	// Otherwise the menu didn't touch the key, so pass it to the top
-	// component
-	if (active_component != NULL) {
-		ret = active_component->KeyPress(in_key);
-
-		if (ret == 0)
-			return 0;
-
-		return ret;
-	}
-
-	return 0;
 }
 
 void Kis_Main_Panel::AddPluginMenuItem(string in_name, int (*callback)(void *),
@@ -554,6 +573,11 @@ void Kis_Main_Panel::UpdateViewMenu(int mi) {
 	}
 }
 
+int ConnectButtonCB(COMPONENT_CALLBACK_PARMS) {
+	((Kis_Connect_Panel *) aux)->ButtonAction(component);
+	return 1;
+}
+
 Kis_Connect_Panel::Kis_Connect_Panel(GlobalRegistry *in_globalreg, 
 									 KisPanelInterface *in_intf) :
 	Kis_Panel(in_globalreg, in_intf) {
@@ -563,10 +587,9 @@ Kis_Connect_Panel::Kis_Connect_Panel(GlobalRegistry *in_globalreg,
 	cancelbutton = new Kis_Button(globalreg, this);
 	okbutton = new Kis_Button(globalreg, this);
 
-	tab_components.push_back(hostname);
-	tab_components.push_back(hostport);
-	tab_components.push_back(okbutton);
-	tab_components.push_back(cancelbutton);
+	cancelbutton->SetCallback(COMPONENT_CBTYPE_ACTIVATED, ConnectButtonCB, this);
+	okbutton->SetCallback(COMPONENT_CBTYPE_ACTIVATED, ConnectButtonCB, this);
+
 	tab_pos = 0;
 
 	active_component = hostname;
@@ -611,7 +634,12 @@ Kis_Connect_Panel::Kis_Connect_Panel(GlobalRegistry *in_globalreg,
 	vbox->Pack_End(hostport, 0, 0);
 	vbox->Pack_End(bbox, 1, 0);
 
-	comp_vec.push_back(vbox);
+	AddComponentVec(hostname, (KIS_PANEL_COMP_TAB | KIS_PANEL_COMP_EVT));
+	AddComponentVec(hostport, (KIS_PANEL_COMP_TAB | KIS_PANEL_COMP_EVT));
+	AddComponentVec(cancelbutton, (KIS_PANEL_COMP_TAB | KIS_PANEL_COMP_EVT));
+	AddComponentVec(okbutton, (KIS_PANEL_COMP_TAB | KIS_PANEL_COMP_EVT));
+
+	AddComponentVec(vbox, KIS_PANEL_COMP_DRAW);
 
 	active_component = hostname;
 	hostname->Activate(1);
@@ -637,86 +665,76 @@ void Kis_Connect_Panel::DrawPanel() {
 
 	wattrset(win, text_color);
 
-	for (unsigned int x = 0; x < comp_vec.size(); x++)
-		comp_vec[x]->DrawComponent();
+	for (unsigned int x = 0; x < pan_comp_vec.size(); x++) {
+		if ((pan_comp_vec[x].comp_flags & KIS_PANEL_COMP_DRAW) == 0)
+			continue;
+
+		pan_comp_vec[x].comp->DrawComponent();
+	}
 
 	wmove(win, 0, 0);
 }
 
-int Kis_Connect_Panel::KeyPress(int in_key) {
-	int ret;
-
-	// Rotate through the tabbed items
-	if (in_key == '\t') {
-		tab_components[tab_pos]->Deactivate();
-		tab_pos++;
-		if (tab_pos >= (int) tab_components.size())
-			tab_pos = 0;
-		tab_components[tab_pos]->Activate(1);
-		active_component = tab_components[tab_pos];
-	}
-
-	// Otherwise the menu didn't touch the key, so pass it to the top
-	// component
-	if (active_component != NULL) {
-		ret = active_component->KeyPress(in_key);
-
-		if (active_component == okbutton && ret == 1) {
-			if (hostname->GetText() == "")  {
-				kpinterface->RaiseAlert("No hostname",
-										"No hostname was provided for creating a\n"
-										"new client connect to a Kismet server.\n"
-										"A valid host name or IP is required.\n");
-				return(0);
-			}
-
-			if (hostport->GetText() == "")  {
-				kpinterface->RaiseAlert("No port",
-										"No port number was provided for creating a\n"
-										"new client connect to a Kismet server.\n"
-										"A valid port number is required.\n");
-				return(0);
-			}
-			
-			// Try to add a client
-			string clitxt = "tcp://" + hostname->GetText() + ":" +
-				hostport->GetText();
-
-			if (kpinterface->AddNetClient(clitxt, 1) < 0) 
-				kpinterface->RaiseAlert("Connect failed", 
-										"Failed to create new client connection\n"
-										"to a Kismet server.  Check the status\n"
-										"pane for more information about what\n"
-										"went wrong.\n");
-
-			globalreg->panel_interface->KillPanel(this);
-		} else if (active_component == cancelbutton && ret == 1) {
-			// Cancel and close
-			globalreg->panel_interface->KillPanel(this);
+void Kis_Connect_Panel::ButtonAction(Kis_Panel_Component *component) {
+	if (component == okbutton) {
+		if (hostname->GetText() == "")  {
+			kpinterface->RaiseAlert("No hostname",
+									"No hostname was provided for creating a\n"
+									"new client connect to a Kismet server.\n"
+									"A valid host name or IP is required.\n");
+			return;
 		}
-	}
 
-	return 0;
+		if (hostport->GetText() == "")  {
+			kpinterface->RaiseAlert("No port",
+									"No port number was provided for creating a\n"
+									"new client connect to a Kismet server.\n"
+									"A valid port number is required.\n");
+			return;
+		}
+
+		// Try to add a client
+		string clitxt = "tcp://" + hostname->GetText() + ":" +
+			hostport->GetText();
+
+		if (kpinterface->AddNetClient(clitxt, 1) < 0) 
+			kpinterface->RaiseAlert("Connect failed", 
+									"Failed to create new client connection\n"
+									"to a Kismet server.  Check the status\n"
+									"pane for more information about what\n"
+									"went wrong.\n");
+
+		globalreg->panel_interface->KillPanel(this);
+	} else if (component == cancelbutton) {
+		// Cancel and close
+		globalreg->panel_interface->KillPanel(this);
+	}
+}
+
+int ModalAckCB(COMPONENT_CALLBACK_PARMS) {
+	((Kis_ModalAlert_Panel *) aux)->AckAction();
 }
 
 Kis_ModalAlert_Panel::Kis_ModalAlert_Panel(GlobalRegistry *in_globalreg, 
 										   KisPanelInterface *in_intf) :
 	Kis_Panel(in_globalreg, in_intf) {
 
+	tab_pos = 0;
+
 	ftxt = new Kis_Free_Text(globalreg, this);
 	ackbutton = new Kis_Button(globalreg, this);
 
-	comp_vec.push_back(ftxt);
-	comp_vec.push_back(ackbutton);
-
-	tab_components.push_back(ackbutton);
-	tab_pos = 0;
+	AddComponentVec(ftxt, KIS_PANEL_COMP_DRAW);
+	AddComponentVec(ackbutton, (KIS_PANEL_COMP_DRAW | KIS_PANEL_COMP_TAB |
+								KIS_PANEL_COMP_EVT));
 
 	active_component = ackbutton;
 
 	SetTitle("");
 
 	ackbutton->SetText("OK");
+
+	ackbutton->SetCallback(COMPONENT_CBTYPE_ACTIVATED, ModalAckCB, this);
 }
 
 Kis_ModalAlert_Panel::~Kis_ModalAlert_Panel() {
@@ -726,7 +744,7 @@ void Kis_ModalAlert_Panel::Position(int in_sy, int in_sx, int in_y, int in_x) {
 	Kis_Panel::Position(in_sy, in_sx, in_y, in_x);
 
 	ftxt->SetPosition(1, 1, in_x - 2, in_y - 3);
-	ackbutton->SetPosition((in_x / 2) - 7, in_y - 2, 14, 1);
+	ackbutton->SetPosition((in_x / 2) - 7, in_y - 2, (in_x / 2) + 7, in_y - 1);
 
 	ackbutton->Activate(1);
 	active_component = ackbutton;
@@ -747,37 +765,19 @@ void Kis_ModalAlert_Panel::DrawPanel() {
 	wattrset(win, text_color);
 	DrawTitleBorder();
 
-	for (unsigned int x = 0; x < comp_vec.size(); x++)
-		comp_vec[x]->DrawComponent();
+	for (unsigned int x = 0; x < pan_comp_vec.size(); x++) {
+		if ((pan_comp_vec[x].comp_flags & KIS_PANEL_COMP_DRAW) == 0)
+			continue;
+
+		pan_comp_vec[x].comp->DrawComponent();
+	}
 
 	wmove(win, 0, 0);
 }
 
-int Kis_ModalAlert_Panel::KeyPress(int in_key) {
-	int ret;
-
-	// Rotate through the tabbed items
-	if (in_key == '\t') {
-		tab_components[tab_pos]->Deactivate();
-		tab_pos++;
-		if (tab_pos >= (int) tab_components.size())
-			tab_pos = 0;
-		tab_components[tab_pos]->Activate(1);
-		active_component = tab_components[tab_pos];
-	}
-
-	// Otherwise the menu didn't touch the key, so pass it to the top
-	// component
-	if (active_component != NULL) {
-		ret = active_component->KeyPress(in_key);
-
-		if (active_component == ackbutton && ret == 1) {
-			// We're done
-			globalreg->panel_interface->KillPanel(this);
-		}
-	}
-
-	return 0;
+void Kis_ModalAlert_Panel::AckAction() {
+	// We're done
+	globalreg->panel_interface->KillPanel(this);
 }
 
 void Kis_ModalAlert_Panel::ConfigureAlert(string in_title, string in_text) {
@@ -794,7 +794,8 @@ Kis_ServerList_Picker::Kis_ServerList_Picker(GlobalRegistry *in_globalreg,
 
 	srvlist = new Kis_Scrollable_Table(globalreg, this);
 
-	comp_vec.push_back(srvlist);
+	AddComponentVec(srvlist, (KIS_PANEL_COMP_DRAW | KIS_PANEL_COMP_EVT |
+							  KIS_PANEL_COMP_TAB));
 
 	// TODO -- Add name parsing to KISMET proto in netclient, add support here
 	vector<Kis_Scrollable_Table::title_data> titles;
@@ -884,8 +885,12 @@ void Kis_ServerList_Picker::DrawPanel() {
 	}
 
 
-	for (unsigned int x = 0; x < comp_vec.size(); x++)
-		comp_vec[x]->DrawComponent();
+	for (unsigned int x = 0; x < pan_comp_vec.size(); x++) {
+		if ((pan_comp_vec[x].comp_flags & KIS_PANEL_COMP_DRAW) == 0)
+			continue;
+
+		pan_comp_vec[x].comp->DrawComponent();
+	}
 
 	wmove(win, 0, 0);
 }
@@ -938,6 +943,11 @@ void sp_addcard_cb(KPI_SL_CB_PARMS) {
 	kpi->AddPanel(acp);
 }
 
+int AddCardButtonCB(COMPONENT_CALLBACK_PARMS) {
+	((Kis_AddCard_Panel *) aux)->ButtonAction(component);
+	return 1;
+}
+
 Kis_AddCard_Panel::Kis_AddCard_Panel(GlobalRegistry *in_globalreg, 
 									 KisPanelInterface *in_intf) :
 	Kis_Panel(in_globalreg, in_intf) {
@@ -949,11 +959,21 @@ Kis_AddCard_Panel::Kis_AddCard_Panel(GlobalRegistry *in_globalreg,
 	okbutton = new Kis_Button(globalreg, this);
 	cancelbutton = new Kis_Button(globalreg, this);
 
-	tab_components.push_back(srctype);
-	tab_components.push_back(srciface);
-	tab_components.push_back(srcname);
-	tab_components.push_back(okbutton);
-	tab_components.push_back(cancelbutton);
+	okbutton->SetCallback(COMPONENT_CBTYPE_ACTIVATED, AddCardButtonCB, this);
+	cancelbutton->SetCallback(COMPONENT_CBTYPE_ACTIVATED, AddCardButtonCB, this);
+
+	AddComponentVec(srctype, (KIS_PANEL_COMP_DRAW | KIS_PANEL_COMP_EVT |
+							  KIS_PANEL_COMP_TAB));
+	AddComponentVec(srciface, (KIS_PANEL_COMP_DRAW | KIS_PANEL_COMP_EVT |
+							   KIS_PANEL_COMP_TAB));
+	AddComponentVec(srcname, (KIS_PANEL_COMP_DRAW | KIS_PANEL_COMP_EVT |
+							  KIS_PANEL_COMP_TAB));
+
+	AddComponentVec(okbutton, (KIS_PANEL_COMP_DRAW | KIS_PANEL_COMP_EVT |
+							   KIS_PANEL_COMP_TAB));
+	AddComponentVec(cancelbutton, (KIS_PANEL_COMP_DRAW | KIS_PANEL_COMP_EVT |
+								   KIS_PANEL_COMP_TAB));
+
 	tab_pos = 0;
 	active_component = srctype;
 
@@ -1002,7 +1022,7 @@ Kis_AddCard_Panel::Kis_AddCard_Panel(GlobalRegistry *in_globalreg,
 	vbox->Pack_End(srcname, 0, 0);
 	vbox->Pack_End(bbox, 1, 0);
 
-	comp_vec.push_back(vbox);
+	AddComponentVec(vbox, KIS_PANEL_COMP_DRAW);
 }
 
 Kis_AddCard_Panel::~Kis_AddCard_Panel() {
@@ -1010,8 +1030,7 @@ Kis_AddCard_Panel::~Kis_AddCard_Panel() {
 
 void Kis_AddCard_Panel::Position(int in_sy, int in_sx, int in_y, int in_x) {
 	Kis_Panel::Position(in_sy, in_sx, in_y, in_x);
-
-	vbox->SetPosition(1, 2, in_x - 2, in_y - 3);
+	vbox->SetPosition(1, 2, in_x - 1, in_y - 2);
 }
 
 void Kis_AddCard_Panel::SetTargetClient(KisNetClient *in_cli) {
@@ -1030,87 +1049,71 @@ void Kis_AddCard_Panel::DrawPanel() {
 	wbkgdset(win, text_color);
 	werase(win);
 
-	DrawTitleBorder();
-
 	wattrset(win, text_color);
 
 	DrawTitleBorder();
 
-	for (unsigned int x = 0; x < comp_vec.size(); x++)
-		comp_vec[x]->DrawComponent();
+	for (unsigned int x = 0; x < pan_comp_vec.size(); x++) {
+		if ((pan_comp_vec[x].comp_flags & KIS_PANEL_COMP_DRAW) == 0)
+			continue;
+
+		pan_comp_vec[x].comp->DrawComponent();
+	}
 
 	wmove(win, 0, 0);
 }
 
-int Kis_AddCard_Panel::KeyPress(int in_key) {
-	int ret;
-
-	// Rotate through the tabbed items
-	if (in_key == '\t') {
-		tab_components[tab_pos]->Deactivate();
-		tab_pos++;
-		if (tab_pos >= (int) tab_components.size())
-			tab_pos = 0;
-		tab_components[tab_pos]->Activate(1);
-		active_component = tab_components[tab_pos];
-	}
-
-	// Otherwise the menu didn't touch the key, so pass it to the top
-	// component
-	if (active_component != NULL) {
-		ret = active_component->KeyPress(in_key);
-
-		if (active_component == okbutton && ret == 1) {
-			if (srctype->GetText() == "") {
-				kpinterface->RaiseAlert("No source type",
-										"No source type was provided for\n"
-										"creating a new source.  A source\n"
-										"type is required.\n");
-				return(0);
-			}
-
-			if (srciface->GetText() == "") {
-				kpinterface->RaiseAlert("No source interface",
-										"No source interface was provided for\n"
-										"creating a new source.  A source\n"
-										"interface is required.\n");
-				return(0);
-			}
-
-			if (srcname->GetText() == "") {
-				kpinterface->RaiseAlert("No source name",
-										"No source name was provided for\n"
-										"reating a new source.  A source name\n"
-										"is required.\n");
-				return(0);
-			}
-
-			if (target_cli == NULL) {
-				globalreg->panel_interface->KillPanel(this);
-				return(0);
-			}
-
-			if (target_cli->Valid() == 0) {
-				kpinterface->RaiseAlert("Server unavailable",
-										"The selected server is not available.\n");
-				return(0);
-			}
-
-			// Build a command and inject it
-			string srccmd;
-			srccmd = "ADDSOURCE " + srctype->GetText() + "," +
-				srciface->GetText() + "," + srcname->GetText();
-
-			target_cli->InjectCommand(srccmd);
-
-			globalreg->panel_interface->KillPanel(this);
-		} else if (active_component == cancelbutton && ret == 1) {
-			// Cancel and close
-			globalreg->panel_interface->KillPanel(this);
+void Kis_AddCard_Panel::ButtonAction(Kis_Panel_Component *in_button) {
+	if (in_button == okbutton) {
+		if (srctype->GetText() == "") {
+			kpinterface->RaiseAlert("No source type",
+									"No source type was provided for\n"
+									"creating a new source.  A source\n"
+									"type is required.\n");
+			return;
 		}
+
+		if (srciface->GetText() == "") {
+			kpinterface->RaiseAlert("No source interface",
+									"No source interface was provided for\n"
+									"creating a new source.  A source\n"
+									"interface is required.\n");
+			return;
+		}
+
+		if (srcname->GetText() == "") {
+			kpinterface->RaiseAlert("No source name",
+									"No source name was provided for\n"
+									"reating a new source.  A source name\n"
+									"is required.\n");
+			return;
+		}
+
+		if (target_cli == NULL) {
+			globalreg->panel_interface->KillPanel(this);
+			return;
+		}
+
+		if (target_cli->Valid() == 0) {
+			kpinterface->RaiseAlert("Server unavailable",
+									"The selected server is not available.\n");
+			return;
+		}
+
+		// Build a command and inject it
+		string srccmd;
+		srccmd = "ADDSOURCE " + srctype->GetText() + "," +
+			srciface->GetText() + "," + srcname->GetText();
+
+		target_cli->InjectCommand(srccmd);
+
+		globalreg->panel_interface->KillPanel(this);
+	} else if (in_button == cancelbutton) {
+		// Cancel and close
+		globalreg->panel_interface->KillPanel(this);
 	}
 
-	return 0;
+	return; 
 }
 
 Kis_Plugin_Picker::Kis_Plugin_Picker(GlobalRegistry *in_globalreg, 
@@ -1119,7 +1122,8 @@ Kis_Plugin_Picker::Kis_Plugin_Picker(GlobalRegistry *in_globalreg,
 
 	pluglist = new Kis_Scrollable_Table(globalreg, this);
 
-	comp_vec.push_back(pluglist);
+	AddComponentVec(pluglist, (KIS_PANEL_COMP_DRAW | KIS_PANEL_COMP_EVT |
+							   KIS_PANEL_COMP_TAB));
 
 	vector<Kis_Scrollable_Table::title_data> titles;
 	Kis_Scrollable_Table::title_data t;
@@ -1238,8 +1242,12 @@ void Kis_Plugin_Picker::DrawPanel() {
 
 	wattrset(win, text_color);
 
-	for (unsigned int x = 0; x < comp_vec.size(); x++)
-		comp_vec[x]->DrawComponent();
+	for (unsigned int x = 0; x < pan_comp_vec.size(); x++) {
+		if ((pan_comp_vec[x].comp_flags & KIS_PANEL_COMP_DRAW) == 0)
+			continue;
+
+		pan_comp_vec[x].comp->DrawComponent();
+	}
 
 	wmove(win, 0, 0);
 }
@@ -1283,7 +1291,8 @@ Kis_NetDetails_Panel::Kis_NetDetails_Panel(GlobalRegistry *in_globalreg,
 	netdetails->SetHighlightSelected(0);
 	netdetails->SetLockScrollTop(1);
 	netdetails->SetDrawTitles(0);
-	comp_vec.push_back(netdetails);
+	AddComponentVec(netdetails, (KIS_PANEL_COMP_DRAW | KIS_PANEL_COMP_EVT |
+								 KIS_PANEL_COMP_TAB));
 
 	// We need to populate the titles even if we don't use them so that
 	// the row handler knows how to draw them
@@ -1339,15 +1348,14 @@ Kis_NetDetails_Panel::Kis_NetDetails_Panel(GlobalRegistry *in_globalreg,
 	vbox->Pack_End(netdetails, 1, 0);
 	vbox->Pack_End(bbox, 0, 0);
 
-	comp_vec.push_back(vbox);
-	comp_vec.push_back(closebutton);
-	comp_vec.push_back(prevbutton);
-	comp_vec.push_back(nextbutton);
+	AddComponentVec(vbox, KIS_PANEL_COMP_DRAW);
+	AddComponentVec(closebutton, (KIS_PANEL_COMP_DRAW | KIS_PANEL_COMP_TAB |
+								  KIS_PANEL_COMP_EVT));
+	AddComponentVec(prevbutton, (KIS_PANEL_COMP_DRAW | KIS_PANEL_COMP_TAB |
+								  KIS_PANEL_COMP_EVT));
+	AddComponentVec(nextbutton, (KIS_PANEL_COMP_DRAW | KIS_PANEL_COMP_TAB |
+								  KIS_PANEL_COMP_EVT));
 
-	tab_components.push_back(netdetails);
-	tab_components.push_back(closebutton);
-	tab_components.push_back(prevbutton);
-	tab_components.push_back(nextbutton);
 	tab_pos = 0;
 
 	last_dirty = 0;
@@ -1619,8 +1627,12 @@ void Kis_NetDetails_Panel::DrawPanel() {
 	}
 
 	wattrset(win, text_color);
-	for (unsigned int x = 0; x < comp_vec.size(); x++)
-		comp_vec[x]->DrawComponent();
+	for (unsigned int x = 0; x < pan_comp_vec.size(); x++) {
+		if ((pan_comp_vec[x].comp_flags & KIS_PANEL_COMP_DRAW) == 0)
+			continue;
+
+		pan_comp_vec[x].comp->DrawComponent();
+	}
 }
 
 int Kis_NetDetails_Panel::KeyPress(int in_key) {

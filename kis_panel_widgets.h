@@ -80,6 +80,18 @@ protected:
 	map<string, int> color_index_map;
 };
 
+// Callback parameters - the component that activated, the status/return
+// code it activated with (retval from mouse/kb event)
+#define COMPONENT_CALLBACK_PARMS Kis_Panel_Component *component, int status, \
+	void *aux, GlobalRegistry *globalreg
+// Component is now active (most things won't need to use this since it ought
+// to be handled by the panel level key/mouse handlers
+#define COMPONENT_CBTYPE_SWITCH		0
+// Component was activated - for whatever activated means for that widget.
+// Text fields would return activated on enter, buttons on click/enter,
+// etc.
+#define COMPONENT_CBTYPE_ACTIVATED	1
+
 // Basic component super-class that handles drawing a group of items of
 // some sort
 class Kis_Panel_Component {
@@ -169,18 +181,40 @@ public:
 	// some reason to, like a specific menu)
 	virtual void Activate(int subcomponent) {
 		active = 1;
+
+		if (cb_switch != NULL)
+			(*cb_switch)(this, 1, cb_switch_aux, globalreg);
 	}
 
 	// Deactivate the component (this could cause closing of a menu, for example)
 	virtual void Deactivate() {
 		active = 0;
+
+		if (cb_switch != NULL)
+			(*cb_switch)(this, 0, cb_switch_aux, globalreg);
 	}
 
 	// Handle a key press
 	virtual int KeyPress(int in_key) = 0;
 
+	// Handle a mouse event (default: Ignore)
+	virtual int MouseEvent(MEVENT *mevent) {
+		return 0;
+	}
+
+	virtual void SetCallback(int cbtype, int (*cb)(COMPONENT_CALLBACK_PARMS),
+							 void *aux);
+	virtual void ClearCallback(int cbtype);
+
 protected:
 	GlobalRegistry *globalreg;
+
+	// Callbacks
+	int (*cb_switch)(COMPONENT_CALLBACK_PARMS);
+	void *cb_switch_aux;
+
+	int (*cb_activate)(COMPONENT_CALLBACK_PARMS);
+	void *cb_activate_aux;
 
 	// Are we even visible?
 	int visible;
@@ -291,6 +325,7 @@ public:
 
 	// menu# * 100 + item#
 	virtual int KeyPress(int in_key);
+	virtual int MouseEvent(MEVENT *mevent);
 
 	// Add a menu & the hilighted character offset
 	virtual int AddMenu(string in_text, int targ_char);
@@ -352,6 +387,7 @@ protected:
 	int cur_item;
 	int sub_menu;
 	int sub_item;
+	int mouse_triggered;
 
 	int text_color, border_color;
 
@@ -418,8 +454,6 @@ public:
 	virtual ~Kis_Free_Text();
 
 	virtual void DrawComponent();
-	virtual void Activate(int subcomponent);
-	virtual void Deactivate();
 
 	virtual int KeyPress(int in_key);
 
@@ -456,8 +490,6 @@ public:
 	virtual ~Kis_Status_Text();
 
 	virtual void DrawComponent();
-	virtual void Activate(int subcomponent);
-	virtual void Deactivate();
 
 	virtual int KeyPress(int in_key);
 
@@ -560,10 +592,9 @@ public:
 	virtual ~Kis_Single_Input();
 
 	virtual void DrawComponent();
-	virtual void Activate(int subcomponent);
-	virtual void Deactivate();
 
 	virtual int KeyPress(int in_key);
+	virtual int MouseEvent(MEVENT *mevent);
 
 	// Allowed characters filter (mandatory)
 	virtual void SetCharFilter(string in_charfilter);
@@ -610,10 +641,9 @@ public:
 	virtual ~Kis_Button();
 
 	virtual void DrawComponent();
-	virtual void Activate(int subcomponent);
-	virtual void Deactivate();
 
 	virtual int KeyPress(int in_key);
+	virtual int MouseEvent(MEVENT *mevent);
 
 	virtual void SetText(string in_text);
 
@@ -648,6 +678,78 @@ protected:
 	int checked;
 };
 
+// Scaling interpolated graph
+template<class T>
+class Kis_Graph : public Kis_Panel_Component {
+public:
+	typedef struct {
+		string label;
+		T position;
+	} graph_label;
+
+	typedef struct {
+		int layer;
+		string colorpref;
+		char line;
+		char fill;
+		vector<T> *data;
+		string name;
+	} graph_source;
+
+	Kis_Graph() {
+		fprintf(stderr, "FATAL OOPS: Kis_Graph() called w/out globalreg\n");
+		exit(1);
+	}
+	Kis_Graph(GlobalRegistry *in_globalreg, Kis_Panel *in_panel);
+	virtual ~Kis_Graph();
+
+	virtual void DrawComponent();
+	virtual void Activate(int subcomponent);
+	virtual void Deactivate();
+
+	virtual int KeyPress(int in_key);
+
+	// Min/max values
+	virtual void SetScale(T in_minx, T in_miny,
+						  T in_maxx, T in_maxy) {
+		min_x = in_minx;
+		min_y = in_miny;
+		max_x = in_maxx;
+		max_y = in_maxy;
+	}
+
+	// Interpolate graph to fit?
+	virtual void SetInterpolation(int in_x, int in_y) {
+		inter_x = in_x;
+		inter_y = in_y;
+	}
+
+	virtual void SetXLabels(vector<graph_label> in_xl) {
+		label_x = in_xl;
+	}
+	virtual void SetYLabels(vector<graph_label> in_yl) {
+		label_y = in_yl;
+	}
+
+	// Add a data vector at a layer with a color preference, representation
+	// character, and external vector.
+	// All data sources must share a common min/max representation
+	virtual void AddExtDataVec(string name, int layer, string colorpref, 
+							   char line, char fill,
+							   vector<T> *in_dv);
+protected:
+	// Graph interpretations
+	T min_x, min_y, max_x, max_y;
+	int inter_x, inter_y;
+
+	// Graph source vector
+	vector<graph_source> data_vec;
+
+	// Labels
+	vector<graph_label> label_x;
+	vector<graph_label> label_y;
+};
+
 class Kis_Panel {
 public:
 	Kis_Panel() {
@@ -668,7 +770,8 @@ public:
 
 	virtual void DrawPanel() = 0;
 
-	virtual int KeyPress(int in_key) = 0;
+	virtual int KeyPress(int in_key);
+	virtual int MouseEvent(MEVENT *mevent);
 
 	virtual void SetTitle(string in_title);
 
@@ -681,6 +784,20 @@ public:
 	virtual int AddColor(string in_color);
 
 protected:
+	// Bit values of what components are allowed to do
+#define KIS_PANEL_COMP_DRAW			1
+#define KIS_PANEL_COMP_TAB			2
+#define KIS_PANEL_COMP_EVT			4
+	typedef struct component_entry {
+		int comp_flags;
+		Kis_Panel_Component *comp;
+	};
+
+	void AddComponentVec(Kis_Panel_Component *in_comp, int in_flags);
+	void DelComponentVec(Kis_Panel_Component *in_comp);
+
+	vector<component_entry> pan_comp_vec;
+
 	GlobalRegistry *globalreg;
 	KisPanelInterface *kpinterface;
 
@@ -694,8 +811,7 @@ protected:
 	// Menus get treated specially because they have to be drawn last
 	Kis_Menu *menu;
 
-	// Vector of components that can get drawn
-	vector<Kis_Panel_Component *> comp_vec;
+	int tab_pos;
 
 	// Component which gets the keypress we didn't filter
 	Kis_Panel_Component *active_component;
