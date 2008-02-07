@@ -412,7 +412,7 @@ int DroneClientFrame::ParseData() {
 				if (rsrc == NULL) {
 					PacketSource_DroneRemote *rem = 
 						new PacketSource_DroneRemote(globalreg, type, 
-													 name, interface);
+													 name, interface, "");
 					rem->SetUUID(new_uuid);
 					rem->SetDroneFrame(this);
 					globalreg->sourcetracker->RegisterLiveKisPacketsource(rem);
@@ -755,9 +755,9 @@ int DroneClientFrame::SendChannelset(uuid in_uuid, unsigned int in_cmd,
 }
 
 PacketSource_Drone::PacketSource_Drone(GlobalRegistry *in_globalreg, 
-											 string in_type, 
-											 string in_name, string in_dev) :
-	KisPacketSource(in_globalreg, in_type, in_name, in_dev) { 
+											 string in_type, string in_name, 
+											 string in_dev, string in_opts) :
+	KisPacketSource(in_globalreg, in_type, in_name, in_dev, in_opts) { 
 	droneframe = NULL;
 	reconnect = 1;
 

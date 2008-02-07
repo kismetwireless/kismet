@@ -84,15 +84,16 @@ public:
 
 	virtual KisPacketSource *CreateSource(GlobalRegistry *in_globalreg, 
 										  string in_type, string in_name, 
-										  string in_dev) {
-		return new PacketSource_Wext(in_globalreg, in_type, in_name, in_dev);
+										  string in_dev, string in_opts) {
+		return new PacketSource_Wext(in_globalreg, in_type, in_name, 
+									 in_dev, in_opts);
 	}
 
 	virtual int AutotypeProbe(string in_device);
 	virtual int RegisterSources(Packetsourcetracker *tracker);
 
 	PacketSource_Wext(GlobalRegistry *in_globalreg, string in_type, 
-					  string in_name, string in_dev);
+					  string in_name, string in_dev, string in_opts);
 	virtual ~PacketSource_Wext() { }
 
 	// Should be, something can override if it needs
@@ -149,16 +150,16 @@ public:
 
 	virtual KisPacketSource *CreateSource(GlobalRegistry *in_globalreg, 
 										  string in_type, string in_name, 
-										  string in_dev) {
+										  string in_dev, string in_opts) {
 		return new PacketSource_Madwifi(in_globalreg, in_type, in_name,
-										in_dev);
+										in_dev, in_opts);
 	}
 
 	virtual int AutotypeProbe(string in_device);
 	virtual int RegisterSources(Packetsourcetracker *tracker);
 
 	PacketSource_Madwifi(GlobalRegistry *in_globalreg, string in_type,
-						 string in_name, string in_dev);
+						 string in_name, string in_dev, string in_opts);
 	virtual ~PacketSource_Madwifi() { }
 
 	virtual int EnableMonitor();
@@ -194,9 +195,9 @@ class PacketSource_Wrt54Prism : public PacketSource_Wext { public:
 
 	virtual KisPacketSource *CreateSource(GlobalRegistry *in_globalreg, 
 										  string in_type, string in_name, 
-										  string in_dev) {
+										  string in_dev, string in_opts) {
 		return new PacketSource_Wrt54Prism(in_globalreg, in_type, in_name,
-										   in_dev);
+										   in_dev, in_opts);
 	}
 
 	// We don't do autotype scanning
@@ -205,7 +206,7 @@ class PacketSource_Wrt54Prism : public PacketSource_Wext { public:
 	virtual int RegisterSources(Packetsourcetracker *tracker);
 
 	PacketSource_Wrt54Prism(GlobalRegistry *in_globalreg, string in_type,
-							string in_name, string in_dev);
+							string in_name, string in_dev, string in_opts);
 	virtual ~PacketSource_Wrt54Prism() { }
 
 	virtual int OpenSource();

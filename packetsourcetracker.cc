@@ -387,14 +387,18 @@ int Packetsourcetracker::cmd_chanseq(CLIENT_PARMS) {
 }
 
 int Packetsourcetracker::cmd_addsource(CLIENT_PARMS) {
-    if (parsedcmdline->size() != 1) {
+    if (parsedcmdline->size() < 1) {
         snprintf(errstr, 1024, "Illegal addsource request");
         return -1;
     }
 
+	string opts = "";
+	if (parsedcmdline->size() > 1)
+		opts = (*parsedcmdline)[1].word;
+
 	uuid ret;
 
-	ret = CreateRuntimeSource((*parsedcmdline)[0].word);
+	ret = CreateRuntimeSource((*parsedcmdline)[0].word, opts);
 	if (ret.error) {
 		snprintf(errstr, 1024, "Failed to create source");
 		return -1;
@@ -622,7 +626,7 @@ int Packetsourcetracker::AddKisPacketsource(KisPacketSource *in_source) {
 	return in_source->RegisterSources(this);
 }
 
-uuid Packetsourcetracker::CreateRuntimeSource(string in_srcdef) {
+uuid Packetsourcetracker::CreateRuntimeSource(string in_srcdef, string in_opts) {
 	vector<string> srccomp = StrTokenize(in_srcdef, ",");
 	uuid err;
 
@@ -669,7 +673,7 @@ uuid Packetsourcetracker::CreateRuntimeSource(string in_srcdef) {
 
 	KisPacketSource *strong = 
 		curproto->weak_source->CreateSource(globalreg, srccomp[0], 
-											srccomp[2], srccomp[1]);
+											srccomp[2], srccomp[1], in_opts);
 
 	ostringstream osstr;
 	
@@ -1692,10 +1696,11 @@ int Packetsourcetracker::BindSources(int in_root) {
             continue;
         }
        
-		// Use the weak source to create a strong one
+		// Use the weak source to create a strong one, we only get cmdline/file
+		// opts so no alternate opts string here
 		KisPacketSource *strong = 
 			meta->weak_source->CreateSource(globalreg, meta->type, meta->name,
-											meta->interface);
+											meta->interface, "");
 
 		// Enable monitor mode
 		snprintf(errstr, STATUS_MAX, "Source %d (%s): Enabling monitor mode for "

@@ -121,7 +121,7 @@ public:
 
 	// Add a runtime source (much simpler than the initial parse and split
 	// configurations)
-	uuid CreateRuntimeSource(string in_srcdef);
+	uuid CreateRuntimeSource(string in_srcdef, string in_opts);
 
 	// Add a live precreated packetsource to the system.  This takes a strong
 	// packet source.
@@ -280,16 +280,16 @@ public:
 
 	virtual NullPacketSource *CreateSource(GlobalRegistry *in_globalreg,
 										   string in_type, string in_name,
-										   string in_dev) {
+										   string in_dev, string in_opts) {
 		return new NullPacketSource(in_globalreg, in_type, in_name,
-									in_dev);
+									in_dev, in_opts);
 	}
 
 	virtual ~NullPacketSource() { }
 
 	NullPacketSource(GlobalRegistry *in_globalreg, string in_type, 
-					 string in_dev, string in_name) :
-		KisPacketSource(in_globalreg, in_type, in_dev, in_name) {
+					 string in_dev, string in_name, string in_opts) :
+		KisPacketSource(in_globalreg, in_type, in_dev, in_name, in_opts) {
 		// Nothing here either
 	}
 

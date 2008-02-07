@@ -105,8 +105,8 @@ public:
 
 	virtual KisPacketSource *CreateSource(GlobalRegistry *in_globalreg,
 										  string in_type, string in_name,
-										  string in_dev) {
-		return new PacketSource_Drone(in_globalreg, in_type, in_name, in_dev);
+										  string in_dev, string in_opts) {
+		return new PacketSource_Drone(in_globalreg, in_type, in_name, in_dev, in_opts);
 	}
 
 	virtual int AutotypeProbe(string in_device) {
@@ -117,7 +117,7 @@ public:
 
 	// Standard interface for capturesource
 	PacketSource_Drone(GlobalRegistry *in_globalreg, string in_type, 
-					   string in_name, string in_dev);
+					   string in_name, string in_dev, string in_opts);
 	virtual ~PacketSource_Drone();
 
 	virtual int OpenSource();
@@ -164,8 +164,9 @@ public:
 
 	virtual KisPacketSource *CreateSource(GlobalRegistry *in_globalreg,
 										  string in_type, string in_name,
-										  string in_dev) {
-		return new PacketSource_DroneRemote(in_globalreg, in_type, in_name, in_dev);
+										  string in_dev, string in_opts) {
+		return new PacketSource_DroneRemote(in_globalreg, in_type, in_name, 
+											in_dev, in_opts);
 	}
 
 	virtual int AutotypeProbe(string in_device) {
@@ -175,8 +176,8 @@ public:
 	virtual int RegisterSources(Packetsourcetracker *tracker);
 
 	PacketSource_DroneRemote(GlobalRegistry *in_globalreg, string in_type,
-							 string in_name, string in_dev) :
-		KisPacketSource(in_globalreg, in_type, in_name, in_dev) {
+							 string in_name, string in_dev, string in_opts) :
+		KisPacketSource(in_globalreg, in_type, in_name, in_dev, in_opts) {
 			droneframe = NULL;
 			rem_channelcapable = 0;
 		}

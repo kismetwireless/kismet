@@ -116,7 +116,7 @@ public:
 	// This should return a new object of its own subclass type
 	virtual KisPacketSource *CreateSource(GlobalRegistry *in_globalreg, 
 										  string in_type, string in_name, 
-										  string in_dev) = 0;
+										  string in_dev, string in_opts) = 0;
 
 	virtual int RegisterSources(Packetsourcetracker *tracker) = 0;
 	virtual int AutotypeProbe(string in_device) = 0;
@@ -125,7 +125,7 @@ public:
 	// (all of these assume globalreg exists, type name etc filled in
 	
     KisPacketSource(GlobalRegistry *in_globalreg, string in_type, 
-					string in_name, string in_dev) {
+					string in_name, string in_dev, string in_opts) {
         name = in_name;
 
 		/*
@@ -177,9 +177,6 @@ public:
 		};
 		int option_idx = 0;
 
-		// It seems like a bad idea to put this much into a function in a 
-		// header file, but it would have to change anyhow to update the
-		// struct
 		// Grab the raw options from the config file
 		vector<string> rawopts = globalreg->kismet_config->FetchOptVec("sourceopts");
 		// Grab the command line options
@@ -195,33 +192,39 @@ public:
 			}
 		}
 
-		for (unsigned int x = 0; x < rawopts.size(); x++) {
-			vector<string> subopts = StrTokenize(rawopts[x], ":");
-			if (subopts.size() != 2)
-				continue;
-			if (StrLower(subopts[0]) != StrLower(in_name) && subopts[0] != "*")
-				continue;
-			subopts = StrTokenize(subopts[1], ",", 1);
-			for (unsigned y = 0; y < subopts.size(); y++) {
-				subopts[y] = StrLower(subopts[y]);
-				optargs.push_back(subopts[y]);
+		// Add in incoming options to the end
+		rawopts.push_back(in_opts);
 
-				if (subopts[y] == "fuzzycrypt") {
-					genericparms.fuzzy_crypt = 1;
-					_MSG("Enabling fuzzy encryption detection on packet "
-						 "source '" + in_name + "'", MSGFLAG_INFO);
-				} else if (subopts[y] == "nofuzzycrypt") {
-					genericparms.fuzzy_crypt = 0;
-					_MSG("Forced disabling of fuzzy encryption detection on packet "
-						 "source '" + in_name + "'", MSGFLAG_INFO);
-				} else if (subopts[y] == "weakvalidate") {
-					genericparms.weak_dissect = 1;
-					_MSG("Enabling weak frame validation on packet "
-						 "source '" + in_name + "'", MSGFLAG_INFO);
-				} else if (subopts[y] == "noweakvalidate") {
-					genericparms.weak_dissect = 0;
-					_MSG("Forced disabling of weak frame validation on packet "
-						 "source '" + in_name + "'", MSGFLAG_INFO);
+		for (unsigned int x = 0; x < rawopts.size(); x++) {
+			vector<string> rawsub = StrTokenize(rawopts[x], ",");
+			for (unsigned int y = 0; y < rawsub.size(); y++) {
+				vector<string> subopts = StrTokenize(rawsub[y], ":");
+				if (subopts.size() != 2)
+					continue;
+				if (StrLower(subopts[0]) != StrLower(in_name) && subopts[0] != "*")
+					continue;
+				subopts = StrTokenize(subopts[1], ",", 1);
+				for (unsigned y = 0; y < subopts.size(); y++) {
+					subopts[y] = StrLower(subopts[y]);
+					optargs.push_back(subopts[y]);
+
+					if (subopts[y] == "fuzzycrypt") {
+						genericparms.fuzzy_crypt = 1;
+						_MSG("Enabling fuzzy encryption detection on packet "
+							 "source '" + in_name + "'", MSGFLAG_INFO);
+					} else if (subopts[y] == "nofuzzycrypt") {
+						genericparms.fuzzy_crypt = 0;
+						_MSG("Forced disabling of fuzzy encryption detection on packet "
+							 "source '" + in_name + "'", MSGFLAG_INFO);
+					} else if (subopts[y] == "weakvalidate") {
+						genericparms.weak_dissect = 1;
+						_MSG("Enabling weak frame validation on packet "
+							 "source '" + in_name + "'", MSGFLAG_INFO);
+					} else if (subopts[y] == "noweakvalidate") {
+						genericparms.weak_dissect = 0;
+						_MSG("Forced disabling of weak frame validation on packet "
+							 "source '" + in_name + "'", MSGFLAG_INFO);
+					}
 				}
 			}
 		}

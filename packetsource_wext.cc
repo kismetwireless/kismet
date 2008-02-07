@@ -49,8 +49,8 @@ typedef unsigned long u64;
 #include "madwifing_control.h"
 
 PacketSource_Wext::PacketSource_Wext(GlobalRegistry *in_globalreg, string in_type, 
-									 string in_name, string in_dev) :
-	PacketSource_Pcap(in_globalreg, in_type, in_name, in_dev) { 
+									 string in_name, string in_dev, string in_opts) :
+	PacketSource_Pcap(in_globalreg, in_type, in_name, in_dev, in_opts) { 
 
 	if (in_type == "nokia770") {
 		SetValidateCRC(1);
@@ -396,8 +396,8 @@ void PacketSource_Wext::FetchRadioData(kis_packet *in_packet) {
 
 PacketSource_Madwifi::PacketSource_Madwifi(GlobalRegistry *in_globalreg, 
 										   string in_type, string in_name,
-										   string in_dev) : 
-	PacketSource_Wext(in_globalreg, in_type, in_name, in_dev) {
+										   string in_dev, string in_opts) : 
+	PacketSource_Wext(in_globalreg, in_type, in_name, in_dev, in_opts) {
 
 	if (in_type == "madwifi_a" || in_type == "madwifing_a") {
 		madwifi_type = 1;
@@ -656,8 +656,8 @@ int PacketSource_Madwifi::SetChannelSequence(vector<unsigned int> in_seq) {
 
 PacketSource_Wrt54Prism::PacketSource_Wrt54Prism(GlobalRegistry *in_globalreg,
 												 string in_type, string in_name,
-												 string in_dev) :
-	PacketSource_Wext(in_globalreg, in_type, in_name, in_dev) {
+												 string in_dev, string in_opts) :
+	PacketSource_Wext(in_globalreg, in_type, in_name, in_dev, in_opts) {
 	// We get FCS bytes
 	SetFCSBytes(4);
 }

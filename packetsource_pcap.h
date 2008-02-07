@@ -177,14 +177,14 @@ public:
 	// No creation or probe for this high-level metasource
 	virtual KisPacketSource *CreateSource(GlobalRegistry *in_globalreg, 
 										  string in_type, string in_name, 
-										  string in_dev) = 0;
+										  string in_dev, string in_opts) = 0;
 
 	virtual int AutotypeProbe(string in_device) = 0;
 	virtual int RegisterSources(Packetsourcetracker *tracker) = 0;
 
 	PacketSource_Pcap(GlobalRegistry *in_globalreg, string in_type, 
-					  string in_name, string in_dev) :
-		KisPacketSource(in_globalreg, in_type, in_name, in_dev) { 
+					  string in_name, string in_dev, string in_opts) :
+		KisPacketSource(in_globalreg, in_type, in_name, in_dev, in_opts) { 
 			// Nothing special here vs. normal
 		}
 	virtual ~PacketSource_Pcap() { }
@@ -242,8 +242,9 @@ public:
 	// This should return a new object of its own subclass type
 	virtual KisPacketSource *CreateSource(GlobalRegistry *in_globalreg, 
 										  string in_type, string in_name, 
-										  string in_dev) {
-		return new PacketSource_Pcapfile(in_globalreg, in_type, in_name, in_dev);
+										  string in_dev, string in_opts) {
+		return new PacketSource_Pcapfile(in_globalreg, in_type, in_name, 
+										 in_dev, in_opts);
 	}
 
 	virtual int AutotypeProbe(string in_device) {
@@ -253,8 +254,8 @@ public:
 	virtual int RegisterSources(Packetsourcetracker *tracker);
 
 	PacketSource_Pcapfile(GlobalRegistry *in_globalreg, string in_type, 
-						  string in_name, string in_dev) :
-		PacketSource_Pcap(in_globalreg, in_type, in_name, in_dev) { 
+						  string in_name, string in_dev, string in_opts) :
+		PacketSource_Pcap(in_globalreg, in_type, in_name, in_dev, in_opts) { 
 			// Foo
 		}
 	virtual ~PacketSource_Pcapfile() { }

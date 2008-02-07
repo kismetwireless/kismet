@@ -133,8 +133,8 @@ int PacketSource_AirPcap::RegisterSources(Packetsourcetracker *tracker) {
 
 PacketSource_AirPcap::PacketSource_AirPcap(GlobalRegistry *in_globalreg, 
 										   string in_type, string in_name,
-										   string in_dev): 
-	PacketSource_Pcap(in_globalreg, in_type, in_name, in_dev) {
+										   string in_dev, string in_opts): 
+	PacketSource_Pcap(in_globalreg, in_type, in_name, in_dev, in_opts) {
 
 	// Go through the prompting game for 'ask' variant
 	if (in_type == "airpcap_ask") {

@@ -62,16 +62,16 @@ public:
 
 	virtual KisPacketSource *CreateSource(GlobalRegistry *in_globalreg, 
 										  string in_type, string in_name, 
-										  string in_dev) {
-		return new PacketSource_Ipwlive(in_globalreg, in_type, in_name, in_dev);
+										  string in_dev, string in_opts) {
+		return new PacketSource_Ipwlive(in_globalreg, in_type, in_name, in_dev, in_opts);
 	}
 
 	virtual int AutotypeProbe(string in_device);
 	virtual int RegisterSources(Packetsourcetracker *tracker);
 
 	PacketSource_Ipwlive(GlobalRegistry *in_globalreg, string in_type, 
-						 string in_name, string in_dev) :
-		PacketSource_Pcap(in_globalreg, in_type, in_name, in_dev) { 
+						 string in_name, string in_dev, string in_opts) :
+		PacketSource_Pcap(in_globalreg, in_type, in_name, in_dev, in_opts) { 
 			// foo
 		}
 	virtual ~PacketSource_Ipwlive() { }
