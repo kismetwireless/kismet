@@ -295,6 +295,8 @@ Kis_Panel_Component::Kis_Panel_Component(GlobalRegistry *in_globalreg,
 
 	cb_switch = cb_activate = NULL;
 
+	color_active = color_inactive = 0;
+
 	name = "GENERIC_WIDGET";
 }
 
@@ -1576,6 +1578,13 @@ void Kis_Free_Text::DrawComponent() {
 	if (visible == 0)
 		return;
 
+	parent_panel->InitColorPref("panel_text_color", "white,black");
+	parent_panel->InitColorPref("panel_textdis_color", "grey,black");
+	parent_panel->ColorFromPref(color_active, "panel_text_color");
+	parent_panel->ColorFromPref(color_inactive, "panel_textdis_color");
+
+	SetTransColor(color_active);
+
 	if (scroll_pos < 0 || scroll_pos > (int) text_vec.size())
 		scroll_pos = 0;
 
@@ -1584,12 +1593,6 @@ void Kis_Free_Text::DrawComponent() {
 			scroll_pos = x;
 		}
 		// Use the special formatter
-		/*
-		Kis_Panel_Specialtext::Mvwaddnstr(window, sy + x, sx, 
-										  AlignString(text_vec[x + scroll_pos], ' ',
-													  alignment, lx),
-										  lx - 1);
-										  */
 		Kis_Panel_Specialtext::Mvwaddnstr(window, sy + x, sx, 
 										  text_vec[x + scroll_pos],
 										  lx - 1);
@@ -1738,6 +1741,13 @@ void Kis_Field_List::DrawComponent() {
 	if (visible == 0)
 		return;
 
+	parent_panel->InitColorPref("panel_text_color", "white,black");
+	parent_panel->InitColorPref("panel_textdis_color", "grey,black");
+	parent_panel->ColorFromPref(color_active, "panel_text_color");
+	parent_panel->ColorFromPref(color_inactive, "panel_textdis_color");
+
+	SetTransColor(color_active);
+
 	for (unsigned int x = 0; x < field_vec.size() && (int) x < ey; x++) {
 		// Set the field name to bold
 		wattron(window, WA_UNDERLINE);
@@ -1763,14 +1773,6 @@ void Kis_Field_List::DrawComponent() {
 
 		wattroff(window, WA_REVERSE);
 	}
-}
-
-void Kis_Field_List::Activate(int subcomponent) {
-	// No magic
-}
-
-void Kis_Field_List::Deactivate() {
-	// No magic
 }
 
 int Kis_Field_List::KeyPress(int in_key) {
@@ -1857,6 +1859,13 @@ Kis_Scrollable_Table::~Kis_Scrollable_Table() {
 void Kis_Scrollable_Table::DrawComponent() {
 	if (visible == 0)
 		return;
+
+	parent_panel->InitColorPref("panel_text_color", "white,black");
+	parent_panel->InitColorPref("panel_textdis_color", "grey,black");
+	parent_panel->ColorFromPref(color_active, "panel_text_color");
+	parent_panel->ColorFromPref(color_inactive, "panel_textdis_color");
+
+	SetTransColor(color_active);
 
 	// Current character position x
 	int xcur = 0;
@@ -1955,14 +1964,6 @@ void Kis_Scrollable_Table::DrawComponent() {
 		ycur += 1;
 
 	}
-}
-
-void Kis_Scrollable_Table::Activate(int subcomponent) {
-	// no magic 
-}
-
-void Kis_Scrollable_Table::Deactivate() {
-	// no magic
 }
 
 int Kis_Scrollable_Table::KeyPress(int in_key) {
@@ -2131,10 +2132,15 @@ void Kis_Single_Input::DrawComponent() {
 	if (visible == 0)
 		return;
 
+	parent_panel->InitColorPref("panel_text_color", "white,black");
+	parent_panel->InitColorPref("panel_textdis_color", "grey,black");
+	parent_panel->ColorFromPref(color_active, "panel_text_color");
+	parent_panel->ColorFromPref(color_inactive, "panel_textdis_color");
+
+	SetTransColor(color_active);
+
 	int xoff = 0;
 	int yoff = 0;
-
-	// fprintf(stderr, "debug - label %d %s\n", label.length(), label.c_str());
 
 	// Draw the label if we can, in bold
 	if (ly >= 2 && label_pos == LABEL_POS_TOP) {
@@ -2331,6 +2337,13 @@ void Kis_Button::DrawComponent() {
 	if (visible == 0)
 		return;
 
+	parent_panel->InitColorPref("panel_text_color", "white,black");
+	parent_panel->InitColorPref("panel_textdis_color", "grey,black");
+	parent_panel->ColorFromPref(color_active, "panel_text_color");
+	parent_panel->ColorFromPref(color_inactive, "panel_textdis_color");
+
+	SetTransColor(color_active);
+
 	// Draw the highlighted button area if we're active
 	if (active)
 		wattron(window, WA_REVERSE);
@@ -2400,6 +2413,13 @@ Kis_Checkbox::~Kis_Checkbox() {
 void Kis_Checkbox::DrawComponent() {
 	if (visible == 0)
 		return;
+
+	parent_panel->InitColorPref("panel_text_color", "white,black");
+	parent_panel->InitColorPref("panel_textdis_color", "grey,black");
+	parent_panel->ColorFromPref(color_active, "panel_text_color");
+	parent_panel->ColorFromPref(color_inactive, "panel_textdis_color");
+
+	SetTransColor(color_active);
 
 	// Draw the highlighted button area if we're active
 	if (active)

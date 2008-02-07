@@ -207,7 +207,20 @@ public:
 	virtual void ClearCallback(int cbtype);
 
 protected:
+	// Silly function to pick the right color - give it the color you want,
+	// and it gives you the inactive color if the widget is inactive
+	inline void SetTransColor(int want_color) {
+		if (active)
+			wattrset(window, want_color);
+		else
+			wattrset(window, color_inactive);
+	}
+
 	GlobalRegistry *globalreg;
+
+	// Primary colors
+	int color_active;
+	int color_inactive;
 
 	// Callbacks
 	int (*cb_switch)(COMPONENT_CALLBACK_PARMS);
@@ -424,8 +437,6 @@ public:
 	virtual ~Kis_Field_List();
 
 	virtual void DrawComponent();
-	virtual void Activate(int subcomponent);
-	virtual void Deactivate();
 
 	virtual int KeyPress(int in_key);
 
@@ -513,8 +524,6 @@ public:
 	virtual ~Kis_Scrollable_Table();
 
 	virtual void DrawComponent();
-	virtual void Activate(int subcomponent);
-	virtual void Deactivate();
 
 	virtual int KeyPress(int in_key);
 

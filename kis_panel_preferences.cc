@@ -174,8 +174,8 @@ Kis_ColorPref_Picker::Kis_ColorPref_Picker(GlobalRegistry *in_globalreg,
 								   KIS_PANEL_COMP_EVT));
 	tab_pos = 0;
 
-	fgcolor->Activate(1);
 	active_component = fgcolor;
+	fgcolor->Activate(1);
 
 	vbox = new Kis_Panel_Packbox(globalreg, this);
 	vbox->SetPackV();
@@ -283,6 +283,7 @@ Kis_ColorPref_Panel::Kis_ColorPref_Panel(GlobalRegistry *in_globalref,
 
 	AddComponentVec(colorlist, (KIS_PANEL_COMP_DRAW | KIS_PANEL_COMP_EVT));
 	active_component = colorlist;
+	colorlist->Activate(0);
 
 	vector<Kis_Scrollable_Table::title_data> titles;
 	Kis_Scrollable_Table::title_data t;
@@ -401,6 +402,7 @@ Kis_AutoConPref_Panel::Kis_AutoConPref_Panel(GlobalRegistry *in_globalreg,
 	tab_pos = 0;
 
 	active_component = hostname;
+	hostname->Activate(1);
 
 	SetTitle("Connect to Server");
 

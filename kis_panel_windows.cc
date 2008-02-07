@@ -176,6 +176,7 @@ Kis_Main_Panel::Kis_Main_Panel(GlobalRegistry *in_globalreg,
 	vbox->Pack_End(statustext, 0, 0);
 
 	active_component = netlist;
+	netlist->Activate(0);
 
 	AddComponentVec(vbox, KIS_PANEL_COMP_TAB | KIS_PANEL_COMP_DRAW);
 
@@ -593,6 +594,7 @@ Kis_Connect_Panel::Kis_Connect_Panel(GlobalRegistry *in_globalreg,
 	tab_pos = 0;
 
 	active_component = hostname;
+	hostname->Activate(0);
 
 	SetTitle("Connect to Server");
 
@@ -729,6 +731,7 @@ Kis_ModalAlert_Panel::Kis_ModalAlert_Panel(GlobalRegistry *in_globalreg,
 								KIS_PANEL_COMP_EVT));
 
 	active_component = ackbutton;
+	ackbutton->Activate(0);
 
 	SetTitle("");
 
@@ -821,7 +824,6 @@ Kis_ServerList_Picker::Kis_ServerList_Picker(GlobalRegistry *in_globalreg,
 	// Population is done during draw
 
 	active_component = srvlist;
-
 	srvlist->Activate(1);
 
 	SetTitle("");
@@ -976,6 +978,7 @@ Kis_AddCard_Panel::Kis_AddCard_Panel(GlobalRegistry *in_globalreg,
 
 	tab_pos = 0;
 	active_component = srctype;
+	srctype->Activate(0);
 
 	SetTitle("Add Source");
 
@@ -1214,7 +1217,6 @@ Kis_Plugin_Picker::Kis_Plugin_Picker(GlobalRegistry *in_globalreg,
 	}
 
 	active_component = pluglist;
-
 	pluglist->Activate(1);
 
 	SetTitle("");
@@ -1310,7 +1312,6 @@ Kis_NetDetails_Panel::Kis_NetDetails_Panel(GlobalRegistry *in_globalreg,
 	netdetails->AddTitles(titles);
 
 	active_component = netdetails;
-
 	netdetails->Show();
 	netdetails->Activate(1);
 
