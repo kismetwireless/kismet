@@ -1283,6 +1283,11 @@ int Kis_Plugin_Picker::KeyPress(int in_key) {
 	return 0;
 }
 
+int NetDetailsButtonCB(COMPONENT_CALLBACK_PARMS) {
+	((Kis_NetDetails_Panel *) aux)->ButtonAction(component);
+	return 1;
+}
+
 Kis_NetDetails_Panel::Kis_NetDetails_Panel(GlobalRegistry *in_globalreg, 
 									 KisPanelInterface *in_intf) :
 	Kis_Panel(in_globalreg, in_intf) {
@@ -1318,14 +1323,17 @@ Kis_NetDetails_Panel::Kis_NetDetails_Panel(GlobalRegistry *in_globalreg,
 	closebutton = new Kis_Button(globalreg, this);
 	closebutton->SetText("Close");
 	closebutton->Show();
+	closebutton->SetCallback(COMPONENT_CBTYPE_ACTIVATED, NetDetailsButtonCB, this);
 
 	nextbutton = new Kis_Button(globalreg, this);
 	nextbutton->SetText("Next");
 	nextbutton->Show();
+	nextbutton->SetCallback(COMPONENT_CBTYPE_ACTIVATED, NetDetailsButtonCB, this);
 
 	prevbutton = new Kis_Button(globalreg, this);
 	prevbutton->SetText("Prev");
 	prevbutton->Show();
+	prevbutton->SetCallback(COMPONENT_CBTYPE_ACTIVATED, NetDetailsButtonCB, this);
 
 	bbox = new Kis_Panel_Packbox(globalreg, this);
 	bbox->SetPackH();
@@ -1636,35 +1644,16 @@ void Kis_NetDetails_Panel::DrawPanel() {
 	}
 }
 
-int Kis_NetDetails_Panel::KeyPress(int in_key) {
-	int ret;
-
-	// Rotate through the tabbed items
-	if (in_key == '\t') {
-		tab_components[tab_pos]->Deactivate();
-		tab_pos++;
-		if (tab_pos >= (int) tab_components.size())
-			tab_pos = 0;
-		tab_components[tab_pos]->Activate(1);
-		active_component = tab_components[tab_pos];
+void Kis_NetDetails_Panel::ButtonAction(Kis_Panel_Component *in_button) {
+	if (in_button == closebutton) {
+		globalreg->panel_interface->KillPanel(this);
+	} else if (in_button == nextbutton) {
+		kpinterface->FetchMainPanel()->FetchDisplayNetlist()->KeyPress(KEY_DOWN);
+		dng = NULL;
+	} else if (in_button == prevbutton) {
+		kpinterface->FetchMainPanel()->FetchDisplayNetlist()->KeyPress(KEY_UP);
+		dng = NULL;
 	}
-
-	if (active_component != NULL) {
-		ret = active_component->KeyPress(in_key);
-
-		if (active_component == closebutton && ret == 1) {
-			globalreg->panel_interface->KillPanel(this);
-		} else if (active_component == nextbutton && ret == 1) {
-			kpinterface->FetchMainPanel()->FetchDisplayNetlist()->KeyPress(KEY_DOWN);
-			dng = NULL;
-		} else if (active_component == prevbutton && ret == 1) {
-			kpinterface->FetchMainPanel()->FetchDisplayNetlist()->KeyPress(KEY_UP);
-			dng = NULL;
-		}
-			
-	}
-
-	return 0;
 }
 
 #endif

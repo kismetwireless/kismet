@@ -296,7 +296,7 @@ public:
 
 	virtual void Position(int in_sy, int in_sx, int in_y, int in_x);
 	virtual void DrawPanel();
-	virtual int KeyPress(int in_key);
+	virtual void ButtonAction(Kis_Panel_Component *in_button);
 
 protected:
 	int AppendNetworkInfo(int k, Kis_Display_NetGroup *tng, 
@@ -304,9 +304,6 @@ protected:
 
 	Kis_Panel_Packbox *vbox, *bbox;
 	Kis_Scrollable_Table *netdetails;
-
-	vector<Kis_Panel_Component *> tab_components;
-	int tab_pos;
 
 	time_t last_dirty;
 	mac_addr last_mac;
