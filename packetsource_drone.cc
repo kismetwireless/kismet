@@ -271,11 +271,10 @@ int DroneClientFrame::ParseData() {
 			delete[] buf;
 			return 0;
 		} else {
-			_MSG("Kismet drone client failed to read data from the "
-				 "TCP connection.  This error is fatal because "
-				 "drone reconnecting is not enabled", MSGFLAG_FATAL);
-			globalreg->fatal_condition = 1;
 			delete[] buf;
+			_MSG("Kismet drone client failed to read data from the "
+				 "TCP connection and reconnecting not enabled.", MSGFLAG_FATAL);
+			globalreg->fatal_condition = 1;
 			return -1;
 		}
 	}
@@ -300,11 +299,11 @@ int DroneClientFrame::ParseData() {
 				delete[] buf;
 				return 0;
 			} else {
+				delete[] buf;
 				_MSG("Kismet drone client failed to find the sentinel "
 					 "value in a packet header.  This error is fatal because "
 					 "drone reconnecting is not enabled", MSGFLAG_FATAL);
 				globalreg->fatal_condition = 1;
-				delete[] buf;
 				return -1;
 			}
 		}
@@ -806,8 +805,11 @@ int PacketSource_Drone::OpenSource() {
 		globalreg->fatal_condition) {
 		_MSG("Packetsource drone (" + name + ") failed to create drone "
 			 "framework and open connection", MSGFLAG_FATAL);
-		globalreg->fatal_condition = 1;
-		return -1;
+		if (die_on_fatal) {
+			globalreg->fatal_condition = 1;
+			return -1;
+		} 
+		return 0;
 	}
 
 	return 1;

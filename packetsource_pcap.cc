@@ -102,8 +102,11 @@ int PacketSource_Pcap::OpenSource() {
 
 	if (strlen(errstr) > 0) {
 		globalreg->messagebus->InjectMessage(errstr, MSGFLAG_FATAL);
-		globalreg->fatal_condition = 1;
-		return -1;
+		if (die_on_fatal) {
+			globalreg->fatal_condition = 1;
+			return -1;
+		} 
+		return 0;
 	}
 
 	paused = 0;
@@ -138,9 +141,12 @@ int PacketSource_Pcap::OpenSource() {
 
 	if (strlen(errstr) > 0) {
 		globalreg->messagebus->InjectMessage(errstr, MSGFLAG_FATAL);
-		globalreg->fatal_condition = 1;
 		pcap_close(pd);
-		return -1;
+		if (die_on_fatal) {
+			globalreg->fatal_condition = 1;
+			return -1;
+		}
+		return 0;
 	}
 
 	return 1;
@@ -170,8 +176,11 @@ int PacketSource_Pcap::DatalinkType() {
                  "reporting a bad value.  Make sure you have the correct drivers "
                  "and that entering monitor mode succeeded.", interface.c_str());
         globalreg->messagebus->InjectMessage(errstr, MSGFLAG_FATAL);
-        globalreg->fatal_condition = 1;
-        return -1;
+		if (die_on_fatal) {
+			globalreg->fatal_condition = 1;
+			return -1;
+		}
+		return 0;
     } else {
         snprintf(errstr, STATUS_MAX, "Unknown link type %d reported.  Continuing on "
                  "blindly and hoping we get something useful...  This is ALMOST "
@@ -226,8 +235,11 @@ int PacketSource_Pcap::Poll() {
 #endif
 
 		globalreg->messagebus->InjectMessage(errstr, MSGFLAG_FATAL);
-		globalreg->fatal_condition = 1;
-		return -1;
+		if (die_on_fatal) {
+			globalreg->fatal_condition = 1;
+			return -1;
+		} 
+		return 0;
 	}
 
 	if (ret == 0)
@@ -740,8 +752,11 @@ int PacketSource_Pcapfile::OpenSource() {
 	pd = pcap_open_offline(interface.c_str(), errstr);
 	if (strlen(errstr) > 0) {
 		globalreg->messagebus->InjectMessage(errstr, MSGFLAG_FATAL);
-		globalreg->fatal_condition = 1;
-		return -1;
+		if (die_on_fatal) {
+			globalreg->fatal_condition = 1;
+			return -1;
+		}
+		return 0;
 	}
 
 	paused = 0;
@@ -764,13 +779,19 @@ int PacketSource_Pcapfile::Poll() {
 	if (ret < 0) {
 		globalreg->messagebus->InjectMessage("Pcap failed to get the next packet",
 											 MSGFLAG_FATAL);
-		globalreg->fatal_condition = 1;
-		return -1;
+		if (die_on_fatal) {
+			globalreg->fatal_condition = 1;
+			return -1;
+		}
+		return 0;
 	} else if (ret == 0) {
 		globalreg->messagebus->InjectMessage("Pcap file reached end of capture",
 											 MSGFLAG_FATAL);
-		globalreg->fatal_condition = 1;
-		return -1;
+		if (die_on_fatal) {
+			globalreg->fatal_condition = 1;
+			return -1;
+		} 
+		return 0;
 	}
 
 	kis_packet *newpack = globalreg->packetchain->GeneratePacket();

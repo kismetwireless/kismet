@@ -170,6 +170,9 @@ public:
 
 		num_packets = 0;
 
+		// We die on fatal errors by default
+		die_on_fatal = 1;
+
 		const int soc = globalreg->getopt_long_num++;
 		static struct option kissource_long_options[] = {
 			{ "source-options", required_argument, 0, soc },
@@ -201,7 +204,8 @@ public:
 				vector<string> subopts = StrTokenize(rawsub[y], ":");
 				if (subopts.size() != 2)
 					continue;
-				if (StrLower(subopts[0]) != StrLower(in_name) && subopts[0] != "*")
+				if (StrLower(subopts[0]) != StrLower(in_name) && subopts[0] != "*" &&
+					subopts[0] != "any")
 					continue;
 				subopts = StrTokenize(subopts[1], ",", 1);
 				for (unsigned y = 0; y < subopts.size(); y++) {
@@ -224,6 +228,10 @@ public:
 						genericparms.weak_dissect = 0;
 						_MSG("Forced disabling of weak frame validation on packet "
 							 "source '" + in_name + "'", MSGFLAG_INFO);
+					} else if (subopts[y] == "ignorefatal") {
+						die_on_fatal = 0;
+						_MSG("Will NOT die on fatal errors on packet source '" +
+							 in_name + "'", MSGFLAG_INFO);
 					}
 				}
 			}
@@ -357,6 +365,8 @@ protected:
 	virtual void FetchRadioData(kis_packet *in_packet) = 0;
 
     GlobalRegistry *globalreg;
+
+	int die_on_fatal;
 
     int paused;
 
