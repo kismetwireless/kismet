@@ -2561,7 +2561,8 @@ int PanelFront::DumpPrinter(void *in_window) {
                 client->ClearStrings();
                 kwin->text.clear();
             } else {
-                vector<TcpClient::string_info> cli_strings = context_list[x]->client->FetchStrings();
+                vector<TcpClient::string_info> cli_strings = 
+					context_list[x]->client->FetchStrings();
                 for (unsigned int stng = 0; stng < cli_strings.size(); stng++) {
                     // Only add tagged networks if we care about that.
                     map<mac_addr, display_network *>::iterator gamitr;

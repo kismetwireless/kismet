@@ -716,7 +716,7 @@ void NetWriteInfo() {
 
     GPS_data gdata;
 
-    if (gps_enable) {
+    if (gps_enable && gps != NULL) {
         float lat, lon, alt, spd, hed;
         int mode;
 
@@ -872,6 +872,8 @@ int GpsEvent(Timetracker::timer_event *evt, void *parm) {
 
     // The GPS only provides us a new update once per second we might
     // as well only update it here once a second
+	if (gps_enable == 0 || gps == NULL)
+		return 0;
 
     // If we're disconnected, try to reconnect.
     if (gpsd_reconnect_attempt > 0) {
@@ -2508,7 +2510,7 @@ int main(int argc,char *argv[]) {
         }
     }
 
-    if (gps_enable == 1) {
+    if (gps_enable) {
         gps = new GPSD(gpshost, gpsport);
 
         // Lock GPS position
@@ -2519,11 +2521,13 @@ int main(int argc,char *argv[]) {
         }
 
 #ifdef HAVE_HILDON
+		fprintf(stderr, "Waiting for Hildon gps to enable...\n");
 		if (gpsbt_start(NULL, 0, 0, 0 /* default port */, 
 						status, STATUS_MAX, 
 						0, &gpsbt_ctx) < 0) {
 			printf("Hildon BT failed: %s\n", status);
 		}
+		sleep(1);
 #endif
 
     } else {
@@ -2813,7 +2817,7 @@ int main(int argc,char *argv[]) {
         }
     }
 
-    if (gps_enable) {
+    if (gps_enable && gps != NULL) {
         // Open the GPS
         if (gps->OpenGPSD() < 0) {
             fprintf(stderr, "%s\n", gps->FetchError());
@@ -2994,7 +2998,8 @@ daemon_parent_cleanup:
         // Merge fd's from the server and the packetsources
         max_fd = ui_server.MergeSet(read_set, max_fd, &rset, &wset);
         max_fd = sourcetracker.MergeSet(&rset, &wset, max_fd);
-		max_fd = gps->MergeSet(&rset, &wset, max_fd);
+		if (gps_enable && gps != NULL)
+			max_fd = gps->MergeSet(&rset, &wset, max_fd);
 
         struct timeval tm;
         tm.tv_sec = 0;
@@ -3019,7 +3024,8 @@ daemon_parent_cleanup:
         // We can pass the results of this select to the UI handler without incurring a
         // a delay since it will bail nicely if there aren't any new connections.
 
-		gps->Poll(&rset, &wset);
+		if (gps_enable && gps != NULL)
+			gps->Poll(&rset, &wset);
 
         int accept_fd = 0;
         accept_fd = ui_server.Poll(rset, wset);

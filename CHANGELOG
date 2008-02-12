@@ -1,3 +1,6 @@
+Feb 12 2007  devel  Fixed segv on gps=false introduced in recent gps rewrite
+                     (thanks Antonio Eugenio Burriel for patch)
+                    Added rt61 and rt8187 source names
 Feb 06 2007  devel  Fixed segv on OSX in client on closedir
 Jan 30 2007  devel  Revamped GPS to use 'watch' mode in GPSD
                     Revamped GPS again to work with watch better and to 

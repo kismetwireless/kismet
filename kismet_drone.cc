@@ -690,7 +690,8 @@ int main(int argc, char *argv[]) {
 
         max_fd = streamer.MergeSet(read_set, max_fd, &rset, &wset);
         max_fd = sourcetracker.MergeSet(&rset, &wset, max_fd);
-        max_fd = gps->MergeSet(&rset, &wset, max_fd);
+		if (gps_enable && gps != NULL)
+			max_fd = gps->MergeSet(&rset, &wset, max_fd);
 
         struct timeval tm;
         tm.tv_sec = 0;
@@ -704,7 +705,8 @@ int main(int argc, char *argv[]) {
             }
         }
 
-		gps->Poll(&rset, &wset);
+		if (gps_enable && gps != NULL)
+			gps->Poll(&rset, &wset);
 
         // We can pass the results of this select to the UI handler without incurring a
         // a delay since it will bail nicely if there aren't any new connections.
