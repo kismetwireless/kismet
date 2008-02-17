@@ -981,8 +981,9 @@ void Kis_Menu::DrawMenu(_menu *menu, WINDOW *win, int hpos, int vpos) {
 		}
 
 		// Dim a disabled item
-		if (menu->items[y]->enabled == 0)
-			wattron(win, WA_DIM);
+		if (menu->items[y]->enabled == 0) {
+			wattrset(win, disable_color);
+		}
 
 		// Format it with 'Foo     F'
 		menuline += menu->items[y]->text + " ";
@@ -1010,10 +1011,6 @@ void Kis_Menu::DrawMenu(_menu *menu, WINDOW *win, int hpos, int vpos) {
 		// Print it
 		mvwaddstr(win, 1 + dsz, 1, menuline.c_str());
 
-		// Dim a disabled item
-		if (menu->items[y]->enabled == 0)
-			wattroff(win, WA_DIM);
-
 		if (((int) menu->id == cur_menu && (int) y == cur_item) || 
 			((int) menu->id == sub_menu && (int) y == sub_item))
 			wattroff(win, WA_REVERSE);
@@ -1036,8 +1033,10 @@ void Kis_Menu::DrawComponent() {
 
 	parent_panel->InitColorPref("menu_text_color", "white,blue");
 	parent_panel->InitColorPref("menu_border_color", "cyan,blue");
+	parent_panel->InitColorPref("menu_disable_color", "grey,blue");
 	parent_panel->ColorFromPref(text_color, "menu_text_color");
 	parent_panel->ColorFromPref(border_color, "menu_border_color");
+	parent_panel->ColorFromPref(disable_color, "menu_disable_color");
 
 	int hpos = 3;
 
@@ -1051,6 +1050,8 @@ void Kis_Menu::DrawComponent() {
 	for (unsigned int x = 0; x < menubar.size(); x++) {
 		if (menubar[x]->submenu || menubar[x]->visible == 0)
 			continue;
+
+		wattron(window, text_color);
 
 		// If the current menu is the selected one, hilight it
 		if ((int) x == cur_menu || (int) x == sub_menu)
@@ -2475,8 +2476,16 @@ void Kis_Checkbox::SetChecked(int in_check) {
 template<class T> void Kis_Graph<T>::AddExtDataVec(string name, int layer, 
 												   string colorpref,  char line,
 												   char fill, vector<T> *in_dv) {
-	// text = in_text;
-	// SetPreferredSize(text.length() + 4, 1);
+	graph_source gs;
+
+	gs.layer = layer;
+	gs.colorpref = colorpref;
+	gs.line = line;
+	gs.fill = fill;
+	gs.data = in_dv;
+	gs.name = name;
+
+	data_vec.push_back(gs);
 }
 
 Kis_Panel::Kis_Panel(GlobalRegistry *in_globalreg, KisPanelInterface *in_intf) {

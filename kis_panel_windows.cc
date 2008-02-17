@@ -188,6 +188,7 @@ Kis_Main_Panel::Kis_Main_Panel(GlobalRegistry *in_globalreg,
 	AddColorPref("panel_textdis_color", "Text-Inactive");
 	AddColorPref("panel_border_color", "Window Border");
 	AddColorPref("menu_text_color", "Menu Text");
+	AddColorPref("menu_disable_color", "Menu Disabled");
 	AddColorPref("menu_border_color", "Menu Border");
 	AddColorPref("netlist_header_color", "Netlist Header");
 	AddColorPref("netlist_normal_color", "Netlist Normal");
@@ -248,15 +249,11 @@ int Kis_Main_Panel::MouseEvent(MEVENT *mevent) {
 
 	if (clivec->size() == 0 && connect_enable == 0) {
 		menu->EnableMenuItem(mi_connect);
-		menu->SetMenuItemVis(mi_connect, 1);
 		menu->DisableMenuItem(mi_disconnect);
-		menu->SetMenuItemVis(mi_disconnect, 0);
 		connect_enable = 1;
 	} else if (clivec->size() > 0 && connect_enable) {
 		menu->EnableMenuItem(mi_disconnect);
-		menu->SetMenuItemVis(mi_disconnect, 1);
 		menu->DisableMenuItem(mi_connect);
-		menu->SetMenuItemVis(mi_connect, 0);
 		connect_enable = 0;
 	}
 
@@ -268,15 +265,11 @@ int Kis_Main_Panel::KeyPress(int in_key) {
 
 	if (clivec->size() == 0 && connect_enable == 0) {
 		menu->EnableMenuItem(mi_connect);
-		menu->SetMenuItemVis(mi_connect, 1);
 		menu->DisableMenuItem(mi_disconnect);
-		menu->SetMenuItemVis(mi_disconnect, 0);
 		connect_enable = 1;
 	} else if (clivec->size() > 0 && connect_enable) {
 		menu->EnableMenuItem(mi_disconnect);
-		menu->SetMenuItemVis(mi_disconnect, 1);
 		menu->DisableMenuItem(mi_connect);
-		menu->SetMenuItemVis(mi_connect, 0);
 		connect_enable = 0;
 	}
 

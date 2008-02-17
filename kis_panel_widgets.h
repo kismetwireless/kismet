@@ -402,7 +402,7 @@ protected:
 	int sub_item;
 	int mouse_triggered;
 
-	int text_color, border_color;
+	int text_color, border_color, disable_color;
 
 	virtual void FindNextEnabledItem();
 	virtual void FindPrevEnabledItem();
