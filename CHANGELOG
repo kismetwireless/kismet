@@ -1,3 +1,5 @@
+Feb 24 2007  devel  Fixed gpsd speed issue on water mode, thanks again to
+                     Antonio
 Feb 12 2007  devel  Fixed segv on gps=false introduced in recent gps rewrite
                      (thanks Antonio Eugenio Burriel for patch)
                     Added rt61 and rt8187 source names

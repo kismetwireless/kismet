@@ -112,6 +112,9 @@ protected:
 	int poll_mode;
 
 	int poll_timer;
+	
+	// 'O' response reports speed as m/s instead of knots?
+	int si_units;
 
     int sock;
 

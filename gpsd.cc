@@ -119,6 +119,7 @@ int GPSD::OpenGPSD() {
 
 	data_pos = 0;
 	poll_mode = 0;
+	si_units = 0;
 
 	last_hed_time = 0;
 
@@ -237,8 +238,14 @@ int GPSD::Poll(fd_set *in_rset, fd_set *in_wset) {
 				poll_mode = 1;
 			} else if (sscanf(lvec[1].c_str(), "%d.%d", &gma, &gmi) != 2) {
 				poll_mode = 1;
-			} else if (gma < 2 || (gma == 2 && gmi < 34)) {
-				poll_mode = 1;
+			} else {
+				if (gma < 2 || (gma == 2 && gmi < 34)) {
+					poll_mode = 1;
+				}
+				// Since GPSD r2368 'O' gives the speed as m/s instead of knots
+				if (gma > 2 || (gma == 2 && gmi >= 31)) {
+					si_units = 1;
+				}
 			}
 
 			// We got the version reply, write the optional setup commands, 
@@ -331,6 +338,8 @@ int GPSD::Poll(fd_set *in_rset, fd_set *in_wset) {
 
 			if (sscanf(ggavec[9].c_str(), "%f", &in_spd) != 1)
 				use_spd = 0;
+                        else if (si_units)
+                                in_spd *= 1.9438445;	/*new gpsd uses m/s intead of knots*/
 
 			use_mode = 1;
 			use_coord = 1;
