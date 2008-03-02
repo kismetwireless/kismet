@@ -31,8 +31,8 @@
 #include <string>
 #include <vector>
 
-#include "packet.h"
 #include "tcpclient.h"
+#include "packet.h"
 #include "packetracker.h"
 #include "manuf.h"
 #include "gpsd.h"

@@ -146,56 +146,6 @@ extern int vap_destroy;
 pcap_pkthdr callback_header;
 u_char callback_data[MAX_PACKET_LEN];
 
-#ifdef SYS_LINUX
-// Open a source
-int PcapSourceWrt54g::OpenSource() {
-    channel = 0;
-
-    errstr[0] = '\0';
-
-    char *unconst = strdup("prism0");
-
-    pd = pcap_open_live(unconst, MAX_PACKET_LEN, 1, 1000, errstr);
-
-    free(unconst);
-
-    if (strlen(errstr) > 0)
-        return -1; // Error is already in errstr
-
-    #if defined (SYS_OPENBSD) || defined(SYS_NETBSD) && defined(HAVE_RADIOTAP)
-    /* Request desired DLT on multi-DLT systems that default to EN10MB. 
-	 * We do this later anyway but doing it here ensures we have the 
-	 * desired DLT from the get go. */
-	pcap_set_datalink(pd, DLT_IEEE802_11_RADIO);
-    #endif
-
-    paused = 0;
-
-    errstr[0] = '\0';
-
-    num_packets = 0;
-
-    if (DatalinkType() < 0)
-        return -1;
-
-#ifdef HAVE_PCAP_NONBLOCK
-    pcap_setnonblock(pd, 1, errstr);
-#elif !defined(SYS_OPENBSD)
-    // do something clever  (Thanks to Guy Harris for suggesting this).
-    int save_mode = fcntl(pcap_get_selectable_fd(pd), F_GETFL, 0);
-    if (fcntl(pcap_get_selectable_fd(pd), F_SETFL, save_mode | O_NONBLOCK) < 0) {
-        snprintf(errstr, 1024, "fcntl failed, errno %d (%s)",
-                 errno, strerror(errno));
-    }
-#endif
-
-    if (strlen(errstr) > 0)
-        return -1; // Ditto
-    
-    return 1;
-}
-#endif
-
 // Open a source
 int PcapSource::OpenSource() {
     channel = 0;
@@ -1323,6 +1273,7 @@ KisPacketSource *pcapsource_wlanng_registrant(string in_name, string in_device,
 
 KisPacketSource *pcapsource_wrt54g_registrant(string in_name, string in_device,
                                               char *in_err) {
+	// Handle ethN:prism0 or just ethN for both variants
     vector<string> devbits = StrTokenize(in_device, ":");
 
     if (devbits.size() < 2) {
@@ -3414,6 +3365,7 @@ KisPacketSource *pcapsource_darwin_registrant(string in_name, string in_device,
 				"it may not work properly.\n", devname);
 	}
 
+#if 0
 	if (kernmaj >= 9) {
 		fprintf(stderr, "\nWARNING: We're running under Darwin/OSX >= 9.1.0 "
 				"(Leopard).  If your libpcap is NOT EXTREMELY CURRENT (as in "
@@ -3422,6 +3374,7 @@ KisPacketSource *pcapsource_darwin_registrant(string in_name, string in_device,
 				"is up to date and understands the DLT enumeration used in "
 				"Leopard.\n\n");
 	}
+#endif
 
 	// Everything we don't understand looks like an atheros in the end
     return pcapsourcefcs_registrant(devname, devname, in_err);

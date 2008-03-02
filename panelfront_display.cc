@@ -2558,7 +2558,7 @@ int PanelFront::DumpPrinter(void *in_window) {
     for (unsigned int x = 0; x < context_list.size(); x++) {
         if (context_list[x]->tagged == 1 && context_list[x]->client != NULL) {
             if (clear_dump) {
-                client->ClearStrings();
+                context_list[x]->client->ClearStrings();
                 kwin->text.clear();
             } else {
                 vector<TcpClient::string_info> cli_strings = 

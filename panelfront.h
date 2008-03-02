@@ -42,8 +42,8 @@
 #include <string>
 #include <vector>
 
-#include "packet.h"
 #include "frontend.h"
+#include "packet.h"
 #include "cursesfront.h"
 #include "networksort.h"
 

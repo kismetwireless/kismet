@@ -378,7 +378,6 @@ public:
     PcapSourceWrt54g(string in_name, string in_dev) : PcapSource(in_name, in_dev) { 
         fcsbytes = 4;
     }
-	int OpenSource();
     int FetchPacket(kis_packet *packet, uint8_t *data, uint8_t *moddata);
 protected:
     carrier_type IEEE80211Carrier();
