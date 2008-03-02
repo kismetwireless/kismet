@@ -18,11 +18,11 @@
 
 #include "config.h"
 
-#include <math.h>
-#include <sys/param.h>
-
 #include "panelfront.h"
 #include "displaynetworksort.h"
+
+#include <math.h>
+#include <sys/param.h>
 
 #if (defined(HAVE_LIBNCURSES) && defined(HAVE_LIBPANEL) && defined(BUILD_PANEL))
 
