@@ -16,6 +16,7 @@
     Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 */
 
+#define __STDC_FORMAT_MACROS
 #include "config.h"
 
 #include "panelfront.h"
@@ -1711,7 +1712,7 @@ int PanelFront::DetailsPrinter(void *in_window) {
 
 	// Added by Sven-Ola, may need le64_to_cpu()? Also added the bss_tsf
 	// to the kismet tcp protocol used between client and server
-	snprintf(output, print_width, "BSS Time: %llx", dnet->bss_timestamp);
+	snprintf(output, print_width, "BSS Time: %"PRIx64"", dnet->bss_timestamp);
         kwin->text.push_back(output);
 
         if (dnet->maxseenrate != 0) {
@@ -2666,7 +2667,7 @@ int PanelFront::StatsPrinter(void *in_window) {
     snprintf(output, print_width, "Start   : %.24s", ctime((const time_t *) &start_time));
     details_text.push_back(output);
 
-    snprintf(output, print_width, "Servers : %u", context_list.size());
+    snprintf(output, print_width, "Servers : %zu", context_list.size());
     details_text.push_back(output);
 
     snprintf(output, print_width, "Networks: %d", num_networks);

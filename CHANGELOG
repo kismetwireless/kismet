@@ -1,21 +1,23 @@
-Mar 02 2007  devel  Re-ordered headers in panelfront_display to prevent weird
+Mar 16 2008  devel  Merged patches from Alexandre Balavas to clean up warnings
+                     on CentOS
+Mar 02 2008  devel  Re-ordered headers in panelfront_display to prevent weird
                      compiler issue on Darwin
-Feb 24 2007  devel  Fixed gpsd speed issue on water mode, thanks again to
+Feb 24 2008  devel  Fixed gpsd speed issue on water mode, thanks again to
                      Antonio
-Feb 12 2007  devel  Fixed segv on gps=false introduced in recent gps rewrite
+Feb 12 2008  devel  Fixed segv on gps=false introduced in recent gps rewrite
                      (thanks Antonio Eugenio Burriel for patch)
                     Added rt61 and rt8187 source names
-Feb 06 2007  devel  Fixed segv on OSX in client on closedir
-Jan 30 2007  devel  Revamped GPS to use 'watch' mode in GPSD
+Feb 06 2008  devel  Fixed segv on OSX in client on closedir
+Jan 30 2008  devel  Revamped GPS to use 'watch' mode in GPSD
                     Revamped GPS again to work with watch better and to 
                      dynamically use poll mode on older GPSD implementations
                     Revamped GPS a third time in the same day to take the
                      seemingly broken Maemo GPSD into account and use R=1
                      debug mode on Maemo devices
-Jan 29 2007  devel  Added Hildon GPS support
+Jan 29 2008  devel  Added Hildon GPS support
                     Fixed huge bug in IE tag parsing that ignored large
                      beacon frames, thanks to Duane Compton
-Jan 26 2007  devel  Disabled probenojoin by default in config, it's sort of a
+Jan 26 2008  devel  Disabled probenojoin by default in config, it's sort of a
                      useless alert which makes a lot of noise.
                     More capture source control changes to try to solve
                      problems capturing reliably on Nokia 8x0 devices

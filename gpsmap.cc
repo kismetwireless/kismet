@@ -3829,7 +3829,7 @@ int main(int argc, char *argv[]) {
                 else if (tok == "location")
                     network_labels.push_back(NETLABEL_LOCATION);
                 else {
-                    fprintf(stderr, "Invalid label '%zs'\n", tok.c_str());
+                    fprintf(stderr, "Invalid label '%s'\n", tok.c_str());
                     exit(1);
                 }
             }

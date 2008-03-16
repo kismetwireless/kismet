@@ -232,10 +232,8 @@ int netcryptdetect = 0;
 int networkmanager_control(char *cmd) {
 #ifdef HAVE_DBUS
 	DBusMessage* msg;
-	DBusMessageIter args;
 	DBusConnection* conn;
 	DBusError err;
-	DBusMessageIter iter;
 
 	char *name = "org.freedesktop.NetworkManager";
 	char *path = "/org/freedesktop/NetworkManager";

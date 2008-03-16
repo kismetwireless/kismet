@@ -16,6 +16,7 @@
     Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 */
 
+#define __STDC_FORMAT_MACROS
 #include <stdio.h>
 #include "packetsource.h"
 #include "packetsourcetracker.h"
@@ -522,7 +523,7 @@ void Protocol_Network2Data(const wireless_network *net, NETWORK_data *data) {
     snprintf(tmpstr, 128, "%d", net->dupeiv_packets);
     data->ndvec.push_back(tmpstr);
 
-    snprintf(tmpstr, 128, "%lld", net->bss_timestamp);
+    snprintf(tmpstr, 128, "%"PRId64"", net->bss_timestamp);
     data->ndvec.push_back(tmpstr);
 
 }

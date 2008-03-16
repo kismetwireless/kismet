@@ -16,6 +16,7 @@
     Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 */
 
+#define __STDC_FORMAT_MACROS
 #include "tcpclient.h"
 #include "networksort.h"
 
@@ -407,7 +408,7 @@ int TcpClient::ParseData(char *in_data) {
 						 "%d %d %d %d %d %d %d %d %d %hd.%hd.%hd.%hd "
 						 "%d %f %f %f %f %f %f %f %f %d %d %d %f %d %d %d %d %d %d %d %d"
 						 "%f %f %f %lf %lf %lf %ld %ld"
-						 "%d %d %d %d %d %d %d %d %lld",
+						 "%d %d %d %d %d %d %d %d %"PRId64"",
 						 &tmptype, ssid, beaconstr,
 						 &llc_packets, &data_packets, &crypt_packets, 
 						 &interesting_packets, &channel, &crypt_set, 

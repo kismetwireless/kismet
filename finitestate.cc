@@ -16,6 +16,7 @@
     Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 */
 
+#define __STDC_FORMAT_MACROS
 #include "config.h"
 
 #include "finitestate.h"
@@ -223,7 +224,7 @@ int BssTimestampAutomata::ProcessPacket(const packet_info *in_info) {
             // Generate an alert, we're getting a bunch of invalid timestamps
 
             snprintf(atext, STATUS_MAX, "Out-of-sequence BSS timestamp on %s "
-                     "- got %llx, expected %llx - this could indicate AP spoofing",
+                     "- got %"PRIx64", expected %"PRIx64" - this could indicate AP spoofing",
                      in_info->bssid_mac.Mac2String().c_str(), in_info->timestamp,
                      elem->bss_timestamp);
             atracker->RaiseAlert(alertid, in_info->bssid_mac, 0, 0, 0, 
