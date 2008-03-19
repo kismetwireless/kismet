@@ -1,3 +1,5 @@
+Mar 19 2008  devel  Removed wlancond/power setting on Maemo/Nokia since it
+                     doesn't seem to reliably help
 Mar 16 2008  devel  Merged patches from Alexandre Balavas to clean up warnings
                      on CentOS
 Mar 02 2008  devel  Re-ordered headers in panelfront_display to prevent weird

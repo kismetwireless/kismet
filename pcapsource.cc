@@ -2373,6 +2373,7 @@ int monitor_nokia(const char *in_dev, int initch, char *in_err, void **in_if, vo
 	sleep(1);
 	fprintf(stderr, "done\n");
 
+	/*
 	fprintf(stderr, "INFO - Killing wlancond to get it to leave us alone...\n");
 	system("/etc/init.d/wlancond stop");
 	fprintf(stderr, "INFO - Waiting for wlancond to stop... ");
@@ -2385,6 +2386,7 @@ int monitor_nokia(const char *in_dev, int initch, char *in_err, void **in_if, vo
 
 	// Disable power save mode, ignore errors
 	Iwconfig_Disable_Power(in_dev, in_err);
+	*/
 
     // Call the normal monitor mode
     return (monitor_wext(in_dev, initch, in_err, in_if, in_ext));
@@ -2393,15 +2395,18 @@ int monitor_nokia(const char *in_dev, int initch, char *in_err, void **in_if, vo
 int unmonitor_nokia(const char *in_dev, int initch, char *in_err, void **in_if, void *in_ext) {
     // Restore initial monitor header
     linux_ifparm *ifparm = (linux_ifparm *) (*in_if);
+	/*
 	void *power = NULL;
 
 	// Preserve the pointer to power, which won't get freed inside ifparm
 	power = ifparm->power;
+	*/
 
 	// Bring it out of monitor mode
 	if (unmonitor_wext(in_dev, initch, in_err, in_if, in_ext) < 0)
 		return -1;
 
+	/*
 	// Restore power mode, ignore errors
 	if (Iwconfig_Restore_Power(in_dev, in_err, power) < 0) {
 		fprintf(stderr, "WARNING: Could not restore power save settings (%s), your "
@@ -2412,6 +2417,7 @@ int unmonitor_nokia(const char *in_dev, int initch, char *in_err, void **in_if, 
 
 	// Bring wlancond back 
 	system("/etc/init.d/wlancond start");
+	*/
 
 	return 1;
 }
