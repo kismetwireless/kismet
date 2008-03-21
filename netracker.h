@@ -530,6 +530,9 @@ public:
 		int dirty;
 	};
 
+	// Fwd def for our map
+	class tracked_client;
+
 	class tracked_network {
 	public:
 		tracked_network() {
@@ -561,6 +564,10 @@ public:
 		int llc_packets;
 		int data_packets;
 		int crypt_packets;
+
+		// Clients seen associated with this network - we don't need
+		// to use a macmap since they'll all be unique/unmasked
+		map<mac_addr, Netracker::tracked_client *> client_map;
 
 		// Advertised SSID data, often only 1 item
 		map<uint32_t, Netracker::adv_ssid_data *> ssid_map;
@@ -618,10 +625,25 @@ public:
 		adv_ssid_data *lastssid;
 	};
 
+	// Mini-client for counting global unique clients
+	class tracked_mini_client {
+	public:
+		tracked_mini_client() {
+			mac = mac_addr(0);
+			last_bssid_mac = mac_addr(0);
+			num_bssids = 0;
+		}
+
+		mac_addr mac;
+		mac_addr last_bssid_mac;
+		int num_bssids;
+	};
+
 	class tracked_client {
 	public:
 		tracked_client() {
 			type = client_unknown;
+			mac = mac_addr(0);
 			last_time = first_time = 0;
 			decrypted = 0;
 			channel = 0;
@@ -720,14 +742,12 @@ public:
 	// the chain API is insufficient, like logging xml/net ascii
 	const map<mac_addr, Netracker::tracked_network *> FetchTrackedNets();
 	const map<mac_addr, Netracker::tracked_network *> FetchProbeNets();
-	const map<mac_addr, Netracker::tracked_client *> FetchTrackedClients();
-	const multimap<mac_addr, Netracker::tracked_client *> FetchAssocClients();
 
 	typedef map<mac_addr, Netracker::tracked_network *>::iterator track_iter;
 	typedef map<mac_addr, Netracker::tracked_client *>::iterator client_iter;
 	typedef map<mac_addr, Netracker::ip_data>::iterator ipcache_iter;
 	typedef map<mac_addr, string>::iterator ssidcache_iter;
-	typedef multimap<mac_addr, Netracker::tracked_client *>::iterator ap_client_itr;
+	typedef map<mac_addr, Netracker::tracked_mini_client *>::iterator client_mini_iter;
 
 protected:
 	GlobalRegistry *globalreg;
@@ -754,9 +774,6 @@ protected:
 	int ReadIPCache();
 	int WriteIPCache();
 
-	// Move a client between networks
-	void MoveClientNetwork(Netracker::tracked_client *cli, 
-						   Netracker::tracked_network *net);
 	// Combine networks (probe into normal)
 	void MergeNetwork(Netracker::tracked_network *net1,
 					  Netracker::tracked_network *net2);
@@ -774,15 +791,13 @@ protected:
 	map<mac_addr, Netracker::tracked_network *> tracked_map;
 	// Probe association to network that owns it
 	map<mac_addr, Netracker::tracked_network *> probe_assoc_map;
-	// All clients
-	map<mac_addr, Netracker::tracked_client *> client_map;
 
 	// Cached data
 	map<mac_addr, Netracker::ip_data> bssid_ip_map;
 	map<mac_addr, string> bssid_cloak_map;
 
-	// AP BSSID to client
-	multimap<mac_addr, Netracker::tracked_client *> ap_client_map;
+	// Mini-client map for unique counting
+	map<mac_addr, Netracker::client_mini_iter *> client_mini_map;
 
 	// Vector of dirty elements for pushing out to clients, quicker than
 	// walking the map every tick

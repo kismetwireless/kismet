@@ -112,14 +112,13 @@ int Dumpfile_Nettxt::Flush() {
 	// Get the tracked network and client->ap maps
 	const map<mac_addr, Netracker::tracked_network *> tracknet =
 		globalreg->netracker->FetchTrackedNets();
-	const multimap<mac_addr, Netracker::tracked_client *> trackcli =
-		globalreg->netracker->FetchAssocClients();
+
 	// Get the alerts
 	const vector<kis_alert_info *> *alerts =
 		globalreg->alertracker->FetchBacklog();
 
 	map<mac_addr, Netracker::tracked_network *>::const_iterator x;
-	multimap<mac_addr, Netracker::tracked_client *>::const_iterator y;
+	map<mac_addr, Netracker::tracked_client *>::const_iterator y;
 
 	int netnum = 0;
 
@@ -331,10 +330,7 @@ int Dumpfile_Nettxt::Flush() {
 		int clinum = 0;
 
 		// Get the client range pairs and print them out
-		pair<multimap<mac_addr, Netracker::tracked_client *>::const_iterator, 
-			multimap<mac_addr, Netracker::tracked_client *>::const_iterator> apclis = 
-			trackcli.equal_range(net->bssid);
-		for (y = apclis.first; y != apclis.second; ++y) {
+		for (y = net->client_map.begin(); y != net->client_map.end(); ++y) {
 			Netracker::tracked_client *cli = y->second;
 
 			clinum++;

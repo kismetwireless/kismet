@@ -884,15 +884,45 @@ void Protocol_SSID_enable(PROTO_ENABLE_PARMS) {
 }
 
 void Protocol_CLIENT_enable(PROTO_ENABLE_PARMS) {
-	for (Netracker::client_iter x = globalreg->netracker->client_map.begin(); 
-		 x != globalreg->netracker->client_map.end(); ++x) {
-        if (x->second->type == client_remove) 
-            continue;
+	// Push new networks and reset their rate counters
+	for (Netracker::track_iter x = globalreg->netracker->tracked_map.begin(); 
+		 x != globalreg->netracker->tracked_map.end(); ++x) {
+		Netracker::tracked_network *net = x->second;
 
-		kis_protocol_cache cache;
-		if (globalreg->kisnetserver->SendToClient(in_fd, _NPM(PROTO_REF_CLIENT),
-												  (void *) x->second, &cache) < 0)
-			break;
+		int filtered = 0;
+
+		if (net->type == network_remove)
+			continue;
+
+		// Filter on bssid
+		if (globalreg->netracker->netcli_filter->RunFilter(net->bssid, 
+														   mac_addr(0), mac_addr(0)))
+			continue;
+
+		// Do the ADVSSID push inside the BSSID timer kick, because we want 
+		// to still allow filtering on the SSID...
+		// TODO:  Add filter state caching
+		map<uint32_t, Netracker::adv_ssid_data *>::iterator asi;
+		for (asi = net->ssid_map.begin(); asi != net->ssid_map.end(); ++asi) {
+			if (globalreg->netracker->netcli_filter->RunPcreFilter(asi->second->ssid)) {
+				filtered = 1;
+				break;
+			}
+		}
+
+		if (filtered)
+			continue;
+
+		for (Netracker::client_iter c = net->client_map.begin();
+			 c != net->client_map.end(); ++c) {
+			if (c->second->type == client_remove) 
+				continue;
+
+			kis_protocol_cache cache;
+			if (globalreg->kisnetserver->SendToClient(in_fd, _NPM(PROTO_REF_CLIENT),
+													  (void *) c->second, &cache) < 0)
+				break;
+		}
 	}
 }
 
@@ -1327,65 +1357,6 @@ int Netracker::TimerKick() {
 	return 1;
 }
 
-void Netracker::MoveClientNetwork(Netracker::tracked_client *cli, 
-								  Netracker::tracked_network *net) {
-	// Just to be safe
-	if (cli->netptr == NULL)
-		return;
-
-	// If the client or network are dirty, we need to flush the current dirty
-	// vector out to the client
-	if (cli->dirty || net->dirty)
-		TimerKick();
-
-	pair<ap_client_itr, ap_client_itr> apclis = 
-		ap_client_map.equal_range(cli->netptr->bssid);
-
-	for (ap_client_itr i = apclis.first; i != apclis.second; ++i) {
-		if (i->second == cli) {
-			ap_client_map.erase(i);
-			break;
-		}
-	}
-
-	// Remove it from one
-	cli->netptr->llc_packets -= cli->llc_packets;
-	cli->netptr->data_packets -= cli->data_packets;
-	cli->netptr->crypt_packets -= cli->crypt_packets;
-	cli->netptr->fragments -= cli->fragments;
-	cli->netptr->retries -= cli->retries;
-
-	if (cli->netptr->dirty == 0) {
-		cli->netptr->dirty = 1;
-		// Push the old network onto the vec
-		dirty_net_vec.push_back(cli->netptr);
-	}
-
-	// Add it to the other
-	cli->netptr = net;
-	net->llc_packets += cli->llc_packets;
-	net->data_packets += cli->data_packets;
-	net->crypt_packets += cli->crypt_packets;
-	net->fragments += cli->fragments;
-	net->retries += cli->retries;
-
-	cli->bssid = net->bssid;
-
-	if (cli->dirty == 0) {
-		cli->dirty = 1;
-		dirty_cli_vec.push_back(cli);
-	}
-
-	if (net->dirty == 0) {
-		net->dirty = 1;
-		dirty_net_vec.push_back(net);
-	}
-
-	ap_client_map.insert(make_pair(net->bssid, cli));
-
-	// FIXME:  Add recalculating the crypt_set and other goodies
-}
-
 int Netracker::netracker_chain_handler(kis_packet *in_pack) {
 	tracked_network *net = NULL;
 	tracked_client *cli = NULL;
@@ -1492,9 +1463,13 @@ int Netracker::netracker_chain_handler(kis_packet *in_pack) {
 		}
 	}
 
-	// Handle client tracking and creation
+	// Handle client creation inside this network - we already made a net
+	// so even if it's client-only data traffic we have a valid net ptr
+
 	client_iter clitr;
-	if ((clitr = client_map.find(packinfo->source_mac)) == client_map.end()) {
+	if ((clitr = net->client_map.find(packinfo->source_mac)) == net->client_map.end()) {
+		// Make a new client and fill it in
+
 		cli = new tracked_client;
 
 		cli->first_time = globalreg->timestamp.tv_sec;
@@ -1514,22 +1489,15 @@ int Netracker::netracker_chain_handler(kis_packet *in_pack) {
 		else
 			cli->type = client_unknown;
 
-		// Pointer to us
+		// Pointer to parent net, just in case
 		cli->netptr = net;
 
 		// Log it in the simple map
-		client_map[cli->mac] = cli;
-		// Log it in the multimap
-		ap_client_map.insert(make_pair(net->bssid, cli));
+		net->client_map[cli->mac] = cli;
 
 		newclient = 1;
 	} else {
 		cli = clitr->second;
-
-		// Update and move the client to this network if it isn't.
-		if (cli->netptr != net) {
-			MoveClientNetwork(cli, net);
-		}
 
 		// Process the type to indicate established clients
 		if ((packinfo->distrib == distrib_to && cli->type == client_fromds) ||
@@ -2092,9 +2060,6 @@ int Netracker::datatracker_chain_handler(kis_packet *in_pack) {
 
 		// Recalculate the network IP characteristics
 		if (ipdata_dirty && net->guess_ipdata.ip_type != ipdata_dhcp) {
-			pair<ap_client_itr, ap_client_itr> apclis = 
-				ap_client_map.equal_range(net->bssid);
-
 			// Track combined addresses for both types so we can pick the
 			// best one
 			in_addr combo_tcpudp;
@@ -2104,7 +2069,8 @@ int Netracker::datatracker_chain_handler(kis_packet *in_pack) {
 			combo_arp.s_addr = ~0;
 			combo_nil.s_addr = ~0;
 
-			for (ap_client_itr i = apclis.first; i != apclis.second; ++i) {
+			for (client_iter i = net->client_map.begin(); i != net->client_map.end();
+				 ++i) {
 				// Short out on DHCP, thats the best news we get, even though
 				// we should never get here thanks to the special handling of
 				// dhcp in the base ip catcher above
@@ -2356,7 +2322,7 @@ int Netracker::FetchNumNetworks() {
 }
 
 int Netracker::FetchNumClients() {
-	return client_map.size();
+	return client_mini_map.size();
 }
 
 int Netracker::FetchNumPackets() {
@@ -2395,15 +2361,8 @@ const map<mac_addr, Netracker::tracked_network *> Netracker::FetchProbeNets() {
 	return probe_assoc_map;
 }
 
-const map<mac_addr, Netracker::tracked_client *> Netracker::FetchTrackedClients() {
-	return client_map;
-}
-
-const multimap<mac_addr, Netracker::tracked_client *> Netracker::FetchAssocClients() {
-	return ap_client_map;
-}
-
 void Netracker::dump_runstate(FILE *runfile) {
+#if 0
 	// Dump headers
 	fprintf(runfile, "nettotals {\n");
 	fprintf(runfile, "    packets=%d\n"
@@ -2639,10 +2598,11 @@ void Netracker::dump_runstate(FILE *runfile) {
 			fprintf(runfile, "}\n");
 		}
 	}
-
+#endif
 }
 
 int Netracker::load_runstate() {
+#if 0
 	if (globalreg->runstate_config == NULL)
 		return -1;
 
@@ -3399,6 +3359,7 @@ int Netracker::load_runstate() {
 	}
 
 	return 1;
+#endif
 }
 
 Netracker::adv_ssid_data *Netracker::BuildAdvSSID(uint32_t ssid_csum, 

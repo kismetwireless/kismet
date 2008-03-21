@@ -699,6 +699,8 @@ public:
 	typedef struct {
 		int layer;
 		string colorpref;
+		string colordefault;
+		int colorval;
 		char line;
 		char fill;
 		vector<T> *data;
@@ -713,8 +715,6 @@ public:
 	virtual ~Kis_Graph();
 
 	virtual void DrawComponent();
-	virtual void Activate(int subcomponent);
-	virtual void Deactivate();
 
 	virtual int KeyPress(int in_key);
 
@@ -744,7 +744,7 @@ public:
 	// character, and external vector.
 	// All data sources must share a common min/max representation
 	virtual void AddExtDataVec(string name, int layer, string colorpref, 
-							   char line, char fill,
+							   string colordefault, char line, char fill,
 							   vector<T> *in_dv);
 protected:
 	// Graph interpretations

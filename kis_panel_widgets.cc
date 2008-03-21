@@ -1300,7 +1300,7 @@ int Kis_Menu::MouseEvent(MEVENT *mevent) {
 				break;
 
 			if (mevent->x <= hpos + (int) menubar[x]->text.length()) {
-				if ((int) x == cur_menu && cur_item >= 0) {
+				if ((int) x == cur_menu) {
 					Deactivate();
 					// Consume w/ no state change to caller
 					return -1;
@@ -2473,19 +2473,42 @@ void Kis_Checkbox::SetChecked(int in_check) {
 	checked = in_check;
 }
 
-template<class T> void Kis_Graph<T>::AddExtDataVec(string name, int layer, 
-												   string colorpref,  char line,
-												   char fill, vector<T> *in_dv) {
+template<class T> 
+void Kis_Graph<T>::AddExtDataVec(string name, int layer, string colorpref,  
+								 string colordefault, char line, char fill, 
+								 vector<T> *in_dv) {
 	graph_source gs;
 
 	gs.layer = layer;
 	gs.colorpref = colorpref;
+	gs.colordefault = colordefault;
+	gs.colorval = 0;
 	gs.line = line;
 	gs.fill = fill;
 	gs.data = in_dv;
 	gs.name = name;
 
+	// Can't figure out how to do a sort template of a template class, so hell
+	// with it, we'll do it sloppily here
+	for (unsigned int x = 0; x < data_vec.size(); x++) {
+		if (layer < data_vec[x].layer) {
+			data_vec.insert(data_vec.begin() + x, gs);
+			return;
+		}
+	}
+
 	data_vec.push_back(gs);
+}
+
+template<class T> void Kis_Graph<T>::DrawComponent() { 
+	if (visible == 0)
+		return;
+
+	for (unsigned int x = 0; x < data_vec.size(); x++) {
+		parent_panel->InitColorPref(data_vec[x].colorpref, data_vec[x].colordefault);
+		parent_panel->ColorFromPref(data_vec[x].colorval, data_vec[x].colorpref);
+	}
+	
 }
 
 Kis_Panel::Kis_Panel(GlobalRegistry *in_globalreg, KisPanelInterface *in_intf) {
