@@ -1727,6 +1727,15 @@ int monitor_madwifi_ng(const char *in_dev, char *in_err, void **in_if,
 			continue;
 		}
 
+		if (iwmode != LINUX_WLEXT_MONITOR) {
+			fprintf(stderr, "WARNING: Kismet found a non-monitor VAP %s "
+					"on %s.  If your drivers stop reporting packets "
+					"after a short while, try reloading madwifi with "
+					"the module parameter 'autocreate=none' as this "
+					"often resolves this problem.\n", vaplist[x].c_str(),
+					in_dev);
+		}
+
 		if (iwmode != LINUX_WLEXT_MONITOR && vap_destroy == 0) {
 			fprintf(stderr, "WARNING:  Found a non-monitor VAP %s::%s.  "
 					"Madwifi-ng has historically had problems with normal-mode "
