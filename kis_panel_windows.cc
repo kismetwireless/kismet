@@ -43,6 +43,19 @@ int MenuActivateCB(COMPONENT_CALLBACK_PARMS) {
 	return 1;
 }
 
+void KisMainPanel_AddCli(KPI_ADDCLI_CB_PARMS) {
+	((Kis_Main_Panel *) auxptr)->NetClientAdd(netcli, add);
+}
+
+void KisMainPanel_Configured(CLICONF_CB_PARMS) {
+	((Kis_Main_Panel *) auxptr)->NetClientConfigure(kcli, recon);
+}
+
+void KisMainPanel_INFO(CLIPROTO_CB_PARMS) {
+	((Kis_Main_Panel *) auxptr)->Proto_INFO(globalreg, proto_string,
+											proto_parsed, srccli, auxptr);
+}
+
 Kis_Main_Panel::Kis_Main_Panel(GlobalRegistry *in_globalreg, 
 							   KisPanelInterface *in_intf) : 
 	Kis_Panel(in_globalreg, in_intf) {
@@ -100,6 +113,7 @@ Kis_Main_Panel::Kis_Main_Panel(GlobalRegistry *in_globalreg,
 	menu->AddMenuItem("-", mn_view, 0);
 	mi_showsummary = menu->AddMenuItem("Info Pane", mn_view, 'S');
 	mi_showstatus = menu->AddMenuItem("Status Pane", mn_view, 's');
+	mi_showpps = menu->AddMenuItem("Packet Rate", mn_view, 'p');
 
 	menu->Show();
 	AddComponentVec(menu, KIS_PANEL_COMP_EVT);
@@ -159,6 +173,25 @@ Kis_Main_Panel::Kis_Main_Panel(GlobalRegistry *in_globalreg,
 	netlist->SetName("KIS_MAIN_NETLIST");
 	netlist->Show();
 
+	// Set up the packet rate graph as over/under linked to the
+	// packets per second
+	packetrate = new Kis_IntGraph(globalreg, this);
+	packetrate->SetName("PPS_GRAPH");
+	packetrate->SetPreferredSize(0, 8);
+	packetrate->SetScale(0, 0);
+	packetrate->SetInterpolation(1);
+	packetrate->SetMode(1);
+	packetrate->Show();
+	packetrate->AddExtDataVec("Packets", 4, "graph_pps", "yellow,yellow", 
+							  ' ', ' ', 1, &pps);
+	packetrate->AddExtDataVec("Data", 4, "graph_datapps", "red,red", 
+							  ' ', ' ', -1, &datapps);
+	for (unsigned int x = 0; x < 50; x++) {
+		pps.push_back(0);
+		datapps.push_back(0);
+	}
+	lastpackets = lastdata = 0;
+
 	infobits = new Kis_Info_Bits(globalreg, this);
 	infobits->SetName("KIS_MAIN_INFOBITS");
 	infobits->Show();
@@ -171,6 +204,7 @@ Kis_Main_Panel::Kis_Main_Panel(GlobalRegistry *in_globalreg,
 
 	netbox->Pack_End(netlist, 1, 0);
 	netbox->Pack_End(linebox, 0, 0);
+	netbox->Pack_End(packetrate, 0, 0);
 
 	vbox->Pack_End(hbox, 1, 0);
 	vbox->Pack_End(statustext, 0, 0);
@@ -197,13 +231,67 @@ Kis_Main_Panel::Kis_Main_Panel(GlobalRegistry *in_globalreg,
 	AddColorPref("netlist_factory_color", "Netlist Factory");
 	AddColorPref("status_normal_color", "Status Text");
 	AddColorPref("info_normal_color", "Info Pane");
+	AddColorPref("graph_pps", "PPS Graph");
+	AddColorPref("graph_datapps", "PPS Data Graph");
 
 	UpdateViewMenu(-1);
+
+	addref = 
+		kpinterface->Add_NetCli_AddCli_CB(KisMainPanel_AddCli, (void *) this);
 }
 
 Kis_Main_Panel::~Kis_Main_Panel() {
 	globalreg->messagebus->RemoveClient(statuscli);
+	kpinterface->Remove_Netcli_AddCli_CB(addref);
+	kpinterface->Remove_AllNetcli_ProtoHandler("INFO",
+											   KisMainPanel_INFO, this);
+}
 
+void Kis_Main_Panel::NetClientConfigure(KisNetClient *in_cli, int in_recon) {
+	if (in_recon)
+		return;
+
+	if (in_cli->RegisterProtoHandler("INFO", "packets,llcpackets,",
+									 KisMainPanel_INFO, this) < 0) {
+		_MSG("Could not register INFO protocol with remote server, connection "
+			 "will be terminated.", MSGFLAG_ERROR);
+		in_cli->KillConnection();
+	}
+}
+
+void Kis_Main_Panel::NetClientAdd(KisNetClient *in_cli, int add) {
+	if (add == 0)
+		return;
+
+	in_cli->AddConfCallback(KisMainPanel_Configured, 1, this);
+}
+
+void Kis_Main_Panel::Proto_INFO(CLIPROTO_CB_PARMS) {
+	if (proto_parsed->size() < 2)
+		return;
+
+	int pkts, datapkts;
+
+	if (sscanf((*proto_parsed)[0].word.c_str(), "%d", &pkts) != 1) 
+		return;
+
+	if (sscanf((*proto_parsed)[1].word.c_str(), "%d", &datapkts) != 1) 
+		return;
+
+	if (lastpackets == 0)
+		lastpackets = pkts;
+	if (lastdata == 0)
+		lastdata = datapkts;
+
+	pps.push_back(pkts - lastpackets);
+	datapps.push_back(datapkts - lastdata);
+
+	if (pps.size() > 50) 
+		pps.erase(pps.begin(), pps.begin() + pps.size() - 50);
+	if (datapps.size() > 50) 
+		datapps.erase(datapps.begin(), datapps.begin() + datapps.size() - 50);
+	lastpackets = pkts;
+	lastdata = datapkts;
 }
 
 void Kis_Main_Panel::Position(int in_sy, int in_sx, int in_y, int in_x) {
@@ -319,7 +407,8 @@ void Kis_Main_Panel::MenuAction(int opt) {
 		dp->Position(WIN_CENTER(LINES, COLS));
 		kpinterface->AddPanel(dp);
 	} else if (opt == mi_showsummary ||
-			   opt == mi_showstatus) {
+			   opt == mi_showstatus ||
+			   opt == mi_showpps) {
 		UpdateViewMenu(opt);
 	} else if (opt == mi_addcard) {
 		vector<KisNetClient *> *cliref = kpinterface->FetchNetClientVecPtr();
@@ -544,6 +633,17 @@ void Kis_Main_Panel::UpdateViewMenu(int mi) {
 			menu->SetMenuItemChecked(mi_showstatus, 1);
 			statustext->Show();
 		}
+	} else if (mi == mi_showpps) {
+		opt = kpinterface->prefs.FetchOpt("MAIN_SHOWPPS");
+		if (opt == "" || opt == "true") {
+			kpinterface->prefs.SetOpt("MAIN_SHOWPPS", "false", 1);
+			menu->SetMenuItemChecked(mi_showpps, 0);
+			packetrate->Hide();
+		} else {
+			kpinterface->prefs.SetOpt("MAIN_SHOWPPS", "true", 1);
+			menu->SetMenuItemChecked(mi_showpps, 1);
+			packetrate->Show();
+		}
 	}
 
 	if (mi == -1) {
@@ -563,6 +663,15 @@ void Kis_Main_Panel::UpdateViewMenu(int mi) {
 		} else {
 			menu->SetMenuItemChecked(mi_showstatus, 0);
 			statustext->Hide();
+		}
+
+		opt = kpinterface->prefs.FetchOpt("MAIN_SHOWPPS");
+		if (opt == "" || opt == "true") {
+			menu->SetMenuItemChecked(mi_showpps, 1);
+			packetrate->Show();
+		} else {
+			menu->SetMenuItemChecked(mi_showpps, 0);
+			packetrate->Hide();
 		}
 	}
 }
@@ -1413,13 +1522,15 @@ int Kis_NetDetails_Panel::AppendNetworkInfo(int k, Kis_Display_NetGroup *tng,
 
 	td[0] = "First Seen:";
 	osstr.str("");
-	osstr << setw(14) << left << (ctime((const time_t *) &(net->first_time)) + 4);
+	osstr << setw(14) << left << 
+		(string(ctime((const time_t *) &(net->first_time)) + 4).substr(0, 15));
 	td[1] = osstr.str();
 	netdetails->AddRow(k++, td);
 
 	td[0] = "Last Seen:";
 	osstr.str("");
-	osstr << setw(14) << left << (ctime((const time_t *) &(net->last_time)) + 4);
+	osstr << setw(14) << left << 
+		(string(ctime((const time_t *) &(net->last_time)) + 4).substr(0, 15));
 	td[1] = osstr.str();
 	netdetails->AddRow(k++, td);
 

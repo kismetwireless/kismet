@@ -2473,23 +2473,23 @@ void Kis_Checkbox::SetChecked(int in_check) {
 	checked = in_check;
 }
 
-template<class T> 
-void Kis_Graph<T>::AddExtDataVec(string name, int layer, string colorpref,  
+void Kis_IntGraph::AddExtDataVec(string name, int layer, string colorpref,  
 								 string colordefault, char line, char fill, 
-								 vector<T> *in_dv) {
+								 int overunder, vector<int> *in_dv) {
 	graph_source gs;
 
 	gs.layer = layer;
 	gs.colorpref = colorpref;
 	gs.colordefault = colordefault;
 	gs.colorval = 0;
-	gs.line = line;
-	gs.fill = fill;
+	snprintf(gs.line, 2, "%c", line);
+	snprintf(gs.fill, 2, "%c", fill);
 	gs.data = in_dv;
 	gs.name = name;
+	gs.overunder = overunder;
 
 	// Can't figure out how to do a sort template of a template class, so hell
-	// with it, we'll do it sloppily here
+	// with it, we'll do it sloppily here.  Assembled least to greatest priority
 	for (unsigned int x = 0; x < data_vec.size(); x++) {
 		if (layer < data_vec[x].layer) {
 			data_vec.insert(data_vec.begin() + x, gs);
@@ -2497,18 +2497,149 @@ void Kis_Graph<T>::AddExtDataVec(string name, int layer, string colorpref,
 		}
 	}
 
+	if (name.length() > maxlabel) 
+		maxlabel = name.length();
+	
+	// Add it to the end otherwise
 	data_vec.push_back(gs);
 }
 
-template<class T> void Kis_Graph<T>::DrawComponent() { 
+int Kis_IntGraph::KeyPress(int in_key) { 
+	// Nothing to do for now
+	return 1;
+}
+
+void Kis_IntGraph::DrawComponent() { 
 	if (visible == 0)
 		return;
+
+	parent_panel->InitColorPref("panel_text_color", "white,black");
+	parent_panel->ColorFromPref(color_fw, "panel_text_color");
 
 	for (unsigned int x = 0; x < data_vec.size(); x++) {
 		parent_panel->InitColorPref(data_vec[x].colorpref, data_vec[x].colordefault);
 		parent_panel->ColorFromPref(data_vec[x].colorval, data_vec[x].colorpref);
 	}
+
+	// We want the same scale for over/under, so we'll calculate the
+	// height as h - 1 (label) (div 2 if o/u)
+	int gh = ly / (graph_mode == 1 ? 2 : 1);
+	// Zero position on the graph is the bottom, or center, depending
+	// on normal or over/under
+	int gzero = ey - (graph_mode == 1 ? gh : 0);
+	// Width - label (TODO label)
+	int gw = lx;
+
+	// Set the drawing max
+	int dmax_y = max_y;
+
+	// Go through the list and get the max if we're auto-scaling
+	if (max_y == 0 || min_y == 0) {
+		for (unsigned int x = 0; x < data_vec.size(); x++) {
+			for (unsigned int z = 0; z < data_vec[x].data->size(); z++) {
+				if (max_y == 0 && dmax_y < (*(data_vec[x].data))[z])
+					dmax_y = (*(data_vec[x].data))[z];
+			}
+		}
+	}
+
+	// Go through from least to greatest priority so that the "high" priority
+	// draws over the old
+	for (unsigned int x = 0; x < data_vec.size(); x++) {
+		// Do we interpolate the data to fit into the x-coords?
+		if (inter_x) {
+			int xmod = 0;
+			int xgroup = 1;
+			int dvsize = data_vec[x].data->size();
+
+			xmod = ceilf((float) dvsize / (float) gw);
+			xgroup = xmod * 2;
+
+			for (int gx = 0; gx < gw; gx++) {
+				int r, py, nuse = 0;
+				// We make the assumption here that T is a numerical
+				// type in some fashion, if this is ever not true we'll have
+				// to do something else
+				int avg = 0;
+
+				r = ((float) gx / (float) gw) * (float) dvsize;
+
+				for (int pos = -1 * (xgroup / 2); pos < (xgroup / 2); pos++) {
+					if (r + pos >= dvsize || r + pos < 0)
+						continue;
+					avg += (*(data_vec[x].data))[r + pos];
+					nuse++;
+				}
+
+				if (nuse == 0)
+					continue;
 	
+				avg = avg / nuse;
+
+				// Adapt the average to the scale of our min/max
+				float adapted = (float) (avg - min_y) / (float) (dmax_y - min_y);
+
+				// Scale it to the height of the graph
+				py = (float) gh * adapted;
+
+				// Set the color once
+				wattrset(window, data_vec[x].colorval);
+
+				// If we're plotting over/normal, we do nothing
+				// If we're plotting under, we invert and draw below
+				int oumod = 1;
+				if (data_vec[x].overunder < 0 && graph_mode == 1)
+					oumod = -1;
+
+				for (int gy = gh; gy >= 0; gy--) {
+					if (gy == py)
+						mvwaddstr(window, gzero - (gy * oumod), sx + gx, 
+								  data_vec[x].line);
+					else if (gy < py)
+						mvwaddstr(window, gzero - (gy * oumod), sx + gx, 
+								  data_vec[x].fill);
+				}
+			}
+		}
+	}
+
+	// Draw the labels (right-hand)
+	int posmod = 0, negmod = 0;
+	// Set the backing blank
+	char backing[32];
+	memset(backing, ' ', 32);
+	if ((maxlabel + 4) >=  32)
+		maxlabel = (32 - 4);
+	backing[maxlabel + 4] = '\0';
+	// Draw the labels
+	for (unsigned int x = 0; x < data_vec.size(); x++) {
+		// Position
+		int lpos = 0;
+		// Text color
+		if (data_vec[x].overunder < 0 && graph_mode == 1) {
+			lpos = ey - negmod++;
+		} else {
+			lpos = sy + posmod++;
+		}
+		// Fill in the blocking
+		wattrset(window, color_fw);
+		mvwaddstr(window, lpos, ex - (maxlabel + 4), backing);
+		// Fill in the label
+		mvwaddstr(window, lpos, ex - (maxlabel), data_vec[x].name.c_str());
+
+		// Fill in the colors
+		wattrset(window, data_vec[x].colorval);
+		mvwaddstr(window, lpos, ex - (maxlabel + 3), data_vec[x].line);
+		mvwaddstr(window, lpos, ex - (maxlabel + 2), data_vec[x].fill);
+	}
+
+	// Reuse the backing for the scale
+	snprintf(backing, 32, " %d ", dmax_y);
+	wattrset(window, color_fw);
+	mvwaddstr(window, sy, sx, backing);
+
+	wattrset(window, color_fw);
+	mvwhline(window, gzero, sx, ACS_HLINE, lx);
 }
 
 Kis_Panel::Kis_Panel(GlobalRegistry *in_globalreg, KisPanelInterface *in_intf) {

@@ -85,6 +85,11 @@ public:
 
 	void MenuAction(int opt);
 
+	// Network protocol handlers for INFO for the packet graph
+	void NetClientConfigure(KisNetClient *in_cli, int in_recon);
+	void NetClientAdd(KisNetClient *in_cli, int add);
+	void Proto_INFO(CLIPROTO_CB_PARMS);
+
 protected:
 	int mn_file, mi_connect, mi_disconnect, mi_addcard, mi_quit;
 
@@ -97,7 +102,7 @@ protected:
 		mi_sort_first_d, mi_sort_last, mi_sort_last_d, mi_sort_bssid, mi_sort_ssid,
 		mi_sort_packets, mi_sort_packets_d;
 
-	int mn_view, mi_netdetails, mi_showsummary, mi_showstatus;
+	int mn_view, mi_netdetails, mi_showsummary, mi_showstatus, mi_showpps;
 
 	int connect_enable;
 
@@ -122,6 +127,12 @@ protected:
 	virtual void SpawnInfoPrefs();
 
 	vector<colorpref> color_pref_vec;
+
+	Kis_IntGraph *packetrate;
+	vector<int> pps, datapps;
+	int lastpackets, lastdata;
+
+	int addref;
 };
 
 class Kis_Connect_Panel : public Kis_Panel {

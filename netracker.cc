@@ -101,6 +101,7 @@ char *CLIENT_fields_text[] = {
 
 char *INFO_fields_text[] = {
 	"networks", "packets", "crypt", "noise", "dropped", "rate", "filtered", "clients",
+	"llcpackets", "datapackets",
 	NULL
 };
 
@@ -1003,6 +1004,14 @@ int Protocol_INFO(PROTO_PARMS) {
 				osstr << globalreg->netracker->FetchNumCryptpackets();
 				cache->Cache(fnum, osstr.str());
 				break;
+			case INFO_llcpackets:
+				osstr << globalreg->netracker->FetchNumLLCpackets();
+				cache->Cache(fnum, osstr.str());
+				break;
+			case INFO_datapackets:
+				osstr << globalreg->netracker->FetchNumDatapackets();
+				cache->Cache(fnum, osstr.str());
+				break;
 			case INFO_noisepackets:
 				osstr << globalreg->netracker->FetchNumErrorpackets();
 				cache->Cache(fnum, osstr.str());
@@ -1217,8 +1226,8 @@ Netracker::Netracker(GlobalRegistry *in_globalreg) {
 	// Register the runstate dumper
 	globalreg->runstate_dumper->RegisterRunstateCb(NetrackerRunstateCB, this);
 
-	num_packets = num_datapackets = num_cryptpackets = num_fmsweakpackets =
-		num_errorpackets = num_filterpackets = num_packetdelta = 0;
+	num_packets = num_datapackets = num_cryptpackets = num_errorpackets = 
+		num_filterpackets = num_packetdelta = num_llcpackets = 0;
 
 	// Try to load the dumpstate
 	load_runstate();
@@ -1585,6 +1594,10 @@ int Netracker::netracker_chain_handler(kis_packet *in_pack) {
 	Packinfo_Sig_Combo sc(l1info, gpsinfo);
 	net->snrdata += sc;
 	cli->snrdata += sc;
+
+	// Add to the LLC count
+	if (packinfo->type == packet_management || packinfo->type == packet_phy)
+		num_llcpackets++;
 
 	// Extract info from probe request frames if its a probe network
 	if (packinfo->type == packet_management &&
@@ -2337,12 +2350,12 @@ int Netracker::FetchNumCryptpackets() {
 	return num_cryptpackets;
 }
 
-int Netracker::FetchNumFMSpackets() {
-	return num_fmsweakpackets;
-}
-
 int Netracker::FetchNumErrorpackets() {
 	return num_errorpackets;
+}
+
+int Netracker::FetchNumLLCpackets() {
+	return num_llcpackets;
 }
 
 int Netracker::FetchNumFiltered() {

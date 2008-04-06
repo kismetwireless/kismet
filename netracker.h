@@ -117,7 +117,7 @@ enum REMOVE_fields {
 enum INFO_fields {
 	INFO_networks, INFO_packets, INFO_cryptpackets,
 	INFO_noisepackets, INFO_droppedpackets, INFO_packetrate, 
-	INFO_filteredpackets, INFO_clients,
+	INFO_filteredpackets, INFO_clients, INFO_llcpackets, INFO_datapackets,
 	INFO_maxfield
 };
 
@@ -729,10 +729,10 @@ public:
 	int FetchNumPackets();
 	int FetchNumDatapackets();
 	int FetchNumCryptpackets();
-	int FetchNumFMSpackets();
 	int FetchNumErrorpackets();
 	int FetchNumFiltered();
 	int FetchNumClients();
+	int FetchNumLLCpackets();
 	int FetchPacketRate();
 
 	int AddFilter(string in_filter);
@@ -755,10 +755,10 @@ protected:
 	int num_packets;
 	int num_datapackets;
 	int num_cryptpackets;
-	int num_fmsweakpackets;
 	int num_errorpackets;
 	int num_filterpackets;
 	int num_packetdelta;
+	int num_llcpackets;
 
 	// Actually handle the chain events
 	int netracker_chain_handler(kis_packet *in_pack);

@@ -688,12 +688,11 @@ protected:
 };
 
 // Scaling interpolated graph
-template<class T>
-class Kis_Graph : public Kis_Panel_Component {
+class Kis_IntGraph : public Kis_Panel_Component {
 public:
 	typedef struct {
 		string label;
-		T position;
+		int position;
 	} graph_label;
 
 	typedef struct {
@@ -701,62 +700,77 @@ public:
 		string colorpref;
 		string colordefault;
 		int colorval;
-		char line;
-		char fill;
-		vector<T> *data;
+		char line[2];
+		char fill[2];
+		vector<int> *data;
 		string name;
+		int overunder;
 	} graph_source;
 
-	Kis_Graph() {
-		fprintf(stderr, "FATAL OOPS: Kis_Graph() called w/out globalreg\n");
+	Kis_IntGraph() {
+		fprintf(stderr, "FATAL OOPS: Kis_IntGraph() called w/out globalreg\n");
 		exit(1);
 	}
-	Kis_Graph(GlobalRegistry *in_globalreg, Kis_Panel *in_panel);
-	virtual ~Kis_Graph();
+	Kis_IntGraph(GlobalRegistry *in_globalreg, Kis_Panel *in_panel) : 
+		Kis_Panel_Component(in_globalreg, in_panel) {
+		globalreg = in_globalreg;
+		active = 0;
+		graph_mode = 0;
+		color_fw = 0;
+		maxlabel = 0;
+	}
+	virtual ~Kis_IntGraph() { };
 
 	virtual void DrawComponent();
 
 	virtual int KeyPress(int in_key);
 
 	// Min/max values
-	virtual void SetScale(T in_minx, T in_miny,
-						  T in_maxx, T in_maxy) {
-		min_x = in_minx;
+	virtual void SetScale(int in_miny, int in_maxy) {
 		min_y = in_miny;
-		max_x = in_maxx;
 		max_y = in_maxy;
 	}
 
 	// Interpolate graph to fit?
-	virtual void SetInterpolation(int in_x, int in_y) {
+	virtual void SetInterpolation(int in_x) {
 		inter_x = in_x;
-		inter_y = in_y;
 	}
 
 	virtual void SetXLabels(vector<graph_label> in_xl) {
 		label_x = in_xl;
 	}
-	virtual void SetYLabels(vector<graph_label> in_yl) {
-		label_y = in_yl;
+
+	virtual void SetMode(int mode) {
+		graph_mode = mode;
 	}
 
 	// Add a data vector at a layer with a color preference, representation
-	// character, and external vector.
+	// character, over/under (1 over, 0 n/a, -1 under), and external vector.
 	// All data sources must share a common min/max representation
 	virtual void AddExtDataVec(string name, int layer, string colorpref, 
 							   string colordefault, char line, char fill,
-							   vector<T> *in_dv);
+							   int overunder, vector<int> *in_dv);
 protected:
-	// Graph interpretations
-	T min_x, min_y, max_x, max_y;
-	int inter_x, inter_y;
+	// Graph coordinates
+	int min_y, max_y;
+	// Interpolation
+	int inter_x;
+
+	int color_fw;
+
+	// Graph mode
+	// 0 = normal
+	// 1 = over/under
+	int graph_mode;
 
 	// Graph source vector
 	vector<graph_source> data_vec;
+	
+	// Max label length
+	unsigned int maxlabel;
 
 	// Labels
 	vector<graph_label> label_x;
-	vector<graph_label> label_y;
 };
 
 class Kis_Panel {

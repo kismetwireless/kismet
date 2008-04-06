@@ -551,7 +551,7 @@ int KisNetClient::ParseData() {
 				}
 
 				CliProto_Callback cback = hi->second.handler_vec[hx]->callback;
-				(*cback)(globalreg, inptok[it], &net_toks, this,
+				(*cback)(globalreg, inptok[it], &cb_toks, this,
 						 hi->second.handler_vec[hx]->auxptr);
 			}
 		}
