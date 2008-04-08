@@ -886,7 +886,8 @@ int GpsEvent(Timetracker::timer_event *evt, void *parm) {
                 snprintf(status, STATUS_MAX, "Unable to reconnect to GPSD, trying "
                          "again in %d seconds.", ((gpsd_reconnect_attempt - 1) * 2));
 
-                if (!silent || NetWriteStatus(status) == 0)
+				NetWriteStatus(status);
+                if (!silent)
                     fprintf(stderr, "WARNING: %s\n", status);
 
                 return 1;
@@ -894,7 +895,8 @@ int GpsEvent(Timetracker::timer_event *evt, void *parm) {
                 gpsd_reconnect_attempt = 0;
 
                 snprintf(status, STATUS_MAX, "Reopened connection to GPSD");
-                if (!silent || NetWriteStatus(status) == 0)
+				NetWriteStatus(status);
+                if (!silent)
                     fprintf(stderr, "NOTICE: %s\n", status);
             }
         } else {
@@ -912,21 +914,24 @@ int GpsEvent(Timetracker::timer_event *evt, void *parm) {
             snprintf(status, STATUS_MAX, "GPS error requesting data: %s",
                      gps->FetchError());
 
-            if (!silent || NetWriteStatus(status) == 0)
+			NetWriteStatus(status);
+			if (!silent)
                 fprintf(stderr, "WARNING: %s\n", status);
 
             gpsd_reconnect_attempt = 1;
         }
 
         if (gpsret == 0 && gpsmode != 0) {
-            if (!silent || NetWriteStatus("Lost GPS signal.") == 0)
+			NetWriteStatus("Lost GPS signal.");
+			if (!silent)
                 fprintf(stderr, "Lost GPS signal.\n");
             if (sound == 1)
                 sound = PlaySound("gpslost");
 
             gpsmode = 0;
         } else if (gpsret > 0 && gpsmode == 0) {
-            if (!silent || NetWriteStatus("Acquired GPS signal.") == 0)
+			NetWriteStatus("Acquired GPS signal");
+			if (!silent)
                 fprintf(stderr, "Acquired GPS signal.\n");
             if (sound == 1)
                 sound = PlaySound("gpslock");
@@ -955,7 +960,8 @@ int NetWriteEvent(Timetracker::timer_event *evt, void *parm) {
 
 // Handle writing and sync'ing dump files
 int ExportSyncEvent(Timetracker::timer_event *evt, void *parm) {
-    if (!silent || NetWriteStatus("Saving data files.") == 0)
+	NetWriteStatus("Saving data files.");
+	if (!silent)
         fprintf(stderr, "Saving data files.\n");
 
     WriteDatafiles(0);
@@ -1056,7 +1062,8 @@ void handle_command(TcpServer *tcps, client_command *cc) {
 
             snprintf(status, 1024, "WARNING: %d not in channel list for '%s', not "
                      "locking.", chnum, meta->name.c_str());
-            if (!silent || NetWriteStatus(status) == 0)
+			NetWriteStatus(status);
+			if (!silent)
                 fprintf(stderr, "%s\n", status);
 
             return;
@@ -1069,7 +1076,8 @@ void handle_command(TcpServer *tcps, client_command *cc) {
 
         snprintf(status, 1024, "Locking source '%s' to channel %d",
                  meta->name.c_str(), chnum);
-        if (!silent || NetWriteStatus(status) == 0)
+		NetWriteStatus(status);
+		if (!silent)
             fprintf(stderr, "%s\n", status);
     } else if (cmdword == "CHANHOP") {
         // Lock a metasource to the specified channel
@@ -1107,7 +1115,8 @@ void handle_command(TcpServer *tcps, client_command *cc) {
 
         snprintf(status, 1024, "Allowing source '%s' to hop channels",
                  meta->name.c_str());
-        if (!silent || NetWriteStatus(status) == 0)
+		NetWriteStatus(status);
+		if (!silent)
             fprintf(stderr, "%s\n", status);
 
     } else if (cmdword == "PAUSE") {
@@ -1115,14 +1124,16 @@ void handle_command(TcpServer *tcps, client_command *cc) {
 
         snprintf(status, 1024, "Pausing packet sources per request of client %d", 
                  cc->client_fd);
-        if (!silent || NetWriteStatus(status) == 0)
+		NetWriteStatus(status);
+		if (!silent)
             fprintf(stderr, "%s\n", status);
     } else if (cmdword == "RESUME") {
         sourcetracker.ResumeSources();
 
         snprintf(status, 1024, "Resuming packet sources per request of client %d", 
                  cc->client_fd);
-        if (!silent || NetWriteStatus(status) == 0)
+		NetWriteStatus(status);
+		if (!silent)
             fprintf(stderr, "%s\n", status);
     } else if (cmdword == "LISTWEPKEYS") {
         if (client_wepkey_allowed == 0) {
@@ -1180,7 +1191,8 @@ void handle_command(TcpServer *tcps, client_command *cc) {
 
         snprintf(status, 1024, "Added key %s length %d for BSSID %s",
                  cmdword.c_str(), len, winfo->bssid.Mac2String().c_str());
-        if (!silent || NetWriteStatus(status) == 0)
+		NetWriteStatus(status);
+		if (!silent)
             fprintf(stderr, "%s\n", status);
 
     } else if (cmdword == "DELWEPKEY") {
@@ -1210,7 +1222,8 @@ void handle_command(TcpServer *tcps, client_command *cc) {
 
         snprintf(status, 1024, "Deleted key for BSSID %s", 
                  bssid_mac.Mac2String().c_str());
-        if (!silent || NetWriteStatus(status) == 0)
+		NetWriteStatus(status);
+		if (!silent)
             fprintf(stderr, "%s\n", status);
 
     } else {
@@ -3049,14 +3062,16 @@ daemon_parent_cleanup:
         ret = sourcetracker.Poll(&rset, &wset);
         if (ret < 0) {
             snprintf(status, STATUS_MAX, "FATAL: %s", sourcetracker.FetchError());
-            if (!silent || NetWriteStatus(status) == 0) {
+			NetWriteStatus(status);
+			if (!silent) {
                 fprintf(stderr, "%s\n", status);
                 fprintf(stderr, "Terminating.\n");
             }
 
             CatchShutdown(-1);
         } else if (ret > 0) {
-            if (!silent || NetWriteStatus(sourcetracker.FetchError()) == 0) {
+			NetWriteStatus(status);
+			if (!silent) {
                 fprintf(stderr, "%s\n", sourcetracker.FetchError());
             }
         }
@@ -3127,7 +3142,8 @@ daemon_parent_cleanup:
                         info.type != packet_unknown && info.type != packet_phy) {
                         if (gpsdump.DumpPacket(&info) < 0) {
                             snprintf(status, STATUS_MAX, "%s", gpsdump.FetchError());
-                            if (!silent || NetWriteStatus(status) == 0)
+							NetWriteStatus(status);
+							if (!silent)
                                 fprintf(stderr, "%s\n", status);
                         }
                     }
@@ -3223,7 +3239,8 @@ daemon_parent_cleanup:
                             snprintf(status, STATUS_MAX, "Opened new packet log file %s",
                                      dumplogfile.c_str());
 
-                            if (!silent || NetWriteStatus(status) == 0)
+							NetWriteStatus(status);
+							if (!silent)
                                 fprintf(stderr, "%s\n", status);
 
                         }
@@ -3286,7 +3303,8 @@ daemon_parent_cleanup:
                     // Fail on error
                     snprintf(status, STATUS_MAX, "FATAL: %s",
                              packet_sources[src]->FetchError());
-                    if (!silent || NetWriteStatus(status) == 0) {
+					NetWriteStatus(status);
+					if (!silent) {
                         fprintf(stderr, "%s\n", status);
                         fprintf(stderr, "Terminating.\n");
                     }

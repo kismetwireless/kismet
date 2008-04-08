@@ -1,3 +1,4 @@
+Apr 08 2008  devel  Fixed assorted messages being printed in quiet mode
 Mar 25 2008  devel  Added additional warnings/info for madwifi-ng about
                      autocreate=none when other vaps are found.
 Mar 19 2008  devel  Removed wlancond/power setting on Maemo/Nokia since it
