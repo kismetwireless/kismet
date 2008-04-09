@@ -163,6 +163,11 @@ int PcapSource::OpenSource() {
 
     #if defined (SYS_OPENBSD) || defined(SYS_NETBSD) || defined(SYS_FREEBSD) \
 		|| defined(SYS_DARWIN)
+	/* OSX hack which should work on other platforms still, cascade through
+	 * desired DLTs and the "best one" should stick.  We try in the order we
+	 * least want - 80211, avs, then radiotap. */
+	pcap_set_datalink(pd, DLT_IEEE802_11);
+	pcap_set_datalink(pd, DLT_IEEE802_11_RADIO_AVS);
 	#if defined(HAVE_RADIOTAP)
     /* Request desired DLT on multi-DLT systems that default to EN10MB. 
 	 * We do this later anyway but doing it here ensures we have the 
