@@ -21,7 +21,7 @@ LD	= @CXX@
 LDFLAGS	= @LDFLAGS@
 LIBS	= @LIBS@
 CLIBS   = @CLIBS@
-CFLAGS	= @CPPFLAGS@
+CFLAGS	= @CFLAGS@
 CXXFLAGS = -O2 -Wall -DVERSION_MAJOR=\"$(VERSION_MAJOR)\" -DVERSION_MINOR=\"$(VERSION_MINOR)\" -DVERSION_TINY=\"$(VERSION_TINY)\" -DTIMESTAMP=\"`cat TIMESTAMP`\" @CXXFLAGS@
 CPPFLAGS = @CPPFLAGS@
 SUID	= @suid@
@@ -306,6 +306,7 @@ clean:
 	@-rm -f $(DRONE)
 	@-rm -f $(NC)
 	@-rm -f $(GPSL)
+	@-rm -f $(WRAP)
 	# @-rm -f $(HOPPER)
 	# @-( cd extra/buzzme; $(MAKE) clean )
 
@@ -318,6 +319,8 @@ distclean:
 	@-rm -f config.log
 	@-rm -rf packaging/ipkg/usr 
 	@-rm -rf packaging/pak
+	@-rm -f conf/kismet.conf
+	@-rm -f conf/kismet_ui.conf
 	@-rm -rf *.ipk
 	# @-rm -f scripts/kismet_monitor
 	# @-rm -f scripts/kismet_unmonitor
