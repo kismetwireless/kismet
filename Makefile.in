@@ -82,17 +82,11 @@ NCO	= util.o ringbuf.o messagebus.o configfile.o getopt.o \
 	  kismet_client.o
 NC	= kismet_client
 
-GPSLO = getopt.o util.o configfile.o expat.o manuf.o \
-		gpsmap_cache.o gpsmap_samples.o gpsmap.o
-GPSL = gpsmap
-
 # HOPPERO = util.o configfile.o getopt.o kismet_hopper.o
 # HOPPER = kismet_hopper
 
 BUZZER = extra/buzzme/buzzme
 
-GPSLBUILD=@gpslc@
-GPSLBUILDO=@gpslco@
 ZAURUSBUILD=@zbuild@
 
 all:	Makefile $(DEPEND) $(PS) $(DRONE) $(NC)
@@ -105,14 +99,6 @@ $(DRONE):	$(DRONEO)
 
 $(NC):	$(NCO)
 	$(LD) $(LDFLAGS) -o $(NC) $(NCO) $(LIBS) $(CXXLIBS) $(CLIENTLIBS)
-
-$(GPSL):	$(GPSLBUILDO)
-	@if test "$(GPSLBUILD)"x = "x"; then \
-		echo "Gpsmap cannot be built, check the output of configure"; \
-	else \
-		echo $(LD) $(LDFLAGS) -o $(GPSL) $(GPSLO) $(LIBS) `Magick-config --cflags --cppflags --ldflags` `Magick-config --libs` $(THREADL) -lexpat -lgmp; \
-		$(LD) $(LDFLAGS) -o $(GPSL) $(GPSLO) $(LIBS) `Magick-config --cflags --cppflags --ldflags` `Magick-config --libs` $(THREADL) -lexpat -lgmp; \
-	fi
 
 #$(HOPPER):	$(HOPPERO)
 #	$(LD) $(LDFLAGS) -o $(HOPPER) $(HOPPERO)
@@ -178,15 +164,6 @@ commoninstall:
 	install -o $(INSTUSR) -g $(MANGRP) -m 644 man/kismet_ui.conf.5 $(MAN)/man5/kismet_ui.conf.5
 	install -o $(INSTUSR) -g $(MANGRP) -m 644 man/kismet_drone.conf.5 $(MAN)/man5/kismet_drone.conf.5
 
-	@if test "$(GPSLBUILD)" = "$(GPSL)"; then \
-		install -o $(INSTUSR) -g $(INSTGRP) -s -m 755 $(GPSL) $(BIN)/$(GPSL); \
-		echo install -o $(INSTUSR) -g $(INSTGRP) -s -m 755 $(GPSL) $(BIN)/$(GPSL); \
-		install -o $(INSTUSR) -g $(INSTGRP) -m 755 scripts/gpsmap-helper-earthamaps $(BIN)/gpsmap-helper-earthamaps; \
-		echo install -o $(INSTUSR) -g $(INSTGRP) -m 755 scripts/gpsmap-helper-earthamaps $(BIN)/gpsmap-helper-earthamaps; \
-		install -o $(INSTUSR) -g $(MANGRP) -m 644 man/gpsmap.1 $(MAN)/man1/gpsmap.1; \
-		echo install -o $(INSTUSR) -g $(MANGRP) -m 644 man/gpsmap.1 $(MAN)/man1/gpsmap.1; \
-	fi
-
 	mkdir -p $(WAV)
 	install -o $(INSTUSR) -g $(INSTGRP) -m 644 wav/new_network.wav $(WAV)/new_network.wav
 	install -o $(INSTUSR) -g $(INSTGRP) -m 644 wav/traffic.wav $(WAV)/traffic.wav
@@ -200,7 +177,7 @@ commoninstall:
 		rm $(BIN)/kismet_curses; \
 	fi
 
-suidinstall: $(PS) $(DRONE) $(NC) $(GPSLBUILD) $(ZAURUSBUILD)
+suidinstall: $(PS) $(DRONE) $(NC) $(ZAURUSBUILD)
 	$(MAKE) -e commoninstall
 	$(MAKE) -e binsuidinstall
 	@if test -f $(ETC)/kismet.conf; then \
@@ -233,7 +210,7 @@ suidinstall: $(PS) $(DRONE) $(NC) $(GPSLBUILD) $(ZAURUSBUILD)
 	@echo "YOUR WIRELESS NETWORK CONNECTION.  IF YOU HAVE ANY UNTRUSTED USERS ON YOUR "
 	@echo "SYSTEM DO NOT INSTALL KISMET AS SUID ROOT."
 
-install: $(PS) $(DRONE) $(NC) $(GPSLBUILD) $(ZAURUSBUILD)
+install: $(PS) $(DRONE) $(NC) $(ZAURUSBUILD)
 	$(MAKE) -e commoninstall
 	$(MAKE) -e binuserinstall
 	@if test -f $(ETC)/kismet.conf; then \
@@ -314,7 +291,6 @@ clean:
 	@-rm -f $(PS)
 	@-rm -f $(DRONE)
 	@-rm -f $(NC)
-	@-rm -f $(GPSL)
 	# @-rm -f $(HOPPER)
 	@-( cd extra/buzzme; $(MAKE) clean )
 
