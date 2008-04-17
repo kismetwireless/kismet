@@ -695,8 +695,9 @@ int PacketSource_Pcap::Radiotap2KisPack(kis_packet *packet) {
 					radioheader->noise_dbm = u.i8;
 					break;
                 case IEEE80211_RADIOTAP_FLAGS:
-                    if (u.u8 & IEEE80211_RADIOTAP_F_FCS)
-                         fcs_cut = 4;
+                    if (u.u8 & IEEE80211_RADIOTAP_F_FCS) {
+						fcs_cut = 4;
+					}
                     break;
 #if defined(SYS_OPENBSD)
                 case IEEE80211_RADIOTAP_RSSI:
@@ -710,10 +711,6 @@ int PacketSource_Pcap::Radiotap2KisPack(kis_packet *packet) {
             }
         }
     }
-
-	if (fcs_cut) {
-		fcs_cut = fcsbytes;
-	}
 
 	eight11chunk->length = callback_header.caplen - 
 		EXTRACT_LE_16BITS(&(hdr->it_len)) - fcs_cut;
