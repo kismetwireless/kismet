@@ -744,11 +744,15 @@ if test "$wantgpsmap" = "yes"; then
 			fi
 		fi
 
-		if test "$magickhdr" = "yes"; then
-			AC_CHECK_LIB([Magick], [WriteImage],
-	   			AC_DEFINE(HAVE_IMAGEMAGICK, 1, Imagemagick image library) gpslc="\$(GPSL)",
-				AC_MSG_WARN(*** Missing Imagemagick.  gpsmap will not be built. ***))
-		fi
+		# if test "$magickhdr" = "yes"; then
+		# 	AC_CHECK_LIB([Magick], [WriteImage],
+	   	# 		AC_DEFINE(HAVE_IMAGEMAGICK, 1, Imagemagick image library) gpslc="\$(GPSL)",
+		# 		AC_MSG_WARN(*** Missing Imagemagick.  gpsmap will not be built. ***))
+		# fi
+
+		AC_DEFINE(HAVE_IMAGEMAGICK, 1, Imagemagick image library)
+		gpslc="\$(GPSL)"
+
 	fi
 	CPPFLAGS="$save_cppflags"
 	CXXFLAGS="$save_cxxflags"

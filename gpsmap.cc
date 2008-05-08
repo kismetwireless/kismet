@@ -84,7 +84,8 @@ const char *config_base = "kismet.conf";
 #define MAPSOURCE_EARTHAMAPS 4
 #define MAPSOURCE_TERRATOPO  5
 #define MAPSOURCE_EUEX	     6
-#define MAPSOURCE_MAX        6
+#define MAPSOURCE_OSM        7
+#define MAPSOURCE_MAX        7
 
 // Broken map sources...  Damn vendors changing.
 // Mappoint
@@ -102,6 +103,8 @@ const char url_template_ti[] = "http://tiger.census.gov/cgi-bin/mapper/map.gif?l
 const char url_template_em[] = "gpsmap-helper-earthamaps %s %f %f %d %d %ld";
 
 const char url_template_euex[] = "http://www.expedia.de/pub/agent.dll?qscr=mrdt&ID=3XNsF.&CenP=%f,%f&Lang=%s&Alti=%ld&Size=%d,%d&Offs=0.000000,0.000000&BCheck=1";
+
+const char url_template_osm[] = "http://tah.openstreetmap.org/MapOf/?lat=%f&long=%f&z=%d&w=%d&h=%d&format=png";
 
 // Download template for sources that we fetch using wget
 const char download_template[] = "wget \"%s\" -O %s";
@@ -127,6 +130,31 @@ long int euexscales[] = { 3950, 7900, 11850, 15800, 19750, 23700, 27650,
 	31600, 35550, 39500, 79000, 118500, 197500, 237000, 276500, 316000,
 	355500, 395000, 790000, 1580000, 237000, 3160000, 3950000, 19750000,
 	39500000, 47400000};
+
+// Zoomlevels for OSM
+
+//taken from wiki but doesn't seem to work :(
+//long int osmscales[] = {3385, 6771, 14000, 27000, 54000, 108000, 217000, 433000, 867000, 2000000, 3000000};
+//int osm_zoomlevels[] = {17, 16, 15, 14, 13, 12, 11, 10, 9, 8, 7};
+
+//got these ones by trial'n'error:
+long int osmscales[] = {2100, 4320, 8600, 17200, 34000};
+int osm_zoomlevels[] = {17, 16, 15, 14, 13};
+int osm_zoomlevel = 13;
+
+/* tested scales:
+17 = 2100?
+16 = 4320
+15 = 8600
+14 = 17200
+13 = 34000
+12 = 
+11 = 
+10 = 
+09 = 
+08 = 
+07 = 
+*/
 
 // Decay from absolute blue for multiple tracks
 const uint8_t track_decay = 0x1F;
@@ -1523,6 +1551,29 @@ int BestMapScale(long int *in_mapscale, long int *in_fetchscale,
                 continue;
             } else {
                 (*in_mapscale) = euexscales[x];
+                (*in_fetchscale) = x;
+                return 1;
+            }
+        }
+        return -1;
+    }
+
+    if (mapsource == MAPSOURCE_OSM) {
+        for (int x = 0; osmscales[x] != -1; x++) {
+            calcxy(&mapx, &mapy, tlat, tlon, 
+                    (double) osmscales[x]/PIXELFACT, 
+                    map_avg_lat, map_avg_lon);
+            calcxy(&map2x, &map2y, blat, blon, 
+                    (double) osmscales[x]/PIXELFACT, 
+                    map_avg_lat, map_avg_lon);
+
+            if ((mapx < 0 || mapx > map_width || mapy < 0 || 
+                        mapy > map_height) ||
+                    (map2x < 0 || map2x > map_width || 
+                     map2y < 0 || map2y > map_height)) {
+                continue;
+            } else {
+                (*in_mapscale) = osmscales[x];
                 (*in_fetchscale) = x;
                 return 1;
             }
@@ -3387,6 +3438,7 @@ int Usage(char* argv, int ec = 1) {
            "                                  4 EarthaMaps (vector, UNAVAILABLE)\n"
            "                                  5 TerraServer (topo)\n"
 	   "                                  6 Expedia EU (vector)\n"
+	   "                                  7 OpenStreetMap TilesAtHome-Layer\n"
            "  -D, --keep-gif                 Keep the downloaded map\n"
            "  -V, --version                  GPSMap version\n"
            "\nImage options\n"
@@ -4209,9 +4261,37 @@ int main(int argc, char *argv[]) {
 		strcpy(loc,"EUR0809");
 	    snprintf(url, 1024, url_template_euex, map_avg_lat, map_avg_lon,
 		 loc, fetch_scale, map_width, map_height);
-	}
+		} else if (mapsource == MAPSOURCE_OSM) {
+			switch (map_scale) {
+				case 2100: 
+					osm_zoomlevel = 17;
+					break;
+				case 4320: 
+					osm_zoomlevel = 16;
+					break;
+				case 8600: 
+					osm_zoomlevel = 15;
+					break;
+				case 17200: 
+					osm_zoomlevel = 14;
+					break;
+				case 34000: 
+					osm_zoomlevel = 13;
+					break;
+				default:
+					fprintf(stderr, "Scale %ld not supported by mapsource OSM. Valid "
+							"scales for OSM are:\n", map_scale);
+					fprintf(stderr, "\t2100\n\t4320\n\t8600\n\t17200\n\t34000\n");
+					exit(1);
+					break;
+			}
+			printf("OSM Debug: Scale %ld maps to zoomlevel %d\n", 
+				   map_scale, osm_zoomlevel);
+			snprintf(url, 1024, url_template_osm, map_avg_lat, 
+					 map_avg_lon, osm_zoomlevel, map_width, map_height);
+		}
 
-        printf("Map url: %s\n", url);
+		printf("Map url: %s\n", url);
         printf("Fetching map...\n");
 
         if (mapsource == MAPSOURCE_EARTHAMAPS) {

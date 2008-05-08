@@ -1,3 +1,4 @@
+May 09 2008  devel  Added gpsmap patches from Kripton to support open street maps
 Apr 09 2008  devel  Added DLT80211 and DLT80211_AVS to the linktype setting
                      code on Darwin, BSD
                     Added 'kismet' wrapper binary, conf files to clean/distclean

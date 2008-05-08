@@ -9367,80 +9367,19 @@ echo "$as_me: WARNING: *** Missing ImageMagick.  gpsmap will not be built. ***" 
 			fi
 		fi
 
-		if test "$magickhdr" = "yes"; then
-			{ echo "$as_me:$LINENO: checking for WriteImage in -lMagick" >&5
-echo $ECHO_N "checking for WriteImage in -lMagick... $ECHO_C" >&6; }
-if test "${ac_cv_lib_Magick_WriteImage+set}" = set; then
-  echo $ECHO_N "(cached) $ECHO_C" >&6
-else
-  ac_check_lib_save_LIBS=$LIBS
-LIBS="-lMagick  $LIBS"
-cat >conftest.$ac_ext <<_ACEOF
-/* confdefs.h.  */
-_ACEOF
-cat confdefs.h >>conftest.$ac_ext
-cat >>conftest.$ac_ext <<_ACEOF
-/* end confdefs.h.  */
+		# if test "$magickhdr" = "yes"; then
+		# 	AC_CHECK_LIB([Magick], [WriteImage],
+	   	# 		AC_DEFINE(HAVE_IMAGEMAGICK, 1, Imagemagick image library) gpslc="\$(GPSL)",
+		# 		AC_MSG_WARN(*** Missing Imagemagick.  gpsmap will not be built. ***))
+		# fi
 
-/* Override any GCC internal prototype to avoid an error.
-   Use char because int might match the return type of a GCC
-   builtin and then its argument prototype would still apply.  */
-#ifdef __cplusplus
-extern "C"
-#endif
-char WriteImage ();
-int
-main ()
-{
-return WriteImage ();
-  ;
-  return 0;
-}
-_ACEOF
-rm -f conftest.$ac_objext conftest$ac_exeext
-if { (ac_try="$ac_link"
-case "(($ac_try" in
-  *\"* | *\`* | *\\*) ac_try_echo=\$ac_try;;
-  *) ac_try_echo=$ac_try;;
-esac
-eval "echo \"\$as_me:$LINENO: $ac_try_echo\"") >&5
-  (eval "$ac_link") 2>conftest.er1
-  ac_status=$?
-  grep -v '^ *+' conftest.er1 >conftest.err
-  rm -f conftest.er1
-  cat conftest.err >&5
-  echo "$as_me:$LINENO: \$? = $ac_status" >&5
-  (exit $ac_status); } && {
-	 test -z "$ac_c_werror_flag" ||
-	 test ! -s conftest.err
-       } && test -s conftest$ac_exeext &&
-       $as_test_x conftest$ac_exeext; then
-  ac_cv_lib_Magick_WriteImage=yes
-else
-  echo "$as_me: failed program was:" >&5
-sed 's/^/| /' conftest.$ac_ext >&5
-
-	ac_cv_lib_Magick_WriteImage=no
-fi
-
-rm -f core conftest.err conftest.$ac_objext conftest_ipa8_conftest.oo \
-      conftest$ac_exeext conftest.$ac_ext
-LIBS=$ac_check_lib_save_LIBS
-fi
-{ echo "$as_me:$LINENO: result: $ac_cv_lib_Magick_WriteImage" >&5
-echo "${ECHO_T}$ac_cv_lib_Magick_WriteImage" >&6; }
-if test $ac_cv_lib_Magick_WriteImage = yes; then
 
 cat >>confdefs.h <<\_ACEOF
 #define HAVE_IMAGEMAGICK 1
 _ACEOF
- gpslc="\$(GPSL)"
-else
-  { echo "$as_me:$LINENO: WARNING: *** Missing Imagemagick.  gpsmap will not be built. ***" >&5
-echo "$as_me: WARNING: *** Missing Imagemagick.  gpsmap will not be built. ***" >&2;}
-fi
 
-		fi
+		gpslc="\$(GPSL)"
+
 	fi
 	CPPFLAGS="$save_cppflags"
 	CXXFLAGS="$save_cxxflags"
