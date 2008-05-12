@@ -1,0 +1,21 @@
+#!/usr/bin/make -f
+
+DEB_AUTO_UPDATE_DEBIAN_CONTROL = 1
+
+include /usr/share/cdbs/1/rules/debhelper.mk
+include /usr/share/cdbs/1/class/autotools.mk
+
+DEB_CONFIGURE_SYSCONFDIR = /etc/kismet
+DEB_CONFIGURE_EXTRA_FLAGS += --disable-gpsmap
+DEB_MAKE_INSTALL_TARGET = suidinstall DESTDIR=$(DEB_DESTDIR)
+DEB_FIXPERMS_EXCLUDE += /usr/bin/kismet
+
+common-binary-arch::
+	sed -i"" -e 's/suiduser=your_user_here/suiduser=user/' \
+		-e 's/source=none,none,addme/source=nokia8x0,wlan0,wlan0/' \
+		-e 's/gps=true/gps=false/' \
+		$(DEB_DESTDIR)$(DEB_CONFIGURE_SYSCONFDIR)/kismet.conf
+	find $(DEB_DESTDIR) -type d -name ".svn" -exec rm -rf {} \;
+
+clean::
+	rm -f config.log extra/buzzme/Makefile

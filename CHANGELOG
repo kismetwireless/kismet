@@ -1,3 +1,6 @@
+May 12 2008  devel  Added configure patch for OSX and debian control files
+                     from Evan Broder
+                    Fixed imagemagick detect on modern IM installs
 May 09 2008  devel  Added gpsmap patches from Kripton to support open street maps
 Apr 09 2008  devel  Added DLT80211 and DLT80211_AVS to the linktype setting
                      code on Darwin, BSD

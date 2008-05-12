@@ -1,0 +1,7 @@
+[Desktop Entry]
+Encoding=UTF-8
+Version=1.0
+Type=Application
+Name=Kismet
+Exec=/usr/bin/osso-xterm /usr/bin/kismet
+Terminal=true

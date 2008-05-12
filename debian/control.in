@@ -1,0 +1,14 @@
+Source: kismet
+Section: user/Network
+Priority: extra
+Maintainer: Evan Broder <broder@mit.edu>
+Build-Depends: @cdbs@
+Standards-Version: 3.7.2
+
+Package: kismet
+Architecture: any
+Depends: ${shlibs:Depends}, ${misc:Depends}, libpcap0.9, maemo-select-menu-location, ncurses-base, osso-xterm
+Description: Wireless 802.11b monitoring tool
+ Kismet is a 802.11b wireless network sniffer.  It is capable of sniffing 
+ using almost any supported wireless card using the Airo, HostAP, Wlan-NG,
+ and Orinoco (with a kernel patch) drivers.

@@ -1,0 +1,17 @@
+This package was debianized by Evan Broder <broder@mit.edu> on
+Wed,  9 Apr 2008 11:56:17 -0400.
+
+It was downloaded from <http://svn.kismetwireless.net/code/trunk>
+
+Upstream Author: Mike Kershaw <dragorn@kismetwireless.net>
+
+Copyright:
+
+kismet was written by Mike Kershaw, and it is distributed under the terms
+of the GNU General Public License.
+
+The Debian packaging is (C) 2008, Evan Broder <broder@mit.edu> and
+is licensed under the GPL.
+
+On Debian GNU/Linux systems, the complete text of the GNU General
+Public License can be found in `/usr/share/common-licenses/GPL`.

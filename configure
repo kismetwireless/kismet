@@ -11027,7 +11027,7 @@ echo "           C++ Library: $foundcxxl"
 echo "   Installing as group: $instgrp"
 echo "    Man pages owned by: $mangrp"
 echo "       Installing into: $prefix"
-echo -n "        Setuid capable: "
+printf "        Setuid capable: "
 if test "$suid" = "yes"; then
 	echo "yes"
 elif test "$cygwin" = "yes"; then
@@ -11037,7 +11037,7 @@ elif test "$want_viha" = "yes"; then
 else
 	echo "no"
 fi
-echo -n "      Terminal Control: "
+printf "      Terminal Control: "
 if test "$ncurses" = "yes"; then
 	if test "$curses" = "yes"; then
 		echo "curses"
@@ -11047,19 +11047,19 @@ if test "$ncurses" = "yes"; then
 else
 	echo "none"
 fi
-echo -n "      Curses interface: "
+printf "      Curses interface: "
 if test "$buildcurses" = "yes"; then
 	echo "yes"
 else
 	echo "no"
 fi
-echo -n "      Panels interface: "
+printf "      Panels interface: "
 if test "$panel" = "yes"; then
 	echo "yes"
 else
 	echo "no"
 fi
-echo -n " Linux Netlink capture: "
+printf " Linux Netlink capture: "
 if test "$netlink" = "yes"; then
 	echo "yes"
 elif test "$linux" != "yes"; then
@@ -11067,7 +11067,7 @@ elif test "$linux" != "yes"; then
 else
 	echo "no"
 fi
-echo -n "       Linux wireless : "
+printf "       Linux wireless : "
 if test "$wireless" = "yes"; then
 	echo "yes"
 elif test "$linux" != "yes"; then
@@ -11075,7 +11075,7 @@ elif test "$linux" != "yes"; then
 else
 	echo "no"
 fi
-echo -n " Linux wireless v.22+ : "
+printf " Linux wireless v.22+ : "
 if test "$wireless22" = "yes"; then
 	echo "yes"
 elif test "$linux" != "yes"; then
@@ -11083,13 +11083,13 @@ elif test "$linux" != "yes"; then
 else
 	echo "no"
 fi
-echo -n "          pcap capture: "
+printf "          pcap capture: "
 if test "$pcap" = "yes"; then
 	echo "yes"
 else
 	echo "no"
 fi
-echo -n "       airpcap control: "
+printf "       airpcap control: "
 if test "$airpcap" = "yes"; then
 	echo "yes"
 elif test "$cygwin" != "yes"; then
@@ -11097,13 +11097,13 @@ elif test "$cygwin" != "yes"; then
 else
 	echo "no"
 fi
-echo -n "        WSP100 capture: "
+printf "        WSP100 capture: "
 if test "$wsp100" = "yes"; then
 	echo "yes";
 else
 	echo "no";
 fi
-echo -n "          Viha capture: "
+printf "          Viha capture: "
 if test "$want_viha" = "yes"; then
 	echo "yes";
 elif test "$darwin" != "yes"; then
@@ -11111,7 +11111,7 @@ elif test "$darwin" != "yes"; then
 else
 	echo "no";
 fi
-echo -n "   OSX/Darwin capture : "
+printf "   OSX/Darwin capture : "
 if test "$darwin" = "yes"; then
 	echo "yes"
 elif test "$darwin" != "yes"; then
@@ -11119,31 +11119,31 @@ elif test "$darwin" != "yes"; then
 else
 	echo "no"
 fi
-echo -n "      Radiotap headers: "
+printf "      Radiotap headers: "
 if test "$radiotap" = "yes"; then
     echo "yes";
 else
     echo "no";
 fi
-echo -n " Using local dump code: "
+printf " Using local dump code: "
 if test "$local" = "yes"; then
 	echo "yes"
 else
 	echo "no"
 fi
-echo -n "      DBUS Integration: "
+printf "      DBUS Integration: "
 if test "$HAVE_DBUS" = "yes"; then
 	echo "yes"
 else
 	echo "no"
 fi
-# echo -n "Using ethereal wiretap: "
+# printf "Using ethereal wiretap: "
 # if test "$want_ethereal" = "no"; then
 # 	echo "no"
 # else
 # 	echo "$ethereal_dir"
 # fi
-echo -n "   Imagemagick support: "
+printf "   Imagemagick support: "
 if test "$gpslc" = ""; then
 	if test "$wantgpsmap" = "no"; then
 		echo "disabled"
@@ -11153,7 +11153,7 @@ if test "$gpslc" = ""; then
 else
 	echo "yes ($magickversion)"
 fi
-echo -n "         Expat Library: "
+printf "         Expat Library: "
 if test "$expatl" = "no"; then
 	if test "$wantgpsmap" = "no"; then
 		echo "disabled"
@@ -11163,7 +11163,7 @@ if test "$expatl" = "no"; then
 else
 	echo "yes"
 fi
-echo -n "           GMP Library: "
+printf "           GMP Library: "
 if test "$gmpl" = "no"; then
 	if test "$wantgpsmap" = "no"; then
 		echo "disabled"
@@ -11173,7 +11173,7 @@ if test "$gmpl" = "no"; then
 else
     echo "yes"
 fi
-echo -n "       PThread Support: "
+printf "       PThread Support: "
 if test "$pthr" = "no"; then
 	if test "$wantgpsmap" = "no"; then
 		echo "disabled"
@@ -11183,7 +11183,7 @@ if test "$pthr" = "no"; then
 else
 	echo "yes"
 fi
-echo -n "      libz compression: "
+printf "      libz compression: "
 if test "$libz" = "yes"; then
 	echo "yes"
 else
