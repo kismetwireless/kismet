@@ -2639,12 +2639,14 @@ int monitor_wrt54g(const char *in_dev, int initch, char *in_err, void **in_if,
 
 	snprintf(cmdline, 2048, "/usr/sbin/iwpriv %s set_monitor 1", in_dev);
 	if (RunSysCmd(cmdline) < 0) {
-		snprintf(in_err, 1024, "Unable to set mode using 'iwpriv %s set_monitor 1'. "
-				 "Some custom firmware images require you to specify the origial "
-				 "device and a new dynamic device and use the iwconfig controls. "
-				 "see the README for how to configure your capture source.",
-				 in_dev);
-		return -1;
+		if (monitor_wext(in_dev, initch, in_err, in_if, in_ext) < 0) {
+			snprintf(in_err, 1024, "Could not find 'monitor' private ioctl or use "
+					 "the newer style 'mode monitor' command.  Different firmwares "
+					 "have used different methods of entering monitor mode on the "
+					 "wrt54, make sure you are running the latest open-source "
+					 "firmware for your device.");
+			return -1;
+		}
 	}
 
 	return 1;
