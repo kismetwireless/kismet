@@ -2635,10 +2635,10 @@ int monitor_wlanng_avs(const char *in_dev, int initch, char *in_err, void **in_i
 
 int monitor_wrt54g(const char *in_dev, int initch, char *in_err, void **in_if, 
 				   void *in_ext) {
-    char cmdline[2048];
+	int ret, flags;
+	char errstr[STATUS_MAX];
 
-	snprintf(cmdline, 2048, "/usr/sbin/iwpriv %s set_monitor 1", in_dev);
-	if (RunSysCmd(cmdline) < 0) {
+	if ((ret = Iwconfig_Set_IntPriv(in_dev, "monitor", 1, 0, in_err)) == -2) {
 		if (monitor_wext(in_dev, initch, in_err, in_if, in_ext) < 0) {
 			snprintf(in_err, 1024, "Could not find 'monitor' private ioctl or use "
 					 "the newer style 'mode monitor' command.  Different firmwares "
@@ -2647,6 +2647,18 @@ int monitor_wrt54g(const char *in_dev, int initch, char *in_err, void **in_if,
 					 "firmware for your device.");
 			return -1;
 		}
+
+        if (Ifconfig_Get_Flags("prism0", errstr, &flags) >= 0) {
+			// Use throwaway errstr here so we don't contaminate the return
+			// error
+			fprintf(stderr, "NOTICE:  Running on wrt54g and detected a prism0 "
+					"interface after switching to monitor mode.  Moving the "
+					"capture source to use prism0 instead of wl0.\n");
+			PcapSource *psrc = (PcapSource *) in_ext;
+			psrc->SetInterface("prism0");
+		}
+	} else if (ret < 0) {
+		return -1;
 	}
 
 	return 1;
