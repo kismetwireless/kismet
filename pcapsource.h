@@ -379,7 +379,10 @@ public:
         fcsbytes = 4;
     }
     int FetchPacket(kis_packet *packet, uint8_t *data, uint8_t *moddata);
+	void SetControlInt(string in_int) { control_int = in_int; }
+	string FetchControlInt() { return control_int; }
 protected:
+	string control_int;
     carrier_type IEEE80211Carrier();
 };
 #endif
@@ -565,6 +568,8 @@ int chancontrol_prism54g(const char *in_dev, int in_ch, char *in_err, void *in_e
 // We need a delay in it like orinoco, apparently
 int chancontrol_ipw2100(const char *in_dev, int in_ch, char *in_err, void *in_ext);
 int chancontrol_ipw2200(const char *in_dev, int in_ch, char *in_err, void *in_ext);
+// Wrt54g needs to use the control interface instead
+int chancontrol_wrt54g(const char *in_dev, int in_ch, char *in_err, void *in_ext);
 #endif
 
 #ifdef SYS_LINUX

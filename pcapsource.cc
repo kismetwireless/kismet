@@ -2637,6 +2637,7 @@ int monitor_wrt54g(const char *in_dev, int initch, char *in_err, void **in_if,
 				   void *in_ext) {
 	int ret, flags;
 	char errstr[STATUS_MAX];
+	PcapSourceWrt54g *psrc = (PcapSourceWrt54g *) in_ext;
 
 	if ((ret = Iwconfig_Set_IntPriv(in_dev, "monitor", 1, 0, in_err)) < 0) {
 		if (monitor_wext(in_dev, initch, in_err, in_if, in_ext) < 0) {
@@ -2650,17 +2651,19 @@ int monitor_wrt54g(const char *in_dev, int initch, char *in_err, void **in_if,
 	
 		fprintf(stderr, "NOTICE: Wrt54, checking for prism0 being made by rfmon...\n");
         if (Ifconfig_Get_Flags("prism0", errstr, &flags) >= 0) {
-			// Use throwaway errstr here so we don't contaminate the return
-			// error
+			// Use throwaway errstr here so we don't contaminate the 
+			// return error
 			fprintf(stderr, "NOTICE:  Wrt54g detected a prism0 "
 					"interface after switching to monitor mode.  Moving the "
 					"capture source to use prism0 instead of wl0.\n");
-			PcapSource *psrc = (PcapSource *) in_ext;
 			psrc->SetInterface("prism0");
 		}
 	} else if (ret < 0) {
 		return -1;
 	}
+
+	// Remember the incoming control interface
+	psrc->SetControlInt(in_dev);
 
 	return 1;
 }
@@ -2893,6 +2896,12 @@ int chancontrol_ipw2200(const char *in_dev, int in_ch, char *in_err, void *in_ex
     return ret;
 }
 
+int chancontrol_wrt54g(const char *in_dev, int in_ch, char *in_err, void *in_ext) {
+	PcapSourceWrt54g *psrc = (PcapSourceWrt54g *) in_ext;
+
+    return chancontrol_wext(psrc->FetchControlInt().c_str(), in_ch, 
+							in_err, in_ext);
+}
 #endif
 
 #ifdef SYS_LINUX
