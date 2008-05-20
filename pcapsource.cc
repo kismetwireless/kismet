@@ -1278,14 +1278,7 @@ KisPacketSource *pcapsource_wlanng_registrant(string in_name, string in_device,
 
 KisPacketSource *pcapsource_wrt54g_registrant(string in_name, string in_device,
                                               char *in_err) {
-	// Handle ethN:prism0 or just ethN for both variants
-    vector<string> devbits = StrTokenize(in_device, ":");
-
-    if (devbits.size() < 2) {
-		return new PcapSourceWrt54g(in_name, in_device);
-    }
-
-	return new PcapSourceWrt54g(in_name, devbits[1]);
+	return new PcapSourceWrt54g(in_name, in_device);
 }
 #endif
 
@@ -2635,11 +2628,11 @@ int monitor_wlanng_avs(const char *in_dev, int initch, char *in_err, void **in_i
 
 int monitor_wrt54g(const char *in_dev, int initch, char *in_err, void **in_if, 
 				   void *in_ext) {
-	int ret, flags;
+	int flags;
 	char errstr[STATUS_MAX];
 	PcapSourceWrt54g *psrc = (PcapSourceWrt54g *) in_ext;
 
-	if ((ret = Iwconfig_Set_IntPriv(in_dev, "monitor", 1, 0, in_err)) < 0) {
+	if (Iwconfig_Set_IntPriv(in_dev, "monitor", 1, 0, in_err) < 0) {
 		if (monitor_wext(in_dev, initch, in_err, in_if, in_ext) < 0) {
 			snprintf(in_err, 1024, "Could not find 'monitor' private ioctl or use "
 					 "the newer style 'mode monitor' command.  Different firmwares "
@@ -2658,10 +2651,8 @@ int monitor_wrt54g(const char *in_dev, int initch, char *in_err, void **in_if,
 					"capture source to use prism0 instead of wl0.\n");
 			psrc->SetInterface("prism0");
 		}
-	} else if (ret < 0) {
-		return -1;
-	}
-
+	} 
+	
 	// Remember the incoming control interface
 	psrc->SetControlInt(in_dev);
 
