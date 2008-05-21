@@ -2890,8 +2890,30 @@ int chancontrol_ipw2200(const char *in_dev, int in_ch, char *in_err, void *in_ex
 int chancontrol_wrt54g(const char *in_dev, int in_ch, char *in_err, void *in_ext) {
 	PcapSourceWrt54g *psrc = (PcapSourceWrt54g *) in_ext;
 
-    return chancontrol_wext(psrc->FetchControlInt().c_str(), in_ch, 
-							in_err, in_ext);
+	if (strcmp(in_dev, psrc->FetchControlInt().c_str()) == 0) {
+		return chancontrol_wext(in_dev, in_ch, in_err, in_ext);
+	} else {
+		// prism0 can't seem to change the channel while up, so we have to down
+		// wl0 (presumed) and re-up it after the channel set
+		int ret;
+		int oldflags;
+
+		if ((ret = chancontrol_wext(psrc->FetchControlInt().c_str(), in_ch, 
+									in_err, in_ext)) < 0)
+			return ret;
+
+		if (Ifconfig_Get_Flags(psrc->FetchControlInt().c_str(), in_err, &oldflags) < 0)
+			return -1;
+
+		if (Ifconfig_Set_Flags(psrc->FetchControlInt().c_str(), in_err, 
+							   oldflags & ~(IFF_UP | IFF_RUNNING)) < 0)
+			return -1;
+
+		if (Ifconfig_Set_Flags(psrc->FetchControlInt().c_str(), in_err, 
+							   oldflags & (IFF_UP | IFF_RUNNING | IFF_PROMISC)) < 0)
+			return -1;
+
+	}
 }
 #endif
 
