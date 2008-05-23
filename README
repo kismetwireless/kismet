@@ -1,4 +1,4 @@
-Kismet 2007-10-R1
+Kismet 2008-05-R1
 Mike Kershaw <dragorn@kismetwireless.net>
 http://www.kismetwireless.net
 Licensed under the GPL
@@ -146,6 +146,12 @@ Licensed under the GPL
       against rogue access points.
 
 5.  Upgrading from Previous Versions
+
+    Upgrading to Kismet 2008-05-R1:
+      "probenojoin" has been disabled by default in the config file, as 
+      it's not terribly useful and generates a lot of noise.
+
+      No other specific actions needed.
 
     Upgrading to Kismet 2007-10-R1:
       For Linux users, the config option 'vapdestroy' has been added.  If you
@@ -932,14 +938,14 @@ Licensed under the GPL
 
     wrt54g          Linksys WRT54G      Linux       linksys
                     http://seattlewireless.net/index.cgi/LinksysWrt54g  
-                    Capture interface:  'ethX'
-                    Capture interface:  'ethX:prismX'
-                    Support for the drivers found in the embedded Linux 
-                     inside the Linksys WRT54G (and probably other APs using
-                     the same firmware).
-                    Newer firmwares (such as OpenWRT) use the prism0 device
-                     for monitor mode data.  On these firmwares, specify both
-                     interfaces (wrt54g,eth1:prism0,foo)
+                    Capture interface:  'wlX'
+                    Support for the newer firmware versions on the 
+                     WRT54G/S/L devices (and any others using the broadcom
+                     reference chipset).
+                    Some systems generate a secondary device, prism0, while
+                     in monitor mode and require special care while channel
+                     hopping, it is no longer necessary to specify the prism0
+                     device explicitly for Kismet.
 
     wsp100          NetChem WSP100      Any         n/a
                     http://networkchemistry.com/
@@ -1542,7 +1548,7 @@ Licensed under the GPL
 
     Q: Why do I get a lot of nonsense networks, or lots of networks that only
        have one data packet?
-    A: Some drivers (currently the worst offenders are wrt54g, madwifi, and
+    A: Some drivers (currently the worst offenders are wrt54g, zd1211rw, and
        some versions of prism54) toss up garbage packets sometimes.  Usually
        these are chunks of valid frames, several valid frames mangled together,
        valid frames with extra noise before them, etc.  Kismet does the best
