@@ -841,11 +841,20 @@ Licensed under the GPL
                      have been kept to allow old configs to continue
                      functioning.
 
-    nokia770        Nokia/TI            Linux       Nokies/TI
+    nokia770        Nokia               Linux       Nokiea
                     http://maemo.org/
                     Nokia770 capture interface.  Includes support for 
                     validating frame checksums to screen out junk 
                     packets, since the drivers pass us all data.
+
+    nokia8x0        Nokia 800,810
+                    http://maemo.org/
+                    Nokia 8x0 capture interface, including support for
+                    FCS validation.
+                    The Nokia drivers appear to exhibit instability while
+                    capturing where they stop reporting packets.  This may
+                    be minimized by setting the Network Scan interval to
+                    "never" in the control panel->networking section.
 
     orinoco         Lucent, Orinoco     Linux       Patched orinoco_cs
                     http://airsnort.shmoo.com/orinocoinfo.html

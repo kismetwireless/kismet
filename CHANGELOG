@@ -1,3 +1,10 @@
+May 29 2008 2008-05 Release
+                     wrt54 fixes
+                     Multiple Darwin fixes
+                     GPS rewrite and fixes
+                     Nokia tweaks
+                     Imagemagick fixes
+
 May 19 2008  devel  More wrt54 prism0 hacks
 May 15 2008  devel  Tweaked the wrt54 stuff more (where does prism0 come from?)
 May 14 2008  devel  Tweaked wrt54 source
