@@ -12,9 +12,6 @@
 /* Define to 1 if you have the <errno.h> header file. */
 #undef HAVE_ERRNO_H
 
-/* Expat XML library */
-#undef HAVE_EXPAT
-
 /* Define to 1 if you have the <getopt.h> header file. */
 #undef HAVE_GETOPT_H
 
@@ -24,14 +21,8 @@
 /* Define to 1 if you have the `gettimeofday' function. */
 #undef HAVE_GETTIMEOFDAY
 
-/* GMP math library */
-#undef HAVE_GMP
-
 /* GPS support will be built. */
 #undef HAVE_GPS
-
-/* Imagemagick image library */
-#undef HAVE_IMAGEMAGICK
 
 /* inttypes.h is present */
 #undef HAVE_INTTYPES_H
@@ -56,9 +47,6 @@
 
 /* Define to 1 if you have the <libutil.h> header file. */
 #undef HAVE_LIBUTIL_H
-
-/* Libz compression lib */
-#undef HAVE_LIBZ
 
 /* Linux wireless iwfreq.flag */
 #undef HAVE_LINUX_IWFREQFLAG
@@ -95,9 +83,6 @@
 
 /* Define to 1 if you have the `pstat' function. */
 #undef HAVE_PSTAT
-
-/* pthread threading library */
-#undef HAVE_PTHREAD
 
 /* Define to 1 if you have the `select' function. */
 #undef HAVE_SELECT

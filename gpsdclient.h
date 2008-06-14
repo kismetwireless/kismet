@@ -28,7 +28,11 @@
 #include "gpscore.h"
 
 // Our command
-const char gpsd_command[] = "PAVMH\n";
+const char gpsd_init_command[] = "L\n";
+// compensate for gpsd ignoring multi-line commands too soon after
+// eachother
+const char gpsd_watch_command[] = "J=1,W=1\n";
+const char gpsd_poll_command[] = "PAVM\n";
 
 class GPSDClient : public GPSCore {
 public:
@@ -60,6 +64,12 @@ protected:
     int port;
 
 	int last_mode;
+
+	int poll_mode;
+
+	int si_units;
+
+	time_t last_hed_time;
 
     // Reconnect local trigger
     virtual int Reconnect();
