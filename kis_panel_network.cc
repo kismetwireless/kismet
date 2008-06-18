@@ -26,7 +26,7 @@
 #include "kis_panel_frontend.h"
 #include "kis_panel_netsort.h"
 
-char *bssid_column_details[][2] = {
+const char *bssid_column_details[][2] = {
 	{ "decay", "Recent activity" },
 	{ "name", "Name or SSID" },
 	{ "shortname", "Shortened name or SSID" },
@@ -41,6 +41,8 @@ char *bssid_column_details[][2] = {
 	{ "clients", "Number of associated clients" },
 	{ "datasize", "Amount of data seen" },
 	{ "beaconperc", "Percentage of expected beacons seen" },
+	{ "signal_dbm", "Signal (in dBm, depends on source" },
+	{ "signal_rssi", "Signal (in RSSI, depends on source" },
 	{ NULL, NULL }
 };
 
@@ -48,11 +50,11 @@ const char *Kis_Netlist::bssid_columns_text[] = {
 	"decay", "name", "shortname", "nettype",
 	"crypt", "channel", "packdata", "packllc", "packcrypt",
 	"bssid", "packets", "clients", "datasize", "signalbar",
-	"beaconperc",
+	"beaconperc", "signal_dbm", "signal_rssi",
 	NULL
 };
 
-char *bssid_extras_details[][2] = {
+const char *bssid_extras_details[][2] = {
 	{ "lastseen", "Last seen timestamp" },
 	{ "bssid", "BSSID" },
 	{ "crypt", "Encryption types" },
@@ -478,7 +480,10 @@ int Kis_Netlist::UpdateBColPrefs() {
 			display_bcols.push_back(bcol_signalbar);
 		else if (t == "beaconperc")
 			display_bcols.push_back(bcol_beaconperc);
-
+		else if (t == "signal_dbm")
+			display_bcols.push_back(bcol_signal_dbm);
+		else if (t == "signal_rssi")
+			display_bcols.push_back(bcol_signal_rssi);
 		else
 			_MSG("Unknown display column '" + t + "', skipping.",
 				 MSGFLAG_INFO);
@@ -1541,10 +1546,16 @@ int Kis_Netlist::PrintNetworkLine(Kis_Display_NetGroup *ng,
 
 			snprintf(rline + rofft, max - rofft, "%4ld%c", ds, dt);
 			rofft += 5;
-		} else if (b == bcol_datasize) {
+		} else if (b == bcol_signal_rssi) {
 			// TODO - signalbar
 			snprintf(rline + rofft, max - rofft, "TODO    ");
 			rofft += 8;
+		} else if (b == bcol_signal_dbm) {
+			snprintf(rline + rofft, max - rofft, "%3d", net->snrdata.last_signal_dbm);
+			rofft += 3;
+		} else if (b == bcol_signal_rssi) {
+			snprintf(rline + rofft, max - rofft, "%3d", net->snrdata.last_signal_rssi);
+			rofft += 3;
 		} else {
 			continue;
 		}
@@ -1654,12 +1665,18 @@ void Kis_Netlist::DrawComponent() {
 			} else if (b == bcol_datasize) {
 				snprintf(rline + rofft, 1024 - rofft, " Size");
 				rofft += 5;
-			} else if (b == bcol_datasize) {
+			} else if (b == bcol_signalbar) {
 				snprintf(rline + rofft, 1024 - rofft, "Signal  ");
 				rofft += 8;
 			} else if (b == bcol_beaconperc) {
 				snprintf(rline + rofft, 1024 - rofft, "Bprc");
-				rofft += 5;
+				rofft += 4;
+			} else if (b == bcol_signal_dbm) {
+				snprintf(rline + rofft, 1024 - rofft, "Sig");
+				rofft += 3;
+			} else if (b == bcol_signal_rssi) {
+				snprintf(rline + rofft, 1024 - rofft, "Sig");
+				rofft += 3;
 			}
 
 			if (rofft < 1023) {
@@ -2118,7 +2135,7 @@ Kis_Display_NetGroup *Kis_Netlist::FetchSelectedNetgroup() {
 	return display_vec[selected_line];
 }
 
-char *info_bits_details[][2] = {
+const char *info_bits_details[][2] = {
 	{ "elapsed", "Elapsed time" },
 	{ "numnets", "Number of networks" },
 	{ "numpkts", "Number of packets" },

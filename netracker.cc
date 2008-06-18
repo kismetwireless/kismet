@@ -1777,6 +1777,7 @@ int Netracker::netracker_chain_handler(kis_packet *in_pack) {
 		net->llc_packets++;
 		cli->llc_packets++;
 	} else if (packinfo->type == packet_data) {
+		num_datapackets++;
 		net->data_packets++;
 		cli->data_packets++;
 
@@ -1947,8 +1948,6 @@ int Netracker::datatracker_chain_handler(kis_packet *in_pack) {
 	if (clipackinfo == NULL) {
 		return 0;
 	}
-
-	num_datapackets++;
 
 	cli = clipackinfo->cliref;
 

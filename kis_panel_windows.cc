@@ -113,7 +113,7 @@ Kis_Main_Panel::Kis_Main_Panel(GlobalRegistry *in_globalreg,
 	menu->AddMenuItem("-", mn_view, 0);
 	mi_showsummary = menu->AddMenuItem("Info Pane", mn_view, 'S');
 	mi_showstatus = menu->AddMenuItem("Status Pane", mn_view, 's');
-	mi_showpps = menu->AddMenuItem("Packet Rate", mn_view, 'p');
+	mi_showpps = menu->AddMenuItem("Graph Rate", mn_view, 'p');
 
 	menu->Show();
 	AddComponentVec(menu, KIS_PANEL_COMP_EVT);
@@ -817,6 +817,8 @@ void Kis_Connect_Panel::ButtonAction(Kis_Panel_Component *component) {
 
 int ModalAckCB(COMPONENT_CALLBACK_PARMS) {
 	((Kis_ModalAlert_Panel *) aux)->AckAction();
+
+	return 1;
 }
 
 Kis_ModalAlert_Panel::Kis_ModalAlert_Panel(GlobalRegistry *in_globalreg, 
@@ -1390,9 +1392,32 @@ int NetDetailsButtonCB(COMPONENT_CALLBACK_PARMS) {
 	return 1;
 }
 
+int NetDetailsMenuCB(COMPONENT_CALLBACK_PARMS) {
+	((Kis_NetDetails_Panel *) aux)->MenuAction(status);
+	return 1;
+}
+
 Kis_NetDetails_Panel::Kis_NetDetails_Panel(GlobalRegistry *in_globalreg, 
 									 KisPanelInterface *in_intf) :
 	Kis_Panel(in_globalreg, in_intf) {
+
+	menu = new Kis_Menu(globalreg, this);
+
+	menu->SetCallback(COMPONENT_CBTYPE_ACTIVATED, NetDetailsMenuCB, this);
+
+	mn_network = menu->AddMenu("Network", 0);
+	mi_nextnet = menu->AddMenuItem("Next network", mn_network, 'n');
+	mi_prevnet = menu->AddMenuItem("Prev network", mn_network, 'p');
+	menu->AddMenuItem("-", mn_network, 0);
+	mi_close = menu->AddMenuItem("Close window", mn_network, 'w');
+
+	mn_view = menu->AddMenu("Network", 0);
+	mi_net = menu->AddMenuItem("Network Details", mn_view, 'n');
+	mi_clients = menu->AddMenuItem("Clients", mn_view, 'c');
+	menu->AddMenuItem("-", mn_view, 0);
+	mi_graphsig = menu->AddMenuItem("Signal Level", mn_view, 's');
+	mi_graphpacket = menu->AddMenuItem("Packet Rate", mn_view, 'p');
+	mi_graphretry = menu->AddMenuItem("Retry Rate", mn_view, 'r');
 
 	// Details scroll list doesn't get the current one highlighted and
 	// doesn't draw titles, also lock to fit inside the window
@@ -1757,6 +1782,116 @@ void Kis_NetDetails_Panel::ButtonAction(Kis_Panel_Component *in_button) {
 	} else if (in_button == prevbutton) {
 		kpinterface->FetchMainPanel()->FetchDisplayNetlist()->KeyPress(KEY_UP);
 		dng = NULL;
+	}
+}
+
+void Kis_NetDetails_Panel::MenuAction(int opt) {
+	vector<KisNetClient *> *clivec = kpinterface->FetchNetClientVecPtr();
+
+	// Menu processed an event, do something with it
+	if (opt == mi_close) {
+		globalreg->panel_interface->KillPanel(this);
+		return;
+	} else if (opt == mi_nextnet) {
+		kpinterface->FetchMainPanel()->FetchDisplayNetlist()->KeyPress(KEY_DOWN);
+		dng = NULL;
+		return;
+	} else if (opt == mi_prevnet) {
+		kpinterface->FetchMainPanel()->FetchDisplayNetlist()->KeyPress(KEY_UP);
+		dng = NULL;
+		return;
+	} else if (opt == mi_net || opt == mi_clients ||
+			   opt == mi_graphsig || opt == mi_graphpacket ||
+			   opt == mi_graphretry) {
+		UpdateViewMenu(opt);
+	}
+}
+
+void Kis_NetDetails_Panel::UpdateViewMenu(int mi) {
+	string opt;
+
+	if (mi == mi_net) {
+		opt = kpinterface->prefs.FetchOpt("DETAILS_SHOWNET");
+		if (opt == "" || opt == "true") {
+			kpinterface->prefs.SetOpt("DETAILS_SHOWNET", "false", 1);
+			menu->SetMenuItemChecked(mi_net, 0);
+			netdetails->Hide();
+		} else {
+			kpinterface->prefs.SetOpt("DETAILS_SHOWNET", "true", 1);
+			menu->SetMenuItemChecked(mi_net, 1);
+			netdetails->Show();
+		}
+	} else if (mi == mi_graphsig) {
+		opt = kpinterface->prefs.FetchOpt("DETAILS_SHOWGRAPHSIG");
+		if (opt == "" || opt == "true") {
+			kpinterface->prefs.SetOpt("DETAILS_SHOWGRAPHSIG", "false", 1);
+			menu->SetMenuItemChecked(mi_graphsig, 0);
+			siggraph->Hide();
+		} else {
+			kpinterface->prefs.SetOpt("DETAILS_SHOWGRAPHSIG", "true", 1);
+			menu->SetMenuItemChecked(mi_graphsig, 1);
+			siggraph->Show();
+		}
+	} else if (mi == mi_graphpacket) {
+		opt = kpinterface->prefs.FetchOpt("DETAILS_SHOWGRAPHPACKET");
+		if (opt == "" || opt == "true") {
+			kpinterface->prefs.SetOpt("DETAILS_SHOWGRAPHPACKET", "false", 1);
+			menu->SetMenuItemChecked(mi_graphpacket, 0);
+			packetgraph->Hide();
+		} else {
+			kpinterface->prefs.SetOpt("DETAILS_SHOWGRAPHPACKET", "true", 1);
+			menu->SetMenuItemChecked(mi_graphpacket, 1);
+			packetgraph->Show();
+		}
+	} else if (mi == mi_graphretry) {
+		opt = kpinterface->prefs.FetchOpt("DETAILS_SHOWGRAPHRETRY");
+		if (opt == "" || opt == "true") {
+			kpinterface->prefs.SetOpt("DETAILS_SHOWGRAPHRETRY", "false", 1);
+			menu->SetMenuItemChecked(mi_graphretry, 0);
+			retrygraph->Hide();
+		} else {
+			kpinterface->prefs.SetOpt("DETAILS_SHOWGRAPHRETRY", "true", 1);
+			menu->SetMenuItemChecked(mi_graphretry, 1);
+			retrygraph->Show();
+		}
+	}
+
+	if (mi == -1) {
+		opt = kpinterface->prefs.FetchOpt("DETAILS_SHOWNET");
+		if (opt == "" || opt == "true") {
+			menu->SetMenuItemChecked(mi_net, 1);
+			netdetails->Show();
+		} else {
+			menu->SetMenuItemChecked(mi_net, 0);
+			netdetails->Hide();
+		}
+
+		opt = kpinterface->prefs.FetchOpt("DETAILS_SHOWGRAPHSIG");
+		if (opt == "true") {
+			menu->SetMenuItemChecked(mi_graphsig, 1);
+			siggraph->Show();
+		} else {
+			menu->SetMenuItemChecked(mi_graphsig, 0);
+			siggraph->Hide();
+		}
+
+		opt = kpinterface->prefs.FetchOpt("DETAILS_SHOWGRAPHPACKET");
+		if (opt == "" || opt == "true") {
+			menu->SetMenuItemChecked(mi_graphpacket, 1);
+			packetgraph->Show();
+		} else {
+			menu->SetMenuItemChecked(mi_graphpacket, 0);
+			packetgraph->Hide();
+		}
+
+		opt = kpinterface->prefs.FetchOpt("DETAILS_SHOWGRAPHRETRY");
+		if (opt == "true") {
+			menu->SetMenuItemChecked(mi_graphretry, 1);
+			retrygraph->Show();
+		} else {
+			menu->SetMenuItemChecked(mi_graphretry, 0);
+			retrygraph->Hide();
+		}
 	}
 }
 

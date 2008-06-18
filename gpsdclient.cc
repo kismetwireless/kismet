@@ -361,6 +361,9 @@ int GPSDClient::ParseData() {
 		} 
 	}
 
+	if (in_alt == 0 && in_lat == 0 && in_lon == 0)
+		use_data = 0;
+
 	if (use_data == 0)
 		return 1;
 

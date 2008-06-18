@@ -192,19 +192,19 @@ enum bssid_columns {
 	bcol_decay, bcol_name, bcol_shortname, bcol_nettype,
 	bcol_crypt, bcol_channel, bcol_packdata, bcol_packllc, bcol_packcrypt,
 	bcol_bssid, bcol_packets, bcol_clients, bcol_datasize, bcol_signalbar,
-	bcol_beaconperc
+	bcol_beaconperc, bcol_signal_dbm, bcol_signal_rssi,
 };
 
 // Do not expect this to be in numerical order with the above enum, this is
 // for setting up the preferences panels, etc
-extern char *bssid_column_details[][2];
+extern const char *bssid_column_details[][2];
 
 // Extra display options per-line
 enum bssid_extras {
 	bext_lastseen, bext_bssid, bext_crypt, bext_ip, bext_manuf, bext_model
 };
 
-extern char *bssid_extras_details[][2];
+extern const char *bssid_extras_details[][2];
 
 class Kis_Netlist : public Kis_Panel_Component {
 public:
@@ -329,7 +329,7 @@ enum info_items {
 	info_elapsed, info_numnets, info_numpkts, info_pktrate, info_filtered 
 };
 
-extern char *info_bits_details[][2];
+extern const char *info_bits_details[][2];
 
 // Infobits main info pane widget is derived from a packbox - we contain our 
 // own sub-widgets and pack them into ourselves, and let all the other normal

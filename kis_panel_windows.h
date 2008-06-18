@@ -308,18 +308,25 @@ public:
 	virtual void Position(int in_sy, int in_sx, int in_y, int in_x);
 	virtual void DrawPanel();
 	virtual void ButtonAction(Kis_Panel_Component *in_button);
+	virtual void MenuAction(int opt);
 
 protected:
 	int AppendNetworkInfo(int k, Kis_Display_NetGroup *tng, 
 						  Netracker::tracked_network *net);
+	virtual void UpdateViewMenu(int mi);
 
 	Kis_Panel_Packbox *vbox, *bbox;
 	Kis_Scrollable_Table *netdetails;
+
+	Kis_IntGraph *siggraph, *packetgraph, *retrygraph;
 
 	time_t last_dirty;
 	mac_addr last_mac;
 	Kis_Display_NetGroup *dng;
 	Kis_Button *closebutton, *prevbutton, *nextbutton;
+
+	int mn_network, mi_nextnet, mi_prevnet, mi_close;
+	int mn_view, mi_net, mi_clients, mi_graphsig, mi_graphpacket, mi_graphretry;
 };
 
 #endif
