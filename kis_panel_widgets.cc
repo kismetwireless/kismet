@@ -2546,59 +2546,58 @@ void Kis_IntGraph::DrawComponent() {
 	// Go through from least to greatest priority so that the "high" priority
 	// draws over the old
 	for (unsigned int x = 0; x < data_vec.size(); x++) {
-		// Do we interpolate the data to fit into the x-coords?
-		if (inter_x) {
-			int xmod = 0;
-			int xgroup = 1;
-			int dvsize = data_vec[x].data->size();
+		int xmod = 0;
+		int xgroup = 1;
+		int dvsize = data_vec[x].data->size();
 
+		if (inter_x) {
 			xmod = ceilf((float) dvsize / (float) gw);
 			xgroup = xmod * 2;
+		}
 
-			for (int gx = 0; gx < gw; gx++) {
-				int r, py, nuse = 0;
-				// We make the assumption here that T is a numerical
-				// type in some fashion, if this is ever not true we'll have
-				// to do something else
-				int avg = 0;
+		for (int gx = 0; gx < gw; gx++) {
+			int r, py, nuse = 0;
+			// We make the assumption here that T is a numerical
+			// type in some fashion, if this is ever not true we'll have
+			// to do something else
+			int avg = 0;
 
-				r = ((float) gx / (float) gw) * (float) dvsize;
+			r = ((float) gx / (float) gw) * (float) dvsize;
 
-				for (int pos = -1 * (xgroup / 2); pos < (xgroup / 2); pos++) {
-					if (r + pos >= dvsize || r + pos < 0)
-						continue;
-					avg += (*(data_vec[x].data))[r + pos];
-					nuse++;
-				}
-
-				if (nuse == 0)
+			for (int pos = -1 * (xgroup / 2); pos < (xgroup / 2); pos++) {
+				if (r + pos >= dvsize || r + pos < 0)
 					continue;
-	
-				avg = avg / nuse;
+				avg += (*(data_vec[x].data))[r + pos];
+				nuse++;
+			}
 
-				// Adapt the average to the scale of our min/max
-				float adapted = (float) (avg - min_y) / (float) (dmax_y - min_y);
+			if (nuse == 0)
+				continue;
 
-				// Scale it to the height of the graph
-				py = (float) gh * adapted;
+			avg = avg / nuse;
 
-				// Set the color once
-				wattrset(window, data_vec[x].colorval);
+			// Adapt the average to the scale of our min/max
+			float adapted = (float) (avg - min_y) / (float) (dmax_y - min_y);
 
-				// If we're plotting over/normal, we do nothing
-				// If we're plotting under, we invert and draw below
-				int oumod = 1;
-				if (data_vec[x].overunder < 0 && graph_mode == 1)
-					oumod = -1;
+			// Scale it to the height of the graph
+			py = (float) gh * adapted;
 
-				for (int gy = gh; gy >= 0; gy--) {
-					if (gy == py)
-						mvwaddstr(window, gzero - (gy * oumod), sx + gx, 
-								  data_vec[x].line);
-					else if (gy < py)
-						mvwaddstr(window, gzero - (gy * oumod), sx + gx, 
-								  data_vec[x].fill);
-				}
+			// Set the color once
+			wattrset(window, data_vec[x].colorval);
+
+			// If we're plotting over/normal, we do nothing
+			// If we're plotting under, we invert and draw below
+			int oumod = 1;
+			if (data_vec[x].overunder < 0 && graph_mode == 1)
+				oumod = -1;
+
+			for (int gy = gh; gy >= 0; gy--) {
+				if (gy == py)
+					mvwaddstr(window, gzero - (gy * oumod), sx + gx, 
+							  data_vec[x].line);
+				else if (gy < py)
+					mvwaddstr(window, gzero - (gy * oumod), sx + gx, 
+							  data_vec[x].fill);
 			}
 		}
 	}
@@ -2640,6 +2639,9 @@ void Kis_IntGraph::DrawComponent() {
 
 	wattrset(window, color_fw);
 	mvwhline(window, gzero, sx, ACS_HLINE, lx);
+
+	snprintf(backing, 32, " %d ", min_y);
+	mvwaddstr(window, gzero, sx, backing);
 }
 
 Kis_Panel::Kis_Panel(GlobalRegistry *in_globalreg, KisPanelInterface *in_intf) {
@@ -2683,7 +2685,7 @@ void Kis_Panel::AddComponentVec(Kis_Panel_Component *in_comp, int in_flags) {
 
 void Kis_Panel::DelComponentVec(Kis_Panel_Component *in_comp) {
 	for (unsigned int x = 0; x < pan_comp_vec.size(); x++) {
-		if (pan_comp_vec[x].comp = in_comp) {
+		if (pan_comp_vec[x].comp == in_comp) {
 			pan_comp_vec.erase(pan_comp_vec.begin() + x);
 			return;
 		}
