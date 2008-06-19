@@ -1,3 +1,6 @@
+Jun 19 2008  devel  Escape escape character in mungeprintable and escape ; as octal
+                     in CSV (as per Fidge)
+
 May 29 2008 2008-05 Release
                      wrt54 fixes
                      Multiple Darwin fixes

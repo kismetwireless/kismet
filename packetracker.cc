@@ -1884,7 +1884,7 @@ string Packetracker::SanitizeCSV(string in_data) {
 
     for (unsigned int x = 0; x < in_data.length(); x++) {
         if (in_data[x] == ';')
-            ret += ' ';
+            ret += "\\073";
         else
             ret += in_data[x];
     }

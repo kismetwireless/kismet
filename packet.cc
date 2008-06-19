@@ -87,7 +87,9 @@ string MungeToPrintable(char *in_data, int len) {
 	int i;
 
 	for (i = 0; i < len; i++) {
-		if ((unsigned char) in_data[i] >= 32 && (unsigned char) in_data[i] <= 126) {
+		// Printable characters, except backslash 
+		if ((unsigned char) in_data[i] >= 32 && (unsigned char) in_data[i] <= 126 &&
+			(unsigned char) in_data[i] != 92) {
 			ret += in_data[i];
 		} else {
 			ret += '\\';
