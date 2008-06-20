@@ -2919,6 +2919,8 @@ int chancontrol_wrt54g(const char *in_dev, int in_ch, char *in_err, void *in_ext
 			return -1;
 
 	}
+
+	return 1;
 }
 #endif
 

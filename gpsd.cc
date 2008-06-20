@@ -250,6 +250,13 @@ int GPSD::Poll(fd_set *in_rset, fd_set *in_wset) {
 
 			// We got the version reply, write the optional setup commands, 
 			// we don't care if they fail
+			//
+			// !!! We have to assume anything that can talk W=1 can understand
+			// !!! J=1 because now GPSD doesn't accept multiple commands if they
+			// arrive "too fast", for some unknown definition of too fast.  Great.
+			//
+			// Options like J=1 are now rolled into J=1,W=1 in the watcher command
+#if 0
 			if (write(sock, gpsd_opt_commands, sizeof(gpsd_opt_commands)) < 0) {
 				if (errno != EAGAIN) {
 					snprintf(errstr, 1024, "GPSD write error: %s", strerror(errno));
@@ -257,6 +264,7 @@ int GPSD::Poll(fd_set *in_rset, fd_set *in_wset) {
 					return -1;
 				}
 			}
+#endif
 
 			// And then write the poll command if we need to
 			if (poll_mode) {
