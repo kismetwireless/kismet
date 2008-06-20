@@ -201,7 +201,7 @@ void GetPacketInfo(kis_packet *packet, packet_info *ret_packinfo,
 
     dissect_packet_num++;
 
-    //printf("debug - packet %d\n", packet_num);
+    // printf("debug - packet %d\n", dissect_packet_num);
     
     // Zero the entire struct
     memset(ret_packinfo, 0, sizeof(packet_info));

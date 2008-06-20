@@ -431,6 +431,11 @@ int PcapSource::ManglePacket(kis_packet *packet, uint8_t *data, uint8_t *moddata
         packet->carrier = IEEE80211Carrier();
 #endif
 
+	// Nuke over-sized frames from consideration
+	if (packet->len > 2304) {
+		packet->error = 1;
+	}
+
     return ret;
 }
 
