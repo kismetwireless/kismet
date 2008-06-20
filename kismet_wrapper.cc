@@ -77,12 +77,12 @@ void reap(int sig) {
 		}
 
 		if (FD_ISSET(epipe[0], &rset)) {
-			if (fgets(ret, 2048, err) == NULL ||
-				feof(err)) {
-				if (feof(out))
+			if (fgets(ret, 2048, err) == NULL || feof(err)) {
+				if (out == NULL || (out != NULL && feof(out)))
 					break;
 
 				fclose(err);
+				err = NULL;
 				close(epipe[0]);
 				check_err = 0;
 				continue;
@@ -96,16 +96,14 @@ void reap(int sig) {
 		}
 
 		if (FD_ISSET(rpipe[0], &rset)) {
-			if (fgets(ret, 2048, out) == NULL ||
-				feof(out)) {
-				if (feof(err))
+			if (fgets(ret, 2048, out) == NULL || feof(out)) {
+				if (err == NULL || (err != NULL && feof(err)))
 					break;
 
 				fclose(out);
+				out = NULL;
 				close(rpipe[0]);
-
 				check_out = 0;
-
 				continue;
 			}
 

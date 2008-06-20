@@ -1,4 +1,6 @@
 Jun 20 2008  devel  Flag packets > 802.11 MTU as errors in the early-stage capture
+                    Fix segv in wrapper script shutdown due to odd file closure
+                     pattern
 Jun 19 2008  devel  Escape escape character in mungeprintable and escape ; as octal
                      in CSV (as per Fidge)
 
