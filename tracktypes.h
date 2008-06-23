@@ -27,7 +27,7 @@
 #include "packet.h"
 
 #ifndef display_network
-typedef struct display_network;
+struct display_network;
 #endif
 
 // Forward definition
@@ -90,7 +90,7 @@ enum client_type {
 };
 
 // Client info
-typedef struct wireless_client {
+struct wireless_client {
     wireless_client() {
         type = client_unknown;
 
@@ -266,7 +266,7 @@ typedef struct wireless_client {
 };
 
 // A network
-typedef struct wireless_network {
+struct wireless_network {
     wireless_network() {
         type = network_data;
 

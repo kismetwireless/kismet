@@ -56,7 +56,7 @@ struct client_command {
     string cmd;
 };
 
-typedef struct server_protocol {
+struct server_protocol {
     int ref_index;
     string header;
     int required;
@@ -128,7 +128,7 @@ public:
     //   of protocol.  (ie, send all networks when the client enables the *NETWORK
     //   protocol)
     // It returns the index number of the sentence added.
-    int RegisterProtocol(string in_header, int in_required, char **in_fields,
+    int RegisterProtocol(string in_header, int in_required, char const * const in_fields[],
                          int (*in_printer)(PROTO_PARMS),
                          void (*in_enable)(int));
     int FetchProtocolRef(string in_header);

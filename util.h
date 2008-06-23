@@ -54,7 +54,7 @@ int Hex2UChar(unsigned char *in_hex, unsigned char *in_chr);
 vector<string> StrTokenize(string in_str, string in_split, int return_partial = 1);
 
 // 'smart' tokenizeing with start/end positions
-typedef struct smart_word_token {
+struct smart_word_token {
     string word;
     size_t begin;
     size_t end;

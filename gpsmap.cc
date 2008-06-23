@@ -162,7 +162,7 @@ const uint8_t track_decay = 0x1F;
 const unsigned int horiz_throttle = 75000;
 
 // Image colors
-const char *netcolors[] = {
+char const * const netcolors[] = {
     "#000000",
     "#FF0000", "#FF0072", "#FF00E5", "#D400FF",
     "#5D00FF", "#0087FF", "#00F2FF", "#00FF94",
@@ -174,7 +174,7 @@ const char *netcolors[] = {
 
 // Channel colors
 /*
-char *channelcolors[] = {
+char const * const channelcolors[] = {
     "#FF0000", "#FF8000", "#FFFF00",
     "#80FF00", "#00FF00", "#00FF80",
     "#00FFFF", "#0080FF", "#0000FF",
@@ -182,7 +182,7 @@ char *channelcolors[] = {
     "#808080", "#CCCCCC"
 };
 */
-char *channelcolors[] = { 
+char const * const channelcolors[] = { 
     "#FF0000", "#FF6000", "#A08000", 
     "#80A000", "#60FF00", "#00FF00", 
     "#00FF60", "#00A080", "#0080A0", 
@@ -191,7 +191,7 @@ char *channelcolors[] = {
 int channelcolor_max = 14;
 
 // Origional
-char *powercolors_Orig[] = {
+char const * const powercolors_Orig[] = {
     "#FF0000", "#FFD500", "#FFCC00",
     "#F2FF00", "#7BFF00", "#00FFB6",
     "#00FFFF", "#005DFF", "#A100FF",
@@ -199,7 +199,7 @@ char *powercolors_Orig[] = {
 };
 const int power_steps_Orig = 10;
 // Blue powercolors
-char *powercolors_Blue[] = {
+char const * const powercolors_Blue[] = {
     "#A0A0FF",
     "#9B9BFA",
     "#9696F5",
@@ -236,7 +236,7 @@ char *powercolors_Blue[] = {
 const int power_steps_Blue = 32;
 
 // Math progression
-char *powercolors_Math[] = {
+char const * const powercolors_Math[] = {
     "#FF0000", "#FF8000", "#FFFF00",
     "#80FF00", "#00FF00", "#00FF80",
     "#00FFFF", "#0080FF", "#0000FF",
@@ -244,7 +244,7 @@ char *powercolors_Math[] = {
 };
 const int power_steps_Math = 12;
 // Weather Radar
-char *powercolors_Radar[] = {
+char const * const powercolors_Radar[] = {
     "#50E350", "#39C339", "#208420",
     "#145A14", "#C8C832", "#DC961E",
     "#811610", "#B31A17", "#E61E1E"
@@ -256,7 +256,7 @@ const int power_max = 255;
 int powercolor_index = 0;
 
 // Label gravity
-char *label_gravity_list[] = {
+char const * const label_gravity_list[] = {
     "northwest", "north", "northeast",
     "west", "center", "east",
     "southwest", "south", "southeast"
@@ -297,7 +297,7 @@ bool hullPoint::operator() (const hullPoint& a, const hullPoint& b) const {
 	return a.angle < b.angle;
 }
 
-typedef struct gps_network {
+struct gps_network {
 
     gps_network() {
         filtered = 0;
@@ -411,7 +411,7 @@ int mapsource = -1;
 int power_resolution = 5;
 // Interpolation colors
 // strength colors
-char **power_colors = NULL;
+char const * const *power_colors = NULL;
 int power_steps = 0;
 // Center resolution (size of circle)
 int center_resolution = 2;
@@ -2154,7 +2154,7 @@ void DrawNetBoundRects(vector<gps_network *> in_nets, Image *in_img, DrawInfo *i
 
 // Thread function to compute a line of interpolated data
 
-typedef struct powerline_arg {
+struct powerline_arg {
 //    unsigned int y;
 //    unsigned int y_max;
     unsigned int in_res;
@@ -4181,8 +4181,9 @@ int main(int argc, char *argv[]) {
     }
 
     if (!usermap) {
-        snprintf(mapname, 1024, "map_%f_%f_%ld_%d_%d.gif", map_avg_lat, 
-                 map_avg_lon, map_scale, map_width, map_height);
+        snprintf(mapname, 1024, "map_%f_%f_%ld_%d_%d.%s", map_avg_lat, 
+                 map_avg_lon, map_scale, map_width, map_height,
+		 mapsource == MAPSOURCE_OSM ? "png" : "gif");
     }
 
     if (useroutmap == false)
@@ -4312,6 +4313,7 @@ int main(int argc, char *argv[]) {
 
         printf("Loading map into Imagemagick structures.\n");
         strcpy(img_info->filename, mapname);
+	ClearMagickException(&im_exception);
         img = ReadImage(img_info, &im_exception);
 
         if (img == (Image *) NULL) {

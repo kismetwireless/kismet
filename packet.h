@@ -54,7 +54,7 @@
 #define MAC_STR_LEN ((MAC_LEN * 2) + 6)
 
 // Parmeters to the packet info
-typedef struct packet_parm {
+struct packet_parm {
     int fuzzy_crypt;
 	int fuzzy_decode;
 };
@@ -295,7 +295,7 @@ typedef struct {
 } cdp_proto_element;
 
 // Info about a protocol
-typedef struct proto_info {
+struct proto_info {
     protocol_info_type type;
 
     uint8_t source_ip[4];

@@ -37,18 +37,18 @@
 
 #define STREAM_COMMAND_FLUSH -1
 
-typedef struct stream_frame_header {
+struct stream_frame_header {
     uint32_t frame_sentinel;
     uint8_t frame_type;
     uint32_t frame_len;
 } __attribute__((__packed__));
 
-typedef struct stream_version_packet {
+struct stream_version_packet {
     uint16_t drone_version;
 	uint8_t gps_enabled;
 };
 
-typedef struct stream_packet_header {
+struct stream_packet_header {
     uint32_t header_len;
     uint16_t drone_version;
     uint32_t len;

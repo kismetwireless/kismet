@@ -139,25 +139,25 @@ enum CARD_fields {
 };
 
 // Builtin client/server field contents
-extern char *KISMET_fields_text[];
-extern char *CAPABILITY_fields_text[];
-extern char *PROTOCOLS_fields_text[];
-extern char *ERROR_fields_text[];
-extern char *NETWORK_fields_text[];
-extern char *CLIENT_fields_text[];
-extern char *GPS_fields_text[];
-extern char *TIME_fields_text[];
-extern char *INFO_fields_text[];
-extern char *REMOVE_fields_text[];
-extern char *STATUS_fields_text[];
-extern char *ALERT_fields_text[];
-extern char *ACK_fields_text[];
-extern char *PACKET_fields_text[];
-extern char *STRING_fields_text[];
-extern char *TERMINATE_fields_text[];
-extern char *CISCO_fields_text[];
-extern char *WEPKEY_fields_text[];
-extern char *CARD_fields_text[];
+extern char const * const KISMET_fields_text[];
+extern char const * const CAPABILITY_fields_text[];
+extern char const * const PROTOCOLS_fields_text[];
+extern char const * const ERROR_fields_text[];
+extern char const * const NETWORK_fields_text[];
+extern char const * const CLIENT_fields_text[];
+extern char const * const GPS_fields_text[];
+extern char const * const TIME_fields_text[];
+extern char const * const INFO_fields_text[];
+extern char const * const REMOVE_fields_text[];
+extern char const * const STATUS_fields_text[];
+extern char const * const ALERT_fields_text[];
+extern char const * const ACK_fields_text[];
+extern char const * const PACKET_fields_text[];
+extern char const * const STRING_fields_text[];
+extern char const * const TERMINATE_fields_text[];
+extern char const * const CISCO_fields_text[];
+extern char const * const WEPKEY_fields_text[];
+extern char const * const CARD_fields_text[];
 
 // Client/server protocol data structures.  These get passed as void *'s to each of the
 // protocol functions.
@@ -165,7 +165,7 @@ extern char *CARD_fields_text[];
 // same order as the field names.  For shorter ones, the code is a lot more maintainable
 // to have named vars, for longer ones it just makes sense to use a big ordered vector
 
-typedef struct KISMET_data {
+struct KISMET_data {
     string version;
     string starttime;
     string servername;
@@ -173,31 +173,31 @@ typedef struct KISMET_data {
     string newversion;
 };
 
-typedef struct GPS_data {
+struct GPS_data {
     string lat, lon, alt, spd, heading, mode;
 };
 
-typedef struct INFO_data {
+struct INFO_data {
     string networks, packets, crypt, weak, noise, dropped, rate, signal;
 };
 
-typedef struct NETWORK_data {
+struct NETWORK_data {
     vector<string> ndvec;
 };
 
-typedef struct CLIENT_data {
+struct CLIENT_data {
     vector<string> cdvec;
 };
 
-typedef struct ALERT_data {
+struct ALERT_data {
     string header, sec, usec, bssid, source, dest, other, channel, text;
 };
 
-typedef struct PACKET_data {
+struct PACKET_data {
     vector<string> pdvec;
 };
 
-typedef struct STRING_data {
+struct STRING_data {
     string bssid, sourcemac, text;
 };
 

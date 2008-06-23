@@ -23,23 +23,23 @@
 #include "server_protocols.h"
 #include "server_globals.h"
 
-char *INFO_fields_text[] = {
+char const * const INFO_fields_text[] = {
     "networks", "packets", "crypt", "weak",
     "noise", "dropped", "rate", "signal", 
     NULL
 };
 
-char *STATUS_fields_text[] = {
+char const * const STATUS_fields_text[] = {
     "text",
     NULL
 };
 
-char *ALERT_fields_text[] = {
+char const * const ALERT_fields_text[] = {
     "sec", "usec", "header", "bssid", "source", "dest", "other", "channel", "text",
     NULL
 };
 
-char *PACKET_fields_text[] = {
+char const * const PACKET_fields_text[] = {
     "type", "subtype", "timesec", "encrypted",
     "weak", "beaconrate", "sourcemac", "destmac",
     "bssid", "ssid", "prototype", "sourceip",
@@ -48,52 +48,52 @@ char *PACKET_fields_text[] = {
     NULL
 };
 
-char *STRING_fields_text[] = {
+char const * const STRING_fields_text[] = {
     "bssid", "sourcemac", "text",
     NULL
 };
 
-char *CISCO_fields_text[] = {
+char const * const CISCO_fields_text[] = {
     "placeholder",
     NULL
 };
 
-char *KISMET_fields_text[] = {
+char const * const KISMET_fields_text[] = {
     "version", "starttime", "servername", "timestamp", "channelhop", "newversion",
     NULL
 };
 
-char *PROTOCOLS_fields_text[] = {
+char const * const PROTOCOLS_fields_text[] = {
     "protocols",
     NULL
 };
 
-char *CAPABILITY_fields_text[] = {
+char const * const CAPABILITY_fields_text[] = {
     "capabilities",
     NULL
 };
 
-char *TIME_fields_text[] = {
+char const * const TIME_fields_text[] = {
     "timesec",
     NULL
 };
 
-char *TERMINATE_fields_text[] = {
+char const * const TERMINATE_fields_text[] = {
     "text",
     NULL
 };
 
-char *GPS_fields_text[] = {
+char const * const GPS_fields_text[] = {
     "lat", "lon", "alt", "spd", "heading", "fix",
     NULL
 };
 
-char *REMOVE_fields_text[] = {
+char const * const REMOVE_fields_text[] = {
     "bssid",
     NULL
 };
 
-char *NETWORK_fields_text[] = {
+char const * const NETWORK_fields_text[] = {
     "bssid", "type", "ssid", "beaconinfo",
     "llcpackets", "datapackets", "cryptpackets",
     "weakpackets", "channel", "wep", "firsttime",
@@ -114,7 +114,7 @@ char *NETWORK_fields_text[] = {
     NULL
 };
 
-char *CLIENT_fields_text[] = {
+char const * const CLIENT_fields_text[] = {
     "bssid", "mac", "type", "firsttime", "lasttime",
     "manufkey", "manufscore",
     "datapackets", "cryptpackets", "weakpackets",
@@ -131,22 +131,22 @@ char *CLIENT_fields_text[] = {
     NULL
 };
 
-char *ERROR_fields_text[] = {
+char const * const ERROR_fields_text[] = {
     "text",
     NULL
 };
 
-char *ACK_fields_text[] = {
+char const * const ACK_fields_text[] = {
     "cmdnum",
     NULL
 };
 
-char *WEPKEY_fields_text[] = {
+char const * const WEPKEY_fields_text[] = {
     "origin", "bssid", "key", "encrypted", "failed",
     NULL
 };
 
-char *CARD_fields_text[] = {
+char const * const CARD_fields_text[] = {
     "interface", "type", "username", "channel", "id", "packets", "hopping",
     NULL
 };

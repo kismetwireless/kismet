@@ -54,7 +54,7 @@
 
 #if (defined(HAVE_LIBNCURSES) && defined(HAVE_LIBPANEL) && defined(BUILD_PANEL))
 
-char *KismetHelpText[] = {
+char const * const KismetHelpText[] = {
     "KISMET PANELS INTERFACE",
     "QUICK REFERENCE",
     "  Key  Action",
@@ -138,7 +138,7 @@ char *KismetHelpText[] = {
 
 
 // Narrow text
-char *KismetHelpTextNarrow[] = {
+char const * const KismetHelpTextNarrow[] = {
     "KISMET PANELS INTERFACE",
     "KISMET NETWORK PANEL",
     "Key Action",
@@ -171,7 +171,7 @@ char *KismetHelpTextNarrow[] = {
 };
 
 
-char *KismetHelpDetails[] = {
+char const * const KismetHelpDetails[] = {
     "NETWORK DETAILS",
     "This panel lists in depth information about",
     "the selected network or group, which may or",
@@ -188,7 +188,7 @@ char *KismetHelpDetails[] = {
 };
 
 
-char *KismetSortText[] = {
+char const * const KismetSortText[] = {
     "Key  Sort                Key  Sort",
     " a   Auto-fit (standard)  c   Channel",
     " f   First time seen      F   First time seen (descending)",
@@ -202,7 +202,7 @@ char *KismetSortText[] = {
 };
 
 
-char *KismetSortTextNarrow[] = {
+char const * const KismetSortTextNarrow[] = {
     "Key Sort        Key Sort",
     " a  Auto-fit     c  Channel",
     " f  First time   F  First time (d)",
@@ -215,7 +215,7 @@ char *KismetSortTextNarrow[] = {
     NULL
 };
 
-char *KismetClientSortText[] = {
+char const * const KismetClientSortText[] = {
     "Key  Sort                Key  Sort",
     " a   Auto-fit (standard)  c   Channel",
     " f   First time seen      F   First time seen (descending)",
@@ -227,7 +227,7 @@ char *KismetClientSortText[] = {
     NULL
 };
 
-char *KismetClientSortTextNarrow[] = {
+char const * const KismetClientSortTextNarrow[] = {
     "Key Sort        Key Sort",
     " a  Auto-fit     c  Channel",
     " f  First time   F  First time (d)",
@@ -239,7 +239,7 @@ char *KismetClientSortTextNarrow[] = {
     NULL
 };
 
-char *KismetHelpPower[] = {
+char const * const KismetHelpPower[] = {
     "KISMET POWER",
     "This panel lists the overall signal (S) and "
     "noise (N) levels reported by the wireless card, if",
@@ -250,7 +250,7 @@ char *KismetHelpPower[] = {
 };
 
 
-char *KismetHelpRate[] = {
+char const * const KismetHelpRate[] = {
     "KISMET PACKET RATE",
     "This panel displays a moving graph of the rate at which",
     "packets are seen.  The graph covers the last 5 minutes.",
@@ -260,7 +260,7 @@ char *KismetHelpRate[] = {
 };
 
 
-char *KismetHelpGps[] = {
+char const * const KismetHelpGps[] = {
     "KISMET NETWORK FOLLOW",
     "This panel estimates the center of a network, the current",
     "direction of travel, and the direction of the network center",
@@ -273,7 +273,7 @@ char *KismetHelpGps[] = {
 };
 
 
-char *KismetHelpStats[] = {
+char const * const KismetHelpStats[] = {
     "KISMET NETWORK STATISTICS",
     "This panel displays overall statistics about the wireless",
     "networks seen, including how many are encrypted with WEP",
@@ -286,7 +286,7 @@ char *KismetHelpStats[] = {
 };
 
 
-char *KismetHelpDump[] = {
+char const * const KismetHelpDump[] = {
     "KISMET STRING DUMP",
     "This panel displays printable strings from uencrypted data",
     "packets.  This is basially equivalent to the 'strings' command",
@@ -302,7 +302,7 @@ char *KismetHelpDump[] = {
 };
 
 
-char *KismetHelpPack[] = {
+char const * const KismetHelpPack[] = {
     "KISMET PACKET DUMP",
     "This panel displays information about the packet types seen.",
     "It is divided into 2 segments - The upper quarter displays a",
@@ -348,7 +348,7 @@ char *KismetHelpPack[] = {
     NULL
 };
 
-char *KismetHelpAlert[] = {
+char const * const KismetHelpAlert[] = {
     "KISMET ALERTS",
     "This panel tracks alert conditions, such as NetStumbler clients",
     "or DOS attacks.",
@@ -358,7 +358,7 @@ char *KismetHelpAlert[] = {
     NULL
 };
 
-char *KismetClientHelpText[] = {
+char const * const KismetClientHelpText[] = {
     "KISMET CLIENT LIST",
     "QUICK REFERENCE",
     "  Key  Action",
@@ -386,7 +386,7 @@ char *KismetClientHelpText[] = {
     NULL,
 };
 
-char *KismetClientHelpDetails[] = {
+char const * const KismetClientHelpDetails[] = {
     "CLIENT DETAILS",
     "This panel lists in depth information about",
     "the selected client, which may or may not be",
@@ -400,7 +400,7 @@ char *KismetClientHelpDetails[] = {
     NULL
 };
 
-char *KismetHelpServer[] = {
+char const * const KismetHelpServer[] = {
     "KISMET SERVERS",
     " Key   Action",
     " Up    Scroll list up",
@@ -423,7 +423,7 @@ char *KismetHelpServer[] = {
     NULL
 };
 
-char *KismetIntroText[] = {
+char const * const KismetIntroText[] = {
     "",
     "Welcome to the Kismet panels frontend.",
     "Context help is available for all displays, press 'H' at any time",
@@ -1187,7 +1187,7 @@ PanelFront::kis_window *PanelFront::SpawnWindow(string in_title, panel_printer i
 }
 
 // Spawn a text helpbox with the included help stuff
-void PanelFront::SpawnHelp(char **in_helptext) {
+void PanelFront::SpawnHelp(char const * const *in_helptext) {
     kis_window *kwin = new kis_window;
 
     // Fill in the window a bit

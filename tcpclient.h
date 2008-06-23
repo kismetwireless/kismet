@@ -62,7 +62,7 @@ class TcpClient;
 
 class TcpClient {
 public:
-    typedef struct alert_info {
+    struct alert_info {
         timeval alert_ts;
         string alert_text;
     };
@@ -78,7 +78,7 @@ public:
         }
     };
 
-    typedef struct string_info {
+    struct string_info {
         mac_addr bssid;
         mac_addr source;
         timeval string_ts;
@@ -96,7 +96,7 @@ public:
         }
     };
 
-    typedef struct card_info {
+    struct card_info {
         string interface;
         string type;
         string username;

@@ -567,7 +567,7 @@ int TcpServer::SendMainProtocols(int in_fd, int in_ref) {
     return SendToClient(in_fd, in_ref, (void *) &protocol_map);
 }
 
-int TcpServer::RegisterProtocol(string in_header, int in_required, char **in_fields,
+int TcpServer::RegisterProtocol(string in_header, int in_required, char const * const *in_fields,
                                 int (*in_printer)(PROTO_PARMS),
                                 void (*in_enable)(int)) {
     // First, see if we're already registered and return a -1 if we are.  You can't

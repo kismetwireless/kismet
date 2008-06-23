@@ -172,7 +172,7 @@ int filter_export_bssid_invert = -1, filter_export_source_invert = -1,
     filter_export_dest_invert = -1;
 
 // For alert enabling...
-typedef struct _alert_enable {
+struct _alert_enable {
     string alert_name;
     alert_time_unit limit_unit;
 	alert_time_unit burst_unit;
@@ -229,14 +229,14 @@ int retain_monitor;
 int netcryptdetect = 0;
 
 // Shutdown/restore networkmanager (if we can)
-int networkmanager_control(char *cmd) {
+int networkmanager_control(const char *cmd) {
 #ifdef HAVE_DBUS
 	DBusMessage* msg;
 	DBusConnection* conn;
 	DBusError err;
 
-	char *name = "org.freedesktop.NetworkManager";
-	char *path = "/org/freedesktop/NetworkManager";
+	const char *name = "org.freedesktop.NetworkManager";
+	const char *path = "/org/freedesktop/NetworkManager";
 
 	// initialise the error value
 	dbus_error_init(&err);

@@ -1194,7 +1194,7 @@ void Packetracker::ProcessDataPacket(kis_packet *packet, packet_info *info,
     }
 
     unsigned int ipdata_dirty = 0;
-    char *means = NULL;
+    const char *means = NULL;
 
     if (info->proto.type == proto_dhcp_server && 
 		(client->ipdata.atype < address_dhcp ||
@@ -1294,7 +1294,7 @@ void Packetracker::ProcessDataPacket(kis_packet *packet, packet_info *info,
         // Handle netstumbler packets
 
         if (alertracker->PotentialAlert(arefs[NETSTUMBLER_AREF]) > 0) {
-            char *nsversion;
+            const char *nsversion;
 
             switch (info->proto.prototype_extra) {
             case 22:
@@ -1320,8 +1320,8 @@ void Packetracker::ProcessDataPacket(kis_packet *packet, packet_info *info,
                info->proto.type == proto_ttls || info->proto.type == proto_tls) {
         // Handle EAP packets
 
-        char *eapcode;
-        char *eaptype;
+        const char *eapcode;
+        const char *eaptype;
 
         switch (info->proto.prototype_extra) {
             case EAP_CODE_REQUEST:
@@ -1373,7 +1373,7 @@ void Packetracker::ProcessDataPacket(kis_packet *packet, packet_info *info,
     } else if (info->proto.type == proto_isakmp) {
         // Handle ISAKMP traffic
 
-        char *isakmpcode;
+        const char *isakmpcode;
         switch (info->proto.prototype_extra) {
             case ISAKMP_EXCH_NONE:
                 isakmpcode = "NONE";
@@ -2394,7 +2394,7 @@ int Packetracker::WriteXMLNetworks(string in_fname) {
         }
 
         if (net->ipdata.atype > address_factory) {
-            char *addrtype;
+            const char *addrtype;
             switch (net->ipdata.atype) {
             case address_dhcp:
                 addrtype = "dhcp";
@@ -2425,7 +2425,7 @@ int Packetracker::WriteXMLNetworks(string in_fname) {
         for (unsigned int cltr = 0; cltr < net->client_vec.size(); cltr++) {
             wireless_client *cli = net->client_vec[cltr];
 
-            char *clitype;
+            const char *clitype;
             switch (cli->type) {
             case client_fromds:
                 clitype = "fromds";
@@ -2527,7 +2527,7 @@ int Packetracker::WriteXMLNetworks(string in_fname) {
 
 
             if (cli->ipdata.atype > address_factory) {
-                char *addrtype;
+                const char *addrtype;
                 switch (cli->ipdata.atype) {
                 case address_dhcp:
                     addrtype = "dhcp";

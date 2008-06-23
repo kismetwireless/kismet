@@ -817,8 +817,8 @@ vector<wireless_network *> XMLFetchNetworkList(FILE *in_file) {
 #endif
 
         if (! XML_Parse(p, Buff, len, done)) {
-            fprintf(stderr, "Parse error at line %d: %s\n",
-                    XML_GetCurrentLineNumber(p),
+            fprintf(stderr, "Parse error at line %lu: %s\n",
+                    (unsigned long)XML_GetCurrentLineNumber(p),
                     XML_ErrorString(XML_GetErrorCode(p)));
             return netvec;
         }
@@ -1061,8 +1061,8 @@ vector<gps_point *> XMLFetchGpsList(FILE *in_file) {
 #endif
 
         if (! XML_Parse(p, Buff, len, done)) {
-            fprintf(stderr, "WARNING: Parse error at line %d: %s\n",
-                    XML_GetCurrentLineNumber(p),
+            fprintf(stderr, "WARNING: Parse error at line %lu: %s\n",
+                    (unsigned long)XML_GetCurrentLineNumber(p),
                     XML_ErrorString(XML_GetErrorCode(p)));
             return ptvec;
         }

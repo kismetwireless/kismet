@@ -56,7 +56,7 @@ enum group_type {
 };
 
 // What do we actually display
-typedef struct display_network {
+struct display_network {
     // Are we a group or just a single network?
     group_type type;
     // If we're a group, this will hold multiple networks

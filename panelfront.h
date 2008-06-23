@@ -58,28 +58,28 @@
 #define ACS_VLINE '|'
 #endif
 
-extern char *KismetHelpText[];
-extern char *KismetHelpTextNarrow[];
-extern char *KismetHelpDetails[];
-extern char *KismetSortText[];
-extern char *KismetSortTextNarrow[];
+extern char const * const KismetHelpText[];
+extern char const * const KismetHelpTextNarrow[];
+extern char const * const KismetHelpDetails[];
+extern char const * const KismetSortText[];
+extern char const * const KismetSortTextNarrow[];
 #define SORT_SIZE 10
-extern char *KismetHelpPower[];
-extern char *KismetHelpRate[];
-extern char *KismetHelpGps[];
-extern char *KismetHelpStats[];
-extern char *KismetHelpDump[];
-extern char *KismetHelpPack[];
-extern char *KismetHelpAlert[];
-extern char *KismetHelpServer[];
+extern char const * const KismetHelpPower[];
+extern char const * const KismetHelpRate[];
+extern char const * const KismetHelpGps[];
+extern char const * const KismetHelpStats[];
+extern char const * const KismetHelpDump[];
+extern char const * const KismetHelpPack[];
+extern char const * const KismetHelpAlert[];
+extern char const * const KismetHelpServer[];
 
-extern char *KismetClientHelpText[];
-extern char *KismetClientHelpDetails[];
-extern char *KismetClientSortText[];
-extern char *KismetClientSortTextNarrow[];
+extern char const * const KismetClientHelpText[];
+extern char const * const KismetClientHelpDetails[];
+extern char const * const KismetClientSortText[];
+extern char const * const KismetClientSortTextNarrow[];
 #define CLIENT_SORT_SIZE 8
 
-extern char *KismetIntroText[];
+extern char const * const KismetIntroText[];
 
 // These are in the kismet_curses.cc main code
 extern int sound;
@@ -118,7 +118,7 @@ public:
     virtual int FetchDescriptor() { return fileno(stdin); };
 protected:
     // Curses color pair
-    typedef struct color_pair {
+    struct color_pair {
         color_pair() { index = -1; pair = 0; bold = 0; }
 
         int index;
@@ -178,7 +178,7 @@ protected:
     list<kis_window *> window_list;
 
     // Server context records for multiple servers
-    typedef struct server_context {
+    struct server_context {
         server_context() {
             client = NULL;
             quality = power = noise = 0;
@@ -241,7 +241,7 @@ protected:
     };
 
     // Context-aware cardinfo
-    typedef struct cardinfo_context {
+    struct cardinfo_context {
         server_context *context;
         TcpClient::card_info *cardinfo;
     };
@@ -318,7 +318,7 @@ protected:
                             key_handler in_input, int in_x = -1, int in_y = -1);
 
     // Spawn a help popup
-    void SpawnHelp(char **in_helptext);
+    void SpawnHelp(char const * const in_helptext[]);
 
     // Kill a window
     void DestroyWindow(kis_window *in_window);
