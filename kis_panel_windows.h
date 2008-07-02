@@ -314,11 +314,17 @@ protected:
 	int AppendNetworkInfo(int k, Kis_Display_NetGroup *tng, 
 						  Netracker::tracked_network *net);
 	virtual void UpdateViewMenu(int mi);
+	void ClearGraphVectors();
+	void UpdateGraphVectors(int signal, int pps, int retry);
+	
+	int DeriveDisplayUpdate();
 
 	Kis_Panel_Packbox *vbox, *bbox;
 	Kis_Scrollable_Table *netdetails;
 
 	Kis_IntGraph *siggraph, *packetgraph, *retrygraph;
+	vector<int> sigpoints, packetpps, retrypps;
+	int lastpackets, lastretry;
 
 	time_t last_dirty;
 	mac_addr last_mac;

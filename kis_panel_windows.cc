@@ -231,8 +231,13 @@ Kis_Main_Panel::Kis_Main_Panel(GlobalRegistry *in_globalreg,
 	AddColorPref("netlist_factory_color", "Netlist Factory");
 	AddColorPref("status_normal_color", "Status Text");
 	AddColorPref("info_normal_color", "Info Pane");
+
 	AddColorPref("graph_pps", "PPS Graph");
 	AddColorPref("graph_datapps", "PPS Data Graph");
+
+	AddColorPref("graph_detail_pps", "Network Packet Graph");
+	AddColorPref("graph_detail_retrypps", "Network Retry Graph");
+	AddColorPref("graph_detail_sig", "Network Signal Graph");
 
 	UpdateViewMenu(-1);
 
@@ -1502,10 +1507,69 @@ Kis_NetDetails_Panel::Kis_NetDetails_Panel(GlobalRegistry *in_globalreg,
 	td.push_back("");
 	td.push_back("No network selected / Empty network selected");
 	netdetails->AddRow(0, td);
+
+	siggraph = new Kis_IntGraph(globalreg, this);
+	siggraph->SetName("DETAIL_SIG");
+	siggraph->SetPreferredSize(0, 8);
+	siggraph->SetScale(0, 0);
+	siggraph->SetInterpolation(1);
+	siggraph->SetMode(0);
+	siggraph->Show();
+	siggraph->AddExtDataVec("Signal", 4, "graph_detail_sig", "yellow,yellow", 
+							  ' ', ' ', 1, &sigpoints);
+
+	packetgraph = new Kis_IntGraph(globalreg, this);
+	packetgraph->SetName("DETAIL_PPS");
+	packetgraph->SetPreferredSize(0, 8);
+	packetgraph->SetScale(0, 0);
+	packetgraph->SetInterpolation(1);
+	packetgraph->SetMode(0);
+	packetgraph->Show();
+	packetgraph->AddExtDataVec("Packet Rate", 4, "graph_detail_pps", "green,green", 
+							  ' ', ' ', 1, &packetpps);
+
+	retrygraph = new Kis_IntGraph(globalreg, this);
+	retrygraph->SetName("DETAIL_RETRY_PPS");
+	retrygraph->SetPreferredSize(0, 8);
+	retrygraph->SetScale(0, 0);
+	retrygraph->SetInterpolation(1);
+	retrygraph->SetMode(0);
+	retrygraph->Show();
+	retrygraph->AddExtDataVec("Packet Rate", 4, "graph_detail_retrypps", "red,red", 
+							  ' ', ' ', 1, &retrypps);
+
+	ClearGraphVectors();
 }
 
 Kis_NetDetails_Panel::~Kis_NetDetails_Panel() {
+}
 
+void Kis_NetDetails_Panel::ClearGraphVectors() {
+	lastpackets = 0;
+	sigpoints.clear();
+	packetpps.clear();
+	retrypps.clear();
+	for (unsigned int x = 0; x < 120; x++) {
+		sigpoints.push_back(-256);
+		packetpps.push_back(0);
+		retrypps.push_back(0);
+	}
+}
+
+void Kis_NetDetails_Panel::UpdateGraphVectors(int signal, int pps, int retry) {
+	sigpoints.push_back(signal);
+	if (sigpoints.size() > 120)
+		sigpoints.erase(sigpoints.begin(), sigpoints.begin() + sigpoints.size() - 120);
+
+	if (lastpackets == 0)
+		lastpackets = pps;
+	packetpps.push_back(pps - lastpackets);
+	if (packetpps.size() > 120)
+		packetpps.erase(packetpps.begin(), packetpps.begin() + packetpps.size() - 120);
+
+	retrypps.push_back(retry);
+	if (retrypps.size() > 120)
+		retrypps.erase(retrypps.begin(), retrypps.begin() + retrypps.size() - 120);
 }
 
 void Kis_NetDetails_Panel::Position(int in_sy, int in_sx, int in_y, int in_x) {
@@ -1730,8 +1794,10 @@ void Kis_NetDetails_Panel::DrawPanel() {
 				dng = tng;
 				update = 1;
 			} else if (tmeta != NULL && last_mac != tmeta->bssid) {
-				// We weren't the same network before - we get the new one
+				// We weren't the same network before - we get the new one, clear the
+				// graph vectors
 				dng = tng;
+				ClearGraphVectors();
 				update = 1;
 			} else if (meta != NULL && last_dirty < meta->last_time) {
 				// The network has changed time - just update
@@ -1739,14 +1805,21 @@ void Kis_NetDetails_Panel::DrawPanel() {
 			}
 		}
 	} else if (dng != NULL) {
-		// We've lost a selected network entirely, drop to null and update
+		// We've lost a selected network entirely, drop to null and update, clear the
+		// graph vectors
 		dng = NULL;
+		ClearGraphVectors();
 		update = 1;
 	}
 
 	if (update) {
 		netdetails->Clear();
-		meta = dng->FetchNetwork();
+
+		if (dng != NULL)
+			meta = dng->FetchNetwork();
+		else
+			meta = NULL;
+
 		k = 0;
 		td.push_back("");
 		td.push_back("");
