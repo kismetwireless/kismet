@@ -1416,13 +1416,16 @@ Kis_NetDetails_Panel::Kis_NetDetails_Panel(GlobalRegistry *in_globalreg,
 	menu->AddMenuItem("-", mn_network, 0);
 	mi_close = menu->AddMenuItem("Close window", mn_network, 'w');
 
-	mn_view = menu->AddMenu("Network", 0);
+	mn_view = menu->AddMenu("View", 0);
 	mi_net = menu->AddMenuItem("Network Details", mn_view, 'n');
 	mi_clients = menu->AddMenuItem("Clients", mn_view, 'c');
 	menu->AddMenuItem("-", mn_view, 0);
 	mi_graphsig = menu->AddMenuItem("Signal Level", mn_view, 's');
 	mi_graphpacket = menu->AddMenuItem("Packet Rate", mn_view, 'p');
 	mi_graphretry = menu->AddMenuItem("Retry Rate", mn_view, 'r');
+
+	menu->Show();
+	AddComponentVec(menu, KIS_PANEL_COMP_EVT);
 
 	// Details scroll list doesn't get the current one highlighted and
 	// doesn't draw titles, also lock to fit inside the window
@@ -1452,6 +1455,37 @@ Kis_NetDetails_Panel::Kis_NetDetails_Panel(GlobalRegistry *in_globalreg,
 	netdetails->Show();
 	netdetails->Activate(1);
 
+	siggraph = new Kis_IntGraph(globalreg, this);
+	siggraph->SetName("DETAIL_SIG");
+	siggraph->SetPreferredSize(0, 8);
+	siggraph->SetScale(0, 0);
+	siggraph->SetInterpolation(1);
+	siggraph->SetMode(0);
+	siggraph->Show();
+	siggraph->AddExtDataVec("Signal", 4, "graph_detail_sig", "yellow,yellow", 
+							  ' ', ' ', 1, &sigpoints);
+
+	packetgraph = new Kis_IntGraph(globalreg, this);
+	packetgraph->SetName("DETAIL_PPS");
+	packetgraph->SetPreferredSize(0, 8);
+	packetgraph->SetScale(0, 0);
+	packetgraph->SetInterpolation(1);
+	packetgraph->SetMode(0);
+	packetgraph->Show();
+	packetgraph->AddExtDataVec("Packet Rate", 4, "graph_detail_pps", "green,green", 
+							  ' ', ' ', 1, &packetpps);
+
+	retrygraph = new Kis_IntGraph(globalreg, this);
+	retrygraph->SetName("DETAIL_RETRY_PPS");
+	retrygraph->SetPreferredSize(0, 8);
+	retrygraph->SetScale(0, 0);
+	retrygraph->SetInterpolation(1);
+	retrygraph->SetMode(0);
+	retrygraph->Show();
+	retrygraph->AddExtDataVec("Packet Rate", 4, "graph_detail_retrypps", "red,red", 
+							  ' ', ' ', 1, &retrypps);
+
+	ClearGraphVectors();
 	closebutton = new Kis_Button(globalreg, this);
 	closebutton->SetText("Close");
 	closebutton->Show();
@@ -1486,6 +1520,10 @@ Kis_NetDetails_Panel::Kis_NetDetails_Panel(GlobalRegistry *in_globalreg,
 	vbox->SetSpacing(0);
 	vbox->Show();
 
+	vbox->Pack_End(siggraph, 0, 0);
+	vbox->Pack_End(packetgraph, 0, 0);
+	vbox->Pack_End(retrygraph, 0, 0);
+
 	vbox->Pack_End(netdetails, 1, 0);
 	vbox->Pack_End(bbox, 0, 0);
 
@@ -1508,37 +1546,7 @@ Kis_NetDetails_Panel::Kis_NetDetails_Panel(GlobalRegistry *in_globalreg,
 	td.push_back("No network selected / Empty network selected");
 	netdetails->AddRow(0, td);
 
-	siggraph = new Kis_IntGraph(globalreg, this);
-	siggraph->SetName("DETAIL_SIG");
-	siggraph->SetPreferredSize(0, 8);
-	siggraph->SetScale(0, 0);
-	siggraph->SetInterpolation(1);
-	siggraph->SetMode(0);
-	siggraph->Show();
-	siggraph->AddExtDataVec("Signal", 4, "graph_detail_sig", "yellow,yellow", 
-							  ' ', ' ', 1, &sigpoints);
-
-	packetgraph = new Kis_IntGraph(globalreg, this);
-	packetgraph->SetName("DETAIL_PPS");
-	packetgraph->SetPreferredSize(0, 8);
-	packetgraph->SetScale(0, 0);
-	packetgraph->SetInterpolation(1);
-	packetgraph->SetMode(0);
-	packetgraph->Show();
-	packetgraph->AddExtDataVec("Packet Rate", 4, "graph_detail_pps", "green,green", 
-							  ' ', ' ', 1, &packetpps);
-
-	retrygraph = new Kis_IntGraph(globalreg, this);
-	retrygraph->SetName("DETAIL_RETRY_PPS");
-	retrygraph->SetPreferredSize(0, 8);
-	retrygraph->SetScale(0, 0);
-	retrygraph->SetInterpolation(1);
-	retrygraph->SetMode(0);
-	retrygraph->Show();
-	retrygraph->AddExtDataVec("Packet Rate", 4, "graph_detail_retrypps", "red,red", 
-							  ' ', ' ', 1, &retrypps);
-
-	ClearGraphVectors();
+	UpdateViewMenu(-1);
 }
 
 Kis_NetDetails_Panel::~Kis_NetDetails_Panel() {
@@ -1574,6 +1582,8 @@ void Kis_NetDetails_Panel::UpdateGraphVectors(int signal, int pps, int retry) {
 
 void Kis_NetDetails_Panel::Position(int in_sy, int in_sx, int in_y, int in_x) {
 	Kis_Panel::Position(in_sy, in_sx, in_y, in_x);
+
+	menu->SetPosition(1, 0, 0, 0);
 
 	// All we have to do is position the main box now
 	vbox->SetPosition(1, 1, in_x - 1, in_y - 2);
@@ -1844,6 +1854,9 @@ void Kis_NetDetails_Panel::DrawPanel() {
 
 		pan_comp_vec[x].comp->DrawComponent();
 	}
+
+	menu->DrawComponent();
+	wmove(win, 0, 0);
 }
 
 void Kis_NetDetails_Panel::ButtonAction(Kis_Panel_Component *in_button) {
@@ -1927,9 +1940,7 @@ void Kis_NetDetails_Panel::UpdateViewMenu(int mi) {
 			menu->SetMenuItemChecked(mi_graphretry, 1);
 			retrygraph->Show();
 		}
-	}
-
-	if (mi == -1) {
+	} else if (mi == -1) {
 		opt = kpinterface->prefs.FetchOpt("DETAILS_SHOWNET");
 		if (opt == "" || opt == "true") {
 			menu->SetMenuItemChecked(mi_net, 1);

@@ -2526,7 +2526,7 @@ void Kis_IntGraph::DrawComponent() {
 	int gh = ly / (graph_mode == 1 ? 2 : 1);
 	// Zero position on the graph is the bottom, or center, depending
 	// on normal or over/under
-	int gzero = ey - (graph_mode == 1 ? gh : 0);
+	int gzero = ey - (graph_mode == 1 ? gh : 1);
 	// Width - label (TODO label)
 	int gw = lx;
 
