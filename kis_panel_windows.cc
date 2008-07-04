@@ -1482,7 +1482,7 @@ Kis_NetDetails_Panel::Kis_NetDetails_Panel(GlobalRegistry *in_globalreg,
 	retrygraph->SetInterpolation(1);
 	retrygraph->SetMode(0);
 	retrygraph->Show();
-	retrygraph->AddExtDataVec("Packet Rate", 4, "graph_detail_retrypps", "red,red", 
+	retrygraph->AddExtDataVec("Retry Rate", 4, "graph_detail_retrypps", "red,red", 
 							  ' ', ' ', 1, &retrypps);
 
 	ClearGraphVectors();
@@ -1572,6 +1572,7 @@ void Kis_NetDetails_Panel::UpdateGraphVectors(int signal, int pps, int retry) {
 	if (lastpackets == 0)
 		lastpackets = pps;
 	packetpps.push_back(pps - lastpackets);
+	lastpackets = pps;
 	if (packetpps.size() > 120)
 		packetpps.erase(packetpps.begin(), packetpps.begin() + packetpps.size() - 120);
 
@@ -1840,6 +1841,12 @@ void Kis_NetDetails_Panel::DrawPanel() {
 			netdetails->AddRow(k++, td);
 
 			k = AppendNetworkInfo(k, tng, NULL);
+
+			UpdateGraphVectors(meta->snrdata.last_signal_dbm == -256 ? 
+							   	meta->snrdata.last_signal_rssi : 
+								meta->snrdata.last_signal_dbm, 
+							   meta->llc_packets + meta->data_packets,
+							   meta->retries);
 		} else {
 			td[0] = "";
 			td[1] = "No network selected / Empty network selected";
