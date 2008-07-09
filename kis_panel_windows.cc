@@ -1486,6 +1486,8 @@ Kis_NetDetails_Panel::Kis_NetDetails_Panel(GlobalRegistry *in_globalreg,
 							  ' ', ' ', 1, &retrypps);
 
 	ClearGraphVectors();
+
+	/*
 	closebutton = new Kis_Button(globalreg, this);
 	closebutton->SetText("Close");
 	closebutton->Show();
@@ -1511,6 +1513,7 @@ Kis_NetDetails_Panel::Kis_NetDetails_Panel(GlobalRegistry *in_globalreg,
 	bbox->Pack_End(closebutton, 0, 0);
 	bbox->Pack_End(prevbutton, 0, 0);
 	bbox->Pack_End(nextbutton, 0, 0);
+	*/
 
 	SetTitle("");
 
@@ -1525,15 +1528,18 @@ Kis_NetDetails_Panel::Kis_NetDetails_Panel(GlobalRegistry *in_globalreg,
 	vbox->Pack_End(retrygraph, 0, 0);
 
 	vbox->Pack_End(netdetails, 1, 0);
-	vbox->Pack_End(bbox, 0, 0);
 
 	AddComponentVec(vbox, KIS_PANEL_COMP_DRAW);
+	/*
+	vbox->Pack_End(bbox, 0, 0);
+
 	AddComponentVec(closebutton, (KIS_PANEL_COMP_DRAW | KIS_PANEL_COMP_TAB |
 								  KIS_PANEL_COMP_EVT));
 	AddComponentVec(prevbutton, (KIS_PANEL_COMP_DRAW | KIS_PANEL_COMP_TAB |
 								  KIS_PANEL_COMP_EVT));
 	AddComponentVec(nextbutton, (KIS_PANEL_COMP_DRAW | KIS_PANEL_COMP_TAB |
 								  KIS_PANEL_COMP_EVT));
+	*/
 
 	tab_pos = 0;
 

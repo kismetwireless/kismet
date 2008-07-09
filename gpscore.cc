@@ -23,7 +23,7 @@
 #include "soundcontrol.h"
 #include "packetchain.h"
 
-char *GPS_fields_text[] = {
+const char *GPS_fields_text[] = {
     "lat", "lon", "alt", "spd", "heading", "fix",
     NULL
 };

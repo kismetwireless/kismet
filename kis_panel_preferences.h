@@ -166,7 +166,7 @@ protected:
 class Kis_ColumnPref_Panel : public Kis_Panel {
 public:
 	Kis_ColumnPref_Panel() {
-		fprintf(stderr, "FATAL OOPS: Kis_Connect_Panel called w/out globalreg\n");
+		fprintf(stderr, "FATAL OOPS: Kis_ColumnPref_Panel called w/out globalreg\n");
 		exit(1);
 	}
 
@@ -202,6 +202,41 @@ protected:
 	string pref, prefname;
 
 	vector<Kis_ColumnPref_Panel::pref_cols> pref_vec;
+};
+
+class Kis_Keyshort_Panel : public Kis_Panel {
+public:
+	Kis_Keyshort_Panel() {
+		fprintf(stderr, "FATAL OOPS: Kis_Keyshort_Panel called w/out globalreg\n");
+		exit(1);
+	}
+
+	Kis_Keyshort_Panel(GlobalRegistry *in_globalreg, KisPanelInterface *in_kpf);
+	virtual ~Kis_Keyshort_Panel();
+
+	virtual void Position(int in_sy, int in_sx, int in_y, int in_x);
+	virtual void DrawPanel();
+
+	// Add a shortcut name 
+	virtual void AddShortcut(string prefname, string dispname);
+
+	virtual void ButtonAction(Kis_Panel_Component *in_button);
+
+	typedef struct {
+		string prefname;
+		string dispname;
+		char key;
+	} pref_shorts;
+
+protected:
+	Kis_OrderlistPref_Component *orderlist;
+	Kis_Free_Text *helptext;
+	Kis_Button *okbutton;
+	Kis_Button *cancelbutton;
+
+	Kis_Panel_Packbox *vbox, *bbox;
+
+	vector<Kis_Keyshort_Panel::pref_shorts> pref_vec;
 };
 
 #endif // curses

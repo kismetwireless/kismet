@@ -229,6 +229,7 @@ int Dumpfile_Nettxt::Flush() {
 		}
 
 		fprintf(txtfile, " Channel    : %d\n", net->channel);
+		fprintf(txtfile, " Frequency  : %d\n", net->freq_mhz);
 		fprintf(txtfile, " Max Seen   : %d\n", net->snrdata.maxseenrate * 100);
 
 		if (net->snrdata.carrierset & (1 << (int) carrier_80211b))
@@ -434,6 +435,7 @@ int Dumpfile_Nettxt::Flush() {
 			}
 
 			fprintf(txtfile, "  Channel    : %d\n", cli->channel);
+			fprintf(txtfile, "  Frequency  : %d\n", cli->freq_mhz);
 			fprintf(txtfile, "  Max Seen   : %d\n", cli->snrdata.maxseenrate * 100);
 
 			if (cli->snrdata.carrierset & (1 << (int) carrier_80211b))

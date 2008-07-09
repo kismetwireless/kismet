@@ -179,7 +179,7 @@ public:
 		fmsweak = 0;
         ess = 0;
 		ibss = 0;
-        channel = 0;
+		channel = 0;
         encrypted = 0;
         beacon_interval = 0;
         ivset = 0;
@@ -230,8 +230,8 @@ public:
     int ess;
 	int ibss;
 
-    // What channel?
-    int channel;
+	// What channel does it report
+	int channel;
 
     // Is this encrypted?
     int encrypted;
@@ -326,16 +326,16 @@ public:
 		carrier = carrier_unknown;
 		encoding = encoding_unknown;
 		datarate = 0;
-		channel = 0;
+		freq_mhz = 0;
 		accuracy = 0;
 	}
 
 	// How "accurate" are we?  Higher == better.  Nothing uses this yet
 	// but we might as well track it here.
 	int accuracy;
-	
-	// Channel packet seen on
-	int channel;
+
+	// Frequency seen on
+	int freq_mhz;
 
     // Connection info
     int signal_dbm, signal_rssi;

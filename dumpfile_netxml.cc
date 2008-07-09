@@ -225,6 +225,7 @@ int Dumpfile_Netxml::Flush() {
 		
 
 		fprintf(xmlfile, "    <channel>%d</channel>\n", net->channel);
+		fprintf(xmlfile, "    <freqmhz>%d</freqmhz>\n", net->freq_mhz);
 		fprintf(xmlfile, "    <maxseenrate>%ld</maxseenrate>\n",
 				(long) net->snrdata.maxseenrate * 100);
 
@@ -471,8 +472,8 @@ int Dumpfile_Netxml::Flush() {
 				fprintf(xmlfile, "        </ssid>\n");
 			}
 
-			fprintf(xmlfile, "      <channel>%d</channel>\n", 
-					cli->channel);
+			fprintf(xmlfile, "      <channel>%d</channel>\n", cli->channel);
+			fprintf(xmlfile, "      <freqmhz>%d</freqmhz>\n", cli->freq_mhz);
 			fprintf(xmlfile, "      <maxseenrate>%ld</maxseenrate>\n",
 					(long) cli->snrdata.maxseenrate * 100);
 

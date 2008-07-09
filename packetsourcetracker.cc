@@ -32,7 +32,7 @@
 #include "ifcontrol.h"
 #endif
 
-char *CARD_fields_text[] = {
+const char *CARD_fields_text[] = {
     "interface", "type", "username", "channel", "uuid", "packets", "hopping",
     NULL
 };
@@ -104,7 +104,7 @@ void Protocol_CARD_enable(PROTO_ENABLE_PARMS) {
 	return;
 }
 
-char *SOURCE_fields_text[] = {
+const char *SOURCE_fields_text[] = {
 	"type", "root", "defaultchanset", "initchan",
 	NULL
 };

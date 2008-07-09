@@ -40,7 +40,7 @@ enum PLUGIN_fields {
 	PLUGIN_maxfield
 };
 
-char *PLUGIN_fields_text[] = {
+const char *PLUGIN_fields_text[] = {
 	"filename", "name", "version", "description", 
 	"unloadable", "root", NULL
 };

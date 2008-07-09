@@ -376,7 +376,7 @@ int PacketSource_Pcap::Prism2KisPack(kis_packet *packet) {
 		radioheader->signal_rssi = ntohl(v1hdr->ssi_signal);
 		radioheader->noise_rssi = ntohl(v1hdr->ssi_noise);
 
-		radioheader->channel = ntohl(v1hdr->channel);
+		radioheader->freq_mhz = ChanToFreq(ntohl(v1hdr->channel));
 
         switch (ntohl(v1hdr->phytype)) {
             case 1:
@@ -442,7 +442,7 @@ int PacketSource_Pcap::Prism2KisPack(kis_packet *packet) {
         radioheader->signal_rssi = p2head->signal.data;
         radioheader->noise_rssi = p2head->noise.data;
 
-        radioheader->channel = p2head->channel.data;
+        radioheader->freq_mhz = ChanToFreq(p2head->channel.data);
     }
 
     if (radioheader == NULL) {
@@ -662,7 +662,8 @@ int PacketSource_Pcap::Radiotap2KisPack(kis_packet *packet) {
 
             switch (bit) {
                 case IEEE80211_RADIOTAP_CHANNEL:
-                    radioheader->channel = ieee80211_mhz2ieee(u.u16, u2.u16);
+                    // radioheader->channel = ieee80211_mhz2ieee(u.u16, u2.u16);
+                    radioheader->freq_mhz = u.u16;
                     if (IEEE80211_IS_CHAN_FHSS(u2.u16))
                         radioheader->carrier = carrier_80211dsss;
                     else if (IEEE80211_IS_CHAN_A(u2.u16))

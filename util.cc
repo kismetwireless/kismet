@@ -582,6 +582,42 @@ uint32_t Adler32Checksum(const char *buf1, int len) {
 	return (s1 & 0xffff) + (s2 << 16);
 }
 
+int IEEE80211Freq[] = {
+	2412, 2417, 2422, 2427, 2432,
+	2437, 2442, 2447, 2452, 2457,
+	2462, 2467, 2472, 2484,
+	5180, 5200, 5210, 5220, 5240,
+	5250, 5260, 5280, 5290, 5300, 
+	5320, 5745, 5760, 5765, 5785, 
+	5800, 5805, 5825,
+	-1
+};
+
+int IEEE80211Ch[] = {
+	1, 2, 3, 4, 5,
+	6, 7, 8, 9, 10,
+	11, 12, 13, 14,
+	36, 40, 42, 44, 48,
+	50, 52, 56, 58, 60,
+	64, 149, 152, 153, 157,
+	160, 161, 165,
+	-1
+};
+
+int ChanToFreq(int in_chan) {
+    int x = 0;
+    // 80211b frequencies to channels
+
+    while (IEEE80211Ch[x] != -1) {
+        if (IEEE80211Ch[x] == in_chan) {
+            return IEEE80211Freq[x];
+        }
+        x++;
+    }
+
+    return 0;
+}
+
 // Multiplatform method of setting a process title.  Lifted from proftpd main.c
 // * ProFTPD - FTP server daemon
 // * Copyright (c) 1997, 1998 Public Flood Software

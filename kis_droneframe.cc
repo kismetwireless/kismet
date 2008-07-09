@@ -720,7 +720,7 @@ int KisDroneFramework::chain_handler(kis_packet *in_pack) {
 		// optomizes away into a single assign anyhow during compile
 		rcpkt->radio_content_bitmap =
 			kis_hton32(DRONEBIT(DRONE_RADIO_ACCURACY) |
-					   DRONEBIT(DRONE_RADIO_CHANNEL) |
+					   DRONEBIT(DRONE_RADIO_FREQ_MHZ) |
 					   DRONEBIT(DRONE_RADIO_SIGNAL_DBM) |
 					   DRONEBIT(DRONE_RADIO_NOISE_DBM) |
 					   DRONEBIT(DRONE_RADIO_CARRIER) |
@@ -730,7 +730,7 @@ int KisDroneFramework::chain_handler(kis_packet *in_pack) {
 					   DRONEBIT(DRONE_RADIO_NOISE_RSSI));
 
 		rcpkt->radio_accuracy = kis_hton16(radio->accuracy);
-		rcpkt->radio_channel = kis_hton16(radio->channel);
+		rcpkt->radio_freq_mhz = kis_hton16(radio->freq_mhz);
 		rcpkt->radio_signal_dbm = kis_hton16((int16_t) radio->signal_dbm);
 		rcpkt->radio_noise_dbm = kis_hton16((int16_t) radio->noise_dbm);
 		rcpkt->radio_carrier = kis_hton32((uint32_t) radio->carrier);

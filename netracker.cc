@@ -39,7 +39,7 @@
 #include "dumpfile_runstate.h"
 
 // TCP server hooks
-char *BSSID_fields_text[] = {
+const char *BSSID_fields_text[] = {
     "bssid", "type",
     "llcpackets", "datapackets", "cryptpackets",
     "channel", "firsttime", "lasttime", "atype", 
@@ -60,11 +60,11 @@ char *BSSID_fields_text[] = {
     "carrierset", "maxseenrate", "encodingset",
     "decrypted", "dupeivpackets", "bsstimestamp",
 	"cdpdevice", "cdpport", "fragments", "retries",
-	"newpackets",
+	"newpackets", "freqmhz",
     NULL
 };
 
-char *SSID_fields_text[] = {
+const char *SSID_fields_text[] = {
 	"mac", "checksum", "type", "ssid",
 	"beaconinfo", "cryptset", "cloaked",
 	"firsttime", "lasttime", "maxrate",
@@ -72,12 +72,12 @@ char *SSID_fields_text[] = {
 	NULL
 };
 
-char *REMOVE_fields_text[] = {
+const char *REMOVE_fields_text[] = {
     "bssid",
     NULL
 };
 
-char *CLIENT_fields_text[] = {
+const char *CLIENT_fields_text[] = {
     "mac", "type", "firsttime", "lasttime",
     "manufkey", "manufscore",
     "llcpackets", "datapackets", "cryptpackets", 
@@ -95,11 +95,11 @@ char *CLIENT_fields_text[] = {
     "bestlat", "bestlon", "bestalt",
     "atype", "ip", "gatewayip", "datasize", "maxseenrate", "encodingset",
 	"carrierset", "decrypted", "channel",
-	"fragments", "retries", "newpackets",
+	"fragments", "retries", "newpackets", "freqmhz",
     NULL
 };
 
-char *INFO_fields_text[] = {
+const char *INFO_fields_text[] = {
 	"networks", "packets", "crypt", "noise", "dropped", "rate", "filtered", "clients",
 	"llcpackets", "datapackets",
 	NULL
@@ -159,6 +159,11 @@ int Protocol_BSSID(PROTO_PARMS) {
 				break;
 			case BSSID_channel:
 				osstr << net->channel;
+				out_string += osstr.str();
+				cache->Cache(fnum, osstr.str());
+				break;
+			case BSSID_freqmhz:
+				osstr << net->freq_mhz;
 				out_string += osstr.str();
 				cache->Cache(fnum, osstr.str());
 				break;
@@ -773,6 +778,11 @@ int Protocol_CLIENT(PROTO_PARMS) {
 				break;
 			case CLIENT_channel:
 				osstr << cli->channel;
+				out_string += osstr.str();
+				cache->Cache(fnum, osstr.str());
+				break;
+			case CLIENT_freqmhz:
+				osstr << cli->freq_mhz;
 				out_string += osstr.str();
 				cache->Cache(fnum, osstr.str());
 				break;
@@ -1719,6 +1729,9 @@ int Netracker::netracker_chain_handler(kis_packet *in_pack) {
 
 		net->channel = packinfo->channel;
 		cli->channel = packinfo->channel;
+
+		net->freq_mhz = l1info->freq_mhz;
+		cli->freq_mhz = l1info->freq_mhz;
 	}
 
 	// Catch probe responses, handle adding probe resp SSIDs

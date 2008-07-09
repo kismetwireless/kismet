@@ -73,7 +73,6 @@ enum ALERT_fields {
     ALERT_dest, ALERT_other, ALERT_channel, ALERT_text,
 	ALERT_maxfield
 };
-extern char *ALERT_fields_text[];
 
 int Protocol_ALERT(PROTO_PARMS); // kis_alert_info
 void Protocol_ALERT_enable(PROTO_ENABLE_PARMS);

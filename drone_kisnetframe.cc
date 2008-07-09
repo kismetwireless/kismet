@@ -86,7 +86,7 @@ int KisNetFramework::SendToAll(int in_refnum, const void *in_data) {
 }
 
 int KisNetFramework::RegisterProtocol(string in_header, int in_required, int in_cache,
-									  char **in_fields,
+									  const char **in_fields,
 									  int (int_printer)(PROTO_PARMS),
 									  void (*in_enable)(PROTO_ENABLE_PARMS),
 									  void *in_auxdata) {

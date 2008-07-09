@@ -27,47 +27,47 @@
 #include "getopt.h"
 #include "dumpfile.h"
 
-char *KISMET_fields_text[] = {
+const char *KISMET_fields_text[] = {
     "version", "starttime", "servername", "dumpfiles", "uid",
     NULL
 };
 
-char *ERROR_fields_text[] = {
+const char *ERROR_fields_text[] = {
     "cmdid", "text",
     NULL
 };
 
-char *ACK_fields_text[] = {
+const char *ACK_fields_text[] = {
     "cmdid", "text",
     NULL
 };
 
-char *PROTOCOLS_fields_text[] = {
+const char *PROTOCOLS_fields_text[] = {
     "protocols",
     NULL
 };
 
-char *TERMINATE_fields_text[] = {
+const char *TERMINATE_fields_text[] = {
     "text",
     NULL
 };
 
-char *CAPABILITY_fields_text[] = {
+const char *CAPABILITY_fields_text[] = {
     "capabilities",
     NULL
 };
 
-char *TIME_fields_text[] = {
+const char *TIME_fields_text[] = {
     "timesec",
     NULL
 };
 
-char *STATUS_fields_text[] = {
+const char *STATUS_fields_text[] = {
     "text", "flags",
     NULL
 };
 
-char *PACKET_fields_text[] = {
+const char *PACKET_fields_text[] = {
     "type", "subtype", "timesec", "encrypted",
     "weak", "beaconrate", "sourcemac", "destmac",
     "bssid", "ssid", "prototype", "sourceip",
@@ -1027,7 +1027,7 @@ int KisNetFramework::SendToAll(int in_refnum, const void *in_data) {
 }
 
 int KisNetFramework::RegisterProtocol(string in_header, int in_required, int in_cache,
-									  char **in_fields,
+									  const char **in_fields,
                                       int (*in_printer)(PROTO_PARMS),
                                       void (*in_enable)(PROTO_ENABLE_PARMS),
 									  void *in_auxdata) {

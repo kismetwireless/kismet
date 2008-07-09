@@ -42,7 +42,7 @@
 // Handly little global so that it only has to do the ascii->mac_addr transform once
 mac_addr broadcast_mac = "FF:FF:FF:FF:FF:FF";
 
-char *WEPKEY_fields_text[] = {
+const char *WEPKEY_fields_text[] = {
     "origin", "bssid", "key", "encrypted", "failed",
     NULL
 };
@@ -204,7 +204,7 @@ int kis_wep_decryptor(CHAINCALL_PARMS) {
 	return auxptr->wep_data_decryptor(in_pack);
 }
 
-char *STRINGS_fields_text[] = {
+const char *STRINGS_fields_text[] = {
     "bssid", "source", "dest", "string", 
     NULL
 };

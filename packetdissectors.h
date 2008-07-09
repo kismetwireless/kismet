@@ -50,7 +50,6 @@
 enum WEPKEY_fields {
     WEPKEY_origin, WEPKEY_bssid, WEPKEY_key, WEPKEY_decrypted, WEPKEY_failed
 };
-extern char *WEPKEY_fields_text[];
 
 // Protocol hooks
 int proto_WEPKEY(PROTO_PARMS);
@@ -83,7 +82,6 @@ typedef struct {
 	mac_addr source;
 	mac_addr dest;
 } string_proto_info;
-extern char *STRINGS_fields_text[];
 int proto_STRINGS(PROTO_PARMS);
 
 // String reference

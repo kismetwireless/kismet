@@ -138,17 +138,6 @@ enum PACKET_fields {
     PACKET_nbsource, PACKET_sourcename
 };
 
-extern char *KISMET_fields_text[];
-extern char *ERROR_fields_text[];
-extern char *ACK_fields_text[];
-extern char *PROTOCOLS_fields_text[];
-extern char *CAPABILITY_fields_text[];
-extern char *TERMINATE_fields_text[];
-extern char *TIME_fields_text[];
-
-extern char *PACKET_fields_text[];
-extern char *STATUS_fields_text[];
-
 // Client/server protocol data structures.  These get passed as void *'s to each 
 // of the protocol functions.
 // These are all done in two main ways - a var for each field, or a vector in the
@@ -269,7 +258,7 @@ public:
     //   protocol)
     // It returns the index number of the sentence added.
     int RegisterProtocol(string in_header, int in_required, int in_cache, 
-						 char **in_fields,
+						 const char **in_fields,
 						 int (*in_printer)(PROTO_PARMS),
 						 void (*in_enable)(PROTO_ENABLE_PARMS),
 						 void *in_auxdata);

@@ -117,12 +117,8 @@ string SanitizeCSV(string);
 void Float2Pair(float in_float, int16_t *primary, int64_t *mantissa);
 float Pair2Float(int16_t primary, int64_t mantissa);
 
-// Convert a float frequency to a channel number
-int FloatChan2Int(float in_chan);
-
-// Alternate radiotap conversion method, probably should replace FloatChan2Int
-// in the future.
-unsigned int Ieee80211Mhz2IeeeChan(unsigned int frequency, unsigned int rt_flags);
+// Convert a standard channel to a frequency
+int ChanToFreq(int in_chan);
 
 // Convert an IEEE beacon rate to an integer # of beacons per second
 unsigned int Ieee80211Interval2NSecs(int in_rate);

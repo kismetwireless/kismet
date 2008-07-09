@@ -75,7 +75,7 @@ enum BSSID_fields {
     BSSID_carrierset, BSSID_maxseenrate, BSSID_encodingset,
     BSSID_decrypted, BSSID_dupeiv, BSSID_bsstimestamp,
 	BSSID_cdpdevice, BSSID_cdpport, BSSID_fragments, BSSID_retries,
-	BSSID_newpackets,
+	BSSID_newpackets, BSSID_freqmhz,
 	BSSID_maxfield
 };
 
@@ -106,6 +106,7 @@ enum CLIENT_fields {
     CLIENT_atype, CLIENT_ip, CLIENT_gatewayip, CLIENT_datasize, CLIENT_maxseenrate, 
 	CLIENT_encodingset, CLIENT_carrierset, CLIENT_decrypted, 
 	CLIENT_channel, CLIENT_fragments, CLIENT_retries, CLIENT_newpackets,
+	CLIENT_freqmhz,
 	CLIENT_maxfield
 };
 
@@ -120,12 +121,6 @@ enum INFO_fields {
 	INFO_filteredpackets, INFO_clients, INFO_llcpackets, INFO_datapackets,
 	INFO_maxfield
 };
-
-extern char *BSSID_fields_text[];
-extern char *SSID_fields_text[];
-extern char *CLIENT_fields_text[];
-extern char *REMOVE_fields_text[];
-extern char *INFO_fields_text[];
 
 // Enums explicitly defined for the ease of client writers
 enum network_type {
@@ -539,6 +534,7 @@ public:
 			type = network_ap;
 			llc_packets = data_packets = crypt_packets = 0;
 			channel = 0;
+			freq_mhz = 0;
 			bssid = mac_addr(0);
 			decrypted = 0;
 			last_time = first_time = 0;
@@ -572,7 +568,10 @@ public:
 		// Advertised SSID data, often only 1 item
 		map<uint32_t, Netracker::adv_ssid_data *> ssid_map;
 
+		// Channel reported by packets
 		int channel;
+		// Last-seen frequency
+		int freq_mhz;
 
 		time_t last_time;
 		time_t first_time;
@@ -647,6 +646,7 @@ public:
 			last_time = first_time = 0;
 			decrypted = 0;
 			channel = 0;
+			freq_mhz = 0;
 			llc_packets = data_packets = crypt_packets = 0;
 			last_sequence = 0;
 			datasize = 0;
@@ -675,6 +675,8 @@ public:
 
 		// Last seen channel
 		int channel;
+		// Last seen frequency
+		int freq_mhz;
 
 		Netracker::gps_data gpsdata;
 		Netracker::signal_data snrdata;

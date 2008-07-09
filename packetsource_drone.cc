@@ -478,9 +478,9 @@ int DroneClientFrame::ParseData() {
 					radio->accuracy = kis_ntoh16(dsr->radio_accuracy);
 					rofft += 2;
 				}
-				if ((rcbm & DRONEBIT(DRONE_RADIO_CHANNEL)) &&
+				if ((rcbm & DRONEBIT(DRONE_RADIO_FREQ_MHZ)) &&
 					(rofft + 2 <= sublen)) {
-					radio->channel = kis_ntoh16(dsr->radio_channel);
+					radio->freq_mhz = kis_ntoh16(dsr->radio_freq_mhz);
 					rofft += 2;
 				}
 				if ((rcbm & DRONEBIT(DRONE_RADIO_SIGNAL_DBM)) &&

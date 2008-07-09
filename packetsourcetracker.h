@@ -339,7 +339,6 @@ enum CARD_fields {
 	CARD_uuid, CARD_packets, CARD_hopping,
 	CARD_maxfield
 };
-extern char *CARD_fields_text[];
 
 int Protocol_CARD(PROTO_PARMS);
 void Protocol_CARD_enable(PROTO_ENABLE_PARMS);
