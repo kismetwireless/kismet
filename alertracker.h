@@ -88,7 +88,7 @@ enum alert_time_unit {
 class Alertracker {
 public:
     // A registered alert type
-    typedef struct alert_rec {
+    struct alert_rec {
         int ref_index;
         string header;
 
@@ -112,7 +112,7 @@ public:
     };
 
 	// Simple struct from reading config lines
-	typedef struct alert_conf_rec {
+	struct alert_conf_rec {
 		string header;
         alert_time_unit limit_unit;
         int limit_rate;

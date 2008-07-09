@@ -50,7 +50,7 @@ public:
  * itself with the system. */
 typedef int (*panel_plugin_hook)(GlobalRegistry *, KisPanelPluginData *);
 
-typedef struct panel_plugin_meta {
+struct panel_plugin_meta {
 	string filename;
 	string objectname;
 

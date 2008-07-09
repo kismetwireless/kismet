@@ -176,7 +176,7 @@ public:
 	class tracked_network;
 	class tracked_client;
 
-	typedef struct ip_data {
+	struct ip_data {
 		ip_data() {
 			ip_type = ipdata_unknown;
 			ip_addr_block.s_addr = 0;
@@ -200,7 +200,7 @@ public:
 		}
 	};
 
-	typedef struct gps_data {
+	struct gps_data {
 		gps_data() {
 			gps_valid = 0;
 			// Pick absurd initial values to be clearly out-of-bounds
@@ -279,7 +279,7 @@ public:
 	};
 
 	// SNR info
-	typedef struct signal_data {
+	struct signal_data {
 		signal_data() {
 			// These all go to 0 since we don't know if it'll be positive or
 			// negative
@@ -453,7 +453,7 @@ public:
 
 	// Advertised SSID data for multi-ssid networks
 	// Each SSID advertised can have its own advertised limits
-	typedef struct adv_ssid_data {
+	struct adv_ssid_data {
 		adv_ssid_data() {
 			checksum = 0;
 			type = ssid_beacon;

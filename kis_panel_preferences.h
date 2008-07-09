@@ -129,7 +129,7 @@ public:
 
 	virtual void SelectedAction(int listkey);
 
-	typedef struct cprefpair {
+	struct cprefpair {
 		string text, pref;
 	};
 
@@ -185,11 +185,11 @@ public:
 
 	virtual void ButtonAction(Kis_Panel_Component *in_button);
 
-	typedef struct {
+	struct pref_cols{
 		string colname;
 		string description;
 		int queued;
-	} pref_cols;
+	}; 
 
 protected:
 	Kis_OrderlistPref_Component *orderlist;
@@ -222,11 +222,11 @@ public:
 
 	virtual void ButtonAction(Kis_Panel_Component *in_button);
 
-	typedef struct {
+	struct pref_shorts {
 		string prefname;
 		string dispname;
 		char key;
-	} pref_shorts;
+	}; 
 
 protected:
 	Kis_OrderlistPref_Component *orderlist;

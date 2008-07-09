@@ -364,7 +364,7 @@ public:
 	virtual void EnableMenuItem(int in_item);
 	virtual void DisableMenuItem(int in_item);
 
-	typedef struct _menuitem {
+	struct _menuitem {
 		int parentmenu;
 		string text;
 		char extrachar;
@@ -376,7 +376,7 @@ public:
 		int colorpair;
 	};
 
-	typedef struct _menu {
+	struct _menu {
 		string text;
 		int targchar;
 		vector<Kis_Menu::_menuitem *> items;
@@ -528,7 +528,7 @@ public:
 	virtual int KeyPress(int in_key);
 
 	// Title format data
-	typedef struct title_data {
+	struct title_data {
 		int width;
 		int draw_width;
 		string title;
@@ -564,7 +564,7 @@ public:
 		draw_titles = in_set;
 	}
 
-	typedef struct row_data {
+	struct row_data {
 		int key;
 		vector<string> data;
 	};
@@ -690,12 +690,12 @@ protected:
 // Scaling interpolated graph
 class Kis_IntGraph : public Kis_Panel_Component {
 public:
-	typedef struct {
+	struct graph_label {
 		string label;
 		int position;
-	} graph_label;
+	}; 
 
-	typedef struct {
+	struct graph_source {
 		int layer;
 		string colorpref;
 		string colordefault;
@@ -705,7 +705,7 @@ public:
 		vector<int> *data;
 		string name;
 		int overunder;
-	} graph_source;
+	};
 
 	Kis_IntGraph() {
 		fprintf(stderr, "FATAL OOPS: Kis_IntGraph() called w/out globalreg\n");
@@ -811,7 +811,7 @@ protected:
 #define KIS_PANEL_COMP_DRAW			1
 #define KIS_PANEL_COMP_TAB			2
 #define KIS_PANEL_COMP_EVT			4
-	typedef struct component_entry {
+	struct component_entry {
 		int comp_flags;
 		Kis_Panel_Component *comp;
 	};

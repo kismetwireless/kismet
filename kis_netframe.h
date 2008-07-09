@@ -143,11 +143,11 @@ enum PACKET_fields {
 // These are all done in two main ways - a var for each field, or a vector in the
 // same order as the field names. 
 
-typedef struct PACKET_data {
+struct PACKET_data {
     vector<string> pdvec;
 };
 
-typedef struct STATUS_data {
+struct STATUS_data {
 	string text;
 	int flags;
 };
@@ -164,7 +164,7 @@ void Protocol_Packet2Data(const kis_packet *info, PACKET_data *data);
 int Protocol_PACKET(PROTO_PARMS); // PACKET_data
 int Protocol_WEPKEY(PROTO_PARMS); // wep_key_info
 
-typedef struct KISMET_data {
+struct KISMET_data {
     string version;
     string starttime;
     string servername;
@@ -173,7 +173,7 @@ typedef struct KISMET_data {
 	int uid;
 };
 
-typedef struct CLIRESP_data {
+struct CLIRESP_data {
     int cmdid;
     string resptext;
 };
@@ -203,7 +203,7 @@ int KisNetFrame_TimeEvent(Timetracker::timer_event *evt, void *parm,
 // commands from clients
 class KisNetFramework : public ServerFramework {
 public:
-    typedef struct server_protocol {
+    struct server_protocol {
         int ref_index;
         string header;
         int required;
@@ -217,7 +217,7 @@ public:
 		void *auxptr;
     };
 
-	typedef struct client_command_rec {
+	struct client_command_rec {
 		void *auxptr;
 		ClientCommand cmd;
 	};

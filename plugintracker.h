@@ -56,7 +56,7 @@
 typedef int (*plugin_hook)(GlobalRegistry *);
 
 // This struct is passed to a plugin to be filled in with all their info
-typedef struct {
+struct plugin_usrdata {
 	// Basic info about the plugin
 	string pl_name;
 	string pl_description;
@@ -77,7 +77,7 @@ typedef struct {
 	// Callback to be removed
 	plugin_hook plugin_unregister;
 	
-} plugin_usrdata;
+};
 
 // Plugin information fetch function
 typedef int (*plugin_infocall)(plugin_usrdata *);
@@ -85,7 +85,7 @@ typedef int (*plugin_infocall)(plugin_usrdata *);
 // Plugin management class
 class Plugintracker {
 public:
-	typedef struct plugin_meta {
+	struct plugin_meta {
 		plugin_meta() {
 			dlfileptr = NULL;
 			activate = 0;

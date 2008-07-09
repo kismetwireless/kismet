@@ -93,7 +93,7 @@ public:
 	}
 
 	// Internal callback handler record
-	typedef struct kcli_handler_rec {
+	struct kcli_handler_rec {
 		void *auxptr;
 		CliProto_Callback callback;
 		// Vector of LOCAL field nums (as processed by the interim 
@@ -103,7 +103,7 @@ public:
 
 	// Absolute field numbers to configured field numbers map, and callback
 	// list
-	typedef struct kcli_configured_proto_rec {
+	struct kcli_configured_proto_rec {
 		// Fields we enable
 		string fields;
 		map<int, int> abs_to_conf_fnum_map;
@@ -111,14 +111,14 @@ public:
 	};
 
 	// Internal conf cb record
-	typedef struct kcli_conf_rec {
+	struct kcli_conf_rec {
 		void *auxptr;
 		CliConf_Callback callback;
 		int on_recon;
 	};
 
 	// Absolute field numbers and names from the CAPABILITY list
-	typedef struct kcli_field_rec {
+	struct kcli_field_rec {
 		string fname;
 		int fnum;
 		int usecount; 

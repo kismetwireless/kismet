@@ -1610,7 +1610,7 @@ void Kis_Netlist::DrawComponent() {
 	string pt;
 
 	if ((sort_mode != netsort_autofit && sort_mode != netsort_recent) &&
-		selected_line < first_line || selected_line > (int) display_vec.size())
+		(selected_line < first_line || selected_line > (int) display_vec.size()))
 		selected_line = first_line;
 
 	// Get any updated columns

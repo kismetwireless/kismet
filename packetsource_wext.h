@@ -108,7 +108,7 @@ public:
 
 protected:
 	// Stuff we need to track to restore later
-	typedef struct linux_ifparm {
+	struct linux_ifparm {
 		short flags;
 		char essid[MAX_SSID_LEN + 1];
 		int channel;

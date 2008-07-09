@@ -62,7 +62,7 @@ public:
 };
 
 // Message frame to go over IPC
-typedef struct ipc_msgbus_pass {
+struct ipc_msgbus_pass {
 	uint32_t msg_flags;
 	uint32_t msg_len; // Redundant but simpler to read
 	char msg[0];
@@ -72,7 +72,7 @@ typedef struct ipc_msgbus_pass {
 // frame, so we don't have to armor or protect it.  Just a handy method for
 // tossing simple chunks of data.  Commands are responsible for filling in
 // reasonable structs for *data
-typedef struct ipc_packet {
+struct ipc_packet {
 	uint32_t sentinel;
 	uint8_t ipc_ack;
 	uint32_t ipc_cmdnum;
@@ -123,7 +123,7 @@ public:
 								  fd_set *out_wset);
 	virtual int Poll(fd_set& in_rset, fd_set& in_wset);
 
-	typedef struct ipc_cmd_rec {
+	struct ipc_cmd_rec {
 		void *auxptr;
 		IPCmdCallback callback;
 		IPCmdCallback ack_callback;

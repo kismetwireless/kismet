@@ -85,7 +85,7 @@ class Packetsourcetracker;
 // so they need to go here.  Every packet source shares these generic types, but
 // they may have more specifc types of their own as well.  Only generic types
 // can be used by other components
-typedef struct packet_parm {
+struct packet_parm {
 	packet_parm() {
 		fuzzy_crypt = 0;
 		weak_dissect = 0;

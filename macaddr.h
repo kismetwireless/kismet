@@ -46,7 +46,7 @@
 #define MAC_STR_LEN ((MAC_LEN * 2) + 6)
 
 // A packet MAC address
-typedef struct mac_addr {
+struct mac_addr {
     uint64_t longmac;
     uint64_t longmask;
     int error;
@@ -278,12 +278,12 @@ typedef struct mac_addr {
 template<class T>
 class macmap {
 protected:
-    typedef struct mask_vec_content {
+    struct mask_vec_content {
         mac_addr mac;
         T value;
     };
 
-    typedef struct mask_vec_offsets {
+    struct mask_vec_offsets {
         unsigned int first;
         unsigned int last;
     };

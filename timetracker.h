@@ -36,7 +36,7 @@
 
 class Timetracker {
 public:
-    typedef struct timer_event {
+    struct timer_event {
         int timer_id;
 
         // Time it was scheduled

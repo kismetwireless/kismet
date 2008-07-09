@@ -72,13 +72,13 @@ public:
 	// Passthrough to color handling
 	void AddColorPref(string in_pref, string in_txt);
 
-	typedef struct plugin_menu_opt {
+	struct plugin_menu_opt {
 		int menuitem;
 		int (*callback)(void *);
 		void *auxptr;
 	};
 
-	typedef struct colorpref {
+	struct colorpref {
 		string pref;
 		string text;
 	};
@@ -324,7 +324,7 @@ protected:
 
 	Kis_IntGraph *siggraph, *packetgraph, *retrygraph;
 	vector<int> sigpoints, packetpps, retrypps;
-	int lastpackets, lastretry;
+	int lastpackets;
 
 	time_t last_dirty;
 	mac_addr last_mac;

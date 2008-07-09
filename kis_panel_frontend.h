@@ -93,7 +93,7 @@ public:
 								   void *in_aux);
 
 	// Internal structure for tracking cards
-	typedef struct knc_card {
+	struct knc_card {
 		// Last time this record got updated
 		time_t last_update;
 
@@ -123,7 +123,7 @@ public:
 	// Fetch the list of cards from the system
 	map<uuid, KisPanelInterface::knc_card *> *FetchNetCardMap();
 
-	typedef struct addcli_cb_rec {
+	struct addcli_cb_rec {
 		int refnum;
 		KPI_AddCli_Callback cb;
 		void *auxptr;
