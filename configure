@@ -9737,7 +9737,6 @@ fi
 
 
 
-libz="no"
 
 cat >>confdefs.h <<\_ACEOF
 #define USE_LOCAL_DUMP 1
@@ -10919,7 +10918,7 @@ echo "           C++ Library: $foundcxxl"
 echo "   Installing as group: $instgrp"
 echo "    Man pages owned by: $mangrp"
 echo "       Installing into: $prefix"
-echo -n "        Setuid capable: "
+printf "        Setuid capable: "
 if test "$suid" = "yes"; then
 	echo "yes"
 elif test "$cygwin" = "yes"; then
@@ -10930,10 +10929,10 @@ else
 	echo "no"
 fi
 
-echo -n "      Terminal Control: "
+printf "      Terminal Control: "
 echo "$termcontrol";
 
-echo -n "   Linux WEXT capture : "
+printf "   Linux WEXT capture : "
 if test "$linux_wireless" = "yes"; then
 	echo "yes"
 elif test "$linux" != "yes"; then
@@ -10941,7 +10940,7 @@ elif test "$linux" != "yes"; then
 else
 	echo "no"
 fi
-echo -n "   OSX/Darwin capture : "
+printf "   OSX/Darwin capture : "
 if test "$darwin" = "yes"; then
 	echo "yes"
 elif test "$darwin" != "yes"; then
@@ -10949,19 +10948,19 @@ elif test "$darwin" != "yes"; then
 else
 	echo "no"
 fi
-echo -n "   PCRE Regex Filters : "
+printf "   PCRE Regex Filters : "
 if test "$wantpcre" = "yes"; then
 	echo "yes"
 else
 	echo "no"
 fi
-echo -n "          pcap capture: "
+printf "          pcap capture: "
 if test "$pcap" = "yes"; then
 	echo "yes"
 else
 	echo "no"
 fi
-echo -n "       airpcap control: "
+printf "       airpcap control: "
 if test "$airpcap" = "yes"; then
 	echo "yes"
 elif test "$cygwin" != "yes"; then
@@ -10969,13 +10968,13 @@ elif test "$cygwin" != "yes"; then
 else
 	echo "no"
 fi
-echo -n "        WSP100 capture: "
+printf "        WSP100 capture: "
 if test "$wsp100" = "yes"; then
 	echo "yes";
 else
 	echo "no";
 fi
-echo -n "          Viha capture: "
+printf "          Viha capture: "
 if test "$want_viha" = "yes"; then
 	echo "yes";
 elif test "$darwin" != "yes"; then
@@ -10983,15 +10982,15 @@ elif test "$darwin" != "yes"; then
 else
 	echo "no";
 fi
-echo -n "      Radiotap headers: "
+printf "      Radiotap headers: "
 echo "$radiotaploc";
-echo -n " Using local dump code: "
+printf " Using local dump code: "
 if test "$local" = "yes"; then
 	echo "yes"
 else
 	echo "no"
 fi
-echo -n "       PThread Support: "
+printf "       PThread Support: "
 if test "$pthr" = "no"; then
 	if test "$wantgpsmap" = "no"; then
 		echo "n/a (GPSMap not enabled)"
@@ -11000,16 +10999,6 @@ if test "$pthr" = "no"; then
 	fi
 else
 	echo "yes"
-fi
-echo -n "      libz compression: "
-if test "$libz" = "yes"; then
-	echo "yes"
-else
-	if test "$wantgpsmap" = "no"; then
-		echo "n/a (GPSMap not enabled)"
-	else
-		echo "no"
-	fi
 fi
 
 if test "$linux_wireless" != "yes" -a "$linux" = "yes"; then
