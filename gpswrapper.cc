@@ -35,6 +35,7 @@ GpsWrapper::GpsWrapper(GlobalRegistry *globalreg) {
 		_MSG("GPS support disabled in kismet.conf", MSGFLAG_INFO);
 		GPSNull *gn;
 		gn = new GPSNull(globalreg);
+		return;
 	}
 
 	gpsopt = globalreg->kismet_config->FetchOpt("gpstype");

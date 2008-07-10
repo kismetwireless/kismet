@@ -225,7 +225,9 @@ int Dumpfile_Netxml::Flush() {
 		
 
 		fprintf(xmlfile, "    <channel>%d</channel>\n", net->channel);
-		fprintf(xmlfile, "    <freqmhz>%d</freqmhz>\n", net->freq_mhz);
+		for (map<unsigned int, unsigned int>::const_iterator fmi = net->freq_mhz_map.begin(); fmi != net->freq_mhz_map.end(); ++fmi) {
+			fprintf(xmlfile, "    <freqmhz>%u %u</freqmhz>\n", fmi->first, fmi->second);
+		}
 		fprintf(xmlfile, "    <maxseenrate>%ld</maxseenrate>\n",
 				(long) net->snrdata.maxseenrate * 100);
 
@@ -473,7 +475,9 @@ int Dumpfile_Netxml::Flush() {
 			}
 
 			fprintf(xmlfile, "      <channel>%d</channel>\n", cli->channel);
-			fprintf(xmlfile, "      <freqmhz>%d</freqmhz>\n", cli->freq_mhz);
+			for (map<unsigned int, unsigned int>::const_iterator fmi = cli->freq_mhz_map.begin(); fmi != cli->freq_mhz_map.end(); ++fmi) {
+				fprintf(xmlfile, "      <freqmhz>%u %u</freqmhz>\n", fmi->first, fmi->second);
+			}
 			fprintf(xmlfile, "      <maxseenrate>%ld</maxseenrate>\n",
 					(long) cli->snrdata.maxseenrate * 100);
 

@@ -148,7 +148,16 @@ void Kis_Display_NetGroup::Update() {
 			metanet->data_packets = mv->data_packets;
 			metanet->crypt_packets = mv->crypt_packets;
 			metanet->channel = 0;
-			metanet->freq_mhz = 0;
+
+			// Merge the frequency counts for everything
+			for (map<unsigned int, unsigned int>::const_iterator fmi = mv->freq_mhz_map.begin(); fmi != mv->freq_mhz_map.end(); ++fmi) {
+				if (metanet->freq_mhz_map.find(fmi->first) != 
+					metanet->freq_mhz_map.end())
+					metanet->freq_mhz_map[fmi->first] += fmi->second;
+				else
+					metanet->freq_mhz_map[fmi->first] = fmi->second;
+			}
+
 			metanet->last_time = mv->last_time;
 			metanet->first_time = mv->first_time;
 			metanet->decrypted = mv->decrypted;
@@ -963,11 +972,24 @@ void Kis_Netlist::Proto_BSSID(CLIPROTO_CB_PARMS) {
 		return;
 	}
 
-	// Frequency
+	// Frequency packed field
+	vector<string> freqtoks = StrTokenize((*proto_parsed)[fnum++].word, "*");
+	for (unsigned int fi = 0; fi < freqtoks.size(); fi++) {
+		unsigned int freq, count;
+
+		// Just ignore parse errors
+		if (sscanf(freqtoks[fi].c_str(), "%u:%u", &freq, &count) != 2)
+			continue;
+
+		net->freq_mhz_map[freq] = count;
+	}
+
+	/*
 	if (sscanf((*proto_parsed)[fnum++].word.c_str(), "%d", &(net->freq_mhz)) != 1) {
 		delete net;
 		return;
 	}
+	*/
 
 	// Determine if we're going to just merge data with the old network, and then
 	// determine what we have to do for repositioning the record in the viewable
@@ -991,7 +1013,7 @@ void Kis_Netlist::Proto_BSSID(CLIPROTO_CB_PARMS) {
 	onet->data_packets = net->data_packets;
 	onet->crypt_packets = net->crypt_packets;
 	onet->channel = net->channel;
-	onet->freq_mhz = net->freq_mhz;
+	onet->freq_mhz_map = net->freq_mhz_map;
 	onet->last_time = net->last_time;
 	onet->decrypted = net->decrypted;
 	onet->client_disconnects = net->client_disconnects;
@@ -1505,10 +1527,17 @@ int Kis_Netlist::PrintNetworkLine(Kis_Display_NetGroup *ng,
 			}
 			rofft += 3;
 		} else if (b == bcol_freq_mhz) {
-			if (net->freq_mhz == 0) {
+			unsigned int maxmhz = 0, maxval = 0;
+
+			for (map<unsigned int, unsigned int>::const_iterator fmi = net->freq_mhz_map.begin(); fmi != net->freq_mhz_map.end(); ++fmi) {
+				if (fmi->second > maxval)
+					maxmhz = fmi->first;
+			}
+
+			if (maxmhz == 0) {
 				snprintf(rline + rofft, max - rofft, "%4s", "----");
 			} else {
-				snprintf(rline + rofft, max - rofft, "%4d", net->freq_mhz);
+				snprintf(rline + rofft, max - rofft, "%4d", maxmhz);
 			}
 			rofft += 4;
 		} else if (b == bcol_packdata) {

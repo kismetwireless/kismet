@@ -229,7 +229,12 @@ int Dumpfile_Nettxt::Flush() {
 		}
 
 		fprintf(txtfile, " Channel    : %d\n", net->channel);
-		fprintf(txtfile, " Frequency  : %d\n", net->freq_mhz);
+		for (map<unsigned int, unsigned int>::const_iterator fmi = net->freq_mhz_map.begin(); fmi != net->freq_mhz_map.end(); ++fmi) {
+			float perc = ((float) fmi->second / 
+						  (float) (net->llc_packets + net->data_packets)) * 100;
+			fprintf(txtfile, " Frequency  : %d - %d packets, %.02f%%\n",
+					fmi->first, fmi->second, perc);
+		}
 		fprintf(txtfile, " Max Seen   : %d\n", net->snrdata.maxseenrate * 100);
 
 		if (net->snrdata.carrierset & (1 << (int) carrier_80211b))
@@ -435,7 +440,12 @@ int Dumpfile_Nettxt::Flush() {
 			}
 
 			fprintf(txtfile, "  Channel    : %d\n", cli->channel);
-			fprintf(txtfile, "  Frequency  : %d\n", cli->freq_mhz);
+		for (map<unsigned int, unsigned int>::const_iterator fmi = cli->freq_mhz_map.begin(); fmi != cli->freq_mhz_map.end(); ++fmi) {
+			float perc = ((float) fmi->second / 
+						  (float) (cli->llc_packets + cli->data_packets)) * 100;
+			fprintf(txtfile, "  Frequency  : %d - %d packets, %.02f%%\n",
+					fmi->first, fmi->second, perc);
+		}
 			fprintf(txtfile, "  Max Seen   : %d\n", cli->snrdata.maxseenrate * 100);
 
 			if (cli->snrdata.carrierset & (1 << (int) carrier_80211b))

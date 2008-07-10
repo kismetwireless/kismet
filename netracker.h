@@ -534,7 +534,6 @@ public:
 			type = network_ap;
 			llc_packets = data_packets = crypt_packets = 0;
 			channel = 0;
-			freq_mhz = 0;
 			bssid = mac_addr(0);
 			decrypted = 0;
 			last_time = first_time = 0;
@@ -571,7 +570,7 @@ public:
 		// Channel reported by packets
 		int channel;
 		// Last-seen frequency
-		int freq_mhz;
+		map<unsigned int, unsigned int> freq_mhz_map;
 
 		time_t last_time;
 		time_t first_time;
@@ -646,7 +645,6 @@ public:
 			last_time = first_time = 0;
 			decrypted = 0;
 			channel = 0;
-			freq_mhz = 0;
 			llc_packets = data_packets = crypt_packets = 0;
 			last_sequence = 0;
 			datasize = 0;
@@ -676,7 +674,7 @@ public:
 		// Last seen channel
 		int channel;
 		// Last seen frequency
-		int freq_mhz;
+		map<unsigned int, unsigned int> freq_mhz_map;
 
 		Netracker::gps_data gpsdata;
 		Netracker::signal_data snrdata;

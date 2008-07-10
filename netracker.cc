@@ -163,7 +163,10 @@ int Protocol_BSSID(PROTO_PARMS) {
 				cache->Cache(fnum, osstr.str());
 				break;
 			case BSSID_freqmhz:
-				osstr << net->freq_mhz;
+				/* Annoying packed field */
+				for (map<unsigned int, unsigned int>::const_iterator fmi = net->freq_mhz_map.begin(); fmi != net->freq_mhz_map.end(); ++fmi) {
+					osstr << fmi->first << ":" << fmi->second << "*";
+				}
 				out_string += osstr.str();
 				cache->Cache(fnum, osstr.str());
 				break;
@@ -782,7 +785,10 @@ int Protocol_CLIENT(PROTO_PARMS) {
 				cache->Cache(fnum, osstr.str());
 				break;
 			case CLIENT_freqmhz:
-				osstr << cli->freq_mhz;
+				/* Annoying packed field */
+				for (map<unsigned int, unsigned int>::const_iterator fmi = cli->freq_mhz_map.begin(); fmi != cli->freq_mhz_map.end(); ++fmi) {
+					osstr << fmi->first << ":" << fmi->second << "*";
+				}
 				out_string += osstr.str();
 				cache->Cache(fnum, osstr.str());
 				break;
@@ -1609,6 +1615,12 @@ int Netracker::netracker_chain_handler(kis_packet *in_pack) {
 	if (packinfo->type == packet_management || packinfo->type == packet_phy)
 		num_llcpackets++;
 
+	// Add to the frequency tracking, inefficient search but it's a small set
+	if (net->freq_mhz_map.find(l1info->freq_mhz) != net->freq_mhz_map.end())
+		net->freq_mhz_map[l1info->freq_mhz]++;
+	else
+		net->freq_mhz_map[l1info->freq_mhz] = 1;
+
 	// Extract info from probe request frames if its a probe network
 	if (packinfo->type == packet_management &&
 		packinfo->subtype == packet_sub_probe_req) {
@@ -1730,8 +1742,10 @@ int Netracker::netracker_chain_handler(kis_packet *in_pack) {
 		net->channel = packinfo->channel;
 		cli->channel = packinfo->channel;
 
-		net->freq_mhz = l1info->freq_mhz;
-		cli->freq_mhz = l1info->freq_mhz;
+		if (cli->freq_mhz_map.find(l1info->freq_mhz) != cli->freq_mhz_map.end())
+			cli->freq_mhz_map[l1info->freq_mhz]++;
+		else
+			cli->freq_mhz_map[l1info->freq_mhz] = 1;
 	}
 
 	// Catch probe responses, handle adding probe resp SSIDs

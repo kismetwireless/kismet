@@ -1664,14 +1664,17 @@ int Kis_NetDetails_Panel::AppendNetworkInfo(int k, Kis_Display_NetGroup *tng,
 	td[1] = osstr.str();
 	netdetails->AddRow(k++, td);
 
-	td[0] = "Frequency:";
-	osstr.str("");
-	if (net->freq_mhz != 0)
-		osstr << net->freq_mhz;
-	else
-		osstr << "No frequency information gathered";
-	td[1] = osstr.str();
-	netdetails->AddRow(k++, td);
+	for (map<unsigned int, unsigned int>::const_iterator fmi = net->freq_mhz_map.begin(); fmi != net->freq_mhz_map.end(); ++fmi) {
+		float perc = ((float) fmi->second / 
+					  (float) (net->llc_packets + net->data_packets)) * 100;
+
+		td[0] = "Frequency:";
+		osstr.str("");
+		osstr << fmi->first << " - " << fmi->second << ", packets " <<
+			setprecision(2) << perc << "%";
+		td[1] = osstr.str();
+		netdetails->AddRow(k++, td);
+	}
 
 	if (net->lastssid != NULL) {
 		td[0] = "Last ssid:";
