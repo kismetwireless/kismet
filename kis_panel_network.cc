@@ -43,6 +43,7 @@ const char *bssid_column_details[][2] = {
 	{ "beaconperc", "Percentage of expected beacons seen" },
 	{ "signal_dbm", "Signal (in dBm, depends on source" },
 	{ "signal_rssi", "Signal (in RSSI, depends on source" },
+	{ "freq_mhz", "Frequency (MHz)" },
 	{ NULL, NULL }
 };
 
@@ -50,7 +51,7 @@ const char *Kis_Netlist::bssid_columns_text[] = {
 	"decay", "name", "shortname", "nettype",
 	"crypt", "channel", "packdata", "packllc", "packcrypt",
 	"bssid", "packets", "clients", "datasize", "signalbar",
-	"beaconperc", "signal_dbm", "signal_rssi",
+	"beaconperc", "signal_dbm", "signal_rssi", "freq_mhz",
 	NULL
 };
 
@@ -147,6 +148,7 @@ void Kis_Display_NetGroup::Update() {
 			metanet->data_packets = mv->data_packets;
 			metanet->crypt_packets = mv->crypt_packets;
 			metanet->channel = 0;
+			metanet->freq_mhz = 0;
 			metanet->last_time = mv->last_time;
 			metanet->first_time = mv->first_time;
 			metanet->decrypted = mv->decrypted;
@@ -484,6 +486,8 @@ int Kis_Netlist::UpdateBColPrefs() {
 			display_bcols.push_back(bcol_signal_dbm);
 		else if (t == "signal_rssi")
 			display_bcols.push_back(bcol_signal_rssi);
+		else if (t == "freq_mhz")
+			display_bcols.push_back(bcol_freq_mhz);
 		else
 			_MSG("Unknown display column '" + t + "', skipping.",
 				 MSGFLAG_INFO);
@@ -959,6 +963,12 @@ void Kis_Netlist::Proto_BSSID(CLIPROTO_CB_PARMS) {
 		return;
 	}
 
+	// Frequency
+	if (sscanf((*proto_parsed)[fnum++].word.c_str(), "%d", &(net->freq_mhz)) != 1) {
+		delete net;
+		return;
+	}
+
 	// Determine if we're going to just merge data with the old network, and then
 	// determine what we have to do for repositioning the record in the viewable
 	// list
@@ -981,6 +991,7 @@ void Kis_Netlist::Proto_BSSID(CLIPROTO_CB_PARMS) {
 	onet->data_packets = net->data_packets;
 	onet->crypt_packets = net->crypt_packets;
 	onet->channel = net->channel;
+	onet->freq_mhz = net->freq_mhz;
 	onet->last_time = net->last_time;
 	onet->decrypted = net->decrypted;
 	onet->client_disconnects = net->client_disconnects;
@@ -1493,6 +1504,13 @@ int Kis_Netlist::PrintNetworkLine(Kis_Display_NetGroup *ng,
 				snprintf(rline + rofft, max - rofft, "%3d", net->channel);
 			}
 			rofft += 3;
+		} else if (b == bcol_freq_mhz) {
+			if (net->freq_mhz == 0) {
+				snprintf(rline + rofft, max - rofft, "%4s", "----");
+			} else {
+				snprintf(rline + rofft, max - rofft, "%4d", net->freq_mhz);
+			}
+			rofft += 4;
 		} else if (b == bcol_packdata) {
 			snprintf(rline + rofft, max - rofft, "%5d", net->data_packets);
 			rofft += 5;
@@ -1644,6 +1662,9 @@ void Kis_Netlist::DrawComponent() {
 			} else if (b == bcol_channel) {
 				snprintf(rline + rofft, 1024 - rofft, " Ch");
 				rofft += 3;
+			} else if (b == bcol_freq_mhz) {
+				snprintf(rline + rofft, 1024 - rofft, "Freq");
+				rofft += 4;
 			} else if (b == bcol_packdata) {
 				snprintf(rline + rofft, 1024 - rofft, " Data");
 				rofft += 5;

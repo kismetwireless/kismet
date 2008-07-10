@@ -1664,6 +1664,15 @@ int Kis_NetDetails_Panel::AppendNetworkInfo(int k, Kis_Display_NetGroup *tng,
 	td[1] = osstr.str();
 	netdetails->AddRow(k++, td);
 
+	td[0] = "Frequency:";
+	osstr.str("");
+	if (net->freq_mhz != 0)
+		osstr << net->freq_mhz;
+	else
+		osstr << "No frequency information gathered";
+	td[1] = osstr.str();
+	netdetails->AddRow(k++, td);
+
 	if (net->lastssid != NULL) {
 		td[0] = "Last ssid:";
 		td[1] = net->lastssid->ssid;
@@ -1719,16 +1728,6 @@ int Kis_NetDetails_Panel::AppendNetworkInfo(int k, Kis_Display_NetGroup *tng,
 		td[1] = "No info available";
 		netdetails->AddRow(k++, td);
 	}
-
-	td[0] = "Channel:";
-	if (net->channel) {
-		osstr.str("");
-		osstr << net->channel;
-		td[1] = osstr.str();
-	} else {
-		td[1] = "No channel info available";
-	}
-	netdetails->AddRow(k++, td);
 
 	td[0] = "Packets:";
 	osstr.str("");

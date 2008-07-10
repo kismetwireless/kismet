@@ -58,8 +58,8 @@
 	"maxnoise_rssi,bestlat,bestlon,bestalt,agglat," \
 	"agglon,aggalt,aggpoints,datasize,turbocellnid,turbocellmode,turbocellsat," \
 	"carrierset,maxseenrate,encodingset,decrypted,dupeivpackets,bsstimestamp," \
-	"cdpdevice,cdpport,fragments,retries,newpackets"
-#define KCLI_BSSID_NUMFIELDS	55
+	"cdpdevice,cdpport,fragments,retries,newpackets,freqmhz"
+#define KCLI_BSSID_NUMFIELDS	56
 
 #define KCLI_SSID_FIELDS	"mac,checksum,type,ssid,beaconinfo,cryptset," \
 	"cloaked,firsttime,lasttime,maxrate,beaconrate,packets,beacons"
@@ -192,7 +192,7 @@ enum bssid_columns {
 	bcol_decay, bcol_name, bcol_shortname, bcol_nettype,
 	bcol_crypt, bcol_channel, bcol_packdata, bcol_packllc, bcol_packcrypt,
 	bcol_bssid, bcol_packets, bcol_clients, bcol_datasize, bcol_signalbar,
-	bcol_beaconperc, bcol_signal_dbm, bcol_signal_rssi,
+	bcol_beaconperc, bcol_signal_dbm, bcol_signal_rssi, bcol_freq_mhz,
 };
 
 // Do not expect this to be in numerical order with the above enum, this is

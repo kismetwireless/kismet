@@ -242,8 +242,8 @@ int Iwconfig_Set_IntPriv(const char *in_dev, const char *privcmd,
     }
 
     // Make sure its an iwpriv we can set
-    if (priv[pn].set_args & IW_PRIV_TYPE_MASK == 0 ||
-        priv[pn].set_args & IW_PRIV_SIZE_MASK == 0) {
+    if ((priv[pn].set_args & IW_PRIV_TYPE_MASK) == 0 ||
+        (priv[pn].set_args & IW_PRIV_SIZE_MASK) == 0) {
         snprintf(errstr, STATUS_MAX, "Unable to set values for private ioctl '%s' on %s", 
                  privcmd, in_dev);
         close(skfd);
@@ -364,8 +364,8 @@ int Iwconfig_Get_IntPriv(const char *in_dev, const char *privcmd,
     }
 
     // Make sure its an iwpriv we can set
-    if (priv[pn].get_args & IW_PRIV_TYPE_MASK == 0 ||
-        priv[pn].get_args & IW_PRIV_SIZE_MASK == 0) {
+    if ((priv[pn].get_args & IW_PRIV_TYPE_MASK) == 0 ||
+        (priv[pn].get_args & IW_PRIV_SIZE_MASK) == 0) {
         snprintf(errstr, STATUS_MAX, "Unable to get values for private ioctl '%s' on %s", 
                  privcmd, in_dev);
         close(skfd);

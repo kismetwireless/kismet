@@ -557,7 +557,7 @@ int Kis_OrderlistPref_Component::KeyPress(int in_key) {
 	}
 
 	if (enable_fid >= 0) {
-		if (in_key == ' ' || in_key == '\n' &&
+		if ((in_key == ' ' || in_key == '\n') &&
 			(int) data_vec[selected]->data.size() > enable_fid) {
 			// Toggle the enable field of the current row
 			if (data_vec[selected]->data[enable_fid] == field_no) 
