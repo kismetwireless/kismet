@@ -57,7 +57,7 @@
 #include "kis_netframe.h"
 #include "kis_droneframe.h"
 
-#include "gpsdclient.h"
+#include "gpswrapper.h"
 
 #include "ipc_remote.h"
 
@@ -589,11 +589,11 @@ int main(int argc, char *argv[], char *envp[]) {
 	if (globalregistry->fatal_condition)
 		CatchShutdown(-1);
 
-	// Create the GPS server
-	GPSDClient *gpsdclient;
-	globalregistry->messagebus->InjectMessage("Starting GPSD client...",
+	// Create the GPS components
+	GpsWrapper *gpswrapper;
+	globalregistry->messagebus->InjectMessage("Starting GPS components...",
 											  MSGFLAG_INFO);
-	gpsdclient = new GPSDClient(globalregistry);
+	gpswrapper = new GpsWrapper(globalregistry);
 	if (globalregistry->fatal_condition)
 		CatchShutdown(-1);
 

@@ -113,7 +113,7 @@ Kis_Main_Panel::Kis_Main_Panel(GlobalRegistry *in_globalreg,
 	menu->AddMenuItem("-", mn_view, 0);
 	mi_showsummary = menu->AddMenuItem("Info Pane", mn_view, 'S');
 	mi_showstatus = menu->AddMenuItem("Status Pane", mn_view, 's');
-	mi_showpps = menu->AddMenuItem("Graph Rate", mn_view, 'p');
+	mi_showpps = menu->AddMenuItem("Packet Rate", mn_view, 'p');
 
 	menu->Show();
 	AddComponentVec(menu, KIS_PANEL_COMP_EVT);
