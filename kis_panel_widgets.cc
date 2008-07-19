@@ -2560,24 +2560,28 @@ void Kis_IntGraph::DrawComponent() {
 			// We make the assumption here that T is a numerical
 			// type in some fashion, if this is ever not true we'll have
 			// to do something else
-			int avg = 0;
+			// int avg = 0;
+			int max = 0;
 
 			r = ((float) gx / (float) gw) * (float) dvsize;
 
 			for (int pos = -1 * (xgroup / 2); pos < (xgroup / 2); pos++) {
 				if (r + pos >= dvsize || r + pos < 0)
 					continue;
-				avg += (*(data_vec[x].data))[r + pos];
+				// avg += (*(data_vec[x].data))[r + pos];
+				if ((*(data_vec[x].data))[r + pos] > max)
+					max = (*(data_vec[x].data))[r + pos];
 				nuse++;
 			}
 
 			if (nuse == 0)
 				continue;
 
-			avg = avg / nuse;
+			// avg = avg / nuse;
 
 			// Adapt the average to the scale of our min/max
-			float adapted = (float) (avg - min_y) / (float) (dmax_y - min_y);
+			// float adapted = (float) (avg - min_y) / (float) (dmax_y - min_y);
+			float adapted = (float) (max - min_y) / (float) (dmax_y - min_y);
 
 			// Scale it to the height of the graph
 			py = (float) gh * adapted;
