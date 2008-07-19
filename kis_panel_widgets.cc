@@ -2523,7 +2523,7 @@ void Kis_IntGraph::DrawComponent() {
 
 	// We want the same scale for over/under, so we'll calculate the
 	// height as h - 1 (label) (div 2 if o/u)
-	int gh = ly / (graph_mode == 1 ? 2 : 1);
+	int gh = (ly - 1) / (graph_mode == 1 ? 2 : 1);
 	// Zero position on the graph is the bottom, or center, depending
 	// on normal or over/under
 	int gzero = ey - (graph_mode == 1 ? gh : 1);

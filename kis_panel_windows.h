@@ -310,6 +310,8 @@ public:
 	virtual void ButtonAction(Kis_Panel_Component *in_button);
 	virtual void MenuAction(int opt);
 
+	virtual int GraphTimer();
+
 protected:
 	int AppendNetworkInfo(int k, Kis_Display_NetGroup *tng, 
 						  Netracker::tracked_network *net);
@@ -333,6 +335,8 @@ protected:
 
 	int mn_network, mi_nextnet, mi_prevnet, mi_close;
 	int mn_view, mi_net, mi_clients, mi_graphsig, mi_graphpacket, mi_graphretry;
+
+	int grapheventid;
 };
 
 #endif

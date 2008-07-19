@@ -1402,9 +1402,17 @@ int NetDetailsMenuCB(COMPONENT_CALLBACK_PARMS) {
 	return 1;
 }
 
+int NetDetailsGraphEvent(TIMEEVENT_PARMS) {
+	return ((Kis_NetDetails_Panel *) parm)->GraphTimer();
+}
+
 Kis_NetDetails_Panel::Kis_NetDetails_Panel(GlobalRegistry *in_globalreg, 
 									 KisPanelInterface *in_intf) :
 	Kis_Panel(in_globalreg, in_intf) {
+
+	grapheventid = 
+		globalreg->timetracker->RegisterTimer(SERVER_TIMESLICES_SEC, NULL, 1,
+											  &NetDetailsGraphEvent, (void *) this);
 
 	menu = new Kis_Menu(globalreg, this);
 
@@ -1556,6 +1564,8 @@ Kis_NetDetails_Panel::Kis_NetDetails_Panel(GlobalRegistry *in_globalreg,
 }
 
 Kis_NetDetails_Panel::~Kis_NetDetails_Panel() {
+	if (grapheventid >= 0 && globalreg != NULL)
+		globalreg->timetracker->RemoveTimer(grapheventid);
 }
 
 void Kis_NetDetails_Panel::ClearGraphVectors() {
@@ -1782,6 +1792,52 @@ int Kis_NetDetails_Panel::AppendNetworkInfo(int k, Kis_Display_NetGroup *tng,
 	return k;
 }
 
+int Kis_NetDetails_Panel::GraphTimer() {
+	Kis_Display_NetGroup *tng, *ldng;
+	Netracker::tracked_network *meta, *tmeta;
+	int update = 0;
+
+	if (kpinterface == NULL)
+		return 1;
+
+	ldng = dng;
+
+	tng = kpinterface->FetchMainPanel()->FetchSelectedNetgroup();
+	if (tng != NULL) {
+		if (ldng == NULL) {
+			ldng = tng;
+			update = 1;
+		} else {
+			meta = ldng->FetchNetwork();
+			tmeta = tng->FetchNetwork();
+
+			if (meta == NULL && tmeta != NULL) {
+				ldng = tng;
+				update = 1;
+			} else if (tmeta != NULL && last_mac != tmeta->bssid) {
+				ClearGraphVectors();
+				return 1;
+			} else if (meta != NULL && last_dirty < meta->last_time) {
+				update = 1;
+			}
+		}
+	} else if (ldng != NULL) {
+		ClearGraphVectors();
+	}
+
+	if (update && ldng != NULL) {
+		meta = ldng->FetchNetwork();
+
+		UpdateGraphVectors(meta->snrdata.last_signal_dbm == -256 ? 
+						   meta->snrdata.last_signal_rssi : 
+						   meta->snrdata.last_signal_dbm, 
+						   meta->llc_packets + meta->data_packets,
+						   meta->retries);
+	}
+
+	return 1;
+}
+
 void Kis_NetDetails_Panel::DrawPanel() {
 	Kis_Display_NetGroup *tng;
 	Netracker::tracked_network *meta, *tmeta;
@@ -1849,12 +1905,6 @@ void Kis_NetDetails_Panel::DrawPanel() {
 			netdetails->AddRow(k++, td);
 
 			k = AppendNetworkInfo(k, tng, NULL);
-
-			UpdateGraphVectors(meta->snrdata.last_signal_dbm == -256 ? 
-							   	meta->snrdata.last_signal_rssi : 
-								meta->snrdata.last_signal_dbm, 
-							   meta->llc_packets + meta->data_packets,
-							   meta->retries);
 		} else {
 			td[0] = "";
 			td[1] = "No network selected / Empty network selected";
