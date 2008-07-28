@@ -271,6 +271,10 @@ alertbacklog=50
 # File types to log, comma seperated
 logtypes=pcapdump,gpsxml,netxml,nettxt
 
+# Format of the pcap dump (PPI or 80211)
+pcapdumpformat=ppi
+# pcapdumpformat=80211
+
 # Do we track probe responses and merge probe networks into their owners?
 # This isn't always desireable, depending on the type of monitoring you're
 # trying to do.

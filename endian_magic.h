@@ -40,6 +40,15 @@
 #define kis_letoh16(x) kis_swap16((x))
 #define kis_betoh16(x) (x)
 
+#define kis_htole16(x) kis_swap16((x))
+#define kis_htobe16(x) (x)
+
+#define kis_htobe32(x) (x)
+#define kis_htole32(x) kis_swap32((x))
+
+#define kis_htobe64(x) (x)
+#define kis_htole64(x) kis_swap64((x))
+
 #else
 
 #define kis_hton16(x) kis_swap16((x))
@@ -57,6 +66,15 @@
 
 #define kis_betoh16(x) kis_swap16((x))
 #define kis_letoh16(x) (x)
+
+#define kis_htole16(x) (x)
+#define kis_htobe16(x) kis_swap16((x))
+
+#define kis_htole32(x) (x)
+#define kis_htobe32(x) kis_swap32((x))
+
+#define kis_htole64(x) (x)
+#define kis_htobe64(x) kis_swap64((x))
 
 #endif
 

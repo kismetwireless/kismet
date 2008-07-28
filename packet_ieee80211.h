@@ -101,7 +101,9 @@ enum phy_carrier_type {
     carrier_80211a,
     carrier_80211g,
     carrier_80211fhss,
-    carrier_80211dsss
+    carrier_80211dsss,
+	carrier_80211n20,
+	carrier_80211n40
 };
 
 // Packet encoding info - how are packets encoded?
@@ -109,7 +111,9 @@ enum phy_encoding_type {
     encoding_unknown,
     encoding_cck,
     encoding_pbcc,
-    encoding_ofdm
+    encoding_ofdm,
+	encoding_dynamiccck,
+	encoding_gfsk
 };
 
 // Turbocell modes

@@ -42,6 +42,10 @@ extern "C" {
 // Hook for grabbing packets
 int dumpfilepcap_chain_hook(CHAINCALL_PARMS);
 
+enum dumpfile_pcap_format {
+	dump_unknown, dump_80211, dump_ppi
+};
+
 // Pcap-based packet writer
 class Dumpfile_Pcap : public Dumpfile {
 public:
@@ -56,6 +60,7 @@ protected:
 	pcap_dumper_t *dumper;
 
 	int beaconlog, phylog, corruptlog;
+	dumpfile_pcap_format dumpformat;
 
 	macmap<uint32_t> bssid_csum_map;
 };
