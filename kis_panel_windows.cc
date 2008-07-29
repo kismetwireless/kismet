@@ -1471,7 +1471,8 @@ Kis_NetDetails_Panel::Kis_NetDetails_Panel(GlobalRegistry *in_globalreg,
 	siggraph->SetMode(0);
 	siggraph->Show();
 	siggraph->AddExtDataVec("Signal", 4, "graph_detail_sig", "yellow,yellow", 
-							  ' ', ' ', 1, &sigpoints);
+		 					  ' ', ' ', 1, &sigpoints);
+	AddComponentVec(siggraph, KIS_PANEL_COMP_EVT);
 
 	packetgraph = new Kis_IntGraph(globalreg, this);
 	packetgraph->SetName("DETAIL_PPS");
@@ -1482,6 +1483,7 @@ Kis_NetDetails_Panel::Kis_NetDetails_Panel(GlobalRegistry *in_globalreg,
 	packetgraph->Show();
 	packetgraph->AddExtDataVec("Packet Rate", 4, "graph_detail_pps", "green,green", 
 							  ' ', ' ', 1, &packetpps);
+	AddComponentVec(packetgraph, KIS_PANEL_COMP_EVT);
 
 	retrygraph = new Kis_IntGraph(globalreg, this);
 	retrygraph->SetName("DETAIL_RETRY_PPS");
@@ -1492,6 +1494,7 @@ Kis_NetDetails_Panel::Kis_NetDetails_Panel(GlobalRegistry *in_globalreg,
 	retrygraph->Show();
 	retrygraph->AddExtDataVec("Retry Rate", 4, "graph_detail_retrypps", "red,red", 
 							  ' ', ' ', 1, &retrypps);
+	AddComponentVec(retrygraph, KIS_PANEL_COMP_EVT);
 
 	ClearGraphVectors();
 
@@ -1690,7 +1693,7 @@ int Kis_NetDetails_Panel::AppendNetworkInfo(int k, Kis_Display_NetGroup *tng,
 		td[0] = "Frequency:";
 		osstr.str("");
 		osstr << fmi->first << " (" << chtxt.str() << ") - " << 
-			fmi->second << ", packets " <<
+			fmi->second << " packets, " <<
 			setprecision(2) << perc << "%";
 		td[1] = osstr.str();
 		netdetails->AddRow(k++, td);
@@ -1749,6 +1752,42 @@ int Kis_NetDetails_Panel::AppendNetworkInfo(int k, Kis_Display_NetGroup *tng,
 	} else {
 		td[0] = "Encryption:";
 		td[1] = "No info available";
+		netdetails->AddRow(k++, td);
+	}
+
+	if (net->snrdata.last_signal_dbm == -256) {
+		if (net->snrdata.last_signal_rssi == 0) {
+			td[0] = "Signal:";
+			td[1] = "No signal data available";
+			netdetails->AddRow(k++, td);
+		} else {
+			td[0] = "Sig RSSI:";
+			osstr.str("");
+			osstr << net->snrdata.last_signal_rssi << " (max " <<
+				net->snrdata.max_signal_rssi << ")";
+			td[1] = osstr.str();
+			netdetails->AddRow(k++, td);
+
+			td[0] = "Noise RSSI:";
+			osstr.str("");
+			osstr << net->snrdata.last_noise_rssi << " (max " <<
+				net->snrdata.max_noise_rssi << ")";
+			td[1] = osstr.str();
+			netdetails->AddRow(k++, td);
+		}
+	} else {
+		td[0] = "Sig dBm";
+		osstr.str("");
+		osstr << net->snrdata.last_signal_dbm << " (max " <<
+			net->snrdata.max_signal_dbm << ")";
+		td[1] = osstr.str();
+		netdetails->AddRow(k++, td);
+
+		td[0] = "Noise dBm";
+		osstr.str("");
+		osstr << net->snrdata.last_noise_dbm << " (max " <<
+			net->snrdata.max_noise_dbm << ")";
+		td[1] = osstr.str();
 		netdetails->AddRow(k++, td);
 	}
 
