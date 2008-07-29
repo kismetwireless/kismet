@@ -64,7 +64,6 @@ const char *bssid_extras_details[][2] = {
 	{ NULL, NULL}
 };
 
-
 // Netgroup management
 Kis_Display_NetGroup::Kis_Display_NetGroup() {
 	local_metanet = 0;
@@ -1024,6 +1023,9 @@ void Kis_Netlist::Proto_BSSID(CLIPROTO_CB_PARMS) {
 	onet->fragments = net->fragments;
 	onet->retries = net->retries;
 	onet->new_packets = net->new_packets;
+
+	onet->snrdata = net->snrdata;
+	onet->gpsdata = net->gpsdata;
 
 	delete net;
 
