@@ -119,6 +119,7 @@ float Pair2Float(int16_t primary, int64_t mantissa);
 
 // Convert a standard channel to a frequency
 int ChanToFreq(int in_chan);
+int FreqToChan(int in_freq);
 
 // Convert an IEEE beacon rate to an integer # of beacons per second
 unsigned int Ieee80211Interval2NSecs(int in_rate);

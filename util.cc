@@ -618,6 +618,20 @@ int ChanToFreq(int in_chan) {
     return 0;
 }
 
+int FreqToChan(int in_freq) {
+    int x = 0;
+    // 80211b frequencies to channels
+
+    while (IEEE80211Freq[x] != -1) {
+        if (IEEE80211Freq[x] == in_freq) {
+            return IEEE80211Ch[x];
+        }
+        x++;
+    }
+
+    return 0;
+}
+
 // Multiplatform method of setting a process title.  Lifted from proftpd main.c
 // * ProFTPD - FTP server daemon
 // * Copyright (c) 1997, 1998 Public Flood Software

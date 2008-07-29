@@ -1466,7 +1466,7 @@ Kis_NetDetails_Panel::Kis_NetDetails_Panel(GlobalRegistry *in_globalreg,
 	siggraph = new Kis_IntGraph(globalreg, this);
 	siggraph->SetName("DETAIL_SIG");
 	siggraph->SetPreferredSize(0, 8);
-	siggraph->SetScale(0, 0);
+	siggraph->SetScale(-110, -40);
 	siggraph->SetInterpolation(1);
 	siggraph->SetMode(0);
 	siggraph->Show();
@@ -1674,13 +1674,23 @@ int Kis_NetDetails_Panel::AppendNetworkInfo(int k, Kis_Display_NetGroup *tng,
 	td[1] = osstr.str();
 	netdetails->AddRow(k++, td);
 
-	for (map<unsigned int, unsigned int>::const_iterator fmi = net->freq_mhz_map.begin(); fmi != net->freq_mhz_map.end(); ++fmi) {
+	for (map<unsigned int, unsigned int>::const_iterator fmi = 
+		 net->freq_mhz_map.begin(); fmi != net->freq_mhz_map.end(); ++fmi) {
 		float perc = ((float) fmi->second / 
 					  (float) (net->llc_packets + net->data_packets)) * 100;
 
+		int ch = FreqToChan(fmi->first);
+		ostringstream chtxt;
+		if (ch != 0)
+			chtxt << ch;
+		else
+			chtxt << "Unk";
+
+
 		td[0] = "Frequency:";
 		osstr.str("");
-		osstr << fmi->first << " - " << fmi->second << ", packets " <<
+		osstr << fmi->first << " (" << chtxt.str() << ") - " << 
+			fmi->second << ", packets " <<
 			setprecision(2) << perc << "%";
 		td[1] = osstr.str();
 		netdetails->AddRow(k++, td);

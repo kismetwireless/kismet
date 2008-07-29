@@ -2530,14 +2530,19 @@ void Kis_IntGraph::DrawComponent() {
 	// Width - label (TODO label)
 	int gw = lx;
 
-	// Set the drawing max
+	// Set the drawing max and min
 	int dmax_y = max_y;
+	int dmin_y = min_y;
 
 	// Go through the list and get the max if we're auto-scaling
 	if (max_y == 0 || min_y == 0) {
 		for (unsigned int x = 0; x < data_vec.size(); x++) {
 			for (unsigned int z = 0; z < data_vec[x].data->size(); z++) {
-				if (max_y == 0 && dmax_y < (*(data_vec[x].data))[z])
+				if (max_y == 0 && 
+					(((*(data_vec[x].data))[z] > 0 && 
+					 dmax_y < (*(data_vec[x].data))[z]) ||
+					((*(data_vec[x].data))[z] < 0 && 
+					 dmax_y > (*(data_vec[x].data))[z])))
 					dmax_y = (*(data_vec[x].data))[z];
 			}
 		}
@@ -2563,13 +2568,20 @@ void Kis_IntGraph::DrawComponent() {
 			// int avg = 0;
 			int max = 0;
 
+			// R is the range of samples we tied together to 
+			// interpolate the graph to fit
 			r = ((float) gx / (float) gw) * (float) dvsize;
 
+			// Determine the local max across our range
 			for (int pos = -1 * (xgroup / 2); pos < (xgroup / 2); pos++) {
 				if (r + pos >= dvsize || r + pos < 0)
 					continue;
-				// avg += (*(data_vec[x].data))[r + pos];
-				if ((*(data_vec[x].data))[r + pos] > max)
+
+				// Max depending on if we're neg or pos data
+				if (((*(data_vec[x].data))[r + pos] >= 0 &&
+					 (*(data_vec[x].data))[r + pos] > max) || 
+					((*(data_vec[x].data))[r + pos] <= 0 &&
+					 (*(data_vec[x].data))[r + pos] < max))
 					max = (*(data_vec[x].data))[r + pos];
 				nuse++;
 			}
@@ -2577,11 +2589,17 @@ void Kis_IntGraph::DrawComponent() {
 			if (nuse == 0)
 				continue;
 
-			// avg = avg / nuse;
+			// If we're negative, do the math differently
+			// Adapt the group max to our scale
+			float adapted = 0;
 
-			// Adapt the average to the scale of our min/max
-			// float adapted = (float) (avg - min_y) / (float) (dmax_y - min_y);
-			float adapted = (float) (max - min_y) / (float) (dmax_y - min_y);
+			if (max < 0) {
+				adapted = 
+					(float) (abs(max) + dmin_y) /
+					(float) (abs(dmax_y) + dmin_y);
+			} else {
+				adapted = (float) (max - min_y) / (float) (dmax_y - min_y);
+			}
 
 			// Scale it to the height of the graph
 			py = (float) gh * adapted;
