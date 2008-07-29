@@ -1976,19 +1976,37 @@ int Kis_Scrollable_Table::KeyPress(int in_key) {
 		scrollable = 0;
 
 	// Selected up one, scroll up one if we need to
-	if (in_key == KEY_UP && selected > 0) {
-		selected--;
-		if (scrollable && scroll_pos > 0 && scroll_pos > selected) {
-			scroll_pos--;
+	if (in_key == KEY_UP) {
+		if (draw_highlight_selected == 0 && scrollable) {
+			// If we're not drawing the highlights then we don't mess
+			// with the selected item at all, we just slide the scroll
+			// pos up and down, and make sure we don't let them scroll
+			// off the end of the world, keep as much of the tail in view
+			// as possible
+			if (scroll_pos > 0)
+				scroll_pos--;
+		} else if (selected > 0) {
+			selected--;
+			if (scrollable && scroll_pos > 0 && scroll_pos > selected) {
+				scroll_pos--;
+			}
 		}
 	}
 
 	if (in_key == KEY_DOWN && selected < (int) data_vec.size() - 1) {
-		// If we're locked to always keep the list filled, we can only
-		// scroll until the bottom is visible.  This implies we don't 
-		// show the selected row, too
-		if (draw_lock_scroll_top && scrollable &&
+		if (draw_highlight_selected == 0 && scrollable) {
+			// If we're not drawing the highlights then we don't mess
+			// with the selected item at all, we just slide the scroll
+			// pos up and down, and make sure we don't let them scroll
+			// off the end of the world, keep as much of the tail in view
+			// as possible
+			if (scroll_pos + ly <= (int) data_vec.size() - 1)
+				scroll_pos++;
+		} else if (draw_lock_scroll_top && scrollable &&
 			scroll_pos + ly - 1 <= selected) {
+			// If we're locked to always keep the list filled, we can only
+			// scroll until the bottom is visible.  This implies we don't 
+			// show the selected row, too
 			selected++;
 			scroll_pos++;
 		} else {
