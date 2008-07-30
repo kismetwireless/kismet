@@ -1561,8 +1561,9 @@ int Kis_Netlist::PrintNetworkLine(Kis_Display_NetGroup *ng,
 			rofft += 5;
 		} else if (b == bcol_beaconperc) {
 			if (net->lastssid == NULL ||
-				(net->lastssid != NULL && (net->lastssid->beaconrate == 0))) {
-				snprintf(rline + rofft, max - rofft, "%-4s", " ???");
+				(net->lastssid != NULL && (net->lastssid->beaconrate == 0)) ||
+				time(0) - net->last_time > 5) {
+				snprintf(rline + rofft, max - rofft, "%-4s", " ---");
 			} else {
 				// Kluge the beacons down to the rate, revisit this later if we
 				// want to add IDS sensitivity based on an over-abundance of 
@@ -1595,15 +1596,25 @@ int Kis_Netlist::PrintNetworkLine(Kis_Display_NetGroup *ng,
 
 			snprintf(rline + rofft, max - rofft, "%4ld%c", ds, dt);
 			rofft += 5;
-		} else if (b == bcol_signal_rssi) {
+		} else if (b == bcol_signalbar) {
 			// TODO - signalbar
 			snprintf(rline + rofft, max - rofft, "TODO    ");
 			rofft += 8;
 		} else if (b == bcol_signal_dbm) {
-			snprintf(rline + rofft, max - rofft, "%3d", net->snrdata.last_signal_dbm);
+			if (time(0) - net->last_time > 5) {
+				snprintf(rline + rofft, max - rofft, "---");
+			} else {
+				snprintf(rline + rofft, max - rofft, "%3d", 
+						 net->snrdata.last_signal_dbm);
+			}
 			rofft += 3;
 		} else if (b == bcol_signal_rssi) {
-			snprintf(rline + rofft, max - rofft, "%3d", net->snrdata.last_signal_rssi);
+			if (time(0) - net->last_time > 5) {
+				snprintf(rline + rofft, max - rofft, "---");
+			} else {
+				snprintf(rline + rofft, max - rofft, "%3d", 
+						 net->snrdata.last_signal_rssi);
+			}
 			rofft += 3;
 		} else {
 			continue;
