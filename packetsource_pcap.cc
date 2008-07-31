@@ -121,9 +121,7 @@ int PacketSource_Pcap::OpenSource() {
 	// set will stick
 	pcap_set_datalink(pd, DLT_IEEE802_11);
 	pcap_set_datalink(pd, DLT_IEEE802_11_RADIO_AVS);
-	#if defined(HAVE_RADIOTAP)
 	pcap_set_datalink(pd, DLT_IEEE802_11_RADIO);
-	#endif
 	// Hack to re-enable promisc mode since changing the DLT seems to make it
 	// drop it on some bsd pcap implementations
 	ioctl(pcap_get_selectable_fd(pd), BIOCPROMISC, NULL);
