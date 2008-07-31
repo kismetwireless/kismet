@@ -114,6 +114,25 @@ int PacketSource_Pcap::OpenSource() {
 	errstr[0] = '\0';
 	num_packets = 0;
 
+	// Anything but windows and linux
+    #if defined (SYS_OPENBSD) || defined(SYS_NETBSD) || defined(SYS_FREEBSD) \
+		|| defined(SYS_DARWIN)
+	// Set the DLT in the order of what we want least, since the last one we
+	// set will stick
+	pcap_set_datalink(pd, DLT_IEEE802_11);
+	pcap_set_datalink(pd, DLT_IEEE802_11_RADIO_AVS);
+	#if defined(HAVE_RADIOTAP)
+	pcap_set_datalink(pd, DLT_IEEE802_11_RADIO);
+	#endif
+	// Hack to re-enable promisc mode since changing the DLT seems to make it
+	// drop it on some bsd pcap implementations
+	ioctl(pcap_get_selectable_fd(pd), BIOCPROMISC, NULL);
+	// Hack to set the fd to IOIMMEDIATE, to solve problems with select() on bpf
+	// devices on BSD
+	int v = 1;
+	ioctl(pcap_get_selectable_fd(pd), BIOCIMMEDIATE, &v);
+	#endif
+
 	if (DatalinkType() < 0) {
 		pcap_close(pd);
 		return -1;
