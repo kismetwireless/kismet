@@ -168,9 +168,11 @@ int PacketSource_Darwin::EnableMonitor() {
 		return -1;
 	}
 
+	/*
 	snprintf(devname, 16, "wlt%d", devnum);
 
 	interface = string(devname);
+	*/
 
 	return 1;
 }
