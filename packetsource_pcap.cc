@@ -149,16 +149,6 @@ int PacketSource_Pcap::OpenSource() {
     }
 #endif
 
-    #if defined (SYS_OPENBSD) || defined(SYS_NETBSD) || defined(SYS_FREEBSD) \
-		|| defined(SYS_DARWIN)
-	// Force promisc mode
-	ioctl(pcap_get_selectable_fd(pd), BIOCPROMISC, NULL);
-	// Hack to set the fd to IOIMMEDIATE, to solve problems with select() on bpf
-	// devices on BSD
-	int v = 1;
-	ioctl(pcap_get_selectable_fd(pd), BIOCIMMEDIATE, &v);
-    #endif
-
 	if (strlen(errstr) > 0) {
 		globalreg->messagebus->InjectMessage(errstr, MSGFLAG_FATAL);
 		pcap_close(pd);
