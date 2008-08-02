@@ -345,6 +345,9 @@ int Dumpfile_Pcap::chain_handler(kis_packet *in_pack) {
 		}
 	}
 
+	if (dump_data == NULL)
+		dump_data = new u_char[dump_len];
+
 	// copy the packet content in, offset if necessary
 	memcpy(&(dump_data[dump_len - chunk->length]), chunk->data, chunk->length);
 
