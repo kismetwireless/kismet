@@ -607,9 +607,9 @@ Packetsourcetracker::Packetsourcetracker(GlobalRegistry *in_globalreg) {
 #ifdef HAVE_SUID
 	chan_ipc_id = globalreg->rootipc->RegisterIPCCmd(&packsrc_chan_ipc, 
 													 &packsrc_chanack_ipc,
-													 this);
+													 this, "CHAN");
 	haltall_ipc_id = globalreg->rootipc->RegisterIPCCmd(&packsrc_haltall_ipc, 
-														NULL, this);
+														NULL, this, "HALTALL");
 #endif
 }
 

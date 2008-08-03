@@ -46,7 +46,7 @@ void IPC_MessageClient::ProcessMessage(string in_msg, int in_flags) {
 
 	pack->data_len = 8 + in_msg.length() + 1;
 
-	pack->ipc_cmdnum = ((IPCRemote *) auxptr)->msg_cmd_id;
+	pack->ipc_cmdnum = MSG_CMD_ID;
 	pack->ipc_ack = 0;
 
 	// If it's a fatal frame, push it as a shutdown
@@ -110,6 +110,37 @@ int ipc_die_callback(IPC_CMD_PARMS) {
 	return 0;
 }
 
+int ipc_sync_callback(IPC_CMD_PARMS) {
+	// Parent does nothing
+	if (parent == 1)
+		return 0;
+
+	if (len < (int) sizeof(ipc_sync)) {
+		_MSG("IPC sync handler got a short sync block", MSGFLAG_ERROR);
+		return -1;
+	}
+
+	return ((IPCRemote *) auxptr)->SyncIPCCmd((ipc_sync *) data);
+}
+
+int IPCRemote::SyncIPCCmd(ipc_sync *data) {
+	// Search the map for something of this name
+	for (map<unsigned int, ipc_cmd_rec *>::iterator x = ipc_cmd_map.begin();
+		 x != ipc_cmd_map.end(); ++x) {
+		ipc_cmd_rec *cr = x->second;
+		string name = (char *) data->name;
+
+		if (cr->name == name) {
+			cr->id = data->ipc_cmdnum;
+			ipc_cmd_map[data->ipc_cmdnum] = cr;
+			ipc_cmd_map.erase(x);
+			return 1;
+		}
+	}
+
+	return 1;
+}
+
 IPCRemote::IPCRemote() {
 	fprintf(stderr, "FATAL OOPS:  IPCRemote called w/ no globalreg\n");
 	exit(1);
@@ -124,19 +155,46 @@ IPCRemote::IPCRemote(GlobalRegistry *in_globalreg, string in_procname) {
 		exit(1);
 	}
 
+	child_exec_mode = 0;
+
 	next_cmdid = 0;
 	ipc_pid = 0;
 	ipc_spawned = 0;
 	last_ack = 1; // Our "last" command was ack'd
 
-	// Register builtin commands
-	die_cmd_id = RegisterIPCCmd(&ipc_die_callback, NULL, this);
-	msg_cmd_id = RegisterIPCCmd(&ipc_msg_callback, NULL, this);
+	// Register builtin commands (in proper order!)
+	RegisterIPCCmd(&ipc_die_callback, NULL, this, "DIE");
+	RegisterIPCCmd(&ipc_msg_callback, NULL, this, "MSG");
+	RegisterIPCCmd(&ipc_sync_callback, NULL, this, "SYNC");
+}
+
+int IPCRemote::SetChildExecMode(int argc, char *argv[]) {
+	int tint;
+
+	// Set us to child mode
+	ipc_pid = 0;
+	// Set our next cmd id to something big and negative, so that we can
+	// stock cmds prior to a sync, but not interfere once the sync begins
+	next_cmdid = -4098;
+
+	child_exec_mode = 1;
+
+	// Parse the FD out
+	if (argc < 2)
+		return -1;
+
+	if (sscanf(argv[1], "%d", &tint) != 1) {
+		return -1;
+	}
+
+	sockpair[0] = tint;
+
+	return 1;
 }
 
 int IPCRemote::RegisterIPCCmd(IPCmdCallback in_callback, 
 							  IPCmdCallback in_ackcallback,
-							  void *in_aux) {
+							  void *in_aux, string in_name) {
 	if (ipc_spawned) {
 		_MSG("IPC_Remote - Tried to register a command after the IPC agent has "
 			 "been spawned.  Commands must be registered before Spawn().",
@@ -151,6 +209,8 @@ int IPCRemote::RegisterIPCCmd(IPCmdCallback in_callback,
 	rec->auxptr = in_aux;
 	rec->callback = in_callback;
 	rec->ack_callback = in_ackcallback;
+	rec->name = in_name;
+	rec->id = next_cmdid;
 
 	ipc_cmd_map[next_cmdid] = rec;
 
@@ -158,37 +218,49 @@ int IPCRemote::RegisterIPCCmd(IPCmdCallback in_callback,
 }
 
 int IPCRemote::SpawnIPC() {
-	// Fill in our state stuff
-	spawneduid = getuid();
-	
-	// Generate the socket pair before the split
-	if (socketpair(PF_UNIX, SOCK_DGRAM, 0, sockpair) < 0) {
-		_MSG("Unable to great socket pair for IPC communication: " +
-			 string(strerror(errno)), MSGFLAG_FATAL);
-		globalreg->fatal_condition = 1;
-		return -1;
-	}
+	// Don't build the socket pair if we're in exec child mode
+	if (child_exec_mode == 0) {
+		// Generate the socket pair before the split
+		if (socketpair(PF_UNIX, SOCK_DGRAM, 0, sockpair) < 0) {
+			_MSG("Unable to great socket pair for IPC communication: " +
+				 string(strerror(errno)), MSGFLAG_FATAL);
+			globalreg->fatal_condition = 1;
+			return -1;
+		}
 
-	// Fork and launch the child control loop & set up the rest of our internal
-	// info.
-	if ((ipc_pid = fork()) < 0) {
-		_MSG("Unable to fork() and create child process for IPC communication: " +
-			 string(strerror(errno)), MSGFLAG_FATAL);
-		globalreg->fatal_condition = 1;
-		return -1;
-	}
+		// Fork and launch the child control loop & set up the rest of our internal
+		// info.
+		if ((ipc_pid = fork()) < 0) {
+			_MSG("Unable to fork() and create child process for IPC communication: " +
+				 string(strerror(errno)), MSGFLAG_FATAL);
+			globalreg->fatal_condition = 1;
+			return -1;
+		}
 
-	// Split into the IPC child control loop if we've forked
-	if (ipc_pid == 0) {
-		IPC_Child_Loop();
-		exit(0);
+		// Split into the IPC child control loop if we've forked
+		if (ipc_pid == 0) {
+			// Run the client binary if we have one
+			if (child_cmd != "") {
+				char **cmdarg = new char *[3];
+				cmdarg[0] = strdup(child_cmd.c_str());
+				cmdarg[1] = new char[4];
+				cmdarg[2] = NULL;
+
+				snprintf(cmdarg[1], 4, "%d", sockpair[0]);
+
+				execve(cmdarg[0], cmdarg, NULL);
+			}
+
+			IPC_Child_Loop();
+			exit(0);
+		}
+
+		// Close the parent half of the socket pair
+		close(sockpair[0]);
 	}
 
 	// We've spawned, can't set new commands anymore
 	ipc_spawned = 1;
-
-	// Close half the socket pair
-	close(sockpair[0]);
 
 	return 1;
 }
@@ -214,7 +286,7 @@ int IPCRemote::ShutdownIPC(ipc_packet *pack) {
 	// side it's time to shuffle off
 	ipc_packet *dpack = (ipc_packet *) malloc(sizeof(ipc_packet));
 	dpack->data_len = 0;
-	dpack->ipc_cmdnum = die_cmd_id;
+	dpack->ipc_cmdnum = DIE_CMD_ID;
 	dpack->ipc_ack = 0;
 	dpack->sentinel = IPCRemoteSentinel;
 
@@ -408,8 +480,8 @@ int IPCRemote::Poll(fd_set& in_rset, fd_set& in_wset) {
 			// ACK frames themselves, msg frames, and death commands are not
 			// expected to ack back that the command is done.  everything else
 			// should.
-			if (pack->ipc_cmdnum != die_cmd_id &&
-				pack->ipc_cmdnum != msg_cmd_id &&
+			if (pack->ipc_cmdnum != DIE_CMD_ID &&
+				pack->ipc_cmdnum != MSG_CMD_ID &&
 				pack->ipc_ack == 0) {
 				last_ack = 0;
 			}
@@ -526,8 +598,8 @@ int IPCRemote::Poll(fd_set& in_rset, fd_set& in_wset) {
 
 			// Queue a return ack frame that the command was received and processed
 			// if it's not die, msg, or ack, and ret == 0, ie, send a generic ack
-			if (ipchdr.ipc_cmdnum != die_cmd_id &&
-				ipchdr.ipc_cmdnum != msg_cmd_id &&
+			if (ipchdr.ipc_cmdnum != DIE_CMD_ID &&
+				ipchdr.ipc_cmdnum != MSG_CMD_ID &&
 				ret == 0) {
 				ipc_packet *ackpack = (ipc_packet *) malloc(sizeof(ipc_packet));
 				ackpack->ipc_ack = 1;

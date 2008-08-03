@@ -26,6 +26,13 @@
  *
  * All commands and pointers MUST be set up BEFORE the IPC fork.
  *
+ * An alternate child command can be specified.  It MUST take as the first argument
+ * an integer indicating the file descriptor number of the IPC pipe, and it MUST 
+ * understand the IPC protocol over this descriptor.
+ *
+ * The child binary must call SetChildExecMode(argc, argv) prior to filling in the
+ * registered protocols, then call SpawnIPC() to kickstart processing.
+ *
  */
 
 #ifndef __IPC_REMOTE_H__
@@ -51,6 +58,11 @@
 #define IPC_CMD_PARMS GlobalRegistry *globalreg, const void *data, int len, \
 	const void *auxptr, int parent
 typedef int (*IPCmdCallback)(IPC_CMD_PARMS);
+
+// Builtin command IDs we force (added before assign, so start at 1)
+#define DIE_CMD_ID			1
+#define MSG_CMD_ID			2
+#define SYNC_CMD_ID			3
 
 // Message client to redirect messages over the IPC link
 class IPC_MessageClient : public MessageClient {
@@ -80,6 +92,12 @@ struct ipc_packet {
 	uint8_t data[0];
 };
 
+// Sync frame the link names and numbers with spawned ipc children
+struct ipc_sync {
+	uint32_t ipc_cmdnum;
+	uint8_t name[32];
+};
+
 // IPC sentinel
 const uint32_t IPCRemoteSentinel = 0xDECAFBAD;
 
@@ -88,7 +106,14 @@ public:
 	IPCRemote();
 	IPCRemote(GlobalRegistry *in_globalreg, string procname);
 
+	virtual void SetChildCmd(string in_cmd) {
+		child_cmd = in_cmd;
+	}
+
+	virtual int SetChildExecMode(int argc, char *argv[]); 
+
 	virtual int SpawnIPC();
+
 	// Shutdown takes an optional final packet to send before sending the
 	// death packet
 	virtual int ShutdownIPC(ipc_packet *pack);
@@ -99,7 +124,10 @@ public:
 	// is not null, the caller will get the ackframe called to their function
 	virtual int RegisterIPCCmd(IPCmdCallback in_callback, 
 							   IPCmdCallback in_ackcallback, 
-							   void *in_aux);
+							   void *in_aux,
+							   string name);
+
+	virtual int SyncIPCCmd(ipc_sync *data);
 
 	// Kick a command across (either direction)
 	virtual int SendIPC(ipc_packet *pack);
@@ -109,10 +137,6 @@ public:
 	// Some uses might want to defer sending a command until the IPC is
 	// settled.
 	virtual int FetchReadyState();
-
-	uid_t FetchSpawnUid() {
-		return spawneduid;
-	}
 
 	pid_t FetchSpawnPid() {
 		return ipc_pid;
@@ -127,6 +151,8 @@ public:
 		void *auxptr;
 		IPCmdCallback callback;
 		IPCmdCallback ack_callback;
+		string name;
+		int id;
 	};
 
 protected:
@@ -152,10 +178,6 @@ protected:
 	// PID of the child process
 	pid_t ipc_pid;
 
-	// UID we were when we spawned the IPC drone.  Doesn't mean
-	// this is the UID it's under anymore, but the best we can do
-	uid_t spawneduid;
-
 	// Have we spawned a subproc?  Blow up on setup commands if
 	// we have.
 	int ipc_spawned;
@@ -165,9 +187,9 @@ protected:
 	// Has the last command been acknowledged as complete?
 	int last_ack;
 
-	// Builtin mandatory command IDs
-	uint32_t die_cmd_id;
-	uint32_t msg_cmd_id;
+	// Cmd to run instead of a copy of ourself. 
+	string child_cmd;
+	int child_exec_mode;
 
 	friend class IPC_MessageClient;
 	friend int ipc_die_callback(IPC_CMD_PARMS);

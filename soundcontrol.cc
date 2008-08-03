@@ -96,7 +96,8 @@ SoundControl::SoundControl(GlobalRegistry *in_globalreg) {
     }
 
 	sound_remote = new IPCRemote(globalreg, "sound daemon");
-	sound_ipc_id = sound_remote->RegisterIPCCmd(&sound_ipc_callback, NULL, this);
+	sound_ipc_id = 
+		sound_remote->RegisterIPCCmd(&sound_ipc_callback, NULL, this, "SOUND");
 	globalreg->RegisterPollableSubsys(sound_remote);
     
 }
