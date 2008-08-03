@@ -63,6 +63,7 @@ typedef int (*IPCmdCallback)(IPC_CMD_PARMS);
 #define DIE_CMD_ID			1
 #define MSG_CMD_ID			2
 #define SYNC_CMD_ID			3
+#define LAST_BUILTIN_CMD_ID	4
 
 // Message client to redirect messages over the IPC link
 class IPC_MessageClient : public MessageClient {

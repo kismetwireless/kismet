@@ -123,24 +123,6 @@ int ipc_sync_callback(IPC_CMD_PARMS) {
 	return ((IPCRemote *) auxptr)->SyncIPCCmd((ipc_sync *) data);
 }
 
-int IPCRemote::SyncIPCCmd(ipc_sync *data) {
-	// Search the map for something of this name
-	for (map<unsigned int, ipc_cmd_rec *>::iterator x = ipc_cmd_map.begin();
-		 x != ipc_cmd_map.end(); ++x) {
-		ipc_cmd_rec *cr = x->second;
-		string name = (char *) data->name;
-
-		if (cr->name == name) {
-			cr->id = data->ipc_cmdnum;
-			ipc_cmd_map[data->ipc_cmdnum] = cr;
-			ipc_cmd_map.erase(x);
-			return 1;
-		}
-	}
-
-	return 1;
-}
-
 IPCRemote::IPCRemote() {
 	fprintf(stderr, "FATAL OOPS:  IPCRemote called w/ no globalreg\n");
 	exit(1);
@@ -166,6 +148,24 @@ IPCRemote::IPCRemote(GlobalRegistry *in_globalreg, string in_procname) {
 	RegisterIPCCmd(&ipc_die_callback, NULL, this, "DIE");
 	RegisterIPCCmd(&ipc_msg_callback, NULL, this, "MSG");
 	RegisterIPCCmd(&ipc_sync_callback, NULL, this, "SYNC");
+}
+
+int IPCRemote::SyncIPCCmd(ipc_sync *data) {
+	// Search the map for something of this name
+	for (map<unsigned int, ipc_cmd_rec *>::iterator x = ipc_cmd_map.begin();
+		 x != ipc_cmd_map.end(); ++x) {
+		ipc_cmd_rec *cr = x->second;
+		string name = (char *) data->name;
+
+		if (cr->name == name) {
+			cr->id = data->ipc_cmdnum;
+			ipc_cmd_map[data->ipc_cmdnum] = cr;
+			ipc_cmd_map.erase(x);
+			return 1;
+		}
+	}
+
+	return 1;
 }
 
 int IPCRemote::SetChildExecMode(int argc, char *argv[]) {
@@ -257,6 +257,31 @@ int IPCRemote::SpawnIPC() {
 
 		// Close the parent half of the socket pair
 		close(sockpair[0]);
+
+		// If we spawned something that needs to be synced, send all our protocols
+		if (child_cmd != "") {
+			for (map<unsigned int, ipc_cmd_rec *>::iterator x = ipc_cmd_map.begin();
+				 x != ipc_cmd_map.end(); ++x) {
+
+				if (x->first < LAST_BUILTIN_CMD_ID)
+					continue;
+
+				ipc_packet *pack = 
+					(ipc_packet *) malloc(sizeof(ipc_packet) + sizeof(ipc_sync));
+
+				ipc_sync *sync = (ipc_sync *) pack->data;
+
+				sync->ipc_cmdnum = x->first;
+				snprintf((char *) sync->name, 32, "%s", x->second->name.c_str());
+
+				pack->data_len = sizeof(ipc_sync);
+				pack->ipc_cmdnum = SYNC_CMD_ID;
+				pack->ipc_ack = 0;
+	
+				// Push it via the IPC
+				SendIPC(pack);
+			}
+		}
 	}
 
 	// We've spawned, can't set new commands anymore
