@@ -148,9 +148,27 @@ IPCRemote::IPCRemote(GlobalRegistry *in_globalreg, string in_procname) {
 	RegisterIPCCmd(&ipc_die_callback, NULL, this, "DIE");
 	RegisterIPCCmd(&ipc_msg_callback, NULL, this, "MSG");
 	RegisterIPCCmd(&ipc_sync_callback, NULL, this, "SYNC");
+
+	globalreg->RegisterPollableSubsys(this);
+}
+
+IPCRemote::~IPCRemote() {
+	globalreg->RemovePollableSubsys(this);
 }
 
 int IPCRemote::SyncIPCCmd(ipc_sync *data) {
+	// Handle the end-of-sync command
+	if (data->ipc_cmdnum == 0) {
+		for (map<unsigned int, ipc_cmd_rec *>::iterator x = ipc_sync_map.begin();
+			 x != ipc_sync_map.end(); ++x) {
+
+			IPCmdCallback cback = x->second->callback;
+			(*cback)(globalreg, NULL, 0, x->second->auxptr, 0);
+		}
+
+		return 1;
+	}
+
 	// Search the map for something of this name
 	for (map<unsigned int, ipc_cmd_rec *>::iterator x = ipc_cmd_map.begin();
 		 x != ipc_cmd_map.end(); ++x) {
@@ -161,6 +179,7 @@ int IPCRemote::SyncIPCCmd(ipc_sync *data) {
 			cr->id = data->ipc_cmdnum;
 			ipc_cmd_map[data->ipc_cmdnum] = cr;
 			ipc_cmd_map.erase(x);
+
 			return 1;
 		}
 	}
@@ -180,14 +199,22 @@ int IPCRemote::SetChildExecMode(int argc, char *argv[]) {
 	child_exec_mode = 1;
 
 	// Parse the FD out
-	if (argc < 2)
-		return -1;
-
-	if (sscanf(argv[1], "%d", &tint) != 1) {
+	if (argc < 2) {
+		globalreg->fatal_condition = 1;
 		return -1;
 	}
 
+	if (sscanf(argv[1], "%d", &tint) != 1) {
+		globalreg->fatal_condition = 1;
+		return -1;
+	}
+
+	child_cmd = string(argv[0]);
+
 	sockpair[0] = tint;
+
+	ipc_spawned = 1;
+	ipc_pid = 0;
 
 	return 1;
 }
@@ -195,12 +222,22 @@ int IPCRemote::SetChildExecMode(int argc, char *argv[]) {
 int IPCRemote::RegisterIPCCmd(IPCmdCallback in_callback, 
 							  IPCmdCallback in_ackcallback,
 							  void *in_aux, string in_name) {
-	if (ipc_spawned) {
+	// Allow registering commands after spawning if we're running a child command
+	// since we can post-spawn sync
+	if (ipc_spawned && child_cmd == "") {
 		_MSG("IPC_Remote - Tried to register a command after the IPC agent has "
 			 "been spawned.  Commands must be registered before Spawn().",
 			 MSGFLAG_FATAL);
 		globalreg->fatal_condition = 1;
 		return -1;
+	}
+
+	// Look for the callback already in the system
+	for (map<unsigned int, ipc_cmd_rec *>::iterator x = ipc_cmd_map.begin();
+		 x != ipc_cmd_map.end(); ++x) {
+		if (x->second->callback == in_callback &&
+			x->second->name == in_name)
+			return x->first;
 	}
 
 	next_cmdid++;
@@ -212,7 +249,12 @@ int IPCRemote::RegisterIPCCmd(IPCmdCallback in_callback,
 	rec->name = in_name;
 	rec->id = next_cmdid;
 
-	ipc_cmd_map[next_cmdid] = rec;
+	// Push the sync complete callbacks into their own map
+	if (in_name == "SYNCCOMPLETE") {
+		ipc_sync_map[next_cmdid] = rec;
+	} else {
+		ipc_cmd_map[next_cmdid] = rec;
+	}
 
 	return next_cmdid;
 }
@@ -257,35 +299,50 @@ int IPCRemote::SpawnIPC() {
 
 		// Close the parent half of the socket pair
 		close(sockpair[0]);
-
-		// If we spawned something that needs to be synced, send all our protocols
-		if (child_cmd != "") {
-			for (map<unsigned int, ipc_cmd_rec *>::iterator x = ipc_cmd_map.begin();
-				 x != ipc_cmd_map.end(); ++x) {
-
-				if (x->first < LAST_BUILTIN_CMD_ID)
-					continue;
-
-				ipc_packet *pack = 
-					(ipc_packet *) malloc(sizeof(ipc_packet) + sizeof(ipc_sync));
-
-				ipc_sync *sync = (ipc_sync *) pack->data;
-
-				sync->ipc_cmdnum = x->first;
-				snprintf((char *) sync->name, 32, "%s", x->second->name.c_str());
-
-				pack->data_len = sizeof(ipc_sync);
-				pack->ipc_cmdnum = SYNC_CMD_ID;
-				pack->ipc_ack = 0;
-	
-				// Push it via the IPC
-				SendIPC(pack);
-			}
-		}
 	}
 
 	// We've spawned, can't set new commands anymore
 	ipc_spawned = 1;
+
+	return 1;
+}
+
+int IPCRemote::SyncIPC() {
+	// If we spawned something that needs to be synced, send all our protocols
+	if (child_cmd != "") {
+		for (map<unsigned int, ipc_cmd_rec *>::iterator x = ipc_cmd_map.begin();
+			 x != ipc_cmd_map.end(); ++x) {
+
+			if (x->first < LAST_BUILTIN_CMD_ID)
+				continue;
+
+			ipc_packet *pack = 
+				(ipc_packet *) malloc(sizeof(ipc_packet) + sizeof(ipc_sync));
+
+			ipc_sync *sync = (ipc_sync *) pack->data;
+
+			sync->ipc_cmdnum = x->first;
+			snprintf((char *) sync->name, 32, "%s", x->second->name.c_str());
+
+			pack->data_len = sizeof(ipc_sync);
+			pack->ipc_cmdnum = SYNC_CMD_ID;
+			pack->ipc_ack = 0;
+
+			// Push it via the IPC
+			SendIPC(pack);
+		}
+	}
+
+	// Send a cmdid 0 to indicate the end of sync
+	ipc_packet *pack = 
+		(ipc_packet *) malloc(sizeof(ipc_packet) + sizeof(ipc_sync));
+	ipc_sync *sync = (ipc_sync *) pack->data;
+	sync->ipc_cmdnum = 0;
+	sync->name[0] = '\0';
+	pack->data_len = sizeof(ipc_sync);
+	pack->ipc_cmdnum = SYNC_CMD_ID;
+	pack->ipc_ack = 0;
+	SendIPC(pack);
 
 	return 1;
 }
@@ -442,21 +499,30 @@ void IPCRemote::IPCDie() {
 
 unsigned int IPCRemote::MergeSet(unsigned int in_max_fd, fd_set *out_rset,
 								 fd_set *out_wset) {
+	int sock;
+
 	// Don't call this on the child, we have a micro-select loop in the child
-	// process... also do nothing if we haven't spawned yet
-	if (ipc_pid == 0 || ipc_spawned == 0)
+	// process... also do nothing if we haven't spawned yet.
+	//
+	// Let a forked child operate normally
+	if ((ipc_pid == 0 && child_exec_mode == 0) || ipc_spawned == 0)
 		return in_max_fd;
 
+	if (child_exec_mode)
+		sock = sockpair[0];
+	else
+		sock = sockpair[1];
+
 	// Set the socket to be read
-	FD_SET(sockpair[1], out_rset);
+	FD_SET(sock, out_rset);
 	
 	// Set the write if we have data queued and our last command was
 	// ack'd.  If it wasn't, rate limit ourselves down until it is.
 	if (cmd_buf.size() > 0)
-		FD_SET(sockpair[1], out_wset);
+		FD_SET(sock, out_wset);
 
-	if (in_max_fd < (unsigned int) sockpair[1])
-		return sockpair[1];
+	if (in_max_fd < (unsigned int) sock)
+		return sock;
 
 	return in_max_fd;
 }
@@ -565,7 +631,8 @@ int IPCRemote::Poll(fd_set& in_rset, fd_set& in_wset) {
 					"controller: Unknown IPC command";
 			else
 				osstr << "IPC controller got error receiving packet header "
-					"from IPC child pid " << ipc_pid << ": Unknown IPC command";
+					"from IPC child pid " << ipc_pid << ": Unknown IPC command " <<
+					ipchdr.ipc_cmdnum;
 			_MSG(osstr.str(), MSGFLAG_FATAL);
 			globalreg->fatal_condition = 1;
 			return -1;

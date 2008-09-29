@@ -55,6 +55,8 @@
 #include "pollable.h"
 #include "messagebus.h"
 
+#include "ipc_remote.h"
+
 #define IPC_CMD_PARMS GlobalRegistry *globalreg, const void *data, int len, \
 	const void *auxptr, int parent
 typedef int (*IPCmdCallback)(IPC_CMD_PARMS);
@@ -106,14 +108,21 @@ class IPCRemote : public Pollable {
 public:
 	IPCRemote();
 	IPCRemote(GlobalRegistry *in_globalreg, string procname);
+	virtual ~IPCRemote();
 
 	virtual void SetChildCmd(string in_cmd) {
 		child_cmd = in_cmd;
 	}
 
+	// Start execution as the child and get the IPC descriptor from the 
+	// command line options passed from the IPC spawn
 	virtual int SetChildExecMode(int argc, char *argv[]); 
 
 	virtual int SpawnIPC();
+
+	// Call after registering all services in a childexec, which don't have
+	// to be registered before spawn
+	virtual int SyncIPC();
 
 	// Shutdown takes an optional final packet to send before sending the
 	// death packet
@@ -184,6 +193,9 @@ protected:
 	int ipc_spawned;
 
 	map<unsigned int, ipc_cmd_rec *> ipc_cmd_map;
+	// Normally this would be a vec but it's a lot cheaper for ram and code size
+	// to re-use the template
+	map<unsigned int, ipc_cmd_rec *> ipc_sync_map;
 
 	// Has the last command been acknowledged as complete?
 	int last_ack;

@@ -36,6 +36,10 @@ int droneclienttimer_hook(TIMEEVENT_PARMS) {
 	return ((DroneClientFrame *) parm)->time_handler();
 }
 
+void droneclient_pst_sourceact_hook(SOURCEACT_PARMS) {
+	((DroneClientFrame *) auxptr)->SourceActionHandler(src, action, flags);
+}
+
 DroneClientFrame::DroneClientFrame() {
 	fprintf(stderr, "FATAL OOPS:  DroneClientFrame called without globalreg\n");
 	exit(1);
@@ -56,6 +60,11 @@ DroneClientFrame::DroneClientFrame(GlobalRegistry *in_globalreg) :
 		exit(1);
 	}
 
+	if (globalreg->sourcetracker == NULL) {
+		fprintf(stderr, "FATAL OOPS:  DroneClientFrame called before sourcetracker\n");
+		exit(1);
+	}
+
 	netclient = NULL;
 	tcpcli = NULL;
 	packetsource = NULL;
@@ -67,6 +76,10 @@ DroneClientFrame::DroneClientFrame(GlobalRegistry *in_globalreg) :
 	timerid = 
 		globalreg->timetracker->RegisterTimer(SERVER_TIMESLICES_SEC, NULL, 1,
 											  &droneclienttimer_hook, (void *) this);
+
+	// Catch channel set stuff here
+	globalreg->sourcetracker->RegisterSourceActCallback(&droneclient_pst_sourceact_hook,
+														(void *) this);
 
 	last_disconnect = 0;
 	last_frame = 0;
@@ -82,6 +95,8 @@ DroneClientFrame::~DroneClientFrame() {
 	if (timerid >= 0 && globalreg != NULL) {
 		globalreg->timetracker->RemoveTimer(timerid);
 	}
+
+	globalreg->sourcetracker->RemoveSourceActCallback(&droneclient_pst_sourceact_hook);
 
 	globalreg->RemovePollableSubsys(this);
 }
@@ -161,6 +176,19 @@ int DroneClientFrame::time_handler() {
 	return 1;
 }
 
+void DroneClientFrame::SourceActionHandler(pst_packetsource *src, int action, 
+										   int flags) {
+	unsigned int cmd = DRONE_CHS_CMD_NONE;
+
+	if (action == SOURCEACT_HOPENABLE || action == SOURCEACT_HOPDISABLE) {
+		cmd = DRONE_CHS_CMD_SETHOP;
+	} else if (action == SOURCEACT_CHVECTOR) {
+		cmd = DRONE_CHS_CMD_SETVEC;
+	} else if (action == SOURCEACT_CHHOPDWELL) {
+		cmd = DRONE_CHS_CMD_SETHOPDWELL;
+	}
+}
+
 int DroneClientFrame::Reconnect() {
 	ostringstream osstr;
 
@@ -198,12 +226,15 @@ int DroneClientFrame::KillConnection() {
 	// Kill all our faked packet sources
 	for (map<uuid, int>::iterator i = virtual_src_map.begin();
 		 i != virtual_src_map.end(); ++i) {
-		KisPacketSource *src = globalreg->sourcetracker->FindUUID(i->first);
+		pst_packetsource *psrc = 
+			globalreg->sourcetracker->FindLivePacketSourceUUID(i->first);
+		KisPacketSource *src = psrc->strong_source;
 		if (src != NULL) {
-			globalreg->sourcetracker->RemoveLiveKisPacketsource(src);
+			globalreg->sourcetracker->RemoveLivePacketSource(src);
 			delete src;
 		}
 	}
+
 	virtual_src_map.erase(virtual_src_map.begin(), virtual_src_map.end());
 
 	return 1;
@@ -361,11 +392,12 @@ int DroneClientFrame::ParseData() {
 
 			// New source data we're making
 			uuid new_uuid;
-			string name, interface, type;
-			char strbuffer[32];
+			string namestr, interfacestr, typestr;
+			char strbuffer[17];
 			int src_invalidated = 0;
+			int channel_hop = -1, channel_dwell = -1, channel_rate = -1;
 			// Ghetto method of tracking how many components we've filled in.
-			// We should get a 4 to make a source.
+			// We should get a 8 to make a source.
 			int comp_counter = 0;
 
 			if ((sbm & DRONEBIT(DRONE_SRC_UUID)) &&
@@ -377,52 +409,101 @@ int DroneClientFrame::ParseData() {
 
 				rofft += sizeof(drone_trans_uuid);
 			}
+
 			if ((sbm & DRONEBIT(DRONE_SRC_INVALID)) &&
 				(rofft + 2 <= sourcelen)) {
 				src_invalidated = kis_ntoh16(spkt->invalidate);
 				rofft += 2;
 			}
-			if ((sbm & DRONEBIT(DRONE_SRC_NAMESTR)) &&
-				(rofft + 32 <= sourcelen)) {
-				sscanf((const char *) spkt->name_str, "%32s", strbuffer);
-				name = string(strbuffer);
+
+			if ((sbm & DRONEBIT(DRONE_SRC_NAMESTR)) && (rofft + 16 <= sourcelen)) {
+				sscanf((const char *) spkt->name_str, "%16s", strbuffer);
+				namestr = string(strbuffer);
 				comp_counter++;
-				rofft += 32;
-			}
-			if ((sbm & DRONEBIT(DRONE_SRC_INTSTR)) &&
-				(rofft + 32 <= sourcelen)) {
-				sscanf((const char *) spkt->interface_str, "%32s", strbuffer);
-				interface = string(strbuffer);
-				comp_counter++;
-				rofft += 32;
-			}
-			if ((sbm & DRONEBIT(DRONE_SRC_TYPESTR)) &&
-				(rofft + 32 <= sourcelen)) {
-				sscanf((const char *) spkt->type_str, "%32s", strbuffer);
-				type = string(strbuffer);
-				comp_counter++;
-				rofft += 32;
+				rofft += 16;
 			}
 
-			if (comp_counter >= 4 && src_invalidated == 0 && new_uuid.error == 0) {
+			if ((sbm & DRONEBIT(DRONE_SRC_INTSTR)) && (rofft + 16 <= sourcelen)) {
+				sscanf((const char *) spkt->interface_str, "%16s", strbuffer);
+				interfacestr = string(strbuffer);
+				comp_counter++;
+				rofft += 16;
+			}
+
+			if ((sbm & DRONEBIT(DRONE_SRC_TYPESTR)) && (rofft + 16 <= sourcelen)) {
+				sscanf((const char *) spkt->type_str, "%16s", strbuffer);
+				typestr = string(strbuffer);
+				comp_counter++;
+				rofft += 16;
+			}
+
+			if ((sbm & DRONEBIT(DRONE_SRC_CHANHOP)) &&
+				 (rofft + 1 <= sourcelen)) {
+				channel_hop = spkt->channel_hop;
+				comp_counter++;
+				rofft += 1;
+			}
+
+			if ((sbm & DRONEBIT(DRONE_SRC_CHANNELDWELL)) &&
+				(rofft + 2 <= sourcelen)) {
+				channel_dwell = kis_ntoh16(spkt->channel_dwell);
+				comp_counter++;
+				rofft += 2;
+			}
+
+			if ((sbm & DRONEBIT(DRONE_SRC_CHANNELRATE)) &&
+				(rofft + 2 <= sourcelen)) {
+				channel_rate = kis_ntoh16(spkt->channel_rate);
+				comp_counter++;
+				rofft += 2;
+			}
+
+			if (comp_counter >= 8 && src_invalidated == 0 && new_uuid.error == 0) {
 				// Make sure the source doesn't exist in the real tracker
-				KisPacketSource *rsrc =
-					globalreg->sourcetracker->FindUUID(new_uuid);
+				pst_packetsource *rsrc = 
+					globalreg->sourcetracker->FindLivePacketSourceUUID(new_uuid);
+
 				if (rsrc == NULL) {
+					ostringstream osstr;
+
+					osstr << interfacestr << ":uuid=" << new_uuid.UUID2String();
+					if (namestr != "")
+						osstr << ",name=" << namestr;
+
+					// Derive the rest of the source options
+					if (channel_hop == 0)
+						osstr << ",hop=false";
+
+					if (channel_dwell > 0) {
+						osstr << ",dwell=" << channel_dwell;
+					} else if (channel_rate > 0) {
+						osstr <<  ",velocity=" << channel_rate;
+					}
+
+					// Make the strong source with no options, we'll push them
+					// via the sourcetracker registration
 					PacketSource_DroneRemote *rem = 
-						new PacketSource_DroneRemote(globalreg, type, 
-													 name, interface, "");
-					rem->SetUUID(new_uuid);
+						new PacketSource_DroneRemote(globalreg, interfacestr, NULL);
+
 					rem->SetDroneFrame(this);
-					globalreg->sourcetracker->RegisterLiveKisPacketsource(rem);
+
+					if (globalreg->sourcetracker->AddLivePacketSource(
+										osstr.str(), rem) < 0) {
+						_MSG("Failed to add drone virtual source for remote "
+							 "source " + interfacestr + " something went wrong.",
+							 MSGFLAG_ERROR);
+						delete rem;
+						return 0;
+					}
+
+					rem->SetPST(
+						globalreg->sourcetracker->FindLivePacketSourceUUID(new_uuid));
+
 					virtual_src_map[new_uuid] = 1;
-					_MSG("Imported capture source '" + type + "," + name + "," +
-						 interface + "' UUID " + new_uuid.UUID2String() + " from "
-						 "remote drone", MSGFLAG_INFO);
 				}
 			} else if (src_invalidated == 1 && new_uuid.error == 0) {
-				KisPacketSource *rsrc = 
-					globalreg->sourcetracker->FindUUID(new_uuid);
+				pst_packetsource *rsrc = 
+					globalreg->sourcetracker->FindLivePacketSourceUUID(new_uuid);
 
 				// Make sure the source really exists, and make sure its one of our
 				// virtual sources, because we don't let a drone try to cancel a
@@ -432,11 +513,12 @@ int DroneClientFrame::ParseData() {
 					// We don't have to close anything since the virtual interfaces
 					// are just nonsense
 
-					_MSG("Removing capture source '" + type + "," + name + "," +
-						 interface + "' UUID " + new_uuid.UUID2String() + " from "
-						 "remote drone", MSGFLAG_INFO);
+					_MSG("Removing capture source " + 
+						 rsrc->strong_source->FetchName() + ", UUID " + 
+						 new_uuid.UUID2String() + " from remote drone", 
+						 MSGFLAG_INFO);
 
-					globalreg->sourcetracker->RemoveLiveKisPacketsource(rsrc);
+					globalreg->sourcetracker->RemovePacketSource(rsrc);
 					virtual_src_map.erase(new_uuid);
 				}
 			}
@@ -662,9 +744,14 @@ int DroneClientFrame::ParseData() {
 				// from the drone itself, as long as we have a local source
 				if (new_uuid.error == 0 && 
 					virtual_src_map.find(new_uuid) != virtual_src_map.end()) {
-					PacketSource_DroneRemote *rsrc = (PacketSource_DroneRemote *) 
-						globalreg->sourcetracker->FindUUID(new_uuid);
-					if (rsrc != NULL) {
+					PacketSource_DroneRemote *rsrc = NULL;
+
+					pst_packetsource *psrc =
+						globalreg->sourcetracker->FindLivePacketSourceUUID(new_uuid);
+
+					if (psrc != NULL && psrc->strong_source != NULL) {
+						rsrc = (PacketSource_DroneRemote *) psrc->strong_source;
+					
 						// Safe because we only do it on our own virtuals
 						rsrc->IncrementNumPackets();
 						kis_ref_capsource *csrc_ref = new kis_ref_capsource;
@@ -706,42 +793,54 @@ int DroneClientFrame::SendPacket(drone_packet *in_pack) {
 	return 1;
 }
 
-int DroneClientFrame::SendChannelset(uuid in_uuid, unsigned int in_cmd, 
-									 unsigned int in_cur, unsigned int in_hop,
-									 vector<unsigned int> in_vec) {
-	unsigned int chsize = sizeof(uint16_t) * in_vec.size();
-
+int DroneClientFrame::SendChannelData(pst_packetsource *in_src, unsigned int in_cmd) {
 	drone_packet *dpkt = 
 		(drone_packet *) malloc(sizeof(uint8_t) * 
 								(sizeof(drone_packet) + 
-								 sizeof(drone_channelset_packet) + chsize));
+								 sizeof(drone_channelset_packet)));
 	memset(dpkt, 0, sizeof(uint8_t) * (sizeof(drone_packet) + 
-									   sizeof(drone_channelset_packet) + chsize));
+									   sizeof(drone_channelset_packet)));
 
 	dpkt->sentinel = kis_hton32(DroneSentinel);
 	dpkt->drone_cmdnum = kis_hton32(DRONE_CMDNUM_CHANNELSET);
-	dpkt->data_len = kis_hton32(sizeof(drone_channelset_packet) + chsize);
+	dpkt->data_len = kis_hton32(sizeof(drone_channelset_packet));
 
 	drone_channelset_packet *cpkt = (drone_channelset_packet *) dpkt->data;
 
-	cpkt->channelset_hdr_len = kis_hton16(sizeof(drone_channelset_packet) + chsize);
+	cpkt->channelset_hdr_len = kis_hton16(sizeof(drone_channelset_packet));
 	cpkt->channelset_content_bitmap =
 		kis_hton32(DRONEBIT(DRONE_CHANNELSET_UUID) |
 				   DRONEBIT(DRONE_CHANNELSET_CMD) |
 				   DRONEBIT(DRONE_CHANNELSET_CURCH) |
 				   DRONEBIT(DRONE_CHANNELSET_HOP) |
 				   DRONEBIT(DRONE_CHANNELSET_NUMCH) |
-				   DRONEBIT(DRONE_CHANNELSET_CHANNELS));
+				   DRONEBIT(DRONE_CHANNELSET_CHANNELS) |
+				   DRONEBIT(DRONE_CHANNELSET_CHANNELSDWELL) |
+				   DRONEBIT(DRONE_CHANNELSET_HOPRATE) |
+				   DRONEBIT(DRONE_CHANNELSET_HOPDWELL));
 
-	DRONE_CONV_UUID(in_uuid, &(cpkt->uuid));
+	DRONE_CONV_UUID(in_src->strong_source->FetchUUID(), &(cpkt->uuid));
 
 	cpkt->command = kis_ntoh16(in_cmd);
 
-	cpkt->cur_channel = kis_hton16(in_cur);
-	cpkt->channel_hop = kis_hton16(in_hop);
-	cpkt->num_channels = kis_hton16(in_vec.size());
-	for (unsigned int x = 0; x < in_vec.size(); x++) {
-		cpkt->channels[x] = kis_hton16(in_vec[x]);
+	if (in_cmd == DRONE_CHS_CMD_SETHOP) {
+		cpkt->cur_channel = kis_hton16(in_src->channel);
+		cpkt->channel_hop = kis_hton16(in_src->channel_hop);
+	} else if (in_cmd == DRONE_CHS_CMD_SETVEC) {
+		pst_channellist *chl = 
+			globalreg->sourcetracker->FetchSourceChannelList(in_src);
+		if (chl == NULL) {
+			cpkt->num_channels = 0;
+		} else {
+			cpkt->num_channels = kis_hton16(chl->channel_vec.size());
+			for (unsigned int c = 0; c < chl->channel_vec.size(); c++) {
+				cpkt->channels[c] = kis_hton16(chl->channel_vec[c].channel);
+				cpkt->channels_dwell[c] = kis_hton16(chl->channel_vec[c].dwell);
+			}
+		}
+	} else if (in_cmd == DRONE_CHS_CMD_SETHOPDWELL) {
+		cpkt->channel_rate = kis_hton16(in_src->channel_rate);
+		cpkt->channel_dwell = kis_hton16(in_src->channel_dwell);
 	}
 
 	int ret = 0;
@@ -754,37 +853,32 @@ int DroneClientFrame::SendChannelset(uuid in_uuid, unsigned int in_cmd,
 }
 
 PacketSource_Drone::PacketSource_Drone(GlobalRegistry *in_globalreg, 
-											 string in_type, string in_name, 
-											 string in_dev, string in_opts) :
-	KisPacketSource(in_globalreg, in_type, in_name, in_dev, in_opts) { 
+									   string in_interface,
+									   vector<opt_pair> *in_opts) :
+	KisPacketSource(in_globalreg, in_interface, in_opts) { 
+
 	droneframe = NULL;
 	reconnect = 1;
 
-	// Look for the reconnect parm
-	for (unsigned int x = 0; x < optargs.size(); x++) {
-		if (optargs[x] == "reconnect") {
-			reconnect = 1;
-			_MSG("Forcing drone automatic reconnection every 5 seconds on "
-				 "source '" + in_name + "'", MSGFLAG_INFO);
-		} else if (optargs[x] == "noreconnect") {
-			_MSG("Forced disabling of drone automatic reconnection on "
-				 "source '" + in_name + "'", MSGFLAG_INFO);
-			reconnect = 0;
-		}
-	}
+	// The master source isn't channel capable
+	channel_capable = 0;
 
-	if (reconnect) {
-		_MSG("Drone source '" + in_name + "' will automatically reconnect if "
-			 "the connection is lost.", MSGFLAG_INFO);
-	} else {
-		_MSG("Drone source '" + in_name + "' will not automatically reconnect "
-			 "if the connection is lost.", MSGFLAG_INFO);
+	// Automatically reconnect
+	reconnect = 1;
+
+	// Look for the reconnect parm
+	if (FetchOpt("reconnect", in_opts) != "" &&
+		StrLower(FetchOpt("reconnect", in_opts)) != "true") {
+		reconnect = 0;
+		_MSG("Disabling reconnection on drone source '" + name + "' '" + 
+			 interface + "'.  If the connection fails this source will remain "
+			 "inactive.", MSGFLAG_INFO);
 	}
 }
 
 int PacketSource_Drone::RegisterSources(Packetsourcetracker *tracker) {
 	// Register the pcapfile source based off ourselves, nonroot, nonchildcontrol
-	tracker->RegisterPacketsource("drone", this, 0, "n/a", 0);
+	tracker->RegisterPacketProto("drone", this, "n/a", 0);
 	return 1;
 }
 
@@ -856,44 +950,13 @@ int PacketSource_DroneRemote::SetChannel(unsigned int in_ch) {
 	if (droneframe == NULL)
 		return 0;
 
-	vector<unsigned int> evec;
-
 	// Toss the error, we always "succeed"
-	droneframe->SendChannelset(src_uuid, DRONE_CHS_CMD_SETCUR, in_ch,
-							   0, evec);
-
-	return 1;
-}
-
-int PacketSource_DroneRemote::SetChannelSequence(vector<unsigned int> in_seq) {
-	if (droneframe == NULL)
-		return 0;
-
-	// Toss the error, we always "succeed"
-	droneframe->SendChannelset(src_uuid, DRONE_CHS_CMD_SETVEC, 0,
-							   0, in_seq);
+	droneframe->SendChannelData(pstsource, DRONE_CHS_CMD_SETCUR);
 
 	return 1;
 }
 
 int PacketSource_DroneRemote::FetchChannel() {
 	return 0;
-}
-
-int PacketSource_DroneRemote::SetChannelHop(int in_hop) {
-	if (droneframe == NULL)
-		return 0;
-
-	vector<unsigned int> evec;
-
-	// Toss the error, we always "succeed"
-	droneframe->SendChannelset(src_uuid, DRONE_CHS_CMD_SETHOP, 0,
-							   in_hop, evec);
-
-	return 1;
-}
-
-int PacketSource_DroneRemote::FetchChannelHop() {
-	return channel_hop;
 }
 

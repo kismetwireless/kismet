@@ -280,16 +280,16 @@ public:
 
 	// No creation or probe for this high-level metasource
 	virtual KisPacketSource *CreateSource(GlobalRegistry *in_globalreg, 
-										  string in_type, string in_name, 
-										  string in_dev, string in_opts) = 0;
+										  string in_interface,
+										  vector<opt_pair> *in_opts) = 0;
 
 	virtual int AutotypeProbe(string in_device) = 0;
 	virtual int RegisterSources(Packetsourcetracker *tracker) = 0;
 
-	PacketSource_Pcap(GlobalRegistry *in_globalreg, string in_type, 
-					  string in_name, string in_dev, string in_opts) :
-		KisPacketSource(in_globalreg, in_type, in_name, in_dev, in_opts) { 
-			// Nothing special here vs. normal
+	PacketSource_Pcap(GlobalRegistry *in_globalreg, string in_interface,
+					  vector<opt_pair> *in_opts) :
+		KisPacketSource(in_globalreg, in_interface, in_opts) { 
+			pd = NULL;
 		}
 	virtual ~PacketSource_Pcap() { }
 
@@ -314,21 +314,22 @@ public:
 
 	virtual int FetchHardwareChannel();
 
-protected:
 	// Mangle linkheaders off a frame, etc
-	virtual int ManglePacket(kis_packet *packet);
+	virtual int ManglePacket(kis_packet *packet, kis_datachunk *linkchunk);
+
+protected:
 
 	// Parse the data link type
     virtual int DatalinkType();
 
 	// Mangle Prism2 and AVS frames
-	int Prism2KisPack(kis_packet *packet);
+	int Prism2KisPack(kis_packet *packet, kis_datachunk *linkchunk);
 	// If we have radiotap headers, mangle those into kis packets
-	int Radiotap2KisPack(kis_packet *packet);
+	int Radiotap2KisPack(kis_packet *packet, kis_datachunk *linkchunk);
 	// If we're just a straight up frame
-	int Eight2KisPack(kis_packet *packet);
+	int Eight2KisPack(kis_packet *packet, kis_datachunk *linkchunk);
 	// Cace PPI
-	int PPI2KisPack(kis_packet *packet);
+	int PPI2KisPack(kis_packet *packet, kis_datachunk *linkchunk);
 
 	pcap_t *pd;
 	int datalink_type;
@@ -347,21 +348,19 @@ public:
 
 	// This should return a new object of its own subclass type
 	virtual KisPacketSource *CreateSource(GlobalRegistry *in_globalreg, 
-										  string in_type, string in_name, 
-										  string in_dev, string in_opts) {
-		return new PacketSource_Pcapfile(in_globalreg, in_type, in_name, 
-										 in_dev, in_opts);
+										  string in_interface,
+										  vector<opt_pair> *in_opts) {
+		return new PacketSource_Pcapfile(in_globalreg, in_interface, in_opts);
 	}
 
-	virtual int AutotypeProbe(string in_device) {
-		return 0;
-	}
+	virtual int AutotypeProbe(string in_device);
 
 	virtual int RegisterSources(Packetsourcetracker *tracker);
 
-	PacketSource_Pcapfile(GlobalRegistry *in_globalreg, string in_type, 
-						  string in_name, string in_dev, string in_opts) :
-		PacketSource_Pcap(in_globalreg, in_type, in_name, in_dev, in_opts) { 
+	PacketSource_Pcapfile(GlobalRegistry *in_globalreg, 
+						  string in_interface,
+						  vector<opt_pair> *in_opts) :
+		PacketSource_Pcap(in_globalreg, in_interface, in_opts) { 
 			// Foo
 		}
 	virtual ~PacketSource_Pcapfile() { }

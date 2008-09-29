@@ -116,7 +116,6 @@ SpeechControl::SpeechControl(GlobalRegistry *in_globalreg) {
 	speech_remote = new IPCRemote(globalreg, "speech daemon");
 	speech_ipc_id = 
 		speech_remote->RegisterIPCCmd(&speech_ipc_callback, NULL, this, "SPEECH");
-	globalreg->RegisterPollableSubsys(speech_remote);
 }
 
 SpeechControl::~SpeechControl() {

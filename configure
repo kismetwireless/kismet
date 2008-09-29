@@ -687,6 +687,7 @@ CLIENTCFLAGS
 wantpcap
 pcaplnk
 pcap
+suidgroup
 suid
 zaurus
 zbuild
@@ -1298,6 +1299,8 @@ Optional Packages:
 "  --with-linuxheaders=DIR     Custom location of the Linux kernel " \
 	 "headers if the glibc copies are insufficient"
   --with-airpcap=DIR     Location of the CACE AirPcap device pack NOTE cygwin appears to have link errors if the path is not within the current directory
+"  --with-suidgroup=group       Group allowed to execute the kismet_capture " \
+	 "suid root helper process"
 
 Some influential environment variables:
   CC          C compiler command
@@ -9492,7 +9495,19 @@ else
   suid=yes
 fi
 
-# evaluate after viha test
+
+suidgroup="kismet"
+
+# Check whether --with-suidgroup was given.
+if test "${with_suidgroup+set}" = set; then
+  withval=$with_suidgroup;
+   	 if test "$withval"x != "x"; then
+	 	suidgroup="$withval"
+     fi
+
+fi
+
+
 
 # Check whether --enable-viha was given.
 if test "${enable_viha+set}" = set; then
@@ -10472,6 +10487,7 @@ CLIENTCFLAGS!$CLIENTCFLAGS$ac_delim
 wantpcap!$wantpcap$ac_delim
 pcaplnk!$pcaplnk$ac_delim
 pcap!$pcap$ac_delim
+suidgroup!$suidgroup$ac_delim
 suid!$suid$ac_delim
 zaurus!$zaurus$ac_delim
 zbuild!$zbuild$ac_delim
@@ -10481,7 +10497,7 @@ sharedatadir!$sharedatadir$ac_delim
 LTLIBOBJS!$LTLIBOBJS$ac_delim
 _ACEOF
 
-  if test `sed -n "s/.*$ac_delim\$/X/p" conf$$subs.sed | grep -c X` = 80; then
+  if test `sed -n "s/.*$ac_delim\$/X/p" conf$$subs.sed | grep -c X` = 81; then
     break
   elif $ac_last_try; then
     { { echo "$as_me:$LINENO: error: could not make $CONFIG_STATUS" >&5
@@ -10928,6 +10944,14 @@ elif test "$want_viha" = "yes"; then
 else
 	echo "no"
 fi
+printf "          Setuid group: "
+if test "$cygwin" = "yes"; then
+	echo "n/a (Cygwin/Win32";
+elif test "$want_viha" = "yes"; then
+	echo "n/a (OSX with Viha)"
+else
+	echo "$suidgroup"
+fi
 
 printf "      Terminal Control: "
 echo "$termcontrol";
@@ -11017,8 +11041,9 @@ if test "$pcap" != "yes" -a "$linux" = "yes"; then
 	echo "library, however it now expects libpcap to be provided by the system."
 	echo "Kismet on Linux without LibPcap cannot capture data locally and will "
 	echo "almost certainly NOT BE WHAT YOU WANT."
-	echo "Your distribution should provide packages for libpcap, otherwise "
-	echo "it can be downloaded from http://tcpdump.org"
+	echo "Your distribution should provide packages for libpcap (usually "
+	echo "called libpcap-devel), otherwise it can be downloaded from "
+	echo "http://tcpdump.org"
 fi
 
 if test "`echo $host_os | grep linux`" = ""; then
@@ -11027,10 +11052,6 @@ if test "`echo $host_os | grep linux`" = ""; then
 	echo "you will likely need to use 'gmake' instead of 'make'."
 	echo "Run 'gmake dep' to generate dependencies and 'gmake' followed by"
 	echo "'gmake install' to compile and install Kismet"
-	echo "Kismet WILL NOT be installed suid-root by default.  If you wish to install"
-	echo "Kismet as a suid-root utility, READ THE DOCUMENTATION and run "
-	echo "'make suidinstall'."
-	echo "DO NOT INSTALL KISMET AS SUID-ROOT IF YOU HAVE UNTRUSTED USERS ON YOUR SYSTEM."
 else
 	verminor=`uname -r | cut -d '.' -f 2`
 	# Stupid redhat

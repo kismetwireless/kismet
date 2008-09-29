@@ -79,6 +79,22 @@ string AlignString(string in_txt, char in_spacer, int in_align, int in_width);
 int HexStrToUint8(string in_str, uint8_t *in_buf, int in_buflen);
 string HexStrFromUint8(uint8_t *in_buf, int in_buflen);
 
+void SubtractTimeval(struct timeval *in_tv1, struct timeval *in_tv2,
+					 struct timeval *out_tv);
+
+// Generic options pair
+struct opt_pair {
+	string opt;
+	string val;
+};
+
+// Generic option handlers
+string FetchOpt(string in_key, vector<opt_pair> *in_vec);
+vector<string> FetchOptVec(string in_key, vector<opt_pair> *in_vec);
+int StringToOpts(string in_line, string in_sep, vector<opt_pair> *in_vec);
+void AddOptToOpts(string opt, string val, vector<opt_pair> *in_vec);
+void ReplaceAllOpts(string opt, string val, vector<opt_pair> *in_vec);
+
 int XtoI(char x);
 int Hex2UChar(unsigned char *in_hex, unsigned char *in_chr);
 

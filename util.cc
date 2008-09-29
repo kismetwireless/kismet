@@ -388,6 +388,82 @@ vector<smart_word_token> NetStrTokenize(string in_str, string in_split,
 	return ret;
 }
 
+// Find an option - just like config files
+string FetchOpt(string in_key, vector<opt_pair> *in_vec) {
+	string lkey = StrLower(in_key);
+
+	if (in_vec == NULL)
+		return "";
+
+	for (unsigned int x = 0; x < in_vec->size(); x++) {
+		if ((*in_vec)[x].opt == lkey)
+			return (*in_vec)[x].val;
+	}
+
+	return "";
+}
+
+vector<string> FetchOptVec(string in_key, vector<opt_pair> *in_vec) {
+	string lkey = StrLower(in_key);
+	vector<string> ret;
+
+	if (in_vec == NULL)
+		return ret;
+
+	for (unsigned int x = 0; x < in_vec->size(); x++) {
+		if ((*in_vec)[x].opt == lkey)
+			ret.push_back((*in_vec)[x].val);
+	}
+
+	return ret;
+}
+
+int StringToOpts(string in_line, string in_sep, vector<opt_pair> *in_vec) {
+	vector<string> lines = StrTokenize(in_line, in_sep);
+	vector<string> optv;
+	opt_pair optp;
+
+	for (unsigned int x = 0; x < lines.size(); x++) {
+		optv = StrTokenize(lines[x], "=");
+
+		if (optv.size() != 2)
+			return -1;
+
+		optp.opt = StrLower(optv[0]);
+		optp.val = optv[1];
+
+		in_vec->push_back(optp);
+	}
+
+	return 1;
+}
+
+void AddOptToOpts(string opt, string val, vector<opt_pair> *in_vec) {
+	opt_pair optp;
+
+	optp.opt = StrLower(opt);
+	optp.val = val;
+
+	in_vec->push_back(optp);
+}
+
+void ReplaceAllOpts(string opt, string val, vector<opt_pair> *in_vec) {
+	opt_pair optp;
+
+	optp.opt = StrLower(opt);
+	optp.val = val;
+
+	for (unsigned int x = 0; x < in_vec->size(); x++) {
+		if ((*in_vec)[x].val == optp.val) {
+			in_vec->erase(in_vec->begin() + x);
+			x--;
+			continue;
+		}
+	}
+
+	in_vec->push_back(optp);
+}
+
 vector<string> LineWrap(string in_txt, unsigned int in_hdr_len, 
 						unsigned int in_maxlen) {
 	vector<string> ret;
@@ -909,5 +985,24 @@ unsigned int crc32_le_80211(unsigned int *crc32_table, const unsigned char *buf,
 	crc ^= 0xFFFFFFFF;
 
 	return crc;
+}
+
+void SubtractTimeval(struct timeval *in_tv1, struct timeval *in_tv2,
+					 struct timeval *out_tv) {
+	if (in_tv1->tv_sec < in_tv2->tv_sec ||
+		(in_tv1->tv_sec == in_tv2->tv_sec && in_tv1->tv_usec < in_tv2->tv_usec) ||
+		in_tv1->tv_sec == 0 || in_tv2->tv_sec == 0) {
+		out_tv->tv_sec = 0;
+		out_tv->tv_usec = 0;
+		return;
+	}
+
+	if (in_tv2->tv_usec > in_tv1->tv_usec) {
+		out_tv->tv_usec = 1000000 + in_tv1->tv_usec - in_tv2->tv_usec;
+		out_tv->tv_sec = in_tv1->tv_sec - in_tv2->tv_sec - 1;
+	} else {
+		out_tv->tv_usec = in_tv1->tv_usec - in_tv2->tv_usec;
+		out_tv->tv_sec = in_tv1->tv_sec - in_tv2->tv_sec;
+	}
 }
 

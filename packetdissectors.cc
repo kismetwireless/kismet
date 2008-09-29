@@ -434,7 +434,7 @@ int KisBuiltinDissector::GetIEEETagOffsets(unsigned int init_offset,
     if (tag_cache_map->size() == 0) {
         while (1) {
             // Are we over the packet length?
-            if (cur_offset >= in_chunk->length) {
+            if (cur_offset + 2 >= in_chunk->length) {
                 break;
             }
 

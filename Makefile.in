@@ -24,6 +24,7 @@ CLIENTFLAGS = @CLIENTCFLAGS@
 CXXFLAGS = -Wall @CXXFLAGS@
 CPPFLAGS = @CPPFLAGS@
 SUID	= @suid@
+SUIDGROUP = @suidgroup@
 
 prefix = @prefix@
 exec_prefix = @exec_prefix@
@@ -38,18 +39,20 @@ DEPEND	= .depend
 OBJC_CONTROL_O = darwin_control_objc.mo
 OBJC_LINK = @objc_link@
 
-# Objects
+CAPSOURCES = \
+	packetsource_pcap.o packetsource_wext.o packetsource_bsdrt.o \
+	packetsource_drone.o packetsource_ipwlive.o packetsource_airpcap.o \
+	packetsource_darwin.o 
+
 PSO	= util.o cygwin_utils.o ringbuf.o messagebus.o configfile.o getopt.o \
 	filtercore.o ifcontrol.o iwcontrol.o madwifing_control.o $(OBJC_LINK) \
 	ipc_remote.o soundcontrol.o speechcontrol.o \
 	netframework.o clinetframework.o tcpserver.o tcpclient.o serialclient.o \
+	packetsourcetracker.o $(CAPSOURCES) \
 	kis_netframe.o kis_droneframe.o \
 	gpswrapper.o gpscore.o gpsdclient.o gpsserial.o \
 	packetchain.o \
-	packetsource_pcap.o packetsource_wext.o packetsource_bsdrt.o \
-	packetsource_drone.o packetsource_ipwlive.o packetsource_airpcap.o \
-	packetsource_darwin.o \
-	plugintracker.o packetsourcetracker.o alertracker.o timetracker.o \
+	plugintracker.o alertracker.o timetracker.o \
 	packetdissectors.o netracker.o \
 	dumpfile.o dumpfile_runstate.o dumpfile_pcap.o dumpfile_gpsxml.o \
 	dumpfile_tuntap.o dumpfile_netxml.o dumpfile_nettxt.o dumpfile_string.o \
@@ -70,6 +73,14 @@ DRONEO = util.o cygwin_utils.o ringbuf.o messagebus.o configfile.o getopt.o \
 		 packetsource_darwin.o \
 		 plugintracker.o packetsourcetracker.o timetracker.o \
 		 kismet_drone.o
+
+CSO = util.o cygwin_utils.o ringbuf.o messagebus.o configfile.o getopt.o \
+	filtercore.o ifcontrol.o iwcontrol.o madwifing_control.o $(OBJC_LINK) \
+	ipc_remote.o netframework.o clinetframework.o tcpserver.o tcpclient.o \
+	timetracker.o drone_kisnetframe.o \
+	packetsourcetracker.o packetchain.o $(CAPSOURCES) \
+	kismet_capture.o
+CS	= kismet_capture
 
 DRONE = kismet_drone
 
@@ -93,6 +104,9 @@ all:	Makefile $(DEPEND) $(PS) $(DRONE) $(NC)
 
 $(PS):	$(PSO)
 	$(LD) $(LDFLAGS) -o $(PS) $(PSO) $(LIBS) $(CXXLIBS) $(PCAPLNK)
+
+$(CS):	$(CSO)
+	$(LD) $(LDFLAGS) -o $(CS) $(CSO) $(LIBS) $(CXXLIBS) $(PCAPLNK)
 
 $(DRONE):	$(DRONEO)
 	$(LD) $(LDFLAGS) -o $(DRONE) $(DRONEO) $(LIBS) $(CXXLIBS) $(PCAPLNK)
@@ -133,32 +147,22 @@ checkuiconfig:
 		echo "latest version is `grep version= conf/kismet_ui.conf | cut -f 2 -d=`"; \
 	fi
 
-binuserinstall:
-	install -o $(INSTUSR) -g $(INSTGRP) -s -m 755 $(PS) $(BIN)/$(PS); 
-	install -o $(INSTUSR) -g $(INSTGRP) -s -m 755 $(DRONE) $(BIN)/$(DRONE);
-
 binsuidinstall:
-	install -o $(INSTUSR) -g $(INSTGRP) -s -m 4755 $(PS) $(BIN)/$(PS); 
-	install -o $(INSTUSR) -g $(INSTGRP) -s -m 4755 $(DRONE) $(BIN)/$(DRONE);
+	install -o $(INSTUSR) -g $(SUIDGROUP) -s -m 4550 $(CS) $(BIN)/$(CS); 
 	
 commoninstall:
 	mkdir -p $(ETC)
 	mkdir -p $(BIN)
 
-	install -o $(INSTUSR) -g $(INSTGRP) -m 755 scripts/kismet $(BIN)/kismet
-	install -o $(INSTUSR) -g $(INSTGRP) -s -m 755 $(NC) $(BIN)/$(NC)
-	# install -o $(INSTUSR) -g $(INSTGRP) -s -m 755 $(HOPPER) $(BIN)/$(HOPPER)
-	@if test "$(ZAURUS)" = "yes"; then \
-		install -o $(INSTUSR) -g $(INSTGRP) -s -m 755 $(BUZZER) $(BIN)/buzzme; \
-		echo install -o $(INSTUSR) -g $(INSTGRP) -s -m 755 $(BUZZER) $(BIN)/buzzme; \
-	fi
-#install -o $(INSTUSR) -g $(INSTGRP) -m 755 scripts/kismet_monitor $(BIN)/kismet_monitor
-#install -o $(INSTUSR) -g $(INSTGRP) -m 755 scripts/kismet_unmonitor $(BIN)/kismet_unmonitor
+	install -o $(INSTUSR) -g $(INSTGRP) -m 555 scripts/kismet $(BIN)/kismet
+	install -o $(INSTUSR) -g $(INSTGRP) -s -m 555 $(NC) $(BIN)/$(NC)
+	install -o $(INSTUSR) -g $(INSTGRP) -s -m 555 $(PS) $(BIN)/$(PS); 
+	install -o $(INSTUSR) -g $(INSTGRP) -s -m 555 $(DRONE) $(BIN)/$(DRONE);
+
 	mkdir -p $(MAN)/man1
 	install -o $(INSTUSR) -g $(MANGRP) -m 644 man/kismet.1 $(MAN)/man1/kismet.1
-	# install -o $(INSTUSR) -g $(MANGRP) -m 644 man/kismet_monitor.1 $(MAN)/man1/kismet_monitor.1
-	# install -o $(INSTUSR) -g $(MANGRP) -m 644 man/kismet_hopper.1 $(MAN)/man1/kismet_hopper.1
 	install -o $(INSTUSR) -g $(MANGRP) -m 644 man/kismet_drone.1 $(MAN)/man1/kismet_drone.1
+
 	mkdir -p $(MAN)/man5
 	install -o $(INSTUSR) -g $(MANGRP) -m 644 man/kismet.conf.5 $(MAN)/man5/kismet.conf.5
 	install -o $(INSTUSR) -g $(MANGRP) -m 644 man/kismet_ui.conf.5 $(MAN)/man5/kismet_ui.conf.5
@@ -172,12 +176,7 @@ commoninstall:
 	install -o $(INSTUSR) -g $(INSTGRP) -m 644 conf/ap_manuf $(ETC)/ap_manuf; 
 	install -o $(INSTUSR) -g $(INSTGRP) -m 644 conf/client_manuf $(ETC)/client_manuf; 
 
-	@if test -f $(BIN)/kismet_curses; then \
-		echo "Removing old kismet_curses binary.  The panels frontend is now kismet_client."; \
-		rm $(BIN)/kismet_curses; \
-	fi
-
-suidinstall: $(PS) $(DRONE) $(NC) $(ZAURUSBUILD)
+suidinstall: $(CS)
 	$(MAKE) -e commoninstall
 	$(MAKE) -e binsuidinstall
 	@if test -f $(ETC)/kismet.conf; then \
@@ -194,23 +193,19 @@ suidinstall: $(PS) $(DRONE) $(NC) $(ZAURUSBUILD)
 		echo install -o $(INSTUSR) -g $(INSTGRP) -m 644 conf/kismet_drone.conf $(ETC)/kismet_drone.conf;  \
 		echo "Installed drone config into $(ETC)/kismet_drone.conf."; \
 	fi
-	@if test -f $(ETC)/kismet_ui.conf; then \
-		$(MAKE) -e checkuiconfig; \
-	else \
-		install -o $(INSTUSR) -g $(INSTGRP) -m 644 conf/kismet_ui.conf $(ETC)/kismet_ui.conf;  \
-		echo install -o $(INSTUSR) -g $(INSTGRP) -m 644 conf/kismet_ui.conf $(ETC)/kismet_ui.conf;  \
-		echo "Installed UI config into $(ETC)/kismet_ui.conf."; \
-	fi
+
 	@echo "Installed kismet into $(BIN)/."
 	@echo "If you have not done so already, read the README file and the FAQ file.  Additional"
 	@echo "documentation is in the docs/ directory.  You MUST edit $(ETC)/kismet.conf "
 	@echo "and configure Kismet for your system, or it will NOT run properly!"
 	@echo
-	@echo "Kismet has been installed SUID ROOT.  This WILL ALLOW NORMAL USERS TO BREAK "
-	@echo "YOUR WIRELESS NETWORK CONNECTION.  IF YOU HAVE ANY UNTRUSTED USERS ON YOUR "
-	@echo "SYSTEM DO NOT INSTALL KISMET AS SUID ROOT."
+	@echo "Kismet has been installed with a SUID ROOT CAPTURE HELPER executeable by "
+	@echo "users in the group '" $(SUIDGROUP) "'.  This WILL ALLOW USERS IN THIS GROUP "
+	@echo "TO ALTER YOUR NETWORK INTERACE STATES, but is more secure than running "
+	@echo "all of Kismet as root.  ONLY users in this group will be able to "
+	@echo "run Kismet."
 
-install: $(PS) $(DRONE) $(NC) $(ZAURUSBUILD)
+install: $(PS) $(CS) $(DRONE) $(NC)
 	$(MAKE) -e commoninstall
 	$(MAKE) -e binuserinstall
 	@if test -f $(ETC)/kismet.conf; then \
@@ -243,44 +238,9 @@ install: $(PS) $(DRONE) $(NC) $(ZAURUSBUILD)
 	@echo "it as root.  If you have no untrusted users on your system, it can be installed "
 	@echo "as suid-root via 'make suidinstall'.  READ THE DOCUMENTATION BEFORE INSTALLING "
 	@echo "KISMET AS SUID-ROOT!"
+	@echo
+	@echo "It is more secure to install Kismet with the suid-root helper option."
                 
-forceinstall: $(PS)
-	$(MAKE) -e commoninstall
-	$(MAKE) -e binuserinstall
-	install -o $(INSTUSR) -g $(INSTGRP) -m 644 conf/kismet.conf $(ETC)/kismet.conf;  \
-		echo "Installed config into $(ETC)/kismet.conf."; 
-	install -o $(INSTUSR) -g $(INSTGRP) -m 644 conf/kismet_drone.conf $(ETC)/kismet_drone.conf;  \
-		echo "Installed drone config into $(ETC)/kismet_drone.conf."; 
-	install -o $(INSTUSR) -g $(INSTGRP) -m 644 conf/kismet_ui.conf $(ETC)/kismet_ui.conf;  \
-		echo "Installed UI config into $(ETC)/kismet_ui.conf."; 
-	@echo "Installed kismet into $(BIN)/."
-	@echo "If you have not done so already, read the README file and the FAQ file.  Additional"
-	@echo "documentation is in the docs/ directory.  You MUST edit $(ETC)/kismet.conf "
-	@echo "and configure Kismet for your system, or it will NOT run properly!"
-	@echo
-	@echo "Kismet has NOT been installed suid-root.  This means you will need to start "
-	@echo "it as root.  If you have no untrusted users on your system, it can be installed "
-	@echo "as suid-root via 'make suidinstall'.  READ THE DOCUMENTATION BEFORE INSTALLING "
-	@echo "KISMET AS SUID-ROOT!"
-
-suidforceinstall: $(PS)
-	$(MAKE) -e commoninstall
-	$(MAKE) -e binsuidinstall
-	install -o $(INSTUSR) -g $(INSTGRP) -m 644 conf/kismet.conf $(ETC)/kismet.conf;  \
-		echo "Installed config into $(ETC)/kismet.conf."; 
-	install -o $(INSTUSR) -g $(INSTGRP) -m 644 conf/kismet_drone.conf $(ETC)/kismet_drone.conf;  \
-		echo "Installed drone config into $(ETC)/kismet_drone.conf."; 
-	install -o $(INSTUSR) -g $(INSTGRP) -m 644 conf/kismet_ui.conf $(ETC)/kismet_ui.conf;  \
-		echo "Installed UI config into $(ETC)/kismet_ui.conf."; 
-	@echo "Installed kismet into $(BIN)/."
-	@echo "If you have not done so already, read the README file and the FAQ file.  Additional"
-	@echo "documentation is in the docs/ directory.  You MUST edit $(ETC)/kismet.conf "
-	@echo "and configure Kismet for your system, or it will NOT run properly!"
-	@echo
-	@echo "Kismet has been installed SUID ROOT.  This WILL ALLOW NORMAL USERS TO BREAK "
-	@echo "YOUR WIRELESS NETWORK CONNECTION.  IF YOU HAVE ANY UNTRUSTED USERS ON YOUR "
-	@echo "SYSTEM DO NOT INSTALL KISMET AS SUID ROOT."
-
 rpm:
 	@echo "Disabling SUID installation (RPM will handle setting the SUID bit.)"
 	@( export SUID="no"; export INSTGRP=`id -g`; export MANGRP=`id -g`; \
@@ -289,6 +249,7 @@ rpm:
 clean:
 	@-rm -f *.o
 	@-rm -f $(PS)
+	@-rm -f $(CS)
 	@-rm -f $(DRONE)
 	@-rm -f $(NC)
 	# @-rm -f $(HOPPER)

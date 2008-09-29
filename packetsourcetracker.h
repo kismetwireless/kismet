@@ -35,155 +35,205 @@
 #include "packetsource.h"
 #include "pollable.h"
 #include "ipc_remote.h"
+#include "kis_pktproto.h"
 
-// Maximum number of consecutive failures before we die
+/*
+ * Core of the packet tracking subsystem
+ *
+ * Packet source types are registered by passing a "weak" variant of the class 
+ * (instantiated packetsource without bindings to the actual source or polling
+ * functions) which provides the necessary info for deriving "strong" packet sources
+ * which are bound to interfaces and operate normally.
+ *
+ * Initial config parsing (sources and channels) is done by the user system.
+ *
+ * Root packet sources are handled by a spawned root binary which passes packets and
+ * state back via IPC frames.  Root sources must be communicated to the IPC system,
+ * and state changes pushed across.
+ *
+ * All packetsource ops should be non-fatal, and return error conditions.  
+ * PST will decide if the operation is fatal (config file source type doesn't exist,
+ * etc) or non-fatal (dynamically added sources get a pass for being broken)
+ *
+ */
+
+// Maximum number of consecutive errors setting a channel before we consider this
+// to be a failure condition
 #define MAX_CONSEC_CHAN_ERR		5
+
+// Channel record
+struct pst_channel {
+	// Channel # or frequency (handled at set time, we don't care)
+	unsigned int channel;
+
+	// Dwell time (ticks of timer system) for this channel (NOT one second
+	// increments of system-wide dwell time)
+	unsigned int dwell;
+};
+
+struct pst_channellist {
+	// Channel list ID (for ipc)
+	uint16_t channel_id;
+
+	string name;
+
+	vector<pst_channel> channel_vec;
+};
+
+struct pst_protosource {
+	string type;
+	KisPacketSource *weak_source;
+	string default_channelset;
+	int require_root;
+};
+
+// Packetsource tracking record
+struct pst_packetsource {
+	// Source ID for IPC
+	uint16_t source_id;
+
+	// Should we not go over IPC?  Most things should.
+	int local_only;
+
+	// Source definition
+	string sourceline;
+
+	// Prototype we were built from
+	pst_protosource *proto_source;
+
+	// Local strong packet source (even for remote sources, we need a process-local
+	// strong source which has interpreted all the options for us
+	KisPacketSource *strong_source;
+
+	// Channel list we've assigned
+	uint16_t channel_list;
+
+	// Pointer to channel list
+	pst_channellist *channel_ptr;
+
+	// Specific channel if we're not hopping
+	uint16_t channel;
+
+	// Per-source hop, dwell, and rate
+	int channel_hop;
+	int channel_dwell;
+	int channel_rate;
+	int channel_split;
+
+	int dwell_timer;
+	int rate_timer;
+
+	// Position in list, initialized by source splitting
+	int channel_position;
+
+	// Number of consec channel set errors
+	int consec_channel_err;
+
+	struct timeval tm_hop_start;
+
+	struct timeval tm_hop_time;
+
+	// Are we in error state?
+	int error;
+};
 
 // Callback for actions on sources.  Gives the source and action type, flags,
 // and an arbitrary pointer.
-#define SOURCEACT_PARMS GlobalRegistry *globalreg, KisPacketSource *src, \
+#define SOURCEACT_PARMS GlobalRegistry *globalreg, pst_packetsource *src, \
 	int action, int flags, void *auxptr
 typedef void (*SourceActCallback)(SOURCEACT_PARMS);
+
 // Various actions.  Adding, deleting, hop setting, vector setting
 #define SOURCEACT_ADDSOURCE 	0
 #define SOURCEACT_DELSOURCE		1
 #define SOURCEACT_HOPENABLE		2
 #define SOURCEACT_HOPDISABLE	3
 #define SOURCEACT_CHVECTOR		4
-
-// Packet source prototype used to create new packetsources from string
-// definitions
-typedef struct {
-	// Part of both the initial build of sources we understand, and the second
-	// build of sources we're going to create
-	string type;
-    int root_required;
-    string default_channelset;
-    int initial_channel;
-	// "weak" packetsource instance used to generate the real packet source
-	KisPacketSource *weak_source;
-
-	// This is used in the second run of prototyping, used to build the vector
-	// of sources we're going to allocate strong versions of
-	string name, interface;
-	// Channels to push to the source
-	vector<unsigned int> channel_vec;
-	// Offset to the channel vec to push (for multisource stuff)
-	int cv_offset;
-	// ID of the channel vec (for calculating offset & # of sources using this vec)
-	int channelvec_id;
-	// Does this specific interface have a hop/nothop set?
-	int interface_hop;
-} packsource_protorec;
-
-// Channel control event
-int ChannelHopEvent(TIMEEVENT_PARMS);
+#define SOURCEACT_CHHOPDWELL	5
 
 class Packetsourcetracker : public Pollable {
 public:
-    Packetsourcetracker(GlobalRegistry *in_globalreg);
-    virtual ~Packetsourcetracker();
+	Packetsourcetracker(GlobalRegistry *in_globalreg);
+	virtual ~Packetsourcetracker();
 
-	// Handle the commandline and config file and load cards (has to be outside
-	// of constructor to make plugins able to insert capture types)
-	int LoadConfiguredCards();
+	// Bind an IPC helper (as parent or child)
+	void RegisterIPC(IPCRemote *in_ipc, int in_as_ipc);
 
-    // Merge descriptors into a set
-    unsigned int MergeSet(unsigned int in_max_fd, fd_set *out_rset, 
+	// Help
+	static void Usage(char *name);
+
+	// Pollable system handlers
+	unsigned int MergeSet(unsigned int in_max_fd, fd_set *out_rset,
 						  fd_set *out_wset);
+	int Poll(fd_set &in_rset, fd_set& in_wset);
 
-    // Poll the socket for command acks and text.
-    // Text gets put in errstr with a return code > 0.
-    int Poll(fd_set& in_rset, fd_set& in_wset);
+	// Register a packet source type (pass a weak source)
+	int RegisterPacketSource(KisPacketSource *in_weak);
 
-	// Explicit channel control of sources
-	
-    // Set the channel
-    int SetChannel(unsigned int in_ch, uuid in_uuid);
-	// Set a channel sequence
-	int SetChannelSequence(vector<unsigned int> in_seq, uuid in_uuid);
-	// Control if a source hops or not
-    int SetHopping(int in_hopping, uuid in_uuid);
+	// Register a packet prototype (called by source registration)
+	int RegisterPacketProto(string in_type, KisPacketSource *in_weak,
+							string in_defaultchan, int in_root);
 
-    // Advance all the sources one channel
-    int AdvanceChannel();
+	// Add a packet source, get back a reference ID
+	// ncsource=interface,[opt=val]+
+	// ie ncsource=wlan0,name=foobar,type=iwl4965
+	//
+	// The packet source will be sent immediately upon parsing to the IPC process.
+	// If a strong source is passed (instead of NULL) the type matching will be
+	// bypassed and the strong source assigned.  This should only be used for
+	// dynamic sources added locally (such as the drone code)
+	uint16_t AddPacketSource(string in_source, KisPacketSource *in_strong);
 
-	// State fetches
-	int FetchChannelHop() { return channel_hop; }
-	int FetchChannelSplit() { return channel_split; }
-	int FetchChannelDwell() { return channel_dwell; }
-	int FetchChannelVelolcity() { return channel_velocity; }
+	int RemovePacketSource(pst_packetsource *in_source);
 
-	// Add a weak packet source to the system.  This queues it for being
-	// asked to register its source types and be available for autoprobe,
-	// etc.
-	int AddKisPacketsource(KisPacketSource *in_source);
+	// Add a run-time packet source & wrap the internal AddPacketsource to return
+	// an error code instead of an internal sourcenum. The optional strong source will
+	// be used instead of resolving the source from the list of source types, and
+	// the source will be activated (locally if a strong source is passed, remotely
+	// if not)
+	int AddLivePacketSource(string in_source, KisPacketSource *in_strong);
 
-	// Add a runtime source (much simpler than the initial parse and split
-	// configurations)
-	uuid CreateRuntimeSource(string in_srcdef, string in_opts);
+	//  Manipulate sources based on strong pointers
+	int RemoveLivePacketSource(KisPacketSource *in_strong);
+	pst_packetsource *FindLivePacketSource(KisPacketSource *in_strong);
+	pst_packetsource *FindLivePacketSourceUUID(uuid in_uuid);
 
-	// Add a live precreated packetsource to the system.  This takes a strong
-	// packet source.
-	int RegisterLiveKisPacketsource(KisPacketSource *in_livesource);
-	// Remove a packet source from the system
-	int RemoveLiveKisPacketsource(KisPacketSource *in_livesource);
+	// Actually load the configuration
+	int LoadConfiguration();
+
+	// Create IPC-local data from IPC setup frames
+	int IpcAddChannelList(ipc_source_add_chanlist *in_ipc);
+	int IpcAddPacketsource(ipc_source_add *in_ipc);
+	int IpcChannelSet(ipc_source_chanset *in_ipc);
+	int IpcSourceReport(ipc_source_report *in_ipc);
+	int IpcSourceRun(ipc_source_run *in_ipc);
+	int IpcSourceRemove(ipc_source_remove *in_ipc);
+	int IpcPacket(ipc_source_packet *in_ipc);
+
+	int StartSource(uint16_t in_source_id);
+	int StopSource(uint16_t in_source_id);
+
 	// Add a callback for notifying external elements when a packet source is added
 	int RegisterSourceActCallback(SourceActCallback in_cb, void *in_aux);
 	int RemoveSourceActCallback(SourceActCallback in_cb);
 
-	// Register a packet source:  (this should be called by the PacketSource
-	// AddSources(...) function
-	// This expects a "weak" instance of the packetsource (see packetsource.h),
-	// indications if it requires root privs for setup, the default channel
-	// set name, initial channel, and if it can be controlled by a child process
-	// Turning off child control indicates that it has to be controlled from the
-	// master process.  this prevents privsep, but some things require it
-    int RegisterPacketsource(const char *in_cardtype, 
-							 KisPacketSource *in_weaksource,
-							 int in_root, 
-                             const char *in_defaultchanset, int in_initch);
-	int RemovePacketsource(const char *in_cardtype);
+	// Change a source between hopping and non-hopping (within the same channel set)
+	int SetSourceHopping(uuid in_uuid, int in_hopping, uint16_t in_channel);
+	// Change a source to a newly defined channel list
+	int SetSourceNewChannellist(uuid in_uuid, string in_channellist);
+	// Change a source hop/dwell settings
+	int SetSourceHopDwell(uuid in_uuid, int in_rate, int in_dwell);
 
-    // Register default channels
-    int RegisterDefaultChannels(vector<string> *in_defchannels);
+	// Low-level hook to dig into all the packet sources, for stuff like Drone
+	// to function properly
+	vector<pst_packetsource *> *FetchSourceVec() { return &packetsource_vec; }
 
-    // Return a vector of packet sources for other things to process with 
-	// (this should be self-contained in the future, probably)
-    vector<KisPacketSource *> FetchSourceVec();
-  
-	// Buiild the packetsources from the requested config file and cmdline
-	// options
-    // enableline: vector of source names to be enabled
-    // cardlines: vector of config lines defining actual capture sources,
-    // sourcechannels: vector of config lines defining explicit channel sequences 
-    // for a source 
-    // chhop: Is hopping enabled globally
-    // chsplit: Are channel allocations split across multiple interfaces?
-    int ProcessCardList(string in_enableline, vector<string> *in_cardlines, 
-                        vector<string> *in_sourcechannels, 
-                        vector<string> *in_initchannels,
-                        int& in_chhop, int in_chsplit);
+	pst_channellist *FetchSourceChannelList(pst_packetsource *in_src);
 
-    // Bind to sources.  in_root == 1 when binding root sources, obviously
-    int BindSources(int in_root);
+	void ChannelTimer();
 
-    // Pause/unpause all sources
-    int PauseSources();
-    int ResumeSources();
-    
-    // Release sources, disabling monitor if possible
-    int CloseSources();
-
-	// Blit out what we know about
-	void BlitCards(int in_fd);
-	void BlitSources(int in_fd);
-
-	// Find a source by the UUID
-	KisPacketSource *FindUUID(uuid in_id);
-
-	// Usage
-	static void Usage(char *name);
+	// Packet chain to IPC / DLT demangle
+	void ChainHandler(kis_packet *in_pack);
 
 	typedef struct {
 		SourceActCallback cb;
@@ -191,165 +241,54 @@ public:
 	} sourceactcb_rec;
 
 protected:
-	// Client commands
-	int cmd_chanlock(CLIENT_PARMS);
-	int cmd_chanhop(CLIENT_PARMS);
-	int cmd_pause(CLIENT_PARMS);
-	int cmd_resume(CLIENT_PARMS);
-	int cmd_chanseq(CLIENT_PARMS);
-	int cmd_addsource(CLIENT_PARMS);
-	int cmd_delsource(CLIENT_PARMS);
+	// Add a channel list, get back a reference ID (ie, for IPC)
+	// channels=name,chan[:dwell]+
+	// ie channels=dot11g,1:5,2,3,4,5,6:5,7,8,9,10,11:5
+	//
+	// The channel list will be sent immediately upon parsing to the IPC process
+	uint16_t AddChannelList(string in_chanlist);
 
-	friend int Clicmd_CHANHOP_hook(CLIENT_PARMS);
-	friend int Clicmd_CHANLOCK_hook(CLIENT_PARMS);
-	friend int Clicmd_RESUME_hook(CLIENT_PARMS);
-	friend int Clicmd_PAUSE_hook(CLIENT_PARMS);
-	friend int Clicmd_CHANSEQ_hook(CLIENT_PARMS);
-	friend int Clicmd_ADDSOURCE_hook(CLIENT_PARMS);
-	friend int Clicmd_DELSOURCE_hook(CLIENT_PARMS);
+	void SendIPCSourceAdd(pst_packetsource *in_source);
+	void SendIPCChannellist(pst_channellist *in_list);
+	void SendIPCReport(pst_packetsource *in_source);
+	void SendIPCStart(pst_packetsource *in_source);
+	void SendIPCChanset(pst_packetsource *in_source);
+	void SendIPCRemove(pst_packetsource *in_source);
+	void SendIPCPacket(kis_packet *in_packet, kis_datachunk *in_linkchunk);
 
-	int cmdid_chanlock, cmdid_chanhop, cmdid_pause, cmdid_resume, cmdid_chanseq,
-		cmdid_addsource, cmdid_delsource;
-	
-    // IPC data frame to set a channel
-    typedef struct {
-        uint16_t meta_num;
-        uint16_t channel;
-    } chanchild_changepacket;
+	GlobalRegistry *globalreg;
+	IPCRemote *rootipc;
 
-	// High-level channel setting dispatcher that calls the packetsource
-	// directly or dispatches it to IPC
-	int SetChannelSrc(unsigned int in_ch, KisPacketSource *src);
-	// Local card set used by the ipc callback
-    int SetIPCChannel(unsigned int in_ch, unsigned int meta_num);
-    int AckIPCChannel(unsigned int in_ch, unsigned int meta_num);
-	// Shutdown all sources (actually do the work)
-	int ShutdownIPCSources();
+	int source_ipc_id, channellist_ipc_id, channel_ipc_id,
+		report_ipc_id, run_ipc_id, remove_ipc_id, sync_ipc_id,
+		packet_ipc_id;
 
-    GlobalRegistry *globalreg;
+	int running_as_ipc;
 
-	int card_protoref, source_protoref;
-	int hop_eventid;
-	int card_eventid;
-    
+	uint16_t next_source_id;
+	uint16_t next_channel_id;
+
+	// Values before they are overridden by the local hop
+	int default_channel_rate;
+	int default_channel_dwell;
+
+	int channel_time_id;
+
+	// List of prototype source, we don't need a map (saves on ram and binary,
+	// to some extent)
+	vector<pst_protosource *> protosource_vec;
+
+	// Map of ID to strong packet sources we've made
+	map<uint16_t, pst_packetsource *> packetsource_map;
+	// Because iterating maps is super slow
+	vector<pst_packetsource *> packetsource_vec;
+
+	// Map of channel IDs
+	map<uint16_t, pst_channellist *> channellist_map;
+
 	// Callbacks for adding a source
 	vector<Packetsourcetracker::sourceactcb_rec *> cb_vec;
-
-    map<string, packsource_protorec *> cardtype_map;
-    map<string, vector<unsigned int> > defaultch_map;
-
-	// State stuff
-	int channel_hop;
-	int channel_split;
-	int channel_dwell;
-	int channel_velocity;
-
-	char errstr[1024];
-
-	// Intermediary of prototype sources and weak mappings used to finally
-	// generate the full live sources.  This is populated by processcardlist
-	vector<packsource_protorec *> prebuild_protosources;
-
-	// All live packet sources
-    vector<KisPacketSource *> live_packsources;
-
-	// UUIDs to live packetsources
-	map<uuid, KisPacketSource *> ps_map;
-
-	uint32_t chan_ipc_id;
-	uint32_t haltall_ipc_id;
-
-	friend int ChannelHopEvent(TIMEEVENT_PARMS);
-	friend int packsrc_chan_ipc(IPC_CMD_PARMS);
-	friend int packsrc_chanack_ipc(IPC_CMD_PARMS);
-	friend int packsrc_haltall_ipc(IPC_CMD_PARMS);
 };
-
-// Internal NULL packet source that's always present to remind the users to configure
-// the software
-class NullPacketSource : public KisPacketSource {
-public:
-	NullPacketSource() {
-		fprintf(stderr, "FATAL OOPS: NullPacketSource() called\n");
-		exit(1);
-	}
-
-	NullPacketSource(GlobalRegistry *in_globalreg) :
-		KisPacketSource(in_globalreg) {
-	}
-
-	virtual NullPacketSource *CreateSource(GlobalRegistry *in_globalreg,
-										   string in_type, string in_name,
-										   string in_dev, string in_opts) {
-		return new NullPacketSource(in_globalreg, in_type, in_name,
-									in_dev, in_opts);
-	}
-
-	virtual ~NullPacketSource() { }
-
-	NullPacketSource(GlobalRegistry *in_globalreg, string in_type, 
-					 string in_dev, string in_name, string in_opts) :
-		KisPacketSource(in_globalreg, in_type, in_dev, in_name, in_opts) {
-		// Nothing here either
-	}
-
-    virtual int OpenSource() {
-		_MSG("You must configure at least one packet source.  Kismet will not "
-			 "function if no packet sources are defined in kismet.conf or on "
-			 "the command line.  Please read the README for more information "
-			 "on how to configure Kismet.", MSGFLAG_FATAL);
-        globalreg->fatal_condition = 1;
-        return -1;
-    }
-
-    virtual int CloseSource() { return 1; }
-	virtual int AutotypeProbe(string in_device) { 
-		(void) in_device;
-		return 0; 
-	}
-
-	virtual int RegisterSources(Packetsourcetracker *tracker) {
-		tracker->RegisterPacketsource("none", this, 0, "n/a", 0);
-		return 1;
-	}
-
-    virtual int FetchDescriptor() { return -1; }
-	virtual int FetchChannelCapable() { return -1; }
-    virtual int FetchChannel() { return -1; }
-	virtual int Poll() { return -1; }
-	virtual int EnableMonitor() { return -1; }
-	virtual int DisableMonitor() { return -1; }
-	virtual int ChildIPCControl() { return 0; }
-	virtual int SetChannel(unsigned int) { return -1; }
-	virtual int SetChannelSequence(vector<unsigned int> in_seq) { 
-		(void) in_seq;
-		return -1;
-	}
-	virtual int HopNextChannel() { return -1; }
-
-protected:
-	virtual void FetchRadioData(kis_packet *in_packet) {
-		(void) in_packet;
-	}
-};
-
-
-enum CARD_fields {
-    CARD_interface, CARD_type, CARD_username, CARD_channel, 
-	CARD_uuid, CARD_packets, CARD_hopping,
-	CARD_maxfield
-};
-
-int Protocol_CARD(PROTO_PARMS);
-void Protocol_CARD_enable(PROTO_ENABLE_PARMS);
-
-enum SOURCE_fields {
-	SOURCE_type, SOURCE_root, SOURCE_defaultchan, SOURCE_initchan,
-	SOURCE_maxfield
-};
-
-int Protocol_SOURCE(PROTO_PARMS);
-void Protocol_SOURCE_enable(PROTO_ENABLE_PARMS);
 
 #endif
 

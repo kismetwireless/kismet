@@ -55,24 +55,6 @@
 // Wext handles it internally w/ the standard commands
 class PacketSource_Wext : public PacketSource_Pcap {
 public:
-	// HANDLED PACKET SOURCES:
-	// acx100
-	// admtek
-	// atmel_usb
-	// bcm43xx
-	// b43
-	// b43legacy
-	// hostap
-	// ipw2100 [auto]
-	// ipw2200 [auto]
-	// ipw2915 [as 2200]
-	// ipw3945
-	// iwl3945
-	// iwl4965
-	// prism54g
-	// rt2400
-	// rt2500
-	// rt8180
 	PacketSource_Wext() {
 		fprintf(stderr, "FATAL OOPS:  Packetsource_Wext() called\n");
 		exit(1);
@@ -83,17 +65,16 @@ public:
 	}
 
 	virtual KisPacketSource *CreateSource(GlobalRegistry *in_globalreg, 
-										  string in_type, string in_name, 
-										  string in_dev, string in_opts) {
-		return new PacketSource_Wext(in_globalreg, in_type, in_name, 
-									 in_dev, in_opts);
+										  string in_interface,
+										  vector<opt_pair> *in_opts) {
+		return new PacketSource_Wext(in_globalreg, in_interface, in_opts);
 	}
 
 	virtual int AutotypeProbe(string in_device);
 	virtual int RegisterSources(Packetsourcetracker *tracker);
 
-	PacketSource_Wext(GlobalRegistry *in_globalreg, string in_type, 
-					  string in_name, string in_dev, string in_opts);
+	PacketSource_Wext(GlobalRegistry *in_globalreg, string in_interface,
+					  vector<opt_pair> *in_opts); 
 	virtual ~PacketSource_Wext() { }
 
 	// Should be, something can override if it needs
@@ -103,7 +84,6 @@ public:
 	virtual int EnableMonitor();
 	virtual int DisableMonitor();
 	virtual int SetChannel(unsigned int in_ch);
-	virtual int SetChannelSequence(vector<unsigned int> in_seq);
 	virtual int FetchHardwareChannel();
 
 protected:
@@ -130,15 +110,6 @@ protected:
 // Implements local detection of the subtype (madwifi_a, madwifi_bg, etc)
 class PacketSource_Madwifi : public PacketSource_Wext {
 public:
-	// HANDLED PACKET SOURCES:
-	// madwifi_a
-	// madwifi_b
-	// madwifi_g
-	// madwifi_ag
-	// madwifing_a
-	// madwifing_b
-	// madwifing_g
-	// madwifing_ag
 	PacketSource_Madwifi() {
 		fprintf(stderr, "FATAL OOPS:  Packetsource_Madwifi() called\n");
 		exit(1);
@@ -149,23 +120,20 @@ public:
 	}
 
 	virtual KisPacketSource *CreateSource(GlobalRegistry *in_globalreg, 
-										  string in_type, string in_name, 
-										  string in_dev, string in_opts) {
-		return new PacketSource_Madwifi(in_globalreg, in_type, in_name,
-										in_dev, in_opts);
+										  string in_interface,
+										  vector<opt_pair> *in_opts) {
+		return new PacketSource_Madwifi(in_globalreg, in_interface, in_opts);
 	}
 
 	virtual int AutotypeProbe(string in_device);
 	virtual int RegisterSources(Packetsourcetracker *tracker);
 
-	PacketSource_Madwifi(GlobalRegistry *in_globalreg, string in_type,
-						 string in_name, string in_dev, string in_opts);
+	PacketSource_Madwifi(GlobalRegistry *in_globalreg, string in_interface,
+						 vector<opt_pair> *in_opts);
 	virtual ~PacketSource_Madwifi() { }
 
 	virtual int EnableMonitor();
 	virtual int DisableMonitor();
-
-	virtual int SetChannelSequence(vector<unsigned int> in_seq);
 
 protected:
 	// 1 - madwifi_a
@@ -194,10 +162,9 @@ class PacketSource_Wrt54Prism : public PacketSource_Wext { public:
 	}
 
 	virtual KisPacketSource *CreateSource(GlobalRegistry *in_globalreg, 
-										  string in_type, string in_name, 
-										  string in_dev, string in_opts) {
-		return new PacketSource_Wrt54Prism(in_globalreg, in_type, in_name,
-										   in_dev, in_opts);
+										  string in_interface,
+										  vector<opt_pair> *in_opts) {
+		return new PacketSource_Wrt54Prism(in_globalreg, in_interface, in_opts);
 	}
 
 	// We don't do autotype scanning
@@ -205,13 +172,12 @@ class PacketSource_Wrt54Prism : public PacketSource_Wext { public:
 
 	virtual int RegisterSources(Packetsourcetracker *tracker);
 
-	PacketSource_Wrt54Prism(GlobalRegistry *in_globalreg, string in_type,
-							string in_name, string in_dev, string in_opts);
+	PacketSource_Wrt54Prism(GlobalRegistry *in_globalreg, string in_interface,
+							vector<opt_pair> *in_opts);
+							
 	virtual ~PacketSource_Wrt54Prism() { }
 
 	virtual int OpenSource();
-	
-	virtual int SetChannelSequence(vector<unsigned int> in_seq);
 };
 
 #endif /* have_libpcap && sys_linux */

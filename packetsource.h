@@ -97,6 +97,22 @@ struct packet_parm {
 	int legal_paranoia;
 };
 
+// parsed option
+struct packetsource_option {
+	string opt;
+	string val;
+};
+
+// We don't do anything smart with this yet but plan ahead
+enum packetsource_channel_mod {
+	channel_mod_none = 0,
+	channel_mod_11b = 1,
+	channel_mod_11g = 2,
+	channel_mod_11a = 3,
+	channel_mod_11n = 4,
+	channel_mod_40mhz = 5
+};
+
 class KisPacketSource {
 public:
 	// This is still bad, even for weak sources
@@ -111,216 +127,133 @@ public:
 		// used for calling CreateSource(...) and RegisterSources(...)
 		// We just grab globalreg so that we can generate messages
 		globalreg = in_globalreg;
+		source_id = 0;
 	}
 
-	// This should return a new object of its own subclass type
+	// This should call our own constructor and return a packet source of our
+	// own type, for each subclass
 	virtual KisPacketSource *CreateSource(GlobalRegistry *in_globalreg, 
-										  string in_type, string in_name, 
-										  string in_dev, string in_opts) = 0;
+										  string in_interface, 
+										  vector<opt_pair> *in_opts) = 0;
 
 	virtual int RegisterSources(Packetsourcetracker *tracker) = 0;
 	virtual int AutotypeProbe(string in_device) = 0;
 
-	// ------------ STRONG PACKETSOURCE -----------------
-	// (all of these assume globalreg exists, type name etc filled in
-	
-    KisPacketSource(GlobalRegistry *in_globalreg, string in_type, 
-					string in_name, string in_dev, string in_opts) {
-        name = in_name;
+	// Create a strong packet source
+    KisPacketSource(GlobalRegistry *in_globalreg, string in_interface,
+					vector<opt_pair> *in_opts) {
+        name = in_interface;
+		interface = in_interface;
 
-		/*
-		vector<string> ifv = StrTokenize(in_dev, ":");
-		if (ifv.size() < 2) {
-			interface = in_dev;
-			interface2 = "";
-		} else {
-			interface = ifv[0];
-			interface2 = ifv[1];
-		}
-		*/
+		source_id = 0;
 
-		interface = in_dev;
-		type = in_type;
-		
+		type = "auto";
+
         globalreg = in_globalreg;
 
-		// This is mostly just crap.  Hash the type and name, then
-		// hash the device, and make a 6 byte field out of it to seed
-		// the device attribute.  If a subclass wants to seed this with the MAC 
-		// of the capture source in the future, thats fine too
-		uint8_t unode[6];
-		uint32_t unode_hash;
-		string combo = in_type + in_name;
-		unode_hash = Adler32Checksum(combo.c_str(), combo.length());
-		memcpy(unode, &unode_hash, 4);
-		unode_hash = Adler32Checksum(in_dev.c_str(), in_dev.length());
-		memcpy(&(unode[4]), &unode_hash, 2);
-		src_uuid.GenerateTimeUUID(unode);
-        
+		// Invalidate the UUID to begin with
+		src_uuid.error = 1;
+       
+		dlt_mangle = 0;
+
         fcsbytes = 0;
 		validate_fcs = 0;
 		crc32_table = NULL;
 		carrier_set = 0;
 
-		channel_hop = 0;
-		channel_pos = 0;
 		consec_error = 0;
-		initial_channel = 0;
-		local_channel = 0;
 
 		num_packets = 0;
 
-		// We die on fatal errors by default
-		die_on_fatal = 1;
+		error = 0;
 
-		const int soc = globalreg->getopt_long_num++;
-		static struct option kissource_long_options[] = {
-			{ "source-options", required_argument, 0, soc },
-			{ 0, 0, 0, 0 }
-		};
-		int option_idx = 0;
-
-		// Grab the raw options from the config file
-		vector<string> rawopts = globalreg->kismet_config->FetchOptVec("sourceopts");
-		// Grab the command line options
-		optind = 0;
-		while (1) {
-			int r = getopt_long(globalreg->argc, globalreg->argv,
-								"-", kissource_long_options,
-								&option_idx);
-			if (r < 0) break;
-			if (r == soc) {
-				rawopts.push_back(string(optarg));
-				break;
-			}
-		}
-
-		// Add in incoming options to the end
-		rawopts.push_back(in_opts);
-
-		for (unsigned int x = 0; x < rawopts.size(); x++) {
-			vector<string> rawsub = StrTokenize(rawopts[x], ",");
-			for (unsigned int y = 0; y < rawsub.size(); y++) {
-				vector<string> subopts = StrTokenize(rawsub[y], ":");
-				if (subopts.size() != 2)
-					continue;
-				if (StrLower(subopts[0]) != StrLower(in_name) && subopts[0] != "*" &&
-					subopts[0] != "any")
-					continue;
-				subopts = StrTokenize(subopts[1], ",", 1);
-				for (unsigned y = 0; y < subopts.size(); y++) {
-					subopts[y] = StrLower(subopts[y]);
-					optargs.push_back(subopts[y]);
-
-					if (subopts[y] == "fuzzycrypt") {
-						genericparms.fuzzy_crypt = 1;
-						_MSG("Enabling fuzzy encryption detection on packet "
-							 "source '" + in_name + "'", MSGFLAG_INFO);
-					} else if (subopts[y] == "nofuzzycrypt") {
-						genericparms.fuzzy_crypt = 0;
-						_MSG("Forced disabling of fuzzy encryption detection on packet "
-							 "source '" + in_name + "'", MSGFLAG_INFO);
-					} else if (subopts[y] == "weakvalidate") {
-						genericparms.weak_dissect = 1;
-						_MSG("Enabling weak frame validation on packet "
-							 "source '" + in_name + "'", MSGFLAG_INFO);
-					} else if (subopts[y] == "noweakvalidate") {
-						genericparms.weak_dissect = 0;
-						_MSG("Forced disabling of weak frame validation on packet "
-							 "source '" + in_name + "'", MSGFLAG_INFO);
-					} else if (subopts[y] == "ignorefatal") {
-						die_on_fatal = 0;
-						_MSG("Will NOT die on fatal errors on packet source '" +
-							 in_name + "'", MSGFLAG_INFO);
-					}
-				}
-			}
-		}
+		if (ParseOptions(in_opts) < 0)
+			error = 1;
     }
 
     virtual ~KisPacketSource() { }
+
+	// Parse the options -- override any existing options we have
+	virtual int ParseOptions(vector<opt_pair> *in_opts) {
+		if (FetchOpt("name", in_opts) != "") 
+			name = FetchOpt("name", in_opts);
+
+		if (FetchOpt("type", in_opts) != "")
+			type = FetchOpt("type", in_opts);
+
+		// Get the UUID from options if we have it, otherwise generate one
+		// TODO: Pull from cache
+		if (FetchOpt("uuid", in_opts) != "") {
+			src_uuid = uuid(FetchOpt("uuid", in_opts));
+
+			if (src_uuid.error)
+				_MSG("Invalid UUID=... on packet source " + interface + ".  "
+					 "A new UUID will be generated.", MSGFLAG_ERROR);
+		}
+
+		if (src_uuid.error) {
+			// Generate a UUID if we don't have one 
+			// This is mostly just crap.  Hash the type and name, then
+			// hash the device, and make a 6 byte field out of it to seed
+			// the device attribute.  If a subclass wants to seed this with the MAC 
+			// of the capture source in the future, thats fine too
+			uint8_t unode[6];
+			uint32_t unode_hash;
+			string combo = type + name;
+			unode_hash = Adler32Checksum(combo.c_str(), combo.length());
+			memcpy(unode, &unode_hash, 4);
+			unode_hash = Adler32Checksum(interface.c_str(), interface.length());
+			memcpy(&(unode[4]), &unode_hash, 2);
+			src_uuid.GenerateTimeUUID(unode);
+		}
+
+		if (StrLower(FetchOpt("weakvalidate", in_opts)) == "true") {
+			genericparms.weak_dissect = 1;
+			_MSG("Enabling weak frame validation on packet " "source '" + 
+				 interface + "'", MSGFLAG_INFO);
+		}
+
+		return 1;
+	}
 
 	// Fetch the UUID
 	virtual uuid FetchUUID() {
 		return src_uuid;
 	}
+
+	// Data placeholder for the packet source tracker to record who we are for
+	// much faster per-packet handling (per-frame map lookups = bad)
+	virtual void SetSourceID(uint16_t in_id) { source_id = in_id; }
+	virtual uint16_t FetchSourceID() { return source_id; }
+
+	// Set DLT de-mangling
+	virtual void SetDLTMangle(int in_mangle) { dlt_mangle = in_mangle; }
+	// Mangle a packet from capture to 80211 pure + chain elements
+	virtual int ManglePacket(kis_packet *packet, kis_datachunk *linkchunk) { return 0; }
 	
 	// Manage the interface
 	virtual int EnableMonitor() = 0;
 	virtual int DisableMonitor() = 0;
 
-	// Are we channel capable at all?
-	virtual int FetchChannelCapable() = 0;
-
-	// Set default behavior
-	virtual int SetInitialChannel(int in_ch) {
-		initial_channel = in_ch;
-		return 1;
-	}
-	virtual int FetchInitialChannel() {
-		return initial_channel;
-	}
-	virtual int SetChannelHop(int in_hop) {
-		channel_hop = in_hop;
-		return 1;
-	}
-	virtual int FetchChannelHop() {
-		return channel_hop;
-	}
-	// Channel hop is performed locally (true for most)
-	virtual int FetchLocalChannelHop() {
-		return 1;
-	}
-
-	// Is the device controllable by the child IPC process?
-	virtual int ChildIPCControl() = 0;
-
+	// Set the card to a channel w/ a given modulation
 	virtual int SetChannel(unsigned int in_ch) = 0;
-	// These can be overridden if special stuff needs to happen
-	virtual int SetChannelSequence(vector<unsigned int> in_seq) {
-		channel_list = in_seq;
-		return 1;
-	}
-	virtual vector<unsigned int> FetchChannelSequence() {
-		return channel_list;
-	}
-	// Jump to a specific offset in the channel list (used during creation,
-	// primarily)
-	virtual int SetChannelSeqPos(unsigned int in_offt) {
-		channel_pos = in_offt;
-		return 1;
-	}
-
-	// A little convoluted, we need to return the next channel to the caller
-	// instead of setting it ourselves because it needs to go through the
-	// IPC games
-	virtual unsigned int FetchNextChannel() {
-		if (channel_hop == 0)
-			return 0;
-
-		channel_pos++;
-
-		if (channel_pos >= channel_list.size())
-			channel_pos = 0;
-
-		return channel_list[channel_pos];
-	}
 
     // Open the packet source
     virtual int OpenSource() = 0;
     virtual int CloseSource() = 0;
 
-    // Get the last set local channel
-    virtual int FetchChannel() { return local_channel; }
-	virtual void SetLocalChannel(int in_ch) { local_channel = in_ch; }
+	// Get the last channel we know we set
+    virtual int FetchChannel() { return last_channel; }
+	virtual int FetchChannelMod() { return last_mod; }
 
 	// Get the hardware channel
 	virtual int FetchHardwareChannel() { return 0; }
 
-	// Get a pollable file descriptor
+	// Get a pollable file descriptor (usually from pcap)
     virtual int FetchDescriptor() = 0;
 
-	// Trigger a fetch of a pending packet and inject it into the packet chain
+	// Trigger a fetch of a pending packet(s) and inject it into 
+	// the packet chain, may inject multiple packets for one call
 	virtual int Poll() = 0;
 
 	// Fetch info about how we were built
@@ -328,7 +261,7 @@ public:
     virtual string FetchInterface() { return interface; }
 	virtual string FetchType() { return type; }
 
-    // Fetch number of packets
+    // Fetch number of packets we've processed
     virtual int FetchNumPackets() { return num_packets; } 
 
 	// Pause/resume listening to this source (what this means depends on 
@@ -361,6 +294,13 @@ public:
 	// Generic-level per packet parameters
 	virtual packet_parm FetchGenericParms() { return genericparms; }
 
+	// Return if we're channel capable or not, used for deriving hop
+	virtual int FetchChannelCapable() { return channel_capable; }
+
+	virtual int FetchSkipChanhop() { return 0; }
+
+	virtual int FetchError() { return error; }
+
 protected:
 	virtual void FetchRadioData(kis_packet *in_packet) = 0;
 
@@ -370,6 +310,10 @@ protected:
 
     int paused;
 
+	int error;
+
+	uint16_t source_id;
+
     // Name, interface
     string name;
     string interface;
@@ -378,8 +322,13 @@ protected:
 	// Unique identifier for this capture source
 	uuid src_uuid;
 
+	int dlt_mangle;
+
     // Bytes in the FCS
     unsigned int fcsbytes;
+
+	// Are we channel capable?
+	int channel_capable;
 
 	// Are the FCS bytes coming from this source valid? 
 	// (ie, do we validate FCS and log FCS bytes?)
@@ -389,16 +338,10 @@ protected:
     // Total packets
     unsigned int num_packets;
 
-    // Current channel, if we don't fetch it live.  This really means
-	// "last channel we set"
-    int channel;
-	int initial_channel;
-	int local_channel;
+	// Last channel & mod we set
+	int last_channel;
+	packetsource_channel_mod last_mod;
 
-	// Do we hop, where are we in hopping, what channels do we hop to
-	int channel_hop;
-	unsigned int channel_pos;
-	vector<unsigned int> channel_list;
 	int consec_error;
 
 	// Set of carrier types
@@ -406,9 +349,6 @@ protected:
 
 	// Generic packetsource optional parameters
 	packet_parm genericparms;
-
-	// Optional parameters from the config file which apply to this source
-	vector<string> optargs;
 };
 
 // Packetchain reference for packet sources to be attached to the 

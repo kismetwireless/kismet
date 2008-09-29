@@ -38,6 +38,7 @@
 #include "kis_droneframe.h"
 #include "clinetframework.h"
 #include "tcpclient.h"
+#include "packetsourcetracker.h"
 
 #define USE_PACKETSOURCE_DRONE
 
@@ -67,8 +68,9 @@ public:
 
 	int SendPacket(drone_packet *in_pack);
 
-	int SendChannelset(uuid in_uuid, unsigned int in_cmd, unsigned int in_cur, 
-					   unsigned int in_hop, vector<unsigned int> in_vec);
+	int SendChannelData(pst_packetsource *in_src, unsigned int in_cmd);
+
+	void SourceActionHandler(pst_packetsource *src, int action, int flags);
 	
 protected:
 	TcpClient *tcpcli;
@@ -104,9 +106,9 @@ public:
 	}
 
 	virtual KisPacketSource *CreateSource(GlobalRegistry *in_globalreg,
-										  string in_type, string in_name,
-										  string in_dev, string in_opts) {
-		return new PacketSource_Drone(in_globalreg, in_type, in_name, in_dev, in_opts);
+										  string in_interface,
+										  vector<opt_pair> *in_opts) {
+		return new PacketSource_Drone(in_globalreg, in_interface, in_opts);
 	}
 
 	virtual int AutotypeProbe(string in_device) {
@@ -116,24 +118,18 @@ public:
 	virtual int RegisterSources(Packetsourcetracker *tracker);
 
 	// Standard interface for capturesource
-	PacketSource_Drone(GlobalRegistry *in_globalreg, string in_type, 
-					   string in_name, string in_dev, string in_opts);
+	PacketSource_Drone(GlobalRegistry *in_globalreg, string in_interface, 
+					   vector<opt_pair> *in_opts);
 	virtual ~PacketSource_Drone();
 
 	virtual int OpenSource();
 	virtual int CloseSource();
-
-	// The 'master source' isn't channel capable, virtual subsources might
-	// be.
-	virtual int FetchChannelCapable() { return 0; }
 
 	// No meaning on the drone master source
 	virtual int EnableMonitor() { return 0; }
 	virtual int DisableMonitor() { return PACKSOURCE_UNMONITOR_RET_SILENCE; }
 	virtual int SetChannel(unsigned int in_ch) { return 0; }
 	virtual int FetchChannel() { return 0; }
-
-	virtual int ChildIPCControl() { return 0; }
 
 	virtual int FetchDescriptor();
 
@@ -163,10 +159,9 @@ public:
 		}
 
 	virtual KisPacketSource *CreateSource(GlobalRegistry *in_globalreg,
-										  string in_type, string in_name,
-										  string in_dev, string in_opts) {
-		return new PacketSource_DroneRemote(in_globalreg, in_type, in_name, 
-											in_dev, in_opts);
+										  string in_interface,
+										  vector<opt_pair> *in_opts) {
+		return new PacketSource_DroneRemote(in_globalreg, in_interface, in_opts);
 	}
 
 	virtual int AutotypeProbe(string in_device) {
@@ -175,9 +170,9 @@ public:
 
 	virtual int RegisterSources(Packetsourcetracker *tracker);
 
-	PacketSource_DroneRemote(GlobalRegistry *in_globalreg, string in_type,
-							 string in_name, string in_dev, string in_opts) :
-		KisPacketSource(in_globalreg, in_type, in_name, in_dev, in_opts) {
+	PacketSource_DroneRemote(GlobalRegistry *in_globalreg, string in_interface,
+							 vector<opt_pair> *in_opts) :
+		KisPacketSource(in_globalreg, in_interface, in_opts) {
 			droneframe = NULL;
 			rem_channelcapable = 0;
 		}
@@ -190,25 +185,18 @@ public:
 	// Return remote capability
 	virtual int FetchChannelCapable() { return rem_channelcapable; }
 
-	// Dropthrough commands to drone
+	// Drop-through commands to drone
 	virtual int SetChannel(unsigned int in_ch);
-	virtual int SetChannelSequence(vector<unsigned int> in_seq);
-	virtual int SetChannelSeqPos(unsigned int in_offt) { return 0; }
 	virtual int FetchChannel();
-	virtual int SetChannelHop(int in_hop);
-	virtual int FetchChannelHop();
-	// We don't have local channel hops
-	virtual int FetchLocalChannelHop() {
-		return 0;
-	}
 
 	// Stuff we can't implement
-	virtual unsigned int FetchNextChannel() { return 0; }
 	virtual int EnableMonitor() { return 0; }
 	virtual int DisableMonitor() { return PACKSOURCE_UNMONITOR_RET_SILENCE; }
 
+	// Skip channel hop
+	virtual int FetchSkipChanhop() { return 1; }
+
 	// Local stuff
-	virtual int ChildIPCControl() { return 0; }
 	virtual int FetchDescriptor() { return -1; }
 	virtual int Poll() { return 0; }
 
@@ -227,11 +215,15 @@ public:
 		num_packets++;
 	}
 
+	virtual void SetPST(pst_packetsource *in_pst) { pstsource = in_pst; }
+
 protected:
 	virtual void FetchRadioData(kis_packet *in_packet) { }
 
 	int rem_channelcapable;
 	DroneClientFrame *droneframe;
+
+	pst_packetsource *pstsource;
 };
 
 #endif

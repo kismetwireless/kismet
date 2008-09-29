@@ -128,6 +128,24 @@ int Linux_GetDrvInfo(const char *in_dev, char *errstr,
     return 0;
 }
 
+string Linux_GetSysDrv(const char *in_dev) {
+	char devlinktarget[512];
+	ssize_t devlinklen;
+	string devlink = "/sys/class/net/" + string(in_dev) + "/device/driver";
+	char *rind = NULL;
+
+	devlinklen = readlink(devlink.c_str(), devlinktarget, 511);
+	if (devlinklen > 0) {
+		devlinktarget[devlinklen] = '\0';
+		rind = rindex(devlinktarget, '/');
+		// If we found it and not at the end of the line
+		if (rind != NULL && (rind - devlinktarget) + 1 < devlinklen)
+			return string(rind + 1);
+	}
+
+	return "";
+}
+
 int Ifconfig_Get_Hwaddr(const char *in_dev, char *errstr, uint8_t *ret_hwaddr) {
     struct ifreq ifr;
     int skfd;

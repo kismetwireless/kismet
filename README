@@ -1,1 +1,69 @@
-To be replaced soon.  See README.newcore
+To be replaced soon.  See README.newcore for devel info.
+
+NOTE: NEWCORE HAS CHANGED HOW THINGS ARE CONFIGURED IN SOME SIGNIFICANT
+WAYS, BUT BY USING DIFFERENT OPTIONS THE CONFIG FILE CAN STILL BE SHARED WITH
+KISMET-STABLE.  REFER TO THE KISMET DEVEL BLOG, THIS README, AND THE COMMENTS
+IN CONF/KISMET.CONF FOR THE NEW CONFIGURATION OPTIONS.
+
+New security model:
+
+Kismet now uses a suid-root group-exec-only helper binary called kismet_capture
+which allows it to control and capture from interfaces.  When installed in suid
+mode, this program will be installed as group-executable only for the Kismet
+group.
+
+Kismet can be run without installation and WITHOUT PRIVILEGE SEPARATION by
+running it out of the source directory as root.
+
+In either use, this REMOVES the need to specify a user to drop privs to.
+
+Newcore sources:
+
+In an attempt to make it easier to configure, Newcore has a new source config
+format:
+
+ncsource=interface[:options]
+
+For interfaces where autodetect is supported, all that is needed is
+ncsource=wlan0
+
+For interfaces where autodetect does not work (for example, madwifi with no
+supporting VAPs), the "type" option is used:
+
+ncsource=wifi0,type=madwifi_g
+
+Multiple options can be included:
+
+ncsource=wlan0,name=intel,hop=false,channel=11
+
+Available source options:
+    name=foo            Name the source (otherwise it will be referred 
+                         to by the interface)
+    type=foo            Set the type (such as iwl4965, madwfifi_g, etc) for types
+                         which can not be auto-detected
+    uuid=foo            Force a specific UUID for this source (not needed for
+                         most users)
+    hop=true|false      Control hopping on this source
+    velocity=#          Set the channel hop velocity of this source
+    weakvalidate        Do not strongly force packet validation (somtimes needed
+                         for handling FCS data)
+    channellist=list    Use named channel list
+    channel=#           Set a channel/frequency
+    dwell=#             Dwell on each channel for # seconds
+    split=true|false    Disable channel list splitting (will not share a list of
+                         channels over multiple sources)
+
+Newcore channels:
+
+In an attempt to make it easier to configure, Newcore has a new channel config
+format:
+
+channellist=name:channel,channel,channel
+
+Additionally individual channels can be weighted so that more time is spent
+on them:
+
+channellist=foo,1:3,6:3,11:3,2,3,4,5,7,8,9,10
+
+would wait 3 times longer on channels 1, 6, 11 than on the other channels.
+

@@ -23,6 +23,8 @@ allowplugins=true
 # YOU MUST CHANGE THIS TO BE THE SOURCE YOU WANT TO USE
 source=none,none,addme
 
+# nsource=src1,interface=wifi0,type=auto,hop=no,channel=1,novapdestroy,weakvalidate
+
 # Per-source special options
 # sourceopts=srcname:options
 # srcname * indicates "all sources".  Individual source options can be turned

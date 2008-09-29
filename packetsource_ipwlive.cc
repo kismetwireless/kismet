@@ -51,7 +51,7 @@ int PacketSource_Ipwlive::AutotypeProbe(string in_device) {
 }
 
 int PacketSource_Ipwlive::RegisterSources(Packetsourcetracker *tracker) {
-	tracker->RegisterPacketsource("ipwlivetap", this, 1, "na", 0);
+	tracker->RegisterPacketProto("ipwlivetap", this, "na", 0);
 	return 1;
 }
 
@@ -180,10 +180,6 @@ int PacketSource_Ipwlive::EnableMonitor() {
 
 int PacketSource_Ipwlive::DisableMonitor() {
 	return PACKSOURCE_UNMONITOR_RET_SILENCE;
-}
-
-int PacketSource_Ipwlive::SetChannelSequence(vector<unsigned int> in_seq) {
-	return 0;
 }
 
 int PacketSource_Ipwlive::SetChannel(unsigned int in_ch) {

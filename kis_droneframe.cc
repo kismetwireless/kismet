@@ -291,10 +291,10 @@ int KisDroneFramework::Accept(int in_fd) {
 	free(dpkt);
 
 	// Send them all the sources
-	vector<KisPacketSource *> srcv = globalreg->sourcetracker->FetchSourceVec();
-	for (unsigned int x = 0; x < srcv.size(); x++) {
-		SendSource(in_fd, srcv[x], 0);
-		SendChannels(in_fd, srcv[x]);
+	vector<pst_packetsource *> *srcv = globalreg->sourcetracker->FetchSourceVec();
+	for (unsigned int x = 0; x < srcv->size(); x++) {
+		SendSource(in_fd, (*srcv)[x], 0);
+		SendChannels(in_fd, (*srcv)[x]);
 	}
 
 	return 1;
@@ -468,7 +468,7 @@ int KisDroneFramework::SendAllText(string in_text, int flags) {
 	return nsent;
 }
 
-int KisDroneFramework::SendSource(int in_cl, KisPacketSource *in_int, int invalid) {
+int KisDroneFramework::SendSource(int in_cl, pst_packetsource *in_int, int invalid) {
 	drone_packet *dpkt = 
 		(drone_packet *) malloc(sizeof(uint8_t) * 
 								(sizeof(drone_packet) + sizeof(drone_source_packet)));
@@ -487,18 +487,35 @@ int KisDroneFramework::SendSource(int in_cl, KisPacketSource *in_int, int invali
 				   DRONEBIT(DRONE_SRC_INVALID) |
 				   DRONEBIT(DRONE_SRC_NAMESTR) |
 				   DRONEBIT(DRONE_SRC_INTSTR) |
-				   DRONEBIT(DRONE_SRC_TYPESTR));
+				   DRONEBIT(DRONE_SRC_TYPESTR) |
+				   DRONEBIT(DRONE_SRC_CHANHOP) |
+				   DRONEBIT(DRONE_SRC_CHANNELDWELL) |
+				   DRONEBIT(DRONE_SRC_CHANNELRATE));
 
-	DRONE_CONV_UUID(in_int->FetchUUID(), &(spkt->uuid));
+	DRONE_CONV_UUID(in_int->strong_source->FetchUUID(), &(spkt->uuid));
 
 	if (invalid) {
 		spkt->invalidate = kis_hton16(1);
 	} else {
 		spkt->invalidate = kis_hton16(0);
-		snprintf((char *) spkt->name_str, 32, "%s", in_int->FetchName().c_str());
-		snprintf((char *) spkt->interface_str, 32, "%s", 
-				 in_int->FetchInterface().c_str());
-		snprintf((char *) spkt->type_str, 32, "%s", in_int->FetchType().c_str());
+
+		// Send the older style name/interface/type and recreate a source
+		// line on the other end - saves us more effort than converting it to
+		// a long ncsource style line, and we don't gain anything pulling
+		// the local options into the drone mirror since they don't mean
+		// anything there
+		snprintf((char *) spkt->name_str, 16, "%s", 
+				 in_int->strong_source->FetchName().c_str());
+		snprintf((char *) spkt->interface_str, 16, "%s",
+				 in_int->strong_source->FetchInterface().c_str());
+		snprintf((char *) spkt->type_str, 16, "%s",
+				 in_int->strong_source->FetchType().c_str());
+
+		if (in_int->channel_hop)
+			spkt->channel_hop = 1;
+
+		spkt->channel_dwell = kis_hton16(in_int->channel_dwell);
+		spkt->channel_rate = kis_hton16(in_int->channel_rate);
 	}
 
 	int ret = 0;
@@ -510,7 +527,7 @@ int KisDroneFramework::SendSource(int in_cl, KisPacketSource *in_int, int invali
 	return ret;
 }
 
-int KisDroneFramework::SendAllSource(KisPacketSource *in_int, int invalid) {
+int KisDroneFramework::SendAllSource(pst_packetsource *in_int, int invalid) {
 	vector<int> clvec;
 	int nsent = 0;
 
@@ -527,42 +544,34 @@ int KisDroneFramework::SendAllSource(KisPacketSource *in_int, int invalid) {
 	return nsent;
 }
 
-int KisDroneFramework::SendChannels(int in_cl, KisPacketSource *in_int) {
-	vector<unsigned int> channels = in_int->FetchChannelSequence();
-	unsigned int chsize = sizeof(uint16_t) * channels.size();
-
+int KisDroneFramework::SendSourceReport(int in_cl, pst_packetsource *in_int) {
 	drone_packet *dpkt = 
 		(drone_packet *) malloc(sizeof(uint8_t) * 
-								(sizeof(drone_packet) + 
-								 sizeof(drone_channelset_packet) + chsize));
+								(sizeof(drone_packet) + sizeof(drone_report_packet)));
 	memset(dpkt, 0, sizeof(uint8_t) * (sizeof(drone_packet) + 
-									   sizeof(drone_channelset_packet) + chsize));
+									   sizeof(drone_report_packet)));
 
 	dpkt->sentinel = kis_hton32(DroneSentinel);
-	dpkt->drone_cmdnum = kis_hton32(DRONE_CMDNUM_CHANNELSET);
-	dpkt->data_len = kis_hton32(sizeof(drone_channelset_packet) + chsize);
+	dpkt->drone_cmdnum = kis_hton32(DRONE_CMDNUM_REPORT);
+	dpkt->data_len = kis_hton32(sizeof(drone_report_packet));
 
-	drone_channelset_packet *cpkt = (drone_channelset_packet *) dpkt->data;
+	drone_report_packet *rpkt = (drone_report_packet *) dpkt->data;
 
-	cpkt->channelset_hdr_len = kis_hton16(sizeof(drone_channelset_packet) + chsize);
-	cpkt->channelset_content_bitmap =
-		kis_hton32(DRONEBIT(DRONE_CHANNELSET_UUID) |
-				   DRONEBIT(DRONE_CHANNELSET_CMD) |
-				   DRONEBIT(DRONE_CHANNELSET_CURCH) |
-				   DRONEBIT(DRONE_CHANNELSET_HOP) |
-				   DRONEBIT(DRONE_CHANNELSET_NUMCH) |
-				   DRONEBIT(DRONE_CHANNELSET_CHANNELS));
+	rpkt->report_hdr_len = kis_hton16(sizeof(drone_report_packet));
+	rpkt->report_content_bitmap =
+		kis_hton32(DRONEBIT(DRONE_REPORT_UUID) |
+				   DRONEBIT(DRONE_REPORT_FLAGS) |
+				   DRONEBIT(DRONE_REPORT_HOP_TM_SEC) |
+				   DRONEBIT(DRONE_REPORT_HOP_TM_USEC));
 
-	DRONE_CONV_UUID(in_int->FetchUUID(), &(cpkt->uuid));
+	DRONE_CONV_UUID(in_int->strong_source->FetchUUID(), &(rpkt->uuid));
 
-	cpkt->command = kis_ntoh16(DRONE_CHS_CMD_NONE);
+	rpkt->flags = DRONE_REPORT_FLAG_NONE;
+	if (in_int->error)
+		rpkt->flags |= DRONE_REPORT_FLAG_ERROR;
 
-	cpkt->cur_channel = kis_hton16(in_int->FetchChannel());
-	cpkt->channel_hop = kis_hton16(in_int->FetchChannelHop());
-	cpkt->num_channels = kis_hton16(channels.size());
-	for (unsigned int x = 0; x < channels.size(); x++) {
-		cpkt->channels[x] = kis_hton16(channels[x]);
-	}
+	rpkt->hop_tm_sec = kis_hton32(in_int->tm_hop_time.tv_sec);
+	rpkt->hop_tm_usec = kis_hton32(in_int->tm_hop_time.tv_usec);
 
 	int ret = 0;
 
@@ -573,7 +582,78 @@ int KisDroneFramework::SendChannels(int in_cl, KisPacketSource *in_int) {
 	return ret;
 }
 
-int KisDroneFramework::SendAllChannels(KisPacketSource *in_int) {
+int KisDroneFramework::SendAllSourceReport(pst_packetsource *in_int) {
+	vector<int> clvec;
+	int nsent = 0;
+
+	if (netserver == NULL)
+		return 0;
+
+	netserver->FetchClientVector(&clvec);
+
+	for (unsigned int x = 0; x < clvec.size(); x++) {
+		if (SendSourceReport(clvec[x], in_int) > 0)
+			nsent++;
+	}
+
+	return nsent;
+}
+
+int KisDroneFramework::SendChannels(int in_cl, pst_packetsource *in_int) {
+	pst_channellist *channels = 
+		globalreg->sourcetracker->FetchSourceChannelList(in_int);
+
+	drone_packet *dpkt = 
+		(drone_packet *) malloc(sizeof(uint8_t) * 
+								(sizeof(drone_packet) + 
+								 sizeof(drone_channelset_packet)));
+	memset(dpkt, 0, sizeof(uint8_t) * (sizeof(drone_packet) + 
+									   sizeof(drone_channelset_packet)));
+
+	dpkt->sentinel = kis_hton32(DroneSentinel);
+	dpkt->drone_cmdnum = kis_hton32(DRONE_CMDNUM_CHANNELSET);
+	dpkt->data_len = kis_hton32(sizeof(drone_channelset_packet));
+
+	drone_channelset_packet *cpkt = (drone_channelset_packet *) dpkt->data;
+
+	cpkt->channelset_hdr_len = kis_hton16(sizeof(drone_channelset_packet));
+	cpkt->channelset_content_bitmap =
+		kis_hton32(DRONEBIT(DRONE_CHANNELSET_UUID) |
+				   DRONEBIT(DRONE_CHANNELSET_CMD) |
+				   DRONEBIT(DRONE_CHANNELSET_CURCH) |
+				   DRONEBIT(DRONE_CHANNELSET_HOP) |
+				   DRONEBIT(DRONE_CHANNELSET_NUMCH) |
+				   DRONEBIT(DRONE_CHANNELSET_CHANNELS) |
+				   DRONEBIT(DRONE_CHANNELSET_CHANNELSDWELL) |
+				   DRONEBIT(DRONE_CHANNELSET_HOPRATE) |
+				   DRONEBIT(DRONE_CHANNELSET_HOPDWELL));
+
+	DRONE_CONV_UUID(in_int->strong_source->FetchUUID(), &(cpkt->uuid));
+
+	cpkt->command = kis_ntoh16(DRONE_CHS_CMD_NONE);
+
+	cpkt->cur_channel = kis_hton16(in_int->strong_source->FetchChannel());
+	cpkt->channel_hop = kis_hton16(in_int->channel_hop);
+
+	cpkt->num_channels = kis_hton16(channels->channel_vec.size());
+	for (unsigned int x = 0; x < channels->channel_vec.size(); x++) {
+		cpkt->channels[x] = kis_hton16(channels->channel_vec[x].channel);
+		cpkt->channels_dwell[x] = kis_hton16(channels->channel_vec[x].dwell);
+	}
+
+	cpkt->channel_rate = kis_hton16(in_int->channel_rate);
+	cpkt->channel_dwell = kis_hton16(in_int->channel_dwell);
+
+	int ret = 0;
+
+	ret = SendPacket(in_cl, dpkt);
+
+	free(dpkt);
+
+	return ret;
+}
+
+int KisDroneFramework::SendAllChannels(pst_packetsource *in_int) {
 	vector<int> clvec;
 	int nsent = 0;
 
@@ -626,7 +706,7 @@ int KisDroneFramework::SendAllPacket(drone_packet *in_pack) {
 }
 
 // Send a new source to all the clients
-void KisDroneFramework::sourceact_handler(KisPacketSource *src, int action,
+void KisDroneFramework::sourceact_handler(pst_packetsource *src, int action,
 										  int flags) {
 	if (action == SOURCEACT_ADDSOURCE) {
 		// Push a new source
@@ -838,57 +918,68 @@ int KisDroneFramework::channel_handler(const drone_packet *in_pack) {
 		return 0;
 	}
 
-	uint16_t nch = 0;
-	if ((cbm & DRONEBIT(DRONE_CHANNELSET_NUMCH)) &&
-		(cbm & DRONEBIT(DRONE_CHANNELSET_CHANNELS))) {
-		nch = kis_ntoh16(csp->num_channels);
-		if (len < (nch * sizeof(uint16_t)) + sizeof(drone_channelset_packet)) 
-			return -1;
-	}
-
 	uuid intuuid;
-	int cmd;
-
 	UUID_CONV_DRONE(&(csp->uuid), intuuid);
 
+	int cmd;
 	cmd = kis_ntoh16(csp->command);
 
-	if (cmd == DRONE_CHS_CMD_SETHOP && (cbm & DRONEBIT(DRONE_CHANNELSET_HOP))) {
-		int hopping;
-		hopping = kis_ntoh16(csp->channel_hop);
+	if (cmd == DRONE_CHS_CMD_SETVEC &&
+		(cbm & DRONEBIT(DRONE_CHANNELSET_NUMCH)) &&
+		(cbm & DRONEBIT(DRONE_CHANNELSET_CHANNELS)) &&
+		(cbm & DRONEBIT(DRONE_CHANNELSET_CHANNELSDWELL))) {
 
-		_MSG((hopping ? string("Enabling") : string("Disabling")) + 
-			 " channel hopping on " + intuuid.UUID2String(), MSGFLAG_INFO);
-		return globalreg->sourcetracker->SetHopping(hopping, intuuid);
-	} else if (cmd == DRONE_CHS_CMD_SETCUR &&
-			   (cbm & DRONEBIT(DRONE_CHANNELSET_CURCH))) {
-		uint16_t curch = kis_ntoh16(csp->cur_channel);
-		osstr << "Setting source " + intuuid.UUID2String() + " to channel " <<
-			curch;
-		_MSG(osstr.str(), MSGFLAG_INFO);
-		return globalreg->sourcetracker->SetChannel(curch, intuuid);
-	} else if (cmd == DRONE_CHS_CMD_SETVEC &&
-			   (cbm & DRONEBIT(DRONE_CHANNELSET_NUMCH)) &&
-			   (cbm & DRONEBIT(DRONE_CHANNELSET_CHANNELS))) {
-		// We're already length-checked
-		vector<unsigned int> setchans;
+		ostringstream chstr;
+		uint16_t nch = kis_ntoh16(csp->num_channels);
 
-		if (nch == 0) {
-			_MSG("Drone framework got set channel vector command with no "
-				 "channels in the vector to set.", MSGFLAG_ERROR);
-			return 0;
-		}
+		// Make a new channel list based on the UUID
+		chstr << intuuid.UUID2String() << ":";
 
-		osstr << "Setting source " + intuuid.UUID2String() + " channel sequence ";
 		for (unsigned int x = 0; x < nch; x++) {
-			setchans.push_back(kis_ntoh16(csp->channels[x]));
-			osstr << kis_ntoh16(csp->channels[x]) << ",";
+			uint16_t ch = kis_ntoh16(csp->channels[x]);
+			uint16_t dw = kis_ntoh16(csp->channels_dwell[x]);
+			chstr << ch << ":" << dw << ",";
 		}
-		osstr << "end";
+
+		_MSG("Setting source " + intuuid.UUID2String() + " channel vector to " +
+			 chstr.str(), MSGFLAG_INFO);
+
+		return globalreg->sourcetracker->SetSourceNewChannellist(intuuid, chstr.str());
+	}
+
+	if ((cmd == DRONE_CHS_CMD_SETHOP || cmd == DRONE_CHS_CMD_SETCUR) &&
+		(cbm & DRONEBIT(DRONE_CHANNELSET_HOP)) &&
+		(cbm & DRONEBIT(DRONE_CHANNELSET_CURCH))) {
+		int hopping = kis_ntoh16(csp->channel_hop);
+
+		uint16_t curch = kis_ntoh16(csp->cur_channel);
+
+		osstr << (hopping ? string("Enabling") : string("Disabling")) << " ";
+		osstr << "channel hopping on " << intuuid.UUID2String();
+		if (hopping)
+			osstr << " and locking to channel " << curch;
 
 		_MSG(osstr.str(), MSGFLAG_INFO);
 
-		return globalreg->sourcetracker->SetChannelSequence(setchans, intuuid);
+		return globalreg->sourcetracker->SetSourceHopping(intuuid, hopping, curch);
+	}
+
+	if (cmd == DRONE_CHS_CMD_SETHOPDWELL &&
+		(cbm & DRONEBIT(DRONE_CHANNELSET_HOPRATE)) &&
+		(cbm & DRONEBIT(DRONE_CHANNELSET_HOPDWELL))) {
+		uint16_t hoprate = kis_ntoh16(csp->channel_rate);
+		uint16_t hopdwell = kis_ntoh16(csp->channel_dwell);
+
+		if (hoprate != 0)
+			osstr << "Setting hop rate to " << hoprate << " channels per second on "
+				"source " << intuuid.UUID2String();
+		else
+			osstr << "Setting channel dwell to " << hopdwell << " seconds per "
+				"channel on source " << intuuid.UUID2String();
+
+		_MSG(osstr.str(), MSGFLAG_INFO);
+
+		return globalreg->sourcetracker->SetSourceHopDwell(intuuid, hoprate, hopdwell);
 	}
 
 	return 0;

@@ -704,7 +704,17 @@ if test "$bsdradiotap" = "yes"; then
 fi
 
 AC_ARG_ENABLE(setuid, [  --disable-setuid        disable setuid/privdrop ability (not reccomended)],,suid=yes)
-# evaluate after viha test
+
+suidgroup="kismet"
+AC_ARG_WITH(suidgroup,
+	["  --with-suidgroup=group       Group allowed to execute the kismet_capture " \
+	 "suid root helper process" ],
+	[
+   	 if test "$withval"x != "x"; then
+	 	suidgroup="$withval"
+     fi
+	])
+AC_SUBST(suidgroup)
 
 AC_ARG_ENABLE(viha, [  --disable-viha          disable MacOSX Viha capture source (OSX only)],want_viha=no,)
 
@@ -813,6 +823,14 @@ elif test "$want_viha" = "yes"; then
 else
 	echo "no"
 fi
+printf "          Setuid group: "
+if test "$cygwin" = "yes"; then
+	echo "n/a (Cygwin/Win32";
+elif test "$want_viha" = "yes"; then
+	echo "n/a (OSX with Viha)"
+else
+	echo "$suidgroup"
+fi
 
 printf "      Terminal Control: "
 echo "$termcontrol";
@@ -902,8 +920,9 @@ if test "$pcap" != "yes" -a "$linux" = "yes"; then
 	echo "library, however it now expects libpcap to be provided by the system."
 	echo "Kismet on Linux without LibPcap cannot capture data locally and will "
 	echo "almost certainly NOT BE WHAT YOU WANT."
-	echo "Your distribution should provide packages for libpcap, otherwise "
-	echo "it can be downloaded from http://tcpdump.org"
+	echo "Your distribution should provide packages for libpcap (usually "
+	echo "called libpcap-devel), otherwise it can be downloaded from "
+	echo "http://tcpdump.org"
 fi
 
 if test "`echo $host_os | grep linux`" = ""; then
@@ -912,10 +931,6 @@ if test "`echo $host_os | grep linux`" = ""; then
 	echo "you will likely need to use 'gmake' instead of 'make'."
 	echo "Run 'gmake dep' to generate dependencies and 'gmake' followed by"
 	echo "'gmake install' to compile and install Kismet"
-	echo "Kismet WILL NOT be installed suid-root by default.  If you wish to install"
-	echo "Kismet as a suid-root utility, READ THE DOCUMENTATION and run "
-	echo "'make suidinstall'."
-	echo "DO NOT INSTALL KISMET AS SUID-ROOT IF YOU HAVE UNTRUSTED USERS ON YOUR SYSTEM."
 else
 	verminor=`uname -r | cut -d '.' -f 2`
 	# Stupid redhat

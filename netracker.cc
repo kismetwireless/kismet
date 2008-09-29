@@ -1261,7 +1261,6 @@ Netracker::~Netracker() {
 
 	if (globalreg->runstate_dumper != NULL)
 		globalreg->runstate_dumper->RemoveRunstateCb(NetrackerRunstateCB);
-
 }
 
 int Netracker::AddFilter(string in_filter) {

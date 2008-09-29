@@ -28,6 +28,7 @@
 #include "messagebus.h"
 #include "netframework.h"
 #include "packetchain.h"
+#include "packetsourcetracker.h"
 
 // Network stream protocol used for Drones.
 // Designed to be future-proof so that drone and server versions will be able
@@ -65,6 +66,7 @@ const uint32_t DroneSentinel = 0xDEADBEEF;
 #define DRONE_CMDNUM_CAPPACKET		3
 #define DRONE_CMDNUM_CHANNELSET		4
 #define DRONE_CMDNUM_SOURCE			5
+#define DRONE_CMDNUM_REPORT			6
 
 // Size-neutral container for a uuid
 struct drone_trans_uuid {
@@ -148,28 +150,37 @@ struct drone_string_packet {
 // OR if it comes FROM the drone, it indicates the current set of channels used
 // and the state of channel hopping.  How a set command is treated depends on
 // the commands set.
-#define DRONE_CHANNELSET_UUID		0
-#define DRONE_CHANNELSET_CMD		1
-#define DRONE_CHANNELSET_CURCH		2
-#define DRONE_CHANNELSET_HOP		3
-#define DRONE_CHANNELSET_NUMCH		4
-#define DRONE_CHANNELSET_CHANNELS	5
+#define DRONE_CHANNELSET_UUID			0
+#define DRONE_CHANNELSET_CMD			1
+#define DRONE_CHANNELSET_CURCH			2
+#define DRONE_CHANNELSET_HOP			3
+#define DRONE_CHANNELSET_NUMCH			4
+#define DRONE_CHANNELSET_CHANNELS		5
+#define DRONE_CHANNELSET_CHANNELSDWELL	6
+#define DRONE_CHANNELSET_HOPRATE		7
+#define DRONE_CHANNELSET_HOPDWELL		8
 
 // Commands for the channelset command
 #define DRONE_CHS_CMD_NONE			0
 #define DRONE_CHS_CMD_SETHOP		1
 #define DRONE_CHS_CMD_SETVEC		2
 #define DRONE_CHS_CMD_SETCUR		3
+#define DRONE_CHS_CMD_SETHOPDWELL	4
 struct drone_channelset_packet {
 	uint16_t channelset_hdr_len;
 	uint32_t channelset_content_bitmap;
+
 	drone_trans_uuid uuid;
 	uint16_t command;
 	uint16_t cur_channel;
 	uint16_t channel_hop;
 	uint16_t num_channels;
-	// size = 2 * num_channels
-	uint16_t channels[0];
+
+	uint16_t channels[IPC_SOURCE_MAX_CHANS];
+	uint16_t channels_dwell[IPC_SOURCE_MAX_CHANS];
+
+	uint16_t channel_rate;
+	uint16_t channel_dwell;
 } __attribute__((__packed__));
 
 // Source record
@@ -178,17 +189,39 @@ struct drone_channelset_packet {
 #define DRONE_SRC_NAMESTR			2
 #define DRONE_SRC_INTSTR			3
 #define DRONE_SRC_TYPESTR			4
+#define DRONE_SRC_CHANHOP			5
+#define DRONE_SRC_CHANNELDWELL		6
+#define DRONE_SRC_CHANNELRATE		7
 struct drone_source_packet {
 	uint16_t source_hdr_len;
 	uint32_t source_content_bitmap;
 	drone_trans_uuid uuid;
 	// Kill this source, the rest of the data is empty
 	uint16_t invalidate;
-	// Null terminated strings
-	uint8_t name_str[32];
-	uint8_t interface_str[32];
-	uint8_t type_str[32];
+	// Null-terminated strings
+	uint8_t name_str[16];
+	uint8_t interface_str[16];
+	uint8_t type_str[16];
+	uint8_t channel_hop;
+	uint16_t channel_dwell;
+	uint16_t channel_rate;
 } __attribute__((__packed__));
+
+// Source report record
+#define DRONE_REPORT_UUID			0
+#define DRONE_REPORT_FLAGS			1
+#define DRONE_REPORT_HOP_TM_SEC		2
+#define DRONE_REPORT_HOP_TM_USEC	3
+struct drone_report_packet {
+	uint16_t report_hdr_len;
+	uint32_t report_content_bitmap;
+	drone_trans_uuid uuid;
+	uint8_t flags;
+	uint32_t hop_tm_sec;
+	uint32_t hop_tm_usec;
+} __attribute__((__packed__));
+#define DRONE_REPORT_FLAG_NONE		0
+#define DRONE_REPORT_FLAG_ERROR		128
 
 // Bitmap fields for radio headers
 #define DRONE_RADIO_ACCURACY		0
@@ -317,19 +350,23 @@ public:
 	virtual int time_handler();
 
 	// AddSource handler...
-	virtual void sourceact_handler(KisPacketSource *src, int action, int flags);
+	virtual void sourceact_handler(pst_packetsource *src, int action, int flags);
 
 	// Send a frame
 	virtual int SendPacket(int in_cl, drone_packet *in_pack);
 	virtual int SendAllPacket(drone_packet *in_pack);
 
 	// Send a source record
-	virtual int SendSource(int in_cl, KisPacketSource *in_int, int invalid);
-	virtual int SendAllSource(KisPacketSource *in_int, int invalid);
+	virtual int SendSource(int in_cl, pst_packetsource *in_int, int invalid);
+	virtual int SendAllSource(pst_packetsource *in_int, int invalid);
+
+	// Send a source report
+	virtual int SendSourceReport(int in_cl, pst_packetsource *in_int);
+	virtual int SendAllSourceReport(pst_packetsource *in_int);
 
 	// Send a channel record
-	virtual int SendChannels(int in_cl, KisPacketSource *in_int);
-	virtual int SendAllChannels(KisPacketSource *in_int);
+	virtual int SendChannels(int in_cl, pst_packetsource *in_int);
+	virtual int SendAllChannels(pst_packetsource *in_int);
 
 	virtual int channel_handler(const drone_packet *in_pack);
 

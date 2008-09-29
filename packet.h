@@ -131,11 +131,14 @@ class kis_datachunk : public packet_component {
 public:
     uint8_t *data;
     unsigned int length;
+	int dlt;
+	uint16_t source_id;
    
     kis_datachunk() {
 		self_destruct = 1; // Our delete() handles everything
         data = NULL;
         length = 0;
+		source_id = 0;
     }
 
     virtual ~kis_datachunk() {

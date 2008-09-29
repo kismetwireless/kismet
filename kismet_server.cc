@@ -42,13 +42,13 @@
 #include "plugintracker.h"
 
 #include "packetsource.h"
+
 #include "packetsource_bsdrt.h"
 #include "packetsource_pcap.h"
 #include "packetsource_wext.h"
 #include "packetsource_drone.h"
 #include "packetsource_ipwlive.h"
 #include "packetsource_airpcap.h"
-#include "packetsource_darwin.h"
 #include "packetsourcetracker.h"
 
 #include "timetracker.h"
@@ -152,16 +152,19 @@ protected:
 
 void FatalQueueMessageClient::ProcessMessage(string in_msg, int in_flags) {
     // We only get passed fatal stuff so save a test
-    fatalqueue.push_back(in_msg);
+	if (in_flags & MSGFLAG_ERROR) {
+		fatalqueue.push_back("ERROR: " + in_msg);
+	} else if (in_flags & MSGFLAG_FATAL) {
+		fatalqueue.push_back("FATAL: " + in_msg);
+	}
 }
 
 void FatalQueueMessageClient::DumpFatals() {
     for (unsigned int x = 0; x < fatalqueue.size(); x++) {
 		if (glob_linewrap)
-			fprintf(stderr, "%s", InLineWrap("FATAL: " + fatalqueue[x], 
-											 7, 80).c_str());
+			fprintf(stderr, "%s", InLineWrap(fatalqueue[x], 7, 80).c_str());
 		else
-			fprintf(stderr, "FATAL: %s\n", fatalqueue[x].c_str());
+			fprintf(stderr, "%s\n", fatalqueue[x].c_str());
     }
 }
 
@@ -184,7 +187,7 @@ GlobalRegistry *globalregistry = NULL;
 void ErrorShutdown() {
     // Shut down the packet sources
     if (globalregistry->sourcetracker != NULL) {
-        globalregistry->sourcetracker->CloseSources();
+        globalregistry->sourcetracker->StopSource(0);
     }
 
 	// Shut down the root IPC process
@@ -215,7 +218,7 @@ void CatchShutdown(int sig) {
 
 	if (globalregistry->sourcetracker != NULL) {
 		// Shut down the packet sources
-		globalregistry->sourcetracker->CloseSources();
+		globalregistry->sourcetracker->StopSource(0);
 	}
 
 	if (globalregistry->plugintracker != NULL)
@@ -379,60 +382,6 @@ int Usage(char *argv) {
 	exit(1);
 }
 
-int FindSuidTarget(string in_username, GlobalRegistry *globalreg,
-				   uid_t *ret_uid, gid_t *ret_gid) {
-	struct passwd *pwordent;
-	char *suid_user;
-	uid_t suid_uid, real_uid;
-	gid_t suid_gid;
-	char errstr[1024];
-
-	real_uid = getuid();
-
-	suid_user = strdup(in_username.c_str());
-
-	if ((pwordent = getpwnam(suid_user)) == NULL) {
-		snprintf(errstr, 1024, "Could not find user '%s' for priv-drop.  Make sure "
-				 "you have a valid user set for the 'suiduser' configuration entry "
-				 "and that /etc/passwd is readable.  See the 'Installation & "
-				 "Security' and 'Configuration' sections of the README file for "
-				 "more information.", suid_user);
-		_MSG(errstr, MSGFLAG_FATAL);
-		globalreg->fatal_condition = 1;
-		free(suid_user);
-		return -1;
-	}
-
-	free(suid_user);
-
-	suid_uid = pwordent->pw_uid;
-	suid_gid = pwordent->pw_gid;
-
-	if (suid_uid == 0) {
-		snprintf(errstr, 1024, "Specifying a UID-0 user for the priv-drop is "
-				 "pointless.  See the 'Installation & Security' and "
-				 "'Configuration' sections of the README file for information "
-				 "on how to properly configure Kismet for priv-drop.");
-		_MSG(errstr, MSGFLAG_FATAL);
-		globalreg->fatal_condition = 1;
-		return -1;
-	} else if (suid_uid != real_uid && real_uid != 0) {
-		_MSG("Kismet must be started as root for priv-drop to work properly. "
-			 "See the 'Installation & Security' and 'Configuration' sections "
-			 "of the README file for more information.  Kismet will continue "
-			 "executing as the user which started it, and will ignore the "
-			 "privdrop user.", MSGFLAG_ERROR);
-		(*ret_uid) = real_uid;
-		(*ret_gid) = getgid();
-		return 0;
-	}
-
-	(*ret_uid) = suid_uid;
-	(*ret_gid) = suid_gid;
-
-	return 1;
-}
-
 int FlushDatafilesEvent(TIMEEVENT_PARMS) {
 	if (globalreg->subsys_dumpfile_vec.size() == 0)
 		return 1;
@@ -453,16 +402,9 @@ int main(int argc, char *argv[], char *envp[]) {
 	ConfigFile *conf;
 	GroupConfigFile *runstate = NULL;
 	string runstatename;
-#ifdef HAVE_SUID
-	uid_t suid_uid;
-	gid_t suid_gid;
-	string suiduser;
-#endif
 	int option_idx = 0;
 	int data_dump = 0;
 
-	// ------ WE MAY BE RUNNING AS ROOT ------
-	
 	// Catch the interrupt handler to shut down
     signal(SIGINT, CatchShutdown);
     signal(SIGTERM, CatchShutdown);
@@ -486,8 +428,25 @@ int main(int argc, char *argv[], char *envp[]) {
 		new SmartStdoutMessageClient(globalregistry, NULL);
 	fqmescli = new FatalQueueMessageClient(globalregistry, NULL);
 
-	globalregistry->messagebus->RegisterClient(fqmescli, MSGFLAG_FATAL);
+	// Register the fatal queue with fatal and error messages
+	globalregistry->messagebus->RegisterClient(fqmescli, MSGFLAG_FATAL | MSGFLAG_ERROR);
+	// Register the smart msg printer for everything
 	globalregistry->messagebus->RegisterClient(smartmsgcli, MSGFLAG_ALL);
+
+	// Generate the root ipc packet capture and spawn it immediately, then register
+	// and sync the packet protocol stuff
+	if (getuid() != 0) {
+		globalregistry->rootipc = new IPCRemote(globalregistry, "root capture control");
+		globalregistry->rootipc->SetChildCmd(string(BIN_LOC) + "/kismet_capture");
+		globalregistry->rootipc->SpawnIPC();
+		globalregistry->messagebus->InjectMessage("Spawned root IPC capture control",
+												  MSGFLAG_INFO);
+	} else {
+		globalregistry->messagebus->InjectMessage("NOT spawning suid-root IPC capture "
+		   	"control, because we are ALREADY running as root.  This is not the "
+			"preferred method of running Kismet because it prevents certain security "
+			"features from operating.", MSGFLAG_ERROR);
+	}
 
 	// Allocate some other critical stuff
 	globalregistry->timetracker = new Timetracker(globalregistry);
@@ -552,32 +511,6 @@ int main(int argc, char *argv[], char *envp[]) {
 		globalregistry->servername = MungeToPrintable(conf->FetchOpt("servername"));
 	}
 
-#ifdef HAVE_SUID
-	// Process privdrop critical stuff
-	if ((suiduser = conf->FetchOpt("suiduser")) == "") {
-		snprintf(errstr, 1024, "No 'suiduser' directive found in the configuration "
-				 "file.  Please refer to the 'Installation & Security' and "
-				 "'Configuration' sections of the README file for more "
-				 "information.");
-		globalregistry->messagebus->InjectMessage(errstr, MSGFLAG_FATAL);
-		globalregistry->fatal_condition = 1;
-		CatchShutdown(-1);
-	}
-
-	if (FindSuidTarget(suiduser, globalregistry,
-					   &suid_uid, &suid_gid) < 0 || globalregistry->fatal_condition) {
-		CatchShutdown(-1);
-	}
-
-#else
-	snprintf(errstr, 1024, "SUID priv-dropping has been DISABLED at compile time. "
-			 "This is NOT reccomended as it can increase the risk to your system "
-			 "from hostile remote data.  Please consult the 'Installation & "
-			 "Security' and 'Configuration' sections of your README file.");
-	globalregistry->messagebus->InjectMessage(errstr, MSGFLAG_ERROR);
-	sleep(1);
-#endif
-
 	// Create the basic network/protocol server
 	globalregistry->kisnetserver = new KisNetFramework(globalregistry);
 	if (globalregistry->fatal_condition)
@@ -594,90 +527,77 @@ int main(int argc, char *argv[], char *envp[]) {
 	if (globalregistry->fatal_condition)
 		CatchShutdown(-1);
 
-	// Create the root IPC controller if we have SUID abilities
-#ifdef HAVE_SUID
-	globalregistry->rootipc = new IPCRemote(globalregistry, "root control");
-	if (globalregistry->fatal_condition)
-		CatchShutdown(-1);
-	globalregistry->RegisterPollableSubsys(globalregistry->rootipc);
-#endif
-
 	// Create the packetsourcetracker
 	globalregistry->sourcetracker = new Packetsourcetracker(globalregistry);
 	if (globalregistry->fatal_condition)
 		CatchShutdown(-1);
+
+	// Register the IPC
+	if (globalregistry->rootipc != NULL) {
+		globalregistry->sourcetracker->RegisterIPC(globalregistry->rootipc, 0);
+
+		// Sync the IPC system
+		globalregistry->rootipc->SyncIPC();
+	}
 
 	// Create the basic drone server
 	globalregistry->kisdroneserver = new KisDroneFramework(globalregistry);
 	if (globalregistry->fatal_condition)
 		CatchShutdown(-1);
 
-	// Create the alert tracker (this is important so it has to be done as root)
+	// Create the alert tracker
 	globalregistry->alertracker = new Alertracker(globalregistry);
 	if (globalregistry->fatal_condition)
 		CatchShutdown(-1);
 
 	// Add the packet sources
 #ifdef USE_PACKETSOURCE_PCAPFILE
-	if (globalregistry->sourcetracker->AddKisPacketsource(new PacketSource_Pcapfile(globalregistry)) < 0 || globalregistry->fatal_condition) 
+	if (globalregistry->sourcetracker->RegisterPacketSource(new PacketSource_Pcapfile(globalregistry)) < 0 || globalregistry->fatal_condition) 
 		CatchShutdown(-1);
 #endif
 #ifdef USE_PACKETSOURCE_WEXT
-	if (globalregistry->sourcetracker->AddKisPacketsource(new PacketSource_Wext(globalregistry)) < 0 || globalregistry->fatal_condition) 
+	if (globalregistry->sourcetracker->RegisterPacketSource(new PacketSource_Wext(globalregistry)) < 0 || globalregistry->fatal_condition) 
 		CatchShutdown(-1);
 #endif
 #ifdef USE_PACKETSOURCE_MADWIFI
-	if (globalregistry->sourcetracker->AddKisPacketsource(new PacketSource_Madwifi(globalregistry)) < 0 || globalregistry->fatal_condition) 
+	if (globalregistry->sourcetracker->RegisterPacketSource(new PacketSource_Madwifi(globalregistry)) < 0 || globalregistry->fatal_condition) 
+		CatchShutdown(-1);
+#endif
+#ifdef USE_PACKETSOURCE_MADWIFING
+	if (globalregistry->sourcetracker->RegisterPacketSource(new PacketSource_MadwifiNG(globalregistry)) < 0 || globalregistry->fatal_condition) 
 		CatchShutdown(-1);
 #endif
 #ifdef USE_PACKETSOURCE_WRT54PRISM
-	if (globalregistry->sourcetracker->AddKisPacketsource(new PacketSource_Wrt54Prism(globalregistry)) < 0 || globalregistry->fatal_condition) 
+	if (globalregistry->sourcetracker->RegisterPacketSource(new PacketSource_Wrt54Prism(globalregistry)) < 0 || globalregistry->fatal_condition) 
 		CatchShutdown(-1);
 #endif
 #ifdef USE_PACKETSOURCE_DRONE
-	if (globalregistry->sourcetracker->AddKisPacketsource(new PacketSource_Drone(globalregistry)) < 0 || globalregistry->fatal_condition) 
+	if (globalregistry->sourcetracker->RegisterPacketSource(new PacketSource_Drone(globalregistry)) < 0 || globalregistry->fatal_condition) 
 		CatchShutdown(-1);
 #endif
 #ifdef USE_PACKETSOURCE_BSDRT
-	if (globalregistry->sourcetracker->AddKisPacketsource(new PacketSource_BSDRT(globalregistry)) < 0 || globalregistry->fatal_condition) 
+	if (globalregistry->sourcetracker->RegisterPacketSource(new PacketSource_BSDRT(globalregistry)) < 0 || globalregistry->fatal_condition) 
 		CatchShutdown(-1);
 #endif
 #ifdef USE_PACKETSOURCE_IPWLIVE
-	if (globalregistry->sourcetracker->AddKisPacketsource(new PacketSource_Ipwlive(globalregistry)) < 0 || globalregistry->fatal_condition) 
+	if (globalregistry->sourcetracker->RegisterPacketSource(new PacketSource_Ipwlive(globalregistry)) < 0 || globalregistry->fatal_condition) 
 		CatchShutdown(-1);
 #endif
 #ifdef USE_PACKETSOURCE_AIRPCAP
-	if (globalregistry->sourcetracker->AddKisPacketsource(new PacketSource_AirPcap(globalregistry)) < 0 || globalregistry->fatal_condition) 
+	if (globalregistry->sourcetracker->RegisterPacketSource(new PacketSource_AirPcap(globalregistry)) < 0 || globalregistry->fatal_condition) 
 		CatchShutdown(-1);
 #endif
-#ifdef USE_PACKETSOURCE_DARWIN
-	if (globalregistry->sourcetracker->AddKisPacketsource(new PacketSource_Darwin(globalregistry)) < 0 || globalregistry->fatal_condition) 
-		CatchShutdown(-1);
-#endif
-
-
-	// Kickstart the root plugins -- Can't think of any that needed to
-	// activate before now
-	globalregistry->plugintracker->ActivatePlugins();
-	if (globalregistry->fatal_condition)
-		CatchShutdown(-1);
 
 	// Enable cards from config/cmdline
-	if (globalregistry->sourcetracker->LoadConfiguredCards() < 0)
-		CatchShutdown(-1);
-
-	if (globalregistry->fatal_condition)
-		CatchShutdown(-1);
-
-	// Bind sources as root
-	globalregistry->sourcetracker->BindSources(1);
-	if (globalregistry->fatal_condition)
+	if (globalregistry->sourcetracker->LoadConfiguration() < 0)
 		CatchShutdown(-1);
 
 	// Make the tuntap device as root, if we need to
+#if 0
 	new Dumpfile_Tuntap(globalregistry);
 	if (globalregistry->fatal_condition)
 		CatchShutdown(-1);
+#endif
 
 	// Create the basic network/protocol server
 	globalregistry->kisnetserver->Activate();
@@ -689,38 +609,6 @@ int main(int argc, char *argv[], char *envp[]) {
 	if (globalregistry->fatal_condition)
 		CatchShutdown(-1);
 
-	// Once the packet source and channel control is opened, we shouldn't need special
-	// privileges anymore so lets drop to a normal user.  We also don't want to open 
-	// our logfiles as root if we can avoid it.  Once we've dropped, we'll 
-	// investigate our sources again and open any defered
-#ifdef HAVE_SUID
-	//  Spawn the root IPC system
-	if (globalregistry->rootipc->SpawnIPC() < 0 || globalregistry->fatal_condition) {
-		globalregistry->messagebus->InjectMessage("Failed to create IPC child "
-												  "process", MSGFLAG_FATAL);
-		globalregistry->fatal_condition = 1;
-		CatchShutdown(-1);
-	}
-	
-	if (setgid(suid_gid) < 0) {
-		snprintf(errstr, 1024, "Priv-drop to GID %d failed", suid_gid);
-		globalregistry->messagebus->InjectMessage(errstr, MSGFLAG_FATAL);
-		CatchShutdown(-1);
-	}
-
-	if (setuid(suid_uid) < 0) {
-		snprintf(errstr, 1024, "Priv-drop to UID %d failed", suid_uid);
-		globalregistry->messagebus->InjectMessage(errstr, MSGFLAG_FATAL);
-		CatchShutdown(-1);
-	} 
-
-	snprintf(errstr, 1024, "Dropped privs to %s (%d) gid %d", suiduser.c_str(), 
-			 suid_uid, suid_gid);
-	globalregistry->messagebus->InjectMessage(errstr, MSGFLAG_INFO);
-#endif
-
-	// ------ WE ARE NOW RUNNING AS THE TARGET (MAYBE) ------
-	
 	// Load the old runstate dumpfile
 	if (runstatename.length() > 0) {
 		snprintf(errstr, STATUS_MAX, "Reading from runstate file %s", 
@@ -756,11 +644,6 @@ int main(int argc, char *argv[], char *envp[]) {
 
 	// Process userspace plugins
 	globalregistry->plugintracker->ScanUserPlugins();
-
-	// Bind sources as non-root
-	globalregistry->sourcetracker->BindSources(0);
-	if (globalregistry->fatal_condition)
-		CatchShutdown(-1);
 
 	// Register basic chain elements...  This is just instantiating a util class.
 	// Nothing else talks to it, so we don't have to care about following it
@@ -854,6 +737,9 @@ int main(int argc, char *argv[], char *envp[]) {
 	// Blab about starting
 	globalregistry->messagebus->InjectMessage("Kismet starting to gather packets",
 											  MSGFLAG_INFO);
+
+	// Start sources
+	globalregistry->sourcetracker->StartSource(0);
 	
 	// Set the global silence now that we're set up
 	glob_silent = local_silent;

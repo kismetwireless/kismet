@@ -48,26 +48,57 @@ typedef unsigned long u64;
 #include "packetsource_wext.h"
 #include "madwifing_control.h"
 
-PacketSource_Wext::PacketSource_Wext(GlobalRegistry *in_globalreg, string in_type, 
-									 string in_name, string in_dev, string in_opts) :
-	PacketSource_Pcap(in_globalreg, in_type, in_name, in_dev, in_opts) { 
+PacketSource_Wext::PacketSource_Wext(GlobalRegistry *in_globalreg, 
+									 string in_interface,
+									 vector<opt_pair> *in_opts) :
+	PacketSource_Pcap(in_globalreg, in_interface, in_opts) { 
 
-	if (in_type == "nokia770") {
+	// Type derived by our higher parent
+	if (type == "nokia770") {
 		SetValidateCRC(1);
 	}
 }
 
 int PacketSource_Wext::AutotypeProbe(string in_device) {
+#if 0
+	// Use sys fs to determine since we don't need to be root
 	ethtool_drvinfo drvinfo;
 	char errstr[1024];
+#endif
+	string sysdriver;
 
+	// Examine the /sys filesystem to try to figure out what kind of driver
+	// we have here
+	sysdriver = Linux_GetSysDrv(in_device.c_str());
+
+	// Most of the linux drivers now behave sanely
+	if (sysdriver == "iwl4965" || sysdriver == "iwl3945" ||
+		sysdriver == "adm8211" || sysdriver == "ath5k" ||
+		sysdriver == "ath9k" || sysdriver == "b43" ||
+		sysdriver == "b43legacy" || sysdriver == "hostap" ||
+		sysdriver == "libertas" || sysdriver == "p54" ||
+		sysdriver == "prism54" || sysdriver == "rndis_wlan" ||
+		sysdriver == "rt2500pci" || sysdriver == "rt73usb" ||
+		sysdriver == "rt2x00pci" || sysdriver == "rt61pci" ||
+		sysdriver == "rt2400pci" || sysdriver == "rt2x00usb" ||
+		sysdriver == "rt2400pci" || sysdriver == "rt61pci" ||
+		sysdriver == "rtl8180"  || sysdriver == "zd1201" ||
+		sysdriver == "zd1211rw") {
+		
+		// Set the weaksource type to what we derived
+		type = sysdriver;
+		return 1;
+	}
+
+#if 0
+	// If we couldn't get the info from sysfs, use the ethtool ioctls to try
+	// to get it - but this needs root, and that's sad.
 	if (Linux_GetDrvInfo(in_device.c_str(), errstr, &drvinfo) < 0) {
 		_MSG(errstr, MSGFLAG_FATAL);
 		_MSG("Failed to get ethtool information from device '" + in_device + "'. "
 			 "This information is needed to detect the capture type for 'auto' "
-			 "sources.", MSGFLAG_FATAL);
-		globalreg->fatal_condition = 1;
-		return -1;
+			 "sources.", MSGFLAG_ERROR);
+		snprintf(drvinfo.driver, 32, "unknown");
 	}
 
 	// 2100 has supported rfmon for so long we can just take it
@@ -99,33 +130,46 @@ int PacketSource_Wext::AutotypeProbe(string in_device) {
 
 		return 1;
 	}
+#endif
 
 	return 0;
 }
 
 int PacketSource_Wext::RegisterSources(Packetsourcetracker *tracker) {
-	tracker->RegisterPacketsource("acx100", this, 1, "IEEE80211b", 6);
-	tracker->RegisterPacketsource("admtek", this, 1, "IEEE80211b", 6);
-	tracker->RegisterPacketsource("atmel_usb", this, 1, "IEEE80211b", 6);
-	tracker->RegisterPacketsource("ath5k", this, 1, "IEEE80211ab", 6);
-	tracker->RegisterPacketsource("bcm43xx", this, 1, "IEEE80211b", 6);
-	tracker->RegisterPacketsource("b43", this, 1, "IEEE80211b", 6);
-	tracker->RegisterPacketsource("b43legacy", this, 1, "IEEE80211b", 6);
-	tracker->RegisterPacketsource("hostap", this, 1, "IEEE80211b", 6);
-	tracker->RegisterPacketsource("ipw2100", this, 1, "IEEE80211b", 6);
-	tracker->RegisterPacketsource("ipw2200", this, 1, "IEEE80211b", 6);
-	tracker->RegisterPacketsource("ipw2915", this, 1, "IEEE80211ab", 6);
-	tracker->RegisterPacketsource("ipw3945", this, 1, "IEEE80211ab", 6);
-	tracker->RegisterPacketsource("iwl3945", this, 1, "IEEE80211ab", 6);
-	tracker->RegisterPacketsource("iwl4965", this, 1, "IEEE80211ab", 6);
-	tracker->RegisterPacketsource("nokia770", this, 1, "IEEE80211b", 6);
-	tracker->RegisterPacketsource("prism54g", this, 1, "IEEE80211b", 6);
-	tracker->RegisterPacketsource("rt2400", this, 1, "IEEE80211b", 6);
-	tracker->RegisterPacketsource("rt2500", this, 1, "IEEE80211b", 6);
-	tracker->RegisterPacketsource("rt73", this, 1, "IEEE80211b", 6);
-	tracker->RegisterPacketsource("rt8180", this, 1, "IEEE80211b", 6);
-	tracker->RegisterPacketsource("zd1211", this, 1, "IEEE80211b", 6);
-	tracker->RegisterPacketsource("zd1211rw", this, 1, "IEEE80211b", 6);
+	tracker->RegisterPacketProto("adm8211", this, "IEEE80211b", 1);
+	tracker->RegisterPacketProto("acx100", this, "IEEE80211b", 1);
+	tracker->RegisterPacketProto("admtek", this, "IEEE80211b", 1);
+	tracker->RegisterPacketProto("atmel_usb", this, "IEEE80211b", 1);
+	tracker->RegisterPacketProto("ath5k", this, "IEEE80211ab", 1);
+	tracker->RegisterPacketProto("ath9k", this, "IEEE80211ab", 1);
+	tracker->RegisterPacketProto("bcm43xx", this, "IEEE80211b", 1);
+	tracker->RegisterPacketProto("b43", this, "IEEE80211b", 1);
+	tracker->RegisterPacketProto("b43legacy", this, "IEEE80211b", 1);
+	tracker->RegisterPacketProto("hostap", this, "IEEE80211b", 1);
+	tracker->RegisterPacketProto("ipw2100", this, "IEEE80211b", 1);
+	tracker->RegisterPacketProto("ipw2200", this, "IEEE80211b", 1);
+	tracker->RegisterPacketProto("ipw2915", this, "IEEE80211ab", 1);
+	tracker->RegisterPacketProto("ipw3945", this, "IEEE80211ab", 1);
+	tracker->RegisterPacketProto("iwl3945", this, "IEEE80211ab", 1);
+	tracker->RegisterPacketProto("iwl4965", this, "IEEE80211ab", 1);
+	tracker->RegisterPacketProto("libertas", this, "IEEE80211b", 1);
+	tracker->RegisterPacketProto("nokia770", this, "IEEE80211b", 1);
+	tracker->RegisterPacketProto("prism54", this, "IEEE80211b", 1);
+	tracker->RegisterPacketProto("p54", this, "IEEE80211b", 1);
+	tracker->RegisterPacketProto("rndis_wlan", this, "IEEE80211b", 1);
+	tracker->RegisterPacketProto("rt2400", this, "IEEE80211b", 1);
+	tracker->RegisterPacketProto("rt2500", this, "IEEE80211b", 1);
+	tracker->RegisterPacketProto("rt2400pci", this, "IEEE80211b", 1);
+	tracker->RegisterPacketProto("rt2500pci", this, "IEEE80211b", 1);
+	tracker->RegisterPacketProto("rt2x00pci", this, "IEEE80211b", 1);
+	tracker->RegisterPacketProto("rt61pci", this, "IEEE80211b", 1);
+	tracker->RegisterPacketProto("rt73", this, "IEEE80211b", 1);
+	tracker->RegisterPacketProto("rt73usb", this, "IEEE80211b", 1);
+	tracker->RegisterPacketProto("rt8180", this, "IEEE80211b", 1);
+	tracker->RegisterPacketProto("zd1211", this, "IEEE80211b", 1);
+	tracker->RegisterPacketProto("zd1201", this, "IEEE80211b", 1);
+	tracker->RegisterPacketProto("zd1211rw", this, "IEEE80211b", 1);
+
 	return 1;
 }
 
@@ -234,11 +278,6 @@ int PacketSource_Wext::EnableMonitor() {
 		_MSG("Interface '" + interface + "' is already marked as being in "
 			 "monitor mode, leaving it as it is.", MSGFLAG_INFO);
 
-		// Set the initial channel
-		if (SetChannel(initial_channel) < 0) {
-			return -2;
-		}
-
 		return 0;
 	}
 
@@ -257,11 +296,6 @@ int PacketSource_Wext::EnableMonitor() {
 			 "set_prismhdr iwpriv control", MSGFLAG_INFO);
 	}
 	
-	// Set the initial channel
-	if (SetChannel(initial_channel) < 0) {
-		return -2;
-	}
-
 	return 0;
 }
 
@@ -288,10 +322,6 @@ int PacketSource_Wext::DisableMonitor() {
 	}
 
 	return PACKSOURCE_UNMONITOR_RET_OKWITHWARN;
-}
-
-int PacketSource_Wext::SetChannelSequence(vector<unsigned int> in_seq) {
-	return PacketSource_Pcap::SetChannelSequence(in_seq);
 }
 
 int PacketSource_Wext::SetChannel(unsigned int in_ch) {
@@ -354,61 +384,23 @@ void PacketSource_Wext::FetchRadioData(kis_packet *in_packet) {
 	// Don't fetch non-packetheader data since it's not likely to be
 	// useful info.
 	return;
-#if 0
-	// Build a signal layer record if we don't have one from the builtin headers.
-	// These are less accurate.
-	char errstr[STATUS_MAX] = "";
-	int ret;
-	
-	kis_layer1_packinfo *radiodata = (kis_layer1_packinfo *) 
-		in_packet->fetch(_PCM(PACK_COMP_RADIODATA));
-
-	// We don't do anything if we have a signal layer from anywhere else
-	if (radiodata == NULL)
-		radiodata = new kis_layer1_packinfo;
-	else
-		return;
-
-	// Fetch the signal levels if we know how and it hasn't been already.
-	// Blow up if we can't, but do so sanely
-	if ((ret = Iwconfig_Get_Levels(interface.c_str(), errstr,
-								   &(radiodata->signal), &(radiodata->noise))) < 0) {
-		globalreg->messagebus->InjectMessage(errstr, MSGFLAG_ERROR);
-		delete radiodata;
-		return;
-	}
-
-	// Fetch the channel if we know how and it hasn't been filled in already
-	radiodata->channel = FetchChannel();
-
-	// Low accuracy
-	radiodata->accuracy = 1;
-
-	// If we didn't get anything good, destroy it
-	if (radiodata->signal == 0 && radiodata->noise == 0 && radiodata->channel == 0) {
-		delete radiodata;
-		return;
-	}
-
-	in_packet->insert(_PCM(PACK_COMP_RADIODATA), radiodata);
-#endif
 }
 
 PacketSource_Madwifi::PacketSource_Madwifi(GlobalRegistry *in_globalreg, 
-										   string in_type, string in_name,
-										   string in_dev, string in_opts) : 
-	PacketSource_Wext(in_globalreg, in_type, in_name, in_dev, in_opts) {
+										   string in_interface,
+										   vector<opt_pair> *in_opts) :
+	PacketSource_Wext(in_globalreg, in_interface, in_opts) {
 
-	if (in_type == "madwifi_a" || in_type == "madwifing_a") {
+	if (type == "madwifi_a" || type == "madwifing_a") {
 		madwifi_type = 1;
-	} else if (in_type == "madwifi_b" || in_type == "madwifing_g") {
+	} else if (type == "madwifi_b" || type == "madwifing_g") {
 		madwifi_type = 2;
-	} else if (in_type == "madwifi_g" || in_type == "madwifing_g") {
+	} else if (type == "madwifi_g" || type == "madwifing_g") {
 		madwifi_type = 3;
-	} else if (in_type == "madwifi_ag" || in_type == "madwifing_ag") {
+	} else if (type == "madwifi_ag" || type == "madwifing_ag" || type == "madwifi") {
 		madwifi_type = 0;
 	} else {
-		_MSG("Packetsource::MadWifi - Unknown source type '" + in_type + "'.  "
+		_MSG("Packetsource::MadWifi - Unknown source type '" + type + "'.  "
 			 "Will treat it as auto radio type", MSGFLAG_ERROR);
 		madwifi_type = 0;
 	}
@@ -416,24 +408,25 @@ PacketSource_Madwifi::PacketSource_Madwifi(GlobalRegistry *in_globalreg,
 	SetFCSBytes(4);
 	vapdestroy = 1;
 
-	for (unsigned int x = 0; x < optargs.size(); x++) {
-		if (optargs[x] == "novapkill") {
-			vapdestroy = 0;
-			_MSG("Madwifi source " + name + ": Disabling destruction of "
-				 "non-monitor VAPs via 'novapkill'", MSGFLAG_INFO);
-		}
+	if (FetchOpt("vapkill", in_opts) != "" && FetchOpt("vapkill", in_opts) != "true") {
+		vapdestroy = 0;
+		_MSG("Madwifi-NG source " + name + " " + interface + ": Disabling destruction "
+			 "of non-monitor VAPS because vapkill was not set to true in source "
+			 "options.  This may cause capture problems with some driver versions.",
+			 MSGFLAG_INFO);
 	}
 }
 
 int PacketSource_Madwifi::RegisterSources(Packetsourcetracker *tracker) {
-	tracker->RegisterPacketsource("madwifi_a", this, 1, "IEEE80211a", 36);
-	tracker->RegisterPacketsource("madwifi_b", this, 1, "IEEE80211b", 6);
-	tracker->RegisterPacketsource("madwifi_g", this, 1, "IEEE80211b", 6);
-	tracker->RegisterPacketsource("madwifi_ag", this, 1, "IEEE80211ab", 6);
-	tracker->RegisterPacketsource("madwifing_a", this, 1, "IEEE80211a", 36);
-	tracker->RegisterPacketsource("madwifing_b", this, 1, "IEEE80211b", 6);
-	tracker->RegisterPacketsource("madwifing_g", this, 1, "IEEE80211b", 6);
-	tracker->RegisterPacketsource("madwifing_ag", this, 1, "IEEE80211ab", 6);
+	tracker->RegisterPacketProto("madwifi", this, "IEEE80211b", 1);
+	tracker->RegisterPacketProto("madwifi_a", this, "IEEE80211a", 1);
+	tracker->RegisterPacketProto("madwifi_b", this, "IEEE80211b", 1);
+	tracker->RegisterPacketProto("madwifi_g", this, "IEEE80211b", 1);
+	tracker->RegisterPacketProto("madwifi_ag", this, "IEEE80211ab", 1);
+	tracker->RegisterPacketProto("madwifing_a", this, "IEEE80211a", 1);
+	tracker->RegisterPacketProto("madwifing_b", this, "IEEE80211b", 1);
+	tracker->RegisterPacketProto("madwifing_g", this, "IEEE80211b", 1);
+	tracker->RegisterPacketProto("madwifing_ag", this, "IEEE80211ab", 1);
 	return 1;
 }
 
@@ -631,6 +624,8 @@ int PacketSource_Madwifi::DisableMonitor() {
 }
 
 int PacketSource_Madwifi::AutotypeProbe(string in_device) {
+#if 0
+	// Madwifi doesn't seem to sanely report this on the wifi0 device...
 	ethtool_drvinfo drvinfo;
 	char errstr[1024];
 
@@ -647,23 +642,21 @@ int PacketSource_Madwifi::AutotypeProbe(string in_device) {
 		return 1;
 	}
 
+#endif
+
 	return 0;
 }
 
-int PacketSource_Madwifi::SetChannelSequence(vector<unsigned int> in_seq) {
-	return PacketSource_Wext::SetChannelSequence(in_seq);
-}
-
 PacketSource_Wrt54Prism::PacketSource_Wrt54Prism(GlobalRegistry *in_globalreg,
-												 string in_type, string in_name,
-												 string in_dev, string in_opts) :
-	PacketSource_Wext(in_globalreg, in_type, in_name, in_dev, in_opts) {
+												 string in_interface,
+												 vector<opt_pair> *in_opts) :
+	PacketSource_Wext(in_globalreg, in_interface, in_opts) {
 	// We get FCS bytes
 	SetFCSBytes(4);
 }
 
 int PacketSource_Wrt54Prism::RegisterSources(Packetsourcetracker *tracker) {
-	tracker->RegisterPacketsource("wrt54prism", this, 1, "IEEE80211b", 6);
+	tracker->RegisterPacketProto("wrt54prism", this, "IEEE80211b", 1);
 	return 1;
 }
 
@@ -679,10 +672,6 @@ int PacketSource_Wrt54Prism::OpenSource() {
 	interface = realsrc;
 
 	return ret;
-}
-
-int PacketSource_Wrt54Prism::SetChannelSequence(vector<unsigned int> in_seq) {
-	return PacketSource_Wext::SetChannelSequence(in_seq);
 }
 
 #endif
