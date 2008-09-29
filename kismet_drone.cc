@@ -404,6 +404,14 @@ int main(int argc, char *argv[], char *envp[]) {
 	if (globalregistry->fatal_condition)
 		CatchShutdown(-1);
 
+	// Register the IPC
+	if (globalregistry->rootipc != NULL) {
+		globalregistry->sourcetracker->RegisterIPC(globalregistry->rootipc, 0);
+
+		// Sync the IPC system
+		globalregistry->rootipc->SyncIPC();
+	}
+
 	// Create the basic drone server
 	globalregistry->kisdroneserver = new KisDroneFramework(globalregistry);
 	if (globalregistry->fatal_condition || 
@@ -479,6 +487,9 @@ int main(int argc, char *argv[], char *envp[]) {
 	// Blab about starting
 	globalregistry->messagebus->InjectMessage("Kismet drone starting to gather "
 											  "packets", MSGFLAG_INFO);
+
+	// Start sources
+	globalregistry->sourcetracker->StartSource(0);
 	
 	// Set the global silence now that we're set up
 	glob_silent = local_silent;

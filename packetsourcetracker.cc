@@ -494,7 +494,7 @@ uint16_t Packetsourcetracker::AddPacketSource(string in_source,
 		}
 	}
 
-	if (found == 0) {
+	if (found == 0 && chanlistname != "n/a") {
 		_MSG("Missing channel list '" + chanlistname + "' for source '" +
 			 interface + "'.  Make sure your kismet.conf file contains a "
 			 "channellist=" + chanlistname + " line", MSGFLAG_ERROR);

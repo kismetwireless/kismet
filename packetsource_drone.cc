@@ -866,6 +866,18 @@ PacketSource_Drone::PacketSource_Drone(GlobalRegistry *in_globalreg,
 	// Automatically reconnect
 	reconnect = 1;
 
+	// Look for the host and port
+	if (FetchOpt("host", in_opts) == "" || FetchOpt("port", in_opts) == "") {
+		_MSG("Drone source missing 'host' option.  Kismet now uses the 'host' and "
+			 "'port' source options to configure remote Drones (for example "
+			 "ncsource=drone:host=127.0.0.1,port=2502,reconnect=true)", MSGFLAG_ERROR);
+		error = 1;
+		return;
+	}
+
+	connecturl = "tcp://" + FetchOpt("host", in_opts) + ":" + 
+		FetchOpt("port", in_opts);
+
 	// Look for the reconnect parm
 	if (FetchOpt("reconnect", in_opts) != "" &&
 		StrLower(FetchOpt("reconnect", in_opts)) != "true") {
@@ -895,7 +907,7 @@ int PacketSource_Drone::OpenSource() {
 
 	droneframe->SetPacketsource((void *) this);
 
-	if (droneframe->OpenConnection(interface, reconnect) < 0 ||
+	if (droneframe->OpenConnection(connecturl, reconnect) < 0 ||
 		globalreg->fatal_condition) {
 		_MSG("Packetsource drone (" + name + ") failed to create drone "
 			 "framework and open connection", MSGFLAG_FATAL);

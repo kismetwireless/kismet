@@ -112,6 +112,11 @@ public:
 	}
 
 	virtual int AutotypeProbe(string in_device) {
+		if (in_device == "drone") {
+			type = "drone";
+			return 1;
+		}
+
 		return 0;
 	}
 
@@ -140,6 +145,8 @@ protected:
 
 	DroneClientFrame *droneframe;
 	int reconnect;
+
+	string connecturl;
 };
 
 // Virtual packet source that inherits the UUID and characteristics of a capture

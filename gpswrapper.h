@@ -51,7 +51,7 @@ public:
 
 	virtual unsigned int MergeSet(unsigned int in_max_fd, fd_set *out_rset,
 								  fd_set *out_wset) {
-		return 0;
+		return in_max_fd;
 	}
 
 	virtual int Poll(fd_set &in_rset, fd_set& in_wset) {
