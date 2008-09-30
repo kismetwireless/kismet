@@ -18,6 +18,21 @@ or interface-specific components are put back into action.
 Once newcore has reached an equivalent level of functionality with the 
 stable code branch, it will replace the existing Kismet codebase.
 
+SECURITY MODEL
+
+Kismet now uses a suid-root group-exec-only binary configure interfaces, similar
+to how wireshark now brokers access.
+
+When Kismet is compiled and installed with suidroot, the kismet_server and 
+kismet_drone processes are installed as normal with no suid capabilities.
+Early in the execution process, kismet_capture is fork-exec'd to provide a 
+structured IPC interface to a root control process.
+
+If Kismet is not compiled with suidroot or if it is launched as root, it will
+not launch the kismet_capture process and will remain running as root.
+
+This security model is meant to make it easier for distro package maintainers and
+users, and removes the suid_user element from the config file.
 
 DEVELOPING IN NEWCORE
 
