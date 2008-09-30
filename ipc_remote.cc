@@ -263,7 +263,7 @@ int IPCRemote::SpawnIPC() {
 	// Don't build the socket pair if we're in exec child mode
 	if (child_exec_mode == 0) {
 		// Generate the socket pair before the split
-		if (socketpair(PF_UNIX, SOCK_DGRAM, 0, sockpair) < 0) {
+		if (socketpair(AF_UNIX, SOCK_DGRAM, 0, sockpair) < 0) {
 			_MSG("Unable to great socket pair for IPC communication: " +
 				 string(strerror(errno)), MSGFLAG_FATAL);
 			globalreg->fatal_condition = 1;
