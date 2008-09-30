@@ -112,14 +112,14 @@ int PacketSource_Darwin::AutotypeProbe(string in_device) {
 }
 
 int PacketSource_Darwin::RegisterSources(Packetsourcetracker *tracker) {
-	tracker->RegisterPacketProto("darwin", this, 1, "IEEE80211b");
+	tracker->RegisterPacketProto("darwin", this, "IEEE80211b", 1);
 	return 1;
 }
 
 PacketSource_Darwin::PacketSource_Darwin(GlobalRegistry *in_globalreg, 
 										 string in_interface,
 										 vector<opt_pair> *in_opts) :
-	PacketSource_Pcap(in_globalreg, in_type, in_interface, in_opts) {
+	PacketSource_Pcap(in_globalreg, in_interface, in_opts) {
 
 	fcsbytes = 4;
 }
