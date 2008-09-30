@@ -22,7 +22,7 @@ Newcore sources:
 In an attempt to make it easier to configure, Newcore has a new source config
 format:
 
-ncsource=interface[:options]
+ncsource=interface[:[option,]+]
 
 For interfaces where autodetect is supported, all that is needed is
 ncsource=wlan0
@@ -30,11 +30,11 @@ ncsource=wlan0
 For interfaces where autodetect does not work (for example, madwifi with no
 supporting VAPs), the "type" option is used:
 
-ncsource=wifi0,type=madwifi_g
+ncsource=wifi0:type=madwifi_g
 
 Multiple options can be included:
 
-ncsource=wlan0,name=intel,hop=false,channel=11
+ncsource=wlan0:name=intel,hop=false,channel=11
 
 Available source options:
     name=foo            Name the source (otherwise it will be referred 
@@ -63,7 +63,7 @@ channellist=name:channel,channel,channel
 Additionally individual channels can be weighted so that more time is spent
 on them:
 
-channellist=foo,1:3,6:3,11:3,2,3,4,5,7,8,9,10
+channellist=foo:1:3,6:3,11:3,2,3,4,5,7,8,9,10
 
 would wait 3 times longer on channels 1, 6, 11 than on the other channels.
 
