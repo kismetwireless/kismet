@@ -60,11 +60,6 @@ PacketSource_Wext::PacketSource_Wext(GlobalRegistry *in_globalreg,
 }
 
 int PacketSource_Wext::AutotypeProbe(string in_device) {
-#if 0
-	// Use sys fs to determine since we don't need to be root
-	ethtool_drvinfo drvinfo;
-	char errstr[1024];
-#endif
 	string sysdriver;
 
 	// Examine the /sys filesystem to try to figure out what kind of driver
@@ -75,6 +70,7 @@ int PacketSource_Wext::AutotypeProbe(string in_device) {
 	if (sysdriver == "iwl4965" || sysdriver == "iwl3945" ||
 		sysdriver == "adm8211" || sysdriver == "ath5k" ||
 		sysdriver == "ath9k" || sysdriver == "b43" ||
+		sysdriver == "ath5k_pci" || sysdriver == "ath9k_pci" ||
 		sysdriver == "b43legacy" || sysdriver == "hostap" ||
 		sysdriver == "libertas" || sysdriver == "p54" ||
 		sysdriver == "prism54" || sysdriver == "rndis_wlan" ||
@@ -141,7 +137,9 @@ int PacketSource_Wext::RegisterSources(Packetsourcetracker *tracker) {
 	tracker->RegisterPacketProto("admtek", this, "IEEE80211b", 1);
 	tracker->RegisterPacketProto("atmel_usb", this, "IEEE80211b", 1);
 	tracker->RegisterPacketProto("ath5k", this, "IEEE80211ab", 1);
+	tracker->RegisterPacketProto("ath5k_pci", this, "IEEE80211b", 1);
 	tracker->RegisterPacketProto("ath9k", this, "IEEE80211ab", 1);
+	tracker->RegisterPacketProto("ath9k_pci", this, "IEEE80211b", 1);
 	tracker->RegisterPacketProto("bcm43xx", this, "IEEE80211b", 1);
 	tracker->RegisterPacketProto("b43", this, "IEEE80211b", 1);
 	tracker->RegisterPacketProto("b43legacy", this, "IEEE80211b", 1);

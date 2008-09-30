@@ -97,18 +97,29 @@ int PacketSource_Darwin::OpenSource() {
 }
 
 int PacketSource_Darwin::AutotypeProbe(string in_device) {
+	if (darwin_cardcheck("AirPort_Brcm43xx") == 0 ||
+		darwin_cardcheck("AirPortPCI_MM") == 0 ||
+		darwin_cardcheck("AirPort_Athr5424ab") == 0) {
+
+		if (in_device.substr(0, 2) == "en" ||
+			in_device.substr(0, 3) == "wlt") {
+			type = "darwin";
+			return 1;
+		}
+	}
+
 	return 0;
 }
 
 int PacketSource_Darwin::RegisterSources(Packetsourcetracker *tracker) {
-	tracker->RegisterPacketsource("darwin", this, 1, "IEEE80211b", 6);
+	tracker->RegisterPacketProto("darwin", this, 1, "IEEE80211b");
 	return 1;
 }
 
 PacketSource_Darwin::PacketSource_Darwin(GlobalRegistry *in_globalreg, 
-										   string in_type, string in_name,
-										   string in_dev, string in_opts): 
-	PacketSource_Pcap(in_globalreg, in_type, in_name, in_dev, in_opts) {
+										 string in_interface,
+										 vector<opt_pair> *in_opts) :
+	PacketSource_Pcap(in_globalreg, in_type, in_interface, in_opts) {
 
 	fcsbytes = 4;
 }
