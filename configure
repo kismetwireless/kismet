@@ -675,6 +675,7 @@ INSTALL_DATA
 SET_MAKE
 CPP
 objc_link
+stripopt
 GREP
 EGREP
 LIBOBJS
@@ -1296,11 +1297,9 @@ Optional Features:
 Optional Packages:
   --with-PACKAGE[=ARG]    use PACKAGE [ARG=yes]
   --without-PACKAGE       do not use PACKAGE (same as --with-PACKAGE=no)
-"  --with-linuxheaders=DIR     Custom location of the Linux kernel " \
-	 "headers if the glibc copies are insufficient"
+  --with-linuxheaders=DIR     Custom location of the Linux kernel headers if the glibc copies are insufficient
   --with-airpcap=DIR     Location of the CACE AirPcap device pack NOTE cygwin appears to have link errors if the path is not within the current directory
-"  --with-suidgroup=group       Group allowed to execute the kismet_capture " \
-	 "suid root helper process"
+  --with-suidgroup=group       Group allowed to execute the kismet_capture suid root helper process
 
 Some influential environment variables:
   CC          C compiler command
@@ -3481,6 +3480,8 @@ ac_link='$CC -o conftest$ac_exeext $CFLAGS $CPPFLAGS $LDFLAGS conftest.$ac_ext $
 ac_compiler_gnu=$ac_cv_c_compiler_gnu
 
 
+stripopt="-s"
+
 # Liberated from ethereal's configure.in
 #
 # Add any platform-specific compiler flags needed.
@@ -3522,6 +3523,7 @@ cat >>confdefs.h <<\_ACEOF
 _ACEOF
 
 		darwin="yes"
+		stripopt=""
         ;;
 	linux*)
 		{ echo "$as_me:$LINENO: result: none needed" >&5
@@ -3604,6 +3606,7 @@ cat >>confdefs.h <<\_ACEOF
 _ACEOF
 
 		darwin="yes"
+		stripopt=""
         ;;
 	linux*)
 		{ echo "$as_me:$LINENO: result: none needed" >&5
@@ -3665,6 +3668,9 @@ echo "${ECHO_T}none needed" >&6; }
 fi
 
 # Substitute in the objc linkages if we need them
+
+
+# Substitute binary stripping
 
 
 if test "$cygwin" = "yes"; then
@@ -10475,6 +10481,7 @@ INSTALL_DATA!$INSTALL_DATA$ac_delim
 SET_MAKE!$SET_MAKE$ac_delim
 CPP!$CPP$ac_delim
 objc_link!$objc_link$ac_delim
+stripopt!$stripopt$ac_delim
 GREP!$GREP$ac_delim
 EGREP!$EGREP$ac_delim
 LIBOBJS!$LIBOBJS$ac_delim
@@ -10497,7 +10504,7 @@ sharedatadir!$sharedatadir$ac_delim
 LTLIBOBJS!$LTLIBOBJS$ac_delim
 _ACEOF
 
-  if test `sed -n "s/.*$ac_delim\$/X/p" conf$$subs.sed | grep -c X` = 81; then
+  if test `sed -n "s/.*$ac_delim\$/X/p" conf$$subs.sed | grep -c X` = 82; then
     break
   elif $ac_last_try; then
     { { echo "$as_me:$LINENO: error: could not make $CONFIG_STATUS" >&5

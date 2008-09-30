@@ -1,40 +1,39 @@
-# Kismet wireless sniffer
+INSTGRP 	?= "@instgrp@"
+MANGRP 		?= "@mangrp@"
+INSTUSR 	?= "root"
 
-INSTGRP ?= "@instgrp@"
-MANGRP ?= "@mangrp@"
-INSTUSR ?= "root"
+ZAURUS 		= @zaurus@
 
-ZAURUS = @zaurus@
+PCAPLNK 	= @pcaplnk@
 
-PCAPLNK = @pcaplnk@
+THREADL 	= @threadlib@
 
-THREADL = @threadlib@
-
-HOME	= @srcdir@
-CXX	= @CXX@
-CC	= @CC@
-LD	= @CXX@
-LDFLAGS	= @LDFLAGS@
-LIBS	= @LIBS@
-CLIBS   = @CLIBS@
-CXXLIBS	= @CXXLIBS@
-CFLAGS	= @CPPFLAGS@
-CLIENTLIBS = @CLIENTCLIBS@
+HOME		= @srcdir@
+CXX			= @CXX@
+CC			= @CC@
+LD			= @CXX@
+LDFLAGS		= @LDFLAGS@
+LIBS		= @LIBS@
+CLIBS   	= @CLIBS@
+CXXLIBS		= @CXXLIBS@
+CFLAGS		= @CPPFLAGS@
+CLIENTLIBS 	= @CLIENTCLIBS@
 CLIENTFLAGS = @CLIENTCFLAGS@
-CXXFLAGS = -Wall @CXXFLAGS@
-CPPFLAGS = @CPPFLAGS@
-SUID	= @suid@
-SUIDGROUP = @suidgroup@
+CXXFLAGS 	= -Wall @CXXFLAGS@
+CPPFLAGS 	= @CPPFLAGS@
+SUID		= @suid@
+SUIDGROUP 	= @suidgroup@
+STRIPOPT	= @stripopt@
 
-prefix = @prefix@
+prefix 		= @prefix@
 exec_prefix = @exec_prefix@
-ETC	= ${DESTDIR}@sysconfdir@
-BIN	= ${DESTDIR}@bindir@
-SHARE = ${DESTDIR}@datadir@/kismet/
-MAN = ${DESTDIR}@mandir@
-WAV = ${SHARE}/wav/
+ETC			= ${DESTDIR}@sysconfdir@
+BIN			= ${DESTDIR}@bindir@
+SHARE 		= ${DESTDIR}@datadir@/kismet/
+MAN 		= ${DESTDIR}@mandir@
+WAV 		= ${SHARE}/wav/
 
-DEPEND	= .depend
+DEPEND		= .depend
 
 OBJC_CONTROL_O = darwin_control_objc.mo
 OBJC_LINK = @objc_link@
@@ -148,16 +147,16 @@ checkuiconfig:
 	fi
 
 binsuidinstall:
-	install -o $(INSTUSR) -g $(SUIDGROUP) -s -m 4550 $(CS) $(BIN)/$(CS); 
+	install -o $(INSTUSR) -g $(SUIDGROUP) $(STRIPOPT) -m 4550 $(CS) $(BIN)/$(CS); 
 	
 commoninstall:
 	mkdir -p $(ETC)
 	mkdir -p $(BIN)
 
 	install -o $(INSTUSR) -g $(INSTGRP) -m 555 scripts/kismet $(BIN)/kismet
-	install -o $(INSTUSR) -g $(INSTGRP) -s -m 555 $(NC) $(BIN)/$(NC)
-	install -o $(INSTUSR) -g $(INSTGRP) -s -m 555 $(PS) $(BIN)/$(PS); 
-	install -o $(INSTUSR) -g $(INSTGRP) -s -m 555 $(DRONE) $(BIN)/$(DRONE);
+	install -o $(INSTUSR) -g $(INSTGRP) $(STRIPOPT) -m 555 $(NC) $(BIN)/$(NC)
+	install -o $(INSTUSR) -g $(INSTGRP) $(STRIPOPT) -m 555 $(PS) $(BIN)/$(PS); 
+	install -o $(INSTUSR) -g $(INSTGRP) $(STRIPOPT) -m 555 $(DRONE) $(BIN)/$(DRONE);
 
 	mkdir -p $(MAN)/man1
 	install -o $(INSTUSR) -g $(MANGRP) -m 644 man/kismet.1 $(MAN)/man1/kismet.1
