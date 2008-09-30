@@ -42,7 +42,7 @@ struct ipc_source_add {
 	uint16_t source_id;
 
 	char type[64];
-	char sourceline[4096];
+	char sourceline[1024];
 
 	uint16_t channel_id;
 

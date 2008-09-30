@@ -895,6 +895,7 @@ int Packetsourcetracker::IpcAddPacketsource(ipc_source_add *in_ipc) {
 
 	// Import from the IPC packet
 	pstsource->channel = in_ipc->channel;
+	pstsource->channel_list = in_ipc->channel_id;
 	pstsource->channel_ptr = NULL;
 	pstsource->channel_hop = in_ipc->channel_hop;
 	pstsource->channel_dwell = in_ipc->channel_dwell;
@@ -1270,8 +1271,11 @@ void Packetsourcetracker::SendIPCReport(pst_packetsource *in_source) {
 	report->capabilities = 0;
 
 	report->flags = 0;
-	if (in_source->strong_source->FetchDescriptor() >= 0)
-		report->flags |= IPC_SRCREP_FLAG_RUNNING;
+	if (in_source->strong_source != NULL) {
+		if (in_source->strong_source->FetchDescriptor() >= 0)
+			report->flags |= IPC_SRCREP_FLAG_RUNNING;
+	}
+
 	if (in_source->error)
 		report->flags |= IPC_SRCREP_FLAG_ERROR;
 
