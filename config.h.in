@@ -9,6 +9,9 @@
 /* BSD radiotap packet headers */
 #undef HAVE_BSD_SYS_RADIOTAP
 
+/* kernel capability support */
+#undef HAVE_CAPABILITY
+
 /* Define to 1 if you have the <errno.h> header file. */
 #undef HAVE_ERRNO_H
 
@@ -29,6 +32,9 @@
 
 /* libairpcap win32 control lib */
 #undef HAVE_LIBAIRPCAP
+
+/* Define to 1 if you have the `cap' library (-lcap). */
+#undef HAVE_LIBCAP
 
 /* Curses terminal lib */
 #undef HAVE_LIBCURSES

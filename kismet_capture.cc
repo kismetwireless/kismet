@@ -29,8 +29,10 @@
 #include <string>
 #include <vector>
 
+#ifdef HAVE_CAPABILITY
 #include <sys/capability.h>
 #include <sys/prctl.h>
+#endif
 
 #include "util.h"
 
@@ -83,6 +85,7 @@ void CatchShutdown(int) {
 }
 
 void DropPrivCapabilities() {
+#ifdef HAVE_CAPABILITY
 	// Modeled from wireshark dumpcap
 	// Enable NET_ADMIN and NET_RAW to get some control and capture abilities,
 	// then drop our SUID privs
@@ -112,14 +115,13 @@ void DropPrivCapabilities() {
 	}
 
 	cap_free(caps);
+#endif
 }
 
 int main(int argc, char *argv[], char *envp[]) {
 	exec_name = argv[0];
 	char errstr[STATUS_MAX];
 
-	DropPrivCapabilities();
-	
 	// Catch the interrupt handler to shut down
     signal(SIGINT, CatchShutdown);
     signal(SIGTERM, CatchShutdown);
@@ -152,6 +154,8 @@ int main(int argc, char *argv[], char *envp[]) {
 		new IPC_MessageClient(globalreg, globalreg->rootipc);
 	globalreg->messagebus->RegisterClient(ipccli, MSGFLAG_ALL);
 
+	DropPrivCapabilities();
+	
 	// Allocate some other critical stuff
 	globalreg->timetracker = new Timetracker(globalreg);
 
