@@ -9174,6 +9174,74 @@ fi
 
 	fi
 
+	# Look for PPI support in pcap
+	{ echo "$as_me:$LINENO: checking for PPI support in libpcap" >&5
+echo $ECHO_N "checking for PPI support in libpcap... $ECHO_C" >&6; }
+	OCFL="$CFLAGS"
+	CFLAGS="-Werror $CFLAGS"
+	cat >conftest.$ac_ext <<_ACEOF
+/* confdefs.h.  */
+_ACEOF
+cat confdefs.h >>conftest.$ac_ext
+cat >>conftest.$ac_ext <<_ACEOF
+/* end confdefs.h.  */
+
+			#include <stdio.h>
+			#include <pcap.h>
+
+int
+main ()
+{
+
+			DLT_PPI;
+			return 0;
+
+  ;
+  return 0;
+}
+_ACEOF
+rm -f conftest.$ac_objext conftest$ac_exeext
+if { (ac_try="$ac_link"
+case "(($ac_try" in
+  *\"* | *\`* | *\\*) ac_try_echo=\$ac_try;;
+  *) ac_try_echo=$ac_try;;
+esac
+eval "echo \"\$as_me:$LINENO: $ac_try_echo\"") >&5
+  (eval "$ac_link") 2>conftest.er1
+  ac_status=$?
+  grep -v '^ *+' conftest.er1 >conftest.err
+  rm -f conftest.er1
+  cat conftest.err >&5
+  echo "$as_me:$LINENO: \$? = $ac_status" >&5
+  (exit $ac_status); } && {
+	 test -z "$ac_c_werror_flag" ||
+	 test ! -s conftest.err
+       } && test -s conftest$ac_exeext &&
+       $as_test_x conftest$ac_exeext; then
+  haveppi=yes
+else
+  echo "$as_me: failed program was:" >&5
+sed 's/^/| /' conftest.$ac_ext >&5
+
+	haveppi=no
+fi
+
+rm -f core conftest.err conftest.$ac_objext conftest_ipa8_conftest.oo \
+      conftest$ac_exeext conftest.$ac_ext
+	CFLAGS="$OCFL"
+	if test "$haveppi" = "yes"; then
+		{ echo "$as_me:$LINENO: result: yes" >&5
+echo "${ECHO_T}yes" >&6; }
+
+cat >>confdefs.h <<\_ACEOF
+#define HAVE_PPI 1
+_ACEOF
+
+	else
+		{ echo "$as_me:$LINENO: result: no" >&5
+echo "${ECHO_T}no" >&6; }
+	fi
+
 	pcaplnk="-l${pcaplib}"
 
 	pcap="yes"
@@ -10999,11 +11067,11 @@ elif test "$cygwin" != "yes"; then
 else
 	echo "no"
 fi
-printf "        WSP100 capture: "
-if test "$wsp100" = "yes"; then
-	echo "yes";
+printf "        PPI log format: "
+if test "$haveppi" = "yes"; then
+	echo "yes"
 else
-	echo "no";
+	echo "no - PPI logging unavailable, upgrade libpcap"
 fi
 printf "          Viha capture: "
 if test "$want_viha" = "yes"; then
@@ -11012,24 +11080,6 @@ elif test "$darwin" != "yes"; then
 	echo "n/a (only Darwin)"
 else
 	echo "no";
-fi
-printf "      Radiotap headers: "
-echo "$radiotaploc";
-printf " Using local dump code: "
-if test "$local" = "yes"; then
-	echo "yes"
-else
-	echo "no"
-fi
-printf "       PThread Support: "
-if test "$pthr" = "no"; then
-	if test "$wantgpsmap" = "no"; then
-		echo "n/a (GPSMap not enabled)"
-	else
-		echo "no"
-	fi
-else
-	echo "yes"
 fi
 
 if test "$linux_wireless" != "yes" -a "$linux" = "yes"; then

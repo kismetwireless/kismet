@@ -646,6 +646,25 @@ if test "$wantpcap" = yes; then
 		AC_MSG_ERROR(installed libpcap version does not support features Kismet requires.  Upgrade to a current version of libwpcap))
 	fi
 
+	# Look for PPI support in pcap
+	AC_MSG_CHECKING([for PPI support in libpcap])
+	OCFL="$CFLAGS"
+	CFLAGS="-Werror $CFLAGS"
+	AC_LINK_IFELSE([AC_LANG_PROGRAM([[
+			#include <stdio.h>
+			#include <pcap.h>
+			]], [[
+			DLT_PPI;
+			return 0;
+			]])],[haveppi=yes],[haveppi=no])
+	CFLAGS="$OCFL"
+	if test "$haveppi" = "yes"; then
+		AC_MSG_RESULT([yes])
+		AC_DEFINE(HAVE_PPI, 1, libpcap supports PPI)
+	else
+		AC_MSG_RESULT([no])
+	fi
+
 	pcaplnk="-l${pcaplib}"
 	AC_SUBST(pcaplnk)
 	pcap="yes"
@@ -876,11 +895,11 @@ elif test "$cygwin" != "yes"; then
 else
 	echo "no"
 fi
-printf "        WSP100 capture: "
-if test "$wsp100" = "yes"; then
-	echo "yes";
+printf "        PPI log format: "
+if test "$haveppi" = "yes"; then
+	echo "yes"
 else
-	echo "no";
+	echo "no - PPI logging unavailable, upgrade libpcap"
 fi
 printf "          Viha capture: "
 if test "$want_viha" = "yes"; then
@@ -889,24 +908,6 @@ elif test "$darwin" != "yes"; then
 	echo "n/a (only Darwin)"
 else
 	echo "no";
-fi
-printf "      Radiotap headers: "
-echo "$radiotaploc";
-printf " Using local dump code: "
-if test "$local" = "yes"; then
-	echo "yes"
-else
-	echo "no"
-fi
-printf "       PThread Support: "
-if test "$pthr" = "no"; then
-	if test "$wantgpsmap" = "no"; then
-		echo "n/a (GPSMap not enabled)"
-	else
-		echo "no"
-	fi
-else
-	echo "yes"
 fi
 
 if test "$linux_wireless" != "yes" -a "$linux" = "yes"; then

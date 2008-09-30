@@ -64,9 +64,16 @@ Dumpfile_Pcap::Dumpfile_Pcap(GlobalRegistry *in_globalreg) : Dumpfile(in_globalr
 
 		// continue processing if we're not resuming
 		if (globalreg->kismet_config->FetchOpt("pcapdumpformat") == "ppi") {
+#ifndef HAVE_PPI
+			_MSG("Cannot log in PPI format, the libpcap available when Kismet was "
+				 "compiled did not support PPI, defaulting to 802.11 format.",
+				 MSGFLAG_ERROR);
+			dlt = DLT_IEEE802_11;
+#else
 			_MSG("Pcap log in PPI format", MSGFLAG_INFO);
 			dumpformat = dump_ppi;
 			dlt = DLT_PPI;
+#endif
 		} else if (globalreg->kismet_config->FetchOpt("pcapdumpformat") == "80211") {
 			_MSG("Pcap log in 80211 format", MSGFLAG_INFO);
 			dumpformat = dump_80211;

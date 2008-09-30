@@ -81,6 +81,9 @@
 /* Nonblocking-capable libpcap */
 #undef HAVE_PCAP_NONBLOCK
 
+/* libpcap supports PPI */
+#undef HAVE_PPI
+
 /* Define to 1 if you have the `pstat' function. */
 #undef HAVE_PSTAT
 
