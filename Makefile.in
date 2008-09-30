@@ -99,7 +99,7 @@ BUZZER = extra/buzzme/buzzme
 
 ZAURUSBUILD=@zbuild@
 
-all:	Makefile $(DEPEND) $(PS) $(DRONE) $(NC)
+all:	Makefile $(DEPEND) $(PS) $(CS) $(DRONE) $(NC)
 
 $(PS):	$(PSO)
 	$(LD) $(LDFLAGS) -o $(PS) $(PSO) $(LIBS) $(CXXLIBS) $(PCAPLNK)

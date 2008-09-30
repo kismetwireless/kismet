@@ -29,6 +29,9 @@
 #include <string>
 #include <vector>
 
+#include <sys/capability.h>
+#include <sys/prctl.h>
+
 #include "util.h"
 
 #include "globalregistry.h"
@@ -66,7 +69,7 @@ int glob_linewrap = 1;
 int glob_silent = 0;
 
 // Ultimate registry of global components
-GlobalRegistry *globalregistry = NULL;
+GlobalRegistry *globalreg = NULL;
 
 int Usage(char *argv) {
     printf("Usage: None\n");
@@ -79,9 +82,43 @@ void CatchShutdown(int) {
 	exit(1);
 }
 
+void DropPrivCapabilities() {
+	// Modeled from wireshark dumpcap
+	// Enable NET_ADMIN and NET_RAW to get some control and capture abilities,
+	// then drop our SUID privs
+
+	cap_value_t cap_list[2] = { CAP_NET_ADMIN, CAP_NET_RAW };
+	int cl_len = sizeof(cap_list) / sizeof(cap_value_t);
+
+	cap_t caps = cap_init(); 
+
+	if (prctl(PR_SET_KEEPCAPS, 1, 0, 0, 0) == -1) {
+		_MSG("kismet_capture prctl() failed " + string(strerror(errno)),
+			 MSGFLAG_ERROR);
+	}
+
+	cap_set_flag(caps, CAP_PERMITTED,   cl_len, cap_list, CAP_SET);
+	cap_set_flag(caps, CAP_INHERITABLE, cl_len, cap_list, CAP_SET);
+
+	if (cap_set_proc(caps)) {
+		_MSG("kismet_capture cap_set_proc() failed: " + string(strerror(errno)),
+			 MSGFLAG_ERROR);
+	}
+
+	cap_set_flag(caps, CAP_EFFECTIVE,   cl_len, cap_list, CAP_SET);
+	if (cap_set_proc(caps)) {
+		_MSG("kismet_capture cap_set_proc() failed: " + string(strerror(errno)),
+			 MSGFLAG_ERROR);
+	}
+
+	cap_free(caps);
+}
+
 int main(int argc, char *argv[], char *envp[]) {
 	exec_name = argv[0];
 	char errstr[STATUS_MAX];
+
+	DropPrivCapabilities();
 	
 	// Catch the interrupt handler to shut down
     signal(SIGINT, CatchShutdown);
@@ -90,20 +127,20 @@ int main(int argc, char *argv[], char *envp[]) {
     signal(SIGPIPE, SIG_IGN);
 
 	// Start filling in key components of the globalregistry
-	globalregistry = new GlobalRegistry;
+	globalreg = new GlobalRegistry;
 
 	// Copy for modules
-	globalregistry->argc = argc;
-	globalregistry->argv = argv;
-	globalregistry->envp = envp;
+	globalreg->argc = argc;
+	globalreg->argv = argv;
+	globalreg->envp = envp;
 
 	// Create the message bus
-	globalregistry->messagebus = new MessageBus;
+	globalreg->messagebus = new MessageBus;
 
 	// Create the IPC system
-	globalregistry->rootipc = new IPCRemote(globalregistry, "root capture control");
+	globalreg->rootipc = new IPCRemote(globalreg, "root capture control");
 
-	if (globalregistry->rootipc->SetChildExecMode(argc, argv) < 0) {
+	if (globalreg->rootipc->SetChildExecMode(argc, argv) < 0) {
 		fprintf(stderr, "FATAL:  Failed to attach to parent IPC.  Do not run this "
 				"directly from the command line, it is meant to be run inside the "
 				"Kismet IPC framework.\n");
@@ -112,70 +149,70 @@ int main(int argc, char *argv[], char *envp[]) {
 
 	// Add the IPC messagebus
 	IPC_MessageClient *ipccli =
-		new IPC_MessageClient(globalregistry, globalregistry->rootipc);
-	globalregistry->messagebus->RegisterClient(ipccli, MSGFLAG_ALL);
+		new IPC_MessageClient(globalreg, globalreg->rootipc);
+	globalreg->messagebus->RegisterClient(ipccli, MSGFLAG_ALL);
 
 	// Allocate some other critical stuff
-	globalregistry->timetracker = new Timetracker(globalregistry);
+	globalreg->timetracker = new Timetracker(globalreg);
 
 	// Create the stubbed network/protocol server
-	globalregistry->kisnetserver = new KisNetFramework(globalregistry);	
+	globalreg->kisnetserver = new KisNetFramework(globalreg);	
 
 	// Create the packet chain - PST uses it to grab frames to send to IPC
-	globalregistry->packetchain = new Packetchain(globalregistry);
-	if (globalregistry->fatal_condition)
+	globalreg->packetchain = new Packetchain(globalreg);
+	if (globalreg->fatal_condition)
 		CatchShutdown(-1);
 
 	// Create the packetsourcetracker
-	globalregistry->sourcetracker = new Packetsourcetracker(globalregistry);
-	if (globalregistry->fatal_condition)
+	globalreg->sourcetracker = new Packetsourcetracker(globalreg);
+	if (globalreg->fatal_condition)
 		CatchShutdown(-1);
 
-	globalregistry->sourcetracker->RegisterIPC(globalregistry->rootipc, 1);
+	globalreg->sourcetracker->RegisterIPC(globalreg->rootipc, 1);
 
 	// Add the packet sources
 #ifdef USE_PACKETSOURCE_PCAPFILE
-	if (globalregistry->sourcetracker->RegisterPacketSource(new PacketSource_Pcapfile(globalregistry)) < 0 || globalregistry->fatal_condition) 
+	if (globalreg->sourcetracker->RegisterPacketSource(new PacketSource_Pcapfile(globalreg)) < 0 || globalreg->fatal_condition) 
 		CatchShutdown(-1);
 #endif
 #ifdef USE_PACKETSOURCE_WEXT
-	if (globalregistry->sourcetracker->RegisterPacketSource(new PacketSource_Wext(globalregistry)) < 0 || globalregistry->fatal_condition) 
+	if (globalreg->sourcetracker->RegisterPacketSource(new PacketSource_Wext(globalreg)) < 0 || globalreg->fatal_condition) 
 		CatchShutdown(-1);
 #endif
 #ifdef USE_PACKETSOURCE_MADWIFI
-	if (globalregistry->sourcetracker->RegisterPacketSource(new PacketSource_Madwifi(globalregistry)) < 0 || globalregistry->fatal_condition) 
+	if (globalreg->sourcetracker->RegisterPacketSource(new PacketSource_Madwifi(globalreg)) < 0 || globalreg->fatal_condition) 
 		CatchShutdown(-1);
 #endif
 #ifdef USE_PACKETSOURCE_MADWIFING
-	if (globalregistry->sourcetracker->RegisterPacketSource(new PacketSource_MadwifiNG(globalregistry)) < 0 || globalregistry->fatal_condition) 
+	if (globalreg->sourcetracker->RegisterPacketSource(new PacketSource_MadwifiNG(globalreg)) < 0 || globalreg->fatal_condition) 
 		CatchShutdown(-1);
 #endif
 #ifdef USE_PACKETSOURCE_WRT54PRISM
-	if (globalregistry->sourcetracker->RegisterPacketSource(new PacketSource_Wrt54Prism(globalregistry)) < 0 || globalregistry->fatal_condition) 
+	if (globalreg->sourcetracker->RegisterPacketSource(new PacketSource_Wrt54Prism(globalreg)) < 0 || globalreg->fatal_condition) 
 		CatchShutdown(-1);
 #endif
 #ifdef USE_PACKETSOURCE_DRONE
-	if (globalregistry->sourcetracker->RegisterPacketSource(new PacketSource_Drone(globalregistry)) < 0 || globalregistry->fatal_condition) 
+	if (globalreg->sourcetracker->RegisterPacketSource(new PacketSource_Drone(globalreg)) < 0 || globalreg->fatal_condition) 
 		CatchShutdown(-1);
 #endif
 #ifdef USE_PACKETSOURCE_BSDRT
-	if (globalregistry->sourcetracker->RegisterPacketSource(new PacketSource_BSDRT(globalregistry)) < 0 || globalregistry->fatal_condition) 
+	if (globalreg->sourcetracker->RegisterPacketSource(new PacketSource_BSDRT(globalreg)) < 0 || globalreg->fatal_condition) 
 		CatchShutdown(-1);
 #endif
 #ifdef USE_PACKETSOURCE_IPWLIVE
-	if (globalregistry->sourcetracker->RegisterPacketSource(new PacketSource_Ipwlive(globalregistry)) < 0 || globalregistry->fatal_condition) 
+	if (globalreg->sourcetracker->RegisterPacketSource(new PacketSource_Ipwlive(globalreg)) < 0 || globalreg->fatal_condition) 
 		CatchShutdown(-1);
 #endif
 #ifdef USE_PACKETSOURCE_AIRPCAP
-	if (globalregistry->sourcetracker->RegisterPacketSource(new PacketSource_AirPcap(globalregistry)) < 0 || globalregistry->fatal_condition) 
+	if (globalreg->sourcetracker->RegisterPacketSource(new PacketSource_AirPcap(globalreg)) < 0 || globalreg->fatal_condition) 
 		CatchShutdown(-1);
 #endif
 #ifdef USE_PACKETSOURCE_DARWIN
-	if (globalregistry->sourcetracker->RegisterPacketSource(new PacketSource_Darwin(globalregistry)) < 0 || globalregistry->fatal_condition) 
+	if (globalreg->sourcetracker->RegisterPacketSource(new PacketSource_Darwin(globalreg)) < 0 || globalreg->fatal_condition) 
 		CatchShutdown(-1);
 #endif
 
-	if (globalregistry->fatal_condition)
+	if (globalreg->fatal_condition)
 		CatchShutdown(-1);
 
 	int max_fd = 0;
@@ -188,13 +225,13 @@ int main(int argc, char *argv[], char *envp[]) {
 		FD_ZERO(&wset);
 		max_fd = 0;
 
-		if (globalregistry->fatal_condition)
+		if (globalreg->fatal_condition)
 			CatchShutdown(-1);
 
 		// Collect all the pollable descriptors
-		for (unsigned int x = 0; x < globalregistry->subsys_pollable_vec.size(); x++) 
+		for (unsigned int x = 0; x < globalreg->subsys_pollable_vec.size(); x++) 
 			max_fd = 
-				globalregistry->subsys_pollable_vec[x]->MergeSet(max_fd, &rset, 
+				globalreg->subsys_pollable_vec[x]->MergeSet(max_fd, &rset, 
 																 &wset);
 
 		tm.tv_sec = 0;
@@ -208,12 +245,12 @@ int main(int argc, char *argv[], char *envp[]) {
 			}
 		}
 
-		globalregistry->timetracker->Tick();
+		globalreg->timetracker->Tick();
 
-		for (unsigned int x = 0; x < globalregistry->subsys_pollable_vec.size(); 
+		for (unsigned int x = 0; x < globalreg->subsys_pollable_vec.size(); 
 			 x++) {
-			if (globalregistry->subsys_pollable_vec[x]->Poll(rset, wset) < 0 &&
-				globalregistry->fatal_condition) {
+			if (globalreg->subsys_pollable_vec[x]->Poll(rset, wset) < 0 &&
+				globalreg->fatal_condition) {
 				CatchShutdown(-1);
 			}
 		}

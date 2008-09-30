@@ -292,6 +292,22 @@ void CatchShutdown(int sig) {
     exit(0);
 }
 
+void CatchChild(int sig) {
+	int status;
+	pid_t pid;
+
+	while (1) {
+		pid = wait3(&status, WNOHANG, NULL);
+
+		if (pid != 0)
+			break;
+	}
+
+	fprintf(stderr, "FATAL - Child %u failed\n", pid);
+
+	CatchShutdown(sig);
+}
+
 int ValidateRunstate(GlobalRegistry *globalreg, GroupConfigFile *runstate) {
 	int ver;
 	ostringstream osstr;
