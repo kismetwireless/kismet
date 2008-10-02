@@ -211,23 +211,18 @@ void CatchShutdown(int sig) {
 		globalregistry->kisnetserver->SendToAll(globalregistry->netproto_map[PROTO_REF_TERMINATE], (void *) &termstr);
 	}
 
-	// Kill all the logfiles
-	fprintf(stderr, "Shutting down log files...\n");
-	for (unsigned int x = 0; x < globalregistry->subsys_dumpfile_vec.size(); x++) {
-		delete globalregistry->subsys_dumpfile_vec[x];
-	}
-
 	if (globalregistry->sourcetracker != NULL) {
 		// Shut down the packet sources
 		globalregistry->sourcetracker->StopSource(0);
 	}
+
+	globalregistry->spindown = 1;
 
 	if (globalregistry->plugintracker != NULL)
 		globalregistry->plugintracker->ShutdownPlugins();
 
 	// Start a short shutdown cycle for 2 seconds
 	fprintf(stderr, "\n*** KISMET IS FLUSHING BUFFERS AND SHUTTING DOWN ***\n");
-	globalregistry->spindown = 1;
 	time_t shutdown_target = time(0) + 2;
 	int max_fd = 0;
 	fd_set rset, wset;
@@ -283,6 +278,12 @@ void CatchShutdown(int sig) {
 		fprintf(stderr, "\n*** KISMET HAS ENCOUNTERED A FATAL ERROR AND CANNOT "
 				"CONTINUE.  ***\n");
 	}
+
+	// Kill all the logfiles
+	fprintf(stderr, "Shutting down log files...\n");
+	for (unsigned int x = 0; x < globalregistry->subsys_dumpfile_vec.size(); x++) {
+		delete globalregistry->subsys_dumpfile_vec[x];
+	}
     
     // Dump fatal errors again
     if (fqmescli != NULL) 
@@ -295,6 +296,9 @@ void CatchShutdown(int sig) {
 void CatchChild(int sig) {
 	int status;
 	pid_t pid;
+
+	if (globalregistry->spindown)
+		return;
 
 	while (1) {
 		pid = wait3(&status, WNOHANG, NULL);

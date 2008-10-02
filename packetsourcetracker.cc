@@ -35,6 +35,29 @@
 #include "ifcontrol.h"
 #endif
 
+enum CARD_fields {
+	CARD_interface, CARD_type, CARD_username, CARD_channel, CARD_uuid, 
+	CARD_packets, CARD_hop, CARD_velocity, CARD_dwell, CARD_hop_tv_sec,
+	CARD_hop_tv_usec, CARD_channellist,
+	CARD_maxfield
+};
+
+const char *CARD_fields_text[] = {
+	"interface", "type", "username", "channel", "uuid", "packets", "hop",
+	"velocity", "dwell", "hop_time_sec", "hop_time_usec", "channellist",
+	NULL
+};
+
+enum PROTOSOURCE_fields {
+	PROTOSOURCE_type, PROTOSOURCE_root, PROTOSOURCE_defaultset,
+	PROTOSOURCE_maxfield
+};
+
+const char *PROTOSOURCE_fields_text[] = {
+	"type", "root", "defaultset",
+	NULL
+};
+
 // IPC hooks
 int pst_ipc_add_source(IPC_CMD_PARMS) {
 	if (parent) return 0;

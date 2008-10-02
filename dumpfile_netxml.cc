@@ -165,7 +165,7 @@ int Dumpfile_Netxml::Flush() {
 			else if (m->second->type == ssid_proberesp)
 				adtype = "Probe Response";
 
-			fprintf(xmlfile, "    <SSID first-time\"%.24s\" last-time\"%.24s\">\n"
+			fprintf(xmlfile, "    <SSID first-time=\"%.24s\" last-time=\"%.24s\">\n"
 					"        <type>%s</type>\n"
 					"        <max-rate>%f</max-rate>\n"
 					"        <packets>%d</packets>\n",
@@ -212,13 +212,13 @@ int Dumpfile_Netxml::Flush() {
 				fprintf(xmlfile, "        <encryption>PPTP</encryption>\n");
 
 			if (m->second->ssid_cloaked == 0)
-				fprintf(xmlfile, "        <ssid>%s</ssid>\n",
+				fprintf(xmlfile, "        <essid>%s</essid>\n",
 						SanitizeXML(m->second->ssid).c_str());
 			if (m->second->beacon_info.length() > 0)
 				fprintf(xmlfile, "        <info>%s</info>\n",
 						SanitizeXML(m->second->beacon_info).c_str());
 
-			fprintf(xmlfile, "    </ssid>\n");
+			fprintf(xmlfile, "    </SSID>\n");
 		}
 
 		fprintf(xmlfile, "    <BSSID>%s</BSSID>\n", net->bssid.Mac2String().c_str());
