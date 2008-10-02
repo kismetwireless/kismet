@@ -186,6 +186,9 @@ GlobalRegistry *globalregistry = NULL;
 
 // Quick shutdown to clean up from a fatal config after we opened the child
 void ErrorShutdown() {
+	// Eat the child signal handler
+	signal(SIGCHLD, SIG_DFL);
+
     // Shut down the packet sources
     if (globalregistry->sourcetracker != NULL) {
         globalregistry->sourcetracker->StopSource(0);
@@ -206,6 +209,9 @@ void ErrorShutdown() {
 // Catch our interrupt
 void CatchShutdown(int sig) {
     string termstr = "Kismet server terminating.";
+
+	// Eat the child signal handler
+	signal(SIGCHLD, SIG_DFL);
 
 	if (globalregistry->kisnetserver != NULL) {
 		globalregistry->kisnetserver->SendToAll(globalregistry->netproto_map[PROTO_REF_TERMINATE], (void *) &termstr);
