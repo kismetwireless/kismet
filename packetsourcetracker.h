@@ -91,6 +91,9 @@ struct pst_protosource {
 struct pst_packetsource {
 	// Source ID for IPC
 	uint16_t source_id;
+	
+	// We need this if we don't have a strong source
+	string interface;
 
 	// Should we not go over IPC?  Most things should.
 	int local_only;
@@ -240,6 +243,10 @@ public:
 		void *auxdata;
 	} sourceactcb_rec;
 
+	// Network protocol stuff
+	void BlitSources(int in_fd);
+	void BlitProtoSources(int in_fd);
+
 protected:
 	// Add a channel list, get back a reference ID (ie, for IPC)
 	// channels=name,chan[:dwell]+
@@ -272,7 +279,8 @@ protected:
 	int default_channel_rate;
 	int default_channel_dwell;
 
-	int channel_time_id;
+	int channel_time_id, proto_source_time_id;
+	int source_protoref;
 
 	// List of prototype source, we don't need a map (saves on ram and binary,
 	// to some extent)

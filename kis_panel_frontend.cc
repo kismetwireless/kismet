@@ -49,13 +49,16 @@ void KisPanelClient_STATUS(CLIPROTO_CB_PARMS) {
 	_MSG(text, flags);
 }
 
+#if 0
 void KisPanelClient_CARD(CLIPROTO_CB_PARMS) {
 	// Pass it off to the clinet frame
 	((KisPanelInterface *) auxptr)->NetClientCARD(globalreg, proto_string,
 												  proto_parsed, srccli, auxptr);
 }
+#endif
 
 void KisPanelInterface::NetClientCARD(CLIPROTO_CB_PARMS) {
+#if 0
 	// interface		0
 	// type				1
 	// username			2
@@ -135,7 +138,7 @@ void KisPanelInterface::NetClientCARD(CLIPROTO_CB_PARMS) {
 
 	if (prevknown == 0) 
 		netcard_map[carduuid] = card;
-
+#endif
 }
 
 void KisPanelClient_Configured(CLICONF_CB_PARMS) {
@@ -179,7 +182,9 @@ KisPanelInterface::~KisPanelInterface() {
 	SavePreferences();
 
 	Remove_AllNetcli_ProtoHandler("STATUS", KisPanelClient_STATUS, this);
+#if 0
 	Remove_AllNetcli_ProtoHandler("CARD", KisPanelClient_CARD, this);
+#endif
 
 	// Destroy panels in this destructor, if they get destroyed in the
 	// parent destructor sadness happens
@@ -280,6 +285,8 @@ void KisPanelInterface::NetClientConfigure(KisNetClient *in_cli, int in_recon) {
 			 "will be terminated.", MSGFLAG_ERROR);
 		in_cli->KillConnection();
 	}
+
+#if 0
 	if (in_cli->RegisterProtoHandler("CARD", 
 									 "interface,type,username,channel,"
 									 "uuid,packets,hopping",
@@ -288,6 +295,7 @@ void KisPanelInterface::NetClientConfigure(KisNetClient *in_cli, int in_recon) {
 			 "will be terminated.", MSGFLAG_ERROR);
 		in_cli->KillConnection();
 	}
+#endif
 }
 
 int KisPanelInterface::Remove_AllNetcli_ProtoHandler(string in_proto,

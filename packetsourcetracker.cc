@@ -35,28 +35,128 @@
 #include "ifcontrol.h"
 #endif
 
-enum CARD_fields {
-	CARD_interface, CARD_type, CARD_username, CARD_channel, CARD_uuid, 
-	CARD_packets, CARD_hop, CARD_velocity, CARD_dwell, CARD_hop_tv_sec,
-	CARD_hop_tv_usec, CARD_channellist,
-	CARD_maxfield
+enum SOURCE_fields {
+	SOURCE_interface, SOURCE_type, SOURCE_username, SOURCE_channel, SOURCE_uuid, 
+	SOURCE_packets, SOURCE_hop, SOURCE_velocity, SOURCE_dwell, SOURCE_hop_tv_sec,
+	SOURCE_hop_tv_usec, SOURCE_channellist,
+	SOURCE_maxfield
 };
 
-const char *CARD_fields_text[] = {
+const char *SOURCE_fields_text[] = {
 	"interface", "type", "username", "channel", "uuid", "packets", "hop",
 	"velocity", "dwell", "hop_time_sec", "hop_time_usec", "channellist",
 	NULL
 };
 
 enum PROTOSOURCE_fields {
-	PROTOSOURCE_type, PROTOSOURCE_root, PROTOSOURCE_defaultset,
+	PROTOSOURCE_type, PROTOSOURCE_root, PROTOSOURCE_defaultchanlist,
 	PROTOSOURCE_maxfield
 };
 
 const char *PROTOSOURCE_fields_text[] = {
-	"type", "root", "defaultset",
+	"type", "root", "defaultchannellist",
 	NULL
 };
+
+void Protocol_SOURCE_enable(PROTO_ENABLE_PARMS) {
+	((Packetsourcetracker *) data)->BlitSources(in_fd);
+}
+
+void Protocol_PROTOSOURCE_enable(PROTO_ENABLE_PARMS) {
+	((Packetsourcetracker *) data)->BlitProtoSources(in_fd);
+}
+
+int Protocol_SOURCE(PROTO_PARMS) {
+	pst_packetsource *psrc = (pst_packetsource *) data;
+	ostringstream osstr;
+
+	cache->Filled(field_vec->size());
+
+	for (unsigned int x = 0; x < field_vec->size(); x++) {
+		unsigned int fnum = (*field_vec)[x];
+		if (fnum >= SOURCE_maxfield) {
+			out_string += "Unknown field requested";
+			return -1;
+		}
+
+		osstr.str("");
+
+		if (cache->Filled(fnum)) {
+			out_string += cache->GetCache(fnum) + " ";
+			continue;
+		}
+
+		switch (fnum) {
+			case SOURCE_interface:
+				cache->Cache(fnum, psrc->interface);
+				break;
+
+			case SOURCE_type:
+				if (psrc->strong_source != NULL)
+					cache->Cache(fnum, psrc->strong_source->FetchType());
+				else
+					cache->Cache(fnum, "N/A");
+				break;
+
+			case SOURCE_username:
+				if (psrc->strong_source != NULL)
+					cache->Cache(fnum, psrc->strong_source->FetchName());
+				else
+					cache->Cache(fnum, "N/A");
+				break;
+
+			case SOURCE_channel:
+				osstr << psrc->channel;
+				cache->Cache(fnum, osstr.str());
+				break;
+
+			case SOURCE_uuid:
+				if (psrc->strong_source != NULL)
+					cache->Cache(fnum, psrc->strong_source->FetchUUID().UUID2String());
+				else
+					cache->Cache(fnum, "00000000-0000-0000-0000-000000000000");
+				break;
+
+			case SOURCE_packets:
+				if (psrc->strong_source != NULL) {
+					osstr << psrc->strong_source->FetchNumPackets();
+					cache->Cache(fnum, osstr.str());
+				} else {
+					cache->Cache(fnum, "0");
+				}
+				break;
+
+			case SOURCE_hop:
+				osstr << psrc->channel_hop;
+				cache->Cache(fnum, osstr.str());
+				break;
+
+			case SOURCE_velocity:
+				osstr << psrc->channel_rate;
+				cache->Cache(fnum, osstr.str());
+				break;
+
+			case SOURCE_dwell:
+				osstr << psrc->channel_dwell;
+				cache->Cache(fnum, osstr.str());
+				break;
+
+			case SOURCE_hop_tv_sec:
+				osstr << psrc->tm_hop_time.tv_sec;
+				cache->Cache(fnum, osstr.str());
+				break;
+
+			case SOURCE_hop_tv_usec:
+				osstr << psrc->tm_hop_time.tv_usec;
+				cache->Cache(fnum, osstr.str());
+				break;
+		}
+
+		out_string += cache->GetCache(fnum) + " ";
+	}
+
+	return 1;
+}
 
 // IPC hooks
 int pst_ipc_add_source(IPC_CMD_PARMS) {
@@ -152,6 +252,12 @@ int pst_channeltimer(TIMEEVENT_PARMS) {
 	return 1;
 }
 
+int pst_sourceprototimer(TIMEEVENT_PARMS) {
+	((Packetsourcetracker *) parm)->BlitSources(-1);
+
+	return 1;
+}
+
 int pst_chain_hook(CHAINCALL_PARMS) {
 	((Packetsourcetracker *) auxdata)->ChainHandler(in_pack);
 	return 1;
@@ -213,6 +319,16 @@ Packetsourcetracker::Packetsourcetracker(GlobalRegistry *in_globalreg) {
 
 	channel_time_id = 
 		globalreg->timetracker->RegisterTimer(1, NULL, 1, &pst_channeltimer, this);
+
+	source_protoref =
+		globalreg->kisnetserver->RegisterProtocol("SOURCE", 0, 1,
+												  SOURCE_fields_text,
+												  &Protocol_SOURCE,
+												  &Protocol_SOURCE_enable,
+												  this);
+	proto_source_time_id =
+		globalreg->timetracker->RegisterTimer(SERVER_TIMESLICES_SEC, NULL, 1,
+											  &pst_sourceprototimer, this);
 }
 
 Packetsourcetracker::~Packetsourcetracker() {
@@ -417,6 +533,7 @@ uint16_t Packetsourcetracker::AddPacketSource(string in_source,
 	}
 
 	pstsource = new pst_packetsource;
+	pstsource->interface = interface;
 	if (in_strong != NULL)
 		pstsource->local_only = 1;
 	else
@@ -940,18 +1057,25 @@ int Packetsourcetracker::IpcAddPacketsource(ipc_source_add *in_ipc) {
 	// just to be sure
 	if (pos == string::npos) {
 		interface = in_source;
+		if (interface.find(",") != string::npos) {
+			_MSG("Found a ',' in the interface.  This probably means the ncsource "
+				 "line is malformed - expected ncsource=interface:options",
+				 MSGFLAG_ERROR);
+		}
 	} else {
 		interface = in_source.substr(0, pos);
 		if (StringToOpts(in_source.substr(pos + 1, in_source.size() - pos - 1), ",",
 						 &options) < 0) {
 			_MSG("Invalid options list for source '" + interface + "', expected "
-				 "ncsource=interface[,option=value]+", MSGFLAG_ERROR);
+				 "ncsource=interface[:option=value,]", MSGFLAG_ERROR);
 			pstsource->error = 1;
 			SendIPCReport(pstsource);
 			delete pstsource;
 			return -1;
 		}
 	}
+
+	pstsource->interface = interface;
 
 	string type = string(in_ipc->type);
 
@@ -1760,5 +1884,25 @@ void Packetsourcetracker::ChainHandler(kis_packet *in_pack) {
 
 		csrc_ref->ref_source->ManglePacket(in_pack, linkchunk);
 	}
+}
+
+void Packetsourcetracker::BlitSources(int in_fd) {
+	for (unsigned int x = 0; x < packetsource_vec.size(); x++) {
+		kis_protocol_cache cache;
+
+		if (in_fd == -1) {
+			if (globalreg->kisnetserver->SendToAll(source_protoref,
+												   (void *) packetsource_vec[x]) < 0)
+				break;
+		} else {
+			if (globalreg->kisnetserver->SendToClient(in_fd, source_protoref,
+													  (void *) packetsource_vec[x],
+													  &cache) < 0)
+				break;
+		}
+	}
+}
+
+void Packetsourcetracker::BlitProtoSources(int in_fd) {
 }
 
