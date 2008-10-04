@@ -112,8 +112,7 @@ int DroneClientFrame::OpenConnection(string in_conparm, int in_recon) {
 	if (sscanf(in_conparm.c_str(), "%10[^:]://%128[^:]:%d",
 			   cli_proto, cli_host, &cli_port) != 3) {
 		_MSG("Drone client unable to parse remote server info from '" + 
-			 in_conparm + "', expected proto://host:port", MSGFLAG_FATAL);
-		globalreg->fatal_condition = 1;
+			 in_conparm + "', expected proto://host:port", MSGFLAG_ERROR);
 		return -1;
 	}
 
@@ -127,8 +126,7 @@ int DroneClientFrame::OpenConnection(string in_conparm, int in_recon) {
 		cli_type = 0;
 	} else {
 		_MSG("Invalid protocol '" + string(cli_proto) + "' for drone connection",
-			 MSGFLAG_FATAL);
-		globalreg->fatal_condition = 1;
+			 MSGFLAG_ERROR);
 		return -1;
 	}
 
@@ -139,8 +137,7 @@ int DroneClientFrame::OpenConnection(string in_conparm, int in_recon) {
 			osstr << "Kismet drone initial connection to " << cli_host << ":" <<
 				cli_port << " failed (" << strerror(errno) << ") and reconnection "
 				"not enabled";
-			_MSG(osstr.str(), MSGFLAG_FATAL);
-			globalreg->fatal_condition = 1;
+			_MSG(osstr.str(), MSGFLAG_ERROR);
 			return -1;
 		} else {
 			osstr << "Could not create initial connection to the Kismet drone "
@@ -266,8 +263,7 @@ int DroneClientFrame::Poll(fd_set &in_rset, fd_set& in_wset) {
 		} else {
 			_MSG("Kismet drone client failed to poll data from the "
 				 "TCP connection.  This error is fatal because "
-				 "drone reconnecting is not enabled", MSGFLAG_FATAL);
-			globalreg->fatal_condition = 1;
+				 "drone reconnecting is not enabled", MSGFLAG_ERROR);
 			return -1;
 		}
 	}
@@ -304,8 +300,7 @@ int DroneClientFrame::ParseData() {
 		} else {
 			delete[] buf;
 			_MSG("Kismet drone client failed to read data from the "
-				 "TCP connection and reconnecting not enabled.", MSGFLAG_FATAL);
-			globalreg->fatal_condition = 1;
+				 "TCP connection and reconnecting not enabled.", MSGFLAG_ERROR);
 			return -1;
 		}
 	}
@@ -333,8 +328,7 @@ int DroneClientFrame::ParseData() {
 				delete[] buf;
 				_MSG("Kismet drone client failed to find the sentinel "
 					 "value in a packet header.  This error is fatal because "
-					 "drone reconnecting is not enabled", MSGFLAG_FATAL);
-				globalreg->fatal_condition = 1;
+					 "drone reconnecting is not enabled", MSGFLAG_ERROR);
 				return -1;
 			}
 		}
@@ -910,11 +904,7 @@ int PacketSource_Drone::OpenSource() {
 	if (droneframe->OpenConnection(connecturl, reconnect) < 0 ||
 		globalreg->fatal_condition) {
 		_MSG("Packetsource drone (" + name + ") failed to create drone "
-			 "framework and open connection", MSGFLAG_FATAL);
-		if (die_on_fatal) {
-			globalreg->fatal_condition = 1;
-			return -1;
-		} 
+			 "framework and open connection", MSGFLAG_ERROR);
 		return 0;
 	}
 

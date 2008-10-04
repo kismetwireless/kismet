@@ -52,13 +52,9 @@ Packetchain::Packetchain(GlobalRegistry *in_globalreg) {
 
 int Packetchain::RegisterPacketComponent(string in_component) {
 	if (next_componentid >= MAX_PACKET_COMPONENTS) {
-		globalreg->messagebus->InjectMessage("Attempted to register more than "
-											 "the maximum defined number of "
-											 "packet components.  Report this "
-											 "to the kismet developers along "
-											 "with a list of any plugins "
-											 "you might be using.",
-											 MSGFLAG_FATAL);
+		_MSG("Attempted to register more than the maximum defined number of "
+			 "packet components.  Report this to the kismet developers along "
+			 "with a list of any plugins you might be using.", MSGFLAG_FATAL);
 		globalreg->fatal_condition = 1;
 		return -1;
 	}

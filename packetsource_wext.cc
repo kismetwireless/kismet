@@ -198,8 +198,7 @@ int PacketSource_Wext::EnableMonitor() {
 		_MSG(errstr, MSGFLAG_FATAL);
 		_MSG("Failed to bring up interface '" + interface + "', check your "
 			 "permissions and configuration, and consult the Kismet README file",
-			 MSGFLAG_FATAL);
-		globalreg->fatal_condition = 1;
+			 MSGFLAG_ERROR);
 		return -1;
 	}
 
@@ -214,11 +213,10 @@ int PacketSource_Wext::EnableMonitor() {
 
 	// Try to grab the wireless mode
 	if (Iwconfig_Get_Mode(interface.c_str(), errstr, &stored_mode) < 0) {
-		_MSG(errstr, MSGFLAG_FATAL);
+		_MSG(errstr, MSGFLAG_ERROR);
 		_MSG("Failed to get current wireless mode for interface '" + interface + 
 			 "', check your configuration and consult the Kismet README file",
-			 MSGFLAG_FATAL);
-		globalreg->fatal_condition = 1;
+			 MSGFLAG_ERROR);
 		return -1;
 	}
 
@@ -236,8 +234,7 @@ int PacketSource_Wext::EnableMonitor() {
 								   oldflags & ~(IFF_UP | IFF_RUNNING)) < 0) {
 				_MSG("Failed to bring down interface '" + interface + "' to "
 					 "configure monitor mode: " + string(errstr),
-					 MSGFLAG_FATAL);
-				globalreg->fatal_condition = 1;
+					 MSGFLAG_ERROR);
 				return -1;
 			}
 
@@ -254,8 +251,7 @@ int PacketSource_Wext::EnableMonitor() {
 					 "any patches needed to your drivers, and that you have "
 					 "configured the proper source type for Kismet.  See the "
 					 "troubleshooting section of the Kismet README for more "
-					 "information.", MSGFLAG_FATAL);
-				globalreg->fatal_condition = 1;
+					 "information.", MSGFLAG_ERROR);
 				Ifconfig_Set_Flags(interface.c_str(), errstr, oldflags);
 				return -1;
 			}
@@ -266,8 +262,7 @@ int PacketSource_Wext::EnableMonitor() {
 				_MSG("Failed to bring up interface '" + interface + "' after "
 					 "bringing it down to set monitor mode, check the "
 					 "output of `dmesg'.  This usually means there is some "
-					 "problem with the driver.", MSGFLAG_FATAL);
-				globalreg->fatal_condition = 1;
+					 "problem with the driver.", MSGFLAG_ERROR);
 				return -1;
 			}
 
@@ -331,12 +326,7 @@ int PacketSource_Wext::SetChannel(unsigned int in_ch) {
         return 1;
     }
 
-	if (consec_error > 5) {
-		_MSG(errstr, MSGFLAG_FATAL);
-		globalreg->fatal_condition = 1;
-	} else {
-		_MSG(errstr, MSGFLAG_ERROR);
-	}
+	_MSG(errstr, MSGFLAG_ERROR);
 
 	int curmode;
 	if (Iwconfig_Get_Mode(interface.c_str(), errstr, &curmode) < 0) {
@@ -344,8 +334,7 @@ int PacketSource_Wext::SetChannel(unsigned int in_ch) {
 		_MSG("Failed to change channel on interface '" + interface + "' and "
 			 "failed to fetch current interface state when determining the "
 			 "cause of the error.  It is likely that the drivers are in a "
-			 "broken or unavailable state.", MSGFLAG_FATAL);
-		globalreg->fatal_condition = 1;
+			 "broken or unavailable state.", MSGFLAG_ERROR);
 		return -1;
 	}
 
@@ -355,8 +344,7 @@ int PacketSource_Wext::SetChannel(unsigned int in_ch) {
 			 "the drivers enter an unknown or broken state, but usually indicate "
 			 "that an external program has changed the device mode.  Make sure no "
 			 "network management tools (such as networkmanager) are running "
-			 "before starting Kismet.", MSGFLAG_FATAL);
-		globalreg->fatal_condition = 1;
+			 "before starting Kismet.", MSGFLAG_ERROR);
 		return -1;
 	}
 
@@ -477,8 +465,7 @@ int PacketSource_Madwifi::EnableMonitor() {
 			if (madwifing_destroy_vap(vaplist[x].c_str(), errstr) < 0) {
 				_MSG("Madwifi source " + name + ": Failed to destroy vap " +
 					 interface + "::" + vaplist[x] + ": " +
-					 string(errstr), MSGFLAG_FATAL);
-				globalreg->fatal_condition = 1;
+					 string(errstr), MSGFLAG_ERROR);
 				return -1;
 				break;
 			}
@@ -570,10 +557,9 @@ int PacketSource_Madwifi::EnableMonitor() {
 
 	if (Iwconfig_Get_IntPriv(interface.c_str(), "get_mode", &stored_privmode,
 							 errstr) < 0) {
-		_MSG(errstr, MSGFLAG_FATAL);
+		_MSG(errstr, MSGFLAG_ERROR);
 		_MSG("Failed to get the current radio mode of interface '" + 
-			 interface + "'", MSGFLAG_FATAL);
-		globalreg->fatal_condition = 1;
+			 interface + "'", MSGFLAG_ERROR);
 		return -1;
 	}
 
@@ -581,8 +567,7 @@ int PacketSource_Madwifi::EnableMonitor() {
 							 0, errstr) < 0) {
 		_MSG(errstr, MSGFLAG_FATAL);
 		_MSG("Failed to set the radio mode of interface '" + interface + "'.  This "
-			 "is needed to set the a/b/g radio mode", MSGFLAG_FATAL);
-		globalreg->fatal_condition = 1;
+			 "is needed to set the a/b/g radio mode", MSGFLAG_ERROR);
 		return -1;
 	}
 
@@ -596,8 +581,7 @@ int PacketSource_Madwifi::DisableMonitor() {
 		if (madwifing_destroy_vap(interface.c_str(), errstr) < 0) {
 			_MSG("Madwifi source " + name + ": Failed to destroy vap " +
 				 interface + " on shutdown: " +
-				 string(errstr), MSGFLAG_FATAL);
-			globalreg->fatal_condition = 1;
+				 string(errstr), MSGFLAG_ERROR);
 			return -1;
 		}
 
@@ -606,11 +590,10 @@ int PacketSource_Madwifi::DisableMonitor() {
 
 	if (Iwconfig_Set_IntPriv(interface.c_str(), "mode", stored_privmode,
 							 0, errstr) < 0) {
-		_MSG(errstr, MSGFLAG_FATAL);
+		_MSG(errstr, MSGFLAG_ERROR);
 		_MSG("Failed to restore the stored radio mode for interface '" +
 			 interface + "'.  The device may be left in an unknown or unusable "
-			 "state.", MSGFLAG_FATAL);
-		globalreg->fatal_condition = 1;
+			 "state.", MSGFLAG_ERROR);
 		return -1;
 	}
 

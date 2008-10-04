@@ -201,7 +201,6 @@ int pst_ipc_sync_complete(IPC_CMD_PARMS) {
 	return 1;
 }
 
-// Server rx of report statistics
 int pst_ipc_rx_stats(IPC_CMD_PARMS) {
 	if (!parent) return 0;
 
@@ -263,6 +262,31 @@ int pst_chain_hook(CHAINCALL_PARMS) {
 	return 1;
 }
 
+int pst_cmd_ADDSOURCE(CLIENT_PARMS) {
+	return
+		((Packetsourcetracker *) auxptr)->cmd_ADDSOURCE(in_clid, framework,
+														errstr, cmdline, parsedcmdline);
+}
+
+int pst_cmd_RESTARTSOURCE(CLIENT_PARMS) {
+	return
+		((Packetsourcetracker *) auxptr)->cmd_RESTARTSOURCE(in_clid, framework,
+															errstr, cmdline, 
+															parsedcmdline);
+}
+
+int pst_cmd_DELSOURCE(CLIENT_PARMS) {
+	return
+		((Packetsourcetracker *) auxptr)->cmd_DELSOURCE(in_clid, framework,
+														errstr, cmdline, parsedcmdline);
+}
+
+int pst_cmd_HOPSOURCE(CLIENT_PARMS) {
+	return
+		((Packetsourcetracker *) auxptr)->cmd_HOPSOURCE(in_clid, framework,
+														errstr, cmdline, parsedcmdline);
+}
+
 void Packetsourcetracker::Usage(char *name) {
 	printf(" *** Packet Capture Source Options ***\n");
 	printf(" -c, --capture-source         Specify a new packet capture source\n"
@@ -286,26 +310,23 @@ Packetsourcetracker::Packetsourcetracker(GlobalRegistry *in_globalreg) {
 		exit(1);
 	}
 
-	// Register packet components on the server-side code
-	if (globalreg->packetchain != NULL) {
-		// Register our packet components 
-		// back-refer to the capsource so we can get names and parameters
-		_PCM(PACK_COMP_KISCAPSRC) =
-			globalreg->packetchain->RegisterPacketComponent("KISCAPSRC");
-		// Basic packet chunks everyone needs - while it doesn't necessarily
-		// make sense to do this here, it makes as much sense as anywhere else
-		_PCM(PACK_COMP_RADIODATA) =
-			globalreg->packetchain->RegisterPacketComponent("RADIODATA");
-		_PCM(PACK_COMP_LINKFRAME) =
-			globalreg->packetchain->RegisterPacketComponent("LINKFRAME");
-		_PCM(PACK_COMP_80211FRAME) =
-			globalreg->packetchain->RegisterPacketComponent("80211FRAME");
-		_PCM(PACK_COMP_FCSBYTES) =
-			globalreg->packetchain->RegisterPacketComponent("FCSBYTES");
+	// Register our packet components 
+	// back-refer to the capsource so we can get names and parameters
+	_PCM(PACK_COMP_KISCAPSRC) =
+		globalreg->packetchain->RegisterPacketComponent("KISCAPSRC");
+	// Basic packet chunks everyone needs - while it doesn't necessarily
+	// make sense to do this here, it makes as much sense as anywhere else
+	_PCM(PACK_COMP_RADIODATA) =
+		globalreg->packetchain->RegisterPacketComponent("RADIODATA");
+	_PCM(PACK_COMP_LINKFRAME) =
+		globalreg->packetchain->RegisterPacketComponent("LINKFRAME");
+	_PCM(PACK_COMP_80211FRAME) =
+		globalreg->packetchain->RegisterPacketComponent("80211FRAME");
+	_PCM(PACK_COMP_FCSBYTES) =
+		globalreg->packetchain->RegisterPacketComponent("FCSBYTES");
 
-		globalreg->packetchain->RegisterHandler(&pst_chain_hook, this,
-												CHAINPOS_POSTCAP, -100);
-	}
+	globalreg->packetchain->RegisterHandler(&pst_chain_hook, this,
+											CHAINPOS_POSTCAP, -100);
 
 	// Register the packetsourcetracker as a pollable subsystem
 	globalreg->RegisterPollableSubsys(this);
@@ -326,6 +347,26 @@ Packetsourcetracker::Packetsourcetracker(GlobalRegistry *in_globalreg) {
 												  &Protocol_SOURCE,
 												  &Protocol_SOURCE_enable,
 												  this);
+
+	cmd_addsource_id =
+		globalreg->kisnetserver->RegisterClientCommand("ADDSOURCE",
+														&pst_cmd_ADDSOURCE,
+														(void *) this);
+	cmd_delsource_id =
+		globalreg->kisnetserver->RegisterClientCommand("DELSOURCE",
+														&pst_cmd_DELSOURCE,
+														(void *) this);
+	
+	cmd_restartsource_id =
+		globalreg->kisnetserver->RegisterClientCommand("RESTARTSOURCE",
+														&pst_cmd_RESTARTSOURCE,
+														(void *) this);
+
+	cmd_hopsource_id =
+		globalreg->kisnetserver->RegisterClientCommand("HOPSOURCE",
+														&pst_cmd_HOPSOURCE,
+														(void *) this);
+
 	proto_source_time_id =
 		globalreg->timetracker->RegisterTimer(SERVER_TIMESLICES_SEC, NULL, 1,
 											  &pst_sourceprototimer, this);
@@ -1904,5 +1945,51 @@ void Packetsourcetracker::BlitSources(int in_fd) {
 }
 
 void Packetsourcetracker::BlitProtoSources(int in_fd) {
+}
+
+int Packetsourcetracker::cmd_ADDSOURCE(int in_clid, KisNetFramework *framework, 
+									   char *errstr, string cmdline, 
+									   vector<smart_word_token> *parsedcmdline) {
+	if (parsedcmdline->size() < 1) {
+		snprintf(errstr, 1024, "Illegal ADDSOURCE command, expected source line");
+		return -1;
+	}
+
+	uint16_t new_source_id;
+
+	new_source_id = AddPacketSource((*parsedcmdline)[1].word, NULL);
+
+	if (new_source_id == 0) {
+		snprintf(errstr, 1024, "ADDSOURCE command failed");
+		return -1;
+	}
+
+	if (StartSource(new_source_id) < 0) {
+		snprintf(errstr, 1024, "ADDSOURCE failed to activate new source");
+		return -1;
+	}
+
+	snprintf(errstr, 1024, "Created new source");
+
+	return 1;
+}
+
+int Packetsourcetracker::cmd_DELSOURCE(int in_clid, KisNetFramework *framework, 
+									   char *errstr, string cmdline, 
+									   vector<smart_word_token> *parsedcmdline) {
+
+}
+
+int Packetsourcetracker::cmd_HOPSOURCE(int in_clid, KisNetFramework *framework, 
+									   char *errstr, string cmdline, 
+									   vector<smart_word_token> *parsedcmdline) {
+
+}
+
+int Packetsourcetracker::cmd_RESTARTSOURCE(int in_clid, KisNetFramework *framework,
+										   char *errstr, 
+										   string cmdline, 
+										   vector<smart_word_token> *parsedcmdline) {
+
 }
 

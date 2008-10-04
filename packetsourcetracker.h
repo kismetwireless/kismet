@@ -247,6 +247,16 @@ public:
 	void BlitSources(int in_fd);
 	void BlitProtoSources(int in_fd);
 
+	// Network commands
+	int cmd_ADDSOURCE(int, KisNetFramework *, char *, string, 
+					  vector<smart_word_token> *);
+	int cmd_DELSOURCE(int, KisNetFramework *, char *, string, 
+					  vector<smart_word_token> *);
+	int cmd_RESTARTSOURCE(int, KisNetFramework *, char *, string, 
+						  vector<smart_word_token> *);
+	int cmd_HOPSOURCE(int, KisNetFramework *, char *, string, 
+					  vector<smart_word_token> *);
+
 protected:
 	// Add a channel list, get back a reference ID (ie, for IPC)
 	// channels=name,chan[:dwell]+
@@ -269,6 +279,9 @@ protected:
 	int source_ipc_id, channellist_ipc_id, channel_ipc_id,
 		report_ipc_id, run_ipc_id, remove_ipc_id, sync_ipc_id,
 		packet_ipc_id;
+
+	int cmd_addsource_id, cmd_delsource_id, cmd_restartsource_id,
+		cmd_hopsource_id;
 
 	int running_as_ipc;
 

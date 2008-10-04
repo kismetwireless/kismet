@@ -179,6 +179,9 @@ int NetworkServer::FlushRings() {
 void NetworkServer::KillConnection(int in_fd) {
     // Let the framework clear any state info
     srvframework->KillConnection(in_fd);
+
+	if (in_fd < 0)
+		return;
   
     // Nuke descriptors
     FD_CLR(in_fd, &server_fdset);
