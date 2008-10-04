@@ -153,7 +153,8 @@ int PacketSource_Pcap::OpenSource() {
 }
 
 int PacketSource_Pcap::CloseSource() {
-	pcap_close(pd);
+	if (pd != NULL)
+		pcap_close(pd);
 	pd = NULL;
 	return 1;
 }

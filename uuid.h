@@ -88,7 +88,9 @@ public:
 	
 	void GenerateTimeUUID(uint8_t *in_node) {
 		uint32_t clock_mid;
+
 		get_clock(&clock_mid, time_low, clock_seq);
+
 		*clock_seq |= 0x8000;
 		*time_mid = (uint16_t) clock_mid;
 		*time_hi = ((clock_mid >> 16) & 0x0FFF) | 0x1000;
@@ -108,7 +110,7 @@ public:
 
 	string UUID2String() {
 		char ids[38];
-		snprintf(ids, 38, "%08hx-%04hx-%04hx-%04hx-%02hx%02hx%02hx%02hx%02hx%02hx",
+		snprintf(ids, 38, "%08x-%04hx-%04hx-%04hx-%02hx%02hx%02hx%02hx%02hx%02hx",
 				 *time_low, *time_mid, *time_hi, *clock_seq,
 				 node[0], node[1], node[2], node[3], node[4], node[5]);
 		return string(ids);
@@ -116,8 +118,7 @@ public:
 
 	inline bool operator== (const uuid& op) const {
 		if (memcmp(uuid_block, op.uuid_block, 16) == 0)
-			return 1;
-
+			return 1; 
 		return 0;
 	}
 
@@ -234,12 +235,12 @@ protected:
 			last = tv;
 		}
 
-		clock_reg = tv.tv_usec*10 + adjustment;
-		clock_reg += ((unsigned long long) tv.tv_sec)*10000000;
+		clock_reg = tv.tv_usec * 10 + adjustment;
+		clock_reg += ((unsigned long long) tv.tv_sec) * 10000000;
 		clock_reg += (((unsigned long long) 0x01B21DD2) << 32) + 0x13814000;
 
 		*in_clock_high = clock_reg >> 32;
-		*in_clock_low = clock_reg;
+		*in_clock_low = (uint32_t) clock_reg;
 		*in_clock_seq = clock_seq;
 		return 0;
 	}
