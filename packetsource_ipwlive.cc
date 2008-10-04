@@ -58,6 +58,7 @@ int PacketSource_Ipwlive::RegisterSources(Packetsourcetracker *tracker) {
 int PacketSource_Ipwlive::EnableMonitor() {
 	char errstr[STATUS_MAX];
 
+#if 0
 	// Pull the hardware address from the device and use it to re-seed 
 	// the UUID
 	uint8_t hwnode[6];
@@ -68,6 +69,7 @@ int PacketSource_Ipwlive::EnableMonitor() {
 			 "the interface, but we'll keep going.", MSGFLAG_ERROR);
 	}
 	src_uuid.GenerateTimeUUID(hwnode);
+#endif
 
 	char dynif[32];
 	FILE *sysf;

@@ -199,7 +199,6 @@ void NetworkServer::KillConnection(int in_fd) {
         delete write_buf_map[in_fd];
         write_buf_map.erase(miter);
     }
-
 }
 
 int NetworkServer::WriteData(int in_clid, void *in_data, int in_len) {

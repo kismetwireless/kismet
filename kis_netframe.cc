@@ -874,6 +874,10 @@ int KisNetFramework::KillConnection(int in_fd) {
     return 1;
 }
 
+int KisNetFramework::Shutdown() {
+	return ServerFramework::Shutdown();
+}
+
 int KisNetFramework::RegisterClientCommand(string in_cmdword, ClientCommand in_cmd,
 										   void *in_auxptr) {
     string lcmd = StrLower(in_cmdword);

@@ -150,13 +150,19 @@ void TcpServer::KillConnection(int in_fd) {
     // Close the fd
     if (in_fd)
         close(in_fd);
-
 }
 
 void TcpServer::Shutdown() {
     for (map<int, RingBuffer *>::iterator miter = read_buf_map.begin();
-         miter != read_buf_map.end(); miter++)
+         miter != read_buf_map.end(); ++miter) {
         KillConnection(miter->first);
+		// Reset the iterator since we cascade through the generic
+		// netserver::killconnection which removes the ringbuf and
+		// iterator
+		miter = read_buf_map.begin();
+		if (miter == read_buf_map.end())
+			break;
+	}
 
     sv_valid = 0;
 

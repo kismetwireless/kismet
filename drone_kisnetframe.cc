@@ -43,6 +43,10 @@ KisNetFramework::KisNetFramework(GlobalRegistry *in_globalreg) {
 	return;
 }
 
+int KisNetFramework::Shutdown() {
+	return 0;
+}
+
 int KisNetFramework::Activate() {
 	return 0;
 }

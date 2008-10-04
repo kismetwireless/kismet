@@ -687,6 +687,10 @@ uint16_t Packetsourcetracker::AddPacketSource(string in_source,
 		pstsource->proto_source->weak_source->CreateSource(globalreg, interface, 
 														   &options);
 
+	_MSG("Created source " + interface + " with UUID " +
+		 pstsource->strong_source->FetchUUID().UUID2String(), MSGFLAG_INFO);
+
+
 	// Figure out stuff we need the source definition for, after we've errored out
 	// on the common failures
 	
@@ -1381,7 +1385,7 @@ void Packetsourcetracker::SendIPCSourceAdd(pst_packetsource *in_source) {
 
 	add->source_id = in_source->source_id;
 	snprintf(add->type, 64, "%s", in_source->strong_source->FetchType().c_str());
-	snprintf(add->sourceline, 4096, "%s", in_source->sourceline.c_str());
+	snprintf(add->sourceline, 1024, "%s", in_source->sourceline.c_str());
 	add->channel_id = in_source->channel_list;
 	add->channel = in_source->channel;
 	add->channel_hop = in_source->channel_hop;
@@ -1964,6 +1968,9 @@ int Packetsourcetracker::cmd_ADDSOURCE(int in_clid, KisNetFramework *framework,
 		return -1;
 	}
 
+	_MSG("Added source '" + (*parsedcmdline)[1].word + "' from client ADDSOURCE",
+		 MSGFLAG_INFO);
+
 	if (StartSource(new_source_id) < 0) {
 		snprintf(errstr, 1024, "ADDSOURCE failed to activate new source");
 		return -1;
@@ -1977,6 +1984,32 @@ int Packetsourcetracker::cmd_ADDSOURCE(int in_clid, KisNetFramework *framework,
 int Packetsourcetracker::cmd_DELSOURCE(int in_clid, KisNetFramework *framework, 
 									   char *errstr, string cmdline, 
 									   vector<smart_word_token> *parsedcmdline) {
+	if (parsedcmdline->size() < 1) {
+		snprintf(errstr, 1024, "Illegal DELSOURCE command, expected source line");
+		return -1;
+	}
+
+	uuid inuuid = uuid((*parsedcmdline)[1].word);
+
+	if (inuuid.error) {
+		snprintf(errstr, 1024, "Invalid UUID in DELSOURCE command");
+		return -1;
+	}
+
+	pst_packetsource *pstsource = FindLivePacketSourceUUID(inuuid);
+
+	if (pstsource == NULL) {
+		snprintf(errstr, 1024, "Invalid UUID in DELSOURCE command, couldn't find "
+				 "source with UUID %s", inuuid.UUID2String().c_str());
+		return -1;
+	}
+
+	_MSG("Removing source '" + (*parsedcmdline)[1].word + "' from client DELSOURCE",
+		 MSGFLAG_INFO);
+
+	RemovePacketSource(pstsource);
+
+	return 1;
 
 }
 

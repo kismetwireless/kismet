@@ -233,6 +233,8 @@ public:
     virtual int ParseData(int in_fd);
     virtual int KillConnection(int in_fd);
 
+	virtual int Shutdown();
+
 	// Handle a buffer drain on a client
 	virtual int BufferDrained(int in_fd);
 

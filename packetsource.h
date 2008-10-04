@@ -204,6 +204,7 @@ public:
 			memcpy(unode, &unode_hash, 4);
 			unode_hash = Adler32Checksum(interface.c_str(), interface.length());
 			memcpy(&(unode[4]), &unode_hash, 2);
+
 			src_uuid.GenerateTimeUUID(unode);
 		}
 
