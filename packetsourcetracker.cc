@@ -1888,7 +1888,8 @@ void Packetsourcetracker::ChannelTimer() {
 
 			// Set the delay to be the hopdwell of the channel times the 
 			// overall hopping rate
-			if (pst->strong_source->SetChannel(pst->channel) < 0) {
+			if (pst->strong_source->FetchError() == 0 && 
+				pst->strong_source->SetChannel(pst->channel) < 0) {
 				pst->consec_channel_err++;
 
 				if (pst->consec_channel_err > MAX_CONSEC_CHAN_ERR) {

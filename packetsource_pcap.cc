@@ -233,6 +233,7 @@ int PacketSource_Pcap::Poll() {
 		}
 #endif
 
+		error = 1;
 		globalreg->messagebus->InjectMessage(errstr, MSGFLAG_ERROR);
 		return 0;
 	}
