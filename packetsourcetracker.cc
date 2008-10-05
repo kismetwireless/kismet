@@ -406,6 +406,8 @@ void Packetsourcetracker::RegisterIPC(IPCRemote *in_ipc, int in_as_ipc) {
 		rootipc->RegisterIPCCmd(&pst_ipc_run, NULL, this, "SOURCERUN");
 	packet_ipc_id =
 		rootipc->RegisterIPCCmd(&pst_ipc_packet, NULL, this, "SOURCEFRAME");
+	remove_ipc_id =
+		rootipc->RegisterIPCCmd(&pst_ipc_remove, NULL, this, "SOURCEREMOVE");
 }
 
 // Simple aggregate of all our pollable sources.  Sources linked via IPC will
