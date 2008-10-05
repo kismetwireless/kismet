@@ -207,7 +207,6 @@ suidinstall: $(CS)
 
 install: $(PS) $(CS) $(DRONE) $(NC)
 	$(MAKE) -e commoninstall
-	$(MAKE) -e binuserinstall
 	@if test -f $(ETC)/kismet.conf; then \
 		$(MAKE) -e checkconfig; \
     else \
@@ -236,8 +235,10 @@ install: $(PS) $(CS) $(DRONE) $(NC)
 	@echo
 	@echo "Kismet has NOT been installed suid-root.  This means you will need to start "
 	@echo "it as root.  If you have no untrusted users on your system, it can be installed "
-	@echo "as suid-root via 'make suidinstall'.  READ THE DOCUMENTATION BEFORE INSTALLING "
-	@echo "KISMET AS SUID-ROOT!"
+	@echo "as suid-root via 'make suidinstall'."
+	@echo
+	@echo "READ THE KISMET DOCUMENTATION ABOUT THE KISMET SECURITY MODEL TO"
+	@echo "DECIDE IF YOU WANT TO INSTALL IT SUID-ROOT"
 	@echo
 	@echo "It is more secure to install Kismet with the suid-root helper option."
                 
