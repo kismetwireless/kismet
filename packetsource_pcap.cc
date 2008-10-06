@@ -235,6 +235,7 @@ int PacketSource_Pcap::Poll() {
 
 		error = 1;
 		globalreg->messagebus->InjectMessage(errstr, MSGFLAG_ERROR);
+		CloseSource();
 		return 0;
 	}
 

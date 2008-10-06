@@ -99,6 +99,7 @@ Kis_Main_Panel::Kis_Main_Panel(GlobalRegistry *in_globalreg,
 	menu->AddMenuItem("-", mn_sort, 0);
 	mi_sort_type = menu->AddMenuItem("Type", mn_sort, 't');
 	mi_sort_chan = menu->AddMenuItem("Channel", mn_sort, 'c');
+	mi_sort_crypt = menu->AddMenuItem("Encryption", mn_sort, 'e');
 	mi_sort_first = menu->AddMenuItem("First Seen", mn_sort, 'f');
 	mi_sort_first_d = menu->AddMenuItem("First Seen (descending)", mn_sort, 'F');
 	mi_sort_last = menu->AddMenuItem("Latest Seen", mn_sort, 'l');
@@ -225,7 +226,7 @@ Kis_Main_Panel::Kis_Main_Panel(GlobalRegistry *in_globalreg,
 	AddColorPref("menu_disable_color", "Menu Disabled");
 	AddColorPref("menu_border_color", "Menu Border");
 	AddColorPref("netlist_header_color", "Netlist Header");
-	AddColorPref("netlist_normal_color", "Netlist Normal");
+	AddColorPref("netlist_normal_color", "Netlist Unencrypted");
 	AddColorPref("netlist_crypt_color", "Netlist Encrypted");
 	AddColorPref("netlist_group_color", "Netlist Group");
 	AddColorPref("netlist_factory_color", "Netlist Factory");
@@ -391,6 +392,8 @@ void Kis_Main_Panel::MenuAction(int opt) {
 		kpinterface->prefs.SetOpt("NETLIST_SORT", "type", 1);
 	} else if (opt == mi_sort_chan) {
 		kpinterface->prefs.SetOpt("NETLIST_SORT", "channel", 1);
+	} else if (opt == mi_sort_crypt) {
+		kpinterface->prefs.SetOpt("NETLIST_SORT", "crypt_type", 1);
 	} else if (opt == mi_sort_first) {
 		kpinterface->prefs.SetOpt("NETLIST_SORT", "first", 1);
 	} else if (opt == mi_sort_first_d) {
@@ -571,6 +574,11 @@ void Kis_Main_Panel::UpdateSortMenu() {
 		menu->SetMenuItemChecked(mi_sort_chan, 1);
 	else
 		menu->SetMenuItemChecked(mi_sort_chan, 0);
+
+	if (so == netsort_crypt)
+		menu->SetMenuItemChecked(mi_sort_crypt, 1);
+	else
+		menu->SetMenuItemChecked(mi_sort_crypt, 0);
 
 	if (so == netsort_first)
 		menu->SetMenuItemChecked(mi_sort_first, 1);

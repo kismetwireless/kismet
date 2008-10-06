@@ -98,7 +98,7 @@ protected:
 	int mn_preferences, mi_serverprefs, mi_colorprefs, mi_netcolprefs,
 		mi_netextraprefs, mi_infoprefs;
 
-	int mn_sort, mi_sort_auto, mi_sort_type, mi_sort_chan, mi_sort_first, 
+	int mn_sort, mi_sort_auto, mi_sort_type, mi_sort_chan, mi_sort_crypt, mi_sort_first, 
 		mi_sort_first_d, mi_sort_last, mi_sort_last_d, mi_sort_bssid, mi_sort_ssid,
 		mi_sort_packets, mi_sort_packets_d;
 

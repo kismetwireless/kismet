@@ -588,6 +588,8 @@ int Kis_Netlist::UpdateSortPrefs() {
 		sort_mode = netsort_packets;
 	else if (sort == "packets_desc")
 		sort_mode = netsort_packets_desc;
+	else if (sort == "crypt_type")
+		sort_mode = netsort_crypt;
 	else
 		sort_mode = netsort_autofit;
 
@@ -1425,6 +1427,9 @@ void Kis_Netlist::UpdateTrigger(void) {
 			stable_sort(display_vec.begin(), display_vec.end(), 
 						KisNetlist_Sort_PacketsDesc());
 			break;
+		case netsort_crypt:
+			stable_sort(display_vec.begin(), display_vec.end(),
+						KisNetlist_Sort_Crypt());
 		default:
 			break;
 	}

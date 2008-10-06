@@ -166,5 +166,22 @@ public:
 	}
 };
 
+class KisNetlist_Sort_Crypt {
+public:
+	inline bool operator()(Kis_Display_NetGroup *x, 
+						   Kis_Display_NetGroup *y) const {
+		Netracker::tracked_network *xm = x->FetchNetwork();
+		Netracker::tracked_network *ym = y->FetchNetwork();
+
+		if (xm == NULL || ym == NULL)
+			return 0;
+
+		if (xm->lastssid == NULL || ym->lastssid == NULL)
+			return 0;
+
+		return (xm->lastssid->cryptset) < (ym->lastssid->cryptset);
+	}
+};
+
 #endif
 
