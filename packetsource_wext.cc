@@ -79,7 +79,7 @@ int PacketSource_Wext::AutotypeProbe(string in_device) {
 		sysdriver == "rt2400pci" || sysdriver == "rt2x00usb" ||
 		sysdriver == "rt2400pci" || sysdriver == "rt61pci" ||
 		sysdriver == "rtl8180"  || sysdriver == "zd1201" ||
-		sysdriver == "zd1211rw") {
+		sysdriver == "rtl8187" || sysdriver == "zd1211rw") {
 		
 		// Set the weaksource type to what we derived
 		type = sysdriver;
@@ -164,6 +164,7 @@ int PacketSource_Wext::RegisterSources(Packetsourcetracker *tracker) {
 	tracker->RegisterPacketProto("rt73", this, "IEEE80211b", 1);
 	tracker->RegisterPacketProto("rt73usb", this, "IEEE80211b", 1);
 	tracker->RegisterPacketProto("rt8180", this, "IEEE80211b", 1);
+	tracker->RegisterPacketProto("rt8187", this, "IEEE80211b", 1);
 	tracker->RegisterPacketProto("zd1211", this, "IEEE80211b", 1);
 	tracker->RegisterPacketProto("zd1201", this, "IEEE80211b", 1);
 	tracker->RegisterPacketProto("zd1211rw", this, "IEEE80211b", 1);
