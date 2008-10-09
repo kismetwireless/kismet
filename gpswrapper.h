@@ -74,10 +74,10 @@ public:
 		return 1;
 	}
 
-protected:
 	virtual int Reconnect() {
 		return 0;
 	}
+protected:
 };
 
 #endif

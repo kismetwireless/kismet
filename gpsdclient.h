@@ -57,6 +57,7 @@ public:
     
     virtual int Shutdown();
 
+    virtual int Reconnect();
 protected:
     TcpClient *tcpcli;
 
@@ -70,9 +71,6 @@ protected:
 	int si_units;
 
 	time_t last_hed_time;
-
-    // Reconnect local trigger
-    virtual int Reconnect();
 };
 
 #endif

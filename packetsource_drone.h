@@ -72,6 +72,8 @@ public:
 
 	void SourceActionHandler(pst_packetsource *src, int action, int flags);
 	
+	virtual int Reconnect();
+
 protected:
 	TcpClient *tcpcli;
 	int reconnect;
@@ -82,8 +84,6 @@ protected:
 	int cli_type;
 	int cli_port;
 	char cli_host[129];
-
-	virtual int Reconnect();
 
 	void *packetsource;
 

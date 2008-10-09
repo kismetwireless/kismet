@@ -82,6 +82,8 @@
 
 #include "statealert.h"
 
+#include "spectool_netclient.h"
+
 #ifndef exec_name
 char *exec_name;
 #endif
@@ -698,6 +700,12 @@ int main(int argc, char *argv[], char *envp[]) {
 	globalregistry->messagebus->InjectMessage("Starting GPS components...",
 											  MSGFLAG_INFO);
 	gpswrapper = new GpsWrapper(globalregistry);
+	if (globalregistry->fatal_condition)
+		CatchShutdown(-1);
+
+	// Create the spectools server
+	SpectoolsClient *speccli;
+	speccli = new SpectoolsClient(globalregistry);
 	if (globalregistry->fatal_condition)
 		CatchShutdown(-1);
 

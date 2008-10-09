@@ -59,6 +59,9 @@
 #define rintf(x) (float) rint((double) (x))
 #endif
 
+#include <sstream>
+#include <iomanip>
+
 // Munge input to shell-safe
 void MungeToShell(char *in_data, int max) {
     int i, j;
@@ -291,6 +294,17 @@ int Hex2UChar(unsigned char *in_hex, unsigned char *in_chr) {
     }
 
     return(chrpos);
+}
+
+string IntToString(int in_int, int in_precision) {
+	ostringstream osstr;
+
+	if (in_precision)
+		osstr << setprecision(in_precision) << in_int;
+	else
+		osstr << in_int;
+
+	return osstr.str();
 }
 
 vector<string> StrTokenize(string in_str, string in_split, int return_partial) {

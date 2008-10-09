@@ -87,6 +87,8 @@ public:
     static double EarthDistance(double in_lat, double in_lon, 
 								double in_lat2, double in_lon2);
 
+    virtual int Reconnect() = 0;
+
 protected:
     uint32_t gps_options;
 
@@ -102,9 +104,6 @@ protected:
 	// Scan options & register systems
 	int ScanOptions();
 	int RegisterComponents();
-
-    // Reconnect local trigger
-    virtual int Reconnect() = 0;
 
 	// network proto ref
 	int gps_proto_ref;

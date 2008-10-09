@@ -50,7 +50,7 @@ PSO	= util.o cygwin_utils.o ringbuf.o messagebus.o configfile.o getopt.o \
 	netframework.o clinetframework.o tcpserver.o tcpclient.o serialclient.o \
 	packetsourcetracker.o $(CAPSOURCES) \
 	kis_netframe.o kis_droneframe.o \
-	gpswrapper.o gpscore.o gpsdclient.o gpsserial.o \
+	gpswrapper.o gpscore.o gpsdclient.o gpsserial.o spectool_netclient.o \
 	packetchain.o \
 	plugintracker.o alertracker.o timetracker.o \
 	packetdissectors.o netracker.o \

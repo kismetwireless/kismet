@@ -62,6 +62,9 @@ maxbacklog=5000
 # dronemaxclients=5
 # droneringlen=65535
 
+# Do we use a spectools server for spectrum data?  (From devices like the Wi-Spy)
+spectools=tcp://localhost:30569
+
 # Do we have a GPS?
 gps=true
 # Do we use a locally serial attached GPS, or use a gpsd server?
