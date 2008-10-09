@@ -203,6 +203,18 @@ typedef struct {
 	int8_t noise_dbm;
 } ppi_80211_common;
 
+typedef struct {
+	uint16_t pfh_datatype;
+	uint16_t pfh_datalen;
+	uint32_t start_khz;
+	uint32_t res_hz;
+	uint32_t amp_offset_mdbm;
+	uint32_t amp_res_mdbm;
+	uint16_t rssi_max;
+	uint16_t num_samples;
+	uint8_t data[0];
+} ppi_spectrum;
+
 #define PPI_80211_FLAG_FCS			1
 #define PPI_80211_FLAG_TSFMS		2
 #define PPI_80211_FLAG_INVALFCS		4

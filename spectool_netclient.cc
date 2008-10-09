@@ -67,7 +67,7 @@ int Protocol_SPECTRUM(PROTO_PARMS) {
 
 		switch (fnum) {
 			case SPEC_devname:
-				cache->Cache(fnum, spec->dev_name);
+				cache->Cache(fnum, "\001" + spec->dev_name + "\001");
 				break;
 
 			case SPEC_amp_offset_mdbm:

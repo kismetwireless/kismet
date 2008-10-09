@@ -25,6 +25,7 @@
 #include "endian_magic.h"
 #include "dumpfile_pcap.h"
 #include "packetsource_pcap.h"
+#include "spectool_netclient.h"
 
 int dumpfilepcap_chain_hook(CHAINCALL_PARMS) {
 	Dumpfile_Pcap *auxptr = (Dumpfile_Pcap *) auxdata;
@@ -244,17 +245,19 @@ int Dumpfile_Pcap::chain_handler(kis_packet *in_pack) {
 	kis_layer1_packinfo *radioinfo =
 		(kis_layer1_packinfo *) in_pack->fetch(_PCM(PACK_COMP_RADIODATA));
 
+	kis_spectrum_data *specdata =
+		(kis_spectrum_data *) in_pack->fetch(_PCM(PACK_COMP_SPECTRUM));
+
 	if (chunk == NULL) {
 		if ((chunk = 
 			 (kis_datachunk *) in_pack->fetch(_PCM(PACK_COMP_80211FRAME))) == NULL) {
-			if ((chunk = (kis_datachunk *) 
-				 in_pack->fetch(_PCM(PACK_COMP_LINKFRAME))) == NULL) {
-				return 0;
-			}
+
+			chunk = 
+				(kis_datachunk *) in_pack->fetch(_PCM(PACK_COMP_LINKFRAME));
 		}
 	}
 
-	if (chunk->length < 0 || chunk->length > MAX_PACKET_LEN) {
+	if (chunk != NULL && (chunk->length < 0 || chunk->length > MAX_PACKET_LEN)) {
 		_MSG("Weird frame in pcap logger with the wrong size...", MSGFLAG_ERROR);
 		return 0;
 	}
@@ -280,17 +283,26 @@ int Dumpfile_Pcap::chain_handler(kis_packet *in_pack) {
 		}
 	}
 
-	unsigned int dump_len = chunk->length;
+	unsigned int dump_len = 0;
+	if (chunk != NULL)
+		dump_len += chunk->length;
+
 	u_char *dump_data = NULL;
 
 	// Assemble the full packet
 	if (dumpformat == dump_ppi) {
 		ppi_packet_header *ppi_ph;
+		unsigned int ppi_len = 0;
+		unsigned int ppi_pos = sizeof(ppi_packet_header);
 
 		dump_len += sizeof(ppi_packet_header);
 
-		if (radioinfo != NULL)
-			dump_len += sizeof(ppi_80211_common);
+		if (radioinfo != NULL) 
+			ppi_len += sizeof(ppi_80211_common);
+		if (specdata != NULL)
+			ppi_len += sizeof(ppi_spectrum) + specdata->rssi_vec.size();
+
+		dump_len += ppi_len;
 
 		dump_data = new u_char[dump_len];
 
@@ -298,14 +310,35 @@ int Dumpfile_Pcap::chain_handler(kis_packet *in_pack) {
 
 		ppi_ph->pph_version = 0;
 		ppi_ph->pph_flags = 0;
-		ppi_ph->pph_len = kis_htole16(sizeof(ppi_packet_header) +
-									 sizeof(ppi_80211_common));
+		ppi_ph->pph_len = kis_htole16(ppi_len);
+
 		// Hardcode 80211 DLT for now
 		ppi_ph->pph_dlt = kis_htole32(105);
 
+		if (specdata != NULL) {
+			ppi_spectrum *ppi_spec;
+			ppi_spec = (ppi_spectrum *) &(dump_data[ppi_pos]);
+			ppi_pos += sizeof(ppi_spectrum) + specdata->rssi_vec.size();
+
+			ppi_spec->pfh_datatype = kis_htole16(PPI_FIELD_SPECMAP);
+			ppi_spec->pfh_datalen = kis_htole16(sizeof(ppi_spectrum) -
+												sizeof(ppi_field_header) +
+												specdata->rssi_vec.size());
+
+			ppi_spec->start_khz = kis_htole32(specdata->start_khz);
+			ppi_spec->res_hz = kis_htole32(specdata->res_hz);
+			ppi_spec->amp_offset_mdbm = kis_htole32(abs(specdata->amp_offset_mdbm));
+			ppi_spec->amp_res_mdbm = kis_htole32(specdata->amp_res_mdbm);
+			ppi_spec->rssi_max = kis_htole16(specdata->rssi_max);
+			ppi_spec->num_samples = kis_htole16(specdata->rssi_vec.size());
+			for (unsigned int s = 0; s < specdata->rssi_vec.size(); s++) 
+				ppi_spec->data[s] = specdata->rssi_vec[s];
+		}
+
 		if (radioinfo != NULL) {
 			ppi_80211_common *ppi_common;
-			ppi_common = (ppi_80211_common *) &(dump_data[sizeof(ppi_packet_header)]);
+			ppi_common = (ppi_80211_common *) &(dump_data[ppi_pos]);
+			ppi_pos += sizeof(ppi_80211_common);
 
 			ppi_common->pfh_datatype = kis_htole16(PPI_FIELD_11COMMON);
 			ppi_common->pfh_datalen = kis_htole16(sizeof(ppi_80211_common) -
@@ -356,7 +389,8 @@ int Dumpfile_Pcap::chain_handler(kis_packet *in_pack) {
 		dump_data = new u_char[dump_len];
 
 	// copy the packet content in, offset if necessary
-	memcpy(&(dump_data[dump_len - chunk->length]), chunk->data, chunk->length);
+	if (chunk != NULL)
+		memcpy(&(dump_data[dump_len - chunk->length]), chunk->data, chunk->length);
 
 	// Fake a header
 	struct pcap_pkthdr wh;
