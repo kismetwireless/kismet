@@ -67,6 +67,7 @@
 
 #include "packetdissectors.h"
 #include "netracker.h"
+#include "channeltracker.h"
 
 #include "dumpfile.h"
 #include "dumpfile_runstate.h"
@@ -713,6 +714,14 @@ int main(int argc, char *argv[], char *envp[]) {
 	globalregistry->messagebus->InjectMessage("Creating network tracker...",
 											  MSGFLAG_INFO);
 	globalregistry->netracker = new Netracker(globalregistry);
+	if (globalregistry->fatal_condition)
+		CatchShutdown(-1);
+
+	// Create the channel tracker
+	globalregistry->messagebus->InjectMessage("Creating channel tracker...",
+											  MSGFLAG_INFO);
+	Channeltracker *chantracker;
+	chantracker = new Channeltracker(globalregistry);
 	if (globalregistry->fatal_condition)
 		CatchShutdown(-1);
 

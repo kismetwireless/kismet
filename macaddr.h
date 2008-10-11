@@ -513,6 +513,11 @@ public:
         return singleton_map.size() + mask_vec.size();
     }
 
+	inline void clear(void) {
+		vec_offset_map.clear();
+		singleton_map.clear();
+	}
+
     inline void reindex(void) {
         // Order it
         if (mask_vec.size() == 0)

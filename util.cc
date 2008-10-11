@@ -307,6 +307,17 @@ string IntToString(int in_int, int in_precision) {
 	return osstr.str();
 }
 
+string LongIntToString(long int in_int, int in_precision) {
+	ostringstream osstr;
+
+	if (in_precision)
+		osstr << setprecision(in_precision) << in_int;
+	else
+		osstr << in_int;
+
+	return osstr.str();
+}
+
 vector<string> StrTokenize(string in_str, string in_split, int return_partial) {
     size_t begin = 0;
     size_t end = in_str.find(in_split);

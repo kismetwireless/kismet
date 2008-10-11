@@ -53,7 +53,7 @@ PSO	= util.o cygwin_utils.o ringbuf.o messagebus.o configfile.o getopt.o \
 	gpswrapper.o gpscore.o gpsdclient.o gpsserial.o spectool_netclient.o \
 	packetchain.o \
 	plugintracker.o alertracker.o timetracker.o \
-	packetdissectors.o netracker.o \
+	packetdissectors.o netracker.o channeltracker.o \
 	dumpfile.o dumpfile_runstate.o dumpfile_pcap.o dumpfile_gpsxml.o \
 	dumpfile_tuntap.o dumpfile_netxml.o dumpfile_nettxt.o dumpfile_string.o \
 	dumpfile_alert.o statealert.o \

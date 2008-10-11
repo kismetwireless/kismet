@@ -305,8 +305,12 @@ Packetsourcetracker::Packetsourcetracker(GlobalRegistry *in_globalreg) {
 	} 
 
 	if (globalreg->timetracker == NULL) {
-		fprintf(stderr, "FATAL OOPS:  Packetsourcetracker called before "
-				"timetracker\n");
+		fprintf(stderr, "FATAL OOPS:  Packetsourcetracker called before timetracker\n");
+		exit(1);
+	}
+
+	if (globalreg->packetchain == NULL) {
+		fprintf(stderr, "FATAL OOPS:  Packetsourcetracker called before packetchain\n");
 		exit(1);
 	}
 
@@ -1817,6 +1821,9 @@ pst_channellist *Packetsourcetracker::FetchSourceChannelList(pst_packetsource *i
 }
 
 void Packetsourcetracker::ChannelTimer() {
+	// Is another source sharing this channel at this time?
+	map<uint32_t, int> channel_touched;
+
 	for (unsigned int x = 0; x < packetsource_vec.size(); x++) {
 		pst_packetsource *pst = packetsource_vec[x];
 
@@ -1830,6 +1837,19 @@ void Packetsourcetracker::ChannelTimer() {
 			int push_report = 0;
 
 			if (pst->channel_hop) {
+				// Only increment it for one packet source, if we have multiple
+				// that are on the same channel
+				if (channel_touched.find(pst->channel) == channel_touched.end()) {
+					channel_touched[pst->channel] = 1;
+					map<uint32_t, int>::iterator ctmi;
+					if ((ctmi = channel_tick_map.find(pst->channel)) == 
+						channel_tick_map.end()) {
+						channel_tick_map[pst->channel] = 1;
+					} else {
+						ctmi->second++;
+					}
+				}
+
 				pst->rate_timer--;
 
 				if (pst->rate_timer > 0) 
@@ -1844,8 +1864,6 @@ void Packetsourcetracker::ChannelTimer() {
 				pst->rate_timer =
 					pst->channel_ptr->channel_vec[pst->channel_position].dwell *
 					(SERVER_TIMESLICES_SEC - pst->channel_rate);
-
-				// printf("debug - pid %u source %s reset timer %d chdwell %d timeslices %d innaterate %d\n", getpid(), pst->strong_source->FetchInterface().c_str(), pst->rate_timer, pst->channel_ptr->channel_vec[pst->channel_position].dwell, SERVER_TIMESLICES_SEC, pst->channel_rate);
 
 			} else if (pst->channel_dwell) {
 				pst->dwell_timer--;
@@ -2026,6 +2044,33 @@ int Packetsourcetracker::cmd_RESTARTSOURCE(int in_clid, KisNetFramework *framewo
 										   char *errstr, 
 										   string cmdline, 
 										   vector<smart_word_token> *parsedcmdline) {
+	if (parsedcmdline->size() < 1) {
+		snprintf(errstr, 1024, "Illegal DELSOURCE command, expected source line");
+		return -1;
+	}
 
+	uuid inuuid = uuid((*parsedcmdline)[1].word);
+
+	if (inuuid.error) {
+		snprintf(errstr, 1024, "Invalid UUID in DELSOURCE command");
+		return -1;
+	}
+
+	pst_packetsource *pstsource = FindLivePacketSourceUUID(inuuid);
+
+	if (pstsource == NULL) {
+		snprintf(errstr, 1024, "Invalid UUID in DELSOURCE command, couldn't find "
+				 "source with UUID %s", inuuid.UUID2String().c_str());
+		return -1;
+	}
+
+	_MSG("Restarting source '" + (*parsedcmdline)[1].word + "' from client "
+		 "RESTARTSOURCE", MSGFLAG_INFO);
+
+	pstsource->strong_source->CloseSource();
+	pstsource->strong_source->EnableMonitor();
+	pstsource->strong_source->OpenSource();
+
+	return 1;
 }
 

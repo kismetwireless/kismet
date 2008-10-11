@@ -257,6 +257,15 @@ public:
 	int cmd_HOPSOURCE(int, KisNetFramework *, char *, string, 
 					  vector<smart_word_token> *);
 
+	// Fetch and clear the channel time map
+	map<uint32_t, int> *FetchChannelTickMap() {
+		return &channel_tick_map;
+	}
+
+	void ClearChannelTickMap() {
+		channel_tick_map.clear();
+	}
+
 protected:
 	// Add a channel list, get back a reference ID (ie, for IPC)
 	// channels=name,chan[:dwell]+
@@ -309,6 +318,9 @@ protected:
 
 	// Callbacks for adding a source
 	vector<Packetsourcetracker::sourceactcb_rec *> cb_vec;
+
+	// Number of ticks we've spent per channel in the past second
+	map<uint32_t, int> channel_tick_map;
 };
 
 #endif

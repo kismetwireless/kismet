@@ -80,6 +80,7 @@ int HexStrToUint8(string in_str, uint8_t *in_buf, int in_buflen);
 string HexStrFromUint8(uint8_t *in_buf, int in_buflen);
 
 string IntToString(int in_int, int in_precision = 0);
+string LongIntToString(long int in_int, int in_precision = 0);
 
 void SubtractTimeval(struct timeval *in_tv1, struct timeval *in_tv2,
 					 struct timeval *out_tv);
