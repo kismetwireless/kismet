@@ -730,7 +730,7 @@ int FreqToChan(int in_freq) {
         x++;
     }
 
-    return 0;
+    return in_freq;
 }
 
 // Multiplatform method of setting a process title.  Lifted from proftpd main.c

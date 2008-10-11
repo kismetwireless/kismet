@@ -30,11 +30,6 @@
 #include "configfile.h"
 #include "getopt.h"
 
-#ifdef SYS_LINUX
-// Bring in the ifcontrol stuff for 'auto'
-#include "ifcontrol.h"
-#endif
-
 enum SOURCE_fields {
 	SOURCE_interface, SOURCE_type, SOURCE_username, SOURCE_channel, SOURCE_uuid, 
 	SOURCE_packets, SOURCE_hop, SOURCE_velocity, SOURCE_dwell, SOURCE_hop_tv_sec,
@@ -245,6 +240,17 @@ int pst_ipc_packet(IPC_CMD_PARMS) {
 	return 1;
 }
 
+int pst_ipc_chanreport(IPC_CMD_PARMS) {
+	if (!parent) return 0;
+
+	if (len < (int) sizeof(ipc_source_chanreport))
+		return 0;
+
+	((Packetsourcetracker *) auxptr)->IpcChannelReport((ipc_source_chanreport *) data);
+
+	return 1;
+}
+
 int pst_channeltimer(TIMEEVENT_PARMS) {
 	((Packetsourcetracker *) parm)->ChannelTimer();
 
@@ -297,6 +303,8 @@ void Packetsourcetracker::Usage(char *name) {
 
 Packetsourcetracker::Packetsourcetracker(GlobalRegistry *in_globalreg) {
     globalreg = in_globalreg;
+
+	timer_counter = 0;
 
 	if (globalreg->kisnetserver == NULL) {
 		fprintf(stderr, "FATAL OOPS:  Packetsourcetracker called before "
@@ -412,6 +420,8 @@ void Packetsourcetracker::RegisterIPC(IPCRemote *in_ipc, int in_as_ipc) {
 		rootipc->RegisterIPCCmd(&pst_ipc_packet, NULL, this, "SOURCEFRAME");
 	remove_ipc_id =
 		rootipc->RegisterIPCCmd(&pst_ipc_remove, NULL, this, "SOURCEREMOVE");
+	chanreport_ipc_id =
+		rootipc->RegisterIPCCmd(&pst_ipc_chanreport, NULL, this, "SOURCECHANREPORT");
 }
 
 // Simple aggregate of all our pollable sources.  Sources linked via IPC will
@@ -1294,6 +1304,14 @@ int Packetsourcetracker::IpcPacket(ipc_source_packet *in_ipc) {
 	return 1;
 }
 
+int Packetsourcetracker::IpcChannelReport(ipc_source_chanreport *in_ipc) {
+	for (unsigned int x = 0; x < in_ipc->num_channels; x++) {
+		channel_tick_map[in_ipc->channels[x]] = in_ipc->channels_time[x];
+	}
+
+	return 1;
+}
+
 int Packetsourcetracker::StartSource(uint16_t in_source_id) {
 	uid_t euid = geteuid();
 	pst_packetsource *pstsource = NULL;
@@ -1605,6 +1623,34 @@ void Packetsourcetracker::SendIPCPacket(kis_packet *in_pack,
 	rootipc->SendIPC(ipc);
 }
 
+void Packetsourcetracker::SendIPCChanreport() {
+	if (running_as_ipc == 0)
+		return;
+
+	if (rootipc == NULL)
+		return;
+
+	ipc_packet *ipc =
+		(ipc_packet *) malloc(sizeof(ipc_packet) +
+							  sizeof(ipc_source_chanreport));
+	ipc_source_chanreport *report = (ipc_source_chanreport *) ipc->data;
+
+	ipc->data_len = sizeof(ipc_source_chanreport);
+	ipc->ipc_ack = 0;
+	ipc->ipc_cmdnum = chanreport_ipc_id;
+
+	report->num_channels = kismin(channel_tick_map.size(), IPC_SOURCE_MAX_CHANS);
+	unsigned int p = 0;
+	for (map<uint32_t, int>::iterator x = channel_tick_map.begin();
+		 x != channel_tick_map.end() && p < IPC_SOURCE_MAX_CHANS; ++x) {
+		report->channels[p] = x->first;
+		report->channels_time[p] = x->second;
+		p++;
+	}
+
+	rootipc->SendIPC(ipc);
+}
+
 int Packetsourcetracker::RegisterSourceActCallback(SourceActCallback in_cb,
 												   void *in_aux) {
 	// Make a cb rec
@@ -1835,16 +1881,17 @@ void Packetsourcetracker::ChannelTimer() {
 		if (pst->strong_source->FetchDescriptor() >= 0) {
 			struct timeval tv;
 			int push_report = 0;
+			int channel = FreqToChan(pst->channel);
 
 			if (pst->channel_hop) {
 				// Only increment it for one packet source, if we have multiple
 				// that are on the same channel
-				if (channel_touched.find(pst->channel) == channel_touched.end()) {
-					channel_touched[pst->channel] = 1;
+				if (channel_touched.find(channel) == channel_touched.end()) {
+					channel_touched[channel] = 1;
 					map<uint32_t, int>::iterator ctmi;
-					if ((ctmi = channel_tick_map.find(pst->channel)) == 
+					if ((ctmi = channel_tick_map.find(channel)) == 
 						channel_tick_map.end()) {
-						channel_tick_map[pst->channel] = 1;
+						channel_tick_map[channel] = 1;
 					} else {
 						ctmi->second++;
 					}
@@ -1868,6 +1915,17 @@ void Packetsourcetracker::ChannelTimer() {
 			} else if (pst->channel_dwell) {
 				pst->dwell_timer--;
 
+				if (channel_touched.find(channel) == channel_touched.end()) {
+					channel_touched[channel] = 1;
+					map<uint32_t, int>::iterator ctmi;
+					if ((ctmi = channel_tick_map.find(channel)) == 
+						channel_tick_map.end()) {
+						channel_tick_map[channel] = 1;
+					} else {
+						ctmi->second++;
+					}
+				}
+
 				if (pst->dwell_timer > 0)
 					continue;
 
@@ -1880,6 +1938,17 @@ void Packetsourcetracker::ChannelTimer() {
 				pst->dwell_timer =
 					pst->channel_ptr->channel_vec[pst->channel_position].dwell *
 					(SERVER_TIMESLICES_SEC * pst->channel_dwell);
+			} else {
+				if (channel_touched.find(channel) == channel_touched.end()) {
+					channel_touched[channel] = 1;
+					map<uint32_t, int>::iterator ctmi;
+					if ((ctmi = channel_tick_map.find(channel)) == 
+						channel_tick_map.end()) {
+						channel_tick_map[channel] = 1;
+					} else {
+						ctmi->second++;
+					}
+				}
 			}
 
 			// Set and advertise the channel
@@ -1923,6 +1992,13 @@ void Packetsourcetracker::ChannelTimer() {
 
 			pst->channel_position++;
 		}
+	}
+
+	timer_counter++;
+	if (timer_counter == SERVER_TIMESLICES_SEC) {
+		timer_counter = 0;
+		SendIPCChanreport();
+		ClearChannelTickMap();
 	}
 }
 
@@ -2067,9 +2143,8 @@ int Packetsourcetracker::cmd_RESTARTSOURCE(int in_clid, KisNetFramework *framewo
 	_MSG("Restarting source '" + (*parsedcmdline)[1].word + "' from client "
 		 "RESTARTSOURCE", MSGFLAG_INFO);
 
-	pstsource->strong_source->CloseSource();
-	pstsource->strong_source->EnableMonitor();
-	pstsource->strong_source->OpenSource();
+	StopSource(pstsource->source_id);
+	StartSource(pstsource->source_id);
 
 	return 1;
 }

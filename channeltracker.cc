@@ -173,6 +173,14 @@ Channeltracker::~Channeltracker() {
 void Channeltracker::ChanTimer() {
 	map<uint32_t, int> *tick_map = globalreg->sourcetracker->FetchChannelTickMap();
 
+	for (map<uint32_t, int>::iterator x = tick_map->begin(); x != tick_map->end(); ++x) {
+		if (channel_map.find(x->first) == channel_map.end()) {
+			channel_record *crec = new channel_record;
+			channel_map[FreqToChan(x->first)] = crec;
+			crec->channel = FreqToChan(x->first);
+		}
+	}
+
 	for (map<uint32_t, channel_record *>::iterator x = channel_map.begin();
 		 x != channel_map.end(); ++x) {
 
@@ -192,8 +200,6 @@ void Channeltracker::ChanTimer() {
 		x->second->delta_networks.clear();
 		x->second->sent_reset = 1;
 	}
-
-	globalreg->sourcetracker->ClearChannelTickMap();
 }
 
 void Channeltracker::ChainHandler(kis_packet *in_pack) {

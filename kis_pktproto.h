@@ -126,6 +126,13 @@ struct ipc_source_report {
 #define IPC_SRCREP_FLAG_RUNNING		1
 #define IPC_SRCREP_FLAG_ERROR		128
 
+// Child-Parent - Report channel timings
+struct ipc_source_chanreport {
+	uint16_t num_channels;
+	uint32_t channels[IPC_SOURCE_MAX_CHANS];
+	uint16_t channels_time[IPC_SOURCE_MAX_CHANS];
+};
+
 // Parent-Child - Remove packet source
 struct ipc_source_remove {
 	uint16_t source_id;

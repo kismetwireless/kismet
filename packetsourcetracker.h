@@ -212,6 +212,7 @@ public:
 	int IpcSourceRun(ipc_source_run *in_ipc);
 	int IpcSourceRemove(ipc_source_remove *in_ipc);
 	int IpcPacket(ipc_source_packet *in_ipc);
+	int IpcChannelReport(ipc_source_chanreport *in_ipc);
 
 	int StartSource(uint16_t in_source_id);
 	int StopSource(uint16_t in_source_id);
@@ -281,13 +282,14 @@ protected:
 	void SendIPCChanset(pst_packetsource *in_source);
 	void SendIPCRemove(pst_packetsource *in_source);
 	void SendIPCPacket(kis_packet *in_packet, kis_datachunk *in_linkchunk);
+	void SendIPCChanreport();
 
 	GlobalRegistry *globalreg;
 	IPCRemote *rootipc;
 
 	int source_ipc_id, channellist_ipc_id, channel_ipc_id,
 		report_ipc_id, run_ipc_id, remove_ipc_id, sync_ipc_id,
-		packet_ipc_id;
+		packet_ipc_id, chanreport_ipc_id;
 
 	int cmd_addsource_id, cmd_delsource_id, cmd_restartsource_id,
 		cmd_hopsource_id;
@@ -303,6 +305,8 @@ protected:
 
 	int channel_time_id, proto_source_time_id;
 	int source_protoref;
+
+	int timer_counter;
 
 	// List of prototype source, we don't need a map (saves on ram and binary,
 	// to some extent)
