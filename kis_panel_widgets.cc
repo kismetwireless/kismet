@@ -2541,10 +2541,10 @@ void Kis_IntGraph::DrawComponent() {
 
 	// We want the same scale for over/under, so we'll calculate the
 	// height as h - 1 (label) (div 2 if o/u)
-	int gh = (ly - 1) / (graph_mode == 1 ? 2 : 1);
+	int gh = (ly - 1) / (graph_mode == 1 ? 2 : 1) - xgraph_size;
 	// Zero position on the graph is the bottom, or center, depending
 	// on normal or over/under
-	int gzero = ey - (graph_mode == 1 ? gh : 1);
+	int gzero = ey - (graph_mode == 1 ? gh : 1) - xgraph_size;
 	// Width - label (TODO label)
 	int gw = lx;
 
@@ -2650,7 +2650,7 @@ void Kis_IntGraph::DrawComponent() {
 	if ((maxlabel + 4) >=  32)
 		maxlabel = (32 - 4);
 	backing[maxlabel + 4] = '\0';
-	// Draw the labels
+	// Draw the component name labels
 	for (unsigned int x = 0; x < data_vec.size(); x++) {
 		// Position
 		int lpos = 0;
@@ -2672,16 +2672,29 @@ void Kis_IntGraph::DrawComponent() {
 		mvwaddstr(window, lpos, ex - (maxlabel + 2), data_vec[x].fill);
 	}
 
+	// Draw the X marker labels
+	wattrset(window, color_fw);
+	for (unsigned int x = 0; x < label_x.size() && label_x_graphref >= 0; x++) {
+		// GX within the # of samples on the graph
+		int lgx = ((float) gw / data_vec[label_x_graphref].data->size()) * 
+			label_x[x].position;
+		for (unsigned int y = 0; y < label_x[x].label.size(); y++) {
+			mvwaddch(window, gzero + y + 1, sx + lgx, label_x[x].label[y]);
+		}
+	}
+
 	// Reuse the backing for the scale
-	snprintf(backing, 32, " %d ", dmax_y);
-	wattrset(window, color_fw);
-	mvwaddstr(window, sy, sx, backing);
+	if (draw_scale) {
+		snprintf(backing, 32, " %d ", dmax_y);
+		wattrset(window, color_fw);
+		mvwaddstr(window, sy, sx, backing);
 
-	wattrset(window, color_fw);
-	mvwhline(window, gzero, sx, ACS_HLINE, lx);
+		wattrset(window, color_fw);
+		mvwhline(window, gzero, sx, ACS_HLINE, lx);
 
-	snprintf(backing, 32, " %d ", min_y);
-	mvwaddstr(window, gzero, sx, backing);
+		snprintf(backing, 32, " %d ", min_y);
+		mvwaddstr(window, gzero, sx, backing);
+	}
 }
 
 Kis_Panel::Kis_Panel(GlobalRegistry *in_globalreg, KisPanelInterface *in_intf) {

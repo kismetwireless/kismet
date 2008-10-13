@@ -1995,7 +1995,7 @@ void Packetsourcetracker::ChannelTimer() {
 	}
 
 	timer_counter++;
-	if (timer_counter == SERVER_TIMESLICES_SEC) {
+	if (timer_counter == SERVER_TIMESLICES_SEC * 2) {
 		timer_counter = 0;
 		SendIPCChanreport();
 		ClearChannelTickMap();

@@ -153,7 +153,7 @@ Channeltracker::Channeltracker(GlobalRegistry *in_globalreg) {
 	globalreg->packetchain->RegisterHandler(&ct_chan_hook, this, CHAINPOS_LOGGING, 0);
 
 	chan_timer_id =
-		globalreg->timetracker->RegisterTimer(SERVER_TIMESLICES_SEC, NULL, 1,
+		globalreg->timetracker->RegisterTimer(SERVER_TIMESLICES_SEC * 2, NULL, 1,
 											  &ct_channeltimer, this);
 
 	chan_proto_id =

@@ -295,7 +295,7 @@ void CatchShutdown(int sig) {
 	}
     
     // Dump fatal errors again
-    if (fqmescli != NULL) 
+    if (fqmescli != NULL && globalregistry->fatal_condition) 
         fqmescli->DumpFatals();
 
     fprintf(stderr, "Kismet exiting.\n");

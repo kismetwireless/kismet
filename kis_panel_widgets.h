@@ -718,6 +718,9 @@ public:
 		graph_mode = 0;
 		color_fw = 0;
 		maxlabel = 0;
+		xgraph_size = 0;
+		label_x_graphref = -1;
+		draw_scale = 1;
 	}
 	virtual ~Kis_IntGraph() { };
 
@@ -736,12 +739,32 @@ public:
 		inter_x = in_x;
 	}
 
-	virtual void SetXLabels(vector<graph_label> in_xl) {
+	virtual void SetXLabels(vector<graph_label> in_xl, string graphname) {
 		label_x = in_xl;
+
+		// Figure out which graph we reference
+		label_x_graphref = -1;
+		for (unsigned int x = 0; x < data_vec.size(); x++) {
+			if (data_vec[x].name == graphname) {
+				label_x_graphref = x;
+				break;
+			}
+		}
+
+		// Figure out the # of lines we need to save on the graph
+		xgraph_size = 0;
+		for (unsigned int x = 0; x < label_x.size(); x++) {
+			if (xgraph_size < (int) label_x[x].label.size())
+				xgraph_size = (int) label_x[x].label.size() + 1;
+		}
 	}
 
 	virtual void SetMode(int mode) {
 		graph_mode = mode;
+	}
+
+	virtual void SetDrawScale(int in_draw_scale) {
+		draw_scale = in_draw_scale;
 	}
 
 	// Add a data vector at a layer with a color preference, representation
@@ -763,6 +786,8 @@ protected:
 	// 1 = over/under
 	int graph_mode;
 
+	int draw_scale;
+
 	// Graph source vector
 	vector<graph_source> data_vec;
 	
@@ -771,6 +796,7 @@ protected:
 
 	// Labels
 	vector<graph_label> label_x;
+	int xgraph_size, label_x_graphref;
 };
 
 class Kis_Panel {
