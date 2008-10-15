@@ -414,8 +414,8 @@ int Dumpfile_Netxml::Flush() {
 				else if (m->second->type == ssid_probereq)
 					adtype = "Probe Request";
 
-				fprintf(xmlfile, "        <SSID first-time\"%.24s\" "
-						"last-time\"%.24s\">\n"
+				fprintf(xmlfile, "        <SSID first-time=\"%.24s\" "
+						"last-time=\"%.24s\">\n"
 						"            <type>%s</type>\n"
 						"            <max-rate>%f</max-rate>\n"
 						"            <packets>%d</packets>\n",
@@ -471,7 +471,7 @@ int Dumpfile_Netxml::Flush() {
 					fprintf(xmlfile, "        <info>%s</info>\n",
 							SanitizeXML(m->second->beacon_info).c_str());
 
-				fprintf(xmlfile, "        </ssid>\n");
+				fprintf(xmlfile, "        </SSID>\n");
 			}
 
 			fprintf(xmlfile, "      <channel>%d</channel>\n", cli->channel);
@@ -612,7 +612,7 @@ int Dumpfile_Netxml::Flush() {
 						break;
 				}
 
-				fprintf(xmlfile, "      <address type=\"%s\">\n", 
+				fprintf(xmlfile, "      <ip-address type=\"%s\">\n", 
 						iptype.c_str());
 				fprintf(xmlfile, "        <ip-block>%s</ip-block>\n", 
 						inet_ntoa(cli->guess_ipdata.ip_addr_block));
