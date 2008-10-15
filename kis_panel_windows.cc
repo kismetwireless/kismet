@@ -111,6 +111,7 @@ Kis_Main_Panel::Kis_Main_Panel(GlobalRegistry *in_globalreg,
 
 	mn_view = menu->AddMenu("View", 0);
 	mi_netdetails = menu->AddMenuItem("Network Details", mn_view, 'd');
+	mi_chandetails = menu->AddMenuItem("Channel Details", mn_view, 'c');
 	menu->AddMenuItem("-", mn_view, 0);
 	mi_showsummary = menu->AddMenuItem("Info Pane", mn_view, 'S');
 	mi_showstatus = menu->AddMenuItem("Status Pane", mn_view, 's');
@@ -323,15 +324,9 @@ void Kis_Main_Panel::DrawPanel() {
 
 	DrawTitleBorder();
 
-	wattrset(win, text_color);
-	for (unsigned int x = 0; x < pan_comp_vec.size(); x++) {
-		if ((pan_comp_vec[x].comp_flags & KIS_PANEL_COMP_DRAW) == 0)
-			continue;
-
-		pan_comp_vec[x].comp->DrawComponent();
-	}
-
 	UpdateSortMenu();
+
+	DrawComponentVec();
 
 	menu->DrawComponent();
 
@@ -412,6 +407,10 @@ void Kis_Main_Panel::MenuAction(int opt) {
 		kpinterface->prefs.SetOpt("NETLIST_SORT", "packets_desc", 1);
 	} else if (opt == mi_netdetails) {
 		Kis_NetDetails_Panel *dp = new Kis_NetDetails_Panel(globalreg, kpinterface);
+		dp->Position(WIN_CENTER(LINES, COLS));
+		kpinterface->AddPanel(dp);
+	} else if (opt == mi_chandetails) {
+		Kis_ChanDetails_Panel *dp = new Kis_ChanDetails_Panel(globalreg, kpinterface);
 		dp->Position(WIN_CENTER(LINES, COLS));
 		kpinterface->AddPanel(dp);
 	} else if (opt == mi_showsummary ||
@@ -780,14 +779,7 @@ void Kis_Connect_Panel::DrawPanel() {
 
 	DrawTitleBorder();
 
-	wattrset(win, text_color);
-
-	for (unsigned int x = 0; x < pan_comp_vec.size(); x++) {
-		if ((pan_comp_vec[x].comp_flags & KIS_PANEL_COMP_DRAW) == 0)
-			continue;
-
-		pan_comp_vec[x].comp->DrawComponent();
-	}
+	DrawComponentVec();
 
 	wmove(win, 0, 0);
 }
@@ -882,15 +874,7 @@ void Kis_ModalAlert_Panel::DrawPanel() {
 
 	DrawTitleBorder();
 
-	wattrset(win, text_color);
-	DrawTitleBorder();
-
-	for (unsigned int x = 0; x < pan_comp_vec.size(); x++) {
-		if ((pan_comp_vec[x].comp_flags & KIS_PANEL_COMP_DRAW) == 0)
-			continue;
-
-		pan_comp_vec[x].comp->DrawComponent();
-	}
+	DrawComponentVec();
 
 	wmove(win, 0, 0);
 }
@@ -1003,13 +987,7 @@ void Kis_ServerList_Picker::DrawPanel() {
 		srvlist->ReplaceRow(x, td);
 	}
 
-
-	for (unsigned int x = 0; x < pan_comp_vec.size(); x++) {
-		if ((pan_comp_vec[x].comp_flags & KIS_PANEL_COMP_DRAW) == 0)
-			continue;
-
-		pan_comp_vec[x].comp->DrawComponent();
-	}
+	DrawComponentVec();
 
 	wmove(win, 0, 0);
 }
@@ -1173,12 +1151,7 @@ void Kis_AddCard_Panel::DrawPanel() {
 
 	DrawTitleBorder();
 
-	for (unsigned int x = 0; x < pan_comp_vec.size(); x++) {
-		if ((pan_comp_vec[x].comp_flags & KIS_PANEL_COMP_DRAW) == 0)
-			continue;
-
-		pan_comp_vec[x].comp->DrawComponent();
-	}
+	DrawComponentVec();
 
 	wmove(win, 0, 0);
 }
@@ -1359,14 +1332,7 @@ void Kis_Plugin_Picker::DrawPanel() {
 
 	DrawTitleBorder();
 
-	wattrset(win, text_color);
-
-	for (unsigned int x = 0; x < pan_comp_vec.size(); x++) {
-		if ((pan_comp_vec[x].comp_flags & KIS_PANEL_COMP_DRAW) == 0)
-			continue;
-
-		pan_comp_vec[x].comp->DrawComponent();
-	}
+	DrawComponentVec();
 
 	wmove(win, 0, 0);
 }
@@ -1969,15 +1935,8 @@ void Kis_NetDetails_Panel::DrawPanel() {
 		}
 	}
 
-	wattrset(win, text_color);
-	for (unsigned int x = 0; x < pan_comp_vec.size(); x++) {
-		if ((pan_comp_vec[x].comp_flags & KIS_PANEL_COMP_DRAW) == 0)
-			continue;
+	DrawComponentVec();
 
-		pan_comp_vec[x].comp->DrawComponent();
-	}
-
-	menu->DrawComponent();
 	wmove(win, 0, 0);
 }
 
@@ -1994,8 +1953,6 @@ void Kis_NetDetails_Panel::ButtonAction(Kis_Panel_Component *in_button) {
 }
 
 void Kis_NetDetails_Panel::MenuAction(int opt) {
-	vector<KisNetClient *> *clivec = kpinterface->FetchNetClientVecPtr();
-
 	// Menu processed an event, do something with it
 	if (opt == mi_close) {
 		globalreg->panel_interface->KillPanel(this);
@@ -2099,6 +2056,492 @@ void Kis_NetDetails_Panel::UpdateViewMenu(int mi) {
 			retrygraph->Hide();
 		}
 	}
+}
+
+int ChanDetailsButtonCB(COMPONENT_CALLBACK_PARMS) {
+	((Kis_ChanDetails_Panel *) aux)->ButtonAction(component);
+	return 1;
+}
+
+int ChanDetailsMenuCB(COMPONENT_CALLBACK_PARMS) {
+	((Kis_ChanDetails_Panel *) aux)->MenuAction(status);
+	return 1;
+}
+
+int ChanDetailsGraphEvent(TIMEEVENT_PARMS) {
+	((Kis_ChanDetails_Panel *) parm)->GraphTimer();
+
+	return 1;
+}
+
+void ChanDetailsCliConfigured(CLICONF_CB_PARMS) {
+	((Kis_ChanDetails_Panel *) auxptr)->NetClientConfigured(kcli, recon);
+}
+
+void ChanDetailsCliAdd(KPI_ADDCLI_CB_PARMS) {
+	((Kis_ChanDetails_Panel *) auxptr)->NetClientAdd(netcli, add);
+}
+
+void ChanDetailsProtoCHANNEL(CLIPROTO_CB_PARMS) {
+	((Kis_ChanDetails_Panel *) auxptr)->Proto_CHANNEL(globalreg, proto_string,
+													  proto_parsed, srccli, auxptr);
+}
+
+Kis_ChanDetails_Panel::Kis_ChanDetails_Panel(GlobalRegistry *in_globalreg,
+											 KisPanelInterface *in_intf) :
+	Kis_Panel(in_globalreg, in_intf) {
+
+	grapheventid =
+		globalreg->timetracker->RegisterTimer(SERVER_TIMESLICES_SEC, NULL, 1,
+											  &ChanDetailsGraphEvent, (void *) this);
+
+	menu = new Kis_Menu(globalreg, this);
+
+	menu->SetCallback(COMPONENT_CBTYPE_ACTIVATED, ChanDetailsMenuCB, this);
+
+	mn_channels = menu->AddMenu("Channels", 0);
+	mi_close = menu->AddMenuItem("Close window", mn_channels, 'w');
+
+	mn_view = menu->AddMenu("View", 0);
+	mi_chansummary = menu->AddMenuItem("Channel Summary", mn_view, 'c');
+	menu->AddMenuItem("-", mn_view, 0);
+	mi_signal = menu->AddMenuItem("Signal Level", mn_view, 's');
+	mi_packets = menu->AddMenuItem("Packet Rate", mn_view, 'p');
+	mi_traffic = menu->AddMenuItem("Data", mn_view, 'd');
+	mi_networks = menu->AddMenuItem("Networks", mn_view, 'n');
+
+	menu->Show();
+
+	AddComponentVec(menu, KIS_PANEL_COMP_EVT);
+
+	// Channel summary list gets titles but doesn't get the current one highlighted
+	// and locks to fit inside the window
+	chansummary = new Kis_Scrollable_Table(globalreg, this);
+	chansummary->SetHighlightSelected(0);
+	chansummary->SetLockScrollTop(1);
+	chansummary->SetDrawTitles(1);
+	AddComponentVec(chansummary, (KIS_PANEL_COMP_DRAW | KIS_PANEL_COMP_EVT |
+								  KIS_PANEL_COMP_TAB));
+
+	// Populate the titles
+	vector<Kis_Scrollable_Table::title_data> titles;
+	Kis_Scrollable_Table::title_data t;
+
+	t.width = 4;
+	t.title = "Chan";
+	t.alignment = 0;
+	titles.push_back(t);
+
+	t.width = 7;
+	t.title = "Packets";
+	t.alignment = 2;
+	titles.push_back(t);
+
+	t.width = 3;
+	t.title = "P/S";
+	t.alignment = 2;
+	titles.push_back(t);
+
+	t.width = 5;
+	t.title = "Data";
+	t.alignment = 2;
+	titles.push_back(t);
+
+	t.width = 4;
+	t.title = "Dt/s";
+	t.alignment = 2;
+	titles.push_back(t);
+
+	chansummary->AddTitles(titles);
+
+	active_component = chansummary;
+	chansummary->Show();
+	chansummary->Activate(1);
+
+	siggraph = new Kis_IntGraph(globalreg, this);
+	siggraph->SetName("CHANNEL_SIG");
+	siggraph->SetPreferredSize(0, 12);
+	siggraph->SetScale(-110, -40);
+	siggraph->SetInterpolation(0);
+	siggraph->SetMode(0);
+	siggraph->Show();
+	siggraph->AddExtDataVec("Signal", 3, "channel_sig", "yellow,yellow",
+							' ', ' ', 1, &sigvec);
+	siggraph->AddExtDataVec("Noise", 4, "channel_noise", "green,green",
+							' ', ' ', 1, &noisevec);
+	AddComponentVec(siggraph, KIS_PANEL_COMP_EVT);
+
+	packetgraph = new Kis_IntGraph(globalreg, this);
+	packetgraph->SetName("CHANNEL_PPS");
+	packetgraph->SetPreferredSize(0, 12);
+	packetgraph->SetInterpolation(0);
+	packetgraph->SetMode(0);
+	packetgraph->Show();
+	packetgraph->AddExtDataVec("Packet Rate", 4, "channel_pps", "green,green",
+							   ' ', ' ', 1, &packvec);
+	AddComponentVec(packetgraph, KIS_PANEL_COMP_EVT);
+
+	bytegraph = new Kis_IntGraph(globalreg, this);
+	bytegraph->SetName("CHANNEL_BPS");
+	bytegraph->SetPreferredSize(0, 12);
+	bytegraph->SetInterpolation(0);
+	bytegraph->SetMode(0);
+	bytegraph->Show();
+	bytegraph->AddExtDataVec("Traffic", 4, "channel_bytes", "green,green",
+							 ' ', ' ', 1, &bytevec);
+	AddComponentVec(bytegraph, KIS_PANEL_COMP_EVT);
+
+	netgraph = new Kis_IntGraph(globalreg, this);
+	netgraph->SetName("CHANNEL_NETS");
+	netgraph->SetPreferredSize(0, 12);
+	netgraph->SetInterpolation(0);
+	netgraph->SetMode(0);
+	netgraph->Show();
+	netgraph->AddExtDataVec("Networks", 4, "channel_nets", "green,green",
+							' ', ' ', 1, &netvec);
+	AddComponentVec(netgraph, KIS_PANEL_COMP_EVT);
+
+	SetTitle("");
+
+	vbox = new Kis_Panel_Packbox(globalreg, this);
+	vbox->SetPackV();
+	vbox->SetHomogenous(0);
+	vbox->SetSpacing(0);
+	vbox->Show();
+
+	vbox->Pack_End(siggraph, 0, 0);
+	vbox->Pack_End(packetgraph, 0, 0);
+	vbox->Pack_End(bytegraph, 0, 0);
+	vbox->Pack_End(netgraph, 0, 0);
+	vbox->Pack_End(chansummary, 0, 0);
+	AddComponentVec(vbox, KIS_PANEL_COMP_DRAW);
+
+	tab_pos = 0;
+
+	UpdateViewMenu(-1);
+	GraphTimer();
+
+	addref = kpinterface->Add_NetCli_AddCli_CB(ChanDetailsCliAdd, (void *) this);	
+}
+
+Kis_ChanDetails_Panel::~Kis_ChanDetails_Panel() {
+	kpinterface->Remove_Netcli_AddCli_CB(addref);
+	kpinterface->Remove_AllNetcli_ProtoHandler("CHANNEL", ChanDetailsProtoCHANNEL, this);
+	globalreg->timetracker->RemoveTimer(grapheventid);
+}
+
+void Kis_ChanDetails_Panel::NetClientConfigured(KisNetClient *in_cli, int in_recon) {
+	if (in_recon)
+		return;
+
+	if (in_cli->RegisterProtoHandler("CHANNEL", KCLI_CHANDETAILS_CHANNEL_FIELDS,
+									 ChanDetailsProtoCHANNEL, this) < 0) {
+		_MSG("Could not register CHANNEL protocol with remote server, connection "
+			 "will be terminated", MSGFLAG_ERROR);
+		in_cli->KillConnection();
+	}
+}
+
+void Kis_ChanDetails_Panel::NetClientAdd(KisNetClient *in_cli, int add) {
+	if (add == 0)
+		return;
+
+	in_cli->AddConfCallback(ChanDetailsCliConfigured, 1, this);
+}
+
+void Kis_ChanDetails_Panel::Position(int in_sy, int in_sx, int in_y, int in_x) {
+	Kis_Panel::Position(in_sy, in_sx, in_y, in_x);
+
+	menu->SetPosition(1, 0, 0, 0);
+
+	vbox->SetPosition(1, 1, in_x - 1, in_y - 2);
+}
+
+int Kis_ChanDetails_Panel::GraphTimer() {
+	// Translates the channel map we get from the server into int vectors for 
+	// the graphs, also populates the channel labels with the channel #s at
+	// the appropriate positions.
+	//
+	// Also rewrites the channel summary table w/ the new data
+	//
+	// All in all this is a really expensive timer, but we only do it inside
+	// the channel display window and its in the UI, so screw it
+
+	// Update the vectors
+	sigvec.clear();
+	noisevec.clear();
+	packvec.clear();
+	bytevec.clear();
+	netvec.clear();
+	anetvec.clear();
+	graph_label_vec.clear();
+	chansummary->Clear();
+
+	// Add a buffer to the graph so the left edge has some room.  Crappy
+	// way to do this.
+	unsigned int chpos = 3;
+	unsigned int tpos = 0;
+	for (unsigned int x = 0; x < chpos; x++) {
+		sigvec.push_back(-256);
+		noisevec.push_back(-256);
+		packvec.push_back(0);
+		bytevec.push_back(0);
+		netvec.push_back(0);
+		anetvec.push_back(0);
+	}
+
+	for (map<uint32_t, chan_sig_info *>::iterator x = channel_map.begin();
+		 x != channel_map.end(); ++x) {
+		if (x->second->sig_dbm == 0) {
+			sigvec.push_back(x->second->sig_rssi);
+			noisevec.push_back(x->second->noise_rssi);
+		} else {
+			sigvec.push_back(x->second->sig_dbm);
+			noisevec.push_back(x->second->noise_dbm);
+		}
+
+		packvec.push_back(x->second->packets_delta);
+		bytevec.push_back(x->second->bytes_delta);
+		netvec.push_back(x->second->networks);
+		anetvec.push_back(x->second->networks_active);
+
+		Kis_IntGraph::graph_label lab;
+		lab.position = chpos++;
+		lab.label = IntToString(x->first);
+		graph_label_vec.push_back(lab);
+
+		// Populate the channel info table
+		vector<string> td;
+		td.push_back(IntToString(x->first));
+		td.push_back(IntToString(x->second->packets));
+		td.push_back(IntToString(x->second->packets_delta));
+		if (x->second->bytes_seen < 1024) {
+			td.push_back(IntToString(x->second->bytes_seen) + "B");
+		} else if (x->second->bytes_seen < (1024 * 1024)) {
+			td.push_back(IntToString(x->second->bytes_seen / 1024) + "K");
+		} else {
+			td.push_back(IntToString(x->second->bytes_seen / 1024 / 1024) + "M");
+		}
+		if (x->second->bytes_delta < 1024) {
+			td.push_back(IntToString(x->second->bytes_delta) + "B");
+		} else if (x->second->bytes_delta < (1024 * 1024)) {
+			td.push_back(IntToString(x->second->bytes_delta / 1024) + "K");
+		} else {
+			td.push_back(IntToString(x->second->bytes_delta / 1024 / 1024) + "M");
+		}
+
+		chansummary->AddRow(tpos++, td);
+	}
+
+	siggraph->SetXLabels(graph_label_vec, "Signal");
+	packetgraph->SetXLabels(graph_label_vec, "Packet Rate");
+	bytegraph->SetXLabels(graph_label_vec, "Traffic");
+	netgraph->SetXLabels(graph_label_vec, "Networks");
+
+	return 1;
+}
+
+void Kis_ChanDetails_Panel::DrawPanel() {
+	ColorFromPref(text_color, "panel_text_color");
+	ColorFromPref(border_color, "panel_border_color");
+
+	wbkgdset(win, text_color);
+	werase(win);
+
+	DrawTitleBorder();
+
+	DrawComponentVec();
+
+	wmove(win, 0, 0);
+}
+
+void Kis_ChanDetails_Panel::ButtonAction(Kis_Panel_Component *in_button) {
+	return;
+}
+
+void Kis_ChanDetails_Panel::MenuAction(int opt) {
+	if (opt == mi_close) {
+		globalreg->panel_interface->KillPanel(this);
+		return;
+	} else {
+		UpdateViewMenu(opt);
+	}
+}
+
+void Kis_ChanDetails_Panel::UpdateViewMenu(int mi) {
+	string opt;
+
+	if (mi == mi_chansummary) {
+		opt = kpinterface->prefs.FetchOpt("CHANDETAILS_SHOWSUM");
+		if (opt == "" || opt == "true") {
+			kpinterface->prefs.SetOpt("CHANDETAILS_SHOWSUM", "false", 1);
+			menu->SetMenuItemChecked(mi_chansummary, 0);
+			chansummary->Hide();
+		} else {
+			kpinterface->prefs.SetOpt("CHANDETAILS_SHOWSUM", "true", 1);
+			menu->SetMenuItemChecked(mi_chansummary, 1);
+			chansummary->Show();
+		}
+	} else if (mi == mi_signal) {
+		opt = kpinterface->prefs.FetchOpt("CHANDETAILS_SHOWSIG");
+		if (opt == "" || opt == "true") {
+			kpinterface->prefs.SetOpt("CHANDETAILS_SHOWSIG", "false", 1);
+			menu->SetMenuItemChecked(mi_signal, 0);
+			siggraph->Hide();
+		} else {
+			kpinterface->prefs.SetOpt("CHANDETAILS_SHOWSIG", "true", 1);
+			menu->SetMenuItemChecked(mi_signal, 1);
+			siggraph->Show();
+		}
+	} else if (mi == mi_packets) {
+		opt = kpinterface->prefs.FetchOpt("CHANDETAILS_SHOWPACK");
+		if (opt == "" || opt == "true") {
+			kpinterface->prefs.SetOpt("CHANDETAILS_SHOWPACK", "false", 1);
+			menu->SetMenuItemChecked(mi_packets, 0);
+			packetgraph->Hide();
+		} else {
+			kpinterface->prefs.SetOpt("CHANDETAILS_SHOWPACK", "true", 1);
+			menu->SetMenuItemChecked(mi_packets, 1);
+			packetgraph->Show();
+		}
+	} else if (mi == mi_traffic) {
+		opt = kpinterface->prefs.FetchOpt("CHANDETAILS_SHOWTRAF");
+		if (opt == "" || opt == "true") {
+			kpinterface->prefs.SetOpt("CHANDETAILS_SHOWTRAF", "false", 1);
+			menu->SetMenuItemChecked(mi_traffic, 0);
+			bytegraph->Hide();
+		} else {
+			kpinterface->prefs.SetOpt("CHANDETAILS_SHOWTRAF", "true", 1);
+			menu->SetMenuItemChecked(mi_traffic, 1);
+			bytegraph->Show();
+		}
+	} else if (mi == mi_networks) {
+		opt = kpinterface->prefs.FetchOpt("CHANDETAILS_SHOWNET");
+		if (opt == "" || opt == "true") {
+			kpinterface->prefs.SetOpt("CHANDETAILS_SHOWNET", "false", 1);
+			menu->SetMenuItemChecked(mi_networks, 0);
+			netgraph->Hide();
+		} else {
+			kpinterface->prefs.SetOpt("CHANDETAILS_SHOWNET", "true", 1);
+			menu->SetMenuItemChecked(mi_networks, 1);
+			netgraph->Show();
+		}
+	} else if (mi == -1) {
+		opt = kpinterface->prefs.FetchOpt("CHANDETAILS_SHOWSUM");
+		if (opt == "" || opt == "true") {
+			menu->SetMenuItemChecked(mi_chansummary, 1);
+			chansummary->Show();
+		} else {
+			menu->SetMenuItemChecked(mi_chansummary, 0);
+			chansummary->Hide();
+		}
+		opt = kpinterface->prefs.FetchOpt("CHANDETAILS_SHOWSIG");
+		if (opt == "" || opt == "true") {
+			menu->SetMenuItemChecked(mi_signal, 1);
+			siggraph->Show();
+		} else {
+			menu->SetMenuItemChecked(mi_signal, 0);
+			siggraph->Hide();
+		}
+		opt = kpinterface->prefs.FetchOpt("CHANDETAILS_SHOWPACK");
+		if (opt == "" || opt == "true") {
+			menu->SetMenuItemChecked(mi_packets, 1);
+			packetgraph->Show();
+		} else {
+			menu->SetMenuItemChecked(mi_packets, 0);
+			packetgraph->Hide();
+		}
+		opt = kpinterface->prefs.FetchOpt("CHANDETAILS_SHOWTRAF");
+		if (opt == "" || opt == "true") {
+			menu->SetMenuItemChecked(mi_traffic, 1);
+			bytegraph->Show();
+		} else {
+			menu->SetMenuItemChecked(mi_traffic, 0);
+			bytegraph->Hide();
+		}
+		opt = kpinterface->prefs.FetchOpt("CHANDETAILS_SHOWNET");
+		if (opt == "" || opt == "true") {
+			menu->SetMenuItemChecked(mi_networks, 1);
+			netgraph->Show();
+		} else {
+			menu->SetMenuItemChecked(mi_networks, 0);
+			netgraph->Hide();
+		}
+	}
+}
+
+void Kis_ChanDetails_Panel::Proto_CHANNEL(CLIPROTO_CB_PARMS) {
+	if (proto_parsed->size() < KCLI_CHANDETAILS_CHANNEL_NUMFIELDS)
+		return;
+
+	int fnum = 0;
+
+	chan_sig_info *ci;
+
+	int tint;
+	long int tlong;
+
+	if (sscanf((*proto_parsed)[fnum++].word.c_str(), "%d", &tint) != 1) {
+		return;
+	}
+
+	if (channel_map.find(tint) != channel_map.end()) {
+		ci = channel_map[tint];
+	} else {
+		ci = new chan_sig_info;
+		ci->channel = tint;
+		channel_map[tint] = ci;
+	}
+
+	ci->last_updated = time(0);
+
+	if (sscanf((*proto_parsed)[fnum++].word.c_str(), "%d", &tint) != 1) 
+		return;
+	ci->channel_time_on = tint;
+
+	if (sscanf((*proto_parsed)[fnum++].word.c_str(), "%d", &tint) != 1)
+		return;
+	ci->packets = tint;
+
+	if (sscanf((*proto_parsed)[fnum++].word.c_str(), "%d", &tint) != 1)
+		return;
+	ci->packets_delta = tint;
+
+	if (sscanf((*proto_parsed)[fnum++].word.c_str(), "%ld", &tlong) != 1)
+		return;
+	ci->usec_used = tlong;
+
+	if (sscanf((*proto_parsed)[fnum++].word.c_str(), "%ld", &tlong) != 1)
+		return;
+	ci->bytes_seen = tlong;
+
+	if (sscanf((*proto_parsed)[fnum++].word.c_str(), "%ld", &tlong) != 1)
+		return;
+	ci->bytes_delta = tlong;
+
+	if (sscanf((*proto_parsed)[fnum++].word.c_str(), "%d", &tint) != 1)
+		return;
+	ci->networks = tint;
+
+	if (sscanf((*proto_parsed)[fnum++].word.c_str(), "%d", &tint) != 1)
+		return;
+	ci->networks_active = tint;
+
+	if (sscanf((*proto_parsed)[fnum++].word.c_str(), "%d", &tint) != 1)
+		return;
+	ci->sig_dbm = tint;
+	
+	if (sscanf((*proto_parsed)[fnum++].word.c_str(), "%d", &tint) != 1)
+		return;
+	ci->sig_rssi = tint;
+
+	if (sscanf((*proto_parsed)[fnum++].word.c_str(), "%d", &tint) != 1)
+		return;
+	ci->noise_dbm = tint;
+
+	if (sscanf((*proto_parsed)[fnum++].word.c_str(), "%d", &tint) != 1)
+		return;
+	ci->noise_rssi = tint;
 }
 
 #endif

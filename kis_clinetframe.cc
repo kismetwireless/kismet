@@ -141,8 +141,9 @@ void KisNetClient::AddConfCallback(CliConf_Callback in_cb, int in_recon,
 	conf_cb_vec.push_back(rec);
 
 	// Call the configure function if we're already configured
-	if (configured <= 0)
+	if (configured < 0) {
 		(*in_cb)(globalreg, this, 0, in_aux);
+	}
 }
 
 void KisNetClient::RemoveConfCallback(CliConf_Callback in_cb) {
@@ -277,7 +278,6 @@ void KisNetClient::RemoveProtoHandler(string in_proto, CliProto_Callback in_cb,
 
 	if (removeproto)
 		InjectCommand("REMOVE " + in_proto);
-
 }
 
 int KisNetClient::FetchProtoCapabilities(string in_proto,

@@ -102,7 +102,8 @@ protected:
 		mi_sort_first_d, mi_sort_last, mi_sort_last_d, mi_sort_bssid, mi_sort_ssid,
 		mi_sort_packets, mi_sort_packets_d;
 
-	int mn_view, mi_netdetails, mi_showsummary, mi_showstatus, mi_showpps;
+	int mn_view, mi_netdetails, mi_chandetails, mi_showsummary, 
+		mi_showstatus, mi_showpps;
 
 	int connect_enable;
 
@@ -337,6 +338,93 @@ protected:
 	int mn_view, mi_net, mi_clients, mi_graphsig, mi_graphpacket, mi_graphretry;
 
 	int grapheventid;
+};
+
+#define KCLI_CHANDETAILS_CHANNEL_FIELDS		"channel,time_on,packets,packetsdelta," \
+	"usecused,bytes,bytesdelta,networks,activenetworks,maxsignal_dbm,maxsignal_rssi," \
+	"maxnoise_dbm,maxnoise_rssi"
+#define KCLI_CHANDETAILS_CHANNEL_NUMFIELDS	13
+
+class Kis_ChanDetails_Panel : public Kis_Panel {
+public:
+	Kis_ChanDetails_Panel() {
+		fprintf(stderr, "FATAL OOPS: Kis_ChanDetails_Panel called w/out globalreg\n");
+		exit(1);
+	}
+
+	Kis_ChanDetails_Panel(GlobalRegistry *in_globalreg, KisPanelInterface *in_kpf);
+	virtual ~Kis_ChanDetails_Panel();
+
+	virtual void Position(int in_sy, int in_sx, int in_y, int in_x);
+	virtual void DrawPanel();
+	virtual void ButtonAction(Kis_Panel_Component *in_button);
+	virtual void MenuAction(int opt);
+
+	virtual int GraphTimer();
+
+	void NetClientConfigured(KisNetClient *in_cli, int in_recon);
+	void NetClientAdd(KisNetClient *in_cli, int add);
+	void Proto_CHANNEL(CLIPROTO_CB_PARMS);
+
+	struct chan_sig_info {
+		chan_sig_info() {
+			last_updated = 0;
+			channel = 0;
+			channel_time_on = 0;
+			packets = 0;
+			packets_delta = 0;
+			usec_used = 0;
+			bytes_seen = 0;
+			bytes_delta = 0;
+			sig_dbm = 0;
+			sig_rssi = 0;
+			noise_dbm = 0;
+			noise_rssi = 0;
+			networks = 0;
+			networks_active = 0;
+		}
+
+		time_t last_updated;
+
+		int channel;
+		int channel_time_on;
+		int packets;
+		int packets_delta;
+		long int usec_used;
+		long int bytes_seen;
+		long int bytes_delta;
+
+		int sig_dbm;
+		int sig_rssi;
+		int noise_dbm;
+		int noise_rssi;
+
+		int networks;
+		int networks_active;
+	};
+
+protected:
+	virtual void UpdateViewMenu(int mi);
+	
+	Kis_Panel_Packbox *vbox;
+	Kis_Scrollable_Table *chansummary;
+
+	Kis_IntGraph *siggraph, *packetgraph, *bytegraph, *netgraph;
+
+	// Graph data pools
+	vector<int> sigvec, noisevec, packvec, bytevec, netvec, anetvec;
+	vector<Kis_IntGraph::graph_label> graph_label_vec;
+
+	// Channel records
+	map<uint32_t, chan_sig_info *> channel_map;
+
+	time_t last_dirty;
+
+	int mn_channels, mi_close;
+	int mn_view, mi_chansummary, mi_signal, mi_packets, mi_traffic, mi_networks;
+
+	int grapheventid;
+	int addref;
 };
 
 #endif

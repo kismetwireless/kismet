@@ -2578,7 +2578,7 @@ void Kis_IntGraph::DrawComponent() {
 			xgroup = xmod * 2;
 		}
 
-		for (int gx = 0; gx < gw; gx++) {
+		for (int gx = 0; gx < gw && inter_x; gx++) {
 			int r, py, nuse = 0;
 			// We make the assumption here that T is a numerical
 			// type in some fashion, if this is ever not true we'll have
@@ -2586,22 +2586,29 @@ void Kis_IntGraph::DrawComponent() {
 			// int avg = 0;
 			int max = 0;
 
-			// R is the range of samples we tied together to 
-			// interpolate the graph to fit
-			r = ((float) gx / (float) gw) * (float) dvsize;
+			// Interpolate down if we have too much data
+			if (gw < dvsize) {
+				// R is the range of samples we tied together to 
+				// interpolate the graph to fit
+				r = ((float) gx / (float) gw) * (float) dvsize;
 
-			// Determine the local max across our range
-			for (int pos = -1 * (xgroup / 2); pos < (xgroup / 2); pos++) {
-				if (r + pos >= dvsize || r + pos < 0)
-					continue;
+				// Determine the local max across our range
+				for (int pos = -1 * (xgroup / 2); pos < (xgroup / 2); pos++) {
+					if (r + pos >= dvsize || r + pos < 0)
+						continue;
 
-				// Max depending on if we're neg or pos data
-				if (((*(data_vec[x].data))[r + pos] >= 0 &&
-					 (*(data_vec[x].data))[r + pos] > max) || 
-					((*(data_vec[x].data))[r + pos] <= 0 &&
-					 (*(data_vec[x].data))[r + pos] < max))
-					max = (*(data_vec[x].data))[r + pos];
-				nuse++;
+					// Max depending on if we're neg or pos data
+					if (((*(data_vec[x].data))[r + pos] >= 0 &&
+						 (*(data_vec[x].data))[r + pos] > max) || 
+						((*(data_vec[x].data))[r + pos] <= 0 &&
+						 (*(data_vec[x].data))[r + pos] < max))
+						max = (*(data_vec[x].data))[r + pos];
+					nuse++;
+				} 
+			} else {
+				nuse = 1;
+				// int gofft = kismin((1.0f / dvsize) * gw, gx);
+				max = (*(data_vec)[x].data)[(int) (((float) gx/gw) * dvsize)];
 			}
 
 			if (nuse == 0)
@@ -2638,6 +2645,49 @@ void Kis_IntGraph::DrawComponent() {
 				else if (gy < py)
 					mvwaddstr(window, gzero - (gy * oumod), sx + gx, 
 							  data_vec[x].fill);
+			}
+		}
+
+		int rwidth = kismin(2, (1.0f / dvsize) * gw);
+		for (int dvx = 0; dvx < dvsize && inter_x == 0; dvx++) {
+			int py = 0;
+			int max = (*(data_vec)[x].data)[dvx];
+			int drawx = ((float) dvx / dvsize) * gw;
+
+			// If we're negative, do the math differently
+			// Adapt the group max to our scale
+			float adapted = 0;
+
+			if (max < 0) {
+				adapted = 
+					(float) (abs(max) + dmin_y) /
+					(float) (abs(dmax_y) + dmin_y);
+			} else {
+				adapted = (float) (max - min_y) / (float) (dmax_y - min_y);
+			}
+
+			// Scale it to the height of the graph
+			py = (float) gh * adapted;
+
+			// Set the color once
+			wattrset(window, data_vec[x].colorval);
+
+			for (int rdx = rwidth * -1; rdx < rwidth; rdx++) {
+				// If we're plotting over/normal, we do nothing
+				// If we're plotting under, we invert and draw below
+				int oumod = 1;
+				if (data_vec[x].overunder < 0 && graph_mode == 1)
+					oumod = -1;
+
+				for (int gy = gh; gy >= 0; gy--) {
+					if (gy == py)
+						mvwaddstr(window, gzero - (gy * oumod), sx + drawx + rdx, 
+								  data_vec[x].line);
+					else if (gy < py)
+						mvwaddstr(window, gzero - (gy * oumod), sx + drawx + rdx, 
+								  data_vec[x].fill);
+				}
+
 			}
 		}
 	}
@@ -2903,6 +2953,19 @@ void Kis_Panel::DrawTitleBorder() {
 	wattroff(win, WA_UNDERLINE);
 
 	wattrset(win, text_color);
+}
+
+void Kis_Panel::DrawComponentVec() {
+	wattrset(win, text_color);
+	for (unsigned int x = 0; x < pan_comp_vec.size(); x++) {
+		if ((pan_comp_vec[x].comp_flags & KIS_PANEL_COMP_DRAW) == 0)
+			continue;
+
+		pan_comp_vec[x].comp->DrawComponent();
+	}
+
+	if (menu != NULL)
+		menu->DrawComponent();
 }
 
 #endif

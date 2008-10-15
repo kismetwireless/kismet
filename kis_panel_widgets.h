@@ -845,6 +845,8 @@ protected:
 	void AddComponentVec(Kis_Panel_Component *in_comp, int in_flags);
 	void DelComponentVec(Kis_Panel_Component *in_comp);
 
+	void DrawComponentVec();
+
 	vector<component_entry> pan_comp_vec;
 
 	GlobalRegistry *globalreg;

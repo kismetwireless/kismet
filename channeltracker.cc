@@ -39,7 +39,7 @@ enum CHANNEL_fields {
 };
 
 const char *CHANNEL_fields_text[] = {
-	"channel", "time_on" "packets" "packetsdelta",
+	"channel", "time_on", "packets", "packetsdelta",
 	"usecused", "bytes", "bytesdelta", "networks",
 	"maxsignal_dbm", "maxsignal_rssi", "maxnoise_dbm",
 	"maxnoise_rssi", "activenetworks",
