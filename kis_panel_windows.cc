@@ -2207,8 +2207,10 @@ Kis_ChanDetails_Panel::Kis_ChanDetails_Panel(GlobalRegistry *in_globalreg,
 	netgraph->SetInterpolation(0);
 	netgraph->SetMode(0);
 	netgraph->Show();
-	netgraph->AddExtDataVec("Networks", 4, "channel_nets", "green,green",
+	netgraph->AddExtDataVec("Networks", 3, "channel_nets", "yellow,yellow",
 							' ', ' ', 1, &netvec);
+	netgraph->AddExtDataVec("Active", 4, "channel_actnets", "green,green",
+							' ', ' ', 1, &anetvec);
 	AddComponentVec(netgraph, KIS_PANEL_COMP_EVT);
 
 	SetTitle("");
