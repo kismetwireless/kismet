@@ -76,17 +76,16 @@ public:
 	}
 
 	virtual KisPacketSource *CreateSource(GlobalRegistry *in_globalreg,
-										  string in_type, string in_name,
-										  string in_dev, string in_opts) {
-		return new PacketSource_AirPcap(in_globalreg, in_type, in_name, in_dev,
-										in_opts);
+										  string in_interface,
+										  vector<opt_pair> *in_opts) {
+		return new PacketSource_AirPcap(in_globalreg, in_interface, in_opts);
 	}
 
 	virtual int AutotypeProbe(string in_device);
 	virtual int RegisterSources(Packetsourcetracker *tracker);
 
-	PacketSource_AirPcap(GlobalRegistry *in_globalreg, string in_type,
-						 string in_name, string in_dev, in_opts); 
+	PacketSource_AirPcap(GlobalRegistry *in_globalreg, string in_interface,
+						 vector<opt_pair> *in_opts);
 
 	virtual ~PacketSource_AirPcap() { }
 

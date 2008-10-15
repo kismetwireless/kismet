@@ -126,15 +126,15 @@ int PacketSource_AirPcap::AutotypeProbe(string in_device) {
 }
 
 int PacketSource_AirPcap::RegisterSources(Packetsourcetracker *tracker) {
-	tracker->RegisterPacketsource("airpcap", this, 0, "IEEE80211b", 6);
-	tracker->RegisterPacketsource("airpcap_ask", this, 0, "IEEE80211b", 6);
+	tracker->RegisterPacketProto("airpcap", this, "IEEE80211b", 0);
+	tracker->RegisterPacketProto("airpcap_ask", this, "IEEE80211b", 0);
 	return 1;
 }
 
 PacketSource_AirPcap::PacketSource_AirPcap(GlobalRegistry *in_globalreg, 
-										   string in_type, string in_name,
-										   string in_dev, string in_opts): 
-	PacketSource_Pcap(in_globalreg, in_type, in_name, in_dev, in_opts) {
+										   string in_interface,
+										   vector<opt_pair> *in_opts) :
+	PacketSource_Pcap(in_globalreg, in_interface, in_opts) {
 
 	// Go through the prompting game for 'ask' variant
 	if (in_type == "airpcap_ask") {
