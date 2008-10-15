@@ -167,6 +167,7 @@ int DroneClientFrame::time_handler() {
 			osstr << "No frames from Kismet drone server at " << cli_host << ":" <<
 				cli_port << " in 20 seconds, disconnecting";
 			_MSG(osstr.str(), MSGFLAG_ERROR);
+			Reconnect();
 		}
 	}
 
@@ -198,7 +199,7 @@ int DroneClientFrame::Reconnect() {
 		if (netclient->Connect(cli_host, cli_port) < 0) {
 			osstr << "Could not reconnect to Kismet drone server at " <<
 				cli_host << ":" << cli_port << " (" << strerror(errno) << "), "
-				"will attempt to recconect in 5 seconds";
+				"will attempt to reconnect in 5 seconds";
 			_MSG(osstr.str(), MSGFLAG_ERROR);
 			last_disconnect = time(0);
 			return 0;
@@ -209,6 +210,7 @@ int DroneClientFrame::Reconnect() {
 		_MSG(osstr.str(), MSGFLAG_INFO);
 
 		last_disconnect = 0;
+		last_frame = time(0);
 
 		return 1;
 	}
