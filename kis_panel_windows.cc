@@ -2152,6 +2152,16 @@ Kis_ChanDetails_Panel::Kis_ChanDetails_Panel(GlobalRegistry *in_globalreg,
 	t.alignment = 2;
 	titles.push_back(t);
 
+	t.width = 4;
+	t.title = "Netw";
+	t.alignment = 2;
+	titles.push_back(t);
+
+	t.width = 4;
+	t.title = "ActN";
+	t.alignment = 2;
+	titles.push_back(t);
+
 	chansummary->AddTitles(titles);
 
 	active_component = chansummary;
@@ -2315,6 +2325,7 @@ int Kis_ChanDetails_Panel::GraphTimer() {
 		td.push_back(IntToString(x->first));
 		td.push_back(IntToString(x->second->packets));
 		td.push_back(IntToString(x->second->packets_delta));
+
 		if (x->second->bytes_seen < 1024) {
 			td.push_back(IntToString(x->second->bytes_seen) + "B");
 		} else if (x->second->bytes_seen < (1024 * 1024)) {
@@ -2329,6 +2340,9 @@ int Kis_ChanDetails_Panel::GraphTimer() {
 		} else {
 			td.push_back(IntToString(x->second->bytes_delta / 1024 / 1024) + "M");
 		}
+
+		td.push_back(IntToString(x->second->networks));
+		td.push_back(IntToString(x->second->networks_active));
 
 		chansummary->AddRow(tpos++, td);
 	}

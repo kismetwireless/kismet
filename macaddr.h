@@ -516,6 +516,7 @@ public:
 	inline void clear(void) {
 		vec_offset_map.clear();
 		singleton_map.clear();
+		mask_vec.clear();
 	}
 
     inline void reindex(void) {
