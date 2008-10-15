@@ -29,11 +29,6 @@
 #include <string>
 #include <vector>
 
-#ifdef HAVE_CAPABILITY
-#include <sys/capability.h>
-#include <sys/prctl.h>
-#endif
-
 #include "util.h"
 
 #include "globalregistry.h"
@@ -61,6 +56,12 @@
 #include "gpswrapper.h"
 
 #include "ipc_remote.h"
+
+#ifdef HAVE_CAPABILITY
+#include <sys/capability.h>
+#include <sys/prctl.h>
+#endif
+
 
 #ifndef exec_name
 char *exec_name;
