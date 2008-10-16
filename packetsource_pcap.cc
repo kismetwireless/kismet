@@ -881,8 +881,10 @@ int PacketSource_Pcapfile::AutotypeProbe(string in_device) {
 	if (stat(in_device.c_str(), &sbuf) < 0)
 		return 0;
 
-	if (S_ISREG(sbuf.st_mode))
+	if (S_ISREG(sbuf.st_mode)) {
+		type = "pcapfile";
 		return 1;
+	}
 
 	return 0;
 }
@@ -928,6 +930,7 @@ int PacketSource_Pcapfile::Poll() {
 	} else if (ret == 0) {
 		globalreg->messagebus->InjectMessage("Pcap file reached end of capture",
 											 MSGFLAG_ERROR);
+		CloseSource();
 		return 0;
 	}
 

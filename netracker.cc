@@ -1606,19 +1606,23 @@ int Netracker::netracker_chain_handler(kis_packet *in_pack) {
 	}
 
 	// Make an info pair and add it to our signaling layer
-	Packinfo_Sig_Combo sc(l1info, gpsinfo);
-	net->snrdata += sc;
-	cli->snrdata += sc;
+	if (l1info != NULL) {
+		Packinfo_Sig_Combo sc(l1info, gpsinfo);
+		net->snrdata += sc;
+		cli->snrdata += sc;
+	}
 
 	// Add to the LLC count
 	if (packinfo->type == packet_management || packinfo->type == packet_phy)
 		num_llcpackets++;
 
 	// Add to the frequency tracking, inefficient search but it's a small set
-	if (net->freq_mhz_map.find(l1info->freq_mhz) != net->freq_mhz_map.end())
-		net->freq_mhz_map[l1info->freq_mhz]++;
-	else
-		net->freq_mhz_map[l1info->freq_mhz] = 1;
+	if (l1info != NULL) {
+		if (net->freq_mhz_map.find(l1info->freq_mhz) != net->freq_mhz_map.end())
+			net->freq_mhz_map[l1info->freq_mhz]++;
+		else
+			net->freq_mhz_map[l1info->freq_mhz] = 1;
+	}
 
 	// Extract info from probe request frames if its a probe network
 	if (packinfo->type == packet_management &&
@@ -1741,10 +1745,12 @@ int Netracker::netracker_chain_handler(kis_packet *in_pack) {
 		net->channel = packinfo->channel;
 		cli->channel = packinfo->channel;
 
-		if (cli->freq_mhz_map.find(l1info->freq_mhz) != cli->freq_mhz_map.end())
-			cli->freq_mhz_map[l1info->freq_mhz]++;
-		else
-			cli->freq_mhz_map[l1info->freq_mhz] = 1;
+		if (l1info != NULL) {
+			if (cli->freq_mhz_map.find(l1info->freq_mhz) != cli->freq_mhz_map.end())
+				cli->freq_mhz_map[l1info->freq_mhz]++;
+			else
+				cli->freq_mhz_map[l1info->freq_mhz] = 1;
+		}
 	}
 
 	// Catch probe responses, handle adding probe resp SSIDs
