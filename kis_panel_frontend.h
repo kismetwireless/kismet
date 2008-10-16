@@ -40,6 +40,8 @@
 
 #include "kis_panel_plugin.h"
 
+#include "configfile.h"
+
 class KisPanelInterface;
 
 // Our specialized actual kismet frontend

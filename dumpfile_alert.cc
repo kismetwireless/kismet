@@ -52,45 +52,22 @@ Dumpfile_Alert::Dumpfile_Alert(GlobalRegistry *in_globalreg) :
 		exit(1);
 	}
 
-	int ret = 0;
-
-	if ((ret = ProcessRuntimeResume("alert")) == -1) {
-		// We're not resuming
-
-		if (globalreg->fatal_condition)
-			return;
-
-		// Find the file name
-		if ((fname = ProcessConfigOpt("alert")) == "" || 
-			globalreg->fatal_condition) {
-			return;
-		}
-
-		alertfile = fopen(fname.c_str(), "w");
-		if (alertfile == NULL) {
-			snprintf(errstr, STATUS_MAX, "Failed to open alert dump file '%s': %s",
-					 fname.c_str(), strerror(errno));
-			_MSG(errstr, MSGFLAG_FATAL);
-			globalreg->fatal_condition = 1;
-			return;
-		}
-
-		_MSG("Opened alert log file '" + fname + "'", MSGFLAG_INFO);
-	} else if (ret == 1) {
-		alertfile = fopen(fname.c_str(), "a");
-		if (alertfile == NULL) {
-			snprintf(errstr, STATUS_MAX, "Failed to open alert file '%s' to "
-					 "resume logging: %s", fname.c_str(), strerror(errno));
-			_MSG(errstr, MSGFLAG_FATAL);
-			globalreg->fatal_condition = 1;
-			return;
-		}
-
-		_MSG("Resumed alert log file '" + fname + "'", MSGFLAG_INFO);
-	} else {
-		_MSG("Alert log file not enabled in runstate", MSGFLAG_INFO);
+	// Find the file name
+	if ((fname = ProcessConfigOpt("alert")) == "" || 
+		globalreg->fatal_condition) {
 		return;
 	}
+
+	alertfile = fopen(fname.c_str(), "w");
+	if (alertfile == NULL) {
+		snprintf(errstr, STATUS_MAX, "Failed to open alert dump file '%s': %s",
+				 fname.c_str(), strerror(errno));
+		_MSG(errstr, MSGFLAG_FATAL);
+		globalreg->fatal_condition = 1;
+		return;
+	}
+
+	_MSG("Opened alert log file '" + fname + "'", MSGFLAG_INFO);
 
 	globalreg->packetchain->RegisterHandler(&dumpfilealert_chain_hook, this,
 											CHAINPOS_LOGGING, -100);

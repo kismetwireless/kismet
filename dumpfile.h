@@ -59,7 +59,6 @@ protected:
 	int dumped_frames;
 
 	virtual string ProcessConfigOpt(string in_type);
-	virtual int ProcessRuntimeResume(string in_type);
 
 	int resume;
 };

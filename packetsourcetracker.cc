@@ -293,6 +293,13 @@ int pst_cmd_HOPSOURCE(CLIENT_PARMS) {
 														errstr, cmdline, parsedcmdline);
 }
 
+int pst_cmd_CHANLIST(CLIENT_PARMS) {
+	return
+		((Packetsourcetracker *) auxptr)->cmd_CHANLIST(in_clid, framework,
+													   errstr, cmdline, parsedcmdline);
+}
+
+
 void Packetsourcetracker::Usage(char *name) {
 	printf(" *** Packet Capture Source Options ***\n");
 	printf(" -c, --capture-source         Specify a new packet capture source\n"
@@ -377,6 +384,10 @@ Packetsourcetracker::Packetsourcetracker(GlobalRegistry *in_globalreg) {
 	cmd_hopsource_id =
 		globalreg->kisnetserver->RegisterClientCommand("HOPSOURCE",
 														&pst_cmd_HOPSOURCE,
+														(void *) this);
+	cmd_channellist_id =
+		globalreg->kisnetserver->RegisterClientCommand("CHANSOURCE",
+														&pst_cmd_CHANLIST,
 														(void *) this);
 
 	proto_source_time_id =
@@ -2082,7 +2093,7 @@ int Packetsourcetracker::cmd_DELSOURCE(int in_clid, KisNetFramework *framework,
 									   char *errstr, string cmdline, 
 									   vector<smart_word_token> *parsedcmdline) {
 	if (parsedcmdline->size() < 1) {
-		snprintf(errstr, 1024, "Illegal DELSOURCE command, expected source line");
+		snprintf(errstr, 1024, "Illegal DELSOURCE command, expected UUID");
 		return -1;
 	}
 
@@ -2110,10 +2121,38 @@ int Packetsourcetracker::cmd_DELSOURCE(int in_clid, KisNetFramework *framework,
 
 }
 
+// HOPSOURCE uuid [HOP|DWELL] [RATE|0] [CHANNEL]
 int Packetsourcetracker::cmd_HOPSOURCE(int in_clid, KisNetFramework *framework, 
 									   char *errstr, string cmdline, 
 									   vector<smart_word_token> *parsedcmdline) {
+	if (parsedcmdline->size() < 3) {
+		snprintf(errstr, 1024, "Illegal HOPSOURCE command, expected UUID TYPE VAL");
+		return -1;
+	}
 
+	uuid inuuid = uuid((*parsedcmdline)[1].word);
+
+	if (inuuid.error) {
+		snprintf(errstr, 1024, "Invalid UUID in HOPSOURCE command");
+		return -1;
+	}
+
+	pst_packetsource *pstsource = FindLivePacketSourceUUID(inuuid);
+
+	if (pstsource == NULL) {
+		snprintf(errstr, 1024, "Invalid UUID in HOPSOURCE command, couldn't find "
+				 "source with UUID %s", inuuid.UUID2String().c_str());
+		return -1;
+	}
+
+	return 1;
+}
+
+int Packetsourcetracker::cmd_CHANLIST(int in_clid, KisNetFramework *framework, 
+									  char *errstr, string cmdline, 
+									   vector<smart_word_token> *parsedcmdline) {
+
+	return 1;
 }
 
 int Packetsourcetracker::cmd_RESTARTSOURCE(int in_clid, KisNetFramework *framework,

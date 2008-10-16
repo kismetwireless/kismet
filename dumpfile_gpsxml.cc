@@ -51,72 +51,25 @@ Dumpfile_Gpsxml::Dumpfile_Gpsxml(GlobalRegistry *in_globalreg) :
 		exit(1);
 	}
 
-	int ret = 0;
-
-	if ((ret = ProcessRuntimeResume("gpsxml")) == -1) {
-		if (globalreg->fatal_condition)
-			return;
-
-		// Find the file name
-		if ((fname = ProcessConfigOpt("gpsxml")) == "" || 
-			globalreg->fatal_condition) {
-			return;
-		}
-
-		if ((xmlfile = fopen(fname.c_str(), "w")) == NULL) {
-			_MSG("Failed to open gpsxml log file '" + fname + "': " + strerror(errno),
-				 MSGFLAG_FATAL);
-			globalreg->fatal_condition = 1;
-			return;
-		}
-
-		_MSG("Opened gpsxml log file '" + fname + "'", MSGFLAG_INFO);
-
-		// Write the XML headers
-		fprintf(xmlfile, "<?xml version=\"1.0\" encoding=\"ISO-8859-1\"?>\n"
-				"<!DOCTYPE gps-run SYSTEM \"http://kismetwireless.net/"
-				"kismet-gps-2.9.1.dtd\">\n\n");
-
-	} else if (ret == 1) {
-		xmlfile = fopen(fname.c_str(), "a+");
-		if (xmlfile == NULL) {
-			_MSG("Failed to open XML file '" + fname + "' to resume logging: " +
-				 string(strerror(errno)), MSGFLAG_FATAL);
-			globalreg->fatal_condition = 1;
-		}
-
-		int found_end = 0;
-
-		// Rewrind the file and look for an end of the GPS run.  '</gps-run>'
-		// ought to be 10 bytes, so roll back 15 and read 2 lines
-		fseek(xmlfile, -15, SEEK_END);
-
-		char line[1024];
-		while (!feof(xmlfile)) {
-			fgets(line, 1024, xmlfile);
-
-			if (feof(xmlfile)) break;
-
-			if (strncmp(line, "</gps-run>\n", 1024) == 0) {
-				found_end = 1;
-				break;
-			}
-		}
-
-		fseek(xmlfile, 0, SEEK_END);
-
-		if (found_end == 0) {
-			_MSG("Resuming from incomplete gpsxml file, properly closing previous "
-				 "gps session", MSGFLAG_INFO);
-			fprintf(xmlfile, "</gps-run>\n\n");
-		} else {
-			fprintf(xmlfile, "\n");
-			_MSG("Resumed gpsxml file '" + fname + "'", MSGFLAG_INFO);
-		}
-	} else {
-		_MSG("Gpsxml log file not enabled in runstate", MSGFLAG_INFO);
+	// Find the file name
+	if ((fname = ProcessConfigOpt("gpsxml")) == "" || 
+		globalreg->fatal_condition) {
 		return;
 	}
+
+	if ((xmlfile = fopen(fname.c_str(), "w")) == NULL) {
+		_MSG("Failed to open gpsxml log file '" + fname + "': " + strerror(errno),
+			 MSGFLAG_FATAL);
+		globalreg->fatal_condition = 1;
+		return;
+	}
+
+	_MSG("Opened gpsxml log file '" + fname + "'", MSGFLAG_INFO);
+
+	// Write the XML headers
+	fprintf(xmlfile, "<?xml version=\"1.0\" encoding=\"ISO-8859-1\"?>\n"
+			"<!DOCTYPE gps-run SYSTEM \"http://kismetwireless.net/"
+			"kismet-gps-2.9.1.dtd\">\n\n");
 
 	globalreg->packetchain->RegisterHandler(&dumpfilegpsxml_chain_hook, this,
 											CHAINPOS_LOGGING, -100);

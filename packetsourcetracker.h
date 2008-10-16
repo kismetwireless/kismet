@@ -257,6 +257,8 @@ public:
 						  vector<smart_word_token> *);
 	int cmd_HOPSOURCE(int, KisNetFramework *, char *, string, 
 					  vector<smart_word_token> *);
+	int cmd_CHANLIST(int, KisNetFramework *, char *, string,
+					 vector<smart_word_token> *);
 
 	// Fetch and clear the channel time map
 	map<uint32_t, int> *FetchChannelTickMap() {
@@ -292,7 +294,7 @@ protected:
 		packet_ipc_id, chanreport_ipc_id;
 
 	int cmd_addsource_id, cmd_delsource_id, cmd_restartsource_id,
-		cmd_hopsource_id;
+		cmd_hopsource_id, cmd_channellist_id;
 
 	int running_as_ipc;
 

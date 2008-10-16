@@ -45,7 +45,6 @@ class KisBuiltinDissector;
 class Pollable;
 // Vector of dumpfiles to destroy
 class Dumpfile;
-class Dumpfile_Runstate;
 // Root-level ipc system
 class IPCRemote;
 class KisPanelInterface;
@@ -143,13 +142,11 @@ public:
     KisNetFramework *kisnetserver;
     KisDroneFramework *kisdroneserver;
     ConfigFile *kismet_config;
-	GroupConfigFile *runstate_config;
     ConfigFile *kismetui_config;
     SpeechControl *speechctl;
     SoundControl *soundctl;
 	KisBuiltinDissector *builtindissector;
 	IPCRemote *rootipc;
-	Dumpfile_Runstate *runstate_dumper;
 	KisPanelInterface *panel_interface;
 
 	string version_major;
@@ -230,8 +227,6 @@ public:
         kisnetserver = NULL;
         kisdroneserver = NULL;
         kismet_config = NULL;
-		runstate_config = NULL;
-		runstate_dumper = NULL;
         kismetui_config = NULL;
         speechctl = NULL;
         soundctl = NULL;

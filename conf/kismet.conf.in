@@ -215,7 +215,7 @@ waypointdata=%h/.gpsdrive/way_kismet.txt
 alertbacklog=50
 
 # File types to log, comma seperated
-logtypes=pcapdump,gpsxml,netxml,nettxt
+logtypes=pcapdump,gpsxml,netxml,nettxt,alert
 
 # Format of the pcap dump (PPI or 80211)
 pcapdumpformat=ppi

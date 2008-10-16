@@ -53,120 +53,56 @@ Dumpfile_Pcap::Dumpfile_Pcap(GlobalRegistry *in_globalreg) : Dumpfile(in_globalr
 		exit(1);
 	}
 
-	int ret = 0;
-
 	// Process a resume request
-	if ((ret = ProcessRuntimeResume("pcapdump")) == -1) {
-		// Bail on errors
-		if (globalreg->fatal_condition)
-			return;
+	dumpformat = dump_unknown;
 
-		dumpformat = dump_unknown;
-
-		// continue processing if we're not resuming
-		if (globalreg->kismet_config->FetchOpt("pcapdumpformat") == "ppi") {
+	// continue processing if we're not resuming
+	if (globalreg->kismet_config->FetchOpt("pcapdumpformat") == "ppi") {
 #ifndef HAVE_PPI
-			_MSG("Cannot log in PPI format, the libpcap available when Kismet was "
-				 "compiled did not support PPI, defaulting to 802.11 format.",
-				 MSGFLAG_ERROR);
-			dlt = DLT_IEEE802_11;
+		_MSG("Cannot log in PPI format, the libpcap available when Kismet was "
+			 "compiled did not support PPI, defaulting to 802.11 format.",
+			 MSGFLAG_ERROR);
+		dlt = DLT_IEEE802_11;
 #else
-			_MSG("Pcap log in PPI format", MSGFLAG_INFO);
-			dumpformat = dump_ppi;
-			dlt = DLT_PPI;
+		_MSG("Pcap log in PPI format", MSGFLAG_INFO);
+		dumpformat = dump_ppi;
+		dlt = DLT_PPI;
 #endif
-		} else if (globalreg->kismet_config->FetchOpt("pcapdumpformat") == "80211") {
-			_MSG("Pcap log in 80211 format", MSGFLAG_INFO);
-			dumpformat = dump_80211;
-			dlt = DLT_IEEE802_11;
-		} else {
-			_MSG("Pcap log defaulting to 80211 format", MSGFLAG_INFO);
-			dumpformat = dump_80211;
-			dlt = DLT_IEEE802_11;
-		}
-		
-		// Find the file name
-		if ((fname = ProcessConfigOpt("pcapdump")) == "" || 
-			globalreg->fatal_condition) {
-			return;
-		}
-
-		dumpfile = pcap_open_dead(dlt, MAX_PACKET_LEN);
-		if (dumpfile == NULL) {
-			snprintf(errstr, STATUS_MAX, "Failed to open pcap dump file '%s': %s",
-					 fname.c_str(), strerror(errno));
-			_MSG(errstr, MSGFLAG_FATAL);
-			globalreg->fatal_condition = 1;
-			return;
-		}
-
-		dumper = pcap_dump_open(dumpfile, fname.c_str());
-		if (dumper == NULL) {
-			snprintf(errstr, STATUS_MAX, "Failed to open pcap dump file '%s': %s",
-					 fname.c_str(), strerror(errno));
-			_MSG(errstr, MSGFLAG_FATAL);
-			globalreg->fatal_condition = 1;
-			return;
-		}
-
-		_MSG("Opened pcapdump log file '" + fname + "'", MSGFLAG_INFO);
-	} else if (ret == 1) {
-		_MSG("Resuming pcap log file '" + fname + "' (this may take time to copy "
-			 "previous packets)", MSGFLAG_INFO);
-
-		// Open the old file
-		pcap_t *opd;
-		opd = pcap_open_offline(fname.c_str(), errstr);
-		if (strlen(errstr) > 0) {
-			_MSG("Failed to open pcap file to resume: '" + string(errstr) + "'", 
-				 MSGFLAG_FATAL);
-			globalreg->fatal_condition = 1;
-			return;
-		}
-
-		// Unlink the old file, it'll stay around because we have it open
-		// with opd
-		if (unlink(fname.c_str()) != 0) {
-			_MSG("Failed to unlink old pcap log file '" + fname + "': " +
-				 string(strerror(errno)), MSGFLAG_FATAL);
-			globalreg->fatal_condition = 1;
-			return;
-		}
-
-		// Open a new file with the same name
-		dumpfile = pcap_open_dead(DLT_IEEE802_11, MAX_PACKET_LEN);
-		if (dumpfile == NULL) {
-			snprintf(errstr, STATUS_MAX, "Failed to open pcap dump file '%s': %s",
-					 fname.c_str(), strerror(errno));
-			_MSG(errstr, MSGFLAG_FATAL);
-			globalreg->fatal_condition = 1;
-			return;
-		}
-
-		dumper = pcap_dump_open(dumpfile, fname.c_str());
-		if (dumper == NULL) {
-			snprintf(errstr, STATUS_MAX, "Failed to open pcap dump file '%s': %s",
-					 fname.c_str(), strerror(errno));
-			_MSG(errstr, MSGFLAG_FATAL);
-			globalreg->fatal_condition = 1;
-			return;
-		}
-
-		// Loop and copy every packet
-		pcap_pkthdr ohdr;
-		const u_char *odata;
-		while ((odata = pcap_next(opd, &ohdr)) != NULL) {
-			pcap_dump((u_char *) dumper, &ohdr, odata);
-		}
-
-		// Close the old file and let the unlink complete
-		pcap_close(opd);
-
-		_MSG("Completed resuming pcap log file '" + fname + "'", MSGFLAG_INFO);
+	} else if (globalreg->kismet_config->FetchOpt("pcapdumpformat") == "80211") {
+		_MSG("Pcap log in 80211 format", MSGFLAG_INFO);
+		dumpformat = dump_80211;
+		dlt = DLT_IEEE802_11;
 	} else {
-		_MSG("Pcap log file not enabled in runstate", MSGFLAG_INFO);
+		_MSG("Pcap log defaulting to 80211 format", MSGFLAG_INFO);
+		dumpformat = dump_80211;
+		dlt = DLT_IEEE802_11;
+	}
+
+	// Find the file name
+	if ((fname = ProcessConfigOpt("pcapdump")) == "" || 
+		globalreg->fatal_condition) {
 		return;
 	}
+
+	dumpfile = pcap_open_dead(dlt, MAX_PACKET_LEN);
+	if (dumpfile == NULL) {
+		snprintf(errstr, STATUS_MAX, "Failed to open pcap dump file '%s': %s",
+				 fname.c_str(), strerror(errno));
+		_MSG(errstr, MSGFLAG_FATAL);
+		globalreg->fatal_condition = 1;
+		return;
+	}
+
+	dumper = pcap_dump_open(dumpfile, fname.c_str());
+	if (dumper == NULL) {
+		snprintf(errstr, STATUS_MAX, "Failed to open pcap dump file '%s': %s",
+				 fname.c_str(), strerror(errno));
+		_MSG(errstr, MSGFLAG_FATAL);
+		globalreg->fatal_condition = 1;
+		return;
+	}
+
+	_MSG("Opened pcapdump log file '" + fname + "'", MSGFLAG_INFO);
 
 	if (globalreg->kismet_config->FetchOpt("beaconlog") == "true") {
 		_MSG("Pcap log saving all beacon frames", MSGFLAG_INFO);

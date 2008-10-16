@@ -70,7 +70,6 @@
 #include "channeltracker.h"
 
 #include "dumpfile.h"
-#include "dumpfile_runstate.h"
 #include "dumpfile_pcap.h"
 #include "dumpfile_netxml.h"
 #include "dumpfile_nettxt.h"
@@ -321,70 +320,6 @@ void CatchChild(int sig) {
 	CatchShutdown(sig);
 }
 
-int ValidateRunstate(GlobalRegistry *globalreg, GroupConfigFile *runstate) {
-	int ver;
-	ostringstream osstr;
-
-	if (sscanf(runstate->FetchOpt("runstate_version", NULL).c_str(), "%d",
-			   &ver) != 1) {
-		_MSG("Failed to find runstate version in file", MSGFLAG_FATAL);
-		globalreg->fatal_condition = 1;
-		return -1;
-	}
-
-	if (ver != RUNSTATE_VERSION) {
-		osstr << "Current runstate file version (" << RUNSTATE_VERSION << ") does "
-			"not match runstate file version (" << ver << ").  Continuing may not "
-			"be possible.";
-		_MSG(osstr.str(), MSGFLAG_ERROR);
-		sleep(2);
-	}
-
-	unsigned int cksm;
-	if (sscanf(runstate->FetchOpt("config_checksum", NULL).c_str(), "%u",
-			   &cksm) != 1) {
-		_MSG("Failed to find runstate config checksum in file", MSGFLAG_FATAL);
-		globalreg->fatal_condition = 1;
-		return -1;
-	}
-
-	if (cksm != globalreg->kismet_config->FetchFileChecksum()) {
-		_MSG("Current config file checksum does not match the checksum stored "
-			 "in the runstate file.  Some options may have changed, resulting "
-			 "in different log file contents.  Startup will be paused for 5 "
-			 "seconds, abort with control-c if you do not want to attempt to "
-			 "resume", MSGFLAG_ERROR);
-		sleep(5);
-	}
-
-	int lt;
-	if (sscanf(runstate->FetchOpt("launch_time", NULL).c_str(), "%d", &lt) != 1) {
-		_MSG("Failed to find runstate launch time in file", MSGFLAG_FATAL);
-		globalreg->fatal_condition = 1;
-		return -1;
-	}
-
-	if (lt > time(0)) {
-		_MSG("Clock skew detected, launch time of runstate file is in the future. "
-			 "Timestamps in logs may be affected.", MSGFLAG_ERROR);
-	} else {
-		globalreg->start_time = lt;
-	}
-
-	if (sscanf(runstate->FetchOpt("save_time", NULL).c_str(), "%d", &lt) != 1) {
-		_MSG("Failed to find runstate save time in file", MSGFLAG_FATAL);
-		globalreg->fatal_condition = 1;
-		return -1;
-	}
-
-	if (lt > time(0)) {
-		_MSG("Clock skew detected, save time of runstate file is in the future. "
-			 "Timestamps in logs may be affected.", MSGFLAG_ERROR);
-	}
-
-	return 1;
-}
-
 int Usage(char *argv) {
     printf("Usage: %s [OPTION]\n", argv);
 	printf("Nearly all of these options are run-time overrides for values in the\n"
@@ -396,8 +331,6 @@ int Usage(char *argv) {
 		   "     --no-line-wrap           Turn of linewrapping of output\n"
 		   "                              (for grep, speed, etc)\n"
 		   " -s, --silent                 Turn off stdout output after setup phase\n"
-		   " -r, --resume <file>          Resume a previous Kismet session from a\n"
-		   "                              runstate dump file\n"
 		   );
 
 	printf("\n");
@@ -430,8 +363,6 @@ int main(int argc, char *argv[], char *envp[]) {
 	char errstr[STATUS_MAX];
 	char *configfilename = NULL;
 	ConfigFile *conf;
-	GroupConfigFile *runstate = NULL;
-	string runstatename;
 	int option_idx = 0;
 	int data_dump = 0;
 
@@ -502,7 +433,7 @@ int main(int argc, char *argv[], char *envp[]) {
 
 	while (1) {
 		int r = getopt_long(argc, argv, 
-							"-f:shr:", 
+							"-f:sh", 
 							main_longopt, &option_idx);
 		if (r < 0) break;
 		if (r == 'h') {
@@ -510,8 +441,6 @@ int main(int argc, char *argv[], char *envp[]) {
 			exit(1);
 		} else if (r == 'f') {
 			configfilename = strdup(optarg);
-		} else if (r == 'r') {
-			runstatename = string(optarg);
 		} else if (r == nlwc) {
 			glob_linewrap = 0;
 		} else if (r == 's') {
@@ -641,39 +570,6 @@ int main(int argc, char *argv[], char *envp[]) {
 
 	// Create the basic drone server
 	globalregistry->kisdroneserver->Activate();
-	if (globalregistry->fatal_condition)
-		CatchShutdown(-1);
-
-	// Load the old runstate dumpfile
-	if (runstatename.length() > 0) {
-		snprintf(errstr, STATUS_MAX, "Reading from runstate file %s", 
-				 runstatename.c_str());
-		globalregistry->messagebus->InjectMessage(errstr, MSGFLAG_INFO);
-
-		// Load the file
-		runstate = new GroupConfigFile;
-		if (runstate->ParseConfig(runstatename.c_str()) < 0) {
-			CatchShutdown(-1);
-		}
-
-		// Run it through the validator
-		if (ValidateRunstate(globalregistry, runstate) < 0 || 
-			globalregistry->fatal_condition)
-			CatchShutdown(-1);
-		
-		globalregistry->runstate_config = runstate;
-
-		snprintf(errstr, STATUS_MAX, "Kismet will restore from a previous saved "
-				 "run state.  This will present previously captured networks "
-				 "and continue logging to the same dumpfiles.  Logging will be "
-				 "limited to the dumpfiles which are enabled in the runstate.");
-		globalregistry->messagebus->InjectMessage(errstr, MSGFLAG_INFO);
-
-		sleep(3);
-	}
-	
-	// Create the runstate dumpfile
-	globalregistry->runstate_dumper = new Dumpfile_Runstate(globalregistry);
 	if (globalregistry->fatal_condition)
 		CatchShutdown(-1);
 

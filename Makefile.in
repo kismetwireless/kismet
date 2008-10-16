@@ -16,6 +16,7 @@ LDFLAGS		= @LDFLAGS@
 LIBS		= @LIBS@
 CLIBS   	= @CLIBS@
 CXXLIBS		= @CXXLIBS@
+KSLIBS		= @KSLIBS@
 CFLAGS		= @CPPFLAGS@
 CLIENTLIBS 	= @CLIENTCLIBS@
 CAPLIBS		= @caplibs@
@@ -54,7 +55,7 @@ PSO	= util.o cygwin_utils.o ringbuf.o messagebus.o configfile.o getopt.o \
 	packetchain.o \
 	plugintracker.o alertracker.o timetracker.o \
 	packetdissectors.o netracker.o channeltracker.o \
-	dumpfile.o dumpfile_runstate.o dumpfile_pcap.o dumpfile_gpsxml.o \
+	dumpfile.o dumpfile_pcap.o dumpfile_gpsxml.o \
 	dumpfile_tuntap.o dumpfile_netxml.o dumpfile_nettxt.o dumpfile_string.o \
 	dumpfile_alert.o statealert.o \
 	kismet_server.o
@@ -103,7 +104,7 @@ ZAURUSBUILD=@zbuild@
 all:	Makefile $(DEPEND) $(PS) $(CS) $(DRONE) $(NC)
 
 $(PS):	$(PSO)
-	$(LD) $(LDFLAGS) -o $(PS) $(PSO) $(LIBS) $(CXXLIBS) $(PCAPLNK)
+	$(LD) $(LDFLAGS) -o $(PS) $(PSO) $(LIBS) $(CXXLIBS) $(PCAPLNK) $(KSLIBS)
 
 $(CS):	$(CSO)
 	$(LD) $(LDFLAGS) -o $(CS) $(CSO) $(LIBS) $(CXXLIBS) $(PCAPLNK) $(CAPLIBS)

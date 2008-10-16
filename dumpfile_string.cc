@@ -52,45 +52,22 @@ Dumpfile_String::Dumpfile_String(GlobalRegistry *in_globalreg) :
 		exit(1);
 	}
 
-	int ret = 0;
-
-	if ((ret = ProcessRuntimeResume("string")) == -1) {
-		// We're not resuming
-		
-		if (globalreg->fatal_condition)
-			return;
-
-		// Find the file name
-		if ((fname = ProcessConfigOpt("string")) == "" || 
-			globalreg->fatal_condition) {
-			return;
-		}
-
-		stringfile = fopen(fname.c_str(), "w");
-		if (stringfile == NULL) {
-			snprintf(errstr, STATUS_MAX, "Failed to open string dump file '%s': %s",
-					 fname.c_str(), strerror(errno));
-			_MSG(errstr, MSGFLAG_FATAL);
-			globalreg->fatal_condition = 1;
-			return;
-		}
-
-		_MSG("Opened string log file '" + fname + "'", MSGFLAG_INFO);
-	} else if (ret == 1) {
-		stringfile = fopen(fname.c_str(), "a");
-		if (stringfile == NULL) {
-			snprintf(errstr, STATUS_MAX, "Failed to open string dump file '%s' "
-					 "to resume logging: %s", fname.c_str(), strerror(errno));
-			_MSG(errstr, MSGFLAG_FATAL);
-			globalreg->fatal_condition = 1;
-			return;
-		}
-
-		_MSG("Resumed string log file '" + fname + "'", MSGFLAG_INFO);
-	} else {
-		_MSG("String log file not enabled in runstate", MSGFLAG_INFO);
+	// Find the file name
+	if ((fname = ProcessConfigOpt("string")) == "" || 
+		globalreg->fatal_condition) {
 		return;
 	}
+
+	stringfile = fopen(fname.c_str(), "w");
+	if (stringfile == NULL) {
+		snprintf(errstr, STATUS_MAX, "Failed to open string dump file '%s': %s",
+				 fname.c_str(), strerror(errno));
+		_MSG(errstr, MSGFLAG_FATAL);
+		globalreg->fatal_condition = 1;
+		return;
+	}
+
+	_MSG("Opened string log file '" + fname + "'", MSGFLAG_INFO);
 
 	globalreg->packetchain->RegisterHandler(&dumpfilestring_chain_hook, this,
 											CHAINPOS_LOGGING, -100);

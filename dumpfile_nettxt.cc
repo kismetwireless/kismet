@@ -52,21 +52,9 @@ Dumpfile_Nettxt::Dumpfile_Nettxt(GlobalRegistry *in_globalreg) :
 		exit(1);
 	}
 
-	int ret = 0;
-
-	if ((ret = ProcessRuntimeResume("nettxt")) == -1) {
-		if (globalreg->fatal_condition)
-			return;
-
-		// Find the file name
-		if ((fname = ProcessConfigOpt("nettxt")) == "" || 
-			globalreg->fatal_condition) {
-			return;
-		}
-	} else if (ret == 1) {
-		_MSG("Resuming nettxt log file '" + fname + "'", MSGFLAG_INFO);
-	} else {
-		_MSG("Nettxt log file not enabled in runstate", MSGFLAG_INFO);
+	// Find the file name
+	if ((fname = ProcessConfigOpt("nettxt")) == "" || 
+		globalreg->fatal_condition) {
 		return;
 	}
 
