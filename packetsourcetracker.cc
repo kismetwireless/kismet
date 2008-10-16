@@ -2069,14 +2069,14 @@ int Packetsourcetracker::cmd_ADDSOURCE(int in_clid, KisNetFramework *framework,
 
 	uint16_t new_source_id;
 
-	new_source_id = AddPacketSource((*parsedcmdline)[1].word, NULL);
+	new_source_id = AddPacketSource((*parsedcmdline)[0].word, NULL);
 
 	if (new_source_id == 0) {
 		snprintf(errstr, 1024, "ADDSOURCE command failed");
 		return -1;
 	}
 
-	_MSG("Added source '" + (*parsedcmdline)[1].word + "' from client ADDSOURCE",
+	_MSG("Added source '" + (*parsedcmdline)[0].word + "' from client ADDSOURCE",
 		 MSGFLAG_INFO);
 
 	if (StartSource(new_source_id) < 0) {
@@ -2097,7 +2097,7 @@ int Packetsourcetracker::cmd_DELSOURCE(int in_clid, KisNetFramework *framework,
 		return -1;
 	}
 
-	uuid inuuid = uuid((*parsedcmdline)[1].word);
+	uuid inuuid = uuid((*parsedcmdline)[0].word);
 
 	if (inuuid.error) {
 		snprintf(errstr, 1024, "Invalid UUID in DELSOURCE command");
@@ -2112,7 +2112,7 @@ int Packetsourcetracker::cmd_DELSOURCE(int in_clid, KisNetFramework *framework,
 		return -1;
 	}
 
-	_MSG("Removing source '" + (*parsedcmdline)[1].word + "' from client DELSOURCE",
+	_MSG("Removing source '" + (*parsedcmdline)[0].word + "' from client DELSOURCE",
 		 MSGFLAG_INFO);
 
 	RemovePacketSource(pstsource);
@@ -2121,16 +2121,16 @@ int Packetsourcetracker::cmd_DELSOURCE(int in_clid, KisNetFramework *framework,
 
 }
 
-// HOPSOURCE uuid [HOP|DWELL] [RATE|0] [CHANNEL]
+// HOPSOURCE uuid [HOP|DWELL|LOCK] [RATE|CHANNEL]
 int Packetsourcetracker::cmd_HOPSOURCE(int in_clid, KisNetFramework *framework, 
 									   char *errstr, string cmdline, 
 									   vector<smart_word_token> *parsedcmdline) {
-	if (parsedcmdline->size() < 3) {
+	if (parsedcmdline->size() < 2) {
 		snprintf(errstr, 1024, "Illegal HOPSOURCE command, expected UUID TYPE VAL");
 		return -1;
 	}
 
-	uuid inuuid = uuid((*parsedcmdline)[1].word);
+	uuid inuuid = uuid((*parsedcmdline)[0].word);
 
 	if (inuuid.error) {
 		snprintf(errstr, 1024, "Invalid UUID in HOPSOURCE command");
@@ -2142,6 +2142,42 @@ int Packetsourcetracker::cmd_HOPSOURCE(int in_clid, KisNetFramework *framework,
 	if (pstsource == NULL) {
 		snprintf(errstr, 1024, "Invalid UUID in HOPSOURCE command, couldn't find "
 				 "source with UUID %s", inuuid.UUID2String().c_str());
+		return -1;
+	}
+
+	string cmd = StrLower((*parsedcmdline)[1].word);
+
+	unsigned int val = 0;
+	if (parsedcmdline->size() > 2) {
+		if (sscanf((*parsedcmdline)[2].word.c_str(), "%u", &val) != 1) {
+			snprintf(errstr, 1024, "Invalid value, expected number");
+			return -1;
+		}
+	}
+
+	if (cmd == "lock") {
+		if (parsedcmdline->size() < 2) {
+			snprintf(errstr, 1024, "Expected channel for HOPSOURCE LOCK");
+			return -1;
+		}
+
+		SetSourceHopping(inuuid, 0, val);
+	} else if (cmd == "hop") {
+		if (parsedcmdline->size() < 2) {
+			SetSourceHopping(inuuid, 1, 0);
+		} else {
+			SetSourceHopDwell(inuuid, val, 0);
+			SetSourceHopping(inuuid, 1, 0);
+		}
+	} else if (cmd == "dwell") {
+		if (parsedcmdline->size() < 2) {
+			SetSourceHopping(inuuid, 1, 0);
+		} else {
+			SetSourceHopDwell(inuuid, 0, val);
+			SetSourceHopping(inuuid, 1, 0);
+		}
+	} else {
+		snprintf(errstr, 1024, "Expected LOCK, HOP or DWELL");
 		return -1;
 	}
 
