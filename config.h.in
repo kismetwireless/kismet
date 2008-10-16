@@ -105,9 +105,6 @@
 /* accept() takes type socklen_t for addrlen */
 #undef HAVE_SOCKLEN_T
 
-/* sqlite3.h is present */
-#undef HAVE_SQLITE_H
-
 /* Define to 1 if `stat' has the bug that it succeeds when given the
    zero-length file name argument. */
 #undef HAVE_STAT_EMPTY_STRING_BUG

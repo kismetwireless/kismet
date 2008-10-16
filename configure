@@ -6273,218 +6273,19 @@ echo "$as_me: WARNING: libdl doesn't seem to be needed on this system" >&2;}
 fi
 
 
-sqlite3=yes
-if test "${ac_cv_header_sqlite3_h+set}" = set; then
-  { echo "$as_me:$LINENO: checking for sqlite3.h" >&5
-echo $ECHO_N "checking for sqlite3.h... $ECHO_C" >&6; }
-if test "${ac_cv_header_sqlite3_h+set}" = set; then
-  echo $ECHO_N "(cached) $ECHO_C" >&6
-fi
-{ echo "$as_me:$LINENO: result: $ac_cv_header_sqlite3_h" >&5
-echo "${ECHO_T}$ac_cv_header_sqlite3_h" >&6; }
-else
-  # Is the header compilable?
-{ echo "$as_me:$LINENO: checking sqlite3.h usability" >&5
-echo $ECHO_N "checking sqlite3.h usability... $ECHO_C" >&6; }
-cat >conftest.$ac_ext <<_ACEOF
-/* confdefs.h.  */
-_ACEOF
-cat confdefs.h >>conftest.$ac_ext
-cat >>conftest.$ac_ext <<_ACEOF
-/* end confdefs.h.  */
-$ac_includes_default
-#include <sqlite3.h>
-_ACEOF
-rm -f conftest.$ac_objext
-if { (ac_try="$ac_compile"
-case "(($ac_try" in
-  *\"* | *\`* | *\\*) ac_try_echo=\$ac_try;;
-  *) ac_try_echo=$ac_try;;
-esac
-eval "echo \"\$as_me:$LINENO: $ac_try_echo\"") >&5
-  (eval "$ac_compile") 2>conftest.er1
-  ac_status=$?
-  grep -v '^ *+' conftest.er1 >conftest.err
-  rm -f conftest.er1
-  cat conftest.err >&5
-  echo "$as_me:$LINENO: \$? = $ac_status" >&5
-  (exit $ac_status); } && {
-	 test -z "$ac_c_werror_flag" ||
-	 test ! -s conftest.err
-       } && test -s conftest.$ac_objext; then
-  ac_header_compiler=yes
-else
-  echo "$as_me: failed program was:" >&5
-sed 's/^/| /' conftest.$ac_ext >&5
-
-	ac_header_compiler=no
-fi
-
-rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
-{ echo "$as_me:$LINENO: result: $ac_header_compiler" >&5
-echo "${ECHO_T}$ac_header_compiler" >&6; }
-
-# Is the header present?
-{ echo "$as_me:$LINENO: checking sqlite3.h presence" >&5
-echo $ECHO_N "checking sqlite3.h presence... $ECHO_C" >&6; }
-cat >conftest.$ac_ext <<_ACEOF
-/* confdefs.h.  */
-_ACEOF
-cat confdefs.h >>conftest.$ac_ext
-cat >>conftest.$ac_ext <<_ACEOF
-/* end confdefs.h.  */
-#include <sqlite3.h>
-_ACEOF
-if { (ac_try="$ac_cpp conftest.$ac_ext"
-case "(($ac_try" in
-  *\"* | *\`* | *\\*) ac_try_echo=\$ac_try;;
-  *) ac_try_echo=$ac_try;;
-esac
-eval "echo \"\$as_me:$LINENO: $ac_try_echo\"") >&5
-  (eval "$ac_cpp conftest.$ac_ext") 2>conftest.er1
-  ac_status=$?
-  grep -v '^ *+' conftest.er1 >conftest.err
-  rm -f conftest.er1
-  cat conftest.err >&5
-  echo "$as_me:$LINENO: \$? = $ac_status" >&5
-  (exit $ac_status); } >/dev/null && {
-	 test -z "$ac_c_preproc_warn_flag$ac_c_werror_flag" ||
-	 test ! -s conftest.err
-       }; then
-  ac_header_preproc=yes
-else
-  echo "$as_me: failed program was:" >&5
-sed 's/^/| /' conftest.$ac_ext >&5
-
-  ac_header_preproc=no
-fi
-
-rm -f conftest.err conftest.$ac_ext
-{ echo "$as_me:$LINENO: result: $ac_header_preproc" >&5
-echo "${ECHO_T}$ac_header_preproc" >&6; }
-
-# So?  What about this header?
-case $ac_header_compiler:$ac_header_preproc:$ac_c_preproc_warn_flag in
-  yes:no: )
-    { echo "$as_me:$LINENO: WARNING: sqlite3.h: accepted by the compiler, rejected by the preprocessor!" >&5
-echo "$as_me: WARNING: sqlite3.h: accepted by the compiler, rejected by the preprocessor!" >&2;}
-    { echo "$as_me:$LINENO: WARNING: sqlite3.h: proceeding with the compiler's result" >&5
-echo "$as_me: WARNING: sqlite3.h: proceeding with the compiler's result" >&2;}
-    ac_header_preproc=yes
-    ;;
-  no:yes:* )
-    { echo "$as_me:$LINENO: WARNING: sqlite3.h: present but cannot be compiled" >&5
-echo "$as_me: WARNING: sqlite3.h: present but cannot be compiled" >&2;}
-    { echo "$as_me:$LINENO: WARNING: sqlite3.h:     check for missing prerequisite headers?" >&5
-echo "$as_me: WARNING: sqlite3.h:     check for missing prerequisite headers?" >&2;}
-    { echo "$as_me:$LINENO: WARNING: sqlite3.h: see the Autoconf documentation" >&5
-echo "$as_me: WARNING: sqlite3.h: see the Autoconf documentation" >&2;}
-    { echo "$as_me:$LINENO: WARNING: sqlite3.h:     section \"Present But Cannot Be Compiled\"" >&5
-echo "$as_me: WARNING: sqlite3.h:     section \"Present But Cannot Be Compiled\"" >&2;}
-    { echo "$as_me:$LINENO: WARNING: sqlite3.h: proceeding with the preprocessor's result" >&5
-echo "$as_me: WARNING: sqlite3.h: proceeding with the preprocessor's result" >&2;}
-    { echo "$as_me:$LINENO: WARNING: sqlite3.h: in the future, the compiler will take precedence" >&5
-echo "$as_me: WARNING: sqlite3.h: in the future, the compiler will take precedence" >&2;}
-
-    ;;
-esac
-{ echo "$as_me:$LINENO: checking for sqlite3.h" >&5
-echo $ECHO_N "checking for sqlite3.h... $ECHO_C" >&6; }
-if test "${ac_cv_header_sqlite3_h+set}" = set; then
-  echo $ECHO_N "(cached) $ECHO_C" >&6
-else
-  ac_cv_header_sqlite3_h=$ac_header_preproc
-fi
-{ echo "$as_me:$LINENO: result: $ac_cv_header_sqlite3_h" >&5
-echo "${ECHO_T}$ac_cv_header_sqlite3_h" >&6; }
-
-fi
-if test $ac_cv_header_sqlite3_h = yes; then
-
-cat >>confdefs.h <<\_ACEOF
-#define HAVE_SQLITE_H 1
-_ACEOF
- sqlite3=yes
-else
-  sqlite3=no
-fi
-
-
-
-if test "$sqlite3" = yes; then
-{ echo "$as_me:$LINENO: checking for sqlite3_open in -lsqlite3" >&5
-echo $ECHO_N "checking for sqlite3_open in -lsqlite3... $ECHO_C" >&6; }
-if test "${ac_cv_lib_sqlite3_sqlite3_open+set}" = set; then
-  echo $ECHO_N "(cached) $ECHO_C" >&6
-else
-  ac_check_lib_save_LIBS=$LIBS
-LIBS="-lsqlite3  $LIBS"
-cat >conftest.$ac_ext <<_ACEOF
-/* confdefs.h.  */
-_ACEOF
-cat confdefs.h >>conftest.$ac_ext
-cat >>conftest.$ac_ext <<_ACEOF
-/* end confdefs.h.  */
-
-/* Override any GCC internal prototype to avoid an error.
-   Use char because int might match the return type of a GCC
-   builtin and then its argument prototype would still apply.  */
-#ifdef __cplusplus
-extern "C"
-#endif
-char sqlite3_open ();
-int
-main ()
-{
-return sqlite3_open ();
-  ;
-  return 0;
-}
-_ACEOF
-rm -f conftest.$ac_objext conftest$ac_exeext
-if { (ac_try="$ac_link"
-case "(($ac_try" in
-  *\"* | *\`* | *\\*) ac_try_echo=\$ac_try;;
-  *) ac_try_echo=$ac_try;;
-esac
-eval "echo \"\$as_me:$LINENO: $ac_try_echo\"") >&5
-  (eval "$ac_link") 2>conftest.er1
-  ac_status=$?
-  grep -v '^ *+' conftest.er1 >conftest.err
-  rm -f conftest.er1
-  cat conftest.err >&5
-  echo "$as_me:$LINENO: \$? = $ac_status" >&5
-  (exit $ac_status); } && {
-	 test -z "$ac_c_werror_flag" ||
-	 test ! -s conftest.err
-       } && test -s conftest$ac_exeext &&
-       $as_test_x conftest$ac_exeext; then
-  ac_cv_lib_sqlite3_sqlite3_open=yes
-else
-  echo "$as_me: failed program was:" >&5
-sed 's/^/| /' conftest.$ac_ext >&5
-
-	ac_cv_lib_sqlite3_sqlite3_open=no
-fi
-
-rm -f core conftest.err conftest.$ac_objext conftest_ipa8_conftest.oo \
-      conftest$ac_exeext conftest.$ac_ext
-LIBS=$ac_check_lib_save_LIBS
-fi
-{ echo "$as_me:$LINENO: result: $ac_cv_lib_sqlite3_sqlite3_open" >&5
-echo "${ECHO_T}$ac_cv_lib_sqlite3_sqlite3_open" >&6; }
-if test $ac_cv_lib_sqlite3_sqlite3_open = yes; then
-  KSLIBS="$KSLIBS -lsqlite3"
-else
-  sqlite3=no
-fi
-
-fi
-
-if test "$sqlite3" != yes; then
-	{ echo "$as_me:$LINENO: WARNING: Failed to find sqlite3 runtime resuming will be disabled" >&5
-echo "$as_me: WARNING: Failed to find sqlite3 runtime resuming will be disabled" >&2;}
-fi
+# sqlite3=yes
+# AC_CHECK_HEADER([sqlite3.h],
+# 	AC_DEFINE(HAVE_SQLITE_H, 1, sqlite3.h is present) sqlite3=yes,
+# 	sqlite3=no)
+#
+# if test "$sqlite3" = yes; then
+# AC_CHECK_LIB([sqlite3], [sqlite3_open],
+# 			 KSLIBS="$KSLIBS -lsqlite3", sqlite3=no)
+# fi
+#
+# if test "$sqlite3" != yes; then
+# 	AC_MSG_WARN(Failed to find sqlite3 runtime resuming will be disabled)
+# fi
 
 # Do we need libm for math functions?
 { echo "$as_me:$LINENO: checking for libm math function in std libs" >&5
@@ -11663,16 +11464,16 @@ fi
 # else
 # 	echo "no (saving runtime state disabled)";
 # fi
-#
-# if test "$linux_wireless" != "yes" -a "$linux" = "yes"; then
-#     echo "*** WARNING ***"
-# 	echo "Linux Wireless Extensions were disabled.  Compiling without wext on a "
-# 	echo "Linux system is certianly possible, however nearly all of the packet "
-# 	echo "sources will be disabled (including capture sources for Cisco, Madwifi, "
-# 	echo "Orinoco, Prism, and just about every other live capture method).  Make "
-# 	echo "sure this is what you want to do."
-#     echo "*** WARNING ***"
-# fi
+
+if test "$linux_wireless" != "yes" -a "$linux" = "yes"; then
+    echo "*** WARNING ***"
+	echo "Linux Wireless Extensions were disabled.  Compiling without wext on a "
+	echo "Linux system is certianly possible, however nearly all of the packet "
+	echo "sources will be disabled (including capture sources for Cisco, Madwifi, "
+	echo "Orinoco, Prism, and just about every other live capture method).  Make "
+	echo "sure this is what you want to do."
+    echo "*** WARNING ***"
+fi
 
 if test "$pcap" != "yes" -a "$linux" = "yes"; then
 	echo "*** WARNING ***"
