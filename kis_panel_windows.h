@@ -180,7 +180,7 @@ public:
 protected:
 	KisNetClient *target_cli;
 
-	Kis_Single_Input *srctype;
+	Kis_Single_Input *srcopts;
 	Kis_Single_Input *srciface;
 	Kis_Single_Input *srcname;
 	Kis_Button *okbutton;

@@ -1049,7 +1049,7 @@ Kis_AddCard_Panel::Kis_AddCard_Panel(GlobalRegistry *in_globalreg,
 									 KisPanelInterface *in_intf) :
 	Kis_Panel(in_globalreg, in_intf) {
 
-	srctype = new Kis_Single_Input(globalreg, this);
+	srcopts = new Kis_Single_Input(globalreg, this);
 	srciface = new Kis_Single_Input(globalreg, this);
 	srcname = new Kis_Single_Input(globalreg, this);
 
@@ -1059,11 +1059,11 @@ Kis_AddCard_Panel::Kis_AddCard_Panel(GlobalRegistry *in_globalreg,
 	okbutton->SetCallback(COMPONENT_CBTYPE_ACTIVATED, AddCardButtonCB, this);
 	cancelbutton->SetCallback(COMPONENT_CBTYPE_ACTIVATED, AddCardButtonCB, this);
 
-	AddComponentVec(srctype, (KIS_PANEL_COMP_DRAW | KIS_PANEL_COMP_EVT |
-							  KIS_PANEL_COMP_TAB));
 	AddComponentVec(srciface, (KIS_PANEL_COMP_DRAW | KIS_PANEL_COMP_EVT |
 							   KIS_PANEL_COMP_TAB));
 	AddComponentVec(srcname, (KIS_PANEL_COMP_DRAW | KIS_PANEL_COMP_EVT |
+							  KIS_PANEL_COMP_TAB));
+	AddComponentVec(srcopts, (KIS_PANEL_COMP_DRAW | KIS_PANEL_COMP_EVT |
 							  KIS_PANEL_COMP_TAB));
 
 	AddComponentVec(okbutton, (KIS_PANEL_COMP_DRAW | KIS_PANEL_COMP_EVT |
@@ -1072,25 +1072,26 @@ Kis_AddCard_Panel::Kis_AddCard_Panel(GlobalRegistry *in_globalreg,
 								   KIS_PANEL_COMP_TAB));
 
 	tab_pos = 0;
-	active_component = srctype;
-	srctype->Activate(0);
 
 	SetTitle("Add Source");
-
-	srctype->SetLabel("Type", LABEL_POS_LEFT);
-	srctype->SetTextLen(32);
-	srctype->SetCharFilter(FILTER_ALPHANUMSYM);
-	srctype->Show();
 
 	srciface->SetLabel("Intf", LABEL_POS_LEFT);
 	srciface->SetTextLen(32);
 	srciface->SetCharFilter(FILTER_ALPHANUMSYM);
 	srciface->Show();
 		
+	active_component = srciface;
+	srciface->Activate(0);
+
 	srcname->SetLabel("Name", LABEL_POS_LEFT);
 	srcname->SetTextLen(32);
 	srcname->SetCharFilter(FILTER_ALPHANUMSYM);
 	srcname->Show();
+
+	srcopts->SetLabel("Opts", LABEL_POS_LEFT);
+	srcopts->SetTextLen(64);
+	srcopts->SetCharFilter(FILTER_ALPHANUMSYM);
+	srcopts->Show();
 
 	okbutton->SetText("Add");
 	okbutton->Show();
@@ -1115,9 +1116,9 @@ Kis_AddCard_Panel::Kis_AddCard_Panel(GlobalRegistry *in_globalreg,
 	bbox->Pack_End(cancelbutton, 0, 0);
 	bbox->Pack_End(okbutton, 0, 0);
 
-	vbox->Pack_End(srctype, 0, 0);
 	vbox->Pack_End(srciface, 0, 0);
 	vbox->Pack_End(srcname, 0, 0);
+	vbox->Pack_End(srcopts, 0, 0);
 	vbox->Pack_End(bbox, 1, 0);
 
 	AddComponentVec(vbox, KIS_PANEL_COMP_DRAW);
@@ -1158,13 +1159,7 @@ void Kis_AddCard_Panel::DrawPanel() {
 
 void Kis_AddCard_Panel::ButtonAction(Kis_Panel_Component *in_button) {
 	if (in_button == okbutton) {
-		if (srctype->GetText() == "") {
-			kpinterface->RaiseAlert("No source type",
-									"No source type was provided for\n"
-									"creating a new source.  A source\n"
-									"type is required.\n");
-			return;
-		}
+		string srcdef;
 
 		if (srciface->GetText() == "") {
 			kpinterface->RaiseAlert("No source interface",
@@ -1174,12 +1169,14 @@ void Kis_AddCard_Panel::ButtonAction(Kis_Panel_Component *in_button) {
 			return;
 		}
 
-		if (srcname->GetText() == "") {
-			kpinterface->RaiseAlert("No source name",
-									"No source name was provided for\n"
-									"reating a new source.  A source name\n"
-									"is required.\n");
-			return;
+		srcdef = srciface->GetText() + ":";
+
+		if (srcname->GetText() != "") {
+			srcdef += "name=" + srcname->GetText() + ",";
+		}
+
+		if (srcopts->GetText() != "") {
+			srcdef += srcopts->GetText();
 		}
 
 		if (target_cli == NULL) {
@@ -1195,8 +1192,7 @@ void Kis_AddCard_Panel::ButtonAction(Kis_Panel_Component *in_button) {
 
 		// Build a command and inject it
 		string srccmd;
-		srccmd = "ADDSOURCE " + srctype->GetText() + "," +
-			srciface->GetText() + "," + srcname->GetText();
+		srccmd = "ADDSOURCE " + srcdef;
 
 		target_cli->InjectCommand(srccmd);
 
