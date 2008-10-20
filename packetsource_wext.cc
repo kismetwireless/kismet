@@ -185,7 +185,7 @@ int PacketSource_Wext::EnableMonitor() {
 			/* Bring the interface down and try again */
 			_MSG("Failed to set monitor mode on interface '" + interface + "' "
 				 "while up, bringing interface down and trying again.",
-				 MSGFLAG_PRINTERROR);
+				 MSGFLAG_ERROR);
 
 			int oldflags;
 			Ifconfig_Get_Flags(interface.c_str(), errstr, &oldflags);
@@ -200,7 +200,7 @@ int PacketSource_Wext::EnableMonitor() {
 
 			if (Iwconfig_Set_Mode(interface.c_str(), errstr, 
 								  LINUX_WLEXT_MONITOR) < 0) {
-				_MSG(errstr, MSGFLAG_FATAL);
+				_MSG(errstr, MSGFLAG_PRINTERROR);
 				_MSG("Failed to set monitor mode on interface '" + interface + "', "
 					 "even after bringing interface into a down state.  This "
 					 "usually means your drivers either do not report monitor "
