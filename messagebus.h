@@ -34,11 +34,15 @@
 #define MSGFLAG_ERROR   4
 #define MSGFLAG_ALERT   8
 #define MSGFLAG_FATAL   16
-// Don't propogate it past local display systems
+// Don't propagate it past local display systems
 #define MSGFLAG_LOCAL   32
+// Force printing of the error in the shutdown messages, sort of a "fatal lite"
+#define MSGFLAG_PRINT	64
 #define MSGFLAG_ALL     (MSGFLAG_DEBUG | MSGFLAG_INFO | \
                          MSGFLAG_ERROR | MSGFLAG_ALERT | \
                          MSGFLAG_FATAL)
+// Combine
+#define MSGFLAG_PRINTERROR	(MSGFLAG_ERROR | MSGFLAG_PRINT)
 
 // A subscriber to the message bus.  It subscribes with a mask of 
 // what messages it wants to handle

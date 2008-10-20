@@ -154,8 +154,8 @@ protected:
 };
 
 void FatalQueueMessageClient::ProcessMessage(string in_msg, int in_flags) {
-    // We only get passed fatal stuff so save a test
-	if (in_flags & MSGFLAG_ERROR) {
+	// Queue PRINT forced errors differently than fatal conditions
+	if (in_flags & MSGFLAG_PRINT) {
 		fatalqueue.push_back("ERROR: " + in_msg);
 	} else if (in_flags & MSGFLAG_FATAL) {
 		fatalqueue.push_back("FATAL: " + in_msg);
