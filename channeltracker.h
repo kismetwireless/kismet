@@ -52,9 +52,9 @@ public:
 			bytes_delta = 0;
 			sent_reset = 0;
 
-			max_signal_dbm = 0;
+			max_signal_dbm = -256;
 			max_signal_rssi = 0;
-			max_noise_dbm = 0;
+			max_noise_dbm = -256;
 			max_noise_rssi = 0;
 		}
 

@@ -1725,7 +1725,7 @@ int Kis_NetDetails_Panel::AppendNetworkInfo(int k, Kis_Display_NetGroup *tng,
 		netdetails->AddRow(k++, td);
 	}
 
-	if (net->snrdata.last_signal_dbm == -256) {
+	if (net->snrdata.last_signal_dbm == -256 || net->snrdata.last_signal_dbm == 0) {
 		if (net->snrdata.last_signal_rssi == 0) {
 			td[0] = "Signal:";
 			td[1] = "No signal data available";
@@ -2300,7 +2300,7 @@ int Kis_ChanDetails_Panel::GraphTimer() {
 
 	for (map<uint32_t, chan_sig_info *>::iterator x = channel_map.begin();
 		 x != channel_map.end(); ++x) {
-		if (x->second->sig_dbm == 0) {
+		if (x->second->sig_rssi != 0) {
 			sigvec.push_back(x->second->sig_rssi);
 			noisevec.push_back(x->second->noise_rssi);
 		} else {
