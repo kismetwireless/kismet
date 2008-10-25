@@ -174,6 +174,9 @@ void Channeltracker::ChanTimer() {
 	map<uint32_t, int> *tick_map = globalreg->sourcetracker->FetchChannelTickMap();
 
 	for (map<uint32_t, int>::iterator x = tick_map->begin(); x != tick_map->end(); ++x) {
+		if (x->first == 0)
+			continue;
+		
 		if (channel_map.find(x->first) == channel_map.end()) {
 			channel_record *crec = new channel_record;
 			channel_map[FreqToChan(x->first)] = crec;

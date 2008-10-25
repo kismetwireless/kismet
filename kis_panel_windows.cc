@@ -2167,7 +2167,7 @@ Kis_ChanDetails_Panel::Kis_ChanDetails_Panel(GlobalRegistry *in_globalreg,
 	siggraph = new Kis_IntGraph(globalreg, this);
 	siggraph->SetName("CHANNEL_SIG");
 	siggraph->SetPreferredSize(0, 12);
-	siggraph->SetScale(-110, -40);
+	siggraph->SetScale(-110, -20);
 	siggraph->SetInterpolation(0);
 	siggraph->SetMode(0);
 	siggraph->Show();
