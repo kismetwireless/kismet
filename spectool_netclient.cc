@@ -146,11 +146,6 @@ SpectoolsClient::SpectoolsClient(GlobalRegistry *in_globalreg) :
 		exit(1);
 	}
 
-	// Reconnect timer
-	recon_timer_id = 
-		globalreg->timetracker->RegisterTimer(SERVER_TIMESLICES_SEC * 10,
-											  NULL, 1, &stc_recontimer, this);
-
 	// Packetchain spectrum data
 	_PCM(PACK_COMP_SPECTRUM) =
 		globalreg->packetchain->RegisterPacketComponent("SPECTRUM");
@@ -176,6 +171,11 @@ SpectoolsClient::SpectoolsClient(GlobalRegistry *in_globalreg) :
 			 "not be able to use spectools", MSGFLAG_ERROR);
 		return;
 	}
+
+	// Reconnect timer
+	recon_timer_id = 
+		globalreg->timetracker->RegisterTimer(SERVER_TIMESLICES_SEC * 10,
+											  NULL, 1, &stc_recontimer, this);
 
 	snprintf(host, MAXHOSTNAMELEN, "%s", temphost);
 
