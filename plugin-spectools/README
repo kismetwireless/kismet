@@ -1,0 +1,23 @@
+Spectools spectrum analyzer plugin
+
+Both a handy visualizer for the output of the spectrum analyzer inside
+Kismet, and an example for how to integrate a UI plugin with the main 
+drawing window.
+
+BUILD INSTRUCTIONS
+
+For now, the plugin expects to be in a sub-directory of the Kismet 
+newcore codebase.
+
+INSTALL INSTRUCTIONS
+
+run "make"
+
+Copy spectools_ui.so to ~/.kismet/client_plugins/
+
+USAGE
+
+Run client
+Kismet->Plugins->Add Plugin
+Kismet->Plugins->Show Spectrum
+

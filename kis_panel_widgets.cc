@@ -2531,6 +2531,8 @@ void Kis_IntGraph::DrawComponent() {
 	if (visible == 0)
 		return;
 
+	char backing[32];
+
 	parent_panel->InitColorPref("panel_text_color", "white,black");
 	parent_panel->ColorFromPref(color_fw, "panel_text_color");
 
@@ -2545,8 +2547,9 @@ void Kis_IntGraph::DrawComponent() {
 	// Zero position on the graph is the bottom, or center, depending
 	// on normal or over/under
 	int gzero = ey - (graph_mode == 1 ? gh : 1) - xgraph_size;
-	// Width - label (TODO label)
+	// Width - label 
 	int gw = lx;
+	unsigned int gxofft;
 
 	// Set the drawing max and min
 	int dmax_y = max_y;
@@ -2565,6 +2568,14 @@ void Kis_IntGraph::DrawComponent() {
 			}
 		}
 	}
+
+	// adjust the drawing size
+	snprintf(backing, 32, " %d ", dmax_y);
+	gxofft = strlen(backing);
+	snprintf(backing, 32, " %d ", dmin_y);
+	if (strlen(backing) > gxofft)
+		gxofft = strlen(backing);
+	gw -= gxofft;
 
 	// Go through from least to greatest priority so that the "high" priority
 	// draws over the old
@@ -2608,7 +2619,11 @@ void Kis_IntGraph::DrawComponent() {
 			} else {
 				nuse = 1;
 				// int gofft = kismin((1.0f / dvsize) * gw, gx);
-				max = (*(data_vec)[x].data)[(int) (((float) gx/gw) * dvsize)];
+				unsigned int pos = (unsigned int) (((float) gx/gw) * dvsize);
+				if (pos >= (*(data_vec)[x].data).size() || pos < 0)
+					max = min_y;
+				else
+					max = (*(data_vec)[x].data)[pos];
 			}
 
 			if (nuse == 0)
@@ -2640,10 +2655,10 @@ void Kis_IntGraph::DrawComponent() {
 
 			for (int gy = gh; gy >= 0; gy--) {
 				if (gy == py)
-					mvwaddstr(window, gzero - (gy * oumod), sx + gx, 
+					mvwaddstr(window, gzero - (gy * oumod), sx + gx + gxofft, 
 							  data_vec[x].line);
 				else if (gy < py)
-					mvwaddstr(window, gzero - (gy * oumod), sx + gx, 
+					mvwaddstr(window, gzero - (gy * oumod), sx + gx + gxofft, 
 							  data_vec[x].fill);
 			}
 		}
@@ -2681,10 +2696,12 @@ void Kis_IntGraph::DrawComponent() {
 
 				for (int gy = gh; gy >= 0; gy--) {
 					if (gy == py)
-						mvwaddstr(window, gzero - (gy * oumod), sx + drawx + rdx, 
+						mvwaddstr(window, gzero - (gy * oumod), 
+								  sx + drawx + rdx + gxofft, 
 								  data_vec[x].line);
-					else if (gy < py)
-						mvwaddstr(window, gzero - (gy * oumod), sx + drawx + rdx, 
+					else if (gy < py && data_vec[x].fill)
+						mvwaddstr(window, gzero - (gy * oumod), 
+								  sx + drawx + rdx + gxofft, 
 								  data_vec[x].fill);
 				}
 
@@ -2695,7 +2712,6 @@ void Kis_IntGraph::DrawComponent() {
 	// Draw the labels (right-hand)
 	int posmod = 0, negmod = 0;
 	// Set the backing blank
-	char backing[32];
 	memset(backing, ' ', 32);
 	if ((maxlabel + 4) >=  32)
 		maxlabel = (32 - 4);
@@ -2729,7 +2745,7 @@ void Kis_IntGraph::DrawComponent() {
 		int lgx = ((float) gw / data_vec[label_x_graphref].data->size()) * 
 			label_x[x].position;
 		for (unsigned int y = 0; y < label_x[x].label.size(); y++) {
-			mvwaddch(window, gzero + y + 1, sx + lgx, label_x[x].label[y]);
+			mvwaddch(window, gzero + y + 1, sx + lgx + gxofft, label_x[x].label[y]);
 		}
 	}
 

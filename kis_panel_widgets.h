@@ -832,6 +832,9 @@ public:
 	virtual void ColorFromPref(int &clr, string in_prefname);
 	virtual int AddColor(string in_color);
 
+	void AddComponentVec(Kis_Panel_Component *in_comp, int in_flags);
+	void DelComponentVec(Kis_Panel_Component *in_comp);
+
 protected:
 	// Bit values of what components are allowed to do
 #define KIS_PANEL_COMP_DRAW			1
@@ -841,9 +844,6 @@ protected:
 		int comp_flags;
 		Kis_Panel_Component *comp;
 	};
-
-	void AddComponentVec(Kis_Panel_Component *in_comp, int in_flags);
-	void DelComponentVec(Kis_Panel_Component *in_comp);
 
 	void DrawComponentVec();
 

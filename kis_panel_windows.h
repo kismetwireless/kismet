@@ -58,8 +58,12 @@ public:
 	virtual Kis_Netlist *FetchDisplayNetlist() { return netlist; }
 
 	// Add a plugin to the plugin menu
-	virtual void AddPluginMenuItem(string in_name, int (*callback)(void *),
+	virtual int AddPluginMenuItem(string in_name, int (*callback)(void *),
 								   void *auxptr);
+
+	virtual void SetPluginMenuItemChecked(int in_mi, int in_checked) {
+		menu->SetMenuItemChecked(in_mi, in_checked);
+	}
 
 	// Passthroughs to the plugin-relevant packing boxes used to build the UI
 	// Network box (contains network and gps-line)

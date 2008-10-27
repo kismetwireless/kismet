@@ -455,8 +455,8 @@ void Kis_Main_Panel::MenuAction(int opt) {
 	}
 }
 
-void Kis_Main_Panel::AddPluginMenuItem(string in_name, int (*callback)(void *),
-									   void *auxptr) {
+int Kis_Main_Panel::AddPluginMenuItem(string in_name, int (*callback)(void *),
+									  void *auxptr) {
 	plugin_menu_opt mo;
 
 	// Hide the "no plugins" menu and make our own item
@@ -466,6 +466,8 @@ void Kis_Main_Panel::AddPluginMenuItem(string in_name, int (*callback)(void *),
 	mo.auxptr = auxptr;
 
 	plugin_menu_vec.push_back(mo);
+
+	return mo.menuitem;
 }
 
 void Kis_Main_Panel::AddColorPref(string in_pref, string in_text) {
@@ -2285,18 +2287,8 @@ int Kis_ChanDetails_Panel::GraphTimer() {
 	graph_label_vec.clear();
 	chansummary->Clear();
 
-	// Add a buffer to the graph so the left edge has some room.  Crappy
-	// way to do this.
-	unsigned int chpos = 3;
+	unsigned int chpos = 0;
 	unsigned int tpos = 0;
-	for (unsigned int x = 0; x < chpos; x++) {
-		sigvec.push_back(-256);
-		noisevec.push_back(-256);
-		packvec.push_back(0);
-		bytevec.push_back(0);
-		netvec.push_back(0);
-		anetvec.push_back(0);
-	}
 
 	for (map<uint32_t, chan_sig_info *>::iterator x = channel_map.begin();
 		 x != channel_map.end(); ++x) {

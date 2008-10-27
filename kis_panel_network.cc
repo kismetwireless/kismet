@@ -629,7 +629,7 @@ void Kis_Netlist::NetClientAdd(KisNetClient *in_cli, int add) {
 void Kis_Netlist::SetPosition(int isx, int isy, int iex, int iey) {
 	Kis_Panel_Component::SetPosition(isx, isy, iex, iey);
 		
-	viewable_lines = ey - 1;
+	viewable_lines = ly - 1;
 	viewable_cols = ex;
 }
 
