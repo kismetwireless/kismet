@@ -522,7 +522,12 @@ int Iwconfig_Set_Channel(const char *in_dev, int in_ch, char *in_err) {
 #ifdef HAVE_LINUX_IWFREQFLAG
 	wrq.u.freq.flags = IW_FREQ_FIXED;
 #endif
-    IwFloat2Freq(in_ch, &wrq.u.freq);
+	// If it's > 1024 then it's in MHz not channel numbers, multiply it by
+	// the MHz constant and send it instead
+	if (in_ch > 1024) 
+		IwFloat2Freq(in_ch * 1e6, &wrq.u.freq);
+	else
+		IwFloat2Freq(in_ch, &wrq.u.freq);
 
     // Try twice with a tiny delay, some cards (madwifi) need a second chance...
     if (ioctl(skfd, SIOCSIWFREQ, &wrq) < 0) {

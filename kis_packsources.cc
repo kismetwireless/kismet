@@ -124,6 +124,19 @@ int RegisterKismetSources(Packetsourcetracker *sourcetracker) {
                                         monitor_wext, unmonitor_wext,
                                         chancontrol_wext, 1);
 
+    sourcetracker->RegisterPacketsource("ath9k", 1, "IEEE80211b", 6,
+                                        pcapsource_wext_registrant,
+                                        monitor_wext, unmonitor_wext,
+                                        chancontrol_wext, 1);
+    sourcetracker->RegisterPacketsource("ath9k_a", 1, "IEEE80211a", 6,
+                                        pcapsource_wext_registrant,
+                                        monitor_wext, unmonitor_wext,
+                                        chancontrol_wext, 1);
+    sourcetracker->RegisterPacketsource("ath9k_ag", 1, "IEEE80211ab", 6,
+                                        pcapsource_wext_registrant,
+                                        monitor_wext, unmonitor_wext,
+                                        chancontrol_wext, 1);
+
     sourcetracker->RegisterPacketsource("madwifi_a", 1, "IEEE80211a", 36,
                                         pcapsource_wextfcs_registrant,
                                         monitor_madwifi_a, unmonitor_madwifi, 
