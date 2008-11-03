@@ -693,6 +693,8 @@ public:
 	struct graph_label {
 		string label;
 		int position;
+		// Used on markers
+		int endposition;
 	}; 
 
 	struct graph_source {

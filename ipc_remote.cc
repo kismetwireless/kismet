@@ -156,6 +156,22 @@ IPCRemote::~IPCRemote() {
 	globalreg->RemovePollableSubsys(this);
 }
 
+int IPCRemote::CheckPidVec() {
+	if (ipc_pid == 0)
+		return 0;
+
+	for (unsigned int x = 0; x < globalreg->sigchild_vec.size(); x++) {
+		if (globalreg->sigchild_vec[x].pid == ipc_pid) {
+			printf("debug - parent found pid %d in child pidvec, handling it\n", ipc_pid);
+			CatchSigChild(globalreg->sigchild_vec[x].status);
+			globalreg->sigchild_vec.erase(globalreg->sigchild_vec.begin() + x);
+			return -1;
+		}
+	}
+
+	return 0;
+}
+
 int IPCRemote::SyncIPCCmd(ipc_sync *data) {
 	// Handle the end-of-sync command
 	if (data->ipc_cmdnum == 0) {
@@ -281,6 +297,15 @@ int IPCRemote::SpawnIPC() {
 
 		// Split into the IPC child control loop if we've forked
 		if (ipc_pid == 0) {
+			signal(SIGINT, SIG_DFL);
+			signal(SIGKILL, SIG_DFL);
+			signal(SIGHUP, SIG_IGN);
+			signal(SIGPIPE, SIG_IGN);
+			signal(SIGCHLD, SIG_IGN);
+
+			// Write a single byte on the FD to sync us
+			write(sockpair[0], &(sockpair[0]), 1);
+
 			// Run the client binary if we have one
 			if (child_cmd != "") {
 				char **cmdarg = new char *[3];
@@ -290,7 +315,12 @@ int IPCRemote::SpawnIPC() {
 
 				snprintf(cmdarg[1], 4, "%d", sockpair[0]);
 
-				execve(cmdarg[0], cmdarg, NULL);
+				if (execve(cmdarg[0], cmdarg, NULL) < 0) {
+					int status = errno;
+					fprintf(stderr, "Failed to exec as IPC child: %s\n", 
+							strerror(status));
+					exit(status);
+				}
 			}
 
 			IPC_Child_Loop();
@@ -299,6 +329,10 @@ int IPCRemote::SpawnIPC() {
 
 		// Close the parent half of the socket pair
 		close(sockpair[0]);
+
+		// Blocking read the sync byte
+		char sync;
+		read(sockpair[1], &sync, 1);
 	}
 
 	// We've spawned, can't set new commands anymore
@@ -348,14 +382,23 @@ int IPCRemote::SyncIPC() {
 }
 
 int IPCRemote::ShutdownIPC(ipc_packet *pack) {
-	if (ipc_spawned == 0) 
+	if (ipc_spawned <= 0) 
 		return 0;
 
+	int r = 0, s = 0;
+
 	int sock;
-	if (ipc_pid == 0)
+	if (ipc_pid == 0) {
 		sock = sockpair[0];
-	else
+	} else {
 		sock = sockpair[1];
+		r = waitpid(ipc_pid, &s, WNOHANG);
+		if (WIFEXITED(s) || r < 0) {
+			ipc_spawned = -1;
+			IPCDie();
+			return 0;
+		}
+	}
 
 	// If we have a last frame, send it
 	if (pack != NULL) {
@@ -419,9 +462,9 @@ void IPCRemote::IPC_Child_Loop() {
 
 	// ignore a bunch of signals
 	signal(SIGINT, SIG_IGN);
-	signal(SIGTERM, SIG_IGN);
 	signal(SIGHUP, SIG_IGN);
 	signal(SIGPIPE, SIG_IGN);
+	signal(SIGCHLD, SIG_IGN);
 
 	// Set the process title
 	init_proc_title(globalreg->argc, globalreg->argv, globalreg->envp);
@@ -464,12 +507,12 @@ void IPCRemote::IPC_Child_Loop() {
 
 void IPCRemote::IPCDie() {
 	// If we're the child...
-	if (ipc_pid == 0 && ipc_spawned) {
+	if (ipc_pid == 0 && ipc_spawned > 0) {
 		// Shut down the child socket fd
 		close(sockpair[0]);
 		// and exit, we're done
 		exit(0);
-	} else if (ipc_spawned) {
+	} else if (ipc_spawned > 0) {
 		// otherwise if we're the parent...
 		// Shut down the socket
 		close(sockpair[1]);
@@ -482,7 +525,7 @@ void IPCRemote::IPCDie() {
 			(int) ipc_pid << " to end.";
 		_MSG(osstr.str(), MSGFLAG_INFO);
 
-		wait4(ipc_pid, NULL, 0, NULL);
+		waitpid(ipc_pid, NULL, 0);
 
 		ipc_pid = 0;
 		ipc_spawned = 0;
@@ -505,7 +548,7 @@ unsigned int IPCRemote::MergeSet(unsigned int in_max_fd, fd_set *out_rset,
 	// process... also do nothing if we haven't spawned yet.
 	//
 	// Let a forked child operate normally
-	if ((ipc_pid == 0 && child_exec_mode == 0) || ipc_spawned == 0)
+	if ((ipc_pid == 0 && child_exec_mode == 0) || ipc_spawned <= 0 || CheckPidVec() < 0)
 		return in_max_fd;
 
 	if (child_exec_mode)
@@ -532,8 +575,8 @@ int IPCRemote::Poll(fd_set& in_rset, fd_set& in_wset) {
 	// by the normal pollable architecture.  In the child we manually call it
 	// from our micro-select loop.
 	
-	if (ipc_spawned == 0)
-		return 0;
+	if (ipc_spawned <= 0 || CheckPidVec() < 0)
+		return -1;
 
 	ostringstream osstr;
 	int sock;
@@ -565,6 +608,7 @@ int IPCRemote::Poll(fd_set& in_rset, fd_set& in_wset) {
 						"for IPC child pid " << ipc_pid << ": " << strerror(errno);
 					_MSG(osstr.str(), MSGFLAG_FATAL);
 					globalreg->fatal_condition = 1;
+					ipc_spawned = -1;
 				}
 			}
 

@@ -309,15 +309,18 @@ void CatchChild(int sig) {
 		return;
 
 	while (1) {
-		pid = wait3(&status, WNOHANG, NULL);
+		pid = waitpid(-1, &status, WNOHANG);
 
 		if (pid != 0)
 			break;
 	}
 
-	fprintf(stderr, "FATAL - Child %u failed\n", pid);
+	pid_fail frec;
 
-	CatchShutdown(sig);
+	frec.pid = pid;
+	frec.status = status;
+
+	globalregistry->sigchild_vec.push_back(frec);
 }
 
 int Usage(char *argv) {
@@ -398,7 +401,8 @@ int main(int argc, char *argv[], char *envp[]) {
 	// Generate the root ipc packet capture and spawn it immediately, then register
 	// and sync the packet protocol stuff
 	if (getuid() != 0) {
-		globalregistry->rootipc = new IPCRemote(globalregistry, "root capture control");
+		globalregistry->rootipc = new PSTIPCRemote(globalregistry, 
+												   "root capture control");
 		globalregistry->rootipc->SetChildCmd(string(BIN_LOC) + "/kismet_capture");
 		globalregistry->rootipc->SpawnIPC();
 		globalregistry->messagebus->InjectMessage("Spawned root IPC capture control",
@@ -721,8 +725,7 @@ int main(int argc, char *argv[], char *envp[]) {
 
 		globalregistry->timetracker->Tick();
 
-		for (unsigned int x = 0; x < globalregistry->subsys_pollable_vec.size(); 
-			 x++) {
+		for (unsigned int x = 0; x < globalregistry->subsys_pollable_vec.size(); x++) {
 			if (globalregistry->subsys_pollable_vec[x]->Poll(rset, wset) < 0 &&
 				globalregistry->fatal_condition) {
 				CatchShutdown(-1);

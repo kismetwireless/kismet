@@ -124,6 +124,11 @@ public:
 	// to be registered before spawn
 	virtual int SyncIPC();
 
+	// Get a shutdown
+	virtual void CatchSigChild(int status) {
+		ShutdownIPC(NULL);
+	}
+
 	// Shutdown takes an optional final packet to send before sending the
 	// death packet
 	virtual int ShutdownIPC(ipc_packet *pack);
@@ -171,6 +176,8 @@ protected:
 
 	// Internal die functions
 	virtual void IPCDie();
+
+	virtual int CheckPidVec();
 	
 	GlobalRegistry *globalreg;
 

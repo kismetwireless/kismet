@@ -28,6 +28,7 @@
 #include <vector>
 #include <algorithm>
 #include <string>
+#include <errno.h>
 
 #include "globalregistry.h"
 #include "timetracker.h"
@@ -153,6 +154,31 @@ typedef void (*SourceActCallback)(SOURCEACT_PARMS);
 #define SOURCEACT_HOPDISABLE	3
 #define SOURCEACT_CHVECTOR		4
 #define SOURCEACT_CHHOPDWELL	5
+
+class PSTIPCRemote : public IPCRemote {
+public:
+	PSTIPCRemote() { IPCRemote(); }
+	PSTIPCRemote(GlobalRegistry *in_globalreg, string procname) : 
+		IPCRemote(in_globalreg, procname) { }
+	virtual ~PSTIPCRemote() { }
+
+	virtual void CatchSigChild(int status) {
+		_MSG("Suid-root control binary failed: " + 
+			 string(strerror(WEXITSTATUS(status))), MSGFLAG_FATAL);
+
+		if (WEXITSTATUS(status) == EACCES) 
+			_MSG("Permission denied executing the root capture binary.  Make sure "
+				 "that your user is part of the Kismet capture group "
+				 "(by default, this group is \"kismet\").  If you just added your user "
+				 "to this group, you will need to log out and in again.  You can check "
+				 "what groups your user is in with the \"groups\" command.",
+				 MSGFLAG_FATAL);
+
+		globalreg->fatal_condition = 1;
+		IPCRemote::ShutdownIPC(NULL);
+
+	}
+};
 
 class Packetsourcetracker : public Pollable {
 public:

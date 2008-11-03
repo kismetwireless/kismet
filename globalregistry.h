@@ -21,6 +21,7 @@
 
 #include "config.h"
 
+#include <unistd.h>
 #include "version.h"
 #include "util.h"
 #include "macaddr.h"
@@ -109,6 +110,12 @@ class KisPanelInterface;
 // Send a msg via gloablreg msgbus
 #define _MSG(x, y)	globalreg->messagebus->InjectMessage((x), (y))
 
+// Record how a pid died
+struct pid_fail {
+	pid_t pid;
+	int status;
+};
+
 // Global registry of references to tracker objects and preferences.  This 
 // should supplant the masses of globals and externs we'd otherwise need.
 // 
@@ -159,6 +166,9 @@ public:
 
 	// Vector of dumpfiles to close cleanly
 	vector<Dumpfile *> subsys_dumpfile_vec;
+
+	// Vector of child signals
+	vector<pid_fail> sigchild_vec;
 	
     time_t start_time;
     string servername;
