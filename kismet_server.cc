@@ -315,10 +315,7 @@ void CatchChild(int sig) {
 			break;
 	}
 
-	printf("debug - sigchild %d wait returned %d %d %s\n", getpid(), pid, status, strerror(errno));
-
 	if (pid < 0) {
-		printf("debug - ditching out of pid handler\n");
 		return;
 	}
 
