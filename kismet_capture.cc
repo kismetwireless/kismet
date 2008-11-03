@@ -128,6 +128,7 @@ int main(int argc, char *argv[], char *envp[]) {
     signal(SIGTERM, CatchShutdown);
     signal(SIGHUP, CatchShutdown);
     signal(SIGPIPE, SIG_IGN);
+	signal(SIGCHLD, SIG_IGN);
 
 	// Start filling in key components of the globalregistry
 	globalreg = new GlobalRegistry;

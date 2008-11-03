@@ -155,7 +155,7 @@ int PacketSource_Wext::EnableMonitor() {
 	// Bring the interface up, zero its IP, etc
 	if (Ifconfig_Delta_Flags(interface.c_str(), errstr, 
 							 IFF_UP | IFF_RUNNING | IFF_PROMISC) < 0) {
-		_MSG(errstr, MSGFLAG_FATAL);
+		_MSG(errstr, MSGFLAG_PRINTERROR);
 		_MSG("Failed to bring up interface '" + interface + "', check your "
 			 "permissions and configuration, and consult the Kismet README file",
 			 MSGFLAG_PRINTERROR);
