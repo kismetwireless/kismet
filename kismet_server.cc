@@ -405,17 +405,21 @@ int main(int argc, char *argv[], char *envp[]) {
 	// Generate the root ipc packet capture and spawn it immediately, then register
 	// and sync the packet protocol stuff
 	if (getuid() != 0) {
+		globalregistry->messagebus->InjectMessage("Not running as root - will try to "
+			"launch root control binary (" + string(BIN_LOC) + "/kismet_capture) to "
+			"control cards.", MSGFLAG_INFO);
+
 		globalregistry->rootipc = new PSTIPCRemote(globalregistry, 
-												   "root capture control");
+												   "kismet control");
 		globalregistry->rootipc->SetChildCmd(string(BIN_LOC) + "/kismet_capture");
 		globalregistry->rootipc->SpawnIPC();
-		globalregistry->messagebus->InjectMessage("Spawned root IPC capture control",
-												  MSGFLAG_INFO);
 	} else {
-		globalregistry->messagebus->InjectMessage("NOT spawning suid-root IPC capture "
-		   	"control, because we are ALREADY running as root.  This is not the "
-			"preferred method of running Kismet because it prevents certain security "
-			"features from operating.", MSGFLAG_ERROR);
+		globalregistry->messagebus->InjectMessage(
+			"Kismet was started as root, NOT launching external control binary.  "
+			"This is NOT the preferred method of starting Kismet as Kismet will "
+			"continue to run as root the entire time.  Please read the README "
+			"file section about Installation & Security and be sure this is "
+			"what you want to do.", MSGFLAG_ERROR);
 	}
 
 	// Allocate some other critical stuff
