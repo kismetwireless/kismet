@@ -1750,8 +1750,18 @@ int Netracker::netracker_chain_handler(kis_packet *in_pack) {
 											   packinfo->channel, outs.str());
 		}
 
-		net->channel = packinfo->channel;
-		cli->channel = packinfo->channel;
+		if (packinfo->channel != 0) {
+			// Inherit the channel from the beacon
+			net->channel = packinfo->channel;
+			cli->channel = packinfo->channel;
+		} else if (l1info != NULL) {
+			// Otherwise inherit it from the radio layer.  Arguably this could 
+			// lie for 2.4ghz stuff, but a 2.4ghz beacon should always have
+			// the channel in it.  5ghz (and presumably 4.x ghz) networks don't
+			// carry the beacon
+			net->channel = FreqToChan(l1info->freq_mhz);
+			cli->channel = net->channel;
+		}
 
 		if (l1info != NULL) {
 			if (cli->freq_mhz_map.find(l1info->freq_mhz) != cli->freq_mhz_map.end())
