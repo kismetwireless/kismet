@@ -145,6 +145,24 @@ int Protocol_SOURCE(PROTO_PARMS) {
 				osstr << psrc->tm_hop_time.tv_usec;
 				cache->Cache(fnum, osstr.str());
 				break;
+
+			case SOURCE_channellist:
+				if (psrc->channel_ptr == NULL) {
+					cache->Cache(fnum, IntToString(psrc->channel));
+				} else {
+					for (unsigned int c = 0; c < psrc->channel_ptr->channel_vec.size();
+						 c++) {
+						osstr << psrc->channel_ptr->channel_vec[c].channel;
+						if (psrc->channel_ptr->channel_vec[c].dwell != 0)
+							osstr << ":" << psrc->channel_ptr->channel_vec[c].dwell;
+
+						if (c != psrc->channel_ptr->channel_vec.size() - 1)
+							osstr << ",";
+					}
+					cache->Cache(fnum, osstr.str());
+				}
+
+				break;
 		}
 
 		out_string += cache->GetCache(fnum) + " ";
