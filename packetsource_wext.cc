@@ -133,7 +133,9 @@ int PacketSource_Wext::RegisterSources(Packetsourcetracker *tracker) {
 	tracker->RegisterPacketProto("rt73", this, "IEEE80211b", 1);
 	tracker->RegisterPacketProto("rt73usb", this, "IEEE80211b", 1);
 	tracker->RegisterPacketProto("rt8180", this, "IEEE80211b", 1);
-	tracker->RegisterPacketProto("rt8187", this, "IEEE80211b", 1);
+	tracker->RegisterPacketProto("rt8187", this, "IEEE80211g", 1);
+	tracker->RegisterPacketProto("rtl8180", this, "IEEE80211b", 1);
+	tracker->RegisterPacketProto("rtl8187", this, "IEEE80211g", 1);
 	tracker->RegisterPacketProto("wl", this, "IEEE80211b", 1);
 	tracker->RegisterPacketProto("zd1211", this, "IEEE80211b", 1);
 	tracker->RegisterPacketProto("zd1201", this, "IEEE80211b", 1);
@@ -144,6 +146,13 @@ int PacketSource_Wext::RegisterSources(Packetsourcetracker *tracker) {
 
 int PacketSource_Wext::EnableMonitor() {
 	char errstr[STATUS_MAX];
+
+	if (type == "rtl8187") {
+		_MSG("Enabling monitor on a RTL8187 device.  Some driver versions appear to take "
+			 "a VERY long time for the device to wake up while enabling monitor (10-30 "
+			 "seconds).  While this is happening, Kismet may appear to have locked up.",
+			 MSGFLAG_PRINTERROR);
+	}
 
 	if (Ifconfig_Get_Flags(interface.c_str(), errstr, &stored_flags) < 0) {
 		_MSG(errstr, MSGFLAG_PRINTERROR);
