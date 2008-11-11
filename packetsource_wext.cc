@@ -147,37 +147,11 @@ int PacketSource_Wext::RegisterSources(Packetsourcetracker *tracker) {
 int PacketSource_Wext::EnableMonitor() {
 	char errstr[STATUS_MAX];
 
-	if (type == "rtl8187") {
-		_MSG("Enabling monitor on a RTL8187 device.  Some driver versions appear to take "
-			 "a VERY long time for the device to wake up while enabling monitor (10-30 "
-			 "seconds).  While this is happening, Kismet may appear to have locked up.",
-			 MSGFLAG_PRINTERROR);
-	}
-
 	if (Ifconfig_Get_Flags(interface.c_str(), errstr, &stored_flags) < 0) {
 		_MSG(errstr, MSGFLAG_PRINTERROR);
 		_MSG("Failed to get interface flags for '" + interface + "', "
 			 "this will probably fully fail in a moment when we try to configure "
 			 "the interface, but we'll keep going.", MSGFLAG_PRINTERROR);
-	}
-
-	// Bring the interface up, zero its IP, etc
-	if (Ifconfig_Delta_Flags(interface.c_str(), errstr, 
-							 IFF_UP | IFF_RUNNING | IFF_PROMISC) < 0) {
-		_MSG(errstr, MSGFLAG_PRINTERROR);
-		_MSG("Failed to bring up interface '" + interface + "', check your "
-			 "permissions and configuration, and consult the Kismet README file",
-			 MSGFLAG_PRINTERROR);
-		return -1;
-	}
-
-	// Try to grab the channel
-	if ((stored_channel = Iwconfig_Get_Channel(interface.c_str(), errstr)) < 0) {
-		_MSG(errstr, MSGFLAG_PRINTERROR);
-		_MSG("Failed to get the current channel for interface '" + interface + 
-			 "'.  This may be a fatal problem, but we'll keep going in case "
-			 "the drivers are reporting incorrectly.", MSGFLAG_PRINTERROR);
-		stored_channel = -1;
 	}
 
 	// Try to grab the wireless mode
@@ -193,8 +167,29 @@ int PacketSource_Wext::EnableMonitor() {
 		if (Iwconfig_Set_Mode(interface.c_str(), errstr, LINUX_WLEXT_MONITOR) < 0) {
 			/* Bring the interface down and try again */
 			_MSG("Failed to set monitor mode on interface '" + interface + "' "
-				 "while up, bringing interface down and trying again.",
+				 "in current state, bringing interface down and trying again",
 				 MSGFLAG_ERROR);
+
+#if 0
+			// Bring the interface up, zero its IP, etc
+			if (Ifconfig_Delta_Flags(interface.c_str(), errstr, 
+									 IFF_UP | IFF_RUNNING | IFF_PROMISC) < 0) {
+				_MSG(errstr, MSGFLAG_PRINTERROR);
+				_MSG("Failed to bring up interface '" + interface + "', check your "
+					 "permissions and configuration, and consult the Kismet README file",
+					 MSGFLAG_PRINTERROR);
+				return -1;
+			}
+
+			// Try to grab the channel
+			if ((stored_channel = Iwconfig_Get_Channel(interface.c_str(), errstr)) < 0) {
+				_MSG(errstr, MSGFLAG_PRINTERROR);
+				_MSG("Failed to get the current channel for interface '" + interface + 
+					 "'.  This may be a fatal problem, but we'll keep going in case "
+					 "the drivers are reporting incorrectly.", MSGFLAG_PRINTERROR);
+				stored_channel = -1;
+			}
+#endif
 
 			int oldflags;
 			Ifconfig_Get_Flags(interface.c_str(), errstr, &oldflags);
@@ -228,10 +223,10 @@ int PacketSource_Wext::EnableMonitor() {
 			if (Ifconfig_Delta_Flags(interface.c_str(), errstr, 
 									 IFF_UP | IFF_RUNNING | IFF_PROMISC) < 0) {
 				_MSG(errstr, MSGFLAG_FATAL);
-				_MSG("Failed to bring up interface '" + interface + "' after "
-					 "bringing it down to set monitor mode, check the "
-					 "output of `dmesg'.  This usually means there is some "
-					 "problem with the driver.", MSGFLAG_PRINTERROR);
+				_MSG("Failed to bring up interface '" + interface + "', this "
+					 "often means there is a problem with the driver (such as "
+					 "missing firmware), check the output of `dmesg'.",
+					 MSGFLAG_PRINTERROR);
 				return -1;
 			}
 
@@ -239,6 +234,16 @@ int PacketSource_Wext::EnableMonitor() {
 	} else {
 		_MSG("Interface '" + interface + "' is already marked as being in "
 			 "monitor mode, leaving it as it is.", MSGFLAG_INFO);
+
+		if (Ifconfig_Delta_Flags(interface.c_str(), errstr, 
+								 IFF_UP | IFF_RUNNING | IFF_PROMISC) < 0) {
+			_MSG(errstr, MSGFLAG_FATAL);
+			_MSG("Failed to bring up interface '" + interface + "', this "
+				 "often means there is a problem with the driver (such as "
+				 "missing firmware), check the output of `dmesg'.",
+				 MSGFLAG_PRINTERROR);
+			return -1;
+		}
 
 		return 0;
 	}
