@@ -245,6 +245,18 @@ Kis_Main_Panel::Kis_Main_Panel(GlobalRegistry *in_globalreg,
 
 	addref = 
 		kpinterface->Add_NetCli_AddCli_CB(KisMainPanel_AddCli, (void *) this);
+
+	if (kpinterface->prefs.FetchOpt("autoconnect") == "true" &&
+		kpinterface->prefs.FetchOpt("default_host") != "" &&
+		kpinterface->prefs.FetchOpt("default_port") != "") {
+		string constr = string("tcp://") +
+			kpinterface->prefs.FetchOpt("default_host") + ":" +
+			kpinterface->prefs.FetchOpt("default_port");
+
+		_MSG("Auto-connecting to " + constr, MSGFLAG_INFO);
+
+		kpinterface->AddNetClient(constr, 1);
+	}
 }
 
 Kis_Main_Panel::~Kis_Main_Panel() {
@@ -2295,9 +2307,12 @@ int Kis_ChanDetails_Panel::GraphTimer() {
 		if (x->second->sig_rssi != 0) {
 			sigvec.push_back(x->second->sig_rssi);
 			noisevec.push_back(x->second->noise_rssi);
-		} else {
+		} else if (x->second->sig_dbm != 0) {
 			sigvec.push_back(x->second->sig_dbm);
 			noisevec.push_back(x->second->noise_dbm);
+		} else {
+			sigvec.push_back(-256);
+			noisevec.push_back(-256);
 		}
 
 		packvec.push_back(x->second->packets_delta);

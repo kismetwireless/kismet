@@ -331,19 +331,6 @@ int main(int argc, char *argv[], char *envp[]) {
 											  "activate menus.", 
 											  MSGFLAG_INFO);
 
-	if (globalregistry->panel_interface->prefs.FetchOpt("autoconnect") == "true" &&
-		globalregistry->panel_interface->prefs.FetchOpt("default_host") != "" &&
-		globalregistry->panel_interface->prefs.FetchOpt("default_port") != "") {
-		string constr = string("tcp://") +
-			globalregistry->panel_interface->prefs.FetchOpt("default_host") + ":" +
-			globalregistry->panel_interface->prefs.FetchOpt("default_port");
-
-		globalregistry->messagebus->InjectMessage("Auto-connecting to " + constr,
-												  MSGFLAG_INFO);
-
-		globalregistry->panel_interface->AddNetClient(constr, 1);
-	}
-
 	int max_fd = 0;
 	fd_set rset, wset;
 	struct timeval tm;

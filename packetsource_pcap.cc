@@ -687,10 +687,10 @@ int PacketSource_Pcap::Radiotap2KisPack(kis_packet *packet, kis_datachunk *linkc
                         radioheader->carrier = carrier_unknown;
                     break;
                 case IEEE80211_RADIOTAP_RATE:
-		    /* strip basic rate bit & convert to kismet units */
+					/* strip basic rate bit & convert to kismet units */
                     radioheader->datarate = ((u.u8 &~ 0x80) / 2) * 10;
                     break;
-				/*
+				/* ignore DB values, they're not helpful
                 case IEEE80211_RADIOTAP_DB_ANTSIGNAL:
                     radioheader->signal_dbm = u.i8;
                     break;
