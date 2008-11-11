@@ -761,23 +761,20 @@ uint16_t Packetsourcetracker::AddPacketSource(string in_source,
 
 		if (FetchOpt("channel", &options) == "") {
 			_MSG("Source '" + interface + "' has no no channel= in the source "
-				 "options but has channel hopping disabled, specify a channel",
-				 MSGFLAG_ERROR);
-			delete pstsource;
-			return 0;
+				 "options and has channel hopping disabled, it will be left on "
+				 "whatever channel it is currently on", MSGFLAG_INFO);
+		} else {
+			if (sscanf(FetchOpt("channel", &options).c_str(), "%hu", 
+					   &(pstsource->channel)) != 1) {
+				_MSG("Invalid channel for source '" + interface + "', expected "
+					 "channel number or frequency", MSGFLAG_ERROR);
+				delete pstsource;
+				return 0;
+			}
+
+			_MSG("Source '" + interface + "' will be locked to channel " +
+				 FetchOpt("channel", &options), MSGFLAG_INFO);
 		}
-
-		if (sscanf(FetchOpt("channel", &options).c_str(), "%hu", 
-				   &(pstsource->channel)) != 1) {
-			_MSG("Invalid channel for source '" + interface + "', expected "
-				 "channel number or frequency", MSGFLAG_ERROR);
-			delete pstsource;
-			return 0;
-		}
-
-		_MSG("Source '" + interface + "' will be locked to channel " +
-			 FetchOpt("channel", &options), MSGFLAG_INFO);
-
 	} 
 	
 	if (FetchOpt("hop", &options) == "" && FetchOpt("channel", &options) != "" &&
@@ -2002,8 +1999,6 @@ void Packetsourcetracker::ChannelTimer() {
 
 			// printf("debug - hop list new channel %d\n", pst->channel);
 
-			// Set the delay to be the hopdwell of the channel times the 
-			// overall hopping rate
 			if (pst->strong_source->FetchError() == 0 && 
 				pst->strong_source->SetChannel(pst->channel) < 0) {
 				pst->consec_channel_err++;

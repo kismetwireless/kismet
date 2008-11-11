@@ -94,19 +94,21 @@ public:
 	virtual void RaiseServerPicker(string in_title, kpi_sl_cb_hook in_hook,
 								   void *in_aux);
 
-	// Internal structure for tracking cards
+	// We track cards at the interface level because we need instant feedback on them
+	// without waiting for individual widgets to do their own activate and poll, though
+	// a widget CAN still directly talk the SOURCE protocol if it needs to
 	struct knc_card {
 		// Last time this record got updated
 		time_t last_update;
 
-		// Hash for the UUID, used as a placeholder in the table since
+		// Hash for the UUID, used as a placeholder in the select table since
 		// we need just an int there.  We hope this never collides, and if it
 		// does, we'll figure out some other way to deal with this
 		uint32_t uuid_hash;
 
 		string interface;
 		string type;
-		string username;
+		string name;
 
 		// We need a copy of this anyhow
 		uuid carduuid; 
@@ -114,14 +116,15 @@ public:
 		int channel;
 		int packets;
 		int hopping;
+		int hopvelocity;
+		int dwell;
 
-		// Once we add it to the server we need to support storing the
-		// list of channels supported and screen channel locks to the
-		// appropriate sources
+		// Store as a string since we don't necessarily care
+		string channellist;
 	};
 
 	// Internal parser for the CARD proto, linked to the callback
-	void NetClientCARD(CLIPROTO_CB_PARMS);
+	void proto_SOURCE(CLIPROTO_CB_PARMS);
 	// Fetch the list of cards from the system
 	map<uuid, KisPanelInterface::knc_card *> *FetchNetCardMap();
 

@@ -77,6 +77,8 @@ public:
 					  vector<opt_pair> *in_opts); 
 	virtual ~PacketSource_Wext() { }
 
+	virtual int ParseOptions(vector<opt_pair> *in_opts);
+
 	// Should be, something can override if it needs
 	virtual int FetchChannelCapable() { return 1; }
 
@@ -102,6 +104,8 @@ protected:
 	int stored_channel;
 	int stored_mode;
 	int stored_privmode;
+
+	string vap;
 
 	virtual void FetchRadioData(kis_packet *in_packet);
 };	

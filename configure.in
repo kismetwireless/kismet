@@ -754,6 +754,51 @@ if test "$bsdradiotap" = "yes"; then
 	radiotaploc="system (BSD)"
 fi
 
+havenetlink=no
+if test "$linux" = "yes"; then
+havenetlink=yes
+	AC_CHECK_HEADERS([asm/types.h netlink/genl/genl.h netlink/genl/family.h netlink/genl/ctrl.h netlink/msg.h netlink/attr.h linux/nl80211.h linux/if_arp.h linux/wireless.h], 
+	AC_DEFINE(HAVE_NETLINKHEADERS, 1, Netlink headers are there), 
+	havenetlink=no)
+
+if test "$havenetlink" = "yes"; then
+	AC_CHECK_LIB([nl], [nl_handle_alloc],
+    AC_DEFINE(HAVE_LIBNL, 1, libnl netlink library), havenetlink=no)
+else
+	AC_MSG_WARN(Missing headers for netlink support will not be able to control mac80211 vaps)
+fi
+
+if test "$havenetlink" = "yes"; then
+	LIBS="$LIBS -lnl"
+	AC_MSG_CHECKING(For mac80211 support in netlink library)
+	AC_LINK_IFELSE([AC_LANG_PROGRAM([[
+			#include <stdio.h>
+			#include <asm/types.h>
+			#include <netlink/genl/genl.h>
+			#include <netlink/genl/family.h>
+			#include <netlink/genl/ctrl.h>
+			#include <netlink/msg.h>
+			#include <netlink/attr.h>
+			#include <linux/nl80211.h>
+			#include <linux/if_arp.h>
+			#include <linux/wireless.h>
+			]], [[
+			NL80211_IFTYPE_MONITOR;
+			return 0;
+			]])],[havenetlink=yes],[havenetlink=no])
+else
+	AC_MSG_WARN(Missing libnl netlink library will no tbe able to control mac80211 vaps)
+fi
+
+if test "$havenetlink" = "yes"; then
+	AC_MSG_RESULT(yes)
+	AC_DEFINE(HAVE_LINUX_NETLINK, 1, Netlink works) 
+else
+	AC_MSG_RESULT(no netlink support for mac80211 will not be able to control mac80211 vaps)
+fi
+
+fi
+
 AC_ARG_ENABLE(setuid, [  --disable-setuid        disable setuid/privdrop ability (not reccomended)],,suid=yes)
 
 suidgroup="kismet"
@@ -942,6 +987,14 @@ if test "$havecap" = "yes"; then
 	echo "yes";
 else
 	echo "no";
+fi
+printf "         Linux Netlink: "
+if test "$havenetlink" = "yes"; then
+	echo "yes (mac80211 VAP creation)";
+elif test "$linux" != "yes"; then
+	echo "n/a (only Linux)"
+else
+	echo "no (will not be able to make mac80211 vaps)";
 fi
 
 # printf "               SQLite3: "

@@ -52,6 +52,7 @@ Available source options:
     dwell=#             Dwell on each channel for # seconds
     split=true|false    Disable channel list splitting (will not share a list of
                          channels over multiple sources)
+    vap=interface       Create a VAP interface (mac80211)
 
 Newcore channels:
 

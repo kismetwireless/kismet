@@ -6,6 +6,9 @@
 /* libairpcap header */
 #undef HAVE_AIRPCAP_H
 
+/* Define to 1 if you have the <asm/types.h> header file. */
+#undef HAVE_ASM_TYPES_H
+
 /* BSD radiotap packet headers */
 #undef HAVE_BSD_SYS_RADIOTAP
 
@@ -42,6 +45,9 @@
 /* NCurses terminal lib */
 #undef HAVE_LIBNCURSES
 
+/* libnl netlink library */
+#undef HAVE_LIBNL
+
 /* Panel terminal lib */
 #undef HAVE_LIBPANEL
 
@@ -54,11 +60,23 @@
 /* Define to 1 if you have the <libutil.h> header file. */
 #undef HAVE_LIBUTIL_H
 
+/* Define to 1 if you have the <linux/if_arp.h> header file. */
+#undef HAVE_LINUX_IF_ARP_H
+
 /* Linux wireless iwfreq.flag */
 #undef HAVE_LINUX_IWFREQFLAG
 
+/* Netlink works */
+#undef HAVE_LINUX_NETLINK
+
+/* Define to 1 if you have the <linux/nl80211.h> header file. */
+#undef HAVE_LINUX_NL80211_H
+
 /* Linux wireless extentions present */
 #undef HAVE_LINUX_WIRELESS
+
+/* Define to 1 if you have the <linux/wireless.h> header file. */
+#undef HAVE_LINUX_WIRELESS_H
 
 /* local radiotap packet headers */
 #undef HAVE_LOCAL_RADIOTAP
@@ -71,6 +89,24 @@
 
 /* Define to 1 if you have the <netdb.h> header file. */
 #undef HAVE_NETDB_H
+
+/* Netlink headers are there */
+#undef HAVE_NETLINKHEADERS
+
+/* Define to 1 if you have the <netlink/attr.h> header file. */
+#undef HAVE_NETLINK_ATTR_H
+
+/* Define to 1 if you have the <netlink/genl/ctrl.h> header file. */
+#undef HAVE_NETLINK_GENL_CTRL_H
+
+/* Define to 1 if you have the <netlink/genl/family.h> header file. */
+#undef HAVE_NETLINK_GENL_FAMILY_H
+
+/* Define to 1 if you have the <netlink/genl/genl.h> header file. */
+#undef HAVE_NETLINK_GENL_GENL_H
+
+/* Define to 1 if you have the <netlink/msg.h> header file. */
+#undef HAVE_NETLINK_MSG_H
 
 /* pcap/pcap.h */
 #undef HAVE_PCAPPCAP_H

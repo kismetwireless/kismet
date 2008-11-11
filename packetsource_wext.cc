@@ -57,6 +57,21 @@ PacketSource_Wext::PacketSource_Wext(GlobalRegistry *in_globalreg,
 	if (type == "nokia770") {
 		SetValidateCRC(1);
 	}
+
+	ParseOptions(in_opts);
+}
+
+int PacketSource_Wext::ParseOptions(vector<opt_pair> *in_opts) {
+	PacketSource_Pcap::ParseOptions(in_opts);
+
+	if (FetchOpt("vap", in_opts) != "") {
+		vap = FetchOpt("vap", in_opts);
+		_MSG("Source '" + interface + "' will attempt to create a monitor-only "
+			 "VAP '" + vap + "' instead of reconfiguring the main interface", 
+			 MSGFLAG_INFO);
+	}
+
+	return 1;
 }
 
 int PacketSource_Wext::AutotypeProbe(string in_device) {
@@ -67,7 +82,7 @@ int PacketSource_Wext::AutotypeProbe(string in_device) {
 	sysdriver = Linux_GetSysDrv(in_device.c_str());
 
 	// Most of the linux drivers now behave sanely
-	if (sysdriver == "iwl4965" || sysdriver == "iwl3945" ||
+	if (sysdriver == "iwl4965" || sysdriver == "iwl3945" || sysdriver == "iwlagn" ||
 		sysdriver == "adm8211" || sysdriver == "ath5k" ||
 		sysdriver == "ath9k" || sysdriver == "b43" ||
 		sysdriver == "ath5k_pci" || sysdriver == "ath9k_pci" ||
@@ -119,6 +134,7 @@ int PacketSource_Wext::RegisterSources(Packetsourcetracker *tracker) {
 	tracker->RegisterPacketProto("ipw3945", this, "IEEE80211ab", 1);
 	tracker->RegisterPacketProto("iwl3945", this, "IEEE80211ab", 1);
 	tracker->RegisterPacketProto("iwl4965", this, "IEEE80211ab", 1);
+	tracker->RegisterPacketProto("iwlagn", this, "IEEE80211ab", 1);
 	tracker->RegisterPacketProto("libertas", this, "IEEE80211b", 1);
 	tracker->RegisterPacketProto("nokia770", this, "IEEE80211b", 1);
 	tracker->RegisterPacketProto("prism54", this, "IEEE80211b", 1);
@@ -146,6 +162,19 @@ int PacketSource_Wext::RegisterSources(Packetsourcetracker *tracker) {
 
 int PacketSource_Wext::EnableMonitor() {
 	char errstr[STATUS_MAX];
+
+	// Defer the vap creation to here so we're sure we're root
+	if (vap != "") {
+		_MSG("Source '" + interface + "' attempting to create mac80211 VAP '" + 
+			 vap + "'", MSGFLAG_INFO);
+		if (mac80211_createvap(interface.c_str(), vap.c_str(), errstr) < 0) {
+			_MSG("Source '" + interface + "' failed to create mac80211 VAP: " +
+				 string(errstr), MSGFLAG_PRINTERROR);
+			return -1;
+		}
+
+		interface = vap;
+	}
 
 	if (Ifconfig_Get_Flags(interface.c_str(), errstr, &stored_flags) < 0) {
 		_MSG(errstr, MSGFLAG_PRINTERROR);

@@ -91,6 +91,9 @@ float IwFreq2Float(iwreq *inreq);
 float IwFreq2Float(iwreq *inreq);
 int FloatChan2Int(float in_chan);
 
+// Make a vap under mac80211
+int mac80211_createvap(const char *interface, const char *newinterface, char *errstr);
+
 #endif
 
 #endif
