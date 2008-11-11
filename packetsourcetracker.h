@@ -163,16 +163,18 @@ public:
 	virtual ~PSTIPCRemote() { }
 
 	virtual void CatchSigChild(int status) {
-		_MSG("Suid-root control binary failed: " + 
-			 string(strerror(WEXITSTATUS(status))), MSGFLAG_FATAL);
+		if (!globalreg->spindown) {
+			_MSG("Suid-root control binary failed: " + 
+				 string(strerror(WEXITSTATUS(status))), MSGFLAG_FATAL);
 
-		if (WEXITSTATUS(status) == EACCES) 
-			_MSG("Permission denied executing the root capture binary.  Make sure "
-				 "that your user is part of the Kismet capture group "
-				 "(by default, this group is \"kismet\").  If you just added your user "
-				 "to this group, you will need to log out and in again.  You can check "
-				 "what groups your user is in with the \"groups\" command.",
-				 MSGFLAG_FATAL);
+			if (WEXITSTATUS(status) == EACCES) 
+				_MSG("Permission denied executing the root capture binary.  Make sure "
+					 "that your user is part of the Kismet capture group "
+					 "(by default, this group is \"kismet\").  If you just added your "
+					 "user to this group, you will need to log out and in again.  "
+					 "You can check what groups your user is in with the \"groups\" "
+					 "command.", MSGFLAG_FATAL);
+		}
 
 		globalreg->fatal_condition = 1;
 		IPCRemote::ShutdownIPC(NULL);

@@ -169,7 +169,7 @@ int PacketSource_Wext::EnableMonitor() {
 
 		if (Ifconfig_Delta_Flags(interface.c_str(), errstr, 
 								 IFF_UP | IFF_RUNNING | IFF_PROMISC) < 0) {
-			_MSG(errstr, MSGFLAG_FATAL);
+			_MSG(errstr, MSGFLAG_PRINTERROR);
 			_MSG("Failed to bring up interface '" + interface + "', this "
 				 "often means there is a problem with the driver (such as "
 				 "missing firmware), check the output of `dmesg'.",
@@ -255,7 +255,7 @@ int PacketSource_Wext::EnableMonitor() {
 
 	if (Ifconfig_Delta_Flags(interface.c_str(), errstr, 
 							 IFF_UP | IFF_RUNNING | IFF_PROMISC) < 0) {
-		_MSG(errstr, MSGFLAG_FATAL);
+		_MSG(errstr, MSGFLAG_PRINTERROR);
 		_MSG("Failed to bring up interface '" + interface + "', this "
 			 "often means there is a problem with the driver (such as "
 			 "missing firmware), check the output of `dmesg'.",
@@ -304,7 +304,7 @@ int PacketSource_Wext::SetChannel(unsigned int in_ch) {
 
 	int curmode;
 	if (Iwconfig_Get_Mode(interface.c_str(), errstr, &curmode) < 0) {
-		_MSG(errstr, MSGFLAG_FATAL);
+		_MSG(errstr, MSGFLAG_PRINTERROR);
 		_MSG("Failed to change channel on interface '" + interface + "' and "
 			 "failed to fetch current interface state when determining the "
 			 "cause of the error.  It is likely that the drivers are in a "
@@ -536,7 +536,7 @@ int PacketSource_Madwifi::EnableMonitor() {
 
 	if (Iwconfig_Set_IntPriv(interface.c_str(), "mode", madwifi_type, 
 							 0, errstr) < 0) {
-		_MSG(errstr, MSGFLAG_FATAL);
+		_MSG(errstr, MSGFLAG_PRINTERROR);
 		_MSG("Failed to set the radio mode of interface '" + interface + "'.  This "
 			 "is needed to set the a/b/g radio mode", MSGFLAG_PRINTERROR);
 		return -1;
