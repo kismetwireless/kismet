@@ -518,12 +518,8 @@ void IPCRemote::IPCDie() {
 		close(sockpair[1]);
 
 		// Wait for the child process to be dead
-
-		ostringstream osstr;
-
-		osstr << "IPC controller waiting for IPC child process " <<
-			(int) ipc_pid << " to end.";
-		_MSG(osstr.str(), MSGFLAG_INFO);
+		_MSG("IPC controller waiting for IPC child process " + 
+			 IntToString((int) ipc_pid) + " to end.", MSGFLAG_INFO);
 
 		waitpid(ipc_pid, NULL, 0);
 
@@ -536,6 +532,9 @@ void IPCRemote::IPCDie() {
 			free(pack);
 			cmd_buf.pop_front();
 		}
+
+		_MSG("IPC controller IPC child process " + 
+			 IntToString((int) ipc_pid) + " has ended.", MSGFLAG_INFO);
 		
 	}
 }
