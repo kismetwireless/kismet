@@ -392,12 +392,14 @@ int IPCRemote::ShutdownIPC(ipc_packet *pack) {
 		sock = sockpair[0];
 	} else {
 		sock = sockpair[1];
+#if 0
 		r = waitpid(ipc_pid, &s, WNOHANG);
 		if (WIFEXITED(s) || r < 0) {
 			ipc_spawned = -1;
 			IPCDie();
 			return 0;
 		}
+#endif
 	}
 
 	// If we have a last frame, send it
@@ -512,31 +514,51 @@ void IPCRemote::IPCDie() {
 		close(sockpair[0]);
 		// and exit, we're done
 		exit(0);
-	} else if (ipc_spawned > 0) {
-		// otherwise if we're the parent...
-		// Shut down the socket
-		close(sockpair[1]);
-
-		// Wait for the child process to be dead
-		_MSG("IPC controller waiting for IPC child process " + 
-			 IntToString((int) ipc_pid) + " to end.", MSGFLAG_INFO);
-
-		waitpid(ipc_pid, NULL, 0);
-
-		ipc_pid = 0;
-		ipc_spawned = 0;
-
-		// Flush all the queued packets
-		while (cmd_buf.size() > 0) {
-			ipc_packet *pack = cmd_buf.front();
-			free(pack);
-			cmd_buf.pop_front();
-		}
-
-		_MSG("IPC controller IPC child process " + 
-			 IntToString((int) ipc_pid) + " has ended.", MSGFLAG_INFO);
-		
+	}  else if (ipc_pid == 0) {
+		_MSG("IPC Die called on tracker with no child", MSGFLAG_ERROR);
+		return;
 	}
+
+	// otherwise if we're the parent...
+	// Shut down the socket
+	if (sockpair[1] >= 0) {
+		close(sockpair[1]);
+		sockpair[1] = -1;
+	}
+
+	// Wait for the child process to be dead
+	_MSG("IPC controller waiting for IPC child process " + 
+		 IntToString((int) ipc_pid) + " to end.", MSGFLAG_INFO);
+
+	int dead = 0;
+	int res = 0;
+	for (unsigned int x = 0; x < 10; x++) {
+		if (waitpid(ipc_pid, &res, WNOHANG) > 0 && WIFEXITED(res)) {
+			dead = 1;
+			break;
+		}
+		usleep(100000);
+	}
+
+	if (!dead) {
+		_MSG("Child process " + IntToString((int) ipc_pid) + " didn't die "
+			 "cleanly, killing it.", MSGFLAG_ERROR);
+		kill(ipc_pid, SIGKILL);
+		waitpid(ipc_pid, NULL, 0);
+	}
+
+	// Flush all the queued packets
+	while (cmd_buf.size() > 0) {
+		ipc_packet *pack = cmd_buf.front();
+		free(pack);
+		cmd_buf.pop_front();
+	}
+
+	_MSG("IPC controller IPC child process " + 
+		 IntToString((int) ipc_pid) + " has ended.", MSGFLAG_INFO);
+
+	ipc_pid = 0;
+	ipc_spawned = 0;
 }
 
 unsigned int IPCRemote::MergeSet(unsigned int in_max_fd, fd_set *out_rset,

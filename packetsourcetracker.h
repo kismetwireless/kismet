@@ -177,16 +177,16 @@ public:
 		}
 
 		globalreg->fatal_condition = 1;
-		IPCRemote::ShutdownIPC(NULL);
+		IPCRemote::CatchSigChild(0);
 	}
 
 	virtual void IPCDie() {
-		IPCRemote::IPCDie();
-
 		if (!globalreg->spindown) {
 			_MSG("Root IPC control binary has died, shutting down", MSGFLAG_FATAL);
 			globalreg->fatal_condition = 1;
 		}
+
+		IPCRemote::IPCDie();
 	}
 };
 

@@ -43,7 +43,7 @@ int Ifconfig_Set_Flags(const char *in_dev, char *errstr, int flags) {
     ifr.ifr_flags = flags;
 #endif
     if (ioctl(skfd, SIOCSIFFLAGS, &ifr) < 0) {
-        snprintf(errstr, STATUS_MAX, "SetIFFlags: Unknown interface %s: %s", 
+        snprintf(errstr, STATUS_MAX, "SetIFFlags: interface %s: %s", 
                  in_dev, strerror(errno));
         close(skfd);
         return -1;
@@ -159,7 +159,7 @@ int Ifconfig_Get_Hwaddr(const char *in_dev, char *errstr, uint8_t *ret_hwaddr) {
     // Fetch interface flags
     strncpy(ifr.ifr_name, in_dev, IFNAMSIZ);
     if (ioctl(skfd, SIOCGIFHWADDR, &ifr) < 0) {
-        snprintf(errstr, STATUS_MAX, "Getting HWAddr: unknown interface %s: %s", 
+        snprintf(errstr, STATUS_MAX, "Getting HWAddr: interface %s: %s", 
                  in_dev, strerror(errno));
         close(skfd);
         return -1;
@@ -214,7 +214,7 @@ int Ifconfig_Set_MTU(const char *in_dev, char *errstr, uint16_t in_mtu) {
     strncpy(ifr.ifr_name, in_dev, IFNAMSIZ);
     ifr.ifr_mtu = in_mtu;
     if (ioctl(skfd, SIOCSIFMTU, &ifr) < 0) {
-        snprintf(errstr, STATUS_MAX, "Setting MTU: unknown interface %s: %s", 
+        snprintf(errstr, STATUS_MAX, "Setting MTU: interface %s: %s", 
                  in_dev, strerror(errno));
         close(skfd);
         return -1;
