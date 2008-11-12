@@ -28,6 +28,13 @@
 
 #if (defined(HAVE_LIBPCAP) && defined(SYS_LINUX) && defined(HAVE_LINUX_WIRELESS))
 
+#include <sys/types.h>
+#include <sys/wait.h>
+#include <string.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <sys/un.h>
+
 #include "packet.h"
 #include "packet_ieee80211.h"
 #include "packetsource.h"
@@ -75,7 +82,7 @@ public:
 
 	PacketSource_Wext(GlobalRegistry *in_globalreg, string in_interface,
 					  vector<opt_pair> *in_opts); 
-	virtual ~PacketSource_Wext() { }
+	virtual ~PacketSource_Wext();
 
 	virtual int ParseOptions(vector<opt_pair> *in_opts);
 
@@ -87,6 +94,8 @@ public:
 	virtual int DisableMonitor();
 	virtual int SetChannel(unsigned int in_ch);
 	virtual int FetchHardwareChannel();
+
+	virtual int ScanWpaSupplicant();
 
 protected:
 	// Stuff we need to track to restore later
@@ -108,6 +117,13 @@ protected:
 	string vap;
 
 	virtual void FetchRadioData(kis_packet *in_packet);
+
+	virtual void OpenWpaSupplicant();
+
+	int scan_wpa;
+	int wpa_sock;
+	struct sockaddr_un wpa_local, wpa_dest;
+	int wpa_timer_id;
 };	
 
 // Madwifi subclass

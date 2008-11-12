@@ -53,6 +53,9 @@ Available source options:
     split=true|false    Disable channel list splitting (will not share a list of
                          channels over multiple sources)
     vap=interface       Create a VAP interface (mac80211)
+    wpa_scan=time       When using a mac80211 VAP, trigger wpa_supplicant
+                        scans at regular intervals (useful for sta+rfmon
+                        mvap)
 
 Newcore channels:
 

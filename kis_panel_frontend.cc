@@ -86,13 +86,13 @@ void KisPanelInterface::proto_SOURCE(CLIPROTO_CB_PARMS) {
 
 	int tint;
 
+
 	uuid inuuid = uuid((*proto_parsed)[0].word);
 
 	if (inuuid.error)
 		return;
 
 	if (netcard_map.find(inuuid) == netcard_map.end()) {
-
 	}
 }
 

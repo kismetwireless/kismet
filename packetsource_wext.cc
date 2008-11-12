@@ -53,12 +53,26 @@ PacketSource_Wext::PacketSource_Wext(GlobalRegistry *in_globalreg,
 									 vector<opt_pair> *in_opts) :
 	PacketSource_Pcap(in_globalreg, in_interface, in_opts) { 
 
+	scan_wpa = 0;
+	wpa_timer_id = -1;
+	wpa_sock = -1;
+	memset(&wpa_local, 0, sizeof(struct sockaddr_un));
+	memset(&wpa_dest, 0, sizeof(struct sockaddr_un));
+
 	// Type derived by our higher parent
 	if (type == "nokia770") {
 		SetValidateCRC(1);
 	}
 
 	ParseOptions(in_opts);
+}
+
+PacketSource_Wext::~PacketSource_Wext() {
+	if (wpa_sock >= 0)
+		close(wpa_sock);
+
+	if (wpa_timer_id >= 0)
+		globalreg->timetracker->RemoveTimer(wpa_timer_id);
 }
 
 int PacketSource_Wext::ParseOptions(vector<opt_pair> *in_opts) {
@@ -69,6 +83,28 @@ int PacketSource_Wext::ParseOptions(vector<opt_pair> *in_opts) {
 		_MSG("Source '" + interface + "' will attempt to create a monitor-only "
 			 "VAP '" + vap + "' instead of reconfiguring the main interface", 
 			 MSGFLAG_INFO);
+	}
+
+	if (FetchOpt("wpa_scan", in_opts) != "") {
+		/*
+		if (globalreg->kismet_config->FetchOpt("wpa_supp_ctrl") == "") 
+			_MSG("Source '" + interface + "' - requested wpa_scan assist from "
+				 "wpa_supplicant but no wpa_supp_ctrl in kismet.conf, we'll use "
+				 "the defaults", MSGFLAG_ERROR);
+		*/
+
+		if (FetchOpt("hop", in_opts) == "" || FetchOpt("hop", in_opts) == "true") {
+			_MSG("Source '" + interface + "' - wpa_scan assist from wpa_supplicant "
+				 "requested but hopping not disabled, wpa_scan is meaningless on "
+				 "a hopping interface, so it will not be disabled.", MSGFLAG_ERROR);
+		} else if (sscanf(FetchOpt("wpa_scan", in_opts).c_str(), "%d", &scan_wpa) != 1) {
+			_MSG("Source '" + interface + "' - invalid wpa_scan interval, expected "
+				 "number (of seconds) between each scan", MSGFLAG_ERROR);
+			scan_wpa = 0;
+		} else {
+			_MSG("Source '" + interface + "' - using wpa_supplicant to assist with "
+				 "non-disruptive hopping", MSGFLAG_INFO);
+		}
 	}
 
 	return 1;
@@ -163,8 +199,89 @@ int PacketSource_Wext::RegisterSources(Packetsourcetracker *tracker) {
 	return 1;
 }
 
+int wext_ping_wpasup_event(TIMEEVENT_PARMS) {
+	return ((PacketSource_Wext *) parm)->ScanWpaSupplicant();
+}
+
+void PacketSource_Wext::OpenWpaSupplicant() {
+	if (scan_wpa && wpa_sock < 0) {
+		string wpa_path;
+
+		// wpa_path = globalreg->kismet_config->FetchOpt("wpa_supp_ctrl");
+		if (wpa_path == "")
+			wpa_path = "/var/run/wpa_supplicant";
+
+		wpa_path += "/" + interface;
+
+		wpa_sock = socket(PF_UNIX, SOCK_DGRAM, 0);
+
+		wpa_local.sun_family = AF_UNIX;
+		snprintf(wpa_local.sun_path, sizeof(wpa_local.sun_path),
+				 "/tmp/kis_wpa_ctrl_%s_%d", interface.c_str(), getpid());
+		if (bind(wpa_sock, (struct sockaddr *) &wpa_local, sizeof(wpa_local)) < 0) {
+			_MSG("Source '" + interface + "' failed to bind local socket for "
+				 "wpa_supplicant, disabling scan_wpa: " + string(strerror(errno)),
+				 MSGFLAG_PRINTERROR);
+			close(wpa_sock);
+			scan_wpa = 0;
+		} else {
+			wpa_dest.sun_family = AF_UNIX;
+			snprintf(wpa_dest.sun_path, sizeof(wpa_dest.sun_path), "%s", 
+					 wpa_path.c_str());
+			if (connect(wpa_sock, (struct sockaddr *) &wpa_dest, sizeof(wpa_dest)) < 0) {
+				_MSG("Source '" + interface + "' failed to connect to wpa_supplicant "
+					 "control socket " + wpa_path + ", disabling scan_wpa.  Make sure "
+					 "that the wpa_supp_ctrl value in kismet.conf points to your "
+					 "wpa_supplicant ctrl_interface: " + string(strerror(errno)),
+					 MSGFLAG_PRINTERROR);
+				close(wpa_sock);
+				scan_wpa = 0;
+			}
+		}
+	}
+
+	if (scan_wpa) {
+		// Set it nonblocking, and we'll just check that our whole command
+		// got written each time, not going to bother making a real queue
+		fcntl(wpa_sock, F_SETFL, fcntl(wpa_sock, F_GETFL, 0) | O_NONBLOCK);
+
+		if (wpa_timer_id < 0) 
+			wpa_timer_id = 
+				globalreg->timetracker->RegisterTimer(SERVER_TIMESLICES_SEC * scan_wpa,
+					NULL, 1, wext_ping_wpasup_event, this);
+	} else if (wpa_timer_id) {
+		globalreg->timetracker->RemoveTimer(wpa_timer_id);
+		wpa_timer_id = -1;
+	}
+}
+
+int PacketSource_Wext::ScanWpaSupplicant() {
+	if (FetchError() && wpa_sock >= 0) {
+		close(wpa_sock);
+		wpa_sock = -1;
+		wpa_timer_id = 0;
+		return 0;
+	}
+
+	const char *scan = "SCAN";
+
+	if (write(wpa_sock, scan, sizeof(scan)) != sizeof(scan)) {
+		_MSG("Source '" + interface + "' error writing to wpa_supplicant socket, "
+			 "reopening connection: " + string(strerror(errno)), MSGFLAG_ERROR);
+		close(wpa_sock);
+		wpa_sock = -1;
+		OpenWpaSupplicant();
+	}
+
+	return 1;
+}
+
 int PacketSource_Wext::EnableMonitor() {
 	char errstr[STATUS_MAX];
+
+	// Defer the wpa_supplicant open to here, but do it before the vap
+	// since the vap changes our interface name
+	OpenWpaSupplicant();
 
 	// Defer the vap creation to here so we're sure we're root
 	if (vap != "") {
