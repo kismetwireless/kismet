@@ -30,7 +30,7 @@
 #include <netlink/attr.h>
 #include <linux/nl80211.h>
 #include <linux/wireless.h>
-#include <stdint.h>
+#include <net/if.h>
 #endif
 
 #ifndef rintf

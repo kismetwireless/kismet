@@ -762,7 +762,7 @@ havenetlink=yes
 	havenetlink=no)
 
 if test "$havenetlink" = "yes"; then
-	AC_CHECK_LIB([nl], [if_nametoindex],
+	AC_CHECK_LIB([nl], [nl_handle_alloc],
     AC_DEFINE(HAVE_LIBNL, 1, libnl netlink library), havenetlink=no)
 else
 	AC_MSG_WARN(Missing libnl or libnl too old support will not be able to control mac80211 vaps)
@@ -787,7 +787,7 @@ if test "$havenetlink" = "yes"; then
 			return 0;
 			]])],[havenetlink=yes],[havenetlink=no])
 else
-	AC_MSG_WARN(Missing libnl netlink library will no tbe able to control mac80211 vaps)
+	AC_MSG_WARN(Missing libnl netlink library will not be able to control mac80211 vaps)
 fi
 
 if test "$havenetlink" = "yes"; then
