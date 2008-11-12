@@ -88,6 +88,7 @@ int PacketSource_Wext::AutotypeProbe(string in_device) {
 		sysdriver == "ath5k_pci" || sysdriver == "ath9k_pci" ||
 		sysdriver == "b43legacy" || sysdriver == "hostap" ||
 		sysdriver == "libertas" || sysdriver == "p54" ||
+		sysdriver == "libertas_usb" || sysdriver == "libertas_tf" ||
 		sysdriver == "prism54" || sysdriver == "rndis_wlan" ||
 		sysdriver == "rt2500pci" || sysdriver == "rt73usb" ||
 		sysdriver == "rt2x00pci" || sysdriver == "rt61pci" ||
@@ -136,6 +137,8 @@ int PacketSource_Wext::RegisterSources(Packetsourcetracker *tracker) {
 	tracker->RegisterPacketProto("iwl4965", this, "IEEE80211ab", 1);
 	tracker->RegisterPacketProto("iwlagn", this, "IEEE80211ab", 1);
 	tracker->RegisterPacketProto("libertas", this, "IEEE80211b", 1);
+	tracker->RegisterPacketProto("libertas_usb", this, "IEEE80211b", 1);
+	tracker->RegisterPacketProto("libertas_tf", this, "IEEE80211b", 1);
 	tracker->RegisterPacketProto("nokia770", this, "IEEE80211b", 1);
 	tracker->RegisterPacketProto("prism54", this, "IEEE80211b", 1);
 	tracker->RegisterPacketProto("p54", this, "IEEE80211b", 1);
