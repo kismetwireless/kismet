@@ -41,6 +41,8 @@
 #include <map>
 #include <vector>
 #include <list>
+#include <sstream>
+#include <iomanip>
 
 // ieee float struct for a 64bit float for serialization
 typedef struct {
@@ -79,8 +81,26 @@ string AlignString(string in_txt, char in_spacer, int in_align, int in_width);
 int HexStrToUint8(string in_str, uint8_t *in_buf, int in_buflen);
 string HexStrFromUint8(uint8_t *in_buf, int in_buflen);
 
-string IntToString(int in_int, int in_precision = 0);
-string LongIntToString(long int in_int, int in_precision = 0);
+template<class t> class NtoString {
+public:
+	NtoString(t in_n, int in_precision = 0) { 
+		ostringstream osstr;
+
+		if (in_precision)
+			osstr << setprecision(in_precision) << in_n;
+		else
+			osstr << in_n;
+
+		s = osstr.str();
+	}
+
+	string Str() { return s; }
+
+	string s;
+};
+
+#define IntToString(I)			NtoString<int>((I)).Str()
+#define LongIntToString(L)		NtoString<long int>((L)).Str()
 
 void SubtractTimeval(struct timeval *in_tv1, struct timeval *in_tv2,
 					 struct timeval *out_tv);

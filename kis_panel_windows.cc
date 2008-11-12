@@ -2172,6 +2172,11 @@ Kis_ChanDetails_Panel::Kis_ChanDetails_Panel(GlobalRegistry *in_globalreg,
 	t.alignment = 2;
 	titles.push_back(t);
 
+	t.width = 6;
+	t.title = "Time";
+	t.alignment = 2;
+	titles.push_back(t);
+
 	chansummary->AddTitles(titles);
 
 	active_component = chansummary;
@@ -2349,6 +2354,9 @@ int Kis_ChanDetails_Panel::GraphTimer() {
 		td.push_back(IntToString(x->second->networks));
 		td.push_back(IntToString(x->second->networks_active));
 
+		td.push_back(NtoString<float>((float) x->second->channel_time_on / 
+									  1000000).Str() + "s");
+
 		chansummary->AddRow(tpos++, td);
 	}
 
@@ -2516,7 +2524,8 @@ void Kis_ChanDetails_Panel::Proto_CHANNEL(CLIPROTO_CB_PARMS) {
 
 	if (sscanf((*proto_parsed)[fnum++].word.c_str(), "%d", &tint) != 1) 
 		return;
-	ci->channel_time_on = tint;
+	if (tint != 0)
+		ci->channel_time_on = tint;
 
 	if (sscanf((*proto_parsed)[fnum++].word.c_str(), "%d", &tint) != 1)
 		return;
@@ -2524,7 +2533,8 @@ void Kis_ChanDetails_Panel::Proto_CHANNEL(CLIPROTO_CB_PARMS) {
 
 	if (sscanf((*proto_parsed)[fnum++].word.c_str(), "%d", &tint) != 1)
 		return;
-	ci->packets_delta = tint;
+	if (tint != 0)
+		ci->packets_delta = tint;
 
 	if (sscanf((*proto_parsed)[fnum++].word.c_str(), "%ld", &tlong) != 1)
 		return;
@@ -2536,7 +2546,8 @@ void Kis_ChanDetails_Panel::Proto_CHANNEL(CLIPROTO_CB_PARMS) {
 
 	if (sscanf((*proto_parsed)[fnum++].word.c_str(), "%ld", &tlong) != 1)
 		return;
-	ci->bytes_delta = tlong;
+	if (tlong != 0)
+		ci->bytes_delta = tlong;
 
 	if (sscanf((*proto_parsed)[fnum++].word.c_str(), "%d", &tint) != 1)
 		return;

@@ -2019,7 +2019,7 @@ void Packetsourcetracker::ChannelTimer() {
 	}
 
 	timer_counter++;
-	if (timer_counter == SERVER_TIMESLICES_SEC * 2) {
+	if (timer_counter == SERVER_TIMESLICES_SEC + 1) {
 		timer_counter = 0;
 		SendIPCChanreport();
 		ClearChannelTickMap();
