@@ -10087,9 +10087,9 @@ done
 
 
 if test "$havenetlink" = "yes"; then
-	{ echo "$as_me:$LINENO: checking for nl_handle_alloc in -lnl" >&5
-echo $ECHO_N "checking for nl_handle_alloc in -lnl... $ECHO_C" >&6; }
-if test "${ac_cv_lib_nl_nl_handle_alloc+set}" = set; then
+	{ echo "$as_me:$LINENO: checking for if_nametoindex in -lnl" >&5
+echo $ECHO_N "checking for if_nametoindex in -lnl... $ECHO_C" >&6; }
+if test "${ac_cv_lib_nl_if_nametoindex+set}" = set; then
   echo $ECHO_N "(cached) $ECHO_C" >&6
 else
   ac_check_lib_save_LIBS=$LIBS
@@ -10107,11 +10107,11 @@ cat >>conftest.$ac_ext <<_ACEOF
 #ifdef __cplusplus
 extern "C"
 #endif
-char nl_handle_alloc ();
+char if_nametoindex ();
 int
 main ()
 {
-return nl_handle_alloc ();
+return if_nametoindex ();
   ;
   return 0;
 }
@@ -10134,21 +10134,21 @@ eval "echo \"\$as_me:$LINENO: $ac_try_echo\"") >&5
 	 test ! -s conftest.err
        } && test -s conftest$ac_exeext &&
        $as_test_x conftest$ac_exeext; then
-  ac_cv_lib_nl_nl_handle_alloc=yes
+  ac_cv_lib_nl_if_nametoindex=yes
 else
   echo "$as_me: failed program was:" >&5
 sed 's/^/| /' conftest.$ac_ext >&5
 
-	ac_cv_lib_nl_nl_handle_alloc=no
+	ac_cv_lib_nl_if_nametoindex=no
 fi
 
 rm -f core conftest.err conftest.$ac_objext conftest_ipa8_conftest.oo \
       conftest$ac_exeext conftest.$ac_ext
 LIBS=$ac_check_lib_save_LIBS
 fi
-{ echo "$as_me:$LINENO: result: $ac_cv_lib_nl_nl_handle_alloc" >&5
-echo "${ECHO_T}$ac_cv_lib_nl_nl_handle_alloc" >&6; }
-if test $ac_cv_lib_nl_nl_handle_alloc = yes; then
+{ echo "$as_me:$LINENO: result: $ac_cv_lib_nl_if_nametoindex" >&5
+echo "${ECHO_T}$ac_cv_lib_nl_if_nametoindex" >&6; }
+if test $ac_cv_lib_nl_if_nametoindex = yes; then
 
 cat >>confdefs.h <<\_ACEOF
 #define HAVE_LIBNL 1
@@ -10159,8 +10159,8 @@ else
 fi
 
 else
-	{ echo "$as_me:$LINENO: WARNING: Missing headers for netlink support will not be able to control mac80211 vaps" >&5
-echo "$as_me: WARNING: Missing headers for netlink support will not be able to control mac80211 vaps" >&2;}
+	{ echo "$as_me:$LINENO: WARNING: Missing libnl or libnl too old support will not be able to control mac80211 vaps" >&5
+echo "$as_me: WARNING: Missing libnl or libnl too old support will not be able to control mac80211 vaps" >&2;}
 fi
 
 if test "$havenetlink" = "yes"; then
