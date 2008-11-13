@@ -174,7 +174,7 @@ SpectoolsClient::SpectoolsClient(GlobalRegistry *in_globalreg) :
 
 	// Reconnect timer
 	recon_timer_id = 
-		globalreg->timetracker->RegisterTimer(SERVER_TIMESLICES_SEC * 10,
+		globalreg->timetracker->RegisterTimer(SERVER_TIMESLICES_SEC * 30,
 											  NULL, 1, &stc_recontimer, this);
 
 	snprintf(host, MAXHOSTNAMELEN, "%s", temphost);

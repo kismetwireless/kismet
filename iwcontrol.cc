@@ -22,6 +22,7 @@
 #ifdef HAVE_LINUX_WIRELESS
 
 #ifdef HAVE_LINUX_NETLINK
+#include <sys/types.h>
 #include <asm/types.h>
 #include <netlink/genl/genl.h>
 #include <netlink/genl/family.h>
@@ -30,7 +31,7 @@
 #include <netlink/attr.h>
 #include <linux/nl80211.h>
 #include <linux/wireless.h>
-#include <net/if.h>
+#include <linux/if.h>
 #endif
 
 #ifndef rintf
