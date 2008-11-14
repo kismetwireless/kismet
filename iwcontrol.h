@@ -26,22 +26,6 @@
 #include <stdio.h>
 #include <unistd.h>
 
-#ifdef SYS_LINUX
-#include <net/if_arp.h>
-#include <sys/socket.h>
-#include <sys/ioctl.h>
-#include <netinet/in.h>
-#include <netinet/if_ether.h>
-#include <arpa/inet.h>
-
-#ifdef HAVE_LINUX_WIRELESS
-#include <asm/types.h>
-#include <linux/if.h>
-#include <linux/wireless.h>
-#endif
-
-#endif
-
 #include "util.h"
 
 #ifdef HAVE_LINUX_WIRELESS
@@ -87,12 +71,7 @@ int Iwconfig_Get_Mode(const char *in_dev, char *errstr, int *in_mode);
 int Iwconfig_Set_Mode(const char *in_dev, char *errstr, int in_mode);
 
 // Info conversion
-float IwFreq2Float(iwreq *inreq);
-float IwFreq2Float(iwreq *inreq);
 int FloatChan2Int(float in_chan);
-
-// Make a vap under mac80211
-int mac80211_createvap(const char *interface, const char *newinterface, char *errstr);
 
 #endif
 

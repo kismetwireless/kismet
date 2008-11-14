@@ -47,6 +47,7 @@ typedef unsigned long u64;
 #include "packetsourcetracker.h"
 #include "packetsource_wext.h"
 #include "madwifing_control.h"
+#include "nl80211_control.h"
 
 PacketSource_Wext::PacketSource_Wext(GlobalRegistry *in_globalreg, 
 									 string in_interface,
