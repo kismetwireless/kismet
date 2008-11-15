@@ -122,6 +122,8 @@ protected:
 
 	int scan_wpa;
 	int wpa_sock;
+	string wpa_path;
+	string wpa_local_path;
 	struct sockaddr_un wpa_local, wpa_dest;
 	int wpa_timer_id;
 };	

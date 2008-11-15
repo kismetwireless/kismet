@@ -74,6 +74,9 @@ PacketSource_Wext::~PacketSource_Wext() {
 
 	if (wpa_timer_id >= 0)
 		globalreg->timetracker->RemoveTimer(wpa_timer_id);
+
+	if (wpa_local_path != "")
+		unlink(wpa_local_path.c_str());
 }
 
 int PacketSource_Wext::ParseOptions(vector<opt_pair> *in_opts) {
@@ -86,13 +89,14 @@ int PacketSource_Wext::ParseOptions(vector<opt_pair> *in_opts) {
 			 MSGFLAG_INFO);
 	}
 
+	wpa_path = FetchOpt("wpa_ctrl_path", in_opts);
+
 	if (FetchOpt("wpa_scan", in_opts) != "") {
-		/*
-		if (globalreg->kismet_config->FetchOpt("wpa_supp_ctrl") == "") 
+		if (wpa_path == "") 
 			_MSG("Source '" + interface + "' - requested wpa_scan assist from "
-				 "wpa_supplicant but no wpa_supp_ctrl in kismet.conf, we'll use "
-				 "the defaults", MSGFLAG_ERROR);
-		*/
+				 "wpa_supplicant but no wpa_ctrl_path option, we'll use "
+				 "the defaults, set this path if your wpa_supplicant uses "
+				 "something else for the control socket", MSGFLAG_ERROR);
 
 		if (FetchOpt("hop", in_opts) == "" || FetchOpt("hop", in_opts) == "true") {
 			_MSG("Source '" + interface + "' - wpa_scan assist from wpa_supplicant "
@@ -106,6 +110,13 @@ int PacketSource_Wext::ParseOptions(vector<opt_pair> *in_opts) {
 			_MSG("Source '" + interface + "' - using wpa_supplicant to assist with "
 				 "non-disruptive hopping", MSGFLAG_INFO);
 		}
+
+		if (wpa_path == "")
+			wpa_path = "/var/run/wpa_supplicant";
+
+		wpa_path += "/" + interface;
+
+		wpa_local_path = "/tmp/kis_wpa_ctrl_" + interface + "_" + IntToString(getpid());
 	}
 
 	return 1;
@@ -212,19 +223,12 @@ void PacketSource_Wext::OpenWpaSupplicant() {
 			globalreg->timetracker->RegisterTimer(SERVER_TIMESLICES_SEC * scan_wpa,
 												  NULL, 1, wext_ping_wpasup_event, this);
 	if (scan_wpa && wpa_sock < 0) {
-		string wpa_path;
-
-		// wpa_path = globalreg->kismet_config->FetchOpt("wpa_supp_ctrl");
-		if (wpa_path == "")
-			wpa_path = "/var/run/wpa_supplicant";
-
-		wpa_path += "/" + interface;
 
 		wpa_sock = socket(PF_UNIX, SOCK_DGRAM, 0);
 
 		wpa_local.sun_family = AF_UNIX;
-		snprintf(wpa_local.sun_path, sizeof(wpa_local.sun_path),
-				 "/tmp/kis_wpa_ctrl_%s_%d", interface.c_str(), getpid());
+		snprintf(wpa_local.sun_path, sizeof(wpa_local.sun_path), 
+				 "%s", wpa_local_path.c_str());
 		if (bind(wpa_sock, (struct sockaddr *) &wpa_local, sizeof(wpa_local)) < 0) {
 			_MSG("Source '" + interface + "' failed to bind local socket for "
 				 "wpa_supplicant, disabling scan_wpa: " + string(strerror(errno)),
@@ -237,10 +241,8 @@ void PacketSource_Wext::OpenWpaSupplicant() {
 					 wpa_path.c_str());
 			if (connect(wpa_sock, (struct sockaddr *) &wpa_dest, sizeof(wpa_dest)) < 0) {
 				_MSG("Source '" + interface + "' failed to connect to wpa_supplicant "
-					 "control socket " + wpa_path + ", disabling scan_wpa.  Make sure "
-					 "that the wpa_supp_ctrl value in kismet.conf points to your "
-					 "wpa_supplicant ctrl_interface: " + string(strerror(errno)),
-					 MSGFLAG_PRINTERROR);
+					 "control socket " + wpa_path + ".  Make sure that the "
+					 "wpa_ctrl_path option is set correctly.", MSGFLAG_PRINTERROR);
 				close(wpa_sock);
 				return;
 			}
