@@ -196,6 +196,7 @@ int PacketSource_Wext::RegisterSources(Packetsourcetracker *tracker) {
 	tracker->RegisterPacketProto("zd1211", this, "IEEE80211b", 1);
 	tracker->RegisterPacketProto("zd1201", this, "IEEE80211b", 1);
 	tracker->RegisterPacketProto("zd1211rw", this, "IEEE80211b", 1);
+	tracker->RegisterPacketProto("wext", this, "IEEE80211b", 1);
 
 	return 1;
 }
@@ -205,6 +206,11 @@ int wext_ping_wpasup_event(TIMEEVENT_PARMS) {
 }
 
 void PacketSource_Wext::OpenWpaSupplicant() {
+	// Register the timer now so it can try to reconnect us
+	if (scan_wpa && wpa_timer_id < 0) 
+		wpa_timer_id = 
+			globalreg->timetracker->RegisterTimer(SERVER_TIMESLICES_SEC * scan_wpa,
+												  NULL, 1, wext_ping_wpasup_event, this);
 	if (scan_wpa && wpa_sock < 0) {
 		string wpa_path;
 
@@ -224,7 +230,7 @@ void PacketSource_Wext::OpenWpaSupplicant() {
 				 "wpa_supplicant, disabling scan_wpa: " + string(strerror(errno)),
 				 MSGFLAG_PRINTERROR);
 			close(wpa_sock);
-			scan_wpa = 0;
+			return;
 		} else {
 			wpa_dest.sun_family = AF_UNIX;
 			snprintf(wpa_dest.sun_path, sizeof(wpa_dest.sun_path), "%s", 
@@ -236,32 +242,29 @@ void PacketSource_Wext::OpenWpaSupplicant() {
 					 "wpa_supplicant ctrl_interface: " + string(strerror(errno)),
 					 MSGFLAG_PRINTERROR);
 				close(wpa_sock);
-				scan_wpa = 0;
+				return;
 			}
 		}
-	}
 
-	if (scan_wpa) {
 		// Set it nonblocking, and we'll just check that our whole command
 		// got written each time, not going to bother making a real queue
 		fcntl(wpa_sock, F_SETFL, fcntl(wpa_sock, F_GETFL, 0) | O_NONBLOCK);
-
-		if (wpa_timer_id < 0) 
-			wpa_timer_id = 
-				globalreg->timetracker->RegisterTimer(SERVER_TIMESLICES_SEC * scan_wpa,
-					NULL, 1, wext_ping_wpasup_event, this);
-	} else if (wpa_timer_id) {
-		globalreg->timetracker->RemoveTimer(wpa_timer_id);
-		wpa_timer_id = -1;
 	}
 }
 
 int PacketSource_Wext::ScanWpaSupplicant() {
+	// If we're in error state, don't do anything (and shut down anything we had)
 	if (FetchError() && wpa_sock >= 0) {
 		close(wpa_sock);
 		wpa_sock = -1;
-		wpa_timer_id = 0;
 		return 0;
+	}
+
+	// Otherwise if our sock is broken, open it (and next time we come back 
+	// we'll do something with it)
+	if (wpa_sock < 0) {
+		OpenWpaSupplicant();
+		return 1;
 	}
 
 	const char *scan = "SCAN";
@@ -271,6 +274,7 @@ int PacketSource_Wext::ScanWpaSupplicant() {
 			 "reopening connection: " + string(strerror(errno)), MSGFLAG_ERROR);
 		close(wpa_sock);
 		wpa_sock = -1;
+		// We failed, try to open it as we go away
 		OpenWpaSupplicant();
 	}
 
