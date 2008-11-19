@@ -99,10 +99,6 @@ NC	= kismet_client
 # HOPPERO = util.o configfile.o getopt.o kismet_hopper.o
 # HOPPER = kismet_hopper
 
-BUZZER = extra/buzzme/buzzme
-
-ZAURUSBUILD=@zbuild@
-
 all:	Makefile $(DEPEND) $(PS) $(CS) $(DRONE) $(NC)
 
 $(PS):	$(PSO)
@@ -119,9 +115,6 @@ $(NC):	$(NCO)
 
 #$(HOPPER):	$(HOPPERO)
 #	$(LD) $(LDFLAGS) -o $(HOPPER) $(HOPPERO)
-
-$(BUZZER):	
-	@( cd extra/buzzme; $(MAKE); ) ; 
 
 Makefile: Makefile.in configure
 	@-echo "'Makefile.in' or 'configure' are more current than this Makefile.  You should re-run 'configure'."
@@ -294,13 +287,6 @@ ipkg: $(PS) $(NC)
 	@cp conf/kismet_ui.conf packaging/ipkg/$(ETC)/kismet_ui.conf
 	@cp conf/ap_manuf packaging/ipkg/$(ETC)/ap_manuf
 	@cp conf/client_manuf packaging/ipkg/$(ETC)/client_manuf
-	@if test "$(ZAURUS)" = "yes"; then \
-		cp $(BUZZER) packaging/ipkg/$(BIN)/buzzme; \
-		cp conf/zaurus_kismet.conf packaging/ipkg/$(ETC)/kismet.conf; \
-		cp conf/zaurus_kismet_ui.conf packaging/ipkg/$(ETC)/kismet_ui.conf; \
-	fi
-#@cp scripts/kismet_monitor packaging/ipkg/$(BIN)/ 
-#@cp scripts/kismet_unmonitor packaging/ipkg/$(BIN)/
 	@chmod a+x packaging/ipkg/$(BIN)/*
 	@chown root.root packaging/ipkg -R
 	@echo "Making ipkg..."

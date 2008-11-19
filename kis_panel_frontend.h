@@ -119,6 +119,8 @@ public:
 		int hopvelocity;
 		int dwell;
 
+		struct timeval hop_tm;
+
 		// Store as a string since we don't necessarily care
 		string channellist;
 	};

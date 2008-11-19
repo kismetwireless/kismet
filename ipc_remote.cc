@@ -385,8 +385,6 @@ int IPCRemote::ShutdownIPC(ipc_packet *pack) {
 	if (ipc_spawned <= 0) 
 		return 0;
 
-	int r = 0, s = 0;
-
 	int sock;
 	if (ipc_pid == 0) {
 		sock = sockpair[0];

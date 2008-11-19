@@ -84,16 +84,60 @@ void KisPanelInterface::proto_SOURCE(CLIPROTO_CB_PARMS) {
 	if (proto_parsed->size() < 12)
 		return;
 
+	int fnum = 0;
 	int tint;
 
+	knc_card *source = NULL;
 
-	uuid inuuid = uuid((*proto_parsed)[0].word);
+	uuid inuuid = uuid((*proto_parsed)[fnum++].word);
 
 	if (inuuid.error)
 		return;
 
 	if (netcard_map.find(inuuid) == netcard_map.end()) {
+		source = new knc_card;
+		source->carduuid = inuuid;
+		source->uuid_hash = Adler32Checksum(inuuid.UUID2String().c_str(),
+											inuuid.UUID2String().length());
+	} else {
+		source = netcard_map.find(inuuid)->second;
 	}
+
+	source->last_update = time(0);
+
+	source->interface = ((*proto_parsed)[fnum++].word);
+	source->type = ((*proto_parsed)[fnum++].word);
+	source->name = ((*proto_parsed)[fnum++].word);
+	
+	if (sscanf((*proto_parsed)[fnum++].word.c_str(), "%d", &tint) != 1)
+		return;
+	source->channel = tint;
+
+	if (sscanf((*proto_parsed)[fnum++].word.c_str(), "%d", &tint) != 1)
+		return;
+	source->packets = tint;
+
+	if (sscanf((*proto_parsed)[fnum++].word.c_str(), "%d", &tint) != 1)
+		return;
+	source->hopping = tint;
+
+	if (sscanf((*proto_parsed)[fnum++].word.c_str(), "%d", &tint) != 1)
+		return;
+	source->hopvelocity = tint;
+
+	if (sscanf((*proto_parsed)[fnum++].word.c_str(), "%d", &tint) != 1)
+		return;
+	source->dwell = tint;
+
+	if (sscanf((*proto_parsed)[fnum++].word.c_str(), "%d", &tint) != 1)
+		return;
+	source->hop_tm.tv_sec = tint;
+
+	if (sscanf((*proto_parsed)[fnum++].word.c_str(), "%d", &tint) != 1)
+		return;
+	source->hop_tm.tv_usec = tint;
+
+	source->channellist = (*proto_parsed)[fnum++].word;
 }
 
 void KisPanelClient_Configured(CLICONF_CB_PARMS) {
