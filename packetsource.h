@@ -210,7 +210,13 @@ public:
 
 		if (StrLower(FetchOpt("weakvalidate", in_opts)) == "true") {
 			genericparms.weak_dissect = 1;
-			_MSG("Enabling weak frame validation on packet " "source '" + 
+			_MSG("Enabling weak frame validation on packet source '" + 
+				 interface + "'", MSGFLAG_INFO);
+		}
+
+		if (StrLower(FetchOpt("validatefcs", in_opts)) == "true") {
+			SetValidateCRC(1);
+			_MSG("Enabling FCS frame validation on packet source '" +
 				 interface + "'", MSGFLAG_INFO);
 		}
 

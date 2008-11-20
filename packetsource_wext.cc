@@ -161,6 +161,17 @@ int PacketSource_Wext::AutotypeProbe(string in_device) {
 		return 1;
 	}
 
+	// Detect unknown mac80211 devices, ask for help, assume wext
+	if (Linux_GetSysDrvAttr(in_device.c_str(), "phy80211")) {
+		type = "wext";
+		_MSG("Did't understand driver '" + sysdriver + "' for interface '" +
+			 in_device + "', but it looks like a mac80211 device so Kismet "
+			 "will use the generic wext options for it.  Please post on the Kismet "
+			 "forum or stop by the IRC channel and report what driver it was.",
+			 MSGFLAG_PRINTERROR);
+		return 1;
+	}
+
 	return 0;
 }
 

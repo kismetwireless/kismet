@@ -23,6 +23,10 @@
 #include <netdb.h>
 #endif
 
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <unistd.h>
+
 int Ifconfig_Set_Flags(const char *in_dev, char *errstr, int flags) {
     struct ifreq ifr;
     int skfd;
@@ -144,6 +148,18 @@ string Linux_GetSysDrv(const char *in_dev) {
 	}
 
 	return "";
+}
+
+int Linux_GetSysDrvAttr(const char *in_dev, const char *attr) {
+	char devlink[256];
+	struct stat buf;
+
+	snprintf(devlink, 256, "/sys/class/net/%s/%s", in_dev, attr);
+
+	if (stat(devlink, &buf) != 0)
+		return 0;
+
+	return 1;
 }
 
 int Ifconfig_Get_Hwaddr(const char *in_dev, char *errstr, uint8_t *ret_hwaddr) {

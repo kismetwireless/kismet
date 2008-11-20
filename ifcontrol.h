@@ -88,9 +88,9 @@ struct ethtool_drvinfo {
 #endif
 
 // Get the ethtool info
-int Linux_GetDrvInfo(const char *in_dev, char *errstr, 
-					 struct ethtool_drvinfo *info);
+int Linux_GetDrvInfo(const char *in_dev, char *errstr, struct ethtool_drvinfo *info);
 string Linux_GetSysDrv(const char *in_dev);
+int Linux_GetSysDrvAttr(const char *in_dev, const char *in_attr);
 int Ifconfig_Get_Hwaddr(const char *in_dev, char *errstr, uint8_t *ret_hwaddr);
 int Ifconfig_Set_Hwaddr(const char *in_dev, char *errstr, uint8_t *in_hwaddr);
 int Ifconfig_Set_MTU(const char *in_dev, char *errstr, uint16_t in_mtu);
