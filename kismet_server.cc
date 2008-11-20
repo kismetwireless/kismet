@@ -691,6 +691,9 @@ int main(int argc, char *argv[], char *envp[]) {
 	if (globalregistry->fatal_condition)
 		CatchShutdown(-1);
 
+	// Initialize the crc tables
+	crc32_init_table_80211(globalregistry->crc32_table);
+
 	// Blab about starting
 	globalregistry->messagebus->InjectMessage("Kismet starting to gather packets",
 											  MSGFLAG_INFO);

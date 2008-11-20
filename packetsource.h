@@ -280,16 +280,6 @@ public:
 	virtual unsigned int FetchFCSBytes() { return fcsbytes; }
 
 	virtual void SetValidateCRC(int in_validate) {
-		if (in_validate && crc32_table == NULL) {
-			crc32_table = new unsigned int[256];
-			crc32_init_table_80211(crc32_table);
-		}
-
-		if (in_validate && crc32_table != NULL) {
-			delete[] crc32_table;
-			crc32_table = NULL;
-		}
-
 		validate_fcs = in_validate;
 	}
 	virtual unsigned int FetchValidateCRC() { return validate_fcs; }

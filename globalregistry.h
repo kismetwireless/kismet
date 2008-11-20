@@ -210,6 +210,8 @@ public:
 
 	// Alert references
 	int alertref_map[ALERT_REF_MAX];
+
+	unsigned int crc32_table[256];
     
     GlobalRegistry() { 
 		version_major = VERSION_MAJOR;
