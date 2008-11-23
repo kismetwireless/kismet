@@ -6583,10 +6583,15 @@ fi
 # Check for libcurses or libncurses.  Fatal error if we didn't use disable.
 # Check whether --enable-client was given.
 if test "${enable_client+set}" = set; then
-  enableval=$enable_client;
+  enableval=$enable_client; case "${enableval}" in
+	  no) wantclient=no ;;
+	   *) wantclient=yes ;;
+	 esac
 else
   wantclient=yes
+
 fi
+
 
 
 termcontrol="none";
@@ -7956,9 +7961,13 @@ fi
 
 # Check whether --enable-linuxwext was given.
 if test "${enable_linuxwext+set}" = set; then
-  enableval=$enable_linuxwext;
+  enableval=$enable_linuxwext; case "${enableval}" in
+	  no) wantwext=no ;;
+	   *) wantwext=yes ;;
+	 esac
 else
   wantwext=yes
+
 fi
 
 
@@ -8531,9 +8540,13 @@ fi
 
 # Check whether --enable-pcre was given.
 if test "${enable_pcre+set}" = set; then
-  enableval=$enable_pcre; wantpcre=no
+  enableval=$enable_pcre; case "${enableval}" in
+	  no) wantpcre=no ;;
+	   *) wantpcre=yes ;;
+	 esac
 else
   wantpcre=yes
+
 fi
 
 
@@ -8912,7 +8925,13 @@ done
 
 # Check whether --enable-airpcap was given.
 if test "${enable_airpcap+set}" = set; then
-  enableval=$enable_airpcap; want_airpcap=yes
+  enableval=$enable_airpcap; case "${enableval}" in
+	 yes) want_airpcap=yes ;;
+	   *) want_airpcap=no ;;
+	 esac
+else
+  want_airpcap=no
+
 fi
 
 
@@ -8941,9 +8960,13 @@ fi # cygwin
 
 # Check whether --enable-pcap was given.
 if test "${enable_pcap+set}" = set; then
-  enableval=$enable_pcap;
+  enableval=$enable_pcap; case "${enableval}" in
+	  no) wantpcap=no ;;
+	   *) wantpcap=yes ;;
+	 esac
 else
   wantpcap=yes
+
 fi
 
 
@@ -10246,9 +10269,13 @@ fi
 
 # Check whether --enable-setuid was given.
 if test "${enable_setuid+set}" = set; then
-  enableval=$enable_setuid;
+  enableval=$enable_setuid; case "${enableval}" in
+	  no) suid=no ;;
+	   *) suid=yes ;;
+	 esac
 else
   suid=yes
+
 fi
 
 
@@ -10267,7 +10294,13 @@ fi
 
 # Check whether --enable-viha was given.
 if test "${enable_viha+set}" = set; then
-  enableval=$enable_viha; want_viha=no
+  enableval=$enable_viha; case "${enableval}" in
+	 yes) want_viha=yes ;;
+	   *) want_viha=no ;;
+	 esac
+else
+  want_viha=no
+
 fi
 
 
@@ -10467,12 +10500,15 @@ echo "$as_me: WARNING: *** Not installing setuid capabilities.  It is more secur
     fi
 fi
 
-wsp100=yes
 # Check whether --enable-wsp100 was given.
 if test "${enable_wsp100+set}" = set; then
-  enableval=$enable_wsp100;
+  enableval=$enable_wsp100; case "${enableval}" in
+	  no) wsp100=no ;;
+	   *) wsp100=yes ;;
+	 esac
 else
-  wsp100=no
+  wsp100=yes
+
 fi
 
 if test "$wsp100" = "yes"; then
@@ -10483,10 +10519,15 @@ _ACEOF
 
 fi
 
-zaurus=no
 # Check whether --enable-zaurus was given.
 if test "${enable_zaurus+set}" = set; then
-  enableval=$enable_zaurus; zaurus=yes
+  enableval=$enable_zaurus; case "${enableval}" in
+	 yes) zaurus=yes ;;
+	   *) zaurus=no ;;
+	 esac
+else
+  zaurus=no
+
 fi
 
 if test "$zaurus" = "yes" -a "$host_cpu" != "arm"; then
@@ -10503,7 +10544,13 @@ fi
 local=no
 # Check whether --enable-local-dumper was given.
 if test "${enable_local_dumper+set}" = set; then
-  enableval=$enable_local_dumper; local=yes
+  enableval=$enable_local_dumper; case "${enableval}" in
+	 yes) local=yes ;;
+	   *) local=no ;;
+	 esac
+else
+  local=no
+
 fi
 
 
@@ -10526,9 +10573,13 @@ _ACEOF
 
 # Check whether --enable-optimization was given.
 if test "${enable_optimization+set}" = set; then
-  enableval=$enable_optimization;
+  enableval=$enable_optimization; case "${enableval}" in
+	  no) wantopto=no ;;
+	   *) wantopto=yes ;;
+	 esac
 else
   wantopto=yes
+
 fi
 
 if test "$wantopto" != "yes"; then
