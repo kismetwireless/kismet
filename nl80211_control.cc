@@ -32,6 +32,8 @@
 #include <net/if.h>
 #endif
 
+#include <stdio.h>
+
 int mac80211_createvap(const char *interface, const char *newinterface, char *errstr) {
 #ifndef HAVE_LINUX_NETLINK
 	snprintf(errstr, STATUS_MAX, "Kismet was not compiled with netlink/mac80211 "
