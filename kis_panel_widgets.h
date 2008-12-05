@@ -819,7 +819,17 @@ public:
 
 	virtual int Poll();
 
-	virtual void DrawPanel() = 0;
+	virtual void DrawPanel() {
+		ColorFromPref(text_color, "panel_text_color");
+		ColorFromPref(border_color, "panel_border_color");
+
+		wbkgdset(win, text_color);
+		werase(win);
+
+		DrawTitleBorder();
+		DrawComponentVec();
+		wmove(win, 0, 0);
+	}
 
 	virtual int KeyPress(int in_key);
 	virtual int MouseEvent(MEVENT *mevent);

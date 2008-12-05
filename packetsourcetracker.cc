@@ -1233,7 +1233,11 @@ int Packetsourcetracker::IpcChannelSet(ipc_source_chanset *in_ipc) {
 	}
 
 	if (in_ipc->chanset_id == 0) {
+		// Actually set the channel if we're locking
 		pstsource->channel = in_ipc->channel;
+		if (pstsource->strong_source->SetChannel(pstsource->channel)) 
+			_MSG("Packet source failed to set channel on source '" + 
+				 pstsource->interface + "'", MSGFLAG_ERROR);
 	} else {
 		pstsource->channel = 0;
 		pstsource->channel_list = in_ipc->chanset_id;
@@ -1726,6 +1730,12 @@ int Packetsourcetracker::SetSourceHopping(uuid in_uuid, int in_hopping,
 	// Send it over IPC - we don't care if it's controlled locally
 	SendIPCChanset(pstsource);
 
+	if (rootipc == NULL || pstsource->proto_source->require_root == 0) {
+		if (pstsource->strong_source->SetChannel(pstsource->channel)) 
+			_MSG("Packet source failed to set channel on source '" + 
+				 pstsource->interface + "'", MSGFLAG_ERROR);
+	}
+
 	// Send a notify to all the registered callbacks
 	int opt;                                   
 	if (in_hopping)                            
@@ -2175,6 +2185,7 @@ int Packetsourcetracker::cmd_HOPSOURCE(int in_clid, KisNetFramework *framework,
 		}
 
 		SetSourceHopping(inuuid, 0, val);
+
 	} else if (cmd == "hop") {
 		if (parsedcmdline->size() < 2) {
 			SetSourceHopping(inuuid, 1, 0);

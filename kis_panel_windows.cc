@@ -70,6 +70,8 @@ Kis_Main_Panel::Kis_Main_Panel(GlobalRegistry *in_globalreg,
 	menu->AddMenuItem("-", mn_file, 0);
 
 	mi_addcard = menu->AddMenuItem("Add Source...", mn_file, 'A');
+	mi_lock = menu->AddMenuItem("Lock Channel...", mn_file, 'L');
+	mi_hop = menu->AddMenuItem("Hop Channel...", mn_file, 'H');
 
 	menu->AddMenuItem("-", mn_file, 0);
 
@@ -441,11 +443,22 @@ void Kis_Main_Panel::MenuAction(int opt) {
 		} else {
 			kpinterface->RaiseServerPicker("Choose server", sp_addcard_cb,
 										   NULL);
+		} 
+	} else if (opt == mi_lock) {
+		vector<KisNetClient *> *cliref = kpinterface->FetchNetClientVecPtr();
+		if (cliref->size() == 0) {
+			kpinterface->RaiseAlert("No servers",
+									"There are no servers.  You must\n"
+									"connect to a server before setting\n"
+									"channels.\n");
+		} else {
+			Kis_Chanlock_Panel *cp = new Kis_Chanlock_Panel(globalreg, kpinterface);
+			cp->Position(WIN_CENTER(12, 50));
+			kpinterface->AddPanel(cp);
 		}
-
 	} else if (opt == mi_addplugin) {
 		Kis_Plugin_Picker *pp = new Kis_Plugin_Picker(globalreg, kpinterface);
-		pp->Position((LINES / 2) - 8, (COLS / 2) - 20, 16, 50);
+		pp->Position(WIN_CENTER(16, 50));
 		kpinterface->AddPanel(pp);
 	} else if (opt == mi_colorprefs) {
 		SpawnColorPrefs();
@@ -503,7 +516,7 @@ void Kis_Main_Panel::SpawnColorPrefs() {
 		cpp->AddColorPref(color_pref_vec[x].pref, color_pref_vec[x].text);
 	}
 
-	cpp->Position((LINES / 2) - 7, (COLS / 2) - 20, 14, 40);
+	cpp->Position((LINES / 2) - 10, (COLS / 2) - 25, 20, 50);
 	kpinterface->AddPanel(cpp);
 }
 
@@ -2194,7 +2207,7 @@ Kis_ChanDetails_Panel::Kis_ChanDetails_Panel(GlobalRegistry *in_globalreg,
 							' ', ' ', 1, &sigvec);
 	siggraph->AddExtDataVec("Noise", 4, "channel_noise", "green,green",
 							' ', ' ', 1, &noisevec);
-	AddComponentVec(siggraph, KIS_PANEL_COMP_EVT);
+	AddComponentVec(siggraph, KIS_PANEL_COMP_DRAW);
 
 	packetgraph = new Kis_IntGraph(globalreg, this);
 	packetgraph->SetName("CHANNEL_PPS");
@@ -2204,7 +2217,7 @@ Kis_ChanDetails_Panel::Kis_ChanDetails_Panel(GlobalRegistry *in_globalreg,
 	packetgraph->Show();
 	packetgraph->AddExtDataVec("Packet Rate", 4, "channel_pps", "green,green",
 							   ' ', ' ', 1, &packvec);
-	AddComponentVec(packetgraph, KIS_PANEL_COMP_EVT);
+	AddComponentVec(packetgraph, KIS_PANEL_COMP_DRAW);
 
 	bytegraph = new Kis_IntGraph(globalreg, this);
 	bytegraph->SetName("CHANNEL_BPS");
@@ -2214,7 +2227,7 @@ Kis_ChanDetails_Panel::Kis_ChanDetails_Panel(GlobalRegistry *in_globalreg,
 	bytegraph->Show();
 	bytegraph->AddExtDataVec("Traffic", 4, "channel_bytes", "green,green",
 							 ' ', ' ', 1, &bytevec);
-	AddComponentVec(bytegraph, KIS_PANEL_COMP_EVT);
+	AddComponentVec(bytegraph, KIS_PANEL_COMP_DRAW);
 
 	netgraph = new Kis_IntGraph(globalreg, this);
 	netgraph->SetName("CHANNEL_NETS");
@@ -2226,7 +2239,7 @@ Kis_ChanDetails_Panel::Kis_ChanDetails_Panel(GlobalRegistry *in_globalreg,
 							' ', ' ', 1, &netvec);
 	netgraph->AddExtDataVec("Active", 4, "channel_actnets", "green,green",
 							' ', ' ', 1, &anetvec);
-	AddComponentVec(netgraph, KIS_PANEL_COMP_EVT);
+	AddComponentVec(netgraph, KIS_PANEL_COMP_DRAW);
 
 	SetTitle("");
 
@@ -2572,6 +2585,178 @@ void Kis_ChanDetails_Panel::Proto_CHANNEL(CLIPROTO_CB_PARMS) {
 	if (sscanf((*proto_parsed)[fnum++].word.c_str(), "%d", &tint) != 1)
 		return;
 	ci->noise_rssi = tint;
+}
+
+int ChanlockButtonCB(COMPONENT_CALLBACK_PARMS) {
+	((Kis_Chanlock_Panel *) aux)->ButtonAction(component);
+	return 1;
+}
+
+
+Kis_Chanlock_Panel::Kis_Chanlock_Panel(GlobalRegistry *in_globalreg, 
+									   KisPanelInterface *in_intf):
+	Kis_Panel(in_globalreg, in_intf) {
+
+	cardlist = new Kis_Scrollable_Table(globalreg, this);
+	cardlist->SetHighlightSelected(1);
+	cardlist->SetLockScrollTop(1);
+	cardlist->SetDrawTitles(1);
+	vector<Kis_Scrollable_Table::title_data> titles;
+	Kis_Scrollable_Table::title_data t;
+	t.width = 16;
+	t.title = "Name";
+	t.alignment = 0;
+	titles.push_back(t);
+	t.width = 4;
+	t.title = "Chan";
+	t.alignment = 2;
+	titles.push_back(t);
+	cardlist->AddTitles(titles);
+	vector<string> td;
+	td.push_back("No sources found");
+	td.push_back("---");
+	cardlist->AddRow(0, td);
+	cardlist->Show();
+	AddComponentVec(cardlist, (KIS_PANEL_COMP_DRAW | KIS_PANEL_COMP_EVT |
+							   KIS_PANEL_COMP_TAB));
+
+	inpchannel = new Kis_Single_Input(globalreg, this);
+	inpchannel->SetLabel("Chan/Freq", LABEL_POS_LEFT);
+	inpchannel->SetTextLen(4);
+	inpchannel->SetCharFilter(FILTER_NUM);
+
+	if (kpinterface->FetchMainPanel()->FetchDisplayNetlist()->FetchSelectedNetgroup() != NULL)
+		inpchannel->SetText(IntToString(kpinterface->FetchMainPanel()->FetchDisplayNetlist()->FetchSelectedNetgroup()->FetchNetwork()->channel), -1, -1);
+	else
+		inpchannel->SetText("6", -1, -1);
+
+	inpchannel->Show();
+	AddComponentVec(inpchannel, (KIS_PANEL_COMP_DRAW | KIS_PANEL_COMP_EVT |
+								 KIS_PANEL_COMP_TAB));
+
+	okbutton = new Kis_Button(globalreg, this);
+	okbutton->SetText("Lock Channel");
+	okbutton->Show();
+	AddComponentVec(okbutton, (KIS_PANEL_COMP_DRAW | KIS_PANEL_COMP_EVT |
+							   KIS_PANEL_COMP_TAB));
+	
+	cancelbutton = new Kis_Button(globalreg, this);
+	cancelbutton->SetText("Cancel");
+	cancelbutton->Show();
+	AddComponentVec(cancelbutton, (KIS_PANEL_COMP_DRAW | KIS_PANEL_COMP_EVT |
+								   KIS_PANEL_COMP_TAB));
+
+	okbutton->SetCallback(COMPONENT_CBTYPE_ACTIVATED, ChanlockButtonCB, this);
+	cancelbutton->SetCallback(COMPONENT_CBTYPE_ACTIVATED, ChanlockButtonCB, this);
+
+	SetTitle("Lock Channel");
+
+	bbox = new Kis_Panel_Packbox(globalreg, this);
+	bbox->SetPackH();
+	bbox->SetHomogenous(1);
+	bbox->SetSpacing(0);
+	AddComponentVec(bbox, KIS_PANEL_COMP_DRAW);
+	bbox->Pack_End(cancelbutton, 0, 0);
+	bbox->Pack_End(okbutton, 0, 0);
+	bbox->Show();
+
+	vbox = new Kis_Panel_Packbox(globalreg, this);
+	vbox->SetPackV();
+	vbox->SetHomogenous(0);
+	vbox->SetSpacing(1);
+	AddComponentVec(vbox, KIS_PANEL_COMP_DRAW);
+	vbox->Pack_End(cardlist, 1, 0);
+	vbox->Pack_End(inpchannel, 0, 0);
+	vbox->Pack_End(bbox, 1, 0);
+	
+	vbox->Show();
+
+	tab_pos = 1;
+
+	if (kpinterface->FetchNetCardMap()->size() > 1) {
+		tab_pos = 1;
+		active_component = inpchannel;
+		inpchannel->Activate(1);
+	} else {
+		tab_pos = 0;
+		active_component = cardlist;
+		cardlist->Activate(1);
+	}
+}
+
+Kis_Chanlock_Panel::~Kis_Chanlock_Panel() {
+
+}
+
+void Kis_Chanlock_Panel::Position(int in_sy, int in_sx, int in_y, int in_x) {
+	Kis_Panel::Position(in_sy, in_sx, in_y, in_x);
+
+	vbox->SetPosition(1, 1, in_x - 1, in_y - 2);
+}
+
+void Kis_Chanlock_Panel::DrawPanel() {
+	map<uuid, KisPanelInterface::knc_card *> *cardmap =
+		kpinterface->FetchNetCardMap();
+
+	vector<string> td;
+
+	for (map<uuid, KisPanelInterface::knc_card *>::iterator x = cardmap->begin();
+		 x != cardmap->end(); ++x) {
+		cardlist->DelRow(0);
+		td.clear();
+
+		td.push_back(x->second->name);
+		if (x->second->hopping)
+			td.push_back("Hop");
+		else
+			td.push_back(IntToString(x->second->channel));
+
+		cardlist->ReplaceRow(x->second->uuid_hash, td);
+	}
+
+	Kis_Panel::DrawPanel();
+}
+
+void Kis_Chanlock_Panel::ButtonAction(Kis_Panel_Component *in_button) {
+	if (in_button == okbutton) {
+		uint32_t cardid = cardlist->GetSelected();
+		map<uuid, KisPanelInterface::knc_card *> *cardmap =
+			kpinterface->FetchNetCardMap();
+
+		if (cardmap->size() == 0) {
+			kpinterface->RaiseAlert("No cards",
+					"No cards found in the list from the \n"
+					"server, something is wrong.\n");
+			kpinterface->KillPanel(this);
+			return;
+		}
+
+		if (kpinterface->FetchFirstNetclient() == NULL) {
+			kpinterface->RaiseAlert("No server",
+					"Not connected to a server, you \n"
+					"shouldn't have been able to get to\n"
+					"this point\n");
+			kpinterface->KillPanel(this);
+			return;
+		}
+
+		for (map<uuid, KisPanelInterface::knc_card *>::iterator x = cardmap->begin();
+			 x != cardmap->end(); ++x) {
+			if (x->second->uuid_hash == cardid) {
+				kpinterface->FetchFirstNetclient()->InjectCommand("HOPSOURCE " + 
+					x->second->carduuid.UUID2String() + " LOCK " + 
+					inpchannel->GetText());
+				kpinterface->KillPanel(this);
+				return;
+			}
+		}
+
+		kpinterface->RaiseAlert("No card", "No card selected\n");
+
+	} else if (in_button == cancelbutton) {
+		globalreg->panel_interface->KillPanel(this);
+		return;
+	}
 }
 
 #endif

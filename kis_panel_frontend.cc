@@ -52,37 +52,20 @@ void KisPanelClient_STATUS(CLIPROTO_CB_PARMS) {
 	_MSG(text, flags);
 }
 
-void KPI_Proto_SOURCE(CLIPROTO_CB_PARMS) {
+void KisPanelClient_SOURCE(CLIPROTO_CB_PARMS) {
 	// Pass it off to the clinet frame
 	((KisPanelInterface *) auxptr)->proto_SOURCE(globalreg, proto_string,
 												 proto_parsed, srccli, auxptr);
-}
-
-void KPI_CARD_CliConfigured(CLICONF_CB_PARMS) {
-	if (recon)
-		return;
-
-	if (kcli->RegisterProtoHandler("SOURCE", KPI_SOURCE_FIELDS, 
-								   KPI_Proto_SOURCE, auxptr) < 0) {
-		_MSG("Could not register SOURCE protocol with remote server, connection "
-			 "will be terminated", MSGFLAG_ERROR);
-		kcli->KillConnection();
-	}
-}
-
-void KPI_CARD_CliAdd(KPI_ADDCLI_CB_PARMS) {
-	if (add == 0)
-		return;
-
-	netcli->AddConfCallback(KPI_CARD_CliConfigured, 1, auxptr);
 }
 
 void KisPanelInterface::proto_SOURCE(CLIPROTO_CB_PARMS) {
 	// "uuid,interface,type,username,channel,packets,hop," 
 	//	"velocity,dwell,hop_time_sec,hop_time_usec,channellist"
 
-	if (proto_parsed->size() < 12)
+	if (proto_parsed->size() < 12) {
+		fprintf(stderr, "invalid size %d\n", proto_parsed->size());
 		return;
+	}
 
 	int fnum = 0;
 	int tint;
@@ -99,6 +82,7 @@ void KisPanelInterface::proto_SOURCE(CLIPROTO_CB_PARMS) {
 		source->carduuid = inuuid;
 		source->uuid_hash = Adler32Checksum(inuuid.UUID2String().c_str(),
 											inuuid.UUID2String().length());
+		netcard_map[inuuid] = source;
 	} else {
 		source = netcard_map.find(inuuid)->second;
 	}
@@ -181,9 +165,7 @@ KisPanelInterface::~KisPanelInterface() {
 	SavePreferences();
 
 	Remove_AllNetcli_ProtoHandler("STATUS", KisPanelClient_STATUS, this);
-#if 0
-	Remove_AllNetcli_ProtoHandler("CARD", KisPanelClient_CARD, this);
-#endif
+	Remove_AllNetcli_ProtoHandler("SOURCE", KisPanelClient_SOURCE, this);
 
 	// Destroy panels in this destructor, if they get destroyed in the
 	// parent destructor sadness happens
@@ -285,16 +267,12 @@ void KisPanelInterface::NetClientConfigure(KisNetClient *in_cli, int in_recon) {
 		in_cli->KillConnection();
 	}
 
-#if 0
-	if (in_cli->RegisterProtoHandler("CARD", 
-									 "interface,type,username,channel,"
-									 "uuid,packets,hopping",
-									 KisPanelClient_CARD, this) < 0) {
-		_MSG("Could not register CARD protocol with remote server, connection "
+	if (in_cli->RegisterProtoHandler("SOURCE", KPI_SOURCE_FIELDS,
+									 KisPanelClient_SOURCE, this) < 0) {
+		_MSG("Could not register SOURCE protocol with remote server, connection "
 			 "will be terminated.", MSGFLAG_ERROR);
 		in_cli->KillConnection();
 	}
-#endif
 }
 
 int KisPanelInterface::Remove_AllNetcli_ProtoHandler(string in_proto,

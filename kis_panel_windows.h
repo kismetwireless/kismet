@@ -95,7 +95,7 @@ public:
 	void Proto_INFO(CLIPROTO_CB_PARMS);
 
 protected:
-	int mn_file, mi_connect, mi_disconnect, mi_addcard, mi_quit;
+	int mn_file, mi_connect, mi_disconnect, mi_addcard, mi_lock, mi_hop, mi_quit;
 
 	int mn_plugins, mi_addplugin, mi_noplugins;
 
@@ -429,6 +429,31 @@ protected:
 
 	int grapheventid;
 	int addref;
+};
+
+class Kis_Chanlock_Panel : public Kis_Panel {
+public:
+	Kis_Chanlock_Panel() {
+		fprintf(stderr, "FATAL OOPS: Kis_Connect_Panel called w/out globalreg\n");
+		exit(1);
+	}
+
+	Kis_Chanlock_Panel(GlobalRegistry *in_globalreg, KisPanelInterface *in_kpf);
+	virtual ~Kis_Chanlock_Panel();
+
+	virtual void Position(int in_sy, int in_sx, int in_y, int in_x);
+	virtual void DrawPanel();
+
+	void ButtonAction(Kis_Panel_Component *component);
+
+protected:
+	Kis_Scrollable_Table *cardlist;
+	Kis_Single_Input *inpchannel;
+
+	Kis_Button *okbutton;
+	Kis_Button *cancelbutton;
+
+	Kis_Panel_Packbox *vbox, *bbox;
 };
 
 #endif

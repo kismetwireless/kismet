@@ -1936,7 +1936,8 @@ void Kis_Scrollable_Table::DrawComponent() {
 	}
 
 	// Jump to the scroll location to start drawing rows
-	for (unsigned int r = scroll_pos; r < data_vec.size() && ycur < ly; r++) {
+	for (unsigned int r = scroll_pos ? scroll_pos : 0; 
+		 r < data_vec.size() && ycur < ly; r++) {
 		// Print across
 		xcur = 0;
 
@@ -2091,6 +2092,8 @@ int Kis_Scrollable_Table::DelRow(int in_key) {
 
 	if (scroll_pos >= (int) data_vec.size()) {
 		scroll_pos = data_vec.size() - 1;
+		if (scroll_pos < 0)
+			scroll_pos = 0;
 	}
 
 	if (selected >= (int) data_vec.size()) {
@@ -2826,7 +2829,8 @@ int Kis_Panel::KeyPress(int in_key) {
 
 		// Find from current to end
 		for (unsigned int x = tab_pos + 1; x < pan_comp_vec.size(); x++) {
-			if ((pan_comp_vec[x].comp_flags & KIS_PANEL_COMP_TAB) == 0)
+			if ((pan_comp_vec[x].comp_flags & KIS_PANEL_COMP_TAB) == 0 ||
+				(pan_comp_vec[x].comp->GetVisible() == 0))
 				continue;
 
 			set = x;
@@ -2836,7 +2840,8 @@ int Kis_Panel::KeyPress(int in_key) {
 		// No?  Find from start
 		if (set == -1) {
 			for (unsigned int x = 0; x < pan_comp_vec.size(); x++) {
-				if ((pan_comp_vec[x].comp_flags & KIS_PANEL_COMP_TAB) == 0)
+				if ((pan_comp_vec[x].comp_flags & KIS_PANEL_COMP_TAB) == 0 ||
+					(pan_comp_vec[x].comp->GetVisible() == 0))
 					continue;
 
 				set = x;

@@ -141,6 +141,11 @@ public:
 
 	Kis_Main_Panel *FetchMainPanel() { return mainp; }
 
+	KisNetClient *FetchFirstNetclient() { 
+		if (netclient_vec.size()) return netclient_vec[0];
+		return NULL;
+	}
+
 	// Public so we don't have pointless wrappers
 	ConfigFile prefs;
 	Kis_Panel_Color colors;
