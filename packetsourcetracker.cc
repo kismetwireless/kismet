@@ -1232,10 +1232,10 @@ int Packetsourcetracker::IpcChannelSet(ipc_source_chanset *in_ipc) {
 			 "channel set, something is wrong", MSGFLAG_ERROR);
 	}
 
-	if (in_ipc->chanset_id == 0) {
+	if (in_ipc->channel_hop == 0) {
 		// Actually set the channel if we're locking
 		pstsource->channel = in_ipc->channel;
-		if (pstsource->strong_source->SetChannel(pstsource->channel)) 
+		if (pstsource->strong_source->SetChannel(pstsource->channel) < 0) 
 			_MSG("Packet source failed to set channel on source '" + 
 				 pstsource->interface + "'", MSGFLAG_ERROR);
 	} else {
@@ -1730,18 +1730,22 @@ int Packetsourcetracker::SetSourceHopping(uuid in_uuid, int in_hopping,
 	// Send it over IPC - we don't care if it's controlled locally
 	SendIPCChanset(pstsource);
 
-	if (rootipc == NULL || pstsource->proto_source->require_root == 0) {
-		if (pstsource->strong_source->SetChannel(pstsource->channel)) 
-			_MSG("Packet source failed to set channel on source '" + 
-				 pstsource->interface + "'", MSGFLAG_ERROR);
-	}
-
 	// Send a notify to all the registered callbacks
 	int opt;                                   
-	if (in_hopping)                            
+	if (in_hopping) {
 		opt = SOURCEACT_HOPENABLE;
-	else
+	} else {
 		opt = SOURCEACT_HOPDISABLE;
+
+		// Set it locally if we need to
+		if ((rootipc == NULL || pstsource->proto_source->require_root == 0) &&
+			in_hopping == 0) {
+			if (pstsource->strong_source->SetChannel(pstsource->channel) < 0) 
+				_MSG("Packet source failed to set channel on source '" + 
+					 pstsource->interface + "'", MSGFLAG_ERROR);
+		}
+	}
+
 	for (unsigned int x = 0; x < cb_vec.size(); x++) {
 		(*(cb_vec[x]->cb))(globalreg, pstsource, opt, 0, cb_vec[x]->auxdata);
 	}

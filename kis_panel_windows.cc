@@ -2702,7 +2702,8 @@ void Kis_Chanlock_Panel::DrawPanel() {
 
 	for (map<uuid, KisPanelInterface::knc_card *>::iterator x = cardmap->begin();
 		 x != cardmap->end(); ++x) {
-		cardlist->DelRow(0);
+		int sel = cardlist->DelRow(0);
+
 		td.clear();
 
 		td.push_back(x->second->name);
@@ -2712,6 +2713,9 @@ void Kis_Chanlock_Panel::DrawPanel() {
 			td.push_back(IntToString(x->second->channel));
 
 		cardlist->ReplaceRow(x->second->uuid_hash, td);
+
+		if (sel) 
+			cardlist->SetSelected(x->second->uuid_hash);
 	}
 
 	Kis_Panel::DrawPanel();

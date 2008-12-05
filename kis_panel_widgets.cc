@@ -2044,6 +2044,17 @@ int Kis_Scrollable_Table::GetSelected() {
 	return -1;
 }
 
+int Kis_Scrollable_Table::SetSelected(int in_key) {
+	for (unsigned int x = 0; x < data_vec.size(); x++) {
+		if (data_vec[x]->key == in_key) {
+			selected = x;
+			return 1;
+		}
+	}
+
+	return 0;
+}
+
 int Kis_Scrollable_Table::AddTitles(vector<Kis_Scrollable_Table::title_data> 
 									in_titles) {
 	title_vec = in_titles;

@@ -546,6 +546,8 @@ public:
 	virtual int ReplaceRow(int in_key, vector<string> in_fields);
 	// Get the selected key
 	virtual int GetSelected();
+	// Set a selected row
+	virtual int SetSelected(int in_key);
 	// Clear all raws
 	virtual void Clear();
 
