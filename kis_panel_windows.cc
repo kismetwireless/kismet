@@ -2838,6 +2838,17 @@ void Kis_Chanconf_Panel::DrawPanel() {
 				inpchannel->SetText(IntToString(card->channel), -1, -1);
 				inpchannel->Show();
 
+				// attack of the api doom, set the selected network channel as the
+				// default lock channel if we're not already locked
+				if (card->hopping == 0 && card->dwell == 0) {
+					inpchannel->SetText(IntToString(card->channel), -1, -1);
+				} else {
+					if (kpinterface->FetchMainPanel()->FetchDisplayNetlist()->FetchSelectedNetgroup() != NULL)
+						inpchannel->SetText(IntToString(kpinterface->FetchMainPanel()->FetchDisplayNetlist()->FetchSelectedNetgroup()->FetchNetwork()->channel), -1, -1);
+					else
+						inpchannel->SetText("6", -1, -1);
+				}
+
 				inprate->Hide();
 			} else if (last_radio == dwellrad) {
 				inpchannel->SetLabel("Channels", LABEL_POS_LEFT);
