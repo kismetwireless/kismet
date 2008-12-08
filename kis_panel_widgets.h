@@ -677,6 +677,7 @@ public:
 	virtual void Deactivate();
 
 	virtual int KeyPress(int in_key);
+	virtual int MouseEvent(MEVENT *mevent);
 
 	virtual void SetText(string in_text);
 
@@ -687,6 +688,37 @@ protected:
 	string text;
 
 	int checked;
+};
+
+class Kis_Radiobutton : public Kis_Panel_Component {
+public:
+	Kis_Radiobutton() {
+		fprintf(stderr, "FATAL OOPS: Kis_Radiobutton() called w/out globalreg\n");
+		exit(1);
+	}
+	Kis_Radiobutton(GlobalRegistry *in_globalreg, Kis_Panel *in_panel);
+	virtual ~Kis_Radiobutton();
+
+	virtual void DrawComponent();
+	virtual void Activate(int subcomponent);
+	virtual void Deactivate();
+
+	virtual int KeyPress(int in_key);
+	virtual int MouseEvent(MEVENT *mevent);
+
+	virtual void SetText(string in_text);
+
+	virtual int GetChecked();
+	virtual void SetChecked(int in_check);
+
+	virtual void LinkRadiobutton(Kis_Radiobutton *in_button);
+
+protected:
+	string text;
+
+	int checked;
+
+	vector<Kis_Radiobutton *> linked_vec;
 };
 
 // Scaling interpolated graph

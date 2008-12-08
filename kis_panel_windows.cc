@@ -70,8 +70,7 @@ Kis_Main_Panel::Kis_Main_Panel(GlobalRegistry *in_globalreg,
 	menu->AddMenuItem("-", mn_file, 0);
 
 	mi_addcard = menu->AddMenuItem("Add Source...", mn_file, 'A');
-	mi_lock = menu->AddMenuItem("Lock Channel...", mn_file, 'L');
-	mi_hop = menu->AddMenuItem("Hop Channel...", mn_file, 'H');
+	mi_conf = menu->AddMenuItem("Config Channel...", mn_file, 'L');
 
 	menu->AddMenuItem("-", mn_file, 0);
 
@@ -444,7 +443,7 @@ void Kis_Main_Panel::MenuAction(int opt) {
 			kpinterface->RaiseServerPicker("Choose server", sp_addcard_cb,
 										   NULL);
 		} 
-	} else if (opt == mi_lock) {
+	} else if (opt == mi_conf) {
 		vector<KisNetClient *> *cliref = kpinterface->FetchNetClientVecPtr();
 		if (cliref->size() == 0) {
 			kpinterface->RaiseAlert("No servers",
@@ -452,8 +451,8 @@ void Kis_Main_Panel::MenuAction(int opt) {
 									"connect to a server before setting\n"
 									"channels.\n");
 		} else {
-			Kis_Chanlock_Panel *cp = new Kis_Chanlock_Panel(globalreg, kpinterface);
-			cp->Position(WIN_CENTER(12, 50));
+			Kis_Chanconf_Panel *cp = new Kis_Chanconf_Panel(globalreg, kpinterface);
+			cp->Position(WIN_CENTER(14, 50));
 			kpinterface->AddPanel(cp);
 		}
 	} else if (opt == mi_addplugin) {
@@ -2587,13 +2586,13 @@ void Kis_ChanDetails_Panel::Proto_CHANNEL(CLIPROTO_CB_PARMS) {
 	ci->noise_rssi = tint;
 }
 
-int ChanlockButtonCB(COMPONENT_CALLBACK_PARMS) {
-	((Kis_Chanlock_Panel *) aux)->ButtonAction(component);
+int ChanconfButtonCB(COMPONENT_CALLBACK_PARMS) {
+	((Kis_Chanconf_Panel *) aux)->ButtonAction(component);
 	return 1;
 }
 
 
-Kis_Chanlock_Panel::Kis_Chanlock_Panel(GlobalRegistry *in_globalreg, 
+Kis_Chanconf_Panel::Kis_Chanconf_Panel(GlobalRegistry *in_globalreg, 
 									   KisPanelInterface *in_intf):
 	Kis_Panel(in_globalreg, in_intf) {
 
@@ -2620,22 +2619,63 @@ Kis_Chanlock_Panel::Kis_Chanlock_Panel(GlobalRegistry *in_globalreg,
 	AddComponentVec(cardlist, (KIS_PANEL_COMP_DRAW | KIS_PANEL_COMP_EVT |
 							   KIS_PANEL_COMP_TAB));
 
+	lockrad = new Kis_Radiobutton(globalreg, this);
+	lockrad->SetText("Lock");
+	lockrad->SetCallback(COMPONENT_CBTYPE_ACTIVATED, ChanconfButtonCB, this);
+	lockrad->Show();
+	lockrad->SetChecked(1);
+	AddComponentVec(lockrad, (KIS_PANEL_COMP_DRAW | KIS_PANEL_COMP_EVT |
+							  KIS_PANEL_COMP_TAB));
+
+	hoprad = new Kis_Radiobutton(globalreg, this);
+	hoprad->SetText("Hop");
+	hoprad->SetCallback(COMPONENT_CBTYPE_ACTIVATED, ChanconfButtonCB, this);
+	hoprad->Show();
+	AddComponentVec(hoprad, (KIS_PANEL_COMP_DRAW | KIS_PANEL_COMP_EVT |
+							 KIS_PANEL_COMP_TAB));
+
+	dwellrad = new Kis_Radiobutton(globalreg, this);
+	dwellrad->SetText("Dwell");
+	dwellrad->SetCallback(COMPONENT_CBTYPE_ACTIVATED, ChanconfButtonCB, this);
+	dwellrad->Show();
+	AddComponentVec(dwellrad, (KIS_PANEL_COMP_DRAW | KIS_PANEL_COMP_EVT |
+							   KIS_PANEL_COMP_TAB));
+
+	lockrad->LinkRadiobutton(hoprad);
+	lockrad->LinkRadiobutton(dwellrad);
+
+	dwellrad->LinkRadiobutton(hoprad);
+	dwellrad->LinkRadiobutton(lockrad);
+
+	hoprad->LinkRadiobutton(dwellrad);
+	hoprad->LinkRadiobutton(lockrad);
+
 	inpchannel = new Kis_Single_Input(globalreg, this);
 	inpchannel->SetLabel("Chan/Freq", LABEL_POS_LEFT);
 	inpchannel->SetTextLen(4);
 	inpchannel->SetCharFilter(FILTER_NUM);
 
-	if (kpinterface->FetchMainPanel()->FetchDisplayNetlist()->FetchSelectedNetgroup() != NULL)
-		inpchannel->SetText(IntToString(kpinterface->FetchMainPanel()->FetchDisplayNetlist()->FetchSelectedNetgroup()->FetchNetwork()->channel), -1, -1);
-	else
-		inpchannel->SetText("6", -1, -1);
-
 	inpchannel->Show();
 	AddComponentVec(inpchannel, (KIS_PANEL_COMP_DRAW | KIS_PANEL_COMP_EVT |
 								 KIS_PANEL_COMP_TAB));
 
+	inprate = new Kis_Single_Input(globalreg, this);
+	inprate->SetLabel("Rate", LABEL_POS_LEFT);
+	inprate->SetTextLen(4);
+	inprate->SetCharFilter(FILTER_NUM);
+	inprate->Hide();
+	AddComponentVec(inprate, (KIS_PANEL_COMP_DRAW | KIS_PANEL_COMP_EVT |
+							  KIS_PANEL_COMP_TAB));
+
+	/*
+	if (kpinterface->FetchMainPanel()->FetchDisplayNetlist()->FetchSelectedNetgroup() != NULL)
+		inpchannel->SetText(IntToString(kpinterface->FetchMainPanel()->FetchDisplayNetlist()->FetchSelectedNetgroup()->FetchNetwork()->channel), -1, -1);
+	else
+		inpchannel->SetText("6", -1, -1);
+	*/
+
 	okbutton = new Kis_Button(globalreg, this);
-	okbutton->SetText("Lock Channel");
+	okbutton->SetText("Change");
 	okbutton->Show();
 	AddComponentVec(okbutton, (KIS_PANEL_COMP_DRAW | KIS_PANEL_COMP_EVT |
 							   KIS_PANEL_COMP_TAB));
@@ -2646,15 +2686,27 @@ Kis_Chanlock_Panel::Kis_Chanlock_Panel(GlobalRegistry *in_globalreg,
 	AddComponentVec(cancelbutton, (KIS_PANEL_COMP_DRAW | KIS_PANEL_COMP_EVT |
 								   KIS_PANEL_COMP_TAB));
 
-	okbutton->SetCallback(COMPONENT_CBTYPE_ACTIVATED, ChanlockButtonCB, this);
-	cancelbutton->SetCallback(COMPONENT_CBTYPE_ACTIVATED, ChanlockButtonCB, this);
+	okbutton->SetCallback(COMPONENT_CBTYPE_ACTIVATED, ChanconfButtonCB, this);
+	cancelbutton->SetCallback(COMPONENT_CBTYPE_ACTIVATED, ChanconfButtonCB, this);
 
-	SetTitle("Lock Channel");
+	SetTitle("Configure Channel");
+
+	cbox = new Kis_Panel_Packbox(globalreg, this);
+	cbox->SetPackH();
+	cbox->SetHomogenous(1);
+	cbox->SetSpacing(1);
+	cbox->SetCenter(1);
+	AddComponentVec(cbox, KIS_PANEL_COMP_DRAW);
+	cbox->Pack_End(lockrad, 0, 0);
+	cbox->Pack_End(hoprad, 0, 0);
+	cbox->Pack_End(dwellrad, 0, 0);
+	cbox->Show();
 
 	bbox = new Kis_Panel_Packbox(globalreg, this);
 	bbox->SetPackH();
 	bbox->SetHomogenous(1);
 	bbox->SetSpacing(0);
+	bbox->SetCenter(1);
 	AddComponentVec(bbox, KIS_PANEL_COMP_DRAW);
 	bbox->Pack_End(cancelbutton, 0, 0);
 	bbox->Pack_End(okbutton, 0, 0);
@@ -2666,35 +2718,32 @@ Kis_Chanlock_Panel::Kis_Chanlock_Panel(GlobalRegistry *in_globalreg,
 	vbox->SetSpacing(1);
 	AddComponentVec(vbox, KIS_PANEL_COMP_DRAW);
 	vbox->Pack_End(cardlist, 1, 0);
+	vbox->Pack_End(cbox, 0, 0);
 	vbox->Pack_End(inpchannel, 0, 0);
-	vbox->Pack_End(bbox, 1, 0);
+	vbox->Pack_End(inprate, 0, 0);
+	vbox->Pack_End(bbox, 0, 0);
 	
 	vbox->Show();
 
-	tab_pos = 1;
+	tab_pos = 0;
+	cardlist->Activate(1);
 
-	if (kpinterface->FetchNetCardMap()->size() > 1) {
-		tab_pos = 1;
-		active_component = inpchannel;
-		inpchannel->Activate(1);
-	} else {
-		tab_pos = 0;
-		active_component = cardlist;
-		cardlist->Activate(1);
-	}
+	last_selected = 0;
+	radio_changed = 0;
+	last_radio = lockrad;
 }
 
-Kis_Chanlock_Panel::~Kis_Chanlock_Panel() {
+Kis_Chanconf_Panel::~Kis_Chanconf_Panel() {
 
 }
 
-void Kis_Chanlock_Panel::Position(int in_sy, int in_sx, int in_y, int in_x) {
+void Kis_Chanconf_Panel::Position(int in_sy, int in_sx, int in_y, int in_x) {
 	Kis_Panel::Position(in_sy, in_sx, in_y, in_x);
 
 	vbox->SetPosition(1, 1, in_x - 1, in_y - 2);
 }
 
-void Kis_Chanlock_Panel::DrawPanel() {
+void Kis_Chanconf_Panel::DrawPanel() {
 	map<uuid, KisPanelInterface::knc_card *> *cardmap =
 		kpinterface->FetchNetCardMap();
 
@@ -2714,14 +2763,119 @@ void Kis_Chanlock_Panel::DrawPanel() {
 
 		cardlist->ReplaceRow(x->second->uuid_hash, td);
 
-		if (sel) 
+		if (sel) {
 			cardlist->SetSelected(x->second->uuid_hash);
+		}
+	}
+
+	if (cardlist->GetSelected() != last_selected || radio_changed != 0) {
+		KisPanelInterface::knc_card *card = NULL;
+		for (map<uuid, KisPanelInterface::knc_card *>::iterator x = cardmap->begin();
+			 x != cardmap->end(); ++x) {
+			if (x->second->uuid_hash == (unsigned int) cardlist->GetSelected()) {
+				card = x->second;
+				break;
+			}
+		}
+
+		// This should never happen but lets be safe
+		if (card == NULL) {
+			Kis_Panel::DrawPanel();
+			return;
+		}
+
+		// Set up the window for new cards OR set up the window based on the
+		// new radiobutton selection
+		if (last_selected != cardlist->GetSelected()) {
+			if (card->hopping == 0 && card->dwell == 0) {
+				lockrad->SetChecked(1);
+				last_radio = lockrad;
+
+				inpchannel->SetLabel("Chan/Freq", LABEL_POS_LEFT);
+				inpchannel->SetTextLen(4);
+				inpchannel->SetCharFilter(FILTER_NUM);
+				inpchannel->SetText(IntToString(card->channel), -1, -1);
+				inpchannel->Show();
+
+				inprate->Hide();
+			} else if (card->dwell != 0) {
+				dwellrad->SetChecked(1);
+				last_radio = dwellrad;
+
+				inpchannel->SetLabel("Channels", LABEL_POS_LEFT);
+				inpchannel->SetTextLen(256);
+				inpchannel->SetCharFilter(string(FILTER_NUM) + ",:");
+				inpchannel->SetText(card->channellist, -1, -1);
+				inpchannel->Show();
+
+				inprate->SetLabel("Dwell", LABEL_POS_LEFT);
+				inprate->SetTextLen(3);
+				inprate->SetCharFilter(FILTER_NUM);
+				inprate->SetText(IntToString(card->hopvelocity), -1, -1);
+				inprate->Show();
+
+			} else if (card->hopping) {
+				hoprad->SetChecked(1);
+				last_radio = hoprad;
+
+				inpchannel->SetLabel("Channels", LABEL_POS_LEFT);
+				inpchannel->SetTextLen(256);
+				inpchannel->SetCharFilter(string(FILTER_NUM) + ",:");
+				inpchannel->SetText(card->channellist, -1, -1);
+				inpchannel->Show();
+
+				inprate->SetLabel("Rate", LABEL_POS_LEFT);
+				inprate->SetTextLen(3);
+				inprate->SetCharFilter(FILTER_NUM);
+				inprate->SetText(IntToString(card->hopvelocity), -1, -1);
+				inprate->Show();
+			}
+		} else {
+			if (last_radio == lockrad) {
+				inpchannel->SetLabel("Chan/Freq", LABEL_POS_LEFT);
+				inpchannel->SetTextLen(4);
+				inpchannel->SetCharFilter(FILTER_NUM);
+				inpchannel->SetText(IntToString(card->channel), -1, -1);
+				inpchannel->Show();
+
+				inprate->Hide();
+			} else if (last_radio == dwellrad) {
+				inpchannel->SetLabel("Channels", LABEL_POS_LEFT);
+				inpchannel->SetTextLen(256);
+				inpchannel->SetCharFilter(string(FILTER_NUM) + ",:");
+				inpchannel->SetText(card->channellist, -1, -1);
+				inpchannel->Show();
+
+				inprate->SetLabel("Dwell", LABEL_POS_LEFT);
+				inprate->SetTextLen(3);
+				inprate->SetCharFilter(FILTER_NUM);
+				inprate->SetText(IntToString(card->hopvelocity), -1, -1);
+				inprate->Show();
+
+			} else if (last_radio == hoprad) {
+				inpchannel->SetLabel("Channels", LABEL_POS_LEFT);
+				inpchannel->SetTextLen(256);
+				inpchannel->SetCharFilter(string(FILTER_NUM) + ",:");
+				inpchannel->SetText(card->channellist, -1, -1);
+				inpchannel->Show();
+
+				inprate->SetLabel("Rate", LABEL_POS_LEFT);
+				inprate->SetTextLen(3);
+				inprate->SetCharFilter(FILTER_NUM);
+				inprate->SetText(IntToString(card->hopvelocity), -1, -1);
+				inprate->Show();
+			}
+
+		}
+
+		last_selected = cardlist->GetSelected();
+		radio_changed = 0;
 	}
 
 	Kis_Panel::DrawPanel();
 }
 
-void Kis_Chanlock_Panel::ButtonAction(Kis_Panel_Component *in_button) {
+void Kis_Chanconf_Panel::ButtonAction(Kis_Panel_Component *in_button) {
 	if (in_button == okbutton) {
 		uint32_t cardid = cardlist->GetSelected();
 		map<uuid, KisPanelInterface::knc_card *> *cardmap =
@@ -2735,6 +2889,11 @@ void Kis_Chanlock_Panel::ButtonAction(Kis_Panel_Component *in_button) {
 			return;
 		}
 
+		if (cardid == 0) {
+			kpinterface->RaiseAlert("No card", "No card selected\n");
+			return;
+		}
+
 		if (kpinterface->FetchFirstNetclient() == NULL) {
 			kpinterface->RaiseAlert("No server",
 					"Not connected to a server, you \n"
@@ -2744,22 +2903,73 @@ void Kis_Chanlock_Panel::ButtonAction(Kis_Panel_Component *in_button) {
 			return;
 		}
 
+		KisPanelInterface::knc_card *card = NULL;
+
 		for (map<uuid, KisPanelInterface::knc_card *>::iterator x = cardmap->begin();
 			 x != cardmap->end(); ++x) {
 			if (x->second->uuid_hash == cardid) {
-				kpinterface->FetchFirstNetclient()->InjectCommand("HOPSOURCE " + 
-					x->second->carduuid.UUID2String() + " LOCK " + 
-					inpchannel->GetText());
-				kpinterface->KillPanel(this);
-				return;
+				card = x->second;
+				break;
 			}
 		}
 
-		kpinterface->RaiseAlert("No card", "No card selected\n");
+		if (card == NULL) {
+			kpinterface->RaiseAlert("No card",
+					"No card matched the selected item\n"
+					"this shouldn't happen.\n");
+			kpinterface->KillPanel(this);
+			return;
+		}
 
+		if (last_radio == lockrad) {
+			if (inpchannel->GetText() == "") {
+				kpinterface->RaiseAlert("No channel",
+					"No channel given\n");
+				return;
+			}
+
+			kpinterface->FetchFirstNetclient()->InjectCommand("HOPSOURCE " + 
+				card->carduuid.UUID2String() + " LOCK " + 
+				inpchannel->GetText());
+			kpinterface->KillPanel(this);
+			return;
+		} else if (last_radio == hoprad || last_radio == dwellrad) {
+			if (inpchannel->GetText() == "") {
+				kpinterface->RaiseAlert("No channels",
+										"No channels given\n");
+				return;
+			}
+
+			if (inprate->GetText() == "") {
+				kpinterface->RaiseAlert("No rate",
+										"No hop rate given\n");
+				return;
+			}
+
+			if (inpchannel->GetText() != card->channellist) 
+				kpinterface->FetchFirstNetclient()->InjectCommand("CHANSOURCE " +
+					card->carduuid.UUID2String() + " " + inpchannel->GetText());
+
+			kpinterface->FetchFirstNetclient()->InjectCommand("HOPSOURCE " + 
+				card->carduuid.UUID2String() + string(" ") + 
+				string(last_radio == hoprad ? "HOP" : "DWELL") +
+				string(" ") + inprate->GetText());
+
+			kpinterface->KillPanel(this);
+			return;
+		}
 	} else if (in_button == cancelbutton) {
 		globalreg->panel_interface->KillPanel(this);
 		return;
+	} else if (in_button == lockrad && last_radio != lockrad) {
+		last_radio = lockrad;
+		radio_changed = 1;
+	} else if (in_button == hoprad && last_radio != hoprad) {
+		last_radio = hoprad;
+		radio_changed = 1;
+	} else if (in_button == dwellrad && last_radio != dwellrad) {
+		last_radio = dwellrad;
+		radio_changed = 1;
 	}
 }
 

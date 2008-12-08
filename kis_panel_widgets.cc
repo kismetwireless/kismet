@@ -2486,7 +2486,30 @@ int Kis_Checkbox::KeyPress(int in_key) {
 
 	if (in_key == KEY_ENTER || in_key == '\n' || in_key == ' ') {
 		checked = !checked;
+
+		if (cb_activate != NULL) 
+			(*cb_activate)(this, 1, cb_activate_aux, globalreg);
+
 		return 0;
+	}
+
+	return 0;
+}
+
+int Kis_Checkbox::MouseEvent(MEVENT *mevent) {
+	int mwx, mwy;
+	getbegyx(window, mwy, mwx);
+
+	mwx = mevent->x - mwx;
+	mwy = mevent->y - mwy;
+
+	if (mevent->bstate == 4 && mwy == sy && mwx >= sx && mwx <= ex) {
+		checked = !checked;
+
+		if (cb_activate != NULL) 
+			(*cb_activate)(this, 1, cb_activate_aux, globalreg);
+
+		return 1;
 	}
 
 	return 0;
@@ -2503,6 +2526,111 @@ int Kis_Checkbox::GetChecked() {
 
 void Kis_Checkbox::SetChecked(int in_check) {
 	checked = in_check;
+}
+
+Kis_Radiobutton::Kis_Radiobutton(GlobalRegistry *in_globalreg, Kis_Panel *in_panel) :
+	Kis_Panel_Component(in_globalreg, in_panel) {
+	globalreg = in_globalreg;
+
+	active = 0;
+	checked = 0;
+}
+
+Kis_Radiobutton::~Kis_Radiobutton() {
+	// nada
+}
+
+void Kis_Radiobutton::DrawComponent() {
+	if (visible == 0)
+		return;
+
+	parent_panel->InitColorPref("panel_text_color", "white,black");
+	parent_panel->InitColorPref("panel_textdis_color", "grey,black");
+	parent_panel->ColorFromPref(color_active, "panel_text_color");
+	parent_panel->ColorFromPref(color_inactive, "panel_textdis_color");
+
+	SetTransColor(color_active);
+
+	// Draw the highlighted button area if we're active
+	if (active)
+		wattron(window, WA_REVERSE);
+
+	mvwhline(window, sy, sx, ' ', lx);
+
+	if (checked) {
+		mvwaddnstr(window, sy, sx, "(*)", 3);
+	} else {
+		mvwaddnstr(window, sy, sx, "( )", 3);
+	}
+
+	mvwaddnstr(window, sy, sx + 4, text.c_str(), lx - 4);
+
+	if (active)
+		wattroff(window, WA_REVERSE);
+}
+
+void Kis_Radiobutton::Activate(int subcomponent) {
+	active = 1;
+}
+
+void Kis_Radiobutton::Deactivate() {
+	active = 0;
+}
+
+int Kis_Radiobutton::KeyPress(int in_key) {
+	if (visible == 0)
+		return 0;
+
+	if (in_key == KEY_ENTER || in_key == '\n' || in_key == ' ') {
+		SetChecked(!checked);
+
+		if (cb_activate != NULL) 
+			(*cb_activate)(this, 1, cb_activate_aux, globalreg);
+
+		return 0;
+	}
+
+	return 0;
+}
+
+int Kis_Radiobutton::MouseEvent(MEVENT *mevent) {
+	int mwx, mwy;
+	getbegyx(window, mwy, mwx);
+
+	mwx = mevent->x - mwx;
+	mwy = mevent->y - mwy;
+
+	if (mevent->bstate == 4 && mwy == sy && mwx >= sx && mwx <= ex) {
+		SetChecked(!checked);
+
+		if (cb_activate != NULL) 
+			(*cb_activate)(this, 1, cb_activate_aux, globalreg);
+
+		return 1;
+	}
+
+	return 0;
+}
+
+void Kis_Radiobutton::SetText(string in_text) {
+	text = in_text;
+	SetPreferredSize(text.length() + 4, 1);
+}
+
+int Kis_Radiobutton::GetChecked() {
+	return checked;
+}
+
+void Kis_Radiobutton::SetChecked(int in_check) {
+	checked = in_check;
+
+	for (unsigned int x = 0; x < linked_vec.size() && in_check; x++) 
+		linked_vec[x]->SetChecked(0);
+
+}
+
+void Kis_Radiobutton::LinkRadiobutton(Kis_Radiobutton *in_button) {
+	linked_vec.push_back(in_button);
 }
 
 void Kis_IntGraph::AddExtDataVec(string name, int layer, string colorpref,  

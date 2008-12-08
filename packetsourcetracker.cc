@@ -1232,19 +1232,25 @@ int Packetsourcetracker::IpcChannelSet(ipc_source_chanset *in_ipc) {
 			 "channel set, something is wrong", MSGFLAG_ERROR);
 	}
 
-	if (in_ipc->channel_hop == 0) {
+	if (in_ipc->channel_hop == 0 && in_ipc->channel_dwell == 0) {
 		// Actually set the channel if we're locking
 		pstsource->channel = in_ipc->channel;
 		if (pstsource->strong_source->SetChannel(pstsource->channel) < 0) 
 			_MSG("Packet source failed to set channel on source '" + 
 				 pstsource->interface + "'", MSGFLAG_ERROR);
-	} else {
-		pstsource->channel = 0;
-		pstsource->channel_list = in_ipc->chanset_id;
 	}
 
 	// Update other info
-	pstsource->channel_position = 0;
+	if (channellist_map.find(in_ipc->chanset_id) != channellist_map.end()) {
+		pstsource->channel_position = 0;
+		pstsource->channel_list = in_ipc->chanset_id;
+		pstsource->channel_ptr = channellist_map[in_ipc->chanset_id];
+	} else {
+		_MSG("Packet source failed to set channel set id on source '" +
+			 pstsource->interface + "' couldn't match chanset ID",
+			 MSGFLAG_ERROR);
+	}
+
 	pstsource->channel_hop = in_ipc->channel_hop;
 	pstsource->channel_dwell = in_ipc->channel_dwell;
 	pstsource->channel_rate = in_ipc->channel;
@@ -2212,9 +2218,37 @@ int Packetsourcetracker::cmd_HOPSOURCE(int in_clid, KisNetFramework *framework,
 	return 1;
 }
 
+// CHANLIST uuid channels
 int Packetsourcetracker::cmd_CHANLIST(int in_clid, KisNetFramework *framework, 
 									  char *errstr, string cmdline, 
 									   vector<smart_word_token> *parsedcmdline) {
+	if (parsedcmdline->size() < 2) {
+		snprintf(errstr, 1024, "Illegal CHANLIST command, expected UUID "
+				 "chanlist");
+		return -1;
+	}
+
+	uuid inuuid = uuid((*parsedcmdline)[0].word);
+
+	if (inuuid.error) {
+		snprintf(errstr, 1024, "Invalid UUID in CHANLIST command");
+		return -1;
+	}
+
+	pst_packetsource *pstsource = FindLivePacketSourceUUID(inuuid);
+
+	if (pstsource == NULL) {
+		snprintf(errstr, 1024, "Invalid UUID in CHANLIST command, couldn't find "
+				 "source with UUID %s", inuuid.UUID2String().c_str());
+		return -1;
+	}
+
+	if (SetSourceNewChannellist(inuuid, pstsource->interface + string(":") +
+								(*parsedcmdline)[1].word) < 0) {
+		snprintf(errstr, 1024, "Failed to set channel list for source %s UUID %s",
+				 pstsource->interface.c_str(), inuuid.UUID2String().c_str());
+		return -1;
+	}
 
 	return 1;
 }

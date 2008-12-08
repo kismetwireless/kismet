@@ -95,7 +95,7 @@ public:
 	void Proto_INFO(CLIPROTO_CB_PARMS);
 
 protected:
-	int mn_file, mi_connect, mi_disconnect, mi_addcard, mi_lock, mi_hop, mi_quit;
+	int mn_file, mi_connect, mi_disconnect, mi_addcard, mi_conf, mi_quit;
 
 	int mn_plugins, mi_addplugin, mi_noplugins;
 
@@ -424,22 +424,22 @@ protected:
 
 	time_t last_dirty;
 
-	int mn_channels, mi_close;
+	int mn_channels, mi_lock, mi_hop, mi_close;
 	int mn_view, mi_chansummary, mi_signal, mi_packets, mi_traffic, mi_networks;
 
 	int grapheventid;
 	int addref;
 };
 
-class Kis_Chanlock_Panel : public Kis_Panel {
+class Kis_Chanconf_Panel : public Kis_Panel {
 public:
-	Kis_Chanlock_Panel() {
-		fprintf(stderr, "FATAL OOPS: Kis_Connect_Panel called w/out globalreg\n");
+	Kis_Chanconf_Panel() {
+		fprintf(stderr, "FATAL OOPS: Kis_Chanconf_Panel called w/out globalreg\n");
 		exit(1);
 	}
 
-	Kis_Chanlock_Panel(GlobalRegistry *in_globalreg, KisPanelInterface *in_kpf);
-	virtual ~Kis_Chanlock_Panel();
+	Kis_Chanconf_Panel(GlobalRegistry *in_globalreg, KisPanelInterface *in_kpf);
+	virtual ~Kis_Chanconf_Panel();
 
 	virtual void Position(int in_sy, int in_sx, int in_y, int in_x);
 	virtual void DrawPanel();
@@ -448,12 +448,17 @@ public:
 
 protected:
 	Kis_Scrollable_Table *cardlist;
-	Kis_Single_Input *inpchannel;
+	Kis_Single_Input *inpchannel, *inprate;
+
+	Kis_Radiobutton *lockrad, *hoprad, *dwellrad;
 
 	Kis_Button *okbutton;
 	Kis_Button *cancelbutton;
 
-	Kis_Panel_Packbox *vbox, *bbox;
+	Kis_Panel_Packbox *vbox, *bbox, *cbox;
+
+	int last_selected, radio_changed;
+	Kis_Radiobutton *last_radio;
 };
 
 #endif
