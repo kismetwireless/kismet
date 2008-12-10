@@ -1734,6 +1734,10 @@ int Kis_NetDetails_Panel::AppendNetworkInfo(int k, Kis_Display_NetGroup *tng,
 			td[1] += " ISA-KMP";
 		if (net->lastssid->cryptset & crypt_pptp)
 			td[1] += " PPTP";
+		if (net->lastssid->cryptset & crypt_fortress)
+			td[1] += " Fortress";
+		if (net->lastssid->cryptset & crypt_keyguard)
+			td[1] += " Keyguard";
 		netdetails->AddRow(k++, td);
 
 		td[0] = "Beacon %:";

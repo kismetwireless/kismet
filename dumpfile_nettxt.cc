@@ -212,7 +212,11 @@ int Dumpfile_Nettxt::Flush() {
 				fprintf(txtfile, "    Encryption : ISAKMP\n");
 			if (m->second->cryptset & crypt_pptp)
 				fprintf(txtfile, "    Encryption : PPTP\n");
-			
+			if (m->second->cryptset & crypt_fortress)
+				fprintf(txtfile, "    Encryption : Fortress\n");
+			if (m->second->cryptset & crypt_keyguard)
+				fprintf(txtfile, "    Encryption : Keyguard\n");
+
 			ssidnum++;
 		}
 
@@ -423,6 +427,10 @@ int Dumpfile_Nettxt::Flush() {
 					fprintf(txtfile, "    Encryption : ISAKMP\n");
 				if (m->second->cryptset & crypt_pptp)
 					fprintf(txtfile, "    Encryption : PPTP\n");
+				if (m->second->cryptset & crypt_fortress)
+					fprintf(txtfile, "    Encryption : Fortress\n");
+				if (m->second->cryptset & crypt_keyguard)
+					fprintf(txtfile, "    Encryption : Keyguard\n");
 
 				ssidnum++;
 			}

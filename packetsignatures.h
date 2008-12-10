@@ -62,6 +62,8 @@ const uint8_t LUCENT_OFFSET = 12;
 const uint8_t CISCO_SIGNATURE[] = {0x00, 0x00, 0x0C, 0x20, 0x00};
 const unsigned int CDP_ELEMENT_LEN = 5;
 
+const uint8_t FORTRESS_SIGNATURE[] = {0x00, 0x00, 0x00, 0x88, 0x95};
+
 // WPA/WPA2 identifiers
 const uint8_t WPA_OUI[] = {0x00, 0x50, 0xF2};
 const uint8_t RSN_OUI[] = {0x00, 0x0F, 0xAC};

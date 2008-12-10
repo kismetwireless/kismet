@@ -198,6 +198,10 @@ int Dumpfile_Netxml::Flush() {
 				fprintf(xmlfile, "        <encryption>ISAKMP</encryption>\n");
 			if (m->second->cryptset & crypt_pptp)
 				fprintf(xmlfile, "        <encryption>PPTP</encryption>\n");
+			if (m->second->cryptset & crypt_fortress)
+				fprintf(xmlfile, "        <encryption>Fortress</encryption>\n");
+			if (m->second->cryptset & crypt_keyguard)
+				fprintf(xmlfile, "        <encryption>Keyguard</encryption>\n");
 
 			if (m->second->ssid_cloaked == 0)
 				fprintf(xmlfile, "        <essid>%s</essid>\n",
@@ -451,6 +455,10 @@ int Dumpfile_Netxml::Flush() {
 					fprintf(xmlfile, "            <encryption>ISAKMP</encryption>\n");
 				if (m->second->cryptset & crypt_pptp)
 					fprintf(xmlfile, "            <encryption>PPTP</encryption>\n");
+				if (m->second->cryptset & crypt_fortress)
+					fprintf(xmlfile, "            <encryption>Fortress</encryption>\n");
+				if (m->second->cryptset & crypt_keyguard)
+					fprintf(xmlfile, "            <encryption>Keyguard</encryption>\n");
 
 				if (m->second->ssid_cloaked == 0)
 					fprintf(xmlfile, "            <ssid>%s</ssid>\n",

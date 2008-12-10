@@ -1862,8 +1862,6 @@ int Netracker::netracker_chain_handler(kis_packet *in_pack) {
 			net->crypt_packets++;
 			cli->crypt_packets++;
 		}
-
-		// TODO - Add FMSweak handling
 	}
 
 	// Increment per-unit rates

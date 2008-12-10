@@ -498,7 +498,7 @@ public:
 		string beacon_info;
 
 		// Cryptset and decrypted
-		int cryptset;
+		uint64_t cryptset;
 
 		// Is the SSID hidden
 		int ssid_cloaked;

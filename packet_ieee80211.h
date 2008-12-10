@@ -204,23 +204,25 @@ typedef struct {
 enum crypt_type {
 	crypt_none = 0,
 	crypt_unknown = 1,
-	crypt_wep = 2,
-	crypt_layer3 = 4,
+	crypt_wep = (1 << 1),
+	crypt_layer3 = (1 << 2),
 	// Derived from WPA headers
-	crypt_wep40 = 8,
-	crypt_wep104 = 16,
-	crypt_tkip = 32,
-	crypt_wpa = 64,
-	crypt_psk = 128,
-	crypt_aes_ocb = 256,
-	crypt_aes_ccm = 512,
+	crypt_wep40 = (1 << 3),
+	crypt_wep104 = (1 << 4),
+	crypt_tkip = (1 << 5),
+	crypt_wpa = (1 << 6),
+	crypt_psk = (1 << 7),
+	crypt_aes_ocb = (1 << 8),
+	crypt_aes_ccm = (1 << 9),
 	// Derived from data traffic
-	crypt_leap = 1024,
-	crypt_ttls = 2048,
-	crypt_tls = 4096,
-	crypt_peap = 8192,
-	crypt_isakmp = 16384,
-    crypt_pptp = 32768
+	crypt_leap = (1 << 10),
+	crypt_ttls = (1 << 11),
+	crypt_tls = (1 << 12),
+	crypt_peap = (1 << 13),
+	crypt_isakmp = (1 << 14),
+    crypt_pptp = (1 << 15),
+	crypt_fortress = (1 << 16),
+	crypt_keyguard = (1 << 17)
 };
 
 // Deciphering by casting.  This is bad, and non portable, and we need to not

@@ -1970,6 +1970,14 @@ void Kis_Netlist::DrawComponent() {
 								snprintf(rline + rofft, 1024 - rofft, " PPTP");
 								rofft += 5;
 							}
+							if (meta->lastssid->cryptset & crypt_fortress) {
+								snprintf(rline + rofft, 1024 - rofft, " Fortress");
+								rofft += 5;
+							}
+							if (meta->lastssid->cryptset & crypt_keyguard) {
+								snprintf(rline + rofft, 1024 - rofft, " Keyguard");
+								rofft += 5;
+							}
 						} 
 					} else if (e == bext_bssid) {
 						snprintf(rline + rofft, 1024 - rofft, "BSSID: %s",

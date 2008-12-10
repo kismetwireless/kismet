@@ -898,7 +898,7 @@ int KisBuiltinDissector::ieee80211_dissector(kis_packet *in_pack) {
 								   sizeof(WPA_OUI)))
 							continue;
 
-						packinfo->cryptset = 
+						packinfo->cryptset |= 
 							WPACipherConv(chunk->data[tag_orig + offt + 3]);
 
 						// We don't care about parsing the number of ciphers,
@@ -909,7 +909,7 @@ int KisBuiltinDissector::ieee80211_dissector(kis_packet *in_pack) {
 						while (offt + 4 <= taglen) {
 							if (memcmp(&(chunk->data[tag_orig + offt]), 
 									  WPA_OUI, sizeof(WPA_OUI)) == 0) {
-								packinfo->cryptset = 
+								packinfo->cryptset |= 
 									WPACipherConv(chunk->data[tag_orig + offt + 3]);
 								offt += 4;
 							} else {
@@ -922,7 +922,7 @@ int KisBuiltinDissector::ieee80211_dissector(kis_packet *in_pack) {
 						while (offt + 4 <= taglen) {
 							if (memcmp(&(chunk->data[tag_orig + offt]), 
 									  WPA_OUI, sizeof(WPA_OUI)) == 0) {
-								packinfo->cryptset = 
+								packinfo->cryptset |= 
 									WPAKeyMgtConv(chunk->data[tag_orig + offt + 3]);
 								offt += 4;
 							} else {
@@ -958,7 +958,7 @@ int KisBuiltinDissector::ieee80211_dissector(kis_packet *in_pack) {
 							in_pack->insert(_PCM(PACK_COMP_80211), packinfo);
 							return 0;
 						}
-						packinfo->cryptset = 
+						packinfo->cryptset |= 
 							WPACipherConv(chunk->data[tag_orig + offt + 3]);
 						offt += 4;
 
@@ -968,7 +968,7 @@ int KisBuiltinDissector::ieee80211_dissector(kis_packet *in_pack) {
 						while (offt + 4 <= taglen) {
 							if (memcmp(&(chunk->data[tag_orig + offt]), 
 									  RSN_OUI, sizeof(RSN_OUI)) == 0) {
-								packinfo->cryptset = 
+								packinfo->cryptset |= 
 									WPACipherConv(chunk->data[tag_orig + offt + 3]);
 								offt += 4;
 							} else {
@@ -1341,6 +1341,14 @@ int KisBuiltinDissector::basicdata_dissector(kis_packet *in_pack) {
 		// else then we'll let it take over
 
 	} // LLC_UI
+
+	// Fortress LLC
+	if ((header_offset + LLC_UI_OFFSET + 1 +
+		 sizeof(FORTRESS_SIGNATURE)) < chunk->length &&
+		memcmp(&(chunk->data[header_offset + LLC_UI_OFFSET]), FORTRESS_SIGNATURE,
+			   sizeof(FORTRESS_SIGNATURE)) == 0) {
+		packinfo->cryptset |= crypt_fortress;
+	}
 
 	// CDP cisco discovery frames, good for finding unauthorized APs
 	// +1 for the version frame we compare first

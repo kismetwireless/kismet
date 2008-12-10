@@ -226,7 +226,7 @@ public:
     
     ieee_80211_disttype distrib;
  
-	int cryptset;
+	uint64_t cryptset;
 	int decrypted; // Might as well put this in here?
     int fuzzywep;
 	int fmsweak;
