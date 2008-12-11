@@ -305,7 +305,6 @@ public:
 		channel_tick_map.clear();
 	}
 
-protected:
 	// Add a channel list, get back a reference ID (ie, for IPC)
 	// channels=name,chan[:dwell]+
 	// ie channels=dot11g,1:5,2,3,4,5,6:5,7,8,9,10,11:5
@@ -313,6 +312,8 @@ protected:
 	// The channel list will be sent immediately upon parsing to the IPC process
 	uint16_t AddChannelList(string in_chanlist);
 
+
+protected:
 	void SendIPCSourceAdd(pst_packetsource *in_source);
 	void SendIPCChannellist(pst_channellist *in_list);
 	void SendIPCReport(pst_packetsource *in_source);

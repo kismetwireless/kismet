@@ -491,9 +491,6 @@ int main(int argc, char *argv[], char *envp[]) {
 	// Start the plugin handler
 	globalregistry->plugintracker = new Plugintracker(globalregistry);
 
-	// Build the plugin list for root plugins
-	globalregistry->plugintracker->ScanRootPlugins();
-
 	// Create the packet chain
 	globalregistry->packetchain = new Packetchain(globalregistry);
 	if (globalregistry->fatal_condition)
@@ -566,6 +563,12 @@ int main(int argc, char *argv[], char *envp[]) {
 
 	// Process userspace plugins
 	globalregistry->plugintracker->ScanUserPlugins();
+	globalregistry->plugintracker->ActivatePlugins();
+	if (globalregistry->fatal_condition) {
+		globalregistry->messagebus->InjectMessage(
+			"Failure during activating plugins\n", MSGFLAG_FATAL);
+		CatchShutdown(-1);
+	}
 
 	// Enable cards from config/cmdline
 	if (globalregistry->sourcetracker->LoadConfiguration() < 0)

@@ -242,12 +242,12 @@ int PacketSource_Pcap::Poll() {
 	if (ret == 0)
 		return 0;
 
+	if (paused)
+		return 0;
+
 	// Genesis a new packet, fill it in with the radio layer info if we have it,
 	// and inject it into the system
 	kis_packet *newpack = globalreg->packetchain->GeneratePacket();
-
-	if (paused)
-		return 0;
 
 	// Get the timestamp from the pcap callback
 	newpack->ts = callback_header.ts;

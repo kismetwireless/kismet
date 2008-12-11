@@ -854,7 +854,8 @@ uint16_t Packetsourcetracker::AddPacketSource(string in_source,
 
 	next_source_id++;
 
-	SendIPCSourceAdd(pstsource);
+	if (pstsource->proto_source->require_root)
+		SendIPCSourceAdd(pstsource);
 
 	// Send a notify to all the registered callbacks
 	for (unsigned int x = 0; x < cb_vec.size(); x++) {
