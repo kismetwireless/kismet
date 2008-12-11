@@ -564,6 +564,9 @@ int main(int argc, char *argv[], char *envp[]) {
 		CatchShutdown(-1);
 #endif
 
+	// Process userspace plugins
+	globalregistry->plugintracker->ScanUserPlugins();
+
 	// Enable cards from config/cmdline
 	if (globalregistry->sourcetracker->LoadConfiguration() < 0)
 		CatchShutdown(-1);
@@ -584,9 +587,6 @@ int main(int argc, char *argv[], char *envp[]) {
 	globalregistry->kisdroneserver->Activate();
 	if (globalregistry->fatal_condition)
 		CatchShutdown(-1);
-
-	// Process userspace plugins
-	globalregistry->plugintracker->ScanUserPlugins();
 
 	// Register basic chain elements...  This is just instantiating a util class.
 	// Nothing else talks to it, so we don't have to care about following it
