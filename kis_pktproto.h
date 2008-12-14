@@ -120,6 +120,7 @@ struct ipc_source_report {
 	uint8_t flags;
 	uint32_t hop_tm_sec;
 	uint32_t hop_tm_usec;
+	uint32_t last_channel;
 };
 
 #define IPC_SRCREP_FLAG_NONE		0

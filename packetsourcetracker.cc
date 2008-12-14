@@ -1275,6 +1275,9 @@ int Packetsourcetracker::IpcSourceReport(ipc_source_report *in_ipc) {
 	pstsource->tm_hop_time.tv_sec = in_ipc->hop_tm_sec;
 	pstsource->tm_hop_time.tv_usec = in_ipc->hop_tm_usec;
 
+	// Copy the last channel we were on
+	pstsource->channel = in_ipc->last_channel;
+
 	return 1;
 }
 
@@ -1534,6 +1537,8 @@ void Packetsourcetracker::SendIPCReport(pst_packetsource *in_source) {
 
 	report->hop_tm_sec = (uint32_t) in_source->tm_hop_time.tv_sec;
 	report->hop_tm_usec = (uint32_t) in_source->tm_hop_time.tv_usec;
+
+	report->last_channel = in_source->channel;
 
 	rootipc->SendIPC(ipc);
 }
