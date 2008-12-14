@@ -117,6 +117,7 @@ Kis_Main_Panel::Kis_Main_Panel(GlobalRegistry *in_globalreg,
 	mi_showsummary = menu->AddMenuItem("Info Pane", mn_view, 'S');
 	mi_showstatus = menu->AddMenuItem("Status Pane", mn_view, 's');
 	mi_showpps = menu->AddMenuItem("Packet Rate", mn_view, 'p');
+	mi_showsources = menu->AddMenuItem("Source Status", mn_view, 'C');
 
 	menu->Show();
 	AddComponentVec(menu, KIS_PANEL_COMP_EVT);
@@ -201,6 +202,12 @@ Kis_Main_Panel::Kis_Main_Panel(GlobalRegistry *in_globalreg,
 
 	optbox->Pack_End(infobits, 1, 0);
 
+	sourceinfo = new Kis_Free_Text(globalreg, this);
+	sourceinfo->SetName("KIS_MAIN_SOURCEINFO");
+	sourceinfo->SetAlignment(1);
+
+	optbox->Pack_End(sourceinfo, 0, 0);
+
 	// Pack our boxes together
 	hbox->Pack_End(netbox, 1, 0);
 	hbox->Pack_End(optbox, 0, 0);
@@ -215,7 +222,9 @@ Kis_Main_Panel::Kis_Main_Panel(GlobalRegistry *in_globalreg,
 	active_component = netlist;
 	netlist->Activate(0);
 
-	AddComponentVec(vbox, KIS_PANEL_COMP_TAB | KIS_PANEL_COMP_DRAW);
+	AddComponentVec(netlist, KIS_PANEL_COMP_TAB | KIS_PANEL_COMP_EVT);
+
+	AddComponentVec(vbox, KIS_PANEL_COMP_DRAW);
 
 	if (kpinterface->prefs.FetchOpt("LOADEDFROMFILE") != "1") {
 		_MSG("Failed to load preferences file, will use defaults", MSGFLAG_INFO);
@@ -329,6 +338,22 @@ void Kis_Main_Panel::Position(int in_sy, int in_sx, int in_y, int in_x) {
 }
 
 void Kis_Main_Panel::DrawPanel() {
+	// Set up the source list
+	vector<string> sourceinfotxt;
+	map<uuid, KisPanelInterface::knc_card *> *cardmap =
+		kpinterface->FetchNetCardMap();
+
+	for (map<uuid, KisPanelInterface::knc_card *>::iterator x = cardmap->begin();
+		 x != cardmap->end(); ++x) {
+		sourceinfotxt.push_back("\004u" + x->second->name + "\004U");
+		if (x->second->hopping)
+			sourceinfotxt.push_back("Hop");
+		else
+			sourceinfotxt.push_back(IntToString(x->second->channel));
+	}
+
+	sourceinfo->SetText(sourceinfotxt);
+
 	ColorFromPref(text_color, "panel_text_color");
 	ColorFromPref(border_color, "panel_border_color");
 
@@ -428,7 +453,8 @@ void Kis_Main_Panel::MenuAction(int opt) {
 		kpinterface->AddPanel(dp);
 	} else if (opt == mi_showsummary ||
 			   opt == mi_showstatus ||
-			   opt == mi_showpps) {
+			   opt == mi_showpps ||
+			   opt == mi_showsources) {
 		UpdateViewMenu(opt);
 	} else if (opt == mi_addcard) {
 		vector<KisNetClient *> *cliref = kpinterface->FetchNetClientVecPtr();
@@ -682,6 +708,17 @@ void Kis_Main_Panel::UpdateViewMenu(int mi) {
 			menu->SetMenuItemChecked(mi_showpps, 1);
 			packetrate->Show();
 		}
+	} else if (mi == mi_showsources) {
+		opt = kpinterface->prefs.FetchOpt("MAIN_SHOWSOURCE");
+		if (opt == "" || opt == "true") {
+			kpinterface->prefs.SetOpt("MAIN_SHOWSOURCE", "false", 1);
+			menu->SetMenuItemChecked(mi_showsources, 0);
+			sourceinfo->Hide();
+		} else {
+			kpinterface->prefs.SetOpt("MAIN_SHOWSOURCE", "true", 1);
+			menu->SetMenuItemChecked(mi_showsources, 1);
+			sourceinfo->Show();
+		}
 	}
 
 	if (mi == -1) {
@@ -710,6 +747,15 @@ void Kis_Main_Panel::UpdateViewMenu(int mi) {
 		} else {
 			menu->SetMenuItemChecked(mi_showpps, 0);
 			packetrate->Hide();
+		}
+
+		opt = kpinterface->prefs.FetchOpt("MAIN_SHOWSOURCE");
+		if (opt == "" || opt == "true") {
+			menu->SetMenuItemChecked(mi_showsources, 1);
+			sourceinfo->Show();
+		} else {
+			menu->SetMenuItemChecked(mi_showsources, 0);
+			sourceinfo->Hide();
 		}
 	}
 }

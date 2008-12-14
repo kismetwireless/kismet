@@ -1197,6 +1197,10 @@ int Kis_Netlist::DeleteGroup(Kis_Display_NetGroup *in_group) {
 }
 
 void Kis_Netlist::UpdateTrigger(void) {
+	// Use the same timer to update the source stuff from the info list
+	// We'd normally do this somewhere else but since we own the infobits
+	// segment we'll do it here
+
 	// Process the dirty vector and update all our stuff.  This only happens
 	// at regular intervals, not every network update
 	
@@ -2217,6 +2221,7 @@ const char *info_bits_details[][2] = {
 	{ "numpkts", "Number of packets" },
 	{ "pktrate", "Packet rate" },
 	{ "numfilter", "Number of filtered packets" },
+	{ "sources", "Packet sources" },
 	{ NULL, NULL}
 };
 

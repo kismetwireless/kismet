@@ -107,7 +107,7 @@ protected:
 		mi_sort_packets, mi_sort_packets_d;
 
 	int mn_view, mi_netdetails, mi_chandetails, mi_showsummary, 
-		mi_showstatus, mi_showpps;
+		mi_showstatus, mi_showpps, mi_showsources;
 
 	int connect_enable;
 
@@ -117,6 +117,7 @@ protected:
 	Kis_Status_Text *statustext;
 	Kis_Netlist *netlist;
 	Kis_Info_Bits *infobits;
+	Kis_Free_Text *sourceinfo;
 
 	Kis_Panel_Packbox *netbox, *optbox, *linebox, *hbox, *vbox;
 
