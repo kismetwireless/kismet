@@ -414,6 +414,7 @@ Kis_Netlist::Kis_Netlist(GlobalRegistry *in_globalreg, Kis_Panel *in_panel) :
 
 	for (int x = 0; x < 5; x++)
 		color_map[x] = 0;
+	color_inactive = 0;
 
 	// Set default preferences for BSSID columns if we don't have any in the
 	// preferences file, then update the column vector
@@ -1645,6 +1646,9 @@ void Kis_Netlist::DrawComponent() {
 	if (visible == 0)
 		return;
 
+	parent_panel->InitColorPref("panel_textdis_color", "grey,black");
+	parent_panel->ColorFromPref(color_inactive, "panel_textdis_color");
+
 	parent_panel->InitColorPref("netlist_normal_color", "green,black");
 	parent_panel->ColorFromPref(color_map[kis_netlist_color_normal], 
 								"netlist_normal_color");
@@ -1766,14 +1770,16 @@ void Kis_Netlist::DrawComponent() {
 	// Draw the cached header
 	string pcache = colhdr_cache + string(ex - sx - colhdr_cache.length(), ' ');
 
-	wattrset(window, color_map[kis_netlist_color_header]);
+	if (active)
+		wattrset(window, color_map[kis_netlist_color_header]);
 
 	Kis_Panel_Specialtext::Mvwaddnstr(window, sy, sx, 
 									  "\004u" + pcache + "\004U", 
 									  ex - sx);
 
 	if (display_vec.size() == 0) {
-		wattrset(window, color_map[kis_netlist_color_normal]);
+		if (active)
+			wattrset(window, color_map[kis_netlist_color_normal]);
 		vector<KisNetClient *> *clivec = kpinterface->FetchNetClientVecPtr();
 		int con = 0;
 
@@ -1854,10 +1860,11 @@ void Kis_Netlist::DrawComponent() {
 		if (color <= 0)
 			color = kis_netlist_color_normal;
 
-		wattrset(window, color_map[color]);
+		if (active)
+			wattrset(window, color_map[color]);
 
 		// Draw the line
-		if (selected_line == (int) x && sort_mode != netsort_autofit)
+		if (selected_line == (int) x && sort_mode != netsort_autofit && active)
 			wattron(window, WA_REVERSE);
 
 		// Kis_Panel_Specialtext::Mvwaddnstr(window, sy + dpos, sx, pline, ex);
@@ -2103,7 +2110,7 @@ void Kis_Netlist::DrawComponent() {
 
 		}
 
-		if (selected_line == (int) x && sort_mode != netsort_autofit)
+		if (selected_line == (int) x && sort_mode != netsort_autofit && active)
 			wattroff(window, WA_REVERSE);
 
 		ng->SetNLines(nlines);

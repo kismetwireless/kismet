@@ -252,6 +252,7 @@ public:
 
 protected:
 	int color_map[5];
+	int color_inactive;
 
 	// Sort modes
 	// Sort type
