@@ -236,6 +236,11 @@ void CatchShutdown(int sig) {
     exit(0);
 }
 
+void CatchWinch(int sig) {
+	if (globalregistry->panel_interface != NULL) 
+		globalregistry->panel_interface->DrawInterface();
+}
+
 int Usage(char *argv) {
     printf("Usage: %s [OPTION]\n", argv);
 	printf(" *** Generic Options ***\n");
@@ -256,6 +261,7 @@ int main(int argc, char *argv[], char *envp[]) {
     signal(SIGTERM, CatchShutdown);
     signal(SIGHUP, CatchShutdown);
     signal(SIGPIPE, CatchShutdown);
+	signal(SIGWINCH, CatchWinch);
 
 	// Start filling in key components of the globalregistry
 	globalregistry = new GlobalRegistry;

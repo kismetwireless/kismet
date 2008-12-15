@@ -26,6 +26,8 @@
 #include "timetracker.h"
 #include "messagebus.h"
 
+#define WIN_CENTER(h, w)   (LINES / 2) - ((h) / 2), (COLS / 2) - ((w) / 2), (h), (w)
+
 unsigned int Kis_Panel_Specialtext::Strlen(string str) {
 	int npos = 0;
 	int escape = 0;
@@ -202,6 +204,9 @@ PanelInterface::PanelInterface(GlobalRegistry *in_globalreg) {
 											  (void *) this);
 
 	globalreg->RegisterPollableSubsys(this);
+
+	hsize = COLS;
+	vsize = LINES;
 };
 
 PanelInterface::~PanelInterface() {
@@ -248,7 +253,27 @@ int PanelInterface::Poll(fd_set& in_rset, fd_set& in_wset) {
 	return 0;
 }
 
+void PanelInterface::ResizeInterface() {
+	for (unsigned int x = 0; x < live_panels.size(); x++) {
+		// If it's full screen, keep it full screen, otherwise
+		// re-center it
+		if (live_panels[x]->FetchSzy() == vsize &&
+			live_panels[x]->FetchSzx() == hsize) {
+			live_panels[x]->Position(0, 0, LINES, COLS);
+		} else {
+			live_panels[x]->Position(WIN_CENTER(live_panels[x]->FetchSzy(),
+												live_panels[x]->FetchSzx()));
+		}
+	}
+}
+
 int PanelInterface::DrawInterface() {
+	if (hsize != COLS || vsize != LINES) {
+		ResizeInterface();
+		hsize = COLS;
+		vsize = LINES;
+	}
+
 	// Draw all the panels
 	for (unsigned int x = 0; x < live_panels.size(); x++) {
 		live_panels[x]->DrawPanel();

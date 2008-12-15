@@ -931,6 +931,7 @@ public:
 	virtual int Poll(fd_set& in_rset, fd_set& in_wset);
 
 	virtual int DrawInterface();
+	virtual void ResizeInterface();
 
 	virtual void AddPanel(Kis_Panel *in_panel);
 	virtual void KillPanel(Kis_Panel *in_panel);
@@ -938,6 +939,7 @@ protected:
 	vector<Kis_Panel *> live_panels;
 	int draweventid;
 	vector<Kis_Panel *> dead_panels;
+	int hsize, vsize;
 };
 
 #endif // panel
