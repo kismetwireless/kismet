@@ -1320,7 +1320,7 @@ Kis_Plugin_Picker::Kis_Plugin_Picker(GlobalRegistry *in_globalreg,
 	t.title = "Auto Load";
 	t.alignment = 0;
 	titles.push_back(t);
-	t.width = 6;
+	t.width = 7;
 	t.title = "Loaded";
 	t.alignment = 0;
 	titles.push_back(t);
@@ -1461,9 +1461,12 @@ int Kis_Plugin_Picker::KeyPress(int in_key) {
 
 			if (listdata[1] == "yes") {
 				listdata[1] = "no";
+				if (listdata[2] != "yes")
+					listdata[2] = "no";
 			} else {
 				listdata[1] = "yes";
-				listdata[2] = "yes";
+				if (listdata[2] != "yes")
+					listdata[2] = "Pending";
 			}
 
 			pluglist->ReplaceRow(listkey, listdata);
