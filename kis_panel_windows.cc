@@ -1375,7 +1375,7 @@ Kis_Plugin_Picker::Kis_Plugin_Picker(GlobalRegistry *in_globalreg,
 			}
 		}
 		
-		if ((*plugins)[x]->dlfileptr != (void *) 0x0)
+		if ((*plugins)[x]->dlfileptr == (void *) 0x0)
 			td.push_back("no");
 		else
 			td.push_back("yes");
@@ -1459,10 +1459,12 @@ int Kis_Plugin_Picker::KeyPress(int in_key) {
 		if (listkey >= 0 && listkey < (int) plugins->size()) {
 			vector<string> listdata = pluglist->GetSelectedData();
 
-			if (listdata[1] == "yes")
+			if (listdata[1] == "yes") {
 				listdata[1] = "no";
-			else
+			} else {
 				listdata[1] = "yes";
+				listdata[2] = "yes";
+			}
 
 			pluglist->ReplaceRow(listkey, listdata);
 		}
