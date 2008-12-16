@@ -24,6 +24,7 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <dlfcn.h>
+#include <dirent.h>
 
 #include "util.h"
 #include "messagebus.h"
@@ -155,6 +156,7 @@ KisPanelInterface::KisPanelInterface(GlobalRegistry *in_globalreg) :
 	plugdata.globalreg = globalreg;
 
 	// Fill the plugin paths if they haven't been found
+	ScanPlugins();
 
 	addcb_ref = 0;
 
@@ -371,11 +373,71 @@ void KisPanelInterface::LoadPlugin(string in_fname, string in_objname) {
 		return;
 	}
 
-	panel_plugin_meta *pm = new panel_plugin_meta;
-	pm->filename = in_fname;
-	pm->objectname = in_objname;
-	pm->dlfileptr = dlfile;
-	plugin_vec.push_back(pm);
+	for (unsigned int x = 0; x < plugin_vec.size(); x++) {
+		if (plugin_vec[x]->filename == in_fname && 
+			plugin_vec[x]->objectname == in_objname) {
+			plugin_vec[x]->dlfileptr = dlfile;
+			break;
+		}
+	}
+}
+
+void KisPanelInterface::ScanPlugins() {
+	vector<string> plugdirs = prefs.FetchOptVec("PLUGINDIR");
+
+	for (unsigned int x = 0; x < plugdirs.size(); x++) {
+		DIR *plugdir;
+		struct dirent *plugfile;
+		string expanddir = ConfigFile::ExpandLogPath(plugdirs[x], "", "", 0, 1);
+
+		if ((plugdir = opendir(expanddir.c_str())) == NULL) {
+			continue;
+		}
+
+		while ((plugfile = readdir(plugdir)) != NULL) {
+			int loaded = 0;
+
+			if (plugfile->d_name[0] == '.')
+				continue;
+
+			string fname = plugfile->d_name;
+
+			if (fname.find(".so") == fname.length() - 3) {
+				for (unsigned int y = 0; y < plugin_vec.size(); y++) {
+					if (plugin_vec[y]->filename == expanddir + fname) {
+						loaded = 1;
+						break;
+					}
+				}
+
+				if (loaded)
+					continue;
+
+				panel_plugin_meta *pm = new panel_plugin_meta;
+				pm->filename = expanddir + fname;
+				pm->objectname = fname;
+				pm->dlfileptr = (void *) 0x0;
+				plugin_vec.push_back(pm);
+			}
+		}
+
+		closedir(plugdir);
+	}
+}
+
+void KisPanelInterface::LoadPlugins() {
+	// Scan for plugins to auto load
+	vector<string> plugprefs = prefs.FetchOptVec("plugin_autoload");
+	for (unsigned int x = 0; x < plugin_vec.size(); x++) {
+		for (unsigned int y = 0; y < plugprefs.size(); y++) {
+			if (plugin_vec[x]->objectname == plugprefs[y] &&
+				plugin_vec[x]->dlfileptr == 0x0) {
+				_MSG("Auto-loading plugin '" + plugprefs[y] + "'", MSGFLAG_INFO);
+				LoadPlugin(plugin_vec[x]->filename, plugin_vec[x]->objectname);
+				break;
+			}
+		}
+	}
 }
 
 #endif

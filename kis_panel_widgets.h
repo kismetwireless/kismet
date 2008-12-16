@@ -544,8 +544,12 @@ public:
 	virtual int DelRow(int in_key);
 	// Replace a keyed row
 	virtual int ReplaceRow(int in_key, vector<string> in_fields);
+	// Get a rows data
+	virtual vector<string> GetRow(int in_key);
 	// Get the selected key
 	virtual int GetSelected();
+	// Get the selected row data
+	virtual vector<string> GetSelectedData();
 	// Set a selected row
 	virtual int SetSelected(int in_key);
 	// Clear all raws

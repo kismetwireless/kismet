@@ -138,6 +138,8 @@ public:
 
 	void LoadPlugin(string in_fname, string in_objname);
 	vector<panel_plugin_meta *> *FetchPluginVec() { return &plugin_vec; }
+	void ScanPlugins();
+	void LoadPlugins();
 
 	Kis_Main_Panel *FetchMainPanel() { return mainp; }
 

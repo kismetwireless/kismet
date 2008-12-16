@@ -327,6 +327,9 @@ int main(int argc, char *argv[], char *envp[]) {
 	mainp->Position(0, 0, LINES, COLS);
 	globalregistry->panel_interface->AddPanel(mainp);
 
+	// Kickstart our saved plugins
+	globalregistry->panel_interface->LoadPlugins();
+
 #if 0
 	KisNetClient *kcli = new KisNetClient(globalregistry);
 	kcli->Connect("tcp://localhost:2501", 1);

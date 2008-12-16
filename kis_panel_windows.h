@@ -295,10 +295,15 @@ public:
 	virtual void Position(int in_sy, int in_sx, int in_y, int in_x);
 	virtual void DrawPanel();
 	virtual int KeyPress(int in_key);
+	virtual void ButtonAction(Kis_Panel_Component *in_button);
 
 protected:
 	Kis_Scrollable_Table *pluglist;
-	vector<panel_plugin_meta> listedplugins;
+	Kis_Free_Text *helptext;
+	Kis_Button *okbutton;
+	Kis_Panel_Packbox *vbox, *bbox;
+
+	vector<panel_plugin_meta *> *plugins;
 };
 
 class Kis_NetDetails_Panel : public Kis_Panel {

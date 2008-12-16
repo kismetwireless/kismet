@@ -75,9 +75,9 @@ Kis_Main_Panel::Kis_Main_Panel(GlobalRegistry *in_globalreg,
 	menu->AddMenuItem("-", mn_file, 0);
 
 	mn_plugins = menu->AddSubMenuItem("Plugins", mn_file, 'x');
-	mi_addplugin = menu->AddMenuItem("Add Plugin...", mn_plugins, 'P');
+	mi_addplugin = menu->AddMenuItem("Select Plugins...", mn_plugins, 'P');
 	menu->AddMenuItem("-", mn_plugins, 0);
-	mi_noplugins = menu->AddMenuItem("No plugins available...", mn_plugins, 0);
+	mi_noplugins = menu->AddMenuItem("No plugins loaded...", mn_plugins, 0);
 	menu->DisableMenuItem(mi_noplugins);
 
 	mn_preferences = menu->AddSubMenuItem("Preferences", mn_file, 'P');
@@ -483,7 +483,7 @@ void Kis_Main_Panel::MenuAction(int opt) {
 		}
 	} else if (opt == mi_addplugin) {
 		Kis_Plugin_Picker *pp = new Kis_Plugin_Picker(globalreg, kpinterface);
-		pp->Position(WIN_CENTER(16, 50));
+		pp->Position(WIN_CENTER(16, 70));
 		kpinterface->AddPanel(pp);
 	} else if (opt == mi_colorprefs) {
 		SpawnColorPrefs();
@@ -1277,103 +1277,99 @@ void Kis_AddCard_Panel::ButtonAction(Kis_Panel_Component *in_button) {
 	return; 
 }
 
+int PluginPickerButtonCB(COMPONENT_CALLBACK_PARMS) {
+	((Kis_Plugin_Picker *) aux)->ButtonAction(component);
+	return 1;
+}
+
 Kis_Plugin_Picker::Kis_Plugin_Picker(GlobalRegistry *in_globalreg, 
 									 KisPanelInterface *in_intf) :
 	Kis_Panel(in_globalreg, in_intf) {
 
 	pluglist = new Kis_Scrollable_Table(globalreg, this);
 
-	AddComponentVec(pluglist, (KIS_PANEL_COMP_DRAW | KIS_PANEL_COMP_EVT |
-							   KIS_PANEL_COMP_TAB));
-
 	vector<Kis_Scrollable_Table::title_data> titles;
 	Kis_Scrollable_Table::title_data t;
-	t.width = 55;
+	t.width = 40;
 	t.title = "Plugin";
 	t.alignment = 0;
 	titles.push_back(t);
-
+	t.width = 9;
+	t.title = "Auto Load";
+	t.alignment = 0;
+	titles.push_back(t);
+	t.width = 6;
+	t.title = "Loaded";
+	t.alignment = 0;
+	titles.push_back(t);
 	pluglist->AddTitles(titles);
+	pluglist->Show();
+	AddComponentVec(pluglist, (KIS_PANEL_COMP_DRAW | KIS_PANEL_COMP_EVT |
+							   KIS_PANEL_COMP_TAB));
 
-	// Grab the list of plugins we have loaded already, then combine it with the
-	// plugins we scan from the directories.  This is anything but fast and
-	// efficient, but we're not doing it very often -- not even every window
-	// draw -- so whatever.
-	vector<panel_plugin_meta *> *runningplugins = kpinterface->FetchPluginVec();
-	vector<string> plugdirs = kpinterface->prefs.FetchOptVec("PLUGINDIR");
 
-	for (unsigned int x = 0; x < runningplugins->size(); x++) {
-		panel_plugin_meta pm;
-		pm.filename = (*runningplugins)[x]->filename;
-		pm.objectname = (*runningplugins)[x]->objectname;
-		pm.dlfileptr = (void *) 0x1;
-		listedplugins.push_back(pm);
-	}
+	okbutton = new Kis_Button(globalreg, this);
+	okbutton->SetText("Close");
+	okbutton->SetCallback(COMPONENT_CBTYPE_ACTIVATED, PluginPickerButtonCB, this);
+	okbutton->Show();
+	AddComponentVec(okbutton, (KIS_PANEL_COMP_DRAW | KIS_PANEL_COMP_EVT |
+							   KIS_PANEL_COMP_TAB));
 
-	for (unsigned int x = 0; x < plugdirs.size(); x++) {
-		DIR *plugdir;
-		struct dirent *plugfile;
-		string expanddir = ConfigFile::ExpandLogPath(plugdirs[x], "", "", 0, 1);
+	helptext = new Kis_Free_Text(globalreg, this);
+	helptext->Show();
+	vector<string> ht;
+	ht.push_back("Select plugins to load at startup");
+	ht.push_back("To unload a plugin, disable auto-loading for that plugin");
+	ht.push_back("and restart the client (quit and run it again)");
+	helptext->SetText(ht);
+	AddComponentVec(helptext, (KIS_PANEL_COMP_DRAW));
 
-		if ((plugdir = opendir(expanddir.c_str())) == NULL) {
-			continue;
-		}
+	vbox = new Kis_Panel_Packbox(globalreg, this);
+	vbox->SetPackV();
+	vbox->SetHomogenous(0);
+	vbox->SetSpacing(0);
+	vbox->SetCenter(0);
+	AddComponentVec(vbox, KIS_PANEL_COMP_DRAW);
+	vbox->Pack_End(pluglist, 1, 0);
+	vbox->Pack_End(helptext, 0, 0);
+	vbox->Pack_End(okbutton, 0, 0);
+	vbox->Show();
 
-		while ((plugfile = readdir(plugdir)) != NULL) {
-			int loaded = 0;
+	plugins = kpinterface->FetchPluginVec();
 
-			if (plugfile->d_name[0] == '.')
-				continue;
-
-			string fname = plugfile->d_name;
-
-			if (fname.find(".so") == fname.length() - 3) {
-				for (unsigned int y = 0; y < listedplugins.size(); y++) {
-					if (listedplugins[y].filename == expanddir + fname) {
-						loaded = 1;
-						break;
-					}
-				}
-
-				if (loaded)
-					continue;
-
-				panel_plugin_meta pm;
-				pm.filename = expanddir + fname;
-				pm.objectname = fname;
-				pm.dlfileptr = (void *) 0x0;
-				listedplugins.push_back(pm);
-			}
-		}
-
-		closedir(plugdir);
-	}
-
-	for (unsigned int x = 0; x < listedplugins.size(); x++) {
+	for (unsigned int x = 0; x < plugins->size(); x++) {
 		vector<string> td;
+		vector<string> prefs = kpinterface->prefs.FetchOptVec("plugin_autoload");
 		string en = "";
 
-		if (listedplugins[x].dlfileptr != (void *) 0x0)
-			en = " (Loaded)";
+		td.push_back((*plugins)[x]->objectname);
+		td.push_back("no");
 
-		td.push_back(listedplugins[x].objectname + en);
+		// Figure out if we're going to autoload it
+		for (unsigned int p = 0; p < prefs.size(); p++) {
+			if (prefs[p] == (*plugins)[x]->objectname) {
+				td[1] = "yes";
+				break;
+			}
+		}
+		
+		if ((*plugins)[x]->dlfileptr != (void *) 0x0)
+			td.push_back("no");
+		else
+			td.push_back("yes");
 
 		pluglist->ReplaceRow(x, td);
 	}
 
-	if (listedplugins.size() > 0) {
+	if (plugins->size() == 0) {
 		vector<string> td;
-		td.push_back("Cancel");
-		pluglist->ReplaceRow(listedplugins.size(), td);
-	}
-
-	if (listedplugins.size() == 0) {
-		vector<string> td;
-		td.push_back(" ");
 		td.push_back("No plugins found");
+		td.push_back("");
+		td.push_back("");
 		pluglist->ReplaceRow(0, td);
 	}
 
+	tab_pos = 0;
 	active_component = pluglist;
 	pluglist->Activate(1);
 
@@ -1386,9 +1382,7 @@ Kis_Plugin_Picker::~Kis_Plugin_Picker() {
 void Kis_Plugin_Picker::Position(int in_sy, int in_sx, int in_y, int in_x) {
 	Kis_Panel::Position(in_sy, in_sx, in_y, in_x);
 
-	pluglist->SetPosition(2, 1, in_x - 4, in_y - 2);
-
-	pluglist->Show();
+	vbox->SetPosition(1, 1, in_x - 1, in_y - 2);
 }
 
 void Kis_Plugin_Picker::DrawPanel() {
@@ -1405,33 +1399,54 @@ void Kis_Plugin_Picker::DrawPanel() {
 	wmove(win, 0, 0);
 }
 
-int Kis_Plugin_Picker::KeyPress(int in_key) {
-	int ret;
-	int listkey;
-	
-	// Rotate through the tabbed items
-	if (in_key == '\n' || in_key == '\r') {
-		listkey = pluglist->GetSelected();
+void Kis_Plugin_Picker::ButtonAction(Kis_Panel_Component *in_button) {
+	if (in_button == okbutton) {
+		vector<string> ldata;
+		vector<string> autoload;
 
-		if (listkey >= 0 && listkey <= (int) listedplugins.size()) {
-			if (listkey < (int) listedplugins.size()) {
-				if (listedplugins[listkey].dlfileptr == 0x0) {
-					kpinterface->LoadPlugin(listedplugins[listkey].filename,
-											listedplugins[listkey].objectname);
-				}
+		for (unsigned int x = 0; x < plugins->size(); x++) {
+			ldata = pluglist->GetRow(x);
+			
+			if (ldata.size() < 3)
+				continue;
+
+			if (ldata[1] == "yes" && (*plugins)[x]->dlfileptr == 0x0) {
+				kpinterface->LoadPlugin((*plugins)[x]->filename,
+										(*plugins)[x]->objectname);
+
+				autoload.push_back((*plugins)[x]->objectname);
 			}
 		}
 
+		kpinterface->prefs.SetOptVec("plugin_autoload", autoload, 1);
+
 		globalreg->panel_interface->KillPanel(this);
+
+		return;
 	}
 
-	// Otherwise the menu didn't touch the key, so pass it to the top
-	// component
-	if (active_component != NULL) {
-		ret = active_component->KeyPress(in_key);
+}
+
+int Kis_Plugin_Picker::KeyPress(int in_key) {
+	int listkey;
+	
+	if (active_component == pluglist && (in_key == '\n' || in_key == '\r' ||
+										 in_key == ' ')) {
+		listkey = pluglist->GetSelected();
+
+		if (listkey >= 0 && listkey < (int) plugins->size()) {
+			vector<string> listdata = pluglist->GetSelectedData();
+
+			if (listdata[1] == "yes")
+				listdata[1] = "no";
+			else
+				listdata[1] = "yes";
+
+			pluglist->ReplaceRow(listkey, listdata);
+		}
 	}
 
-	return 0;
+	return Kis_Panel::KeyPress(in_key);
 }
 
 int NetDetailsButtonCB(COMPONENT_CALLBACK_PARMS) {

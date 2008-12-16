@@ -2069,6 +2069,26 @@ int Kis_Scrollable_Table::GetSelected() {
 	return -1;
 }
 
+vector<string> Kis_Scrollable_Table::GetRow(int in_key) {
+	vector<string> ret;
+
+	if (in_key >= 0 && in_key < (int) data_vec.size()) {
+		return data_vec[in_key]->data;
+	}
+
+	return ret;
+}
+
+vector<string> Kis_Scrollable_Table::GetSelectedData() {
+	vector<string> ret;
+
+	if (selected >= 0 && selected < (int) data_vec.size()) {
+		return data_vec[selected]->data;
+	}
+
+	return ret;
+}
+
 int Kis_Scrollable_Table::SetSelected(int in_key) {
 	for (unsigned int x = 0; x < data_vec.size(); x++) {
 		if (data_vec[x]->key == in_key) {
