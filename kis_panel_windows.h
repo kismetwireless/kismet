@@ -106,7 +106,7 @@ protected:
 		mi_sort_first_d, mi_sort_last, mi_sort_last_d, mi_sort_bssid, mi_sort_ssid,
 		mi_sort_packets, mi_sort_packets_d;
 
-	int mn_view, mi_netdetails, mi_chandetails, mi_showsummary, 
+	int mn_view, mi_netdetails, mi_chandetails, mi_shownetworks, mi_showsummary, 
 		mi_showstatus, mi_showpps, mi_showsources;
 
 	int connect_enable;

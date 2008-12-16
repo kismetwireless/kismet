@@ -114,6 +114,7 @@ Kis_Main_Panel::Kis_Main_Panel(GlobalRegistry *in_globalreg,
 	mi_netdetails = menu->AddMenuItem("Network Details", mn_view, 'd');
 	mi_chandetails = menu->AddMenuItem("Channel Details", mn_view, 'c');
 	menu->AddMenuItem("-", mn_view, 0);
+	mi_shownetworks = menu->AddMenuItem("Network List", mn_view, 'n');
 	mi_showsummary = menu->AddMenuItem("Info Pane", mn_view, 'S');
 	mi_showstatus = menu->AddMenuItem("Status Pane", mn_view, 's');
 	mi_showpps = menu->AddMenuItem("Packet Rate", mn_view, 'p');
@@ -454,7 +455,8 @@ void Kis_Main_Panel::MenuAction(int opt) {
 	} else if (opt == mi_showsummary ||
 			   opt == mi_showstatus ||
 			   opt == mi_showpps ||
-			   opt == mi_showsources) {
+			   opt == mi_showsources ||
+			   opt == mi_shownetworks) {
 		UpdateViewMenu(opt);
 	} else if (opt == mi_addcard) {
 		vector<KisNetClient *> *cliref = kpinterface->FetchNetClientVecPtr();
@@ -719,6 +721,17 @@ void Kis_Main_Panel::UpdateViewMenu(int mi) {
 			menu->SetMenuItemChecked(mi_showsources, 1);
 			sourceinfo->Show();
 		}
+	} else if (mi == mi_shownetworks) {
+		opt = kpinterface->prefs.FetchOpt("MAIN_SHOWNETLIST");
+		if (opt == "" || opt == "true") {
+			kpinterface->prefs.SetOpt("MAIN_SHOWNETLIST", "false", 1);
+			menu->SetMenuItemChecked(mi_shownetworks, 0);
+			netlist->Hide();
+		} else {
+			kpinterface->prefs.SetOpt("MAIN_SHOWNETLIST", "true", 1);
+			menu->SetMenuItemChecked(mi_shownetworks, 1);
+			netlist->Show();
+		}
 	}
 
 	if (mi == -1) {
@@ -756,6 +769,15 @@ void Kis_Main_Panel::UpdateViewMenu(int mi) {
 		} else {
 			menu->SetMenuItemChecked(mi_showsources, 0);
 			sourceinfo->Hide();
+		}
+
+		opt = kpinterface->prefs.FetchOpt("MAIN_SHOWNETLIST");
+		if (opt == "" || opt == "true") {
+			menu->SetMenuItemChecked(mi_shownetworks, 1);
+			netlist->Show();
+		} else {
+			menu->SetMenuItemChecked(mi_shownetworks, 0);
+			netlist->Hide();
 		}
 	}
 }
