@@ -425,6 +425,20 @@ void KisPanelInterface::ScanPlugins() {
 	}
 }
 
+// Catch plugin failures so we can alert the user
+string global_plugin_load;
+void PluginSignalHandler(int sig) {
+	fprintf(stderr, "\n\n"
+			"FATAL: Kismet_Client crashed while loading a plugin...\n"
+			"Plugin loading: %s\n\n"
+			"This is either a bug in the plugin, or the plugin needs to be recompiled\n"
+			"to match the version of Kismet you are using (especially if you are using\n"
+			"development versions of Kismet or have recently upgraded.\n\n"
+			"If the plugin is automatically loaded, edit ~/.kismet/kismet_ui.conf and\n"
+			"remove the plugin_autoload line.\n\n", global_plugin_load.c_str());
+	exit(1);
+}
+
 void KisPanelInterface::LoadPlugins() {
 	// Scan for plugins to auto load
 	vector<string> plugprefs = prefs.FetchOptVec("plugin_autoload");
@@ -432,8 +446,11 @@ void KisPanelInterface::LoadPlugins() {
 		for (unsigned int y = 0; y < plugprefs.size(); y++) {
 			if (plugin_vec[x]->objectname == plugprefs[y] &&
 				plugin_vec[x]->dlfileptr == 0x0) {
+				global_plugin_load = plugin_vec[x]->objectname;
+				signal(SIGSEGV, PluginSignalHandler);
 				_MSG("Auto-loading plugin '" + plugprefs[y] + "'", MSGFLAG_INFO);
 				LoadPlugin(plugin_vec[x]->filename, plugin_vec[x]->objectname);
+				signal(SIGSEGV, SIG_DFL);
 				break;
 			}
 		}
