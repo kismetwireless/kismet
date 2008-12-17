@@ -2210,6 +2210,9 @@ int Kis_Netlist::KeyPress(int in_key) {
 			return 0;
 
 		ng->SetExpanded(!ng->GetExpanded());
+	} else if (in_key == '\n' || in_key == KEY_ENTER) {
+		if (cb_activate != NULL) 
+			(*cb_activate)(this, 1, cb_activate_aux, globalreg);
 	}
 
 	return 0;

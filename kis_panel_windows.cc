@@ -56,6 +56,16 @@ void KisMainPanel_INFO(CLIPROTO_CB_PARMS) {
 											proto_parsed, srccli, auxptr);
 }
 
+int NetlistActivateCB(COMPONENT_CALLBACK_PARMS) {
+	Kis_NetDetails_Panel *dp = 
+		new Kis_NetDetails_Panel(globalreg, 
+								 ((Kis_Main_Panel *) aux)->FetchPanelInterface());
+	dp->Position(WIN_CENTER(LINES, COLS));
+	((Kis_Main_Panel *) aux)->FetchPanelInterface()->AddPanel(dp);
+
+	return 1;
+}
+
 Kis_Main_Panel::Kis_Main_Panel(GlobalRegistry *in_globalreg, 
 							   KisPanelInterface *in_intf) : 
 	Kis_Panel(in_globalreg, in_intf) {
@@ -177,6 +187,7 @@ Kis_Main_Panel::Kis_Main_Panel(GlobalRegistry *in_globalreg,
 	netlist = new Kis_Netlist(globalreg, this);
 	netlist->SetName("KIS_MAIN_NETLIST");
 	netlist->Show();
+	netlist->SetCallback(COMPONENT_CBTYPE_ACTIVATED, NetlistActivateCB, this);
 
 	// Set up the packet rate graph as over/under linked to the
 	// packets per second
