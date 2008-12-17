@@ -2434,7 +2434,7 @@ void Kis_Button::DrawComponent() {
 
 	// Add the ticks 
 	mvwaddch(window, sy, sx, '[');
-	mvwaddch(window, sy, sx + lx, ']');
+	mvwaddch(window, sy, sx + lx - 1, ']');
 
 	if (active)
 		wattroff(window, WA_REVERSE);
