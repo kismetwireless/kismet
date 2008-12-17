@@ -344,16 +344,34 @@ int Plugintracker::ScanDirectory(DIR *in_dir, string in_path) {
 	return 1;
 }
 
+// Catch plugin failures so we can alert the user
+string global_plugin_load;
+void PluginSignalHandler(int sig) {
+	fprintf(stderr, "\n\n"
+			"FATAL: Kismet_Server crashed while loading a plugin...\n"
+			"Plugin loading: %s\n\n"
+			"This is either a bug in the plugin, or the plugin needs to be recompiled\n"
+			"to match the version of Kismet you are using (especially if you are using\n"
+			"development versions of Kismet or have recently upgraded.\n\n"
+			"If the plugin is automatically loaded, edit ~/.kismet/kismet_ui.conf and\n"
+			"remove the plugin_autoload line.\n\n", global_plugin_load.c_str());
+	exit(1);
+}
+
 int Plugintracker::ActivatePlugins() {
 	// Try to activate all the plugins
 	for (unsigned int x = 0; x < plugin_vec.size(); x++) {
 		// Try to DLOPEN anything that isn't open
 		if (plugin_vec[x]->dlfileptr == NULL) {
+			global_plugin_load = plugin_vec[x]->filename;
+			signal(SIGSEGV, PluginSignalHandler);
+
 			if ((plugin_vec[x]->dlfileptr = 
 				 dlopen(plugin_vec[x]->filename.c_str(), RTLD_LAZY)) == NULL) {
 				_MSG("Failed to open plugin '"+ plugin_vec[x]->filename + "': " +
 					 dlerror(), MSGFLAG_FATAL);
 				globalreg->fatal_condition = 1;
+				signal(SIGSEGV, SIG_DFL);
 				return -1;
 			}
 
@@ -364,6 +382,7 @@ int Plugintracker::ActivatePlugins() {
 					 plugin_vec[x]->objectname + "': " + strerror(errno),
 					 MSGFLAG_FATAL);
 				globalreg->fatal_condition = 1;
+				signal(SIGSEGV, SIG_DFL);
 				return -1;
 			}
 
@@ -375,6 +394,7 @@ int Plugintracker::ActivatePlugins() {
 				_MSG("Failed to fetch info from plugin '" + 
 					 plugin_vec[x]->objectname + "'", MSGFLAG_FATAL);
 				globalreg->fatal_condition = 1;
+				signal(SIGSEGV, SIG_DFL);
 				return -1;
 			}
 
@@ -398,6 +418,7 @@ int Plugintracker::ActivatePlugins() {
 			_MSG("Failed to activate plugin '" + plugin_vec[x]->filename + 
 				 "'", MSGFLAG_FATAL);
 			globalreg->fatal_condition = 1;
+			signal(SIGSEGV, SIG_DFL);
 			return -1;
 		} else if (ret > 0) {
 			_MSG("Activated plugin '" + plugin_vec[x]->filename + "': " 
@@ -407,6 +428,7 @@ int Plugintracker::ActivatePlugins() {
 			plugin_vec[x]->activate = 1;
 		}
 
+		signal(SIGSEGV, SIG_DFL);
 	}
 
 	return 1;
