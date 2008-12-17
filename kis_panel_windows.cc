@@ -1336,6 +1336,7 @@ Kis_Plugin_Picker::Kis_Plugin_Picker(GlobalRegistry *in_globalreg,
 	t.alignment = 0;
 	titles.push_back(t);
 	pluglist->AddTitles(titles);
+	pluglist->SetCallback(COMPONENT_CBTYPE_ACTIVATED, PluginPickerButtonCB, this);
 	pluglist->Show();
 	AddComponentVec(pluglist, (KIS_PANEL_COMP_DRAW | KIS_PANEL_COMP_EVT |
 							   KIS_PANEL_COMP_TAB));
@@ -1456,16 +1457,8 @@ void Kis_Plugin_Picker::ButtonAction(Kis_Panel_Component *in_button) {
 		globalreg->panel_interface->KillPanel(this);
 
 		return;
-	}
-
-}
-
-int Kis_Plugin_Picker::KeyPress(int in_key) {
-	int listkey;
-	
-	if (active_component == pluglist && (in_key == '\n' || in_key == '\r' ||
-										 in_key == ' ')) {
-		listkey = pluglist->GetSelected();
+	} else if (in_button == pluglist) {
+		int listkey = pluglist->GetSelected();
 
 		if (listkey >= 0 && listkey < (int) plugins->size()) {
 			vector<string> listdata = pluglist->GetSelectedData();
@@ -1483,8 +1476,6 @@ int Kis_Plugin_Picker::KeyPress(int in_key) {
 			pluglist->ReplaceRow(listkey, listdata);
 		}
 	}
-
-	return Kis_Panel::KeyPress(in_key);
 }
 
 int NetDetailsButtonCB(COMPONENT_CALLBACK_PARMS) {

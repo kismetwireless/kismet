@@ -2051,7 +2051,7 @@ int Kis_Scrollable_Table::KeyPress(int in_key) {
 		hscroll_pos--;
 	}
 
-	if (in_key == '\n' || in_key == '\r') {
+	if (in_key == '\n' || in_key == '\r' || in_key == ' ') {
 		if (cb_activate != NULL) 
 			(*cb_activate)(this, GetSelected(), cb_activate_aux, globalreg);
 
@@ -2444,7 +2444,7 @@ int Kis_Button::KeyPress(int in_key) {
 	if (visible == 0)
 		return 0;
 
-	if (in_key == KEY_ENTER || in_key == '\n') {
+	if (in_key == KEY_ENTER || in_key == '\n' || in_key == ' ') {
 		if (cb_activate != NULL) 
 			(*cb_activate)(this, 1, cb_activate_aux, globalreg);
 

@@ -294,7 +294,6 @@ public:
 
 	virtual void Position(int in_sy, int in_sx, int in_y, int in_x);
 	virtual void DrawPanel();
-	virtual int KeyPress(int in_key);
 	virtual void ButtonAction(Kis_Panel_Component *in_button);
 
 protected:
