@@ -3008,6 +3008,11 @@ int Kis_Panel::KeyPress(int in_key) {
 			return 0;
 	}
 
+	// figure out if we need to get to a visible item first and jump to it via the
+	// tab function
+	if (active_component != NULL && active_component->GetVisible() == 0)
+		KeyPress('\t');
+
 	if (in_key == '\t' && tab_pos >= 0) {
 		int set = -1;
 

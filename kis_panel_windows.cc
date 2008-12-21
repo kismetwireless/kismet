@@ -233,6 +233,7 @@ Kis_Main_Panel::Kis_Main_Panel(GlobalRegistry *in_globalreg,
 
 	active_component = netlist;
 	netlist->Activate(0);
+	tab_pos = 0;
 
 	AddComponentVec(netlist, KIS_PANEL_COMP_TAB | KIS_PANEL_COMP_EVT);
 
