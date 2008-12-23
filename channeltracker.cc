@@ -173,7 +173,11 @@ Channeltracker::~Channeltracker() {
 void Channeltracker::ChanTimer() {
 	map<uint32_t, int> *tick_map = globalreg->sourcetracker->FetchChannelTickMap();
 
-	for (map<uint32_t, int>::iterator x = tick_map->begin(); x != tick_map->end(); ++x) {
+	// If we have more than 50 channels (arbitrary number) in the tick map, we're
+	// probably processing a huge range, which means we won't include the tick
+	// map - we'll only use the map of channels we've seen packets on.
+	for (map<uint32_t, int>::iterator x = tick_map->begin(); 
+		 x != tick_map->end() && tick_map->size() < 50; ++x) {
 		if (x->first == 0)
 			continue;
 		
